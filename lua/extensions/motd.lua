@@ -24,7 +24,8 @@ end
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
 		MessageText = { "Welcome to my awesome server!", "Admins can be reached @ mywebsite.com", "Have a pleasant stay!" }, --Message lines.
-		Delay = 5 --Wait this long after spawning to display the message.
+		Delay = 5, --Wait this long after spawning to display the message.
+		Accepted = {}
 	}
 
 	if Save then
@@ -75,6 +76,10 @@ function Plugin:LoadConfig()
 end
 
 function Plugin:ClientConnect( Client )
+	local ID = Client:GetUserId()
+
+	if self.Config.Accepted[ tostring( ID ) ] then return end
+
 	Shine.Timer.Simple( self.Config.Delay, function()
 		local Player = Client:GetControllingPlayer()
 		if not Player then return end
@@ -104,6 +109,29 @@ function Plugin:CreateCommands()
 	end
 	Commands.MotDCommand = Shine:RegisterCommand( "sh_motd", "motd", MotD, true )
 	Commands.MotDCommand:Help( "Shows the message of the day." )
+
+	local function AcceptMotD( Client )
+		if not Client then return end
+		
+		local Player = Client:GetControllingPlayer()
+
+		if not Player then return end
+
+		local ID = Client:GetUserId()
+
+		if self.Config.Accepted[ tostring( ID ) ] then
+			Shine:Notify( Player, "You have already accepted the message of the day." )
+
+			return
+		end
+
+		self.Config.Accepted[ tostring( ID ) ] = true
+		self:SaveConfig()
+
+		Shine:Notify( Player, "Thank you for accepting the message of the day." )
+	end
+	Commands.AcceptMotDCommand = Shine:RegisterCommand( "sh_acceptmotd", "acceptmotd", AcceptMotD, true )
+	Commands.AcceptMotDCommand:Help( "Accepts the message of the day so you no longer see it on connect." )
 
 	local function ShowMotD( Client, Target )
 		local Player = Target:GetControllingPlayer()
