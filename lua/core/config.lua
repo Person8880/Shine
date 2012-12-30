@@ -45,6 +45,7 @@ end
 
 function Shine:GenerateDefaultConfig( Save )
 	self.Config = {
+		EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
 		LogDir = "config://shine\\logs\\", --Logging directory.
 		ExtensionDir = "config://shine\\plugins\\", --Plugin configs directory.
 		GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.

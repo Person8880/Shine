@@ -86,14 +86,16 @@ Shine.GetTimeString = GetTimeString
 Shared.OldMessage = Shared.OldMessage or Shared.Message
 
 function Shared.Message( String )
-	return Shared.OldMessage( GetDate( true )..GetTimeString()..String )
+	return Shared.OldMessage( GetTimeString()..String )
 end
 
 local function GetCurrentLogFile()
-	return Shine.Config.LogDir..GetDate()..".txt"--Some way to get the date?
+	return Shine.Config.LogDir..GetDate()..".txt"
 end
 
-function Shine.LogString( String, Echo )
+function Shine:LogString( String, Echo )
+	if not self.Config.EnableLogging then return end
+	
 	local OldLog, Err = io.open( GetCurrentLogFile(), "r" )
 
 	local Data = ""
@@ -125,7 +127,7 @@ function Shine:Print( String, Format, ... )
 
 	Shared.Message( String )
 
-	self.LogString( String )
+	self:LogString( String )
 end
 
 function Shine:Notify( Player, String, Format, ... )
