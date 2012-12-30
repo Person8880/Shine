@@ -2,6 +2,7 @@
 	Shine basecommands system.
 ]]
 
+local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 local TableShuffle = table.Shuffle
 
@@ -112,7 +113,7 @@ function Plugin:CreateCommands()
 
 	local function SetPassword( Client, Password )
 		Server.SetPassword( Password )
-		Shine:AdminPrint( Client, "Password %s.", true, Password ~= "" and "set to "..Password or "reset" )
+		Shine:AdminPrint( Client, "Password %s", true, Password ~= "" and "set to "..Password or "reset" )
 	end
 	Commands.SetPasswordCommand = Shine:RegisterCommand( "sh_password", "password", SetPassword )
 	Commands.SetPasswordCommand:AddParam{ Type = "string", TakeRestOfLine = true, Optional = true, Default = "" }
@@ -338,7 +339,7 @@ function Plugin:CreateCommands()
 		Shared.Message( "Chat Team - Admin: "..Message )
 		Server.AddChatToHistory( Message, "Admin", 0, Team, true )
 	end
-	Commands.AdminTeamSayCommand = Shine:RegisterCommand( "sh_teamsay", "teamsay", false, true )
+	Commands.AdminTeamSayCommand = Shine:RegisterCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
 	Commands.AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
 	Commands.AdminTeamSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, MaxLength = kMaxChatLength, Error = "Please specify a message." }
 	Commands.AdminTeamSayCommand:Help( "<marine/alien> <message> Sends a messages to everyone on the given team from 'Admin'." )

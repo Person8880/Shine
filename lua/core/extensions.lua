@@ -12,7 +12,7 @@ function Shine:RegisterExtension( Name, Table )
 end
 
 function Shine:LoadExtension( Name )
-	if self.Plugins[ Name ].Enabled then
+	if self.Plugins[ Name ] and self.Plugins[ Name ].Enabled then
 		self:UnloadExtension( Name )
 	end
 

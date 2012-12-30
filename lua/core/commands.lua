@@ -258,7 +258,9 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		if CurArg.Type == "string" and CurArg.TakeRestOfLine then
 			if i == ExpectedCount then
 				local Rest = TableConcat( Args, " ", i + 1 )
-				ParsedArgs[ i ] = ParsedArgs[ i ].." "..Rest
+				if Rest ~= "" then
+					ParsedArgs[ i ] = ParsedArgs[ i ].." "..Rest
+				end
 				if CurArg.MaxLength then
 					ParsedArgs[ i ] = ParsedArgs[ i ]:sub( 1, CurArg.MaxLength )
 				end
