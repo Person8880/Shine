@@ -105,6 +105,7 @@ Shine.Timer.Destroy = Destroy
 local function Exists( Name )
 	return Timers[ Name ] ~= nil
 end
+Shine.Timer.Exists = Exists
 
 --[[
 	Checks and executes timers on server update.

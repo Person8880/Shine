@@ -2,6 +2,7 @@
 	Shine basecommands system.
 ]]
 
+local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 local TableShuffle = table.Shuffle
