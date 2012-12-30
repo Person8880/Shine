@@ -132,21 +132,32 @@ function Shine:Notify( Player, String, Format, ... )
 
 	Message = Message:sub( 1, kMaxChatLength )
 
+	local TargetName = ""
+
 	if type( Player ) == "table" then
-		for i = 1, #Player do
-			Server.SendNetworkMessage( Player[ i ], "Chat", BuildChatMessage( false, "", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+		local PlayerCount = #Player
+
+		for i = 1, PlayerCount do
+			local Ply = Player[ i ]
+
+			Server.SendNetworkMessage( Ply, "Chat", BuildChatMessage( false, "", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+			TargetName = TargetName..Ply:GetName()..( i ~= PlayerCount and ", " or "" )
 		end
 	elseif Player then
 		Server.SendNetworkMessage( Player, "Chat", BuildChatMessage( false, "", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+
+		TargetName = Player:GetName()
 	else
 		local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Chat", BuildChatMessage( false, "", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
+
+		TargetName = "everyone"
 	end
 
-	self:Print( "Shine Notify: %s", true, Message )
+	self:Print( "Shine Notify to %s: %s", true, TargetName, Message )
 end
 
 function Shine:AdminPrint( Client, String, Format, ... )

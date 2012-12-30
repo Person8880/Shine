@@ -140,6 +140,8 @@ end
 --[[
 	Determines if the given client has raw access to the given command.
 	Unlike get permission, this looks specifically for a user group with explicit permission.
+	It also does not require the command to exist.
+	
 	Inputs: Client or Steam ID, command name (sv_*)
 	Output: True if explicitly allowed.
 ]]
@@ -147,9 +149,6 @@ function Shine:HasAccess( Client, ConCommand )
 	if not Client then return true end
 
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
-	local Command = self.Commands[ ConCommand ]
-
-	if not Command then return false end
 
 	local User = self.UserData.Users[ tostring( ID ) ]
 
