@@ -147,7 +147,7 @@ function Plugin:CreateCommands()
 		Shine:Print( "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
 	end
 	Commands.BanCommand = Shine:RegisterCommand( "sh_ban", "ban", Ban )
-	Commands.BanCommand:AddParam{ Type = "client" }
+	Commands.BanCommand:AddParam{ Type = "client", NotSelf = true }
 	Commands.BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
 	Commands.BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
 	Commands.BanCommand:Help( "<player/steamid> <duration in minutes> Bans the given player for the given time in minutes. 0 is a permanent ban." )

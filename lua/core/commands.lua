@@ -139,8 +139,16 @@ local ParamTypes = {
 	client = function( Client, String, Table )
 		if not String then return  isfunction( Table.Default ) and Table.Default() or Table.Default end
 
-		if String == "^" then return Client end
-		return Shine:GetClient( String )
+		local Target
+		if String == "^" then 
+			Target = Client 
+		else
+			Target = Shine:GetClient( String )
+		end
+		
+		if Table.NotSelf and Target == Client then return nil end
+
+		return Target
 	end,
 	clients = function( Client, String, Table )
 		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
@@ -173,7 +181,7 @@ local ParamTypes = {
 			else
 				CurClient = Shine:GetClient( Val )
 			end
-			if CurClient then
+			if CurClient and not ( Table.NotSelf and CurClient == Client ) then
 				Clients[ #Clients + 1 ] = CurClient
 			end
 		end

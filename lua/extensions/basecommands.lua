@@ -150,7 +150,7 @@ function Plugin:CreateCommands()
 		Server.DisconnectClient( Target )
 	end
 	Commands.KickCommand = Shine:RegisterCommand( "sh_kick", "kick", Kick )
-	Commands.KickCommand:AddParam{ Type = "client" }
+	Commands.KickCommand:AddParam{ Type = "client", NotSelf = true }
 	Commands.KickCommand:Help( "<playername/steam id> Kicks the given player." )
 
 	local function Status( Client )
