@@ -60,7 +60,8 @@ local function Call( Event, ... )
 		for Plugin, Table in pairs( Plugins ) do
 			if Table.Enabled then
 				if Table[ Event ] and type( Table[ Event ] ) == "function" then
-					Table[ Event ]( Table, ... )
+					local Result = { Table[ Event ]( Table, ... ) }
+					if Result[ 1 ] ~= nil then return Result end
 				end
 			end
 		end

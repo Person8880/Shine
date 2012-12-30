@@ -49,7 +49,7 @@ function string.TimeToString( Time )
 		( FloorHours == 1 and "1 hour" ) or ( FloorHours > 1 and FloorHours.." hours" ) or "",
 		FloorHours ~= 0 and ( FloorMins ~= 0 or Seconds ~= 0 ) and ", " or "",
 		( FloorMins == 1 and "1 minute" ) or ( FloorMins > 1 and FloorMins.." minutes" ) or "",
-		Seconds ~= 0 and " and " or "",
+		Seconds ~= 0 and FloorMins ~= 0 and " and " or "",
 		( Seconds == 1 and "1 second" ) or ( Seconds > 1 and Seconds.." seconds" ) or ""
 	)
 end

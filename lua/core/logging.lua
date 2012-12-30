@@ -10,6 +10,7 @@ local EntityListToTable = EntityListToTable
 local GetEntsByClass = Shared.GetEntitiesWithClassname
 
 local Time = Shared.GetSystemTime
+local Ceil = math.ceil
 local Floor = math.floor
 local StringFormat = string.format
 
@@ -130,7 +131,14 @@ end
 function Shine:Notify( Player, String, Format, ... )
 	local Message = Format and StringFormat( String, ... ) or String
 
-	Message = Message:sub( 1, kMaxChatLength )
+	local MessageLength = #Message
+	if MessageLength > kMaxChatLength then
+		local Iterations = Ceil( MessageLength / kMaxChatLength )
+		for i = 1, Iterations do
+			self:Notify( Player, Message:sub( 1 + kMaxChatLength * ( i - 1 ), kMaxChatLength * i ) )
+		end
+		return
+	end
 
 	local TargetName = ""
 

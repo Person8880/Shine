@@ -132,7 +132,7 @@ end
 
 local ParamTypes = {
 	string = function( Client, String, Table )
-		if not String then return  isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String or String == "" then return  isfunction( Table.Default ) and Table.Default() or Table.Default end
 
 		return Table.MaxLength and String:sub( 1, Table.MaxLength ) or String
 	end,
