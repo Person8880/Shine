@@ -13,14 +13,13 @@ local TableRemove = table.remove
 --[[
 	Command object.
 	Stores the console command, chat command and the function to run when these commands are used.
-	Last argument specifies whether to hide the chat message of the player that used it.
 ]]
 local CommandMeta = {}
 CommandMeta.__index = CommandMeta
 
 --[[
 	Adds a parameter to a command. This defines what an argument should be parsed into.
-	For instance, a paramter of type "client" will be parsed into a client from their name.
+	For instance, a paramter of type "client" will be parsed into a client from their name or Steam ID.
 ]]
 function CommandMeta:AddParam( Table )
 	assert( type( Table ) == "table", "Bad argument #1 to AddParam, table expected, got "..type( Table ) )
@@ -36,7 +35,8 @@ function CommandMeta:Help( HelpString )
 end
 
 --[[
-	Creates a command object. The object stores the console command, chat command, function to run, permission setting and silent setting.
+	Creates a command object. 
+	The object stores the console command, chat command, function to run, permission setting and silent setting.
 	It can also have parameters added to it to pass to its function.
 ]]
 local function Command( ConCommand, ChatCommand, Function, NoPermissions, Silent )
@@ -74,6 +74,8 @@ function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silen
 	
 	if ChatCommand then
 		local ChatCommands = self.ChatCommands
+
+		--Adding a table of chat commands so a console command can be tied to more than one.
 		if type( ChatCommand ) == "table" then
 			for i = 1, #ChatCommand do
 				ChatCommands[ ChatCommand[ i ] ] = CmdObj
@@ -96,6 +98,8 @@ end
 --[[
 	Removes a registered Shine command.
 	Inputs: Console command, optional chat command.
+
+	Note that we do not remove the command from 'HookedCommands', as NS2's hook system lacks a way to remove hooks.
 ]]
 function Shine:RemoveCommand( ConCommand, ChatCommand )
 	self.Commands[ ConCommand ] = nil
@@ -132,12 +136,12 @@ end
 
 local ParamTypes = {
 	string = function( Client, String, Table )
-		if not String or String == "" then return  isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String or String == "" then return isfunction( Table.Default ) and Table.Default() or Table.Default end
 
 		return Table.MaxLength and String:sub( 1, Table.MaxLength ) or String
 	end,
 	client = function( Client, String, Table )
-		if not String then return  isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
 
 		local Target
 		if String == "^" then 

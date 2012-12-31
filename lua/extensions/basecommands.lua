@@ -146,11 +146,17 @@ function Plugin:CreateCommands()
 	Commands.AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
 	Commands.AllTalkCommand:Help( "<true/false> Enable or disable all talk, which allows everyone to hear each others voice chat regardless of team." )
 
-	local function Kick( Client, Target )
+	local function Kick( Client, Target, Reason )
+		Shine:Print( "%s kicked %s.%s", true, 
+			Client and Client:GetControllingPlayer():GetName() or "Console", 
+			Target:GetControllingPlayer():GetName(),
+			Reason ~= "" and " Reason: "..Reason or ""
+		)
 		Server.DisconnectClient( Target )
 	end
 	Commands.KickCommand = Shine:RegisterCommand( "sh_kick", "kick", Kick )
 	Commands.KickCommand:AddParam{ Type = "client", NotSelf = true }
+	Commands.KickCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "" }
 	Commands.KickCommand:Help( "<playername/steam id> Kicks the given player." )
 
 	local function Status( Client )
@@ -182,7 +188,7 @@ function Plugin:CreateCommands()
 		local Maps = {}
 		Shared.GetMatchingFileNames( "maps/*.level", false, Maps )
 
-		Shine:AdminPrint( "Installed maps:" )
+		Shine:AdminPrint( Client, "Installed maps:" )
 		for _, MapPath in pairs( Maps ) do
 			local MapName = MapPath:match( "maps/(.-).level" )
 			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
