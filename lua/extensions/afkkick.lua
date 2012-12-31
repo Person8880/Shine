@@ -103,6 +103,8 @@ function Plugin:UpdateClient( Player, Client, DataTable, Time )
 	if not Player then return end
 	if not Client then return end
 
+	if Client:GetIsVirtual() then return end
+
 	if Shine:HasAccess( Client, "sh_afk" ) then return end --Immunity.
 
 	local CurPos = Player:GetOrigin()
@@ -158,7 +160,7 @@ function Plugin:Think( DeltaTime )
 			local Client = Server.GetOwner( Player )
 
 			if Client then
-				if not self.Users[ Client ] then
+				if not Client:GetIsVirtual() and not self.Users[ Client ] then
 					self:ClientConnect( Client ) --Failsafe.
 				end
 				

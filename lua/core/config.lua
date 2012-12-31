@@ -57,7 +57,6 @@ function Shine:GenerateDefaultConfig( Save )
 			ban = true,
 			motd = true,
 			mapvote = true,
-			voterandom = true,
 			votesurrender = true
 		},
 		EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.

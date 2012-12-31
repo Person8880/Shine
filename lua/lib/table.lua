@@ -7,8 +7,13 @@ local Random = math.random
 local TableSort = table.sort
 
 function table.Shuffle( Table )
+	local SortTable = {}
+	for i = 1, #Table do
+		SortTable[ Table[ i ] ] = Random( 1, 100000 )
+	end
+
 	TableSort( Table, function( A, B )
-		return Random( 1, 100 ) > 50
+		return SortTable[ A ] > SortTable[ B ]
 	end )
 end
 

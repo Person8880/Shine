@@ -388,8 +388,8 @@ function Plugin:CreateCommands()
 		local PlayerName = Player and Player:GetName() or "Console"
 
 		if not self.Config.Maps[ Map ] then
-			if Client then
-				Shine:Notify( Client:GetControllingPlayer(), "%s is not on the map list.", true, Map )
+			if Player then
+				Shine:Notify( Player, "%s is not on the map list.", true, Map )
 			else
 				Notify( StringFormat( "%s is not on the map list.", Map ) )
 			end
@@ -400,8 +400,8 @@ function Plugin:CreateCommands()
 		local Nominated = self.Vote.Nominated
 
 		if TableContains( Nominated, Map ) then
-			if Client then
-				Shine:Notify( Client:GetControllingPlayer(), "%s has already been nominated.", true, Map )
+			if Player then
+				Shine:Notify( Player, "%s has already been nominated.", true, Map )
 			else
 				Notify( StringFormat( "%s has already been nominated.", Map ) )
 			end
@@ -412,8 +412,8 @@ function Plugin:CreateCommands()
 		local Count = #Nominated 
 
 		if Count >= self.Config.MaxOptions then
-			if Client then
-				Shine:Notify( Client:GetControllingPlayer(), "Nominations are full." )
+			if Player then
+				Shine:Notify( Player, "Nominations are full." )
 			else
 				Notify( "Nominations are full." )
 			end
@@ -422,8 +422,8 @@ function Plugin:CreateCommands()
 		end
 
 		if self:VoteStarted() then
-			if Client then
-				Shine:Notify( Client:GetControllingPlayer(), "A vote is already in progress." )
+			if Player then
+				Shine:Notify( Player, "A vote is already in progress." )
 			else
 				Notify( "A vote is already in progress." )
 			end
@@ -465,13 +465,13 @@ function Plugin:CreateCommands()
 		end
 		
 		if Err == "already voted" then
-			if Client then
+			if Player then
 				Shine:Notify( Player, "You have already voted to begin a map vote." )
 			else
 				Notify( "You have already voted to begin a map vote." )
 			end
 		else
-			if Client then
+			if Player then
 				Shine:Notify( Player, "A map vote is already in progress." )
 			else
 				Notify( "A map vote is already in progress." )
@@ -486,7 +486,7 @@ function Plugin:CreateCommands()
 		local PlayerName = Player and Player:GetName() or "Console"
 
 		if not self:VoteStarted() then
-			if Client then
+			if Player then
 				Shine:Notify( Player, "There is no map vote in progress." )
 			else
 				Notify( "There is no map vote in progress." )
@@ -496,8 +496,8 @@ function Plugin:CreateCommands()
 		end
 
 		if not self.Vote.VoteList[ Map ] then
-			if Client then
-				Shine:Notify( Client:GetControllingPlayer(), "%s is not a choice in the vote.", true, Map )
+			if Player then
+				Shine:Notify( Player, "%s is not a choice in the vote.", true, Map )
 			else
 				Notify( StringFormat( "%s is not a choice in the vote.", Map ) )
 			end
@@ -515,7 +515,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		if Client then
+		if Player then
 			Shine:Notify( Player, "You have already voted." )
 		else
 			Notify( "You have already voted." )
@@ -530,7 +530,7 @@ function Plugin:CreateCommands()
 		local PlayerName = Player and Player:GetName() or "Console"
 
 		if not self.Vote.CanVeto then
-			if Client then
+			if Player then
 				Shine:Notify( Player, "There is no map change in progress." )
 			else
 				Notify( "There is no map change in progress." )

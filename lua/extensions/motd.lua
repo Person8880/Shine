@@ -76,6 +76,8 @@ function Plugin:LoadConfig()
 end
 
 function Plugin:ClientConnect( Client )
+	if Client:GetIsVirtual() then return end
+	
 	local ID = Client:GetUserId()
 
 	if self.Config.Accepted[ tostring( ID ) ] then return end
