@@ -44,7 +44,7 @@ function Plugin:GenerateDefaultConfig( Save )
 		PercentNeeded = 0.75, --Percentage of the population needing to vote in order to scramble.
 		VoteDelay = 5, --Time between successful votes
 		MinPlayers = 10, --Min players needed for voting to be enabled.
-		ScrambleType = self.SCRAMBLE_RANDOM --1 means random, 2 means by score.
+		ScrambleType = self.SCRAMBLE_SCORE --1 means random, 2 means by score.
 	}
 
 	if Save then
@@ -127,6 +127,7 @@ function Plugin:ScrambleTeams()
 	local IgnoreComm = self.Config.IgnoreCommanders
 	local IgnoreSpectators = self.Config.IgnoreSpectators
 
+	--Commander immunity.
 	if IgnoreComm then
 		for i = 1, #Players do
 			local Player = Players[ i ]
@@ -136,11 +137,27 @@ function Plugin:ScrambleTeams()
 		end
 	end
 
+	--Spectator immunity.
 	if IgnoreSpectators then
 		for i = 1, #Players do
 			local Player = Players[ i ]
 			if not Player or not Player.GetTeamNumber or Player:GetTeamNumber() == kTeamReadyRoom then
 				TableRemove( Players, i )
+			end
+		end
+	end
+
+	--Scramble immunity.
+	for i = 1, #Players do
+		local Player = Players[ i ]
+		
+		if Player then
+			local Client = Server.GetOwner( Player )
+
+			if Client then
+				if Shine:HasAccess( Client, "sh_scrambleimmune" ) then
+					TableRemove( Players, i )
+				end
 			end
 		end
 	end
