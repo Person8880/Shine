@@ -23,6 +23,7 @@ local Scripts = {
 	"core/commands.lua",
 	"core/extensions.lua",
 	"core/config.lua",
+	"core/chat.lua",
 	"core/logging.lua",
 }
 

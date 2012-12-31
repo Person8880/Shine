@@ -316,7 +316,7 @@ function Plugin:CreateCommands()
 				Player:Eject()
 			else
 				if Client then
-					Shine:Notify( Client:GetControllingPlayer(), "%s is not a commander.", true, Player:GetName() )
+					Shine:Notify( Client:GetControllingPlayer(), "Error", "Admin", "%s is not a commander.", true, Player:GetName() )
 				else
 					Shine:Print( "%s is not a commander.", true, Player:GetName() )
 				end

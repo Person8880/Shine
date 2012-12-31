@@ -53,9 +53,9 @@ function Shine:SaveUsers()
 	local UserFile, Err = io.open( UserPath, "w+" )
 
 	if not UserFile then
-		Shine.Error = "Error writing user file: "..Err
+		self.Error = "Error writing user file: "..Err
 
-		Notify( Shine.Error )
+		Notify( self.Error )
 
 		return
 	end

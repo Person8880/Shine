@@ -84,7 +84,7 @@ function Plugin:SetupTimer()
 	local Message = 1
 
 	Shine.Timer.Create( self.TimerName, self.Config.Interval, -1, function()
-		Shine:Notify( nil, self.Config.Adverts[ Message ] )
+		Shine:Notify( nil, "", "", self.Config.Adverts[ Message ] )
 		Message = ( Message % #self.Config.Adverts ) + 1
 	end )
 end

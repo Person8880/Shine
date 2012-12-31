@@ -155,7 +155,7 @@ function Plugin:ScrambleTeams()
 		end
 
 		Shine.Timer.Simple( 0.1, function()
-			Shine:Notify( nil, "Teams have been scrambled randomly." )
+			Shine:Notify( nil, "Scramble", "Admin", "Teams have been scrambled randomly." )
 		end )
 
 		self.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
@@ -173,7 +173,7 @@ function Plugin:ScrambleTeams()
 		end
 
 		Shine.Timer.Simple( 0.1, function()
-			Shine:Notify( nil, "Teams have been scrambled based on score." )
+			Shine:Notify( nil, "Scramble", "Admin", "Teams have been scrambled based on score." )
 		end )
 
 		self.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
@@ -198,20 +198,20 @@ function Plugin:CreateCommands()
 		if Success then
 			local VotesNeeded = self:GetVotesNeeded()
 
-			Shine:Notify( nil, "%s voted to scramble the teams (%s more votes needed).", true, PlayerName, VotesNeeded - Votes - 1 )
+			Shine:Notify( nil, "Vote", "Admin", "%s voted to scramble the teams (%s more votes needed).", true, PlayerName, VotesNeeded - Votes - 1 )
 
 			return
 		end
 
 		if Err == "can't start" then
 			if Player then
-				Shine:Notify( Player, "You cannot start a scramble teams vote at this time." )
+				Shine:Notify( Player, "Error", "Admin", "You cannot start a scramble teams vote at this time." )
 			else
 				Notify( "You cannot start a scramble teams vote at this time." )
 			end
 		else
 			if Player then
-				Shine:Notify( Player, "You have already voted." )
+				Shine:Notify( Player, "Error", "Admin", "You have already voted." )
 			else
 				Notify( "You have already voted." )
 			end

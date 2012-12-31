@@ -1,6 +1,6 @@
 --[[
 	Shine client side startup.
-	Currently unused.
 ]]
 
 Script.Load "lua/Client.lua"
+Script.Load "lua/core/chat.lua"

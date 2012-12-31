@@ -89,7 +89,7 @@ function Plugin:ClientConnect( Client )
 		local Messages = self.Config.MessageText
 
 		for i = 1, #Messages do
-			Shine:Notify( Player, Messages[ i ] )
+			Shine:Notify( Player, "", "", Messages[ i ] )
 		end
 	end )
 end
@@ -106,7 +106,7 @@ function Plugin:CreateCommands()
 		local Messages = self.Config.MessageText
 
 		for i = 1, #Messages do
-			Shine:Notify( Player, Messages[ i ] )
+			Shine:Notify( Player, "", "", Messages[ i ] )
 		end
 	end
 	Commands.MotDCommand = Shine:RegisterCommand( "sh_motd", "motd", MotD, true )
@@ -122,7 +122,7 @@ function Plugin:CreateCommands()
 		local ID = Client:GetUserId()
 
 		if self.Config.Accepted[ tostring( ID ) ] then
-			Shine:Notify( Player, "You have already accepted the message of the day." )
+			Shine:Notify( Player, "MotD", "Admin", "You have already accepted the message of the day." )
 
 			return
 		end
@@ -130,7 +130,7 @@ function Plugin:CreateCommands()
 		self.Config.Accepted[ tostring( ID ) ] = true
 		self:SaveConfig()
 
-		Shine:Notify( Player, "Thank you for accepting the message of the day." )
+		Shine:Notify( Player, "MotD", "Admin", "Thank you for accepting the message of the day." )
 	end
 	Commands.AcceptMotDCommand = Shine:RegisterCommand( "sh_acceptmotd", "acceptmotd", AcceptMotD, true )
 	Commands.AcceptMotDCommand:Help( "Accepts the message of the day so you no longer see it on connect." )
@@ -142,7 +142,7 @@ function Plugin:CreateCommands()
 		local Messages = self.Config.MessageText
 
 		for i = 1, #Messages do
-			Shine:Notify( Player, Messages[ i ] )
+			Shine:Notify( Player, "", "", Messages[ i ] )
 		end
 	end
 	Commands.ShowMotDCommand = Shine:RegisterCommand( "sh_showmotd", "showmotd", ShowMotD )
