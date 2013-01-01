@@ -259,7 +259,7 @@ function Plugin:StartVote()
 
 	--Create our notification timer, it will inform the players of how long is left and remind them the vote is still going.
 	Shine.Timer.Create( self.NotifyTimer, Interval, Reps, function()
-		local TimeLeft = EndTime - Shared.GetTime()
+		local TimeLeft = Ceil( EndTime - Shared.GetTime() )
 		if TimeLeft <= 0 then return end
 
 		local TimeLeftString = string.TimeToString( TimeLeft )
@@ -394,6 +394,16 @@ function Plugin:CreateCommands()
 				Shine:Notify( Player, "Error", "Admin", "%s is not on the map list.", true, Map )
 			else
 				Notify( StringFormat( "%s is not on the map list.", Map ) )
+			end
+
+			return
+		end
+
+		if not self.Config.AllowExtend and Shared.GetMapName() == Map then
+			if Player then
+				Shine:Notify( Player, "Error", "Admin", "You cannot nominate the current map." )
+			else
+				Notify( "You cannot nominate the current map." )
 			end
 
 			return

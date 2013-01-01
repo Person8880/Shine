@@ -96,6 +96,7 @@ end
 function Shine:LogString( String, Echo )
 	if not self.Config.EnableLogging then return end
 	
+	--This is dumb, but append mode appears to be broken.
 	local OldLog, Err = io.open( GetCurrentLogFile(), "r" )
 
 	local Data = ""
@@ -137,7 +138,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 	if MessageLength > kMaxChatLength then
 		local Iterations = Ceil( MessageLength / kMaxChatLength )
 		for i = 1, Iterations do
-			self:Notify( Player, Prefix, Message:sub( 1 + kMaxChatLength * ( i - 1 ), kMaxChatLength * i ) )
+			self:Notify( Player, Prefix, Name, Message:sub( 1 + kMaxChatLength * ( i - 1 ), kMaxChatLength * i ) )
 		end
 		return
 	end

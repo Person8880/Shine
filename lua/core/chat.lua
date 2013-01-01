@@ -30,7 +30,7 @@ Shared.RegisterNetworkMessage( "Shine_Chat", ChatMessage )
 if Server then return end
 
 --[[
-	As UWE refuse to allow an easy hook into the chat without copying the entire file into your mod, time for hax.
+	As UWE do not have an easy hook into the chat without copying the entire file into your mod, time for hax.
 ]]
 local DebugGetUpValue = debug.getupvalue
 

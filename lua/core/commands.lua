@@ -134,6 +134,13 @@ local function isfunction( Func )
 	return type( Func ) == "function"
 end
 
+local TargetFuncs = {
+	[ "@spectate" ] = function() return Shine.GetTeamClients( 3 ) end,
+	[ "@readyroom" ] = function() return Shine.GetTeamClients( kTeamReadyRoom ) end,
+	[ "@marine" ] = function() return Shine.GetTeamClients( 1 ) end,
+	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end
+}
+
 local ParamTypes = {
 	string = function( Client, String, Table )
 		if not String or String == "" then return isfunction( Table.Default ) and Table.Default() or Table.Default end
@@ -157,22 +164,6 @@ local ParamTypes = {
 	clients = function( Client, String, Table )
 		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
 
-		if String == "*" then
-			return Shine.GetAllClients()
-		end
-
-		if String == "@spectate" then
-			return Shine.GetTeamClients( kTeamReadyRoom )
-		end
-
-		if String == "@marine" then
-			return Shine.GetTeamClients( 1 )
-		end
-
-		if String == "@alien" then
-			return Shine.GetTeamClients( 2 )
-		end
-
 		local Vals = StringExplode( String, "," )
 		
 		local Clients = {}
@@ -180,13 +171,26 @@ local ParamTypes = {
 		for i = 1, #Vals do
 			local Val = Vals[ i ]
 			local CurClient 
-			if Val == "^" then
+
+			if Val == "*" then
+				return Shine.GetAllClients() --Don't want to add superfluous results...
+			elseif Val == "^" then
 				CurClient = Client
+				if not Table.NotSelf then
+					Clients[ #Clients + 1 ] = CurClient
+				end
 			else
-				CurClient = Shine:GetClient( Val )
-			end
-			if CurClient and not ( Table.NotSelf and CurClient == Client ) then
-				Clients[ #Clients + 1 ] = CurClient
+				if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
+					local Add = TargetFuncs[ Val ]()
+					for j = 1, #Add do
+						Clients[ #Clients + 1 ] = Add[ j ]
+					end
+				else
+					CurClient = Shine:GetClient( Val )
+					if CurClient and not ( Table.NotSelf and CurClient == Client ) then
+						Clients[ #Clients + 1 ] = CurClient
+					end
+				end
 			end
 		end
 		
@@ -309,8 +313,15 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		end
 	end
 
+	local Arguments = TableConcat( Args, ", " )
+
 	--Log the command's execution.
-	self:Print( "%s[%s] ran command %s with arguments: %s", true, Client and Client:GetControllingPlayer():GetName() or "Console", Client and Client:GetUserId() or "N/A", ConCommand, TableConcat( Args, ", " ) )
+	self:Print( "%s[%s] ran command %s %s", true, 
+		Client and Client:GetControllingPlayer():GetName() or "Console", 
+		Client and Client:GetUserId() or "N/A", 
+		ConCommand, 
+		Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." 
+	)
 
 	--Run the command with the parsed arguments we've gathered.
 	Command.Func( Client, unpack( ParsedArgs ) )

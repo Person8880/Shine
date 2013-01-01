@@ -17,7 +17,11 @@ function TimerMeta:Destroy()
 	if self.Name then
 		Timers[ self.Name ] = nil
 	else
-		TableRemove( Simples, self.Index )
+		for i = 1, #Simples do
+			if Simples[ i ].Index == self.Index then
+				TableRemove( Simples, i )
+			end
+		end
 	end
 end
 

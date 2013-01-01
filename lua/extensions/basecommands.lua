@@ -328,9 +328,7 @@ function Plugin:CreateCommands()
 	Commands.EjectCommand:Help( "<playername/steamid> Ejects the given commander." )
 
 	local function AdminSay( Client, Message )
-		Server.SendNetworkMessage( "Chat", BuildChatMessage( false, "Admin", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-		Shared.Message( "Chat All - Admin: "..Message )
-		Server.AddChatToHistory( Message, "Admin", 0, kTeamReadyRoom, false )
+		Shine:Notify( nil, "All", "Admin", Message )
 	end
 	Commands.AdminSayCommand = Shine:RegisterCommand( "sh_say", "say", AdminSay, false, true )
 	Commands.AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength, TakeRestOfLine = true, Error = "Please specify a message." }
@@ -339,12 +337,7 @@ function Plugin:CreateCommands()
 	local function AdminTeamSay( Client, Team, Message )
 		local Players = GetEntitiesForTeam( "Player", Team )
 		
-		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Chat", BuildChatMessage( false, "Team - Admin", -1, Team, kNeutralTeamType, Message ), true )
-		end
-		
-		Shared.Message( "Chat Team - Admin: "..Message )
-		Server.AddChatToHistory( Message, "Admin", 0, Team, true )
+		Shine:Notify( Players, "Team", "Admin", Message )
 	end
 	Commands.AdminTeamSayCommand = Shine:RegisterCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
 	Commands.AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
@@ -355,16 +348,12 @@ function Plugin:CreateCommands()
 		local Player = Target:GetControllingPlayer()
 
 		if Player then
-			Message = Message:sub( 1, kMaxChatLength )
-
-			Server.SendNetworkMessage( player, "Chat", BuildChatMessage( false, "PM - Admin", -1, 0, kNeutralTeamType, Message ), true )
-
-			Shine:Print( "Chat - PM %s to %s: %s", true, Client and Client:GetControllingPlayer():GetName() or "Console", Player:GetName(), Message )
+			Shine:Notify( Player, "PM", "Admin", Message )
 		end
 	end
 	Commands.PMCommand = Shine:RegisterCommand( "sh_pm", "pm", PM )
 	Commands.PMCommand:AddParam{ Type = "client" }
-	Commands.PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send." }
+	Commands.PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
 	Commands.PMCommand:Help( "<player/steam id> <message> Sends a private message to the given player." )
 end
 

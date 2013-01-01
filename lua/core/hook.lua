@@ -171,22 +171,53 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 		return OldCanHear( self, Listener, Speaker )
 	end )
 
-	--[[local MessageCount = 0
+	local OldLoginPlayer
+		
+	OldLoginPlayer = ReplaceMethod( "CommandStructure", "LoginPlayer", function( self, Player )
+		Call( "CommLoginPlayer", self, Player )
 
-	function Server.AddChatToHistory( Message, Name, SteamID, TeamNumber, TeamOnly )
-		MessageCount = MessageCount + 1
+		OldLoginPlayer( self, Player )
+	end )
+	
+	local OldLogout
+	
+	OldLogout = ReplaceMethod( "CommandStructure", "Logout", function( self )
+		Call( "CommLogout", self )
 
-		Server.recentChatMessages:Insert{ 
-			id = MessageCount, 
-			message = Message, 
-			player = Name,
-			steamId = SteamID, 
-			team = TeamNumber, 
-			teamOnly = TeamOnly 
-		}
+		OldLogout( self )
+	end )
+	
+	local OldOnResearchComplete
+	
+	OldOnResearchComplete = ReplaceMethod( "RecycleMixin", "OnResearchComplete", function( self, ResearchID )
+		Call( "OnBuildingRecycled", self, ResearchID )
 
-		local Client = Shine.GetClientBySteamID( SteamID )
+		OldOnResearchComplete( self, ResearchID )
+	end )
+	
+	local OldOnResearch
+	
+	OldOnResearch = ReplaceMethod( "RecycleMixin", "OnResearch", function( self, ResearchID ) 
+		Call( "OnRecycle", self, ResearchID )
 
-		Call( "PlayerSay", Message, Name, SteamID, TeamNumber, TeamOnly, Client )
-	end]]
+		OldOnResearch( self, ResearchID )
+	end )
+	
+	local OldConstructInit
+	
+	OldConstructInit = ReplaceMethod( "ConstructMixin", "OnInitialized", function( self )
+		Call( "OnConstructInit", self )
+
+		OldConstructInit( self )
+	end )
+
+	local OldPlayerSetName
+
+	OldPlayerSetName = ReplaceMethod( "Player", "SetName", function( self, Name )
+		local OldName = self:GetName()
+
+		OldPlayerSetName( self, Name )
+
+		Call( "PlayerNameChange", self, Name, OldName )
+	end )
 end )

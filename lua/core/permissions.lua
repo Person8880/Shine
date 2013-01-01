@@ -79,7 +79,7 @@ function Shine:GenerateDefaultUsers( Save )
 			Mod = { IsBlacklist = false, Commands = { "sh_kick" }, Immunity = 10 }
 		},
 		Users = {
-			[ 90000000000001 ] = { Group = "Mod", Immunity = 2 }
+			[ "90000000000001" ] = { Group = "Mod", Immunity = 2 }
 		}
 	}
 
