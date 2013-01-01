@@ -52,12 +52,17 @@ function Shine:GenerateDefaultConfig( Save )
 		UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.
 		DateFormat = "dd-mm-yyyy", --Format for logging dates.
 		ActiveExtensions = { --Defines which plugins should be active.
-			basecommands = true,
-			unstuck = true,
+			adverts = false,
+			afkkick = false,
 			ban = true,
-			motd = true,
+			basecommands = true,
+			logging = false,
 			mapvote = true,
-			votesurrender = true
+			motd = true,
+			unstuck = true,
+			votescramble = false,
+			votesurrender = true,
+			welcomemessages = false
 		},
 		EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
 		SilentChatCommands = true --Defines whether to silence all chat commands, or only those starting with "/".
@@ -74,8 +79,10 @@ function Shine:LoadExtensionConfigs()
 	Notify( "Loading extensions..." )
 
 	for Name, Enabled in pairs( self.Config.ActiveExtensions ) do
-		local Success, Err = Shine:LoadExtension( Name )
-		Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s", Name, Err ) )
+		if Enabled then
+			local Success, Err = Shine:LoadExtension( Name )
+			Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s", Name, Err ) )
+		end
 	end
 
 	Notify( "Completed loading Shine extensions." )
