@@ -8,6 +8,10 @@ local Plugin = {}
 Plugin.Version = "1.0"
 
 function Plugin:Initialise()
+	if not Shine.Config.EnableLogging then
+		return false, "Shine logging must be enabled, check your config file."
+	end
+	
 	self.Enabled = true
 
 	return true

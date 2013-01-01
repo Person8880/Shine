@@ -4,6 +4,7 @@
 
 --local EntityListToTable-- = EntityListToTable
 local GetEntsByClass-- = Shared.GetEntitiesWithClassname
+local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local Ranomd = math.random
 
@@ -19,9 +20,7 @@ end
 function Shine.GetRandomPlayerList()
 	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 
-	TableSort( Players, function( A, B )
-		return Random( 1, 100 ) > 50
-	end )
+	TableShuffle( Players )
 
 	return Players
 end

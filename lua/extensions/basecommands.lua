@@ -248,7 +248,7 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( Client, "Loaded plugins:" )
 		for Name, Table in pairs( Shine.Plugins ) do
 			if Table.Enabled then
-				Shine:AdminPrint( Client, StringFormat( "%s - version: %s", Name, Table.Version ) )
+				Shine:AdminPrint( Client, StringFormat( "%s - version: %s", Name, Table.Version or "1.0" ) )
 			end
 		end
 	end
