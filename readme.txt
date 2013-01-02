@@ -3,7 +3,7 @@ Shine
 
 An administration mod for Natural Selection 2.
 
-Currently a work in progress. I hope to have it fully working soon.
+Currently a work in progress.
 
 The design goals are:
 - Be easy to extend and maintain.
@@ -18,6 +18,6 @@ The base config file will be called BaseConfig.json and will determine base sett
 
 User data will be loaded locally by default, from the file shine/UserConfig.json. On first run a sample file will be created. If you set 'GetUsersFromWeb' to true and provide a correct URL to a JSON file in 'UsersURL', Shine will load its users from there instead. As long as what Shine is receiving is JSON data, it will load successfully. So if you want, you can point it to a PHP file that returns JSON data.
 
-Further documentation will be available at:
+Further documentation is available at:
 https://github.com/Person8880/Shine/wiki
-when I get the time to make it.
+including default config files for each plugin and for the base config. 
