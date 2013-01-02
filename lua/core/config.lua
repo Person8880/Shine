@@ -59,6 +59,7 @@ function Shine:GenerateDefaultConfig( Save )
 			logging = false,
 			mapvote = true,
 			motd = true,
+			serverswitch = false,
 			unstuck = true,
 			votescramble = false,
 			votesurrender = true,

@@ -25,6 +25,7 @@ local Scripts = {
 	"core/config.lua",
 	"core/chat.lua",
 	"core/logging.lua",
+	"core/sh_commands.lua"
 }
 
 for i = 1, #Scripts do
