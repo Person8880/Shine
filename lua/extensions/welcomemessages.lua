@@ -54,8 +54,6 @@ function Plugin:SaveConfig()
 
 	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
 
-	Shine:Print( "Shine welcomemessages config file saved." )
-
 	PluginConfig:close()
 end
 

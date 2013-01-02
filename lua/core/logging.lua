@@ -172,9 +172,14 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 end
 
 function Shine:AdminPrint( Client, String, Format, ... )
-	Shine:Print( String, Format, ... )
-	
-	if not Client then return end
+	if not Client then
+		self:Print( String, Format, ... )
+		return 
+	end
 
-	return ServerAdminPrint( Client, Format and StringFormat( String, ... ) or String )
+	local Message = Format and StringFormat( String, ... ) or String
+
+	self:LogString( Message )
+
+	return ServerAdminPrint( Client, Message )
 end

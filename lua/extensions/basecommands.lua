@@ -98,7 +98,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		Shine:AdminPrint( Client, StringFormat( "%s: %s", Command, CommandObj.Help ) )
+		Shine:AdminPrint( Client, StringFormat( "%s: %s", Command, CommandObj.Help or "No help available." ) )
 	end
 	Commands.HelpCommand = Shine:RegisterCommand( "sh_help", nil, Help, true )
 	Commands.HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Error = "Please specify a command." }
