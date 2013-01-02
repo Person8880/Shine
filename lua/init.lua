@@ -7,7 +7,6 @@
 Shine = {}
 
 local include = Script.Load
-local StringFormat = string.format
 
 --Load order.
 local Scripts = {
@@ -25,7 +24,8 @@ local Scripts = {
 	"core/config.lua",
 	"core/chat.lua",
 	"core/logging.lua",
-	"core/sh_commands.lua"
+	"core/sh_commands.lua",
+	"core/sh_webpage.lua"
 }
 
 for i = 1, #Scripts do

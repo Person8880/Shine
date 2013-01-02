@@ -2,6 +2,15 @@
 	Shine client side startup.
 ]]
 
-Script.Load "lua/Client.lua"
-Script.Load "lua/core/chat.lua"
-Script.Load "lua/core/sh_commands.lua"
+local include = Script.Load
+
+local Scripts = {
+	"Client.lua",
+	"core/chat.lua",
+	"core/sh_commands.lua",
+	"core/sh_webpage.lua"
+}
+
+for i = 1, #Scripts do
+	include( "lua/"..Scripts[ i ] )
+end

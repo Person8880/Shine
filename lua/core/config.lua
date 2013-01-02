@@ -66,7 +66,8 @@ function Shine:GenerateDefaultConfig( Save )
 			welcomemessages = false
 		},
 		EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
-		SilentChatCommands = true --Defines whether to silence all chat commands, or only those starting with "/".
+		SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
+		LegacyMode = false --Defines whether to use Shine's customised chat system or not. This should only be used if loading from Server.lua.
 	}
 
 	if Save then

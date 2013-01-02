@@ -16,6 +16,8 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "ServerSwitch.json"
 
 function Plugin:Initialise()
+	if Shine.Config.LegacyMode then return false, "cannot operate in legacy mode." end
+	
 	self:CreateCommands()
 
 	self.Enabled = true
@@ -98,6 +100,7 @@ function Plugin:CreateCommands()
 	end
 	Commands.SwitchServerCommand = Shine:RegisterCommand( "sh_switchserver", "server", SwitchServer, true )
 	Commands.SwitchServerCommand:AddParam{ Type = "number", Min = 1, Round = true, Error = "Please specify a server number to switch to." }
+	Commands.SwitchServerCommand:Help( "<number> Connects you to the given registered server." )
 end
 
 function Plugin:Cleanup()

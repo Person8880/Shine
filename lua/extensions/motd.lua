@@ -13,7 +13,12 @@ Plugin.ConfigName = "MotD.json"
 
 Plugin.Commands = {}
 
+Plugin.TEXT_MODE = 1
+Plugin.HTML_MODE = 2
+
 function Plugin:Initialise()
+	if self.Unload then return false, "unable to load MotD plugin." end
+	
 	self:CreateCommands()
 
 	self.Enabled = true
@@ -23,6 +28,8 @@ end
 
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
+		Mode = self.TEXT_MODE,
+		URL = "http://www.unknownworlds.com/ns2/",
 		MessageText = { "Welcome to my awesome server!", "Admins can be reached @ mywebsite.com", "Have a pleasant stay!" }, --Message lines.
 		Delay = 5, --Wait this long after spawning to display the message.
 		Accepted = {}
@@ -72,7 +79,36 @@ function Plugin:LoadConfig()
 
 	self.Config = Decode( PluginConfig:read( "*all" ) )
 
+	if self.Config.Mode == self.HTML_MODE then
+		if Shine.Config.LegacyMode then
+			Shared.Message( "Unable to use HTML mode for MotD when running Shine in legacy mode. Disabling plugin..." )
+			self.Unload = true
+		else
+			self.Unload = nil
+		end
+	else
+		self.Unload = nil
+	end
+
 	PluginConfig:close()
+end
+
+function Plugin:ShowMotD( Player )
+	if not Player then return end
+	
+	if self.Config.Mode == self.TEXT_MODE then
+		local Messages = self.Config.MessageText
+
+		for i = 1, #Messages do
+			Shine:Notify( Player, "", "", Messages[ i ] )
+		end
+
+		return
+	end
+
+	if self.Config.Mode == self.HTML_MODE then
+		Server.SendNetworkMessage( Player, "Shine_Web", { URL = self.Config.URL }, true )
+	end
 end
 
 function Plugin:ClientConnect( Client )
@@ -86,12 +122,8 @@ function Plugin:ClientConnect( Client )
 	Shine.Timer.Simple( self.Config.Delay, function()
 		local Player = Client:GetControllingPlayer()
 		if not Player then return end
-		
-		local Messages = self.Config.MessageText
 
-		for i = 1, #Messages do
-			Shine:Notify( Player, "", "", Messages[ i ] )
-		end
+		self:ShowMotD( Player )
 	end )
 end
 
@@ -104,11 +136,7 @@ function Plugin:CreateCommands()
 		local Player = Client:GetControllingPlayer()
 		if not Player then return end
 
-		local Messages = self.Config.MessageText
-
-		for i = 1, #Messages do
-			Shine:Notify( Player, "", "", Messages[ i ] )
-		end
+		self:ShowMotD( Player )
 	end
 	Commands.MotDCommand = Shine:RegisterCommand( "sh_motd", "motd", MotD, true )
 	Commands.MotDCommand:Help( "Shows the message of the day." )
@@ -140,11 +168,7 @@ function Plugin:CreateCommands()
 		local Player = Target:GetControllingPlayer()
 		if not Player then return end
 		
-		local Messages = self.Config.MessageText
-
-		for i = 1, #Messages do
-			Shine:Notify( Player, "", "", Messages[ i ] )
-		end
+		self:ShowMotD( Player )
 	end
 	Commands.ShowMotDCommand = Shine:RegisterCommand( "sh_showmotd", "showmotd", ShowMotD )
 	Commands.ShowMotDCommand:AddParam{ Type = "client" }
