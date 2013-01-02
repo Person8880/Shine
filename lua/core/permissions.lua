@@ -126,7 +126,7 @@ function Shine:GetPermission( Client, ConCommand )
 	local GroupTable = self.UserData.Groups[ UserGroup ]
 	
 	if not GroupTable then
-		Shine:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, UserGroup )
+		self:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, UserGroup )
 		return false
 	end
 
@@ -160,7 +160,7 @@ function Shine:HasAccess( Client, ConCommand )
 	local GroupTable = self.UserData.Groups[ UserGroup ]
 
 	if not GroupTable then
-		Shine:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, UserGroup )
+		self:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, UserGroup )
 		return false
 	end
 
@@ -200,12 +200,12 @@ function Shine:CanTarget( Client, Target )
 	local TargetGroup = Groups[ TargetUser.Group ]
 
 	if not Group then
-		Shine:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, User.Group )
+		self:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, User.Group )
 		return false
 	end
 
 	if not TargetGroup then
-		Shine:Print( "User with ID %s belongs to a non-existant group (%s)!", true, TargetID, TargetUser.Group )
+		self:Print( "User with ID %s belongs to a non-existant group (%s)!", true, TargetID, TargetUser.Group )
 		return true 
 	end
 

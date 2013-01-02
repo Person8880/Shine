@@ -178,7 +178,7 @@ function Plugin:CreateCommands()
 	Commands.StatusCommand:Help( "Prints a list of all connected players and their relevant information." )
 
 	local function ChangeLevel( Client, MapName )
-		Server.StartWorld( {}, MapName )
+		MapCycle_ChangeMap( MapName )
 	end
 	Commands.ChangeLevelCommand = Shine:RegisterCommand( "sh_changelevel", "map", ChangeLevel )
 	Commands.ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a map to change to." }

@@ -311,7 +311,7 @@ function Plugin:StartVote()
 			--Queue the change.
 			Shine.Timer.Simple( self.Config.ChangeDelay, function()
 				if not self.Vote.Veto then --No one cancelled it, change map.
-					Server.StartWorld( {}, Results[ 1 ] )
+					MapCycle_ChangeMap( Results[ 1 ] )
 				else --Someone cancelled it, set the next vote time.
 					self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 					self.Vote.Veto = false
@@ -356,7 +356,7 @@ function Plugin:StartVote()
 			--Queue the change.
 			Shine.Timer.Simple( self.Config.ChangeDelay, function()
 				if not self.Vote.Veto then
-					Server.StartWorld( {}, Choice )
+					MapCycle_ChangeMap( Choice )
 				else
 					self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 					self.Vote.Veto = false

@@ -37,6 +37,4 @@ function Shine:UnloadExtension( Name )
 	if not self.Plugins[ Name ] then return end
 
 	self.Plugins[ Name ]:Cleanup()
-
-	--self.Plugins[ Name ] = nil
 end
