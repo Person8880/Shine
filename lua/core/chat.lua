@@ -95,7 +95,7 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 
 	if not Client.GetIsRunningServer() then
 		if not Notify then
-			Shared.Message( "Chat"..Message.Prefix.." - "..Message.Name..": "..Message.Message )
+			Shared.Message( "Chat "..Message.Prefix.." - "..Message.Name..": "..Message.Message )
 		else
 			Shared.Message( Message.Message )
 		end

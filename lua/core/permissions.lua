@@ -25,6 +25,8 @@ function Shine:LoadUsers( Web )
 
 			self.UserData = Decode( Response )
 
+			self:ConvertData( self.UserData, true )
+
 			Notify( "Shine loaded users from web." )
 		end )
 
@@ -44,6 +46,8 @@ function Shine:LoadUsers( Web )
 	self.UserData = Decode( UserFile:read( "*all" ) )
 
 	UserFile:close()
+
+	self:ConvertData( self.UserData )
 end
 
 --[[
@@ -84,6 +88,52 @@ function Shine:GenerateDefaultUsers( Save )
 	}
 
 	if Save then
+		self:SaveUsers()
+	end
+end
+
+local function ConvertCommands( Commands )
+	local Ret = {}
+
+	for i = 1, #Commands do
+		Ret[ i ] = Commands[ i ]:gsub( "sv", "sh" )	
+	end
+
+	return Ret
+end
+
+--[[
+	Converts the default/DAK style user file into one compatible with Shine.
+	Inputs: Userdata table, optional boolean to not save (for web loading).
+]]
+function Shine:ConvertData( Data, DontSave )
+	local Edited
+	if Data.groups then
+		Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
+		
+		Data.Groups = {}
+		
+		for Name, Vals in pairs( Data.groups ) do
+			Data.Groups[ Name ] = { IsBlacklist = Vals.type == "disallowed", Commands = ConvertCommands( Vals.commands ), Immunity = Vals.level or 10 }
+		end
+		Edited = true
+		Data.groups = nil
+	end
+
+	if Data.users then
+		Shared.Message( "Converting users from NS2/DAK format to Shine format..." )
+
+		Data.Users = {}
+		
+		for Name, Vals in pairs( Data.users ) do
+			Data.Users[ tostring( Vals.id ) ] = { Group = Vals.groups[ 1 ], Immunity = Vals.level }
+		end
+		
+		Edited = true
+		Data.users = nil
+	end
+
+	if Edited and not DontSave then
 		self:SaveUsers()
 	end
 end
