@@ -65,15 +65,17 @@ function Plugin:Initialise()
 
 	self:CreateCommands()
 
-	local Time = Shared.GetTime()
-	local CycleTime = Cycle.time * 60
+	if self.Config.EnableNextMapVote then
+		local Time = Shared.GetTime()
+		local CycleTime = Cycle.time * 60
 
-	Shine.Timer.Simple( ( CycleTime * self.Config.NextMapVote ) - Time, function()
-		local Players = Shine.GetAllPlayers()
-		if #Players > 0 then
-			self:StartVote( true )
-		end
-	end )
+		Shine.Timer.Simple( ( CycleTime * self.Config.NextMapVote ) - Time, function()
+			local Players = Shine.GetAllPlayers()
+			if #Players > 0 then
+				self:StartVote( true )
+			end
+		end )
+	end
 
 	self.Enabled = true
 
