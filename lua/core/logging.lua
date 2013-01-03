@@ -93,7 +93,7 @@ local function GetCurrentLogFile()
 	return Shine.Config.LogDir..GetDate()..".txt"
 end
 
-function Shine:LogString( String, Echo )
+function Shine:LogString( String )
 	if not self.Config.EnableLogging then return end
 	
 	--This is dumb, but append mode appears to be broken.
@@ -116,10 +116,6 @@ function Shine:LogString( String, Echo )
 
 	LogFile:write( Data, GetTimeString(), String, "\n" )
 
-	if Echo then
-		Shared.Message( String )
-	end
-
 	LogFile:close()
 end
 
@@ -139,9 +135,11 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 	local MessageLength = #Message
 	if MessageLength > kMaxChatLength then
 		local Iterations = Ceil( MessageLength / kMaxChatLength )
+
 		for i = 1, Iterations do
 			self:Notify( Player, Prefix, Name, Message:sub( 1 + kMaxChatLength * ( i - 1 ), kMaxChatLength * i ) )
 		end
+
 		return
 	end
 
@@ -194,15 +192,50 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 	self:Print( "Shine Notify to %s: %s", true, TargetName, Message )
 end
 
-function Shine:AdminPrint( Client, String, Format, ... )
-	if not Client then
-		self:Print( String, Format, ... )
-		return 
+local OldServerAdminPrint = ServerAdminPrint
+
+local MaxPrintLength = 128
+
+--[[
+	Rewrite ServerAdminPrint to not print to the server console when used, otherwise we'll get spammed with repeat prints when sending to lots of people at once.
+]]
+function ServerAdminPrint( Client, Message )
+	if not Client then return end
+	
+	local MessageList = {}
+	local Count = 1
+
+	while #Message > MaxPrintLength do
+		local Part = Message:sub( 0, MaxPrintLength )
+
+		MessageList[ Count ] = Part
+		Count = Count + 1
+
+		Message = Message:sub( MaxPrintLength + 1 )
 	end
+
+	MessageList[ Count ] = Message
+	
+	for i = 1, #MessageList do
+		Server.SendNetworkMessage( Client:GetControllingPlayer(), "ServerAdminPrint", { message = MessageList[ i ] }, true )
+	end
+end
+
+function Shine:AdminPrint( Client, String, Format, ... )
+	self:Print( String, Format, ... )
 
 	local Message = Format and StringFormat( String, ... ) or String
 
-	self:LogString( Message )
+	local Admins = self:GetClientsForLog()
 
+	for i = 1, #Admins do
+		local Admin = Admins[ i ]
+		if Admin ~= Client then
+			ServerAdminPrint( Admin, Message )
+		end
+	end
+
+	if not Client then return end
+	
 	return ServerAdminPrint( Client, Message )
 end

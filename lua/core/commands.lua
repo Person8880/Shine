@@ -170,25 +170,36 @@ local ParamTypes = {
 		
 		for i = 1, #Vals do
 			local Val = Vals[ i ]
-			local CurClient 
+			local CurClient
 
-			if Val == "*" then
-				return Shine.GetAllClients() --Don't want to add superfluous results...
-			elseif Val == "^" then
-				CurClient = Client
-				if not Table.NotSelf then
-					Clients[ #Clients + 1 ] = CurClient
+			if Val:sub( 1, 1 ) == "%" then
+				local Group = Val:sub( 2 )
+				local InGroup = Shine:GetClientsByGroup( Group )
+
+				if #InGroup > 0 then
+					for j = 1, #InGroup do
+						Clients[ #Clients + 1 ] = InGroup[ j ]
+					end
 				end
 			else
-				if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
-					local Add = TargetFuncs[ Val ]()
-					for j = 1, #Add do
-						Clients[ #Clients + 1 ] = Add[ j ]
+				if Val == "*" then
+					return Shine.GetAllClients() --Don't want to add superfluous results...
+				elseif Val == "^" then
+					CurClient = Client
+					if not Table.NotSelf then
+						Clients[ #Clients + 1 ] = CurClient
 					end
 				else
-					CurClient = Shine:GetClient( Val )
-					if CurClient and not ( Table.NotSelf and CurClient == Client ) then
-						Clients[ #Clients + 1 ] = CurClient
+					if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
+						local Add = TargetFuncs[ Val ]()
+						for j = 1, #Add do
+							Clients[ #Clients + 1 ] = Add[ j ]
+						end
+					else
+						CurClient = Shine:GetClient( Val )
+						if CurClient and not ( Table.NotSelf and CurClient == Client ) then
+							Clients[ #Clients + 1 ] = CurClient
+						end
 					end
 				end
 			end
@@ -316,7 +327,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	local Arguments = TableConcat( Args, ", " )
 
 	--Log the command's execution.
-	self:Print( "%s[%s] ran command %s %s", true, 
+	self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
 		Client and Client:GetControllingPlayer():GetName() or "Console", 
 		Client and Client:GetUserId() or "N/A", 
 		ConCommand, 

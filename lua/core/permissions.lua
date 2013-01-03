@@ -268,3 +268,27 @@ function Shine:CanTarget( Client, Target )
 
 	return Immunity > TargetImmunity
 end
+
+--[[
+	Determines if the given client is in the given user group.
+	Inputs: Client (or Steam ID), group name.
+	Output: Boolean result.
+]]
+function Shine:IsInGroup( Client, Group )
+	if not Client then return false end
+	if Client:GetIsVirtual() then return false end
+	
+	local GroupTable = self.UserData.Groups[ Group ]
+	if not GroupTable then return false end
+	
+	local UserData = self.UserData.Users
+	local ID = isnumber( Client ) and Client or Client:GetUserId()
+
+	local User = UserData[ tostring( ID ) ]
+
+	if User then
+		return User.Group == Group
+	end
+	
+	return Group == "Guest"
+end

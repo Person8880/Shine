@@ -2,21 +2,26 @@
 	Shine player functions.
 ]]
 
---local EntityListToTable-- = EntityListToTable
-local GetEntsByClass-- = Shared.GetEntitiesWithClassname
+local GetEntsByClass
+local TableRemove = table.remove
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local Ranomd = math.random
 
 Shine.Hook.Add( "PostloadConfig", "PlayerAPI", function()
-	--EntityListToTable = EntityListToTable
 	GetEntsByClass = Shared.GetEntitiesWithClassname
 end )
 
+--[[
+	Returns a table of all players.
+]]
 function Shine.GetAllPlayers()
 	return EntityListToTable( GetEntsByClass( "Player" ) )
 end
 
+--[[
+	Returns a table of all players sorted randomly.
+]]
 function Shine.GetRandomPlayerList()
 	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 
@@ -25,6 +30,9 @@ function Shine.GetRandomPlayerList()
 	return Players
 end
 
+--[[
+	Returns a table of all clients on the given team.
+]]
 function Shine.GetTeamClients( Team )
 	local Players = GetEntitiesForTeam( "Player", Team )
 
@@ -43,6 +51,9 @@ function Shine.GetTeamClients( Team )
 	return Clients
 end
 
+--[[
+	Returns a table of all clients.
+]]
 function Shine.GetAllClients()
 	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 
@@ -64,6 +75,9 @@ function Shine.GetAllClients()
 	return Clients
 end
 
+--[[
+	Returns a client matching the given Steam ID.
+]]
 function Shine.GetClientBySteamID( ID )
 	if type( ID ) ~= "number" then return nil end
 	
@@ -84,6 +98,9 @@ function Shine.GetClientBySteamID( ID )
 	return nil
 end
 
+--[[
+	Returns a client matching the given name.
+]]
 function Shine.GetClientByName( Name )
 	if type( Name ) ~= "string" then return nil end
 
@@ -107,6 +124,9 @@ function Shine.GetClientByName( Name )
 	return nil
 end
 
+--[[
+	Returns a client matching the given Steam ID or name.
+]]
 function Shine:GetClient( String )
 	if type( String ) == "number" or tonumber( String ) then
 		local Result = self.GetClientBySteamID( tonumber( String ) )
@@ -118,4 +138,46 @@ function Shine:GetClient( String )
 	end
 
 	return self.GetClientByName( tostring( String ) )
+end
+
+--[[
+	Returns all clients with permission to see log messages.
+]]
+function Shine:GetClientsForLog()
+	local Clients = self.GetAllClients()
+
+	local Ret = {}
+	local Count = 1
+
+	for i = 1, #Clients do
+		local Client = Clients[ i ]
+		if self:HasAccess( Client, "sh_seelogechos" ) then
+			Ret[ Count ] = Client
+			Count = Count + 1
+		end
+	end
+
+	return Ret
+end
+
+--[[
+	Returns all clients in the given group.
+]]
+function Shine:GetClientsByGroup( Group )
+	if not self.UserData.Groups[ Group ] then return nil end
+
+	local Clients = self.GetAllClients()
+
+	local Ret = {}
+	local Count = 1
+
+	for i = 1, #Clients do
+		local Client = Clients[ i ]
+		if self:IsInGroup( Client, Group ) then
+			Ret[ Count ] = Client
+			Count = Count + 1
+		end
+	end
+
+	return Ret
 end

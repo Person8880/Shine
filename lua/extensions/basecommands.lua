@@ -289,7 +289,7 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.ChangeTeamCommand = Shine:RegisterCommand( "sh_setteam", "team", ChangeTeam )
+	Commands.ChangeTeamCommand = Shine:RegisterCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
 	Commands.ChangeTeamCommand:AddParam{ Type = "clients" }
 	Commands.ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
 	Commands.ChangeTeamCommand:Help( "<players> <marine/alien> Sets the given player(s) onto the given team." )

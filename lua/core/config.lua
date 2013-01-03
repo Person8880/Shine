@@ -56,6 +56,7 @@ function Shine:GenerateDefaultConfig( Save )
 			afkkick = false,
 			ban = true,
 			basecommands = true,
+			funcommands = false,
 			logging = false,
 			mapvote = true,
 			motd = true,
