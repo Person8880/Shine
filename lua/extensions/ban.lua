@@ -91,6 +91,40 @@ function Plugin:LoadConfig()
 	self.Config = Decode( PluginConfig:read( "*all" ) )
 
 	PluginConfig:close()
+
+	self:ConvertData( self.Config )
+end
+
+--[[
+	Converts the NS2/DAK bans format into one compatible with Shine.
+]]
+function Plugin:ConvertData( Data )
+	local Edited
+
+	if not Data.Banned then
+		Notify( "Converting bans from NS2/DAK format to Shine format..." )
+		
+		Data.Banned = {}
+
+		for i = 1, #Data do
+			local Ban = Data[ i ]
+
+			Data.Banned[ tostring( Ban.id ) ] = { Name = Ban.name, UnbanTime = Ban.time, Reason = Ban.reason }
+
+			Data[ i ] = nil
+
+			Edited = true
+		end
+	end
+
+	if not Data.DefaultBanTime then
+		Data.DefaultBanTime = 60
+		Edited = true
+	end
+
+	if Edited then
+		self:SaveConfig()
+	end
 end
 
 --[[
