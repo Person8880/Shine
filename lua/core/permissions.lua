@@ -290,5 +290,5 @@ function Shine:IsInGroup( Client, Group )
 		return User.Group == Group
 	end
 	
-	return Group == "Guest"
+	return Group:lower() == "guest"
 end
