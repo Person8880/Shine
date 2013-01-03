@@ -154,7 +154,11 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 				
 				Server.SendNetworkMessage( Ply, "Chat", BuildChatMessage( false, self.Config.ChatName, -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 
-				TargetName = TargetName..Ply:GetName()..( i ~= PlayerCount and ", " or "" )
+				if i <= 3 then
+					TargetName = TargetName..Ply:GetName()..( i ~= 3 and i ~= PlayerCount and ", " or "" )
+				elseif i == 4 then
+					TargetName = TargetName.." and "..( PlayerCount - 3 ).." more"
+				end
 			end
 		else
 			for i = 1, PlayerCount do
@@ -162,7 +166,11 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 				
 				Server.SendNetworkMessage( Ply, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 
-				TargetName = TargetName..Ply:GetName()..( i ~= PlayerCount and ", " or "" )
+				if i <= 3 then
+					TargetName = TargetName..Ply:GetName()..( i ~= 3 and i ~= PlayerCount and ", " or "" )
+				elseif i == 4 then
+					TargetName = TargetName.." and "..( PlayerCount - 3 ).." more"
+				end
 			end
 		end
 	elseif Player then

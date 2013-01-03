@@ -220,4 +220,24 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 
 		Call( "PlayerNameChange", self, Name, OldName )
 	end )
+
+	local OldCycleMap = MapCycle_CycleMap
+
+	function MapCycle_CycleMap()
+		local Result = Call( "OnCycleMap" )
+
+		if Result then return end
+
+		return OldCycleMap()
+	end
+
+	local OldTestCycle = MapCycle_TestCycleMap
+
+	function MapCycle_TestCycleMap()
+		local Result = Call( "ShouldCycleMap" )
+
+		if Result then return Result[ 1 ] end
+
+		return OldTestCycle()
+	end
 end )

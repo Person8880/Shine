@@ -328,7 +328,7 @@ function Plugin:CreateCommands()
 	Commands.EjectCommand:Help( "<playername/steamid> Ejects the given commander." )
 
 	local function AdminSay( Client, Message )
-		Shine:Notify( nil, "All", "Admin", Message )
+		Shine:Notify( nil, "All", Shine.Config.ChatName, Message )
 	end
 	Commands.AdminSayCommand = Shine:RegisterCommand( "sh_say", "say", AdminSay, false, true )
 	Commands.AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength, TakeRestOfLine = true, Error = "Please specify a message." }
@@ -337,7 +337,7 @@ function Plugin:CreateCommands()
 	local function AdminTeamSay( Client, Team, Message )
 		local Players = GetEntitiesForTeam( "Player", Team )
 		
-		Shine:Notify( Players, "Team", "Admin", Message )
+		Shine:Notify( Players, "Team", Shine.Config.ChatName, Message )
 	end
 	Commands.AdminTeamSayCommand = Shine:RegisterCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
 	Commands.AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
@@ -348,7 +348,7 @@ function Plugin:CreateCommands()
 		local Player = Target:GetControllingPlayer()
 
 		if Player then
-			Shine:Notify( Player, "PM", "Admin", Message )
+			Shine:Notify( Player, "PM", Shine.Config.ChatName, Message )
 		end
 	end
 	Commands.PMCommand = Shine:RegisterCommand( "sh_pm", "pm", PM )

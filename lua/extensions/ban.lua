@@ -21,6 +21,7 @@ Plugin.ConfigName = "Bans.json" --Here it is!
 ]]
 function Plugin:Initialise()
 	self:CreateCommands()
+	self:CheckBans()
 
 	self.Enabled = true
 
@@ -48,9 +49,9 @@ function Plugin:GenerateDefaultConfig( Save )
 
 		PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
 
-		Notify( "Shine bans file created." )
-
 		PluginConfig:close()
+
+		Notify( "Shine bans file created." )
 	end
 end
 
@@ -69,9 +70,9 @@ function Plugin:SaveConfig()
 
 	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
 
-	Shine:Print( "Bans successfully saved." )
-
 	PluginConfig:close()
+
+	Notify( "Bans successfully saved." )
 end
 
 --[[
@@ -90,6 +91,26 @@ function Plugin:LoadConfig()
 	self.Config = Decode( PluginConfig:read( "*all" ) )
 
 	PluginConfig:close()
+end
+
+--[[
+	Checks bans on startup.
+]]
+function Plugin:CheckBans()
+	local Time = Shared.GetSystemTime()
+	local Bans = self.Config.Banned
+	local Edited
+
+	for ID, Data in pairs( Bans ) do
+		if Data.UnbanTime < Time then
+			self:RemoveBan( ID, true )
+			Edited = true
+		end
+	end
+
+	if Edited then
+		self:SaveConfig()
+	end
 end
 
 --[[
@@ -117,8 +138,11 @@ end
 	Removes a ban.
 	Input: Steam ID.
 ]]
-function Plugin:RemoveBan( ID )
+function Plugin:RemoveBan( ID, DontSave )
 	self.Config.Banned[ tostring( ID ) ] = nil
+
+	if DontSave then return end
+
 	self:SaveConfig()
 end
 

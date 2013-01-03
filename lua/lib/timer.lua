@@ -16,12 +16,6 @@ TimerMeta.__index = TimerMeta
 function TimerMeta:Destroy()
 	if self.Name then
 		Timers[ self.Name ] = nil
-	else
-		for i = 1, #Simples do
-			if Simples[ i ].Index == self.Index then
-				TableRemove( Simples, i )
-			end
-		end
 	end
 end
 
@@ -78,14 +72,11 @@ Shine.Timer.Create = Create
 local function Simple( Delay, Func )
 	local Index = #Simples + 1
 
-	local Timer = setmetatable( {
+	local Timer = {
 		Index = Index,
-		Delay = Delay,
-		Reps = 1,
-		LastRun = 0,
 		NextRun = Shared.GetTime() + Delay,
 		Func = Func
-	}, TimerMeta )
+	}
 
 	Simples[ Index ] = Timer
 end
@@ -140,6 +131,8 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 		end
 	end
 
+	local ToRemove = {}
+
 	--Run the simple timers.
 	for i = 1, #Simples do
 		local Timer = Simples[ i ]
@@ -150,7 +143,17 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 				Shared.Message( StringFormat( "Simple timer failed: %s", Err ) )
 			end
 
-			Timer:Destroy()
+			ToRemove[ Timer.Index ] = true
+		end
+	end
+
+	for Index, Remove in pairs( ToRemove ) do
+		for i = 1, #Simples do
+			local Timer = Simples[ i ]
+			if Timer and Timer.Index == Index then
+				TableRemove( Simples, i )
+				break
+			end
 		end
 	end
 end )
