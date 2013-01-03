@@ -167,10 +167,10 @@ local ParamTypes = {
 		local Vals = StringExplode( String, "," )
 		
 		local Clients = {}
+		local Added = {} --Avoid duplicate entries.
 		
 		for i = 1, #Vals do
 			local Val = Vals[ i ]
-			local CurClient
 
 			if Val:sub( 1, 1 ) == "%" then
 				local Group = Val:sub( 2 )
@@ -178,27 +178,43 @@ local ParamTypes = {
 
 				if #InGroup > 0 then
 					for j = 1, #InGroup do
-						Clients[ #Clients + 1 ] = InGroup[ j ]
+						local CurClient = InGroup[ j ]
+
+						if not Added[ CurClient ] then
+							Clients[ #Clients + 1 ] = CurClient
+							Added[ CurClient ] = true
+						end
 					end
 				end
 			else
 				if Val == "*" then
 					return Shine.GetAllClients() --Don't want to add superfluous results...
 				elseif Val == "^" then
-					CurClient = Client
+					local CurClient = Client
 					if not Table.NotSelf then
-						Clients[ #Clients + 1 ] = CurClient
+						if not Added[ CurClient ] then
+							Clients[ #Clients + 1 ] = CurClient
+							Added[ CurClient ] = true
+						end
 					end
 				else
 					if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
 						local Add = TargetFuncs[ Val ]()
 						for j = 1, #Add do
-							Clients[ #Clients + 1 ] = Add[ j ]
+							local Adding = Add[ j ]
+
+							if not Added[ Adding ] then
+								Clients[ #Clients + 1 ] = Adding
+								Added[ Adding ] = true
+							end
 						end
 					else
-						CurClient = Shine:GetClient( Val )
+						local CurClient = Shine:GetClient( Val )
 						if CurClient and not ( Table.NotSelf and CurClient == Client ) then
-							Clients[ #Clients + 1 ] = CurClient
+							if not Added[ CurClient ] then
+								Clients[ #Clients + 1 ] = CurClient
+								Added[ CurClient ] = true
+							end
 						end
 					end
 				end
