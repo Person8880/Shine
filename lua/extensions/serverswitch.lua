@@ -92,7 +92,7 @@ function Plugin:CreateCommands()
 		local ServerData = self.Config.Servers[ Num ]
 
 		if not ServerData then
-			Shine:Notify( Player, "Error", "Admin", "Invalid server number." )
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "Invalid server number." )
 			return
 		end
 

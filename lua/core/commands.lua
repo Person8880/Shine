@@ -270,7 +270,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	if not Command then return end
 
 	if not self:GetPermission( Client, ConCommand ) then 
-		self:Notify( Client:GetControllingPlayer(), "Error", "Admin", "You do not have permission to use %s.", true, ConCommand )
+		self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "You do not have permission to use %s.", true, ConCommand )
 		return 
 	end
 
@@ -289,9 +289,9 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
 			if CurArg.Type:find( "client" ) then --No client means no match.
-				self:Notify( Client:GetControllingPlayer(), "Error", "Admin", "No matching %s found.", true, CurArg.Type == "client" and "player was" or "players were" )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "No matching %s found.", true, CurArg.Type == "client" and "player was" or "players were" )
 			else
-				self:Notify( Client:GetControllingPlayer(), "Error", "Admin", CurArg.Error or "Incorrect argument #%s to %s.", true, i, ConCommand )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, CurArg.Error or "Incorrect argument #%s to %s.", true, i, ConCommand )
 			end
 
 			return
@@ -309,7 +309,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:Notify( Client:GetControllingPlayer(), "Error", "Admin", "The author of this command misconfigured it. If you know them, tell them!" )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "The author of this command misconfigured it. If you know them, tell them!" )
 				return
 			end
 		end
@@ -317,7 +317,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target the return client.
 		if CurArg.Type == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:Notify( Client:GetControllingPlayer(), "Error", "Admin", CurArg.Error or "You do not have permission to target %s.", true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, CurArg.Error or "You do not have permission to target %s.", true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
 				return
 			end
 		end
@@ -333,7 +333,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 
 				if #ParsedArg == 0 then
-					self:Notify( Client:GetControllingPlayer(), "Error", "Admin", CurArg.Error or "You do not have permission to target anyone you specified." )
+					self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, CurArg.Error or "You do not have permission to target anyone you specified." )
 					return
 				end
 			end

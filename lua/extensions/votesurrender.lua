@@ -149,7 +149,7 @@ function Plugin:Surrender( Team )
 	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
 
 	Shine.Timer.Simple( 0.1, function()
-		Shine:Notify( nil, "Vote", "Admin", "The %s team has voted to surrender.", true, Team == 1 and "marine" or "alien" )
+		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "The %s team has voted to surrender.", true, Team == 1 and "marine" or "alien" )
 	end )
 
 	self.Votes[ Team ] = 0
@@ -174,15 +174,15 @@ function Plugin:CreateCommands()
 		if Success then
 			local VotesNeeded = self:GetVotesNeeded( Team )
 
-			Shine:Notify( nil, "Vote", "Admin", "%s voted to surrender (%s more votes needed).", true, Player:GetName(), VotesNeeded - Votes - 1 )
+			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to surrender (%s more votes needed).", true, Player:GetName(), VotesNeeded - Votes - 1 )
 
 			return
 		end
 
 		if Err == "already voted" then
-			Shine:Notify( Player, "Error", "Admin", "You have already voted to surrender." )
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted to surrender." )
 		else
-			Shine:Notify( Player, "Error", "Admin", "You cannot start a surrender vote at this time." )
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a surrender vote at this time." )
 		end
 	end
 	Commands.VoteSurrenderCommand = Shine:RegisterCommand( "sh_votesurrender", { "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )

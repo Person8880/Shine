@@ -251,10 +251,12 @@ function Plugin:StartVote()
 	local EndTime = Shared.GetTime() + VoteLength
 
 	Shine.Timer.Simple( 0.1, function()
+		local ChatName = Shine.Config.ChatName
+
 		--Notify players the map vote has started.
-		Shine:Notify( nil, "Vote", "Admin", "Map vote started. Available maps: " )
-		Shine:Notify( nil, "Vote", "Admin", OptionsText )
-		Shine:Notify( nil, "Vote", "Admin", "Type !vote <mapname> to vote for a map." )
+		Shine:Notify( nil, "Vote", ChatName, "Map vote started. Available maps: " )
+		Shine:Notify( nil, "Vote", ChatName, OptionsText )
+		Shine:Notify( nil, "Vote", ChatName, "Type !vote <mapname> to vote for a map." )
 	end )
 
 	--Create our notification timer, it will inform the players of how long is left and remind them the vote is still going.
@@ -262,12 +264,14 @@ function Plugin:StartVote()
 		local TimeLeft = Ceil( EndTime - Shared.GetTime() )
 		if TimeLeft <= 0 then return end
 
+		local ChatName = Shine.Config.ChatName
+
 		local TimeLeftString = string.TimeToString( TimeLeft )
 
-		Shine:Notify( nil, "Vote", "Admin", "Map vote in progress. Available maps:" )
-		Shine:Notify( nil, "Vote", "Admin", OptionsText )
-		Shine:Notify( nil, "Vote", "Admin", "Type !vote <mapname> to vote for a map." )
-		Shine:Notify( nil, "Vote", "Admin", "Time left to vote: %s.", true, TimeLeftString )
+		Shine:Notify( nil, "Vote", ChatName, "Map vote in progress. Available maps:" )
+		Shine:Notify( nil, "Vote", ChatName, OptionsText )
+		Shine:Notify( nil, "Vote", ChatName, "Type !vote <mapname> to vote for a map." )
+		Shine:Notify( nil, "Vote", ChatName, "Time left to vote: %s.", true, TimeLeftString )
 	end )
 
 	--This timer runs when the vote ends, and sorts out the results.
@@ -276,9 +280,11 @@ function Plugin:StartVote()
 		local MaxVotes = 0
 		local Voted = self.Vote.VoteList
 
+		local ChatName = Shine.Config.ChatName
+
 		--No one voted :|
 		if TotalVotes == 0 then
-			Shine:Notify( nil, "Vote", "Admin", "No votes made. Map vote failed." )
+			Shine:Notify( nil, "Vote", ChatName, "No votes made. Map vote failed." )
 			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 
 			return
@@ -303,8 +309,8 @@ function Plugin:StartVote()
 
 		--Only one map won, let's change to it!
 		if Count == 1 then
-			Shine:Notify( nil, "Vote", "Admin", "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
-			Shine:Notify( nil, "Vote", "Admin", "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+			Shine:Notify( nil, "Vote", ChatName, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
+			Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
 
 			self.Vote.CanVeto = true --Allow admins to cancel the change.
 
@@ -325,7 +331,7 @@ function Plugin:StartVote()
 		--Now we're in the case where there's more than one map that won.
 		--If we're set to fail on a tie, then fail.
 		if self.Config.TieFails then
-			Shine:Notify( nil, "Vote", "Admin", "Votes were tied. Map vote failed." )
+			Shine:Notify( nil, "Vote", ChatName, "Votes were tied. Map vote failed." )
 			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 
 			return
@@ -348,10 +354,10 @@ function Plugin:StartVote()
 
 			self.Vote.CanVeto = true --Allow vetos.
 
-			Shine:Notify( nil, "Vote", "Admin", "Votes were tied between %s.", true, Tied )
-			Shine:Notify( nil, "Vote", "Admin", "Choosing random map..." )
-			Shine:Notify( nil, "Vote", "Admin", "Chosen map: %s.", true, Choice )
-			Shine:Notify( nil, "Vote", "Admin", "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+			Shine:Notify( nil, "Vote", ChatName, "Votes were tied between %s.", true, Tied )
+			Shine:Notify( nil, "Vote", ChatName, "Choosing random map..." )
+			Shine:Notify( nil, "Vote", ChatName, "Chosen map: %s.", true, Choice )
+			Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
 
 			--Queue the change.
 			Shine.Timer.Simple( self.Config.ChangeDelay, function()
@@ -370,13 +376,13 @@ function Plugin:StartVote()
 		Shine.Timer.Destroy( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
 
 		if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
-			Shine:Notify( nil, "Vote", "Admin", "Map vote failed. Beginning revote." )
+			Shine:Notify( nil, "Vote", ChatName, "Map vote failed. Beginning revote." )
 
 			self.Vote.Votes = self.Vote.Votes + 1
 
 			self:StartVote()
 		else
-			Shine:Notify( nil, "Vote", "Admin", "Map vote failed." )
+			Shine:Notify( nil, "Vote", ChatName, "Map vote failed." )
 			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 		end
 	end )
@@ -391,7 +397,7 @@ function Plugin:CreateCommands()
 
 		if not self.Config.Maps[ Map ] then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "%s is not on the map list.", true, Map )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not on the map list.", true, Map )
 			else
 				Notify( StringFormat( "%s is not on the map list.", Map ) )
 			end
@@ -401,7 +407,7 @@ function Plugin:CreateCommands()
 
 		if not self.Config.AllowExtend and Shared.GetMapName() == Map then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "You cannot nominate the current map." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot nominate the current map." )
 			else
 				Notify( "You cannot nominate the current map." )
 			end
@@ -413,7 +419,7 @@ function Plugin:CreateCommands()
 
 		if TableContains( Nominated, Map ) then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "%s has already been nominated.", true, Map )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s has already been nominated.", true, Map )
 			else
 				Notify( StringFormat( "%s has already been nominated.", Map ) )
 			end
@@ -425,7 +431,7 @@ function Plugin:CreateCommands()
 
 		if Count >= self.Config.MaxOptions then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "Nominations are full." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "Nominations are full." )
 			else
 				Notify( "Nominations are full." )
 			end
@@ -435,7 +441,7 @@ function Plugin:CreateCommands()
 
 		if self:VoteStarted() then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "A vote is already in progress." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "A vote is already in progress." )
 			else
 				Notify( "A vote is already in progress." )
 			end
@@ -445,7 +451,7 @@ function Plugin:CreateCommands()
 
 		Nominated[ Count + 1 ] = Map
 
-		Shine:Notify( nil, "Vote", "Admin", "%s nominated %s for a map vote.", true, PlayerName, Map )
+		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s nominated %s for a map vote.", true, PlayerName, Map )
 	end
 	Commands.NominateCommand = Shine:RegisterCommand( "sh_nominate", "nominate", Nominate, true )
 	Commands.NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate." }
@@ -457,7 +463,7 @@ function Plugin:CreateCommands()
 
 		if not self:CanStartVote() then
 			if Client then
-				Shine:Notify( Client:GetControllingPlayer(), "Error", "Admin", "You cannot start a map vote at this time." )
+				Shine:Notify( Client:GetControllingPlayer(), "Error", Shine.Config.ChatName, "You cannot start a map vote at this time." )
 			else
 				Notify( "You cannot start a map vote at this time." )
 			end
@@ -471,20 +477,20 @@ function Plugin:CreateCommands()
 		if Success then
 			local VotesNeeded = self:GetVotesNeededToStart()
 
-			Shine:Notify( nil, "Vote", "Admin", "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded - TotalVotes - 1 )
+			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded - TotalVotes - 1 )
 
 			return
 		end
 		
 		if Err == "already voted" then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "You have already voted to begin a map vote." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted to begin a map vote." )
 			else
 				Notify( "You have already voted to begin a map vote." )
 			end
 		else
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "A map vote is already in progress." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "A map vote is already in progress." )
 			else
 				Notify( "A map vote is already in progress." )
 			end
@@ -499,7 +505,7 @@ function Plugin:CreateCommands()
 
 		if not self:VoteStarted() then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "There is no map vote in progress." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "There is no map vote in progress." )
 			else
 				Notify( "There is no map vote in progress." )
 			end
@@ -509,7 +515,7 @@ function Plugin:CreateCommands()
 
 		if not self.Vote.VoteList[ Map ] then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "%s is not a choice in the vote.", true, Map )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not a choice in the vote.", true, Map )
 			else
 				Notify( StringFormat( "%s is not a choice in the vote.", Map ) )
 			end
@@ -521,14 +527,14 @@ function Plugin:CreateCommands()
 
 		if Success then
 			if self.Config.ShowVoteChoices then
-				Shine:Notify( nil, "Vote", "Admin", "%s voted for %s (%s/%s votes).", true, PlayerName, Map, self.Vote.VoteList[ Map ], self.Vote.TotalVotes )
+				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted for %s (%s/%s votes).", true, PlayerName, Map, self.Vote.VoteList[ Map ], self.Vote.TotalVotes )
 			end
 
 			return
 		end
 
 		if Player then
-			Shine:Notify( Player, "Error", "Admin", "You have already voted." )
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted." )
 		else
 			Notify( "You have already voted." )
 		end
@@ -543,7 +549,7 @@ function Plugin:CreateCommands()
 
 		if not self.Vote.CanVeto then
 			if Player then
-				Shine:Notify( Player, "Error", "Admin", "There is no map change in progress." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "There is no map change in progress." )
 			else
 				Notify( "There is no map change in progress." )
 			end
@@ -553,7 +559,7 @@ function Plugin:CreateCommands()
 
 		self.Vote.Veto = true
 
-		Shine:Notify( nil, "Vote", "Admin", "%s cancelled the map change.", true, PlayerName )
+		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s cancelled the map change.", true, PlayerName )
 	end
 	Commands.VetoCommand = Shine:RegisterCommand( "sh_veto", "veto", Veto )
 	Commands.VetoCommand:Help( "Cancels a map change from a successful map vote." )
@@ -561,7 +567,7 @@ end
 
 function Plugin:Cleanup()
 	if self:VoteStarted() then
-		Shine:Notify( nil, "Vote", "Admin", "Map vote plugin disabled. Current vote cancelled." )
+		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "Map vote plugin disabled. Current vote cancelled." )
 	end
 
 	Shine.Timer.Destroy( self.VoteTimer )

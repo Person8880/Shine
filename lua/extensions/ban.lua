@@ -144,7 +144,7 @@ function Plugin:CreateCommands()
 
 		Server.DisconnectClient( Target )
 
-		Shine:Print( "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
+		Shine:AdminPrint( nil, "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
 	end
 	Commands.BanCommand = Shine:RegisterCommand( "sh_ban", "ban", Ban )
 	Commands.BanCommand:AddParam{ Type = "client", NotSelf = true }
@@ -158,7 +158,7 @@ function Plugin:CreateCommands()
 	local function Unban( Client, ID )
 		if self.Config.Banned[ ID ] then
 			self:RemoveBan( ID )
-			Shine:Print( "%s unbanned %s.", true, Client and Client:GetControllingPlayer():GetName() or "Console", ID )
+			Shine:AdminPrint( nil, "%s unbanned %s.", true, Client and Client:GetControllingPlayer():GetName() or "Console", ID )
 
 			return
 		end
@@ -184,7 +184,7 @@ function Plugin:CreateCommands()
 		end
 		
 		if self:AddBan( ID, TargetName, Duration, BanningName, Reason ) then
-			Shine:Print( "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
+			Shine:AdminPrint( nil, "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
 			if Target then
 				Server.DisconnectClient( Target )
 			end

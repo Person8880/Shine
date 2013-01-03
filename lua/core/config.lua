@@ -47,10 +47,13 @@ function Shine:GenerateDefaultConfig( Save )
 	self.Config = {
 		EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
 		LogDir = "config://shine\\logs\\", --Logging directory.
+		DateFormat = "dd-mm-yyyy", --Format for logging dates.
+
 		ExtensionDir = "config://shine\\plugins\\", --Plugin configs directory.
+
 		GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.
 		UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.
-		DateFormat = "dd-mm-yyyy", --Format for logging dates.
+
 		ActiveExtensions = { --Defines which plugins should be active.
 			adverts = false,
 			afkkick = false,
@@ -66,8 +69,13 @@ function Shine:GenerateDefaultConfig( Save )
 			votesurrender = true,
 			welcomemessages = false
 		},
+
 		EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
+
+		ChatName = "Admin", --The default name that should appear for notifications with a name (unless in legacy mode, not all messages will show this.)
+
 		SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
+
 		LegacyMode = false --Defines whether to use Shine's customised chat system or not. This should only be used if loading from Server.lua.
 	}
 

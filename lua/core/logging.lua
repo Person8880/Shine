@@ -152,7 +152,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 			for i = 1, PlayerCount do
 				local Ply = Player[ i ]
 				
-				Server.SendNetworkMessage( Ply, "Chat", BuildChatMessage( false, "", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+				Server.SendNetworkMessage( Ply, "Chat", BuildChatMessage( false, self.Config.ChatName, -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 
 				TargetName = TargetName..Ply:GetName()..( i ~= PlayerCount and ", " or "" )
 			end
@@ -167,7 +167,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		end
 	elseif Player then
 		if LegacyMode then
-			Server.SendNetworkMessage( Player, "Chat", BuildChatMessage( false, "", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+			Server.SendNetworkMessage( Player, "Chat", BuildChatMessage( false, self.Config.ChatName, -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		else
 			Server.SendNetworkMessage( Player, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
@@ -178,7 +178,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 
 		if LegacyMode then
 			for i = 1, #Players do
-				Server.SendNetworkMessage( Players[ i ], "Chat", BuildChatMessage( false, "", -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+				Server.SendNetworkMessage( Players[ i ], "Chat", BuildChatMessage( false, self.Config.ChatName, -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 			end
 		else
 			for i = 1, #Players do

@@ -127,7 +127,7 @@ function Plugin:UpdateClient( Player, Client, DataTable, Time )
 
 		if DataTable.LastMove + WarnTime < Time then
 			DataTable.Warn = true
-			Shine:Notify( Player, "Warning", "Admin", "You have been AFK for over %s. Continue and you will be kicked.", true, string.TimeToString( WarnTime ) )
+			Shine:Notify( Player, "Warning", Shine.Config.ChatName, "You have been AFK for over %s. Continue and you will be kicked.", true, string.TimeToString( WarnTime ) )
 			return
 		end
 
