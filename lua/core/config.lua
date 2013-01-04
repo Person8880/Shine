@@ -76,7 +76,9 @@ function Shine:GenerateDefaultConfig( Save )
 
 		SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
 
-		LegacyMode = false --Defines whether to use Shine's customised chat system or not. This should only be used if loading from Server.lua.
+		LegacyMode = false, --Defines whether to use Shine's customised chat system or not. This should only be used if loading from Server.lua.
+
+		CombatMode = false --Defines whether the server's running the combat mod. This is necessary to get chat commands to work with the Combat mod.
 	}
 
 	if Save then
