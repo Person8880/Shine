@@ -253,22 +253,56 @@ function Plugin:AddStartVote( Client )
 end
 
 --[[
+	Gets the corresponding map in the current vote matching a string.
+	Allows players to do !vote summit or !vote docking etc.
+]]
+function Plugin:GetVoteChoice( Map )
+	local Choices = self.Vote.VoteList
+
+	if Choices[ Map ] then return Map end
+
+	Map = Map:lower()
+
+	if Map == "ns2_" or Map == "ns2" then return nil end --Not specific enough.
+
+	for Name, Votes in pairs( Choices ) do
+		if Name:lower():find( Map ) then
+			return Name
+		end
+	end
+
+	return nil
+end
+
+--[[
 	Adds a vote for a given map in the map vote.
 ]]
-function Plugin:AddVote( Client, Map )
+function Plugin:AddVote( Client, Map, Revote )
 	if not Client then Client = "Console" end
 	
 	if not self:VoteStarted() then return false, "no vote in progress" end
-	if self.Vote.Voted[ Client ] then return false, "already voted" end
-	if not self.Vote.VoteList[ Map ] then return false, "map is not a valid choice" end
+	if self.Vote.Voted[ Client ] and not Revote then return false, "already voted" end
+
+	local Choice = self:GetVoteChoice( Map )
+	if not Choice then return false, "map is not a valid choice" end
 	
-	local CurVotes = self.Vote.VoteList[ Map ]
-	self.Vote.VoteList[ Map ] = CurVotes + 1
-	self.Vote.TotalVotes = self.Vote.TotalVotes + 1
+	if Revote then
+		local OldVote = self.Vote.Voted[ Client ]
+		if OldVote then
+			self.Vote.VoteList[ OldVote ] = self.Vote.VoteList[ OldVote ] - 1
+		end
+	end
 
-	self.Vote.Voted[ Client ] = true
+	local CurVotes = self.Vote.VoteList[ Choice ]
+	self.Vote.VoteList[ Choice ] = CurVotes + 1
 
-	return true
+	if not Revote then
+		self.Vote.TotalVotes = self.Vote.TotalVotes + 1
+	end
+
+	self.Vote.Voted[ Client ] = Choice
+
+	return true, Choice
 end
 
 --[[
@@ -662,35 +696,67 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		if not self.Vote.VoteList[ Map ] then
-			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not a choice in the vote.", true, Map )
-			else
-				Notify( StringFormat( "%s is not a choice in the vote.", Map ) )
+		local Success, Err = self:AddVote( Client, Map )
+
+		if Success then
+			if self.Config.ShowVoteChoices then
+				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted for %s (%s/%s votes).", true, PlayerName, Err, self.Vote.VoteList[ Err ], self.Vote.TotalVotes )
 			end
 
 			return
 		end
 
-		local Success, Err = self:AddVote( Client, Map )
+		if Err == "already voted" then
+			if Player then
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted. Type !revote <map> to change your vote." )
+			else
+				Notify( "You have already voted. Type !revote <map> to change your vote." )
+			end
+		else
+			if Player then
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not a valid map choice.", true, Map )
+			else
+				Notify( StringFormat( "%s is not a valid map choice.", Map ) )
+			end
+		end
+	end
+	Commands.VoteCommand = Shine:RegisterCommand( "sh_vote", "vote", Vote, true )
+	Commands.VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for." }
+	Commands.VoteCommand:Help( "<mapname> Vote for a particular map in the active map vote." )
+
+	local function ReVote( Client, Map )
+		local Player = Client and Client:GetControllingPlayer()
+		local PlayerName = Player and Player:GetName() or "Console"
+
+		if not self:VoteStarted() then
+			if Player then
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "There is no map vote in progress." )
+			else
+				Notify( "There is no map vote in progress." )
+			end
+
+			return
+		end
+
+		local Success, Err = self:AddVote( Client, Map, true )
 
 		if Success then
 			if self.Config.ShowVoteChoices then
-				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted for %s (%s/%s votes).", true, PlayerName, Map, self.Vote.VoteList[ Map ], self.Vote.TotalVotes )
+				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s revoted for %s (%s/%s votes).", true, PlayerName, Err, self.Vote.VoteList[ Err ], self.Vote.TotalVotes )
 			end
 
 			return
 		end
 
 		if Player then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted." )
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not a valid map choice.", true, Map )
 		else
-			Notify( "You have already voted." )
+			Notify( StringFormat( "%s is not a valid map choice.", Map ) )
 		end
 	end
-	Commands.VoteCommand = Shine:RegisterCommand( "sh_vote", "vote", Vote, true )
-	Commands.VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for." }
-	Commands.VoteCommand:Help( "<mapname> Vote for a particular map in the active map vote." )
+	Commands.ReVoteCommand = Shine:RegisterCommand( "sh_revote", "revote", ReVote, true )
+	Commands.ReVoteCommand:AddParam{ Type = "string", Error = "Please specify your new map choice." }
+	Commands.ReVoteCommand:Help( "<mapname> Change your vote to another map in the vote." )
 
 	local function Veto( Client )
 		local Player = Client and Client:GetControllingPlayer()
