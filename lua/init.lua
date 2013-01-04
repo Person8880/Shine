@@ -1,6 +1,8 @@
 --[[
 	Shine admin startup.
 	Loads stuff.
+
+	If you're running combat, then this is called from MedPack.lua for reasons explained in the file.
 ]]
 
 --I have no idea why it's called this.
