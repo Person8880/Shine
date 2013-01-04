@@ -1,3 +1,8 @@
 <options>
+    <build>235</build>
+    <description>Shine is a modular administration mod for Natural Selection 2. It aims to be easy for admins to use and provide an easy to use framework for plugins.&#x0A;&#x0A;Documentation (and the source code) can be found here:&#x0A;https://github.com/Person8880/Shine/wiki&#x0A;&#x0A;If you&apos;re wondering about the name, well, so am I.</description>
+    <id>117887554</id>
     <kind>Game</kind>
+    <title>Shine Administration</title>
+    <visibility>Private</visibility>
 </options>
