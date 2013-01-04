@@ -45,8 +45,18 @@ function Plugin:Initialise()
 
 	local Cycle = MapCycle_GetMapCycle and MapCycle_GetMapCycle()
 
-	if self.Config.GetMapsFromMapCycle and not Shine.Config.CombatMode then
-		local Maps = Cycle.maps
+	if not Cycle then
+		local CycleFile = io.open( "config://MapCycle.json", "r" )
+
+		if CycleFile then
+			Cycle = Decode( CycleFile:read( "*all" ) )
+
+			CycleFile:close()
+		end
+	end
+
+	if self.Config.GetMapsFromMapCycle then
+		local Maps = Cycle and Cycle.maps
 
 		if Maps then
 			self.Config.Maps = {}
