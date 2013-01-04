@@ -1,5 +1,7 @@
 --[[
 	Shine client side startup.
+
+	If you're running combat, then this is called from MedPack.lua for reasons explained in the file.
 ]]
 
 local include = Script.Load

@@ -43,9 +43,9 @@ function Plugin:Initialise()
 	self.NextMap = {}
 	self.NextMap.Extends = 0
 
-	local Cycle = MapCycle_GetMapCycle()
+	local Cycle = MapCycle_GetMapCycle and MapCycle_GetMapCycle()
 
-	if self.Config.GetMapsFromMapCycle then
+	if self.Config.GetMapsFromMapCycle and not Shine.Config.CombatMode then
 		local Maps = Cycle.maps
 
 		if Maps then
@@ -67,7 +67,7 @@ function Plugin:Initialise()
 
 	if self.Config.EnableNextMapVote then
 		local Time = Shared.GetTime()
-		local CycleTime = Cycle.time * 60
+		local CycleTime = Cycle and ( Cycle.time * 60 ) or kCombatTimeLimit or 30
 
 		Shine.Timer.Simple( ( CycleTime * self.Config.NextMapVote ) - Time, function()
 			local Players = Shine.GetAllPlayers()

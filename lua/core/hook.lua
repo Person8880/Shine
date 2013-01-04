@@ -105,6 +105,74 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 	local ReplaceMethod = Shine.ReplaceClassMethod
 	local Gamerules = Shine.Config.GameRules or "NS2Gamerules"
 
+	--An annoyingly hacky fix to CombatMode's complete override of the chat.
+	if Shine.Config.CombatMode then
+		local OldOnChatReceive
+
+		local function OnChatReceived( client, message )
+			chatMessage = string.sub(message.message, 1, kMaxChatLength)
+
+			--Combat mode stuff.
+			local CombatMessage
+
+			for i, entry in pairs( combatCommands ) do
+				if chatMessage:sub( 1, #entry ) == entry then
+				   CombatMessage = true 
+				   break
+				end
+			end   
+
+			if CombatMessage then
+				local player = client:GetControllingPlayer()
+				Server.ClientCommand( player, chatMessage )
+
+				return
+			end
+
+			if chatMessage and string.len(chatMessage) > 0 then
+				--Begin modification to hook directly into the chat.
+				local Result = Shine.Hook.Call( "PlayerSay", client, message )
+				if Result then
+					if Result[ 1 ] == "" then return end
+					chatMessage = Result[ 1 ]:sub( 1, kMaxChatLength )
+				end
+			
+				local playerName, playerLocationId, playerTeamNumber, playerTeamType = GetChatPlayerData(client)
+				
+				if playerName then
+				
+					if message.teamOnly then
+					
+						local players = GetEntitiesForTeam("Player", playerTeamNumber)
+						for index, player in ipairs(players) do
+							Server.SendNetworkMessage(player, "Chat", BuildChatMessage(true, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
+						end
+						
+					else
+						Server.SendNetworkMessage("Chat", BuildChatMessage(false, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
+					end
+					
+					Shared.Message("Chat " .. (message.teamOnly and "Team - " or "All - ") .. playerName .. ": " .. chatMessage)
+					
+					// We save a history of chat messages received on the Server.
+					Server.AddChatToHistory(chatMessage, playerName, client:GetUserId(), playerTeamNumber, message.teamOnly)
+					
+				end
+			end
+		end
+
+		local OriginalHookNWMessage = Server.HookNetworkMessage
+
+		function Server.HookNetworkMessage( Message, Callback )
+			if Message == "ChatClient" then
+				OldOnChatReceive = Callback
+				Callback = OnChatReceived
+			end
+
+			OriginalHookNWMessage( Message, Callback )
+		end
+	end
+
 	local OldJoinTeam
 
 	OldJoinTeam = ReplaceMethod( Gamerules, "JoinTeam", function( self, Player, NewTeam, Force )
