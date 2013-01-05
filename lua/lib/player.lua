@@ -76,6 +76,21 @@ function Shine.GetAllClients()
 end
 
 --[[
+	Returns a client matching the given game ID.
+]]
+function Shine.GetClientByID( ID )
+	local GameIDs = Shine.GameIDs
+
+	for Client, GameID in pairs( GameIDs ) do
+		if ID == GameID then
+			return Client
+		end
+	end
+
+	return nil
+end
+
+--[[
 	Returns a client matching the given Steam ID.
 ]]
 function Shine.GetClientBySteamID( ID )
@@ -129,7 +144,10 @@ end
 ]]
 function Shine:GetClient( String )
 	if type( String ) == "number" or tonumber( String ) then
-		local Result = self.GetClientBySteamID( tonumber( String ) )
+		local Num = tonumber( String )
+
+		local Result = self.GetClientByID( Num ) or self.GetClientBySteamID( Num )
+		
 		if not Result then
 			return self.GetClientByName( tostring( String ) )
 		end
