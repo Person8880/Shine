@@ -107,7 +107,6 @@ function Plugin:GenerateDefaultConfig( Save )
 		PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
 
 		VoteLength = 2, --Time in minutes a vote should last before failing.
-		NotifyInterval = 30, --Time in seconds to notify players of the ongoing map vote.
 		ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
 		VoteDelay = 10, --Time to wait in minutes after map change/vote fail before voting can occur.
 
@@ -371,9 +370,7 @@ function Plugin:StartVote( NextMap )
 	local OptionsText = TableConcat( MapList, ", " )
 
 	--Get our notification interval, length of the vote in seconds and the number of times to repeat our notification.
-	local Interval = self.Config.NotifyInterval
 	local VoteLength = self.Config.VoteLength * 60
-	local Reps = Floor( VoteLength / Interval ) - 1
 
 	--This is when the map vote should end and collect its results.
 	local EndTime = Shared.GetTime() + VoteLength
