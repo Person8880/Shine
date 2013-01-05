@@ -393,21 +393,11 @@ function Plugin:StartVote( NextMap )
 		Shine:Notify( nil, "Vote", ChatName, OptionsText )
 		Shine:Notify( nil, "Vote", ChatName, "Type !vote <mapname> to vote for a map." )
 	end )
+	
+	local VoteText = "Map vote in progress. Available maps:\n"..OptionsText.."\nType !vote <mapname> to vote for a map.\nTime left to vote: %s."
 
-	--Create our notification timer, it will inform the players of how long is left and remind them the vote is still going.
-	Shine.Timer.Create( self.NotifyTimer, Interval, Reps, function()
-		local TimeLeft = Ceil( EndTime - Shared.GetTime() )
-		if TimeLeft <= 0 then return end
-
-		local ChatName = Shine.Config.ChatName
-
-		local TimeLeftString = string.TimeToString( TimeLeft )
-
-		Shine:Notify( nil, "Vote", ChatName, "Map vote in progress. Available maps:" )
-		Shine:Notify( nil, "Vote", ChatName, OptionsText )
-		Shine:Notify( nil, "Vote", ChatName, "Type !vote <mapname> to vote for a map." )
-		Shine:Notify( nil, "Vote", ChatName, "Time left to vote: %s.", true, TimeLeftString )
-	end )
+	Shine:SendText( nil, Shine.BuildScreenMessage( 1, 0.8, 0.1, VoteText, VoteLength, 255, 255, 255, 1 ) )
+	Shine:SendVoteOptions( nil, OptionsText, VoteLength )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()
