@@ -27,7 +27,11 @@ local Scripts = {
 	"core/chat.lua",
 	"core/logging.lua",
 	"core/sh_commands.lua",
-	"core/sh_webpage.lua"
+	"core/sh_webpage.lua",
+	"lib/screentext/sh_screentext.lua",
+	"lib/screentext/sv_screentext.lua",
+	"core/sh_votemenu.lua",
+	"core/sv_votemenu.lua"
 }
 
 for i = 1, #Scripts do
