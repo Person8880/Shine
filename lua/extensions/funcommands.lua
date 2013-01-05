@@ -64,7 +64,7 @@ function Plugin:CreateCommands()
 	end
 	Commands.GoToCommand = Shine:RegisterCommand( "sh_goto", "goto", GoTo )
 	Commands.GoToCommand:AddParam{ Type = "client", NotSelf = true }
-	Commands.GoToCommand:Help( "<player/steamid> Moves you to the given player." )
+	Commands.GoToCommand:Help( "<player> Moves you to the given player." )
 
 	local function Bring( Client, Target )
 		local TargetPlayer = Target:GetControllingPlayer()
@@ -76,7 +76,7 @@ function Plugin:CreateCommands()
 	end
 	Commands.BringCommand = Shine:RegisterCommand( "sh_bring", "bring", Bring )
 	Commands.BringCommand:AddParam{ Type = "client", NotSelf = true }
-	Commands.BringCommand:Help( "<player/steamid> Moves the given player to your location." )
+	Commands.BringCommand:Help( "<player> Moves the given player to your location." )
 
 	local function DarwinMode( Client, Targets, Enable )
 		for i = 1, #Targets do

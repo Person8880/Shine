@@ -102,7 +102,35 @@ function Plugin:CreateCommands()
 	end
 	Commands.HelpCommand = Shine:RegisterCommand( "sh_help", nil, Help, true )
 	Commands.HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Error = "Please specify a command." }
-	Commands.HelpCommand:Help( "You just used it to see this..." )
+	Commands.HelpCommand:Help( "<command> Displays usage information for the given command." )
+
+	local function CommandsList( Client )
+		local Commands = Shine.Commands
+
+		if Client then
+			ServerAdminPrint( Client, "Available commands:" )
+
+			for Command, Object in pairs( Commands ) do
+				if Shine:GetPermission( Client, Command ) then
+					ServerAdminPrint( Client, StringFormat( "%s: %s", Command, Object.Help or "No help available." ) )
+				end
+			end
+
+			ServerAdminPrint( Client, "End command list." )
+
+			return
+		end
+
+		Notify( "Available commands:" )
+
+		for Command, Object in pairs( Commands ) do
+			Notify( StringFormat( "%s: %s", Command, Object.Help or "No help available." ) )
+		end
+
+		Notify( "End command list." )
+	end
+	Commands.CommandList = Shine:RegisterCommand( "sh_helplist", nil, CommandsList, true )
+	Commands.CommandList:Help( "Displays every command you have access to and thier usage." )
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
@@ -157,7 +185,7 @@ function Plugin:CreateCommands()
 	Commands.KickCommand = Shine:RegisterCommand( "sh_kick", "kick", Kick )
 	Commands.KickCommand:AddParam{ Type = "client", NotSelf = true }
 	Commands.KickCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "" }
-	Commands.KickCommand:Help( "<playername/steam id> Kicks the given player." )
+	Commands.KickCommand:Help( "<player> Kicks the given player." )
 
 	local function Status( Client )
 		local CanSeeIPs = Shine:HasAccess( Client, "sh_status" )
@@ -326,7 +354,7 @@ function Plugin:CreateCommands()
 	end
 	Commands.EjectCommand = Shine:RegisterCommand( "sh_eject", "eject", Eject )
 	Commands.EjectCommand:AddParam{ Type = "client" }
-	Commands.EjectCommand:Help( "<playername/steamid> Ejects the given commander." )
+	Commands.EjectCommand:Help( "<player> Ejects the given commander." )
 
 	local function AdminSay( Client, Message )
 		Shine:Notify( nil, "All", Shine.Config.ChatName, Message )
@@ -355,7 +383,7 @@ function Plugin:CreateCommands()
 	Commands.PMCommand = Shine:RegisterCommand( "sh_pm", "pm", PM )
 	Commands.PMCommand:AddParam{ Type = "client" }
 	Commands.PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
-	Commands.PMCommand:Help( "<player/steam id> <message> Sends a private message to the given player." )
+	Commands.PMCommand:Help( "<player> <message> Sends a private message to the given player." )
 end
 
 function Plugin:Cleanup()
