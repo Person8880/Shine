@@ -167,8 +167,9 @@ function Plugin:CreateCommands()
 			local Player = Players[ i ]
 			local PlayerClient = Server.GetOwner( Player )
 
-			Shine:AdminPrint( Client, StringFormat( "Name: '%s' | Steam ID: '%s' | Team: '%s'%s",
+			Shine:AdminPrint( Client, StringFormat( "Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
 			Player:GetName(),
+			Shine.GameIDs[ Client ],
 			PlayerClient:GetUserId(),
 			Player:GetTeamNumber(),
 			CanSeeIPs and " | IP: "..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
