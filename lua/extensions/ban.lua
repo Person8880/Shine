@@ -208,7 +208,7 @@ function Plugin:CreateCommands()
 	Commands.BanCommand:AddParam{ Type = "client", NotSelf = true }
 	Commands.BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
 	Commands.BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
-	Commands.BanCommand:Help( "<player/steamid> <duration in minutes> Bans the given player for the given time in minutes. 0 is a permanent ban." )
+	Commands.BanCommand:Help( "<player> <duration in minutes> Bans the given player for the given time in minutes. 0 is a permanent ban." )
 
 	--[[
 		Unban by Steam ID.

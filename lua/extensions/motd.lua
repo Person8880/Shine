@@ -172,7 +172,7 @@ function Plugin:CreateCommands()
 	end
 	Commands.ShowMotDCommand = Shine:RegisterCommand( "sh_showmotd", "showmotd", ShowMotD )
 	Commands.ShowMotDCommand:AddParam{ Type = "client" }
-	Commands.ShowMotDCommand:Help( "<player name/steam id> Shows the message of the day to the given player." )
+	Commands.ShowMotDCommand:Help( "<player> Shows the message of the day to the given player." )
 end
 
 function Plugin:Cleanup()
