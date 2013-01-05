@@ -317,7 +317,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target the return client.
 		if CurArg.Type == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, CurArg.Error or "You do not have permission to target %s.", true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "You do not have permission to target %s.", true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
 				return
 			end
 		end
@@ -333,7 +333,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 
 				if #ParsedArg == 0 then
-					self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, CurArg.Error or "You do not have permission to target anyone you specified." )
+					self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "You do not have permission to target anyone you specified." )
 					return
 				end
 			end
@@ -363,7 +363,7 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 
 	if FirstWord:sub( 1, 1 ):find( "[^%w]" ) then --They've done !, / or some other special character first.
 		Directive = FirstWord:sub( 1, 1 )
-		Exploded[ 1 ] = FirstWord:sub( 2, #FirstWord )
+		Exploded[ 1 ] = FirstWord:sub( 2 )
 	end
 
 	if not Directive then return end --Avoid accidental invocation.
@@ -380,4 +380,4 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if CommandObj.Silent then return "" end --If the command specifies it is silent, override their message with blank.
 	if Shine.Config.SilentChatCommands then return "" end --If the global silent chat commands setting is on, silence the message.
 	if Directive and Directive == "/" then return "" end --If they used / to invoke the command, silence it. (SourceMod style)
-end )
+end, -20 )

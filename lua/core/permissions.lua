@@ -146,6 +146,24 @@ Shine.Hook.Add( "PostloadConfig", "LoadShineUsers", function()
 	Shine:LoadUsers( Shine.Config.GetUsersFromWeb )
 end )
 
+--[[
+	Game IDs handling.
+]]
+local GameIDs = {}
+
+Shine.GameIDs = GameIDs
+
+local ID = 0
+
+Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
+	ID = ID + 1
+	GameIDs[ Client ] = ID
+end )
+
+Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client ) 
+	GameIDs[ Client ] = nil
+end )
+
 local function isnumber( Num )
 	return type( Num ) == "number"
 end
