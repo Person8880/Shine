@@ -172,9 +172,10 @@ function Plugin:CreateCommands()
 		local Success, Err = self:AddVote( Client, Team )
 
 		if Success then
-			local VotesNeeded = self:GetVotesNeeded( Team )
+			local Players = GetEntitiesForTeam( "Player", Team )
+			local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
 
-			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to surrender (%s more votes needed).", true, Player:GetName(), VotesNeeded - Votes - 1 )
+			Shine:Notify( Players, "Vote", Shine.Config.ChatName, "%s voted to surrender (%s more votes needed).", true, Player:GetName(), VotesNeeded )
 
 			return
 		end

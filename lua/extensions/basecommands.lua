@@ -195,12 +195,21 @@ function Plugin:CreateCommands()
 			local Player = Players[ i ]
 			local PlayerClient = Server.GetOwner( Player )
 
-			Shine:AdminPrint( Client, StringFormat( "Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
-			Player:GetName(),
-			Shine.GameIDs[ Client ],
-			PlayerClient:GetUserId(),
-			Player:GetTeamNumber(),
-			CanSeeIPs and " | IP: "..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
+			if Client then
+				ServerAdminPrint( Client, StringFormat( "Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
+				Player:GetName(),
+				Shine.GameIDs[ PlayerClient ],
+				PlayerClient:GetUserId(),
+				Player:GetTeamNumber(),
+				CanSeeIPs and " | IP: "..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
+			else
+				Notify( StringFormat( "Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
+				Player:GetName(),
+				Shine.GameIDs[ PlayerClient ],
+				PlayerClient:GetUserId(),
+				Player:GetTeamNumber(),
+				" | IP: "..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) ) )
+			end
 		end
 	end
 	Commands.StatusCommand = Shine:RegisterCommand( "sh_status", nil, Status, true )

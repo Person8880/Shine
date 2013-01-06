@@ -29,7 +29,7 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 		VoteMessage = StringFormat( "%s\nMaps: "..Options.."\nType !vote <map> to vote.\nTime left to vote:", NextMap and "Voting for the next map has begun." or "Map vote has begun." ).." %s."
 	end
 	
-	local Message = Shine:AddMessageToQueue( 1, 0.95, 0.05, VoteMessage, Duration, 255, 0, 0, 2 )
+	local Message = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2 )
 
 	function Message:Think()
 		if self.Duration == Duration - 10 then

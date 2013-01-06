@@ -153,11 +153,11 @@ local GameIDs = {}
 
 Shine.GameIDs = GameIDs
 
-local ID = 0
+local GameID = 0
 
 Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
-	ID = ID + 1
-	GameIDs[ Client ] = ID
+	GameID = GameID + 1
+	GameIDs[ Client ] = GameID
 end )
 
 Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client ) 
@@ -170,7 +170,7 @@ end
 
 --[[
 	Determines if the given client has permission to run the given command.
-	Inputs: Client or Steam ID, command name (sv_*).
+	Inputs: Client or Steam ID, command name (sh_*).
 	Output: True if allowed.
 ]]
 function Shine:GetPermission( Client, ConCommand )
@@ -210,7 +210,7 @@ end
 	Unlike get permission, this looks specifically for a user group with explicit permission.
 	It also does not require the command to exist.
 	
-	Inputs: Client or Steam ID, command name (sv_*)
+	Inputs: Client or Steam ID, command name (sh_*)
 	Output: True if explicitly allowed.
 ]]
 function Shine:HasAccess( Client, ConCommand )
@@ -246,9 +246,9 @@ end
 	Output: True if allowed.
 ]]
 function Shine:CanTarget( Client, Target )
-	if not Client or not Target then return true end
+	if not Client or not Target then return true end --Console can target all.
 
-	if Client == Target then return true end
+	if Client == Target then return true end --Can always target yourself.
 
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 	local TargetID = isnumber( Target ) and Target or Target:GetUserId()
@@ -261,8 +261,8 @@ function Shine:CanTarget( Client, Target )
 	local User = Users[ tostring( ID ) ]
 	local TargetUser = Users[ tostring( TargetID ) ]
 
-	if not User then return false end
-	if not TargetUser then return true end
+	if not User then return false end --No user data, guest cannot target others.
+	if not TargetUser then return true end --Target is a guest, can always target guests.
 
 	local Group = Groups[ User.Group ]
 	local TargetGroup = Groups[ TargetUser.Group ]

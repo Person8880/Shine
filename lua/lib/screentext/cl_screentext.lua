@@ -40,7 +40,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment )
 			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 		end
 
-		return
+		return TextObj
 	end
 
 	local MessageTable = {
