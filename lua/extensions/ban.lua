@@ -15,6 +15,8 @@ local StringFormat = string.format
 Plugin.HasConfig = true --This plugin needs a config file.
 Plugin.ConfigName = "Bans.json" --Here it is!
 
+Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
+
 --[[
 	Called on plugin startup, we create the chat commands and set ourself to enabled.
 	We return true to indicate a successful startup.
@@ -83,9 +85,13 @@ function Plugin:LoadConfig()
 	local PluginConfig = io.open( Shine.Config.ExtensionDir..self.ConfigName, "r" )
 
 	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
+		PluginConfig = io.open( self.SecondaryConfig, "r" )
 
-		return
+		if not PluginConfig then
+			self:GenerateDefaultConfig( true )
+
+			return
+		end
 	end
 
 	self.Config = Decode( PluginConfig:read( "*all" ) )

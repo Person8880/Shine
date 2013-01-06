@@ -10,6 +10,8 @@ local Notify = Shared.Message
 local TableContains = table.contains
 
 local UserPath = "config://shine\\UserConfig.json"
+local BackupPath = "config://Shine_UserConfig.json"
+local DefaultUsers = "config://ServerAdmin.json"
 
 --[[
 	Loads the Shine user data either from a local JSON file or from one hosted on a webserver.
@@ -33,12 +35,21 @@ function Shine:LoadUsers( Web )
 		return
 	end
 
+	--Check the default path.
 	local UserFile = io.open( UserPath, "r" )
 
 	if not UserFile then
-		self:GenerateDefaultUsers( true )
+		UserFile = io.open( BackupPath, "r" ) --Check the secondary path.
 
-		return
+		if not UserFile then
+			UserFile = io.open( DefaultUsers, "r" ) --Check the default NS2 users file.
+
+			if not UserFile then
+				self:GenerateDefaultUsers( true )
+
+				return
+			end
+		end
 	end
 
 	Notify( "Loading Shine users..." )
