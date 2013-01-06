@@ -127,36 +127,28 @@ function Plugin:ScrambleTeams()
 	local IgnoreComm = self.Config.IgnoreCommanders
 	local IgnoreSpectators = self.Config.IgnoreSpectators
 
-	--Commander immunity.
-	if IgnoreComm then
-		for i = 1, #Players do
-			local Player = Players[ i ]
-			if not Player or not Player.isa or Player:isa( "Commander" ) then
-				TableRemove( Players, i )
-			end
-		end
-	end
+	local Targets = {}
 
-	--Spectator immunity.
-	if IgnoreSpectators then
-		for i = 1, #Players do
-			local Player = Players[ i ]
-			if not Player or not Player.GetTeamNumber or Player:GetTeamNumber() == kTeamReadyRoom then
-				TableRemove( Players, i )
-			end
-		end
-	end
-
-	--Scramble immunity.
+	--Lua loops can be a pain sometimes...
 	for i = 1, #Players do
 		local Player = Players[ i ]
-		
-		if Player then
-			local Client = Server.GetOwner( Player )
 
-			if Client then
-				if Shine:HasAccess( Client, "sh_scrambleimmune" ) then
-					TableRemove( Players, i )
+		if Player then
+			--Either we're not ignoring commanders, or they're not a commander.
+			if not IgnoreComm or not ( Player.isa and Player:isa( "Commander" ) ) then 
+				local Team = Player.GetTeamNumber and Player:GetTeamNumber() or 0
+				
+				--Either we're not ignoring spectators, or they're not a spectator.
+				if not IgnoreSpectators or not ( Team == 0 or Team == 3 ) then
+					local Client = Server.GetOwner( Player )
+
+					--They have a valid client object.
+					if Client then
+						--They're not immune, so finally add them.
+						if not Shine:HasAccess( Client, "sh_scrambleimmune" ) then
+							Targets[ #Targets + 1 ] = Player
+						end
+					end
 				end
 			end
 		end
@@ -165,10 +157,10 @@ function Plugin:ScrambleTeams()
 	local ScrambleType = self.Config.ScrambleType
 
 	if ScrambleType == self.SCRAMBLE_RANDOM then
-		TableShuffle( Players )
+		TableShuffle( Targets )
 
-		for i = 1, #Players do
-			Gamerules:JoinTeam( Players[ i ], ( i % 2 ) + 1 )
+		for i = 1, #Targets do
+			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1 )
 		end
 
 		Shine.Timer.Simple( 0.1, function()
@@ -183,10 +175,10 @@ function Plugin:ScrambleTeams()
 	end
 
 	if ScrambleType == self.SCRAMBLE_SCORE then
-		TableSort( Players, function( A, B ) return ( A.score or 0 ) > ( B.score or 0 ) end )
+		TableSort( Targets, function( A, B ) return ( A.score or 0 ) > ( B.score or 0 ) end )
 
-		for i = 1, #Players do
-			Gamerules:JoinTeam( Players[ i ], ( i % 2 ) + 1 )
+		for i = 1, #Targets do
+			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1 )
 		end
 
 		Shine.Timer.Simple( 0.1, function()
