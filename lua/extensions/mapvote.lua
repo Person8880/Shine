@@ -958,7 +958,7 @@ function Plugin:CreateCommands()
 			Notify( StringFormat( Message, string.TimeToString( TimeLeft ) ) )
 		end
 	end
-	Commands.TimeLeftCommand = Shine:RegisterCommand( "sh_timeleft", "timeleft", TimeLeft )
+	Commands.TimeLeftCommand = Shine:RegisterCommand( "sh_timeleft", "timeleft", TimeLeft, true )
 	Commands.TimeLeftCommand:Help( "Displays the remaining time for the current map." )
 end
 
