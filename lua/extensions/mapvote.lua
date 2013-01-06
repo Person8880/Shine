@@ -687,14 +687,19 @@ function Plugin:StartVote( NextMap )
 		Shine.Timer.Destroy( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
 
 		if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
-			Shine:Notify( nil, "Vote", ChatName, "Map vote failed. Beginning revote." )
+			Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Beginning revote." )
 
 			self.Vote.Votes = self.Vote.Votes + 1
 
-			self:StartVote( NextMap )
+			Shine.Timer.Simple( 0, function()
+				self:StartVote( NextMap )
+			end )
 		else
-			Shine:Notify( nil, "Vote", ChatName, "Map vote failed." )
-			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+			Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Revote limit reached." )
+
+			if not NextMap then
+				self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+			end
 
 			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 
