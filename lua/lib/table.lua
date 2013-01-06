@@ -21,6 +21,21 @@ local function istable( Table )
 	return type( Table ) == "table"
 end
 
+function PrintTable( Table, Indent )
+	Indent = Indent or 0
+
+	local IndentString = string.rep( "\t", Indent )
+
+	for k, v in pairs( Table ) do
+		if istable( v ) then
+			Print( IndentString..tostring( k )..":".."\n" )
+			PrintTable( v, Indent + 2 )
+		else
+			Print( IndentString..tostring( k ).." = "..tostring( v ) )
+		end
+	end
+end
+
 local function CopyTable( Table, LookupTable )
 	if not Table then return nil end
 	

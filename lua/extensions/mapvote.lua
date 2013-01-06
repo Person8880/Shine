@@ -237,9 +237,7 @@ function Plugin:ClientConnect( Client )
 			
 			local OptionsText = self.Vote.OptionsText
 
-			local VoteText = "Map vote in progress. Available maps:\n"..OptionsText.."\nType !vote <mapname> to vote for a map.\nTime left to vote: %s."
-			Shine:SendText( Player, Shine.BuildScreenMessage( 1, 0.8, 0.1, VoteText, Duration, 255, 255, 255, 1 ) )
-			Shine:SendVoteOptions( Player, OptionsText, Duration )
+			Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
 		end )
 
 		return
@@ -247,10 +245,7 @@ function Plugin:ClientConnect( Client )
 
 	local OptionsText = self.Vote.OptionsText
 
-	local VoteText = "Map vote in progress. Available maps:\n"..OptionsText.."\nType !vote <mapname> to vote for a map.\nTime left to vote: %s."
-
-	Shine:SendText( Player, Shine.BuildScreenMessage( 1, 0.8, 0.1, VoteText, Duration, 255, 255, 255, 1 ) )
-	Shine:SendVoteOptions( Player, OptionsText, Duration )
+	Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
 end
 
 function Plugin:IsNextMapVote()
@@ -426,18 +421,13 @@ function Plugin:StartVote( NextMap )
 		local ChatName = Shine.Config.ChatName
 		--Notify players the map vote has started.
 		if not NextMap then
-			Shine:Notify( nil, "Vote", ChatName, "Map vote started. Available maps: " )
+			Shine:Notify( nil, "Vote", ChatName, "Map vote started." )
 		else
 			Shine:Notify( nil, "Vote", ChatName, "Voting for the next map has started." )
 		end
-		Shine:Notify( nil, "Vote", ChatName, OptionsText )
-		Shine:Notify( nil, "Vote", ChatName, "Type !vote <mapname> to vote for a map." )
 	end )
 	
-	local VoteText = "Map vote in progress. Available maps:\n"..OptionsText.."\nType !vote <mapname> to vote for a map.\nTime left to vote: %s."
-
-	Shine:SendText( nil, Shine.BuildScreenMessage( 1, 0.8, 0.1, VoteText, VoteLength, 255, 255, 255, 1 ) )
-	Shine:SendVoteOptions( nil, OptionsText, VoteLength )
+	Shine:SendVoteOptions( nil, OptionsText, VoteLength, NextMap )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()
