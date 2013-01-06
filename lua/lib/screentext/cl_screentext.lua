@@ -8,18 +8,11 @@ local StringFormat = string.format
 local Messages = {}
 Shine.TextMessages = Messages
 
-function Shine:AddMessageToQueue( Message )
+function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment )
 	local Scale = GUIScale( 1 )
 	local ScaleVec = Vector( 1, 1, 1 ) * Scale
 
-	local ID = Message.ID
 	local TextObj = Messages[ ID ]
-
-	local x, y = Message.x, Message.y
-	local Text = Message.Message
-	local r, g, b = Message.r, Message.g, Message.b
-	local Duration = Message.Duration
-	local Alignment = Message.Align
 
 	if Alignment == 0 then
 		Alignment = GUIItem.Align_Min
@@ -44,7 +37,7 @@ function Shine:AddMessageToQueue( Message )
 		Obj:SetColor( TextObj.Colour )
 
 		function TextObj:UpdateText()
-			self.Obj:SetText( StringFormat( Text, string.TimeToString( self.Duration ) ) )
+			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 		end
 
 		return
@@ -79,10 +72,12 @@ function Shine:AddMessageToQueue( Message )
 	MessageTable.Obj = Obj
 
 	function MessageTable:UpdateText()
-		self.Obj:SetText( StringFormat( Text, string.TimeToString( self.Duration ) ) )
+		self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 	end
 
 	Messages[ ID ] = MessageTable
+
+	return MessageTable
 end
 
 function Shine:UpdateMessageText( Message )
@@ -102,6 +97,10 @@ function Shine:ProcessQueue()
 		Message.Duration = Message.Duration - 1
 
 		Message:UpdateText()
+
+		if Message.Think then
+			Message:Think()
+		end
 
 		if Message.Duration == 0 then
 			self:RemoveMessage( Index )
@@ -130,7 +129,7 @@ Event.Hook( "UpdateClient", function()
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenText", function( Message )
-	Shine:AddMessageToQueue( Message )
+	Shine:AddMessageToQueue( Message.ID, Message.x, Message.y, Message.Message, Message.Duration, Message.r, Message.g, Message.b, Message.Align )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
