@@ -7,14 +7,19 @@ local Notify = Shared.Message
 local StringFormat = string.format
 
 local ConfigPath = "config://shine\\BaseConfig.json"
+local BackupPath = "config://Shine_BaseConfig.json"
 
 function Shine:LoadConfig()
 	local ConfigFile = io.open( ConfigPath, "r" )
 
 	if not ConfigFile then
-		self:GenerateDefaultConfig( true )
+		ConfigFile = io.open( BackupPath, "r" )
+		
+		if not ConfigFile then
+			self:GenerateDefaultConfig( true )
 
-		return
+			return
+		end
 	end
 
 	Notify( "Loading Shine config..." )
