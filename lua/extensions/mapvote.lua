@@ -214,6 +214,40 @@ function Plugin:OnCycleMap()
 	return false
 end
 
+--[[
+	Send the map vote text and map options when a new player connects and a map vote is in progress.
+]]
+function Plugin:ClientConnect( Client )
+	if not self:VoteStarted() then return end
+
+	local Duration = Floor( self.Vote.EndTime - Shared.GetTime() )
+	if Duration <= 5 then return end
+	
+	local Player = Client:GetControllingPlayer()
+
+	if not Player then
+		if Duration < 10 then return end
+
+		--Delay so the client can be assigned a player.
+		Shine.Timer.Simple( 5, function()
+			Duration = Duration - 5
+			local Player = Client and Client:GetControllingPlayer()
+
+			if not Player then return end
+			
+			local OptionsText = self.Vote.OptionsText
+
+			Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
+		end )
+
+		return
+	end
+
+	local OptionsText = self.Vote.OptionsText
+
+	Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
+end
+
 function Plugin:IsNextMapVote()
 	return self.NextMap.Voting or false
 end
@@ -375,6 +409,10 @@ function Plugin:StartVote( NextMap )
 	--This is when the map vote should end and collect its results.
 	local EndTime = Shared.GetTime() + VoteLength
 
+	--Store these values for new clients.
+	self.Vote.EndTime = EndTime
+	self.Vote.OptionsText = OptionsText
+
 	if NextMap then
 		self.NextMap.Voting = true
 	end
@@ -383,18 +421,13 @@ function Plugin:StartVote( NextMap )
 		local ChatName = Shine.Config.ChatName
 		--Notify players the map vote has started.
 		if not NextMap then
-			Shine:Notify( nil, "Vote", ChatName, "Map vote started. Available maps: " )
+			Shine:Notify( nil, "Vote", ChatName, "Map vote started." )
 		else
 			Shine:Notify( nil, "Vote", ChatName, "Voting for the next map has started." )
 		end
-		Shine:Notify( nil, "Vote", ChatName, OptionsText )
-		Shine:Notify( nil, "Vote", ChatName, "Type !vote <mapname> to vote for a map." )
 	end )
 	
-	local VoteText = "Map vote in progress. Available maps:\n"..OptionsText.."\nType !vote <mapname> to vote for a map.\nTime left to vote: %s."
-
-	Shine:SendText( nil, Shine.BuildScreenMessage( 1, 0.8, 0.1, VoteText, VoteLength, 255, 255, 255, 1 ) )
-	Shine:SendVoteOptions( nil, OptionsText, VoteLength )
+	Shine:SendVoteOptions( nil, OptionsText, VoteLength, NextMap )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()
