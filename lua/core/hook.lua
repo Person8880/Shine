@@ -154,7 +154,6 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 					
 					Shared.Message("Chat " .. (message.teamOnly and "Team - " or "All - ") .. playerName .. ": " .. chatMessage)
 					
-					// We save a history of chat messages received on the Server.
 					Server.AddChatToHistory(chatMessage, playerName, client:GetUserId(), playerTeamNumber, message.teamOnly)
 					
 				end
@@ -290,6 +289,11 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 	end )
 
 	local OldCycleMap = MapCycle_CycleMap
+	
+	if not OldCycleMap then
+		Script.Load "lua/MapCycle.lua"
+		OldCycleMap = MapCycle_CycleMap
+	end
 
 	function MapCycle_CycleMap()
 		local Result = Call( "OnCycleMap" )

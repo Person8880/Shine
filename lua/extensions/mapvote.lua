@@ -11,6 +11,7 @@ local TableContains = table.contains
 
 local Ceil = math.ceil
 local Floor = math.floor
+local Max = math.max
 local Random = math.random
 local InRange = math.InRange
 
@@ -23,7 +24,7 @@ Plugin.ConfigName = "MapVote.json"
 Plugin.Commands = {}
 
 Plugin.VoteTimer = "MapVote"
-Plugin.NotifyTimer = "MapVoteNotify"
+Plugin.NextMapTimer = "MapVoteNext"
 
 local function istable( Table )
 	return type( Table ) == "table"
@@ -77,15 +78,17 @@ function Plugin:Initialise()
 
 	if self.Config.EnableNextMapVote then
 		local Time = Shared.GetTime()
-		local CycleTime = Cycle and ( Cycle.time * 60 ) or kCombatTimeLimit or 30
+		local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit * 60 ) or 1800
 
-		Shine.Timer.Simple( ( CycleTime * self.Config.NextMapVote ) - Time, function()
+		Shine.Timer.Create( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
 			local Players = Shine.GetAllPlayers()
 			if #Players > 0 then
 				self:StartVote( true )
 			end
 		end )
 	end
+
+	self.MapCycle = Cycle
 
 	self.Enabled = true
 
@@ -188,8 +191,14 @@ end
 	Prevents the map from cycling if we've extended the current one.
 ]]
 function Plugin:ShouldCycleMap()
+	if self:VoteStarted() then return false end --Do not allow map change whilst a vote is running.
+
 	local Winner = self.NextMap.Winner
 	if not Winner then return end
+
+	local Time = Shared.GetTime()
+
+	if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 	
 	if Winner == Shared.GetMapName() then
 		if Shared.GetTime() < self.NextMap.ExtendTime then 
@@ -203,15 +212,25 @@ end
 	If we've chosen a map from the next map vote, then we override the cycle and switch to it instead.
 ]]
 function Plugin:OnCycleMap()
+	if self:VoteStarted() then return false end --Do not allow map change whilst a vote is running.
+
+	local Time = Shared.GetTime()
+
 	local Winner = self.NextMap.Winner
 
 	if not Winner then return end
 
-	if Winner == Shared.GetMapName() then return false end
+	if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 
-	MapCycle_ChangeMap( Winner )
+	local CurMap = Shared.GetMapName()
 
-	return false
+	if Winner == CurMap and Time < self.NextMap.ExtendTime then return false end
+
+	if Winner ~= CurMap then
+		MapCycle_ChangeMap( Winner )
+
+		return false
+	end
 end
 
 --[[
@@ -246,6 +265,40 @@ function Plugin:ClientConnect( Client )
 	local OptionsText = self.Vote.OptionsText
 
 	Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
+end
+
+--[[
+	On end of the round, notify players of the remaining time.
+]]
+function Plugin:EndGame()
+	Shine.Timer.Simple( 10, function()
+		local Time = Shared.GetTime()
+
+		local Cycle = self.MapCycle
+		local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit and kCombatTimeLimit * 60 )
+
+		if not CycleTime then return end
+
+		local ExtendTime = self.NextMap.ExtendTime
+
+		local TimeLeft = CycleTime - Time
+
+		if ExtendTime then
+			TimeLeft = ExtendTime - Time
+		end
+		
+		local Message = "There is %s remaining on this map."
+
+		if TimeLeft <= 0 then
+			if not self:VoteStarted() then
+				Message = "The server will now cycle to the next map."
+			else
+				Message = "Waiting on map vote to change map."
+			end
+		end
+
+		Shine:Notify( nil, "", "", Message, true, string.TimeToString( TimeLeft ) )
+	end )
 end
 
 function Plugin:IsNextMapVote()
@@ -435,6 +488,8 @@ function Plugin:StartVote( NextMap )
 		local MaxVotes = 0
 		local Voted = self.Vote.VoteList
 
+		local Time = Shared.GetTime()
+
 		local ChatName = Shine.Config.ChatName
 
 		--No one voted :|
@@ -468,9 +523,27 @@ function Plugin:StartVote( NextMap )
 
 		--Only one map won.
 		if Count == 1 then
-			Shine:Notify( nil, "Vote", ChatName, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
-
 			if not NextMap then
+				Shine:Notify( nil, "Vote", ChatName, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
+
+				local Choice = Results[ 1 ]
+				if Choice == Shared.GetMapName() then
+					local ExtendTime = self.Config.ExtendTime * 60
+					
+					Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+					
+					self.NextMap.Winner = Choice
+					self.NextMap.ExtendTime = Time + ExtendTime
+					self.NextMap.Extends = self.NextMap.Extends + 1
+
+					Shine.Timer.Destroy( self.NextMapTimer )
+					Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
+						self:StartVote( true )
+					end )
+
+					return
+				end
+
 				Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
 
 				self.Vote.CanVeto = true --Allow admins to cancel the change.
@@ -494,8 +567,10 @@ function Plugin:StartVote( NextMap )
 			if Results[ 1 ] == Shared.GetMapName() then
 				local ExtendTime = self.Config.ExtendTime * 60
 
-				self.NextMap.ExtendTime = Shared.GetTime() + ExtendTime
+				self.NextMap.ExtendTime = Time + ExtendTime
 				self.NextMap.Extends = self.NextMap.Extends + 1
+
+				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
 					local Players = Shine.GetAllPlayers()
@@ -503,9 +578,13 @@ function Plugin:StartVote( NextMap )
 						self:StartVote( true )
 					end
 				end )
+			else
+				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Results[ 1 ], Results[ 1 ] )
 			end
 
 			self.NextMap.Voting = false
+
+			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 
 			return
 		end
@@ -531,7 +610,7 @@ function Plugin:StartVote( NextMap )
 
 			for i = 1, Count do
 				if InRange( ( i - 1 ) * 100, i * 100, ( i + 1 ) * 100 ) then --Is this map the winner?
-					Choice = MapList[ i ]
+					Choice = Results[ i ]
 					break
 				end 
 			end
@@ -545,6 +624,23 @@ function Plugin:StartVote( NextMap )
 			Shine:Notify( nil, "Vote", ChatName, "Chosen map: %s.", true, Choice )
 
 			if not NextMap then
+				if Choice == Shared.GetMapName() then
+					local ExtendTime = self.Config.ExtendTime * 60
+					
+					Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+					
+					self.NextMap.Winner = Choice
+					self.NextMap.ExtendTime = Shared.GetTime() + ExtendTime
+					self.NextMap.Extends = self.NextMap.Extends + 1
+
+					Shine.Timer.Destroy( self.NextMapTimer )
+					Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
+						self:StartVote( true )
+					end )
+
+					return
+				end
+
 				Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
 
 				--Queue the change.
@@ -566,8 +662,10 @@ function Plugin:StartVote( NextMap )
 			if Choice == Shared.GetMapName() then
 				local ExtendTime = self.Config.ExtendTime * 60
 				
-				self.NextMap.ExtendTime = Shared.GetTime() + ExtendTime
+				self.NextMap.ExtendTime = Time + ExtendTime
 				self.NextMap.Extends = self.NextMap.Extends + 1
+
+				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
 					local Players = Shine.GetAllPlayers()
@@ -575,6 +673,10 @@ function Plugin:StartVote( NextMap )
 						self:StartVote( true )
 					end
 				end )
+
+				self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
+			else
+				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Choice, Choice )
 			end
 
 			self.NextMap.Voting = false
@@ -593,6 +695,8 @@ function Plugin:StartVote( NextMap )
 		else
 			Shine:Notify( nil, "Vote", ChatName, "Map vote failed." )
 			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+
+			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 
 			if NextMap then
 				self.NextMap.Voting = false
@@ -688,9 +792,9 @@ function Plugin:CreateCommands()
 
 		local Success, Err = self:AddStartVote( Client )
 		if Success then
-			local VotesNeeded = self:GetVotesNeededToStart()
+			local VotesNeeded = Max( self:GetVotesNeededToStart() - TotalVotes - 1, 0 )
 
-			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded - TotalVotes - 1 )
+			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded )
 
 			return
 		end
@@ -730,7 +834,14 @@ function Plugin:CreateCommands()
 
 		if Success then
 			if self.Config.ShowVoteChoices then
-				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted for %s (%s/%s votes).", true, PlayerName, Err, self.Vote.VoteList[ Err ], self.Vote.TotalVotes )
+				local NumForThis = self.Vote.VoteList[ Err ]
+				local NumTotal = self.Vote.TotalVotes
+
+				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted for %s (%s for this, %s)", true, 
+					PlayerName, Err, 
+					NumForThis > 1 and NumForThis.." votes" or "1 vote", 
+					NumTotal > 1 and NumTotal.." total votes" or "1 total vote" 
+				)
 			end
 
 			return
@@ -772,7 +883,14 @@ function Plugin:CreateCommands()
 
 		if Success then
 			if self.Config.ShowVoteChoices then
-				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s revoted for %s (%s/%s votes).", true, PlayerName, Err, self.Vote.VoteList[ Err ], self.Vote.TotalVotes )
+				local NumForThis = self.Vote.VoteList[ Err ]
+				local NumTotal = self.Vote.TotalVotes
+
+				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s revoted for %s (%s for this, %s)", true, 
+					PlayerName, Err, 
+					NumForThis > 1 and NumForThis.." votes" or "1 vote", 
+					NumTotal > 1 and NumTotal.." total votes" or "1 total vote" 
+				)
 			end
 
 			return
@@ -808,6 +926,40 @@ function Plugin:CreateCommands()
 	end
 	Commands.VetoCommand = Shine:RegisterCommand( "sh_veto", "veto", Veto )
 	Commands.VetoCommand:Help( "Cancels a map change from a successful map vote." )
+
+	local function TimeLeft( Client )
+		local Cycle = self.MapCycle
+		local Player = Client and Client:GetControllingPlayer()
+
+		local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit and kCombatTimeLimit * 60 )
+
+		if not CycleTime then
+			if Player then
+				Shine:Notify( Player, "", "", "The server does not have a map cycle. No timelimit given." )
+			else
+				Notify( "The server does not have a map cycle. No timelimit given." )
+			end
+
+			return
+		end
+
+		local ExtendTime = self.NextMap.ExtendTime
+
+		local TimeLeft = ExtendTime and ( ExtendTime - Shared.GetTime() ) or ( CycleTime - Shared.GetTime() )
+		local Message = "%s remaining on this map."
+
+		if TimeLeft <= 0 then
+			Message = "Map will change on round end."
+		end
+
+		if Player then
+			Shine:Notify( Player, "", "", Message, true, string.TimeToString( TimeLeft ) )
+		else
+			Notify( StringFormat( Message, string.TimeToString( TimeLeft ) ) )
+		end
+	end
+	Commands.TimeLeftCommand = Shine:RegisterCommand( "sh_timeleft", "timeleft", TimeLeft )
+	Commands.TimeLeftCommand:Help( "Displays the remaining time for the current map." )
 end
 
 function Plugin:Cleanup()

@@ -61,9 +61,13 @@ local HookedCommands = {}
 ]]
 function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silent )
 	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterCommand, string expected, got "..type( ConCommand ) )
+	
 	if ChatCommand then
-		assert( type( ChatCommand ) == "string" or type( ChatCommand ) == "table", "Bad argument #2 to RegisterCommand, string or table expected, got "..type( ChatCommand ) )
+		assert( type( ChatCommand ) == "string" or type( ChatCommand ) == "table", 
+			"Bad argument #2 to RegisterCommand, string or table expected, got "..type( ChatCommand ) 
+		)
 	end
+
 	assert( type( Function ) == "function", "Bad argument #3 to RegisterCommand, function expected, got "..type( Function ) )
 
 	local Commands = self.Commands
@@ -134,6 +138,7 @@ local function isfunction( Func )
 	return type( Func ) == "function"
 end
 
+--These define what to return for the given command arguments.
 local TargetFuncs = {
 	[ "@spectate" ] = function() return Shine.GetTeamClients( 3 ) end,
 	[ "@readyroom" ] = function() return Shine.GetTeamClients( kTeamReadyRoom ) end,
@@ -141,13 +146,16 @@ local TargetFuncs = {
 	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end
 }
 
+--These define all valid command parameter types and how to process a string into the type.
 local ParamTypes = {
-	string = function( Client, String, Table )
+	--Strings return simply the string (clipped to max length if given).
+	string = function( Client, String, Table ) 
 		if not String or String == "" then return isfunction( Table.Default ) and Table.Default() or Table.Default end
 
 		return Table.MaxLength and String:sub( 1, Table.MaxLength ) or String
 	end,
-	client = function( Client, String, Table )
+	--Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
+	client = function( Client, String, Table ) 
 		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default or Client end
 
 		local Target
@@ -161,7 +169,8 @@ local ParamTypes = {
 
 		return Target
 	end,
-	clients = function( Client, String, Table )
+	--Clients looks for matching clients by game ID, Steam ID, name or special targeting directive. Returns a table of clients.
+	clients = function( Client, String, Table ) 
 		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
 
 		local Vals = StringExplode( String, "," )
@@ -172,6 +181,7 @@ local ParamTypes = {
 		for i = 1, #Vals do
 			local Val = Vals[ i ]
 
+			--Targeting a user group.
 			if Val:sub( 1, 1 ) == "%" then
 				local Group = Val:sub( 2 )
 				local InGroup = Shine:GetClientsByGroup( Group )
@@ -187,10 +197,11 @@ local ParamTypes = {
 					end
 				end
 			else
-				if Val == "*" then
+				if Val == "*" then --Targeting everyone.
 					return Shine.GetAllClients() --Don't want to add superfluous results...
-				elseif Val == "^" then
+				elseif Val == "^" then --Targeting yourself.
 					local CurClient = Client
+
 					if not Table.NotSelf then
 						if not Added[ CurClient ] then
 							Clients[ #Clients + 1 ] = CurClient
@@ -200,6 +211,7 @@ local ParamTypes = {
 				else
 					if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
 						local Add = TargetFuncs[ Val ]()
+
 						for j = 1, #Add do
 							local Adding = Add[ j ]
 
@@ -210,6 +222,7 @@ local ParamTypes = {
 						end
 					else
 						local CurClient = Shine:GetClient( Val )
+
 						if CurClient and not ( Table.NotSelf and CurClient == Client ) then
 							if not Added[ CurClient ] then
 								Clients[ #Clients + 1 ] = CurClient
@@ -223,6 +236,7 @@ local ParamTypes = {
 		
 		return Clients
 	end,
+	--Number performs tonumber() on the string and clamps the result between the given min and max if applicable. Also rounds if asked.
 	number = function( Client, String, Table )
 		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
@@ -232,6 +246,7 @@ local ParamTypes = {
 
 		return Table.Round and Round( Num ) or Num
 	end,
+	--Boolean turns "false" and 0 into false and everything else into true.
 	boolean = function( Client, String, Table )
 		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
 
@@ -239,21 +254,32 @@ local ParamTypes = {
 
 		return ToNum and ToNum ~= 0 or String ~= "false"
 	end,
+	--Team takes either 0 - 3 directly or takes a string matching a team name and turns it into the team number.
 	team = function( Client, String, Table )
 		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
 
 		local ToNum = tonumber( String )
 
-		if ToNum then return MathClamp( Round( ToNum ), 1, 2 ) end
+		if ToNum then return MathClamp( Round( ToNum ), 0, 3 ) end
 
-		if String:lower():find( "marine" ) then return 1 end
+		String = String:lower()
+
+		if String:find( "ready" ) then return 0 end
+
+		if String:find( "marine" ) then return 1 end
 		
-		if String:lower():find( "alien" ) then return 2 end
+		if String:find( "alien" ) then return 2 end
+
+		if String:find( "spectat" ) then return 3 end
 
 		return nil
 	end 
 }
-
+--[[
+	Parses the given string using the given parameter table and returns the result.
+	Inputs: Client, string argument, parameter table.
+	Output: Converted argument or nil.
+]]
 local function ParseParameter( Client, String, Table )
     local Type = Table.Type
     if String then
@@ -264,6 +290,10 @@ local function ParseParameter( Client, String, Table )
     end
 end
 
+--[[
+	Executes a Shine command. Should not be called directly.
+	Inputs: Client running the command, console command to run, string arguments passed to the command.
+]]
 function Shine:RunCommand( Client, ConCommand, ... )
 	local Command = self.Commands[ ConCommand ]
 
@@ -289,9 +319,14 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
 			if CurArg.Type:find( "client" ) then --No client means no match.
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "No matching %s found.", true, CurArg.Type == "client" and "player was" or "players were" )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+					"No matching %s found.", true, 
+					CurArg.Type == "client" and "player was" or "players were" 
+				)
 			else
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, CurArg.Error or "Incorrect argument #%s to %s.", true, i, ConCommand )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+					CurArg.Error or "Incorrect argument #%s to %s.", true, i, ConCommand 
+				)
 			end
 
 			return
@@ -309,7 +344,9 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "The author of this command misconfigured it. If you know them, tell them!" )
+				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+					"The author of this command misconfigured it. If you know them, tell them!" 
+				)
 				return
 			end
 		end
@@ -317,7 +354,13 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target the return client.
 		if CurArg.Type == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "You do not have permission to target %s.", true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
+				self:Notify( Client:GetControllingPlayer(), "Error", 
+					self.Config.ChatName, 
+					"You do not have permission to target %s.", 
+					true, 
+					ParsedArgs[ i ]:GetControllingPlayer():GetName() 
+				)
+
 				return
 			end
 		end
@@ -333,7 +376,9 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 
 				if #ParsedArg == 0 then
-					self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "You do not have permission to target anyone you specified." )
+					self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+						"You do not have permission to target anyone you specified." 
+					)
 					return
 				end
 			end
@@ -379,5 +424,5 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 
 	if CommandObj.Silent then return "" end --If the command specifies it is silent, override their message with blank.
 	if Shine.Config.SilentChatCommands then return "" end --If the global silent chat commands setting is on, silence the message.
-	if Directive and Directive == "/" then return "" end --If they used / to invoke the command, silence it. (SourceMod style)
+	if Directive == "/" then return "" end --If they used / to invoke the command, silence it. (SourceMod style)
 end, -20 )
