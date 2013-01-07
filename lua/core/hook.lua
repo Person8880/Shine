@@ -177,7 +177,13 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 	OldJoinTeam = ReplaceMethod( Gamerules, "JoinTeam", function( self, Player, NewTeam, Force )
 		local Result = Call( "JoinTeam", self, Player, NewTeam, Force )
 
-		if Result then return Result[ 1 ], Result[ 2 ] end
+		if Result then
+			if Result[ 1 ] then
+				NewTeam = Result[ 2 ]
+			else
+				return
+			end
+		end
 
 		return OldJoinTeam( self, Player, NewTeam, Force )
 	end )
@@ -289,7 +295,7 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 	end )
 
 	local OldCycleMap = MapCycle_CycleMap
-	
+
 	if not OldCycleMap then
 		Script.Load "lua/MapCycle.lua"
 		OldCycleMap = MapCycle_CycleMap

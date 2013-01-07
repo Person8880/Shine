@@ -9,6 +9,47 @@ Shine = Shine or {}
 Shine.Maps = {}
 Shine.EndTime = 0
 
+local ActivePlugins = {}
+Shine.ActivePlugins = ActivePlugins
+
+Client.HookNetworkMessage( "Shine_PluginData", function( Message ) 
+	if #ActivePlugins > 0 then
+		for i = 1, #ActivePlugins do
+			ActivePlugins[ i ] = nil
+		end
+	end
+
+	for Index, Data in pairs( Message ) do
+		if Data == 1 then
+			ActivePlugins[ #ActivePlugins + 1 ] = Index
+		end
+	end
+end )
+
+local Menu
+
+Event.Hook( "Console_sh_votemenu", function( Client )
+	if #ActivePlugins == 0 then return end
+	
+	local Manager = GetGUIManager()
+
+	if Menu then
+		Manager:DestroyGUIScript( Menu )
+
+		Menu = nil
+
+		return
+	end
+
+	Menu = Manager:CreateGUIScript( "GUIShineVoteMenu" )
+	Menu:Populate( ActivePlugins )
+	if Shine.EndTime > Shared.GetTime() then
+		Menu:CreateVoteButton()
+	end
+
+	Menu:SetIsVisible( true )
+end )
+
 Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 	local Duration = Message.Duration
 	local NextMap = Message.NextMap == 1
@@ -54,27 +95,12 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 	end
 
 	Shine.SentVote = false
-end )
-
-local Menu
-
-Event.Hook( "Console_sh_votemenu", function( Client )
-	if Shine.EndTime < Shared.GetTime() then return end
-	
-	local Manager = GetGUIManager()
 
 	if Menu then
-		Manager:DestroyGUIScript( Menu )
-
-		Menu = nil
-
-		return
+		if not Menu.VoteButton then
+			Menu:CreateVoteButton()
+		end
 	end
-
-	Menu = Manager:CreateGUIScript( "GUIShineVoteMenu" )
-	Menu:Populate()
-
-	Menu:SetIsVisible( true )
 end )
 
 local function BindVoteKey()

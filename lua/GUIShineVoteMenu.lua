@@ -66,7 +66,7 @@ local BackgroundTextureHighlight =
 	[ kNeutralTeamType ] = "ui/marine_request_button_highlighted.dds",
 }
 
-local function CreateMenuButton( self, TeamType, MapName, Align, Index, MaxIndex )
+local function CreateMenuButton( self, TeamType, Name, Align, Index, MaxIndex, DoClick )
 	Index = Index + ( kMaxRequestsPerSide - MaxIndex ) *.5
 	
 	Align = Align or GUIItem.Left
@@ -96,15 +96,15 @@ local function CreateMenuButton( self, TeamType, MapName, Align, Index, MaxIndex
 	Description:SetTextAlignmentY( GUIItem.Align_Center )
 	Description:SetFontName( FontName )
 	Description:SetScale( ScaleVector )
-	Description:SetText( MapName )
+	Description:SetText( Name )
 
 	self.Background:AddChild( Background )
 	Background:AddChild( Description )
 	
-	return { Background = Background, Description = Description, MapName = MapName }
+	return { Background = Background, Description = Description, DoClick = DoClick }
 end
 
-local function SendRequest( self, MapName )
+local function SendRequest( MapName )
 	if GetCanSendVote() then
 		if not Shine.SentVote then
 			Shared.ConsoleCommand( "sh_vote "..MapName )
@@ -134,11 +134,69 @@ function GUIShineVoteMenu:Initialize()
 	self.Background:SetIsVisible( false )
 	
 	self.MenuButtons = {}
-
-	self:Populate()
 end
 
-function GUIShineVoteMenu:Populate()
+function GUIShineVoteMenu:ClearOptions()
+	local MenuButtons = self.MenuButtons
+
+	for i = 1, #MenuButtons do
+		GUI.DestroyItem( MenuButtons[ i ].Background )
+		MenuButtons[ i ] = nil
+	end
+end
+
+local function GenericClick( Command )
+	if GetCanSendVote() then
+		Shared.ConsoleCommand( Command )
+		TimeLastMessageSend = Shared.GetTime()
+
+		return true
+	end
+
+	return false
+end
+
+local ClickFuncs = {
+	Random = function()
+		return GenericClick( "sh_voterandom" )
+	end,
+	RTV = function()
+		return GenericClick( "sh_votemap" )
+	end,
+	Surrender = function()
+		return GenericClick( "sh_votesurrender" )
+	end,
+	Scramble = function()
+		return GenericClick( "sh_votescramble" )
+	end
+}
+
+function GUIShineVoteMenu:Populate( ActivePlugins )
+	local NumPlugins = #ActivePlugins
+	local HalfNum = Ceil( NumPlugins * 0.5 )
+
+	local MenuButtons = self.MenuButtons
+
+	for i = 1, HalfNum do
+		if not ActivePlugins[ i ] then break end
+		if i > kMaxRequestsPerSide then break end
+		
+		MenuButtons[ #MenuButtons + 1 ] = CreateMenuButton( self, self.TeamType, ActivePlugins[ i ], 
+			GUIItem.Left, i, HalfNum, ClickFuncs[ ActivePlugins[ i ] ] )
+	end
+
+	for i = 1, HalfNum do
+		if not ActivePlugins[ i + HalfNum ] then break end
+		if i > kMaxRequestsPerSide then break end
+		
+		MenuButtons[ #MenuButtons + 1 ] = CreateMenuButton( self, self.TeamType, ActivePlugins[ i + HalfNum ], 
+			GUIItem.Right, i, HalfNum, ClickFuncs[ ActivePlugins[ i + HalfNum ] ] )
+	end
+
+	self.MainMenu = true
+end
+
+function GUIShineVoteMenu:PopulateMaps()
 	local Maps = Shine.Maps
 	if not Maps then 
 		return 
@@ -150,20 +208,61 @@ function GUIShineVoteMenu:Populate()
 	local MenuButtons = self.MenuButtons
 
 	for i = 1, HalfMaps do
-		if not Maps[ i ] then break end
+		local Map = Maps[ i ]
+		if not Map then break end
 		if i > kMaxRequestsPerSide then break end
 		
-		MenuButtons[ #MenuButtons + 1 ] = CreateMenuButton( self, self.TeamType, Maps[ i ], GUIItem.Left, i, HalfMaps )
+		MenuButtons[ #MenuButtons + 1 ] = CreateMenuButton( self, self.TeamType, Map, GUIItem.Left, i, HalfMaps, function() return SendRequest( Map ) end )
 	end
 
 	for i = 1, HalfMaps do
-		if not Maps[ i + HalfMaps ] then break end
+		local Map = Maps[ i + HalfMaps ]
+		if not Map then break end
 		if i > kMaxRequestsPerSide then break end
 
-		MenuButtons[ #MenuButtons + 1 ] = CreateMenuButton( self, self.TeamType, Maps[ i + HalfMaps ], GUIItem.Right, i, HalfMaps )
+		MenuButtons[ #MenuButtons + 1 ] = CreateMenuButton( self, self.TeamType, Map, GUIItem.Right, i, HalfMaps, function() return SendRequest( Map ) end )
 	end
 
 	self.EndTime = Shine.EndTime
+
+	self.MainMenu = false
+end
+
+function GUIShineVoteMenu:CreateVoteButton()
+	local Background = GetGUIManager():CreateGraphicItem()
+	Background:SetSize( BackgroundSize )
+	Background:SetTexture( BackgroundTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
+	Background:SetAnchor( GUIItem.Middle, GUIItem.Top )
+	Background:SetPosition( Vector( -BackgroundSize.x * .5, -BackgroundSize.y - Padding, 0 ) )
+	
+	local Text = GetGUIManager():CreateTextItem()
+	Text:SetTextAlignmentX( GUIItem.Align_Center )
+	Text:SetTextAlignmentY( GUIItem.Align_Center )
+	Text:SetFontName( FontName )
+	Text:SetScale( ScaleVector )
+	Text:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	Text:SetText( "Vote" )
+	
+	self.Background:AddChild( Background )
+	Background:AddChild( Text )
+	
+	self.VoteButton = { Background = Background, Text = Text, 
+		DoClick = function() 
+			if self.MainMenu then
+				self:ClearOptions()
+				self:PopulateMaps()
+				Text:SetText( "Back" )
+
+				return true
+			else
+				self:ClearOptions()
+				self:Populate( Shine.ActivePlugins )
+				Text:SetText( "Vote" )
+
+				return true
+			end
+		end
+	}
 end
 
 function GUIShineVoteMenu:SetIsVisible( Visible )
@@ -195,9 +294,34 @@ end
 
 function GUIShineVoteMenu:Update( DeltaTime )
 	if not self.Background:GetIsVisible() then return end
+
+	if Shine.EndTime < Shared.GetTime() then
+		if self.VoteButton then
+			if not self.MainMenu then
+				self:ClearOptions()
+				self:Populate( Shine.ActivePlugins )
+
+				GUI.DestroyItem( self.VoteButton.Background )
+
+				self.VoteButton = nil
+			else
+				GUI.DestroyItem( self.VoteButton.Background )
+
+				self.VoteButton = nil
+			end
+		end
+	end
 	
 	local MouseX, MouseY = Client.GetCursorPosScreen()
 	
+	if self.VoteButton then
+		if GUIItemContainsPoint( self.VoteButton.Background, MouseX, MouseY ) then
+			self.VoteButton.Background:SetTexture( BackgroundTextureHighlight[ self.TeamType ] )
+		else
+			self.VoteButton.Background:SetTexture( BackgroundTexture[ self.TeamType ] )
+		end
+	end
+
 	for i = 1, #self.MenuButtons do
 		local Button = self.MenuButtons[ i ]
 		
@@ -210,6 +334,10 @@ function GUIShineVoteMenu:Update( DeltaTime )
 end
 
 function GUIShineVoteMenu:SendKeyEvent( Key, Down )
+	if self.NextClick and self.NextClick > Shared.GetTime() then
+		return false
+	end
+
 	local HitButton = false
 	
 	if ChatUI_EnteringChatMessage() then
@@ -221,17 +349,27 @@ function GUIShineVoteMenu:SendKeyEvent( Key, Down )
 
 	if self.Background:GetIsVisible() then
 		if Key == InputKey.MouseButton0 then
-			for i = 1, #self.MenuButtons do
-				local Button = self.MenuButtons[ i ]
+			if self.VoteButton and GUIItemContainsPoint( self.VoteButton.Background, MouseX, MouseY ) then
+				if self.VoteButton.DoClick() then
+					OnClickVoteOption()
 
-				if GUIItemContainsPoint( Button.Background, MouseX, MouseY ) then
-					if SendRequest( self, Button.MapName ) then
-						OnClickVoteOption()
+					self.NextClick = Shared.GetTime() + 1
+
+					return true
+				end
+			else
+				for i = 1, #self.MenuButtons do
+					local Button = self.MenuButtons[ i ]
+
+					if GUIItemContainsPoint( Button.Background, MouseX, MouseY ) then
+						if Button.DoClick() then
+							OnClickVoteOption()
+						end
+
+						HitButton = true
+
+						break
 					end
-
-					HitButton = true
-
-					break
 				end
 			end
 		end
@@ -252,6 +390,9 @@ function GUIShineVoteMenu:SendKeyEvent( Key, Down )
 				self:SetIsVisible( false )
 			end
 		end
+
+		self.NextClick = Shared.GetTime() + 1
+
 		Success = true
 	end
 	
