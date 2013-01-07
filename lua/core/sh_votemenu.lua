@@ -11,3 +11,12 @@ local NWMessage = {
 }
 
 Shared.RegisterNetworkMessage( "Shine_VoteMenu", NWMessage )
+
+local PluginMessage = {
+	Random = "integer (0 to 1)",
+	RTV = "integer (0 to 1)",
+	Scramble = "integer (0 to 1)",
+	Surrender = "integer (0 to 1)"
+}
+
+Shared.RegisterNetworkMessage( "Shine_PluginData", PluginMessage )

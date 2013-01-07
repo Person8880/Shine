@@ -255,6 +255,7 @@ function Plugin:CreateCommands()
 
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
+			Shine:SendPluginData( nil, Shine:BuildPluginData() ) --Update all players with the plugins state.
 		else
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s failed to load. Error: %s", Name, Err ) )
 		end
@@ -277,6 +278,8 @@ function Plugin:CreateCommands()
 		Shine:UnloadExtension( Name )
 
 		Shine:AdminPrint( Client, StringFormat( "The plugin %s unloaded successfully.", Name ) )
+
+		Shine:SendPluginData( nil, Shine:BuildPluginData() )
 	end
 	Commands.UnloadPluginCommand = Shine:RegisterCommand( "sh_unloadplugin", nil, UnloadPlugin )
 	Commands.UnloadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to unload." }
