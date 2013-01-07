@@ -8,6 +8,7 @@ local StringFormat = string.format
 
 local Ceil = math.ceil
 local Floor = math.floor
+local Max = math.max
 local Random = math.random
 
 local TableRemove = table.remove
@@ -205,9 +206,9 @@ function Plugin:CreateCommands()
 		local Votes = self.Votes
 
 		if Success then
-			local VotesNeeded = self:GetVotesNeeded()
+			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )
 
-			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to scramble the teams (%s more votes needed).", true, PlayerName, VotesNeeded - Votes - 1 )
+			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to scramble the teams (%s more votes needed).", true, PlayerName, VotesNeeded )
 
 			return
 		end
@@ -220,9 +221,9 @@ function Plugin:CreateCommands()
 			end
 		else
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted for a team scramble." )
 			else
-				Notify( "You have already voted." )
+				Notify( "You have already voted for a team scramble." )
 			end
 		end
 	end

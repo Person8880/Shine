@@ -70,6 +70,7 @@ function Shine:GenerateDefaultConfig( Save )
 			motd = true,
 			serverswitch = false,
 			unstuck = true,
+			voterandom = false,
 			votescramble = false,
 			votesurrender = true,
 			welcomemessages = false

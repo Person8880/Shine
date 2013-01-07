@@ -248,7 +248,13 @@ local ParamTypes = {
 	end,
 	--Boolean turns "false" and 0 into false and everything else into true.
 	boolean = function( Client, String, Table )
-		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String or String == "" then 
+			if isfunction( Table.Default ) then
+				return Table.Default() 
+			else
+				return Table.Default 
+			end
+		end
 
 		local ToNum = tonumber( String )
 
