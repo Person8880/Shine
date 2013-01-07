@@ -33,6 +33,14 @@ function Plugin:Initialise()
 	self.Voted = {}
 	self.Votes = 0
 
+	local Gamerules = GetGamerules()
+
+	if Gamerules and Gamerules:GetGameState() == kGameState.Started then
+		self.RoundStarted = true
+	else
+		self.RoundStarted = false
+	end
+
 	self.Enabled = true
 
 	return true
@@ -95,12 +103,31 @@ function Plugin:LoadConfig()
 	PluginConfig:close()
 end
 
+--[[
+	Reset and disallow scrambling on game end.
+]]
+function Plugin:EndGame( Gamerules, WinningTeam )
+	self.Votes = 0
+	self.Voted = {}
+
+	self.RoundStarted = false
+end
+
+--[[
+	Re-enable scramble voting once the next round starts.
+]]
+function Plugin:SetGameState( Gamerules, State, OldState )
+	if State == kGameState.Started then
+		self.RoundStarted = true
+	end
+end
+
 function Plugin:GetVotesNeeded()
 	return Ceil( #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) * self.Config.PercentNeeded )
 end
 
 function Plugin:CanStartVote()
-	return #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) >= self.Config.MinPlayers and self.NextVote < Shared.GetTime()
+	return self.RoundStarted and #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) >= self.Config.MinPlayers and self.NextVote < Shared.GetTime()
 end
 
 function Plugin:AddVote( Client )
@@ -112,7 +139,7 @@ function Plugin:AddVote( Client )
 	self.Voted[ Client ] = true
 	self.Votes = self.Votes + 1
 
-	if self.Votes >= self:GetVotesNeeded() then
+	if self.Votes == self:GetVotesNeeded() then
 		self:ScrambleTeams()
 	end
 
