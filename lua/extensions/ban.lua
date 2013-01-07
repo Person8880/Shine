@@ -142,7 +142,7 @@ function Plugin:CheckBans()
 	local Edited
 
 	for ID, Data in pairs( Bans ) do
-		if Data.UnbanTime < Time then
+		if Data.UnbanTime and Data.UnbanTime < Time then
 			self:RemoveBan( ID, true )
 			Edited = true
 		end
@@ -292,7 +292,7 @@ function Plugin:ClientConnect( Client )
 	if BanEntry then
 		local SysTime = Time()
 
-		if BanEntry.UnbanTime == 0 or BanEntry.UnbanTime > Time() then --Either a perma-ban or not expired.
+		if not BanEntry.UnbanTime or BanEntry.UnbanTime == 0 or BanEntry.UnbanTime > Time() then --Either a perma-ban or not expired.
 			Server.DisconnectClient( Client )
 		else
 			self:RemoveBan( ID )

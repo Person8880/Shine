@@ -198,7 +198,7 @@ function Plugin:ShouldCycleMap()
 
 	local Time = Shared.GetTime()
 
-	if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
+	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 	
 	if Winner == Shared.GetMapName() then
 		if Shared.GetTime() < self.NextMap.ExtendTime then 
@@ -220,7 +220,7 @@ function Plugin:OnCycleMap()
 
 	if not Winner then return end
 
-	if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
+	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 
 	local CurMap = Shared.GetMapName()
 
@@ -267,6 +267,46 @@ function Plugin:ClientConnect( Client )
 	Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
 end
 
+local function GetMapName( Map )
+    if type( Map ) == "table" and Map.map then
+        return Map.map
+    end
+
+    return Map
+end
+
+--[[
+	Returns the next map in the map cycle or the map that's been voted for next.
+]]
+function Plugin:GetNextMap()
+	local CurMap = Shared.GetMapName()
+
+	local Winner = self.NextMap.Winner
+
+	if Winner and Winner ~= CurMap then return Winner end --Winner decided.
+	
+	local Cycle = self.MapCycle
+
+	if not Cycle then return "unknown" end --No map cycle?
+
+	local Maps = Cycle.maps
+	local NumMaps = #Maps
+	local Index = 0
+
+	for i = #Maps, 1, -1 do
+		if GetMapName( Maps[ i ] ) == CurMap then
+			Index = i + 1
+			break
+		end
+	end
+	
+	if Index > NumMaps then
+		Index = 1
+	end
+	
+	return Maps[ Index ]
+end
+
 --[[
 	On end of the round, notify players of the remaining time.
 ]]
@@ -291,7 +331,9 @@ function Plugin:EndGame()
 
 		if TimeLeft <= 0 then
 			if not self:VoteStarted() then
-				Message = "The server will now cycle to the next map."
+				Shine:Notify( nil, "", "", "The server will now cycle to %s.", true, self:GetNextMap() )
+
+				return
 			else
 				Message = "Waiting on map vote to change map."
 			end
