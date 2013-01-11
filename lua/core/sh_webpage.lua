@@ -25,11 +25,17 @@ Client.HookNetworkMessage( "Shine_Web", function( Message )
 
 	WebWindow = Manager:CreateGUIScript( "GUIWebView" )
 	local OldSendKeyEvent = WebWindow.SendKeyEvent
+	local OldUnInit = WebWindow.Uninitialize
+
+	--Just in case, we'll override this too.
+	function WebWindow:Uninitialize()
+		MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
+		return OldUnInit( self )
+	end
 
 	--Need to override this so the mouse is removed on close.
 	function WebWindow:SendKeyEvent(key, down)
 		if not self.background then
-			MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
 			return false
 		end
 		
