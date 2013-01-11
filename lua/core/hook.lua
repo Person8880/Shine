@@ -107,6 +107,27 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 
 	--An annoyingly hacky fix to CombatMode's complete override of the chat.
 	if Shine.Config.CombatMode then
+		--Taken straight from NetworkMessages_Server.lua
+		local function GetChatPlayerData(client)
+			local playerName = "Admin"
+			local playerLocationId = -1
+			local playerTeamNumber = kTeamReadyRoom
+			local playerTeamType = kNeutralTeamType
+			
+			if client then
+				local player = client:GetControllingPlayer()
+				if not player then
+					return
+				end
+				playerName = player:GetName()
+				playerLocationId = player.locationId
+				playerTeamNumber = player:GetTeamNumber()
+				playerTeamType = player:GetTeamType()
+			end
+		
+			return playerName, playerLocationId, playerTeamNumber, playerTeamType
+		end
+
 		local OldOnChatReceive
 
 		local function OnChatReceived( client, message )
