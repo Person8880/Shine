@@ -158,7 +158,9 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			self.ForceRandom = true
 		end )
 	else
-		self.ForceRandom = false
+		if not Shine.Timer.Exists( self.RandomEndTimer ) then
+			self.ForceRandom = false
+		end
 	end
 	local Players = Shine.GetAllPlayers()
 
