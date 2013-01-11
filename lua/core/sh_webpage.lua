@@ -36,7 +36,6 @@ Client.HookNetworkMessage( "Shine_Web", function( Message )
 	--Need to override this so the mouse is removed on close.
 	function WebWindow:SendKeyEvent(key, down)
 		if not self.background then
-			MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
 			return false
 		end
 		
