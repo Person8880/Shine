@@ -22,8 +22,10 @@ function Plugin:GetTeamName( Team, Capitals )
 		return Capitals and "Marines" or "marines"
 	elseif Team == 2 then
 		return Capitals and "Aliens" or "aliens"
-	else
+	elseif Team == 3 then
 		return Capitals and "Spectate" or "spectate"
+	else
+		return Capitals and "Ready Room" or "ready room"
 	end
 end
 
