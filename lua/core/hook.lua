@@ -195,8 +195,8 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 
 	local OldJoinTeam
 
-	OldJoinTeam = ReplaceMethod( Gamerules, "JoinTeam", function( self, Player, NewTeam, Force )
-		local Result = Call( "JoinTeam", self, Player, NewTeam, Force )
+	OldJoinTeam = ReplaceMethod( Gamerules, "JoinTeam", function( self, Player, NewTeam, Force, ShineForce )
+		local Result = Call( "JoinTeam", self, Player, NewTeam, Force, ShineForce )
 
 		if Result then
 			if Result[ 1 ] then
