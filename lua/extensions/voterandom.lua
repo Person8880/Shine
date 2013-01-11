@@ -158,7 +158,9 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			self.ForceRandom = true
 		end )
 	else
-		self.ForceRandom = false
+		if not Shine.Timer.Exists( self.RandomEndTimer ) then
+			self.ForceRandom = false
+		end
 	end
 	local Players = Shine.GetAllPlayers()
 
@@ -285,8 +287,11 @@ function Plugin:ApplyRandomSettings()
 	Shine:Notify( nil, "Random", ChatName, "Random teams have been enabled for the next %s.", true, string.TimeToString( Duration ) )
 
 	if self.Config.InstantForce then
+		Shine:Notify( nil, "Random", ChatName, "Shuffling teams and restarting round..." )
+
+		GetGamerules():ResetGame()
+
 		self:ShuffleTeams()
-		Shine:Notify( nil, "Random", ChatName, "Shuffling teams..." )
 	end
 
 	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
