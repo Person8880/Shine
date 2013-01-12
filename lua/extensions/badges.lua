@@ -30,6 +30,7 @@ function Plugin:Initialise()
 		if type( BadgeID ) == "number" then
 			return Server.GetIsDlcAuthorized( Client, BadgeID )
 		elseif UserData then
+			if not UserData.Users then return false end
 			local User = UserData.Users[ tostring( SteamID ) ]
 
 			if User and User.Group == BadgeID then return true end
