@@ -204,30 +204,32 @@ local OldServerAdminPrint = ServerAdminPrint
 
 local MaxPrintLength = 128
 
---[[
-	Rewrite ServerAdminPrint to not print to the server console when used, otherwise we'll get spammed with repeat prints when sending to lots of people at once.
-]]
-function ServerAdminPrint( Client, Message )
-	if not Client then return end
-	
-	local MessageList = {}
-	local Count = 1
+Shine.Hook.Add( "ClientConnect", "OverrideServerAdminPrint", function( Client )
+	--[[
+		Rewrite ServerAdminPrint to not print to the server console when used, otherwise we'll get spammed with repeat prints when sending to lots of people at once.
+	]]
+	function ServerAdminPrint( Client, Message )
+		if not Client then return end
+		
+		local MessageList = {}
+		local Count = 1
 
-	while #Message > MaxPrintLength do
-		local Part = Message:sub( 0, MaxPrintLength )
+		while #Message > MaxPrintLength do
+			local Part = Message:sub( 0, MaxPrintLength )
 
-		MessageList[ Count ] = Part
-		Count = Count + 1
+			MessageList[ Count ] = Part
+			Count = Count + 1
 
-		Message = Message:sub( MaxPrintLength + 1 )
+			Message = Message:sub( MaxPrintLength + 1 )
+		end
+
+		MessageList[ Count ] = Message
+		
+		for i = 1, #MessageList do
+			Server.SendNetworkMessage( Client:GetControllingPlayer(), "ServerAdminPrint", { message = MessageList[ i ] }, true )
+		end
 	end
-
-	MessageList[ Count ] = Message
-	
-	for i = 1, #MessageList do
-		Server.SendNetworkMessage( Client:GetControllingPlayer(), "ServerAdminPrint", { message = MessageList[ i ] }, true )
-	end
-end
+end )
 
 function Shine:AdminPrint( Client, String, Format, ... )
 	self:Print( String, Format, ... )
