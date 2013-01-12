@@ -119,6 +119,7 @@ function Plugin:GenerateDefaultConfig( Save )
 		AllowExtend = true, --Allow going to the same map to be an option.
 		ExtendTime = 15, --Time in minutes to extend the map.
 		MaxExtends = 1, --Maximum number of map extensions.
+		AlwaysExtend = true, --Always show an option to extend the map if not past the max extends.
 
 		TieFails = false, --A tie means the vote fails.
 		ChooseRandomOnTie = true, --Choose randomly between the tied maps. If not, a revote is called.
@@ -162,7 +163,7 @@ function Plugin:SaveConfig()
 
 	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
 
-	Shine:Print( "Shine mapvote config file saved." )
+	Notify( "Shine mapvote config file saved." )
 
 	PluginConfig:close()
 end
@@ -184,6 +185,11 @@ function Plugin:LoadConfig()
 
 	if self.Enabled == nil then
 		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+	end
+
+	if self.Config.AlwaysExtend == nil then
+		self.Config.AlwaysExtend = true
+		self:SaveConfig()
 	end
 end
 
@@ -472,14 +478,24 @@ function Plugin:StartVote( NextMap )
 		AllMaps[ Nominee ] = nil --Remove this from the list of all maps as it's now in our vote list.
 	end
 
-	local RemainingSpaces = MaxOptions - #MapList
+	local CurMap = Shared.GetMapName()
 	local AllowCurMap = self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends
+
+	--If we have map extension enabled, ensure it's in the vote list.
+	if AllowCurMap then
+		if AllMaps[ CurMap ] and self.Config.AlwaysExtend then
+			MapList[ #MapList + 1 ] = CurMap
+			AllMaps[ CurMap ] = nil
+		end
+	end
+
+	local RemainingSpaces = MaxOptions - #MapList
 
 	--If we didn't have enough nominations to fill the vote list, add maps from the allowed list that weren't nominated.
 	if RemainingSpaces > 0 then
 		if next( AllMaps ) then
 			for Name, _ in RandomPairs( AllMaps ) do
-				if AllowCurMap or Name ~= Shared.GetMapName() then
+				if AllowCurMap or Name ~= CurMap then
 					MapList[ #MapList + 1 ] = Name
 				end
 
@@ -793,7 +809,7 @@ function Plugin:CreateCommands()
 
 		local Count = #Nominated 
 
-		if Count >= self.Config.MaxOptions then
+		if Count >= ( self.Config.MaxOptions - 1 ) then
 			if Player then
 				Shine:Notify( Player, "Error", Shine.Config.ChatName, "Nominations are full." )
 			else
