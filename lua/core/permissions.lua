@@ -19,23 +19,25 @@ local DefaultUsers = "config://ServerAdmin.json"
 ]]
 function Shine:LoadUsers( Web )
 	if Web then
-		Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
-			if not Response then
-				self:LoadUsers()
-				return
-			end
+		Shine.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
+			Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
+				if not Response then
+					self:LoadUsers()
+					return
+				end
 
-			self.UserData = Decode( Response ) or {}
+				self.UserData = Decode( Response ) or {}
 
-			if not next( self.UserData ) then
-				self:LoadUsers()
-				return
-			end
+				if not next( self.UserData ) then
+					self:LoadUsers()
+					return
+				end
 
-			self:ConvertData( self.UserData, true )
+				self:ConvertData( self.UserData, true )
 
-			Notify( "Shine loaded users from web." )
-		end )
+				Notify( "Shine loaded users from web." )
+			end )
+		end, -20 )
 
 		return
 	end
@@ -196,6 +198,9 @@ function Shine:GetPermission( Client, ConCommand )
 
 	if not Client then return true end
 
+	if not self.UserData then return false end
+	if not self.UserData.Users then return false end
+
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 
 	local User = self.UserData.Users[ tostring( ID ) ]
@@ -207,7 +212,7 @@ function Shine:GetPermission( Client, ConCommand )
 	if Command.NoPerm then return true end
 
 	local UserGroup = User.Group
-	local GroupTable = self.UserData.Groups[ UserGroup ]
+	local GroupTable = self.UserData.Groups and self.UserData.Groups[ UserGroup ]
 	
 	if not GroupTable then
 		self:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, UserGroup )
@@ -232,6 +237,9 @@ end
 function Shine:HasAccess( Client, ConCommand )
 	if not Client then return true end
 
+	if not self.UserData then return false end
+	if not self.UserData.Users then return false end
+
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 
 	local User = self.UserData.Users[ tostring( ID ) ]
@@ -241,7 +249,7 @@ function Shine:HasAccess( Client, ConCommand )
 	end
 
 	local UserGroup = User.Group
-	local GroupTable = self.UserData.Groups[ UserGroup ]
+	local GroupTable = self.UserData.Groups and self.UserData.Groups[ UserGroup ]
 
 	if not GroupTable then
 		self:Print( "User with ID %s belongs to a non-existant group (%s)!", true, ID, UserGroup )
@@ -266,6 +274,8 @@ function Shine:CanTarget( Client, Target )
 
 	if Client == Target then return true end --Can always target yourself.
 
+	if not self.UserData then return false end
+
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 	local TargetID = isnumber( Target ) and Target or Target:GetUserId()
 
@@ -273,6 +283,8 @@ function Shine:CanTarget( Client, Target )
 
 	local Users = self.UserData.Users
 	local Groups = self.UserData.Groups
+
+	if not Users or not Groups then return false end
 
 	local User = Users[ tostring( ID ) ]
 	local TargetUser = Users[ tostring( TargetID ) ]
@@ -311,11 +323,16 @@ end
 function Shine:IsInGroup( Client, Group )
 	if not Client then return false end
 	if Client:GetIsVirtual() then return false end
+
+	if not self.UserData then return false end
 	
-	local GroupTable = self.UserData.Groups[ Group ]
+	local GroupTable = self.UserData.Groups and self.UserData.Groups[ Group ]
 	if not GroupTable then return false end
 	
 	local UserData = self.UserData.Users
+
+	if not UserData then return false end
+
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 
 	local User = UserData[ tostring( ID ) ]
