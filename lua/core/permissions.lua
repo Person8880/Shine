@@ -25,7 +25,12 @@ function Shine:LoadUsers( Web )
 				return
 			end
 
-			self.UserData = Decode( Response )
+			self.UserData = Decode( Response ) or {}
+
+			if not next( self.UserData ) then
+				self:LoadUsers()
+				return
+			end
 
 			self:ConvertData( self.UserData, true )
 
