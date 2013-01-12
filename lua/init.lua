@@ -12,6 +12,7 @@ local include = Script.Load
 
 --Load order.
 local Scripts = {
+	"lib/debug.lua",
 	"lib/table.lua",
 	"lib/string.lua",
 	"lib/math.lua",
