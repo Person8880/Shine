@@ -1,6 +1,0 @@
-<game>
-	<name>ns2</name>
-	<description>Shine Admin</description>
-	<client>lua/cl_init.lua</client>
-	<server>lua/init.lua</server>
-</game>
