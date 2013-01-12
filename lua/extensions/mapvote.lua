@@ -472,14 +472,24 @@ function Plugin:StartVote( NextMap )
 		AllMaps[ Nominee ] = nil --Remove this from the list of all maps as it's now in our vote list.
 	end
 
-	local RemainingSpaces = MaxOptions - #MapList
+	local CurMap = Shared.GetMapName()
 	local AllowCurMap = self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends
+
+	--If we have map extension enabled, ensure it's in the vote list.
+	if AllowCurMap then
+		if AllMaps[ CurMap ] then
+			MapList[ #MapList + 1 ] = CurMap
+			AllMaps[ CurMap ] = nil
+		end
+	end
+
+	local RemainingSpaces = MaxOptions - #MapList
 
 	--If we didn't have enough nominations to fill the vote list, add maps from the allowed list that weren't nominated.
 	if RemainingSpaces > 0 then
 		if next( AllMaps ) then
 			for Name, _ in RandomPairs( AllMaps ) do
-				if AllowCurMap or Name ~= Shared.GetMapName() then
+				if Name ~= CurMap then
 					MapList[ #MapList + 1 ] = Name
 				end
 
@@ -793,7 +803,7 @@ function Plugin:CreateCommands()
 
 		local Count = #Nominated 
 
-		if Count >= self.Config.MaxOptions then
+		if Count >= ( self.Config.MaxOptions - 1 ) then
 			if Player then
 				Shine:Notify( Player, "Error", Shine.Config.ChatName, "Nominations are full." )
 			else
