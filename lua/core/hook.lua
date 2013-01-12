@@ -97,6 +97,93 @@ local function ClientDisconnect( Client )
 end
 Event.Hook( "ClientDisconnect", ClientDisconnect )
 
+--Taken straight from NetworkMessages_Server.lua
+local function GetChatPlayerData(client)
+	local playerName = "Admin"
+	local playerLocationId = -1
+	local playerTeamNumber = kTeamReadyRoom
+	local playerTeamType = kNeutralTeamType
+	
+	if client then
+		local player = client:GetControllingPlayer()
+		if not player then
+			return
+		end
+		playerName = player:GetName()
+		playerLocationId = player.locationId
+		playerTeamNumber = player:GetTeamNumber()
+		playerTeamType = player:GetTeamType()
+	end
+
+	return playerName, playerLocationId, playerTeamNumber, playerTeamType
+end
+
+local OldOnChatReceive
+
+local function OnChatReceived( client, message )
+	chatMessage = string.sub(message.message, 1, kMaxChatLength)
+
+	--Combat mode stuff.
+	local CombatMessage
+
+	if combatCommands then
+		for i, entry in pairs( combatCommands ) do
+			if chatMessage:sub( 1, #entry ) == entry then
+			   CombatMessage = true 
+			   break
+			end
+		end   
+
+		if CombatMessage then
+			local player = client:GetControllingPlayer()
+			Server.ClientCommand( player, chatMessage )
+
+			return
+		end
+	end
+
+	if chatMessage and string.len(chatMessage) > 0 then
+		--Begin modification to hook directly into the chat.
+		local Result = Shine.Hook.Call( "PlayerSay", client, message )
+		if Result then
+			if Result[ 1 ] == "" then return end
+			chatMessage = Result[ 1 ]:sub( 1, kMaxChatLength )
+		end
+	
+		local playerName, playerLocationId, playerTeamNumber, playerTeamType = GetChatPlayerData(client)
+		
+		if playerName then
+		
+			if message.teamOnly then
+			
+				local players = GetEntitiesForTeam("Player", playerTeamNumber)
+				for index, player in ipairs(players) do
+					Server.SendNetworkMessage(player, "Chat", BuildChatMessage(true, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
+				end
+				
+			else
+				Server.SendNetworkMessage("Chat", BuildChatMessage(false, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
+			end
+			
+			Shared.Message("Chat " .. (message.teamOnly and "Team - " or "All - ") .. playerName .. ": " .. chatMessage)
+			
+			Server.AddChatToHistory(chatMessage, playerName, client:GetUserId(), playerTeamNumber, message.teamOnly)
+			
+		end
+	end
+end
+
+local OriginalHookNWMessage = Server.HookNetworkMessage
+
+function Server.HookNetworkMessage( Message, Callback )
+	if Message == "ChatClient" then
+		OldOnChatReceive = Callback
+		Callback = OnChatReceived
+	end
+
+	OriginalHookNWMessage( Message, Callback )
+end
+
 --[[
 	Hook to run after the config file has loaded. 
 	Here we replace class methods in order to hook into certain important events.
@@ -104,94 +191,6 @@ Event.Hook( "ClientDisconnect", ClientDisconnect )
 Add( "PostloadConfig", "ReplaceMethods", function()
 	local ReplaceMethod = Shine.ReplaceClassMethod
 	local Gamerules = Shine.Config.GameRules or "NS2Gamerules"
-
-	--An annoyingly hacky fix to CombatMode's complete override of the chat.
-	if Shine.Config.CombatMode then
-		--Taken straight from NetworkMessages_Server.lua
-		local function GetChatPlayerData(client)
-			local playerName = "Admin"
-			local playerLocationId = -1
-			local playerTeamNumber = kTeamReadyRoom
-			local playerTeamType = kNeutralTeamType
-			
-			if client then
-				local player = client:GetControllingPlayer()
-				if not player then
-					return
-				end
-				playerName = player:GetName()
-				playerLocationId = player.locationId
-				playerTeamNumber = player:GetTeamNumber()
-				playerTeamType = player:GetTeamType()
-			end
-		
-			return playerName, playerLocationId, playerTeamNumber, playerTeamType
-		end
-
-		local OldOnChatReceive
-
-		local function OnChatReceived( client, message )
-			chatMessage = string.sub(message.message, 1, kMaxChatLength)
-
-			--Combat mode stuff.
-			local CombatMessage
-
-			for i, entry in pairs( combatCommands ) do
-				if chatMessage:sub( 1, #entry ) == entry then
-				   CombatMessage = true 
-				   break
-				end
-			end   
-
-			if CombatMessage then
-				local player = client:GetControllingPlayer()
-				Server.ClientCommand( player, chatMessage )
-
-				return
-			end
-
-			if chatMessage and string.len(chatMessage) > 0 then
-				--Begin modification to hook directly into the chat.
-				local Result = Shine.Hook.Call( "PlayerSay", client, message )
-				if Result then
-					if Result[ 1 ] == "" then return end
-					chatMessage = Result[ 1 ]:sub( 1, kMaxChatLength )
-				end
-			
-				local playerName, playerLocationId, playerTeamNumber, playerTeamType = GetChatPlayerData(client)
-				
-				if playerName then
-				
-					if message.teamOnly then
-					
-						local players = GetEntitiesForTeam("Player", playerTeamNumber)
-						for index, player in ipairs(players) do
-							Server.SendNetworkMessage(player, "Chat", BuildChatMessage(true, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
-						end
-						
-					else
-						Server.SendNetworkMessage("Chat", BuildChatMessage(false, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
-					end
-					
-					Shared.Message("Chat " .. (message.teamOnly and "Team - " or "All - ") .. playerName .. ": " .. chatMessage)
-					
-					Server.AddChatToHistory(chatMessage, playerName, client:GetUserId(), playerTeamNumber, message.teamOnly)
-					
-				end
-			end
-		end
-
-		local OriginalHookNWMessage = Server.HookNetworkMessage
-
-		function Server.HookNetworkMessage( Message, Callback )
-			if Message == "ChatClient" then
-				OldOnChatReceive = Callback
-				Callback = OnChatReceived
-			end
-
-			OriginalHookNWMessage( Message, Callback )
-		end
-	end
 
 	local OldJoinTeam
 

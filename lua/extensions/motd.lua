@@ -117,9 +117,10 @@ function Plugin:ClientConnect( Client )
 	local ID = Client:GetUserId()
 
 	if self.Config.Accepted[ tostring( ID ) ] then return end
-	if Shine:HasAccess( Client, "sh_showmotd" ) then return end
 
 	Shine.Timer.Simple( self.Config.Delay, function()
+		if Shine:HasAccess( Client, "sh_showmotd" ) then return end
+		
 		local Player = Client:GetControllingPlayer()
 		if not Player then return end
 
