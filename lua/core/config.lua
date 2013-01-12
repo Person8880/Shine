@@ -62,6 +62,7 @@ function Shine:GenerateDefaultConfig( Save )
 		ActiveExtensions = { --Defines which plugins should be active.
 			adverts = false,
 			afkkick = false,
+			badges = false,
 			ban = true,
 			basecommands = true,
 			funcommands = false,
