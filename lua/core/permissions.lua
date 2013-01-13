@@ -37,6 +37,8 @@ function Shine:LoadUsers( Web )
 
 				Notify( "Shine loaded users from web." )
 			end )
+
+			Shine.Hook.Remove( "ClientConnect", "LoadUsers" )
 		end, -20 )
 
 		return
