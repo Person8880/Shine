@@ -161,10 +161,15 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		if not Shine.Timer.Exists( self.RandomEndTimer ) then
 			self.ForceRandom = false
 		else
+			self.ForceRandom = false
 			Shine.Timer.Simple( 10, function()
 				Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams due to random vote." )
 
 				self:ShuffleTeams()
+
+				if Shine.Timer.Exists( self.RandomEndTimer ) then
+					self.ForceRandom = true
+				end
 			end )
 		end
 	end

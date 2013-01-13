@@ -72,8 +72,10 @@ local function Call( Event, ... )
 	if not Hooked then return end
 
 	for i = 1, #Hooked do
-		local Result = { Hooked[ i ].Func( ... ) }
-		if Result[ 1 ] ~= nil then return Result end
+		if Hooked[ i ] then
+			local Result = { Hooked[ i ].Func( ... ) }
+			if Result[ 1 ] ~= nil then return Result end
+		end
 	end
 end
 
