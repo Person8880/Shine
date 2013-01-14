@@ -13,6 +13,21 @@ Shine.Hook = {}
 local Hooks = {}
 
 --[[
+	Sorts the hook list.
+]]
+local function SortHooks( Event )
+	if not Event then return end
+
+	TableSort( Hooks[ Event ], function( A, B ) 
+		if A == nil then return false end
+		if B == nil then return true end
+		if A.Priority < B.Priority then return true end
+		if A.Priority == B.Priority and tostring( A.Index ) < tostring( B.Index ) then return true end
+		return false
+	end )
+end
+
+--[[
 	Adds a function to Shine's internal hook system.
 	Inputs: Event to hook into, unique identifier, function to run, optional priority.
 ]]
@@ -25,7 +40,7 @@ local function Add( Event, Index, Function, Priority )
 
 	TableInsert( Hooks[ Event ], { Index = Index, Func = Function, Priority = Clamp( Priority, -20, 20 ) } )
 
-	TableSort( Hooks[ Event ], function( A, B ) return A.Priority < B.Priority end )
+	SortHooks( Event )	
 end
 Shine.Hook.Add = Add
 
@@ -41,8 +56,8 @@ function Shine.Hook.Remove( Event, Index )
 	for i = 1, #EventHooks do
 		local Hook = EventHooks[ i ]
 
-		if Hook.Index == Index then
-			TableRemove( EventHooks, i )
+		if Hook and Hook.Index == Index then
+			EventHooks[ i ] = nil
 			return
 		end
 	end
@@ -71,6 +86,8 @@ local function Call( Event, ... )
 
 	if not Hooked then return end
 
+	SortHooks( Event )
+
 	for i = 1, #Hooked do
 		if Hooked[ i ] then
 			local Result = { Hooked[ i ].Func( ... ) }
@@ -78,7 +95,6 @@ local function Call( Event, ... )
 		end
 	end
 end
-
 Shine.Hook.Call = Call
 
 --[[
@@ -187,10 +203,10 @@ function Server.HookNetworkMessage( Message, Callback )
 end
 
 --[[
-	Hook to run after the config file has loaded. 
+	Hook to run after the everything has loaded. 
 	Here we replace class methods in order to hook into certain important events.
 ]]
-Add( "PostloadConfig", "ReplaceMethods", function()
+Add( "Think", "ReplaceMethods", function()
 	local ReplaceMethod = Shine.ReplaceClassMethod
 	local Gamerules = Shine.Config.GameRules or "NS2Gamerules"
 
@@ -340,4 +356,27 @@ Add( "PostloadConfig", "ReplaceMethods", function()
 
 		return OldTestCycle()
 	end
+
+	Shine.Hook.Remove( "Think", "ReplaceMethods" )
+end )
+
+--[[
+	Fix for NS2Stats way of overriding gamerules functions.
+]]
+Shine.Hook.Add( "ClientConnect", "ReplaceOnKilled", function( Client )
+	if not RBPS then return end
+
+	--They override the gamerules entity instead of the gamerules class...
+	local Ents = Shared.GetEntitiesWithClassname( "NS2Gamerules" )
+	Gamerules = Ents:GetEntityAtIndex( 0 )
+
+	local OldOnEntityKilled = Gamerules.OnEntityKilled
+
+	function Gamerules:OnEntityKilled( TargetEnt, Attacker, Inflictor, Point, Dir )
+		Call( "OnEntityKilled", self, TargetEnt, Attacker, Inflictor, Point, Dir )
+		
+		return OldOnEntityKilled( self, TargetEnt, Attacker, Inflictor, Point, Dir )
+	end
+
+	Shine.Hook.Remove( "ClientConnect", "ReplaceOnKilled" )
 end )
