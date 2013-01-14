@@ -204,7 +204,7 @@ local OldServerAdminPrint = ServerAdminPrint
 
 local MaxPrintLength = 128
 
-Shine.Hook.Add( "ClientConnect", "OverrideServerAdminPrint", function( Client )
+Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 	--[[
 		Rewrite ServerAdminPrint to not print to the server console when used, otherwise we'll get spammed with repeat prints when sending to lots of people at once.
 	]]
@@ -229,6 +229,8 @@ Shine.Hook.Add( "ClientConnect", "OverrideServerAdminPrint", function( Client )
 			Server.SendNetworkMessage( Client:GetControllingPlayer(), "ServerAdminPrint", { message = MessageList[ i ] }, true )
 		end
 	end
+
+	Shine.Hook.Remove( "Think", "OverrideServerAdminPrint" )
 end )
 
 function Shine:AdminPrint( Client, String, Format, ... )
