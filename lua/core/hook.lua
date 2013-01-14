@@ -203,7 +203,7 @@ function Server.HookNetworkMessage( Message, Callback )
 end
 
 --[[
-	Hook to run after the everything has loaded. 
+	Hook to run after everything has loaded. 
 	Here we replace class methods in order to hook into certain important events.
 ]]
 Add( "Think", "ReplaceMethods", function()
@@ -368,7 +368,7 @@ Shine.Hook.Add( "ClientConnect", "ReplaceOnKilled", function( Client )
 
 	--They override the gamerules entity instead of the gamerules class...
 	local Ents = Shared.GetEntitiesWithClassname( "NS2Gamerules" )
-	Gamerules = Ents:GetEntityAtIndex( 0 )
+	local Gamerules = Ents:GetEntityAtIndex( 0 )
 
 	local OldOnEntityKilled = Gamerules.OnEntityKilled
 
