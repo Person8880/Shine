@@ -2,7 +2,6 @@
 	Shine table library.
 ]]
 
-local Ceil = math.ceil
 local pairs = pairs
 local Random = math.random
 local TableSort = table.sort
@@ -34,7 +33,7 @@ function table.ChooseRandom( Table )
 
 	for i = 1, Count do
 		local Lower = Interval * ( i - 1 )
-		local Upper = i ~= Count and ( Interval * i ) or Ceil( Interval * i )
+		local Upper = i ~= Count and ( Interval * i ) or 1
 
 		if InRange( Lower, Rand, Upper ) then
 			return Table[ i ]
