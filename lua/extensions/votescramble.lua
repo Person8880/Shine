@@ -187,8 +187,12 @@ function Plugin:ScrambleTeams()
 	if ScrambleType == self.SCRAMBLE_RANDOM then
 		TableShuffle( Targets )
 
-		for i = 1, #Targets do
-			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1 )
+		local NumTargets = #Targets
+
+		local TeamSequence = math.GenerateSequence( NumTargets, { 1, 2 } )
+
+		for i = 1, NumTargets do
+			Gamerules:JoinTeam( Targets[ i ], TeamSequence[ i ], nil, true )
 		end
 
 		Shine.Timer.Simple( 0.1, function()
@@ -206,7 +210,7 @@ function Plugin:ScrambleTeams()
 		TableSort( Targets, function( A, B ) return ( A.score or 0 ) > ( B.score or 0 ) end )
 
 		for i = 1, #Targets do
-			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1 )
+			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1, nil, true )
 		end
 
 		Shine.Timer.Simple( 0.1, function()
