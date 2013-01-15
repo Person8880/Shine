@@ -11,6 +11,7 @@ local Floor = math.floor
 local Max = math.max
 local Random = math.random
 
+local TableRandom = table.ChooseRandom
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
@@ -156,6 +157,7 @@ function Plugin:ScrambleTeams()
 	local IgnoreSpectators = self.Config.IgnoreSpectators
 
 	local Targets = {}
+	local Clients = {}
 
 	--Lua loops can be a pain sometimes...
 	for i = 1, #Players do
@@ -168,13 +170,14 @@ function Plugin:ScrambleTeams()
 				
 				--Either we're not ignoring spectators, or they're not a spectator.
 				if not IgnoreSpectators or not ( Team == 0 or Team == 3 ) then
-					local Client = Server.GetOwner( Player )
+					local Client = Player:GetClient()
 
 					--They have a valid client object.
 					if Client then
 						--They're not immune, so finally add them.
 						if not Shine:HasAccess( Client, "sh_scrambleimmune" ) then
 							Targets[ #Targets + 1 ] = Player
+							Clients[ #Clients + 1 ] = Client
 						end
 					end
 				end
@@ -195,6 +198,34 @@ function Plugin:ScrambleTeams()
 			Gamerules:JoinTeam( Targets[ i ], TeamSequence[ i ], nil, true )
 		end
 
+		--Account for imbalance caused by immune players.
+		Shine.Timer.Simple( 1, function()
+			local Aliens = Gamerules:GetTeam( 2 ):GetNumPlayers()
+			local Marines = Gamerules:GetTeam( 1 ):GetNumPlayers()
+
+			local Imbalance = 0
+			local Team = 1
+
+			if Aliens > Marines then
+				Imbalance = Floor( ( Aliens - Marines ) * 0.5 )
+			else
+				Imbalance = Floor( ( Marines - Aliens ) * 0.5 )
+				Team = 2
+			end
+
+			if Imbalance >= 1 then
+				for i = 1, Imbalance do
+					local TargetClient, Index = TableRandom( Clients )
+
+					if TargetClient then
+						local Target = TargetClient:GetControllingPlayer()
+						Gamerules:JoinTeam( Target, Team, nil, true )
+						TableRemove( Clients, Index )
+					end
+				end
+			end
+		end )
+
 		Shine.Timer.Simple( 0.1, function()
 			Shine:Notify( nil, "Scramble", Shine.Config.ChatName, "Teams have been scrambled randomly." )
 		end )
@@ -209,9 +240,37 @@ function Plugin:ScrambleTeams()
 	if ScrambleType == self.SCRAMBLE_SCORE then
 		TableSort( Targets, function( A, B ) return ( A.score or 0 ) > ( B.score or 0 ) end )
 
-		for i = 1, #Targets do
+		local NumTargets = #Targets
+
+		for i = 1, NumTargets do
 			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1, nil, true )
 		end
+
+		Shine.Timer.Simple( 1, function()
+			local Aliens = Gamerules:GetTeam( 2 ):GetNumPlayers()
+			local Marines = Gamerules:GetTeam( 1 ):GetNumPlayers()
+
+			local Imbalance = 0
+			local Team = 1
+
+			if Aliens > Marines then
+				Imbalance = Floor( ( Aliens - Marines ) * 0.5 )
+			else
+				Imbalance = Floor( ( Marines - Aliens ) * 0.5 )
+				Team = 2
+			end
+
+			if Imbalance >= 1 then
+				for i = 1, Imbalance do
+					local TargetClient = Clients[ NumTargets - ( i - 1 ) ]
+
+					if TargetClient then
+						local Target = TargetClient:GetControllingPlayer()
+						Gamerules:JoinTeam( Target, Team, nil, true )
+					end
+				end
+			end
+		end )
 
 		Shine.Timer.Simple( 0.1, function()
 			Shine:Notify( nil, "Scramble", Shine.Config.ChatName, "Teams have been scrambled based on score." )

@@ -46,15 +46,10 @@ function math.GenerateSequence( Length, Nums )
 	end
 
 	for i = 1, Length do
-		local Option = TableRandom( Nums )
+		local Option, Index = TableRandom( Nums )
 
 		if Count[ Option ] >= Max then
-			for j = 1, Entries do
-				if Nums[ j ] == Option then
-					TableRemove( Nums, j )
-					break
-				end
-			end
+			TableRemove( Nums, Index )
 
 			Option = TableRandom( Nums )
 		end

@@ -109,20 +109,30 @@ function Plugin:ShuffleTeams()
 
 	if not Gamerules then return end
 
-	local NumPlayers = #Players
+	local Targets = {}
 
-	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
-
-	for i = 1, NumPlayers do
+	for i = 1, #Players do
 		local Player = Players[ i ]
+
 		if Player then
 			local Client = Server.GetOwner( Player )
 
 			if Client then
 				if not Shine:HasAccess( Client, "sh_randomimmune" ) then
-					Gamerules:JoinTeam( Player, TeamSequence[ i ], nil, true )
+					Targets[ #Targets + 1 ] = Player
 				end
 			end
+		end
+	end
+
+	local NumPlayers = #Targets
+
+	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+
+	for i = 1, NumPlayers do
+		local Player = Targets[ i ]
+		if Player then
+			Gamerules:JoinTeam( Player, TeamSequence[ i ], nil, true )
 		end
 	end
 end

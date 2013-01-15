@@ -36,7 +36,7 @@ function table.ChooseRandom( Table )
 		local Upper = i ~= Count and ( Interval * i ) or 1
 
 		if InRange( Lower, Rand, Upper ) then
-			return Table[ i ]
+			return Table[ i ], i
 		end
 	end
 end

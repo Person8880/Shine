@@ -300,7 +300,7 @@ function Plugin:CreateCommands()
 		local Gamerules = GetGamerules()
 		if Gamerules then
 			for i = 1, #Targets do
-				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), kTeamReadyRoom )
+				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), kTeamReadyRoom, nil, true )
 			end
 		end
 	end
@@ -312,9 +312,13 @@ function Plugin:CreateCommands()
 		local Gamerules = GetGamerules()
 		if Gamerules then
 			TableShuffle( Targets )
-			for i = 1, #Targets do
-				local Team = ( i % 2 ) + 1
-				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), Team )
+
+			local NumPlayers = #Targets
+
+			local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+
+			for i = 1, NumPlayers do
+				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), TeamSequence[ i ], nil, true )
 			end
 		end
 	end
@@ -326,7 +330,7 @@ function Plugin:CreateCommands()
 		local Gamerules = GetGamerules()
 		if Gamerules then
 			for i = 1, #Targets do
-				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), Team )
+				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), Team, nil, true )
 			end
 		end
 	end
