@@ -6,6 +6,9 @@ local pairs = pairs
 local Random = math.random
 local TableSort = table.sort
 
+--[[
+	Shuffles a table randomly.
+]]
 function table.Shuffle( Table )
 	local SortTable = {}
 	for i = 1, #Table do
@@ -17,10 +20,34 @@ function table.Shuffle( Table )
 	end )
 end
 
+--[[
+	Chooses a random entry from the table 
+	with each entry having equal probability of being picked.
+]]
+function table.ChooseRandom( Table )
+	local Count = #Table
+	local Interval = 1 / Count
+
+	local Rand = Random()
+	local InRange = math.InRange
+
+	for i = 1, Count do
+		local Lower = Interval * ( i - 1 )
+		local Upper = i ~= Count and ( Interval * i ) or 1
+
+		if InRange( Lower, Rand, Upper ) then
+			return Table[ i ], i
+		end
+	end
+end
+
 local function istable( Table )
 	return type( Table ) == "table"
 end
 
+--[[
+	Prints a nicely formatted table structure to the console.
+]]
 function PrintTable( Table, Indent )
 	Indent = Indent or 0
 

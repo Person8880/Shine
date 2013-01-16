@@ -2,6 +2,8 @@
 	Shine scramble teams vote plugin.
 ]]
 
+local Shine = Shine
+
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
@@ -11,6 +13,7 @@ local Floor = math.floor
 local Max = math.max
 local Random = math.random
 
+local TableRandom = table.ChooseRandom
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
@@ -57,24 +60,20 @@ function Plugin:GenerateDefaultConfig( Save )
 	}
 
 	if Save then
-		local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-		if not PluginConfig then
+		if not Success then
 			Notify( "Error writing votescramble config file: "..Err )	
 
 			return	
 		end
 
-		PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
 		Notify( "Shine votescramble config file created." )
-
-		PluginConfig:close()
 	end
 end
 
 function Plugin:SaveConfig()
-	local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not PluginConfig then
 		Notify( "Error writing votescramble config file: "..Err )	
@@ -82,15 +81,11 @@ function Plugin:SaveConfig()
 		return	
 	end
 
-	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
-	Shine:Print( "Shine votescramble config file saved." )
-
-	PluginConfig:close()
+	Notify( "Shine votescramble config file saved." )
 end
 
 function Plugin:LoadConfig()
-	local PluginConfig = io.open( Shine.Config.ExtensionDir..self.ConfigName, "r" )
+	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not PluginConfig then
 		self:GenerateDefaultConfig( true )
@@ -98,9 +93,7 @@ function Plugin:LoadConfig()
 		return
 	end
 
-	self.Config = Decode( PluginConfig:read( "*all" ) )
-
-	PluginConfig:close()
+	self.Config = PluginConfig
 end
 
 --[[
@@ -156,6 +149,7 @@ function Plugin:ScrambleTeams()
 	local IgnoreSpectators = self.Config.IgnoreSpectators
 
 	local Targets = {}
+	local Clients = {}
 
 	--Lua loops can be a pain sometimes...
 	for i = 1, #Players do
@@ -168,13 +162,14 @@ function Plugin:ScrambleTeams()
 				
 				--Either we're not ignoring spectators, or they're not a spectator.
 				if not IgnoreSpectators or not ( Team == 0 or Team == 3 ) then
-					local Client = Server.GetOwner( Player )
+					local Client = Player:GetClient()
 
 					--They have a valid client object.
 					if Client then
 						--They're not immune, so finally add them.
 						if not Shine:HasAccess( Client, "sh_scrambleimmune" ) then
 							Targets[ #Targets + 1 ] = Player
+							Clients[ #Clients + 1 ] = Client
 						end
 					end
 				end
@@ -187,9 +182,41 @@ function Plugin:ScrambleTeams()
 	if ScrambleType == self.SCRAMBLE_RANDOM then
 		TableShuffle( Targets )
 
-		for i = 1, #Targets do
-			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1 )
+		local NumTargets = #Targets
+
+		local TeamSequence = math.GenerateSequence( NumTargets, { 1, 2 } )
+
+		for i = 1, NumTargets do
+			Gamerules:JoinTeam( Targets[ i ], TeamSequence[ i ], nil, true )
 		end
+
+		--Account for imbalance caused by immune players.
+		Shine.Timer.Simple( 1, function()
+			local Aliens = Gamerules:GetTeam( 2 ):GetNumPlayers()
+			local Marines = Gamerules:GetTeam( 1 ):GetNumPlayers()
+
+			local Imbalance = 0
+			local Team = 1
+
+			if Aliens > Marines then
+				Imbalance = Floor( ( Aliens - Marines ) * 0.5 )
+			else
+				Imbalance = Floor( ( Marines - Aliens ) * 0.5 )
+				Team = 2
+			end
+
+			if Imbalance >= 1 then
+				for i = 1, Imbalance do
+					local TargetClient, Index = TableRandom( Clients )
+
+					if TargetClient then
+						local Target = TargetClient:GetControllingPlayer()
+						Gamerules:JoinTeam( Target, Team, nil, true )
+						TableRemove( Clients, Index )
+					end
+				end
+			end
+		end )
 
 		Shine.Timer.Simple( 0.1, function()
 			Shine:Notify( nil, "Scramble", Shine.Config.ChatName, "Teams have been scrambled randomly." )
@@ -205,9 +232,37 @@ function Plugin:ScrambleTeams()
 	if ScrambleType == self.SCRAMBLE_SCORE then
 		TableSort( Targets, function( A, B ) return ( A.score or 0 ) > ( B.score or 0 ) end )
 
-		for i = 1, #Targets do
-			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1 )
+		local NumTargets = #Targets
+
+		for i = 1, NumTargets do
+			Gamerules:JoinTeam( Targets[ i ], ( i % 2 ) + 1, nil, true )
 		end
+
+		Shine.Timer.Simple( 1, function()
+			local Aliens = Gamerules:GetTeam( 2 ):GetNumPlayers()
+			local Marines = Gamerules:GetTeam( 1 ):GetNumPlayers()
+
+			local Imbalance = 0
+			local Team = 1
+
+			if Aliens > Marines then
+				Imbalance = Floor( ( Aliens - Marines ) * 0.5 )
+			else
+				Imbalance = Floor( ( Marines - Aliens ) * 0.5 )
+				Team = 2
+			end
+
+			if Imbalance >= 1 then
+				for i = 1, Imbalance do
+					local TargetClient = Clients[ NumTargets - ( i - 1 ) ]
+
+					if TargetClient then
+						local Target = TargetClient:GetControllingPlayer()
+						Gamerules:JoinTeam( Target, Team, nil, true )
+					end
+				end
+			end
+		end )
 
 		Shine.Timer.Simple( 0.1, function()
 			Shine:Notify( nil, "Scramble", Shine.Config.ChatName, "Teams have been scrambled based on score." )

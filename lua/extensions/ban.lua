@@ -4,6 +4,8 @@
 	This plugin is a good example of a Shine plugin, it uses most if not all of the available features.
 ]]
 
+local Shine = Shine
+
 local Plugin = {}
 Plugin.Version = "1.0"
 
@@ -41,17 +43,13 @@ function Plugin:GenerateDefaultConfig( Save )
 	}
 
 	if Save then
-		local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-		if not PluginConfig then
+		if not Success then
 			Notify( "Error writing bans file: "..Err )	
 
 			return	
 		end
-
-		PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
-		PluginConfig:close()
 
 		Notify( "Shine bans file created." )
 	end
@@ -62,17 +60,13 @@ end
 	This is called when a ban is added or removed.
 ]]
 function Plugin:SaveConfig()
-	local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-	if not PluginConfig then
+	if not Success then
 		Notify( "Error writing bans file: "..Err )	
 
 		return	
 	end
-
-	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
-	PluginConfig:close()
 
 	Notify( "Bans successfully saved." )
 end
@@ -82,10 +76,10 @@ end
 	TODO: Web server synchronised bans?
 ]]
 function Plugin:LoadConfig()
-	local PluginConfig = io.open( Shine.Config.ExtensionDir..self.ConfigName, "r" )
+	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not PluginConfig then
-		PluginConfig = io.open( self.SecondaryConfig, "r" )
+		PluginConfig = Shine.LoadJSONFile( self.SecondaryConfig )
 
 		if not PluginConfig then
 			self:GenerateDefaultConfig( true )
@@ -94,9 +88,7 @@ function Plugin:LoadConfig()
 		end
 	end
 
-	self.Config = Decode( PluginConfig:read( "*all" ) )
-
-	PluginConfig:close()
+	self.Config = PluginConfig
 
 	self:ConvertData( self.Config )
 end

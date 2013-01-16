@@ -79,10 +79,12 @@ end
 
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force )
 	if not Player then return end
+
+	local Client = Player:GetClient()
 	
 	Shine:LogString( StringFormat( "Player %s[%s] joined team %s.", 
 		Player:GetName(), 
-		Server.GetOwner( Player ):GetUserId(), 
+		Client and Client:GetUserId() or "0", 
 		self:GetTeamName( NewTeam )
 	) )
 end

@@ -2,6 +2,8 @@
 	Shine vote random plugin.
 ]]
 
+local Shine = Shine
+
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
@@ -48,40 +50,32 @@ function Plugin:GenerateDefaultConfig( Save )
 	}
 
 	if Save then
-		local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-		if not PluginConfig then
+		if not Success then
 			Notify( "Error writing voterandom config file: "..Err )	
 
 			return	
 		end
 
-		PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
 		Notify( "Shine voterandom config file created." )
-
-		PluginConfig:close()
 	end
 end
 
 function Plugin:SaveConfig()
-	local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-	if not PluginConfig then
+	if not Success then
 		Notify( "Error writing voterandom config file: "..Err )	
 
 		return	
 	end
 
-	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
 	Notify( "Shine voterandom config file saved." )
-
-	PluginConfig:close()
 end
 
 function Plugin:LoadConfig()
-	local PluginConfig = io.open( Shine.Config.ExtensionDir..self.ConfigName, "r" )
+	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not PluginConfig then
 		self:GenerateDefaultConfig( true )
@@ -89,9 +83,7 @@ function Plugin:LoadConfig()
 		return
 	end
 
-	self.Config = Decode( PluginConfig:read( "*all" ) )
-
-	PluginConfig:close()
+	self.Config = PluginConfig
 
 	if self.Config.InstantForce == nil then
 		self.Config.InstantForce = true
@@ -109,16 +101,30 @@ function Plugin:ShuffleTeams()
 
 	if not Gamerules then return end
 
+	local Targets = {}
+
 	for i = 1, #Players do
 		local Player = Players[ i ]
+
 		if Player then
 			local Client = Server.GetOwner( Player )
 
 			if Client then
 				if not Shine:HasAccess( Client, "sh_randomimmune" ) then
-					Gamerules:JoinTeam( Player, ( i % 2 ) + 1, nil, true )
+					Targets[ #Targets + 1 ] = Player
 				end
 			end
+		end
+	end
+
+	local NumPlayers = #Targets
+
+	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+
+	for i = 1, NumPlayers do
+		local Player = Targets[ i ]
+		if Player then
+			Gamerules:JoinTeam( Player, TeamSequence[ i ], nil, true )
 		end
 	end
 end
