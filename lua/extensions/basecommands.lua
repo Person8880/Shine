@@ -2,6 +2,8 @@
 	Shine basecommands system.
 ]]
 
+local Shine = Shine
+
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
@@ -29,40 +31,32 @@ function Plugin:GenerateDefaultConfig( Save )
 	}
 
 	if Save then
-		local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-		if not PluginConfig then
+		if not Success then
 			Notify( "Error writing basecommands config file: "..Err )	
 
 			return	
 		end
 
-		PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
 		Notify( "Shine basecommands config file created." )
-
-		PluginConfig:close()
 	end
 end
 
 function Plugin:SaveConfig()
-	local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-	if not PluginConfig then
+	if not Success then
 		Notify( "Error writing basecommands config file: "..Err )	
 
 		return	
 	end
 
-	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
-	Shine:Print( "Shine basecommands config file saved." )
-
-	PluginConfig:close()
+	Notify( "Shine basecommands config file saved." )
 end
 
 function Plugin:LoadConfig()
-	local PluginConfig = io.open( Shine.Config.ExtensionDir..self.ConfigName, "r" )
+	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not PluginConfig then
 		self:GenerateDefaultConfig( true )
@@ -70,9 +64,7 @@ function Plugin:LoadConfig()
 		return
 	end
 
-	self.Config = Decode( PluginConfig:read( "*all" ) )
-
-	PluginConfig:close()
+	self.Config = PluginConfig
 end
 
 --[[
