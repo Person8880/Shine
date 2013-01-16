@@ -106,8 +106,6 @@ function Shine:GenerateDefaultConfig( Save )
 		ChatName = "Admin", --The default name that should appear for notifications with a name (unless in legacy mode, not all messages will show this.)
 
 		SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
-
-		LegacyMode = false, --Defines whether to use Shine's customised chat system or not. This should only be used if loading from Server.lua.
 	}
 
 	if Save then

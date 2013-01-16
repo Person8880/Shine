@@ -19,8 +19,6 @@ Plugin.TEXT_MODE = 1
 Plugin.HTML_MODE = 2
 
 function Plugin:Initialise()
-	if self.Unload then return false, "unable to load MotD plugin." end
-	
 	self:CreateCommands()
 
 	self.Enabled = true
@@ -72,17 +70,6 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
-
-	if self.Config.Mode == self.HTML_MODE then
-		if Shine.Config.LegacyMode then
-			Shared.Message( "Unable to use HTML mode for MotD when running Shine in legacy mode. Disabling plugin..." )
-			self.Unload = true
-		else
-			self.Unload = nil
-		end
-	else
-		self.Unload = nil
-	end
 end
 
 function Plugin:ShowMotD( Player )
