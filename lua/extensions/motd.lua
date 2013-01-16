@@ -2,6 +2,8 @@
 	Shine MotD system.
 ]]
 
+local Shine = Shine
+
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 
@@ -36,40 +38,32 @@ function Plugin:GenerateDefaultConfig( Save )
 	}
 
 	if Save then
-		local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-		if not PluginConfig then
+		if not Success then
 			Notify( "Error writing motd config file: "..Err )	
 
 			return	
 		end
 
-		PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
 		Notify( "Shine motd config file created." )
-
-		PluginConfig:close()
 	end
 end
 
 function Plugin:SaveConfig()
-	local PluginConfig, Err = io.open( Shine.Config.ExtensionDir..self.ConfigName, "w+" )
+	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-	if not PluginConfig then
+	if not Success then
 		Notify( "Error writing motd config file: "..Err )	
 
 		return	
 	end
 
-	PluginConfig:write( Encode( self.Config, { indent = true, level = 1 } ) )
-
-	Shine:Print( "Shine motd config file saved." )
-
-	PluginConfig:close()
+	Notify( "Shine motd config file saved." )
 end
 
 function Plugin:LoadConfig()
-	local PluginConfig = io.open( Shine.Config.ExtensionDir..self.ConfigName, "r" )
+	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not PluginConfig then
 		self:GenerateDefaultConfig( true )
@@ -77,7 +71,7 @@ function Plugin:LoadConfig()
 		return
 	end
 
-	self.Config = Decode( PluginConfig:read( "*all" ) )
+	self.Config = PluginConfig
 
 	if self.Config.Mode == self.HTML_MODE then
 		if Shine.Config.LegacyMode then
@@ -89,8 +83,6 @@ function Plugin:LoadConfig()
 	else
 		self.Unload = nil
 	end
-
-	PluginConfig:close()
 end
 
 function Plugin:ShowMotD( Player )

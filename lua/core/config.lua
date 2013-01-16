@@ -4,16 +4,47 @@
 
 local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
+local Open = io.open
 local StringFormat = string.format
+
+local JSONSettings = { indent = true, level = 1 }
 
 local ConfigPath = "config://shine\\BaseConfig.json"
 local BackupPath = "config://Shine_BaseConfig.json"
 
+function Shine.LoadJSONFile( Path )
+	local File, Err = Open( Path, "r" )
+
+	if not File then
+		return nil, Err
+	end
+
+	local Ret = Decode( File:read( "*all" ) )
+
+	File:close()
+
+	return Ret
+end
+
+function Shine.SaveJSONFile( Table, Path )
+	local File, Err = Open( Path, "w+" )
+
+	if not File then
+		return nil, Err
+	end
+
+	File:write( Encode( Table, JSONSettings ) )
+
+	File:close()
+
+	return true
+end
+
 function Shine:LoadConfig()
-	local ConfigFile = io.open( ConfigPath, "r" )
+	local ConfigFile = self.LoadJSONFile( ConfigPath )
 
 	if not ConfigFile then
-		ConfigFile = io.open( BackupPath, "r" )
+		ConfigFile = self.LoadJSONFile( BackupPath )
 		
 		if not ConfigFile then
 			self:GenerateDefaultConfig( true )
@@ -24,14 +55,11 @@ function Shine:LoadConfig()
 
 	Notify( "Loading Shine config..." )
 
-	local Config = Decode( ConfigFile:read( "*all" ) )
-	self.Config = Config
-
-	ConfigFile:close()
+	self.Config = ConfigFile
 end
 
 function Shine:SaveConfig()
-	local ConfigFile, Err = io.open( ConfigPath, "w+" )
+	local ConfigFile, Err = self.SaveJSONFile( self.Config, ConfigPath )
 
 	if not ConfigFile then --Something's gone horribly wrong!
 		Shine.Error = "Error writing config file: "..Err
@@ -40,12 +68,8 @@ function Shine:SaveConfig()
 		
 		return
 	end
-	
-	ConfigFile:write( Encode( self.Config, { indent = true, level = 1 } ) )
 
 	Notify( "Saving Shine config..." )
-	
-	ConfigFile:close()
 end
 
 function Shine:GenerateDefaultConfig( Save )

@@ -121,11 +121,16 @@ local function BindVoteKey()
 			Shared.ConsoleCommand( "bind M sh_votemenu" )
 			Shine.VoteButtonBound = true
 
+			Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
+
 			return
 		end
 	end
 
-	if CantBind then return end
+	if CantBind then 
+		Shared.Message( "Shine was unable to bind a key to the vote menu. If you would like to use it, type bind <key> sh_votemenu" )
+		return 
+	end
 
 	if CustomBinds then
 		local Binds = json.decode( CustomBinds:read( "*all" ) ) or {}
@@ -148,12 +153,18 @@ local function BindVoteKey()
 			elseif MButton.command == "" then
 				Shared.ConsoleCommand( "bind M sh_votemenu" )
 				Shine.VoteButtonBound = true
+
+				Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
 			end
 		else
 			Shared.ConsoleCommand( "bind M sh_votemenu" )
 			Shine.VoteButtonBound = true
+
+			Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
 		end
 	end
+
+	Shared.Message( "Shine was unable to bind a key to the vote menu. If you would like to use it, type bind <key> sh_votemenu" )
 end
 
 Event.Hook( "LoadComplete", BindVoteKey )
