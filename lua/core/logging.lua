@@ -130,8 +130,6 @@ end
 function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 	local Message = Format and StringFormat( String, ... ) or String
 
-	local LegacyMode = self.Config.LegacyMode
-
 	local MessageLength = #Message
 	if MessageLength > kMaxChatLength then
 		local Iterations = Ceil( MessageLength / kMaxChatLength )
@@ -148,50 +146,26 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 	if type( Player ) == "table" then
 		local PlayerCount = #Player
 
-		if LegacyMode then
-			for i = 1, PlayerCount do
-				local Ply = Player[ i ]
-				
-				Server.SendNetworkMessage( Ply, "Chat", BuildChatMessage( false, self.Config.ChatName, -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+		for i = 1, PlayerCount do
+			local Ply = Player[ i ]
+			
+			Server.SendNetworkMessage( Ply, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 
-				if i <= 3 then
-					TargetName = TargetName..Ply:GetName()..( i ~= 3 and i ~= PlayerCount and ", " or "" )
-				elseif i == 4 then
-					TargetName = TargetName.." and "..( PlayerCount - 3 ).." more"
-				end
-			end
-		else
-			for i = 1, PlayerCount do
-				local Ply = Player[ i ]
-				
-				Server.SendNetworkMessage( Ply, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-
-				if i <= 3 then
-					TargetName = TargetName..Ply:GetName()..( i ~= 3 and i ~= PlayerCount and ", " or "" )
-				elseif i == 4 then
-					TargetName = TargetName.." and "..( PlayerCount - 3 ).." more"
-				end
+			if i <= 3 then
+				TargetName = TargetName..Ply:GetName()..( i ~= 3 and i ~= PlayerCount and ", " or "" )
+			elseif i == 4 then
+				TargetName = TargetName.." and "..( PlayerCount - 3 ).." more"
 			end
 		end
 	elseif Player then
-		if LegacyMode then
-			Server.SendNetworkMessage( Player, "Chat", BuildChatMessage( false, self.Config.ChatName, -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-		else
-			Server.SendNetworkMessage( Player, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-		end
+		Server.SendNetworkMessage( Player, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		
 		TargetName = Player:GetName()
 	else
 		local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 
-		if LegacyMode then
-			for i = 1, #Players do
-				Server.SendNetworkMessage( Players[ i ], "Chat", BuildChatMessage( false, self.Config.ChatName, -1, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-			end
-		else
-			for i = 1, #Players do
-				Server.SendNetworkMessage( Players[ i ], "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-			end
+		for i = 1, #Players do
+			Server.SendNetworkMessage( Players[ i ], "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
 		
 		TargetName = "everyone"
