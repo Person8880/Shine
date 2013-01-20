@@ -253,7 +253,7 @@ function Plugin:CreateCommands()
 	Commands.BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
 	Commands.BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
 	Commands.BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
-	Commands.BanIDCommand:Help( "<steamid> <duration in minutes> Bans the given Steam ID for the given time in minutes. 0 is a permanent ban." )
+	Commands.BanIDCommand:Help( "<steamid> <duration in minutes> <reason> Bans the given Steam ID for the given time in minutes. 0 is a permanent ban." )
 
 	local function ListBans( Client )
 		if not next( self.Config.Banned ) then
@@ -264,7 +264,7 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( Client, "Currently stored bans:" )
 		for ID, BanTable in pairs( self.Config.Banned ) do
 			local TimeRemaining = BanTable.UnbanTime == 0 and "Forever" or string.TimeToString( BanTable.UnbanTime - Time() )
-			Shine:AdminPrint( Client, "- ID: %s. Name: %s. Time remaining: %s. Reason: %s.", true, ID, BanTable.Name or "<unknown>", TimeRemaining, BanTable.Reason or "No reason given." )
+			Shine:AdminPrint( Client, "- ID: %s. Name: %s. Time remaining: %s. Reason: %s", true, ID, BanTable.Name or "<unknown>", TimeRemaining, BanTable.Reason or "No reason given." )
 		end
 	end
 	Commands.ListBansCommand = Shine:RegisterCommand( "sh_listbans", nil, ListBans )
