@@ -115,6 +115,19 @@ function Plugin:ConvertData( Data )
 		end
 	end
 
+	--Consistency check.
+	local Banned = Data.Banned
+
+	for ID, Table in pairs( Banned ) do
+		if Table.id then
+			Banned[ tostring( Table.id ) ] = { Name = Table.name, UnbanTime = Table.time, Reason = Table.reason }
+			
+			Banned[ ID ] = nil
+
+			Edited = true
+		end
+	end
+
 	if not Data.DefaultBanTime then
 		Data.DefaultBanTime = 60
 		Edited = true
@@ -134,7 +147,7 @@ function Plugin:CheckBans()
 	local Edited
 
 	for ID, Data in pairs( Bans ) do
-		if Data.UnbanTime and Data.UnbanTime < Time then
+		if Data.UnbanTime and Data.UnbanTime ~= 0 and Data.UnbanTime < Time then
 			self:RemoveBan( ID, true )
 			Edited = true
 		end
