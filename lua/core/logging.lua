@@ -141,8 +141,6 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return
 	end
 
-	local TargetName = ""
-
 	if type( Player ) == "table" then
 		local PlayerCount = #Player
 
@@ -150,28 +148,16 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 			local Ply = Player[ i ]
 			
 			Server.SendNetworkMessage( Ply, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-
-			if i <= 3 then
-				TargetName = TargetName..Ply:GetName()..( i ~= 3 and i ~= PlayerCount and ", " or "" )
-			elseif i == 4 then
-				TargetName = TargetName.." and "..( PlayerCount - 3 ).." more"
-			end
 		end
 	elseif Player then
 		Server.SendNetworkMessage( Player, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
-		
-		TargetName = Player:GetName()
 	else
 		local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
-		
-		TargetName = "everyone"
 	end
-
-	self:Print( "Shine Notify to %s: %s", true, TargetName, Message )
 end
 
 local OldServerAdminPrint = ServerAdminPrint

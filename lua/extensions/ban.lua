@@ -264,7 +264,7 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( Client, "Currently stored bans:" )
 		for ID, BanTable in pairs( self.Config.Banned ) do
 			local TimeRemaining = BanTable.UnbanTime == 0 and "Forever" or string.TimeToString( BanTable.UnbanTime - Time() )
-			Shine:AdminPrint( Client, "- ID: %s. Name: %s. Time remaining: %s. Reason: %s.", true, ID, BanTable.Name, TimeRemaining, BanTable.Reason )
+			Shine:AdminPrint( Client, "- ID: %s. Name: %s. Time remaining: %s. Reason: %s.", true, ID, BanTable.Name or "<unknown>", TimeRemaining, BanTable.Reason or "No reason given." )
 		end
 	end
 	Commands.ListBansCommand = Shine:RegisterCommand( "sh_listbans", nil, ListBans )
