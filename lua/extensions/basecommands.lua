@@ -182,20 +182,27 @@ function Plugin:CreateCommands()
 	local function Status( Client )
 		local CanSeeIPs = Shine:HasAccess( Client, "sh_status" )
 
-		local Players = Shine.GetAllPlayers()
-		for i = 1, #Players do
-			local Player = Players[ i ]
+		local PlayerList = Shared.GetEntitiesWithClassname( "Player" )
+		local Size = PlayerList:GetSize()
+
+		if Client then
+			ServerAdminPrint( Client, StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
+		else
+			Notify( StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
+		end
+
+		for _, Player in ientitylist( PlayerList ) do
 			local PlayerClient = Server.GetOwner( Player )
 
 			if Client then
-				ServerAdminPrint( Client, StringFormat( "Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
+				ServerAdminPrint( Client, StringFormat( "- Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
 				Player:GetName(),
 				Shine.GameIDs[ PlayerClient ],
 				PlayerClient:GetUserId(),
 				Player:GetTeamNumber(),
 				CanSeeIPs and " | IP: "..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
 			else
-				Notify( StringFormat( "Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
+				Notify( StringFormat( "- Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
 				Player:GetName(),
 				Shine.GameIDs[ PlayerClient ],
 				PlayerClient:GetUserId(),
