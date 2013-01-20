@@ -376,6 +376,7 @@ function GUIShineVoteMenu:SendKeyEvent( Key, Down )
 		
 		if ( not HitButton and Key == InputKey.MouseButton0 ) or Key == InputKey.MouseButton1 then
 			self:SetIsVisible( false )
+
 			return false
 		end
 	end

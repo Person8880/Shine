@@ -34,11 +34,15 @@ Event.Hook( "Console_sh_votemenu", function( Client )
 	local Manager = GetGUIManager()
 
 	if Menu then
+		local ShouldClose = Menu.Background and Menu.Background:GetIsVisible()
+
 		Manager:DestroyGUIScript( Menu )
 
 		Menu = nil
 
-		return
+		if ShouldClose then
+			return
+		end
 	end
 
 	Menu = Manager:CreateGUIScript( "GUIShineVoteMenu" )

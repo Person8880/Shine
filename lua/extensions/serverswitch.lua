@@ -18,8 +18,6 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "ServerSwitch.json"
 
 function Plugin:Initialise()
-	if Shine.Config.LegacyMode then return false, "cannot operate in legacy mode." end
-	
 	self:CreateCommands()
 
 	self.Enabled = true

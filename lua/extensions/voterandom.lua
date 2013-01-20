@@ -286,6 +286,11 @@ function Plugin:ApplyRandomSettings()
 	self.Votes = 0
 	local ChatName = Shine.Config.ChatName
 
+	self.RandomApplied = true
+	Shine.Timer.Simple( 0, function()
+		self.RandomApplied = false
+	end )
+
 	--Set up random teams for the next round.
 	if self.Config.RandomOnNextRound then
 		Shine:Notify( nil, "Random", ChatName, "Teams will be forced to random in the next round." )
@@ -332,6 +337,11 @@ function Plugin:CreateCommands()
 			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )
 
 			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to force random teams (%s more votes needed).", true, PlayerName, VotesNeeded )
+
+			--Somehow it didn't apply random settings??
+			if VotesNeeded == 0 and not self.RandomApplied then
+				self:ApplyRandomSettings()
+			end
 
 			return
 		end

@@ -9,6 +9,7 @@ local StringExplode = string.Explode
 
 local TableConcat = table.concat
 local TableRemove = table.remove
+local TableSort = table.sort
 
 --[[
 	Command object.
@@ -331,7 +332,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				)
 			else
 				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
-					CurArg.Error or "Incorrect argument #%s to %s.", true, i, ConCommand 
+					CurArg.Error or "Incorrect argument #%s to %s, expected %s.", true, i, ConCommand, CurArg.Type 
 				)
 			end
 
@@ -377,9 +378,16 @@ function Shine:RunCommand( Client, ConCommand, ... )
 			if ParsedArg then
 				for j = 1, #ParsedArg do
 					if not self:CanTarget( Client, ParsedArg[ j ] ) then
-						TableRemove( ParsedArg, j )
+						ParsedArg[ j ] = nil
 					end
 				end
+
+				TableSort( ParsedArg, function( A, B )
+					if not A then return false end
+					if not B then return true end
+					if A:GetUserId() > B:GetUserId() then return true end
+					return false
+				end )
 
 				if #ParsedArg == 0 then
 					self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
