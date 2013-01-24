@@ -168,6 +168,12 @@ local ClickFuncs = {
 	end,
 	Scramble = function()
 		return GenericClick( "sh_votescramble" )
+	end,
+	Unstuck = function()
+		return GenericClick( "sh_unstuck" )
+	end,
+	MOTD = function()
+		return GenericClick( "sh_motd" )
 	end
 }
 
