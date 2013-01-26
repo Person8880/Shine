@@ -8,8 +8,14 @@ local StringFormat = string.format
 local Messages = {}
 Shine.TextMessages = Messages
 
-function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size )
+function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size, FadeIn )
+	FadeIn = FadeIn or 0.5
 	Size = Size or 1
+
+	local ShouldFade = FadeIn > 0.00000001
+
+	local Time = Shared.GetTime()
+
 	local Scale = GUIScale( 1 )
 	local ScaleVec = Vector( 1, 1, 1 ) * Scale
 
@@ -25,7 +31,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 
 	if TextObj then
 		TextObj.Text = Text
-		TextObj.Colour = Color( r / 255, g / 255, b / 255, 0 )
+		TextObj.Colour = Color( r / 255, g / 255, b / 255, ShouldFade and 0 or 1 )
 		TextObj.Duration = Duration
 		TextObj.x = x
 		TextObj.y = y
@@ -41,17 +47,22 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 		end
 
-		TextObj.Fading = true
-		TextObj.FadedIn = true
-		TextObj.FadingIn = true
-		TextObj.FadeEnd = Shared.GetTime() + 1
+		if ShouldFade then
+			TextObj.Fading = true
+			TextObj.FadedIn = true
+			TextObj.FadingIn = true
+			TextObj.FadeEnd = Time + FadeIn
+			TextObj.FadeDuration = FadeIn
+		end
+
+		TextObj.LastUpdate = Time
 
 		return TextObj
 	end
 
 	local MessageTable = {
 		Index = ID,
-		Colour = Color( r / 255, g / 255, b / 255, 0 ),
+		Colour = Color( r / 255, g / 255, b / 255, ShouldFade and 0 or 1 ),
 		Text = Text,
 		Duration = Duration,
 		x = x,
@@ -77,10 +88,15 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 	
 	MessageTable.Obj = Obj
 
-	MessageTable.Fading = true
-	MessageTable.FadedIn = true
-	MessageTable.FadingIn = true
-	MessageTable.FadeEnd = Shared.GetTime() + 1
+	if ShouldFade then
+		MessageTable.Fading = true
+		MessageTable.FadedIn = true
+		MessageTable.FadingIn = true
+		MessageTable.FadeEnd = Time + FadeIn
+		MessageTable.FadeDuration = FadeIn
+	end
+
+	MessageTable.LastUpdate = Time
 
 	function MessageTable:UpdateText()
 		self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
@@ -103,24 +119,32 @@ function Shine:UpdateMessageText( Message )
 	MessageTable.Obj:SetText( Text )
 end
 
-function Shine:ProcessQueue()
+function Shine:ProcessQueue( Time )
 	for Index, Message in pairs( Messages ) do
-		Message.Duration = Message.Duration - 1
-
-		Message:UpdateText()
-
-		if Message.Think then
-			Message:Think()
+		if not Message.LastUpdate then
+			Message.LastUpdate = Time
 		end
 
-		if Message.Duration == 1 then
-			Message.FadingIn = false
-			Message.Fading = true
-			Message.FadeEnd = Shared.GetTime() + 1
-		end
+		if Time - Message.LastUpdate >= 1 then
+			Message.Duration = Message.Duration - 1
+			Message.LastUpdate = Time
 
-		if Message.Duration == 0 then
-			self:RemoveMessage( Index )
+			Message:UpdateText()
+
+			if Message.Think then
+				Message:Think()
+			end
+
+			if Message.Duration == 0 then
+				Message.FadingIn = false
+				Message.Fading = true
+				Message.FadeEnd = Shared.GetTime() + 1
+				Message.FadeDuration = 1
+			end
+
+			if Message.Duration == -1 then
+				self:RemoveMessage( Index )
+			end
 		end
 	end
 end
@@ -132,7 +156,7 @@ function Shine:ProcessFades()
 	for Index, Message in pairs( Messages ) do
 		if Message.Fading then
 			local In = Message.FadingIn
-			local Progress = Message.FadeEnd - Time
+			local Progress = ( Message.FadeEnd - Time ) / Message.FadeDuration
 			local Alpha = 1 * ( In and ( 1 - Progress ) or Progress )
 			
 			Message.Colour.a = Alpha
@@ -155,21 +179,16 @@ function Shine:RemoveMessage( Index )
 	Messages[ Index ] = nil
 end
 
-local LastUpdate = 0
-
 Event.Hook( "UpdateClient", function()
 	local Time = Shared.GetTime()
 
-	if Time - LastUpdate > 1 then
-		Shine:ProcessQueue()
-		LastUpdate = Time
-	end
+	Shine:ProcessQueue( Time )
 
 	Shine:ProcessFades()
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenText", function( Message )
-	Shine:AddMessageToQueue( Message.ID, Message.x, Message.y, Message.Message, Message.Duration, Message.r, Message.g, Message.b, Message.Align, Message.Size )
+	Shine:AddMessageToQueue( Message.ID, Message.x, Message.y, Message.Message, Message.Duration, Message.r, Message.g, Message.b, Message.Align, Message.Size, Message.FadeIn )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
