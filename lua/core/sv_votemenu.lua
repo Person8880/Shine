@@ -25,7 +25,9 @@ function Shine:BuildPluginData()
 		Random = Plugins.voterandom and Plugins.voterandom.Enabled,
 		RTV = Plugins.mapvote and Plugins.mapvote.Enabled,
 		Scramble = Plugins.votescramble and Plugins.votescramble.Enabled,
-		Surrender = Plugins.votesurrender and Plugins.votesurrender.Enabled
+		Surrender = Plugins.votesurrender and Plugins.votesurrender.Enabled,
+		Unstuck = Plugins.unstuck and Plugins.unstuck.Enabled,
+		MOTD = Plugins.motd and Plugins.motd.Enabled
 	}
 end
 
@@ -36,7 +38,9 @@ function Shine:SendPluginData( Player, Data )
 				Random = Data.Random and 1 or 0, 
 				RTV = Data.RTV and 1 or 0,
 				Scramble = Data.Scramble and 1 or 0,
-				Surrender = Data.Surrender and 1 or 0
+				Surrender = Data.Surrender and 1 or 0,
+				Unstuck = Data.Unstuck and 1 or 0,
+				MOTD = Data.MOTD and 1 or 0
 			}, true )
 	else
 		local Players = self.GetAllPlayers()
@@ -45,7 +49,9 @@ function Shine:SendPluginData( Player, Data )
 			Random = Data.Random and 1 or 0, 
 			RTV = Data.RTV and 1 or 0,
 			Scramble = Data.Scramble and 1 or 0,
-			Surrender = Data.Surrender and 1 or 0
+			Surrender = Data.Surrender and 1 or 0,
+			Unstuck = Data.Unstuck and 1 or 0,
+			MOTD = Data.MOTD and 1 or 0
 		}
 
 		for i = 1, #Players do
@@ -55,11 +61,5 @@ function Shine:SendPluginData( Player, Data )
 end
 
 Shine.Hook.Add( "ClientConnect", "SendPluginData", function( Client )
-	Shine.Timer.Simple( 5, function()
-		local Player = Client and Client:GetControllingPlayer()
-
-		if not Player then return end
-		
-		Shine:SendPluginData( Player, Shine:BuildPluginData() )
-	end )
+	Shine:SendPluginData( Client, Shine:BuildPluginData() )
 end )

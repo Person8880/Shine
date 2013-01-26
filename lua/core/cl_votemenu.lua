@@ -3,6 +3,7 @@
 ]]
 
 local StringFormat = string.format
+local TableSort = table.sort
 
 Shine = Shine or {}
 
@@ -24,6 +25,8 @@ Client.HookNetworkMessage( "Shine_PluginData", function( Message )
 			ActivePlugins[ #ActivePlugins + 1 ] = Index
 		end
 	end
+
+	TableSort( ActivePlugins )
 end )
 
 local Menu
