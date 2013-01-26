@@ -85,7 +85,16 @@ function Plugin:ClientConnect( Client )
 
 	if TimeLeft <= 0 or TimeLeft > 5 then return end
 
-	Shine:SendText( Client, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 2 ) )
+	Shine:SendText( Client, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 2, 0 ) )
+end
+
+function Plugin:SetGameState( Gamerules, State, OldState )
+	if State == kGameState.PreGame then return end
+	
+	if self.CountStart then
+		self.CountStart = nil
+		self.CountEnd = nil
+	end
 end
 
 function Plugin:UpdatePregame()
@@ -104,7 +113,7 @@ function Plugin:UpdatePregame()
 		self.CountEnd = Shared.GetTime() + Duration
 
 		if self.Config.ShowCountdown then
-			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 2 ) )
+			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 2, 1 ) )
 		end
 
 		return false
@@ -114,7 +123,7 @@ function Plugin:UpdatePregame()
 
 	if TimeLeft == 5 then
 		if self.Config.ShowCountdown then
-			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 2 ) )
+			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 2, 0 ) )
 		end
 	end
 
