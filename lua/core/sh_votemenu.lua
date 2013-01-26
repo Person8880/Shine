@@ -16,7 +16,9 @@ local PluginMessage = {
 	Random = "integer (0 to 1)",
 	RTV = "integer (0 to 1)",
 	Scramble = "integer (0 to 1)",
-	Surrender = "integer (0 to 1)"
+	Surrender = "integer (0 to 1)",
+	Unstuck = "integer (0 to 1)",
+	MOTD = "integer (0 to 1)"
 }
 
 Shared.RegisterNetworkMessage( "Shine_PluginData", PluginMessage )

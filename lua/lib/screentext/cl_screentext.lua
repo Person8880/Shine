@@ -8,7 +8,8 @@ local StringFormat = string.format
 local Messages = {}
 Shine.TextMessages = Messages
 
-function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment )
+function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size )
+	Size = Size or 1
 	local Scale = GUIScale( 1 )
 	local ScaleVec = Vector( 1, 1, 1 ) * Scale
 
@@ -24,7 +25,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment )
 
 	if TextObj then
 		TextObj.Text = Text
-		TextObj.Colour = Color( r / 255, g / 255, b / 255 )
+		TextObj.Colour = Color( r / 255, g / 255, b / 255, 0 )
 		TextObj.Duration = Duration
 		TextObj.x = x
 		TextObj.y = y
@@ -40,12 +41,17 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment )
 			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 		end
 
+		TextObj.Fading = true
+		TextObj.FadedIn = true
+		TextObj.FadingIn = true
+		TextObj.FadeEnd = Shared.GetTime() + 1
+
 		return TextObj
 	end
 
 	local MessageTable = {
 		Index = ID,
-		Colour = Color( r / 255, g / 255, b / 255 ),
+		Colour = Color( r / 255, g / 255, b / 255, 0 ),
 		Text = Text,
 		Duration = Duration,
 		x = x,
@@ -61,7 +67,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment )
 	Obj:SetTextAlignmentX( Alignment )
 	Obj:SetTextAlignmentY( GUIItem.Align_Center )
 
-	Obj:SetFontName( "fonts/AgencyFB_small.fnt" )
+	Obj:SetFontName( Size == 1 and "fonts/AgencyFB_small.fnt" or "fonts/AgencyFB_large.fnt" )
 
 	Obj:SetIsVisible( true )
 
@@ -70,6 +76,11 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment )
 	Obj:SetScale( ScaleVec )
 	
 	MessageTable.Obj = Obj
+
+	MessageTable.Fading = true
+	MessageTable.FadedIn = true
+	MessageTable.FadingIn = true
+	MessageTable.FadeEnd = Shared.GetTime() + 1
 
 	function MessageTable:UpdateText()
 		self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
@@ -102,8 +113,35 @@ function Shine:ProcessQueue()
 			Message:Think()
 		end
 
+		if Message.Duration == 1 then
+			Message.FadingIn = false
+			Message.Fading = true
+			Message.FadeEnd = Shared.GetTime() + 1
+		end
+
 		if Message.Duration == 0 then
 			self:RemoveMessage( Index )
+		end
+	end
+end
+
+--Not the lifeform...
+function Shine:ProcessFades()
+	local Time = Shared.GetTime()
+
+	for Index, Message in pairs( Messages ) do
+		if Message.Fading then
+			local In = Message.FadingIn
+			local Progress = Message.FadeEnd - Time
+			local Alpha = 1 * ( In and ( 1 - Progress ) or Progress )
+			
+			Message.Colour.a = Alpha
+
+			Message.Obj:SetColor( Message.Colour )
+
+			if Message.FadeEnd <= Time then
+				Message.Fading = false
+			end
 		end
 	end
 end
@@ -126,10 +164,12 @@ Event.Hook( "UpdateClient", function()
 		Shine:ProcessQueue()
 		LastUpdate = Time
 	end
+
+	Shine:ProcessFades()
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenText", function( Message )
-	Shine:AddMessageToQueue( Message.ID, Message.x, Message.y, Message.Message, Message.Duration, Message.r, Message.g, Message.b, Message.Align )
+	Shine:AddMessageToQueue( Message.ID, Message.x, Message.y, Message.Message, Message.Duration, Message.r, Message.g, Message.b, Message.Align, Message.Size )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )

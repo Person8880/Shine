@@ -93,6 +93,7 @@ function Shine:GenerateDefaultConfig( Save )
 			logging = false,
 			mapvote = true,
 			motd = true,
+			pregame = false,
 			serverswitch = false,
 			unstuck = true,
 			voterandom = false,

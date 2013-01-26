@@ -13,10 +13,11 @@ local NWMessage = {
 	y = "float (0 to 1 by 0.05)",
 	Duration = "integer (0 to 1800)",
 	ID = "integer (0 to 100)",
-	Align = "integer (0 to 2)"
+	Align = "integer (0 to 2)",
+	Size = "integer (1 to 2)"
 }
 
-function Shine.BuildScreenMessage( ID, x, y, Message, Duration, r, g, b, Align )
+function Shine.BuildScreenMessage( ID, x, y, Message, Duration, r, g, b, Align, Size )
 	return {
 		ID = ID,
 		r = r,
@@ -26,7 +27,8 @@ function Shine.BuildScreenMessage( ID, x, y, Message, Duration, r, g, b, Align )
 		y = y,
 		Message = Message,
 		Duration = Duration,
-		Align = Align
+		Align = Align,
+		Size = Size
 	}
 end
 
