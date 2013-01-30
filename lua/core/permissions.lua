@@ -331,7 +331,9 @@ end
 ]]
 function Shine:IsInGroup( Client, Group )
 	if not Client then return false end
-	if Client:GetIsVirtual() then return false end
+	if Client:GetIsVirtual() then 
+		return Group:lower() == "guest" 
+	end
 
 	if not self.UserData then return false end
 	

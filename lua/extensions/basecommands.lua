@@ -328,7 +328,7 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.ForceRandomCommand = Shine:RegisterCommand( "sh_forcerandom", "random", ForceRandom )
+	Commands.ForceRandomCommand = Shine:RegisterCommand( "sh_forcerandom", "forcerandom", ForceRandom )
 	Commands.ForceRandomCommand:AddParam{ Type = "clients" }
 	Commands.ForceRandomCommand:Help( "<players> Forces the given player(s) onto a random team." )
 

@@ -94,6 +94,7 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 	if self.CountStart then
 		self.CountStart = nil
 		self.CountEnd = nil
+		self.SentCountdown = nil
 	end
 end
 
@@ -122,14 +123,16 @@ function Plugin:UpdatePregame()
 	local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
 
 	if TimeLeft == 5 then
-		if self.Config.ShowCountdown then
+		if self.Config.ShowCountdown and not self.SentCountdown then
 			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+			self.SentCountdown = true
 		end
 	end
 
 	if self.CountEnd <= Shared.GetTime() then
 		self.CountStart = nil
 		self.CountEnd = nil
+		self.SentCountdown = nil
 		self:StartCountdown()
 
 		return false

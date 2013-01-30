@@ -134,9 +134,9 @@ function Shine:ProcessQueue( Time )
 			Message.LastUpdate = Time
 		end
 
-		if Time - Message.LastUpdate >= 1 then
+		if Message.LastUpdate + 1 <= Time then
 			Message.Duration = Message.Duration - 1
-			Message.LastUpdate = Time
+			Message.LastUpdate = Message.LastUpdate + 1
 
 			Message:UpdateText()
 

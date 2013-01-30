@@ -177,10 +177,20 @@ local ParamTypes = {
 		local Vals = StringExplode( String, "," )
 		
 		local Clients = {}
-		local Added = {} --Avoid duplicate entries.
+		local Targets = {}
+
+		local AllClients = Shine.GetAllClients()
+		local NumClients = #AllClients
 		
 		for i = 1, #Vals do
+			local CurrentTargets = {}
+
 			local Val = Vals[ i ]
+			local Negate
+			if Val:sub( 1, 1 ) == "!" then
+				Val = Val:sub( 2 )
+				Negate = true
+			end
 
 			--Targeting a user group.
 			if Val:sub( 1, 1 ) == "%" then
@@ -191,22 +201,26 @@ local ParamTypes = {
 					for j = 1, #InGroup do
 						local CurClient = InGroup[ j ]
 
-						if not Added[ CurClient ] then
-							Clients[ #Clients + 1 ] = CurClient
-							Added[ CurClient ] = true
+						if not CurrentTargets[ CurClient ] then
+							CurrentTargets[ CurClient ] = true
 						end
 					end
 				end
 			else
 				if Val == "*" then --Targeting everyone.
-					return Shine.GetAllClients() --Don't want to add superfluous results...
+					for j = 1, NumClients do
+						local CurClient = AllClients[ j ]
+
+						if CurClient and not CurrentTargets[ CurClient ] then
+							CurrentTargets[ CurClient ] = true
+						end
+					end
 				elseif Val == "^" then --Targeting yourself.
 					local CurClient = Client
 
 					if not Table.NotSelf then
-						if not Added[ CurClient ] then
-							Clients[ #Clients + 1 ] = CurClient
-							Added[ CurClient ] = true
+						if not CurrentTargets[ CurClient ] then
+							CurrentTargets[ CurClient ] = true
 						end
 					end
 				else
@@ -216,25 +230,47 @@ local ParamTypes = {
 						for j = 1, #Add do
 							local Adding = Add[ j ]
 
-							if not Added[ Adding ] then
-								Clients[ #Clients + 1 ] = Adding
-								Added[ Adding ] = true
+							if not CurrentTargets[ Adding ] then
+								CurrentTargets[ Adding ] = true
 							end
 						end
 					else
 						local CurClient = Shine:GetClient( Val )
 
 						if CurClient and not ( Table.NotSelf and CurClient == Client ) then
-							if not Added[ CurClient ] then
-								Clients[ #Clients + 1 ] = CurClient
-								Added[ CurClient ] = true
+							if not CurrentTargets[ CurClient ] then
+								CurrentTargets[ CurClient ] = true
 							end
 						end
 					end
 				end
 			end
+
+			if Negate then
+				if not next( Targets ) then
+					for j = 1, NumClients do
+						local CurClient = AllClients[ j ]
+
+						if not CurrentTargets[ CurClient ] then
+							Targets[ CurClient ] = true
+						end
+					end
+				else
+					for CurClient, Bool in pairs( CurrentTargets ) do
+						Targets[ CurClient ] = nil	
+					end
+				end
+			else
+				for CurClient, Bool in pairs( CurrentTargets ) do
+					Targets[ CurClient ] = true
+				end
+			end
 		end
-		
+
+		for CurClient, Bool in pairs( Targets ) do
+			Clients[ #Clients + 1 ] = CurClient
+		end
+
 		return Clients
 	end,
 	--Number performs tonumber() on the string and clamps the result between the given min and max if applicable. Also rounds if asked.
@@ -311,6 +347,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		return 
 	end
 
+	local Player = Client and Client:GetControllingPlayer() or "Console"
+
 	local Args = { ... }
 
 	local ParsedArgs = {}
@@ -326,12 +364,12 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
 			if CurArg.Type:find( "client" ) then --No client means no match.
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+				self:Notify( Player, "Error", self.Config.ChatName, 
 					"No matching %s found.", true, 
 					CurArg.Type == "client" and "player was" or "players were" 
 				)
 			else
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+				self:Notify( Player, "Error", self.Config.ChatName, 
 					CurArg.Error or "Incorrect argument #%s to %s, expected %s.", true, i, ConCommand, CurArg.Type 
 				)
 			end
@@ -351,7 +389,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+				self:Notify( Player, "Error", self.Config.ChatName, 
 					"The author of this command misconfigured it. If you know them, tell them!" 
 				)
 				return
@@ -361,7 +399,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target the return client.
 		if CurArg.Type == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:Notify( Client:GetControllingPlayer(), "Error", 
+				self:Notify( Player, "Error", 
 					self.Config.ChatName, 
 					"You do not have permission to target %s.", 
 					true, 
@@ -376,6 +414,11 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		if CurArg.Type == "clients" and not CurArg.IgnoreCanTarget then
 			local ParsedArg = ParsedArgs[ i ]
 			if ParsedArg then
+				if #ParsedArg == 0 then
+					self:Notify( Player, "Error", self.Config.ChatName, "No matching players found." )
+					return
+				end
+
 				for j = 1, #ParsedArg do
 					if not self:CanTarget( Client, ParsedArg[ j ] ) then
 						ParsedArg[ j ] = nil
@@ -390,7 +433,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end )
 
 				if #ParsedArg == 0 then
-					self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, 
+					self:Notify( Player, "Error", self.Config.ChatName, 
 						"You do not have permission to target anyone you specified." 
 					)
 					return
@@ -428,7 +471,7 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if not Directive then return end --Avoid accidental invocation.
 
 	local CommandObj = Shine.ChatCommands[ Exploded[ 1 ] ]
-	if not CommandObj then return end --Command does not exist.
+	if not CommandObj then return "" end --Command does not exist.
 
 	TableRemove( Exploded, 1 ) --Get rid of the first argument, it's just the chat command.
 
