@@ -182,7 +182,7 @@ end
 	Returns all clients in the given group.
 ]]
 function Shine:GetClientsByGroup( Group )
-	if not self.UserData.Groups[ Group ] then return nil end
+	if Group ~= "guest" and not self.UserData.Groups[ Group ] then return {} end
 
 	local Clients = self.GetAllClients()
 
