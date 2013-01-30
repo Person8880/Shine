@@ -8,11 +8,19 @@ local StringFormat = string.format
 local Messages = {}
 Shine.TextMessages = Messages
 
+local Fonts = {
+	"fonts/AgencyFB_small.fnt",
+	"fonts/AgencyFB_medium.fnt",
+	"fonts/AgencyFB_large.fnt"
+}
+
 function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size, FadeIn )
 	FadeIn = FadeIn or 0.5
 	Size = Size or 1
 
-	local ShouldFade = FadeIn > 0.00000001
+	local Font = Fonts[ Size ] or "fonts/AgencyFB_small.fnt"
+
+	local ShouldFade = FadeIn > 0.05
 
 	local Time = Shared.GetTime()
 
@@ -42,6 +50,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		Obj:SetScale( ScaleVec )
 		Obj:SetPosition( Vector( Client.GetScreenWidth() * x, Client.GetScreenHeight() * y, 0 ) )
 		Obj:SetColor( TextObj.Colour )
+		Obj:SetFontName( Font )
 
 		function TextObj:UpdateText()
 			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
@@ -78,7 +87,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 	Obj:SetTextAlignmentX( Alignment )
 	Obj:SetTextAlignmentY( GUIItem.Align_Center )
 
-	Obj:SetFontName( Size == 1 and "fonts/AgencyFB_small.fnt" or "fonts/AgencyFB_large.fnt" )
+	Obj:SetFontName( Font )
 
 	Obj:SetIsVisible( true )
 
@@ -125,9 +134,9 @@ function Shine:ProcessQueue( Time )
 			Message.LastUpdate = Time
 		end
 
-		if Time - Message.LastUpdate >= 1 then
+		if Message.LastUpdate + 1 <= Time then
 			Message.Duration = Message.Duration - 1
-			Message.LastUpdate = Time
+			Message.LastUpdate = Message.LastUpdate + 1
 
 			Message:UpdateText()
 

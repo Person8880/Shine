@@ -14,7 +14,7 @@ local NWMessage = {
 	Duration = "integer (0 to 1800)",
 	ID = "integer (0 to 100)",
 	Align = "integer (0 to 2)",
-	Size = "integer (1 to 2)",
+	Size = "integer (1 to 3)",
 	FadeIn = "float (0 to 2 by 0.05)"
 }
 

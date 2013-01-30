@@ -149,8 +149,10 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 			
 			Server.SendNetworkMessage( Ply, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
-	elseif Player then
+	elseif Player and Player ~= "Console" then
 		Server.SendNetworkMessage( Player, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+	elseif Player == "Console" then
+		Shared.Message( Message )
 	else
 		local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 

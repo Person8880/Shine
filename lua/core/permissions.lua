@@ -13,33 +13,40 @@ local UserPath = "config://shine\\UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 
+function Shine:RequestUsers()
+	Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
+		if not Response then
+			self:LoadUsers()
+			return
+		end
+
+		self.UserData = Decode( Response ) or {}
+
+		if not next( self.UserData ) then
+			self:LoadUsers()
+			return
+		end
+
+		self:ConvertData( self.UserData, true )
+
+		Notify( "Shine loaded users from web." )
+	end )
+end
+
 --[[
 	Loads the Shine user data either from a local JSON file or from one hosted on a webserver.
 	If retrieving the web users fails, it will fall back to a local file. If a local file does not exist, the default is created and used.
 ]]
-function Shine:LoadUsers( Web )
+function Shine:LoadUsers( Web, Reload )
 	if Web then
-		Shine.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
-			Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
-				if not Response then
-					self:LoadUsers()
-					return
-				end
-
-				self.UserData = Decode( Response ) or {}
-
-				if not next( self.UserData ) then
-					self:LoadUsers()
-					return
-				end
-
-				self:ConvertData( self.UserData, true )
-
-				Notify( "Shine loaded users from web." )
-			end )
-
-			Shine.Hook.Remove( "ClientConnect", "LoadUsers" )
-		end, -20 )
+		if Reload then
+			self:RequestUsers()
+		else
+			Shine.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
+				self:RequestUsers()
+				Shine.Hook.Remove( "ClientConnect", "LoadUsers" )
+			end, -20 )
+		end
 
 		return
 	end
@@ -324,7 +331,9 @@ end
 ]]
 function Shine:IsInGroup( Client, Group )
 	if not Client then return false end
-	if Client:GetIsVirtual() then return false end
+	if Client:GetIsVirtual() then 
+		return Group:lower() == "guest" 
+	end
 
 	if not self.UserData then return false end
 	
