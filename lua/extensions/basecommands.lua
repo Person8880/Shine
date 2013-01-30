@@ -295,6 +295,13 @@ function Plugin:CreateCommands()
 	Commands.ListPluginsCommand = Shine:RegisterCommand( "sh_listplugins", nil, ListPlugins )
 	Commands.ListPluginsCommand:Help( "Lists all loaded plugins." )
 
+	local function ReloadUsers( Client )
+		Shine:AdminPrint( Client, "Reloading users..." )
+		Shine:LoadUsers( Shine.Config.GetUsersFromWeb, true )
+	end
+	Commands.ReloadUsersCommand = Shine:RegisterCommand( "sh_reloadusers", nil, ReloadUsers )
+	Commands.ReloadUsersCommand:Help( "Reloads the user data, either from the web or locally depending on your config settings." )
+
 	local function ReadyRoom( Client, Targets )
 		local Gamerules = GetGamerules()
 		if Gamerules then
@@ -399,6 +406,18 @@ function Plugin:CreateCommands()
 	Commands.PMCommand:AddParam{ Type = "client" }
 	Commands.PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
 	Commands.PMCommand:Help( "<player> <message> Sends a private message to the given player." )
+
+	local function CSay( Client, Message )
+		local Player = Client and Client:GetControllingPlayer()
+		local PlayerName = Player and Player:GetName() or "Console"
+		local ID = Client:GetUserId() or 0
+
+		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.2, Message, 6, 255, 255, 255, 1, 2, 1 ) )
+		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
+	end
+	Commands.CSayCommand = Shine:RegisterCommand( "sh_csay", "csay", CSay )
+	Commands.CSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = 128 }
+	Commands.CSayCommand:Help( "Displays a message in the centre of all player's screens." )
 end
 
 function Plugin:Cleanup()
