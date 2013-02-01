@@ -471,7 +471,11 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if not Directive then return end --Avoid accidental invocation.
 
 	local CommandObj = Shine.ChatCommands[ Exploded[ 1 ] ]
-	if not CommandObj then return "" end --Command does not exist.
+	
+	if not CommandObj then --Command does not exist.
+		if Directive == "!" or Directive == "/" then return "" end 
+		return
+	end
 
 	TableRemove( Exploded, 1 ) --Get rid of the first argument, it's just the chat command.
 
