@@ -42,3 +42,9 @@ local UpdateMessage = {
 }
 
 Shared.RegisterNetworkMessage( "Shine_ScreenTextUpdate", UpdateMessage )
+
+local RemoveMessage = {
+	ID = "integer (0 to 100)"
+}
+
+Shared.RegisterNetworkMessage( "Shine_ScreenTextRemove", RemoveMessage )

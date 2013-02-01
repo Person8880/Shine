@@ -27,3 +27,15 @@ function Shine:UpdateText( Player, Message )
 		end
 	end
 end
+
+function Shine:RemoveText( Player, Message )
+	if Player then
+		Server.SendNetworkMesage( Player, "Shine_ScreenTextRemove", Message, true )
+	else
+		local Players = self.GetAllPlayers()
+
+		for i = 1, #Players do
+			Server.SendNetworkMessage( Players[ i ], "Shine_ScreenTextRemove", Message, true )
+		end
+	end
+end

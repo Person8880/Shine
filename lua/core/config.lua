@@ -56,6 +56,27 @@ function Shine:LoadConfig()
 	Notify( "Loading Shine config..." )
 
 	self.Config = ConfigFile
+
+	local Updated
+
+	if self.Config.RefreshUsers == nil then
+		self.Config.RefreshUsers = false
+		Updated = true
+	end
+
+	if self.Config.RefreshInterval == nil then
+		self.Config.RefreshInterval = 60
+		Updated = true
+	end
+
+	if self.Config.LegacyMode ~= nil then
+		self.Config.LegacyMode = nil
+		Updated = true
+	end
+
+	if Updated then
+		self:SaveConfig()
+	end
 end
 
 function Shine:SaveConfig()
@@ -69,7 +90,7 @@ function Shine:SaveConfig()
 		return
 	end
 
-	Notify( "Saving Shine config..." )
+	Notify( "Updating Shine config..." )
 end
 
 function Shine:GenerateDefaultConfig( Save )
@@ -82,6 +103,8 @@ function Shine:GenerateDefaultConfig( Save )
 
 		GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.
 		UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.
+		RefreshUsers = false, --Auto-refresh users every set amount of time.
+		RefreshInterval = 60, --How long in seconds between refreshes?
 
 		ActiveExtensions = { --Defines which plugins should be active.
 			adverts = false,

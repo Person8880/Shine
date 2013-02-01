@@ -13,23 +13,33 @@ local UserPath = "config://shine\\UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 
-function Shine:RequestUsers()
+function Shine:RequestUsers( Reload )
 	Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
 		if not Response then
 			self:LoadUsers()
 			return
 		end
 
-		self.UserData = Decode( Response ) or {}
+		local UserData = Decode( Response ) or {}
 
-		if not next( self.UserData ) then
+		if not next( UserData ) then
+			if Reload then --Don't replace with a blank table if request failed when reloading.
+				self:AdminPrint( nil, "Reloading from the web failed. User data has not been changed." )
+				return 
+			end 
+
+			Notify( "Loading from the web failed. Using local file instead." )
+
 			self:LoadUsers()
+
 			return
 		end
 
+		self.UserData = UserData
+
 		self:ConvertData( self.UserData, true )
 
-		Notify( "Shine loaded users from web." )
+		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 	end )
 end
 
@@ -40,7 +50,7 @@ end
 function Shine:LoadUsers( Web, Reload )
 	if Web then
 		if Reload then
-			self:RequestUsers()
+			self:RequestUsers( true )
 		else
 			Shine.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
 				self:RequestUsers()
@@ -170,7 +180,14 @@ end
 	This ensures we know whether we should be getting them from the web or not.
 ]]
 Shine.Hook.Add( "PostloadConfig", "LoadShineUsers", function()
-	Shine:LoadUsers( Shine.Config.GetUsersFromWeb )
+	local WebUsers = Shine.Config.GetUsersFromWeb
+	Shine:LoadUsers( WebUsers )
+
+	if WebUsers and Shine.Config.RefreshUsers then
+		Shine.Timer.Create( "UserRefresh", Shine.Config.RefreshInterval or 60, -1, function()
+			Shine:RequestUsers( true )
+		end )
+	end
 end )
 
 --[[

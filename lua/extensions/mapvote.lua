@@ -110,6 +110,7 @@ function Plugin:GenerateDefaultConfig( Save )
 		},
 		MinPlayers = 10, --Minimum number of players needed to begin a map vote.
 		PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
+		PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
 
 		VoteLength = 2, --Time in minutes a vote should last before failing.
 		ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
@@ -181,6 +182,11 @@ function Plugin:LoadConfig()
 
 	if self.Config.AlwaysExtend == nil then
 		self.Config.AlwaysExtend = true
+		self:SaveConfig()
+	end
+
+	if self.Config.PercentToFinish == nil then
+		self.Config.PercentToFinish = 0.8
 		self:SaveConfig()
 	end
 end
@@ -367,6 +373,13 @@ function Plugin:CanStartVote()
 end
 
 --[[
+	Returns the number of players needed to end the vote before the time is up.
+]]
+function Plugin:GetVoteEnd()
+	return Ceil( #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) * self.Config.PercentToFinish )
+end
+ 
+--[[
 	Adds a vote to begin a map vote.
 ]]
 function Plugin:AddStartVote( Client )
@@ -438,7 +451,243 @@ function Plugin:AddVote( Client, Map, Revote )
 
 	self.Vote.Voted[ Client ] = Choice
 
+	if not self:IsNextMapVote() and self.Vote.TotalVotes >= self:GetVoteEnd() then
+		Shine.Timer.Simple( 0, function()
+			self:ProcessResults()
+		end )
+		
+		Shine.Timer.Destroy( self.VoteTimer )
+	end
+
 	return true, Choice
+end
+
+function Plugin:ProcessResults()
+	Shine:RemoveText( nil, { ID = 1 } )
+
+	local TotalVotes = self.Vote.TotalVotes
+	local MaxVotes = 0
+	local Voted = self.Vote.VoteList
+
+	local Time = Shared.GetTime()
+
+	local ChatName = Shine.Config.ChatName
+
+	--No one voted :|
+	if TotalVotes == 0 then
+		Shine:Notify( nil, "Vote", ChatName, "No votes made. Map vote failed." )
+		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+		
+		if NextMap then
+			self.NextMap.Voting = false
+		end
+
+		return
+	end
+
+	local Results = {}
+
+	--Compile the list of maps with the most votes, if two have the same amount they'll both be in the list.
+	for Map, Votes in pairs( Voted ) do
+		if Votes >= MaxVotes then
+			MaxVotes = Votes
+		end
+	end
+
+	for Map, Votes in pairs( Voted ) do
+		if Votes == MaxVotes then
+			Results[ #Results + 1 ] = Map
+		end
+	end
+
+	local Count = #Results
+
+	--Only one map won.
+	if Count == 1 then
+		if not NextMap then
+			Shine:Notify( nil, "Vote", ChatName, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
+
+			local Choice = Results[ 1 ]
+			if Choice == Shared.GetMapName() then
+				local ExtendTime = self.Config.ExtendTime * 60
+				
+				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				
+				self.NextMap.Winner = Choice
+				self.NextMap.ExtendTime = Time + ExtendTime
+				self.NextMap.Extends = self.NextMap.Extends + 1
+
+				Shine.Timer.Destroy( self.NextMapTimer )
+				Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
+					self:StartVote( true )
+				end )
+
+				return
+			end
+
+			Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+
+			self.Vote.CanVeto = true --Allow admins to cancel the change.
+
+			--Queue the change.
+			Shine.Timer.Simple( self.Config.ChangeDelay, function()
+				if not self.Vote.Veto then --No one cancelled it, change map.
+					MapCycle_ChangeMap( Results[ 1 ] )
+				else --Someone cancelled it, set the next vote time.
+					self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+					self.Vote.Veto = false
+					self.Vote.CanVeto = false --Veto has no meaning anymore.
+				end
+			end )
+
+			return
+		end
+
+		self.NextMap.Winner = Results[ 1 ]
+
+		if Results[ 1 ] == Shared.GetMapName() then
+			local ExtendTime = self.Config.ExtendTime * 60
+
+			self.NextMap.ExtendTime = Time + ExtendTime
+			self.NextMap.Extends = self.NextMap.Extends + 1
+
+			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+
+			Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
+				local Players = Shine.GetAllPlayers()
+				if #Players > 0 then
+					self:StartVote( true )
+				end
+			end )
+		else
+			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Results[ 1 ], Results[ 1 ] )
+		end
+
+		self.NextMap.Voting = false
+
+		self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
+
+		return
+	end
+
+	--Now we're in the case where there's more than one map that won.
+	--If we're set to fail on a tie, then fail.
+	if self.Config.TieFails then
+		Shine:Notify( nil, "Vote", ChatName, "Votes were tied. Map vote failed." )
+		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+
+		if NextMap then
+			self.NextMap.Voting = false
+		end
+
+		return
+	end
+
+	--We're set to choose randomly between them on tie.
+	if self.Config.ChooseRandomOnTie then
+		local NewCount = Count * 100 --If there were 3 tied choices, we're looking at numbers between 1 and 300.
+		local RandNum = Random( 1, Count )
+		local Choice = ""
+
+		for i = 1, Count do
+			if InRange( ( i - 1 ) * 100, i * 100, ( i + 1 ) * 100 ) then --Is this map the winner?
+				Choice = Results[ i ]
+				break
+			end 
+		end
+
+		local Tied = TableConcat( Results, ", " )
+
+		self.Vote.CanVeto = true --Allow vetos.
+
+		Shine:Notify( nil, "Vote", ChatName, "Votes were tied between %s.", true, Tied )
+		Shine:Notify( nil, "Vote", ChatName, "Choosing random map..." )
+		Shine:Notify( nil, "Vote", ChatName, "Chosen map: %s.", true, Choice )
+
+		if not NextMap then
+			if Choice == Shared.GetMapName() then
+				local ExtendTime = self.Config.ExtendTime * 60
+				
+				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				
+				self.NextMap.Winner = Choice
+				self.NextMap.ExtendTime = Shared.GetTime() + ExtendTime
+				self.NextMap.Extends = self.NextMap.Extends + 1
+
+				Shine.Timer.Destroy( self.NextMapTimer )
+				Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
+					self:StartVote( true )
+				end )
+
+				return
+			end
+
+			Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+
+			--Queue the change.
+			Shine.Timer.Simple( self.Config.ChangeDelay, function()
+				if not self.Vote.Veto then
+					MapCycle_ChangeMap( Choice )
+				else
+					self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+					self.Vote.Veto = false
+					self.Vote.CanVeto = false
+				end
+			end )
+
+			return
+		end
+
+		self.NextMap.Winner = Choice
+
+		if Choice == Shared.GetMapName() then
+			local ExtendTime = self.Config.ExtendTime * 60
+			
+			self.NextMap.ExtendTime = Time + ExtendTime
+			self.NextMap.Extends = self.NextMap.Extends + 1
+
+			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+
+			Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
+				local Players = Shine.GetAllPlayers()
+				if #Players > 0 then
+					self:StartVote( true )
+				end
+			end )
+
+			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
+		else
+			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Choice, Choice )
+		end
+
+		self.NextMap.Voting = false
+
+		return
+	end
+
+	Shine.Timer.Destroy( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
+
+	if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
+		Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Beginning revote." )
+
+		self.Vote.Votes = self.Vote.Votes + 1
+
+		Shine.Timer.Simple( 0, function()
+			self:StartVote( NextMap )
+		end )
+	else
+		Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Revote limit reached." )
+
+		if not NextMap then
+			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+		end
+
+		self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
+
+		if NextMap then
+			self.NextMap.Voting = false
+		end
+	end
 end
 
 --[[
@@ -534,229 +783,7 @@ function Plugin:StartVote( NextMap )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()
-		local TotalVotes = self.Vote.TotalVotes
-		local MaxVotes = 0
-		local Voted = self.Vote.VoteList
-
-		local Time = Shared.GetTime()
-
-		local ChatName = Shine.Config.ChatName
-
-		--No one voted :|
-		if TotalVotes == 0 then
-			Shine:Notify( nil, "Vote", ChatName, "No votes made. Map vote failed." )
-			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-			
-			if NextMap then
-				self.NextMap.Voting = false
-			end
-
-			return
-		end
-
-		local Results = {}
-
-		--Compile the list of maps with the most votes, if two have the same amount they'll both be in the list.
-		for Map, Votes in pairs( Voted ) do
-			if Votes >= MaxVotes then
-				MaxVotes = Votes
-			end
-		end
-
-		for Map, Votes in pairs( Voted ) do
-			if Votes == MaxVotes then
-				Results[ #Results + 1 ] = Map
-			end
-		end
-
-		local Count = #Results
-
-		--Only one map won.
-		if Count == 1 then
-			if not NextMap then
-				Shine:Notify( nil, "Vote", ChatName, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
-
-				local Choice = Results[ 1 ]
-				if Choice == Shared.GetMapName() then
-					local ExtendTime = self.Config.ExtendTime * 60
-					
-					Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-					
-					self.NextMap.Winner = Choice
-					self.NextMap.ExtendTime = Time + ExtendTime
-					self.NextMap.Extends = self.NextMap.Extends + 1
-
-					Shine.Timer.Destroy( self.NextMapTimer )
-					Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
-						self:StartVote( true )
-					end )
-
-					return
-				end
-
-				Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
-
-				self.Vote.CanVeto = true --Allow admins to cancel the change.
-
-				--Queue the change.
-				Shine.Timer.Simple( self.Config.ChangeDelay, function()
-					if not self.Vote.Veto then --No one cancelled it, change map.
-						MapCycle_ChangeMap( Results[ 1 ] )
-					else --Someone cancelled it, set the next vote time.
-						self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-						self.Vote.Veto = false
-						self.Vote.CanVeto = false --Veto has no meaning anymore.
-					end
-				end )
-
-				return
-			end
-
-			self.NextMap.Winner = Results[ 1 ]
-
-			if Results[ 1 ] == Shared.GetMapName() then
-				local ExtendTime = self.Config.ExtendTime * 60
-
-				self.NextMap.ExtendTime = Time + ExtendTime
-				self.NextMap.Extends = self.NextMap.Extends + 1
-
-				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-
-				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
-					local Players = Shine.GetAllPlayers()
-					if #Players > 0 then
-						self:StartVote( true )
-					end
-				end )
-			else
-				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Results[ 1 ], Results[ 1 ] )
-			end
-
-			self.NextMap.Voting = false
-
-			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
-
-			return
-		end
-
-		--Now we're in the case where there's more than one map that won.
-		--If we're set to fail on a tie, then fail.
-		if self.Config.TieFails then
-			Shine:Notify( nil, "Vote", ChatName, "Votes were tied. Map vote failed." )
-			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-
-			if NextMap then
-				self.NextMap.Voting = false
-			end
-
-			return
-		end
-
-		--We're set to choose randomly between them on tie.
-		if self.Config.ChooseRandomOnTie then
-			local NewCount = Count * 100 --If there were 3 tied choices, we're looking at numbers between 1 and 300.
-			local RandNum = Random( 1, Count )
-			local Choice = ""
-
-			for i = 1, Count do
-				if InRange( ( i - 1 ) * 100, i * 100, ( i + 1 ) * 100 ) then --Is this map the winner?
-					Choice = Results[ i ]
-					break
-				end 
-			end
-
-			local Tied = TableConcat( Results, ", " )
-
-			self.Vote.CanVeto = true --Allow vetos.
-
-			Shine:Notify( nil, "Vote", ChatName, "Votes were tied between %s.", true, Tied )
-			Shine:Notify( nil, "Vote", ChatName, "Choosing random map..." )
-			Shine:Notify( nil, "Vote", ChatName, "Chosen map: %s.", true, Choice )
-
-			if not NextMap then
-				if Choice == Shared.GetMapName() then
-					local ExtendTime = self.Config.ExtendTime * 60
-					
-					Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-					
-					self.NextMap.Winner = Choice
-					self.NextMap.ExtendTime = Shared.GetTime() + ExtendTime
-					self.NextMap.Extends = self.NextMap.Extends + 1
-
-					Shine.Timer.Destroy( self.NextMapTimer )
-					Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
-						self:StartVote( true )
-					end )
-
-					return
-				end
-
-				Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
-
-				--Queue the change.
-				Shine.Timer.Simple( self.Config.ChangeDelay, function()
-					if not self.Vote.Veto then
-						MapCycle_ChangeMap( Choice )
-					else
-						self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-						self.Vote.Veto = false
-						self.Vote.CanVeto = false
-					end
-				end )
-
-				return
-			end
-
-			self.NextMap.Winner = Choice
-
-			if Choice == Shared.GetMapName() then
-				local ExtendTime = self.Config.ExtendTime * 60
-				
-				self.NextMap.ExtendTime = Time + ExtendTime
-				self.NextMap.Extends = self.NextMap.Extends + 1
-
-				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-
-				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
-					local Players = Shine.GetAllPlayers()
-					if #Players > 0 then
-						self:StartVote( true )
-					end
-				end )
-
-				self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
-			else
-				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Choice, Choice )
-			end
-
-			self.NextMap.Voting = false
-
-			return
-		end
-
-		Shine.Timer.Destroy( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
-
-		if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
-			Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Beginning revote." )
-
-			self.Vote.Votes = self.Vote.Votes + 1
-
-			Shine.Timer.Simple( 0, function()
-				self:StartVote( NextMap )
-			end )
-		else
-			Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Revote limit reached." )
-
-			if not NextMap then
-				self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-			end
-
-			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
-
-			if NextMap then
-				self.NextMap.Voting = false
-			end
-		end
+		self:ProcessResults()
 	end )
 end
 
