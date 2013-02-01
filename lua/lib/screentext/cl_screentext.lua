@@ -203,3 +203,12 @@ end )
 Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
 	Shine:UpdateMessageText( Message )
 end )
+
+Client.HookNetworkMessage( "Shine_ScreenTextRemove", function( Message )
+	local MessageTable = Messages[ Message.ID ]
+
+	if not MessageTable then return end
+
+	MessageTable.LastUpdate = Shared.GetTime() - 1
+	MessageTable.Duration = 1
+end )
