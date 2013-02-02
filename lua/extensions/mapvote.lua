@@ -462,7 +462,7 @@ function Plugin:AddVote( Client, Map, Revote )
 	return true, Choice
 end
 
-function Plugin:ProcessResults()
+function Plugin:ProcessResults( NextMap )
 	Shine:RemoveText( nil, { ID = 1 } )
 
 	local TotalVotes = self.Vote.TotalVotes
@@ -783,7 +783,7 @@ function Plugin:StartVote( NextMap )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()
-		self:ProcessResults()
+		self:ProcessResults( NextMap )
 	end )
 end
 
