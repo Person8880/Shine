@@ -48,7 +48,7 @@ Shine.Hook.Add = Add
 	Removes a function from Shine's internal hook system.
 	Inputs: Event, unique identifier.
 ]]
-function Shine.Hook.Remove( Event, Index )
+local function Remove( Event, Index )
 	local EventHooks = Hooks[ Event ]
 
 	if not EventHooks then return end
@@ -62,6 +62,7 @@ function Shine.Hook.Remove( Event, Index )
 		end
 	end
 end
+Shine.Hook.Remove = Remove
 
 --[[
 	Calls an internal Shine hook.
@@ -162,7 +163,7 @@ local function OnChatReceived( client, message )
 
 	if chatMessage and string.len(chatMessage) > 0 then
 		--Begin modification to hook directly into the chat.
-		local Result = Shine.Hook.Call( "PlayerSay", client, message )
+		local Result = Call( "PlayerSay", client, message )
 		if Result then
 			if Result[ 1 ] == "" then return end
 			chatMessage = Result[ 1 ]:sub( 1, kMaxChatLength )
@@ -357,13 +358,13 @@ Add( "Think", "ReplaceMethods", function()
 		return OldTestCycle()
 	end
 
-	Shine.Hook.Remove( "Think", "ReplaceMethods" )
+	Remove( "Think", "ReplaceMethods" )
 end )
 
 --[[
 	Fix for NS2Stats way of overriding gamerules functions.
 ]]
-Shine.Hook.Add( "ClientConnect", "ReplaceOnKilled", function( Client )
+Add( "ClientConnect", "ReplaceOnKilled", function( Client )
 	if not RBPS then return end
 
 	--They override the gamerules entity instead of the gamerules class...
@@ -378,5 +379,5 @@ Shine.Hook.Add( "ClientConnect", "ReplaceOnKilled", function( Client )
 		return OldOnEntityKilled( self, TargetEnt, Attacker, Inflictor, Point, Dir )
 	end
 
-	Shine.Hook.Remove( "ClientConnect", "ReplaceOnKilled" )
+	Remove( "ClientConnect", "ReplaceOnKilled" )
 end )
