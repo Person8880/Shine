@@ -244,31 +244,17 @@ function Plugin:ClientConnect( Client )
 	if not self:VoteStarted() then return end
 
 	local Duration = Floor( self.Vote.EndTime - Shared.GetTime() )
-	if Duration <= 5 then return end
 	
-	local Player = Client:GetControllingPlayer()
+	if Duration < 10 then return end
 
-	if not Player then
-		if Duration < 10 then return end
+	--Delay so the client can laod in.
+	Shine.Timer.Simple( 5, function()
+		Duration = Duration - 5
+		
+		local OptionsText = self.Vote.OptionsText
 
-		--Delay so the client can be assigned a player.
-		Shine.Timer.Simple( 5, function()
-			Duration = Duration - 5
-			local Player = Client and Client:GetControllingPlayer()
-
-			if not Player then return end
-			
-			local OptionsText = self.Vote.OptionsText
-
-			Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
-		end )
-
-		return
-	end
-
-	local OptionsText = self.Vote.OptionsText
-
-	Shine:SendVoteOptions( Player, OptionsText, Duration, self.NextMap.Voting )
+		Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting )
+	end )
 end
 
 local function GetMapName( Map )

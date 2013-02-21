@@ -71,7 +71,9 @@ function Plugin:ClientConnect( Client )
 	if MessageTable and MessageTable.Welcome and not MessageTable.Said then
 		Shine.Timer.Simple( self.Config.MessageDelay, function()
 			Shine:Notify( nil, "", "", MessageTable.Welcome )
+
 			MessageTable.Said = true
+
 			self:SaveConfig()
 		end )
 	end
@@ -84,7 +86,9 @@ function Plugin:ClientDisconnect( Client )
 
 	if MessageTable and MessageTable.Leave then
 		Shine:Notify( nil, "", "", MessageTable.Leave )
+
 		MessageTable.Said = nil
+		
 		self:SaveConfig()
 	end
 end
