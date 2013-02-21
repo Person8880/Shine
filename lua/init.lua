@@ -18,7 +18,7 @@ local Scripts = {
 	"core/hook.lua",
 	"lib/player.lua",
 	"lib/timer.lua",
-	"Server.lua",
+	--"Server.lua",
 	"core/permissions.lua",
 	"core/commands.lua",
 	"core/extensions.lua",

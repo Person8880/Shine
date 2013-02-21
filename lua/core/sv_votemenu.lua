@@ -60,6 +60,12 @@ function Shine:SendPluginData( Player, Data )
 	end
 end
 
+--Send plugin data on client connect.
 Shine.Hook.Add( "ClientConnect", "SendPluginData", function( Client )
+	Shine:SendPluginData( Client, Shine:BuildPluginData() )
+end )
+
+--Client's requesting plugin data.
+Server.HookNetworkMessage( "Shine_RequestPluginData", function( Client, Message )
 	Shine:SendPluginData( Client, Shine:BuildPluginData() )
 end )

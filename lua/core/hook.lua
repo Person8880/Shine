@@ -365,7 +365,11 @@ end )
 	Fix for NS2Stats way of overriding gamerules functions.
 ]]
 Add( "ClientConnect", "ReplaceOnKilled", function( Client )
-	if not RBPS then return end
+	if not RBPS then 
+		Remove( "ClientConnect", "ReplaceOnKilled" )
+		
+		return 
+	end
 
 	--They override the gamerules entity instead of the gamerules class...
 	local Ents = Shared.GetEntitiesWithClassname( "NS2Gamerules" )
