@@ -122,7 +122,7 @@ function Plugin:CreateCommands()
 		Notify( "End command list." )
 	end
 	Commands.CommandList = Shine:RegisterCommand( "sh_helplist", nil, CommandsList, true )
-	Commands.CommandList:Help( "Displays every command you have access to and thier usage." )
+	Commands.CommandList:Help( "Displays every command you have access to and their usage." )
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
@@ -244,7 +244,6 @@ function Plugin:CreateCommands()
 	Commands.ResetGameCommand:Help( "Resets the game round." )
 
 	local function LoadPlugin( Client, Name )
-		--Name = Name:gsub( "/", "" ):gsub( "\\", "" ):gsub( "..", "" ) 
 		if Name == "basecommands" then
 			Shine:AdminPrint( Client, "You cannot reload the basecommands plugin." )
 			return

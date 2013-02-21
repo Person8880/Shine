@@ -127,7 +127,7 @@ function Shine:GenerateDefaultConfig( Save )
 
 		EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
 
-		ChatName = "Admin", --The default name that should appear for notifications with a name (unless in legacy mode, not all messages will show this.)
+		ChatName = "Admin", --The default name that should appear for notifications with a name (not all messages will show this.)
 
 		SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
 	}

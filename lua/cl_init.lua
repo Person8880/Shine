@@ -5,7 +5,7 @@
 local include = Script.Load
 
 local Scripts = {
-	"Client.lua",
+	--"Client.lua",
 	"lib/string.lua",
 	"lib/table.lua",
 	"core/chat.lua",
