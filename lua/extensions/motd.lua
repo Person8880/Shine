@@ -99,11 +99,8 @@ function Plugin:ClientConnect( Client )
 
 	Shine.Timer.Simple( self.Config.Delay, function()
 		if Shine:HasAccess( Client, "sh_showmotd" ) then return end
-		
-		local Player = Client:GetControllingPlayer()
-		if not Player then return end
 
-		self:ShowMotD( Player )
+		self:ShowMotD( Client )
 	end )
 end
 
@@ -112,26 +109,19 @@ function Plugin:CreateCommands()
 
 	local function MotD( Client )
 		if not Client then return end
-		
-		local Player = Client:GetControllingPlayer()
-		if not Player then return end
 
-		self:ShowMotD( Player )
+		self:ShowMotD( Client )
 	end
 	Commands.MotDCommand = Shine:RegisterCommand( "sh_motd", "motd", MotD, true )
 	Commands.MotDCommand:Help( "Shows the message of the day." )
 
 	local function AcceptMotD( Client )
 		if not Client then return end
-		
-		local Player = Client:GetControllingPlayer()
-
-		if not Player then return end
 
 		local ID = Client:GetUserId()
 
 		if self.Config.Accepted[ tostring( ID ) ] then
-			Shine:Notify( Player, "MotD", "Admin", "You have already accepted the message of the day." )
+			Shine:Notify( Client, "MotD", "Admin", "You have already accepted the message of the day." )
 
 			return
 		end
@@ -139,16 +129,13 @@ function Plugin:CreateCommands()
 		self.Config.Accepted[ tostring( ID ) ] = true
 		self:SaveConfig()
 
-		Shine:Notify( Player, "MotD", "Admin", "Thank you for accepting the message of the day." )
+		Shine:Notify( Client, "MotD", "Admin", "Thank you for accepting the message of the day." )
 	end
 	Commands.AcceptMotDCommand = Shine:RegisterCommand( "sh_acceptmotd", "acceptmotd", AcceptMotD, true )
 	Commands.AcceptMotDCommand:Help( "Accepts the message of the day so you no longer see it on connect." )
 
 	local function ShowMotD( Client, Target )
-		local Player = Target:GetControllingPlayer()
-		if not Player then return end
-		
-		self:ShowMotD( Player )
+		self:ShowMotD( Target )
 	end
 	Commands.ShowMotDCommand = Shine:RegisterCommand( "sh_showmotd", "showmotd", ShowMotD )
 	Commands.ShowMotDCommand:AddParam{ Type = "client" }

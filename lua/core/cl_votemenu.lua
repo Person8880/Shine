@@ -31,8 +31,12 @@ end )
 
 local Menu
 
-Event.Hook( "Console_sh_votemenu", function( Client )
-	if #ActivePlugins == 0 then return end
+Event.Hook( "Console_sh_votemenu", function()
+	if #ActivePlugins == 0 then --Request addon list if our table is empty.
+		Client.SendNetworkMessage( "Shine_RequestPluginData", { Bleh = 0 }, true )
+
+		return 
+	end
 	
 	local Manager = GetGUIManager()
 

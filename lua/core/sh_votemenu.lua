@@ -22,3 +22,9 @@ local PluginMessage = {
 }
 
 Shared.RegisterNetworkMessage( "Shine_PluginData", PluginMessage )
+
+local RequestAddonList = {
+	Bleh = "integer (0 to 1)"
+}
+
+Shared.RegisterNetworkMessage( "Shine_RequestPluginData", RequestAddonList )
