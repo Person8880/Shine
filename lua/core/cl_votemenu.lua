@@ -31,6 +31,35 @@ end )
 
 local Menu
 
+--[[
+	Updates the binding data in case they changed it whilst connected.
+]]
+local function CheckForBind()
+	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
+
+	if not CustomBinds then 
+		Shine.VoteButtonBound = nil
+		Shine.VoteButton = nil
+
+		return 
+	end
+
+	local Binds = json.decode( CustomBinds:read( "*all" ) ) or {}
+
+	CustomBinds:close()
+
+	for Button, Data in pairs( Binds ) do
+		if Data.command:find( "sh_votemenu" ) then
+			Shine.VoteButtonBound = true
+			Shine.VoteButton = Button
+			return
+		end
+	end
+
+	Shine.VoteButtonBound = nil
+	Shine.VoteButton = nil
+end
+
 Event.Hook( "Console_sh_votemenu", function()
 	if #ActivePlugins == 0 then --Request addon list if our table is empty.
 		Client.SendNetworkMessage( "Shine_RequestPluginData", { Bleh = 0 }, true )
@@ -69,6 +98,8 @@ Event.Hook( "Console_sh_votemenu", function()
 end )
 
 Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
+	CheckForBind()
+
 	local Duration = Message.Duration
 	local NextMap = Message.NextMap == 1
 
