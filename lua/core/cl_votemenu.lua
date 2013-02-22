@@ -13,6 +13,8 @@ Shine.EndTime = 0
 local ActivePlugins = {}
 Shine.ActivePlugins = ActivePlugins
 
+local WaitingForData = false
+
 Client.HookNetworkMessage( "Shine_PluginData", function( Message ) 
 	if #ActivePlugins > 0 then
 		for i = 1, #ActivePlugins do
@@ -27,6 +29,12 @@ Client.HookNetworkMessage( "Shine_PluginData", function( Message )
 	end
 
 	TableSort( ActivePlugins )
+
+	if WaitingForData then
+		Shine.OpenVoteMenu()
+
+		WaitingForData = false
+	end
 end )
 
 local Menu
@@ -60,13 +68,7 @@ local function CheckForBind()
 	Shine.VoteButton = nil
 end
 
-Event.Hook( "Console_sh_votemenu", function()
-	if #ActivePlugins == 0 then --Request addon list if our table is empty.
-		Client.SendNetworkMessage( "Shine_RequestPluginData", { Bleh = 0 }, true )
-
-		return 
-	end
-	
+function Shine.OpenVoteMenu()
 	local Manager = GetGUIManager()
 
 	if Menu then
@@ -95,6 +97,18 @@ Event.Hook( "Console_sh_votemenu", function()
 	end
 
 	Menu:SetIsVisible( true )
+end
+
+Event.Hook( "Console_sh_votemenu", function()
+	if #ActivePlugins == 0 then --Request addon list if our table is empty.
+		Client.SendNetworkMessage( "Shine_RequestPluginData", { Bleh = 0 }, true )
+
+		WaitingForData = true
+
+		return 
+	end
+	
+	Shine.OpenVoteMenu()
 end )
 
 Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
