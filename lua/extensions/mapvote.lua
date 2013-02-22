@@ -12,6 +12,7 @@ local TableConcat = table.concat
 local TableContains = table.contains
 
 local Ceil = math.ceil
+local Clamp = math.Clamp
 local Floor = math.floor
 local Max = math.max
 local Random = math.random
@@ -91,6 +92,16 @@ function Plugin:Initialise()
 	end
 
 	self.MapCycle = Cycle
+
+	--Hook the request vote options message. Only do it once.
+	if self.Enabled == nil then
+		--Simple timer runs this after all network messages are registered, otherwise this one isn't registered yet.
+		Shine.Timer.Simple( 0, function() 
+			Server.HookNetworkMessage( "Shine_RequestVoteOptions", function( Client, Message )
+				self:SendVoteData( Client )
+			end )
+		end )
+	end
 
 	self.Enabled = true
 
@@ -189,6 +200,10 @@ function Plugin:LoadConfig()
 		self.Config.PercentToFinish = 0.8
 		self:SaveConfig()
 	end
+
+	self.Config.NextMapVote = Clamp( self.Config.NextMapVote or 0.5, 0, 1 )
+	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
+	self.Config.PercentToStart = Clamp( self.Config.PercentToStart or 0.6, 0, 1 )
 end
 
 --[[
@@ -255,6 +270,19 @@ function Plugin:ClientConnect( Client )
 
 		Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting )
 	end )
+end
+
+--[[
+	Client's requesting the vote data.
+]]
+function Plugin:SendVoteData( Client )
+	if not self:VoteStarted() then return end
+	
+	local Duration = Floor( self.Vote.EndTime - Shared.GetTime() )
+
+	local OptionsText = self.Vote.OptionsText
+
+	Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting )
 end
 
 local function GetMapName( Map )

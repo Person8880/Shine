@@ -54,8 +54,15 @@ Event.Hook( "Console_sh_votemenu", function()
 
 	Menu = Manager:CreateGUIScript( "GUIShineVoteMenu" )
 	Menu:Populate( ActivePlugins )
-	if Shine.EndTime > Shared.GetTime() then
+
+	local Time = Shared.GetTime()
+
+	if Shine.EndTime > Time then
 		Menu:CreateVoteButton()
+	elseif ( Shine.NextVoteOptionRequest or 0 ) < Time then
+		Shine.NextVoteOptionRequest = Time + 10
+
+		Client.SendNetworkMessage( "Shine_RequestVoteOptions", { Cake = 0 }, true )
 	end
 
 	Menu:SetIsVisible( true )
