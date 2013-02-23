@@ -150,6 +150,22 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
+		local Team1 = Gamerules.team1
+		local Team2 = Gamerules.team2
+
+		local Team1Count = Team1:GetNumPlayers()
+		local Team2Count = Team2:GetNumPlayers()
+
+		if Team1Count == 0 or Team2Count == 0 then 
+			if self.CountStart then
+				self.CountStart = nil
+				self.CountEnd = nil
+				self.SentCountdown = nil
+			end
+			
+			return 
+		end
+
 		local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
 
 		if TimeLeft == 5 then
