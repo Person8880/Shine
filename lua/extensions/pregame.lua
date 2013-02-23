@@ -190,6 +190,10 @@ Plugin.UpdateFuncs = {
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( CountdownTime ), 5, 255, 255, 255, 1, 3, 1 ) )
 			end
 
+			Shine.Timer.Simple( CountdownTime - 5, function()
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+			end )
+
 			Shine.Timer.Simple( CountdownTime, function()
 				self:StartCountdown()
 			end )
