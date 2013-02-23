@@ -161,8 +161,10 @@ Plugin.UpdateFuncs = {
 				self.CountStart = nil
 				self.CountEnd = nil
 				self.SentCountdown = nil
+
+				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 			end
-			
+
 			return 
 		end
 
