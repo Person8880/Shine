@@ -28,3 +28,9 @@ local RequestAddonList = {
 }
 
 Shared.RegisterNetworkMessage( "Shine_RequestPluginData", RequestAddonList )
+
+local RequestVoteList = {
+	Cake = "integer (0 to 1)"
+}
+
+Shared.RegisterNetworkMessage( "Shine_RequestVoteOptions", RequestVoteList )

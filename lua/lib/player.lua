@@ -5,8 +5,6 @@
 local GetEntsByClass
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
-local TableSort = table.sort
-local Ranomd = math.random
 
 Shine.Hook.Add( "PostloadConfig", "PlayerAPI", function()
 	GetEntsByClass = Shared.GetEntitiesWithClassname
@@ -40,11 +38,15 @@ function Shine.GetTeamClients( Team )
 	local Count = 1
 
 	for i = 1, #Players do
-		local Client = Server.GetOwner( Players[ i ] )
+		local Ply = Players[ i ]
 
-		if Client then
-			Clients[ Count ] = Client
-			Count = Count + 1			
+		if Ply then
+			local Client = Ply:GetClient()
+
+			if Client then
+				Clients[ Count ] = Client
+				Count = Count + 1
+			end
 		end
 	end
 
@@ -55,21 +57,14 @@ end
 	Returns a table of all clients.
 ]]
 function Shine.GetAllClients()
-	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
-
 	local Clients = {}
 	local Count = 1
 
-	for i = 1, #Players do
-		local Ply = Players[ i ]
+	local GameIDs = Shine.GameIDs
 
-		if Ply then
-			local Client = Ply:GetClient()
-			if Client then
-				Clients[ Count ] = Client
-				Count = Count + 1
-			end
-		end
+	for Client, ID in pairs( GameIDs ) do
+		Clients[ Count ] = Client
+		Count = Count + 1
 	end
 
 	return Clients
@@ -97,6 +92,7 @@ function Shine.GetClientBySteamID( ID )
 	if type( ID ) ~= "number" then return nil end
 	
 	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
+
 	for i = 1, #Players do
 		local Ply = Players[ i ]
 		

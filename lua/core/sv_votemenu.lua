@@ -8,12 +8,12 @@ function Shine:SendVoteOptions( Player, Options, Duration, NextMap )
 	if Player then
 		Server.SendNetworkMessage( Player, "Shine_VoteMenu", { Options = Options, Duration = Duration, NextMap = NextMap and 1 or 0 }, true )
 	else
-		local Players = self.GetAllPlayers()
+		local Clients = self.GetAllClients()
 
 		local MessageTable = { Options = Options, Duration = Duration, NextMap = NextMap and 1 or 0 }
 
-		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_VoteMenu", MessageTable, true )
+		for i = 1, #Clients do
+			Server.SendNetworkMessage( Clients[ i ], "Shine_VoteMenu", MessageTable, true )
 		end
 	end
 end

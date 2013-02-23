@@ -253,6 +253,16 @@ Add( "Think", "ReplaceMethods", function()
 		return OldPreGame( self, TimePassed )
 	end )
 
+	local OldCheckGameStart
+
+	OldCheckGameStart = ReplaceMethod( Gamerules, "CheckGameStart", function( self )
+		local Result = Call( "CheckGameStart", self )
+
+		if Result then return end
+		
+		return OldCheckGameStart( self )
+	end )
+
 	local OldCastVote
 
 	OldCastVote = ReplaceMethod( Gamerules, "CastVoteByPlayer", function( self, VoteTechID, Player )
