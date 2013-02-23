@@ -85,7 +85,7 @@ function Plugin:LoadConfig()
 
 	if Changed then self:SaveConfig() end
 
-	self.Config.RequireComs = Clamp( Floor( self.Config.RequireComs ), 0, 1 )
+	self.Config.RequireComs = Clamp( Floor( self.Config.RequireComs ), 0, 2 )
 end
 
 function Plugin:StartCountdown()
@@ -162,8 +162,73 @@ Plugin.UpdateFuncs = {
 			return
 		end
 	end,
-	--After the set time, if one team has a commander, start the game.
+
+	--Once one team has a commander, start a long countdown.
 	[ 1 ] = function( self, Gamerules )
+		if self.GameStarting then return end
+
+		local Team1Com = Gamerules.team1:GetCommander()
+		local Team2Com = Gamerules.team2:GetCommander()
+
+		--Both teams have a commander, begin countdown.
+		if ( Team1Com and Team2Com ) or Shared.GetCheatsEnabled() then
+			self.GameStarting = true
+
+			local CountdownTime = self.Config.CountdownTime
+
+			if self.Config.ShowCountdown then
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( CountdownTime ), 5, 255, 255, 255, 1, 3, 1 ) )
+			end
+
+			Shine.Timer.Simple( CountdownTime - 5, function()
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+			end )
+
+			Shine.Timer.Simple( CountdownTime, function()
+				self:StartCountdown()
+			end )
+
+			return
+		end
+
+		local Time = Shared.GetTime()
+
+		if Team1Com or Team2Com then
+			if not self.CountStart then
+				local Duration = self.Config.PreGameTime
+
+				self.CountStart = Time
+				self.CountEnd = Time + Duration
+
+				if self.Config.ShowCountdown then
+					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 3, 1 ) )
+				end
+			end
+		end
+
+		if not self.CountEnd then return end
+
+		local TimeLeft = Ceil( self.CountEnd - Time )
+
+		if TimeLeft == 5 then
+			if self.Config.ShowCountdown and not self.SentCountdown then
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+				self.SentCountdown = true
+			end
+		end
+
+		if self.CountEnd <= Time then
+			self.CountStart = nil
+			self.CountEnd = nil
+			self.SentCountdown = nil
+			self:StartCountdown()
+
+			return
+		end
+	end,
+
+	--After the set time, if one team has a commander, start the game.
+	[ 2 ] = function( self, Gamerules )
 		if not self.CountStart then
 			if MapCycle_TestCycleMap() then return end
 
