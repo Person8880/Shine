@@ -13,6 +13,8 @@ Shine.EndTime = 0
 local ActivePlugins = {}
 Shine.ActivePlugins = ActivePlugins
 
+local WaitingForData = false
+
 Client.HookNetworkMessage( "Shine_PluginData", function( Message ) 
 	if #ActivePlugins > 0 then
 		for i = 1, #ActivePlugins do
@@ -27,17 +29,46 @@ Client.HookNetworkMessage( "Shine_PluginData", function( Message )
 	end
 
 	TableSort( ActivePlugins )
+
+	if WaitingForData then
+		Shine.OpenVoteMenu()
+
+		WaitingForData = false
+	end
 end )
 
 local Menu
 
-Event.Hook( "Console_sh_votemenu", function()
-	if #ActivePlugins == 0 then --Request addon list if our table is empty.
-		Client.SendNetworkMessage( "Shine_RequestPluginData", { Bleh = 0 }, true )
+--[[
+	Updates the binding data in case they changed it whilst connected.
+]]
+local function CheckForBind()
+	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
+
+	if not CustomBinds then 
+		Shine.VoteButtonBound = nil
+		Shine.VoteButton = nil
 
 		return 
 	end
-	
+
+	local Binds = json.decode( CustomBinds:read( "*all" ) ) or {}
+
+	CustomBinds:close()
+
+	for Button, Data in pairs( Binds ) do
+		if Data.command:find( "sh_votemenu" ) then
+			Shine.VoteButtonBound = true
+			Shine.VoteButton = Button
+			return
+		end
+	end
+
+	Shine.VoteButtonBound = nil
+	Shine.VoteButton = nil
+end
+
+function Shine.OpenVoteMenu()
 	local Manager = GetGUIManager()
 
 	if Menu then
@@ -54,14 +85,35 @@ Event.Hook( "Console_sh_votemenu", function()
 
 	Menu = Manager:CreateGUIScript( "GUIShineVoteMenu" )
 	Menu:Populate( ActivePlugins )
-	if Shine.EndTime > Shared.GetTime() then
+
+	local Time = Shared.GetTime()
+
+	if Shine.EndTime > Time then
 		Menu:CreateVoteButton()
+	elseif ( Shine.NextVoteOptionRequest or 0 ) < Time then
+		Shine.NextVoteOptionRequest = Time + 10
+
+		Client.SendNetworkMessage( "Shine_RequestVoteOptions", { Cake = 0 }, true )
 	end
 
 	Menu:SetIsVisible( true )
+end
+
+Event.Hook( "Console_sh_votemenu", function()
+	if #ActivePlugins == 0 then --Request addon list if our table is empty.
+		Client.SendNetworkMessage( "Shine_RequestPluginData", { Bleh = 0 }, true )
+
+		WaitingForData = true
+
+		return 
+	end
+	
+	Shine.OpenVoteMenu()
 end )
 
 Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
+	CheckForBind()
+
 	local Duration = Message.Duration
 	local NextMap = Message.NextMap == 1
 
