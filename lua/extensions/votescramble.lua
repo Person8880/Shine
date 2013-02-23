@@ -56,7 +56,8 @@ function Plugin:GenerateDefaultConfig( Save )
 		PercentNeeded = 0.75, --Percentage of the population needing to vote in order to scramble.
 		VoteDelay = 5, --Time between successful votes
 		MinPlayers = 10, --Min players needed for voting to be enabled.
-		ScrambleType = self.SCRAMBLE_SCORE --1 means random, 2 means by score.
+		ScrambleType = self.SCRAMBLE_SCORE, --1 means random, 2 means by score.
+		VoteTimeout = 120, --Time since last vote before the vote is reset.
 	}
 
 	if Save then
@@ -75,13 +76,13 @@ end
 function Plugin:SaveConfig()
 	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
-	if not PluginConfig then
+	if not Success then
 		Notify( "Error writing votescramble config file: "..Err )	
 
 		return	
 	end
 
-	Notify( "Shine votescramble config file saved." )
+	Notify( "Shine votescramble config file updated." )
 end
 
 function Plugin:LoadConfig()
@@ -94,6 +95,15 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
+
+	local Changed
+
+	if self.Config.VoteTimeout == nil then
+		self.Config.VoteTimeout = 120
+		Changed = true
+	end
+
+	if Changed then self:SaveConfig() end
 end
 
 --[[
@@ -132,11 +142,25 @@ function Plugin:AddVote( Client )
 	self.Voted[ Client ] = true
 	self.Votes = self.Votes + 1
 
+	self.LastVoted = Shared.GetTime()
+
 	if self.Votes == self:GetVotesNeeded() then
 		self:ScrambleTeams()
 	end
 
 	return true
+end
+
+--[[
+	Timeout the vote. 1 minute and no votes should reset it.
+]]
+function Plugin:Think()
+	if self.LastVoted and ( ( Shared.GetTime() - self.LastVoted ) > self.Config.VoteTimeout ) then
+		if self.Votes > 0 then
+			self.Voted = {}
+			self.Votes = 0
+		end		
+	end 
 end
 
 function Plugin:ScrambleTeams()
