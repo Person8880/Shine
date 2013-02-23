@@ -19,6 +19,8 @@ Plugin.ConfigName = "PreGame.json"
 function Plugin:Initialise()
 	self.CountStart = nil
 	self.CountEnd = nil
+	self.GameStarting = false
+	self.StartedGame = false
 
 	self.Enabled = true
 
@@ -28,6 +30,7 @@ end
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
 		PreGameTime = 45,
+		CountdownTime = 15,
 		ShowCountdown = true,
 		RequireComs = 1
 	}
@@ -75,6 +78,11 @@ function Plugin:LoadConfig()
 		Changed = true
 	end
 
+	if self.Config.CountdownTime == nil then
+		self.Config.CountdownTime = 15
+		Changed = true
+	end
+
 	if Changed then self:SaveConfig() end
 
 	self.Config.RequireComs = Clamp( Floor( self.Config.RequireComs ), 0, 1 )
@@ -91,6 +99,7 @@ function Plugin:StartCountdown()
 	Gamerules.lastCountdownPlayed = nil
 
 	self.StartedGame = false
+	self.GameStarting = false
 end
 
 function Plugin:ClientConnect( Client )
@@ -105,7 +114,7 @@ function Plugin:ClientConnect( Client )
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
-	if State == kGameState.PreGame then return end
+	if State == kGameState.NotStarted then return end
 	
 	if self.CountStart then
 		self.CountStart = nil
@@ -114,6 +123,7 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 	end
 
 	self.StartedGame = false
+	self.GameStarting = false
 end
 
 Plugin.UpdateFuncs = {
@@ -165,17 +175,33 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
+		if self.GameStarting then return end
+
 		local Team1Com = Gamerules.team1:GetCommander()
 		local Team2Com = Gamerules.team2:GetCommander()
 
+		--Both teams have a commander, begin countdown.
 		if ( Team1Com and Team2Com ) or Shared.GetCheatsEnabled() then
-			return true
+			self.GameStarting = true
+
+			local CountdownTime = self.Config.CountdownTime
+
+			if self.Config.ShowCountdown then
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( CountdownTime ), 5, 255, 255, 255, 1, 3, 1 ) )
+			end
+
+			Shine.Timer.Simple( CountdownTime, function()
+				self:StartCountdown()
+			end )
+
+			return
 		end
 
 		local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
 
+		--Time's up!
 		if TimeLeft <= 0 then
-			if Team1Com or Team2Com then
+			if Team1Com or Team2Com then --One team has a commander.
 				if not self.StartedGame then
 					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Pregame has exceeded %s and there is one commander. Starting game...", true, string.TimeToString( self.Config.PreGameTime ) )
 
