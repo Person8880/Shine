@@ -47,6 +47,7 @@ function Plugin:GenerateDefaultConfig( Save )
 		Duration = 15, --Time to force people onto random teams for after a random vote. Also time between successful votes.
 		RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
 		InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
+		VoteTimeout = 60, --Time after the last vote before the vote resets.
 	}
 
 	if Save then
@@ -71,7 +72,7 @@ function Plugin:SaveConfig()
 		return	
 	end
 
-	Notify( "Shine voterandom config file saved." )
+	Notify( "Shine voterandom config file updated." )
 end
 
 function Plugin:LoadConfig()
@@ -85,10 +86,20 @@ function Plugin:LoadConfig()
 
 	self.Config = PluginConfig
 
+	local Changed
+
 	if self.Config.InstantForce == nil then
 		self.Config.InstantForce = true
-		self:SaveConfig()
+
+		Changed = true
 	end
+
+	if self.Config.VoteTimeout == nil then
+		self.Config.VoteTimeout = 60
+		Changed = true
+	end
+
+	if Changed then self:SaveConfig() end
 end
 
 --[[
@@ -269,11 +280,25 @@ function Plugin:AddVote( Client )
 	self.Voted[ Client ] = true
 	self.Votes = self.Votes + 1
 
+	self.LastVoted = Shared.GetTime()
+
 	if self.Votes >= self:GetVotesNeeded() then
 		self:ApplyRandomSettings()
 	end
 
 	return true
+end
+
+--[[
+	Timeout the vote. 1 minute and no votes should reset it.
+]]
+function Plugin:Think()
+	if self.LastVoted and ( ( Shared.GetTime() - self.LastVoted ) > self.Config.VoteTimeout ) then
+		if self.Votes > 0 then
+			self.Voted = {}
+			self.Votes = 0
+		end		
+	end 
 end
 
 --[[

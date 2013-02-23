@@ -30,6 +30,8 @@ function Plugin:Initialise()
 	self.Voted[ 1 ] = {}
 	self.Voted[ 2 ] = {}
 
+	self.LastVoted = {}
+
 	self.NextVote = 0
 
 	self:CreateCommands()
@@ -44,6 +46,7 @@ function Plugin:GenerateDefaultConfig( Save )
 		PercentNeeded = 0.75, --Percentage of the team needing to vote in order to surrender.
 		VoteDelay = 10, --Time after round start before surrender vote is available
 		MinPlayers = 6, --Min players needed for voting to be enabled.
+		VoteTimeout = 120, --How long after no votes before the vote should reset?
 	}
 
 	if Save then
@@ -68,7 +71,7 @@ function Plugin:SaveConfig()
 		return	
 	end
 
-	Notify( "Shine votesurrender config file saved." )
+	Notify( "Shine votesurrender config file updated." )
 end
 
 function Plugin:LoadConfig()
@@ -81,6 +84,15 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
+
+	local Changed
+
+	if self.Config.VoteTimeout == nil then
+		self.Config.VoteTimeout = 120
+		Changed = true
+	end
+
+	if Changed then self:SaveConfig() end
 end
 
 --[[
@@ -121,11 +133,27 @@ function Plugin:AddVote( Client, Team )
 	self.Voted[ Team ][ Client ] = true
 	self.Votes[ Team ] = self.Votes[ Team ] + 1
 
+	self.LastVoted[ Team ] = Shared.GetTime()
+
 	if self.Votes[ Team ] >= self:GetVotesNeeded( Team ) then
 		self:Surrender( Team )
 	end
 
 	return true
+end
+
+--[[
+	Timeout the vote. 1 minute and no votes should reset it.
+]]
+function Plugin:Think()
+	for i = 1, 2 do
+		if self.LastVoted[ i ] and ( ( Shared.GetTime() - self.LastVoted[ i ] ) > self.Config.VoteTimeout ) then
+			if self.Votes[ i ] > 0 then
+				self.Voted[ i ] = {}
+				self.Votes[ i ] = 0
+			end		
+		end 
+	end
 end
 
 --[[
