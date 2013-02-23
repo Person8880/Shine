@@ -135,21 +135,6 @@ end
 Plugin.UpdateFuncs = {
 	--Legacy functionality, fixed time for pregame then start.
 	[ 0 ] = function( self, Gamerules )
-		if not self.CountStart then
-			if MapCycle_TestCycleMap() then return end
-			
-			local Duration = self.Config.PreGameTime
-
-			self.CountStart = Shared.GetTime()
-			self.CountEnd = Shared.GetTime() + Duration
-
-			if self.Config.ShowCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 3, 1 ) )
-			end
-
-			return
-		end
-
 		local Team1 = Gamerules.team1
 		local Team2 = Gamerules.team2
 
@@ -166,6 +151,21 @@ Plugin.UpdateFuncs = {
 			end
 
 			return 
+		end
+
+		if not self.CountStart then
+			if MapCycle_TestCycleMap() then return end
+			
+			local Duration = self.Config.PreGameTime
+
+			self.CountStart = Shared.GetTime()
+			self.CountEnd = Shared.GetTime() + Duration
+
+			if self.Config.ShowCountdown then
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 3, 1 ) )
+			end
+
+			return
 		end
 
 		local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
