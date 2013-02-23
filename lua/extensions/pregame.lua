@@ -32,7 +32,8 @@ function Plugin:GenerateDefaultConfig( Save )
 		PreGameTime = 45,
 		CountdownTime = 15,
 		ShowCountdown = true,
-		RequireComs = 1
+		RequireComs = 1,
+		AbortIfNoCom = false
 	}
 
 	if Save then
@@ -80,6 +81,11 @@ function Plugin:LoadConfig()
 
 	if self.Config.CountdownTime == nil then
 		self.Config.CountdownTime = 15
+		Changed = true
+	end
+
+	if self.Config.AbortIfNoCom == nil then
+		self.Config.AbortIfNoCom = false
 		Changed = true
 	end
 
@@ -167,8 +173,11 @@ Plugin.UpdateFuncs = {
 	[ 1 ] = function( self, Gamerules )
 		if self.GameStarting then return end
 
-		local Team1Com = Gamerules.team1:GetCommander()
-		local Team2Com = Gamerules.team2:GetCommander()
+		local Team1 = Gamerules.team1
+		local Team2 = Gamerules.team2
+
+		local Team1Com = Team1:GetCommander()
+		local Team2Com = Team2:GetCommander()
 
 		--Both teams have a commander, begin countdown.
 		if ( Team1Com and Team2Com ) or Shared.GetCheatsEnabled() then
@@ -181,10 +190,50 @@ Plugin.UpdateFuncs = {
 			end
 
 			Shine.Timer.Simple( CountdownTime - 5, function()
+				local Team1Com = Team1:GetCommander()
+				local Team2Com = Team2:GetCommander()
+
+				if self.Config.AbortIfNoCom then
+					if not Team1Com or not Team2Com then
+						return
+					end
+				end
+
+				local Team1Count = Team1:GetNumPlayers()
+				local Team2Count = Team2:GetNumPlayers()
+
+				if Team1Count == 0 or Team2Count == 0 then 
+					return 
+				end
+
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 			end )
 
 			Shine.Timer.Simple( CountdownTime, function()
+				local Team1Com = Team1:GetCommander()
+				local Team2Com = Team2:GetCommander()
+
+				if self.Config.AbortIfNoCom then
+					if not Team1Com or not Team2Com then
+						Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+
+						self.GameStarting = false
+
+						return
+					end
+				end
+
+				local Team1Count = Team1:GetNumPlayers()
+				local Team2Count = Team2:GetNumPlayers()
+
+				if Team1Count == 0 or Team2Count == 0 then 
+					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+
+					self.GameStarting = false
+
+					return 
+				end
+
 				self:StartCountdown()
 			end )
 
@@ -192,6 +241,23 @@ Plugin.UpdateFuncs = {
 		end
 
 		local Time = Shared.GetTime()
+
+		local Team1Count = Team1:GetNumPlayers()
+		local Team2Count = Team2:GetNumPlayers()
+
+		--A team no longer has players, abort the timer.
+		if Team1Count == 0 or Team2Count == 0 then
+			if self.CountStart then
+				self.CountStart = nil
+				self.CountEnd = nil
+
+				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+
+				Shine:RemoveText( nil, { ID = 2 } )
+			end
+
+			return
+		end
 
 		if Team1Com or Team2Com then
 			if not self.CountStart then
@@ -203,6 +269,13 @@ Plugin.UpdateFuncs = {
 				if self.Config.ShowCountdown then
 					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 3, 1 ) )
 				end
+			end
+		else
+			if self.Config.AbortIfNoCom and self.CountStart then
+				self.CountStart = nil
+				self.CountEnd = nil
+
+				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
 			end
 		end
 
@@ -242,8 +315,11 @@ Plugin.UpdateFuncs = {
 
 		if self.GameStarting then return end
 
-		local Team1Com = Gamerules.team1:GetCommander()
-		local Team2Com = Gamerules.team2:GetCommander()
+		local Team1 = Gamerules.team1
+		local Team2 = Gamerules.team2
+
+		local Team1Com = Team1:GetCommander()
+		local Team2Com = Team2:GetCommander()
 
 		--Both teams have a commander, begin countdown.
 		if ( Team1Com and Team2Com ) or Shared.GetCheatsEnabled() then
@@ -256,10 +332,50 @@ Plugin.UpdateFuncs = {
 			end
 
 			Shine.Timer.Simple( CountdownTime - 5, function()
+				local Team1Com = Team1:GetCommander()
+				local Team2Com = Team2:GetCommander()
+
+				if self.Config.AbortIfNoCom then
+					if not Team1Com or not Team2Com then
+						return
+					end
+				end
+
+				local Team1Count = Team1:GetNumPlayers()
+				local Team2Count = Team2:GetNumPlayers()
+
+				if Team1Count == 0 or Team2Count == 0 then 
+					return 
+				end
+
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 			end )
 
 			Shine.Timer.Simple( CountdownTime, function()
+				local Team1Com = Team1:GetCommander()
+				local Team2Com = Team2:GetCommander()
+
+				if self.Config.AbortIfNoCom then
+					if not Team1Com or not Team2Com then
+						Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+
+						self.GameStarting = false
+
+						return
+					end
+				end
+
+				local Team1Count = Team1:GetNumPlayers()
+				local Team2Count = Team2:GetNumPlayers()
+
+				if Team1Count == 0 or Team2Count == 0 then 
+					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+
+					self.GameStarting = false
+
+					return 
+				end
+
 				self:StartCountdown()
 			end )
 
@@ -271,12 +387,41 @@ Plugin.UpdateFuncs = {
 		--Time's up!
 		if TimeLeft <= 0 then
 			if Team1Com or Team2Com then --One team has a commander.
+				local Team1Count = Team1:GetNumPlayers()
+				local Team2Count = Team2:GetNumPlayers()
+
+				if Team1Count == 0 or Team2Count == 0 then return end
+
 				if not self.StartedGame then
 					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Pregame has exceeded %s and there is one commander. Starting game...", true, string.TimeToString( self.Config.PreGameTime ) )
 
 					self.StartedGame = true
 
 					Shine.Timer.Simple( 5, function()
+						local Team1Com = Team1:GetCommander()
+						local Team2Com = Team2:GetCommander()
+
+						if self.Config.AbortIfNoCom then
+							if not Team1Com and not Team2Com then
+								Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+
+								self.StartedGame = false
+
+								return
+							end
+						end
+
+						local Team1Count = Team1:GetNumPlayers()
+						local Team2Count = Team2:GetNumPlayers()
+
+						if Team1Count == 0 or Team2Count == 0 then 
+							Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+
+							self.StartedGame = false
+
+							return 
+						end
+
 						self:StartCountdown()
 					end )
 				end
