@@ -221,6 +221,8 @@ Plugin.UpdateFuncs = {
 				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
 
 				self.GameStarting = false
+
+				return
 			end
 
 			if Team1Count == 0 or Team2Count == 0 then
@@ -228,16 +230,21 @@ Plugin.UpdateFuncs = {
 
 				Shine:RemoveText( nil, { ID = 2 } )
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 				self.GameStarting = false
-			end
 
-			return
+				if self.CountStart then
+					self.CountStart = nil
+					self.CountEnd = nil
+				end
+
+				return
+			end
 		end
 
 		--Both teams have a commander, begin countdown.
-		if Team1Com and Team2Com then
+		if Team1Com and Team2Com and not self.GameStarting then
 			self.GameStarting = true
 
 			local CountdownTime = self.Config.CountdownTime
@@ -299,9 +306,6 @@ Plugin.UpdateFuncs = {
 
 		local Time = Shared.GetTime()
 
-		local Team1Count = Team1:GetNumPlayers()
-		local Team2Count = Team2:GetNumPlayers()
-
 		--A team no longer has players, abort the timer.
 		if Team1Count == 0 or Team2Count == 0 then
 			if self.CountStart then
@@ -342,6 +346,8 @@ Plugin.UpdateFuncs = {
 		end
 
 		if not self.CountEnd then return end
+
+		if self.GameStarting then return end
 
 		local TimeLeft = Ceil( self.CountEnd - Time )
 
