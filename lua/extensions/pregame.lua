@@ -212,6 +212,8 @@ Plugin.UpdateFuncs = {
 		local Team1Count = Team1:GetNumPlayers()
 		local Team2Count = Team2:GetNumPlayers()
 
+		local Time = Shared.GetTime()
+
 		if self.GameStarting then
 			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
 				self:DestroyTimers()
@@ -243,8 +245,8 @@ Plugin.UpdateFuncs = {
 			end
 		end
 
-		--Both teams have a commander, begin countdown.
-		if Team1Com and Team2Com and not self.GameStarting then
+		--Both teams have a commander, begin countdown, but only if the 1 commander countdown isn't past the 2 commander countdown time length left.
+		if Team1Com and Team2Com and not self.GameStarting and not ( self.CountEnd and self.CountEnd - Time <= self.Config.CountdownTime ) then
 			self.GameStarting = true
 
 			local CountdownTime = self.Config.CountdownTime
@@ -303,8 +305,6 @@ Plugin.UpdateFuncs = {
 
 			return
 		end
-
-		local Time = Shared.GetTime()
 
 		--A team no longer has players, abort the timer.
 		if Team1Count == 0 or Team2Count == 0 then
