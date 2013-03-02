@@ -18,6 +18,8 @@ Plugin.ConfigName = "BaseCommands.json"
 Plugin.Commands = {}
 
 function Plugin:Initialise()
+	self.Gagged = {}
+
 	self:CreateCommands()
 
 	self.Enabled = true
@@ -417,6 +419,63 @@ function Plugin:CreateCommands()
 	Commands.CSayCommand = Shine:RegisterCommand( "sh_csay", "csay", CSay )
 	Commands.CSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = 128 }
 	Commands.CSayCommand:Help( "Displays a message in the centre of all player's screens." )
+
+	local function GagPlayer( Client, Target, Duration )
+		self.Gagged[ Target ] = Duration == 0 and true or Shared.GetTime() + Duration
+
+		local Player = Client and Client:GetControllingPlayer()
+		local PlayerName = Player and Player:GetName() or "Console"
+		local ID = Client:GetUserId() or 0
+
+		local TargetPlayer = Target:GetControllingPlayer()
+		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
+		local TargetID = Target:GetUserId() or 0
+
+		Shine:AdminPrint( nil, "%s[%s] gagged %s[%s]%s", true, PlayerName, ID, TargetName, TargetID,
+			Duration == 0 and "" or " for "..string.TimeToString( Duration ) )
+	end
+	Commands.GagCommand = Shine:RegisterCommand( "sh_gag", "gag", GagPlayer )
+	Commands.GagCommand:AddParam{ Type = "client" }
+	Commands.GagCommand:AddParam{ Type = "number", Round = true, Min = 0, Max = 1800, Optional = true, Default = 0 }
+	Commands.GagCommand:Help( "<player> <duration> Silences the given player's chat. If no duration is given, it will hold for the remainder of the map." )
+
+	local function UngagPlayer( Client, Target )
+		local TargetPlayer = Target:GetControllingPlayer()
+		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
+		local TargetID = Target:GetUserId() or 0
+
+		if not self.Gagged[ Target ] then
+			Shine:Notify( Client, "Error", Shine.Config.ChatName, "%s is not gagged.", true, TargetName )
+
+			return
+		end
+
+		self.Gagged[ Target ] = nil
+
+		local Player = Client and Client:GetControllingPlayer()
+		local PlayerName = Player and Player:GetName() or "Console"
+		local ID = Client:GetUserId() or 0
+
+		Shine:AdminPrint( nil, "%s[%s] ungagged %s[%s]", true, PlayerName, ID, TargetName, TargetID )
+	end
+	Commands.UngagCommand = Shine:RegisterCommand( "sh_ungag", "ungag", UngagPlayer )
+	Commands.UngagCommand:AddParam{ Type = "client" }
+	Commands.UngagCommand:Help( "<player> Stops silencing the given player's chat." )
+end
+
+--[[
+	Facilitates the gag command.
+]]
+function Plugin:PlayerSay( Client, Message )
+	local GagData = self.Gagged[ Client ]
+
+	if not GagData then return end
+
+	if GagData == true then return "" end
+	
+	if GagData > Shared.GetTime() then return "" end
+
+	self.Gagged[ Client ] = nil
 end
 
 function Plugin:Cleanup()

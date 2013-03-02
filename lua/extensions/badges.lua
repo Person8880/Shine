@@ -51,6 +51,7 @@ function Plugin:Initialise()
 
 			Shared.SendHTTPRequest( "http://ns2comp.herokuapp.com/t/badge/"..tostring( SteamID ), "GET", function( Response )
 				local Data = Decode( Response )
+				if not Data then return end
 				
 				if Data.override or not Badge or Badge == kBadges.None or Badge == kBadges.PAX2012 then
 					BadgeCache[ SteamID ] = kBadges[ Data.badge ]
