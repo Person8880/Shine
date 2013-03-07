@@ -21,7 +21,9 @@ Client.HookNetworkMessage( "Shine_Web", function( Message )
 		Manager:DestroyGUIScript( WebWindow )
 	end
 	
-	MouseTracker_SetIsVisible( true, "ui/Cursor_MenuDefault.dds", true )
+	if not CommanderUI_IsLocalPlayerCommander() then
+		MouseTracker_SetIsVisible( true, "ui/Cursor_MenuDefault.dds", true )
+	end
 
 	WebWindow = Manager:CreateGUIScript( "GUIWebView" )
 	local OldSendKeyEvent = WebWindow.SendKeyEvent
@@ -29,7 +31,10 @@ Client.HookNetworkMessage( "Shine_Web", function( Message )
 
 	--Just in case, we'll override this too.
 	function WebWindow:Uninitialize()
-		MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
+		if not CommanderUI_IsLocalPlayerCommander() then
+			MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
+		end
+
 		return OldUnInit( self )
 	end
 
@@ -50,8 +55,12 @@ Client.HookNetworkMessage( "Shine_Web", function( Message )
 		
 			local containsPoint, withinX, withinY = GUIItemContainsPoint(self.background, mouseX, mouseY)
 			if down and not containsPoint then
-				MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
+				if not CommanderUI_IsLocalPlayerCommander() then
+					MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
+				end
+				
 				self:Uninitialize()
+				
 				return true    
 			end
 			
@@ -71,19 +80,25 @@ Client.HookNetworkMessage( "Shine_Web", function( Message )
 				return true
 				
 			elseif (key == InputKey.MouseButton0 and down and GUIItemContainsPoint(self.close, mouseX, mouseY)) then
-				MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
-				self:Uninitialize()
-				return true
+				if not CommanderUI_IsLocalPlayerCommander() then
+					MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
+				end
 				
+				self:Uninitialize()
+				
+				return true
 			end
 			
 		elseif key == InputKey.MouseZ then
 			self.webView:OnMouseWheel(down and 30 or -30, 0)
 		elseif key == InputKey.Escape then
-			MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
-			self:Uninitialize()
-			return true
+			if not CommanderUI_IsLocalPlayerCommander() then
+				MouseTracker_SetIsVisible( false, "ui/Cursor_MenuDefault.dds", true )
+			end
 			
+			self:Uninitialize()
+			
+			return true
 		end
 		
 		return false

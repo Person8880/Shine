@@ -118,7 +118,7 @@ function Plugin:ShuffleTeams()
 		local Player = Players[ i ]
 
 		if Player then
-			local Client = Server.GetOwner( Player )
+			local Client = Player:GetClient()
 
 			if Client then
 				if not Shine:HasAccess( Client, "sh_randomimmune" ) then
@@ -210,7 +210,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	local Team = Player:GetTeamNumber()
 
-	local Client = Server.GetOwner( Player )
+	local Client = Player:GetClient()
 	if not Client then return false end
 
 	local Time = Shared.GetTime()
@@ -336,9 +336,9 @@ function Plugin:ApplyRandomSettings()
 	if self.Config.InstantForce then
 		Shine:Notify( nil, "Random", ChatName, "Shuffling teams and restarting round..." )
 
-		GetGamerules():ResetGame()
-
 		self:ShuffleTeams()
+
+		GetGamerules():ResetGame()
 	end
 
 	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
