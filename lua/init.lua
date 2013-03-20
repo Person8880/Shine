@@ -15,22 +15,22 @@ local Scripts = {
 	"lib/string.lua",
 	"lib/math.lua",
 	"lib/class.lua",
-	"core/hook.lua",
+	"core/server/hook.lua",
 	"lib/player.lua",
 	"lib/timer.lua",
 	--"Server.lua",
-	"core/permissions.lua",
-	"core/commands.lua",
-	"core/extensions.lua",
-	"core/config.lua",
-	"core/chat.lua",
-	"core/logging.lua",
-	"core/sh_commands.lua",
-	"core/sh_webpage.lua",
+	"core/server/permissions.lua",
+	"core/server/commands.lua",
+	"core/server/extensions.lua",
+	"core/server/config.lua",
+	"core/shared/chat.lua",
+	"core/server/logging.lua",
+	"core/shared/commands.lua",
+	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
 	"lib/screentext/sv_screentext.lua",
-	"core/sh_votemenu.lua",
-	"core/sv_votemenu.lua"
+	"core/shared/votemenu.lua",
+	"core/server/votemenu.lua"
 }
 
 for i = 1, #Scripts do

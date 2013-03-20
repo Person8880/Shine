@@ -118,6 +118,10 @@ function Plugin:ShuffleTeams()
 		local Player = Players[ i ]
 
 		if Player then
+			if Player.ResetScores then
+				Player:ResetScores()
+			end
+			
 			local Client = Player:GetClient()
 
 			if Client then
