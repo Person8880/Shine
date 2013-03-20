@@ -118,7 +118,7 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			local Success, Err = pcall( Timer.Func )
 
 			if not Success then
-				Shared.Message( StringFormat( "Timer %s failed: %s", Name, Err ) )
+				Shared.Message( StringFormat( "Timer %s failed: %s\n%s", Name, Err, debug.traceback() ) )
 				Timer:Destroy()
 			else
 				if Timer.Reps == 0 then
@@ -140,7 +140,7 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			local Success, Err = pcall( Timer.Func )
 
 			if not Success then
-				Shared.Message( StringFormat( "Simple timer failed: %s", Err ) )
+				Shared.Message( StringFormat( "Simple timer failed: %s\n%s", Err, debug.traceback() ) )
 			end
 
 			ToRemove[ Timer.Index ] = true

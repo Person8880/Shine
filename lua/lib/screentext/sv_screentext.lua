@@ -8,7 +8,7 @@ function Shine:SendText( Player, Message )
 	if Player then
 		Server.SendNetworkMessage( Player, "Shine_ScreenText", Message, true )
 	else
-		local Players = self.GetAllPlayers()
+		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Shine_ScreenText", Message, true )
@@ -20,7 +20,7 @@ function Shine:UpdateText( Player, Message )
 	if Player then
 		Server.SendNetworkMesage( Player, "Shine_ScreenTextUpdate", Message, true )
 	else
-		local Players = self.GetAllPlayers()
+		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Shine_ScreenTextUpdate", Message, true )
@@ -32,7 +32,7 @@ function Shine:RemoveText( Player, Message )
 	if Player then
 		Server.SendNetworkMesage( Player, "Shine_ScreenTextRemove", Message, true )
 	else
-		local Players = self.GetAllPlayers()
+		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Shine_ScreenTextRemove", Message, true )

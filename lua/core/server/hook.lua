@@ -298,7 +298,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldLoginPlayer = ReplaceMethod( "CommandStructure", "LoginPlayer", function( self, Player )
 		Call( "CommLoginPlayer", self, Player )
 
-		OldLoginPlayer( self, Player )
+		return OldLoginPlayer( self, Player )
 	end )
 	
 	local OldLogout
@@ -306,7 +306,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldLogout = ReplaceMethod( "CommandStructure", "Logout", function( self )
 		Call( "CommLogout", self )
 
-		OldLogout( self )
+		return OldLogout( self )
 	end )
 	
 	local OldOnResearchComplete
@@ -314,7 +314,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldOnResearchComplete = ReplaceMethod( "RecycleMixin", "OnResearchComplete", function( self, ResearchID )
 		Call( "OnBuildingRecycled", self, ResearchID )
 
-		OldOnResearchComplete( self, ResearchID )
+		return OldOnResearchComplete( self, ResearchID )
 	end )
 	
 	local OldOnResearch
@@ -322,7 +322,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldOnResearch = ReplaceMethod( "RecycleMixin", "OnResearch", function( self, ResearchID ) 
 		Call( "OnRecycle", self, ResearchID )
 
-		OldOnResearch( self, ResearchID )
+		return OldOnResearch( self, ResearchID )
 	end )
 	
 	local OldConstructInit
@@ -330,7 +330,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldConstructInit = ReplaceMethod( "ConstructMixin", "OnInitialized", function( self )
 		Call( "OnConstructInit", self )
 
-		OldConstructInit( self )
+		return OldConstructInit( self )
 	end )
 
 	local OldPlayerSetName

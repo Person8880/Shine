@@ -74,6 +74,11 @@ function Shine:LoadConfig()
 		Updated = true
 	end
 
+	if self.Config.AddTag == nil then
+		self.Config.AddTag = true
+		Updated = true
+	end
+
 	if Updated then
 		self:SaveConfig()
 	end
@@ -130,6 +135,8 @@ function Shine:GenerateDefaultConfig( Save )
 		ChatName = "Admin", --The default name that should appear for notifications with a name (not all messages will show this.)
 
 		SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
+
+		AddTag = true, --Add 'shine' as a server tag.
 	}
 
 	if Save then
@@ -139,6 +146,10 @@ end
 
 function Shine:LoadExtensionConfigs()
 	self:LoadConfig()
+
+	if self.Config.AddTag then --Would be nice to know who's running it.
+		Server.AddTag( "shine" )
+	end
 
 	Notify( "Loading extensions..." )
 
