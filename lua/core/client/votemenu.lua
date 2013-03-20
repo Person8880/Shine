@@ -129,12 +129,12 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 
 	if ButtonBound then
 		VoteMessage = StringFormat( "%s Press %s to vote.\nTime left to vote:", 
-			VoteButton,
-			NextMap and "Voting for the next map has begun." or "Map vote has begun." ).." %s." 
+			NextMap and "Voting for the next map has begun." or "Map vote has begun.",
+			VoteButton ).." %s." 
 	else 
 		VoteMessage = StringFormat( "%s\nMaps: %s\nType !vote <map> to vote.\nTime left to vote:", 
-			Options,
-			NextMap and "Voting for the next map has begun." or "Map vote has begun." ).." %s."
+			NextMap and "Voting for the next map has begun." or "Map vote has begun.",
+			Options ).." %s."
 	end
 	
 	local Message = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2 )
@@ -146,12 +146,12 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 
 			if ButtonBound then
 				self.Text = StringFormat( "%s Press %s to vote.\nTime left to vote:", 
-					VoteButton,
-					NextMap and "Vote for the next map in progress." or "Map vote in progress." ).." %s."
+					NextMap and "Vote for the next map in progress." or "Map vote in progress.",
+					VoteButton ).." %s."
 			else 
 				self.Text = StringFormat( "%s\nMaps: %s\nType !vote <map> to vote.\nTime left to vote:", 
-					Options,
-					NextMap and "Vote for the next map in progress." or "Map vote in progress." ).." %s."
+					NextMap and "Vote for the next map in progress." or "Map vote in progress.",
+					Options ).." %s."
 			end
 
 			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )

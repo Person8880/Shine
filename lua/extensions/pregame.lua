@@ -108,6 +108,12 @@ function Plugin:StartCountdown()
 	Gamerules.countdownTime = kCountDownLength  
 	Gamerules.lastCountdownPlayed = nil
 
+	for _, Player in ientitylist( Shared.GetEntitiesWithClassname( "Player" ) ) do
+		if Player.ResetScores then
+			Player:ResetScores()
+		end
+	end
+
 	self.StartedGame = false
 	self.GameStarting = false
 end
