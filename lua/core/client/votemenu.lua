@@ -83,7 +83,7 @@ function Shine.OpenVoteMenu()
 		end
 	end
 
-	Menu = Manager:CreateGUIScript( "GUIShineVoteMenu" )
+	Menu = Manager:CreateGUIScript( "core/client/GUIShineVoteMenu" )
 	Menu:Populate( ActivePlugins )
 
 	local Time = Shared.GetTime()
