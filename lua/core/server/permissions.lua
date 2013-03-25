@@ -52,9 +52,9 @@ function Shine:LoadUsers( Web, Reload )
 		if Reload then
 			self:RequestUsers( true )
 		else
-			Shine.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
+			self.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
 				self:RequestUsers()
-				Shine.Hook.Remove( "ClientConnect", "LoadUsers" )
+				self.Hook.Remove( "ClientConnect", "LoadUsers" )
 			end, -20 )
 		end
 

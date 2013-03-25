@@ -83,7 +83,7 @@ function Shine.OpenVoteMenu()
 		end
 	end
 
-	Menu = Manager:CreateGUIScript( "GUIShineVoteMenu" )
+	Menu = Manager:CreateGUIScript( "core/client/GUIShineVoteMenu" )
 	Menu:Populate( ActivePlugins )
 
 	local Time = Shared.GetTime()
@@ -174,69 +174,70 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 	end
 end )
 
-local function BindVoteKey()
-	local Binds = BindingsUI_GetBindingsTable()
-
-	local CantBind
-	for i = 1, #Binds do
-		if Binds[ i ].current == "M" then
-			CantBind = true
-			break
+local function CanBind( MenuBinds, Binds, Button )
+	for i = 1, #MenuBinds do --Main menu binds.
+		if MenuBinds[ i ].current == Button then
+			return false
 		end
 	end
+
+	if not Binds then return true end --No custom binds file.
+
+	if not Binds[ Button ] then return true end
+
+	if Binds[ Button ].command == "" then return true end
+
+	return false
+end
+
+local function BindVoteKey()
+	local MenuBinds = BindingsUI_GetBindingsTable()
 
 	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
 
-	if not CustomBinds then
-		if not CantBind then
-			Shared.ConsoleCommand( "bind M sh_votemenu" )
-			Shine.VoteButtonBound = true
-
-			Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
-
-			return
-		end
-	end
-
-	if CantBind then 
-		Shared.Message( "Shine was unable to bind a key to the vote menu. If you would like to use it, type bind <key> sh_votemenu" )
-		return 
-	end
+	local Binds
 
 	if CustomBinds then
-		local Binds = json.decode( CustomBinds:read( "*all" ) ) or {}
+		Binds = json.decode( CustomBinds:read( "*all" ) ) or {}
 
 		CustomBinds:close()
 
 		for Button, Data in pairs( Binds ) do
-			if Data.command:find( "sh_votemenu" ) then
+			if Data.command and Data.command:find( "sh_votemenu" ) then
 				Shine.VoteButtonBound = true
 				Shine.VoteButton = Button
 				return
 			end
 		end
+	end
 
-		local MButton = Binds[ "M" ]
+	if CanBind( MenuBinds, Binds, "M" ) then --This is now the default map button...
+		Shared.ConsoleCommand( "bind M sh_votemenu" )
+		Shine.VoteButtonBound = true
 
-		if MButton then
-			if MButton.command:find( "sh_votemenu" ) then
-				Shine.VoteButtonBound = true
-			elseif MButton.command == "" then
-				Shared.ConsoleCommand( "bind M sh_votemenu" )
-				Shine.VoteButtonBound = true
+		Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
 
-				Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
-			end
-		else
-			Shared.ConsoleCommand( "bind M sh_votemenu" )
-			Shine.VoteButtonBound = true
+		return
+	elseif CanBind( MenuBinds, Binds, "N" ) then
+		Shared.ConsoleCommand( "bind N sh_votemenu" )
+		
+		Shine.VoteButton = "N"
+		Shine.VoteButtonBound = true
 
-			Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
-		end
+		Shared.Message( "Shine has bound the N key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
+
+		return
+	elseif CanBind( MenuBinds, Binds, "C" ) then --Try the old default map button!
+		Shared.ConsoleCommand( "bind C sh_votemenu" )
+		
+		Shine.VoteButton = "C"
+		Shine.VoteButtonBound = true
+
+		Shared.Message( "Shine has bound the C key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
+
+		return
 	end
 
 	Shared.Message( "Shine was unable to bind a key to the vote menu. If you would like to use it, type bind <key> sh_votemenu" )
 end
-
 Event.Hook( "LoadComplete", BindVoteKey )
-
