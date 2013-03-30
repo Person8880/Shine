@@ -128,7 +128,7 @@ function Shine:UpdateMessageText( Message )
 	MessageTable.Obj:SetText( Text )
 end
 
-function Shine:ProcessQueue( Time )
+local function ProcessQueue( Time )
 	for Index, Message in pairs( Messages ) do
 		if not Message.LastUpdate then
 			Message.LastUpdate = Time
@@ -159,7 +159,7 @@ function Shine:ProcessQueue( Time )
 end
 
 --Not the lifeform...
-function Shine:ProcessFades()
+local function ProcessFades()
 	local Time = Shared.GetTime()
 
 	for Index, Message in pairs( Messages ) do
@@ -191,9 +191,9 @@ end
 Event.Hook( "UpdateClient", function()
 	local Time = Shared.GetTime()
 
-	Shine:ProcessQueue( Time )
+	ProcessQueue( Time )
 
-	Shine:ProcessFades()
+	ProcessFades()
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenText", function( Message )
