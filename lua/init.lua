@@ -30,7 +30,8 @@ local Scripts = {
 	"lib/screentext/sh_screentext.lua",
 	"lib/screentext/sv_screentext.lua",
 	"core/shared/votemenu.lua",
-	"core/server/votemenu.lua"
+	"core/server/votemenu.lua",
+	"core/shared/misc.lua"
 }
 
 for i = 1, #Scripts do
