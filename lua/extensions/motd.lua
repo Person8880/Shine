@@ -31,7 +31,6 @@ function Plugin:GenerateDefaultConfig( Save )
 		Mode = self.TEXT_MODE,
 		URL = "http://www.unknownworlds.com/ns2/",
 		MessageText = { "Welcome to my awesome server!", "Admins can be reached @ mywebsite.com", "Have a pleasant stay!" }, --Message lines.
-		Delay = 5, --Wait this long after spawning to display the message.
 		Accepted = {}
 	}
 
@@ -57,7 +56,7 @@ function Plugin:SaveConfig()
 		return	
 	end
 
-	Notify( "Shine motd config file saved." )
+	Notify( "Shine motd config file updated." )
 end
 
 function Plugin:LoadConfig()
@@ -70,6 +69,17 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
+
+	local Edited
+
+	if self.Config.Delay then
+		self.Config.Delay = nil
+		Edited = true
+	end
+
+	if Edited then
+		self:SaveConfig()
+	end
 end
 
 function Plugin:ShowMotD( Player )
@@ -90,18 +100,16 @@ function Plugin:ShowMotD( Player )
 	end
 end
 
-function Plugin:ClientConnect( Client )
+function Plugin:ClientConfirmConnect( Client )
 	if Client:GetIsVirtual() then return end
 	
 	local ID = Client:GetUserId()
 
 	if self.Config.Accepted[ tostring( ID ) ] then return end
 
-	Shine.Timer.Simple( self.Config.Delay, function()
-		if Shine:HasAccess( Client, "sh_showmotd" ) then return end
+	if Shine:HasAccess( Client, "sh_showmotd" ) then return end
 
-		self:ShowMotD( Client )
-	end )
+	self:ShowMotD( Client )
 end
 
 function Plugin:CreateCommands()
@@ -121,7 +129,7 @@ function Plugin:CreateCommands()
 		local ID = Client:GetUserId()
 
 		if self.Config.Accepted[ tostring( ID ) ] then
-			Shine:Notify( Client, "MotD", "Admin", "You have already accepted the message of the day." )
+			Shine:Notify( Client, "MotD", Shine.Config.ChatName, "You have already accepted the message of the day." )
 
 			return
 		end
@@ -129,7 +137,7 @@ function Plugin:CreateCommands()
 		self.Config.Accepted[ tostring( ID ) ] = true
 		self:SaveConfig()
 
-		Shine:Notify( Client, "MotD", "Admin", "Thank you for accepting the message of the day." )
+		Shine:Notify( Client, "MotD", Shine.Config.ChatName, "Thank you for accepting the message of the day." )
 	end
 	Commands.AcceptMotDCommand = Shine:RegisterCommand( "sh_acceptmotd", "acceptmotd", AcceptMotD, true )
 	Commands.AcceptMotDCommand:Help( "Accepts the message of the day so you no longer see it on connect." )
