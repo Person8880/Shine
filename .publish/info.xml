@@ -1,8 +1,8 @@
 <options>
-    <description>Shine is a modular administration mod for Natural Selection 2. It aims to be easy for admins to use and provide an easy to use framework for plugins.&#x0A;&#x0A;For server owners, the Mod ID is: 706d242&#x0A;&#x0A;Documentation (and the source code) can be found here:&#x0A;https://github.com/Person8880/Shine/wiki&#x0A;&#x0A;If you find bugs or have problems, put an issue in the issue tracker on GitHub. That&apos;s where I&apos;ll be watching for problems.&#x0A;&#x0A;If you&apos;re wondering about the name, well, so am I.&#x0A;&#x0A;Changes (last updated 25/03/2013):&#x0A;https://github.com/Person8880/Shine/wiki/Changelog</description>
+    <description>Shine is a modular administration mod for Natural Selection 2. It aims to be easy for admins to use and provide an easy to use framework for plugins.&#x0A;&#x0A;For server owners, the Mod ID is: 706d242&#x0A;&#x0A;Documentation (and the source code) can be found here:&#x0A;https://github.com/Person8880/Shine/wiki&#x0A;&#x0A;If you find bugs or have problems, put an issue in the issue tracker on GitHub. That&apos;s where I&apos;ll be watching for problems.&#x0A;&#x0A;If you&apos;re wondering about the name, well, so am I.&#x0A;&#x0A;Changes (last updated 30/03/2013):&#x0A;https://github.com/Person8880/Shine/wiki/Changelog</description>
     <id>117887554</id>
     <kind>Game</kind>
-    <build>243</build>
     <visibility>Public</visibility>
+    <build>243</build>
     <title>Shine Administration</title>
 </options>

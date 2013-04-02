@@ -152,7 +152,7 @@ local function ProcessQueue( Time )
 			end
 
 			if Message.Duration == -1 then
-				self:RemoveMessage( Index )
+				Shine:RemoveMessage( Index )
 			end
 		end
 	end
