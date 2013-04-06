@@ -8,6 +8,8 @@ local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 local TableShuffle = table.Shuffle
+local TableSort = table.sort
+local Floor = math.floor
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -74,6 +76,13 @@ end
 ]]
 function Plugin:CanPlayerHearPlayer()
 	if self.Config.AllTalk then return true end
+end
+
+local function NS2ToSteamID( ID )
+	ID = tonumber( ID )
+	if not ID then return "" end
+	
+	return StringFormat( "STEAM_0:%i:%i", ID % 2, Floor( ID * 0.5 ) )
 end
 
 function Plugin:CreateCommands()
@@ -187,29 +196,56 @@ function Plugin:CreateCommands()
 		local PlayerList = Shared.GetEntitiesWithClassname( "Player" )
 		local Size = PlayerList:GetSize()
 
-		if Client then
-			ServerAdminPrint( Client, StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
-		else
-			Notify( StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
+		local GameIDs = Shine.GameIDs
+		local SortTable = {}
+		local Count = 1
+
+		for Client, ID in pairs( GameIDs ) do
+			SortTable[ Count ] = { ID, Client }
+			Count = Count + 1
 		end
 
-		for _, Player in ientitylist( PlayerList ) do
-			local PlayerClient = Server.GetOwner( Player )
+		TableSort( SortTable, function( A, B )
+			if A[ 1 ] < B[ 1 ] then return true end
+			return false
+		end )
+
+		if Client then
+			ServerAdminPrint( Client, StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
+			ServerAdminPrint( Client, StringFormat( "ID\t\tName\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tTeam%s", CanSeeIPs and "\t\t\t\t\t\tIP" or "" ) )
+			ServerAdminPrint( Client, "=============================================================================" )
+		else
+			Notify( StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
+			Notify( "ID\t\tName\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tTeam\t\t\t\t\t\tIP" )
+			Notify( "=============================================================================" )
+		end
+
+		for i = 1, #SortTable do
+			local Data = SortTable[ i ]
+
+			local GameID = Data[ 1 ]
+			local PlayerClient = Data[ 2 ]
+
+			local Player = PlayerClient:GetControllingPlayer()
+
+			local ID = PlayerClient:GetUserId()
 
 			if Client then
-				ServerAdminPrint( Client, StringFormat( "- Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
+				ServerAdminPrint( Client, StringFormat( "'%s'\t\t'%s'\t\t'%s'\t'%s'\t\t'%s'%s",
+				GameID,
 				Player:GetName(),
-				Shine.GameIDs[ PlayerClient ],
-				PlayerClient:GetUserId(),
-				Player:GetTeamNumber(),
-				CanSeeIPs and " | IP: "..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
+				ID,
+				NS2ToSteamID( ID ),
+				Shine:GetTeamName( Player:GetTeamNumber(), true ),
+				CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
 			else
-				Notify( StringFormat( "- Name: '%s' | Game ID: '%s' | Steam ID: '%s' | Team: '%s'%s",
+				Notify( StringFormat( "'%s'\t\t'%s'\t\t'%s'\t'%s'\t\t'%s'\t\t%s",
+				GameID,
 				Player:GetName(),
-				Shine.GameIDs[ PlayerClient ],
-				PlayerClient:GetUserId(),
-				Player:GetTeamNumber(),
-				" | IP: "..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) ) )
+				ID,
+				NS2ToSteamID( ID ),
+				Shine:GetTeamName( Player:GetTeamNumber(), true ),
+				IPAddressToString( Server.GetClientAddress( PlayerClient ) ) ) )
 			end
 		end
 	end
