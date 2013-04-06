@@ -195,3 +195,18 @@ function Shine:GetClientsByGroup( Group )
 
 	return Ret
 end
+
+--[[
+	Returns a nice name for the given team number.
+]]
+function Shine:GetTeamName( Team, Capitals )
+	if Team == 1 then
+		return Capitals and "Marines" or "marines"
+	elseif Team == 2 then
+		return Capitals and "Aliens" or "aliens"
+	elseif Team == 3 then
+		return Capitals and "Spectate" or "spectate"
+	else
+		return Capitals and "Ready Room" or "ready room"
+	end
+end

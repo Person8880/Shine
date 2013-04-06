@@ -17,24 +17,12 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:GetTeamName( Team, Capitals )
-	if Team == 1 then
-		return Capitals and "Marines" or "marines"
-	elseif Team == 2 then
-		return Capitals and "Aliens" or "aliens"
-	elseif Team == 3 then
-		return Capitals and "Spectate" or "spectate"
-	else
-		return Capitals and "Ready Room" or "ready room"
-	end
-end
-
 function Plugin:GetClientInfo( Client )
 	if not Client then return "Console" end
 	
 	local Player = Client:GetControllingPlayer()
 	local PlayerName = Player and Player:GetName() or "<unknown>"
-	local Team = Player and self:GetTeamName( Player:GetTeamNumber(), true ) or "No team"
+	local Team = Player and Shine:GetTeamName( Player:GetTeamNumber(), true ) or "No team"
 
 	local ID = Client:GetUserId()
 
@@ -85,7 +73,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force )
 	Shine:LogString( StringFormat( "Player %s[%s] joined team %s.", 
 		Player:GetName(), 
 		Client and Client:GetUserId() or "0", 
-		self:GetTeamName( NewTeam )
+		Shine:GetTeamName( NewTeam )
 	) )
 end
 
@@ -108,7 +96,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	local StartLoc1 = Gamerules.startingLocationNameTeam1
 	local StartLoc2 = Gamerules.startingLocationNameTeam2
 
-	local TeamString = self:GetTeamName( WinningTeam:GetTeamType() )
+	local TeamString = Shine:GetTeamName( WinningTeam:GetTeamType() )
 
 	Shine:LogString( StringFormat( "Round ended with %s winning. Build: %s. Map: %s. Round length: %s. Marine start: %s. Alien start: %s.",
 		TeamString, Build, Map, RoundLength, StartLoc1, StartLoc2
@@ -159,7 +147,7 @@ end
 function Plugin:CommLoginPlayer( Chair, Player )
 	Shine:LogString( StringFormat( "%s became the commander of the %s team.", 
 		self:GetClientInfo( Server.GetOwner( Player ) ), 
-		self:GetTeamName( Player:GetTeamNumber() )
+		Shine:GetTeamName( Player:GetTeamNumber() )
 	) )
 end
 
@@ -169,7 +157,7 @@ function Plugin:CommLogout( Chair )
 
 	Shine:LogString( StringFormat( "%s stopped commanding the %s team.",
 		self:GetClientInfo( Server.GetOwner( Commander ) ),
-		self:GetTeamName( Commander:GetTeamNumber() )
+		Shine:GetTeamName( Commander:GetTeamNumber() )
 	) )
 end
 
