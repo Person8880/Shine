@@ -12,6 +12,8 @@ local NWMessage = {
 
 Shared.RegisterNetworkMessage( "Shine_VoteMenu", NWMessage )
 
+Shared.RegisterNetworkMessage( "Shine_EndVote", {} )
+
 local PluginMessage = {
 	Random = "integer (0 to 1)",
 	RTV = "integer (0 to 1)",
