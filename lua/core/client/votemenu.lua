@@ -37,6 +37,10 @@ Client.HookNetworkMessage( "Shine_PluginData", function( Message )
 	end
 end )
 
+Client.HookNetworkMessage( "Shine_EndVote", function()
+	Shine.EndTime = 0
+end )
+
 local Menu
 
 --[[
