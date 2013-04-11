@@ -476,8 +476,25 @@ function Plugin:AddVote( Client, Map, Revote )
 	return true, Choice
 end
 
+local BlankTable = {}
+
+function Plugin:EndVote( Player )
+	if Player then
+		Server.SendNetworkMessage( Player, "Shine_EndVote", BlankTable, true )
+	else
+		local Clients = Shine.GetAllClients()
+
+		for i = 1, #Clients do
+			Server.SendNetworkMessage( Clients[ i ], "Shine_EndVote", BlankTable, true )
+		end
+	end
+end
+
 function Plugin:ProcessResults( NextMap )
 	Shine:RemoveText( nil, { ID = 1 } )
+	self:EndVote()
+
+	local Cycle = self.MapCycle
 
 	local TotalVotes = self.Vote.TotalVotes
 	local MaxVotes = 0
@@ -524,15 +541,26 @@ function Plugin:ProcessResults( NextMap )
 			local Choice = Results[ 1 ]
 			if Choice == Shared.GetMapName() then
 				local ExtendTime = self.Config.ExtendTime * 60
+
+				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
+				local BaseTime = CycleTime > Time and CycleTime or Time
 				
 				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 				
 				self.NextMap.Winner = Choice
-				self.NextMap.ExtendTime = Time + ExtendTime
+				self.NextMap.ExtendTime = BaseTime + ExtendTime
 				self.NextMap.Extends = self.NextMap.Extends + 1
 
+				if not self.Config.EnableNextMapVote then return end
+
+				local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVote - Time
+
+				if NextVoteTime <= Time then
+					NextVoteTime = ExtendTime * self.Config.NextMapVote
+				end
+
 				Shine.Timer.Destroy( self.NextMapTimer )
-				Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
+				Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
 					self:StartVote( true )
 				end )
 
@@ -562,7 +590,10 @@ function Plugin:ProcessResults( NextMap )
 		if Results[ 1 ] == Shared.GetMapName() then
 			local ExtendTime = self.Config.ExtendTime * 60
 
-			self.NextMap.ExtendTime = Time + ExtendTime
+			local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
+			local BaseTime = CycleTime > Time and CycleTime or Time
+
+			self.NextMap.ExtendTime = BaseTime + ExtendTime
 			self.NextMap.Extends = self.NextMap.Extends + 1
 
 			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
@@ -622,14 +653,27 @@ function Plugin:ProcessResults( NextMap )
 			if Choice == Shared.GetMapName() then
 				local ExtendTime = self.Config.ExtendTime * 60
 				
+				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
+				local BaseTime = CycleTime > Time and CycleTime or Time
+				
 				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 				
 				self.NextMap.Winner = Choice
-				self.NextMap.ExtendTime = Shared.GetTime() + ExtendTime
+				self.NextMap.ExtendTime = BaseTime + ExtendTime
 				self.NextMap.Extends = self.NextMap.Extends + 1
 
+				if not self.Config.EnableNextMapVote then return end
+
+				--Start the next timer taking the extended time as the new cycle time.
+				local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVote - Time
+
+				--Timer would start immediately for the next map vote...
+				if NextVoteTime <= Time then
+					NextVoteTime = ExtendTime * self.Config.NextMapVote
+				end
+
 				Shine.Timer.Destroy( self.NextMapTimer )
-				Shine.Timer.Create( self.NextMapTimer, ExtendTime * 0.5, 1, function()
+				Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
 					self:StartVote( true )
 				end )
 
@@ -656,8 +700,11 @@ function Plugin:ProcessResults( NextMap )
 
 		if Choice == Shared.GetMapName() then
 			local ExtendTime = self.Config.ExtendTime * 60
-			
-			self.NextMap.ExtendTime = Time + ExtendTime
+
+			local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
+			local BaseTime = CycleTime > Time and CycleTime or Time
+
+			self.NextMap.ExtendTime = BaseTime + ExtendTime
 			self.NextMap.Extends = self.NextMap.Extends + 1
 
 			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
