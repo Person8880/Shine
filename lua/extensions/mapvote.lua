@@ -476,7 +476,7 @@ function Plugin:AddVote( Client, Map, Revote )
 	return true, Choice
 end
 
-local BlankTable = {}
+local BlankTable = { Bleh = 1 }
 
 function Plugin:EndVote( Player )
 	if Player then

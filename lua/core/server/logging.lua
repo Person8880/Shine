@@ -129,7 +129,7 @@ function Shine:SaveLog()
 
 	LogFile:close()
 
-	--Empty the loggin table.
+	--Empty the logging table.
 	for i = 1, #LogMessages do
 		LogMessages[ i ] = nil
 	end
