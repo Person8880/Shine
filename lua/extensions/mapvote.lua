@@ -347,9 +347,13 @@ function Plugin:EndGame()
 		
 		local Message = "There is %s remaining on this map."
 
-		if TimeLeft <= 0 then
+		if TimeLeft <= 60 then
 			if not self:VoteStarted() then
 				Shine:Notify( nil, "", "", "The server will now cycle to %s.", true, self:GetNextMap() )
+
+				local Gamerules = GetGamerules()
+
+				Gamerules.timeToCycleMap = Time + 30
 
 				return
 			else
@@ -605,7 +609,7 @@ function Plugin:ProcessResults( NextMap )
 				end
 			end )
 		else
-			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Results[ 1 ], Results[ 1 ] )
+			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
 		end
 
 		self.NextMap.Voting = false
@@ -718,7 +722,7 @@ function Plugin:ProcessResults( NextMap )
 
 			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 		else
-			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map to %s.", true, Choice, Choice )
+			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map in the cycle to %s.", true, Choice, Choice )
 		end
 
 		self.NextMap.Voting = false
@@ -819,8 +823,10 @@ function Plugin:StartVote( NextMap )
 	--Get our notification interval, length of the vote in seconds and the number of times to repeat our notification.
 	local VoteLength = self.Config.VoteLength * 60
 
+	local Time = Shared.GetTime()
+
 	--This is when the map vote should end and collect its results.
-	local EndTime = Shared.GetTime() + VoteLength
+	local EndTime = Time + VoteLength
 
 	--Store these values for new clients.
 	self.Vote.EndTime = EndTime
@@ -839,7 +845,7 @@ function Plugin:StartVote( NextMap )
 			Shine:Notify( nil, "Vote", ChatName, "Voting for the next map has started." )
 		end
 	end )
-	
+
 	Shine:SendVoteOptions( nil, OptionsText, VoteLength, NextMap )
 
 	--This timer runs when the vote ends, and sorts out the results.

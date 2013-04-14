@@ -152,7 +152,7 @@ function Plugin:CreateCommands()
 	Commands.SetPasswordCommand:Help( "<password> Sets the server password." )
 
 	local function RunLua( Client, Code )
-		local Player = Client:GetControllingPlayer()
+		local Player = Client and Client:GetControllingPlayer()
 
 		local Name = Player and Player:GetName() or "Console"
 
