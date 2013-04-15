@@ -14,7 +14,7 @@ local Fonts = {
 	"fonts/AgencyFB_large.fnt"
 }
 
-function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size, FadeIn )
+function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size, FadeIn, IgnoreFormat )
 	FadeIn = FadeIn or 0.5
 	Size = Size or 1
 
@@ -46,7 +46,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 
 		local Obj = TextObj.Obj
 
-		Obj:SetText( StringFormat( Text, string.TimeToString( Duration ) ) )
+		Obj:SetText( IgnoreFormat and Text or StringFormat( Text, string.TimeToString( Duration ) ) )
 		Obj:SetScale( ScaleVec )
 		Obj:SetPosition( Vector( Client.GetScreenWidth() * x, Client.GetScreenHeight() * y, 0 ) )
 		Obj:SetColor( TextObj.Colour )
@@ -91,7 +91,8 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 
 	Obj:SetIsVisible( true )
 
-	Obj:SetText( StringFormat( Text, string.TimeToString( Duration ) ) )
+	--Game will crash if we pass string.format the wrong number of arguments (dumb, but not urgent to fix I guess)!
+	Obj:SetText( IgnoreFormat and Text or StringFormat( Text, string.TimeToString( Duration ) ) )
 	Obj:SetColor( MessageTable.Colour )
 	Obj:SetScale( ScaleVec )
 	
@@ -108,7 +109,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 	MessageTable.LastUpdate = Time
 
 	function MessageTable:UpdateText()
-		self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+		self.Obj:SetText( IgnoreFormat and Text or StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 	end
 
 	Messages[ ID ] = MessageTable

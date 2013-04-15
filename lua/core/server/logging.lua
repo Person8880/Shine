@@ -13,6 +13,7 @@ local Time = Shared.GetSystemTime
 local Ceil = math.ceil
 local Floor = math.floor
 local StringFormat = string.format
+local TableConcat = table.concat
 
 local MonthData = {
 	{ Name = "January", Length = 31 },
@@ -93,9 +94,19 @@ local function GetCurrentLogFile()
 	return Shine.Config.LogDir..GetDate()..".txt"
 end
 
+local LogMessages = {}
+
 function Shine:LogString( String )
 	if not self.Config.EnableLogging then return end
+
+	LogMessages[ #LogMessages + 1 ] = GetTimeString()..String
+end
+
+function Shine:SaveLog()
+	if not self.Config.EnableLogging then return end
 	
+	local String = TableConcat( LogMessages, "\n" )
+
 	--This is dumb, but append mode appears to be broken.
 	local OldLog, Err = io.open( GetCurrentLogFile(), "r" )
 
@@ -114,10 +125,28 @@ function Shine:LogString( String )
 		return
 	end
 
-	LogFile:write( Data, GetTimeString(), String, "\n" )
+	LogFile:write( Data, String, "\n" )
 
 	LogFile:close()
+
+	--Empty the logging table.
+	for i = 1, #LogMessages do
+		LogMessages[ i ] = nil
+	end
 end
+
+--Periodically save the log file.
+Shine.Hook.Add( "EndGame", "SaveLog", function()
+	Shine:SaveLog()
+end, -20 )
+
+Shine.Hook.Add( "MapChange", "SaveLog", function()
+	Shine:SaveLog()
+end, -20 )
+
+Shine.Timer.Create( "LogSave", 300, -1, function()
+	Shine:SaveLog()
+end )
 
 function Shine:Print( String, Format, ... )
 	String = Format and StringFormat( String, ... ) or String

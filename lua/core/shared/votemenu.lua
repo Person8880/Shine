@@ -7,12 +7,13 @@ Shine = Shine or {}
 local NWMessage = {
 	Options = "string (255)",
 	Duration = "integer (0 to 1800)",
-	NextMap = "integer (0 to 1)"
+	NextMap = "integer (0 to 1)",
+	TimeLeft = "integer (0 to 32768)"
 }
 
 Shared.RegisterNetworkMessage( "Shine_VoteMenu", NWMessage )
 
-Shared.RegisterNetworkMessage( "Shine_EndVote", {} )
+Shared.RegisterNetworkMessage( "Shine_EndVote", { Bleh = "integer (0 to 1)" } )
 
 local PluginMessage = {
 	Random = "integer (0 to 1)",

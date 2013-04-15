@@ -344,16 +344,26 @@ Add( "Think", "ReplaceMethods", function()
 	end )
 
 	local OldCycleMap = MapCycle_CycleMap
+	local OldChangeMap = MapCycle_ChangeMap
 
 	if not OldCycleMap then
 		Script.Load "lua/MapCycle.lua"
 		OldCycleMap = MapCycle_CycleMap
+		OldChangeMap = MapCycle_ChangeMap
+	end
+
+	function MapCycle_ChangeMap( MapName )
+		Call( "MapChange" )
+
+		return OldChangeMap( MapName )
 	end
 
 	function MapCycle_CycleMap()
 		local Result = Call( "OnCycleMap" )
 
 		if Result then return end
+
+		Call( "MapChange" )
 
 		return OldCycleMap()
 	end
