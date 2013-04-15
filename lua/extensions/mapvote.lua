@@ -264,7 +264,7 @@ function Plugin:GetTimeRemaining()
 		TimeLeft = self.NextMap.ExtendTime - Time
 	end
 
-	return Ceil( Max( TimeLeft, 0 ) )
+	return Floor( Max( TimeLeft, 0 ) )
 end
 
 --[[
