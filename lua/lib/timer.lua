@@ -55,7 +55,8 @@ local function Create( Name, Delay, Reps, Func )
 		Reps = Reps,
 		Func = Func,
 		LastRun = 0,
-		NextRun = Shared.GetTime() + Delay
+		NextRun = Shared.GetTime() + Delay,
+		StackTrace = debug.traceback()
 	}, TimerMeta )
 
 	Timers[ Name ] = Timer
@@ -75,7 +76,8 @@ local function Simple( Delay, Func )
 	local Timer = {
 		Index = Index,
 		NextRun = Shared.GetTime() + Delay,
-		Func = Func
+		Func = Func,
+		StackTrace = debug.traceback()
 	}
 
 	Simples[ Index ] = Timer
@@ -118,7 +120,7 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			local Success, Err = pcall( Timer.Func )
 
 			if not Success then
-				Shared.Message( StringFormat( "Timer %s failed: %s\n%s", Name, Err, debug.traceback() ) )
+				Shared.Message( StringFormat( "Timer %s failed: %s. %s", Name, Err, Timer.StackTrace ) )
 				Timer:Destroy()
 			else
 				if Timer.Reps == 0 then
@@ -140,7 +142,7 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			local Success, Err = pcall( Timer.Func )
 
 			if not Success then
-				Shared.Message( StringFormat( "Simple timer failed: %s\n%s", Err, debug.traceback() ) )
+				Shared.Message( StringFormat( "Simple timer failed: %s. %s", Err, Timer.StackTrace ) )
 			end
 
 			ToRemove[ Timer.Index ] = true

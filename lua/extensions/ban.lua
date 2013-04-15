@@ -164,7 +164,13 @@ end
 	Output: Success.
 ]]
 function Plugin:AddBan( ID, Name, Duration, BannedBy, Reason )
-	if not tonumber( ID ) then return false, "invalid Steam ID" end
+	if not tonumber( ID ) then 
+		ID = Shine.SteamIDToNS2( ID )
+
+		if not ID then
+			return false, "invalid Steam ID" 
+		end
+	end
 
 	self.Config.Banned[ tostring( ID ) ] = {
 		Name = Name,

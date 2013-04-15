@@ -29,7 +29,7 @@ function Plugin:GetClientInfo( Client )
 	return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
 end
 
-function Plugin:ClientConnect( Client )
+function Plugin:ClientConfirmConnect( Client )
 	if not Client then return end
 
 	if Client:GetIsVirtual() then
@@ -37,9 +37,7 @@ function Plugin:ClientConnect( Client )
 		return
 	end
 
-	Shine.Timer.Simple( 2, function()
-		Shine:LogString( StringFormat( "Client %s connected.", self:GetClientInfo( Client ) ) )
-	end )
+	Shine:LogString( StringFormat( "Client %s connected.", self:GetClientInfo( Client ) ) )
 end
 
 function Plugin:ClientDisconnect( Client )
