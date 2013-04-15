@@ -142,14 +142,16 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 			Options ).." %s."
 	end
 
-	--[[if NextMap then
+	if NextMap then
 		VoteMessage = VoteMessage.."\nTime left on the current map: %s."
-	end]]
-
-	local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2 )
+	end
 
 	if NextMap then
+		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2, nil, nil, true )
+
 		ScreenText.TimeLeft = TimeLeft
+
+		ScreenText.Obj:SetText( StringFormat( ScreenText.Text, string.TimeToString( ScreenText.Duration ), string.TimeToString( ScreenText.TimeLeft ) ) )
 
 		function ScreenText:UpdateText()
 			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ), string.TimeToString( self.TimeLeft ) ) )
@@ -181,6 +183,10 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 			end
 		end
 	else
+		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2 )
+
+		ScreenText.Obj:SetText( StringFormat( ScreenText.Text, string.TimeToString( ScreenText.Duration ) ) )
+
 		function ScreenText:Think()
 			if self.Duration == Duration - 10 then
 				self.Colour = Color( 1, 1, 1 )
