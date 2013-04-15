@@ -118,7 +118,7 @@ function Plugin:StartCountdown()
 	self.GameStarting = false
 end
 
-function Plugin:ClientConnect( Client )
+function Plugin:ClientConfirmConnect( Client )
 	if not self.CountStart then return end
 	if not self.Config.ShowCountdown then return end
 
