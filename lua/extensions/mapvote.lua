@@ -220,7 +220,7 @@ function Plugin:ShouldCycleMap()
 	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 	
 	if Winner == Shared.GetMapName() then
-		if Shared.GetTime() < self.NextMap.ExtendTime then 
+		if Time < self.NextMap.ExtendTime then 
 			return false 
 		end
 	end
@@ -253,23 +253,35 @@ function Plugin:OnCycleMap()
 end
 
 --[[
+	Returns the remaining time on the map (for networking).
+]]
+function Plugin:GetTimeRemaining()
+	local Time = Shared.GetTime()
+
+	local TimeLeft = self.MapCycle.time * 60 - Time
+
+	if self.NextMap.ExtendTime then
+		TimeLeft = self.NextMap.ExtendTime - Time
+	end
+
+	return Ceil( Max( TimeLeft, 0 ) )
+end
+
+--[[
 	Send the map vote text and map options when a new player connects and a map vote is in progress.
 ]]
-function Plugin:ClientConnect( Client )
+function Plugin:ClientConfirmConnect( Client )
 	if not self:VoteStarted() then return end
 
-	local Duration = Floor( self.Vote.EndTime - Shared.GetTime() )
+	local Time = Shared.GetTime()
+
+	local Duration = Floor( self.Vote.EndTime - Time )
 	
-	if Duration < 10 then return end
+	if Duration < 5 then return end
+	
+	local OptionsText = self.Vote.OptionsText
 
-	--Delay so the client can laod in.
-	Shine.Timer.Simple( 5, function()
-		Duration = Duration - 5
-		
-		local OptionsText = self.Vote.OptionsText
-
-		Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting )
-	end )
+	Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining() )
 end
 
 --[[
@@ -278,11 +290,13 @@ end
 function Plugin:SendVoteData( Client )
 	if not self:VoteStarted() then return end
 	
-	local Duration = Floor( self.Vote.EndTime - Shared.GetTime() )
+	local Time = Shared.GetTime()
+
+	local Duration = Floor( self.Vote.EndTime - Time )
 
 	local OptionsText = self.Vote.OptionsText
 
-	Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting )
+	Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining() )
 end
 
 local function GetMapName( Map )
@@ -846,7 +860,7 @@ function Plugin:StartVote( NextMap )
 		end
 	end )
 
-	Shine:SendVoteOptions( nil, OptionsText, VoteLength, NextMap )
+	Shine:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining() )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()

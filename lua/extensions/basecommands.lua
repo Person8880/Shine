@@ -78,13 +78,6 @@ function Plugin:CanPlayerHearPlayer()
 	if self.Config.AllTalk then return true end
 end
 
-local function NS2ToSteamID( ID )
-	ID = tonumber( ID )
-	if not ID then return "" end
-	
-	return StringFormat( "STEAM_0:%i:%i", ID % 2, Floor( ID * 0.5 ) )
-end
-
 function Plugin:CreateCommands()
 	local Commands = self.Commands
 
@@ -235,7 +228,7 @@ function Plugin:CreateCommands()
 				GameID,
 				Player:GetName(),
 				ID,
-				NS2ToSteamID( ID ),
+				Shine.NS2ToSteamID( ID ),
 				Shine:GetTeamName( Player:GetTeamNumber(), true ),
 				CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
 			else
@@ -243,7 +236,7 @@ function Plugin:CreateCommands()
 				GameID,
 				Player:GetName(),
 				ID,
-				NS2ToSteamID( ID ),
+				Shine.NS2ToSteamID( ID ),
 				Shine:GetTeamName( Player:GetTeamNumber(), true ),
 				IPAddressToString( Server.GetClientAddress( PlayerClient ) ) ) )
 			end

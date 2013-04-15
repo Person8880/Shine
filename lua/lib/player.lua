@@ -88,7 +88,7 @@ end
 --[[
 	Returns a client matching the given Steam ID.
 ]]
-function Shine.GetClientBySteamID( ID )
+function Shine.GetClientByNS2ID( ID )
 	if type( ID ) ~= "number" then return nil end
 	
 	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
@@ -135,6 +135,32 @@ function Shine.GetClientByName( Name )
 	return nil
 end
 
+function Shine.NS2ToSteamID( ID )
+	ID = tonumber( ID )
+	if not ID then return "" end
+	
+	return StringFormat( "STEAM_0:%i:%i", ID % 2, Floor( ID * 0.5 ) )
+end
+
+function Shine.SteamIDToNS2( ID )
+	if type( ID ) ~= "string" or not ID:match( "^STEAM_%d:%d:%d+$" ) then return nil end
+
+	local Num = tonumber( ID:sub( 11 ) )
+	local Extra = tonumber( ID:sub( 9, 9 ) )
+
+	return Num * 2 + Extra
+end
+
+function Shine:GetClientBySteamID( ID )
+	if type( ID ) ~= "string" then return nil end
+
+	local NS2ID = self.SteamIDToNS2( ID )
+
+	if not NS2ID then return nil end
+	
+	return self.GetClientByNS2ID( NS2ID )
+end
+
 --[[
 	Returns a client matching the given Steam ID or name.
 ]]
@@ -142,7 +168,7 @@ function Shine:GetClient( String )
 	if type( String ) == "number" or tonumber( String ) then
 		local Num = tonumber( String )
 
-		local Result = self.GetClientByID( Num ) or self.GetClientBySteamID( Num )
+		local Result = self.GetClientByID( Num ) or self.GetClientByNS2ID( Num )
 		
 		if not Result then
 			return self.GetClientByName( tostring( String ) )
@@ -151,7 +177,7 @@ function Shine:GetClient( String )
 		return Result
 	end
 
-	return self.GetClientByName( tostring( String ) )
+	return self:GetClientBySteamID( String ) or self.GetClientByName( tostring( String ) )
 end
 
 --[[

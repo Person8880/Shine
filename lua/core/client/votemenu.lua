@@ -120,6 +120,7 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 
 	local Duration = Message.Duration
 	local NextMap = Message.NextMap == 1
+	local TimeLeft = Message.TimeLeft
 
 	local Options = Message.Options
 
@@ -140,32 +141,66 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 			NextMap and "Voting for the next map has begun." or "Map vote has begun.",
 			Options ).." %s."
 	end
-	
-	local Message = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2 )
 
-	function Message:Think()
-		if self.Duration == Duration - 10 then
-			self.Colour = Color( 1, 1, 1 )
-			self.Obj:SetColor( self.Colour )
+	--[[if NextMap then
+		VoteMessage = VoteMessage.."\nTime left on the current map: %s."
+	end]]
 
-			if ButtonBound then
-				self.Text = StringFormat( "%s Press %s to vote.\nTime left to vote:", 
-					NextMap and "Vote for the next map in progress." or "Map vote in progress.",
-					VoteButton ).." %s."
-			else 
-				self.Text = StringFormat( "%s\nMaps: %s\nType !vote <map> to vote.\nTime left to vote:", 
-					NextMap and "Vote for the next map in progress." or "Map vote in progress.",
-					Options ).." %s."
-			end
+	local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2 )
 
-			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+	if NextMap then
+		ScreenText.TimeLeft = TimeLeft
 
-			return
+		function ScreenText:UpdateText()
+			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ), string.TimeToString( self.TimeLeft ) ) )
 		end
 
-		if self.Duration == 10 then
-			self.Colour = Color( 1, 0, 0 )
-			self.Obj:SetColor( self.Colour )
+		function ScreenText:Think()
+			self.TimeLeft = self.TimeLeft - 1
+
+			if self.Duration == Duration - 10 then
+				self.Colour = Color( 1, 1, 1 )
+				self.Obj:SetColor( self.Colour )
+
+				if ButtonBound then
+					self.Text = StringFormat( "Vote for the next map in progress. Press %s to vote.\nTime left to vote:", VoteButton ).." %s."
+				else 
+					self.Text = StringFormat( "Vote for the next map in progress.\nMaps: %s\nType !vote <map> to vote.\nTime left to vote:", Options ).." %s."
+				end
+
+				self.Text = self.Text.."\nTime left on the current map: %s."
+
+				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ), string.TimeToString( self.TimeLeft ) ) )
+
+				return
+			end
+
+			if self.Duration == 10 then
+				self.Colour = Color( 1, 0, 0 )
+				self.Obj:SetColor( self.Colour )
+			end
+		end
+	else
+		function ScreenText:Think()
+			if self.Duration == Duration - 10 then
+				self.Colour = Color( 1, 1, 1 )
+				self.Obj:SetColor( self.Colour )
+
+				if ButtonBound then
+					self.Text = StringFormat( "Map vote in progress. Press %s to vote.\nTime left to vote:", VoteButton ).." %s."
+				else 
+					self.Text = StringFormat( "Map vote in progress.\nMaps: %s\nType !vote <map> to vote.\nTime left to vote:", Options ).." %s."
+				end
+
+				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+
+				return
+			end
+
+			if self.Duration == 10 then
+				self.Colour = Color( 1, 0, 0 )
+				self.Obj:SetColor( self.Colour )
+			end
 		end
 	end
 
