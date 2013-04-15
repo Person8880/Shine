@@ -141,6 +141,8 @@ function Plugin:GenerateDefaultConfig( Save )
 
 		EnableNextMapVote = true, --Enables the vote to choose the next map.
 		NextMapVote = 0.5, --How far into a game to begin a vote for the next map.
+
+		ForceChange = 60 --How long left on the current map when a round ends that should force a change to the next map.
 	}
 
 	self.Vote = {}
@@ -171,7 +173,7 @@ function Plugin:SaveConfig()
 		return	
 	end
 
-	Notify( "Shine mapvote config file saved." )
+	Notify( "Shine mapvote config file updated." )
 end
 
 function Plugin:LoadConfig()
@@ -191,16 +193,26 @@ function Plugin:LoadConfig()
 		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 	end
 
+	local Edited
+
 	if self.Config.AlwaysExtend == nil then
 		self.Config.AlwaysExtend = true
-		self:SaveConfig()
+		Edited = true
 	end
 
 	if self.Config.PercentToFinish == nil then
 		self.Config.PercentToFinish = 0.8
-		self:SaveConfig()
+		Edited = true
 	end
 
+	if self.Config.ForceChange == nil then
+		self.Config.ForceChange = 60
+		Edited = true
+	end
+
+	if Edited then self:SaveConfig() end
+
+	self.Config.ForceChange = Max( self.Config.ForceChange, 0 )
 	self.Config.NextMapVote = Clamp( self.Config.NextMapVote or 0.5, 0, 1 )
 	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
 	self.Config.PercentToStart = Clamp( self.Config.PercentToStart or 0.6, 0, 1 )
@@ -361,7 +373,7 @@ function Plugin:EndGame()
 		
 		local Message = "There is %s remaining on this map."
 
-		if TimeLeft <= 60 then
+		if TimeLeft <= self.Config.ForceChange then
 			if not self:VoteStarted() then
 				Shine:Notify( nil, "", "", "The server will now cycle to %s.", true, self:GetNextMap() )
 
