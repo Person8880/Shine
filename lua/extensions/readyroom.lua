@@ -33,6 +33,7 @@ end
 
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
+		TrackReadyRoomPlayers = true, --Should it track people in the ready room?
 		MaxIdleTime = 120, --Max time in seconds to allow sitting in the ready room.
 		TimeToBlockF4 = 120, --Time to block going back to the ready room after being forced out of it.
 		DisableSpectate = false, --Disable spectate?
@@ -189,6 +190,7 @@ end
 ]]
 function Plugin:Think()
 	if not self.GameStarted then return end
+	if not self.Config.TrackReadyRoomPlayers then return end
 
 	local Time = Shared.GetTime()
 
