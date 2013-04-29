@@ -14,6 +14,7 @@ local Ceil = math.ceil
 local Floor = math.floor
 local StringFormat = string.format
 local TableConcat = table.concat
+local type = type
 
 local MonthData = {
 	{ Name = "January", Length = 31 },
@@ -156,6 +157,13 @@ function Shine:Print( String, Format, ... )
 	self:LogString( String )
 end
 
+local function istable( Tab )
+	return type( Tab ) == "table"
+end
+
+--[[
+	Sends a chat message to the given player(s).
+]]
 function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 	local Message = Format and StringFormat( String, ... ) or String
 
@@ -170,7 +178,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return
 	end
 
-	if type( Player ) == "table" then
+	if istable( Player ) == "table" then
 		local PlayerCount = #Player
 
 		for i = 1, PlayerCount do
@@ -188,6 +196,36 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
+	end
+end
+
+--[[
+	Sends a coloured notification to the given player(s).
+]]
+function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
+	local Message = Format and StringFormat( String, ... ) or String
+
+	local MessageTable = {
+		R = R,
+		G = G,
+		B = B,
+		Message = Message
+	}
+
+	Message = Message:sub( 1, kMaxChatLength )
+
+	if not Player then
+		local Players = self.GetAllClients()
+
+		for i = 1, #Players do
+			Server.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
+		end
+	elseif istable( Player ) then
+		for i = 1, #Player do
+			Server.SendNetworkMessage( Player[ i ], "Shine_ChatCol", MessageTable, true )
+		end 
+	else
+		Server.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 	end
 end
 
