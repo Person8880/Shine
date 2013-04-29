@@ -14,7 +14,7 @@ local Max = math.max
 local Random = math.random
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteSurrender.json"
@@ -166,16 +166,57 @@ function Plugin:Surrender( Team )
 
 	if not Gamerules then return end
 
-	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
+	Server.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
-	Shine.Timer.Simple( 0.1, function()
-		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "The %s team has voted to surrender.", true, Team == 1 and "marine" or "alien" )
-	end )
+	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
 
 	self.Votes[ Team ] = 0
 	self.Voted[ Team ] = {}
 end
 
+--[[
+	Overrides the concede vote button in the NS2 request menu.
+]]
+function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
+	if not Player then return end
+	if ID ~= kTechId.VoteConcedeRound then return end
+	
+	local Client = Player:GetClient()
+
+	if not Client then return end
+
+	local Team = Player:GetTeam():GetTeamNumber()
+
+	local Votes = self.Votes[ Team ]
+	
+	local Success, Err = self:AddVote( Client, Team )
+
+	if not Success then return end
+
+	local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
+	
+	self:AnnounceVote( Player, VotesNeeded )
+
+	return true
+end
+
+function Plugin:AnnounceVote( Player, Team, VotesNeeded )
+	local Players = GetEntitiesForTeam( "Player", Team )
+
+	local NWMessage = {
+		voterName = Player:GetName(),
+		votesMoreNeeded = VotesNeeded
+	}
+
+	for i = 1, #Players do
+		local Ply = Players[ i ]
+
+		if Ply then
+			Server.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true ) --Use NS2's built in concede, it's localised.
+		end
+	end
+end
+			
 function Plugin:CreateCommands()
 	local Commands = self.Commands
 
@@ -192,12 +233,9 @@ function Plugin:CreateCommands()
 		local Success, Err = self:AddVote( Client, Team )
 
 		if Success then
-			local Players = GetEntitiesForTeam( "Player", Team )
 			local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
 
-			Shine:Notify( Players, "Vote", Shine.Config.ChatName, "%s voted to surrender (%s more votes needed).", true, Player:GetName(), VotesNeeded )
-
-			return
+			return self:AnnounceVote( Player, Team, VotesNeeded )
 		end
 
 		if Err == "already voted" then

@@ -220,7 +220,7 @@ Add( "Think", "ReplaceMethods", function()
 			if Result[ 1 ] then
 				NewTeam = Result[ 2 ]
 			else
-				return
+				return false, Player
 			end
 		end
 
@@ -270,7 +270,7 @@ Add( "Think", "ReplaceMethods", function()
 
 		if Result then return end
 		
-		OldCastVote( self, VoteTechID, Player )
+		return OldCastVote( self, VoteTechID, Player )
 	end )
 
 	local OldSetGameState

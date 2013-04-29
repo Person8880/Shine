@@ -14,7 +14,7 @@ local Max = math.max
 local Random = math.random
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteRandom.json"
@@ -230,7 +230,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 				Player.NextShineNotify = Time + 5
 			end
 
-			return false 
+			return false
 		end 
 
 		if Team == 0 or Team == 3 then --They're going from the ready room/spectate to a team.
@@ -253,7 +253,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 				Player.NextShineNotify = Time + 5
 			end
 
-			return false 
+			return false
 		end
 
 		if Team == 0 or Team == 3 then --They came from ready room or spectate, i.e, we just randomised them.
