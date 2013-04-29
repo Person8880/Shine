@@ -14,7 +14,7 @@ local Max = math.max
 local Random = math.random
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteRandom.json"

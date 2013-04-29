@@ -12,7 +12,7 @@ local TableSort = table.sort
 local Floor = math.floor
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.1"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "BaseCommands.json"
