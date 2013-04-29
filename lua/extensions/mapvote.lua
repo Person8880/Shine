@@ -19,7 +19,7 @@ local Random = math.random
 local InRange = math.InRange
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.5"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"

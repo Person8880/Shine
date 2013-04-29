@@ -79,6 +79,11 @@ function Shine:LoadConfig()
 		Updated = true
 	end
 
+	if self.Config.ActiveExtensions.readyroom == nil then
+		self.Config.ActiveExtensions.readyroom = false
+		Updated = true
+	end
+
 	if Updated then
 		self:SaveConfig()
 	end
@@ -122,6 +127,7 @@ function Shine:GenerateDefaultConfig( Save )
 			mapvote = true,
 			motd = true,
 			pregame = false,
+			readyroom = false,
 			serverswitch = false,
 			unstuck = true,
 			voterandom = false,

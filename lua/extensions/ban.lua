@@ -7,7 +7,7 @@
 local Shine = Shine
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.2"
 
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode

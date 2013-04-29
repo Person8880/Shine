@@ -5,7 +5,7 @@
 local StringFormat = string.format
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.0.1"
 
 function Plugin:Initialise()
 	if not Shine.Config.EnableLogging then

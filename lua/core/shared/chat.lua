@@ -6,13 +6,14 @@ Shine = Shine or {}
 
 local StringFormat = string.format
 
-local ChatMessage =
-{
+local StringMessage = StringFormat( "string (%d)", kMaxChatLength )
+
+local ChatMessage = {
 	Prefix = "string (25)",
 	Name = "string (" .. kMaxNameLength .. ")",
 	TeamNumber = "integer (" .. kTeamInvalid .. " to " .. kSpectatorIndex .. ")",
 	TeamType = "integer (" .. kNeutralTeamType .. " to " .. kAlienTeamType .. ")",
-	Message = StringFormat( "string (%d)", kMaxChatLength )
+	Message = StringMessage
 }
 
 function Shine.BuildChatMessage( Prefix, Name, TeamNumber, TeamType, Message )
@@ -26,6 +27,15 @@ function Shine.BuildChatMessage( Prefix, Name, TeamNumber, TeamType, Message )
 end
 
 Shared.RegisterNetworkMessage( "Shine_Chat", ChatMessage )
+
+local ColourMessage = {
+	R = "integer (0 to 255)",
+	G = "integer (0 to 255)",
+	B = "integer (0 to 255)",
+	Message = StringMessage
+}
+
+Shared.RegisterNetworkMessage( "Shine_ChatCol", ColourMessage )
 
 if Server then return end
 
@@ -53,7 +63,7 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" ) --This grabs the chatMessages table from lua/Chat.lua
 
 	if not ChatMessages then
-		Shared.Message( "Unable to retrieve message table!" )
+		Shared.Message( "[Shine] Unable to retrieve message table!" )
 		return
 	end
 
@@ -100,4 +110,37 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 			Shared.Message( Message.Message )
 		end
 	end
+end )
+
+--Displays a coloured message.
+Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
+	local R = Message.R / 255
+	local G = Message.G / 255
+	local B = Message.B / 255
+
+	local String = Message.Message
+
+	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" )
+
+	if not ChatMessages then
+		Shared.Message( "[Shine] Unable to retrieve message table!" )
+		return
+	end
+
+	local Player = Client.GetLocalPlayer()
+
+	if not Player then return end
+
+	ChatMessages[ #ChatMessages + 1 ] = 0xFFD800
+	ChatMessages[ #ChatMessages + 1 ] = ""
+
+	ChatMessages[ #ChatMessages + 1 ] = Color( R, G, B, 1 )
+	ChatMessages[ #ChatMessages + 1 ] = String
+
+	ChatMessages[ #ChatMessages + 1 ] = ""
+	ChatMessages[ #ChatMessages + 1 ] = 0
+	ChatMessages[ #ChatMessages + 1 ] = 0
+	ChatMessages[ #ChatMessages + 1 ] = 0
+
+	Shared.PlaySound( self, Player:GetChatSound() )
 end )
