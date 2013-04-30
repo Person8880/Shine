@@ -113,7 +113,14 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	Client.SHNextNotify = Time + 5 --Prevent message spam.
 
-	Shine:NotifyColour( Client, 255, 160, 0, "Spectator mode has been disabled. Please join a team." )
+	Shine:NotifyColour( Client, 255, 160, 0, "Spectator mode has been disabled." )
+
+	local Team = Player:GetTeam():GetTeamNumber()
+
+	--Move ready room players onto a team if they attempt to spectate.
+	if Team == kTeamReadyRoom then
+		JoinRandomTeam( Player )
+	end
 
 	return false
 end
