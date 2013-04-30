@@ -183,7 +183,7 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	
 	local Client = Player:GetClient()
 
-	if not Client then return end
+	if not Client then return true end
 
 	local Team = Player:GetTeam():GetTeamNumber()
 
@@ -191,7 +191,7 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	
 	local Success, Err = self:AddVote( Client, Team )
 
-	if not Success then return end
+	if not Success then return true end --We failed to add the vote, but we should still stop it going through NS2's system...
 
 	local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
 	

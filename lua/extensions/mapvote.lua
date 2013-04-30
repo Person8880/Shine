@@ -459,7 +459,7 @@ function Plugin:GetVoteChoice( Map )
 	if Map == "ns2_" or Map == "ns2" then return nil end --Not specific enough.
 
 	for Name, Votes in pairs( Choices ) do
-		if Name:lower():find( Map ) then
+		if Name:lower():find( Map, 1, true ) then
 			return Name
 		end
 	end
@@ -537,7 +537,7 @@ function Plugin:ProcessResults( NextMap )
 	--No one voted :|
 	if TotalVotes == 0 then
 		Shine:Notify( nil, "Vote", ChatName, "No votes made. Map vote failed." )
-		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 		
 		if NextMap then
 			self.NextMap.Voting = false
@@ -606,7 +606,7 @@ function Plugin:ProcessResults( NextMap )
 				if not self.Vote.Veto then --No one cancelled it, change map.
 					MapCycle_ChangeMap( Results[ 1 ] )
 				else --Someone cancelled it, set the next vote time.
-					self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+					self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 					self.Vote.Veto = false
 					self.Vote.CanVeto = false --Veto has no meaning anymore.
 				end
@@ -1140,6 +1140,10 @@ end
 function Plugin:Cleanup()
 	if self:VoteStarted() then
 		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "Map vote plugin disabled. Current vote cancelled." )
+
+		--Remember to clean up client side vote text/menu entries...
+		Shine:RemoveText( nil, { ID = 1 } )
+		self:EndVote()
 	end
 
 	Shine.Timer.Destroy( self.VoteTimer )
