@@ -1,8 +1,7 @@
 --[[
 	Shine multi-server plugin.
 
-	I was hoping to be able to query the server data directly from NS2's web admin, but it seems the HTTP functions can't do user authentication.
-	So this plugin, for now, is just a way to get players to connect to another server you host.
+	TODO: See if I can query the web admin interface now.
 ]]
 
 local Shine = Shine
@@ -28,7 +27,7 @@ end
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
 		Servers = {
-			{ IP = "127.0.0.1", Port = "27015" }
+			{ Name = "My awesome server", IP = "127.0.0.1", Port = "27015", Password = "" }
 		}
 	}
 
@@ -54,7 +53,7 @@ function Plugin:SaveConfig()
 		return	
 	end
 
-	Notify( "Shine serverswitch config file saved." )
+	Notify( "Shine serverswitch config file updated." )
 end
 
 function Plugin:LoadConfig()
@@ -86,11 +85,49 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		Server.SendNetworkMessage( Player, "Shine_Command", { Command = "connect "..ServerData.IP..":"..ServerData.Port }, true )
+		local Password = ServerData.Password
+
+		if not Password then 
+			Password = ""
+		elseif Password ~= "" then
+			Password = " "..Password
+		end
+		
+		Server.SendNetworkMessage( Player, "Shine_Command", { 
+			Command = StringFormat( "connect %s:%s%s", ServerData.IP, ServerData.Port, Password )
+		}, true )
 	end
 	Commands.SwitchServerCommand = Shine:RegisterCommand( "sh_switchserver", "server", SwitchServer, true )
 	Commands.SwitchServerCommand:AddParam{ Type = "number", Min = 1, Round = true, Error = "Please specify a server number to switch to." }
 	Commands.SwitchServerCommand:Help( "<number> Connects you to the given registered server." )
+
+	local function ListServers( Client )
+		local ServerData = self.Config.Servers
+
+		if #ServerData == 0 then
+			if Client then
+				ServerAdminPrint( Client, "There are no registered servers." )
+			else
+				Notify( "There are no registered servers." )
+			end
+
+			return
+		end
+
+		for i = 1, #ServerData do
+			local Data = ServerData[ i ]
+
+			local String = StringFormat( "%i) - %s | %s:%s", i, Data.Name or "No name", Data.IP, Data.Port )
+
+			if Client then
+				ServerAdminPrint( Client, String )
+			else
+				Notify( String )
+			end
+		end
+	end
+	Commands.ListServers = Shine:RegisterCommand( "sh_listservers", nil, ListServers, true )
+	Commands.ListServers:Help( "Lists all registered servers that you can connect to." )
 end
 
 function Plugin:Cleanup()
