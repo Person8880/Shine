@@ -49,13 +49,15 @@ end
 	Pass a negative number to reps to have it repeat indefinitely.
 ]]
 local function Create( Name, Delay, Reps, Func )
+	local Time = Shared.GetTime()
+
 	local Timer = setmetatable( {
 		Name = Name,
 		Delay = Delay,
 		Reps = Reps,
 		Func = Func,
 		LastRun = 0,
-		NextRun = Shared.GetTime() + Delay,
+		NextRun = Time + Delay,
 		StackTrace = debug.traceback()
 	}, TimerMeta )
 
@@ -65,22 +67,19 @@ local function Create( Name, Delay, Reps, Func )
 end
 Shine.Timer.Create = Create
 
+local SimpleCount = 1
+
 --[[
 	Creates a simple timer.
 	Inputs: Delay in seconds, function to run.
 	Unlike a standard timer, this will only run once.
 ]]
 local function Simple( Delay, Func )
-	local Index = #Simples + 1
+	local Index = "Simple"..SimpleCount
 
-	local Timer = {
-		Index = Index,
-		NextRun = Shared.GetTime() + Delay,
-		Func = Func,
-		StackTrace = debug.traceback()
-	}
+	SimpleCount = SimpleCount + 1
 
-	Simples[ Index ] = Timer
+	return Create( Index, Delay, 1, Func )
 end
 Shine.Timer.Simple = Simple
 
@@ -110,7 +109,7 @@ Shine.Timer.Exists = Exists
 Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 	local Time = Shared.GetTime()
 
-	--Run the standard timers.
+	--Run the timers.
 	for Name, Timer in pairs( Timers ) do
 		if Timer.NextRun <= Time then
 			if Timer.Reps > 0 then
@@ -129,32 +128,6 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 					Timer.LastRun = Time
 					Timer.NextRun = Time + Timer.Delay
 				end
-			end
-		end
-	end
-
-	local ToRemove = {}
-
-	--Run the simple timers.
-	for i = 1, #Simples do
-		local Timer = Simples[ i ]
-		if Timer.NextRun <= Time then
-			local Success, Err = pcall( Timer.Func )
-
-			if not Success then
-				Shared.Message( StringFormat( "Simple timer failed: %s. %s", Err, Timer.StackTrace ) )
-			end
-
-			ToRemove[ Timer.Index ] = true
-		end
-	end
-
-	for Index, Remove in pairs( ToRemove ) do
-		for i = 1, #Simples do
-			local Timer = Simples[ i ]
-			if Timer and Timer.Index == Index then
-				TableRemove( Simples, i )
-				break
 			end
 		end
 	end
