@@ -2,6 +2,7 @@
 	Shine player functions.
 ]]
 
+local Floor = math.floor
 local GetEntsByClass
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
