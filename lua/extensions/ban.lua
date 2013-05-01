@@ -5,12 +5,14 @@
 ]]
 
 local Shine = Shine
+local Hook = Shine.Hook
 
 local Plugin = {}
-Plugin.Version = "1.2"
+Plugin.Version = "1.3"
 
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
+local pairs = pairs
 local Time = Shared.GetSystemTime
 local StringFormat = string.format
 
@@ -19,6 +21,8 @@ Plugin.ConfigName = "Bans.json" --Here it is!
 
 Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
 
+local Hooked
+
 --[[
 	Called on plugin startup, we create the chat commands and set ourself to enabled.
 	We return true to indicate a successful startup.
@@ -26,6 +30,39 @@ Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ba
 function Plugin:Initialise()
 	self:CreateCommands()
 	self:CheckBans()
+
+	if not Hooked then
+		--Hook into the default banning commands.
+		Event.Hook( "Console_sv_ban", function( Client, ... )
+			Shine:RunCommand( Client, "sh_ban", ... )
+		end )
+
+		Event.Hook( "Console_sv_unban", function( Client, ... )
+			Shine:RunCommand( Client, "sh_unban", ... )
+		end )
+
+		--Override the bans list function (have to do it after everything's loaded).
+		Hook.Add( "Think", "Bans_Override", function()
+			function GetBannedPlayersList()
+				local Bans = self.Config.Banned
+				local Ret = {}
+
+				local Count = 1
+
+				for ID, Data in pairs( Bans ) do
+					Ret[ Count ] = { name = Data.Name, id = ID, reason = Data.Reason, time = Data.UnbanTime }
+
+					Count = Count + 1
+				end
+
+				return Ret
+			end
+
+			Hook.Remove( "Think", "Bans_Override" )
+		end )
+
+		Hooked = true
+	end
 
 	self.Enabled = true
 
@@ -39,7 +76,9 @@ end
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
 		Banned = {},
-		DefaultBanTime = 60 --Default of 1 hour ban if a time is not given.
+		DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
+		GetBansFromWeb = false,
+		BansURL = ""
 	}
 
 	if Save then
@@ -60,6 +99,8 @@ end
 	This is called when a ban is added or removed.
 ]]
 function Plugin:SaveConfig()
+	if self.Config.GetBansFromWeb then return end
+	
 	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not Success then
@@ -67,13 +108,10 @@ function Plugin:SaveConfig()
 
 		return	
 	end
-
-	Notify( "Bans successfully saved." )
 end
 
 --[[
 	Loads the bans.
-	TODO: Web server synchronised bans?
 ]]
 function Plugin:LoadConfig()
 	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
@@ -90,7 +128,66 @@ function Plugin:LoadConfig()
 
 	self.Config = PluginConfig
 
+	if self.Config.GetBansFromWeb then
+		--Load bans list after everything else.
+		Hook.Add( "Think", "Bans_WebLoad", function()
+			Shared.SendHTTPRequest( self.Config.BansURL, "GET", function( Response )
+				if not Response then
+					Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
+
+					return
+				end
+
+				local BansData = Decode( Response ) or {}
+				
+				--Shine config format.
+				if BansData.Banned then
+					self.Config.Banned = BansData.Banned
+				else --NS2 bans file format.
+					if not next( BansData ) then
+						Shine:Print( "[Error] Received empty or corrupt bans table from the web." )
+
+						return
+					end
+
+					self.Config.Banned = nil
+
+					for i = 1, #BansData do
+						self.Config[ i ] = BansData[ i ]
+					end
+
+					self:ConvertData( self.Config )
+				end
+
+				Shine:LogString( "Shine loaded bans from web successfully." )
+			end )
+
+			Hook.Remove( "Think", "Bans_WebLoad" )
+		end )
+
+		return
+	end
+
 	self:ConvertData( self.Config )
+
+	local Updated
+
+	if self.Config.GetBansFromWeb == nil then
+		self.Config.GetBansFromWeb = false
+
+		Updated = true
+	end
+
+	if self.Config.BansURL == nil then
+		self.Config.BansURL = ""
+
+		Updated = true
+	end
+
+	if Updated then
+		Notify( "Shine bans config file updated." )
+		self:SaveConfig()
+	end
 end
 
 --[[
@@ -100,8 +197,6 @@ function Plugin:ConvertData( Data )
 	local Edited
 
 	if not Data.Banned then
-		Notify( "Converting bans from NS2/DAK format to Shine format..." )
-		
 		Data.Banned = {}
 
 		for i = 1, #Data do
