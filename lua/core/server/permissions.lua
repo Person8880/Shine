@@ -202,11 +202,11 @@ local GameID = 0
 Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
 	GameID = GameID + 1
 	GameIDs[ Client ] = GameID
-end )
+end, -20 )
 
 Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client ) 
 	GameIDs[ Client ] = nil
-end )
+end, -20 )
 
 local function isnumber( Num )
 	return type( Num ) == "number"

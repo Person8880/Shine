@@ -11,38 +11,7 @@ local TableSort = table.sort
 Shine.Hook = {}
 
 local Hooks = {}
-
---[[
-	Sorts the hook list.
-]]
-local function SortHooks( Event )
-	if not Event then return end
-
-	TableSort( Hooks[ Event ], function( A, B ) 
-		if A == nil then return false end
-		if B == nil then return true end
-		if A.Priority < B.Priority then return true end
-		if A.Priority == B.Priority and tostring( A.Index ) < tostring( B.Index ) then return true end
-		return false
-	end )
-end
-
---[[
-	Adds a function to Shine's internal hook system.
-	Inputs: Event to hook into, unique identifier, function to run, optional priority.
-]]
-local function Add( Event, Index, Function, Priority )
-	Priority = tonumber( Priority ) or 0
-
-	if not Hooks[ Event ] then
-		Hooks[ Event ] = {}
-	end
-
-	TableInsert( Hooks[ Event ], { Index = Index, Func = Function, Priority = Clamp( Priority, -20, 20 ) } )
-
-	SortHooks( Event )	
-end
-Shine.Hook.Add = Add
+local ReservedNames = {}
 
 --[[
 	Removes a function from Shine's internal hook system.
@@ -53,16 +22,46 @@ local function Remove( Event, Index )
 
 	if not EventHooks then return end
 	
-	for i = 1, #EventHooks do
-		local Hook = EventHooks[ i ]
+	for i = -20, 20 do
+		local HookTable = EventHooks[ i ]
 
-		if Hook and Hook.Index == Index then
-			EventHooks[ i ] = nil
+		if HookTable and HookTable[ Index ] then
+			HookTable[ Index ] = nil
+
 			return
 		end
 	end
+
+	ReservedNames[ Event ][ Index ] = nil
 end
 Shine.Hook.Remove = Remove
+
+--[[
+	Adds a function to Shine's internal hook system.
+	Inputs: Event to hook into, unique identifier, function to run, optional priority.
+]]
+local function Add( Event, Index, Function, Priority )
+	Priority = tonumber( Priority ) or 0
+
+	if not Hooks[ Event ] then
+		Hooks[ Event ] = {}
+		ReservedNames[ Event ] = {}
+	end
+
+	if ReservedNames[ Event ][ Index ] then
+		Remove( Event, Index )
+		ReservedNames[ Event ][ Index ] = nil
+	end
+
+	if not Hooks[ Event ][ Priority ] then
+		Hooks[ Event ][ Priority ] = {}
+	end
+
+	Hooks[ Event ][ Priority ][ Index ] = Function
+
+	ReservedNames[ Event ][ Index ] = true
+end
+Shine.Hook.Add = Add
 
 --[[
 	Calls an internal Shine hook.
@@ -87,16 +86,22 @@ local function Call( Event, ... )
 
 	if not Hooked then return end
 
-	SortHooks( Event )
+	for i = -20, 20 do
+		local HookTable = Hooked[ i ]
 
-	for i = 1, #Hooked do
-		if Hooked[ i ] then
-			local Result = { Hooked[ i ].Func( ... ) }
-			if Result[ 1 ] ~= nil then return Result end
+		if HookTable then
+			for Index, Func in pairs( HookTable ) do
+				local Result = { Func( ... ) }
+				if Result[ 1 ] ~= nil then return Result end
+			end
 		end
 	end
 end
 Shine.Hook.Call = Call
+
+function Shine.Hook.GetTable()
+	return Hooks
+end
 
 --[[
 	Event hooks.
