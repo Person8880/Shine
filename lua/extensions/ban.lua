@@ -130,7 +130,7 @@ function Plugin:LoadConfig()
 
 	if self.Config.GetBansFromWeb then
 		--Load bans list after everything else.
-		Shine.Hook.Add( "Think", "Bans_WebLoad", function()
+		Hook.Add( "Think", "Bans_WebLoad", function()
 			Shared.SendHTTPRequest( self.Config.BansURL, "GET", function( Response )
 				if not Response then
 					Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
@@ -162,7 +162,7 @@ function Plugin:LoadConfig()
 				Shine:LogString( "Shine loaded bans from web successfully." )
 			end )
 
-			Shine.Hook.Remove( "Think", "Bans_WebLoad" )
+			Hook.Remove( "Think", "Bans_WebLoad" )
 		end )
 
 		return
