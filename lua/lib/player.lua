@@ -4,6 +4,7 @@
 
 local Floor = math.floor
 local GetEntsByClass
+local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
 
