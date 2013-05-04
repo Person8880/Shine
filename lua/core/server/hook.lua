@@ -216,6 +216,22 @@ Add( "Think", "ReplaceMethods", function()
 	local ReplaceMethod = Shine.ReplaceClassMethod
 	local Gamerules = Shine.Config.GameRules or "NS2Gamerules"
 
+	local OldProcessMove
+
+	OldProcessMove = ReplaceMethod( "Player", "OnProcessMove", function( self, Input )
+		Call( "OnProcessMove", self, Input )
+
+		return OldProcessMove( self, Input )
+	end )
+
+	local OldProcessSpecMove
+
+	OldProcessSpecMove = ReplaceMethod( "Spectator", "OnProcessMove", function( self, Input )
+		Call( "OnProcessMove", self, Input )
+
+		return OldProcessSpecMove( self, Input )
+	end )
+
 	local OldJoinTeam
 
 	OldJoinTeam = ReplaceMethod( Gamerules, "JoinTeam", function( self, Player, NewTeam, Force, ShineForce )
