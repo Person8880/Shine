@@ -87,6 +87,36 @@ function Plugin:ClientConnect( Client )
 end
 
 --[[
+	Hook into movement processing to help prevent false positive AFK kicking.
+]]
+function Plugin:OnProcessMove( Player, Input )
+	local Client = Server.GetOwner( Player )
+
+	if not Client then return end
+
+	local DataTable = self.Users[ Client ]
+
+	if not DataTable then return end
+
+	local Move = Input.move
+
+	local Time = Shared.GetTime()
+
+	local Pitch, Yaw = Input.pitch, Input.yaw
+
+	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0 and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
+		DataTable.LastMove = Time
+
+		if DataTable.Warn then
+			DataTable.Warn = false
+		end
+	end
+
+	DataTable.LastPitch = Pitch
+	DataTable.LastYaw = Yaw
+end
+
+--[[
 	Update the given player/client, check if they've moved since the last time we checked.
 	If they haven't moved and it's past the warn time, warn them.
 	If they haven't moved and it's past the kick time, kick them.
