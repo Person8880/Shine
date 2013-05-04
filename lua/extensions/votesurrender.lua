@@ -195,7 +195,7 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 
 	local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
 	
-	self:AnnounceVote( Player, VotesNeeded )
+	self:AnnounceVote( Player, Team, VotesNeeded )
 
 	return true
 end
