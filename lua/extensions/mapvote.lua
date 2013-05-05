@@ -15,6 +15,7 @@ local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
 local Max = math.max
+local pairs = pairs
 local Random = math.random
 local InRange = math.InRange
 
@@ -31,6 +32,21 @@ Plugin.NextMapTimer = "MapVoteNext"
 
 local function istable( Table )
 	return type( Table ) == "table"
+end
+
+local function isarray( Table )
+	local Count = #Table
+	return Count > 0 and Count or nil
+end
+
+local function CountTable( Table )
+	local Count = 0
+
+	for k in pairs( Table ) do
+		Count = Count + 1
+	end
+
+	return Count
 end
 
 function Plugin:Initialise()
@@ -103,6 +119,23 @@ function Plugin:Initialise()
 		end )
 	end
 
+	local ForcedMaps = self.Config.ForcedMaps
+	local IsArray = isarray( ForcedMaps )
+	local MaxOptions = self.Config.MaxOptions
+
+	if IsArray then
+		self.ForcedMapCount = Clamp( IsArray, 0, MaxOptions )
+		
+		for i = 1, IsArray do
+			ForcedMaps[ ForcedMaps[ i ] ] = true
+			ForcedMaps[ i ] = nil
+		end
+	else
+		self.ForcedMapCount = Clamp( CountTable( ForcedMaps ), 0, MaxOptions )
+	end
+
+	self.MaxNominations = Max( MaxOptions - self.ForcedMapCount - 1, 0 )
+
 	self.Enabled = true
 
 	return true
@@ -119,6 +152,7 @@ function Plugin:GenerateDefaultConfig( Save )
 			ns2_refinery = true,
 			ns2_tram = true,
 		},
+		ForcedMaps = {}, --Maps that must always be in the vote list.
 		MinPlayers = 10, --Minimum number of players needed to begin a map vote.
 		PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
 		PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
@@ -207,6 +241,11 @@ function Plugin:LoadConfig()
 
 	if self.Config.ForceChange == nil then
 		self.Config.ForceChange = 60
+		Edited = true
+	end
+
+	if self.Config.ForcedMaps == nil then
+		self.Config.ForcedMaps = {}
 		Edited = true
 	end
 
@@ -399,7 +438,7 @@ end
 	Returns the number of votes needed to begin a map vote.
 ]]
 function Plugin:GetVotesNeededToStart()
-	return Ceil( #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) * self.Config.PercentToStart )
+	return Ceil( Shared.GetEntitiesWithClassname( "Player" ):GetSize() * self.Config.PercentToStart )
 end
 
 --[[
@@ -413,14 +452,14 @@ end
 	Returns whether a map vote can start.
 ]]
 function Plugin:CanStartVote()
-	return #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) >= self.Config.MinPlayers and self.Vote.NextVote < Shared.GetTime()
+	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.Vote.NextVote < Shared.GetTime()
 end
 
 --[[
 	Returns the number of players needed to end the vote before the time is up.
 ]]
 function Plugin:GetVoteEnd()
-	return Ceil( #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) * self.Config.PercentToFinish )
+	return Ceil( Shared.GetEntitiesWithClassname( "Player" ):GetSize() * self.Config.PercentToFinish )
 end
  
 --[[
@@ -799,15 +838,34 @@ function Plugin:StartVote( NextMap )
 	--First we compile the list of maps that are going to be available to vote for.
 	local MaxOptions = self.Config.MaxOptions
 	local Nominations = self.Vote.Nominated
+	local ForcedMaps = self.Config.ForcedMaps
 
 	local AllMaps = table.duplicate( self.Config.Maps )
 	local MapList = {}
 
-	--We first look in the nominations, and enter those into the list.
+	local ForcedMapCount = self.ForcedMapCount
+
+	if ForcedMapCount > 0 then
+		--Check the forced maps that should always be an option.
+		local Count = 1
+
+		for Map in pairs( ForcedMaps ) do
+			MapList[ Count ] = Map
+
+			Count = Count + 1
+
+			AllMaps[ Map ] = nil
+		end
+	end
+
+	--We then look in the nominations, and enter those into the list.
 	for i = 1, #Nominations do
 		local Nominee = Nominations[ i ]
-		MapList[ i ] = Nominee
+		
+		MapList[ #MapList + 1 ] = Nominee
 		AllMaps[ Nominee ] = nil --Remove this from the list of all maps as it's now in our vote list.
+
+		Nominations[ i ] = nil --Remove the nomination.
 	end
 
 	local CurMap = Shared.GetMapName()
@@ -909,7 +967,7 @@ function Plugin:CreateCommands()
 		
 		local Nominated = self.Vote.Nominated
 
-		if TableContains( Nominated, Map ) then
+		if self.Config.ForcedMaps[ Map ] or TableContains( Nominated, Map ) then
 			if Player then
 				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s has already been nominated.", true, Map )
 			else
@@ -921,7 +979,7 @@ function Plugin:CreateCommands()
 
 		local Count = #Nominated 
 
-		if Count >= ( self.Config.MaxOptions - 1 ) then
+		if Count >= self.MaxNominations then
 			if Player then
 				Shine:Notify( Player, "Error", Shine.Config.ChatName, "Nominations are full." )
 			else

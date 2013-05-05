@@ -2,6 +2,8 @@
 	Shine's logging system.
 ]]
 
+local Shine = Shine
+
 if Shine.Error then return end
 
 Script.Load "lua/Utility.lua"
@@ -32,7 +34,7 @@ local MonthData = {
 }
 
 local function GetDate( Logging )
-	local SysTime = Time()
+	local SysTime = Time() + ( Shine.Config.TimeOffset * 3600 )
 
 	local Year = Floor( SysTime / 31557600 )
 	local LeapYear = ( ( Year + 2 ) % 4 ) == 0
@@ -76,7 +78,7 @@ end
 Shine.GetDate = GetDate
 
 local function GetTimeString()
-	local SysTime = Time()
+	local SysTime = Time() + ( Shine.Config.TimeOffset * 3600 )
 	local Seconds = Floor( SysTime % 60 )
 	local Minutes = Floor( ( SysTime / 60 ) % 60 )
 	local Hours = Floor( ( ( SysTime / 60 ) / 60 ) % 24 )

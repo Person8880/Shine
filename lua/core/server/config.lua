@@ -84,6 +84,11 @@ function Shine:LoadConfig()
 		Updated = true
 	end
 
+	if self.Config.TimeOffset == nil then
+		self.Config.TimeOffset = 0
+		Updated = true
+	end
+
 	if Updated then
 		self:SaveConfig()
 	end
@@ -108,6 +113,7 @@ function Shine:GenerateDefaultConfig( Save )
 		EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
 		LogDir = "config://shine\\logs\\", --Logging directory.
 		DateFormat = "dd-mm-yyyy", --Format for logging dates.
+		TimeOffset = 0, --Offset from GMT/UTC.
 
 		ExtensionDir = "config://shine\\plugins\\", --Plugin configs directory.
 
