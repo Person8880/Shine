@@ -142,7 +142,7 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 			Options ).." %s."
 	end
 
-	if NextMap then
+	if NextMap and TimeLeft > 0 then
 		VoteMessage = VoteMessage.."\nTime left on the current map: %s."
 	end
 
@@ -170,7 +170,9 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 					self.Text = StringFormat( "Vote for the next map in progress.\nMaps: %s\nType !vote <map> to vote.\nTime left to vote:", Options ).." %s."
 				end
 
-				self.Text = self.Text.."\nTime left on the current map: %s."
+				if self.TimeLeft > 0 then
+					self.Text = self.Text.."\nTime left on the current map: %s."
+				end
 
 				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ), string.TimeToString( self.TimeLeft ) ) )
 
