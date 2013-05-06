@@ -96,15 +96,19 @@ function Plugin:Initialise()
 	self:CreateCommands()
 
 	if self.Config.EnableNextMapVote then
-		local Time = Shared.GetTime()
-		local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit * 60 ) or 1800
+		if self.Config.NextMapVote == 1 then
+			self.VoteOnEnd = true
+		else
+			local Time = Shared.GetTime()
+			local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit * 60 ) or 1800
 
-		Shine.Timer.Create( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
-			local Players = Shine.GetAllPlayers()
-			if #Players > 0 then
-				self:StartVote( true )
-			end
-		end )
+			Shine.Timer.Create( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
+				local Players = Shine.GetAllPlayers()
+				if #Players > 0 then
+					self:StartVote( true )
+				end
+			end )
+		end
 	end
 
 	self.MapCycle = Cycle
@@ -173,8 +177,10 @@ function Plugin:GenerateDefaultConfig( Save )
 		ChooseRandomOnTie = true, --Choose randomly between the tied maps. If not, a revote is called.
 		MaxRevotes = 1, --Maximum number of revotes.
 
+		EnableRTV = true, --Enables RTV voting.
+
 		EnableNextMapVote = true, --Enables the vote to choose the next map.
-		NextMapVote = 0.5, --How far into a game to begin a vote for the next map.
+		NextMapVote = 0.5, --How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
 
 		ForceChange = 60 --How long left on the current map when a round ends that should force a change to the next map.
 	}
@@ -246,6 +252,11 @@ function Plugin:LoadConfig()
 
 	if self.Config.ForcedMaps == nil then
 		self.Config.ForcedMaps = {}
+		Edited = true
+	end
+
+	if self.Config.EnableRTV == nil then
+		self.Config.EnableRTV = true
 		Edited = true
 	end
 
@@ -378,10 +389,12 @@ function Plugin:GetNextMap()
 
 	for i = #Maps, 1, -1 do
 		if GetMapName( Maps[ i ] ) == CurMap then
-			Index = i + 1
+			Index = i
 			break
 		end
 	end
+
+	Index = Index + 1
 	
 	if Index > NumMaps then
 		Index = 1
@@ -413,7 +426,7 @@ function Plugin:EndGame()
 		local Message = "There is %s remaining on this map."
 
 		if TimeLeft <= self.Config.ForceChange then
-			if not self:VoteStarted() then
+			if not self:VoteStarted() and not self.VoteOnEnd then
 				Shine:Notify( nil, "", "", "The server will now cycle to %s.", true, self:GetNextMap() )
 
 				local Gamerules = GetGamerules()
@@ -427,6 +440,10 @@ function Plugin:EndGame()
 		end
 
 		Shine:Notify( nil, "", "", Message, true, string.TimeToString( TimeLeft ) )
+
+		if self.VoteOnEnd then
+			self:StartVote( true )
+		end
 	end )
 end
 
@@ -576,6 +593,19 @@ function Plugin:ProcessResults( NextMap )
 	--No one voted :|
 	if TotalVotes == 0 then
 		Shine:Notify( nil, "Vote", ChatName, "No votes made. Map vote failed." )
+
+		if self.VoteOnEnd then
+			local Map = self:GetNextMap()
+
+			Shine:Notify( nil, "", "", "The map will now cycle to %s.", true, Map )
+
+			Shine.Timer.Simple( 5, function()
+				MapCycle_ChangeMap( Map )
+			end )
+
+			return
+		end
+
 		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 		
 		if NextMap then
@@ -628,10 +658,12 @@ function Plugin:ProcessResults( NextMap )
 					NextVoteTime = ExtendTime * self.Config.NextMapVote
 				end
 
-				Shine.Timer.Destroy( self.NextMapTimer )
-				Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
-					self:StartVote( true )
-				end )
+				if not self.VoteOnEnd then
+					Shine.Timer.Destroy( self.NextMapTimer )
+					Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
+						self:StartVote( true )
+					end )
+				end
 
 				return
 			end
@@ -667,14 +699,24 @@ function Plugin:ProcessResults( NextMap )
 
 			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 
-			Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
-				local Players = Shine.GetAllPlayers()
-				if #Players > 0 then
-					self:StartVote( true )
-				end
-			end )
+			if not self.VoteOnEnd then
+				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
+					local Players = Shine.GetAllPlayers()
+					if #Players > 0 then
+						self:StartVote( true )
+					end
+				end )
+			end
 		else
-			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+			if not self.VoteOnEnd then
+				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+			else
+				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. The map will now cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+
+				Shine.Timer.Simple( 5, function()
+					MapCycle_ChangeMap( Results[ 1 ] )
+				end )
+			end
 		end
 
 		self.NextMap.Voting = false
@@ -692,6 +734,16 @@ function Plugin:ProcessResults( NextMap )
 
 		if NextMap then
 			self.NextMap.Voting = false
+
+			if self.VoteOnEnd then
+				local Map = self:GetNextMap()
+
+				Shine:Notify( nil, "", "", "The map will now cycle to %s.", true, Map )
+
+				Shine.Timer.Simple( 5, function()
+					MapCycle_ChangeMap( Map )
+				end )
+			end
 		end
 
 		return
@@ -715,8 +767,7 @@ function Plugin:ProcessResults( NextMap )
 		self.Vote.CanVeto = true --Allow vetos.
 
 		Shine:Notify( nil, "Vote", ChatName, "Votes were tied between %s.", true, Tied )
-		Shine:Notify( nil, "Vote", ChatName, "Choosing random map..." )
-		Shine:Notify( nil, "Vote", ChatName, "Chosen map: %s.", true, Choice )
+		Shine:Notify( nil, "Vote", ChatName, "Choosing random map. Map chosen: %s.", true, Choice )
 
 		if not NextMap then
 			if Choice == Shared.GetMapName() then
@@ -741,10 +792,12 @@ function Plugin:ProcessResults( NextMap )
 					NextVoteTime = ExtendTime * self.Config.NextMapVote
 				end
 
-				Shine.Timer.Destroy( self.NextMapTimer )
-				Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
-					self:StartVote( true )
-				end )
+				if not self.VoteOnEnd then
+					Shine.Timer.Destroy( self.NextMapTimer )
+					Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
+						self:StartVote( true )
+					end )
+				end
 
 				return
 			end
@@ -778,16 +831,26 @@ function Plugin:ProcessResults( NextMap )
 
 			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 
-			Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
-				local Players = Shine.GetAllPlayers()
-				if #Players > 0 then
-					self:StartVote( true )
-				end
-			end )
+			if not self.VoteOnEnd then
+				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
+					local Players = Shine.GetAllPlayers()
+					if #Players > 0 then
+						self:StartVote( true )
+					end
+				end )
+			end
 
 			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 		else
-			Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map in the cycle to %s.", true, Choice, Choice )
+			if not self.VoteOnEnd then
+				Shine:Notify( nil, "Vote", ChatName, "Setting next map in the cycle to %s.", true, Choice, Choice )
+			else
+				Shine:Notify( nil, "Vote", ChatName, "The map will now cycle to %s.", true, Choice, Choice )
+
+				Shine.Timer.Simple( 5, function()
+					MapCycle_ChangeMap( Results[ 1 ] )
+				end )
+			end
 		end
 
 		self.NextMap.Voting = false
@@ -816,6 +879,16 @@ function Plugin:ProcessResults( NextMap )
 
 		if NextMap then
 			self.NextMap.Voting = false
+
+			if self.VoteOnEnd then
+				local Map = self:GetNextMap()
+
+				Shine:Notify( nil, "", "", "The map will now cycle to %s.", true, Map )
+
+				Shine.Timer.Simple( 5, function()
+					MapCycle_ChangeMap( Map )
+				end )
+			end
 		end
 	end
 end
@@ -826,6 +899,7 @@ end
 function Plugin:StartVote( NextMap )
 	if self:VoteStarted() then return end
 	if not NextMap and not self:CanStartVote() then return end
+	if not NextMap and not self.Config.EnableRTV then return end
 
 	if not NextMap then
 		self.Vote.StartVotes = 0 --Reset votes to start.
@@ -1011,9 +1085,19 @@ function Plugin:CreateCommands()
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 
+		if not self.Config.EnableRTV then
+			if Client then
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "RTV has been disabled." )
+			else
+				Notify( "RTV has been disabled." )
+			end
+
+			return
+		end
+
 		if not self:CanStartVote() then
 			if Client then
-				Shine:Notify( Client:GetControllingPlayer(), "Error", Shine.Config.ChatName, "You cannot start a map vote at this time." )
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a map vote at this time." )
 			else
 				Notify( "You cannot start a map vote at this time." )
 			end
@@ -1193,6 +1277,18 @@ function Plugin:CreateCommands()
 	end
 	Commands.TimeLeftCommand = Shine:RegisterCommand( "sh_timeleft", "timeleft", TimeLeft, true )
 	Commands.TimeLeftCommand:Help( "Displays the remaining time for the current map." )
+
+	local function NextMap( Client )
+		local Map = self:GetNextMap()
+
+		if Client then
+			Shine:Notify( Client, "", "", "The next map is currently set to %s.", true, Map )
+		else
+			Notify( StringFormat( "The next map is currently set to %s.", Map ) )
+		end
+	end
+	Commands.NextMapCommand = Shine:RegisterCommand( "sh_nextmap", "nextmap", NextMap, true )
+	Commands.NextMapCommand:Help( "Displays the next map in the cycle or the next map voted for." )
 end
 
 function Plugin:Cleanup()

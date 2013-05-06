@@ -23,7 +23,7 @@ function Shine:BuildPluginData()
 
 	return {
 		Random = Plugins.voterandom and Plugins.voterandom.Enabled,
-		RTV = Plugins.mapvote and Plugins.mapvote.Enabled,
+		RTV = Plugins.mapvote and Plugins.mapvote.Enabled and Plugins.mapvote.Config.EnableRTV,
 		Scramble = Plugins.votescramble and Plugins.votescramble.Enabled,
 		Surrender = Plugins.votesurrender and Plugins.votesurrender.Enabled,
 		Unstuck = Plugins.unstuck and Plugins.unstuck.Enabled,
