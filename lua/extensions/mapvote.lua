@@ -436,14 +436,14 @@ function Plugin:EndGame()
 				return
 			else
 				Message = "Waiting on map vote to change map."
+
+				if self.VoteOnEnd then
+					self:StartVote( true )
+				end
 			end
 		end
 
 		Shine:Notify( nil, "", "", Message, true, string.TimeToString( TimeLeft ) )
-
-		if self.VoteOnEnd then
-			self:StartVote( true )
-		end
 	end )
 end
 
