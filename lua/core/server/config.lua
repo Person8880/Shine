@@ -5,12 +5,17 @@
 local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
 local Open = io.open
+local pairs = pairs
 local StringFormat = string.format
 
 local JSONSettings = { indent = true, level = 1 }
 
 local ConfigPath = "config://shine\\BaseConfig.json"
 local BackupPath = "config://Shine_BaseConfig.json"
+
+local function istable( Table )
+	return type( Table ) == "table"
+end
 
 function Shine.LoadJSONFile( Path )
 	local File, Err = Open( Path, "r" )
@@ -40,6 +45,71 @@ function Shine.SaveJSONFile( Table, Path )
 	return true
 end
 
+local DefaultConfig = {
+	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
+	LogDir = "config://shine\\logs\\", --Logging directory.
+	DateFormat = "dd-mm-yyyy", --Format for logging dates.
+	TimeOffset = 0, --Offset from GMT/UTC.
+
+	ExtensionDir = "config://shine\\plugins\\", --Plugin configs directory.
+
+	GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.
+	UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.
+	RefreshUsers = false, --Auto-refresh users every set amount of time.
+	RefreshInterval = 60, --How long in seconds between refreshes?
+
+	ActiveExtensions = { --Defines which plugins should be active.
+		adverts = false,
+		afkkick = false,
+		badges = false,
+		ban = true,
+		basecommands = true,
+		funcommands = false,
+		logging = false,
+		mapvote = true,
+		motd = true,
+		pregame = false,
+		readyroom = false,
+		reservedslots = false,
+		serverswitch = false,
+		unstuck = true,
+		voterandom = false,
+		votescramble = false,
+		votesurrender = true,
+		welcomemessages = false
+	},
+
+	EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
+
+	ChatName = "Admin", --The default name that should appear for notifications with a name (not all messages will show this.)
+
+	SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
+
+	AddTag = true, --Add 'shine' as a server tag.
+}
+
+local function CheckConfig( Config )
+	local Updated
+
+	for Option, Value in pairs( DefaultConfig ) do
+		if Config[ Option ] == nil then
+			Config[ Option ] = Value
+
+			Updated = true
+		elseif istable( Value ) then
+			for Index, Val in pairs( Value ) do
+				if Config[ Option ][ Index ] == nil then
+					Config[ Option ][ Index ] = Val
+
+					Updated = true
+				end
+			end
+		end
+	end
+
+	return Updated
+end
+
 function Shine:LoadConfig()
 	local ConfigFile = self.LoadJSONFile( ConfigPath )
 
@@ -57,39 +127,7 @@ function Shine:LoadConfig()
 
 	self.Config = ConfigFile
 
-	local Updated
-
-	if self.Config.RefreshUsers == nil then
-		self.Config.RefreshUsers = false
-		Updated = true
-	end
-
-	if self.Config.RefreshInterval == nil then
-		self.Config.RefreshInterval = 60
-		Updated = true
-	end
-
-	if self.Config.LegacyMode ~= nil then
-		self.Config.LegacyMode = nil
-		Updated = true
-	end
-
-	if self.Config.AddTag == nil then
-		self.Config.AddTag = true
-		Updated = true
-	end
-
-	if self.Config.ActiveExtensions.readyroom == nil then
-		self.Config.ActiveExtensions.readyroom = false
-		Updated = true
-	end
-
-	if self.Config.TimeOffset == nil then
-		self.Config.TimeOffset = 0
-		Updated = true
-	end
-
-	if Updated then
+	if CheckConfig( self.Config ) then
 		self:SaveConfig()
 	end
 end
@@ -109,47 +147,7 @@ function Shine:SaveConfig()
 end
 
 function Shine:GenerateDefaultConfig( Save )
-	self.Config = {
-		EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
-		LogDir = "config://shine\\logs\\", --Logging directory.
-		DateFormat = "dd-mm-yyyy", --Format for logging dates.
-		TimeOffset = 0, --Offset from GMT/UTC.
-
-		ExtensionDir = "config://shine\\plugins\\", --Plugin configs directory.
-
-		GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.
-		UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.
-		RefreshUsers = false, --Auto-refresh users every set amount of time.
-		RefreshInterval = 60, --How long in seconds between refreshes?
-
-		ActiveExtensions = { --Defines which plugins should be active.
-			adverts = false,
-			afkkick = false,
-			badges = false,
-			ban = true,
-			basecommands = true,
-			funcommands = false,
-			logging = false,
-			mapvote = true,
-			motd = true,
-			pregame = false,
-			readyroom = false,
-			serverswitch = false,
-			unstuck = true,
-			voterandom = false,
-			votescramble = false,
-			votesurrender = true,
-			welcomemessages = false
-		},
-
-		EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
-
-		ChatName = "Admin", --The default name that should appear for notifications with a name (not all messages will show this.)
-
-		SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
-
-		AddTag = true, --Add 'shine' as a server tag.
-	}
+	self.Config = DefaultConfig
 
 	if Save then
 		self:SaveConfig()
