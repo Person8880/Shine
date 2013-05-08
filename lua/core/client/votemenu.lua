@@ -288,3 +288,16 @@ local function BindVoteKey()
 	Shared.Message( "Shine was unable to bind a key to the vote menu. If you would like to use it, type bind <key> sh_votemenu" )
 end
 Event.Hook( "LoadComplete", BindVoteKey )
+
+local function OverrideNS2StatsText()
+	if not RBPS then return end
+	--Taken straight from the NS2stats code, just modified the starting height.
+	function RBPS:clientShowNextAward( id )
+		local addY = id * 22
+		local col = Color( 230/255, 230/255, 0/255 )             
+		
+		Cout:addClientTextMessage(Client.GetScreenWidth() * 6/8,(Client.GetScreenHeight() * 1/3) + addY
+			,RBPSclientAwards[id],30-id, col, "awardmsg" .. id)                    
+	end
+end
+Event.Hook( "LoadComplete", OverrideNS2StatsText ) 
