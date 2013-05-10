@@ -917,6 +917,9 @@ function Plugin:StartVote( NextMap )
 	local AllMaps = table.duplicate( self.Config.Maps )
 	local MapList = {}
 
+	local CurMap = Shared.GetMapName()
+	local AllowCurMap = self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends
+
 	local ForcedMapCount = self.ForcedMapCount
 
 	if ForcedMapCount > 0 then
@@ -924,11 +927,13 @@ function Plugin:StartVote( NextMap )
 		local Count = 1
 
 		for Map in pairs( ForcedMaps ) do
-			MapList[ Count ] = Map
+			if Map ~= CurMap or AllowCurMap then
+				MapList[ Count ] = Map
 
-			Count = Count + 1
+				Count = Count + 1
 
-			AllMaps[ Map ] = nil
+				AllMaps[ Map ] = nil
+			end
 		end
 	end
 
@@ -941,9 +946,6 @@ function Plugin:StartVote( NextMap )
 
 		Nominations[ i ] = nil --Remove the nomination.
 	end
-
-	local CurMap = Shared.GetMapName()
-	local AllowCurMap = self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends
 
 	--If we have map extension enabled, ensure it's in the vote list.
 	if AllowCurMap then
