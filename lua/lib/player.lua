@@ -13,6 +13,13 @@ Shine.Hook.Add( "PostloadConfig", "PlayerAPI", function()
 end )
 
 --[[
+	Returns whether the given client is valid.
+]]
+function Shine:IsValidClient( Client )
+	return Client and self.GameIDs[ Client ] ~= nil
+end
+
+--[[
 	Returns a table of all players.
 ]]
 function Shine.GetAllPlayers()
