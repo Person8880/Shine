@@ -31,7 +31,8 @@ function Plugin:GenerateDefaultConfig( Save )
 		Mode = self.TEXT_MODE,
 		URL = "http://www.unknownworlds.com/ns2/",
 		MessageText = { "Welcome to my awesome server!", "Admins can be reached @ mywebsite.com", "Have a pleasant stay!" }, --Message lines.
-		Accepted = {}
+		Accepted = {},
+		Delay = 5
 	}
 
 	if Save then
@@ -72,8 +73,8 @@ function Plugin:LoadConfig()
 
 	local Edited
 
-	if self.Config.Delay then
-		self.Config.Delay = nil
+	if self.Config.Delay == nil then
+		self.Config.Delay = 5
 		Edited = true
 	end
 
@@ -82,21 +83,21 @@ function Plugin:LoadConfig()
 	end
 end
 
-function Plugin:ShowMotD( Player )
-	if not Player then return end
+function Plugin:ShowMotD( Client )
+	if not Shine:IsValidClient( Client ) then return end
 	
 	if self.Config.Mode == self.TEXT_MODE then
 		local Messages = self.Config.MessageText
 
 		for i = 1, #Messages do
-			Shine:Notify( Player, "", "", Messages[ i ] )
+			Shine:Notify( Client, "", "", Messages[ i ] )
 		end
 
 		return
 	end
 
 	if self.Config.Mode == self.HTML_MODE then
-		Server.SendNetworkMessage( Player, "Shine_Web", { URL = self.Config.URL }, true )
+		Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL }, true )
 	end
 end
 
@@ -109,7 +110,9 @@ function Plugin:ClientConfirmConnect( Client )
 
 	if Shine:HasAccess( Client, "sh_showmotd" ) then return end
 
-	self:ShowMotD( Client )
+	Shine.Timer.Simple( self.Config.Delay, function()
+		self:ShowMotD( Client )
+	end )
 end
 
 function Plugin:CreateCommands()

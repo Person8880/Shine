@@ -70,6 +70,18 @@ Shine.Hook.Add = Add
 local function Call( Event, ... )
 	local Plugins = Shine.Plugins
 
+	local Hooked = Hooks[ Event ]
+
+	local MaxPriority = Hooked and Hooked[ -20 ]
+
+	--Call max priority hooks BEFORE plugins.
+	if MaxPriority then
+		for Index, Func in pairs( MaxPriority ) do
+			local Result = { Func( ... ) }
+			if Result[ 1 ] ~= nil then return Result end
+		end
+	end
+
 	if Plugins then
 		--Automatically call the plugin hooks.
 		for Plugin, Table in pairs( Plugins ) do
@@ -82,11 +94,9 @@ local function Call( Event, ... )
 		end
 	end
 
-	local Hooked = Hooks[ Event ]
-
 	if not Hooked then return end
 
-	for i = -20, 20 do
+	for i = -19, 20 do
 		local HookTable = Hooked[ i ]
 
 		if HookTable then
