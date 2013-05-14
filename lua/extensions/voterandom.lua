@@ -278,8 +278,13 @@ end
 function Plugin:AddVote( Client )
 	if not Client then Client = "Console" end
 	
-	if not self:CanStartVote() then return false, "can't start" end
-	if self.Voted[ Client ] then return false, "already voted" end
+	local Result = Shine.Hook.Call( "OnVoteStart", "random" )
+	if Result then 
+		if not Result[ 1 ] then return false, Result[ 2 ] end
+	end
+
+	if not self:CanStartVote() then return false, "You cannot start a random teams vote at this time." end
+	if self.Voted[ Client ] then return false, "You have already voted for random teams." end
 
 	self.Voted[ Client ] = true
 	self.Votes = self.Votes + 1
@@ -375,18 +380,10 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		if Err == "can't start" then
-			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a random teams vote at this time." )
-			else
-				Notify( "You cannot start a random teams vote at this time." )
-			end
+		if Player then
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, Err )
 		else
-			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted for random teams." )
-			else
-				Notify( "You have already voted for random teams." )
-			end
+			Notify( Err )
 		end
 	end
 	Commands.VoteRandomCommand = Shine:RegisterCommand( "sh_voterandom", { "random", "voterandom", "randomvote" }, VoteRandom, true )
