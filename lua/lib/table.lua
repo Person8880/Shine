@@ -41,6 +41,29 @@ function table.ChooseRandom( Table )
 	end
 end
 
+--[[
+	Returns the average of the numerical values in the table.
+]]
+function table.Average( Table )
+	local Count = #Table
+	local Sum = 0
+
+	for i = 1, Count do
+		Sum = Sum + Table[ i ]
+	end
+
+	return Sum / Count
+end
+
+--[[
+	Clears a table.
+]]
+function table.Empty( Table )
+	for k in pairs( Table ) do
+		Table[ k ] = nil
+	end
+end
+
 local function istable( Table )
 	return type( Table ) == "table"
 end
