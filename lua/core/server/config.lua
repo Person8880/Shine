@@ -68,6 +68,7 @@ local DefaultConfig = {
 		logging = false,
 		mapvote = true,
 		motd = true,
+		pingtracker = false,
 		pregame = false,
 		readyroom = false,
 		reservedslots = false,
