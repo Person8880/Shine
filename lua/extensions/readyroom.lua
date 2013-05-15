@@ -37,6 +37,7 @@ function Plugin:GenerateDefaultConfig( Save )
 		MaxIdleTime = 120, --Max time in seconds to allow sitting in the ready room.
 		TimeToBlockF4 = 120, --Time to block going back to the ready room after being forced out of it.
 		DisableSpectate = false, --Disable spectate?
+		TrackOnRoundStart = true, --Only track when a round has started?
 	}
 
 	if Save then
@@ -74,6 +75,11 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
+
+	if self.Config.TrackOnRoundStart == nil then
+		self.Config.TrackOnRoundStart = true
+		self:SaveConfig()
+	end
 end
 
 --Prevent players from joining the spectator team, and prevent going back to the ready room after being forced out of it.
@@ -196,7 +202,7 @@ end
 	Updates the state of ready room idling/time to allow going back to the ready room.
 ]]
 function Plugin:Think()
-	if not self.GameStarted then return end
+	if not self.GameStarted and self.Config.TrackOnRoundStart then return end
 	if not self.Config.TrackReadyRoomPlayers then return end
 
 	local Time = Shared.GetTime()
