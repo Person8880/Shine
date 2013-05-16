@@ -22,15 +22,21 @@ Plugin.ConfigName = "VoteSurrender.json"
 Plugin.Commands = {}
 
 function Plugin:Initialise()
-	self.Votes = {}
-	self.Votes[ 1 ] = 0 --Marines
-	self.Votes[ 2 ] = 0 --Aliens
+	self.Votes = {
+		Shine:CreateVote( function() return self:GetVotesNeeded( 1 ) end, function() self:Surrender( 1 ) end,
+		function( Vote )
+			if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
+				Vote:Reset()
+			end
+		end ),
 
-	self.Voted = {}
-	self.Voted[ 1 ] = {}
-	self.Voted[ 2 ] = {}
-
-	self.LastVoted = {}
+		Shine:CreateVote( function() return self:GetVotesNeeded( 2 ) end, function() self:Surrender( 2 ) end,
+		function( Vote )
+			if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
+				Vote:Reset()
+			end
+		end )
+	}
 
 	self.NextVote = 0
 
@@ -128,16 +134,9 @@ function Plugin:AddVote( Client, Team )
 	if Team ~= 1 and Team ~= 2 then return false, "spectators can't surrender!" end --Would be a fun bug...
 	
 	if not self:CanStartVote( Team ) then return false, "can't start" end
-	if self.Voted[ Team ][ Client ] then return false, "already voted" end
+	local Success, Err = self.Votes[ Team ]:AddVote( Client )
 
-	self.Voted[ Team ][ Client ] = true
-	self.Votes[ Team ] = self.Votes[ Team ] + 1
-
-	self.LastVoted[ Team ] = Shared.GetTime()
-
-	if self.Votes[ Team ] >= self:GetVotesNeeded( Team ) then
-		self:Surrender( Team )
-	end
+	if not Success then return false, Err end
 
 	return true
 end
@@ -147,12 +146,32 @@ end
 ]]
 function Plugin:Think()
 	for i = 1, 2 do
-		if self.LastVoted[ i ] and ( ( Shared.GetTime() - self.LastVoted[ i ] ) > self.Config.VoteTimeout ) then
-			if self.Votes[ i ] > 0 then
-				self.Voted[ i ] = {}
-				self.Votes[ i ] = 0
-			end		
-		end 
+		self.Votes[ i ]:Think()
+	end
+end
+
+--[[
+	Remove a client's vote if they disconnect!
+]]
+function Plugin:ClientDisconnect( Client )
+	for i = 1, 2 do
+		self.Votes[ i ]:ClientDisconnect( Client )
+	end
+end
+
+--[[
+	Remove a client's vote if they leave the team!
+]]
+function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineForce )
+	if not Player then return end
+	local Client = Player:GetClient()
+
+	if not Client then return end
+
+	local Vote = self.Votes[ OldTeam ]
+
+	if Vote then
+		Vote:RemoveVote( Client )
 	end
 end
 
@@ -169,9 +188,6 @@ function Plugin:Surrender( Team )
 	Server.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
 	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
-
-	self.Votes[ Team ] = 0
-	self.Voted[ Team ] = {}
 end
 
 --[[
@@ -187,7 +203,7 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 
 	local Team = Player:GetTeam():GetTeamNumber()
 
-	local Votes = self.Votes[ Team ]
+	local Votes = self.Votes[ Team ]:GetVotes()
 	
 	local Success, Err = self:AddVote( Client, Team )
 
@@ -228,7 +244,13 @@ function Plugin:CreateCommands()
 
 		local Team = Player:GetTeamNumber()
 
-		local Votes = self.Votes[ Team ]
+		if not self.Votes[ Team ] then
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a surrender vote at this time." )
+
+			return
+		end
+
+		local Votes = self.Votes[ Team ]:GetVotes()
 		
 		local Success, Err = self:AddVote( Client, Team )
 

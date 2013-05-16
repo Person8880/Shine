@@ -27,8 +27,13 @@ function Plugin:Initialise()
 	self:CreateCommands()
 
 	self.NextVote = 0
-	self.Voted = {}
-	self.Votes = 0
+
+	self.Vote = Shine:CreateVote( function() return self:GetVotesNeeded() end, function() self:ApplyRandomSettings() end, 
+	function( Vote )
+		if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
+			Vote:Reset()
+		end
+	end	)
 
 	self.ForceRandomEnd = 0 --Time based.
 	self.RandomOnNextRound = false --Round based.
@@ -264,6 +269,10 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	end
 end
 
+function Plugin:ClientDisconnect( Client )
+	self.Vote:ClientDisconnect( Client )
+end
+
 function Plugin:GetVotesNeeded()
 	return Ceil( #EntityListToTable( Shared.GetEntitiesWithClassname( "Player" ) ) * self.Config.PercentNeeded )
 end
@@ -284,30 +293,18 @@ function Plugin:AddVote( Client )
 	end
 
 	if not self:CanStartVote() then return false, "You cannot start a random teams vote at this time." end
-	if self.Voted[ Client ] then return false, "You have already voted for random teams." end
-
-	self.Voted[ Client ] = true
-	self.Votes = self.Votes + 1
-
-	self.LastVoted = Shared.GetTime()
-
-	if self.Votes >= self:GetVotesNeeded() then
-		self:ApplyRandomSettings()
-	end
+	
+	local Success = self.Vote:AddVote( Client )
+	if not Success then return false, "You have already voted for random teams." end
 
 	return true
 end
 
 --[[
-	Timeout the vote. 1 minute and no votes should reset it.
+	Timeout the vote.
 ]]
 function Plugin:Think()
-	if self.LastVoted and ( ( Shared.GetTime() - self.LastVoted ) > self.Config.VoteTimeout ) then
-		if self.Votes > 0 then
-			self.Voted = {}
-			self.Votes = 0
-		end		
-	end 
+	self.Vote:Think()
 end
 
 --[[
@@ -316,8 +313,6 @@ end
 	If set to a time duration, it enables random teams and queues the disabling of them.
 ]]
 function Plugin:ApplyRandomSettings()
-	self.Voted = {}
-	self.Votes = 0
 	local ChatName = Shine.Config.ChatName
 
 	self.RandomApplied = true
@@ -363,9 +358,9 @@ function Plugin:CreateCommands()
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 
-		local Success, Err = self:AddVote( Client )
+		local Votes = self.Vote:GetVotes()
 
-		local Votes = self.Votes
+		local Success, Err = self:AddVote( Client )	
 
 		if Success then
 			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )
@@ -391,12 +386,11 @@ function Plugin:CreateCommands()
 
 	local function ForceRandomTeams( Client, Enable )
 		if Enable then
+			self.Vote:Reset()
 			self:ApplyRandomSettings()
 		else
-			self.Votes = 0
-			self.Voted = {}
-
 			Shine.Timer.Destroy( self.RandomEndTimer )
+			self.Vote:Reset()
 
 			self.RandomOnNextRound = false
 			self.ForceRandom = false

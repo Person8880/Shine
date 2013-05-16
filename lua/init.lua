@@ -18,6 +18,7 @@ local Scripts = {
 	"core/server/hook.lua",
 	"lib/player.lua",
 	"lib/timer.lua",
+	"lib/votes.lua",
 	--"Server.lua",
 	"core/server/permissions.lua",
 	"core/server/commands.lua",

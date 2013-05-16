@@ -33,8 +33,12 @@ Plugin.SCRAMBLE_SCORE = 2
 function Plugin:Initialise()
 	self:CreateCommands()
 	self.NextVote = 0
-	self.Voted = {}
-	self.Votes = 0
+	self.Vote = Shine:CreateVote( function() return self:GetVotesNeeded() end, function() self:ScrambleTeams() end,
+	function( Vote )
+		if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
+			Vote:Reset()
+		end
+	end )
 
 	local Gamerules = GetGamerules()
 
@@ -110,8 +114,7 @@ end
 	Reset and disallow scrambling on game end.
 ]]
 function Plugin:EndGame( Gamerules, WinningTeam )
-	self.Votes = 0
-	self.Voted = {}
+	self.Vote:Reset()
 
 	self.RoundStarted = false
 end
@@ -123,6 +126,10 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 	if State == kGameState.Started then
 		self.RoundStarted = true
 	end
+end
+
+function Plugin:ClientDisconnect( Client )
+	self.Vote:ClientDisconnect( Client )
 end
 
 function Plugin:GetVotesNeeded()
@@ -137,16 +144,9 @@ function Plugin:AddVote( Client )
 	if not Client then Client = "Console" end
 	
 	if not self:CanStartVote() then return false, "can't start" end
-	if self.Voted[ Client ] then return false, "already voted" end
+	local Success, Err = self.Vote:AddVote( Client )
 
-	self.Voted[ Client ] = true
-	self.Votes = self.Votes + 1
-
-	self.LastVoted = Shared.GetTime()
-
-	if self.Votes == self:GetVotesNeeded() then
-		self:ScrambleTeams()
-	end
+	if not Success then return Err end
 
 	return true
 end
@@ -155,12 +155,7 @@ end
 	Timeout the vote. 1 minute and no votes should reset it.
 ]]
 function Plugin:Think()
-	if self.LastVoted and ( ( Shared.GetTime() - self.LastVoted ) > self.Config.VoteTimeout ) then
-		if self.Votes > 0 then
-			self.Voted = {}
-			self.Votes = 0
-		end		
-	end 
+	self.Vote:Think()
 end
 
 function Plugin:ScrambleTeams()
@@ -247,8 +242,6 @@ function Plugin:ScrambleTeams()
 		end )
 
 		self.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-		self.Voted = {}
-		self.Votes = 0
 
 		return
 	end
@@ -293,8 +286,6 @@ function Plugin:ScrambleTeams()
 		end )
 
 		self.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-		self.Voted = {}
-		self.Votes = 0
 
 		return
 	end
@@ -307,9 +298,9 @@ function Plugin:CreateCommands()
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 
-		local Success, Err = self:AddVote( Client )
+		local Votes = self.Vote:GetVotes()
 
-		local Votes = self.Votes
+		local Success, Err = self:AddVote( Client )
 
 		if Success then
 			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )

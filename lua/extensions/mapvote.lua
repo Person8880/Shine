@@ -54,8 +54,7 @@ function Plugin:Initialise()
 	self.Vote = self.Vote or {}
 	self.Vote.Nominated = {} --Table of nominated maps.
 
-	self.Vote.VotedToStart = {} --Table of players that have voted to start a vote.
-	self.Vote.StartVotes = 0 --Number of votes made to start a map vote.
+	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end, function() self:StartVote() end )
 
 	self.Vote.Votes = 0 --Number of map votes that have taken place.
 	self.Vote.Voted = {} --Table of players that have voted for a map.
@@ -353,6 +352,10 @@ function Plugin:ClientConfirmConnect( Client )
 	Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining() )
 end
 
+function Plugin:ClientDisconnect( Client )
+	self.StartVote:ClientDisconnect( Client )
+end
+
 --[[
 	Client's requesting the vote data.
 ]]
@@ -533,17 +536,9 @@ function Plugin:AddStartVote( Client )
 	end
 
 	if self:VoteStarted() then return false, "A vote is already in progress." end
-	if self.Vote.VotedToStart[ Client ] then return false, "You have already voted to begin a map vote." end
-	
-	self.Vote.StartVotes = self.Vote.StartVotes + 1
+	local Success = self.StartingVote:AddVote( Client )
 
-	self.Vote.VotedToStart[ Client ] = true
-
-	local VotesNeeded = self:GetVotesNeededToStart() 
-
-	if self.Vote.StartVotes >= VotesNeeded then
-		self:StartVote()
-	end
+	if not Success then return false, "You have already voted to begin a map vote." end
 
 	return true
 end
@@ -948,11 +943,6 @@ function Plugin:StartVote( NextMap )
 	if not NextMap and not self:CanStartVote() then return end
 	if not NextMap and not self.Config.EnableRTV then return end
 
-	if not NextMap then
-		self.Vote.StartVotes = 0 --Reset votes to start.
-		self.Vote.VotedToStart = {} --Reset those who voted to start.
-	end
-
 	self.Vote.TotalVotes = 0 --Reset votes.
 	self.Vote.Voted = {} --Reset who has voted from last time.	
 	
@@ -1154,7 +1144,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local TotalVotes = self.Vote.StartVotes
+		local TotalVotes = self.StartingVote:GetVotes()
 
 		local Success, Err = self:AddStartVote( Client )
 		if Success then
