@@ -255,7 +255,15 @@ Add( "Think", "ReplaceMethods", function()
 			end
 		end
 
-		return OldJoinTeam( self, Player, NewTeam, Force )
+		local OldTeam = Player:GetTeamNumber()
+
+		local Bool, Player = OldJoinTeam( self, Player, NewTeam, Force )
+
+		if Bool then
+			Call( "PostJoinTeam", self, Player, OldTeam, NewTeam, Force, ShineForce )
+		end
+
+		return Bool, Player
 	end )
 
 	local OldEndGame
