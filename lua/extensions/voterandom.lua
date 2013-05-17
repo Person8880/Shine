@@ -341,7 +341,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	end
 	local Players = Shine.GetAllPlayers()
 
-	--Reset the randomised state of all players.
+	--Reset the randomised state of all players and store score data.
 	for i = 1, #Players do
 		local Player = Players[ i ]
 		
@@ -510,16 +510,6 @@ function Plugin:ApplyRandomSettings()
 		else
 			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s...", 
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
-		end
-
-		if self.Config.BalanceMode == self.MODE_SCORE then
-			local Players = Shine.GetAllPlayers()
-
-			for i = 1, #Players do
-				local Player = Players[ i ]
-
-				if Player then self:StoreScoreData( Player ) end	
-			end
 		end
 
 		self:ShuffleTeams()
