@@ -433,7 +433,7 @@ function Plugin:CreateCommands()
 		end
 	end
 	Commands.PMCommand = Shine:RegisterCommand( "sh_pm", "pm", PM )
-	Commands.PMCommand:AddParam{ Type = "client" }
+	Commands.PMCommand:AddParam{ Type = "client", IgnoreCanTarget = true }
 	Commands.PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
 	Commands.PMCommand:Help( "<player> <message> Sends a private message to the given player." )
 
