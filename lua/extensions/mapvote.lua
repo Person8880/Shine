@@ -353,7 +353,7 @@ function Plugin:ClientConfirmConnect( Client )
 end
 
 function Plugin:ClientDisconnect( Client )
-	self.StartVote:ClientDisconnect( Client )
+	self.StartingVote:ClientDisconnect( Client )
 end
 
 --[[
