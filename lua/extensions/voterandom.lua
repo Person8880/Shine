@@ -9,12 +9,14 @@ local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 
 local Ceil = math.ceil
+local Clamp = math.Clamp
 local Floor = math.floor
 local Max = math.max
 local Random = math.random
+local TableSort = table.sort
 
 local Plugin = {}
-Plugin.Version = "1.2"
+Plugin.Version = "1.5"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteRandom.json"
@@ -22,6 +24,39 @@ Plugin.ConfigName = "VoteRandom.json"
 Plugin.Commands = {}
 
 Plugin.RandomEndTimer = "VoteRandomTimer"
+
+Plugin.MODE_RANDOM = 1
+Plugin.MODE_SCORE = 2
+Plugin.MODE_ELO = 3
+
+local ModeStrings = {
+	Mode = {
+		"Random",
+		"Score based",
+		"ELO based"
+	},
+	ModeLower = {
+		"random",
+		"score based",
+		"ELO based"
+	},
+	Action = {
+		"randomly",
+		"based on score",
+		"based on ELO"
+	}
+}
+
+local DefaultConfig = {
+	MinPlayers = 10, --Minimum number of players on the server to enable random voting.
+	PercentNeeded = 0.75, --Percentage of the server population needing to vote for it to succeed.
+	Duration = 15, --Time to force people onto random teams for after a random vote. Also time between successful votes.
+	RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
+	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
+	VoteTimeout = 60, --Time after the last vote before the vote resets.
+	BalanceMode = Plugin.MODE_RANDOM, --How should teams be balanced?
+	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
+}
 
 function Plugin:Initialise()
 	self:CreateCommands()
@@ -40,20 +75,15 @@ function Plugin:Initialise()
 
 	self.ForceRandom = false
 
+	self.ScoreData = {}
+
 	self.Enabled = true
 
 	return true
 end
 
 function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		MinPlayers = 10, --Minimum number of players on the server to enable random voting.
-		PercentNeeded = 0.75, --Percentage of the server population needing to vote for it to succeed.
-		Duration = 15, --Time to force people onto random teams for after a random vote. Also time between successful votes.
-		RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
-		InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
-		VoteTimeout = 60, --Time after the last vote before the vote resets.
-	}
+	self.Config = DefaultConfig
 
 	if Save then
 		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
@@ -91,21 +121,124 @@ function Plugin:LoadConfig()
 
 	self.Config = PluginConfig
 
-	local Changed
+	if Shine.CheckConfig( self.Config, DefaultConfig ) then self:SaveConfig() end
 
-	if self.Config.InstantForce == nil then
-		self.Config.InstantForce = true
-
-		Changed = true
-	end
-
-	if self.Config.VoteTimeout == nil then
-		self.Config.VoteTimeout = 60
-		Changed = true
-	end
-
-	if Changed then self:SaveConfig() end
+	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 3 )
 end
+
+Plugin.ShufflingModes = {
+	function( self, Gamerules, Targets ) --Random only.
+		local NumPlayers = #Targets
+
+		local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+
+		for i = 1, NumPlayers do
+			local Player = Targets[ i ]
+			if Player then
+				Gamerules:JoinTeam( Player, TeamSequence[ i ], nil, true )
+			end
+		end
+	end,
+
+	function( self, Gamerules, Targets ) --Score based if available, random if not.
+		local ScoreData = self.ScoreData
+
+		local ScoreTable = {}
+		local RandomTable = {}
+
+		for i = 1, #Targets do
+			local Player = Targets[ i ]
+
+			if Player then
+				local Client = Player:GetClient()
+
+				if Client then
+					local ID = Client:GetUserId()
+
+					local Data = ScoreData[ ID ]
+
+					if Data then
+						ScoreTable[ #ScoreTable + 1 ] = { Player = Player, Score = Data }
+					else
+						RandomTable[ #RandomTable + 1 ] = Player
+					end
+				end
+			end
+		end
+
+		local ScoreSortCount = #ScoreTable
+
+		if ScoreSortCount > 0 then
+			TableSort( ScoreTable, function( A, B ) return A.Score > B.Score end )
+
+			for i = 1, ScoreSortCount do
+				Gamerules:JoinTeam( ScoreTable[ i ].Player, ( i % 2 ) + 1, nil, true )
+			end
+		end
+
+		local RandomTableCount = #RandomTable
+
+		if RandomTableCount > 0 then
+			local TeamSequence = math.GenerateSequence( RandomTableCount, { 1, 2 } )
+
+			for i = 1, RandomTableCount do
+				Gamerules:JoinTeam( RandomTable[ i ], TeamSequence[ i ], nil, true )
+			end
+		end
+	end,
+
+	function( self, Gamerules, Targets ) --NS2Stats ELO based.
+		if not RBPS then return self.ShufflingModes[ 1 ]( self, Gamerules, Targets ) end
+
+		RBPS:autoArrangeSetELOs()
+		
+		local Players = RBPS.Players
+
+		local ELOSort = {}
+		local Count = 0
+
+		local Sorted = {}
+
+		for Index, Player in pairs( Players ) do
+			local MELO = Player.marine_ELO
+			local AELO = Player.alien_ELO
+
+			local ID = Player.steamId
+
+			local Client = Shine.GetClientByNS2ID( tonumber( ID ) )
+			local Ply = Client:GetControllingPlayer()
+
+			if Ply then
+				Count = Count + 1
+				ELOSort[ Count ] = { Player = Ply, ELO = ( MELO + AELO ) * 0.5 } --Average ELO, otherwise this gets way too messy.
+				Sorted[ Ply ] = true
+			end
+		end
+
+		TableSort( ELOSort, function( A, B ) return A.ELO > B.ELO end )
+
+		for i = 1, Count do
+			if ELOSort[ i ] then
+				Gamerules:JoinTeam( ELOSort[ i ].Player, ( i % 2 ) + 1, nil, true )
+			end
+		end
+
+		local Players = Shine.GetAllPlayers()
+		local Count = #Players - Count
+
+		local TeamSequence = math.GenerateSequence( Count, { 1, 2 } )
+		local SequenceNum = 0
+
+		for i = 1, #Players do
+			local Player = Players[ i ]
+
+			if Player and not Sorted[ Player ] then
+				SequenceNum = SequenceNum + 1
+				Gamerules:JoinTeam( Player, TeamSequence[ SequenceNum ], nil, true )
+			end
+		end
+	end
+}
 
 --[[
 	Shuffles everyone on the server into random teams.
@@ -137,15 +270,22 @@ function Plugin:ShuffleTeams()
 		end
 	end
 
-	local NumPlayers = #Targets
+	self.ShufflingModes[ self.Config.BalanceMode ]( self, Gamerules, Targets )
+end
 
-	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+--[[
+	Stores a player's score.
+]]
+function Plugin:StoreScoreData( Player )
+	local Client = Player:GetClient()
 
-	for i = 1, NumPlayers do
-		local Player = Targets[ i ]
-		if Player then
-			Gamerules:JoinTeam( Player, TeamSequence[ i ], nil, true )
-		end
+	if not Client then return end
+	
+	local ID = Client:GetUserId()
+
+	--Don't want to store data about 0 score players, we'll just randomise them.
+	if Player.score and Player.score > 0 then
+		self.ScoreData[ ID ] = Player.score
 	end
 end
 
@@ -177,7 +317,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		self.RandomOnNextRound = false
 		
 		Shine.Timer.Simple( 10, function()
-			Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams due to random vote." )
+			Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
 			self:ShuffleTeams()
 			
@@ -189,7 +329,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		else
 			self.ForceRandom = false
 			Shine.Timer.Simple( 10, function()
-				Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams due to random vote." )
+				Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
 				self:ShuffleTeams()
 
@@ -207,6 +347,10 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		
 		if Player then
 			Player.ShineRandomised = nil
+			
+			if self.Config.BalanceMode == self.MODE_SCORE then
+				self:StoreScoreData( Player )
+			end
 		end
 	end
 end
@@ -228,9 +372,9 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	if not Player.ShineRandomised then
 		--Do not allow cheating the system.
-		if Team == 1 or Team == 2 and not Immune then 
+		if Team == 1 or Team == 2 and not ( Immune or not self.Config.BlockTeams ) then 
 			if not Player.NextShineNotify or Player.NextShineNotify < Shared.GetTime() then --Spamming F4 shouldn't spam messages...
-				Shine:Notify( Player, "Random", ChatName, "You cannot switch teams. Random teams are enabled." )
+				Shine:Notify( Player, "Random", ChatName, "You cannot switch teams. %s teams are enabled.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 
 				Player.NextShineNotify = Time + 5
 			end
@@ -251,9 +395,9 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		end
 	else
 		--Do not allow cheating the system.
-		if Team == 1 or Team == 2 and not Immune then 
+		if Team == 1 or Team == 2 and not ( Immune or not self.Config.BlockTeams ) then 
 			if not Player.NextShineNotify or Player.NextShineNotify < Shared.GetTime() then
-				Shine:Notify( Player, "Random", ChatName, "You cannot switch teams. Random teams are enabled." )
+				Shine:Notify( Player, "Random", ChatName, "You cannot switch teams. %s teams are enabled.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 
 				Player.NextShineNotify = Time + 5
 			end
@@ -322,7 +466,22 @@ function Plugin:ApplyRandomSettings()
 
 	--Set up random teams for the next round.
 	if self.Config.RandomOnNextRound then
-		Shine:Notify( nil, "Random", ChatName, "Teams will be forced to random in the next round." )
+		local Gamerules = GetGamerules()
+
+		--Game hasn't started, apply the random settings now, as the next round is the one that's going to start...
+		if not Gamerules:GetGameStarted() then
+			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s for the next round...", 
+				true, ModeStrings.Action[ self.Config.BalanceMode ] )
+
+			self:ShuffleTeams()
+
+			self.ForceRandom = true
+
+			return
+		end
+
+		Shine:Notify( nil, "Random", ChatName, "Teams will be forced to %s in the next round.", 
+			true, ModeStrings.ModeLower[ self.Config.BalanceMode ] )
 
 		self.RandomOnNextRound = true
 
@@ -335,20 +494,47 @@ function Plugin:ApplyRandomSettings()
 	self.ForceRandom = true
 	self.NextVote = Shared.GetTime() + Duration
 
-	Shine:Notify( nil, "Random", ChatName, "Random teams have been enabled for the next %s.", true, string.TimeToString( Duration ) )
+	if self.Config.BlockTeams then
+		Shine:Notify( nil, "Random", ChatName, "%s teams have been enabled for the next %s.", 
+			true, ModeStrings.Mode[ self.Config.BalanceMode ], string.TimeToString( Duration ) )
+	end
 
 	if self.Config.InstantForce then
-		Shine:Notify( nil, "Random", ChatName, "Shuffling teams and restarting round..." )
+		local Gamerules = GetGamerules()
+
+		local Started = Gamerules:GetGameStarted()
+
+		if Started then
+			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s and restarting round...", 
+				true, ModeStrings.Action[ self.Config.BalanceMode ] )
+		else
+			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s...", 
+				true, ModeStrings.Action[ self.Config.BalanceMode ] )
+		end
+
+		if self.Config.BalanceMode == self.MODE_SCORE then
+			local Players = Shine.GetAllPlayers()
+
+			for i = 1, #Players do
+				local Player = Players[ i ]
+
+				if Player then self:StoreScoreData( Player ) end	
+			end
+		end
 
 		self:ShuffleTeams()
 
-		GetGamerules():ResetGame()
+		if Started then
+			Gamerules:ResetGame()
+		end
 	end
 
-	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
-		Shine:Notify( nil, "Random", ChatName, "Random teams disabled, time limit reached." )
-		self.ForceRandom = false
-	end )
+	if self.Config.BlockTeams then
+		Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
+			Shine:Notify( nil, "Random", ChatName, "%s teams disabled, time limit reached.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
+			self.ForceRandom = false
+		end )
+	end
 end
 
 function Plugin:CreateCommands()
@@ -365,7 +551,8 @@ function Plugin:CreateCommands()
 		if Success then
 			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )
 
-			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to force random teams (%s more votes needed).", true, PlayerName, VotesNeeded )
+			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to force %s teams (%s more votes needed).", 
+				true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ], VotesNeeded )
 
 			--Somehow it didn't apply random settings??
 			if VotesNeeded == 0 and not self.RandomApplied then
@@ -395,7 +582,7 @@ function Plugin:CreateCommands()
 			self.RandomOnNextRound = false
 			self.ForceRandom = false
 
-			Shine:Notify( nil, "Random", Shine.Config.ChatName, "Random teams were disabled." )
+			Shine:Notify( nil, "Random", Shine.Config.ChatName, "%s teams were disabled.", ModeStrings.Mode[ self.Config.BalanceMode ] )
 		end
 	end
 	Commands.ForceRandomCommand = Shine:RegisterCommand( "sh_enablerandom", "enablerandom", ForceRandomTeams )

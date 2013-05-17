@@ -63,7 +63,7 @@ function Plugin:CreateCommands()
 		self:MovePlayerToPlayer( Player, TargetPlayer )
 	end
 	Commands.GoToCommand = Shine:RegisterCommand( "sh_goto", "goto", GoTo )
-	Commands.GoToCommand:AddParam{ Type = "client", NotSelf = true }
+	Commands.GoToCommand:AddParam{ Type = "client", NotSelf = true, IgnoreCanTarget = true }
 	Commands.GoToCommand:Help( "<player> Moves you to the given player." )
 
 	local function Bring( Client, Target )
