@@ -205,7 +205,19 @@ function Plugin:Think()
 	if not self.GameStarted and self.Config.TrackOnRoundStart then return end
 	if not self.Config.TrackReadyRoomPlayers then return end
 
+	local MapVote = Shine.Plugins.mapvote
 	local Time = Shared.GetTime()
+
+	--Disable on map cycling/end vote.
+	if MapVote and MapVote.Enabled then
+		if MapVote.CyclingMap or ( MapVote.VoteOnEnd and MapVote:VoteStarted() and MapVote:IsNextMapVote() ) then
+			return
+		end
+	else
+		local Gamerules = GetGamerules()
+
+		if Gamerules.timeToCycleMap then return end
+	end
 
 	if ( self.NextThink or 0 ) > Time then return end
 	
