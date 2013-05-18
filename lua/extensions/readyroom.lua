@@ -9,6 +9,7 @@ local Shine = Shine
 local Notify = Shared.Message
 local pairs = pairs
 local StringFormat = string.format
+local TableEmpty = table.Empty
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -211,6 +212,9 @@ function Plugin:Think()
 	--Disable on map cycling/end vote.
 	if MapVote and MapVote.Enabled then
 		if MapVote.CyclingMap or ( MapVote.VoteOnEnd and MapVote:VoteStarted() and MapVote:IsNextMapVote() ) then
+			TableEmpty( self.ReadyRoomTracker ) --Clear tracker so people don't get auto-randomed at the end of the vote.
+			TableEmpty( self.BlockedClients )
+
 			return
 		end
 	else
