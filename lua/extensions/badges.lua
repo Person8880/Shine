@@ -66,7 +66,7 @@ function Plugin:Initialise()
 				local GroupName = User and User.Group
 
 				if GroupName then
-					local Group = UserData.Groups[ Group ]
+					local Group = UserData.Groups[ GroupName ]
 
 					if Group then
 						local NewBadge = FindBadge( Group.Badge or Group.badge )
