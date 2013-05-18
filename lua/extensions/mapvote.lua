@@ -475,6 +475,15 @@ function Plugin:OnVoteStart( ID )
 	if self.CyclingMap then
 		return false, "The map is now changing, unable to start a vote."
 	end
+
+	if ID == "random" and self.VoteOnEnd and self:VoteStarted() and self:IsNextMapVote() then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		local Mode = VoteRandom.Config.BalanceMode
+		local ModeStrings = VoteRandom.ModeStrings
+
+		return false, StringFormat( "You cannot start a %s teams vote while the map vote is running.", ModeStrings.ModeLower[ Mode ] )
+	end
 end
 
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
