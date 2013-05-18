@@ -58,6 +58,7 @@ local DefaultConfig = {
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
 	BalanceMode = Plugin.MODE_RANDOM, --How should teams be balanced?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
+	IgnoreCommanders = false, --Should the plugin ignore commanders when switching?
 }
 
 function Plugin:Initialise()
@@ -267,11 +268,13 @@ function Plugin:ShuffleTeams( ResetScores )
 			if Player.ResetScores and ResetScores then
 				Player:ResetScores()
 			end
+
+			local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 			
 			local Client = Player:GetClient()
 
 			if Client then
-				if not Shine:HasAccess( Client, "sh_randomimmune" ) then
+				if not Shine:HasAccess( Client, "sh_randomimmune" ) and not Commander then
 					Targets[ #Targets + 1 ] = Player
 				end
 			end
