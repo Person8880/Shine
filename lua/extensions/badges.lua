@@ -23,21 +23,16 @@ function Plugin:Initialise()
 			return false, "Badge data not found."
 		end
 
-		local function BadgeAuthorized( Client, BadgeID )
-			local UserData = Shine.UserData
-
-			local SteamID = Client:GetUserId()
-
-			if type( BadgeID ) == "number" then
-				return Server.GetIsDlcAuthorized( Client, BadgeID )
-			elseif UserData then
-				if not UserData.Users then return false end
-				local User = UserData.Users[ tostring( SteamID ) ]
-
-				if User and User.Group == BadgeID then return true end
-			end
+		local function FindBadge( ID )
+			if not ID then return nil end
 			
-			return false
+			for Enum, Data in pairs( BadgeData ) do
+				if Data.Id == ID then
+					return Enum
+				end
+			end
+
+			return nil
 		end
 
 		local BadgeCache = {}
@@ -60,10 +55,36 @@ function Plugin:Initialise()
 
 			Badge = kBadges.None
 
-			for Enum, Data in pairs( BadgeData ) do
-				if Data.Id and BadgeAuthorized( Client, Data.Id ) then
-					Badge = Enum
-					break
+			if Server.GetIsDlcAuthorized( Client, kPAX2012ProductId ) then
+				Badge = kBadges.PAX2012
+			end
+
+			local UserData = Shine.UserData
+
+			if UserData then --Support defined badges in the Shine user config.
+				local User = UserData.Users[ tostring( SteamID ) ]
+				local GroupName = User and User.Group
+
+				if GroupName then
+					local Group = UserData.Groups[ GroupName ]
+
+					if Group then
+						local NewBadge = FindBadge( Group.Badge or Group.badge )
+
+						if NewBadge then 
+							BadgeCache[ SteamID ] = NewBadge
+
+							return NewBadge
+						end
+					end
+
+					local NewBadge = FindBadge( GroupName )
+
+					if NewBadge then
+						BadgeCache[ SteamID ] = NewBadge
+
+						return NewBadge
+					end
 				end
 			end
 

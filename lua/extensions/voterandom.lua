@@ -47,6 +47,7 @@ local ModeStrings = {
 		"based on ELO"
 	}
 }
+Plugin.ModeStrings = ModeStrings
 
 local DefaultConfig = {
 	MinPlayers = 10, --Minimum number of players on the server to enable random voting.
@@ -57,6 +58,7 @@ local DefaultConfig = {
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
 	BalanceMode = Plugin.MODE_RANDOM, --How should teams be balanced?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
+	IgnoreCommanders = false, --Should the plugin ignore commanders when switching?
 }
 
 function Plugin:Initialise()
@@ -250,7 +252,7 @@ Plugin.ShufflingModes = {
 --[[
 	Shuffles everyone on the server into random teams.
 ]]
-function Plugin:ShuffleTeams()
+function Plugin:ShuffleTeams( ResetScores )
 	local Players = Shine.GetRandomPlayerList()
 
 	local Gamerules = GetGamerules()
@@ -263,14 +265,16 @@ function Plugin:ShuffleTeams()
 		local Player = Players[ i ]
 
 		if Player then
-			if Player.ResetScores then
+			if Player.ResetScores and ResetScores then
 				Player:ResetScores()
 			end
+
+			local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 			
 			local Client = Player:GetClient()
 
 			if Client then
-				if not Shine:HasAccess( Client, "sh_randomimmune" ) then
+				if not Shine:HasAccess( Client, "sh_randomimmune" ) and not Commander then
 					Targets[ #Targets + 1 ] = Player
 				end
 			end
@@ -521,12 +525,14 @@ function Plugin:ApplyRandomSettings()
 		if Started then
 			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s and restarting round...", 
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
+
+			self:ShuffleTeams( true )
 		else
 			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s...", 
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
-		end
 
-		self:ShuffleTeams()
+			self:ShuffleTeams()
+		end
 
 		if Started then
 			Gamerules:ResetGame()

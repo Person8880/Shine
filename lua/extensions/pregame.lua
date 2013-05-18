@@ -130,7 +130,7 @@ function Plugin:ClientConfirmConnect( Client )
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
-	if State == kGameState.NotStarted then return end
+	if State == kGameState.NotStarted or State == kGameState.PreGame then return end
 	
 	if self.CountStart then
 		self.CountStart = nil
@@ -167,6 +167,8 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = nil
 				self.SentCountdown = nil
 
+				Gamerules:SetGameState( kGameState.NotStarted )
+
 				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 			end
 
@@ -180,6 +182,10 @@ Plugin.UpdateFuncs = {
 
 			self.CountStart = Shared.GetTime()
 			self.CountEnd = Shared.GetTime() + Duration
+
+			self.GameStarting = true
+
+			Gamerules:SetGameState( kGameState.PreGame )
 
 			if self.Config.ShowCountdown then
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 3, 1 ) )
@@ -230,6 +236,8 @@ Plugin.UpdateFuncs = {
 
 				self.GameStarting = false
 
+				Gamerules:SetGameState( kGameState.NotStarted )
+
 				return
 			end
 
@@ -241,6 +249,8 @@ Plugin.UpdateFuncs = {
 				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 				self.GameStarting = false
+
+				Gamerules:SetGameState( kGameState.NotStarted )
 
 				if self.CountStart then
 					self.CountStart = nil
@@ -254,6 +264,8 @@ Plugin.UpdateFuncs = {
 		--Both teams have a commander, begin countdown, but only if the 1 commander countdown isn't past the 2 commander countdown time length left.
 		if Team1Com and Team2Com and not self.GameStarting and not ( self.CountEnd and self.CountEnd - Time <= self.Config.CountdownTime ) then
 			self.GameStarting = true
+
+			Gamerules:SetGameState( kGameState.PreGame )
 
 			local CountdownTime = self.Config.CountdownTime
 
@@ -291,6 +303,8 @@ Plugin.UpdateFuncs = {
 
 						self.GameStarting = false
 
+						Gamerules:SetGameState( kGameState.NotStarted )
+
 						return
 					end
 				end
@@ -302,6 +316,8 @@ Plugin.UpdateFuncs = {
 					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 					self.GameStarting = false
+
+					Gamerules:SetGameState( kGameState.NotStarted )
 
 					return 
 				end
@@ -405,6 +421,8 @@ Plugin.UpdateFuncs = {
 				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
 
 				self.GameStarting = false
+
+				Gamerules:SetGameState( kGameState.NotStarted )
 			end
 
 			if Team1Count == 0 or Team2Count == 0 then
@@ -415,6 +433,8 @@ Plugin.UpdateFuncs = {
 				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
 
 				self.GameStarting = false
+
+				Gamerules:SetGameState( kGameState.NotStarted )
 			end
 
 			return
@@ -423,6 +443,8 @@ Plugin.UpdateFuncs = {
 		--Both teams have a commander, begin countdown.
 		if Team1Com and Team2Com then
 			self.GameStarting = true
+
+			Gamerules:SetGameState( kGameState.PreGame )
 
 			local CountdownTime = self.Config.CountdownTime
 
@@ -460,6 +482,8 @@ Plugin.UpdateFuncs = {
 
 						self.GameStarting = false
 
+						Gamerules:SetGameState( kGameState.NotStarted )
+
 						return
 					end
 				end
@@ -471,6 +495,8 @@ Plugin.UpdateFuncs = {
 					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 					self.GameStarting = false
+
+					Gamerules:SetGameState( kGameState.NotStarted )
 
 					return 
 				end
@@ -529,16 +555,26 @@ Plugin.UpdateFuncs = {
 	end,
 }
 
+function Plugin:UpdatePregame()
+	local Gamerules = GetGamerules()
+
+	if not Gamerules then return end
+	
+	if Gamerules:GetGameState() == kGameState.PreGame then
+		return false
+	end
+end
+
 function Plugin:CheckGameStart()
 	local Gamerules = GetGamerules()
 
 	if not Gamerules then return end
 	
-	if Gamerules:GetGameState() ~= kGameState.NotStarted then return end
+	local State = Gamerules:GetGameState()
 
-	local Ret = self.UpdateFuncs[ self.Config.RequireComs ]( self, Gamerules )
+	if State ~= kGameState.NotStarted and State ~= kGameState.PreGame then return end
 
-	if Ret then return end
+	self.UpdateFuncs[ self.Config.RequireComs ]( self, Gamerules )
 
 	return false
 end
