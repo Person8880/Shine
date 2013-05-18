@@ -381,10 +381,11 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	local Time = Shared.GetTime()
 
 	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
+	local OnPlayingTeam = Team == 1 or Team == 2
 
 	if not Player.ShineRandomised then
 		--Do not allow cheating the system.
-		if Team == 1 or Team == 2 and not ( Immune or not self.Config.BlockTeams ) then 
+		if OnPlayingTeam and not ( Immune or not self.Config.BlockTeams ) then 
 			if not Player.NextShineNotify or Player.NextShineNotify < Time then --Spamming F4 shouldn't spam messages...
 				Shine:Notify( Player, "Random", ChatName, "You cannot switch teams. %s teams are enabled.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 
@@ -407,7 +408,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		end
 	else
 		--Do not allow cheating the system.
-		if Team == 1 or Team == 2 and not ( Immune or not self.Config.BlockTeams ) then 
+		if OnPlayingTeam and not ( Immune or not self.Config.BlockTeams ) then 
 			if not Player.NextShineNotify or Player.NextShineNotify < Time then
 				Shine:Notify( Player, "Random", ChatName, "You cannot switch teams. %s teams are enabled.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 
