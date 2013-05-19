@@ -35,6 +35,8 @@ function Plugin:Initialise()
 			return nil
 		end
 
+		local PAX2012ProductId = 4931
+
 		local BadgeCache = {}
 		local function CacheGet( Client )
 			local SteamID = Client:GetUserId()
@@ -55,7 +57,7 @@ function Plugin:Initialise()
 
 			Badge = kBadges.None
 
-			if Server.GetIsDlcAuthorized( Client, kPAX2012ProductId ) then
+			if Server.GetIsDlcAuthorized( Client, PAX2012ProductId ) then
 				Badge = kBadges.PAX2012
 			end
 
