@@ -476,7 +476,7 @@ function Plugin:OnVoteStart( ID )
 		return false, "The map is now changing, unable to start a vote."
 	end
 
-	if ID == "random" and self.VoteOnEnd and self:VoteStarted() and self:IsNextMapVote() then
+	if ID == "random" and self:IsEndVote() then
 		local VoteRandom = Shine.Plugins.voterandom
 
 		local Mode = VoteRandom.Config.BalanceMode
@@ -499,6 +499,10 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	end
 
 	return false
+end
+
+function Plugin:IsEndVote()
+	return self.VoteOnEnd and self:VoteStarted() and self:IsNextMapVote()
 end
 
 function Plugin:IsNextMapVote()
