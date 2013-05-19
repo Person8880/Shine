@@ -50,7 +50,7 @@ function Plugin:Initialise()
 				local Data = Decode( Response )
 				if not Data then return end
 				
-				if Data.override or not Badge or Badge == kBadges.None or Badge == kBadges.PAX2012 then
+				if Data.override or ( not BadgeCache[ SteamID ] or BadgeCache[ SteamID ] == kBadges.None ) then
 					BadgeCache[ SteamID ] = kBadges[ Data.badge ]
 				end
 			end )
