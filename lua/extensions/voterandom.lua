@@ -327,7 +327,15 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	if self.RandomOnNextRound then
 		self.RandomOnNextRound = false
 		
-		Shine.Timer.Simple( 10, function()
+		Shine.Timer.Simple( 15, function()
+			local MapVote = Shine.Plugins.mapvote
+
+			if MapVote and MapVote.Enabled and MapVote:IsEndVote() then
+				self.ForceRandom = true
+
+				return
+			end
+
 			Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
 			self:ShuffleTeams()
@@ -339,10 +347,14 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			self.ForceRandom = false
 		else
 			self.ForceRandom = false
-			Shine.Timer.Simple( 10, function()
-				Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
+			Shine.Timer.Simple( 15, function()
+				local MapVote = Shine.Plugins.mapvote
 
-				self:ShuffleTeams()
+				if not ( MapVote and MapVote.Enabled and MapVote:IsEndVote() ) then
+					Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
+					
+					self:ShuffleTeams()
+				end
 
 				if Shine.Timer.Exists( self.RandomEndTimer ) then
 					self.ForceRandom = true

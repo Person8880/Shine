@@ -287,7 +287,7 @@ function Plugin:ShouldCycleMap()
 
 	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 	
-	if Winner == Shared.GetMapName() then
+	if self.NextMap.ExtendTime then
 		if Time < self.NextMap.ExtendTime then 
 			return false 
 		end
@@ -311,7 +311,7 @@ function Plugin:OnCycleMap()
 
 	local CurMap = Shared.GetMapName()
 
-	if Winner == CurMap and Time < self.NextMap.ExtendTime then return false end
+	if self.NextMap.ExtendTime and Time < self.NextMap.ExtendTime then return false end
 
 	if Winner ~= CurMap then
 		MapCycle_ChangeMap( Winner )
@@ -476,7 +476,7 @@ function Plugin:OnVoteStart( ID )
 		return false, "The map is now changing, unable to start a vote."
 	end
 
-	if ID == "random" and self.VoteOnEnd and self:VoteStarted() and self:IsNextMapVote() then
+	if ID == "random" and self:IsEndVote() then
 		local VoteRandom = Shine.Plugins.voterandom
 
 		local Mode = VoteRandom.Config.BalanceMode
@@ -499,6 +499,10 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	end
 
 	return false
+end
+
+function Plugin:IsEndVote()
+	return self.VoteOnEnd and self:VoteStarted() and self:IsNextMapVote()
 end
 
 function Plugin:IsNextMapVote()
