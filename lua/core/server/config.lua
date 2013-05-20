@@ -88,7 +88,7 @@ local DefaultConfig = {
 	AddTag = true, --Add 'shine' as a server tag.
 }
 
-local function CheckConfig( Config, DefaultConfig )
+local function CheckConfig( Config, DefaultConfig, DontRemove )
 	local Updated
 
 	--Add new keys.
@@ -107,6 +107,8 @@ local function CheckConfig( Config, DefaultConfig )
 			end
 		end
 	end
+
+	if DontRemove then return Updated end
 
 	--Remove old keys.
 	for Option, Value in pairs( Config ) do
@@ -146,7 +148,7 @@ function Shine:LoadConfig()
 
 	self.Config = ConfigFile
 
-	if CheckConfig( self.Config, DefaultConfig ) then
+	if CheckConfig( self.Config, DefaultConfig, true ) then
 		self:SaveConfig()
 	end
 end

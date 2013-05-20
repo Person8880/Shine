@@ -14,6 +14,14 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "WelcomeMessages.json"
 
+local DefaultConfig = {
+	MessageDelay = 5,
+	Users = {
+		[ "90000001" ] = { Welcome = "Bob has joined the party!", Leave = "Bob is off to fight more important battles." }
+	},
+	ShowGeneric = false
+}
+
 function Plugin:Initialise()
 	self.Enabled = true
 
@@ -21,12 +29,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		MessageDelay = 5,
-		Users = {
-			[ "90000001" ] = { Welcome = "Bob has joined the party!", Leave = "Bob is off to fight more important battles." }
-		}
-	}
+	self.Config = DefaultConfig
 
 	if Save then
 		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
@@ -61,22 +64,40 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
+
+	if self.Config.ShowGeneric == nil then
+		self.Config.ShowGeneric = false
+		
+		self:SaveConfig()
+	end
 end
 
 function Plugin:ClientConnect( Client )
-	local ID = Client:GetUserId()
+	Shine.Timer.Simple( self.Config.MessageDelay, function()
+		if not Shine:IsValidClient( Client ) then return end
+		
+		local ID = Client:GetUserId()
 
-	local MessageTable = self.Config.Users[ tostring( ID ) ]
+		local MessageTable = self.Config.Users[ tostring( ID ) ]
 
-	if MessageTable and MessageTable.Welcome and not MessageTable.Said then
-		Shine.Timer.Simple( self.Config.MessageDelay, function()
+		if MessageTable and MessageTable.Welcome and not MessageTable.Said then
 			Shine:Notify( nil, "", "", MessageTable.Welcome )
 
 			MessageTable.Said = true
 
 			self:SaveConfig()
-		end )
-	end
+		
+			return
+		end
+
+		if not self.Config.ShowGeneric then return end
+
+		local Player = Client:GetControllingPlayer()
+
+		if not Player then return end
+
+		Shine:Notify( nil, "", "", "%s has joined the game.", true, Player:GetName() )
+	end )
 end
 
 function Plugin:ClientDisconnect( Client )
@@ -90,7 +111,17 @@ function Plugin:ClientDisconnect( Client )
 		MessageTable.Said = nil
 		
 		self:SaveConfig()
+
+		return
 	end
+
+	if not self.Config.ShowGeneric then return end
+
+	local Player = Client:GetControllingPlayer()
+
+	if not Player then return end
+	
+	Shine:Notify( nil, "", "", "%s has left the game.", true, Player:GetName() )
 end
 
 function Plugin:Cleanup()
