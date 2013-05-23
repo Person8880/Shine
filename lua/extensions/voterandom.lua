@@ -253,6 +253,8 @@ Plugin.ShufflingModes = {
 
 	function( self, Gamerules, Targets ) --NS2Stats ELO based.
 		if not RBPS then 
+			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
+			
 			self.ShufflingModes[ 1 ]( self, Gamerules, Targets ) 
 
 			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
@@ -265,6 +267,8 @@ Plugin.ShufflingModes = {
 
 			if not next( RBPSwebPlayers ) then
 				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using random based sorting instead." )
+
+				Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
 				self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
 
