@@ -254,7 +254,7 @@ Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets ) --NS2Stats ELO based.
 		if not RBPS then 
 			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
-			
+
 			self.ShufflingModes[ 1 ]( self, Gamerules, Targets ) 
 
 			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
@@ -309,15 +309,17 @@ Plugin.ShufflingModes = {
 			local Players = Shine.GetAllPlayers()
 			local Count = #Players - Count
 
-			local TeamSequence = math.GenerateSequence( Count, { 1, 2 } )
-			local SequenceNum = 0
+			if Count > 0 then
+				local TeamSequence = math.GenerateSequence( Count, { 1, 2 } )
+				local SequenceNum = 0
 
-			for i = 1, #Players do
-				local Player = Players[ i ]
+				for i = 1, #Players do
+					local Player = Players[ i ]
 
-				if Player and not Sorted[ Player ] then
-					SequenceNum = SequenceNum + 1
-					Gamerules:JoinTeam( Player, TeamSequence[ SequenceNum ], nil, true )
+					if Player and not Sorted[ Player ] then
+						SequenceNum = SequenceNum + 1
+						Gamerules:JoinTeam( Player, TeamSequence[ SequenceNum ], nil, true )
+					end
 				end
 			end
 
