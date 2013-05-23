@@ -141,6 +141,10 @@ Plugin.ShufflingModes = {
 				Gamerules:JoinTeam( Player, TeamSequence[ i ], nil, true )
 			end
 		end
+
+		Shine:LogString( "[Random] Teams were sorted randomly." )
+
+		return true
 	end,
 
 	function( self, Gamerules, Targets ) --Score based if available, random if not.
@@ -188,17 +192,29 @@ Plugin.ShufflingModes = {
 				Gamerules:JoinTeam( RandomTable[ i ], TeamSequence[ i ], nil, true )
 			end
 		end
+
+		Shine:LogString( "[Random] Teams were sorted based on score." )
+
+		return true
 	end,
 
 	function( self, Gamerules, Targets ) --NS2Stats ELO based.
-		if not RBPS then return self.ShufflingModes[ 1 ]( self, Gamerules, Targets ) end
+		if not RBPS then 
+			self.ShufflingModes[ 1 ]( self, Gamerules, Targets ) 
+
+			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
+
+			return false
+		end
 
 		RBPS:autoArrangeSetELOs()
 
 		if not next( RBPSwebPlayers ) then
 			Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using random based sorting instead." )
 
-			return self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+			self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+
+			return false
 		end
 		
 		local Players = RBPS.Players
@@ -246,6 +262,10 @@ Plugin.ShufflingModes = {
 				Gamerules:JoinTeam( Player, TeamSequence[ SequenceNum ], nil, true )
 			end
 		end
+
+		Shine:LogString( "[ELO Vote] Teams were sorted based on NS2Stats ELO ranking." )
+
+		return true
 	end
 }
 
@@ -281,7 +301,7 @@ function Plugin:ShuffleTeams( ResetScores )
 		end
 	end
 
-	self.ShufflingModes[ self.Config.BalanceMode ]( self, Gamerules, Targets )
+	return self.ShufflingModes[ self.Config.BalanceMode ]( self, Gamerules, Targets )
 end
 
 --[[
@@ -338,7 +358,10 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 
 			Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
-			self:ShuffleTeams()
+			local Result = self:ShuffleTeams()
+			if not Result then
+				Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
+			end
 			
 			self.ForceRandom = true
 		end )
@@ -353,7 +376,10 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 				if not ( MapVote and MapVote.Enabled and MapVote:IsEndVote() ) then
 					Shine:Notify( nil, "Random", Shine.Config.ChatName, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
 					
-					self:ShuffleTeams()
+					local Result = self:ShuffleTeams()
+					if not Result then
+						Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
+					end
 				end
 
 				if Shine.Timer.Exists( self.RandomEndTimer ) then
@@ -506,7 +532,10 @@ function Plugin:ApplyRandomSettings()
 			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s for the next round...", 
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
-			self:ShuffleTeams()
+			local Result = self:ShuffleTeams()
+			if not Result then
+				Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
+			end
 
 			self.ForceRandom = true
 
@@ -539,12 +568,18 @@ function Plugin:ApplyRandomSettings()
 			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s and restarting round...", 
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
-			self:ShuffleTeams( true )
+			local Result = self:ShuffleTeams( true )
+			if not Result then
+				Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
+			end
 		else
 			Shine:Notify( nil, "Random", ChatName, "Shuffling teams %s...", 
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
-			self:ShuffleTeams()
+			local Result = self:ShuffleTeams()
+			if not Result then
+				Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
+			end
 		end
 
 		if Started then

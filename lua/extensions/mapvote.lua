@@ -482,18 +482,27 @@ function Plugin:OnVoteStart( ID )
 		local Mode = VoteRandom.Config.BalanceMode
 		local ModeStrings = VoteRandom.ModeStrings
 
-		return false, StringFormat( "You cannot start a %s teams vote while the map vote is running.", ModeStrings.ModeLower[ Mode ] )
+		local String = ModeStrings.ModeLower[ Mode ]
+		local Vowel = String:sub( 1, 1 )
+
+		String = Vowel == "E" and "an "..String or "a "..String
+
+		return false, StringFormat( "You cannot start %s teams vote while the map vote is running.", String )
 	end
 end
 
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
-	if not self.CyclingMap then return end
+	local IsEndVote = self:IsEndVote()
+
+	if not ( self.CyclingMap or IsEndVote ) then return end
 	if not Player then return end
 	
 	local Time = Shared.GetTime()
+	local Message = IsEndVote and "You cannot join a team whilst the map vote is in progress." or 
+		"The map is now changing, you cannot join a team."
 
 	if not Player.NextShineNotify or Player.NextShineNotify < Time then
-		Shine:NotifyColour( Player, 255, 160, 0, "The map is now changing, you cannot join a team." )
+		Shine:NotifyColour( Player, 255, 160, 0, Message )
 
 		Player.NextShineNotify = Time + 5
 	end
