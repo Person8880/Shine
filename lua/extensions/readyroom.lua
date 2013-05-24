@@ -17,6 +17,15 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "ReadyRoom.json"
 
+local DefaultConfig = {
+	TrackReadyRoomPlayers = true, --Should it track people in the ready room?
+	MaxIdleTime = 120, --Max time in seconds to allow sitting in the ready room.
+	TimeToBlockF4 = 120, --Time to block going back to the ready room after being forced out of it.
+	DisableSpectate = false, --Disable spectate?
+	TrackOnRoundStart = true, --Only track when a round has started?
+	NotifyOnTeamForce = true, --Tell players they've been placed on a team?
+}
+
 function Plugin:Initialise()
 	local Gamerules = GetGamerules()
 
@@ -33,13 +42,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		TrackReadyRoomPlayers = true, --Should it track people in the ready room?
-		MaxIdleTime = 120, --Max time in seconds to allow sitting in the ready room.
-		TimeToBlockF4 = 120, --Time to block going back to the ready room after being forced out of it.
-		DisableSpectate = false, --Disable spectate?
-		TrackOnRoundStart = true, --Only track when a round has started?
-	}
+	self.Config = DefaultConfig
 
 	if Save then
 		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
@@ -77,8 +80,7 @@ function Plugin:LoadConfig()
 
 	self.Config = PluginConfig
 
-	if self.Config.TrackOnRoundStart == nil then
-		self.Config.TrackOnRoundStart = true
+	if Shine.CheckConfig( self.Config, DefaultConfig ) then
 		self:SaveConfig()
 	end
 end
@@ -158,7 +160,10 @@ function Plugin:EndGame()
 end
 
 function Plugin:AssignToTeam( Player )
-	Shine:NotifyColour( Player, 255, 160, 0, "You were moved onto a random team for being in the ready room too long." )
+	if self.Config.NotifyOnTeamForce then
+		Shine:NotifyColour( Player, 255, 160, 0, "You were moved onto a random team for being in the ready room too long." )
+	end
+	
 	return JoinRandomTeam( Player )
 end
 
