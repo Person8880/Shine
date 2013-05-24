@@ -1332,7 +1332,7 @@ function Plugin:CreateCommands()
 	Commands.TimeLeftCommand:Help( "Displays the remaining time for the current map." )
 
 	local function NextMap( Client )
-		local Map = self:GetNextMap()
+		local Map = self:GetNextMap() or "unknown"
 
 		if Client then
 			Shine:Notify( Client, "", "", "The next map is currently set to %s.", true, Map )
