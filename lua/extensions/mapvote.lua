@@ -409,8 +409,14 @@ function Plugin:GetNextMap()
 	if Index > NumMaps then
 		Index = 1
 	end
-	
-	return Maps[ Index ]
+
+	local Map = Maps[ Index ]
+
+	if istable( Map ) then
+		return Map.map
+	else
+		return Map
+	end
 end
 
 function Plugin:Think()
