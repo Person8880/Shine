@@ -131,6 +131,9 @@ function Plugin:LoadConfig()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 3 )
 end
 
+local Requests = {}
+local ReqCount = 1
+
 function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 	local Players = Shared.GetEntitiesWithClassname( "Player" )
 	local Concat = {}
@@ -153,7 +156,36 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 		players = TableConcat( Concat, "," )
 	}
 
+	local CurRequest = ReqCount
+	local CurTime = Shared.GetTime()
+
+	Requests[ CurRequest ] = CurTime + 5 --No response after 5 seconds is a fail.
+
+	ReqCount = ReqCount + 1
+
+	Shine.Timer.Simple( 5, function()
+		if Requests[ CurRequest ] then
+			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out. Falling back to random sorting..." )
+
+			Shine:Notify( nil, "Random", ChatName, "Connection to NS2Stats timed out, falling back to random sorting." )
+
+			self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+		end
+	end )
+
 	Shared.SendHTTPRequest( URL, "POST", Params, function( Response, Status )
+		local Time = Shared.GetTime()
+
+		if Requests[ CurRequest ] < Time then
+			Shine:Print( "[ELO Vote] NS2Stats responded too late after %.2f seconds!", true, Time - CurTime )
+
+			Requests[ CurRequest ] = nil
+
+			return
+		end
+
+		Requests[ CurRequest ] = nil
+
 		if not Response then
 			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to random sorting..." )
 
