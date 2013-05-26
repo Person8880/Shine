@@ -6,6 +6,7 @@ local Shine = Shine
 
 local Notify = Shared.Message
 
+local Abs = math.abs
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Decode = json.decode
@@ -131,6 +132,9 @@ function Plugin:LoadConfig()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 3 )
 end
 
+local Requests = {}
+local ReqCount = 1
+
 function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 	local Players = Shared.GetEntitiesWithClassname( "Player" )
 	local Concat = {}
@@ -153,7 +157,36 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 		players = TableConcat( Concat, "," )
 	}
 
+	local CurRequest = ReqCount
+	local CurTime = Shared.GetTime()
+
+	Requests[ CurRequest ] = CurTime + 5 --No response after 5 seconds is a fail.
+
+	ReqCount = ReqCount + 1
+
+	Shine.Timer.Simple( 5, function()
+		if Requests[ CurRequest ] then
+			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out. Falling back to random sorting..." )
+
+			Shine:Notify( nil, "Random", ChatName, "Connection to NS2Stats timed out, falling back to random sorting." )
+
+			self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+		end
+	end )
+
 	Shared.SendHTTPRequest( URL, "POST", Params, function( Response, Status )
+		local Time = Shared.GetTime()
+
+		if Requests[ CurRequest ] < Time then
+			Shine:Print( "[ELO Vote] NS2Stats responded too late after %.2f seconds!", true, Time - CurTime )
+
+			Requests[ CurRequest ] = nil
+
+			return
+		end
+
+		Requests[ CurRequest ] = nil
+
 		if not Response then
 			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to random sorting..." )
 
@@ -182,8 +215,52 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 	end )
 end
 
+--[[
+	Ensures no team has more than 1 extra player compared to the other, may break immunity, but even teams are more important.
+]]
+local function EvenlySpreadTeams( Gamerules, TeamMembers )
+	local Marine = TeamMembers[ 1 ]
+	local Alien = TeamMembers[ 2 ]
+
+	local NumMarine = #TeamMembers[ 1 ]
+	local NumAlien = #TeamMembers[ 2 ]
+
+	local MarineGreater = NumMarine > NumAlien
+	local Diff = Abs( NumMarine - NumAlien )
+
+	if Diff > 1 then
+		local NumToMove = Floor( Diff * 0.5 )
+
+		if MarineGreater then
+			for i = NumMarine, NumMarine - NumToMove, -1 do
+				local Player = Marine[ i ]
+
+				Marine[ i ] = nil
+				
+				Alien[ #Alien + 1 ] = Player
+			end
+		else
+			for i = NumAlien, NumAlien - NumToMove, -1 do
+				local Player = Alien[ i ]
+
+				Alien[ i ] = nil
+
+				Marine[ #Marine + 1 ] = Player
+			end
+		end
+	end
+
+	for i = 1, #Marine do
+		Gamerules:JoinTeam( Marine[ i ], 1, nil, true )
+	end
+
+	for i = 1, #Alien do
+		Gamerules:JoinTeam( Alien[ i ], 2, nil, true )
+	end
+end
+
 Plugin.ShufflingModes = {
-	function( self, Gamerules, Targets ) --Random only.
+	function( self, Gamerules, Targets, TeamMembers ) --Random only.
 		local NumPlayers = #Targets
 
 		local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
@@ -191,16 +268,20 @@ Plugin.ShufflingModes = {
 		for i = 1, NumPlayers do
 			local Player = Targets[ i ]
 			if Player then
-				Gamerules:JoinTeam( Player, TeamSequence[ i ], nil, true )
+				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
+
+				TeamTable[ #TeamTable + 1 ] = Player
 			end
 		end
+
+		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		Shine:LogString( "[Random] Teams were sorted randomly." )
 
 		return
 	end,
 
-	function( self, Gamerules, Targets ) --Score based if available, random if not.
+	function( self, Gamerules, Targets, TeamMembers ) --Score based if available, random if not.
 		local ScoreData = self.ScoreData
 
 		local ScoreTable = {}
@@ -232,7 +313,9 @@ Plugin.ShufflingModes = {
 			TableSort( ScoreTable, function( A, B ) return A.Score > B.Score end )
 
 			for i = 1, ScoreSortCount do
-				Gamerules:JoinTeam( ScoreTable[ i ].Player, ( i % 2 ) + 1, nil, true )
+				local TeamTable = TeamMembers[ ( i % 2 ) + 1 ]
+
+				TeamTable[ #TeamTable + 1 ] = ScoreTable[ i ].Player
 			end
 		end
 
@@ -242,16 +325,20 @@ Plugin.ShufflingModes = {
 			local TeamSequence = math.GenerateSequence( RandomTableCount, { 1, 2 } )
 
 			for i = 1, RandomTableCount do
-				Gamerules:JoinTeam( RandomTable[ i ], TeamSequence[ i ], nil, true )
+				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
+
+				TeamTable[ #TeamTable + 1 ] = RandomTable[ i ]
 			end
 		end
+
+		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		Shine:LogString( "[Random] Teams were sorted based on score." )
 
 		return
 	end,
 
-	function( self, Gamerules, Targets ) --NS2Stats ELO based.
+	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats ELO based.
 		if not RBPS then 
 			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
@@ -302,7 +389,9 @@ Plugin.ShufflingModes = {
 
 			for i = 1, Count do
 				if ELOSort[ i ] then
-					Gamerules:JoinTeam( ELOSort[ i ].Player, ( i % 2 ) + 1, nil, true )
+					local TeamTable = TeamMembers[ ( i % 2 ) + 1 ]
+
+					TeamTable[ #TeamTable + 1 ] = ELOSort[ i ].Player
 				end
 			end
 
@@ -318,10 +407,15 @@ Plugin.ShufflingModes = {
 
 					if Player and not Sorted[ Player ] then
 						SequenceNum = SequenceNum + 1
-						Gamerules:JoinTeam( Player, TeamSequence[ SequenceNum ], nil, true )
+
+						local TeamTable = TeamMembers[ TeamSequence[ SequenceNum ] ]
+
+						TeamTable[ #TeamTable + 1 ] = Player
 					end
 				end
 			end
+
+			EvenlySpreadTeams( Gamerules, TeamMembers )
 
 			Shine:LogString( "[ELO Vote] Teams were sorted based on NS2Stats ELO ranking." )
 		end )
@@ -339,6 +433,10 @@ function Plugin:ShuffleTeams( ResetScores )
 	if not Gamerules then return end
 
 	local Targets = {}
+	local TeamMembers = {
+		{},
+		{}
+	}
 
 	for i = 1, #Players do
 		local Player = Players[ i ]
@@ -355,12 +453,20 @@ function Plugin:ShuffleTeams( ResetScores )
 			if Client then
 				if not Shine:HasAccess( Client, "sh_randomimmune" ) and not Commander then
 					Targets[ #Targets + 1 ] = Player
+				else
+					local Team = Player:GetTeamNumber()
+
+					local TeamTable = TeamMembers[ Team ]
+
+					if TeamTable then
+						TeamTable[ #TeamTable + 1 ] = Player
+					end
 				end
 			end
 		end
 	end
 
-	return self.ShufflingModes[ self.Config.BalanceMode ]( self, Gamerules, Targets )
+	return self.ShufflingModes[ self.Config.BalanceMode ]( self, Gamerules, Targets, TeamMembers )
 end
 
 --[[
