@@ -138,6 +138,16 @@ function Plugin:Initialise()
 		self.ForcedMapCount = Clamp( CountTable( ForcedMaps ), 0, MaxOptions )
 	end
 
+	local DontExtend = self.Config.DontExtend
+	IsArray = isarray( DontExtend )
+
+	if IsArray then
+		for i = 1, IsArray do
+			DontExtend[ DontExtend[ i ] ] = true
+			DontExtend[ i ] = nil
+		end
+	end
+
 	self.MaxNominations = Max( MaxOptions - self.ForcedMapCount - 1, 0 )
 
 	self.Enabled = true
@@ -157,6 +167,7 @@ function Plugin:GenerateDefaultConfig( Save )
 			ns2_tram = true,
 		},
 		ForcedMaps = {}, --Maps that must always be in the vote list.
+		DontExtend = {}, --Maps that should never have an extension option.
 		MinPlayers = 10, --Minimum number of players needed to begin a map vote.
 		PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
 		PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
@@ -263,6 +274,11 @@ function Plugin:LoadConfig()
 
 	if self.Config.CycleOnEmpty == nil then
 		self.Config.CycleOnEmpty = false
+		Edited = true
+	end
+
+	if self.Config.DontExtend == nil then
+		self.Config.DontExtend = {}
 		Edited = true
 	end
 
@@ -664,7 +680,7 @@ function Plugin:ProcessResults( NextMap )
 	if TotalVotes == 0 then
 		Shine:Notify( nil, "Vote", ChatName, "No votes made. Map vote failed." )
 
-		if self.VoteOnEnd then
+		if self.VoteOnEnd and NextMap then
 			local Map = self:GetNextMap()
 
 			Shine:Notify( nil, "", "", "The map will now cycle to %s.", true, Map )
@@ -963,13 +979,21 @@ function Plugin:ProcessResults( NextMap )
 	end
 end
 
+function Plugin:CanExtend()
+	local CurMap = Shared.GetMapName()
+
+	return self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends and not self.Config.DontExtend[ CurMap ]
+end
+
 --[[
 	Sets up and begins a map vote.
 ]]
-function Plugin:StartVote( NextMap )
+function Plugin:StartVote( NextMap, Force )
 	if self:VoteStarted() then return end
-	if not NextMap and not self:CanStartVote() then return end
-	if not NextMap and not self.Config.EnableRTV then return end
+	if not Force and not NextMap and not self:CanStartVote() then return end
+	if not Force and not NextMap and not self.Config.EnableRTV then return end
+
+	self.StartingVote:Reset()
 
 	self.Vote.TotalVotes = 0 --Reset votes.
 	self.Vote.Voted = {} --Reset who has voted from last time.	
@@ -983,7 +1007,7 @@ function Plugin:StartVote( NextMap )
 	local MapList = {}
 
 	local CurMap = Shared.GetMapName()
-	local AllowCurMap = self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends
+	local AllowCurMap = self:CanExtend()
 
 	local ForcedMapCount = self.ForcedMapCount
 
@@ -1096,7 +1120,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		if not self.Config.AllowExtend and Shared.GetMapName() == Map then
+		if not self:CanExtend() and Shared.GetMapName() == Map then
 			if Player then
 				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot nominate the current map." )
 			else
@@ -1302,6 +1326,25 @@ function Plugin:CreateCommands()
 	end
 	Commands.VetoCommand = Shine:RegisterCommand( "sh_veto", "veto", Veto )
 	Commands.VetoCommand:Help( "Cancels a map change from a successful map vote." )
+
+	local function ForceVote( Client )
+		local Player = Client and Client:GetControllingPlayer()
+		local PlayerName = Player and Player:GetName() or "Console"
+
+		if not self:VoteStarted() then
+			self:StartVote( nil, true )
+
+			Shine:Print( "%s[%s] forced a map vote.", true, PlayerName, Client and Client:GetUserId() or "N/A" )
+		else
+			if Client then
+				Shine:Notify( Client, "Error", Shine.Config.ChatName, "Unable to start a new vote, a vote is already in progress." )
+			else
+				Notify( "Unable to start a new vote, a vote is already in progress." )
+			end
+		end
+	end
+	Commands.ForceVote = Shine:RegisterCommand( "sh_forcemapvote", "forcemapvote", ForceVote )
+	Commands.ForceVote:Help( "Forces a map vote to start, if possible." )
 
 	local function TimeLeft( Client )
 		local Cycle = self.MapCycle
