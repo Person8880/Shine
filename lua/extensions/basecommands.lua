@@ -346,16 +346,51 @@ function Plugin:CreateCommands()
 
 	local function ForceRandom( Client, Targets )
 		local Gamerules = GetGamerules()
+		
 		if Gamerules then
 			TableShuffle( Targets )
 
 			local NumPlayers = #Targets
 
 			local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+			local TeamMembers = {
+				{},
+				{}
+			}
+
+			local TargetList = {}
 
 			for i = 1, NumPlayers do
-				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), TeamSequence[ i ], nil, true )
+				local Player = Targets[ i ]:GetControllingPlayer()
+
+				TargetList[ Player ] = true 
+				Targets[ i ] = Player
+				--Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), TeamSequence[ i ], nil, true )
 			end
+
+			local Players = Shine.GetAllPlayers()
+
+			for i = 1, #Players do
+				local Player = Players[ i ]
+
+				if not TargetList[ Player ] then
+					local TeamTable = TeamMembers[ Player:GetTeamNumber() ]
+
+					if TeamTable then
+						TeamTable[ #TeamTable + 1 ] = Player
+					end
+				end
+			end
+
+			for i = 1, NumPlayers do
+				local Player = Targets[ i ]
+
+				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
+
+				TeamTable[ #TeamTable + 1 ] = Player
+			end
+
+			Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
 	Commands.ForceRandomCommand = Shine:RegisterCommand( "sh_forcerandom", "forcerandom", ForceRandom )
