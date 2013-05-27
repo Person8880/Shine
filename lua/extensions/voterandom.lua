@@ -18,6 +18,7 @@ local Random = math.random
 local StringFormat = string.format
 local TableConcat = table.concat
 local TableSort = table.sort
+local tostring = tostring
 
 local Plugin = {}
 Plugin.Version = "1.5"
@@ -135,7 +136,7 @@ end
 local Requests = {}
 local ReqCount = 1
 
-function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
+function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 	local Players = Shared.GetEntitiesWithClassname( "Player" )
 	local Concat = {}
 
@@ -166,11 +167,9 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 
 	Shine.Timer.Simple( 5, function()
 		if Requests[ CurRequest ] then
-			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out. Falling back to random sorting..." )
+			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out." )
 
-			Shine:Notify( nil, "Random", ChatName, "Connection to NS2Stats timed out, falling back to random sorting." )
-
-			self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+			Callback()
 		end
 	end )
 
@@ -192,7 +191,7 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 
 			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
-			self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+			self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers )
 
 			return
 		end
@@ -204,60 +203,43 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, Callback )
 
 			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
-			self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+			self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers )
 
 			return
 		end
 
-		RBPSwebPlayers = Data
+		self.StatsData = self.StatsData or {}
+		local StatsData = self.StatsData
+
+		for i = 1, #Data do
+			local Player = Data[ i ]
+
+			if Player.id then
+				local ID = tostring( Player.id )
+
+				local Stored = StatsData[ ID ]
+
+				if Stored then
+					if Player.alien_ELO then
+						Stored.AELO = Player.alien_ELO
+					end
+					if Player.marine_ELO then
+						Stored.MELO = Player.marine_ELO
+					end
+				else
+					StatsData[ ID ] = {
+						AELO = Player.alien_ELO or 1500,
+						MELO = Player.marine_ELO or 1500
+					}
+				end
+			end
+		end
 
 		Callback()
 	end )
 end
 
---[[
-	Ensures no team has more than 1 extra player compared to the other, may break immunity, but even teams are more important.
-]]
-local function EvenlySpreadTeams( Gamerules, TeamMembers )
-	local Marine = TeamMembers[ 1 ]
-	local Alien = TeamMembers[ 2 ]
-
-	local NumMarine = #TeamMembers[ 1 ]
-	local NumAlien = #TeamMembers[ 2 ]
-
-	local MarineGreater = NumMarine > NumAlien
-	local Diff = Abs( NumMarine - NumAlien )
-
-	if Diff > 1 then
-		local NumToMove = Floor( Diff * 0.5 )
-
-		if MarineGreater then
-			for i = NumMarine, NumMarine - NumToMove, -1 do
-				local Player = Marine[ i ]
-
-				Marine[ i ] = nil
-				
-				Alien[ #Alien + 1 ] = Player
-			end
-		else
-			for i = NumAlien, NumAlien - NumToMove, -1 do
-				local Player = Alien[ i ]
-
-				Alien[ i ] = nil
-
-				Marine[ #Marine + 1 ] = Player
-			end
-		end
-	end
-
-	for i = 1, #Marine do
-		Gamerules:JoinTeam( Marine[ i ], 1, nil, true )
-	end
-
-	for i = 1, #Alien do
-		Gamerules:JoinTeam( Alien[ i ], 2, nil, true )
-	end
-end
+local EvenlySpreadTeams = Shine.EvenlySpreadTeams
 
 Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --Random only.
@@ -342,46 +324,48 @@ Plugin.ShufflingModes = {
 		if not RBPS then 
 			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
-			self.ShufflingModes[ 1 ]( self, Gamerules, Targets ) 
+			self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers ) 
 
 			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
 
 			return
 		end
 
-		self:RequestNS2Stats( Gamerules, Targets, function()
-			RBPS:autoArrangeSetELOs()
+		self:RequestNS2Stats( Gamerules, Targets, TeamMembers, function()
+			local StatsData = self.StatsData
 
-			if not next( RBPSwebPlayers ) then
+			if not StatsData or not next( StatsData ) then
 				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using random based sorting instead." )
 
 				Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
-				self.ShufflingModes[ 1 ]( self, Gamerules, Targets )
+				self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers )
 
 				return
 			end
 			
-			local Players = RBPS.Players
+			local Players = Shine.GetAllPlayers()
 
 			local ELOSort = {}
 			local Count = 0
 
 			local Sorted = {}
 
-			for Index, Player in pairs( Players ) do
-				local MELO = Player.marine_ELO
-				local AELO = Player.alien_ELO
+			local GetOwner = Server.GetOwner
 
-				local ID = Player.steamId
+			for i = 1, #Players do
+				local Player = Players[ i ]
+				local Client = Player and GetOwner( Player )
 
-				local Client = Shine.GetClientByNS2ID( tonumber( ID ) )
-				local Ply = Client:GetControllingPlayer()
+				if Client then
+					local ID = tostring( Client:GetUserId() )
+					local Data = StatsData[ ID ]
 
-				if Ply then
-					Count = Count + 1
-					ELOSort[ Count ] = { Player = Ply, ELO = ( MELO + AELO ) * 0.5 } --Average ELO, otherwise this gets way too messy.
-					Sorted[ Ply ] = true
+					if Data then
+						Count = Count + 1
+						ELOSort[ Count ] = { Player = Player, ELO = ( Data.AELO + Data.MELO ) * 0.5 }
+						Sorted[ Player ] = true
+					end
 				end
 			end
 
@@ -395,7 +379,6 @@ Plugin.ShufflingModes = {
 				end
 			end
 
-			local Players = Shine.GetAllPlayers()
 			local Count = #Players - Count
 
 			if Count > 0 then

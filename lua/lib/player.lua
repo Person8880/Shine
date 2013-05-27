@@ -2,6 +2,7 @@
 	Shine player functions.
 ]]
 
+local Abs = math.abs
 local Floor = math.floor
 local GetEntsByClass
 local StringFormat = string.format
@@ -17,6 +18,50 @@ end )
 ]]
 function Shine:IsValidClient( Client )
 	return Client and self.GameIDs[ Client ] ~= nil
+end
+
+--[[
+	Ensures no team has more than 1 extra player compared to the other.
+]]
+function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
+	local Marine = TeamMembers[ 1 ]
+	local Alien = TeamMembers[ 2 ]
+
+	local NumMarine = #TeamMembers[ 1 ]
+	local NumAlien = #TeamMembers[ 2 ]
+
+	local MarineGreater = NumMarine > NumAlien
+	local Diff = Abs( NumMarine - NumAlien )
+
+	if Diff > 1 then
+		local NumToMove = Floor( Diff * 0.5 ) - 1
+
+		if MarineGreater then
+			for i = NumMarine, NumMarine - NumToMove, -1 do
+				local Player = Marine[ i ]
+
+				Marine[ i ] = nil
+				
+				Alien[ #Alien + 1 ] = Player
+			end
+		else
+			for i = NumAlien, NumAlien - NumToMove, -1 do
+				local Player = Alien[ i ]
+
+				Alien[ i ] = nil
+
+				Marine[ #Marine + 1 ] = Player
+			end
+		end
+	end
+
+	for i = 1, #Marine do
+		Gamerules:JoinTeam( Marine[ i ], 1, nil, true )
+	end
+
+	for i = 1, #Alien do
+		Gamerules:JoinTeam( Alien[ i ], 2, nil, true )
+	end
 end
 
 --[[
