@@ -77,8 +77,8 @@ local function Call( Event, ... )
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
-			local Result = { Func( ... ) }
-			if Result[ 1 ] ~= nil then return Result end
+			local a, b, c, d, e = Func( ... )
+			if a ~= nil then return { a, b, c, d, e } end
 		end
 	end
 
@@ -87,8 +87,8 @@ local function Call( Event, ... )
 		for Plugin, Table in pairs( Plugins ) do
 			if Table.Enabled then
 				if Table[ Event ] and type( Table[ Event ] ) == "function" then
-					local Result = { Table[ Event ]( Table, ... ) }
-					if Result[ 1 ] ~= nil then return Result end
+					local a, b, c, d, e = Table[ Event ]( Table, ... )
+					if a ~= nil then return { a, b, c, d, e } end
 				end
 			end
 		end
@@ -101,8 +101,8 @@ local function Call( Event, ... )
 
 		if HookTable then
 			for Index, Func in pairs( HookTable ) do
-				local Result = { Func( ... ) }
-				if Result[ 1 ] ~= nil then return Result end
+				local a, b, c, d, e = Func( ... )
+				if a ~= nil then return { a, b, c, d, e } end
 			end
 		end
 	end
@@ -131,80 +131,16 @@ local function ClientDisconnect( Client )
 end
 Event.Hook( "ClientDisconnect", ClientDisconnect )
 
---Taken straight from NetworkMessages_Server.lua
-local function GetChatPlayerData(client)
-	local playerName = "Admin"
-	local playerLocationId = -1
-	local playerTeamNumber = kTeamReadyRoom
-	local playerTeamType = kNeutralTeamType
-	
-	if client then
-		local player = client:GetControllingPlayer()
-		if not player then
-			return
-		end
-		playerName = player:GetName()
-		playerLocationId = player.locationId
-		playerTeamNumber = player:GetTeamNumber()
-		playerTeamType = player:GetTeamType()
-	end
-
-	return playerName, playerLocationId, playerTeamNumber, playerTeamType
-end
-
 local OldOnChatReceive
 
-local function OnChatReceived( client, message )
-	chatMessage = string.sub(message.message, 1, kMaxChatLength)
-
-	--Combat mode stuff.
-	local CombatMessage
-
-	if combatCommands then
-		for i, entry in pairs( combatCommands ) do
-			if chatMessage:sub( 1, #entry ) == entry then
-			   CombatMessage = true 
-			   break
-			end
-		end   
-
-		if CombatMessage then
-			local player = client:GetControllingPlayer()
-			Server.ClientCommand( player, chatMessage )
-
-			return
-		end
+local function OnChatReceived( Client, Message )
+	local Result = Call( "PlayerSay", Client, Message )
+	if Result then
+		if Result[ 1 ] == "" then return end
+		Message.message = Result[ 1 ]
 	end
-
-	if chatMessage and string.len(chatMessage) > 0 then
-		--Begin modification to hook directly into the chat.
-		local Result = Call( "PlayerSay", client, message )
-		if Result then
-			if Result[ 1 ] == "" then return end
-			chatMessage = Result[ 1 ]:sub( 1, kMaxChatLength )
-		end
 	
-		local playerName, playerLocationId, playerTeamNumber, playerTeamType = GetChatPlayerData(client)
-		
-		if playerName then
-		
-			if message.teamOnly then
-			
-				local players = GetEntitiesForTeam("Player", playerTeamNumber)
-				for index, player in ipairs(players) do
-					Server.SendNetworkMessage(player, "Chat", BuildChatMessage(true, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
-				end
-				
-			else
-				Server.SendNetworkMessage("Chat", BuildChatMessage(false, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
-			end
-			
-			Shared.Message("Chat " .. (message.teamOnly and "Team - " or "All - ") .. playerName .. ": " .. chatMessage)
-			
-			Server.AddChatToHistory(chatMessage, playerName, client:GetUserId(), playerTeamNumber, message.teamOnly)
-			
-		end
-	end
+	return OldOnChatReceive( Client, Message )
 end
 
 local OriginalHookNWMessage = Server.HookNetworkMessage

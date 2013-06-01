@@ -371,9 +371,40 @@ Plugin.ShufflingModes = {
 
 			TableSort( ELOSort, function( A, B ) return A.ELO > B.ELO end )
 
+			local LastELO
+
+			for i = 1, Count do
+				local Obj = ELOSort[ i ]
+
+				if i == 1 then
+					LastELO = Obj.ELO
+				else
+					local CurELO = Obj.ELO
+
+					--Introduce some randomising for similar ELOs
+					if LastELO - CurELO < 20 then
+						if Random() >= 0.5 then
+							local LastObj = ELOSort[ i - 1 ]
+
+							ELOSort[ i ] = LastObj
+							ELOSort[ i - 1 ] = Obj
+
+							LastELO = LastObj.ELO
+						else
+							LastELO = CurELO
+						end
+					else
+						LastELO = CurELO
+					end
+				end
+			end
+
+			--Should we start from Aliens or Marines?
+			local Add = Random() >= 0.5 and 1 or 0
+
 			for i = 1, Count do
 				if ELOSort[ i ] then
-					local TeamTable = TeamMembers[ ( i % 2 ) + 1 ]
+					local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
 
 					TeamTable[ #TeamTable + 1 ] = ELOSort[ i ].Player
 				end
