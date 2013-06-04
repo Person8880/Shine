@@ -19,6 +19,11 @@ Plugin.ConfigName = "BaseCommands.json"
 
 Plugin.Commands = {}
 
+local DefaultConfig = {
+	AllTalk = false,
+	AllTalkPreGame = false
+}
+
 function Plugin:Initialise()
 	self.Gagged = {}
 
@@ -30,9 +35,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		AllTalk = false
-	}
+	self.Config = DefaultConfig
 
 	if Save then
 		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
@@ -56,7 +59,7 @@ function Plugin:SaveConfig()
 		return	
 	end
 
-	Notify( "Shine basecommands config file saved." )
+	Notify( "Shine basecommands config file updated." )
 end
 
 function Plugin:LoadConfig()
@@ -69,12 +72,17 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
+
+	if Shine.CheckConfig( self.Config, DefaultConfig ) then
+		self:SaveConfig()
+	end
 end
 
 --[[
 	Override voice chat to allow everyone to hear each other with alltalk on.
 ]]
 function Plugin:CanPlayerHearPlayer()
+	if self.Config.AllTalkPreGame and GetGamerules():GetGameState() == kGameState.NotStarted then return true end
 	if self.Config.AllTalk then return true end
 end
 

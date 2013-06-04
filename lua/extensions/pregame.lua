@@ -21,6 +21,14 @@ Plugin.FiveSecTimer = "PreGameFiveSeconds"
 Plugin.CountdownTimer = "PreGameCountdown"
 
 function Plugin:Initialise()
+	local GetMod = Server.GetActiveModId
+
+	for i = 1, Server.GetNumActiveMods() do
+		local Mod = GetMod( i )
+
+		if Mod == "5f35045" then return false, "Pregame plugin does not work with combat." end
+	end
+
 	self.CountStart = nil
 	self.CountEnd = nil
 	self.GameStarting = false
