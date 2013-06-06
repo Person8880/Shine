@@ -186,6 +186,8 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 
 		Requests[ CurRequest ] = nil
 
+		local ChatName = Shine.Config.ChatName
+
 		if not Response then
 			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to random sorting..." )
 
@@ -321,6 +323,7 @@ Plugin.ShufflingModes = {
 	end,
 
 	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats ELO based.
+		local ChatName = Shine.Config.ChatName
 		if not RBPS then 
 			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
@@ -752,7 +755,7 @@ function Plugin:ApplyRandomSettings()
 	end
 
 	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
-		Shine:Notify( nil, "Random", ChatName, "%s teams disabled, time limit reached.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
+		Shine:Notify( nil, "Random", ChatName, "%s team enforcing disabled, time limit reached.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 		self.ForceRandom = false
 	end )
 end

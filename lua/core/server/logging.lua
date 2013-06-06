@@ -6,6 +6,8 @@ local Shine = Shine
 
 if Shine.Error then return end
 
+local Build = Shared.GetBuildNumber()
+
 Script.Load "lua/Utility.lua"
 
 local EntityListToTable = EntityListToTable
@@ -13,6 +15,7 @@ local GetEntsByClass = Shared.GetEntitiesWithClassname
 
 local Time = Shared.GetSystemTime
 local Ceil = math.ceil
+local Date = os and os.date
 local Floor = math.floor
 local StringFormat = string.format
 local TableConcat = table.concat
@@ -34,31 +37,39 @@ local MonthData = {
 }
 
 local function GetDate( Logging )
-	local SysTime = Time() + ( Shine.Config.TimeOffset * 3600 )
+	local Day, Month, Year
 
-	local Year = Floor( SysTime / 31557600 )
-	local LeapYear = ( ( Year + 2 ) % 4 ) == 0
+	if Build < 249 or not Date then
+		local SysTime = Time() + ( Shine.Config.TimeOffset * 3600 )
 
-	local NumOfExtraDays = Floor( ( Year - 2 ) / 4 )
+		Year = Floor( SysTime / 31557600 )
+		local LeapYear = ( ( Year + 2 ) % 4 ) == 0
 
-	local Days = Floor( ( SysTime / 86400 ) - ( Year * 365 ) - NumOfExtraDays )
+		local NumOfExtraDays = Floor( ( Year - 2 ) / 4 )
 
-	Year = Year + 1970
+		local Days = Floor( ( SysTime / 86400 ) - ( Year * 365 ) - NumOfExtraDays )
 
-	local Day = 0
-	local Month = 0
-	local Sum = 0
-	for i = 1, #MonthData do
-		local CurMonth = MonthData[ i ]
-		local Length = LeapYear and ( CurMonth.LeapLength or CurMonth.Length ) or CurMonth.Length
+		Year = Year + 1970
 
-		Sum = Sum + Length
+		Day = 0
+		Month = 0
+		local Sum = 0
+		for i = 1, #MonthData do
+			local CurMonth = MonthData[ i ]
+			local Length = LeapYear and ( CurMonth.LeapLength or CurMonth.Length ) or CurMonth.Length
 
-		if Days <= Sum then
-			Day = Days - Sum + Length + ( LeapYear and 1 or 0 )
-			Month = i
-			break
+			Sum = Sum + Length
+
+			if Days <= Sum then
+				Day = Days - Sum + Length + ( LeapYear and 1 or 0 )
+				Month = i
+				break
+			end
 		end
+	else
+		Day = tonumber( Date( "%d" ) )
+		Month = tonumber( Date( "%m" ) )
+		Year = tonumber( Date( "%Y" ) )
 	end
 
 	local DateFormat = Shine.Config.DateFormat
@@ -78,6 +89,10 @@ end
 Shine.GetDate = GetDate
 
 local function GetTimeString()
+	if Build >= 249 and Date then
+		return Date( "[%H:%M:%S]" )
+	end
+
 	local SysTime = Time() + ( Shine.Config.TimeOffset * 3600 )
 	local Seconds = Floor( SysTime % 60 )
 	local Minutes = Floor( ( SysTime / 60 ) % 60 )
