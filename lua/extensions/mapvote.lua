@@ -10,6 +10,7 @@ local StringFormat = string.format
 
 local TableConcat = table.concat
 local TableContains = table.contains
+local TableCount = table.Count
 
 local Ceil = math.ceil
 local Clamp = math.Clamp
@@ -194,7 +195,8 @@ function Plugin:GenerateDefaultConfig( Save )
 		NextMapVote = 0.5, --How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
 
 		ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
-		CycleOnEmpty = false --Should the map cycle when the server's empty and it's past the map's time limit?
+		CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
+		EmptyPlayerCount = 0, --How many players defines 'empty'?
 	}
 
 	self.Vote = {}
@@ -279,6 +281,11 @@ function Plugin:LoadConfig()
 
 	if self.Config.DontExtend == nil then
 		self.Config.DontExtend = {}
+		Edited = true
+	end
+
+	if self.Config.EmptyPlayerCount == nil then
+		self.Config.EmptyPlayerCount = 0
 		Edited = true
 	end
 
@@ -438,10 +445,10 @@ end
 function Plugin:Think()
 	if not self.Config.CycleOnEmpty then return end
 	
-	if not next( Shine.GameIDs ) and Shared.GetTime() > ( self.MapCycle.time * 60 ) and not self.Cycled then
+	if TableCount( Shine.GameIDs ) <= self.Config.EmptyPlayerCount and Shared.GetTime() > ( self.MapCycle.time * 60 ) and not self.Cycled then
 		self.Cycled = true
 
-		Shine:LogString( "Server is empty and map has exceeded its timelimit. Cycling to next map..." )
+		Shine:LogString( "Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..." )
 
 		MapCycle_ChangeMap( self:GetNextMap() )
 	end
