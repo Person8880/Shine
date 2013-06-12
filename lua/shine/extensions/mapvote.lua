@@ -581,9 +581,9 @@ end
 function Plugin:AddStartVote( Client )
 	if not Client then Client = "Console" end
 
-	local Result = Shine.Hook.Call( "OnVoteStart", "rtv" )
-	if Result then 
-		if not Result[ 1 ] then return false, Result[ 2 ] end
+	local Allow, Error = Shine.Hook.Call( "OnVoteStart", "rtv" )
+	if Allow == false then 
+		return false, Error
 	end
 
 	if self:VoteStarted() then return false, "A vote is already in progress." end

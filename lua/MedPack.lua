@@ -13,9 +13,9 @@
 ]]
 if not Shine then
 	if Server then
-		Script.Load "lua/init.lua"
+		Script.Load "lua/shine/init.lua"
 	elseif Client then
-		Script.Load "lua/cl_init.lua"
+		Script.Load "lua/shine/cl_init.lua"
 	end
 end
 

@@ -13,10 +13,6 @@ local JSONSettings = { indent = true, level = 1 }
 local ConfigPath = "config://shine\\BaseConfig.json"
 local BackupPath = "config://Shine_BaseConfig.json"
 
-local function istable( Table )
-	return type( Table ) == "table"
-end
-
 function Shine.LoadJSONFile( Path )
 	local File, Err = Open( Path, "r" )
 
@@ -88,48 +84,7 @@ local DefaultConfig = {
 	AddTag = true, --Add 'shine' as a server tag.
 }
 
-local function CheckConfig( Config, DefaultConfig, DontRemove )
-	local Updated
-
-	--Add new keys.
-	for Option, Value in pairs( DefaultConfig ) do
-		if Config[ Option ] == nil then
-			Config[ Option ] = Value
-
-			Updated = true
-		elseif istable( Value ) then
-			for Index, Val in pairs( Value ) do
-				if Config[ Option ][ Index ] == nil then
-					Config[ Option ][ Index ] = Val
-
-					Updated = true
-				end
-			end
-		end
-	end
-
-	if DontRemove then return Updated end
-
-	--Remove old keys.
-	for Option, Value in pairs( Config ) do
-		if DefaultConfig[ Option ] == nil then
-			Config[ Option ] = nil
-
-			Updated = true
-		elseif istable( Value ) then
-			for Index, Val in pairs( Value ) do
-				if DefaultConfig[ Option ][ Index ] == nil then
-					Config[ Option ][ Index ] = nil
-
-					Updated = true
-				end
-			end
-		end
-	end
-
-	return Updated
-end
-Shine.CheckConfig = CheckConfig
+local CheckConfig = Shine.RecursiveCheckConfig
 
 function Shine:LoadConfig()
 	local ConfigFile = self.LoadJSONFile( ConfigPath )
@@ -186,8 +141,13 @@ function Shine:LoadExtensionConfigs()
 
 	for Name, Enabled in pairs( self.Config.ActiveExtensions ) do
 		if Enabled then
-			local Success, Err = Shine:LoadExtension( Name )
-			Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s", Name, Err ) )
+			if self.Plugins[ Name ] then --We already loaded it, it was a shared plugin.
+				local Success, Err = self:EnableExtension( Name )
+				Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s.", Name, Err ) )
+			else
+				local Success, Err = self:LoadExtension( Name )
+				Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s.", Name, Err ) )
+			end
 		end
 	end
 

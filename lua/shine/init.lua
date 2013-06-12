@@ -15,14 +15,16 @@ local Scripts = {
 	"lib/string.lua",
 	"lib/math.lua",
 	"lib/class.lua",
-	"core/server/hook.lua",
+	"core/shared/hook.lua",
 	"lib/player.lua",
 	"lib/timer.lua",
+	"lib/datatables.lua",
 	"lib/votes.lua",
 	--"Server.lua",
 	"core/server/permissions.lua",
 	"core/server/commands.lua",
-	"core/server/extensions.lua",
+	"core/shared/extensions.lua",
+	"core/shared/config.lua",
 	"core/server/config.lua",
 	"core/shared/chat.lua",
 	"core/server/logging.lua",
@@ -36,7 +38,7 @@ local Scripts = {
 }
 
 for i = 1, #Scripts do
-	include( "lua/"..Scripts[ i ] )
+	include( "lua/shine/"..Scripts[ i ] )
 end
 
 if Shine.Error then return end
