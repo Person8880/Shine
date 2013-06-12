@@ -11,6 +11,12 @@ local Scripts = {
 	"lib/string.lua",
 	"lib/table.lua",
 	"lib/class.lua",
+	"lib/math.lua",
+	"core/shared/hook.lua",
+	"lib/datatables.lua",
+	"lib/timer.lua",
+	"core/shared/config.lua",
+	"core/shared/extensions.lua",
 	"core/shared/chat.lua",
 	"core/shared/commands.lua",
 	"core/shared/webpage.lua",
@@ -22,5 +28,5 @@ local Scripts = {
 }
 
 for i = 1, #Scripts do
-	include( "lua/"..Scripts[ i ] )
+	include( "lua/shine/"..Scripts[ i ] )
 end

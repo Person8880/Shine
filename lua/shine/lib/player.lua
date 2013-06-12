@@ -235,23 +235,27 @@ function Shine:GetClient( String )
 end
 
 --[[
-	Returns all clients with permission to see log messages.
+	Returns all clients with access to the given string.
 ]]
-function Shine:GetClientsForLog()
-	local Clients = self.GetAllClients()
-
+function Shine:GetClientsWithAccess( Access )
 	local Ret = {}
 	local Count = 1
 
-	for i = 1, #Clients do
-		local Client = Clients[ i ]
-		if self:HasAccess( Client, "sh_seelogechos" ) then
+	for Client in pairs( self.GameIDs ) do
+		if self:HasAccess( Client, Access ) then
 			Ret[ Count ] = Client
 			Count = Count + 1
 		end
 	end
 
 	return Ret
+end
+
+--[[
+	Returns all clients with permission to see log messages.
+]]
+function Shine:GetClientsForLog()
+	return self:GetClientsWithAccess( "sh_seelogechos" )
 end
 
 --[[

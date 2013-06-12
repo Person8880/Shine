@@ -658,9 +658,9 @@ end
 function Plugin:AddVote( Client )
 	if not Client then Client = "Console" end
 	
-	local Result = Shine.Hook.Call( "OnVoteStart", "random" )
-	if Result then 
-		if not Result[ 1 ] then return false, Result[ 2 ] end
+	local Allow, Error = Shine.Hook.Call( "OnVoteStart", "random" )
+	if Allow == false then
+		return false, Error
 	end
 
 	if not self:CanStartVote() then

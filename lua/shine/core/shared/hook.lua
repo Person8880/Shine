@@ -78,7 +78,7 @@ local function Call( Event, ... )
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
 			local a, b, c, d, e = Func( ... )
-			if a ~= nil then return { a, b, c, d, e } end
+			if a ~= nil then return a, b, c, d, e end
 		end
 	end
 
@@ -88,7 +88,7 @@ local function Call( Event, ... )
 			if Table.Enabled then
 				if Table[ Event ] and type( Table[ Event ] ) == "function" then
 					local a, b, c, d, e = Table[ Event ]( Table, ... )
-					if a ~= nil then return { a, b, c, d, e } end
+					if a ~= nil then return a, b, c, d, e end
 				end
 			end
 		end
@@ -102,7 +102,7 @@ local function Call( Event, ... )
 		if HookTable then
 			for Index, Func in pairs( HookTable ) do
 				local a, b, c, d, e = Func( ... )
-				if a ~= nil then return { a, b, c, d, e } end
+				if a ~= nil then return a, b, c, d, e end
 			end
 		end
 	end
@@ -119,7 +119,41 @@ end
 local function UpdateServer( DeltaTime )
 	Call( "Think", DeltaTime )
 end
-Event.Hook( "UpdateServer", UpdateServer )
+Event.Hook( Server and "UpdateServer" or "UpdateClient", UpdateServer )
+
+--Client specific hooks.
+if Client then
+	local function LoadComplete()
+		Call "OnMapLoad"
+	end
+	Event.Hook( "LoadComplete", LoadComplete )
+
+	--Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
+	Add( "OnMapLoad", "Hook", function()
+		local GUIManager = GetGUIManager()
+		local OldSendKeyEvent = GUIManager.SendKeyEvent
+
+		function GUIManager:SendKeyEvent( Key, Down, Amount )
+			local Result = Call( "PlayerKeyPress", Key, Down, Amount )
+
+			if Result then return true end
+
+			return OldSendKeyEvent( self, Key, Down, Amount )
+		end
+
+		local OldSendCharacterEvent = GUIManager.SendCharacterEvent
+
+		function GUIManager:SendCharacterEvent( Char )
+			local Result = Call( "PlayerType", Char )
+
+			if Result then return true end
+
+			return OldSendCharacterEvent( self, Char )
+		end
+	end, -20 )
+
+	return
+end
 
 local function ClientConnect( Client )
 	Call( "ClientConnect", Client )
@@ -136,8 +170,8 @@ local OldOnChatReceive
 local function OnChatReceived( Client, Message )
 	local Result = Call( "PlayerSay", Client, Message )
 	if Result then
-		if Result[ 1 ] == "" then return end
-		Message.message = Result[ 1 ]
+		if Result == "" then return end
+		Message.message = Result
 	end
 	
 	return OldOnChatReceive( Client, Message )
@@ -181,11 +215,11 @@ Add( "Think", "ReplaceMethods", function()
 	local OldJoinTeam
 
 	OldJoinTeam = ReplaceMethod( Gamerules, "JoinTeam", function( self, Player, NewTeam, Force, ShineForce )
-		local Result = Call( "JoinTeam", self, Player, NewTeam, Force, ShineForce )
+		local Override, OverrideTeam = Call( "JoinTeam", self, Player, NewTeam, Force, ShineForce )
 
-		if Result then
-			if Result[ 1 ] then
-				NewTeam = Result[ 2 ]
+		if Override ~= nil then
+			if Override then
+				NewTeam = OverrideTeam
 			else
 				return false, Player
 			end
@@ -223,7 +257,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldPreGame = ReplaceMethod( Gamerules, "UpdatePregame", function( self, TimePassed ) 
 		local Result = Call( "UpdatePregame", self, TimePassed )
 
-		if Result then return end
+		if Result ~= nil then return end
 		
 		return OldPreGame( self, TimePassed )
 	end )
@@ -233,7 +267,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldCheckGameStart = ReplaceMethod( Gamerules, "CheckGameStart", function( self )
 		local Result = Call( "CheckGameStart", self )
 
-		if Result then return end
+		if Result ~= nil then return end
 		
 		return OldCheckGameStart( self )
 	end )
@@ -243,7 +277,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldCastVote = ReplaceMethod( Gamerules, "CastVoteByPlayer", function( self, VoteTechID, Player )
 		local Result = Call( "CastVoteByPlayer", self, VoteTechID, Player )
 
-		if Result then return end
+		if Result ~= nil then return end
 		
 		return OldCastVote( self, VoteTechID, Player )
 	end )
@@ -263,7 +297,7 @@ Add( "Think", "ReplaceMethods", function()
 	OldCanHear = ReplaceMethod( Gamerules, "GetCanPlayerHearPlayer", function( self, Listener, Speaker )
 		local Result = Call( "CanPlayerHearPlayer", self, Listener, Speaker )
 
-		if Result then return Result[ 1 ] end
+		if Result ~= nil then return Result end
 		
 		return OldCanHear( self, Listener, Speaker )
 	end )
@@ -336,7 +370,7 @@ Add( "Think", "ReplaceMethods", function()
 	function MapCycle_CycleMap()
 		local Result = Call( "OnCycleMap" )
 
-		if Result then return end
+		if Result ~= nil then return end
 
 		Call( "MapChange" )
 
@@ -348,7 +382,7 @@ Add( "Think", "ReplaceMethods", function()
 	function MapCycle_TestCycleMap()
 		local Result = Call( "ShouldCycleMap" )
 
-		if Result then return Result[ 1 ] end
+		if Result ~= nil then return Result end
 
 		return OldTestCycle()
 	end
