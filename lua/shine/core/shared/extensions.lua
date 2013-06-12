@@ -46,8 +46,55 @@ function PluginMeta:InitDataTable( Name )
 	self.DTVars = nil
 end
 
+function PluginMeta:GenerateDefaultConfig( Save )
+	self.Config = self.DefaultConfig
+
+	if Save then
+		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
+
+		if not Success then
+			Print( "Error writing %s config file: %s", self.__Name, Err )	
+
+			return	
+		end
+
+		Print( "Shine %s config file created.", self.__Name )
+	end
+end
+
+function PluginMeta:SaveConfig()
+	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
+
+	if not Success then
+		Print( "Error writing %s config file: %s", self.__Name, Err )	
+
+		return	
+	end
+
+	Print( "Shine %s config file updated.", self.__Name )
+end
+
+function PluginMeta:LoadConfig()
+	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
+
+	if not PluginConfig then
+		self:GenerateDefaultConfig( true )
+
+		return
+	end
+
+	self.Config = PluginConfig
+
+	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then 
+		self:SaveConfig() 
+	end
+end
+
 function Shine:RegisterExtension( Name, Table )
 	self.Plugins[ Name ] = setmetatable( Table, PluginMeta )
+
+	Table.BaseClass = PluginMeta
+	Table.__Name = Name
 end
 
 function Shine:LoadExtension( Name, DontEnable )
