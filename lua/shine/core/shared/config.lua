@@ -2,8 +2,41 @@
 	Shared config stuff.
 ]]
 
+local Encode, Decode = json.encode, json.decode
+local Open = io.open
+
+local JSONSettings = { indent = true, level = 1 }
+
 local function istable( Table )
 	return type( Table ) == "table"
+end
+
+function Shine.LoadJSONFile( Path )
+	local File, Err = Open( Path, "r" )
+
+	if not File then
+		return nil, Err
+	end
+
+	local Ret = Decode( File:read( "*all" ) )
+
+	File:close()
+
+	return Ret
+end
+
+function Shine.SaveJSONFile( Table, Path )
+	local File, Err = Open( Path, "w+" )
+
+	if not File then
+		return nil, Err
+	end
+
+	File:write( Encode( Table, JSONSettings ) )
+
+	File:close()
+
+	return true
 end
 
 --Checks a config for missing entries including sub-tables.
