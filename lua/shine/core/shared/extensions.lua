@@ -27,21 +27,23 @@ end
 local PluginMeta = {}
 PluginMeta.__index = PluginMeta
 
-function PluginMeta:AddDTVar( Type, Name, Default )
+function PluginMeta:AddDTVar( Type, Name, Default, Access )
 	self.DTVars = self.DTVars or {}
 	self.DTVars.Keys = self.DTVars.Keys or {}
 	self.DTVars.Defaults = self.DTVars.Defaults or {}
+	self.DTVars.Access = self.DTVars.Access or {}
 
 	self.DTVars.Keys[ Name ] = Type
 	self.DTVars.Defaults[ Name ] = Default
-end
-
-function PluginMeta:SetDTAccess( Access )
-	self.DTVars.Access = Access
+	self.DTVars.Access[ Name ] = Access
 end
 
 function PluginMeta:InitDataTable( Name )
 	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys, self.DTVars.Defaults, self.DTVars.Access )
+
+	if self.NetworkUpdate then
+		self.dt:__SetChangeCallback( self, self.NetworkUpdate )
+	end
 
 	self.DTVars = nil
 end
@@ -214,9 +216,9 @@ local ClientPlugins = {}
 ]]
 for Path in pairs( PluginFiles ) do
 	local Folders = StringExplode( Path, "/" )
-	local Name = Folders[ 3 ]
+	local Name = Folders[ 4 ]
 
-	if Folders[ 4 ] and not ClientPlugins[ Name ] then
+	if Folders[ 5 ] and not ClientPlugins[ Name ] then
 		ClientPlugins[ Name ] = "boolean" --Generate the network message.
 		Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 	end

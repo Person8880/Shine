@@ -288,7 +288,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local Success, Err = Shine:LoadExtension( Name )
+		local Success, Err = Shine:EnableExtension( Name )
 
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
