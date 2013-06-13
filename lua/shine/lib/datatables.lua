@@ -64,10 +64,10 @@ if Server then
 			return nil
 		end,
 		entityid = function( Value )
-			return type( Value ) == "number" and Value or nil
+			return tonumber( Value )
 		end,
 		enum = function( Value )
-			return type( Value ) == "number" and Value or nil
+			return tonumber( Value )
 		end,
 		vector = function( Value )
 			return Value.isa and Value:isa( "Vector" ) and Value or nil
