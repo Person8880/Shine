@@ -200,7 +200,7 @@ end
 
 --Refuse creation/editing keys on the client.
 function DataTableMeta:__newindex( Key, Value )
-	rawset( self, Key, RealData[ self ][ Key ] ) --Make sure the assignment doesn't hold!
+	rawset( self, Key, nil ) --Make sure the assignment doesn't hold!
 end
 
 --Process a complete network message.
