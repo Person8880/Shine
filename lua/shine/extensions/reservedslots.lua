@@ -6,6 +6,7 @@
 
 local Shine = Shine
 
+local Max = math.max
 local Notify = Shared.Message
 local StringFormat = string.format
 local TableCount = table.Count
@@ -66,33 +67,36 @@ function Plugin:LoadConfig()
 end
 
 function Plugin:LockServer( Unlock )
-	if Unlock then
-		Server.SetPassword( "" )
-	else
-		Server.SetPassword( self.Config.Password )
-	end
+	Server.SetPassword( Unlock and "" or self.Config.Password )
 end
 
 function Plugin:ClientConnect( Client )
-	local Max = Server.GetMaxPlayers()
+	local MaxPlayers = Server.GetMaxPlayers()
 
-	local Slots = self.Config.Slots
+	local ConnectedAdmins, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+
+	local Slots = Max( self.Config.Slots - Count, 0 )
+
+	if Slots == 0 then return end
+
 	local Connected = TableCount( Shine.GameIDs )
 
-	if Max - Slots == Connected then
-		Shine:LogString( StringFormat( "[Reserved Slots] Locking the server at %i/%i players.", Connected, Max ) )
+	if MaxPlayers - Slots == Connected then
+		Shine:LogString( StringFormat( "[Reserved Slots] Locking the server at %i/%i players.", Connected, MaxPlayers ) )
 		self:LockServer()
 	end
 end
 
 function Plugin:ClientDisconnect( Client )
-	local Max = Server.GetMaxPlayers()
+	local MaxPlayers = Server.GetMaxPlayers()
 
-	local Slots = self.Config.Slots
+	local ConnectedAdmins, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+
+	local Slots = Max( self.Config.Slots - Count, 0 )
 	local Connected = TableCount( Shine.GameIDs )
 
-	if Max - Slots > Connected then
-		Shine:LogString( StringFormat( "[Reserved Slots] Unlocking the server at %i/%i players.", Connected, Max ) )
+	if MaxPlayers - Slots > Connected then
+		Shine:LogString( StringFormat( "[Reserved Slots] Unlocking the server at %i/%i players.", Connected, MaxPlayers ) )
 		self:LockServer( true )
 	end
 end
