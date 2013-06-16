@@ -2,14 +2,13 @@
 	Shine console/chat command handling.
 ]]
 
+local assert = assert
 local Round = math.Round
-
-local StringConcatArgs = StringConcatArgs
 local StringExplode = string.Explode
-
 local TableConcat = table.concat
 local TableRemove = table.remove
 local TableSort = table.sort
+local type = type
 
 --[[
 	Command object.
