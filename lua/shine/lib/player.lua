@@ -239,16 +239,16 @@ end
 ]]
 function Shine:GetClientsWithAccess( Access )
 	local Ret = {}
-	local Count = 1
+	local Count = 0
 
 	for Client in pairs( self.GameIDs ) do
 		if self:HasAccess( Client, Access ) then
-			Ret[ Count ] = Client
 			Count = Count + 1
+			Ret[ Count ] = Client
 		end
 	end
 
-	return Ret
+	return Ret, Count
 end
 
 --[[

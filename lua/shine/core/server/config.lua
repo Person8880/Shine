@@ -2,44 +2,12 @@
 	Shine's config system.
 ]]
 
-local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
-local Open = io.open
 local pairs = pairs
 local StringFormat = string.format
 
-local JSONSettings = { indent = true, level = 1 }
-
 local ConfigPath = "config://shine\\BaseConfig.json"
 local BackupPath = "config://Shine_BaseConfig.json"
-
-function Shine.LoadJSONFile( Path )
-	local File, Err = Open( Path, "r" )
-
-	if not File then
-		return nil, Err
-	end
-
-	local Ret = Decode( File:read( "*all" ) )
-
-	File:close()
-
-	return Ret
-end
-
-function Shine.SaveJSONFile( Table, Path )
-	local File, Err = Open( Path, "w+" )
-
-	if not File then
-		return nil, Err
-	end
-
-	File:write( Encode( Table, JSONSettings ) )
-
-	File:close()
-
-	return true
-end
 
 local DefaultConfig = {
 	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.

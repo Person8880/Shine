@@ -36,6 +36,11 @@ function DataTableMeta:__index( Key )
 	return RealData[ self ][ Key ]
 end
 
+function DataTableMeta:__SetChangeCallback( Table, Func )
+	rawset( self, "__OnChange", Func )
+	rawset( self, "__Host", Table )
+end
+
 if Server then
 	local TypeCheckers = {
 		string = function( Value )
@@ -59,10 +64,10 @@ if Server then
 			return nil
 		end,
 		entityid = function( Value )
-			return type( Value ) == "number" and Value or nil
+			return tonumber( Value )
 		end,
 		enum = function( Value )
-			return type( Value ) == "number" and Value or nil
+			return tonumber( Value )
 		end,
 		vector = function( Value )
 			return Value.isa and Value:isa( "Vector" ) and Value or nil
@@ -96,8 +101,18 @@ if Server then
 	end
 
 	function DataTableMeta:__SendChange( Key, Value )
-		if self.__Access then
-			return Server.SendNetworkMessage( Shine:GetClientsWithAccess( self.__Access ), self.__Name..Key, { [ Key ] = Value }, true )
+		if self.__Access and self.__Access[ Key ] then
+			local Clients = Shine:GetClientsWithAccess( self.__Access[ Key ] )
+
+			for i = 1, #Clients do
+				local Client = Clients[ i ]
+
+				if Client then
+					Server.SendNetworkMessage( Client, self.__Name..Key, { [ Key ] = Value }, true )
+				end
+			end
+
+			return
 		end
 
 		Server.SendNetworkMessage( self.__Name..Key, { [ Key ] = Value }, true )
@@ -105,7 +120,11 @@ if Server then
 
 	function DataTableMeta:__SendAll()
 		if self.__Access then
-			return Server.SendNetworkMessage( Shine:GetClientsWithAccess( self.__Access ), self.__Name, RealData[ self ], true )
+			for Key, Value in pairs( RealData[ self ] ) do
+				self:__SendChange( Key, Value )
+			end
+
+			return
 		end
 
 		Server.SendNetworkMessage( self.__Name, RealData[ self ], true )
@@ -159,9 +178,20 @@ if Server then
 		return setmetatable( DT, DataTableMeta )
 	end
 
+	--Obey permissions...
 	Shine.Hook.Add( "ClientConfirmConnect", "DataTablesUpdate", function( Client )
 		for Table, Data in pairs( RealData ) do
-			Server.SendNetworkMessage( Client, Table.__Name, Data, true )
+			if not Table.__Access then
+				Server.SendNetworkMessage( Client, Table.__Name, Data, true )
+			else
+				local Access = Table.__Access
+
+				for Key, Value in pairs( Data ) do
+					if not Access[ Key ] or Shine:HasAccess( Client, Access[ Key ] ) then
+						Server.SendNetworkMessage( Client, Table.__Name..Key, { [ Key ] = Value }, true )
+					end
+				end
+			end
 		end
 	end )
 
@@ -176,12 +206,22 @@ end
 --Process a complete network message.
 function DataTableMeta:ProcessComplete( Data )
 	for Key, Value in pairs( Data ) do
+		rawset( self, "__FirstUpdate"..Key, nil )
+
 		RealData[ self ][ Key ] = Value
 	end
 end
 
 --Processes a partial network message.
 function DataTableMeta:ProcessPartial( Key, Data )
+	if not rawget( self, "__FirstUpdate"..Key ) then --Don't call on change on first sync.
+		if self.__OnChange then
+			self.__OnChange( self.__Host, Key, RealData[ self ][ Key ], Data[ Key ] )
+		end
+	else
+		rawset( self, "__FirstUpdate"..Key, nil )
+	end
+
 	RealData[ self ][ Key ] = Data[ Key ]
 end
 
@@ -195,7 +235,9 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access )
 
 	if Register then
 		for Key, Value in pairs( Defaults ) do
-			Register[ Key ] = Value
+			if not Access[ Key ] then
+				Register[ Key ] = Value
+			end
 		end
 
 		return Register
@@ -214,7 +256,11 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access )
 	local Data = RealData[ DT ]
 
 	for Key, Type in pairs( Values ) do
-		Data[ Key ] = Defaults[ Key ]
+		if not Access[ Key ] then
+			Data[ Key ] = Defaults[ Key ]
+		end
+
+		DT[ "__FirstUpdate"..Key ] = true
 
 		local ID = Name..Key
 
