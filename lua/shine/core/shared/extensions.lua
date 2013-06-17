@@ -150,6 +150,8 @@ function Shine:LoadExtension( Name, DontEnable )
 				if LowerF:find( "/"..Name..".lua", 1, true ) then
 					Found = true
 					ServerFile = File
+
+					break
 				end
 			end
 
