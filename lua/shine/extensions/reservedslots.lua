@@ -67,6 +67,8 @@ function Plugin:LoadConfig()
 end
 
 function Plugin:LockServer( Unlock )
+	self.Locked = not Unlock
+
 	Server.SetPassword( Unlock and "" or self.Config.Password )
 end
 
@@ -81,7 +83,7 @@ function Plugin:ClientConnect( Client )
 
 	local Connected = TableCount( Shine.GameIDs )
 
-	if MaxPlayers - Slots == Connected then
+	if MaxPlayers - Slots == Connected and not self.Locked then
 		Shine:LogString( StringFormat( "[Reserved Slots] Locking the server at %i/%i players.", Connected, MaxPlayers ) )
 		self:LockServer()
 	end
@@ -95,7 +97,7 @@ function Plugin:ClientDisconnect( Client )
 	local Slots = Max( self.Config.Slots - Count, 0 )
 	local Connected = TableCount( Shine.GameIDs )
 
-	if MaxPlayers - Slots > Connected then
+	if MaxPlayers - Slots > Connected and self.Locked then
 		Shine:LogString( StringFormat( "[Reserved Slots] Unlocking the server at %i/%i players.", Connected, MaxPlayers ) )
 		self:LockServer( true )
 	end

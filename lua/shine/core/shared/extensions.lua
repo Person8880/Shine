@@ -100,6 +100,8 @@ function Shine:RegisterExtension( Name, Table )
 end
 
 function Shine:LoadExtension( Name, DontEnable )
+	Name = Name:lower()
+
 	local ClientFile = ExtensionPath..Name.."/client.lua"
 	local ServerFile = ExtensionPath..Name.."/server.lua"
 	local SharedFile = ExtensionPath..Name.."/shared.lua"
@@ -139,7 +141,21 @@ function Shine:LoadExtension( Name, DontEnable )
 		ServerFile = ExtensionPath..Name..".lua"
 
 		if not PluginFiles[ ServerFile ] then
-			return false, "plugin does not exist."
+			local Found
+
+			--In case someone uses a different case file name to the plugin name...
+			for File in pairs( PluginFiles ) do
+				local LowerF = File:lower()
+
+				if LowerF:find( "/"..Name..".lua", 1, true ) then
+					Found = true
+					ServerFile = File
+				end
+			end
+
+			if not Found then
+				return false, "plugin does not exist."
+			end
 		end
 	end
 
