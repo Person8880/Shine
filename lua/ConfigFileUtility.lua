@@ -6,6 +6,8 @@
 //
 // ========= For more information, visit us at http://www.unknownworlds.com =====================
 
+Script.Load("lua/dkjson.lua")
+
 --[[
     I've moved the injection point to something no mod will ever need to change.
 
@@ -29,8 +31,6 @@ if not Shine then
         end
     end
 end
-
-Script.Load("lua/dkjson.lua")
 
 function WriteDefaultConfigFile(fileName, defaultConfig)
 
