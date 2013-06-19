@@ -15,13 +15,13 @@ Shine.Plugins = {}
 local ExtensionPath = "lua/shine/extensions/"
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
+local Files = {}
+Shared.GetMatchingFileNames( ExtensionPath.."*.lua", true, Files )
 local PluginFiles = {}
-Shared.GetMatchingFileNames( ExtensionPath.."*.lua", true, PluginFiles )
 
 --Convert to faster table.
-for i = 1, #PluginFiles do
-	PluginFiles[ PluginFiles[ i ] ] = true
-	PluginFiles[ i ] = nil
+for i = 1, #Files do
+	PluginFiles[ Files[ i ] ] = true
 end
 
 local PluginMeta = {}
@@ -52,7 +52,9 @@ function PluginMeta:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
 
 	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
+		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+
+		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 		if not Success then
 			Print( "Error writing %s config file: %s", self.__Name, Err )	
@@ -65,7 +67,9 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+
+	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 	if not Success then
 		Print( "Error writing %s config file: %s", self.__Name, Err )	
@@ -77,7 +81,9 @@ function PluginMeta:SaveConfig()
 end
 
 function PluginMeta:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+
+	local PluginConfig = Shine.LoadJSONFile( Path )
 
 	if not PluginConfig then
 		self:GenerateDefaultConfig( true )
@@ -150,6 +156,8 @@ function Shine:LoadExtension( Name, DontEnable )
 				if LowerF:find( "/"..Name..".lua", 1, true ) then
 					Found = true
 					ServerFile = File
+
+					break
 				end
 			end
 
