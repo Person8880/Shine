@@ -36,6 +36,8 @@ function Plugin:Initialise()
 	self.ReadyRoomTracker = {}
 	self.BlockedClients = {}
 
+	self.TeamMemory = {}
+
 	self.Enabled = true
 
 	return true
@@ -128,7 +130,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	--Move ready room players onto a team if they attempt to spectate.
 	if Team == kTeamReadyRoom then
-		JoinRandomTeam( Player )
+		self:JoinRandomTeam( Player )
 	end
 
 	return false
@@ -157,6 +159,68 @@ function Plugin:EndGame()
 	for k in pairs( BlockedClients ) do
 		BlockedClients[ k ] = nil
 	end
+
+	local Players = Shine.GetAllPlayers()
+	local GetOwner = Server.GetOwner
+
+	for i = 1, #Players do
+		local Player = Players[ i ]
+
+		if Player then
+			local Client = GetOwner( Player )
+
+			if Client then
+				self.TeamMemory[ Client ] = Player:GetTeamNumber()
+			end
+		end
+	end
+end
+
+--[[
+	Remove the client from memory on disconnect.
+]]
+function Plugin:ClientDisconnect( Client )
+	self.TeamMemory[ Client ] = nil
+end
+
+--[[
+	Moves a single player onto a random team.
+]]
+function Plugin:JoinRandomTeam( Player )
+	local Gamerules = GetGamerules()
+	if not Gamerules then return end
+
+	local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
+	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
+	
+	if Team1 < Team2 then
+		Gamerules:JoinTeam( Player, 1, nil, true )
+	elseif Team2 < Team1 then
+		Gamerules:JoinTeam( Player, 2, nil, true )
+	else
+		local Client = Server.GetOwner( Player )
+
+		if Client then
+			local LastTeam = self.TeamMemory[ Client ]
+
+			--Place them on the opposite team to their last round.
+			if LastTeam == 1 then
+				Gamerules:JoinTeam( Player, 2, nil, true )
+
+				return
+			elseif LastTeam == 2 then
+				Gamerules:JoinTeam( Player, 1, nil, true )
+			
+				return
+			end
+		end
+
+		if Random() < 0.5 then
+			Gamerules:JoinTeam( Player, 1, nil, true )
+		else
+			Gamerules:JoinTeam( Player, 2, nil, true )
+		end
+	end
 end
 
 function Plugin:AssignToTeam( Player )
@@ -164,7 +228,7 @@ function Plugin:AssignToTeam( Player )
 		Shine:NotifyColour( Player, 255, 160, 0, "You were moved onto a random team for being in the ready room too long." )
 	end
 	
-	return JoinRandomTeam( Player )
+	return self:JoinRandomTeam( Player )
 end
 
 function Plugin:ProcessClient( Client, Time )
