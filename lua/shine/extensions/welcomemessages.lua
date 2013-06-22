@@ -7,12 +7,15 @@ local Shine = Shine
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
+local TableEmpty = table.Empty
 
 local Plugin = {}
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "WelcomeMessages.json"
+
+Plugin.Welcomed = {}
 
 local DefaultConfig = {
 	MessageDelay = 5,
@@ -85,6 +88,8 @@ function Plugin:ClientConnect( Client )
 
 			MessageTable.Said = true
 
+			self.Welcomed[ Client ] = true
+
 			self:SaveConfig()
 		
 			return
@@ -96,11 +101,17 @@ function Plugin:ClientConnect( Client )
 
 		if not Player then return end
 
+		self.Welcomed[ Client ] = true
+
 		Shine:Notify( nil, "", "", "%s has joined the game.", true, Player:GetName() )
 	end )
 end
 
 function Plugin:ClientDisconnect( Client )
+	if not self.Welcomed[ Client ] then return end
+
+	self.Welcomed[ Client ] = nil
+	
 	local ID = Client:GetUserId()
 
 	local MessageTable = self.Config.Users[ tostring( ID ) ]
@@ -125,6 +136,8 @@ function Plugin:ClientDisconnect( Client )
 end
 
 function Plugin:Cleanup()
+	TableEmpty( self.Welcomed )
+
 	self.Enabled = false
 end
 

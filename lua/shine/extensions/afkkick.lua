@@ -15,56 +15,21 @@ Plugin.ConfigName = "AFKKick.json"
 
 Plugin.Users = {}
 
+Plugin.DefaultConfig = {
+	MinPlayers = 10,
+	Delay = 1,
+	WarnTime = 5,
+	KickTime = 15,
+	Warn = true,
+	OnlyCheckOnStarted = false
+}
+
+Plugin.CheckConfig = true
+
 function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		MinPlayers = 10,
-		Delay = 1,
-		WarnTime = 5,
-		KickTime = 15,
-		Warn = true
-	}
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing afkkick config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine afkkick config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing afkkick config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine afkkick config file saved." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
 end
 
 --[[
@@ -90,6 +55,10 @@ end
 	Hook into movement processing to help prevent false positive AFK kicking.
 ]]
 function Plugin:OnProcessMove( Player, Input )
+	local Gamerules = GetGamerules()
+
+	if self.Config.OnlyCheckOnStarted and not ( Gamerules and Gamerules:GetGameStarted() ) then return end
+
 	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
 
 	if Players < self.Config.MinPlayers then return end
