@@ -145,21 +145,14 @@ end
 function Shine.GetClientByNS2ID( ID )
 	if type( ID ) ~= "number" then return nil end
 	
-	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
-
-	for i = 1, #Players do
-		local Ply = Players[ i ]
-		
-		if Ply then
-			local Client = Ply:GetClient()
-			if Client then
-				if Client:GetUserId() == ID then
-					return Client
-				end
-			end
-		end				
-	end
+	local Clients = Shine.GameIDs
 	
+	for Client in pairs( Clients ) do
+		if Client:GetUserId() == ID then
+			return Client
+		end
+	end
+
 	return nil
 end
 
@@ -170,18 +163,15 @@ function Shine.GetClientByName( Name )
 	if type( Name ) ~= "string" then return nil end
 
 	Name = Name:lower()
-	
-	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
 
-	for i = 1, #Players do
-		local Ply = Players[ i ]
+	local Clients = Shine.GameIDs
 
-		if Ply then
-			local Client = Ply:GetClient()
-			if Client then
-				if Ply:GetName():lower():find( Name, 1, true ) then
-					return Client
-				end
+	for Client in pairs( Clients ) do
+		local Player = Client:GetControllingPlayer()
+
+		if Player then
+			if Player:GetName():lower():find( Name, 1, true ) then
+				return Client
 			end
 		end
 	end

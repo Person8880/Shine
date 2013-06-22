@@ -13,7 +13,7 @@ Plugin.Version = "1.3"
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local pairs = pairs
-local Time = Shared.GetSystemTime
+local Time = os.time
 local StringFormat = string.format
 
 Plugin.HasConfig = true --This plugin needs a config file.
@@ -237,12 +237,12 @@ end
 	Checks bans on startup.
 ]]
 function Plugin:CheckBans()
-	local Time = Shared.GetSystemTime()
+	local CurTime = Time()
 	local Bans = self.Config.Banned
 	local Edited
 
 	for ID, Data in pairs( Bans ) do
-		if Data.UnbanTime and Data.UnbanTime ~= 0 and Data.UnbanTime < Time then
+		if Data.UnbanTime and Data.UnbanTime ~= 0 and Data.UnbanTime < CurTime then
 			self:RemoveBan( ID, true )
 			Edited = true
 		end
