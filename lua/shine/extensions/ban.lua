@@ -1,7 +1,5 @@
 --[[
 	Shine ban system.
-
-	This plugin is a good example of a Shine plugin, it uses most if not all of the available features.
 ]]
 
 local Shine = Shine
@@ -16,8 +14,8 @@ local pairs = pairs
 local Time = os.time
 local StringFormat = string.format
 
-Plugin.HasConfig = true --This plugin needs a config file.
-Plugin.ConfigName = "Bans.json" --Here it is!
+Plugin.HasConfig = true
+Plugin.ConfigName = "Bans.json"
 
 Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
 

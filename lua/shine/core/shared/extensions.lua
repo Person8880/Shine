@@ -6,6 +6,7 @@
 
 local include = Script.Load
 local next = next
+local pairs = pairs
 local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
@@ -95,6 +96,52 @@ function PluginMeta:LoadConfig()
 
 	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then 
 		self:SaveConfig() 
+	end
+end
+
+if Server then
+	--[[
+		Bind a command to the plugin.
+		If you call the base class Cleanup, the command will be removed on plugin unload.
+	]]
+	function PluginMeta:BindCommand( ConCommand, ChatCommand, Func, NoPerm, Silent )
+		self.Commands = self.Commands or {}
+
+		local Command  = Shine:RegisterCommand( ConCommand, ChatCommand, Func, NoPerm, Silent )
+
+		self.Commands[ ConCommand ] = Command
+
+		return Command
+	end
+
+	--[[
+		Default cleanup will remove any bound commands.
+		Override to add/change behaviour, call it with self.BaseClass.Cleanup( self ).
+	]]
+	function PluginMeta:Cleanup()
+		if self.Commands then
+			for _, Command in pairs( self.Commands ) do
+				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
+			end
+		end
+	end
+elseif Client then
+	function PluginMeta:BindCommand( Command, Func )
+		self.Commands = self.Commands or {}
+
+		local Command = Shine:RegisterClientCommand( ConCommand, Func )
+
+		self.Commands[ ConCommand ] = Command
+
+		return Command
+	end
+
+	function PluginMeta:Cleanup()
+		if self.Commands then
+			for _, Command in pairs( self.Commands ) do
+				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
+			end
+		end
 	end
 end
 
