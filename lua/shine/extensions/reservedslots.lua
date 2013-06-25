@@ -54,6 +54,8 @@ local OnReservedConnect = {
 	end,
 
 	function( self, Client )
+		if Shine:HasAccess( Client, "sh_reservedslot" ) then return end
+		
 		local Redirect = self.Config.Redirect
 
 		local IP = Redirect.IP
@@ -68,6 +70,15 @@ local OnReservedConnect = {
 
 		Shine.Timer.Simple( 20, function()
 			if Shine:IsValidClient( Client ) then
+				local Player = Client:GetControllingPlayer()
+
+				if Player then
+					local Name = Player:GetName()
+					local ID = Client:GetUserId()
+
+					Shine:LogString( StringFormat( "[Reserved Slots] Redirected client %s[%s].", Name, ID ) )
+				end
+
 				Server.SendNetworkMessage( Client, "Shine_Command", { 
 					Command = StringFormat( "connect %s:%s%s", IP, Port, Password )
 				}, true )
