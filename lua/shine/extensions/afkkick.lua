@@ -44,6 +44,8 @@ function Plugin:ClientConnect( Client )
 
 	if not Player then return end
 
+	if Shine:HasAccess( Client, "sh_afk" ) then return end
+
 	self.Users[ Client ] = {
 		LastMove = Shared.GetTime() + ( self.Config.Delay * 60 ),
 		Pos = Player:GetOrigin(),
@@ -68,7 +70,13 @@ function Plugin:OnProcessMove( Player, Input )
 	if not Client then return end
 
 	if Client:GetIsVirtual() then return end
-	if Shine:HasAccess( Client, "sh_afk" ) then return end --Immunity.
+	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
+		if self.Users[ Client ] then
+			self.Users[ Client ] = nil
+		end
+		
+		return
+	end
 
 	local DataTable = self.Users[ Client ]
 
@@ -116,6 +124,14 @@ function Plugin:OnProcessMove( Player, Input )
 
 		Server.DisconnectClient( Client )
 	end
+end
+
+--[[
+	Other plugins may wish to know this.
+]]
+function Plugin:GetLastMoveTime( Client )
+	if not self.Users[ Client ] then return nil end
+	return self.Users[ Client ].LastMove
 end
 
 --[[
