@@ -33,22 +33,26 @@ Plugin.RandomEndTimer = "VoteRandomTimer"
 Plugin.MODE_RANDOM = 1
 Plugin.MODE_SCORE = 2
 Plugin.MODE_ELO = 3
+Plugin.MODE_KDR = 4
 
 local ModeStrings = {
 	Mode = {
 		"Random",
 		"Score based",
-		"ELO based"
+		"ELO based",
+		"KDR based"
 	},
 	ModeLower = {
 		"random",
 		"score based",
-		"ELO based"
+		"ELO based",
+		"KDR based"
 	},
 	Action = {
 		"randomly",
 		"based on score",
-		"based on ELO"
+		"based on ELO",
+		"based on KDR"
 	}
 }
 Plugin.ModeStrings = ModeStrings
@@ -130,7 +134,7 @@ function Plugin:LoadConfig()
 
 	if Shine.CheckConfig( self.Config, DefaultConfig ) then self:SaveConfig() end
 
-	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 3 )
+	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 4 )
 end
 
 local Requests = {}
@@ -296,8 +300,10 @@ Plugin.ShufflingModes = {
 		if ScoreSortCount > 0 then
 			TableSort( ScoreTable, function( A, B ) return A.Score > B.Score end )
 
+			local Add = Random() >= 0.5 and 1 or 0
+
 			for i = 1, ScoreSortCount do
-				local TeamTable = TeamMembers[ ( i % 2 ) + 1 ]
+				local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
 
 				TeamTable[ #TeamTable + 1 ] = ScoreTable[ i ].Player
 			end
@@ -327,7 +333,7 @@ Plugin.ShufflingModes = {
 		if not RBPS then 
 			Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
-			self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers ) 
+			self.ShufflingModes[ self.MODE_RANDOM ]( self, Gamerules, Targets, TeamMembers ) 
 
 			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
 
@@ -342,7 +348,7 @@ Plugin.ShufflingModes = {
 
 				Shine:Notify( nil, "Random", ChatName, "Shuffling based on ELO failed, falling back to random sorting." )
 
-				self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers )
+				self.ShufflingModes[ self.MODE_RANDOM ]( self, Gamerules, Targets, TeamMembers )
 
 				return
 			end
@@ -436,6 +442,11 @@ Plugin.ShufflingModes = {
 
 			Shine:LogString( "[ELO Vote] Teams were sorted based on NS2Stats ELO ranking." )
 		end )
+	end,
+
+	--KDR based works identically to score, the score data is what is different.
+	function( self, Gamerules, Targets, TeamMembers )
+		return self.ShufflingModes[ self.MODE_SCORE ]( self, Gamerules, Targets, TeamMembers )
 	end
 }
 
@@ -455,6 +466,25 @@ function Plugin:ShuffleTeams( ResetScores )
 		{}
 	}
 
+	local AFKKick = Shine.Plugins.afkkick
+	local AFKEnabled = AFKKick and AFKKick.Enabled
+
+	local Time = Shared.GetTime()
+
+	local function SortPlayer( Player, Client, Commander )
+		if not Shine:HasAccess( Client, "sh_randomimmune" ) and not Commander then
+			Targets[ #Targets + 1 ] = Player
+		else
+			local Team = Player:GetTeamNumber()
+
+			local TeamTable = TeamMembers[ Team ]
+
+			if TeamTable then
+				TeamTable[ #TeamTable + 1 ] = Player
+			end
+		end
+	end
+
 	for i = 1, #Players do
 		local Player = Players[ i ]
 
@@ -468,16 +498,16 @@ function Plugin:ShuffleTeams( ResetScores )
 			local Client = Player:GetClient()
 
 			if Client then
-				if not Shine:HasAccess( Client, "sh_randomimmune" ) and not Commander then
-					Targets[ #Targets + 1 ] = Player
-				else
-					local Team = Player:GetTeamNumber()
+				if AFKEnabled then --Ignore AFK players in sorting.
+					local LastMove = AFKKick:GetLastMoveTime( Client )
 
-					local TeamTable = TeamMembers[ Team ]
-
-					if TeamTable then
-						TeamTable[ #TeamTable + 1 ] = Player
+					if not LastMove or Time - LastMove < 30 then
+						SortPlayer( Player, Client, Commander )
+					else --Chuck AFK players into the ready room.
+						Gamerules:JoinTeam( Player, 0, nil, true )
 					end
+				else
+					SortPlayer( Player, Client, Commander )
 				end
 			end
 		end
@@ -496,9 +526,23 @@ function Plugin:StoreScoreData( Player )
 	
 	local ID = Client:GetUserId()
 
-	--Don't want to store data about 0 score players, we'll just randomise them.
-	if Player.score and Player.score > 0 then
-		self.ScoreData[ ID ] = Player.score
+	local Mode = self.Config.BalanceMode
+
+	if Mode == self.MODE_SCORE then
+		--Don't want to store data about 0 score players, we'll just randomise them.
+		if Player.score and Player.score > 0 then
+			self.ScoreData[ ID ] = Player.score
+		end
+	elseif Mode == self.MODE_KDR then
+		local Kills = Player:GetKills()
+		local Deaths = Player:GetDeaths()
+
+		--0 KDR is useless, let's just randomise them.
+		if Kills == 0 then return end 
+		--Don't want a NaN ratio!
+		if Deaths == 0 then Deaths = 1 end
+
+		self.ScoreData[ ID ] = Kills / Deaths
 	end
 end
 
@@ -565,7 +609,8 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		end
 	end
 	local Players = Shine.GetAllPlayers()
-	local IsScoreBased = self.Config.BalanceMode == self.MODE_SCORE
+	local BalanceMode = self.Config.BalanceMode
+	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
 
 	--Reset the randomised state of all players and store score data.
 	for i = 1, #Players do

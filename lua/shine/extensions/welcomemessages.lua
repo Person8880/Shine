@@ -132,7 +132,11 @@ function Plugin:ClientDisconnect( Client )
 
 	if not Player then return end
 	
-	Shine:Notify( nil, "", "", "%s has left the game.", true, Player:GetName() )
+	if not Client.DisconnectReason then
+		Shine:Notify( nil, "", "", "%s has left the game.", true, Player:GetName() )
+	else
+		Shine:Notify( nil, "", "", "Dropped %s (%s).", true, Player:GetName(), Client.DisconnectReason )
+	end
 end
 
 function Plugin:Cleanup()

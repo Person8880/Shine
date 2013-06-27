@@ -176,7 +176,7 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineF
 end
 
 --[[
-	Makes the given team surrender (moves them to the ready room).
+	Makes the given team surrender.
 ]]
 function Plugin:Surrender( Team )
 	local Players = GetEntitiesForTeam( "Player", Team )
@@ -245,7 +245,7 @@ function Plugin:CreateCommands()
 		local Team = Player:GetTeamNumber()
 
 		if not self.Votes[ Team ] then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a surrender vote at this time." )
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a surrender vote on this team." )
 
 			return
 		end

@@ -10,9 +10,6 @@ local Build = Shared.GetBuildNumber()
 
 Script.Load "lua/Utility.lua"
 
-local EntityListToTable = EntityListToTable
-local GetEntsByClass = Shared.GetEntitiesWithClassname
-
 local Time = Shared.GetSystemTime
 local Ceil = math.ceil
 local Date = os and os.date
@@ -39,6 +36,7 @@ local MonthData = {
 local function GetDate( Logging )
 	local Day, Month, Year
 
+	--This old method is left for reference. Eventually I'll remove it.
 	if Build < 249 or not Date then
 		local SysTime = Time() + ( Shine.Config.TimeOffset * 3600 )
 
@@ -104,6 +102,13 @@ Shine.GetTimeString = GetTimeString
 
 Shared.OldMessage = Shared.OldMessage or Shared.Message
 
+--[[
+	Fun fact for anyone reading, this thread started Shine:
+	
+	http://forums.unknownworlds.com/discussion/126283/time-in-log-files
+	
+	and this function was its first feature.
+]]
 function Shared.Message( String )
 	return Shared.OldMessage( GetTimeString()..String )
 end

@@ -68,6 +68,8 @@ Shine.Hook.Add = Add
 	Inputs: Event name, arguments to pass.
 ]]
 local function Call( Event, ... )
+	if Shine.Hook.Disabled then return end
+	
 	local Plugins = Shine.Plugins
 
 	local Hooked = Hooks[ Event ]
