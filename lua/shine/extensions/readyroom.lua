@@ -8,6 +8,7 @@ local Shine = Shine
 
 local Notify = Shared.Message
 local pairs = pairs
+local Random = math.random
 local StringFormat = string.format
 local TableEmpty = table.Empty
 
