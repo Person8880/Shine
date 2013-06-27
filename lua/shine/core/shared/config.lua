@@ -18,9 +18,11 @@ function Shine.LoadJSONFile( Path )
 		return nil, Err
 	end
 
-	local Ret = Decode( File:read( "*all" ) )
+	local Data = File:read( "*all" )
 
 	File:close()
+
+	local Ret = Decode( Data )
 
 	return Ret
 end
