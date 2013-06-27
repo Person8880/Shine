@@ -112,6 +112,12 @@ function Plugin:CreateCommands()
 		local Player = Client:GetControllingPlayer()
 
 		if not Player then return end
+
+		if not Player:GetIsAlive() then
+			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot be unstuck when you are dead." )
+
+			return
+		end
 		
 		local Time = Shared.GetTime()
 
@@ -121,7 +127,6 @@ function Plugin:CreateCommands()
 
 			return
 		end
-		
 
 		local Success = self:UnstickPlayer( Player, Player:GetOrigin() )
 

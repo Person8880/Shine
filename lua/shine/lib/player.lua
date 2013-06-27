@@ -254,16 +254,15 @@ end
 function Shine:GetClientsByGroup( Group )
 	if Group ~= "guest" and not self.UserData.Groups[ Group ] then return {} end
 
-	local Clients = self.GetAllClients()
+	local Clients = self.GameIDs
 
+	local Count = 0
 	local Ret = {}
-	local Count = 1
 
-	for i = 1, #Clients do
-		local Client = Clients[ i ]
+	for Client in pairs( Clients ) do
 		if self:IsInGroup( Client, Group ) then
-			Ret[ Count ] = Client
 			Count = Count + 1
+			Ret[ Count ] = Client
 		end
 	end
 

@@ -80,9 +80,19 @@ function Shine:LoadUsers( Web, Reload )
 
 	Notify( "Loading Shine users..." )
 
-	self.UserData = Decode( UserFile:read( "*all" ) )
+	local Data = UserFile:read( "*all" )
 
 	UserFile:close()
+
+	self.UserData = Decode( Data )
+
+	if not self.UserData or not next( self.UserData ) then
+		Shared.Message( "[Shine] The user data file is not valid JSON, unable to load user data." )
+	
+		Shine.Error = "The user data file is not valid JSON, unable to load user data."
+
+		return
+	end
 
 	self:ConvertData( self.UserData )
 end
