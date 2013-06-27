@@ -122,6 +122,8 @@ function Plugin:OnProcessMove( Player, Input )
 
 		Shine:Print( "Client %s[%s] was AFK for over %s. Kicking...", true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ) )
 
+		Client.DisconnectReason = "AFK for too long"
+
 		Server.DisconnectClient( Client )
 	end
 end

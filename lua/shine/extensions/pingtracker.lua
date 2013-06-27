@@ -130,6 +130,8 @@ function Plugin:CheckClient( Client, Data, Time )
 				Shine:LogString( StringFormat( "[PingTracker] Kicked client %s[%s]. Average ping: %.2f. Average jitter: %.2f.", 
 					Client:GetControllingPlayer():GetName(), Client:GetUserId(), AveragePing, AverageJitter ) )
 
+				Client.DisconnectReason = "Ping too high"
+
 				Server.DisconnectClient( Client )
 
 				return
@@ -145,6 +147,8 @@ function Plugin:CheckClient( Client, Data, Time )
 			else
 				Shine:LogString( StringFormat( "[PingTracker] Kicked client %s[%s]. Average ping: %.2f. Average jitter: %.2f.", 
 					Client:GetControllingPlayer():GetName(), Client:GetUserId(), AveragePing, AverageJitter ) )
+
+				Client.DisconnectReason = "Ping jitter too high"
 
 				Server.DisconnectClient( Client )
 
