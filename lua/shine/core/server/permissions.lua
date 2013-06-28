@@ -233,7 +233,7 @@ function Shine:GetUserData( Client )
 	
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 
-	return self.UserData.Users[ ID ]
+	return self.UserData.Users[ tostring( ID ) ]
 end
 
 --[[

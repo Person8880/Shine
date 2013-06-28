@@ -8,11 +8,17 @@ local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "ServerSwitch.json"
+
+Plugin.DefaultConfig = {
+	Servers = {
+		{ Name = "My awesome server", IP = "127.0.0.1", Port = "27015", Password = "" }
+	}
+}
 
 function Plugin:Initialise()
 	self:CreateCommands()
@@ -22,48 +28,30 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		Servers = {
-			{ Name = "My awesome server", IP = "127.0.0.1", Port = "27015", Password = "" }
-		}
-	}
+function Plugin:SendServerData( Client, ID, Data )
+	Server.SendNetworkMessage( Client, "Shine_SendServerList", {
+		Name = Data.Name and Data.Name:sub( 1, 15 ) or "No Name",
+		IP = Data.IP,
+		Port = Data.Port,
+		ID = ID
+	}, true )
+end
 
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
+function Plugin:OnVoteMenuOpen( Client )
+	local Servers = self.Config.Servers
+	local IsUser = Shine:GetUserData( Client )
 
-		if not Success then
-			Notify( "Error writing serverswitch config file: "..Err )	
+	for i = 1, #Servers do
+		local Data = Servers[ i ]
 
-			return	
+		if Data.UsersOnly then
+			if IsUser then
+				self:SendServerData( Client, i, Data )
+			end
+		else
+			self:SendServerData( Client, i, Data )
 		end
-
-		Notify( "Shine serverswitch config file created." )
 	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing serverswitch config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine serverswitch config file updated." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
 end
 
 function Plugin:CreateCommands()
@@ -145,5 +133,3 @@ function Plugin:Cleanup()
 
 	self.Enabled = false
 end
-
-Shine:RegisterExtension( "serverswitch", Plugin )
