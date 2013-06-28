@@ -34,6 +34,59 @@ function Plugin:OnVoteMenuOpen()
 	TableEmpty( self.ServerList )
 end
 
+local function VoteButtonDoClick( self )
+	if self.MainMenu then
+		self:ClearOptions()
+		self:PopulateMaps()
+		self.VoteButton.Text:SetText( "Back" )
+
+		return true
+	else
+		self:ClearOptions()
+		self:Populate( Shine.ActivePlugins )
+		self.VoteButton.Text:SetText( "Vote" )
+
+		if self.SwitchServerButton then
+			self.SwitchServerButton.Background:SetIsVisible( true )
+		end
+		
+		return true
+	end
+end
+
+local function PopulateServers( self )
+	local Servers = Plugin.ServerList
+		
+	local NumServers = TableCount( Servers )
+	local HalfServers = Ceil( NumServers * 0.5 )
+
+	local MenuButtons = self.MenuButtons
+
+	local CurCount = 1
+
+	local function ClickServer( ID )
+		if self.GetCanSendVote() then
+			Shared.ConsoleCommand( "sh_switchserver "..ID )
+
+			return true
+		end
+
+		return false
+	end
+
+	for ID, Server in pairs( Servers ) do
+		if CurCount <= HalfServers then
+			MenuButtons[ #MenuButtons + 1 ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Left, CurCount, HalfServers,
+			function() return ClickServer( ID ) end )
+		else
+			MenuButtons[ #MenuButtons + 1 ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Right, CurCount - HalfServers, HalfServers,
+			function() return ClickServer( ID ) end )
+		end
+
+		CurCount = CurCount + 1
+	end
+end
+
 Client.HookNetworkMessage( "Shine_SendServerList", function( Data )
 	Plugin.ServerList[ Data.ID ] = {
 		IP = Data.IP,
@@ -45,59 +98,14 @@ Client.HookNetworkMessage( "Shine_SendServerList", function( Data )
 
 	if not VoteMenu or VoteMenu.SwitchServerButton then return end
 
-	function GUIShineVoteMenu:VoteButtonDoClick()
-		if self.MainMenu then
-			self:ClearOptions()
-			self:PopulateMaps()
-			self.VoteButton.Text:SetText( "Back" )
-
-			return true
-		else
-			self:ClearOptions()
-			self:Populate( Shine.ActivePlugins )
-			self.VoteButton.Text:SetText( "Vote" )
-
-			if self.SwitchServerButton then
-				self.SwitchServerButton.Background:SetIsVisible( true )
-			end
-			
-			return true
-		end
+	if GUIShineVoteMenu.VoteButtonDoClick ~= VoteButtonDoClick then
+		GUIShineVoteMenu.VoteButtonDoClick = VoteButtonDoClick
+		VoteMenu.VoteButtonDoClick = VoteButtonDoClick
 	end
 
-	VoteMenu.VoteButtonDoClick = GUIShineVoteMenu.VoteButtonDoClick
-
-	function VoteMenu:PopulateServers()
-		local Servers = Plugin.ServerList
-		
-		local NumServers = TableCount( Servers )
-		local HalfServers = Ceil( NumServers * 0.5 )
-
-		local MenuButtons = self.MenuButtons
-
-		local CurCount = 1
-
-		local function ClickServer( ID )
-			if self.GetCanSendVote() then
-				Shared.ConsoleCommand( "sh_switchserver "..ID )
-
-				return true
-			end
-
-			return false
-		end
-
-		for ID, Server in pairs( Servers ) do
-			if CurCount <= HalfServers then
-				MenuButtons[ #MenuButtons + 1 ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Left, CurCount, HalfServers,
-				function() return ClickServer( ID ) end )
-			else
-				MenuButtons[ #MenuButtons + 1 ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Right, CurCount - HalfServers, HalfServers,
-				function() return ClickServer( ID ) end )
-			end
-
-			CurCount = CurCount + 1
-		end
+	if not GUIShineVoteMenu.PopulateServers then
+		GUIShineVoteMenu.PopulateServers = PopulateServers
+		VoteMenu.PopulateServers = PopulateServers
 	end
 
 	local BackButton = VoteMenu:CreateCustomButton( "BackButton", ZeroVec, GUIItem.Middle, GUIItem.Bottom, "Back",
