@@ -223,6 +223,20 @@ local function isnumber( Num )
 end
 
 --[[
+	Gets the user data table for the given client/NS2ID.
+	Input: Client or NS2ID.
+	Output: User data table if they are registered in UserConfig.json.
+]]
+function Shine:GetUserData( Client )
+	if not self.UserData then return nil end
+	if not self.UserData.Users then return nil end
+	
+	local ID = isnumber( Client ) and Client or Client:GetUserId()
+
+	return self.UserData.Users[ tostring( ID ) ]
+end
+
+--[[
 	Determines if the given client has permission to run the given command.
 	Inputs: Client or Steam ID, command name (sh_*).
 	Output: True if allowed.

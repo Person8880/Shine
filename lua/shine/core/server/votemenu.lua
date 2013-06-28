@@ -69,3 +69,7 @@ end )
 Server.HookNetworkMessage( "Shine_RequestPluginData", function( Client, Message )
 	Shine:SendPluginData( Client, Shine:BuildPluginData() )
 end )
+
+Server.HookNetworkMessage( "Shine_OpenedVoteMenu", function( Client )
+	Shine.Hook.Call( "OnVoteMenuOpen", Client )
+end )

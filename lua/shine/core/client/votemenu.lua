@@ -82,6 +82,8 @@ function Shine.OpenVoteMenu()
 
 		Menu = nil
 
+		Shine.VoteMenu = nil
+
 		if ShouldClose then
 			return
 		end
@@ -99,6 +101,11 @@ function Shine.OpenVoteMenu()
 
 		Client.SendNetworkMessage( "Shine_RequestVoteOptions", { Cake = 0 }, true )
 	end
+
+	Client.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
+	Shine.Hook.Call( "OnVoteMenuOpen" )
+
+	Shine.VoteMenu = Menu
 
 	Menu:SetIsVisible( true )
 end
