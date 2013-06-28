@@ -1,7 +1,5 @@
 --[[
 	Shine multi-server plugin.
-
-	TODO: See if I can query the web admin interface now.
 ]]
 
 local Shine = Shine
@@ -83,6 +81,16 @@ function Plugin:CreateCommands()
 		if not ServerData then
 			Shine:Notify( Player, "Error", Shine.Config.ChatName, "Invalid server number." )
 			return
+		end
+
+		if ServerData.UsersOnly then
+			local UserTable = Shine:GetUserData( Client )
+
+			if not UserTable then
+				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You are not allowed to switch to that server." )
+
+				return
+			end
 		end
 
 		local Password = ServerData.Password
