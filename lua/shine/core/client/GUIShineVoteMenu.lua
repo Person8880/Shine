@@ -1,6 +1,8 @@
 --[[
 	Shine's vote menu.
 	Based upon the request menu in NS2.
+
+	What a mess, I really need to rewrite this whole thing...
 ]]
 
 Shine = Shine or {}
@@ -26,8 +28,17 @@ end
 local TimeLastMessageSend = 0
 
 local function GetCanSendVote()
-	return TimeLastMessageSend + 2 < Shared.GetTime()
+	local Time = Shared.GetTime()
+
+	if TimeLastMessageSend + 2 < Shared.GetTime() then
+		TimeLastMessageSend = Time
+
+		return true
+	end
+
+	return false
 end
+GUIShineVoteMenu.GetCanSendVote = GetCanSendVote
 
 local BackgroundSize = GUIScale( Vector( 190, 48, 0 ) )
 local KeyBindXOffset = GUIScale( 16 )
@@ -98,11 +109,27 @@ local function CreateMenuButton( self, TeamType, Name, Align, Index, MaxIndex, D
 	Description:SetScale( ScaleVector )
 	Description:SetText( Name )
 
+	local TextSize = Description:GetTextWidth( Name )
+	local MaxWidth = BackgroundSize.x * 0.9
+
+	if TextSize > MaxWidth then
+		repeat
+			Name = Name:sub( 1, #Name - 1 )
+
+			TextSize = Description:GetTextWidth( Name )
+		until TextSize < MaxWidth or #Name == 0
+
+		Name = Name:sub( 1, #Name - 3 ).."..."
+
+		Description:SetText( Name )
+	end
+
 	self.Background:AddChild( Background )
 	Background:AddChild( Description )
 	
 	return { Background = Background, Description = Description, DoClick = DoClick }
 end
+GUIShineVoteMenu.CreateMenuButton = CreateMenuButton
 
 local function SendRequest( MapName )
 	if GetCanSendVote() then
@@ -142,6 +169,14 @@ function GUIShineVoteMenu:ClearOptions()
 	for i = 1, #MenuButtons do
 		GUI.DestroyItem( MenuButtons[ i ].Background )
 		MenuButtons[ i ] = nil
+	end
+
+	local CustomButtons = self.CustomButtons
+
+	if not CustomButtons then return end
+	
+	for i = 1, #CustomButtons do
+		CustomButtons[ i ].Background:SetIsVisible( false )
 	end
 end
 
@@ -251,9 +286,13 @@ function GUIShineVoteMenu:CreateVoteButton()
 	
 	self.Background:AddChild( Background )
 	Background:AddChild( Text )
+
+	if self.HideVoteButton then
+		Background:SetIsVisible( false )
+	end
 	
 	self.VoteButton = { Background = Background, Text = Text, 
-		DoClick = function() 
+		DoClick = self.VoteButtonDoClick or function( self ) 
 			if self.MainMenu then
 				self:ClearOptions()
 				self:PopulateMaps()
@@ -269,6 +308,41 @@ function GUIShineVoteMenu:CreateVoteButton()
 			end
 		end
 	}
+end
+
+--[[
+	Adds a custom button to the vote menu.
+]]
+function GUIShineVoteMenu:CreateCustomButton( Key, Pos, X, Y, StrText, DoClick )
+	self.CustomButtons = self.CustomButtons or {}
+	local CustomButtons = self.CustomButtons
+
+	local Background = GetGUIManager():CreateGraphicItem()
+	Background:SetSize( BackgroundSize )
+	Background:SetTexture( BackgroundTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
+	Background:SetAnchor( X, Y )
+	Background:SetPosition( Pos )
+	
+	local Text = GetGUIManager():CreateTextItem()
+	Text:SetTextAlignmentX( GUIItem.Align_Center )
+	Text:SetTextAlignmentY( GUIItem.Align_Center )
+	Text:SetFontName( FontName )
+	Text:SetScale( ScaleVector )
+	Text:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	Text:SetText( StrText )
+	
+	self.Background:AddChild( Background )
+	Background:AddChild( Text )
+	
+	self[ Key ] = { 
+		Background = Background, 
+		Text = Text, 
+		DoClick = DoClick
+	}
+
+	CustomButtons[ #CustomButtons + 1 ] = self[ Key ]
+
+	return self[ Key ]
 end
 
 function GUIShineVoteMenu:SetIsVisible( Visible )
@@ -321,10 +395,12 @@ function GUIShineVoteMenu:Update( DeltaTime )
 	local MouseX, MouseY = Client.GetCursorPosScreen()
 	
 	if self.VoteButton then
-		if GUIItemContainsPoint( self.VoteButton.Background, MouseX, MouseY ) then
-			self.VoteButton.Background:SetTexture( BackgroundTextureHighlight[ self.TeamType ] )
-		else
-			self.VoteButton.Background:SetTexture( BackgroundTexture[ self.TeamType ] )
+		if self.VoteButton.Background:GetIsVisible() then
+			if GUIItemContainsPoint( self.VoteButton.Background, MouseX, MouseY ) then
+				self.VoteButton.Background:SetTexture( BackgroundTextureHighlight[ self.TeamType ] )
+			else
+				self.VoteButton.Background:SetTexture( BackgroundTexture[ self.TeamType ] )
+			end
 		end
 	end
 
@@ -335,6 +411,20 @@ function GUIShineVoteMenu:Update( DeltaTime )
 			Button.Background:SetTexture( BackgroundTextureHighlight[ self.TeamType ] )
 		else
 			Button.Background:SetTexture( BackgroundTexture[ self.TeamType ] )
+		end
+	end
+
+	if not self.CustomButtons then return end
+
+	for i = 1, #self.CustomButtons do
+		local Button = self.CustomButtons[ i ]
+
+		if Button.Background:GetIsVisible() then
+			if GUIItemContainsPoint( Button.Background, MouseX, MouseY ) then
+				Button.Background:SetTexture( BackgroundTextureHighlight[ self.TeamType ] )
+			else
+				Button.Background:SetTexture( BackgroundTexture[ self.TeamType ] )
+			end
 		end
 	end
 end
@@ -356,12 +446,14 @@ function GUIShineVoteMenu:SendKeyEvent( Key, Down )
 	if self.Background:GetIsVisible() then
 		if Key == InputKey.MouseButton0 then
 			if self.VoteButton and GUIItemContainsPoint( self.VoteButton.Background, MouseX, MouseY ) then
-				if self.VoteButton.DoClick() then
-					OnClickVoteOption()
+				if self.VoteButton.Background:GetIsVisible() then
+					if self.VoteButton.DoClick( self ) then
+						OnClickVoteOption()
 
-					self.NextClick = Shared.GetTime() + 1
+						self.NextClick = Shared.GetTime() + 0.5
 
-					return true
+						return true
+					end
 				end
 			else
 				for i = 1, #self.MenuButtons do
@@ -375,6 +467,24 @@ function GUIShineVoteMenu:SendKeyEvent( Key, Down )
 						HitButton = true
 
 						break
+					end
+				end
+
+				if self.CustomButtons then
+					for i = 1, #self.CustomButtons do
+						local Button = self.CustomButtons[ i ]
+
+						if Button.Background:GetIsVisible() then
+							if GUIItemContainsPoint( Button.Background, MouseX, MouseY ) then
+								if Button.DoClick( self ) then
+									OnClickVoteOption()
+
+									self.NextClick = Shared.GetTime() + 0.5
+
+									return true
+								end
+							end
+						end
 					end
 				end
 			end
@@ -398,7 +508,7 @@ function GUIShineVoteMenu:SendKeyEvent( Key, Down )
 			end
 		end
 
-		self.NextClick = Shared.GetTime() + 1
+		self.NextClick = Shared.GetTime() + 0.5
 
 		Success = true
 	end

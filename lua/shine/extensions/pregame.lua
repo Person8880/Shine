@@ -344,6 +344,8 @@ Plugin.UpdateFuncs = {
 
 				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
+				Gamerules:SetGameState( kGameState.NotStarted )
+
 				Shine:RemoveText( nil, { ID = 2 } )
 			end
 
@@ -369,6 +371,8 @@ Plugin.UpdateFuncs = {
 				self.CountStart = nil
 				self.CountEnd = nil
 
+				Gamerules:SetGameState( kGameState.NotStarted )
+
 				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
 
 				Shine:RemoveText( nil, { ID = 2 } )
@@ -384,6 +388,9 @@ Plugin.UpdateFuncs = {
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+
+				Gamerules:SetGameState( kGameState.PreGame )
+
 				self.SentCountdown = true
 			end
 		end
@@ -530,6 +537,8 @@ Plugin.UpdateFuncs = {
 
 					self.StartedGame = true
 
+					Gamerules:SetGameState( kGameState.PreGame )
+
 					Shine.Timer.Simple( 5, function()
 						local Team1Com = Team1:GetCommander()
 						local Team2Com = Team2:GetCommander()
@@ -539,6 +548,8 @@ Plugin.UpdateFuncs = {
 								Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
 
 								self.StartedGame = false
+
+								Gamerules:SetGameState( kGameState.NotStarted )
 
 								return
 							end
@@ -551,6 +562,8 @@ Plugin.UpdateFuncs = {
 							Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 							self.StartedGame = false
+
+							Gamerules:SetGameState( kGameState.NotStarted )
 
 							return 
 						end

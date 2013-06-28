@@ -13,6 +13,8 @@ local NWMessage = {
 
 Shared.RegisterNetworkMessage( "Shine_VoteMenu", NWMessage )
 
+Shared.RegisterNetworkMessage( "Shine_OpenedVoteMenu", {} )
+
 Shared.RegisterNetworkMessage( "Shine_EndVote", { Bleh = "integer (0 to 1)" } )
 
 local PluginMessage = {

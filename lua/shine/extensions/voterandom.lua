@@ -67,6 +67,7 @@ local DefaultConfig = {
 	BalanceMode = Plugin.MODE_RANDOM, --How should teams be balanced?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = false, --Should the plugin ignore commanders when switching?
+	AlwaysEnabled = false --Should the plugin be always forcing each round?
 }
 
 function Plugin:Initialise()
@@ -84,7 +85,7 @@ function Plugin:Initialise()
 	self.ForceRandomEnd = 0 --Time based.
 	self.RandomOnNextRound = false --Round based.
 
-	self.ForceRandom = false
+	self.ForceRandom = self.Config.AlwaysEnabled
 
 	self.ScoreData = {}
 
@@ -569,7 +570,49 @@ function Plugin:JoinRandomTeam( Player )
 	end
 end
 
+function Plugin:SetGameState( Gamerules, NewState, OldState )
+	if not self.Config.AlwaysEnabled then return end
+	if NewState ~= kGameState.PreGame then return end
+	if Shared.GetEntitiesWithClassname( "Player" ):GetSize() < self.Config.MinPlayers then
+		return
+	end
+
+	local OldValue = self.Config.IgnoreCommanders
+
+	--Force ignoring commanders.
+	self.Config.IgnoreCommanders = true
+
+	Shine:Notify( nil, "Random", Shine.Config.ChatName, 
+		"Shuffling teams %s due to server settings.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
+
+	self:ShuffleTeams()
+
+	self.Config.IgnoreCommanders = OldValue
+end
+
 function Plugin:EndGame( Gamerules, WinningTeam )
+	local Players = Shine.GetAllPlayers()
+	local BalanceMode = self.Config.BalanceMode
+	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
+
+	--Reset the randomised state of all players and store score data.
+	for i = 1, #Players do
+		local Player = Players[ i ]
+		
+		if Player then
+			Player.ShineRandomised = nil
+			
+			if IsScoreBased then
+				self:StoreScoreData( Player )
+			end
+		end
+	end
+
+	--If we're always enabled, we'll shuffle on round start.
+	if self.Config.AlwaysEnabled then
+		return
+	end
+
 	if self.RandomOnNextRound then
 		self.RandomOnNextRound = false
 		
@@ -608,27 +651,14 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			end )
 		end
 	end
-	local Players = Shine.GetAllPlayers()
-	local BalanceMode = self.Config.BalanceMode
-	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
-
-	--Reset the randomised state of all players and store score data.
-	for i = 1, #Players do
-		local Player = Players[ i ]
-		
-		if Player then
-			Player.ShineRandomised = nil
-			
-			if IsScoreBased then
-				self:StoreScoreData( Player )
-			end
-		end
-	end
 end
 
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
 	if not self.ForceRandom then return end
+
+	--We'll do a mass balance, don't worry about them yet.
+	if self.Config.AlwaysEnabled and Gamerules:GetGameState() == kGameState.NotStarted then return end
 	
 	local ChatName = Shine.Config.ChatName
 
@@ -701,6 +731,10 @@ end
 	Adds a player's vote to the counter.
 ]]
 function Plugin:AddVote( Client )
+	if self.Config.AlwaysEnabled then
+		return false, StringFormat( "%s teams are forced to enabled by the server.", ModeStrings.Mode[ self.Config.BalanceMode ] )
+	end
+
 	if not Client then Client = "Console" end
 	
 	local Allow, Error = Shine.Hook.Call( "OnVoteStart", "random" )
@@ -849,6 +883,8 @@ function Plugin:CreateCommands()
 
 			self.RandomOnNextRound = false
 			self.ForceRandom = false
+
+			self.Config.AlwaysEnabled = false
 
 			Shine:Notify( nil, "Random", Shine.Config.ChatName, "%s teams were disabled.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 		end
