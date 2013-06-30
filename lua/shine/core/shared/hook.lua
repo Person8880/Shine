@@ -116,6 +116,12 @@ function Shine.Hook.GetTable()
 	return Hooks
 end
 
+--[[
+	Replaces the given method in the given class with ReplacementFunc.
+
+	Inputs: Class name, method name, replacement function.
+	Output: Original function.
+]]
 local function AddClassHook( Class, Method, ReplacementFunc )
 	local OldFunc
 
@@ -126,6 +132,12 @@ local function AddClassHook( Class, Method, ReplacementFunc )
 	return OldFunc
 end
 
+--[[
+	Replaces the given global function with ReplacementFunc.
+
+	Inputs: Global function name, replacement function.
+	Output: Original function.
+]]
 local function AddGlobalHook( FuncName, ReplacementFunc )
 	local Path = StringExplode( FuncName, "%." )
 
@@ -151,6 +163,25 @@ local function AddGlobalHook( FuncName, ReplacementFunc )
 	return Func
 end
 
+--[[
+	All available preset hooking methods for classes:
+	
+	- Replace: Replaces the function with a Shine hook call.
+
+	- PassivePre: Calls the given Shine hook, then runs the original function and returns its value(s).
+
+	- PassivePost: Runs and stores the return values of the original function, then calls the Shine hook, 
+	then returns the original return values.
+
+	- ActivePre: Calls the given Shine hook and returns its values if it returned any. Otherwise it returns 
+	the original function's values. 
+
+	- ActivePost: Runs and stores the return values of the original function, then calls the Shine hook.
+	If the Shine hook returned values, they are returned. Otherwise, the original values are returned.
+
+	- Halt: Calls the given Shine hook. If it returns a non-nil value, the method is stopped and returns nothing.
+	Otherwise the original method is returned.
+]]
 local ClassHookModes = {
 	Replace = function( Class, Method, HookName )
 		AddClassHook( Class, Method, function( OldFunc, ... )
@@ -213,6 +244,7 @@ local ClassHookModes = {
 	end
 }
 
+--All available preset hooking methods for global functions. Explanations are same as for class hooks.
 local GlobalHookModes = {
 	Replace = function( FuncName, HookName )
 		AddGlobalHook( FuncName, function( OldFunc, ... )
@@ -269,6 +301,20 @@ local function isfunction( Func )
 	return type( Func ) == "function"
 end
 
+--[[
+	Sets up a Shine hook for a class method.
+
+	Inputs:
+		1. Class name.
+		2. Method name.
+		3. Shine hook name to call when this method is run.
+		4. Mode to hook with.
+
+	Output: Original function we have now replaced.
+
+	Mode can either be a string from the ClassHookModes table above, or it can be a custom hook function.
+	The function will be passed the original function, then the arguments it was run with.
+]]
 local function SetupClassHook( Class, Method, HookName, Mode )
 	if isfunction( Mode ) then
 		return AddClassHook( Class, Method, Mode )
@@ -282,6 +328,18 @@ local function SetupClassHook( Class, Method, HookName, Mode )
 end
 Shine.Hook.SetupClassHook = SetupClassHook
 
+--[[
+	Sets up a Shine hook for a global function.
+
+	Inputs:
+		1. Global function name.
+		2. Mode to hook with.
+
+	Output: Original function we have now replaced.
+
+	Mode can either be a string from the GlobalHookModes table above, or it can be a custom hook function.
+	The function will be passed the original function, then the arguments it was run with.
+]]
 local function SetupGlobalHook( FuncName, HookName, Mode )
 	if isfunction( Mode ) then
 		return AddGlobalHook( FuncName, Mode )
