@@ -280,7 +280,7 @@ local function SetupClassHook( Class, Method, HookName, Mode )
 
 	return HookFunc( Class, Method, HookName )
 end
-Shine.SetupClassHook = SetupClassHook
+Shine.Hook.SetupClassHook = SetupClassHook
 
 local function SetupGlobalHook( FuncName, HookName, Mode )
 	if isfunction( Mode ) then
@@ -293,7 +293,7 @@ local function SetupGlobalHook( FuncName, HookName, Mode )
 	
 	return HookFunc( FuncName, HookName )
 end
-Shine.SetupGlobalHook = SetupGlobalHook
+Shine.Hook.SetupGlobalHook = SetupGlobalHook
 
 --[[
 	Event hooks.
