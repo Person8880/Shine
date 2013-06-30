@@ -59,7 +59,7 @@ end
 --[[
 	Override voice chat to allow everyone to hear each other with alltalk on.
 ]]
-function Plugin:CanPlayerHearPlayer( Listener, Speaker )
+function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
 	
 	if self.Config.AllTalkPreGame and GetGamerules():GetGameState() == kGameState.NotStarted then return true end
