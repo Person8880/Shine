@@ -3,10 +3,11 @@
 ]]
 
 local Clamp = math.Clamp
-
-local TableInsert = table.insert
-local TableRemove = table.remove
-local TableSort = table.sort
+local Floor = math.floor
+local ReplaceMethod = Shine.ReplaceClassMethod
+local StringExplode = string.Explode
+local type = type
+local unpack = unpack
 
 Shine.Hook = {}
 
@@ -41,7 +42,7 @@ Shine.Hook.Remove = Remove
 	Inputs: Event to hook into, unique identifier, function to run, optional priority.
 ]]
 local function Add( Event, Index, Function, Priority )
-	Priority = tonumber( Priority ) or 0
+	Priority = Clamp( Floor( tonumber( Priority ) or 0 ), -20, 20 )
 
 	if not Hooks[ Event ] then
 		Hooks[ Event ] = {}
@@ -114,6 +115,185 @@ Shine.Hook.Call = Call
 function Shine.Hook.GetTable()
 	return Hooks
 end
+
+local function AddClassHook( Class, Method, ReplacementFunc )
+	local OldFunc
+
+	OldFunc = ReplaceMethod( Class, Method, function( ... )
+		return ReplacementFunc( OldFunc, ... )
+	end )
+
+	return OldFunc
+end
+
+local function AddGlobalHook( FuncName, ReplacementFunc )
+	local Path = StringExplode( FuncName, "%." )
+
+	local Func = _G
+	local i = 1
+	local Prev
+
+	repeat
+		Prev = Func
+
+		Func = Func[ Path[ i ] ]
+
+		--Doesn't exist!
+		if not Func then return end
+
+		i = i + 1
+	until not Path[ i ]
+
+	Prev[ Path[ i - 1 ] ] = function( ... )
+		return ReplacementFunc( Func, ... )
+	end
+
+	return Func
+end
+
+local ClassHookModes = {
+	Replace = function( Class, Method, HookName )
+		AddClassHook( Class, Method, function( OldFunc, ... )
+			return Call( HookName, ... )
+		end )
+	end,
+
+	PassivePre = function( Class, Method, HookName )
+		AddClassHook( Class, Method, function( OldFunc, ... )
+			Call( HookName, ... )
+
+			return OldFunc( ... )
+		end )
+	end,
+
+	PassivePost = function( Class, Method, HookName )
+		AddClassHook( Class, Method, function( OldFunc, ... )
+			local Ret = { OldFunc( ... ) }
+
+			Call( HookName, ... )
+
+			return unpack( Ret )
+		end )
+	end,
+
+	ActivePre = function( Class, Method, HookName )
+		AddClassHook( Class, Method, function( OldFunc, ... )
+			local Ret = { Call( HookName, ... ) }
+
+			if Ret[ 1 ] then
+				return unpack( Ret )
+			end
+
+			return OldFunc( ... )
+		end )
+	end,
+
+	ActivePost = function( Class, Method, HookName )
+		AddClassHook( Class, Method, function( OldFunc, ... )
+			local Ret = { OldFunc( ... ) }
+
+			local NewRet = { Call( HookName, ... ) }
+
+			if NewRet[ 1 ] then
+				return unpack( NewRet )
+			end
+
+			return unpack( Ret )
+		end )
+	end,
+
+	Halt = function( Class, Method, HookName )
+		AddClassHook( Class, Method, function( OldFunc, ... )
+			local Ret = Call( HookName, ... )
+
+			if Ret ~= nil then return end
+
+			return OldFunc( ... )
+		end )
+	end
+}
+
+local GlobalHookModes = {
+	Replace = function( FuncName, HookName )
+		AddGlobalHook( FuncName, function( OldFunc, ... )
+			return Call( HookName, ... )
+		end )
+	end,
+
+	PassivePre = function( FuncName, HookName )
+		AddGlobalHook( FuncName, function( OldFunc, ... )
+			Call( HookName, ... )
+
+			return OldFunc( ... )
+		end )
+	end,
+
+	PassivePost = function( FuncName, HookName )
+		AddGlobalHook( FuncName, function( OldFunc, ... )
+			local Ret = { OldFunc( ... ) }
+
+			Call( HookName, ... )
+
+			return unpack( Ret )
+		end )
+	end,
+
+	ActivePre = function( FuncName, HookName )
+		AddGlobalHook( FuncName, function( OldFunc, ... )
+			local Ret = { Call( HookName, ... ) }
+
+			if Ret[ 1 ] then
+				return unpack( Ret )
+			end
+
+			return OldFunc( ... )
+		end )
+	end,
+
+	ActivePost = function( FuncName, HookName )
+		AddGlobalHook( FuncName, function( OldFunc, ... )
+			local Ret = { OldFunc( ... ) }
+
+			local NewRet = { Call( HookName, ... ) }
+
+			if NewRet[ 1 ] then
+				return unpack( NewRet )
+			end
+
+			return unpack( Ret )
+		end )
+	end
+}
+
+local function isfunction( Func )
+	return type( Func ) == "function"
+end
+
+local function SetupClassHook( Class, Method, HookName, Mode )
+	if isfunction( Mode ) then
+		return AddClassHook( Class, Method, Mode )
+	end
+
+	local HookFunc = ClassHookModes[ Mode ]
+
+	if not HookFunc then return nil end
+
+	return HookFunc( Class, Method, HookName )
+end
+Shine.SetupClassHook = SetupClassHook
+
+local function SetupGlobalHook( FuncName, HookName, Mode )
+	if isfunction( Mode ) then
+		return AddGlobalHook( FuncName, Mode )
+	end
+
+	local HookFunc = GlobalHookModes[ Mode ]
+
+	if not HookFunc then return nil end
+	
+	return HookFunc( FuncName, HookName )
+end
+Shine.SetupGlobalHook = SetupGlobalHook
 
 --[[
 	Event hooks.
@@ -195,28 +375,48 @@ end
 	Here we replace class methods in order to hook into certain important events.
 ]]
 Add( "Think", "ReplaceMethods", function()
-	local ReplaceMethod = Shine.ReplaceClassMethod
 	local Gamerules = Shine.Config.GameRules or "NS2Gamerules"
 
-	local OldProcessMove
+	SetupClassHook( "Player", "OnProcessMove", "OnProcessMove", "PassivePre" )
+	SetupClassHook( "Player", "SetName", "PlayerNameChange", function( OldFunc, self, Name )
+		local OldName = self:GetName()
 
-	OldProcessMove = ReplaceMethod( "Player", "OnProcessMove", function( self, Input )
-		Call( "OnProcessMove", self, Input )
+		OldFunc( self, Name )
 
-		return OldProcessMove( self, Input )
+		Call( "PlayerNameChange", self, Name, OldName )
 	end )
 
-	local OldProcessSpecMove
+	SetupClassHook( "Spectator", "OnProcessMove", "OnProcessMove", "PassivePre" )
 
-	OldProcessSpecMove = ReplaceMethod( "Spectator", "OnProcessMove", function( self, Input )
-		Call( "OnProcessMove", self, Input )
+	SetupClassHook( Gamerules, "EndGame", "EndGame", "PassivePre" )
+	SetupClassHook( Gamerules, "OnEntityKilled", "OnEntityKilled", "PassivePre" )
 
-		return OldProcessSpecMove( self, Input )
+	SetupClassHook( "CommandStructure", "LoginPlayer", "CommLoginPlayer", "PassivePre" )
+	SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
+
+	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
+	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
+
+	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
+	
+	SetupClassHook( Gamerules, "UpdatePregame", "UpdatePregame", "Halt" )
+	SetupClassHook( Gamerules, "CheckGameStart", "CheckGameStart", "Halt" )
+	SetupClassHook( Gamerules, "CastVoteByPlayer", "CastVoteByPlayer", "Halt" )
+	SetupClassHook( Gamerules, "SetGameState", "SetGameState", function( OldFunc, self, State )
+		local CurState = self.gameState
+
+		OldFunc( self, State )
+
+		Call( "SetGameState", self, State, CurState )
 	end )
+	SetupClassHook( Gamerules, "GetCanPlayerHearPlayer", "CanPlayerHearPlayer", function( OldFunc, self, Listener, Speaker )
+		local Result = Call( "CanPlayerHearPlayer", self, Listener, Speaker )
 
-	local OldJoinTeam
-
-	OldJoinTeam = ReplaceMethod( Gamerules, "JoinTeam", function( self, Player, NewTeam, Force, ShineForce )
+		if Result ~= nil then return Result end
+		
+		return OldFunc( self, Listener, Speaker )
+	end )
+	SetupClassHook( Gamerules, "JoinTeam", "JoinTeam", function( OldFunc, self, Player, NewTeam, Force, ShineForce )
 		local Override, OverrideTeam = Call( "JoinTeam", self, Player, NewTeam, Force, ShineForce )
 
 		if Override ~= nil then
@@ -229,129 +429,13 @@ Add( "Think", "ReplaceMethods", function()
 
 		local OldTeam = Player:GetTeamNumber()
 
-		local Bool, Player = OldJoinTeam( self, Player, NewTeam, Force )
+		local Bool, Player = OldFunc( self, Player, NewTeam, Force )
 
 		if Bool then
 			Call( "PostJoinTeam", self, Player, OldTeam, NewTeam, Force, ShineForce )
 		end
 
 		return Bool, Player
-	end )
-
-	local OldEndGame
-
-	OldEndGame = ReplaceMethod( Gamerules, "EndGame", function( self, WinningTeam ) 
-		Call( "EndGame", self, WinningTeam )
-
-		return OldEndGame( self, WinningTeam )
-	end )
-
-	local OldEntityKilled
-
-	OldEntityKilled = ReplaceMethod( Gamerules, "OnEntityKilled", function( self, TargetEnt, Attacker, Inflictor, Point, Dir )
-		Call( "OnEntityKilled", self, TargetEnt, Attacker, Inflictor, Point, Dir )
-		
-		return OldEntityKilled( self, TargetEnt, Attacker, Inflictor, Point, Dir )
-	end )
-
-	local OldPreGame
-
-	OldPreGame = ReplaceMethod( Gamerules, "UpdatePregame", function( self, TimePassed ) 
-		local Result = Call( "UpdatePregame", self, TimePassed )
-
-		if Result ~= nil then return end
-		
-		return OldPreGame( self, TimePassed )
-	end )
-
-	local OldCheckGameStart
-
-	OldCheckGameStart = ReplaceMethod( Gamerules, "CheckGameStart", function( self )
-		local Result = Call( "CheckGameStart", self )
-
-		if Result ~= nil then return end
-		
-		return OldCheckGameStart( self )
-	end )
-
-	local OldCastVote
-
-	OldCastVote = ReplaceMethod( Gamerules, "CastVoteByPlayer", function( self, VoteTechID, Player )
-		local Result = Call( "CastVoteByPlayer", self, VoteTechID, Player )
-
-		if Result ~= nil then return end
-		
-		return OldCastVote( self, VoteTechID, Player )
-	end )
-
-	local OldSetGameState
-
-	OldSetGameState = ReplaceMethod( Gamerules, "SetGameState", function( self, State ) 
-		local CurState = self.gameState
-
-		OldSetGameState( self, State )
-
-		Call( "SetGameState", self, State, CurState )
-	end )
-
-	local OldCanHear
-
-	OldCanHear = ReplaceMethod( Gamerules, "GetCanPlayerHearPlayer", function( self, Listener, Speaker )
-		local Result = Call( "CanPlayerHearPlayer", self, Listener, Speaker )
-
-		if Result ~= nil then return Result end
-		
-		return OldCanHear( self, Listener, Speaker )
-	end )
-
-	local OldLoginPlayer
-		
-	OldLoginPlayer = ReplaceMethod( "CommandStructure", "LoginPlayer", function( self, Player )
-		Call( "CommLoginPlayer", self, Player )
-
-		return OldLoginPlayer( self, Player )
-	end )
-	
-	local OldLogout
-	
-	OldLogout = ReplaceMethod( "CommandStructure", "Logout", function( self )
-		Call( "CommLogout", self )
-
-		return OldLogout( self )
-	end )
-	
-	local OldOnResearchComplete
-	
-	OldOnResearchComplete = ReplaceMethod( "RecycleMixin", "OnResearchComplete", function( self, ResearchID )
-		Call( "OnBuildingRecycled", self, ResearchID )
-
-		return OldOnResearchComplete( self, ResearchID )
-	end )
-	
-	local OldOnResearch
-	
-	OldOnResearch = ReplaceMethod( "RecycleMixin", "OnResearch", function( self, ResearchID ) 
-		Call( "OnRecycle", self, ResearchID )
-
-		return OldOnResearch( self, ResearchID )
-	end )
-	
-	local OldConstructInit
-	
-	OldConstructInit = ReplaceMethod( "ConstructMixin", "OnInitialized", function( self )
-		Call( "OnConstructInit", self )
-
-		return OldConstructInit( self )
-	end )
-
-	local OldPlayerSetName
-
-	OldPlayerSetName = ReplaceMethod( "Player", "SetName", function( self, Name )
-		local OldName = self:GetName()
-
-		OldPlayerSetName( self, Name )
-
-		Call( "PlayerNameChange", self, Name, OldName )
 	end )
 
 	local OldCycleMap = MapCycle_CycleMap
