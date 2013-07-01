@@ -7,17 +7,43 @@ local Random = math.random
 local TableSort = table.sort
 
 --[[
+	Clears a table.
+]]
+local function TableEmpty( Table )
+	for k in pairs( Table ) do
+		Table[ k ] = nil
+	end
+end
+table.Empty = TableEmpty
+
+--[[
 	Shuffles a table randomly.
 ]]
 function table.Shuffle( Table )
 	local SortTable = {}
-	for i = 1, #Table do
-		SortTable[ Table[ i ] ] = Random( 1, 100000 )
+	local NewTable = {}
+
+	local Count = 1
+
+	for Index, Value in pairs( Table ) do
+		SortTable[ Value ] = Random()
+		
+		--Add the value to a new table to get rid of potential holes in the array.
+		NewTable[ Count ] = Value
+		Count = Count + 1
 	end
 
-	TableSort( Table, function( A, B )
+	--Empty the input table, we're going to repopulate it as an array with no holes.
+	TableEmpty( Table )
+
+	TableSort( NewTable, function( A, B )
 		return SortTable[ A ] > SortTable[ B ]
 	end )
+
+	--Repopulate the input table with our sorted table. This won't have holes.
+	for Index, Value in pairs( NewTable ) do
+		Table[ Index ] = Value
+	end
 end
 
 --[[
@@ -53,15 +79,6 @@ function table.Average( Table )
 	end
 
 	return Sum / Count
-end
-
---[[
-	Clears a table.
-]]
-function table.Empty( Table )
-	for k in pairs( Table ) do
-		Table[ k ] = nil
-	end
 end
 
 local function istable( Table )

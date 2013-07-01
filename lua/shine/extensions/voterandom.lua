@@ -659,6 +659,14 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	--We'll do a mass balance, don't worry about them yet.
 	if self.Config.AlwaysEnabled and Gamerules:GetGameState() == kGameState.NotStarted then return end
+
+	local MapVote = Shine.Plugins.mapvote
+
+	if MapVote and MapVote.Enabled then
+		if MapVote:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce ) == false then
+			return false
+		end
+	end
 	
 	local ChatName = Shine.Config.ChatName
 
