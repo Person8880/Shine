@@ -63,7 +63,7 @@ function Plugin:PlayerNameChange( Player, Name, OldName )
 	Shine:LogString( StringFormat( "%s changed their name from '%s' to '%s'.", self:GetClientInfo( Client ), OldName or "", Name ) )
 end
 
-function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force )
+function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if not Player then return end
 
 	local Client = Player:GetClient()

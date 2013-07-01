@@ -6,10 +6,12 @@ local Shine = Shine
 
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
+
+local Clamp = math.Clamp
+local Floor = math.floor
 local StringFormat = string.format
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
-local Floor = math.floor
 
 local Plugin = {}
 Plugin.Version = "1.1"
@@ -19,69 +21,47 @@ Plugin.ConfigName = "BaseCommands.json"
 
 Plugin.Commands = {}
 
-local DefaultConfig = {
+Plugin.DefaultConfig = {
 	AllTalk = false,
-	AllTalkPreGame = false
+	AllTalkPreGame = false,
+	EjectVotesNeeded = 0.5
 }
+
+Plugin.CheckConfig = true
 
 function Plugin:Initialise()
 	self.Gagged = {}
 
 	self:CreateCommands()
 
+	self.SetEjectVotes = false
+
+	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
+
 	self.Enabled = true
 
 	return true
 end
 
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = DefaultConfig
+function Plugin:Think()
+	if self.SetEjectVotes then return end
 
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
+	local Gamerules = GetGamerules()
 
-		if not Success then
-			Notify( "Error writing basecommands config file: "..Err )	
+	if not Gamerules then return end
+	
+	Gamerules.team1.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
+	Gamerules.team2.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 
-			return	
-		end
-
-		Notify( "Shine basecommands config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing basecommands config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine basecommands config file updated." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
-
-	if Shine.CheckConfig( self.Config, DefaultConfig ) then
-		self:SaveConfig()
-	end
+	self.SetEjectVotes = true
 end
 
 --[[
 	Override voice chat to allow everyone to hear each other with alltalk on.
 ]]
-function Plugin:CanPlayerHearPlayer()
+function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
+	if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
+	
 	if self.Config.AllTalkPreGame and GetGamerules():GetGameState() == kGameState.NotStarted then return true end
 	if self.Config.AllTalk then return true end
 end
