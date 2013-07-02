@@ -7,7 +7,6 @@ local Floor = math.floor
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
 local type = type
-local unpack = unpack
 
 Shine.Hook = {}
 
