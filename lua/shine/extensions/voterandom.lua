@@ -657,8 +657,13 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
 	if not self.ForceRandom then return end
 
+	local Gamestate = Gamerules:GetGameState()
+
 	--We'll do a mass balance, don't worry about them yet.
-	if self.Config.AlwaysEnabled and Gamerules:GetGameState() == kGameState.NotStarted then return end
+	if self.Config.AlwaysEnabled and Gamestate == kGameState.NotStarted then return end
+
+	--Don't block them from going back to the ready room at the end of the round.
+	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won or GameState == kGameState.Draw then return end
 
 	local MapVote = Shine.Plugins.mapvote
 
