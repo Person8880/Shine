@@ -54,7 +54,8 @@ local OnReservedConnect = {
 		self:LockServer()
 	end,
 
-	function( self, Client )
+	function( self, Client, Connected, MaxPlayers, MaxPublic )
+		if Connected == MaxPublic then return end
 		if Shine:HasAccess( Client, "sh_reservedslot" ) then return end
 		
 		local Redirect = self.Config.Redirect
