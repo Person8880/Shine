@@ -46,11 +46,12 @@ function Plugin:LockServer( Unlock )
 end
 
 local OnReservedConnect = {
-	function( self, Client, Connected, MaxPlayers )
-		if not self.Locked then
+	function( self, Client, Connected, MaxPlayers, MaxPublic )
+		if Connected == MaxPublic then
 			Shine:LogString( StringFormat( "[Reserved Slots] Locking the server at %i/%i players.", Connected, MaxPlayers ) )
-			self:LockServer()
 		end
+
+		self:LockServer()
 	end,
 
 	function( self, Client )
@@ -88,11 +89,12 @@ local OnReservedConnect = {
 }
 
 local OnReservedDisconnect = {
-	function( self, Client, Connected, MaxPlayers )
-		if self.Locked then
+	function( self, Client, Connected, MaxPlayers, MaxPublic )
+		if Connected == ( MaxPublic - 1 ) then
 			Shine:LogString( StringFormat( "[Reserved Slots] Unlocking the server at %i/%i players.", Connected, MaxPlayers ) )
-			self:LockServer( true )
 		end
+
+		self:LockServer( true )
 	end,
 
 	function( self, Client )
@@ -111,8 +113,10 @@ function Plugin:ClientConnect( Client )
 
 	local Connected = TableCount( Shine.GameIDs )
 
-	if MaxPlayers - Slots <= Connected then
-		OnReservedConnect[ self.Config.Mode ]( self, Client, Connected, MaxPlayers )
+	local MaxPublic = MaxPlayers - Slots
+
+	if MaxPublic <= Connected then
+		OnReservedConnect[ self.Config.Mode ]( self, Client, Connected, MaxPlayers, MaxPublic )
 	end
 end
 
@@ -124,8 +128,10 @@ function Plugin:ClientDisconnect( Client )
 	local Slots = Max( self.Config.Slots - Count, 0 )
 	local Connected = TableCount( Shine.GameIDs )
 
-	if MaxPlayers - Slots > Connected then
-		OnReservedDisconnect[ self.Config.Mode ]( self, Client, Connected, MaxPlayers )
+	local MaxPublic = MaxPlayers - Slots
+
+	if MaxPublic > Connected then
+		OnReservedDisconnect[ self.Config.Mode ]( self, Client, Connected, MaxPlayers, MaxPublic )
 	end
 end
 
