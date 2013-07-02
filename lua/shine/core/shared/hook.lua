@@ -7,7 +7,6 @@ local Floor = math.floor
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
 local type = type
-local unpack = unpack
 
 Shine.Hook = {}
 
@@ -80,8 +79,8 @@ local function Call( Event, ... )
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
-			local a, b, c, d, e = Func( ... )
-			if a ~= nil then return a, b, c, d, e end
+			local a, b, c, d, e, f = Func( ... )
+			if a ~= nil then return a, b, c, d, e, f end
 		end
 	end
 
@@ -90,8 +89,8 @@ local function Call( Event, ... )
 		for Plugin, Table in pairs( Plugins ) do
 			if Table.Enabled then
 				if Table[ Event ] and type( Table[ Event ] ) == "function" then
-					local a, b, c, d, e = Table[ Event ]( Table, ... )
-					if a ~= nil then return a, b, c, d, e end
+					local a, b, c, d, e, f = Table[ Event ]( Table, ... )
+					if a ~= nil then return a, b, c, d, e, f end
 				end
 			end
 		end
@@ -104,8 +103,8 @@ local function Call( Event, ... )
 
 		if HookTable then
 			for Index, Func in pairs( HookTable ) do
-				local a, b, c, d, e = Func( ... )
-				if a ~= nil then return a, b, c, d, e end
+				local a, b, c, d, e, f = Func( ... )
+				if a ~= nil then return a, b, c, d, e, f end
 			end
 		end
 	end
@@ -199,20 +198,20 @@ local ClassHookModes = {
 
 	PassivePost = function( Class, Method, HookName )
 		AddClassHook( Class, Method, function( OldFunc, ... )
-			local Ret = { OldFunc( ... ) }
+			local a, b, c, d, e, f = OldFunc( ... )
 
 			Call( HookName, ... )
 
-			return unpack( Ret )
+			return a, b, c, d, e, f
 		end )
 	end,
 
 	ActivePre = function( Class, Method, HookName )
 		AddClassHook( Class, Method, function( OldFunc, ... )
-			local Ret = { Call( HookName, ... ) }
+			local a, b, c, d, e, f = Call( HookName, ... )
 
-			if Ret[ 1 ] then
-				return unpack( Ret )
+			if a ~= nil then
+				return a, b, c, d, e, f
 			end
 
 			return OldFunc( ... )
@@ -221,15 +220,15 @@ local ClassHookModes = {
 
 	ActivePost = function( Class, Method, HookName )
 		AddClassHook( Class, Method, function( OldFunc, ... )
-			local Ret = { OldFunc( ... ) }
+			local a, b, c, d, e, f = OldFunc( ... )
 
-			local NewRet = { Call( HookName, ... ) }
+			local g, h, i, j, k, l = Call( HookName, ... )
 
-			if NewRet[ 1 ] then
-				return unpack( NewRet )
+			if g ~= nil then
+				return g, h, i, j, k, l
 			end
 
-			return unpack( Ret )
+			return a, b, c, d, e, f
 		end )
 	end,
 
@@ -262,20 +261,20 @@ local GlobalHookModes = {
 
 	PassivePost = function( FuncName, HookName )
 		AddGlobalHook( FuncName, function( OldFunc, ... )
-			local Ret = { OldFunc( ... ) }
+			local a, b, c, d, e, f = OldFunc( ... )
 
 			Call( HookName, ... )
 
-			return unpack( Ret )
+			return a, b, c, d, e, f
 		end )
 	end,
 
 	ActivePre = function( FuncName, HookName )
 		AddGlobalHook( FuncName, function( OldFunc, ... )
-			local Ret = { Call( HookName, ... ) }
+			local a, b, c, d, e, f = Call( HookName, ... )
 
-			if Ret[ 1 ] then
-				return unpack( Ret )
+			if a ~= nil then
+				return a, b, c, d, e, f
 			end
 
 			return OldFunc( ... )
@@ -284,15 +283,15 @@ local GlobalHookModes = {
 
 	ActivePost = function( FuncName, HookName )
 		AddGlobalHook( FuncName, function( OldFunc, ... )
-			local Ret = { OldFunc( ... ) }
+			local a, b, c, d, e, f = OldFunc( ... )
 
-			local NewRet = { Call( HookName, ... ) }
+			local g, h, i, j, k, l = Call( HookName, ... )
 
-			if NewRet[ 1 ] then
-				return unpack( NewRet )
+			if g ~= nil then
+				return g, h, i, j, k, l
 			end
 
-			return unpack( Ret )
+			return a, b, c, d, e, f
 		end )
 	end
 }
