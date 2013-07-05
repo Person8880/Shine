@@ -13,7 +13,7 @@ local StringFormat = string.format
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.1"
 
 Plugin.HasConfig = true
@@ -44,6 +44,8 @@ function Plugin:Initialise()
 end
 
 function Plugin:Think()
+	self.dt.AllTalk = self.Config.AllTalkPreGame
+
 	if self.SetEjectVotes then return end
 
 	local Gamerules = GetGamerules()
@@ -54,6 +56,10 @@ function Plugin:Think()
 	Gamerules.team2.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 
 	self.SetEjectVotes = true
+end
+
+function Plugin:SetGameState( Gamerules, NewState, OldState )
+	self.dt.Gamestate = NewState
 end
 
 --[[
@@ -537,5 +543,3 @@ function Plugin:Cleanup()
 
 	self.Enabled = false
 end
-
-Shine:RegisterExtension( "basecommands", Plugin )

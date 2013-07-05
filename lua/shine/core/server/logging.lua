@@ -248,7 +248,11 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 		end
 	elseif istable( Player ) then
 		for i = 1, #Player do
-			Server.SendNetworkMessage( Player[ i ], "Shine_ChatCol", MessageTable, true )
+			local Ply = Player[ i ]
+
+			if Ply then
+				Server.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
+			end
 		end 
 	else
 		Server.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
@@ -282,7 +286,11 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 		end
 	elseif istable( Player ) then
 		for i = 1, #Player do
-			Server.SendNetworkMessage( Player[ i ], "Shine_ChatCol", MessageTable, true )
+			local Ply = Player[ i ]
+
+			if Ply then
+				Server.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
+			end
 		end 
 	else
 		Server.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
