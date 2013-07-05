@@ -29,6 +29,10 @@ end
 Shared.RegisterNetworkMessage( "Shine_Chat", ChatMessage )
 
 local ColourMessage = {
+	RP = "integer (0 to 255)",
+	GP = "integer (0 to 255)",
+	BP = "integer (0 to 255)",
+	Prefix = StringMessage,
 	R = "integer (0 to 255)",
 	G = "integer (0 to 255)",
 	B = "integer (0 to 255)",
@@ -112,14 +116,26 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 	end
 end )
 
+local function ToHex( Dec )
+	Dec = StringFormat( "%X", Dec )
+
+	if #Dec == 1 then
+		Dec = "0"..Dec
+	end
+
+	return Dec
+end
+
+local function RGBToHex( R, G, B )
+	R = ToHex( R )
+	G = ToHex( G )
+	B = ToHex( B )
+
+	return tonumber( StringFormat( "0x%s%s%s", R, G, B ) )
+end
+
 --Displays a coloured message.
 Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
-	local R = Message.R / 255
-	local G = Message.G / 255
-	local B = Message.B / 255
-
-	local String = Message.Message
-
 	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" )
 
 	if not ChatMessages then
@@ -131,8 +147,17 @@ Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
 
 	if not Player then return end
 
-	ChatMessages[ #ChatMessages + 1 ] = 0xFFD800
-	ChatMessages[ #ChatMessages + 1 ] = ""
+	local R = Message.R / 255
+	local G = Message.G / 255
+	local B = Message.B / 255
+
+	local String = Message.Message
+
+	local PreHex = RGBToHex( Message.RP, Message.GP, Message.BP )
+	local Prefix = Message.Prefix
+
+	ChatMessages[ #ChatMessages + 1 ] = PreHex
+	ChatMessages[ #ChatMessages + 1 ] = Prefix
 
 	ChatMessages[ #ChatMessages + 1 ] = Color( R, G, B, 1 )
 	ChatMessages[ #ChatMessages + 1 ] = String

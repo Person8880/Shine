@@ -231,7 +231,11 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 		R = R,
 		G = G,
 		B = B,
-		Message = Message
+		Message = Message,
+		RP = 0,
+		GP = 0,
+		BP = 0,
+		Prefix = ""
 	}
 
 	Message = Message:sub( 1, kMaxChatLength )
@@ -249,6 +253,47 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 	else
 		Server.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 	end
+end
+
+--[[
+	Sends a coloured notification to the given player(s), supporting a coloured prefix.
+]]
+function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Format, ... )
+	local Message = Format and StringFormat( String, ... ) or String
+
+	local MessageTable = {
+		R = R,
+		G = G,
+		B = B,
+		Message = Message,
+		RP = RP,
+		GP = GP,
+		BP = BP,
+		Prefix = Prefix
+	}
+
+	Message = Message:sub( 1, kMaxChatLength )
+
+	if not Player then
+		local Players = self.GetAllClients()
+
+		for i = 1, #Players do
+			Server.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
+		end
+	elseif istable( Player ) then
+		for i = 1, #Player do
+			Server.SendNetworkMessage( Player[ i ], "Shine_ChatCol", MessageTable, true )
+		end 
+	else
+		Server.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
+	end
+end
+
+--[[
+	An easy error message function.
+]]
+function Shine:NotifyError( Player, Message, Format, ... )
+	self:NotifyDualColour( Player, 255, 0, 0, "[Error]", 255, 255, 255, Message, Format, ... )
 end
 
 local OldServerAdminPrint = ServerAdminPrint
