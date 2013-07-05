@@ -20,6 +20,7 @@ Plugin.DefaultConfig = {
 	Delay = 1,
 	WarnTime = 5,
 	KickTime = 15,
+	CommanderTime = 0.5,
 	Warn = true,
 	OnlyCheckOnStarted = false
 }
@@ -58,8 +59,9 @@ end
 ]]
 function Plugin:OnProcessMove( Player, Input )
 	local Gamerules = GetGamerules()
+	local Started = Gamerules and Gamerules:GetGameStarted()
 
-	if self.Config.OnlyCheckOnStarted and not ( Gamerules and Gamerules:GetGameStarted() ) then return end
+	if self.Config.OnlyCheckOnStarted and not Started then return end
 
 	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
 
@@ -98,6 +100,23 @@ function Plugin:OnProcessMove( Player, Input )
 
 	DataTable.LastPitch = Pitch
 	DataTable.LastYaw = Yaw
+
+	local CommanderTime = self.Config.CommanderTime * 60
+
+	if Player:isa( "Commander" ) and CommanderTime > 0 and Started then
+		if DataTable.LastMove + CommanderTime < Time then
+			if Player.Logout then
+				local TeamEnts = GetEntitiesForTeam( "Player", Player:GetTeamNumber() )
+
+				Gamerules:BanPlayerFromCommand( Client:GetUserId() )
+
+				Shine:NotifyDualColour( TeamEnts, 255, 160, 0, "[AFK]", 
+					255, 255, 255, "Commander was ejected for being AFK too long." )
+
+				Player:Logout()
+			end
+		end
+	end
 
 	local KickTime = self.Config.KickTime * 60
 

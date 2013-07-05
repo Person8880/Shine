@@ -297,6 +297,10 @@ function Plugin:LoadConfig()
 	self.Config.PercentToStart = Clamp( self.Config.PercentToStart or 0.6, 0, 1 )
 end
 
+function Plugin:Notify( Player, Message, Format, ... )
+	Shine:NotifyDualColour( Player, 255, 255, 0, "[Map Vote]", 255, 255, 255, Message, Format, ... )
+end
+
 --[[
 	Prevents the map from cycling if we've extended the current one.
 ]]
@@ -685,12 +689,12 @@ function Plugin:ProcessResults( NextMap )
 
 	--No one voted :|
 	if TotalVotes == 0 then
-		Shine:Notify( nil, "Vote", ChatName, "No votes made. Map vote failed." )
+		self:Notify( nil, "No votes made. Map vote failed." )
 
 		if self.VoteOnEnd and NextMap then
 			local Map = self:GetNextMap()
 
-			Shine:Notify( nil, "", "", "The map will now cycle to %s.", true, Map )
+			self:Notify( nil, "The map will now cycle to %s.", true, Map )
 
 			Shine.Timer.Simple( 5, function()
 				MapCycle_ChangeMap( Map )
@@ -728,7 +732,7 @@ function Plugin:ProcessResults( NextMap )
 	--Only one map won.
 	if Count == 1 then
 		if not NextMap then
-			Shine:Notify( nil, "Vote", ChatName, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
+			self:Notify( nil, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
 
 			local Choice = Results[ 1 ]
 			if Choice == Shared.GetMapName() then
@@ -737,7 +741,7 @@ function Plugin:ProcessResults( NextMap )
 				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
 				local BaseTime = CycleTime > Time and CycleTime or Time
 				
-				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 				
 				self.NextMap.Winner = Choice
 				self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -761,7 +765,7 @@ function Plugin:ProcessResults( NextMap )
 				return
 			end
 
-			Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+			self:Notify( nil, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
 
 			self.Vote.CanVeto = true --Allow admins to cancel the change.
 
@@ -790,7 +794,7 @@ function Plugin:ProcessResults( NextMap )
 			self.NextMap.ExtendTime = BaseTime + ExtendTime
 			self.NextMap.Extends = self.NextMap.Extends + 1
 
-			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+			self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 
 			if not self.VoteOnEnd then
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
@@ -802,9 +806,9 @@ function Plugin:ProcessResults( NextMap )
 			end
 		else
 			if not self.VoteOnEnd then
-				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+				self:Notify( nil, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
 			else
-				Shine:Notify( nil, "Vote", ChatName, "%s won the vote. The map will now cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+				self:Notify( nil, "%s won the vote. The map will now cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Results[ 1 ] )
@@ -822,7 +826,7 @@ function Plugin:ProcessResults( NextMap )
 	--Now we're in the case where there's more than one map that won.
 	--If we're set to fail on a tie, then fail.
 	if self.Config.TieFails then
-		Shine:Notify( nil, "Vote", ChatName, "Votes were tied. Map vote failed." )
+		self:Notify( nil, "Votes were tied. Map vote failed." )
 		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 
 		if NextMap then
@@ -831,7 +835,7 @@ function Plugin:ProcessResults( NextMap )
 			if self.VoteOnEnd then
 				local Map = self:GetNextMap()
 
-				Shine:Notify( nil, "", "", "The map will now cycle to %s.", true, Map )
+				self:Notify( nil, "The map will now cycle to %s.", true, Map )
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Map )
@@ -859,8 +863,8 @@ function Plugin:ProcessResults( NextMap )
 
 		self.Vote.CanVeto = true --Allow vetos.
 
-		Shine:Notify( nil, "Vote", ChatName, "Votes were tied between %s.", true, Tied )
-		Shine:Notify( nil, "Vote", ChatName, "Choosing random map. Map chosen: %s.", true, Choice )
+		self:Notify( nil, "Votes were tied between %s.", true, Tied )
+		self:Notify( nil, "Choosing random map. Map chosen: %s.", true, Choice )
 
 		if not NextMap then
 			if Choice == Shared.GetMapName() then
@@ -869,7 +873,7 @@ function Plugin:ProcessResults( NextMap )
 				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
 				local BaseTime = CycleTime > Time and CycleTime or Time
 				
-				Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 				
 				self.NextMap.Winner = Choice
 				self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -895,7 +899,7 @@ function Plugin:ProcessResults( NextMap )
 				return
 			end
 
-			Shine:Notify( nil, "Vote", ChatName, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+			self:Notify( nil, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
 
 			--Queue the change.
 			Shine.Timer.Simple( self.Config.ChangeDelay, function()
@@ -922,7 +926,7 @@ function Plugin:ProcessResults( NextMap )
 			self.NextMap.ExtendTime = BaseTime + ExtendTime
 			self.NextMap.Extends = self.NextMap.Extends + 1
 
-			Shine:Notify( nil, "Vote", ChatName, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+			self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
 
 			if not self.VoteOnEnd then
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
@@ -936,9 +940,9 @@ function Plugin:ProcessResults( NextMap )
 			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 		else
 			if not self.VoteOnEnd then
-				Shine:Notify( nil, "Vote", ChatName, "Setting next map in the cycle to %s.", true, Choice, Choice )
+				self:Notify( nil, "Setting next map in the cycle to %s.", true, Choice, Choice )
 			else
-				Shine:Notify( nil, "Vote", ChatName, "The map will now cycle to %s.", true, Choice, Choice )
+				self:Notify( nil, "The map will now cycle to %s.", true, Choice, Choice )
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Results[ 1 ] )
@@ -954,7 +958,7 @@ function Plugin:ProcessResults( NextMap )
 	Shine.Timer.Destroy( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
 
 	if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
-		Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Beginning revote." )
+		self:Notify( nil, "Votes were tied, map vote failed. Beginning revote." )
 
 		self.Vote.Votes = self.Vote.Votes + 1
 
@@ -962,7 +966,7 @@ function Plugin:ProcessResults( NextMap )
 			self:StartVote( NextMap )
 		end )
 	else
-		Shine:Notify( nil, "Vote", ChatName, "Votes were tied, map vote failed. Revote limit reached." )
+		self:Notify( nil, "Votes were tied, map vote failed. Revote limit reached." )
 
 		if not NextMap then
 			self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
@@ -976,7 +980,7 @@ function Plugin:ProcessResults( NextMap )
 			if self.VoteOnEnd then
 				local Map = self:GetNextMap()
 
-				Shine:Notify( nil, "", "", "The map will now cycle to %s.", true, Map )
+				self:Notify( nil, "The map will now cycle to %s.", true, Map )
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Map )
@@ -1096,9 +1100,9 @@ function Plugin:StartVote( NextMap, Force )
 		local ChatName = Shine.Config.ChatName
 		--Notify players the map vote has started.
 		if not NextMap then
-			Shine:Notify( nil, "Vote", ChatName, "Map vote started." )
+			self:Notify( nil, "Map vote started." )
 		else
-			Shine:Notify( nil, "Vote", ChatName, "Voting for the next map has started." )
+			self:Notify( nil, "Voting for the next map has started." )
 		end
 	end )
 
@@ -1119,7 +1123,7 @@ function Plugin:CreateCommands()
 
 		if not self.Config.Maps[ Map ] then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not on the map list.", true, Map )
+				Shine:NotifyError( Player, "%s is not on the map list.", true, Map )
 			else
 				Notify( StringFormat( "%s is not on the map list.", Map ) )
 			end
@@ -1129,7 +1133,7 @@ function Plugin:CreateCommands()
 
 		if not self:CanExtend() and Shared.GetMapName() == Map then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot nominate the current map." )
+				Shine:NotifyError( Player, "You cannot nominate the current map." )
 			else
 				Notify( "You cannot nominate the current map." )
 			end
@@ -1141,7 +1145,7 @@ function Plugin:CreateCommands()
 
 		if self.Config.ForcedMaps[ Map ] or TableContains( Nominated, Map ) then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s has already been nominated.", true, Map )
+				Shine:NotifyError( Player, "%s has already been nominated.", true, Map )
 			else
 				Notify( StringFormat( "%s has already been nominated.", Map ) )
 			end
@@ -1153,7 +1157,7 @@ function Plugin:CreateCommands()
 
 		if Count >= self.MaxNominations then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "Nominations are full." )
+				Shine:NotifyError( Player, "Nominations are full." )
 			else
 				Notify( "Nominations are full." )
 			end
@@ -1163,7 +1167,7 @@ function Plugin:CreateCommands()
 
 		if self:VoteStarted() then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "A vote is already in progress." )
+				Shine:NotifyError( Player, "A vote is already in progress." )
 			else
 				Notify( "A vote is already in progress." )
 			end
@@ -1173,7 +1177,7 @@ function Plugin:CreateCommands()
 
 		Nominated[ Count + 1 ] = Map
 
-		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s nominated %s for a map vote.", true, PlayerName, Map )
+		self:Notify( nil, "%s nominated %s for a map vote.", true, PlayerName, Map )
 	end
 	Commands.NominateCommand = Shine:RegisterCommand( "sh_nominate", "nominate", Nominate, true )
 	Commands.NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate." }
@@ -1185,7 +1189,7 @@ function Plugin:CreateCommands()
 
 		if not self.Config.EnableRTV then
 			if Client then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "RTV has been disabled." )
+				Shine:NotifyError( Player, "RTV has been disabled." )
 			else
 				Notify( "RTV has been disabled." )
 			end
@@ -1195,7 +1199,7 @@ function Plugin:CreateCommands()
 
 		if not self:CanStartVote() then
 			if Client then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a map vote at this time." )
+				Shine:NotifyError( Player, "You cannot start a map vote at this time." )
 			else
 				Notify( "You cannot start a map vote at this time." )
 			end
@@ -1209,13 +1213,13 @@ function Plugin:CreateCommands()
 		if Success then
 			local VotesNeeded = Max( self:GetVotesNeededToStart() - TotalVotes - 1, 0 )
 
-			Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded )
+			self:Notify( nil, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded )
 
 			return
 		end
 		
 		if Player then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, Err )
+			Shine:NotifyError( Player, Shine.Config.ChatName, Err )
 		else
 			Notify( Err )
 		end
@@ -1229,7 +1233,7 @@ function Plugin:CreateCommands()
 
 		if not self:VoteStarted() then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "There is no map vote in progress." )
+				Shine:NotifyError( Player, "There is no map vote in progress." )
 			else
 				Notify( "There is no map vote in progress." )
 			end
@@ -1244,11 +1248,10 @@ function Plugin:CreateCommands()
 				local NumForThis = self.Vote.VoteList[ Err ]
 				local NumTotal = self.Vote.TotalVotes
 
-				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s voted for %s (%s for this, %s)", true, 
+				self:Notify( nil, "%s voted for %s (%s for this, %i total)", true, 
 					PlayerName, Err, 
 					NumForThis > 1 and NumForThis.." votes" or "1 vote", 
-					NumTotal > 1 and NumTotal.." total votes" or "1 total vote" 
-				)
+					NumTotal )
 			end
 
 			return
@@ -1256,13 +1259,13 @@ function Plugin:CreateCommands()
 
 		if Err == "already voted" then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted. Type !revote <map> to change your vote." )
+				Shine:NotifyError( Player, "You have already voted. Type !revote <map> to change your vote." )
 			else
 				Notify( "You have already voted. Type !revote <map> to change your vote." )
 			end
 		else
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not a valid map choice.", true, Map )
+				Shine:NotifyError( Player, "%s is not a valid map choice.", true, Map )
 			else
 				Notify( StringFormat( "%s is not a valid map choice.", Map ) )
 			end
@@ -1278,7 +1281,7 @@ function Plugin:CreateCommands()
 
 		if not self:VoteStarted() then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "There is no map vote in progress." )
+				Shine:NotifyError( Player, "There is no map vote in progress." )
 			else
 				Notify( "There is no map vote in progress." )
 			end
@@ -1293,18 +1296,17 @@ function Plugin:CreateCommands()
 				local NumForThis = self.Vote.VoteList[ Err ]
 				local NumTotal = self.Vote.TotalVotes
 
-				Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s revoted for %s (%s for this, %s)", true, 
+				self:Notify( nil, "%s revoted for %s (%s for this, %i total)", true, 
 					PlayerName, Err, 
 					NumForThis > 1 and NumForThis.." votes" or "1 vote", 
-					NumTotal > 1 and NumTotal.." total votes" or "1 total vote" 
-				)
+					NumTotal )
 			end
 
 			return
 		end
 
 		if Player then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "%s is not a valid map choice.", true, Map )
+			Shine:NotifyError( Player, "%s is not a valid map choice.", true, Map )
 		else
 			Notify( StringFormat( "%s is not a valid map choice.", Map ) )
 		end
@@ -1319,7 +1321,7 @@ function Plugin:CreateCommands()
 
 		if not self.Vote.CanVeto then
 			if Player then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "There is no map change in progress." )
+				Shine:NotifyError( Player, "There is no map change in progress." )
 			else
 				Notify( "There is no map change in progress." )
 			end
@@ -1329,7 +1331,7 @@ function Plugin:CreateCommands()
 
 		self.Vote.Veto = true
 
-		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "%s cancelled the map change.", true, PlayerName )
+		self:Notify( nil, "%s cancelled the map change.", true, PlayerName )
 	end
 	Commands.VetoCommand = Shine:RegisterCommand( "sh_veto", "veto", Veto )
 	Commands.VetoCommand:Help( "Cancels a map change from a successful map vote." )
@@ -1344,7 +1346,7 @@ function Plugin:CreateCommands()
 			Shine:Print( "%s[%s] forced a map vote.", true, PlayerName, Client and Client:GetUserId() or "N/A" )
 		else
 			if Client then
-				Shine:Notify( Client, "Error", Shine.Config.ChatName, "Unable to start a new vote, a vote is already in progress." )
+				Shine:NotifyError( Client, "Unable to start a new vote, a vote is already in progress." )
 			else
 				Notify( "Unable to start a new vote, a vote is already in progress." )
 			end
@@ -1402,7 +1404,7 @@ end
 
 function Plugin:Cleanup()
 	if self:VoteStarted() then
-		Shine:Notify( nil, "Vote", Shine.Config.ChatName, "Map vote plugin disabled. Current vote cancelled." )
+		self:Notify( nil, "Map vote plugin disabled. Current vote cancelled." )
 
 		--Remember to clean up client side vote text/menu entries...
 		Shine:RemoveText( nil, { ID = 1 } )

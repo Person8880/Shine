@@ -160,6 +160,10 @@ function Plugin:DestroyTimers()
 	end
 end
 
+function Plugin:Notify( Player, Message, Format, ... )
+	Shine:NotifyDualColour( Player, 100, 100, 255, "[Pre Game]", 255, 255, 255, Message, Format, ... )
+end
+
 Plugin.UpdateFuncs = {
 	--Legacy functionality, fixed time for pregame then start.
 	[ 0 ] = function( self, Gamerules )
@@ -177,7 +181,7 @@ Plugin.UpdateFuncs = {
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 			end
 
 			return 
@@ -240,7 +244,7 @@ Plugin.UpdateFuncs = {
 
 				Shine:RemoveText( nil, { ID = 2 } )
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+				self:Notify( nil, "Game start aborted, a commander dropped out." )
 
 				self.GameStarting = false
 
@@ -254,7 +258,7 @@ Plugin.UpdateFuncs = {
 
 				Shine:RemoveText( nil, { ID = 2 } )
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 				self.GameStarting = false
 
@@ -307,7 +311,7 @@ Plugin.UpdateFuncs = {
 
 				if self.Config.AbortIfNoCom then
 					if not Team1Com or not Team2Com then
-						Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+						self:Notify( nil, "Game start aborted, a commander dropped out." )
 
 						self.GameStarting = false
 
@@ -321,7 +325,7 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then 
-					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 					self.GameStarting = false
 
@@ -342,7 +346,7 @@ Plugin.UpdateFuncs = {
 				self.CountStart = nil
 				self.CountEnd = nil
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
@@ -373,7 +377,7 @@ Plugin.UpdateFuncs = {
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+				self:Notify( nil, "Game start aborted, a commander dropped out." )
 
 				Shine:RemoveText( nil, { ID = 2 } )
 			end
@@ -433,7 +437,7 @@ Plugin.UpdateFuncs = {
 
 				Shine:RemoveText( nil, { ID = 2 } )
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+				self:Notify( nil, "Game start aborted, a commander dropped out." )
 
 				self.GameStarting = false
 
@@ -445,7 +449,7 @@ Plugin.UpdateFuncs = {
 
 				Shine:RemoveText( nil, { ID = 2 } )
 
-				Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+				self:Notify( nil, "Game start aborted, a commander dropped out." )
 
 				self.GameStarting = false
 
@@ -493,7 +497,7 @@ Plugin.UpdateFuncs = {
 
 				if self.Config.AbortIfNoCom then
 					if not Team1Com or not Team2Com then
-						Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+						self:Notify( nil, "Game start aborted, a commander dropped out." )
 
 						self.GameStarting = false
 
@@ -507,7 +511,7 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then 
-					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 					self.GameStarting = false
 
@@ -533,7 +537,7 @@ Plugin.UpdateFuncs = {
 				if Team1Count == 0 or Team2Count == 0 then return end
 
 				if not self.StartedGame then
-					Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Pregame has exceeded %s and there is one commander. Starting game...", true, string.TimeToString( self.Config.PreGameTime ) )
+					self:Notify( nil, "Pregame has exceeded %s and there is one commander. Starting game...", true, string.TimeToString( self.Config.PreGameTime ) )
 
 					self.StartedGame = true
 
@@ -545,7 +549,7 @@ Plugin.UpdateFuncs = {
 
 						if self.Config.AbortIfNoCom then
 							if not Team1Com and not Team2Com then
-								Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, a commander dropped out." )
+								self:Notify( nil, "Game start aborted, a commander dropped out." )
 
 								self.StartedGame = false
 
@@ -559,7 +563,7 @@ Plugin.UpdateFuncs = {
 						local Team2Count = Team2:GetNumPlayers()
 
 						if Team1Count == 0 or Team2Count == 0 then 
-							Shine:Notify( nil, "PreGame", Shine.Config.ChatName, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+							self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 							self.StartedGame = false
 
