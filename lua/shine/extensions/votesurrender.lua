@@ -245,7 +245,7 @@ function Plugin:CreateCommands()
 		local Team = Player:GetTeamNumber()
 
 		if not self.Votes[ Team ] then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a surrender vote on this team." )
+			Shine:NotifyError( Player, "You cannot start a surrender vote on this team." )
 
 			return
 		end
@@ -261,9 +261,9 @@ function Plugin:CreateCommands()
 		end
 
 		if Err == "already voted" then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You have already voted to surrender." )
+			Shine:NotifyError( Player, "You have already voted to surrender." )
 		else
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot start a surrender vote at this time." )
+			Shine:NotifyError( Player, "You cannot start a surrender vote at this time." )
 		end
 	end
 	Commands.VoteSurrenderCommand = Shine:RegisterCommand( "sh_votesurrender", { "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )

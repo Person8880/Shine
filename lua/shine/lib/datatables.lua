@@ -206,7 +206,7 @@ end
 --Process a complete network message.
 function DataTableMeta:ProcessComplete( Data )
 	for Key, Value in pairs( Data ) do
-		rawset( self, "__FirstUpdate"..Key, nil )
+		--rawset( self, "__FirstUpdate"..Key, nil )
 
 		RealData[ self ][ Key ] = Value
 	end
@@ -214,13 +214,13 @@ end
 
 --Processes a partial network message.
 function DataTableMeta:ProcessPartial( Key, Data )
-	if not rawget( self, "__FirstUpdate"..Key ) then --Don't call on change on first sync.
+	--if not rawget( self, "__FirstUpdate"..Key ) then --Don't call on change on first sync.
 		if self.__OnChange then
 			self.__OnChange( self.__Host, Key, RealData[ self ][ Key ], Data[ Key ] )
 		end
-	else
+	--[[else
 		rawset( self, "__FirstUpdate"..Key, nil )
-	end
+	end]]
 
 	RealData[ self ][ Key ] = Data[ Key ]
 end
@@ -260,7 +260,7 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access )
 			Data[ Key ] = Defaults[ Key ]
 		end
 
-		DT[ "__FirstUpdate"..Key ] = true
+		--DT[ "__FirstUpdate"..Key ] = true
 
 		local ID = Name..Key
 
