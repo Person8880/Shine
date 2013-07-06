@@ -65,6 +65,7 @@ local DefaultConfig = {
 	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
 	BalanceMode = Plugin.MODE_RANDOM, --How should teams be balanced?
+	FallbackMode = Plugin.MODE_KDR, --Which method should be used if ELO fails?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = false, --Should the plugin ignore commanders when switching?
 	AlwaysEnabled = false --Should the plugin be always forcing each round?
@@ -140,6 +141,15 @@ function Plugin:LoadConfig()
 	if Shine.CheckConfig( self.Config, DefaultConfig ) then self:SaveConfig() end
 
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 4 )
+	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, 4 )
+
+	if self.Config.FallbackMode == self.MODE_ELO then
+		self.Config.FallbackMode = self.MODE_KDR
+
+		Notify( "Error in voterandom config, cannot set FallbackMode to ELO sorting mode. Setting FallbackMode to KDR mode." )
+	
+		self:SaveConfig()
+	end
 end
 
 local Requests = {}
@@ -200,9 +210,10 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		if not Response then
 			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to random sorting..." )
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to random sorting." )
+			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
+				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
 
-			self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers )
+			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
 
 			return
 		end
@@ -212,9 +223,10 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		if not Data then
 			Shine:Print( "[ELO Vote] NS2Stats returned corrupt or empty data. Falling back to random sorting..." )
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to random sorting." )
+			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
+				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
 
-			self.ShufflingModes[ 1 ]( self, Gamerules, Targets, TeamMembers )
+			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
 
 			return
 		end
@@ -336,9 +348,10 @@ Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats ELO based.
 		local ChatName = Shine.Config.ChatName
 		if not RBPS then 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to random sorting." )
+			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
+				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
 
-			self.ShufflingModes[ self.MODE_RANDOM ]( self, Gamerules, Targets, TeamMembers ) 
+			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers ) 
 
 			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
 
@@ -351,9 +364,10 @@ Plugin.ShufflingModes = {
 			if not StatsData or not next( StatsData ) then
 				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using random based sorting instead." )
 
-				self:Notify( nil, "Shuffling based on ELO failed, falling back to random sorting." )
+				self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
+					ModeStrings.ModeLower[ self.Config.FallbackMode ] )
 
-				self.ShufflingModes[ self.MODE_RANDOM ]( self, Gamerules, Targets, TeamMembers )
+				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
 
 				return
 			end
@@ -533,6 +547,10 @@ function Plugin:StoreScoreData( Player )
 
 	local Mode = self.Config.BalanceMode
 
+	if Mode == self.MODE_ELO then
+		Mode = self.Config.FallbackMode
+	end
+
 	if Mode == self.MODE_SCORE then
 		--Don't want to store data about 0 score players, we'll just randomise them.
 		if Player.score and Player.score > 0 then
@@ -597,6 +615,11 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	local Players = Shine.GetAllPlayers()
 	local BalanceMode = self.Config.BalanceMode
 	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
+
+	if BalanceMode == self.MODE_ELO then
+		local Fallback = self.Config.FallbackMode
+		IsScoreBased = Fallback == self.MODE_SCORE or Fallback == self.MODE_KDR
+	end
 
 	--Reset the randomised state of all players and store score data.
 	for i = 1, #Players do

@@ -20,7 +20,7 @@ Plugin.DefaultConfig = {
 	Delay = 1,
 	WarnTime = 5,
 	KickTime = 15,
-	CommanderTime = 0.5,
+	--CommanderTime = 0.5,
 	Warn = true,
 	OnlyCheckOnStarted = false
 }
@@ -101,7 +101,7 @@ function Plugin:OnProcessMove( Player, Input )
 	DataTable.LastPitch = Pitch
 	DataTable.LastYaw = Yaw
 
-	local CommanderTime = self.Config.CommanderTime * 60
+	--[[local CommanderTime = self.Config.CommanderTime * 60
 
 	if Player:isa( "Commander" ) and CommanderTime > 0 and Started then
 		if DataTable.LastMove + CommanderTime < Time then
@@ -116,7 +116,7 @@ function Plugin:OnProcessMove( Player, Input )
 				Player:Logout()
 			end
 		end
-	end
+	end]]
 
 	local KickTime = self.Config.KickTime * 60
 
