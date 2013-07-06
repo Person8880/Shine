@@ -57,6 +57,8 @@ function Plugin:Initialise()
 end
 
 function Plugin:UpdateAllTalk( State )
+	if not self.dt.AllTalk then return end
+	
 	if State >= COUNTDOWN then
 		if not self.TextObj then return end
 		
@@ -86,6 +88,8 @@ function Plugin:UpdateAllTalk( State )
 end
 
 function Plugin:RemoveAllTalkText()
+	if not self.TextObj then return end
+	
 	self.TextObj.LastUpdate = Shared.GetTime() - 1
 	self.TextObj.Duration = 1
 
