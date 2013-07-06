@@ -486,6 +486,16 @@ function Plugin:EndGame()
 
 				local Gamerules = GetGamerules()
 
+				local Players = Shine.GetAllPlayers()
+
+				for i = 1, #Players do
+					local Ply = Players[ i ]
+
+					if Ply then
+						Gamerules:JoinTeam( Ply, 0, nil, true )
+					end
+				end
+
 				self.CyclingMap = true
 
 				Gamerules.timeToCycleMap = Time + 30
@@ -496,6 +506,18 @@ function Plugin:EndGame()
 
 				if self.VoteOnEnd then
 					self:StartVote( true )
+
+					local Gamerules = GetGamerules()
+
+					local Players = Shine.GetAllPlayers()
+
+					for i = 1, #Players do
+						local Ply = Players[ i ]
+
+						if Ply then
+							Gamerules:JoinTeam( Ply, 0, nil, true )
+						end
+					end
 				end
 			end
 		end
@@ -529,6 +551,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	if not ( self.CyclingMap or IsEndVote ) then return end
 	if not Player then return end
+	if ShineForce then return end
 	
 	local Time = Shared.GetTime()
 	local Message = IsEndVote and "You cannot join a team whilst the map vote is in progress." or 
