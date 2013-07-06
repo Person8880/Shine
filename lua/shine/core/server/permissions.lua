@@ -155,13 +155,18 @@ end
 ]]
 function Shine:ConvertData( Data, DontSave )
 	local Edited
+	
 	if Data.groups then
 		Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
 		
 		Data.Groups = {}
 		
 		for Name, Vals in pairs( Data.groups ) do
-			Data.Groups[ Name ] = { IsBlacklist = Vals.type == "disallowed", Commands = ConvertCommands( Vals.commands ), Immunity = Vals.level or 10 }
+			Data.Groups[ Name ] = { 
+				IsBlacklist = Vals.type == "disallowed",
+				Commands = Vals.commands and ConvertCommands( Vals.commands ) or {}, 
+				Immunity = Vals.level or 10 
+			}
 		end
 		Edited = true
 		Data.groups = nil
