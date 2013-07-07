@@ -4,6 +4,7 @@
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local xpcall = xpcall
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
 local type = type
@@ -63,6 +64,12 @@ local function Add( Event, Index, Function, Priority )
 end
 Shine.Hook.Add = Add
 
+local Traceback = debug.traceback
+
+local function OnError( Err )
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
+end
+
 --[[
 	Calls an internal Shine hook.
 	Inputs: Event name, arguments to pass.
@@ -79,8 +86,15 @@ local function Call( Event, ... )
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
-			local a, b, c, d, e, f = Func( ... )
-			if a ~= nil then return a, b, c, d, e, f end
+			local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
+
+			if not Success then
+				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+
+				Remove( Event, Index )
+			else
+				if a ~= nil then return a, b, c, d, e, f end
+			end
 		end
 	end
 
@@ -89,8 +103,15 @@ local function Call( Event, ... )
 		for Plugin, Table in pairs( Plugins ) do
 			if Table.Enabled then
 				if Table[ Event ] and type( Table[ Event ] ) == "function" then
-					local a, b, c, d, e, f = Table[ Event ]( Table, ... )
-					if a ~= nil then return a, b, c, d, e, f end
+					local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
+
+					if not Success then
+						Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s', disabling.", true, Event, Plugin )
+
+						Shine:UnloadExtension( Plugin )
+					else
+						if a ~= nil then return a, b, c, d, e, f end
+					end
 				end
 			end
 		end
@@ -103,8 +124,15 @@ local function Call( Event, ... )
 
 		if HookTable then
 			for Index, Func in pairs( HookTable ) do
-				local a, b, c, d, e, f = Func( ... )
-				if a ~= nil then return a, b, c, d, e, f end
+				local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
+
+				if not Success then
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+
+					Remove( Event, Index )
+				else
+					if a ~= nil then return a, b, c, d, e, f end
+				end
 			end
 		end
 	end

@@ -11,6 +11,8 @@ local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 
+local Hook = Shine.Hook
+
 Shine.Plugins = {}
 
 local ExtensionPath = "lua/shine/extensions/"
@@ -276,6 +278,8 @@ function Shine:UnloadExtension( Name )
 	if Server and Plugin.IsShared and next( self.GameIDs ) then
 		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
+
+	Hook.Call( "OnPluginUnload", Name )
 end
 
 local ClientPlugins = {}
