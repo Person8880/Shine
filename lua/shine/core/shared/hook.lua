@@ -106,9 +106,16 @@ local function Call( Event, ... )
 					local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
 
 					if not Success then
-						Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s', disabling.", true, Event, Plugin )
+						Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
+						Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.", true, Event, Plugin, Table.__HookErrors )
 
-						Shine:UnloadExtension( Plugin )
+						if Table.__HookErrors >= 10 then
+							Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).", true, Plugin, Table.__HookErrors )
+
+							Table.__HookErrors = 0
+
+							Shine:UnloadExtension( Plugin )
+						end
 					else
 						if a ~= nil then return a, b, c, d, e, f end
 					end
