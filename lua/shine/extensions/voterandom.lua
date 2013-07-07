@@ -602,16 +602,20 @@ function Plugin:GetAverageScoreData( ID )
 	local StoredRounds = #RoundData
 
 	local Score = 0
+	local StoredForPlayer = 0
 
 	for i = 1, StoredRounds do
 		local CurScore = RoundData[ i ][ ID ]
 
 		if CurScore then
 			Score = Score + CurScore
+			StoredForPlayer = StoredForPlayer + 1
 		end
 	end
 
-	return Score / StoredRounds
+	if StoredForPlayer == 0 then return 0 end
+
+	return Score / StoredForPlayer
 end
 
 --[[
