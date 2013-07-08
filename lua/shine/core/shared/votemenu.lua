@@ -18,12 +18,11 @@ Shared.RegisterNetworkMessage( "Shine_OpenedVoteMenu", {} )
 Shared.RegisterNetworkMessage( "Shine_EndVote", { Bleh = "integer (0 to 1)" } )
 
 local PluginMessage = {
-	Random = "integer (0 to 1)",
-	RTV = "integer (0 to 1)",
-	Scramble = "integer (0 to 1)",
-	Surrender = "integer (0 to 1)",
-	Unstuck = "integer (0 to 1)",
-	MOTD = "integer (0 to 1)"
+	Random = "boolean",
+	RTV = "boolean",
+	Surrender = "boolean",
+	Unstuck = "boolean",
+	MOTD = "boolean"
 }
 
 Shared.RegisterNetworkMessage( "Shine_PluginData", PluginMessage )

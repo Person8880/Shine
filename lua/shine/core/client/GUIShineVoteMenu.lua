@@ -201,9 +201,6 @@ local ClickFuncs = {
 	Surrender = function()
 		return GenericClick( "sh_votesurrender" )
 	end,
-	Scramble = function()
-		return GenericClick( "sh_votescramble" )
-	end,
 	Unstuck = function()
 		return GenericClick( "sh_unstuck" )
 	end,
