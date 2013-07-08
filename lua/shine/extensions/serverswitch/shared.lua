@@ -16,6 +16,7 @@ Shine:RegisterExtension( "serverswitch", Plugin )
 if Server then return end
 
 local Ceil = math.ceil
+local StringFormat = string.format
 local TableCount = table.Count
 local TableEmpty = table.Empty
 local Vector = Vector
@@ -75,13 +76,22 @@ local function PopulateServers( self )
 	end
 
 	for ID, Server in pairs( Servers ) do
+		local Index = #MenuButtons + 1
 		if CurCount <= HalfServers then
-			MenuButtons[ #MenuButtons + 1 ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Left, CurCount, HalfServers,
+			MenuButtons[ Index ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Left, CurCount, HalfServers,
 			function() return ClickServer( ID ) end )
 		else
-			MenuButtons[ #MenuButtons + 1 ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Right, CurCount - HalfServers, HalfServers,
+			MenuButtons[ Index ] = self:CreateMenuButton( self.TeamType, Server.Name, GUIItem.Right, CurCount - HalfServers, HalfServers,
 			function() return ClickServer( ID ) end )
 		end
+
+		Shine.QueryServerPopulation( Server.IP, tonumber( Server.Port ) + 1, function( Connected, Max )
+			if not Connected then return end
+			if not MenuButtons[ Index ] then return end
+			if MenuButtons[ Index ].Description:GetText() ~= Server.Name then return end
+
+			MenuButtons[ Index ].Description:SetText( StringFormat( "%s (%i/%i)", Server.Name, Connected, Max ) )
+		end )
 
 		CurCount = CurCount + 1
 	end
