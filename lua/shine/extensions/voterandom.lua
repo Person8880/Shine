@@ -7,6 +7,7 @@ local Shine = Shine
 local Notify = Shared.Message
 
 local Abs = math.abs
+local assert = assert
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Decode = json.decode
@@ -17,6 +18,7 @@ local pairs = pairs
 local Random = math.random
 local StringFormat = string.format
 local TableConcat = table.concat
+local TableEmpty = table.Empty
 local TableSort = table.sort
 local tostring = tostring
 
@@ -68,7 +70,8 @@ local DefaultConfig = {
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if ELO fails?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = false, --Should the plugin ignore commanders when switching?
-	AlwaysEnabled = false --Should the plugin be always forcing each round?
+	AlwaysEnabled = false, --Should the plugin be always forcing each round?
+	MaxStoredRounds = 3 --How many rounds of score data should we buffer?
 }
 
 function Plugin:Initialise()
@@ -88,7 +91,16 @@ function Plugin:Initialise()
 
 	self.ForceRandom = self.Config.AlwaysEnabled
 
-	self.ScoreData = {}
+	self.ScoreData = self:LoadScoreData()
+
+	--We need this value to keep track of where we store the next round data.
+	if not self.ScoreData.Round then
+		self.ScoreData.Round = 1
+	end
+
+	if not self.ScoreData.Rounds then
+		self.ScoreData.Rounds = {}
+	end
 
 	self.Enabled = true
 
@@ -142,6 +154,8 @@ function Plugin:LoadConfig()
 
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 4 )
 	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, 4 )
+
+	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 
 	if self.Config.FallbackMode == self.MODE_ELO then
 		self.Config.FallbackMode = self.MODE_KDR
@@ -301,7 +315,7 @@ Plugin.ShufflingModes = {
 				if Client then
 					local ID = Client:GetUserId()
 
-					local Data = ScoreData[ ID ]
+					local Data = self:GetAverageScoreData( ID )
 
 					if Data then
 						ScoreTable[ #ScoreTable + 1 ] = { Player = Player, Score = Data }
@@ -542,8 +556,14 @@ function Plugin:StoreScoreData( Player )
 	local Client = Player:GetClient()
 
 	if not Client then return end
+
+	if Client:GetIsVirtual() then return end
+
+	local Round = self.Round
+
+	assert( Round, "Attempted to store score data before round data was created!" )
 	
-	local ID = Client:GetUserId()
+	local ID = tostring( Client:GetUserId() )
 
 	local Mode = self.Config.BalanceMode
 
@@ -551,10 +571,12 @@ function Plugin:StoreScoreData( Player )
 		Mode = self.Config.FallbackMode
 	end
 
+	local DataTable = self.ScoreData.Rounds[ Round ]
+
 	if Mode == self.MODE_SCORE then
 		--Don't want to store data about 0 score players, we'll just randomise them.
 		if Player.score and Player.score > 0 then
-			self.ScoreData[ ID ] = Player.score
+			DataTable[ ID ] = Player.score
 		end
 	elseif Mode == self.MODE_KDR then
 		local Kills = Player:GetKills()
@@ -565,8 +587,57 @@ function Plugin:StoreScoreData( Player )
 		--Don't want a NaN ratio!
 		if Deaths == 0 then Deaths = 1 end
 
-		self.ScoreData[ ID ] = Kills / Deaths
+		DataTable[ ID ] = Kills / Deaths
 	end
+end
+
+--[[
+	Gets the average of all stored round scores for the given Steam ID.
+]]
+function Plugin:GetAverageScoreData( ID )
+	ID = tostring( ID )
+	
+	local ScoreData = self.ScoreData
+	local RoundData = ScoreData.Rounds
+	local StoredRounds = #RoundData
+
+	local Score = 0
+	local StoredForPlayer = 0
+
+	for i = 1, StoredRounds do
+		local CurScore = RoundData[ i ][ ID ]
+
+		if CurScore then
+			Score = Score + CurScore
+			StoredForPlayer = StoredForPlayer + 1
+		end
+	end
+
+	if StoredForPlayer == 0 then return 0 end
+
+	return Score / StoredForPlayer
+end
+
+--[[
+	Saves the score data for previous rounds.
+]]
+function Plugin:SaveScoreData()
+	local Success, Err = Shine.SaveJSONFile( self.ScoreData, "config://shine\\temp\\voterandom_scores.json" )
+
+	if not Success then
+		Notify( "Error writing voterandom scoredata file: "..Err )	
+
+		return
+	end
+end
+
+--[[
+	Loads the stored data from the file, will load on plugin load only.
+]]
+function Plugin:LoadScoreData()
+	local Data = Shine.LoadJSONFile( "config://shine\\temp\\voterandom_scores.json" )
+
+	return Data or { Round = 1, Rounds = {} }
 end
 
 --[[
@@ -621,6 +692,20 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		IsScoreBased = Fallback == self.MODE_SCORE or Fallback == self.MODE_KDR
 	end
 
+	if IsScoreBased then
+		local ScoreData = self.ScoreData
+		local Round = ScoreData.Round
+		local RoundData = ScoreData.Rounds
+
+		RoundData[ Round ] = RoundData[ Round ] or {}
+
+		TableEmpty( RoundData[ Round ] )
+
+		self.Round = Round
+
+		ScoreData.Round = ( Round % self.Config.MaxStoredRounds ) + 1
+	end
+
 	--Reset the randomised state of all players and store score data.
 	for i = 1, #Players do
 		local Player = Players[ i ]
@@ -633,6 +718,8 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			end
 		end
 	end
+
+	self:SaveScoreData()
 
 	--If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then

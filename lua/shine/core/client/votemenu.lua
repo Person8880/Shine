@@ -23,7 +23,7 @@ Client.HookNetworkMessage( "Shine_PluginData", function( Message )
 	end
 
 	for Index, Data in pairs( Message ) do
-		if Data == 1 then
+		if Data then
 			ActivePlugins[ #ActivePlugins + 1 ] = Index
 		end
 	end
