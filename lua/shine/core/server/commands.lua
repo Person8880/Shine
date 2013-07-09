@@ -462,6 +462,8 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	local Directive
 	local FirstWord = Exploded[ 1 ]
 
+	if not FirstWord then return end
+
 	if FirstWord:sub( 1, 1 ):find( "[^%w]" ) then --They've done !, / or some other special character first.
 		Directive = FirstWord:sub( 1, 1 )
 		Exploded[ 1 ] = FirstWord:sub( 2 )

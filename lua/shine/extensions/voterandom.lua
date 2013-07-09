@@ -166,6 +166,28 @@ function Plugin:LoadConfig()
 	end
 end
 
+--[[
+	Too many failed NS2Stats connections should revert the sorting mode for the rest of the map.
+]]
+function Plugin:AddELOFail()
+	if not self.ELOFailed then
+		self.ELOFailed = true
+
+		self.ELOFailCount = 1
+
+		return
+	end
+
+	self.ELOFailCount = self.ELOFailCount + 1
+
+	if self.ELOFailCount >= 2 then
+		self.Config.BalanceMode = self.Config.FallbackMode
+
+		Shine:Print( "[ELO Vote] Connection to NS2Stats failed 2 times in a row, reverting to %s sorting for the rest of the map.", 
+			true, ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+	end
+end
+
 local Requests = {}
 local ReqCount = 1
 
@@ -202,6 +224,8 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		if Requests[ CurRequest ] then
 			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out." )
 
+			self:AddELOFail()
+
 			Callback()
 		end
 	end )
@@ -222,12 +246,15 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		local ChatName = Shine.Config.ChatName
 
 		if not Response then
-			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to random sorting..." )
+			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to %s sorting...", true, FallbackMode )
+
+			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
 
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+
+			self:AddELOFail()
 
 			return
 		end
@@ -235,12 +262,15 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		local Data = Decode( Response )
 
 		if not Data then
-			Shine:Print( "[ELO Vote] NS2Stats returned corrupt or empty data. Falling back to random sorting..." )
+			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+			Shine:Print( "[ELO Vote] NS2Stats returned corrupt or empty data. Falling back to %s sorting...", true, FallbackMode )
+
+			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
 
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+
+			self:AddELOFail()
 
 			return
 		end
@@ -271,6 +301,8 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 				end
 			end
 		end
+
+		self.ELOFailed = nil
 
 		Callback()
 	end )
@@ -362,12 +394,15 @@ Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats ELO based.
 		local ChatName = Shine.Config.ChatName
 		if not RBPS then 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
+
+			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
 
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers ) 
 
-			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
+			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to %s sorting.", true, FallbackMode )
+
+			self:AddELOFail()
 
 			return
 		end
@@ -376,10 +411,11 @@ Plugin.ShufflingModes = {
 			local StatsData = self.StatsData
 
 			if not StatsData or not next( StatsData ) then
-				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using random based sorting instead." )
+				local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
-				self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-					ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using %s sorting instead.", true, FallbackMode )
+
+				self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
 
 				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
 

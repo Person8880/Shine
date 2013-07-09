@@ -7,9 +7,9 @@
 local include = Script.Load
 local next = next
 local pairs = pairs
-local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
+local StringFormat = string.format
 
 local Hook = Shine.Hook
 
@@ -157,9 +157,9 @@ end
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
 
-	local ClientFile = ExtensionPath..Name.."/client.lua"
-	local ServerFile = ExtensionPath..Name.."/server.lua"
-	local SharedFile = ExtensionPath..Name.."/shared.lua"
+	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
+	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
+	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
 	
 	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ] or PluginFiles[ ServerFile ]
 
@@ -193,16 +193,18 @@ function Shine:LoadExtension( Name, DontEnable )
 	end
 
 	if not PluginFiles[ ServerFile ] then
-		ServerFile = ExtensionPath..Name..".lua"
+		ServerFile = StringFormat( "%s%s.lua", ExtensionPath, Name )
 
 		if not PluginFiles[ ServerFile ] then
 			local Found
+
+			local SearchTerm = StringFormat( "/%s.lua", Name )
 
 			--In case someone uses a different case file name to the plugin name...
 			for File in pairs( PluginFiles ) do
 				local LowerF = File:lower()
 
-				if LowerF:find( "/"..Name..".lua", 1, true ) then
+				if LowerF:find( SearchTerm, 1, true ) then
 					Found = true
 					ServerFile = File
 
