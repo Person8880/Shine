@@ -1,41 +1,57 @@
 --[[
-	Facilitates querying of gameserverdirectory.com for player info.
-
-	There's no public API for game server querying that I can find, so this HTML page reading hack will have to do.
+	Queries my PHP script for server info.
 ]]
 
+local Encode, Decode = json.encode, json.decode
 local HTTPRequest = Shared.SendHTTPRequest
 local StringFormat = string.format
 local tonumber = tonumber
 
-local BaseURL = "http://www.gameserverdirectory.com/server/"
-local Match = [[<td class="infohead" nowrap>Players:</td>]]
+local BaseURL = "http://5.39.89.152/shine/serverquery.php"
 
+--[[
+	Query the state of a single server.
+]]
 function Shine.QueryServerPopulation( IP, Port, Callback )
-	local URL = StringFormat( "%s%s:%s", BaseURL, IP, Port )
-
-	HTTPRequest( URL, "GET", function( Body )
+	local Params = {
+		servers = Encode( {
+			{ ip = IP, port = tostring( Port ) }
+		} )
+	}
+	HTTPRequest( BaseURL, "POST", Params, function( Body )
 		if not Body or #Body == 0 then
 			return Callback()
 		end
 
-		local Start, End = Body:find( Match )
+		local Data = Decode( Body )
 
-		if not Start then return end
+		if not Data or #Data == 0 then
+			return Callback()
+		end
+		
+		return Callback( Data[ 1 ].numberOfPlayers, Data[ 1 ].maxPlayers )
+	end )
+end
 
-		Body = Body:sub( End )
+--[[
+	Query the state of multiple servers.
+]]
+function Shine.QueryServers( Servers, Callback )
+	local Params = {
+		servers = Encode( Servers )
+	}
 
-		Start, End = Body:find( "(%d+)%s/%s(%d+)" )
-
-		if not Start then
+	HTTPRequest( BaseURL, "POST", Params, function( Body )
+		if not Body or #Body == 0 then
 			return Callback()
 		end
 
-		local Data = Body:sub( Start, End )
+		local Data = Decode( Body )
 
-		local Num = Data:sub( 1, 2 ):gsub( " ", "" )
-		local Max = Data:sub( 3 ):gsub( "[^%d]", "" )
-		
-		return Callback( tonumber( Num ), tonumber( Max ) )
+		if not Data or #Data == 0 then
+			return Callback()
+		end
+
+		return Callback( Data )
 	end )
 end
