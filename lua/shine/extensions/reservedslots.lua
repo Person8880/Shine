@@ -96,6 +96,8 @@ function Plugin:CheckRedirects( Client )
 
 	--Gives us 5 seconds to get the server data, as close as possible while leaving room for the HTTP request to be processed.
 	Shine.Timer.Simple( 15, function()
+		if not Shine:IsValidClient( Client ) then return end
+		
 		for i = 1, #Redirects do
 			local Redirect = Redirects[ i ]
 
