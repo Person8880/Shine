@@ -7,6 +7,9 @@ local Shine = Shine
 local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
 
+local TableRemove = table.remove
+local type = type
+
 local Plugin = {}
 Plugin.Version = "1.0"
 
@@ -25,7 +28,10 @@ end
 
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
-		Adverts = { "Welcome to Natural Selection 2.", "This server is running the Shine administration mod." },
+		Adverts = { 
+			{ Message = "Welcome to Natural Selection 2.", Type = "chat", R = 255, G = 255, B = 255 },
+			{ Message = "This server is running the Shine administration mod.", Type = "chat", R = 255, G = 255, B = 255 }
+		},
 		Interval = 60
 	}
 
@@ -66,6 +72,61 @@ function Plugin:LoadConfig()
 	self.Config = PluginConfig
 end
 
+local function isstring( String )
+	return type( String ) == "string"
+end
+
+local function istable( Table )
+	return type( Table ) == "table"
+end
+
+function Plugin:ParseAdvert( ID, Advert )
+	if isstring( Advert ) then
+		Shine:NotifyDualColour( nil, 255, 255, 255, Advert, 0, 0, 0, "  " )
+
+		return
+	end
+
+	if istable( Advert ) then
+		local Message = Advert.Message
+
+		if not Message then
+			Shine:Print( "[Adverts] Misconfigured advert #%i, missing \"Message\" value.", true, ID )
+
+			TableRemove( self.Config.Adverts, ID )
+
+			return
+		end
+
+		local R = Advert.R or Advert.r or 255
+		local G = Advert.G or Advert.g or 255
+		local B = Advert.B or Advert.b or 255
+
+		local Type = Advert.Type
+
+		if not Type or Type == "chat" then
+			Shine:NotifyDualColour( nil, R, G, B, Message, 0, 0, 0, "  " )
+		else
+			local Position = ( Advert.Position or "top" ):lower()
+
+			local X, Y = 0.5, 0.15
+			local Align = 1
+
+			--[[if Position == "left" then
+				X, Y = 0.1, 0.5
+				Align = 0
+			elseif Position == "right" then
+				X, Y = 0.9, 0.5
+				Align = 2
+			else]]if Position == "bottom" then
+				X, Y = 0.5, 0.8
+			end
+
+			Shine:SendText( nil, Shine.BuildScreenMessage( 20, X, Y, Message, 7, R, G, B, Align, 2, 1 ) )
+		end
+	end
+end
+
 function Plugin:SetupTimer()
 	if Shine.Timer.Exists( self.TimerName ) then
 		Shine.Timer.Destroy( self.TimerName )
@@ -76,7 +137,7 @@ function Plugin:SetupTimer()
 	local Message = 1
 
 	Shine.Timer.Create( self.TimerName, self.Config.Interval, -1, function()
-		Shine:Notify( nil, "", "", self.Config.Adverts[ Message ] )
+		self:ParseAdvert( Message, self.Config.Adverts[ Message ] )
 		Message = ( Message % #self.Config.Adverts ) + 1
 	end )
 end

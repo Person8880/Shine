@@ -15,6 +15,7 @@ local Scripts = {
 	"core/shared/hook.lua",
 	"lib/datatables.lua",
 	"lib/timer.lua",
+	"lib/query.lua",
 	"core/shared/config.lua",
 	"core/client/commands.lua",
 	"core/shared/extensions.lua",

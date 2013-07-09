@@ -20,6 +20,7 @@ local Scripts = {
 	"lib/timer.lua",
 	"lib/datatables.lua",
 	"lib/votes.lua",
+	"lib/query.lua",
 	--"Server.lua",
 	"core/server/permissions.lua",
 	"core/server/commands.lua",
