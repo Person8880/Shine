@@ -28,7 +28,10 @@ end
 
 function Plugin:GenerateDefaultConfig( Save )
 	self.Config = {
-		Adverts = { "Welcome to Natural Selection 2.", "This server is running the Shine administration mod." },
+		Adverts = { 
+			{ Message = "Welcome to Natural Selection 2.", Type = "chat", R = 255, G = 255, B = 255 },
+			{ Message = "This server is running the Shine administration mod.", Type = "chat", R = 255, G = 255, B = 255 }
+		},
 		Interval = 60
 	}
 

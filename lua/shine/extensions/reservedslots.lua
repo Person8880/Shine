@@ -27,7 +27,9 @@ Plugin.DefaultConfig = {
 	Slots = 2,
 	Password = "",
 	Mode = 1,
-	Redirect = { IP = "127.0.0.1", Port = "27015", Password = "" }
+	Redirect = { 
+		{ IP = "127.0.0.1", Port = "27015", Password = "", ReservedSlots = 0 }
+	}
 }
 
 Plugin.CheckConfig = true

@@ -6,6 +6,7 @@ local Encode, Decode = json.encode, json.decode
 local HTTPRequest = Shared.SendHTTPRequest
 local StringFormat = string.format
 local tonumber = tonumber
+local tostring = tostring
 
 local BaseURL = "http://5.39.89.152/shine/serverquery.php"
 
