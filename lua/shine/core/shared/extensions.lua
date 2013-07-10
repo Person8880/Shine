@@ -128,7 +128,7 @@ if Server then
 		end
 	end
 elseif Client then
-	function PluginMeta:BindCommand( Command, Func )
+	function PluginMeta:BindCommand( ConCommand, Func )
 		self.Commands = self.Commands or {}
 
 		local Command = Shine:RegisterClientCommand( ConCommand, Func )

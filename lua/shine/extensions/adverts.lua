@@ -109,7 +109,7 @@ function Plugin:ParseAdvert( ID, Advert )
 		else
 			local Position = ( Advert.Position or "top" ):lower()
 
-			local X, Y = 0.5, 0.15
+			local X, Y = 0.5, 0.2
 			local Align = 1
 
 			--[[if Position == "left" then

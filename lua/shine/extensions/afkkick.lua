@@ -22,6 +22,7 @@ Plugin.DefaultConfig = {
 	KickTime = 15,
 	--CommanderTime = 0.5,
 	Warn = true,
+	MoveToReadyRoomOnWarn = false,
 	OnlyCheckOnStarted = false
 }
 
@@ -129,6 +130,10 @@ function Plugin:OnProcessMove( Player, Input )
 			local AFKTime = Time - DataTable.LastMove
 			
 			Server.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
+
+			if self.Config.MoveToReadyRoomOnWarn then
+				Gamerules:JoinTeam( Player, 0, nil, true )
+			end
 
 			return
 		end

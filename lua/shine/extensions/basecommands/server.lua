@@ -471,7 +471,7 @@ function Plugin:CreateCommands()
 		local PlayerName = Player and Player:GetName() or "Console"
 		local ID = Client:GetUserId() or 0
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.2, Message, 6, 255, 255, 255, 1, 2, 1 ) )
+		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6, 255, 255, 255, 1, 2, 1 ) )
 		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
 	end
 	Commands.CSayCommand = Shine:RegisterCommand( "sh_csay", "csay", CSay )
