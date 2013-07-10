@@ -12,7 +12,7 @@ local Max = math.max
 local Notify = Shared.Message
 local StringFormat = string.format
 local TableCount = table.Count
-local TableRadom = table.ChooseRandom
+local TableRandom = table.ChooseRandom
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -96,6 +96,8 @@ function Plugin:CheckRedirects( Client )
 
 	--Gives us 5 seconds to get the server data, as close as possible while leaving room for the HTTP request to be processed.
 	Shine.Timer.Simple( 15, function()
+		if not Shine:IsValidClient( Client ) then return end
+		
 		for i = 1, #Redirects do
 			local Redirect = Redirects[ i ]
 
@@ -166,7 +168,7 @@ function Plugin:CheckRedirects( Client )
 		Shine:NotifyColour( Client, 255, 50, 0, "No servers with free slots were found." )
 
 		--Sorry, but reserved slots are reserved.
-		Shine.Timer.Simple( 2, function()
+		Shine.Timer.Simple( 5, function()
 			if not Shine:IsValidClient( Client ) then return end
 			
 			Server.DisconnectClient( Client )
