@@ -12,7 +12,7 @@ local Max = math.max
 local Notify = Shared.Message
 local StringFormat = string.format
 local TableCount = table.Count
-local TableRadom = table.ChooseRandom
+local TableRandom = table.ChooseRandom
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -168,7 +168,7 @@ function Plugin:CheckRedirects( Client )
 		Shine:NotifyColour( Client, 255, 50, 0, "No servers with free slots were found." )
 
 		--Sorry, but reserved slots are reserved.
-		Shine.Timer.Simple( 2, function()
+		Shine.Timer.Simple( 5, function()
 			if not Shine:IsValidClient( Client ) then return end
 			
 			Server.DisconnectClient( Client )
