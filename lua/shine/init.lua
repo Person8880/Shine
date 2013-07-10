@@ -28,6 +28,7 @@ local Scripts = {
 	"core/shared/config.lua",
 	"core/server/config.lua",
 	"core/shared/chat.lua",
+	"core/shared/logging.lua",
 	"core/server/logging.lua",
 	"core/shared/commands.lua",
 	"core/shared/webpage.lua",
