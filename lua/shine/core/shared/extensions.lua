@@ -15,6 +15,7 @@ local Hook = Shine.Hook
 
 Shine.Plugins = {}
 
+local AutoLoadPath = "config://shine\\AutoLoad.json"
 local ExtensionPath = "lua/shine/extensions/"
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
@@ -338,6 +339,38 @@ elseif Client then
 			Shine:EnableExtension( Name )
 		else
 			Shine:UnloadExtension( Name )
+		end
+	end )
+
+	--[[
+		Adds a plugin to be auto loaded on the client.
+		This should only be used for client side plugins, not shared.
+
+		Inputs: Plugin name, boolean AutoLoad.
+	]]
+	function Shine:SetPluginAutoLoad( Name, AutoLoad )
+		if not self.AutoLoadPlugins then return end
+		
+		self.AutoLoadPlugins[ Name ] = AutoLoad and true or nil
+
+		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
+	end
+
+	Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
+		local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )
+
+		if not AutoLoad or not next( AutoLoad ) then
+			Shine.AutoLoadPlugins = Shine.AutoLoadPlugins or {}
+
+			return 
+		end
+
+		Shine.AutoLoadPlugins = AutoLoad
+
+		for Plugin, Load in pairs( AutoLoad ) do
+			if Load then
+				Shine:EnableExtension( Plugin )
+			end
 		end
 	end )
 end
