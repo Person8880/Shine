@@ -81,7 +81,9 @@ function PluginMeta:SaveConfig()
 		return	
 	end
 
-	Print( "Shine %s config file updated.", self.__Name )
+	if not self.SilentConfigSave then
+		Print( "Shine %s config file updated.", self.__Name )
+	end
 end
 
 function PluginMeta:LoadConfig()
