@@ -424,6 +424,18 @@ if Client then
 
 			return OldSendCharacterEvent( self, Char )
 		end
+
+		local OldResChange = GUIManager.OnResolutionChanged
+
+		function GUIManager:OnResolutionChanged( OldX, OldY, NewX, NewY )
+			Call( "PreOnResolutionChanged", OldX, OldY, NewX, NewY )
+
+			OldResChange( self, OldX, OldY, NewX, NewY )
+
+			Call( "OnResolutionChanged", OldX, OldY, NewX, NewY )
+		end
+
+		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
 	end, -20 )
 
 	return
@@ -488,6 +500,9 @@ Add( "Think", "ReplaceMethods", function()
 
 	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
 	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
+
+	SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction", "PassivePre" )
+	SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
 	

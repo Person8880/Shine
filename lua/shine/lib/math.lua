@@ -61,3 +61,34 @@ function math.GenerateSequence( Length, Nums )
 
 	return Sequence
 end
+
+--[[
+	Performs an easing of the given progress to the given power.
+
+	This is power easing, not sine, exponential or otherwise.
+]]
+function math.EaseInOut( Progress, Power )
+	if Progress < 0.5 then
+		Progress = Progress * 2
+		return ( Progress ^ Power ) * 0.5
+	end
+
+	Progress = 2 * ( 1 - Progress )
+
+	return 1 - ( Progress ^ Power ) * 0.5
+end
+
+--[[
+	Performs easing inward only.
+]]
+function math.EaseIn( Progress, Power )
+	return Progress ^ Power
+end
+
+--[[
+	Performs easing outward only.
+]]
+function math.EaseOut( Progress, Power )
+	Progress = 1 - Progress
+	return 1 - Progress ^ Power
+end

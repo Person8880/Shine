@@ -9,11 +9,13 @@ local include = Script.Load
 local Scripts = {
 	--"Client.lua",
 	"lib/string.lua",
+	"lib/utf8.lua",
 	"lib/table.lua",
 	"lib/class.lua",
 	"lib/math.lua",
 	"core/shared/logging.lua",
 	"core/shared/hook.lua",
+	"lib/gui.lua",
 	"lib/datatables.lua",
 	"lib/timer.lua",
 	"lib/query.lua",
