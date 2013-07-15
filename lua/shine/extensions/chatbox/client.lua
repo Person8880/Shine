@@ -484,18 +484,25 @@ local function WordWrap( XPos, Width, Label, LastSpace )
 	local CurWidth = XPos
 	local LabelText = Label:GetText()
 	local i = LastSpace or 1
+	local LastLastSpace
 
 	repeat
 		local CurText = LabelText:UTF8Sub( StartingChar, i )
 		local CurChar = LabelText:UTF8Sub( i, i )
 
 		if CurChar == " " then
+			LastLastSpace = LastSpace
 			LastSpace = i
 		end
 
 		CurWidth = XPos + Label:GetTextWidth( CurText )
 		i = i + 1
 	until CurWidth >= Width or i > #LabelText
+
+	--The last space was the last character...
+	if LastSpace == i - 1 then
+		LastSpace = LastLastSpace
+	end
 
 	if not LastSpace or LastSpace == StartingChar - 1 then
 		LabelText = LabelText:UTF8Sub( 1, i - 2 ).."\n"..LabelText:UTF8Sub( i - 1 )
