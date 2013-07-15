@@ -146,19 +146,19 @@ local MessageMemoryPos = Vector( 30, 210, 0 )
 
 local TextScale = Vector( 1, 1, 0 )
 
-local BorderCol = Colour( 0.2, 0.2, 0.2, 0.8 )
-local InnerCol = Colour( 0.6, 0.6, 0.6, 0.4 )
-local SettingsCol = Colour( 0.4, 0.4, 0.4, 0.8 )
+local BorderCol = Colour( 0.6, 0.6, 0.6, 0.4 )
+local InnerCol = Colour( 0.2, 0.2, 0.2, 0.8 )
+local SettingsCol = Colour( 0.6, 0.6, 0.6, 0.4 )
 
 local ModeTextCol = Colour( 1, 1, 1, 1 )
 
-local TextDarkCol = Colour( 0.3, 0.3, 0.3, 1 )
-local TextFocusCol = Colour( 0.5, 0.5, 0.5, 1 )
+local TextDarkCol = Colour( 0.2, 0.2, 0.2, 0.8 )--Colour( 0.5, 0.5, 0.5, 1 )
+local TextFocusCol = Colour( 0.2, 0.2, 0.2, 0.8 )
 local TextBorderCol = Colour( 0, 0, 0, 0 )
 local TextCol = Colour( 1, 1, 1, 1 )
 
-local ButtonActiveCol = Colour( 0.5, 0.5, 0.5, 1 )
-local ButtonInActiveCol = Colour( 0.3, 0.3, 0.3, 1 )
+local ButtonActiveCol = Colour( 0.5, 0.5, 0.5, 0.8 )
+local ButtonInActiveCol = Colour( 0.2, 0.2, 0.2, 0.8 )
 
 local CheckBackCol = Colour( 0.2, 0.2, 0.2, 1 )
 local CheckedCol = Colour( 0.8, 0.6, 0.1, 1 ) 
@@ -294,8 +294,8 @@ function Plugin:CreateChatbox()
 	SettingsButton:SetSize( SettingsButtonSize * UIScale )
 	SettingsButton:SetPos( SettingsButtonPos * UIScale )
 	SettingsButton:SetText( ">" )
-	SettingsButton:SetActiveCol( TextFocusCol )
-	SettingsButton:SetInactiveCol( TextDarkCol )
+	SettingsButton:SetActiveCol( ButtonActiveCol )
+	SettingsButton:SetInactiveCol( ButtonInActiveCol )
 	SettingsButton.UseScheme = false
 
 	function SettingsButton:DoClick()
@@ -384,6 +384,7 @@ function Plugin:CreateChatbox()
 			MessageMemory:SetValue( Plugin.Config.MessageMemory )
 			MessageMemory:SetHandleColour( CheckedCol )
 			MessageMemory:SetLineColour( ModeTextCol )
+			MessageMemory:SetDarkLineColour( TextDarkCol )
 			MessageMemory:SetFont( "fonts/AgencyFB_small.fnt" )
 			MessageMemory:SetTextColour( ModeTextCol )
 			function MessageMemory:OnValueChanged( Value )
@@ -393,8 +394,6 @@ function Plugin:CreateChatbox()
 
 				Plugin:SaveConfig()
 			end
-
-			SettingsPanel.Slider = MessageMemory
 		end
 
 		if SettingsButton.Expanding then return end
@@ -505,7 +504,8 @@ local function WordWrap( XPos, Width, Label, LastSpace )
 	until CurWidth >= Width or i > #LabelText
 
 	if not LastSpace or LastSpace == StartingChar - 1 then
-		LabelText = LabelText:UTF8Sub( 1, i - 1 ).."\n"..LabelText:UTF8Sub( i )
+		LabelText = LabelText:UTF8Sub( 1, i - 2 ).."\n"..LabelText:UTF8Sub( i - 1 )
+
 		Label:SetText( LabelText )
 
 		return i
@@ -611,6 +611,13 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 
 	while XPos + MessageLabel:GetTextWidth() > ChatboxSize do
 		LastSpace = WordWrap( XPos, ChatboxSize, MessageLabel, LastSpace )
+
+		local Text = MessageLabel:GetText()
+
+		if Text:sub( #Text, #Text ) == "\n" then
+			Text = Text:sub( 1, #Text - 1 )
+			break
+		end
 	end
 
 	local MessagePos = Vector( PrePos.x + 5 + PreLabel:GetTextWidth(), PrePos.y, 0 )

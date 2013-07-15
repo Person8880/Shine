@@ -14,10 +14,12 @@ local Slider = {}
 
 local DefaultHandleSize = Vector( 10, 32, 0 )
 local DefaultLineSize = Vector( 250, 5, 0 )
+local DefaultUnfilledLineSize = Vector( 0, 5, 0 )
 local DefaultSize = Vector( 250, 32, 0 )
 local Padding = Vector( 20, 0, 0 )
 
 local LinePos = Vector( 0, -2.5, 0 )
+local UnfilledLinePos = Vector( 250, -2.5, 0 )
 
 local Clear = Colour( 0, 0, 0, 0 )
 
@@ -45,6 +47,15 @@ function Slider:Initialise()
 
 	self.Line = Line
 
+	local UnfilledLine = Manager:CreateGraphicItem()
+	UnfilledLine:SetAnchor( GUIItem.Left, GUIItem.Center )
+	UnfilledLine:SetSize( DefaultUnfilledLineSize )
+	UnfilledLine:SetPosition( UnfilledLinePos )
+
+	Background:AddChild( UnfilledLine )
+
+	self.DarkLine = UnfilledLine
+
 	local Handle = Manager:CreateGraphicItem()
 	Handle:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Handle:SetSize( DefaultHandleSize )
@@ -71,12 +82,16 @@ function Slider:Initialise()
 
 	self.Min = 0
 	self.Max = 100
+	self.Range = 100
 
 	self.Value = 0
 
 	self.Decimals = 0
 
 	self.HandlePos = Vector( 0, 0, 0 )
+	self.LineSize = Vector( 250, 5, 0 )
+	self.DarkLineSize = Vector( 0, 5, 0 )
+	self.DarkLinePos = Vector( 250, -2.5, 0 )
 end
 
 function Slider:SetupStencil()
@@ -84,7 +99,20 @@ function Slider:SetupStencil()
 
 	self.Handle:SetInheritsParentStencilSettings( true )
 	self.Line:SetInheritsParentStencilSettings( true )
+	self.DarkLine:SetInheritsParentStencilSettings( true )
 	self.Label.Text:SetInheritsParentStencilSettings( true )
+end
+
+function Slider:SizeLines()
+	local LineWidth = self.Width * self.Fraction
+	self.LineSize.x = LineWidth
+	self.Line:SetSize( self.LineSize )
+
+	self.DarkLinePos.x = LineWidth
+	self.DarkLine:SetPosition( self.DarkLinePos )
+
+	self.DarkLineSize.x = self.Width * ( 1 - self.Fraction )
+	self.DarkLine:SetSize( self.DarkLineSize )
 end
 
 function Slider:SetSize( Size )
@@ -92,7 +120,7 @@ function Slider:SetSize( Size )
 
 	self.Width = Size.x
 
-	self.Line:SetSize( Vector( Size.x, 5, 0 ) )
+	self:SizeLines()
 end
 
 function Slider:SetFont( Name )
@@ -111,6 +139,10 @@ function Slider:SetLineColour( Col )
 	self.Line:SetColor( Col )
 end
 
+function Slider:SetDarkLineColour( Col )
+	self.DarkLine:SetColor( Col )
+end
+
 --[[
 	Sets the slider's position by value.
 ]]
@@ -119,26 +151,30 @@ function Slider:SetValue( Value )
 	
 	self.Value = Clamp( Round( Value, self.Decimals ), self.Min, self.Max )
 
-	self.Fraction = Clamp( Value / self.Max, 0, 1 )
+	self.Fraction = Clamp( ( Value - self.Min ) / self.Range, 0, 1 )
 	self.HandlePos.x = self.Width * self.Fraction
 
 	self.Handle:SetPosition( self.HandlePos )
 
 	self.Label:SetText( tostring( self.Value ) )
+
+	self:SizeLines()
 end
 
 --[[
 	Sets the slider's position by fraction.
 ]]
 function Slider:SetFraction( Fraction )
-	self.Value = Clamp( Round( Fraction * self.Max, self.Decimals ), self.Min, self.Max )
-	self.Fraction = Clamp( self.Value / self.Max, 0, 1 )
+	self.Value = Clamp( Round( self.Min + ( Fraction * self.Range ), self.Decimals ), self.Min, self.Max )
+	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
 
 	self.HandlePos.x = self.Width * self.Fraction
 
 	self.Handle:SetPosition( self.HandlePos )
 
 	self.Label:SetText( tostring( self.Value ) )
+
+	self:SizeLines()
 end
 
 function Slider:GetValue()
@@ -162,6 +198,8 @@ end
 function Slider:SetBounds( Min, Max )
 	self.Min = Min
 	self.Max = Max
+
+	self.Range = Max - Min
 
 	--Update our slider value to clamp it inside the new bounds if needed.
 	self:SetValue( self.Value )
