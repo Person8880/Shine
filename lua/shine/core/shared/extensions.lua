@@ -290,15 +290,17 @@ end
 local ClientPlugins = {}
 
 --[[
-	Prepare client side plugins.
+	Prepare shared plugins.
 
-	Important to note: Shine does not support hot loading plugin files. That is, it will only know about plugin files that were present when it started.
+	Important to note: Shine does not support hot loading plugin files. 
+	That is, it will only know about plugin files that were present when it started.
 ]]
 for Path in pairs( PluginFiles ) do
 	local Folders = StringExplode( Path, "/" )
 	local Name = Folders[ 4 ]
+	local File = Folders[ 5 ]
 
-	if Folders[ 5 ] and not ClientPlugins[ Name ] then
+	if File and File:lower() == "shared.lua" and not ClientPlugins[ Name ] then
 		ClientPlugins[ Name ] = "boolean" --Generate the network message.
 		Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 	end
