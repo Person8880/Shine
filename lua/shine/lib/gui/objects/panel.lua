@@ -180,6 +180,10 @@ function Panel:SetStickyScroll( Enable )
 	self.StickyScroll = Enable and true or false
 end
 
+function Panel:SetScrollbarHeightOffset( Offset )
+	self.ScrollbarHeightOffset = Offset
+end
+
 function Panel:SetMaxHeight( Height )
 	self.MaxHeight = Height
 
@@ -189,7 +193,7 @@ function Panel:SetMaxHeight( Height )
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
 		Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 		Scrollbar:SetPos( self.ScrollPos or ScrollPos )
-		Scrollbar:SetSize( Vector( 10, MaxHeight - 20, 0 ) )
+		Scrollbar:SetSize( Vector( 10, MaxHeight - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
 		Scrollbar:SetScrollSize( MaxHeight / Height )
 
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )

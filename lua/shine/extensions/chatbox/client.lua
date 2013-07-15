@@ -8,7 +8,6 @@ local Shine = Shine
 
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
-local Timer = Shine.Timer
 
 local Max = math.max
 local pairs = pairs
@@ -91,8 +90,18 @@ Hook.Add( "Think", "ChatBoxHook", function()
 	end
 end )
 
---Finds the active instance of GUIChat, or queues the function again for the next frame on failure.
-local function FindGUIChat( self )
+function Plugin:Initialise()
+	self.Messages = self.Messages or {}
+
+	self.Enabled = true
+
+	return true
+end
+
+--We need the default chat script so we can hide its messages.
+function Plugin:Think()
+	if self.GUIChat then return end
+	
 	local Manager = GetGUIManager()
 	local Scripts = Manager.scripts
 
@@ -103,22 +112,6 @@ local function FindGUIChat( self )
 			return
 		end
 	end
-
-	Timer.Simple( 0, function()
-		FindGUIChat( self )
-	end )
-end
-
-function Plugin:Initialise()
-	if not self.GUIChat then
-		FindGUIChat( self )
-	end
-
-	self.Messages = self.Messages or {}
-
-	self.Enabled = true
-
-	return true
 end
 
 local ChatBoxSize = Vector( 800, 340, 0 )
@@ -132,7 +125,7 @@ local SettingsSize = Vector( 350, 300, 0 )
 local BorderPos = Vector( 20, 20, 0 )
 local CloseButtonPos = Vector( -1, -1, 0 ) 
 local ModeTextPos = Vector( 65, 320, 0 )
-local ScrollbarPos = Vector( 2, 10, 0 )
+local ScrollbarPos = Vector( 2, 0, 0 )
 local SettingsButtonPos = Vector( 752, 306, 0 )
 local SettingsPos = Vector( 0, 20, 0 )
 local TextBoxPos = Vector( 74, 305, 0 )
@@ -204,6 +197,7 @@ function Plugin:CreateChatbox()
 	local Box = SGUI:Create( "Panel", DummyPanel )
 	Box:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Box:SetScrollbarPos( ScrollbarPos )
+	Box:SetScrollbarHeightOffset( 0 )
 	Box:SetScrollable()
 	Box:SetAllowSmoothScroll( self.Config.SmoothScroll )
 	Box:SetStickyScroll( true )
