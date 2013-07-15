@@ -610,14 +610,16 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	local LastSpace
 	local XPos = PrePos.x + 5 + PreLabel:GetTextWidth()
 
-	while XPos + MessageLabel:GetTextWidth() > ChatboxSize do
-		LastSpace = WordWrap( XPos, ChatboxSize, MessageLabel, LastSpace )
+	if MessageName:find( "[^%s]" ) then
+		while XPos + MessageLabel:GetTextWidth() > ChatboxSize do
+			LastSpace = WordWrap( XPos, ChatboxSize, MessageLabel, LastSpace )
 
-		local Text = MessageLabel:GetText()
+			local Text = MessageLabel:GetText()
 
-		if Text:sub( #Text, #Text ) == "\n" then
-			Text = Text:sub( 1, #Text - 1 )
-			break
+			if Text:sub( #Text, #Text ) == "\n" then
+				Text = Text:sub( 1, #Text - 1 )
+				break
+			end
 		end
 	end
 
