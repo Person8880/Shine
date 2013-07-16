@@ -160,6 +160,8 @@ end
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
 
+	if self.Plugins[ Name ] then return end
+
 	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
 	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
 	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
@@ -300,8 +302,10 @@ for Path in pairs( PluginFiles ) do
 	local Name = Folders[ 4 ]
 	local File = Folders[ 5 ]
 
-	if File and File:lower() == "shared.lua" and not ClientPlugins[ Name ] then
-		ClientPlugins[ Name ] = "boolean" --Generate the network message.
+	if File and not ClientPlugins[ Name ] then
+		if File:lower() == "shared.lua" then
+			ClientPlugins[ Name ] = "boolean" --Generate the network message.
+		end
 		Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 	end
 end
