@@ -2,6 +2,8 @@
 	Vote menu client side stuff.
 ]]
 
+Script.Load( "lua/shine/core/client/votemenu_gui.lua" )
+
 local StringFormat = string.format
 local TableSort = table.sort
 
@@ -41,8 +43,6 @@ Client.HookNetworkMessage( "Shine_EndVote", function()
 	Shine.EndTime = 0
 end )
 
-local Menu
-
 --[[
 	Updates the binding data in case they changed it whilst connected.
 ]]
@@ -73,30 +73,19 @@ local function CheckForBind()
 end
 
 function Shine.OpenVoteMenu()
-	local Manager = GetGUIManager()
+	local VoteMenu = Shine.VoteMenu
 
-	if Menu then
-		local ShouldClose = Menu.Background and Menu.Background:GetIsVisible()
+	if VoteMenu.Visible then
+		VoteMenu:SetIsVisible( false )
 
-		Manager:DestroyGUIScript( Menu )
-
-		Menu = nil
-
-		Shine.VoteMenu = nil
-
-		if ShouldClose then
-			return
-		end
+		return
 	end
 
-	Menu = Manager:CreateGUIScript( "shine/core/client/GUIShineVoteMenu" )
-	Menu:Populate( ActivePlugins )
+	VoteMenu:SetIsVisible( true )
 
 	local Time = Shared.GetTime()
 
-	if Shine.EndTime > Time then
-		Menu:CreateVoteButton()
-	elseif ( Shine.NextVoteOptionRequest or 0 ) < Time then
+	if ( Shine.NextVoteOptionRequest or 0 ) < Time and Shine.EndTime < Time then
 		Shine.NextVoteOptionRequest = Time + 10
 
 		Client.SendNetworkMessage( "Shine_RequestVoteOptions", { Cake = 0 }, true )
@@ -104,10 +93,6 @@ function Shine.OpenVoteMenu()
 
 	Client.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
 	Shine.Hook.Call( "OnVoteMenuOpen" )
-
-	Shine.VoteMenu = Menu
-
-	Menu:SetIsVisible( true )
 end
 
 Event.Hook( "Console_sh_votemenu", function()
@@ -220,12 +205,6 @@ Client.HookNetworkMessage( "Shine_VoteMenu", function( Message )
 	end
 
 	Shine.SentVote = false
-
-	if Menu then
-		if not Menu.VoteButton then
-			Menu:CreateVoteButton()
-		end
-	end
 end )
 
 local function CanBind( MenuBinds, Binds, Button )

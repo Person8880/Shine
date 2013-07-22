@@ -656,9 +656,10 @@ end
 		1. Boolean should hightlight.
 		2. Muliplier to the element's size when determining if the mouse is in the element.
 ]]
-function ControlMeta:SetHighlightOnMouseOver( Bool, Mult )
+function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
 	self.HighlightOnMouseOver = Bool and true or false
 	self.HighlightMult = Mult
+	self.TextureHighlight = TextureMode
 end
 
 function ControlMeta:StopFade( Element )
@@ -766,17 +767,25 @@ function ControlMeta:Think( DeltaTime )
 	if self.HighlightOnMouseOver then
 		if self:MouseIn( self.Background, self.HighlightMult ) then
 			if not self.Highlighted then
-				self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol, 0, 0.25, function( Background )
-					Background:SetColor( self.ActiveCol )
-				end )
+				if not self.TextureHighlight then
+					self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol, 0, 0.25, function( Background )
+						Background:SetColor( self.ActiveCol )
+					end )
+				else
+					self.Background:SetTexture( self.HighlightTexture )
+				end
 
 				self.Highlighted = true
 			end
 		else
 			if self.Highlighted then
-				self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.25, function( Background )
-					Background:SetColor( self.InactiveCol )
-				end )
+				if not self.TextureHighlight then
+					self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.25, function( Background )
+						Background:SetColor( self.InactiveCol )
+					end )
+				else
+					self.Background:SetTexture( self.Texture )
+				end
 
 				self.Highlighted = false
 			end
