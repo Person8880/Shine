@@ -218,6 +218,10 @@ function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	self.Background:Destroy()
 
 	self:Create()
+
+	if not self.Visible then
+		self:SetIsVisible( false )
+	end
 end
 
 Hook.Add( "OnResolutionChanged", "VoteMenuOnResolutionChanged", function( OldX, OldY, NewX, NewY )
