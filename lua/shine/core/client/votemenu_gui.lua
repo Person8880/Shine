@@ -80,6 +80,7 @@ local function GenericClick( Command )
 
 	return false
 end
+VoteMenu.GenericClick = GenericClick
 
 local ClickFuncs = {
 	Random = function()
