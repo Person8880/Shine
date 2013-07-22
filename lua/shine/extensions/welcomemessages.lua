@@ -119,7 +119,7 @@ function Plugin:ClientDisconnect( Client )
 	if MessageTable and MessageTable.Leave then
 		Shine:Notify( nil, "", "", MessageTable.Leave )
 
-		MessageTable.Said = nil
+		MessageTable.Said = false
 		
 		self:SaveConfig()
 
