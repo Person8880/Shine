@@ -250,9 +250,9 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 
 			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to %s sorting...", true, FallbackMode )
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
+			self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.", true, FallbackMode )
 
-			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+			self:ShuffleTeams( false, self.Config.FallbackMode )
 
 			self:AddELOFail()
 
@@ -266,9 +266,9 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 
 			Shine:Print( "[ELO Vote] NS2Stats returned corrupt or empty data. Falling back to %s sorting...", true, FallbackMode )
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
+			self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.", true, FallbackMode )
 
-			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+			self:ShuffleTeams( false, self.Config.FallbackMode )
 
 			self:AddELOFail()
 
@@ -400,6 +400,8 @@ Plugin.ShufflingModes = {
 
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers ) 
 
+			self.LastShuffleMode = self.Config.FallbackMode
+
 			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to %s sorting.", true, FallbackMode )
 
 			self:AddELOFail()
@@ -415,9 +417,9 @@ Plugin.ShufflingModes = {
 
 				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using %s sorting instead.", true, FallbackMode )
 
-				self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
+				self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.", true, FallbackMode )
 
-				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+				self:ShuffleTeams( false, self.Config.FallbackMode )
 
 				return
 			end
@@ -522,7 +524,7 @@ Plugin.ShufflingModes = {
 --[[
 	Shuffles everyone on the server into random teams.
 ]]
-function Plugin:ShuffleTeams( ResetScores )
+function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	local Players = Shine.GetRandomPlayerList()
 
 	local Gamerules = GetGamerules()
@@ -582,7 +584,9 @@ function Plugin:ShuffleTeams( ResetScores )
 		end
 	end
 
-	return self.ShufflingModes[ self.Config.BalanceMode ]( self, Gamerules, Targets, TeamMembers )
+	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
+
+	return self.ShufflingModes[ ForceMode or self.Config.BalanceMode ]( self, Gamerules, Targets, TeamMembers )
 end
 
 --[[
@@ -996,7 +1000,7 @@ function Plugin:ApplyRandomSettings()
 	end
 
 	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
-		self:Notify( nil, "%s team enforcing disabled, time limit reached.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
+		self:Notify( nil, "%s team enforcing disabled, time limit reached.", true, ModeStrings.Mode[ self.LastShuffleMode or self.Config.BalanceMode ] )
 		self.ForceRandom = false
 	end )
 end
@@ -1015,8 +1019,10 @@ function Plugin:CreateCommands()
 		if Success then
 			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )
 
-			self:Notify( nil, "%s voted to force %s teams (%s more votes needed).", 
-				true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ], VotesNeeded )
+			if not self.RandomApplied then
+				self:Notify( nil, "%s voted to force %s teams (%s more votes needed).", 
+					true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ], VotesNeeded )
+			end
 
 			--Somehow it didn't apply random settings??
 			if VotesNeeded == 0 and not self.RandomApplied then

@@ -23,6 +23,12 @@ Plugin.DefaultConfig = {
 function Plugin:Initialise()
 	self:CreateCommands()
 
+	if next( Shine.GameIDs ) then
+		for Client in pairs( Shine.GameIDs ) do
+			self:ProcessClient( Client )
+		end
+	end
+
 	self.Enabled = true
 
 	return true
@@ -37,7 +43,7 @@ function Plugin:SendServerData( Client, ID, Data )
 	}, true )
 end
 
-function Plugin:OnVoteMenuOpen( Client )
+function Plugin:ProcessClient( Client )
 	local Servers = self.Config.Servers
 	local IsUser = Shine:GetUserData( Client )
 
@@ -51,6 +57,20 @@ function Plugin:OnVoteMenuOpen( Client )
 		else
 			self:SendServerData( Client, i, Data )
 		end
+	end
+end
+
+function Plugin:ClientConfirmConnect( Client )
+	if not Shine:IsValidClient( Client ) then return end
+	
+	self:ProcessClient( Client )
+end
+
+function Plugin:OnUserReload()
+	local Clients = Shine.GameIDs
+
+	for Client in pairs( Clients ) do
+		self:ProcessClient( Client )
 	end
 end
 

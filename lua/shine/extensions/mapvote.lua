@@ -708,8 +708,6 @@ function Plugin:ProcessResults( NextMap )
 
 	local Time = Shared.GetTime()
 
-	local ChatName = Shine.Config.ChatName
-
 	--No one voted :|
 	if TotalVotes == 0 then
 		self:Notify( nil, "No votes made. Map vote failed." )
@@ -1120,7 +1118,6 @@ function Plugin:StartVote( NextMap, Force )
 	end
 
 	Shine.Timer.Simple( 0.1, function()
-		local ChatName = Shine.Config.ChatName
 		--Notify players the map vote has started.
 		if not NextMap then
 			self:Notify( nil, "Map vote started." )
@@ -1242,7 +1239,7 @@ function Plugin:CreateCommands()
 		end
 		
 		if Player then
-			Shine:NotifyError( Player, Shine.Config.ChatName, Err )
+			Shine:NotifyError( Player, Err )
 		else
 			Notify( Err )
 		end

@@ -40,6 +40,10 @@ function Shine:RequestUsers( Reload )
 		self:ConvertData( self.UserData, true )
 
 		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
+
+		if Reload then
+			Shine.Hook.Call( "OnUserReload" )
+		end
 	end )
 end
 
@@ -95,6 +99,10 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	self:ConvertData( self.UserData )
+
+	if Reload then
+		Shine.Hook.Call( "OnUserReload" )
+	end
 end
 
 --[[

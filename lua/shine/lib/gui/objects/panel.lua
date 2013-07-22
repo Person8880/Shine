@@ -310,4 +310,8 @@ function Panel:SetDraggable( Bool )
 	end
 end
 
+function Panel:SetTexture( Texture )
+	self.Background:SetTexture( Texture )
+end
+
 SGUI:Register( "Panel", Panel )

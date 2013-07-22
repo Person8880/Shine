@@ -74,6 +74,10 @@ function Button:SetText( Text )
 	self.Text = Description
 end
 
+function Button:GetText()
+	return self.Text:GetText()
+end
+
 function Button:SetFont( Font )
 	self.Text:SetFontName( Font )
 end
@@ -148,6 +152,15 @@ function Button:SetDoClick( Func )
 	self.DoClick = Func
 end
 
+function Button:SetTexture( Texture )
+	self.Background:SetTexture( Texture )
+	self.Texture = Texture
+end
+
+function Button:SetHighlightTexture( Texture )
+	self.HighlightTexture = Texture
+end
+
 function Button:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 or not Down then return end
@@ -157,7 +170,7 @@ function Button:PlayerKeyPress( Key, Down )
 
 	if ( self.NextClick or 0 ) > Time then return end
 
-	self.NextClick = Time + 0.5
+	self.NextClick = Time + ( self.ClickDelay or 0.5 )
 
 	if self.DoClick then
 		Shared.PlaySound( nil, self.Sound )
