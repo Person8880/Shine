@@ -412,10 +412,10 @@ function Plugin:EndGame()
 			self.Round = self.Round + 1
 			if self.Round >= self.Config.VoteAfterRound then 
 			TimeLeft = 0
-			end
-		end
+			else TimeLeft = self.Config.ForceChange + 1 end
+			local Message = "There are some Rounds remaining on this map."
+		else local Message = "There is %s remaining on this map." end
 		
-		local Message = "There is %s remaining on this map."
 
 		if TimeLeft <= self.Config.ForceChange then
 			if not self:VoteStarted() and not self.VoteOnEnd then
