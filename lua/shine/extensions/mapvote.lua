@@ -39,7 +39,7 @@ Plugin.DefaultConfig = {
 	},
 	ForcedMaps = {}, --Maps that must always be in the vote list.
 	DontExtend = {}, --Maps that should never have an extension option.
-	IgnoreOnEmptyCycle = {}, --Maps that should not be cycled to if the server is empty.
+	IgnoreAutoCycle = {}, --Maps that should not be cycled to unless voted for.
 	MinPlayers = 10, --Minimum number of players needed to begin a map vote.
 	PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
 	PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
@@ -184,13 +184,13 @@ function Plugin:Initialise()
 		end
 	end
 
-	local DontEmptyCycle = self.Config.IgnoreOnEmptyCycle
-	IsArray = isarray( DontEmptyCycle )
+	local DontAutoCycle = self.Config.IgnoreAutoCycle
+	IsArray = isarray( DontAutoCycle )
 
 	if IsArray then
 		for i = 1, IsArray do
-			DontEmptyCycle[ DontEmptyCycle[ i ] ] = true
-			DontEmptyCycle[ i ] = nil
+			DontAutoCycle[ DontAutoCycle[ i ] ] = true
+			DontAutoCycle[ i ] = nil
 		end
 	end
 
@@ -344,10 +344,29 @@ function Plugin:GetNextMap()
 	local Map = Maps[ Index ]
 
 	if istable( Map ) then
-		return Map.map
-	else
-		return Map
+		Map = Map.map
 	end
+
+	local IgnoreList = self.Config.IgnoreAutoCycle
+	local Iterations = 0
+
+	while IgnoreList[ Map ] and Iterations < NumMaps do
+		Index = Index + 1
+
+		if Index > NumMaps then
+			Index = 1
+		end
+
+		Map = Maps[ Index ]
+
+		if istable( Map ) then
+			Map = Map.map
+		end
+
+		Iterations = Iterations + 1
+	end
+
+	return Map
 end
 
 function Plugin:Think()
@@ -355,34 +374,12 @@ function Plugin:Think()
 	if Shared.GetTime() <= ( self.MapCycle.time * 60 ) then return end
 	if TableCount( Shine.GameIDs ) > self.Config.EmptyPlayerCount then return end
 
-	local NextMap = self:GetNextMap()
-	local IgnoreList = self.Config.IgnoreOnEmptyCycle
-
-	if self.Config.IgnoreOnEmptyCycle[ NextMap ] then 
-		local Maps = self.MapCycle.maps
-		local NumMaps = #Maps
-		local i = 1
-
-		repeat
-			NextMap = Maps[ i ]
-
-			if istable( NextMap ) then
-				NextMap = NextMap.map
-			end
-
-			i = i + 1
-		until not IgnoreList[ NextMap ] or i > NumMaps
-
-		--The entire map list is ignored...
-		if IgnoreList[ NextMap ] then return end
-	end
-
 	if not self.Cycled then
 		self.Cycled = true
 
 		Shine:LogString( "Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..." )
 
-		MapCycle_ChangeMap( NextMap )
+		MapCycle_ChangeMap( self:GetNextMap() )
 	end
 end
 
