@@ -39,7 +39,7 @@ Plugin.DefaultConfig = {
 	},
 	ForcedMaps = {}, --Maps that must always be in the vote list.
 	DontExtend = {}, --Maps that should never have an extension option.
-	IgnoreOnEmptyCycle = {}, --Maps that should not be cycled if the server is empty.
+	IgnoreOnEmptyCycle = {}, --Maps that should not be cycled to if the server is empty.
 	MinPlayers = 10, --Minimum number of players needed to begin a map vote.
 	PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
 	PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
@@ -353,15 +353,36 @@ end
 function Plugin:Think()
 	if not self.Config.CycleOnEmpty then return end
 	if Shared.GetTime() <= ( self.MapCycle.time * 60 ) then return end
-	if self.Config.IgnoreOnEmptyCycle[ Shared.GetMapName() ] then return end
 	if TableCount( Shine.GameIDs ) > self.Config.EmptyPlayerCount then return end
+
+	local NextMap = self:GetNextMap()
+	local IgnoreList = self.Config.IgnoreOnEmptyCycle
+
+	if self.Config.IgnoreOnEmptyCycle[ NextMap ] then 
+		local Maps = self.MapCycle.maps
+		local NumMaps = #Maps
+		local i = 1
+
+		repeat
+			NextMap = Maps[ i ]
+
+			if istable( NextMap ) then
+				NextMap = NextMap.map
+			end
+
+			i = i + 1
+		until not IgnoreList[ NextMap ] or i > NumMaps
+
+		--The entire map list is ignored...
+		if IgnoreList[ NextMap ] then return end
+	end
 
 	if not self.Cycled then
 		self.Cycled = true
 
 		Shine:LogString( "Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..." )
 
-		MapCycle_ChangeMap( self:GetNextMap() )
+		MapCycle_ChangeMap( NextMap )
 	end
 end
 
