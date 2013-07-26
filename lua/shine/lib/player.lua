@@ -286,7 +286,7 @@ end
 
 local ConsoleInfo = "Console[N/A]"
 
-function Shine:GetClientInfo( Client )
+function Shine.GetClientInfo( Client )
 	if not Client then return ConsoleInfo end
 
 	local Player = Client:GetControllingPlayer()

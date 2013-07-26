@@ -58,8 +58,8 @@ function Plugin:CreateCommands()
 
 		if not TargetPlayer then return end
 		
-		local CallingInfo = Shine:GetClientInfo( Client )
-		local TargetInfo = Shine:GetClientInfo( Target )
+		local CallingInfo = Shine.GetClientInfo( Client )
+		local TargetInfo = Shine.GetClientInfo( Target )
 
 		TargetPlayer:SetName( NewName )
 
