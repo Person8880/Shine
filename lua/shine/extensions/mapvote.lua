@@ -5,21 +5,20 @@
 local Shine = Shine
 
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
-local StringFormat = string.format
-
-local TableConcat = table.concat
-local TableContains = table.contains
-local TableCount = table.Count
+local Decode = json.decode
 
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
+local InRange = math.InRange
 local Max = math.max
 local next = next
 local pairs = pairs
 local Random = math.random
-local InRange = math.InRange
+local StringFormat = string.format
+local TableConcat = table.concat
+local TableContains = table.contains
+local TableCount = table.Count
 
 local Plugin = {}
 Plugin.Version = "1.5"
@@ -85,16 +84,6 @@ end
 local function isarray( Table )
 	local Count = #Table
 	return Count > 0 and Count or nil
-end
-
-local function CountTable( Table )
-	local Count = 0
-
-	for k in pairs( Table ) do
-		Count = Count + 1
-	end
-
-	return Count
 end
 
 function Plugin:Initialise()
@@ -182,7 +171,7 @@ function Plugin:Initialise()
 			ForcedMaps[ i ] = nil
 		end
 	else
-		self.ForcedMapCount = Clamp( CountTable( ForcedMaps ), 0, MaxOptions )
+		self.ForcedMapCount = Clamp( TableCount( ForcedMaps ), 0, MaxOptions )
 	end
 
 	local DontExtend = self.Config.DontExtend
