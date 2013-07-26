@@ -443,7 +443,7 @@ function Plugin:GetNextMap()
 		Index = Index + 1
 		
 		if Index > NumMaps then
-		Index = 1
+			Index = 1
 		end
 
 		local Map = Maps[ Index ]
