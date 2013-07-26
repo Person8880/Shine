@@ -701,7 +701,6 @@ function Plugin:ProcessResults( NextMap )
 				if self.Config.VoteAfterRound ~= 0 then
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
-				end
 				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 				
 				self.NextMap.Winner = Choice
@@ -758,7 +757,6 @@ function Plugin:ProcessResults( NextMap )
 			if self.Config.VoteAfterRound ~= 0 then
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
-				end
 			else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 
 			if not self.VoteOnEnd then
@@ -838,10 +836,9 @@ function Plugin:ProcessResults( NextMap )
 				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
 				local BaseTime = CycleTime > Time and CycleTime or Time
 				
-				sif self.Config.VoteAfterRound ~= 0 then
+				if self.Config.VoteAfterRound ~= 0 then
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
-				end
 				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 				
 				self.NextMap.Winner = Choice
@@ -898,7 +895,6 @@ function Plugin:ProcessResults( NextMap )
 			if self.Config.VoteAfterRound ~= 0 then
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
-				end
 				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 
 			if not self.VoteOnEnd then
