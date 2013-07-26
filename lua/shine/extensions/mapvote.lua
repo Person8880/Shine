@@ -702,7 +702,7 @@ function Plugin:ProcessResults( NextMap )
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
 				end
-				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 				
 				self.NextMap.Winner = Choice
 				self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -759,7 +759,7 @@ function Plugin:ProcessResults( NextMap )
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
 				end
-			else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+			else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 
 			if not self.VoteOnEnd then
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
@@ -842,7 +842,7 @@ function Plugin:ProcessResults( NextMap )
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
 				end
-				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 				
 				self.NextMap.Winner = Choice
 				self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -899,7 +899,7 @@ function Plugin:ProcessResults( NextMap )
 					if self.Round ~= 0 then self.Round = self.Round - 1 end
 					self:Notify( nil, "Extending the current map for another Round.")
 				end
-				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				else self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) ) end
 
 			if not self.VoteOnEnd then
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
