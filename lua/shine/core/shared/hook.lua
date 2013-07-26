@@ -70,6 +70,10 @@ local function OnError( Err )
 	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
 end
 
+local RemovalExceptions = {
+	PlayerSay = { CommandExecute = true }
+}
+
 --[[
 	Calls an internal Shine hook.
 	Inputs: Event name, arguments to pass.
@@ -83,15 +87,21 @@ local function Call( Event, ... )
 
 	local MaxPriority = Hooked and Hooked[ -20 ]
 
+	local ProtectedHooks = RemovalExceptions[ Event ]
+
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
 			local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 			if not Success then
-				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+				if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
 
-				Remove( Event, Index )
+					Remove( Event, Index )
+				else
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.", true, Event, Index )
+				end
 			else
 				if a ~= nil then return a, b, c, d, e, f end
 			end
@@ -134,9 +144,13 @@ local function Call( Event, ... )
 				local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 				if not Success then
-					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+					if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
 
-					Remove( Event, Index )
+						Remove( Event, Index )
+					else
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.", true, Event, Index )
+					end
 				else
 					if a ~= nil then return a, b, c, d, e, f end
 				end
