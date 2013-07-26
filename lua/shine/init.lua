@@ -13,6 +13,7 @@ local Scripts = {
 	"lib/debug.lua",
 	"lib/table.lua",
 	"lib/string.lua",
+	"lib/utf8.lua",
 	"lib/math.lua",
 	"lib/class.lua",
 	"core/shared/hook.lua",

@@ -1,10 +1,11 @@
 --[[
 	Reserved slots.
 
-	Currently only the crude password method. I'll expand it if UWE ever get a proper connection event.
+	I'll expand it if UWE ever get a proper connection event.
 ]]
 
 local Shine = Shine
+local Timer = Shine.Timer
 
 local Clamp = math.Clamp
 local Floor = math.floor
@@ -87,15 +88,19 @@ end
 	suddenly connecting.
 ]]
 function Plugin:CheckRedirects( Client )
-	Shine:NotifyColour( Client, 255, 255, 0, "This server is full, checking our other servers for slots." )
-	Shine:NotifyColour( Client, 255, 255, 0, "You will be redirected if a server with slots is found." )
+	Timer.Simple( 5, function()
+		if not Shine:IsValidClient( Client ) then return end
+		
+		Shine:NotifyColour( Client, 255, 255, 0, "This server is full, checking our other servers for slots." )
+		Shine:NotifyColour( Client, 255, 255, 0, "You will be redirected if a server with slots is found." )
+	end )
 
 	local Redirects = self.Config.Redirect
 
 	local DataTable = {}
 
 	--Gives us 5 seconds to get the server data, as close as possible while leaving room for the HTTP request to be processed.
-	Shine.Timer.Simple( 15, function()
+	Timer.Simple( 20, function()
 		if not Shine:IsValidClient( Client ) then return end
 		
 		for i = 1, #Redirects do
@@ -118,7 +123,7 @@ function Plugin:CheckRedirects( Client )
 	end )
 
 	--5 seconds later, we gather our results and redirect or kick.
-	Shine.Timer.Simple( 20, function()
+	Timer.Simple( 25, function()
 		if not Shine:IsValidClient( Client ) then return end
 
 		--We never got any useful data back, so just guess and send them to a random server.
@@ -168,7 +173,7 @@ function Plugin:CheckRedirects( Client )
 		Shine:NotifyColour( Client, 255, 50, 0, "No servers with free slots were found." )
 
 		--Sorry, but reserved slots are reserved.
-		Shine.Timer.Simple( 5, function()
+		Timer.Simple( 5, function()
 			if not Shine:IsValidClient( Client ) then return end
 			
 			Server.DisconnectClient( Client )
