@@ -196,6 +196,7 @@ function Plugin:GenerateDefaultConfig( Save )
 
 		ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
 		CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
+		IgnoreMapsOnCycle = {}, -- Maps which should be ignored by the CycleOnEmpty function
 		EmptyPlayerCount = 0, --How many players defines 'empty'?
 	}
 
@@ -276,6 +277,11 @@ function Plugin:LoadConfig()
 
 	if self.Config.CycleOnEmpty == nil then
 		self.Config.CycleOnEmpty = false
+		Edited = true
+	end
+	
+	if self.Config.IgnoreMapsOnCycle == nil then
+		self.Config.IgnoreMapsOnCycle = {}
 		Edited = true
 	end
 
@@ -419,7 +425,8 @@ function Plugin:GetNextMap()
 	local Cycle = self.MapCycle
 
 	if not Cycle then return "unknown" end --No map cycle?
-
+	
+	local Ignore = self.Config.IgnoreMapsOnCycle
 	local Maps = Cycle.maps
 	local NumMaps = #Maps
 	local Index = 0
@@ -430,15 +437,21 @@ function Plugin:GetNextMap()
 			break
 		end
 	end
-
-	Index = Index + 1
 	
-	if Index > NumMaps then
-		Index = 1
-	end
+	if Ignore == Maps then return "unknown" end -- Ignoring all maps?
+	
+	repeat
+	
+		Index = Index + 1
+		
+		if Index > NumMaps then
+			Index = 1
+		end
 
-	local Map = Maps[ Index ]
-
+		local Map = Maps[ Index ]
+	
+	until not TableContains(Ignore, Map)
+	
 	if istable( Map ) then
 		return Map.map
 	else
