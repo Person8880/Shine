@@ -438,6 +438,8 @@ function Plugin:GetNextMap()
 		end
 	end
 	
+	if Ignore == Maps then return "unknown" end -- Ignoring all maps?
+	
 	repeat
 	
 		Index = Index + 1
