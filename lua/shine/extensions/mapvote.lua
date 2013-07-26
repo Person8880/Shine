@@ -27,6 +27,52 @@ Plugin.Version = "1.5"
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
 
+Plugin.DefaultConfig = {
+	GetMapsFromMapCycle = true, --Get the valid votemaps directly from the mapcycle file.
+	Maps = { --Valid votemaps if you do not wish to get them from the map cycle.
+		ns2_veil = true,
+		ns2_summit = true,
+		ns2_docking = true,
+		ns2_mineshaft = true,
+		ns2_refinery = true,
+		ns2_tram = true,
+		ns2_descent = true
+	},
+	ForcedMaps = {}, --Maps that must always be in the vote list.
+	DontExtend = {}, --Maps that should never have an extension option.
+	IgnoreOnEmptyCycle = {}, --Maps that should not be cycled if the server is empty.
+	MinPlayers = 10, --Minimum number of players needed to begin a map vote.
+	PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
+	PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
+
+	VoteLength = 2, --Time in minutes a vote should last before failing.
+	ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
+	VoteDelay = 10, --Time to wait in minutes after map change/vote fail before voting can occur.
+
+	ShowVoteChoices = true, --Show who votes for what map.
+	MaxOptions = 4, --Max number of options to provide.
+	
+	AllowExtend = true, --Allow going to the same map to be an option.
+	ExtendTime = 15, --Time in minutes to extend the map.
+	MaxExtends = 1, --Maximum number of map extensions.
+	AlwaysExtend = true, --Always show an option to extend the map if not past the max extends.
+
+	TieFails = false, --A tie means the vote fails.
+	ChooseRandomOnTie = true, --Choose randomly between the tied maps. If not, a revote is called.
+	MaxRevotes = 1, --Maximum number of revotes.
+
+	EnableRTV = true, --Enables RTV voting.
+
+	EnableNextMapVote = true, --Enables the vote to choose the next map.
+	NextMapVote = 1, --How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
+
+	ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
+	CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
+	EmptyPlayerCount = 0, --How many players defines 'empty'?
+}
+
+Plugin.CheckConfig = true
+
 Plugin.Commands = {}
 
 Plugin.VoteTimer = "MapVote"
@@ -52,7 +98,17 @@ local function CountTable( Table )
 end
 
 function Plugin:Initialise()
+	self.Config.ForceChange = Max( self.Config.ForceChange, 0 )
+	self.Config.NextMapVote = Clamp( self.Config.NextMapVote, 0, 1 )
+	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
+	self.Config.PercentToStart = Clamp( self.Config.PercentToStart, 0, 1 )
+
 	self.Vote = self.Vote or {}
+
+	if self.Enabled == nil then
+		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+	end
+
 	self.Vote.Nominated = {} --Table of nominated maps.
 
 	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end, function() self:StartVote() end )
@@ -114,16 +170,6 @@ function Plugin:Initialise()
 
 	self.MapCycle = Cycle
 
-	--Hook the request vote options message. Only do it once.
-	if self.Enabled == nil then
-		--Simple timer runs this after all network messages are registered, otherwise this one isn't registered yet.
-		Shine.Timer.Simple( 0, function() 
-			Server.HookNetworkMessage( "Shine_RequestVoteOptions", function( Client, Message )
-				self:SendVoteData( Client )
-			end )
-		end )
-	end
-
 	local ForcedMaps = self.Config.ForcedMaps
 	local IsArray = isarray( ForcedMaps )
 	local MaxOptions = self.Config.MaxOptions
@@ -149,152 +195,21 @@ function Plugin:Initialise()
 		end
 	end
 
+	local DontEmptyCycle = self.Config.IgnoreOnEmptyCycle
+	IsArray = isarray( DontEmptyCycle )
+
+	if IsArray then
+		for i = 1, IsArray do
+			DontEmptyCycle[ DontEmptyCycle[ i ] ] = true
+			DontEmptyCycle[ i ] = nil
+		end
+	end
+
 	self.MaxNominations = Max( MaxOptions - self.ForcedMapCount - 1, 0 )
 
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		GetMapsFromMapCycle = true, --Get the valid votemaps directly from the mapcycle file.
-		Maps = { --Valid votemaps if you do not wish to get them from the map cycle.
-			ns2_veil = true,
-			ns2_summit = true,
-			ns2_docking = true,
-			ns2_mineshaft = true,
-			ns2_refinery = true,
-			ns2_tram = true,
-		},
-		ForcedMaps = {}, --Maps that must always be in the vote list.
-		DontExtend = {}, --Maps that should never have an extension option.
-		MinPlayers = 10, --Minimum number of players needed to begin a map vote.
-		PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
-		PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
-
-		VoteLength = 2, --Time in minutes a vote should last before failing.
-		ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
-		VoteDelay = 10, --Time to wait in minutes after map change/vote fail before voting can occur.
-
-		ShowVoteChoices = true, --Show who votes for what map.
-		MaxOptions = 4, --Max number of options to provide.
-		
-		AllowExtend = true, --Allow going to the same map to be an option.
-		ExtendTime = 15, --Time in minutes to extend the map.
-		MaxExtends = 1, --Maximum number of map extensions.
-		AlwaysExtend = true, --Always show an option to extend the map if not past the max extends.
-
-		TieFails = false, --A tie means the vote fails.
-		ChooseRandomOnTie = true, --Choose randomly between the tied maps. If not, a revote is called.
-		MaxRevotes = 1, --Maximum number of revotes.
-
-		EnableRTV = true, --Enables RTV voting.
-
-		EnableNextMapVote = true, --Enables the vote to choose the next map.
-		NextMapVote = 1, --How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
-
-		ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
-		CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
-		EmptyPlayerCount = 0, --How many players defines 'empty'?
-	}
-
-	self.Vote = {}
-
-	if self.Enabled == nil then
-		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-	end
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing mapvote config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine mapvote config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing mapvote config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine mapvote config file updated." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
-
-	self.Vote = {}
-
-	if self.Enabled == nil then
-		self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
-	end
-
-	local Edited
-
-	if self.Config.AlwaysExtend == nil then
-		self.Config.AlwaysExtend = true
-		Edited = true
-	end
-
-	if self.Config.PercentToFinish == nil then
-		self.Config.PercentToFinish = 0.8
-		Edited = true
-	end
-
-	if self.Config.ForceChange == nil then
-		self.Config.ForceChange = 60
-		Edited = true
-	end
-
-	if self.Config.ForcedMaps == nil then
-		self.Config.ForcedMaps = {}
-		Edited = true
-	end
-
-	if self.Config.EnableRTV == nil then
-		self.Config.EnableRTV = true
-		Edited = true
-	end
-
-	if self.Config.CycleOnEmpty == nil then
-		self.Config.CycleOnEmpty = false
-		Edited = true
-	end
-
-	if self.Config.DontExtend == nil then
-		self.Config.DontExtend = {}
-		Edited = true
-	end
-
-	if self.Config.EmptyPlayerCount == nil then
-		self.Config.EmptyPlayerCount = 0
-		Edited = true
-	end
-
-	if Edited then self:SaveConfig() end
-
-	self.Config.ForceChange = Max( self.Config.ForceChange, 0 )
-	self.Config.NextMapVote = Clamp( self.Config.NextMapVote or 0.5, 0, 1 )
-	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
-	self.Config.PercentToStart = Clamp( self.Config.PercentToStart or 0.6, 0, 1 )
 end
 
 function Plugin:Notify( Player, Message, Format, ... )
@@ -448,8 +363,11 @@ end
 
 function Plugin:Think()
 	if not self.Config.CycleOnEmpty then return end
-	
-	if TableCount( Shine.GameIDs ) <= self.Config.EmptyPlayerCount and Shared.GetTime() > ( self.MapCycle.time * 60 ) and not self.Cycled then
+	if Shared.GetTime() <= ( self.MapCycle.time * 60 ) then return end
+	if self.Config.IgnoreOnEmptyCycle[ Shared.GetMapName() ] then return end
+	if TableCount( Shine.GameIDs ) > self.Config.EmptyPlayerCount then return end
+
+	if not self.Cycled then
 		self.Cycled = true
 
 		Shine:LogString( "Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..." )

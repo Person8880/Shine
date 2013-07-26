@@ -38,3 +38,13 @@ local RequestVoteList = {
 }
 
 Shared.RegisterNetworkMessage( "Shine_RequestVoteOptions", RequestVoteList )
+
+if Server then
+	Server.HookNetworkMessage( "Shine_RequestVoteOptions", function( Client, Message )
+		local MapVote = Shine.Plugins.mapvote
+
+		if MapVote and MapVote.Enabled then
+			MapVote:SendVoteData( Client )
+		end
+	end )
+end

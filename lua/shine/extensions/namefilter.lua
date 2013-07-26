@@ -7,8 +7,10 @@ local Shine = Shine
 local Clamp = math.Clamp
 local Floor = math.floor
 local Max = math.max
+local pcall = pcall
 local Random = math.random
 local StringChar = string.char
+local StringFind = string.find
 local TableConcat = table.concat
 local tostring = tostring
 
@@ -137,7 +139,12 @@ function Plugin:ProcessFilter( Player, Name, Pattern, Excluded )
 	local LoweredName = Name:UTF8Lower()
 	Pattern = Pattern:UTF8Lower()
 
-	if LoweredName:find( Pattern ) then
+	--If someone doesn't know about regex, they could pass an invalid pattern...
+	local Success, Start = pcall( StringFind, LoweredName, Pattern )
+
+	if not Success then return end
+
+	if Start then
 		self.FilterActions[ self.Config.FilterAction ]( self, Player, Name )
 	
 		return true

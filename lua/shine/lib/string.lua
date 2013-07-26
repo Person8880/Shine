@@ -26,7 +26,7 @@ function string.Explode( str, pat )
 end
 
 function string.TimeToString( Time )
-	if Time <= 0 then return "0 seconds" end
+	if Time < 1 then return "0 seconds" end
 	
 	local Seconds = Floor( Time % 60 )
 	local Minutes = Time / 60
