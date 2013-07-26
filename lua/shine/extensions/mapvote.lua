@@ -196,7 +196,7 @@ function Plugin:GenerateDefaultConfig( Save )
 
 		ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
 		CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
-		IgnoreMapsOnCycle = { } -- Maps which should be ignored by the CycleOnEmpty function
+		IgnoreMapsOnCycle = {} -- Maps which should be ignored by the CycleOnEmpty function
 		EmptyPlayerCount = 0, --How many players defines 'empty'?
 	}
 
