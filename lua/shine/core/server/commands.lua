@@ -474,7 +474,6 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	local CommandObj = Shine.ChatCommands[ Exploded[ 1 ] ]
 	
 	if not CommandObj then --Command does not exist.
-		if Directive == "!" or Directive == "/" then return "" end 
 		return
 	end
 
