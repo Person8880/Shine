@@ -158,7 +158,11 @@ function Plugin:CreateCommands()
 
 	local function AllTalk( Client, Enable )
 		self.Config.AllTalk = Enable
-		Shine:AdminPrint( Client, "All talk %s.", true, Enable and "enabled" or "disabled" )
+
+		local Enabled = Enable and "enabled" or "disabled"
+
+		Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]", 
+			255, 255, 255, "All talk has been %s.", true, Enabled )
 	end
 	Commands.AllTalkCommand = Shine:RegisterCommand( "sh_alltalk", "alltalk", AllTalk )
 	Commands.AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
