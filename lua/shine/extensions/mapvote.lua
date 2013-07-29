@@ -64,6 +64,7 @@ Plugin.DefaultConfig = {
 
 	EnableNextMapVote = true, --Enables the vote to choose the next map.
 	NextMapVote = 1, --How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
+	RoundLimit = 0, --How many rounds should the map last for? This overrides time based cycling.
 
 	ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
 	CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
@@ -88,9 +89,12 @@ end
 
 function Plugin:Initialise()
 	self.Config.ForceChange = Max( self.Config.ForceChange, 0 )
+	self.Config.RoundLimit = Max( self.Config.RoundLimit, 0 )	
 	self.Config.NextMapVote = Clamp( self.Config.NextMapVote, 0, 1 )
 	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
 	self.Config.PercentToStart = Clamp( self.Config.PercentToStart, 0, 1 )
+	
+	self.Round = 0
 
 	self.Vote = self.Vote or {}
 
@@ -142,7 +146,7 @@ function Plugin:Initialise()
 	self:CreateCommands()
 
 	if self.Config.EnableNextMapVote then
-		if self.Config.NextMapVote == 1 then
+		if self.Config.NextMapVote == 1 or self.Config.RoundLimit > 0 then
 			self.VoteOnEnd = true
 		else
 			local Time = Shared.GetTime()
@@ -223,6 +227,8 @@ function Plugin:ShouldCycleMap()
 			return false 
 		end
 	end
+
+	if self.RoundLimit > 0 and self.Round < self.RoundLimit then return false end
 end
 
 --[[
@@ -243,6 +249,7 @@ function Plugin:OnCycleMap()
 	local CurMap = Shared.GetMapName()
 
 	if self.NextMap.ExtendTime and Time < self.NextMap.ExtendTime then return false end
+	if self.RoundLimit > 0 and self.Round < self.RoundLimit then return false end
 
 	if Winner ~= CurMap then
 		MapCycle_ChangeMap( Winner )
@@ -402,8 +409,31 @@ function Plugin:EndGame()
 		if ExtendTime then
 			TimeLeft = ExtendTime - Time
 		end
-		
+
 		local Message = "There is %s remaining on this map."
+		
+		if self.Config.RoundLimit > 0 then
+			self.Round = self.Round + 1
+
+			local Gamerules = GetGamerules()
+
+			--Prevent time based cycling from passing.
+			if Gamerules then
+				Gamerules.timeToCycleMap = nil
+			end
+
+			if self.Round >= self.Config.RoundLimit then 
+				TimeLeft = 0
+			else
+				local RoundsLeft = self.Config.RoundLimit - self.Round
+
+				TimeLeft = self.Config.ForceChange + 1
+
+				local RoundMessage = RoundsLeft ~= 1 and StringFormat( "are %i rounds", RoundsLeft ) or "is 1 round"  
+
+				Message = StringFormat( "There %s remaining on this map.", RoundMessage )
+			end
+		end
 
 		if TimeLeft <= self.Config.ForceChange then
 			if not self:VoteStarted() and not self.VoteOnEnd then
@@ -686,8 +716,14 @@ function Plugin:ProcessResults( NextMap )
 
 				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
 				local BaseTime = CycleTime > Time and CycleTime or Time
-				
-				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+
+				if self.Config.RoundLimit > 0 then
+					self.Round = self.Round - 1
+					
+					self:Notify( nil, "Extending the current map for another round." )
+				else 
+					self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				end
 				
 				self.NextMap.Winner = Choice
 				self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -740,7 +776,13 @@ function Plugin:ProcessResults( NextMap )
 			self.NextMap.ExtendTime = BaseTime + ExtendTime
 			self.NextMap.Extends = self.NextMap.Extends + 1
 
-			self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+			if self.Config.RoundLimit > 0 then
+				self.Round = self.Round - 1
+				
+				self:Notify( nil, "Extending the current map for another round." )
+			else 
+				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+			end
 
 			if not self.VoteOnEnd then
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
@@ -819,7 +861,13 @@ function Plugin:ProcessResults( NextMap )
 				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
 				local BaseTime = CycleTime > Time and CycleTime or Time
 				
-				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				if self.Config.RoundLimit > 0 then
+					self.Round = self.Round - 1
+					
+					self:Notify( nil, "Extending the current map for another round." )
+				else 
+					self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+				end
 				
 				self.NextMap.Winner = Choice
 				self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -872,7 +920,13 @@ function Plugin:ProcessResults( NextMap )
 			self.NextMap.ExtendTime = BaseTime + ExtendTime
 			self.NextMap.Extends = self.NextMap.Extends + 1
 
-			self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+			if self.Config.RoundLimit > 0 then
+				self.Round = self.Round - 1
+				
+				self:Notify( nil, "Extending the current map for another round." )
+			else 
+				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+			end
 
 			if not self.VoteOnEnd then
 				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
@@ -1303,6 +1357,28 @@ function Plugin:CreateCommands()
 	local function TimeLeft( Client )
 		local Cycle = self.MapCycle
 		local Player = Client and Client:GetControllingPlayer()
+
+		if self.Config.RoundLimit > 0 then
+			local RoundsLeft = self.Config.RoundLimit - self.Round
+			
+			if RoundsLeft > 1 then
+				local RoundMessage = StringFormat( "are %i rounds", RoundsLeft )
+				
+				if Player then
+					Shine:Notify( Player, "", "", "There %s remaining.", true, RoundMessage )
+				else
+					Notify( StringFormat( "There %s remaining.", RoundMessage ) )
+				end
+			else
+				if Player then
+					Shine:Notify( Player, "", "", "The map will cycle on round end." )
+				else
+					Notify( "The map will cycle on round end." )
+				end
+			end
+
+			return
+		end
 
 		local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit and kCombatTimeLimit * 60 )
 

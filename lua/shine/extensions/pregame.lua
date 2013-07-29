@@ -188,7 +188,7 @@ Plugin.UpdateFuncs = {
 		end
 
 		if not self.CountStart then
-			if MapCycle_TestCycleMap() then return end
+			--if MapCycle_TestCycleMap() then return end
 			
 			local Duration = self.Config.PreGameTime
 
@@ -271,6 +271,8 @@ Plugin.UpdateFuncs = {
 
 				return
 			end
+
+			return
 		end
 
 		--Both teams have a commander, begin countdown, but only if the 1 commander countdown isn't past the 2 commander countdown time length left.
@@ -412,7 +414,7 @@ Plugin.UpdateFuncs = {
 	--After the set time, if one team has a commander, start the game.
 	[ 2 ] = function( self, Gamerules )
 		if not self.CountStart then
-			if MapCycle_TestCycleMap() then return end
+			--if MapCycle_TestCycleMap() then return end
 
 			local Duration = self.Config.PreGameTime
 

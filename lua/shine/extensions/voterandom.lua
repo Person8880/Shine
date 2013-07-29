@@ -13,6 +13,7 @@ local Clamp = math.Clamp
 local Decode = json.decode
 local Floor = math.floor
 local Max = math.max
+local Min = math.min
 local next = next
 local pairs = pairs
 local Random = math.random
@@ -309,6 +310,7 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 end
 
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
+local MaxELOSort = 8
 
 Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --Random only.
@@ -332,7 +334,7 @@ Plugin.ShufflingModes = {
 		return
 	end,
 
-	function( self, Gamerules, Targets, TeamMembers ) --Score based if available, random if not.
+	function( self, Gamerules, Targets, TeamMembers, Silent ) --Score based if available, random if not.
 		local ScoreData = self.ScoreData
 
 		local ScoreTable = {}
@@ -386,7 +388,9 @@ Plugin.ShufflingModes = {
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
-		Shine:LogString( "[Random] Teams were sorted based on score." )
+		if not Silent then
+			Shine:LogString( "[Random] Teams were sorted based on score." )
+		end
 
 		return
 	end,
@@ -444,7 +448,6 @@ Plugin.ShufflingModes = {
 					if Data then
 						Count = Count + 1
 						ELOSort[ Count ] = { Player = Player, ELO = ( Data.AELO + Data.MELO ) * 0.5 }
-						Sorted[ Player ] = true
 					end
 				end
 			end
@@ -482,31 +485,37 @@ Plugin.ShufflingModes = {
 			--Should we start from Aliens or Marines?
 			local Add = Random() >= 0.5 and 1 or 0
 
-			for i = 1, Count do
+			for i = 1, Min( MaxELOSort, Count ) do
 				if ELOSort[ i ] then
+					local Player = ELOSort[ i ].Player
+
 					local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
 
-					TeamTable[ #TeamTable + 1 ] = ELOSort[ i ].Player
+					TeamTable[ #TeamTable + 1 ] = Player
+					Sorted[ Player ] = true
 				end
 			end
 
-			local Count = #Players - Count
+			local Count = #Players - MaxELOSort
 
+			--Sort the remaining players with the fallback method.
 			if Count > 0 then
-				local TeamSequence = math.GenerateSequence( Count, { 1, 2 } )
-				local SequenceNum = 0
+				local FallbackTargets = {}
 
 				for i = 1, #Players do
 					local Player = Players[ i ]
 
 					if Player and not Sorted[ Player ] then
-						SequenceNum = SequenceNum + 1
-
-						local TeamTable = TeamMembers[ TeamSequence[ SequenceNum ] ]
-
-						TeamTable[ #TeamTable + 1 ] = Player
+						FallbackTargets[ #FallbackTargets + 1 ] = Player
 					end
 				end
+
+				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, FallbackTargets, TeamMembers, true )
+
+				Shine:LogString( "[ELO Vote] Teams were sorted based on NS2Stats ELO ranking." )
+
+				--We return as the fallback has already evenly spread the teams.
+				return
 			end
 
 			EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -517,7 +526,9 @@ Plugin.ShufflingModes = {
 
 	--KDR based works identically to score, the score data is what is different.
 	function( self, Gamerules, Targets, TeamMembers )
-		return self.ShufflingModes[ self.MODE_SCORE ]( self, Gamerules, Targets, TeamMembers )
+		Shine:LogString( "[Random] Teams were sorted based on KDR." )
+		
+		return self.ShufflingModes[ self.MODE_SCORE ]( self, Gamerules, Targets, TeamMembers, true )
 	end
 }
 

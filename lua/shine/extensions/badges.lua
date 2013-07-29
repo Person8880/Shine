@@ -2,43 +2,55 @@
 	Override the badge mod's stuff to read from Shine's user data.
 ]]
 
-local Decode = json.decode
+local type = type
 
 local Plugin = {}
 Plugin.Version = "1.0"
 
+local function isstring( String )
+	return type( String ) == "string"
+end
+
 function Plugin:Initialise()
+	if self.Enabled ~= nil then 
+		self.Enabled = true
+
+		return true
+	end
+	
 	Shine.Hook.Add( "Think", "ReplaceBadges", function( Deltatime )
 		local BadgeMixin = BadgeMixin
 
-		if not BadgeMixin then 
-			return false, "Badge mixin not found."
+		if not BadgeMixin then
+			return
 		end
 
-		local OldInitBadge
-		local GetBadge = BadgeMixin.GetBadgeIcon
-
-		local BadgeData = Shine.GetUpValue( GetBadge, "kBadgeData" )
-		if not BadgeData then 
-			return false, "Badge data not found."
+		if not kBadges then
+			return
 		end
 
-		local function FindBadge( ID )
-			if not ID then return nil end
-			
-			for Enum, Data in pairs( BadgeData ) do
-				if Data.Id == ID then
-					return Enum
-				end
+		--Comply with the reserved settings, no cheating here.
+		local ReservedBadges = {}
+
+		local OldReserved = Shine.GetUpValue( getBadge, "kReservedBadges" )
+
+		if OldReserved then
+			for i = 1, #OldReserved do
+				ReservedBadges[ OldReserved[ i ] ] = true
 			end
-
-			return nil
 		end
 
-		local PAX2012ProductId = 4931
+		local BadgeData = {}
+
+		--Enum tables throw an error when trying to access an index that doesn't exist. I don't even.
+		for k, v in pairs( kBadges ) do
+			if isstring( k ) then
+				BadgeData[ k ] = v
+			end
+		end
 
 		local BadgeCache = {}
-		local function CacheGet( Client )
+		local function GetBadge( Client )
 			local SteamID = Client:GetUserId()
 			local Badge = BadgeCache[ SteamID ]
 
@@ -46,20 +58,7 @@ function Plugin:Initialise()
 				return Badge
 			end
 
-			Shared.SendHTTPRequest( "http://ns2comp.herokuapp.com/t/badge/"..tostring( SteamID ), "GET", function( Response )
-				local Data = Decode( Response )
-				if not Data then return end
-				
-				if Data.override or ( not BadgeCache[ SteamID ] or BadgeCache[ SteamID ] == kBadges.None ) then
-					BadgeCache[ SteamID ] = kBadges[ Data.badge ]
-				end
-			end )
-
-			Badge = kBadges.None
-
-			if Server.GetIsDlcAuthorized( Client, PAX2012ProductId ) then
-				Badge = kBadges.PAX2012
-			end
+			Badge = BadgeData.None
 
 			local UserData = Shine.UserData
 
@@ -70,38 +69,31 @@ function Plugin:Initialise()
 				if GroupName then
 					local Group = UserData.Groups[ GroupName ]
 
-					if Group then
-						local NewBadge = FindBadge( Group.Badge or Group.badge )
+					if Group and ( Group.Badge or Group.badge ) then
+						local NewBadge = BadgeData[ Group.Badge or Group.badge ]
 
-						if NewBadge then 
-							BadgeCache[ SteamID ] = NewBadge
-
-							return NewBadge
+						if NewBadge and not ReservedBadges[ NewBadge ] then 
+							Badge = NewBadge
 						end
 					end
 
-					local NewBadge = FindBadge( GroupName )
+					if Badge == BadgeData.None then
+						local NewBadge = BadgeData[ GroupName ]
 
-					if NewBadge then
-						BadgeCache[ SteamID ] = NewBadge
-
-						return NewBadge
+						if NewBadge and not ReservedBadges[ NewBadge ] then
+							Badge = NewBadge
+						end
 					end
 				end
 			end
 
 			BadgeCache[ SteamID ] = Badge
 
+			setBadge( Client, Badge )
+
 			return Badge
 		end
-
-		OldInitBadge = Shine.ReplaceClassMethod( "BadgeMixin", "InitializeBadges", function( Mixin )
-			local Client = Server.GetOwner( Mixin )
-
-			if Client then
-				Mixin:SetBadge( CacheGet( Client ) )
-			end
-		end )
+		getBadge = GetBadge
 
 		Shine.Hook.Remove( "Think", "ReplaceBadges" )
 	end )
