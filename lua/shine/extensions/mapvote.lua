@@ -460,7 +460,7 @@ function Plugin:EndGame()
 				Message = "Waiting on map vote to change map."
 
 				if self.VoteOnEnd then
-					self:StartVote( true )
+					self:StartVote( nil, true )
 
 					local Gamerules = GetGamerules()
 
