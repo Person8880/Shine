@@ -29,6 +29,8 @@ function Plugin:Initialise()
 			return
 		end
 
+		if not getBadge then return end
+
 		--Comply with the reserved settings, no cheating here.
 		local ReservedBadges = {}
 
