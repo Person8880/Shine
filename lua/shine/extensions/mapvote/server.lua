@@ -20,7 +20,7 @@ local TableConcat = table.concat
 local TableContains = table.contains
 local TableCount = table.Count
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.5"
 
 Plugin.HasConfig = true
@@ -228,7 +228,7 @@ function Plugin:ShouldCycleMap()
 		end
 	end
 
-	if self.RoundLimit > 0 and self.Round < self.RoundLimit then return false end
+	if self.Config.RoundLimit > 0 and self.Round < self.Config.RoundLimit then return false end
 end
 
 --[[
@@ -249,7 +249,7 @@ function Plugin:OnCycleMap()
 	local CurMap = Shared.GetMapName()
 
 	if self.NextMap.ExtendTime and Time < self.NextMap.ExtendTime then return false end
-	if self.RoundLimit > 0 and self.Round < self.RoundLimit then return false end
+	if self.Config.RoundLimit > 0 and self.Round < self.Config.RoundLimit then return false end
 
 	if Winner ~= CurMap then
 		MapCycle_ChangeMap( Winner )
@@ -273,6 +273,22 @@ function Plugin:GetTimeRemaining()
 	return Floor( Max( TimeLeft, 0 ) )
 end
 
+function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, ShowTime )
+	local MessageTable = { 
+		Options = Options,
+		Duration = Duration,
+		NextMap = NextMap,
+		TimeLeft = TimeLeft,
+		ShowTime = ShowTime
+	}
+
+	if Client then
+		Server.SendNetworkMessage( Client, "Shine_MapVoteOptions", MessageTable, true )
+	else
+		Server.SendNetworkMessage( "Shine_MapVoteOptions", MessageTable, true )
+	end
+end
+
 --[[
 	Send the map vote text and map options when a new player connects and a map vote is in progress.
 ]]
@@ -287,7 +303,13 @@ function Plugin:ClientConfirmConnect( Client )
 	
 	local OptionsText = self.Vote.OptionsText
 
-	Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining() )
+	--Send them the current vote progress and options.
+	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining(), not self.VoteOnEnd )
+
+	--Update their radial menu vote counters.
+	for Map, Votes in pairs( self.Vote.VoteList ) do
+		self:SendMapVoteCount( Client, Map, Votes )
+	end
 end
 
 function Plugin:ClientDisconnect( Client )
@@ -306,7 +328,7 @@ function Plugin:SendVoteData( Client )
 
 	local OptionsText = self.Vote.OptionsText
 
-	Shine:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining() )
+	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining(), not self.VoteOnEnd )
 end
 
 local function GetMapName( Map )
@@ -507,6 +529,8 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if not ( self.CyclingMap or IsEndVote ) then return end
 	if not Player then return end
 	if ShineForce then return end
+
+	if NewTeam == 0 then return end
 	
 	local Time = Shared.GetTime()
 	local Message = IsEndVote and "You cannot join a team whilst the map vote is in progress." or 
@@ -599,6 +623,17 @@ function Plugin:GetVoteChoice( Map )
 end
 
 --[[
+	Sends the number of votes the given map has to the given player or everyone.
+]]
+function Plugin:SendMapVoteCount( Client, Map, Count )
+	if Client then
+		Server.SendNetworkMessage( Client, "Shine_MapVoteProgress", { Map = Map, Votes = Count }, true )
+	else
+		Server.SendNetworkMessage( "Shine_MapVoteProgress", { Map = Map, Votes = Count }, true )
+	end
+end
+
+--[[
 	Adds a vote for a given map in the map vote.
 ]]
 function Plugin:AddVote( Client, Map, Revote )
@@ -615,10 +650,16 @@ function Plugin:AddVote( Client, Map, Revote )
 		if OldVote then
 			self.Vote.VoteList[ OldVote ] = self.Vote.VoteList[ OldVote ] - 1
 		end
+
+		--Update all client's vote counters.
+		self:SendMapVoteCount( nil, OldVote, self.Vote.VoteList[ OldVote ] )
 	end
 
 	local CurVotes = self.Vote.VoteList[ Choice ]
 	self.Vote.VoteList[ Choice ] = CurVotes + 1
+
+	--Update all client's vote counters.
+	self:SendMapVoteCount( nil, Choice, self.Vote.VoteList[ Choice ] )
 
 	if not Revote then
 		self.Vote.TotalVotes = self.Vote.TotalVotes + 1
@@ -637,17 +678,16 @@ function Plugin:AddVote( Client, Map, Revote )
 	return true, Choice
 end
 
-local BlankTable = { Bleh = 1 }
+local BlankTable = {}
 
+--[[
+	Tells the given player or everyone that the vote is over.
+]]
 function Plugin:EndVote( Player )
 	if Player then
 		Server.SendNetworkMessage( Player, "Shine_EndVote", BlankTable, true )
 	else
-		local Clients = Shine.GetAllClients()
-
-		for i = 1, #Clients do
-			Server.SendNetworkMessage( Clients[ i ], "Shine_EndVote", BlankTable, true )
-		end
+		Server.SendNetworkMessage( "Shine_EndVote", BlankTable, true )
 	end
 end
 
@@ -1105,7 +1145,7 @@ function Plugin:StartVote( NextMap, Force )
 		end
 	end )
 
-	Shine:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining() )
+	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(), not self.VoteOnEnd )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()
@@ -1441,5 +1481,3 @@ function Plugin:Cleanup()
 
 	self.Enabled = false
 end
-
-Shine:RegisterExtension( "mapvote", Plugin )

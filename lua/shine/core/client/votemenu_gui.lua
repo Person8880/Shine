@@ -100,21 +100,6 @@ local ClickFuncs = {
 	end
 }
 
-local function SendMapVote( MapName )
-	if GetCanSendVote() then
-		if not Shine.SentVote then
-			Shared.ConsoleCommand( "sh_vote "..MapName )
-			Shine.SentVote = true
-		else
-			Shared.ConsoleCommand( "sh_revote "..MapName )
-		end
-
-		return true
-	end
-	
-	return false
-end
-
 function VoteMenu:Create()
 	self.TeamType = PlayerUI_GetTeamType()
 
@@ -504,7 +489,7 @@ function VoteMenu:SortSideButtons()
 end
 
 --[[
-	Default pages.
+	Default page.
 ]]
 VoteMenu:AddPage( "Main", function( self )
 	local ActivePlugins = Shine.ActivePlugins
@@ -513,58 +498,5 @@ VoteMenu:AddPage( "Main", function( self )
 		local Plugin = ActivePlugins[ i ]
 
 		self:AddSideButton( Plugin, ClickFuncs[ Plugin ] )
-	end
-
-	local Time = Shared.GetTime()
-
-	if ( Shine.EndTime or 0 ) > Time then
-		self:AddTopButton( "Vote", function()
-			self:SetPage( "MapVote" )
-		end )
-	end
-end, function( self )
-	local TopButton = self.Buttons.Top
-
-	local Time = Shared.GetTime()
-
-	if Shine.EndTime > Time then
-		if not SGUI.IsValid( TopButton ) or not TopButton:GetIsVisible() then
-			self:AddTopButton( "Vote", function()
-				self:SetPage( "MapVote" )
-			end )
-		end
-	elseif Shine.EndTime < Time then
-		if SGUI.IsValid( TopButton ) and TopButton:GetIsVisible() then
-			TopButton:SetIsVisible( false )
-		end
-	end
-end )
-
-VoteMenu:AddPage( "MapVote", function( self )
-	local Maps = Shine.Maps
-	if not Maps then 
-		return 
-	end
-	
-	local NumMaps = #Maps
-
-	for i = 1, NumMaps do
-		local Map = Maps[ i ]
-		
-		self:AddSideButton( Map, function()
-			if SendMapVote( Map ) then
-				self:SetIsVisible( false )
-			end
-		end )
-	end
-
-	self:AddTopButton( "Back", function()
-		self:SetPage( "Main" )
-	end )
-end, function( self )
-	local Time = Shared.GetTime()
-
-	if Shine.EndTime < Time then
-		self:SetPage( "Main" )
 	end
 end )
