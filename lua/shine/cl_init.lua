@@ -21,14 +21,14 @@ local Scripts = {
 	"lib/query.lua",
 	"core/shared/config.lua",
 	"core/client/commands.lua",
+	"core/shared/votemenu.lua",
+	"core/client/votemenu.lua",
 	"core/shared/extensions.lua",
 	"core/shared/chat.lua",
 	"core/shared/commands.lua",
 	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
 	"lib/screentext/cl_screentext.lua",
-	"core/shared/votemenu.lua",
-	"core/client/votemenu.lua",
 	"core/shared/misc.lua"
 }
 

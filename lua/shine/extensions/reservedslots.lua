@@ -1,7 +1,7 @@
 --[[
 	Reserved slots.
 
-	I'll expand it if UWE ever get a proper connection event.
+	The hurry up and give us proper connection control UWE edition.
 ]]
 
 local Shine = Shine
@@ -23,6 +23,7 @@ Plugin.ConfigName = "ReservedSlots.json"
 
 Plugin.MODE_PASSWORD = 1
 Plugin.MODE_REDIRECT = 2
+Plugin.MODE_PASSWORD_ENFORCED = 3
 
 Plugin.DefaultConfig = {
 	Slots = 2,
@@ -204,10 +205,34 @@ local OnReservedConnect = {
 
 		Shine:NotifyColour( Client, 255, 255, 0, "This server is full, you will be redirected to one of our other servers." )
 
-		Shine.Timer.Simple( 20, function()
+		Timer.Simple( 20, function()
 			if Shine:IsValidClient( Client ) then
 				self:RedirectClient( Client, Redirect )
 			end
+		end )
+	end,
+
+	function( self, Client, Connected, MaxPlayers, MaxPublic )
+		if Connected == MaxPublic then
+			Shine:LogString( StringFormat( "[Reserved Slots] Locking the server at %i/%i players.", Connected, MaxPlayers ) )
+		end
+
+		self:LockServer()
+
+		if Connected <= MaxPublic then return end
+		if Shine:HasAccess( Client, "sh_reservedslot" ) then return end
+
+		--Enforce the slots, kick out anyone without the proper access that got in somehow.
+		Timer.Simple( 5, function()
+			if not Shine:IsValidClient( Client ) then return end
+
+			Shine:NotifyColour( Client, 255, 50, 0, "The slot you have joined is reserved." )
+		end )
+
+		Timer.Simple( 15, function()
+			if not Shine:IsValidClient( Client ) then return end
+			
+			Server.DisconnectClient( Client )
 		end )
 	end
 }
@@ -223,6 +248,14 @@ local OnReservedDisconnect = {
 
 	function( self, Client )
 		--Do nothing...
+	end,
+
+	function( self, Client, Connected, MaxPlayers, MaxPublic )
+		if Connected == ( MaxPublic - 1 ) then
+			Shine:LogString( StringFormat( "[Reserved Slots] Unlocking the server at %i/%i players.", Connected, MaxPlayers ) )
+		end
+
+		self:LockServer( true )
 	end
 }
 

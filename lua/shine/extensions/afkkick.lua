@@ -142,7 +142,7 @@ function Plugin:OnProcessMove( Player, Input )
 			
 			Server.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
 
-			if self.Config.MoveToReadyRoomOnWarn then
+			if self.Config.MoveToReadyRoomOnWarn and Player:GetTeamNumber() ~= kTeamReadyRoom then
 				Gamerules:JoinTeam( Player, 0, nil, true )
 			end
 
