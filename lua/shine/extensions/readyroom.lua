@@ -90,6 +90,7 @@ end
 
 --Prevent players from joining the spectator team, and prevent going back to the ready room after being forced out of it.
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
+	if ShineForce then return end
 	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
 
 	local Client = Player:GetClient()
