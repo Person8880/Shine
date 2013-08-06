@@ -66,7 +66,7 @@ VoteMenu:AddPage( "ServerSwitch", function( self )
 end )
 
 VoteMenu:EditPage( "Main", function( self )
-	if next( Plugin.ServerList ) then
+	if Plugin.Enabled and next( Plugin.ServerList ) then
 		self:AddBottomButton( "Switch Server", function()
 			self:SetPage( "ServerSwitch" )
 		end )
