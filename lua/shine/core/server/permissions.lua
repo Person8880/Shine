@@ -161,11 +161,32 @@ function Shine:GenerateDefaultUsers( Save )
 	end
 end
 
+local CommandMapping = {
+	sv_hasreserve = "sh_reservedslot",
+	sv_rrall = "sh_rr",
+	sv_afkimmune = "sh_afk",
+	sv_randomall = "sh_forcerandom",
+	sv_switchteam = "sh_setteam",
+	sv_maps = "sh_listmaps",
+	sv_randomon = "sh_enablerandom",
+	sv_cancelmapvote = "sh_veto",
+	sv_nick = "sh_rename",
+	sv_reloadplugins = "sh_loadplugin",
+	sv_dontrandom = "sh_randomimmune"
+}
+
 local function ConvertCommands( Commands )
 	local Ret = {}
 
 	for i = 1, #Commands do
-		Ret[ i ] = Commands[ i ]:gsub( "sv", "sh" )	
+		local Command = Commands[ i ]
+		local Equivalent = CommandMapping[ Command ]
+
+		if Equivalent then
+			Ret[ i ] = Equivalent
+		else
+			Ret[ i ] = Command:gsub( "sv", "sh" )
+		end	
 	end
 
 	return Ret
