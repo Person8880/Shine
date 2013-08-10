@@ -169,7 +169,9 @@ function VoteMenu:PlayerKeyPress( Key, Down )
 		return
 	end
 
-	if Down and Key == InputKey.MouseButton0 or Key == InputKey.MouseButton1 then
+	local IsCloseKey = Key == InputKey.MouseButton0 or Key == InputKey.MouseButton1 or Key == InputKey.Escape
+
+	if Down and IsCloseKey then
 		self:SetIsVisible( false )
 
 		return
@@ -195,6 +197,12 @@ end
 
 Hook.Add( "Think", "VoteMenuThink", function( DeltaTime )
 	VoteMenu:Think( DeltaTime )
+end )
+
+Hook.Add( "OnCommanderUILogout", "VoteMenuLogout", function()
+	if not VoteMenu.Visible then return end
+	
+	VoteMenu:SetIsVisible( false )
 end )
 
 function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
