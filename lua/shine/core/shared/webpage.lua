@@ -12,8 +12,9 @@ Shared.RegisterNetworkMessage( "Shine_Web", WebOpen )
 
 if Server then return end
 
+local Hook = Shine.Hook
+
 local SGUI = Shine.GUI
-local WebWindow
 
 local WindowColour = Colour( 0.3, 0.3, 0.3, 1 )
 local TitleColour = Colour( 0.4, 0.4, 0.4, 1 )
@@ -100,6 +101,32 @@ function Shine:OpenWebpage( URL, TitleText )
 		MouseTracker_SetIsVisible( true )
 	end
 end
+
+function Shine:CloseWebPage()
+	if not SGUI.IsValid( self.ActiveWebPage ) then return end
+
+	if not CommanderUI_IsLocalPlayerCommander() then
+		MouseTracker_SetIsVisible( false )
+	end
+
+	self.ActiveWebPage:Destroy()
+
+	self.ActiveWebPage = nil
+end
+
+Hook.Add( "PlayerKeyPress", "WebpageClose", function( Key, Down, Amount )
+	if not SGUI.IsValid( Shine.ActiveWebPage ) then return end
+	
+	if Key == InputKey.Escape then
+		Shine:CloseWebPage()
+
+		return true
+	end
+end, 1 )
+
+Hook.Add( "OnCommanderUILogout", "WebpageClose", function()
+	Shine:CloseWebPage()
+end )
 
 Client.HookNetworkMessage( "Shine_Web", function( Message )
 	Shine:OpenWebpage( Message.URL )
