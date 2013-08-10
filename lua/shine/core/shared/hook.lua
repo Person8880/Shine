@@ -450,6 +450,7 @@ if Client then
 		end
 
 		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
+		SetupGlobalHook( "CommanderUI_Logout", "OnCommanderUILogout", "PassivePost" )
 	end, -20 )
 
 	return
