@@ -462,6 +462,8 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	local Directive
 	local FirstWord = Exploded[ 1 ]
 
+	if not FirstWord then return end
+
 	if FirstWord:sub( 1, 1 ):find( "[^%w]" ) then --They've done !, / or some other special character first.
 		Directive = FirstWord:sub( 1, 1 )
 		Exploded[ 1 ] = FirstWord:sub( 2 )
@@ -472,7 +474,6 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	local CommandObj = Shine.ChatCommands[ Exploded[ 1 ] ]
 	
 	if not CommandObj then --Command does not exist.
-		if Directive == "!" or Directive == "/" then return "" end 
 		return
 	end
 

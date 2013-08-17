@@ -7,12 +7,15 @@
 local include = Script.Load
 local next = next
 local pairs = pairs
-local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
+local StringFormat = string.format
+
+local Hook = Shine.Hook
 
 Shine.Plugins = {}
 
+local AutoLoadPath = "config://shine\\AutoLoad.json"
 local ExtensionPath = "lua/shine/extensions/"
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
@@ -78,7 +81,9 @@ function PluginMeta:SaveConfig()
 		return	
 	end
 
-	Print( "Shine %s config file updated.", self.__Name )
+	if not self.SilentConfigSave then
+		Print( "Shine %s config file updated.", self.__Name )
+	end
 end
 
 function PluginMeta:LoadConfig()
@@ -126,7 +131,7 @@ if Server then
 		end
 	end
 elseif Client then
-	function PluginMeta:BindCommand( Command, Func )
+	function PluginMeta:BindCommand( ConCommand, Func )
 		self.Commands = self.Commands or {}
 
 		local Command = Shine:RegisterClientCommand( ConCommand, Func )
@@ -155,9 +160,11 @@ end
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
 
-	local ClientFile = ExtensionPath..Name.."/client.lua"
-	local ServerFile = ExtensionPath..Name.."/server.lua"
-	local SharedFile = ExtensionPath..Name.."/shared.lua"
+	if self.Plugins[ Name ] then return end
+
+	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
+	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
+	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
 	
 	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ] or PluginFiles[ ServerFile ]
 
@@ -191,16 +198,18 @@ function Shine:LoadExtension( Name, DontEnable )
 	end
 
 	if not PluginFiles[ ServerFile ] then
-		ServerFile = ExtensionPath..Name..".lua"
+		ServerFile = StringFormat( "%s%s.lua", ExtensionPath, Name )
 
 		if not PluginFiles[ ServerFile ] then
 			local Found
+
+			local SearchTerm = StringFormat( "/%s.lua", Name )
 
 			--In case someone uses a different case file name to the plugin name...
 			for File in pairs( PluginFiles ) do
 				local LowerF = File:lower()
 
-				if LowerF:find( "/"..Name..".lua", 1, true ) then
+				if LowerF:find( SearchTerm, 1, true ) then
 					Found = true
 					ServerFile = File
 
@@ -276,21 +285,27 @@ function Shine:UnloadExtension( Name )
 	if Server and Plugin.IsShared and next( self.GameIDs ) then
 		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
+
+	Hook.Call( "OnPluginUnload", Name )
 end
 
 local ClientPlugins = {}
 
 --[[
-	Prepare client side plugins.
+	Prepare shared plugins.
 
-	Important to note: Shine does not support hot loading plugin files. That is, it will only know about plugin files that were present when it started.
+	Important to note: Shine does not support hot loading plugin files. 
+	That is, it will only know about plugin files that were present when it started.
 ]]
 for Path in pairs( PluginFiles ) do
 	local Folders = StringExplode( Path, "/" )
 	local Name = Folders[ 4 ]
+	local File = Folders[ 5 ]
 
-	if Folders[ 5 ] and not ClientPlugins[ Name ] then
-		ClientPlugins[ Name ] = "boolean" --Generate the network message.
+	if File and not ClientPlugins[ Name ] then
+		if File:lower() == "shared.lua" then
+			ClientPlugins[ Name ] = "boolean" --Generate the network message.
+		end
 		Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 	end
 end
@@ -332,6 +347,38 @@ elseif Client then
 			Shine:EnableExtension( Name )
 		else
 			Shine:UnloadExtension( Name )
+		end
+	end )
+
+	--[[
+		Adds a plugin to be auto loaded on the client.
+		This should only be used for client side plugins, not shared.
+
+		Inputs: Plugin name, boolean AutoLoad.
+	]]
+	function Shine:SetPluginAutoLoad( Name, AutoLoad )
+		if not self.AutoLoadPlugins then return end
+		
+		self.AutoLoadPlugins[ Name ] = AutoLoad and true or nil
+
+		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
+	end
+
+	Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
+		local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )
+
+		if not AutoLoad or not next( AutoLoad ) then
+			Shine.AutoLoadPlugins = Shine.AutoLoadPlugins or {}
+
+			return 
+		end
+
+		Shine.AutoLoadPlugins = AutoLoad
+
+		for Plugin, Load in pairs( AutoLoad ) do
+			if Load then
+				Shine:EnableExtension( Plugin )
+			end
 		end
 	end )
 end

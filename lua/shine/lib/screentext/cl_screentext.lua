@@ -102,7 +102,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		MessageTable.Fading = true
 		MessageTable.FadedIn = true
 		MessageTable.FadingIn = true
-		MessageTable.FadeEnd = Time + FadeIn
+		MessageTable.FadeElapsed = 0
 		MessageTable.FadeDuration = FadeIn
 	end
 
@@ -148,7 +148,7 @@ local function ProcessQueue( Time )
 			if Message.Duration == 0 then
 				Message.FadingIn = false
 				Message.Fading = true
-				Message.FadeEnd = Shared.GetTime() + 1
+				Message.FadeElapsed = 0
 				Message.FadeDuration = 1
 			end
 
@@ -160,21 +160,26 @@ local function ProcessQueue( Time )
 end
 
 --Not the lifeform...
-local function ProcessFades()
-	local Time = Shared.GetTime()
-
+local function ProcessFades( DeltaTime )
 	for Index, Message in pairs( Messages ) do
 		if Message.Fading then
 			local In = Message.FadingIn
-			local Progress = ( Message.FadeEnd - Time ) / Message.FadeDuration
-			local Alpha = 1 * ( In and ( 1 - Progress ) or Progress )
-			
-			Message.Colour.a = Alpha
 
-			Message.Obj:SetColor( Message.Colour )
+			Message.FadeElapsed = Message.FadeElapsed + DeltaTime
 
-			if Message.FadeEnd <= Time then
+			if Message.FadeElapsed >= Message.FadeDuration then
 				Message.Fading = false
+
+				Message.Colour.a = In and 1 or 0
+			
+				Message.Obj:SetColor( Message.Colour )
+			else
+				local Progress = Message.FadeElapsed / Message.FadeDuration
+				local Alpha = 1 * ( In and Progress or ( 1 - Progress ) )
+				
+				Message.Colour.a = Alpha
+
+				Message.Obj:SetColor( Message.Colour )
 			end
 		end
 	end
@@ -189,12 +194,12 @@ function Shine:RemoveMessage( Index )
 	Messages[ Index ] = nil
 end
 
-Event.Hook( "UpdateClient", function()
+Shine.Hook.Add( "Think", "ScreenText", function( DeltaTime )
 	local Time = Shared.GetTime()
 
 	ProcessQueue( Time )
 
-	ProcessFades()
+	ProcessFades( DeltaTime )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenText", function( Message )
