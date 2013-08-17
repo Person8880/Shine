@@ -5,7 +5,6 @@
 local Shine = Shine
 
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -22,6 +21,7 @@ Plugin.DefaultConfig = {
 	KickTime = 15,
 	--CommanderTime = 0.5,
 	Warn = true,
+	MoveToReadyRoomOnWarn = false,
 	OnlyCheckOnStarted = false
 }
 
@@ -52,6 +52,18 @@ function Plugin:ClientConnect( Client )
 		Pos = Player:GetOrigin(),
 		Ang = Player:GetViewAngles()
 	}
+end
+
+function Plugin:ResetAFKTime( Client )
+	local DataTable = self.Users[ Client ]
+
+	if not DataTable then return end
+
+	DataTable.LastMove = Shared.GetTime()
+
+	if DataTable.Warn then
+		DataTable.Warn = false
+	end
 end
 
 --[[
@@ -130,6 +142,10 @@ function Plugin:OnProcessMove( Player, Input )
 			
 			Server.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
 
+			if self.Config.MoveToReadyRoomOnWarn and Player:GetTeamNumber() ~= kTeamReadyRoom then
+				Gamerules:JoinTeam( Player, 0, nil, true )
+			end
+
 			return
 		end
 
@@ -145,6 +161,53 @@ function Plugin:OnProcessMove( Player, Input )
 
 		Server.DisconnectClient( Client )
 	end
+end
+
+function Plugin:OnConstructInit( Building )
+	local ID = Building:GetId()
+	local Team = Building:GetTeam()
+
+	if not Team then return end
+
+	local Owner = Building:GetOwner()
+	Owner = Owner or Team:GetCommander()
+
+	if not Owner then return end
+	
+	local Client = Server.GetOwner( Owner )
+
+	if not Client then return end
+
+	self:ResetAFKTime( Client )
+end
+
+function Plugin:OnRecycle( Building, ResearchID )
+	local ID = Building:GetId()
+	local Team = Building:GetTeam()
+
+	if not Team then return end
+
+	local Commander = Team:GetCommander()
+	if not Commander then return end
+
+	local Client = Server.GetOwner( Commander )
+	if not Client then return end
+	
+	self:ResetAFKTime( Client )
+end
+
+function Plugin:OnCommanderTechTreeAction( Commander, ... )
+	local Client = Server.GetOwner( Commander )
+	if not Client then return end
+	
+	self:ResetAFKTime( Client )
+end
+
+function Plugin:OnCommanderNotify( Commander, ... )
+	local Client = Server.GetOwner( Commander )
+	if not Client then return end
+	
+	self:ResetAFKTime( Client )
 end
 
 --[[

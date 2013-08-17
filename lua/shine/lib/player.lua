@@ -283,3 +283,15 @@ function Shine:GetTeamName( Team, Capitals )
 		return Capitals and "Ready Room" or "ready room"
 	end
 end
+
+local ConsoleInfo = "Console[N/A]"
+
+function Shine.GetClientInfo( Client )
+	if not Client then return ConsoleInfo end
+
+	local Player = Client:GetControllingPlayer()
+
+	if not Player then return ConsoleInfo end
+
+	return StringFormat( "%s[%s]", Player:GetName(), Client:GetUserId() )
+end

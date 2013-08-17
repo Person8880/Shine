@@ -83,25 +83,27 @@ function Plugin:ClientConnect( Client )
 
 		local MessageTable = self.Config.Users[ tostring( ID ) ]
 
-		if MessageTable and MessageTable.Welcome and not MessageTable.Said then
-			Shine:Notify( nil, "", "", MessageTable.Welcome )
+		if MessageTable and MessageTable.Welcome then 
+			if not MessageTable.Said then
+				Shine:Notify( nil, "", "", MessageTable.Welcome )
 
-			MessageTable.Said = true
+				MessageTable.Said = true
+
+				self:SaveConfig()
+			end
 
 			self.Welcomed[ Client ] = true
 
-			self:SaveConfig()
-		
 			return
 		end
 
 		if not self.Config.ShowGeneric then return end
 
+		self.Welcomed[ Client ] = true
+
 		local Player = Client:GetControllingPlayer()
 
 		if not Player then return end
-
-		self.Welcomed[ Client ] = true
 
 		Shine:Notify( nil, "", "", "%s has joined the game.", true, Player:GetName() )
 	end )

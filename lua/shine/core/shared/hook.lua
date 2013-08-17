@@ -70,6 +70,10 @@ local function OnError( Err )
 	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
 end
 
+local RemovalExceptions = {
+	PlayerSay = { CommandExecute = true }
+}
+
 --[[
 	Calls an internal Shine hook.
 	Inputs: Event name, arguments to pass.
@@ -83,15 +87,21 @@ local function Call( Event, ... )
 
 	local MaxPriority = Hooked and Hooked[ -20 ]
 
+	local ProtectedHooks = RemovalExceptions[ Event ]
+
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
 			local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 			if not Success then
-				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+				if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
 
-				Remove( Event, Index )
+					Remove( Event, Index )
+				else
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.", true, Event, Index )
+				end
 			else
 				if a ~= nil then return a, b, c, d, e, f end
 			end
@@ -106,9 +116,16 @@ local function Call( Event, ... )
 					local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
 
 					if not Success then
-						Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s', disabling.", true, Event, Plugin )
+						Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
+						Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.", true, Event, Plugin, Table.__HookErrors )
 
-						Shine:UnloadExtension( Plugin )
+						if Table.__HookErrors >= 10 then
+							Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).", true, Plugin, Table.__HookErrors )
+
+							Table.__HookErrors = 0
+
+							Shine:UnloadExtension( Plugin )
+						end
 					else
 						if a ~= nil then return a, b, c, d, e, f end
 					end
@@ -127,9 +144,13 @@ local function Call( Event, ... )
 				local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 				if not Success then
-					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+					if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
 
-					Remove( Event, Index )
+						Remove( Event, Index )
+					else
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.", true, Event, Index )
+					end
 				else
 					if a ~= nil then return a, b, c, d, e, f end
 				end
@@ -417,6 +438,19 @@ if Client then
 
 			return OldSendCharacterEvent( self, Char )
 		end
+
+		local OldResChange = GUIManager.OnResolutionChanged
+
+		function GUIManager:OnResolutionChanged( OldX, OldY, NewX, NewY )
+			Call( "PreOnResolutionChanged", OldX, OldY, NewX, NewY )
+
+			OldResChange( self, OldX, OldY, NewX, NewY )
+
+			Call( "OnResolutionChanged", OldX, OldY, NewX, NewY )
+		end
+
+		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
+		SetupGlobalHook( "CommanderUI_Logout", "OnCommanderUILogout", "PassivePost" )
 	end, -20 )
 
 	return
@@ -481,6 +515,9 @@ Add( "Think", "ReplaceMethods", function()
 
 	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
 	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
+
+	SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction", "PassivePre" )
+	SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
 	

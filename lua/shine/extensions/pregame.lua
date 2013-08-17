@@ -5,7 +5,7 @@
 local Shine = Shine
 
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
+
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
@@ -20,13 +20,24 @@ Plugin.ConfigName = "PreGame.json"
 Plugin.FiveSecTimer = "PreGameFiveSeconds"
 Plugin.CountdownTimer = "PreGameCountdown"
 
+local BlacklistMods = {
+	[ "5f35045" ] = "Combat",
+	[ "7e64c1a" ] = "Xenoswarm",
+	[ "7957667" ] = "Marine vs Marine",
+	[ "6ed01f8" ] = "The Faded"
+}
+
 function Plugin:Initialise()
 	local GetMod = Server.GetActiveModId
 
 	for i = 1, Server.GetNumActiveMods() do
-		local Mod = GetMod( i )
+		local Mod = GetMod( i ):lower()
 
-		if Mod == "5f35045" then return false, "Pregame plugin does not work with combat." end
+		local OnBlacklist = BlacklistMods[ Mod ]
+
+		if OnBlacklist then
+			return false, StringFormat( "Pregame plugin does not work with %s.", OnBlacklist )
+		end
 	end
 
 	self.CountStart = nil
@@ -188,7 +199,7 @@ Plugin.UpdateFuncs = {
 		end
 
 		if not self.CountStart then
-			if MapCycle_TestCycleMap() then return end
+			--if MapCycle_TestCycleMap() then return end
 			
 			local Duration = self.Config.PreGameTime
 
@@ -271,6 +282,8 @@ Plugin.UpdateFuncs = {
 
 				return
 			end
+
+			return
 		end
 
 		--Both teams have a commander, begin countdown, but only if the 1 commander countdown isn't past the 2 commander countdown time length left.
@@ -412,7 +425,7 @@ Plugin.UpdateFuncs = {
 	--After the set time, if one team has a commander, start the game.
 	[ 2 ] = function( self, Gamerules )
 		if not self.CountStart then
-			if MapCycle_TestCycleMap() then return end
+			--if MapCycle_TestCycleMap() then return end
 
 			local Duration = self.Config.PreGameTime
 

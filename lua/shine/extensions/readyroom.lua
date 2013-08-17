@@ -90,6 +90,7 @@ end
 
 --Prevent players from joining the spectator team, and prevent going back to the ready room after being forced out of it.
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
+	if ShineForce then return end
 	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
 
 	local Client = Player:GetClient()
@@ -245,6 +246,17 @@ function Plugin:ProcessClient( Client, Time )
 	local Team = Player:GetTeam():GetTeamNumber()
 
 	if Team == kTeamReadyRoom then
+		local AFKKick = Shine.Plugins.afkkick
+
+		if AFKKick and AFKKick.Enabled then
+			local LastMoveTime = AFKKick:GetLastMoveTime( Client )
+
+			--Ignore AFK players.
+			if Time - LastMoveTime > ( AFKKick.Config.WarnTime * 60 ) then
+				return
+			end
+		end
+
 		local TimeToMove = ReadyRoomTracker[ Client ]
 		
 		if not TimeToMove then
