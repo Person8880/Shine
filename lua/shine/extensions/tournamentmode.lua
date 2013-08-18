@@ -15,6 +15,7 @@ Plugin.DefaultConfig =
 {
     Warmup = false, //Warmup enabled?
     Warmuptime = 5 //Warmup time in min
+    MsgDelay = 5 // Delay in secounds before plugin shows infomessage after connect
 }
 Plugin.CheckConfig = true
 
@@ -25,6 +26,11 @@ local Gamerules = GetGamerules()
 
 function Plugin:Initialise()
      self.Enabled = true 
+     
+     //turn off autobalance
+     Server.SetConfigSetting("auto_team_balance", nil)
+     Server.SetConfigSetting("end_round_on_team_unbalance",nil)
+     
      if self.Config.Warmup == true then
         Plugin:StartWarmuptime()        
      end
@@ -52,6 +58,15 @@ function Plugin:StartGame( Gamerules )
         end
     end
 end
+
+//Player connects
+function Plugin:ClientConfirmConnect(Client)
+    if Client:GetIsVirtual() then return end
+    Shine.Timer.Simple( self.Config.MsgDelay, function()
+	    Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
+    end )
+end
+
 //Player disconnects
 function Plugin:ClientDisconnect(Client)
     local steamId = Client:GetUserId()
@@ -70,6 +85,9 @@ end
 function Plugin:StartWarmuptime()
     if Warmup == true then return end
     Warmup = true
+    Shine.Timer.Simple( self.Config.MsgDelay, function()
+	    Shine:Notify( nil, "", "", "Warmup Time started. You can't use !rdy will its not over")
+    end )
     //disable ns2stats todo find better way
     Shared.ConsoleCommand("sh_unloadplugin ns2stats") 
     //end Warmup after set min in config
@@ -82,6 +100,9 @@ end
 function Plugin:EndWarmuptime
    if Warmup == false then return end
    Warmup = false
+    Shine.Timer.Simple( self.Config.MsgDelay, function()
+	    Shine:Notify( nil, "", "", "Warmup Time is over. Join teams and type !rdy to start the game")
+    end )
    //enable NS2stats
    Shared.ConsoleCommand("sh_loadplugin ns2stats") 
 end
@@ -112,6 +133,9 @@ end
 
 function Plugin:Cleanup()
     Shine.Timer.Destroy("Warmuptimer")
+    //turn on balancemode
+    Server.SetConfigSetting("auto_team_balance", true)
+    Server.SetConfigSetting("end_round_on_team_unbalance",true)
     self.Enabled = false
 end
 Shine:RegisterExtension( "tournamentmode", Plugin )
