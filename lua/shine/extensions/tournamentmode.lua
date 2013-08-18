@@ -80,7 +80,7 @@ end
 
 //Block players from joining teams in captain mode
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
-    if not self.Config.CaptainMode then return end
+    if not self.Config.CaptainMode or Warmup then return end
     if ShineForce then return end
     local client= Player:GetClient()
     if Plugin:TableFind(self.Config.Captains, client:GetUserId()) ~= nil then return end
