@@ -13,6 +13,8 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "Tournament.json"
 Plugin.DefaultConfig =
 {
+    CaptainMode= false //Use Captain Mode
+    Captains = {"90000001" , "123456789"} // Captains ns2ids
     Warmup = false, //Warmup enabled?
     Warmuptime = 5 //Warmup time in min
     MsgDelay = 5 // Delay in secounds before plugin shows infomessage after connect
@@ -40,8 +42,9 @@ function Plugin:Initialise()
 end
 
 function Plugin:CheckGameStart( Gamerules )
-    //todo: addcommandermode   
-    if #Plugin.Votes >= #Shared.GetEntitiesWithClassname("Player") or Warmup == true then return Gamerules:SetGameState(kGameState.NotStarted) end    
+    local playernumber =  #Shared.GetEntitiesWithClassname("Player")
+    if self.Config.CaptainMode then playernumber = #self.Config.Captains end
+    if #Plugin.Votes >= playernumber or Warmup == true then return Gamerules:SetGameState(kGameState.NotStarted) end    
     return false
 end
 
@@ -73,6 +76,15 @@ function Plugin:ClientDisconnect(Client)
     local find = Plugin:TableFind(Plugin.Votes,steamid)
     if find == nil then return end
     table.remove(Plugin.Votes, find)    
+end
+
+//Block players from joining teams in captain mode
+function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
+    if not self.Config.CaptainMode then return end
+    if ShineForce then return end
+    local client= Player:GetClient()
+    if Plugin:TableFind(self.Config.Captains, client:GetUserId()) ~= nil then return end
+    return false
 end
 
 function Plugin:TableFind(table ,find)
@@ -111,24 +123,36 @@ end
 function Plugin:CreateCommands()
     local Ready = self:BindCommand( "sh_ready", {"rdy","ready"},function(Client)
         if Warmup == true return end
+        if self.Config.CaptainMode then
+            if Plugin:TableFind(self.Config.Captains,Client:GetUserId()) == nil then return end
+        end
         if Plugin:TableFind(Plugin.Votes, Client:GetUserId()) ~= nil then return end
         table.insert(Plugin.Votes, Client:GetUserId()
-    end)
+    end, true)
     Ready:Help ("Make yourself ready to start the game")
     
-    local Ready = self:BindCommand( "sh_startwarmup","startwarmup" ,function(Client)
+    local StartWarmup = self:BindCommand( "sh_startwarmup","startwarmup" ,function(Client)
         if Shine:HasAccess( Client , "sh_warmup") then
             Plugin:StartWarmuptime()
         end
     end)
-    Ready:Help ("Starts Warmup time")
+    StartWarmup:Help ("Starts Warmup time")
     
-    local Ready = self:BindCommand( "sh_startwarmup","startwarmup" ,function(Client)
+    local EndWarmup = self:BindCommand( "sh_endwarmup","endwarmup" ,function(Client)
         if Shine:HasAccess( Client , "sh_warmup") then
             Plugin:EndWarmuptime()
         end
     end)
-    Ready:Help ("Ends Warmup time")
+    EndWarmup:Help ("Ends Warmup time")
+    
+    local Choose = self:BindCommand( "sh_choose","choose" ,function(Client, player)
+        if self.Config.Captainmode and Plugin:TableFind(self.Config.Captains, Client:GetUserId()) ~= nil then
+            local Player = player:GetPlayer()
+            Gamerules:JoinTeam( Player, Client:GetPlayer():GetTeam():GetTeamNumber(), nil, true )
+        end
+    end,true)
+    Chosse:AddParam{ Type = "client"}
+    Choose:Help ("Choose Player with the given name for you team ")
 end
 
 function Plugin:Cleanup()
