@@ -6,18 +6,20 @@ local Shine = Shine
 local Notify = Shared.Message
 
 local Plugin = {}
-local tostring = tostring
-Plugin.Version = "0.1"
+Plugin.Version = "0.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Tournament.json"
 Plugin.DefaultConfig =
 {
-    CaptainMode= false //Use Captain Mode
-    Captains = {"90000001" , "123456789"} // Captains ns2ids
+    CaptainMode= false, //Use Captain Mode
+    Captains = {"90000001" , "123456789"}, // Captains ns2ids
     Warmup = false, //Warmup enabled?
-    Warmuptime = 5 //Warmup time in min
-    MsgDelay = 5 // Delay in secounds before plugin shows infomessage after connect
+    Warmuptime = 5, //Warmup time in min
+    MsgDelay = 5, // Delay in secounds before plugin shows infomessage after connect
+    Forceteams = false, //force teams to stay the same
+    Team1 = {},
+    Team2 = {},
 }
 Plugin.CheckConfig = true
 
@@ -36,6 +38,7 @@ function Plugin:Initialise()
      if self.Config.Warmup == true then
         Plugin:StartWarmuptime()        
      end
+     
      //loads Commands
      Plugin:CreateCommands()
      return true
@@ -68,6 +71,14 @@ function Plugin:ClientConfirmConnect(Client)
     Shine.Timer.Simple( self.Config.MsgDelay, function()
 	    Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
     end )
+    if self.Config.ForceTeams then
+        local id = Client:GetUserId()
+        if Plugin:TableFind(self.Config.Team1, id) then
+            Gamerules:JoinTeam( Client:GetPlayer(), 1, nil, true )
+        elseif Plugin:TableFind(self.Config.Team2, id) then
+            Gamerules:JoinTeam( Client:GetPlayer(), 2, nil, true )      
+        end
+    end
 end
 
 //Player disconnects
@@ -80,10 +91,34 @@ end
 
 //Block players from joining teams in captain mode
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
-    if not self.Config.CaptainMode or Warmup then return end
-    if ShineForce then return end
     local client= Player:GetClient()
-    if Plugin:TableFind(self.Config.Captains, client:GetUserId()) ~= nil then return end
+    
+    //block f4 if forceteams is true
+    if self.Config.ForceTeams then
+        if NewTeam == kTeamReadyRoom then return false end 
+    end 
+    
+    //cases in which jointeam is not limited
+    if not self.Config.CaptainMode or Warmup or ShineForce then
+        if NewTeam == 1 then
+            table.insert(self.Config.Team1, client:GetUserId())
+            self:SaveConfig()
+        elseif NewTeam == 2 then
+            table.insert(self.Config.Team2, client:GetUserId())
+            self:SaveConfig()
+        end
+        return end
+    //check if player is Captain
+    if self.Config.CaptainMode then        
+        if Plugin:TableFind(self.Config.Captains, client:GetUserId()) ~= nil then
+            if NewTeam == 1 then
+                table.insert(self.Config.Team1, client:GetUserId())
+                self:SaveConfig()
+            elseif NewTeam == 2 then
+                table.insert(self.Config.Team2, client:GetUserId())
+                self:SaveConfig() 
+            return end
+    end    
     return false
 end
 
@@ -132,16 +167,12 @@ function Plugin:CreateCommands()
     Ready:Help ("Make yourself ready to start the game")
     
     local StartWarmup = self:BindCommand( "sh_startwarmup","startwarmup" ,function(Client)
-        if Shine:HasAccess( Client , "sh_warmup") then
-            Plugin:StartWarmuptime()
-        end
+        Plugin:StartWarmuptime()        
     end)
     StartWarmup:Help ("Starts Warmup time")
     
     local EndWarmup = self:BindCommand( "sh_endwarmup","endwarmup" ,function(Client)
-        if Shine:HasAccess( Client , "sh_warmup") then
-            Plugin:EndWarmuptime()
-        end
+        Plugin:EndWarmuptime()       
     end)
     EndWarmup:Help ("Ends Warmup time")
     
