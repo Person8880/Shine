@@ -190,7 +190,7 @@ function Plugin:CreateCommands()
         self.Config.Team2 = {}
         self:SaveConfig()
     end)
-    Choose:Clearteams ("Removes all players from teams in config ")
+    Clearteams:Help("Removes all players from teams in config ")
 end
 
 function Plugin:Cleanup()
