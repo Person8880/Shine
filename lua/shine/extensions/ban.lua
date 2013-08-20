@@ -294,9 +294,6 @@ end
 	Creates the plugins console/chat commands.
 ]]
 function Plugin:CreateCommands()
-	self.Commands = {}
-	local Commands = self.Commands
-
 	--[[
 		Bans by name/Steam ID when in the server.
 	]]
@@ -314,11 +311,11 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( nil, "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
 	end
-	Commands.BanCommand = Shine:RegisterCommand( "sh_ban", "ban", Ban )
-	Commands.BanCommand:AddParam{ Type = "client", NotSelf = true }
-	Commands.BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
-	Commands.BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
-	Commands.BanCommand:Help( "<player> <duration in minutes> Bans the given player for the given time in minutes. 0 is a permanent ban." )
+	local BanCommand = self:BindCommand( "sh_ban", "ban", Ban )
+	BanCommand:AddParam{ Type = "client", NotSelf = true }
+	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
+	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
+	BanCommand:Help( "<player> <duration in minutes> Bans the given player for the given time in minutes. 0 is a permanent ban." )
 
 	--[[
 		Unban by Steam ID.
@@ -333,9 +330,9 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "%s is not banned.", ID ) )
 	end
-	Commands.UnbanCommand = Shine:RegisterCommand( "sh_unban", "unban", Unban )
-	Commands.UnbanCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to unban." }
-	Commands.UnbanCommand:Help( "<steamid> Unbans the given Steam ID." )
+	local UnbanCommand = self:BindCommand( "sh_unban", "unban", Unban )
+	UnbanCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to unban." }
+	UnbanCommand:Help( "<steamid> Unbans the given Steam ID." )
 
 	--[[
 		Ban by Steam ID whether they're in the server or not.
@@ -361,11 +358,11 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
-	Commands.BanIDCommand = Shine:RegisterCommand( "sh_banid", "banid", BanID )
-	Commands.BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
-	Commands.BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
-	Commands.BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
-	Commands.BanIDCommand:Help( "<steamid> <duration in minutes> <reason> Bans the given Steam ID for the given time in minutes. 0 is a permanent ban." )
+	local BanIDCommand = self:BindCommand( "sh_banid", "banid", BanID )
+	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
+	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
+	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
+	BanIDCommand:Help( "<steamid> <duration in minutes> <reason> Bans the given Steam ID for the given time in minutes. 0 is a permanent ban." )
 
 	local function ListBans( Client )
 		if not next( self.Config.Banned ) then
@@ -379,8 +376,8 @@ function Plugin:CreateCommands()
 			Shine:AdminPrint( Client, "- ID: %s. Name: %s. Time remaining: %s. Reason: %s", true, ID, BanTable.Name or "<unknown>", TimeRemaining, BanTable.Reason or "No reason given." )
 		end
 	end
-	Commands.ListBansCommand = Shine:RegisterCommand( "sh_listbans", nil, ListBans )
-	Commands.ListBansCommand:Help( "Lists all stored bans from Shine." )
+	local ListBansCommand = self:BindCommand( "sh_listbans", nil, ListBans )
+	ListBansCommand:Help( "Lists all stored bans from Shine." )
 end
 
 --[[
@@ -402,17 +399,6 @@ function Plugin:ClientConnect( Client )
 			self:RemoveBan( ID )
 		end
 	end
-end
-
---[[
-	Called when disabling the plugin.
-]]
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
 end
 
 Shine:RegisterExtension( "ban", Plugin )

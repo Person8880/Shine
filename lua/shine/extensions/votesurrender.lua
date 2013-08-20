@@ -19,7 +19,14 @@ Plugin.Version = "1.2"
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteSurrender.json"
 
-Plugin.Commands = {}
+Plugin.DefaultConfig = {
+	PercentNeeded = 0.75, --Percentage of the team needing to vote in order to surrender.
+	VoteDelay = 10, --Time after round start before surrender vote is available
+	MinPlayers = 6, --Min players needed for voting to be enabled.
+	VoteTimeout = 120, --How long after no votes before the vote should reset?
+}
+
+Plugin.CheckConfig = true
 
 function Plugin:Initialise()
 	self.Votes = {
@@ -45,60 +52,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		PercentNeeded = 0.75, --Percentage of the team needing to vote in order to surrender.
-		VoteDelay = 10, --Time after round start before surrender vote is available
-		MinPlayers = 6, --Min players needed for voting to be enabled.
-		VoteTimeout = 120, --How long after no votes before the vote should reset?
-	}
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing votesurrender config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine votesurrender config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing votesurrender config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine votesurrender config file updated." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
-
-	local Changed
-
-	if self.Config.VoteTimeout == nil then
-		self.Config.VoteTimeout = 120
-		Changed = true
-	end
-
-	if Changed then self:SaveConfig() end
 end
 
 --[[
@@ -188,6 +141,12 @@ function Plugin:Surrender( Team )
 	Server.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
 	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
+
+	self.Surrendered = true
+
+	Shine.Timer.Simple( 0, function()
+		self.Surrendered = false
+	end )
 end
 
 --[[
@@ -209,7 +168,9 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 
 	if not Success then return true end --We failed to add the vote, but we should still stop it going through NS2's system...
 
-	local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
+	if self.Surrendered then return true end --We've surrendered, no need to say another player's voted.
+
+	local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
 	
 	self:AnnounceVote( Player, Team, VotesNeeded )
 
@@ -234,8 +195,6 @@ function Plugin:AnnounceVote( Player, Team, VotesNeeded )
 end
 			
 function Plugin:CreateCommands()
-	local Commands = self.Commands
-
 	local function VoteSurrender( Client )
 		if not Client then return end
 
@@ -249,13 +208,13 @@ function Plugin:CreateCommands()
 
 			return
 		end
-
-		local Votes = self.Votes[ Team ]:GetVotes()
 		
 		local Success, Err = self:AddVote( Client, Team )
 
 		if Success then
-			local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
+			if self.Surrendered then return end
+
+			local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
 
 			return self:AnnounceVote( Player, Team, VotesNeeded )
 		end
@@ -266,16 +225,8 @@ function Plugin:CreateCommands()
 			Shine:NotifyError( Player, "You cannot start a surrender vote at this time." )
 		end
 	end
-	Commands.VoteSurrenderCommand = Shine:RegisterCommand( "sh_votesurrender", { "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )
-	Commands.VoteSurrenderCommand:Help( "Votes to surrender the round." )
-end
-
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
+	local VoteSurrenderCommand = self:BindCommand( "sh_votesurrender", { "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )
+	VoteSurrenderCommand:Help( "Votes to surrender the round." )
 end
 
 Shine:RegisterExtension( "votesurrender", Plugin )
