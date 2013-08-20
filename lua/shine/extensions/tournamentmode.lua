@@ -23,9 +23,10 @@ Plugin.DefaultConfig =
 Plugin.CheckConfig = true
 
 //saves Votes
-Plugin.Votes = {}
+Voted = {}
+Votes = 0
+Players = 0
 Warmup = false
-local Gamerules = GetGamerules()
 
 function Plugin:Initialise()
      self.Enabled = true 
@@ -38,6 +39,12 @@ function Plugin:Initialise()
         Plugin:StartWarmuptime()        
      end
      
+     //Get current playernumber
+     ocal allPlayers = Shared.GetEntitiesWithClassname("Player")
+     for index, fromPlayer in ientitylist(allPlayers) do
+        Players = Players + 1    
+     end
+     
      //loads Commands
      Plugin:CreateCommands()
      return true
@@ -46,7 +53,7 @@ end
 function Plugin:CheckGameStart( Gamerules )
     local playernumber =  #Shared.GetEntitiesWithClassname("Player")
     if self.Config.CaptainMode then playernumber = #self.Config.Captains end
-    if #Plugin.Votes >= playernumber or Warmup == true then return Gamerules:SetGameState(kGameState.NotStarted) end    
+    if Votes >= playernumber or Warmup == true then return Gamerules:SetGameState(kGameState.NotStarted) end    
     return false
 end
 
@@ -70,20 +77,19 @@ function Plugin:ClientConfirmConnect(Client)
 	Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
     if self.Config.ForceTeams then
         local id = Client:GetUserId()
-        if Plugin:TableFind(self.Config.Team1, id) then
+        if string.find(self.Config.Team1, id) then
             Gamerules:JoinTeam( Client:GetPlayer(), 1, nil, true )
-        elseif Plugin:TableFind(self.Config.Team2, id) then
+        elseif string.find(self.Config.Team2, id) then
             Gamerules:JoinTeam( Client:GetPlayer(), 2, nil, true )      
         end
     end
+    Players = Players + 1
 end
 
 //Player disconnects
 function Plugin:ClientDisconnect(Client)
-    local steamId = Client:GetUserId()
-    local find = Plugin:TableFind(Plugin.Votes,steamid)
-    if find == nil then return end
-    table.remove(Plugin.Votes, find)    
+    if Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= nil Votes = Votes -1 end
+    Players = Players - 1
 end
 
 //Block players from joining teams in captain mode
@@ -107,7 +113,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
         return end
     //check if player is Captain
     if self.Config.CaptainMode then        
-        if Plugin:TableFind(self.Config.Captains, client:GetUserId()) ~= nil then
+        if string.find(self.Config.Captains, client:GetUserId()) ~= nil then
             if NewTeam == 1 then
                 table.insert(self.Config.Team1, client:GetUserId())
                 self:SaveConfig()
@@ -119,12 +125,6 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
     return false
 end
 
-function Plugin:TableFind(table ,find)
-    for i=1, #table do
-        if table[i] == find then return i end
-    end
-    return nil
-end
 //Warmuptime functions
 function Plugin:StartWarmuptime()
     if Warmup == true then return end
@@ -156,10 +156,9 @@ function Plugin:CreateCommands()
     local Ready = self:BindCommand( "sh_ready", {"rdy","ready"},function(Client)
         if Warmup == true return end
         if self.Config.CaptainMode then
-            if Plugin:TableFind(self.Config.Captains,Client:GetUserId()) == nil then return end
+            if string.find(self.Config.Captains, Client:GetUserId()) == nil then return end
         end
-        if Plugin:TableFind(Plugin.Votes, Client:GetUserId()) ~= nil then return end
-        table.insert(Plugin.Votes, Client:GetUserId()
+        if not Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= true Votes = Votes + 1 end
     end, true)
     Ready:Help ("Make yourself ready to start the game")
     
@@ -174,7 +173,7 @@ function Plugin:CreateCommands()
     EndWarmup:Help ("Ends Warmup time")
     
     local Choose = self:BindCommand( "sh_choose","choose" ,function(Client, player)
-        if self.Config.Captainmode and Plugin:TableFind(self.Config.Captains, Client:GetUserId()) ~= nil then
+        if self.Config.Captainmode and string.find(self.Config.Captains, Client:GetUserId()) ~= nil then
             local Player = player:GetPlayer()
             Gamerules:JoinTeam( Player, Client:GetPlayer():GetTeam():GetTeamNumber(), nil, true )
         end
