@@ -15,8 +15,7 @@ Plugin.DefaultConfig =
     CaptainMode= false, //Use Captain Mode
     Captains = {"90000001" , "123456789"}, // Captains ns2ids
     Warmup = false, //Warmup enabled?
-    Warmuptime = 5, //Warmup time in min
-    MsgDelay = 5, // Delay in secounds before plugin shows infomessage after connect
+    Warmuptime = 5, //Warmup time in min    
     ForceTeams = false, //force teams to stay the same
     Team1 = {},
     Team2 = {},
@@ -67,10 +66,8 @@ end
 
 //Player connects
 function Plugin:ClientConfirmConnect(Client)
-    if Client:GetIsVirtual() then return end
-    Shine.Timer.Simple( self.Config.MsgDelay, function()
-	    Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
-    end )
+    if Client:GetIsVirtual() then return end   
+	Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
     if self.Config.ForceTeams then
         local id = Client:GetUserId()
         if Plugin:TableFind(self.Config.Team1, id) then
