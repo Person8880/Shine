@@ -7,9 +7,14 @@
 local include = Script.Load
 local next = next
 local pairs = pairs
+local Notify = Shared.Message
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+
+local function Print( ... )
+	return Notify( StringFormat( ... ) )
+end
 
 local Hook = Shine.Hook
 
@@ -125,8 +130,9 @@ if Server then
 	]]
 	function PluginMeta:Cleanup()
 		if self.Commands then
-			for _, Command in pairs( self.Commands ) do
+			for k, Command in pairs( self.Commands ) do
 				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
+				self.Commands[ k ] = nil
 			end
 		end
 	end
@@ -143,8 +149,9 @@ elseif Client then
 
 	function PluginMeta:Cleanup()
 		if self.Commands then
-			for _, Command in pairs( self.Commands ) do
+			for k, Command in pairs( self.Commands ) do
 				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
+				self.Commands[ k ] = nil
 			end
 		end
 	end
