@@ -1154,8 +1154,6 @@ function Plugin:StartVote( NextMap, Force )
 end
 
 function Plugin:CreateCommands()
-	local Commands = self.Commands
-
 	local function Nominate( Client, Map )
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
@@ -1218,9 +1216,9 @@ function Plugin:CreateCommands()
 
 		self:Notify( nil, "%s nominated %s for a map vote.", true, PlayerName, Map )
 	end
-	Commands.NominateCommand = Shine:RegisterCommand( "sh_nominate", "nominate", Nominate, true )
-	Commands.NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate." }
-	Commands.NominateCommand:Help( "<mapname> Nominates a map for the next map vote." )
+	local NominateCommand = self:BindCommand( "sh_nominate", "nominate", Nominate, true )
+	NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate." }
+	NominateCommand:Help( "<mapname> Nominates a map for the next map vote." )
 
 	local function VoteToChange( Client )
 		local Player = Client and Client:GetControllingPlayer()
@@ -1246,11 +1244,11 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local TotalVotes = self.StartingVote:GetVotes()
-
 		local Success, Err = self:AddStartVote( Client )
 		if Success then
-			local VotesNeeded = Max( self:GetVotesNeededToStart() - TotalVotes - 1, 0 )
+			if Shine.Timer.Exists( self.VoteTimer ) then return end
+			
+			local VotesNeeded = self.StartingVote:GetVotesNeeded()
 
 			self:Notify( nil, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded )
 
@@ -1263,8 +1261,8 @@ function Plugin:CreateCommands()
 			Notify( Err )
 		end
 	end
-	Commands.StartVoteCommand = Shine:RegisterCommand( "sh_votemap", { "rtv", "votemap", "mapvote" }, VoteToChange, true )
-	Commands.StartVoteCommand:Help( "Begin a vote to change the map." )
+	local StartVoteCommand = self:BindCommand( "sh_votemap", { "rtv", "votemap", "mapvote" }, VoteToChange, true )
+	StartVoteCommand:Help( "Begin a vote to change the map." )
 
 	local function Vote( Client, Map )
 		local Player = Client and Client:GetControllingPlayer()
@@ -1310,9 +1308,9 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.VoteCommand = Shine:RegisterCommand( "sh_vote", "vote", Vote, true )
-	Commands.VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for." }
-	Commands.VoteCommand:Help( "<mapname> Vote for a particular map in the active map vote." )
+	local VoteCommand = self:BindCommand( "sh_vote", "vote", Vote, true )
+	VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for." }
+	VoteCommand:Help( "<mapname> Vote for a particular map in the active map vote." )
 
 	local function ReVote( Client, Map )
 		local Player = Client and Client:GetControllingPlayer()
@@ -1350,9 +1348,9 @@ function Plugin:CreateCommands()
 			Notify( StringFormat( "%s is not a valid map choice.", Map ) )
 		end
 	end
-	Commands.ReVoteCommand = Shine:RegisterCommand( "sh_revote", "revote", ReVote, true )
-	Commands.ReVoteCommand:AddParam{ Type = "string", Error = "Please specify your new map choice." }
-	Commands.ReVoteCommand:Help( "<mapname> Change your vote to another map in the vote." )
+	local ReVoteCommand = self:BindCommand( "sh_revote", "revote", ReVote, true )
+	ReVoteCommand:AddParam{ Type = "string", Error = "Please specify your new map choice." }
+	ReVoteCommand:Help( "<mapname> Change your vote to another map in the vote." )
 
 	local function Veto( Client )
 		local Player = Client and Client:GetControllingPlayer()
@@ -1372,8 +1370,8 @@ function Plugin:CreateCommands()
 
 		self:Notify( nil, "%s cancelled the map change.", true, PlayerName )
 	end
-	Commands.VetoCommand = Shine:RegisterCommand( "sh_veto", "veto", Veto )
-	Commands.VetoCommand:Help( "Cancels a map change from a successful map vote." )
+	local VetoCommand = self:BindCommand( "sh_veto", "veto", Veto )
+	VetoCommand:Help( "Cancels a map change from a successful map vote." )
 
 	local function ForceVote( Client )
 		local Player = Client and Client:GetControllingPlayer()
@@ -1391,8 +1389,8 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.ForceVote = Shine:RegisterCommand( "sh_forcemapvote", "forcemapvote", ForceVote )
-	Commands.ForceVote:Help( "Forces a map vote to start, if possible." )
+	local ForceVoteCommand = self:BindCommand( "sh_forcemapvote", "forcemapvote", ForceVote )
+	ForceVoteCommand:Help( "Forces a map vote to start, if possible." )
 
 	local function TimeLeft( Client )
 		local Cycle = self.MapCycle
@@ -1447,8 +1445,8 @@ function Plugin:CreateCommands()
 			Notify( StringFormat( Message, string.TimeToString( TimeLeft ) ) )
 		end
 	end
-	Commands.TimeLeftCommand = Shine:RegisterCommand( "sh_timeleft", "timeleft", TimeLeft, true )
-	Commands.TimeLeftCommand:Help( "Displays the remaining time for the current map." )
+	local TimeLeftCommand = self:BindCommand( "sh_timeleft", "timeleft", TimeLeft, true )
+	TimeLeftCommand:Help( "Displays the remaining time for the current map." )
 
 	local function NextMap( Client )
 		local Map = self:GetNextMap() or "unknown"
@@ -1459,8 +1457,8 @@ function Plugin:CreateCommands()
 			Notify( StringFormat( "The next map is currently set to %s.", Map ) )
 		end
 	end
-	Commands.NextMapCommand = Shine:RegisterCommand( "sh_nextmap", "nextmap", NextMap, true )
-	Commands.NextMapCommand:Help( "Displays the next map in the cycle or the next map voted for." )
+	local NextMapCommand = self:BindCommand( "sh_nextmap", "nextmap", NextMap, true )
+	NextMapCommand:Help( "Displays the next map in the cycle or the next map voted for." )
 end
 
 function Plugin:Cleanup()
@@ -1475,9 +1473,7 @@ function Plugin:Cleanup()
 	Shine.Timer.Destroy( self.VoteTimer )
 	Shine.Timer.Destroy( self.NotifyTimer )
 
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
+	self.BaseClass.Cleanup( self )
 
 	self.Enabled = false
 end

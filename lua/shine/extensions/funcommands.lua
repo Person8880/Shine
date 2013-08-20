@@ -39,9 +39,6 @@ function Plugin:MovePlayerToPlayer( Player, TargetPlayer )
 end
 
 function Plugin:CreateCommands()
-	self.Commands = {}
-	local Commands = self.Commands
-
 	local function Slay( Client, Targets )
 		for i = 1, #Targets do
 			local Player = Targets[ i ]:GetControllingPlayer()
@@ -50,9 +47,9 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.SlayCommand = Shine:RegisterCommand( "sh_slay", "slay", Slay )
-	Commands.SlayCommand:AddParam{ Type = "clients" }
-	Commands.SlayCommand:Help( "<players> Slays the given player(s)." )
+	local SlayCommand = self:BindCommand( "sh_slay", "slay", Slay )
+	SlayCommand:AddParam{ Type = "clients" }
+	SlayCommand:Help( "<players> Slays the given player(s)." )
 
 	local function GoTo( Client, Target )
 		local TargetPlayer = Target:GetControllingPlayer()
@@ -62,9 +59,9 @@ function Plugin:CreateCommands()
 		
 		self:MovePlayerToPlayer( Player, TargetPlayer )
 	end
-	Commands.GoToCommand = Shine:RegisterCommand( "sh_goto", "goto", GoTo )
-	Commands.GoToCommand:AddParam{ Type = "client", NotSelf = true, IgnoreCanTarget = true }
-	Commands.GoToCommand:Help( "<player> Moves you to the given player." )
+	local GoToCommand = self:BindCommand( "sh_goto", "goto", GoTo )
+	GoToCommand:AddParam{ Type = "client", NotSelf = true, IgnoreCanTarget = true }
+	GoToCommand:Help( "<player> Moves you to the given player." )
 
 	local function Bring( Client, Target )
 		local TargetPlayer = Target:GetControllingPlayer()
@@ -74,9 +71,9 @@ function Plugin:CreateCommands()
 		
 		self:MovePlayerToPlayer( TargetPlayer, Player )
 	end
-	Commands.BringCommand = Shine:RegisterCommand( "sh_bring", "bring", Bring )
-	Commands.BringCommand:AddParam{ Type = "client", NotSelf = true }
-	Commands.BringCommand:Help( "<player> Moves the given player to your location." )
+	local BringCommand = self:BindCommand( "sh_bring", "bring", Bring )
+	BringCommand:AddParam{ Type = "client", NotSelf = true }
+	BringCommand:Help( "<player> Moves the given player to your location." )
 
 	local function DarwinMode( Client, Targets, Enable )
 		for i = 1, #Targets do
@@ -86,18 +83,10 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.DarwinModeCommand = Shine:RegisterCommand( "sh_darwin", { "god", "darwin" }, DarwinMode )
-	Commands.DarwinModeCommand:AddParam{ Type = "clients" }
-	Commands.DarwinModeCommand:AddParam{ Type = "boolean" }
-	Commands.DarwinModeCommand:Help( "<players> <true/false> Enables or disables Darwin mode on the given players (unlimited health and ammo)." )
-end
-
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
+	local DarwinModeCommand = self:BindCommand( "sh_darwin", { "god", "darwin" }, DarwinMode )
+	DarwinModeCommand:AddParam{ Type = "clients" }
+	DarwinModeCommand:AddParam{ Type = "boolean" }
+	DarwinModeCommand:Help( "<players> <true/false> Enables or disables Darwin mode on the given players (unlimited health and ammo)." )
 end
 
 Shine:RegisterExtension( "funcommands", Plugin )

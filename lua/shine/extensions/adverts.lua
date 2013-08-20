@@ -16,6 +16,14 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "Adverts.json"
 
+Plugin.DefaultConfig = {
+	Adverts = { 
+		{ Message = "Welcome to Natural Selection 2.", Type = "chat", R = 255, G = 255, B = 255 },
+		{ Message = "This server is running the Shine administration mod.", Type = "chat", R = 255, G = 255, B = 255 }
+	},
+	Interval = 60
+}
+
 Plugin.TimerName = "Adverts"
 
 function Plugin:Initialise()
@@ -24,52 +32,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		Adverts = { 
-			{ Message = "Welcome to Natural Selection 2.", Type = "chat", R = 255, G = 255, B = 255 },
-			{ Message = "This server is running the Shine administration mod.", Type = "chat", R = 255, G = 255, B = 255 }
-		},
-		Interval = 60
-	}
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing adverts config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine adverts config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing adverts config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine adverts config file saved." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
 end
 
 local function isstring( String )
@@ -112,13 +74,7 @@ function Plugin:ParseAdvert( ID, Advert )
 			local X, Y = 0.5, 0.2
 			local Align = 1
 
-			--[[if Position == "left" then
-				X, Y = 0.1, 0.5
-				Align = 0
-			elseif Position == "right" then
-				X, Y = 0.9, 0.5
-				Align = 2
-			else]]if Position == "bottom" then
+			if Position == "bottom" then
 				X, Y = 0.5, 0.8
 			end
 
