@@ -162,7 +162,7 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 
 	if not Success then return true end --We failed to add the vote, but we should still stop it going through NS2's system...
 
-	local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
+	local VotesNeeded = Max( self.Votes[ Team ]:GetVotesNeeded(), 0 )
 	
 	self:AnnounceVote( Player, Team, VotesNeeded )
 
