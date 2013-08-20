@@ -1028,7 +1028,7 @@ function Plugin:CreateCommands()
 		local Success, Err = self:AddVote( Client )	
 
 		if Success then
-			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )
+			local VotesNeeded = self.Vote:GetVotesNeeded()
 
 			if not self.RandomApplied then
 				self:Notify( nil, "%s voted to force %s teams (%s more votes needed).", 
