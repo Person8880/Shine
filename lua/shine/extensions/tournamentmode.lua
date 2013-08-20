@@ -182,8 +182,15 @@ function Plugin:CreateCommands()
             Gamerules:JoinTeam( Player, Client:GetPlayer():GetTeam():GetTeamNumber(), nil, true )
         end
     end,true)
-    Chosse:AddParam{ Type = "client"}
+    Chosse:AddParam{ Type = "client"}    
     Choose:Help ("Choose Player with the given name for you team ")
+    
+    local Clearteams = self:BindCommand( "sh_clearteams","clearteams" ,function()
+        self.Config.Team1 = {}
+        self.Config.Team2 = {}
+        self:SaveConfig()
+    end)
+    Choose:Clearteams ("Removes all players from teams in config ")
 end
 
 function Plugin:Cleanup()
