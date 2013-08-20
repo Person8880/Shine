@@ -1023,8 +1023,6 @@ function Plugin:CreateCommands()
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 
-		local Votes = self.Vote:GetVotes()
-
 		local Success, Err = self:AddVote( Client )	
 
 		if Success then

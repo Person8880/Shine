@@ -141,6 +141,12 @@ function Plugin:Surrender( Team )
 	Server.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
 	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
+
+	self.Surrendered = true
+
+	Shine.Timer.Simple( 0, function()
+		self.Surrendered = false
+	end )
 end
 
 --[[
@@ -161,6 +167,8 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	local Success, Err = self:AddVote( Client, Team )
 
 	if not Success then return true end --We failed to add the vote, but we should still stop it going through NS2's system...
+
+	if self.Surrendered then return true end --We've surrendered, no need to say another player's voted.
 
 	local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
 	
@@ -200,13 +208,13 @@ function Plugin:CreateCommands()
 
 			return
 		end
-
-		local Votes = self.Votes[ Team ]:GetVotes()
 		
 		local Success, Err = self:AddVote( Client, Team )
 
 		if Success then
-			local VotesNeeded = Max( self:GetVotesNeeded( Team ) - Votes - 1, 0 )
+			if self.Surrendered then return end
+
+			local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
 
 			return self:AnnounceVote( Player, Team, VotesNeeded )
 		end

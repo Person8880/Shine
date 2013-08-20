@@ -1244,10 +1244,10 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local TotalVotes = self.StartingVote:GetVotes()
-
 		local Success, Err = self:AddStartVote( Client )
 		if Success then
+			if Shine.Timer.Exists( self.VoteTimer ) then return end
+			
 			local VotesNeeded = self.StartingVote:GetVotesNeeded()
 
 			self:Notify( nil, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded )

@@ -192,6 +192,8 @@ function Plugin:AssignToTeam( Player )
 end
 
 function Plugin:ProcessClient( Client, Time )
+	if Client:GetIsVirtual() then return end
+	
 	local ReadyRoomTracker = self.ReadyRoomTracker
 	local BlockedClients = self.BlockedClients
 
