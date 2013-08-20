@@ -17,7 +17,7 @@ Plugin.DefaultConfig =
     Warmup = false, //Warmup enabled?
     Warmuptime = 5, //Warmup time in min
     MsgDelay = 5, // Delay in secounds before plugin shows infomessage after connect
-    Forceteams = false, //force teams to stay the same
+    ForceTeams = false, //force teams to stay the same
     Team1 = {},
     Team2 = {},
 }
