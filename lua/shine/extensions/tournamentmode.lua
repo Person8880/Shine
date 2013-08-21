@@ -53,7 +53,7 @@ end
 function Plugin:CheckGameStart( Gamerules )
     local playernumber = Players
     if self.Config.CaptainMode then playernumber = #self.Config.Captains end
-    if Votes >= playernumber or Warmup == true then return Gamerules:SetGameState(kGameState.NotStarted) end    
+    if Votes >= playernumber or Warmup == true then return Plugin:StartGame( Gamerules ) end    
     return false
 end
 
