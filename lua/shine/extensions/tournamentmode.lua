@@ -153,10 +153,10 @@ function Plugin:EndWarmuptime
        local allPlayers = Shared.GetEntitiesWithClassname("Player")
         for index, fromPlayer in ientitylist(allPlayers) do
             //move all player to rr
-            Gamerules:JoinTeam(fromPlayer,0,nil,true)
-            self.Config.Team1 = {}
-            self.Config.Team2 = {}   
-        end 
+            Gamerules:JoinTeam(fromPlayer,0,nil,true)              
+        end
+        self.Config.Team1 = {}
+        self.Config.Team2 = {}  
     end
     //enable ns2stats
    if Shine.Plugins.ns2stats.Enabled then
