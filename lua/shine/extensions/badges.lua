@@ -11,6 +11,10 @@ local function isstring( String )
 	return type( String ) == "string"
 end
 
+local function istable( Table )
+	return type( Table ) == "table"
+end
+
 function Plugin:Initialise()
 	if self.Enabled ~= nil then 
 		self.Enabled = true
@@ -67,6 +71,10 @@ function Plugin:Initialise()
 			if UserData then --Support defined badges in the Shine user config.
 				local User = UserData.Users[ tostring( SteamID ) ]
 				local GroupName = User and User.Group
+
+				if istable( GroupName ) then
+					GroupName = GroupName[ 1 ]
+				end
 
 				if GroupName then
 					local Group = UserData.Groups[ GroupName ]

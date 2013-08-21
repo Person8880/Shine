@@ -21,8 +21,6 @@ Plugin.DefaultConfig = {
 
 Plugin.CheckConfig = true
 
-Plugin.Commands = {}
-
 function Plugin:Initialise()
 	self.Users = {}
 
@@ -73,8 +71,6 @@ function Plugin:UnstickPlayer( Player, Pos )
 end
 
 function Plugin:CreateCommands()
-	local Commands = self.Commands
-
 	local function Unstick( Client )
 		if not Client then return end
 		local Player = Client:GetControllingPlayer()
@@ -108,16 +104,8 @@ function Plugin:CreateCommands()
 			self.Users[ Client ] = Time + self.Config.MinTime
 		end
 	end
-	Commands.UnstickCommand = Shine:RegisterCommand( "sh_unstuck", { "unstuck", "stuck" }, Unstick, true )
-	Commands.UnstickCommand:Help( "Attempts to free you from being trapped inside world geometry." )
-end
-
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
+	local UnstickCommand = self:BindCommand( "sh_unstuck", { "unstuck", "stuck" }, Unstick, true )
+	UnstickCommand:Help( "Attempts to free you from being trapped inside world geometry." )
 end
 
 Shine:RegisterExtension( "unstuck", Plugin )

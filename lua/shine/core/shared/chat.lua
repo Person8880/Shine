@@ -6,13 +6,13 @@ Shine = Shine or {}
 
 local StringFormat = string.format
 
-local StringMessage = StringFormat( "string (%d)", kMaxChatLength )
+local StringMessage = StringFormat( "string (%i)", kMaxChatLength )
 
 local ChatMessage = {
 	Prefix = "string (25)",
-	Name = "string (" .. kMaxNameLength .. ")",
-	TeamNumber = "integer (" .. kTeamInvalid .. " to " .. kSpectatorIndex .. ")",
-	TeamType = "integer (" .. kNeutralTeamType .. " to " .. kAlienTeamType .. ")",
+	Name = StringFormat( "string (%i)", kMaxNameLength ),
+	TeamNumber = StringFormat( "integer (%i to %i)", kTeamInvalid, kSpectatorIndex ),
+	TeamType = StringFormat( "integer (%i to %i)", kNeutralTeamType, kAlienTeamType ),
 	Message = StringMessage
 }
 
@@ -63,8 +63,77 @@ local function GetUpValue( Func, Name )
 	return nil
 end
 
+local function ToHex( Dec )
+	Dec = StringFormat( "%X", Dec )
+
+	if #Dec == 1 then
+		Dec = "0"..Dec
+	end
+
+	return Dec
+end
+
+local function RGBToHex( R, G, B )
+	R = ToHex( R )
+	G = ToHex( G )
+	B = ToHex( B )
+
+	return tonumber( StringFormat( "0x%s%s%s", R, G, B ) )
+end
+
+--[[
+	Adds a message to the chat.
+
+	Inputs:
+		RP, GP, BP - Colour of the prefix.
+		Prefix - Text to show before the message.
+		R, G, B - Message colour.
+		Message - Message text.
+]]
+function Shine.AddChatText( RP, GP, BP, Prefix, R, G, B, Message )
+	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" )
+
+	if not ChatMessages then
+		Shared.Message( "[Shine] Unable to retrieve message table!" )
+
+		return
+	end
+
+	local Player = Client.GetLocalPlayer()
+
+	if not Player then return end
+
+	local PreHex = RGBToHex( RP, GP, BP )
+
+	ChatMessages[ #ChatMessages + 1 ] = PreHex
+	ChatMessages[ #ChatMessages + 1 ] = Prefix
+
+	ChatMessages[ #ChatMessages + 1 ] = Color( R, G, B, 1 )
+	ChatMessages[ #ChatMessages + 1 ] = Message
+
+	ChatMessages[ #ChatMessages + 1 ] = ""
+	ChatMessages[ #ChatMessages + 1 ] = 0
+	ChatMessages[ #ChatMessages + 1 ] = 0
+	ChatMessages[ #ChatMessages + 1 ] = 0
+
+	Shared.PlaySound( nil, Player:GetChatSound() )
+end
+
+--Displays a coloured message.
+Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
+	local R = Message.R / 255
+	local G = Message.G / 255
+	local B = Message.B / 255
+
+	local String = Message.Message
+	local Prefix = Message.Prefix
+
+	Shine.AddChatText( Message.RP, Message.GP, Message.BP, Prefix, R, G, B, String )
+end )
+
+--Deprecated chat message. Only useful for PMs/Admin say messages.
 Client.HookNetworkMessage( "Shine_Chat", function( Message )
-	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" ) --This grabs the chatMessages table from lua/Chat.lua
+	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" )
 
 	if not ChatMessages then
 		Shared.Message( "[Shine] Unable to retrieve message table!" )
@@ -82,7 +151,8 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 
 	if Message.Prefix == "" and Message.Name == "" then --This shows just the message, no name, no prefix.
 		--[[
-			For some reason, blank messages cause it not to take up a line. i.e, sending 3 messages in a row of this form would render over each other.
+			For some reason, blank messages cause it not to take up a line. 
+			i.e, sending 3 messages in a row of this form would render over each other.
 			Hence the hacky part where I set the message to a load of spaces.
 		]]
 		ChatMessages[ #ChatMessages + 1 ] = Message.Message
@@ -105,7 +175,7 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 	ChatMessages[ #ChatMessages + 1 ] = 0
 	ChatMessages[ #ChatMessages + 1 ] = 0
 
-	Shared.PlaySound( self, Player:GetChatSound() )
+	Shared.PlaySound( nil, Player:GetChatSound() )
 
 	if not Client.GetIsRunningServer() then
 		if not Notify then
@@ -114,58 +184,4 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 			Shared.Message( Message.Message )
 		end
 	end
-end )
-
-local function ToHex( Dec )
-	Dec = StringFormat( "%X", Dec )
-
-	if #Dec == 1 then
-		Dec = "0"..Dec
-	end
-
-	return Dec
-end
-
-local function RGBToHex( R, G, B )
-	R = ToHex( R )
-	G = ToHex( G )
-	B = ToHex( B )
-
-	return tonumber( StringFormat( "0x%s%s%s", R, G, B ) )
-end
-
---Displays a coloured message.
-Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
-	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" )
-
-	if not ChatMessages then
-		Shared.Message( "[Shine] Unable to retrieve message table!" )
-		return
-	end
-
-	local Player = Client.GetLocalPlayer()
-
-	if not Player then return end
-
-	local R = Message.R / 255
-	local G = Message.G / 255
-	local B = Message.B / 255
-
-	local String = Message.Message
-
-	local PreHex = RGBToHex( Message.RP, Message.GP, Message.BP )
-	local Prefix = Message.Prefix
-
-	ChatMessages[ #ChatMessages + 1 ] = PreHex
-	ChatMessages[ #ChatMessages + 1 ] = Prefix
-
-	ChatMessages[ #ChatMessages + 1 ] = Color( R, G, B, 1 )
-	ChatMessages[ #ChatMessages + 1 ] = String
-
-	ChatMessages[ #ChatMessages + 1 ] = ""
-	ChatMessages[ #ChatMessages + 1 ] = 0
-	ChatMessages[ #ChatMessages + 1 ] = 0
-	ChatMessages[ #ChatMessages + 1 ] = 0
-
-	Shared.PlaySound( self, Player:GetChatSound() )
 end )

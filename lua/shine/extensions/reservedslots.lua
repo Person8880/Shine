@@ -89,13 +89,6 @@ end
 	suddenly connecting.
 ]]
 function Plugin:CheckRedirects( Client )
-	Timer.Simple( 5, function()
-		if not Shine:IsValidClient( Client ) then return end
-		
-		Shine:NotifyColour( Client, 255, 255, 0, "This server is full, checking our other servers for slots." )
-		Shine:NotifyColour( Client, 255, 255, 0, "You will be redirected if a server with slots is found." )
-	end )
-
 	local Redirects = self.Config.Redirect
 
 	local DataTable = {}
@@ -197,6 +190,8 @@ local OnReservedConnect = {
 		
 		local Redirect = self.Config.Redirect
 
+		Client.Redirecting = true
+
 		if Redirect[ 1 ] then
 			self:CheckRedirects( Client )
 
@@ -222,13 +217,9 @@ local OnReservedConnect = {
 		if Connected <= MaxPublic then return end
 		if Shine:HasAccess( Client, "sh_reservedslot" ) then return end
 
+		Client.Kicking = true
+
 		--Enforce the slots, kick out anyone without the proper access that got in somehow.
-		Timer.Simple( 5, function()
-			if not Shine:IsValidClient( Client ) then return end
-
-			Shine:NotifyColour( Client, 255, 50, 0, "The slot you have joined is reserved." )
-		end )
-
 		Timer.Simple( 15, function()
 			if not Shine:IsValidClient( Client ) then return end
 			
@@ -258,6 +249,24 @@ local OnReservedDisconnect = {
 		self:LockServer( true )
 	end
 }
+
+--[[
+	Ensure the relevant messages are displayed to the client.
+]]
+function Plugin:ClientConfirmConnect( Client )
+	local Mode = self.Config.Mode
+
+	if Mode == self.MODE_REDIRECT then
+		if not Client.Redirecting then return end
+
+		Shine:NotifyColour( Client, 255, 255, 0, "This server is full, checking our other servers for slots." )
+		Shine:NotifyColour( Client, 255, 255, 0, "You will be redirected if a server with slots is found." )
+	elseif Mode == self.MODE_PASSWORD_ENFORCED then
+		if not Client.Kicking then return end
+		
+		Shine:NotifyColour( Client, 255, 50, 0, "The slot you have joined is reserved." )
+	end
+end
 
 function Plugin:ClientConnect( Client )
 	local MaxPlayers = Server.GetMaxPlayers()

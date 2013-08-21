@@ -5,7 +5,7 @@
 local Shine = Shine
 
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
+
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
@@ -17,17 +17,40 @@ Plugin.Version = "1.5"
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
 
+Plugin.DefaultConfig = {
+	PreGameTime = 45,
+	CountdownTime = 15,
+	ShowCountdown = true,
+	RequireComs = 1,
+	AbortIfNoCom = false
+}
+
+Plugin.CheckConfig = true
+
 Plugin.FiveSecTimer = "PreGameFiveSeconds"
 Plugin.CountdownTimer = "PreGameCountdown"
+
+local BlacklistMods = {
+	[ "5f35045" ] = "Combat",
+	[ "7e64c1a" ] = "Xenoswarm",
+	[ "7957667" ] = "Marine vs Marine",
+	[ "6ed01f8" ] = "The Faded"
+}
 
 function Plugin:Initialise()
 	local GetMod = Server.GetActiveModId
 
 	for i = 1, Server.GetNumActiveMods() do
-		local Mod = GetMod( i )
+		local Mod = GetMod( i ):lower()
 
-		if Mod == "5f35045" then return false, "Pregame plugin does not work with combat." end
+		local OnBlacklist = BlacklistMods[ Mod ]
+
+		if OnBlacklist then
+			return false, StringFormat( "Pregame plugin does not work with %s.", OnBlacklist )
+		end
 	end
+
+	self.Config.RequireComs = Clamp( Floor( self.Config.RequireComs ), 0, 2 )
 
 	self.CountStart = nil
 	self.CountEnd = nil
@@ -37,73 +60,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		PreGameTime = 45,
-		CountdownTime = 15,
-		ShowCountdown = true,
-		RequireComs = 1,
-		AbortIfNoCom = false
-	}
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing pregame config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine pregame config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing pregame config file: "..Err )
-
-		return	
-	end
-
-	Notify( "Shine pregame config file updated." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
-
-	local Changed
-
-	if self.Config.RequireComs == nil then
-		self.Config.RequireComs = 1
-		Changed = true
-	end
-
-	if self.Config.CountdownTime == nil then
-		self.Config.CountdownTime = 15
-		Changed = true
-	end
-
-	if self.Config.AbortIfNoCom == nil then
-		self.Config.AbortIfNoCom = false
-		Changed = true
-	end
-
-	if Changed then self:SaveConfig() end
-
-	self.Config.RequireComs = Clamp( Floor( self.Config.RequireComs ), 0, 2 )
 end
 
 function Plugin:StartCountdown()
