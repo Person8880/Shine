@@ -3,8 +3,10 @@
 ]]
 
 local assert = assert
+local FixArray = table.FixArray
 local Round = math.Round
 local StringExplode = string.Explode
+local StringFormat = string.format
 local TableConcat = table.concat
 local TableRemove = table.remove
 local TableSort = table.sort
@@ -342,7 +344,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	if not Command then return end
 
 	if not self:GetPermission( Client, ConCommand ) then 
-		self:Notify( Client:GetControllingPlayer(), "Error", self.Config.ChatName, "You do not have permission to use %s.", true, ConCommand )
+		self:NotifyError( Client, "You do not have permission to use %s.", true, ConCommand )
+
 		return 
 	end
 
@@ -363,14 +366,11 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
 			if CurArg.Type:find( "client" ) then --No client means no match.
-				self:Notify( Player, "Error", self.Config.ChatName, 
-					"No matching %s found.", true, 
-					CurArg.Type == "client" and "player was" or "players were" 
-				)
+				self:NotifyError( Client, "No matching %s found.", true, 
+					CurArg.Type == "client" and "player was" or "players were" )
 			else
-				self:Notify( Player, "Error", self.Config.ChatName, 
-					CurArg.Error or "Incorrect argument #%s to %s, expected %s.", true, i, ConCommand, CurArg.Type 
-				)
+				self:NotifyError( Client, CurArg.Error or "Incorrect argument #%i to %s, expected %s.", 
+					true, i, ConCommand, CurArg.Type )
 			end
 
 			return
@@ -380,17 +380,18 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		if CurArg.Type == "string" and CurArg.TakeRestOfLine then
 			if i == ExpectedCount then
 				local Rest = TableConcat( Args, " ", i + 1 )
+
 				if Rest ~= "" then
-					ParsedArgs[ i ] = ParsedArgs[ i ].." "..Rest
+					ParsedArgs[ i ] = StringFormat( "%s %s", ParsedArgs[ i ], Rest )
 				end
+
 				if CurArg.MaxLength then
 					ParsedArgs[ i ] = ParsedArgs[ i ]:sub( 1, CurArg.MaxLength )
 				end
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:Notify( Player, "Error", self.Config.ChatName, 
-					"The author of this command misconfigured it. If you know them, tell them!" 
-				)
+				self:NotifyError( Client, "The author of this command misconfigured it. If you know them, tell them!" )
+
 				return
 			end
 		end
@@ -398,12 +399,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target the return client.
 		if CurArg.Type == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:Notify( Player, "Error", 
-					self.Config.ChatName, 
-					"You do not have permission to target %s.", 
-					true, 
-					ParsedArgs[ i ]:GetControllingPlayer():GetName() 
-				)
+				self:NotifyError( Client, "You do not have permission to target %s.", 
+					true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
 
 				return
 			end
@@ -412,9 +409,11 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target every returned client.
 		if CurArg.Type == "clients" and not CurArg.IgnoreCanTarget then
 			local ParsedArg = ParsedArgs[ i ]
+
 			if ParsedArg then
 				if #ParsedArg == 0 then
-					self:Notify( Player, "Error", self.Config.ChatName, "No matching players found." )
+					self:NotifyError( Client, "No matching players found." )
+
 					return
 				end
 
@@ -424,17 +423,12 @@ function Shine:RunCommand( Client, ConCommand, ... )
 					end
 				end
 
-				TableSort( ParsedArg, function( A, B )
-					if not A then return false end
-					if not B then return true end
-					if A:GetUserId() > B:GetUserId() then return true end
-					return false
-				end )
+				--Fix up any holes in our array.
+				FixArray( ParsedArg )
 
 				if #ParsedArg == 0 then
-					self:Notify( Player, "Error", self.Config.ChatName, 
-						"You do not have permission to target anyone you specified." 
-					)
+					self:NotifyError( Player, "You do not have permission to target anyone you specified." )
+
 					return
 				end
 			end
@@ -448,8 +442,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		Client and Client:GetControllingPlayer():GetName() or "Console", 
 		Client and Client:GetUserId() or "N/A", 
 		ConCommand, 
-		Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." 
-	)
+		Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
 
 	--Run the command with the parsed arguments we've gathered.
 	Command.Func( Client, unpack( ParsedArgs ) )
