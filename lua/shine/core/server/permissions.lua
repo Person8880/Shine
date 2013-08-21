@@ -56,9 +56,7 @@ function Shine:RequestUsers( Reload )
 
 		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 
-		if Reload then
-			Shine.Hook.Call( "OnUserReload" )
-		end
+		Shine.Hook.Call( "OnUserReload" )
 	end )
 end
 
