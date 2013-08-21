@@ -40,7 +40,7 @@ function Plugin:Initialise()
      end
      
      //Get current playernumber
-     ocal allPlayers = Shared.GetEntitiesWithClassname("Player")
+     local allPlayers = Shared.GetEntitiesWithClassname("Player")
      for index, fromPlayer in ientitylist(allPlayers) do
         Players = Players + 1    
      end
@@ -51,7 +51,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:CheckGameStart( Gamerules )
-    local playernumber =  #Shared.GetEntitiesWithClassname("Player")
+    local playernumber = Players
     if self.Config.CaptainMode then playernumber = #self.Config.Captains end
     if Votes >= playernumber or Warmup == true then return Gamerules:SetGameState(kGameState.NotStarted) end    
     return false
@@ -132,8 +132,10 @@ function Plugin:StartWarmuptime()
     Shine.Timer.Simple( self.Config.MsgDelay, function()
 	    Shine:Notify( nil, "", "", "Warmup Time started. You can't use !rdy will its not over")
     end )
-    //disable ns2stats todo find better way
-    Shared.ConsoleCommand("sh_unloadplugin ns2stats") 
+    //disable ns2stats
+    if Shine.Plugins.ns2stats.Enabled then
+      Shine.Plugins.ns2stats.Config.Statsonline = false
+    end
     //end Warmup after set min in config
     Shine.Timer.Create( "Warmuptimer", self.Config.Warmuptime*60, self.Config.Warmuptime*60+1, function()
        Plugin:EndWarmuptime()
@@ -147,8 +149,20 @@ function Plugin:EndWarmuptime
     Shine.Timer.Simple( self.Config.MsgDelay, function()
 	    Shine:Notify( nil, "", "", "Warmup Time is over. Join teams and type !rdy to start the game")
     end )
-   //enable NS2stats
-   Shared.ConsoleCommand("sh_loadplugin ns2stats") 
+    if self.Config.CaptainMode then
+       local allPlayers = Shared.GetEntitiesWithClassname("Player")
+        for index, fromPlayer in ientitylist(allPlayers) do
+            //move all player to rr
+            Gamerules:JoinTeam(fromPlayer,0,nil,true)
+            self.Config.Team1 = {}
+            self.Config.Team2 = {}   
+        end 
+    end
+    //enable ns2stats
+   if Shine.Plugins.ns2stats.Enabled then
+      Shine.Plugins.ns2stats.Config.Statsonline = true
+   end
+   Gamerules:Reset()  
 end
 
 // commands
