@@ -25,30 +25,6 @@ function Plugin:Initialise()
 	end
 	
 	Shine.Hook.Add( "Think", "ReplaceBadges", function( Deltatime )
-		if not BadgeMixin then
-			Shared.Message( "[Shine] BadgeMixin doesn't exist!" )
-
-			Shine.Hook.Remove( "Think", "ReplaceBadges" )
-
-			return
-		end
-
-		if not kBadges then
-			Shared.Message( "[Shine] Badge enum doesn't exist!" )
-
-			Shine.Hook.Remove( "Think", "ReplaceBadges" )
-
-			return
-		end
-
-		if not GiveBadge then
-			Shared.Message( "[Shine] GiveBadge function doesn't exist!" )
-
-			Shine.Hook.Remove( "Think", "ReplaceBadges" )
-
-			return
-		end
-
 		self:Setup()
 
 		Shine.Hook.Remove( "Think", "ReplaceBadges" )
