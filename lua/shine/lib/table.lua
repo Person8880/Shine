@@ -8,35 +8,6 @@ local StringRep = string.rep
 local TableSort = table.sort
 
 --[[
-	Converts an array to a lookup table.
-]]
-function table.ArrayToTable( Table )
-	for i = 1, #Table do
-		Table[ Table[ i ] ] = true
-		Table[ i ] = nil
-	end
-end
-
---[[
-	Converts a lookup table to an array.
-]]
-function table.TableToArray( Table )
-	local Count = 0
-
-	local Array = {}
-
-	for Key, Value in pairs( Table ) do
-		Count = Count + 1
-		Array[ Count ] = Key
-		Table[ Key ] = nil
-	end
-
-	for i = 1, Count do
-		Table[ i ] = Array[ i ]
-	end
-end
-
---[[
 	Clears a table.
 ]]
 local function TableEmpty( Table )

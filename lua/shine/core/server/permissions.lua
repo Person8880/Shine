@@ -8,21 +8,11 @@ local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
 
 local TableContains = table.contains
-local TableCopy = table.Copy
-local ArrayToTable = table.ArrayToTable
-local TableToArray = table.TableToArray
-
-local next = next
-local pairs = pairs
-local type = type
 
 local UserPath = "config://shine\\UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 
---[[
-	Gets users from the URL set in the base config.
-]]
 function Shine:RequestUsers( Reload )
 	Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
 		if not Response and not Reload then
@@ -127,15 +117,7 @@ local JSONSettings = {
 	Saves the Shine user data to the JSON file.
 ]]
 function Shine:SaveUsers( Silent )
-	--Deep copy the user data for saving.
-	local UserData = TableCopy( self.UserData )
-
-	--Convert the lookup table commands back to array for storage.
-	for Name, Group in pairs( UserData.Groups ) do
-		TableToArray( Group.Commands )
-	end
-
-	local Data = Encode( UserData, JSONSettings )
+	local Data = Encode( self.UserData, JSONSettings )
 
 	local UserFile, Err = io.open( UserPath, "w+" )
 
@@ -164,8 +146,8 @@ function Shine:GenerateDefaultUsers( Save )
 	self.UserData = {
 		Groups = {
 			SuperAdmin = { IsBlacklist = true, Commands = {}, Immunity = 100 },
-			Admin = { IsBlacklist = false, Commands = { sh_kick = true, sh_ban = true }, Immunity = 50 },
-			Mod = { IsBlacklist = false, Commands = { sh_kick = true }, Immunity = 10 }
+			Admin = { IsBlacklist = false, Commands = { "sh_kick", "sh_ban" }, Immunity = 50 },
+			Mod = { IsBlacklist = false, Commands = { "sh_kick" }, Immunity = 10 }
 		},
 		Users = {
 			[ "90000000000001" ] = { Group = "Mod", Immunity = 2 }
@@ -253,11 +235,6 @@ function Shine:ConvertData( Data, DontSave )
 	if Edited and not DontSave then
 		self:SaveUsers()
 	end
-
-	--Convert the arrays of commands into lookup tables for faster checking.
-	for Name, Group in pairs( Data.Groups ) do
-		ArrayToTable( Group.Commands )
-	end
 end
 
 --[[
@@ -297,10 +274,6 @@ local function isnumber( Num )
 	return type( Num ) == "number"
 end
 
-local function istable( Table )
-	return type( Table ) == "table"
-end
-
 --[[
 	Gets the user data table for the given client/NS2ID.
 	Input: Client or NS2ID.
@@ -313,25 +286,6 @@ function Shine:GetUserData( Client )
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 
 	return self.UserData.Users[ tostring( ID ) ]
-end
-
---[[
-	Checks a group for access to the given command.
-]]
-local function CheckAccess( self, ID, UserGroup, ConCommand )
-	local GroupTable = self.UserData.Groups and self.UserData.Groups[ UserGroup ]
-		
-	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
-
-		return false
-	end
-
-	if GroupTable.IsBlacklist then
-		return not GroupTable.Commands[ ConCommand ]
-	end
-	
-	return GroupTable.Commands[ ConCommand ]
 end
 
 --[[
@@ -353,23 +307,19 @@ function Shine:GetPermission( Client, ConCommand )
 
 	if Command.NoPerm then return true end
 
-	local ID = Client:GetUserId()
 	local UserGroup = User.Group
+	local GroupTable = self.UserData.Groups and self.UserData.Groups[ UserGroup ]
+	
+	if not GroupTable then
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
+		return false
+	end
 
-	if not istable( UserGroup ) then
-		return CheckAccess( self, ID, UserGroup, ConCommand )
+	if GroupTable.IsBlacklist then
+		return not TableContains( GroupTable.Commands, ConCommand )
 	end
 	
-	--Check multiple groups.
-	for i = 1, #UserGroup do
-		local Group = UserGroup[ i ]
-
-		if CheckAccess( self, ID, Group, ConCommand ) then
-			return true
-		end
-	end
-
-	return false
+	return TableContains( GroupTable.Commands, ConCommand )
 end
 
 --[[
@@ -389,23 +339,19 @@ function Shine:HasAccess( Client, ConCommand )
 		return false
 	end
 
-	local ID = Client:GetUserId()
 	local UserGroup = User.Group
+	local GroupTable = self.UserData.Groups and self.UserData.Groups[ UserGroup ]
 
-	if not istable( UserGroup ) then
-		return CheckAccess( self, ID, UserGroup, ConCommand )
+	if not GroupTable then
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
+		return false
+	end
+
+	if GroupTable.IsBlacklist then
+		return not TableContains( GroupTable.Commands, ConCommand )
 	end
 	
-	--Check multiple groups.
-	for i = 1, #UserGroup do
-		local Group = UserGroup[ i ]
-
-		if CheckAccess( self, ID, Group, ConCommand ) then
-			return true
-		end
-	end
-
-	return false
+	return TableContains( GroupTable.Commands, ConCommand )
 end
 	
 
@@ -450,8 +396,8 @@ function Shine:CanTarget( Client, Target )
 		return true 
 	end
 
-	local Immunity = User.Immunity or Group.Immunity or 10 --Read from the user's immunity first, then the groups.
-	local TargetImmunity = TargetUser.Immunity or TargetGroup.Immunity or 10
+	local Immunity = User.Immunity or Group.Immunity --Read from the user's immunity first, then the groups.
+	local TargetImmunity = TargetUser.Immunity or TargetGroup.Immunity
 
 	if self.Config.EqualsCanTarget then
 		return Immunity >= TargetImmunity
@@ -485,13 +431,7 @@ function Shine:IsInGroup( Client, Group )
 	local User = UserData[ tostring( ID ) ]
 
 	if User then
-		local UserGroup = User.Group
-		
-		if istable( UserGroup ) then
-			return TableContains( UserGroup, Group )
-		end
-
-		return UserGroup == Group
+		return User.Group == Group
 	end
 	
 	return Group:lower() == "guest"
