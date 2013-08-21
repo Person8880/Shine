@@ -89,13 +89,15 @@ end
 	suddenly connecting.
 ]]
 function Plugin:CheckRedirects( Client )
+	local ID = Client:GetUserId()
 	local Redirects = self.Config.Redirect
 
 	local DataTable = {}
 
 	--Gives us 5 seconds to get the server data, as close as possible while leaving room for the HTTP request to be processed.
 	Timer.Simple( 20, function()
-		if not Shine:IsValidClient( Client ) then return end
+		local Client = Shine.GetClientByNS2ID( ID )
+		if not Client then return end
 		
 		for i = 1, #Redirects do
 			local Redirect = Redirects[ i ]
@@ -118,7 +120,8 @@ function Plugin:CheckRedirects( Client )
 
 	--5 seconds later, we gather our results and redirect or kick.
 	Timer.Simple( 25, function()
-		if not Shine:IsValidClient( Client ) then return end
+		local Client = Shine.GetClientByNS2ID( ID )
+		if not Client then return end
 
 		--We never got any useful data back, so just guess and send them to a random server.
 		if #DataTable == 0 then
@@ -168,7 +171,8 @@ function Plugin:CheckRedirects( Client )
 
 		--Sorry, but reserved slots are reserved.
 		Timer.Simple( 5, function()
-			if not Shine:IsValidClient( Client ) then return end
+			local Client = Shine.GetClientByNS2ID( ID )
+			if not Client then return end
 			
 			Server.DisconnectClient( Client )
 		end )
