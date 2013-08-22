@@ -37,7 +37,7 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 
 function Plugin:Initialise()
-	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, 2 )
+	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, 3 )
 
 	self.Enabled = true
 
