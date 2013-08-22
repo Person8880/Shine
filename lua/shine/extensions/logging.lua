@@ -5,7 +5,7 @@
 local StringFormat = string.format
 
 local Plugin = {}
-Plugin.Version = "1.0.1"
+Plugin.Version = "1.0.2"
 
 function Plugin:Initialise()
 	if not Shine.Config.EnableLogging then
@@ -187,6 +187,9 @@ function Plugin:OnConstructInit( Building )
 	local ID = Building:GetId()
 	local Name = Building:GetClassName()
 	local Team = Building:GetTeam()
+
+	--We really don't need to know about cysts...
+	if Name:lower() == "cyst" then return end
 
 	if not Team then return end
 
