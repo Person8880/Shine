@@ -162,6 +162,8 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 
 	local Team = Player:GetTeam():GetTeamNumber()
 
+	if not self.Votes[ Team ] then return true end
+
 	local Votes = self.Votes[ Team ]:GetVotes()
 	
 	local Success, Err = self:AddVote( Client, Team )
