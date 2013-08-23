@@ -284,7 +284,7 @@ function Plugin:ClientConnect( Client )
 
 	if Slots == 0 then return end
 
-	local Connected = TableCount( Shine.GameIDs )
+	local Connected = Server.GetNumPlayers()
 
 	local MaxPublic = MaxPlayers - Slots
 
@@ -299,7 +299,7 @@ function Plugin:ClientDisconnect( Client )
 	local ConnectedAdmins, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
 
 	local Slots = Max( self.Config.Slots - Count, 0 )
-	local Connected = TableCount( Shine.GameIDs )
+	local Connected = Server.GetNumPlayers()
 
 	local MaxPublic = MaxPlayers - Slots
 
