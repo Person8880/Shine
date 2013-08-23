@@ -37,7 +37,7 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 
 function Plugin:Initialise()
-	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, 2 )
+	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, 3 )
 
 	self.Enabled = true
 
@@ -54,6 +54,8 @@ end
 	Sends a client to the server specified by the ServerData table.
 ]]
 function Plugin:RedirectClient( Client, ServerData )
+	if Shine:HasAccess( Client, "sh_reservedslot" ) then return end
+	
 	local IP = ServerData.IP
 	local Port = ServerData.Port
 	local Password = ""
@@ -202,12 +204,15 @@ local OnReservedConnect = {
 			return
 		end
 
+		local ID = Client:GetUserId()
+
 		Shine:NotifyColour( Client, 255, 255, 0, "This server is full, you will be redirected to one of our other servers." )
 
 		Timer.Simple( 20, function()
-			if Shine:IsValidClient( Client ) then
-				self:RedirectClient( Client, Redirect )
-			end
+			local Client = Shine.GetClientByNS2ID( ID )
+			if not Client then return end
+			
+			self:RedirectClient( Client, Redirect )
 		end )
 	end,
 
@@ -281,7 +286,7 @@ function Plugin:ClientConnect( Client )
 
 	if Slots == 0 then return end
 
-	local Connected = TableCount( Shine.GameIDs )
+	local Connected = Server.GetNumPlayers()
 
 	local MaxPublic = MaxPlayers - Slots
 
@@ -296,7 +301,7 @@ function Plugin:ClientDisconnect( Client )
 	local ConnectedAdmins, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
 
 	local Slots = Max( self.Config.Slots - Count, 0 )
-	local Connected = TableCount( Shine.GameIDs )
+	local Connected = Server.GetNumPlayers()
 
 	local MaxPublic = MaxPlayers - Slots
 
