@@ -54,6 +54,8 @@ end
 	Sends a client to the server specified by the ServerData table.
 ]]
 function Plugin:RedirectClient( Client, ServerData )
+	if Shine:HasAccess( Client, "sh_reservedslot" ) then return end
+	
 	local IP = ServerData.IP
 	local Port = ServerData.Port
 	local Password = ""
