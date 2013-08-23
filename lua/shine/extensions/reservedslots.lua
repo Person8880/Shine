@@ -202,12 +202,15 @@ local OnReservedConnect = {
 			return
 		end
 
+		local ID = Client:GetUserId()
+
 		Shine:NotifyColour( Client, 255, 255, 0, "This server is full, you will be redirected to one of our other servers." )
 
 		Timer.Simple( 20, function()
-			if Shine:IsValidClient( Client ) then
-				self:RedirectClient( Client, Redirect )
-			end
+			local Client = Shine.GetClientByNS2ID( ID )
+			if not Client then return end
+			
+			self:RedirectClient( Client, Redirect )
 		end )
 	end,
 
