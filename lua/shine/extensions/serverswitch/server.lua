@@ -75,9 +75,6 @@ function Plugin:OnUserReload()
 end
 
 function Plugin:CreateCommands()
-	self.Commands = {}
-	local Commands = self.Commands
-
 	local function SwitchServer( Client, Num )
 		if not Client then return end
 		local Player = Client:GetControllingPlayer()
@@ -87,7 +84,7 @@ function Plugin:CreateCommands()
 		local ServerData = self.Config.Servers[ Num ]
 
 		if not ServerData then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "Invalid server number." )
+			Shine:NotifyError( Client, "Invalid server number." )
 			return
 		end
 
@@ -95,7 +92,7 @@ function Plugin:CreateCommands()
 			local UserTable = Shine:GetUserData( Client )
 
 			if not UserTable then
-				Shine:Notify( Player, "Error", Shine.Config.ChatName, "You are not allowed to switch to that server." )
+				Shine:NotifyError( Client, "You are not allowed to switch to that server." )
 
 				return
 			end
@@ -109,13 +106,13 @@ function Plugin:CreateCommands()
 			Password = " "..Password
 		end
 		
-		Server.SendNetworkMessage( Player, "Shine_Command", { 
+		Server.SendNetworkMessage( Client, "Shine_Command", { 
 			Command = StringFormat( "connect %s:%s%s", ServerData.IP, ServerData.Port, Password )
 		}, true )
 	end
-	Commands.SwitchServerCommand = Shine:RegisterCommand( "sh_switchserver", "server", SwitchServer, true )
-	Commands.SwitchServerCommand:AddParam{ Type = "number", Min = 1, Round = true, Error = "Please specify a server number to switch to." }
-	Commands.SwitchServerCommand:Help( "<number> Connects you to the given registered server." )
+	local SwitchServerCommand = self:BindCommand( "sh_switchserver", "server", SwitchServer, true )
+	SwitchServerCommand:AddParam{ Type = "number", Min = 1, Round = true, Error = "Please specify a server number to switch to." }
+	SwitchServerCommand:Help( "<number> Connects you to the given registered server." )
 
 	local function ListServers( Client )
 		local ServerData = self.Config.Servers
@@ -142,14 +139,6 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.ListServers = Shine:RegisterCommand( "sh_listservers", nil, ListServers, true )
-	Commands.ListServers:Help( "Lists all registered servers that you can connect to." )
-end
-
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
+	local ListServersCommand = self:BindCommand( "sh_listservers", nil, ListServers, true )
+	ListServersCommand:Help( "Lists all registered servers that you can connect to." )
 end
