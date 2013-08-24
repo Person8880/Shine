@@ -66,15 +66,17 @@ end
 
 //Player connects
 function Plugin:ClientConfirmConnect(Client)
-    if Client:GetIsVirtual() then return end   
-	Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
-    local id = Client:GetUserId()
+    if Client:GetIsVirtual() then return end 
+    local id = Client:GetUserId()  
+	if not self.Config.CaptainMode then Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
+	elseif self.Captains[id] == true then Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready.\n Chosse your teammates with !choose")
+    else Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Wait until a Teamcaptain picks you.") end
     if self.Config.ForceTeams then        
         if self.Config.Teams[id] then
             Gamerules:JoinTeam( Client:GetPlayer(), self.Config.Teams[id], nil, true )     
         end
     end
-    if self.Config.Captains[id] then CaptainsOnline = CaptainsOnline + 1 end
+    if self.Config.Captains[id] == true then CaptainsOnline = CaptainsOnline + 1 end
 end
 
 //Player disconnects
@@ -149,7 +151,7 @@ function Plugin:CreateCommands()
     local Ready = self:BindCommand( "sh_ready", {"rdy","ready"},function(Client)
         if Warmup == true return end
         if self.Config.CaptainMode then
-            if string.find(self.Config.Captains, Client:GetUserId()) == nil then return end
+            if not self.Config.Captains[Client:GetUserId()] then return end
         end
         if not Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= true Votes = Votes + 1 end
     end, true)
@@ -166,9 +168,11 @@ function Plugin:CreateCommands()
     EndWarmup:Help ("Ends Warmup time")
     
     local Choose = self:BindCommand( "sh_choose","choose" ,function(Client, player)
-        if self.Config.Captainmode and string.find(self.Config.Captains, Client:GetUserId()) ~= nil then
+        if self.Config.Captainmode and self.Config.Captains[Client:GetUserId()] == true then
             local Player = player:GetPlayer()
-            Gamerules:JoinTeam( Player, Client:GetPlayer():GetTeam():GetTeamNumber(), nil, true )
+            local playerTeam = Client:GetPlayer():GetTeam():GetTeamNumber()
+            if playerTeam ~= 0 then Shine:Notify( Client, "", "", "You can only choose players from the Ready Room") return end
+            Gamerules:JoinTeam( Player, playerTeam, nil, true )
         end
     end,true)
     Chosse:AddParam{ Type = "client"}    
