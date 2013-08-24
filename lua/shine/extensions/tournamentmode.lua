@@ -6,7 +6,7 @@ local Shine = Shine
 local Notify = Shared.Message
 
 local Plugin = {}
-Plugin.Version = "0.2"
+Plugin.Version = "0.3"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Tournament.json"
@@ -28,9 +28,7 @@ CaptainsOnline = 0
 Warmup = false
 
 function Plugin:Initialise()
-     self.Enabled = true 
-     
-     
+     self.Enabled = true    
      
      if self.Config.Warmup == true then
         Plugin:StartWarmuptime()        
