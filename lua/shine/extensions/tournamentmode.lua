@@ -21,21 +21,41 @@ Plugin.DefaultConfig =
 }
 Plugin.CheckConfig = true
 
+local BlacklistMods = {
+        [ "5f35045" ] = "Combat",
+        [ "7e64c1a" ] = "Xenoswarm",
+        [ "7957667" ] = "Marine vs Marine",
+        [ "6ed01f8" ] = "The Faded"
+}
+
 //saves Votes
-Voted = {}
-Votes = 0
-CaptainsOnline = 0
-Warmup = false
+local Voted = {}
+local Votes = 0
+local CaptainsOnline = 0
+local Warmup = false
 
 function Plugin:Initialise()
-     self.Enabled = true    
-     
+        
+    local GetMod = Server.GetActiveModId
+
+    for i = 1, Server.GetNumActiveMods() do
+        local Mod = GetMod( i ):lower()
+
+        local OnBlacklist = BlacklistMods[ Mod ]
+
+        if OnBlacklist then
+            return false, StringFormat( "The tournamentmode plugin does not work with %s.", OnBlacklist )
+        end
+    end
+
+    //start warmup
      if self.Config.Warmup == true then
         Plugin:StartWarmuptime()        
      end  
      
      //loads Commands
      Plugin:CreateCommands()
+     self.Enabled = true
      return true
 end
 
