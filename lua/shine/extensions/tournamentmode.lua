@@ -24,6 +24,7 @@ Plugin.CheckConfig = true
 //saves Votes
 Voted = {}
 Votes = 0
+CaptainsOnline = 0
 Warmup = false
 
 function Plugin:Initialise()
@@ -44,7 +45,7 @@ end
 
 function Plugin:CheckGameStart( Gamerules )
     local playernumber = Server.GetNumPlayers()
-    if self.Config.CaptainMode then playernumber = #self.Config.Captains end
+    if self.Config.CaptainMode then playernumber = CaptainsOnline end
     if Votes >= playernumber or Warmup then return Plugin:StartGame( Gamerules ) return end    
     return false
 end
@@ -67,12 +68,13 @@ end
 function Plugin:ClientConfirmConnect(Client)
     if Client:GetIsVirtual() then return end   
 	Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
-    if self.Config.ForceTeams then
-        local id = Client:GetUserId()
+    local id = Client:GetUserId()
+    if self.Config.ForceTeams then        
         if self.Config.Teams[id] then
             Gamerules:JoinTeam( Client:GetPlayer(), self.Config.Teams[id], nil, true )     
         end
     end
+    if self.Config.Captains[id] then CaptainsOnline = CaptainsOnline + 1 end
 end
 
 //Player disconnects
