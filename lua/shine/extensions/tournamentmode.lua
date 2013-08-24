@@ -13,19 +13,17 @@ Plugin.ConfigName = "Tournament.json"
 Plugin.DefaultConfig =
 {
     CaptainMode= false, //Use Captain Mode
-    Captains = {"90000001" , "123456789"}, // Captains ns2ids
+    Captains = {"90000001" = true , "123456789" = true}, // Captains ns2ids
     Warmup = false, //Warmup enabled?
     Warmuptime = 5, //Warmup time in min    
     ForceTeams = false, //force teams to stay the same
-    Team1 = {},
-    Team2 = {},
+    Teams = {},
 }
 Plugin.CheckConfig = true
 
 //saves Votes
 Voted = {}
 Votes = 0
-Players = 0
 Warmup = false
 
 function Plugin:Initialise()
@@ -37,13 +35,7 @@ function Plugin:Initialise()
      
      if self.Config.Warmup == true then
         Plugin:StartWarmuptime()        
-     end
-     
-     //Get current playernumber
-     local allPlayers = Shared.GetEntitiesWithClassname("Player")
-     for index, fromPlayer in ientitylist(allPlayers) do
-        Players = Players + 1    
-     end
+     end  
      
      //loads Commands
      Plugin:CreateCommands()
@@ -51,9 +43,9 @@ function Plugin:Initialise()
 end
 
 function Plugin:CheckGameStart( Gamerules )
-    local playernumber = Players
+    local playernumber = Server.GetNumPlayers()
     if self.Config.CaptainMode then playernumber = #self.Config.Captains end
-    if Votes >= playernumber or Warmup == true then return Plugin:StartGame( Gamerules ) return end    
+    if Votes >= playernumber or Warmup then return Plugin:StartGame( Gamerules ) return end    
     return false
 end
 
@@ -77,25 +69,20 @@ function Plugin:ClientConfirmConnect(Client)
 	Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
     if self.Config.ForceTeams then
         local id = Client:GetUserId()
-        if string.find(self.Config.Team1, id) then
-            Gamerules:JoinTeam( Client:GetPlayer(), 1, nil, true )
-        elseif string.find(self.Config.Team2, id) then
-            Gamerules:JoinTeam( Client:GetPlayer(), 2, nil, true )      
+        if self.Config.Teams[id] then
+            Gamerules:JoinTeam( Client:GetPlayer(), self.Config.Teams[id], nil, true )     
         end
     end
-    Players = Players + 1
 end
 
 //Player disconnects
 function Plugin:ClientDisconnect(Client)
-    if Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= nil Votes = Votes -1 end
-    Players = Players - 1
+    if Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= nil Votes = Votes -1 end   
 end
 
 //Block players from joining teams in captain mode
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
-    local client= Player:GetClient()
-    
+    local id= Player:GetClient():GetUserId()    
     //block f4 if forceteams is true
     if self.Config.ForceTeams then
         if NewTeam == kTeamReadyRoom then return false end 
@@ -103,24 +90,15 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
     
     //cases in which jointeam is not limited
     if not self.Config.CaptainMode or Warmup or ShineForce then
-        if NewTeam == 1 then
-            table.insert(self.Config.Team1, client:GetUserId())
-            self:SaveConfig()
-        elseif NewTeam == 2 then
-            table.insert(self.Config.Team2, client:GetUserId())
-            self:SaveConfig()
-        end
-        return end
+        self.Config.Teams[id] = NewTeam
+        self:SaveConfig()
+    return end
     //check if player is Captain
     if self.Config.CaptainMode then        
-        if string.find(self.Config.Captains, client:GetUserId()) ~= nil then
-            if NewTeam == 1 then
-                table.insert(self.Config.Team1, client:GetUserId())
-                self:SaveConfig()
-            elseif NewTeam == 2 then
-                table.insert(self.Config.Team2, client:GetUserId())
-                self:SaveConfig() 
-            return end
+        if self.Config.Captains[id] then
+            self.Config.Teams[id] = NewTeam
+            self:SaveConfig()            
+        return end
     end    
     return false
 end
@@ -155,8 +133,7 @@ function Plugin:EndWarmuptime
             //move all player to rr
             Gamerules:JoinTeam(fromPlayer,0,nil,true)              
         end
-        self.Config.Team1 = {}
-        self.Config.Team2 = {}  
+        self.Config.Teams = {}
     end
     //enable ns2stats
    if Shine.Plugins.ns2stats.Enabled then
@@ -196,9 +173,8 @@ function Plugin:CreateCommands()
     Choose:Help ("Choose Player with the given name for you team ")
     
     local Clearteams = self:BindCommand( "sh_clearteams","clearteams" ,function()
-        self.Config.Team1 = {}
-        self.Config.Team2 = {}
-        self:SaveConfig()
+        self.Config.Teams = {}
+        self:SaveConfig()        
     end)
     Clearteams:Help("Removes all players from teams in config ")
 end
