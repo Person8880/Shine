@@ -47,12 +47,7 @@ function Plugin:Initialise()
             return false, StringFormat( "The tournamentmode plugin does not work with %s.", OnBlacklist )
         end
     end
-
-    //start warmup
-     if self.Config.Warmup == true then
-        Plugin:StartWarmuptime()        
-     end  
-     
+    
      //loads Commands
      Plugin:CreateCommands()
      self.Enabled = true
@@ -91,8 +86,13 @@ function Plugin:ClientConfirmConnect(Client)
 
     //we have to use this way because shine is loaded to early
     if first then
-        //turn off autobalance
+    
+        //start warmup
+        if self.Config.Warmup == true then
+            Plugin:StartWarmuptime()        
+        end
         
+        //turn off autobalance        
         Server.SetConfigSetting("auto_team_balance", nil)
         Server.SetConfigSetting("end_round_on_team_unbalance",nil)
         first = false
@@ -142,7 +142,7 @@ end
 function Plugin:StartWarmuptime()
     if Warmup == true then return end
     Warmup = true    
-	Shine:Notify( nil, "", "", "Warmup Time started. You can't use !rdy will its not over")  
+	Shine:Notify( nil, "", "", "Warmup Time started. You can't use !rdy until its not over")  
     //disable ns2stats
     if Shine.Plugins.ns2stats.Enabled then
       Shine.Plugins.ns2stats.Config.Statsonline = false
