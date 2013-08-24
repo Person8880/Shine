@@ -110,10 +110,8 @@ end
 //Warmuptime functions
 function Plugin:StartWarmuptime()
     if Warmup == true then return end
-    Warmup = true
-    Shine.Timer.Simple( self.Config.MsgDelay, function()
-	    Shine:Notify( nil, "", "", "Warmup Time started. You can't use !rdy will its not over")
-    end )
+    Warmup = true    
+	Shine:Notify( nil, "", "", "Warmup Time started. You can't use !rdy will its not over")  
     //disable ns2stats
     if Shine.Plugins.ns2stats.Enabled then
       Shine.Plugins.ns2stats.Config.Statsonline = false
@@ -127,10 +125,8 @@ end
 
 function Plugin:EndWarmuptime
    if Warmup == false then return end
-   Warmup = false
-    Shine.Timer.Simple( self.Config.MsgDelay, function()
-	    Shine:Notify( nil, "", "", "Warmup Time is over. Join teams and type !rdy to start the game")
-    end )
+   Warmup = false  
+    Shine:Notify( nil, "", "", "Warmup Time is over. Join teams and type !rdy to start the game")
     if self.Config.CaptainMode then
        local allPlayers = Shared.GetEntitiesWithClassname("Player")
         for index, fromPlayer in ientitylist(allPlayers) do
