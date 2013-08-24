@@ -12,8 +12,8 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "Tournament.json"
 Plugin.DefaultConfig =
 {
-    CaptainMode= false, //Use Captain Mode
-    Captains = {"90000001" = true , "123456789" = true}, // Captains ns2ids
+    CaptainMode = false, //Use Captain Mode
+    Captains = {}, // Captains ns2ids
     Warmup = false, //Warmup enabled?
     Warmuptime = 5, //Warmup time in min    
     ForceTeams = false, //force teams to stay the same
@@ -30,9 +30,7 @@ Warmup = false
 function Plugin:Initialise()
      self.Enabled = true 
      
-     //turn off autobalance
-     Server.SetConfigSetting("auto_team_balance", nil)
-     Server.SetConfigSetting("end_round_on_team_unbalance",nil)
+     
      
      if self.Config.Warmup == true then
         Plugin:StartWarmuptime()        
@@ -44,11 +42,14 @@ function Plugin:Initialise()
 end
 
 function Plugin:CheckGameStart( Gamerules )
+    local State = Gamerules:GetGameState()
+	if State ~= kGameState.Started then return end
     local playernumber = Server.GetNumPlayers()
     if self.Config.CaptainMode then playernumber = CaptainsOnline end
-    if Votes >= playernumber or Warmup then return Plugin:StartGame( Gamerules ) return end    
+    if Votes >= playernumber or Warmup then Plugin:StartGame( Gamerules ) return end    
     return false
 end
+
 
 //Startgame
 function Plugin:StartGame( Gamerules )
@@ -64,8 +65,20 @@ function Plugin:StartGame( Gamerules )
     end
 end
 
+//value for first join
+local first = true
+
 //Player connects
 function Plugin:ClientConfirmConnect(Client)
+
+    //we have to use this way because shine is loaded to early
+    if first then
+        //turn off autobalance
+        
+        Server.SetConfigSetting("auto_team_balance", nil)
+        Server.SetConfigSetting("end_round_on_team_unbalance",nil)
+        first = false
+    end
     if Client:GetIsVirtual() then return end 
     local id = Client:GetUserId()  
 	if not self.Config.CaptainMode then Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
@@ -123,7 +136,7 @@ function Plugin:StartWarmuptime()
        
 end
 
-function Plugin:EndWarmuptime
+function Plugin:EndWarmuptime()
    if Warmup == false then return end
    Warmup = false  
     Shine:Notify( nil, "", "", "Warmup Time is over. Join teams and type !rdy to start the game")
@@ -145,7 +158,7 @@ end
 // commands
 function Plugin:CreateCommands()
     local Ready = self:BindCommand( "sh_ready", {"rdy","ready"},function(Client)
-        if Warmup == true return end
+        if Warmup == true then return end
         if self.Config.CaptainMode then
             if not self.Config.Captains[Client:GetUserId()] then return end
         end
@@ -171,7 +184,7 @@ function Plugin:CreateCommands()
             Gamerules:JoinTeam( Player, playerTeam, nil, true )
         end
     end,true)
-    Chosse:AddParam{ Type = "client"}    
+    Choose:AddParam{ Type = "client"}    
     Choose:Help ("Choose Player with the given name for you team ")
     
     local Clearteams = self:BindCommand( "sh_clearteams","clearteams" ,function()
@@ -188,4 +201,5 @@ function Plugin:Cleanup()
     Server.SetConfigSetting("end_round_on_team_unbalance",true)
     self.Enabled = false
 end
+
 Shine:RegisterExtension( "tournamentmode", Plugin )
