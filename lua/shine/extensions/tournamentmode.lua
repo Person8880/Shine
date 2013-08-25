@@ -213,7 +213,6 @@ function Plugin:CreateCommands()
 end
 
 function Plugin:Cleanup()
-    Shine.Timer.Destroy("Warmuptimer")
     //turn on balancemode
     Server.SetConfigSetting("auto_team_balance", true)
     Server.SetConfigSetting("end_round_on_team_unbalance",true)
