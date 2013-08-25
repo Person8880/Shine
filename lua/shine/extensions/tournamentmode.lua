@@ -148,7 +148,7 @@ function Plugin:StartWarmuptime()
       Shine.Plugins.ns2stats.Config.Statsonline = false
     end
     //end Warmup after set min in config
-    Shine.Timer.Create( "Warmuptimer", self.Config.Warmuptime*60, self.Config.Warmuptime*60+1, function()
+    Shine.Timer.Simple(self.Config.Warmuptime*60, function()
        Plugin:EndWarmuptime()
     end)
        
