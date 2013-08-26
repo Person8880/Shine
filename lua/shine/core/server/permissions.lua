@@ -262,6 +262,9 @@ Shine.GameIDs = GameIDs
 local GameID = 0
 
 Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
+	--I have a suspiscion that this event is being called again for a client that never disconnected.
+	if GameIDs[ Client ] then return true end
+	
 	GameID = GameID + 1
 	GameIDs[ Client ] = GameID
 end, -20 )
