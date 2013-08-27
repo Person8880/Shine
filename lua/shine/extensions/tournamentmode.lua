@@ -56,7 +56,7 @@ function Plugin:Initialise()
 end
 
 --[[
-	Blocks Gamestart if warup is false
+	Blocks Gamestart if warmup is false
 ]]
 function Plugin:CheckGameStart( Gamerules )
 	
