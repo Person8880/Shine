@@ -70,7 +70,7 @@ end
 --[[
 Checks if there are enought vote to start round
 ]]
-function Plugin:CheckVote( Gamerules )
+function Plugin:CheckVote()
 
     --get playernumber from server	
     local playernumber = Server.GetNumPlayers()
@@ -219,7 +219,7 @@ function Plugin:CreateCommands()
             if not self.Config.Captains[Client:GetUserId()] then return end
         end
         if not Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= true Votes = Votes + 1 end
-        Plugin:CkeckVotes( Gamerules )
+        Plugin:CkeckVotes()
     end, true)
     Ready:Help ("Make yourself ready to start the game")
     
