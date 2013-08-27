@@ -56,13 +56,22 @@ function Plugin:Initialise()
 end
 
 --[[
-Checks if there are enought vote at gamestart
+	Blocks Gamestart if warup is false
+]]
+function Plugin:CheckGameStart( Gamerules )
+	
+    --check if game would start normaly
+    local State = Gamerules:GetGameState()
+    
+    if State ~= kGameState.Started or Warmup then return end
+    return false 
+end
+
+--[[
+Checks if there are enought vote to start round
 ]]
 function Plugin:CheckVote( Gamerules )
-    --only check game if game would start
-    local State = Gamerules:GetGameState()
-	if State ~= kGameState.Started then return end
-    
+
     --get playernumber from server	
     local playernumber = Server.GetNumPlayers()
     
@@ -70,8 +79,8 @@ function Plugin:CheckVote( Gamerules )
     if self.Config.CaptainMode then playernumber = CaptainsOnline end
     
     
-    if Votes >= playernumber or Warmup then Plugin:StartGame( Gamerules ) return end    
-    return false
+    if Votes >= playernumber then Plugin:StartGame( Gamerules ) end   
+   
 end
 
 
