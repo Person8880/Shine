@@ -12,15 +12,17 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "Tournament.json"
 Plugin.DefaultConfig =
 {
-    CaptainMode = false, //Use Captain Mode
-    Captains = {}, // Captains ns2ids
-    Warmup = false, //Warmup enabled?
-    Warmuptime = 5, //Warmup time in min    
-    ForceTeams = false, //force teams to stay the same
+    CaptainMode = false, -- Use Captain Mode
+    Captains = {}, -- Captains ns2ids
+    Warmup = false, -- Warmup enabled?
+    Warmuptime = 5, --Warmup time in min    
+    ForceTeams = false, --force teams to stay the same
     Teams = {},
 }
+
 Plugin.CheckConfig = true
 
+--List of mods not compatible with tournament mode
 local BlacklistMods = {
         [ "5f35045" ] = "Combat",
         [ "7e64c1a" ] = "Xenoswarm",
@@ -35,7 +37,8 @@ local CaptainsOnline = 0
 local Warmup = false
 
 function Plugin:Initialise()
-        
+    --dont load with incompatibel mods
+    
     local GetMod = Server.GetActiveModId
 
     for i = 1, Server.GetNumActiveMods() do
@@ -48,23 +51,31 @@ function Plugin:Initialise()
         end
     end
     
-     //loads Commands
-     Plugin:CreateCommands()
      self.Enabled = true
      return true
 end
 
-function Plugin:CheckGameStart( Gamerules )
+--[[
+Checks if there are enought vote at gamestart
+]]
+function Plugin:CheckVote( Gamerules )
+    --only check game if game would start
     local State = Gamerules:GetGameState()
 	if State ~= kGameState.Started then return end
+    
+    --get playernumber from server	
     local playernumber = Server.GetNumPlayers()
+    
+    --if captainmode only active captains count
     if self.Config.CaptainMode then playernumber = CaptainsOnline end
+    
+    
     if Votes >= playernumber or Warmup then Plugin:StartGame( Gamerules ) return end    
     return false
 end
 
 
-//Startgame
+Startgame
 function Plugin:StartGame( Gamerules )
     Gamerules:ResetGame()
     Gamerules:SetGameState( kGameState.Countdown )
@@ -81,54 +92,70 @@ end
 //value for first join
 local first = true
 
-//Player connects
+--[[
+	if Player connects with first player joining after mapchange we start warmup, otherwise
+]]
 function Plugin:ClientConfirmConnect(Client)
 
-    //we have to use this way because shine is loaded to early
+    --we have to use this way because shine is loaded to early
     if first then
     
-        //start warmup
+        --start warmup
         if self.Config.Warmup == true then
             Plugin:StartWarmuptime()        
         end
         
-        //turn off autobalance        
+        --turn off autobalance        
         Server.SetConfigSetting("auto_team_balance", nil)
         Server.SetConfigSetting("end_round_on_team_unbalance",nil)
         first = false
     end
-    if Client:GetIsVirtual() then return end 
-    local id = Client:GetUserId()  
+    
+    if Client:GetIsVirtual() then return end
+    
+    --check which message should be shown to inform players
+    local id = Client:GetUserId()
 	if not self.Config.CaptainMode then Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready")
 	elseif self.Captains[id] == true then Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Type !rdy into chat when you are ready.\n Chosse your teammates with !choose")
-    else Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Wait until a Teamcaptain picks you.") end
+        else Shine:Notify( Client, "", "", "Tournamentmode is enabled!. Wait until a Teamcaptain picks you.") end
+
+    -- if player isalready in a team with forceteams enabled we put him back into choosen team
     if self.Config.ForceTeams then        
         if self.Config.Teams[id] then
             Gamerules:JoinTeam( Client:GetPlayer(), self.Config.Teams[id], nil, true )     
         end
     end
+    
+    -- if player is captain we add himto captainsonline
     if self.Config.Captains[id] == true then CaptainsOnline = CaptainsOnline + 1 end
+    
 end
 
-//Player disconnects
+--[[
+	When Player disconnects decrease votes by 1
+]]
 function Plugin:ClientDisconnect(Client)
     if Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= nil Votes = Votes -1 end   
 end
 
-//Block players from joining teams in captain mode
+--[[
+	Block players from joining teams in captain mode
+]]
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
-    local id= Player:GetClient():GetUserId()    
-    //block f4 if forceteams is true
+    local id= Player:GetClient():GetUserId()
+    
+    --block f4 if forceteams is true
     if self.Config.ForceTeams then
         if NewTeam == kTeamReadyRoom then return false end 
     end 
     
-    //cases in which jointeam is not limited
+    --cases in which jointeam is not limited
     if not self.Config.CaptainMode or Warmup or ShineForce then
         self.Config.Teams[id] = NewTeam
         self:SaveConfig()
     return end
-    //check if player is Captain
+    
+    --check if player is Captain
     if self.Config.CaptainMode then        
         if self.Config.Captains[id] then
             self.Config.Teams[id] = NewTeam
@@ -138,7 +165,8 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
     return false
 end
 
-//Warmuptime functions
+--Warmuptime functions
+
 function Plugin:StartWarmuptime()
     if Warmup == true then return end
     Warmup = true    
@@ -173,7 +201,8 @@ function Plugin:EndWarmuptime()
    Gamerules:Reset()  
 end
 
-// commands
+--Commands
+
 function Plugin:CreateCommands()
     local Ready = self:BindCommand( "sh_ready", {"rdy","ready"},function(Client)
         if Warmup == true then return end
@@ -181,6 +210,7 @@ function Plugin:CreateCommands()
             if not self.Config.Captains[Client:GetUserId()] then return end
         end
         if not Voted[Client:GetUserId()] then Voted[Client:GetUserId()]= true Votes = Votes + 1 end
+        Plugin:CkeckVotes( Gamerules )
     end, true)
     Ready:Help ("Make yourself ready to start the game")
     
@@ -213,9 +243,11 @@ function Plugin:CreateCommands()
 end
 
 function Plugin:Cleanup()
-    //turn on balancemode
+	
+    --turn on balancemode
     Server.SetConfigSetting("auto_team_balance", true)
     Server.SetConfigSetting("end_round_on_team_unbalance",true)
+    
     self.Enabled = false
 end
 
