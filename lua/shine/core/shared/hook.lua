@@ -466,6 +466,34 @@ local function ClientDisconnect( Client )
 end
 Event.Hook( "ClientDisconnect", ClientDisconnect )
 
+local OldEventHook = Event.Hook
+local OldReservedSlot
+
+local function CheckConnectionAllowed( ID )
+	local Result = Call( "CheckConnectionAllowed", ID )
+
+	if Result ~= nil then return Result end
+	
+	return OldReservedSlot( ID )
+end
+
+--[[
+	Detour the event hook function so we can override the result of
+	CheckConnectionAllowed. Otherwise it would return the default function's value
+	and never call our hook.
+]]
+function Event.Hook( Name, Func )
+	if Name ~= "CheckConnectionAllowed" then
+		return OldEventHook( Name, Func )
+	end
+	
+	OldReservedSlot = Func
+
+	Func = CheckConnectionAllowed
+
+	return OldEventHook( Name, Func )
+end
+
 local OldOnChatReceive
 
 local function OnChatReceived( Client, Message )
