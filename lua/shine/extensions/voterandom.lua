@@ -316,6 +316,36 @@ end
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
 local MaxELOSort = 8
 
+local function RandomiseSimilarSkill( Data, Count, Difference )
+	local LastSkill
+
+	--Swap those with a similar skill value randomly to make things different.
+	for i = 1, Count do
+		local Obj = Data[ i ]
+
+		if i == 1 then
+			LastSkill = Obj.Skill
+		else
+			local CurSkill = Obj.Skill
+
+			if LastSkill - CurSkill < Difference then
+				if Random() >= 0.5 then
+					local LastObj = Data[ i - 1 ]
+
+					Data[ i ] = LastObj
+					Data[ i - 1 ] = Obj
+
+					LastSkill = LastObj.Skill
+				else
+					LastSkill = CurSkill
+				end
+			else
+				LastSkill = CurSkill
+			end
+		end
+	end
+end
+
 Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --Random only.
 		local NumPlayers = #Targets
@@ -451,40 +481,14 @@ Plugin.ShufflingModes = {
 
 					if Data then
 						Count = Count + 1
-						ELOSort[ Count ] = { Player = Player, ELO = ( Data.AELO + Data.MELO ) * 0.5 }
+						ELOSort[ Count ] = { Player = Player, Skill = ( Data.AELO + Data.MELO ) * 0.5 }
 					end
 				end
 			end
 
-			TableSort( ELOSort, function( A, B ) return A.ELO > B.ELO end )
+			TableSort( ELOSort, function( A, B ) return A.Skill > B.Skill end )
 
-			local LastELO
-
-			for i = 1, Count do
-				local Obj = ELOSort[ i ]
-
-				if i == 1 then
-					LastELO = Obj.ELO
-				else
-					local CurELO = Obj.ELO
-
-					--Introduce some randomising for similar ELOs
-					if LastELO - CurELO < 20 then
-						if Random() >= 0.5 then
-							local LastObj = ELOSort[ i - 1 ]
-
-							ELOSort[ i ] = LastObj
-							ELOSort[ i - 1 ] = Obj
-
-							LastELO = LastObj.ELO
-						else
-							LastELO = CurELO
-						end
-					else
-						LastELO = CurELO
-					end
-				end
-			end
+			RandomiseSimilarSkill( ELOSort, Count, 20 )
 
 			--Should we start from Aliens or Marines?
 			local Add = Random() >= 0.5 and 1 or 0
@@ -556,33 +560,7 @@ Plugin.ShufflingModes = {
 			return A.Skill > B.Skill
 		end )
 
-		local LastSkill
-
-		--Swap those with a similar skill value randomly to make things different.
-		for i = 1, Count do
-			local Obj = SortTable[ i ]
-
-			if i == 1 then
-				LastSkill = Obj.Skill
-			else
-				local CurSkill = Obj.Skill
-
-				if LastSkill - CurSkill < 10 then
-					if Random() >= 0.5 then
-						local LastObj = SortTable[ i - 1 ]
-
-						SortTable[ i ] = LastObj
-						SortTable[ i - 1 ] = Obj
-
-						LastSkill = LastObj.Skill
-					else
-						LastSkill = CurSkill
-					end
-				else
-					LastSkill = CurSkill
-				end
-			end
-		end
+		RandomiseSimilarSkill( SortTable, Count, 10 )
 
 		local Add = Random() >= 0.5 and 1 or 0
 
