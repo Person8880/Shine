@@ -35,6 +35,7 @@ local Voted = {}
 local Votes = 0
 local CaptainsOnline = 0
 local Warmup = false
+local RoundStarted = false
 
 function Plugin:Initialise()
     --dont load with incompatibel mods
@@ -56,6 +57,12 @@ function Plugin:Initialise()
 end
 
 --[[
+	Set RoundStarted to false
+]]
+function Plugin:Endgame()
+	RoundStarted = false	
+end
+--[[
 	Blocks Gamestart if warmup is false
 ]]
 function Plugin:CheckGameStart( Gamerules )
@@ -71,7 +78,10 @@ end
 Checks if there are enought vote to start round
 ]]
 function Plugin:CheckVote()
-
+    
+    --only checkvotes if round has not started
+    if RoundStarted then return end
+    
     --get playernumber from server	
     local playernumber = Server.GetNumPlayers()
     
@@ -79,7 +89,10 @@ function Plugin:CheckVote()
     if self.Config.CaptainMode then playernumber = CaptainsOnline end
     
     
-    if Votes >= playernumber then Plugin:StartGame( Gamerules ) end   
+    if Votes >= playernumber then
+    	Plugin:StartGame( Gamerules ) 
+    	RoundStarted = true 
+    end   
    
 end
 
