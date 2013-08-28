@@ -37,25 +37,29 @@ Plugin.MODE_RANDOM = 1
 Plugin.MODE_SCORE = 2
 Plugin.MODE_ELO = 3
 Plugin.MODE_KDR = 4
+Plugin.MODE_SPONITOR = 5 --Lets use the best stats source in the game.
 
 local ModeStrings = {
 	Mode = {
 		"Random",
 		"Score based",
 		"ELO based",
-		"KDR based"
+		"KDR based",
+		"Skill based"
 	},
 	ModeLower = {
 		"random",
 		"score based",
 		"ELO based",
-		"KDR based"
+		"KDR based",
+		"skill based"
 	},
 	Action = {
 		"randomly",
 		"based on score",
 		"based on ELO",
-		"based on KDR"
+		"based on KDR",
+		"based on skill"
 	}
 }
 Plugin.ModeStrings = ModeStrings
@@ -529,6 +533,72 @@ Plugin.ShufflingModes = {
 		Shine:LogString( "[Random] Teams were sorted based on KDR." )
 		
 		return self.ShufflingModes[ self.MODE_SCORE ]( self, Gamerules, Targets, TeamMembers, true )
+	end,
+
+	--Sponitor data based. Relies on UWE's ranking data to be correct for it to work.
+	function( self, Gamerules, Targets, TeamMembers )
+		local Players = GetEntitiesWithMixin( "Scoring" )
+		local SortTable = {}
+		local Count = 0
+
+		for i = 1, #Players do
+			local Ply = Players[ i ]
+
+			if Ply then
+				local SkillData = Ply:GetPlayerSkill()
+
+				Count = Count + 1
+				SortTable[ Count ] = { Player = Ply, Skill = SkillData }
+			end
+		end
+
+		TableSort( SortTable, function( A, B )
+			return A.Skill > B.Skill
+		end )
+
+		local LastSkill
+
+		--Swap those with a similar skill value randomly to make things different.
+		for i = 1, Count do
+			local Obj = SortTable[ i ]
+
+			if i == 1 then
+				LastSkill = Obj.Skill
+			else
+				local CurSkill = Obj.Skill
+
+				if LastSkill - CurSkill < 10 then
+					if Random() >= 0.5 then
+						local LastObj = SortTable[ i - 1 ]
+
+						SortTable[ i ] = LastObj
+						SortTable[ i - 1 ] = Obj
+
+						LastSkill = LastObj.Skill
+					else
+						LastSkill = CurSkill
+					end
+				else
+					LastSkill = CurSkill
+				end
+			end
+		end
+
+		local Add = Random() >= 0.5 and 1 or 0
+
+		for i = 1, Count do
+			if SortTable[ i ] then
+				local Player = SortTable[ i ].Player
+
+				local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
+
+				TeamTable[ #TeamTable + 1 ] = Player
+			end
+		end
+
+		EvenlySpreadTeams( Gamerules, TeamMembers )
+
+		Shine:LogString( "[Skill Vote] Teams were sorted based on Sponitor skill ranking." )
 	end
 }
 
