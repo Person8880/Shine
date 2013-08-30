@@ -262,6 +262,9 @@ Shine.GameIDs = GameIDs
 local GameID = 0
 
 Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
+	--I have a suspiscion that this event is being called again for a client that never disconnected.
+	if GameIDs[ Client ] then return true end
+	
 	GameID = GameID + 1
 	GameIDs[ Client ] = GameID
 end, -20 )
@@ -277,7 +280,7 @@ end
 --[[
 	Gets the user data table for the given client/NS2ID.
 	Input: Client or NS2ID.
-	Output: User data table if they are registered in UserConfig.json.
+	Output: User data table if they are registered in UserConfig.json, user ID.
 ]]
 function Shine:GetUserData( Client )
 	if not self.UserData then return nil end
@@ -285,7 +288,7 @@ function Shine:GetUserData( Client )
 	
 	local ID = isnumber( Client ) and Client or Client:GetUserId()
 
-	return self.UserData.Users[ tostring( ID ) ]
+	return self.UserData.Users[ tostring( ID ) ], ID
 end
 
 --[[
@@ -299,7 +302,7 @@ function Shine:GetPermission( Client, ConCommand )
 	if not Command then return false end
 	if not Client then return true end
 
-	local User = self:GetUserData( Client )
+	local User, ID = self:GetUserData( Client )
 
 	if not User then
 		return Command.NoPerm or false
@@ -333,7 +336,7 @@ end
 function Shine:HasAccess( Client, ConCommand )
 	if not Client then return true end
 
-	local User = self:GetUserData( Client )
+	local User, ID = self:GetUserData( Client )
 
 	if not User then
 		return false
