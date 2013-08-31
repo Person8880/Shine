@@ -145,8 +145,15 @@ function Plugin:Initialise()
 
 	self:CreateCommands()
 
+	local MapCount = TableCount( self.Config.Maps )
+	local AllowVotes = MapCount > 1
+
+	if not AllowVotes then
+		self.Config.EnableRTV = false
+	end
+
 	if self.Config.EnableNextMapVote then
-		if TableCount( self.Config.Maps ) > 1 then
+		if AllowVotes then
 			if self.Config.NextMapVote == 1 or self.Config.RoundLimit > 0 then
 				self.VoteOnEnd = true
 			else
