@@ -6,16 +6,16 @@ local Notify = Shared.Message
 local pairs = pairs
 local StringFormat = string.format
 
-local ConfigPath = "config://shine\\BaseConfig.json"
+local ConfigPath = "config://shine/BaseConfig.json"
 local BackupPath = "config://Shine_BaseConfig.json"
 
 local DefaultConfig = {
 	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
-	LogDir = "config://shine\\logs\\", --Logging directory.
+	LogDir = "config://shine/logs/", --Logging directory.
 	DateFormat = "dd-mm-yyyy", --Format for logging dates.
 	TimeOffset = 0, --Offset from GMT/UTC.
 
-	ExtensionDir = "config://shine\\plugins\\", --Plugin configs directory.
+	ExtensionDir = "config://shine/plugins/", --Plugin configs directory.
 
 	GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.
 	UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.

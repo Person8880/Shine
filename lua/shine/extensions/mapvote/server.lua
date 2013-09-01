@@ -145,19 +145,28 @@ function Plugin:Initialise()
 
 	self:CreateCommands()
 
-	if self.Config.EnableNextMapVote then
-		if self.Config.NextMapVote == 1 or self.Config.RoundLimit > 0 then
-			self.VoteOnEnd = true
-		else
-			local Time = Shared.GetTime()
-			local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit * 60 ) or 1800
+	local MapCount = TableCount( self.Config.Maps )
+	local AllowVotes = MapCount > 1
 
-			Shine.Timer.Create( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
-				local Players = Shine.GetAllPlayers()
-				if #Players > 0 then
-					self:StartVote( true )
-				end
-			end )
+	if not AllowVotes then
+		self.Config.EnableRTV = false
+	end
+
+	if self.Config.EnableNextMapVote then
+		if AllowVotes then
+			if self.Config.NextMapVote == 1 or self.Config.RoundLimit > 0 then
+				self.VoteOnEnd = true
+			else
+				local Time = Shared.GetTime()
+				local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit * 60 ) or 1800
+
+				Shine.Timer.Create( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
+					local Players = Shine.GetAllPlayers()
+					if #Players > 0 then
+						self:StartVote( true )
+					end
+				end )
+			end
 		end
 	end
 
