@@ -9,7 +9,7 @@ local Notify = Shared.Message
 
 local TableContains = table.contains
 
-local UserPath = "config://shine\\UserConfig.json"
+local UserPath = "config://shine/UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 

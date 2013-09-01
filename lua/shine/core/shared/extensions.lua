@@ -20,7 +20,8 @@ local Hook = Shine.Hook
 
 Shine.Plugins = {}
 
-local AutoLoadPath = "config://shine\\AutoLoad.json"
+local AutoLoadPath = "config://shine/AutoLoad.json"
+local ClientConfigPath = "config://shine/cl_plugins/"
 local ExtensionPath = "lua/shine/extensions/"
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
@@ -61,7 +62,7 @@ function PluginMeta:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
 
 	if Save then
-		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -76,7 +77,7 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig()
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -92,7 +93,7 @@ function PluginMeta:SaveConfig()
 end
 
 function PluginMeta:LoadConfig()
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
 	local PluginConfig = Shine.LoadJSONFile( Path )
 
