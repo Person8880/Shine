@@ -97,7 +97,7 @@ function Plugin:CheckVote()
 end
 
 
-Startgame
+--Startgame
 function Plugin:StartGame( Gamerules )
     Gamerules:ResetGame()
     Gamerules:SetGameState( kGameState.Countdown )
@@ -111,7 +111,7 @@ function Plugin:StartGame( Gamerules )
     end
 end
 
-//value for first join
+--value for first join
 local first = true
 
 --[[
