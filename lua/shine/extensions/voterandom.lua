@@ -471,8 +471,8 @@ Plugin.ShufflingModes = {
 
 			local GetOwner = Server.GetOwner
 
-			for i = 1, #Players do
-				local Player = Players[ i ]
+			for i = 1, #Targets do
+				local Player = Targets[ i ]
 				local Client = Player and GetOwner( Player )
 
 				if Client then
@@ -541,14 +541,13 @@ Plugin.ShufflingModes = {
 
 	--Sponitor data based. Relies on UWE's ranking data to be correct for it to work.
 	function( self, Gamerules, Targets, TeamMembers )
-		local Players = GetEntitiesWithMixin( "Scoring" )
 		local SortTable = {}
 		local Count = 0
 
-		for i = 1, #Players do
-			local Ply = Players[ i ]
+		for i = 1, #Targets do
+			local Ply = Targets[ i ]
 
-			if Ply then
+			if Ply and Ply.GetPlayerSkill then
 				local SkillData = Ply:GetPlayerSkill()
 
 				Count = Count + 1
@@ -764,10 +763,14 @@ end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
 	if not self.Config.AlwaysEnabled then return end
-	if NewState ~= kGameState.PreGame then return end
+	if NewState ~= kGameState.Countdown then return end
 	if Shared.GetEntitiesWithClassname( "Player" ):GetSize() < self.Config.MinPlayers then
 		return
 	end
+
+	if self.DoneStartShuffle then return end
+
+	self.DoneStartShuffle = true
 
 	local OldValue = self.Config.IgnoreCommanders
 
@@ -782,6 +785,8 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
+	self.DoneStartShuffle = false
+
 	local Players = Shine.GetAllPlayers()
 	local BalanceMode = self.Config.BalanceMode
 	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
