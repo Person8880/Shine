@@ -37,7 +37,7 @@ function Plugin:CheckConnectionAllowed( ID )
 	local MaxPlayers = Server.GetMaxPlayers()
 
 	--Deny on full.
-	if Connected == MaxPlayers then return false end
+	if Connected >= MaxPlayers then return false end
 	--Allow if they have reserved access, skip checking the connected count.
 	if Shine:HasAccess( tonumber( ID ), "sh_reservedslot" ) then return true end
 
