@@ -349,6 +349,9 @@ end
 --Gets the average skill ranking of a table of players.
 local function GetAverageSkill( Players )
 	local PlayerCount = #Players
+
+	if PlayerCount == 0 then return 0 end
+
 	local PlayerSkillSum = 0
 
 	for i = 1, PlayerCount do
