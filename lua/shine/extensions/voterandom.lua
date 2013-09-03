@@ -346,6 +346,25 @@ local function RandomiseSimilarSkill( Data, Count, Difference )
 	end
 end
 
+--Gets the average skill ranking of a table of players.
+local function GetAverageSkill( Players )
+	local PlayerCount = #Players
+
+	if PlayerCount == 0 then return 0 end
+
+	local PlayerSkillSum = 0
+
+	for i = 1, PlayerCount do
+		local Ply = Players[ i ]
+
+		if Ply and Ply.GetPlayerSkill then
+			PlayerSkillSum = PlayerSkillSum + Ply:GetPlayerSkill()
+		end
+	end
+
+	return PlayerSkillSum / PlayerCount
+end
+
 Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --Random only.
 		local NumPlayers = #Targets
@@ -576,6 +595,14 @@ Plugin.ShufflingModes = {
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		Shine:LogString( "[Skill Vote] Teams were sorted based on Sponitor skill ranking." )
+
+		local Marines = GetEntitiesForTeam( "Player", 1 )
+		local Aliens = GetEntitiesForTeam( "Player", 2 )
+
+		local MarineSkill = GetAverageSkill( Marines )
+		local AlienSkill = GetAverageSkill( Aliens )
+
+		self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.", true, MarineSkill, AlienSkill )
 	end
 }
 

@@ -24,7 +24,8 @@ Plugin.Commands = {}
 Plugin.DefaultConfig = {
 	AllTalk = false,
 	AllTalkPreGame = false,
-	EjectVotesNeeded = 0.5
+	EjectVotesNeeded = 0.5,
+	DisableLuaRun = false
 }
 
 Plugin.CheckConfig = true
@@ -136,23 +137,25 @@ function Plugin:CreateCommands()
 	SetPasswordCommand:AddParam{ Type = "string", TakeRestOfLine = true, Optional = true, Default = "" }
 	SetPasswordCommand:Help( "<password> Sets the server password." )
 
-	local function RunLua( Client, Code )
-		local Player = Client and Client:GetControllingPlayer()
+	if not self.Config.DisableLuaRun then
+		local function RunLua( Client, Code )
+			local Player = Client and Client:GetControllingPlayer()
 
-		local Name = Player and Player:GetName() or "Console"
+			local Name = Player and Player:GetName() or "Console"
 
-		local Func, Err = loadstring( Code )
+			local Func, Err = loadstring( Code )
 
-		if Func then
-			Func()
-			Shine:Print( "%s ran: %s", true, Name, Code )
-		else
-			Shine:Print( "Lua run failed. Error: %s", true, Err )
+			if Func then
+				Func()
+				Shine:Print( "%s ran: %s", true, Name, Code )
+			else
+				Shine:Print( "Lua run failed. Error: %s", true, Err )
+			end
 		end
+		local RunLuaCommand = self:BindCommand( "sh_luarun", "luarun", RunLua, false, true )
+		RunLuaCommand:AddParam{ Type = "string", TakeRestOfLine = true }
+		RunLuaCommand:Help( "Runs a string of Lua code on the server. Be careful with this." )
 	end
-	local RunLuaCommand = self:BindCommand( "sh_luarun", "luarun", RunLua, false, true )
-	RunLuaCommand:AddParam{ Type = "string", TakeRestOfLine = true }
-	RunLuaCommand:Help( "Runs a string of Lua code on the server. Be careful with this." )
 
 	local function AllTalk( Client, Enable )
 		self.Config.AllTalk = Enable
