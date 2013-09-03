@@ -2,8 +2,10 @@
 	Override the badge mod's stuff to read from Shine's user data.
 ]]
 
+local pairs = pairs
 local TableContains = table.contains
 local TableEmpty = table.Empty
+local tonumber = tonumber
 local type = type
 
 local Plugin = {}
@@ -11,10 +13,6 @@ Plugin.Version = "1.0"
 
 local function isstring( String )
 	return type( String ) == "string"
-end
-
-local function istable( Table )
-	return type( Table ) == "table"
 end
 
 function Plugin:Initialise()
@@ -113,16 +111,15 @@ function Plugin:Setup()
 	for ID, User in pairs( UserData.Users ) do
 		ID = tonumber( ID )
 		local GroupName = User.Group
+		local UserBadge = User.Badge or User.badge
 
-		if not istable( GroupName ) then
-			AssignGroupBadge( ID, GroupName )
-		else
-			for i = 1, #GroupName do
-				local Group = GroupName[ i ]
-
-				AssignGroupBadge( ID, Group )
+		if UserBadge then
+			if not AssignBadge( ID, UserBadge ) then
+				Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
 			end
 		end
+
+		AssignGroupBadge( ID, GroupName )
 	end
 end
 
