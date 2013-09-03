@@ -251,7 +251,11 @@ function Plugin:OnCycleMap()
 
 	local Winner = self.NextMap.Winner
 
-	if not Winner then return end
+	if not Winner then
+		MapCycle_ChangeMap( self:GetNextMap() )
+
+		return false
+	end
 
 	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 
@@ -381,11 +385,38 @@ function Plugin:GetNextMap()
 
 	local Map = Maps[ Index ]
 
+	local IgnoreList = self.Config.IgnoreAutoCycle
+
+	local PlayerCount = Server.GetNumPlayers()
+
+	--Handle min/max player limits for maps.
+	for i = 1, #Maps do
+		local Map = Maps[ i ]
+
+		if istable( Map ) then
+			local Min = Map.min
+			local Max = Map.max
+
+			local MapName = Map.map
+
+			if Min and PlayerCount < Min then
+				if not IgnoreList[ MapName ] then
+					IgnoreList[ MapName ] = "out of bounds"
+				end
+			elseif Max and PlayerCount > Max then
+				if not IgnoreList[ MapName ] then
+					IgnoreList[ MapName ] = "out of bounds"
+				end
+			elseif IgnoreList[ MapName ] == "out of bounds" then
+				IgnoreList[ MapName ] = nil
+			end
+		end
+	end
+
 	if istable( Map ) then
 		Map = Map.map
 	end
 
-	local IgnoreList = self.Config.IgnoreAutoCycle
 	local Iterations = 0
 
 	while IgnoreList[ Map ] and Iterations < NumMaps do
@@ -1066,6 +1097,35 @@ function Plugin:StartVote( NextMap, Force )
 	local AllMaps = table.duplicate( self.Config.Maps )
 	local MapList = {}
 
+	local PlayerCount = Server.GetNumPlayers()
+
+	local Cycle = self.MapCycle
+	local CycleMaps = Cycle.maps
+
+	local DeniedMaps = {}
+
+	--Handle min/max player count maps.
+	if CycleMaps then
+		for i = 1, #CycleMaps do
+			local Map = CycleMaps[ i ]
+
+			if istable( Map ) then
+				local Min = Map.min
+				local Max = Map.max
+
+				local MapName = Map.map
+
+				if Min and PlayerCount < Min then
+					AllMaps[ MapName ] = nil
+					DeniedMaps[ MapName ] = true
+				elseif Max and PlayerCount > Max then
+					AllMaps[ MapName ] = nil
+					DeniedMaps[ MapName ] = true
+				end
+			end
+		end
+	end
+
 	local CurMap = Shared.GetMapName()
 	local AllowCurMap = self:CanExtend()
 
@@ -1090,8 +1150,10 @@ function Plugin:StartVote( NextMap, Force )
 	for i = 1, #Nominations do
 		local Nominee = Nominations[ i ]
 		
-		MapList[ #MapList + 1 ] = Nominee
-		AllMaps[ Nominee ] = nil --Remove this from the list of all maps as it's now in our vote list.
+		if not DeniedMaps[ Nominee ] then
+			MapList[ #MapList + 1 ] = Nominee
+			AllMaps[ Nominee ] = nil --Remove this from the list of all maps as it's now in our vote list.
+		end
 
 		Nominations[ i ] = nil --Remove the nomination.
 	end
