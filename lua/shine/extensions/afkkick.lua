@@ -84,17 +84,16 @@ function Plugin:OnProcessMove( Player, Input )
 	if not Client then return end
 
 	if Client:GetIsVirtual() then return end
-	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
-		if self.Users[ Client ] then
-			self.Users[ Client ] = nil
-		end
-		
-		return
-	end
 
 	local DataTable = self.Users[ Client ]
 
 	if not DataTable then return end
+
+	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
+		self.Users[ Client ] = nil
+
+		return
+	end
 
 	local Move = Input.move
 
@@ -112,23 +111,6 @@ function Plugin:OnProcessMove( Player, Input )
 
 	DataTable.LastPitch = Pitch
 	DataTable.LastYaw = Yaw
-
-	--[[local CommanderTime = self.Config.CommanderTime * 60
-
-	if Player:isa( "Commander" ) and CommanderTime > 0 and Started then
-		if DataTable.LastMove + CommanderTime < Time then
-			if Player.Logout then
-				local TeamEnts = GetEntitiesForTeam( "Player", Player:GetTeamNumber() )
-
-				Gamerules:BanPlayerFromCommand( Client:GetUserId() )
-
-				Shine:NotifyDualColour( TeamEnts, 255, 160, 0, "[AFK]", 
-					255, 255, 255, "Commander was ejected for being AFK too long." )
-
-				Player:Logout()
-			end
-		end
-	end]]
 
 	local KickTime = self.Config.KickTime * 60
 
