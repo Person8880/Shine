@@ -181,7 +181,7 @@ function Plugin:CreateChatbox()
 	DummyPanel:SetPos( ChatBoxPos )
 	DummyPanel:SetColour( Clear )
 	DummyPanel.UseScheme = false
-	DummyPanel:SetLayer( kGUILayerChat )
+	--DummyPanel:SetLayer( kGUILayerChat )
 	DummyPanel:SetDraggable( true )
 
 	--Double click the title bar to return it to the default position.
@@ -217,6 +217,7 @@ function Plugin:CreateChatbox()
 	Border.Background:SetStencilFunc( GUIItem.Equal )
 	Border.UseScheme = false
 	Border:SetColour( BorderCol )
+	Border:SetBlockMouse( true )
 
 	--Shows either "All:"" or "Team:"
 	local ModeText = Border:Add( "Label" )

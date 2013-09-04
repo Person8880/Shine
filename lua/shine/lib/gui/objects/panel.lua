@@ -8,6 +8,9 @@ local SGUI = Shine.GUI
 
 local Panel = {}
 
+--We're a window object!
+Panel.IsWindow = true
+
 local DefaultBuffer = 20
 local ScrollPos = Vector( -20, 10, 0 )
 local ZeroColour = Colour( 0, 0, 0, 0 )
@@ -221,6 +224,8 @@ function Panel:SetMaxHeight( Height )
 
 		self.Scrollbar = Scrollbar
 
+		Scrollbar._CallEventsManually = true
+
 		if self.StickyScroll then
 			Scrollbar:ScrollToBottom( true )
 		end
@@ -248,70 +253,169 @@ end
 
 function Panel:SetDraggable( Bool )
 	self.Draggable = Bool and true or false
-
-	if self.Draggable then
-		local GetCursorPos
-
-		local LastInput = 0
-		local Clock = os and os.clock or Shared.GetTime
-
-		function self:OnMouseDown( Key, DoubleClick )
-			if Key ~= InputKey.MouseButton0 then return end
-			if not self:MouseIn( self.Background, nil, nil, 20 ) then return end
-
-			if Clock() - LastInput < 0.2 then
-				DoubleClick = true
-			end
-
-			LastInput = Clock()
-
-			if DoubleClick and self.ReturnToDefaultPos then
-				self:ReturnToDefaultPos()
-
-				return
-			end
-
-			GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
-
-			local X, Y = GetCursorPos()
-			
-			self.Dragging = true
-
-			self.DragStartX = X
-			self.DragStartY = Y
-		
-			self.CurPos = self:GetPos()
-			self.StartPos = Vector( self.CurPos.x, self.CurPos.y, 0 )
-		end
-
-		function self:OnMouseUp( Key )
-			if Key ~= InputKey.MouseButton0 then return end
-			self.Dragging = false
-		end
-
-		function self:OnMouseMove( Down )
-			if not Down then return end
-			if not self.Dragging then return end
-			
-			local X, Y = GetCursorPos()
-
-			local XDiff = X - self.DragStartX
-			local YDiff = Y - self.DragStartY
-
-			self.CurPos.x = self.StartPos.x + XDiff
-			self.CurPos.y = self.StartPos.y + YDiff
-
-			self:SetPos( self.CurPos )
-		end
-	else
-		self.OnMouseDown = nil
-		self.OnMouseUp = nil
-		self.OnMouseMove = nil
-	end
 end
 
 function Panel:SetTexture( Texture )
 	self.Background:SetTexture( Texture )
+end
+
+local GetCursorPos
+
+local LastInput = 0
+local Clock = os and os.clock or Shared.GetTime
+
+function Panel:DragClick( Key, DoubleClick )
+	if not self.Draggable then return end
+	
+	if Key ~= InputKey.MouseButton0 then return end
+	if not self:MouseIn( self.Background, nil, nil, 20 ) then return end
+
+	if Clock() - LastInput < 0.2 then
+		DoubleClick = true
+	end
+
+	LastInput = Clock()
+
+	if DoubleClick and self.ReturnToDefaultPos then
+		self:ReturnToDefaultPos()
+
+		return true
+	end
+
+	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
+
+	local X, Y = GetCursorPos()
+	
+	self.Dragging = true
+
+	self.DragStartX = X
+	self.DragStartY = Y
+
+	self.CurPos = self:GetPos()
+	self.StartPos = Vector( self.CurPos.x, self.CurPos.y, 0 )
+
+	return true
+end
+
+function Panel:DragRelease( Key )
+	if not self.Draggable then return end
+	if Key ~= InputKey.MouseButton0 then return end
+	self.Dragging = false
+end
+
+function Panel:DragMove( Down )
+	if not self.Draggable then return end
+	if not Down then return end
+	if not self.Dragging then return end
+	
+	local X, Y = GetCursorPos()
+
+	local XDiff = X - self.DragStartX
+	local YDiff = Y - self.DragStartY
+
+	self.CurPos.x = self.StartPos.x + XDiff
+	self.CurPos.y = self.StartPos.y + YDiff
+
+	self:SetPos( self.CurPos )
+end
+
+function Panel:SetBlockMouse( Bool )
+	self.BlockOnMouseDOwn = Bool and true or false
+end
+
+------------------- Event calling -------------------
+function Panel:OnMouseDown( Key, DoubleClick )
+	if SGUI.IsValid( self.Scrollbar ) then
+		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
+			return true
+		end
+	end
+	
+	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+
+	if Result ~= nil then return true end
+
+	if self:DragClick( Key, DoubleClick ) then return true end
+	
+	if self.IsAWindow or self.BlockOnMouseDown then
+		if self:MouseIn( self.Background ) then return true end
+	end
+end
+
+function Panel:OnMouseUp( Key )
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:OnMouseUp( Key )
+	end
+	
+	self:CallOnChildren( "OnMouseUp", Key )
+
+	self:DragRelease( Key )
+end
+
+function Panel:OnMouseMove( Down )
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:OnMouseMove( Down )
+	end
+
+	self:CallOnChildren( "OnMouseMove", Down )
+
+	self:DragMove( Down )
+
+	--Block mouse movement for lower windows.
+	if self.IsAWindow or self.BlockOnMouseDown then
+		if self:MouseIn( self.Background ) then return true end
+	end
+end
+
+function Panel:Think( DeltaTime )
+	self.BaseClass.Think( self, DeltaTime )
+
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:Think( DeltaTime )
+	end
+
+	self:CallOnChildren( "Think", DeltaTime )
+end
+
+function Panel:OnMouseWheel( Down )
+	--Call children first, so they scroll before the main panel scroll.
+	local Result = self:CallOnChildren( "OnMouseWheel", Down )
+
+	if Result ~= nil then return true end
+
+	if not SGUI.IsValid( self.Scrollbar ) then
+		if self.IsAWindow then return true end
+		
+		return
+	end
+
+	self.Scrollbar:OnMouseWheel( Down )
+
+	--We block the event, so that only the focused window can scroll.
+	if self.IsAWindow then
+		return false
+	end
+end
+
+function Panel:PlayerKeyPress( Key, Down )
+	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
+		return true
+	end
+
+	--Block the event so only the focused window receives input.
+	if self.IsAWindow then
+		return false
+	end
+end
+
+function Panel:PlayerType( Char )
+	if self:CallOnChildren( "PlayerType", Char ) then
+		return true
+	end
+
+	if self.IsAWindow then
+		return false
+	end
 end
 
 SGUI:Register( "Panel", Panel )

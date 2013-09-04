@@ -123,10 +123,10 @@ function CheckBox:SetChecked( Value, DontFade )
 	end
 end
 
-function CheckBox:PlayerKeyPress( Key, Down )
+function CheckBox:OnMouseDown( Key, DoubleClick )
 	if not self.Background then return end
 	if not self.Background:GetIsVisible() then return end
-	if Key ~= InputKey.MouseButton0 or not Down then return end
+	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Background ) then return end
 
 	if not self.Checked then
@@ -134,6 +134,8 @@ function CheckBox:PlayerKeyPress( Key, Down )
 	else
 		self:SetChecked( false )
 	end
+
+	return true
 end
 
 function CheckBox:AddLabel( Text )

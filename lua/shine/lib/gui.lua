@@ -17,6 +17,7 @@ local next = next
 local pairs = pairs
 local setmetatable = setmetatable
 local StringFormat = string.format
+local TableRemove = table.remove
 
 --Useful functions for colours.
 include "lua/shine/lib/colour.lua"
@@ -24,12 +25,15 @@ include "lua/shine/lib/colour.lua"
 SGUI.Controls = {}
 
 SGUI.ActiveControls = {}
+SGUI.Windows = {}
 
 --Reuse destroyed script tables to save garbage collection.
 SGUI.InactiveControls = {}
 
 --Used to adjust the appearance of all elements at once.
 SGUI.Skins = {}
+
+SGUI.BaseLayer = 20
 
 --Global control meta-table.
 local ControlMeta = {}
@@ -72,17 +76,66 @@ function SGUI:GetCtrlDown()
 end
 
 --[[
-	Passes an event to all active SGUI controls.
+	Sets the current in-focus window.
+	Inputs: Window object, windows index.
+]]
+function SGUI:SetWindowFocus( Window, i )
+	local Windows = self.Windows
+
+	if i then
+		TableRemove( Windows, i )
+
+		Windows[ #Windows + 1 ] = Window
+	end
+
+	for i = 1, #Windows do
+		local Window = Windows[ i ]
+
+		Window:SetLayer( self.BaseLayer + i )
+	end
+
+	self.FocusedWindow = Window
+end
+
+--[[
+	Passes an event to all active SGUI windows.
+
+	If an SGUI object is classed as a window, it MUST call all events on its children.
+	Then its children must call their events on their children and so on.
+
 	Inputs: Event name, arguments.
 ]]
-function SGUI:CallEvent( Name, ... )
-	for Control in pairs( self.ActiveControls ) do
-		if Control[ Name ] then
-			local Result = Control[ Name ]( Control, ... ) --Can add more arguments if needed...
+function SGUI:CallEvent( FocusChange, Name, ... )
+	local Windows = SGUI.Windows
+	local WindowCount = #Windows
+
+	--The focused window is the last in the list, so we call backwards.
+	for i = WindowCount, 1, - 1 do
+		local Window = Windows[ i ]
+
+		if Window[ Name ] and Window:GetIsVisible() then
+			local Result = Window[ Name ]( Window, ... )
 
 			if Result ~= nil then
+				if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
+					SGUI:SetWindowFocus( Window, i )
+				end
+
 				return Result
 			end
+		end
+	end
+end
+
+--[[
+	Calls an event on all active SGUI controls, out of order.
+
+	Inputs: Event name, arguments.
+]]
+function SGUI:CallGlobalEvent( Name, ... )
+	for Control in pairs( self.ActiveControls ) do
+		if Control[ Name ] then
+			Control[ Name ]( Name, ... )
 		end
 	end
 end
@@ -106,7 +159,7 @@ function SGUI:SetSkin( Name )
 
 	self.ActiveSkin = Name
 
-	return SGUI:CallEvent( "OnSchemeChange", SchemeTable ) --Notify all elements of the change.
+	return SGUI:CallGlobalEvent( "OnSchemeChange", SchemeTable ) --Notify all elements of the change.
 end
 
 --[[
@@ -193,6 +246,17 @@ function SGUI:Create( Class, Parent )
 
 	self.ActiveControls[ Control ] = true
 
+	--If it's a window then we give it focus.
+	if MetaTable.IsWindow and not Parent then
+		local Windows = self.Windows
+
+		Windows[ #Windows + 1 ] = Control
+
+		self:SetWindowFocus( Control )
+
+		Control.IsAWindow = true
+	end
+
 	if not Parent then return Control end
 
 	Control:SetParent( Parent )
@@ -221,6 +285,22 @@ function SGUI:Destroy( Control )
 
 	Control:Cleanup()
 
+	--If it's a window, then clean it up.
+	if Control.IsAWindow then
+		local Windows = self.Windows
+
+		for i = 1, #Windows do
+			local Window = Windows[ i ]
+
+			if Window == Control then
+				TableRemove( Windows, i )
+				break
+			end
+		end
+
+		self:SetWindowFocus( Windows[ #Windows ] )
+	end
+
 	for k in pairs( Control ) do
 		Control[ k ] = nil
 	end
@@ -237,15 +317,19 @@ function SGUI.IsValid( Control )
 end
 
 Hook.Add( "Think", "UpdateSGUI", function( DeltaTime )
-	SGUI:CallEvent( "Think", DeltaTime )
+	SGUI:CallEvent( false, "Think", DeltaTime )
 end )
 
 Hook.Add( "PlayerKeyPress", "UpdateSGUI", function( Key, Down )
-	return SGUI:CallEvent( "PlayerKeyPress", Key, Down )
+	if SGUI:CallEvent( false, "PlayerKeyPress", Key, Down ) then
+		return true
+	end
 end )
 
 Hook.Add( "PlayerType", "UpdateSGUI", function( Char )
-	return SGUI:CallEvent( "PlayerType", SGUI.GetChar( Char ) )
+	if SGUI:CallEvent( false, "PlayerType", SGUI.GetChar( Char ) ) then
+		return true
+	end
 end )
 
 --[[
@@ -270,16 +354,16 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 
 	local Listener = {
 		OnMouseMove = function( _, LMB )
-			SGUI:CallEvent( "OnMouseMove", LMB )
+			SGUI:CallEvent( false, "OnMouseMove", LMB )
 		end,
 		OnMouseWheel = function( _, Down )
-			SGUI:CallEvent( "OnMouseWheel", Down )
+			SGUI:CallEvent( false, "OnMouseWheel", Down )
 		end,
 		OnMouseDown = function( _, Key, DoubleClick )
-			return SGUI:CallEvent( "OnMouseDown", Key )
+			return SGUI:CallEvent( true, "OnMouseDown", Key )
 		end,
 		OnMouseUp = function( _, Key )
-			return SGUI:CallEvent( "OnMouseUp", Key )
+			return SGUI:CallEvent( false, "OnMouseUp", Key )
 		end
 	}
 
@@ -354,6 +438,26 @@ function ControlMeta:SetParent( Control, Element )
 end
 
 --[[
+	Calls an SGUI event on every child of the object.
+
+	Ignores children with the _CallEventsManually flag.
+]]
+function ControlMeta:CallOnChildren( Name, ... )
+	if not self.Children then return end
+
+	--Call the event on every child of this object, no particular order.
+	for Child in pairs( self.Children ) do
+		if Child[ Name ] and not Child._CallEventsManually then
+			local Result = Child[ Name ]( Child, ... )
+
+			if Result ~= nil then
+				return Result
+			end
+		end
+	end
+end
+
+--[[
 	Add a GUIItem as a child.
 ]]
 function ControlMeta:AddChild( GUIItem )
@@ -391,6 +495,31 @@ function ControlMeta:SetIsVisible( Bool )
 	if self.Background.GetIsVisible and self.Background:GetIsVisible() == Bool then return end
 	
 	self.Background:SetIsVisible( Bool )
+
+	if self.IsAWindow then
+		if Bool then --Take focus on show.
+			if SGUI.FocusedWindow == self then return end
+			local Windows = SGUI.Windows
+
+			for i = 1, #Windows do
+				local Window = Windows[ i ]
+
+				if Window == self then
+					SGUI:SetWindowFocus( self, i )
+					break
+				end
+			end
+		else --Give focus to the next window down on hide.
+			if SGUI.WindowFocus ~= self then return end
+			
+			local Windows = SGUI.Windows
+			local NextDown = #Windows - 1
+
+			if NextDown > 0 then
+				SGUI:SetWindowFocus( Windows[ NextDown ], NextDown )
+			end
+		end
+	end
 end
 
 --[[
@@ -457,6 +586,8 @@ local MousePos
 	The multiplier will increase or reduce the size we use to calculate this.
 ]]
 function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
+	if not Element then return end
+	
 	MousePos = MousePos or Client.GetCursorPosScreen
 	ScrW = ScrW or Client.GetScreenWidth
 	ScrH = ScrH or Client.GetScreenHeight
