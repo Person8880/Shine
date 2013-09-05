@@ -181,7 +181,7 @@ function Plugin:CreateChatbox()
 	DummyPanel:SetPos( ChatBoxPos )
 	DummyPanel:SetColour( Clear )
 	DummyPanel.UseScheme = false
-	DummyPanel:SetLayer( kGUILayerChat )
+	--DummyPanel:SetLayer( kGUILayerChat )
 	DummyPanel:SetDraggable( true )
 
 	--Double click the title bar to return it to the default position.
@@ -205,6 +205,7 @@ function Plugin:CreateChatbox()
 	Box:SetColour( InnerCol )
 	Box:SetPos( BorderPos * UIScale )
 	Box.UseScheme = false
+	Box.BufferAmount = 5
 
 	self.ChatBox = Box
 
@@ -217,6 +218,7 @@ function Plugin:CreateChatbox()
 	Border.Background:SetStencilFunc( GUIItem.Equal )
 	Border.UseScheme = false
 	Border:SetColour( BorderCol )
+	Border:SetBlockMouse( true )
 
 	--Shows either "All:"" or "Team:"
 	local ModeText = Border:Add( "Label" )
@@ -560,7 +562,8 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		PreLabel = FirstMessage.Pre
 		MessageLabel = FirstMessage.Message
 
-		local Height = Max( PreLabel:GetTextHeight(), MessageLabel:GetTextHeight() )
+		--local Height = Max( PreLabel:GetTextHeight(), MessageLabel:GetTextHeight() )
+		local Height = Messages[ 1 ].Pre:GetPos().y
 
 		--Move all messages up to compensate for the removal.
 		for i = 1, #Messages do

@@ -221,6 +221,8 @@ function Slider:OnMouseDown( Key )
 	self.StartingPos = self.Handle:GetPosition()
 
 	self.CurPos = Vector( self.StartingPos.x, 0, 0 )
+
+	return true
 end
 
 function Slider:OnMouseUp( Key )
