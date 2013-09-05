@@ -74,53 +74,59 @@ function Panel:Add( Class, Created )
 		
 		if not Pan.ScrollParent then return end
 
-		local Size = self:GetSize()
+		local OurSize = self:GetSize()
+		local PanSize = Pan:GetSize()
 		local AnchorX, AnchorY = self:GetAnchor()
 
 		if AnchorY == GUIItem.Top then
-			local NewMaxHeight = Pos + Vector( 0, Size.y, 0 )
+			local NewMaxHeight = Pos.y + OurSize.y
 
-			if NewMaxHeight.y > Pan:GetMaxHeight() then
-				Pan:SetMaxHeight( NewMaxHeight.y + Pan.BufferAmount )
+			if NewMaxHeight > Pan:GetMaxHeight() then
+				Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
 			end
 		elseif AnchorY == GUIItem.Center then
-			local NewMaxHeight = Pos + Vector( 0, Size.y * 0.5, 0 )
+			local NewMaxHeight = PanSize.y * 0.5 + Pos.y + OurSize.y
 
-			if NewMaxHeight.y > Pan:GetMaxHeight() then
-				Pan:SetMaxHeight( NewMaxHeight.y + Pan.BufferAmount )
+			if NewMaxHeight > Pan:GetMaxHeight() then
+				Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
 			end
 		else
-			if Pos.y > Pan:GetMaxHeight() then
-				Pan:SetMaxHeight( NewMaxHeight.y + Pan.BufferAmount )
+			local NewMaxHeight = PanSize.y + Pos.y + OurSize.y
+
+			if NewMaxHeight > Pan:GetMaxHeight() then
+				Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
 			end
 		end
 	end
 
 	local OldSetSize = Element.SetSize
-	function Element:SetSize( Size )
-		OldSetSize( self, Size )
+	function Element:SetSize( OurSize )
+		OldSetSize( self, OurSize )
 
 		if not Pan.ScrollParent then return end
 
 		local Pos = self:GetPos()
+		local PanSize = Pan:GetSize()
 		
 		local AnchorX, AnchorY = self:GetAnchor()
 
 		if AnchorY == GUIItem.Top then
-			local NewMaxHeight = Pos + Vector( 0, Size.y, 0 )
+			local NewMaxHeight = Pos.y + OurSize.y
 
-			if NewMaxHeight.y > Pan:GetMaxHeight() then
-				Pan:SetMaxHeight( NewMaxHeight.y + Pan.BufferAmount )
+			if NewMaxHeight > Pan:GetMaxHeight() then
+				Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
 			end
 		elseif AnchorY == GUIItem.Center then
-			local NewMaxHeight = Pos + Vector( 0, Size.y * 0.5, 0 )
+			local NewMaxHeight = PanSize.y * 0.5 + Pos.y + OurSize.y
 
-			if NewMaxHeight.y > Pan:GetMaxHeight() then
-				Pan:SetMaxHeight( NewMaxHeight.y + Pan.BufferAmount )
+			if NewMaxHeight > Pan:GetMaxHeight() then
+				Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
 			end
 		else
-			if Pos.y > Pan:GetMaxHeight() then
-				Pan:SetMaxHeight( NewMaxHeight.y + Pan.BufferAmount )
+			local NewMaxHeight = PanSize.y + Pos.y + OurSize.y
+
+			if NewMaxHeight > Pan:GetMaxHeight() then
+				Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
 			end
 		end
 	end
