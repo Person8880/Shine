@@ -205,6 +205,7 @@ function Plugin:CreateChatbox()
 	Box:SetColour( InnerCol )
 	Box:SetPos( BorderPos * UIScale )
 	Box.UseScheme = false
+	Box.BufferAmount = 5
 
 	self.ChatBox = Box
 
@@ -561,7 +562,8 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		PreLabel = FirstMessage.Pre
 		MessageLabel = FirstMessage.Message
 
-		local Height = Max( PreLabel:GetTextHeight(), MessageLabel:GetTextHeight() )
+		--local Height = Max( PreLabel:GetTextHeight(), MessageLabel:GetTextHeight() )
+		local Height = Messages[ 1 ].Pre:GetPos().y
 
 		--Move all messages up to compensate for the removal.
 		for i = 1, #Messages do
