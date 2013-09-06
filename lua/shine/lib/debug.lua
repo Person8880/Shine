@@ -2,7 +2,9 @@
 	Shine debug library.
 ]]
 
+local assert = assert
 local DebugGetUpValue = debug.getupvalue
+local StringFormat = string.format
 local type = type
 
 function Shine.GetUpValue( Func, Name )
@@ -22,4 +24,10 @@ end
 
 function Shine.IsType( Object, Type )
 	return type( Object ) == Type
+end
+
+function Shine.Assert( Assertion, Error, ... )
+	if not Assertion then
+		error( StringFormat( Error, ... ), 2 )
+	end
 end

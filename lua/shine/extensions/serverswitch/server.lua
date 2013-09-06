@@ -35,7 +35,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:SendServerData( Client, ID, Data )
-	Server.SendNetworkMessage( Client, "Shine_SendServerList", {
+	self:SendNetworkMessage( Client, "ServerList", {
 		Name = Data.Name and Data.Name:sub( 1, 15 ) or "No Name",
 		IP = Data.IP,
 		Port = Data.Port,
