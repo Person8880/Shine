@@ -119,9 +119,7 @@ function table.Average( Table )
 	return Sum / Count
 end
 
-local function istable( Table )
-	return type( Table ) == "table"
-end
+local IsType = Shine.IsType
 
 --[[
 	Prints a nicely formatted table structure to the console.
@@ -132,7 +130,7 @@ function PrintTable( Table, Indent )
 	local IndentString = StringRep( "\t", Indent )
 
 	for k, v in pairs( Table ) do
-		if istable( v ) then
+		if IsType( v, "table" ) then
 			Print( "%s%s:\n", IndentString, tostring( k ) )
 			PrintTable( v, Indent + 2 )
 		else
@@ -148,7 +146,7 @@ local function CopyTable( Table, LookupTable )
 	setmetatable( Copy, getmetatable( Table ) )
 
 	for k, v in pairs( Table ) do
-		if not istable( v ) then
+		if not IsType( v, "table" ) then
 			Copy[ k ] = v
 		else
 			LookupTable = LookupTable or {}

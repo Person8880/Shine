@@ -33,6 +33,7 @@ SGUI.InactiveControls = {}
 --Used to adjust the appearance of all elements at once.
 SGUI.Skins = {}
 
+--Base visual layer.
 SGUI.BaseLayer = 20
 
 --Global control meta-table.

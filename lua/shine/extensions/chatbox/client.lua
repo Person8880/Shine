@@ -522,9 +522,7 @@ end
 
 local IntToColour
 
-local function isnumber( Num )
-	return type( Num ) == "number"
-end
+local IsType = Shine.IsType
 
 --[[
 	Adds a message to the chatbox.
@@ -592,7 +590,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	--Why did they use int for the first colour, then colour object for the second?
-	if isnumber( PlayerColour ) then
+	if IsType( PlayerColour, "number" ) then
 		PlayerColour = IntToColour( PlayerColour )
 	end
 

@@ -7,7 +7,7 @@ Shine = {}
 local include = Script.Load
 
 local Scripts = {
-	--"Client.lua",
+	"lib/debug.lua",
 	"lib/string.lua",
 	"lib/utf8.lua",
 	"lib/table.lua",

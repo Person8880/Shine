@@ -78,9 +78,7 @@ Plugin.Commands = {}
 Plugin.VoteTimer = "MapVote"
 Plugin.NextMapTimer = "MapVoteNext"
 
-local function istable( Table )
-	return type( Table ) == "table"
-end
+local IsType = Shine.IsType
 
 local function isarray( Table )
 	local Count = #Table
@@ -134,7 +132,7 @@ function Plugin:Initialise()
 
 			for i = 1, #Maps do
 				local Map = Maps[ i ]
-				if istable( Map ) then
+				if IsType( Map, "table" ) then
 					ConfigMaps[ Map.map ] = true
 				else
 					ConfigMaps[ Map ] = true
@@ -393,7 +391,7 @@ function Plugin:GetNextMap()
 	for i = 1, #Maps do
 		local Map = Maps[ i ]
 
-		if istable( Map ) then
+		if IsType( Map, "table" ) then
 			local Min = Map.min
 			local Max = Map.max
 
@@ -413,7 +411,7 @@ function Plugin:GetNextMap()
 		end
 	end
 
-	if istable( Map ) then
+	if IsType( Map, "table" ) then
 		Map = Map.map
 	end
 
@@ -428,7 +426,7 @@ function Plugin:GetNextMap()
 
 		Map = Maps[ Index ]
 
-		if istable( Map ) then
+		if IsType( Map, "table" ) then
 			Map = Map.map
 		end
 
@@ -1109,7 +1107,7 @@ function Plugin:StartVote( NextMap, Force )
 		for i = 1, #CycleMaps do
 			local Map = CycleMaps[ i ]
 
-			if istable( Map ) then
+			if IsType( Map, "table" ) then
 				local Min = Map.min
 				local Max = Map.max
 

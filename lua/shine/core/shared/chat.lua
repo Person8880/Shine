@@ -46,22 +46,7 @@ if Server then return end
 --[[
 	As UWE do not have an easy hook into the chat without copying the entire file into your mod, time for hax.
 ]]
-local DebugGetUpValue = debug.getupvalue
-
-local function GetUpValue( Func, Name )
-	local i = 1
-	while true do
-		local N, Val = DebugGetUpValue( Func, i )
-		if not N then break end
-
-		if N == Name then
-			return Val
-		end
-		i = i + 1
-	end
-
-	return nil
-end
+local GetUpValue = Shine.GetUpValue
 
 local function ToHex( Dec )
 	Dec = StringFormat( "%X", Dec )

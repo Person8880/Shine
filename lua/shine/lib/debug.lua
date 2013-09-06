@@ -3,6 +3,7 @@
 ]]
 
 local DebugGetUpValue = debug.getupvalue
+local type = type
 
 function Shine.GetUpValue( Func, Name )
 	local i = 1
@@ -17,4 +18,8 @@ function Shine.GetUpValue( Func, Name )
 	end
 
 	return nil
+end
+
+function Shine.IsType( Object, Type )
+	return type( Object ) == Type
 end
