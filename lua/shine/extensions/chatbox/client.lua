@@ -181,7 +181,7 @@ function Plugin:CreateChatbox()
 	DummyPanel:SetPos( ChatBoxPos )
 	DummyPanel:SetColour( Clear )
 	DummyPanel.UseScheme = false
-	DummyPanel:SetLayer( kGUILayerChat )
+	--DummyPanel:SetLayer( kGUILayerChat )
 	DummyPanel:SetDraggable( true )
 
 	--Double click the title bar to return it to the default position.
@@ -205,6 +205,7 @@ function Plugin:CreateChatbox()
 	Box:SetColour( InnerCol )
 	Box:SetPos( BorderPos * UIScale )
 	Box.UseScheme = false
+	Box.BufferAmount = 5
 
 	self.ChatBox = Box
 
@@ -217,6 +218,7 @@ function Plugin:CreateChatbox()
 	Border.Background:SetStencilFunc( GUIItem.Equal )
 	Border.UseScheme = false
 	Border:SetColour( BorderCol )
+	Border:SetBlockMouse( true )
 
 	--Shows either "All:"" or "Team:"
 	local ModeText = Border:Add( "Label" )
@@ -520,9 +522,7 @@ end
 
 local IntToColour
 
-local function isnumber( Num )
-	return type( Num ) == "number"
-end
+local IsType = Shine.IsType
 
 --[[
 	Adds a message to the chatbox.
@@ -560,7 +560,8 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		PreLabel = FirstMessage.Pre
 		MessageLabel = FirstMessage.Message
 
-		local Height = Max( PreLabel:GetTextHeight(), MessageLabel:GetTextHeight() )
+		--local Height = Max( PreLabel:GetTextHeight(), MessageLabel:GetTextHeight() )
+		local Height = Messages[ 1 ].Pre:GetPos().y
 
 		--Move all messages up to compensate for the removal.
 		for i = 1, #Messages do
@@ -589,7 +590,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	--Why did they use int for the first colour, then colour object for the second?
-	if isnumber( PlayerColour ) then
+	if IsType( PlayerColour, "number" ) then
 		PlayerColour = IntToColour( PlayerColour )
 	end
 
@@ -641,10 +642,7 @@ function Plugin:CloseChat()
 	self.MainPanel:SetIsVisible( false )
 	self.GUIChat:SetIsVisible( true ) --Allow the GUIChat messages to show.
 
-	--Don't remove the commander's mouse!
-	if not CommanderUI_IsLocalPlayerCommander() then
-		MouseTracker_SetIsVisible( false )
-	end
+	SGUI:EnableMouse( false )
 
 	if self.Config.DeleteOnClose then
 		self.TextEntry:SetText( "" )
@@ -670,10 +668,7 @@ function Plugin:StartChat( Team )
 	--The little text to the left of the text entry.
 	self.ModeText:SetText( self.TeamChat and "Team:" or "All:" )
 
-	--Don't need to show the mouse again for commanders.
-	if not CommanderUI_IsLocalPlayerCommander() then
-		MouseTracker_SetIsVisible( true )
-	end
+	SGUI:EnableMouse( true )
 
 	self.MainPanel:SetIsVisible( true )
 	self.GUIChat:SetIsVisible( false )
@@ -712,6 +707,11 @@ function Plugin:Cleanup()
 	self.SettingsPanel = nil
 
 	TableEmpty( self.Messages )
+
+	if self.Visible then
+		SGUI:EnableMouse( false )
+		self.Visible = false
+	end
 end
 
 Shine:RegisterExtension( "chatbox", Plugin )

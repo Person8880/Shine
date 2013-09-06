@@ -4,14 +4,18 @@
 
 local Plugin = {}
 
-Shared.RegisterNetworkMessage( "Shine_SendServerList", {
+local ServerListMessage = {
 	Name = "string (15)",
 	IP = "string (16)",
 	Port = "string (6)",
 	ID = "integer (0 to 255)"
-} )
+}
 
 Shine:RegisterExtension( "serverswitch", Plugin )
+
+function Plugin:SetupDataTable()
+	self:AddNetworkMessage( "ServerList", ServerListMessage, "Client" )
+end
 
 if Server then return end
 
@@ -73,14 +77,14 @@ VoteMenu:EditPage( "Main", function( self )
 	end
 end )
 
-Client.HookNetworkMessage( "Shine_SendServerList", function( Data )
-	if Plugin.ServerList[ Data.ID ] then --We're refreshing the data.
-		TableEmpty( Plugin.ServerList )
+function Plugin:ReceiveServerList( Data )
+	if self.ServerList[ Data.ID ] then --We're refreshing the data.
+		TableEmpty( self.ServerList )
 	end
 
-	Plugin.ServerList[ Data.ID ] = {
+	self.ServerList[ Data.ID ] = {
 		IP = Data.IP,
 		Port = Data.Port,
 		Name = Data.Name
 	}
-end )
+end

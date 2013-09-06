@@ -18,6 +18,8 @@ end
 
 local Hook = Shine.Hook
 
+local IsType = Shine.IsType
+
 Shine.Plugins = {}
 
 local AutoLoadPath = "config://shine/AutoLoad.json"
@@ -37,6 +39,15 @@ end
 local PluginMeta = {}
 PluginMeta.__index = PluginMeta
 
+--[[
+	Adds a variable to the plugin's data table.
+
+	Inputs:
+		Type - The network variable's type, e.g "string (128)".
+		Name - The name on the data table to give this variable.
+		Default - The default value.
+		Access - Optional access string, if set, only clients with access to this will receive this variable.
+]]
 function PluginMeta:AddDTVar( Type, Name, Default, Access )
 	self.DTVars = self.DTVars or {}
 	self.DTVars.Keys = self.DTVars.Keys or {}
@@ -48,7 +59,12 @@ function PluginMeta:AddDTVar( Type, Name, Default, Access )
 	self.DTVars.Access[ Name ] = Access
 end
 
+--[[
+	Do not call directly, this is used to finalise the data table after setup.
+]]
 function PluginMeta:InitDataTable( Name )
+	if not self.DTVars then return end
+	
 	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys, self.DTVars.Defaults, self.DTVars.Access )
 
 	if self.NetworkUpdate then
@@ -56,6 +72,73 @@ function PluginMeta:InitDataTable( Name )
 	end
 
 	self.DTVars = nil
+end
+
+--[[
+	Adds a network message to the plugin.
+
+	Calls Plugin:Receive<Name>( Client, Data ) if receiving on the server side,
+	or Plugin:Receive<Name>( Data ) if receiving on the client side.
+
+	Call this function inside shared.lua -> Plugin:SetupDataTable().
+]]
+function PluginMeta:AddNetworkMessage( Name, Params, Receiver )
+	self.__NetworkMessages = self.__NetworkMessages or {}
+
+	Shine.Assert( not self.__NetworkMessages[ Name ], 
+		"Attempted to register network message %s for plugin %s twice!", Name, self.__Name )
+
+	local MessageName = StringFormat( "SH_%s_%s", self.__Name, Name )
+	local FuncName = StringFormat( "Receive%s", Name )
+
+	self.__NetworkMessages[ Name ] = MessageName
+
+	Shared.RegisterNetworkMessage( MessageName, Params )
+
+	if Receiver == "Server" and Server then
+		Server.HookNetworkMessage( MessageName, function( Client, Data )
+			self[ FuncName ]( self, Client, Data )
+		end )
+	elseif Receiver == "Client" and Client then
+		Client.HookNetworkMessage( MessageName, function( Data )
+			self[ FuncName ]( self, Data )
+		end )
+	end
+end
+
+if Server then
+	--[[
+		Sends an internal plugin network message.
+
+		Inputs:
+			Name - Message name that was registered.
+			Targets - Table of clients, a single client, or nil to send to everyone.
+			Data - Message data.
+			Reliable - Boolean whether to ensure the message reaches its target(s).
+	]]
+	function PluginMeta:SendNetworkMessage( Target, Name, Data, Reliable )
+		local MessageName = self.__NetworkMessages[ Name ]
+
+		if IsType( Target, "table" ) then
+			for i = 1, #Target do
+				local Client = Target[ i ]
+
+				if Client then
+					Server.SendNetworkMessage( Client, MessageName, Data, Reliable )
+				end
+			end
+		elseif Target then
+			Server.SendNetworkMessage( Target, MessageName, Data, Reliable )
+		else
+			Server.SendNetworkMessage( MessageName, Data, Reliable )
+		end
+	end
+elseif Client then
+	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
+		local MessageName = self.__NetworkMessages[ Name ]
+
+		Client.SendNetworkMessage( MessageName, Data, Reliable )
+	end
 end
 
 function PluginMeta:GenerateDefaultConfig( Save )

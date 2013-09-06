@@ -36,7 +36,7 @@ function Webpage:LoadURL( URL, W, H )
 	self.Background:SetTexture( TextureName )
 end
 
-function Webpage:Think( DeltaTime )
+function Webpage:OnMouseMove( LMB )
 	if not self.WebView then return end
 	
 	local In, X, Y = self:MouseIn( self.Background )
@@ -46,27 +46,37 @@ function Webpage:Think( DeltaTime )
 	self.WebView:OnMouseMove( X, Y )
 end
 
-function Webpage:PlayerKeyPress( Key, Down, Amount )
+function Webpage:OnMouseDown( Key, DoubleClick )
 	if not self.WebView then return end
 	if not self:MouseIn( self.Background ) then return end
-	
+
 	local MouseButton0 = InputKey.MouseButton0
+	if Key ~= MouseButton0 then return end
+	
+	local KeyCode = Key - MouseButton0
+	self.WebView:OnMouseDown( KeyCode )
 
-	if Key == InputKey.MouseZ then
-		self.WebView:OnMouseWheel( Amount > 0 and 30 or -30, 0 )
+	return true
+end
 
-		return true
-	elseif Key == MouseButton0 then
-		local KeyCode = Key - MouseButton0
+function Webpage:OnMouseUp( Key )
+	if not self.WebView then return end
+	if not self:MouseIn( self.Background ) then return end
 
-		if Down then
-			self.WebView:OnMouseDown( KeyCode )
-		else
-			self.WebView:OnMouseUp( KeyCode )
-		end
+	local MouseButton0 = InputKey.MouseButton0
+	if Key ~= MouseButton0 then return end
 
-		return true
-	end
+	local KeyCode = Key - MouseButton0
+	self.WebView:OnMouseUp( KeyCode )
+end
+
+function Webpage:OnMouseWheel( Down )
+	if not self.WebView then return end
+	if not self:MouseIn( self.Background ) then return end
+
+	self.WebView:OnMouseWheel( Down and 30 or -30, 0 )
+
+	return true
 end
 
 function Webpage:Cleanup()

@@ -136,9 +136,7 @@ local function MathClamp( Number, Min, Max )
     end
 end
 
-local function isfunction( Func )
-	return type( Func ) == "function"
-end
+local IsType = Shine.IsType
 
 --These define what to return for the given command arguments.
 local TargetFuncs = {
@@ -152,13 +150,13 @@ local TargetFuncs = {
 local ParamTypes = {
 	--Strings return simply the string (clipped to max length if given).
 	string = function( Client, String, Table ) 
-		if not String or String == "" then return isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String or String == "" then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
 
 		return Table.MaxLength and String:sub( 1, Table.MaxLength ) or String
 	end,
 	--Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
 	client = function( Client, String, Table ) 
-		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default or Client end
+		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default or Client end
 
 		local Target
 		if String == "^" then 
@@ -173,7 +171,7 @@ local ParamTypes = {
 	end,
 	--Clients looks for matching clients by game ID, Steam ID, name or special targeting directive. Returns a table of clients.
 	clients = function( Client, String, Table ) 
-		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
 
 		local Vals = StringExplode( String, "," )
 		
@@ -279,7 +277,7 @@ local ParamTypes = {
 		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
 		if not Num then
-			return isfunction( Table.Default ) and Table.Default() or Table.Default
+			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
 		end
 
 		return Table.Round and Round( Num ) or Num
@@ -287,7 +285,7 @@ local ParamTypes = {
 	--Boolean turns "false" and 0 into false and everything else into true.
 	boolean = function( Client, String, Table )
 		if not String or String == "" then 
-			if isfunction( Table.Default ) then
+			if IsType( Table.Default, "function" ) then
 				return Table.Default() 
 			else
 				return Table.Default 
@@ -300,7 +298,7 @@ local ParamTypes = {
 	end,
 	--Team takes either 0 - 3 directly or takes a string matching a team name and turns it into the team number.
 	team = function( Client, String, Table )
-		if not String then return isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
 
 		local ToNum = tonumber( String )
 

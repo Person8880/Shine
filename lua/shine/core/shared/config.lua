@@ -7,9 +7,7 @@ local Open = io.open
 
 local JSONSettings = { indent = true, level = 1 }
 
-local function istable( Table )
-	return type( Table ) == "table"
-end
+local IsType = Shine.IsType
 
 function Shine.LoadJSONFile( Path )
 	local File, Err = Open( Path, "r" )
@@ -51,7 +49,7 @@ function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 			Config[ Option ] = Value
 
 			Updated = true
-		elseif istable( Value ) then
+		elseif IsType( Value, "table" ) then
 			for Index, Val in pairs( Value ) do
 				if Config[ Option ][ Index ] == nil then
 					Config[ Option ][ Index ] = Val
@@ -70,7 +68,7 @@ function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 			Config[ Option ] = nil
 
 			Updated = true
-		elseif istable( Value ) then
+		elseif IsType( Value, "table" ) then
 			for Index, Val in pairs( Value ) do
 				if DefaultConfig[ Option ][ Index ] == nil then
 					Config[ Option ][ Index ] = nil

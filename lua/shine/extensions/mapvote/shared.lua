@@ -11,28 +11,26 @@ local VoteOptionsMessage = {
 	ShowTime = "boolean",
 	TimeLeft = "integer (0 to 32768)"
 }
-Shared.RegisterNetworkMessage( "Shine_MapVoteOptions", VoteOptionsMessage )
-
-Shared.RegisterNetworkMessage( "Shine_EndVote", {} )
-
-Shared.RegisterNetworkMessage( "Shine_RequestVoteOptions", {} )
 
 local MapVotesMessage = {
 	Map = "string (255)",
 	Votes = "integer (0 to 255)"
 }
-Shared.RegisterNetworkMessage( "Shine_MapVoteProgress", MapVotesMessage )
 
 Shine:RegisterExtension( "mapvote", Plugin )
 
-if Server then
-	Server.HookNetworkMessage( "Shine_RequestVoteOptions", function( Client, Message )
-		local MapVote = Shine.Plugins.mapvote
+function Plugin:SetupDataTable()
+	self:AddNetworkMessage( "VoteOptions", VoteOptionsMessage, "Client" )
+	self:AddNetworkMessage( "EndVote", {}, "Client" )
+	self:AddNetworkMessage( "VoteProgress", MapVotesMessage, "Client" )
 
-		if MapVote and MapVote.Enabled then
-			MapVote:SendVoteData( Client )
-		end
-	end )
+	self:AddNetworkMessage( "RequestVoteOptions", {}, "Server" )
+end
+
+if Server then
+	function Plugin:ReceiveRequestVoteOptions( Client, Message )
+		self:SendVoteData( Client )
+	end
 
 	return
 end
@@ -80,7 +78,7 @@ function Plugin:OnVoteMenuOpen()
 	if ( self.NextVoteOptionRequest or 0 ) < Time and self.EndTime < Time then
 		self.NextVoteOptionRequest = Time + 10
 
-		Client.SendNetworkMessage( "Shine_RequestVoteOptions", {}, true )
+		self:SendNetworkMessage( "RequestVoteOptions", {}, true )
 	end
 end
 
@@ -157,25 +155,25 @@ end, function( self )
 	end
 end )
 
-Client.HookNetworkMessage( "Shine_MapVoteProgress", function( Data )
+function Plugin:ReceiveVoteProgress( Data )
 	local MapName = Data.Map
 	local Votes = Data.Votes
 
-	Plugin.MapVoteCounts[ MapName ] = Votes
+	self.MapVoteCounts[ MapName ] = Votes
 
-	local MapButton = Plugin.MapButtons[ MapName ]
+	local MapButton = self.MapButtons[ MapName ]
 
 	if SGUI.IsValid( MapButton ) and MapButton:GetText():find( MapName, 1, true ) then
 		MapButton:SetText( StringFormat( "%s (%i)", MapName, Votes ) )
 	end
-end )
+end
 
-Client.HookNetworkMessage( "Shine_EndVote", function()
-	Plugin.EndTime = 0
+function Plugin:ReceiveEndVote( Data )
+	self.EndTime = 0
 
-	TableEmpty( Plugin.MapVoteCounts )
-	TableEmpty( Plugin.MapButtons )
-end )
+	TableEmpty( self.MapVoteCounts )
+	TableEmpty( self.MapButtons )
+end
 
 local ButtonBoundMessage =
 [[%s. Press %s to vote.
@@ -187,7 +185,7 @@ Maps: %s.
 Type !vote <map> to vote.
 Time left to vote: %%s.]]
 
-Client.HookNetworkMessage( "Shine_MapVoteOptions", function( Message )
+function Plugin:ReceiveVoteOptions( Message )
 	Shine.CheckVoteMenuBind()
 
 	local Duration = Message.Duration
@@ -199,14 +197,14 @@ Client.HookNetworkMessage( "Shine_MapVoteOptions", function( Message )
 
 	local Maps = StringExplode( Options, ", " )
 
-	Plugin.Maps = Maps
-	Plugin.EndTime = Shared.GetTime() + Duration
+	self.Maps = Maps
+	self.EndTime = Shared.GetTime() + Duration
 
 	for i = 1, #Maps do
 		local Map = Maps[ i ]
 
-		if not Plugin.MapVoteCounts[ Map ] then
-			Plugin.MapVoteCounts[ Map ] = 0
+		if not self.MapVoteCounts[ Map ] then
+			self.MapVoteCounts[ Map ] = 0
 		end
 	end
 
@@ -295,5 +293,5 @@ Client.HookNetworkMessage( "Shine_MapVoteOptions", function( Message )
 		end
 	end
 
-	Plugin.SentVote = false
-end )
+	self.SentVote = false
+end
