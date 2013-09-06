@@ -133,10 +133,10 @@ function PrintTable( Table, Indent )
 
 	for k, v in pairs( Table ) do
 		if istable( v ) then
-			Print( "%s%s:\n", IndentString, ToString( k ) )
+			Print( "%s%s:\n", IndentString, tostring( k ) )
 			PrintTable( v, Indent + 2 )
 		else
-			Print( "%s%s = %s", IndentString, ToString( k ), ToString( v ) )
+			Print( "%s%s = %s", IndentString, tostring( k ), tostring( v ) )
 		end
 	end
 end

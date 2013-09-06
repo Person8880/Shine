@@ -45,7 +45,7 @@ function Shine:OpenWebpage( URL, TitleText )
 	Window:SetAnchor( GUIItem.Middle, GUIItem.Center )
 	Window:SetPos( Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 ) )
 	Window:SetColour( WindowColour )
-	Window:SetLayer( kGUILayerMainMenuWeb )
+	--Window:SetLayer( kGUILayerMainMenuWeb )
 
 	self.ActiveWebPage = Window
 

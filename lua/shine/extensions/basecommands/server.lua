@@ -157,6 +157,13 @@ function Plugin:CreateCommands()
 		RunLuaCommand:Help( "Runs a string of Lua code on the server. Be careful with this." )
 	end
 
+	local function SetCheats( Client, Enable )
+		Shared.ConsoleCommand( "cheats "..( Enable and "1" or "0" ) )
+	end
+	local SetCheatsCommand = self:BindCommand( "sh_cheats", "cheats", SetCheats )
+	SetCheatsCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shared.GetCheatsEnabled() end }
+	SetCheatsCommand:Help( "Enables or disables cheats mode." )
+
 	local function AllTalk( Client, Enable )
 		self.Config.AllTalk = Enable
 

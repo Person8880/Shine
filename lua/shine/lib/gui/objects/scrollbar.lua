@@ -114,6 +114,8 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 
 	self.StartingPos = self.Pos
 	self.StartingY = Y
+
+	return true
 end
 
 function Scrollbar:OnMouseWheel( Down )
