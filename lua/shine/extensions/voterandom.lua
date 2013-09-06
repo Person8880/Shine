@@ -75,6 +75,7 @@ local DefaultConfig = {
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if ELO fails?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = false, --Should the plugin ignore commanders when switching?
+	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
 	MaxStoredRounds = 3 --How many rounds of score data should we buffer?
 }
@@ -628,11 +629,15 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	local Time = Shared.GetTime()
 
 	local function SortPlayer( Player, Client, Commander )
+		local Team = Player:GetTeamNumber()
+
+		if Team == 3 and self.Config.IgnoreSpectators then
+			return
+		end
+
 		if not Shine:HasAccess( Client, "sh_randomimmune" ) and not Commander then
 			Targets[ #Targets + 1 ] = Player
 		else
-			local Team = Player:GetTeamNumber()
-
 			local TeamTable = TeamMembers[ Team ]
 
 			if TeamTable then
