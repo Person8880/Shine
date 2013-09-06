@@ -88,26 +88,20 @@ function Shine:OpenWebpage( URL, TitleText )
 	CloseButton:SetInactiveCol( CloseButtonCol )
 
 	function CloseButton:DoClick()
-		if not CommanderUI_IsLocalPlayerCommander() then
-			MouseTracker_SetIsVisible( false )
-		end
+		SGUI:EnableMouse( false )
 
 		Window:Destroy()
 
 		Shine.ActiveWebPage = nil
 	end
 
-	if not CommanderUI_IsLocalPlayerCommander() then
-		MouseTracker_SetIsVisible( true )
-	end
+	SGUI:EnableMouse( true )
 end
 
 function Shine:CloseWebPage()
 	if not SGUI.IsValid( self.ActiveWebPage ) then return end
 
-	if not CommanderUI_IsLocalPlayerCommander() then
-		MouseTracker_SetIsVisible( false )
-	end
+	SGUI:EnableMouse( false )
 
 	self.ActiveWebPage:Destroy()
 
