@@ -11,10 +11,6 @@ local type = type
 local Plugin = {}
 Plugin.Version = "1.0"
 
-local function isstring( String )
-	return type( String ) == "string"
-end
-
 function Plugin:Initialise()
 	if self.Enabled ~= nil then 
 		self.Enabled = true

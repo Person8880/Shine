@@ -161,9 +161,9 @@ function Button:SetHighlightTexture( Texture )
 	self.HighlightTexture = Texture
 end
 
-function Button:PlayerKeyPress( Key, Down )
+function Button:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
-	if Key ~= InputKey.MouseButton0 or not Down then return end
+	if Key ~= InputKey.MouseButton0 then return end
 	if not self.Highlighted then return end
 
 	local Time = Shared.GetTime()

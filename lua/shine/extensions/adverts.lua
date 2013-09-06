@@ -34,22 +34,16 @@ function Plugin:Initialise()
 	return true
 end
 
-local function isstring( String )
-	return type( String ) == "string"
-end
-
-local function istable( Table )
-	return type( Table ) == "table"
-end
+local IsType = Shine.IsType
 
 function Plugin:ParseAdvert( ID, Advert )
-	if isstring( Advert ) then
+	if IsType( Advert, "string" ) then
 		Shine:NotifyDualColour( nil, 255, 255, 255, Advert, 0, 0, 0, "  " )
 
 		return
 	end
 
-	if istable( Advert ) then
+	if IsType( Advert, "table" ) then
 		local Message = Advert.Message
 
 		if not Message then

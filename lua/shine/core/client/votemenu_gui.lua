@@ -138,18 +138,14 @@ function VoteMenu:SetIsVisible( Bool )
 
 		Shared.PlaySound( nil, OpenSound )
 
-		if not CommanderUI_IsLocalPlayerCommander() then
-			MouseTracker_SetIsVisible( true )
-		end
+		SGUI:EnableMouse( true )
 
 		self.Background:SetIsVisible( true )
 
 		--Set the page to ensure only the correct buttons show after making the panel visible.
 		self:SetPage( self.ActivePage or "Main" )
 	else
-		if not CommanderUI_IsLocalPlayerCommander() then
-			MouseTracker_SetIsVisible( false )
-		end
+		SGUI:EnableMouse( false )
 
 		self.Background:SetIsVisible( false )
 	end

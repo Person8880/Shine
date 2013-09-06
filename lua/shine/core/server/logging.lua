@@ -110,9 +110,7 @@ function Shine:Print( String, Format, ... )
 	self:LogString( String )
 end
 
-local function istable( Tab )
-	return type( Tab ) == "table"
-end
+local IsType = Shine.IsType
 
 --[[
 	Sends a chat message to the given player(s).
@@ -131,7 +129,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return
 	end
 
-	if istable( Player ) == "table" then
+	if IsType( Player, "table" ) then
 		local PlayerCount = #Player
 
 		for i = 1, PlayerCount do
@@ -177,7 +175,7 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
 		end
-	elseif istable( Player ) then
+	elseif IsType( Player, "table" ) then
 		for i = 1, #Player do
 			local Ply = Player[ i ]
 
@@ -215,7 +213,7 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 		for i = 1, #Players do
 			Server.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
 		end
-	elseif istable( Player ) then
+	elseif IsType( Player, "table" ) then
 		for i = 1, #Player do
 			local Ply = Player[ i ]
 
