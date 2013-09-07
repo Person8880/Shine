@@ -51,6 +51,10 @@ for i = 1, #Scripts do
 	end
 end
 
-if Shine.Error then return end
+if Shine.Error then 
+	Shared.Message( "Shine failed to start. Check the console for errors." )
+
+	return 
+end
 
 Shine:Print( "Shine started up successfully." )
