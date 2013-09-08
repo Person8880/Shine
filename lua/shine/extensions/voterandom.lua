@@ -662,7 +662,7 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 				if AFKEnabled then --Ignore AFK players in sorting.
 					local LastMove = AFKKick:GetLastMoveTime( Client )
 
-					if not ( LastMove and Time - LastMove < 60 ) then
+					if not ( LastMove and Time - LastMove > 60 ) then
 						SortPlayer( Player, Client, Commander )
 					else --Chuck AFK players into the ready room.
 						local Team = Player:GetTeamNumber()
