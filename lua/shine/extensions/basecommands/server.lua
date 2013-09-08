@@ -9,7 +9,9 @@ local Encode, Decode = json.encode, json.decode
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local StringExplode = string.Explode
 local StringFormat = string.format
+local TableConcat = table.concat
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
 
@@ -478,12 +480,32 @@ function Plugin:CreateCommands()
 	PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
 	PMCommand:Help( "<player> <message> Sends a private message to the given player." )
 
+	local Colours = {
+		white = { 255, 255, 255 },
+		red = { 255, 0, 0 },
+		orange = { 255, 160, 0 },
+		yellow = { 255, 255, 0 },
+		green = { 0, 255, 0 },
+		lightblue = { 0, 255, 255 },
+		blue = { 0, 0, 255 },
+		purple = { 255, 0, 255 }
+	}
+
 	local function CSay( Client, Message )
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 		local ID = Client:GetUserId() or 0
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6, 255, 255, 255, 1, 2, 1 ) )
+		local Words = StringExplode( Message, " " )
+		local Colour = Colours[ Words[ 1 ] ]
+
+		if Colour then
+			Message = TableConcat( Words, " ", 2 )
+		else
+			Colour = Colours.white
+		end
+
+		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 1, 2, 1 ) )
 		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
 	end
 	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )
