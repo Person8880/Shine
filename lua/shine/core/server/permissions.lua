@@ -273,9 +273,7 @@ Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
 	GameIDs[ Client ] = nil
 end, -20 )
 
-local function isnumber( Num )
-	return type( Num ) == "number"
-end
+local IsType = Shine.IsType
 
 --[[
 	Gets the user data table for the given client/NS2ID.
@@ -286,7 +284,7 @@ function Shine:GetUserData( Client )
 	if not self.UserData then return nil end
 	if not self.UserData.Users then return nil end
 	
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
 
 	return self.UserData.Users[ tostring( ID ) ], ID
 end
@@ -370,8 +368,8 @@ function Shine:CanTarget( Client, Target )
 
 	if not self.UserData then return false end
 
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
-	local TargetID = isnumber( Target ) and Target or Target:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
+	local TargetID = IsType( Target, "number" ) and Target or Target:GetUserId()
 
 	if ID == TargetID then return true end
 
@@ -429,7 +427,7 @@ function Shine:IsInGroup( Client, Group )
 
 	if not UserData then return false end
 
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
 
 	local User = UserData[ tostring( ID ) ]
 

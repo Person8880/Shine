@@ -23,9 +23,7 @@ local UnfilledLinePos = Vector( 250, -2.5, 0 )
 
 local Clear = Colour( 0, 0, 0, 0 )
 
-local function isnumber( Num )
-	return type( Num ) == "number"
-end
+local IsType = Shine.IsType
 
 function Slider:Initialise()
 	self.BaseClass.Initialise( self )
@@ -147,7 +145,7 @@ end
 	Sets the slider's position by value.
 ]]
 function Slider:SetValue( Value )
-	if not isnumber( Value ) then return end
+	if not IsType( Value, "number" ) then return end
 	
 	self.Value = Clamp( Round( Value, self.Decimals ), self.Min, self.Max )
 

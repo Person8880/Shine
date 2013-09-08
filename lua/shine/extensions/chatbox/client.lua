@@ -522,9 +522,7 @@ end
 
 local IntToColour
 
-local function isnumber( Num )
-	return type( Num ) == "number"
-end
+local IsType = Shine.IsType
 
 --[[
 	Adds a message to the chatbox.
@@ -592,7 +590,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	--Why did they use int for the first colour, then colour object for the second?
-	if isnumber( PlayerColour ) then
+	if IsType( PlayerColour, "number" ) then
 		PlayerColour = IntToColour( PlayerColour )
 	end
 
@@ -644,10 +642,7 @@ function Plugin:CloseChat()
 	self.MainPanel:SetIsVisible( false )
 	self.GUIChat:SetIsVisible( true ) --Allow the GUIChat messages to show.
 
-	--Don't remove the commander's mouse!
-	if not CommanderUI_IsLocalPlayerCommander() then
-		MouseTracker_SetIsVisible( false )
-	end
+	SGUI:EnableMouse( false )
 
 	if self.Config.DeleteOnClose then
 		self.TextEntry:SetText( "" )
@@ -673,10 +668,7 @@ function Plugin:StartChat( Team )
 	--The little text to the left of the text entry.
 	self.ModeText:SetText( self.TeamChat and "Team:" or "All:" )
 
-	--Don't need to show the mouse again for commanders.
-	if not CommanderUI_IsLocalPlayerCommander() then
-		MouseTracker_SetIsVisible( true )
-	end
+	SGUI:EnableMouse( true )
 
 	self.MainPanel:SetIsVisible( true )
 	self.GUIChat:SetIsVisible( false )
@@ -715,6 +707,11 @@ function Plugin:Cleanup()
 	self.SettingsPanel = nil
 
 	TableEmpty( self.Messages )
+
+	if self.Visible then
+		SGUI:EnableMouse( false )
+		self.Visible = false
+	end
 end
 
 Shine:RegisterExtension( "chatbox", Plugin )

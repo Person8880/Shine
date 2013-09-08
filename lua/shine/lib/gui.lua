@@ -33,26 +33,17 @@ SGUI.InactiveControls = {}
 --Used to adjust the appearance of all elements at once.
 SGUI.Skins = {}
 
+--Base visual layer.
 SGUI.BaseLayer = 20
 
 --Global control meta-table.
 local ControlMeta = {}
 
-local DummyText
+--local DummyText
+local WideStringToString = Locale.WideStringToString
 
---[[
-	Ugh, UWE pass userdata as the character in their Character event.
-	I have to use this stupid hacky method to get the string...
-]]
 function SGUI.GetChar( Char )
-	if not DummyText then
-		DummyText = GetGUIManager():CreateTextItem()
-		DummyText:SetIsVisible( false )
-	end
-
-	DummyText:SetWideText( Char )
-
-	return DummyText:GetText()
+	return WideStringToString( Char )
 end
 
 SGUI.SpecialKeyStates = {
@@ -136,6 +127,44 @@ function SGUI:CallGlobalEvent( Name, ... )
 	for Control in pairs( self.ActiveControls ) do
 		if Control[ Name ] then
 			Control[ Name ]( Name, ... )
+		end
+	end
+end
+
+SGUI.MouseObjects = 0
+
+local IsCommander
+local ShowMouse
+
+--[[
+	Allow for multiple windows to "enable" the mouse, without
+	disabling it after one closes.
+]]
+function SGUI:EnableMouse( Enable )
+	if not ShowMouse then
+		ShowMouse = MouseTracker_SetIsVisible
+		IsCommander = CommanderUI_IsLocalPlayerCommander
+	end
+
+	if Enable then
+		self.MouseObjects = self.MouseObjects + 1
+	
+		if self.MouseObjects == 1 then
+			if not IsCommander() then
+				ShowMouse( true )
+			end
+		end
+
+		return
+	end
+
+	if self.MouseObjects <= 0 then return end
+
+	self.MouseObjects = self.MouseObjects - 1
+
+	if self.MouseObjects == 0 then
+		if not IsCommander() then
+			ShowMouse( false )
 		end
 	end
 end
