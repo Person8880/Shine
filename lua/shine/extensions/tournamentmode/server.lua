@@ -23,10 +23,13 @@ Plugin.DefaultConfig = {
 
 Plugin.CheckConfig = true
 
---Don't allow the pregame plugin to load with us.
+--Don't allow the afkkick, pregame, mapvote or readyroom plugins to load with us.
 Plugin.Conflicts = {
 	DisableThem = {
-		"pregame"
+		"pregame",
+		"mapvote",
+		"readyroom",
+		"afkkick"
 	}
 }
 
@@ -68,8 +71,9 @@ function Plugin:Initialise()
 
 	--We've been reactivated, we can disable autobalance here and now.
 	if self.Enabled ~= nil then
-		Server.SetConfigSetting( "auto_team_balance", nil )
-		Server.SetConfigSetting( "end_round_on_team_unbalance", nil )
+		Server.SetConfigSetting( "auto_team_balance", false )
+		Server.SetConfigSetting( "end_round_on_team_unbalance", false )
+		Server.SetConfigSetting( "force_even_teams_on_join", false )
 	end
 
 	self:CreateCommands()
@@ -133,11 +137,11 @@ function Plugin:GetStartNag()
 	if MarinesReady and AliensReady then return nil end
 	
 	if MarinesReady and not AliensReady then
-		return StringFormat( "Waiting on %s to start.", self:GetTeamName( 2 ) )
+		return StringFormat( "Waiting on %s to start", self:GetTeamName( 2 ) )
 	elseif AliensReady and not MarinesReady then
-		return StringFormat( "Waiting on %s to start.", self:GetTeamName( 1 ) )
+		return StringFormat( "Waiting on %s to start", self:GetTeamName( 1 ) )
 	else
-		return StringFormat( "Waiting on both teams to start." )
+		return StringFormat( "Waiting on both teams to start" )
 	end
 end
 
@@ -154,13 +158,17 @@ function Plugin:CheckCommanders( Gamerules )
 	if MarinesReady and not Team1Com then
 		self.ReadyStates[ 1 ] = false
 
-		self:Notify( false, nil, "%s is no longer ready.", self:GetTeamName( 1 ) )
+		self:Notify( false, nil, "%s is no longer ready.", true, self:GetTeamName( 1 ) )
+
+		self:CheckStart()
 	end
 
 	if AliensReady and not Team2Com then
 		self.ReadyStates[ 2 ] = false
 
-		self:Notify( false, nil, "%s is no longer ready.", self:GetTeamName( 2 ) )
+		self:Notify( false, nil, "%s is no longer ready.", true, self:GetTeamName( 2 ) )
+
+		self:CheckStart()
 	end
 end
 
@@ -186,8 +194,9 @@ end
 ]]
 function Plugin:ClientConfirmConnect( Client )
 	if not self.DisabledAutobalance then
-		Server.SetConfigSetting( "auto_team_balance", nil )
-		Server.SetConfigSetting( "end_round_on_team_unbalance", nil )
+		Server.SetConfigSetting( "auto_team_balance", false )
+		Server.SetConfigSetting( "end_round_on_team_unbalance", false )
+		Server.SetConfigSetting( "force_even_teams_on_join", false )
 
 		self.DisabledAutobalance = true
 	end
@@ -402,6 +411,7 @@ function Plugin:Cleanup()
 
 	Server.SetConfigSetting( "auto_team_balance", true )
 	Server.SetConfigSetting( "end_round_on_team_unbalance", true )
-	
+	Server.SetConfigSetting( "force_even_teams_on_join", true )
+
 	self.Enabled = false
 end
