@@ -6,6 +6,7 @@
 
 local Shine = Shine
 
+local Floor = math.floor
 local Max = math.max
 local tonumber = tonumber
 
@@ -23,6 +24,12 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 
 function Plugin:Initialise()
+	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )
+
+	if self.Config.Slots > 0 then
+		Server.AddTag( "R_S"..self.Config.Slots )
+	end
+
 	self.Enabled = true
 
 	return true
