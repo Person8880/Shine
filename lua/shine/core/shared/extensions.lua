@@ -353,6 +353,44 @@ function Shine:EnableExtension( Name )
 		self:UnloadExtension( Name )
 	end
 
+	local Conflicts = Plugin.Conflicts
+
+	--Deal with inter-plugin conflicts.
+	if Conflicts then
+		local DisableThem = Conflicts.DisableThem
+		local DisableUs = Conflicts.DisableUs
+
+		if DisableUs then
+			for i = 1, #DisableUs do
+				local Plugin = DisableUs[ i ]
+
+				local PluginTable = self.Plugins[ Plugin ]
+				local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
+
+				--Halt our enabling, we're not allowed to load with this plugin enabled.
+				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
+					return
+				end
+			end
+		end
+
+		if DisableThem then
+			for i = 1, #DisableThem do
+				local Plugin = DisableThem[ i ]
+
+				local PluginTable = self.Plugins[ Plugin ]
+				local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
+
+				--Don't allow them to load, or unload them if they have already.
+				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
+					self.Config.ActiveExtensions[ Plugin ] = false
+
+					self:UnloadExtension( Plugin )
+				end
+			end
+		end
+	end
+
 	if Plugin.HasConfig then
 		Plugin:LoadConfig()
 	end
