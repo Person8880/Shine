@@ -6,11 +6,12 @@
 
 local Shine = Shine
 
+local Floor = math.floor
 local Max = math.max
 local tonumber = tonumber
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "2.0"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "ReservedSlots.json"
@@ -23,9 +24,40 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 
 function Plugin:Initialise()
+	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )
+
+	if self.Config.Slots > 0 and not self.Config.TakeSlotInstantly then
+		self.OldTag = "R_S"..self.Config.Slots
+
+		Server.AddTag( self.OldTag )
+	end
+
 	self.Enabled = true
 
 	return true
+end
+
+--[[
+	Update the server tag with the current reserved slot count.
+]]
+function Plugin:UpdateTag( Slots )
+	if not self.OldTag then
+		local Tag = "R_S"..Slots
+
+		Server.AddTag( Tag )
+
+		self.OldTag = Tag
+	else
+		local Tag = "R_S"..Slots
+
+		if Tag == self.OldTag then return end
+
+		Server.RemoveTag( self.OldTag )
+
+		Server.AddTag( Tag )
+
+		self.OldTag = Tag
+	end
 end
 
 --[[
@@ -48,6 +80,8 @@ function Plugin:CheckConnectionAllowed( ID )
 		local Reserved, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
 
 		Slots = Max( Slots - Count, 0 )
+
+		self:UpdateTag( Slots )
 	
 		if Slots == 0 then return true end
 	end
