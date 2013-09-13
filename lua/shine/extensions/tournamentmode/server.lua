@@ -67,6 +67,8 @@ function Plugin:Initialise()
 		Server.SetConfigSetting( "auto_team_balance", nil )
 		Server.SetConfigSetting( "end_round_on_team_unbalance", nil )
 	end
+
+	self:CreateCommands()
 	
 	self.Enabled = true
 
@@ -94,9 +96,6 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	self.GameStarted = false
 end
 
---[[
-	Blocks the game starting until we start it ourselves.
-]]
 function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 	
@@ -126,7 +125,6 @@ end
 	Rejoin a reconnected client to their old team.
 ]]
 function Plugin:ClientConfirmConnect( Client )
-	--Turn off autobalance
 	if not self.DisabledAutobalance then
 		Server.SetConfigSetting( "auto_team_balance", nil )
 		Server.SetConfigSetting( "end_round_on_team_unbalance", nil )
@@ -206,13 +204,19 @@ function Plugin:CreateCommands()
 
 		local Player = Client:GetControllingPlayer()
 
+		if not Player then return end
+		
+		local Team = Player:GetTeamNumber()
+
+		if Team ~= 1 and Team ~= 2 then
+			return
+		end
+
 		if not Player:isa( "Commander" ) then
 			Shine:NotifyError( Client, "Only the commander can ready up the team." )
 
 			return
 		end
-
-		local Team = Player:GetTeamNumber()
 
 		local Time = Shared.GetTime()
 		local NextReady = self.NextReady[ Team ] or 0
@@ -246,13 +250,19 @@ function Plugin:CreateCommands()
 
 		local Player = Client:GetControllingPlayer()
 
+		if not Player then return end
+		
+		local Team = Player:GetTeamNumber()
+
+		if Team ~= 1 and Team ~= 2 then
+			return
+		end
+
 		if not Player:isa( "Commander" ) then
 			Shine:NotifyError( Client, "Only the commander can ready up the team." )
 
 			return
 		end
-
-		local Team = Player:GetTeamNumber()
 
 		local Time = Shared.GetTime()
 		local NextReady = self.NextReady[ Team ] or 0

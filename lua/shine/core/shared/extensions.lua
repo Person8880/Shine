@@ -40,6 +40,16 @@ local PluginMeta = {}
 PluginMeta.__index = PluginMeta
 
 --[[
+	Base initialise, just enables the plugin, nothing more.
+	Override to add to it.
+]]
+function PluginMeta:Initialise()
+	self.Enabled = true
+
+	return true
+end
+
+--[[
 	Adds a variable to the plugin's data table.
 
 	Inputs:

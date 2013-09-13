@@ -25,10 +25,11 @@ end
 function Plugin:NetworkUpdate( Key, Old, New )
 	if Server then return end
 	
+	--Using team1 or team2 resets the other team's name...
 	if Key == "MarineName" and New ~= "" then
-		Shared.ConsoleCommand( StringFormat( "team1 %s", New ) )
+		Shared.ConsoleCommand( StringFormat( "teams %s %s", New, self.dt.AlienName ) )
 	elseif Key == "AlienName" and New ~= "" then
-		Shared.ConsoleCommand( StringFormat( "team2 %s", New ) )
+		Shared.ConsoleCommand( StringFormat( "teams %s %s", self.dt.MarineName, New ) )
 	elseif Key == "MarineScore" then
 		Shared.ConsoleCommand( StringFormat( "score1 %i", New ) )
 	elseif Key == "AlienScore" then
@@ -37,3 +38,5 @@ function Plugin:NetworkUpdate( Key, Old, New )
 end
 
 Shine:RegisterExtension( "tournamentmode", Plugin )
+
+if Server then return end
