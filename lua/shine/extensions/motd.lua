@@ -52,7 +52,7 @@ function Plugin:ShowMotD( Client )
 	end
 
 	if self.Config.Mode == self.HTML_MODE then
-		Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL }, true )
+		Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL, Title = "Message of the day" }, true )
 	end
 end
 

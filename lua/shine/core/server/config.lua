@@ -38,6 +38,7 @@ local DefaultConfig = {
 		readyroom = false,
 		reservedslots = false,
 		serverswitch = false,
+		tournamentmode = false,
 		unstuck = true,
 		voterandom = false,
 		votesurrender = true,

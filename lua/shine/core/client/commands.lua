@@ -122,7 +122,11 @@ local ParamTypes = {
 
 		local ToNum = tonumber( String )
 
-		return ToNum and ToNum ~= 0 or String ~= "false"
+		if ToNum then
+			return ToNum ~= 0
+		end
+
+		return String ~= "false"
 	end
 }
 

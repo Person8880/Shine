@@ -9,6 +9,7 @@ local Encode, Decode = json.encode, json.decode
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local Max = math.max
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
@@ -27,10 +28,16 @@ Plugin.DefaultConfig = {
 	AllTalk = false,
 	AllTalkPreGame = false,
 	EjectVotesNeeded = 0.5,
-	DisableLuaRun = false
+	DisableLuaRun = false,
+	Interp = 100,
+	MoveRate = 30,
+	FriendlyFire = false
 }
 
 Plugin.CheckConfig = true
+
+Shine.Hook.SetupClassHook( "Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+Shine.Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 
 function Plugin:Initialise()
 	self.Gagged = {}
@@ -40,10 +47,27 @@ function Plugin:Initialise()
 	self.SetEjectVotes = false
 
 	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
+	self.Config.Interp = Max( self.Config.Interp, 0 )
+	self.Config.MoveRate = Max( self.Config.MoveRate, 5 )
 
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:GetFriendlyFire()
+	if self.Config.FriendlyFire then
+		return true
+	end
+end
+
+function Plugin:ClientConnect( Client )
+	if self.Config.Interp ~= 100 then
+		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
+	end
+	if self.Config.MoveRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
+	end
 end
 
 function Plugin:Think()
