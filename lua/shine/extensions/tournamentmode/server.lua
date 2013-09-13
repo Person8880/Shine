@@ -1,10 +1,14 @@
 --[[
 	Shine tournament mode
+
+	TODO:
+	- Best of X mode?
 ]]
 
 local Shine = Shine
 local Timer = Shine.Timer
 
+local StringFormat = string.format
 local TableEmpty = table.Empty
 
 local Plugin = Plugin
@@ -75,8 +79,9 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 0, 255, 0, "[TournamentMode]", 255, 255, 255, Message, Format, ... )
+function Plugin:Notify( Positive, Player, Message, Format, ... )
+	Shine:NotifyDualColour( Player, Positive and 0 or 255, Positive and 255 or 0, 0, 
+		"[TournamentMode]", 255, 255, 255, Message, Format, ... )
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
@@ -96,11 +101,66 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	self.GameStarted = false
 end
 
+local NextStartNag = 0
+
 function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 	
 	if State == kGameState.PreGame or State == kGameState.NotStarted then
+		self:CheckCommanders( Gamerules )
+
+		local Time = Shared.GetTime()
+
+		--Have you started yet? No? Start pls.
+		if NextStartNag < Time then
+			NextStartNag = Time + 30
+
+			local Nag = self:GetStartNag()
+
+			if not Nag then return end
+
+			self:SendNetworkMessage( nil, "StartNag", { Message = Nag }, true )
+		end
+
 		return false
+	end
+end
+
+function Plugin:GetStartNag()
+	local MarinesReady = self.ReadyStates[ 1 ]
+	local AliensReady = self.ReadyStates[ 2 ]
+
+	if MarinesReady and AliensReady then return nil end
+	
+	if MarinesReady and not AliensReady then
+		return StringFormat( "Waiting on %s to start.", self:GetTeamName( 2 ) )
+	elseif AliensReady and not MarinesReady then
+		return StringFormat( "Waiting on %s to start.", self:GetTeamName( 1 ) )
+	else
+		return StringFormat( "Waiting on both teams to start." )
+	end
+end
+
+function Plugin:CheckCommanders( Gamerules )
+	local Team1 = Gamerules.team1
+	local Team2 = Gamerules.team2
+
+	local Team1Com = Team1:GetCommander()
+	local Team2Com = Team2:GetCommander()
+
+	local MarinesReady = self.ReadyStates[ 1 ]
+	local AliensReady = self.ReadyStates[ 2 ]
+
+	if MarinesReady and not Team1Com then
+		self.ReadyStates[ 1 ] = false
+
+		self:Notify( false, nil, "%s is no longer ready.", self:GetTeamName( 1 ) )
+	end
+
+	if AliensReady and not Team2Com then
+		self.ReadyStates[ 2 ] = false
+
+		self:Notify( false, nil, "%s is no longer ready.", self:GetTeamName( 2 ) )
 	end
 end
 
@@ -189,11 +249,23 @@ function Plugin:CheckStart()
 	end
 
 	--One or both teams are not ready, halt the countdown.
-	Timer.Destroy( self.FiveSecondTimer )
-	Timer.Destroy( self.CountdownTimer )
+	if Timer.Exists( self.CountdownTimer ) then
+		Timer.Destroy( self.FiveSecondTimer )
+		Timer.Destroy( self.CountdownTimer )
 
-	--Remove the countdown text.
-	Shine:RemoveText( nil, { ID = 2 } )
+		--Remove the countdown text.
+		Shine:RemoveText( nil, { ID = 2 } )
+
+		self:Notify( false, nil, "Game start aborted." )
+	end
+end
+
+function Plugin:GetReadyState( Team )
+	return self.ReadyStates[ Team ]
+end
+
+function Plugin:GetOppositeTeam( Team )
+	return Team == 1 and 2 or 1
 end
 
 function Plugin:CreateCommands()
@@ -230,8 +302,15 @@ function Plugin:CreateCommands()
 
 			local TeamName = self:GetTeamName( Team )
 
-			self:Notify( nil, "%s is now ready.", true, TeamName )
+			local OtherTeam = self:GetOppositeTeam( Team )
+			local OtherReady = self:GetReadyState( OtherTeam )
 
+			if OtherReady then
+				self:Notify( true, nil, "%s is now ready.", true, TeamName )
+			else
+				self:Notify( true, nil, "%s is now ready. Waiting on %s to start.", true, TeamName, self:GetTeamName( OtherTeam ) )
+			end
+			
 			--Add a delay to prevent ready->unready spam.
 			self.NextReady[ Team ] = Time + 5
 
@@ -276,7 +355,7 @@ function Plugin:CreateCommands()
 
 			local TeamName = self:GetTeamName( Team )
 
-			self:Notify( nil, "%s is no longer ready.", true, TeamName )
+			self:Notify( false, nil, "%s is no longer ready.", true, TeamName )
 
 			--Add a delay to prevent ready->unready spam.
 			self.NextReady[ Team ] = Time + 5

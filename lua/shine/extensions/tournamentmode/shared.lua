@@ -17,6 +17,8 @@ function Plugin:SetupDataTable()
 
 	self:AddDTVar( "integer (0 to 255)", "MarineScore", 0 )
 	self:AddDTVar( "integer (0 to 255)", "AlienScore", 0 )
+
+	self:AddNetworkMessage( "StartNag", { Message = "string (64)" }, "Client" )
 end
 
 --[[
@@ -40,3 +42,11 @@ end
 Shine:RegisterExtension( "tournamentmode", Plugin )
 
 if Server then return end
+
+function Plugin:ReceiveStartNag( Data )
+	local Player = Client.GetLocalPlayer()
+
+	if not Player or not HasMixin( Player, "TeamMessage" ) then return end
+	
+	Player:SetTeamMessage( Data.Message:upper() )
+end
