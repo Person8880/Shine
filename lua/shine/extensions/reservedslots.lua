@@ -11,7 +11,7 @@ local Max = math.max
 local tonumber = tonumber
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "2.0"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "ReservedSlots.json"
