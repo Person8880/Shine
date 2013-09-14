@@ -197,7 +197,7 @@ end
 local Requests = {}
 local ReqCount = 1
 
-function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
+function Plugin:RequestNS2Stats( Gamerules, Callback )
 	local Players = Shared.GetEntitiesWithClassname( "Player" )
 	local Concat = {}
 
@@ -475,7 +475,7 @@ Plugin.ShufflingModes = {
 			return
 		end
 
-		self:RequestNS2Stats( Gamerules, Targets, TeamMembers, function()
+		self:RequestNS2Stats( Gamerules, function()
 			local StatsData = self.StatsData
 
 			if not StatsData or not next( StatsData ) then
@@ -489,6 +489,8 @@ Plugin.ShufflingModes = {
 
 				return
 			end
+
+			local Targets, TeamMembers = self:GetTargetsForSorting()
 			
 			local Players = Shine.GetAllPlayers()
 
@@ -616,10 +618,10 @@ Plugin.ShufflingModes = {
 }
 
 --[[
-	Shuffles everyone on the server into random teams.
+	Gets all valid targets for sorting.
 ]]
-function Plugin:ShuffleTeams( ResetScores, ForceMode )
-	local Players = Shine.GetRandomPlayerList()
+function Plugin:GetTargetsForSorting( ResetScores )
+	local Players = Shine.GetAllPlayers()
 
 	local Gamerules = GetGamerules()
 
@@ -686,6 +688,15 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 			end
 		end
 	end
+
+	return Targets, TeamMembers
+end
+
+--[[
+	Shuffles everyone on the server into random teams.
+]]
+function Plugin:ShuffleTeams( ResetScores, ForceMode )
+	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
 
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
 
