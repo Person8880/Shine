@@ -101,7 +101,11 @@ function Plugin:SaveConfig()
 	if self.Config.GetBansFromWeb then return end
 	
 	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
+	
+	if self.Config.ExternalConfigPath and self.Config.ExternalConfigPath ~= "" then
+		Success, Err = Shine.SaveJSONFile( self.Config, self.Config.ExternalConfigPath..self.ConfigName )		
+	end
+	
 	if not Success then
 		Notify( "Error writing bans file: "..Err )	
 
