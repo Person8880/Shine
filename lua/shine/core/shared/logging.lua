@@ -8,11 +8,13 @@ local Reported = {}
 if Server then
 	local URL = "http://5.39.89.152/shine/errorreport.php"
 
+	local next = next
 	local TableConcat = table.concat
 	local TableEmpty = table.Empty
 
 	Shine.Hook.Add( "EndGame", "ReportQueuedErrors", function()
 		if not Shine.Config.ReportErrors then return end
+		if not next( ErrorQueue ) then return end
 		
 		local PostData = TableConcat( ErrorQueue, "\n" )
 
