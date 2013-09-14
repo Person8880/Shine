@@ -26,10 +26,12 @@ Plugin.CheckConfig = true
 function Plugin:Initialise()
 	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )
 
-	if self.Config.Slots > 0 and not self.Config.TakeSlotInstantly then
-		self.OldTag = "R_S"..self.Config.Slots
-
-		Server.AddTag( self.OldTag )
+	if self.Config.Slots > 0 then
+		if not self.Config.TakeSlotInstantly then
+			Server.AddTag( "R_S"..self.Config.Slots )
+		else
+			Server.AddTag( "R_S"..self:GetFreeReservedSlots() )
+		end
 	end
 
 	self.Enabled = true
@@ -37,27 +39,37 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:GetFreeReservedSlots()
+	local Slots = self.Config.Slots
+
+	if not self.Config.TakeSlotInstantly then
+		return Slots
+	end
+
+	local Reserved, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+
+	Slots = Max( Slots - Count, 0 )
+
+	return Slots
+end
+
 --[[
 	Update the server tag with the current reserved slot count.
 ]]
 function Plugin:UpdateTag( Slots )
-	if not self.OldTag then
-		local Tag = "R_S"..Slots
+	local Tags = {}
 
-		Server.AddTag( Tag )
+	Server.GetTags( Tags )
 
-		self.OldTag = Tag
-	else
-		local Tag = "R_S"..Slots
+	for i = 1, #Tags do
+		local Tag = Tags[ i ]
 
-		if Tag == self.OldTag then return end
-
-		Server.RemoveTag( self.OldTag )
-
-		Server.AddTag( Tag )
-
-		self.OldTag = Tag
+		if Tag and Tag:find( "R_S" ) then
+			Server.RemoveTag( Tag )
+		end
 	end
+
+	Server.AddTag( "R_S"..Slots )
 end
 
 --[[
@@ -77,9 +89,7 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	--Deduct reserved slot users from the number of reserved slots empty.
 	if self.Config.TakeSlotInstantly then
-		local Reserved, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
-
-		Slots = Max( Slots - Count, 0 )
+		Slots = self:GetFreeReservedSlots()
 
 		self:UpdateTag( Slots )
 	
