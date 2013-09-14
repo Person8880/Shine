@@ -76,7 +76,8 @@ function Plugin:GenerateDefaultConfig( Save )
 		Banned = {},
 		DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
 		GetBansFromWeb = false,
-		BansURL = ""
+		BansURL = "",
+		ExternalConfigPath = ""
 	}
 
 	if Save then
@@ -125,7 +126,13 @@ function Plugin:LoadConfig()
 	end
 
 	self.Config = PluginConfig
-
+	
+	--load External Config if there is any
+	if self.Config.ExternalConfigPath and self.Config.ExternalConfigPath ~= "" then
+		local ExternalPluginConfig = Shine.LoadJSONFile( self.Config.ExternalConfigPath .. self.ConfigName )
+		if ExternalPluginConfig then self.Config = ExternalPluginConfig end
+	end
+	
 	if self.Config.GetBansFromWeb then
 		--Load bans list after everything else.
 		Hook.Add( "Think", "Bans_WebLoad", function()
