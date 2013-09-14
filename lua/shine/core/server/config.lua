@@ -52,6 +52,8 @@ local DefaultConfig = {
 	SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
 
 	AddTag = true, --Add 'shine' as a server tag.
+
+	ReportErrors = true --Should errors be reported at the end of a round?
 }
 
 local CheckConfig = Shine.RecursiveCheckConfig
