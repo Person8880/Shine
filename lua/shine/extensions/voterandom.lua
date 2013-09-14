@@ -722,8 +722,8 @@ function Plugin:StoreScoreData( Player )
 			DataTable[ ID ] = Player.score
 		end
 	elseif Mode == self.MODE_KDR then
-		local Kills = Player:GetKills()
-		local Deaths = Player:GetDeaths()
+		local Kills = Player.GetKills and Player:GetKills() or 0
+		local Deaths = Player.GetDeaths and Player:GetDeaths() or 0
 
 		--0 KDR is useless, let's just randomise them.
 		if Kills == 0 then return end 
