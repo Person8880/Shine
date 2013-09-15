@@ -429,6 +429,8 @@ function Shine:UnloadExtension( Name )
 end
 
 local ClientPlugins = {}
+--Store a list of all plugins in existance. When the server config loads, we use it.
+Shine.AllPlugins = {}
 
 --[[
 	Prepare shared plugins.
@@ -440,6 +442,8 @@ for Path in pairs( PluginFiles ) do
 	local Folders = StringExplode( Path, "/" )
 	local Name = Folders[ 4 ]
 	local File = Folders[ 5 ]
+
+	Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
 
 	if File and not ClientPlugins[ Name ] then
 		if File:lower() == "shared.lua" then

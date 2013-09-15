@@ -275,6 +275,8 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, Reason )
 
 	self:SaveConfig()
 
+	Hook.Call( "OnPlayerBanned", ID, Name, Duration, BannedBy, Reason )
+
 	return true
 end
 
@@ -284,6 +286,8 @@ end
 ]]
 function Plugin:RemoveBan( ID, DontSave )
 	self.Config.Banned[ tostring( ID ) ] = nil
+
+	Hook.Call( "OnPlayerUnbanned", ID )
 
 	if DontSave then return end
 

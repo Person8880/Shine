@@ -11,6 +11,7 @@ local TableConcat = table.concat
 local TableRemove = table.remove
 local TableSort = table.sort
 local type = type
+local xpcall = xpcall
 
 --[[
 	Command object.
@@ -336,6 +337,12 @@ local function ParseParameter( Client, String, Table )
     end
 end
 
+local Traceback = debug.traceback
+
+local function OnError( Err )
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
+end
+
 --[[
 	Executes a Shine command. Should not be called directly.
 	Inputs: Client running the command, console command to run, string arguments passed to the command.
@@ -439,15 +446,19 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 	local Arguments = TableConcat( Args, ", " )
 
-	--Log the command's execution.
-	self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
-		Client and Client:GetControllingPlayer():GetName() or "Console", 
-		Client and Client:GetUserId() or "N/A", 
-		ConCommand, 
-		Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
-
 	--Run the command with the parsed arguments we've gathered.
-	Command.Func( Client, unpack( ParsedArgs ) )
+	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs ) )
+	
+	if not Success then
+		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
+	else
+		--Log the command's execution.
+		self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
+			Client and Client:GetControllingPlayer():GetName() or "Console", 
+			Client and Client:GetUserId() or "N/A", 
+			ConCommand, 
+			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
+	end
 end
 
 --Hook into the chat, execute commands if they match up.
