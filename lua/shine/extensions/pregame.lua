@@ -418,7 +418,7 @@ Plugin.UpdateFuncs = {
 		end
 
 		--Both teams have a commander, begin countdown.
-		if Team1Com and Team2Com then
+		if Team1Com and Team2Com and not self.StartedGame then
 			self.GameStarting = true
 
 			Gamerules:SetGameState( kGameState.PreGame )
@@ -538,21 +538,13 @@ Plugin.UpdateFuncs = {
 	end,
 }
 
-function Plugin:UpdatePregame()
-	local Gamerules = GetGamerules()
-
-	if not Gamerules then return end
-	
+function Plugin:UpdatePregame( Gamerules )
 	if Gamerules:GetGameState() == kGameState.PreGame then
 		return false
 	end
 end
 
-function Plugin:CheckGameStart()
-	local Gamerules = GetGamerules()
-
-	if not Gamerules then return end
-	
+function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 
 	if State ~= kGameState.NotStarted and State ~= kGameState.PreGame then return end
