@@ -197,7 +197,7 @@ end
 local Requests = {}
 local ReqCount = 1
 
-function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
+function Plugin:RequestNS2Stats( Gamerules, Callback )
 	local Players = Shared.GetEntitiesWithClassname( "Player" )
 	local Concat = {}
 
@@ -475,7 +475,7 @@ Plugin.ShufflingModes = {
 			return
 		end
 
-		self:RequestNS2Stats( Gamerules, Targets, TeamMembers, function()
+		self:RequestNS2Stats( Gamerules, function()
 			local StatsData = self.StatsData
 
 			if not StatsData or not next( StatsData ) then
@@ -489,6 +489,8 @@ Plugin.ShufflingModes = {
 
 				return
 			end
+
+			local Targets, TeamMembers = self:GetTargetsForSorting()
 			
 			local Players = Shine.GetAllPlayers()
 
@@ -521,7 +523,9 @@ Plugin.ShufflingModes = {
 			--Should we start from Aliens or Marines?
 			local Add = Random() >= 0.5 and 1 or 0
 
-			for i = 1, Min( MaxELOSort, Count ) do
+			local ELOSorted = Min( MaxELOSort, Count )
+
+			for i = 1, ELOSorted do
 				if ELOSort[ i ] then
 					local Player = ELOSort[ i ].Player
 
@@ -532,7 +536,7 @@ Plugin.ShufflingModes = {
 				end
 			end
 
-			local Count = #Players - MaxELOSort
+			local Count = #Players - ELOSorted
 
 			--Sort the remaining players with the fallback method.
 			if Count > 0 then
@@ -616,10 +620,10 @@ Plugin.ShufflingModes = {
 }
 
 --[[
-	Shuffles everyone on the server into random teams.
+	Gets all valid targets for sorting.
 ]]
-function Plugin:ShuffleTeams( ResetScores, ForceMode )
-	local Players = Shine.GetRandomPlayerList()
+function Plugin:GetTargetsForSorting( ResetScores )
+	local Players = Shine.GetAllPlayers()
 
 	local Gamerules = GetGamerules()
 
@@ -687,6 +691,19 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 		end
 	end
 
+	return Targets, TeamMembers
+end
+
+--[[
+	Shuffles everyone on the server into random teams.
+]]
+function Plugin:ShuffleTeams( ResetScores, ForceMode )
+	local Gamerules = GetGamerules()
+
+	if not Gamerules then return end
+
+	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
+
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
 
 	return self.ShufflingModes[ ForceMode or self.Config.BalanceMode ]( self, Gamerules, Targets, TeamMembers )
@@ -722,8 +739,8 @@ function Plugin:StoreScoreData( Player )
 			DataTable[ ID ] = Player.score
 		end
 	elseif Mode == self.MODE_KDR then
-		local Kills = Player:GetKills()
-		local Deaths = Player:GetDeaths()
+		local Kills = Player.GetKills and Player:GetKills() or 0
+		local Deaths = Player.GetDeaths and Player:GetDeaths() or 0
 
 		--0 KDR is useless, let's just randomise them.
 		if Kills == 0 then return end 

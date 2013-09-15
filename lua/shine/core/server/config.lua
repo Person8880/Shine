@@ -52,6 +52,8 @@ local DefaultConfig = {
 	SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
 
 	AddTag = true, --Add 'shine' as a server tag.
+
+	ReportErrors = true --Should errors be reported at the end of a round?
 }
 
 local CheckConfig = Shine.RecursiveCheckConfig
@@ -78,7 +80,7 @@ function Shine:LoadConfig()
 	end
 end
 
-function Shine:SaveConfig()
+function Shine:SaveConfig( Silent )
 	local ConfigFile, Err = self.SaveJSONFile( self.Config, ConfigPath )
 
 	if not ConfigFile then --Something's gone horribly wrong!
@@ -89,7 +91,9 @@ function Shine:SaveConfig()
 		return
 	end
 
-	Notify( "Updating Shine config..." )
+	if not Silent then
+		Notify( "Updating Shine config..." )
+	end
 end
 
 function Shine:GenerateDefaultConfig( Save )
@@ -107,9 +111,44 @@ function Shine:LoadExtensionConfigs()
 		Server.AddTag( "shine" )
 	end
 
+	local AllPlugins = self.AllPlugins
+	local ActiveExtensions = self.Config.ActiveExtensions
+	local Modified = false
+
+	--Find any new plugins we don't have in our config, and add them.
+	for Plugin in pairs( AllPlugins ) do
+		if ActiveExtensions[ Plugin ] == nil then
+			local PluginTable = self.Plugins[ Plugin ]
+			local DefaultState = false
+
+			--Load, but do not enable, the extension to determine its default state.
+			if not PluginTable then
+				self:LoadExtension( Plugin, true )
+			
+				PluginTable = self.Plugins[ Plugin ]
+
+				if PluginTable and PluginTable.DefaultState ~= nil then
+					DefaultState = PluginTable.DefaultState
+				end
+			else
+				if PluginTable.DefaultState ~= nil then
+					DefaultState = PluginTable.DefaultState
+				end
+			end
+
+			ActiveExtensions[ Plugin ] = DefaultState
+
+			Modified = true
+		end
+	end
+
+	if Modified then
+		self:SaveConfig( true )
+	end
+
 	Notify( "Loading extensions..." )
 
-	for Name, Enabled in pairs( self.Config.ActiveExtensions ) do
+	for Name, Enabled in pairs( ActiveExtensions ) do
 		if Enabled then
 			if self.Plugins[ Name ] then --We already loaded it, it was a shared plugin.
 				local Success, Err = self:EnableExtension( Name )
