@@ -17,6 +17,7 @@ if Server then
 		if not next( ErrorQueue ) then return end
 		
 		local PostData = TableConcat( ErrorQueue, "\n" )
+		PostData = PostData:sub( 1, 10240 )
 
 		Shared.SendHTTPRequest( URL, "POST", { error = PostData, blehstuffcake = "enihs" }, function() end )
 	
