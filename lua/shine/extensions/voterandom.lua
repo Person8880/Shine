@@ -523,7 +523,9 @@ Plugin.ShufflingModes = {
 			--Should we start from Aliens or Marines?
 			local Add = Random() >= 0.5 and 1 or 0
 
-			for i = 1, Min( MaxELOSort, Count ) do
+			local ELOSorted = Min( MaxELOSort, Count )
+
+			for i = 1, ELOSorted do
 				if ELOSort[ i ] then
 					local Player = ELOSort[ i ].Player
 
@@ -534,7 +536,7 @@ Plugin.ShufflingModes = {
 				end
 			end
 
-			local Count = #Players - MaxELOSort
+			local Count = #Players - ELOSorted
 
 			--Sort the remaining players with the fallback method.
 			if Count > 0 then
@@ -696,6 +698,10 @@ end
 	Shuffles everyone on the server into random teams.
 ]]
 function Plugin:ShuffleTeams( ResetScores, ForceMode )
+	local Gamerules = GetGamerules()
+
+	if not Gamerules then return end
+
 	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
 
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
