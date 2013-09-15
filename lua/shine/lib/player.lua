@@ -4,14 +4,10 @@
 
 local Abs = math.abs
 local Floor = math.floor
-local GetEntsByClass
+local GetEntsByClass = Shared.GetEntitiesWithClassname
 local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
-
-Shine.Hook.Add( "PostloadConfig", "PlayerAPI", function()
-	GetEntsByClass = Shared.GetEntitiesWithClassname
-end )
 
 --[[
 	Returns whether the given client is valid.
