@@ -713,11 +713,12 @@ end
 	Stores a player's score.
 ]]
 function Plugin:StoreScoreData( Player )
-	local Client = Player:GetClient()
+	local Client = Server.GetOwner( Player )
 
 	if not Client then return end
 
-	if Client:GetIsVirtual() then return end
+	if Client.GetIsVirtual and Client:GetIsVirtual() then return end
+	if not Client.GetUserId then return end
 
 	local Round = self.Round
 

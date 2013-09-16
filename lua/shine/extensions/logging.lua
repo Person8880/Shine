@@ -235,7 +235,7 @@ function Plugin:OnConstructInit( Building )
 	--We really don't need to know about cysts...
 	if Name:lower() == "cyst" then return end
 
-	if not Team then return end
+	if not Team or not Team.GetCommander then return end
 
 	local Owner = Building:GetOwner()
 	Owner = Owner or Team:GetCommander()
