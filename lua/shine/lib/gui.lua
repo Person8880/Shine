@@ -39,6 +39,19 @@ SGUI.BaseLayer = 20
 --Global control meta-table.
 local ControlMeta = {}
 
+--[[
+	Adds Get and Set functions for a property name, with an optional default value.
+]]
+function SGUI.AddProperty( Table, Name, Default )
+	Table[ "Set"..Name ] = function( self, Value )
+		self[ Name ] = Value
+	end
+
+	Table[ "Get"..Name ] = function( self )
+		return self[ Name ] or Default
+	end
+end
+
 --local DummyText
 local WideStringToString = Locale.WideStringToString
 
@@ -171,7 +184,7 @@ end
 
 --[[
 	Registers a skin.
-	Inputs: Skin name, table of colour/texture values.
+	Inputs: Skin name, table of colour/texture/font/size values.
 ]]
 function SGUI:RegisterSkin( Name, Values )
 	self.Skins[ Name ] = Values
@@ -179,7 +192,7 @@ end
 
 --[[
 	Sets the current skin. This will reskin all active globally skinned objects.
-	Input: Scheme name registered with SGUI:RegisterColourScheme()
+	Input: Skin name registered with SGUI:RegisterSkin()
 ]]
 function SGUI:SetSkin( Name )
 	local SchemeTable = self.Skins[ Name ]

@@ -146,6 +146,10 @@ function Button:Think( DeltaTime )
 	if not self.Background:GetIsVisible() then return end
 
 	self.BaseClass.Think( self, DeltaTime )
+
+	if SGUI.IsValid( self.Tooltip ) then
+		self.Tooltip:Think( DeltaTime )
+	end
 end
 
 function Button:SetDoClick( Func )
