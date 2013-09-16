@@ -367,7 +367,6 @@ function VoteMenu:AddTopButton( Text, DoClick )
 	TopButton:SetTextScale( self.TextScale )
 	TopButton:SetTextColour( TextCol )
 	TopButton:SetDoClick( DoClick )
-	TopButton:SetLayer( kGUILayerPlayerHUDForeground1 )
 	TopButton.ClickDelay = 0
 
 	Buttons.Top = TopButton
@@ -403,7 +402,6 @@ function VoteMenu:AddBottomButton( Text, DoClick )
 	BottomButton:SetTextScale( self.TextScale )
 	BottomButton:SetTextColour( TextCol )
 	BottomButton:SetDoClick( DoClick )
-	BottomButton:SetLayer( kGUILayerPlayerHUDForeground1 )
 	BottomButton.ClickDelay = 0
 
 	Buttons.Bottom = BottomButton
@@ -442,7 +440,6 @@ function VoteMenu:AddSideButton( Text, DoClick )
 	Button:SetTextScale( self.TextScale )
 	Button:SetTextColour( TextCol )
 	Button:SetDoClick( DoClick )
-	Button:SetLayer( kGUILayerPlayerHUDForeground1 )
 
 	Buttons[ Index ] = Button
 
