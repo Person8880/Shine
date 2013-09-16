@@ -27,7 +27,7 @@ local function announceChangedMod()
 	if Sever.GetNumPlayers() == 0 then
 		MapCycle_CycleMap()
 	else
-		self:Notify(nil,string.format(self.Config.UpdateMessage , changedModName))
+		self:Notify(nil,self.Config.UpdateMessage, changedModName))
 		
 		if self.Config.RepeatUpdateMessage then
 		    Sine.Timer.Create("ModUpdateInform",self.Config.RepeatTime, -1, function() self:Notify(nil,string.format(self.Config.UpdateMessage , changedModName)) end)
@@ -98,9 +98,9 @@ function Plugin:Initialise()
     return true
 end
 
-function Plugin:Notify( Player, Message, Format, ... )
+function Plugin:Notify( Player, Message, x, Format, ... )
    for i = 1, #Message do
-        Shine:NotifyDualColour( Player, 100, 255, 100, "[ModUpdateChecker]", 255, 255, 255,Message[i], Format, ... )  
+        Shine:NotifyDualColour( Player, 100, 255, 100, "[ModUpdateChecker]", 255, 255, 255,string.format(Message[i],x), Format, ... )  
    end    
 end
 
