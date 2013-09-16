@@ -9,7 +9,7 @@ local ListEntry = {}
 local select = select
 local tostring = tostring
 
-local Padding = Vector( 5, 8, 0 )
+local Padding = Vector( 5, 0, 0 )
 local ZeroVector = Vector( 0, 0, 0 )
 
 local function IsEven( Num )
@@ -64,7 +64,7 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	
 	local Scheme = SGUI:GetSkin()
 
-	self.InactiveCol = IsEven( self.Index ) and Scheme.ListEntryEven or Scheme.ListEntryOdd
+	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
 	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
 
 	self.Columns = Columns
@@ -78,17 +78,21 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	Background:SetSize( Size )
 
 	local Manager = GetGUIManager()
-
-	local Scheme = SGUI:GetSkin()
 	local TextCol = Scheme.List.EntryTextColour or Scheme.DarkText
 
 	for i = 1, Columns do
 		local Text = tostring( select( i, ... ) )
 
 		local TextObj = Manager:CreateTextItem()
-		TextObj:SetAnchor( GUIItem.Left, GUIItem.Top )
+		TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
+		TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 		TextObj:SetText( Text )
 		TextObj:SetColor( TextCol )
+
+		if Scheme.List.EntryFont then
+			TextObj:SetFontName( Scheme.List.EntryFont )
+		end
+
 		Background:AddChild( TextObj )
 		TextObj:SetInheritsParentStencilSettings( true )
 		TextObjs[ i ] = TextObj

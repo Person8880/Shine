@@ -124,13 +124,15 @@ end
 function List:SetLineSize( Size )
 	self.LineSize = Size
 
-	if not self.RowSize then
-		self.RowSize = Vector( self.Size.x, Size, 0 )
-	else
-		self.RowSize.y = Size
-	end
+	if self.Size then
+		if not self.RowSize then
+			self.RowSize = Vector( self.Size.x, Size, 0 )
+		else
+			self.RowSize.y = Size
+		end
 
-	self.MaxRows = Floor( ( self.Size.y - self.HeaderSize ) / self.LineSize )
+		self.MaxRows = Floor( ( self.Size.y - self.HeaderSize ) / self.LineSize )
+	end
 	
 	local Rows = self.Rows
 

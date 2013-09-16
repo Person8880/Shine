@@ -139,7 +139,7 @@ end
 function SGUI:CallGlobalEvent( Name, ... )
 	for Control in pairs( self.ActiveControls ) do
 		if Control[ Name ] then
-			Control[ Name ]( Name, ... )
+			Control[ Name ]( Control, Name, ... )
 		end
 	end
 end
@@ -485,7 +485,7 @@ end
 	Ignores children with the _CallEventsManually flag.
 ]]
 function ControlMeta:CallOnChildren( Name, ... )
-	if not self.Children then return end
+	if not self.Children then return nil end
 
 	--Call the event on every child of this object, no particular order.
 	for Child in pairs( self.Children ) do
@@ -497,6 +497,8 @@ function ControlMeta:CallOnChildren( Name, ... )
 			end
 		end
 	end
+
+	return nil
 end
 
 --[[
@@ -936,6 +938,33 @@ function ControlMeta:Think( DeltaTime )
 		end
 	end
 
+	--Hovering handling for tooltips.
+	if self.OnHover then
+		local MouseIn, X, Y = self:MouseIn( self.Background )
+		if MouseIn then
+			if not self.MouseHoverStart then
+				self.MouseHoverStart = Time
+			else
+				if Time - self.MouseHoverStart > 1 and not self.MouseHovered then
+					self:OnHover( X, Y )
+
+					self.MouseHovered = true
+				end
+			end
+		else
+			self.MouseHoverStart = nil
+			if self.MouseHovered then
+				self.MouseHovered = nil
+
+				if self.OnLoseHover then
+					self:OnLoseHover()
+				end
+			end
+		end
+	end
+end
+
+function ControlMeta:OnMouseMove( Down )
 	--Basic highlight on mouse over handling.
 	if self.HighlightOnMouseOver then
 		if self:MouseIn( self.Background, self.HighlightMult ) then
@@ -961,31 +990,6 @@ function ControlMeta:Think( DeltaTime )
 				end
 
 				self.Highlighted = false
-			end
-		end
-	end
-
-	--Hovering handling for tooltips.
-	if self.OnHover then
-		local MouseIn, X, Y = self:MouseIn( self.Background )
-		if MouseIn then
-			if not self.MouseHoverStart then
-				self.MouseHoverStart = Time
-			else
-				if Time - self.MouseHoverStart > 1 and not self.MouseHovered then
-					self:OnHover( X, Y )
-
-					self.MouseHovered = true
-				end
-			end
-		else
-			self.MouseHoverStart = nil
-			if self.MouseHovered then
-				self.MouseHovered = nil
-
-				if self.OnLoseHover then
-					self:OnLoseHover()
-				end
 			end
 		end
 	end

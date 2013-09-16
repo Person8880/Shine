@@ -24,20 +24,22 @@ Skin.List = {}
 
 --Header.
 Skin.List.HeaderColour = Colour( 0.2, 0.2, 0.2, 1 )
-Skin.List.ActiveHeaderColour = Colour( 0.5, 0.5, 0.2, 1 )
+Skin.List.ActiveHeaderColour = Colour( 0.6, 0.3, 0.2, 1 )
 Skin.List.HeaderSize = 32
 Skin.List.HeaderFont = "fonts/AgencyFB_small.fnt"
 Skin.List.HeaderTextColour = Colour( 1, 1, 1, 1 )
 
 --Entry.
 Skin.List.LineSize = 32
-Skin.List.EntryEven = Colour( 1, 1, 1, 1 )
-Skin.List.EntryOdd = Colour( 0.95, 0.95, 0.95, 1 )
-Skin.List.EntryActive = Colour( 1, 1, 0.1, 1 )
-Skin.List.EntryTextColour = Colour( 0, 0, 0, 1 )
+Skin.List.EntryEven = Colour( 0.3, 0.3, 0.3, 1 )
+Skin.List.EntryOdd = Colour( 0.4, 0.4, 0.4, 1 )
+Skin.List.EntryActive = Colour( 1, 0.4, 0.1, 1 )
+Skin.List.EntryTextColour = Colour( 1, 1, 1, 1 )
+Skin.List.EntryFont = "fonts/AgencyFB_small.fnt"
 
 Skin.ScrollbarBackground = Colour( 0, 0, 0, 0.2 )
 Skin.Scrollbar = Colour( 0.7, 0.7, 0.7, 1 )
+Skin.ScrollbarActive = Colour( 1, 0.6, 0, 1 )
 
 Skin.Tooltip = Colour( 1, 1, 1, 1 )
 Skin.TooltipBorder = Colour( 0.1, 0.1, 0.1, 1 )
