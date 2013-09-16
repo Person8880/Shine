@@ -78,39 +78,39 @@ function Menu:Cleanup()
 end
 
 ------------------- Event calling -------------------
-function List:OnMouseDown( Key, DoubleClick )
+function Menu:OnMouseDown( Key, DoubleClick )
 	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
 	if Result ~= nil then return true end
 end
 
-function List:OnMouseUp( Key )
+function Menu:OnMouseUp( Key )
 	self:CallOnChildren( "OnMouseUp", Key )
 end
 
-function List:OnMouseMove( Down )
+function Menu:OnMouseMove( Down )
 	self:CallOnChildren( "OnMouseMove", Down )
 end
 
-function List:Think( DeltaTime )
+function Menu:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
 
 	self:CallOnChildren( "Think", DeltaTime )
 end
 
-function List:OnMouseWheel( Down )
+function Menu:OnMouseWheel( Down )
 	local Result = self:CallOnChildren( "OnMouseWheel", Down )
 
 	if Result ~= nil then return true end
 end
 
-function List:PlayerKeyPress( Key, Down )
+function Menu:PlayerKeyPress( Key, Down )
 	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
 		return true
 	end
 end
 
-function List:PlayerType( Char )
+function Menu:PlayerType( Char )
 	if self:CallOnChildren( "PlayerType", Char ) then
 		return true
 	end
