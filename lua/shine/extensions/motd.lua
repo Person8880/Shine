@@ -13,10 +13,18 @@ Plugin.Version = "1.1"
 Plugin.HasConfig = true
 Plugin.ConfigName = "MotD.json"
 
-Plugin.Commands = {}
-
 Plugin.TEXT_MODE = 1
 Plugin.HTML_MODE = 2
+
+Plugin.DefaultConfig = {
+	Mode = Plugin.TEXT_MODE,
+	URL = "http://www.unknownworlds.com/ns2/",
+	MessageText = { "Welcome to my awesome server!", "Admins can be reached @ mywebsite.com", "Have a pleasant stay!" }, --Message lines.
+	Accepted = {},
+	Delay = 5
+}
+
+Plugin.CheckConfig = true
 
 function Plugin:Initialise()
 	self:CreateCommands()
@@ -26,61 +34,8 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		Mode = self.TEXT_MODE,
-		URL = "http://www.unknownworlds.com/ns2/",
-		MessageText = { "Welcome to my awesome server!", "Admins can be reached @ mywebsite.com", "Have a pleasant stay!" }, --Message lines.
-		Accepted = {},
-		Delay = 5
-	}
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing motd config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine motd config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing motd config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine motd config file updated." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
-
-	local Edited
-
-	if self.Config.Delay == nil then
-		self.Config.Delay = 5
-		Edited = true
-	end
-
-	if Edited then
-		self:SaveConfig()
-	end
+function Plugin:Notify( Player, String, Format, ... )
+	Shine:NotifyDualColour( Player, 0, 100, 255, "[MOTD]", 255, 255, 255, String, Format, ... )
 end
 
 function Plugin:ShowMotD( Client )
@@ -97,7 +52,7 @@ function Plugin:ShowMotD( Client )
 	end
 
 	if self.Config.Mode == self.HTML_MODE then
-		Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL }, true )
+		Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL, Title = "Message of the day" }, true )
 	end
 end
 
@@ -123,8 +78,8 @@ function Plugin:CreateCommands()
 
 		self:ShowMotD( Client )
 	end
-	Commands.MotDCommand = Shine:RegisterCommand( "sh_motd", "motd", MotD, true )
-	Commands.MotDCommand:Help( "Shows the message of the day." )
+	local MotDCommand = self:BindCommand( "sh_motd", "motd", MotD, true )
+	MotDCommand:Help( "Shows the message of the day." )
 
 	local function AcceptMotD( Client )
 		if not Client then return end
@@ -132,7 +87,7 @@ function Plugin:CreateCommands()
 		local ID = Client:GetUserId()
 
 		if self.Config.Accepted[ tostring( ID ) ] then
-			Shine:Notify( Client, "MotD", Shine.Config.ChatName, "You have already accepted the message of the day." )
+			self:Notify( Client, "You have already accepted the message of the day." )
 
 			return
 		end
@@ -140,25 +95,17 @@ function Plugin:CreateCommands()
 		self.Config.Accepted[ tostring( ID ) ] = true
 		self:SaveConfig()
 
-		Shine:Notify( Client, "MotD", Shine.Config.ChatName, "Thank you for accepting the message of the day." )
+		self:Notify( Client, "Thank you for accepting the message of the day." )
 	end
-	Commands.AcceptMotDCommand = Shine:RegisterCommand( "sh_acceptmotd", "acceptmotd", AcceptMotD, true )
-	Commands.AcceptMotDCommand:Help( "Accepts the message of the day so you no longer see it on connect." )
+	local AcceptMotDCommand = self:BindCommand( "sh_acceptmotd", "acceptmotd", AcceptMotD, true )
+	AcceptMotDCommand:Help( "Accepts the message of the day so you no longer see it on connect." )
 
 	local function ShowMotD( Client, Target )
 		self:ShowMotD( Target )
 	end
-	Commands.ShowMotDCommand = Shine:RegisterCommand( "sh_showmotd", "showmotd", ShowMotD )
-	Commands.ShowMotDCommand:AddParam{ Type = "client" }
-	Commands.ShowMotDCommand:Help( "<player> Shows the message of the day to the given player." )
-end
-
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
+	local ShowMotDCommand = self:BindCommand( "sh_showmotd", "showmotd", ShowMotD )
+	ShowMotDCommand:AddParam{ Type = "client" }
+	ShowMotDCommand:Help( "<player> Shows the message of the day to the given player." )
 end
 
 Shine:RegisterExtension( "motd", Plugin )

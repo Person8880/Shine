@@ -19,60 +19,24 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "PingTracker.json"
 
+Plugin.DefaultConfig = {
+	MaxPing = 200, --Maximum allowed average ping.
+	MaxJitter = 50, --Maximum allowed average jitter.
+	Warn = true, --Should players be warned first?
+	MeasureInterval = 1, --Time in seconds between measurements.
+	CheckInterval = 60, --Interval to check averages and warn/kick.
+}
+
+Plugin.CheckConfig = true
+
 function Plugin:Initialise()
+	self.Config.CheckInterval = Floor( self.Config.CheckInterval )
+
 	self.Players = {}
 
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		MaxPing = 200, --Maximum allowed average ping.
-		MaxJitter = 50, --Maximum allowed average jitter.
-		Warn = true, --Should players be warned first?
-		MeasureInterval = 1, --Time in seconds between measurements.
-		CheckInterval = 60, --Interval to check averages and warn/kick.
-	}
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing pingtracker config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine pingtracker config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing pingtracker config file: "..Err )
-
-		return	
-	end
-
-	Notify( "Shine pingtracker config file updated." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
-
-	self.Config.CheckInterval = Floor( self.Config.CheckInterval )
 end
 
 function Plugin:ClientConnect( Client )

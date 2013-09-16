@@ -2,106 +2,24 @@
 	Override the badge mod's stuff to read from Shine's user data.
 ]]
 
-local Decode = json.decode
+local pairs = pairs
+local TableContains = table.contains
+local TableEmpty = table.Empty
+local tonumber = tonumber
+local type = type
 
 local Plugin = {}
 Plugin.Version = "1.0"
 
 function Plugin:Initialise()
+	if self.Enabled ~= nil then 
+		self.Enabled = true
+
+		return true
+	end
+	
 	Shine.Hook.Add( "Think", "ReplaceBadges", function( Deltatime )
-		local BadgeMixin = BadgeMixin
-
-		if not BadgeMixin then 
-			return false, "Badge mixin not found."
-		end
-
-		local OldInitBadge
-		local GetBadge = BadgeMixin.GetBadgeIcon
-
-		local BadgeData = Shine.GetUpValue( GetBadge, "kBadgeData" )
-		if not BadgeData then 
-			return false, "Badge data not found."
-		end
-
-		local function FindBadge( ID )
-			if not ID then return nil end
-			
-			for Enum, Data in pairs( BadgeData ) do
-				if Data.Id == ID then
-					return Enum
-				end
-			end
-
-			return nil
-		end
-
-		local PAX2012ProductId = 4931
-
-		local BadgeCache = {}
-		local function CacheGet( Client )
-			local SteamID = Client:GetUserId()
-			local Badge = BadgeCache[ SteamID ]
-
-			if Badge then
-				return Badge
-			end
-
-			Shared.SendHTTPRequest( "http://ns2comp.herokuapp.com/t/badge/"..tostring( SteamID ), "GET", function( Response )
-				local Data = Decode( Response )
-				if not Data then return end
-				
-				if Data.override or ( not BadgeCache[ SteamID ] or BadgeCache[ SteamID ] == kBadges.None ) then
-					BadgeCache[ SteamID ] = kBadges[ Data.badge ]
-				end
-			end )
-
-			Badge = kBadges.None
-
-			if Server.GetIsDlcAuthorized( Client, PAX2012ProductId ) then
-				Badge = kBadges.PAX2012
-			end
-
-			local UserData = Shine.UserData
-
-			if UserData then --Support defined badges in the Shine user config.
-				local User = UserData.Users[ tostring( SteamID ) ]
-				local GroupName = User and User.Group
-
-				if GroupName then
-					local Group = UserData.Groups[ GroupName ]
-
-					if Group then
-						local NewBadge = FindBadge( Group.Badge or Group.badge )
-
-						if NewBadge then 
-							BadgeCache[ SteamID ] = NewBadge
-
-							return NewBadge
-						end
-					end
-
-					local NewBadge = FindBadge( GroupName )
-
-					if NewBadge then
-						BadgeCache[ SteamID ] = NewBadge
-
-						return NewBadge
-					end
-				end
-			end
-
-			BadgeCache[ SteamID ] = Badge
-
-			return Badge
-		end
-
-		OldInitBadge = Shine.ReplaceClassMethod( "BadgeMixin", "InitializeBadges", function( Mixin )
-			local Client = Server.GetOwner( Mixin )
-
-			if Client then
-				Mixin:SetBadge( CacheGet( Client ) )
-			end
-		end )
+		self:Setup()
 
 		Shine.Hook.Remove( "Think", "ReplaceBadges" )
 	end )
@@ -109,6 +27,100 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:Setup()
+	if not BadgeMixin then return end
+	if not kBadges then return end
+	if not GiveBadge then return end
+
+	--We need three upvalues from the GiveBadge function.
+	local ServerBadges = Shine.GetUpValue( GiveBadge, "sServerBadges" )
+
+	if not ServerBadges then
+		Shared.Message( "[Shine] Unable to find ServerBadges table, badge plugin cannot load." )
+		return
+	end
+
+	--These two aren't crucial, but it saves redefining them.
+	local BadgeExists = Shine.GetUpValue( GiveBadge, "sBadgeExists" )
+	local BadgeReserved = Shine.GetUpValue( GiveBadge, "sBadgeReserved" )
+
+	if not BadgeExists then
+		BadgeExists = function( Badge )
+			return TableContains( kBadges, Badge )
+		end
+	end
+
+	if not BadgeReserved then
+		BadgeReserved = function( Badge )
+			return false
+		end
+	end
+
+	local UserData = Shine.UserData
+	if not UserData or not UserData.Groups or not UserData.Users then return end
+
+	TableEmpty( ServerBadges )
+
+	local InsertUnique = table.insertunique
+
+	local function AssignBadge( ID, BadgeName )
+		local ClientBadges = ServerBadges[ ID ]
+
+		if not ClientBadges then
+			ClientBadges = {}
+			ServerBadges[ ID ] = ClientBadges
+		end
+
+		if BadgeExists( BadgeName ) and not BadgeReserved( BadgeName ) then
+			InsertUnique( ClientBadges, BadgeName )
+
+			return true
+		end
+
+		return false
+	end
+
+	local function AssignGroupBadge( ID, GroupName )
+		local Group = UserData.Groups[ GroupName ]
+
+		if not Group then return end
+		
+		local GroupBadges = Group.Badges or Group.badges or {}
+
+		if Group.Badge or Group.badge then
+			InsertUnique( GroupBadges, Group.Badge or Group.badge )
+		end
+
+		for i = 1, #GroupBadges do
+			local BadgeName = GroupBadges[ i ]:lower()
+
+			if not AssignBadge( ID, BadgeName ) then
+				Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
+			end
+		end
+
+		AssignBadge( ID, GroupName:lower() )
+	end
+
+	for ID, User in pairs( UserData.Users ) do
+		ID = tonumber( ID )
+		local GroupName = User.Group
+		local UserBadge = User.Badge or User.badge
+
+		if UserBadge then
+			if not AssignBadge( ID, UserBadge ) then
+				Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
+			end
+		end
+
+		AssignGroupBadge( ID, GroupName )
+	end
+end
+
+function Plugin:OnUserReload()
+	self:Setup()
 end
 
 function Plugin:Cleanup()

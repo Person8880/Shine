@@ -7,16 +7,19 @@ local Shine = Shine
 local Notify = Shared.Message
 
 local Abs = math.abs
+local assert = assert
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Decode = json.decode
 local Floor = math.floor
 local Max = math.max
+local Min = math.min
 local next = next
 local pairs = pairs
 local Random = math.random
 local StringFormat = string.format
 local TableConcat = table.concat
+local TableEmpty = table.Empty
 local TableSort = table.sort
 local tostring = tostring
 
@@ -34,25 +37,29 @@ Plugin.MODE_RANDOM = 1
 Plugin.MODE_SCORE = 2
 Plugin.MODE_ELO = 3
 Plugin.MODE_KDR = 4
+Plugin.MODE_SPONITOR = 5 --Lets use the best stats source in the game.
 
 local ModeStrings = {
 	Mode = {
 		"Random",
 		"Score based",
 		"ELO based",
-		"KDR based"
+		"KDR based",
+		"Skill based"
 	},
 	ModeLower = {
 		"random",
 		"score based",
 		"ELO based",
-		"KDR based"
+		"KDR based",
+		"skill based"
 	},
 	Action = {
 		"randomly",
 		"based on score",
 		"based on ELO",
-		"based on KDR"
+		"based on KDR",
+		"based on skill"
 	}
 }
 Plugin.ModeStrings = ModeStrings
@@ -68,7 +75,9 @@ local DefaultConfig = {
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if ELO fails?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = false, --Should the plugin ignore commanders when switching?
-	AlwaysEnabled = false --Should the plugin be always forcing each round?
+	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
+	AlwaysEnabled = false, --Should the plugin be always forcing each round?
+	MaxStoredRounds = 3 --How many rounds of score data should we buffer?
 }
 
 function Plugin:Initialise()
@@ -88,7 +97,16 @@ function Plugin:Initialise()
 
 	self.ForceRandom = self.Config.AlwaysEnabled
 
-	self.ScoreData = {}
+	self.ScoreData = self:LoadScoreData()
+
+	--We need this value to keep track of where we store the next round data.
+	if not self.ScoreData.Round then
+		self.ScoreData.Round = 1
+	end
+
+	if not self.ScoreData.Rounds then
+		self.ScoreData.Rounds = {}
+	end
 
 	self.Enabled = true
 
@@ -140,8 +158,10 @@ function Plugin:LoadConfig()
 
 	if Shine.CheckConfig( self.Config, DefaultConfig ) then self:SaveConfig() end
 
-	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 4 )
-	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, 4 )
+	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 5 )
+	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, 5 )
+
+	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 
 	if self.Config.FallbackMode == self.MODE_ELO then
 		self.Config.FallbackMode = self.MODE_KDR
@@ -152,10 +172,32 @@ function Plugin:LoadConfig()
 	end
 end
 
+--[[
+	Too many failed NS2Stats connections should revert the sorting mode for the rest of the map.
+]]
+function Plugin:AddELOFail()
+	if not self.ELOFailed then
+		self.ELOFailed = true
+
+		self.ELOFailCount = 1
+
+		return
+	end
+
+	self.ELOFailCount = self.ELOFailCount + 1
+
+	if self.ELOFailCount >= 2 then
+		self.Config.BalanceMode = self.Config.FallbackMode
+
+		Shine:Print( "[ELO Vote] Connection to NS2Stats failed 2 times in a row, reverting to %s sorting for the rest of the map.", 
+			true, ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+	end
+end
+
 local Requests = {}
 local ReqCount = 1
 
-function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
+function Plugin:RequestNS2Stats( Gamerules, Callback )
 	local Players = Shared.GetEntitiesWithClassname( "Player" )
 	local Concat = {}
 
@@ -172,7 +214,15 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		end
 	end
 
-	local URL = RBPS.websiteUrl.."/api/players"
+	local URL
+	local NS2Stats = Shine.Plugins.ns2stats
+
+	if NS2Stats then
+		URL = NS2Stats.Config.WebsiteUrl.."/api/players"
+	elseif RBPS then
+		URL = RBPS.websiteUrl.."/api/players"
+	end
+	
 	local Params = {
 		players = TableConcat( Concat, "," )
 	}
@@ -187,6 +237,8 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 	Shine.Timer.Simple( 5, function()
 		if Requests[ CurRequest ] then
 			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out." )
+
+			self:AddELOFail()
 
 			Callback()
 		end
@@ -208,12 +260,15 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		local ChatName = Shine.Config.ChatName
 
 		if not Response then
-			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to random sorting..." )
+			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+			Shine:Print( "[ELO Vote] Could not connect to NS2Stats. Falling back to %s sorting...", true, FallbackMode )
 
-			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+			self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.", true, FallbackMode )
+
+			self:ShuffleTeams( false, self.Config.FallbackMode )
+
+			self:AddELOFail()
 
 			return
 		end
@@ -221,12 +276,15 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 		local Data = Decode( Response )
 
 		if not Data then
-			Shine:Print( "[ELO Vote] NS2Stats returned corrupt or empty data. Falling back to random sorting..." )
+			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+			Shine:Print( "[ELO Vote] NS2Stats returned corrupt or empty data. Falling back to %s sorting...", true, FallbackMode )
 
-			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+			self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.", true, FallbackMode )
+
+			self:ShuffleTeams( false, self.Config.FallbackMode )
+
+			self:AddELOFail()
 
 			return
 		end
@@ -258,11 +316,63 @@ function Plugin:RequestNS2Stats( Gamerules, Targets, TeamMembers, Callback )
 			end
 		end
 
+		self.ELOFailed = nil
+
 		Callback()
 	end )
 end
 
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
+local MaxELOSort = 8
+
+local function RandomiseSimilarSkill( Data, Count, Difference )
+	local LastSkill
+
+	--Swap those with a similar skill value randomly to make things different.
+	for i = 1, Count do
+		local Obj = Data[ i ]
+
+		if i == 1 then
+			LastSkill = Obj.Skill
+		else
+			local CurSkill = Obj.Skill
+
+			if LastSkill - CurSkill < Difference then
+				if Random() >= 0.5 then
+					local LastObj = Data[ i - 1 ]
+
+					Data[ i ] = LastObj
+					Data[ i - 1 ] = Obj
+
+					LastSkill = LastObj.Skill
+				else
+					LastSkill = CurSkill
+				end
+			else
+				LastSkill = CurSkill
+			end
+		end
+	end
+end
+
+--Gets the average skill ranking of a table of players.
+local function GetAverageSkill( Players )
+	local PlayerCount = #Players
+
+	if PlayerCount == 0 then return 0 end
+
+	local PlayerSkillSum = 0
+
+	for i = 1, PlayerCount do
+		local Ply = Players[ i ]
+
+		if Ply and Ply.GetPlayerSkill then
+			PlayerSkillSum = PlayerSkillSum + Ply:GetPlayerSkill()
+		end
+	end
+
+	return PlayerSkillSum / PlayerCount
+end
 
 Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --Random only.
@@ -286,7 +396,7 @@ Plugin.ShufflingModes = {
 		return
 	end,
 
-	function( self, Gamerules, Targets, TeamMembers ) --Score based if available, random if not.
+	function( self, Gamerules, Targets, TeamMembers, Silent ) --Score based if available, random if not.
 		local ScoreData = self.ScoreData
 
 		local ScoreTable = {}
@@ -301,7 +411,7 @@ Plugin.ShufflingModes = {
 				if Client then
 					local ID = Client:GetUserId()
 
-					local Data = ScoreData[ ID ]
+					local Data = self:GetAverageScoreData( ID )
 
 					if Data then
 						ScoreTable[ #ScoreTable + 1 ] = { Player = Player, Score = Data }
@@ -340,37 +450,47 @@ Plugin.ShufflingModes = {
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
-		Shine:LogString( "[Random] Teams were sorted based on score." )
+		if not Silent then
+			Shine:LogString( "[Random] Teams were sorted based on score." )
+		end
 
 		return
 	end,
 
 	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats ELO based.
 		local ChatName = Shine.Config.ChatName
-		if not RBPS then 
-			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-				ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+		if not RBPS and not Shine.Plugins.ns2stats then 
+			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
+
+			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
 
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers ) 
 
-			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to random sorting." )
+			self.LastShuffleMode = self.Config.FallbackMode
+
+			Shine:Print( "[ELO Vote] NS2Stats is not installed correctly, defaulting to %s sorting.", true, FallbackMode )
+
+			self:AddELOFail()
 
 			return
 		end
 
-		self:RequestNS2Stats( Gamerules, Targets, TeamMembers, function()
+		self:RequestNS2Stats( Gamerules, function()
 			local StatsData = self.StatsData
 
 			if not StatsData or not next( StatsData ) then
-				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using random based sorting instead." )
+				local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
-				self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, 
-					ModeStrings.ModeLower[ self.Config.FallbackMode ] )
+				Shine:Print( "[ELO Vote] NS2Stats does not have any web data for players. Using %s sorting instead.", true, FallbackMode )
 
-				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
+				self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.", true, FallbackMode )
+
+				self:ShuffleTeams( false, self.Config.FallbackMode )
 
 				return
 			end
+
+			local Targets, TeamMembers = self:GetTargetsForSorting()
 			
 			local Players = Shine.GetAllPlayers()
 
@@ -381,8 +501,8 @@ Plugin.ShufflingModes = {
 
 			local GetOwner = Server.GetOwner
 
-			for i = 1, #Players do
-				local Player = Players[ i ]
+			for i = 1, #Targets do
+				local Player = Targets[ i ]
 				local Client = Player and GetOwner( Player )
 
 				if Client then
@@ -391,70 +511,51 @@ Plugin.ShufflingModes = {
 
 					if Data then
 						Count = Count + 1
-						ELOSort[ Count ] = { Player = Player, ELO = ( Data.AELO + Data.MELO ) * 0.5 }
-						Sorted[ Player ] = true
+						ELOSort[ Count ] = { Player = Player, Skill = ( Data.AELO + Data.MELO ) * 0.5 }
 					end
 				end
 			end
 
-			TableSort( ELOSort, function( A, B ) return A.ELO > B.ELO end )
+			TableSort( ELOSort, function( A, B ) return A.Skill > B.Skill end )
 
-			local LastELO
-
-			for i = 1, Count do
-				local Obj = ELOSort[ i ]
-
-				if i == 1 then
-					LastELO = Obj.ELO
-				else
-					local CurELO = Obj.ELO
-
-					--Introduce some randomising for similar ELOs
-					if LastELO - CurELO < 20 then
-						if Random() >= 0.5 then
-							local LastObj = ELOSort[ i - 1 ]
-
-							ELOSort[ i ] = LastObj
-							ELOSort[ i - 1 ] = Obj
-
-							LastELO = LastObj.ELO
-						else
-							LastELO = CurELO
-						end
-					else
-						LastELO = CurELO
-					end
-				end
-			end
+			RandomiseSimilarSkill( ELOSort, Count, 20 )
 
 			--Should we start from Aliens or Marines?
 			local Add = Random() >= 0.5 and 1 or 0
 
-			for i = 1, Count do
+			local ELOSorted = Min( MaxELOSort, Count )
+
+			for i = 1, ELOSorted do
 				if ELOSort[ i ] then
+					local Player = ELOSort[ i ].Player
+
 					local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
 
-					TeamTable[ #TeamTable + 1 ] = ELOSort[ i ].Player
+					TeamTable[ #TeamTable + 1 ] = Player
+					Sorted[ Player ] = true
 				end
 			end
 
-			local Count = #Players - Count
+			local Count = #Players - ELOSorted
 
+			--Sort the remaining players with the fallback method.
 			if Count > 0 then
-				local TeamSequence = math.GenerateSequence( Count, { 1, 2 } )
-				local SequenceNum = 0
+				local FallbackTargets = {}
 
 				for i = 1, #Players do
 					local Player = Players[ i ]
 
 					if Player and not Sorted[ Player ] then
-						SequenceNum = SequenceNum + 1
-
-						local TeamTable = TeamMembers[ TeamSequence[ SequenceNum ] ]
-
-						TeamTable[ #TeamTable + 1 ] = Player
+						FallbackTargets[ #FallbackTargets + 1 ] = Player
 					end
 				end
+
+				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, FallbackTargets, TeamMembers, true )
+
+				Shine:LogString( "[ELO Vote] Teams were sorted based on NS2Stats ELO ranking." )
+
+				--We return as the fallback has already evenly spread the teams.
+				return
 			end
 
 			EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -465,15 +566,64 @@ Plugin.ShufflingModes = {
 
 	--KDR based works identically to score, the score data is what is different.
 	function( self, Gamerules, Targets, TeamMembers )
-		return self.ShufflingModes[ self.MODE_SCORE ]( self, Gamerules, Targets, TeamMembers )
+		Shine:LogString( "[Random] Teams were sorted based on KDR." )
+		
+		return self.ShufflingModes[ self.MODE_SCORE ]( self, Gamerules, Targets, TeamMembers, true )
+	end,
+
+	--Sponitor data based. Relies on UWE's ranking data to be correct for it to work.
+	function( self, Gamerules, Targets, TeamMembers )
+		local SortTable = {}
+		local Count = 0
+
+		for i = 1, #Targets do
+			local Ply = Targets[ i ]
+
+			if Ply and Ply.GetPlayerSkill then
+				local SkillData = Ply:GetPlayerSkill()
+
+				Count = Count + 1
+				SortTable[ Count ] = { Player = Ply, Skill = SkillData }
+			end
+		end
+
+		TableSort( SortTable, function( A, B )
+			return A.Skill > B.Skill
+		end )
+
+		RandomiseSimilarSkill( SortTable, Count, 10 )
+
+		local Add = Random() >= 0.5 and 1 or 0
+
+		for i = 1, Count do
+			if SortTable[ i ] then
+				local Player = SortTable[ i ].Player
+
+				local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
+
+				TeamTable[ #TeamTable + 1 ] = Player
+			end
+		end
+
+		EvenlySpreadTeams( Gamerules, TeamMembers )
+
+		Shine:LogString( "[Skill Vote] Teams were sorted based on Sponitor skill ranking." )
+
+		local Marines = GetEntitiesForTeam( "Player", 1 )
+		local Aliens = GetEntitiesForTeam( "Player", 2 )
+
+		local MarineSkill = GetAverageSkill( Marines )
+		local AlienSkill = GetAverageSkill( Aliens )
+
+		self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.", true, MarineSkill, AlienSkill )
 	end
 }
 
 --[[
-	Shuffles everyone on the server into random teams.
+	Gets all valid targets for sorting.
 ]]
-function Plugin:ShuffleTeams( ResetScores )
-	local Players = Shine.GetRandomPlayerList()
+function Plugin:GetTargetsForSorting( ResetScores )
+	local Players = Shine.GetAllPlayers()
 
 	local Gamerules = GetGamerules()
 
@@ -491,11 +641,15 @@ function Plugin:ShuffleTeams( ResetScores )
 	local Time = Shared.GetTime()
 
 	local function SortPlayer( Player, Client, Commander )
+		local Team = Player:GetTeamNumber()
+
+		if Team == 3 and self.Config.IgnoreSpectators then
+			return
+		end
+
 		if not Shine:HasAccess( Client, "sh_randomimmune" ) and not Commander then
 			Targets[ #Targets + 1 ] = Player
 		else
-			local Team = Player:GetTeamNumber()
-
 			local TeamTable = TeamMembers[ Team ]
 
 			if TeamTable then
@@ -520,10 +674,15 @@ function Plugin:ShuffleTeams( ResetScores )
 				if AFKEnabled then --Ignore AFK players in sorting.
 					local LastMove = AFKKick:GetLastMoveTime( Client )
 
-					if not LastMove or Time - LastMove < 30 then
+					if not ( LastMove and Time - LastMove > 60 ) then
 						SortPlayer( Player, Client, Commander )
 					else --Chuck AFK players into the ready room.
-						Gamerules:JoinTeam( Player, 0, nil, true )
+						local Team = Player:GetTeamNumber()
+
+						--Only move players on playing teams...
+						if Team == 1 or Team == 2 then
+							Gamerules:JoinTeam( Player, 0, nil, true )
+						end
 					end
 				else
 					SortPlayer( Player, Client, Commander )
@@ -532,7 +691,22 @@ function Plugin:ShuffleTeams( ResetScores )
 		end
 	end
 
-	return self.ShufflingModes[ self.Config.BalanceMode ]( self, Gamerules, Targets, TeamMembers )
+	return Targets, TeamMembers
+end
+
+--[[
+	Shuffles everyone on the server into random teams.
+]]
+function Plugin:ShuffleTeams( ResetScores, ForceMode )
+	local Gamerules = GetGamerules()
+
+	if not Gamerules then return end
+
+	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
+
+	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
+
+	return self.ShufflingModes[ ForceMode or self.Config.BalanceMode ]( self, Gamerules, Targets, TeamMembers )
 end
 
 --[[
@@ -542,8 +716,14 @@ function Plugin:StoreScoreData( Player )
 	local Client = Player:GetClient()
 
 	if not Client then return end
+
+	if Client:GetIsVirtual() then return end
+
+	local Round = self.Round
+
+	assert( Round, "Attempted to store score data before round data was created!" )
 	
-	local ID = Client:GetUserId()
+	local ID = tostring( Client:GetUserId() )
 
 	local Mode = self.Config.BalanceMode
 
@@ -551,22 +731,73 @@ function Plugin:StoreScoreData( Player )
 		Mode = self.Config.FallbackMode
 	end
 
+	local DataTable = self.ScoreData.Rounds[ Round ]
+
 	if Mode == self.MODE_SCORE then
 		--Don't want to store data about 0 score players, we'll just randomise them.
 		if Player.score and Player.score > 0 then
-			self.ScoreData[ ID ] = Player.score
+			DataTable[ ID ] = Player.score
 		end
 	elseif Mode == self.MODE_KDR then
-		local Kills = Player:GetKills()
-		local Deaths = Player:GetDeaths()
+		local Kills = Player.GetKills and Player:GetKills() or 0
+		local Deaths = Player.GetDeaths and Player:GetDeaths() or 0
 
 		--0 KDR is useless, let's just randomise them.
 		if Kills == 0 then return end 
 		--Don't want a NaN ratio!
 		if Deaths == 0 then Deaths = 1 end
 
-		self.ScoreData[ ID ] = Kills / Deaths
+		DataTable[ ID ] = Kills / Deaths
 	end
+end
+
+--[[
+	Gets the average of all stored round scores for the given Steam ID.
+]]
+function Plugin:GetAverageScoreData( ID )
+	ID = tostring( ID )
+	
+	local ScoreData = self.ScoreData
+	local RoundData = ScoreData.Rounds
+	local StoredRounds = #RoundData
+
+	local Score = 0
+	local StoredForPlayer = 0
+
+	for i = 1, StoredRounds do
+		local CurScore = RoundData[ i ][ ID ]
+
+		if CurScore then
+			Score = Score + CurScore
+			StoredForPlayer = StoredForPlayer + 1
+		end
+	end
+
+	if StoredForPlayer == 0 then return 0 end
+
+	return Score / StoredForPlayer
+end
+
+--[[
+	Saves the score data for previous rounds.
+]]
+function Plugin:SaveScoreData()
+	local Success, Err = Shine.SaveJSONFile( self.ScoreData, "config://shine\\temp\\voterandom_scores.json" )
+
+	if not Success then
+		Notify( "Error writing voterandom scoredata file: "..Err )	
+
+		return
+	end
+end
+
+--[[
+	Loads the stored data from the file, will load on plugin load only.
+]]
+function Plugin:LoadScoreData()
+	local Data = Shine.LoadJSONFile( "config://shine\\temp\\voterandom_scores.json" )
+
+	return Data or { Round = 1, Rounds = {} }
 end
 
 --[[
@@ -594,10 +825,14 @@ end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
 	if not self.Config.AlwaysEnabled then return end
-	if NewState ~= kGameState.PreGame then return end
+	if NewState ~= kGameState.Countdown then return end
 	if Shared.GetEntitiesWithClassname( "Player" ):GetSize() < self.Config.MinPlayers then
 		return
 	end
+
+	if self.DoneStartShuffle then return end
+
+	self.DoneStartShuffle = true
 
 	local OldValue = self.Config.IgnoreCommanders
 
@@ -612,6 +847,8 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
+	self.DoneStartShuffle = false
+
 	local Players = Shine.GetAllPlayers()
 	local BalanceMode = self.Config.BalanceMode
 	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
@@ -619,6 +856,20 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	if BalanceMode == self.MODE_ELO then
 		local Fallback = self.Config.FallbackMode
 		IsScoreBased = Fallback == self.MODE_SCORE or Fallback == self.MODE_KDR
+	end
+
+	if IsScoreBased then
+		local ScoreData = self.ScoreData
+		local Round = ScoreData.Round
+		local RoundData = ScoreData.Rounds
+
+		RoundData[ Round ] = RoundData[ Round ] or {}
+
+		TableEmpty( RoundData[ Round ] )
+
+		self.Round = Round
+
+		ScoreData.Round = ( Round % self.Config.MaxStoredRounds ) + 1
 	end
 
 	--Reset the randomised state of all players and store score data.
@@ -633,6 +884,8 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			end
 		end
 	end
+
+	self:SaveScoreData()
 
 	--If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then
@@ -873,7 +1126,7 @@ function Plugin:ApplyRandomSettings()
 	end
 
 	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
-		self:Notify( nil, "%s team enforcing disabled, time limit reached.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
+		self:Notify( nil, "%s team enforcing disabled, time limit reached.", true, ModeStrings.Mode[ self.LastShuffleMode or self.Config.BalanceMode ] )
 		self.ForceRandom = false
 	end )
 end
@@ -885,15 +1138,15 @@ function Plugin:CreateCommands()
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 
-		local Votes = self.Vote:GetVotes()
-
 		local Success, Err = self:AddVote( Client )	
 
 		if Success then
-			local VotesNeeded = Max( self:GetVotesNeeded() - Votes - 1, 0 )
+			local VotesNeeded = self.Vote:GetVotesNeeded()
 
-			self:Notify( nil, "%s voted to force %s teams (%s more votes needed).", 
-				true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ], VotesNeeded )
+			if not self.RandomApplied then
+				self:Notify( nil, "%s voted to force %s teams (%s more votes needed).", 
+					true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ], VotesNeeded )
+			end
 
 			--Somehow it didn't apply random settings??
 			if VotesNeeded == 0 and not self.RandomApplied then

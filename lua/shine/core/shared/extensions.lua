@@ -7,12 +7,23 @@
 local include = Script.Load
 local next = next
 local pairs = pairs
-local pcall = pcall
+local Notify = Shared.Message
 local setmetatable = setmetatable
 local StringExplode = string.Explode
+local StringFormat = string.format
+
+local function Print( ... )
+	return Notify( StringFormat( ... ) )
+end
+
+local Hook = Shine.Hook
+
+local IsType = Shine.IsType
 
 Shine.Plugins = {}
 
+local AutoLoadPath = "config://shine/AutoLoad.json"
+local ClientConfigPath = "config://shine/cl_plugins/"
 local ExtensionPath = "lua/shine/extensions/"
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
@@ -28,6 +39,25 @@ end
 local PluginMeta = {}
 PluginMeta.__index = PluginMeta
 
+--[[
+	Base initialise, just enables the plugin, nothing more.
+	Override to add to it.
+]]
+function PluginMeta:Initialise()
+	self.Enabled = true
+
+	return true
+end
+
+--[[
+	Adds a variable to the plugin's data table.
+
+	Inputs:
+		Type - The network variable's type, e.g "string (128)".
+		Name - The name on the data table to give this variable.
+		Default - The default value.
+		Access - Optional access string, if set, only clients with access to this will receive this variable.
+]]
 function PluginMeta:AddDTVar( Type, Name, Default, Access )
 	self.DTVars = self.DTVars or {}
 	self.DTVars.Keys = self.DTVars.Keys or {}
@@ -39,7 +69,12 @@ function PluginMeta:AddDTVar( Type, Name, Default, Access )
 	self.DTVars.Access[ Name ] = Access
 end
 
+--[[
+	Do not call directly, this is used to finalise the data table after setup.
+]]
 function PluginMeta:InitDataTable( Name )
+	if not self.DTVars then return end
+	
 	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys, self.DTVars.Defaults, self.DTVars.Access )
 
 	if self.NetworkUpdate then
@@ -49,11 +84,78 @@ function PluginMeta:InitDataTable( Name )
 	self.DTVars = nil
 end
 
+--[[
+	Adds a network message to the plugin.
+
+	Calls Plugin:Receive<Name>( Client, Data ) if receiving on the server side,
+	or Plugin:Receive<Name>( Data ) if receiving on the client side.
+
+	Call this function inside shared.lua -> Plugin:SetupDataTable().
+]]
+function PluginMeta:AddNetworkMessage( Name, Params, Receiver )
+	self.__NetworkMessages = self.__NetworkMessages or {}
+
+	Shine.Assert( not self.__NetworkMessages[ Name ], 
+		"Attempted to register network message %s for plugin %s twice!", Name, self.__Name )
+
+	local MessageName = StringFormat( "SH_%s_%s", self.__Name, Name )
+	local FuncName = StringFormat( "Receive%s", Name )
+
+	self.__NetworkMessages[ Name ] = MessageName
+
+	Shared.RegisterNetworkMessage( MessageName, Params )
+
+	if Receiver == "Server" and Server then
+		Server.HookNetworkMessage( MessageName, function( Client, Data )
+			self[ FuncName ]( self, Client, Data )
+		end )
+	elseif Receiver == "Client" and Client then
+		Client.HookNetworkMessage( MessageName, function( Data )
+			self[ FuncName ]( self, Data )
+		end )
+	end
+end
+
+if Server then
+	--[[
+		Sends an internal plugin network message.
+
+		Inputs:
+			Name - Message name that was registered.
+			Targets - Table of clients, a single client, or nil to send to everyone.
+			Data - Message data.
+			Reliable - Boolean whether to ensure the message reaches its target(s).
+	]]
+	function PluginMeta:SendNetworkMessage( Target, Name, Data, Reliable )
+		local MessageName = self.__NetworkMessages[ Name ]
+
+		if IsType( Target, "table" ) then
+			for i = 1, #Target do
+				local Client = Target[ i ]
+
+				if Client then
+					Server.SendNetworkMessage( Client, MessageName, Data, Reliable )
+				end
+			end
+		elseif Target then
+			Server.SendNetworkMessage( Target, MessageName, Data, Reliable )
+		else
+			Server.SendNetworkMessage( MessageName, Data, Reliable )
+		end
+	end
+elseif Client then
+	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
+		local MessageName = self.__NetworkMessages[ Name ]
+
+		Client.SendNetworkMessage( MessageName, Data, Reliable )
+	end
+end
+
 function PluginMeta:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
 
 	if Save then
-		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -68,7 +170,7 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig()
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -78,11 +180,13 @@ function PluginMeta:SaveConfig()
 		return	
 	end
 
-	Print( "Shine %s config file updated.", self.__Name )
+	if not self.SilentConfigSave then
+		Print( "Shine %s config file updated.", self.__Name )
+	end
 end
 
 function PluginMeta:LoadConfig()
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or "config://shine\\cl_plugins\\"..self.ConfigName
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
 	local PluginConfig = Shine.LoadJSONFile( Path )
 
@@ -120,13 +224,14 @@ if Server then
 	]]
 	function PluginMeta:Cleanup()
 		if self.Commands then
-			for _, Command in pairs( self.Commands ) do
+			for k, Command in pairs( self.Commands ) do
 				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
+				self.Commands[ k ] = nil
 			end
 		end
 	end
 elseif Client then
-	function PluginMeta:BindCommand( Command, Func )
+	function PluginMeta:BindCommand( ConCommand, Func )
 		self.Commands = self.Commands or {}
 
 		local Command = Shine:RegisterClientCommand( ConCommand, Func )
@@ -138,8 +243,9 @@ elseif Client then
 
 	function PluginMeta:Cleanup()
 		if self.Commands then
-			for _, Command in pairs( self.Commands ) do
+			for k, Command in pairs( self.Commands ) do
 				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
+				self.Commands[ k ] = nil
 			end
 		end
 	end
@@ -155,9 +261,11 @@ end
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
 
-	local ClientFile = ExtensionPath..Name.."/client.lua"
-	local ServerFile = ExtensionPath..Name.."/server.lua"
-	local SharedFile = ExtensionPath..Name.."/shared.lua"
+	if self.Plugins[ Name ] then return end
+
+	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
+	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
+	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
 	
 	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ] or PluginFiles[ ServerFile ]
 
@@ -191,16 +299,18 @@ function Shine:LoadExtension( Name, DontEnable )
 	end
 
 	if not PluginFiles[ ServerFile ] then
-		ServerFile = ExtensionPath..Name..".lua"
+		ServerFile = StringFormat( "%s%s.lua", ExtensionPath, Name )
 
 		if not PluginFiles[ ServerFile ] then
 			local Found
+
+			local SearchTerm = StringFormat( "/%s.lua", Name )
 
 			--In case someone uses a different case file name to the plugin name...
 			for File in pairs( PluginFiles ) do
 				local LowerF = File:lower()
 
-				if LowerF:find( "/"..Name..".lua", 1, true ) then
+				if LowerF:find( SearchTerm, 1, true ) then
 					Found = true
 					ServerFile = File
 
@@ -253,6 +363,44 @@ function Shine:EnableExtension( Name )
 		self:UnloadExtension( Name )
 	end
 
+	local Conflicts = Plugin.Conflicts
+
+	--Deal with inter-plugin conflicts.
+	if Conflicts then
+		local DisableThem = Conflicts.DisableThem
+		local DisableUs = Conflicts.DisableUs
+
+		if DisableUs then
+			for i = 1, #DisableUs do
+				local Plugin = DisableUs[ i ]
+
+				local PluginTable = self.Plugins[ Plugin ]
+				local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
+
+				--Halt our enabling, we're not allowed to load with this plugin enabled.
+				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
+					return
+				end
+			end
+		end
+
+		if DisableThem then
+			for i = 1, #DisableThem do
+				local Plugin = DisableThem[ i ]
+
+				local PluginTable = self.Plugins[ Plugin ]
+				local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
+
+				--Don't allow them to load, or unload them if they have already.
+				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
+					self.Config.ActiveExtensions[ Plugin ] = false
+
+					self:UnloadExtension( Plugin )
+				end
+			end
+		end
+	end
+
 	if Plugin.HasConfig then
 		Plugin:LoadConfig()
 	end
@@ -276,21 +424,31 @@ function Shine:UnloadExtension( Name )
 	if Server and Plugin.IsShared and next( self.GameIDs ) then
 		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
+
+	Hook.Call( "OnPluginUnload", Name )
 end
 
 local ClientPlugins = {}
+--Store a list of all plugins in existance. When the server config loads, we use it.
+Shine.AllPlugins = {}
 
 --[[
-	Prepare client side plugins.
+	Prepare shared plugins.
 
-	Important to note: Shine does not support hot loading plugin files. That is, it will only know about plugin files that were present when it started.
+	Important to note: Shine does not support hot loading plugin files. 
+	That is, it will only know about plugin files that were present when it started.
 ]]
 for Path in pairs( PluginFiles ) do
 	local Folders = StringExplode( Path, "/" )
 	local Name = Folders[ 4 ]
+	local File = Folders[ 5 ]
 
-	if Folders[ 5 ] and not ClientPlugins[ Name ] then
-		ClientPlugins[ Name ] = "boolean" --Generate the network message.
+	Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
+
+	if File and not ClientPlugins[ Name ] then
+		if File:lower() == "shared.lua" then
+			ClientPlugins[ Name ] = "boolean" --Generate the network message.
+		end
 		Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 	end
 end
@@ -332,6 +490,38 @@ elseif Client then
 			Shine:EnableExtension( Name )
 		else
 			Shine:UnloadExtension( Name )
+		end
+	end )
+
+	--[[
+		Adds a plugin to be auto loaded on the client.
+		This should only be used for client side plugins, not shared.
+
+		Inputs: Plugin name, boolean AutoLoad.
+	]]
+	function Shine:SetPluginAutoLoad( Name, AutoLoad )
+		if not self.AutoLoadPlugins then return end
+		
+		self.AutoLoadPlugins[ Name ] = AutoLoad and true or nil
+
+		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
+	end
+
+	Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
+		local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )
+
+		if not AutoLoad or not next( AutoLoad ) then
+			Shine.AutoLoadPlugins = Shine.AutoLoadPlugins or {}
+
+			return 
+		end
+
+		Shine.AutoLoadPlugins = AutoLoad
+
+		for Plugin, Load in pairs( AutoLoad ) do
+			if Load then
+				Shine:EnableExtension( Plugin )
+			end
 		end
 	end )
 end

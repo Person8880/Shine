@@ -9,7 +9,10 @@ local Encode, Decode = json.encode, json.decode
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local Max = math.max
+local StringExplode = string.Explode
 local StringFormat = string.format
+local TableConcat = table.concat
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
 
@@ -24,10 +27,17 @@ Plugin.Commands = {}
 Plugin.DefaultConfig = {
 	AllTalk = false,
 	AllTalkPreGame = false,
-	EjectVotesNeeded = 0.5
+	EjectVotesNeeded = 0.5,
+	DisableLuaRun = false,
+	Interp = 100,
+	MoveRate = 30,
+	FriendlyFire = false
 }
 
 Plugin.CheckConfig = true
+
+Shine.Hook.SetupClassHook( "Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+Shine.Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 
 function Plugin:Initialise()
 	self.Gagged = {}
@@ -37,10 +47,27 @@ function Plugin:Initialise()
 	self.SetEjectVotes = false
 
 	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
+	self.Config.Interp = Max( self.Config.Interp, 0 )
+	self.Config.MoveRate = Max( self.Config.MoveRate, 5 )
 
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:GetFriendlyFire()
+	if self.Config.FriendlyFire then
+		return true
+	end
+end
+
+function Plugin:ClientConnect( Client )
+	if self.Config.Interp ~= 100 then
+		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
+	end
+	if self.Config.MoveRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
+	end
 end
 
 function Plugin:Think()
@@ -73,8 +100,6 @@ function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 end
 
 function Plugin:CreateCommands()
-	local Commands = self.Commands
-
 	local function Help( Client, Command )
 		local CommandObj = Shine.Commands[ Command ]
 
@@ -90,9 +115,9 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "%s: %s", Command, CommandObj.Help or "No help available." ) )
 	end
-	Commands.HelpCommand = Shine:RegisterCommand( "sh_help", nil, Help, true )
-	Commands.HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Error = "Please specify a command." }
-	Commands.HelpCommand:Help( "<command> Displays usage information for the given command." )
+	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
+	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Error = "Please specify a command." }
+	HelpCommand:Help( "<command> Displays usage information for the given command." )
 
 	local function CommandsList( Client )
 		local Commands = Shine.Commands
@@ -119,50 +144,63 @@ function Plugin:CreateCommands()
 
 		Notify( "End command list." )
 	end
-	Commands.CommandList = Shine:RegisterCommand( "sh_helplist", nil, CommandsList, true )
-	Commands.CommandList:Help( "Displays every command you have access to and their usage." )
+	local CommandList = self:BindCommand( "sh_helplist", nil, CommandsList, true )
+	CommandList:Help( "Displays every command you have access to and their usage." )
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
 		Shine:Print( "%s ran console command: %s", true, Client and Client:GetControllingPlayer():GetName() or "Console", Command )
 	end
-	Commands.RConCommand = Shine:RegisterCommand( "sh_rcon", "rcon", RCon )
-	Commands.RConCommand:AddParam{ Type = "string", TakeRestOfLine = true }
-	Commands.RConCommand:Help( "<command> Executes a command on the server console." )
+	local RConCommand = self:BindCommand( "sh_rcon", "rcon", RCon )
+	RConCommand:AddParam{ Type = "string", TakeRestOfLine = true }
+	RConCommand:Help( "<command> Executes a command on the server console." )
 
 	local function SetPassword( Client, Password )
 		Server.SetPassword( Password )
 		Shine:AdminPrint( Client, "Password %s", true, Password ~= "" and "set to "..Password or "reset" )
 	end
-	Commands.SetPasswordCommand = Shine:RegisterCommand( "sh_password", "password", SetPassword )
-	Commands.SetPasswordCommand:AddParam{ Type = "string", TakeRestOfLine = true, Optional = true, Default = "" }
-	Commands.SetPasswordCommand:Help( "<password> Sets the server password." )
+	local SetPasswordCommand = self:BindCommand( "sh_password", "password", SetPassword )
+	SetPasswordCommand:AddParam{ Type = "string", TakeRestOfLine = true, Optional = true, Default = "" }
+	SetPasswordCommand:Help( "<password> Sets the server password." )
 
-	local function RunLua( Client, Code )
-		local Player = Client and Client:GetControllingPlayer()
+	if not self.Config.DisableLuaRun then
+		local function RunLua( Client, Code )
+			local Player = Client and Client:GetControllingPlayer()
 
-		local Name = Player and Player:GetName() or "Console"
+			local Name = Player and Player:GetName() or "Console"
 
-		local Func, Err = loadstring( Code )
+			local Func, Err = loadstring( Code )
 
-		if Func then
-			Func()
-			Shine:Print( "%s ran: %s", true, Name, Code )
-		else
-			Shine:Print( "Lua run failed. Error: %s", true, Err )
+			if Func then
+				Func()
+				Shine:Print( "%s ran: %s", true, Name, Code )
+			else
+				Shine:Print( "Lua run failed. Error: %s", true, Err )
+			end
 		end
+		local RunLuaCommand = self:BindCommand( "sh_luarun", "luarun", RunLua, false, true )
+		RunLuaCommand:AddParam{ Type = "string", TakeRestOfLine = true }
+		RunLuaCommand:Help( "Runs a string of Lua code on the server. Be careful with this." )
 	end
-	Commands.RunLuaCommand = Shine:RegisterCommand( "sh_luarun", "luarun", RunLua, false, true )
-	Commands.RunLuaCommand:AddParam{ Type = "string", TakeRestOfLine = true }
-	Commands.RunLuaCommand:Help( "Runs a string of Lua code on the server. Be careful with this." )
+
+	local function SetCheats( Client, Enable )
+		Shared.ConsoleCommand( "cheats "..( Enable and "1" or "0" ) )
+	end
+	local SetCheatsCommand = self:BindCommand( "sh_cheats", "cheats", SetCheats )
+	SetCheatsCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shared.GetCheatsEnabled() end }
+	SetCheatsCommand:Help( "Enables or disables cheats mode." )
 
 	local function AllTalk( Client, Enable )
 		self.Config.AllTalk = Enable
-		Shine:AdminPrint( Client, "All talk %s.", true, Enable and "enabled" or "disabled" )
+
+		local Enabled = Enable and "enabled" or "disabled"
+
+		Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]", 
+			255, 255, 255, "All talk has been %s.", true, Enabled )
 	end
-	Commands.AllTalkCommand = Shine:RegisterCommand( "sh_alltalk", "alltalk", AllTalk )
-	Commands.AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
-	Commands.AllTalkCommand:Help( "<true/false> Enable or disable all talk, which allows everyone to hear each others voice chat regardless of team." )
+	local AllTalkCommand = self:BindCommand( "sh_alltalk", "alltalk", AllTalk )
+	AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
+	AllTalkCommand:Help( "<true/false> Enable or disable all talk, which allows everyone to hear each others voice chat regardless of team." )
 
 	local function Kick( Client, Target, Reason )
 		Shine:Print( "%s kicked %s.%s", true, 
@@ -172,10 +210,10 @@ function Plugin:CreateCommands()
 		)
 		Server.DisconnectClient( Target )
 	end
-	Commands.KickCommand = Shine:RegisterCommand( "sh_kick", "kick", Kick )
-	Commands.KickCommand:AddParam{ Type = "client", NotSelf = true }
-	Commands.KickCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "" }
-	Commands.KickCommand:Help( "<player> Kicks the given player." )
+	local KickCommand = self:BindCommand( "sh_kick", "kick", Kick )
+	KickCommand:AddParam{ Type = "client", NotSelf = true }
+	KickCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "" }
+	KickCommand:Help( "<player> Kicks the given player." )
 
 	local function Status( Client )
 		local CanSeeIPs = Shine:HasAccess( Client, "sh_status" )
@@ -236,15 +274,15 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.StatusCommand = Shine:RegisterCommand( "sh_status", nil, Status, true )
-	Commands.StatusCommand:Help( "Prints a list of all connected players and their relevant information." )
+	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
+	StatusCommand:Help( "Prints a list of all connected players and their relevant information." )
 
 	local function ChangeLevel( Client, MapName )
 		MapCycle_ChangeMap( MapName )
 	end
-	Commands.ChangeLevelCommand = Shine:RegisterCommand( "sh_changelevel", "map", ChangeLevel )
-	Commands.ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a map to change to." }
-	Commands.ChangeLevelCommand:Help( "<map> Changes the map to the given level immediately." )
+	local ChangeLevelCommand = self:BindCommand( "sh_changelevel", "map", ChangeLevel )
+	ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a map to change to." }
+	ChangeLevelCommand:Help( "<map> Changes the map to the given level immediately." )
 
 	local function ListMaps( Client )
 		local Maps = {}
@@ -256,8 +294,8 @@ function Plugin:CreateCommands()
 			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
 		end
 	end
-	Commands.ListMapsCommand = Shine:RegisterCommand( "sh_listmaps", nil, ListMaps )
-	Commands.ListMapsCommand:Help( "Lists all installed maps on the server." )
+	local ListMapsCommand = self:BindCommand( "sh_listmaps", nil, ListMaps )
+	ListMapsCommand:Help( "Lists all installed maps on the server." )
 
 	local function ResetGame( Client )
 		local Gamerules = GetGamerules()
@@ -265,8 +303,8 @@ function Plugin:CreateCommands()
 			Gamerules:ResetGame()
 		end
 	end
-	Commands.ResetGameCommand = Shine:RegisterCommand( "sh_reset", "reset", ResetGame )
-	Commands.ResetGameCommand:Help( "Resets the game round." )
+	local ResetGameCommand = self:BindCommand( "sh_reset", "reset", ResetGame )
+	ResetGameCommand:Help( "Resets the game round." )
 
 	local function LoadPlugin( Client, Name )
 		if Name == "basecommands" then
@@ -283,9 +321,9 @@ function Plugin:CreateCommands()
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s failed to load. Error: %s", Name, Err ) )
 		end
 	end
-	Commands.LoadPluginCommand = Shine:RegisterCommand( "sh_loadplugin", nil, LoadPlugin )
-	Commands.LoadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to load." }
-	Commands.LoadPluginCommand:Help( "<plugin> Loads a plugin." )
+	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
+	LoadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to load." }
+	LoadPluginCommand:Help( "<plugin> Loads a plugin." )
 
 	local function UnloadPlugin( Client, Name )
 		if Name == "basecommands" and Shine.Plugins[ Name ] and Shine.Plugins[ Name ].Enabled then
@@ -304,9 +342,9 @@ function Plugin:CreateCommands()
 
 		Shine:SendPluginData( nil, Shine:BuildPluginData() )
 	end
-	Commands.UnloadPluginCommand = Shine:RegisterCommand( "sh_unloadplugin", nil, UnloadPlugin )
-	Commands.UnloadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to unload." }
-	Commands.UnloadPluginCommand:Help( "<plugin> Unloads a plugin." )
+	local UnloadPluginCommand = self:BindCommand( "sh_unloadplugin", nil, UnloadPlugin )
+	UnloadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to unload." }
+	UnloadPluginCommand:Help( "<plugin> Unloads a plugin." )
 
 	local function ListPlugins( Client )
 		Shine:AdminPrint( Client, "Loaded plugins:" )
@@ -316,15 +354,15 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.ListPluginsCommand = Shine:RegisterCommand( "sh_listplugins", nil, ListPlugins )
-	Commands.ListPluginsCommand:Help( "Lists all loaded plugins." )
+	local ListPluginsCommand = self:BindCommand( "sh_listplugins", nil, ListPlugins )
+	ListPluginsCommand:Help( "Lists all loaded plugins." )
 
 	local function ReloadUsers( Client )
 		Shine:AdminPrint( Client, "Reloading users..." )
 		Shine:LoadUsers( Shine.Config.GetUsersFromWeb, true )
 	end
-	Commands.ReloadUsersCommand = Shine:RegisterCommand( "sh_reloadusers", nil, ReloadUsers )
-	Commands.ReloadUsersCommand:Help( "Reloads the user data, either from the web or locally depending on your config settings." )
+	local ReloadUsersCommand = self:BindCommand( "sh_reloadusers", nil, ReloadUsers )
+	ReloadUsersCommand:Help( "Reloads the user data, either from the web or locally depending on your config settings." )
 
 	local function ReadyRoom( Client, Targets )
 		local Gamerules = GetGamerules()
@@ -334,9 +372,9 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.ReadyRoomCommand = Shine:RegisterCommand( "sh_rr", "rr", ReadyRoom )
-	Commands.ReadyRoomCommand:AddParam{ Type = "clients" }
-	Commands.ReadyRoomCommand:Help( "<players> Sends the given player(s) to the ready room." )
+	local ReadyRoomCommand = self:BindCommand( "sh_rr", "rr", ReadyRoom )
+	ReadyRoomCommand:AddParam{ Type = "clients" }
+	ReadyRoomCommand:Help( "<players> Sends the given player(s) to the ready room." )
 
 	local function ForceRandom( Client, Targets )
 		local Gamerules = GetGamerules()
@@ -387,9 +425,9 @@ function Plugin:CreateCommands()
 			Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
-	Commands.ForceRandomCommand = Shine:RegisterCommand( "sh_forcerandom", "forcerandom", ForceRandom )
-	Commands.ForceRandomCommand:AddParam{ Type = "clients" }
-	Commands.ForceRandomCommand:Help( "<players> Forces the given player(s) onto a random team." )
+	local ForceRandomCommand = self:BindCommand( "sh_forcerandom", "forcerandom", ForceRandom )
+	ForceRandomCommand:AddParam{ Type = "clients" }
+	ForceRandomCommand:Help( "<players> Forces the given player(s) onto a random team." )
 
 	local function ChangeTeam( Client, Targets, Team )
 		local Gamerules = GetGamerules()
@@ -399,10 +437,10 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.ChangeTeamCommand = Shine:RegisterCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
-	Commands.ChangeTeamCommand:AddParam{ Type = "clients" }
-	Commands.ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
-	Commands.ChangeTeamCommand:Help( "<players> <marine/alien> Sets the given player(s) onto the given team." )
+	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
+	ChangeTeamCommand:AddParam{ Type = "clients" }
+	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
+	ChangeTeamCommand:Help( "<players> <marine/alien> Sets the given player(s) onto the given team." )
 
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
 		Server.SetConfigSetting( "auto_team_balance", Enable and { enabled_on_unbalance_amount = UnbalanceAmount, enabled_after_seconds = Delay } or nil )
@@ -412,11 +450,11 @@ function Plugin:CreateCommands()
 			Shine:AdminPrint( Client, "Auto balance disabled." )
 		end
 	end
-	Commands.AutoBalanceCommand = Shine:RegisterCommand( "sh_autobalance", "autobalance", AutoBalance )
-	Commands.AutoBalanceCommand:AddParam{ Type = "boolean", Error = "Please specify whether auto balance should be enabled." }
-	Commands.AutoBalanceCommand:AddParam{ Type = "number", Min = 1, Round = true, Optional = true, Default = 2 }
-	Commands.AutoBalanceCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = 10 }
-	Commands.AutoBalanceCommand:Help( "<true/false> <player amount> <seconds> Enables or disables auto balance. Player amount and seconds are optional." )
+	local AutoBalanceCommand = self:BindCommand( "sh_autobalance", "autobalance", AutoBalance )
+	AutoBalanceCommand:AddParam{ Type = "boolean", Error = "Please specify whether auto balance should be enabled." }
+	AutoBalanceCommand:AddParam{ Type = "number", Min = 1, Round = true, Optional = true, Default = 2 }
+	AutoBalanceCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = 10 }
+	AutoBalanceCommand:Help( "<true/false> <player amount> <seconds> Enables or disables auto balance. Player amount and seconds are optional." )
 
 	local function Eject( Client, Target )
 		local Player = Target:GetControllingPlayer()
@@ -433,26 +471,26 @@ function Plugin:CreateCommands()
 			end
 		end
 	end
-	Commands.EjectCommand = Shine:RegisterCommand( "sh_eject", "eject", Eject )
-	Commands.EjectCommand:AddParam{ Type = "client" }
-	Commands.EjectCommand:Help( "<player> Ejects the given commander." )
+	local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
+	EjectCommand:AddParam{ Type = "client" }
+	EjectCommand:Help( "<player> Ejects the given commander." )
 
 	local function AdminSay( Client, Message )
 		Shine:Notify( nil, "All", Shine.Config.ChatName, Message )
 	end
-	Commands.AdminSayCommand = Shine:RegisterCommand( "sh_say", "say", AdminSay, false, true )
-	Commands.AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength, TakeRestOfLine = true, Error = "Please specify a message." }
-	Commands.AdminSayCommand:Help( "<message> Sends a message to everyone from 'Admin'." )
+	local AdminSayCommand = self:BindCommand( "sh_say", "say", AdminSay, false, true )
+	AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength, TakeRestOfLine = true, Error = "Please specify a message." }
+	AdminSayCommand:Help( "<message> Sends a message to everyone from 'Admin'." )
 
 	local function AdminTeamSay( Client, Team, Message )
 		local Players = GetEntitiesForTeam( "Player", Team )
 		
 		Shine:Notify( Players, "Team", Shine.Config.ChatName, Message )
 	end
-	Commands.AdminTeamSayCommand = Shine:RegisterCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
-	Commands.AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
-	Commands.AdminTeamSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, MaxLength = kMaxChatLength, Error = "Please specify a message." }
-	Commands.AdminTeamSayCommand:Help( "<marine/alien> <message> Sends a messages to everyone on the given team from 'Admin'." )
+	local AdminTeamSayCommand = self:BindCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
+	AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
+	AdminTeamSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, MaxLength = kMaxChatLength, Error = "Please specify a message." }
+	AdminTeamSayCommand:Help( "<marine/alien> <message> Sends a messages to everyone on the given team from 'Admin'." )
 
 	local function PM( Client, Target, Message )
 		local Player = Target:GetControllingPlayer()
@@ -461,22 +499,42 @@ function Plugin:CreateCommands()
 			Shine:Notify( Player, "PM", Shine.Config.ChatName, Message )
 		end
 	end
-	Commands.PMCommand = Shine:RegisterCommand( "sh_pm", "pm", PM )
-	Commands.PMCommand:AddParam{ Type = "client", IgnoreCanTarget = true }
-	Commands.PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
-	Commands.PMCommand:Help( "<player> <message> Sends a private message to the given player." )
+	local PMCommand = self:BindCommand( "sh_pm", "pm", PM )
+	PMCommand:AddParam{ Type = "client", IgnoreCanTarget = true }
+	PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
+	PMCommand:Help( "<player> <message> Sends a private message to the given player." )
+
+	local Colours = {
+		white = { 255, 255, 255 },
+		red = { 255, 0, 0 },
+		orange = { 255, 160, 0 },
+		yellow = { 255, 255, 0 },
+		green = { 0, 255, 0 },
+		lightblue = { 0, 255, 255 },
+		blue = { 0, 0, 255 },
+		purple = { 255, 0, 255 }
+	}
 
 	local function CSay( Client, Message )
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 		local ID = Client:GetUserId() or 0
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.2, Message, 6, 255, 255, 255, 1, 2, 1 ) )
+		local Words = StringExplode( Message, " " )
+		local Colour = Colours[ Words[ 1 ] ]
+
+		if Colour then
+			Message = TableConcat( Words, " ", 2 )
+		else
+			Colour = Colours.white
+		end
+
+		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 1, 2, 1 ) )
 		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
 	end
-	Commands.CSayCommand = Shine:RegisterCommand( "sh_csay", "csay", CSay )
-	Commands.CSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = 128 }
-	Commands.CSayCommand:Help( "Displays a message in the centre of all player's screens." )
+	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )
+	CSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = 128 }
+	CSayCommand:Help( "Displays a message in the centre of all player's screens." )
 
 	local function GagPlayer( Client, Target, Duration )
 		self.Gagged[ Target ] = Duration == 0 and true or Shared.GetTime() + Duration
@@ -492,10 +550,10 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( nil, "%s[%s] gagged %s[%s]%s", true, PlayerName, ID, TargetName, TargetID,
 			Duration == 0 and "" or " for "..string.TimeToString( Duration ) )
 	end
-	Commands.GagCommand = Shine:RegisterCommand( "sh_gag", "gag", GagPlayer )
-	Commands.GagCommand:AddParam{ Type = "client" }
-	Commands.GagCommand:AddParam{ Type = "number", Round = true, Min = 0, Max = 1800, Optional = true, Default = 0 }
-	Commands.GagCommand:Help( "<player> <duration> Silences the given player's chat. If no duration is given, it will hold for the remainder of the map." )
+	local GagCommand = self:BindCommand( "sh_gag", "gag", GagPlayer )
+	GagCommand:AddParam{ Type = "client" }
+	GagCommand:AddParam{ Type = "number", Round = true, Min = 0, Max = 1800, Optional = true, Default = 0 }
+	GagCommand:Help( "<player> <duration> Silences the given player's chat. If no duration is given, it will hold for the remainder of the map." )
 
 	local function UngagPlayer( Client, Target )
 		local TargetPlayer = Target:GetControllingPlayer()
@@ -516,9 +574,9 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( nil, "%s[%s] ungagged %s[%s]", true, PlayerName, ID, TargetName, TargetID )
 	end
-	Commands.UngagCommand = Shine:RegisterCommand( "sh_ungag", "ungag", UngagPlayer )
-	Commands.UngagCommand:AddParam{ Type = "client" }
-	Commands.UngagCommand:Help( "<player> Stops silencing the given player's chat." )
+	local UngagCommand = self:BindCommand( "sh_ungag", "ungag", UngagPlayer )
+	UngagCommand:AddParam{ Type = "client" }
+	UngagCommand:Help( "<player> Stops silencing the given player's chat." )
 end
 
 --[[
@@ -534,12 +592,4 @@ function Plugin:PlayerSay( Client, Message )
 	if GagData > Shared.GetTime() then return "" end
 
 	self.Gagged[ Client ] = nil
-end
-
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
 end

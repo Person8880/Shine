@@ -4,6 +4,7 @@
 
 local pairs = pairs
 local Random = math.random
+local StringRep = string.rep
 local TableSort = table.sort
 
 --[[
@@ -15,6 +16,43 @@ local function TableEmpty( Table )
 	end
 end
 table.Empty = TableEmpty
+
+--[[
+	Fixes an array with holes in it.
+]]
+function table.FixArray( Table )
+	local Array = {}
+	local Largest = 0
+
+	--Get the upper bound key, cannot rely on #Table or table.Count.
+	for Key in pairs( Table ) do
+		if Key > Largest then
+			Largest = Key
+		end
+	end
+
+	--Nothing to do, it's an empty table.
+	if Largest == 0 then return end
+
+	local Count = 0
+
+	--Clear out the table, and store values in order into the array.
+	for i = 1, Largest do
+		local Value = Table[ i ]
+
+		if Value ~= nil then
+			Count = Count + 1
+
+			Array[ Count ] = Value
+			Table[ i ] = nil
+		end
+	end
+
+	--Restore the values to the original table in array form.
+	for i = 1, Count do
+		Table[ i ] = Array[ i ]
+	end
+end
 
 --[[
 	Shuffles a table randomly.
@@ -81,9 +119,7 @@ function table.Average( Table )
 	return Sum / Count
 end
 
-local function istable( Table )
-	return type( Table ) == "table"
-end
+local IsType = Shine.IsType
 
 --[[
 	Prints a nicely formatted table structure to the console.
@@ -91,14 +127,14 @@ end
 function PrintTable( Table, Indent )
 	Indent = Indent or 0
 
-	local IndentString = string.rep( "\t", Indent )
+	local IndentString = StringRep( "\t", Indent )
 
 	for k, v in pairs( Table ) do
-		if istable( v ) then
-			Print( IndentString..tostring( k )..":".."\n" )
+		if IsType( v, "table" ) then
+			Print( "%s%s:\n", IndentString, tostring( k ) )
 			PrintTable( v, Indent + 2 )
 		else
-			Print( IndentString..tostring( k ).." = "..tostring( v ) )
+			Print( "%s%s = %s", IndentString, tostring( k ), tostring( v ) )
 		end
 	end
 end
@@ -110,7 +146,7 @@ local function CopyTable( Table, LookupTable )
 	setmetatable( Copy, getmetatable( Table ) )
 
 	for k, v in pairs( Table ) do
-		if not istable( v ) then
+		if not IsType( v, "table" ) then
 			Copy[ k ] = v
 		else
 			LookupTable = LookupTable or {}

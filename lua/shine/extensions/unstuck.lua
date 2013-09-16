@@ -13,7 +13,13 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "Unstuck.json"
 
-Plugin.Commands = {}
+Plugin.DefaultConfig = {
+	DistanceToCheck = 6,
+	TimeBetweenUse = 30,
+	MinTime = 5
+}
+
+Plugin.CheckConfig = true
 
 function Plugin:Initialise()
 	self.Users = {}
@@ -25,48 +31,8 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		DistanceToCheck = 6,
-		TimeBetweenUse = 30,
-		MinTime = 5
-	}
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing unstuck config file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine unstuck config file created." )
-	end
-end
-
-function Plugin:SaveConfig()
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing unstuck config file: "..Err )	
-
-		return	
-	end
-
-	Notify( "Shine unstuck config file saved." )
-end
-
-function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
-
-		return
-	end
-
-	self.Config = PluginConfig
+function Plugin:Notify( Player, String, Format, ... )
+	Shine:NotifyDualColour( Player, 100, 100, 100, "[Unstuck]", 255, 255, 255, String, Format, ... )
 end
 
 function Plugin:UnstickPlayer( Player, Pos )
@@ -105,8 +71,6 @@ function Plugin:UnstickPlayer( Player, Pos )
 end
 
 function Plugin:CreateCommands()
-	local Commands = self.Commands
-
 	local function Unstick( Client )
 		if not Client then return end
 		local Player = Client:GetControllingPlayer()
@@ -114,7 +78,7 @@ function Plugin:CreateCommands()
 		if not Player then return end
 
 		if not Player:GetIsAlive() then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You cannot be unstuck when you are dead." )
+			Shine:NotifyError( Player, "You cannot be unstuck when you are dead." )
 
 			return
 		end
@@ -123,7 +87,7 @@ function Plugin:CreateCommands()
 
 		local NextUse = self.Users[ Client ]
 		if NextUse and NextUse > Time then
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "You must wait %s before using unstuck again.", true, string.TimeToString( NextUse - Time ) )
+			Shine:NotifyError( Player, "You must wait %s before using unstuck again.", true, string.TimeToString( NextUse - Time ) )
 
 			return
 		end
@@ -131,25 +95,17 @@ function Plugin:CreateCommands()
 		local Success = self:UnstickPlayer( Player, Player:GetOrigin() )
 
 		if Success then
-			Shine:Notify( Player, "Unstuck", Shine.Config.ChatName, "Successfully unstuck." )
+			self:Notify( Player, "Successfully unstuck." )
 
 			self.Users[ Client ] = Time + self.Config.TimeBetweenUse
 		else
-			Shine:Notify( Player, "Error", Shine.Config.ChatName, "Unable to unstick. Try again in %s.", true, string.TimeToString( self.Config.MinTime ) )
+			Shine:NotifyError( Player, "Unable to unstick. Try again in %s.", true, string.TimeToString( self.Config.MinTime ) )
 
 			self.Users[ Client ] = Time + self.Config.MinTime
 		end
 	end
-	Commands.UnstickCommand = Shine:RegisterCommand( "sh_unstuck", { "unstuck", "stuck" }, Unstick, true )
-	Commands.UnstickCommand:Help( "Attempts to free you from being trapped inside world geometry." )
-end
-
-function Plugin:Cleanup()
-	for _, Command in pairs( self.Commands ) do
-		Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-	end
-
-	self.Enabled = false
+	local UnstickCommand = self:BindCommand( "sh_unstuck", { "unstuck", "stuck" }, Unstick, true )
+	UnstickCommand:Help( "Attempts to free you from being trapped inside world geometry." )
 end
 
 Shine:RegisterExtension( "unstuck", Plugin )

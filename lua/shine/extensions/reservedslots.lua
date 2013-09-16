@@ -1,139 +1,107 @@
 --[[
 	Reserved slots.
 
-	Currently only the crude password method. I'll expand it if UWE ever get a proper connection event.
+	The huzzah UWE gave us a proper connection event edition.
 ]]
 
 local Shine = Shine
 
-local Clamp = math.Clamp
 local Floor = math.floor
 local Max = math.max
-local Notify = Shared.Message
-local StringFormat = string.format
-local TableCount = table.Count
+local tonumber = tonumber
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "2.0"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "ReservedSlots.json"
 
-Plugin.MODE_PASSWORD = 1
-Plugin.MODE_REDIRECT = 2
-
 Plugin.DefaultConfig = {
-	Slots = 2,
-	Password = "",
-	Mode = 1,
-	Redirect = { IP = "127.0.0.1", Port = "27015", Password = "" }
+	Slots = 2, --How many slots?
+	TakeSlotInstantly = true --Should a player with reserved access use up a slot straight away?
 }
 
 Plugin.CheckConfig = true
 
 function Plugin:Initialise()
-	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, 2 )
+	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )
+
+	if self.Config.Slots > 0 then
+		if not self.Config.TakeSlotInstantly then
+			Server.AddTag( "R_S"..self.Config.Slots )
+		else
+			Server.AddTag( "R_S"..self:GetFreeReservedSlots() )
+		end
+	end
 
 	self.Enabled = true
 
 	return true
 end
 
-function Plugin:LockServer( Unlock )
-	self.Locked = not Unlock
+function Plugin:GetFreeReservedSlots()
+	local Slots = self.Config.Slots
 
-	Server.SetPassword( Unlock and "" or self.Config.Password )
+	if not self.Config.TakeSlotInstantly then
+		return Slots
+	end
+
+	local Reserved, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+
+	Slots = Max( Slots - Count, 0 )
+
+	return Slots
 end
 
-local OnReservedConnect = {
-	function( self, Client, Connected, MaxPlayers, MaxPublic )
-		if Connected == MaxPublic then
-			Shine:LogString( StringFormat( "[Reserved Slots] Locking the server at %i/%i players.", Connected, MaxPlayers ) )
+--[[
+	Update the server tag with the current reserved slot count.
+]]
+function Plugin:UpdateTag( Slots )
+	local Tags = {}
+
+	Server.GetTags( Tags )
+
+	for i = 1, #Tags do
+		local Tag = Tags[ i ]
+
+		if Tag and Tag:find( "R_S" ) then
+			Server.RemoveTag( Tag )
 		end
-
-		self:LockServer()
-	end,
-
-	function( self, Client, Connected, MaxPlayers, MaxPublic )
-		if Connected == MaxPublic then return end
-		if Shine:HasAccess( Client, "sh_reservedslot" ) then return end
-		
-		local Redirect = self.Config.Redirect
-
-		local IP = Redirect.IP
-		local Port = Redirect.Port
-		local Password = ""
-
-		if Redirect.Password and #Redirect.Password > 0 then
-			Password = " "..Redirect.Password
-		end
-
-		Shine:NotifyColour( Client, 255, 255, 0, "This server is full, you will be redirected to one of our other servers." )
-
-		Shine.Timer.Simple( 20, function()
-			if Shine:IsValidClient( Client ) then
-				local Player = Client:GetControllingPlayer()
-
-				if Player then
-					local Name = Player:GetName()
-					local ID = Client:GetUserId()
-
-					Shine:LogString( StringFormat( "[Reserved Slots] Redirected client %s[%s].", Name, ID ) )
-				end
-
-				Server.SendNetworkMessage( Client, "Shine_Command", { 
-					Command = StringFormat( "connect %s:%s%s", IP, Port, Password )
-				}, true )
-			end
-		end )
 	end
-}
 
-local OnReservedDisconnect = {
-	function( self, Client, Connected, MaxPlayers, MaxPublic )
-		if Connected == ( MaxPublic - 1 ) then
-			Shine:LogString( StringFormat( "[Reserved Slots] Unlocking the server at %i/%i players.", Connected, MaxPlayers ) )
-		end
+	Server.AddTag( "R_S"..Slots )
+end
 
-		self:LockServer( true )
-	end,
-
-	function( self, Client )
-		--Do nothing...
-	end
-}
-
-function Plugin:ClientConnect( Client )
+--[[
+	A simple and effective reserved slot system.
+	At last, a proper connection event.
+]]
+function Plugin:CheckConnectionAllowed( ID )
+	local Connected = Server.GetNumPlayers()
 	local MaxPlayers = Server.GetMaxPlayers()
 
-	local ConnectedAdmins, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+	--Deny on full.
+	if Connected >= MaxPlayers then return false end
+	--Allow if they have reserved access, skip checking the connected count.
+	if Shine:HasAccess( tonumber( ID ), "sh_reservedslot" ) then return true end
 
-	local Slots = Max( self.Config.Slots - Count, 0 )
+	local Slots = self.Config.Slots
 
-	if Slots == 0 then return end
+	--Deduct reserved slot users from the number of reserved slots empty.
+	if self.Config.TakeSlotInstantly then
+		Slots = self:GetFreeReservedSlots()
 
-	local Connected = TableCount( Shine.GameIDs )
+		self:UpdateTag( Slots )
+	
+		if Slots == 0 then return true end
+	end
 
 	local MaxPublic = MaxPlayers - Slots
 
-	if MaxPublic <= Connected then
-		OnReservedConnect[ self.Config.Mode ]( self, Client, Connected, MaxPlayers, MaxPublic )
-	end
-end
+	--We've got enough room for them.
+	if MaxPublic > Connected then return true end
 
-function Plugin:ClientDisconnect( Client )
-	local MaxPlayers = Server.GetMaxPlayers()
-
-	local ConnectedAdmins, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
-
-	local Slots = Max( self.Config.Slots - Count, 0 )
-	local Connected = TableCount( Shine.GameIDs )
-
-	local MaxPublic = MaxPlayers - Slots
-
-	if MaxPublic > Connected then
-		OnReservedDisconnect[ self.Config.Mode ]( self, Client, Connected, MaxPlayers, MaxPublic )
-	end
+	return false
 end
 
 function Plugin:Cleanup()

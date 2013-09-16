@@ -9,14 +9,15 @@ local Notify = Shared.Message
 
 local TableContains = table.contains
 
-local UserPath = "config://shine\\UserConfig.json"
+local UserPath = "config://shine/UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 
 function Shine:RequestUsers( Reload )
 	Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
-		if not Response then
+		if not Response and not Reload then
 			self:LoadUsers()
+
 			return
 		end
 
@@ -25,6 +26,7 @@ function Shine:RequestUsers( Reload )
 		if not next( UserData ) then
 			if Reload then --Don't replace with a blank table if request failed when reloading.
 				self:AdminPrint( nil, "Reloading from the web failed. User data has not been changed." )
+
 				return 
 			end 
 
@@ -39,7 +41,12 @@ function Shine:RequestUsers( Reload )
 
 		self:ConvertData( self.UserData, true )
 
+		--Cache the current user data, so if we fail to load it on a later map we still have something to load.
+		self:SaveUsers( true )
+
 		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
+
+		Shine.Hook.Call( "OnUserReload" )
 	end )
 end
 
@@ -87,7 +94,7 @@ function Shine:LoadUsers( Web, Reload )
 	self.UserData = Decode( Data )
 
 	if not self.UserData or not next( self.UserData ) then
-		Shared.Message( "[Shine] The user data file is not valid JSON, unable to load user data." )
+		Notify( "[Shine] The user data file is not valid JSON, unable to load user data." )
 	
 		Shine.Error = "The user data file is not valid JSON, unable to load user data."
 
@@ -95,12 +102,23 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	self:ConvertData( self.UserData )
+
+	if Reload then
+		Shine.Hook.Call( "OnUserReload" )
+	end
 end
+
+local JSONSettings = {
+	indent = true,
+	level = 1
+}
 
 --[[
 	Saves the Shine user data to the JSON file.
 ]]
-function Shine:SaveUsers()
+function Shine:SaveUsers( Silent )
+	local Data = Encode( self.UserData, JSONSettings )
+
 	local UserFile, Err = io.open( UserPath, "w+" )
 
 	if not UserFile then
@@ -111,11 +129,13 @@ function Shine:SaveUsers()
 		return
 	end
 
-	UserFile:write( Encode( self.UserData, { indent = true, level = 1 } ) )
-
-	Notify( "Saving Shine users..." )
+	UserFile:write( Data )
 
 	UserFile:close()
+
+	if not Silent then
+		Notify( "Saving Shine users..." )
+	end
 end
 
 --[[
@@ -139,11 +159,32 @@ function Shine:GenerateDefaultUsers( Save )
 	end
 end
 
+local CommandMapping = {
+	sv_hasreserve = "sh_reservedslot",
+	sv_rrall = "sh_rr",
+	sv_afkimmune = "sh_afk",
+	sv_randomall = "sh_forcerandom",
+	sv_switchteam = "sh_setteam",
+	sv_maps = "sh_listmaps",
+	sv_randomon = "sh_enablerandom",
+	sv_cancelmapvote = "sh_veto",
+	sv_nick = "sh_rename",
+	sv_reloadplugins = "sh_loadplugin",
+	sv_dontrandom = "sh_randomimmune"
+}
+
 local function ConvertCommands( Commands )
 	local Ret = {}
 
 	for i = 1, #Commands do
-		Ret[ i ] = Commands[ i ]:gsub( "sv", "sh" )	
+		local Command = Commands[ i ]
+		local Equivalent = CommandMapping[ Command ]
+
+		if Equivalent then
+			Ret[ i ] = Equivalent
+		else
+			Ret[ i ] = Command:gsub( "sv", "sh" )
+		end	
 	end
 
 	return Ret
@@ -155,20 +196,31 @@ end
 ]]
 function Shine:ConvertData( Data, DontSave )
 	local Edited
+	
 	if Data.groups then
-		Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
+		if not DontSave then
+			Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
+		end
 		
 		Data.Groups = {}
 		
 		for Name, Vals in pairs( Data.groups ) do
-			Data.Groups[ Name ] = { IsBlacklist = Vals.type == "disallowed", Commands = ConvertCommands( Vals.commands ), Immunity = Vals.level or 10 }
+			Data.Groups[ Name ] = { 
+				IsBlacklist = Vals.type == "disallowed",
+				Commands = Vals.commands and ConvertCommands( Vals.commands ) or {}, 
+				Immunity = Vals.level or 10, 
+				Badge = Vals.badge
+			}
 		end
+
 		Edited = true
 		Data.groups = nil
 	end
 
 	if Data.users then
-		Shared.Message( "Converting users from NS2/DAK format to Shine format..." )
+		if not DontSave then
+			Shared.Message( "Converting users from NS2/DAK format to Shine format..." )
+		end
 
 		Data.Users = {}
 		
@@ -210,6 +262,9 @@ Shine.GameIDs = GameIDs
 local GameID = 0
 
 Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
+	--I have a suspiscion that this event is being called again for a client that never disconnected.
+	if GameIDs[ Client ] then return true end
+	
 	GameID = GameID + 1
 	GameIDs[ Client ] = GameID
 end, -20 )
@@ -218,22 +273,20 @@ Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
 	GameIDs[ Client ] = nil
 end, -20 )
 
-local function isnumber( Num )
-	return type( Num ) == "number"
-end
+local IsType = Shine.IsType
 
 --[[
 	Gets the user data table for the given client/NS2ID.
 	Input: Client or NS2ID.
-	Output: User data table if they are registered in UserConfig.json.
+	Output: User data table if they are registered in UserConfig.json, user ID.
 ]]
 function Shine:GetUserData( Client )
 	if not self.UserData then return nil end
 	if not self.UserData.Users then return nil end
 	
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
 
-	return self.UserData.Users[ tostring( ID ) ]
+	return self.UserData.Users[ tostring( ID ) ], ID
 end
 
 --[[
@@ -245,15 +298,9 @@ function Shine:GetPermission( Client, ConCommand )
 	local Command = self.Commands[ ConCommand ]
 
 	if not Command then return false end
-
 	if not Client then return true end
 
-	if not self.UserData then return false end
-	if not self.UserData.Users then return false end
-
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
-
-	local User = self.UserData.Users[ tostring( ID ) ]
+	local User, ID = self:GetUserData( Client )
 
 	if not User then
 		return Command.NoPerm or false
@@ -287,12 +334,7 @@ end
 function Shine:HasAccess( Client, ConCommand )
 	if not Client then return true end
 
-	if not self.UserData then return false end
-	if not self.UserData.Users then return false end
-
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
-
-	local User = self.UserData.Users[ tostring( ID ) ]
+	local User, ID = self:GetUserData( Client )
 
 	if not User then
 		return false
@@ -326,8 +368,8 @@ function Shine:CanTarget( Client, Target )
 
 	if not self.UserData then return false end
 
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
-	local TargetID = isnumber( Target ) and Target or Target:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
+	local TargetID = IsType( Target, "number" ) and Target or Target:GetUserId()
 
 	if ID == TargetID then return true end
 
@@ -385,7 +427,7 @@ function Shine:IsInGroup( Client, Group )
 
 	if not UserData then return false end
 
-	local ID = isnumber( Client ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
 
 	local User = UserData[ tostring( ID ) ]
 

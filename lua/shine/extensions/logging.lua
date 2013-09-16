@@ -5,11 +5,29 @@
 local StringFormat = string.format
 
 local Plugin = {}
-Plugin.Version = "1.0.1"
+Plugin.Version = "1.0.3"
+
+Plugin.ConfigName = "Logging.json"
+Plugin.HasConfig = true
+
+Plugin.DefaultConfig = {
+	LogConnections = true,
+	LogChat = true,
+	LogKills = true,
+	LogConstruction = true,
+	LogRecycling = true,
+	LogNameChanges = true,
+	LogRoundStartEnd = true,
+	LogCommanderLogin = true,
+	LogTeamJoins = true,
+	LogEjectVotes = true
+}
+
+Plugin.CheckConfig = true
 
 function Plugin:Initialise()
 	if not Shine.Config.EnableLogging then
-		return false, "Shine logging must be enabled, check your config file."
+		return false, "Shine logging must be enabled, check your BaseConfig.json file."
 	end
 	
 	self.Enabled = true
@@ -30,6 +48,8 @@ function Plugin:GetClientInfo( Client )
 end
 
 function Plugin:ClientConfirmConnect( Client )
+	if not self.Config.LogConnections then return end
+	
 	if not Client then return end
 
 	if Client:GetIsVirtual() then
@@ -41,6 +61,8 @@ function Plugin:ClientConfirmConnect( Client )
 end
 
 function Plugin:ClientDisconnect( Client )
+	if not self.Config.LogConnections then return end
+
 	if not Client then return end
 	
 	if Client:GetIsVirtual() then
@@ -52,6 +74,7 @@ function Plugin:ClientDisconnect( Client )
 end
 
 function Plugin:PlayerNameChange( Player, Name, OldName )
+	if not self.Config.LogNameChanges then return end
 	if not Player or not Name then return end
 
 	if Name == kDefaultPlayerName then return end
@@ -64,6 +87,7 @@ function Plugin:PlayerNameChange( Player, Name, OldName )
 end
 
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
+	if not self.Config.LogTeamJoins then return end
 	if not Player then return end
 
 	local Client = Player:GetClient()
@@ -76,16 +100,22 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 end
 
 function Plugin:PlayerSay( Client, Message )
+	if not self.Config.LogChat then return end
+	
 	Shine:LogString( StringFormat( "%s from %s: %s", Message.teamOnly and "Team Chat" or "Chat", self:GetClientInfo( Client ), Message.message ) )
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
+	if not self.Config.LogRoundStartEnd then return end
+	
 	if State == kGameState.Started then
 		Shine:LogString( StringFormat( "Round started. Build: %s. Map: %s.", Shared.GetBuildNumber(), Shared.GetMapName() ) )
 	end
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
+	if not self.Config.LogRoundStartEnd then return end
+
 	local Build = Shared.GetBuildNumber()
 	local Map = Shared.GetMapName()
 
@@ -108,6 +138,7 @@ function Plugin:FormatPosition( Pos )
 end
 
 function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, Dir )
+	if not self.Config.LogKills then return end
 	if not Attacker or not Inflictor or not Victim then return end
 	
 	local AttackerPos = Attacker:GetOrigin()
@@ -126,6 +157,7 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
 end
 
 function Plugin:CastVoteByPlayer( Gamerules, VoteTechID, Player )
+	if not self.Config.LogEjectVotes then return end
 	if VoteTechID ~= kTechId.VoteDownCommander1 and VoteTechID ~= kTechId.VoteDownCommander2 and VoteTechID ~= kTechId.VoteDownCommander3 then return end
 	
 	local Commanders = GetEntitiesForTeam( "Commander", Player:GetTeamNumber() )
@@ -143,6 +175,8 @@ function Plugin:CastVoteByPlayer( Gamerules, VoteTechID, Player )
 end
 
 function Plugin:CommLoginPlayer( Chair, Player )
+	if not self.Config.LogCommanderLogin then return end
+	
 	Shine:LogString( StringFormat( "%s became the commander of the %s team.", 
 		self:GetClientInfo( Server.GetOwner( Player ) ), 
 		Shine:GetTeamName( Player:GetTeamNumber() )
@@ -150,6 +184,8 @@ function Plugin:CommLoginPlayer( Chair, Player )
 end
 
 function Plugin:CommLogout( Chair )
+	if not self.Config.LogCommanderLogin then return end
+
 	local Commander = Chair:GetCommander()
 	if not Commander then return end
 
@@ -160,6 +196,8 @@ function Plugin:CommLogout( Chair )
 end
 
 function Plugin:OnBuildingRecycled( Building, ResearchID )
+	if not self.Config.LogRecycling then return end
+	
 	local ID = Building:GetId()
 	local Name = Building:GetClassName()
 
@@ -167,6 +205,8 @@ function Plugin:OnBuildingRecycled( Building, ResearchID )
 end
 
 function Plugin:OnRecycle( Building, ResearchID )
+	if not self.Config.LogRecycling then return end
+
 	local ID = Building:GetId()
 	local Name = Building:GetClassName()
 	local Team = Building:GetTeam()
@@ -184,9 +224,14 @@ function Plugin:OnRecycle( Building, ResearchID )
 end
 
 function Plugin:OnConstructInit( Building )
+	if not self.Config.LogConstruction then return end
+	
 	local ID = Building:GetId()
 	local Name = Building:GetClassName()
 	local Team = Building:GetTeam()
+
+	--We really don't need to know about cysts...
+	if Name:lower() == "cyst" then return end
 
 	if not Team then return end
 

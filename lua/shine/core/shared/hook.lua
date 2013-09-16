@@ -4,6 +4,7 @@
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local xpcall = xpcall
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
 local type = type
@@ -63,6 +64,16 @@ local function Add( Event, Index, Function, Priority )
 end
 Shine.Hook.Add = Add
 
+local Traceback = debug.traceback
+
+local function OnError( Err )
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
+end
+
+local RemovalExceptions = {
+	PlayerSay = { CommandExecute = true }
+}
+
 --[[
 	Calls an internal Shine hook.
 	Inputs: Event name, arguments to pass.
@@ -76,11 +87,24 @@ local function Call( Event, ... )
 
 	local MaxPriority = Hooked and Hooked[ -20 ]
 
+	local ProtectedHooks = RemovalExceptions[ Event ]
+
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
-			local a, b, c, d, e, f = Func( ... )
-			if a ~= nil then return a, b, c, d, e, f end
+			local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
+
+			if not Success then
+				if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+
+					Remove( Event, Index )
+				else
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.", true, Event, Index )
+				end
+			else
+				if a ~= nil then return a, b, c, d, e, f end
+			end
 		end
 	end
 
@@ -89,8 +113,22 @@ local function Call( Event, ... )
 		for Plugin, Table in pairs( Plugins ) do
 			if Table.Enabled then
 				if Table[ Event ] and type( Table[ Event ] ) == "function" then
-					local a, b, c, d, e, f = Table[ Event ]( Table, ... )
-					if a ~= nil then return a, b, c, d, e, f end
+					local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
+
+					if not Success then
+						Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
+						Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.", true, Event, Plugin, Table.__HookErrors )
+
+						if Table.__HookErrors >= 10 then
+							Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).", true, Plugin, Table.__HookErrors )
+
+							Table.__HookErrors = 0
+
+							Shine:UnloadExtension( Plugin )
+						end
+					else
+						if a ~= nil then return a, b, c, d, e, f end
+					end
 				end
 			end
 		end
@@ -103,8 +141,19 @@ local function Call( Event, ... )
 
 		if HookTable then
 			for Index, Func in pairs( HookTable ) do
-				local a, b, c, d, e, f = Func( ... )
-				if a ~= nil then return a, b, c, d, e, f end
+				local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
+
+				if not Success then
+					if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Index )
+
+						Remove( Event, Index )
+					else
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.", true, Event, Index )
+					end
+				else
+					if a ~= nil then return a, b, c, d, e, f end
+				end
 			end
 		end
 	end
@@ -389,6 +438,19 @@ if Client then
 
 			return OldSendCharacterEvent( self, Char )
 		end
+
+		local OldResChange = GUIManager.OnResolutionChanged
+
+		function GUIManager:OnResolutionChanged( OldX, OldY, NewX, NewY )
+			Call( "PreOnResolutionChanged", OldX, OldY, NewX, NewY )
+
+			OldResChange( self, OldX, OldY, NewX, NewY )
+
+			Call( "OnResolutionChanged", OldX, OldY, NewX, NewY )
+		end
+
+		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
+		SetupGlobalHook( "CommanderUI_Logout", "OnCommanderUILogout", "PassivePost" )
 	end, -20 )
 
 	return
@@ -403,6 +465,34 @@ local function ClientDisconnect( Client )
 	Call( "ClientDisconnect", Client )
 end
 Event.Hook( "ClientDisconnect", ClientDisconnect )
+
+local OldEventHook = Event.Hook
+local OldReservedSlot
+
+local function CheckConnectionAllowed( ID )
+	local Result = Call( "CheckConnectionAllowed", ID )
+
+	if Result ~= nil then return Result end
+	
+	return OldReservedSlot( ID )
+end
+
+--[[
+	Detour the event hook function so we can override the result of
+	CheckConnectionAllowed. Otherwise it would return the default function's value
+	and never call our hook.
+]]
+function Event.Hook( Name, Func )
+	if Name ~= "CheckConnectionAllowed" then
+		return OldEventHook( Name, Func )
+	end
+	
+	OldReservedSlot = Func
+
+	Func = CheckConnectionAllowed
+
+	return OldEventHook( Name, Func )
+end
 
 local OldOnChatReceive
 
@@ -453,6 +543,9 @@ Add( "Think", "ReplaceMethods", function()
 
 	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
 	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
+
+	SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction", "PassivePre" )
+	SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
 	

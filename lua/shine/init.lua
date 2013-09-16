@@ -13,6 +13,7 @@ local Scripts = {
 	"lib/debug.lua",
 	"lib/table.lua",
 	"lib/string.lua",
+	"lib/utf8.lua",
 	"lib/math.lua",
 	"lib/class.lua",
 	"core/shared/hook.lua",
@@ -20,13 +21,14 @@ local Scripts = {
 	"lib/timer.lua",
 	"lib/datatables.lua",
 	"lib/votes.lua",
-	--"Server.lua",
+	"lib/query.lua",
 	"core/server/permissions.lua",
 	"core/server/commands.lua",
 	"core/shared/extensions.lua",
 	"core/shared/config.lua",
 	"core/server/config.lua",
 	"core/shared/chat.lua",
+	"core/shared/logging.lua",
 	"core/server/logging.lua",
 	"core/shared/commands.lua",
 	"core/shared/webpage.lua",
@@ -49,6 +51,10 @@ for i = 1, #Scripts do
 	end
 end
 
-if Shine.Error then return end
+if Shine.Error then 
+	Shared.Message( "Shine failed to start. Check the console for errors." )
+
+	return 
+end
 
 Shine:Print( "Shine started up successfully." )

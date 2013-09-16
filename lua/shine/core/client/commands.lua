@@ -90,15 +90,13 @@ local function MathClamp( Number, Min, Max )
     end
 end
 
-local function isfunction( Func )
-	return type( Func ) == "function"
-end
+local IsType = Shine.IsType
 
 --These define all valid command parameter types and how to process a string into the type.
 local ParamTypes = {
 	--Strings return simply the string (clipped to max length if given).
 	string = function( String, Table ) 
-		if not String or String == "" then return isfunction( Table.Default ) and Table.Default() or Table.Default end
+		if not String or String == "" then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
 
 		return Table.MaxLength and String:sub( 1, Table.MaxLength ) or String
 	end,
@@ -107,7 +105,7 @@ local ParamTypes = {
 		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
 		if not Num then
-			return isfunction( Table.Default ) and Table.Default() or Table.Default
+			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
 		end
 
 		return Table.Round and Round( Num ) or Num
@@ -115,7 +113,7 @@ local ParamTypes = {
 	--Boolean turns "false" and 0 into false and everything else into true.
 	boolean = function( String, Table )
 		if not String or String == "" then 
-			if isfunction( Table.Default ) then
+			if IsType( Table.Default, "function" ) then
 				return Table.Default() 
 			else
 				return Table.Default 
@@ -124,7 +122,11 @@ local ParamTypes = {
 
 		local ToNum = tonumber( String )
 
-		return ToNum and ToNum ~= 0 or String ~= "false"
+		if ToNum then
+			return ToNum ~= 0
+		end
+
+		return String ~= "false"
 	end
 }
 
