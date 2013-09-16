@@ -4,7 +4,6 @@
 
 local lastKnownUpdate = {}
 local changedModName
-local announceChangedModInterval = 10
 
 local Plugin = {}
 Plugin.Version = 1.0
@@ -95,7 +94,7 @@ end
 
 function Plugin:Initialise()
     self.Enabled = true
-	Shine.Timer.Create("CheckForModUpdate", self.CheckInterval,-1, self.checkForModChange() )
+	Shine.Timer.Create("CheckForModUpdate", self.Config.CheckInterval,-1, self.checkForModChange() )
     return true
 end
 
