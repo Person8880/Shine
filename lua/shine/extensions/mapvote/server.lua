@@ -19,6 +19,7 @@ local StringFormat = string.format
 local TableConcat = table.concat
 local TableContains = table.contains
 local TableCount = table.Count
+local TableRemove = table.remove
 
 local Plugin = Plugin
 Plugin.Version = "1.5"
@@ -69,6 +70,8 @@ Plugin.DefaultConfig = {
 	ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
 	CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
 	EmptyPlayerCount = 0, --How many players defines 'empty'?
+
+	ExcludeLastMaps = 0 --How many previous maps should be excluded from votes?
 }
 
 Plugin.CheckConfig = true
@@ -207,6 +210,10 @@ function Plugin:Initialise()
 
 	self.MaxNominations = Max( MaxOptions - self.ForcedMapCount - 1, 0 )
 
+	if self.Config.ExcludeLastMaps > 0 then
+		self:LoadLastMaps()
+	end
+
 	self.Enabled = true
 
 	return true
@@ -297,6 +304,17 @@ function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, S
 		self:SendNetworkMessage( Client, "VoteOptions", MessageTable, true )
 	else
 		self:SendNetworkMessage( nil, "VoteOptions", MessageTable, true )
+	end
+end
+
+--[[
+	Save the current map to the last maps list when we change map.
+]]
+function Plugin:MapChange()
+	if self.Config.ExcludeLastMaps > 0 and not self.StoredCurrentMap then
+		self:SaveLastMaps()
+
+		self.StoredCurrentMap = true
 	end
 end
 
@@ -448,6 +466,42 @@ function Plugin:Think()
 
 		MapCycle_ChangeMap( self:GetNextMap() )
 	end
+end
+
+local LastMapsFile = "config://shine/temp/lastmaps.json"
+
+function Plugin:LoadLastMaps()
+	local File, Err = Shine.LoadJSONFile( LastMapsFile )
+
+	if File then
+		self.LastMapData = File
+	end
+end
+
+function Plugin:SaveLastMaps()
+	local Max = self.Config.ExcludeLastMaps
+	local Data = self.LastMapData
+
+	if not Data then
+		self.LastMapData = {}
+		Data = self.LastMapData
+	end
+
+	Data[ #Data + 1 ] = Shared.GetMapName()
+
+	if #Data > Max then
+		TableRemove( Data, 1 )
+	end
+
+	local Success, Err = Shine.SaveJSONFile( Data, LastMapsFile )
+
+	if not Success then
+		Notify( "Error saving mapvote previous maps file: "..Err )
+	end
+end
+
+function Plugin:GetLastMaps()
+	return self.LastMapData
 end
 
 --[[
@@ -1121,6 +1175,18 @@ function Plugin:StartVote( NextMap, Force )
 					DeniedMaps[ MapName ] = true
 				end
 			end
+		end
+	end
+
+	--Remove the last maps played.
+	local LastMaps = self:GetLastMaps()
+
+	if LastMaps then
+		for i = 1, #LastMaps do
+			local Map = LastMaps[ i ]
+
+			AllMaps[ Map ] = nil
+			DeniedMaps[ Map ] = true
 		end
 	end
 

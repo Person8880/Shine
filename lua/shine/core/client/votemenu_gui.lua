@@ -338,6 +338,8 @@ function VoteMenu:UpdateTeamType()
 	end
 end
 
+local White = Colour( 1, 1, 1, 1 )
+
 --[[
 	Creates or sets the text/click function of the top button.
 ]]
@@ -359,6 +361,8 @@ function VoteMenu:AddTopButton( Text, DoClick )
 	TopButton:SetAnchor( GUIItem.Middle, GUIItem.Top )
 	TopButton:SetSize( Size )
 	TopButton:SetPos( Vector( -Size.x * 0.5, -Size.y, 0 ) )
+	TopButton:SetActiveCol( White )
+	TopButton:SetInactiveCol( White )
 	TopButton:SetTexture( ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
 	TopButton:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
 	TopButton:SetHighlightOnMouseOver( true, 1, true )
@@ -394,6 +398,8 @@ function VoteMenu:AddBottomButton( Text, DoClick )
 	BottomButton:SetAnchor( GUIItem.Middle, GUIItem.Bottom )
 	BottomButton:SetSize( Size )
 	BottomButton:SetPos( Vector( -Size.x * 0.5, 0, 0 ) )
+	BottomButton:SetActiveCol( White )
+	BottomButton:SetInactiveCol( White )
 	BottomButton:SetTexture( ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
 	BottomButton:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
 	BottomButton:SetHighlightOnMouseOver( true, 1, true )
@@ -432,6 +438,8 @@ function VoteMenu:AddSideButton( Text, DoClick )
 
 	Button = SGUI:Create( "Button", self.Background )
 	Button:SetSize( self.ButtonSize )
+	Button:SetActiveCol( White )
+	Button:SetInactiveCol( White )
 	Button:SetTexture( ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
 	Button:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
 	Button:SetHighlightOnMouseOver( true, 1, true )
