@@ -54,6 +54,11 @@ function Shine:DebugLog( String, Format, ... )
 		File:close()
 	end
 
+	--If the file gets too big, empty it and start again.
+	if #Data > 10240 then
+		Data = ""
+	end
+
 	File, Err = io.open( DebugFile, "w+" )
 
 	if not File then return end
