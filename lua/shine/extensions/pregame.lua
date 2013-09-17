@@ -40,6 +40,9 @@ local BlacklistMods = {
 	[ "6ed01f8" ] = "The Faded"
 }
 
+--Hooks
+Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "ActivePre" )
+
 function Plugin:Initialise()
 	local GetMod = Server.GetActiveModId
 
@@ -103,6 +106,12 @@ function Plugin:ClientConfirmConnect( Client )
 	if TimeLeft <= 0 or TimeLeft > 5 then return end
 
 	Shine:SendText( Client, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+end
+
+function Plugin:CheckPlayerCanAttack()
+	if Gamerules:GetGameState() == kGameState.PreGame or Gamerules:GetGameState() == kGameState.NotStarted then 
+		return	self.Config.AllowAttackPreGame
+	end
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
