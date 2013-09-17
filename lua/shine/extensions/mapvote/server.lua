@@ -1374,11 +1374,7 @@ function Plugin:CreateCommands()
 		end
 
 		if Err == "already voted" then
-			if Player then
-				Shine:NotifyError( Player, "You have already voted. Type !revote <map> to change your vote." )
-			else
-				Notify( "You have already voted. Type !revote <map> to change your vote." )
-			end
+			Shine.Commands.sh_revote.Func( Client, Map )
 		else
 			if Player then
 				Shine:NotifyError( Player, "%s is not a valid map choice.", true, Map )
