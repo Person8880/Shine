@@ -783,6 +783,54 @@ function Plugin:EndVote( Player )
 	end
 end
 
+function Plugin:ExtendMap( Time, NextMap )
+	local Cycle = self.MapCycle
+
+	local ExtendTime = self.Config.ExtendTime * 60
+
+	local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
+	local BaseTime = CycleTime > Time and CycleTime or Time
+
+	if self.Config.RoundLimit > 0 then
+		self.Round = self.Round - 1
+		
+		self:Notify( nil, "Extending the current map for another round." )
+	else 
+		self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+	end
+	
+	self.NextMap.ExtendTime = BaseTime + ExtendTime
+	self.NextMap.Extends = self.NextMap.Extends + 1
+
+	if NextMap then
+		if not self.VoteOnEnd then
+			Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
+				local Players = Shine.GetAllPlayers()
+				if #Players > 0 then
+					self:StartVote( true )
+				end
+			end )
+		end
+	else
+		if not self.Config.EnableNextMapVote then return end
+
+		--Start the next timer taking the extended time as the new cycle time.
+		local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVote - Time
+
+		--Timer would start immediately for the next map vote...
+		if NextVoteTime <= Time then
+			NextVoteTime = ExtendTime * self.Config.NextMapVote
+		end
+
+		if not self.VoteOnEnd then
+			Shine.Timer.Destroy( self.NextMapTimer )
+			Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
+				self:StartVote( true )
+			end )
+		end
+	end
+end
+
 function Plugin:ProcessResults( NextMap )
 	Shine:RemoveText( nil, { ID = 1 } )
 	self:EndVote()
@@ -844,37 +892,9 @@ function Plugin:ProcessResults( NextMap )
 
 			local Choice = Results[ 1 ]
 			if Choice == Shared.GetMapName() then
-				local ExtendTime = self.Config.ExtendTime * 60
-
-				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
-				local BaseTime = CycleTime > Time and CycleTime or Time
-
-				if self.Config.RoundLimit > 0 then
-					self.Round = self.Round - 1
-					
-					self:Notify( nil, "Extending the current map for another round." )
-				else 
-					self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-				end
-				
 				self.NextMap.Winner = Choice
-				self.NextMap.ExtendTime = BaseTime + ExtendTime
-				self.NextMap.Extends = self.NextMap.Extends + 1
 
-				if not self.Config.EnableNextMapVote then return end
-
-				local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVote - Time
-
-				if NextVoteTime <= Time then
-					NextVoteTime = ExtendTime * self.Config.NextMapVote
-				end
-
-				if not self.VoteOnEnd then
-					Shine.Timer.Destroy( self.NextMapTimer )
-					Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
-						self:StartVote( true )
-					end )
-				end
+				self:ExtendMap( Time, false )
 
 				return
 			end
@@ -900,30 +920,7 @@ function Plugin:ProcessResults( NextMap )
 		self.NextMap.Winner = Results[ 1 ]
 
 		if Results[ 1 ] == Shared.GetMapName() then
-			local ExtendTime = self.Config.ExtendTime * 60
-
-			local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
-			local BaseTime = CycleTime > Time and CycleTime or Time
-
-			self.NextMap.ExtendTime = BaseTime + ExtendTime
-			self.NextMap.Extends = self.NextMap.Extends + 1
-
-			if self.Config.RoundLimit > 0 then
-				self.Round = self.Round - 1
-				
-				self:Notify( nil, "Extending the current map for another round." )
-			else 
-				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-			end
-
-			if not self.VoteOnEnd then
-				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
-					local Players = Shine.GetAllPlayers()
-					if #Players > 0 then
-						self:StartVote( true )
-					end
-				end )
-			end
+			self:ExtendMap( Time, true )
 		else
 			if not self.VoteOnEnd then
 				self:Notify( nil, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
@@ -988,39 +985,9 @@ function Plugin:ProcessResults( NextMap )
 
 		if not NextMap then
 			if Choice == Shared.GetMapName() then
-				local ExtendTime = self.Config.ExtendTime * 60
-				
-				local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
-				local BaseTime = CycleTime > Time and CycleTime or Time
-				
-				if self.Config.RoundLimit > 0 then
-					self.Round = self.Round - 1
-					
-					self:Notify( nil, "Extending the current map for another round." )
-				else 
-					self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-				end
-				
 				self.NextMap.Winner = Choice
-				self.NextMap.ExtendTime = BaseTime + ExtendTime
-				self.NextMap.Extends = self.NextMap.Extends + 1
 
-				if not self.Config.EnableNextMapVote then return end
-
-				--Start the next timer taking the extended time as the new cycle time.
-				local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVote - Time
-
-				--Timer would start immediately for the next map vote...
-				if NextVoteTime <= Time then
-					NextVoteTime = ExtendTime * self.Config.NextMapVote
-				end
-
-				if not self.VoteOnEnd then
-					Shine.Timer.Destroy( self.NextMapTimer )
-					Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
-						self:StartVote( true )
-					end )
-				end
+				self:ExtendMap( Time, false )
 
 				return
 			end
@@ -1044,30 +1011,7 @@ function Plugin:ProcessResults( NextMap )
 		self.NextMap.Winner = Choice
 
 		if Choice == Shared.GetMapName() then
-			local ExtendTime = self.Config.ExtendTime * 60
-
-			local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
-			local BaseTime = CycleTime > Time and CycleTime or Time
-
-			self.NextMap.ExtendTime = BaseTime + ExtendTime
-			self.NextMap.Extends = self.NextMap.Extends + 1
-
-			if self.Config.RoundLimit > 0 then
-				self.Round = self.Round - 1
-				
-				self:Notify( nil, "Extending the current map for another round." )
-			else 
-				self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
-			end
-
-			if not self.VoteOnEnd then
-				Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
-					local Players = Shine.GetAllPlayers()
-					if #Players > 0 then
-						self:StartVote( true )
-					end
-				end )
-			end
+			self:ExtendMap( Time, true )
 
 			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 		else
