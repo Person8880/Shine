@@ -405,13 +405,15 @@ Plugin.ShufflingModes = {
 		local ScoreTable = {}
 		local RandomTable = {}
 
+		local GetOwner = Server.GetOwner
+
 		for i = 1, #Targets do
 			local Player = Targets[ i ]
 
 			if Player then
-				local Client = Player:GetClient()
+				local Client = GetOwner( Player )
 
-				if Client then
+				if Client and Client.GetUserId then
 					local ID = Client:GetUserId()
 
 					local Data = self:GetAverageScoreData( ID )
@@ -506,7 +508,7 @@ Plugin.ShufflingModes = {
 				local Player = Targets[ i ]
 				local Client = Player and GetOwner( Player )
 
-				if Client then
+				if Client and Client.GetUserId then
 					local ID = tostring( Client:GetUserId() )
 					local Data = StatsData[ ID ]
 
