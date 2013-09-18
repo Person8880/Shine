@@ -8,6 +8,7 @@ local GetEntsByClass = Shared.GetEntitiesWithClassname
 local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
+local TableToString = table.ToString
 
 --[[
 	Returns whether the given client is valid.
@@ -51,12 +52,66 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
 
+	local Reported
+
+	if Abs( #Marine - #Alien ) > 1 then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		if VoteRandom then
+			local BalanceMode = VoteRandom.Config.BalanceMode
+
+			local Marines = TableToString( Marine )
+			local Aliens = TableToString( Alien )
+
+			Shine:DebugLog( 
+				"Error: Team sorting resulted in imbalanced teams before applying.\nBalance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
+				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
+		end
+
+		Reported = true
+	end
+
+	--Move to ready room first, seems there's a strange bug when trying to switch between playing teams.
 	for i = 1, #Marine do
-		Gamerules:JoinTeam( Marine[ i ], 1, nil, true )
+		local Success, NewPlayer = Gamerules:JoinTeam( Marine[ i ], 0, nil, true )
+
+		Marine[ i ] = NewPlayer
 	end
 
 	for i = 1, #Alien do
-		Gamerules:JoinTeam( Alien[ i ], 2, nil, true )
+		local Success, NewPlayer = Gamerules:JoinTeam( Alien[ i ], 0, nil, true )
+
+		Alien[ i ] = NewPlayer
+	end
+
+	for i = 1, #Marine do
+		local Success, NewPlayer = Gamerules:JoinTeam( Marine[ i ], 1, nil, true )
+
+		Marine[ i ] = NewPlayer
+	end
+
+	for i = 1, #Alien do
+		local Success, NewPlayer = Gamerules:JoinTeam( Alien[ i ], 2, nil, true )
+
+		Alien[ i ] = NewPlayer
+	end
+
+	local MarineTeam = Gamerules.team1
+	local AlienTeam = Gamerules.team2
+
+	if Abs( MarineTeam:GetNumPlayers() - AlienTeam:GetNumPlayers() ) > 1 and not Reported then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		if VoteRandom then
+			local BalanceMode = VoteRandom.Config.BalanceMode
+
+			local Marines = TableToString( Marine )
+			local Aliens = TableToString( Alien )
+
+			Shine:DebugLog( 
+				"Error: Team sorting resulted in imbalanced teams after applying.\nBalance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
+				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
+		end
 	end
 end
 
