@@ -106,3 +106,61 @@ function Shine.CheckConfig( Config, DefaultConfig )
 
 	return Updated
 end
+
+if Server then return end
+
+local Notify = Shared.Message
+local StringFormat = string.format
+
+local BaseConfig = "config://shine/cl_config.json"
+
+local DefaultConfig = {
+	DisableWebWindows = false,
+	ShowWebInSteamBrowser = false
+}
+
+function Shine:CreateClientBaseConfig()
+	local Success, Err = self.SaveJSONFile( DefaultConfig, BaseConfig )
+
+	self.Config = DefaultConfig
+end
+
+function Shine:LoadClientBaseConfig()
+	local Data, Err = self.LoadJSONFile( BaseConfig )
+
+	if not Data then
+		self:CreateClientBaseConfig()
+
+		return
+	end
+
+	self.Config = Data or {}
+
+	if self.CheckConfig( self.Config, DefaultConfig ) then
+		self:SaveClientBaseConfig()
+	end
+end
+
+function Shine:SaveClientBaseConfig()
+	local Success, Err = self.SaveJSONFile( self.Config, BaseConfig )
+end
+
+Shine:LoadClientBaseConfig()
+
+local DisableWeb = Shine:RegisterClientCommand( "sh_disableweb", function( Bool )
+	Shine.Config.DisableWebWindows = Bool
+
+	Notify( StringFormat( "[Shine] Web page display has been %s.", Bool and "disabled" or "enabled" ) )
+
+	Shine:SaveClientBaseConfig()
+end )
+DisableWeb:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.DisableWebWindows end }
+
+local SteamWeb = Shine:RegisterClientCommand( "sh_viewwebinsteam", function( Bool )
+	Shine.Config.ShowWebInSteamBrowser = Bool
+
+	Notify( StringFormat( "[Shine] Web page display set to %s.", Bool and "Steam browser" or "in game window" ) )
+
+	Shine:SaveClientBaseConfig()
+end )
+SteamWeb:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.ShowWebInSteamBrowser end }
