@@ -11,8 +11,6 @@ local Clamp = math.Clamp
 local Floor = math.floor
 local StringFormat = string.format
 
-local originalGetCanAttack
-
 local Plugin = {}
 Plugin.Version = "1.5"
 
@@ -54,15 +52,6 @@ function Plugin:Initialise()
 		if OnBlacklist then
 			return false, StringFormat( "Pregame plugin does not work with %s.", OnBlacklist )
 		end
-	end
-
-	if not self.Config.AllowAttackPreGame then
-		originalGetCanAttack = Shine.ReplaceClassMethod("Player", "GetCanAttack", function(self)
-			local Gamerules = GetGamerules()
-			local preGame = Gamerules:GetGameState() == kGameState.PreGame or Gamerules:GetGameState() == kGameState.NotStarted
-			local canAttack = originalGetCanAttack(self) and not preGame
-			return canAttack
-		end)
 	end
 
 	self.Config.RequireComs = Clamp( Floor( self.Config.RequireComs ), 0, 2 )
@@ -109,8 +98,9 @@ function Plugin:ClientConfirmConnect( Client )
 end
 
 function Plugin:CheckPlayerCanAttack()
-	if Gamerules:GetGameState() == kGameState.PreGame or Gamerules:GetGameState() == kGameState.NotStarted then 
-		return	self.Config.AllowAttackPreGame
+	local Gamerules = GetGamerules()
+	if Gamerules:GetGameState() == kGameState.PreGame or Gamerules:GetGameState() == kGameState.NotStarted then
+		return self.Config.AllowAttackPreGame
 	end
 end
 
