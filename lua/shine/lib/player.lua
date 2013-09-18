@@ -5,6 +5,7 @@
 local Abs = math.abs
 local Floor = math.floor
 local GetEntsByClass = Shared.GetEntitiesWithClassname
+local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
@@ -97,31 +98,24 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
 
-	for i = 1, #Marine do
-		local Player = Marine[ i ]
+	--Switch to pairs loop to deal with potential gaps in the tables.
+	for i, Player in pairs( Marine ) do
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, nil, true )
 
-		if Player then
-			local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, nil, true )
-
-			if Success then
-				Marine[ i ] = NewPlayer
-			else
-				Marine[ i ] = nil
-			end
+		if Success then
+			Marine[ i ] = NewPlayer
+		else
+			Marine[ i ] = nil
 		end
 	end
 
-	for i = 1, #Alien do
-		local Player = Alien[ i ]
+	for i, Player in pairs( Alien ) do
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, nil, true )
 
-		if Player then
-			local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, nil, true )
-
-			if Success then
-				Alien[ i ] = NewPlayer
-			else
-				Alien[ i ] = nil
-			end
+		if Success then
+			Alien[ i ] = NewPlayer
+		else
+			Alien[ i ] = nil
 		end
 	end
 
