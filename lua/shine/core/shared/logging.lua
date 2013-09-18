@@ -55,7 +55,7 @@ function Shine:DebugLog( String, Format, ... )
 	end
 
 	--If the file gets too big, empty it and start again.
-	if #Data > 10240 then
+	if #Data > 51200 then
 		Data = ""
 	end
 
