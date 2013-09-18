@@ -156,7 +156,7 @@ function Plugin:OnConstructInit( Building )
 	local ID = Building:GetId()
 	local Team = Building:GetTeam()
 
-	if not Team then return end
+	if not Team or not Team.GetCommander then return end
 
 	local Owner = Building:GetOwner()
 	Owner = Owner or Team:GetCommander()
@@ -174,7 +174,7 @@ function Plugin:OnRecycle( Building, ResearchID )
 	local ID = Building:GetId()
 	local Team = Building:GetTeam()
 
-	if not Team then return end
+	if not Team or not Team.GetCommander then return end
 
 	local Commander = Team:GetCommander()
 	if not Commander then return end

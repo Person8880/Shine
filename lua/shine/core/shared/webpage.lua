@@ -30,6 +30,13 @@ local CloseButtonPos = Vector( -22, 2, 0 )
 local CloseButtonSize = Vector( 20, 20, 0 )
 
 function Shine:OpenWebpage( URL, TitleText )
+	if self.Config.DisableWebWindows then return end
+	if self.Config.ShowWebInSteamBrowser then
+		Client.ShowWebpage( URL )
+
+		return
+	end
+	
 	if SGUI.IsValid( self.ActiveWebPage ) then
 		self.ActiveWebPage:Destroy()
 		self.ActiveWebPage = nil

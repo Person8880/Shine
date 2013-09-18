@@ -42,7 +42,7 @@ function Plugin:GetClientInfo( Client )
 	local PlayerName = Player and Player:GetName() or "<unknown>"
 	local Team = Player and Shine:GetTeamName( Player:GetTeamNumber(), true ) or "No team"
 
-	local ID = Client:GetUserId()
+	local ID = Client.GetUserId and Client:GetUserId() or 0
 
 	return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
 end
@@ -90,11 +90,13 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if not self.Config.LogTeamJoins then return end
 	if not Player then return end
 
-	local Client = Player:GetClient()
+	local Client = Server.GetOwner( Player )
 	
+	local UserID = Client.GetUserId and Client:GetUserId() or 0
+
 	Shine:LogString( StringFormat( "Player %s[%s] joined team %s.", 
-		Player:GetName(), 
-		Client and Client:GetUserId() or "0", 
+		Player:GetName(),
+		UserID, 
 		Shine:GetTeamName( NewTeam )
 	) )
 end
@@ -233,7 +235,7 @@ function Plugin:OnConstructInit( Building )
 	--We really don't need to know about cysts...
 	if Name:lower() == "cyst" then return end
 
-	if not Team then return end
+	if not Team or not Team.GetCommander then return end
 
 	local Owner = Building:GetOwner()
 	Owner = Owner or Team:GetCommander()

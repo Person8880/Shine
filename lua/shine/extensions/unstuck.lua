@@ -43,6 +43,11 @@ function Plugin:UnstickPlayer( Player, Pos )
 	end
 
 	local Bounds = LookupTechData( TechID, kTechDataMaxExtents )
+
+	if not Bounds then
+		return false
+	end
+
 	local Height, Radius = GetTraceCapsuleFromExtents( Bounds )
 	
 	local SpawnPoint

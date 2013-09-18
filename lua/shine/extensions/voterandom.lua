@@ -713,11 +713,12 @@ end
 	Stores a player's score.
 ]]
 function Plugin:StoreScoreData( Player )
-	local Client = Player:GetClient()
+	local Client = Server.GetOwner( Player )
 
 	if not Client then return end
 
-	if Client:GetIsVirtual() then return end
+	if Client.GetIsVirtual and Client:GetIsVirtual() then return end
+	if not Client.GetUserId then return end
 
 	local Round = self.Round
 
@@ -782,7 +783,7 @@ end
 	Saves the score data for previous rounds.
 ]]
 function Plugin:SaveScoreData()
-	local Success, Err = Shine.SaveJSONFile( self.ScoreData, "config://shine\\temp\\voterandom_scores.json" )
+	local Success, Err = Shine.SaveJSONFile( self.ScoreData, "config://shine/temp/voterandom_scores.json" )
 
 	if not Success then
 		Notify( "Error writing voterandom scoredata file: "..Err )	
@@ -795,7 +796,7 @@ end
 	Loads the stored data from the file, will load on plugin load only.
 ]]
 function Plugin:LoadScoreData()
-	local Data = Shine.LoadJSONFile( "config://shine\\temp\\voterandom_scores.json" )
+	local Data = Shine.LoadJSONFile( "config://shine/temp/voterandom_scores.json" )
 
 	return Data or { Round = 1, Rounds = {} }
 end
