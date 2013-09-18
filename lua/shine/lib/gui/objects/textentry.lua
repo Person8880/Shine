@@ -89,17 +89,6 @@ function TextEntry:Initialise()
 	Text:SetColor( Scheme.DarkText )
 end
 
-function TextEntry:SetupStencil()
-	--self.BaseClass.SetupStencil( self )
-	self.Background:SetInheritsParentStencilSettings( false )
-	self.Background:SetStencilFunc( GUIItem.Equal )
-
-	self.Stencil:SetClearsStencilBuffer( false )
-	
-	self.InnerBox:SetInheritsParentStencilSettings( true )
-	--self.TextObj:SetInheritsParentStencilSettings( true )
-end
-
 function TextEntry:SetSize( SizeVec )
 	self.Background:SetSize( SizeVec )
 
@@ -397,7 +386,9 @@ function TextEntry:Think( DeltaTime )
 
 		return 
 	end
+end
 
+function TextEntry:OnMouseMove( Down )
 	if not self:MouseIn( self.Background ) then 
 		if self.Highlighted then
 			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.5, function( InnerBox )
@@ -415,6 +406,7 @@ function TextEntry:Think( DeltaTime )
 
 		return 
 	end
+	
 	if self.Highlighted then return end
 
 	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.5, function( InnerBox )

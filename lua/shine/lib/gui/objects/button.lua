@@ -25,6 +25,8 @@ function Button:Initialise()
 	self.ActiveCol = Scheme.ActiveButton
 	self.InactiveCol = Scheme.InactiveButton
 
+	Background:SetColor( self.InactiveCol )
+
 	self.TextCol = Scheme.DarkText
 
 	self:SetHighlightOnMouseOver( true )
@@ -146,6 +148,12 @@ function Button:Think( DeltaTime )
 	if not self.Background:GetIsVisible() then return end
 
 	self.BaseClass.Think( self, DeltaTime )
+
+	if SGUI.IsValid( self.Tooltip ) then
+		self.Tooltip:Think( DeltaTime )
+	end
+
+	self:CallOnChildren( "Think", DeltaTime ) 
 end
 
 function Button:SetDoClick( Func )
@@ -163,6 +171,11 @@ end
 
 function Button:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
+
+	if self:CallOnChildren( "OnMouseDown", Key, DoubleClick ) then
+		return true
+	end
+
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self.Highlighted then return end
 
@@ -191,6 +204,34 @@ function Button:Cleanup()
 	end
 	
 	self.Background = nil
+end
+
+function Button:OnMouseUp( Key )
+	self:CallOnChildren( "OnMouseUp", Key )
+end
+
+function Button:OnMouseMove( Down )
+	self.BaseClass.OnMouseMove( self, Down )
+
+	self:CallOnChildren( "OnMouseMove", Down )
+end
+
+function Button:OnMouseWheel( Down )
+	local Result = self:CallOnChildren( "OnMouseWheel", Down )
+
+	if Result ~= nil then return true end
+end
+
+function Button:PlayerKeyPress( Key, Down )
+	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
+		return true
+	end
+end
+
+function Button:PlayerType( Char )
+	if self:CallOnChildren( "PlayerType", Char ) then
+		return true
+	end
 end
 
 SGUI:Register( "Button", Button )

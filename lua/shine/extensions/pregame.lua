@@ -22,7 +22,8 @@ Plugin.DefaultConfig = {
 	CountdownTime = 15,
 	ShowCountdown = true,
 	RequireComs = 1,
-	AbortIfNoCom = false
+	AbortIfNoCom = false,
+	AllowAttackPreGame = true
 }
 
 Plugin.CheckConfig = true
@@ -36,6 +37,8 @@ local BlacklistMods = {
 	[ "7957667" ] = "Marine vs Marine",
 	[ "6ed01f8" ] = "The Faded"
 }
+
+Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "ActivePre" )
 
 function Plugin:Initialise()
 	local GetMod = Server.GetActiveModId
@@ -69,7 +72,7 @@ function Plugin:StartCountdown()
 
 	Gamerules:ResetGame()
 	Gamerules:SetGameState( kGameState.Countdown )
-	Gamerules.countdownTime = kCountDownLength  
+	Gamerules.countdownTime = kCountDownLength
 	Gamerules.lastCountdownPlayed = nil
 
 	for _, Player in ientitylist( Shared.GetEntitiesWithClassname( "Player" ) ) do
@@ -93,9 +96,19 @@ function Plugin:ClientConfirmConnect( Client )
 	Shine:SendText( Client, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
 end
 
+function Plugin:CheckPlayerCanAttack()
+	if self.Config.AllowAttackPreGame then return end
+
+	local Gamerules = GetGamerules()
+
+	if Gamerules:GetGameState() == kGameState.PreGame or Gamerules:GetGameState() == kGameState.NotStarted then
+		return false
+	end
+end
+
 function Plugin:SetGameState( Gamerules, State, OldState )
 	if State == kGameState.NotStarted or State == kGameState.PreGame then return end
-	
+
 	if self.CountStart then
 		self.CountStart = nil
 		self.CountEnd = nil
@@ -129,7 +142,7 @@ Plugin.UpdateFuncs = {
 		local Team1Count = Team1:GetNumPlayers()
 		local Team2Count = Team2:GetNumPlayers()
 
-		if Team1Count == 0 or Team2Count == 0 then 
+		if Team1Count == 0 or Team2Count == 0 then
 			if self.CountStart then
 				self.CountStart = nil
 				self.CountEnd = nil
@@ -140,12 +153,12 @@ Plugin.UpdateFuncs = {
 				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 			end
 
-			return 
+			return
 		end
 
 		if not self.CountStart then
 			--if MapCycle_TestCycleMap() then return end
-			
+
 			local Duration = self.Config.PreGameTime
 
 			self.CountStart = Shared.GetTime()
@@ -256,8 +269,8 @@ Plugin.UpdateFuncs = {
 				local Team1Count = Team1:GetNumPlayers()
 				local Team2Count = Team2:GetNumPlayers()
 
-				if Team1Count == 0 or Team2Count == 0 then 
-					return 
+				if Team1Count == 0 or Team2Count == 0 then
+					return
 				end
 
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
@@ -282,14 +295,14 @@ Plugin.UpdateFuncs = {
 				local Team1Count = Team1:GetNumPlayers()
 				local Team2Count = Team2:GetNumPlayers()
 
-				if Team1Count == 0 or Team2Count == 0 then 
+				if Team1Count == 0 or Team2Count == 0 then
 					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 					self.GameStarting = false
 
 					Gamerules:SetGameState( kGameState.NotStarted )
 
-					return 
+					return
 				end
 
 				self:StartCountdown()
@@ -322,7 +335,7 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = Time + Duration
 
 				if self.Config.ShowCountdown then
-					local Message = StringFormat( "%s have a commander. %s have %s to choose their commander.", 
+					local Message = StringFormat( "%s have a commander. %s have %s to choose their commander.",
 						Team1Com and "Marines" or "Aliens", Team1Com and "Aliens" or "Marines", string.TimeToString( Duration ) )
 
 					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, Message, 5, 255, 255, 255, 1, 3, 1 ) )
@@ -442,8 +455,8 @@ Plugin.UpdateFuncs = {
 				local Team1Count = Team1:GetNumPlayers()
 				local Team2Count = Team2:GetNumPlayers()
 
-				if Team1Count == 0 or Team2Count == 0 then 
-					return 
+				if Team1Count == 0 or Team2Count == 0 then
+					return
 				end
 
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
@@ -468,14 +481,14 @@ Plugin.UpdateFuncs = {
 				local Team1Count = Team1:GetNumPlayers()
 				local Team2Count = Team2:GetNumPlayers()
 
-				if Team1Count == 0 or Team2Count == 0 then 
+				if Team1Count == 0 or Team2Count == 0 then
 					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 					self.GameStarting = false
 
 					Gamerules:SetGameState( kGameState.NotStarted )
 
-					return 
+					return
 				end
 
 				self:StartCountdown()
@@ -520,14 +533,14 @@ Plugin.UpdateFuncs = {
 						local Team1Count = Team1:GetNumPlayers()
 						local Team2Count = Team2:GetNumPlayers()
 
-						if Team1Count == 0 or Team2Count == 0 then 
+						if Team1Count == 0 or Team2Count == 0 then
 							self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
 
 							self.StartedGame = false
 
 							Gamerules:SetGameState( kGameState.NotStarted )
 
-							return 
+							return
 						end
 
 						self:StartCountdown()
@@ -556,7 +569,7 @@ end
 
 function Plugin:Cleanup()
 	self:DestroyTimers()
-	
+
 	self.Enabled = false
 end
 

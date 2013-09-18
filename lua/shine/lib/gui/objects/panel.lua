@@ -52,6 +52,8 @@ function Panel:SetScrollable()
 	self.BufferAmount = self.BufferAmount or DefaultBuffer
 
 	self.AllowSmoothScroll = true
+
+	self:SetSize( self:GetSize() )
 end
 
 function Panel:SetAllowSmoothScroll( Bool )
@@ -191,6 +193,12 @@ end
 
 function Panel:SetScrollbarHeightOffset( Offset )
 	self.ScrollbarHeightOffset = Offset
+
+	if SGUI.IsValid( self.Scrollbar ) then
+		local Height = self:GetSize().y
+
+		self.Scrollbar:SetSize( Vector( 10, Height - Offset, 0 ) )
+	end
 end
 
 function Panel:SetMaxHeight( Height )
@@ -251,6 +259,10 @@ end
 
 function Panel:SetScrollbarPos( Pos )
 	self.ScrollPos = Pos
+
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:SetPos( Pos )
+	end
 end
 
 function Panel:SetColour( Col )
