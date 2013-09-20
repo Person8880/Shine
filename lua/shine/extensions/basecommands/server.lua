@@ -498,22 +498,25 @@ function Plugin:CreateCommands()
 	AutoBalanceCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = 10 }
 	AutoBalanceCommand:Help( "<true/false> <player amount> <seconds> Enables or disables auto balance. Player amount and seconds are optional." )
 
-	local function ForceRoundStart(client)
-		local gamerules = GetGamerules()
-	    gamerules:ResetGame()
-	    gamerules:SetGameState(kGameState.Countdown)
+	local function ForceRoundStart( Client )
+		local Gamerules = GetGamerules()
+		Gamerules:ResetGame()
+		Gamerules:SetGameState( kGameState.Countdown )
+
 		local Players = Shine.GetAllPlayers()
+
 		for i = 1, #Players do
 			local Player = Players[ i ]
 			if Player and Player.ResetScores then
 				Player:ResetScores()
 			end
 		end
-	    gamerules.countdownTime = kCountDownLength
-	    gamerules.lastCountdownPlayed = nil
+
+		Gamerules.countdownTime = kCountDownLength
+		Gamerules.lastCountdownPlayed = nil
 	end
 	local ForceRoundStartCommand = self:BindCommand( "sh_forceroundstart", "forceroundstart", ForceRoundStart )
-	ForceRoundStartCommand:Help( "Force the start of the round." )
+	ForceRoundStartCommand:Help( "Forces the round to start." )
 
 	local function Eject( Client, Target )
 		local Player = Target:GetControllingPlayer()
