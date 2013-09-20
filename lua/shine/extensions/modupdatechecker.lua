@@ -11,7 +11,7 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "modupdatechecker.json"
 
 Plugin.DefaultConfig= {
-    MOD_IDS = {"171315805", "117887554"},
+    MOD_IDS = {"117887554"},
     CheckInterval = 60,
     ChangeMapatUpdate = false,
     MapChangeTime = 5,
@@ -23,7 +23,7 @@ Plugin.CheckConfig = true
 
 --checkupdate functions by lancehilliard
 
-local function announceChangedMod()
+function Plugin:announceChangedMod()
 	if Sever.GetNumPlayers() == 0 then
 		MapCycle_CycleMap()
 	else
@@ -40,11 +40,11 @@ local function announceChangedMod()
 	end
 end
 
-local function getUpdateFromResponse(response)
+function Plugin:getUpdateFromResponse(response)
 	local result = nil
 	local indexOfUpdatedLabel = response:find("Update: ") 
 	if indexOfUpdatedLabel then
-		local update = TGNS.Substring(response, indexOfUpdatedLabel)
+		local update = response:sub(indexOfUpdatedLabel)
 		local indexOfUpdateEnder = update:find("</div>")
 		if indexOfUpdateEnderthen
 			update = update:sub(1, indexOfUpdateEnder - 1)
@@ -55,7 +55,7 @@ local function getUpdateFromResponse(response)
 	return result
 end
 
-local function getModNameFromResponse(response)
+function Plugin:getModNameFromResponse(response)
 	local result = nil
 	local openingTag = "<div class=\"workshopItemTitle\">"
 	local closingTag = "</div>"
@@ -72,19 +72,19 @@ local function getModNameFromResponse(response)
 	return result
 end
 
-local function checkForModChange()
+function Plugin:checkForModChange()
 	if not changedModName then
 		for i=1,#self.Config.MOD_IDS do
 			local url = "http://steamcommunity.com/sharedfiles/filedetails/changelog/" .. self.Config.MOD_IDS[i]
 			 Shared.SendHTTPRequest(url, function(response)
 				if not changedModName then
-					local update = getUpdateFromResponse(response)
+					local update = self:getUpdateFromResponse(response)
 					if lastKnownUpdate[id] == nil then
 						lastKnownUpdate[id] = update
 					elseif lastKnownUpdate[id] ~= update then
 						lastKnownUpdate[id] = update
-						changedModName = getModNameFromResponse(response)
-						announceChangedMod()
+						changedModName = self:getModNameFromResponse(response)
+						self:announceChangedMod()
 					end
 				end
 			end)
