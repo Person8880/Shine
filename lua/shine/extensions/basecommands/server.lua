@@ -242,7 +242,7 @@ function Plugin:CreateCommands()
 	end
 	local AllTalkCommand = self:BindCommand( "sh_alltalk", "alltalk", AllTalk )
 	AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
-	AllTalkCommand:Help( "<true/false> Enable or disable all talk, which allows everyone to hear each others voice chat regardless of team." )
+	AllTalkCommand:Help( "<true/false> Enables or disables all talk, which allows everyone to hear each others voice chat regardless of team." )
 
 	local function Kick( Client, Target, Reason )
 		Shine:Print( "%s kicked %s.%s", true,
@@ -365,7 +365,7 @@ function Plugin:CreateCommands()
 	end
 	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
 	LoadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to load." }
-	LoadPluginCommand:Help( "<plugin> Loads a plugin." )
+	LoadPluginCommand:Help( "<plugin> Loads or reloads a plugin." )
 
 	local function UnloadPlugin( Client, Name )
 		if Name == "basecommands" and Shine.Plugins[ Name ] and Shine.Plugins[ Name ].Enabled then
@@ -552,7 +552,7 @@ function Plugin:CreateCommands()
 	local AdminTeamSayCommand = self:BindCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
 	AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
 	AdminTeamSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, MaxLength = kMaxChatLength, Error = "Please specify a message." }
-	AdminTeamSayCommand:Help( "<marine/alien> <message> Sends a messages to everyone on the given team from 'Admin'." )
+	AdminTeamSayCommand:Help( "<marine/alien> <message> Sends a message to everyone on the given team from 'Admin'." )
 
 	local function PM( Client, Target, Message )
 		local Player = Target:GetControllingPlayer()
@@ -596,7 +596,7 @@ function Plugin:CreateCommands()
 	end
 	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )
 	CSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = 128 }
-	CSayCommand:Help( "Displays a message in the centre of all player's screens." )
+	CSayCommand:Help( "<message> Displays a message in the centre of all player's screens." )
 
 	local function GagPlayer( Client, Target, Duration )
 		self.Gagged[ Target ] = Duration == 0 and true or Shared.GetTime() + Duration
