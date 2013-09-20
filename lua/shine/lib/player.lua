@@ -5,15 +5,22 @@
 local Abs = math.abs
 local Floor = math.floor
 local GetEntsByClass = Shared.GetEntitiesWithClassname
+local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
+local TableToString = table.ToString
+local Traceback = debug.traceback
 
 --[[
 	Returns whether the given client is valid.
 ]]
 function Shine:IsValidClient( Client )
 	return Client and self.GameIDs[ Client ] ~= nil
+end
+
+local function OnJoinError( Error )
+	Shine:DebugLog( "Error: %s.\nEvenlySpreadTeams failed. %s", true, Error, Traceback() )
 end
 
 --[[
@@ -51,12 +58,83 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
 
+	local Reported
+
+	if Abs( #Marine - #Alien ) > 1 then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		if VoteRandom then
+			local BalanceMode = VoteRandom.Config.BalanceMode
+
+			local Marines = TableToString( Marine )
+			local Aliens = TableToString( Alien )
+
+			Shine:DebugLog( 
+				"Error: Team sorting resulted in imbalanced teams before applying.\nBalance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
+				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
+		end
+
+		Reported = true
+	end
+
+	--Move to ready room first, seems there's a strange bug when trying to switch between playing teams.
 	for i = 1, #Marine do
-		Gamerules:JoinTeam( Marine[ i ], 1, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Marine[ i ], 0, nil, true )
+
+		if Success then
+			Marine[ i ] = NewPlayer
+		else
+			Marine[ i ] = nil
+		end
 	end
 
 	for i = 1, #Alien do
-		Gamerules:JoinTeam( Alien[ i ], 2, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Alien[ i ], 0, nil, true )
+
+		if Success then
+			Alien[ i ] = NewPlayer
+		else
+			Alien[ i ] = nil
+		end
+	end
+
+	--Switch to pairs loop to deal with potential gaps in the tables.
+	for i, Player in pairs( Marine ) do
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, nil, true )
+
+		if Success then
+			Marine[ i ] = NewPlayer
+		else
+			Marine[ i ] = nil
+		end
+	end
+
+	for i, Player in pairs( Alien ) do
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, nil, true )
+
+		if Success then
+			Alien[ i ] = NewPlayer
+		else
+			Alien[ i ] = nil
+		end
+	end
+
+	local MarineTeam = Gamerules.team1
+	local AlienTeam = Gamerules.team2
+
+	if Abs( MarineTeam:GetNumPlayers() - AlienTeam:GetNumPlayers() ) > 1 and not Reported then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		if VoteRandom then
+			local BalanceMode = VoteRandom.Config.BalanceMode
+
+			local Marines = TableToString( Marine )
+			local Aliens = TableToString( Alien )
+
+			Shine:DebugLog( 
+				"Error: Team sorting resulted in imbalanced teams after applying.\nBalance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
+				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
+		end
 	end
 end
 

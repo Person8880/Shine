@@ -288,7 +288,9 @@ function Shine:GetUserData( Client )
 	if not self.UserData then return nil end
 	if not self.UserData.Users then return nil end
 	
-	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+
+	if not ID then return nil end
 
 	return self.UserData.Users[ tostring( ID ) ], ID
 end
@@ -372,8 +374,11 @@ function Shine:CanTarget( Client, Target )
 
 	if not self.UserData then return false end
 
-	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
-	local TargetID = IsType( Target, "number" ) and Target or Target:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+	local TargetID = IsType( Target, "number" ) and Target or ( Target.GetUserId and Target:GetUserId() )
+
+	if not ID then return false end
+	if not TargetID then return false end
 
 	if ID == TargetID then return true end
 
@@ -430,7 +435,8 @@ end
 ]]
 function Shine:IsInGroup( Client, Group )
 	if not Client then return false end
-	if Client:GetIsVirtual() then 
+
+	if ( Client.GetIsVirtual and Client:GetIsVirtual() ) then 
 		return Group:lower() == "guest" 
 	end
 
@@ -443,7 +449,9 @@ function Shine:IsInGroup( Client, Group )
 
 	if not UserData then return false end
 
-	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+
+	if not ID then return false end
 
 	local User = UserData[ tostring( ID ) ]
 
