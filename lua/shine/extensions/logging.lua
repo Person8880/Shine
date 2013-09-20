@@ -91,6 +91,8 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if not Player then return end
 
 	local Client = Server.GetOwner( Player )
+
+	if not Client then return end
 	
 	local UserID = Client.GetUserId and Client:GetUserId() or 0
 

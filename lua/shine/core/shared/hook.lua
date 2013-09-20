@@ -579,13 +579,13 @@ Add( "Think", "ReplaceMethods", function()
 
 		local OldTeam = Player:GetTeamNumber()
 
-		local Bool, Player = OldFunc( self, Player, NewTeam, Force )
+		local Bool, NewPlayer = OldFunc( self, Player, NewTeam, Force )
 
 		if Bool then
-			Call( "PostJoinTeam", self, Player, OldTeam, NewTeam, Force, ShineForce )
+			Call( "PostJoinTeam", self, NewPlayer, OldTeam, NewTeam, Force, ShineForce )
 		end
 
-		return Bool, Player
+		return Bool, NewPlayer or Player
 	end )
 
 	local OldCycleMap = MapCycle_CycleMap

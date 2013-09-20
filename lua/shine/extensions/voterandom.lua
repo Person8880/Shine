@@ -163,10 +163,13 @@ function Plugin:LoadConfig()
 
 	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 
-	if self.Config.FallbackMode == self.MODE_ELO then
+	local BalanceMode = self.Config.BalanceMode
+	local FallbackMode = self.Config.FallbackMode
+
+	if FallbackMode == self.MODE_ELO or ( FallbackMode == self.MODE_SPONITOR and BalanceMode == self.MODE_SPONITOR ) then
 		self.Config.FallbackMode = self.MODE_KDR
 
-		Notify( "Error in voterandom config, cannot set FallbackMode to ELO sorting mode. Setting FallbackMode to KDR mode." )
+		Notify( "Error in voterandom config, FallbackMode is not set as a valid option.\nMake sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3.\nSetting FallbackMode to KDR mode." )
 	
 		self:SaveConfig()
 	end
@@ -402,13 +405,15 @@ Plugin.ShufflingModes = {
 		local ScoreTable = {}
 		local RandomTable = {}
 
+		local GetOwner = Server.GetOwner
+
 		for i = 1, #Targets do
 			local Player = Targets[ i ]
 
 			if Player then
-				local Client = Player:GetClient()
+				local Client = GetOwner( Player )
 
-				if Client then
+				if Client and Client.GetUserId then
 					local ID = Client:GetUserId()
 
 					local Data = self:GetAverageScoreData( ID )
@@ -491,8 +496,6 @@ Plugin.ShufflingModes = {
 			end
 
 			local Targets, TeamMembers = self:GetTargetsForSorting()
-			
-			local Players = Shine.GetAllPlayers()
 
 			local ELOSort = {}
 			local Count = 0
@@ -505,7 +508,7 @@ Plugin.ShufflingModes = {
 				local Player = Targets[ i ]
 				local Client = Player and GetOwner( Player )
 
-				if Client then
+				if Client and Client.GetUserId then
 					local ID = tostring( Client:GetUserId() )
 					local Data = StatsData[ ID ]
 
@@ -536,17 +539,18 @@ Plugin.ShufflingModes = {
 				end
 			end
 
-			local Count = #Players - ELOSorted
+			local Count = #Targets - ELOSorted
 
 			--Sort the remaining players with the fallback method.
 			if Count > 0 then
 				local FallbackTargets = {}
 
-				for i = 1, #Players do
-					local Player = Players[ i ]
+				for i = 1, #Targets do
+					local Player = Targets[ i ]
 
 					if Player and not Sorted[ Player ] then
 						FallbackTargets[ #FallbackTargets + 1 ] = Player
+						Sorted[ Player ] = true
 					end
 				end
 
@@ -575,15 +579,20 @@ Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers )
 		local SortTable = {}
 		local Count = 0
+		local Sorted = {}
 
-		for i = 1, #Targets do
+		local TargetCount = #Targets
+
+		for i = 1, TargetCount do
 			local Ply = Targets[ i ]
 
 			if Ply and Ply.GetPlayerSkill then
 				local SkillData = Ply:GetPlayerSkill()
 
-				Count = Count + 1
-				SortTable[ Count ] = { Player = Ply, Skill = SkillData }
+				if SkillData and SkillData > 0 then
+					Count = Count + 1
+					SortTable[ Count ] = { Player = Ply, Skill = SkillData }
+				end
 			end
 		end
 
@@ -602,7 +611,39 @@ Plugin.ShufflingModes = {
 				local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
 
 				TeamTable[ #TeamTable + 1 ] = Player
+				Sorted[ Player ] = true
 			end
+		end
+
+		--Some players have rank 0, so sort them randomly instead.
+		local SortRandomly = {}
+
+		for i = 1, TargetCount do
+			local Player = Targets[ i ]
+
+			if Player and not Sorted[ Player ] then
+				SortRandomly[ #SortRandomly + 1 ] = Player
+				Sorted[ Player ] = true
+			end
+		end
+
+		local RandomCount = #SortRandomly
+
+		if RandomCount > 0 then
+			--Use the fallback method to sort those with a 0 skill rank.
+			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, SortRandomly, TeamMembers, true )
+
+			Shine:LogString( "[Skill Vote] Teams were sorted based on Sponitor skill ranking." )
+
+			local Marines = GetEntitiesForTeam( "Player", 1 )
+			local Aliens = GetEntitiesForTeam( "Player", 2 )
+
+			local MarineSkill = GetAverageSkill( Marines )
+			local AlienSkill = GetAverageSkill( Aliens )
+
+			self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.", true, MarineSkill, AlienSkill )
+
+			return
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -728,7 +769,7 @@ function Plugin:StoreScoreData( Player )
 
 	local Mode = self.Config.BalanceMode
 
-	if Mode == self.MODE_ELO then
+	if Mode == self.MODE_ELO or Mode == self.MODE_SPONITOR then
 		Mode = self.Config.FallbackMode
 	end
 
@@ -854,7 +895,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	local BalanceMode = self.Config.BalanceMode
 	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
 
-	if BalanceMode == self.MODE_ELO then
+	if BalanceMode == self.MODE_ELO or BalanceMode == self.MODE_SPONITOR then
 		local Fallback = self.Config.FallbackMode
 		IsScoreBased = Fallback == self.MODE_SCORE or Fallback == self.MODE_KDR
 	end

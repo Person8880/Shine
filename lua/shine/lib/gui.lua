@@ -52,7 +52,6 @@ function SGUI.AddProperty( Table, Name, Default )
 	end
 end
 
---local DummyText
 local WideStringToString = Locale.WideStringToString
 
 function SGUI.GetChar( Char )
@@ -131,15 +130,25 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 	end
 end
 
+local IsType = Shine.IsType
+
 --[[
 	Calls an event on all active SGUI controls, out of order.
 
-	Inputs: Event name, arguments.
+	Inputs: Event name, optional check function, arguments.
 ]]
-function SGUI:CallGlobalEvent( Name, ... )
-	for Control in pairs( self.ActiveControls ) do
-		if Control[ Name ] then
-			Control[ Name ]( Control, Name, ... )
+function SGUI:CallGlobalEvent( Name, CheckFunc, ... )
+	if IsType( CheckFunc, "function" ) then
+		for Control in pairs( self.ActiveControls ) do
+			if Control[ Name ] and CheckFunc( Control ) then
+				Control[ Name ]( Control, Name, ... )
+			end
+		end
+	else
+		for Control in pairs( self.ActiveControls ) do
+			if Control[ Name ] then
+				Control[ Name ]( Control, Name, ... )
+			end
 		end
 	end
 end
@@ -190,6 +199,10 @@ function SGUI:RegisterSkin( Name, Values )
 	self.Skins[ Name ] = Values
 end
 
+local function CheckIsSchemed( Control )
+	return Control.UseScheme
+end
+
 --[[
 	Sets the current skin. This will reskin all active globally skinned objects.
 	Input: Skin name registered with SGUI:RegisterSkin()
@@ -201,7 +214,7 @@ function SGUI:SetSkin( Name )
 
 	self.ActiveSkin = Name
 
-	return SGUI:CallGlobalEvent( "OnSchemeChange", SchemeTable ) --Notify all elements of the change.
+	return SGUI:CallGlobalEvent( "OnSchemeChange", CheckIsSchemed, SchemeTable ) --Notify all elements of the change.
 end
 
 --[[
@@ -525,7 +538,7 @@ function ControlMeta:SetupStencil()
 end
 
 --[[
-	Determines if the given control should use the global colour scheme.
+	Determines if the given control should use the global skin.
 ]]
 function ControlMeta:SetIsSchemed( Bool )
 	self.UseScheme = Bool and true or false

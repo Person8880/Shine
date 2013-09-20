@@ -379,7 +379,7 @@ function Shine:EnableExtension( Name )
 
 				--Halt our enabling, we're not allowed to load with this plugin enabled.
 				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
-					return
+					return false, StringFormat( "unable to load alongside '%s'.", Plugin )
 				end
 			end
 		end
