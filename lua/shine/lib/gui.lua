@@ -52,7 +52,6 @@ function SGUI.AddProperty( Table, Name, Default )
 	end
 end
 
---local DummyText
 local WideStringToString = Locale.WideStringToString
 
 function SGUI.GetChar( Char )
@@ -136,7 +135,7 @@ local IsType = Shine.IsType
 --[[
 	Calls an event on all active SGUI controls, out of order.
 
-	Inputs: Event name, arguments.
+	Inputs: Event name, optional check function, arguments.
 ]]
 function SGUI:CallGlobalEvent( Name, CheckFunc, ... )
 	if IsType( CheckFunc, "function" ) then
@@ -539,7 +538,7 @@ function ControlMeta:SetupStencil()
 end
 
 --[[
-	Determines if the given control should use the global colour scheme.
+	Determines if the given control should use the global skin.
 ]]
 function ControlMeta:SetIsSchemed( Bool )
 	self.UseScheme = Bool and true or false

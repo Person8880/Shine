@@ -1,8 +1,10 @@
 --[[
-	Shine basecommands system.
+	Shine basecommands plugin.
 ]]
 
 local Shine = Shine
+local Hook = Shine.Hook
+local Call = Hook.Call
 
 local Notify = Shared.Message
 local Encode, Decode = json.encode, json.decode
@@ -31,13 +33,27 @@ Plugin.DefaultConfig = {
 	DisableLuaRun = false,
 	Interp = 100,
 	MoveRate = 30,
-	FriendlyFire = false
+	FriendlyFire = false,
+	FriendlyFireScale = 1
 }
 
 Plugin.CheckConfig = true
 
-Shine.Hook.SetupClassHook( "Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
-Shine.Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+Hook.SetupClassHook( "Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+
+local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+	local NewDamage, NewArmour, NewHealth = Call( "TakeDamage", self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+
+	if NewDamage ~= nil then
+		Damage = NewDamage
+		ArmourUsed = NewArmour or ArmourUsed
+		HealthUsed = NewHealth or HealthUsed
+	end
+
+	return OldFunc( self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+end
+Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 
 function Plugin:Initialise()
 	self.Gagged = {}
@@ -59,6 +75,32 @@ function Plugin:GetFriendlyFire()
 	if self.Config.FriendlyFire then
 		return true
 	end
+end
+
+function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+	if not self.Config.FriendlyFire then return end
+
+	--Nothing to do if the scale is 1.
+	local Scale = self.Config.FriendlyFireScale
+	if Scale == 1 then return end
+
+	--We need an attacker.
+	if not Attacker then return end
+
+	--We need the entity being attacked, and the attacker to be on the same team.
+	local EntTeam = Ent.GetTeamNumber and Ent:GetTeamNumber()
+	if not EntTeam then return end
+
+	local AttackerTeam = Attacker.GetTeamNumber and Attacker:GetTeamNumber()
+	if not AttackerTeam then return end
+
+	if EntTeam ~= AttackerTeam then return end
+
+	Damage = Damage * Scale
+	ArmourUsed = ArmourUsed * Scale
+	HealthUsed = HealthUsed * Scale
+
+	return Damage, ArmourUsed, HealthUsed
 end
 
 function Plugin:ClientConnect( Client )
