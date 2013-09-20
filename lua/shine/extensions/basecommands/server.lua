@@ -120,7 +120,7 @@ function Plugin:Think()
 	local Gamerules = GetGamerules()
 
 	if not Gamerules then return end
-	
+
 	Gamerules.team1.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 	Gamerules.team2.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 
@@ -136,7 +136,7 @@ end
 ]]
 function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
-	
+
 	if self.Config.AllTalkPreGame and GetGamerules():GetGameState() == kGameState.NotStarted then return true end
 	if self.Config.AllTalk then return true end
 end
@@ -237,7 +237,7 @@ function Plugin:CreateCommands()
 
 		local Enabled = Enable and "enabled" or "disabled"
 
-		Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]", 
+		Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]",
 			255, 255, 255, "All talk has been %s.", true, Enabled )
 	end
 	local AllTalkCommand = self:BindCommand( "sh_alltalk", "alltalk", AllTalk )
@@ -245,8 +245,8 @@ function Plugin:CreateCommands()
 	AllTalkCommand:Help( "<true/false> Enable or disable all talk, which allows everyone to hear each others voice chat regardless of team." )
 
 	local function Kick( Client, Target, Reason )
-		Shine:Print( "%s kicked %s.%s", true, 
-			Client and Client:GetControllingPlayer():GetName() or "Console", 
+		Shine:Print( "%s kicked %s.%s", true,
+			Client and Client:GetControllingPlayer():GetName() or "Console",
 			Target:GetControllingPlayer():GetName(),
 			Reason ~= "" and " Reason: "..Reason or ""
 		)
@@ -420,7 +420,7 @@ function Plugin:CreateCommands()
 
 	local function ForceRandom( Client, Targets )
 		local Gamerules = GetGamerules()
-		
+
 		if Gamerules then
 			TableShuffle( Targets )
 
@@ -437,7 +437,7 @@ function Plugin:CreateCommands()
 			for i = 1, NumPlayers do
 				local Player = Targets[ i ]:GetControllingPlayer()
 
-				TargetList[ Player ] = true 
+				TargetList[ Player ] = true
 				Targets[ i ] = Player
 				--Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), TeamSequence[ i ], nil, true )
 			end
@@ -498,6 +498,23 @@ function Plugin:CreateCommands()
 	AutoBalanceCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = 10 }
 	AutoBalanceCommand:Help( "<true/false> <player amount> <seconds> Enables or disables auto balance. Player amount and seconds are optional." )
 
+	local function ForceRoundStart(client)
+		local gamerules = GetGamerules()
+	    gamerules:ResetGame()
+	    gamerules:SetGameState(kGameState.Countdown)
+		local Players = Shine.GetAllPlayers()
+		for i = 1, #Players do
+			local Player = Players[ i ]
+			if Player and Player.ResetScores then
+				Player:ResetScores()
+			end
+		end
+	    gamerules.countdownTime = kCountDownLength
+	    gamerules.lastCountdownPlayed = nil
+	end
+	local ForceRoundStartCommand = self:BindCommand( "sh_forceroundstart", "forceroundstart", ForceRoundStart )
+	ForceRoundStartCommand:Help( "Force the start of the round." )
+
 	local function Eject( Client, Target )
 		local Player = Target:GetControllingPlayer()
 
@@ -526,7 +543,7 @@ function Plugin:CreateCommands()
 
 	local function AdminTeamSay( Client, Team, Message )
 		local Players = GetEntitiesForTeam( "Player", Team )
-		
+
 		Shine:Notify( Players, "Team", Shine.Config.ChatName, Message )
 	end
 	local AdminTeamSayCommand = self:BindCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
@@ -630,7 +647,7 @@ function Plugin:PlayerSay( Client, Message )
 	if not GagData then return end
 
 	if GagData == true then return "" end
-	
+
 	if GagData > Shared.GetTime() then return "" end
 
 	self.Gagged[ Client ] = nil
