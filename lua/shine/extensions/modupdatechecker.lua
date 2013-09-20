@@ -72,6 +72,7 @@ function Plugin:getModNameFromResponse(response)
 	return result
 end
 
+local lastKnownUpdate = {}
 function Plugin:checkForModChange()
 	if not changedModName then
 		for i=1,#self.Config.MOD_IDS do
