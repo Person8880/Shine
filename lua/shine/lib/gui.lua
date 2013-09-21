@@ -100,6 +100,12 @@ function SGUI:SetWindowFocus( Window, i )
 	self.FocusedWindow = Window
 end
 
+local Traceback = debug.traceback
+
+local function OnError( Error )
+	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ), Traceback() )
+end
+
 --[[
 	Passes an event to all active SGUI windows.
 
@@ -117,14 +123,18 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 		local Window = Windows[ i ]
 
 		if Window[ Name ] and Window:GetIsVisible() then
-			local Result = Window[ Name ]( Window, ... )
+			local Success, Result = xpcall( Window[ Name ], OnError, Window, ... )
 
-			if Result ~= nil then
-				if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-					SGUI:SetWindowFocus( Window, i )
+			if Success then
+				if Result ~= nil then
+					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
+						SGUI:SetWindowFocus( Window, i )
+					end
+
+					return Result
 				end
-
-				return Result
+			else
+				Window:Destroy()
 			end
 		end
 	end

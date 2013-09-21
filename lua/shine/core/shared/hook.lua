@@ -420,6 +420,11 @@ if Client then
 	end
 	Event.Hook( "LoadComplete", LoadComplete )
 
+	local function OnClientDisconnected( Reason )
+		Call( "ClientDisconnected", Reason )
+	end
+	Event.Hook( "ClientDisconnected", OnClientDisconnected )
+
 	--Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
 	Add( "OnMapLoad", "Hook", function()
 		local GUIManager = GetGUIManager()
