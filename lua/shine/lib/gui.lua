@@ -18,6 +18,7 @@ local pairs = pairs
 local setmetatable = setmetatable
 local StringFormat = string.format
 local TableRemove = table.remove
+local xpcall = xpcall
 
 --Useful functions for colours.
 include "lua/shine/lib/colour.lua"
