@@ -7,6 +7,7 @@ local Floor = math.floor
 local xpcall = xpcall
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
+local StringFormat = string.format
 local type = type
 
 Shine.Hook = {}
@@ -67,7 +68,10 @@ Shine.Hook.Add = Add
 local Traceback = debug.traceback
 
 local function OnError( Err )
-	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
+	Shine:AddErrorReport( StringFormat( "Hook error: %s.", Err ), Trace )
 end
 
 local RemovalExceptions = {

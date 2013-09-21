@@ -23,6 +23,40 @@ if Server then
 	
 		TableEmpty( ErrorQueue )
 	end )
+
+	--[[
+		Adds an error to be reported.
+
+		Inputs:
+			1. The base error message, this should be what the error function from xpcall receives,
+			or a string that defines the error so we don't repeat report it in a session.
+			2. Extra information string.
+			3. Should the extra string be formatted?
+			4. Args to add to the formatting of the extra string.
+	]]
+	function Shine:AddErrorReport( BaseError, Extra, Format, ... )
+		if not self.Config.ReportErrors then return end
+		if Reported[ BaseError ] then return end
+
+		Reported[ BaseError ] = true
+
+		local String
+
+		if Extra then
+			local ExtraString = Format and StringFormat( Extra, ... ) or Extra
+
+			String = StringFormat( "%s.\n%s", BaseError, ExtraString )
+		else
+			String = BaseError
+		end
+		
+		ErrorQueue[ #ErrorQueue + 1 ] = String
+	end
+elseif Client then
+	--TODO
+	function Shine:AddErrorReport()
+
+	end
 end
 
 --[[
@@ -30,20 +64,6 @@ end
 ]]
 function Shine:DebugLog( String, Format, ... )
 	String = Format and StringFormat( String, ... ) or String
-
-	if Server and String:sub( 1, 6 ) == "Error:" and self.Config.ReportErrors then
-		local Start = String:find( "\n" )
-
-		if Start then
-			local Error = String:sub( 8, Start )
-
-			if not Reported[ Error ] then
-				Reported[ Error ] = true
-
-				ErrorQueue[ #ErrorQueue + 1 ] = String
-			end
-		end
-	end
 
 	local File, Err = io.open( DebugFile, "r" )
 

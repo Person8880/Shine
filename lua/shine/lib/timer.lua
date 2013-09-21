@@ -155,7 +155,10 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			local Success, Err = pcall( Timer.Func )
 
 			if not Success then
-				Shine:DebugPrint( "Error: Timer %s failed: %s.\n%s", true, Name, Err, Timer.StackTrace )
+				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true, Name, Err, Timer.StackTrace )
+
+				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.", Name, Err ), Timer.StackTrace )
+				
 				Timer:Destroy()
 			else
 				if Timer.Reps == 0 then

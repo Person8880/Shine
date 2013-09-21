@@ -20,7 +20,10 @@ function Shine:IsValidClient( Client )
 end
 
 local function OnJoinError( Error )
-	Shine:DebugLog( "Error: %s.\nEvenlySpreadTeams failed. %s", true, Error, Traceback() )
+	local Trace = Traceback()
+
+	Shine:DebugLog( "Error: %s.\nEvenlySpreadTeams failed. %s", true, Error, Trace )
+	Shine:AddErrorReport( StringFormat( "A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
 end
 
 --[[
@@ -69,8 +72,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 			local Marines = TableToString( Marine )
 			local Aliens = TableToString( Alien )
 
-			Shine:DebugLog( 
-				"Error: Team sorting resulted in imbalanced teams before applying.\nBalance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
+			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams before applying.",
+				"Balance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
 				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
 		end
 
@@ -131,8 +134,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 			local Marines = TableToString( Marine )
 			local Aliens = TableToString( Alien )
 
-			Shine:DebugLog( 
-				"Error: Team sorting resulted in imbalanced teams after applying.\nBalance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
+			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
+				"Balance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
 				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
 		end
 	end
