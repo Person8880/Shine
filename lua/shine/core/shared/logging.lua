@@ -1,6 +1,6 @@
 local StringFormat = string.format
 
-local DebugFile = "config://shine\\DebugLog.txt"
+local DebugFile = "config://shine/DebugLog.txt"
 
 local ErrorQueue = {}
 local Reported = {}
