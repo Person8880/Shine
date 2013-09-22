@@ -141,53 +141,66 @@ function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	if self.Config.AllTalk then return true end
 end
 
-function Plugin:CreateCommands()
-	local function Help( Client, Command )
-		local CommandObj = Shine.Commands[ Command ]
+local function Help(client, search)
+	local PAGE_SIZE = 25
+	local histories = {}
 
-		if not CommandObj then
-			Shine:AdminPrint( Client, StringFormat( "%s is not a valid command.", Command ) )
-			return
-		end
-
-		if not Shine:GetPermission( Client, Command ) then
-			Shine:AdminPrint( Client, StringFormat( "You do not have access to %s.", Command ) )
-			return
-		end
-
-		Shine:AdminPrint( Client, StringFormat( "%s: %s", Command, CommandObj.Help or "No help available." ) )
+	local getBoundaryIndexes = function(pageNumber)
+		local lastIndexToShow = PAGE_SIZE * pageNumber
+		local firstIndexToShow = lastIndexToShow - (PAGE_SIZE - 1)
+		return firstIndexToShow, lastIndexToShow
 	end
-	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
-	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Error = "Please specify a command." }
-	HelpCommand:Help( "<command> Displays usage information for the given command." )
 
-	local function CommandsList( Client )
-		local Commands = Shine.Commands
+	local commandsAppearOnPage = function(totalCommandsCount, pageNumber)
+		local firstIndexToShow, lastIndexToShow = getBoundaryIndexes(pageNumber)
+		local result = firstIndexToShow <= totalCommandsCount
+		return result
+	end
 
-		if Client then
-			ServerAdminPrint( Client, "Available commands:" )
+	local commandAppearsOnPage = function(index, pageNumber)
+		local lastIndexToShow = PAGE_SIZE * pageNumber
+		local firstIndexToShow = lastIndexToShow - (PAGE_SIZE - 1)
+		local result = index >= firstIndexToShow and index <= lastIndexToShow
+		return result
+	end
 
-			for Command, Object in pairs( Commands ) do
-				if Shine:GetPermission( Client, Command ) then
-					ServerAdminPrint( Client, StringFormat( "%s: %s", Command, Object.Help or "No help available." ) )
-				end
+	local commandNames = {}
+	for commandName, commandData in pairs(Shine.Commands) do
+		if Shine:GetPermission(client, commandName) and commandName ~= "sh_help" then
+			if search == nil or commandName:find(search) then
+				table.insert(commandNames, commandName)
 			end
-
-			ServerAdminPrint( Client, "End command list." )
-
-			return
 		end
-
-		Notify( "Available commands:" )
-
-		for Command, Object in pairs( Commands ) do
-			Notify( StringFormat( "%s: %s", Command, Object.Help or "No help available." ) )
-		end
-
-		Notify( "End command list." )
 	end
-	local CommandList = self:BindCommand( "sh_helplist", nil, CommandsList, true )
-	CommandList:Help( "Displays every command you have access to and their usage." )
+	table.sort(commandNames, function(e1, e2) return e1 < e2 end)
+	local history = histories[client] or {}
+	local pageNumber = tostring(history.search) == tostring(search) and (history.pageNumber or 0) + 1 or 1
+	pageNumber = commandsAppearOnPage(#commandNames, pageNumber) and pageNumber or 1
+	local firstIndexToShow, lastIndexToShow = getBoundaryIndexes(pageNumber)
+	firstIndexToShow = firstIndexToShow <= #commandNames and firstIndexToShow or #commandNames
+	lastIndexToShow = lastIndexToShow <= #commandNames and lastIndexToShow or #commandNames
+	ServerAdminPrint( client, "Available commands (" .. firstIndexToShow .. "-" .. lastIndexToShow .. "; " .. #commandNames .. " total)" .. (search == nil and "" or " matching \"" .. search .. "\"") .. ":")
+
+	for index = 1, #commandNames do
+		local commandName = commandNames[index]
+		if commandAppearsOnPage(index, pageNumber) then
+			local command = Shine.Commands[commandName]
+			local helpLine = string.format("%s. %s%s: %s", index, commandName, (type(command.ChatCmd) == "string" and string.format(" (chat: !%s)", command.ChatCmd) or ""), command.Help or "No help available.")
+			ServerAdminPrint(client, helpLine)
+		end
+	end
+	histories[client] = { search = search, pageNumber = pageNumber }
+	local endMessage = "End command list."
+	if commandsAppearOnPage(#commandNames, pageNumber + 1) then
+		endMessage = "There are more commands! Re-issue the \"sh_help" .. (search == nil and "" or (" " .. search)) .. "\" command to view them. "
+	end
+	ServerAdminPrint(client, endMessage)
+end
+
+function Plugin:CreateCommands()
+	local helpCommand = self:BindCommand("sh_help", nil, Help, true)
+	helpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true }
+	helpCommand:Help("<searchText> View help info for available commands (omit <searchText> to see all).")
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
