@@ -119,6 +119,8 @@ function Plugin:ClientConnect( Client )
 
 		Timer.Destroy( "RS_Connecting_"..ID )
 	end
+
+	self:UpdateTag( self:GetFreeReservedSlots() )
 end
 
 --[[
@@ -131,6 +133,15 @@ function Plugin:CheckConnectionAllowed( ID )
 	local Connected = self:GetRealPlayerCount()
 	local MaxPlayers = Server.GetMaxPlayers()
 
+	local Slots = self.Config.Slots
+
+	--Deduct reserved slot users from the number of reserved slots empty.
+	if self.Config.TakeSlotInstantly then
+		Slots = self:GetFreeReservedSlots()
+
+		self:UpdateTag( Slots )
+	end
+
 	--Deny on full.
 	if Connected >= MaxPlayers then return false end
 	--Allow if they have reserved access, skip checking the connected count.
@@ -140,19 +151,10 @@ function Plugin:CheckConnectionAllowed( ID )
 		return true
 	end
 
-	local Slots = self.Config.Slots
+	if Slots == 0 then
+		self:AddConnectingPlayer( ID )
 
-	--Deduct reserved slot users from the number of reserved slots empty.
-	if self.Config.TakeSlotInstantly then
-		Slots = self:GetFreeReservedSlots()
-
-		self:UpdateTag( Slots )
-	
-		if Slots == 0 then
-			self:AddConnectingPlayer( ID )
-
-			return true
-		end
+		return true
 	end
 
 	local MaxPublic = MaxPlayers - Slots
