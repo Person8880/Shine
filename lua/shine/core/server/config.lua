@@ -42,7 +42,8 @@ local DefaultConfig = {
 		unstuck = true,
 		voterandom = false,
 		votesurrender = true,
-		welcomemessages = false
+		welcomemessages = false,
+		workshopupdater = false
 	},
 
 	EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.

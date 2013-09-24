@@ -22,12 +22,99 @@ local TitleColour = Colour( 0.4, 0.4, 0.4, 1 )
 local TextColour = Colour( 1, 1, 1, 1 )
 local CloseButtonCol = Colour( 0.6, 0.3, 0.1, 1 )
 local CloseButtonHighlight = Colour( 0.8, 0.4, 0.1, 1 )
+local SteamButtonCol = Colour( 0.1, 0.6, 0.2, 1 )
+local SteamButtonHighlight = Colour( 0.15, 0.9, 0.3, 1 )
 
 local LoadingFont = "fonts/AgencyFB_large.fnt"
 local TitleFont = "fonts/AgencyFB_small.fnt"
 
 local CloseButtonPos = Vector( -22, 2, 0 )
 local CloseButtonSize = Vector( 20, 20, 0 )
+
+local SteamButtonPos = Vector( -150, 2, 0 )
+local SteamButtonSize = Vector( 116, 20, 0 )
+local SteamButtonScale = Vector( 0.8, 0.8, 0 )
+
+local PopupSize = Vector( 400, 150, 0 )
+local PopupPos = Vector( -150, -100, 0 )
+
+local NowButtonPos = Vector( -105, -37, 0 )
+local PopupButtonSize = Vector( 100, 32, 0 )
+local AlwaysButtonPos = Vector( 5, -37, 0 )
+
+local PopupTextPos = Vector( 0, -48, 0 )
+
+local function OpenInSteamPopup( URL )
+	local Window = SGUI:Create( "Panel" )
+	Window:SetSize( PopupSize )
+	Window:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	Window:SetPos( PopupPos )
+	Window:SetColour( WindowColour )
+
+	local OldOnMouseDown = Window.OnMouseDown
+
+	function Window:OnMouseDown( Key, DoubleClick )
+		if not self:MouseIn( self.Background ) then
+			self:Destroy()
+			return
+		end
+
+		return OldOnMouseDown( self, Key, DoubleClick )
+	end
+
+	local Text = Window:Add( "Label" )
+	Text:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	Text:SetPos( PopupTextPos )
+	Text:SetText( "Open this page in the Steam overlay?\n(If you choose always, type \"sh_viewwebinsteam 0\" in\nthe console to get this window back)" )
+	Text:SetFont( TitleFont )
+	Text:SetColour( TextColour )
+	Text:SetTextAlignmentX( GUIItem.Align_Center )
+	Text:SetTextAlignmentY( GUIItem.Align_Center )
+
+	local NowButton = Window:Add( "Button" )
+	NowButton:SetAnchor( GUIItem.Middle, GUIItem.Bottom )
+	NowButton:SetPos( NowButtonPos )
+	NowButton:SetSize( PopupButtonSize )
+	NowButton:SetIsSchemed( false )
+	NowButton:SetText( "Now" )
+	NowButton:SetFont( TitleFont )
+	NowButton:SetTextColour( TextColour )
+	NowButton:SetActiveCol( CloseButtonHighlight )
+	NowButton:SetInactiveCol( CloseButtonCol )
+
+	function NowButton:DoClick()
+		Window:Destroy()
+
+		Shine:CloseWebPage()
+	
+		Client.ShowWebpage( URL )
+	end
+
+	local AlwaysButton = Window:Add( "Button" )
+	AlwaysButton:SetAnchor( GUIItem.Middle, GUIItem.Bottom )
+	AlwaysButton:SetPos( AlwaysButtonPos )
+	AlwaysButton:SetSize( PopupButtonSize )
+	AlwaysButton:SetIsSchemed( false )
+	AlwaysButton:SetText( "Always" )
+	AlwaysButton:SetFont( TitleFont )
+	AlwaysButton:SetTextColour( TextColour )
+	AlwaysButton:SetActiveCol( SteamButtonHighlight )
+	AlwaysButton:SetInactiveCol( SteamButtonCol )
+
+	function AlwaysButton:DoClick()
+		Window:Destroy()
+
+		Shine:CloseWebPage()
+
+		Shine.Config.ShowWebInSteamBrowser = true
+
+		Shine:SaveClientBaseConfig()
+
+		Client.ShowWebpage( URL )
+	end
+
+	return Window
+end
 
 function Shine:OpenWebpage( URL, TitleText )
 	if self.Config.DisableWebWindows then return end
@@ -96,11 +183,25 @@ function Shine:OpenWebpage( URL, TitleText )
 	CloseButton:SetInactiveCol( CloseButtonCol )
 
 	function CloseButton:DoClick()
-		SGUI:EnableMouse( false )
+		Shine:CloseWebPage()
+	end
 
-		Window:Destroy()
+	local OpenInSteam = TitleBar:Add( "Button" )
+	OpenInSteam:SetAnchor( GUIItem.Right, GUIItem.Top )
+	OpenInSteam:SetPos( SteamButtonPos )
+	OpenInSteam:SetSize( SteamButtonSize )
+	OpenInSteam:SetIsSchemed( false )
+	OpenInSteam:SetText( "Open in Steam" )
+	OpenInSteam:SetTextColour( TextColour )
+	OpenInSteam:SetFont( TitleFont )
+	OpenInSteam:SetTextScale( SteamButtonScale )
+	OpenInSteam:SetActiveCol( SteamButtonHighlight )
+	OpenInSteam:SetInactiveCol( SteamButtonCol )
 
-		Shine.ActiveWebPage = nil
+	function OpenInSteam:DoClick()
+		local Popup = OpenInSteamPopup( URL )
+
+		Window:DeleteOnRemove( Popup )
 	end
 
 	SGUI:EnableMouse( true )

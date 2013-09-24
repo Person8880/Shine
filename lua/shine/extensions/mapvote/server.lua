@@ -83,7 +83,7 @@ Plugin.NextMapTimer = "MapVoteNext"
 
 local IsType = Shine.IsType
 
-local function isarray( Table )
+local function IsTableArray( Table )
 	local Count = #Table
 	return Count > 0 and Count or nil
 end
@@ -171,10 +171,11 @@ function Plugin:Initialise()
 		end
 	end
 
-	self.MapCycle = Cycle
+	self.MapCycle = Cycle or {}
+	self.MapCycle.time = self.MapCycle.time or 30
 
 	local ForcedMaps = self.Config.ForcedMaps
-	local IsArray = isarray( ForcedMaps )
+	local IsArray = IsTableArray( ForcedMaps )
 	local MaxOptions = self.Config.MaxOptions
 
 	if IsArray then
@@ -189,7 +190,7 @@ function Plugin:Initialise()
 	end
 
 	local DontExtend = self.Config.DontExtend
-	IsArray = isarray( DontExtend )
+	IsArray = IsTableArray( DontExtend )
 
 	if IsArray then
 		for i = 1, IsArray do
@@ -199,7 +200,7 @@ function Plugin:Initialise()
 	end
 
 	local DontAutoCycle = self.Config.IgnoreAutoCycle
-	IsArray = isarray( DontAutoCycle )
+	IsArray = IsTableArray( DontAutoCycle )
 
 	if IsArray then
 		for i = 1, IsArray do

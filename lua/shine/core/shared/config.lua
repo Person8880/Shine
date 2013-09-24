@@ -116,7 +116,8 @@ local BaseConfig = "config://shine/cl_config.json"
 
 local DefaultConfig = {
 	DisableWebWindows = false,
-	ShowWebInSteamBrowser = false
+	ShowWebInSteamBrowser = false,
+	ReportErrors = true
 }
 
 function Shine:CreateClientBaseConfig()
@@ -164,3 +165,19 @@ local SteamWeb = Shine:RegisterClientCommand( "sh_viewwebinsteam", function( Boo
 	Shine:SaveClientBaseConfig()
 end )
 SteamWeb:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.ShowWebInSteamBrowser end }
+
+local ErrorReporting = Shine:RegisterClientCommand( "sh_errorreport", function( Bool )
+	Shine.Config.ReportErrors = Bool
+
+	Notify( StringFormat( "[Shine] Error reporting has been %s.", Bool and "enabled" or "disabled" ) )
+
+	Shine:SaveClientBaseConfig()
+end )
+ErrorReporting:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.ReportErrors end }
+
+if Shine.Config.ReportErrors then
+	Shine.AddStartupMessage( "Shine is set to report any errors it causes on your client when you disconnect. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console." )
+end
+if not Shine.Config.DisableWebWindows then
+	Shine.AddStartupMessage( "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console." )
+end

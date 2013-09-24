@@ -3,13 +3,16 @@
 ]]
 
 local assert = assert
+local Notify = Shared.Message
 local setmetatable = setmetatable
 local Round = math.Round
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
 local TableRemove = table.remove
+local Traceback = debug.traceback
 local type = type
+local xpcall = xpcall
 
 --[[
 	Command object.
@@ -145,6 +148,13 @@ local function ParseParameter( String, Table )
     end
 end
 
+local function OnError( Error )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "Error: %s.\n%s", true, Error, Trace )
+	Shine:AddErrorReport( StringFormat( "Client command error: %s.", Error ), Trace )
+end
+
 --[[
 	Executes a Shine command. Should not be called directly.
 	Inputs: Client running the command, console command to run, string arguments passed to the command.
@@ -168,7 +178,7 @@ function Shine:RunClientCommand( ConCommand, ... )
 
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
-			Shared.Message( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.", i, ConCommand, CurArg.Type ) )
+			Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.", i, ConCommand, CurArg.Type ) )
 
 			return
 		end
@@ -194,5 +204,9 @@ function Shine:RunClientCommand( ConCommand, ... )
 	end
 
 	--Run the command with the parsed arguments we've gathered.
-	Command.Func( unpack( ParsedArgs ) )
+	local Success = xpcall( Command.Func, OnError, unpack( ParsedArgs ) )
+
+	if not Success then
+		Shine:DebugPrint( "An error occurred when running the command: '%s'.", true, ConCommand )
+	end
 end

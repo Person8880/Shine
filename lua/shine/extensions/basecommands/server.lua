@@ -12,11 +12,14 @@ local Encode, Decode = json.encode, json.decode
 local Clamp = math.Clamp
 local Floor = math.floor
 local Max = math.max
+local pairs = pairs
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
+local TableEmpty = table.Empty
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
+local tostring = tostring
 
 local Plugin = Plugin
 Plugin.Version = "1.1"
@@ -141,53 +144,115 @@ function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	if self.Config.AllTalk then return true end
 end
 
-function Plugin:CreateCommands()
-	local function Help( Client, Command )
-		local CommandObj = Shine.Commands[ Command ]
-
-		if not CommandObj then
-			Shine:AdminPrint( Client, StringFormat( "%s is not a valid command.", Command ) )
-			return
-		end
-
-		if not Shine:GetPermission( Client, Command ) then
-			Shine:AdminPrint( Client, StringFormat( "You do not have access to %s.", Command ) )
-			return
-		end
-
-		Shine:AdminPrint( Client, StringFormat( "%s: %s", Command, CommandObj.Help or "No help available." ) )
+--[[
+	Helper for printing when the client may be the server console.
+]]
+local function PrintToConsole( Client, Message )
+	if not Client then
+		return Notify( Message )
 	end
-	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
-	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Error = "Please specify a command." }
-	HelpCommand:Help( "<command> Displays usage information for the given command." )
 
-	local function CommandsList( Client )
-		local Commands = Shine.Commands
+	ServerAdminPrint( Client, Message )
+end
 
-		if Client then
-			ServerAdminPrint( Client, "Available commands:" )
+--Weak keys so we don't store disconnected clients.
+local Histories = setmetatable( {}, { __mode = "k" } )
 
-			for Command, Object in pairs( Commands ) do
-				if Shine:GetPermission( Client, Command ) then
-					ServerAdminPrint( Client, StringFormat( "%s: %s", Command, Object.Help or "No help available." ) )
+--[[
+	Empty search histories when user data is reloaded as their permissions
+	may have changed.
+]]
+function Plugin:OnUserReload()
+	TableEmpty( Histories )
+end
+
+local function Help( Client, Search )
+	local PageSize = 25
+	
+	local GetBoundaryIndexes = function( PageNumber )
+		local LastIndexToShow = PageSize * PageNumber
+		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+		return FirstIndexToShow, LastIndexToShow
+	end
+
+	local CommandsAppearOnPage = function( TotalCommandsCount, PageNumber )
+		local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
+		local Result = FirstIndexToShow <= TotalCommandsCount
+		return Result
+	end
+
+	local CommandAppearsOnPage = function( Index, PageNumber )
+		local LastIndexToShow = PageSize * PageNumber
+		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+		local Result = Index >= FirstIndexToShow and Index <= LastIndexToShow
+		return Result
+	end
+
+	local Query = tostring( Search )
+
+	local History = Histories[ Client ] or {}
+	local PageNumber = History.Search == Query and ( ( History.PageNumber or 0 ) + 1 ) or 1
+
+	History.Cache = History.Cache or {}
+	local CommandNames = History.Cache[ Query ]
+
+	if not CommandNames then
+		CommandNames = {}
+		local Count = 0
+
+		for CommandName, CommandData in pairs( Shine.Commands ) do
+			if Shine:GetPermission( Client, CommandName ) and CommandName ~= "sh_help" then
+				if Search == nil or CommandName:find( Search ) then
+					Count = Count + 1
+					CommandNames[ Count ] = CommandName
 				end
 			end
-
-			ServerAdminPrint( Client, "End command list." )
-
-			return
 		end
 
-		Notify( "Available commands:" )
+		TableSort( CommandNames, function( CommandName1, CommandName2 ) return CommandName1 < CommandName2 end )
 
-		for Command, Object in pairs( Commands ) do
-			Notify( StringFormat( "%s: %s", Command, Object.Help or "No help available." ) )
-		end
-
-		Notify( "End command list." )
+		History.Cache[ Query ] = CommandNames
 	end
-	local CommandList = self:BindCommand( "sh_helplist", nil, CommandsList, true )
-	CommandList:Help( "Displays every command you have access to and their usage." )
+
+	PageNumber = CommandsAppearOnPage( #CommandNames, PageNumber ) and PageNumber or 1
+
+	local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
+	FirstIndexToShow = FirstIndexToShow <= #CommandNames and FirstIndexToShow or #CommandNames
+	LastIndexToShow = LastIndexToShow <= #CommandNames and LastIndexToShow or #CommandNames
+
+	PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:", 
+		FirstIndexToShow, LastIndexToShow, #CommandNames, ( Search == nil and "" or " matching \"" .. Search .. "\"" ) ) )
+
+	for i = 1, #CommandNames do
+		local CommandName = CommandNames[ i ]
+		if CommandAppearsOnPage( i, PageNumber ) then
+			local Command = Shine.Commands[ CommandName ]
+
+			local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
+				( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), 
+				Command.Help or "No help available." )
+
+			PrintToConsole( Client, HelpLine )
+		end
+	end
+
+	History.Search = Query
+	History.PageNumber = PageNumber
+
+	Histories[ Client ] = History
+
+	local EndMessage = "End command list."
+	if CommandsAppearOnPage( #CommandNames, PageNumber + 1 ) then
+		EndMessage = StringFormat( "There are more commands! Re-issue the \"sh_help%s\" command to view them.", 
+			( Search == nil and "" or StringFormat( " %s", Search ) ) )
+	end
+	PrintToConsole( Client, EndMessage )
+end
+
+function Plugin:CreateCommands()
+	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
+	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true }
+	HelpCommand:Help( "<searchText> View help info for available commands (omit <searchText> to see all)." )
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
@@ -277,15 +342,9 @@ function Plugin:CreateCommands()
 			return false
 		end )
 
-		if Client then
-			ServerAdminPrint( Client, StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
-			ServerAdminPrint( Client, StringFormat( "ID\t\tName\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tTeam%s", CanSeeIPs and "\t\t\t\t\t\tIP" or "" ) )
-			ServerAdminPrint( Client, "=============================================================================" )
-		else
-			Notify( StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
-			Notify( "ID\t\tName\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tTeam\t\t\t\t\t\tIP" )
-			Notify( "=============================================================================" )
-		end
+		PrintToConsole( Client, StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
+		PrintToConsole( Client, StringFormat( "ID\t\tName\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tTeam%s", CanSeeIPs and "\t\t\t\t\t\tIP" or "" ) )
+		PrintToConsole( Client, "=============================================================================" )
 
 		for i = 1, #SortTable do
 			local Data = SortTable[ i ]
@@ -297,23 +356,13 @@ function Plugin:CreateCommands()
 
 			local ID = PlayerClient:GetUserId()
 
-			if Client then
-				ServerAdminPrint( Client, StringFormat( "'%s'\t\t'%s'\t\t'%s'\t'%s'\t\t'%s'%s",
+			PrintToConsole( Client, StringFormat( "'%s'\t\t'%s'\t\t'%s'\t'%s'\t\t'%s'%s",
 				GameID,
 				Player:GetName(),
 				ID,
 				Shine.NS2ToSteamID( ID ),
 				Shine:GetTeamName( Player:GetTeamNumber(), true ),
 				CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
-			else
-				Notify( StringFormat( "'%s'\t\t'%s'\t\t'%s'\t'%s'\t\t'%s'\t\t%s",
-				GameID,
-				Player:GetName(),
-				ID,
-				Shine.NS2ToSteamID( ID ),
-				Shine:GetTeamName( Player:GetTeamNumber(), true ),
-				IPAddressToString( Server.GetClientAddress( PlayerClient ) ) ) )
-			end
 		end
 	end
 	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
