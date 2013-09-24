@@ -454,10 +454,10 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	for i = 1, #Messages do
 		local Message = Messages[ i ]
 		local PreText = Message.Pre:GetText()
-		local PreCol = Message.Pre:GetColor()
+		local PreCol = Message.Pre:GetColour()
 
 		local MessageText = Message.Message:GetText()
-		local MessageCol = Message.Message:GetColor()
+		local MessageCol = Message.Message:GetColour()
 
 		Recreate[ i ] = { PreText = PreText, PreCol = PreCol, MessageText = MessageText, MessageCol = MessageCol }
 	end

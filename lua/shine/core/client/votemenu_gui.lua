@@ -125,7 +125,9 @@ function VoteMenu:Create()
 
 	self:SetPage( self.ActivePage or "Main" )
 
-	self.Visible = true
+	if self.Visible == nil then
+		self.Visible = true
+	end
 end
 
 function VoteMenu:SetIsVisible( Bool )
@@ -203,6 +205,34 @@ end )
 
 function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	if not SGUI.IsValid( self.Background ) then return end
+
+	local Buttons = self.Buttons
+	local SideButtons = Buttons.Side
+	local TopButton = Buttons.Top
+	local BottomButton = Buttons.Bottom
+
+	if SGUI.IsValid( TopButton ) then
+		TopButton:SetParent()
+		TopButton:Destroy()
+
+		Buttons.Top = nil
+	end
+
+	if SGUI.IsValid( BottomButton ) then
+		BottomButton:SetParent()
+		BottomButton:Destroy()
+
+		Buttons.Bottom = nil
+	end
+
+	for Key, Button in pairs( SideButtons ) do
+		if SGUI.IsValid( Button ) then
+			Button:SetParent()
+			Button:Destroy()
+		end
+		
+		SideButtons[ Key ] = nil
+	end
 	
 	self.Background:Destroy()
 
