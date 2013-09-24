@@ -104,7 +104,10 @@ end
 local Traceback = debug.traceback
 
 local function OnError( Error )
-	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ), Traceback() )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "SGUI Error: %s.\n%s", true, Error, Trace )
+	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ), Trace )
 end
 
 --[[
@@ -349,6 +352,18 @@ function SGUI:Destroy( Control )
 		end
 	end
 
+	local DeleteOnRemove = Control.__DeleteOnRemove
+
+	if DeleteOnRemove then
+		for i = 1, #DeleteOnRemove do
+			local Control = DeleteOnRemove[ i ]
+
+			if self.IsValid( Control ) then
+				Control:Destroy()
+			end
+		end
+	end
+
 	Control:Cleanup()
 
 	--If it's a window, then clean it up.
@@ -463,6 +478,17 @@ end
 ]]
 function ControlMeta:Destroy()
 	return SGUI:Destroy( self )
+end
+
+--[[
+	Sets a control to be destroyed when this one is.
+]]
+function ControlMeta:DeleteOnRemove( Control )
+	self.__DeleteOnRemove = self.__DeleteOnRemove or {}
+
+	local Table = self.__DeleteOnRemove
+
+	Table[ #Table + 1 ] = Control
 end
 
 --[[
