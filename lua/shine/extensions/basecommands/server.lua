@@ -141,66 +141,71 @@ function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	if self.Config.AllTalk then return true end
 end
 
-local function Help(client, search)
-	local PAGE_SIZE = 25
-	local histories = {}
+local function Help( Client, Search )
+	local PageSize = 25
+	local Histories = {}
+	local StringFormat = string.format
 
-	local getBoundaryIndexes = function(pageNumber)
-		local lastIndexToShow = PAGE_SIZE * pageNumber
-		local firstIndexToShow = lastIndexToShow - (PAGE_SIZE - 1)
-		return firstIndexToShow, lastIndexToShow
+	local GetBoundaryIndexes = function( PageNumber )
+		local LastIndexToShow = PageSize * PageNumber
+		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+		return FirstIndexToShow, LastIndexToShow
 	end
 
-	local commandsAppearOnPage = function(totalCommandsCount, pageNumber)
-		local firstIndexToShow, lastIndexToShow = getBoundaryIndexes(pageNumber)
-		local result = firstIndexToShow <= totalCommandsCount
-		return result
+	local CommandsAppearOnPage = function( TotalCommandsCount, PageNumber )
+		local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
+		local Result = FirstIndexToShow <= TotalCommandsCount
+		return Result
 	end
 
-	local commandAppearsOnPage = function(index, pageNumber)
-		local lastIndexToShow = PAGE_SIZE * pageNumber
-		local firstIndexToShow = lastIndexToShow - (PAGE_SIZE - 1)
-		local result = index >= firstIndexToShow and index <= lastIndexToShow
-		return result
+	local CommandAppearsOnPage = function( Index, PageNumber )
+		local LastIndexToShow = PageSize * PageNumber
+		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+		local Result = Index >= FirstIndexToShow and Index <= LastIndexToShow
+		return Result
 	end
 
-	local commandNames = {}
-	for commandName, commandData in pairs(Shine.Commands) do
-		if Shine:GetPermission(client, commandName) and commandName ~= "sh_help" then
-			if search == nil or commandName:find(search) then
-				table.insert(commandNames, commandName)
+	local CommandNames = {}
+	for CommandName, CommandData in pairs( Shine.Commands ) do
+		if Shine:GetPermission( Client, CommandName ) and CommandName ~= "sh_help" then
+			if Search == nil or CommandName:find( Search ) then
+				table.insert( CommandNames, CommandName )
 			end
 		end
 	end
-	table.sort(commandNames, function(e1, e2) return e1 < e2 end)
-	local history = histories[client] or {}
-	local pageNumber = tostring(history.search) == tostring(search) and (history.pageNumber or 0) + 1 or 1
-	pageNumber = commandsAppearOnPage(#commandNames, pageNumber) and pageNumber or 1
-	local firstIndexToShow, lastIndexToShow = getBoundaryIndexes(pageNumber)
-	firstIndexToShow = firstIndexToShow <= #commandNames and firstIndexToShow or #commandNames
-	lastIndexToShow = lastIndexToShow <= #commandNames and lastIndexToShow or #commandNames
-	ServerAdminPrint( client, "Available commands (" .. firstIndexToShow .. "-" .. lastIndexToShow .. "; " .. #commandNames .. " total)" .. (search == nil and "" or " matching \"" .. search .. "\"") .. ":")
 
-	for index = 1, #commandNames do
-		local commandName = commandNames[index]
-		if commandAppearsOnPage(index, pageNumber) then
-			local command = Shine.Commands[commandName]
-			local helpLine = string.format("%s. %s%s: %s", index, commandName, (type(command.ChatCmd) == "string" and string.format(" (chat: !%s)", command.ChatCmd) or ""), command.Help or "No help available.")
-			ServerAdminPrint(client, helpLine)
+	table.sort( CommandNames, function( CommandName1, CommandName2 ) return CommandName1 < CommandName2 end )
+
+	local History = Histories[Client] or {}
+	local PageNumber = tostring( History.Search ) == tostring( Search ) and ( History.PageNumber or 0 ) + 1 or 1
+	PageNumber = CommandsAppearOnPage( #CommandNames, PageNumber ) and PageNumber or 1
+	local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
+	FirstIndexToShow = FirstIndexToShow <= #CommandNames and FirstIndexToShow or #CommandNames
+	LastIndexToShow = LastIndexToShow <= #CommandNames and LastIndexToShow or #CommandNames
+	ServerAdminPrint( Client, StringFormat( "Available commands (%s-%s; %s total)%s:", FirstIndexToShow, LastIndexToShow, #CommandNames, ( Search == nil and "" or " matching \"" .. Search .. "\"" ) ) )
+
+	for i = 1, #CommandNames do
+		local CommandName = CommandNames[i]
+		if CommandAppearsOnPage( i, PageNumber ) then
+			local Command = Shine.Commands[CommandName]
+			local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, ( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), Command.Help or "No help available." )
+			ServerAdminPrint( Client, HelpLine )
 		end
 	end
-	histories[client] = { search = search, pageNumber = pageNumber }
-	local endMessage = "End command list."
-	if commandsAppearOnPage(#commandNames, pageNumber + 1) then
-		endMessage = "There are more commands! Re-issue the \"sh_help" .. (search == nil and "" or (" " .. search)) .. "\" command to view them. "
+
+	Histories[Client] = { Search = Search, PageNumber = PageNumber }
+
+	local EndMessage = "End command list."
+	if CommandsAppearOnPage( #CommandNames, PageNumber + 1 ) then
+		EndMessage = StringFormat( "There are more commands! Re-issue the \"sh_help%s\" command to view them.", ( Search == nil and "" or StringFormat( " %s", Search ) ) )
 	end
-	ServerAdminPrint(client, endMessage)
+	ServerAdminPrint( Client, EndMessage )
 end
 
 function Plugin:CreateCommands()
-	local helpCommand = self:BindCommand("sh_help", nil, Help, true)
-	helpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true }
-	helpCommand:Help("<searchText> View help info for available commands (omit <searchText> to see all).")
+	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
+	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true }
+	HelpCommand:Help( "<searchText> View help info for available commands (omit <searchText> to see all)." )
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
