@@ -340,7 +340,10 @@ end
 local Traceback = debug.traceback
 
 local function OnError( Err )
-	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
+	Shine:AddErrorReport( StringFormat( "Command error: %s.", Err ), Trace )
 end
 
 --[[

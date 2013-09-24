@@ -731,3 +731,9 @@ local EnableCommand = Shine:RegisterClientCommand( "sh_chatbox", function( Enabl
 	end
 end )
 EnableCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Enabled end }
+
+Shine.Hook.Add( "OnMapLoad", "NotifyAboutChatBox", function()
+	if not Shine.AutoLoadPlugins or not Shine.AutoLoadPlugins[ "chatbox" ] then
+		Shine.AddStartupMessage( "Shine has a chatbox that you can enable by entering \"sh_chatbox 1\" into the console." )
+	end
+end )

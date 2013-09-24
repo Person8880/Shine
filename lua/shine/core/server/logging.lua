@@ -248,12 +248,12 @@ Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 		local Count = 1
 
 		while #Message > MaxPrintLength do
-			local Part = Message:sub( 0, MaxPrintLength )
+			local Part = Message:sub( 0, MaxPrintLength - 1 )
 
 			MessageList[ Count ] = Part
 			Count = Count + 1
 
-			Message = Message:sub( MaxPrintLength + 1 )
+			Message = Message:sub( MaxPrintLength )
 		end
 
 		MessageList[ Count ] = Message

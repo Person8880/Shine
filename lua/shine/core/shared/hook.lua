@@ -7,6 +7,7 @@ local Floor = math.floor
 local xpcall = xpcall
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
+local StringFormat = string.format
 local type = type
 
 Shine.Hook = {}
@@ -67,7 +68,10 @@ Shine.Hook.Add = Add
 local Traceback = debug.traceback
 
 local function OnError( Err )
-	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
+	Shine:AddErrorReport( StringFormat( "Hook error: %s.", Err ), Trace )
 end
 
 local RemovalExceptions = {
@@ -415,6 +419,11 @@ if Client then
 		Call "OnMapLoad"
 	end
 	Event.Hook( "LoadComplete", LoadComplete )
+
+	local function OnClientDisconnected( Reason )
+		Call( "ClientDisconnected", Reason )
+	end
+	Event.Hook( "ClientDisconnected", OnClientDisconnected )
 
 	--Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
 	Add( "OnMapLoad", "Hook", function()

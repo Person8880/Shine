@@ -18,6 +18,7 @@ local pairs = pairs
 local setmetatable = setmetatable
 local StringFormat = string.format
 local TableRemove = table.remove
+local xpcall = xpcall
 
 --Useful functions for colours.
 include "lua/shine/lib/colour.lua"
@@ -100,6 +101,15 @@ function SGUI:SetWindowFocus( Window, i )
 	self.FocusedWindow = Window
 end
 
+local Traceback = debug.traceback
+
+local function OnError( Error )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "SGUI Error: %s.\n%s", true, Error, Trace )
+	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ), Trace )
+end
+
 --[[
 	Passes an event to all active SGUI windows.
 
@@ -117,14 +127,18 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 		local Window = Windows[ i ]
 
 		if Window[ Name ] and Window:GetIsVisible() then
-			local Result = Window[ Name ]( Window, ... )
+			local Success, Result = xpcall( Window[ Name ], OnError, Window, ... )
 
-			if Result ~= nil then
-				if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-					SGUI:SetWindowFocus( Window, i )
+			if Success then
+				if Result ~= nil then
+					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
+						SGUI:SetWindowFocus( Window, i )
+					end
+
+					return Result
 				end
-
-				return Result
+			else
+				Window:Destroy()
 			end
 		end
 	end
@@ -338,6 +352,18 @@ function SGUI:Destroy( Control )
 		end
 	end
 
+	local DeleteOnRemove = Control.__DeleteOnRemove
+
+	if DeleteOnRemove then
+		for i = 1, #DeleteOnRemove do
+			local Control = DeleteOnRemove[ i ]
+
+			if self.IsValid( Control ) then
+				Control:Destroy()
+			end
+		end
+	end
+
 	Control:Cleanup()
 
 	--If it's a window, then clean it up.
@@ -452,6 +478,17 @@ end
 ]]
 function ControlMeta:Destroy()
 	return SGUI:Destroy( self )
+end
+
+--[[
+	Sets a control to be destroyed when this one is.
+]]
+function ControlMeta:DeleteOnRemove( Control )
+	self.__DeleteOnRemove = self.__DeleteOnRemove or {}
+
+	local Table = self.__DeleteOnRemove
+
+	Table[ #Table + 1 ] = Control
 end
 
 --[[

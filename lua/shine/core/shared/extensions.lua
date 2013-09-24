@@ -523,5 +523,5 @@ elseif Client then
 				Shine:EnableExtension( Plugin )
 			end
 		end
-	end )
+	end, -20 )
 end

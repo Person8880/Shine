@@ -2,6 +2,7 @@
 	Shine timer library.
 ]]
 
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableRemove = table.remove
 
@@ -43,13 +44,32 @@ function TimerMeta:SetFunction( Func )
 	self.Func = Func
 end
 
+function TimerMeta:Pause()
+	if self.Paused then return end
+	
+	local Time = SharedTime()
+
+	local TimeToNextRun = self.NextRun - Time
+
+	self.Paused = true
+	self.TimeLeft = TimeToNextRun
+end
+
+function TimerMeta:Resume()
+	if not self.Paused then return end
+
+	self.Paused = nil
+	self.NextRun = SharedTime() + self.TimeLeft
+	self.TimeLeft = nil
+end
+
 --[[
 	Creates a timer.
 	Inputs: Name, delay in seconds, number of times to repeat, function to run.
 	Pass a negative number to reps to have it repeat indefinitely.
 ]]
 local function Create( Name, Delay, Reps, Func )
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	local Timer = setmetatable( {
 		Name = Name,
@@ -103,15 +123,31 @@ local function Exists( Name )
 end
 Shine.Timer.Exists = Exists
 
+function Shine.Timer.Pause( Name )
+	if not Exists( Name ) then return end
+	
+	local Timer = Timers[ Name ]
+
+	Timer:Pause()
+end
+
+function Shine.Timer.Resume( Name )
+	if not Exists( Name ) then return end
+	
+	local Timer = Timers[ Name ]
+	
+	Timer:Resume()
+end
+
 --[[
 	Checks and executes timers on server update.
 ]]
 Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	--Run the timers.
 	for Name, Timer in pairs( Timers ) do
-		if Timer.NextRun <= Time then
+		if Timer.NextRun <= Time and not Timer.Paused then
 			if Timer.Reps > 0 then
 				Timer.Reps = Timer.Reps - 1
 			end
@@ -119,7 +155,10 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			local Success, Err = pcall( Timer.Func )
 
 			if not Success then
-				Shine:DebugPrint( "Timer %s failed: %s. %s", true, Name, Err, Timer.StackTrace )
+				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true, Name, Err, Timer.StackTrace )
+
+				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.", Name, Err ), Timer.StackTrace )
+				
 				Timer:Destroy()
 			else
 				if Timer.Reps == 0 then
