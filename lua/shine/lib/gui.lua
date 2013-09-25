@@ -492,6 +492,19 @@ function ControlMeta:DeleteOnRemove( Control )
 end
 
 --[[
+	Sets up a control's properties using a table.
+]]
+function ControlMeta:SetupFromTable( Table )
+	for Property, Value in pairs( Table ) do
+		local Method = "Set"..Property
+
+		if self[ Method ] then
+			self[ Method ]( self, Value )
+		end
+	end
+end
+
+--[[
 	Sets a control's parent manually.
 ]]
 function ControlMeta:SetParent( Control, Element )
@@ -657,13 +670,39 @@ function ControlMeta:GetPos()
 	return self.Background:GetPosition()
 end
 
+local Anchors = {
+	TopLeft = { GUIItem.Left, GUIItem.Top },
+	TopMiddle = { GUIItem.Middle, GUIItem.Top },
+	TopRight = { GUIItem.Right, GUIItem.Top },
+
+	CentreLeft = { GUIItem.Left, GUIItem.Center },
+	CentreMiddle = { GUIItem.Middle, GUIItem.Center },
+	CentreRight = { GUIItem.Right, GUIItem.Center },
+
+	CenterLeft = { GUIItem.Left, GUIItem.Center },
+	CenterMiddle = { GUIItem.Middle, GUIItem.Center },
+	CenterRight = { GUIItem.Right, GUIItem.Center },
+
+	BottomLeft = { GUIItem.Left, GUIItem.Bottom },
+	BottomMiddle = { GUIItem.Middle, GUIItem.Bottom },
+	BottomRight = { GUIItem.Right, GUIItem.Bottom }
+}
+
 --[[
 	Sets the origin anchors for the control.
 ]]
 function ControlMeta:SetAnchor( X, Y )
 	if not self.Background then return end
-	
-	self.Background:SetAnchor( X, Y )
+
+	if IsType( X, "string" ) then
+		local Anchor = Anchors[ X ]
+
+		if Anchor then
+			self.Background:SetAnchor( Anchor[ 1 ], Anchor[ 2 ] )
+		end
+	else
+		self.Background:SetAnchor( X, Y )
+	end
 end
 
 function ControlMeta:GetAnchor()

@@ -110,6 +110,7 @@ function VoteMenu:Create()
 	Background:SetSize( BackSize )
 	Background:SetPos( -BackSize * 0.5 )
 	Background:SetTexture( MenuTexture[ self.TeamType ] )
+	Background:SetIsSchemed( false )
 
 	self.Background = Background
 
@@ -388,19 +389,22 @@ function VoteMenu:AddTopButton( Text, DoClick )
 	local Size = self.ButtonSize
 
 	TopButton = SGUI:Create( "Button", self.Background )
-	TopButton:SetAnchor( GUIItem.Middle, GUIItem.Top )
-	TopButton:SetSize( Size )
-	TopButton:SetPos( Vector( -Size.x * 0.5, -Size.y, 0 ) )
-	TopButton:SetActiveCol( White )
-	TopButton:SetInactiveCol( White )
-	TopButton:SetTexture( ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
-	TopButton:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
+	TopButton:SetupFromTable{
+		Anchor = "TopMiddle",
+		Size = Size,
+		Pos = Vector( -Size.x * 0.5, -Size.y, 0 ),
+		ActiveCol = White,
+		InactiveCol = White,
+		Texture = ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ],
+		HighlightTexture = ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ],
+		Text = Text,
+		Font = FontName,
+		TextScale = self.TextScale,
+		TextColour = TextCol,
+		DoClick = DoClick,
+		IsSchemed = false
+	}
 	TopButton:SetHighlightOnMouseOver( true, 1, true )
-	TopButton:SetText( Text )
-	TopButton:SetFont( FontName )
-	TopButton:SetTextScale( self.TextScale )
-	TopButton:SetTextColour( TextCol )
-	TopButton:SetDoClick( DoClick )
 	TopButton.ClickDelay = 0
 
 	Buttons.Top = TopButton
@@ -425,19 +429,22 @@ function VoteMenu:AddBottomButton( Text, DoClick )
 
 	local Size = self.ButtonSize
 	BottomButton = SGUI:Create( "Button", self.Background )
-	BottomButton:SetAnchor( GUIItem.Middle, GUIItem.Bottom )
-	BottomButton:SetSize( Size )
-	BottomButton:SetPos( Vector( -Size.x * 0.5, 0, 0 ) )
-	BottomButton:SetActiveCol( White )
-	BottomButton:SetInactiveCol( White )
-	BottomButton:SetTexture( ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
-	BottomButton:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
+	BottomButton:SetupFromTable{
+		Anchor = "BottomMiddle",
+		Size = Size,
+		Pos = Vector( -Size.x * 0.5, 0, 0 ),
+		ActiveCol = White,
+		InactiveCol = White,
+		Texture = ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ],
+		HighlightTexture = ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ],
+		Text = Text,
+		Font = FontName,
+		TextScale = self.TextScale,
+		TextColour = TextCol,
+		DoClick = DoClick,
+		IsSchemed = false
+	}
 	BottomButton:SetHighlightOnMouseOver( true, 1, true )
-	BottomButton:SetText( Text )
-	BottomButton:SetFont( FontName )
-	BottomButton:SetTextScale( self.TextScale )
-	BottomButton:SetTextColour( TextCol )
-	BottomButton:SetDoClick( DoClick )
 	BottomButton.ClickDelay = 0
 
 	Buttons.Bottom = BottomButton
@@ -467,17 +474,20 @@ function VoteMenu:AddSideButton( Text, DoClick )
 	end
 
 	Button = SGUI:Create( "Button", self.Background )
-	Button:SetSize( self.ButtonSize )
-	Button:SetActiveCol( White )
-	Button:SetInactiveCol( White )
-	Button:SetTexture( ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
-	Button:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ] )
+	Button:SetupFromTable{
+		Size = self.ButtonSize,
+		ActiveCol = White,
+		InactiveCol = White,
+		Texture = ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ],
+		HighlightTexture = ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ],
+		Text = Text,
+		Font = FontName,
+		TextScale = self.TextScale,
+		TextColour = TextCol,
+		DoClick = DoClick,
+		IsSchemed = false
+	}
 	Button:SetHighlightOnMouseOver( true, 1, true )
-	Button:SetText( Text )
-	Button:SetFont( FontName )
-	Button:SetTextScale( self.TextScale )
-	Button:SetTextColour( TextCol )
-	Button:SetDoClick( DoClick )
 
 	Buttons[ Index ] = Button
 

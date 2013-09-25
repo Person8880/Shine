@@ -169,6 +169,8 @@ function TextEntry:SetupCaret()
 
 	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
 
+	if not self.Width then return end
+
 	if Width > self.Width then
 		local Diff = -( Width - self.Width )
 
