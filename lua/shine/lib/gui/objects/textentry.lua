@@ -7,6 +7,7 @@ local SGUI = Shine.GUI
 local Clamp = math.Clamp
 local Max = math.max
 local Min = math.min
+local StringFormat = string.format
 
 local TextEntry = {}
 
@@ -264,7 +265,7 @@ end
 function TextEntry:AddCharacter( Char )
 	if not self:AllowChar( Char ) then return end
 
-	self.Text = self.Text:UTF8Sub( 1, self.Column )..Char..self.Text:UTF8Sub( self.Column + 1 )
+	self.Text = StringFormat( "%s%s%s", self.Text:UTF8Sub( 1, self.Column ), Char, self.Text:UTF8Sub( self.Column + 1 ) )
 
 	self.Column = self.Column + 1
 
