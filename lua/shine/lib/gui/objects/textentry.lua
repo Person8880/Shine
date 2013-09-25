@@ -268,28 +268,8 @@ function TextEntry:AddCharacter( Char )
 
 	self.Column = self.Column + 1
 
-	local Caret = self.Caret
-	local TextObj = self.TextObj
-
-	TextObj:SetText( self.Text )
-
-	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
-
-	if Width > self.Width then
-		local Diff = -( Width - self.Width )
-
-		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
-
-		self:SetCaretPos( self.Column )
-
-		self.TextOffset = Diff
-	else
-		self.TextOffset = 0
-
-		self:SetCaretPos( self.Column )
-
-		TextObj:SetPosition( TextPos )
-	end
+	self.TextObj:SetText( self.Text )
+	self:SetCaretPos( self.Column )
 end
 
 --[[
@@ -298,7 +278,6 @@ end
 function TextEntry:RemoveCharacter( Forward )
 	if self.Column == 0 and not Forward then return end
 
-	local Caret = self.Caret
 	local TextObj = self.TextObj
 
 	local OldWidth = TextObj:GetTextWidth( self.Text ) * self.WidthScale
@@ -315,25 +294,8 @@ function TextEntry:RemoveCharacter( Forward )
 		self.Column = Max( self.Column - 1, 0 )
 	end
 
-	local NewWidth = TextObj:GetTextWidth( self.Text ) * self.WidthScale
-
 	TextObj:SetText( self.Text )
-
-	if NewWidth > self.Width then
-		local Diff = -( NewWidth - self.Width )
-
-		self.TextOffset = Min( Diff, 0 )
-
-		self:SetCaretPos( self.Column )
-
-		TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
-	else
-		self.TextOffset = 0
-
-		self:SetCaretPos( self.Column )
-
-		TextObj:SetPosition( TextPos )
-	end
+	self:SetCaretPos( self.Column )
 end
 
 function TextEntry:PlayerType( Char )
