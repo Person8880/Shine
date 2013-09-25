@@ -572,6 +572,8 @@ end
 function ControlMeta:SetupStencil()
 	self.Background:SetInheritsParentStencilSettings( false )
 	self.Background:SetStencilFunc( GUIItem.NotEqual )
+
+	self.Stencilled = true
 end
 
 --[[

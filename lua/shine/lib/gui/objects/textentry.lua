@@ -154,14 +154,11 @@ end
 
 function TextEntry:SetFont( Font )
 	self.TextObj:SetFontName( Font )
+
+	self:SetupCaret()
 end
 
-function TextEntry:SetTextScale( Scale )
-	self.TextObj:SetScale( Scale )
-
-	self.WidthScale = Scale.x
-	self.HeightScale = Scale.y
-
+function TextEntry:SetupCaret()
 	local Caret = self.Caret
 	local TextObj = self.TextObj
 
@@ -192,6 +189,15 @@ function TextEntry:SetTextScale( Scale )
 
 		TextObj:SetPosition( TextPos )
 	end
+end
+
+function TextEntry:SetTextScale( Scale )
+	self.TextObj:SetScale( Scale )
+
+	self.WidthScale = Scale.x
+	self.HeightScale = Scale.y
+
+	self:SetupCaret()
 end
 
 --[[
@@ -233,38 +239,9 @@ end
 function TextEntry:SetText( Text )
 	self.Text = Text
 
-	local Caret = self.Caret
-	local TextObj = self.TextObj
+	self.TextObj:SetText( Text )
 
-	TextObj:SetText( Text )
-
-	local Height = TextObj:GetTextHeight( "!" ) * self.HeightScale
-
-	Caret:SetSize( Vector( 1, Height, 0 ) )
-
-	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
-
-	if Width > self.Width then
-		local Diff = -( Width - self.Width )
-
-		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
-
-		self.Column = self.Text:UTF8Length()
-
-		Caret:SetPosition( Vector( Width + Diff, self.Height * 0.5 - Height * 0.5, 0 ) )
-
-		self.TextOffset = Diff
-	else
-		self.TextOffset = 0
-
-		self.Column = self.Text:UTF8Length()
-
-		local Pos = Caret:GetPosition()
-
-		Caret:SetPosition( Vector( Width, self.Height * 0.5 - Height * 0.5, 0 ) )
-
-		TextObj:SetPosition( TextPos )
-	end
+	self:SetupCaret()
 end
 
 function TextEntry:GetText()

@@ -67,10 +67,9 @@ end
 
 function CheckBox:SetupStencil()
 	self.BaseClass.SetupStencil( self )
-
-	if not self.Box then return end
 	
 	self.Box:SetInheritsParentStencilSettings( true )
+
 	if self.Label then
 		self.Label.Text:SetInheritsParentStencilSettings( true )
 	end
@@ -154,16 +153,32 @@ function CheckBox:AddLabel( Text )
 	Label:SetText( Text )
 	Label:SetPos( Vector( self:GetSize().x + 10, 0, 0 ) )
 
+	if self.Font then
+		Label:SetFont( self.Font )
+	end
+
+	if self.TextColour then
+		Label:SetColour( self.TextColour )
+	end
+
+	if self.Stencilled then
+		Label.Text:SetInheritsParentStencilSettings( true )
+	end
+
 	self.Label = Label
 end
 
 function CheckBox:SetFont( Name )
+	self.Font = Name
+
 	if not self.Label then return end
 	
 	self.Label:SetFont( Name )
 end
 
 function CheckBox:SetTextColour( Col )
+	self.TextColour = Col
+
 	if not self.Label then return end
 	
 	self.Label:SetColour( Col )
