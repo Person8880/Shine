@@ -181,3 +181,6 @@ end
 if not Shine.Config.DisableWebWindows then
 	Shine.AddStartupMessage( "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console." )
 end
+if Shine.Config.ShowWebInSteamBrowser then
+	Shine.AddStartupMessage( "Shine is set to display web pages in the Steam overlay. If you wish to show them using the in game browser, then enter \"sh_viewwebinsteam 0\" into the console." )
+end
