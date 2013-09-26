@@ -5,6 +5,7 @@
 local SGUI = Shine.GUI
 
 local Clamp = math.Clamp
+local Clock = os.clock
 local Max = math.max
 local Min = math.min
 local StringFormat = string.format
@@ -316,7 +317,7 @@ function TextEntry:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
 
 	if self.Enabled then 
-		local Time = Shared.GetTime()
+		local Time = Clock()
 
 		if ( self.NextCaretChange or 0 ) < Time then
 			self.NextCaretChange = Time + 0.5
