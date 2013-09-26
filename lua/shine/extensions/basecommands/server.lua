@@ -124,6 +124,8 @@ function Plugin:Think()
 
 	if not Gamerules then return end
 
+	if not Gamerules.team1 or not Gamerules.team2 then return end
+
 	Gamerules.team1.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 	Gamerules.team2.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 

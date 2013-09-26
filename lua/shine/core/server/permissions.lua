@@ -50,7 +50,7 @@ function Shine:RequestUsers( Reload )
 
 		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 
-		Shine.Hook.Call( "OnUserReload" )
+		self.Hook.Call( "OnUserReload" )
 	end )
 end
 
@@ -100,7 +100,7 @@ function Shine:LoadUsers( Web, Reload )
 	if not self.UserData or not next( self.UserData ) then
 		Notify( "[Shine] The user data file is not valid JSON, unable to load user data." )
 	
-		Shine.Error = "The user data file is not valid JSON, unable to load user data."
+		self.Error = "The user data file is not valid JSON, unable to load user data."
 
 		return
 	end
@@ -108,7 +108,7 @@ function Shine:LoadUsers( Web, Reload )
 	self:ConvertData( self.UserData )
 
 	if Reload then
-		Shine.Hook.Call( "OnUserReload" )
+		self.Hook.Call( "OnUserReload" )
 	end
 end
 

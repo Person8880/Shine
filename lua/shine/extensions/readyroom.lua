@@ -9,6 +9,7 @@ local Shine = Shine
 local Notify = Shared.Message
 local pairs = pairs
 local Random = math.random
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableEmpty = table.Empty
 
@@ -55,7 +56,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	if not Client then return end
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	if NewTeam == kTeamReadyRoom then --Block people from going back to the ready room.
 		local TimeToAllow = self.BlockedClients[ Client ]
@@ -212,7 +213,7 @@ function Plugin:ProcessClient( Client, Time )
 			local LastMoveTime = AFKKick:GetLastMoveTime( Client )
 
 			--Ignore AFK players.
-			if Time - LastMoveTime > ( AFKKick.Config.WarnTime * 60 ) then
+			if Time - LastMoveTime >= ( AFKKick.Config.WarnTime * 60 ) then
 				return
 			end
 		end
@@ -249,11 +250,11 @@ function Plugin:Think()
 	if not self.Config.TrackReadyRoomPlayers then return end
 
 	local MapVote = Shine.Plugins.mapvote
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	--Disable on map cycling/end vote.
 	if MapVote and MapVote.Enabled then
-		if MapVote.CyclingMap or ( MapVote.VoteOnEnd and MapVote:VoteStarted() and MapVote:IsNextMapVote() ) then
+		if MapVote.CyclingMap or MapVote:IsEndVote() then
 			TableEmpty( self.ReadyRoomTracker )
 			TableEmpty( self.BlockedClients )
 

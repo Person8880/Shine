@@ -225,7 +225,7 @@ function Plugin:Notify( Player, Message, Format, ... )
 end
 
 --[[
-	Prevents the map from cycling if we've extended the current one.
+	Prevents the map from auto cycling if we've extended the current one.
 ]]
 function Plugin:ShouldCycleMap()
 	if self:VoteStarted() then return false end --Do not allow map change whilst a vote is running.
@@ -237,44 +237,17 @@ function Plugin:ShouldCycleMap()
 
 	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 	
-	if self.NextMap.ExtendTime then
-		if Time < self.NextMap.ExtendTime then 
-			return false 
-		end
+	if self.NextMap.ExtendTime and Time < self.NextMap.ExtendTime then
+		return false 
 	end
 
 	if self.Config.RoundLimit > 0 and self.Round < self.Config.RoundLimit then return false end
 end
 
---[[
-	Prevents the map from changing if we've extended the current one.
-	If we've chosen a map from the next map vote, then we override the cycle and switch to it instead.
-]]
 function Plugin:OnCycleMap()
-	if self:VoteStarted() then return false end --Do not allow map change whilst a vote is running.
+	MapCycle_ChangeMap( self:GetNextMap() )
 
-	local Time = Shared.GetTime()
-
-	local Winner = self.NextMap.Winner
-
-	if not Winner then
-		MapCycle_ChangeMap( self:GetNextMap() )
-
-		return false
-	end
-
-	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
-
-	local CurMap = Shared.GetMapName()
-
-	if self.NextMap.ExtendTime and Time < self.NextMap.ExtendTime then return false end
-	if self.Config.RoundLimit > 0 and self.Round < self.Config.RoundLimit then return false end
-
-	if Winner ~= CurMap then
-		MapCycle_ChangeMap( Winner )
-
-		return false
-	end
+	return false
 end
 
 --[[
@@ -667,9 +640,6 @@ function Plugin:CanStartVote()
 	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.Vote.NextVote < Shared.GetTime()
 end
 
---[[
-	Returns the number of players needed to end the vote before the time is up.
-]]
 function Plugin:GetVoteEnd()
 	return Ceil( Shared.GetEntitiesWithClassname( "Player" ):GetSize() * self.Config.PercentToFinish )
 end

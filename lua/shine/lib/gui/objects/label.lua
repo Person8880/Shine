@@ -79,4 +79,8 @@ function Label:SetColour( Col )
 	self.Text:SetColor( Col )
 end
 
+function Label:GetColour()
+	return self.Text:GetColor()
+end
+
 SGUI:Register( "Label", Label )
