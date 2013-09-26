@@ -72,19 +72,40 @@ function Button:SetText( Text )
 	Description:SetText( Text )
 	Description:SetColor( self.TextCol )
 
+	if self.Font then
+		Description:SetFontName( self.Font )
+	end
+
+	if self.TextScale then
+		Description:SetScale( self.TextScale )
+	end
+
+	if self.Stencilled then
+		Description:SetInheritsParentStencilSettings( true )
+	end
+
 	self.Background:AddChild( Description )
 	self.Text = Description
 end
 
 function Button:GetText()
+	if not self.Text then return "" end
 	return self.Text:GetText()
 end
 
 function Button:SetFont( Font )
+	self.Font = Font
+
+	if not self.Text then return end
+	
 	self.Text:SetFontName( Font )
 end
 
 function Button:SetTextScale( Scale )
+	self.TextScale = Scale
+
+	if not self.Text then return end
+
 	self.Text:SetScale( Scale )
 end
 
@@ -196,8 +217,6 @@ end
 
 function Button:Cleanup()
 	if self.Parent then return end --Parent will clean up our objects for us.
-	
-	self:SetIsVisible( false )
 
 	if self.Background then
 		GUI.DestroyItem( self.Background )

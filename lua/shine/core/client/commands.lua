@@ -47,22 +47,22 @@ end
 local HookedCommands = {}
 
 local ClientCommands = {}
-
 Shine.ClientCommands = ClientCommands
 
 --[[
-	Registers a Shine command.
-	Inputs: Console command to assign, optional chat command to assign, function to run, optional silent flag to always be silent.
+	Registers a Shine client side command.
+	Inputs: Console command to assign, function to run.
 ]]
 function Shine:RegisterClientCommand( ConCommand, Function )
-	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterCommand, string expected, got "..type( ConCommand ) )
-	assert( type( Function ) == "function", "Bad argument #3 to RegisterCommand, function expected, got "..type( Function ) )
+	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterClientCommand, string expected, got "..type( ConCommand ) )
+	assert( type( Function ) == "function", "Bad argument #2 to RegisterClientCommand, function expected, got "..type( Function ) )
 
 	local CmdObj = Command( ConCommand, Function )
 
 	ClientCommands[ ConCommand ] = CmdObj
 
-	if not HookedCommands[ ConCommand ] then --This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
+	--This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
+	if not HookedCommands[ ConCommand ] then
 		Event.Hook( "Console_"..ConCommand, function( ... )
 			return Shine:RunClientCommand( ConCommand, ... )
 		end )
@@ -156,8 +156,8 @@ local function OnError( Error )
 end
 
 --[[
-	Executes a Shine command. Should not be called directly.
-	Inputs: Client running the command, console command to run, string arguments passed to the command.
+	Executes a client side Shine command. Should not be called directly.
+	Inputs: Console command to run, string arguments passed to the command.
 ]]
 function Shine:RunClientCommand( ConCommand, ... )
 	local Command = ClientCommands[ ConCommand ]

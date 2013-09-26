@@ -44,12 +44,18 @@ local AlwaysButtonPos = Vector( 5, -37, 0 )
 
 local PopupTextPos = Vector( 0, -48, 0 )
 
+local PopupText = [[Open this page in the Steam overlay?
+(If you choose always, type "sh_viewwebinsteam 0" 
+in the console to get this window back)]]
+
 local function OpenInSteamPopup( URL )
 	local Window = SGUI:Create( "Panel" )
-	Window:SetSize( PopupSize )
-	Window:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Window:SetPos( PopupPos )
-	Window:SetColour( WindowColour )
+	Window:SetupFromTable{
+		Size = PopupSize,
+		Anchor = "CentreMiddle",
+		Pos = PopupPos,
+		Colour = WindowColour
+	}
 
 	local OldOnMouseDown = Window.OnMouseDown
 
@@ -63,24 +69,28 @@ local function OpenInSteamPopup( URL )
 	end
 
 	local Text = Window:Add( "Label" )
-	Text:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Text:SetPos( PopupTextPos )
-	Text:SetText( "Open this page in the Steam overlay?\n(If you choose always, type \"sh_viewwebinsteam 0\" in\nthe console to get this window back)" )
-	Text:SetFont( TitleFont )
-	Text:SetColour( TextColour )
-	Text:SetTextAlignmentX( GUIItem.Align_Center )
-	Text:SetTextAlignmentY( GUIItem.Align_Center )
+	Text:SetupFromTable{
+		Anchor = "CentreMiddle",
+		Pos = PopupTextPos,
+		Text = PopupText,
+		Font = TitleFont,
+		Colour = TextColour,
+		TextAlignmentX = GUIItem.Align_Center,
+		TextAlignmentY = GUIItem.Align_Center
+	}
 
 	local NowButton = Window:Add( "Button" )
-	NowButton:SetAnchor( GUIItem.Middle, GUIItem.Bottom )
-	NowButton:SetPos( NowButtonPos )
-	NowButton:SetSize( PopupButtonSize )
-	NowButton:SetIsSchemed( false )
-	NowButton:SetText( "Now" )
-	NowButton:SetFont( TitleFont )
-	NowButton:SetTextColour( TextColour )
-	NowButton:SetActiveCol( CloseButtonHighlight )
-	NowButton:SetInactiveCol( CloseButtonCol )
+	NowButton:SetupFromTable{
+		Anchor = "BottomMiddle",
+		Pos = NowButtonPos,
+		Size = PopupButtonSize,
+		IsSchemed = false,
+		Text = "Now",
+		Font = TitleFont,
+		TextColour = TextColour,
+		ActiveCol = CloseButtonHighlight,
+		InactiveCol = CloseButtonCol
+	}
 
 	function NowButton:DoClick()
 		Window:Destroy()
@@ -91,15 +101,17 @@ local function OpenInSteamPopup( URL )
 	end
 
 	local AlwaysButton = Window:Add( "Button" )
-	AlwaysButton:SetAnchor( GUIItem.Middle, GUIItem.Bottom )
-	AlwaysButton:SetPos( AlwaysButtonPos )
-	AlwaysButton:SetSize( PopupButtonSize )
-	AlwaysButton:SetIsSchemed( false )
-	AlwaysButton:SetText( "Always" )
-	AlwaysButton:SetFont( TitleFont )
-	AlwaysButton:SetTextColour( TextColour )
-	AlwaysButton:SetActiveCol( SteamButtonHighlight )
-	AlwaysButton:SetInactiveCol( SteamButtonCol )
+	AlwaysButton:SetupFromTable{
+		Anchor = "BottomMiddle",
+		Pos = AlwaysButtonPos,
+		Size = PopupButtonSize,
+		IsSchemed = false,
+		Text = "Always",
+		Font = TitleFont,
+		TextColour = TextColour,
+		ActiveCol = SteamButtonHighlight,
+		InactiveCol = SteamButtonCol
+	}
 
 	function AlwaysButton:DoClick()
 		Window:Destroy()
@@ -136,11 +148,12 @@ function Shine:OpenWebpage( URL, TitleText )
 	local WindowHeight = H * 0.8 + 24
 
 	local Window = SGUI:Create( "Panel" )
-	Window:SetSize( Vector( WindowWidth, WindowHeight, 0 ) )
-	Window:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Window:SetPos( Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 ) )
-	Window:SetColour( WindowColour )
-	--Window:SetLayer( kGUILayerMainMenuWeb )
+	Window:SetupFromTable{
+		Size = Vector( WindowWidth, WindowHeight, 0 ),
+		Anchor = "CentreMiddle",
+		Pos = Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 ),
+		Colour = WindowColour
+	}
 
 	self.ActiveWebPage = Window
 
@@ -149,20 +162,24 @@ function Shine:OpenWebpage( URL, TitleText )
 	TitleBar:SetColour( TitleColour )
 
 	local Title = TitleBar:Add( "Label" )
-	Title:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Title:SetText( TitleText or "Message of the day" )
-	Title:SetFont( TitleFont )
-	Title:SetColour( TextColour )
-	Title:SetTextAlignmentX( GUIItem.Align_Center )
-	Title:SetTextAlignmentY( GUIItem.Align_Center )
+	Title:SetupFromTable{
+		Anchor = "CentreMiddle",
+		Text = TitleText or "Message of the day",
+		Font = TitleFont,
+		Colour = TextColour,
+		TextAlignmentX = GUIItem.Align_Center,
+		TextAlignmentY = GUIItem.Align_Center
+	}
 
 	local LoadingText = Window:Add( "Label" )
-	LoadingText:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	LoadingText:SetText( "Loading..." )
-	LoadingText:SetFont( LoadingFont )
-	LoadingText:SetColour( TextColour )
-	LoadingText:SetTextAlignmentX( GUIItem.Align_Center )
-	LoadingText:SetTextAlignmentY( GUIItem.Align_Center )
+	LoadingText:SetupFromTable{
+		Anchor = "CentreMiddle",
+		Text = "Loading...",
+		Font = LoadingFont,
+		Colour = TextColour,
+		TextAlignmentX = GUIItem.Align_Center,
+		TextAlignmentY = GUIItem.Align_Center
+	}
 
 	local WebpageWidth = WindowWidth - 10
 	local WebpageHeight = WindowHeight - 34
@@ -173,30 +190,34 @@ function Shine:OpenWebpage( URL, TitleText )
 	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
 
 	local CloseButton = TitleBar:Add( "Button" )
-	CloseButton:SetAnchor( GUIItem.Right, GUIItem.Top )
-	CloseButton:SetPos( CloseButtonPos )
-	CloseButton:SetSize( CloseButtonSize )
-	CloseButton:SetIsSchemed( false )
-	CloseButton:SetText( "X" )
-	CloseButton:SetTextColour( TextColour )
-	CloseButton:SetActiveCol( CloseButtonHighlight )
-	CloseButton:SetInactiveCol( CloseButtonCol )
+	CloseButton:SetupFromTable{
+		Anchor = "TopRight",
+		Pos = CloseButtonPos,
+		Size = CloseButtonSize,
+		IsSchemed = false,
+		Text = "X",
+		TextColour = TextColour,
+		ActiveCol = CloseButtonHighlight,
+		InactiveCol = CloseButtonCol
+	}
 
 	function CloseButton:DoClick()
 		Shine:CloseWebPage()
 	end
 
 	local OpenInSteam = TitleBar:Add( "Button" )
-	OpenInSteam:SetAnchor( GUIItem.Right, GUIItem.Top )
-	OpenInSteam:SetPos( SteamButtonPos )
-	OpenInSteam:SetSize( SteamButtonSize )
-	OpenInSteam:SetIsSchemed( false )
-	OpenInSteam:SetText( "Open in Steam" )
-	OpenInSteam:SetTextColour( TextColour )
-	OpenInSteam:SetFont( TitleFont )
-	OpenInSteam:SetTextScale( SteamButtonScale )
-	OpenInSteam:SetActiveCol( SteamButtonHighlight )
-	OpenInSteam:SetInactiveCol( SteamButtonCol )
+	OpenInSteam:SetupFromTable{
+		Anchor = "TopRight",
+		Pos = SteamButtonPos,
+		Size = SteamButtonSize,
+		IsSchemed = false,
+		Text = "Open in Steam",
+		TextColour = TextColour,
+		Font = TitleFont,
+		TextScale = SteamButtonScale,
+		ActiveCol = SteamButtonHighlight,
+		InactiveCol = SteamButtonCol
+	}
 
 	function OpenInSteam:DoClick()
 		local Popup = OpenInSteamPopup( URL )

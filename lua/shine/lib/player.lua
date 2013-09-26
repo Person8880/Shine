@@ -5,6 +5,7 @@
 local Abs = math.abs
 local Floor = math.floor
 local GetEntsByClass = Shared.GetEntitiesWithClassname
+local GetOwner = Server.GetOwner
 local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
@@ -82,28 +83,46 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
 	--Move to ready room first, seems there's a strange bug when trying to switch between playing teams.
 	for i = 1, #Marine do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Marine[ i ], 0, nil, true )
+		local OldPlayer = Marine[ i ]
+		local Team = OldPlayer.GetTeamNumber and OldPlayer:GetTeamNumber()
 
-		if Success then
-			Marine[ i ] = NewPlayer
+		--Only move those not on the right team. Otherwise if an admin uses sh_forcerandom...
+		if not Team or Team ~= 1 then
+			local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, OldPlayer, 0, nil, true )
+
+			if Success then
+				Marine[ i ] = NewPlayer
+			else
+				Marine[ i ] = nil
+			end
 		else
 			Marine[ i ] = nil
 		end
 	end
 
 	for i = 1, #Alien do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Alien[ i ], 0, nil, true )
+		local OldPlayer = Alien[ i ]
+		local Team = OldPlayer.GetTeamNumber and OldPlayer:GetTeamNumber()
 
-		if Success then
-			Alien[ i ] = NewPlayer
+		if not Team or Team ~= 2 then
+			local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, OldPlayer, 0, nil, true )
+
+			if Success then
+				Alien[ i ] = NewPlayer
+			else
+				Alien[ i ] = nil
+			end
 		else
 			Alien[ i ] = nil
 		end
 	end
 
+	local MarineTeam = Gamerules.team1
+	local AlienTeam = Gamerules.team2
+
 	--Switch to pairs loop to deal with potential gaps in the tables.
 	for i, Player in pairs( Marine ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, true, true )
 
 		if Success then
 			Marine[ i ] = NewPlayer
@@ -113,7 +132,7 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	end
 
 	for i, Player in pairs( Alien ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, true, true )
 
 		if Success then
 			Alien[ i ] = NewPlayer
@@ -121,9 +140,6 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 			Alien[ i ] = nil
 		end
 	end
-
-	local MarineTeam = Gamerules.team1
-	local AlienTeam = Gamerules.team2
 
 	if Abs( MarineTeam:GetNumPlayers() - AlienTeam:GetNumPlayers() ) > 1 and not Reported then
 		local VoteRandom = Shine.Plugins.voterandom
@@ -172,7 +188,7 @@ function Shine.GetTeamClients( Team )
 		local Ply = Players[ i ]
 
 		if Ply then
-			local Client = Ply:GetClient()
+			local Client = GetOwner( Ply )
 
 			if Client then
 				Clients[ Count ] = Client
