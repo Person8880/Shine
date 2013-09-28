@@ -229,7 +229,8 @@ end
 ]]
 function Plugin:ShouldCycleMap()
 	if self:VoteStarted() then return false end --Do not allow map change whilst a vote is running.
-
+	if self.VoteOnEnd then return false end --Never let the gamerules auto-cycle if we're end of map voting.
+	
 	local Winner = self.NextMap.Winner
 	if not Winner then return end
 
