@@ -128,8 +128,8 @@ function Plugin:ProcessFilter( Player, Name, Pattern, Excluded )
 	--This is the real player!
 	if Client and tostring( Client:GetUserId() ) == tostring( Excluded ) then return end
 
-	local LoweredName = Name:UTF8Lower()
-	Pattern = Pattern:UTF8Lower()
+	local LoweredName = Name:lower()
+	Pattern = Pattern:lower()
 
 	--If someone doesn't know about regex, they could pass an invalid pattern...
 	local Success, Start = pcall( StringFind, LoweredName, Pattern )

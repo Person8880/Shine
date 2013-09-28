@@ -60,7 +60,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 			TextObj.Fading = true
 			TextObj.FadedIn = true
 			TextObj.FadingIn = true
-			TextObj.FadeEnd = Time + FadeIn
+			TextObj.FadeElapsed = 0
 			TextObj.FadeDuration = FadeIn
 		end
 
