@@ -443,13 +443,21 @@ for Path in pairs( PluginFiles ) do
 	local Name = Folders[ 4 ]
 	local File = Folders[ 5 ]
 
-	Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
+	if File then
+		if not ClientPlugins[ Name ] then
+			local LoweredFileName = File:lower()
 
-	if File and not ClientPlugins[ Name ] then
-		if File:lower() == "shared.lua" then
-			ClientPlugins[ Name ] = "boolean" --Generate the network message.
+			if LoweredFileName == "shared.lua" then
+				ClientPlugins[ Name ] = "boolean" --Generate the network message.
+				Shine.AllPlugins[ Name ] = true
+			elseif LoweredFileName == "server.lua" then
+				Shine.AllPlugins[ Name ] = true
+			end
+
+			Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 		end
-		Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
+	else
+		Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
 	end
 end
 
