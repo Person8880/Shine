@@ -191,7 +191,7 @@ end
 
 function Plugin:playSoundForEveryPlayer(name)
     if self.Config.SendSounds then
-        self:SendNetworkMessage(nil,"PlaySound",{Neme = name } ,true)
+        self:SendNetworkMessage(nil,"PlaySound",{Name = name } ,true)
     end
 end
 
