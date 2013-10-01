@@ -379,7 +379,7 @@ function Shine:EnableExtension( Name )
 
 				--Halt our enabling, we're not allowed to load with this plugin enabled.
 				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
-					return
+					return false, StringFormat( "unable to load alongside '%s'.", Plugin )
 				end
 			end
 		end
@@ -429,6 +429,8 @@ function Shine:UnloadExtension( Name )
 end
 
 local ClientPlugins = {}
+--Store a list of all plugins in existance. When the server config loads, we use it.
+Shine.AllPlugins = {}
 
 --[[
 	Prepare shared plugins.
@@ -440,6 +442,8 @@ for Path in pairs( PluginFiles ) do
 	local Folders = StringExplode( Path, "/" )
 	local Name = Folders[ 4 ]
 	local File = Folders[ 5 ]
+
+	Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
 
 	if File and not ClientPlugins[ Name ] then
 		if File:lower() == "shared.lua" then
@@ -519,5 +523,5 @@ elseif Client then
 				Shine:EnableExtension( Plugin )
 			end
 		end
-	end )
+	end, -20 )
 end

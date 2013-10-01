@@ -135,17 +135,20 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		for i = 1, PlayerCount do
 			local Ply = Player[ i ]
 			
-			Server.SendNetworkMessage( Ply, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+			Server.SendNetworkMessage( Ply, "Shine_Chat",
+				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
 	elseif Player and Player ~= "Console" then
-		Server.SendNetworkMessage( Player, "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+		Server.SendNetworkMessage( Player, "Shine_Chat",
+			self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 	elseif Player == "Console" then
 		Shared.Message( Message )
 	else
 		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_Chat", self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+			Server.SendNetworkMessage( Players[ i ], "Shine_Chat",
+				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
 	end
 end
@@ -239,7 +242,8 @@ local MaxPrintLength = 128
 
 Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 	--[[
-		Rewrite ServerAdminPrint to not print to the server console when used, otherwise we'll get spammed with repeat prints when sending to lots of people at once.
+		Rewrite ServerAdminPrint to not print to the server console when used,
+		otherwise we'll get spammed with repeat prints when sending to lots of people at once.
 	]]
 	function ServerAdminPrint( Client, Message )
 		if not Client then return end
@@ -248,12 +252,12 @@ Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 		local Count = 1
 
 		while #Message > MaxPrintLength do
-			local Part = Message:sub( 0, MaxPrintLength )
+			local Part = Message:sub( 0, MaxPrintLength - 1 )
 
 			MessageList[ Count ] = Part
 			Count = Count + 1
 
-			Message = Message:sub( MaxPrintLength + 1 )
+			Message = Message:sub( MaxPrintLength )
 		end
 
 		MessageList[ Count ] = Message

@@ -11,6 +11,7 @@ local TableConcat = table.concat
 local TableRemove = table.remove
 local TableSort = table.sort
 local type = type
+local xpcall = xpcall
 
 --[[
 	Command object.
@@ -59,7 +60,13 @@ local HookedCommands = {}
 
 --[[
 	Registers a Shine command.
-	Inputs: Console command to assign, optional chat command to assign, function to run, optional silent flag to always be silent.
+	Inputs: 
+		1. Console command to assign.
+		2. Optional chat command(s) to assign.
+		3. Function to run.
+		4. Optional flag to allow anyone to run the command.
+		5. Optional flag to always be silent.
+	Output: Command object.
 ]]
 function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silent )
 	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterCommand, string expected, got "..type( ConCommand ) )
@@ -91,7 +98,8 @@ function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silen
 		end
 	end
 
-	if not HookedCommands[ ConCommand ] then --This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
+	--This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
+	if not HookedCommands[ ConCommand ] then
 		Event.Hook( "Console_"..ConCommand, function( Client, ... )
 			return Shine:RunCommand( Client, ConCommand, ... )
 		end )
@@ -272,7 +280,7 @@ local ParamTypes = {
 
 		return Clients
 	end,
-	--Number performs tonumber() on the string and clamps the result between the given min and max if applicable. Also rounds if asked.
+	--Number performs tonumber() on the string and clamps the result between the given min and max if set. Also rounds if asked.
 	number = function( Client, String, Table )
 		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
@@ -311,11 +319,8 @@ local ParamTypes = {
 		String = String:lower()
 
 		if String:find( "ready" ) then return 0 end
-
-		if String:find( "marine" ) then return 1 end
-		
+		if String:find( "marine" ) then return 1 end	
 		if String:find( "alien" ) then return 2 end
-
 		if String:find( "spectat" ) then return 3 end
 
 		return nil
@@ -334,6 +339,15 @@ local function ParseParameter( Client, String, Table )
         if not Table.Optional then return nil end
         return ParamTypes[ Type ] and ParamTypes[ Type ]( Client, String, Table )
     end
+end
+
+local Traceback = debug.traceback
+
+local function OnError( Err )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
+	Shine:AddErrorReport( StringFormat( "Command error: %s.", Err ), Trace )
 end
 
 --[[
@@ -439,15 +453,19 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 	local Arguments = TableConcat( Args, ", " )
 
-	--Log the command's execution.
-	self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
-		Client and Client:GetControllingPlayer():GetName() or "Console", 
-		Client and Client:GetUserId() or "N/A", 
-		ConCommand, 
-		Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
-
 	--Run the command with the parsed arguments we've gathered.
-	Command.Func( Client, unpack( ParsedArgs ) )
+	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs ) )
+	
+	if not Success then
+		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
+	else
+		--Log the command's execution.
+		self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
+			Client and Client:GetControllingPlayer():GetName() or "Console", 
+			Client and Client:GetUserId() or "N/A", 
+			ConCommand, 
+			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
+	end
 end
 
 --Hook into the chat, execute commands if they match up.

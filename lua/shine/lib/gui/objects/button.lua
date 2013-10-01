@@ -25,6 +25,8 @@ function Button:Initialise()
 	self.ActiveCol = Scheme.ActiveButton
 	self.InactiveCol = Scheme.InactiveButton
 
+	Background:SetColor( self.InactiveCol )
+
 	self.TextCol = Scheme.DarkText
 
 	self:SetHighlightOnMouseOver( true )
@@ -70,19 +72,40 @@ function Button:SetText( Text )
 	Description:SetText( Text )
 	Description:SetColor( self.TextCol )
 
+	if self.Font then
+		Description:SetFontName( self.Font )
+	end
+
+	if self.TextScale then
+		Description:SetScale( self.TextScale )
+	end
+
+	if self.Stencilled then
+		Description:SetInheritsParentStencilSettings( true )
+	end
+
 	self.Background:AddChild( Description )
 	self.Text = Description
 end
 
 function Button:GetText()
+	if not self.Text then return "" end
 	return self.Text:GetText()
 end
 
 function Button:SetFont( Font )
+	self.Font = Font
+
+	if not self.Text then return end
+	
 	self.Text:SetFontName( Font )
 end
 
 function Button:SetTextScale( Scale )
+	self.TextScale = Scale
+
+	if not self.Text then return end
+
 	self.Text:SetScale( Scale )
 end
 
@@ -146,6 +169,12 @@ function Button:Think( DeltaTime )
 	if not self.Background:GetIsVisible() then return end
 
 	self.BaseClass.Think( self, DeltaTime )
+
+	if SGUI.IsValid( self.Tooltip ) then
+		self.Tooltip:Think( DeltaTime )
+	end
+
+	self:CallOnChildren( "Think", DeltaTime ) 
 end
 
 function Button:SetDoClick( Func )
@@ -163,6 +192,11 @@ end
 
 function Button:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
+
+	if self:CallOnChildren( "OnMouseDown", Key, DoubleClick ) then
+		return true
+	end
+
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self.Highlighted then return end
 
@@ -183,14 +217,40 @@ end
 
 function Button:Cleanup()
 	if self.Parent then return end --Parent will clean up our objects for us.
-	
-	self:SetIsVisible( false )
 
 	if self.Background then
 		GUI.DestroyItem( self.Background )
 	end
 	
 	self.Background = nil
+end
+
+function Button:OnMouseUp( Key )
+	self:CallOnChildren( "OnMouseUp", Key )
+end
+
+function Button:OnMouseMove( Down )
+	self.BaseClass.OnMouseMove( self, Down )
+
+	self:CallOnChildren( "OnMouseMove", Down )
+end
+
+function Button:OnMouseWheel( Down )
+	local Result = self:CallOnChildren( "OnMouseWheel", Down )
+
+	if Result ~= nil then return true end
+end
+
+function Button:PlayerKeyPress( Key, Down )
+	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
+		return true
+	end
+end
+
+function Button:PlayerType( Char )
+	if self:CallOnChildren( "PlayerType", Char ) then
+		return true
+	end
 end
 
 SGUI:Register( "Button", Button )

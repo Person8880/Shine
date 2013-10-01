@@ -121,7 +121,7 @@ function Plugin:CheckGameStart( Gamerules )
 
 			local Nag = self:GetStartNag()
 
-			if not Nag then return end
+			if not Nag then return false end
 
 			self:SendNetworkMessage( nil, "StartNag", { Message = Nag }, true )
 		end

@@ -7,7 +7,11 @@ Shine.UserData = {}
 local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
 
+local next = next
+local pairs = pairs
 local TableContains = table.contains
+local tonumber = tonumber
+local tostring = tostring
 
 local UserPath = "config://shine/UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
@@ -46,7 +50,7 @@ function Shine:RequestUsers( Reload )
 
 		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 
-		Shine.Hook.Call( "OnUserReload" )
+		self.Hook.Call( "OnUserReload" )
 	end )
 end
 
@@ -96,7 +100,7 @@ function Shine:LoadUsers( Web, Reload )
 	if not self.UserData or not next( self.UserData ) then
 		Notify( "[Shine] The user data file is not valid JSON, unable to load user data." )
 	
-		Shine.Error = "The user data file is not valid JSON, unable to load user data."
+		self.Error = "The user data file is not valid JSON, unable to load user data."
 
 		return
 	end
@@ -104,7 +108,7 @@ function Shine:LoadUsers( Web, Reload )
 	self:ConvertData( self.UserData )
 
 	if Reload then
-		Shine.Hook.Call( "OnUserReload" )
+		self.Hook.Call( "OnUserReload" )
 	end
 end
 
@@ -284,7 +288,9 @@ function Shine:GetUserData( Client )
 	if not self.UserData then return nil end
 	if not self.UserData.Users then return nil end
 	
-	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+
+	if not ID then return nil end
 
 	return self.UserData.Users[ tostring( ID ) ], ID
 end
@@ -368,8 +374,11 @@ function Shine:CanTarget( Client, Target )
 
 	if not self.UserData then return false end
 
-	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
-	local TargetID = IsType( Target, "number" ) and Target or Target:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+	local TargetID = IsType( Target, "number" ) and Target or ( Target.GetUserId and Target:GetUserId() )
+
+	if not ID then return false end
+	if not TargetID then return false end
 
 	if ID == TargetID then return true end
 
@@ -384,21 +393,33 @@ function Shine:CanTarget( Client, Target )
 	if not User then return false end --No user data, guest cannot target others.
 	if not TargetUser then return true end --Target is a guest, can always target guests.
 
-	local Group = Groups[ User.Group ]
-	local TargetGroup = Groups[ TargetUser.Group ]
+	local Group = Groups[ User.Group or -1 ]
+	local TargetGroup = Groups[ TargetUser.Group or -1 ]
 
 	if not Group then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, User.Group )
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, tostring( User.Group ) )
 		return false
 	end
 
 	if not TargetGroup then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, TargetID, TargetUser.Group )
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, TargetID, tostring( TargetUser.Group ) )
 		return true 
 	end
 
-	local Immunity = User.Immunity or Group.Immunity --Read from the user's immunity first, then the groups.
-	local TargetImmunity = TargetUser.Immunity or TargetGroup.Immunity
+	local Immunity = tonumber( User.Immunity or Group.Immunity ) --Read from the user's immunity first, then the groups.
+	local TargetImmunity = tonumber( TargetUser.Immunity or TargetGroup.Immunity )
+
+	if not Immunity then
+		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
+			true, ID, tostring( User.Group ) )
+		return false
+	end
+
+	if not TargetImmunity then
+		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
+			true, TargetID, tostring( TargetUser.Group ) )
+		return true
+	end
 
 	if self.Config.EqualsCanTarget then
 		return Immunity >= TargetImmunity
@@ -414,7 +435,8 @@ end
 ]]
 function Shine:IsInGroup( Client, Group )
 	if not Client then return false end
-	if Client:GetIsVirtual() then 
+
+	if ( Client.GetIsVirtual and Client:GetIsVirtual() ) then 
 		return Group:lower() == "guest" 
 	end
 
@@ -427,7 +449,9 @@ function Shine:IsInGroup( Client, Group )
 
 	if not UserData then return false end
 
-	local ID = IsType( Client, "number" ) and Client or Client:GetUserId()
+	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+
+	if not ID then return false end
 
 	local User = UserData[ tostring( ID ) ]
 

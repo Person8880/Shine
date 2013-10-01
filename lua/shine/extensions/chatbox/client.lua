@@ -176,13 +176,14 @@ function Plugin:CreateChatbox()
 
 	--Invisible background.
 	local DummyPanel = SGUI:Create( "Panel" )
-	DummyPanel:SetAnchor( GUIItem.Left, GUIItem.Bottom )
-	DummyPanel:SetSize( ChatBoxSize * UIScale )
-	DummyPanel:SetPos( ChatBoxPos )
-	DummyPanel:SetColour( Clear )
-	DummyPanel.UseScheme = false
-	--DummyPanel:SetLayer( kGUILayerChat )
-	DummyPanel:SetDraggable( true )
+	DummyPanel:SetupFromTable{
+		Anchor = "BottomLeft",
+		Size = ChatBoxSize * UIScale,
+		Pos = ChatBoxPos,
+		Colour = Clear,
+		Draggable = true,
+		IsSchemed = false
+	}
 
 	--Double click the title bar to return it to the default position.
 	function DummyPanel:ReturnToDefaultPos()
@@ -195,39 +196,46 @@ function Plugin:CreateChatbox()
 
 	--Panel for messages.
 	local Box = SGUI:Create( "Panel", DummyPanel )
-	Box:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Box:SetScrollbarPos( ScrollbarPos )
-	Box:SetScrollbarHeightOffset( 0 )
-	Box:SetScrollable()
-	Box:SetAllowSmoothScroll( self.Config.SmoothScroll )
-	Box:SetStickyScroll( true )
-	Box:SetSize( BoxSize )
-	Box:SetColour( InnerCol )
-	Box:SetPos( BorderPos * UIScale )
-	Box.UseScheme = false
+	Box:SetupFromTable{
+		Anchor = "TopLeft",
+		ScrollbarPos = ScrollbarPos,
+		ScrollbarHeightOffset = 0,
+		Scrollable = true,
+		AllowSmoothScroll = self.Config.SmoothScroll,
+		StickyScroll = true,
+		Size = BoxSize,
+		Colour = InnerCol,
+		Pos = BorderPos * UIScale,
+		IsSchemed = false
+	}
 	Box.BufferAmount = 5
 
 	self.ChatBox = Box
 
 	--Create, not Panel:Add as we don't want the border to scroll!
 	local Border = SGUI:Create( "Panel", Box )
-	Border:SetSize( ChatBoxSize * UIScale )
-	Border:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Border:SetPos( -BorderPos * UIScale )
+	Border:SetupFromTable{
+		Size = ChatBoxSize * UIScale,
+		Anchor = "TopLeft",
+		Pos = -BorderPos * UIScale,
+		Colour = BorderCol,
+		BlockMouse = true,
+		IsSchemed = false
+	}
 	Border.Background:SetInheritsParentStencilSettings( false )
 	Border.Background:SetStencilFunc( GUIItem.Equal )
-	Border.UseScheme = false
-	Border:SetColour( BorderCol )
-	Border:SetBlockMouse( true )
 
 	--Shows either "All:"" or "Team:"
 	local ModeText = Border:Add( "Label" )
-	ModeText:SetPos( ModeTextPos * UIScale )
-	ModeText:SetTextAlignmentX( GUIItem.Align_Max )
-	ModeText:SetTextAlignmentY( GUIItem.Align_Center )
-	ModeText:SetFont( "fonts/AgencyFB_small.fnt" )
-	ModeText:SetTextScale( UIScale * TextScale )
-	ModeText:SetColour( ModeTextCol )
+	ModeText:SetupFromTable{
+		Pos = ModeTextPos * UIScale,
+		TextAlignmentX = GUIItem.Align_Max,
+		TextAlignmentY = GUIItem.Align_Center,
+		Font = "fonts/AgencyFB_small.fnt",
+		TextScale = UIScale * TextScale,
+		Colour = ModeTextCol,
+		IsSchemed = false
+	}
 
 	self.ModeText = ModeText
 
@@ -235,21 +243,21 @@ function Plugin:CreateChatbox()
 
 	--Where messages are entered.
 	local TextEntry = SGUI:Create( "TextEntry", DummyPanel )
-	TextEntry:SetSize( TextBoxSize * UIScale )
-	TextEntry:SetAnchor( GUIItem.Left, GUIItem.Top )
-	TextEntry:SetLayer( kGUILayerChat )
-	TextEntry:SetPos( TextBoxPos * UIScale )
-	TextEntry:SetTextScale( UIScale * TextScale )
-	TextEntry:SetText( "" )
-	TextEntry:SetStickyFocus( true )
-	TextEntry.UseScheme = false
-
-	TextEntry:SetFocusColour( TextFocusCol )
-	TextEntry:SetDarkColour( TextDarkCol )
-	TextEntry:SetBorderColour( TextBorderCol )
-	TextEntry:SetTextColour( TextCol )
-	TextEntry:SetFont( "fonts/AgencyFB_small.fnt" )
-	TextEntry:SetTextScale( UIScale * TextScale )
+	TextEntry:SetupFromTable{
+		Size = TextBoxSize * UIScale,
+		Anchor = "TopLeft",
+		Pos = TextBoxPos * UIScale,
+		TextScale = UIScale * TextScale,
+		Text = "",
+		StickyFocus = true,
+		FocusColour = TextFocusCol,
+		DarkColour = TextDarkCol,
+		BorderColour = TextBorderCol,
+		TextColour = TextCol,
+		Font = "fonts/AgencyFB_small.fnt",
+		TextScale = UIScale * TextScale,
+		IsSchemed = false
+	}
 
 	TextEntry.InnerBox:SetColor( TextDarkCol )
 
@@ -287,151 +295,184 @@ function Plugin:CreateChatbox()
 	self.TextEntry = TextEntry
 
 	local SettingsButton = SGUI:Create( "Button", DummyPanel )
-	SettingsButton:SetSize( SettingsButtonSize * UIScale )
-	SettingsButton:SetPos( SettingsButtonPos * UIScale )
-	SettingsButton:SetText( ">" )
-	SettingsButton:SetActiveCol( ButtonActiveCol )
-	SettingsButton:SetInactiveCol( ButtonInActiveCol )
-	SettingsButton.UseScheme = false
+	SettingsButton:SetupFromTable{
+		Size = SettingsButtonSize * UIScale,
+		Pos = SettingsButtonPos * UIScale,
+		Text = ">",
+		ActiveCol = ButtonActiveCol,
+		InactiveCol = ButtonInActiveCol,
+		IsSchemed = false
+	}
 
 	function SettingsButton:DoClick()
-		if not SGUI.IsValid( Plugin.SettingsPanel ) then
-			local SettingsPanel = SGUI:Create( "Panel", DummyPanel )
-			SettingsPanel:SetAnchor( GUIItem.Right, GUIItem.Top )
-			SettingsPanel:SetPos( SettingsPos * UIScale )
-			SettingsPanel:SetScrollable()
-			SettingsPanel:SetSize( SettingsClosedSize * UIScale )
-			SettingsPanel:SetColour( SettingsCol )
-			SettingsPanel.UseScheme = false
-
-			Plugin.SettingsPanel = SettingsPanel
-
-			local Title = SettingsPanel:Add( "Label" )
-			Title:SetPos( TitlePos * UIScale )
-			Title:SetFont( "fonts/AgencyFB_small.fnt" )
-			Title:SetText( "Settings" )
-			Title:SetColour( ModeTextCol )
-
-			local AutoClose = SettingsPanel:Add( "CheckBox" )
-			AutoClose:SetPos( AutoClosePos * UIScale )
-			AutoClose:SetSize( SettingsButtonSize * UIScale )
-			AutoClose:AddLabel( "Auto close after sending." )
-			AutoClose:SetCheckedColour( CheckedCol )
-			AutoClose:SetBackgroundColour( CheckBackCol )
-			function AutoClose:OnChecked( Value )
-				if Value == Plugin.Config.AutoClose then return end
-				
-				Plugin.Config.AutoClose = Value
-
-				Plugin:SaveConfig()
-			end
-			AutoClose:SetChecked( Plugin.Config.AutoClose )
-			AutoClose:SetFont( "fonts/AgencyFB_small.fnt" )
-			AutoClose:SetTextColour( ModeTextCol )
-			AutoClose:SetupStencil()
-
-			local AutoDelete = SettingsPanel:Add( "CheckBox" )
-			AutoDelete:SetPos( AutoDeletePos * UIScale )
-			AutoDelete:SetSize( SettingsButtonSize * UIScale )
-			AutoDelete:AddLabel( "Auto delete message on close." )
-			AutoDelete:SetCheckedColour( CheckedCol )
-			AutoDelete:SetBackgroundColour( CheckBackCol )
-			function AutoDelete:OnChecked( Value )
-				if Value == Plugin.Config.DeleteOnClose then return end
-				
-				Plugin.Config.DeleteOnClose = Value
-
-				Plugin:SaveConfig()
-			end
-			AutoDelete:SetChecked( Plugin.Config.DeleteOnClose )
-			AutoDelete:SetFont( "fonts/AgencyFB_small.fnt" )
-			AutoDelete:SetTextColour( ModeTextCol )
-			AutoDelete:SetupStencil()
-
-			local SmoothScroll = SettingsPanel:Add( "CheckBox" )
-			SmoothScroll:SetPos( SmoothScrollPos * UIScale )
-			SmoothScroll:SetSize( SettingsButtonSize * UIScale )
-			SmoothScroll:AddLabel( "Use smooth scrolling." )
-			SmoothScroll:SetCheckedColour( CheckedCol )
-			SmoothScroll:SetBackgroundColour( CheckBackCol )
-			function SmoothScroll:OnChecked( Value )
-				if Value == Plugin.Config.SmoothScroll then return end
-				
-				Plugin.Config.SmoothScroll = Value
-
-				Plugin.ChatBox:SetAllowSmoothScroll( Value )
-
-				Plugin:SaveConfig()
-			end
-			SmoothScroll:SetChecked( Plugin.Config.SmoothScroll )
-			SmoothScroll:SetFont( "fonts/AgencyFB_small.fnt" )
-			SmoothScroll:SetTextColour( ModeTextCol )
-			SmoothScroll:SetupStencil()
-
-			local MessageMemoryText = SettingsPanel:Add( "Label" )
-			MessageMemoryText:SetPos( MessageMemoryTextPos * UIScale )
-			MessageMemoryText:SetFont( "fonts/AgencyFB_small.fnt" )
-			MessageMemoryText:SetText( "Message memory" )
-			MessageMemoryText:SetColour( ModeTextCol )
-
-			local MessageMemory = SettingsPanel:Add( "Slider" )
-			MessageMemory:SetPos( MessageMemoryPos * UIScale )
-			MessageMemory:SetBounds( 10, 100 )
-			MessageMemory:SetValue( Plugin.Config.MessageMemory )
-			MessageMemory:SetHandleColour( CheckedCol )
-			MessageMemory:SetLineColour( ModeTextCol )
-			MessageMemory:SetDarkLineColour( TextDarkCol )
-			MessageMemory:SetFont( "fonts/AgencyFB_small.fnt" )
-			MessageMemory:SetTextColour( ModeTextCol )
-			function MessageMemory:OnValueChanged( Value )
-				if Plugin.Config.MessageMemory == Value then return end
-				
-				Plugin.Config.MessageMemory = Value
-
-				Plugin:SaveConfig()
-			end
-		end
-
-		if SettingsButton.Expanding then return end
-
-		SettingsButton.Expanding = true
-
-		local SettingsPanel = Plugin.SettingsPanel
-
-		if not SettingsButton.Expanded then
-			local Start = SettingsClosedSize * UIScale
-			local End = SettingsSize * UIScale
-			local Element = SettingsPanel.Background
-
-			SettingsPanel:SetIsVisible( true )
-
-			SettingsPanel:SizeTo( Element, Start, End, 0, 0.5, function( Panel )
-				SettingsPanel:SetSize( SettingsSize * UIScale )
-				SettingsButton.Expanded = true
-
-				Plugin.SettingsButton:SetText( "<" )
-
-				SettingsButton.Expanding = false
-			end )
-		else
-			local End = SettingsClosedSize * UIScale
-			local Start = SettingsSize * UIScale
-			local Element = SettingsPanel.Background
-
-			SettingsPanel:SizeTo( Element, Start, End, 0, 0.5, function( Panel )
-				SettingsPanel:SetSize( SettingsClosedSize * UIScale )
-				SettingsButton.Expanded = false
-
-				SettingsPanel:SetIsVisible( false )
-
-				Plugin.SettingsButton:SetText( ">" )
-
-				SettingsButton.Expanding = false
-			end )
-		end
+		Plugin:OpenSettings( DummyPanel, UIScale )
 	end
 
 	self.SettingsButton = SettingsButton
+end
+
+function Plugin:CreateSettings( DummyPanel, UIScale )
+	local SettingsPanel = SGUI:Create( "Panel", DummyPanel )
+	SettingsPanel:SetupFromTable{
+		Anchor = "TopRight",
+		Pos = SettingsPos * UIScale,
+		Scrollable = true,
+		Size = SettingsClosedSize * UIScale,
+		Colour = SettingsCol,
+		IsSchemed = false
+	}
+
+	self.SettingsPanel = SettingsPanel
+
+	local Title = SettingsPanel:Add( "Label" )
+	Title:SetupFromTable{
+		Pos = TitlePos * UIScale,
+		Font = "fonts/AgencyFB_small.fnt",
+		Text = "Settings",
+		Colour = ModeTextCol,
+		IsSchemed = false
+	}
+
+	local AutoClose = SettingsPanel:Add( "CheckBox" )
+	AutoClose:SetupFromTable{
+		Pos = AutoClosePos * UIScale,
+		Size = SettingsButtonSize * UIScale,
+		CheckedColour = CheckedCol,
+		BackgroundColour = CheckBackCol,
+		Checked = self.Config.AutoClose,
+		Font = "fonts/AgencyFB_small.fnt",
+		TextColour = ModeTextCol,
+		IsSchemed = false
+	}
+	AutoClose:AddLabel( "Auto close after sending." )
+
+	function AutoClose:OnChecked( Value )
+		if Value == Plugin.Config.AutoClose then return end
+		
+		Plugin.Config.AutoClose = Value
+
+		Plugin:SaveConfig()
+	end
+
+	local AutoDelete = SettingsPanel:Add( "CheckBox" )
+	AutoDelete:SetupFromTable{
+		Pos = AutoDeletePos * UIScale,
+		Size = SettingsButtonSize * UIScale,
+		CheckedColour = CheckedCol,
+		BackgroundColour = CheckBackCol,
+		Checked = self.Config.DeleteOnClose,
+		Font = "fonts/AgencyFB_small.fnt",
+		TextColour = ModeTextCol,
+		IsSchemed = false
+	}
+	AutoDelete:AddLabel( "Auto delete message on close." )
+
+	function AutoDelete:OnChecked( Value )
+		if Value == Plugin.Config.DeleteOnClose then return end
+		
+		Plugin.Config.DeleteOnClose = Value
+
+		Plugin:SaveConfig()
+	end
+
+	local SmoothScroll = SettingsPanel:Add( "CheckBox" )
+	SmoothScroll:SetupFromTable{
+		Pos = SmoothScrollPos * UIScale,
+		Size = SettingsButtonSize * UIScale,
+		CheckedColour = CheckedCol,
+		BackgroundColour = CheckBackCol,
+		Checked = self.Config.SmoothScroll,
+		Font = "fonts/AgencyFB_small.fnt",
+		TextColour = ModeTextCol,
+		IsSchemed = false
+	}
+	SmoothScroll:AddLabel( "Use smooth scrolling." )
+
+	function SmoothScroll:OnChecked( Value )
+		if Value == Plugin.Config.SmoothScroll then return end
+		
+		Plugin.Config.SmoothScroll = Value
+
+		Plugin.ChatBox:SetAllowSmoothScroll( Value )
+
+		Plugin:SaveConfig()
+	end
+
+	local MessageMemoryText = SettingsPanel:Add( "Label" )
+	MessageMemoryText:SetupFromTable{
+		Pos = MessageMemoryTextPos * UIScale,
+		Font = "fonts/AgencyFB_small.fnt",
+		Text = "Message memory",
+		Colour = ModeTextCol,
+		IsSchemed = false
+	}
+
+	local MessageMemory = SettingsPanel:Add( "Slider" )
+	MessageMemory:SetupFromTable{
+		Pos = MessageMemoryPos * UIScale,
+		Value = self.Config.MessageMemory,
+		HandleColour = CheckedCol,
+		LineColour = ModeTextCol,
+		DarkLineColour = TextDarkCol,
+		Font = "fonts/AgencyFB_small.fnt",
+		TextColour = ModeTextCol,
+		IsSchemed = false
+	}
+	MessageMemory:SetBounds( 10, 100 )
+
+	function MessageMemory:OnValueChanged( Value )
+		if Plugin.Config.MessageMemory == Value then return end
+		
+		Plugin.Config.MessageMemory = Value
+
+		Plugin:SaveConfig()
+	end
+end
+
+function Plugin:OpenSettings( DummyPanel, UIScale )
+	if not SGUI.IsValid( Plugin.SettingsPanel ) then
+		self:CreateSettings( DummyPanel, UIScale )
+	end
+
+	local SettingsButton = self.SettingsButton
+
+	if SettingsButton.Expanding then return end
+
+	SettingsButton.Expanding = true
+
+	local SettingsPanel = Plugin.SettingsPanel
+
+	if not SettingsButton.Expanded then
+		local Start = SettingsClosedSize * UIScale
+		local End = SettingsSize * UIScale
+		local Element = SettingsPanel.Background
+
+		SettingsPanel:SetIsVisible( true )
+
+		SettingsPanel:SizeTo( Element, Start, End, 0, 0.5, function( Panel )
+			SettingsPanel:SetSize( SettingsSize * UIScale )
+			SettingsButton.Expanded = true
+
+			Plugin.SettingsButton:SetText( "<" )
+
+			SettingsButton.Expanding = false
+		end )
+	else
+		local End = SettingsClosedSize * UIScale
+		local Start = SettingsSize * UIScale
+		local Element = SettingsPanel.Background
+
+		SettingsPanel:SizeTo( Element, Start, End, 0, 0.5, function( Panel )
+			SettingsPanel:SetSize( SettingsClosedSize * UIScale )
+			SettingsButton.Expanded = false
+
+			SettingsPanel:SetIsVisible( false )
+
+			Plugin.SettingsButton:SetText( ">" )
+
+			SettingsButton.Expanding = false
+		end )
+	end
 end
 
 --Close on pressing escape (it's not hardcoded, unlike Source!)
@@ -454,10 +495,10 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	for i = 1, #Messages do
 		local Message = Messages[ i ]
 		local PreText = Message.Pre:GetText()
-		local PreCol = Message.Pre:GetColor()
+		local PreCol = Message.Pre:GetColour()
 
 		local MessageText = Message.Message:GetText()
-		local MessageCol = Message.Message:GetColor()
+		local MessageCol = Message.Message:GetColour()
 
 		Recreate[ i ] = { PreText = PreText, PreCol = PreCol, MessageText = MessageText, MessageCol = MessageCol }
 	end
@@ -731,3 +772,9 @@ local EnableCommand = Shine:RegisterClientCommand( "sh_chatbox", function( Enabl
 	end
 end )
 EnableCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Enabled end }
+
+Shine.Hook.Add( "OnMapLoad", "NotifyAboutChatBox", function()
+	if not Shine.AutoLoadPlugins or not Shine.AutoLoadPlugins[ "chatbox" ] then
+		Shine.AddStartupMessage( "Shine has a chatbox that you can enable by entering \"sh_chatbox 1\" into the console." )
+	end
+end )

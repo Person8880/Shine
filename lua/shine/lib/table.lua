@@ -4,7 +4,9 @@
 
 local pairs = pairs
 local Random = math.random
+local StringFormat = string.format
 local StringRep = string.rep
+local TableConcat = table.concat
 local TableSort = table.sort
 
 --[[
@@ -137,6 +139,25 @@ function PrintTable( Table, Indent )
 			Print( "%s%s = %s", IndentString, tostring( k ), tostring( v ) )
 		end
 	end
+end
+
+function table.ToString( Table, Indent )
+	Indent = Indent or 0
+	
+	local Strings = {}
+
+	local IndentString = StringRep( "\t", Indent )
+
+	for k, v in pairs( Table ) do
+		if IsType( v, "table" ) then
+			Strings[ #Strings + 1 ] = StringFormat( "%s%s:", IndentString, tostring( k ) )
+			Strings[ #Strings + 1 ] = table.ToString( v, Indent + 2 )
+		else
+			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString, tostring( k ), tostring( v ) )
+		end
+	end
+
+	return TableConcat( Strings, "\n" )
 end
 
 local function CopyTable( Table, LookupTable )

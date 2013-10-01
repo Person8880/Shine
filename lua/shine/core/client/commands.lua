@@ -3,13 +3,16 @@
 ]]
 
 local assert = assert
+local Notify = Shared.Message
 local setmetatable = setmetatable
 local Round = math.Round
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
 local TableRemove = table.remove
+local Traceback = debug.traceback
 local type = type
+local xpcall = xpcall
 
 --[[
 	Command object.
@@ -44,22 +47,22 @@ end
 local HookedCommands = {}
 
 local ClientCommands = {}
-
 Shine.ClientCommands = ClientCommands
 
 --[[
-	Registers a Shine command.
-	Inputs: Console command to assign, optional chat command to assign, function to run, optional silent flag to always be silent.
+	Registers a Shine client side command.
+	Inputs: Console command to assign, function to run.
 ]]
 function Shine:RegisterClientCommand( ConCommand, Function )
-	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterCommand, string expected, got "..type( ConCommand ) )
-	assert( type( Function ) == "function", "Bad argument #3 to RegisterCommand, function expected, got "..type( Function ) )
+	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterClientCommand, string expected, got "..type( ConCommand ) )
+	assert( type( Function ) == "function", "Bad argument #2 to RegisterClientCommand, function expected, got "..type( Function ) )
 
 	local CmdObj = Command( ConCommand, Function )
 
 	ClientCommands[ ConCommand ] = CmdObj
 
-	if not HookedCommands[ ConCommand ] then --This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
+	--This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
+	if not HookedCommands[ ConCommand ] then
 		Event.Hook( "Console_"..ConCommand, function( ... )
 			return Shine:RunClientCommand( ConCommand, ... )
 		end )
@@ -145,9 +148,16 @@ local function ParseParameter( String, Table )
     end
 end
 
+local function OnError( Error )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "Error: %s.\n%s", true, Error, Trace )
+	Shine:AddErrorReport( StringFormat( "Client command error: %s.", Error ), Trace )
+end
+
 --[[
-	Executes a Shine command. Should not be called directly.
-	Inputs: Client running the command, console command to run, string arguments passed to the command.
+	Executes a client side Shine command. Should not be called directly.
+	Inputs: Console command to run, string arguments passed to the command.
 ]]
 function Shine:RunClientCommand( ConCommand, ... )
 	local Command = ClientCommands[ ConCommand ]
@@ -168,7 +178,7 @@ function Shine:RunClientCommand( ConCommand, ... )
 
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
-			Shared.Message( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.", i, ConCommand, CurArg.Type ) )
+			Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.", i, ConCommand, CurArg.Type ) )
 
 			return
 		end
@@ -194,5 +204,9 @@ function Shine:RunClientCommand( ConCommand, ... )
 	end
 
 	--Run the command with the parsed arguments we've gathered.
-	Command.Func( unpack( ParsedArgs ) )
+	local Success = xpcall( Command.Func, OnError, unpack( ParsedArgs ) )
+
+	if not Success then
+		Shine:DebugPrint( "An error occurred when running the command: '%s'.", true, ConCommand )
+	end
 end

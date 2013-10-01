@@ -5,6 +5,7 @@
 ]]
 
 local Shine = Shine
+local Timer = Shine.Timer
 
 local Floor = math.floor
 local Max = math.max
@@ -26,38 +27,100 @@ Plugin.CheckConfig = true
 function Plugin:Initialise()
 	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )
 
-	if self.Config.Slots > 0 and not self.Config.TakeSlotInstantly then
-		self.OldTag = "R_S"..self.Config.Slots
-
-		Server.AddTag( self.OldTag )
+	if self.Config.Slots > 0 then
+		if not self.Config.TakeSlotInstantly then
+			Server.AddTag( "R_S"..self.Config.Slots )
+		else
+			Server.AddTag( "R_S"..self:GetFreeReservedSlots() )
+		end
 	end
+
+	self.ConnectingCount = 0
+	self.Connecting = {}
 
 	self.Enabled = true
 
 	return true
 end
 
+function Plugin:GetFreeReservedSlots()
+	local Slots = self.Config.Slots
+
+	if not self.Config.TakeSlotInstantly then
+		return Slots
+	end
+
+	local Reserved, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+
+	Slots = Max( Slots - Count, 0 )
+
+	return Slots
+end
+
 --[[
 	Update the server tag with the current reserved slot count.
 ]]
 function Plugin:UpdateTag( Slots )
-	if not self.OldTag then
-		local Tag = "R_S"..Slots
+	local Tags = {}
 
-		Server.AddTag( Tag )
+	Server.GetTags( Tags )
 
-		self.OldTag = Tag
-	else
-		local Tag = "R_S"..Slots
+	for i = 1, #Tags do
+		local Tag = Tags[ i ]
 
-		if Tag == self.OldTag then return end
-
-		Server.RemoveTag( self.OldTag )
-
-		Server.AddTag( Tag )
-
-		self.OldTag = Tag
+		if Tag and Tag:find( "R_S" ) then
+			Server.RemoveTag( Tag )
+		end
 	end
+
+	Server.AddTag( "R_S"..Slots )
+end
+
+local GetNumPlayers = Server.GetNumPlayers
+
+--[[
+	Returns a better estimate at the player count than Server.GetNumPlayers() alone.
+	Takes into account connecting but not loaded players.
+]]
+function Plugin:GetRealPlayerCount()
+	return GetNumPlayers() + self.ConnectingCount
+end
+
+--[[
+	Adds a player to the connecting list. If they cancel loading we won't
+	know, so we give them 5 minutes to connect (NS2 can be slow to load...)
+	then remove them if they haven't connected by then.
+]]
+function Plugin:AddConnectingPlayer( ID )
+	--We don't want to add them again if they're still in the list.
+	if not self.Connecting[ ID ] then
+		self.Connecting[ ID ] = true
+		self.ConnectingCount = self.ConnectingCount + 1
+	end
+
+	Timer.Create( "RS_Connecting_"..ID, 300, 1, function()
+		if not self.Connecting[ ID ] then return end
+		
+		self.Connecting[ ID ] = nil
+		self.ConnectingCount = self.ConnectingCount - 1
+	end )
+end
+
+--[[
+	On final connect, if we had the client stored as a connecting client,
+	then remove them as Server.GetNumPlayers() will now count them.
+]]
+function Plugin:ClientConnect( Client )
+	local ID = Client:GetUserId()
+
+	if self.Connecting[ ID ] then
+		self.Connecting[ ID ] = nil
+		self.ConnectingCount = self.ConnectingCount - 1
+
+		Timer.Destroy( "RS_Connecting_"..ID )
+	end
+
+	self:UpdateTag( self:GetFreeReservedSlots() )
 end
 
 --[[
@@ -65,36 +128,51 @@ end
 	At last, a proper connection event.
 ]]
 function Plugin:CheckConnectionAllowed( ID )
-	local Connected = Server.GetNumPlayers()
-	local MaxPlayers = Server.GetMaxPlayers()
+	ID = tonumber( ID )
 
-	--Deny on full.
-	if Connected >= MaxPlayers then return false end
-	--Allow if they have reserved access, skip checking the connected count.
-	if Shine:HasAccess( tonumber( ID ), "sh_reservedslot" ) then return true end
+	local Connected = self:GetRealPlayerCount()
+	local MaxPlayers = Server.GetMaxPlayers()
 
 	local Slots = self.Config.Slots
 
 	--Deduct reserved slot users from the number of reserved slots empty.
 	if self.Config.TakeSlotInstantly then
-		local Reserved, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
-
-		Slots = Max( Slots - Count, 0 )
+		Slots = self:GetFreeReservedSlots()
 
 		self:UpdateTag( Slots )
-	
-		if Slots == 0 then return true end
+	end
+
+	--Deny on full.
+	if Connected >= MaxPlayers then return false end
+	--Allow if they have reserved access, skip checking the connected count.
+	if Shine:HasAccess( ID, "sh_reservedslot" ) then
+		self:AddConnectingPlayer( ID )
+
+		return true
+	end
+
+	if Slots == 0 then
+		self:AddConnectingPlayer( ID )
+
+		return true
 	end
 
 	local MaxPublic = MaxPlayers - Slots
 
 	--We've got enough room for them.
-	if MaxPublic > Connected then return true end
+	if MaxPublic > Connected then
+		self:AddConnectingPlayer( ID )
+
+		return true
+	end
 
 	return false
 end
 
 function Plugin:Cleanup()
+	self.ConnectingCount = nil
+	self.Connecting = nil
+
 	self.Enabled = false
 end
 

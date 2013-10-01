@@ -18,6 +18,7 @@ local pairs = pairs
 local setmetatable = setmetatable
 local StringFormat = string.format
 local TableRemove = table.remove
+local xpcall = xpcall
 
 --Useful functions for colours.
 include "lua/shine/lib/colour.lua"
@@ -39,7 +40,19 @@ SGUI.BaseLayer = 20
 --Global control meta-table.
 local ControlMeta = {}
 
---local DummyText
+--[[
+	Adds Get and Set functions for a property name, with an optional default value.
+]]
+function SGUI.AddProperty( Table, Name, Default )
+	Table[ "Set"..Name ] = function( self, Value )
+		self[ Name ] = Value
+	end
+
+	Table[ "Get"..Name ] = function( self )
+		return self[ Name ] or Default
+	end
+end
+
 local WideStringToString = Locale.WideStringToString
 
 function SGUI.GetChar( Char )
@@ -88,6 +101,15 @@ function SGUI:SetWindowFocus( Window, i )
 	self.FocusedWindow = Window
 end
 
+local Traceback = debug.traceback
+
+local function OnError( Error )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "SGUI Error: %s.\n%s", true, Error, Trace )
+	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ), Trace )
+end
+
 --[[
 	Passes an event to all active SGUI windows.
 
@@ -105,28 +127,42 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 		local Window = Windows[ i ]
 
 		if Window[ Name ] and Window:GetIsVisible() then
-			local Result = Window[ Name ]( Window, ... )
+			local Success, Result = xpcall( Window[ Name ], OnError, Window, ... )
 
-			if Result ~= nil then
-				if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-					SGUI:SetWindowFocus( Window, i )
+			if Success then
+				if Result ~= nil then
+					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
+						SGUI:SetWindowFocus( Window, i )
+					end
+
+					return Result
 				end
-
-				return Result
+			else
+				Window:Destroy()
 			end
 		end
 	end
 end
 
+local IsType = Shine.IsType
+
 --[[
 	Calls an event on all active SGUI controls, out of order.
 
-	Inputs: Event name, arguments.
+	Inputs: Event name, optional check function, arguments.
 ]]
-function SGUI:CallGlobalEvent( Name, ... )
-	for Control in pairs( self.ActiveControls ) do
-		if Control[ Name ] then
-			Control[ Name ]( Name, ... )
+function SGUI:CallGlobalEvent( Name, CheckFunc, ... )
+	if IsType( CheckFunc, "function" ) then
+		for Control in pairs( self.ActiveControls ) do
+			if Control[ Name ] and CheckFunc( Control ) then
+				Control[ Name ]( Control, Name, ... )
+			end
+		end
+	else
+		for Control in pairs( self.ActiveControls ) do
+			if Control[ Name ] then
+				Control[ Name ]( Control, Name, ... )
+			end
 		end
 	end
 end
@@ -171,15 +207,19 @@ end
 
 --[[
 	Registers a skin.
-	Inputs: Skin name, table of colour/texture values.
+	Inputs: Skin name, table of colour/texture/font/size values.
 ]]
 function SGUI:RegisterSkin( Name, Values )
 	self.Skins[ Name ] = Values
 end
 
+local function CheckIsSchemed( Control )
+	return Control.UseScheme
+end
+
 --[[
 	Sets the current skin. This will reskin all active globally skinned objects.
-	Input: Scheme name registered with SGUI:RegisterColourScheme()
+	Input: Skin name registered with SGUI:RegisterSkin()
 ]]
 function SGUI:SetSkin( Name )
 	local SchemeTable = self.Skins[ Name ]
@@ -188,7 +228,7 @@ function SGUI:SetSkin( Name )
 
 	self.ActiveSkin = Name
 
-	return SGUI:CallGlobalEvent( "OnSchemeChange", SchemeTable ) --Notify all elements of the change.
+	return SGUI:CallGlobalEvent( "OnSchemeChange", CheckIsSchemed, SchemeTable ) --Notify all elements of the change.
 end
 
 --[[
@@ -312,6 +352,18 @@ function SGUI:Destroy( Control )
 		end
 	end
 
+	local DeleteOnRemove = Control.__DeleteOnRemove
+
+	if DeleteOnRemove then
+		for i = 1, #DeleteOnRemove do
+			local Control = DeleteOnRemove[ i ]
+
+			if self.IsValid( Control ) then
+				Control:Destroy()
+			end
+		end
+	end
+
 	Control:Cleanup()
 
 	--If it's a window, then clean it up.
@@ -429,6 +481,30 @@ function ControlMeta:Destroy()
 end
 
 --[[
+	Sets a control to be destroyed when this one is.
+]]
+function ControlMeta:DeleteOnRemove( Control )
+	self.__DeleteOnRemove = self.__DeleteOnRemove or {}
+
+	local Table = self.__DeleteOnRemove
+
+	Table[ #Table + 1 ] = Control
+end
+
+--[[
+	Sets up a control's properties using a table.
+]]
+function ControlMeta:SetupFromTable( Table )
+	for Property, Value in pairs( Table ) do
+		local Method = "Set"..Property
+
+		if self[ Method ] then
+			self[ Method ]( self, Value )
+		end
+	end
+end
+
+--[[
 	Sets a control's parent manually.
 ]]
 function ControlMeta:SetParent( Control, Element )
@@ -472,7 +548,7 @@ end
 	Ignores children with the _CallEventsManually flag.
 ]]
 function ControlMeta:CallOnChildren( Name, ... )
-	if not self.Children then return end
+	if not self.Children then return nil end
 
 	--Call the event on every child of this object, no particular order.
 	for Child in pairs( self.Children ) do
@@ -484,6 +560,8 @@ function ControlMeta:CallOnChildren( Name, ... )
 			end
 		end
 	end
+
+	return nil
 end
 
 --[[
@@ -507,10 +585,12 @@ end
 function ControlMeta:SetupStencil()
 	self.Background:SetInheritsParentStencilSettings( false )
 	self.Background:SetStencilFunc( GUIItem.NotEqual )
+
+	self.Stencilled = true
 end
 
 --[[
-	Determines if the given control should use the global colour scheme.
+	Determines if the given control should use the global skin.
 ]]
 function ControlMeta:SetIsSchemed( Bool )
 	self.UseScheme = Bool and true or false
@@ -590,13 +670,39 @@ function ControlMeta:GetPos()
 	return self.Background:GetPosition()
 end
 
+local Anchors = {
+	TopLeft = { GUIItem.Left, GUIItem.Top },
+	TopMiddle = { GUIItem.Middle, GUIItem.Top },
+	TopRight = { GUIItem.Right, GUIItem.Top },
+
+	CentreLeft = { GUIItem.Left, GUIItem.Center },
+	CentreMiddle = { GUIItem.Middle, GUIItem.Center },
+	CentreRight = { GUIItem.Right, GUIItem.Center },
+
+	CenterLeft = { GUIItem.Left, GUIItem.Center },
+	CenterMiddle = { GUIItem.Middle, GUIItem.Center },
+	CenterRight = { GUIItem.Right, GUIItem.Center },
+
+	BottomLeft = { GUIItem.Left, GUIItem.Bottom },
+	BottomMiddle = { GUIItem.Middle, GUIItem.Bottom },
+	BottomRight = { GUIItem.Right, GUIItem.Bottom }
+}
+
 --[[
 	Sets the origin anchors for the control.
 ]]
 function ControlMeta:SetAnchor( X, Y )
 	if not self.Background then return end
-	
-	self.Background:SetAnchor( X, Y )
+
+	if IsType( X, "string" ) then
+		local Anchor = Anchors[ X ]
+
+		if Anchor then
+			self.Background:SetAnchor( Anchor[ 1 ], Anchor[ 2 ] )
+		end
+	else
+		self.Background:SetAnchor( X, Y )
+	end
 end
 
 function ControlMeta:GetAnchor()
@@ -923,6 +1029,33 @@ function ControlMeta:Think( DeltaTime )
 		end
 	end
 
+	--Hovering handling for tooltips.
+	if self.OnHover then
+		local MouseIn, X, Y = self:MouseIn( self.Background )
+		if MouseIn then
+			if not self.MouseHoverStart then
+				self.MouseHoverStart = Time
+			else
+				if Time - self.MouseHoverStart > 1 and not self.MouseHovered then
+					self:OnHover( X, Y )
+
+					self.MouseHovered = true
+				end
+			end
+		else
+			self.MouseHoverStart = nil
+			if self.MouseHovered then
+				self.MouseHovered = nil
+
+				if self.OnLoseHover then
+					self:OnLoseHover()
+				end
+			end
+		end
+	end
+end
+
+function ControlMeta:OnMouseMove( Down )
 	--Basic highlight on mouse over handling.
 	if self.HighlightOnMouseOver then
 		if self:MouseIn( self.Background, self.HighlightMult ) then
@@ -948,31 +1081,6 @@ function ControlMeta:Think( DeltaTime )
 				end
 
 				self.Highlighted = false
-			end
-		end
-	end
-
-	--Hovering handling for tooltips.
-	if self.OnHover then
-		local MouseIn, X, Y = self:MouseIn( self.Background )
-		if MouseIn then
-			if not self.MouseHoverStart then
-				self.MouseHoverStart = Time
-			else
-				if Time - self.MouseHoverStart > 1 and not self.MouseHovered then
-					self:OnHover( X, Y )
-
-					self.MouseHovered = true
-				end
-			end
-		else
-			self.MouseHoverStart = nil
-			if self.MouseHovered then
-				self.MouseHovered = nil
-
-				if self.OnLoseHover then
-					self:OnLoseHover()
-				end
 			end
 		end
 	end

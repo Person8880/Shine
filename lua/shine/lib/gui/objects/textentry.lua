@@ -5,8 +5,10 @@
 local SGUI = Shine.GUI
 
 local Clamp = math.Clamp
+local Clock = os.clock
 local Max = math.max
 local Min = math.min
+local StringFormat = string.format
 
 local TextEntry = {}
 
@@ -89,17 +91,6 @@ function TextEntry:Initialise()
 	Text:SetColor( Scheme.DarkText )
 end
 
-function TextEntry:SetupStencil()
-	--self.BaseClass.SetupStencil( self )
-	self.Background:SetInheritsParentStencilSettings( false )
-	self.Background:SetStencilFunc( GUIItem.Equal )
-
-	self.Stencil:SetClearsStencilBuffer( false )
-	
-	self.InnerBox:SetInheritsParentStencilSettings( true )
-	--self.TextObj:SetInheritsParentStencilSettings( true )
-end
-
 function TextEntry:SetSize( SizeVec )
 	self.Background:SetSize( SizeVec )
 
@@ -165,14 +156,11 @@ end
 
 function TextEntry:SetFont( Font )
 	self.TextObj:SetFontName( Font )
+
+	self:SetupCaret()
 end
 
-function TextEntry:SetTextScale( Scale )
-	self.TextObj:SetScale( Scale )
-
-	self.WidthScale = Scale.x
-	self.HeightScale = Scale.y
-
+function TextEntry:SetupCaret()
 	local Caret = self.Caret
 	local TextObj = self.TextObj
 
@@ -181,6 +169,8 @@ function TextEntry:SetTextScale( Scale )
 	Caret:SetSize( Vector( 1, Height, 0 ) )
 
 	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
+
+	if not self.Width then return end
 
 	if Width > self.Width then
 		local Diff = -( Width - self.Width )
@@ -203,6 +193,15 @@ function TextEntry:SetTextScale( Scale )
 
 		TextObj:SetPosition( TextPos )
 	end
+end
+
+function TextEntry:SetTextScale( Scale )
+	self.TextObj:SetScale( Scale )
+
+	self.WidthScale = Scale.x
+	self.HeightScale = Scale.y
+
+	self:SetupCaret()
 end
 
 --[[
@@ -244,38 +243,9 @@ end
 function TextEntry:SetText( Text )
 	self.Text = Text
 
-	local Caret = self.Caret
-	local TextObj = self.TextObj
+	self.TextObj:SetText( Text )
 
-	TextObj:SetText( Text )
-
-	local Height = TextObj:GetTextHeight( "!" ) * self.HeightScale
-
-	Caret:SetSize( Vector( 1, Height, 0 ) )
-
-	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
-
-	if Width > self.Width then
-		local Diff = -( Width - self.Width )
-
-		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
-
-		self.Column = self.Text:UTF8Length()
-
-		Caret:SetPosition( Vector( Width + Diff, self.Height * 0.5 - Height * 0.5, 0 ) )
-
-		self.TextOffset = Diff
-	else
-		self.TextOffset = 0
-
-		self.Column = self.Text:UTF8Length()
-
-		local Pos = Caret:GetPosition()
-
-		Caret:SetPosition( Vector( Width, self.Height * 0.5 - Height * 0.5, 0 ) )
-
-		TextObj:SetPosition( TextPos )
-	end
+	self:SetupCaret()
 end
 
 function TextEntry:GetText()
@@ -298,32 +268,12 @@ end
 function TextEntry:AddCharacter( Char )
 	if not self:AllowChar( Char ) then return end
 
-	self.Text = self.Text:UTF8Sub( 1, self.Column )..Char..self.Text:UTF8Sub( self.Column + 1 )
+	self.Text = StringFormat( "%s%s%s", self.Text:UTF8Sub( 1, self.Column ), Char, self.Text:UTF8Sub( self.Column + 1 ) )
 
 	self.Column = self.Column + 1
 
-	local Caret = self.Caret
-	local TextObj = self.TextObj
-
-	TextObj:SetText( self.Text )
-
-	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
-
-	if Width > self.Width then
-		local Diff = -( Width - self.Width )
-
-		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
-
-		self:SetCaretPos( self.Column )
-
-		self.TextOffset = Diff
-	else
-		self.TextOffset = 0
-
-		self:SetCaretPos( self.Column )
-
-		TextObj:SetPosition( TextPos )
-	end
+	self.TextObj:SetText( self.Text )
+	self:SetCaretPos( self.Column )
 end
 
 --[[
@@ -332,7 +282,6 @@ end
 function TextEntry:RemoveCharacter( Forward )
 	if self.Column == 0 and not Forward then return end
 
-	local Caret = self.Caret
 	local TextObj = self.TextObj
 
 	local OldWidth = TextObj:GetTextWidth( self.Text ) * self.WidthScale
@@ -349,25 +298,8 @@ function TextEntry:RemoveCharacter( Forward )
 		self.Column = Max( self.Column - 1, 0 )
 	end
 
-	local NewWidth = TextObj:GetTextWidth( self.Text ) * self.WidthScale
-
 	TextObj:SetText( self.Text )
-
-	if NewWidth > self.Width then
-		local Diff = -( NewWidth - self.Width )
-
-		self.TextOffset = Min( Diff, 0 )
-
-		self:SetCaretPos( self.Column )
-
-		TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
-	else
-		self.TextOffset = 0
-
-		self:SetCaretPos( self.Column )
-
-		TextObj:SetPosition( TextPos )
-	end
+	self:SetCaretPos( self.Column )
 end
 
 function TextEntry:PlayerType( Char )
@@ -385,7 +317,7 @@ function TextEntry:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
 
 	if self.Enabled then 
-		local Time = Shared.GetTime()
+		local Time = Clock()
 
 		if ( self.NextCaretChange or 0 ) < Time then
 			self.NextCaretChange = Time + 0.5
@@ -397,7 +329,9 @@ function TextEntry:Think( DeltaTime )
 
 		return 
 	end
+end
 
+function TextEntry:OnMouseMove( Down )
 	if not self:MouseIn( self.Background ) then 
 		if self.Highlighted then
 			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.5, function( InnerBox )
@@ -415,6 +349,7 @@ function TextEntry:Think( DeltaTime )
 
 		return 
 	end
+	
 	if self.Highlighted then return end
 
 	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.5, function( InnerBox )

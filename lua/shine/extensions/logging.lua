@@ -35,16 +35,20 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:GetClientInfo( Client )
+function Plugin:GetClientInfo( Client, NoTeam )
 	if not Client then return "Console" end
 	
 	local Player = Client:GetControllingPlayer()
 	local PlayerName = Player and Player:GetName() or "<unknown>"
-	local Team = Player and Shine:GetTeamName( Player:GetTeamNumber(), true ) or "No team"
+	local ID = Client.GetUserId and Client:GetUserId() or 0
 
-	local ID = Client:GetUserId()
+	if not NoTeam then
+		local Team = Player and Shine:GetTeamName( Player:GetTeamNumber(), true ) or "No team"
 
-	return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
+		return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
+	end
+	
+	return StringFormat( "%s[%s]", PlayerName, ID )
 end
 
 function Plugin:ClientConfirmConnect( Client )
@@ -57,7 +61,7 @@ function Plugin:ClientConfirmConnect( Client )
 		return
 	end
 
-	Shine:LogString( StringFormat( "Client %s connected.", self:GetClientInfo( Client ) ) )
+	Shine:LogString( StringFormat( "Client %s connected.", self:GetClientInfo( Client, true ) ) )
 end
 
 function Plugin:ClientDisconnect( Client )
@@ -90,11 +94,15 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if not self.Config.LogTeamJoins then return end
 	if not Player then return end
 
-	local Client = Player:GetClient()
+	local Client = Server.GetOwner( Player )
+
+	if not Client then return end
 	
+	local UserID = Client.GetUserId and Client:GetUserId() or 0
+
 	Shine:LogString( StringFormat( "Player %s[%s] joined team %s.", 
-		Player:GetName(), 
-		Client and Client:GetUserId() or "0", 
+		Player:GetName(),
+		UserID, 
 		Shine:GetTeamName( NewTeam )
 	) )
 end
@@ -233,7 +241,7 @@ function Plugin:OnConstructInit( Building )
 	--We really don't need to know about cysts...
 	if Name:lower() == "cyst" then return end
 
-	if not Team then return end
+	if not Team or not Team.GetCommander then return end
 
 	local Owner = Building:GetOwner()
 	Owner = Owner or Team:GetCommander()
