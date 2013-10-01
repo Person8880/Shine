@@ -153,7 +153,7 @@ function Plugin:checkForMultiKills(name,streak)
         text = StringFormat("%s made a monster kill!", name)
         Plugin:playSoundForEveryPlayer(ShineSoundMonsterkill)
     elseif streak == 23 then
-        text = "Holy Shit! " .. StringFormat("%s got another one!", name)
+        text = StringFormat("Holy Shit! %s got another one!", name)
         Plugin:playSoundForEveryPlayer(ShineSoundHolyshit)
     elseif streak == 25 then
         text = StringFormat("%s is G o d L i k e !!!", name)
