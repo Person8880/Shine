@@ -58,6 +58,9 @@ DisableSounds:AddParam{ Type = "boolean", Optional = true, Default = function() 
 
 local SetSoundVolume = Shine:RegisterClientCommand("sh_setsoundvolume",function (Volume)
     Plugin.Config.SoundValume = Volume
+    
+    Plugin:SaveConfig()
+    
     Notify( StringFormat( "[Shine] Killstreak Sounds Volume has been set to %s.", Volume) )
 end)
 SetSoundVolume:AddParam{Type = "number",Min= 0,Max=200, Round= true, Error = "Please set a value between 0 and 200. Any value outside this limit is not allowed"}
