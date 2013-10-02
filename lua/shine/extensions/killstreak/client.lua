@@ -14,7 +14,8 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "Killstreak.json"
 
 Plugin.DefaultConfig = {
-    PlaySounds = true
+    PlaySounds = true,
+    SoundVolume = 1
 }
 
 Plugin.CheckConfig = true
@@ -32,20 +33,20 @@ function Plugin:ReceivePlaySound(Message)
     if not Message.Name then return end
     
     if self.Config.PlaySounds then    
-        StartSoundEffect(Plugin.Sounds[Message.Name])
+        StartSoundEffect(Plugin.Sounds[Message.Name],self.Config.SoundVolume)
     end
 end
 
 Shine:LoadClientBaseConfig()
 
 local DisableSounds = Shine:RegisterClientCommand( "sh_disablesounds", function( Bool )
-  self.Config.PlaySounds = Bool
+  Plugin.Config.PlaySounds = Bool
 
-  Notify( StringFormat( "[Shine] Playing Shine Sounds has been %s.", Bool and "disabled" or "enabled" ) )
+  Notify( StringFormat( "[Shine] Playing Killstreak Sounds has been %s.", Bool and "enabled" or "disabled") )
 
-  self:SaveConfig() 
+  Plugin:SaveConfig() 
 end)
-DisableSounds:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Enabled end }
+DisableSounds:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Config.PlaySounds end }
 
 function Plugin:Cleanup()
     self.Enabled = false
