@@ -24,7 +24,7 @@ Plugin.SilentConfigSave = true
 function Plugin:Initialise()
     self.Enabled = true
     
-    Notify(StringFormat( "Shine is set to %s Shine Sounds. You can change this with sh_disablesounds", Plugin.Config.PlaySounds and "play" or "mute" ))
+    Notify(StringFormat( "Shine is set to %s Killstreak Sounds. You can change this with sh_disablesounds", Plugin.Config.PlaySounds and "play" or "mute" ))
   
     return true
 end
