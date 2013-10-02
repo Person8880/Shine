@@ -36,38 +36,38 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
     if not Victim:isa("Player") then return end
     
     if not Attacker:isa("Player") then 
-         local realKiller = (Attacker.GetOwner and Attacker:GetOwner()) or nil
-         if realKiller and realKiller:isa("Player") then
-            Attacker = realKiller
+         local RealKiller = Attacker.GetOwner and Attacker:GetOwner() or nil
+         if RealKiller and RealKiller:isa("Player") then
+            Attacker = RealKiller
          else return
          end
     end
     
     local VictimClient = GetOwner( Victim )
-    local victimId = VictimClient:GetUserId() or 0
+    local VictimId = VictimClient:GetUserId() or 0
     
     --for bots
-    if victimId == 0 then victimId = Plugin:GetIdbyName(Victim:GetName()) or 0 end
+    if VictimId == 0 then VictimId = Plugin:GetIdbyName(Victim:GetName()) or 0 end
     
-    if victimId>0 then
-        local vname        
-        if Killstreaks[victimId] and Killstreaks[victimId] > 3 then  vname = Victim:GetName() end
-        Killstreaks[victimId] = nil 
-        if vname then Shine:NotifyColour(nil,255,0,0,StringFormat("%s has been stopped",vname)) end
+    if VictimId>0 then
+        local VName        
+        if Killstreaks[VictimId] and Killstreaks[VictimId] > 3 then  VName = Victim:GetName() end
+        Killstreaks[VictimId] = nil 
+        if VName then Shine:NotifyColour(nil,255,0,0,StringFormat("%s has been stopped",VName)) end
     else return end
     
     local AttackerClient = GetOwner( Attacker )
     if not AttackerClient then return end
     
-    local steamId = AttackerClient:GetUserId() or 0
-    local name = Attacker:GetName()
-    if steamId == 0 then steamId = Plugin:GetIdbyName(name) end
-    if not steamId or steamId<=0 then return end
+    local SteamId = AttackerClient:GetUserId() or 0
+    local Name = Attacker:GetName()
+    if SteamId == 0 then SteamId = Plugin:GetIdbyName(Name) end
+    if not SteamId or SteamId<=0 then return end
     
-    if not Killstreaks[steamId] then Killstreaks[steamId] = 1
-    else Killstreaks[steamId] = Killstreaks[steamId] + 1 end    
+    if not Killstreaks[SteamId] then Killstreaks[SteamId] = 1
+    else Killstreaks[SteamId] = Killstreaks[SteamId] + 1 end    
 
-    Plugin:checkForMultiKills(name,Killstreaks[steamId])      
+    Plugin:CheckForMultiKills(Name,Killstreaks[SteamId])      
 end
 
 Shine.Hook.SetupGlobalHook("RemoveAllObstacles","OnGameReset","PassivePost")
@@ -109,87 +109,88 @@ function Plugin:GetIdbyName(Name)
     return newId
 end
 
-function Plugin:checkForMultiKills(name,streak)
+local Streaks = {
+    [ 3 ] = {
+        Text = "%s is on a triple kill!",
+        Sound = "Triplekill"
+    },    
+    [ 5 ] = {
+        Text = "%s is on multikill!",
+        Sound = "Multikill"
+    },    
+    [ 6 ] = {
+        Text = "%s is on rampage!",
+        Sound = "Rampage"
+    },
+    [ 7 ] = {
+        Text = "%s is on a killing spree!",
+        Sound = "Killingspree"
+    },
+    [ 9 ] = {
+        Text = "%s is dominating!",
+        Sound = "Dominating"
+    },
+    [ 11 ] = {
+        Text = "%s is unstoppable!",
+        Sound = "Unstoppable"
+    },
+    [ 13 ] = {
+        Text = "%s made a mega kill!",
+        Sound = "Megakill"
+    },
+    [ 15 ] = {
+        Text = "%s made an ultra kill!",
+        Sound = "Ultrakill"
+    },
+    [ 17 ] = {
+        Text = "%s owns!",
+        Sound = "Ownage"
+    },
+    [ 18 ] = {
+        Text = "%s made a ludicrouskill!",
+        Sound = "Ludicrouskill"
+    },
+    [ 19 ] = {
+        Text = "%s is a head hunter!",
+        Sound = "Headhunter"
+    },
+    [ 20 ] = {
+        Text = "%s is whicked sick!",
+        Sound = "Whickedsick"
+    },
+    [ 21 ] = {
+        Text = "%s made a monster kill!",
+        Sound = "Monsterkill"
+    },
+    [ 23 ] = {
+        Text = "Holy Shit! %s got another one!",
+        Sound = "Holyshit"
+    },
+    [ 25 ] = {
+        Text = "%s is G o d L i k e !!!",
+        Sound = "Godlike"
+    }
+}
+Streaks[27] = Streaks[25]
+Streaks[30] = Streaks[25]
+Streaks[34] = Streaks[25]
+Streaks[40] = Streaks[25]
+Streaks[48] = Streaks[25]
+Streaks[58] = Streaks[25]
+Streaks[70] = Streaks[25]
+Streaks[80] = Streaks[25]
+Streaks[100] = Streaks[25]
         
-    local text = ""
-    
-    if streak == 3 then
-        text = StringFormat("%s is on triple kill!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundTriplekill)
-    elseif streak == 5 then
-        text = StringFormat("%s is on multikill!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundMultikill)
-    elseif streak == 6 then
-        text = StringFormat("%s is on rampage!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundRampage)
-    elseif streak == 7 then
-        text = StringFormat("%s is on a killing spree!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundKillingspree)
-    elseif streak == 9 then
-        text = StringFormat("%s is dominating!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundDominating)
-    elseif streak == 11 then
-        text = StringFormat("%s is unstoppable!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundUnstoppable)
-    elseif streak == 13 then
-        text = StringFormat("%s made a mega kill!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundMegakill)
-    elseif streak == 15 then
-        text = StringFormat("%s made an ultra kill!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundUltrakill)
-    elseif streak == 17 then
-        text = StringFormat("%s owns!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundOwnage)
-    elseif streak == 18 then
-        text = StringFormat("%s made a ludicrouskill!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundLudicrouskill)
-    elseif streak == 19 then
-        text = StringFormat("%s is a head hunter!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundHeadhunter)
-    elseif streak == 20 then
-        text = StringFormat("%s is whicked sick!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundWhickedsick)
-    elseif streak == 21 then
-        text = StringFormat("%s made a monster kill!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundMonsterkill)
-    elseif streak == 23 then
-        text = StringFormat("Holy Shit! %s got another one!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundHolyshit)
-    elseif streak == 25 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 27 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 30 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 34 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 40 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 48 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 58 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 70 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 80 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    elseif streak == 100 then
-        text = StringFormat("%s is G o d L i k e !!!", name)
-        Plugin:playSoundForEveryPlayer(ShineSoundGodlike)
-    end
-    Shine:NotifyColour(nil,255,0,0,text)
+function Plugin:CheckForMultiKills( Name, Streak )
+    local StreakData = Streaks[ Streak ]
+
+    if not StreakData then return end
+
+    Shine:NotifyColour( nil, 255, 0, 0, StringFormat( StreakData.Text, Name ) )
+    self:PlaySoundForEveryPlayer(StreakData.Sound)
 end
 
-function Plugin:playSoundForEveryPlayer(name)
+function Plugin:PlaySoundForEveryPlayer(name)
     if self.Config.SendSounds then
         self:SendNetworkMessage(nil,"PlaySound",{Name = name } ,true)
     end
