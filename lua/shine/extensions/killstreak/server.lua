@@ -42,30 +42,20 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
     end
     
     local VictimClient = GetOwner( Victim )
-    local VictimId = VictimClient:GetUserId() or 0
-    
-    --for bots
-    if VictimId == 0 then VictimId = Plugin:GetIdbyName(Victim:GetName()) or 0 end
-    
-    if VictimId>0 then
-        local VName        
-        if Killstreaks[VictimId] and Killstreaks[VictimId] > 3 then  VName = Victim:GetName() end
-        Killstreaks[VictimId] = nil 
-        if VName then Shine:NotifyColour(nil,255,0,0,StringFormat("%s has been stopped",VName)) end
+    if not VictimClient then return end
+       
+    if Killstreaks[VictimClient] and Killstreaks[VictimClient] > 3 then  VName = Victim:GetName() end
+    Killstreaks[VictimClient] = nil 
+    if VName then Shine:NotifyColour(nil,255,0,0,StringFormat("%s has been stopped",VName)) end
     else return end
     
     local AttackerClient = GetOwner( Attacker )
     if not AttackerClient then return end
     
-    local SteamId = AttackerClient:GetUserId() or 0
-    local Name = Attacker:GetName()
-    if SteamId == 0 then SteamId = Plugin:GetIdbyName(Name) end
-    if not SteamId or SteamId<=0 then return end
-    
-    if not Killstreaks[SteamId] then Killstreaks[SteamId] = 1
-    else Killstreaks[SteamId] = Killstreaks[SteamId] + 1 end    
+    if not Killstreaks[AttackerClient] then Killstreaks[AttackerClient] = 1
+    else Killstreaks[AttackerClient] = Killstreaks[AttackerClient] + 1 end    
 
-    Plugin:CheckForMultiKills(Name,Killstreaks[SteamId])      
+    Plugin:CheckForMultiKills(Attacker:GetName(),Killstreaks[AttackerClient])      
 end
 
 Shine.Hook.SetupGlobalHook("RemoveAllObstacles","OnGameReset","PassivePost")
@@ -75,31 +65,16 @@ function Plugin:OnGameReset()
     Killstreaks = {}
 end
 
---For Bots
-function Plugin:GetIdbyName(Name)
-
-    if not Name then return end
-    
-    local NewId=""
-    local Letters = " (){}[]/.,+-=?!*1234567890aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
-    
-    --to differ between e.g. name and name (2)   
-    local Input = string.UTF8Reverse(Name)
-    
-    for i=1,12 do
-        local Num = 0
-        if #Input >=i then
-            local Char = StringSub(Input,i,i)
-            Num = StringFind(Letters,Char,nil,true) or 1
-        end
-        NewId = StringFormat("%s%s",NewId,Num)        
-    end
-    
-    --make a int
-    NewId = tonumber(NewId)
-    return NewId
+function Plugin:ClientDisconnect( Client )
+    Killstreaks[Client] = nil
 end
 
+function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineForce )
+    local Client = GetOwner(Player)
+    if not Client then return end
+    
+    Killstreaks[Client] = nil
+end
 local Streaks = {
     [ 3 ] = {
         Text = "%s is on a triple kill!",
