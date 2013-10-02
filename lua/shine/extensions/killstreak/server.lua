@@ -84,7 +84,7 @@ function Plugin:GetIdbyName(Name)
     local Letters = " (){}[]/.,+-=?!*1234567890aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
     
     --to differ between e.g. name and name (2)   
-    input = string.UTF8Reverse(input)
+    local Input = string.UTF8Reverse(Name)
     
     for i=1,12 do
         local Num = 0
