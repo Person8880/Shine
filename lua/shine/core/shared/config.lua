@@ -83,7 +83,7 @@ function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 end
 
 --Checks a config for missing entries without checking sub-tables.
-function Shine.CheckConfig( Config, DefaultConfig )
+function Shine.CheckConfig( Config, DefaultConfig, DontRemove )
 	local Updated
 
 	--Add new keys.
@@ -94,6 +94,8 @@ function Shine.CheckConfig( Config, DefaultConfig )
 			Updated = true
 		end
 	end
+
+	if DontRemove then return Updated end
 
 	--Remove old keys.
 	for Option, Value in pairs( Config ) do

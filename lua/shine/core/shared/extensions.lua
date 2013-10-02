@@ -509,8 +509,20 @@ elseif Client then
 	]]
 	function Shine:SetPluginAutoLoad( Name, AutoLoad )
 		if not self.AutoLoadPlugins then return end
+
+		AutoLoad = AutoLoad or false
 		
-		self.AutoLoadPlugins[ Name ] = AutoLoad and true or nil
+		self.AutoLoadPlugins[ Name ] = AutoLoad
+
+		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
+	end
+
+	local DefaultAutoLoad = {
+		chatbox = true
+	}
+
+	function Shine:CreateDefaultAutoLoad()
+		self.AutoLoadPlugins = DefaultAutoLoad
 
 		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
 	end
@@ -519,14 +531,16 @@ elseif Client then
 		local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )
 
 		if not AutoLoad or not next( AutoLoad ) then
-			Shine.AutoLoadPlugins = Shine.AutoLoadPlugins or {}
-
-			return 
+			Shine:CreateDefaultAutoLoad()
+		else
+			Shine.AutoLoadPlugins = AutoLoad
 		end
 
-		Shine.AutoLoadPlugins = AutoLoad
+		if Shine.CheckConfig( Shine.AutoLoadPlugins, DefaultAutoLoad, true ) then
+			Shine.SaveJSONFile( Shine.AutoLoadPlugins, AutoLoadPath )
+		end
 
-		for Plugin, Load in pairs( AutoLoad ) do
+		for Plugin, Load in pairs( Shine.AutoLoadPlugins ) do
 			if Load then
 				Shine:EnableExtension( Plugin )
 			end
