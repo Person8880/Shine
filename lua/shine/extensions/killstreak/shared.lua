@@ -4,6 +4,8 @@ Shine Killstreak Plugin - Shared
 
 local Plugin = {}
 
+Plugin.Version = "1.0"
+
 --Sounds 
 Plugin.Sounds = {       
     ["Triplekill"] = PrecacheAsset("sound/killstreaks.fev/killstreaks/triplekill"),

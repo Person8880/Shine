@@ -13,8 +13,6 @@ local StringFind = string.find
 
 local Plugin = Plugin
 
-Plugin.Version = "1.0"
-
 Plugin.HasConfig = true
 
 Plugin.ConfigName = "Killstreak.json"
