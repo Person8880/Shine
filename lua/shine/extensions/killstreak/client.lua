@@ -23,7 +23,7 @@ Plugin.SilentConfigSave = true
 
 function Plugin:Initialise()
     self.Enabled = true
-    Shine.AddStartupMessage(StringFormat( "Shine is set to %s killstreak sounds. You can change this with sh_disablesounds", self.Config.PlaySounds and "play" or "mute" ))
+   Shine.AddStartupMessage(StringFormat( "Shine is set to %s killstreak sounds. You can change this with sh_disablesounds", self.Config.PlaySounds and "play" or "mute" ))
     
     if self.Config.SoundVolume < 0 or self.Config.SoundVolume > 200 or self.Config.SoundVolume%1 ~= 0 then
        Shine.AddStartupMessage("Warning: The set Sound Volume was outside the limit of 0 to 200")
