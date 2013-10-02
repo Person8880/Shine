@@ -488,6 +488,21 @@ elseif Client then
 				Shine:EnableExtension( Name )
 			end
 		end
+
+		Shine.AddStartupMessage = nil
+
+		local StartupMessages = Shine.StartupMessages
+
+		Notify( "==============================" )
+		Notify( "Shine started up successfully." )
+
+		for i = 1, #StartupMessages do
+			Notify( StartupMessages[ i ] )
+		end
+
+		Notify( "==============================" )
+
+		Shine.StartupMessages = nil
 	end )
 
 	Client.HookNetworkMessage( "Shine_PluginEnable", function( Data )
