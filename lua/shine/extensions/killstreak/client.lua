@@ -25,14 +25,14 @@ function Plugin:Initialise()
     self.Enabled = true
     Notify("==============================")
     Notify("Shine Killstreak Plugin loaded sucessfull!")
-    Notify(StringFormat( "- Shine is set to %s killstreak sounds. You can change this with sh_disablesounds", Plugin.Config.PlaySounds and "play" or "mute" ))
+    Notify(StringFormat( "- Shine is set to %s killstreak sounds. You can change this with sh_disablesounds", self.Config.PlaySounds and "play" or "mute" ))
     
     if self.Config.SoundVolume < 0 or self.Config.SoundVolume > 200 or self.Config.SoundVolume%1 ~= 0 then
        Notify ("- Warning: The set Sound Volume was outside the limit of 0 to 200")
        self.Config.SoundVolume = 100
     end
      
-    Notify( StringFormat( "- Shine is set to play killstreak sounds with a volume of %s . You can change this with sh_setsoundvolume.",self.Config.SoundVolume))
+    if self.Config.PlaySounds then Notify( StringFormat( "- Shine is set to play killstreak sounds with a volume of %s . You can change this with sh_setsoundvolume.",self.Config.SoundVolume)) end
     Notify("==============================")
     return true
 end
