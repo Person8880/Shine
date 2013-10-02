@@ -17,7 +17,6 @@ end
 
 function Plugin:ReceivePlaySound(Message)
     if not Message.Name then return end
-    if Plugin.Sounds[Message.Name] then Notify(Message.Name .. " played ") end
     
     -- Need Client Option
     --if Shine.Config.PlayShineSounds then    
