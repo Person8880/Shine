@@ -45,6 +45,7 @@ local DisableSounds = Shine:RegisterClientCommand( "sh_disablesounds", function(
 
   self:SaveConfig() 
 end)
+DisableSounds:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Enabled end }
 
 function Plugin:Cleanup()
     self.Enabled = false
