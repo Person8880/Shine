@@ -80,31 +80,24 @@ function Plugin:GetIdbyName(Name)
 
     if not Name then return end
     
-    local newId=""
-    local letters = " (){}[]/.,+-=?!*1234567890aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
-    
-    --cut the [Bot]
-    local input = tostring(Name)
-    input = StringSub(input,6)
+    local NewId=""
+    local Letters = " (){}[]/.,+-=?!*1234567890aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
     
     --to differ between e.g. name and name (2)   
     input = string.UTF8Reverse(input)
     
-    for i=1, #input do
-        local char = StringSub(input,i,i)
-        local num = StringFind(letters,char,nil,true)
-        newId = StringFormat("%s%s",newId,num)        
+    for i=1,12 do
+        local Num = 0
+        if #Input >=i then
+            local Char = StringSub(Input,i,i)
+            Num = StringFind(Letters,Char,nil,true) or 1
+        end
+        NewId = StringFormat("%s%s",NewId,Num)        
     end
     
-    --fill up the ns2id to 12 numbers
-    while StringLen(newId) < 12 do
-        newId = StringFormat("%s0",newId)
-    end       
-    newId = StringSub(newId, 1 , 12)
-    
     --make a int
-    newId = tonumber(newId)
-    return newId
+    NewId = tonumber(NewId)
+    return NewId
 end
 
 local Streaks = {
