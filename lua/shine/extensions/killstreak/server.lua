@@ -4,12 +4,8 @@ Shine Killstreak Plugin - Server
 
 local Shine = Shine
 local GetOwner = Server.GetOwner
-local Notify = Shared.Message
 
 local StringFormat = string.format
-local StringSub = string.UTF8Sub
-local StringLen = string.len
-local StringFind = string.find
 
 local Plugin = Plugin
 
