@@ -10,6 +10,17 @@ if Server then
 		Shine.Hook.Call( "ClientConfirmConnect", Client )
 	end )
 
+	if Shared.GetBuildNumber() == 257 then
+		local OldInsertPlayerData = PlayerRanking.InsertPlayerData
+
+		--Fixes a UWE bug.
+		function PlayerRanking:InsertPlayerData( PlayerTable, RecordedData, WinningTeam, GameTime )
+			RecordedData.playTime = RecordedData.playTime or 0
+
+			return OldInsertPlayerData( self, PlayerTable, RecordedData, WinningTeam, GameTime )
+		end
+	end
+
 	return 
 end
 

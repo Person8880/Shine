@@ -648,11 +648,17 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	MessageLabel:SetColour( MessageColour )
 	MessageLabel:SetText( MessageName )
 
-	local ChatboxSize = self.ChatBox:GetSize().x
-	local LastSpace
-	local XPos = PrePos.x + 5 + PreLabel:GetTextWidth()
+	local ChatBox = self.ChatBox
 
 	if MessageName:find( "[^%s]" ) then
+		MessageName = StringTrim( MessageName )
+
+		MessageLabel:SetText( MessageName )
+
+		local ChatboxSize = self.ChatBox:GetSize().x
+		local LastSpace
+		local XPos = PrePos.x + 5 + PreLabel:GetTextWidth()
+
 		while XPos + MessageLabel:GetTextWidth() > ChatboxSize do
 			LastSpace = WordWrap( XPos, ChatboxSize, MessageLabel, LastSpace )
 
@@ -667,6 +673,10 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 
 	local MessagePos = Vector( PrePos.x + 5 + PreLabel:GetTextWidth(), PrePos.y, 0 )
 	MessageLabel:SetPos( MessagePos )
+
+	if SGUI.IsValid( ChatBox.Scrollbar ) then
+		ChatBox:SetMaxHeight( MessageLabel:GetPos().y + MessageLabel:GetSize().y + ChatBox.BufferAmount )
+	end
 
 	--Reuse the removed message table if there was one.
 	Messages[ #Messages + 1 ] = ReUse or { Pre = PreLabel, Message = MessageLabel }
@@ -774,7 +784,5 @@ end )
 EnableCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Enabled end }
 
 Shine.Hook.Add( "OnMapLoad", "NotifyAboutChatBox", function()
-	if not Shine.AutoLoadPlugins or not Shine.AutoLoadPlugins[ "chatbox" ] then
-		Shine.AddStartupMessage( "Shine has a chatbox that you can enable by entering \"sh_chatbox 1\" into the console." )
-	end
+	Shine.AddStartupMessage( "Shine has a chatbox that you can enable/disable by entering \"sh_chatbox\" into the console." )
 end )
