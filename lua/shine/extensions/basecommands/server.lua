@@ -11,8 +11,10 @@ local Encode, Decode = json.encode, json.decode
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local GetOwner = Server.GetOwner
 local Max = math.max
 local pairs = pairs
+local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
@@ -140,6 +142,9 @@ end
 	Override voice chat to allow everyone to hear each other with alltalk on.
 ]]
 function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
+	local SpeakerClient = GetOwner( Speaker )
+
+	if SpeakerClient and self:IsClientGagged( SpeakerClient ) then return false end
 	if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
 
 	if self.Config.AllTalkPreGame and GetGamerules():GetGameState() == kGameState.NotStarted then return true end
@@ -650,7 +655,7 @@ function Plugin:CreateCommands()
 	CSayCommand:Help( "<message> Displays a message in the centre of all player's screens." )
 
 	local function GagPlayer( Client, Target, Duration )
-		self.Gagged[ Target ] = Duration == 0 and true or Shared.GetTime() + Duration
+		self.Gagged[ Target ] = Duration == 0 and true or SharedTime() + Duration
 
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
@@ -692,17 +697,24 @@ function Plugin:CreateCommands()
 	UngagCommand:Help( "<player> Stops silencing the given player's chat." )
 end
 
+function Plugin:IsClientGagged( Client )
+	local GagData = self.Gagged[ Client ]
+
+	if not GagData then return false end
+
+	if GagData == true then return true end
+	if GagData > SharedTime() then return true end
+
+	self.Gagged[ Client ] = nil
+
+	return false
+end
+
 --[[
 	Facilitates the gag command.
 ]]
 function Plugin:PlayerSay( Client, Message )
-	local GagData = self.Gagged[ Client ]
-
-	if not GagData then return end
-
-	if GagData == true then return "" end
-
-	if GagData > Shared.GetTime() then return "" end
-
-	self.Gagged[ Client ] = nil
+	if self:IsClientGagged( Client ) then
+		return ""
+	end
 end

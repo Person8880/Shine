@@ -35,16 +35,20 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:GetClientInfo( Client )
+function Plugin:GetClientInfo( Client, NoTeam )
 	if not Client then return "Console" end
 	
 	local Player = Client:GetControllingPlayer()
 	local PlayerName = Player and Player:GetName() or "<unknown>"
-	local Team = Player and Shine:GetTeamName( Player:GetTeamNumber(), true ) or "No team"
-
 	local ID = Client.GetUserId and Client:GetUserId() or 0
 
-	return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
+	if not NoTeam then
+		local Team = Player and Shine:GetTeamName( Player:GetTeamNumber(), true ) or "No team"
+
+		return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
+	end
+	
+	return StringFormat( "%s[%s]", PlayerName, ID )
 end
 
 function Plugin:ClientConfirmConnect( Client )
@@ -57,7 +61,7 @@ function Plugin:ClientConfirmConnect( Client )
 		return
 	end
 
-	Shine:LogString( StringFormat( "Client %s connected.", self:GetClientInfo( Client ) ) )
+	Shine:LogString( StringFormat( "Client %s connected.", self:GetClientInfo( Client, true ) ) )
 end
 
 function Plugin:ClientDisconnect( Client )

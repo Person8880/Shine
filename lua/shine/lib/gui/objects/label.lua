@@ -4,6 +4,8 @@
 
 local SGUI = Shine.GUI
 
+local StringGMatch = string.gmatch
+
 local Label = {}
 
 local ZeroCol = Colour( 0, 0, 0, 0 )
@@ -61,7 +63,18 @@ function Label:GetTextWidth( Text )
 end
 
 function Label:GetTextHeight( Text )
-	return self.Text:GetTextHeight( Text or self.Text:GetText() )
+	if Text then
+		return self.Text:GetTextHeight( Text )
+	end
+
+	local Lines = 1
+	Text = self.Text:GetText()
+
+	for Match in StringGMatch( Text, "\n" ) do
+		Lines = Lines + 1
+	end
+
+	return self.Text:GetTextHeight( "!" ) * Lines
 end
 
 function Label:SetFont( Name )

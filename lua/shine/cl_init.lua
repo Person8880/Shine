@@ -35,6 +35,7 @@ local Scripts = {
 }
 
 local StartupMessages = {}
+Shine.StartupMessages = StartupMessages
 
 function Shine.AddStartupMessage( Message, Format, ... )
 	Message = Format and StringFormat( Message, ... ) or Message
@@ -47,16 +48,3 @@ end
 for i = 1, #Scripts do
 	include( "lua/shine/"..Scripts[ i ] )
 end
-
-Shine.Hook.Add( "OnMapLoad", "NotifyLoadComplete", function()
-	Shine.AddStartupMessage = nil
-
-	Notify( "==============================" )
-	Notify( "Shine started up successfully." )
-
-	for i = 1, #StartupMessages do
-		Notify( StartupMessages[ i ] )
-	end
-
-	Notify( "==============================" )
-end, 20 )
