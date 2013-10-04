@@ -10,8 +10,8 @@ local StringFormat = string.format
 local Plugin = Plugin
 
 Plugin.HasConfig = true
-
 Plugin.ConfigName = "Killstreak.json"
+
 Plugin.DefaultConfig =
 {
     SendSounds = false
@@ -33,14 +33,15 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
          local RealKiller = Attacker.GetOwner and Attacker:GetOwner() or nil
          if RealKiller and RealKiller:isa("Player") then
             Attacker = RealKiller
-         else return
-         end
+         else return end
     end
     
     local VictimClient = GetOwner( Victim )
     if not VictimClient then return end
       
-    if Killstreaks[VictimClient] and Killstreaks[VictimClient] > 3 then  Shine:NotifyColour(nil,255,0,0,StringFormat("%s has been stopped",Victim:GetName())) end
+    if Killstreaks[VictimClient] and Killstreaks[VictimClient] > 3 then 
+        Shine:NotifyColour(nil,255,0,0,StringFormat("%s has been stopped",Victim:GetName()))
+    end
     Killstreaks[VictimClient] = nil
     
     local AttackerClient = GetOwner( Attacker )
@@ -69,6 +70,7 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineF
     
     Killstreaks[Client] = nil
 end
+
 local Streaks = {
     [ 3 ] = {
         Text = "%s is on a triple kill!",
@@ -131,6 +133,7 @@ local Streaks = {
         Sound = "Godlike"
     }
 }
+
 Streaks[27] = Streaks[25]
 Streaks[30] = Streaks[25]
 Streaks[34] = Streaks[25]
