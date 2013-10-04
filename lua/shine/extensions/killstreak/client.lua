@@ -48,7 +48,7 @@ end)
 DisableSounds:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Config.PlaySounds end }
 
 local SetSoundVolume = Shine:RegisterClientCommand("sh_setsoundvolume",function (Volume)
-    Plugin.Config.SoundValume = Volume    
+    Plugin.Config.SoundVolume = Volume    
     Plugin:SaveConfig()
     
     Notify( StringFormat( "[Shine] Killstreak Sounds Volume has been set to %s.", Volume) )
