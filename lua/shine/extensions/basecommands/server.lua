@@ -162,8 +162,11 @@ local function PrintToConsole( Client, Message )
 	ServerAdminPrint( Client, Message )
 end
 
---Weak keys so we don't store disconnected clients.
-local Histories = setmetatable( {}, { __mode = "k" } )
+local Histories = {}
+
+function Plugin:ClientDisconnect( Client )
+	Histories[ Client ] = nil
+end
 
 --[[
 	Empty search histories when user data is reloaded as their permissions
@@ -197,7 +200,7 @@ local function Help( Client, Search )
 
 	local Query = tostring( Search )
 
-	local History = Histories[ Client ] or {}
+	local History = Histories[ Client or "Console" ] or {}
 	local PageNumber = History.Search == Query and ( ( History.PageNumber or 0 ) + 1 ) or 1
 
 	History.Cache = History.Cache or {}
@@ -246,7 +249,7 @@ local function Help( Client, Search )
 	History.Search = Query
 	History.PageNumber = PageNumber
 
-	Histories[ Client ] = History
+	Histories[ Client or "Console" ] = History
 
 	local EndMessage = "End command list."
 	if CommandsAppearOnPage( #CommandNames, PageNumber + 1 ) then
