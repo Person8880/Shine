@@ -213,7 +213,7 @@ function Plugin:ProcessClient( Client, Time )
 			local LastMoveTime = AFKKick:GetLastMoveTime( Client )
 
 			--Ignore AFK players.
-			if Time - LastMoveTime >= ( AFKKick.Config.WarnTime * 60 ) then
+			if LastMoveTime and Time - LastMoveTime >= ( AFKKick.Config.WarnTime * 60 ) then
 				return
 			end
 		end
