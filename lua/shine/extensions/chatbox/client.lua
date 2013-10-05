@@ -9,6 +9,7 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local Clock = os.clock
 local Max = math.max
 local pairs = pairs
 local select = select
@@ -287,7 +288,7 @@ function Plugin:CreateChatbox()
 		end
 
 		--We also don't want the player's chat button bind making it into the text entry.
-		if ( Plugin.OpenTime or 0 ) + 0.2 > Shared.GetTime() then
+		if ( Plugin.OpenTime or 0 ) + 0.05 > Clock() then
 			return false
 		end
 	end
@@ -735,7 +736,7 @@ function Plugin:StartChat( Team )
 	self.Visible = true
 
 	--Set this so we don't accept text input straight away, avoids the bind button making it in.
-	self.OpenTime = Shared.GetTime()
+	self.OpenTime = Clock()
 
 	return true
 end
