@@ -476,7 +476,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale )
 	OpacityText:SetupFromTable{
 		Pos = OpacityTextPos * UIScale,
 		Font = "fonts/AgencyFB_small.fnt",
-		Text = "Opacity",
+		Text = "Opacity (%)",
 		Colour = ModeTextCol,
 		IsSchemed = false
 	}
