@@ -9,6 +9,7 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local Clamp = math.Clamp
 local Clock = os.clock
 local Max = math.max
 local pairs = pairs
@@ -26,7 +27,8 @@ Plugin.DefaultConfig = {
 	AutoClose = true, --Should the chatbox close after sending a message?
 	DeleteOnClose = true, --Should whatever's entered be deleted if the chatbox is closed before sending?
 	MessageMemory = 50, --How many messages should the chatbox store before removing old ones?
-	SmoothScroll = true --Should the scrolling be smoothed?
+	SmoothScroll = true, --Should the scrolling be smoothed?
+	Opacity = 0.4 --How opaque should the chatbox be?
 }
 
 Plugin.CheckConfig = true
@@ -120,16 +122,17 @@ local CloseButtonSize = Vector( 16, 16, 0 )
 local InnerBoxSize = Vector( 760, 280, 0 )
 local TextBoxSize = Vector( 670, 30, 0 )
 local SettingsButtonSize = Vector( 28, 28, 0 )
-local SettingsClosedSize = Vector( 0, 300, 0 )
-local SettingsSize = Vector( 350, 300, 0 )
+local SettingsClosedSize = Vector( 0, 340, 0 )
+local SettingsSize = Vector( 350, 340, 0 )
+local SliderSize = Vector( 250, 32, 0 )
 
 local BorderPos = Vector( 20, 20, 0 )
 local CloseButtonPos = Vector( -1, -1, 0 ) 
-local ModeTextPos = Vector( 65, 320, 0 )
+local ModeTextPos = Vector( 65, -20, 0 )
 local ScrollbarPos = Vector( 2, 0, 0 )
-local SettingsButtonPos = Vector( 752, 306, 0 )
-local SettingsPos = Vector( 0, 20, 0 )
-local TextBoxPos = Vector( 74, 305, 0 )
+local SettingsButtonPos = Vector( -48, -34, 0 )
+local SettingsPos = Vector( 0, 0, 0 )
+local TextBoxPos = Vector( 74, -35, 0 )
 
 local TitlePos = Vector( 30, 10, 0 )
 local AutoClosePos = Vector( 30, 50, 0 )
@@ -137,6 +140,8 @@ local AutoDeletePos = Vector( 30, 90, 0 )
 local SmoothScrollPos = Vector( 30, 130, 0 )
 local MessageMemoryTextPos = Vector( 30, 170, 0 )
 local MessageMemoryPos = Vector( 30, 210, 0 )
+local OpacityTextPos = Vector( 30, 240, 0 )
+local OpacityPos = Vector( 30, 280, 0 )
 
 local TextScale = Vector( 1, 1, 0 )
 
@@ -159,6 +164,15 @@ local CheckedCol = Colour( 0.8, 0.6, 0.1, 1 )
 
 local Clear = Colour( 0, 0, 0, 0 )
 
+--Scales alpha value for elements that default to 0.8 rather than 0.4 alpha.
+local function AlphaScale( Alpha )
+	if Alpha <= 0.4 then
+		return Alpha * 2
+	end
+
+	return 0.8 + ( ( Alpha - 0.4 ) / 3 )
+end
+
 --[[
 	Creates the chatbox UI elements.
 
@@ -172,6 +186,30 @@ local Clear = Colour( 0, 0, 0, 0 )
 ]]
 function Plugin:CreateChatbox()
 	local UIScale = GUIScale( 1 )
+	local ScreenWidth = Client.GetScreenWidth()
+
+	local WidthMult = Clamp( ScreenWidth / 1920, 0.7, 1 )
+
+	ChatBoxSize.x = ChatBoxSize.x * WidthMult
+	InnerBoxSize.x = InnerBoxSize.x * WidthMult
+	TextBoxSize.x = TextBoxSize.x * WidthMult
+	SettingsButtonSize.x = SettingsButtonSize.x * WidthMult
+
+	BorderPos.x = BorderPos.x * WidthMult
+	ModeTextPos.x = ModeTextPos.x * WidthMult
+	SettingsButtonPos.x = SettingsButtonPos.x * WidthMult
+	TextBoxPos.x = TextBoxPos.x * WidthMult
+
+	local Opacity = self.Config.Opacity
+	local ScaledOpacity = AlphaScale( Opacity )
+
+	BorderCol.a = Opacity
+	InnerCol.a = ScaledOpacity
+	SettingsCol.a = Opacity
+	TextDarkCol.a = ScaledOpacity
+	TextFocusCol.a = ScaledOpacity
+	ButtonActiveCol.a = ScaledOpacity
+	ButtonInActiveCol.a = ScaledOpacity
 
 	local ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * UIScale, 0 )
 
@@ -207,6 +245,7 @@ function Plugin:CreateChatbox()
 		Size = BoxSize,
 		Colour = InnerCol,
 		Pos = BorderPos * UIScale,
+		ScrollbarWidthMult = WidthMult,
 		IsSchemed = false
 	}
 	Box.BufferAmount = 5
@@ -229,6 +268,7 @@ function Plugin:CreateChatbox()
 	--Shows either "All:"" or "Team:"
 	local ModeText = Border:Add( "Label" )
 	ModeText:SetupFromTable{
+		Anchor = "BottomLeft",
 		Pos = ModeTextPos * UIScale,
 		TextAlignmentX = GUIItem.Align_Max,
 		TextAlignmentY = GUIItem.Align_Center,
@@ -246,7 +286,7 @@ function Plugin:CreateChatbox()
 	local TextEntry = SGUI:Create( "TextEntry", DummyPanel )
 	TextEntry:SetupFromTable{
 		Size = TextBoxSize * UIScale,
-		Anchor = "TopLeft",
+		Anchor = "BottomLeft",
 		Pos = TextBoxPos * UIScale,
 		TextScale = UIScale * TextScale,
 		Text = "",
@@ -297,6 +337,7 @@ function Plugin:CreateChatbox()
 
 	local SettingsButton = SGUI:Create( "Button", DummyPanel )
 	SettingsButton:SetupFromTable{
+		Anchor = "BottomRight",
 		Size = SettingsButtonSize * UIScale,
 		Pos = SettingsButtonPos * UIScale,
 		Text = ">",
@@ -320,6 +361,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale )
 		Scrollable = true,
 		Size = SettingsClosedSize * UIScale,
 		Colour = SettingsCol,
+		ShowScrollbar = false,
 		IsSchemed = false
 	}
 
@@ -417,6 +459,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale )
 		DarkLineColour = TextDarkCol,
 		Font = "fonts/AgencyFB_small.fnt",
 		TextColour = ModeTextCol,
+		Size = SliderSize * UIScale,
 		IsSchemed = false
 	}
 	MessageMemory:SetBounds( 10, 100 )
@@ -427,6 +470,60 @@ function Plugin:CreateSettings( DummyPanel, UIScale )
 		Plugin.Config.MessageMemory = Value
 
 		Plugin:SaveConfig()
+	end
+
+	local OpacityText = SettingsPanel:Add( "Label" )
+	OpacityText:SetupFromTable{
+		Pos = OpacityTextPos * UIScale,
+		Font = "fonts/AgencyFB_small.fnt",
+		Text = "Opacity",
+		Colour = ModeTextCol,
+		IsSchemed = false
+	}
+
+	local Opacity = SettingsPanel:Add( "Slider" )
+	Opacity:SetupFromTable{
+		Pos = OpacityPos * UIScale,
+		Value = self.Config.Opacity * 100,
+		HandleColour = CheckedCol,
+		LineColour = ModeTextCol,
+		DarkLineColour = TextDarkCol,
+		Font = "fonts/AgencyFB_small.fnt",
+		TextColour = ModeTextCol,
+		Size = SliderSize * UIScale,
+		IsSchemed = false
+	}
+	Opacity:SetBounds( 0, 100 )
+
+	function Opacity:OnValueChanged( Value )
+		Value = Value * 0.01
+
+		if Plugin.Config.Opacity == Value then return end
+		
+		Plugin.Config.Opacity = Value
+
+		Plugin:SaveConfig()
+
+		local ScaledOpacity = AlphaScale( Value )
+
+		BorderCol.a = Value
+		InnerCol.a = ScaledOpacity
+		SettingsCol.a = Value
+		TextDarkCol.a = ScaledOpacity
+		TextFocusCol.a = ScaledOpacity
+		ButtonActiveCol.a = ScaledOpacity
+		ButtonInActiveCol.a = ScaledOpacity
+
+		SettingsPanel:SetColour( SettingsCol )
+
+		Plugin.ChatBox:SetColour( InnerCol )
+		Plugin.Border:SetColour( BorderCol )
+
+		Plugin.TextEntry:SetFocusColour( TextFocusCol )
+		Plugin.TextEntry:SetDarkColour( TextDarkCol )
+
+		Plugin.SettingsButton:SetActiveCol( ButtonActiveCol )
+		Plugin.SettingsButton:SetInactiveCol( ButtonInActiveCol )
 	end
 end
 

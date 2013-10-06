@@ -86,6 +86,7 @@ function Slider:Initialise()
 
 	self.Decimals = 0
 
+	self.HandleSize = Vector( 10, 32, 0 )
 	self.HandlePos = Vector( 0, 0, 0 )
 	self.LineSize = Vector( 250, 5, 0 )
 	self.DarkLineSize = Vector( 0, 5, 0 )
@@ -111,11 +112,15 @@ function Slider:SizeLines()
 
 	self.DarkLineSize.x = self.Width * ( 1 - self.Fraction )
 	self.DarkLine:SetSize( self.DarkLineSize )
+
+	self.HandleSize.y = self.Height
+	self.Handle:SetSize( self.HandleSize )
 end
 
 function Slider:SetSize( Size )
 	self.BaseClass.SetSize( self, Size )
 
+	self.Height = Size.y
 	self.Width = Size.x
 
 	self:SizeLines()
