@@ -120,7 +120,7 @@ end
 local ChatBoxSize = Vector( 800, 340, 0 )
 local CloseButtonSize = Vector( 16, 16, 0 )
 local InnerBoxSize = Vector( 760, 280, 0 )
-local TextBoxSize = Vector( 670, 30, 0 )
+local TextBoxSize = Vector( 720, 30, 0 )
 local SettingsButtonSize = Vector( 28, 28, 0 )
 local SettingsClosedSize = Vector( 0, 340, 0 )
 local SettingsSize = Vector( 350, 340, 0 )
@@ -188,17 +188,19 @@ function Plugin:CreateChatbox()
 	local UIScale = GUIScale( 1 )
 	local ScreenWidth = Client.GetScreenWidth()
 
+	self.UseTinyFont = ScreenWidth < 1280
+
 	local WidthMult = Clamp( ScreenWidth / 1920, 0.7, 1 )
 
 	ChatBoxSize.x = ChatBoxSize.x * WidthMult
 	InnerBoxSize.x = InnerBoxSize.x * WidthMult
-	TextBoxSize.x = TextBoxSize.x * WidthMult
-	SettingsButtonSize.x = SettingsButtonSize.x * WidthMult
 
 	BorderPos.x = BorderPos.x * WidthMult
 	ModeTextPos.x = ModeTextPos.x * WidthMult
 	SettingsButtonPos.x = SettingsButtonPos.x * WidthMult
 	TextBoxPos.x = TextBoxPos.x * WidthMult
+
+	TextBoxSize.x = TextBoxSize.x * WidthMult + SettingsButtonPos.x - 5
 
 	local Opacity = self.Config.Opacity
 	local ScaledOpacity = AlphaScale( Opacity )
@@ -734,14 +736,14 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	PreLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	PreLabel:SetFont( "fonts/AgencyFB_small.fnt" )
+	PreLabel:SetFont( self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt" )
 	PreLabel:SetColour( PlayerColour )
 	PreLabel:SetTextScale( TextScale * UIScale )
 	PreLabel:SetText( PlayerName )
 	PreLabel:SetPos( PrePos )
 
 	MessageLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	MessageLabel:SetFont( "fonts/AgencyFB_small.fnt" )
+	MessageLabel:SetFont( self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt" )
 	MessageLabel:SetTextScale( TextScale * UIScale )
 	MessageLabel:SetColour( MessageColour )
 	MessageLabel:SetText( MessageName )
