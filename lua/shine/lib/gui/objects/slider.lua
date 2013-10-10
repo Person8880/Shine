@@ -134,6 +134,10 @@ function Slider:SetTextColour( Col )
 	self.Label:SetColour( Col )
 end
 
+function Slider:SetTextScale( Scale )
+	self.Label:SetTextScale( Scale )
+end
+
 function Slider:SetHandleColour( Col )
 	self.Handle:SetColor( Col )
 end
@@ -144,6 +148,10 @@ end
 
 function Slider:SetDarkLineColour( Col )
 	self.DarkLine:SetColor( Col )
+end
+
+function Slider:SetPadding( Value )
+	self.Label:SetPos( Vector( Value, 0, 0 ) )
 end
 
 --[[

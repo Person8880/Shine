@@ -28,9 +28,6 @@ SGUI.Controls = {}
 SGUI.ActiveControls = {}
 SGUI.Windows = {}
 
---Reuse destroyed script tables to save garbage collection.
-SGUI.InactiveControls = {}
-
 --Used to adjust the appearance of all elements at once.
 SGUI.Skins = {}
 
@@ -301,13 +298,7 @@ function SGUI:Create( Class, Parent )
 
 	assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
 
-	local Table = next( self.InactiveControls )
-
-	if Table then
-		self.InactiveControls[ Table ] = nil
-	else
-		Table = {}
-	end
+	local Table = {}
 
 	local Control = setmetatable( Table, MetaTable )
 
@@ -343,7 +334,6 @@ end
 ]]
 function SGUI:Destroy( Control )
 	self.ActiveControls[ Control ] = nil
-	self.InactiveControls[ Control ] = true
 
 	--SGUI children, not GUIItems.
 	if Control.Children then
@@ -1124,5 +1114,5 @@ end
 	Output: Boolean valid.
 ]]
 function ControlMeta:IsValid()
-	return SGUI.InactiveControls[ self ] == nil
+	return SGUI.ActiveControls[ self ] ~= nil
 end
