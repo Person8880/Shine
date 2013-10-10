@@ -15,6 +15,7 @@ Plugin.ConfigName = "MotD.json"
 
 Plugin.TEXT_MODE = 1
 Plugin.HTML_MODE = 2
+Plugin.HYBRID_MODE = 3
 
 Plugin.DefaultConfig = {
 	Mode = Plugin.TEXT_MODE,
@@ -38,10 +39,12 @@ function Plugin:Notify( Player, String, Format, ... )
 	Shine:NotifyDualColour( Player, 0, 100, 255, "[MOTD]", 255, 255, 255, String, Format, ... )
 end
 
-function Plugin:ShowMotD( Client )
+function Plugin:ShowMotD( Client, OnConnect )
 	if not Shine:IsValidClient( Client ) then return end
 	
-	if self.Config.Mode == self.TEXT_MODE then
+	local Mode = self.Config.Mode
+
+	if Mode == self.TEXT_MODE or ( Mode == self.HYBRID_MODE and OnConnect ) then
 		local Messages = self.Config.MessageText
 
 		for i = 1, #Messages do
@@ -51,9 +54,7 @@ function Plugin:ShowMotD( Client )
 		return
 	end
 
-	if self.Config.Mode == self.HTML_MODE then
-		Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL, Title = "Message of the day" }, true )
-	end
+	Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL, Title = "Message of the day" }, true )
 end
 
 function Plugin:ClientConfirmConnect( Client )
@@ -66,7 +67,7 @@ function Plugin:ClientConfirmConnect( Client )
 	if Shine:HasAccess( Client, "sh_showmotd" ) then return end
 
 	Shine.Timer.Simple( self.Config.Delay, function()
-		self:ShowMotD( Client )
+		self:ShowMotD( Client, true )
 	end )
 end
 
