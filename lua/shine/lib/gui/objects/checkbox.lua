@@ -184,6 +184,14 @@ function CheckBox:SetTextColour( Col )
 	self.Label:SetColour( Col )
 end
 
+function CheckBox:SetTextScale( Scale )
+	self.TextScale = Scale
+
+	if not self.Label then return end
+	
+	self.Label:SetTextScale( Scale )
+end
+
 function CheckBox:Cleanup()
 	if self.Parent then return end
 	

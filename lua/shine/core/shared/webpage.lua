@@ -136,10 +136,7 @@ function Shine:OpenWebpage( URL, TitleText )
 		return
 	end
 	
-	if SGUI.IsValid( self.ActiveWebPage ) then
-		self.ActiveWebPage:Destroy()
-		self.ActiveWebPage = nil
-	end
+	self:CloseWebPage()
 
 	local W = Client.GetScreenWidth()
 	local H = Client.GetScreenHeight()

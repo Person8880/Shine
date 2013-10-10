@@ -15,7 +15,7 @@ local TextEntry = {}
 local BorderSize = Vector( 2, 2, 0 )
 local CaretCol = Color( 0, 0, 0, 1 )
 local Clear = Color( 0, 0, 0, 0 )
-local TextPos = Vector( 0, 0, 0 )
+local TextPos = Vector( 2, 0, 0 )
 
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
@@ -42,6 +42,14 @@ function TextEntry:Initialise()
 
 	self.Stencil = Stencil
 
+	--The actual text object.
+	local Text = Manager:CreateTextItem()
+	Text:SetAnchor( GUIItem.Left, GUIItem.Center )
+	Text:SetTextAlignmentY( GUIItem.Align_Center )
+	Text:SetPosition( TextPos )
+	Text:SetInheritsParentStencilSettings( false )
+	Text:SetStencilFunc( GUIItem.NotEqual )
+
 	--The caret to edit from.
 	local Caret = Manager:CreateGraphicItem()
 	Caret:SetAnchor( GUIItem.Left, GUIItem.Top )
@@ -56,14 +64,6 @@ function TextEntry:Initialise()
 
 	self.InnerBox = InnerBox
 
-	--The actual text object.
-	local Text = Manager:CreateTextItem()
-	Text:SetAnchor( GUIItem.Left, GUIItem.Center )
-	Text:SetTextAlignmentY( GUIItem.Align_Center )
-	Text:SetPosition( TextPos )
-	Text:SetInheritsParentStencilSettings( false )
-	Text:SetStencilFunc( GUIItem.NotEqual )
-
 	InnerBox:AddChild( Text )
 
 	self.TextObj = Text
@@ -74,8 +74,8 @@ function TextEntry:Initialise()
 	--Where's the caret?
 	self.Column = 0
 
-	--How far along we are (this will be negative or 0)
-	self.TextOffset = 0
+	--How far along we are (this will be negative or self.Padding)
+	self.TextOffset = 2
 
 	self.WidthScale = 1
 	self.HeightScale = 1
@@ -85,6 +85,8 @@ function TextEntry:Initialise()
 	--Default colour scheme.
 	self.FocusColour = Scheme.TextEntryFocus
 	self.DarkCol = Scheme.TextEntry
+
+	self.Padding = 2
 
 	Background:SetColor( Scheme.ButtonBorder )
 	InnerBox:SetColor( self.DarkCol )
@@ -164,7 +166,7 @@ function TextEntry:SetupCaret()
 	local Caret = self.Caret
 	local TextObj = self.TextObj
 
-	local Height = TextObj:GetTextHeight( "!" ) * self.HeightScale
+	local Height = TextObj:GetTextHeight( "!" ) * self.HeightScale * 0.8
 
 	Caret:SetSize( Vector( 1, Height, 0 ) )
 
@@ -183,7 +185,7 @@ function TextEntry:SetupCaret()
 
 		self.TextOffset = Diff
 	else
-		self.TextOffset = 0
+		self.TextOffset = self.Padding
 
 		self.Column = self.Text:UTF8Length()
 
@@ -226,7 +228,11 @@ function TextEntry:SetCaretPos( Column )
 
 	--We need to move the text along with the caret, otherwise it'll go out of vision!
 	if NewPos < 0 then
-		self.TextOffset = Min( self.TextOffset - NewPos, 0 )
+		self.TextOffset = Min( self.TextOffset - NewPos, self.Padding )
+
+		if self.Column == 0 then
+			self.TextOffset = self.Padding
+		end
 
 		TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 	elseif NewPos > self.Width then
@@ -237,7 +243,7 @@ function TextEntry:SetCaretPos( Column )
 		TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 	end
 
-	Caret:SetPosition( Vector( UTF8W + self.TextOffset, Pos.y, 0 ) )
+	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
 end
 
 function TextEntry:SetText( Text )
