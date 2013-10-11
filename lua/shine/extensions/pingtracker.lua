@@ -112,8 +112,11 @@ function Plugin:CheckClient( Client, Data, Time )
 				Shine:NotifyColour( Client, 255, 160, 0, "Your ping is varying by an average of %s, which is too high for this server.", true, Ceil( AverageJitter ) )
 				Shine:NotifyColour( Client, 255, 160, 0, "If you do not lower it you will be kicked." )
 			else
+				local Player = Client:GetControllingPlayer()
+				local Name = Player and Player:GetName() or "<unknown>"
+				
 				Shine:LogString( StringFormat( "[PingTracker] Kicked client %s[%s]. Average ping: %.2f. Average jitter: %.2f.", 
-					Client:GetControllingPlayer():GetName(), Client:GetUserId(), AveragePing, AverageJitter ) )
+					Name, Client:GetUserId(), AveragePing, AverageJitter ) )
 
 				Client.DisconnectReason = "Ping jitter too high"
 
