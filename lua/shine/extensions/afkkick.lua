@@ -76,8 +76,17 @@ function Plugin:OnProcessMove( Player, Input )
 
 	if self.Config.OnlyCheckOnStarted and not Started then return end
 
+	local Time = Shared.GetTime()
+
 	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
-	if Players < self.Config.MinPlayers then return end
+	if Players < self.Config.MinPlayers then
+		--We're not tracking now, but we may have before...
+		for Client, Data in pairs( self.Users ) do
+			Data.LastMove = Time
+		end
+
+		return
+	end
 
 	local Client = Server.GetOwner( Player )
 
@@ -94,8 +103,6 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 
 	local Move = Input.move
-
-	local Time = Shared.GetTime()
 
 	local Team = Player:GetTeamNumber()
 
