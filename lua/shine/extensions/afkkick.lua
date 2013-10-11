@@ -74,20 +74,6 @@ function Plugin:OnProcessMove( Player, Input )
 	local Gamerules = GetGamerules()
 	local Started = Gamerules and Gamerules:GetGameStarted()
 
-	if self.Config.OnlyCheckOnStarted and not Started then return end
-
-	local Time = Shared.GetTime()
-
-	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
-	if Players < self.Config.MinPlayers then
-		--We're not tracking now, but we may have before...
-		for Client, Data in pairs( self.Users ) do
-			Data.LastMove = Time
-		end
-
-		return
-	end
-
 	local Client = Server.GetOwner( Player )
 
 	if not Client then return end
@@ -95,6 +81,21 @@ function Plugin:OnProcessMove( Player, Input )
 
 	local DataTable = self.Users[ Client ]
 	if not DataTable then return end
+
+	local Time = Shared.GetTime()
+
+	if self.Config.OnlyCheckOnStarted and not Started then
+		DataTable.LastMove = Time
+
+		return
+	end
+
+	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
+	if Players < self.Config.MinPlayers then
+		DataTable.LastMove = Time
+
+		return
+	end
 
 	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
 		self.Users[ Client ] = nil
