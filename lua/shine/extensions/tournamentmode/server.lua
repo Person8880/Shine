@@ -236,18 +236,7 @@ end
 function Plugin:ClientDisconnect( Client )
 	if not self.ReadiedPlayers then return end
 
-	local Player = Client:GetControllingPlayer()
-	local Team = Player and Player:GetTeamNumber()
-
 	self.ReadiedPlayers[ Client ] = nil
-
-	if Team and self.ReadyStates[ Team ] then
-		self.ReadyStates[ Team ] = false
-
-		self:CheckStart()
-	else
-		self:CheckTeams()
-	end
 end
 
 --[[
