@@ -88,6 +88,11 @@ function Plugin:Notify( Positive, Player, Message, Format, ... )
 		"[TournamentMode]", 255, 255, 255, Message, Format, ... )
 end
 
+--Never allow the map to auto-cycle.
+function Plugin:ShouldCycleMap()
+	return false
+end
+
 function Plugin:EndGame( Gamerules, WinningTeam )
 	TableEmpty( self.TeamMembers )
 
@@ -111,6 +116,8 @@ function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 	
 	if State == kGameState.PreGame or State == kGameState.NotStarted then
+		self.GameStarted = false
+		
 		self:CheckCommanders( Gamerules )
 
 		local Time = Shared.GetTime()
