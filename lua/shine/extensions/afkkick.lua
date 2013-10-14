@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local GetOwner = Server.GetOwner
 local Notify = Shared.Message
 
 local Plugin = {}
@@ -74,7 +75,7 @@ function Plugin:OnProcessMove( Player, Input )
 	local Gamerules = GetGamerules()
 	local Started = Gamerules and Gamerules:GetGameStarted()
 
-	local Client = Server.GetOwner( Player )
+	local Client = GetOwner( Player )
 
 	if not Client then return end
 	if Client:GetIsVirtual() then return end
@@ -171,7 +172,7 @@ function Plugin:OnConstructInit( Building )
 
 	if not Owner then return end
 	
-	local Client = Server.GetOwner( Owner )
+	local Client = GetOwner( Owner )
 
 	if not Client then return end
 
@@ -187,21 +188,21 @@ function Plugin:OnRecycle( Building, ResearchID )
 	local Commander = Team:GetCommander()
 	if not Commander then return end
 
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
 end
 
 function Plugin:OnCommanderTechTreeAction( Commander, ... )
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
 end
 
 function Plugin:OnCommanderNotify( Commander, ... )
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
