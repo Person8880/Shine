@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local GetOwner = Server.GetOwner
 local Notify = Shared.Message
 
 local Plugin = {}
@@ -74,18 +75,28 @@ function Plugin:OnProcessMove( Player, Input )
 	local Gamerules = GetGamerules()
 	local Started = Gamerules and Gamerules:GetGameStarted()
 
-	if self.Config.OnlyCheckOnStarted and not Started then return end
-
-	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
-	if Players < self.Config.MinPlayers then return end
-
-	local Client = Server.GetOwner( Player )
+	local Client = GetOwner( Player )
 
 	if not Client then return end
 	if Client:GetIsVirtual() then return end
 
 	local DataTable = self.Users[ Client ]
 	if not DataTable then return end
+
+	local Time = Shared.GetTime()
+
+	if self.Config.OnlyCheckOnStarted and not Started then
+		DataTable.LastMove = Time
+
+		return
+	end
+
+	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
+	if Players < self.Config.MinPlayers then
+		DataTable.LastMove = Time
+
+		return
+	end
 
 	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
 		self.Users[ Client ] = nil
@@ -94,8 +105,6 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 
 	local Move = Input.move
-
-	local Time = Shared.GetTime()
 
 	local Team = Player:GetTeamNumber()
 
@@ -163,7 +172,7 @@ function Plugin:OnConstructInit( Building )
 
 	if not Owner then return end
 	
-	local Client = Server.GetOwner( Owner )
+	local Client = GetOwner( Owner )
 
 	if not Client then return end
 
@@ -179,21 +188,21 @@ function Plugin:OnRecycle( Building, ResearchID )
 	local Commander = Team:GetCommander()
 	if not Commander then return end
 
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
 end
 
 function Plugin:OnCommanderTechTreeAction( Commander, ... )
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
 end
 
 function Plugin:OnCommanderNotify( Commander, ... )
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )

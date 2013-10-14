@@ -48,7 +48,7 @@ function Plugin:GetClientInfo( Client, NoTeam )
 		return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
 	end
 	
-	return StringFormat( "%s[%s]", PlayerName, ID )
+	return StringFormat( "%s[%s - %s]<%s>", PlayerName, ID, Shine.NS2ToSteamID( ID ), IPAddressToString( Server.GetClientAddress( Client ) ) )
 end
 
 function Plugin:ClientConfirmConnect( Client )
