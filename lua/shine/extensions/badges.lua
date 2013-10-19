@@ -66,6 +66,8 @@ function Plugin:Setup()
 	local InsertUnique = table.insertunique
 
 	local function AssignBadge( ID, BadgeName )
+		if not ID then return false end
+		
 		local ClientBadges = ServerBadges[ ID ]
 
 		if not ClientBadges then
