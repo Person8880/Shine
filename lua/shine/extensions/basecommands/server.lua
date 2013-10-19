@@ -385,13 +385,24 @@ function Plugin:CreateCommands()
 	ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a map to change to." }
 	ChangeLevelCommand:Help( "<map> Changes the map to the given level immediately." )
 
+	local IsType = Shine.IsType
+
 	local function ListMaps( Client )
-		local Maps = {}
-		Shared.GetMatchingFileNames( "maps/*.level", false, Maps )
+		local Cycle = MapCycle_GetMapCycle()
+
+		if not Cycle or not Cycle.maps then
+			Shine:AdminPrint( Client, "Unable to load map cycle list." )
+
+			return
+		end
+
+		local Maps = Cycle.maps
 
 		Shine:AdminPrint( Client, "Installed maps:" )
-		for _, MapPath in pairs( Maps ) do
-			local MapName = MapPath:match( "maps/(.-).level" )
+		for i = 1, #Maps do
+			local Map = Maps[ i ]
+			local MapName = IsType( Map, "table" ) and Map.map or Map
+			
 			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
 		end
 	end

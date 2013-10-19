@@ -185,6 +185,7 @@ function SGUI:EnableMouse( Enable )
 		if self.MouseObjects == 1 then
 			if not IsCommander() then
 				ShowMouse( true )
+				self.EnabledMouse = true
 			end
 		end
 
@@ -196,8 +197,9 @@ function SGUI:EnableMouse( Enable )
 	self.MouseObjects = self.MouseObjects - 1
 
 	if self.MouseObjects == 0 then
-		if not IsCommander() then
+		if not IsCommander() or self.EnabledMouse then
 			ShowMouse( false )
+			self.EnabledMouse = false
 		end
 	end
 end
