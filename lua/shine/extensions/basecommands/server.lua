@@ -555,7 +555,7 @@ function Plugin:CreateCommands()
 	end
 	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
 	ChangeTeamCommand:AddParam{ Type = "clients" }
-	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
+	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify a team to move to." }
 	ChangeTeamCommand:Help( "<players> <marine/alien> Sets the given player(s) onto the given team." )
 
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
@@ -600,7 +600,7 @@ function Plugin:CreateCommands()
 				Player:Eject()
 			else
 				if Client then
-					Shine:Notify( Client:GetControllingPlayer(), "Error", Shine.Config.ChatName, "%s is not a commander.", true, Player:GetName() )
+					Shine:NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
 				else
 					Shine:Print( "%s is not a commander.", true, Player:GetName() )
 				end
