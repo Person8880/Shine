@@ -166,7 +166,7 @@ function Plugin:CheckForMultiKills( Name, Streak, Teamnumber )
     
     if Teamnumber then
         if Teamnumber == 1 then colour = self.Config.MarineColour
-        else colours = self.Config.AlienColour end
+        else colour = self.Config.AlienColour end
     end
     Shine:NotifyColour( nil, colour[1], colour[2], colour[3], StringFormat( StreakData.Text, Name ) )
     self:PlaySoundForEveryPlayer(StreakData.Sound)
