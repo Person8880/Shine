@@ -14,7 +14,12 @@ Plugin.ConfigName = "Killstreak.json"
 
 Plugin.DefaultConfig =
 {
-    SendSounds = false
+    SendSounds = false,
+    AlienColour = {255,0,0},
+    MarineColour = {0,0,255},
+    KillstreakMinValue = 3,
+    StoppedValue = 5,
+    StoppedMsg = "%s has been stopped by %s " -- first victim then killer
 }
 
 Plugin.CheckConfig = true
@@ -39,8 +44,14 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
     local VictimClient = GetOwner( Victim )
     if not VictimClient then return end
       
-    if Killstreaks[VictimClient] and Killstreaks[VictimClient] > 3 then 
-        Shine:NotifyColour(nil,255,0,0,StringFormat("%s has been stopped",Victim:GetName()))
+    if Killstreaks[VictimClient] and Killstreaks[VictimClient] >= self.Config.StoppedValue then
+        local colour = {255,0,0}
+        local team = Victim:GetTeamNumber()
+        
+        if team == 1 then colour = self.Config.MarineColour
+        elseif team == 2 then colour = self.Config.AlienColour end
+        
+        Shine:NotifyColour(nil,colour[1],colour[2],colour[3],StringFormat(self.Config.StoppedMsg,Victim:GetName(),Attacker:GetName()))
     end
     Killstreaks[VictimClient] = nil
     
@@ -50,7 +61,7 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
     if not Killstreaks[AttackerClient] then Killstreaks[AttackerClient] = 1
     else Killstreaks[AttackerClient] = Killstreaks[AttackerClient] + 1 end    
 
-    Plugin:CheckForMultiKills(Attacker:GetName(),Killstreaks[AttackerClient])      
+    Plugin:CheckForMultiKills(Attacker:GetName(),Killstreaks[AttackerClient],Attacker:GetTeamNumber())      
 end
 
 Shine.Hook.SetupGlobalHook("RemoveAllObstacles","OnGameReset","PassivePost")
@@ -144,12 +155,20 @@ Streaks[70] = Streaks[25]
 Streaks[80] = Streaks[25]
 Streaks[100] = Streaks[25]
         
-function Plugin:CheckForMultiKills( Name, Streak )
+function Plugin:CheckForMultiKills( Name, Streak, Teamnumber )
+    if Streak < self.Config.KillstreakMinValue then return end
+    
     local StreakData = Streaks[ Streak ]
 
     if not StreakData then return end
-
-    Shine:NotifyColour( nil, 255, 0, 0, StringFormat( StreakData.Text, Name ) )
+    
+    local colour= {250,0,0}
+    
+    if Teamnumber then
+        if Teamnumber == 1 then colour = self.Config.MarineColour
+        else colours = self.Config.AlienColour end
+    end
+    Shine:NotifyColour( nil, colour[1], colour[2], colour[3], StringFormat( StreakData.Text, Name ) )
     self:PlaySoundForEveryPlayer(StreakData.Sound)
 end
 
