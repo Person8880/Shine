@@ -47,7 +47,7 @@ for i = 1, #Scripts do
 			Shine.Hook.Disabled = true
 		end
 
-		return
+		break
 	end
 end
 

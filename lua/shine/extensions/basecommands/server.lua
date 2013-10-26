@@ -545,7 +545,11 @@ function Plugin:CreateCommands()
 		local Gamerules = GetGamerules()
 		if Gamerules then
 			for i = 1, #Targets do
-				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), Team, nil, true )
+				local Player = Targets[ i ]:GetControllingPlayer()
+
+				if Player then
+					Gamerules:JoinTeam( Player, Team, nil, true )
+				end
 			end
 		end
 	end
@@ -650,7 +654,7 @@ function Plugin:CreateCommands()
 	local function CSay( Client, Message )
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client:GetUserId() or 0
+		local ID = Client and Client:GetUserId() or "N/A"
 
 		local Words = StringExplode( Message, " " )
 		local Colour = Colours[ Words[ 1 ] ]
