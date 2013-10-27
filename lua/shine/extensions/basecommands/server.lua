@@ -310,6 +310,8 @@ function Plugin:CreateCommands()
 	local function AllTalk( Client, Enable )
 		self.Config.AllTalk = Enable
 
+		self:SaveConfig( true )
+
 		local Enabled = Enable and "enabled" or "disabled"
 
 		Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]",
@@ -318,6 +320,28 @@ function Plugin:CreateCommands()
 	local AllTalkCommand = self:BindCommand( "sh_alltalk", "alltalk", AllTalk )
 	AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
 	AllTalkCommand:Help( "<true/false> Enables or disables all talk, which allows everyone to hear each others voice chat regardless of team." )
+
+	local function FriendlyFire( Client, Scale )
+		local OldState = self.Config.FriendlyFire
+		local Enable = Scale > 0
+
+		if Enable then
+			self.Config.FriendlyFire = true
+			self.Config.FriendlyFireScale = Scale
+		else
+			self.Config.FriendlyFire = false
+		end
+
+		self:SaveConfig( true )
+
+		if OldState ~= self.Config.FriendlyFire then
+			Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[FF]",
+				255, 255, 255, "Friendly fire has been %s.", true, Enable and "enabled" or "disabled" )
+		end
+	end
+	local FriendlyFireCommand = self:BindCommand( "sh_friendlyfire", { "ff", "friendlyfire" }, FriendlyFire )
+	FriendlyFireCommand:AddParam{ Type = "number", Min = 0, Error = "Please specify a scale, or 0 for off." }
+	FriendlyFireCommand:Help( "<scale> Sets the friendly fire scale. Use 0 to disable friendly fire." )
 
 	local function Kick( Client, Target, Reason )
 		Shine:Print( "%s kicked %s.%s", true,
