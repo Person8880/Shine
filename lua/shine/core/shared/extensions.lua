@@ -169,7 +169,7 @@ function PluginMeta:GenerateDefaultConfig( Save )
 	end
 end
 
-function PluginMeta:SaveConfig()
+function PluginMeta:SaveConfig( Silent )
 	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
@@ -177,10 +177,10 @@ function PluginMeta:SaveConfig()
 	if not Success then
 		Print( "Error writing %s config file: %s", self.__Name, Err )	
 
-		return	
+		return
 	end
 
-	if not self.SilentConfigSave then
+	if not self.SilentConfigSave and not Silent then
 		Print( "Shine %s config file updated.", self.__Name )
 	end
 end

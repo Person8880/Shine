@@ -310,6 +310,8 @@ function Plugin:CreateCommands()
 	local function AllTalk( Client, Enable )
 		self.Config.AllTalk = Enable
 
+		self:SaveConfig( true )
+
 		local Enabled = Enable and "enabled" or "disabled"
 
 		Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]",
@@ -318,6 +320,28 @@ function Plugin:CreateCommands()
 	local AllTalkCommand = self:BindCommand( "sh_alltalk", "alltalk", AllTalk )
 	AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
 	AllTalkCommand:Help( "<true/false> Enables or disables all talk, which allows everyone to hear each others voice chat regardless of team." )
+
+	local function FriendlyFire( Client, Scale )
+		local OldState = self.Config.FriendlyFire
+		local Enable = Scale > 0
+
+		if Enable then
+			self.Config.FriendlyFire = true
+			self.Config.FriendlyFireScale = Scale
+		else
+			self.Config.FriendlyFire = false
+		end
+
+		self:SaveConfig( true )
+
+		if OldState ~= self.Config.FriendlyFire then
+			Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[FF]",
+				255, 255, 255, "Friendly fire has been %s.", true, Enable and "enabled" or "disabled" )
+		end
+	end
+	local FriendlyFireCommand = self:BindCommand( "sh_friendlyfire", { "ff", "friendlyfire" }, FriendlyFire )
+	FriendlyFireCommand:AddParam{ Type = "number", Min = 0, Error = "Please specify a scale, or 0 for off." }
+	FriendlyFireCommand:Help( "<scale> Sets the friendly fire scale. Use 0 to disable friendly fire." )
 
 	local function Kick( Client, Target, Reason )
 		Shine:Print( "%s kicked %s.%s", true,
@@ -545,13 +569,17 @@ function Plugin:CreateCommands()
 		local Gamerules = GetGamerules()
 		if Gamerules then
 			for i = 1, #Targets do
-				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), Team, nil, true )
+				local Player = Targets[ i ]:GetControllingPlayer()
+
+				if Player then
+					Gamerules:JoinTeam( Player, Team, nil, true )
+				end
 			end
 		end
 	end
 	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
 	ChangeTeamCommand:AddParam{ Type = "clients" }
-	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
+	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify a team to move to." }
 	ChangeTeamCommand:Help( "<players> <marine/alien> Sets the given player(s) onto the given team." )
 
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
@@ -596,7 +624,7 @@ function Plugin:CreateCommands()
 				Player:Eject()
 			else
 				if Client then
-					Shine:Notify( Client:GetControllingPlayer(), "Error", Shine.Config.ChatName, "%s is not a commander.", true, Player:GetName() )
+					Shine:NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
 				else
 					Shine:Print( "%s is not a commander.", true, Player:GetName() )
 				end
@@ -650,7 +678,7 @@ function Plugin:CreateCommands()
 	local function CSay( Client, Message )
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client:GetUserId() or 0
+		local ID = Client and Client:GetUserId() or "N/A"
 
 		local Words = StringExplode( Message, " " )
 		local Colour = Colours[ Words[ 1 ] ]

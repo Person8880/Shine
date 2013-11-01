@@ -8,6 +8,7 @@ local Shine = Shine
 
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
+local IsType = Shine.IsType
 
 local Clamp = math.Clamp
 local Clock = os.clock
@@ -42,7 +43,10 @@ function Plugin:HookChat( ChatElement )
 		self.Vis = Vis
 
 		for Index, Element in pairs( self.messages ) do
-			Element.Background:SetIsVisible( Vis )
+			--There's non-table elements in here???
+			if IsType( Element, "table" ) then
+				Element.Background:SetIsVisible( Vis )
+			end
 		end
 	end
 
@@ -76,7 +80,7 @@ function Plugin:HookChat( ChatElement )
 			local Message = select( 2, ... )
 
 			--This is called when the message is added to the GUIChat's message list.
-			if Message and Message.Background and Plugin.Enabled and Plugin.Visible then
+			if IsType( Message, "table" ) and Message.Background and Plugin.Enabled and Plugin.Visible then
 				Message.Background:SetIsVisible( false )
 			end
 		end
@@ -740,8 +744,6 @@ local function WordWrap( XPos, Width, Label, LastSpace )
 end
 
 local IntToColour
-
-local IsType = Shine.IsType
 
 --[[
 	Adds a message to the chatbox.

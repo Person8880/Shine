@@ -166,10 +166,10 @@ function Plugin:LoadConfig()
 	local BalanceMode = self.Config.BalanceMode
 	local FallbackMode = self.Config.FallbackMode
 
-	if FallbackMode == self.MODE_ELO or ( FallbackMode == self.MODE_SPONITOR and BalanceMode == self.MODE_SPONITOR ) then
+	if FallbackMode == self.MODE_ELO or FallbackMode == self.MODE_SPONITOR then
 		self.Config.FallbackMode = self.MODE_KDR
 
-		Notify( "Error in voterandom config, FallbackMode is not set as a valid option.\nMake sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3.\nSetting FallbackMode to KDR mode." )
+		Notify( "Error in voterandom config, FallbackMode is not set as a valid option.\nMake sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3 or 5.\nSetting FallbackMode to KDR mode (4)." )
 	
 		self:SaveConfig()
 	end

@@ -73,7 +73,7 @@ if Server then
 			return Value.isa and Value:isa( "Vector" ) and Value or nil
 		end,
 		angle = function( Value )
-			return Value.ias and Value:isa( "Angles" ) and Value or nil
+			return Value.isa and Value:isa( "Angles" ) and Value or nil
 		end,
 		time = function( Value )
 			return tonumber( Value )
