@@ -172,7 +172,7 @@ function Plugin:Initialise()
 	end
 
 	self.MapCycle = Cycle or {}
-	self.MapCycle.time = self.MapCycle.time or 30
+	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
 
 	local ForcedMaps = self.Config.ForcedMaps
 	local IsArray = IsTableArray( ForcedMaps )
