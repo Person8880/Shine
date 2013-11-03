@@ -96,7 +96,7 @@ function Plugin:Setup()
 		end
 
 		for i = 1, #GroupBadges do
-			local BadgeName = GroupBadges[ i ]:lower()
+			local BadgeName = GroupBadges[ i ]
 
 			if not AssignBadge( ID, BadgeName ) then
 				Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
