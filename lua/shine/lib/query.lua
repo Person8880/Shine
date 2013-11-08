@@ -76,7 +76,7 @@ local DefaultTimeout = 5
 function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Timeout )
 	local NeedParams = true
 
-	if not OnTimeout then
+	if not Timeout then
 		Timeout = OnTimeout
 		OnTimeout = OnSuccess
 		OnSuccess = Params

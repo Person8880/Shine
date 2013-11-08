@@ -76,7 +76,8 @@ local DefaultConfig = {
 	BansURL = "",
 	BansSubmitURL = "",
 	BansSubmitArguments = {},
-	MaxSubmitRetries = 3
+	MaxSubmitRetries = 3,
+	SubmitTimeout = 5
 }
 
 --[[
@@ -314,10 +315,10 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 				return
 			end
 			
-			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc )
+			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
 		end
 
-		Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc )
+		Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
 	end
 
 	Hook.Call( "OnPlayerBanned", ID, Name, Duration, BannedBy, Reason )
