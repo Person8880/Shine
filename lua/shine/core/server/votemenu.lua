@@ -6,7 +6,7 @@ function Shine:BuildPluginData()
 	local Plugins = self.Plugins
 
 	return {
-		Random = Plugins.voterandom and Plugins.voterandom.Enabled or false,
+		Shuffle = Plugins.voterandom and Plugins.voterandom.Enabled or false,
 		RTV = Plugins.mapvote and Plugins.mapvote.Enabled and Plugins.mapvote.Config.EnableRTV or false,
 		Surrender = Plugins.votesurrender and Plugins.votesurrender.Enabled or false,
 		Unstuck = Plugins.unstuck and Plugins.unstuck.Enabled or false,
