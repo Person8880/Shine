@@ -704,7 +704,7 @@ function Plugin:CreateCommands()
 		local Immunity = Shine:GetUserImmunity( Client )
 		local TargetImmunity = Shine:GetUserImmunity( Target )
 
-		if TargetImmunity >= Immunity then
+		if TargetImmunity >= Immunity or not Shine.Config.NotifyAnonymous then
 			local Player = Client:GetControllingPlayer()
 			local Name = Player and Player:GetName() or Shine.Config.ChatName
 
