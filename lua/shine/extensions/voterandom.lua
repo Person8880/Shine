@@ -782,7 +782,11 @@ function Plugin:StoreScoreData( Player )
 		end
 	elseif Mode == self.MODE_KDR then
 		local Kills = Player.GetKills and Player:GetKills() or 0
+		local Assists = Player.GetAssistKills and Player:GetAssistKills() or 0
 		local Deaths = Player.GetDeaths and Player:GetDeaths() or 0
+
+		--Each sssist counts for 0.5.
+		Kills = Kills + Assists * 0.5
 
 		--0 KDR is useless, let's just randomise them.
 		if Kills == 0 then return end 
