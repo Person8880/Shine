@@ -37,7 +37,7 @@ Plugin.MODE_RANDOM = 1
 Plugin.MODE_SCORE = 2
 Plugin.MODE_ELO = 3
 Plugin.MODE_KDR = 4
-Plugin.MODE_SPONITOR = 5 --Lets use the best stats source in the game.
+Plugin.MODE_SPONITOR = 5
 
 local ModeStrings = {
 	Mode = {
@@ -114,7 +114,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 255, 100, "[Random]", 255, 255, 255, Message, Format, ... )
+	Shine:NotifyDualColour( Player, 100, 255, 100, "[Shuffle]", 255, 255, 255, Message, Format, ... )
 end
 
 function Plugin:GenerateDefaultConfig( Save )
@@ -782,7 +782,11 @@ function Plugin:StoreScoreData( Player )
 		end
 	elseif Mode == self.MODE_KDR then
 		local Kills = Player.GetKills and Player:GetKills() or 0
+		local Assists = Player.GetAssistKills and Player:GetAssistKills() or 0
 		local Deaths = Player.GetDeaths and Player:GetDeaths() or 0
+
+		--Each assist counts for 0.5.
+		Kills = Kills + Assists * 0.5
 
 		--0 KDR is useless, let's just randomise them.
 		if Kills == 0 then return end 
@@ -1211,6 +1215,8 @@ function Plugin:CreateCommands()
 		if Enable then
 			self.Vote:Reset()
 			self:ApplyRandomSettings()
+
+			Shine:CommandNotify( Client, "enabled %s teams.", true, ModeStrings.ModeLower[ self.Config.BalanceMode ] )
 		else
 			Shine.Timer.Destroy( self.RandomEndTimer )
 			self.Vote:Reset()

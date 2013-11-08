@@ -213,7 +213,8 @@ function Shine:ConvertData( Data, DontSave )
 				IsBlacklist = Vals.type == "disallowed",
 				Commands = Vals.commands and ConvertCommands( Vals.commands ) or {}, 
 				Immunity = Vals.level or 10, 
-				Badge = Vals.badge
+				Badge = Vals.badge,
+				Badges = Vals.badges
 			}
 		end
 
@@ -229,7 +230,12 @@ function Shine:ConvertData( Data, DontSave )
 		Data.Users = {}
 		
 		for Name, Vals in pairs( Data.users ) do
-			Data.Users[ tostring( Vals.id ) ] = { Group = Vals.groups[ 1 ], Immunity = Vals.level }
+			Data.Users[ tostring( Vals.id ) ] = { 
+				Group = Vals.groups[ 1 ],
+				Immunity = Vals.level,
+				Badge = Vals.badge,
+				Badges = Vals.badges
+			}
 		end
 		
 		Edited = true
@@ -293,6 +299,31 @@ function Shine:GetUserData( Client )
 	if not ID then return nil end
 
 	return self.UserData.Users[ tostring( ID ) ], ID
+end
+
+--[[
+	Gets a client's immunity value.
+	Input: Client or NS2ID.
+	Output: Immunity value, 0 if they have no group/user.
+]]
+function Shine:GetUserImmunity( Client )
+	if not Client then return 0 end
+	if not self.UserData then return 0 end
+	if not self.UserData.Groups then return 0 end
+
+	local Data = self:GetUserData( Client )
+
+	if not Data then return 0 end
+	if Data.Immunity then return Data.Immunity end
+
+	local Group = Data.Group
+	local GroupData = self.UserData.Groups[ Group ]
+
+	if not GroupData then
+		return 0
+	end
+
+	return GroupData.Immunity or 0
 end
 
 --[[

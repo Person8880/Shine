@@ -6,8 +6,8 @@ local Notify = Shared.Message
 local pairs = pairs
 local StringFormat = string.format
 
-local ConfigPath = "config://shine/BaseConfig.json"
-local BackupPath = "config://Shine_BaseConfig.json"
+local ConfigPath = "config://shine/BaseConfig"
+local BackupPath = "config://Shine_BaseConfig"
 
 local DefaultConfig = {
 	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
@@ -48,7 +48,11 @@ local DefaultConfig = {
 
 	EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
 
-	ChatName = "Admin", --The default name that should appear for notifications with a name (not all messages will show this.)
+	NotifyOnCommand = false, --Should we display a notification for commands such as kick, ban etc?
+	NotifyAnonymous = true, --Should we hide who performed the operation?
+	NotifyAdminAnonymous = false, --Should we hide to players with greater-equal immunity who performed it?
+	ChatName = "Admin", --The name to use for anonymous output.
+	ConsoleName = "Admin", --The name to use for console running a command.
 
 	SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
 
@@ -59,11 +63,24 @@ local DefaultConfig = {
 
 local CheckConfig = Shine.RecursiveCheckConfig
 
+--[[
+	Gets the gamemode dependent config file.
+]]
+local function GetConfigPath( Backup, Default )
+	local Gamemode = Shine.GetGamemode()
+
+	if Gamemode == "ns2" or Default then
+		return Backup and BackupPath..".json" or ConfigPath..".json"
+	end
+
+	return StringFormat( "%s_%s.json", Backup and BackupPath or ConfigPath, Gamemode )
+end
+
 function Shine:LoadConfig()
-	local ConfigFile = self.LoadJSONFile( ConfigPath )
+	local ConfigFile = self.LoadJSONFile( GetConfigPath() ) or self.LoadJSONFile( GetConfigPath( false, true ) )
 
 	if not ConfigFile then
-		ConfigFile = self.LoadJSONFile( BackupPath )
+		ConfigFile = self.LoadJSONFile( GetConfigPath( true ) ) or self.LoadJSONFile( GetConfigPath( true, true ) )
 		
 		if not ConfigFile then
 			self:GenerateDefaultConfig( true )
@@ -153,10 +170,10 @@ function Shine:LoadExtensionConfigs()
 		if Enabled then
 			if self.Plugins[ Name ] then --We already loaded it, it was a shared plugin.
 				local Success, Err = self:EnableExtension( Name )
-				Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s.", Name, Err ) )
+				Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s", Name, Err ) )
 			else
 				local Success, Err = self:LoadExtension( Name )
-				Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s.", Name, Err ) )
+				Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) or StringFormat( "- Error loading %s: %s", Name, Err ) )
 			end
 		end
 	end

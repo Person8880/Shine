@@ -17,6 +17,7 @@ Plugin.Users = {}
 
 Plugin.DefaultConfig = {
 	MinPlayers = 10,
+	WarnMinPlayers = 5,
 	Delay = 1,
 	WarnTime = 5,
 	KickTime = 15,
@@ -30,6 +31,11 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 
 function Plugin:Initialise()
+	if self.Config.WarnMinPlayers > self.Config.MinPlayers then
+		self.Config.WarnMinPlayers = self.Config.MinPlayers
+		self:SaveConfig( true )
+	end
+
 	self.Enabled = true
 
 	return true
@@ -92,7 +98,7 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 
 	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
-	if Players < self.Config.MinPlayers then
+	if Players < self.Config.WarnMinPlayers then
 		DataTable.LastMove = Time
 
 		return
@@ -150,7 +156,8 @@ function Plugin:OnProcessMove( Player, Input )
 		return
 	end
 
-	if DataTable.LastMove + KickTime < Time then
+	--Only kick if we're past the min player count to do so.
+	if DataTable.LastMove + KickTime < Time and Players >= self.Config.MinPlayers then
 		self:ClientDisconnect( Client ) --Failsafe.
 
 		Shine:Print( "Client %s[%s] was AFK for over %s. Kicking...", true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ) )

@@ -89,17 +89,19 @@ function Plugin:Setup()
 
 		if not Group then return end
 		
-		local GroupBadges = Group.Badges or Group.badges or {}
+		local GroupBadges = Group.Badges or Group.badges
 
 		if Group.Badge or Group.badge then
 			InsertUnique( GroupBadges, Group.Badge or Group.badge )
 		end
 
-		for i = 1, #GroupBadges do
-			local BadgeName = GroupBadges[ i ]:lower()
+		if GroupBadges then
+			for i = 1, #GroupBadges do
+				local BadgeName = GroupBadges[ i ]
 
-			if not AssignBadge( ID, BadgeName ) then
-				Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
+				if not AssignBadge( ID, BadgeName ) then
+					Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
+				end
 			end
 		end
 
@@ -110,10 +112,21 @@ function Plugin:Setup()
 		ID = tonumber( ID )
 		local GroupName = User.Group
 		local UserBadge = User.Badge or User.badge
+		local UserBadges = User.Badges or User.badges
 
 		if UserBadge then
 			if not AssignBadge( ID, UserBadge ) then
 				Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
+			end
+		end
+
+		if UserBadges then
+			for i = 1, #UserBadges do
+				local BadgeName = UserBadges[ i ]
+
+				if not AssignBadge( ID, BadgeName ) then
+					Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
+				end
 			end
 		end
 

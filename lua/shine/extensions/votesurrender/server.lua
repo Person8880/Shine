@@ -13,7 +13,7 @@ local Floor = math.floor
 local Max = math.max
 local Random = math.random
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
@@ -46,6 +46,8 @@ function Plugin:Initialise()
 	}
 
 	self.NextVote = 0
+
+	self.dt.ConcedeTime = self.Config.VoteDelay
 
 	self:CreateCommands()
 
@@ -224,5 +226,3 @@ function Plugin:CreateCommands()
 	local VoteSurrenderCommand = self:BindCommand( "sh_votesurrender", { "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )
 	VoteSurrenderCommand:Help( "Votes to surrender the round." )
 end
-
-Shine:RegisterExtension( "votesurrender", Plugin )

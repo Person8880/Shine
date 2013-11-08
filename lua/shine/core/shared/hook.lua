@@ -531,7 +531,12 @@ end
 	Here we replace class methods in order to hook into certain important events.
 ]]
 Add( "Think", "ReplaceMethods", function()
-	local Gamerules = Shine.Config.GameRules or "NS2Gamerules"
+	local Gamerules = "NS2Gamerules"
+
+	--For the factions mod.
+	if FactionGamerules then
+		Gamerules = "FactionGamerules"
+	end
 
 	SetupClassHook( "Player", "OnProcessMove", "OnProcessMove", "PassivePre" )
 	SetupClassHook( "Player", "SetName", "PlayerNameChange", function( OldFunc, self, Name )

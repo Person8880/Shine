@@ -83,7 +83,7 @@ end
 VoteMenu.GenericClick = GenericClick
 
 local ClickFuncs = {
-	Random = function()
+	Shuffle = function()
 		return GenericClick( "sh_voterandom" )
 	end,
 	RTV = function()
