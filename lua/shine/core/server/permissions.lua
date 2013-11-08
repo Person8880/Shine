@@ -213,7 +213,8 @@ function Shine:ConvertData( Data, DontSave )
 				IsBlacklist = Vals.type == "disallowed",
 				Commands = Vals.commands and ConvertCommands( Vals.commands ) or {}, 
 				Immunity = Vals.level or 10, 
-				Badge = Vals.badge
+				Badge = Vals.badge,
+				Badges = Vals.badges
 			}
 		end
 
@@ -229,7 +230,12 @@ function Shine:ConvertData( Data, DontSave )
 		Data.Users = {}
 		
 		for Name, Vals in pairs( Data.users ) do
-			Data.Users[ tostring( Vals.id ) ] = { Group = Vals.groups[ 1 ], Immunity = Vals.level }
+			Data.Users[ tostring( Vals.id ) ] = { 
+				Group = Vals.groups[ 1 ],
+				Immunity = Vals.level,
+				Badge = Vals.badge,
+				Badges = Vals.badges
+			}
 		end
 		
 		Edited = true
