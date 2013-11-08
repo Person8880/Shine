@@ -37,25 +37,11 @@ Plugin.Conflicts = {
 Plugin.CountdownTimer = "TournamentCountdown"
 Plugin.FiveSecondTimer = "Tournament5SecondCount"
 
---List of mods not compatible with tournament mode
-local BlacklistMods = {
-	[ "5f35045" ] = "Combat",
-	[ "7e64c1a" ] = "Xenoswarm",
-	[ "7957667" ] = "Marine vs Marine",
-	[ "6ed01f8" ] = "The Faded"
-}
-
 function Plugin:Initialise()
-	local GetMod = Server.GetActiveModId
+	local Gamemode = Shine.GetGamemode()
 
-	for i = 1, Server.GetNumActiveMods() do
-		local Mod = GetMod( i ):lower()
-
-		local OnBlacklist = BlacklistMods[ Mod ]
-
-		if OnBlacklist then
-			return false, StringFormat( "The tournamentmode plugin does not work with %s.", OnBlacklist )
-		end
+	if Gamemode ~= "ns2" then
+		return false, StringFormat( "The tournamentmode plugin does not work with %s.", Gamemode )
 	end
 
 	self.TeamMembers = {}
