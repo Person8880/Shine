@@ -1211,6 +1211,8 @@ function Plugin:CreateCommands()
 		if Enable then
 			self.Vote:Reset()
 			self:ApplyRandomSettings()
+
+			Shine:CommandNotify( Client, "enabled %s teams.", true, ModeStrings.ModeLower[ self.Config.BalanceMode ] )
 		else
 			Shine.Timer.Destroy( self.RandomEndTimer )
 			self.Vote:Reset()

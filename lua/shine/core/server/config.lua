@@ -48,7 +48,11 @@ local DefaultConfig = {
 
 	EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
 
-	ChatName = "Admin", --The default name that should appear for notifications with a name (not all messages will show this.)
+	NotifyOnCommand = false, --Should we display a notification for commands such as kick, ban etc?
+	NotifyAnonymous = true, --Should we hide who performed the operation?
+	NotifyAdminAnonymous = false, --Should we hide to players with greater-equal immunity who performed it?
+	ChatName = "Admin", --The name to use for anonymous output.
+	ConsoleName = "Admin", --The name to use for console running a command.
 
 	SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
 

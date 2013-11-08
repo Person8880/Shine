@@ -236,6 +236,60 @@ function Shine:NotifyError( Player, Message, Format, ... )
 	self:NotifyDualColour( Player, 255, 0, 0, "[Error]", 255, 255, 255, Message, Format, ... )
 end
 
+--[[
+	Notifies players of a command, obeying the settings for who can see names,
+	and how the console should be displayed.
+]]
+function Shine:CommandNotify( Client, Message, Format, ... )
+	if not self.Config.NotifyOnCommand then return end
+	
+	local Clients = self.GameIDs
+	local IsConsole = not Client
+	local Immunity = self:GetUserImmunity( Client )
+	local Name
+
+	if IsConsole then
+		Name = self.Config.ConsoleName
+	else
+		local Player = Client:GetControllingPlayer()
+		if Player then
+			Name = Player:GetName()
+		else
+			Name = self.Config.ChatName
+		end
+	end
+
+	local NotifyAnonymous = self.Config.NotifyAnonymous
+	local NotifyAdminAnonymous = self.Config.NotifyAdminAnonymous
+
+	for Target in pairs( Clients ) do
+		--Console should always notify with its special name.
+		if IsConsole then
+			self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message, Format, ... )
+		else
+			--If admins can't see it, no one can.
+			if NotifyAdminAnonymous then
+				self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName, 255, 255, 255, Message, Format, ... )
+			else
+				local TargetImmunity = self:GetUserImmunity( Target )
+				local IsGreaterEqual = TargetImmunity >= Immunity
+
+				--They're greater equal in rank, so show the name.
+				if IsGreaterEqual then
+					self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message, Format, ... )
+				else
+					--If we're set to be anonymous to lower ranks, use the set generic admin name.
+					if NotifyAnonymous then
+						self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName, 255, 255, 255, Message, Format, ... )
+					else --Otherwise use the admin's name.
+						self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message, Format, ... )
+					end
+				end
+			end
+		end
+	end
+end
+
 local OldServerAdminPrint = ServerAdminPrint
 
 local MaxPrintLength = 128

@@ -313,7 +313,10 @@ function Plugin:CreateCommands()
 
 		Server.DisconnectClient( Target )
 
-		Shine:AdminPrint( nil, "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
+		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
+
+		Shine:CommandNotify( Client, "banned %s %s.", true, TargetName, DurationString )
+		Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName, ID, DurationString )
 	end
 	local BanCommand = self:BindCommand( "sh_ban", "ban", Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
@@ -353,10 +356,16 @@ function Plugin:CreateCommands()
 		end
 		
 		if self:AddBan( ID, TargetName, Duration, BanningName, Reason ) then
-			Shine:AdminPrint( nil, "%s banned %s[%s] for %s.", true, BanningName, TargetName, ID, Duration ~= 0 and string.TimeToString( Duration ) or "permanently" )
+			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
+
+			Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName, ID, DurationString )
+			
 			if Target then
 				Server.DisconnectClient( Target )
+
+				Shine:CommandNotify( Client, "banned %s %s.", true, TargetName, DurationString )
 			end
+
 			return
 		end
 
