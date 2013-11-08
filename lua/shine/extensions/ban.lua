@@ -26,6 +26,8 @@ local Hooked
 	We return true to indicate a successful startup.
 ]]
 function Plugin:Initialise()
+	self.Retries = {}
+
 	self:CreateCommands()
 	self:CheckBans()
 
@@ -67,17 +69,22 @@ function Plugin:Initialise()
 	return true
 end
 
+local DefaultConfig = {
+	Banned = {},
+	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
+	GetBansFromWeb = false,
+	BansURL = "",
+	BansSubmitURL = "",
+	BansSubmitArguments = {},
+	MaxSubmitRetries = 3
+}
+
 --[[
 	Generates the default bans config.
 	This is called if no config file exists.
 ]]
 function Plugin:GenerateDefaultConfig( Save )
-	self.Config = {
-		Banned = {},
-		DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
-		GetBansFromWeb = false,
-		BansURL = ""
-	}
+	self.Config = DefaultConfig
 
 	if Save then
 		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
@@ -108,6 +115,39 @@ function Plugin:SaveConfig()
 	end
 end
 
+function Plugin:LoadBansFromWeb()
+	Shared.SendHTTPRequest( self.Config.BansURL, "GET", function( Response )
+		if not Response then
+			Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
+
+			return
+		end
+
+		local BansData = Decode( Response ) or {}
+		
+		--Shine config format.
+		if BansData.Banned then
+			self.Config.Banned = BansData.Banned
+		else --NS2 bans file format.
+			if not next( BansData ) then
+				Shine:Print( "[Error] Received empty or corrupt bans table from the web." )
+
+				return
+			end
+
+			self.Config.Banned = nil
+
+			for i = 1, #BansData do
+				self.Config[ i ] = BansData[ i ]
+			end
+
+			self:ConvertData( self.Config )
+		end
+
+		Shine:LogString( "Shine loaded bans from web successfully." )
+	end )
+end
+
 --[[
 	Loads the bans.
 ]]
@@ -129,36 +169,7 @@ function Plugin:LoadConfig()
 	if self.Config.GetBansFromWeb then
 		--Load bans list after everything else.
 		Hook.Add( "Think", "Bans_WebLoad", function()
-			Shared.SendHTTPRequest( self.Config.BansURL, "GET", function( Response )
-				if not Response then
-					Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
-
-					return
-				end
-
-				local BansData = Decode( Response ) or {}
-				
-				--Shine config format.
-				if BansData.Banned then
-					self.Config.Banned = BansData.Banned
-				else --NS2 bans file format.
-					if not next( BansData ) then
-						Shine:Print( "[Error] Received empty or corrupt bans table from the web." )
-
-						return
-					end
-
-					self.Config.Banned = nil
-
-					for i = 1, #BansData do
-						self.Config[ i ] = BansData[ i ]
-					end
-
-					self:ConvertData( self.Config )
-				end
-
-				Shine:LogString( "Shine loaded bans from web successfully." )
-			end )
+			self:LoadBansFromWeb()
 
 			Hook.Remove( "Think", "Bans_WebLoad" )
 		end )
@@ -168,21 +179,7 @@ function Plugin:LoadConfig()
 
 	self:ConvertData( self.Config )
 
-	local Updated
-
-	if self.Config.GetBansFromWeb == nil then
-		self.Config.GetBansFromWeb = false
-
-		Updated = true
-	end
-
-	if self.Config.BansURL == nil then
-		self.Config.BansURL = ""
-
-		Updated = true
-	end
-
-	if Updated then
+	if Shine.CheckConfig( self.Config, DefaultConfig ) then
 		Notify( "Shine bans config file updated." )
 		self:SaveConfig()
 	end
@@ -256,7 +253,7 @@ end
 	Inputs: Steam ID, player name, ban duration in seconds, name of player performing the ban.
 	Output: Success.
 ]]
-function Plugin:AddBan( ID, Name, Duration, BannedBy, Reason )
+function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 	if not tonumber( ID ) then 
 		ID = Shine.SteamIDToNS2( ID )
 
@@ -265,15 +262,63 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, Reason )
 		end
 	end
 
-	self.Config.Banned[ tostring( ID ) ] = {
+	ID = tostring( ID )
+
+	local BanData = {
 		Name = Name,
 		Duration = Duration,
 		UnbanTime = Duration ~= 0 and ( Time() + Duration ) or 0,
 		BannedBy = BannedBy,
-		Reason = Reason
+		BannerID = BanningID,
+		Reason = Reason,
+		Issued = Time()
 	}
 
+	self.Config.Banned[ ID ] = BanData
+
 	self:SaveConfig()
+
+	if self.Config.BansSubmitURL ~= "" then
+		local PostParams = {
+			bandata = Encode( BanData )
+		}
+
+		for Key, Value in pairs( self.Config.BansSubmitArguments ) do
+			PostParams[ Key ] = Value
+		end
+
+		local function SuccessFunc( Data )
+			self.Retries[ ID ] = nil
+
+			if not Data then return end
+			
+			local Decoded = Decode( Data )
+
+			if Decoded.success == false then
+				--The web request told us that they shouldn't be banned.
+				self.Config.Banned[ ID ] = nil
+
+				self:SaveConfig()
+			end
+		end
+
+		self.Retries[ ID ] = 0
+
+		local TimeoutFunc
+		TimeoutFunc = function()
+			self.Retries[ ID ] = self.Retries[ ID ] + 1
+
+			if self.Retries[ ID ] > self.Config.MaxSubmitRetries then
+				self.Retries[ ID ] = nil
+
+				return
+			end
+			
+			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc )
+		end
+
+		Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc )
+	end
 
 	Hook.Call( "OnPlayerBanned", ID, Name, Duration, BannedBy, Reason )
 
@@ -303,13 +348,22 @@ function Plugin:CreateCommands()
 	]]
 	local function Ban( Client, Target, Duration, Reason )
 		Duration = Duration * 60
-		local ID = Target:GetUserId()
+		local ID = tostring( Target:GetUserId() )
+
+		--We're currently waiting for a response on this ban.
+		if self.Retries[ ID ] then
+			self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+
+			return
+		end
 
 		local BanningName = Client and Client:GetControllingPlayer():GetName() or "Console"
+		local BanningID = Client and Client:GetUserId() or 0
 		local Player = Target:GetControllingPlayer()
 		local TargetName = Player:GetName()
 
-		self:AddBan( tostring( ID ), TargetName, Duration, BanningName, Reason )
+		self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason )
 
 		Server.DisconnectClient( Target )
 
@@ -347,7 +401,28 @@ function Plugin:CreateCommands()
 	local function BanID( Client, ID, Duration, Reason )
 		Duration = Duration * 60
 
+		--We want the NS2ID, not Steam ID.
+		if ID:find( "STEAM" ) then
+			ID = Shine.SteamIDToNS2( ID )
+
+			if not ID then
+				self:NotifyError( Client, "Invalid Steam ID for banning." )
+				self:AdminPrint( Client, "Invalid Steam ID for banning." )
+
+				return
+			end
+		end
+
+		--We're currently waiting for a response on this ban.
+		if self.Retries[ ID ] then
+			self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+
+			return
+		end
+
 		local BanningName = Client and Client:GetControllingPlayer():GetName() or "Console"
+		local BanningID = Client and Client:GetUserId() or 0
 		local Target = Shine:GetClient( ID )
 		local TargetName = "<unknown>"
 		
@@ -355,7 +430,7 @@ function Plugin:CreateCommands()
 			TargetName = Target:GetControllingPlayer():GetName()
 		end
 		
-		if self:AddBan( ID, TargetName, Duration, BanningName, Reason ) then
+		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
 			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
 
 			Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName, ID, DurationString )
@@ -391,6 +466,18 @@ function Plugin:CreateCommands()
 	end
 	local ListBansCommand = self:BindCommand( "sh_listbans", nil, ListBans )
 	ListBansCommand:Help( "Lists all stored bans from Shine." )
+
+	local function ForceWebSync( Client )
+		if self.Config.BansURL == "" then
+			return
+		end
+
+		self:LoadBansFromWeb()
+
+		Shine:AdminPrint( Client, "Updating bans from the web..." )
+	end
+	local ForceSyncCommand = self:BindCommand( "sh_forcebansync", nil, ForceWebSync )
+	ForceSyncCommand:Help( "Forces the bans plugin to reload ban data from the web." )
 end
 
 --[[
