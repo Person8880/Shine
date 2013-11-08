@@ -96,7 +96,12 @@ function Plugin:CreateCommands()
 
 			return
 		end
-
+		
+		--to help mappers we will mark the unstuck position
+		Server.SendNetworkMessage( Client, "Shine_Command", {
+                        Command = "annotate shine unstuck was used here"
+                }, true )
+                
 		local Success = self:UnstickPlayer( Player, Player:GetOrigin() )
 
 		if Success then
