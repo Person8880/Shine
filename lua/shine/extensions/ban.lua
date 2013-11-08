@@ -281,7 +281,8 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 
 	if self.Config.BansSubmitURL ~= "" then
 		local PostParams = {
-			bandata = Encode( BanData )
+			bandata = Encode( BanData ),
+			unban = 0
 		}
 
 		for Key, Value in pairs( self.Config.BansSubmitArguments ) do
@@ -294,6 +295,8 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 			if not Data then return end
 			
 			local Decoded = Decode( Data )
+
+			if not Decoded then return end
 
 			if Decoded.success == false then
 				--The web request told us that they shouldn't be banned.
@@ -331,7 +334,56 @@ end
 	Input: Steam ID.
 ]]
 function Plugin:RemoveBan( ID, DontSave )
-	self.Config.Banned[ tostring( ID ) ] = nil
+	ID = tostring( ID )
+
+	local BanData = self.Config.Banned[ ID ]
+
+	self.Config.Banned[ ID ] = nil
+
+	if self.Config.BansSubmitURL ~= "" then
+		local PostParams = {
+			id = ID,
+			unban = 1
+		}
+
+		for Key, Value in pairs( self.Config.BansSubmitArguments ) do
+			PostParams[ Key ] = Value
+		end
+
+		local function SuccessFunc( Data )
+			self.Retries[ ID ] = nil
+
+			if not Data then return end
+			
+			local Decoded = Decode( Data )
+
+			if not Decoded then return end
+
+			if Decoded.success == false then
+				--The web request told us that they shouldn't be banned.
+				self.Config.Banned[ ID ] = BanData
+
+				self:SaveConfig()
+			end
+		end
+
+		self.Retries[ ID ] = 0
+
+		local TimeoutFunc
+		TimeoutFunc = function()
+			self.Retries[ ID ] = self.Retries[ ID ] + 1
+
+			if self.Retries[ ID ] > self.Config.MaxSubmitRetries then
+				self.Retries[ ID ] = nil
+
+				return
+			end
+			
+			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
+		end
+
+		Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams, SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
+	end
 
 	Hook.Call( "OnPlayerUnbanned", ID )
 
@@ -384,6 +436,14 @@ function Plugin:CreateCommands()
 	]]
 	local function Unban( Client, ID )
 		if self.Config.Banned[ ID ] then
+			--We're currently waiting for a response on this ban.
+			if self.Retries[ ID ] then
+				self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+				self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+
+				return
+			end
+
 			self:RemoveBan( ID )
 			Shine:AdminPrint( nil, "%s unbanned %s.", true, Client and Client:GetControllingPlayer():GetName() or "Console", ID )
 
