@@ -360,7 +360,7 @@ function Plugin:RemoveBan( ID, DontSave )
 			if not Decoded then return end
 
 			if Decoded.success == false then
-				--The web request told us that they shouldn't be banned.
+				--The web request told us that they shouldn't be unbanned.
 				self.Config.Banned[ ID ] = BanData
 
 				self:SaveConfig()
