@@ -560,8 +560,10 @@ function Plugin:CreateCommands()
 			for i = 1, NumPlayers do
 				local Player = Targets[ i ]:GetControllingPlayer()
 
-				TargetList[ Player ] = true
-				Targets[ i ] = Player
+				if Player then
+					TargetList[ Player ] = true
+					Targets[ i ] = Player
+				end
 				--Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), TeamSequence[ i ], nil, true )
 			end
 
