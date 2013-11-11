@@ -888,6 +888,7 @@ end
 	Opens the chatbox, and creates it first if it's not created yet.
 ]]
 function Plugin:StartChat( Team )
+	if MainMenu_GetIsOpened and MainMenu_GetIsOpened() then return true end
 	if not self.GUIChat then return end
 	
 	self.TeamChat = Team

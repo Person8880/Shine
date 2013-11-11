@@ -51,7 +51,11 @@ end
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
 	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
-
+	local MapVote = Shine.Plugins.mapvote
+	if MapVote and MapVote.Enabled and ( MapVote.CyclingMap or MapVote:IsEndVote() ) then
+		return
+	end
+	
 	local Client = Player:GetClient()
 
 	if not Client then return end
