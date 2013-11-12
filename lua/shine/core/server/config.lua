@@ -99,7 +99,7 @@ function Shine:LoadConfig()
 end
 
 function Shine:SaveConfig( Silent )
-	local ConfigFile, Err = self.SaveJSONFile( self.Config, ConfigPath )
+	local ConfigFile, Err = self.SaveJSONFile(self.Config, GetConfigPath() ) or self.SaveJSONFile(self.Config, GetConfigPath( false, true ) ) 
 
 	if not ConfigFile then --Something's gone horribly wrong!
 		Shine.Error = "Error writing config file: "..Err
