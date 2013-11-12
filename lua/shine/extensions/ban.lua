@@ -167,6 +167,11 @@ function Plugin:LoadConfig()
 
 	self.Config = PluginConfig
 
+	if Shine.CheckConfig( self.Config, DefaultConfig ) then
+		Notify( "Shine bans config file updated." )
+		self:SaveConfig()
+	end
+
 	if self.Config.GetBansFromWeb then
 		--Load bans list after everything else.
 		Hook.Add( "Think", "Bans_WebLoad", function()
@@ -179,11 +184,6 @@ function Plugin:LoadConfig()
 	end
 
 	self:ConvertData( self.Config )
-
-	if Shine.CheckConfig( self.Config, DefaultConfig ) then
-		Notify( "Shine bans config file updated." )
-		self:SaveConfig()
-	end
 end
 
 --[[

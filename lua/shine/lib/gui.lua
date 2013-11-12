@@ -123,7 +123,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 	for i = WindowCount, 1, - 1 do
 		local Window = Windows[ i ]
 
-		if Window[ Name ] and Window:GetIsVisible() then
+		if Window and Window[ Name ] and Window:GetIsVisible() then
 			local Success, Result = xpcall( Window[ Name ], OnError, Window, ... )
 
 			if Success then

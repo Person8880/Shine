@@ -77,16 +77,32 @@ local function GetConfigPath( Backup, Default )
 end
 
 function Shine:LoadConfig()
-	local ConfigFile = self.LoadJSONFile( GetConfigPath() ) or self.LoadJSONFile( GetConfigPath( false, true ) )
+	local Paths = {
+		GetConfigPath(),
+		GetConfigPath( false, true ),
+		GetConfigPath( true ),
+		GetConfigPath( true, true )
+	}
+	
+	local ConfigFile
+
+	for i = 1, #Paths do
+		local Path = Paths[ i ]
+
+		ConfigFile = self.LoadJSONFile( Path )
+
+		--Store what path we've loaded from so we update the right one!
+		if ConfigFile then
+			self.ConfigPath = Path
+
+			break
+		end
+	end
 
 	if not ConfigFile then
-		ConfigFile = self.LoadJSONFile( GetConfigPath( true ) ) or self.LoadJSONFile( GetConfigPath( true, true ) )
-		
-		if not ConfigFile then
-			self:GenerateDefaultConfig( true )
+		self:GenerateDefaultConfig( true )
 
-			return
-		end
+		return
 	end
 
 	Notify( "Loading Shine config..." )
@@ -99,7 +115,7 @@ function Shine:LoadConfig()
 end
 
 function Shine:SaveConfig( Silent )
-	local ConfigFile, Err = self.SaveJSONFile( self.Config, ConfigPath )
+	local ConfigFile, Err = self.SaveJSONFile( self.Config, self.ConfigPath or GetConfigPath( false, true ) )
 
 	if not ConfigFile then --Something's gone horribly wrong!
 		Shine.Error = "Error writing config file: "..Err
