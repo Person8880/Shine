@@ -423,6 +423,11 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 		include( Skins[ i ] )
 	end
 
+	--Apparently this isn't loading for some people???
+	if not SGUI.Skins.Default then
+		include "lua/shine/lib/gui/skins/default.lua"
+	end
+
 	SGUI:SetSkin( "Default" )
 
 	local Listener = {
