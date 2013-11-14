@@ -42,10 +42,12 @@ function Plugin:HookChat( ChatElement )
 
 		self.Vis = Vis
 
-		for Index, Element in pairs( self.messages ) do
-			--There's non-table elements in here???
-			if IsType( Element, "table" ) then
-				Element.Background:SetIsVisible( Vis )
+		if self.messages then
+			for Index, Element in pairs( self.messages ) do
+				--There's non-table elements in here???
+				if IsType( Element, "table" ) then
+					Element.Background:SetIsVisible( Vis )
+				end
 			end
 		end
 	end
