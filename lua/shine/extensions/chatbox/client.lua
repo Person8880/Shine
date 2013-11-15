@@ -205,10 +205,10 @@ end
 function Plugin:CreateChatbox()
 	--For some reason, some people don't have this. Without it, we can't do anything...
 	if not self.GUIChat.inputItem then
-		Shine:AddErrorReport( "GUIChat is missing its inputItem!", true, 
-			"Type: %s. inputItem: %s. messages: %s.", true, type( self.GUIChat ), tostring( self.GUIChat.inputItem ),
-			tostring( self.GUIChat.messages ) )
-		
+		Shine:AddErrorReport( "GUIChat is missing its inputItem!",
+			"Type: %s. inputItem: %s. messages: %s.", true, type( self.GUIChat ), 
+			tostring( self.GUIChat.inputItem ), tostring( self.GUIChat.messages ) )
+
 		Shine:UnloadExtension( "chatbox" )
 
 		return
