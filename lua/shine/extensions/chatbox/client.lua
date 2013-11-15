@@ -203,6 +203,17 @@ end
 		6. A settings button that opens up the chatbox settings.
 ]]
 function Plugin:CreateChatbox()
+	--For some reason, some people don't have this. Without it, we can't do anything...
+	if not self.GUIChat.inputItem then
+		Shine:AddErrorReport( "GUIChat is missing its inputItem!", true, 
+			"Type: %s. inputItem: %s. messages: %s.", true, type( self.GUIChat ), tostring( self.GUIChat.inputItem ),
+			tostring( self.GUIChat.messages ) )
+		
+		Shine:UnloadExtension( "chatbox" )
+
+		return
+	end
+
 	local UIScale = GUIScale( Vector( 1, 1, 1 ) )
 	local ScalarScale = GUIScale( 1 )
 
@@ -401,6 +412,8 @@ function Plugin:CreateChatbox()
 	end
 
 	self.SettingsButton = SettingsButton
+
+	return true
 end
 
 function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
@@ -689,7 +702,7 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 
 	--Recreate the entire chat box, it's easier than rescaling.
 	self.MainPanel:Destroy()
-	self:CreateChatbox()
+	if not self:CreateChatbox() then return end
 
 	TableEmpty( Messages )
 
@@ -896,7 +909,9 @@ function Plugin:StartChat( Team )
 	self.TeamChat = Team
 
 	if not SGUI.IsValid( self.MainPanel ) then
-		self:CreateChatbox()
+		if not self:CreateChatbox() then
+			return
+		end
 	end
 
 	--The little text to the left of the text entry.
