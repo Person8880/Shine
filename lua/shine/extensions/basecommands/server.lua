@@ -34,6 +34,7 @@ Plugin.Commands = {}
 Plugin.DefaultConfig = {
 	AllTalk = false,
 	AllTalkPreGame = false,
+	AllTalkSpectator = false,
 	EjectVotesNeeded = 0.5,
 	DisableLuaRun = false,
 	Interp = 100,
@@ -150,6 +151,14 @@ function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 
 	if self.Config.AllTalkPreGame and GetGamerules():GetGameState() == kGameState.NotStarted then return true end
 	if self.Config.AllTalk then return true end
+
+	if self.Config.AllTalkSpectator then
+		local ListenerTeam = Listener:GetTeamNumber()
+
+		if ListenerTeam == ( kSpectatorIndex or 3 ) then
+			return true
+		end
+	end
 end
 
 --[[
