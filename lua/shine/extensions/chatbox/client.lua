@@ -100,7 +100,15 @@ Hook.Add( "Think", "ChatBoxHook", function()
 	end
 end )
 
+local Hooked
+
 function Plugin:Initialise()
+	if not Hooked then
+		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility", "EvaluateUIVisibility", "PassivePost" )
+
+		Hooked = true
+	end
+
 	self.Messages = self.Messages or {}
 
 	self.Enabled = true
@@ -109,9 +117,7 @@ function Plugin:Initialise()
 end
 
 --We need the default chat script so we can hide its messages.
-function Plugin:Think()
-	if self.GUIChat then return end
-	
+function Plugin:EvaluateUIVisibility()
 	local Manager = GetGUIManager()
 	local Scripts = Manager.scripts
 
