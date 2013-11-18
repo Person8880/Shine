@@ -142,6 +142,21 @@ function Plugin:Initialise()
 				end
 			end
 		end
+	else
+		if not Cycle then Cycle = {} end
+		if not Cycle.maps then Cycle.maps = {} end
+		
+		local Count = #Cycle.maps
+
+		--There's no maps in the cycle file, so add the config maps.
+		if Count == 0 then
+			for Map, Enable in pairs( self.Config.Maps ) do
+				if Enable then
+					Count = Count + 1
+					Cycle.maps[ Count ] = Map
+				end
+			end
+		end
 	end
 
 	self:CreateCommands()
@@ -173,6 +188,10 @@ function Plugin:Initialise()
 
 	self.MapCycle = Cycle or {}
 	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
+
+	if not self.MapCycle.maps then
+		return false, "MapCycle.json is missing maps list"
+	end
 
 	local ForcedMaps = self.Config.ForcedMaps
 	local IsArray = IsTableArray( ForcedMaps )
