@@ -43,21 +43,21 @@ local ModeStrings = {
 	Mode = {
 		"Random",
 		"Score based",
-		"ELO based",
+		"Elo based",
 		"KDR based",
 		"Skill based"
 	},
 	ModeLower = {
 		"random",
 		"score based",
-		"ELO based",
+		"Elo based",
 		"KDR based",
 		"skill based"
 	},
 	Action = {
 		"randomly",
 		"based on score",
-		"based on ELO",
+		"based on Elo",
 		"based on KDR",
 		"based on skill"
 	}
