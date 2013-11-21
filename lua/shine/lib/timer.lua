@@ -71,6 +71,20 @@ end
 local function Create( Name, Delay, Reps, Func )
 	local Time = SharedTime()
 
+	local OldObject = Timers[ Name ]
+
+	--Edit it so it's not destroyed if it's created again inside its old function.
+	if OldObject then
+		OldObject.Delay = Delay
+		OldObject.Reps = Reps
+		OldObject.Func = Func
+		OldObject.LastRun = 0
+		OldObject.NextRun = Time + Delay
+		OldObject.StackTrace = debug.traceback()
+
+		return OldObject
+	end
+
 	local Timer = setmetatable( {
 		Name = Name,
 		Delay = Delay,
