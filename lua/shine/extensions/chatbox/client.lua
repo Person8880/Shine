@@ -16,6 +16,9 @@ local Floor = math.floor
 local Max = math.max
 local pairs = pairs
 local select = select
+local StringExplode = string.Explode
+local StringFormat = string.format
+local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
 local type = type
@@ -700,7 +703,8 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		local PreText = Message.Pre:GetText()
 		local PreCol = Message.Pre:GetColour()
 
-		local MessageText = Message.Message:GetText()
+		--Take out any new line characters, we'll re-wrap the text for the new size when we add the message back.
+		local MessageText = Message.Message:GetText():gsub( "\n", " " )
 		local MessageCol = Message.Message:GetColour()
 
 		Recreate[ i ] = { PreText = PreText, PreCol = PreCol, MessageText = MessageText, MessageCol = MessageCol }
@@ -723,45 +727,79 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 end
 
 --[[
-	Word wraps text, adding new lines where the text exceeds the width limit.
+	Wraps text to fit the size limit. Used for long words...
+
+	Returns two strings, first one fits entirely on one line, the other may not, and should be
+	added to the next word.
 ]]
-local function WordWrap( XPos, Width, Label, LastSpace )
-	local StartingChar = ( LastSpace or 0 ) + 1
-	local CurWidth = XPos
-	local LabelText = Label:GetText()
-	local i = LastSpace or 1
-	local LastLastSpace
+local function TextWrap( Label, Text, XPos, MaxWidth )
+	local i = 1
+	local FirstLine = Text
+	local SecondLine = ""
 
+	--Character by character, extend the text until it exceeds the width limit.
 	repeat
-		local CurText = LabelText:UTF8Sub( StartingChar, i )
-		local CurChar = LabelText:UTF8Sub( i, i )
+		local CurText = Text:UTF8Sub( 1, i )
 
-		if CurChar == " " then
-			LastLastSpace = LastSpace
-			LastSpace = i
+		--Once it reaches the limit, we go back a character, and set our first and second line results.
+		if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
+			FirstLine = Text:UTF8Sub( 1, i - 1 )
+			SecondLine = Text:UTF8Sub( i )
+
+			break
 		end
 
-		CurWidth = XPos + Label:GetTextWidth( CurText )
 		i = i + 1
-	until CurWidth >= Width or i > #LabelText
+	until i >= Text:UTF8Length()
 
-	--The last space was the last character...
-	if LastSpace == i - 1 then
-		LastSpace = LastLastSpace
+	return FirstLine, SecondLine
+end
+
+--[[
+	Word wraps text, adding new lines where the text exceeds the width limit.
+
+	This time, it shouldn't freeze the game...
+]]
+local function WordWrap( Label, Text, XPos, MaxWidth )
+	local Words = StringExplode( Text, " " )
+	local StartIndex = 1
+	local Lines = {}
+	local i = 1
+
+	--While loop, as the size of the Words table may increase.
+	while i <= #Words do
+		local CurText = TableConcat( Words, " ", StartIndex, i )
+
+		if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
+			--This means one word is wider than the whole chatbox, so we need to cut it part way through.
+			if StartIndex == i then
+				local FirstLine, SecondLine = TextWrap( Label, CurText, XPos, MaxWidth )
+
+				Lines[ #Lines + 1 ] = FirstLine
+
+				--Add the second line to the next word, or as a new next word if none exists.
+				if Words[ i + 1 ] then
+					Words[ i + 1 ] = StringFormat( "%s %s", SecondLine, Words[ i + 1 ] )
+				else
+					Words[ i + 1 ] = SecondLine
+				end
+
+				StartIndex = i + 1
+			else
+				Lines[ #Lines + 1 ] = TableConcat( Words, " ", StartIndex, i - 1 )
+
+				--We need to jump back a step, as we've still got another word to check.
+				StartIndex = i
+				i = i - 1
+			end
+		elseif i == #Words then --We're at the end!
+			Lines[ #Lines + 1 ] = CurText
+		end
+
+		i = i + 1
 	end
 
-	if not LastSpace or LastSpace == StartingChar - 1 then
-		LabelText = LabelText:UTF8Sub( 1, i - 2 ).."\n"..LabelText:UTF8Sub( i - 1 )
-
-		Label:SetText( LabelText )
-
-		return i
-	end
-
-	LabelText = LabelText:UTF8Sub( 1, LastSpace - 1 ).."\n"..LabelText:UTF8Sub( LastSpace + 1 )
-	Label:SetText( LabelText )
-
-	return LastSpace
+	Label:SetText( TableConcat( Lines, "\n" ) )
 end
 
 local IntToColour
@@ -857,18 +895,10 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		MessageLabel:SetText( MessageName )
 
 		local ChatboxSize = self.ChatBox:GetSize().x
-		local LastSpace
 		local XPos = PrePos.x + 5 + PreLabel:GetTextWidth()
 
-		while XPos + MessageLabel:GetTextWidth() > ChatboxSize do
-			LastSpace = WordWrap( XPos, ChatboxSize, MessageLabel, LastSpace )
-
-			local Text = MessageLabel:GetText()
-
-			if Text:sub( #Text, #Text ) == "\n" then
-				Text = Text:sub( 1, #Text - 1 )
-				break
-			end
+		if XPos + MessageLabel:GetTextWidth( MessageName ) > ChatboxSize then
+			WordWrap( MessageLabel, MessageName, XPos, ChatboxSize )
 		end
 	end
 

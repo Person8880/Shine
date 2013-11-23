@@ -17,6 +17,7 @@ local Min = math.min
 local next = next
 local pairs = pairs
 local Random = math.random
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -43,21 +44,21 @@ local ModeStrings = {
 	Mode = {
 		"Random",
 		"Score based",
-		"ELO based",
+		"Elo based",
 		"KDR based",
 		"Skill based"
 	},
 	ModeLower = {
 		"random",
 		"score based",
-		"ELO based",
+		"Elo based",
 		"KDR based",
 		"skill based"
 	},
 	Action = {
 		"randomly",
 		"based on score",
-		"based on ELO",
+		"based on Elo",
 		"based on KDR",
 		"based on skill"
 	}
@@ -68,6 +69,7 @@ local DefaultConfig = {
 	MinPlayers = 10, --Minimum number of players on the server to enable random voting.
 	PercentNeeded = 0.75, --Percentage of the server population needing to vote for it to succeed.
 	Duration = 15, --Time to force people onto random teams for after a random vote. Also time between successful votes.
+	BlockAfterTime = 0, --Time after round start to block the vote. 0 to disable blocking.
 	RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
 	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
@@ -87,7 +89,7 @@ function Plugin:Initialise()
 
 	self.Vote = Shine:CreateVote( function() return self:GetVotesNeeded() end, function() self:ApplyRandomSettings() end, 
 	function( Vote )
-		if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
+		if Vote.LastVoted and SharedTime() - Vote.LastVoted > self.Config.VoteTimeout then
 			Vote:Reset()
 		end
 	end	)
@@ -231,7 +233,7 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 	}
 
 	local CurRequest = ReqCount
-	local CurTime = Shared.GetTime()
+	local CurTime = SharedTime()
 
 	Requests[ CurRequest ] = CurTime + 5 --No response after 5 seconds is a fail.
 
@@ -248,7 +250,7 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 	end )
 
 	Shared.SendHTTPRequest( URL, "POST", Params, function( Response, Status )
-		local Time = Shared.GetTime()
+		local Time = SharedTime()
 
 		if Requests[ CurRequest ] < Time then
 			Shine:Print( "[ELO Vote] NS2Stats responded too late after %.2f seconds!", true, Time - CurTime )
@@ -679,7 +681,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 	local AFKKick = Shine.Plugins.afkkick
 	local AFKEnabled = AFKKick and AFKKick.Enabled
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	local function SortPlayer( Player, Client, Commander )
 		local Team = Player:GetTeamNumber()
@@ -870,8 +872,14 @@ function Plugin:JoinRandomTeam( Player )
 end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
-	if not self.Config.AlwaysEnabled then return end
 	if NewState ~= kGameState.Countdown then return end
+
+	--Block the vote after the set time.
+	if self.Config.BlockAfterTime > 0 then
+		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterTime * 60
+	end
+
+	if not self.Config.AlwaysEnabled then return end
 	if Shared.GetEntitiesWithClassname( "Player" ):GetSize() < self.Config.MinPlayers then
 		return
 	end
@@ -894,6 +902,7 @@ end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
 	self.DoneStartShuffle = false
+	self.VoteBlockTime = nil
 
 	local Players = Shine.GetAllPlayers()
 	local BalanceMode = self.Config.BalanceMode
@@ -1005,7 +1014,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	local Client = Player:GetClient()
 	if not Client then return false end
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
 	local OnPlayingTeam = Team == 1 or Team == 2
@@ -1062,7 +1071,7 @@ function Plugin:GetVotesNeeded()
 end
 
 function Plugin:CanStartVote()
-	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.NextVote < Shared.GetTime() and not self.RandomOnNextRound
+	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.NextVote < SharedTime() and not self.RandomOnNextRound
 end
 
 --[[
@@ -1071,6 +1080,10 @@ end
 function Plugin:AddVote( Client )
 	if self.Config.AlwaysEnabled then
 		return false, StringFormat( "%s teams are forced to enabled by the server.", ModeStrings.Mode[ self.Config.BalanceMode ] )
+	end
+
+	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
+		return false, "It is too far into the current round to start a vote."
 	end
 
 	if not Client then Client = "Console" end
@@ -1144,7 +1157,7 @@ function Plugin:ApplyRandomSettings()
 	local Duration = self.Config.Duration * 60
 
 	self.ForceRandom = true
-	self.NextVote = Shared.GetTime() + Duration
+	self.NextVote = SharedTime() + Duration
 
 	self:Notify( nil, "%s teams have been enabled for the next %s.", 
 		true, ModeStrings.Mode[ self.Config.BalanceMode ], string.TimeToString( Duration ) )
