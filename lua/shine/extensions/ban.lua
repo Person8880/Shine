@@ -333,7 +333,7 @@ end
 	Removes a ban.
 	Input: Steam ID.
 ]]
-function Plugin:RemoveBan( ID, DontSave )
+function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	ID = tostring( ID )
 
 	local BanData = self.Config.Banned[ ID ]
@@ -342,7 +342,10 @@ function Plugin:RemoveBan( ID, DontSave )
 
 	if self.Config.BansSubmitURL ~= "" then
 		local PostParams = {
-			id = ID,
+			unbandata = Encode{
+				ID = ID,
+				UnbannerID = UnbannerID or 0
+			},
 			unban = 1
 		}
 
@@ -444,7 +447,9 @@ function Plugin:CreateCommands()
 				return
 			end
 
-			self:RemoveBan( ID )
+			local Unbanner = ( Client and Client.GetUserId and Client:GetUserId() ) or 0
+
+			self:RemoveBan( ID, nil, Unbanner )
 			Shine:AdminPrint( nil, "%s unbanned %s.", true, Client and Client:GetControllingPlayer():GetName() or "Console", ID )
 
 			return
