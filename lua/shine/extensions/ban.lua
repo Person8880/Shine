@@ -266,6 +266,7 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 	ID = tostring( ID )
 
 	local BanData = {
+		ID = ID,
 		Name = Name,
 		Duration = Duration,
 		UnbanTime = Duration ~= 0 and ( Time() + Duration ) or 0,
