@@ -18,7 +18,7 @@ local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 
 function Shine:RequestUsers( Reload )
-	Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
+	local function UsersResponse( Response )
 		if not Response and not Reload then
 			self:LoadUsers()
 
@@ -51,7 +51,13 @@ function Shine:RequestUsers( Reload )
 		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 
 		self.Hook.Call( "OnUserReload" )
-	end )
+	end
+
+	if self.Config.GetUsersWithPOST then
+		Shared.SendHTTPRequest( self.Config.UsersURL, "POST", self.Config.UserRetrieveArguments, UsersResponse )
+	else
+		Shared.SendHTTPRequest( self.Config.UsersURL, "GET", UsersResponse )
+	end
 end
 
 --[[

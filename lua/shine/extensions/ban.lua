@@ -73,6 +73,7 @@ local DefaultConfig = {
 	Banned = {},
 	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
 	GetBansFromWeb = false,
+	GetBansWithPOST = false, --Should we use POST with extra keys to get bans?
 	BansURL = "",
 	BansSubmitURL = "",
 	BansSubmitArguments = {},
@@ -117,7 +118,7 @@ function Plugin:SaveConfig()
 end
 
 function Plugin:LoadBansFromWeb()
-	Shared.SendHTTPRequest( self.Config.BansURL, "GET", function( Response )
+	local function BansResponse( Response )
 		if not Response then
 			Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
 
@@ -146,7 +147,13 @@ function Plugin:LoadBansFromWeb()
 		end
 
 		Shine:LogString( "Shine loaded bans from web successfully." )
-	end )
+	end
+
+	if self.Config.GetBansWithPOST then
+		Shared.SendHTTPRequest( self.Config.BansURL, "POST", self.Config.BansSubmitArguments, BansResponse )
+	else
+		Shared.SendHTTPRequest( self.Config.BansURL, "GET", BansResponse )
+	end
 end
 
 --[[
