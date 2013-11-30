@@ -389,6 +389,42 @@ local function AddPermissionsToTable( Permissions, Table )
 end
 
 --[[
+	Recursively builds permissions table from all inherited groups, and their inherited groups,
+	and their inherited groups and...
+
+	Inputs: Current group name, current group table, blacklist setting, permissions table to build.
+]]
+local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions, Processed )
+	Processed = Processed or {}
+
+	--Avoid cycles!
+	if Processed[ GroupName ] then return end
+
+	Processed[ GroupName ] = true
+	
+	local InheritGroups = GroupTable.InheritsFrom
+	local TopLevelCommands = GroupTable.Commands
+
+	if GroupTable.IsBlacklist == Blacklist then
+		AddPermissionsToTable( TopLevelCommands, Permissions )
+	end
+
+	if InheritGroups then
+		for i = 1, #InheritGroups do
+			local Name = InheritGroups[ i ]
+
+			local CurGroup = self:GetGroupData( Name )
+
+			if not CurGroup then
+				self:Print( "Group with ID %s inherits from a non-existant group (%s)!", true, GroupName, Name )
+			else
+				BuildPermissions( self, Name, CurGroup, Blacklist, Permissions, Processed )
+			end
+		end
+	end
+end
+
+--[[
 	Checks all inherited groups to determine command access.
 	Inputs: SteamID, user table, group name, group table, command name.
 	Output: True if allowed.
@@ -409,25 +445,10 @@ function Shine:GetPermissionInheritance( ID, User, GroupName, GroupTable, ConCom
 		return false
 	end
 
-	local Blacklist = GroupTable.IsBlacklist
-	local TopLevelCommands = GroupTable.Commands
-
 	local Permissions = {}
-	AddPermissionsToTable( TopLevelCommands, Permissions )
+	local Blacklist = GroupTable.IsBlacklist
 
-	for i = 1, NumInheritGroups do
-		local Name = InheritGroups[ i ]
-
-		local CurGroup = self:GetGroupData( Name )
-
-		if not CurGroup then
-			self:Print( "Group with ID %s inherits from a non-existant group (%s)!", true, GroupName, Name )
-		else
-			if CurGroup.IsBlacklist == Blacklist then
-				AddPermissionsToTable( CurGroup.Commands, Permissions )
-			end
-		end
-	end
+	BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
 
 	if Blacklist then
 		return not Permissions[ ConCommand ]
