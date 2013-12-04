@@ -843,6 +843,8 @@ function Plugin:ProcessResults( NextMap )
 
 			self:Notify( nil, "The map will now cycle to %s.", true, Map )
 
+			self.CyclingMap = true
+
 			Shine.Timer.Simple( 5, function()
 				MapCycle_ChangeMap( Map )
 			end )
@@ -894,6 +896,8 @@ function Plugin:ProcessResults( NextMap )
 
 			self.Vote.CanVeto = true --Allow admins to cancel the change.
 
+			self.CyclingMap = true
+
 			--Queue the change.
 			Shine.Timer.Simple( self.Config.ChangeDelay, function()
 				if not self.Vote.Veto then --No one cancelled it, change map.
@@ -902,6 +906,8 @@ function Plugin:ProcessResults( NextMap )
 					self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 					self.Vote.Veto = false
 					self.Vote.CanVeto = false --Veto has no meaning anymore.
+
+					self.CyclingMap = false
 				end
 			end )
 
@@ -917,6 +923,8 @@ function Plugin:ProcessResults( NextMap )
 				self:Notify( nil, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
 			else
 				self:Notify( nil, "%s won the vote. The map will now cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+
+				self.CyclingMap = true
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Results[ 1 ] )
@@ -944,6 +952,8 @@ function Plugin:ProcessResults( NextMap )
 				local Map = self:GetNextMap()
 
 				self:Notify( nil, "The map will now cycle to %s.", true, Map )
+
+				self.CyclingMap = true
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Map )
@@ -985,6 +995,8 @@ function Plugin:ProcessResults( NextMap )
 
 			self:Notify( nil, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
 
+			self.CyclingMap = true
+
 			--Queue the change.
 			Shine.Timer.Simple( self.Config.ChangeDelay, function()
 				if not self.Vote.Veto then
@@ -993,6 +1005,8 @@ function Plugin:ProcessResults( NextMap )
 					self.Vote.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
 					self.Vote.Veto = false
 					self.Vote.CanVeto = false
+
+					self.CyclingMap = false
 				end
 			end )
 
@@ -1010,6 +1024,8 @@ function Plugin:ProcessResults( NextMap )
 				self:Notify( nil, "Setting next map in the cycle to %s.", true, Choice, Choice )
 			else
 				self:Notify( nil, "The map will now cycle to %s.", true, Choice, Choice )
+
+				self.CyclingMap = true
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Results[ 1 ] )
@@ -1048,6 +1064,8 @@ function Plugin:ProcessResults( NextMap )
 				local Map = self:GetNextMap()
 
 				self:Notify( nil, "The map will now cycle to %s.", true, Map )
+
+				self.CyclingMap = true
 
 				Shine.Timer.Simple( 5, function()
 					MapCycle_ChangeMap( Map )
