@@ -18,7 +18,7 @@ local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 
 function Shine:RequestUsers( Reload )
-	Shared.SendHTTPRequest( self.Config.UsersURL, "GET", function( Response )
+	local function UsersResponse( Response )
 		if not Response and not Reload then
 			self:LoadUsers()
 
@@ -51,7 +51,13 @@ function Shine:RequestUsers( Reload )
 		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 
 		self.Hook.Call( "OnUserReload" )
-	end )
+	end
+
+	if self.Config.GetUsersWithPOST then
+		Shared.SendHTTPRequest( self.Config.UsersURL, "POST", self.Config.UserRetrieveArguments, UsersResponse )
+	else
+		Shared.SendHTTPRequest( self.Config.UsersURL, "GET", UsersResponse )
+	end
 end
 
 --[[
@@ -302,6 +308,18 @@ function Shine:GetUserData( Client )
 end
 
 --[[
+	Gets the group data table for the given group name.
+	Input: Group name.
+	Output: Group data table if it exists, nil otherwise.
+]]
+function Shine:GetGroupData( GroupName )
+	if not self.UserData then return nil end
+	if not self.UserData.Groups then return nil end
+	
+	return self.UserData.Groups[ GroupName ]
+end
+
+--[[
 	Gets a client's immunity value.
 	Input: Client or NS2ID.
 	Output: Immunity value, 0 if they have no group/user.
@@ -346,11 +364,15 @@ function Shine:GetPermission( Client, ConCommand )
 	if Command.NoPerm then return true end
 
 	local UserGroup = User.Group
-	local GroupTable = self.UserData.Groups and self.UserData.Groups[ UserGroup ]
+	local GroupTable = self:GetGroupData( UserGroup )
 	
 	if not GroupTable then
 		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
 		return false
+	end
+
+	if GroupTable.InheritsFrom then
+		return self:GetPermissionInheritance( ID, User, UserGroup, GroupTable, ConCommand )
 	end
 
 	if GroupTable.IsBlacklist then
@@ -358,6 +380,81 @@ function Shine:GetPermission( Client, ConCommand )
 	end
 	
 	return TableContains( GroupTable.Commands, ConCommand )
+end
+
+local function AddPermissionsToTable( Permissions, Table )
+	for i = 1, #Permissions do
+		Table[ Permissions[ i ] ] = true
+	end
+end
+
+--[[
+	Recursively builds permissions table from all inherited groups, and their inherited groups,
+	and their inherited groups and...
+
+	Inputs: Current group name, current group table, blacklist setting, permissions table to build.
+]]
+local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions, Processed )
+	Processed = Processed or {}
+
+	--Avoid cycles!
+	if Processed[ GroupName ] then return end
+
+	Processed[ GroupName ] = true
+	
+	local InheritGroups = GroupTable.InheritsFrom
+	local TopLevelCommands = GroupTable.Commands
+
+	if GroupTable.IsBlacklist == Blacklist then
+		AddPermissionsToTable( TopLevelCommands, Permissions )
+	end
+
+	if InheritGroups then
+		for i = 1, #InheritGroups do
+			local Name = InheritGroups[ i ]
+
+			local CurGroup = self:GetGroupData( Name )
+
+			if not CurGroup then
+				self:Print( "Group with ID %s inherits from a non-existant group (%s)!", true, GroupName, Name )
+			else
+				BuildPermissions( self, Name, CurGroup, Blacklist, Permissions, Processed )
+			end
+		end
+	end
+end
+
+--[[
+	Checks all inherited groups to determine command access.
+	Inputs: SteamID, user table, group name, group table, command name.
+	Output: True if allowed.
+]]
+function Shine:GetPermissionInheritance( ID, User, GroupName, GroupTable, ConCommand )
+	local InheritGroups = GroupTable.InheritsFrom
+
+	if not IsType( InheritGroups, "table" ) then
+		self:Print( "Group with ID %s has a non-array entry for \"InheritsFrom\"!", true, GroupName )
+
+		return false
+	end
+
+	local NumInheritGroups = #InheritGroups
+	if NumInheritGroups == 0 then
+		self:Print( "Group with ID %s has an empty \"InheritsFrom\" entry!", true, GroupName )
+
+		return false
+	end
+
+	local Permissions = {}
+	local Blacklist = GroupTable.IsBlacklist
+
+	BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
+
+	if Blacklist then
+		return not Permissions[ ConCommand ]
+	end
+
+	return Permissions[ ConCommand ]
 end
 
 --[[
@@ -378,11 +475,15 @@ function Shine:HasAccess( Client, ConCommand )
 	end
 
 	local UserGroup = User.Group
-	local GroupTable = self.UserData.Groups and self.UserData.Groups[ UserGroup ]
+	local GroupTable = self:GetGroupData( UserGroup )
 
 	if not GroupTable then
 		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
 		return false
+	end
+
+	if GroupTable.InheritsFrom then
+		return self:GetPermissionInheritance( ID, User, UserGroup, GroupTable, ConCommand )
 	end
 
 	if GroupTable.IsBlacklist then

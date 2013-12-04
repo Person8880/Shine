@@ -73,6 +73,7 @@ local DefaultConfig = {
 	Banned = {},
 	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
 	GetBansFromWeb = false,
+	GetBansWithPOST = false, --Should we use POST with extra keys to get bans?
 	BansURL = "",
 	BansSubmitURL = "",
 	BansSubmitArguments = {},
@@ -117,7 +118,7 @@ function Plugin:SaveConfig()
 end
 
 function Plugin:LoadBansFromWeb()
-	Shared.SendHTTPRequest( self.Config.BansURL, "GET", function( Response )
+	local function BansResponse( Response )
 		if not Response then
 			Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
 
@@ -146,7 +147,13 @@ function Plugin:LoadBansFromWeb()
 		end
 
 		Shine:LogString( "Shine loaded bans from web successfully." )
-	end )
+	end
+
+	if self.Config.GetBansWithPOST then
+		Shared.SendHTTPRequest( self.Config.BansURL, "POST", self.Config.BansSubmitArguments, BansResponse )
+	else
+		Shared.SendHTTPRequest( self.Config.BansURL, "GET", BansResponse )
+	end
 end
 
 --[[
@@ -266,6 +273,7 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 	ID = tostring( ID )
 
 	local BanData = {
+		ID = ID,
 		Name = Name,
 		Duration = Duration,
 		UnbanTime = Duration ~= 0 and ( Time() + Duration ) or 0,
@@ -333,7 +341,7 @@ end
 	Removes a ban.
 	Input: Steam ID.
 ]]
-function Plugin:RemoveBan( ID, DontSave )
+function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	ID = tostring( ID )
 
 	local BanData = self.Config.Banned[ ID ]
@@ -342,7 +350,10 @@ function Plugin:RemoveBan( ID, DontSave )
 
 	if self.Config.BansSubmitURL ~= "" then
 		local PostParams = {
-			id = ID,
+			unbandata = Encode{
+				ID = ID,
+				UnbannerID = UnbannerID or 0
+			},
 			unban = 1
 		}
 
@@ -444,7 +455,9 @@ function Plugin:CreateCommands()
 				return
 			end
 
-			self:RemoveBan( ID )
+			local Unbanner = ( Client and Client.GetUserId and Client:GetUserId() ) or 0
+
+			self:RemoveBan( ID, nil, Unbanner )
 			Shine:AdminPrint( nil, "%s unbanned %s.", true, Client and Client:GetControllingPlayer():GetName() or "Console", ID )
 
 			return

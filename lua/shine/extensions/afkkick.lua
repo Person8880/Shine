@@ -6,6 +6,7 @@ local Shine = Shine
 
 local GetOwner = Server.GetOwner
 local Notify = Shared.Message
+local SharedTime = Shared.GetTime
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -56,7 +57,7 @@ function Plugin:ClientConnect( Client )
 	if Shine:HasAccess( Client, "sh_afk" ) then return end
 
 	self.Users[ Client ] = {
-		LastMove = Shared.GetTime() + ( self.Config.Delay * 60 ),
+		LastMove = SharedTime() + ( self.Config.Delay * 60 ),
 		Pos = Player:GetOrigin(),
 		Ang = Player:GetViewAngles()
 	}
@@ -67,7 +68,7 @@ function Plugin:ResetAFKTime( Client )
 
 	if not DataTable then return end
 
-	DataTable.LastMove = Shared.GetTime()
+	DataTable.LastMove = SharedTime()
 
 	if DataTable.Warn then
 		DataTable.Warn = false
@@ -89,7 +90,7 @@ function Plugin:OnProcessMove( Player, Input )
 	local DataTable = self.Users[ Client ]
 	if not DataTable then return end
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	if self.Config.OnlyCheckOnStarted and not Started then
 		DataTable.LastMove = Time
@@ -239,5 +240,37 @@ function Plugin:Cleanup()
 
 	self.Enabled = false
 end
+
+--Override the built in randomise ready room vote to not move AFK players.
+Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
+	SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
+		local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
+		local AFKPlugin = Shine.Plugins.afkkick
+		local Enabled = AFKPlugin and AFKPlugin.Enabled
+
+		for i = #ReadyRoomPlayers, 1, -1 do
+			local Player = ReadyRoomPlayers[ i ]
+
+			if Enabled then
+				if Player then
+					local Client = GetOwner( Player )
+
+					if Client then
+						local LastMove = AFKPlugin:GetLastMoveTime( Client )
+						local Time = SharedTime()
+
+						if not ( LastMove and Time - LastMove > 60 ) then
+							JoinRandomTeam( Player )
+						end
+					end
+				end
+			else
+				JoinRandomTeam( Player )
+			end
+		end
+	end )
+
+	Shine.Hook.Remove( "Think", "AFKKick_OverrideVote" )
+end )
 
 Shine:RegisterExtension( "afkkick", Plugin )

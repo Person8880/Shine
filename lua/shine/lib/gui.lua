@@ -50,7 +50,7 @@ function SGUI.AddProperty( Table, Name, Default )
 	end
 end
 
-local WideStringToString = Locale.WideStringToString
+local WideStringToString = Locale.WideStringToUTF8String
 
 function SGUI.GetChar( Char )
 	return WideStringToString( Char )

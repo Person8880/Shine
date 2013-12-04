@@ -18,6 +18,8 @@ local DefaultConfig = {
 	ExtensionDir = "config://shine/plugins/", --Plugin configs directory.
 
 	GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.
+	GetUsersWithPOST = false, --Should we use POST to retrieve users?
+	UserRetrieveArguments = {}, --What extra arguments should be sent using POST?
 	UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.
 	RefreshUsers = false, --Auto-refresh users every set amount of time.
 	RefreshInterval = 60, --How long in seconds between refreshes?
