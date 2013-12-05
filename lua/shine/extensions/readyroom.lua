@@ -159,9 +159,9 @@ function Plugin:JoinRandomTeam( Player )
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
 	
 	if Team1 < Team2 then
-		Gamerules:JoinTeam( Player, 1, nil, true )
+		Gamerules:JoinTeam( Player, 1 )
 	elseif Team2 < Team1 then
-		Gamerules:JoinTeam( Player, 2, nil, true )
+		Gamerules:JoinTeam( Player, 2 )
 	else
 		local Client = Server.GetOwner( Player )
 
@@ -170,20 +170,20 @@ function Plugin:JoinRandomTeam( Player )
 
 			--Place them on the opposite team to their last round.
 			if LastTeam == 1 then
-				Gamerules:JoinTeam( Player, 2, nil, true )
+				Gamerules:JoinTeam( Player, 2 )
 
 				return
 			elseif LastTeam == 2 then
-				Gamerules:JoinTeam( Player, 1, nil, true )
+				Gamerules:JoinTeam( Player, 1 )
 			
 				return
 			end
 		end
 
 		if Random() < 0.5 then
-			Gamerules:JoinTeam( Player, 1, nil, true )
+			Gamerules:JoinTeam( Player, 1 )
 		else
-			Gamerules:JoinTeam( Player, 2, nil, true )
+			Gamerules:JoinTeam( Player, 2 )
 		end
 	end
 end
