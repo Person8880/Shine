@@ -6,6 +6,7 @@
 
 local Shine = Shine
 
+local GetOwner = Server.GetOwner
 local Notify = Shared.Message
 local pairs = pairs
 local Random = math.random
@@ -50,15 +51,18 @@ end
 --Prevent players from joining the spectator team, and prevent going back to the ready room after being forced out of it.
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
+
 	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
+	
 	local MapVote = Shine.Plugins.mapvote
 	if MapVote and MapVote.Enabled and ( MapVote.CyclingMap or MapVote:IsEndVote() ) then
 		return
 	end
 	
-	local Client = Player:GetClient()
+	local Client = GetOwner( Player )
 
 	if not Client then return end
+	if Client.JoinTeamRRPlugin then return end
 
 	local Time = SharedTime()
 
@@ -126,7 +130,6 @@ function Plugin:EndGame()
 	end
 
 	local Players = Shine.GetAllPlayers()
-	local GetOwner = Server.GetOwner
 
 	for i = 1, #Players do
 		local Player = Players[ i ]
@@ -157,27 +160,29 @@ function Plugin:JoinRandomTeam( Player )
 
 	local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
-	
+
+	local Client = GetOwner( Player )
+
+	if not Client then return end
+
+	Client.JoinTeamRRPlugin = true
+
 	if Team1 < Team2 then
 		Gamerules:JoinTeam( Player, 1 )
 	elseif Team2 < Team1 then
 		Gamerules:JoinTeam( Player, 2 )
 	else
-		local Client = Server.GetOwner( Player )
+		local LastTeam = self.TeamMemory[ Client ]
 
-		if Client then
-			local LastTeam = self.TeamMemory[ Client ]
+		--Place them on the opposite team to their last round.
+		if LastTeam == 1 then
+			Gamerules:JoinTeam( Player, 2 )
 
-			--Place them on the opposite team to their last round.
-			if LastTeam == 1 then
-				Gamerules:JoinTeam( Player, 2 )
-
-				return
-			elseif LastTeam == 2 then
-				Gamerules:JoinTeam( Player, 1 )
-			
-				return
-			end
+			return
+		elseif LastTeam == 2 then
+			Gamerules:JoinTeam( Player, 1 )
+		
+			return
 		end
 
 		if Random() < 0.5 then
@@ -186,6 +191,8 @@ function Plugin:JoinRandomTeam( Player )
 			Gamerules:JoinTeam( Player, 2 )
 		end
 	end
+
+	Client.JoinTeamRRPlugin = nil
 end
 
 function Plugin:AssignToTeam( Player )
