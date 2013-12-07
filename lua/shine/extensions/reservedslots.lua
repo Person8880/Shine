@@ -5,7 +5,6 @@
 ]]
 
 local Shine = Shine
-local Timer = Shine.Timer
 
 local Floor = math.floor
 local Max = math.max
@@ -98,7 +97,7 @@ function Plugin:AddConnectingPlayer( ID )
 		self.ConnectingCount = self.ConnectingCount + 1
 	end
 
-	Timer.Create( "RS_Connecting_"..ID, 300, 1, function()
+	self:CreateTimer( "Connecting_"..ID, 300, 1, function()
 		if not self.Connecting[ ID ] then return end
 		
 		self.Connecting[ ID ] = nil
@@ -117,7 +116,7 @@ function Plugin:ClientConnect( Client )
 		self.Connecting[ ID ] = nil
 		self.ConnectingCount = self.ConnectingCount - 1
 
-		Timer.Destroy( "RS_Connecting_"..ID )
+		self:DestroyTimer( "Connecting_"..ID )
 	end
 
 	self:UpdateTag( self:GetFreeReservedSlots() )
@@ -170,6 +169,8 @@ function Plugin:CheckConnectionAllowed( ID )
 end
 
 function Plugin:Cleanup()
+	self.BaseClass.Cleanup( self )
+	
 	self.ConnectingCount = nil
 	self.Connecting = nil
 

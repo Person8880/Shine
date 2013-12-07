@@ -144,7 +144,7 @@ function Plugin:Surrender( Team )
 
 	self.Surrendered = true
 
-	Shine.Timer.Simple( 0, function()
+	self:SimpleTimer( 0, function()
 		self.Surrendered = false
 	end )
 end

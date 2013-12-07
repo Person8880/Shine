@@ -176,7 +176,7 @@ function Plugin:Initialise()
 				local Time = Shared.GetTime()
 				local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit * 60 ) or 1800
 
-				Shine.Timer.Create( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
+				self:CreateTimer( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
 					local Players = Shine.GetAllPlayers()
 					if #Players > 0 then
 						self:StartVote( true )
@@ -502,7 +502,7 @@ end
 	On end of the round, notify players of the remaining time.
 ]]
 function Plugin:EndGame()
-	Shine.Timer.Simple( 10, function()
+	self:SimpleTimer( 10, function()
 		local Time = Shared.GetTime()
 
 		local Cycle = self.MapCycle
@@ -650,7 +650,7 @@ end
 	Returns whether a map vote is in progress.
 ]]
 function Plugin:VoteStarted()
-	return Shine.Timer.Exists( self.VoteTimer )
+	return self:TimerExists( self.VoteTimer )
 end
 
 --[[
@@ -751,11 +751,11 @@ function Plugin:AddVote( Client, Map, Revote )
 	self.Vote.Voted[ Client ] = Choice
 
 	if not self:IsNextMapVote() and self.Vote.TotalVotes >= self:GetVoteEnd() then
-		Shine.Timer.Simple( 0, function()
+		self:SimpleTimer( 0, function()
 			self:ProcessResults()
 		end )
 		
-		Shine.Timer.Destroy( self.VoteTimer )
+		self:DestroyTimer( self.VoteTimer )
 	end
 
 	return true, Choice
@@ -795,7 +795,7 @@ function Plugin:ExtendMap( Time, NextMap )
 
 	if NextMap then
 		if not self.VoteOnEnd then
-			Shine.Timer.Simple( ExtendTime * self.Config.NextMapVote, function()
+			self:SimpleTimer( ExtendTime * self.Config.NextMapVote, function()
 				local Players = Shine.GetAllPlayers()
 				if #Players > 0 then
 					self:StartVote( true )
@@ -814,8 +814,8 @@ function Plugin:ExtendMap( Time, NextMap )
 		end
 
 		if not self.VoteOnEnd then
-			Shine.Timer.Destroy( self.NextMapTimer )
-			Shine.Timer.Create( self.NextMapTimer, NextVoteTime, 1, function()
+			self:DestroyTimer( self.NextMapTimer )
+			self:CreateTimer( self.NextMapTimer, NextVoteTime, 1, function()
 				self:StartVote( true )
 			end )
 		end
@@ -845,7 +845,7 @@ function Plugin:ProcessResults( NextMap )
 
 			self.CyclingMap = true
 
-			Shine.Timer.Simple( 5, function()
+			self:SimpleTimer( 5, function()
 				MapCycle_ChangeMap( Map )
 			end )
 
@@ -899,7 +899,7 @@ function Plugin:ProcessResults( NextMap )
 			self.CyclingMap = true
 
 			--Queue the change.
-			Shine.Timer.Simple( self.Config.ChangeDelay, function()
+			self:SimpleTimer( self.Config.ChangeDelay, function()
 				if not self.Vote.Veto then --No one cancelled it, change map.
 					MapCycle_ChangeMap( Results[ 1 ] )
 				else --Someone cancelled it, set the next vote time.
@@ -926,7 +926,7 @@ function Plugin:ProcessResults( NextMap )
 
 				self.CyclingMap = true
 
-				Shine.Timer.Simple( 5, function()
+				self:SimpleTimer( 5, function()
 					MapCycle_ChangeMap( Results[ 1 ] )
 				end )
 			end
@@ -955,7 +955,7 @@ function Plugin:ProcessResults( NextMap )
 
 				self.CyclingMap = true
 
-				Shine.Timer.Simple( 5, function()
+				self:SimpleTimer( 5, function()
 					MapCycle_ChangeMap( Map )
 				end )
 			end
@@ -998,7 +998,7 @@ function Plugin:ProcessResults( NextMap )
 			self.CyclingMap = true
 
 			--Queue the change.
-			Shine.Timer.Simple( self.Config.ChangeDelay, function()
+			self:SimpleTimer( self.Config.ChangeDelay, function()
 				if not self.Vote.Veto then
 					MapCycle_ChangeMap( Choice )
 				else
@@ -1027,7 +1027,7 @@ function Plugin:ProcessResults( NextMap )
 
 				self.CyclingMap = true
 
-				Shine.Timer.Simple( 5, function()
+				self:SimpleTimer( 5, function()
 					MapCycle_ChangeMap( Results[ 1 ] )
 				end )
 			end
@@ -1038,14 +1038,14 @@ function Plugin:ProcessResults( NextMap )
 		return
 	end
 
-	Shine.Timer.Destroy( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
+	self:DestroyTimer( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
 
 	if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
 		self:Notify( nil, "Votes were tied, map vote failed. Beginning revote." )
 
 		self.Vote.Votes = self.Vote.Votes + 1
 
-		Shine.Timer.Simple( 0, function()
+		self:SimpleTimer( 0, function()
 			self:StartVote( NextMap )
 		end )
 	else
@@ -1067,7 +1067,7 @@ function Plugin:ProcessResults( NextMap )
 
 				self.CyclingMap = true
 
-				Shine.Timer.Simple( 5, function()
+				self:SimpleTimer( 5, function()
 					MapCycle_ChangeMap( Map )
 				end )
 			end
@@ -1224,7 +1224,7 @@ function Plugin:StartVote( NextMap, Force )
 		self.NextMap.Voting = true
 	end
 
-	Shine.Timer.Simple( 0.1, function()
+	self:SimpleTimer( 0.1, function()
 		--Notify players the map vote has started.
 		if not NextMap then
 			self:Notify( nil, "Map vote started." )
@@ -1236,7 +1236,7 @@ function Plugin:StartVote( NextMap, Force )
 	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(), not self.VoteOnEnd )
 
 	--This timer runs when the vote ends, and sorts out the results.
-	Shine.Timer.Create( self.VoteTimer, VoteLength, 1, function()
+	self:CreateTimer( self.VoteTimer, VoteLength, 1, function()
 		self:ProcessResults( NextMap )
 	end )
 end
@@ -1334,7 +1334,7 @@ function Plugin:CreateCommands()
 
 		local Success, Err = self:AddStartVote( Client )
 		if Success then
-			if Shine.Timer.Exists( self.VoteTimer ) then return end
+			if self:TimerExists( self.VoteTimer ) then return end
 			
 			local VotesNeeded = self.StartingVote:GetVotesNeeded()
 
@@ -1555,9 +1555,6 @@ function Plugin:Cleanup()
 		Shine:RemoveText( nil, { ID = 1 } )
 		self:EndVote()
 	end
-
-	Shine.Timer.Destroy( self.VoteTimer )
-	Shine.Timer.Destroy( self.NotifyTimer )
 
 	self.BaseClass.Cleanup( self )
 

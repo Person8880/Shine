@@ -35,7 +35,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:ClientConnect( Client )
-	Shine.Timer.Simple( self.Config.MessageDelay, function()
+	self:SimpleTimer( self.Config.MessageDelay, function()
 		if not Shine:IsValidClient( Client ) then return end
 		
 		local ID = Client:GetUserId()
@@ -125,6 +125,8 @@ end
 
 function Plugin:Cleanup()
 	TableEmpty( self.Welcomed )
+
+	self.BaseClass.Cleanup( self )
 
 	self.Enabled = false
 end

@@ -276,7 +276,7 @@ end
 	Inputs: Same as Shine.Timer.Create.
 ]]
 function PluginMeta:CreateTimer( Name, Delay, Reps, Func )
-	self.Timers = self.Timers or {}
+	self.Timers = self.Timers or setmetatable( {}, { __mode = "v" } )
 
 	local RealName = StringFormat( "%s_%s", self.__Name, Name )
 	local Timer = Shine.Timer.Create( RealName, Delay, Reps, Func )
@@ -291,13 +291,17 @@ end
 	Inputs: Same as Shine.Timer.Simple.
 ]]
 function PluginMeta:SimpleTimer( Delay, Func )
-	self.Timers = self.Timers or {}
+	self.Timers = self.Timers or setmetatable( {}, { __mode = "v" } )
 
 	local Timer = Shine.Timer.Simple( Delay, Func )
 
 	self.Timers[ Timer.Name ] = Timer
 
 	return Timer
+end
+
+function PluginMeta:TimerExists( Name )
+	return Shine.Timer.Exists( StringFormat( "%s_%s", self.__Name, Name ) )
 end
 
 function PluginMeta:PauseTimer( Name )

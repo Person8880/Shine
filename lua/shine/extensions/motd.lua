@@ -66,7 +66,7 @@ function Plugin:ClientConfirmConnect( Client )
 
 	if Shine:HasAccess( Client, "sh_showmotd" ) then return end
 
-	Shine.Timer.Simple( self.Config.Delay, function()
+	self:SimpleTimer( self.Config.Delay, function()
 		self:ShowMotD( Client, true )
 	end )
 end

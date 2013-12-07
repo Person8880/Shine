@@ -107,13 +107,8 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 end
 
 function Plugin:DestroyTimers()
-	if Shine.Timer.Exists( self.FiveSecTimer ) then
-		Shine.Timer.Destroy( self.FiveSecTimer )
-	end
-
-	if Shine.Timer.Exists( self.CountdownTimer ) then
-		Shine.Timer.Destroy( self.CountdownTimer )
-	end
+	self:DestroyTimer( self.FiveSecTimer )
+	self:DestroyTimer( self.CountdownTimer )
 end
 
 function Plugin:Notify( Player, Message, Format, ... )
@@ -243,7 +238,7 @@ Plugin.UpdateFuncs = {
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( CountdownTime ), 5, 255, 255, 255, 1, 3, 1 ) )
 			end
 
-			Shine.Timer.Create( self.FiveSecTimer, CountdownTime - 5, 1, function()
+			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
 				local Team1Com = Team1:GetCommander()
 				local Team2Com = Team2:GetCommander()
 
@@ -263,7 +258,7 @@ Plugin.UpdateFuncs = {
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 			end )
 
-			Shine.Timer.Create( self.CountdownTimer, CountdownTime, 1, function()
+			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
 				local Team1Com = Team1:GetCommander()
 				local Team2Com = Team2:GetCommander()
 
@@ -429,7 +424,7 @@ Plugin.UpdateFuncs = {
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( CountdownTime ), 5, 255, 255, 255, 1, 3, 1 ) )
 			end
 
-			Shine.Timer.Create( self.FiveSecTimer, CountdownTime - 5, 1, function()
+			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
 				local Team1Com = Team1:GetCommander()
 				local Team2Com = Team2:GetCommander()
 
@@ -449,7 +444,7 @@ Plugin.UpdateFuncs = {
 				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 			end )
 
-			Shine.Timer.Create( self.CountdownTimer, CountdownTime, 1, function()
+			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
 				local Team1Com = Team1:GetCommander()
 				local Team2Com = Team2:GetCommander()
 
@@ -501,7 +496,7 @@ Plugin.UpdateFuncs = {
 
 					Gamerules:SetGameState( kGameState.PreGame )
 
-					Shine.Timer.Simple( 5, function()
+					self:SimpleTimer( 5, function()
 						local Team1Com = Team1:GetCommander()
 						local Team2Com = Team2:GetCommander()
 
@@ -552,12 +547,6 @@ function Plugin:CheckGameStart( Gamerules )
 	self.UpdateFuncs[ self.Config.RequireComs ]( self, Gamerules )
 
 	return false
-end
-
-function Plugin:Cleanup()
-	self:DestroyTimers()
-
-	self.Enabled = false
 end
 
 Shine:RegisterExtension( "pregame", Plugin )

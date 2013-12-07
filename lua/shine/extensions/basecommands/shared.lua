@@ -15,7 +15,7 @@ function Plugin:NetworkUpdate( Key, Old, New )
 	if Key == "Gamestate" then
 		if Old == 2 and New == 1 then
 			--The game state changes back to 1, then to 3 to start. This is VERY annoying...
-			Shine.Timer.Simple( 1, function()
+			self:SimpleTimer( 1, function()
 				if not self.Enabled then return end
 				
 				if self.dt.Gamestate == 1 then
