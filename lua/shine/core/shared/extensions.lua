@@ -243,6 +243,8 @@ if Server then
 				self.Commands[ k ] = nil
 			end
 		end
+
+		self:DestroyAllTimers()
 	end
 elseif Client then
 	function PluginMeta:BindCommand( ConCommand, Func )
@@ -261,6 +263,46 @@ elseif Client then
 				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
 				self.Commands[ k ] = nil
 			end
+		end
+
+		self:DestroyAllTimers()
+	end
+end
+
+function PluginMeta:CreateTimer( Name, Delay, Reps, Func )
+	self.Timers = self.Timers or {}
+
+	local RealName = StringFormat( "%s_%s", self.__Name, Name )
+	local Timer = Shine.Timer.Create( RealName, Delay, Reps, Func )
+
+	self.Timers[ Name ] = Timer
+
+	return Timer
+end
+
+function PluginMeta:SimpleTimer( Delay, Func )
+	self.Timers = self.Timers or {}
+
+	local Timer = Shine.Timer.Simple( Delay, Func )
+
+	self.Timers[ Timer.Name ] = Timer
+
+	return Timer
+end
+
+function PluginMeta:DestroyTimer( Name )
+	if not self.Timers or not self.Timers[ Name ] then return end
+	
+	self.Timers[ Name ]:Destroy()
+
+	self.Timers[ Name ] = nil
+end
+
+function PluginMeta:DestroyAllTimers()
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Destroy()
+			self.Timers[ Name ] = nil
 		end
 	end
 end
