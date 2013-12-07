@@ -269,6 +269,12 @@ elseif Client then
 	end
 end
 
+--[[
+	Creates a timer and adds it to the list of timers associated to the plugin.
+	These timers are removed when the plugin unloads in the base Cleanup method.
+
+	Inputs: Same as Shine.Timer.Create.
+]]
 function PluginMeta:CreateTimer( Name, Delay, Reps, Func )
 	self.Timers = self.Timers or {}
 
@@ -280,6 +286,10 @@ function PluginMeta:CreateTimer( Name, Delay, Reps, Func )
 	return Timer
 end
 
+--[[
+	Creates a simple timer and adds it to the list of timers associated to the plugin.
+	Inputs: Same as Shine.Timer.Simple.
+]]
 function PluginMeta:SimpleTimer( Delay, Func )
 	self.Timers = self.Timers or {}
 
@@ -288,6 +298,18 @@ function PluginMeta:SimpleTimer( Delay, Func )
 	self.Timers[ Timer.Name ] = Timer
 
 	return Timer
+end
+
+function PluginMeta:PauseTimer( Name )
+	if not self.Timers or not self.Timers[ Name ] then return end
+	
+	self.Timers[ Name ]:Pause()
+end
+
+function PluginMeta:ResumeTimer( Name )
+	if not self.Timers or not self.Timers[ Name ] then return end
+	
+	self.Timers[ Name ]:Resume()
 end
 
 function PluginMeta:DestroyTimer( Name )
