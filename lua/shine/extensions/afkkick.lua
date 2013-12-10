@@ -54,8 +54,6 @@ function Plugin:ClientConnect( Client )
 
 	if not Player then return end
 
-	if Shine:HasAccess( Client, "sh_afk" ) then return end
-
 	self.Users[ Client ] = {
 		LastMove = SharedTime() + ( self.Config.Delay * 60 ),
 		Pos = Player:GetOrigin(),
@@ -105,12 +103,6 @@ function Plugin:OnProcessMove( Player, Input )
 		return
 	end
 
-	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
-		self.Users[ Client ] = nil
-
-		return
-	end
-
 	local Move = Input.move
 
 	local Team = Player:GetTeamNumber()
@@ -156,7 +148,11 @@ function Plugin:OnProcessMove( Player, Input )
 
 		return
 	end
-
+	
+	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
+		return
+	end
+	
 	--Only kick if we're past the min player count to do so.
 	if DataTable.LastMove + KickTime < Time and Players >= self.Config.MinPlayers then
 		self:ClientDisconnect( Client ) --Failsafe.
