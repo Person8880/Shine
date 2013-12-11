@@ -624,7 +624,7 @@ function Plugin:CreateCommands()
 
 			if TargetCount > 0 then
 				local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
-				Shine:CommandNotify( Client, "moved %s to %s.", true, Players, Shine.GetTeamName( Team ) )
+				Shine:CommandNotify( Client, "moved %s to %s.", true, Players, Shine:GetTeamName( Team ) )
 			end
 		end
 	end
