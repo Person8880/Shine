@@ -478,8 +478,15 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local Success, Err = Shine:EnableExtension( Name )
+		local PluginTable = Shine.Plugins[ Name ]
+		local Success, Err
 
+		if not PluginTable then
+			Success, Err = Shine:LoadExtension( Name )
+		else
+			Success, Err = Shine:EnableExtension( Name )
+		end
+		
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
 			Shine:SendPluginData( nil, Shine:BuildPluginData() ) --Update all players with the plugins state.
