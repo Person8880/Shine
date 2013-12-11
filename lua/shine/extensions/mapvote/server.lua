@@ -1545,6 +1545,64 @@ function Plugin:CreateCommands()
 	end
 	local NextMapCommand = self:BindCommand( "sh_nextmap", "nextmap", NextMap, true )
 	NextMapCommand:Help( "Displays the next map in the cycle or the next map voted for." )
+
+	local function AddTime( Client, Time )
+		if Time == 0 then return end
+
+		self.MapCycle.time = self.MapCycle.time + Time
+
+		Time = Time * 60
+
+		if Time > 0 then
+			Shine:CommandNotify( Client, "extended the map by %s.", true, string.TimeToString( Time ) )
+		else
+			Shine:CommandNotify( Client, "shortened the map by %s.", true, string.TimeToString( -Time ) )
+		end
+	end
+	local AddTimeCommand = self:BindCommand( "sh_addtimelimit", "addtimelimit", AddTime )
+	AddTimeCommand:AddParam{ Type = "number", Error = "Please specify a time to add." }
+	AddTimeCommand:Help( "<time in minutes> Adds the given time to the current map's time limit." )
+
+	local function SetTime( Client, Time )
+		self.MapCycle.time = Time
+
+		Time = Time * 60
+
+		Shine:CommandNotify( Client, "set the map time to %s.", true, string.TimeToString( Time ) )
+	end
+	local SetTimeCommand = self:BindCommand( "sh_settimelimit", "settimelimit", SetTime )
+	SetTimeCommand:AddParam{ Type = "number", Min = 0, Error = "Please specify the map time." }
+	SetTimeCommand:Help( "<time in minutes> Sets the current map's time limit." )
+
+	local function AddRounds( Client, Rounds )
+		if Rounds == 0 then return end
+		
+		self.Config.RoundLimit = self.Config.RoundLimit + Rounds
+
+		if Rounds > 0 then
+			local RoundString = Rounds == 1 and "1 round" or Rounds.." rounds"
+
+			Shine:CommandNotify( Client, "extended the map by %s.", true, RoundString )
+		else
+			local RoundString = Rounds == -1 and "1 round" or -Rounds.." rounds"
+
+			Shine:CommandNotify( Client, "shortened the map by %s.", true, RoundString )
+		end
+	end
+	local AddRoundsCommand = self:BindCommand( "sh_addroundlimit", "addroundlimit", AddRounds )
+	AddRoundsCommand:AddParam{ Type = "number", Round = true, Error = "Please specify the amount of rounds to add." }
+	AddRoundsCommand:Help( "<rounds> Adds the given number of rounds to the round limit." )
+
+	local function SetRounds( Client, Rounds )
+		self.Config.RoundLimit = Rounds
+
+		local RoundString = Rounds == 1 and "1 round" or Rounds.." rounds"
+
+		Shine:CommandNotify( Client, "set the round limit to %s.", true, RoundString )
+	end
+	local SetRoundsCommand = self:BindCommand( "sh_setroundlimit", "setroundlimit", SetRounds )
+	SetRoundsCommand:AddParam{ Type = "number", Round = true, Min = 0, Error = "Please specify a round limit." }
+	SetRoundsCommand:Help( "<rounds> Sets the round limit." )
 end
 
 function Plugin:Cleanup()

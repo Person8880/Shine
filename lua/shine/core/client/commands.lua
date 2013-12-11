@@ -80,9 +80,9 @@ end
 --More generic clamp for use with the number argument type.
 local function MathClamp( Number, Min, Max )
     if not Number then return nil end
-    if not Max then
+    if not Max and Min then
         return Number > Min and Number or Min
-    elseif not Min then
+    elseif not Min and Max then
         return Number < Max and Number or Max
     elseif not Max and not Min then
         return Number
