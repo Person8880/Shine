@@ -1,13 +1,11 @@
 --[[
     Shine Roundlimiter Plugin
 ]]
-
 local Shine = Shine
 
 local Plugin = {}
 
 Plugin.Version = "1.0"
-Plugin.DefaultState = false
 
 Plugin.HasConfig = true
 
@@ -17,20 +15,31 @@ Plugin.DefaultConfig =
     WarningTime = 5,
     WarningRepeatTimes = 5,
     MaxRoundLength = 60,
-    WinningTeam = 3,
 }
 
 Plugin.CheckConfig = true
 
-function Plugin:Initialise()    
-    self.Enabled = true
-    return true
+Shine.Hook.SetupClassHook("ScoringMixin","AddScore","OnScore","PassivePost")
+
+local TeamScores = {
+    [ 1 ] = 0,
+    [ 2 ] = 0,
+}
+
+function Plugin:OnScore(player, points, res, wasKill)
+    local teamnr = player.GetTeamNumber and player:GetTeamNumber()
+    
+    if teamnr ~= 1 and teamnr ~= 2 then return end
+    
+    TeamScores[teamnr] =  TeamScores[teamnr] + points   
 end
 
 function Plugin:EndRound()
-    local winner = math.random(1,2)
-    if self.Config.WinningTeam == 1  or self.Config.WinningTeam == 2 then
-        winner = self.Config.WinningTeam
+    local winner
+    if TeamScores[1] > TeamScores[2] then
+        winner = 1
+    else
+        winner = 2
     end
     
     local Gamerules = GetGamerules()
@@ -43,7 +52,7 @@ end
 local WarningsLeft = 0
 
 function Plugin:WarningMsg()
-   local m = string.format("There are %.0f seconds left until this round ends.", WarningsLeft * self.Config.WarningTime * 60 / self.Config.WarningRepeatTimes)
+   local m = string.format("There are %i seconds left until this round ends.", WarningsLeft * self.Config.WarningTime * 60 / self.Config.WarningRepeatTimes)
    WarningsLeft = WarningsLeft - 1
    Shine:NotifyDualColour( nil , 100, 255, 100, "[RoundLimiter]", 255, 255, 255, m)
 end
@@ -67,10 +76,10 @@ end
 --Gameend
 function Plugin:EndGame( Gamerules, WinningTeam )
     self:DestroyAllTimers()
-end
-
-function Plugin:Cleanup()
-    self.Enabled = false
+    TeamScores = {
+        [ 1 ] = 0,
+        [ 2 ] = 0,
+    }
 end
 
 Shine:RegisterExtension( "roundlimiter", Plugin )
