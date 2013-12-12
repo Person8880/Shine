@@ -31,6 +31,8 @@ function Plugin:OnScore(player, points, res, wasKill)
     
     if teamnr ~= 1 and teamnr ~= 2 then return end
     
+    if not points then return end
+    
     TeamScores[teamnr] =  TeamScores[teamnr] + points   
 end
 
