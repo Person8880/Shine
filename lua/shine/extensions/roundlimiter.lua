@@ -68,6 +68,13 @@ end
 --Gamestart
 function Plugin:SetGameState( Gamerules, NewState, OldState )    
     if NewState == kGameState.Started then
+        
+        --reset team scores
+        TeamScores = {
+            [ 1 ] = 0,
+            [ 2 ] = 0,
+        }
+        
         if self.Config.WarningTime > 0 then 
             self:SimpleTimer((self.Config.MaxRoundLength - self.Config.WarningTime) * 60, function() self:Warn() end)
         end    
@@ -78,10 +85,6 @@ end
 --Gameend
 function Plugin:EndGame( Gamerules, WinningTeam )
     self:DestroyAllTimers()
-    TeamScores = {
-        [ 1 ] = 0,
-        [ 2 ] = 0,
-    }
 end
 
 Shine:RegisterExtension( "roundlimiter", Plugin )
