@@ -4,11 +4,9 @@
 local Shine = Shine
 
 local Plugin = {}
-
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true
-
 Plugin.ConfigName = "roundlimiter.json"
 Plugin.DefaultConfig =
 {
@@ -19,30 +17,24 @@ Plugin.DefaultConfig =
 
 Plugin.CheckConfig = true
 
-Shine.Hook.SetupClassHook("ScoringMixin","AddScore","OnScore","PassivePost")
-
 local TeamScores = {
     [ 1 ] = 0,
     [ 2 ] = 0,
 }
 
+Shine.Hook.SetupClassHook("ScoringMixin","AddScore","OnScore","PassivePost")
 function Plugin:OnScore(player, points, res, wasKill)
-    local teamnr = player.GetTeamNumber and player:GetTeamNumber()
-    
-    if teamnr ~= 1 and teamnr ~= 2 then return end
-    
     if not points then return end
+    
+    local teamnr = player.GetTeamNumber and player:GetTeamNumber()    
+    if teamnr ~= 1 and teamnr ~= 2 then return end
     
     TeamScores[teamnr] =  TeamScores[teamnr] + points   
 end
 
 function Plugin:EndRound()
-    local winner
-    if TeamScores[1] > TeamScores[2] then
-        winner = 1
-    else
-        winner = 2
-    end
+    local winner = 2
+    if TeamScores[1] > TeamScores[2] then winner = 1 end
     
     local Gamerules = GetGamerules()
     if not Gamerules then return end
