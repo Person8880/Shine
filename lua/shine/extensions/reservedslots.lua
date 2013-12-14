@@ -37,9 +37,24 @@ function Plugin:Initialise()
 	self.ConnectingCount = 0
 	self.Connecting = {}
 
+	self:CreateCommands()
+
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:CreateCommands()
+	local function SetSlotCount( Client, Slots )
+		self.Config.Slots = Slots
+
+		self:UpdateTag( self:GetFreeReservedSlots() )
+
+		self:SaveConfig()
+	end
+	local SetSlotCommand = self:BindCommand( "sh_setresslots", "!resslots", SetSlotCount )
+	SetSlotCommand:AddParam{ Type = "number", Min = 0, Round = true, Error = "Please specify the number of slots to set." }
+	SetSlotCommand:Help( "<slots> Sets the number of reserved slots." )
 end
 
 function Plugin:GetFreeReservedSlots()

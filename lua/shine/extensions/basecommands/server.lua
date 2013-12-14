@@ -588,7 +588,7 @@ function Plugin:CreateCommands()
 			for i = 1, #Players do
 				local Player = Players[ i ]
 
-				if not TargetList[ Player ] then
+				if Player and not TargetList[ Player ] then
 					local TeamTable = TeamMembers[ Player:GetTeamNumber() ]
 
 					if TeamTable then
