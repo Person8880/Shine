@@ -6,7 +6,6 @@
 ]]
 
 local Shine = Shine
-local Timer = Shine.Timer
 
 local StringFormat = string.format
 local TableEmpty = table.Empty
@@ -34,8 +33,8 @@ Plugin.Conflicts = {
 	}
 }
 
-Plugin.CountdownTimer = "TournamentCountdown"
-Plugin.FiveSecondTimer = "Tournament5SecondCount"
+Plugin.CountdownTimer = "Countdown"
+Plugin.FiveSecondTimer = "5SecondCount"
 
 function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()
@@ -292,12 +291,12 @@ function Plugin:CheckStart()
 		Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..GameStartTime, 5, 255, 255, 255, 1, 3, 1 ) )
 
 		--Game starts in 5 seconds!
-		Timer.Create( self.FiveSecondTimer, CountdownTime - 5, 1, function()
+		self:CreateTimer( self.FiveSecondTimer, CountdownTime - 5, 1, function()
 			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 		end )
 
 		--If we get this far, then we can start.
-		Timer.Create( self.CountdownTimer, self.Config.CountdownTime, 1, function()
+		self:CreateTimer( self.CountdownTimer, self.Config.CountdownTime, 1, function()
 			self:StartGame( GetGamerules() )
 		end )
 
@@ -305,9 +304,9 @@ function Plugin:CheckStart()
 	end
 
 	--One or both teams are not ready, halt the countdown.
-	if Timer.Exists( self.CountdownTimer ) then
-		Timer.Destroy( self.FiveSecondTimer )
-		Timer.Destroy( self.CountdownTimer )
+	if self:TimerExists( self.CountdownTimer ) then
+		self:DestroyTimer( self.FiveSecondTimer )
+		self:DestroyTimer( self.CountdownTimer )
 
 		--Remove the countdown text.
 		Shine:RemoveText( nil, { ID = 2 } )

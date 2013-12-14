@@ -78,24 +78,18 @@ function Plugin:ParseAdvert( ID, Advert )
 end
 
 function Plugin:SetupTimer()
-	if Shine.Timer.Exists( self.TimerName ) then
-		Shine.Timer.Destroy( self.TimerName )
+	if self:TimerExists( self.TimerName ) then
+		self:DestroyTimer( self.TimerName )
 	end
 
 	if #self.Config.Adverts == 0 then return end
 
 	local Message = 1
 
-	Shine.Timer.Create( self.TimerName, self.Config.Interval, -1, function()
+	self:CreateTimer( self.TimerName, self.Config.Interval, -1, function()
 		self:ParseAdvert( Message, self.Config.Adverts[ Message ] )
 		Message = ( Message % #self.Config.Adverts ) + 1
 	end )
-end
-
-function Plugin:Cleanup()
-	Shine.Timer.Destroy( self.TimerName )
-
-	self.Enabled = false
 end
 
 Shine:RegisterExtension( "adverts", Plugin )

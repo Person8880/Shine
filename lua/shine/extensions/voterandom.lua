@@ -239,7 +239,7 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 
 	ReqCount = ReqCount + 1
 
-	Shine.Timer.Simple( 5, function()
+	self:SimpleTimer( 5, function()
 		if Requests[ CurRequest ] then
 			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out." )
 
@@ -950,7 +950,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	if self.RandomOnNextRound then
 		self.RandomOnNextRound = false
 		
-		Shine.Timer.Simple( 15, function()
+		self:SimpleTimer( 15, function()
 			local MapVote = Shine.Plugins.mapvote
 
 			if MapVote and MapVote.Enabled and MapVote:IsEndVote() then
@@ -966,11 +966,11 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			self.ForceRandom = true
 		end )
 	else
-		if not Shine.Timer.Exists( self.RandomEndTimer ) then
+		if not self:TimerExists( self.RandomEndTimer ) then
 			self.ForceRandom = false
 		else
 			self.ForceRandom = false
-			Shine.Timer.Simple( 15, function()
+			self:SimpleTimer( 15, function()
 				local MapVote = Shine.Plugins.mapvote
 
 				if not ( MapVote and MapVote.Enabled and MapVote:IsEndVote() ) then
@@ -979,7 +979,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 					self:ShuffleTeams()
 				end
 
-				if Shine.Timer.Exists( self.RandomEndTimer ) then
+				if self:TimerExists( self.RandomEndTimer ) then
 					self.ForceRandom = true
 				end
 			end )
@@ -1125,7 +1125,7 @@ function Plugin:ApplyRandomSettings()
 	local ChatName = Shine.Config.ChatName
 
 	self.RandomApplied = true
-	Shine.Timer.Simple( 0, function()
+	self:SimpleTimer( 0, function()
 		self.RandomApplied = false
 	end )
 
@@ -1184,7 +1184,7 @@ function Plugin:ApplyRandomSettings()
 		end
 	end
 
-	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
+	self:CreateTimer( self.RandomEndTimer, Duration, 1, function()
 		self:Notify( nil, "%s team enforcing disabled, time limit reached.", true, ModeStrings.Mode[ self.LastShuffleMode or self.Config.BalanceMode ] )
 		self.ForceRandom = false
 	end )
@@ -1231,7 +1231,7 @@ function Plugin:CreateCommands()
 
 			Shine:CommandNotify( Client, "enabled %s teams.", true, ModeStrings.ModeLower[ self.Config.BalanceMode ] )
 		else
-			Shine.Timer.Destroy( self.RandomEndTimer )
+			self:DestroyTimer( self.RandomEndTimer )
 			self.Vote:Reset()
 
 			self.RandomOnNextRound = false

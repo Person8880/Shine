@@ -3,7 +3,6 @@
 ]]
 
 local Shine = Shine
-local Timer = Shine.Timer
 
 local Max = math.max
 local HTTPRequest = Shared.SendHTTPRequest
@@ -37,7 +36,7 @@ function Plugin:Initialise()
 		RemainingNotifications = self.Config.ForceMapChangeAfterNotifications
 	end
 
-	Timer.Create( ModChangeTimer, self.Config.CheckInterval, -1, function()
+	self:CreateTimer( ModChangeTimer, self.Config.CheckInterval, -1, function()
 		self:CheckForModChange()
 	end )
 
@@ -107,7 +106,7 @@ function Plugin:CheckModID( ID )
 			if ModName and ModName ~= "" then
 				self.ChangedModName = ModName
 
-				Timer.Destroy( ModChangeTimer )
+				self:DestroyTimer( ModChangeTimer )
 
 				self:NotifyOrCycle()
 			end
@@ -135,7 +134,7 @@ end
 ]]
 function Plugin:NotifyOrCycle()
 	if #Shine.GetAllPlayers() == 0 then
-		Timer.Simple( 5, function() MapCycle_CycleMap() end )
+		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
 		return
 	end
 
@@ -155,18 +154,13 @@ function Plugin:NotifyOrCycle()
 	end
 
 	if RemainingNotifications == 0 then
-		Timer.Simple( 5, function() MapCycle_CycleMap() end )
+		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
 		return
 	end
 
 	if self.Config.RepeatNotifications then
-		Timer.Create( RepeatMessageTimer, self.Config.NotifyInterval, 1, function() self:NotifyOrCycle() end )
+		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function() self:NotifyOrCycle() end )
 	end
-end
-
-function Plugin:Cleanup()
-	Timer.Destroy( ModChangeTimer )
-	Timer.Destroy( RepeatMessageTimer )
 end
 
 Shine:RegisterExtension( "workshopupdater", Plugin )

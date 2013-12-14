@@ -478,8 +478,15 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local Success, Err = Shine:EnableExtension( Name )
+		local PluginTable = Shine.Plugins[ Name ]
+		local Success, Err
 
+		if not PluginTable then
+			Success, Err = Shine:LoadExtension( Name )
+		else
+			Success, Err = Shine:EnableExtension( Name )
+		end
+		
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
 			Shine:SendPluginData( nil, Shine:BuildPluginData() ) --Update all players with the plugins state.
@@ -581,7 +588,7 @@ function Plugin:CreateCommands()
 			for i = 1, #Players do
 				local Player = Players[ i ]
 
-				if not TargetList[ Player ] then
+				if Player and not TargetList[ Player ] then
 					local TeamTable = TeamMembers[ Player:GetTeamNumber() ]
 
 					if TeamTable then
@@ -624,7 +631,7 @@ function Plugin:CreateCommands()
 
 			if TargetCount > 0 then
 				local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
-				Shine:CommandNotify( Client, "moved %s to %s.", true, Players, Shine.GetTeamName( Team ) )
+				Shine:CommandNotify( Client, "moved %s to %s.", true, Players, Shine:GetTeamName( Team ) )
 			end
 		end
 	end

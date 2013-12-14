@@ -5,7 +5,6 @@
 ]]
 
 local Shine = Shine
-local Timer = Shine.Timer
 
 local Floor = math.floor
 local Max = math.max
@@ -38,9 +37,24 @@ function Plugin:Initialise()
 	self.ConnectingCount = 0
 	self.Connecting = {}
 
+	self:CreateCommands()
+
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:CreateCommands()
+	local function SetSlotCount( Client, Slots )
+		self.Config.Slots = Slots
+
+		self:UpdateTag( self:GetFreeReservedSlots() )
+
+		self:SaveConfig()
+	end
+	local SetSlotCommand = self:BindCommand( "sh_setresslots", "!resslots", SetSlotCount )
+	SetSlotCommand:AddParam{ Type = "number", Min = 0, Round = true, Error = "Please specify the number of slots to set." }
+	SetSlotCommand:Help( "<slots> Sets the number of reserved slots." )
 end
 
 function Plugin:GetFreeReservedSlots()
@@ -98,7 +112,7 @@ function Plugin:AddConnectingPlayer( ID )
 		self.ConnectingCount = self.ConnectingCount + 1
 	end
 
-	Timer.Create( "RS_Connecting_"..ID, 300, 1, function()
+	self:CreateTimer( "Connecting_"..ID, 300, 1, function()
 		if not self.Connecting[ ID ] then return end
 		
 		self.Connecting[ ID ] = nil
@@ -117,7 +131,7 @@ function Plugin:ClientConnect( Client )
 		self.Connecting[ ID ] = nil
 		self.ConnectingCount = self.ConnectingCount - 1
 
-		Timer.Destroy( "RS_Connecting_"..ID )
+		self:DestroyTimer( "Connecting_"..ID )
 	end
 
 	self:UpdateTag( self:GetFreeReservedSlots() )
@@ -170,6 +184,8 @@ function Plugin:CheckConnectionAllowed( ID )
 end
 
 function Plugin:Cleanup()
+	self.BaseClass.Cleanup( self )
+	
 	self.ConnectingCount = nil
 	self.Connecting = nil
 

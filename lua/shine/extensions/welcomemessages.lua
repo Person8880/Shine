@@ -4,8 +4,8 @@
 
 local Shine = Shine
 
+local GetOwner = Server.GetOwner
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 local TableEmpty = table.Empty
 
@@ -35,7 +35,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:ClientConnect( Client )
-	Shine.Timer.Simple( self.Config.MessageDelay, function()
+	self:SimpleTimer( self.Config.MessageDelay, function()
 		if not Shine:IsValidClient( Client ) then return end
 		
 		local ID = Client:GetUserId()
@@ -123,8 +123,21 @@ function Plugin:OnScriptDisconnect( Client )
 	end
 end
 
+function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineForce )
+	if NewTeam < 0 then return end
+	if not Player then return end
+
+	local Client = GetOwner( Player )
+
+	if Client then
+		Client.DisconnectTeam = NewTeam
+	end
+end
+
 function Plugin:Cleanup()
 	TableEmpty( self.Welcomed )
+
+	self.BaseClass.Cleanup( self )
 
 	self.Enabled = false
 end
