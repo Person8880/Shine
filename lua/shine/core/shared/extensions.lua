@@ -333,6 +333,42 @@ function PluginMeta:DestroyAllTimers()
 	end
 end
 
+--Suspends the plugin, stopping its hooks, pausing its timers, but not calling Cleanup().
+function PluginMeta:Suspend()
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Pause()
+		end
+	end
+
+	if self.Commands then
+		for k, Command in pairs( self.Commands ) do
+			Command.Disabled = true
+		end
+	end
+
+	self.Enabled = false
+	self.Suspended = true
+end
+
+--Resumes the plugin from suspension.
+function PluginMeta:Resume()
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Resume()
+		end
+	end
+
+	if self.Commands then
+		for k, Command in pairs( self.Commands ) do
+			Command.Disabled = nil
+		end
+	end
+
+	self.Enabled = true
+	self.Suspended = nil
+end
+
 function Shine:RegisterExtension( Name, Table )
 	self.Plugins[ Name ] = setmetatable( Table, PluginMeta )
 
