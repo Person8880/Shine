@@ -335,6 +335,10 @@ end
 
 --Suspends the plugin, stopping its hooks, pausing its timers, but not calling Cleanup().
 function PluginMeta:Suspend()
+	if self.OnSuspend then
+		self:OnSuspend()
+	end
+	
 	if self.Timers then
 		for Name, Timer in pairs( self.Timers ) do
 			Timer:Pause()
@@ -367,6 +371,10 @@ function PluginMeta:Resume()
 
 	self.Enabled = true
 	self.Suspended = nil
+
+	if self.OnResume then
+		self:OnResume()
+	end
 end
 
 function Shine:RegisterExtension( Name, Table )
@@ -470,7 +478,7 @@ function Shine:LoadExtension( Name, DontEnable )
 end
 
 --Shared extensions need to be enabled once the server tells it to.
-function Shine:EnableExtension( Name )
+function Shine:EnableExtension( Name, DontLoadConfig )
 	local Plugin = self.Plugins[ Name ]
 
 	if not Plugin then
@@ -519,7 +527,7 @@ function Shine:EnableExtension( Name )
 		end
 	end
 
-	if Plugin.HasConfig then
+	if Plugin.HasConfig and not DontLoadConfig then
 		Plugin:LoadConfig()
 	end
 
