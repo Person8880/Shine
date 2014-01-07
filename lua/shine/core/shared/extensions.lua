@@ -170,7 +170,7 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig( Silent )
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
+	local Path = Server and ( self.__ConfigPath or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -194,9 +194,22 @@ function PluginMeta:LoadConfig()
 
 		--Look for gamemode specific config file.
 		if Gamemode ~= "ns2" then
-			local GamemodePath = StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName )
+			local Paths = {
+				StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
+				Path
+			}
 
-			PluginConfig = Shine.LoadJSONFile( GamemodePath ) or Shine.LoadJSONFile( Path )
+			for i = 1, #Paths do
+				local File = Shine.LoadJSONFile( Paths[ i ] )
+
+				if File then
+					PluginConfig = File
+
+					self.__ConfigPath = Paths[ i ]
+
+					break
+				end
+			end
 		else
 			PluginConfig = Shine.LoadJSONFile( Path )
 		end
