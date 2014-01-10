@@ -476,9 +476,19 @@ end
 Event.Hook( "ClientDisconnect", ClientDisconnect )
 
 local function MapPostLoad()
-	Call( "MapPostLoad" )
+	Call "MapPostLoad"
 end
 Event.Hook( "MapPostLoad", MapPostLoad )
+
+local function MapPreLoad()
+	Call "MapPreLoad"
+end
+Event.Hook( "MapPreLoad", MapPreLoad )
+
+local function MapLoadEntity( MapName, GroupName, Values )
+	Call( "MapLoadEntity", MapName, GroupName, Values )
+end
+Event.Hook( "MapLoadEntity", MapLoadEntity )
 
 local OldEventHook = Event.Hook
 local OldReservedSlot
