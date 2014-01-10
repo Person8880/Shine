@@ -262,14 +262,18 @@ function Shine:LoadExtensionConfigs()
 	local WebConfig = self.Config.WebConfigs
 
 	if WebConfig.Enabled then
-		self:LoadWebPlugins( DontEnableNow )
+		self.Hook.Add( "Think", "LoadWebConfigs", function()
+			self:LoadWebPlugins( DontEnableNow )
 
-		if WebConfig.UpdateMode == 2 then
-			self.Timer.Create( "WebConfig_Update", WebConfig.UpdateInterval * 60, -1, function()
-				self.WebPluginTimeouts = 0
-				self:LoadWebPlugins( DontEnableNow, true )
-			end )
-		end
+			if WebConfig.UpdateMode == 2 then
+				self.Timer.Create( "WebConfig_Update", WebConfig.UpdateInterval * 60, -1, function()
+					self.WebPluginTimeouts = 0
+					self:LoadWebPlugins( DontEnableNow, true )
+				end )
+			end
+
+			self.Hook.Remove( "Think", "LoadWebConfigs" )
+		end, -20 )
 	end
 end
 
@@ -288,6 +292,8 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 		LoadDefaultConfigs( self, List )
 
+		Notify( "[Shine] Finished loading." )
+
 		return
 	end
 
@@ -298,6 +304,8 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 		LoadDefaultConfigs( self, List )
 
+		Notify( "[Shine] Finished loading." )
+
 		return
 	end
 
@@ -305,7 +313,11 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 		self:Print( "[WebConfigs] Web request for plugin configs received error: %s.",
 			true, Decoded.msg or Decoded.Msg or "unknown error" )
 
+		Notify( "[Shine] Loading cached/default configs..." )
+		
 		LoadDefaultConfigs( self, List )
+
+		Notify( "[Shine] Finished loading." )
 
 		return
 	end
@@ -314,7 +326,11 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 	if not PluginData then
 		self:Print( "[WebConfigs] Web request for plugin configs received incorrect response. Missing plugins table." )
 
+		Notify( "[Shine] Loading cached/default configs..." )
+
 		LoadDefaultConfigs( self, List )
+
+		Notify( "[Shine] Finished loading." )
 
 		return
 	end
@@ -366,8 +382,8 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 					--Cache to HDD.
 					PluginTable:SaveConfig( true )
 
-					if Plugin.OnWebConfigLoaded then
-						Plugin:OnWebConfigLoaded()
+					if PluginTable.OnWebConfigLoaded then
+						PluginTable:OnWebConfigLoaded()
 					end
 
 					local Success, Err = self:EnableExtension( Name, true )
@@ -396,8 +412,8 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 					PluginTable:SaveConfig( true )
 
-					if Plugin.OnWebConfigLoaded then
-						Plugin:OnWebConfigLoaded()
+					if PluginTable.OnWebConfigLoaded then
+						PluginTable:OnWebConfigLoaded()
 					end
 
 					Success, Err = self:EnableExtension( Name, true )
@@ -408,6 +424,10 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 			end
 		else
 			self:Print( "[WebConfigs] Server responded with success but supplied no config for plugin %s.", true, Name )
+		
+			if not Reload then
+				LoadPlugin( self, Name )
+			end
 		end
 	end
 

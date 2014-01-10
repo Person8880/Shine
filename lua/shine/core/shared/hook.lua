@@ -475,6 +475,11 @@ local function ClientDisconnect( Client )
 end
 Event.Hook( "ClientDisconnect", ClientDisconnect )
 
+local function MapPostLoad()
+	Call( "MapPostLoad" )
+end
+Event.Hook( "MapPostLoad", MapPostLoad )
+
 local OldEventHook = Event.Hook
 local OldReservedSlot
 
