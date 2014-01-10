@@ -327,6 +327,10 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 		local Success = Data.success or Data.Success
 		local ConfigData = Data.config or Data.Config
 
+		--Is the config we're loading for a specific gamemode?
+		local GamemodeResponse = Data.Gamemode or Data.gamemode
+		local NeedDifferentPath = GamemodeResponse and GamemodeResponse ~= "ns2"
+
 		if not Success then
 			self:Print( "[WebConfigs] Server responded with error for plugin %s: %s.", true,
 				Name, Data.msg or Data.Msg or "unknown error" )
@@ -353,6 +357,12 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 						Shine.CheckConfig( PluginTable.Config, PluginTable.DefaultConfig )
 					end
 
+					--Set the gamemode config path if we've been given a gamemode config.
+					if NeedDifferentPath then
+						PluginTable.__ConfigPath = StringFormat( "%s%s/%s", 
+							self.Config.ExtensionDir, GamemodeResponse, PluginTable.ConfigName )
+					end
+
 					--Cache to HDD.
 					PluginTable:SaveConfig( true )
 
@@ -377,6 +387,11 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 					if PluginTable.CheckConfig then
 						Shine.CheckConfig( PluginTable.Config, PluginTable.DefaultConfig )
+					end
+
+					if NeedDifferentPath then
+						PluginTable.__ConfigPath = StringFormat( "%s%s/%s", 
+							self.Config.ExtensionDir, GamemodeResponse, PluginTable.ConfigName )
 					end
 
 					PluginTable:SaveConfig( true )
@@ -445,6 +460,7 @@ function Shine:LoadWebPlugins( Plugins, Reload )
 
 	local Args = {
 		plugins = Encode( List ),
+		gamemode = self.GetGamemode()
 	}
 
 	for Arg, Value in pairs( WebConfig.RequestArguments ) do
