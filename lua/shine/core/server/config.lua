@@ -266,6 +266,7 @@ function Shine:LoadExtensionConfigs()
 
 		if WebConfig.UpdateMode == 2 then
 			self.Timer.Create( "WebConfig_Update", WebConfig.UpdateInterval * 60, -1, function()
+				self.WebPluginTimeouts = 0
 				self:LoadWebPlugins( DontEnableNow, true )
 			end )
 		end
@@ -355,6 +356,10 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 					--Cache to HDD.
 					PluginTable:SaveConfig( true )
 
+					if Plugin.OnWebConfigLoaded then
+						Plugin:OnWebConfigLoaded()
+					end
+
 					local Success, Err = self:EnableExtension( Name, true )
 
 					Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) 
@@ -375,6 +380,10 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 					end
 
 					PluginTable:SaveConfig( true )
+
+					if Plugin.OnWebConfigLoaded then
+						Plugin:OnWebConfigLoaded()
+					end
 
 					Success, Err = self:EnableExtension( Name, true )
 

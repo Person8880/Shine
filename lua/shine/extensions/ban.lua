@@ -157,6 +157,15 @@ function Plugin:LoadBansFromWeb()
 end
 
 --[[
+	If our config is being web loaded, we'll need to retrieve web bans separately.
+]]
+function Plugin:OnWebConfigLoaded()
+	if self.Config.GetBansFromWeb then
+		self:LoadBansFromWeb()
+	end
+end
+
+--[[
 	Loads the bans.
 ]]
 function Plugin:LoadConfig()
