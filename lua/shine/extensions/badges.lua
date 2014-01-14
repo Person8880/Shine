@@ -84,10 +84,16 @@ function Plugin:Setup()
 		return false
 	end
 
-	local function AssignGroupBadge( ID, GroupName )
+	local function AssignGroupBadge( ID, GroupName, AssignedGroups )
 		local Group = UserData.Groups[ GroupName ]
 
 		if not Group then return end
+
+		AssignedGroups = AssignedGroups or {}
+
+		if AssignedGroups[ GroupName ] then return end
+
+		AssignedGroups[ GroupName ] = true
 		
 		local GroupBadges = Group.Badges or Group.badges or {}
 
@@ -104,6 +110,15 @@ function Plugin:Setup()
 		end
 
 		AssignBadge( ID, GroupName:lower() )
+
+		local InheritTable = Group.InheritsFrom
+
+		--Inherit group badges.
+		if InheritTable then
+			for i = 1, #InheritTable do
+				AssignGroupBadge( ID, InheritTable[ i ], AssignedGroups )
+			end
+		end
 	end
 
 	for ID, User in pairs( UserData.Users ) do
