@@ -137,6 +137,11 @@ function Plugin:Initialise()
 				local Map = Maps[ i ]
 				if IsType( Map, "table" ) then
 					ConfigMaps[ Map.map ] = true
+
+					--Override the global time value for specific maps.
+					if Map.time or Map.Time then
+						Cycle.time = Map.time or Map.Time
+					end
 				else
 					ConfigMaps[ Map ] = true
 				end
@@ -174,7 +179,7 @@ function Plugin:Initialise()
 				self.VoteOnEnd = true
 			else
 				local Time = Shared.GetTime()
-				local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit * 60 ) or 1800
+				local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
 
 				self:CreateTimer( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
 					local Players = Shine.GetAllPlayers()
@@ -506,7 +511,7 @@ function Plugin:EndGame()
 		local Time = Shared.GetTime()
 
 		local Cycle = self.MapCycle
-		local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit and kCombatTimeLimit * 60 )
+		local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
 
 		if not CycleTime then return end
 
@@ -1504,7 +1509,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local CycleTime = Cycle and ( Cycle.time * 60 ) or ( kCombatTimeLimit and kCombatTimeLimit * 60 )
+		local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
 
 		if not CycleTime then
 			if Player then

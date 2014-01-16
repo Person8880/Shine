@@ -519,6 +519,44 @@ function Plugin:CreateCommands()
 	UnloadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to unload." }
 	UnloadPluginCommand:Help( "<plugin> Unloads a plugin." )
 
+	local function SuspendPlugin( Client, Name )
+		local Plugin = Shine.Plugins[ Name ]
+
+		if not Plugin.Enabled then
+			Shine:AdminPrint( Client, StringFormat( "The plugin %s is not loaded or already suspended.", Name ) )
+
+			return
+		end
+
+		Plugin:Suspend()
+
+		Shine:AdminPrint( Client, StringFormat( "Plugin %s has been suspended.", Name ) )
+
+		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+	end
+	local SuspendPluginCommand = self:BindCommand( "sh_suspendplugin", nil, SuspendPlugin )
+	SuspendPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to suspend." }
+	SuspendPluginCommand:Help( "<plugin> Suspends a plugin." )
+
+	local function ResumePlugin( Client, Name )
+		local Plugin = Shine.Plugins[ Name ]
+
+		if Plugin.Enabled or not Plugin.Suspended then
+			Shine:AdminPrint( Client, StringFormat( "The plugin %s is already running or is not suspended.", Name ) )
+
+			return
+		end
+
+		Plugin:Resume()
+
+		Shine:AdminPrint( Client, StringFormat( "Plugin %s has been resumed.", Name ) )
+
+		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+	end
+	local ResumePluginCommand = self:BindCommand( "sh_resumeplugin", nil, ResumePlugin )
+	ResumePluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to resume." }
+	ResumePluginCommand:Help( "<plugin> Resumes a plugin." )
+
 	local function ListPlugins( Client )
 		Shine:AdminPrint( Client, "Loaded plugins:" )
 		for Name, Table in pairs( Shine.Plugins ) do

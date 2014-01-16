@@ -232,31 +232,20 @@ function Plugin:CreateChatbox()
 	local WidthMult = Clamp( ScreenWidth / 1920, 0.7, 1 )
 	local HeightMult = Clamp( ScreenHeight / 1080, 0.7, 1 )
 
-	local WideScreenHeight = ( ScreenWidth / 16 ) * 9
-	if WideScreenHeight ~= ScreenHeight then
-		WidthMult = WidthMult * 0.7
+	local FourToThreeHeight = ( ScreenWidth / 4 ) * 3
+	--Use a more boxy box for 4:3 monitors.
+	if FourToThreeHeight == ScreenHeight then
+		WidthMult = WidthMult * 0.72
 	end
 
 	UIScale.x = UIScale.x * WidthMult
 	UIScale.y = UIScale.y * HeightMult
 
-	if ScreenWidth < 1600 then
+	--[[if ScreenWidth < 1600 then
 		ScalarScale = ScalarScale * WidthMult
-	end
+	end]]
 
-	self.UseTinyFont = ScreenWidth <= 1280
-
-	--[[local WidthMult = Clamp( ScreenWidth / 1920, 0.7, 1 )
-
-	ChatBoxSize.x = ChatBoxSize.x * WidthMult
-	InnerBoxSize.x = InnerBoxSize.x * WidthMult
-
-	BorderPos.x = BorderPos.x * WidthMult
-	ModeTextPos.x = ModeTextPos.x * WidthMult
-	SettingsButtonPos.x = SettingsButtonPos.x * WidthMult
-	TextBoxPos.x = TextBoxPos.x * WidthMult
-
-	TextBoxSize.x = TextBoxSize.x * WidthMult + SettingsButtonPos.x - 5]]
+	self.UseTinyFont = ScreenWidth <= 1366
 
 	local Opacity = self.Config.Opacity
 	local ScaledOpacity = AlphaScale( Opacity )
@@ -366,8 +355,6 @@ function Plugin:CreateChatbox()
 	}
 	if not self.UseTinyFont then
 		TextEntry:SetTextScale( ScalarScale * TextScale )
-	--else
-		--TextEntry:SetTextScale( GUIScale( 1 ) * TextScale )
 	end
 
 	TextEntry.InnerBox:SetColor( TextDarkCol )

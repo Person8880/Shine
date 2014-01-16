@@ -170,7 +170,7 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig( Silent )
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
+	local Path = Server and ( self.__ConfigPath or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -194,9 +194,22 @@ function PluginMeta:LoadConfig()
 
 		--Look for gamemode specific config file.
 		if Gamemode ~= "ns2" then
-			local GamemodePath = StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName )
+			local Paths = {
+				StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
+				Path
+			}
 
-			PluginConfig = Shine.LoadJSONFile( GamemodePath ) or Shine.LoadJSONFile( Path )
+			for i = 1, #Paths do
+				local File = Shine.LoadJSONFile( Paths[ i ] )
+
+				if File then
+					PluginConfig = File
+
+					self.__ConfigPath = Paths[ i ]
+
+					break
+				end
+			end
 		else
 			PluginConfig = Shine.LoadJSONFile( Path )
 		end
@@ -333,6 +346,50 @@ function PluginMeta:DestroyAllTimers()
 	end
 end
 
+--Suspends the plugin, stopping its hooks, pausing its timers, but not calling Cleanup().
+function PluginMeta:Suspend()
+	if self.OnSuspend then
+		self:OnSuspend()
+	end
+	
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Pause()
+		end
+	end
+
+	if self.Commands then
+		for k, Command in pairs( self.Commands ) do
+			Command.Disabled = true
+		end
+	end
+
+	self.Enabled = false
+	self.Suspended = true
+end
+
+--Resumes the plugin from suspension.
+function PluginMeta:Resume()
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Resume()
+		end
+	end
+
+	if self.Commands then
+		for k, Command in pairs( self.Commands ) do
+			Command.Disabled = nil
+		end
+	end
+
+	self.Enabled = true
+	self.Suspended = nil
+
+	if self.OnResume then
+		self:OnResume()
+	end
+end
+
 function Shine:RegisterExtension( Name, Table )
 	self.Plugins[ Name ] = setmetatable( Table, PluginMeta )
 
@@ -434,7 +491,7 @@ function Shine:LoadExtension( Name, DontEnable )
 end
 
 --Shared extensions need to be enabled once the server tells it to.
-function Shine:EnableExtension( Name )
+function Shine:EnableExtension( Name, DontLoadConfig )
 	local Plugin = self.Plugins[ Name ]
 
 	if not Plugin then
@@ -483,7 +540,7 @@ function Shine:EnableExtension( Name )
 		end
 	end
 
-	if Plugin.HasConfig then
+	if Plugin.HasConfig and not DontLoadConfig then
 		Plugin:LoadConfig()
 	end
 

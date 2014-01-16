@@ -358,6 +358,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	local Command = self.Commands[ ConCommand ]
 
 	if not Command then return end
+	if Command.Disabled then return end
 
 	if not self:GetPermission( Client, ConCommand ) then 
 		self:NotifyError( Client, "You do not have permission to use %s.", true, ConCommand )
@@ -489,6 +490,8 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if not CommandObj then --Command does not exist.
 		return
 	end
+
+	if CommandObj.Disabled then return end
 
 	TableRemove( Exploded, 1 ) --Get rid of the first argument, it's just the chat command.
 

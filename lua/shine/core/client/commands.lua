@@ -164,6 +164,8 @@ function Shine:RunClientCommand( ConCommand, ... )
 
 	if not Command then return end
 
+	if Command.Disabled then return end
+
 	local Args = { ... }
 
 	local ParsedArgs = {}
