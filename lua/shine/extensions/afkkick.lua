@@ -243,8 +243,7 @@ end
 Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
 	SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
 		local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
-		local AFKPlugin = Shine.Plugins.afkkick
-		local Enabled = AFKPlugin and AFKPlugin.Enabled
+		local Enabled, AFKPlugin = Shine:IsExtensionEnabled( "afkkick" )
 
 		for i = #ReadyRoomPlayers, 1, -1 do
 			local Player = ReadyRoomPlayers[ i ]

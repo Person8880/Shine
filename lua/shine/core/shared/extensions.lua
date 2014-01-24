@@ -567,6 +567,19 @@ function Shine:UnloadExtension( Name )
 	Hook.Call( "OnPluginUnload", Name )
 end
 
+--[[
+	Returns whether an extension is loaded, and its table if it is.
+]]
+function Shine:IsExtensionLoaded( Name )
+	local Plugin = self.Plugins[ Name ]
+
+	if Plugin and Plugin.Enabled then
+		return true, Plugin
+	end
+
+	return false
+end
+
 local ClientPlugins = {}
 --Store a list of all plugins in existance. When the server config loads, we use it.
 Shine.AllPlugins = {}

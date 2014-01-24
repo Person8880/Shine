@@ -138,6 +138,13 @@ function Plugin:NotifyOrCycle()
 		return
 	end
 
+	local Enabled, MapVote = Shine:IsExtensionLoaded( "mapvote" )
+
+	--Deny extension of the map.
+	if Enabled then
+		MapVote.Config.AllowExtend = false
+	end
+
 	self:Notify( "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
 	self:Notify( "Players cannot connect to the server until map change." )
 

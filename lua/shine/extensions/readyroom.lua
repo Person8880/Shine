@@ -54,8 +54,8 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
 	
-	local MapVote = Shine.Plugins.mapvote
-	if MapVote and MapVote.Enabled and ( MapVote.CyclingMap or MapVote:IsEndVote() ) then
+	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
+	if Enabled and ( MapVote.CyclingMap or MapVote:IsEndVote() ) then
 		return
 	end
 	
@@ -218,9 +218,9 @@ function Plugin:ProcessClient( Client, Time )
 	local Team = Player:GetTeam():GetTeamNumber()
 
 	if Team == kTeamReadyRoom then
-		local AFKKick = Shine.Plugins.afkkick
+		local Enabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 
-		if AFKKick and AFKKick.Enabled then
+		if Enabled then
 			local LastMoveTime = AFKKick:GetLastMoveTime( Client )
 
 			--Ignore AFK players.
@@ -260,11 +260,11 @@ function Plugin:Think()
 	if not self.GameStarted and self.Config.TrackOnRoundStart then return end
 	if not self.Config.TrackReadyRoomPlayers then return end
 
-	local MapVote = Shine.Plugins.mapvote
+	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 	local Time = SharedTime()
 
 	--Disable on map cycling/end vote.
-	if MapVote and MapVote.Enabled then
+	if Enabled then
 		if MapVote.CyclingMap or MapVote:IsEndVote() then
 			TableEmpty( self.ReadyRoomTracker )
 			TableEmpty( self.BlockedClients )
