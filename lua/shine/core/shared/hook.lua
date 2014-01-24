@@ -507,6 +507,12 @@ end
 	and never call our hook.
 ]]
 function Event.Hook( Name, Func )
+	local Override, NewFunc = Call( "NS2EventHook", Name, Func )
+	
+	if Override then
+		return OldEventHook( Name, NewFunc )
+	end
+
 	if Name ~= "CheckConnectionAllowed" then
 		return OldEventHook( Name, Func )
 	end

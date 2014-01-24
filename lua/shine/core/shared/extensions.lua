@@ -570,7 +570,7 @@ end
 --[[
 	Returns whether an extension is loaded, and its table if it is.
 ]]
-function Shine:IsExtensionLoaded( Name )
+function Shine:IsExtensionEnabled( Name )
 	local Plugin = self.Plugins[ Name ]
 
 	if Plugin and Plugin.Enabled then

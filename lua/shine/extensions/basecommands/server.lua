@@ -61,6 +61,21 @@ local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Di
 end
 Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 
+--Override sv_say with sh_say.
+Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
+	if Name == "Console_sv_say" then
+		local function NewSay( Client, ... )
+			if Shine:IsExtensionEnabled( "basecommands" ) then
+				return Shine:RunCommand( Client, "sh_say", ... )
+			end
+
+			return OldFunc( Client, ... )
+		end
+
+		return true, NewSay
+	end
+end )
+
 function Plugin:Initialise()
 	self.Gagged = {}
 

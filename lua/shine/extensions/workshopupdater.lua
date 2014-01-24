@@ -138,7 +138,7 @@ function Plugin:NotifyOrCycle()
 		return
 	end
 
-	local Enabled, MapVote = Shine:IsExtensionLoaded( "mapvote" )
+	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 
 	--Deny extension of the map.
 	if Enabled then
