@@ -9,9 +9,10 @@ local Notify = Shared.Message
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.5"
 
 Plugin.HasConfig = true
@@ -20,6 +21,7 @@ Plugin.ConfigName = "PreGame.json"
 Plugin.DefaultConfig = {
 	PreGameTime = 45,
 	CountdownTime = 15,
+	StartDelay = 0,
 	ShowCountdown = true,
 	RequireComs = 1,
 	AbortIfNoCom = false,
@@ -73,10 +75,16 @@ function Plugin:StartCountdown()
 end
 
 function Plugin:ClientConfirmConnect( Client )
+	local StartDelay = self.Config.StartDelay
+
+	if StartDelay > 0 and SharedTime() < StartDelay then
+		self:SendNetworkMessage( Client, "StartDelay", { StartTime = Floor( StartDelay ) }, true )
+	end
+
 	if not self.CountStart then return end
 	if not self.Config.ShowCountdown then return end
 
-	local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
+	local TimeLeft = Ceil( self.CountEnd - SharedTime() )
 
 	if TimeLeft <= 0 or TimeLeft > 5 then return end
 
@@ -104,6 +112,11 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 
 	self.StartedGame = false
 	self.GameStarting = false
+
+	--Removes start delay text if game start was forced.
+	if self.Config.StartDelay > 0 then
+		self:SendNetworkMessage( nil, "StartDelay", { StartTime = 0 }, true )
+	end
 end
 
 function Plugin:DestroyTimers()
@@ -143,8 +156,8 @@ Plugin.UpdateFuncs = {
 
 			local Duration = self.Config.PreGameTime
 
-			self.CountStart = Shared.GetTime()
-			self.CountEnd = Shared.GetTime() + Duration
+			self.CountStart = SharedTime()
+			self.CountEnd = SharedTime() + Duration
 
 			self.GameStarting = true
 
@@ -157,7 +170,7 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
+		local TimeLeft = Ceil( self.CountEnd - SharedTime() )
 
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
@@ -166,7 +179,7 @@ Plugin.UpdateFuncs = {
 			end
 		end
 
-		if self.CountEnd <= Shared.GetTime() then
+		if self.CountEnd <= SharedTime() then
 			self.CountStart = nil
 			self.CountEnd = nil
 			self.SentCountdown = nil
@@ -187,7 +200,7 @@ Plugin.UpdateFuncs = {
 		local Team1Count = Team1:GetNumPlayers()
 		local Team2Count = Team2:GetNumPlayers()
 
-		local Time = Shared.GetTime()
+		local Time = SharedTime()
 
 		if self.GameStarting then
 			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
@@ -369,8 +382,8 @@ Plugin.UpdateFuncs = {
 
 			local Duration = self.Config.PreGameTime
 
-			self.CountStart = Shared.GetTime()
-			self.CountEnd = Shared.GetTime() + Duration
+			self.CountStart = SharedTime()
+			self.CountEnd = SharedTime() + Duration
 
 			return
 		end
@@ -479,7 +492,7 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
+		local TimeLeft = Ceil( self.CountEnd - SharedTime() )
 
 		--Time's up!
 		if TimeLeft <= 0 then
@@ -544,9 +557,13 @@ function Plugin:CheckGameStart( Gamerules )
 
 	if State ~= kGameState.NotStarted and State ~= kGameState.PreGame then return end
 
+	--Do not allow starting too soon.
+	local StartDelay = self.Config.StartDelay
+	if StartDelay > 0 and SharedTime() < StartDelay then
+		return false
+	end
+
 	self.UpdateFuncs[ self.Config.RequireComs ]( self, Gamerules )
 
 	return false
 end
-
-Shine:RegisterExtension( "pregame", Plugin )
