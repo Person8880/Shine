@@ -17,6 +17,7 @@ local Min = math.min
 local next = next
 local pairs = pairs
 local Random = math.random
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -37,27 +38,27 @@ Plugin.MODE_RANDOM = 1
 Plugin.MODE_SCORE = 2
 Plugin.MODE_ELO = 3
 Plugin.MODE_KDR = 4
-Plugin.MODE_SPONITOR = 5 --Lets use the best stats source in the game.
+Plugin.MODE_SPONITOR = 5
 
 local ModeStrings = {
 	Mode = {
 		"Random",
 		"Score based",
-		"ELO based",
+		"Elo based",
 		"KDR based",
 		"Skill based"
 	},
 	ModeLower = {
 		"random",
 		"score based",
-		"ELO based",
+		"Elo based",
 		"KDR based",
 		"skill based"
 	},
 	Action = {
 		"randomly",
 		"based on score",
-		"based on ELO",
+		"based on Elo",
 		"based on KDR",
 		"based on skill"
 	}
@@ -68,6 +69,7 @@ local DefaultConfig = {
 	MinPlayers = 10, --Minimum number of players on the server to enable random voting.
 	PercentNeeded = 0.75, --Percentage of the server population needing to vote for it to succeed.
 	Duration = 15, --Time to force people onto random teams for after a random vote. Also time between successful votes.
+	BlockAfterTime = 0, --Time after round start to block the vote. 0 to disable blocking.
 	RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
 	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
@@ -87,7 +89,7 @@ function Plugin:Initialise()
 
 	self.Vote = Shine:CreateVote( function() return self:GetVotesNeeded() end, function() self:ApplyRandomSettings() end, 
 	function( Vote )
-		if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
+		if Vote.LastVoted and SharedTime() - Vote.LastVoted > self.Config.VoteTimeout then
 			Vote:Reset()
 		end
 	end	)
@@ -114,7 +116,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 255, 100, "[Random]", 255, 255, 255, Message, Format, ... )
+	Shine:NotifyDualColour( Player, 100, 255, 100, "[Shuffle]", 255, 255, 255, Message, Format, ... )
 end
 
 function Plugin:GenerateDefaultConfig( Save )
@@ -163,10 +165,13 @@ function Plugin:LoadConfig()
 
 	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 
-	if self.Config.FallbackMode == self.MODE_ELO then
+	local BalanceMode = self.Config.BalanceMode
+	local FallbackMode = self.Config.FallbackMode
+
+	if FallbackMode == self.MODE_ELO or FallbackMode == self.MODE_SPONITOR then
 		self.Config.FallbackMode = self.MODE_KDR
 
-		Notify( "Error in voterandom config, cannot set FallbackMode to ELO sorting mode. Setting FallbackMode to KDR mode." )
+		Notify( "Error in voterandom config, FallbackMode is not set as a valid option.\nMake sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3 or 5.\nSetting FallbackMode to KDR mode (4)." )
 	
 		self:SaveConfig()
 	end
@@ -228,13 +233,13 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 	}
 
 	local CurRequest = ReqCount
-	local CurTime = Shared.GetTime()
+	local CurTime = SharedTime()
 
 	Requests[ CurRequest ] = CurTime + 5 --No response after 5 seconds is a fail.
 
 	ReqCount = ReqCount + 1
 
-	Shine.Timer.Simple( 5, function()
+	self:SimpleTimer( 5, function()
 		if Requests[ CurRequest ] then
 			Shine:Print( "[ELO Vote] Connection to NS2Stats timed out." )
 
@@ -245,7 +250,7 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 	end )
 
 	Shared.SendHTTPRequest( URL, "POST", Params, function( Response, Status )
-		local Time = Shared.GetTime()
+		local Time = SharedTime()
 
 		if Requests[ CurRequest ] < Time then
 			Shine:Print( "[ELO Vote] NS2Stats responded too late after %.2f seconds!", true, Time - CurTime )
@@ -402,13 +407,15 @@ Plugin.ShufflingModes = {
 		local ScoreTable = {}
 		local RandomTable = {}
 
+		local GetOwner = Server.GetOwner
+
 		for i = 1, #Targets do
 			local Player = Targets[ i ]
 
 			if Player then
-				local Client = Player:GetClient()
+				local Client = GetOwner( Player )
 
-				if Client then
+				if Client and Client.GetUserId then
 					local ID = Client:GetUserId()
 
 					local Data = self:GetAverageScoreData( ID )
@@ -491,8 +498,6 @@ Plugin.ShufflingModes = {
 			end
 
 			local Targets, TeamMembers = self:GetTargetsForSorting()
-			
-			local Players = Shine.GetAllPlayers()
 
 			local ELOSort = {}
 			local Count = 0
@@ -505,7 +510,7 @@ Plugin.ShufflingModes = {
 				local Player = Targets[ i ]
 				local Client = Player and GetOwner( Player )
 
-				if Client then
+				if Client and Client.GetUserId then
 					local ID = tostring( Client:GetUserId() )
 					local Data = StatsData[ ID ]
 
@@ -536,17 +541,18 @@ Plugin.ShufflingModes = {
 				end
 			end
 
-			local Count = #Players - ELOSorted
+			local Count = #Targets - ELOSorted
 
 			--Sort the remaining players with the fallback method.
 			if Count > 0 then
 				local FallbackTargets = {}
 
-				for i = 1, #Players do
-					local Player = Players[ i ]
+				for i = 1, #Targets do
+					local Player = Targets[ i ]
 
 					if Player and not Sorted[ Player ] then
 						FallbackTargets[ #FallbackTargets + 1 ] = Player
+						Sorted[ Player ] = true
 					end
 				end
 
@@ -575,15 +581,20 @@ Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers )
 		local SortTable = {}
 		local Count = 0
+		local Sorted = {}
 
-		for i = 1, #Targets do
+		local TargetCount = #Targets
+
+		for i = 1, TargetCount do
 			local Ply = Targets[ i ]
 
 			if Ply and Ply.GetPlayerSkill then
 				local SkillData = Ply:GetPlayerSkill()
 
-				Count = Count + 1
-				SortTable[ Count ] = { Player = Ply, Skill = SkillData }
+				if SkillData and SkillData > 0 then
+					Count = Count + 1
+					SortTable[ Count ] = { Player = Ply, Skill = SkillData }
+				end
 			end
 		end
 
@@ -602,7 +613,39 @@ Plugin.ShufflingModes = {
 				local TeamTable = TeamMembers[ ( ( i + Add ) % 2 ) + 1 ]
 
 				TeamTable[ #TeamTable + 1 ] = Player
+				Sorted[ Player ] = true
 			end
+		end
+
+		--Some players have rank 0, so sort them randomly instead.
+		local SortRandomly = {}
+
+		for i = 1, TargetCount do
+			local Player = Targets[ i ]
+
+			if Player and not Sorted[ Player ] then
+				SortRandomly[ #SortRandomly + 1 ] = Player
+				Sorted[ Player ] = true
+			end
+		end
+
+		local RandomCount = #SortRandomly
+
+		if RandomCount > 0 then
+			--Use the fallback method to sort those with a 0 skill rank.
+			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, SortRandomly, TeamMembers, true )
+
+			Shine:LogString( "[Skill Vote] Teams were sorted based on Sponitor skill ranking." )
+
+			local Marines = GetEntitiesForTeam( "Player", 1 )
+			local Aliens = GetEntitiesForTeam( "Player", 2 )
+
+			local MarineSkill = GetAverageSkill( Marines )
+			local AlienSkill = GetAverageSkill( Aliens )
+
+			self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.", true, MarineSkill, AlienSkill )
+
+			return
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -638,7 +681,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 	local AFKKick = Shine.Plugins.afkkick
 	local AFKEnabled = AFKKick and AFKKick.Enabled
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	local function SortPlayer( Player, Client, Commander )
 		local Team = Player:GetTeamNumber()
@@ -713,11 +756,12 @@ end
 	Stores a player's score.
 ]]
 function Plugin:StoreScoreData( Player )
-	local Client = Player:GetClient()
+	local Client = Server.GetOwner( Player )
 
 	if not Client then return end
 
-	if Client:GetIsVirtual() then return end
+	if Client.GetIsVirtual and Client:GetIsVirtual() then return end
+	if not Client.GetUserId then return end
 
 	local Round = self.Round
 
@@ -727,7 +771,7 @@ function Plugin:StoreScoreData( Player )
 
 	local Mode = self.Config.BalanceMode
 
-	if Mode == self.MODE_ELO then
+	if Mode == self.MODE_ELO or Mode == self.MODE_SPONITOR then
 		Mode = self.Config.FallbackMode
 	end
 
@@ -740,7 +784,11 @@ function Plugin:StoreScoreData( Player )
 		end
 	elseif Mode == self.MODE_KDR then
 		local Kills = Player.GetKills and Player:GetKills() or 0
+		local Assists = Player.GetAssistKills and Player:GetAssistKills() or 0
 		local Deaths = Player.GetDeaths and Player:GetDeaths() or 0
+
+		--Each assist counts for 0.5.
+		Kills = Kills + Assists * 0.5
 
 		--0 KDR is useless, let's just randomise them.
 		if Kills == 0 then return end 
@@ -782,7 +830,7 @@ end
 	Saves the score data for previous rounds.
 ]]
 function Plugin:SaveScoreData()
-	local Success, Err = Shine.SaveJSONFile( self.ScoreData, "config://shine\\temp\\voterandom_scores.json" )
+	local Success, Err = Shine.SaveJSONFile( self.ScoreData, "config://shine/temp/voterandom_scores.json" )
 
 	if not Success then
 		Notify( "Error writing voterandom scoredata file: "..Err )	
@@ -795,7 +843,7 @@ end
 	Loads the stored data from the file, will load on plugin load only.
 ]]
 function Plugin:LoadScoreData()
-	local Data = Shine.LoadJSONFile( "config://shine\\temp\\voterandom_scores.json" )
+	local Data = Shine.LoadJSONFile( "config://shine/temp/voterandom_scores.json" )
 
 	return Data or { Round = 1, Rounds = {} }
 end
@@ -824,8 +872,14 @@ function Plugin:JoinRandomTeam( Player )
 end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
-	if not self.Config.AlwaysEnabled then return end
 	if NewState ~= kGameState.Countdown then return end
+
+	--Block the vote after the set time.
+	if self.Config.BlockAfterTime > 0 then
+		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterTime * 60
+	end
+
+	if not self.Config.AlwaysEnabled then return end
 	if Shared.GetEntitiesWithClassname( "Player" ):GetSize() < self.Config.MinPlayers then
 		return
 	end
@@ -848,12 +902,13 @@ end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
 	self.DoneStartShuffle = false
+	self.VoteBlockTime = nil
 
 	local Players = Shine.GetAllPlayers()
 	local BalanceMode = self.Config.BalanceMode
 	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
 
-	if BalanceMode == self.MODE_ELO then
+	if BalanceMode == self.MODE_ELO or BalanceMode == self.MODE_SPONITOR then
 		local Fallback = self.Config.FallbackMode
 		IsScoreBased = Fallback == self.MODE_SCORE or Fallback == self.MODE_KDR
 	end
@@ -895,7 +950,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	if self.RandomOnNextRound then
 		self.RandomOnNextRound = false
 		
-		Shine.Timer.Simple( 15, function()
+		self:SimpleTimer( 15, function()
 			local MapVote = Shine.Plugins.mapvote
 
 			if MapVote and MapVote.Enabled and MapVote:IsEndVote() then
@@ -911,11 +966,11 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			self.ForceRandom = true
 		end )
 	else
-		if not Shine.Timer.Exists( self.RandomEndTimer ) then
+		if not self:TimerExists( self.RandomEndTimer ) then
 			self.ForceRandom = false
 		else
 			self.ForceRandom = false
-			Shine.Timer.Simple( 15, function()
+			self:SimpleTimer( 15, function()
 				local MapVote = Shine.Plugins.mapvote
 
 				if not ( MapVote and MapVote.Enabled and MapVote:IsEndVote() ) then
@@ -924,7 +979,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 					self:ShuffleTeams()
 				end
 
-				if Shine.Timer.Exists( self.RandomEndTimer ) then
+				if self:TimerExists( self.RandomEndTimer ) then
 					self.ForceRandom = true
 				end
 			end )
@@ -959,7 +1014,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	local Client = Player:GetClient()
 	if not Client then return false end
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
 	local OnPlayingTeam = Team == 1 or Team == 2
@@ -1016,7 +1071,7 @@ function Plugin:GetVotesNeeded()
 end
 
 function Plugin:CanStartVote()
-	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.NextVote < Shared.GetTime() and not self.RandomOnNextRound
+	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.NextVote < SharedTime() and not self.RandomOnNextRound
 end
 
 --[[
@@ -1025,6 +1080,10 @@ end
 function Plugin:AddVote( Client )
 	if self.Config.AlwaysEnabled then
 		return false, StringFormat( "%s teams are forced to enabled by the server.", ModeStrings.Mode[ self.Config.BalanceMode ] )
+	end
+
+	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
+		return false, "It is too far into the current round to start a vote."
 	end
 
 	if not Client then Client = "Console" end
@@ -1066,7 +1125,7 @@ function Plugin:ApplyRandomSettings()
 	local ChatName = Shine.Config.ChatName
 
 	self.RandomApplied = true
-	Shine.Timer.Simple( 0, function()
+	self:SimpleTimer( 0, function()
 		self.RandomApplied = false
 	end )
 
@@ -1098,7 +1157,7 @@ function Plugin:ApplyRandomSettings()
 	local Duration = self.Config.Duration * 60
 
 	self.ForceRandom = true
-	self.NextVote = Shared.GetTime() + Duration
+	self.NextVote = SharedTime() + Duration
 
 	self:Notify( nil, "%s teams have been enabled for the next %s.", 
 		true, ModeStrings.Mode[ self.Config.BalanceMode ], string.TimeToString( Duration ) )
@@ -1125,7 +1184,7 @@ function Plugin:ApplyRandomSettings()
 		end
 	end
 
-	Shine.Timer.Create( self.RandomEndTimer, Duration, 1, function()
+	self:CreateTimer( self.RandomEndTimer, Duration, 1, function()
 		self:Notify( nil, "%s team enforcing disabled, time limit reached.", true, ModeStrings.Mode[ self.LastShuffleMode or self.Config.BalanceMode ] )
 		self.ForceRandom = false
 	end )
@@ -1169,8 +1228,10 @@ function Plugin:CreateCommands()
 		if Enable then
 			self.Vote:Reset()
 			self:ApplyRandomSettings()
+
+			Shine:CommandNotify( Client, "enabled %s teams.", true, ModeStrings.ModeLower[ self.Config.BalanceMode ] )
 		else
-			Shine.Timer.Destroy( self.RandomEndTimer )
+			self:DestroyTimer( self.RandomEndTimer )
 			self.Vote:Reset()
 
 			self.RandomOnNextRound = false

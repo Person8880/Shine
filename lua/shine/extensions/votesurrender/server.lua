@@ -13,7 +13,7 @@ local Floor = math.floor
 local Max = math.max
 local Random = math.random
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
@@ -46,6 +46,8 @@ function Plugin:Initialise()
 	}
 
 	self.NextVote = 0
+
+	self.dt.ConcedeTime = self.Config.VoteDelay
 
 	self:CreateCommands()
 
@@ -132,8 +134,6 @@ end
 	Makes the given team surrender.
 ]]
 function Plugin:Surrender( Team )
-	local Players = GetEntitiesForTeam( "Player", Team )
-
 	local Gamerules = GetGamerules()
 
 	if not Gamerules then return end
@@ -144,7 +144,7 @@ function Plugin:Surrender( Team )
 
 	self.Surrendered = true
 
-	Shine.Timer.Simple( 0, function()
+	self:SimpleTimer( 0, function()
 		self.Surrendered = false
 	end )
 end
@@ -157,19 +157,15 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	if ID ~= kTechId.VoteConcedeRound then return end
 	
 	local Client = Player:GetClient()
-
 	if not Client then return true end
 
 	local Team = Player:GetTeam():GetTeamNumber()
-
 	if not self.Votes[ Team ] then return true end
 
 	local Votes = self.Votes[ Team ]:GetVotes()
-	
 	local Success, Err = self:AddVote( Client, Team )
 
 	if not Success then return true end --We failed to add the vote, but we should still stop it going through NS2's system...
-
 	if self.Surrendered then return true end --We've surrendered, no need to say another player's voted.
 
 	local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
@@ -230,5 +226,3 @@ function Plugin:CreateCommands()
 	local VoteSurrenderCommand = self:BindCommand( "sh_votesurrender", { "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )
 	VoteSurrenderCommand:Help( "Votes to surrender the round." )
 end
-
-Shine:RegisterExtension( "votesurrender", Plugin )

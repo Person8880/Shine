@@ -66,6 +66,8 @@ function Plugin:Setup()
 	local InsertUnique = table.insertunique
 
 	local function AssignBadge( ID, BadgeName )
+		if not ID then return false end
+		
 		local ClientBadges = ServerBadges[ ID ]
 
 		if not ClientBadges then
@@ -82,10 +84,16 @@ function Plugin:Setup()
 		return false
 	end
 
-	local function AssignGroupBadge( ID, GroupName )
+	local function AssignGroupBadge( ID, GroupName, AssignedGroups )
 		local Group = UserData.Groups[ GroupName ]
 
 		if not Group then return end
+
+		AssignedGroups = AssignedGroups or {}
+
+		if AssignedGroups[ GroupName ] then return end
+
+		AssignedGroups[ GroupName ] = true
 		
 		local GroupBadges = Group.Badges or Group.badges or {}
 
@@ -94,7 +102,7 @@ function Plugin:Setup()
 		end
 
 		for i = 1, #GroupBadges do
-			local BadgeName = GroupBadges[ i ]:lower()
+			local BadgeName = GroupBadges[ i ]
 
 			if not AssignBadge( ID, BadgeName ) then
 				Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
@@ -102,16 +110,36 @@ function Plugin:Setup()
 		end
 
 		AssignBadge( ID, GroupName:lower() )
+
+		local InheritTable = Group.InheritsFrom
+
+		--Inherit group badges.
+		if InheritTable then
+			for i = 1, #InheritTable do
+				AssignGroupBadge( ID, InheritTable[ i ], AssignedGroups )
+			end
+		end
 	end
 
 	for ID, User in pairs( UserData.Users ) do
 		ID = tonumber( ID )
 		local GroupName = User.Group
 		local UserBadge = User.Badge or User.badge
+		local UserBadges = User.Badges or User.badges
 
 		if UserBadge then
 			if not AssignBadge( ID, UserBadge ) then
 				Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
+			end
+		end
+
+		if UserBadges then
+			for i = 1, #UserBadges do
+				local BadgeName = UserBadges[ i ]
+
+				if not AssignBadge( ID, BadgeName ) then
+					Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
+				end
 			end
 		end
 

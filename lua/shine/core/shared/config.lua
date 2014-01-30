@@ -83,7 +83,7 @@ function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 end
 
 --Checks a config for missing entries without checking sub-tables.
-function Shine.CheckConfig( Config, DefaultConfig )
+function Shine.CheckConfig( Config, DefaultConfig, DontRemove )
 	local Updated
 
 	--Add new keys.
@@ -95,6 +95,8 @@ function Shine.CheckConfig( Config, DefaultConfig )
 		end
 	end
 
+	if DontRemove then return Updated end
+
 	--Remove old keys.
 	for Option, Value in pairs( Config ) do
 		if DefaultConfig[ Option ] == nil then
@@ -105,4 +107,82 @@ function Shine.CheckConfig( Config, DefaultConfig )
 	end
 
 	return Updated
+end
+
+if Server then return end
+
+local Notify = Shared.Message
+local StringFormat = string.format
+
+local BaseConfig = "config://shine/cl_config.json"
+
+local DefaultConfig = {
+	DisableWebWindows = false,
+	ShowWebInSteamBrowser = false,
+	ReportErrors = true
+}
+
+function Shine:CreateClientBaseConfig()
+	local Success, Err = self.SaveJSONFile( DefaultConfig, BaseConfig )
+
+	self.Config = DefaultConfig
+end
+
+function Shine:LoadClientBaseConfig()
+	local Data, Err = self.LoadJSONFile( BaseConfig )
+
+	if not Data then
+		self:CreateClientBaseConfig()
+
+		return
+	end
+
+	self.Config = Data or {}
+
+	if self.CheckConfig( self.Config, DefaultConfig ) then
+		self:SaveClientBaseConfig()
+	end
+end
+
+function Shine:SaveClientBaseConfig()
+	local Success, Err = self.SaveJSONFile( self.Config, BaseConfig )
+end
+
+Shine:LoadClientBaseConfig()
+
+local DisableWeb = Shine:RegisterClientCommand( "sh_disableweb", function( Bool )
+	Shine.Config.DisableWebWindows = Bool
+
+	Notify( StringFormat( "[Shine] Web page display has been %s.", Bool and "disabled" or "enabled" ) )
+
+	Shine:SaveClientBaseConfig()
+end )
+DisableWeb:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.DisableWebWindows end }
+
+local SteamWeb = Shine:RegisterClientCommand( "sh_viewwebinsteam", function( Bool )
+	Shine.Config.ShowWebInSteamBrowser = Bool
+
+	Notify( StringFormat( "[Shine] Web page display set to %s.", Bool and "Steam browser" or "in game window" ) )
+
+	Shine:SaveClientBaseConfig()
+end )
+SteamWeb:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.ShowWebInSteamBrowser end }
+
+local ErrorReporting = Shine:RegisterClientCommand( "sh_errorreport", function( Bool )
+	Shine.Config.ReportErrors = Bool
+
+	Notify( StringFormat( "[Shine] Error reporting has been %s.", Bool and "enabled" or "disabled" ) )
+
+	Shine:SaveClientBaseConfig()
+end )
+ErrorReporting:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.ReportErrors end }
+
+if Shine.Config.ReportErrors then
+	Shine.AddStartupMessage( "Shine is set to report any errors it causes on your client when you disconnect. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console." )
+end
+if not Shine.Config.DisableWebWindows then
+	Shine.AddStartupMessage( "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console." )
+end
+if Shine.Config.ShowWebInSteamBrowser then
+	Shine.AddStartupMessage( "Shine is set to display web pages in the Steam overlay. If you wish to show them using the in game browser, then enter \"sh_viewwebinsteam 0\" into the console." )
 end

@@ -133,7 +133,7 @@ local function BindVoteKey()
 		Shared.ConsoleCommand( "bind M sh_votemenu" )
 		Shine.VoteButtonBound = true
 
-		Shared.Message( "Shine has bound the M key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
+		Shine.AddStartupMessage( "Shine has bound the M key to the vote menu. If you would like to change this, enter \"bind <key> sh_votemenu\" into the console." )
 
 		return
 	elseif CanBind( MenuBinds, Binds, "N" ) then
@@ -142,7 +142,7 @@ local function BindVoteKey()
 		Shine.VoteButton = "N"
 		Shine.VoteButtonBound = true
 
-		Shared.Message( "Shine has bound the N key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
+		Shine.AddStartupMessage( "Shine has bound the N key to the vote menu. If you would like to change this, enter \"bind <key> sh_votemenu\" into the console." )
 
 		return
 	elseif CanBind( MenuBinds, Binds, "C" ) then --Try the old default map button!
@@ -151,11 +151,11 @@ local function BindVoteKey()
 		Shine.VoteButton = "C"
 		Shine.VoteButtonBound = true
 
-		Shared.Message( "Shine has bound the C key to the vote menu. If you would like to change this, type bind <key> sh_votemenu" )
+		Shine.AddStartupMessage( "Shine has bound the C key to the vote menu. If you would like to change this, enter \"bind <key> sh_votemenu\" into the console." )
 
 		return
 	end
 
-	Shared.Message( "Shine was unable to bind a key to the vote menu. If you would like to use it, type bind <key> sh_votemenu" )
+	Shine.AddStartupMessage( "Shine was unable to bind a key to the vote menu. If you would like to use it, enter \"bind <key> sh_votemenu\" into the console." )
 end
-Event.Hook( "LoadComplete", BindVoteKey )
+Shine.Hook.Add( "OnMapLoad", "BindVoteMenuKey", BindVoteKey )

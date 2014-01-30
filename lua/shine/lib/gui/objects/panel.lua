@@ -22,6 +22,8 @@ function Panel:Initialise()
 
 	self.Background = Background
 
+	self.ShowScrollbar = true
+
 	--[[local Scheme = SGUI:GetSkin()
 
 	Background:SetColor( Scheme.WindowBackground )]]
@@ -52,6 +54,8 @@ function Panel:SetScrollable()
 	self.BufferAmount = self.BufferAmount or DefaultBuffer
 
 	self.AllowSmoothScroll = true
+
+	self:SetSize( self:GetSize() )
 end
 
 function Panel:SetAllowSmoothScroll( Bool )
@@ -141,9 +145,9 @@ function Panel:SetSize( Vec )
 	
 	self.Stencil:SetSize( Vec )
 
-	if self.Scrollbar then
+	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:SetParent()
-		self.Scrollbar:Remove()
+		self.Scrollbar:Destroy()
 
 		self.Scrollbar = nil
 
@@ -191,18 +195,45 @@ end
 
 function Panel:SetScrollbarHeightOffset( Offset )
 	self.ScrollbarHeightOffset = Offset
+
+	if SGUI.IsValid( self.Scrollbar ) then
+		local Height = self:GetSize().y
+
+		self.Scrollbar:SetSize( Vector( 10, Height - Offset, 0 ) )
+	end
+end
+
+function Panel:SetShowScrollbar( Show )
+	self.ShowScrollbar = Show
+
+	if SGUI.IsValid( self.Scrollbar ) and not Show then
+		self.Scrollbar:SetParent()
+		self.Scrollbar:Destroy()
+
+		self.Scrollbar = nil
+	end
+end
+
+function Panel:SetScrollbarWidthMult( Mult )
+	self.ScrollbarWidthMult = Mult
+
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:SetSize( Vector( 10 * Mult, self:GetSize().y - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+	end
 end
 
 function Panel:SetMaxHeight( Height )
 	self.MaxHeight = Height
 
+	if not self.ShowScrollbar then return end
+
 	local MaxHeight = self:GetSize().y
 
-	if not self.Scrollbar then
+	if not SGUI.IsValid( self.Scrollbar ) then
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
 		Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 		Scrollbar:SetPos( self.ScrollPos or ScrollPos )
-		Scrollbar:SetSize( Vector( 10, MaxHeight - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+		Scrollbar:SetSize( Vector( 10 * ( self.ScrollbarWidthMult or 1 ), MaxHeight - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
 		Scrollbar:SetScrollSize( MaxHeight / Height )
 
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )
@@ -242,15 +273,23 @@ function Panel:SetMaxHeight( Height )
 	local OldPos = self.Scrollbar.Pos
 	local OldSize = self.Scrollbar:GetDiffSize()
 
-	self.Scrollbar:SetScrollSize( MaxHeight / Height )
+	local OldScrollSize = self.Scrollbar.ScrollSize
+	local NewScrollSize = MaxHeight / Height
 
-	if self.StickyScroll and OldPos == OldSize then
-		self.Scrollbar:ScrollToBottom( true )
+	self.Scrollbar:SetScrollSize( NewScrollSize )
+
+	if self.StickyScroll and OldPos >= OldSize then
+		local ShouldSmooth = NewScrollSize < OldScrollSize
+		self.Scrollbar:ScrollToBottom( ShouldSmooth )
 	end
 end
 
 function Panel:SetScrollbarPos( Pos )
 	self.ScrollPos = Pos
+
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:SetPos( Pos )
+	end
 end
 
 function Panel:SetColour( Col )

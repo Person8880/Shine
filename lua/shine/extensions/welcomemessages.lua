@@ -4,8 +4,8 @@
 
 local Shine = Shine
 
+local GetOwner = Server.GetOwner
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 local TableEmpty = table.Empty
 
@@ -35,7 +35,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:ClientConnect( Client )
-	Shine.Timer.Simple( self.Config.MessageDelay, function()
+	self:SimpleTimer( self.Config.MessageDelay, function()
 		if not Shine:IsValidClient( Client ) then return end
 		
 		local ID = Client:GetUserId()
@@ -68,6 +68,12 @@ function Plugin:ClientConnect( Client )
 	end )
 end
 
+local TeamColours = {
+	[ 0 ] = { 255, 255, 255 },
+	[ 1 ] = { 50, 175, 255 },
+	[ 2 ] = { 200, 150, 10 }
+}
+
 function Plugin:ClientDisconnect( Client )
 	if not self.Welcomed[ Client ] then return end
 
@@ -92,18 +98,50 @@ function Plugin:ClientDisconnect( Client )
 	local Player = Client:GetControllingPlayer()
 
 	if not Player then return end
+
+	local Team = Client.DisconnectTeam or 0
+	local Colour = TeamColours[ Team ] or TeamColours[ 0 ]
 	
 	if not Client.DisconnectReason then
-		Shine:Notify( nil, "", "", "%s has left the game.", true, Player:GetName() )
+		Shine:NotifyDualColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 
+			StringFormat( "%s has left the game.", Player:GetName() ), 255, 255, 255, " " )
 	else
-		Shine:Notify( nil, "", "", "Dropped %s (%s).", true, Player:GetName(), Client.DisconnectReason )
+		Shine:NotifyDualColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 
+			StringFormat( "Dropped %s (%s).", Player:GetName(), Client.DisconnectReason ), 255, 255, 255, " " )
+	end
+end
+
+function Plugin:OnScriptDisconnect( Client )
+	local Player = Client:GetControllingPlayer()
+
+	if Player then
+		local Team = Player.GetTeamNumber and Player:GetTeamNumber()
+
+		if Team then
+			Client.DisconnectTeam = Team
+		end
+	end
+end
+
+function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineForce )
+	if NewTeam < 0 then return end
+	if not Player then return end
+
+	local Client = GetOwner( Player )
+
+	if Client then
+		Client.DisconnectTeam = NewTeam
 	end
 end
 
 function Plugin:Cleanup()
 	TableEmpty( self.Welcomed )
 
+	self.BaseClass.Cleanup( self )
+
 	self.Enabled = false
 end
+
+Shine.Hook.SetupGlobalHook( "Server.DisconnectClient", "OnScriptDisconnect", "PassivePre" )
 
 Shine:RegisterExtension( "welcomemessages", Plugin )

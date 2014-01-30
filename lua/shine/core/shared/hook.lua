@@ -7,6 +7,7 @@ local Floor = math.floor
 local xpcall = xpcall
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
+local StringFormat = string.format
 local type = type
 
 Shine.Hook = {}
@@ -67,7 +68,10 @@ Shine.Hook.Add = Add
 local Traceback = debug.traceback
 
 local function OnError( Err )
-	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Traceback() )
+	local Trace = Traceback()
+
+	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
+	Shine:AddErrorReport( StringFormat( "Hook error: %s.", Err ), Trace )
 end
 
 local RemovalExceptions = {
@@ -416,6 +420,11 @@ if Client then
 	end
 	Event.Hook( "LoadComplete", LoadComplete )
 
+	local function OnClientDisconnected( Reason )
+		Call( "ClientDisconnected", Reason )
+	end
+	Event.Hook( "ClientDisconnected", OnClientDisconnected )
+
 	--Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
 	Add( "OnMapLoad", "Hook", function()
 		local GUIManager = GetGUIManager()
@@ -465,6 +474,21 @@ local function ClientDisconnect( Client )
 	Call( "ClientDisconnect", Client )
 end
 Event.Hook( "ClientDisconnect", ClientDisconnect )
+
+local function MapPostLoad()
+	Call "MapPostLoad"
+end
+Event.Hook( "MapPostLoad", MapPostLoad )
+
+local function MapPreLoad()
+	Call "MapPreLoad"
+end
+Event.Hook( "MapPreLoad", MapPreLoad )
+
+local function MapLoadEntity( MapName, GroupName, Values )
+	Call( "MapLoadEntity", MapName, GroupName, Values )
+end
+Event.Hook( "MapLoadEntity", MapLoadEntity )
 
 local OldEventHook = Event.Hook
 local OldReservedSlot
@@ -522,7 +546,12 @@ end
 	Here we replace class methods in order to hook into certain important events.
 ]]
 Add( "Think", "ReplaceMethods", function()
-	local Gamerules = Shine.Config.GameRules or "NS2Gamerules"
+	local Gamerules = "NS2Gamerules"
+
+	--For the factions mod.
+	if FactionGamerules then
+		Gamerules = "FactionGamerules"
+	end
 
 	SetupClassHook( "Player", "OnProcessMove", "OnProcessMove", "PassivePre" )
 	SetupClassHook( "Player", "SetName", "PlayerNameChange", function( OldFunc, self, Name )
@@ -579,13 +608,13 @@ Add( "Think", "ReplaceMethods", function()
 
 		local OldTeam = Player:GetTeamNumber()
 
-		local Bool, Player = OldFunc( self, Player, NewTeam, Force )
+		local Bool, NewPlayer = OldFunc( self, Player, NewTeam, Force )
 
 		if Bool then
-			Call( "PostJoinTeam", self, Player, OldTeam, NewTeam, Force, ShineForce )
+			Call( "PostJoinTeam", self, NewPlayer, OldTeam, NewTeam, Force, ShineForce )
 		end
 
-		return Bool, Player
+		return Bool, NewPlayer or Player
 	end )
 
 	local OldCycleMap = MapCycle_CycleMap

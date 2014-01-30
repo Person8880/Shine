@@ -28,6 +28,9 @@ function Scrollbar:Initialise()
 	Background:SetColor( Scheme.ScrollbarBackground )
 	Bar:SetColor( Scheme.Scrollbar )
 
+	self.ActiveCol = Scheme.ScrollbarActive
+	self.InactiveCol = Scheme.Scrollbar
+
 	self.Bar = Bar
 
 	self.BarPos = Vector( 0, 0, 0 )
@@ -115,6 +118,8 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	self.StartingPos = self.Pos
 	self.StartingY = Y
 
+	self.Bar:SetColor( self.ActiveCol )
+
 	return true
 end
 
@@ -122,13 +127,15 @@ function Scrollbar:OnMouseWheel( Down )
 	local Parent = self.Parent
 
 	if self:MouseIn( self.Background ) or Parent:MouseIn( Parent.Background ) then
-		self:SetScroll( self.Pos + ( Down and -32 or 32 ), true )
+		self:SetScroll( self.Pos + ( Down and -32 or 32 ) * self.ScrollSize, true )
 	end
 end
 
 function Scrollbar:OnMouseUp( Key )
 	if Key ~= InputKey.MouseButton0 then return end
 	self.Scrolling = false
+
+	self.Bar:SetColor( self.InactiveCol )
 end
 
 function Scrollbar:OnMouseMove( Down )

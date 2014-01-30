@@ -169,26 +169,53 @@ function PluginMeta:GenerateDefaultConfig( Save )
 	end
 end
 
-function PluginMeta:SaveConfig()
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
+function PluginMeta:SaveConfig( Silent )
+	local Path = Server and ( self.__ConfigPath or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 	if not Success then
 		Print( "Error writing %s config file: %s", self.__Name, Err )	
 
-		return	
+		return
 	end
 
-	if not self.SilentConfigSave then
+	if not self.SilentConfigSave and not Silent then
 		Print( "Shine %s config file updated.", self.__Name )
 	end
 end
 
 function PluginMeta:LoadConfig()
+	local PluginConfig
 	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
-	local PluginConfig = Shine.LoadJSONFile( Path )
+	if Server then
+		local Gamemode = Shine.GetGamemode()
+
+		--Look for gamemode specific config file.
+		if Gamemode ~= "ns2" then
+			local Paths = {
+				StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
+				Path
+			}
+
+			for i = 1, #Paths do
+				local File = Shine.LoadJSONFile( Paths[ i ] )
+
+				if File then
+					PluginConfig = File
+
+					self.__ConfigPath = Paths[ i ]
+
+					break
+				end
+			end
+		else
+			PluginConfig = Shine.LoadJSONFile( Path )
+		end
+	else
+		PluginConfig = Shine.LoadJSONFile( Path )
+	end
 
 	if not PluginConfig then
 		self:GenerateDefaultConfig( true )
@@ -229,6 +256,8 @@ if Server then
 				self.Commands[ k ] = nil
 			end
 		end
+
+		self:DestroyAllTimers()
 	end
 elseif Client then
 	function PluginMeta:BindCommand( ConCommand, Func )
@@ -248,6 +277,116 @@ elseif Client then
 				self.Commands[ k ] = nil
 			end
 		end
+
+		self:DestroyAllTimers()
+	end
+end
+
+--[[
+	Creates a timer and adds it to the list of timers associated to the plugin.
+	These timers are removed when the plugin unloads in the base Cleanup method.
+
+	Inputs: Same as Shine.Timer.Create.
+]]
+function PluginMeta:CreateTimer( Name, Delay, Reps, Func )
+	self.Timers = self.Timers or setmetatable( {}, { __mode = "v" } )
+
+	local RealName = StringFormat( "%s_%s", self.__Name, Name )
+	local Timer = Shine.Timer.Create( RealName, Delay, Reps, Func )
+
+	self.Timers[ Name ] = Timer
+
+	return Timer
+end
+
+--[[
+	Creates a simple timer and adds it to the list of timers associated to the plugin.
+	Inputs: Same as Shine.Timer.Simple.
+]]
+function PluginMeta:SimpleTimer( Delay, Func )
+	self.Timers = self.Timers or setmetatable( {}, { __mode = "v" } )
+
+	local Timer = Shine.Timer.Simple( Delay, Func )
+
+	self.Timers[ Timer.Name ] = Timer
+
+	return Timer
+end
+
+function PluginMeta:TimerExists( Name )
+	return Shine.Timer.Exists( StringFormat( "%s_%s", self.__Name, Name ) )
+end
+
+function PluginMeta:PauseTimer( Name )
+	if not self.Timers or not self.Timers[ Name ] then return end
+	
+	self.Timers[ Name ]:Pause()
+end
+
+function PluginMeta:ResumeTimer( Name )
+	if not self.Timers or not self.Timers[ Name ] then return end
+	
+	self.Timers[ Name ]:Resume()
+end
+
+function PluginMeta:DestroyTimer( Name )
+	if not self.Timers or not self.Timers[ Name ] then return end
+	
+	self.Timers[ Name ]:Destroy()
+
+	self.Timers[ Name ] = nil
+end
+
+function PluginMeta:DestroyAllTimers()
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Destroy()
+			self.Timers[ Name ] = nil
+		end
+	end
+end
+
+--Suspends the plugin, stopping its hooks, pausing its timers, but not calling Cleanup().
+function PluginMeta:Suspend()
+	if self.OnSuspend then
+		self:OnSuspend()
+	end
+	
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Pause()
+		end
+	end
+
+	if self.Commands then
+		for k, Command in pairs( self.Commands ) do
+			Command.Disabled = true
+		end
+	end
+
+	self.Enabled = false
+	self.Suspended = true
+end
+
+--Resumes the plugin from suspension.
+function PluginMeta:Resume()
+	if self.Timers then
+		for Name, Timer in pairs( self.Timers ) do
+			Timer:Resume()
+		end
+	end
+
+	if self.Commands then
+		for k, Command in pairs( self.Commands ) do
+			Command.Disabled = nil
+		end
+	end
+
+	self.Enabled = true
+	self.Suspended = nil
+
+	if self.OnResume then
+		self:OnResume()
 	end
 end
 
@@ -352,7 +491,7 @@ function Shine:LoadExtension( Name, DontEnable )
 end
 
 --Shared extensions need to be enabled once the server tells it to.
-function Shine:EnableExtension( Name )
+function Shine:EnableExtension( Name, DontLoadConfig )
 	local Plugin = self.Plugins[ Name ]
 
 	if not Plugin then
@@ -379,7 +518,7 @@ function Shine:EnableExtension( Name )
 
 				--Halt our enabling, we're not allowed to load with this plugin enabled.
 				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
-					return
+					return false, StringFormat( "unable to load alongside '%s'.", Plugin )
 				end
 			end
 		end
@@ -401,7 +540,7 @@ function Shine:EnableExtension( Name )
 		end
 	end
 
-	if Plugin.HasConfig then
+	if Plugin.HasConfig and not DontLoadConfig then
 		Plugin:LoadConfig()
 	end
 
@@ -443,13 +582,21 @@ for Path in pairs( PluginFiles ) do
 	local Name = Folders[ 4 ]
 	local File = Folders[ 5 ]
 
-	Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
+	if File then
+		if not ClientPlugins[ Name ] then
+			local LoweredFileName = File:lower()
 
-	if File and not ClientPlugins[ Name ] then
-		if File:lower() == "shared.lua" then
-			ClientPlugins[ Name ] = "boolean" --Generate the network message.
+			if LoweredFileName == "shared.lua" then
+				ClientPlugins[ Name ] = "boolean" --Generate the network message.
+				Shine.AllPlugins[ Name ] = true
+			elseif LoweredFileName == "server.lua" then
+				Shine.AllPlugins[ Name ] = true
+			end
+
+			Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 		end
-		Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
+	else
+		Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
 	end
 end
 
@@ -480,6 +627,21 @@ elseif Client then
 				Shine:EnableExtension( Name )
 			end
 		end
+
+		Shine.AddStartupMessage = nil
+
+		local StartupMessages = Shine.StartupMessages
+
+		Notify( "==============================" )
+		Notify( "Shine started up successfully." )
+
+		for i = 1, #StartupMessages do
+			Notify( StartupMessages[ i ] )
+		end
+
+		Notify( "==============================" )
+
+		Shine.StartupMessages = nil
 	end )
 
 	Client.HookNetworkMessage( "Shine_PluginEnable", function( Data )
@@ -501,8 +663,20 @@ elseif Client then
 	]]
 	function Shine:SetPluginAutoLoad( Name, AutoLoad )
 		if not self.AutoLoadPlugins then return end
+
+		AutoLoad = AutoLoad or false
 		
-		self.AutoLoadPlugins[ Name ] = AutoLoad and true or nil
+		self.AutoLoadPlugins[ Name ] = AutoLoad
+
+		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
+	end
+
+	local DefaultAutoLoad = {
+		chatbox = true
+	}
+
+	function Shine:CreateDefaultAutoLoad()
+		self.AutoLoadPlugins = DefaultAutoLoad
 
 		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
 	end
@@ -511,17 +685,19 @@ elseif Client then
 		local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )
 
 		if not AutoLoad or not next( AutoLoad ) then
-			Shine.AutoLoadPlugins = Shine.AutoLoadPlugins or {}
-
-			return 
+			Shine:CreateDefaultAutoLoad()
+		else
+			Shine.AutoLoadPlugins = AutoLoad
 		end
 
-		Shine.AutoLoadPlugins = AutoLoad
+		if Shine.CheckConfig( Shine.AutoLoadPlugins, DefaultAutoLoad, true ) then
+			Shine.SaveJSONFile( Shine.AutoLoadPlugins, AutoLoadPath )
+		end
 
-		for Plugin, Load in pairs( AutoLoad ) do
+		for Plugin, Load in pairs( Shine.AutoLoadPlugins ) do
 			if Load then
 				Shine:EnableExtension( Plugin )
 			end
 		end
-	end )
+	end, -20 )
 end

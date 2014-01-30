@@ -5,6 +5,8 @@
 Shine = {}
 
 local include = Script.Load
+local Notify = Shared.Message
+local StringFormat = string.format
 
 local Scripts = {
 	"lib/debug.lua",
@@ -13,14 +15,14 @@ local Scripts = {
 	"lib/table.lua",
 	"lib/class.lua",
 	"lib/math.lua",
-	"core/shared/logging.lua",
 	"core/shared/hook.lua",
+	"core/shared/logging.lua",
 	"lib/gui.lua",
 	"lib/datatables.lua",
 	"lib/timer.lua",
 	"lib/query.lua",
-	"core/shared/config.lua",
 	"core/client/commands.lua",
+	"core/shared/config.lua",
 	"core/shared/votemenu.lua",
 	"core/client/votemenu.lua",
 	"core/shared/extensions.lua",
@@ -31,6 +33,17 @@ local Scripts = {
 	"lib/screentext/cl_screentext.lua",
 	"core/shared/misc.lua"
 }
+
+local StartupMessages = {}
+Shine.StartupMessages = StartupMessages
+
+function Shine.AddStartupMessage( Message, Format, ... )
+	Message = Format and StringFormat( Message, ... ) or Message
+
+	Message = "- "..Message
+
+	StartupMessages[ #StartupMessages + 1 ] = Message
+end
 
 for i = 1, #Scripts do
 	include( "lua/shine/"..Scripts[ i ] )

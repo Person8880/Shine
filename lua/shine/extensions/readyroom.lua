@@ -6,9 +6,11 @@
 
 local Shine = Shine
 
+local GetOwner = Server.GetOwner
 local Notify = Shared.Message
 local pairs = pairs
 local Random = math.random
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableEmpty = table.Empty
 
@@ -49,13 +51,20 @@ end
 --Prevent players from joining the spectator team, and prevent going back to the ready room after being forced out of it.
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
-	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
 
-	local Client = Player:GetClient()
+	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
+	
+	local MapVote = Shine.Plugins.mapvote
+	if MapVote and MapVote.Enabled and ( MapVote.CyclingMap or MapVote:IsEndVote() ) then
+		return
+	end
+	
+	local Client = GetOwner( Player )
 
 	if not Client then return end
+	if Client.JoinTeamRRPlugin then return end
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	if NewTeam == kTeamReadyRoom then --Block people from going back to the ready room.
 		local TimeToAllow = self.BlockedClients[ Client ]
@@ -121,7 +130,6 @@ function Plugin:EndGame()
 	end
 
 	local Players = Shine.GetAllPlayers()
-	local GetOwner = Server.GetOwner
 
 	for i = 1, #Players do
 		local Player = Players[ i ]
@@ -152,35 +160,39 @@ function Plugin:JoinRandomTeam( Player )
 
 	local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
-	
+
+	local Client = GetOwner( Player )
+
+	if not Client then return end
+
+	Client.JoinTeamRRPlugin = true
+
 	if Team1 < Team2 then
-		Gamerules:JoinTeam( Player, 1, nil, true )
+		Gamerules:JoinTeam( Player, 1 )
 	elseif Team2 < Team1 then
-		Gamerules:JoinTeam( Player, 2, nil, true )
+		Gamerules:JoinTeam( Player, 2 )
 	else
-		local Client = Server.GetOwner( Player )
+		local LastTeam = self.TeamMemory[ Client ]
 
-		if Client then
-			local LastTeam = self.TeamMemory[ Client ]
+		--Place them on the opposite team to their last round.
+		if LastTeam == 1 then
+			Gamerules:JoinTeam( Player, 2 )
 
-			--Place them on the opposite team to their last round.
-			if LastTeam == 1 then
-				Gamerules:JoinTeam( Player, 2, nil, true )
-
-				return
-			elseif LastTeam == 2 then
-				Gamerules:JoinTeam( Player, 1, nil, true )
-			
-				return
-			end
+			return
+		elseif LastTeam == 2 then
+			Gamerules:JoinTeam( Player, 1 )
+		
+			return
 		end
 
 		if Random() < 0.5 then
-			Gamerules:JoinTeam( Player, 1, nil, true )
+			Gamerules:JoinTeam( Player, 1 )
 		else
-			Gamerules:JoinTeam( Player, 2, nil, true )
+			Gamerules:JoinTeam( Player, 2 )
 		end
 	end
+
+	Client.JoinTeamRRPlugin = nil
 end
 
 function Plugin:AssignToTeam( Player )
@@ -212,7 +224,7 @@ function Plugin:ProcessClient( Client, Time )
 			local LastMoveTime = AFKKick:GetLastMoveTime( Client )
 
 			--Ignore AFK players.
-			if Time - LastMoveTime > ( AFKKick.Config.WarnTime * 60 ) then
+			if LastMoveTime and Time - LastMoveTime >= ( AFKKick.Config.WarnTime * 60 ) then
 				return
 			end
 		end
@@ -249,11 +261,11 @@ function Plugin:Think()
 	if not self.Config.TrackReadyRoomPlayers then return end
 
 	local MapVote = Shine.Plugins.mapvote
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	--Disable on map cycling/end vote.
 	if MapVote and MapVote.Enabled then
-		if MapVote.CyclingMap or ( MapVote.VoteOnEnd and MapVote:VoteStarted() and MapVote:IsNextMapVote() ) then
+		if MapVote.CyclingMap or MapVote:IsEndVote() then
 			TableEmpty( self.ReadyRoomTracker )
 			TableEmpty( self.BlockedClients )
 

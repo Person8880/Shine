@@ -22,6 +22,9 @@ function Plugin:MovePlayerToPlayer( Player, TargetPlayer )
 	end
 
 	local Bounds = LookupTechData( TechID, kTechDataMaxExtents )
+
+	if not Bounds then return false end
+
 	local Height, Radius = GetTraceCapsuleFromExtents( Bounds )
 
 	local SpawnPoint
@@ -35,7 +38,11 @@ function Plugin:MovePlayerToPlayer( Player, TargetPlayer )
 
 	if SpawnPoint then
 		SpawnPlayerAtPoint( Player, SpawnPoint )
+
+		return true
 	end
+
+	return false
 end
 
 function Plugin:CreateCommands()
@@ -52,24 +59,36 @@ function Plugin:CreateCommands()
 	SlayCommand:Help( "<players> Slays the given player(s)." )
 
 	local function GoTo( Client, Target )
+		if not Client then return end
+		
 		local TargetPlayer = Target:GetControllingPlayer()
 		local Player = Client:GetControllingPlayer()
 
 		if not Player or not TargetPlayer then return end
 		
-		self:MovePlayerToPlayer( Player, TargetPlayer )
+		if not self:MovePlayerToPlayer( Player, TargetPlayer ) then
+			Shine:NotifyError( Client, "Failed to find valid location near player." )
+		else
+			Shine:CommandNotify( Client, "teleported to %s.", true, TargetPlayer:GetName() or "<unknown>" )
+		end
 	end
 	local GoToCommand = self:BindCommand( "sh_goto", "goto", GoTo )
 	GoToCommand:AddParam{ Type = "client", NotSelf = true, IgnoreCanTarget = true }
 	GoToCommand:Help( "<player> Moves you to the given player." )
 
 	local function Bring( Client, Target )
+		if not Client then return end
+
 		local TargetPlayer = Target:GetControllingPlayer()
 		local Player = Client:GetControllingPlayer()
 
 		if not Player or not TargetPlayer then return end
 		
-		self:MovePlayerToPlayer( TargetPlayer, Player )
+		if not self:MovePlayerToPlayer( TargetPlayer, Player ) then
+			Shine:NotifyError( Client, "Failed to find valid location near you." )
+		else
+			Shine:CommandNotify( Client, "teleported %s to themself.", true, TargetPlayer:GetName() or "<unknown>" )
+		end
 	end
 	local BringCommand = self:BindCommand( "sh_bring", "bring", Bring )
 	BringCommand:AddParam{ Type = "client", NotSelf = true }

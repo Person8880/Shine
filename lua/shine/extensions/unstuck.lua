@@ -43,6 +43,11 @@ function Plugin:UnstickPlayer( Player, Pos )
 	end
 
 	local Bounds = LookupTechData( TechID, kTechDataMaxExtents )
+
+	if not Bounds then
+		return false
+	end
+
 	local Height, Radius = GetTraceCapsuleFromExtents( Bounds )
 	
 	local SpawnPoint
@@ -91,6 +96,8 @@ function Plugin:CreateCommands()
 
 			return
 		end
+
+		Server.SendNetworkMessage( Client, "Shine_Command", { Command = "annotate Shine unstuck was used here." }, true )
 
 		local Success = self:UnstickPlayer( Player, Player:GetOrigin() )
 

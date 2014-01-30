@@ -4,20 +4,40 @@
 
 local Abs = math.abs
 local Floor = math.floor
-local GetEntsByClass
+local GetEntsByClass = Shared.GetEntitiesWithClassname
+local GetOwner = Server.GetOwner
+local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
-
-Shine.Hook.Add( "PostloadConfig", "PlayerAPI", function()
-	GetEntsByClass = Shared.GetEntitiesWithClassname
-end )
+local TableToString = table.ToString
+local Traceback = debug.traceback
 
 --[[
 	Returns whether the given client is valid.
 ]]
 function Shine:IsValidClient( Client )
 	return Client and self.GameIDs[ Client ] ~= nil
+end
+
+local function OnJoinError( Error )
+	local Trace = Traceback()
+
+	Shine:DebugLog( "Error: %s.\nEvenlySpreadTeams failed. %s", true, Error, Trace )
+	Shine:AddErrorReport( StringFormat( "A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
+end
+
+local OldRespawnPlayer = Team.RespawnPlayer
+
+--[[
+	Occasionally Gamerules or whatever is repsonsible for adding players to teams
+	fails to do so. So, let's make sure a player is properly added to the team
+	when asked to respawn.
+]]
+function Team:RespawnPlayer( Player, Origin, Angles )
+	self:AddPlayer( Player )
+
+	return OldRespawnPlayer( self, Player, Origin, Angles )
 end
 
 --[[
@@ -55,12 +75,65 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
 
-	for i = 1, #Marine do
-		Gamerules:JoinTeam( Marine[ i ], 1, nil, true )
+	local Reported
+
+	if Abs( #Marine - #Alien ) > 1 then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		if VoteRandom then
+			local BalanceMode = VoteRandom.Config.BalanceMode
+
+			local Marines = TableToString( Marine )
+			local Aliens = TableToString( Alien )
+
+			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams before applying.",
+				"Balance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines:\n%s\nAliens:\n%s",
+				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
+		end
+
+		Reported = true
 	end
 
-	for i = 1, #Alien do
-		Gamerules:JoinTeam( Alien[ i ], 2, nil, true )
+	local MarineTeam = Gamerules.team1
+	local AlienTeam = Gamerules.team2
+
+	for i, Player in pairs( Marine ) do
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, nil, true )
+
+		if Success then
+			Marine[ i ] = NewPlayer
+		else
+			Marine[ i ] = nil
+		end
+	end
+
+	for i, Player in pairs( Alien ) do
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, nil, true )
+
+		if Success then
+			Alien[ i ] = NewPlayer
+		else
+			Alien[ i ] = nil
+		end
+	end
+
+	local NewMarineCount = MarineTeam:GetNumPlayers()
+	local NewAlienCount = AlienTeam:GetNumPlayers()
+	local NewDiff = Abs( NewMarineCount - NewAlienCount )
+
+	if NewDiff > 1 and not Reported then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		if VoteRandom then
+			local BalanceMode = VoteRandom.Config.BalanceMode
+
+			local Marines = TableToString( Marine )
+			local Aliens = TableToString( Alien )
+
+			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
+				"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\nActual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\nNew Teams:\nMarines:\n%s\nAliens:\n%s",
+				true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount, NewAlienCount, NewDiff, Marines, Aliens )
+		end
 	end
 end
 
@@ -95,7 +168,7 @@ function Shine.GetTeamClients( Team )
 		local Ply = Players[ i ]
 
 		if Ply then
-			local Client = Ply:GetClient()
+			local Client = GetOwner( Ply )
 
 			if Client then
 				Clients[ Count ] = Client

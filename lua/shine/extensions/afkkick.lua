@@ -4,7 +4,9 @@
 
 local Shine = Shine
 
+local GetOwner = Server.GetOwner
 local Notify = Shared.Message
+local SharedTime = Shared.GetTime
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -16,6 +18,7 @@ Plugin.Users = {}
 
 Plugin.DefaultConfig = {
 	MinPlayers = 10,
+	WarnMinPlayers = 5,
 	Delay = 1,
 	WarnTime = 5,
 	KickTime = 15,
@@ -29,6 +32,11 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 
 function Plugin:Initialise()
+	if self.Config.WarnMinPlayers > self.Config.MinPlayers then
+		self.Config.WarnMinPlayers = self.Config.MinPlayers
+		self:SaveConfig( true )
+	end
+
 	self.Enabled = true
 
 	return true
@@ -46,10 +54,8 @@ function Plugin:ClientConnect( Client )
 
 	if not Player then return end
 
-	if Shine:HasAccess( Client, "sh_afk" ) then return end
-
 	self.Users[ Client ] = {
-		LastMove = Shared.GetTime() + ( self.Config.Delay * 60 ),
+		LastMove = SharedTime() + ( self.Config.Delay * 60 ),
 		Pos = Player:GetOrigin(),
 		Ang = Player:GetViewAngles()
 	}
@@ -60,7 +66,7 @@ function Plugin:ResetAFKTime( Client )
 
 	if not DataTable then return end
 
-	DataTable.LastMove = Shared.GetTime()
+	DataTable.LastMove = SharedTime()
 
 	if DataTable.Warn then
 		DataTable.Warn = false
@@ -74,12 +80,7 @@ function Plugin:OnProcessMove( Player, Input )
 	local Gamerules = GetGamerules()
 	local Started = Gamerules and Gamerules:GetGameStarted()
 
-	if self.Config.OnlyCheckOnStarted and not Started then return end
-
-	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
-	if Players < self.Config.MinPlayers then return end
-
-	local Client = Server.GetOwner( Player )
+	local Client = GetOwner( Player )
 
 	if not Client then return end
 	if Client:GetIsVirtual() then return end
@@ -87,15 +88,22 @@ function Plugin:OnProcessMove( Player, Input )
 	local DataTable = self.Users[ Client ]
 	if not DataTable then return end
 
-	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
-		self.Users[ Client ] = nil
+	local Time = SharedTime()
+
+	if self.Config.OnlyCheckOnStarted and not Started then
+		DataTable.LastMove = Time
+
+		return
+	end
+
+	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
+	if Players < self.Config.WarnMinPlayers then
+		DataTable.LastMove = Time
 
 		return
 	end
 
 	local Move = Input.move
-
-	local Time = Shared.GetTime()
 
 	local Team = Player:GetTeamNumber()
 
@@ -119,6 +127,10 @@ function Plugin:OnProcessMove( Player, Input )
 	DataTable.LastPitch = Pitch
 	DataTable.LastYaw = Yaw
 
+	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
+		return
+	end
+
 	local KickTime = self.Config.KickTime * 60
 
 	if not DataTable.Warn and self.Config.Warn then
@@ -141,7 +153,10 @@ function Plugin:OnProcessMove( Player, Input )
 		return
 	end
 
-	if DataTable.LastMove + KickTime < Time then
+	if Shine:HasAccess( Client, "sh_afk_partial" ) then return end
+
+	--Only kick if we're past the min player count to do so.
+	if DataTable.LastMove + KickTime < Time and Players >= self.Config.MinPlayers then
 		self:ClientDisconnect( Client ) --Failsafe.
 
 		Shine:Print( "Client %s[%s] was AFK for over %s. Kicking...", true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ) )
@@ -156,14 +171,14 @@ function Plugin:OnConstructInit( Building )
 	local ID = Building:GetId()
 	local Team = Building:GetTeam()
 
-	if not Team then return end
+	if not Team or not Team.GetCommander then return end
 
 	local Owner = Building:GetOwner()
 	Owner = Owner or Team:GetCommander()
 
 	if not Owner then return end
 	
-	local Client = Server.GetOwner( Owner )
+	local Client = GetOwner( Owner )
 
 	if not Client then return end
 
@@ -174,26 +189,26 @@ function Plugin:OnRecycle( Building, ResearchID )
 	local ID = Building:GetId()
 	local Team = Building:GetTeam()
 
-	if not Team then return end
+	if not Team or not Team.GetCommander then return end
 
 	local Commander = Team:GetCommander()
 	if not Commander then return end
 
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
 end
 
 function Plugin:OnCommanderTechTreeAction( Commander, ... )
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
 end
 
 function Plugin:OnCommanderNotify( Commander, ... )
-	local Client = Server.GetOwner( Commander )
+	local Client = GetOwner( Commander )
 	if not Client then return end
 	
 	self:ResetAFKTime( Client )
@@ -223,5 +238,37 @@ function Plugin:Cleanup()
 
 	self.Enabled = false
 end
+
+--Override the built in randomise ready room vote to not move AFK players.
+Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
+	SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
+		local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
+		local AFKPlugin = Shine.Plugins.afkkick
+		local Enabled = AFKPlugin and AFKPlugin.Enabled
+
+		for i = #ReadyRoomPlayers, 1, -1 do
+			local Player = ReadyRoomPlayers[ i ]
+
+			if Enabled then
+				if Player then
+					local Client = GetOwner( Player )
+
+					if Client then
+						local LastMove = AFKPlugin:GetLastMoveTime( Client )
+						local Time = SharedTime()
+
+						if not ( LastMove and Time - LastMove > 60 ) then
+							JoinRandomTeam( Player )
+						end
+					end
+				end
+			else
+				JoinRandomTeam( Player )
+			end
+		end
+	end )
+
+	Shine.Hook.Remove( "Think", "AFKKick_OverrideVote" )
+end )
 
 Shine:RegisterExtension( "afkkick", Plugin )
