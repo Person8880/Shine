@@ -263,11 +263,13 @@ local function Help( Client, Search )
 		if CommandAppearsOnPage( i, PageNumber ) then
 			local Command = Shine.Commands[ CommandName ]
 
-			local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
-				( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), 
-				Command.Help or "No help available." )
+			if Command then
+				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
+					( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), 
+					Command.Help or "No help available." )
 
-			PrintToConsole( Client, HelpLine )
+				PrintToConsole( Client, HelpLine )
+			end
 		end
 	end
 

@@ -16,6 +16,18 @@ local DigitalTime = string.DigitalTime
 local Round = math.Round
 local SharedTime = Shared.GetTime
 
+function Plugin:RemoveText()
+	if self.TextObj then
+		Shine:RemoveMessage( self.TextObj.Index )
+		self.TextObj = nil
+	end
+
+	if self.TimeObj then
+		Shine:RemoveMessage( self.TimeObj.Index )
+		self.TimeObj = nil
+	end
+end
+
 function Plugin:ReceiveStartDelay( Data )
 	local StartTime = Data.StartTime
 	local Time = SharedTime()
@@ -34,13 +46,12 @@ function Plugin:ReceiveStartDelay( Data )
 		self.TimeObj.Digital = true
 		self.TimeObj.Obj:SetText( DigitalTime( Duration ) )
 	else
-		if self.TextObj then
-			Shine:RemoveMessage( self.TextObj.Index )
-			self.TextObj = nil
-		end
-		if self.TimeObj then
-			Shine:RemoveMessage( self.TimeObj.Index )
-			self.TimeObj = nil
-		end
+		self:RemoveText()
 	end
+end
+
+function Plugin:Cleanup()
+	self.BaseClass.Cleanup( self )
+
+	self:RemoveText()
 end
