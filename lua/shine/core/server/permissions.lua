@@ -402,7 +402,7 @@ function Shine:GetPermission( Client, ConCommand )
 		if AllowedArgs then
 			return true, AllowedArgs
 		else
-			return Exists
+			return not Exists
 		end
 	end
 	
