@@ -134,7 +134,7 @@ end
 	Will cycle the map if the server is empty, or we've gone past the max
 	number of notifications.
 ]]
-function Plugin:NotifyOrCycle( recall )
+function Plugin:NotifyOrCycle( Recall )
 	if #Shine.GetAllPlayers() == 0 then
 		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
 		return
@@ -143,7 +143,7 @@ function Plugin:NotifyOrCycle( recall )
 	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 
 	--Mapvote actions
-	if Enabled and not recall then
+	if Enabled and not Recall then
 		--Deny extension of the map.
 		MapVote.Config.AllowExtend = false
 		
