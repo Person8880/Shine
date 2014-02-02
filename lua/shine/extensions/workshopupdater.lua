@@ -20,7 +20,9 @@ Plugin.DefaultConfig = {
 	CheckInterval = 60,
 	RepeatNotifications = true,
 	NotifyInterval = 180,
-	ForceMapChangeAfterNotifications = 5
+	ForceMapChangeAfterNotifications = 5,
+	ForceMapvote = false,
+	ForceMapvoteAtRoundEnd = false	
 }
 
 local RemainingNotifications = Huge
@@ -132,7 +134,7 @@ end
 	Will cycle the map if the server is empty, or we've gone past the max
 	number of notifications.
 ]]
-function Plugin:NotifyOrCycle()
+function Plugin:NotifyOrCycle( recall )
 	if #Shine.GetAllPlayers() == 0 then
 		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
 		return
@@ -140,9 +142,18 @@ function Plugin:NotifyOrCycle()
 
 	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 
-	--Deny extension of the map.
-	if Enabled then
+	--Mapvote actions
+	if Enabled and not recall then
+		--Deny extension of the map.
 		MapVote.Config.AllowExtend = false
+		
+		if self.Config.ForceMapvote and not MapVote:VoteStarted() then
+		    MapVote:StartVote( nil, true )   
+		elseif self.Config.ForceMapvoteAtRoundEnd then
+		    MapVote.VoteOnEnd = true
+		    MapVote.Round = MapVote.Config.RoundLimit
+		    MapVote.MapCycle.time = Shared.GetTime() / 60		    		    
+		end
 	end
 
 	self:Notify( "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
@@ -166,7 +177,7 @@ function Plugin:NotifyOrCycle()
 	end
 
 	if self.Config.RepeatNotifications then
-		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function() self:NotifyOrCycle() end )
+		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function() self:NotifyOrCycle( true ) end )
 	end
 end
 
