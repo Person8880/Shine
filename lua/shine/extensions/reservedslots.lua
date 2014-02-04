@@ -137,6 +137,18 @@ function Plugin:ClientConnect( Client )
 	self:UpdateTag( self:GetFreeReservedSlots() )
 end
 
+
+--[[
+	Update the server tag if a reserved slot client disconnects.
+]]
+function Plugin:ClientDisconnect( Client )
+	if not self.Config.TakeSlotInstantly then return end
+	
+	if self.Config.Slots > 0 and Shine:HasAccess( Client, "sh_reservedslot" ) then
+		self:UpdateTag( self:GetFreeReservedSlots() + 1 )
+	end
+end
+
 --[[
 	A simple and effective reserved slot system.
 	At last, a proper connection event.
