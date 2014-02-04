@@ -87,7 +87,7 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 			local Aliens = TableToString( Alien )
 
 			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams before applying.",
-				"Balance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
+				"Balance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines:\n%s\nAliens:\n%s",
 				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
 		end
 
@@ -117,7 +117,11 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
 
-	if Abs( MarineTeam:GetNumPlayers() - AlienTeam:GetNumPlayers() ) > 1 and not Reported then
+	local NewMarineCount = MarineTeam:GetNumPlayers()
+	local NewAlienCount = AlienTeam:GetNumPlayers()
+	local NewDiff = Abs( NewMarineCount - NewAlienCount )
+
+	if NewDiff > 1 and not Reported then
 		local VoteRandom = Shine.Plugins.voterandom
 
 		if VoteRandom then
@@ -127,8 +131,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 			local Aliens = TableToString( Alien )
 
 			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
-				"Balance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines: %s\nAliens: %s",
-				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
+				"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\nActual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\nNew Teams:\nMarines:\n%s\nAliens:\n%s",
+				true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount, NewAlienCount, NewDiff, Marines, Aliens )
 		end
 	end
 end
