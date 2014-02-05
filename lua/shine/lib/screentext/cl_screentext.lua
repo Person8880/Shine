@@ -53,7 +53,15 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		Obj:SetFontName( Font )
 
 		function TextObj:UpdateText()
-			self.Obj:SetText( IgnoreFormat and self.Text or StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+			if IgnoreFormat then
+				self.Obj:SetText( self.Text )
+			else
+				if self.Digital then
+					self.Obj:SetText( StringFormat( self.Text, string.DigitalTime( self.Duration ) ) )
+				else
+					self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+				end
+			end
 		end
 
 		if ShouldFade then
@@ -109,7 +117,15 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 	MessageTable.LastUpdate = Time
 
 	function MessageTable:UpdateText()
-		self.Obj:SetText( IgnoreFormat and self.Text or StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+		if IgnoreFormat then
+			self.Obj:SetText( self.Text )
+		else
+			if self.Digital then
+				self.Obj:SetText( StringFormat( self.Text, string.DigitalTime( self.Duration ) ) )
+			else
+				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+			end
+		end
 	end
 
 	Messages[ ID ] = MessageTable

@@ -37,6 +37,30 @@ function Shine.QueryServerPopulation( IP, Port, Callback )
 end
 
 --[[
+	Queries for the entire server data of a single server.
+]]
+function Shine.QueryServer( IP, Port, Callback )
+	local Params = {
+		servers = Encode( {
+			{ ip = IP, port = tostring( Port ) }
+		} )
+	}
+	HTTPRequest( BaseURL, "POST", Params, function( Body )
+		if not Body or #Body == 0 then
+			return Callback()
+		end
+
+		local Data = Decode( Body )
+
+		if not Data or #Data == 0 then
+			return Callback()
+		end
+		
+		return Callback( Data[ 1 ] )
+	end )
+end
+
+--[[
 	Query the state of multiple servers.
 ]]
 function Shine.QueryServers( Servers, Callback )

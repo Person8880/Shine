@@ -10,6 +10,7 @@ local StringFormat = string.format
 local TableConcat = table.concat
 local TableRemove = table.remove
 local TableSort = table.sort
+local tostring = tostring
 local type = type
 local xpcall = xpcall
 
@@ -350,6 +351,31 @@ local function OnError( Err )
 	Shine:AddErrorReport( StringFormat( "Command error: %s.", Err ), Trace )
 end
 
+local ArgValidators = {
+	string = function( Client, ParsedArg, ArgRestrictor )
+		if IsType( ArgRestrictor, "table" ) then
+			--Has to be present in the allowed list.
+			for i = 1, #ArgRestrictor do
+				if ParsedArg == ArgRestrictor[ i ] then
+					return ParsedArg
+				end
+			end
+
+			return nil
+		else --Assume string, must match.
+			return ParsedArg == ArgRestrictor and ParsedArg or nil
+		end
+	end,
+
+	number = function( Client, ParsedArg, ArgRestrictor )
+		--Invalid restrictor, should be a table with min and/or max values.
+		if not IsType( ArgRestrictor, "table" ) then return ParsedArg end
+
+		--Clamp the argument in range.
+		return MathClamp( ParsedArg, ArgRestrictor.Min, ArgRestrictor.Max )
+	end
+}
+
 --[[
 	Executes a Shine command. Should not be called directly.
 	Inputs: Client running the command, console command to run, string arguments passed to the command.
@@ -360,7 +386,9 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	if not Command then return end
 	if Command.Disabled then return end
 
-	if not self:GetPermission( Client, ConCommand ) then 
+	local Allowed, ArgRestrictions = self:GetPermission( Client, ConCommand )
+
+	if not Allowed then 
 		self:NotifyError( Client, "You do not have permission to use %s.", true, ConCommand )
 
 		return 
@@ -393,8 +421,27 @@ function Shine:RunCommand( Client, ConCommand, ... )
 			return
 		end
 
+		local ArgType = CurArg.Type
+		local RestrictionIndex = tostring( i )
+
+		if ArgRestrictions and ArgRestrictions[ RestrictionIndex ] then
+			local Func = ArgValidators[ ArgType ]
+
+			--Apply restrictions.
+			if Func then
+				ParsedArgs[ i ] = Func( Client, ParsedArgs[ i ], ArgRestrictions[ RestrictionIndex ] )
+			
+				--The restriction wiped the argument as it's not allowed.
+				if ParsedArgs[ i ] == nil then
+					self:NotifyError( Client, "Invalid argument #%i, restricted in rank settings.", true, i )
+
+					return
+				end
+			end
+		end
+
 		--Take rest of line should grab the entire rest of the argument list.
-		if CurArg.Type == "string" and CurArg.TakeRestOfLine then
+		if ArgType == "string" and CurArg.TakeRestOfLine then
 			if i == ExpectedCount then
 				local Rest = TableConcat( Args, " ", i + 1 )
 
@@ -414,7 +461,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		end
 
 		--Ensure the calling client can target the return client.
-		if CurArg.Type == "client" and not CurArg.IgnoreCanTarget then
+		if ArgType == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
 				self:NotifyError( Client, "You do not have permission to target %s.", 
 					true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
@@ -424,7 +471,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		end
 
 		--Ensure the calling client can target every returned client.
-		if CurArg.Type == "clients" and not CurArg.IgnoreCanTarget then
+		if ArgType == "clients" and not CurArg.IgnoreCanTarget then
 			local ParsedArg = ParsedArgs[ i ]
 
 			if ParsedArg then

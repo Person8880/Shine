@@ -142,6 +142,11 @@ function Plugin:Initialise()
 					if Map.time or Map.Time then
 						Cycle.time = Map.time or Map.Time
 					end
+
+					--Override config round limit with map specific value.
+					if Map.rounds or Map.Rounds then
+						self.Config.RoundLimit = Max( Map.rounds or Map.Rounds, 0 )
+					end
 				else
 					ConfigMaps[ Map ] = true
 				end

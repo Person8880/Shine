@@ -345,6 +345,26 @@ function Shine:GetUserImmunity( Client )
 end
 
 --[[
+	Checks a command list table for the given command name,
+	taking into account table entries with argument restrictions.
+]]
+local function CheckForCommand( Table, Command )
+	for i = 1, #Table do
+		local Entry = Table[ i ]
+
+		if IsType( Entry, "table" ) then
+			if Entry.Command == Command then
+				return true, Entry.Allowed
+			end
+		elseif Entry == Command then
+			return true
+		end
+	end
+
+	return false
+end
+
+--[[
 	Determines if the given client has permission to run the given command.
 	Inputs: Client or Steam ID, command name (sh_*).
 	Output: True if allowed.
@@ -375,16 +395,52 @@ function Shine:GetPermission( Client, ConCommand )
 		return self:GetPermissionInheritance( ID, User, UserGroup, GroupTable, ConCommand )
 	end
 
+	local Exists, AllowedArgs = CheckForCommand( GroupTable.Commands, ConCommand )
+
 	if GroupTable.IsBlacklist then
-		return not TableContains( GroupTable.Commands, ConCommand )
+		--A blacklist entry with allowed arguments restricts to only those arguments.
+		if AllowedArgs then
+			return true, AllowedArgs
+		else
+			return not Exists
+		end
 	end
 	
-	return TableContains( GroupTable.Commands, ConCommand )
+	return Exists, AllowedArgs
 end
 
-local function AddPermissionsToTable( Permissions, Table )
+--[[
+	Adds all commands in the Permissions table to the table of
+	commands being built. Will add argument restrictions to the table
+	if they are set, otherwise just adds the command as 'true'.
+
+	Whitelists take the first occurrence of the command, blacklists take
+	the last occurrence.
+]]
+local function AddPermissionsToTable( Permissions, Table, Blacklist )
 	for i = 1, #Permissions do
-		Table[ Permissions[ i ] ] = true
+		local Entry = Permissions[ i ]
+
+		if IsType( Entry, "string" ) then
+			if Blacklist then
+				Table[ Entry ] = true
+			elseif not Table[ Entry ] then
+				Table[ Entry ] = true
+			end
+		elseif IsType( Entry, "table" ) then
+			local Command = Entry.Command
+
+			if Command then
+				local Allowed = Entry.Allowed
+
+				--Blacklists should take the lowest allowed entry, whitelists should take the highest.
+				if Blacklist then
+					Table[ Command ] = Allowed or true
+				elseif not Table[ Command ] then
+					Table[ Command ] = Allowed or true
+				end
+			end
+		end
 	end
 end
 
@@ -406,7 +462,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	local TopLevelCommands = GroupTable.Commands
 
 	if GroupTable.IsBlacklist == Blacklist then
-		AddPermissionsToTable( TopLevelCommands, Permissions )
+		AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
 	end
 
 	if InheritGroups then
@@ -451,10 +507,23 @@ function Shine:GetPermissionInheritance( ID, User, GroupName, GroupTable, ConCom
 	BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
 
 	if Blacklist then
-		return not Permissions[ ConCommand ]
+		if not Permissions[ ConCommand ] then
+			return true
+		else
+			if IsType( Permissions[ ConCommand ], "table" ) then
+				return true, Permissions[ ConCommand ]
+			else
+				return false
+			end
+		end
 	end
 
-	return Permissions[ ConCommand ]
+	--Return the allowed arguments.
+	if IsType( Permissions[ ConCommand ], "table" ) then
+		return true, Permissions[ ConCommand ]
+	else
+		return Permissions[ ConCommand ]
+	end
 end
 
 --[[

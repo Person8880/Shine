@@ -220,7 +220,7 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 	end
 
 	local URL
-	local NS2Stats = Shine.Plugins.ns2stats
+	local _, NS2Stats = Shine:IsExtensionEnabled( "ns2stats" )
 
 	if NS2Stats then
 		URL = NS2Stats.Config.WebsiteUrl.."/api/players"
@@ -466,7 +466,9 @@ Plugin.ShufflingModes = {
 
 	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats ELO based.
 		local ChatName = Shine.Config.ChatName
-		if not RBPS and not Shine.Plugins.ns2stats then 
+		local NS2StatsEnabled, NS2Stats = Shine:IsExtensionEnabled( "ns2stats" )
+
+		if not RBPS and not NS2StatsEnabled then 
 			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
 			self:Notify( nil, "Shuffling based on ELO failed, falling back to %s sorting.", true, FallbackMode )
@@ -678,8 +680,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 		{}
 	}
 
-	local AFKKick = Shine.Plugins.afkkick
-	local AFKEnabled = AFKKick and AFKKick.Enabled
+	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 
 	local Time = SharedTime()
 
@@ -951,9 +952,9 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		self.RandomOnNextRound = false
 		
 		self:SimpleTimer( 15, function()
-			local MapVote = Shine.Plugins.mapvote
+			local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 
-			if MapVote and MapVote.Enabled and MapVote:IsEndVote() then
+			if Enabled and MapVote:IsEndVote() then
 				self.ForceRandom = true
 
 				return
@@ -971,9 +972,9 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		else
 			self.ForceRandom = false
 			self:SimpleTimer( 15, function()
-				local MapVote = Shine.Plugins.mapvote
+				local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 
-				if not ( MapVote and MapVote.Enabled and MapVote:IsEndVote() ) then
+				if not ( Enabled and MapVote:IsEndVote() ) then
 					self:Notify( nil, "Shuffling teams %s due to random vote.", true, ModeStrings.Action[ self.Config.BalanceMode ] )
 					
 					self:ShuffleTeams()
@@ -999,9 +1000,9 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	--Don't block them from going back to the ready room at the end of the round.
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won or GameState == kGameState.Draw then return end
 
-	local MapVote = Shine.Plugins.mapvote
+	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 
-	if MapVote and MapVote.Enabled then
+	if Enabled then
 		if MapVote:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce ) == false then
 			return false
 		end

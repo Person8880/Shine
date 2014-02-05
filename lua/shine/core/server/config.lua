@@ -51,6 +51,7 @@ local DefaultConfig = {
 		pregame = false,
 		readyroom = false,
 		reservedslots = false,
+		roundlimiter = false,
 		serverswitch = false,
 		tournamentmode = false,
 		unstuck = true,

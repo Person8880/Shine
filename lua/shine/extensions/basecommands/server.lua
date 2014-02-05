@@ -61,6 +61,21 @@ local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Di
 end
 Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 
+--Override sv_say with sh_say.
+Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
+	if Name == "Console_sv_say" then
+		local function NewSay( Client, ... )
+			if Shine:IsExtensionEnabled( "basecommands" ) then
+				return Shine:RunCommand( Client, "sh_say", ... )
+			end
+
+			return OldFunc( Client, ... )
+		end
+
+		return true, NewSay
+	end
+end )
+
 function Plugin:Initialise()
 	self.Gagged = {}
 
@@ -248,11 +263,13 @@ local function Help( Client, Search )
 		if CommandAppearsOnPage( i, PageNumber ) then
 			local Command = Shine.Commands[ CommandName ]
 
-			local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
-				( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), 
-				Command.Help or "No help available." )
+			if Command then
+				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
+					( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), 
+					Command.Help or "No help available." )
 
-			PrintToConsole( Client, HelpLine )
+				PrintToConsole( Client, HelpLine )
+			end
 		end
 	end
 
@@ -853,6 +870,28 @@ function Plugin:CreateCommands()
 	local UngagCommand = self:BindCommand( "sh_ungag", "ungag", UngagPlayer )
 	UngagCommand:AddParam{ Type = "client" }
 	UngagCommand:Help( "<player> Stops silencing the given player's chat." )
+
+	local function Interp( Client, NewInterp )
+		self.Config.Interp = NewInterp
+
+		Shared.ConsoleCommand( StringFormat( "interp %s", NewInterp * 0.001 ) )
+	
+		self:SaveConfig( true )
+	end
+	local InterpCommand = self:BindCommand( "sh_interp", "interp", Interp )
+	InterpCommand:AddParam{ Type = "number", Min = 0 }
+	InterpCommand:Help( "<time in ms> Sets the interpolation time and saves it." )
+
+	local function MoveRate( Client, NewRate )
+		self.Config.MoveRate = NewRate
+
+		Shared.ConsoleCommand( StringFormat( "mr %s", NewRate ) )
+
+		self:SaveConfig( true )
+	end
+	local MoveRateCommand = self:BindCommand( "sh_moverate", "moverate", MoveRate )
+	MoveRateCommand:AddParam{ Type = "number", Min = 5 }
+	MoveRateCommand:Help( "<rate> Sets the move rate and saves it." )
 end
 
 function Plugin:IsClientGagged( Client )

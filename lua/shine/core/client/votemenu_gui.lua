@@ -159,8 +159,8 @@ end
 function VoteMenu:PlayerKeyPress( Key, Down )
 	if not self.Visible then return end
 
-	local Chatbox = Shine.Plugins.chatbox
-	local ChatboxEnabled = Chatbox and Chatbox.Enabled and Chatbox.Visible
+	local Enabled, Chatbox = Shine:IsExtensionEnabled( "chatbox" )
+	local ChatboxEnabled = Enabled and Chatbox.Visible
 
 	if ChatUI_EnteringChatMessage() or ChatboxEnabled then
 		self:SetIsVisible( false )

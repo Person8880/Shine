@@ -70,3 +70,12 @@ function string.TimeToString( Time )
 
 	return StringFormat( "%s and %s", FinalString, Strings[ #Strings ] )
 end
+
+function string.DigitalTime( Time )
+	if Time <= 0 then return "00:00" end
+	
+	local Seconds = Floor( Time % 60 )
+	local Minutes = Floor( Time / 60 )
+
+	return StringFormat( "%.2i:%.2i", Minutes, Seconds )
+end

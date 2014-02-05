@@ -197,6 +197,8 @@ end
 ]]
 function Plugin:ClientConfirmConnect( Client )
 	if not self.DisabledAutobalance then
+		self.OldTeamBalanceSetting = Server.GetConfigSetting( "auto_team_balance" )
+
 		Server.SetConfigSetting( "auto_team_balance", false )
 		Server.SetConfigSetting( "end_round_on_team_unbalance", false )
 		Server.SetConfigSetting( "force_even_teams_on_join", false )
@@ -516,7 +518,7 @@ function Plugin:Cleanup()
 	self.ReadyStates = nil
 	self.TeamNames = nil
 
-	Server.SetConfigSetting( "auto_team_balance", true )
+	Server.SetConfigSetting( "auto_team_balance", self.OldTeamBalanceSetting or {} )
 	Server.SetConfigSetting( "end_round_on_team_unbalance", true )
 	Server.SetConfigSetting( "force_even_teams_on_join", true )
 
