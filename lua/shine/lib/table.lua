@@ -112,6 +112,9 @@ end
 ]]
 function table.Average( Table )
 	local Count = #Table
+	
+	if Count == 0 then return 0 end
+	
 	local Sum = 0
 
 	for i = 1, Count do
