@@ -632,6 +632,8 @@ end
 	Override this for stencilled stuff.
 ]]
 function ControlMeta:GetIsVisible()
+	if not self.Background.GetIsVisible then return false end
+	
 	return self.Background:GetIsVisible()
 end
 
