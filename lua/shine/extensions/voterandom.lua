@@ -12,6 +12,7 @@ local Ceil = math.ceil
 local Clamp = math.Clamp
 local Decode = json.decode
 local Floor = math.floor
+local GetNumPlayers = Server.GetNumPlayers
 local Max = math.max
 local Min = math.min
 local next = next
@@ -1068,13 +1069,13 @@ function Plugin:ClientDisconnect( Client )
 end
 
 function Plugin:GetVotesNeeded()
-	local PlayerCount = Server.GetNumPlayers()
+	local PlayerCount = GetNumPlayers()
 
 	return Ceil( PlayerCount * self.Config.PercentNeeded )
 end
 
 function Plugin:CanStartVote()
-	local PlayerCount = Server.GetNumPlayers()
+	local PlayerCount = GetNumPlayers()
 
 	if PlayerCount < self.Config.MinPlayers then
 		return false, "There are not enough players to start a vote."
