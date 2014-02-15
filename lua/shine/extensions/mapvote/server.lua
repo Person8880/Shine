@@ -667,11 +667,23 @@ end
 	Returns whether a map vote can start.
 ]]
 function Plugin:CanStartVote()
-	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.Vote.NextVote < Shared.GetTime()
+	local PlayerCount = Server.GetNumPlayers()
+
+	if PlayerCount < self.Config.MinPlayers then
+		return false, "There are not enough players to start a vote."
+	end
+
+	if self.Vote.NextVote >= Shared.GetTime() then
+		return false, "You cannot start a map vote at this time."
+	end
+
+	return true
 end
 
 function Plugin:GetVoteEnd()
-	return Ceil( Shared.GetEntitiesWithClassname( "Player" ):GetSize() * self.Config.PercentToFinish )
+	local PlayerCount = Server.GetNumPlayers()
+
+	return Ceil( PlayerCount * self.Config.PercentToFinish )
 end
  
 --[[
@@ -1332,17 +1344,19 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		if not self:CanStartVote() then
+		local Success, Err = self:CanStartVote()
+
+		if not Success then
 			if Client then
-				Shine:NotifyError( Player, "You cannot start a map vote at this time." )
+				Shine:NotifyError( Player, Err )
 			else
-				Notify( "You cannot start a map vote at this time." )
+				Notify( Err )
 			end
 
 			return
 		end
 
-		local Success, Err = self:AddStartVote( Client )
+		Success, Err = self:AddStartVote( Client )
 		if Success then
 			if self:TimerExists( self.VoteTimer ) then return end
 			

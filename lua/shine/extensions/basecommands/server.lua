@@ -40,7 +40,8 @@ Plugin.DefaultConfig = {
 	Interp = 100,
 	MoveRate = 30,
 	FriendlyFire = false,
-	FriendlyFireScale = 1
+	FriendlyFireScale = 1,
+	FriendlyFirePreGame = true
 }
 
 Plugin.CheckConfig = true
@@ -100,6 +101,15 @@ end
 
 function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
 	if not self.Config.FriendlyFire then return end
+	--Block friendly fire before a round starts.
+	if not self.Config.FriendlyFirePreGame then
+		local Gamerules = GetGamerules()
+		local State = Gamerules and Gamerules:GetGameState()
+
+		if State == kGameState.NotStarted or State == kGameState.PreGame then
+			return
+		end
+	end
 
 	--Nothing to do if the scale is 1.
 	local Scale = self.Config.FriendlyFireScale
