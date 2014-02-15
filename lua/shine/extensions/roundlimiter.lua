@@ -4,6 +4,8 @@
 
 local Shine = Shine
 
+local Clamp = math.Clamp
+local Floor = math.floor
 local StringFormat = string.format
 local TimeToString = string.TimeToString
 
@@ -32,6 +34,14 @@ local TeamScores = {
 }
 
 Shine.Hook.SetupClassHook( "ScoringMixin", "AddScore", "OnScore", "PassivePost" )
+
+function Plugin:Initialise()
+	self.Config.WinCondition = Clamp( Floor( self.Config.WinCondition ), 1, 3 )
+
+	self.Enabled = true
+
+	return true
+end
 
 --[[
 	Keep track of the playing team scores.
