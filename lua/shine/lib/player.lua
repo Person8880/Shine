@@ -141,14 +141,29 @@ end
 	Returns a table of all players.
 ]]
 function Shine.GetAllPlayers()
-	return EntityListToTable( GetEntsByClass( "Player" ) )
+	local Players = {}
+	local Count = 1
+
+	local GameIDs = Shine.GameIDs
+
+	for Client, ID in pairs( GameIDs ) do
+		local Player = Client.GetControllingPlayer and Client:GetControllingPlayer()
+
+		if Player then
+			Players[ Count ] = Player
+			
+			Count = Count + 1
+		end
+	end
+
+	return Players
 end
 
 --[[
 	Returns a table of all players sorted randomly.
 ]]
 function Shine.GetRandomPlayerList()
-	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
+	local Players = Shine.GetAllPlayers()
 
 	TableShuffle( Players )
 
