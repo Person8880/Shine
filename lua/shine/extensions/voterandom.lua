@@ -12,6 +12,7 @@ local Ceil = math.ceil
 local Clamp = math.Clamp
 local Decode = json.decode
 local Floor = math.floor
+local GetNumPlayers = Server.GetNumPlayers
 local Max = math.max
 local Min = math.min
 local next = next
@@ -1068,11 +1069,33 @@ function Plugin:ClientDisconnect( Client )
 end
 
 function Plugin:GetVotesNeeded()
-	return Ceil( Shared.GetEntitiesWithClassname( "Player" ):GetSize() * self.Config.PercentNeeded )
+	local PlayerCount = GetNumPlayers()
+
+	return Ceil( PlayerCount * self.Config.PercentNeeded )
 end
 
 function Plugin:CanStartVote()
-	return Shared.GetEntitiesWithClassname( "Player" ):GetSize() >= self.Config.MinPlayers and self.NextVote < SharedTime() and not self.RandomOnNextRound
+	local PlayerCount = GetNumPlayers()
+
+	if PlayerCount < self.Config.MinPlayers then
+		return false, "There are not enough players to start a vote."
+	end
+
+	if self.NextVote >= SharedTime() then
+		local String = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+
+		String = String:sub( 1, 1 ) == "E" and "an "..String or "a "..String
+
+		return false, StringFormat( "You cannot start %s teams vote at this time.", String )
+	end
+
+	if self.RandomOnNextRound then
+		local String = ModeStrings.Mode[ self.Config.BalanceMode ]
+
+		return false, StringFormat( "%s teams have already been voted for the next round.", String )
+	end
+
+	return true
 end
 
 --[[
@@ -1094,15 +1117,12 @@ function Plugin:AddVote( Client )
 		return false, Error
 	end
 
-	if not self:CanStartVote() then
-		local String = ModeStrings.ModeLower[ self.Config.BalanceMode ]
-
-		String = String:sub( 1, 1 ) == "E" and "an "..String or "a "..String
-
-		return false, StringFormat( "You cannot start %s teams vote at this time.", String ) 
+	local Success, Err = self:CanStartVote()
+	if not Success then
+		return false, Err
 	end
 	
-	local Success = self.Vote:AddVote( Client )
+	Success = self.Vote:AddVote( Client )
 	if not Success then 
 		return false, StringFormat( "You have already voted for %s teams.", ModeStrings.ModeLower[ self.Config.BalanceMode ] ) 
 	end
