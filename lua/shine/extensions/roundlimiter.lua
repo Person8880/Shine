@@ -64,9 +64,10 @@ function Plugin:EndRound()
 
 	local Gamerules = GetGamerules()
 	if not Gamerules then return end
-
+	
 	local WinCondition = self.Config.WinCondition
-
+	local ModeAddition = "total scores"
+	
 	--Team with the most points scored over the game.
 	if WinCondition == self.WIN_SCORE then
 		if TeamScores[ 1 ] > TeamScores[ 2 ] then Winner = 1 end
@@ -76,6 +77,8 @@ function Plugin:EndRound()
 		local Harvesters = Shared.GetEntitiesWithClassname( "Harvester" ):GetSize()
 
 		if Extractors > Harvesters then Winner = 1 end
+		
+		ModeAddition = "captured RTs at the end"
 	--Team that collected the most team resources (i.e resources over the whole game).
 	elseif WinCondition == self.WIN_COLLECTEDRES then
 		local Marines = Gamerules.team1
@@ -85,10 +88,12 @@ function Plugin:EndRound()
 		local AlienRes = Aliens:GetTotalTeamResources()
 
 		if MarineRes > AlienRes then Winner = 1 end
+		
+		ModeAddition = "total collected team ressources"
 	end
 	
 	Shine:NotifyDualColour( nil, 100, 255, 100, "[RoundLimiter]", 255, 255, 255,
-		"Ending round due to time limit..." )
+		StringFormat( "%s left until this round ends. Winner has been chosen by %s.", ModeAddition ) )
 	
 	Gamerules:EndGame( Winner == 2 and Gamerules.team2 or Gamerules.team1 )
 end
@@ -97,8 +102,17 @@ local WarningsLeft = 0
 
 function Plugin:DisplayWarning()
 	local TimeLeft = WarningsLeft * self.Config.WarningTime * 60 / self.Config.WarningRepeatTimes
-	local Message = StringFormat( "%s left until this round ends.", 
-		TimeToString( TimeLeft ) )
+	
+	local WinCondition = self.Config.WinCondition
+	local ModeAddition = "total scores"
+	if WinCondition == self.WIN_RTS then
+		ModeAddition = "captured RTs at the end"
+	elseif WinCondition == self.WIN_COLLECTEDRES then
+		ModeAddition = "total collected team ressources"
+	end
+	
+	local Message = StringFormat( "%s left until this round ends. Winner will be chosen by %s.", 
+		TimeToString( TimeLeft ), ModeAddition )
 
 	WarningsLeft = WarningsLeft - 1
 
