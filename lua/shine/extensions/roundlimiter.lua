@@ -93,7 +93,7 @@ function Plugin:EndRound()
 	end
 	
 	Shine:NotifyDualColour( nil, 100, 255, 100, "[RoundLimiter]", 255, 255, 255,
-		StringFormat( "%s left until this round ends. Winner has been chosen by %s.", ModeAddition ) )
+		StringFormat( "Ending round due to time limit... Winner has been chosen by %s.", ModeAddition ) )
 	
 	Gamerules:EndGame( Winner == 2 and Gamerules.team2 or Gamerules.team1 )
 end
