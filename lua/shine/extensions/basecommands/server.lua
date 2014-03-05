@@ -414,16 +414,13 @@ function Plugin:CreateCommands()
 	local function Status( Client )
 		local CanSeeIPs = Shine:HasAccess( Client, "sh_status" )
 
-		local PlayerList = Shared.GetEntitiesWithClassname( "Player" )
-		local Size = PlayerList:GetSize()
-
 		local GameIDs = Shine.GameIDs
 		local SortTable = {}
-		local Count = 1
+		local Count = 0
 
 		for Client, ID in pairs( GameIDs ) do
-			SortTable[ Count ] = { ID, Client }
 			Count = Count + 1
+			SortTable[ Count ] = { ID, Client }
 		end
 
 		TableSort( SortTable, function( A, B )
@@ -431,7 +428,7 @@ function Plugin:CreateCommands()
 			return false
 		end )
 
-		PrintToConsole( Client, StringFormat( "Showing %s:", Size == 1 and "1 connected player" or Size.." connected players" ) )
+		PrintToConsole( Client, StringFormat( "Showing %s:", Count == 1 and "1 connected player" or Count.." connected players" ) )
 		PrintToConsole( Client, StringFormat( "ID\t\tName\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tTeam%s", CanSeeIPs and "\t\t\t\t\t\tIP" or "" ) )
 		PrintToConsole( Client, "=============================================================================" )
 
@@ -445,7 +442,7 @@ function Plugin:CreateCommands()
 
 			local ID = PlayerClient:GetUserId()
 
-			PrintToConsole( Client, StringFormat( "'%s'\t\t'%s'\t\t'%s'\t'%s'\t\t'%s'%s",
+			PrintToConsole( Client, StringFormat( "%s\t\t'%s'\t\t%s\t%s\t\t'%s'%s",
 				GameID,
 				Player:GetName(),
 				ID,
@@ -456,6 +453,75 @@ function Plugin:CreateCommands()
 	end
 	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
 	StatusCommand:Help( "Prints a list of all connected players and their relevant information." )
+
+	local function Who( Client, Target )
+		if not Target then
+			local GameIDs = Shine.GameIDs
+			local SortTable = {}
+			local Count = 0
+
+			for Client, ID in pairs( GameIDs ) do
+				Count = Count + 1
+				SortTable[ Count ] = { Client:GetUserId(), Client }
+			end
+
+			TableSort( SortTable, function( A, B )
+				if A[ 1 ] < B[ 1 ] then return true end
+				return false
+			end )
+
+			PrintToConsole( Client, "Name\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tGroup\t\t\t\t\tImmunity" )
+			PrintToConsole( Client, "=============================================================================" )
+
+			for i = 1, #SortTable do
+				local Data = SortTable[ i ]
+
+				local ID = Data[ 1 ]
+				local PlayerClient = Data[ 2 ]
+
+				local Player = PlayerClient:GetControllingPlayer()
+				local UserData = Shine:GetUserData( PlayerClient )
+
+				local GroupName = UserData and UserData.Group
+				local GroupData = GroupName and Shine:GetGroupData( GroupName )
+
+				PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
+					Player:GetName(),
+					ID,
+					Shine.NS2ToSteamID( ID ),
+					GroupName or "None",
+					GroupData and GroupData.Immunity or 0 ) )
+			end
+		
+			return
+		end
+		
+		local Player = Target:GetControllingPlayer()
+		if not Player then
+			PrintToConsole( Client, "Unknown user." )
+
+			return
+		end
+
+		PrintToConsole( Client, "Name\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tGroup\t\t\t\t\tImmunity" )
+		PrintToConsole( Client, "=============================================================================" )
+
+		local UserData = Shine:GetUserData( Target )
+		local ID = Target:GetUserId()
+
+		local GroupName = UserData and UserData.Group
+		local GroupData = GroupName and Shine:GetGroupData( GroupName )
+
+		PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
+			Player:GetName(),
+			ID,
+			Shine.NS2ToSteamID( ID ),
+			GroupName or "-None-",
+			GroupData and GroupData.Immunity or 0 ) )
+	end
+	local WhoCommand = self:BindCommand( "sh_who", nil, Who, true )
+	WhoCommand:AddParam{ Type = "client", Optional = true, Default = false }
+	WhoCommand:Help( "<optional player> Displays rank information about the given player, or all players." )
 
 	local function ChangeLevel( Client, MapName )
 		MapCycle_ChangeMap( MapName )
