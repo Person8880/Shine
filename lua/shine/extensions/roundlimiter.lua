@@ -66,7 +66,7 @@ function Plugin:EndRound()
 	if not Gamerules then return end
 	
 	local WinCondition = self.Config.WinCondition
-	local ModeAddition = "total scores"
+	local ModeAddition = "total team score"
 	
 	--Team with the most points scored over the game.
 	if WinCondition == self.WIN_SCORE then
@@ -76,9 +76,16 @@ function Plugin:EndRound()
 		local Extractors = Shared.GetEntitiesWithClassname( "Extractor" ):GetSize()
 		local Harvesters = Shared.GetEntitiesWithClassname( "Harvester" ):GetSize()
 
+		--Tech points count for 2.
+		local ComChairs = Shared.GetEntitiesWithClassname( "CommandStation" ):GetSize() * 2
+		local Hives = Shared.GetEntitiesWithClassname( "Hive" ):GetSize() * 2
+
+		Extractors = Extractors + ComChairs
+		Harvesters = Harvesters + Hives
+
 		if Extractors > Harvesters then Winner = 1 end
 		
-		ModeAddition = "captured RTs at the end"
+		ModeAddition = "number of captured RTs at the end"
 	--Team that collected the most team resources (i.e resources over the whole game).
 	elseif WinCondition == self.WIN_COLLECTEDRES then
 		local Marines = Gamerules.team1
@@ -89,11 +96,11 @@ function Plugin:EndRound()
 
 		if MarineRes > AlienRes then Winner = 1 end
 		
-		ModeAddition = "total collected team ressources"
+		ModeAddition = "total collected team resources"
 	end
 	
 	Shine:NotifyDualColour( nil, 100, 255, 100, "[RoundLimiter]", 255, 255, 255,
-		StringFormat( "Ending round due to time limit... Winner has been chosen by %s.", ModeAddition ) )
+		StringFormat( "Ending round due to time limit. Winner chosen by %s.", ModeAddition ) )
 	
 	Gamerules:EndGame( Winner == 2 and Gamerules.team2 or Gamerules.team1 )
 end
@@ -104,11 +111,11 @@ function Plugin:DisplayWarning()
 	local TimeLeft = WarningsLeft * self.Config.WarningTime * 60 / self.Config.WarningRepeatTimes
 	
 	local WinCondition = self.Config.WinCondition
-	local ModeAddition = "total scores"
+	local ModeAddition = "total team score"
 	if WinCondition == self.WIN_RTS then
-		ModeAddition = "captured RTs at the end"
+		ModeAddition = "number of captured RTs at the end"
 	elseif WinCondition == self.WIN_COLLECTEDRES then
-		ModeAddition = "total collected team ressources"
+		ModeAddition = "total collected team resources"
 	end
 	
 	local Message = StringFormat( "%s left until this round ends. Winner will be chosen by %s.", 
