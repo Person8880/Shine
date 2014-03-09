@@ -1,7 +1,5 @@
 ## Shine
 
-***
-
 An administration mod for Natural Selection 2.
 
 The design goals are:
