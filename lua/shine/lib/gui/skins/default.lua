@@ -11,11 +11,14 @@ Skin.InactiveButton = Colour( 0.2, 0.2, 0.2, 1 )
 Skin.ActiveButton = Colour( 0.5, 0.5, 0.5, 1 )
 Skin.ButtonBorder = Colour( 0, 0, 0, 1 )
 
-Skin.TextEntryFocus = Colour( 0.7, 0.7, 0, 1 )
+Skin.CloseButtonActive = Colour( 0.7, 0.2, 0.2, 1 )
+Skin.CloseButtonInactive = Colour( 0.5, 0.2, 0.2, 1 )
+
+Skin.TextEntryFocus = Colour( 1, 0.4, 0.1, 1 )
 Skin.TextEntry = Colour( 0.4, 0.4, 0.4, 1 )
 
-Skin.WindowBackground = Colour( 0.9, 0.9, 0.9, 1 )
-Skin.WindowTitle = Colour( 0.1, 0.3, 0.8, 1 )
+Skin.WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
+Skin.WindowTitle = Colour( 0.3, 0.3, 0.3, 1 )
 
 Skin.TabBackground = Colour( 0.9, 0.9, 0.9, 1 )
 

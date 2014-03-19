@@ -165,7 +165,15 @@ local ParamTypes = {
 	end,
 	--Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
 	client = function( Client, String, Table ) 
-		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default or Client end
+		if not String then
+			if IsType( Table.Default, "function" ) then
+				return Table.Default()
+			elseif Table.Default ~= nil then
+				return Table.Default
+			else
+				return Client
+			end
+		end
 
 		local Target
 		if String == "^" then 

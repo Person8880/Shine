@@ -99,6 +99,14 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	end
 end
 
+function ListEntry:OnReorder()
+	local Scheme = SGUI:GetSkin()
+	
+	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
+	self.Background:SetColor( ( self.Highlighted or self.Selected )
+		and self.ActiveCol or self.InactiveCol )
+end
+
 function ListEntry:SetSpacing( SpacingTable )
 	local TextObjs = self.TextObjs
 
@@ -184,10 +192,14 @@ function ListEntry:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 	if not self:MouseIn( self.Background, 0.9 ) then return end
 
-	if self.Parent.OnRowSelect then
+	if not self.Selected and self.Parent.OnRowSelect then
 		self.Parent:OnRowSelect( self.Index, self )
 
 		self.Selected = true
+	elseif self.Selected and self.Parent.OnRowDeselect then
+		self.Parent:OnRowDeselect( self.Index, self )
+
+		self.Selected = false
 	end
 
 	return true

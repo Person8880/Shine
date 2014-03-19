@@ -806,6 +806,12 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 			self.MainPanel:SetIsVisible( false )
 		end
 	end
+
+	--Don't add anything if one of the elements is the wrong type. Default chat will error instead.
+	if not IsType( PlayerColour, "number" ) or not IsType( PlayerName, "string" )
+	or not IsType( MessageColour, "cdata" ) or not IsType( MessageName, "string" ) then
+		return
+	end
 	
 	--I've decided not to scale this text, scaling blurs or pixelates and it's very hard to read.
 	local UIScale = 1
