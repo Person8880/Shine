@@ -342,6 +342,8 @@ function List:AddRow( ... )
 			self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 		end
 	end
+
+	return Row
 end
 
 --[[
@@ -390,6 +392,7 @@ function List:Reorder()
 
 		Row:SetPos( Vector( 0, self.HeaderSize + ( i - 1 ) * self.LineSize, 0 ) )
 		Row.Index = i
+		Row:OnReorder()
 	end
 end
 
@@ -465,6 +468,52 @@ function List:RemoveRow( Index )
 	end
 
 	return self:Reorder()
+end
+
+function List:GetSelectedRows()
+	local Rows = self.Rows
+	local Selected = {}
+	local Count = 0
+
+	for i = 1, #Rows do
+		local Row = Rows[ i ]
+
+		if Row.Selected then
+			Count = Count + 1
+
+			Selected[ Count ] = Row
+		end
+	end
+
+	return Selected
+end
+
+function List:GetSelectedRow()
+	if self.MultiSelect then return self:GetSelectedRows() end
+	
+	return self.SelectedRow
+end
+
+function List:OnRowSelect( Index, Row )
+	if self.MultiSelect then return end
+	
+	if self.SelectedRow and self.SelectedRow ~= Row then
+		self.SelectedRow.Selected = false
+	end
+
+	self.SelectedRow = Row
+end
+
+function List:OnRowDeselect( Index, Row )
+	self.SelectedRow = nil
+end
+
+function List:SetMultiSelect( Bool )
+	self.MultiSelect = Bool and true or false
+end
+
+function List:GetMultiSelect()
+	return self.MultiSelect
 end
 
 function List:Cleanup()

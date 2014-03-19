@@ -128,6 +128,8 @@ function Scrollbar:OnMouseWheel( Down )
 
 	if self:MouseIn( self.Background ) or Parent:MouseIn( Parent.Background ) then
 		self:SetScroll( self.Pos + ( Down and -32 or 32 ) * self.ScrollSize, true )
+
+		return true
 	end
 end
 

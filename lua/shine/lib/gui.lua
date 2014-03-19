@@ -303,7 +303,7 @@ function SGUI:Create( Class, Parent )
 	local Table = {}
 
 	local Control = setmetatable( Table, MetaTable )
-
+	Control.Class = Class
 	Control:Initialise()
 
 	self.ActiveControls[ Control ] = true
@@ -435,7 +435,7 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
 		end,
 		OnMouseWheel = function( _, Down )
-			SGUI:CallEvent( false, "OnMouseWheel", Down )
+			return SGUI:CallEvent( false, "OnMouseWheel", Down )
 		end,
 		OnMouseDown = function( _, Key, DoubleClick )
 			return SGUI:CallEvent( true, "OnMouseDown", Key )
@@ -539,6 +539,14 @@ function ControlMeta:SetParent( Control, Element )
 	Control.Background:AddChild( self.Background )
 end
 
+local function NotifyFocusChange( Element, ClickingOtherElement )
+	for Control in pairs( SGUI.ActiveControls ) do
+		if Control.OnFocusChange then
+			Control:OnFocusChange( Element, ClickingOtherElement )
+		end
+	end
+end
+
 --[[
 	Calls an SGUI event on every child of the object.
 
@@ -553,6 +561,10 @@ function ControlMeta:CallOnChildren( Name, ... )
 			local Result = Child[ Name ]( Child, ... )
 
 			if Result ~= nil then
+				if Child.Class ~= "TextEntry" then
+					NotifyFocusChange( nil, true )
+				end
+
 				return Result
 			end
 		end
@@ -1081,14 +1093,6 @@ function ControlMeta:OnMouseMove( Down )
 
 				self.Highlighted = false
 			end
-		end
-	end
-end
-
-local function NotifyFocusChange( Element )
-	for Control in pairs( SGUI.ActiveControls ) do
-		if Control.OnFocusChange then
-			Control:OnFocusChange( Element )
 		end
 	end
 end

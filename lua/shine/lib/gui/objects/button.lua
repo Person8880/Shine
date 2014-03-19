@@ -27,7 +27,7 @@ function Button:Initialise()
 
 	Background:SetColor( self.InactiveCol )
 
-	self.TextCol = Scheme.DarkText
+	self.TextCol = Scheme.BrightText
 
 	self:SetHighlightOnMouseOver( true )
 end
@@ -37,7 +37,7 @@ function Button:OnSchemeChange( Scheme )
 	
 	self.ActiveCol = Scheme.ActiveButton
 	self.InactiveCol = Scheme.InactiveButton
-	self.TextCol = Scheme.DarkText
+	self.TextCol = Scheme.BrightText
 
 	if self.Text then
 		self.Text:SetColor( self.TextCol )
