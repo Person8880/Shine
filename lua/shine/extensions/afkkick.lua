@@ -4,7 +4,7 @@
 
 local Shine = Shine
 
-local GetNumPlayers = Server.GetNumPlayers
+local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
 local Notify = Shared.Message
 local SharedTime = Shared.GetTime
@@ -97,7 +97,7 @@ function Plugin:OnProcessMove( Player, Input )
 		return
 	end
 
-	local Players = GetNumPlayers()
+	local Players = GetHumanPlayerCount()
 	if Players < self.Config.WarnMinPlayers then
 		DataTable.LastMove = Time
 
