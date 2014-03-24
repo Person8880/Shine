@@ -686,7 +686,14 @@ function Plugin:CreateCommands()
 	local ReadyRoomCommand = self:BindCommand( "sh_rr", "rr", ReadyRoom )
 	ReadyRoomCommand:AddParam{ Type = "clients" }
 	ReadyRoomCommand:Help( "<players> Sends the given player(s) to the ready room." )
-
+    
+	local function ReadyRoomAll()
+		Shared.ConsoleCommand( "sv_rrall" )
+	end
+    
+	local ReadyRoomAllCommand = self:BindCommand( "sh_rrall", "rrall", ReadyRoomAll )
+	ReadyRoomAllCommand:Help( "Moves all players to the ready room." )
+    
 	local function ForceRandom( Client, Targets )
 		local Gamerules = GetGamerules()
 
