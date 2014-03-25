@@ -57,16 +57,19 @@ end
 local LastKnownUpdate = {}
 
 --[[
-	Parses Steam Api Response and checks if a Mod got updated
+	Parses Steam API response and checks if a mod has been updated.
 ]]
 function Plugin:ParseModInfo( ModInfo )
-
+	if not ModInfo then return end
+	
 	local Response = ModInfo.response or {}
 
-	if Response.result ~= 1 then return end --Steam Api error
+	--Steam API error
+	if Response.result ~= 1 then return end
+
+	if not Response.publishedfiledetails then return end
 
 	for _, Res in pairs( Response.publishedfiledetails ) do
-
 		if not LastKnownUpdate[ Res.publishedfileid ] then
 			LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
 		elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
@@ -75,6 +78,7 @@ function Plugin:ParseModInfo( ModInfo )
 			self:DestroyTimer( ModChangeTimer )
 
 			self:NotifyOrCycle()
+
 			return
 		end
 
@@ -92,12 +96,12 @@ function Plugin:CheckForModChange()
 	Params.itemcount = Server.GetNumActiveMods()
 
 	for i = 1, Params.itemcount do
-		Params[ StringFormat( "publishedfileids[%s]", i-1 ) ] = tonumber( GetMod( i ), 16 )
+		Params[ StringFormat( "publishedfileids[%s]", i - 1 ) ] = tonumber( GetMod( i ), 16 )
 	end
 
 	local URL = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
 	HTTPRequest( URL, "POST", Params, function( Response )
-		self:ParseModInfo( JsonDecode( Response ))
+		self:ParseModInfo( JsonDecode( Response ) )
 	end )
 end
 
@@ -109,6 +113,7 @@ end
 function Plugin:NotifyOrCycle( Recall )
 	if Shine.GetHumanPlayerCount() == 0 then
 		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
+
 		return
 	end
 
