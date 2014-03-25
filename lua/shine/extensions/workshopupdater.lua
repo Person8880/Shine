@@ -65,20 +65,20 @@ function Plugin:ParseModInfo( ModInfo )
 
 	if Response.result ~= 1 then return end --Steam Api error
 
-    for _, Res in pairs( Response.publishedfiledetails ) do
+	for _, Res in pairs( Response.publishedfiledetails ) do
 
-        if not LastKnownUpdate[ Res.publishedfileid ] then
-            LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
-        elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
-            self.ChangedModName = Res.title
+		if not LastKnownUpdate[ Res.publishedfileid ] then
+			LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
+		elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
+			self.ChangedModName = Res.title
 
-            self:DestroyTimer( ModChangeTimer )
+			self:DestroyTimer( ModChangeTimer )
 
-            self:NotifyOrCycle()
-            return
-        end
-        
-    end
+			self:NotifyOrCycle()
+			return
+		end
+
+	end
 end
 
 --[[
@@ -86,19 +86,19 @@ end
 ]]
 function Plugin:CheckForModChange()
 	local GetMod = Server.GetActiveModId
-	
+
 	local Params = {}
 
 	Params.itemcount = Server.GetNumActiveMods()
-    
+
 	for i = 1, Params.itemcount do
 		Params[ StringFormat( "publishedfileids[%s]", i-1 ) ] = tonumber( GetMod( i ), 16 )
 	end
 
 	local URL = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
 	HTTPRequest( URL, "POST", Params, function( Response )
-        self:ParseModInfo( JsonDecode( Response ))
-    end )
+		self:ParseModInfo( JsonDecode( Response ))
+	end )
 end
 
 --[[
