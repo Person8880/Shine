@@ -69,7 +69,7 @@ function Plugin:ParseModInfo( ModInfo )
 
         if not LastKnownUpdate[ Res.publishedfileid ] then
             LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
-        elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated 
+        elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
             self.ChangedModName = Res.title
 
             self:DestroyTimer( ModChangeTimer )
