@@ -160,7 +160,9 @@ function Plugin:OnProcessMove( Player, Input )
 	if DataTable.LastMove + KickTime < Time and Players >= self.Config.MinPlayers then
 		self:ClientDisconnect( Client ) --Failsafe.
 
-		Shine:Print( "Client %s[%s] was AFK for over %s. Kicking...", true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ) )
+		Shine:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
+			true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ),
+			Players, self.Config.MinPlayers )
 
 		Client.DisconnectReason = "AFK for too long"
 
