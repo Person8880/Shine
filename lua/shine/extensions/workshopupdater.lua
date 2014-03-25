@@ -9,6 +9,7 @@ local HTTPRequest = Shared.SendHTTPRequest
 local Huge = math.huge
 local StringFormat = string.format
 local tonumber = tonumber
+local JsonDecode = json.decode
 
 local Plugin = {}
 
@@ -55,65 +56,29 @@ end
 
 local LastKnownUpdate = {}
 
-local function FindCharactersBetween( Response, OpeningCharacters, ClosingCharacters )
-	local Result
-
-	local IndexOfOpeningCharacters = Response:find( OpeningCharacters )
-	
-	if IndexOfOpeningCharacters then
-		local FoundCharacters = Response:sub( IndexOfOpeningCharacters + #OpeningCharacters )
-		local IndexOfClosingCharacters = FoundCharacters:find( ClosingCharacters )
-	
-		if IndexOfClosingCharacters then
-			FoundCharacters = FoundCharacters:sub( 1, IndexOfClosingCharacters - 1 )
-			FoundCharacters = StringTrim( FoundCharacters )
-
-			Result = FoundCharacters
-		end
-	end
-	
-	return Result
-end
-
-local function GetUpdatedTime( Response )
-	return FindCharactersBetween( Response, "Update:", "</div>" )
-end
-
-local function GetModName( Response )
-	return FindCharactersBetween( Response, "<div class=\"workshopItemTitle\">", "</div>" )
-end
-
 --[[
-	Checks a specific mod ID for an update.
-	Input: Base 10 mod ID.
+	Parses Steam Api Response and checks if a Mod got updated
 ]]
-function Plugin:CheckModID( ID )
-	local URL = "http://steamcommunity.com/sharedfiles/filedetails/changelog/"..ID
+function Plugin:ParseModInfo( ModInfo )
 
-	HTTPRequest( URL, "GET", function( Response )
-		if not Response or #Response == 0 then return end
-		if self.ChangedModName then return end
+	local Response = ModInfo.response or {}
 
-		local Update = GetUpdatedTime( Response )
+	if Response.result ~= 1 then return end --Steam Api error
 
-		if not Update then return end
+	for _, Res in pairs( Response.publishedfiledetails ) do
 
-		if not LastKnownUpdate[ ID ] then
-			LastKnownUpdate[ ID ] = Update
-		elseif LastKnownUpdate[ ID ] ~= Update then
-			LastKnownUpdate[ ID ] = Update
+		if not LastKnownUpdate[ Res.publishedfileid ] then
+			LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
+		elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
+			self.ChangedModName = Res.title
 
-			local ModName = GetModName( Response )
+			self:DestroyTimer( ModChangeTimer )
 
-			if ModName and ModName ~= "" then
-				self.ChangedModName = ModName
-
-				self:DestroyTimer( ModChangeTimer )
-
-				self:NotifyOrCycle()
-			end
+			self:NotifyOrCycle()
+			return
 		end
-	end )
+
+	end
 end
 
 --[[
@@ -121,12 +86,19 @@ end
 ]]
 function Plugin:CheckForModChange()
 	local GetMod = Server.GetActiveModId
-	
-	for i = 1, Server.GetNumActiveMods() do
-		local ID = tonumber( GetMod( i ), 16 )
-		
-		self:CheckModID( ID )
+
+	local Params = {}
+
+	Params.itemcount = Server.GetNumActiveMods()
+
+	for i = 1, Params.itemcount do
+		Params[ StringFormat( "publishedfileids[%s]", i-1 ) ] = tonumber( GetMod( i ), 16 )
 	end
+
+	local URL = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+	HTTPRequest( URL, "POST", Params, function( Response )
+		self:ParseModInfo( JsonDecode( Response ))
+	end )
 end
 
 --[[
@@ -135,7 +107,7 @@ end
 	number of notifications.
 ]]
 function Plugin:NotifyOrCycle( Recall )
-	if #Shine.GetAllPlayers() == 0 then
+	if Shine.GetHumanPlayerCount() == 0 then
 		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
 		return
 	end
@@ -165,7 +137,7 @@ function Plugin:NotifyOrCycle( Recall )
 
 		local TimeBeforeChange = RemainingNotifications * self.Config.NotifyInterval
 		if TimeBeforeChange > 5 then
-			TimeRemainingString = "in "..string.TimeToString( TimeBeforeChange )
+			TimeRemainingString = StringFormat( "in %s", string.TimeToString( TimeBeforeChange ))
 		end
 
 		self:Notify( "The map will cycle %s.", true, TimeRemainingString )
