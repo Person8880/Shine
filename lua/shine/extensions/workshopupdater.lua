@@ -67,15 +67,15 @@ function Plugin:ParseModInfo( ModInfo )
 
     for _, Res in pairs( Response.publishedfiledetails ) do
 
-        if LastKnownUpdate[ Res.publishedfileid ] and LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
+        if not LastKnownUpdate[ Res.publishedfileid ] then
+            LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
+        elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated 
             self.ChangedModName = Res.title
 
             self:DestroyTimer( ModChangeTimer )
 
             self:NotifyOrCycle()
             return
-        else
-            LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated
         end
         
     end
@@ -90,8 +90,6 @@ function Plugin:CheckForModChange()
 	local Params = {}
 
 	Params.itemcount = Server.GetNumActiveMods()
-	
-    if Params.itemcount < 1 then return end
     
 	for i = 1, Params.itemcount do
 		Params[ StringFormat( "publishedfileids[%s]", i-1 ) ] = tonumber( GetMod( i ), 16 )
