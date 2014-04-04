@@ -138,6 +138,23 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 end
 
 --[[
+	Returns the number of human players (clients).
+]]
+function Shine.GetHumanPlayerCount()
+	local Count = 0
+
+	local GameIDs = Shine.GameIDs
+
+	for Client, ID in pairs( GameIDs ) do
+		if Client.GetIsVirtual and not Client:GetIsVirtual() then
+			Count = Count + 1
+		end
+	end
+	
+	return Count
+end
+
+--[[
 	Returns a table of all players.
 ]]
 function Shine.GetAllPlayers()
