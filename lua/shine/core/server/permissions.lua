@@ -104,9 +104,12 @@ function Shine:LoadUsers( Web, Reload )
 	self.UserData = Decode( Data )
 
 	if not self.UserData or not next( self.UserData ) then
-		Notify( "[Shine] The user data file is not valid JSON, unable to load user data." )
+		Notify( "The user data file is not valid JSON, unable to load user data." )
 	
-		self.Error = "The user data file is not valid JSON, unable to load user data."
+		--Dummy data to avoid errors.
+		if not Reload then
+			self.UserData = { Groups = {}, Users = {} }
+		end
 
 		return
 	end

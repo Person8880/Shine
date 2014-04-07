@@ -20,9 +20,7 @@ function Shine.LoadJSONFile( Path )
 
 	File:close()
 
-	local Ret = Decode( Data )
-
-	return Ret
+	return Decode( Data )
 end
 
 function Shine.SaveJSONFile( Table, Path )

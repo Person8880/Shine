@@ -7,6 +7,8 @@ local Notify = Shared.Message
 local pairs = pairs
 local StringFormat = string.format
 
+local IsType = Shine.IsType
+
 local ConfigPath = "config://shine/BaseConfig"
 local BackupPath = "config://Shine_BaseConfig"
 
@@ -100,11 +102,13 @@ function Shine:LoadConfig()
 	}
 	
 	local ConfigFile
+	local Err
+	local Pos
 
 	for i = 1, #Paths do
 		local Path = Paths[ i ]
 
-		ConfigFile = self.LoadJSONFile( Path )
+		ConfigFile, Pos, Err = self.LoadJSONFile( Path )
 
 		--Store what path we've loaded from so we update the right one!
 		if ConfigFile then
@@ -114,13 +118,21 @@ function Shine:LoadConfig()
 		end
 	end
 
+	Notify( "Loading Shine config..." )
+
 	if not ConfigFile then
-		self:GenerateDefaultConfig( true )
+		if IsType( Pos, "string" ) then
+			--No file exists.
+			self:GenerateDefaultConfig( true )
+		else
+			--Invalid JSON. Load the default config but don't save.
+			self.Config = DefaultConfig
+
+			Notify( "Config has invalid JSON, loading default..." )
+		end
 
 		return
 	end
-
-	Notify( "Loading Shine config..." )
 
 	self.Config = ConfigFile
 
