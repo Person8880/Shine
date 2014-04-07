@@ -180,6 +180,15 @@ local ParamTypes = {
 		local Target
 		if String == "^" then 
 			Target = Client 
+		elseif String:sub( 1, 1 ) == "$" then
+			local ID = String:sub( 2 )
+			local ToNum = tonumber( ID )
+
+			if ToNum then
+				Target = Shine.GetClientByNS2ID( ToNum )
+			else
+				Target = Shine:GetClientBySteamID( ID )
+			end
 		else
 			Target = Shine:GetClient( String )
 		end
