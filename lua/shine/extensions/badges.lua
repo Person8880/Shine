@@ -42,22 +42,6 @@ function Plugin:Setup()
 		return
 	end
 
-	--These two aren't crucial, but it saves redefining them.
-	local BadgeExists = Shine.GetUpValue( GiveBadge, "sBadgeExists" )
-	local BadgeReserved = Shine.GetUpValue( GiveBadge, "sBadgeReserved" )
-
-	if not BadgeExists then
-		BadgeExists = function( Badge )
-			return TableContains( kBadges, Badge )
-		end
-	end
-
-	if not BadgeReserved then
-		BadgeReserved = function( Badge )
-			return false
-		end
-	end
-
 	local UserData = Shine.UserData
 	if not UserData or not UserData.Groups or not UserData.Users then return end
 
@@ -65,24 +49,7 @@ function Plugin:Setup()
 
 	local InsertUnique = table.insertunique
 
-	local function AssignBadge( ID, BadgeName )
-		if not ID then return false end
-		
-		local ClientBadges = ServerBadges[ ID ]
-
-		if not ClientBadges then
-			ClientBadges = {}
-			ServerBadges[ ID ] = ClientBadges
-		end
-
-		if BadgeExists( BadgeName ) and not BadgeReserved( BadgeName ) then
-			InsertUnique( ClientBadges, BadgeName )
-
-			return true
-		end
-
-		return false
-	end
+	local AssignBadge = GiveBadge
 
 	local function AssignGroupBadge( ID, GroupName, AssignedGroups )
 		local Group = UserData.Groups[ GroupName ]
@@ -123,27 +90,30 @@ function Plugin:Setup()
 
 	for ID, User in pairs( UserData.Users ) do
 		ID = tonumber( ID )
-		local GroupName = User.Group
-		local UserBadge = User.Badge or User.badge
-		local UserBadges = User.Badges or User.badges
 
-		if UserBadge then
-			if not AssignBadge( ID, UserBadge ) then
-				Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
-			end
-		end
+		if ID then
+			local GroupName = User.Group
+			local UserBadge = User.Badge or User.badge
+			local UserBadges = User.Badges or User.badges
 
-		if UserBadges then
-			for i = 1, #UserBadges do
-				local BadgeName = UserBadges[ i ]
-
-				if not AssignBadge( ID, BadgeName ) then
-					Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
+			if UserBadge then
+				if not AssignBadge( ID, UserBadge ) then
+					Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
 				end
 			end
-		end
 
-		AssignGroupBadge( ID, GroupName )
+			if UserBadges then
+				for i = 1, #UserBadges do
+					local BadgeName = UserBadges[ i ]
+
+					if not AssignBadge( ID, BadgeName ) then
+						Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
+					end
+				end
+			end
+
+			AssignGroupBadge( ID, GroupName )
+		end
 	end
 end
 

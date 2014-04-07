@@ -135,7 +135,7 @@ function Shine:LoadClientBaseConfig()
 		return
 	end
 
-	self.Config = Data or {}
+	self.Config = Data
 
 	if self.CheckConfig( self.Config, DefaultConfig ) then
 		self:SaveClientBaseConfig()
