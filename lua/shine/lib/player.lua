@@ -374,19 +374,33 @@ function Shine:GetClientsByGroup( Group )
 	return Ret
 end
 
+local TeamNames = {
+	ns2 = {
+		{ "Marines", "marines" },
+		{ "Aliens", "aliens" },
+		{ "Spectate", "spectate" },
+		{ "Ready Room", "ready room" }
+	},
+	mvm = {
+		{ "Team Blue", "team blue" },
+		{ "Team Orange", "team orange" },
+		{ "Spectate", "spectate" },
+		{ "Ready Room", "ready room" }
+	}
+}
+
 --[[
 	Returns a nice name for the given team number.
 ]]
 function Shine:GetTeamName( Team, Capitals )
-	if Team == 1 then
-		return Capitals and "Marines" or "marines"
-	elseif Team == 2 then
-		return Capitals and "Aliens" or "aliens"
-	elseif Team == 3 then
-		return Capitals and "Spectate" or "spectate"
-	else
-		return Capitals and "Ready Room" or "ready room"
+	local Gamemode = self.GetGamemode()
+	local Names = TeamNames[ Gamemode ] or TeamNames.ns2
+
+	if Team > 3 or Team < 1 then
+		Team = 4
 	end
+
+	return Capitals and Names[ Team ][ 1 ] or Names[ Team ][ 2 ]
 end
 
 local ConsoleInfo = "Console[N/A]"
