@@ -205,13 +205,16 @@ local ParamTypes = {
 
 			local Val = Vals[ i ]
 			local Negate
-			if Val:sub( 1, 1 ) == "!" then
+
+			local ControlChar = Val:sub( 1, 1 )
+
+			if ControlChar == "!" then
 				Val = Val:sub( 2 )
 				Negate = true
 			end
 
 			--Targeting a user group.
-			if Val:sub( 1, 1 ) == "%" then
+			if ControlChar == "%" then
 				local Group = Val:sub( 2 )
 				local InGroup = Shine:GetClientsByGroup( Group )
 
@@ -223,6 +226,21 @@ local ParamTypes = {
 							CurrentTargets[ CurClient ] = true
 						end
 					end
+				end
+			elseif ControlChar == "$" then --Targetting a specific Steam ID.
+				local ID = Val:sub( 2 )
+				local ToNum = tonumber( ID )
+
+				local CurClient
+
+				if ToNum then
+					CurClient = Shine.GetClientByNS2ID( ToNum )
+				else
+					CurClient = Shine:GetClientBySteamID( ID )
+				end
+
+				if CurClient and not CurrentTargets[ CurClient ] then
+					CurrentTargets[ CurClient ] = true
 				end
 			else
 				if Val == "*" then --Targeting everyone.
@@ -283,6 +301,10 @@ local ParamTypes = {
 					Targets[ CurClient ] = true
 				end
 			end
+		end
+
+		if Table.NotSelf and Targets[ Client ] then
+			Targets[ Client ] = nil
 		end
 
 		for CurClient, Bool in pairs( Targets ) do
