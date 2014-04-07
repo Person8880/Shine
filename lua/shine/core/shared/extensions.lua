@@ -189,6 +189,9 @@ function PluginMeta:LoadConfig()
 	local PluginConfig
 	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
+	local Err
+	local Pos
+
 	if Server then
 		local Gamemode = Shine.GetGamemode()
 
@@ -200,7 +203,7 @@ function PluginMeta:LoadConfig()
 			}
 
 			for i = 1, #Paths do
-				local File = Shine.LoadJSONFile( Paths[ i ] )
+				local File, ErrPos, ErrString = Shine.LoadJSONFile( Paths[ i ] )
 
 				if File then
 					PluginConfig = File
@@ -208,17 +211,26 @@ function PluginMeta:LoadConfig()
 					self.__ConfigPath = Paths[ i ]
 
 					break
+				elseif IsType( ErrPos, "number" ) then
+					Err = ErrString
+					Pos = ErrPos
 				end
 			end
 		else
-			PluginConfig = Shine.LoadJSONFile( Path )
+			PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 		end
 	else
-		PluginConfig = Shine.LoadJSONFile( Path )
+		PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 	end
 
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
+	if not PluginConfig or not IsType( PluginConfig, "table" ) then
+		if IsType( Pos, "string" ) then
+			self:GenerateDefaultConfig( true )
+		else
+			Print( "Invalid JSON for %s plugin config, loading default...", self.__Name )
+
+			self.Config = self.DefaultConfig
+		end
 
 		return
 	end

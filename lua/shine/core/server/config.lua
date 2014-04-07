@@ -120,7 +120,7 @@ function Shine:LoadConfig()
 
 	Notify( "Loading Shine config..." )
 
-	if not ConfigFile then
+	if not ConfigFile or not IsType( ConfigFile, "table" ) then
 		if IsType( Pos, "string" ) then
 			--No file exists.
 			self:GenerateDefaultConfig( true )
@@ -312,7 +312,7 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 	local Decoded = Decode( Response )
 
-	if not Decoded then
+	if not Decoded or not IsType( Decoded, "table" ) then
 		self:Print( "[WebConfigs] Web request for plugin configs received invalid JSON. Loading default/cache files..." )
 
 		LoadDefaultConfigs( self, List )

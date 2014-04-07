@@ -5,6 +5,8 @@
 local Shine = Shine
 local Hook = Shine.Hook
 
+local IsType = Shine.IsType
+
 local Plugin = {}
 Plugin.Version = "1.3"
 
@@ -131,7 +133,7 @@ function Plugin:LoadBansFromWeb()
 		if BansData.Banned then
 			self.Config.Banned = BansData.Banned
 		else --NS2 bans file format.
-			if not next( BansData ) then
+			if not IsType( BansData, "table" ) or not next( BansData ) then
 				Shine:Print( "[Error] Received empty or corrupt bans table from the web." )
 
 				return
@@ -165,19 +167,37 @@ function Plugin:OnWebConfigLoaded()
 	end
 end
 
+local function HandleBadJSON( self )
+	Notify( "Invalid JSON for bans plugin config, loading default..." )
+
+	self.Config = DefaultConfig
+end
+
 --[[
 	Loads the bans.
 ]]
 function Plugin:LoadConfig()
-	local PluginConfig = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
+	local PluginConfig, Pos, Err = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
 
 	if not PluginConfig then
-		PluginConfig = Shine.LoadJSONFile( self.SecondaryConfig )
-
-		if not PluginConfig then
-			self:GenerateDefaultConfig( true )
+		if IsType( Pos, "number" ) then
+			HandleBadJSON( self )
 
 			return
+		else
+			PluginConfig, Pos, Err = Shine.LoadJSONFile( self.SecondaryConfig )
+
+			if not PluginConfig then
+				if IsType( Pos, "number" ) then
+					HandleBadJSON( self )
+
+					return
+				else
+					self:GenerateDefaultConfig( true )
+
+					return
+				end
+			end
 		end
 	end
 
