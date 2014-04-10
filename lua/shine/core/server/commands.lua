@@ -152,7 +152,9 @@ local TargetFuncs = {
 	[ "@spectate" ] = function() return Shine.GetTeamClients( 3 ) end,
 	[ "@readyroom" ] = function() return Shine.GetTeamClients( kTeamReadyRoom ) end,
 	[ "@marine" ] = function() return Shine.GetTeamClients( 1 ) end,
-	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end
+	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end,
+	[ "@blue" ] = function() return Shine.GetTeamClients( 1 ) end,
+	[ "@orange" ] = function() return Shine.GetTeamClients( 2 ) end
 }
 
 --These define all valid command parameter types and how to process a string into the type.
@@ -178,6 +180,15 @@ local ParamTypes = {
 		local Target
 		if String == "^" then 
 			Target = Client 
+		elseif String:sub( 1, 1 ) == "$" then
+			local ID = String:sub( 2 )
+			local ToNum = tonumber( ID )
+
+			if ToNum then
+				Target = Shine.GetClientByNS2ID( ToNum )
+			else
+				Target = Shine:GetClientBySteamID( ID )
+			end
 		else
 			Target = Shine:GetClient( String )
 		end
@@ -203,13 +214,16 @@ local ParamTypes = {
 
 			local Val = Vals[ i ]
 			local Negate
-			if Val:sub( 1, 1 ) == "!" then
+
+			local ControlChar = Val:sub( 1, 1 )
+
+			if ControlChar == "!" then
 				Val = Val:sub( 2 )
 				Negate = true
 			end
 
 			--Targeting a user group.
-			if Val:sub( 1, 1 ) == "%" then
+			if ControlChar == "%" then
 				local Group = Val:sub( 2 )
 				local InGroup = Shine:GetClientsByGroup( Group )
 
@@ -221,6 +235,21 @@ local ParamTypes = {
 							CurrentTargets[ CurClient ] = true
 						end
 					end
+				end
+			elseif ControlChar == "$" then --Targetting a specific Steam ID.
+				local ID = Val:sub( 2 )
+				local ToNum = tonumber( ID )
+
+				local CurClient
+
+				if ToNum then
+					CurClient = Shine.GetClientByNS2ID( ToNum )
+				else
+					CurClient = Shine:GetClientBySteamID( ID )
+				end
+
+				if CurClient and not CurrentTargets[ CurClient ] then
+					CurrentTargets[ CurClient ] = true
 				end
 			else
 				if Val == "*" then --Targeting everyone.
@@ -283,6 +312,10 @@ local ParamTypes = {
 			end
 		end
 
+		if Table.NotSelf and Targets[ Client ] then
+			Targets[ Client ] = nil
+		end
+
 		for CurClient, Bool in pairs( Targets ) do
 			Clients[ #Clients + 1 ] = CurClient
 		end
@@ -328,8 +361,10 @@ local ParamTypes = {
 		String = String:lower()
 
 		if String:find( "ready" ) then return 0 end
-		if String:find( "marine" ) then return 1 end	
+		if String:find( "marine" ) then return 1 end
+		if String:find( "blu" ) then return 1 end	
 		if String:find( "alien" ) then return 2 end
+		if String:find( "orang" ) then return 2 end
 		if String:find( "spectat" ) then return 3 end
 
 		return nil

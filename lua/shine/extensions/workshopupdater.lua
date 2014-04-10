@@ -70,18 +70,19 @@ function Plugin:ParseModInfo( ModInfo )
 	if not Response.publishedfiledetails then return end
 
 	for _, Res in pairs( Response.publishedfiledetails ) do
-		if not LastKnownUpdate[ Res.publishedfileid ] then
-			LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
-		elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
-			self.ChangedModName = Res.title
+		if Res.time_updated and Res.title and Res.publishedfileid then
+			if not LastKnownUpdate[ Res.publishedfileid ] then
+				LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
+			elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
+				self.ChangedModName = Res.title
 
-			self:DestroyTimer( ModChangeTimer )
+				self:DestroyTimer( ModChangeTimer )
 
-			self:NotifyOrCycle()
+				self:NotifyOrCycle()
 
-			return
+				return
+			end
 		end
-
 	end
 end
 

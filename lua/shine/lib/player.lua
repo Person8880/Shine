@@ -10,6 +10,7 @@ local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
+local TableSort = table.sort
 local TableToString = table.ToString
 local Traceback = debug.traceback
 
@@ -262,7 +263,7 @@ function Shine.GetClientByNS2ID( ID )
 end
 
 --[[
-	Returns a client matching the given name.
+	Returns the client closest matching the given name.
 ]]
 function Shine.GetClientByName( Name )
 	if type( Name ) ~= "string" then return nil end
@@ -270,18 +271,30 @@ function Shine.GetClientByName( Name )
 	Name = Name:lower()
 
 	local Clients = Shine.GameIDs
+	local SortTable = {}
+	local Count = 0
 
 	for Client in pairs( Clients ) do
 		local Player = Client:GetControllingPlayer()
 
 		if Player then
-			if Player:GetName():lower():find( Name, 1, true ) then
-				return Client
+			local Find = Player:GetName():lower():find( Name, 1, true )
+
+			if Find then
+				Count = Count + 1
+				SortTable[ Count ] = { Client = Client, Index = Find }
 			end
 		end
 	end
 
-	return nil
+	if Count == 0 then return nil end
+
+	--Get the match with the string furthest to the left in their name.
+	TableSort( SortTable, function( A, B )
+		return A.Index < B.Index
+	end )
+
+	return SortTable[ 1 ].Client
 end
 
 function Shine.NS2ToSteamID( ID )
@@ -374,19 +387,33 @@ function Shine:GetClientsByGroup( Group )
 	return Ret
 end
 
+local TeamNames = {
+	ns2 = {
+		{ "Marines", "marines" },
+		{ "Aliens", "aliens" },
+		{ "Spectate", "spectate" },
+		{ "Ready Room", "ready room" }
+	},
+	mvm = {
+		{ "Team Blue", "team blue" },
+		{ "Team Orange", "team orange" },
+		{ "Spectate", "spectate" },
+		{ "Ready Room", "ready room" }
+	}
+}
+
 --[[
 	Returns a nice name for the given team number.
 ]]
 function Shine:GetTeamName( Team, Capitals )
-	if Team == 1 then
-		return Capitals and "Marines" or "marines"
-	elseif Team == 2 then
-		return Capitals and "Aliens" or "aliens"
-	elseif Team == 3 then
-		return Capitals and "Spectate" or "spectate"
-	else
-		return Capitals and "Ready Room" or "ready room"
+	local Gamemode = self.GetGamemode()
+	local Names = TeamNames[ Gamemode ] or TeamNames.ns2
+
+	if Team > 3 or Team < 1 then
+		Team = 4
 	end
+
+	return Capitals and Names[ Team ][ 1 ] or Names[ Team ][ 2 ]
 end
 
 local ConsoleInfo = "Console[N/A]"
