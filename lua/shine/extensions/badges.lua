@@ -64,13 +64,11 @@ function Plugin:Setup()
 		end
 		
 		for Row, GroupRowBadges in pairs( GroupBadges ) do
-			if GroupRowBadges then
-				for i = 1, #GroupRowBadges do
-					local BadgeName = GroupRowBadges[ i ]
+			for i = 1, #GroupRowBadges do
+				local BadgeName = GroupRowBadges[ i ]
 
-					if not AssignBadge( ID, BadgeName, Row ) then
-						Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
-					end
+				if not AssignBadge( ID, BadgeName, Row ) then
+					Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
 				end
 			end
 		end
@@ -108,13 +106,11 @@ function Plugin:Setup()
 				end
 				
 				for Row, UserRowBadges in pairs( UserBadges ) do
-					if UserRowBadges then
-						for i = 1, #UserRowBadges do
-							local BadgeName = UserRowBadges[ i ]
-
-							if not AssignBadge( ID, BadgeName, Row ) then
-								Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
-							end
+					for i = 1, #UserRowBadges do
+						local BadgeName = UserRowBadges[ i ]
+	
+						if not AssignBadge( ID, BadgeName, Row ) then
+							Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
 						end
 					end
 				end
