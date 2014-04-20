@@ -3,8 +3,6 @@
 ]]
 
 local pairs = pairs
-local TableContains = table.contains
-local TableEmpty = table.Empty
 local tonumber = tonumber
 local type = type
 
@@ -30,22 +28,13 @@ function Plugin:Initialise()
 end
 
 function Plugin:Setup()
-	if not BadgeMixin then return end
-	if not kBadges then return end
-	if not GiveBadge then return end
-
-	--We need three upvalues from the GiveBadge function.
-	local ServerBadges = Shine.GetUpValue( GiveBadge, "sServerBadges" )
-
-	if not ServerBadges then
-		Shared.Message( "[Shine] Unable to find ServerBadges table, badge plugin cannot load." )
+	if not GiveBadge then
+		Shared.Message( "[Shine] Unable to find the badge mod, badge plugin cannot load." )
 		return
 	end
 
 	local UserData = Shine.UserData
 	if not UserData or not UserData.Groups or not UserData.Users then return end
-
-	TableEmpty( ServerBadges )
 
 	local InsertUnique = table.insertunique
 
@@ -63,16 +52,26 @@ function Plugin:Setup()
 		AssignedGroups[ GroupName ] = true
 		
 		local GroupBadges = Group.Badges or Group.badges or {}
-
-		if Group.Badge or Group.badge then
-			InsertUnique( GroupBadges, Group.Badge or Group.badge )
+		
+		if GroupBadges[ 1 ] and type( GroupBadges[ 1 ] ) == "string" then
+			GroupBadges = {}
+			GroupBadges[ 3 ] = Group.Badges or Group.badges
 		end
+		
+		if Group.Badge or Group.badge then
+			if not GroupBadges[ 3 ] then GroupBadges[ 3 ] = {} end
+			InsertUnique( GroupBadges[ 3 ], Group.Badge or Group.badge )
+		end
+		
+		for Row, GroupRowBadges in pairs( GroupBadges ) do
+			if GroupRowBadges then
+				for i = 1, #GroupRowBadges do
+					local BadgeName = GroupRowBadges[ i ]
 
-		for i = 1, #GroupBadges do
-			local BadgeName = GroupBadges[ i ]
-
-			if not AssignBadge( ID, BadgeName ) then
-				Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
+					if not AssignBadge( ID, BadgeName, Row ) then
+						Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
+					end
+				end
 			end
 		end
 
@@ -101,13 +100,22 @@ function Plugin:Setup()
 					Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
 				end
 			end
-
+			
 			if UserBadges then
-				for i = 1, #UserBadges do
-					local BadgeName = UserBadges[ i ]
+				if UserBadges[ 1 ] and type( UserBadges[ 1 ] ) == "string" then
+					UserBadges = {}
+					UserBadges[ 3 ] = User.Badges or User.badges
+				end
+				
+				for Row, UserRowBadges in pairs( UserBadges ) do
+					if UserRowBadges then
+						for i = 1, #UserRowBadges do
+							local BadgeName = UserRowBadges[ i ]
 
-					if not AssignBadge( ID, BadgeName ) then
-						Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
+							if not AssignBadge( ID, BadgeName, Row ) then
+								Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
+							end
+						end
 					end
 				end
 			end
