@@ -171,8 +171,6 @@ function Plugin:Initialise()
 		end
 	end
 
-	self:CreateCommands()
-
 	local MapCount = TableCount( self.Config.Maps )
 	local AllowVotes = MapCount > 1
 
@@ -245,6 +243,8 @@ function Plugin:Initialise()
 	if self.Config.ExcludeLastMaps > 0 then
 		self:LoadLastMaps()
 	end
+
+	self:CreateCommands()
 
 	self.Enabled = true
 
