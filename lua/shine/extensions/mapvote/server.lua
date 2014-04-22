@@ -178,6 +178,13 @@ function Plugin:Initialise()
 		self.Config.EnableRTV = false
 	end
 
+	self.MapCycle = Cycle or {}
+	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
+
+	if not self.MapCycle.maps then
+		return false, "MapCycle.json is missing maps list"
+	end
+
 	if self.Config.EnableNextMapVote then
 		if AllowVotes then
 			if self.Config.NextMapVote == 1 or self.Config.RoundLimit > 0 then
@@ -194,13 +201,6 @@ function Plugin:Initialise()
 				end )
 			end
 		end
-	end
-
-	self.MapCycle = Cycle or {}
-	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
-
-	if not self.MapCycle.maps then
-		return false, "MapCycle.json is missing maps list"
 	end
 
 	local ForcedMaps = self.Config.ForcedMaps
