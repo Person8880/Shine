@@ -674,12 +674,6 @@ Add( "Think", "ReplaceMethods", function()
 				OldStartVote( VoteName, Client, Data )
 			end
 		end )
-
-		if OldStartVote then
-			Print( "Replaced StartVote successfully." )
-		else
-			Print( "Failed to replace StartVote." )
-		end
 	end
 
 	Remove( "Think", "ReplaceMethods" )
