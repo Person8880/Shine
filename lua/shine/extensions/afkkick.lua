@@ -112,7 +112,14 @@ function Plugin:OnProcessMove( Player, Input )
 		DataTable.LastMove = Time
 		DataTable.Warn = false
 
-		return 
+		return
+	end
+
+	if Player:GetIsWaitingForTeamBalance() then
+		DataTable.LastMove = Time
+		DataTable.Warn = false
+
+		return
 	end
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
