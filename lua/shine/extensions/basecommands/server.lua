@@ -769,7 +769,7 @@ function Plugin:CreateCommands()
 	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
 	ChangeTeamCommand:AddParam{ Type = "clients" }
 	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify a team to move to." }
-	ChangeTeamCommand:Help( "<players> <marine/alien> Sets the given player(s) onto the given team." )
+	ChangeTeamCommand:Help( "<players> <team name> Sets the given player(s) onto the given team." )
 
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
 		Server.SetConfigSetting( "auto_team_balance", Enable and { enabled_on_unbalance_amount = UnbalanceAmount, enabled_after_seconds = Delay } or nil )
@@ -841,9 +841,9 @@ function Plugin:CreateCommands()
 		Shine:Notify( Players, "Team", ( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
 	end
 	local AdminTeamSayCommand = self:BindCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
-	AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify either marines or aliens." }
+	AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify a team." }
 	AdminTeamSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, MaxLength = kMaxChatLength, Error = "Please specify a message." }
-	AdminTeamSayCommand:Help( "<marine/alien> <message> Sends a message to everyone on the given team." )
+	AdminTeamSayCommand:Help( "<team name> <message> Sends a message to everyone on the given team." )
 
 	local function PM( Client, Target, Message )
 		if not Client then
