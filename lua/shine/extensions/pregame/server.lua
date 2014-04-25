@@ -38,7 +38,7 @@ Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "Ac
 function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()
 
-	if Gamemode ~= "ns2" then
+	if Gamemode ~= "ns2" and Gamemode ~= "mvm" then
 		return false, StringFormat( "The pregame plugin does not work with %s.", Gamemode )
 	end
 
@@ -145,7 +145,8 @@ Plugin.UpdateFuncs = {
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
-				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true,
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 			end
 
 			return
@@ -222,7 +223,8 @@ Plugin.UpdateFuncs = {
 
 				Shine:RemoveText( nil, { ID = 2 } )
 
-				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true,
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 				self.GameStarting = false
 
@@ -291,7 +293,8 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+					self:Notify( nil, "Game start aborted, %s is empty.", true,
+						Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 					self.GameStarting = false
 
@@ -312,7 +315,8 @@ Plugin.UpdateFuncs = {
 				self.CountStart = nil
 				self.CountEnd = nil
 
-				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true,
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
@@ -330,8 +334,13 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = Time + Duration
 
 				if self.Config.ShowCountdown then
+					local Team1Name = Shine:GetTeamName( 1, true )
+					local Team2Name = Shine:GetTeamName( 2, true )
+					
 					local Message = StringFormat( "%s have a commander. %s have %s to choose their commander.",
-						Team1Com and "Marines" or "Aliens", Team1Com and "Aliens" or "Marines", string.TimeToString( Duration ) )
+						Team1Com and Team1Name or Team2Name, 
+						Team1Com and Team2Name or Team1Name, 
+						string.TimeToString( Duration ) )
 
 					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, Message, 5, 255, 255, 255, 1, 3, 1 ) )
 				end
@@ -477,7 +486,8 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+					self:Notify( nil, "Game start aborted, %s is empty.", true,
+						Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 					self.GameStarting = false
 
@@ -529,7 +539,8 @@ Plugin.UpdateFuncs = {
 						local Team2Count = Team2:GetNumPlayers()
 
 						if Team1Count == 0 or Team2Count == 0 then
-							self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+							self:Notify( nil, "Game start aborted, %s is empty.", true,
+								Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 							self.StartedGame = false
 

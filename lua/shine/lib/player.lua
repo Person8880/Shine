@@ -389,23 +389,23 @@ end
 
 local TeamNames = {
 	ns2 = {
-		{ "Marines", "marines" },
-		{ "Aliens", "aliens" },
-		{ "Spectate", "spectate" },
-		{ "Ready Room", "ready room" }
+		{ "Marines", "marines", "marine team" },
+		{ "Aliens", "aliens", "alien team" },
+		{ "Spectate", "spectate", "spectate" },
+		{ "Ready Room", "ready room", "ready room" }
 	},
 	mvm = {
-		{ "Team Blue", "team blue" },
-		{ "Team Gold", "team gold" },
-		{ "Spectate", "spectate" },
-		{ "Ready Room", "ready room" }
+		{ "Blue Team", "blue team", "blue team" },
+		{ "Gold Team", "gold team", "gold team" },
+		{ "Spectate", "spectate", "spectate" },
+		{ "Ready Room", "ready room", "ready room" }
 	}
 }
 
 --[[
 	Returns a nice name for the given team number.
 ]]
-function Shine:GetTeamName( Team, Capitals )
+function Shine:GetTeamName( Team, Capitals, Singular )
 	local Gamemode = self.GetGamemode()
 	local Names = TeamNames[ Gamemode ] or TeamNames.ns2
 
@@ -413,7 +413,15 @@ function Shine:GetTeamName( Team, Capitals )
 		Team = 4
 	end
 
-	return Capitals and Names[ Team ][ 1 ] or Names[ Team ][ 2 ]
+	if Capitals then
+		return Names[ Team ][ 1 ]
+	end
+
+	if Singular then
+		return Names[ Team ][ 3 ]
+	end
+
+	return Names[ Team ][ 2 ]
 end
 
 local ConsoleInfo = "Console[N/A]"
