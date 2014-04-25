@@ -154,7 +154,8 @@ local TargetFuncs = {
 	[ "@marine" ] = function() return Shine.GetTeamClients( 1 ) end,
 	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end,
 	[ "@blue" ] = function() return Shine.GetTeamClients( 1 ) end,
-	[ "@orange" ] = function() return Shine.GetTeamClients( 2 ) end
+	[ "@orange" ] = function() return Shine.GetTeamClients( 2 ) end,
+	[ "@gold" ] = function() return Shine.GetTeamClients( 2 ) end
 }
 
 --These define all valid command parameter types and how to process a string into the type.
@@ -365,6 +366,7 @@ local ParamTypes = {
 		if String:find( "blu" ) then return 1 end	
 		if String:find( "alien" ) then return 2 end
 		if String:find( "orang" ) then return 2 end
+		if String:find( "gold" ) then return 2 end
 		if String:find( "spectat" ) then return 3 end
 
 		return nil

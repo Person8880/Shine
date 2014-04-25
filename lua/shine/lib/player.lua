@@ -396,7 +396,7 @@ local TeamNames = {
 	},
 	mvm = {
 		{ "Team Blue", "team blue" },
-		{ "Team Orange", "team orange" },
+		{ "Team Gold", "team gold" },
 		{ "Spectate", "spectate" },
 		{ "Ready Room", "ready room" }
 	}
