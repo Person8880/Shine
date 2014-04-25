@@ -2,9 +2,12 @@
 	Shine permissions/user ranking system.
 ]]
 
+local Shine = Shine
+
 Shine.UserData = {}
 
 local Encode, Decode = json.encode, json.decode
+local GetClientById = Server.GetClientById
 local Notify = Shared.Message
 
 local IsType = Shine.IsType
@@ -665,3 +668,19 @@ function Shine:IsInGroup( Client, Group )
 	
 	return Group:lower() == "guest"
 end
+
+--Deny vote kicks on players that are above in immunity level.
+Shine.Hook.Add( "NS2StartVote", "ImmunityCheck", function( VoteName, Client, Data )
+	if VoteName ~= "VoteKickPlayer" then return end
+	
+	local Target = Data.kick_client
+	if not Target then return end
+	
+	local TargetClient = GetClientById( Target )
+
+	if not TargetClient then return end
+
+	if not Shine:CanTarget( Client, TargetClient ) then
+		return false
+	end
+end )

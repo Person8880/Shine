@@ -658,6 +658,24 @@ Add( "Think", "ReplaceMethods", function()
 		return OldTestCycle()
 	end
 
+	local HookStartVote = Shine.GetUpValue( RegisterVoteType, "HookStartVote" )
+	if HookStartVote then
+		local OldStartVote
+		OldStartVote = Shine.SetUpValue( HookStartVote, "StartVote",
+		function( VoteName, Client, Data )
+			local Override = Call( "NS2StartVote", VoteName, Client, Data )
+
+			if Override == false then
+				Server.SendNetworkMessage( Client, "VoteCannotStart",
+					{
+						reason = kVoteCannotStartReason.DisabledByAdmin
+					}, true )
+			else
+				OldStartVote( VoteName, Client, Data )
+			end
+		end )
+	end
+
 	Remove( "Think", "ReplaceMethods" )
 end )
 

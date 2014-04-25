@@ -556,11 +556,17 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		Plugin:LoadConfig()
 	end
 
+	local Success, Err = Plugin:Initialise()
+
+	if not Success then
+		return false, Err
+	end
+
 	if Server and Plugin.IsShared and next( self.GameIDs ) then --We need to inform clients to enable the client portion.
 		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
 	end
 
-	return Plugin:Initialise()
+	return true
 end
 
 function Shine:UnloadExtension( Name )

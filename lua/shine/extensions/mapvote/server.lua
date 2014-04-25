@@ -171,13 +171,18 @@ function Plugin:Initialise()
 		end
 	end
 
-	self:CreateCommands()
-
 	local MapCount = TableCount( self.Config.Maps )
 	local AllowVotes = MapCount > 1
 
 	if not AllowVotes then
 		self.Config.EnableRTV = false
+	end
+
+	self.MapCycle = Cycle or {}
+	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
+
+	if not self.MapCycle.maps then
+		return false, "MapCycle.json is missing maps list"
 	end
 
 	if self.Config.EnableNextMapVote then
@@ -196,13 +201,6 @@ function Plugin:Initialise()
 				end )
 			end
 		end
-	end
-
-	self.MapCycle = Cycle or {}
-	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
-
-	if not self.MapCycle.maps then
-		return false, "MapCycle.json is missing maps list"
 	end
 
 	local ForcedMaps = self.Config.ForcedMaps
@@ -245,6 +243,8 @@ function Plugin:Initialise()
 	if self.Config.ExcludeLastMaps > 0 then
 		self:LoadLastMaps()
 	end
+
+	self:CreateCommands()
 
 	self.Enabled = true
 
