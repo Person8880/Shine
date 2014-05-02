@@ -55,12 +55,12 @@ function Plugin:Setup()
 		
 		if GroupBadges[ 1 ] and type( GroupBadges[ 1 ] ) == "string" then
 			GroupBadges = {}
-			GroupBadges[ 3 ] = Group.Badges or Group.badges
+			GroupBadges[ 5 ] = Group.Badges or Group.badges
 		end
 		
 		if Group.Badge or Group.badge then
-			if not GroupBadges[ 3 ] then GroupBadges[ 3 ] = {} end
-			InsertUnique( GroupBadges[ 3 ], Group.Badge or Group.badge )
+			if not GroupBadges[ 5 ] then GroupBadges[ 5 ] = {} end
+			InsertUnique( GroupBadges[ 5 ], Group.Badge or Group.badge )
 		end
 		
 		for Row, GroupRowBadges in pairs( GroupBadges ) do
@@ -102,7 +102,7 @@ function Plugin:Setup()
 			if UserBadges then
 				if UserBadges[ 1 ] and type( UserBadges[ 1 ] ) == "string" then
 					UserBadges = {}
-					UserBadges[ 3 ] = User.Badges or User.badges
+					UserBadges[ 5 ] = User.Badges or User.badges
 				end
 				
 				for Row, UserRowBadges in pairs( UserBadges ) do
