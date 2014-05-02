@@ -615,7 +615,7 @@ function Plugin:CreateCommands()
 	local function SuspendPlugin( Client, Name )
 		local Plugin = Shine.Plugins[ Name ]
 
-		if not Plugin.Enabled then
+		if not Plugin or not Plugin.Enabled then
 			Shine:AdminPrint( Client, StringFormat( "The plugin %s is not loaded or already suspended.", Name ) )
 
 			return
@@ -634,8 +634,8 @@ function Plugin:CreateCommands()
 	local function ResumePlugin( Client, Name )
 		local Plugin = Shine.Plugins[ Name ]
 
-		if Plugin.Enabled or not Plugin.Suspended then
-			Shine:AdminPrint( Client, StringFormat( "The plugin %s is already running or is not suspended.", Name ) )
+		if not Plugin or Plugin.Enabled or not Plugin.Suspended then
+			Shine:AdminPrint( Client, StringFormat( "The plugin %s is already running or is not suspended or not loaded.", Name ) )
 
 			return
 		end
