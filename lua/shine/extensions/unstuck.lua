@@ -97,8 +97,6 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		Server.SendNetworkMessage( Client, "Shine_Command", { Command = "annotate Shine unstuck was used here." }, true )
-
 		local Success = self:UnstickPlayer( Player, Player:GetOrigin() )
 
 		if Success then
