@@ -596,9 +596,9 @@ function Shine:CanTarget( Client, Target )
 
 	local User = Users[ tostring( ID ) ]
 	local TargetUser = Users[ tostring( TargetID ) ]
-
-	if not User then return false end --No user data, guest cannot target others.
+	
 	if not TargetUser then return true end --Target is a guest, can always target guests.
+	if not User then return false end --No user data, guest cannot target others.
 
 	local Group = Groups[ User.Group or -1 ]
 	local TargetGroup = Groups[ TargetUser.Group or -1 ]
