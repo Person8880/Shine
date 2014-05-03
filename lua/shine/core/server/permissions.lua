@@ -15,6 +15,7 @@ local IsType = Shine.IsType
 local next = next
 local pairs = pairs
 local TableContains = table.contains
+local TableEmpty = table.Empty
 local tonumber = tonumber
 local tostring = tostring
 
@@ -486,6 +487,12 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	end
 end
 
+local PermissionCache = {}
+
+Shine.Hook.Add( "OnUserReload", "FlushPermissionCache", function()
+	TableEmpty( PermissionCache )
+end )
+
 --[[
 	Checks all inherited groups to determine command access.
 	Inputs: SteamID, user table, group name, group table, command name.
@@ -507,10 +514,16 @@ function Shine:GetPermissionInheritance( ID, User, GroupName, GroupTable, ConCom
 		return false
 	end
 
-	local Permissions = {}
 	local Blacklist = GroupTable.IsBlacklist
+	local Permissions = PermissionCache[ GroupName ]
 
-	BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
+	if not Permissions then
+		Permissions = {}
+
+		BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
+
+		PermissionCache[ GroupName ] = Permissions
+	end
 
 	if Blacklist then
 		if not Permissions[ ConCommand ] then
