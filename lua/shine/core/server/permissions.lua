@@ -33,7 +33,7 @@ function Shine:RequestUsers( Reload )
 
 		local UserData = Decode( Response ) or {}
 
-		if not next( UserData ) then
+		if not IsType( UserData, "table" ) or not next( UserData ) then
 			if Reload then --Don't replace with a blank table if request failed when reloading.
 				self:AdminPrint( nil, "Reloading from the web failed. User data has not been changed." )
 
