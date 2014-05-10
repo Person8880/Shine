@@ -1168,8 +1168,8 @@ function Plugin:CreateCommands()
 			Notify( Err )
 		end
 	end
-	local VoteRandomCommand = self:BindCommand( "sh_voterandom", { "random", "voterandom", "randomvote" }, VoteRandom, true )
-	VoteRandomCommand:Help( "Votes to force random teams." )
+	local VoteRandomCommand = self:BindCommand( "sh_voterandom", { "random", "voterandom", "randomvote", "shuffle", "voteshuffle", "shufflevote" }, VoteRandom, true )
+	VoteRandomCommand:Help( "Votes to force shuffled teams." )
 
 	local function ForceRandomTeams( Client, Enable )
 		if Enable then
@@ -1189,9 +1189,9 @@ function Plugin:CreateCommands()
 			self:Notify( nil, "%s teams were disabled.", true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 		end
 	end
-	local ForceRandomCommand = self:BindCommand( "sh_enablerandom", "enablerandom", ForceRandomTeams )
+	local ForceRandomCommand = self:BindCommand( "sh_enablerandom", { "enablerandom", "enableshuffle" }, ForceRandomTeams )
 	ForceRandomCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.ForceRandom end }
-	ForceRandomCommand:Help( "<true/false> Enables or disables forcing random teams." )
+	ForceRandomCommand:Help( "<true/false> Enables (and applies) or disables forcing shuffled teams." )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )
