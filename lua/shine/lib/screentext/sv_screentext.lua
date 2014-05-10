@@ -2,8 +2,6 @@
 	Screen text rendering server side file.
 ]]
 
-Shine = Shine or {}
-
 local function SendMessage( Player, Name, Message )
 	if Player then
 		Server.SendNetworkMessage( Player, Name, Message, true )
