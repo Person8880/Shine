@@ -214,23 +214,24 @@ end
 local function Help( Client, Search )
 	local PageSize = 25
 	
-	local GetBoundaryIndexes = function( PageNumber )
+	local function GetBoundaryIndexes( PageNumber )
 		local LastIndexToShow = PageSize * PageNumber
 		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+
 		return FirstIndexToShow, LastIndexToShow
 	end
 
-	local CommandsAppearOnPage = function( TotalCommandsCount, PageNumber )
+	local function CommandsAppearOnPage( TotalCommandsCount, PageNumber )
 		local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
-		local Result = FirstIndexToShow <= TotalCommandsCount
-		return Result
+
+		return FirstIndexToShow <= TotalCommandsCount
 	end
 
-	local CommandAppearsOnPage = function( Index, PageNumber )
+	local function CommandAppearsOnPage( Index, PageNumber )
 		local LastIndexToShow = PageSize * PageNumber
 		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
-		local Result = Index >= FirstIndexToShow and Index <= LastIndexToShow
-		return Result
+
+		return Index >= FirstIndexToShow and Index <= LastIndexToShow
 	end
 
 	local Query = tostring( Search )
@@ -299,7 +300,7 @@ end
 function Plugin:CreateCommands()
 	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
 	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true }
-	HelpCommand:Help( "<searchText> View help info for available commands (omit <searchText> to see all)." )
+	HelpCommand:Help( "<search text> View help info for available commands (omit <search text> to see all)." )
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
@@ -556,9 +557,9 @@ function Plugin:CreateCommands()
 
 	local function ResetGame( Client )
 		local Gamerules = GetGamerules()
-		if Gamerules then
-			Gamerules:ResetGame()
-		end
+		if not Gamerules then return end
+
+		Gamerules:ResetGame()
 
 		Shine:CommandNotify( Client, "reset the game." )
 	end
@@ -670,17 +671,17 @@ function Plugin:CreateCommands()
 
 	local function ReadyRoom( Client, Targets )
 		local Gamerules = GetGamerules()
-		if Gamerules then
-			local TargetCount = #Targets
+		if not Gamerules then return end
 
-			for i = 1, TargetCount do
-				Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), kTeamReadyRoom, nil, true )
-			end
+		local TargetCount = #Targets
 
-			if TargetCount > 0 then
-				local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
-				Shine:CommandNotify( Client, "moved %s to the ready room.", true, Players )
-			end
+		for i = 1, TargetCount do
+			Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), kTeamReadyRoom, nil, true )
+		end
+
+		if TargetCount > 0 then
+			local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
+			Shine:CommandNotify( Client, "moved %s to the ready room.", true, Players )
 		end
 	end
 	local ReadyRoomCommand = self:BindCommand( "sh_rr", "rr", ReadyRoom )
@@ -690,58 +691,57 @@ function Plugin:CreateCommands()
 	local function ForceRandom( Client, Targets )
 		local Gamerules = GetGamerules()
 
-		if Gamerules then
-			TableShuffle( Targets )
+		if not Gamerules then return end
 
-			local NumPlayers = #Targets
-			if NumPlayers == 0 then return end
+		TableShuffle( Targets )
 
-			local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
-			local TeamMembers = {
-				{},
-				{}
-			}
+		local NumPlayers = #Targets
+		if NumPlayers == 0 then return end
 
-			local TargetList = {}
+		local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+		local TeamMembers = {
+			{},
+			{}
+		}
 
-			for i = 1, NumPlayers do
-				local Player = Targets[ i ]:GetControllingPlayer()
+		local TargetList = {}
 
-				if Player then
-					TargetList[ Player ] = true
-					Targets[ i ] = Player
-				end
-				--Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), TeamSequence[ i ], nil, true )
+		for i = 1, NumPlayers do
+			local Player = Targets[ i ]:GetControllingPlayer()
+
+			if Player then
+				TargetList[ Player ] = true
+				Targets[ i ] = Player
 			end
-
-			local Players = Shine.GetAllPlayers()
-
-			for i = 1, #Players do
-				local Player = Players[ i ]
-
-				if Player and not TargetList[ Player ] then
-					local TeamTable = TeamMembers[ Player:GetTeamNumber() ]
-
-					if TeamTable then
-						TeamTable[ #TeamTable + 1 ] = Player
-					end
-				end
-			end
-
-			for i = 1, NumPlayers do
-				local Player = Targets[ i ]
-
-				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
-
-				TeamTable[ #TeamTable + 1 ] = Player
-			end
-
-			Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
-
-			local PlayerString = NumPlayers == 1 and "1 player" or NumPlayers.." players"
-
-			Shine:CommandNotify( Client, "placed %s onto a random team.", true, PlayerString )
 		end
+
+		local Players = Shine.GetAllPlayers()
+
+		for i = 1, #Players do
+			local Player = Players[ i ]
+
+			if Player and not TargetList[ Player ] then
+				local TeamTable = TeamMembers[ Player:GetTeamNumber() ]
+
+				if TeamTable then
+					TeamTable[ #TeamTable + 1 ] = Player
+				end
+			end
+		end
+
+		for i = 1, NumPlayers do
+			local Player = Targets[ i ]
+
+			local TeamTable = TeamMembers[ TeamSequence[ i ] ]
+
+			TeamTable[ #TeamTable + 1 ] = Player
+		end
+
+		Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
+
+		local PlayerString = NumPlayers == 1 and "1 player" or NumPlayers.." players"
+
+		Shine:CommandNotify( Client, "placed %s onto a random team.", true, PlayerString )
 	end
 	local ForceRandomCommand = self:BindCommand( "sh_forcerandom", "forcerandom", ForceRandom )
 	ForceRandomCommand:AddParam{ Type = "clients" }
@@ -749,21 +749,21 @@ function Plugin:CreateCommands()
 
 	local function ChangeTeam( Client, Targets, Team )
 		local Gamerules = GetGamerules()
-		if Gamerules then
-			local TargetCount = #Targets
+		if not Gamerules then return end
 
-			for i = 1, TargetCount do
-				local Player = Targets[ i ]:GetControllingPlayer()
+		local TargetCount = #Targets
 
-				if Player then
-					Gamerules:JoinTeam( Player, Team, nil, true )
-				end
+		for i = 1, TargetCount do
+			local Player = Targets[ i ]:GetControllingPlayer()
+
+			if Player then
+				Gamerules:JoinTeam( Player, Team, nil, true )
 			end
+		end
 
-			if TargetCount > 0 then
-				local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
-				Shine:CommandNotify( Client, "moved %s to the %s.", true, Players, Shine:GetTeamName( Team ) )
-			end
+		if TargetCount > 0 then
+			local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
+			Shine:CommandNotify( Client, "moved %s to the %s.", true, Players, Shine:GetTeamName( Team ) )
 		end
 	end
 	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
@@ -810,17 +810,17 @@ function Plugin:CreateCommands()
 	local function Eject( Client, Target )
 		local Player = Target:GetControllingPlayer()
 
-		if Player then
-			if Player:isa( "Commander" ) then
-				Player:Eject()
+		if not Player then return end
 
-				Shine:CommandNotify( Client, "ejected %s.", true, Player:GetName() or "<unknown>" )
+		if Player:isa( "Commander" ) then
+			Player:Eject()
+
+			Shine:CommandNotify( Client, "ejected %s.", true, Player:GetName() or "<unknown>" )
+		else
+			if Client then
+				Shine:NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
 			else
-				if Client then
-					Shine:NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
-				else
-					Shine:Print( "%s is not a commander.", true, Player:GetName() )
-				end
+				Shine:Print( "%s is not a commander.", true, Player:GetName() )
 			end
 		end
 	end
