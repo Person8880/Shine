@@ -6,7 +6,6 @@ local pairs = pairs
 local tonumber = tonumber
 local IsType = Shine.IsType
 local Notify = Shared.Message
-local StringFormat = string.format
 local InsertUnique = table.insertunique
 local AssignBadge = GiveBadge
 
