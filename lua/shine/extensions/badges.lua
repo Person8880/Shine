@@ -4,7 +4,11 @@
 
 local pairs = pairs
 local tonumber = tonumber
-local type = type
+local IsType = Shine.IsType
+local Notify = Shared.Message
+local StringFormat = string.format
+local InsertUnique = table.insertunique
+local AssignBadge = GiveBadge
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -29,16 +33,12 @@ end
 
 function Plugin:Setup()
 	if not GiveBadge then
-		Shared.Message( "[Shine] Unable to find the badge mod, badge plugin cannot load." )
+		Notify( "[Shine] Unable to find the badge mod, badge plugin cannot load." )
 		return
 	end
 
 	local UserData = Shine.UserData
 	if not UserData or not UserData.Groups or not UserData.Users then return end
-
-	local InsertUnique = table.insertunique
-
-	local AssignBadge = GiveBadge
 
 	local function AssignGroupBadge( ID, GroupName, AssignedGroups )
 		local Group = UserData.Groups[ GroupName ]
@@ -53,7 +53,7 @@ function Plugin:Setup()
 		
 		local GroupBadges = Group.Badges or Group.badges or {}
 		
-		if GroupBadges[ 1 ] and type( GroupBadges[ 1 ] ) == "string" then
+		if GroupBadges[ 1 ] and IsType( GroupBadges[ 1 ], "string" ) then
 			GroupBadges = {}
 			GroupBadges[ 5 ] = Group.Badges or Group.badges
 		end
@@ -100,7 +100,7 @@ function Plugin:Setup()
 			end
 			
 			if UserBadges then
-				if UserBadges[ 1 ] and type( UserBadges[ 1 ] ) == "string" then
+				if UserBadges[ 1 ] and IsType( UserBadges[ 1 ], "string" ) then
 					UserBadges = {}
 					UserBadges[ 5 ] = User.Badges or User.badges
 				end
@@ -123,10 +123,6 @@ end
 
 function Plugin:OnUserReload()
 	self:Setup()
-end
-
-function Plugin:Cleanup()
-	self.Enabled = false
 end
 
 Shine:RegisterExtension( "badges", Plugin )
