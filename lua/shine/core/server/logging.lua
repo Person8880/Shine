@@ -40,7 +40,8 @@ Shared.OldMessage = Shared.OldMessage or Shared.Message
 	
 	and this function was its first feature.
 ]]
-function Shared.Message( String )
+function Shared.Message( String, Format, ... )
+	String = Format and StringFormat( String, Format, ... ) or String
 	return Shared.OldMessage( GetTimeString()..String )
 end
 
