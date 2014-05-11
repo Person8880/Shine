@@ -4,9 +4,6 @@
 
 local Shine = Shine
 
-local Encode, Decode = json.encode, json.decode
-local Notify = Shared.Message
-
 local TableRemove = table.remove
 local type = type
 

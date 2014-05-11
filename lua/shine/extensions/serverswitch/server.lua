@@ -5,7 +5,6 @@
 local Shine = Shine
 
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 
 local Plugin = Plugin

@@ -5,8 +5,6 @@
 local Shine = Shine
 
 local GetOwner = Server.GetOwner
-local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 
 local Ceil = math.ceil

@@ -6,7 +6,6 @@ local Shine = Shine
 
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
-local Notify = Shared.Message
 local SharedTime = Shared.GetTime
 
 local Plugin = {}

@@ -5,7 +5,6 @@
 Shine = {}
 
 local include = Script.Load
-local Notify = Shared.Message
 local StringFormat = string.format
 
 local Scripts = {
