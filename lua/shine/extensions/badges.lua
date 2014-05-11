@@ -7,7 +7,6 @@ local tonumber = tonumber
 local IsType = Shine.IsType
 local Notify = Shared.Message
 local InsertUnique = table.insertunique
-local AssignBadge = GiveBadge
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -35,6 +34,8 @@ function Plugin:Setup()
 		Notify( "[Shine] Unable to find the badge mod, badge plugin cannot load." )
 		return
 	end
+	
+	local AssignBadge = GiveBadge
 
 	local UserData = Shine.UserData
 	if not UserData or not UserData.Groups or not UserData.Users then return end
