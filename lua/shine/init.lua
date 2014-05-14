@@ -68,10 +68,11 @@ Shine.Timer.Create( "ServerInfoUpdate", 1, -1, function()
 
 	for Client in pairs( Clients ) do
 		local Player = Client:GetControllingPlayer()
-		local Score = Player and Player.score or 0
-		local Name = Player.GetName and Player:GetName() or "unknown"
 
 		if Player then
+			local Score = Player.score or 0
+			local Name = Player.GetName and Player:GetName() or "unknown"
+
 			Server.UpdatePlayerInfo( Client, Name, Score )
 		end
 	end
