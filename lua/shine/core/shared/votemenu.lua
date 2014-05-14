@@ -2,8 +2,6 @@
 	Shine voting radial menu.
 ]]
 
-Shine = Shine or {}
-
 Shared.RegisterNetworkMessage( "Shine_OpenedVoteMenu", {} )
 
 local PluginMessage = {

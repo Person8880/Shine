@@ -174,7 +174,7 @@ function Shine.GetAllPlayers()
 		end
 	end
 
-	return Players
+	return Players, Count
 end
 
 --[[

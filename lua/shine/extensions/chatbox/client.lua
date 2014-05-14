@@ -678,8 +678,6 @@ function Plugin:PlayerKeyPress( Key, Down )
 end
 
 function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
-	local UIScale = GUIScale( 1 )
-
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
 	local Messages = self.Messages

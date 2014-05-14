@@ -5,7 +5,6 @@
 local Shine = Shine
 
 local GetOwner = Server.GetOwner
-local Notify = Shared.Message
 local StringFormat = string.format
 local TableEmpty = table.Empty
 

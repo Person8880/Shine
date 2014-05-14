@@ -4,8 +4,6 @@
 
 local Shine = Shine
 
-local Notify = Shared.Message
-
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor

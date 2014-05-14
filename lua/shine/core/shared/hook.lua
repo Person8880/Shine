@@ -4,11 +4,11 @@
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local IsType = Shine.IsType
 local xpcall = xpcall
 local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
 local StringFormat = string.format
-local type = type
 
 Shine.Hook = {}
 
@@ -115,24 +115,22 @@ local function Call( Event, ... )
 	if Plugins then
 		--Automatically call the plugin hooks.
 		for Plugin, Table in pairs( Plugins ) do
-			if Table.Enabled then
-				if Table[ Event ] and type( Table[ Event ] ) == "function" then
-					local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
+			if Table.Enabled and IsType( Table[ Event ], "function" ) then
+				local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
 
-					if not Success then
-						Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
-						Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.", true, Event, Plugin, Table.__HookErrors )
+				if not Success then
+					Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
+					Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.", true, Event, Plugin, Table.__HookErrors )
 
-						if Table.__HookErrors >= 10 then
-							Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).", true, Plugin, Table.__HookErrors )
+					if Table.__HookErrors >= 10 then
+						Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).", true, Plugin, Table.__HookErrors )
 
-							Table.__HookErrors = 0
+						Table.__HookErrors = 0
 
-							Shine:UnloadExtension( Plugin )
-						end
-					else
-						if a ~= nil then return a, b, c, d, e, f end
+						Shine:UnloadExtension( Plugin )
 					end
+				else
+					if a ~= nil then return a, b, c, d, e, f end
 				end
 			end
 		end
@@ -349,10 +347,6 @@ local GlobalHookModes = {
 	end
 }
 
-local function isfunction( Func )
-	return type( Func ) == "function"
-end
-
 --[[
 	Sets up a Shine hook for a class method.
 
@@ -368,7 +362,7 @@ end
 	The function will be passed the original function, then the arguments it was run with.
 ]]
 local function SetupClassHook( Class, Method, HookName, Mode )
-	if isfunction( Mode ) then
+	if IsType( Mode, "function" ) then
 		return AddClassHook( Class, Method, Mode )
 	end
 
@@ -393,7 +387,7 @@ Shine.Hook.SetupClassHook = SetupClassHook
 	The function will be passed the original function, then the arguments it was run with.
 ]]
 local function SetupGlobalHook( FuncName, HookName, Mode )
-	if isfunction( Mode ) then
+	if IsType( Mode, "function" ) then
 		return AddGlobalHook( FuncName, Mode )
 	end
 
@@ -426,7 +420,7 @@ if Client then
 	Event.Hook( "ClientDisconnected", OnClientDisconnected )
 
 	--Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
-	Add( "OnMapLoad", "Hook", function()
+	Add( "OnMapLoad", "HookGUIEvents", function()
 		local GUIManager = GetGUIManager()
 		local OldSendKeyEvent = GUIManager.SendKeyEvent
 
@@ -661,11 +655,11 @@ Add( "Think", "ReplaceMethods", function()
 	local HookStartVote = Shine.GetUpValue( RegisterVoteType, "HookStartVote" )
 	if HookStartVote then
 		local OldStartVote
-		OldStartVote = Shine.SetUpValue( HookStartVote, "StartVote",
-		function( VoteName, Client, Data )
-			local Override = Call( "NS2StartVote", VoteName, Client, Data )
 
-			if Override == false then
+		OldStartVote = Shine.SetUpValue( HookStartVote, "StartVote", function( VoteName, Client, Data )
+			local Allow = Call( "NS2StartVote", VoteName, Client, Data )
+
+			if Allow == false then
 				Server.SendNetworkMessage( Client, "VoteCannotStart",
 					{
 						reason = kVoteCannotStartReason.DisabledByAdmin

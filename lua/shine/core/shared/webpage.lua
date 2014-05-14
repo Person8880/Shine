@@ -2,8 +2,6 @@
 	Shine web page display system.
 ]]
 
-Shine = Shine or {}
-
 local WebOpen = {
 	URL = "string (255)",
 	Title = "string (32)"

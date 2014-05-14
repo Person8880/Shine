@@ -2,7 +2,6 @@
 	Shine screen text rendering client side file.
 ]]
 
-Shine = Shine or {}
 local StringFormat = string.format
 
 local Messages = {}

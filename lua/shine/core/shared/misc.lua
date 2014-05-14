@@ -13,7 +13,7 @@ if Server then
 	return 
 end
 
-Event.Hook( "LoadComplete", function()
+Shine.Hook.Add( "OnMapLoad", "SetupConfirmConnect", function()
 	local OldKeyPress
 	local SentRequest
 

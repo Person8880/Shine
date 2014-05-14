@@ -2,8 +2,6 @@
 	Shine custom chat message system.
 ]]
 
-Shine = Shine or {}
-
 local StringFormat = string.format
 
 local StringMessage = StringFormat( "string (%i)", kMaxChatLength )
