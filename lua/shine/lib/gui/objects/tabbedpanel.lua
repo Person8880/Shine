@@ -38,7 +38,7 @@ function TabPanelButton:SetSelected( Selected )
 	self.Selected = Selected
 
 	if not self.Selected then
-		self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
+		self.Background:SetColor( self.InactiveCol )
 	else
 		self.Background:SetColor( self.ActiveCol )
 	end
