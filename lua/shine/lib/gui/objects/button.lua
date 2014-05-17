@@ -200,11 +200,11 @@ function Button:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self.Highlighted then return end
 
-	local Time = Shared.GetTime()
+	local Time = os.clock()
 
 	if ( self.NextClick or 0 ) > Time then return end
 
-	self.NextClick = Time + ( self.ClickDelay or 0.5 )
+	self.NextClick = Time + ( self.ClickDelay or 0.1 )
 
 	if self.DoClick then
 		Shared.PlaySound( nil, self.Sound )

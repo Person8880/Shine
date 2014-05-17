@@ -7,12 +7,15 @@ local Hook = Shine.Hook
 
 local IsType = Shine.IsType
 
-local Plugin = {}
-Plugin.Version = "1.3"
+local Plugin = Plugin
+Plugin.Version = "1.4"
 
 local Notify = Shared.Message
+local Clamp = math.Clamp
 local Encode, Decode = json.encode, json.decode
 local pairs = pairs
+local TableCopy = table.Copy
+local TableRemove = table.remove
 local Time = os.time
 local StringFormat = string.format
 
@@ -20,6 +23,9 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "Bans.json"
 
 Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
+
+--Max number of ban entries to network in one go.
+Plugin.MAX_BAN_PER_NETMESSAGE = 10
 
 local Hooked
 
@@ -148,6 +154,8 @@ function Plugin:LoadBansFromWeb()
 			self:ConvertData( self.Config )
 		end
 
+		self:GenerateNetworkData()
+
 		Shine:LogString( "Shine loaded bans from web successfully." )
 	end
 
@@ -220,6 +228,8 @@ function Plugin:LoadConfig()
 	end
 
 	self:ConvertData( self.Config )
+
+	self:GenerateNetworkData()
 end
 
 --[[
@@ -263,6 +273,27 @@ function Plugin:ConvertData( Data )
 	if Edited then
 		self:SaveConfig()
 	end
+end
+
+function Plugin:GenerateNetworkData()
+	local BanData = TableCopy( self.Config.Banned )
+
+	local NetData = self.BanNetworkData or {}
+
+	--Remove all the bans we already know about.
+	for i = 1, #NetData do
+		if BanData[ NetData[ i ].ID ] then
+			BanData[ NetData[ i ].ID ] = nil
+		end
+	end
+
+	--Fill in the rest at the end of the network list.
+	for ID, Data in pairs( BanData ) do
+		NetData[ #NetData + 1 ] = Data
+		Data.ID = ID
+	end
+
+	self.BanNetworkData = NetData
 end
 
 --[[
@@ -316,6 +347,8 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 
 	self:SaveConfig()
 
+	self:AddBanToNetData( BanData )
+
 	if self.Config.BansSubmitURL ~= "" then
 		local PostParams = {
 			bandata = Encode( BanData ),
@@ -338,6 +371,8 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 			if Decoded.success == false then
 				--The web request told us that they shouldn't be banned.
 				self.Config.Banned[ ID ] = nil
+
+				self:NetworkUnban( ID )
 
 				self:SaveConfig()
 			end
@@ -377,6 +412,8 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 
 	self.Config.Banned[ ID ] = nil
 
+	self:NetworkUnban( ID )
+
 	if self.Config.BansSubmitURL ~= "" then
 		local PostParams = {
 			unbandata = Encode{
@@ -402,6 +439,8 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 			if Decoded.success == false then
 				--The web request told us that they shouldn't be unbanned.
 				self.Config.Banned[ ID ] = BanData
+
+				self:AddBanToNetData( BanData )
 
 				self:SaveConfig()
 			end
@@ -516,6 +555,13 @@ function Plugin:CreateCommands()
 			end
 		end
 
+		if not Shine:CanTarget( Client, tonumber( ID ) ) then
+			self:NotifyError( Client, "You cannot ban %s.", true, ID )
+			self:AdminPrint( Client, "You cannot ban %s.", true, ID )
+
+			return
+		end
+
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
 			self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
@@ -604,4 +650,108 @@ function Plugin:ClientConnect( Client )
 	end
 end
 
-Shine:RegisterExtension( "ban", Plugin )
+function Plugin:ClientDisconnect( Client )
+	if not self.BanNetworkedClients then return end
+
+	self.BanNetworkedClients[ Client ] = nil
+end
+
+function Plugin:NetworkBan( BanData, Client )
+	if not Client and not self.BanNetworkedClients then return end
+
+	local NetData = {
+		ID = BanData.ID,
+		Name = BanData.Name or "Unknown",
+		Duration = BanData.Duration or 0,
+		UnbanTime = BanData.UnbanTime,
+		BannedBy = BanData.BannedBy or "Unknown",
+		BannerID = BanData.BannerID or 0,
+		Reason = BanData.Reason or "",
+		Issued = BanData.Issued or 0
+	}
+
+	if Client then
+		self:SendNetworkMessage( Client, "BanData", NetData, true )
+	else
+		for Client in pairs( self.BanNetworkedClients ) do
+			self:SendNetworkMessage( Client, "BanData", NetData, true )
+		end
+	end
+end
+
+function Plugin:NetworkUnban( ID )
+	local NetData = self.BanNetworkData
+
+	if NetData then
+		for i = 1, #NetData do
+			local Data = NetData[ i ]
+
+			--Remove the ban from the network data.
+			if Data.ID == ID then
+				TableRemove( NetData, i )
+
+				--Anyone on an index bigger than this one needs to go down 1.
+				if self.BanNetworkedClients then
+					for Client, Index in pairs( self.BanNetworkedClients ) do
+						if Index > i then
+							self.BanNetworkedClients[ Client ] = Index - 1
+						end
+					end
+				end
+
+				break
+			end
+		end
+	end
+
+	if not self.BanNetworkedClients then return end
+	
+	for Client in pairs( self.BanNetworkedClients ) do
+		self:SendNetworkMessage( Client, "Unban", { ID = ID }, true )
+	end
+end
+
+function Plugin:ReceiveRequestBanData( Client, Data )
+	if not Shine:GetPermission( Client, "sh_unban" ) then return end
+	
+	self.BanNetworkedClients = self.BanNetworkedClients or {}
+
+	self.BanNetworkedClients[ Client ] = self.BanNetworkedClients[ Client ] or 1
+	local Index = self.BanNetworkedClients[ Client ]
+
+	local NetworkData = self.BanNetworkData
+
+	if not NetworkData then return end
+
+	for i = Index, Clamp( Index + self.MAX_BAN_PER_NETMESSAGE - 1, 0, #NetworkData ) do
+		if NetworkData[ i ] then
+			self:NetworkBan( NetworkData[ i ], Client )
+		end
+	end
+
+	self.BanNetworkedClients[ Client ] = Clamp( Index + self.MAX_BAN_PER_NETMESSAGE, 0, #NetworkData + 1 )
+end
+
+function Plugin:AddBanToNetData( BanData )
+	self.BanNetworkData = self.BanNetworkData or {}
+
+	local NetData = self.BanNetworkData
+
+	for i = 1, #NetData do
+		local Data = NetData[ i ]
+
+		if Data.ID == BanData.ID then
+			NetData[ i ] = BanData
+
+			for Client, Index in pairs( self.BanNetworkedClients ) do
+				if Index > i then
+					self:NetworkBan( BanData, Client )
+				end
+			end
+
+			return
+		end
+	end
+
+	NetData[ #NetData + 1 ] = BanData
+end

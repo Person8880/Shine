@@ -35,6 +35,7 @@ local Scripts = {
 	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
 	"lib/screentext/sv_screentext.lua",
+	"core/shared/adminmenu.lua",
 	"core/shared/votemenu.lua",
 	"core/server/votemenu.lua",
 	"core/shared/misc.lua"

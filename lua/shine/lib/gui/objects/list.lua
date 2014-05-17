@@ -400,17 +400,21 @@ end
 	Sorts the rows, generally used to sort by column values.
 	Inputs: Column to sort by, optional sorting function.
 ]]
-function List:SortRows( Column, SortFunc )
+function List:SortRows( Column, SortFunc, Desc )
 	local Rows = self.Rows
 
-	--Only flip the sort order if we're selecting the same column twice.
-	if self.SortedColumn == Column then
-		self.Descending = not self.Descending
+	if Desc == nil then
+		--Only flip the sort order if we're selecting the same column twice.
+		if self.SortedColumn == Column then
+			self.Descending = not self.Descending
+		else
+			self.Descending = true
+		end
 	else
-		self.Descending = true
+		self.Descending = Desc
 	end
 
-	if not self.NumericColumns[ Column ] then
+	if not self.NumericColumns or not self.NumericColumns[ Column ] then
 		if self.Descending then
 			TableSort( Rows, SortFunc or function( A, B )
 				return A:GetColumnText( Column ) < B:GetColumnText( Column )

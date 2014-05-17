@@ -282,6 +282,20 @@ elseif Client then
 		return Command
 	end
 
+	function PluginMeta:AddAdminMenuCommand( Category, Name, Command, MultiSelect, DoClick )
+		self.AdminMenuCommands = self.AdminMenuCommands or {}
+		self.AdminMenuCommands[ Category ] = true
+
+		Shine.AdminMenu:AddCommand( Category, Name, Command, MultiSelect, DoClick )
+	end
+
+	function PluginMeta:AddAdminMenuTab( Name, Data )
+		self.AdminMenuTabs = self.AdminMenuTabs or {}
+		self.AdminMenuTabs[ Name ] = true
+
+		Shine.AdminMenu:AddTab( Name, Data )
+	end
+
 	function PluginMeta:Cleanup()
 		if self.Commands then
 			for k, Command in pairs( self.Commands ) do
@@ -291,6 +305,18 @@ elseif Client then
 		end
 
 		self:DestroyAllTimers()
+
+		if self.AdminMenuCommands then
+			for Category in pairs( self.AdminMenuCommands ) do
+				Shine.AdminMenu:RemoveCommandCategory( Category )
+			end
+		end
+
+		if self.AdminMenuTabs then
+			for Tab in pairs( self.AdminMenuTabs ) do
+				Shine.AdminMenu:RemoveTab( Tab )
+			end
+		end
 	end
 end
 

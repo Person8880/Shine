@@ -12,6 +12,7 @@ local Encode, Decode = json.encode, json.decode
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetOwner = Server.GetOwner
+local IsType = Shine.IsType
 local Max = math.max
 local pairs = pairs
 local SharedTime = Shared.GetTime
@@ -441,15 +442,17 @@ function Plugin:CreateCommands()
 
 			local Player = PlayerClient:GetControllingPlayer()
 
-			local ID = PlayerClient:GetUserId()
+			if Player then
+				local ID = PlayerClient:GetUserId()
 
-			PrintToConsole( Client, StringFormat( "%s\t\t'%s'\t\t%s\t%s\t\t'%s'%s",
-				GameID,
-				Player:GetName(),
-				ID,
-				Shine.NS2ToSteamID( ID ),
-				Shine:GetTeamName( Player:GetTeamNumber(), true ),
-				CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
+				PrintToConsole( Client, StringFormat( "%s\t\t'%s'\t\t%s\t%s\t\t'%s'%s",
+					GameID,
+					Player:GetName(),
+					ID,
+					Shine.NS2ToSteamID( ID ),
+					Shine:GetTeamName( Player:GetTeamNumber(), true ),
+					CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
+			end
 		end
 	end
 	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
@@ -481,17 +484,19 @@ function Plugin:CreateCommands()
 				local PlayerClient = Data[ 2 ]
 
 				local Player = PlayerClient:GetControllingPlayer()
-				local UserData = Shine:GetUserData( PlayerClient )
+				if Player then
+					local UserData = Shine:GetUserData( PlayerClient )
 
-				local GroupName = UserData and UserData.Group
-				local GroupData = GroupName and Shine:GetGroupData( GroupName )
+					local GroupName = UserData and UserData.Group
+					local GroupData = GroupName and Shine:GetGroupData( GroupName )
 
-				PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
-					Player:GetName(),
-					ID,
-					Shine.NS2ToSteamID( ID ),
-					GroupName or "None",
-					GroupData and GroupData.Immunity or 0 ) )
+					PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
+						Player:GetName(),
+						ID,
+						Shine.NS2ToSteamID( ID ),
+						GroupName or "None",
+						GroupData and GroupData.Immunity or 0 ) )
+				end
 			end
 		
 			return
@@ -928,7 +933,7 @@ function Plugin:CreateCommands()
 		local TargetID = Target:GetUserId() or 0
 
 		if not self.Gagged[ Target ] then
-			Shine:Notify( Client, "Error", Shine.Config.ChatName, "%s is not gagged.", true, TargetName )
+			Shine:NotifyError( Client, "%s is not gagged.", true, TargetName )
 
 			return
 		end
@@ -989,5 +994,26 @@ end
 function Plugin:PlayerSay( Client, Message )
 	if self:IsClientGagged( Client ) then
 		return ""
+	end
+end
+
+function Plugin:ReceiveRequestMapData( Client, Data )
+	if not Shine:GetPermission( Client, "sh_changelevel" ) then return end
+	
+	local Cycle = MapCycle_GetMapCycle()
+
+	if not Cycle or not Cycle.maps then
+		return
+	end
+
+	local Maps = Cycle.maps
+
+	for i = 1, #Maps do
+		local Map = Maps[ i ]
+		local IsTable = IsType( Map, "table" )
+
+		local MapName = IsTable and Map.map or Map
+		
+		self:SendNetworkMessage( Client, "MapData", { Name = MapName }, true )
 	end
 end

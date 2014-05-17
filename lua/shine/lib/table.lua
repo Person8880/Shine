@@ -169,24 +169,26 @@ local function CopyTable( Table, LookupTable )
 	local Copy = {}
 	setmetatable( Copy, getmetatable( Table ) )
 
-	for k, v in pairs( Table ) do
-		if not IsType( v, "table" ) then
-			Copy[ k ] = v
+	for Key, Value in pairs( Table ) do
+		if not IsType( Value, "table" ) then
+			Copy[ Key ] = Value
 		else
 			LookupTable = LookupTable or {}
 			LookupTable[ Table ] = Copy
-			if LookupTable[ v ] then
-				Copy[ k ] = LookupTable[ v ]
+
+			if LookupTable[ Value ] then
+				Copy[ Key ] = LookupTable[ Value ]
 			else
-				Copy[ k ] = CopyTable( v, LookupTable )
+				Copy[ Key ] = CopyTable( Value, LookupTable )
 			end
 		end
 	end
+
 	return Copy
 end
 table.Copy = CopyTable
 
-local function Count( Table )
+function table.Count( Table )
 	local i = 0
 
 	for k in pairs( Table ) do 
@@ -195,57 +197,77 @@ local function Count( Table )
 
 	return i
 end
-table.Count = Count
-
---[[
-	Credit to Garry for most of this. (See GMod lua/includes/extensions/table.lua)
-]]
-local function PairsSorted( Table, Index )
-	if Index == nil then
-		Index = 1
-	else
-		for k, v in pairs( Table.__SortedIndex ) do
-			if v == Index then
-				Index = k + 1
-				break
-			end
-		end	
-	end
-	
-	local Key = Table.__SortedIndex[ Index ]
-	if not Key then
-		Table.__SortedIndex = nil
-		return
-	end
-	
-	Index = Index + 1
-	
-	return Key, Table[ Key ]
-end
 
 function RandomPairs( Table, Desc )
-	local Count = Count( Table )
-	Table = CopyTable( Table )
-	
-	local SortedIndex = {}
-	local i = 1
+	local Sorted = {}
+	local Count = 0
 
-	for k, v in pairs( Table ) do
-		SortedIndex[ i ] = { Key = k, Rand = Random( 1, 1000 ) }
-		i = i + 1
+	for Key in pairs( Table ) do
+		Count = Count + 1
+		Sorted[ Count ] = { Key = Key, Rand = Random() }
 	end
 	
 	if Desc then
-		TableSort( SortedIndex, function( A, B ) return A.Rand > B.Rand end )
+		TableSort( Sorted, function( A, B )
+			return A.Rand > B.Rand
+		end )
 	else
-		TableSort( SortedIndex, function( A, B ) return A.Rand < B.Rand end )
+		TableSort( Sorted, function( A, B )
+			return A.Rand < B.Rand
+		end )
 	end
-	
-	for k, v in pairs( SortedIndex ) do
-		SortedIndex[ k ] = v.Key
-	end
-	
-	Table.__SortedIndex = SortedIndex
 
-	return PairsSorted, Table, nil
+	local i = 1
+
+	return function()
+		local Key = Sorted[ i ] and Sorted[ i ].Key
+		if not Key then return nil end
+		
+		local Value = Table[ Key ]
+
+		if not Value then
+			return nil
+		end
+
+		i = i + 1
+
+		return Key, Value
+	end
+end
+
+function SortedPairs( Table, Desc )
+	local Sorted = {}
+	local Count = 0
+
+	for Key in pairs( Table ) do
+		Count = Count + 1
+		Sorted[ Count ] = Key
+	end
+
+	if Desc then
+		TableSort( Sorted, function( A, B )
+			return A > B
+		end )
+	else
+		TableSort( Sorted, function( A, B )
+			return A < B
+		end )
+	end
+	
+	local i = 1
+
+	return function()
+		local Key = Sorted[ i ]
+		if not Key then return nil end
+		
+		local Value = Table[ Key ]
+
+		if not Value then
+			return nil
+		end
+
+		i = i + 1
+
+		return Key, Value
+	end
 end

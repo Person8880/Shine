@@ -226,8 +226,8 @@ function SGUI:SetSkin( Name )
 	assert( SchemeTable, "[SGUI] Attempted to set a non-existant skin!" )
 
 	self.ActiveSkin = Name
-
-	return SGUI:CallGlobalEvent( "OnSchemeChange", CheckIsSchemed, SchemeTable ) --Notify all elements of the change.
+	--Notify all elements of the change.
+	return SGUI:CallGlobalEvent( "OnSchemeChange", CheckIsSchemed, SchemeTable )
 end
 
 --[[
@@ -264,16 +264,34 @@ end
 --[[
 	Registers a control meta-table.
 	We'll use this to create instances of it (instead of loading a script file every time like UWE).
-	Inputs: Control name, control meta-table.
+	Inputs:
+		1. Control name
+		2. Control meta-table.
+		3. Optional parent name. This will make the object inherit the parent's table keys.
 ]]
-function SGUI:Register( Name, Table )
-	--Inherit keys from both the control's table and the global meta-table.
-	function Table:__index( Key )
-		if Table[ Key ] then return Table[ Key ] end
-		
-		if ControlMeta[ Key ] then return ControlMeta[ Key ] end
-		
-		return nil
+function SGUI:Register( Name, Table, Parent )
+	--If we have set a parent, then we want to setup a slightly different __index function.
+	if Parent then
+		--This may not be defined yet, so we get it when needed.
+		local ParentTable
+		function Table:__index( Key )
+			ParentTable = ParentTable or SGUI.Controls[ Parent ]
+
+			if Table[ Key ] then return Table[ Key ] end
+			if ParentTable and ParentTable[ Key ] then return ParentTable[ Key ] end
+			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
+			
+			return nil
+		end
+	else
+		--No parent means only look in its meta-table and the base meta-table.
+		function Table:__index( Key )
+			if Table[ Key ] then return Table[ Key ] end
+			
+			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
+			
+			return nil
+		end
 	end
 
 	--Used to call base class functions for things like :MoveTo()
@@ -357,6 +375,14 @@ function SGUI:Destroy( Control )
 	end
 
 	Control:Cleanup()
+
+	local CallOnRemove = Control.__CallOnRemove
+
+	if CallOnRemove then
+		for i = 1, #CallOnRemove do
+			CallOnRemove[ i ]( Control )
+		end
+	end
 
 	--If it's a window, then clean it up.
 	if Control.IsAWindow then
@@ -486,6 +512,14 @@ function ControlMeta:DeleteOnRemove( Control )
 	local Table = self.__DeleteOnRemove
 
 	Table[ #Table + 1 ] = Control
+end
+
+function ControlMeta:CallOnRemove( Func )
+	self.__CallOnRemove = self.__CallOnRemove or {}
+
+	local Table = self.__CallOnRemove
+
+	Table[ #Table + 1 ] = Func
 end
 
 --[[
@@ -679,6 +713,12 @@ function ControlMeta:GetPos()
 	if not self.Background then return end
 	
 	return self.Background:GetPosition()
+end
+
+function ControlMeta:GetScreenPos()
+	if not self.Background then return end
+	
+	return self.Background:GetScreenPosition( Client.GetScreenWidth(), Client.GetScreenHeight() )
 end
 
 local Anchors = {

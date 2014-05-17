@@ -8,32 +8,38 @@ local SGUI = Shine.GUI
 
 local Menu = {}
 
+Menu.IsWindow = true
+
 local DefaultSize = Vector( 200, 32, 0 )
 local DefaultOffset = Vector( 0, 32, 0 )
-local Padding = Vector( 0, 5, 0 )
+local Padding = Vector( 0, 0, 0 )
 
 function Menu:Initialise()
 	self.BaseClass.Initialise( self )
 
 	local Background = GetGUIManager():CreateGraphicItem()
-	Background:SetIsVisible( false )
 
 	self.Background = Background
 
 	local Scheme = SGUI:GetSkin()
 
-	Background:SetColor( Scheme.InactiveButton )
+	Background:SetColor( Scheme.MenuButton )
 
 	self.ButtonSize = DefaultSize
 	self.ButtonOffset = DefaultOffset
 	self.Buttons = {}
 	self.ButtonCount = 0
+
+	self.Font = "fonts/AgencyFB_small.fnt"
 end
 
 function Menu:OnSchemeChange( Scheme )
 	if not self.UseScheme then return end
 	
-	self.Background:SetColor( Scheme.InactiveButton )
+	self.Background:SetColor( Scheme.MenuButton )
+	for i = 1, #Buttons do
+		Buttons[ i ]:SetInactiveCol( Scheme.MenuButton )
+	end
 end
 
 function Menu:SetIsVisible( Bool )
@@ -61,6 +67,13 @@ function Menu:AddButton( Text, DoClick )
 	Button:SetDoClick( DoClick )
 	Button:SetSize( self.ButtonSize )
 	Button:SetText( Text )
+	if self.Font then
+		Button:SetFont( self.Font )
+	end
+	Button.UseScheme = false
+
+	local Scheme = SGUI:GetSkin()
+	Button:SetInactiveCol( Scheme.MenuButton )
 
 	self.ButtonCount = self.ButtonCount + 1
 
@@ -82,6 +95,14 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
 	if Result ~= nil then return true end
+
+	--Delay so we don't mess up the event calling.
+	Shine.Timer.Simple( 0.1, function()
+		if not self:IsValid() then return end
+		
+		self:SetParent()
+		self:Destroy()
+	end )
 end
 
 function Menu:OnMouseUp( Key )
@@ -90,6 +111,10 @@ end
 
 function Menu:OnMouseMove( Down )
 	self:CallOnChildren( "OnMouseMove", Down )
+
+	if self:MouseIn( self.Background ) then
+		return true
+	end
 end
 
 function Menu:Think( DeltaTime )

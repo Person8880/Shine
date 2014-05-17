@@ -2,8 +2,8 @@
 	Shine fun commands plugin.
 ]]
 
-local Plugin = {}
-Plugin.Version = "1.0"
+local Plugin = Plugin
+Plugin.Version = "1.1"
 
 function Plugin:Initialise()
 	self:CreateCommands()
@@ -104,8 +104,6 @@ function Plugin:CreateCommands()
 	end
 	local DarwinModeCommand = self:BindCommand( "sh_darwin", { "god", "darwin" }, DarwinMode )
 	DarwinModeCommand:AddParam{ Type = "clients" }
-	DarwinModeCommand:AddParam{ Type = "boolean" }
+	DarwinModeCommand:AddParam{ Type = "boolean", Optional = true, Default = true }
 	DarwinModeCommand:Help( "<players> <true/false> Enables or disables Darwin mode on the given players (unlimited health and ammo)." )
 end
-
-Shine:RegisterExtension( "funcommands", Plugin )
