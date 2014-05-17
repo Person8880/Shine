@@ -1,5 +1,5 @@
 --[[
-	Base commands shared.
+	Fun commands shared.
 ]]
 
 local Plugin = {}
