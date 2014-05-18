@@ -212,16 +212,15 @@ function TabPanel:AddCloseButton()
 	CloseButton:SetSize( Vector( self.TitleBarHeight - 4, self.TitleBarHeight - 4, 0 ) )
 	CloseButton:SetText( "X" )
 	CloseButton:SetAnchor( "TopRight" )
-	CloseButton:SetPos( Vector( -self.TitleBarHeight - 2, 2, 0 ) )
-	if self.UseScheme then
-		local Skin = SGUI:GetSkin()
+	CloseButton:SetPos( Vector( -self.TitleBarHeight + 2, 2, 0 ) )
 
-		CloseButton.UseScheme = false
+	local Skin = SGUI:GetSkin()
 
-		CloseButton:SetActiveCol( Skin.CloseButtonActive )
-		CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
-		CloseButton:SetTextColour( Skin.BrightText )
-	end
+	CloseButton.UseScheme = false
+
+	CloseButton:SetActiveCol( Skin.CloseButtonActive )
+	CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
+	CloseButton:SetTextColour( Skin.BrightText )
 
 	function CloseButton.DoClick()
 		self:SetIsVisible( false )

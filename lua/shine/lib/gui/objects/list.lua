@@ -417,11 +417,11 @@ function List:SortRows( Column, SortFunc, Desc )
 	if not self.NumericColumns or not self.NumericColumns[ Column ] then
 		if self.Descending then
 			TableSort( Rows, SortFunc or function( A, B )
-				return A:GetColumnText( Column ) < B:GetColumnText( Column )
+				return A:GetColumnText( Column ):lower() < B:GetColumnText( Column ):lower()
 			end )
 		else
 			TableSort( Rows, SortFunc or function( A, B )
-				return A:GetColumnText( Column ) > B:GetColumnText( Column )
+				return A:GetColumnText( Column ):lower() > B:GetColumnText( Column ):lower()
 			end )
 		end
 	else
