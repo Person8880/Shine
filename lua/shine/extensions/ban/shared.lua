@@ -200,7 +200,7 @@ function Plugin:SetupAdminMenu()
 					local Permanent = UnbanTime == 0
 
 					local Row = List:AddRow( Data.Name, Data.BannedBy,
-						Permanent and "Never" or Date( "%d %B %Y", UnbanTime ) )
+						Permanent and "Never" or Date( "%d %B %Y %H:%M", UnbanTime ) )
 
 					Row.BanData = Data
 
