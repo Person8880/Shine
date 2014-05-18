@@ -41,8 +41,15 @@ function Plugin:Initialise()
 end
 
 function Plugin:SetupAdminMenu()
+	local Window
 	local function OpenAddBanWindow()
-		local Window = SGUI:Create( "Panel" )
+		if SGUI.IsValid( Window ) then
+			SGUI:SetWindowFocus( Window )
+
+			return
+		end
+
+		Window = SGUI:Create( "Panel" )
 		Window:SetAnchor( "CentreMiddle" )
 		Window:SetSize( Vector( 400, 296, 0 ) )
 		Window:SetPos( Vector( -200, -148, 0 ) )
@@ -52,6 +59,7 @@ function Plugin:SetupAdminMenu()
 		function Window.CloseButton.DoClick()
 			Shine.AdminMenu:DontDestroyOnClose( Window )
 			Window:Destroy()
+			Window = nil
 		end
 
 		Shine.AdminMenu:DestroyOnClose( Window )
@@ -176,6 +184,7 @@ function Plugin:SetupAdminMenu()
 
 			Shine.AdminMenu:DontDestroyOnClose( Window )
 			Window:Destroy()
+			Window = nil
 		end
 	end
 	

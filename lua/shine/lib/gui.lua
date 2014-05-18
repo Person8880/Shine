@@ -83,6 +83,17 @@ end
 function SGUI:SetWindowFocus( Window, i )
 	local Windows = self.Windows
 
+	if Window ~= self.FocusedWindow and not i then
+		for j = 1, #Windows do
+			local CurWindow = Windows[ j ]
+
+			if CurWindow == Window then
+				i = j
+				break
+			end
+		end
+	end
+
 	if i then
 		TableRemove( Windows, i )
 
