@@ -10,6 +10,9 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessage( "RequestMapData", {}, "Server" )
 	self:AddNetworkMessage( "MapData", { Name = "string (32)" }, "Client" )
+
+	self:AddNetworkMessage( "RequestPluginData", {}, "Server" )
+	self:AddNetworkMessage( "PluginData", { Name = "string (32)", Enabled = "boolean" }, "Client" )
 end
 
 function Plugin:NetworkUpdate( Key, Old, New )
@@ -43,9 +46,12 @@ Shine:RegisterExtension( "basecommands", Plugin )
 
 if Server then return end
 
+local Shine = Shine
+local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
 local StringFormat = string.format
+local TableEmpty = table.Empty
 
 local NOT_STARTED = 1
 local PREGAME = 2
@@ -158,6 +164,116 @@ function Plugin:SetupAdminMenuCommands()
 			}
 		end
 	} )
+
+	self:AddAdminMenuTab( "Plugins", {
+		OnInit = function( Panel, Data )
+			local List = SGUI:Create( "List", Panel )
+			List:SetAnchor( GUIItem.Left, GUIItem.Top )
+			List:SetPos( Vector( 16, 24, 0 ) )
+			List:SetColumns( 2, "Plugin", "State" )
+			List:SetSpacing( 0.7, 0.3 )
+			List:SetSize( Vector( 640, 512, 0 ) )
+			List.ScrollPos = Vector( 0, 32, 0 )
+			
+			self.PluginList = List
+			self.PluginRows = self.PluginRows or {}
+
+			--We need information about the server side only plugins too.
+			if not self.PluginData then
+				self:RequestPluginData()
+			end
+
+			for Plugin in pairs( Shine.AllPlugins ) do
+				local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
+				
+				--Server side plugin.
+				if not PluginTable then
+					Enabled = self.PluginData and self.PluginData[ Plugin ]
+				end
+				
+				local Row = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
+
+				self.PluginRows[ Plugin ] = Row
+			end
+
+			if Data and Data.SortedColumn then
+				List:SortRows( Data.SortedColumn, nil, Data.Descending )
+			end
+
+			local UnloadPlugin = SGUI:Create( "Button", Panel )
+			UnloadPlugin:SetAnchor( "BottomLeft" )
+			UnloadPlugin:SetSize( Vector( 128, 32, 0 ) )
+			UnloadPlugin:SetPos( Vector( 16, -48, 0 ) )
+			UnloadPlugin:SetText( "Unload Plugin" )
+			UnloadPlugin:SetFont( "fonts/AgencyFB_small.fnt" )
+			function UnloadPlugin.DoClick()
+				local Selected = List:GetSelectedRow()
+				if not Selected then return end
+				
+				local Plugin = Selected:GetColumnText( 1 )
+
+				Shared.ConsoleCommand( "sh_unloadplugin "..Plugin )
+			end
+			
+			local LoadPlugin = SGUI:Create( "Button", Panel )
+			LoadPlugin:SetAnchor( "BottomRight" )
+			LoadPlugin:SetSize( Vector( 128, 32, 0 ) )
+			LoadPlugin:SetPos( Vector( -144, -48, 0 ) )
+			LoadPlugin:SetText( "Load Plugin" )
+			LoadPlugin:SetFont( "fonts/AgencyFB_small.fnt" )
+			function LoadPlugin.DoClick()
+				local Selected = List:GetSelectedRow()
+				if not Selected then return end
+				
+				local Plugin = Selected:GetColumnText( 1 )
+
+				Shared.ConsoleCommand( "sh_loadplugin "..Plugin )
+			end
+
+			function List:OnRowSelected( Index, Row )
+				local State = Row:GetColumnText( 2 )
+
+				if State == "Enabled" then
+					LoadPlugin:SetText( "Reload Plugin" )
+				else
+					LoadPlugin:SetText( "Load Plugin" )
+				end
+			end
+
+			Hook.Add( "OnPluginLoad", "AdminMenu_OnPluginLoad", function( Name, Plugin, Shared )
+				local Row = self.PluginRows[ Name ]
+
+				if Row then
+					Row:SetColumnText( 2, "Enabled" )
+				end
+			end )
+
+			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Shared )
+				local Row = self.PluginRows[ Name ]
+
+				if Row then
+					Row:SetColumnText( 2, "Disabled" )
+				end
+			end )
+		end,
+
+		OnCleanup = function( Panel )
+			local SortColumn = self.PluginList.SortedColumn
+			local Descending = self.PluginList.Descending
+
+			TableEmpty( self.PluginRows )
+
+			self.PluginList = nil
+
+			Hook.Remove( "OnPluginLoad", "AdminMenu_OnPluginLoad" )
+			Hook.Remove( "OnPluginUnload", "AdminMenu_OnPluginUnload" )
+
+			return {
+				SortedColumn = SortColumn,
+				Descending = Descending
+			}
+		end
+	} )
 end
 
 function Plugin:RequestMapData()
@@ -173,6 +289,22 @@ function Plugin:ReceiveMapData( Data )
 
 	if SGUI.IsValid( self.MapList ) then
 		self.MapList:AddRow( Data.Name )
+	end
+end
+
+function Plugin:RequestPluginData()
+	self:SendNetworkMessage( "RequestPluginData", {}, true )
+end
+
+function Plugin:ReceivePluginData( Data )
+	self.PluginData = self.PluginData or {}
+
+	self.PluginData[ Data.Name ] = Data.Enabled
+
+	local Row = self.PluginRows[ Data.Name ]
+
+	if Row then
+		Row:SetColumnText( 2, Data.Enabled and "Enabled" or "Disabled" )
 	end
 end
 

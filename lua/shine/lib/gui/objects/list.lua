@@ -506,10 +506,18 @@ function List:OnRowSelect( Index, Row )
 	end
 
 	self.SelectedRow = Row
+
+	if self.OnRowSelected then
+		self:OnRowSelected( Index, Row )
+	end
 end
 
 function List:OnRowDeselect( Index, Row )
 	self.SelectedRow = nil
+
+	if self.OnRowDeselected then
+		self:OnRowDeselected( Index, Row )
+	end
 end
 
 function List:SetMultiSelect( Bool )

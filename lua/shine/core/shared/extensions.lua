@@ -592,6 +592,8 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
 	end
 
+	Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
+
 	return true
 end
 
@@ -608,7 +610,7 @@ function Shine:UnloadExtension( Name )
 		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
 
-	Hook.Call( "OnPluginUnload", Name )
+	Hook.Call( "OnPluginUnload", Name, Plugin.IsShared )
 end
 
 --[[
@@ -617,8 +619,12 @@ end
 function Shine:IsExtensionEnabled( Name )
 	local Plugin = self.Plugins[ Name ]
 
-	if Plugin and Plugin.Enabled then
-		return true, Plugin
+	if Plugin then
+		if Plugin.Enabled then
+			return true, Plugin
+		else
+			return false, Plugin
+		end
 	end
 
 	return false

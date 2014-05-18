@@ -202,6 +202,10 @@ local Histories = {}
 
 function Plugin:ClientDisconnect( Client )
 	Histories[ Client ] = nil
+
+	if self.PluginClients then
+		self.PluginClients[ Client ] = nil
+	end
 end
 
 --[[
@@ -1015,5 +1019,44 @@ function Plugin:ReceiveRequestMapData( Client, Data )
 		local MapName = IsTable and Map.map or Map
 		
 		self:SendNetworkMessage( Client, "MapData", { Name = MapName }, true )
+	end
+end
+
+function Plugin:ReceiveRequestPluginData( Client, Data )
+	if not Shine:GetPermission( Client, "sh_loadplugin" ) then return end
+
+	self.PluginClients = self.PluginClients or {}
+	
+	self.PluginClients[ Client ] = true
+
+	local Plugins = Shine.AllPlugins
+
+	for Plugin in pairs( Plugins ) do
+		local Enabled = Shine:IsExtensionEnabled( Plugin )
+		self:SendNetworkMessage( Client, "PluginData", { Name = Plugin, Enabled = Enabled }, true )
+	end
+end
+
+function Plugin:OnPluginLoad( Name, Plugin, Shared )
+	if Shared then return end
+	
+	local Clients = self.PluginClients
+
+	if not Clients then return end
+	
+	for Client in pairs( Clients ) do
+		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = true }, true )
+	end
+end
+
+function Plugin:OnPluginUnload( Name, Shared )
+	if Shared then return end
+	
+	local Clients = self.PluginClients
+
+	if not Clients then return end
+	
+	for Client in pairs( Clients ) do
+		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = false }, true )
 	end
 end
