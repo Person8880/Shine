@@ -114,7 +114,9 @@ function Plugin:OnProcessMove( Player, Input )
 		return
 	end
 
-	if Player:GetIsWaitingForTeamBalance() then
+	--Ignore players waiting to respawn/watching the end of the game.
+	if Player:GetIsWaitingForTeamBalance() or ( Player.GetIsRespawning
+	and Player:GetIsRespawning() ) or Player:isa( "TeamSpectator" ) then
 		DataTable.LastMove = Time
 		DataTable.Warn = false
 
