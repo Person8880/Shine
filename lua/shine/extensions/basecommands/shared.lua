@@ -136,7 +136,7 @@ function Plugin:SetupAdminMenuCommands()
 				
 				local Map = Selected:GetColumnText( 1 )
 
-				Shared.ConsoleCommand( "sh_changelevel "..Map )
+				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
 			end
 			
 			if Shine:IsExtensionEnabled( "mapvote" ) then
@@ -147,7 +147,7 @@ function Plugin:SetupAdminMenuCommands()
 				CallVote:SetText( "Call Map Vote" )
 				CallVote:SetFont( "fonts/AgencyFB_small.fnt" )
 				function CallVote.DoClick()
-					Shared.ConsoleCommand( "sh_forcemapvote" )
+					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 				end
 			end
 		end,
@@ -212,7 +212,7 @@ function Plugin:SetupAdminMenuCommands()
 				
 				local Plugin = Selected:GetColumnText( 1 )
 
-				Shared.ConsoleCommand( "sh_unloadplugin "..Plugin )
+				Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
 			end
 			
 			local LoadPlugin = SGUI:Create( "Button", Panel )
@@ -227,7 +227,7 @@ function Plugin:SetupAdminMenuCommands()
 				
 				local Plugin = Selected:GetColumnText( 1 )
 
-				Shared.ConsoleCommand( "sh_loadplugin "..Plugin )
+				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
 			end
 
 			function List:OnRowSelected( Index, Row )

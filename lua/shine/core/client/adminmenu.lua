@@ -317,7 +317,11 @@ do
 		end } )
 
 	function AdminMenu:RunCommand( Command, Args )
-		Shared.ConsoleCommand( StringFormat( "%s %s", Command, Args ) )
+		if not Args then
+			Shared.ConsoleCommand( Command )
+		else
+			Shared.ConsoleCommand( StringFormat( "%s %s", Command, Args ) )
+		end
 	end
 
 	function AdminMenu:AskForSinglePlayer()
