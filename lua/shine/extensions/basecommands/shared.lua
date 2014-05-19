@@ -76,7 +76,7 @@ function Plugin:SetupAdminMenuCommands()
 	self:AddAdminMenuCommand( Category, "Kick", "sh_kick", false, {
 		"No Reason", "",
 		"Trolling", "Trolling.",
-		"Offensive language", "Offensive language",
+		"Offensive language", "Offensive language.",
 		"Mic spamming", "Mic spamming."
 	} )
 	self:AddAdminMenuCommand( Category, "Gag", "sh_gag", false, {
@@ -115,8 +115,8 @@ function Plugin:SetupAdminMenuCommands()
 			if not self.MapData then
 				self:RequestMapData()
 			else
-				for Map, ID in pairs( self.MapData ) do
-					List:AddRow( Map, ID )
+				for Map in pairs( self.MapData ) do
+					List:AddRow( Map )
 				end
 			end
 
