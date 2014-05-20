@@ -9,6 +9,7 @@ local Clock = os.clock
 local Max = math.max
 local Min = math.min
 local StringFormat = string.format
+local tonumber = tonumber
 
 local TextEntry = {}
 
@@ -261,11 +262,25 @@ end
 function TextEntry:AllowChar( Char )
 	if not Char:IsValidUTF8() then return false end
 
-	if self.ShouldAllowChar then
-		if self:ShouldAllowChar( Char ) == false then return false end
+	if self:ShouldAllowChar( Char ) == false then return false end
+
+	return true
+end
+
+function TextEntry:ShouldAllowChar( Char )
+	if self.Numeric then
+		return tonumber( Char ) or false
 	end
 
 	return true
+end
+
+function TextEntry:GetNumeric()
+	return self.Numeric
+end
+
+function TextEntry:SetNumeric( Bool )
+	self.Numeric = Bool
 end
 
 --[[
