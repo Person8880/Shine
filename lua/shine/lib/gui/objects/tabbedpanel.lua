@@ -22,6 +22,12 @@ function TabPanelButton:Initialise()
 	self:SetFont( Scheme.TabPanel.TabFont )
 end
 
+function TabPanelButton:OnSchemeChange( Skin )
+	Controls.Button.OnSchemeChange( self, Skin )
+
+	self:SetFont( Skin.TabPanel.TabFont )
+end
+
 function TabPanelButton:SetTab( Index, Name )
 	self.Index = Index
 	self.Name = Name
@@ -74,17 +80,28 @@ function TabPanel:Initialise()
 	self.TabPanel.BufferAmount = 0
 
 	local Skin = SGUI:GetSkin()
-
+	self.TabPanel.UseScheme = false
 	self.TabPanel:SetColour( Skin.InactiveButton )
 
 	--This panel is populated with a tab's content.
 	self.ContentPanel = SGUI:Create( "Panel", self )
 	self.ContentPanel:SetPos( Vector( self.TabWidth, 0, 0 ) )
-
+	self.ContentPanel.UseScheme = false
 	self.ContentPanel:SetColour( Skin.WindowBackground )
 
 	self.Tabs = {}
 	self.NumTabs = 0
+end
+
+function TabPanel:OnSchemeChange( Skin )
+	self.TabPanel:SetColour( Skin.InactiveButton )
+	self.ContentPanel:SetColour( Skin.WindowBackground )
+
+	if self.CloseButton then
+		self.CloseButton:SetActiveCol( Skin.CloseButtonActive )
+		self.CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
+		self.CloseButton:SetTextColour( Skin.BrightText )
+	end
 end
 
 --Setting the tab width or tab height means we should resize the panels too.

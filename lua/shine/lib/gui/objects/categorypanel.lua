@@ -29,6 +29,22 @@ function CategoryPanel:Initialise()
 	self:SetScrollable()
 end
 
+function CategoryPanel:OnSchemeChange( Skin )
+	self:SetColour( Skin.WindowBackground )
+
+	local Categories = self.Categories
+
+	for i = 1, self.NumCategories do
+		local Category = Categories[ i ]
+
+		local Button = Category.Header
+
+		Button:SetFont( Skin.CategoryPanel.Font )
+		Button:SetActiveCol( Skin.CategoryPanel.ActiveCol )
+		Button:SetInactiveCol( Skin.CategoryPanel.InactiveCol )
+	end
+end
+
 function CategoryPanel:AddCategory( Name )
 	local Categories = self.Categories
 	local Skin = SGUI:GetSkin()

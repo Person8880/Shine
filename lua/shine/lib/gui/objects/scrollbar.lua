@@ -39,6 +39,11 @@ function Scrollbar:Initialise()
 	self.ScrollSize = 1
 end
 
+function Scrollbar:OnSchemeChange( Skin )
+	self.Background:SetColor( Skin.ScrollbarBackground )
+	self.Bar:SetColor( Skin.Scrollbar )
+end
+
 function Scrollbar:SetSize( Size )
 	self.Size = Size
 

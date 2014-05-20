@@ -24,18 +24,15 @@ function Panel:Initialise()
 
 	self.ShowScrollbar = true
 	self.TitleBarHeight = 24
-	--[[local Scheme = SGUI:GetSkin()
-
-	Background:SetColor( Scheme.WindowBackground )]]
 end
 
-function Panel:OnSchemeChange( Scheme )
+function Panel:OnSchemeChange( Skin )
 	if not self.UseScheme then return end
 	
-	self.Background:SetColor( Scheme.WindowBackground )
+	self.Background:SetColor( Skin.WindowBackground )
 
 	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetColour( Scheme.WindowTitle )
+		self.TitleBar:SetColour( Skin.WindowTitle )
 	end
 
 	if SGUI.IsValid( self.CloseButton ) then

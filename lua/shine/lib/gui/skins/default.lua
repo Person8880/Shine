@@ -56,8 +56,9 @@ Skin.InactiveNode = Colour( 1, 1, 1, 1 )
 Skin.ProgressBarEmpty = Colour( 0.3, 0.3, 0.3, 1 )
 Skin.ProgressBar = Colour( 0.7, 0.7, 0, 1 )
 
-Skin.SliderHandle = Colour( 0.2, 0.7, 0.9, 1 )
-Skin.SliderLines = Colour( 0, 0, 0, 0 )
+Skin.SliderHandle = Colour( 0.8, 0.6, 0.1, 1 )
+Skin.SliderFillLine = Colour( 1, 1, 1, 1 )
+Skin.SliderUnfilledLine = Colour( 0.2, 0.2, 0.2, 1 )
 
 Skin.TabPanel = {}
 Skin.TabPanel.TabFont = "fonts/AgencyFB_small.fnt"
