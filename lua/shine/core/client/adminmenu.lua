@@ -198,6 +198,18 @@ do
 		end
 	end
 
+	local function GenerateButton( Text, DoClick )
+		local Button = SGUI:Create( "Button" )
+		Button:SetSize( Vector( 192, 32, 0 ) )
+		Button:SetText( Text )
+		Button:SetFont( "fonts/AgencyFB_small.fnt" )
+		Button.DoClick = function( Button )
+			DoClick( Button, PlayerList:GetSelectedRow() )
+		end
+
+		return Button
+	end
+
 	AdminMenu:AddTab( "Commands", {
 		OnInit = function( Panel, Data )
 			Label = SGUI:Create( "Label", Panel )
@@ -248,18 +260,6 @@ do
 			TableSort( Categories, function( A, B )
 				return A.Name < B.Name
 			end )
-
-			local function GenerateButton( Text, DoClick )
-				local Button = SGUI:Create( "Button" )
-				Button:SetSize( Vector( 192, 32, 0 ) )
-				Button:SetText( Text )
-				Button:SetFont( "fonts/AgencyFB_small.fnt" )
-				Button.DoClick = function( Button )
-					DoClick( Button, PlayerList:GetSelectedRow() )
-				end
-
-				return Button
-			end
 
 			for i = 1, #Categories do
 				local Category = Categories[ i ]
@@ -479,6 +479,8 @@ do
 			end
 		end
 
+		local ShouldAdd
+
 		if not CategoryObj then
 			CategoryObj = {
 				Name = Category,
@@ -486,11 +488,21 @@ do
 			}
 
 			Categories[ #Categories + 1 ] = CategoryObj
+
+			ShouldAdd = true
 		end
 
-		local Commands = CategoryObj.Commands
+		local CommandsList = CategoryObj.Commands
 		
-		Commands[ #Commands + 1 ] = { Name = Name, DoClick = DoClick }
+		CommandsList[ #CommandsList + 1 ] = { Name = Name, DoClick = DoClick }
+
+		if Commands then
+			if ShouldAdd then
+				Commands:AddCategory( Category )
+			end
+			
+			Commands:AddObject( Category, GenerateButton( Name, DoClick ) )
+		end
 	end
 
 	function AdminMenu:RemoveCommandCategory( Category )

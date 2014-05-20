@@ -144,12 +144,14 @@ function CategoryPanel:RemoveCategory( Name )
 		
 		Height = Height + Object:GetSize().y
 		
+		Object.Removing = true
 		Object:SetParent()
-		Ojbect:Destroy()
+		Object:Destroy()
 	end
 
 	Height = Height + CategoryObj.Header:GetSize().y
 
+	CategoryObj.Header:SetParent()
 	CategoryObj.Header:Destroy()
 
 	TableRemove( Categories, Index )
@@ -249,10 +251,27 @@ function CategoryPanel:AddObject( CatName, Object )
 		Height = LastObject:GetPos().y + LastObject:GetSize().y
 	end
 
+	local Index = #Objects + 1
+
 	self:Add( nil, Object )
 	Object:SetPos( Vector( 0, Height, 0 ) )
+	Object:CallOnRemove( function()
+		--The whole thing's being removed.
+		if not SGUI.IsValid( self ) or Object.Removing then return end
+		
+		local HeightDiff = Vector( 0, -Object:GetSize().y, 0 )
 
-	Objects[ #Objects + 1 ] = Object
+		--Move objects below us up to compensate for our removal.
+		for i = Index + 1, #Objects do
+			local Object = Objects[ i ]
+
+			Object:SetPos( Object:GetPos() + HeightDiff )
+		end
+
+		TableRemove( Objects, Index )
+	end )
+
+	Objects[ Index ] = Object
 
 	--If we're not expanded, we don't have to worry about moving other categories yet.
 	if not CategoryObj.Expanded then
@@ -271,7 +290,7 @@ function CategoryPanel:AddObject( CatName, Object )
 		Category:SetPos( Category:GetPos() + HeightDiff )
 
 		for j = 1, #Objects do
-			local Object = Objects[ i ]
+			local Object = Objects[ j ]
 
 			Object:SetPos( Object:GetPos() + HeightDiff )
 		end
