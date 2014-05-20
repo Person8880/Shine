@@ -202,7 +202,7 @@ do
 		OnInit = function( Panel, Data )
 			Label = SGUI:Create( "Label", Panel )
 			Label:SetFont( "fonts/AgencyFB_small.fnt" )
-			Label:SetColour( Colour( 1, 1, 1, 1 ) )
+			Label:SetBright( true )
 			Label:SetText( "Select a player (or players) and a command to run." )
 			Label:SetPos( Vector( 16, 24, 0 ) )
 			
@@ -344,7 +344,7 @@ do
 		local Label = SGUI:Create( "Label", Window )
 		Label:SetAnchor( "CentreMiddle" )
 		Label:SetFont( "fonts/AgencyFB_small.fnt" )
-		Label:SetColour( Colour( 1, 1, 1, 1 ) )
+		Label:SetBright( true )
 		Label:SetText( "Please select a single player." )
 		Label:SetPos( Vector( 0, -40, 0 ) )
 		Label:SetTextAlignmentX( GUIItem.Align_Center )
@@ -517,7 +517,7 @@ do
 end
 
 do
-
+local WebPage
 local Text = [[Shine was created by Person8880.
 
 Special thanks to:
@@ -532,11 +532,31 @@ Special thanks to:
 			Label:SetPos( Vector( 16, 24, 0 ) )
 			Label:SetFont( "fonts/AgencyFB_small.fnt" )
 			Label:SetText( Text )
-			Label:SetColour( Colour( 1, 1, 1, 1 ) )
+			Label:SetBright( true )
 
-			local WebPage = SGUI:Create( "Webpage", Panel )
-			WebPage:SetPos( Vector( 16, 224, 0 ) )
-			WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
+			local HomeButton = SGUI:Create( "Button", Panel )
+			HomeButton:SetAnchor( "TopRight" )
+			HomeButton:SetPos( Vector( -144, 176, 0 ) )
+			HomeButton:SetSize( Vector( 128, 32, 0 ) )
+			HomeButton:SetFont( "fonts/AgencyFB_small.fnt" )
+			HomeButton:SetText( "Back to wiki" )
+			function HomeButton:DoClick()
+				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
+			end
+
+			if not WebPage then
+				WebPage = SGUI:Create( "Webpage", Panel )
+				WebPage:SetPos( Vector( 16, 224, 0 ) )
+				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
+			else
+				WebPage:SetParent( Panel )
+				WebPage:SetIsVisible( true )
+			end
+		end,
+
+		OnCleanup = function( Panel )
+			WebPage:SetParent()
+			WebPage:SetIsVisible( false )
 		end
 	} )
 end

@@ -64,7 +64,6 @@ function Plugin:SetupAdminMenu()
 
 		Shine.AdminMenu:DestroyOnClose( Window )
 
-		local TextColour = Colour( 1, 1, 1, 1 )
 		local TextEntrySize = Vector( 368, 32, 0 )
 
 		local DurationEntry
@@ -73,7 +72,7 @@ function Plugin:SetupAdminMenu()
 		local IDLabel = SGUI:Create( "Label", Window )
 		IDLabel:SetText( "NS2ID:" )
 		IDLabel:SetFont( "fonts/AgencyFB_small.fnt" )
-		IDLabel:SetColour( TextColour )
+		IDLabel:SetBright( true )
 		IDLabel:SetPos( Vector( 16, 32, 0 ) )
 
 		local IDEntry = SGUI:Create( "TextEntry", Window )
@@ -136,7 +135,7 @@ function Plugin:SetupAdminMenu()
 		local DurationLabel = SGUI:Create( "Label", Window )
 		DurationLabel:SetText( "Duration (in minutes, 0 for permanent):" )
 		DurationLabel:SetFont( "fonts/AgencyFB_small.fnt" )
-		DurationLabel:SetColour( TextColour )
+		DurationLabel:SetBright( true )
 		DurationLabel:SetPos( Vector( 16, 104, 0 ) )
 
 		DurationEntry = SGUI:Create( "TextEntry", Window )
@@ -152,7 +151,7 @@ function Plugin:SetupAdminMenu()
 		local ReasonLabel = SGUI:Create( "Label", Window )
 		ReasonLabel:SetText( "Reason:" )
 		ReasonLabel:SetFont( "fonts/AgencyFB_small.fnt" )
-		ReasonLabel:SetColour( TextColour )
+		ReasonLabel:SetBright( true )
 		ReasonLabel:SetPos( Vector( 16, 176, 0 ) )
 
 		ReasonEntry = SGUI:Create( "TextEntry", Window )

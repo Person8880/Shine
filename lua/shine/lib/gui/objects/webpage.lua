@@ -23,17 +23,18 @@ function Webpage:CleanupWebView()
 end
 
 function Webpage:LoadURL( URL, W, H )
-	Counter = Counter + 1
-	local TextureName = "*webview_shine_"..Counter
+	if not self.WebView then
+		Counter = Counter + 1
+		local TextureName = "*webview_shine_"..Counter
 
-	self:CleanupWebView()
-
-	self.WebView = Client.CreateWebView( W, H )
-	self.WebView:SetTargetTexture( TextureName )
+		self.WebView = Client.CreateWebView( W, H )
+		self.WebView:SetTargetTexture( TextureName )
+		
+		self.Background:SetSize( Vector( W, H, 0 ) )
+		self.Background:SetTexture( TextureName )
+	end
+	
 	self.WebView:LoadUrl( URL )
-
-	self.Background:SetSize( Vector( W, H, 0 ) )
-	self.Background:SetTexture( TextureName )
 end
 
 function Webpage:OnMouseMove( LMB )
