@@ -200,9 +200,11 @@ function Plugin:SetupAdminMenuCommands()
 				List:SortRows( Data.SortedColumn, nil, Data.Descending )
 			end
 
+			local ButtonSize = Vector( 128, 32, 0 )
+
 			local UnloadPlugin = SGUI:Create( "Button", Panel )
 			UnloadPlugin:SetAnchor( "BottomLeft" )
-			UnloadPlugin:SetSize( Vector( 128, 32, 0 ) )
+			UnloadPlugin:SetSize( ButtonSize )
 			UnloadPlugin:SetPos( Vector( 16, -48, 0 ) )
 			UnloadPlugin:SetText( "Unload Plugin" )
 			UnloadPlugin:SetFont( "fonts/AgencyFB_small.fnt" )
@@ -214,11 +216,26 @@ function Plugin:SetupAdminMenuCommands()
 
 				Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
 			end
+
+			local DisablePlugin = SGUI:Create( "Button", Panel )
+			DisablePlugin:SetAnchor( "BottomLeft" )
+			DisablePlugin:SetSize( ButtonSize )
+			DisablePlugin:SetPos( Vector( 160, -48, 0 ) )
+			DisablePlugin:SetText( "Disable Plugin" )
+			DisablePlugin:SetFont( "fonts/AgencyFB_small.fnt" )
+			function DisablePlugin.DoClick()
+				local Selected = List:GetSelectedRow()
+				if not Selected then return end
+				
+				local Plugin = Selected:GetColumnText( 1 )
+
+				Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
+			end
 			
 			local LoadPlugin = SGUI:Create( "Button", Panel )
 			LoadPlugin:SetAnchor( "BottomRight" )
-			LoadPlugin:SetSize( Vector( 128, 32, 0 ) )
-			LoadPlugin:SetPos( Vector( -144, -48, 0 ) )
+			LoadPlugin:SetSize( ButtonSize )
+			LoadPlugin:SetPos( Vector( -288, -48, 0 ) )
 			LoadPlugin:SetText( "Load Plugin" )
 			LoadPlugin:SetFont( "fonts/AgencyFB_small.fnt" )
 			function LoadPlugin.DoClick()
@@ -228,6 +245,21 @@ function Plugin:SetupAdminMenuCommands()
 				local Plugin = Selected:GetColumnText( 1 )
 
 				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
+			end
+
+			local EnablePlugin = SGUI:Create( "Button", Panel )
+			EnablePlugin:SetAnchor( "BottomRight" )
+			EnablePlugin:SetSize( ButtonSize )
+			EnablePlugin:SetPos( Vector( -144, -48, 0 ) )
+			EnablePlugin:SetText( "Enable Plugin" )
+			EnablePlugin:SetFont( "fonts/AgencyFB_small.fnt" )
+			function EnablePlugin.DoClick()
+				local Selected = List:GetSelectedRow()
+				if not Selected then return end
+				
+				local Plugin = Selected:GetColumnText( 1 )
+
+				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
 			end
 
 			function List:OnRowSelected( Index, Row )

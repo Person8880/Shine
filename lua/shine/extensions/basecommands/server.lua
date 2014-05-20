@@ -575,7 +575,7 @@ function Plugin:CreateCommands()
 	local ResetGameCommand = self:BindCommand( "sh_reset", "reset", ResetGame )
 	ResetGameCommand:Help( "Resets the game round." )
 
-	local function LoadPlugin( Client, Name )
+	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
 			Shine:AdminPrint( Client, "You cannot reload the basecommands plugin." )
 			return
@@ -592,16 +592,24 @@ function Plugin:CreateCommands()
 		
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
-			Shine:SendPluginData( nil, Shine:BuildPluginData() ) --Update all players with the plugins state.
+
+			--Update all players with the plugins state.
+			Shine:SendPluginData( nil, Shine:BuildPluginData() )
+
+			if Save then
+				Shine.Config.ActiveExtensions[ Name ] = true
+				Shine:SaveConfig()
+			end
 		else
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s failed to load. Error: %s", Name, Err ) )
 		end
 	end
 	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
-	LoadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to load." }
+	LoadPluginCommand:AddParam{ Type = "string", Error = "Please specify a plugin to load." }
+	LoadPluginCommand:AddParam{ Type = "boolean", Optional = true, Default = false }
 	LoadPluginCommand:Help( "<plugin> Loads or reloads a plugin." )
 
-	local function UnloadPlugin( Client, Name )
+	local function UnloadPlugin( Client, Name, Save )
 		if Name == "basecommands" and Shine.Plugins[ Name ] and Shine.Plugins[ Name ].Enabled then
 			Shine:AdminPrint( Client, "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config." )
 			return
@@ -617,9 +625,15 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( Client, StringFormat( "The plugin %s unloaded successfully.", Name ) )
 
 		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+
+		if Save then
+			Shine.Config.ActiveExtensions[ Name ] = false
+			Shine:SaveConfig()
+		end
 	end
 	local UnloadPluginCommand = self:BindCommand( "sh_unloadplugin", nil, UnloadPlugin )
-	UnloadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to unload." }
+	UnloadPluginCommand:AddParam{ Type = "string", Error = "Please specify a plugin to unload." }
+	UnloadPluginCommand:AddParam{ Type = "boolean", Optional = true, Default = false }
 	UnloadPluginCommand:Help( "<plugin> Unloads a plugin." )
 
 	local function SuspendPlugin( Client, Name )
