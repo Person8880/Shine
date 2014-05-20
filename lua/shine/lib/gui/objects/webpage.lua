@@ -37,6 +37,12 @@ function Webpage:LoadURL( URL, W, H )
 	self.WebView:LoadUrl( URL )
 end
 
+function Webpage:GetHasLoaded()
+	if not self.WebView then return false end
+	
+	return self.WebView:GetUrlLoaded()
+end
+
 function Webpage:OnMouseMove( LMB )
 	if not self.WebView then return end
 	
