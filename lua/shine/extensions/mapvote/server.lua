@@ -655,7 +655,7 @@ end
 	Returns the number of votes needed to begin a map vote.
 ]]
 function Plugin:GetVotesNeededToStart()
-	return Ceil( Shared.GetEntitiesWithClassname( "Player" ):GetSize() * self.Config.PercentToStart )
+	return Ceil( GetNumPlayers() * self.Config.PercentToStart )
 end
 
 --[[

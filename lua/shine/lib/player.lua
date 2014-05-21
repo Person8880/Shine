@@ -43,7 +43,6 @@ if Client then return end
 
 local Abs = math.abs
 local Floor = math.floor
-local GetEntsByClass = Shared.GetEntitiesWithClassname
 local GetOwner = Server.GetOwner
 local pairs = pairs
 local StringFormat = string.format

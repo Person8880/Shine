@@ -177,7 +177,11 @@ function Plugin:StartGame( Gamerules )
 	Gamerules.countdownTime = kCountDownLength
 	Gamerules.lastCountdownPlayed = nil
 
-	for _, Player in ientitylist( Shared.GetEntitiesWithClassname( "Player" ) ) do
+	local Players, Count = Shine.GetAllPlayers()
+
+	for i = 1, Count do
+		local Player = Players[ i ]
+		
 		if Player.ResetScores then
 			Player:ResetScores()
 		end
