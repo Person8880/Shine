@@ -620,7 +620,7 @@ function Plugin:CreateCommands()
 	LoadPluginCommand:Help( "<plugin> Loads or reloads a plugin." )
 
 	local function UnloadPlugin( Client, Name, Save )
-		if Name == "basecommands" and Shine.Plugins[ Name ] and Shine.Plugins[ Name ].Enabled then
+		if Name == "basecommands" then
 			Shine:AdminPrint( Client, "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config." )
 			return
 		end
