@@ -587,6 +587,16 @@ function Plugin:CreateCommands()
 		if not PluginTable then
 			Success, Err = Shine:LoadExtension( Name )
 		else
+			--If it's already enabled and we're saving, then just save the config option, don't reload.
+			if PluginTable.Enabled and Save then
+				Shine.Config.ActiveExtensions[ Name ] = true
+				Shine:SaveConfig()
+
+				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to enabled in config.", Name ) )
+
+				return
+			end
+
 			Success, Err = Shine:EnableExtension( Name )
 		end
 		
@@ -616,13 +626,24 @@ function Plugin:CreateCommands()
 		end
 
 		if not Shine.Plugins[ Name ] or not Shine.Plugins[ Name ].Enabled then
-			Shine:AdminPrint( Client, StringFormat( "The plugin %s is not loaded.", Name ) )
+			--If it's already disabled and we want to save, just save.
+			if Save and Shine.AllPlugins[ Name ] then
+				Shine.Config.ActiveExtensions[ Name ] = false
+				Shine:SaveConfig()
+
+				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to disabled in config.", Name ) )
+
+				return
+			end
+
+			Shine:AdminPrint( Client, StringFormat( "Plugin %s is not loaded.", Name ) )
+			
 			return
 		end
 
 		Shine:UnloadExtension( Name )
 
-		Shine:AdminPrint( Client, StringFormat( "The plugin %s unloaded successfully.", Name ) )
+		Shine:AdminPrint( Client, StringFormat( "Plugin %s unloaded successfully.", Name ) )
 
 		Shine:SendPluginData( nil, Shine:BuildPluginData() )
 
