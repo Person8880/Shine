@@ -585,6 +585,10 @@ function ControlMeta:SetParent( Control, Element )
 end
 
 local function NotifyFocusChange( Element, ClickingOtherElement )
+	if not Element then
+		SGUI.FocusedControl = nil
+	end
+
 	for Control in pairs( SGUI.ActiveControls ) do
 		if Control.OnFocusChange then
 			Control:OnFocusChange( Element, ClickingOtherElement )
@@ -606,7 +610,7 @@ function ControlMeta:CallOnChildren( Name, ... )
 			local Result = Child[ Name ]( Child, ... )
 
 			if Result ~= nil then
-				if Child.Class ~= "TextEntry" then
+				if Name == "OnMouseDown" and Child.Class ~= "TextEntry" and Child.Class ~= "Webpage" and not Child.Children then
 					NotifyFocusChange( nil, true )
 				end
 

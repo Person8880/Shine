@@ -43,6 +43,34 @@ function Webpage:GetHasLoaded()
 	return self.WebView:GetUrlLoaded()
 end
 
+function Webpage:PlayerKeyPress( Key, Down )
+	if not self:GetIsVisible() then return end
+	if not self:HasFocus() then return end
+	if not self.WebView then return end
+
+	if Key == InputKey.Return then
+		self.WebView:OnEnter( Down )
+	elseif Key == InputKey.Back then
+		self.WebView:OnBackSpace( Down )
+	end
+
+	return true
+end
+
+function Webpage:PlayerType( Char )
+	if not self:GetIsVisible() then return end
+	if not self:HasFocus() then return end
+	if not self.WebView then return end
+	
+	local Num = Char:byte()
+
+	if Num <= 255 then
+		self.WebView:OnSendCharacter( Num )
+	end
+	
+	return true
+end
+
 function Webpage:OnMouseMove( LMB )
 	if not self.WebView then return end
 	
@@ -62,6 +90,8 @@ function Webpage:OnMouseDown( Key, DoubleClick )
 	
 	local KeyCode = Key - MouseButton0
 	self.WebView:OnMouseDown( KeyCode )
+
+	self:RequestFocus()
 
 	return true
 end
