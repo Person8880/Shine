@@ -87,6 +87,20 @@ function AdminMenu:SetIsVisible( Bool )
 	self.Visible = Bool
 end
 
+function AdminMenu:PlayerKeyPress( Key, Down )
+	if not self.Visible then return end
+	
+	if Key == InputKey.Escape and Down then
+		self:SetIsVisible( false )
+
+		return true
+	end
+end
+
+Hook.Add( "PlayerKeyPress", "AdminMenu_KeyPress", function( Key, Down )
+	AdminMenu:PlayerKeyPress( Key, Down )
+end, 1 )
+
 function AdminMenu:AddTab( Name, Data )
 	self.Tabs[ Name ] = Data
 
