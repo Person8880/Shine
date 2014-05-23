@@ -63,26 +63,25 @@ function table.Shuffle( Table )
 	local SortTable = {}
 	local NewTable = {}
 
-	local Count = 1
+	local Count = 0
 
 	for Index, Value in pairs( Table ) do
 		SortTable[ Value ] = Random()
 		
 		--Add the value to a new table to get rid of potential holes in the array.
-		NewTable[ Count ] = Value
 		Count = Count + 1
+		NewTable[ Count ] = Value
+		
+		Table[ Index ] = nil
 	end
-
-	--Empty the input table, we're going to repopulate it as an array with no holes.
-	TableEmpty( Table )
 
 	TableSort( NewTable, function( A, B )
 		return SortTable[ A ] > SortTable[ B ]
 	end )
 
 	--Repopulate the input table with our sorted table. This won't have holes.
-	for Index, Value in pairs( NewTable ) do
-		Table[ Index ] = Value
+	for i = 1, Count do
+		Table[ i ] = NewTable[ i ]
 	end
 end
 
