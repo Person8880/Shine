@@ -92,9 +92,9 @@ end
 
 ------------------- Event calling -------------------
 function Menu:OnMouseDown( Key, DoubleClick )
-	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
-	if Result ~= nil then return true end
+	if Result ~= nil then return true, Child end
 
 	--Delay so we don't mess up the event calling.
 	Shine.Timer.Simple( 0.1, function()
@@ -103,10 +103,6 @@ function Menu:OnMouseDown( Key, DoubleClick )
 		self:SetParent()
 		self:Destroy()
 	end )
-end
-
-function Menu:OnMouseUp( Key )
-	self:CallOnChildren( "OnMouseUp", Key )
 end
 
 function Menu:OnMouseMove( Down )

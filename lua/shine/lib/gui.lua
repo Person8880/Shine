@@ -135,7 +135,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 		local Window = Windows[ i ]
 
 		if Window and Window[ Name ] and Window:GetIsVisible() then
-			local Success, Result = xpcall( Window[ Name ], OnError, Window, ... )
+			local Success, Result, Control = xpcall( Window[ Name ], OnError, Window, ... )
 
 			if Success then
 				if Result ~= nil then
@@ -143,7 +143,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 						SGUI:SetWindowFocus( Window, i )
 					end
 
-					return Result
+					return Result, Control
 				end
 			else
 				Window:Destroy()
@@ -442,6 +442,18 @@ Hook.Add( "PlayerType", "UpdateSGUI", function( Char )
 	end
 end )
 
+local function NotifyFocusChange( Element, ClickingOtherElement )
+	if not Element then
+		SGUI.FocusedControl = nil
+	end
+
+	for Control in pairs( SGUI.ActiveControls ) do
+		if Control.OnFocusChange then
+			Control:OnFocusChange( Element, ClickingOtherElement )
+		end
+	end
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
@@ -475,10 +487,29 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 			return SGUI:CallEvent( false, "OnMouseWheel", Down )
 		end,
 		OnMouseDown = function( _, Key, DoubleClick )
-			return SGUI:CallEvent( true, "OnMouseDown", Key )
+			local Result, Control = SGUI:CallEvent( true, "OnMouseDown", Key )
+
+			if Result and Control then
+				if not Control.UsesKeyboardFocus then
+					NotifyFocusChange( nil, true )
+				end
+
+				if Control.OnMouseUp then
+					SGUI.MouseDownControl = Control
+				end
+			end
+
+			return Result
 		end,
 		OnMouseUp = function( _, Key )
-			return SGUI:CallEvent( false, "OnMouseUp", Key )
+			local Control = SGUI.MouseDownControl
+			if not SGUI.IsValid( Control ) then return end
+
+			local Success, Result = xpcall( Control.OnMouseUp, OnError, Control, Key )
+
+			SGUI.MouseDownControl = nil
+
+			return Result
 		end
 	}
 
@@ -584,18 +615,6 @@ function ControlMeta:SetParent( Control, Element )
 	Control.Background:AddChild( self.Background )
 end
 
-local function NotifyFocusChange( Element, ClickingOtherElement )
-	if not Element then
-		SGUI.FocusedControl = nil
-	end
-
-	for Control in pairs( SGUI.ActiveControls ) do
-		if Control.OnFocusChange then
-			Control:OnFocusChange( Element, ClickingOtherElement )
-		end
-	end
-end
-
 --[[
 	Calls an SGUI event on every child of the object.
 
@@ -607,14 +626,10 @@ function ControlMeta:CallOnChildren( Name, ... )
 	--Call the event on every child of this object, no particular order.
 	for Child in pairs( self.Children ) do
 		if Child[ Name ] and not Child._CallEventsManually then
-			local Result = Child[ Name ]( Child, ... )
+			local Result, Control = Child[ Name ]( Child, ... )
 
 			if Result ~= nil then
-				if Name == "OnMouseDown" and Child.Class ~= "TextEntry" and Child.Class ~= "Webpage" and not Child.Children then
-					NotifyFocusChange( nil, true )
-				end
-
-				return Result
+				return Result, Control
 			end
 		end
 	end
@@ -812,14 +827,14 @@ function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	local InX = X >= Pos.x and X <= Pos.x + MaxX
 	local InY = Y >= Pos.y and Y <= Pos.y + MaxY
 
+	local PosX = X - Pos.x
+	local PosY = Y - Pos.y
+
 	if InX and InY then
-		local PosX = X - Pos.x
-		local PosY = Y - Pos.y
-		
 		return true, PosX, PosY, Size, Pos
 	end
 
-	return false, 0, 0
+	return false, PosX, PosY
 end
 
 --[[

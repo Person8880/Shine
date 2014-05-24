@@ -4,7 +4,11 @@
 
 local SGUI = Shine.GUI
 
+local Clamp = math.Clamp
+
 local Webpage = {}
+
+Webpage.UsesKeyboardFocus = true
 
 local Counter = 0
 
@@ -26,6 +30,9 @@ function Webpage:LoadURL( URL, W, H )
 	if not self.WebView then
 		Counter = Counter + 1
 		local TextureName = "*webview_shine_"..Counter
+
+		self.Width = W
+		self.Height = H
 
 		self.WebView = Client.CreateWebView( W, H )
 		self.WebView:SetTargetTexture( TextureName )
@@ -76,8 +83,9 @@ function Webpage:OnMouseMove( LMB )
 	
 	local In, X, Y = self:MouseIn( self.Background )
 
-	if not In then return end
-	
+	X = Clamp( X, 0, self.Width )
+	Y = Clamp( Y, 0, self.Height )
+
 	self.WebView:OnMouseMove( X, Y )
 end
 
@@ -93,12 +101,11 @@ function Webpage:OnMouseDown( Key, DoubleClick )
 
 	self:RequestFocus()
 
-	return true
+	return true, self
 end
 
 function Webpage:OnMouseUp( Key )
 	if not self.WebView then return end
-	if not self:MouseIn( self.Background ) then return end
 
 	local MouseButton0 = InputKey.MouseButton0
 	if Key ~= MouseButton0 then return end

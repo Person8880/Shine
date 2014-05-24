@@ -240,7 +240,7 @@ function Slider:OnMouseDown( Key )
 
 	self.CurPos = Vector( self.StartingPos.x, 0, 0 )
 
-	return true
+	return true, self
 end
 
 function Slider:OnMouseUp( Key )
@@ -251,6 +251,8 @@ function Slider:OnMouseUp( Key )
 	if self.OnValueChanged then
 		self:OnValueChanged( self:GetValue() )
 	end
+
+	return true
 end
 
 function Slider:OnMouseMove( Down )

@@ -540,21 +540,13 @@ end
 function List:OnMouseDown( Key, DoubleClick )
 	if SGUI.IsValid( self.Scrollbar ) then
 		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
-			return true
+			return true, self.Scrollbar
 		end
 	end
 	
-	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
-	if Result ~= nil then return true end
-end
-
-function List:OnMouseUp( Key )
-	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:OnMouseUp( Key )
-	end
-	
-	self:CallOnChildren( "OnMouseUp", Key )
+	if Result ~= nil then return true, Child end
 end
 
 function List:OnMouseMove( Down )
