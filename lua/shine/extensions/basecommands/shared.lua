@@ -198,6 +198,8 @@ function Plugin:SetupAdminMenuCommands()
 
 			if Data and Data.SortedColumn then
 				List:SortRows( Data.SortedColumn, nil, Data.Descending )
+			else
+				List:SortRows( 1 )
 			end
 
 			local ButtonSize = Vector( 128, 32, 0 )
