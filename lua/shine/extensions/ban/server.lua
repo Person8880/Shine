@@ -282,8 +282,14 @@ function Plugin:GenerateNetworkData()
 
 	--Remove all the bans we already know about.
 	for i = 1, #NetData do
-		if BanData[ NetData[ i ].ID ] then
-			BanData[ NetData[ i ].ID ] = nil
+		local ID = NetData[ i ].ID
+
+		--Update ban data.
+		if BanData[ ID ] then
+			NetData[ i ] = BanData[ ID ]
+			NetData[ i ].ID = ID
+
+			BanData[ ID ] = nil
 		end
 	end
 
