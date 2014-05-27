@@ -198,7 +198,7 @@ end
 ]]
 function Shine.GetAllPlayers()
 	local Players = {}
-	local Count = 1
+	local Count = 0
 
 	local GameIDs = Shine.GameIDs
 
@@ -206,9 +206,9 @@ function Shine.GetAllPlayers()
 		local Player = Client.GetControllingPlayer and Client:GetControllingPlayer()
 
 		if Player then
-			Players[ Count ] = Player
-			
 			Count = Count + 1
+
+			Players[ Count ] = Player
 		end
 	end
 
