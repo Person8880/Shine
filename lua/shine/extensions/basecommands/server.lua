@@ -12,6 +12,7 @@ local Encode, Decode = json.encode, json.decode
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetOwner = Server.GetOwner
+local IsType = Shine.IsType
 local Max = math.max
 local pairs = pairs
 local SharedTime = Shared.GetTime
@@ -201,6 +202,10 @@ local Histories = {}
 
 function Plugin:ClientDisconnect( Client )
 	Histories[ Client ] = nil
+
+	if self.PluginClients then
+		self.PluginClients[ Client ] = nil
+	end
 end
 
 --[[
@@ -441,15 +446,17 @@ function Plugin:CreateCommands()
 
 			local Player = PlayerClient:GetControllingPlayer()
 
-			local ID = PlayerClient:GetUserId()
+			if Player then
+				local ID = PlayerClient:GetUserId()
 
-			PrintToConsole( Client, StringFormat( "%s\t\t'%s'\t\t%s\t%s\t\t'%s'%s",
-				GameID,
-				Player:GetName(),
-				ID,
-				Shine.NS2ToSteamID( ID ),
-				Shine:GetTeamName( Player:GetTeamNumber(), true ),
-				CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
+				PrintToConsole( Client, StringFormat( "%s\t\t'%s'\t\t%s\t%s\t\t'%s'%s",
+					GameID,
+					Player:GetName(),
+					ID,
+					Shine.NS2ToSteamID( ID ),
+					Shine:GetTeamName( Player:GetTeamNumber(), true ),
+					CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
+			end
 		end
 	end
 	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
@@ -481,17 +488,19 @@ function Plugin:CreateCommands()
 				local PlayerClient = Data[ 2 ]
 
 				local Player = PlayerClient:GetControllingPlayer()
-				local UserData = Shine:GetUserData( PlayerClient )
+				if Player then
+					local UserData = Shine:GetUserData( PlayerClient )
 
-				local GroupName = UserData and UserData.Group
-				local GroupData = GroupName and Shine:GetGroupData( GroupName )
+					local GroupName = UserData and UserData.Group
+					local GroupData = GroupName and Shine:GetGroupData( GroupName )
 
-				PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
-					Player:GetName(),
-					ID,
-					Shine.NS2ToSteamID( ID ),
-					GroupName or "None",
-					GroupData and GroupData.Immunity or 0 ) )
+					PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
+						Player:GetName(),
+						ID,
+						Shine.NS2ToSteamID( ID ),
+						GroupName or "None",
+						GroupData and GroupData.Immunity or 0 ) )
+				end
 			end
 		
 			return
@@ -566,7 +575,7 @@ function Plugin:CreateCommands()
 	local ResetGameCommand = self:BindCommand( "sh_reset", "reset", ResetGame )
 	ResetGameCommand:Help( "Resets the game round." )
 
-	local function LoadPlugin( Client, Name )
+	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
 			Shine:AdminPrint( Client, "You cannot reload the basecommands plugin." )
 			return
@@ -578,39 +587,74 @@ function Plugin:CreateCommands()
 		if not PluginTable then
 			Success, Err = Shine:LoadExtension( Name )
 		else
+			--If it's already enabled and we're saving, then just save the config option, don't reload.
+			if PluginTable.Enabled and Save then
+				Shine.Config.ActiveExtensions[ Name ] = true
+				Shine:SaveConfig()
+
+				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to enabled in config.", Name ) )
+
+				return
+			end
+
 			Success, Err = Shine:EnableExtension( Name )
 		end
 		
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
-			Shine:SendPluginData( nil, Shine:BuildPluginData() ) --Update all players with the plugins state.
+
+			--Update all players with the plugins state.
+			Shine:SendPluginData( nil, Shine:BuildPluginData() )
+
+			if Save then
+				Shine.Config.ActiveExtensions[ Name ] = true
+				Shine:SaveConfig()
+			end
 		else
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s failed to load. Error: %s", Name, Err ) )
 		end
 	end
 	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
-	LoadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to load." }
+	LoadPluginCommand:AddParam{ Type = "string", Error = "Please specify a plugin to load." }
+	LoadPluginCommand:AddParam{ Type = "boolean", Optional = true, Default = false }
 	LoadPluginCommand:Help( "<plugin> Loads or reloads a plugin." )
 
-	local function UnloadPlugin( Client, Name )
-		if Name == "basecommands" and Shine.Plugins[ Name ] and Shine.Plugins[ Name ].Enabled then
+	local function UnloadPlugin( Client, Name, Save )
+		if Name == "basecommands" then
 			Shine:AdminPrint( Client, "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config." )
 			return
 		end
 
 		if not Shine.Plugins[ Name ] or not Shine.Plugins[ Name ].Enabled then
-			Shine:AdminPrint( Client, StringFormat( "The plugin %s is not loaded.", Name ) )
+			--If it's already disabled and we want to save, just save.
+			if Save and Shine.AllPlugins[ Name ] then
+				Shine.Config.ActiveExtensions[ Name ] = false
+				Shine:SaveConfig()
+
+				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to disabled in config.", Name ) )
+
+				return
+			end
+
+			Shine:AdminPrint( Client, StringFormat( "Plugin %s is not loaded.", Name ) )
+			
 			return
 		end
 
 		Shine:UnloadExtension( Name )
 
-		Shine:AdminPrint( Client, StringFormat( "The plugin %s unloaded successfully.", Name ) )
+		Shine:AdminPrint( Client, StringFormat( "Plugin %s unloaded successfully.", Name ) )
 
 		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+
+		if Save then
+			Shine.Config.ActiveExtensions[ Name ] = false
+			Shine:SaveConfig()
+		end
 	end
 	local UnloadPluginCommand = self:BindCommand( "sh_unloadplugin", nil, UnloadPlugin )
-	UnloadPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to unload." }
+	UnloadPluginCommand:AddParam{ Type = "string", Error = "Please specify a plugin to unload." }
+	UnloadPluginCommand:AddParam{ Type = "boolean", Optional = true, Default = false }
 	UnloadPluginCommand:Help( "<plugin> Unloads a plugin." )
 
 	local function SuspendPlugin( Client, Name )
@@ -928,7 +972,7 @@ function Plugin:CreateCommands()
 		local TargetID = Target:GetUserId() or 0
 
 		if not self.Gagged[ Target ] then
-			Shine:Notify( Client, "Error", Shine.Config.ChatName, "%s is not gagged.", true, TargetName )
+			Shine:NotifyError( Client, "%s is not gagged.", true, TargetName )
 
 			return
 		end
@@ -989,5 +1033,65 @@ end
 function Plugin:PlayerSay( Client, Message )
 	if self:IsClientGagged( Client ) then
 		return ""
+	end
+end
+
+function Plugin:ReceiveRequestMapData( Client, Data )
+	if not Shine:GetPermission( Client, "sh_changelevel" ) then return end
+	
+	local Cycle = MapCycle_GetMapCycle()
+
+	if not Cycle or not Cycle.maps then
+		return
+	end
+
+	local Maps = Cycle.maps
+
+	for i = 1, #Maps do
+		local Map = Maps[ i ]
+		local IsTable = IsType( Map, "table" )
+
+		local MapName = IsTable and Map.map or Map
+		
+		self:SendNetworkMessage( Client, "MapData", { Name = MapName }, true )
+	end
+end
+
+function Plugin:ReceiveRequestPluginData( Client, Data )
+	if not Shine:GetPermission( Client, "sh_loadplugin" ) then return end
+
+	self.PluginClients = self.PluginClients or {}
+	
+	self.PluginClients[ Client ] = true
+
+	local Plugins = Shine.AllPlugins
+
+	for Plugin in pairs( Plugins ) do
+		local Enabled = Shine:IsExtensionEnabled( Plugin )
+		self:SendNetworkMessage( Client, "PluginData", { Name = Plugin, Enabled = Enabled }, true )
+	end
+end
+
+function Plugin:OnPluginLoad( Name, Plugin, Shared )
+	if Shared then return end
+	
+	local Clients = self.PluginClients
+
+	if not Clients then return end
+	
+	for Client in pairs( Clients ) do
+		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = true }, true )
+	end
+end
+
+function Plugin:OnPluginUnload( Name, Shared )
+	if Shared then return end
+	
+	local Clients = self.PluginClients
+
+	if not Clients then return end
+	
+	for Client in pairs( Clients ) do
+		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = false }, true )
 	end
 end

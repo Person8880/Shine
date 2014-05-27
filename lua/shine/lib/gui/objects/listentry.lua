@@ -192,6 +192,15 @@ function ListEntry:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 	if not self:MouseIn( self.Background, 0.9 ) then return end
 
+	return true, self
+end
+
+function ListEntry:OnMouseUp( Key )
+	if not self.Parent then return end
+	if Key ~= InputKey.MouseButton0 then return end
+	if not self:GetIsVisible() then return end
+	if not self:MouseIn( self.Background, 0.9 ) then return end
+
 	if not self.Selected and self.Parent.OnRowSelect then
 		self.Parent:OnRowSelect( self.Index, self )
 

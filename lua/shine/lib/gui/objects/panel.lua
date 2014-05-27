@@ -24,18 +24,15 @@ function Panel:Initialise()
 
 	self.ShowScrollbar = true
 	self.TitleBarHeight = 24
-	--[[local Scheme = SGUI:GetSkin()
-
-	Background:SetColor( Scheme.WindowBackground )]]
 end
 
-function Panel:OnSchemeChange( Scheme )
+function Panel:OnSchemeChange( Skin )
 	if not self.UseScheme then return end
 	
-	self.Background:SetColor( Scheme.WindowBackground )
+	self.Background:SetColor( Skin.WindowBackground )
 
 	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetColour( Scheme.WindowTitle )
+		self.TitleBar:SetColour( Skin.WindowTitle )
 	end
 
 	if SGUI.IsValid( self.CloseButton ) then
@@ -451,36 +448,32 @@ function Panel:DragMove( Down )
 end
 
 function Panel:SetBlockMouse( Bool )
-	self.BlockOnMouseDOwn = Bool and true or false
+	--self.BlockOnMouseDown = Bool and true or false
 end
 
 ------------------- Event calling -------------------
 function Panel:OnMouseDown( Key, DoubleClick )
 	if SGUI.IsValid( self.Scrollbar ) then
 		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
-			return true
+			return true, self.Scrollbar
 		end
 	end
 	
-	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
-	if Result ~= nil then return true end
+	if Result ~= nil then return true, Child end
 
-	if self:DragClick( Key, DoubleClick ) then return true end
+	if self:DragClick( Key, DoubleClick ) then return true, self end
 	
 	if self.IsAWindow or self.BlockOnMouseDown then
-		if self:MouseIn( self.Background ) then return true end
+		if self:MouseIn( self.Background ) then return true, self end
 	end
 end
 
 function Panel:OnMouseUp( Key )
-	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:OnMouseUp( Key )
-	end
-	
-	self:CallOnChildren( "OnMouseUp", Key )
-
 	self:DragRelease( Key )
+
+	return true
 end
 
 function Panel:OnMouseMove( Down )

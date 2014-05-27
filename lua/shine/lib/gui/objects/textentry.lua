@@ -9,8 +9,11 @@ local Clock = os.clock
 local Max = math.max
 local Min = math.min
 local StringFormat = string.format
+local tonumber = tonumber
 
 local TextEntry = {}
+
+TextEntry.UsesKeyboardFocus = true
 
 local BorderSize = Vector( 2, 2, 0 )
 local CaretCol = Color( 0, 0, 0, 1 )
@@ -261,11 +264,25 @@ end
 function TextEntry:AllowChar( Char )
 	if not Char:IsValidUTF8() then return false end
 
-	if self.ShouldAllowChar then
-		if self:ShouldAllowChar( Char ) == false then return false end
+	if self:ShouldAllowChar( Char ) == false then return false end
+
+	return true
+end
+
+function TextEntry:ShouldAllowChar( Char )
+	if self.Numeric then
+		return tonumber( Char ) or false
 	end
 
 	return true
+end
+
+function TextEntry:GetNumeric()
+	return self.Numeric
+end
+
+function TextEntry:SetNumeric( Bool )
+	self.Numeric = Bool
 end
 
 --[[
@@ -412,7 +429,7 @@ function TextEntry:OnMouseDown( Key, DoubleClick )
 			if In then
 				self:RequestFocus()
 
-				return true
+				return true, self
 			end
 		
 			return
@@ -430,7 +447,7 @@ function TextEntry:OnMouseDown( Key, DoubleClick )
 
 		self:SetCaretPos( self.Column )
 
-		return true
+		return true, self
 	end
 end
 
@@ -478,7 +495,11 @@ end
 
 function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 	if NewFocus ~= self then
-		if self.StickyFocus and ClickingOtherElement then return end
+		if self.StickyFocus and ClickingOtherElement then
+			self:RequestFocus()
+
+			return
+		end
 		
 		if self.Enabled then
 			self.Enabled = false

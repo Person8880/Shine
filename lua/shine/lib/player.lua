@@ -2,9 +2,47 @@
 	Shine player functions.
 ]]
 
+local TeamNames = {
+	ns2 = {
+		{ "Marines", "marines", "marine team" },
+		{ "Aliens", "aliens", "alien team" },
+		{ "Spectate", "spectate", "spectate" },
+		{ "Ready Room", "ready room", "ready room" }
+	},
+	mvm = {
+		{ "Blue Team", "blue team", "blue team" },
+		{ "Gold Team", "gold team", "gold team" },
+		{ "Spectate", "spectate", "spectate" },
+		{ "Ready Room", "ready room", "ready room" }
+	}
+}
+
+--[[
+	Returns a nice name for the given team number.
+]]
+function Shine:GetTeamName( Team, Capitals, Singular )
+	local Gamemode = self.GetGamemode()
+	local Names = TeamNames[ Gamemode ] or TeamNames.ns2
+
+	if Team > 3 or Team < 1 then
+		Team = 4
+	end
+
+	if Capitals then
+		return Names[ Team ][ 1 ]
+	end
+
+	if Singular then
+		return Names[ Team ][ 3 ]
+	end
+
+	return Names[ Team ][ 2 ]
+end
+
+if Client then return end
+
 local Abs = math.abs
 local Floor = math.floor
-local GetEntsByClass = Shared.GetEntitiesWithClassname
 local GetOwner = Server.GetOwner
 local pairs = pairs
 local StringFormat = string.format
@@ -385,43 +423,6 @@ function Shine:GetClientsByGroup( Group )
 	end
 
 	return Ret
-end
-
-local TeamNames = {
-	ns2 = {
-		{ "Marines", "marines", "marine team" },
-		{ "Aliens", "aliens", "alien team" },
-		{ "Spectate", "spectate", "spectate" },
-		{ "Ready Room", "ready room", "ready room" }
-	},
-	mvm = {
-		{ "Blue Team", "blue team", "blue team" },
-		{ "Gold Team", "gold team", "gold team" },
-		{ "Spectate", "spectate", "spectate" },
-		{ "Ready Room", "ready room", "ready room" }
-	}
-}
-
---[[
-	Returns a nice name for the given team number.
-]]
-function Shine:GetTeamName( Team, Capitals, Singular )
-	local Gamemode = self.GetGamemode()
-	local Names = TeamNames[ Gamemode ] or TeamNames.ns2
-
-	if Team > 3 or Team < 1 then
-		Team = 4
-	end
-
-	if Capitals then
-		return Names[ Team ][ 1 ]
-	end
-
-	if Singular then
-		return Names[ Team ][ 3 ]
-	end
-
-	return Names[ Team ][ 2 ]
 end
 
 local ConsoleInfo = "Console[N/A]"

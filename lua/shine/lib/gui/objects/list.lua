@@ -400,24 +400,28 @@ end
 	Sorts the rows, generally used to sort by column values.
 	Inputs: Column to sort by, optional sorting function.
 ]]
-function List:SortRows( Column, SortFunc )
+function List:SortRows( Column, SortFunc, Desc )
 	local Rows = self.Rows
 
-	--Only flip the sort order if we're selecting the same column twice.
-	if self.SortedColumn == Column then
-		self.Descending = not self.Descending
+	if Desc == nil then
+		--Only flip the sort order if we're selecting the same column twice.
+		if self.SortedColumn == Column then
+			self.Descending = not self.Descending
+		else
+			self.Descending = true
+		end
 	else
-		self.Descending = true
+		self.Descending = Desc
 	end
 
-	if not self.NumericColumns[ Column ] then
+	if not self.NumericColumns or not self.NumericColumns[ Column ] then
 		if self.Descending then
 			TableSort( Rows, SortFunc or function( A, B )
-				return A:GetColumnText( Column ) < B:GetColumnText( Column )
+				return A:GetColumnText( Column ):lower() < B:GetColumnText( Column ):lower()
 			end )
 		else
 			TableSort( Rows, SortFunc or function( A, B )
-				return A:GetColumnText( Column ) > B:GetColumnText( Column )
+				return A:GetColumnText( Column ):lower() > B:GetColumnText( Column ):lower()
 			end )
 		end
 	else
@@ -502,10 +506,18 @@ function List:OnRowSelect( Index, Row )
 	end
 
 	self.SelectedRow = Row
+
+	if self.OnRowSelected then
+		self:OnRowSelected( Index, Row )
+	end
 end
 
 function List:OnRowDeselect( Index, Row )
 	self.SelectedRow = nil
+
+	if self.OnRowDeselected then
+		self:OnRowDeselected( Index, Row )
+	end
 end
 
 function List:SetMultiSelect( Bool )
@@ -528,21 +540,13 @@ end
 function List:OnMouseDown( Key, DoubleClick )
 	if SGUI.IsValid( self.Scrollbar ) then
 		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
-			return true
+			return true, self.Scrollbar
 		end
 	end
 	
-	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
-	if Result ~= nil then return true end
-end
-
-function List:OnMouseUp( Key )
-	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:OnMouseUp( Key )
-	end
-	
-	self:CallOnChildren( "OnMouseUp", Key )
+	if Result ~= nil then return true, Child end
 end
 
 function List:OnMouseMove( Down )

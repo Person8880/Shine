@@ -137,19 +137,22 @@ function Plugin:Initialise()
 
 			for i = 1, #Maps do
 				local Map = Maps[ i ]
+
 				if IsType( Map, "table" ) then
-					ConfigMaps[ Map.map ] = true
+					if IsType( Map.map, "string" ) then
+						ConfigMaps[ Map.map ] = true
 
-					--Override the global time value for specific maps.
-					if Map.time or Map.Time then
-						Cycle.time = Map.time or Map.Time
-					end
+						--Override the global time value for specific maps.
+						if tonumber( Map.time or Map.Time ) then
+							Cycle.time = tonumber( Map.time or Map.Time )
+						end
 
-					--Override config round limit with map specific value.
-					if Map.rounds or Map.Rounds then
-						self.Config.RoundLimit = Max( Map.rounds or Map.Rounds, 0 )
+						--Override config round limit with map specific value.
+						if tonumber( Map.rounds or Map.Rounds ) then
+							self.Config.RoundLimit = Max( tonumber( Map.rounds or Map.Rounds ), 0 )
+						end
 					end
-				else
+				elseif IsType( Map, "string" ) then
 					ConfigMaps[ Map ] = true
 				end
 			end
@@ -211,7 +214,12 @@ function Plugin:Initialise()
 		self.ForcedMapCount = Clamp( IsArray, 0, MaxOptions )
 		
 		for i = 1, IsArray do
-			ForcedMaps[ ForcedMaps[ i ] ] = true
+			local Map = ForcedMaps[ i ]
+
+			if IsType( Map, "string" ) then
+				ForcedMaps[ Map ] = true
+			end
+
 			ForcedMaps[ i ] = nil
 		end
 	else
@@ -655,7 +663,7 @@ end
 	Returns the number of votes needed to begin a map vote.
 ]]
 function Plugin:GetVotesNeededToStart()
-	return Ceil( Shared.GetEntitiesWithClassname( "Player" ):GetSize() * self.Config.PercentToStart )
+	return Ceil( GetNumPlayers() * self.Config.PercentToStart )
 end
 
 --[[
