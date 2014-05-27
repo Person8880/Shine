@@ -749,9 +749,11 @@ function Plugin:AddBanToNetData( BanData )
 		if Data.ID == BanData.ID then
 			NetData[ i ] = BanData
 
-			for Client, Index in pairs( self.BanNetworkedClients ) do
-				if Index > i then
-					self:NetworkBan( BanData, Client )
+			if self.BanNetworkedClients then
+				for Client, Index in pairs( self.BanNetworkedClients ) do
+					if Index > i then
+						self:NetworkBan( BanData, Client )
+					end
 				end
 			end
 
