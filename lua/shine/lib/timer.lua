@@ -57,11 +57,17 @@ function TimerMeta:Pause()
 end
 
 function TimerMeta:Resume()
+
 	if not self.Paused then return end
 
 	self.Paused = nil
 	self.NextRun = SharedTime() + self.TimeLeft
 	self.TimeLeft = nil
+end
+
+function TimerMeta:GetTimeLeft()
+	local Time = SharedTime()
+	return  ( self.Reps - 1 ) * self.Delay + ( self.NextRun - Time )
 end
 
 --[[
@@ -150,6 +156,14 @@ function Shine.Timer.Resume( Name )
 	local Timer = Timers[ Name ]
 	
 	Timer:Resume()
+end
+
+function Shine.Timer.GetTimeLeft( Name )
+	if not Exists( Name ) then return end
+	
+	local Timer = Timers[ Name ]
+	
+	return Timer:GetTimeLeft()
 end
 
 local Error
