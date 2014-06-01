@@ -77,6 +77,8 @@ local function GenericClick( Command )
 
 		return true
 	end
+	
+	VoteMenu:SetIsVisible( false )
 
 	return false
 end
