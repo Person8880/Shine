@@ -151,6 +151,8 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
 	end
+	
+	Server.AddChatToHistory( Message, Name, 0, kTeamReadyRoom, false )
 end
 
 --[[
