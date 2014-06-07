@@ -660,7 +660,7 @@ Add( "Think", "ReplaceMethods", function()
 			local Allow = Call( "NS2StartVote", VoteName, Client, Data )
 
 			if Allow == false then
-				Server.SendNetworkMessage( Client, "VoteCannotStart",
+				Shine.SendNetworkMessage( Client, "VoteCannotStart",
 					{
 						reason = kVoteCannotStartReason.DisabledByAdmin
 					}, true )

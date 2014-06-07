@@ -75,14 +75,14 @@ function Shine.OpenVoteMenu()
 
 	VoteMenu:SetIsVisible( true )
 
-	Client.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
+	Shine.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
 	
 	Shine.Hook.Call( "OnVoteMenuOpen" )
 end
 
 Event.Hook( "Console_sh_votemenu", function()
 	if #ActivePlugins == 0 then --Request addon list if our table is empty.
-		Client.SendNetworkMessage( "Shine_RequestPluginData", {}, true )
+		Shine.SendNetworkMessage( "Shine_RequestPluginData", {}, true )
 
 		WaitingForData = true
 

@@ -135,11 +135,11 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		for i = 1, PlayerCount do
 			local Ply = Player[ i ]
 			
-			Server.SendNetworkMessage( Ply, "Shine_Chat",
+			self.SendNetworkMessage( Ply, "Shine_Chat",
 				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
 	elseif Player and Player ~= "Console" then
-		Server.SendNetworkMessage( Player, "Shine_Chat",
+		self.SendNetworkMessage( Player, "Shine_Chat",
 			self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 	elseif Player == "Console" then
 		Shared.Message( Message )
@@ -147,7 +147,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_Chat",
+			self.SendNetworkMessage( Players[ i ], "Shine_Chat",
 				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
 		end
 	end
@@ -178,18 +178,18 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
+			self.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
 		end
 	elseif IsType( Player, "table" ) then
 		for i = 1, #Player do
 			local Ply = Player[ i ]
 
 			if Ply then
-				Server.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
+				self.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
 			end
 		end 
 	else
-		Server.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
+		self.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 	end
 end
 
@@ -216,18 +216,18 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
+			self.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
 		end
 	elseif IsType( Player, "table" ) then
 		for i = 1, #Player do
 			local Ply = Player[ i ]
 
 			if Ply then
-				Server.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
+				self.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
 			end
 		end 
 	else
-		Server.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
+		self.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 	end
 end
 
@@ -319,7 +319,7 @@ Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 		MessageList[ Count ] = Message
 		
 		for i = 1, #MessageList do
-			Server.SendNetworkMessage( Client:GetControllingPlayer(), "ServerAdminPrint", { message = MessageList[ i ] }, true )
+			Shine.SendNetworkMessage( Client, "ServerAdminPrint", { message = MessageList[ i ] }, true )
 		end
 	end
 

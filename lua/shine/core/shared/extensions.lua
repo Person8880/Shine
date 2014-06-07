@@ -134,20 +134,20 @@ if Server then
 				local Client = Target[ i ]
 
 				if Client then
-					Server.SendNetworkMessage( Client, MessageName, Data, Reliable )
+					Shine.SendNetworkMessage( Client, MessageName, Data, Reliable )
 				end
 			end
 		elseif Target then
-			Server.SendNetworkMessage( Target, MessageName, Data, Reliable )
+			Shine.SendNetworkMessage( Target, MessageName, Data, Reliable )
 		else
-			Server.SendNetworkMessage( MessageName, Data, Reliable )
+			Shine.SendNetworkMessage( MessageName, Data, Reliable )
 		end
 	end
 elseif Client then
 	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
 
-		Client.SendNetworkMessage( MessageName, Data, Reliable )
+		Shine.SendNetworkMessage( MessageName, Data, Reliable )
 	end
 end
 
@@ -589,7 +589,7 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	end
 
 	if Server and Plugin.IsShared and next( self.GameIDs ) then --We need to inform clients to enable the client portion.
-		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
+		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
 	end
 
 	Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
@@ -607,7 +607,7 @@ function Shine:UnloadExtension( Name )
 	Plugin.Enabled = false
 
 	if Server and Plugin.IsShared and next( self.GameIDs ) then
-		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
+		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
 
 	Hook.Call( "OnPluginUnload", Name, Plugin.IsShared )
@@ -681,7 +681,7 @@ if Server then
 			end
 		end
 
-		Server.SendNetworkMessage( Client, "Shine_PluginSync", Message, true )
+		Shine.SendNetworkMessage( Client, "Shine_PluginSync", Message, true )
 	end )
 elseif Client then
 	Client.HookNetworkMessage( "Shine_PluginSync", function( Data )

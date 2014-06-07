@@ -365,7 +365,7 @@ function Plugin:CreateChatbox()
 
 		--Don't go sending blank messages.
 		if #Text > 0 and Text:find( "[^%s]" ) then
-			Client.SendNetworkMessage( "ChatClient", 
+			Shine.SendNetworkMessage( "ChatClient", 
 				BuildChatClientMessage( Plugin.TeamChat, Text:sub( 1, kMaxChatLength ) ), true )
 		end
 
