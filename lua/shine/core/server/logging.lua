@@ -152,7 +152,7 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		end
 	end
 	
-	Server.AddChatToHistory(Message, Name, 0, kTeamReadyRoom, false)
+	Server.AddChatToHistory( Message, Name, 0, kTeamReadyRoom, false )
 end
 
 --[[
