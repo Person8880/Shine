@@ -60,21 +60,3 @@ if Shine.Error then
 end
 
 Shine:Print( "Shine started up successfully." )
-
---Assuming they'll fix it in 266 now they know what it is...
-if Shared.GetBuildNumber() > 265 then return end
-
-Shine.Timer.Create( "ServerInfoUpdate", 1, -1, function()
-	local Clients = Shine.GameIDs
-
-	for Client in pairs( Clients ) do
-		local Player = Client:GetControllingPlayer()
-
-		if Player then
-			local Score = Player.score or 0
-			local Name = Player.GetName and Player:GetName() or "unknown"
-
-			Server.UpdatePlayerInfo( Client, Name, Score )
-		end
-	end
-end )
