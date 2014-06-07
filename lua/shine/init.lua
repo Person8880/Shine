@@ -17,6 +17,7 @@ local Scripts = {
 	"lib/math.lua",
 	"lib/class.lua",
 	"core/shared/hook.lua",
+	"core/shared/misc.lua",
 	"lib/player.lua",
 	"lib/timer.lua",
 	"lib/datatables.lua",
@@ -37,8 +38,7 @@ local Scripts = {
 	"lib/screentext/sv_screentext.lua",
 	"core/shared/adminmenu.lua",
 	"core/shared/votemenu.lua",
-	"core/server/votemenu.lua",
-	"core/shared/misc.lua"
+	"core/server/votemenu.lua"
 }
 
 for i = 1, #Scripts do
