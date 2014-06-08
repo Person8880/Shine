@@ -229,8 +229,9 @@ function Button:OnMouseUp( Key )
 	self.NextClick = Time + ( self.ClickDelay or 0.1 )
 
 	if self.DoClick then
-		if self:DoClick() ~= false then
-			Shared.PlaySound( nil, self.Sound )
+		local Sound = self.Sound
+		if self:DoClick() ~= false and Sound then
+			Shared.PlaySound( nil, Sound )
 		end
 
 		return true
