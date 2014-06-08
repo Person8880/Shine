@@ -3,6 +3,7 @@
 ]]
 
 local Clamp = math.Clamp
+local DebugSetUpValue = debug.setupvalue
 local Floor = math.floor
 local IsType = Shine.IsType
 local xpcall = xpcall
@@ -398,6 +399,34 @@ local function SetupGlobalHook( FuncName, HookName, Mode )
 	return HookFunc( FuncName, HookName )
 end
 Shine.Hook.SetupGlobalHook = SetupGlobalHook
+
+--[[
+	Replaces a function upvalue in the upvalues of TargetFunc.
+	Your replacement receives a copy of every upvalue from the original function.
+
+	Inputs:
+		1. Function to grab the upvalue from.
+		2. Name of the upvalue function you want to replace.
+		3. The replacement function you want to use.
+		4. Any upvalues you want to change for your replacement version.
+		5. Should said upvalues be replaced recursively?
+
+	Output:
+		The original function that has now been replaced.
+]]
+function Shine.Hook.ReplaceLocalFunction( TargetFunc, UpvalueName, Replacement, DifferingValues, Recursive )
+	local Value, i, Func = Shine.GetUpValue( TargetFunc, UpvalueName )
+
+	if not Value or not IsType( Value, "function" ) then return end
+	
+	--Copy all the upvalues from the original function to our replacement.
+	Shine.MimicFunction( Value, Replacement, DifferingValues, Recursive )
+
+	--Now replace the local function in the original location with our replacement version.
+	DebugSetUpValue( Func or TargetFunc, i, Replacement )
+
+	return Value
+end
 
 --[[
 	Event hooks.
