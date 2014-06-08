@@ -15,6 +15,7 @@ local Scripts = {
 	"lib/class.lua",
 	"lib/math.lua",
 	"core/shared/hook.lua",
+	"core/shared/misc.lua",
 	"core/shared/logging.lua",
 	"lib/gui.lua",
 	"lib/datatables.lua",
@@ -33,8 +34,7 @@ local Scripts = {
 	"core/shared/commands.lua",
 	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
-	"lib/screentext/cl_screentext.lua",
-	"core/shared/misc.lua"
+	"lib/screentext/cl_screentext.lua"
 }
 
 local StartupMessages = {}

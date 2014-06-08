@@ -160,7 +160,7 @@ function Plugin:Surrender( Team )
 
 	if not Gamerules then return end
 
-	Server.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
+	Shine.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
 	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
 
@@ -209,7 +209,7 @@ function Plugin:AnnounceVote( Player, Team, VotesNeeded )
 		local Ply = Players[ i ]
 
 		if Ply then
-			Server.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true ) --Use NS2's built in concede, it's localised.
+			Shine.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true ) --Use NS2's built in concede, it's localised.
 		end
 	end
 end

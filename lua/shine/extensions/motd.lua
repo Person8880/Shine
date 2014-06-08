@@ -51,7 +51,7 @@ function Plugin:ShowMotD( Client, OnConnect )
 		return
 	end
 
-	Server.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL, Title = "Message of the day" }, true )
+	Shine.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL, Title = "Message of the day" }, true )
 end
 
 function Plugin:ClientConfirmConnect( Client )

@@ -16,12 +16,12 @@ end
 
 function Shine:SendPluginData( Player, Data )
 	if Player then
-		Server.SendNetworkMessage( Player, "Shine_PluginData", Data, true )
+		self.SendNetworkMessage( Player, "Shine_PluginData", Data, true )
 	else
 		local Players = self.GetAllClients()
 
 		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_PluginData", Data, true )
+			self.SendNetworkMessage( Players[ i ], "Shine_PluginData", Data, true )
 		end
 	end
 end

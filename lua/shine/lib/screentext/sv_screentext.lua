@@ -4,9 +4,9 @@
 
 local function SendMessage( Player, Name, Message )
 	if Player then
-		Server.SendNetworkMessage( Player, Name, Message, true )
+		Shine.SendNetworkMessage( Player, Name, Message, true )
 	else
-		Server.SendNetworkMessage( Name, Message, true )
+		Shine.SendNetworkMessage( Name, Message, true )
 	end
 end
 

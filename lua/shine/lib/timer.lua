@@ -33,6 +33,10 @@ function TimerMeta:GetNextRun()
 	return self.NextRun
 end
 
+function TimerMeta:GetTimeUntilNextRun()
+	return self.NextRun - SharedTime()
+end
+
 function TimerMeta:SetReps( Reps )
 	self.Reps = Reps
 end
@@ -47,13 +51,9 @@ end
 
 function TimerMeta:Pause()
 	if self.Paused then return end
-	
-	local Time = SharedTime()
-
-	local TimeToNextRun = self.NextRun - Time
 
 	self.Paused = true
-	self.TimeLeft = TimeToNextRun
+	self.TimeLeft = self:GetTimeUntilNextRun()
 end
 
 function TimerMeta:Resume()
@@ -173,7 +173,7 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 				Timer.Reps = Timer.Reps - 1
 			end
 
-			local Success = xpcall( Timer.Func, OnError )
+			local Success = xpcall( Timer.Func, OnError, Timer )
 
 			if not Success then
 				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true, Name, Error, StackTrace )

@@ -105,7 +105,7 @@ function Plugin:CreateCommands()
 			Password = " "..Password
 		end
 		
-		Server.SendNetworkMessage( Client, "Shine_Command", { 
+		Shine.SendNetworkMessage( Client, "Shine_Command", { 
 			Command = StringFormat( "connect %s:%s%s", ServerData.IP, ServerData.Port, Password )
 		}, true )
 	end
