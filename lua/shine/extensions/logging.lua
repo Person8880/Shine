@@ -4,6 +4,8 @@
 
 local StringFormat = string.format
 
+local IsType = Shine.IsType
+
 local Plugin = {}
 Plugin.Version = "1.0.3"
 
@@ -132,7 +134,8 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	local StartLoc1 = Gamerules.startingLocationNameTeam1
 	local StartLoc2 = Gamerules.startingLocationNameTeam2
 
-	local TeamString = Shine:GetTeamName( WinningTeam:GetTeamType() )
+	local WinnerNum = IsType( WinningTeam, "number" ) and WinningTeam or WinningTeam:GetTeamType()
+	local TeamString = Shine:GetTeamName( WinnerNum )
 
 	Shine:LogString( StringFormat( "Round ended with %s winning. Build: %s. Map: %s. Round length: %s. Marine start: %s. Alien start: %s.",
 		TeamString, Build, Map, RoundLength, StartLoc1, StartLoc2
