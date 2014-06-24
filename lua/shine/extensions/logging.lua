@@ -50,7 +50,8 @@ function Plugin:GetClientInfo( Client, NoTeam )
 		return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
 	end
 	
-	return StringFormat( "%s[%s - %s]<%s>", PlayerName, ID, Shine.NS2ToSteamID( ID ), IPAddressToString( Server.GetClientAddress( Client ) ) )
+	return StringFormat( "%s[%s - %s]<%s>", PlayerName, ID,
+		Shine.NS2ToSteamID( ID ), IPAddressToString( Server.GetClientAddress( Client ) ) )
 end
 
 function Plugin:ClientConfirmConnect( Client )
@@ -89,7 +90,8 @@ function Plugin:PlayerNameChange( Player, Name, OldName )
 	local Client = Server.GetOwner( Player )
 	if Client and Client:GetIsVirtual() then return end
 	
-	Shine:LogString( StringFormat( "%s changed their name from '%s' to '%s'.", self:GetClientInfo( Client ), OldName or "", Name ) )
+	Shine:LogString( StringFormat( "%s changed their name from '%s' to '%s'.",
+		self:GetClientInfo( Client ), OldName or "", Name ) )
 end
 
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
@@ -112,14 +114,17 @@ end
 function Plugin:PlayerSay( Client, Message )
 	if not self.Config.LogChat then return end
 	
-	Shine:LogString( StringFormat( "%s from %s: %s", Message.teamOnly and "Team Chat" or "Chat", self:GetClientInfo( Client ), Message.message ) )
+	Shine:LogString( StringFormat( "%s from %s: %s",
+		Message.teamOnly and "Team Chat" or "Chat", self:GetClientInfo( Client ),
+		Message.message ) )
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
 	if not self.Config.LogRoundStartEnd then return end
 	
 	if State == kGameState.Started then
-		Shine:LogString( StringFormat( "Round started. Build: %s. Map: %s.", Shared.GetBuildNumber(), Shared.GetMapName() ) )
+		Shine:LogString( StringFormat( "Round started. Build: %s. Map: %s.",
+			Shared.GetBuildNumber(), Shared.GetMapName() ) )
 	end
 end
 
@@ -181,7 +186,8 @@ function Plugin:CastVoteByPlayer( Gamerules, VoteTechID, Player )
 	local Client = Server.GetOwner( Player )
 
 	if Target and Client then
-		Shine:LogString( StringFormat( "%s voted to eject %s.", self:GetClientInfo( Client ), self:GetClientInfo( Target ) ) )
+		Shine:LogString( StringFormat( "%s voted to eject %s.",
+			self:GetClientInfo( Client ), self:GetClientInfo( Target ) ) )
 	end
 end
 
@@ -231,7 +237,8 @@ function Plugin:OnRecycle( Building, ResearchID )
 
 	local Client = Server.GetOwner( Commander )
 	
-	Shine:LogString( StringFormat( "%s began recycling %s[%s].", self:GetClientInfo( Client ), Name, ID ) )
+	Shine:LogString( StringFormat( "%s began recycling %s[%s].",
+		self:GetClientInfo( Client ), Name, ID ) )
 end
 
 function Plugin:OnConstructInit( Building )
@@ -252,7 +259,8 @@ function Plugin:OnConstructInit( Building )
 	if not Owner then return end
 	
 	local Client = Server.GetOwner( Owner )
-	Shine:LogString( StringFormat( "%s began construction of %s[%s].", self:GetClientInfo( Client ), Name, ID ) )
+	Shine:LogString( StringFormat( "%s began construction of %s[%s].",
+		self:GetClientInfo( Client ), Name, ID ) )
 end
 
 function Plugin:Cleanup()
