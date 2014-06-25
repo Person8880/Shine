@@ -947,7 +947,7 @@ function Plugin:StartChat( Team )
 			self.MainPanel:Destroy()
 		end
 
-		if not self:CreateChatBox() then
+		if not self:CreateChatbox() then
 			return
 		end
 	end
