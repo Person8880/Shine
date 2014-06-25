@@ -139,11 +139,22 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	local StartLoc1 = Gamerules.startingLocationNameTeam1
 	local StartLoc2 = Gamerules.startingLocationNameTeam2
 
+	local Team1Name = Shine:GetTeamName( 1, true )
+	local Team2Name = Shine:GetTeamName( 2, true )
+
+	--A draw
+	if not WinningTeam or WinningTeam == kNeutralTeamType then
+		Shine:LogString( StringFormat( "Rounded ended in a draw. Build: %s. Map: %s. Round length: %s. %s start: %s. %s start: %s.",
+			Build, Map, RoundLength, Team1Name, StartLoc1, Team2Name, StartLoc2 ) )
+
+		return
+	end
+
 	local WinnerNum = IsType( WinningTeam, "number" ) and WinningTeam or WinningTeam:GetTeamType()
 	local TeamString = Shine:GetTeamName( WinnerNum )
 
-	Shine:LogString( StringFormat( "Round ended with %s winning. Build: %s. Map: %s. Round length: %s. Marine start: %s. Alien start: %s.",
-		TeamString, Build, Map, RoundLength, StartLoc1, StartLoc2
+	Shine:LogString( StringFormat( "Round ended with %s winning. Build: %s. Map: %s. Round length: %s. %s start: %s. %s start: %s.",
+		TeamString, Build, Map, RoundLength, Team1Name, StartLoc1, Team2Name, StartLoc2
 	) )
 end
 
