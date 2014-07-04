@@ -5,7 +5,6 @@
 Shine = {}
 
 local include = Script.Load
-local Notify = Shared.Message
 local StringFormat = string.format
 
 local Scripts = {
@@ -16,22 +15,26 @@ local Scripts = {
 	"lib/class.lua",
 	"lib/math.lua",
 	"core/shared/hook.lua",
+	"core/shared/misc.lua",
 	"core/shared/logging.lua",
 	"lib/gui.lua",
 	"lib/datatables.lua",
 	"lib/timer.lua",
 	"lib/query.lua",
+	"lib/game.lua",
+	"lib/player.lua",
 	"core/client/commands.lua",
 	"core/shared/config.lua",
 	"core/shared/votemenu.lua",
 	"core/client/votemenu.lua",
+	"core/shared/adminmenu.lua",
+	"core/client/adminmenu.lua",
 	"core/shared/extensions.lua",
 	"core/shared/chat.lua",
 	"core/shared/commands.lua",
 	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
-	"lib/screentext/cl_screentext.lua",
-	"core/shared/misc.lua"
+	"lib/screentext/cl_screentext.lua"
 }
 
 local StartupMessages = {}

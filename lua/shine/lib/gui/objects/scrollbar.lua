@@ -39,6 +39,11 @@ function Scrollbar:Initialise()
 	self.ScrollSize = 1
 end
 
+function Scrollbar:OnSchemeChange( Skin )
+	self.Background:SetColor( Skin.ScrollbarBackground )
+	self.Bar:SetColor( Skin.Scrollbar )
+end
+
 function Scrollbar:SetSize( Size )
 	self.Size = Size
 
@@ -120,7 +125,7 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 
 	self.Bar:SetColor( self.ActiveCol )
 
-	return true
+	return true, self
 end
 
 function Scrollbar:OnMouseWheel( Down )
@@ -128,14 +133,19 @@ function Scrollbar:OnMouseWheel( Down )
 
 	if self:MouseIn( self.Background ) or Parent:MouseIn( Parent.Background ) then
 		self:SetScroll( self.Pos + ( Down and -32 or 32 ) * self.ScrollSize, true )
+
+		return true
 	end
 end
 
 function Scrollbar:OnMouseUp( Key )
 	if Key ~= InputKey.MouseButton0 then return end
+	
 	self.Scrolling = false
 
 	self.Bar:SetColor( self.InactiveCol )
+
+	return true
 end
 
 function Scrollbar:OnMouseMove( Down )

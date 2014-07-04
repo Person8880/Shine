@@ -9,6 +9,7 @@ local HTTPRequest = Shared.SendHTTPRequest
 local Huge = math.huge
 local StringFormat = string.format
 local tonumber = tonumber
+local JsonDecode = json.decode
 
 local Plugin = {}
 
@@ -20,7 +21,9 @@ Plugin.DefaultConfig = {
 	CheckInterval = 60,
 	RepeatNotifications = true,
 	NotifyInterval = 180,
-	ForceMapChangeAfterNotifications = 5
+	ForceMapChangeAfterNotifications = 5,
+	ForceMapvote = false,
+	ForceMapvoteAtRoundEnd = false	
 }
 
 local RemainingNotifications = Huge
@@ -53,65 +56,34 @@ end
 
 local LastKnownUpdate = {}
 
-local function FindCharactersBetween( Response, OpeningCharacters, ClosingCharacters )
-	local Result
-
-	local IndexOfOpeningCharacters = Response:find( OpeningCharacters )
-	
-	if IndexOfOpeningCharacters then
-		local FoundCharacters = Response:sub( IndexOfOpeningCharacters + #OpeningCharacters )
-		local IndexOfClosingCharacters = FoundCharacters:find( ClosingCharacters )
-	
-		if IndexOfClosingCharacters then
-			FoundCharacters = FoundCharacters:sub( 1, IndexOfClosingCharacters - 1 )
-			FoundCharacters = StringTrim( FoundCharacters )
-
-			Result = FoundCharacters
-		end
-	end
-	
-	return Result
-end
-
-local function GetUpdatedTime( Response )
-	return FindCharactersBetween( Response, "Update:", "</div>" )
-end
-
-local function GetModName( Response )
-	return FindCharactersBetween( Response, "<div class=\"workshopItemTitle\">", "</div>" )
-end
-
 --[[
-	Checks a specific mod ID for an update.
-	Input: Base 10 mod ID.
+	Parses Steam API response and checks if a mod has been updated.
 ]]
-function Plugin:CheckModID( ID )
-	local URL = "http://steamcommunity.com/sharedfiles/filedetails/changelog/"..ID
+function Plugin:ParseModInfo( ModInfo )
+	if not ModInfo then return end
+	
+	local Response = ModInfo.response or {}
 
-	HTTPRequest( URL, "GET", function( Response )
-		if not Response or #Response == 0 then return end
-		if self.ChangedModName then return end
+	--Steam API error
+	if Response.result ~= 1 then return end
 
-		local Update = GetUpdatedTime( Response )
+	if not Response.publishedfiledetails then return end
 
-		if not Update then return end
-
-		if not LastKnownUpdate[ ID ] then
-			LastKnownUpdate[ ID ] = Update
-		elseif LastKnownUpdate[ ID ] ~= Update then
-			LastKnownUpdate[ ID ] = Update
-
-			local ModName = GetModName( Response )
-
-			if ModName and ModName ~= "" then
-				self.ChangedModName = ModName
+	for _, Res in pairs( Response.publishedfiledetails ) do
+		if Res.time_updated and Res.title and Res.publishedfileid then
+			if not LastKnownUpdate[ Res.publishedfileid ] then
+				LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
+			elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
+				self.ChangedModName = Res.title
 
 				self:DestroyTimer( ModChangeTimer )
 
 				self:NotifyOrCycle()
+
+				return
 			end
 		end
-	end )
+	end
 end
 
 --[[
@@ -119,12 +91,19 @@ end
 ]]
 function Plugin:CheckForModChange()
 	local GetMod = Server.GetActiveModId
-	
-	for i = 1, Server.GetNumActiveMods() do
-		local ID = tonumber( GetMod( i ), 16 )
-		
-		self:CheckModID( ID )
+
+	local Params = {}
+
+	Params.itemcount = Server.GetNumActiveMods()
+
+	for i = 1, Params.itemcount do
+		Params[ StringFormat( "publishedfileids[%s]", i - 1 ) ] = tonumber( GetMod( i ), 16 )
 	end
+
+	local URL = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+	HTTPRequest( URL, "POST", Params, function( Response )
+		self:ParseModInfo( JsonDecode( Response ) )
+	end )
 end
 
 --[[
@@ -132,10 +111,27 @@ end
 	Will cycle the map if the server is empty, or we've gone past the max
 	number of notifications.
 ]]
-function Plugin:NotifyOrCycle()
-	if #Shine.GetAllPlayers() == 0 then
+function Plugin:NotifyOrCycle( Recall )
+	if Shine.GetHumanPlayerCount() == 0 then
 		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
+
 		return
+	end
+
+	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
+
+	--Mapvote actions
+	if Enabled and not Recall then
+		--Deny extension of the map.
+		MapVote.Config.AllowExtend = false
+		
+		if self.Config.ForceMapvote and not MapVote:VoteStarted() then
+		    MapVote:StartVote( nil, true )   
+		elseif self.Config.ForceMapvoteAtRoundEnd then
+		    MapVote.VoteOnEnd = true
+		    MapVote.Round = MapVote.Config.RoundLimit
+		    MapVote.MapCycle.time = Shared.GetTime() / 60		    		    
+		end
 	end
 
 	self:Notify( "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
@@ -147,7 +143,7 @@ function Plugin:NotifyOrCycle()
 
 		local TimeBeforeChange = RemainingNotifications * self.Config.NotifyInterval
 		if TimeBeforeChange > 5 then
-			TimeRemainingString = "in "..string.TimeToString( TimeBeforeChange )
+			TimeRemainingString = StringFormat( "in %s", string.TimeToString( TimeBeforeChange ))
 		end
 
 		self:Notify( "The map will cycle %s.", true, TimeRemainingString )
@@ -159,7 +155,7 @@ function Plugin:NotifyOrCycle()
 	end
 
 	if self.Config.RepeatNotifications then
-		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function() self:NotifyOrCycle() end )
+		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function() self:NotifyOrCycle( true ) end )
 	end
 end
 

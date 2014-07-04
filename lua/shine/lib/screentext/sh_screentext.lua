@@ -2,8 +2,6 @@
 	Screen text rendering shared file.
 ]]
 
-Shine = Shine or {}
-
 local NWMessage = {
 	r = "integer (0 to 255)",
 	g = "integer (0 to 255)",

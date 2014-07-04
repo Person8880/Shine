@@ -5,7 +5,6 @@
 local Shine = Shine
 
 local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
 local StringFormat = string.format
 
 local Plugin = Plugin
@@ -106,7 +105,7 @@ function Plugin:CreateCommands()
 			Password = " "..Password
 		end
 		
-		Server.SendNetworkMessage( Client, "Shine_Command", { 
+		Shine.SendNetworkMessage( Client, "Shine_Command", { 
 			Command = StringFormat( "connect %s:%s%s", ServerData.IP, ServerData.Port, Password )
 		}, true )
 	end

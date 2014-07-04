@@ -108,14 +108,14 @@ if Server then
 				local Client = Clients[ i ]
 
 				if Client then
-					Server.SendNetworkMessage( Client, self.__Name..Key, { [ Key ] = Value }, true )
+					Shine.SendNetworkMessage( Client, self.__Name..Key, { [ Key ] = Value }, true )
 				end
 			end
 
 			return
 		end
 
-		Server.SendNetworkMessage( self.__Name..Key, { [ Key ] = Value }, true )
+		Shine.SendNetworkMessage( self.__Name..Key, { [ Key ] = Value }, true )
 	end
 
 	function DataTableMeta:__SendAll()
@@ -127,7 +127,7 @@ if Server then
 			return
 		end
 
-		Server.SendNetworkMessage( self.__Name, RealData[ self ], true )
+		Shine.SendNetworkMessage( self.__Name, RealData[ self ], true )
 	end
 
 	--[[
@@ -182,13 +182,13 @@ if Server then
 	Shine.Hook.Add( "ClientConfirmConnect", "DataTablesUpdate", function( Client )
 		for Table, Data in pairs( RealData ) do
 			if not Table.__Access then
-				Server.SendNetworkMessage( Client, Table.__Name, Data, true )
+				Shine.SendNetworkMessage( Client, Table.__Name, Data, true )
 			else
 				local Access = Table.__Access
 
 				for Key, Value in pairs( Data ) do
 					if not Access[ Key ] or Shine:HasAccess( Client, Access[ Key ] ) then
-						Server.SendNetworkMessage( Client, Table.__Name..Key, { [ Key ] = Value }, true )
+						Shine.SendNetworkMessage( Client, Table.__Name..Key, { [ Key ] = Value }, true )
 					end
 				end
 			end

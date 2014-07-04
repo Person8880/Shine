@@ -9,8 +9,11 @@ local Clock = os.clock
 local Max = math.max
 local Min = math.min
 local StringFormat = string.format
+local tonumber = tonumber
 
 local TextEntry = {}
+
+TextEntry.UsesKeyboardFocus = true
 
 local BorderSize = Vector( 2, 2, 0 )
 local CaretCol = Color( 0, 0, 0, 1 )
@@ -90,7 +93,7 @@ function TextEntry:Initialise()
 
 	Background:SetColor( Scheme.ButtonBorder )
 	InnerBox:SetColor( self.DarkCol )
-	Text:SetColor( Scheme.DarkText )
+	Text:SetColor( Scheme.BrightText )
 end
 
 function TextEntry:SetSize( SizeVec )
@@ -147,7 +150,7 @@ function TextEntry:OnSchemeChange( Scheme )
 	self.DarkCol = Scheme.TextEntry
 
 	self.Background:SetColor( Scheme.ButtonBorder )
-	self.TextObj:SetColor( Scheme.DarkText )
+	self.TextObj:SetColor( Scheme.BrightText )
 
 	if self.Highlighted or self.Enabled then
 		self.InnerBox:SetColor( self.FocusColour )
@@ -261,11 +264,25 @@ end
 function TextEntry:AllowChar( Char )
 	if not Char:IsValidUTF8() then return false end
 
-	if self.ShouldAllowChar then
-		if self:ShouldAllowChar( Char ) == false then return false end
+	if self:ShouldAllowChar( Char ) == false then return false end
+
+	return true
+end
+
+function TextEntry:ShouldAllowChar( Char )
+	if self.Numeric then
+		return tonumber( Char ) or false
 	end
 
 	return true
+end
+
+function TextEntry:GetNumeric()
+	return self.Numeric
+end
+
+function TextEntry:SetNumeric( Bool )
+	self.Numeric = Bool
 end
 
 --[[
@@ -319,8 +336,6 @@ end
 
 function TextEntry:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
-	
-	self.BaseClass.Think( self, DeltaTime )
 
 	if self.Enabled then 
 		local Time = Clock()
@@ -334,6 +349,8 @@ function TextEntry:Think( DeltaTime )
 		end
 
 		return 
+	else
+		self.BaseClass.Think( self, DeltaTime )
 	end
 end
 
@@ -402,17 +419,17 @@ function TextEntry:SetStickyFocus( Bool )
 	self.StickyFocus = Bool and true or false
 end
 
-function TextEntry:PlayerKeyPress( Key, Down )
+function TextEntry:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 
-	if Key == InputKey.MouseButton0 and Down then
+	if Key == InputKey.MouseButton0 then
 		local In, X, Y = self:MouseIn( self.InnerBox )
 
 		if not self.Enabled then
 			if In then
 				self:RequestFocus()
 
-				return true
+				return true, self
 			end
 		
 			return
@@ -430,9 +447,12 @@ function TextEntry:PlayerKeyPress( Key, Down )
 
 		self:SetCaretPos( self.Column )
 
-		return true
-	end 
+		return true, self
+	end
+end
 
+function TextEntry:PlayerKeyPress( Key, Down )
+	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
 	if not Down then return end
 
@@ -458,6 +478,12 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		end
 
 		return true
+	elseif Key == InputKey.Tab then
+		if self.OnTab then
+			self:OnTab()
+		end
+
+		return true
 	elseif Key == InputKey.Escape then
 		self:LoseFocus()
 
@@ -467,19 +493,27 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	return true
 end
 
-function TextEntry:OnFocusChange( NewFocus )
+function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 	if NewFocus ~= self then
-		self.Enabled = false
+		if self.StickyFocus and ClickingOtherElement then
+			self:RequestFocus()
 
-		self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.5, function( InnerBox )
-			if self.Enabled then
-				InnerBox:SetColor( self.FocusColour )
+			return
+		end
+		
+		if self.Enabled then
+			self.Enabled = false
 
-				return
-			end
-			
-			InnerBox:SetColor( self.DarkCol )
-		end )
+			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.5, function( InnerBox )
+				if self.Enabled then
+					InnerBox:SetColor( self.FocusColour )
+
+					return
+				end
+				
+				InnerBox:SetColor( self.DarkCol )
+			end )
+		end
 
 		self.Caret:SetColor( Clear )
 

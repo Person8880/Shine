@@ -24,6 +24,7 @@ local SGUI = Shine.GUI
 local VoteMenu = Shine.VoteMenu
 
 local Ceil = math.ceil
+local StringExplode = string.Explode
 local StringFormat = string.format
 local TableCount = table.Count
 local TableEmpty = table.Empty
@@ -57,12 +58,29 @@ VoteMenu:AddPage( "ServerSwitch", function( self )
 	end
 
 	for ID, Server in pairs( Servers ) do
-		local Button = self:AddSideButton( Server.Name, function() ClickServer( ID ) end )
+		local Button = self:AddSideButton( Server.Name, function() return ClickServer( ID ) end )
 
-		Shine.QueryServerPopulation( Server.IP, tonumber( Server.Port ) + 1, function( Connected, Max )
-			if not Connected then return end
+		Shine.QueryServer( Server.IP, tonumber( Server.Port ) + 1, function( Data )
+			if not Data then return end
 			if not SGUI.IsValid( Button ) then return end
 			if Button:GetText() ~= Server.Name then return end
+
+			local Connected = Data.numberOfPlayers
+			local Max = Data.maxPlayers
+			local Tags = Data.serverTags
+
+			local TagTable = StringExplode( Tags, "|" )
+
+			for i = 1, #TagTable do
+				local Tag = TagTable[ i ]
+
+				local Match = Tag:match( "R_S(%d+)" )
+
+				if Match then
+					Max = Max - tonumber( Match )
+					break
+				end
+			end
 
 			Button:SetText( StringFormat( "%s (%i/%i)", Server.Name, Connected, Max ) )
 		end )

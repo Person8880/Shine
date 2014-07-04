@@ -2,14 +2,53 @@
 	Shine player functions.
 ]]
 
+local TeamNames = {
+	ns2 = {
+		{ "Marines", "marines", "marine team" },
+		{ "Aliens", "aliens", "alien team" },
+		{ "Spectate", "spectate", "spectate" },
+		{ "Ready Room", "ready room", "ready room" }
+	},
+	mvm = {
+		{ "Blue Team", "blue team", "blue team" },
+		{ "Gold Team", "gold team", "gold team" },
+		{ "Spectate", "spectate", "spectate" },
+		{ "Ready Room", "ready room", "ready room" }
+	}
+}
+
+--[[
+	Returns a nice name for the given team number.
+]]
+function Shine:GetTeamName( Team, Capitals, Singular )
+	local Gamemode = self.GetGamemode()
+	local Names = TeamNames[ Gamemode ] or TeamNames.ns2
+
+	if Team > 3 or Team < 1 then
+		Team = 4
+	end
+
+	if Capitals then
+		return Names[ Team ][ 1 ]
+	end
+
+	if Singular then
+		return Names[ Team ][ 3 ]
+	end
+
+	return Names[ Team ][ 2 ]
+end
+
+if Client then return end
+
 local Abs = math.abs
 local Floor = math.floor
-local GetEntsByClass = Shared.GetEntitiesWithClassname
 local GetOwner = Server.GetOwner
 local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
+local TableSort = table.sort
 local TableToString = table.ToString
 local Traceback = debug.traceback
 
@@ -138,17 +177,49 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 end
 
 --[[
+	Returns the number of human players (clients).
+]]
+function Shine.GetHumanPlayerCount()
+	local Count = 0
+
+	local GameIDs = Shine.GameIDs
+
+	for Client, ID in pairs( GameIDs ) do
+		if Client.GetIsVirtual and not Client:GetIsVirtual() then
+			Count = Count + 1
+		end
+	end
+	
+	return Count
+end
+
+--[[
 	Returns a table of all players.
 ]]
 function Shine.GetAllPlayers()
-	return EntityListToTable( GetEntsByClass( "Player" ) )
+	local Players = {}
+	local Count = 0
+
+	local GameIDs = Shine.GameIDs
+
+	for Client, ID in pairs( GameIDs ) do
+		local Player = Client.GetControllingPlayer and Client:GetControllingPlayer()
+
+		if Player then
+			Count = Count + 1
+
+			Players[ Count ] = Player
+		end
+	end
+
+	return Players, Count
 end
 
 --[[
 	Returns a table of all players sorted randomly.
 ]]
 function Shine.GetRandomPlayerList()
-	local Players = EntityListToTable( GetEntsByClass( "Player" ) )
+	local Players = Shine.GetAllPlayers()
 
 	TableShuffle( Players )
 
@@ -230,7 +301,7 @@ function Shine.GetClientByNS2ID( ID )
 end
 
 --[[
-	Returns a client matching the given name.
+	Returns the client closest matching the given name.
 ]]
 function Shine.GetClientByName( Name )
 	if type( Name ) ~= "string" then return nil end
@@ -238,18 +309,30 @@ function Shine.GetClientByName( Name )
 	Name = Name:lower()
 
 	local Clients = Shine.GameIDs
+	local SortTable = {}
+	local Count = 0
 
 	for Client in pairs( Clients ) do
 		local Player = Client:GetControllingPlayer()
 
 		if Player then
-			if Player:GetName():lower():find( Name, 1, true ) then
-				return Client
+			local Find = Player:GetName():lower():find( Name, 1, true )
+
+			if Find then
+				Count = Count + 1
+				SortTable[ Count ] = { Client = Client, Index = Find }
 			end
 		end
 	end
 
-	return nil
+	if Count == 0 then return nil end
+
+	--Get the match with the string furthest to the left in their name.
+	TableSort( SortTable, function( A, B )
+		return A.Index < B.Index
+	end )
+
+	return SortTable[ 1 ].Client
 end
 
 function Shine.NS2ToSteamID( ID )
@@ -340,21 +423,6 @@ function Shine:GetClientsByGroup( Group )
 	end
 
 	return Ret
-end
-
---[[
-	Returns a nice name for the given team number.
-]]
-function Shine:GetTeamName( Team, Capitals )
-	if Team == 1 then
-		return Capitals and "Marines" or "marines"
-	elseif Team == 2 then
-		return Capitals and "Aliens" or "aliens"
-	elseif Team == 3 then
-		return Capitals and "Spectate" or "spectate"
-	else
-		return Capitals and "Ready Room" or "ready room"
-	end
 end
 
 local ConsoleInfo = "Console[N/A]"

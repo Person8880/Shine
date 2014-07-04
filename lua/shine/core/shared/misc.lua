@@ -5,6 +5,13 @@
 --Called when the client first presses a button, this should be when they're ready to receive the MotD, among other things.
 Shared.RegisterNetworkMessage( "Shine_ClientConfirmConnect", {} )
 
+local SendNetMessage = Server and Server.SendNetworkMessage or Client.SendNetworkMessage
+
+--Use the real thing, don't rely on a global other mods want to change which then breaks us...
+function Shine.SendNetworkMessage( ... )
+	return SendNetMessage( ... )
+end
+
 if Server then 
 	Server.HookNetworkMessage( "Shine_ClientConfirmConnect", function( Client, Data )
 		Shine.Hook.Call( "ClientConfirmConnect", Client )
@@ -13,13 +20,13 @@ if Server then
 	return 
 end
 
-Event.Hook( "LoadComplete", function()
+Shine.Hook.Add( "OnMapLoad", "SetupConfirmConnect", function()
 	local OldKeyPress
 	local SentRequest
 
 	OldKeyPress = Shine.ReplaceClassMethod( "Player", "SendKeyEvent", function( self, Key, Down )
 		if not SentRequest then
-			Client.SendNetworkMessage( "Shine_ClientConfirmConnect", {}, true )
+			Shine.SendNetworkMessage( "Shine_ClientConfirmConnect", {}, true )
 			
 			SentRequest = true
 		end

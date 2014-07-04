@@ -365,7 +365,7 @@ function Plugin:CreateChatbox()
 
 		--Don't go sending blank messages.
 		if #Text > 0 and Text:find( "[^%s]" ) then
-			Client.SendNetworkMessage( "ChatClient", 
+			Shine.SendNetworkMessage( "ChatClient", 
 				BuildChatClientMessage( Plugin.TeamChat, Text:sub( 1, kMaxChatLength ) ), true )
 		end
 
@@ -678,8 +678,6 @@ function Plugin:PlayerKeyPress( Key, Down )
 end
 
 function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
-	local UIScale = GUIScale( 1 )
-
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
 	local Messages = self.Messages
@@ -805,6 +803,12 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		if not self.Visible then
 			self.MainPanel:SetIsVisible( false )
 		end
+	end
+
+	--Don't add anything if one of the elements is the wrong type. Default chat will error instead.
+	if not IsType( PlayerColour, "number" ) or not IsType( PlayerName, "string" )
+	or not IsType( MessageColour, "cdata" ) or not IsType( MessageName, "string" ) then
+		return
 	end
 	
 	--I've decided not to scale this text, scaling blurs or pixelates and it's very hard to read.

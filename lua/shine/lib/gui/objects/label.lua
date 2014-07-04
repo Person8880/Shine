@@ -27,6 +27,12 @@ function Label:Initialise()
 	self.TextScale = Vector( 1, 1, 0 )
 end
 
+function Label:OnSchemeChange( Skin )
+	local Colour = self.Bright and Skin.BrightText or Skin.DarkText
+
+	self.Text:SetColor( Colour )
+end
+
 function Label:SetupStencil()
 	self.Text:SetInheritsParentStencilSettings( false )
 	self.Text:SetStencilFunc( GUIItem.NotEqual )

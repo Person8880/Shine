@@ -5,6 +5,7 @@
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableRemove = table.remove
+local xpcall = xpcall
 
 local Timers = {}
 local Simples = {}
@@ -32,6 +33,10 @@ function TimerMeta:GetNextRun()
 	return self.NextRun
 end
 
+function TimerMeta:GetTimeUntilNextRun()
+	return self.NextRun - SharedTime()
+end
+
 function TimerMeta:SetReps( Reps )
 	self.Reps = Reps
 end
@@ -46,13 +51,9 @@ end
 
 function TimerMeta:Pause()
 	if self.Paused then return end
-	
-	local Time = SharedTime()
-
-	local TimeToNextRun = self.NextRun - Time
 
 	self.Paused = true
-	self.TimeLeft = TimeToNextRun
+	self.TimeLeft = self:GetTimeUntilNextRun()
 end
 
 function TimerMeta:Resume()
@@ -80,7 +81,6 @@ local function Create( Name, Delay, Reps, Func )
 		OldObject.Func = Func
 		OldObject.LastRun = 0
 		OldObject.NextRun = Time + Delay
-		OldObject.StackTrace = debug.traceback()
 
 		return OldObject
 	end
@@ -91,8 +91,7 @@ local function Create( Name, Delay, Reps, Func )
 		Reps = Reps,
 		Func = Func,
 		LastRun = 0,
-		NextRun = Time + Delay,
-		StackTrace = debug.traceback()
+		NextRun = Time + Delay
 	}, TimerMeta )
 
 	Timers[ Name ] = Timer
@@ -153,6 +152,14 @@ function Shine.Timer.Resume( Name )
 	Timer:Resume()
 end
 
+local Error
+local StackTrace
+
+local function OnError( Err )
+	Error = Err
+	StackTrace = debug.traceback()
+end
+
 --[[
 	Checks and executes timers on server update.
 ]]
@@ -166,13 +173,16 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 				Timer.Reps = Timer.Reps - 1
 			end
 
-			local Success, Err = pcall( Timer.Func )
+			local Success = xpcall( Timer.Func, OnError, Timer )
 
 			if not Success then
-				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true, Name, Err, Timer.StackTrace )
+				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true, Name, Error, StackTrace )
 
-				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.", Name, Err ), Timer.StackTrace )
+				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.", Name, Error ), StackTrace )
 				
+				Error = nil
+				StackTrace = nil
+
 				Timer:Destroy()
 			else
 				if Timer.Reps == 0 then

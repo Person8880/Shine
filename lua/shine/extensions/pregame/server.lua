@@ -4,14 +4,13 @@
 
 local Shine = Shine
 
-local Notify = Shared.Message
-
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.5"
 
 Plugin.HasConfig = true
@@ -20,6 +19,7 @@ Plugin.ConfigName = "PreGame.json"
 Plugin.DefaultConfig = {
 	PreGameTime = 45,
 	CountdownTime = 15,
+	StartDelay = 0,
 	ShowCountdown = true,
 	RequireComs = 1,
 	AbortIfNoCom = false,
@@ -36,7 +36,7 @@ Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "Ac
 function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()
 
-	if Gamemode ~= "ns2" then
+	if Gamemode ~= "ns2" and Gamemode ~= "mvm" then
 		return false, StringFormat( "The pregame plugin does not work with %s.", Gamemode )
 	end
 
@@ -62,7 +62,11 @@ function Plugin:StartCountdown()
 	Gamerules.countdownTime = kCountDownLength
 	Gamerules.lastCountdownPlayed = nil
 
-	for _, Player in ientitylist( Shared.GetEntitiesWithClassname( "Player" ) ) do
+	local Players, Count = Shine.GetAllPlayers()
+
+	for i = 1, Count do
+		local Player = Players[ i ]
+
 		if Player.ResetScores then
 			Player:ResetScores()
 		end
@@ -73,10 +77,16 @@ function Plugin:StartCountdown()
 end
 
 function Plugin:ClientConfirmConnect( Client )
+	local StartDelay = self.Config.StartDelay
+
+	if StartDelay > 0 and SharedTime() < StartDelay then
+		self:SendNetworkMessage( Client, "StartDelay", { StartTime = Floor( StartDelay ) }, true )
+	end
+
 	if not self.CountStart then return end
 	if not self.Config.ShowCountdown then return end
 
-	local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
+	local TimeLeft = Ceil( self.CountEnd - SharedTime() )
 
 	if TimeLeft <= 0 or TimeLeft > 5 then return end
 
@@ -104,6 +114,11 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 
 	self.StartedGame = false
 	self.GameStarting = false
+
+	--Removes start delay text if game start was forced.
+	if self.Config.StartDelay > 0 then
+		self:SendNetworkMessage( nil, "StartDelay", { StartTime = 0 }, true )
+	end
 end
 
 function Plugin:DestroyTimers()
@@ -132,7 +147,8 @@ Plugin.UpdateFuncs = {
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
-				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true,
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 			end
 
 			return
@@ -143,8 +159,8 @@ Plugin.UpdateFuncs = {
 
 			local Duration = self.Config.PreGameTime
 
-			self.CountStart = Shared.GetTime()
-			self.CountEnd = Shared.GetTime() + Duration
+			self.CountStart = SharedTime()
+			self.CountEnd = SharedTime() + Duration
 
 			self.GameStarting = true
 
@@ -157,7 +173,7 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
+		local TimeLeft = Ceil( self.CountEnd - SharedTime() )
 
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
@@ -166,7 +182,7 @@ Plugin.UpdateFuncs = {
 			end
 		end
 
-		if self.CountEnd <= Shared.GetTime() then
+		if self.CountEnd <= SharedTime() then
 			self.CountStart = nil
 			self.CountEnd = nil
 			self.SentCountdown = nil
@@ -187,7 +203,7 @@ Plugin.UpdateFuncs = {
 		local Team1Count = Team1:GetNumPlayers()
 		local Team2Count = Team2:GetNumPlayers()
 
-		local Time = Shared.GetTime()
+		local Time = SharedTime()
 
 		if self.GameStarting then
 			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
@@ -209,7 +225,8 @@ Plugin.UpdateFuncs = {
 
 				Shine:RemoveText( nil, { ID = 2 } )
 
-				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true,
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 				self.GameStarting = false
 
@@ -278,7 +295,8 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+					self:Notify( nil, "Game start aborted, %s is empty.", true,
+						Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 					self.GameStarting = false
 
@@ -299,7 +317,8 @@ Plugin.UpdateFuncs = {
 				self.CountStart = nil
 				self.CountEnd = nil
 
-				self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+				self:Notify( nil, "Game start aborted, %s is empty.", true,
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
@@ -317,8 +336,13 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = Time + Duration
 
 				if self.Config.ShowCountdown then
+					local Team1Name = Shine:GetTeamName( 1, true )
+					local Team2Name = Shine:GetTeamName( 2, true )
+					
 					local Message = StringFormat( "%s have a commander. %s have %s to choose their commander.",
-						Team1Com and "Marines" or "Aliens", Team1Com and "Aliens" or "Marines", string.TimeToString( Duration ) )
+						Team1Com and Team1Name or Team2Name, 
+						Team1Com and Team2Name or Team1Name, 
+						string.TimeToString( Duration ) )
 
 					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, Message, 5, 255, 255, 255, 1, 3, 1 ) )
 				end
@@ -369,8 +393,8 @@ Plugin.UpdateFuncs = {
 
 			local Duration = self.Config.PreGameTime
 
-			self.CountStart = Shared.GetTime()
-			self.CountEnd = Shared.GetTime() + Duration
+			self.CountStart = SharedTime()
+			self.CountEnd = SharedTime() + Duration
 
 			return
 		end
@@ -464,7 +488,8 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+					self:Notify( nil, "Game start aborted, %s is empty.", true,
+						Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 					self.GameStarting = false
 
@@ -479,7 +504,7 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		local TimeLeft = Ceil( self.CountEnd - Shared.GetTime() )
+		local TimeLeft = Ceil( self.CountEnd - SharedTime() )
 
 		--Time's up!
 		if TimeLeft <= 0 then
@@ -516,7 +541,8 @@ Plugin.UpdateFuncs = {
 						local Team2Count = Team2:GetNumPlayers()
 
 						if Team1Count == 0 or Team2Count == 0 then
-							self:Notify( nil, "Game start aborted, %s is empty.", true, Team1Count == 0 and "marine team" or "alien team" )
+							self:Notify( nil, "Game start aborted, %s is empty.", true,
+								Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
 
 							self.StartedGame = false
 
@@ -544,9 +570,13 @@ function Plugin:CheckGameStart( Gamerules )
 
 	if State ~= kGameState.NotStarted and State ~= kGameState.PreGame then return end
 
+	--Do not allow starting too soon.
+	local StartDelay = self.Config.StartDelay
+	if StartDelay > 0 and SharedTime() < StartDelay then
+		return false
+	end
+
 	self.UpdateFuncs[ self.Config.RequireComs ]( self, Gamerules )
 
 	return false
 end
-
-Shine:RegisterExtension( "pregame", Plugin )

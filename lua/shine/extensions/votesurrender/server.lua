@@ -4,8 +4,7 @@
 
 local Shine = Shine
 
-local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
+local GetOwner = Server.GetOwner
 local StringFormat = string.format
 
 local Ceil = math.ceil
@@ -66,8 +65,30 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 	end
 end
 
+function Plugin:GetTeamPlayerCount( Team )
+	local Gamerules = GetGamerules()
+
+	if Team == 1 then
+		return Gamerules.team1:GetNumPlayers()
+	else
+		return Gamerules.team2:GetNumPlayers()
+	end
+end
+
+function Plugin:GetTeamPlayers( Team )
+	local Gamerules = GetGamerules()
+
+	if Team == 1 then
+		return Gamerules.team1:GetPlayers()
+	else
+		return Gamerules.team2:GetPlayers()
+	end
+end
+
 function Plugin:GetVotesNeeded( Team )
-	return Max( 1, Ceil( #GetEntitiesForTeam( "Player", Team ) * self.Config.PercentNeeded ) )
+	local TeamCount = self:GetTeamPlayerCount( Team )
+
+	return Max( 1, Ceil( TeamCount * self.Config.PercentNeeded ) )
 end
 
 --[[
@@ -79,8 +100,9 @@ function Plugin:CanStartVote( Team )
 	if not Gamerules then return false end
 
 	local State = Gamerules:GetGameState()
+	local TeamCount = self:GetTeamPlayerCount( Team )
 
-	return State == kGameState.Started and #GetEntitiesForTeam( "Player", Team ) >= self.Config.MinPlayers and self.NextVote < Shared.GetTime()
+	return State == kGameState.Started and TeamCount >= self.Config.MinPlayers and self.NextVote < Shared.GetTime()
 end
 
 function Plugin:AddVote( Client, Team )
@@ -119,7 +141,7 @@ end
 ]]
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineForce )
 	if not Player then return end
-	local Client = Player:GetClient()
+	local Client = GetOwner( Player )
 
 	if not Client then return end
 
@@ -138,7 +160,7 @@ function Plugin:Surrender( Team )
 
 	if not Gamerules then return end
 
-	Server.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
+	Shine.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
 	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
 
@@ -187,7 +209,7 @@ function Plugin:AnnounceVote( Player, Team, VotesNeeded )
 		local Ply = Players[ i ]
 
 		if Ply then
-			Server.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true ) --Use NS2's built in concede, it's localised.
+			Shine.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true ) --Use NS2's built in concede, it's localised.
 		end
 	end
 end

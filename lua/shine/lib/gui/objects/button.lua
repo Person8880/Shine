@@ -4,6 +4,8 @@
 
 local SGUI = Shine.GUI
 
+local Clock = os.clock
+
 local Button = {}
 
 local ClickSound = "sound/NS2.fev/common/button_enter"
@@ -27,7 +29,7 @@ function Button:Initialise()
 
 	Background:SetColor( self.InactiveCol )
 
-	self.TextCol = Scheme.DarkText
+	self.TextCol = Scheme.BrightText
 
 	self:SetHighlightOnMouseOver( true )
 end
@@ -37,7 +39,7 @@ function Button:OnSchemeChange( Scheme )
 	
 	self.ActiveCol = Scheme.ActiveButton
 	self.InactiveCol = Scheme.InactiveButton
-	self.TextCol = Scheme.DarkText
+	self.TextCol = Scheme.BrightText
 
 	if self.Text then
 		self.Text:SetColor( self.TextCol )
@@ -193,26 +195,19 @@ end
 function Button:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 
-	if self:CallOnChildren( "OnMouseDown", Key, DoubleClick ) then
-		return true
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	if Result then
+		return true, Child
 	end
 
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self.Highlighted then return end
 
-	local Time = Shared.GetTime()
+	local Time = Clock()
 
 	if ( self.NextClick or 0 ) > Time then return end
 
-	self.NextClick = Time + ( self.ClickDelay or 0.5 )
-
-	if self.DoClick then
-		Shared.PlaySound( nil, self.Sound )
-
-		self.DoClick( self ) 
-
-		return true
-	end
+	return true, self
 end
 
 function Button:Cleanup()
@@ -226,7 +221,21 @@ function Button:Cleanup()
 end
 
 function Button:OnMouseUp( Key )
-	self:CallOnChildren( "OnMouseUp", Key )
+	if not self:GetIsVisible() then return end
+	if not self.Highlighted then return end
+
+	local Time = Clock()
+	
+	self.NextClick = Time + ( self.ClickDelay or 0.1 )
+
+	if self.DoClick then
+		local Sound = self.Sound
+		if self:DoClick() ~= false and Sound then
+			Shared.PlaySound( nil, Sound )
+		end
+
+		return true
+	end
 end
 
 function Button:OnMouseMove( Down )

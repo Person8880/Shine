@@ -134,20 +134,20 @@ if Server then
 				local Client = Target[ i ]
 
 				if Client then
-					Server.SendNetworkMessage( Client, MessageName, Data, Reliable )
+					Shine.SendNetworkMessage( Client, MessageName, Data, Reliable )
 				end
 			end
 		elseif Target then
-			Server.SendNetworkMessage( Target, MessageName, Data, Reliable )
+			Shine.SendNetworkMessage( Target, MessageName, Data, Reliable )
 		else
-			Server.SendNetworkMessage( MessageName, Data, Reliable )
+			Shine.SendNetworkMessage( MessageName, Data, Reliable )
 		end
 	end
 elseif Client then
 	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
 
-		Client.SendNetworkMessage( MessageName, Data, Reliable )
+		Shine.SendNetworkMessage( MessageName, Data, Reliable )
 	end
 end
 
@@ -189,6 +189,9 @@ function PluginMeta:LoadConfig()
 	local PluginConfig
 	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
 
+	local Err
+	local Pos
+
 	if Server then
 		local Gamemode = Shine.GetGamemode()
 
@@ -200,7 +203,7 @@ function PluginMeta:LoadConfig()
 			}
 
 			for i = 1, #Paths do
-				local File = Shine.LoadJSONFile( Paths[ i ] )
+				local File, ErrPos, ErrString = Shine.LoadJSONFile( Paths[ i ] )
 
 				if File then
 					PluginConfig = File
@@ -208,17 +211,26 @@ function PluginMeta:LoadConfig()
 					self.__ConfigPath = Paths[ i ]
 
 					break
+				elseif IsType( ErrPos, "number" ) then
+					Err = ErrString
+					Pos = ErrPos
 				end
 			end
 		else
-			PluginConfig = Shine.LoadJSONFile( Path )
+			PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 		end
 	else
-		PluginConfig = Shine.LoadJSONFile( Path )
+		PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 	end
 
-	if not PluginConfig then
-		self:GenerateDefaultConfig( true )
+	if not PluginConfig or not IsType( PluginConfig, "table" ) then
+		if IsType( Pos, "string" ) then
+			self:GenerateDefaultConfig( true )
+		else
+			Print( "Invalid JSON for %s plugin config, loading default...", self.__Name )
+
+			self.Config = self.DefaultConfig
+		end
 
 		return
 	end
@@ -270,6 +282,20 @@ elseif Client then
 		return Command
 	end
 
+	function PluginMeta:AddAdminMenuCommand( Category, Name, Command, MultiSelect, DoClick )
+		self.AdminMenuCommands = self.AdminMenuCommands or {}
+		self.AdminMenuCommands[ Category ] = true
+
+		Shine.AdminMenu:AddCommand( Category, Name, Command, MultiSelect, DoClick )
+	end
+
+	function PluginMeta:AddAdminMenuTab( Name, Data )
+		self.AdminMenuTabs = self.AdminMenuTabs or {}
+		self.AdminMenuTabs[ Name ] = true
+
+		Shine.AdminMenu:AddTab( Name, Data )
+	end
+
 	function PluginMeta:Cleanup()
 		if self.Commands then
 			for k, Command in pairs( self.Commands ) do
@@ -279,6 +305,18 @@ elseif Client then
 		end
 
 		self:DestroyAllTimers()
+
+		if self.AdminMenuCommands then
+			for Category in pairs( self.AdminMenuCommands ) do
+				Shine.AdminMenu:RemoveCommandCategory( Category )
+			end
+		end
+
+		if self.AdminMenuTabs then
+			for Tab in pairs( self.AdminMenuTabs ) do
+				Shine.AdminMenu:RemoveTab( Tab )
+			end
+		end
 	end
 end
 
@@ -544,11 +582,19 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		Plugin:LoadConfig()
 	end
 
-	if Server and Plugin.IsShared and next( self.GameIDs ) then --We need to inform clients to enable the client portion.
-		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
+	local Success, Err = Plugin:Initialise()
+
+	if not Success then
+		return false, Err
 	end
 
-	return Plugin:Initialise()
+	if Server and Plugin.IsShared and next( self.GameIDs ) then --We need to inform clients to enable the client portion.
+		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
+	end
+
+	Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
+
+	return true
 end
 
 function Shine:UnloadExtension( Name )
@@ -561,10 +607,27 @@ function Shine:UnloadExtension( Name )
 	Plugin.Enabled = false
 
 	if Server and Plugin.IsShared and next( self.GameIDs ) then
-		Server.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
+		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
 
-	Hook.Call( "OnPluginUnload", Name )
+	Hook.Call( "OnPluginUnload", Name, Plugin.IsShared )
+end
+
+--[[
+	Returns whether an extension is loaded, and its table if it is.
+]]
+function Shine:IsExtensionEnabled( Name )
+	local Plugin = self.Plugins[ Name ]
+
+	if Plugin then
+		if Plugin.Enabled then
+			return true, Plugin
+		else
+			return false, Plugin
+		end
+	end
+
+	return false
 end
 
 local ClientPlugins = {}
@@ -618,7 +681,7 @@ if Server then
 			end
 		end
 
-		Server.SendNetworkMessage( Client, "Shine_PluginSync", Message, true )
+		Shine.SendNetworkMessage( Client, "Shine_PluginSync", Message, true )
 	end )
 elseif Client then
 	Client.HookNetworkMessage( "Shine_PluginSync", function( Data )

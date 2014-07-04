@@ -20,9 +20,7 @@ function Shine.LoadJSONFile( Path )
 
 	File:close()
 
-	local Ret = Decode( Data )
-
-	return Ret
+	return Decode( Data )
 end
 
 function Shine.SaveJSONFile( Table, Path )
@@ -137,7 +135,7 @@ function Shine:LoadClientBaseConfig()
 		return
 	end
 
-	self.Config = Data or {}
+	self.Config = Data
 
 	if self.CheckConfig( self.Config, DefaultConfig ) then
 		self:SaveClientBaseConfig()

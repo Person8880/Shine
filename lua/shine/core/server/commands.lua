@@ -10,6 +10,7 @@ local StringFormat = string.format
 local TableConcat = table.concat
 local TableRemove = table.remove
 local TableSort = table.sort
+local tostring = tostring
 local type = type
 local xpcall = xpcall
 
@@ -151,7 +152,10 @@ local TargetFuncs = {
 	[ "@spectate" ] = function() return Shine.GetTeamClients( 3 ) end,
 	[ "@readyroom" ] = function() return Shine.GetTeamClients( kTeamReadyRoom ) end,
 	[ "@marine" ] = function() return Shine.GetTeamClients( 1 ) end,
-	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end
+	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end,
+	[ "@blue" ] = function() return Shine.GetTeamClients( 1 ) end,
+	[ "@orange" ] = function() return Shine.GetTeamClients( 2 ) end,
+	[ "@gold" ] = function() return Shine.GetTeamClients( 2 ) end
 }
 
 --These define all valid command parameter types and how to process a string into the type.
@@ -164,11 +168,28 @@ local ParamTypes = {
 	end,
 	--Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
 	client = function( Client, String, Table ) 
-		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default or Client end
+		if not String then
+			if IsType( Table.Default, "function" ) then
+				return Table.Default()
+			elseif Table.Default ~= nil then
+				return Table.Default
+			else
+				return Client
+			end
+		end
 
 		local Target
 		if String == "^" then 
 			Target = Client 
+		elseif String:sub( 1, 1 ) == "$" then
+			local ID = String:sub( 2 )
+			local ToNum = tonumber( ID )
+
+			if ToNum then
+				Target = Shine.GetClientByNS2ID( ToNum )
+			else
+				Target = Shine:GetClientBySteamID( ID )
+			end
 		else
 			Target = Shine:GetClient( String )
 		end
@@ -194,13 +215,16 @@ local ParamTypes = {
 
 			local Val = Vals[ i ]
 			local Negate
-			if Val:sub( 1, 1 ) == "!" then
+
+			local ControlChar = Val:sub( 1, 1 )
+
+			if ControlChar == "!" then
 				Val = Val:sub( 2 )
 				Negate = true
 			end
 
 			--Targeting a user group.
-			if Val:sub( 1, 1 ) == "%" then
+			if ControlChar == "%" then
 				local Group = Val:sub( 2 )
 				local InGroup = Shine:GetClientsByGroup( Group )
 
@@ -212,6 +236,21 @@ local ParamTypes = {
 							CurrentTargets[ CurClient ] = true
 						end
 					end
+				end
+			elseif ControlChar == "$" then --Targetting a specific Steam ID.
+				local ID = Val:sub( 2 )
+				local ToNum = tonumber( ID )
+
+				local CurClient
+
+				if ToNum then
+					CurClient = Shine.GetClientByNS2ID( ToNum )
+				else
+					CurClient = Shine:GetClientBySteamID( ID )
+				end
+
+				if CurClient and not CurrentTargets[ CurClient ] then
+					CurrentTargets[ CurClient ] = true
 				end
 			else
 				if Val == "*" then --Targeting everyone.
@@ -274,6 +313,10 @@ local ParamTypes = {
 			end
 		end
 
+		if Table.NotSelf and Targets[ Client ] then
+			Targets[ Client ] = nil
+		end
+
 		for CurClient, Bool in pairs( Targets ) do
 			Clients[ #Clients + 1 ] = CurClient
 		end
@@ -319,8 +362,11 @@ local ParamTypes = {
 		String = String:lower()
 
 		if String:find( "ready" ) then return 0 end
-		if String:find( "marine" ) then return 1 end	
+		if String:find( "marine" ) then return 1 end
+		if String:find( "blu" ) then return 1 end	
 		if String:find( "alien" ) then return 2 end
+		if String:find( "orang" ) then return 2 end
+		if String:find( "gold" ) then return 2 end
 		if String:find( "spectat" ) then return 3 end
 
 		return nil
@@ -350,6 +396,31 @@ local function OnError( Err )
 	Shine:AddErrorReport( StringFormat( "Command error: %s.", Err ), Trace )
 end
 
+local ArgValidators = {
+	string = function( Client, ParsedArg, ArgRestrictor )
+		if IsType( ArgRestrictor, "table" ) then
+			--Has to be present in the allowed list.
+			for i = 1, #ArgRestrictor do
+				if ParsedArg == ArgRestrictor[ i ] then
+					return ParsedArg
+				end
+			end
+
+			return nil
+		else --Assume string, must match.
+			return ParsedArg == ArgRestrictor and ParsedArg or nil
+		end
+	end,
+
+	number = function( Client, ParsedArg, ArgRestrictor )
+		--Invalid restrictor, should be a table with min and/or max values.
+		if not IsType( ArgRestrictor, "table" ) then return ParsedArg end
+
+		--Clamp the argument in range.
+		return MathClamp( ParsedArg, ArgRestrictor.Min, ArgRestrictor.Max )
+	end
+}
+
 --[[
 	Executes a Shine command. Should not be called directly.
 	Inputs: Client running the command, console command to run, string arguments passed to the command.
@@ -360,7 +431,9 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	if not Command then return end
 	if Command.Disabled then return end
 
-	if not self:GetPermission( Client, ConCommand ) then 
+	local Allowed, ArgRestrictions = self:GetPermission( Client, ConCommand )
+
+	if not Allowed then 
 		self:NotifyError( Client, "You do not have permission to use %s.", true, ConCommand )
 
 		return 
@@ -393,8 +466,27 @@ function Shine:RunCommand( Client, ConCommand, ... )
 			return
 		end
 
+		local ArgType = CurArg.Type
+		local RestrictionIndex = tostring( i )
+
+		if ArgRestrictions and ArgRestrictions[ RestrictionIndex ] then
+			local Func = ArgValidators[ ArgType ]
+
+			--Apply restrictions.
+			if Func then
+				ParsedArgs[ i ] = Func( Client, ParsedArgs[ i ], ArgRestrictions[ RestrictionIndex ] )
+			
+				--The restriction wiped the argument as it's not allowed.
+				if ParsedArgs[ i ] == nil then
+					self:NotifyError( Client, "Invalid argument #%i, restricted in rank settings.", true, i )
+
+					return
+				end
+			end
+		end
+
 		--Take rest of line should grab the entire rest of the argument list.
-		if CurArg.Type == "string" and CurArg.TakeRestOfLine then
+		if ArgType == "string" and CurArg.TakeRestOfLine then
 			if i == ExpectedCount then
 				local Rest = TableConcat( Args, " ", i + 1 )
 
@@ -414,7 +506,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		end
 
 		--Ensure the calling client can target the return client.
-		if CurArg.Type == "client" and not CurArg.IgnoreCanTarget then
+		if ArgType == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
 				self:NotifyError( Client, "You do not have permission to target %s.", 
 					true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
@@ -424,7 +516,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		end
 
 		--Ensure the calling client can target every returned client.
-		if CurArg.Type == "clients" and not CurArg.IgnoreCanTarget then
+		if ArgType == "clients" and not CurArg.IgnoreCanTarget then
 			local ParsedArg = ParsedArgs[ i ]
 
 			if ParsedArg then
@@ -460,11 +552,13 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	if not Success then
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
 	else
+		local Player = Client and Client:GetControllingPlayer()
+		local Name = Player and Player:GetName() or "Console"
+		local ID = Client and Client:GetUserId() or "N/A"
+		
 		--Log the command's execution.
 		self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
-			Client and Client:GetControllingPlayer():GetName() or "Console", 
-			Client and Client:GetUserId() or "N/A", 
-			ConCommand, 
+			Name, ID, ConCommand, 
 			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
 	end
 end

@@ -140,6 +140,8 @@ Shine.VoteMenu:AddPage( "MapVote", function( self )
 		Plugin.MapButtons[ Map ] = self:AddSideButton( Text, function()
 			if SendMapVote( Map ) then
 				self:SetIsVisible( false )
+			else
+				return false
 			end
 		end )
 	end

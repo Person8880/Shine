@@ -128,6 +128,15 @@ function CheckBox:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Background ) then return end
 
+	return true, self
+end
+
+function CheckBox:OnMouseUp( Key )
+	if not self.Background then return end
+	if not self.Background:GetIsVisible() then return end
+	if Key ~= InputKey.MouseButton0 then return end
+	if not self:MouseIn( self.Background ) then return end
+	
 	if not self.Checked then
 		self:SetChecked( true )
 	else

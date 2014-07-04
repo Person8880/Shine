@@ -185,9 +185,9 @@ end
 function Plugin:CommLoginPlayer( Chair, Player )
 	if not self.Config.LogCommanderLogin then return end
 	
-	Shine:LogString( StringFormat( "%s became the commander of the %s team.", 
+	Shine:LogString( StringFormat( "%s became the commander of the %s.", 
 		self:GetClientInfo( Server.GetOwner( Player ) ), 
-		Shine:GetTeamName( Player:GetTeamNumber() )
+		Shine:GetTeamName( Player:GetTeamNumber(), nil, true )
 	) )
 end
 
@@ -197,9 +197,9 @@ function Plugin:CommLogout( Chair )
 	local Commander = Chair:GetCommander()
 	if not Commander then return end
 
-	Shine:LogString( StringFormat( "%s stopped commanding the %s team.",
+	Shine:LogString( StringFormat( "%s stopped commanding the %s.",
 		self:GetClientInfo( Server.GetOwner( Commander ) ),
-		Shine:GetTeamName( Commander:GetTeamNumber() )
+		Shine:GetTeamName( Commander:GetTeamNumber(), nil, true )
 	) )
 end
 

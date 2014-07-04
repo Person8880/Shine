@@ -99,13 +99,13 @@ Plugin.FilterActions = {
 
 		local ID = Client:GetUserId()
 
-		local BanPlugin = Shine.Plugins.ban
+		local Enabled, BanPlugin = Shine:IsExtensionEnabled( "ban" )
 
-		if BanPlugin and BanPlugin.Enabled then
+		if Enabled then
 			Shine:Print( "[NameFilter] Client %s[%s] was banned for filtered name.", true,
 				OldName, ID )
 
-			BanPlugin:AddBan( ID, OldName, self.Config.BanLength * 60, "NameFilter", "Player used filtered name." )
+			BanPlugin:AddBan( ID, OldName, self.Config.BanLength * 60, "NameFilter", 0, "Player used filtered name." )
 		else
 			Shine:Print( "[NameFilter] Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).", true,
 				OldName, ID )
