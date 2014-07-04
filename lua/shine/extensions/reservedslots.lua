@@ -145,7 +145,7 @@ function Plugin:ClientDisconnect( Client )
 	if not self.Config.TakeSlotInstantly then return end
 	
 	if self.Config.Slots > 0 and Shine:HasAccess( Client, "sh_reservedslot" ) then
-		self:UpdateTag( self:GetFreeReservedSlots() + 1 )
+		self:UpdateTag( self:GetFreeReservedSlots() )
 	end
 end
 

@@ -20,9 +20,7 @@ function Shine.LoadJSONFile( Path )
 
 	File:close()
 
-	local Ret = Decode( Data )
-
-	return Ret
+	return Decode( Data )
 end
 
 function Shine.SaveJSONFile( Table, Path )
@@ -39,7 +37,7 @@ function Shine.SaveJSONFile( Table, Path )
 	return true
 end
 
---Checks a config for missing entries including sub-tables.
+--Checks a config for missing entries including the first level of sub-tables.
 function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 	local Updated
 
@@ -137,7 +135,7 @@ function Shine:LoadClientBaseConfig()
 		return
 	end
 
-	self.Config = Data or {}
+	self.Config = Data
 
 	if self.CheckConfig( self.Config, DefaultConfig ) then
 		self:SaveClientBaseConfig()
@@ -150,39 +148,50 @@ end
 
 Shine:LoadClientBaseConfig()
 
-local DisableWeb = Shine:RegisterClientCommand( "sh_disableweb", function( Bool )
-	Shine.Config.DisableWebWindows = Bool
+local function MakeClientOption( Command, OptionKey, OptionString, Yes, No )
+	local ConCommand = Shine:RegisterClientCommand( Command, function( Bool )
+		Shine.Config[ OptionKey ] = Bool
 
-	Notify( StringFormat( "[Shine] Web page display has been %s.", Bool and "disabled" or "enabled" ) )
+		Notify( StringFormat( "[Shine] %s %s.", OptionString, Bool and Yes or No ) )
 
-	Shine:SaveClientBaseConfig()
-end )
-DisableWeb:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.DisableWebWindows end }
-
-local SteamWeb = Shine:RegisterClientCommand( "sh_viewwebinsteam", function( Bool )
-	Shine.Config.ShowWebInSteamBrowser = Bool
-
-	Notify( StringFormat( "[Shine] Web page display set to %s.", Bool and "Steam browser" or "in game window" ) )
-
-	Shine:SaveClientBaseConfig()
-end )
-SteamWeb:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.ShowWebInSteamBrowser end }
-
-local ErrorReporting = Shine:RegisterClientCommand( "sh_errorreport", function( Bool )
-	Shine.Config.ReportErrors = Bool
-
-	Notify( StringFormat( "[Shine] Error reporting has been %s.", Bool and "enabled" or "disabled" ) )
-
-	Shine:SaveClientBaseConfig()
-end )
-ErrorReporting:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shine.Config.ReportErrors end }
-
-if Shine.Config.ReportErrors then
-	Shine.AddStartupMessage( "Shine is set to report any errors it causes on your client when you disconnect. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console." )
+		Shine:SaveClientBaseConfig()
+	end )
+	ConCommand:AddParam{ Type = "boolean", Optional = true,
+		Default = function() return not Shine.Config[ OptionKey ] end }
 end
-if not Shine.Config.DisableWebWindows then
-	Shine.AddStartupMessage( "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console." )
-end
-if Shine.Config.ShowWebInSteamBrowser then
-	Shine.AddStartupMessage( "Shine is set to display web pages in the Steam overlay. If you wish to show them using the in game browser, then enter \"sh_viewwebinsteam 0\" into the console." )
+
+local Options = {
+	{
+		Data = {
+			"sh_disableweb", "DisableWebWindows",
+			"Web page display has been", "disabled", "enabled"
+		},
+		MessageState = false,
+		Message = "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console."
+	},
+	{
+		Data = {
+			"sh_viewwebinsteam", "ShowWebInSteamBrowser",
+			"Web page display set to", "Steam browser", "in game window"
+		},
+		MessageState = true,
+		Message = "Shine is set to display web pages in the Steam overlay. If you wish to show them using the in game browser, then enter \"sh_viewwebinsteam 0\" into the console."
+	},
+	{
+		Data = {
+			"sh_errorreport", "ReportErrors",
+			"Error reporting has been", "enabled", "disabled"
+		},
+		MessageState = true,
+		Message = "Shine is set to report any errors it causes on your client when you disconnect. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console."
+	}
+}
+
+for i = 1, #Options do
+	local Option = Options[ i ]
+
+	MakeClientOption( unpack( Option.Data ) )
+	if Shine.Config[ Option.Data[ 2 ] ] == Option.MessageState then
+		Shine.AddStartupMessage( Option.Message )
+	end
 end

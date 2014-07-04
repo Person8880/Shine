@@ -83,6 +83,17 @@ end
 function SGUI:SetWindowFocus( Window, i )
 	local Windows = self.Windows
 
+	if Window ~= self.FocusedWindow and not i then
+		for j = 1, #Windows do
+			local CurWindow = Windows[ j ]
+
+			if CurWindow == Window then
+				i = j
+				break
+			end
+		end
+	end
+
 	if i then
 		TableRemove( Windows, i )
 
@@ -124,7 +135,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 		local Window = Windows[ i ]
 
 		if Window and Window[ Name ] and Window:GetIsVisible() then
-			local Success, Result = xpcall( Window[ Name ], OnError, Window, ... )
+			local Success, Result, Control = xpcall( Window[ Name ], OnError, Window, ... )
 
 			if Success then
 				if Result ~= nil then
@@ -132,7 +143,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 						SGUI:SetWindowFocus( Window, i )
 					end
 
-					return Result
+					return Result, Control
 				end
 			else
 				Window:Destroy()
@@ -226,8 +237,8 @@ function SGUI:SetSkin( Name )
 	assert( SchemeTable, "[SGUI] Attempted to set a non-existant skin!" )
 
 	self.ActiveSkin = Name
-
-	return SGUI:CallGlobalEvent( "OnSchemeChange", CheckIsSchemed, SchemeTable ) --Notify all elements of the change.
+	--Notify all elements of the change.
+	return SGUI:CallGlobalEvent( "OnSchemeChange", CheckIsSchemed, SchemeTable )
 end
 
 --[[
@@ -264,16 +275,34 @@ end
 --[[
 	Registers a control meta-table.
 	We'll use this to create instances of it (instead of loading a script file every time like UWE).
-	Inputs: Control name, control meta-table.
+	Inputs:
+		1. Control name
+		2. Control meta-table.
+		3. Optional parent name. This will make the object inherit the parent's table keys.
 ]]
-function SGUI:Register( Name, Table )
-	--Inherit keys from both the control's table and the global meta-table.
-	function Table:__index( Key )
-		if Table[ Key ] then return Table[ Key ] end
-		
-		if ControlMeta[ Key ] then return ControlMeta[ Key ] end
-		
-		return nil
+function SGUI:Register( Name, Table, Parent )
+	--If we have set a parent, then we want to setup a slightly different __index function.
+	if Parent then
+		--This may not be defined yet, so we get it when needed.
+		local ParentTable
+		function Table:__index( Key )
+			ParentTable = ParentTable or SGUI.Controls[ Parent ]
+
+			if Table[ Key ] then return Table[ Key ] end
+			if ParentTable and ParentTable[ Key ] then return ParentTable[ Key ] end
+			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
+			
+			return nil
+		end
+	else
+		--No parent means only look in its meta-table and the base meta-table.
+		function Table:__index( Key )
+			if Table[ Key ] then return Table[ Key ] end
+			
+			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
+			
+			return nil
+		end
 	end
 
 	--Used to call base class functions for things like :MoveTo()
@@ -303,7 +332,7 @@ function SGUI:Create( Class, Parent )
 	local Table = {}
 
 	local Control = setmetatable( Table, MetaTable )
-
+	Control.Class = Class
 	Control:Initialise()
 
 	self.ActiveControls[ Control ] = true
@@ -358,6 +387,14 @@ function SGUI:Destroy( Control )
 
 	Control:Cleanup()
 
+	local CallOnRemove = Control.__CallOnRemove
+
+	if CallOnRemove then
+		for i = 1, #CallOnRemove do
+			CallOnRemove[ i ]( Control )
+		end
+	end
+
 	--If it's a window, then clean it up.
 	if Control.IsAWindow then
 		local Windows = self.Windows
@@ -405,6 +442,18 @@ Hook.Add( "PlayerType", "UpdateSGUI", function( Char )
 	end
 end )
 
+local function NotifyFocusChange( Element, ClickingOtherElement )
+	if not Element then
+		SGUI.FocusedControl = nil
+	end
+
+	for Control in pairs( SGUI.ActiveControls ) do
+		if Control.OnFocusChange then
+			Control:OnFocusChange( Element, ClickingOtherElement )
+		end
+	end
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
@@ -435,13 +484,32 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
 		end,
 		OnMouseWheel = function( _, Down )
-			SGUI:CallEvent( false, "OnMouseWheel", Down )
+			return SGUI:CallEvent( false, "OnMouseWheel", Down )
 		end,
 		OnMouseDown = function( _, Key, DoubleClick )
-			return SGUI:CallEvent( true, "OnMouseDown", Key )
+			local Result, Control = SGUI:CallEvent( true, "OnMouseDown", Key )
+
+			if Result and Control then
+				if not Control.UsesKeyboardFocus then
+					NotifyFocusChange( nil, true )
+				end
+
+				if Control.OnMouseUp then
+					SGUI.MouseDownControl = Control
+				end
+			end
+
+			return Result
 		end,
 		OnMouseUp = function( _, Key )
-			return SGUI:CallEvent( false, "OnMouseUp", Key )
+			local Control = SGUI.MouseDownControl
+			if not SGUI.IsValid( Control ) then return end
+
+			local Success, Result = xpcall( Control.OnMouseUp, OnError, Control, Key )
+
+			SGUI.MouseDownControl = nil
+
+			return Result
 		end
 	}
 
@@ -486,6 +554,14 @@ function ControlMeta:DeleteOnRemove( Control )
 	local Table = self.__DeleteOnRemove
 
 	Table[ #Table + 1 ] = Control
+end
+
+function ControlMeta:CallOnRemove( Func )
+	self.__CallOnRemove = self.__CallOnRemove or {}
+
+	local Table = self.__CallOnRemove
+
+	Table[ #Table + 1 ] = Func
 end
 
 --[[
@@ -550,10 +626,10 @@ function ControlMeta:CallOnChildren( Name, ... )
 	--Call the event on every child of this object, no particular order.
 	for Child in pairs( self.Children ) do
 		if Child[ Name ] and not Child._CallEventsManually then
-			local Result = Child[ Name ]( Child, ... )
+			local Result, Control = Child[ Name ]( Child, ... )
 
 			if Result ~= nil then
-				return Result
+				return Result, Control
 			end
 		end
 	end
@@ -632,6 +708,8 @@ end
 	Override this for stencilled stuff.
 ]]
 function ControlMeta:GetIsVisible()
+	if not self.Background.GetIsVisible then return false end
+	
 	return self.Background:GetIsVisible()
 end
 
@@ -665,6 +743,12 @@ function ControlMeta:GetPos()
 	if not self.Background then return end
 	
 	return self.Background:GetPosition()
+end
+
+function ControlMeta:GetScreenPos()
+	if not self.Background then return end
+	
+	return self.Background:GetScreenPosition( Client.GetScreenWidth(), Client.GetScreenHeight() )
 end
 
 local Anchors = {
@@ -743,14 +827,14 @@ function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	local InX = X >= Pos.x and X <= Pos.x + MaxX
 	local InY = Y >= Pos.y and Y <= Pos.y + MaxY
 
+	local PosX = X - Pos.x
+	local PosY = Y - Pos.y
+
 	if InX and InY then
-		local PosX = X - Pos.x
-		local PosY = Y - Pos.y
-		
 		return true, PosX, PosY, Size, Pos
 	end
 
-	return false, 0, 0
+	return false, PosX, PosY
 end
 
 --[[
@@ -1079,14 +1163,6 @@ function ControlMeta:OnMouseMove( Down )
 
 				self.Highlighted = false
 			end
-		end
-	end
-end
-
-local function NotifyFocusChange( Element )
-	for Control in pairs( SGUI.ActiveControls ) do
-		if Control.OnFocusChange then
-			Control:OnFocusChange( Element )
 		end
 	end
 end

@@ -87,11 +87,11 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	TableEmpty( self.TeamMembers )
 
 	--Record the winner, and network it.
-	if WinningTeam == Gamerules.team1 then
+	if WinningTeam == Gamerules.team1 or WinningTeam == 1 then
 		self.TeamScores[ 1 ] = self.TeamScores[ 1 ] + 1
 	
 		self.dt.MarineScore = self.TeamScores[ 1 ]
-	else
+	elseif WinningTeam == Gamerules.team2 or WinningTeam == 2 then
 		self.TeamScores[ 2 ] = self.TeamScores[ 2 ] + 1
 
 		self.dt.AlienScore = self.TeamScores[ 2 ]
@@ -177,7 +177,11 @@ function Plugin:StartGame( Gamerules )
 	Gamerules.countdownTime = kCountDownLength
 	Gamerules.lastCountdownPlayed = nil
 
-	for _, Player in ientitylist( Shared.GetEntitiesWithClassname( "Player" ) ) do
+	local Players, Count = Shine.GetAllPlayers()
+
+	for i = 1, Count do
+		local Player = Players[ i ]
+		
 		if Player.ResetScores then
 			Player:ResetScores()
 		end

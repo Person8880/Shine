@@ -72,7 +72,8 @@ function Slider:Initialise()
 	local Skin = SGUI:GetSkin()
 
 	Handle:SetColor( Skin.SliderHandle )
-	Line:SetColor( Skin.SliderLines )
+	Line:SetColor( Skin.SliderFillLine )
+	UnfilledLine:SetColor( Skin.SliderUnfilledLine )
 
 	self.Width = DefaultSize.x
 
@@ -91,6 +92,12 @@ function Slider:Initialise()
 	self.LineSize = Vector( 250, 5, 0 )
 	self.DarkLineSize = Vector( 0, 5, 0 )
 	self.DarkLinePos = Vector( 250, -2.5, 0 )
+end
+
+function Slider:OnSchemeChange( Skin )
+	self.Line:SetColor( Skin.SliderFillLine )
+	self.DarkLine:SetColor( Skin.SliderUnfilledLine )
+	self.Handle:SetColor( Skin.SliderHandle )
 end
 
 function Slider:SetupStencil()
@@ -233,7 +240,7 @@ function Slider:OnMouseDown( Key )
 
 	self.CurPos = Vector( self.StartingPos.x, 0, 0 )
 
-	return true
+	return true, self
 end
 
 function Slider:OnMouseUp( Key )
@@ -244,6 +251,8 @@ function Slider:OnMouseUp( Key )
 	if self.OnValueChanged then
 		self:OnValueChanged( self:GetValue() )
 	end
+
+	return true
 end
 
 function Slider:OnMouseMove( Down )

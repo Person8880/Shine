@@ -152,7 +152,10 @@ local TargetFuncs = {
 	[ "@spectate" ] = function() return Shine.GetTeamClients( 3 ) end,
 	[ "@readyroom" ] = function() return Shine.GetTeamClients( kTeamReadyRoom ) end,
 	[ "@marine" ] = function() return Shine.GetTeamClients( 1 ) end,
-	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end
+	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end,
+	[ "@blue" ] = function() return Shine.GetTeamClients( 1 ) end,
+	[ "@orange" ] = function() return Shine.GetTeamClients( 2 ) end,
+	[ "@gold" ] = function() return Shine.GetTeamClients( 2 ) end
 }
 
 --These define all valid command parameter types and how to process a string into the type.
@@ -165,16 +168,35 @@ local ParamTypes = {
 	end,
 	--Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
 	client = function( Client, String, Table ) 
-		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default or Client end
+		if not String then
+			if IsType( Table.Default, "function" ) then
+				return Table.Default()
+			elseif Table.Default ~= nil then
+				return Table.Default
+			else
+				return Client
+			end
+		end
 
 		local Target
 		if String == "^" then 
 			Target = Client 
+		elseif String:sub( 1, 1 ) == "$" then
+			local ID = String:sub( 2 )
+			local ToNum = tonumber( ID )
+
+			if ToNum then
+				Target = Shine.GetClientByNS2ID( ToNum )
+			else
+				Target = Shine:GetClientBySteamID( ID )
+			end
 		else
 			Target = Shine:GetClient( String )
 		end
 		
-		if Table.NotSelf and Target == Client then return nil end
+		if Table.NotSelf and Target == Client then
+			return nil, true
+		end
 
 		return Target
 	end,
@@ -195,13 +217,16 @@ local ParamTypes = {
 
 			local Val = Vals[ i ]
 			local Negate
-			if Val:sub( 1, 1 ) == "!" then
+
+			local ControlChar = Val:sub( 1, 1 )
+
+			if ControlChar == "!" then
 				Val = Val:sub( 2 )
 				Negate = true
 			end
 
 			--Targeting a user group.
-			if Val:sub( 1, 1 ) == "%" then
+			if ControlChar == "%" then
 				local Group = Val:sub( 2 )
 				local InGroup = Shine:GetClientsByGroup( Group )
 
@@ -213,6 +238,21 @@ local ParamTypes = {
 							CurrentTargets[ CurClient ] = true
 						end
 					end
+				end
+			elseif ControlChar == "$" then --Targetting a specific Steam ID.
+				local ID = Val:sub( 2 )
+				local ToNum = tonumber( ID )
+
+				local CurClient
+
+				if ToNum then
+					CurClient = Shine.GetClientByNS2ID( ToNum )
+				else
+					CurClient = Shine:GetClientBySteamID( ID )
+				end
+
+				if CurClient and not CurrentTargets[ CurClient ] then
+					CurrentTargets[ CurClient ] = true
 				end
 			else
 				if Val == "*" then --Targeting everyone.
@@ -275,6 +315,10 @@ local ParamTypes = {
 			end
 		end
 
+		if Table.NotSelf and Targets[ Client ] then
+			Targets[ Client ] = nil
+		end
+
 		for CurClient, Bool in pairs( Targets ) do
 			Clients[ #Clients + 1 ] = CurClient
 		end
@@ -320,8 +364,11 @@ local ParamTypes = {
 		String = String:lower()
 
 		if String:find( "ready" ) then return 0 end
-		if String:find( "marine" ) then return 1 end	
+		if String:find( "marine" ) then return 1 end
+		if String:find( "blu" ) then return 1 end	
 		if String:find( "alien" ) then return 2 end
+		if String:find( "orang" ) then return 2 end
+		if String:find( "gold" ) then return 2 end
 		if String:find( "spectat" ) then return 3 end
 
 		return nil
@@ -334,11 +381,15 @@ local ParamTypes = {
 ]]
 local function ParseParameter( Client, String, Table )
     local Type = Table.Type
+    if not ParamTypes[ Type ] then
+    	return nil
+    end
+
     if String then
-        return ParamTypes[ Type ] and ParamTypes[ Type ]( Client, String, Table )
+        return ParamTypes[ Type ]( Client, String, Table )
     else
         if not Table.Optional then return nil end
-        return ParamTypes[ Type ] and ParamTypes[ Type ]( Client, String, Table )
+        return ParamTypes[ Type ]( Client, String, Table )
     end
 end
 
@@ -406,13 +457,19 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		local CurArg = ExpectedArgs[ i ]
 
 		--Convert the string argument into the requested type.
-		ParsedArgs[ i ] = ParseParameter( Client, Args[ i ], CurArg )
+		local Result, Extra = ParseParameter( Client, Args[ i ], CurArg )
+		ParsedArgs[ i ] = Result
 
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
-			if CurArg.Type:find( "client" ) then --No client means no match.
-				self:NotifyError( Client, "No matching %s found.", true, 
-					CurArg.Type == "client" and "player was" or "players were" )
+			if CurArg.Type:find( "client" ) then
+				if CurArg.Type == "client" and Extra then
+					self:NotifyError( Client, "You cannot target yourself with this command." )
+				else
+					--No client means no match.
+					self:NotifyError( Client, "No matching %s found.", true, 
+						CurArg.Type == "client" and "player was" or "players were" )
+				end
 			else
 				self:NotifyError( Client, CurArg.Error or "Incorrect argument #%i to %s, expected %s.", 
 					true, i, ConCommand, CurArg.Type )
@@ -507,11 +564,13 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	if not Success then
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
 	else
+		local Player = Client and Client:GetControllingPlayer()
+		local Name = Player and Player:GetName() or "Console"
+		local ID = Client and Client:GetUserId() or "N/A"
+		
 		--Log the command's execution.
 		self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
-			Client and Client:GetControllingPlayer():GetName() or "Console", 
-			Client and Client:GetUserId() or "N/A", 
-			ConCommand, 
+			Name, ID, ConCommand, 
 			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
 	end
 end

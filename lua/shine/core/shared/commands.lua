@@ -2,8 +2,6 @@
 	Shine remote command system.
 ]]
 
-Shine = Shine or {}
-
 local ConCommand = {
 	Command = "string (255)"
 }

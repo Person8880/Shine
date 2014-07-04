@@ -23,10 +23,89 @@ function Panel:Initialise()
 	self.Background = Background
 
 	self.ShowScrollbar = true
+	self.TitleBarHeight = 24
+end
 
-	--[[local Scheme = SGUI:GetSkin()
+function Panel:OnSchemeChange( Skin )
+	if not self.UseScheme then return end
+	
+	self.Background:SetColor( Skin.WindowBackground )
 
-	Background:SetColor( Scheme.WindowBackground )]]
+	if SGUI.IsValid( self.TitleBar ) then
+		self.TitleBar:SetColour( Skin.WindowTitle )
+	end
+
+	if SGUI.IsValid( self.CloseButton ) then
+		self.CloseButton:SetActiveCol( Skin.CloseButtonActive )
+		self.CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
+		self.CloseButton:SetTextColour( Skin.BrightText )
+	end
+
+	if SGUI.IsValid( self.TitleLabel ) then
+		self.TitleLabel:SetColour( Skin.BrightText )
+	end
+end
+
+function Panel:SkinColour()
+	local Scheme = SGUI:GetSkin()
+
+	self.Background:SetColor( Scheme.WindowBackground )
+
+	self.UseScheme = true
+end
+
+function Panel:AddTitleBar( Title, Font )
+	local TitlePanel = SGUI:Create( "Panel", self )
+	TitlePanel:SetSize( Vector( self:GetSize().x, self.TitleBarHeight, 0 ) )
+	if self.UseScheme then
+		local Skin = SGUI:GetSkin()
+
+		TitlePanel:SetColour( Skin.WindowTitle )
+	end
+	TitlePanel:SetAnchor( "TopLeft" )
+
+	self.TitleBar = TitlePanel
+
+	local TitleLabel = SGUI:Create( "Label", TitlePanel )
+	TitleLabel:SetAnchor( "CentreMiddle" )
+	TitleLabel:SetFont( Font or "fonts/AgencyFB_small.fnt" )
+	TitleLabel:SetText( Title )
+	TitleLabel:SetTextAlignmentX( GUIItem.Align_Center )
+	TitleLabel:SetTextAlignmentY( GUIItem.Align_Center )
+	if self.UseScheme then
+		local Skin = SGUI:GetSkin()
+
+		TitleLabel:SetColour( Skin.BrightText )
+	end
+
+	self.TitleLabel = TitleLabel
+
+	local CloseButton = SGUI:Create( "Button", TitlePanel )
+	CloseButton:SetSize( Vector( self.TitleBarHeight - 4, self.TitleBarHeight - 4, 0 ) )
+	CloseButton:SetText( "X" )
+	CloseButton:SetAnchor( "TopRight" )
+	CloseButton:SetPos( Vector( -self.TitleBarHeight - 4, 2, 0 ) )
+	if self.UseScheme then
+		local Skin = SGUI:GetSkin()
+
+		CloseButton.UseScheme = false
+
+		CloseButton:SetActiveCol( Skin.CloseButtonActive )
+		CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
+		CloseButton:SetTextColour( Skin.BrightText )
+	end
+
+	function CloseButton.DoClick()
+		self:SetIsVisible( false )
+	end
+
+	self.CloseButton = CloseButton
+end
+
+function Panel:SetTitle( Title )
+	if not SGUI.IsValid( self.TitleLabel ) then return end
+
+	self.TitleLabel:SetText( Title )
 end
 
 function Panel:SetScrollable()
@@ -152,6 +231,10 @@ function Panel:SetSize( Vec )
 		self.Scrollbar = nil
 
 		self:SetMaxHeight( self.MaxHeight )
+	end
+
+	if SGUI.IsValid( self.TitleBar ) then
+		self.TitleBar:SetSize( Vector( Vec.x, self.TitleBarHeight, 0 ) )
 	end
 end
 
@@ -365,36 +448,32 @@ function Panel:DragMove( Down )
 end
 
 function Panel:SetBlockMouse( Bool )
-	self.BlockOnMouseDOwn = Bool and true or false
+	--self.BlockOnMouseDown = Bool and true or false
 end
 
 ------------------- Event calling -------------------
 function Panel:OnMouseDown( Key, DoubleClick )
 	if SGUI.IsValid( self.Scrollbar ) then
 		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
-			return true
+			return true, self.Scrollbar
 		end
 	end
 	
-	local Result = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
-	if Result ~= nil then return true end
+	if Result ~= nil then return true, Child end
 
-	if self:DragClick( Key, DoubleClick ) then return true end
+	if self:DragClick( Key, DoubleClick ) then return true, self end
 	
 	if self.IsAWindow or self.BlockOnMouseDown then
-		if self:MouseIn( self.Background ) then return true end
+		if self:MouseIn( self.Background ) then return true, self end
 	end
 end
 
 function Panel:OnMouseUp( Key )
-	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:OnMouseUp( Key )
-	end
-	
-	self:CallOnChildren( "OnMouseUp", Key )
-
 	self:DragRelease( Key )
+
+	return true
 end
 
 function Panel:OnMouseMove( Down )

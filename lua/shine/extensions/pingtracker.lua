@@ -7,7 +7,6 @@ local Plugin = {}
 local Abs = math.abs
 local Ceil = math.ceil
 local Floor = math.floor
-local Notify = Shared.Message
 local pairs = pairs
 local StringFormat = string.format
 local TableAverage = table.Average

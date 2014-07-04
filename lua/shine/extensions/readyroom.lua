@@ -7,7 +7,6 @@
 local Shine = Shine
 
 local GetOwner = Server.GetOwner
-local Notify = Shared.Message
 local pairs = pairs
 local Random = math.random
 local SharedTime = Shared.GetTime

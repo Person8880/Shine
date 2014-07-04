@@ -2,14 +2,20 @@
 	Shine permissions/user ranking system.
 ]]
 
+local Shine = Shine
+
 Shine.UserData = {}
 
 local Encode, Decode = json.encode, json.decode
+local GetClientById = Server.GetClientById
 local Notify = Shared.Message
+
+local IsType = Shine.IsType
 
 local next = next
 local pairs = pairs
 local TableContains = table.contains
+local TableEmpty = table.Empty
 local tonumber = tonumber
 local tostring = tostring
 
@@ -27,7 +33,7 @@ function Shine:RequestUsers( Reload )
 
 		local UserData = Decode( Response ) or {}
 
-		if not next( UserData ) then
+		if not IsType( UserData, "table" ) or not next( UserData ) then
 			if Reload then --Don't replace with a blank table if request failed when reloading.
 				self:AdminPrint( nil, "Reloading from the web failed. User data has not been changed." )
 
@@ -103,10 +109,13 @@ function Shine:LoadUsers( Web, Reload )
 
 	self.UserData = Decode( Data )
 
-	if not self.UserData or not next( self.UserData ) then
-		Notify( "[Shine] The user data file is not valid JSON, unable to load user data." )
+	if not self.UserData or not IsType( self.UserData, "table" ) or not next( self.UserData ) then
+		Notify( "The user data file is not valid JSON, unable to load user data." )
 	
-		self.Error = "The user data file is not valid JSON, unable to load user data."
+		--Dummy data to avoid errors.
+		if not Reload then
+			self.UserData = { Groups = {}, Users = {} }
+		end
 
 		return
 	end
@@ -288,8 +297,6 @@ end, -20 )
 Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client ) 
 	GameIDs[ Client ] = nil
 end, -20 )
-
-local IsType = Shine.IsType
 
 --[[
 	Gets the user data table for the given client/NS2ID.
@@ -480,6 +487,12 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	end
 end
 
+local PermissionCache = {}
+
+Shine.Hook.Add( "OnUserReload", "FlushPermissionCache", function()
+	TableEmpty( PermissionCache )
+end )
+
 --[[
 	Checks all inherited groups to determine command access.
 	Inputs: SteamID, user table, group name, group table, command name.
@@ -501,10 +514,16 @@ function Shine:GetPermissionInheritance( ID, User, GroupName, GroupTable, ConCom
 		return false
 	end
 
-	local Permissions = {}
 	local Blacklist = GroupTable.IsBlacklist
+	local Permissions = PermissionCache[ GroupName ]
 
-	BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
+	if not Permissions then
+		Permissions = {}
+
+		BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
+
+		PermissionCache[ GroupName ] = Permissions
+	end
 
 	if Blacklist then
 		if not Permissions[ ConCommand ] then
@@ -590,9 +609,9 @@ function Shine:CanTarget( Client, Target )
 
 	local User = Users[ tostring( ID ) ]
 	local TargetUser = Users[ tostring( TargetID ) ]
-
-	if not User then return false end --No user data, guest cannot target others.
+	
 	if not TargetUser then return true end --Target is a guest, can always target guests.
+	if not User then return false end --No user data, guest cannot target others.
 
 	local Group = Groups[ User.Group or -1 ]
 	local TargetGroup = Groups[ TargetUser.Group or -1 ]
@@ -662,3 +681,19 @@ function Shine:IsInGroup( Client, Group )
 	
 	return Group:lower() == "guest"
 end
+
+--Deny vote kicks on players that are above in immunity level.
+Shine.Hook.Add( "NS2StartVote", "ImmunityCheck", function( VoteName, Client, Data )
+	if VoteName ~= "VoteKickPlayer" then return end
+	
+	local Target = Data.kick_client
+	if not Target then return end
+	
+	local TargetClient = GetClientById( Target )
+
+	if not TargetClient then return end
+
+	if not Shine:CanTarget( Client, TargetClient ) then
+		return false
+	end
+end )

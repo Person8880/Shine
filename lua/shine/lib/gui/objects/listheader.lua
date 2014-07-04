@@ -113,6 +113,14 @@ function ListHeader:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self.Highlighted then return end
 
+	return true, self
+end
+
+function ListHeader:OnMouseUp( Key )
+	if not self:GetIsVisible() then return end
+	if Key ~= InputKey.MouseButton0 then return end
+	if not self.Highlighted then return end
+
 	self.Parent:SortRows( self.Index )
 
 	return true

@@ -4,8 +4,8 @@
 
 local Shine = Shine
 
+local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
-local Notify = Shared.Message
 local SharedTime = Shared.GetTime
 
 local Plugin = {}
@@ -96,7 +96,7 @@ function Plugin:OnProcessMove( Player, Input )
 		return
 	end
 
-	local Players = Shared.GetEntitiesWithClassname( "Player" ):GetSize()
+	local Players = GetHumanPlayerCount()
 	if Players < self.Config.WarnMinPlayers then
 		DataTable.LastMove = Time
 
@@ -111,7 +111,16 @@ function Plugin:OnProcessMove( Player, Input )
 		DataTable.LastMove = Time
 		DataTable.Warn = false
 
-		return 
+		return
+	end
+
+	--Ignore players waiting to respawn/watching the end of the game.
+	if Player:GetIsWaitingForTeamBalance() or ( Player.GetIsRespawning
+	and Player:GetIsRespawning() ) or Player:isa( "TeamSpectator" ) then
+		DataTable.LastMove = Time
+		DataTable.Warn = false
+
+		return
 	end
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
@@ -141,7 +150,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 			local AFKTime = Time - DataTable.LastMove
 			
-			Server.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
+			Shine.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
 
 			if self.Config.MoveToReadyRoomOnWarn and Player:GetTeamNumber() ~= kTeamReadyRoom then
 				Gamerules:JoinTeam( Player, 0, nil, true )
@@ -159,7 +168,9 @@ function Plugin:OnProcessMove( Player, Input )
 	if DataTable.LastMove + KickTime < Time and Players >= self.Config.MinPlayers then
 		self:ClientDisconnect( Client ) --Failsafe.
 
-		Shine:Print( "Client %s[%s] was AFK for over %s. Kicking...", true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ) )
+		Shine:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
+			true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ),
+			Players, self.Config.MinPlayers )
 
 		Client.DisconnectReason = "AFK for too long"
 

@@ -2,40 +2,22 @@
 	Screen text rendering server side file.
 ]]
 
-Shine = Shine or {}
+local function SendMessage( Player, Name, Message )
+	if Player then
+		Shine.SendNetworkMessage( Player, Name, Message, true )
+	else
+		Shine.SendNetworkMessage( Name, Message, true )
+	end
+end
 
 function Shine:SendText( Player, Message )
-	if Player then
-		Server.SendNetworkMessage( Player, "Shine_ScreenText", Message, true )
-	else
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_ScreenText", Message, true )
-		end
-	end
+	SendMessage( Player, "Shine_ScreenText", Message )
 end
 
 function Shine:UpdateText( Player, Message )
-	if Player then
-		Server.SendNetworkMesage( Player, "Shine_ScreenTextUpdate", Message, true )
-	else
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_ScreenTextUpdate", Message, true )
-		end
-	end
+	SendMessage( Player, "Shine_ScreenTextUpdate", Message )
 end
 
 function Shine:RemoveText( Player, Message )
-	if Player then
-		Server.SendNetworkMesage( Player, "Shine_ScreenTextRemove", Message, true )
-	else
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			Server.SendNetworkMessage( Players[ i ], "Shine_ScreenTextRemove", Message, true )
-		end
-	end
+	SendMessage( Player, "Shine_ScreenTextRemove", Message )
 end
