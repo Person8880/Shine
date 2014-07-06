@@ -1887,9 +1887,6 @@ end
 local function GetUTF8Bytes( String, Index )
 	Index = Index or 1
 
-	local FirstType = type( String )
-	local SecondType = type( Index )
-
 	if TypeCheck( String, "string", 1, "GetUTF8Bytes" ) then return end
 	if TypeCheck( Index, "number", 2, "GetUTF8Bytes" ) then return end
 
