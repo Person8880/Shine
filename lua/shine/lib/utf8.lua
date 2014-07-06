@@ -1879,21 +1879,21 @@ local function TypeCheck( Arg, Type, ArgNumber, FuncName )
 end
 
 --[[
-	Returns the number of bytes used by the UTF-8 character.
+	Returns the bytes used by the UTF-8 character.
 
 	Inputs: String to check, Index byte to start at.
-	Output: Number of bytes used by the UTF-8 character.
+	Output: Bytes used by the UTF-8 character.
 ]]
 local function GetUTF8Bytes( String, Index )
 	Index = Index or 1
 
-	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
-	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
+	if TypeCheck( String, "string", 1, "GetUTF8Bytes" ) then return end
+	if TypeCheck( Index, "number", 2, "GetUTF8Bytes" ) then return end
 
 	local Byte = String:byte( Index )
 
 	if Byte > 0 and Byte <= 127 then
-		return 1
+		return Byte
 	elseif Byte >= 194 and Byte <= 223 then
 		local Byte2 = String:byte( Index + 1 )
 
@@ -1905,7 +1905,7 @@ local function GetUTF8Bytes( String, Index )
 			error( "Invalid UTF-8 character" )
 		end
 
-		return 2
+		return Byte, Byte2
 	elseif Byte >= 224 and Byte <= 239 then
 		local Byte2 = String:byte( Index + 1 )
 		local Byte3 = String:byte( Index + 2 )
@@ -1926,7 +1926,7 @@ local function GetUTF8Bytes( String, Index )
 			error( "Invalid UTF-8 character" )
 		end
 
-		return 3
+		return Byte, Byte2, Byte3
 	elseif Byte >= 240 and Byte <= 244 then
 		-- UTF8-4
 		local Byte2 = String:byte( Index + 1 )
@@ -1953,16 +1953,41 @@ local function GetUTF8Bytes( String, Index )
 			error( "Invalid UTF-8 character" )
 		end
 
-		return 4
+		return Byte, Byte2, Byte3, Byte4
 	else
 		error( "Invalid UTF-8 character" )
 	end
 end
 
-function string.IsValidUTF8( String )
-	local Success = pcall( GetUTF8Bytes, String )
+--[[
+	Returns the number of bytes used by the UTF-8 character.
 
+	Inputs: String to check, Index byte to start at.
+	Output: Number of bytes used by the UTF-8 character.
+]]
+local function GetNumUTF8Bytes( String, Index )
+	local Byte1, Byte2, Byte3, Byte4 = GetUTF8Bytes( String, Index )
+	if Byte4 then
+		return 4
+	elseif Byte3 then
+		return 3
+	elseif Byte2 then
+		return 2
+	elseif Byte1 then
+		return 1
+	end    
+end
+
+function string.IsValidUTF8( String, Index )
+	local Success = pcall( GetUTF8Bytes, String, Index )
 	return Success
+end
+
+function string.GetUTF8Bytes( String, Index )
+	local Success, Byte, Byte2, Byte3, Byte4 = pcall( GetUTF8Bytes, String, Index )
+	if Success then
+		return Byte, Byte2, Byte3, Byte4
+	end
 end
 
 --[[
@@ -1980,7 +2005,7 @@ function string.UTF8Length( String )
 
 	while CurByte <= Bytes do
 		Count = Count + 1
-		CurByte = CurByte + GetUTF8Bytes( String, CurByte )
+		CurByte = CurByte + GetNumUTF8Bytes( String, CurByte )
 	end
 
 	return Count
@@ -2021,7 +2046,7 @@ function string.UTF8Sub( String, Start, End )
 			StartByte = CurByte
 		end
 
-		CurByte = CurByte + GetUTF8Bytes( String, CurByte )
+		CurByte = CurByte + GetNumUTF8Bytes( String, CurByte )
 
 		if Count == EndChar then
 			EndByte = CurByte - 1
@@ -2049,7 +2074,7 @@ local function UTF8Replace( String, MapTable )
 	local Count = 0
 
 	while CurByte <= Bytes do
-		local CharBytes = GetUTF8Bytes( String, CurByte )
+		local CharBytes = GetNumUTF8Bytes( String, CurByte )
 		local Char = String:sub( CurByte, CurByte + CharBytes - 1 )
 
 		Count = Count + 1
@@ -2092,7 +2117,7 @@ function string.UTF8Reverse( String )
 			Char = String:byte( CurByte )
 		end
 
-		local CharBytes = GetUTF8Bytes( String, CurByte )
+		local CharBytes = GetNumUTF8Bytes( String, CurByte )
 
 		Count = Count + 1
 		NewString[ Count ] = String:sub( CurByte, CurByte + CharBytes - 1 )
