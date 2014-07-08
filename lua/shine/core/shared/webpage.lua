@@ -23,8 +23,8 @@ local CloseButtonHighlight = Colour( 0.8, 0.4, 0.1, 1 )
 local SteamButtonCol = Colour( 0.1, 0.6, 0.2, 1 )
 local SteamButtonHighlight = Colour( 0.15, 0.9, 0.3, 1 )
 
-local LoadingFont = "fonts/AgencyFB_large.fnt"
-local TitleFont = "fonts/AgencyFB_small.fnt"
+local LoadingFont = Fonts.kAgencyFB_Large
+local TitleFont = Fonts.kAgencyFB_Small
 
 local CloseButtonPos = Vector( -22, 2, 0 )
 local CloseButtonSize = Vector( 20, 20, 0 )

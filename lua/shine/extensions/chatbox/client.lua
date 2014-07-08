@@ -197,7 +197,7 @@ local function VectorMultiply( Vec1, Vec2 )
 end
 
 function Plugin:GetFont()
-	return self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt"
+	return self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small
 end
 
 --[[
@@ -866,14 +866,14 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	PreLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	PreLabel:SetFont( self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt" )
+	PreLabel:SetFont( self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small )
 	PreLabel:SetColour( PlayerColour )
 	PreLabel:SetTextScale( TextScale * UIScale )
 	PreLabel:SetText( PlayerName )
 	PreLabel:SetPos( PrePos )
 
 	MessageLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	MessageLabel:SetFont( self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt" )
+	MessageLabel:SetFont( self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small )
 	MessageLabel:SetTextScale( TextScale * UIScale )
 	MessageLabel:SetColour( MessageColour )
 	MessageLabel:SetText( MessageName )

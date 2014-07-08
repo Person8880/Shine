@@ -7,17 +7,17 @@ local StringFormat = string.format
 local Messages = {}
 Shine.TextMessages = Messages
 
-local Fonts = {
-	"fonts/AgencyFB_small.fnt",
-	"fonts/AgencyFB_medium.fnt",
-	"fonts/AgencyFB_large.fnt"
+local Font = {
+	Fonts.kAgencyFB_Small,
+	Fonts.kAgencyFB_Medium,
+	Fonts.kAgencyFB_Large
 }
 
 function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size, FadeIn, IgnoreFormat )
 	FadeIn = FadeIn or 0.5
 	Size = Size or 1
 
-	local Font = Fonts[ Size ] or "fonts/AgencyFB_small.fnt"
+	local UseFont = Font[ Size ] or Fonts.kAgencyFB_Small
 
 	local ShouldFade = FadeIn > 0.05
 
@@ -49,7 +49,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		Obj:SetScale( ScaleVec )
 		Obj:SetPosition( Vector( Client.GetScreenWidth() * x, Client.GetScreenHeight() * y, 0 ) )
 		Obj:SetColor( TextObj.Colour )
-		Obj:SetFontName( Font )
+		Obj:SetFontName( UseFont )
 
 		function TextObj:UpdateText()
 			if IgnoreFormat then
@@ -94,7 +94,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 	Obj:SetTextAlignmentX( Alignment )
 	Obj:SetTextAlignmentY( GUIItem.Align_Center )
 
-	Obj:SetFontName( Font )
+	Obj:SetFontName( UseFont )
 
 	Obj:SetIsVisible( true )
 

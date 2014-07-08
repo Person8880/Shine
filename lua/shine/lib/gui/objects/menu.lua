@@ -30,7 +30,7 @@ function Menu:Initialise()
 	self.Buttons = {}
 	self.ButtonCount = 0
 
-	self.Font = "fonts/AgencyFB_small.fnt"
+	self.Font = Fonts.kAgencyFB_Small
 end
 
 function Menu:OnSchemeChange( Scheme )
