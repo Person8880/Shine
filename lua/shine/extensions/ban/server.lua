@@ -490,8 +490,8 @@ function Plugin:CreateCommands()
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
-			self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-			self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
 
 			return
 		end
@@ -523,8 +523,8 @@ function Plugin:CreateCommands()
 		if self.Config.Banned[ ID ] then
 			--We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
-				self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-				self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+				Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
 
 				return
 			end
@@ -537,7 +537,10 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		Shine:AdminPrint( Client, StringFormat( "%s is not banned.", ID ) )
+		local ErrorText = StringFormat( "%s is not banned.", ID )
+
+		Shine:NotifyError( Client, ErrorText )
+		Shine:AdminPrint( Client, ErrorText )
 	end
 	local UnbanCommand = self:BindCommand( "sh_unban", "unban", Unban )
 	UnbanCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to unban." }
@@ -554,24 +557,24 @@ function Plugin:CreateCommands()
 			ID = Shine.SteamIDToNS2( ID )
 
 			if not ID then
-				self:NotifyError( Client, "Invalid Steam ID for banning." )
-				self:AdminPrint( Client, "Invalid Steam ID for banning." )
+				Shine:NotifyError( Client, "Invalid Steam ID for banning." )
+				Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 
 				return
 			end
 		end
 
 		if not Shine:CanTarget( Client, tonumber( ID ) ) then
-			self:NotifyError( Client, "You cannot ban %s.", true, ID )
-			self:AdminPrint( Client, "You cannot ban %s.", true, ID )
+			Shine:NotifyError( Client, "You cannot ban %s.", true, ID )
+			Shine:AdminPrint( Client, "You cannot ban %s.", true, ID )
 
 			return
 		end
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
-			self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-			self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
 
 			return
 		end
@@ -599,6 +602,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
+		Shine:NotifyError( Client, "Invalid Steam ID for banning." )
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
 	local BanIDCommand = self:BindCommand( "sh_banid", "banid", BanID )
