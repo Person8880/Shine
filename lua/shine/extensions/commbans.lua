@@ -365,7 +365,7 @@ function Plugin:CreateCommands()
 	local BanIDCommand = self:BindCommand( "sh_commbanid", "banid", BanID )
 	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
 	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
-	BanIDCommand:Help( "<steamid> <duration in minutes> <reason> Bans the given Steam ID from commanding for the given time in minutes. 0 is a permanent ban." )
+	BanIDCommand:Help( "<steamid> <duration in minutes> Bans the given Steam ID from commanding for the given time in minutes. 0 is a permanent ban." )
 end
 
 Shine:RegisterExtension( "commbans", Plugin )
