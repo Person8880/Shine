@@ -402,6 +402,7 @@ end
 ]]
 function List:SortRows( Column, SortFunc, Desc )
 	local Rows = self.Rows
+	if not Rows then return end
 
 	if Desc == nil then
 		--Only flip the sort order if we're selecting the same column twice.

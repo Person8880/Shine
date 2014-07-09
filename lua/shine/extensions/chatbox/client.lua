@@ -941,6 +941,17 @@ function Plugin:StartChat( Team )
 		end
 	end
 
+	--This is somehow gone for some people?
+	if not SGUI.IsValid( self.TextEntry ) or not SGUI.IsValid( self.ModeText ) then
+		if SGUI.IsValid( self.MainPanel ) then
+			self.MainPanel:Destroy()
+		end
+
+		if not self:CreateChatbox() then
+			return
+		end
+	end
+
 	--The little text to the left of the text entry.
 	self.ModeText:SetText( self.TeamChat and "Team:" or "All:" )
 
