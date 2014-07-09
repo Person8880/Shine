@@ -91,21 +91,47 @@ function Plugin:Initialise()
 	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
 	self.Config.Interp = Max( self.Config.Interp, 0 )
 	self.Config.MoveRate = Max( self.Config.MoveRate, 5 )
+	self.Config.TickRate = Max( self.Config.TickRate, 20 )
+	self.Config.BWLimit = Max( self.Config.BWLimit, 10 )
+	self.Config.SendRate = Max( self.Config.SendRate, 10 )
 	
+	local Fixed
+
 	if self.Config.Interp ~= 100 then
+		local MinInterp = 2 / self.Config.SendRate * 1000
+		if self.Config.Interp < MinInterp then
+			self.Config.Interp = MinInterp
+			Fixed = true
+		end
+
 		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
 	end
 	if self.Config.MoveRate ~= 30 then
 		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
 	end
 	if self.Config.SendRate ~= 20 then
+		if self.Config.SendRate > self.Config.TickRate then
+			self.Config.SendRate = self.Config.TickRate - 10
+			Fixed = true
+		end
+
 		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
 	end
 	if self.Config.TickRate ~= 30 then
+		if self.Config.TickRate > self.Config.MoveRate then
+			self.Config.TickRate = self.Config.MoveRate
+			Fixed = true
+		end
+
 		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
 	end
 	if self.Config.BWLimit ~= 25 then
 		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit * 1000 ) )
+	end
+
+	if Fixed then
+		Notify( "Fixed incorrect rate values, check your config." )
+		self:SaveConfig( true )
 	end
 
 	self.Enabled = true
