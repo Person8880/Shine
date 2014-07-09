@@ -598,6 +598,7 @@ Add( "Think", "ReplaceMethods", function()
 
 	SetupClassHook( "CommandStructure", "LoginPlayer", "CommLoginPlayer", "PassivePre" )
 	SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
+	SetupClassHook( "CommandStructure", "OnUse", "CheckCommLogin", "ActivePre" )
 
 	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
 	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )

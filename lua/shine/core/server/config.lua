@@ -44,6 +44,7 @@ local DefaultConfig = {
 		badges = false,
 		ban = true,
 		basecommands = true,
+		commbans = false,
 		funcommands = false,
 		logging = false,
 		mapvote = true,
