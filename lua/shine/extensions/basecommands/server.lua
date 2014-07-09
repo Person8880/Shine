@@ -105,7 +105,7 @@ function Plugin:Initialise()
 		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
 	end
 	if self.Config.BWLimit ~= 25 then
-		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit ) )
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit * 1000 ) )
 	end
 
 	self.Enabled = true
