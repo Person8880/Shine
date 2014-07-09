@@ -1071,7 +1071,7 @@ function Plugin:CreateCommands()
 	end
 	local BWLimitCommand = self:BindCommand( "sh_bwlimit", "bwlimit", BWLimit )
 	BWLimitCommand:AddParam{ Type = "number", Min = 10 }
-	BWLimitCommand:Help( "<limit in kbyte > Sets the bandwidth limit per player and saves it." )
+	BWLimitCommand:Help( "<limit in kbytes> Sets the bandwidth limit per player and saves it." )
 	
 	local function SendRate( Client, NewRate )
 		if NewRate >= self.Config.TickRate then
