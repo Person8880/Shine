@@ -40,6 +40,9 @@ Plugin.DefaultConfig = {
 	DisableLuaRun = false,
 	Interp = 100,
 	MoveRate = 30,
+	TickRate = 30,
+	SendRate = 20,
+	BWLimit = 25,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
 	FriendlyFirePreGame = true
@@ -88,6 +91,22 @@ function Plugin:Initialise()
 	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
 	self.Config.Interp = Max( self.Config.Interp, 0 )
 	self.Config.MoveRate = Max( self.Config.MoveRate, 5 )
+	
+	if self.Config.Interp ~= 100 then
+		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
+	end
+	if self.Config.MoveRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
+	end
+	if self.Config.SendRate ~= 20 then
+		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
+	end
+	if self.Config.TickRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
+	end
+	if self.Config.BWLimit ~= 25 then
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit ) )
+	end
 
 	self.Enabled = true
 
@@ -133,15 +152,6 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 	HealthUsed = HealthUsed * Scale
 
 	return Damage, ArmourUsed, HealthUsed
-end
-
-function Plugin:ClientConnect( Client )
-	if self.Config.Interp ~= 100 then
-		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
-	end
-	if self.Config.MoveRate ~= 30 then
-		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
-	end
 end
 
 function Plugin:Think()
@@ -1002,6 +1012,39 @@ function Plugin:CreateCommands()
 	InterpCommand:AddParam{ Type = "number", Min = 0 }
 	InterpCommand:Help( "<time in ms> Sets the interpolation time and saves it." )
 
+	local function TickRate( Client, NewRate )
+		self.Config.TickRate = NewRate
+
+		Shared.ConsoleCommand( StringFormat( "tickrate %s", NewRate ) )
+
+		self:SaveConfig( true )
+	end
+	local TickRateCommand = self:BindCommand( "sh_tickrate", "tickrate", TickRate )
+	TickRateCommand:AddParam{ Type = "number", Min = 20 }
+	TickRateCommand:Help( "<rate> Sets the max server tickrate and saves it." )
+	
+	local function BWLimit( Client, NewLimit )
+		self.Config.BWLimit = NewLimit
+
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", NewLimit * 1000 ) )
+
+		self:SaveConfig( true )
+	end
+	local BWLimitCommand = self:BindCommand( "sh_bwlimit", "bwlimit", BWLimit )
+	BWLimitCommand:AddParam{ Type = "number", Min = 10 }
+	BWLimitCommand:Help( "<limit in kbyte > Sets the bandwidth limit per player and saves it." )
+	
+	local function SendRate( Client, NewRate )
+		self.Config.SendRate = NewRate
+
+		Shared.ConsoleCommand( StringFormat( "sendrate %s", NewRate ) )
+
+		self:SaveConfig( true )
+	end
+	local SendRateCommand = self:BindCommand( "sh_sendrate", "sendrate", SendRate )
+	SendRateCommand:AddParam{ Type = "number", Min = 10 }
+	SendRateCommand:Help( "<rate> Sets the rate of updates sent to clients and saves it." )
+	
 	local function MoveRate( Client, NewRate )
 		self.Config.MoveRate = NewRate
 
