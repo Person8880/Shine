@@ -25,6 +25,11 @@ Shine:RegisterExtension( "ban", Plugin )
 
 if Server then return end
 
+Plugin.AdminTab = "Bans"
+
+Plugin.BanCommand = "sh_banid"
+Plugin.UnbanCommand = "sh_unban"
+
 local SGUI = Shine.GUI
 
 local Date = os.date
@@ -181,7 +186,7 @@ function Plugin:SetupAdminMenu()
 			
 			local Reason = ReasonEntry:GetText()
 
-			Shine.AdminMenu:RunCommand( "sh_banid", StringFormat( "%s %s %s", ID, Duration, Reason ) )
+			Shine.AdminMenu:RunCommand( self.BanCommand, StringFormat( "%s %s %s", ID, Duration, Reason ) )
 
 			Shine.AdminMenu:DontDestroyOnClose( Window )
 			Window:Destroy()
@@ -189,7 +194,7 @@ function Plugin:SetupAdminMenu()
 		end
 	end
 	
-	self:AddAdminMenuTab( "Bans", {
+	self:AddAdminMenuTab( self.AdminTab, {
 		OnInit = function( Panel, Data )
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
@@ -237,7 +242,7 @@ function Plugin:SetupAdminMenu()
 				local Data = Row.BanData
 				local ID = Data.ID
 
-				Shine.AdminMenu:RunCommand( "sh_unban", ID )
+				Shine.AdminMenu:RunCommand( self.UnbanCommand, ID )
 			end
 
 			local LoadMore = SGUI:Create( "Button", Panel )

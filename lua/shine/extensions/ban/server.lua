@@ -14,10 +14,10 @@ local Notify = Shared.Message
 local Clamp = math.Clamp
 local Encode, Decode = json.encode, json.decode
 local pairs = pairs
+local StringFormat = string.format
 local TableCopy = table.Copy
 local TableRemove = table.remove
 local Time = os.time
-local StringFormat = string.format
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Bans.json"
@@ -26,6 +26,8 @@ Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ba
 
 --Max number of ban entries to network in one go.
 Plugin.MAX_BAN_PER_NETMESSAGE = 10
+--Permission required to receive the ban list.
+Plugin.ListPermission = "sh_unban"
 
 local Hooked
 
@@ -514,7 +516,7 @@ function Plugin:CreateCommands()
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
 	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
 	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
-	BanCommand:Help( "<player> <duration in minutes> Bans the given player for the given time in minutes. 0 is a permanent ban." )
+	BanCommand:Help( "<player> <duration in minutes> <reason> Bans the given player for the given time in minutes. 0 is a permanent ban." )
 
 	--[[
 		Unban by Steam ID.
@@ -581,7 +583,7 @@ function Plugin:CreateCommands()
 
 		local BanningName = Client and Client:GetControllingPlayer():GetName() or "Console"
 		local BanningID = Client and Client:GetUserId() or 0
-		local Target = Shine:GetClient( ID )
+		local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
 		local TargetName = "<unknown>"
 		
 		if Target then
@@ -722,7 +724,7 @@ function Plugin:NetworkUnban( ID )
 end
 
 function Plugin:ReceiveRequestBanData( Client, Data )
-	if not Shine:GetPermission( Client, "sh_unban" ) then return end
+	if not Shine:GetPermission( Client, self.ListPermission ) then return end
 	
 	self.BanNetworkedClients = self.BanNetworkedClients or {}
 

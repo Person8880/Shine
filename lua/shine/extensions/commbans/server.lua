@@ -2,7 +2,7 @@
 	Shine commander bans plugin.
 ]]
 
-local Plugin = {}
+local Plugin = Plugin
 
 local Shine = Shine
 
@@ -17,16 +17,19 @@ Plugin.ConfigName = "CommBans.json"
 
 Plugin.DefaultConfig = {
 	Banned = {},
-	SubmitURL = "",
-	SubmitArgs = {},
+	BansSubmitURL = "",
+	BansSubmitArguments = {},
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5,
 	DefaultBanTime = 60
 }
 
 Plugin.CheckConfig = true
+Plugin.ListPermission = "sh_uncommban"
 
 function Plugin:Initialise()
+	self:GenerateNetworkData()
+
 	self.Config.MaxSubmitRetries = Max( self.Config.MaxSubmitRetries, 0 )
 	self.Config.SubmitTimeout = Max( self.Config.SubmitTimeout, 0 )
 	self.Config.DefaultBanTime = Max( self.Config.DefaultBanTime, 0 )
@@ -81,169 +84,10 @@ function Plugin:CheckCommLogin( CommandStation, Player )
 end
 
 --[[
-	Checks bans on startup.
-]]
-function Plugin:CheckBans()
-	local CurTime = Time()
-	local Bans = self.Config.Banned
-	local Edited
-
-	for ID, Data in pairs( Bans ) do
-		if Data.UnbanTime and Data.UnbanTime ~= 0 and Data.UnbanTime < CurTime then
-			self:RemoveBan( ID, 0, true )
-			Edited = true
-		end
-	end
-
-	if Edited then
-		self:SaveConfig()
-	end
-end
-
-function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID )
-	if not tonumber( ID ) then 
-		ID = Shine.SteamIDToNS2( ID )
-
-		if not ID then
-			return false, "invalid Steam ID" 
-		end
-	end
-
-	ID = tostring( ID )
-
-	local CurTime = Time()
-
-	local BanData = {
-		ID = ID,
-		Name = Name,
-		Duration = Duration,
-		UnbanTime = Duration == 0 and 0 or ( CurTime + Duration ),
-		BannedBy = BannedBy,
-		BannerID = BanningID,
-		Issued = CurTime
-	}
-
-	self.Config.Banned[ ID ] = BanData
-
-	self:SaveConfig()
-
-	if self.Config.SubmitURL == "" then return true end
-	
-	local PostParams = {
-		bandata = Encode( BanData ),
-		unban = 0
-	}
-
-	for Key, Value in pairs( self.Config.SubmitArgs ) do
-		PostParams[ Key ] = Value
-	end
-
-	local function SuccessFunc( Data )
-		self.Retries[ ID ] = nil
-
-		if not Data then return end
-		
-		local Decoded = Decode( Data )
-
-		if not Decoded then return end
-
-		if Decoded.success == false then
-			--The web request told us that they shouldn't be banned.
-			self.Config.Banned[ ID ] = nil
-
-			self:SaveConfig()
-		end
-	end
-
-	self.Retries[ ID ] = 0
-
-	local TimeoutFunc
-	TimeoutFunc = function()
-		self.Retries[ ID ] = self.Retries[ ID ] + 1
-
-		if self.Retries[ ID ] > self.Config.MaxSubmitRetries then
-			self.Retries[ ID ] = nil
-
-			return
-		end
-		
-		Shine.TimedHTTPRequest( self.Config.SubmitURL, "POST", PostParams,
-			SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
-	end
-
-	Shine.TimedHTTPRequest( self.Config.SubmitURL, "POST", PostParams,
-		SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
-
-	return true
-end
-
-function Plugin:RemoveBan( ID, UnbannerID, DontSave )
-	ID = tostring( ID )
-
-	local BanData = self.Config.Banned[ ID ]
-
-	self.Config.Banned[ ID ] = nil
-
-	if not DontSave then
-		self:SaveConfig()
-	end
-
-	if self.Config.SubmitURL == "" then return end
-
-	local PostParams = {
-		unbandata = Encode{
-			ID = ID,
-			UnbannerID = UnbannerID or 0
-		},
-		unban = 1
-	}
-
-	for Key, Value in pairs( self.Config.SubmitArgs ) do
-		PostParams[ Key ] = Value
-	end
-
-	local function SuccessFunc( Data )
-		self.Retries[ ID ] = nil
-
-		if not Data then return end
-		
-		local Decoded = Decode( Data )
-
-		if not Decoded then return end
-
-		if Decoded.success == false then
-			--The web request told us that they shouldn't be unbanned.
-			self.Config.Banned[ ID ] = BanData
-
-			self:SaveConfig()
-		end
-	end
-
-	self.Retries[ ID ] = 0
-
-	local TimeoutFunc
-	TimeoutFunc = function()
-		self.Retries[ ID ] = self.Retries[ ID ] + 1
-
-		if self.Retries[ ID ] > self.Config.MaxSubmitRetries then
-			self.Retries[ ID ] = nil
-
-			return
-		end
-		
-		Shine.TimedHTTPRequest( self.Config.SubmitURL, "POST", PostParams,
-			SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
-	end
-
-	Shine.TimedHTTPRequest( self.Config.SubmitURL, "POST", PostParams,
-		SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
-end
-
---[[
 	Creates the plugins console/chat commands.
 ]]
 function Plugin:CreateCommands()
-	local function Ban( Client, Target, Duration )
+	local function Ban( Client, Target, Duration, Reason )
 		Duration = Duration * 60
 		local ID = tostring( Target:GetUserId() )
 
@@ -260,7 +104,7 @@ function Plugin:CreateCommands()
 		local Player = Target:GetControllingPlayer()
 		local TargetName = Player:GetName()
 
-		self:AddBan( ID, TargetName, Duration, BanningName, BanningID )
+		self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason )
 
 		if Player:isa( "Commander" ) then
 			Player:Eject()
@@ -274,7 +118,8 @@ function Plugin:CreateCommands()
 	local BanCommand = self:BindCommand( "sh_commban", "commban", Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
 	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
-	BanCommand:Help( "<player> <duration in minutes> Bans the given player from commanding for the given time in minutes. 0 is a permanent ban." )
+	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
+	BanCommand:Help( "<player> <duration in minutes> <reason> Bans the given player from commanding for the given time in minutes. 0 is a permanent ban." )
 
 	local function Unban( Client, ID )
 		if self.Config.Banned[ ID ] then
@@ -288,7 +133,7 @@ function Plugin:CreateCommands()
 
 			local Unbanner = ( Client and Client.GetUserId and Client:GetUserId() ) or 0
 
-			self:RemoveBan( ID, Unbanner )
+			self:RemoveBan( ID, nil, Unbanner )
 			Shine:AdminPrint( nil, "%s unbanned %s from commanding.", true, Client and Client:GetControllingPlayer():GetName() or "Console", ID )
 
 			return
@@ -303,7 +148,7 @@ function Plugin:CreateCommands()
 	UnbanCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to unban." }
 	UnbanCommand:Help( "<steamid> Unbans the given Steam ID from commanding." )
 
-	local function BanID( Client, ID, Duration )
+	local function BanID( Client, ID, Duration, Reason )
 		Duration = Duration * 60
 
 		--We want the NS2ID, not Steam ID.
@@ -335,14 +180,14 @@ function Plugin:CreateCommands()
 
 		local BanningName = Client and Client:GetControllingPlayer():GetName() or "Console"
 		local BanningID = Client and Client:GetUserId() or 0
-		local Target = Shine:GetClient( ID )
+		local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
 		local TargetName = "<unknown>"
 		
 		if Target then
 			TargetName = Target:GetControllingPlayer():GetName()
 		end
 		
-		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID ) then
+		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
 			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
 
 			Shine:AdminPrint( nil, "%s banned %s[%s] from commanding %s.", true, BanningName, TargetName, ID, DurationString )
@@ -365,7 +210,6 @@ function Plugin:CreateCommands()
 	local BanIDCommand = self:BindCommand( "sh_commbanid", "banid", BanID )
 	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
 	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
-	BanIDCommand:Help( "<steamid> <duration in minutes> Bans the given Steam ID from commanding for the given time in minutes. 0 is a permanent ban." )
+	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
+	BanIDCommand:Help( "<steamid> <duration in minutes> <reason> Bans the given Steam ID from commanding for the given time in minutes. 0 is a permanent ban." )
 end
-
-Shine:RegisterExtension( "commbans", Plugin )
