@@ -32,7 +32,7 @@ function Plugin:Initialise()
 	self.Config.DefaultBanTime = Max( self.Config.DefaultBanTime, 0 )
 
 	self.Retries = {}
-	self.NextNotify = {}
+	self.NextNotify = setmetatable( {}, { __mode = "k" } )
 
 	self:CreateCommands()
 	self:CheckBans()
