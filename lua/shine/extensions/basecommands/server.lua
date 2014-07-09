@@ -1028,6 +1028,13 @@ function Plugin:CreateCommands()
 	UngagCommand:Help( "<player> Stops silencing the given player's chat." )
 
 	local function Interp( Client, NewInterp )
+		local MinInterp = 2 / self.Config.SendRate * 1000
+		if NewInterp < MinInterp then
+			Shine:NotifyError( Client, "Interp is constrained by send rate to be %ims minimum.",
+				true, MinInterp )
+			return
+		end
+
 		self.Config.Interp = NewInterp
 
 		Shared.ConsoleCommand( StringFormat( "interp %s", NewInterp * 0.001 ) )
@@ -1039,6 +1046,12 @@ function Plugin:CreateCommands()
 	InterpCommand:Help( "<time in ms> Sets the interpolation time and saves it." )
 
 	local function TickRate( Client, NewRate )
+		if NewRate > self.Config.MoveRate then
+			Shine:NotifyError( Client, "Tick rate cannot be greater than move rate (%i).",
+				true, self.Config.MoveRate )
+			return
+		end
+
 		self.Config.TickRate = NewRate
 
 		Shared.ConsoleCommand( StringFormat( "tickrate %s", NewRate ) )
@@ -1061,6 +1074,12 @@ function Plugin:CreateCommands()
 	BWLimitCommand:Help( "<limit in kbyte > Sets the bandwidth limit per player and saves it." )
 	
 	local function SendRate( Client, NewRate )
+		if NewRate >= self.Config.TickRate then
+			Shine:NotifyError( Client, "Send rate cannot be greater-equal to tick rate (%i).",
+				true, self.Config.TickRate )
+			return
+		end
+
 		self.Config.SendRate = NewRate
 
 		Shared.ConsoleCommand( StringFormat( "sendrate %s", NewRate ) )
