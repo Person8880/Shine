@@ -72,25 +72,14 @@ function Plugin:HookChat( ChatElement )
 			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
 		end
 
-		return OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName )
-	end
+		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName )
 
-	local OldInsert = table.insert
-
-	--This is hilariously hacky, but it should work just fine.
-	function table.insert( ... )
-		local Table = select( 1, ... )
-
-		if Plugin.GUIChat and Table == Plugin.GUIChat.messages then
-			local Message = select( 2, ... )
-
-			--This is called when the message is added to the GUIChat's message list.
-			if IsType( Message, "table" ) and Message.Background and Plugin.Enabled and Plugin.Visible then
-				Message.Background:SetIsVisible( false )
+		if Plugin.Enabled and Plugin.Visible then
+			local JustAdded = self.messages[ #self.messages ]
+			if IsType( JustAdded, "table" ) then
+				JustAdded.Background:SetIsVisible( false )
 			end
 		end
-
-		return OldInsert( ... )
 	end
 end
 
