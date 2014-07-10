@@ -456,14 +456,18 @@ local function OnWebPluginTimeout( self, Plugins, Reload )
 
 	Shine:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.", true, self.WebPluginTimeouts )
 
-	if self.WebPluginTimeouts >= self.Config.WebConfigs.MaxAttempts and not Reload then
-		Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
+	if self.WebPluginTimeouts >= self.Config.WebConfigs.MaxAttempts then
+		if not Reload then
+			Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
 
-		for Plugin in pairs( Plugins ) do
-			LoadPlugin( self, Plugin )
+			for Plugin in pairs( Plugins ) do
+				LoadPlugin( self, Plugin )
+			end
+
+			Notify( "[Shine] Finished loading." )
 		end
 
-		Notify( "[Shine] Finished loading." )
+		self.WebPluginTimeouts = 0
 
 		return
 	end
