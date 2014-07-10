@@ -31,9 +31,7 @@ Plugin.ListPermission = "sh_uncommban"
 function Plugin:Initialise()
 	self:GenerateNetworkData()
 
-	self.Config.MaxSubmitRetries = Max( self.Config.MaxSubmitRetries, 0 )
-	self.Config.SubmitTimeout = Max( self.Config.SubmitTimeout, 0 )
-	self.Config.DefaultBanTime = Max( self.Config.DefaultBanTime, 0 )
+	self:VerifyConfig()
 
 	self.Retries = {}
 	self.NextNotify = setmetatable( {}, { __mode = "k" } )

@@ -13,6 +13,7 @@ Plugin.Version = "1.4"
 local Notify = Shared.Message
 local Clamp = math.Clamp
 local Encode, Decode = json.encode, json.decode
+local Max = math.max
 local pairs = pairs
 local StringFormat = string.format
 local TableCopy = table.Copy
@@ -31,11 +32,31 @@ Plugin.ListPermission = "sh_unban"
 
 local Hooked
 
+local DefaultConfig = {
+	Banned = {},
+	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
+	GetBansFromWeb = false,
+	GetBansWithPOST = false, --Should we use POST with extra keys to get bans?
+	BansURL = "",
+	BansSubmitURL = "",
+	BansSubmitArguments = {},
+	MaxSubmitRetries = 3,
+	SubmitTimeout = 5
+}
+
+function Plugin:VerifyConfig()
+	self.Config.MaxSubmitRetries = Max( self.Config.MaxSubmitRetries, 0 )
+	self.Config.SubmitTimeout = Max( self.Config.SubmitTimeout, 0 )
+	self.Config.DefaultBanTime = Max( self.Config.DefaultBanTime, 0 )
+end
+
 --[[
 	Called on plugin startup, we create the chat commands and set ourself to enabled.
 	We return true to indicate a successful startup.
 ]]
 function Plugin:Initialise()
+	self:VerifyConfig()
+
 	self.Retries = {}
 
 	self:CreateCommands()
@@ -78,18 +99,6 @@ function Plugin:Initialise()
 
 	return true
 end
-
-local DefaultConfig = {
-	Banned = {},
-	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
-	GetBansFromWeb = false,
-	GetBansWithPOST = false, --Should we use POST with extra keys to get bans?
-	BansURL = "",
-	BansSubmitURL = "",
-	BansSubmitArguments = {},
-	MaxSubmitRetries = 3,
-	SubmitTimeout = 5
-}
 
 --[[
 	Generates the default bans config.
@@ -175,6 +184,8 @@ function Plugin:OnWebConfigLoaded()
 	if self.Config.GetBansFromWeb then
 		self:LoadBansFromWeb()
 	end
+
+	self:VerifyConfig()
 end
 
 local function HandleBadJSON( self )
