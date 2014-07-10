@@ -12,6 +12,7 @@ local GetOwner = Server.GetOwner
 local Max = math.max
 local Time = os.time
 
+Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "CommBans.json"
 
