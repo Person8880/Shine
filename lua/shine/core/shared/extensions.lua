@@ -400,13 +400,13 @@ function PluginMeta:Suspend()
 		self:OnSuspend()
 	end
 	
-	if self.Timers then
+	if rawget( self, "Timers" ) then
 		for Name, Timer in pairs( self.Timers ) do
 			Timer:Pause()
 		end
 	end
 
-	if self.Commands then
+	if rawget( self, "Commands" ) then
 		for k, Command in pairs( self.Commands ) do
 			Command.Disabled = true
 		end
@@ -418,13 +418,13 @@ end
 
 --Resumes the plugin from suspension.
 function PluginMeta:Resume()
-	if self.Timers then
+	if rawget( self, "Timers" ) then
 		for Name, Timer in pairs( self.Timers ) do
 			Timer:Resume()
 		end
 	end
 
-	if self.Commands then
+	if rawget( self, "Commands" ) then
 		for k, Command in pairs( self.Commands ) do
 			Command.Disabled = nil
 		end
