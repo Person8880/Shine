@@ -351,6 +351,16 @@ function PluginMeta:SimpleTimer( Delay, Func )
 	return Timer
 end
 
+function PluginMeta:GetTimer( Name )
+	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return nil end
+
+	return self.Timers[ Name ]
+end
+
+function PluginMeta:GetTimers()
+	return rawget( self, "Timers" )
+end
+
 function PluginMeta:TimerExists( Name )
 	return Shine.Timer.Exists( StringFormat( "%s_%s", self.__Name, Name ) )
 end
