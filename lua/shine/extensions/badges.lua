@@ -52,9 +52,11 @@ function Plugin:Setup()
 		AssignedGroups[ GroupName ] = true
 		
 		local GroupBadges = Group.Badges or Group.badges or {}
+		if not IsType( GroupBadges, "table" ) then
+			GroupBadges = {}
+		end
 
-		if IsType( GroupBadges, "table" ) and GroupBadges[ 1 ]
-		and IsType( GroupBadges[ 1 ], "string" ) then
+		if GroupBadges[ 1 ] and IsType( GroupBadges[ 1 ], "string" ) then
 			GroupBadges = {}
 			GroupBadges[ 5 ] = Group.Badges or Group.badges
 		end
@@ -64,14 +66,12 @@ function Plugin:Setup()
 			InsertUnique( GroupBadges[ 5 ], Group.Badge or Group.badge )
 		end
 
-		if IsType( GroupBadges, "table" ) then
-			for Row, GroupRowBadges in pairs( GroupBadges ) do
-				for i = 1, #GroupRowBadges do
-					local BadgeName = GroupRowBadges[ i ]
+		for Row, GroupRowBadges in pairs( GroupBadges ) do
+			for i = 1, #GroupRowBadges do
+				local BadgeName = GroupRowBadges[ i ]
 
-					if not AssignBadge( ID, BadgeName, Row ) then
-						Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
-					end
+				if not AssignBadge( ID, BadgeName, Row ) then
+					Print( "%s has a non-existant or reserved badge: %s", GroupName, BadgeName )
 				end
 			end
 		end
