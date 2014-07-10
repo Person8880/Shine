@@ -9,7 +9,7 @@ local Notify = Shared.Message
 local InsertUnique = table.insertunique
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "2.0"
 
 function Plugin:Initialise()
 	if self.Enabled ~= nil then 
@@ -17,7 +17,7 @@ function Plugin:Initialise()
 
 		return true
 	end
-	
+
 	Shine.Hook.Add( "Think", "ReplaceBadges", function( Deltatime )
 		self:Setup()
 
@@ -34,7 +34,7 @@ function Plugin:Setup()
 		Notify( "[Shine] Unable to find the badge mod, badge plugin cannot load." )
 		return
 	end
-	
+
 	local AssignBadge = GiveBadge
 
 	local UserData = Shine.UserData
@@ -50,7 +50,7 @@ function Plugin:Setup()
 		if AssignedGroups[ GroupName ] then return end
 
 		AssignedGroups[ GroupName ] = true
-		
+
 		local GroupBadges = Group.Badges or Group.badges or {}
 		if not IsType( GroupBadges, "table" ) then
 			GroupBadges = {}
