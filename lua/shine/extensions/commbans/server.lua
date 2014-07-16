@@ -79,7 +79,7 @@ function Plugin:CheckCommLogin( CommandStation, Player )
 		return false
 	end
 
-	self:RemoveBan( ID, 0 )
+	self:RemoveBan( ID, nil, 0 )
 end
 
 --[[
