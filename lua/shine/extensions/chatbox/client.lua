@@ -68,6 +68,8 @@ function Plugin:HookChat( ChatElement )
 	local OldAddMessage = ChatElement.AddMessage
 
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
+		Plugin.GUIChat = self
+
 		if Plugin.Enabled then
 			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
 		end
@@ -89,6 +91,30 @@ Hook.Add( "Think", "ChatBoxHook", function()
 		Plugin:HookChat( GUIChat )
 
 		Hook.Remove( "Think", "ChatBoxHook" )
+	end
+end )
+
+--[[
+	Suddenly, with no changes, EvaluateUIVisibility is no longer being called,
+	or is being called sooner than the plugin is enabled.
+	I don't even.
+]]
+Hook.Add( "Think", "GetGUIChat", function()
+	local Manager = GetGUIManager()
+	if Manager then
+		local Scripts = Manager.scripts
+
+		if Scripts then
+			for Index, Script in pairs( Scripts ) do
+				if Script._scriptName == "GUIChat" then
+					Plugin.GUIChat = Script
+
+					Hook.Remove( "Think", "GetGUIChat" )
+					
+					return
+				end
+			end
+		end
 	end
 end )
 
