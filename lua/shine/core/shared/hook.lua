@@ -25,16 +25,10 @@ local function Remove( Event, Index )
 
 	if not EventHooks then return end
 	
-	for i = -20, 20 do
-		local HookTable = EventHooks[ i ]
+	local Priority = ReservedNames[ Event ][ Index ]
+	if not Priority then return end
 
-		if HookTable and HookTable[ Index ] then
-			HookTable[ Index ] = nil
-
-			return
-		end
-	end
-
+	EventHooks[ Priority ][ Index ] = nil
 	ReservedNames[ Event ][ Index ] = nil
 end
 Shine.Hook.Remove = Remove
@@ -53,7 +47,6 @@ local function Add( Event, Index, Function, Priority )
 
 	if ReservedNames[ Event ][ Index ] then
 		Remove( Event, Index )
-		ReservedNames[ Event ][ Index ] = nil
 	end
 
 	if not Hooks[ Event ][ Priority ] then
@@ -61,8 +54,7 @@ local function Add( Event, Index, Function, Priority )
 	end
 
 	Hooks[ Event ][ Priority ][ Index ] = Function
-
-	ReservedNames[ Event ][ Index ] = true
+	ReservedNames[ Event ][ Index ] = Priority
 end
 Shine.Hook.Add = Add
 
