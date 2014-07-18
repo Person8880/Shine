@@ -8,6 +8,7 @@ local include = Script.Load
 local next = next
 local pairs = pairs
 local Notify = Shared.Message
+local pcall = pcall
 local rawget = rawget
 local setmetatable = setmetatable
 local StringExplode = string.Explode
@@ -628,9 +629,15 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		Plugin:LoadConfig()
 	end
 
-	local Success, Err = Plugin:Initialise()
+	local Success, Loaded, Err = pcall( Plugin.Initialise, Plugin )
 
+	--There was a Lua error.
 	if not Success then
+		return false, StringFormat( "Lua error: %s", Loaded )
+	end
+
+	--The plugin has refused to load.
+	if not Loaded then
 		return false, Err
 	end
 
