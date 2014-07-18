@@ -13,6 +13,7 @@ local rawget = rawget
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local type = type
 
 local function Print( ... )
 	return Notify( StringFormat( ... ) )
@@ -238,9 +239,41 @@ function PluginMeta:LoadConfig()
 
 	self.Config = PluginConfig
 
-	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then 
-		self:SaveConfig() 
+	local NeedsSave
+
+	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then
+		NeedsSave = true
 	end
+
+	if self.CheckConfigTypes and self:TypeCheckConfig() then
+		NeedsSave = true
+	end
+
+	if NeedsSave then
+		self:SaveConfig()
+	end
+end
+
+function PluginMeta:TypeCheckConfig()
+	local Config = self.Config
+	local DefaultConfig = self.DefaultConfig
+
+	local Edited
+
+	for Key, Value in pairs( Config ) do
+		local ExpectedType = type( DefaultConfig[ Key ] )
+		local RealType = type( Value )
+
+		if ExpectedType ~= RealType then
+			Print( "Type mis-match in %s config for key '%s', expected type: '%s'. Reverting value to default.",
+				self.__Name, Key, ExpectedType )
+
+			Config[ Key ] = DefaultConfig[ Key ]
+			Edited = true
+		end
+	end
+
+	return Edited
 end
 
 if Server then

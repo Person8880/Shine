@@ -32,7 +32,7 @@ Plugin.ListPermission = "sh_unban"
 
 local Hooked
 
-local DefaultConfig = {
+Plugin.DefaultConfig = {
 	Banned = {},
 	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
 	GetBansFromWeb = false,
@@ -224,7 +224,17 @@ function Plugin:LoadConfig()
 
 	self.Config = PluginConfig
 
-	if Shine.CheckConfig( self.Config, DefaultConfig ) then
+	local Edited
+
+	if Shine.CheckConfig( self.Config, self.DefaultConfig ) then
+		Edited = true
+	end
+
+	if self:TypeCheckConfig() then
+		Edited = true
+	end
+
+	if Edited then
 		Notify( "Shine bans config file updated." )
 		self:SaveConfig()
 	end

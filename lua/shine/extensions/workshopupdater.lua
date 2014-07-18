@@ -16,6 +16,7 @@ local Plugin = {}
 Plugin.HasConfig = true
 Plugin.ConfigName = "WorkshopUpdater.json"
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 Plugin.DefaultConfig = {
 	CheckInterval = 60,

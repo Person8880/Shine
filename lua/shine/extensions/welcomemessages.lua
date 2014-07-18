@@ -25,6 +25,7 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 Plugin.SilentConfigSave = true
 
 function Plugin:Initialise()
