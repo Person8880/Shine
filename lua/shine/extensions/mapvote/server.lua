@@ -248,6 +248,7 @@ function Plugin:Initialise()
 	end
 
 	self.MaxNominations = Max( MaxOptions - self.ForcedMapCount - 1, 0 )
+	self.Config.ExcludeLastMaps = Max( self.Config.ExcludeLastMaps, 0 )
 
 	if self.Config.ExcludeLastMaps > 0 then
 		self:LoadLastMaps()
@@ -504,7 +505,7 @@ function Plugin:SaveLastMaps()
 
 	Data[ #Data + 1 ] = Shared.GetMapName()
 
-	if #Data > Max then
+	while #Data > Max do
 		TableRemove( Data, 1 )
 	end
 
