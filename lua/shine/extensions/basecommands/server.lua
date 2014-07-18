@@ -576,6 +576,13 @@ function Plugin:CreateCommands()
 	ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a map to change to." }
 	ChangeLevelCommand:Help( "<map> Changes the map to the given level immediately." )
 
+	local function CycleMap( Client )
+		--The map vote plugin hooks this so we don't have to worry.
+		MapCycle_CycleMap()
+	end
+	local CycleMapCommand = self:BindCommand( "sh_cyclemap", "cyclemap", CycleMap )
+	CycleMapCommand:Help( "Cycles the map to the next one in the map cycle." )
+
 	local IsType = Shine.IsType
 
 	local function ListMaps( Client )
