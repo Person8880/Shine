@@ -666,6 +666,8 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 
 	--There was a Lua error.
 	if not Success then
+		Plugin.Enabled = false
+
 		return false, StringFormat( "Lua error: %s", Loaded )
 	end
 
