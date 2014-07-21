@@ -15,7 +15,7 @@ function string.Explode( String, Pattern )
 
 	local Count = 0
 
-	local Start, End, Found = StringFind( String, Pattern )
+	local Start, End, Found = StringFind( String, FindPattern )
 	while Start do
 		if Start ~= 1 or Found ~= "" then
 			Count = Count + 1
