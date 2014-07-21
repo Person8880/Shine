@@ -377,11 +377,11 @@ function Plugin:SendVoteData( Client )
 end
 
 local function GetMapName( Map )
-    if type( Map ) == "table" and Map.map then
-        return Map.map
-    end
+	if type( Map ) == "table" and Map.map then
+		return Map.map
+	end
 
-    return Map
+	return Map
 end
 
 --[[
