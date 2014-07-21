@@ -220,7 +220,7 @@ function RandomPairs( Table, Desc )
 
 	return function()
 		local Key = Sorted[ i ] and Sorted[ i ].Key
-		if not Key then return nil end
+		if Key == nil then return nil end
 
 		local Value = Table[ Key ]
 
@@ -253,7 +253,7 @@ function SortedPairs( Table, Desc )
 
 	return function()
 		local Key = Sorted[ i ]
-		if not Key then return nil end
+		if Key == nil then return nil end
 
 		local Value = Table[ Key ]
 
