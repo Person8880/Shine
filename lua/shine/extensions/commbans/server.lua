@@ -206,7 +206,7 @@ function Plugin:CreateCommands()
 		Shine:NotifyError( Client, "Invalid Steam ID for banning." )
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
-	local BanIDCommand = self:BindCommand( "sh_commbanid", "banid", BanID )
+	local BanIDCommand = self:BindCommand( "sh_commbanid", "commbanid", BanID )
 	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
 	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
 	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
