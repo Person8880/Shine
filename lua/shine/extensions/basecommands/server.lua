@@ -127,7 +127,7 @@ function Plugin:Initialise()
 		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
 	end
 	if self.Config.BWLimit ~= 25 then
-		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit * 1000 ) )
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit * 1024 ) )
 	end
 
 	if Fixed then
@@ -1073,7 +1073,7 @@ function Plugin:CreateCommands()
 	local function BWLimit( Client, NewLimit )
 		self.Config.BWLimit = NewLimit
 
-		Shared.ConsoleCommand( StringFormat( "bwlimit %s", NewLimit * 1000 ) )
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", NewLimit * 1024 ) )
 
 		self:SaveConfig( true )
 	end
