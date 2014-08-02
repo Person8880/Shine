@@ -229,10 +229,20 @@ end
 ]]
 local function PrintToConsole( Client, Message )
 	if not Client then
-		return Notify( Message )
+		Notify( Message )
+		return
 	end
 
 	ServerAdminPrint( Client, Message )
+end
+
+local function NotifyError( Client, Message, Format, ... )
+	if not Client then
+		Notify( Format and StringFormat( Message, ... ) or Message )
+		return
+	end
+
+	Shine:NotifyError( Client, Message, Format, ... )
 end
 
 local Histories = {}
@@ -905,11 +915,7 @@ function Plugin:CreateCommands()
 
 			Shine:CommandNotify( Client, "ejected %s.", true, Player:GetName() or "<unknown>" )
 		else
-			if Client then
-				Shine:NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
-			else
-				Shine:Print( "%s is not a commander.", true, Player:GetName() )
-			end
+			NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
 		end
 	end
 	local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
@@ -993,7 +999,7 @@ function Plugin:CreateCommands()
 
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client:GetUserId() or 0
+		local ID = Client and Client:GetUserId() or 0
 
 		local TargetPlayer = Target:GetControllingPlayer()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
@@ -1016,7 +1022,7 @@ function Plugin:CreateCommands()
 		local TargetID = Target:GetUserId() or 0
 
 		if not self.Gagged[ Target ] then
-			Shine:NotifyError( Client, "%s is not gagged.", true, TargetName )
+			NotifyError( Client, "%s is not gagged.", true, TargetName )
 
 			return
 		end
@@ -1025,7 +1031,7 @@ function Plugin:CreateCommands()
 
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client:GetUserId() or 0
+		local ID = Client and Client:GetUserId() or 0
 
 		Shine:AdminPrint( nil, "%s[%s] ungagged %s[%s]", true, PlayerName, ID, TargetName, TargetID )
 
@@ -1038,7 +1044,7 @@ function Plugin:CreateCommands()
 	local function Interp( Client, NewInterp )
 		local MinInterp = 2 / self.Config.SendRate * 1000
 		if NewInterp < MinInterp then
-			Shine:NotifyError( Client, "Interp is constrained by send rate to be %ims minimum.",
+			NotifyError( Client, "Interp is constrained by send rate to be %ims minimum.",
 				true, MinInterp )
 			return
 		end
@@ -1055,7 +1061,7 @@ function Plugin:CreateCommands()
 
 	local function TickRate( Client, NewRate )
 		if NewRate > self.Config.MoveRate then
-			Shine:NotifyError( Client, "Tick rate cannot be greater than move rate (%i).",
+			NotifyError( Client, "Tick rate cannot be greater than move rate (%i).",
 				true, self.Config.MoveRate )
 			return
 		end
@@ -1083,7 +1089,7 @@ function Plugin:CreateCommands()
 	
 	local function SendRate( Client, NewRate )
 		if NewRate >= self.Config.TickRate then
-			Shine:NotifyError( Client, "Send rate cannot be greater-equal to tick rate (%i).",
+			NotifyError( Client, "Send rate cannot be greater-equal to tick rate (%i).",
 				true, self.Config.TickRate )
 			return
 		end
