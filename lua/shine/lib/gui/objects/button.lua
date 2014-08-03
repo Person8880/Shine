@@ -203,10 +203,6 @@ function Button:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self.Highlighted then return end
 
-	local Time = Clock()
-
-	if ( self.NextClick or 0 ) > Time then return end
-
 	return true, self
 end
 
@@ -225,6 +221,8 @@ function Button:OnMouseUp( Key )
 	if not self.Highlighted then return end
 
 	local Time = Clock()
+
+	if ( self.NextClick or 0 ) > Time then return true end
 	
 	self.NextClick = Time + ( self.ClickDelay or 0.1 )
 
