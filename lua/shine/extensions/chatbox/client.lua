@@ -101,19 +101,19 @@ end )
 ]]
 Hook.Add( "Think", "GetGUIChat", function()
 	local Manager = GetGUIManager()
-	if Manager then
-		local Scripts = Manager.scripts
+	if not Manager then return end
 
-		if Scripts then
-			for Index, Script in pairs( Scripts ) do
-				if Script._scriptName == "GUIChat" then
-					Plugin.GUIChat = Script
+	local Scripts = Manager.scripts
 
-					Hook.Remove( "Think", "GetGUIChat" )
-					
-					return
-				end
-			end
+	if not Scripts then return end
+
+	for Index, Script in pairs( Scripts ) do
+		if Script._scriptName == "GUIChat" then
+			Plugin.GUIChat = Script
+
+			Hook.Remove( "Think", "GetGUIChat" )
+			
+			return
 		end
 	end
 end )
