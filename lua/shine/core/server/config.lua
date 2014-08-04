@@ -16,7 +16,6 @@ local DefaultConfig = {
 	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
 	LogDir = "config://shine/logs/", --Logging directory.
 	DateFormat = "dd-mm-yyyy", --Format for logging dates.
-	TimeOffset = 0, --Offset from GMT/UTC.
 
 	ExtensionDir = "config://shine/plugins/", --Plugin configs directory.
 
