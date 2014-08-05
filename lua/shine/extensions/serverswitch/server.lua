@@ -19,6 +19,8 @@ Plugin.DefaultConfig = {
 	}
 }
 
+Plugin.CheckConfigTypes = true
+
 function Plugin:Initialise()
 	self:CreateCommands()
 

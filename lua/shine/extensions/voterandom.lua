@@ -84,6 +84,7 @@ Plugin.DefaultConfig = {
 	MaxStoredRounds = 3 --How many rounds of score data should we buffer?
 }
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 function Plugin:Initialise()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 5 )

@@ -22,6 +22,7 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 function Plugin:Initialise()
 	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )

@@ -22,6 +22,7 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 --Don't allow the afkkick, pregame, mapvote or readyroom plugins to load with us.
 Plugin.Conflicts = {
@@ -87,11 +88,11 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	TableEmpty( self.TeamMembers )
 
 	--Record the winner, and network it.
-	if WinningTeam == Gamerules.team1 then
+	if WinningTeam == Gamerules.team1 or WinningTeam == 1 then
 		self.TeamScores[ 1 ] = self.TeamScores[ 1 ] + 1
 	
 		self.dt.MarineScore = self.TeamScores[ 1 ]
-	else
+	elseif WinningTeam == Gamerules.team2 or WinningTeam == 2 then
 		self.TeamScores[ 2 ] = self.TeamScores[ 2 ] + 1
 
 		self.dt.AlienScore = self.TeamScores[ 2 ]

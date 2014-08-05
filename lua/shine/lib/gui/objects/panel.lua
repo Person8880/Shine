@@ -68,7 +68,7 @@ function Panel:AddTitleBar( Title, Font )
 
 	local TitleLabel = SGUI:Create( "Label", TitlePanel )
 	TitleLabel:SetAnchor( "CentreMiddle" )
-	TitleLabel:SetFont( Font or "fonts/AgencyFB_small.fnt" )
+	TitleLabel:SetFont( Font or Fonts.kAgencyFB_Small )
 	TitleLabel:SetText( Title )
 	TitleLabel:SetTextAlignmentX( GUIItem.Align_Center )
 	TitleLabel:SetTextAlignmentY( GUIItem.Align_Center )

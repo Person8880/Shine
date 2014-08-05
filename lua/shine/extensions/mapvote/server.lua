@@ -77,6 +77,7 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 Plugin.Commands = {}
 
@@ -247,6 +248,7 @@ function Plugin:Initialise()
 	end
 
 	self.MaxNominations = Max( MaxOptions - self.ForcedMapCount - 1, 0 )
+	self.Config.ExcludeLastMaps = Max( self.Config.ExcludeLastMaps, 0 )
 
 	if self.Config.ExcludeLastMaps > 0 then
 		self:LoadLastMaps()
@@ -375,11 +377,11 @@ function Plugin:SendVoteData( Client )
 end
 
 local function GetMapName( Map )
-    if type( Map ) == "table" and Map.map then
-        return Map.map
-    end
+	if type( Map ) == "table" and Map.map then
+		return Map.map
+	end
 
-    return Map
+	return Map
 end
 
 --[[
@@ -503,7 +505,7 @@ function Plugin:SaveLastMaps()
 
 	Data[ #Data + 1 ] = Shared.GetMapName()
 
-	if #Data > Max then
+	while #Data > Max do
 		TableRemove( Data, 1 )
 	end
 

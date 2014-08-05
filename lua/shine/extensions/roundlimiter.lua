@@ -27,6 +27,7 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 local TeamScores = {
 	[ 1 ] = 0,

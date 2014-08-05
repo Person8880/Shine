@@ -68,29 +68,20 @@ function Plugin:HookChat( ChatElement )
 	local OldAddMessage = ChatElement.AddMessage
 
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
+		Plugin.GUIChat = self
+
 		if Plugin.Enabled then
 			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
 		end
 
-		return OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName )
-	end
+		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName )
 
-	local OldInsert = table.insert
-
-	--This is hilariously hacky, but it should work just fine.
-	function table.insert( ... )
-		local Table = select( 1, ... )
-
-		if Plugin.GUIChat and Table == Plugin.GUIChat.messages then
-			local Message = select( 2, ... )
-
-			--This is called when the message is added to the GUIChat's message list.
-			if IsType( Message, "table" ) and Message.Background and Plugin.Enabled and Plugin.Visible then
-				Message.Background:SetIsVisible( false )
+		if Plugin.Enabled and Plugin.Visible then
+			local JustAdded = self.messages[ #self.messages ]
+			if IsType( JustAdded, "table" ) then
+				JustAdded.Background:SetIsVisible( false )
 			end
 		end
-
-		return OldInsert( ... )
 	end
 end
 
@@ -100,6 +91,30 @@ Hook.Add( "Think", "ChatBoxHook", function()
 		Plugin:HookChat( GUIChat )
 
 		Hook.Remove( "Think", "ChatBoxHook" )
+	end
+end )
+
+--[[
+	Suddenly, with no changes, EvaluateUIVisibility is no longer being called,
+	or is being called sooner than the plugin is enabled.
+	I don't even.
+]]
+Hook.Add( "Think", "GetGUIChat", function()
+	local Manager = GetGUIManager()
+	if not Manager then return end
+
+	local Scripts = Manager.scripts
+
+	if not Scripts then return end
+
+	for Index, Script in pairs( Scripts ) do
+		if Script._scriptName == "GUIChat" then
+			Plugin.GUIChat = Script
+
+			Hook.Remove( "Think", "GetGUIChat" )
+			
+			return
+		end
 	end
 end )
 
@@ -197,7 +212,7 @@ local function VectorMultiply( Vec1, Vec2 )
 end
 
 function Plugin:GetFont()
-	return self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt"
+	return self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small
 end
 
 --[[
@@ -866,14 +881,14 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	PreLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	PreLabel:SetFont( self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt" )
+	PreLabel:SetFont( self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small )
 	PreLabel:SetColour( PlayerColour )
 	PreLabel:SetTextScale( TextScale * UIScale )
 	PreLabel:SetText( PlayerName )
 	PreLabel:SetPos( PrePos )
 
 	MessageLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	MessageLabel:SetFont( self.UseTinyFont and "fonts/AgencyFB_tiny.fnt" or "fonts/AgencyFB_small.fnt" )
+	MessageLabel:SetFont( self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small )
 	MessageLabel:SetTextScale( TextScale * UIScale )
 	MessageLabel:SetColour( MessageColour )
 	MessageLabel:SetText( MessageName )
@@ -936,6 +951,17 @@ function Plugin:StartChat( Team )
 	self.TeamChat = Team
 
 	if not SGUI.IsValid( self.MainPanel ) then
+		if not self:CreateChatbox() then
+			return
+		end
+	end
+
+	--This is somehow gone for some people?
+	if not SGUI.IsValid( self.TextEntry ) or not SGUI.IsValid( self.ModeText ) then
+		if SGUI.IsValid( self.MainPanel ) then
+			self.MainPanel:Destroy()
+		end
+
 		if not self:CreateChatbox() then
 			return
 		end

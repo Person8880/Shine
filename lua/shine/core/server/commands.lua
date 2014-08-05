@@ -194,7 +194,9 @@ local ParamTypes = {
 			Target = Shine:GetClient( String )
 		end
 		
-		if Table.NotSelf and Target == Client then return nil end
+		if Table.NotSelf and Target == Client then
+			return nil, true
+		end
 
 		return Target
 	end,
@@ -379,11 +381,15 @@ local ParamTypes = {
 ]]
 local function ParseParameter( Client, String, Table )
     local Type = Table.Type
+    if not ParamTypes[ Type ] then
+    	return nil
+    end
+
     if String then
-        return ParamTypes[ Type ] and ParamTypes[ Type ]( Client, String, Table )
+        return ParamTypes[ Type ]( Client, String, Table )
     else
         if not Table.Optional then return nil end
-        return ParamTypes[ Type ] and ParamTypes[ Type ]( Client, String, Table )
+        return ParamTypes[ Type ]( Client, String, Table )
     end
 end
 
@@ -451,13 +457,19 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		local CurArg = ExpectedArgs[ i ]
 
 		--Convert the string argument into the requested type.
-		ParsedArgs[ i ] = ParseParameter( Client, Args[ i ], CurArg )
+		local Result, Extra = ParseParameter( Client, Args[ i ], CurArg )
+		ParsedArgs[ i ] = Result
 
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
-			if CurArg.Type:find( "client" ) then --No client means no match.
-				self:NotifyError( Client, "No matching %s found.", true, 
-					CurArg.Type == "client" and "player was" or "players were" )
+			if CurArg.Type:find( "client" ) then
+				if CurArg.Type == "client" and Extra then
+					self:NotifyError( Client, "You cannot target yourself with this command." )
+				else
+					--No client means no match.
+					self:NotifyError( Client, "No matching %s found.", true, 
+						CurArg.Type == "client" and "player was" or "players were" )
+				end
 			else
 				self:NotifyError( Client, CurArg.Error or "Incorrect argument #%i to %s, expected %s.", 
 					true, i, ConCommand, CurArg.Type )

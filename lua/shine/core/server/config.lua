@@ -16,7 +16,6 @@ local DefaultConfig = {
 	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
 	LogDir = "config://shine/logs/", --Logging directory.
 	DateFormat = "dd-mm-yyyy", --Format for logging dates.
-	TimeOffset = 0, --Offset from GMT/UTC.
 
 	ExtensionDir = "config://shine/plugins/", --Plugin configs directory.
 
@@ -44,6 +43,7 @@ local DefaultConfig = {
 		badges = false,
 		ban = true,
 		basecommands = true,
+		commbans = false,
 		funcommands = false,
 		logging = false,
 		mapvote = true,
@@ -455,14 +455,18 @@ local function OnWebPluginTimeout( self, Plugins, Reload )
 
 	Shine:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.", true, self.WebPluginTimeouts )
 
-	if self.WebPluginTimeouts >= self.Config.WebConfigs.MaxAttempts and not Reload then
-		Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
+	if self.WebPluginTimeouts >= self.Config.WebConfigs.MaxAttempts then
+		if not Reload then
+			Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
 
-		for Plugin in pairs( Plugins ) do
-			LoadPlugin( self, Plugin )
+			for Plugin in pairs( Plugins ) do
+				LoadPlugin( self, Plugin )
+			end
+
+			Notify( "[Shine] Finished loading." )
 		end
 
-		Notify( "[Shine] Finished loading." )
+		self.WebPluginTimeouts = 0
 
 		return
 	end

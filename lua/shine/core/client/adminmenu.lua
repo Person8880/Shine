@@ -216,7 +216,7 @@ do
 		local Button = SGUI:Create( "Button" )
 		Button:SetSize( Vector( 192, 32, 0 ) )
 		Button:SetText( Text )
-		Button:SetFont( "fonts/AgencyFB_small.fnt" )
+		Button:SetFont( Fonts.kAgencyFB_Small )
 		Button.DoClick = function( Button )
 			DoClick( Button, PlayerList:GetSelectedRow() )
 		end
@@ -227,7 +227,7 @@ do
 	AdminMenu:AddTab( "Commands", {
 		OnInit = function( Panel, Data )
 			Label = SGUI:Create( "Label", Panel )
-			Label:SetFont( "fonts/AgencyFB_small.fnt" )
+			Label:SetFont( Fonts.kAgencyFB_Small )
 			Label:SetBright( true )
 			Label:SetText( "Select a player (or players) and a command to run." )
 			Label:SetPos( Vector( 16, 24, 0 ) )
@@ -357,7 +357,7 @@ do
 
 		local Label = SGUI:Create( "Label", Window )
 		Label:SetAnchor( "CentreMiddle" )
-		Label:SetFont( "fonts/AgencyFB_small.fnt" )
+		Label:SetFont( Fonts.kAgencyFB_Small )
 		Label:SetBright( true )
 		Label:SetText( "Please select a single player." )
 		Label:SetPos( Vector( 0, -40, 0 ) )
@@ -368,7 +368,7 @@ do
 		OK:SetAnchor( "CentreMiddle" )
 		OK:SetSize( Vector( 128, 32, 0 ) )
 		OK:SetPos( Vector( -64, 40, 0 ) )
-		OK:SetFont( "fonts/AgencyFB_small.fnt" )
+		OK:SetFont( Fonts.kAgencyFB_Small )
 		OK:SetText( "OK" )
 
 		function OK.DoClick()
@@ -564,7 +564,7 @@ Special thanks to:
 			HomeButton:SetAnchor( "TopRight" )
 			HomeButton:SetPos( Vector( -144, 176, 0 ) )
 			HomeButton:SetSize( Vector( 128, 32, 0 ) )
-			HomeButton:SetFont( "fonts/AgencyFB_small.fnt" )
+			HomeButton:SetFont( Fonts.kAgencyFB_Small )
 			HomeButton:SetText( "Back to wiki" )
 			function HomeButton:DoClick()
 				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )

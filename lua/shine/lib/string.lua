@@ -3,27 +3,36 @@
 ]]
 
 local Floor = math.floor
+local StringFind = string.find
 local StringFormat = string.format
+local StringSub = string.sub
 local TableConcat = table.concat
 
---Thank you: http://lua-users.org/wiki/SplitJoin
-function string.Explode( str, pat )
-	local t = {}
-	local fpat = "(.-)" .. pat
-	local last_end = 1
-	local s, e, cap = str:find(fpat, 1)
-	while s do
-		if s ~= 1 or cap ~= "" then
-			t[ #t + 1 ] = cap
+function string.Explode( String, Pattern )
+	local Ret = {}
+	local FindPattern = "(.-)"..Pattern
+	local LastEnd = 1
+
+	local Count = 0
+
+	local Start, End, Found = StringFind( String, FindPattern )
+	while Start do
+		if Start ~= 1 or Found ~= "" then
+			Count = Count + 1
+			Ret[ Count ] = Found
 		end
-		last_end = e+1
-		s, e, cap = str:find(fpat, last_end)
+
+		LastEnd = End + 1
+		Start, End, Found = StringFind( String, FindPattern, LastEnd )
 	end
-	if last_end <= #str then
-		cap = str:sub(last_end)
-		t[ #t + 1 ] = cap
+
+	if LastEnd <= #String then
+		Found = StringSub( String, LastEnd )
+		Count = Count + 1
+		Ret[ Count ] = Found
 	end
-	return t
+
+	return Ret
 end
 
 function string.TimeToString( Time )
