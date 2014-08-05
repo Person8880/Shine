@@ -30,6 +30,7 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 Plugin.Commands = {}
 

@@ -220,13 +220,9 @@ function RandomPairs( Table, Desc )
 
 	return function()
 		local Key = Sorted[ i ] and Sorted[ i ].Key
-		if not Key then return nil end
-		
-		local Value = Table[ Key ]
+		if Key == nil then return nil end
 
-		if not Value then
-			return nil
-		end
+		local Value = Table[ Key ]
 
 		i = i + 1
 
@@ -257,13 +253,9 @@ function SortedPairs( Table, Desc )
 
 	return function()
 		local Key = Sorted[ i ]
-		if not Key then return nil end
-		
-		local Value = Table[ Key ]
+		if Key == nil then return nil end
 
-		if not Value then
-			return nil
-		end
+		local Value = Table[ Key ]
 
 		i = i + 1
 

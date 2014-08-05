@@ -22,6 +22,7 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 --Don't allow the afkkick, pregame, mapvote or readyroom plugins to load with us.
 Plugin.Conflicts = {

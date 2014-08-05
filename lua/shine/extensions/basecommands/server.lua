@@ -40,12 +40,16 @@ Plugin.DefaultConfig = {
 	DisableLuaRun = false,
 	Interp = 100,
 	MoveRate = 30,
+	TickRate = 30,
+	SendRate = 20,
+	BWLimit = 25,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
 	FriendlyFirePreGame = true
 }
 
 Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 Hook.SetupClassHook( "Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
@@ -88,6 +92,48 @@ function Plugin:Initialise()
 	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
 	self.Config.Interp = Max( self.Config.Interp, 0 )
 	self.Config.MoveRate = Max( self.Config.MoveRate, 5 )
+	self.Config.TickRate = Max( self.Config.TickRate, 20 )
+	self.Config.BWLimit = Max( self.Config.BWLimit, 10 )
+	self.Config.SendRate = Max( self.Config.SendRate, 10 )
+	
+	local Fixed
+	
+	if self.Config.MoveRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
+	end
+	if self.Config.TickRate ~= 30 then
+		if self.Config.TickRate > self.Config.MoveRate then
+			self.Config.TickRate = self.Config.MoveRate
+			Fixed = true
+		end
+
+		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
+	end
+	if self.Config.SendRate ~= 20 then
+		if self.Config.SendRate > self.Config.TickRate then
+			self.Config.SendRate = self.Config.TickRate - 10
+			Fixed = true
+		end
+
+		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
+	end
+	if self.Config.Interp ~= 100 then
+		local MinInterp = 2 / self.Config.SendRate * 1000
+		if self.Config.Interp < MinInterp then
+			self.Config.Interp = MinInterp
+			Fixed = true
+		end
+
+		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
+	end
+	if self.Config.BWLimit ~= 25 then
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit * 1024 ) )
+	end
+
+	if Fixed then
+		Notify( "Fixed incorrect rate values, check your config." )
+		self:SaveConfig( true )
+	end
 
 	self.Enabled = true
 
@@ -133,15 +179,6 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 	HealthUsed = HealthUsed * Scale
 
 	return Damage, ArmourUsed, HealthUsed
-end
-
-function Plugin:ClientConnect( Client )
-	if self.Config.Interp ~= 100 then
-		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
-	end
-	if self.Config.MoveRate ~= 30 then
-		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
-	end
 end
 
 function Plugin:Think()
@@ -192,10 +229,20 @@ end
 ]]
 local function PrintToConsole( Client, Message )
 	if not Client then
-		return Notify( Message )
+		Notify( Message )
+		return
 	end
 
 	ServerAdminPrint( Client, Message )
+end
+
+local function NotifyError( Client, Message, Format, ... )
+	if not Client then
+		Notify( Format and StringFormat( Message, ... ) or Message )
+		return
+	end
+
+	Shine:NotifyError( Client, Message, Format, ... )
 end
 
 local Histories = {}
@@ -540,6 +587,13 @@ function Plugin:CreateCommands()
 	ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a map to change to." }
 	ChangeLevelCommand:Help( "<map> Changes the map to the given level immediately." )
 
+	local function CycleMap( Client )
+		--The map vote plugin hooks this so we don't have to worry.
+		MapCycle_CycleMap()
+	end
+	local CycleMapCommand = self:BindCommand( "sh_cyclemap", "cyclemap", CycleMap )
+	CycleMapCommand:Help( "Cycles the map to the next one in the map cycle." )
+
 	local IsType = Shine.IsType
 
 	local function ListMaps( Client )
@@ -861,11 +915,7 @@ function Plugin:CreateCommands()
 
 			Shine:CommandNotify( Client, "ejected %s.", true, Player:GetName() or "<unknown>" )
 		else
-			if Client then
-				Shine:NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
-			else
-				Shine:Print( "%s is not a commander.", true, Player:GetName() )
-			end
+			NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
 		end
 	end
 	local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
@@ -949,7 +999,7 @@ function Plugin:CreateCommands()
 
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client:GetUserId() or 0
+		local ID = Client and Client:GetUserId() or 0
 
 		local TargetPlayer = Target:GetControllingPlayer()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
@@ -972,7 +1022,7 @@ function Plugin:CreateCommands()
 		local TargetID = Target:GetUserId() or 0
 
 		if not self.Gagged[ Target ] then
-			Shine:NotifyError( Client, "%s is not gagged.", true, TargetName )
+			NotifyError( Client, "%s is not gagged.", true, TargetName )
 
 			return
 		end
@@ -981,7 +1031,7 @@ function Plugin:CreateCommands()
 
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client:GetUserId() or 0
+		local ID = Client and Client:GetUserId() or 0
 
 		Shine:AdminPrint( nil, "%s[%s] ungagged %s[%s]", true, PlayerName, ID, TargetName, TargetID )
 
@@ -992,6 +1042,13 @@ function Plugin:CreateCommands()
 	UngagCommand:Help( "<player> Stops silencing the given player's chat." )
 
 	local function Interp( Client, NewInterp )
+		local MinInterp = 2 / self.Config.SendRate * 1000
+		if NewInterp < MinInterp then
+			NotifyError( Client, "Interp is constrained by send rate to be %ims minimum.",
+				true, MinInterp )
+			return
+		end
+
 		self.Config.Interp = NewInterp
 
 		Shared.ConsoleCommand( StringFormat( "interp %s", NewInterp * 0.001 ) )
@@ -1002,6 +1059,51 @@ function Plugin:CreateCommands()
 	InterpCommand:AddParam{ Type = "number", Min = 0 }
 	InterpCommand:Help( "<time in ms> Sets the interpolation time and saves it." )
 
+	local function TickRate( Client, NewRate )
+		if NewRate > self.Config.MoveRate then
+			NotifyError( Client, "Tick rate cannot be greater than move rate (%i).",
+				true, self.Config.MoveRate )
+			return
+		end
+
+		self.Config.TickRate = NewRate
+
+		Shared.ConsoleCommand( StringFormat( "tickrate %s", NewRate ) )
+
+		self:SaveConfig( true )
+	end
+	local TickRateCommand = self:BindCommand( "sh_tickrate", "tickrate", TickRate )
+	TickRateCommand:AddParam{ Type = "number", Min = 20 }
+	TickRateCommand:Help( "<rate> Sets the max server tickrate and saves it." )
+	
+	local function BWLimit( Client, NewLimit )
+		self.Config.BWLimit = NewLimit
+
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", NewLimit * 1024 ) )
+
+		self:SaveConfig( true )
+	end
+	local BWLimitCommand = self:BindCommand( "sh_bwlimit", "bwlimit", BWLimit )
+	BWLimitCommand:AddParam{ Type = "number", Min = 10 }
+	BWLimitCommand:Help( "<limit in kbytes> Sets the bandwidth limit per player and saves it." )
+	
+	local function SendRate( Client, NewRate )
+		if NewRate >= self.Config.TickRate then
+			NotifyError( Client, "Send rate cannot be greater-equal to tick rate (%i).",
+				true, self.Config.TickRate )
+			return
+		end
+
+		self.Config.SendRate = NewRate
+
+		Shared.ConsoleCommand( StringFormat( "sendrate %s", NewRate ) )
+
+		self:SaveConfig( true )
+	end
+	local SendRateCommand = self:BindCommand( "sh_sendrate", "sendrate", SendRate )
+	SendRateCommand:AddParam{ Type = "number", Min = 10 }
+	SendRateCommand:Help( "<rate> Sets the rate of updates sent to clients and saves it." )
+	
 	local function MoveRate( Client, NewRate )
 		self.Config.MoveRate = NewRate
 

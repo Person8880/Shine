@@ -13,11 +13,12 @@ Plugin.Version = "1.4"
 local Notify = Shared.Message
 local Clamp = math.Clamp
 local Encode, Decode = json.encode, json.decode
+local Max = math.max
 local pairs = pairs
+local StringFormat = string.format
 local TableCopy = table.Copy
 local TableRemove = table.remove
 local Time = os.time
-local StringFormat = string.format
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Bans.json"
@@ -26,14 +27,36 @@ Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ba
 
 --Max number of ban entries to network in one go.
 Plugin.MAX_BAN_PER_NETMESSAGE = 10
+--Permission required to receive the ban list.
+Plugin.ListPermission = "sh_unban"
 
 local Hooked
+
+Plugin.DefaultConfig = {
+	Banned = {},
+	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
+	GetBansFromWeb = false,
+	GetBansWithPOST = false, --Should we use POST with extra keys to get bans?
+	BansURL = "",
+	BansSubmitURL = "",
+	BansSubmitArguments = {},
+	MaxSubmitRetries = 3,
+	SubmitTimeout = 5
+}
+
+function Plugin:VerifyConfig()
+	self.Config.MaxSubmitRetries = Max( self.Config.MaxSubmitRetries, 0 )
+	self.Config.SubmitTimeout = Max( self.Config.SubmitTimeout, 0 )
+	self.Config.DefaultBanTime = Max( self.Config.DefaultBanTime, 0 )
+end
 
 --[[
 	Called on plugin startup, we create the chat commands and set ourself to enabled.
 	We return true to indicate a successful startup.
 ]]
 function Plugin:Initialise()
+	self:VerifyConfig()
+
 	self.Retries = {}
 
 	self:CreateCommands()
@@ -76,18 +99,6 @@ function Plugin:Initialise()
 
 	return true
 end
-
-local DefaultConfig = {
-	Banned = {},
-	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
-	GetBansFromWeb = false,
-	GetBansWithPOST = false, --Should we use POST with extra keys to get bans?
-	BansURL = "",
-	BansSubmitURL = "",
-	BansSubmitArguments = {},
-	MaxSubmitRetries = 3,
-	SubmitTimeout = 5
-}
 
 --[[
 	Generates the default bans config.
@@ -173,6 +184,8 @@ function Plugin:OnWebConfigLoaded()
 	if self.Config.GetBansFromWeb then
 		self:LoadBansFromWeb()
 	end
+
+	self:VerifyConfig()
 end
 
 local function HandleBadJSON( self )
@@ -211,7 +224,17 @@ function Plugin:LoadConfig()
 
 	self.Config = PluginConfig
 
-	if Shine.CheckConfig( self.Config, DefaultConfig ) then
+	local Edited
+
+	if Shine.CheckConfig( self.Config, self.DefaultConfig ) then
+		Edited = true
+	end
+
+	if self:TypeCheckConfig() then
+		Edited = true
+	end
+
+	if Edited then
 		Notify( "Shine bans config file updated." )
 		self:SaveConfig()
 	end
@@ -490,8 +513,8 @@ function Plugin:CreateCommands()
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
-			self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-			self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
 
 			return
 		end
@@ -514,7 +537,7 @@ function Plugin:CreateCommands()
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
 	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
 	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
-	BanCommand:Help( "<player> <duration in minutes> Bans the given player for the given time in minutes. 0 is a permanent ban." )
+	BanCommand:Help( "<player> <duration in minutes> <reason> Bans the given player for the given time in minutes. 0 is a permanent ban." )
 
 	--[[
 		Unban by Steam ID.
@@ -523,8 +546,8 @@ function Plugin:CreateCommands()
 		if self.Config.Banned[ ID ] then
 			--We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
-				self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-				self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+				Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
 
 				return
 			end
@@ -537,7 +560,10 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		Shine:AdminPrint( Client, StringFormat( "%s is not banned.", ID ) )
+		local ErrorText = StringFormat( "%s is not banned.", ID )
+
+		Shine:NotifyError( Client, ErrorText )
+		Shine:AdminPrint( Client, ErrorText )
 	end
 	local UnbanCommand = self:BindCommand( "sh_unban", "unban", Unban )
 	UnbanCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to unban." }
@@ -554,31 +580,31 @@ function Plugin:CreateCommands()
 			ID = Shine.SteamIDToNS2( ID )
 
 			if not ID then
-				self:NotifyError( Client, "Invalid Steam ID for banning." )
-				self:AdminPrint( Client, "Invalid Steam ID for banning." )
+				Shine:NotifyError( Client, "Invalid Steam ID for banning." )
+				Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 
 				return
 			end
 		end
 
 		if not Shine:CanTarget( Client, tonumber( ID ) ) then
-			self:NotifyError( Client, "You cannot ban %s.", true, ID )
-			self:AdminPrint( Client, "You cannot ban %s.", true, ID )
+			Shine:NotifyError( Client, "You cannot ban %s.", true, ID )
+			Shine:AdminPrint( Client, "You cannot ban %s.", true, ID )
 
 			return
 		end
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
-			self:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-			self:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
 
 			return
 		end
 
 		local BanningName = Client and Client:GetControllingPlayer():GetName() or "Console"
 		local BanningID = Client and Client:GetUserId() or 0
-		local Target = Shine:GetClient( ID )
+		local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
 		local TargetName = "<unknown>"
 		
 		if Target then
@@ -599,6 +625,7 @@ function Plugin:CreateCommands()
 			return
 		end
 
+		Shine:NotifyError( Client, "Invalid Steam ID for banning." )
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
 	local BanIDCommand = self:BindCommand( "sh_banid", "banid", BanID )
@@ -718,7 +745,7 @@ function Plugin:NetworkUnban( ID )
 end
 
 function Plugin:ReceiveRequestBanData( Client, Data )
-	if not Shine:GetPermission( Client, "sh_unban" ) then return end
+	if not Shine:GetPermission( Client, self.ListPermission ) then return end
 	
 	self.BanNetworkedClients = self.BanNetworkedClients or {}
 

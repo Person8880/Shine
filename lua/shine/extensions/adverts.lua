@@ -21,6 +21,8 @@ Plugin.DefaultConfig = {
 	Interval = 60
 }
 
+Plugin.CheckConfigTypes = true
+
 Plugin.TimerName = "Adverts"
 
 function Plugin:Initialise()

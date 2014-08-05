@@ -8,9 +8,12 @@ local include = Script.Load
 local next = next
 local pairs = pairs
 local Notify = Shared.Message
+local pcall = pcall
+local rawget = rawget
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local type = type
 
 local function Print( ... )
 	return Notify( StringFormat( ... ) )
@@ -37,7 +40,6 @@ for i = 1, #Files do
 end
 
 local PluginMeta = {}
-PluginMeta.__index = PluginMeta
 
 --[[
 	Base initialise, just enables the plugin, nothing more.
@@ -93,7 +95,7 @@ end
 	Call this function inside shared.lua -> Plugin:SetupDataTable().
 ]]
 function PluginMeta:AddNetworkMessage( Name, Params, Receiver )
-	self.__NetworkMessages = self.__NetworkMessages or {}
+	self.__NetworkMessages = rawget( self, "__NetworkMessages" ) or {}
 
 	Shine.Assert( not self.__NetworkMessages[ Name ], 
 		"Attempted to register network message %s for plugin %s twice!", Name, self.__Name )
@@ -170,7 +172,7 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig( Silent )
-	local Path = Server and ( self.__ConfigPath or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
+	local Path = Server and ( rawget( self, "__ConfigPath" ) or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -237,9 +239,41 @@ function PluginMeta:LoadConfig()
 
 	self.Config = PluginConfig
 
-	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then 
-		self:SaveConfig() 
+	local NeedsSave
+
+	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then
+		NeedsSave = true
 	end
+
+	if self.CheckConfigTypes and self:TypeCheckConfig() then
+		NeedsSave = true
+	end
+
+	if NeedsSave then
+		self:SaveConfig()
+	end
+end
+
+function PluginMeta:TypeCheckConfig()
+	local Config = self.Config
+	local DefaultConfig = self.DefaultConfig
+
+	local Edited
+
+	for Key, Value in pairs( Config ) do
+		local ExpectedType = type( DefaultConfig[ Key ] )
+		local RealType = type( Value )
+
+		if ExpectedType ~= RealType then
+			Print( "Type mis-match in %s config for key '%s', expected type: '%s'. Reverting value to default.",
+				self.__Name, Key, ExpectedType )
+
+			Config[ Key ] = DefaultConfig[ Key ]
+			Edited = true
+		end
+	end
+
+	return Edited
 end
 
 if Server then
@@ -248,7 +282,7 @@ if Server then
 		If you call the base class Cleanup, the command will be removed on plugin unload.
 	]]
 	function PluginMeta:BindCommand( ConCommand, ChatCommand, Func, NoPerm, Silent )
-		self.Commands = self.Commands or {}
+		self.Commands = rawget( self, "Commands" ) or {}
 
 		local Command  = Shine:RegisterCommand( ConCommand, ChatCommand, Func, NoPerm, Silent )
 
@@ -262,7 +296,7 @@ if Server then
 		Override to add/change behaviour, call it with self.BaseClass.Cleanup( self ).
 	]]
 	function PluginMeta:Cleanup()
-		if self.Commands then
+		if rawget( self, "Commands" ) then
 			for k, Command in pairs( self.Commands ) do
 				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
 				self.Commands[ k ] = nil
@@ -273,7 +307,7 @@ if Server then
 	end
 elseif Client then
 	function PluginMeta:BindCommand( ConCommand, Func )
-		self.Commands = self.Commands or {}
+		self.Commands = rawget( self, "Commands" ) or {}
 
 		local Command = Shine:RegisterClientCommand( ConCommand, Func )
 
@@ -283,21 +317,21 @@ elseif Client then
 	end
 
 	function PluginMeta:AddAdminMenuCommand( Category, Name, Command, MultiSelect, DoClick )
-		self.AdminMenuCommands = self.AdminMenuCommands or {}
+		self.AdminMenuCommands = rawget( self, "AdminMenuCommands" ) or {}
 		self.AdminMenuCommands[ Category ] = true
 
 		Shine.AdminMenu:AddCommand( Category, Name, Command, MultiSelect, DoClick )
 	end
 
 	function PluginMeta:AddAdminMenuTab( Name, Data )
-		self.AdminMenuTabs = self.AdminMenuTabs or {}
+		self.AdminMenuTabs = rawget( self, "AdminMenuTabs" ) or {}
 		self.AdminMenuTabs[ Name ] = true
 
 		Shine.AdminMenu:AddTab( Name, Data )
 	end
 
 	function PluginMeta:Cleanup()
-		if self.Commands then
+		if rawget( self, "Commands" ) then
 			for k, Command in pairs( self.Commands ) do
 				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
 				self.Commands[ k ] = nil
@@ -306,13 +340,13 @@ elseif Client then
 
 		self:DestroyAllTimers()
 
-		if self.AdminMenuCommands then
+		if rawget( self, "AdminMenuCommands" ) then
 			for Category in pairs( self.AdminMenuCommands ) do
 				Shine.AdminMenu:RemoveCommandCategory( Category )
 			end
 		end
 
-		if self.AdminMenuTabs then
+		if rawget( self, "AdminMenuTabs" ) then
 			for Tab in pairs( self.AdminMenuTabs ) do
 				Shine.AdminMenu:RemoveTab( Tab )
 			end
@@ -327,7 +361,7 @@ end
 	Inputs: Same as Shine.Timer.Create.
 ]]
 function PluginMeta:CreateTimer( Name, Delay, Reps, Func )
-	self.Timers = self.Timers or setmetatable( {}, { __mode = "v" } )
+	self.Timers = rawget( self, "Timers" ) or setmetatable( {}, { __mode = "v" } )
 
 	local RealName = StringFormat( "%s_%s", self.__Name, Name )
 	local Timer = Shine.Timer.Create( RealName, Delay, Reps, Func )
@@ -342,7 +376,7 @@ end
 	Inputs: Same as Shine.Timer.Simple.
 ]]
 function PluginMeta:SimpleTimer( Delay, Func )
-	self.Timers = self.Timers or setmetatable( {}, { __mode = "v" } )
+	self.Timers = rawget( self, "Timers" ) or setmetatable( {}, { __mode = "v" } )
 
 	local Timer = Shine.Timer.Simple( Delay, Func )
 
@@ -351,24 +385,34 @@ function PluginMeta:SimpleTimer( Delay, Func )
 	return Timer
 end
 
+function PluginMeta:GetTimer( Name )
+	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return nil end
+
+	return self.Timers[ Name ]
+end
+
+function PluginMeta:GetTimers()
+	return rawget( self, "Timers" )
+end
+
 function PluginMeta:TimerExists( Name )
 	return Shine.Timer.Exists( StringFormat( "%s_%s", self.__Name, Name ) )
 end
 
 function PluginMeta:PauseTimer( Name )
-	if not self.Timers or not self.Timers[ Name ] then return end
+	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return end
 	
 	self.Timers[ Name ]:Pause()
 end
 
 function PluginMeta:ResumeTimer( Name )
-	if not self.Timers or not self.Timers[ Name ] then return end
+	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return end
 	
 	self.Timers[ Name ]:Resume()
 end
 
 function PluginMeta:DestroyTimer( Name )
-	if not self.Timers or not self.Timers[ Name ] then return end
+	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return end
 	
 	self.Timers[ Name ]:Destroy()
 
@@ -376,7 +420,7 @@ function PluginMeta:DestroyTimer( Name )
 end
 
 function PluginMeta:DestroyAllTimers()
-	if self.Timers then
+	if rawget( self, "Timers" ) then
 		for Name, Timer in pairs( self.Timers ) do
 			Timer:Destroy()
 			self.Timers[ Name ] = nil
@@ -390,13 +434,13 @@ function PluginMeta:Suspend()
 		self:OnSuspend()
 	end
 	
-	if self.Timers then
+	if rawget( self, "Timers" ) then
 		for Name, Timer in pairs( self.Timers ) do
 			Timer:Pause()
 		end
 	end
 
-	if self.Commands then
+	if rawget( self, "Commands" ) then
 		for k, Command in pairs( self.Commands ) do
 			Command.Disabled = true
 		end
@@ -408,13 +452,13 @@ end
 
 --Resumes the plugin from suspension.
 function PluginMeta:Resume()
-	if self.Timers then
+	if rawget( self, "Timers" ) then
 		for Name, Timer in pairs( self.Timers ) do
 			Timer:Resume()
 		end
 	end
 
-	if self.Commands then
+	if rawget( self, "Commands" ) then
 		for k, Command in pairs( self.Commands ) do
 			Command.Disabled = nil
 		end
@@ -428,17 +472,53 @@ function PluginMeta:Resume()
 	end
 end
 
-function Shine:RegisterExtension( Name, Table )
+--Support plugins inheriting from other plugins.
+function PluginMeta:__index( Key )
+	if PluginMeta[ Key ] then return PluginMeta[ Key ] end
+
+	local Inherit = rawget( self, "__Inherit" )
+
+	if Inherit then
+		local InheritBlacklist = rawget( self, "__InheritBlacklist" )
+		local InheritWhitelist = rawget( self, "__InheritWhitelist" )
+
+		if not InheritBlacklist and not InheritWhitelist then
+			return Inherit[ Key ]
+		end
+
+		if InheritBlacklist and InheritBlacklist[ Key ] then return nil end
+		if InheritWhitelist and not InheritWhitelist[ Key ] then return nil end
+
+		return Inherit[ Key ]
+	end
+end
+
+function Shine:RegisterExtension( Name, Table, Options )
 	self.Plugins[ Name ] = setmetatable( Table, PluginMeta )
 
 	Table.BaseClass = PluginMeta
 	Table.__Name = Name
+
+	if Options then
+		local Base = Options.Base
+		if not Base then return end
+		
+		if not self.Plugins[ Base ] then
+			if not self:LoadExtension( Base, true ) then
+				return
+			end
+		end
+
+		Table.__Inherit = self.Plugins[ Base ]
+		Table.__InheritBlacklist = Options.BlacklistKeys
+		Table.__InheritWhitelist = Options.WhitelistKeys
+	end
 end
 
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
 
-	if self.Plugins[ Name ] then return end
+	if self.Plugins[ Name ] then return true end
 
 	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
 	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
@@ -582,9 +662,17 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		Plugin:LoadConfig()
 	end
 
-	local Success, Err = Plugin:Initialise()
+	local Success, Loaded, Err = pcall( Plugin.Initialise, Plugin )
 
+	--There was a Lua error.
 	if not Success then
+		Plugin.Enabled = false
+
+		return false, StringFormat( "Lua error: %s", Loaded )
+	end
+
+	--The plugin has refused to load.
+	if not Loaded then
 		return false, Err
 	end
 

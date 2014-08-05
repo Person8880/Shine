@@ -68,29 +68,20 @@ function Plugin:HookChat( ChatElement )
 	local OldAddMessage = ChatElement.AddMessage
 
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
+		Plugin.GUIChat = self
+
 		if Plugin.Enabled then
 			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
 		end
 
-		return OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName )
-	end
+		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName )
 
-	local OldInsert = table.insert
-
-	--This is hilariously hacky, but it should work just fine.
-	function table.insert( ... )
-		local Table = select( 1, ... )
-
-		if Plugin.GUIChat and Table == Plugin.GUIChat.messages then
-			local Message = select( 2, ... )
-
-			--This is called when the message is added to the GUIChat's message list.
-			if IsType( Message, "table" ) and Message.Background and Plugin.Enabled and Plugin.Visible then
-				Message.Background:SetIsVisible( false )
+		if Plugin.Enabled and Plugin.Visible then
+			local JustAdded = self.messages[ #self.messages ]
+			if IsType( JustAdded, "table" ) then
+				JustAdded.Background:SetIsVisible( false )
 			end
 		end
-
-		return OldInsert( ... )
 	end
 end
 
@@ -100,6 +91,30 @@ Hook.Add( "Think", "ChatBoxHook", function()
 		Plugin:HookChat( GUIChat )
 
 		Hook.Remove( "Think", "ChatBoxHook" )
+	end
+end )
+
+--[[
+	Suddenly, with no changes, EvaluateUIVisibility is no longer being called,
+	or is being called sooner than the plugin is enabled.
+	I don't even.
+]]
+Hook.Add( "Think", "GetGUIChat", function()
+	local Manager = GetGUIManager()
+	if not Manager then return end
+
+	local Scripts = Manager.scripts
+
+	if not Scripts then return end
+
+	for Index, Script in pairs( Scripts ) do
+		if Script._scriptName == "GUIChat" then
+			Plugin.GUIChat = Script
+
+			Hook.Remove( "Think", "GetGUIChat" )
+			
+			return
+		end
 	end
 end )
 
