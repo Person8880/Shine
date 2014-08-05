@@ -25,7 +25,7 @@ local Padding = 0
 
 local MenuSize = Vector( 256, 256, 0 )
 
-local FontName = "fonts/AgencyFB_small.fnt"
+local FontName = Fonts.kAgencyFB_Small
 local FontScale = Vector( 1, 1, 0 )
 local TextCol = Colour( 1, 1, 1, 1 )
 
