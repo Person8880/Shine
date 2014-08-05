@@ -140,6 +140,15 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:ClientConnect( Client )
+	if self.Config.Interp ~= 100 then
+		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
+	end
+	if self.Config.MoveRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
+	end
+end
+
 function Plugin:GetFriendlyFire()
 	if self.Config.FriendlyFire then
 		return true
