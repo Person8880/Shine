@@ -330,7 +330,7 @@ end
 local function GetAverageSkill( Players )
 	local PlayerCount = #Players
 
-	if PlayerCount == 0 then return 0 end
+	if PlayerCount == 0 then return 0, 0, 0 end
 
 	local PlayerSkillSum = 0
 	local Count = 0
@@ -342,6 +342,10 @@ local function GetAverageSkill( Players )
 			Count = Count + 1
 			PlayerSkillSum = PlayerSkillSum + Ply:GetPlayerSkill()
 		end
+	end
+
+	if Count == 0 then
+		return 0, 0, 0
 	end
 
 	return PlayerSkillSum / Count, PlayerSkillSum, Count
