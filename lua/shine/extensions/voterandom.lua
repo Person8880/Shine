@@ -1050,7 +1050,9 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		if Team == 0 or Team == 3 then --They're going from the ready room/spectate to a team.
 			Player.ShineRandomised = true --Prevent an infinite loop!
 			
-			self:Notify( Player, "You have been placed on a random team." )
+			self:Notify( Player,
+				self.LastShuffleMode == self.MODE_SPONITOR and "You have been placed on a team based on Hive skill rank."
+				or "You have been placed on a random team." )
 
 			self:JoinRandomTeam( Player )
 
