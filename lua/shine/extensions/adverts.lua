@@ -37,7 +37,7 @@ local IsType = Shine.IsType
 
 function Plugin:ParseAdvert( ID, Advert )
 	if IsType( Advert, "string" ) then
-		Shine:NotifyDualColour( nil, 255, 255, 255, Advert, 0, 0, 0, "  " )
+		Shine:NotifyColour( nil, 255, 255, 255, Advert )
 
 		return
 	end
@@ -60,7 +60,7 @@ function Plugin:ParseAdvert( ID, Advert )
 		local Type = Advert.Type
 
 		if not Type or Type == "chat" then
-			Shine:NotifyDualColour( nil, R, G, B, Message, 0, 0, 0, "  " )
+			Shine:NotifyColour( nil, R, G, B, Message )
 		else
 			local Position = ( Advert.Position or "top" ):lower()
 
