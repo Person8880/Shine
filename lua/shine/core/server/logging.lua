@@ -118,6 +118,10 @@ local IsType = Shine.IsType
 function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 	local Message = Format and StringFormat( String, ... ) or String
 
+	if Prefix == "" and Name == "" then
+		return self:NotifyColour( Player, 255, 255, 255, String, Format, ... )
+	end
+
 	local MessageLength = #Message
 	if MessageLength > kMaxChatLength then
 		local Iterations = Ceil( MessageLength / kMaxChatLength )

@@ -103,11 +103,11 @@ function Plugin:ClientDisconnect( Client )
 	local Colour = TeamColours[ Team ] or TeamColours[ 0 ]
 	
 	if not Client.DisconnectReason then
-		Shine:NotifyDualColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 
-			StringFormat( "%s has left the game.", Player:GetName() ), 255, 255, 255, " " )
+		Shine:NotifyColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 
+			StringFormat( "%s has left the game.", Player:GetName() ) )
 	else
-		Shine:NotifyDualColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 
-			StringFormat( "Dropped %s (%s).", Player:GetName(), Client.DisconnectReason ), 255, 255, 255, " " )
+		Shine:NotifyColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 
+			StringFormat( "Dropped %s (%s).", Player:GetName(), Client.DisconnectReason ) )
 	end
 end
 
