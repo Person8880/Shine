@@ -1025,15 +1025,20 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	local Team = Player:GetTeamNumber()
 	local Time = SharedTime()
 	local OnPlayingTeam = Team == 1 or Team == 2
+
 	local NumTeam1 = Gamerules.team1:GetNumPlayers()
 	local NumTeam2 = Gamerules.team2:GetNumPlayers()
+
 	local ImbalancedTeams = Abs( NumTeam1 - NumTeam2 ) >= 2
 
 	--Do not allow cheating the system.
 	if OnPlayingTeam and self.Config.BlockTeams then
 		--Allow players to switch if teams are imbalanced.
 		if ImbalancedTeams then
-			return
+			local MorePlayersTeam = NumTeam1 > NumTeam2 and 1 or 2
+			if Team == MorePlayersTeam then
+				return
+			end
 		end
 		--Spamming F4 shouldn't spam messages...
 		if not Player.NextShineNotify or Player.NextShineNotify < Time then 
