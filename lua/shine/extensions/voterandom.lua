@@ -344,7 +344,7 @@ local function GetAverageSkill( Players )
 		end
 	end
 
-	return PlayerSkillSum / PlayerCount, PlayerSkillSum, Count
+	return PlayerSkillSum / Count, PlayerSkillSum, Count
 end
 
 Plugin.ShufflingModes = {
