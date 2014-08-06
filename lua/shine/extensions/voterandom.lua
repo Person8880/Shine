@@ -40,7 +40,7 @@ Plugin.MODE_RANDOM = 1
 Plugin.MODE_SCORE = 2
 Plugin.MODE_ELO = 3
 Plugin.MODE_KDR = 4
-Plugin.MODE_SPONITOR = 5
+Plugin.MODE_HIVE = 5
 
 local ModeStrings = {
 	Mode = {
@@ -99,7 +99,7 @@ function Plugin:Initialise()
 	local BalanceMode = self.Config.BalanceMode
 	local FallbackMode = self.Config.FallbackMode
 
-	if FallbackMode == self.MODE_ELO or FallbackMode == self.MODE_SPONITOR then
+	if FallbackMode == self.MODE_ELO or FallbackMode == self.MODE_HIVE then
 		self.Config.FallbackMode = self.MODE_KDR
 
 		Notify( ModeError )
@@ -741,7 +741,7 @@ function Plugin:StoreScoreData( Player )
 
 	local Mode = self.Config.BalanceMode
 
-	if Mode == self.MODE_ELO or Mode == self.MODE_SPONITOR then
+	if Mode == self.MODE_ELO or Mode == self.MODE_HIVE then
 		Mode = self.Config.FallbackMode
 	end
 
@@ -834,7 +834,7 @@ function Plugin:JoinRandomTeam( Player )
 	elseif Team2 < Team1 then
 		Gamerules:JoinTeam( Player, 2, nil, true )
 	else
-		if self.LastShuffleMode == self.MODE_SPONITOR then
+		if self.LastShuffleMode == self.MODE_HIVE then
 			local Team1Players = Gamerules.team1:GetPlayers()
 			local Team2Players = Gamerules.team2:GetPlayers()
 
@@ -914,7 +914,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	local BalanceMode = self.Config.BalanceMode
 	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
 
-	if BalanceMode == self.MODE_ELO or BalanceMode == self.MODE_SPONITOR then
+	if BalanceMode == self.MODE_ELO or BalanceMode == self.MODE_HIVE then
 		local Fallback = self.Config.FallbackMode
 		IsScoreBased = Fallback == self.MODE_SCORE or Fallback == self.MODE_KDR
 	end
@@ -1051,7 +1051,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 			Player.ShineRandomised = true --Prevent an infinite loop!
 			
 			self:Notify( Player,
-				self.LastShuffleMode == self.MODE_SPONITOR and "You have been placed on a team based on Hive skill rank."
+				self.LastShuffleMode == self.MODE_HIVE and "You have been placed on a team based on Hive skill rank."
 				or "You have been placed on a random team." )
 
 			self:JoinRandomTeam( Player )
