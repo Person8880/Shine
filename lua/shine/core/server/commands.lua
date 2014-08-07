@@ -445,13 +445,23 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		return 
 	end
 
-	local Player = Client and Client:GetControllingPlayer() or "Console"
+	local Player = Client or "Console"
 
 	local Args = { ... }
 
 	local ParsedArgs = {}
 	local ExpectedArgs = Command.Arguments
 	local ExpectedCount = #ExpectedArgs
+
+	if Args[ 1 ] == nil and ExpectedCount > 0 and not ExpectedArgs[ 1 ].Optional then
+		if Client then
+			ServerAdminPrint( Client, StringFormat( "%s - %s", ConCommand, Command.Help or "No help available." ) )
+		else
+			Print( "%s - %s", ConCommand, Command.Help or "No help available." )
+		end
+
+		return
+	end
 
 	for i = 1, ExpectedCount do
 		local CurArg = ExpectedArgs[ i ]
@@ -464,14 +474,14 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
 			if CurArg.Type:find( "client" ) then
 				if CurArg.Type == "client" and Extra then
-					self:NotifyError( Client, "You cannot target yourself with this command." )
+					self:NotifyError( Player, "You cannot target yourself with this command." )
 				else
 					--No client means no match.
-					self:NotifyError( Client, "No matching %s found.", true, 
+					self:NotifyError( Player, "No matching %s found.", true, 
 						CurArg.Type == "client" and "player was" or "players were" )
 				end
 			else
-				self:NotifyError( Client, CurArg.Error or "Incorrect argument #%i to %s, expected %s.", 
+				self:NotifyError( Player, CurArg.Error or "Incorrect argument #%i to %s, expected %s.", 
 					true, i, ConCommand, CurArg.Type )
 			end
 
@@ -490,7 +500,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 			
 				--The restriction wiped the argument as it's not allowed.
 				if ParsedArgs[ i ] == nil then
-					self:NotifyError( Client, "Invalid argument #%i, restricted in rank settings.", true, i )
+					self:NotifyError( Player, "Invalid argument #%i, restricted in rank settings.", true, i )
 
 					return
 				end
@@ -511,7 +521,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:NotifyError( Client, "The author of this command misconfigured it. If you know them, tell them!" )
+				self:NotifyError( Player, "The author of this command misconfigured it. If you know them, tell them!" )
 
 				return
 			end
@@ -520,7 +530,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target the return client.
 		if ArgType == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:NotifyError( Client, "You do not have permission to target %s.", 
+				self:NotifyError( Player, "You do not have permission to target %s.", 
 					true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
 
 				return
@@ -533,7 +543,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 			if ParsedArg then
 				if #ParsedArg == 0 then
-					self:NotifyError( Client, "No matching players found." )
+					self:NotifyError( Player, "No matching players found." )
 
 					return
 				end
@@ -567,7 +577,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		local Player = Client and Client:GetControllingPlayer()
 		local Name = Player and Player:GetName() or "Console"
 		local ID = Client and Client:GetUserId() or "N/A"
-		
+
 		--Log the command's execution.
 		self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
 			Name, ID, ConCommand, 

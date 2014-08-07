@@ -239,6 +239,11 @@ end
 	An easy error message function.
 ]]
 function Shine:NotifyError( Player, Message, Format, ... )
+	if Player == "Console" then
+		Shared.Message( Format and StringFormat( Message, ... ) or Message )
+		return
+	end
+
 	self:NotifyDualColour( Player, 255, 0, 0, "[Error]", 255, 255, 255, Message, Format, ... )
 end
 
