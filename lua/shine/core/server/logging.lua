@@ -127,7 +127,8 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		local Iterations = Ceil( MessageLength / kMaxChatLength )
 
 		for i = 1, Iterations do
-			self:Notify( Player, Prefix, Name, Message:sub( 1 + kMaxChatLength * ( i - 1 ), kMaxChatLength * i ) )
+			self:Notify( Player, Prefix, Name, Message:sub( 1 + kMaxChatLength * ( i - 1 ),
+				kMaxChatLength * i ) )
 		end
 
 		return
@@ -140,11 +141,13 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 			local Ply = Player[ i ]
 			
 			self.SendNetworkMessage( Ply, "Shine_Chat",
-				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
+				true )
 		end
 	elseif Player and Player ~= "Console" then
 		self.SendNetworkMessage( Player, "Shine_Chat",
-			self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+			self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
+			true )
 	elseif Player == "Console" then
 		Shared.Message( Message )
 	else
@@ -152,7 +155,8 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 
 		for i = 1, #Players do
 			self.SendNetworkMessage( Players[ i ], "Shine_Chat",
-				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ), true )
+				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
+				true )
 		end
 	end
 	
@@ -280,20 +284,24 @@ function Shine:CommandNotify( Client, Message, Format, ... )
 		else
 			--If admins can't see it, no one can.
 			if NotifyAdminAnonymous then
-				self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName, 255, 255, 255, Message, Format, ... )
+				self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName,
+					255, 255, 255, Message, Format, ... )
 			else
 				local TargetImmunity = self:GetUserImmunity( Target )
 				local IsGreaterEqual = TargetImmunity >= Immunity
 
 				--They're greater equal in rank, so show the name.
 				if IsGreaterEqual then
-					self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message, Format, ... )
+					self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255,
+						Message, Format, ... )
 				else
 					--If we're set to be anonymous to lower ranks, use the set generic admin name.
 					if NotifyAnonymous then
-						self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName, 255, 255, 255, Message, Format, ... )
+						self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName,
+							255, 255, 255, Message, Format, ... )
 					else --Otherwise use the admin's name.
-						self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message, Format, ... )
+						self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255,
+							Message, Format, ... )
 					end
 				end
 			end
@@ -328,7 +336,8 @@ Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 		MessageList[ Count ] = Message
 		
 		for i = 1, #MessageList do
-			Shine.SendNetworkMessage( Client, "ServerAdminPrint", { message = MessageList[ i ] }, true )
+			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
+				{ message = MessageList[ i ] }, true )
 		end
 	end
 
