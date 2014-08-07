@@ -301,6 +301,8 @@ function Plugin:CreateChatbox()
 			self.Visible = false
 			self.GUIChat:SetIsVisible( true )
 		end
+
+		TableEmpty( self.Messages )
 	end )
 
 	self.MainPanel = DummyPanel
