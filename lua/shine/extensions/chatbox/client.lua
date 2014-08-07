@@ -291,6 +291,18 @@ function Plugin:CreateChatbox()
 		self:SetPos( ChatBoxPos )
 	end
 
+	--If, for some reason, there's an error in a panel hook, then this is removed.
+	--We don't want to leave the mouse showing if that happens.
+	DummyPanel:CallOnRemove( function()
+		if self.IgnoreRemove then return end
+
+		if self.Visible then
+			SGUI:EnableMouse( false )
+			self.Visible = false
+			self.GUIChat:SetIsVisible( true )
+		end
+	end )
+
 	self.MainPanel = DummyPanel
 
 	local BoxSize = VectorMultiply( InnerBoxSize, UIScale )
@@ -711,7 +723,9 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	end
 
 	--Recreate the entire chat box, it's easier than rescaling.
+	self.IgnoreRemove = true
 	self.MainPanel:Destroy()
+	self.IgnoreRemove = nil
 	if not self:CreateChatbox() then return end
 
 	TableEmpty( Messages )
@@ -959,7 +973,9 @@ function Plugin:StartChat( Team )
 	--This is somehow gone for some people?
 	if not SGUI.IsValid( self.TextEntry ) or not SGUI.IsValid( self.ModeText ) then
 		if SGUI.IsValid( self.MainPanel ) then
+			self.IgnoreRemove = true
 			self.MainPanel:Destroy()
+			self.IgnoreRemove = nil
 		end
 
 		if not self:CreateChatbox() then
@@ -998,7 +1014,9 @@ end
 function Plugin:Cleanup()
 	if not SGUI.IsValid( self.MainPanel ) then return end
 	
+	self.IgnoreRemove = true
 	self.MainPanel:Destroy()
+	self.IgnoreRemove = nil
 
 	--Clear out everything.
 	self.MainPanel = nil
@@ -1013,6 +1031,7 @@ function Plugin:Cleanup()
 	if self.Visible then
 		SGUI:EnableMouse( false )
 		self.Visible = false
+		self.GUIChat:SetIsVisible( true )
 	end
 end
 
