@@ -488,6 +488,7 @@ function VoteMenu:AddSideButton( Text, DoClick )
 		IsSchemed = false
 	}
 	Button:SetHighlightOnMouseOver( true, 1, true )
+	Button.ClickDelay = 0
 
 	Buttons[ Index ] = Button
 

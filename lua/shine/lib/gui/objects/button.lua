@@ -222,7 +222,7 @@ function Button:OnMouseUp( Key )
 
 	local Time = Clock()
 
-	if ( self.NextClick or 0 ) > Time then return true end
+	if ( self.ClickDelay or 0.1 ) > 0 and ( self.NextClick or 0 ) > Time then return true end
 	
 	self.NextClick = Time + ( self.ClickDelay or 0.1 )
 

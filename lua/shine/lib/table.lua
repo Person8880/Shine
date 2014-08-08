@@ -128,35 +128,50 @@ local IsType = Shine.IsType
 --[[
 	Prints a nicely formatted table structure to the console.
 ]]
-function PrintTable( Table, Indent )
+function PrintTable( Table, Indent, Done )
 	Indent = Indent or 0
+	Done = Done or {}
 
 	local IndentString = StringRep( "\t", Indent )
 
-	for k, v in pairs( Table ) do
-		if IsType( v, "table" ) then
-			Print( "%s%s:\n", IndentString, tostring( k ) )
-			PrintTable( v, Indent + 2 )
+	for Key, Value in pairs( Table ) do
+		if IsType( Value, "table" ) and not Done[ Value ] then
+			Done[ Value ] = true
+			Print( "%s%s:\n", IndentString, tostring( Key ) )
+			PrintTable( Value, Indent + 2, Done )
 		else
-			Print( "%s%s = %s", IndentString, tostring( k ), tostring( v ) )
+			Print( "%s%s = %s", IndentString, tostring( Key ), tostring( Value ) )
 		end
 	end
 end
 
-function table.ToString( Table, Indent )
+function table.ToString( Table, Indent, Done )
 	Indent = Indent or 0
+	Done = Done or {}
 	
 	local Strings = {}
 
 	local IndentString = StringRep( "\t", Indent )
 
-	for k, v in pairs( Table ) do
-		if IsType( v, "table" ) then
-			Strings[ #Strings + 1 ] = StringFormat( "%s%s:", IndentString, tostring( k ) )
-			Strings[ #Strings + 1 ] = table.ToString( v, Indent + 2 )
+	for Key, Value in pairs( Table ) do
+		if IsType( Value, "table" ) and not Done[ Value ] then
+			Done[ Value ] = true
+			Strings[ #Strings + 1 ] = StringFormat( "%s%s:", IndentString, tostring( Key ) )
+			Strings[ #Strings + 1 ] = table.ToString( Value, Indent + 2, Done )
 		else
-			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString, tostring( k ), tostring( v ) )
+			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
+				tostring( Key ), tostring( Value ) )
 		end
+	end
+
+	return TableConcat( Strings, "\n" )
+end
+
+function table.ToDebugString( Table )
+	local Strings = {}
+
+	for Key, Value in pairs( Table ) do
+		Strings[ #Strings + 1 ] = StringFormat( "%s = %s", tostring( Key ), tostring( Value ) )
 	end
 
 	return TableConcat( Strings, "\n" )
