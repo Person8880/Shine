@@ -3,6 +3,7 @@
 ]]
 
 local assert = assert
+local DebugGetLocal = debug.getlocal
 local DebugGetUpValue = debug.getupvalue
 local DebugSetUpValue = debug.setupvalue
 local pairs = pairs
@@ -186,4 +187,33 @@ function Shine.Assert( Assertion, Error, ... )
 	if not Assertion then
 		error( StringFormat( Error, ... ), 2 )
 	end
+end
+
+--[[
+	Gets all local values in a table at the given stack level.
+
+	Input:
+		1. Stack level. 2 is added to this number.
+	Output:
+		Table of local values.
+]]
+function Shine.GetLocals( Stacklevel )
+	Stacklevel = Stacklevel and ( Stacklevel + 2 ) or 3
+
+	local i = 1
+	local Values = {}
+
+	while true do
+		local Name, Value = DebugGetLocal( Stacklevel, i )
+
+		if not Name then break end
+
+		if Name ~= "(*temporary)" then
+			Values[ Name ] = Value
+		end
+
+		i = i + 1
+	end
+
+	return Values
 end

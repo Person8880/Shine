@@ -58,16 +58,21 @@ local function Add( Event, Index, Function, Priority )
 end
 Shine.Hook.Add = Add
 
+local ToDebugString = table.ToDebugString
 local Traceback = debug.traceback
+
 local CallingEvent
 local CallingIndex
 
 local function OnError( Err )
 	local Trace = Traceback()
 
+	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
+
 	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
 	Shine:AddErrorReport( StringFormat( "%s hook error (%s): %s.",
-		CallingEvent, CallingIndex, Err ), Trace )
+		CallingEvent, CallingIndex, Err ), "%s\nLocals:\n%s", true, Trace,
+		Locals )
 end
 
 local RemovalExceptions = {
