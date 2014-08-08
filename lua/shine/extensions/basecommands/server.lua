@@ -380,6 +380,8 @@ function Plugin:CreateCommands()
 	SetPasswordCommand:Help( "<password> Sets the server password." )
 
 	if not self.Config.DisableLuaRun then
+		local pcall = pcall
+
 		local function RunLua( Client, Code )
 			local Player = Client and Client:GetControllingPlayer()
 
@@ -388,10 +390,27 @@ function Plugin:CreateCommands()
 			local Func, Err = loadstring( Code )
 
 			if Func then
-				Func()
-				Shine:Print( "%s ran: %s", true, Name, Code )
+				local Success, Err = pcall( Func )
+				if Success then
+					Shine:Print( "%s ran: %s", true, Name, Code )
+					if Client then
+						ServerAdminPrint( Client, "Lua run was successful." )
+					end
+				else
+					local ErrMessage = StringFormat( "Lua run failed. Error: %s", Err )
+
+					Shine:Print( ErrMessage )
+					if Client then
+						ServerAdminPrint( Client, ErrMessage )
+					end
+				end
 			else
-				Shine:Print( "Lua run failed. Error: %s", true, Err )
+				local ErrMessage = StringFormat( "Lua run failed. Error: %s", Err )
+
+				Shine:Print( ErrMessage )
+				if Client then
+					ServerAdminPrint( Client, ErrMessage )
+				end
 			end
 		end
 		local RunLuaCommand = self:BindCommand( "sh_luarun", "luarun", RunLua, false, true )
