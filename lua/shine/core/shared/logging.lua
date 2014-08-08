@@ -7,6 +7,8 @@ local Reported = {}
 
 local URL = "http://5.39.89.152/shine/errorreport.php"
 
+local OS = jit and jit.os or "Unknown"
+
 local next = next
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -54,7 +56,11 @@ function Shine:AddErrorReport( BaseError, Extra, Format, ... )
 	else
 		String = BaseError
 	end
-	
+
+	if #ErrorQueue == 0 then
+		ErrorQueue[ 1 ] = StringFormat( "Operating system: %s.", OS )
+	end
+
 	ErrorQueue[ #ErrorQueue + 1 ] = String
 end
 
