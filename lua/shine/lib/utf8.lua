@@ -1887,8 +1887,8 @@ end
 local function GetUTF8Bytes( String, Index )
 	Index = Index or 1
 
-	if TypeCheck( String, "string", 1, "GetUTF8Bytes" ) then return end
-	if TypeCheck( Index, "number", 2, "GetUTF8Bytes" ) then return end
+	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
+	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
 
 	local Byte = String:byte( Index )
 
