@@ -409,7 +409,7 @@ function Plugin:CreateChatbox()
 	function TextEntry:ShouldAllowChar( Char )
 		local Text = self:GetText()
 
-		if #Text >= kMaxChatLength then
+		if Text:UTF8Length() >= kMaxChatLength then
 			return false
 		end
 

@@ -246,6 +246,8 @@ function TextEntry:SetCaretPos( Column )
 		TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 	end
 
+	NewPos = Clamp( NewPos, 0, self.Width )
+
 	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
 end
 
@@ -291,7 +293,16 @@ end
 function TextEntry:AddCharacter( Char )
 	if not self:AllowChar( Char ) then return end
 
-	self.Text = StringFormat( "%s%s%s", self.Text:UTF8Sub( 1, self.Column ), Char, self.Text:UTF8Sub( self.Column + 1 ) )
+	local Text = self.Text
+	local Length = Text:UTF8Length()
+	local Before = Text:UTF8Sub( 1, self.Column )
+	local After = ""
+
+	if self.Column + 1 <= Length then
+		After = Text:UTF8Sub( self.Column + 1 )
+	end
+
+	self.Text = StringFormat( "%s%s%s", Before, Char, After )
 
 	self.Column = self.Column + 1
 
