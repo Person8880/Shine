@@ -855,8 +855,8 @@ function Plugin:JoinRandomTeam( Player )
 				--If they have a skill of 0, there will be no real effect on the average.
 				--So we just hope for the best and put them on the worse team.
 				if PlayerSkill > 0 then
-					local NewTeam1Average = Team1Skill + PlayerSkill / ( Team1Count + 1 )
-					local NewTeam2Average = Team2Skill + PlayerSkill / ( Team2Count + 1 )	
+					local NewTeam1Average = ( Team1Skill + PlayerSkill ) / ( Team1Count + 1 )
+					local NewTeam2Average = ( Team2Skill + PlayerSkill ) / ( Team2Count + 1 )	
 
 					--If we're going to make the lower team even worse, then put them on the "better" team.
 					if BetterTeam == 1 and NewTeam2Average < Team2Average then
