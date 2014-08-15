@@ -46,22 +46,8 @@ local IsType = Shine.IsType
 local tonumber = tonumber
 local tostring = tostring
 
-local function ToHex( Dec )
-	Dec = StringFormat( "%X", Dec )
-
-	if #Dec == 1 then
-		Dec = "0"..Dec
-	end
-
-	return Dec
-end
-
 local function RGBToHex( R, G, B )
-	R = ToHex( R )
-	G = ToHex( G )
-	B = ToHex( B )
-
-	return tonumber( StringFormat( "0x%s%s%s", R, G, B ) )
+	return tonumber( StringFormat( "0x%.2X%.2X%.2X", R, G, B ) )
 end
 
 --Oh boy this is awful, but I'd rather catch the error than have pretty code.
