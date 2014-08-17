@@ -320,14 +320,30 @@ function TextEntry:RemoveCharacter( Forward )
 
 	local OldWidth = TextObj:GetTextWidth( self.Text ) * self.WidthScale
 
+	local Length = self.Text:UTF8Length()
+
 	if Forward then
 		if self.Column > 0 then
-			self.Text = self.Text:UTF8Sub( 1, self.Column )..self.Text:UTF8Sub( self.Column + 2 )
+			local Before = self.Text:UTF8Sub( 1, self.Column )
+
+			if self.Column + 2 <= Length then
+				local After = self.Text:UTF8Sub( self.Column + 2 )
+				self.Text = Before..After
+			else
+				self.Text = Before
+			end
 		else
 			self.Text = self.Text:UTF8Sub( 2 )
 		end
 	else
-		self.Text = self.Text:UTF8Sub( 1, self.Column - 1 )..self.Text:UTF8Sub( self.Column + 1 )
+		local Before = self.Text:UTF8Sub( 1, self.Column - 1 )
+
+		if self.Column + 1 <= Length then
+			local After = self.Text:UTF8Sub( self.Column + 1 )
+			self.Text = Before..After
+		else
+			self.Text = Before
+		end
 
 		self.Column = Max( self.Column - 1, 0 )
 	end
