@@ -339,7 +339,7 @@ function Shine:GetUserImmunity( Client )
 	local Data = self:GetUserData( Client )
 
 	if not Data then return 0 end
-	if Data.Immunity then return Data.Immunity end
+	if Data.Immunity then return tonumber( Data.Immunity ) or 0 end
 
 	local Group = Data.Group
 	local GroupData = self.UserData.Groups[ Group ]
@@ -348,7 +348,7 @@ function Shine:GetUserImmunity( Client )
 		return 0
 	end
 
-	return GroupData.Immunity or 0
+	return tonumber( GroupData.Immunity ) or 0
 end
 
 --[[
