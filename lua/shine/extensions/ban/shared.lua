@@ -240,6 +240,7 @@ function Plugin:SetupAdminMenu()
 				if not Row then return end
 				
 				local Data = Row.BanData
+				if not Data then return end
 				local ID = Data.ID
 
 				Shine.AdminMenu:RunCommand( self.UnbanCommand, ID )
@@ -351,6 +352,8 @@ function Plugin:ReceiveBanData( Data )
 				Row:SetColumnText( 2, BannedBy )
 				Row:SetColumnText( 3, Expiry )
 			end
+
+			Row.BanData = RealData
 
 			return
 		end
