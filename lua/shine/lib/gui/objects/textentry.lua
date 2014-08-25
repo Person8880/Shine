@@ -16,7 +16,7 @@ local TextEntry = {}
 TextEntry.UsesKeyboardFocus = true
 
 local BorderSize = Vector( 2, 2, 0 )
-local CaretCol = Color( 0, 0, 0, 1 )
+local CaretCol = Color( 1, 1, 1, 1 )
 local Clear = Color( 0, 0, 0, 0 )
 local TextPos = Vector( 2, 0, 0 )
 

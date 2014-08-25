@@ -339,7 +339,7 @@ function Shine:GetUserImmunity( Client )
 	local Data = self:GetUserData( Client )
 
 	if not Data then return 0 end
-	if Data.Immunity then return Data.Immunity end
+	if Data.Immunity then return tonumber( Data.Immunity ) or 0 end
 
 	local Group = Data.Group
 	local GroupData = self.UserData.Groups[ Group ]
@@ -348,7 +348,7 @@ function Shine:GetUserImmunity( Client )
 		return 0
 	end
 
-	return GroupData.Immunity or 0
+	return tonumber( GroupData.Immunity ) or 0
 end
 
 --[[
@@ -400,6 +400,13 @@ function Shine:GetPermission( Client, ConCommand )
 
 	if GroupTable.InheritsFrom then
 		return self:GetPermissionInheritance( ID, User, UserGroup, GroupTable, ConCommand )
+	end
+
+	if not IsType( GroupTable.Commands, "table" ) then
+		self:Print( "Group %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			true, UserGroup )
+
+		return false
 	end
 
 	local Exists, AllowedArgs = CheckForCommand( GroupTable.Commands, ConCommand )
@@ -469,7 +476,12 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	local TopLevelCommands = GroupTable.Commands
 
 	if GroupTable.IsBlacklist == Blacklist then
-		AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
+		if IsType( TopLevelCommands, "table" ) then
+			AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
+		else
+			self:Print( "Group %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+				true, GroupName )
+		end
 	end
 
 	if InheritGroups then
@@ -572,6 +584,13 @@ function Shine:HasAccess( Client, ConCommand )
 
 	if GroupTable.InheritsFrom then
 		return self:GetPermissionInheritance( ID, User, UserGroup, GroupTable, ConCommand )
+	end
+
+	if not IsType( GroupTable.Commands, "table" ) then
+		self:Print( "Group %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			true, UserGroup )
+
+		return false
 	end
 
 	if GroupTable.IsBlacklist then

@@ -85,7 +85,7 @@ function CheckConfig(config, defaultConfig, dontRemove)
 	return updated
 end
 
-function LoadConfigFile( fileName, defaultConfig )
+function LoadConfigFile( fileName, defaultConfig, check )
 
 	Shared.Message("Loading " .. "config://" .. fileName)
 	
@@ -98,7 +98,7 @@ function LoadConfigFile( fileName, defaultConfig )
 		end
 		io.close(openedFile)
 		
-		if defaultConfig then
+		if defaultConfig and check then
 			local update = CheckConfig(parsedFile, defaultConfig)
 			if update then
 				SaveConfigFile(fileName, parsedFile) 
