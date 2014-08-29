@@ -2,7 +2,6 @@
 	Shine console/chat command handling.
 ]]
 
-local assert = assert
 local FixArray = table.FixArray
 local Round = math.Round
 local StringExplode = string.Explode
@@ -26,14 +25,14 @@ CommandMeta.__index = CommandMeta
 	For instance, a paramter of type "client" will be parsed into a client from their name or Steam ID.
 ]]
 function CommandMeta:AddParam( Table )
-	assert( type( Table ) == "table", "Bad argument #1 to AddParam, table expected, got "..type( Table ) )
+	Shine.Assert( type( Table ) == "table", "Bad argument #1 to AddParam, table expected, got %s", type( Table ) )
 
 	local Args = self.Arguments
 	Args[ #Args + 1 ] = Table
 end
 
 function CommandMeta:Help( HelpString )
-	assert( type( HelpString ) == "string", "Bad argument #1 to Help, string expected, got "..type( HelpString ) )
+	Shine.Assert( type( HelpString ) == "string", "Bad argument #1 to Help, string expected, got %s", type( HelpString ) )
 
 	self.Help = HelpString
 end
@@ -70,15 +69,15 @@ local HookedCommands = {}
 	Output: Command object.
 ]]
 function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silent )
-	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterCommand, string expected, got "..type( ConCommand ) )
-	
+	self.Assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterCommand, string expected, got %s", type( ConCommand ) )
+
 	if ChatCommand then
-		assert( type( ChatCommand ) == "string" or type( ChatCommand ) == "table", 
-			"Bad argument #2 to RegisterCommand, string or table expected, got "..type( ChatCommand ) 
+		self.Assert( type( ChatCommand ) == "string" or type( ChatCommand ) == "table", 
+			"Bad argument #2 to RegisterCommand, string or table expected, got %s", type( ChatCommand ) 
 		)
 	end
 
-	assert( type( Function ) == "function", "Bad argument #3 to RegisterCommand, function expected, got "..type( Function ) )
+	self.Assert( type( Function ) == "function", "Bad argument #3 to RegisterCommand, function expected, got %s", type( Function ) )
 
 	local Commands = self.Commands
 

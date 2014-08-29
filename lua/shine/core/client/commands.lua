@@ -2,7 +2,6 @@
 	Client side commands handling.
 ]]
 
-local assert = assert
 local Notify = Shared.Message
 local setmetatable = setmetatable
 local Round = math.Round
@@ -25,7 +24,8 @@ CommandMeta.__index = CommandMeta
 	Adds a parameter to a command. This defines what an argument should be parsed into.
 ]]
 function CommandMeta:AddParam( Table )
-	assert( type( Table ) == "table", "Bad argument #1 to AddParam, table expected, got "..type( Table ) )
+	Shine.Assert( type( Table ) == "table",
+		"Bad argument #1 to AddParam, table expected, got %s", type( Table ) )
 
 	local Args = self.Arguments
 	Args[ #Args + 1 ] = Table
@@ -54,14 +54,15 @@ Shine.ClientCommands = ClientCommands
 	Inputs: Console command to assign, function to run.
 ]]
 function Shine:RegisterClientCommand( ConCommand, Function )
-	assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterClientCommand, string expected, got "..type( ConCommand ) )
-	assert( type( Function ) == "function", "Bad argument #2 to RegisterClientCommand, function expected, got "..type( Function ) )
+	Shine.Assert( type( ConCommand ) == "string",
+		"Bad argument #1 to RegisterClientCommand, string expected, got %s", type( ConCommand ) )
+	Shine.Assert( type( Function ) == "function",
+		"Bad argument #2 to RegisterClientCommand, function expected, got %s", type( Function ) )
 
 	local CmdObj = Command( ConCommand, Function )
 
 	ClientCommands[ ConCommand ] = CmdObj
 
-	--This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
 	if not HookedCommands[ ConCommand ] then
 		Event.Hook( "Console_"..ConCommand, function( ... )
 			return Shine:RunClientCommand( ConCommand, ... )
@@ -99,11 +100,13 @@ local IsType = Shine.IsType
 local ParamTypes = {
 	--Strings return simply the string (clipped to max length if given).
 	string = function( String, Table ) 
-		if not String or String == "" then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
+		if not String or String == "" then
+			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
+		end
 
 		return Table.MaxLength and String:sub( 1, Table.MaxLength ) or String
 	end,
-	--Number performs tonumber() on the string and clamps the result between the given min and max if applicable. Also rounds if asked.
+	--Number performs tonumber() on the string and clamps the result between the given min and max.
 	number = function( String, Table )
 		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
@@ -180,7 +183,8 @@ function Shine:RunClientCommand( ConCommand, ... )
 
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
-			Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.", i, ConCommand, CurArg.Type ) )
+			Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.",
+				i, ConCommand, CurArg.Type ) )
 
 			return
 		end
