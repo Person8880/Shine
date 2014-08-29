@@ -6,6 +6,7 @@ local Shine = Shine
 
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
+local pcall = pcall
 local SharedTime = Shared.GetTime
 
 local Plugin = {}
@@ -154,7 +155,9 @@ function Plugin:OnProcessMove( Player, Input )
 			Shine.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
 
 			if self.Config.MoveToReadyRoomOnWarn and Player:GetTeamNumber() ~= kTeamReadyRoom then
-				Gamerules:JoinTeam( Player, 0, nil, true )
+				--Sometimes this event receives one of the weird "ghost" players that can't switch teams.
+				Player = Client:GetControllingPlayer()
+				pcall( Gamerules.JoinTeam, Gamerules, Player, 0, nil, true )
 			end
 
 			return
