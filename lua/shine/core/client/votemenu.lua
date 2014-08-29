@@ -110,6 +110,10 @@ local function CanBind( MenuBinds, Binds, Button )
 	return false
 end
 
+local KeysToTry = {
+	"M", "N", "C"
+}
+
 local function BindVoteKey()
 	local MenuBinds = BindingsUI_GetBindingsTable()
 
@@ -131,31 +135,18 @@ local function BindVoteKey()
 		end
 	end
 
-	if CanBind( MenuBinds, Binds, "M" ) then --This is now the default map button...
-		Shared.ConsoleCommand( "bind M sh_votemenu" )
-		Shine.VoteButtonBound = true
+	for i = 1, #KeysToTry do
+		local Key = KeysToTry[ i ]
 
-		Shine.AddStartupMessage( "Shine has bound the M key to the vote menu. If you would like to change this, enter \"bind <key> sh_votemenu\" into the console." )
+		if CanBind( MenuBinds, Binds, Key ) then
+			Shared.ConsoleCommand( StringFormat( "bind %s sh_votemenu", Key ) )
+			Shine.VoteButtonBound = true
+			Shine.VoteButton = Key
 
-		return
-	elseif CanBind( MenuBinds, Binds, "N" ) then
-		Shared.ConsoleCommand( "bind N sh_votemenu" )
-		
-		Shine.VoteButton = "N"
-		Shine.VoteButtonBound = true
+			Shine.AddStartupMessage( StringFormat( "Shine has bound the %s key to the vote menu. If you would like to change this, enter \"bind <key> sh_votemenu\" into the console.", Key ) )
 
-		Shine.AddStartupMessage( "Shine has bound the N key to the vote menu. If you would like to change this, enter \"bind <key> sh_votemenu\" into the console." )
-
-		return
-	elseif CanBind( MenuBinds, Binds, "C" ) then --Try the old default map button!
-		Shared.ConsoleCommand( "bind C sh_votemenu" )
-		
-		Shine.VoteButton = "C"
-		Shine.VoteButtonBound = true
-
-		Shine.AddStartupMessage( "Shine has bound the C key to the vote menu. If you would like to change this, enter \"bind <key> sh_votemenu\" into the console." )
-
-		return
+			return
+		end
 	end
 
 	Shine.AddStartupMessage( "Shine was unable to bind a key to the vote menu. If you would like to use it, enter \"bind <key> sh_votemenu\" into the console." )
