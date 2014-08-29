@@ -4,12 +4,14 @@
 
 local StringFormat = string.format
 
+local StringMessage = StringFormat( "string (%i)", kMaxChatLength * 4 + 1 )
+
 local ChatMessage = {
 	Prefix = "string (25)",
 	Name = StringFormat( "string (%i)", kMaxNameLength ),
 	TeamNumber = StringFormat( "integer (%i to %i)", kTeamInvalid, kSpectatorIndex ),
 	TeamType = StringFormat( "integer (%i to %i)", kNeutralTeamType, kAlienTeamType ),
-	Message = StringFormat( "string (%i)", kMaxChatLength * 4 + 1 )
+	Message = StringMessage
 }
 
 function Shine.BuildChatMessage( Prefix, Name, TeamNumber, TeamType, Message )
