@@ -37,7 +37,7 @@ end )
 --[[
 	Updates the binding data in case they changed it whilst connected.
 ]]
-local function CheckForBind()
+function Shine.CheckVoteMenuBind()
 	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
 
 	if not CustomBinds then 
@@ -62,7 +62,6 @@ local function CheckForBind()
 	Shine.VoteButtonBound = nil
 	Shine.VoteButton = nil
 end
-Shine.CheckVoteMenuBind = CheckForBind
 
 function Shine.OpenVoteMenu()
 	local VoteMenu = Shine.VoteMenu
