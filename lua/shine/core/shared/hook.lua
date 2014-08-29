@@ -61,18 +61,14 @@ Shine.Hook.Add = Add
 local ToDebugString = table.ToDebugString
 local Traceback = debug.traceback
 
-local CallingEvent
-local CallingIndex
-
 local function OnError( Err )
 	local Trace = Traceback()
 
 	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
 
 	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
-	Shine:AddErrorReport( StringFormat( "%s hook error (%s): %s.",
-		CallingEvent, CallingIndex, Err ), "%s\nLocals:\n%s", true, Trace,
-		Locals )
+	Shine:AddErrorReport( StringFormat( "Hook error: %s.", Err ),
+		"%s\nLocals:\n%s", true, Trace, Locals )
 end
 
 local RemovalExceptions = {
@@ -94,13 +90,9 @@ local function Call( Event, ... )
 
 	local ProtectedHooks = RemovalExceptions[ Event ]
 
-	CallingEvent = Event
-
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
 		for Index, Func in pairs( MaxPriority ) do
-			CallingIndex = Index
-
 			local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 			if not Success then
@@ -121,7 +113,6 @@ local function Call( Event, ... )
 		--Automatically call the plugin hooks.
 		for Plugin, Table in pairs( Plugins ) do
 			if Table.Enabled and IsType( Table[ Event ], "function" ) then
-				CallingIndex = Plugin
 				local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
 
 				if not Success then
@@ -149,7 +140,6 @@ local function Call( Event, ... )
 
 		if HookTable then
 			for Index, Func in pairs( HookTable ) do
-				CallingIndex = Index
 				local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 				if not Success then
