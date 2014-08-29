@@ -82,13 +82,15 @@ end
 
 Event.Hook( "Console_sh_votemenu", function()
 	if #ActivePlugins == 0 then --Request addon list if our table is empty.
-		Shine.SendNetworkMessage( "Shine_RequestPluginData", {}, true )
+		if not WaitingForData then
+			Shine.SendNetworkMessage( "Shine_RequestPluginData", {}, true )
 
-		WaitingForData = true
+			WaitingForData = true
+		end
 
 		return 
 	end
-	
+
 	Shine.OpenVoteMenu()
 end )
 
