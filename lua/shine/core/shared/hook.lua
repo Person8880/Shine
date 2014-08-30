@@ -647,7 +647,7 @@ Add( "Think", "ReplaceMethods", function()
 	local OldChangeMap = MapCycle_ChangeMap
 
 	if not OldCycleMap then
-		Script.Load "lua/MapCycle.lua"
+		Script.Load( "lua/MapCycle.lua" )
 		OldCycleMap = MapCycle_CycleMap
 		OldChangeMap = MapCycle_ChangeMap
 	end
