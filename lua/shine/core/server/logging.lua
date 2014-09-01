@@ -122,12 +122,12 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return self:NotifyColour( Player, 255, 255, 255, String, Format, ... )
 	end
 
-	local MessageLength = #Message
+	local MessageLength = Message:UTF8Length()
 	if MessageLength > kMaxChatLength then
 		local Iterations = Ceil( MessageLength / kMaxChatLength )
 
 		for i = 1, Iterations do
-			self:Notify( Player, Prefix, Name, Message:sub( 1 + kMaxChatLength * ( i - 1 ),
+			self:Notify( Player, Prefix, Name, Message:UTF8Sub( 1 + kMaxChatLength * ( i - 1 ),
 				kMaxChatLength * i ) )
 		end
 
@@ -180,7 +180,7 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 		Prefix = ""
 	}
 
-	Message = Message:sub( 1, kMaxChatLength )
+	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
 	if not Player then
 		local Players = self.GetAllClients()
@@ -218,7 +218,7 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 		Prefix = Prefix
 	}
 
-	Message = Message:sub( 1, kMaxChatLength )
+	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
 	if not Player then
 		local Players = self.GetAllClients()
