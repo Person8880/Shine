@@ -587,8 +587,6 @@ function Plugin:EndGame()
 
 				return
 			else
-				Message = "Waiting on map vote to change map."
-
 				if self.VoteOnEnd then
 					self:StartVote( true )
 
@@ -604,7 +602,14 @@ function Plugin:EndGame()
 						end
 					end
 				end
+
+				return
 			end
+		end
+
+		--Round the time down to the nearest 30 seconds.
+		if TimeLeft > 30 then
+			TimeLeft = TimeLeft - ( TimeLeft % 30 )
 		end
 
 		Shine:NotifyColour( nil, 255, 160, 0, Message, true, string.TimeToString( TimeLeft ) )
@@ -954,9 +959,9 @@ function Plugin:ProcessResults( NextMap )
 			self:ExtendMap( Time, true )
 		else
 			if not self.VoteOnEnd then
-				self:Notify( nil, "%s won the vote. Setting next map in the cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+				self:Notify( nil, "%s won the vote. Setting as next map...", true, Results[ 1 ] )
 			else
-				self:Notify( nil, "%s won the vote. The map will now cycle to %s.", true, Results[ 1 ], Results[ 1 ] )
+				self:Notify( nil, "%s won the vote. Cycling map...", true, Results[ 1 ] )
 
 				self.CyclingMap = true
 

@@ -4,7 +4,6 @@
 	Massive data dump at the start for upper -> lower case and vice-versa.
 ]]
 
-local assert = assert
 local error = error
 local pcall = pcall
 local StringFormat = string.format

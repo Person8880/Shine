@@ -107,25 +107,23 @@ local SimpleCount = 1
 	Inputs: Delay in seconds, function to run.
 	Unlike a standard timer, this will only run once.
 ]]
-local function Simple( Delay, Func )
+function Shine.Timer.Simple( Delay, Func )
 	local Index = "Simple"..SimpleCount
 
 	SimpleCount = SimpleCount + 1
 
 	return Create( Index, Delay, 1, Func )
 end
-Shine.Timer.Simple = Simple
 
 --[[
 	Removes a timer.
 	Input: Timer name to remove.
 ]]
-local function Destroy( Name )
+function Shine.Timer.Destroy( Name )
 	if Timers[ Name ] then
 		Timers[ Name ] = nil
 	end
 end
-Shine.Timer.Destroy = Destroy
 
 --[[
 	Returns whether the given timer exists.

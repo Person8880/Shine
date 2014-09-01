@@ -4,7 +4,7 @@
 
 local StringFormat = string.format
 
-local StringMessage = StringFormat( "string (%i)", kMaxChatLength )
+local StringMessage = StringFormat( "string (%i)", kMaxChatLength * 4 + 1 )
 
 local ChatMessage = {
 	Prefix = "string (25)",

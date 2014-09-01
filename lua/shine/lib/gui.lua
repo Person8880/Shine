@@ -483,10 +483,15 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 
 	--Apparently this isn't loading for some people???
 	if not SGUI.Skins.Default then
-		include "lua/shine/lib/gui/skins/default.lua"
+		local Skin = next( SGUI.Skins )
+		--If there's a different skin, load it.
+		--Otherwise whoever's running this is missing the skin file, I can't fix that.
+		if Skin then
+			SGUI:SetSkin( Skin )
+		end
+	else
+		SGUI:SetSkin( "Default" )
 	end
-
-	SGUI:SetSkin( "Default" )
 
 	local Listener = {
 		OnMouseMove = function( _, LMB )
