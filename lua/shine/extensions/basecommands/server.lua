@@ -954,7 +954,7 @@ function Plugin:CreateCommands()
 		Shine:Notify( nil, "All", ( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
 	end
 	local AdminSayCommand = self:BindCommand( "sh_say", "say", AdminSay, false, true )
-	AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength * 4, TakeRestOfLine = true, Error = "Please specify a message." }
+	AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength, TakeRestOfLine = true, Error = "Please specify a message." }
 	AdminSayCommand:Help( "<message> Sends a message to everyone." )
 
 	local function AdminTeamSay( Client, Team, Message )
@@ -964,7 +964,7 @@ function Plugin:CreateCommands()
 	end
 	local AdminTeamSayCommand = self:BindCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
 	AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify a team." }
-	AdminTeamSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, MaxLength = kMaxChatLength * 4, Error = "Please specify a message." }
+	AdminTeamSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, MaxLength = kMaxChatLength, Error = "Please specify a message." }
 	AdminTeamSayCommand:Help( "<team name> <message> Sends a message to everyone on the given team." )
 
 	local function PM( Client, Target, Message )
@@ -987,7 +987,7 @@ function Plugin:CreateCommands()
 	end
 	local PMCommand = self:BindCommand( "sh_pm", "pm", PM )
 	PMCommand:AddParam{ Type = "client", IgnoreCanTarget = true }
-	PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength * 4 }
+	PMCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.", MaxLength = kMaxChatLength }
 	PMCommand:Help( "<player> <message> Sends a private message to the given player." )
 
 	local Colours = {

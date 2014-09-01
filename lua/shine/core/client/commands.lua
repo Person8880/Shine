@@ -104,7 +104,7 @@ local ParamTypes = {
 			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
 		end
 
-		return Table.MaxLength and String:sub( 1, Table.MaxLength ) or String
+		return Table.MaxLength and String:UTF8Sub( 1, Table.MaxLength ) or String
 	end,
 	--Number performs tonumber() on the string and clamps the result between the given min and max.
 	number = function( String, Table )
