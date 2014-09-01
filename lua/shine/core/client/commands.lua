@@ -54,9 +54,9 @@ Shine.ClientCommands = ClientCommands
 	Inputs: Console command to assign, function to run.
 ]]
 function Shine:RegisterClientCommand( ConCommand, Function )
-	Shine.Assert( type( ConCommand ) == "string",
+	self.Assert( type( ConCommand ) == "string",
 		"Bad argument #1 to RegisterClientCommand, string expected, got %s", type( ConCommand ) )
-	Shine.Assert( type( Function ) == "function",
+	self.Assert( type( Function ) == "function",
 		"Bad argument #2 to RegisterClientCommand, function expected, got %s", type( Function ) )
 
 	local CmdObj = Command( ConCommand, Function )
