@@ -630,34 +630,38 @@ function Shine:CanTarget( Client, Target )
 	local TargetUser = Users[ tostring( TargetID ) ]
 	
 	if not TargetUser then return true end --Target is a guest, can always target guests.
-	if not User then return false end --No user data, guest cannot target others.
+
+	local TargetGroup = Groups[ TargetUser.Group or -1 ]
+	if not TargetGroup then
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, TargetID, tostring( TargetUser.Group ) )
+		return true 
+	end
+
+	local TargetImmunity = tonumber( TargetUser.Immunity or TargetGroup.Immunity )
+	if not TargetImmunity then
+		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
+			true, TargetID, tostring( TargetUser.Group ) )
+		return true
+	end
+
+	--Guests can target groups with immunity < 0.
+	if not User then
+		return TargetImmunity < 0
+	end
 
 	local Group = Groups[ User.Group or -1 ]
-	local TargetGroup = Groups[ TargetUser.Group or -1 ]
 
 	if not Group then
 		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, tostring( User.Group ) )
 		return false
 	end
 
-	if not TargetGroup then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, TargetID, tostring( TargetUser.Group ) )
-		return true 
-	end
-
 	local Immunity = tonumber( User.Immunity or Group.Immunity ) --Read from the user's immunity first, then the groups.
-	local TargetImmunity = tonumber( TargetUser.Immunity or TargetGroup.Immunity )
 
 	if not Immunity then
 		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
 			true, ID, tostring( User.Group ) )
 		return false
-	end
-
-	if not TargetImmunity then
-		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
-			true, TargetID, tostring( TargetUser.Group ) )
-		return true
 	end
 
 	if self.Config.EqualsCanTarget then
