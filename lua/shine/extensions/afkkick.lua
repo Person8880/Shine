@@ -35,8 +35,18 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 function Plugin:Initialise()
+	local Edited
 	if self.Config.WarnMinPlayers > self.Config.MinPlayers then
 		self.Config.WarnMinPlayers = self.Config.MinPlayers
+		Edited = true
+	end
+
+	if self.Config.MoveToReadyRoomOnWarn and self.Config.MoveToSpectateOnWarn then
+		self.Config.MoveToReadyRoomOnWarn = false
+		Edited = true
+	end
+
+	if Edited then
 		self:SaveConfig( true )
 	end
 
