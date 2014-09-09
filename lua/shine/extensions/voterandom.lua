@@ -539,7 +539,7 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 						TableRemove( TeamMembers[ i ], SwapData.Indices[ i ] )
 						--Update player counts for the teams.
 						TeamSkills[ LargerTeam ][ 3 ] = TeamSkills[ LargerTeam ][ 3 ] - 1
-						TeamSkills[ LesserTeam ][ 2 ] = TeamSkills[ LesserTeam ][ 3 ] + 1
+						TeamSkills[ LesserTeam ][ 3 ] = TeamSkills[ LesserTeam ][ 3 ] + 1
 						--Cycle the larger/lesser teams.
 						LargerTeam = ( LargerTeam % 2 ) + 1
 						LesserTeam = ( LesserTeam % 2 ) + 1
