@@ -274,20 +274,16 @@ Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
 		local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
 		local Enabled, AFKPlugin = Shine:IsExtensionEnabled( "afkkick" )
 
-		for i = #ReadyRoomPlayers, 1, -1 do
-			local Player = ReadyRoomPlayers[ i ]
-
+		for _, Player in ipairs( ReadyRoomPlayers ) do
 			if Enabled then
-				if Player then
-					local Client = GetOwner( Player )
+				local Client = Player:GetClient()
 
-					if Client then
-						local LastMove = AFKPlugin:GetLastMoveTime( Client )
-						local Time = SharedTime()
+				if Client then
+					local LastMove = AFKPlugin:GetLastMoveTime( Client )
+					local Time = SharedTime()
 
-						if not ( LastMove and Time - LastMove > 60 ) then
-							JoinRandomTeam( Player )
-						end
+					if not ( LastMove and Time - LastMove > 60 ) then
+						JoinRandomTeam( Player )
 					end
 				end
 			else
