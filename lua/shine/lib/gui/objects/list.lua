@@ -266,7 +266,7 @@ function List:SetSize( Size )
 
 	self.MaxRows = Floor( ( Size.y - self.HeaderSize ) / self.LineSize )
 	
-	if self.MaxRows > self.RowCount then
+	if self.RowCount > self.MaxRows then
 		if self.Scrollbar then
 			self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )	
 		else
