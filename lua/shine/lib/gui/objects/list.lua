@@ -265,6 +265,19 @@ function List:SetSize( Size )
 	self.ScrollPos = Vector( 10, self.HeaderSize, 0 )
 
 	self.MaxRows = Floor( ( Size.y - self.HeaderSize ) / self.LineSize )
+	
+	if self.RowCount > self.MaxRows then
+		if self.Scrollbar then
+			self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )	
+		else
+			self:AddScrollbar()
+		end
+	elseif self.Scrollbar then 
+		self.Scrollbar:SetParent() 
+		self.Scrollbar:Destroy() 
+
+		self.Scrollbar = nil
+	end
 
 	if not self.RowSize then
 		self.RowSize = Vector( Size.x, self.LineSize, 0 )

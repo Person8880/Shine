@@ -27,6 +27,7 @@ Plugin.DefaultConfig = {
 	IgnoreSpectators = false,
 	Warn = true,
 	MoveToReadyRoomOnWarn = false,
+	MoveToSpectateOnWarn = false,
 	OnlyCheckOnStarted = false
 }
 
@@ -34,8 +35,18 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 function Plugin:Initialise()
+	local Edited
 	if self.Config.WarnMinPlayers > self.Config.MinPlayers then
 		self.Config.WarnMinPlayers = self.Config.MinPlayers
+		Edited = true
+	end
+
+	if self.Config.MoveToReadyRoomOnWarn and self.Config.MoveToSpectateOnWarn then
+		self.Config.MoveToReadyRoomOnWarn = false
+		Edited = true
+	end
+
+	if Edited then
 		self:SaveConfig( true )
 	end
 
@@ -109,7 +120,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	local Team = Player:GetTeamNumber()
 
-	if Team == 3 and self.Config.IgnoreSpectators then
+	if Team == kSpectatorIndex and self.Config.IgnoreSpectators then
 		DataTable.LastMove = Time
 		DataTable.Warn = false
 
@@ -154,10 +165,13 @@ function Plugin:OnProcessMove( Player, Input )
 			
 			Shine.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
 
-			if self.Config.MoveToReadyRoomOnWarn and Player:GetTeamNumber() ~= kTeamReadyRoom then
+			if self.Config.MoveToReadyRoomOnWarn and Team ~= kTeamReadyRoom then
 				--Sometimes this event receives one of the weird "ghost" players that can't switch teams.
 				Player = Client:GetControllingPlayer()
-				pcall( Gamerules.JoinTeam, Gamerules, Player, 0, nil, true )
+				pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
+			elseif self.Config.MoveToSpectateOnWarn and Team ~= kSpectatorIndex then
+				Player = Client:GetControllingPlayer()
+				pcall( Gamerules.JoinTeam, Gamerules, Player, kSpectatorIndex, nil, true )
 			end
 
 			return
