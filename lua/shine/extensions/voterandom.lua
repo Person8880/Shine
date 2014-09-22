@@ -460,19 +460,47 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 
 			for i = 1, #TeamMembers[ LargerTeam or 1 ] do
 				local Ply = TeamMembers[ 1 ][ i ]
-				local Skill = RankFunc( Ply )
-				local ShouldIgnorePly = self.Config.IgnoreCommanders and Ply:isa( "Commander" )
+				if Ply then
+					local Skill = RankFunc( Ply )
+					local ShouldIgnorePly = self.Config.IgnoreCommanders and Ply:isa( "Commander" )
 
-				if Skill and not ShouldIgnorePly then
-					local Team1Total = TeamSkills[ LargerTeam or 1 ][ 2 ]
-					local Team1Count = TeamSkills[ LargerTeam or 1 ][ 3 ]
+					if Skill and not ShouldIgnorePly then
+						local Team1Total = TeamSkills[ LargerTeam or 1 ][ 2 ]
+						local Team1Count = TeamSkills[ LargerTeam or 1 ][ 3 ]
 
-					for j = 1, #TeamMembers[ LesserTeam ] do
-						local Target = TeamMembers[ LesserTeam ][ j ]
-						local TargetSkill = RankFunc( Target )
-						local ShouldIgnoreTarget = self.Config.IgnoreCommanders and Target:isa( "Commander" )
+						for j = 1, #TeamMembers[ LesserTeam ] do
+							local Target = TeamMembers[ LesserTeam ][ j ]
+							local TargetSkill = RankFunc( Target )
+							local ShouldIgnoreTarget = self.Config.IgnoreCommanders and Target:isa( "Commander" )
 
-						if TargetSkill and not ShouldIgnoreTarget then
+							if TargetSkill and not ShouldIgnoreTarget then
+								local Team2Total = TeamSkills[ LesserTeam ][ 2 ]
+								local Team2Count = TeamSkills[ LesserTeam ][ 3 ]
+
+								local Team1Average = Team1Total / Team1Count
+								local Team2Average = Team2Total / Team2Count
+								local Diff = Abs( Team2Average - Team1Average )
+
+								local NewTeam1Total = Team1Total - Skill + TargetSkill
+								local NewTeam2Total = Team2Total - TargetSkill + Skill
+
+								local NewTeam1Average = NewTeam1Total / Team1Count
+								local NewTeam2Average = NewTeam2Total / Team2Count
+								local NewDiff = Abs( NewTeam2Average - NewTeam1Average )
+
+								if NewDiff < Diff and NewDiff < SwapData.BestDiff then
+									SwapData.BestDiff = NewDiff
+									SwapData.BestPlayers[ LargerTeam or 1 ] = Target
+									SwapData.BestPlayers[ LesserTeam ] = Ply
+									SwapData.Indices[ LargerTeam or 1 ] = i
+									SwapData.Indices[ LesserTeam ] = j
+									SwapData.Totals[ LargerTeam or 1 ] = NewTeam1Total
+									SwapData.Totals[ LesserTeam ] = NewTeam2Total
+								end
+							end
+						end
+
+						if LargerTeam then
 							local Team2Total = TeamSkills[ LesserTeam ][ 2 ]
 							local Team2Count = TeamSkills[ LesserTeam ][ 3 ]
 
@@ -480,8 +508,11 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 							local Team2Average = Team2Total / Team2Count
 							local Diff = Abs( Team2Average - Team1Average )
 
-							local NewTeam1Total = Team1Total - Skill + TargetSkill
-							local NewTeam2Total = Team2Total - TargetSkill + Skill
+							local NewTeam1Total = Team1Total - Skill
+							local NewTeam2Total = Team2Total + Skill
+
+							Team1Count = Team1Count - 1
+							Team2Count = Team2Count + 1
 
 							local NewTeam1Average = NewTeam1Total / Team1Count
 							local NewTeam2Average = NewTeam2Total / Team2Count
@@ -489,42 +520,13 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 
 							if NewDiff < Diff and NewDiff < SwapData.BestDiff then
 								SwapData.BestDiff = NewDiff
-								SwapData.BestPlayers[ LargerTeam or 1 ] = Target
+								SwapData.BestPlayers[ LargerTeam ] = nil
 								SwapData.BestPlayers[ LesserTeam ] = Ply
-								SwapData.Indices[ LargerTeam or 1 ] = i
-								SwapData.Indices[ LesserTeam ] = j
-								SwapData.Totals[ LargerTeam or 1 ] = NewTeam1Total
+								SwapData.Indices[ LargerTeam ] = i
+								SwapData.Indices[ LesserTeam ] = Team2Count
+								SwapData.Totals[ LargerTeam ] = NewTeam1Total
 								SwapData.Totals[ LesserTeam ] = NewTeam2Total
 							end
-						end
-					end
-
-					if LargerTeam then
-						local Team2Total = TeamSkills[ LesserTeam ][ 2 ]
-						local Team2Count = TeamSkills[ LesserTeam ][ 3 ]
-
-						local Team1Average = Team1Total / Team1Count
-						local Team2Average = Team2Total / Team2Count
-						local Diff = Abs( Team2Average - Team1Average )
-
-						local NewTeam1Total = Team1Total - Skill
-						local NewTeam2Total = Team2Total + Skill
-
-						Team1Count = Team1Count - 1
-						Team2Count = Team2Count + 1
-
-						local NewTeam1Average = NewTeam1Total / Team1Count
-						local NewTeam2Average = NewTeam2Total / Team2Count
-						local NewDiff = Abs( NewTeam2Average - NewTeam1Average )
-
-						if NewDiff < Diff and NewDiff < SwapData.BestDiff then
-							SwapData.BestDiff = NewDiff
-							SwapData.BestPlayers[ LargerTeam ] = nil
-							SwapData.BestPlayers[ LesserTeam ] = Ply
-							SwapData.Indices[ LargerTeam ] = i
-							SwapData.Indices[ LesserTeam ] = Team2Count
-							SwapData.Totals[ LargerTeam ] = NewTeam1Total
-							SwapData.Totals[ LesserTeam ] = NewTeam2Total
 						end
 					end
 				end
