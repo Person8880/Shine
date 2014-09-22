@@ -459,7 +459,7 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 			}
 
 			for i = 1, #TeamMembers[ LargerTeam or 1 ] do
-				local Ply = TeamMembers[ 1 ][ i ]
+				local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
 				if Ply then
 					local Skill = RankFunc( Ply )
 					local ShouldIgnorePly = self.Config.IgnoreCommanders and Ply:isa( "Commander" )
