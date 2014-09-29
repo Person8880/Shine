@@ -196,6 +196,10 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 end
 
+function Plugin:PlayerSay( Client, MessageTable )
+	self:ResetAFKTime( Client )
+end
+
 function Plugin:OnConstructInit( Building )
 	local ID = Building:GetId()
 	local Team = Building:GetTeam()
