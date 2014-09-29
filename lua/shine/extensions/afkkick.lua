@@ -196,6 +196,17 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 end
 
+function Plugin:PlayerSay( Client, MessageTable )
+	self:ResetAFKTime( Client )
+end
+
+function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
+	local Client = GetOwner( Speaker )
+	if Client then
+		self:ResetAFKTime( Client )
+	end
+end
+
 function Plugin:OnConstructInit( Building )
 	local ID = Building:GetId()
 	local Team = Building:GetTeam()
