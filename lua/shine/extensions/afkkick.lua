@@ -200,6 +200,13 @@ function Plugin:PlayerSay( Client, MessageTable )
 	self:ResetAFKTime( Client )
 end
 
+function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
+	local Client = Speaker:GetClient()
+	if Client then
+		self:ResetAFKTime( Client )
+	end
+end
+
 function Plugin:OnConstructInit( Building )
 	local ID = Building:GetId()
 	local Team = Building:GetTeam()
