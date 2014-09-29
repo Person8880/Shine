@@ -201,7 +201,7 @@ function Plugin:PlayerSay( Client, MessageTable )
 end
 
 function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
-	local Client = Speaker:GetClient()
+	local Client = GetOwner( Speaker )
 	if Client then
 		self:ResetAFKTime( Client )
 	end
