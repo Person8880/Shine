@@ -19,8 +19,6 @@ local StringFormat = string.format
 local TableCopy = table.Copy
 local TableRemove = table.remove
 local Time = os.time
-local ToString = tostring
-local ToNumber = tonumber
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Bans.json"
@@ -161,12 +159,14 @@ function Plugin:MergeNS2IntoShine()
 	
 	local VanillaBans = Shine.LoadJSONFile( self.VanillaConfig )
 	local MergedTable = self.Config.Banned
-	local VanillaIds = {}
+	local VanillaIDs = {}
 
-	for _, Table in ipairs( VanillaBans ) do
-		local ID = ToString( Table.id )
+	for i = 1, #VanillaBans do
+		local Table = VanillaBans[ i ]
+		local ID = tostring( Table.id )
+		
 		if ID then
-			VanillaIds[ ID ] = true
+			VanillaIDs[ ID ] = true
 			
 			if not MergedTable[ ID ] or MergedTable[ ID ] and MergedTable[ ID ].UnbanTime ~= Table.time then
 				MergedTable[ ID ] = { Name = Table.name, UnbanTime = Table.time, Reason = Table.reason, BannedBy = Table.bannedby or "<unknown", BannerID = Table.bannerid or 0, Duration = Table.duration or Table.time > 0 and Table.time - Time() or 0 }
@@ -177,14 +177,13 @@ function Plugin:MergeNS2IntoShine()
 	end
 	
 	for ID in pairs( MergedTable ) do
-		if not VanillaIds[ ID ] then
+		if not VanillaIDs[ ID ] then
 			MergedTable[ ID ] = nil
 			Edited = true
 		end
 	end
 	
 	if Edited then
-		self.Config.Banned = MergedTable
 		self:SaveConfig()
 	end
 end
@@ -193,10 +192,10 @@ end
 	Converts the NS2/DAK bans format into one compatible with Shine.
 ]]
 function Plugin:NS2ToShine( Data )
-	for ID, Table in ipairs( VanillaBans ) do
-		local SteamId = ToString( Table.id )
-		if SteamId then			
-			Data[ SteamId ] = { Name = Table.name, UnbanTime = Table.time, Reason = Table.reason, BannedBy = Table.bannedby or "<unknown", BannerID = Table.bannerid or 0, Duration = Table.duration or Table.time > 0 and Table.time - Time() or 0 }
+	for ID, Table in ipairs( Data ) do
+		local SteamID = tostring( Table.id )
+		if SteamID then			
+			Data[ SteamID ] = { Name = Table.name, UnbanTime = Table.time, Reason = Table.reason, BannedBy = Table.bannedby or "<unknown", BannerID = Table.bannerid or 0, Duration = Table.duration or Table.time > 0 and Table.time - Time() or 0 }
 		end
 		
 		Data[ ID ] = nil
@@ -212,7 +211,7 @@ function Plugin:ShineToNS2()
 	local NS2Bans = {}
 	
 	for ID, Table in pairs( self.Config.Banned ) do
-		NS2Bans[ #NS2Bans + 1 ] = { name = Table.Name , id = ToNumber( ID ), reason = Table.Reason, time = Table.UnbanTime, bannedby = Table.BannedBy, bannerid = Table.BannerID, duration = Table.Duration }
+		NS2Bans[ #NS2Bans + 1 ] = { name = Table.Name , id = tonumber( ID ), reason = Table.Reason, time = Table.UnbanTime, bannedby = Table.BannedBy, bannerid = Table.BannerID, duration = Table.Duration }
 	end
 	
 	Shine.SaveJSONFile( NS2Bans, self.VanillaConfig )
@@ -271,7 +270,7 @@ end
 	Output: Success.
 ]]
 function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
-	if not ToNumber( ID ) then 
+	if not tonumber( ID ) then 
 		ID = Shine.SteamIDToNS2( ID )
 
 		if not ID then
@@ -279,7 +278,7 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 		end
 	end
 
-	ID = ToString( ID )
+	ID = tostring( ID )
 
 	local BanData = {
 		ID = ID,
@@ -355,7 +354,7 @@ end
 	Input: Steam ID.
 ]]
 function Plugin:RemoveBan( ID, DontSave, UnbannerID )
-	ID = ToString( ID )
+	ID = tostring( ID )
 
 	local BanData = self.Config.Banned[ ID ]
 
@@ -429,7 +428,7 @@ function Plugin:CreateCommands()
 	]]
 	local function Ban( Client, Target, Duration, Reason )
 		Duration = Duration * 60
-		local ID = ToString( Target:GetUserId() )
+		local ID = tostring( Target:GetUserId() )
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
@@ -448,7 +447,7 @@ function Plugin:CreateCommands()
 
 		Server.DisconnectClient( Target )
 
-		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
+		local DurationString = Duration ~= 0 and "for "..string.Timetostring( Duration ) or "permanently"
 
 		Shine:CommandNotify( Client, "banned %s %s.", true, TargetName, DurationString )
 		Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName, ID, DurationString )
@@ -507,7 +506,7 @@ function Plugin:CreateCommands()
 			end
 		end
 
-		if not Shine:CanTarget( Client, ToNumber( ID ) ) then
+		if not Shine:CanTarget( Client, tonumber( ID ) ) then
 			Shine:NotifyError( Client, "You cannot ban %s.", true, ID )
 			Shine:AdminPrint( Client, "You cannot ban %s.", true, ID )
 
@@ -524,7 +523,7 @@ function Plugin:CreateCommands()
 
 		local BanningName = Client and Client:GetControllingPlayer():GetName() or "Console"
 		local BanningID = Client and Client:GetUserId() or 0
-		local Target = Shine.GetClientByNS2ID( ToNumber( ID ) )
+		local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
 		local TargetName = "<unknown>"
 		
 		if Target then
@@ -532,7 +531,7 @@ function Plugin:CreateCommands()
 		end
 		
 		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
-			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
+			local DurationString = Duration ~= 0 and "for "..string.Timetostring( Duration ) or "permanently"
 
 			Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName, ID, DurationString )
 			
@@ -562,7 +561,7 @@ function Plugin:CreateCommands()
 		
 		Shine:AdminPrint( Client, "Currently stored bans:" )
 		for ID, BanTable in pairs( self.Config.Banned ) do
-			local TimeRemaining = BanTable.UnbanTime == 0 and "Forever" or string.TimeToString( BanTable.UnbanTime - Time() )
+			local TimeRemaining = BanTable.UnbanTime == 0 and "Forever" or string.Timetostring( BanTable.UnbanTime - Time() )
 			Shine:AdminPrint( Client, "- ID: %s. Name: %s. Time remaining: %s. Reason: %s", true, ID, BanTable.Name or "<unknown>", TimeRemaining, BanTable.Reason or "No reason given." )
 		end
 	end
@@ -590,7 +589,7 @@ end
 function Plugin:ClientConnect( Client )
 	local ID = Client:GetUserId()
 
-	local BanEntry = self.Config.Banned[ ToString( ID ) ]
+	local BanEntry = self.Config.Banned[ tostring( ID ) ]
 
 	if BanEntry then
 		local SysTime = Time()
@@ -607,6 +606,12 @@ function Plugin:ClientDisconnect( Client )
 	if not self.BanNetworkedClients then return end
 
 	self.BanNetworkedClients[ Client ] = nil
+end
+
+function Plugin:SaveConfig()
+	self:ShineToNS2()
+	
+	self.BaseClass.SaveConfig( self )
 end
 
 function Plugin:NetworkBan( BanData, Client )
@@ -709,13 +714,4 @@ function Plugin:AddBanToNetData( BanData )
 	end
 
 	NetData[ #NetData + 1 ] = BanData
-end
-
-function Plugin:CleanUp()
-	self:SaveConfig()
-	self:ShineToNS2()
-	
-	self.BaseClass.Cleanup( self )
-	
-	self.Enabled = false
 end
