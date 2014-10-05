@@ -447,7 +447,7 @@ function Plugin:CreateCommands()
 
 		Server.DisconnectClient( Target )
 
-		local DurationString = Duration ~= 0 and "for "..string.Timetostring( Duration ) or "permanently"
+		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
 
 		Shine:CommandNotify( Client, "banned %s %s.", true, TargetName, DurationString )
 		Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName, ID, DurationString )
@@ -531,7 +531,7 @@ function Plugin:CreateCommands()
 		end
 		
 		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
-			local DurationString = Duration ~= 0 and "for "..string.Timetostring( Duration ) or "permanently"
+			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
 
 			Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName, ID, DurationString )
 			
@@ -561,7 +561,7 @@ function Plugin:CreateCommands()
 		
 		Shine:AdminPrint( Client, "Currently stored bans:" )
 		for ID, BanTable in pairs( self.Config.Banned ) do
-			local TimeRemaining = BanTable.UnbanTime == 0 and "Forever" or string.Timetostring( BanTable.UnbanTime - Time() )
+			local TimeRemaining = BanTable.UnbanTime == 0 and "Forever" or string.TimeToString( BanTable.UnbanTime - Time() )
 			Shine:AdminPrint( Client, "- ID: %s. Name: %s. Time remaining: %s. Reason: %s", true, ID, BanTable.Name or "<unknown>", TimeRemaining, BanTable.Reason or "No reason given." )
 		end
 	end
