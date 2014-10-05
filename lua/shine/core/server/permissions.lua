@@ -311,7 +311,27 @@ function Shine:GetUserData( Client )
 
 	if not ID then return nil end
 
-	return self.UserData.Users[ tostring( ID ) ], ID
+	local User = self.UserData.Users[ tostring( ID ) ]
+	if not User then
+		--Try the STEAM_0:X:YYYY format
+		local SteamID = self.NS2ToSteamID( ID )
+		User = self.UserData.Users[ SteamID ]
+		if User then
+			return User, SteamID
+		end
+
+		--Try the [U:1:YYYY] format
+		local Steam3ID = self.NS2ToSteam3ID( ID )
+		User = self.UserData.Users[ ID ]
+
+		if User then
+			return User, Steam3ID
+		end
+
+		return nil, ID
+	end
+
+	return User, ID
 end
 
 --[[
@@ -701,8 +721,10 @@ function Shine:CanTarget( Client, Target )
 
 	if not self.UserData then return false end
 
-	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
-	local TargetID = IsType( Target, "number" ) and Target or ( Target.GetUserId and Target:GetUserId() )
+	local ID = IsType( Client, "number" ) and Client
+		or ( Client.GetUserId and Client:GetUserId() )
+	local TargetID = IsType( Target, "number" ) and Target
+		or ( Target.GetUserId and Target:GetUserId() )
 
 	if not ID then return false end
 	if not TargetID then return false end
@@ -714,8 +736,8 @@ function Shine:CanTarget( Client, Target )
 
 	if not Users or not Groups then return false end
 
-	local User = Users[ tostring( ID ) ]
-	local TargetUser = Users[ tostring( TargetID ) ]
+	local User = self:GetUserData( ID )
+	local TargetUser = self:GetUserData( TargetID )
 
 	local TargetGroup
 	local TargetImmunity
@@ -736,7 +758,8 @@ function Shine:CanTarget( Client, Target )
 	if not SkipTargetGroupCheck then
 		TargetGroup = Groups[ TargetUser.Group or -1 ]
 		if not TargetGroup then
-			self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, TargetID, tostring( TargetUser.Group ) )
+			self:Print( "User with ID %s belongs to a non-existent group (%s)!", true,
+				TargetID, tostring( TargetUser.Group ) )
 			return true 
 		end
 
@@ -775,7 +798,8 @@ function Shine:CanTarget( Client, Target )
 		Group = Groups[ User.Group or -1 ]
 
 		if not Group then
-			self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, tostring( User.Group ) )
+			self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+				true, ID, tostring( User.Group ) )
 			return false
 		end
 
@@ -823,7 +847,7 @@ function Shine:IsInGroup( Client, Group )
 
 	if not ID then return false end
 
-	local User = UserData[ tostring( ID ) ]
+	local User = self:GetUserData( ID )
 
 	if User then
 		return User.Group == Group

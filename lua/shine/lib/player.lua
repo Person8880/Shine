@@ -50,7 +50,9 @@ local TableRemove = table.remove
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local TableToString = table.ToString
+local tonumber = tonumber
 local Traceback = debug.traceback
+local type = type
 
 --[[
 	Returns whether the given client is valid.
@@ -340,6 +342,13 @@ function Shine.NS2ToSteamID( ID )
 	if not ID then return "" end
 	
 	return StringFormat( "STEAM_0:%i:%i", ID % 2, Floor( ID * 0.5 ) )
+end
+
+function Shine.NS2ToSteam3ID( ID )
+	ID = tonumber( ID )
+	if not ID then return "" end
+
+	return StringFormat( "[U:1:%i]", ID )
 end
 
 function Shine.SteamIDToNS2( ID )
