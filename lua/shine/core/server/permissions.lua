@@ -320,10 +320,34 @@ end
 	Output: Group data table if it exists, nil otherwise.
 ]]
 function Shine:GetGroupData( GroupName )
+	if not GroupName then return self:GetDefaultGroup() end
 	if not self.UserData then return nil end
 	if not self.UserData.Groups then return nil end
 	
 	return self.UserData.Groups[ GroupName ]
+end
+
+--[[
+	Gets the group data table for the default group if it exists.
+]]
+function Shine:GetDefaultGroup()
+	if not self.UserData then return nil end
+	if not self.UserData.DefaultGroup then return nil end
+
+	return self.UserData.DefaultGroup
+end
+
+--[[
+	Gets the default immunity value. Usually 0.
+]]
+function Shine:GetDefaultImmunity()
+	local DefaultGroup = self:GetDefaultGroup()
+
+	if DefaultGroup then
+		return tonumber( DefaultGroup.Immunity ) or 0
+	end
+
+	return 0
 end
 
 --[[
@@ -338,14 +362,16 @@ function Shine:GetUserImmunity( Client )
 
 	local Data = self:GetUserData( Client )
 
-	if not Data then return 0 end
+	if not Data then
+		return self:GetDefaultImmunity()
+	end
 	if Data.Immunity then return tonumber( Data.Immunity ) or 0 end
 
 	local Group = Data.Group
 	local GroupData = self.UserData.Groups[ Group ]
 
 	if not GroupData then
-		return 0
+		return self:GetDefaultImmunity()
 	end
 
 	return tonumber( GroupData.Immunity ) or 0
@@ -372,42 +398,30 @@ local function CheckForCommand( Table, Command )
 end
 
 --[[
-	Determines if the given client has permission to run the given command.
-	Inputs: Client or Steam ID, command name (sh_*).
-	Output: True if allowed.
+	Verifies the given group has a commands table.
+	Inputs: Group name, group table.
+	Output: True if the group has a commands table, false otherwise.
 ]]
-function Shine:GetPermission( Client, ConCommand )
-	local Command = self.Commands[ ConCommand ]
-
-	if not Command then return false end
-	if not Client then return true end
-
-	local User, ID = self:GetUserData( Client )
-
-	if not User then
-		return Command.NoPerm or false
-	end
-
-	if Command.NoPerm then return true end
-
-	local UserGroup = User.Group
-	local GroupTable = self:GetGroupData( UserGroup )
-	
-	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
-		return false
-	end
-
-	if GroupTable.InheritsFrom then
-		return self:GetPermissionInheritance( ID, User, UserGroup, GroupTable, ConCommand )
-	end
-
+function Shine:VerifyGroup( GroupName, GroupTable )
 	if not IsType( GroupTable.Commands, "table" ) then
-		self:Print( "Group %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
-			true, UserGroup )
+		if GroupName then
+			self:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+				true, GroupName )
+		end
 
 		return false
 	end
+
+	return true
+end
+
+--[[
+	Gets whether the given group has the given permission.
+	Inputs: Group name, group table, command.
+	Output: True/false permission, allowed arguments if set.
+]]
+function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
+	if not self:VerifyGroup( GroupName, GroupTable ) then return false end
 
 	local Exists, AllowedArgs = CheckForCommand( GroupTable.Commands, ConCommand )
 
@@ -421,6 +435,51 @@ function Shine:GetPermission( Client, ConCommand )
 	end
 	
 	return Exists, AllowedArgs
+end
+
+--[[
+	Determines if the given client has permission to run the given command.
+	Inputs: Client or Steam ID, command name (sh_*).
+	Output: True if allowed.
+]]
+function Shine:GetPermission( Client, ConCommand )
+	local Command = self.Commands[ ConCommand ]
+
+	if not Command then return false end
+	if not Client then return true end
+
+	local User, ID = self:GetUserData( Client )
+
+	if not User then
+		if Command.NoPerm then
+			return true
+		end
+
+		local DefaultGroup = self:GetDefaultGroup()
+
+		if not DefaultGroup then
+			return false
+		end
+
+		return self:GetGroupPermission( nil, DefaultGroup, ConCommand )
+	end
+
+	if Command.NoPerm then return true end
+
+	local UserGroup = User.Group
+	local GroupTable = self:GetGroupData( UserGroup )
+
+	if not GroupTable then
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
+
+		return false
+	end
+
+	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
+		return self:GetPermissionInheritance( UserGroup, GroupTable, ConCommand )
+	end
+
+	return self:GetGroupPermission( UserGroup, GroupTable, ConCommand )
 end
 
 --[[
@@ -471,16 +530,32 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	if Processed[ GroupName ] then return end
 
 	Processed[ GroupName ] = true
-	
+
 	local InheritGroups = GroupTable.InheritsFrom
+	local InheritFromDefault = GroupTable.InheritFromDefault
 	local TopLevelCommands = GroupTable.Commands
 
 	if GroupTable.IsBlacklist == Blacklist then
 		if IsType( TopLevelCommands, "table" ) then
 			AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
 		else
-			self:Print( "Group %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			self:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
+		end
+	end
+
+	--Inherit from the default group, which cannot inherit from others.
+	if InheritFromDefault then
+		local DefaultGroup = self:GetDefaultGroup()
+		if not DefaultGroup then
+			self:Print( "Group with ID %s inherits from the default group, but no default group exists!", true, GroupName )
+		else
+			if not Processed[ DefaultGroup ] then
+				Processed[ DefaultGroup ] = true
+				if self:VerifyGroup( nil, DefaultGroup ) and DefaultGroup.IsBlacklist == Blacklist then
+					AddPermissionsToTable( DefaultGroup.Commands, Permissions, Blacklist )
+				end
+			end
 		end
 	end
 
@@ -507,23 +582,26 @@ end )
 
 --[[
 	Checks all inherited groups to determine command access.
-	Inputs: SteamID, user table, group name, group table, command name.
+	Inputs: Group name, group table, command name.
 	Output: True if allowed.
 ]]
-function Shine:GetPermissionInheritance( ID, User, GroupName, GroupTable, ConCommand )
+function Shine:GetPermissionInheritance( GroupName, GroupTable, ConCommand )
 	local InheritGroups = GroupTable.InheritsFrom
+	local InheritFromDefault = GroupTable.InheritFromDefault
 
-	if not IsType( InheritGroups, "table" ) then
-		self:Print( "Group with ID %s has a non-array entry for \"InheritsFrom\"!", true, GroupName )
+	if not InheritFromDefault then
+		if not IsType( InheritGroups, "table" ) then
+			self:Print( "Group with ID %s has a non-array entry for \"InheritsFrom\"!", true, GroupName )
 
-		return false
-	end
+			return false
+		end
 
-	local NumInheritGroups = #InheritGroups
-	if NumInheritGroups == 0 then
-		self:Print( "Group with ID %s has an empty \"InheritsFrom\" entry!", true, GroupName )
+		local NumInheritGroups = #InheritGroups
+		if NumInheritGroups == 0 then
+			self:Print( "Group with ID %s has an empty \"InheritsFrom\" entry!", true, GroupName )
 
-		return false
+			return false
+		end
 	end
 
 	local Blacklist = GroupTable.IsBlacklist
@@ -558,6 +636,21 @@ function Shine:GetPermissionInheritance( ID, User, GroupName, GroupTable, ConCom
 end
 
 --[[
+	Gets whether the given group has raw acccess to the given permission.
+	Inputs: Group name, group table, command.
+	Output: True/false permission.
+]]
+function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand )
+	if not self:VerifyGroup( GroupName, GroupTable ) then return false end
+
+	if GroupTable.IsBlacklist then
+		return not TableContains( GroupTable.Commands, ConCommand )
+	end
+
+	return TableContains( GroupTable.Commands, ConCommand )
+end
+
+--[[
 	Determines if the given client has raw access to the given command.
 	Unlike get permission, this looks specifically for a user group with explicit permission.
 	It also does not require the command to exist.
@@ -571,6 +664,12 @@ function Shine:HasAccess( Client, ConCommand )
 	local User, ID = self:GetUserData( Client )
 
 	if not User then
+		local DefaultGroup = self:GetDefaultGroup()
+		if not DefaultGroup then
+			return false
+		end
+
+
 		return false
 	end
 
@@ -582,22 +681,11 @@ function Shine:HasAccess( Client, ConCommand )
 		return false
 	end
 
-	if GroupTable.InheritsFrom then
-		return self:GetPermissionInheritance( ID, User, UserGroup, GroupTable, ConCommand )
+	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
+		return self:GetPermissionInheritance( UserGroup, GroupTable, ConCommand )
 	end
 
-	if not IsType( GroupTable.Commands, "table" ) then
-		self:Print( "Group %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
-			true, UserGroup )
-
-		return false
-	end
-
-	if GroupTable.IsBlacklist then
-		return not TableContains( GroupTable.Commands, ConCommand )
-	end
-	
-	return TableContains( GroupTable.Commands, ConCommand )
+	return self:GetGroupAccess( UserGroup, GroupTable, ConCommand )
 end
 	
 
@@ -628,40 +716,79 @@ function Shine:CanTarget( Client, Target )
 
 	local User = Users[ tostring( ID ) ]
 	local TargetUser = Users[ tostring( TargetID ) ]
-	
-	if not TargetUser then return true end --Target is a guest, can always target guests.
 
-	local TargetGroup = Groups[ TargetUser.Group or -1 ]
-	if not TargetGroup then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, TargetID, tostring( TargetUser.Group ) )
-		return true 
+	local TargetGroup
+	local TargetImmunity
+	local SkipTargetGroupCheck
+
+	if not TargetUser then
+		local DefaultGroup = self:GetDefaultGroup()
+
+		--Target is a guest, can always target guests if no default group is set.
+		if not DefaultGroup then
+			return true
+		end
+
+		SkipTargetGroupCheck = true
+		TargetGroup = DefaultGroup
 	end
 
-	local TargetImmunity = tonumber( TargetUser.Immunity or TargetGroup.Immunity )
-	if not TargetImmunity then
-		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
-			true, TargetID, tostring( TargetUser.Group ) )
-		return true
+	if not SkipTargetGroupCheck then
+		TargetGroup = Groups[ TargetUser.Group or -1 ]
+		if not TargetGroup then
+			self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, TargetID, tostring( TargetUser.Group ) )
+			return true 
+		end
+
+		TargetImmunity = tonumber( TargetUser.Immunity or TargetGroup.Immunity )
+		if not TargetImmunity then
+			self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
+				true, TargetID, tostring( TargetUser.Group ) )
+			return true
+		end
+	else
+		TargetImmunity = tonumber( TargetGroup.Immunity ) or 0
 	end
+
+	local Group
+	local Immunity
+	local SkipUserGroupCheck
 
 	--Guests can target groups with immunity < 0.
 	if not User then
-		return TargetImmunity < 0
+		--Guest vs guest, always allowed.
+		if SkipTargetGroupCheck then
+			return true
+		end
+
+		local DefaultGroup = self:GetDefaultGroup()
+
+		if not DefaultGroup then
+			return TargetImmunity < 0
+		end
+		
+		SkipUserGroupCheck = true
+		Group = DefaultGroup
 	end
 
-	local Group = Groups[ User.Group or -1 ]
+	if not SkipUserGroupCheck then
+		Group = Groups[ User.Group or -1 ]
 
-	if not Group then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, tostring( User.Group ) )
-		return false
-	end
+		if not Group then
+			self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, tostring( User.Group ) )
+			return false
+		end
 
-	local Immunity = tonumber( User.Immunity or Group.Immunity ) --Read from the user's immunity first, then the groups.
+		--Read from the user's immunity first, then the groups.
+		Immunity = tonumber( User.Immunity or Group.Immunity )
 
-	if not Immunity then
-		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
-			true, ID, tostring( User.Group ) )
-		return false
+		if not Immunity then
+			self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
+				true, ID, tostring( User.Group ) )
+			return false
+		end
+	else
+		Immunity = tonumber( Group.Immunity ) or 0
 	end
 
 	if self.Config.EqualsCanTarget then
