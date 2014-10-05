@@ -13,7 +13,8 @@ Shine:RegisterExtension( "commbans", Plugin, {
 		BanNetworkedClients = true,
 		BanList = true,
 		Rows = true,
-		BanData = true
+		BanData = true,
+		CleanUp = true
 	}
 } )
 
