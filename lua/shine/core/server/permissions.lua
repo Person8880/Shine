@@ -689,8 +689,7 @@ function Shine:HasAccess( Client, ConCommand )
 			return false
 		end
 
-
-		return false
+		return self:GetGroupAccess( nil, DefaultGroup, ConCommand )
 	end
 
 	local UserGroup = User.Group
