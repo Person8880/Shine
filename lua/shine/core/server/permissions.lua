@@ -735,8 +735,11 @@ function Shine:CanTarget( Client, Target )
 
 	if not Users or not Groups then return false end
 
-	local User = self:GetUserData( ID )
-	local TargetUser = self:GetUserData( TargetID )
+	local User
+	local TargetUser
+
+	User, ID = self:GetUserData( ID )
+	TargetUser, TargetID = self:GetUserData( TargetID )
 
 	local TargetGroup
 	local TargetImmunity
