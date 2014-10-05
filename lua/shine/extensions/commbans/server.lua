@@ -92,8 +92,10 @@ function Plugin:CreateCommands()
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
-			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
+				true, ID )
+			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
+				true, ID )
 
 			return
 		end
@@ -109,23 +111,30 @@ function Plugin:CreateCommands()
 			Player:Eject()
 		end
 
-		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
+		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
+			or "permanently"
 
-		Shine:CommandNotify( Client, "banned %s from commanding %s.", true, TargetName, DurationString )
-		Shine:AdminPrint( nil, "%s banned %s[%s] from commanding %s.", true, BanningName, TargetName, ID, DurationString )
+		Shine:CommandNotify( Client, "banned %s from commanding %s.", true,
+			TargetName, DurationString )
+		Shine:AdminPrint( nil, "%s banned %s[%s] from commanding %s.", true,
+			BanningName, TargetName, ID, DurationString )
 	end
 	local BanCommand = self:BindCommand( "sh_commban", "commban", Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
-	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
-	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
+	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+		Default = self.Config.DefaultBanTime }
+	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
+		Default = "No reason given." }
 	BanCommand:Help( "<player> <duration in minutes> <reason> Bans the given player from commanding for the given time in minutes. 0 is a permanent ban." )
 
 	local function Unban( Client, ID )
 		if self.Config.Banned[ ID ] then
 			--We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
-				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-				Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
+					true, ID )
+				Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
+					true, ID )
 
 				return
 			end
@@ -133,7 +142,8 @@ function Plugin:CreateCommands()
 			local Unbanner = ( Client and Client.GetUserId and Client:GetUserId() ) or 0
 
 			self:RemoveBan( ID, nil, Unbanner )
-			Shine:AdminPrint( nil, "%s unbanned %s from commanding.", true, Client and Client:GetControllingPlayer():GetName() or "Console", ID )
+			Shine:AdminPrint( nil, "%s unbanned %s from commanding.", true,
+				Client and Client:GetControllingPlayer():GetName() or "Console", ID )
 
 			return
 		end
@@ -171,8 +181,10 @@ function Plugin:CreateCommands()
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
-			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.", true, ID )
-			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.", true, ID )
+			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
+				true, ID )
+			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
+				true, ID )
 
 			return
 		end
@@ -187,9 +199,11 @@ function Plugin:CreateCommands()
 		end
 		
 		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
-			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration ) or "permanently"
+			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
+				or "permanently"
 
-			Shine:AdminPrint( nil, "%s banned %s[%s] from commanding %s.", true, BanningName, TargetName, ID, DurationString )
+			Shine:AdminPrint( nil, "%s banned %s[%s] from commanding %s.", true, BanningName,
+				TargetName, ID, DurationString )
 			
 			if Target then
 				local TargetPlayer = Target:GetControllingPlayer()
@@ -197,7 +211,8 @@ function Plugin:CreateCommands()
 					TargetPlayer:Eject()
 				end
 
-				Shine:CommandNotify( Client, "banned %s from commanding %s.", true, TargetName, DurationString )
+				Shine:CommandNotify( Client, "banned %s from commanding %s.", true,
+					TargetName, DurationString )
 			end
 
 			return
@@ -208,7 +223,9 @@ function Plugin:CreateCommands()
 	end
 	local BanIDCommand = self:BindCommand( "sh_commbanid", "commbanid", BanID )
 	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
-	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = self.Config.DefaultBanTime }
-	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "No reason given." }
+	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+		Default = self.Config.DefaultBanTime }
+	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
+		Default = "No reason given." }
 	BanIDCommand:Help( "<steamid> <duration in minutes> <reason> Bans the given Steam ID from commanding for the given time in minutes. 0 is a permanent ban." )
 end
