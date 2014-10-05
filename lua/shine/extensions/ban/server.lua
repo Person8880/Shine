@@ -23,7 +23,7 @@ local Time = os.time
 Plugin.HasConfig = true
 Plugin.ConfigName = "Bans.json"
 
-Plugin.SecondaryConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
+Plugin.VanillaConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
 
 --Max number of ban entries to network in one go.
 Plugin.MAX_BAN_PER_NETMESSAGE = 10
@@ -42,23 +42,28 @@ Plugin.DefaultConfig = {
 	BansSubmitArguments = {},
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5
+	VanillaConfigUpToDate = false,
 }
-
-function Plugin:VerifyConfig()
-	self.Config.MaxSubmitRetries = Max( self.Config.MaxSubmitRetries, 0 )
-	self.Config.SubmitTimeout = Max( self.Config.SubmitTimeout, 0 )
-	self.Config.DefaultBanTime = Max( self.Config.DefaultBanTime, 0 )
-end
+Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
+Plugin.SilentConfigSave = true
 
 --[[
 	Called on plugin startup, we create the chat commands and set ourself to enabled.
 	We return true to indicate a successful startup.
 ]]
 function Plugin:Initialise()
-	self:VerifyConfig()
-
 	self.Retries = {}
-
+	
+	if self.Config.GetBansFromWeb then
+		--Load bans list after everything else.
+		self:SimpleTimer( 1, function()
+			self:LoadBansFromWeb()
+		end)
+	else
+		self:MergeNS2IntoShine()
+	end
+	
 	self:CreateCommands()
 	self:CheckBans()
 
@@ -73,7 +78,7 @@ function Plugin:Initialise()
 		end )
 
 		--Override the bans list function (have to do it after everything's loaded).
-		Hook.Add( "Think", "Bans_Override", function()
+		self:SimpleTimer( 1, function()
 			function GetBannedPlayersList()
 				local Bans = self.Config.Banned
 				local Ret = {}
@@ -88,52 +93,22 @@ function Plugin:Initialise()
 
 				return Ret
 			end
-
-			Hook.Remove( "Think", "Bans_Override" )
 		end )
 
 		Hooked = true
 	end
-
+	
+	self:VerifyConfig()
+	
 	self.Enabled = true
 
 	return true
 end
 
---[[
-	Generates the default bans config.
-	This is called if no config file exists.
-]]
-function Plugin:GenerateDefaultConfig( Save )
-	self.Config = DefaultConfig
-
-	if Save then
-		local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-		if not Success then
-			Notify( "Error writing bans file: "..Err )	
-
-			return	
-		end
-
-		Notify( "Shine bans file created." )
-	end
-end
-
---[[
-	Saves the bans.
-	This is called when a ban is added or removed.
-]]
-function Plugin:SaveConfig()
-	if self.Config.GetBansFromWeb then return end
-	
-	local Success, Err = Shine.SaveJSONFile( self.Config, Shine.Config.ExtensionDir..self.ConfigName )
-
-	if not Success then
-		Notify( "Error writing bans file: "..Err )	
-
-		return	
-	end
+function Plugin:VerifyConfig()
+	self.Config.MaxSubmitRetries = Max( self.Config.MaxSubmitRetries, 0 )
+	self.Config.SubmitTimeout = Max( self.Config.SubmitTimeout, 0 )
+	self.Config.DefaultBanTime = Max( self.Config.DefaultBanTime, 0 )
 end
 
 function Plugin:LoadBansFromWeb()
@@ -146,23 +121,12 @@ function Plugin:LoadBansFromWeb()
 
 		local BansData = Decode( Response ) or {}
 		
-		--Shine config format.
 		if BansData.Banned then
 			self.Config.Banned = BansData.Banned
-		else --NS2 bans file format.
-			if not IsType( BansData, "table" ) or not next( BansData ) then
-				Shine:Print( "[Error] Received empty or corrupt bans table from the web." )
-
-				return
-			end
-
-			self.Config.Banned = nil
-
-			for i = 1, #BansData do
-				self.Config[ i ] = BansData[ i ]
-			end
-
-			self:ConvertData( self.Config )
+		elseif BansData[ 1 ] and BanData[ 1 ].id then
+			self.Config.Banned = self:NS2ToShine( BansData )
+		else
+			self.Config.Banned = {}
 		end
 
 		self:GenerateNetworkData()
@@ -188,114 +152,77 @@ function Plugin:OnWebConfigLoaded()
 	self:VerifyConfig()
 end
 
-local function HandleBadJSON( self )
-	Notify( "Invalid JSON for bans plugin config, loading default..." )
-
-	self.Config = DefaultConfig
-end
-
 --[[
-	Loads the bans.
+	Merges the NS2/Dak config into the Shine config.
 ]]
-function Plugin:LoadConfig()
-	local PluginConfig, Pos, Err = Shine.LoadJSONFile( Shine.Config.ExtensionDir..self.ConfigName )
+function Plugin:MergeNS2IntoShine()
+	local Edited
+	
+	local VanillaBans = Shine.LoadJSONFile( self.VanillaConfig )
+	local MergedTable = self.Config.Banned
+	local VanillaIDs = {}
 
-	if not PluginConfig then
-		if IsType( Pos, "number" ) then
-			HandleBadJSON( self )
-
-			return
-		else
-			PluginConfig, Pos, Err = Shine.LoadJSONFile( self.SecondaryConfig )
-
-			if not PluginConfig then
-				if IsType( Pos, "number" ) then
-					HandleBadJSON( self )
-
-					return
-				else
-					self:GenerateDefaultConfig( true )
-
-					return
-				end
+	for i = 1, #VanillaBans do
+		local Table = VanillaBans[ i ]
+		local ID = tostring( Table.id )
+		
+		if ID then
+			VanillaIDs[ ID ] = true
+			
+			if not MergedTable[ ID ] or MergedTable[ ID ] and MergedTable[ ID ].UnbanTime ~= Table.time then
+				MergedTable[ ID ] = { Name = Table.name, UnbanTime = Table.time, Reason = Table.reason, BannedBy = Table.bannedby or "<unknown", BannerID = Table.bannerid or 0, Duration = Table.duration or Table.time > 0 and Table.time - Time() or 0 }
+				
+				Edited = true
+			end
+		end		
+	end
+	
+	if self.Config.VanillaConfigUpToDate then
+		for ID in pairs( MergedTable ) do
+			if not VanillaIDs[ ID ] then
+				MergedTable[ ID ] = nil
+				Edited = true
 			end
 		end
+	else
+		if not Edited then 
+			self:ShineToNS2()
+		end
+		self.Config.VanillaConfigUpToDate = true
 	end
-
-	self.Config = PluginConfig
-
-	local Edited
-
-	if Shine.CheckConfig( self.Config, self.DefaultConfig ) then
-		Edited = true
-	end
-
-	if self:TypeCheckConfig() then
-		Edited = true
-	end
-
+	
 	if Edited then
-		Notify( "Shine bans config file updated." )
 		self:SaveConfig()
 	end
-
-	if self.Config.GetBansFromWeb then
-		--Load bans list after everything else.
-		Hook.Add( "Think", "Bans_WebLoad", function()
-			self:LoadBansFromWeb()
-
-			Hook.Remove( "Think", "Bans_WebLoad" )
-		end )
-
-		return
-	end
-
-	self:ConvertData( self.Config )
-
-	self:GenerateNetworkData()
 end
 
 --[[
 	Converts the NS2/DAK bans format into one compatible with Shine.
 ]]
-function Plugin:ConvertData( Data )
-	local Edited
-
-	if not Data.Banned then
-		Data.Banned = {}
-
-		for i = 1, #Data do
-			local Ban = Data[ i ]
-
-			Data.Banned[ tostring( Ban.id ) ] = { Name = Ban.name, UnbanTime = Ban.time, Reason = Ban.reason }
-
-			Data[ i ] = nil
-
-			Edited = true
+function Plugin:NS2ToShine( Data )
+	for ID, Table in ipairs( Data ) do
+		local SteamID = tostring( Table.id )
+		if SteamID then			
+			Data[ SteamID ] = { Name = Table.name, UnbanTime = Table.time, Reason = Table.reason, BannedBy = Table.bannedby or "<unknown", BannerID = Table.bannerid or 0, Duration = Table.duration or Table.time > 0 and Table.time - Time() or 0 }
 		end
+		
+		Data[ ID ] = nil
 	end
+	
+	return Data
+end
 
-	--Consistency check.
-	local Banned = Data.Banned
-
-	for ID, Table in pairs( Banned ) do
-		if Table.id then
-			Banned[ tostring( Table.id ) ] = { Name = Table.name, UnbanTime = Table.time, Reason = Table.reason }
-			
-			Banned[ ID ] = nil
-
-			Edited = true
-		end
+--[[
+	Saves the Shine bans in the vanilla bans config
+]]
+function Plugin:ShineToNS2()
+	local NS2Bans = {}
+	
+	for ID, Table in pairs( self.Config.Banned ) do
+		NS2Bans[ #NS2Bans + 1 ] = { name = Table.Name , id = tonumber( ID ), reason = Table.Reason, time = Table.UnbanTime, bannedby = Table.BannedBy, bannerid = Table.BannerID, duration = Table.Duration }
 	end
-
-	if not Data.DefaultBanTime then
-		Data.DefaultBanTime = 60
-		Edited = true
-	end
-
-	if Edited then
-		self:SaveConfig()
-	end
+	
+	Shine.SaveJSONFile( NS2Bans, self.VanillaConfig )
 end
 
 function Plugin:GenerateNetworkData()
@@ -687,6 +614,12 @@ function Plugin:ClientDisconnect( Client )
 	if not self.BanNetworkedClients then return end
 
 	self.BanNetworkedClients[ Client ] = nil
+end
+
+function Plugin:SaveConfig()
+	self:ShineToNS2()
+	
+	self.BaseClass.SaveConfig( self )
 end
 
 function Plugin:NetworkBan( BanData, Client )
