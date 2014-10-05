@@ -41,7 +41,7 @@ Plugin.DefaultConfig = {
 	BansSubmitURL = "",
 	BansSubmitArguments = {},
 	MaxSubmitRetries = 3,
-	SubmitTimeout = 5
+	SubmitTimeout = 5,
 	VanillaConfigUpToDate = false,
 }
 Plugin.CheckConfig = true
@@ -185,10 +185,10 @@ function Plugin:MergeNS2IntoShine()
 			end
 		end
 	else
-		if not Edited then 
-			self:ShineToNS2()
-		end
 		self.Config.VanillaConfigUpToDate = true
+		if not Edited then 
+			self:SaveConfig()
+		end
 	end
 	
 	if Edited then
