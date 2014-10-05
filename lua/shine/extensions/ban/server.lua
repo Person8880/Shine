@@ -184,7 +184,8 @@ function Plugin:MergeNS2IntoShine()
 				Edited = true
 			end
 		end
-	else 
+	else
+		self:ShineToNS2()
 		self.Config.VanillaConfigUpToDate = true
 	end
 	
