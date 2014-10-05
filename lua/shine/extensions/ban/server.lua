@@ -42,6 +42,7 @@ Plugin.DefaultConfig = {
 	BansSubmitArguments = {},
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5
+	VanillaConfigUpToDate = false,
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -176,11 +177,15 @@ function Plugin:MergeNS2IntoShine()
 		end		
 	end
 	
-	for ID in pairs( MergedTable ) do
-		if not VanillaIDs[ ID ] then
-			MergedTable[ ID ] = nil
-			Edited = true
+	if self.Config.VanillaConfigUpToDate then
+		for ID in pairs( MergedTable ) do
+			if not VanillaIDs[ ID ] then
+				MergedTable[ ID ] = nil
+				Edited = true
+			end
 		end
+	else 
+		self.Config.VanillaConfigUpToDate = true
 	end
 	
 	if Edited then
