@@ -41,7 +41,7 @@ Plugin.DefaultConfig = {
 	BansSubmitURL = "",
 	BansSubmitArguments = {},
 	MaxSubmitRetries = 3,
-	SubmitTimeout = 5
+	SubmitTimeout = 5,
 	VanillaConfigUpToDate = false,
 }
 Plugin.CheckConfig = true
