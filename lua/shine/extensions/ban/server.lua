@@ -185,7 +185,9 @@ function Plugin:MergeNS2IntoShine()
 			end
 		end
 	else
-		self:ShineToNS2()
+		if not Edited then 
+			self:ShineToNS2()
+		end
 		self.Config.VanillaConfigUpToDate = true
 	end
 	
