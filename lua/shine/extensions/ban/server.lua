@@ -220,7 +220,8 @@ end
 	Converts the NS2/DAK bans format into one compatible with Shine.
 ]]
 function Plugin:NS2ToShine( Data )
-	for ID, Table in ipairs( Data ) do
+	for i = 1, #Data do
+		local Table = Data[ i ]
 		local SteamID = tostring( Table.id )
 		if SteamID then			
 			Data[ SteamID ] = {
@@ -231,7 +232,7 @@ function Plugin:NS2ToShine( Data )
 			}
 		end
 		
-		Data[ ID ] = nil
+		Data[ i ] = nil
 	end
 	
 	return Data
