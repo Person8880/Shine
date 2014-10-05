@@ -343,12 +343,21 @@ function Shine.NS2ToSteamID( ID )
 end
 
 function Shine.SteamIDToNS2( ID )
-	if type( ID ) ~= "string" or not ID:match( "^STEAM_%d:%d:%d+$" ) then return nil end
+	if type( ID ) ~= "string" then return nil end
 
-	local Num = tonumber( ID:sub( 11 ) )
-	local Extra = tonumber( ID:sub( 9, 9 ) )
+	--STEAM_0:X:YYYYYYY
+	if ID:match( "^STEAM_%d:%d:%d+$" ) then
+		local Num = tonumber( ID:sub( 11 ) )
+		local Extra = tonumber( ID:sub( 9, 9 ) )
 
-	return Num * 2 + Extra
+		return Num * 2 + Extra
+	else
+		--[U:1:YYYYYYY]
+		local NS2ID = ID:match( "^%[U:%d:(%d+)%]$" )
+		if not NS2ID then return nil end
+
+		return tonumber( NS2ID )
+	end
 end
 
 function Shine:GetClientBySteamID( ID )
