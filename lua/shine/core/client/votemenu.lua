@@ -4,6 +4,7 @@
 
 Script.Load( "lua/shine/core/client/votemenu_gui.lua" )
 
+local IsType = Shine.IsType
 local StringFormat = string.format
 local TableSort = table.sort
 
@@ -75,7 +76,7 @@ function Shine.OpenVoteMenu()
 	VoteMenu:SetIsVisible( true )
 
 	Shine.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
-	
+
 	Shine.Hook.Call( "OnVoteMenuOpen" )
 end
 
@@ -121,15 +122,19 @@ local function BindVoteKey()
 	local Binds
 
 	if CustomBinds then
-		Binds = json.decode( CustomBinds:read( "*all" ) ) or {}
+		local BindsFile = CustomBinds:read( "*all" )
 
 		CustomBinds:close()
 
-		for Button, Data in pairs( Binds ) do
-			if Data.command and Data.command:find( "sh_votemenu" ) then
-				Shine.VoteButtonBound = true
-				Shine.VoteButton = Button
-				return
+		Binds = json.decode( BindsFile ) or {}
+
+		if IsType( Binds, "table" ) then
+			for Button, Data in pairs( Binds ) do
+				if Data.command and Data.command:find( "sh_votemenu" ) then
+					Shine.VoteButtonBound = true
+					Shine.VoteButton = Button
+					return
+				end
 			end
 		end
 	end
