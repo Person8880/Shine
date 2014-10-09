@@ -48,9 +48,17 @@ function Shine.CheckVoteMenuBind()
 		return 
 	end
 
-	local Binds = json.decode( CustomBinds:read( "*all" ) ) or {}
-
+	local BindsFile = CustomBinds:read( "*all" )
 	CustomBinds:close()
+
+	local Binds = json.decode( BindsFile ) or {}
+
+	if not IsType( Binds, "table" ) then
+		Shine.VoteButtonBound = nil
+		Shine.VoteButton = nil
+
+		return
+	end
 
 	for Button, Data in pairs( Binds ) do
 		if Data.command:find( "sh_votemenu" ) then
