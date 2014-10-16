@@ -214,6 +214,8 @@ function Plugin:MergeNS2IntoShine()
 	if Edited then
 		self:SaveConfig()
 	end
+
+	self:GenerateNetworkData()
 end
 
 --[[
