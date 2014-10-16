@@ -122,6 +122,7 @@ function ListHeader:OnMouseUp( Key )
 	if not self.Highlighted then return end
 
 	self.Parent:SortRows( self.Index )
+	Shared.PlaySound( nil, SGUI.Controls.Button.Sound )
 
 	return true
 end
