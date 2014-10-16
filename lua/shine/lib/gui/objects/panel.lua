@@ -249,7 +249,7 @@ function Panel:SetIsVisible( Visible )
 
 	if not Children then return end
 
-	for Child in pairs( Children ) do
+	for Child in Children:Iterate() do
 		Child:SetIsVisible( Visible )
 	end
 end
@@ -259,7 +259,7 @@ end
 ]]
 function Panel:Clear()
 	if self.Children then
-		for Element in pairs( self.Children ) do
+		for Element in self.Children:Iterate() do
 			if Element ~= self.Scrollbar then
 				Element:SetParent()
 				Element:Destroy()

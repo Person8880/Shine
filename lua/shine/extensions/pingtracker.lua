@@ -7,10 +7,12 @@ local Plugin = {}
 local Abs = math.abs
 local Ceil = math.ceil
 local Floor = math.floor
-local pairs = pairs
+local SharedGetTime = Shared.GetTime
 local StringFormat = string.format
 local TableAverage = table.Average
 local TableEmpty = table.Empty
+
+local Map = Shine.Map
 
 local Plugin = {}
 Plugin.Version = "1.0"
@@ -32,7 +34,7 @@ Plugin.CheckConfigTypes = true
 function Plugin:Initialise()
 	self.Config.CheckInterval = Floor( self.Config.CheckInterval )
 
-	self.Players = {}
+	self.Players = Map()
 
 	self.Enabled = true
 
@@ -45,21 +47,20 @@ function Plugin:ClientConnect( Client )
 	local FirstCheck = Time + 30
 	local NextAverage = FirstCheck + self.Config.CheckInterval
 
-	self.Players[ Client ] = {
+	self.Players:Add( Client, {
 		NextCheck = FirstCheck,
 		NextAverage = NextAverage,
 		TimesOver = 0,
 		Pings = {},
 		DeltaPings = {}
-	}
+	} )
 end
 
 function Plugin:ClientDisconnect( Client )
-	self.Players[ Client ] = nil
+	self.Players:Remove( Client )
 end
 
 function Plugin:CheckClient( Client, Data, Time )
-	if not self.Players[ Client ] then return end
 	if Shine:HasAccess( Client, "sh_pingimmune" ) then return end
 
 	if Data.NextCheck > Time then return end
@@ -138,9 +139,9 @@ function Plugin:CheckClient( Client, Data, Time )
 end
 
 function Plugin:Think()
-	local Time = Shared.GetTime()
+	local Time = SharedGetTime()
 
-	for Client, Data in pairs( self.Players ) do
+	for Client, Data in self.Players:Iterate() do
 		self:CheckClient( Client, Data, Time )
 	end
 end

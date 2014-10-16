@@ -280,7 +280,7 @@ end )
 --[[
 	Game IDs handling.
 ]]
-local GameIDs = {}
+local GameIDs = Shine.Map()
 
 Shine.GameIDs = GameIDs
 
@@ -288,14 +288,14 @@ local GameID = 0
 
 Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
 	--I have a suspicion that this event is being called again for a client that never disconnected.
-	if GameIDs[ Client ] then return true end
+	if GameIDs:Get( Client ) then return true end
 	
 	GameID = GameID + 1
-	GameIDs[ Client ] = GameID
+	GameIDs:Add( Client, GameID )
 end, -20 )
 
 Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client ) 
-	GameIDs[ Client ] = nil
+	GameIDs:Remove( Client )
 end, -20 )
 
 --[[

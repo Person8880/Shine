@@ -473,7 +473,7 @@ end
 function Plugin:Think()
 	if not self.Config.CycleOnEmpty then return end
 	if SharedTime() <= ( self.MapCycle.time * 60 ) then return end
-	if TableCount( Shine.GameIDs ) > self.Config.EmptyPlayerCount then return end
+	if Shine.GameIDs:GetCount() > self.Config.EmptyPlayerCount then return end
 
 	if not self.Cycled then
 		self.Cycled = true

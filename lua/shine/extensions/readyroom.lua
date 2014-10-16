@@ -283,7 +283,7 @@ function Plugin:Think()
 
 	local Clients = Shine.GameIDs
 
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		self:ProcessClient( Client, Time )
 	end
 end

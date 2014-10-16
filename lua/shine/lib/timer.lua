@@ -7,8 +7,9 @@ local StringFormat = string.format
 local TableRemove = table.remove
 local xpcall = xpcall
 
-local Timers = {}
-local Simples = {}
+local Map = Shine.Map
+
+local Timers = Map()
 
 Shine.Timer = {}
 
@@ -17,7 +18,7 @@ TimerMeta.__index = TimerMeta
 
 function TimerMeta:Destroy()
 	if self.Name then
-		Timers[ self.Name ] = nil
+		Timers:Remove( self.Name )
 	end
 end
 
@@ -72,7 +73,7 @@ end
 local function Create( Name, Delay, Reps, Func )
 	local Time = SharedTime()
 
-	local OldObject = Timers[ Name ]
+	local OldObject = Timers:Get( Name )
 
 	--Edit it so it's not destroyed if it's created again inside its old function.
 	if OldObject then
@@ -94,7 +95,7 @@ local function Create( Name, Delay, Reps, Func )
 		NextRun = Time + Delay
 	}, TimerMeta )
 
-	Timers[ Name ] = Timer
+	Timers:Add( Name, Timer )
 
 	return Timer
 end
@@ -120,8 +121,8 @@ end
 	Input: Timer name to remove.
 ]]
 function Shine.Timer.Destroy( Name )
-	if Timers[ Name ] then
-		Timers[ Name ] = nil
+	if Timers:Get( Name ) then
+		Timers:Remove( Name )
 	end
 end
 
@@ -130,14 +131,14 @@ end
 	Input: Timer name to check.
 ]]
 local function Exists( Name )
-	return Timers[ Name ] ~= nil
+	return Timers:Get( Name ) ~= nil
 end
 Shine.Timer.Exists = Exists
 
 function Shine.Timer.Pause( Name )
 	if not Exists( Name ) then return end
 	
-	local Timer = Timers[ Name ]
+	local Timer = Timers:Get( Name )
 
 	Timer:Pause()
 end
@@ -145,7 +146,7 @@ end
 function Shine.Timer.Resume( Name )
 	if not Exists( Name ) then return end
 	
-	local Timer = Timers[ Name ]
+	local Timer = Timers:Get( Name )
 	
 	Timer:Resume()
 end
@@ -165,7 +166,7 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 	local Time = SharedTime()
 
 	--Run the timers.
-	for Name, Timer in pairs( Timers ) do
+	for Name, Timer in Timers:Iterate() do
 		if Timer.NextRun <= Time and not Timer.Paused then
 			if Timer.Reps > 0 then
 				Timer.Reps = Timer.Reps - 1

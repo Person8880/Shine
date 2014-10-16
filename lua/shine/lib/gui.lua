@@ -8,6 +8,7 @@ Shine.GUI = Shine.GUI or {}
 
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
+local Map = Shine.Map
 
 local assert = assert
 local Clock = os.clock
@@ -25,7 +26,7 @@ include "lua/shine/lib/colour.lua"
 
 SGUI.Controls = {}
 
-SGUI.ActiveControls = {}
+SGUI.ActiveControls = Map()
 SGUI.Windows = {}
 
 --Used to adjust the appearance of all elements at once.
@@ -170,13 +171,13 @@ local IsType = Shine.IsType
 ]]
 function SGUI:CallGlobalEvent( Name, CheckFunc, ... )
 	if IsType( CheckFunc, "function" ) then
-		for Control in pairs( self.ActiveControls ) do
+		for Control in self.ActiveControls:Iterate() do
 			if Control[ Name ] and CheckFunc( Control ) then
 				Control[ Name ]( Control, Name, ... )
 			end
 		end
 	else
-		for Control in pairs( self.ActiveControls ) do
+		for Control in self.ActiveControls:Iterate() do
 			if Control[ Name ] then
 				Control[ Name ]( Control, Name, ... )
 			end
@@ -344,7 +345,7 @@ function SGUI:Create( Class, Parent )
 	Control.Class = Class
 	Control:Initialise()
 
-	self.ActiveControls[ Control ] = true
+	self.ActiveControls:Add( Control, true )
 
 	--If it's a window then we give it focus.
 	if MetaTable.IsWindow and not Parent then
@@ -373,11 +374,11 @@ end
 	Input: SGUI control object.
 ]]
 function SGUI:Destroy( Control )
-	self.ActiveControls[ Control ] = nil
+	self.ActiveControls:Remove( Control )
 
 	--SGUI children, not GUIItems.
 	if Control.Children then
-		for Control in pairs( Control.Children ) do
+		for Control in Control.Children:Iterate() do
 			Control:Destroy()
 		end
 	end
@@ -419,10 +420,6 @@ function SGUI:Destroy( Control )
 
 		self:SetWindowFocus( Windows[ #Windows ] )
 	end
-
-	for k in pairs( Control ) do
-		Control[ k ] = nil
-	end
 end
 
 --[[
@@ -456,9 +453,11 @@ local function NotifyFocusChange( Element, ClickingOtherElement )
 		SGUI.FocusedControl = nil
 	end
 
-	for Control in pairs( SGUI.ActiveControls ) do
+	for Control in SGUI.ActiveControls:Iterate() do
 		if Control.OnFocusChange then
-			Control:OnFocusChange( Element, ClickingOtherElement )
+			if Control:OnFocusChange( Element, ClickingOtherElement ) then
+				break
+			end
 		end
 	end
 end
@@ -596,11 +595,11 @@ end
 ]]
 function ControlMeta:SetParent( Control, Element )
 	if self.Parent then
-		self.Parent.Children[ self ] = nil
+		self.Parent.Children:Remove( self )
 		self.ParentElement:RemoveChild( self.Background )
 	end
 
-	if not Control then 
+	if not Control then
 		self.Parent = nil 
 		return 
 	end
@@ -610,8 +609,8 @@ function ControlMeta:SetParent( Control, Element )
 		self.Parent = Control
 		self.ParentElement = Element
 
-		Control.Children = Control.Children or {}
-		Control.Children[ self ] = true
+		Control.Children = Control.Children or Map()
+		Control.Children:Add( self, true )
 
 		Element:AddChild( self.Background )
 
@@ -623,8 +622,8 @@ function ControlMeta:SetParent( Control, Element )
 	self.Parent = Control
 	self.ParentElement = Control.Background
 
-	Control.Children = Control.Children or {}
-	Control.Children[ self ] = true
+	Control.Children = Control.Children or Map()
+	Control.Children:Add( self, true )
 
 	Control.Background:AddChild( self.Background )
 end
@@ -638,7 +637,7 @@ function ControlMeta:CallOnChildren( Name, ... )
 	if not self.Children then return nil end
 
 	--Call the event on every child of this object, no particular order.
-	for Child in pairs( self.Children ) do
+	for Child in self.Children:Iterate() do
 		if Child[ Name ] and not Child._CallEventsManually then
 			local Result, Control = Child[ Name ]( Child, ... )
 
@@ -921,11 +920,13 @@ end
 		6. Callback function to run once the fading has completed.
 ]]
 function ControlMeta:FadeTo( Element, Start, End, Delay, Duration, Callback )
-	self.Fades = self.Fades or {}
+	self.Fades = self.Fades or Map()
 
-	self.Fades[ Element ] = self.Fades[ Element ] or {}
-
-	local Fade = self.Fades[ Element ]
+	local Fade = self.Fades:Get( Element )
+	if not Fade then
+		self.Fades:Add( Element, {} )
+		Fade = self.Fades:Get( Element )
+	end
 
 	Fade.Obj = Element
 
@@ -965,12 +966,14 @@ end
 		8. Optional power to pass to the easing function.
 ]]
 function ControlMeta:SizeTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
-	self.SizeAnims = self.SizeAnims or {}
+	self.SizeAnims = self.SizeAnims or Map()
 	local Sizes = self.SizeAnims
 
-	Sizes[ Element ] = Sizes[ Element ] or {}
-
-	local Size = Sizes[ Element ]
+	local Size = Sizes:Get( Element )
+	if not Size then
+		self.SizeAnims:Add( Element, {} )
+		Size = self.SizeAnims:Get( Element )
+	end
 
 	Size.Obj = Element
 
@@ -1064,7 +1067,7 @@ function ControlMeta:Think( DeltaTime )
 
 	--Fading handling.
 	if self.Fades and next( self.Fades ) then
-		for Element, Fade in pairs( self.Fades ) do
+		for Element, Fade in self.Fades:Iterate() do
 			local Start = Fade.StartTime
 			local Duration = Fade.Duration
 			
@@ -1091,7 +1094,7 @@ function ControlMeta:Think( DeltaTime )
 	end
 
 	if self.SizeAnims and next( self.SizeAnims ) then
-		for Element, Size in pairs( self.SizeAnims ) do
+		for Element, Size in self.SizeAnims:Iterate() do
 			local Start = Size.StartTime
 			local Duration = Size.Duration
 
@@ -1211,5 +1214,5 @@ end
 	Output: Boolean valid.
 ]]
 function ControlMeta:IsValid()
-	return SGUI.ActiveControls[ self ] ~= nil
+	return SGUI.ActiveControls:Get( self ) ~= nil
 end

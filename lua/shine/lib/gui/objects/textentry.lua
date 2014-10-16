@@ -525,7 +525,7 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 		if self.StickyFocus and ClickingOtherElement then
 			self:RequestFocus()
 
-			return
+			return true
 		end
 		
 		if self.Enabled then

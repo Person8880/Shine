@@ -676,7 +676,7 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		return false, Err
 	end
 
-	if Server and Plugin.IsShared and next( self.GameIDs ) then --We need to inform clients to enable the client portion.
+	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then --We need to inform clients to enable the client portion.
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
 	end
 
@@ -694,7 +694,7 @@ function Shine:UnloadExtension( Name )
 
 	Plugin.Enabled = false
 
-	if Server and Plugin.IsShared and next( self.GameIDs ) then
+	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
 
@@ -719,8 +719,12 @@ function Shine:IsExtensionEnabled( Name )
 end
 
 local ClientPlugins = {}
---Store a list of all plugins in existance. When the server config loads, we use it.
-Shine.AllPlugins = {}
+--Store a list of all plugins in existence. When the server config loads, we use it.
+local AllPlugins = {}
+Shine.AllPlugins = AllPlugins
+
+local AllPluginsArray = {}
+Shine.AllPluginsArray = AllPluginsArray
 
 --[[
 	Prepare shared plugins.
@@ -737,17 +741,26 @@ for Path in pairs( PluginFiles ) do
 		if not ClientPlugins[ Name ] then
 			local LoweredFileName = File:lower()
 
+			if not AllPlugins[ Name ] then
+				AllPluginsArray[ #AllPluginsArray + 1 ] = Name
+			end
+
 			if LoweredFileName == "shared.lua" then
 				ClientPlugins[ Name ] = "boolean" --Generate the network message.
-				Shine.AllPlugins[ Name ] = true
+				AllPlugins[ Name ] = true
 			elseif LoweredFileName == "server.lua" then
-				Shine.AllPlugins[ Name ] = true
+				AllPlugins[ Name ] = true
 			end
 
 			Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
 		end
 	else
-		Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
+		Name = Name:gsub( "%.lua", "" )
+
+		if not AllPlugins[ Name ] then
+			AllPlugins[ Name ] = true
+			AllPluginsArray[ #AllPluginsArray + 1 ] = Name
+		end
 	end
 end
 

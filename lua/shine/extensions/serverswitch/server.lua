@@ -24,8 +24,8 @@ Plugin.CheckConfigTypes = true
 function Plugin:Initialise()
 	self:CreateCommands()
 
-	if next( Shine.GameIDs ) then
-		for Client in pairs( Shine.GameIDs ) do
+	if not Shine.GameIDs:IsEmpty() then
+		for Client in Shine.GameIDs:Iterate() do
 			self:ProcessClient( Client )
 		end
 	end
@@ -70,7 +70,7 @@ end
 function Plugin:OnUserReload()
 	local Clients = Shine.GameIDs
 
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		self:ProcessClient( Client )
 	end
 end

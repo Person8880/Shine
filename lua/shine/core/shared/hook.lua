@@ -11,6 +11,8 @@ local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
 local StringFormat = string.format
 
+local Map = Shine.Map
+
 Shine.Hook = {}
 
 local Hooks = {}
@@ -28,7 +30,7 @@ local function Remove( Event, Index )
 	local Priority = ReservedNames[ Event ][ Index ]
 	if not Priority then return end
 
-	EventHooks[ Priority ][ Index ] = nil
+	EventHooks[ Priority ]:Remove( Index )
 	ReservedNames[ Event ][ Index ] = nil
 end
 Shine.Hook.Remove = Remove
@@ -50,10 +52,10 @@ local function Add( Event, Index, Function, Priority )
 	end
 
 	if not Hooks[ Event ][ Priority ] then
-		Hooks[ Event ][ Priority ] = {}
+		Hooks[ Event ][ Priority ] = Map()
 	end
 
-	Hooks[ Event ][ Priority ][ Index ] = Function
+	Hooks[ Event ][ Priority ]:Add( Index, Function )
 	ReservedNames[ Event ][ Index ] = Priority
 end
 Shine.Hook.Add = Add
@@ -83,6 +85,7 @@ local function Call( Event, ... )
 	if Shine.Hook.Disabled then return end
 	
 	local Plugins = Shine.Plugins
+	local AllPlugins = Shine.AllPluginsArray
 
 	local Hooked = Hooks[ Event ]
 
@@ -92,7 +95,7 @@ local function Call( Event, ... )
 
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
-		for Index, Func in pairs( MaxPriority ) do
+		for Index, Func in MaxPriority:Iterate() do
 			local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 			if not Success then
@@ -111,16 +114,21 @@ local function Call( Event, ... )
 
 	if Plugins then
 		--Automatically call the plugin hooks.
-		for Plugin, Table in pairs( Plugins ) do
-			if Table.Enabled and IsType( Table[ Event ], "function" ) then
+		for i = 1, #AllPlugins do
+			local Plugin = AllPlugins[ i ]
+			local Table = Plugins[ Plugin ]
+
+			if Table and Table.Enabled and IsType( Table[ Event ], "function" ) then
 				local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
 
 				if not Success then
 					Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
-					Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.", true, Event, Plugin, Table.__HookErrors )
+					Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
+						true, Event, Plugin, Table.__HookErrors )
 
 					if Table.__HookErrors >= 10 then
-						Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).", true, Plugin, Table.__HookErrors )
+						Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
+							true, Plugin, Table.__HookErrors )
 
 						Table.__HookErrors = 0
 
@@ -139,7 +147,7 @@ local function Call( Event, ... )
 		local HookTable = Hooked[ i ]
 
 		if HookTable then
-			for Index, Func in pairs( HookTable ) do
+			for Index, Func in HookTable:Iterate() do
 				local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 				if not Success then

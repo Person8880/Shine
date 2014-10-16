@@ -58,7 +58,7 @@ local type = type
 	Returns whether the given client is valid.
 ]]
 function Shine:IsValidClient( Client )
-	return Client and self.GameIDs[ Client ] ~= nil
+	return Client and self.GameIDs:Get( Client ) ~= nil
 end
 
 local function OnJoinError( Error )
@@ -186,7 +186,7 @@ function Shine.GetHumanPlayerCount()
 
 	local GameIDs = Shine.GameIDs
 
-	for Client, ID in pairs( GameIDs ) do
+	for Client, ID in GameIDs:Iterate() do
 		if Client.GetIsVirtual and not Client:GetIsVirtual() then
 			Count = Count + 1
 		end
@@ -204,7 +204,7 @@ function Shine.GetAllPlayers()
 
 	local GameIDs = Shine.GameIDs
 
-	for Client, ID in pairs( GameIDs ) do
+	for Client, ID in GameIDs:Iterate() do
 		local Player = Client.GetControllingPlayer and Client:GetControllingPlayer()
 
 		if Player then
@@ -262,7 +262,7 @@ function Shine.GetAllClients()
 
 	local GameIDs = Shine.GameIDs
 
-	for Client, ID in pairs( GameIDs ) do
+	for Client, ID in GameIDs:Iterate() do
 		Clients[ Count ] = Client
 		Count = Count + 1
 	end
@@ -276,7 +276,7 @@ end
 function Shine.GetClientByID( ID )
 	local GameIDs = Shine.GameIDs
 
-	for Client, GameID in pairs( GameIDs ) do
+	for Client, GameID in GameIDs:Iterate() do
 		if ID == GameID then
 			return Client
 		end
@@ -293,7 +293,7 @@ function Shine.GetClientByNS2ID( ID )
 	
 	local Clients = Shine.GameIDs
 	
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		if Client:GetUserId() == ID then
 			return Client
 		end
@@ -314,7 +314,7 @@ function Shine.GetClientByName( Name )
 	local SortTable = {}
 	local Count = 0
 
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		local Player = Client:GetControllingPlayer()
 
 		if Player then
@@ -405,7 +405,7 @@ function Shine:GetClientsWithAccess( Access )
 	local Ret = {}
 	local Count = 0
 
-	for Client in pairs( self.GameIDs ) do
+	for Client in self.GameIDs:Iterate() do
 		if self:HasAccess( Client, Access ) then
 			Count = Count + 1
 			Ret[ Count ] = Client
@@ -433,7 +433,7 @@ function Shine:GetClientsByGroup( Group )
 	local Count = 0
 	local Ret = {}
 
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		if self:IsInGroup( Client, Group ) then
 			Count = Count + 1
 			Ret[ Count ] = Client
