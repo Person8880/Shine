@@ -69,10 +69,10 @@ function Map:Get( Key )
 end
 
 --[[
-	Removes an Key from the Map if it is contained.
+	Removes a key from the map if it is mapped.
 
 	Input: Key to remove.
-	Output: The removed Key if it existed in the Map, otherwise nil.
+	Output: The removed key, value pair if it existed in the map, otherwise nil.
 ]]
 function Map:Remove( Key )
 	if not self.MemberLookup[ Key ] then return nil end
@@ -122,7 +122,7 @@ function Map:RemoveAtPosition( Position )
 end
 
 --[[
-	Returns true if the Map still has more elements to iterate through.
+	Returns true if the map still has more elements to iterate through.
 
 	Input:
 	A boolean value to determine whether to reset the iteration position
@@ -143,7 +143,7 @@ function Map:HasNext( DontReset )
 end
 
 --[[
-	Returns true if the Map has elements behind the current position.
+	Returns true if the map has elements behind the current position.
 ]]
 function Map:HasPrevious()
 	return self.Position > 1 and self.NumMembers > 0
