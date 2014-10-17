@@ -37,9 +37,9 @@ function Map:GetCount()
 end
 
 --[[
-	Adds a key-value pair to the map if it is not already in it.
+	Adds a key-value pair to the map, or updates the value if it is already in it.
 
-	Input: Key.
+	Input: Key, value pair to map.
 ]]
 function Map:Add( Key, Value )
 	if Key == nil then return end
@@ -151,6 +151,7 @@ end
 
 --[[
 	Returns the next element if one exists, or nil otherwise.
+	Advances the iteration position.
 ]]
 function Map:GetNext()
 	if not self:HasNext( true ) then
@@ -165,7 +166,22 @@ function Map:GetNext()
 end
 
 --[[
+	Returns the next element if one exists, or nil otherwise.
+	Does not advance the iteration position.
+]]
+function Map:PeekForward()
+	if not self:HasNext( true ) then
+		return nil
+	end
+
+	local Key = self.Keys[ self.Position + 1 ]
+
+	return Key, self.MemberLookup[ Key ]
+end
+
+--[[
 	Returns the previous element if one exists, or nil otherwise.
+	Moves the iteration position backwards.
 ]]
 function Map:GetPrevious()
 	if not self:HasPrevious() then
@@ -175,6 +191,20 @@ function Map:GetPrevious()
 	self.Position = self.Position - 1
 
 	local Key = self.Keys[ self.Position ]
+
+	return Key, self.MemberLookup[ Key ]
+end
+
+--[[
+	Returns the previous element if one exists, or nil otherwise.
+	Does not move the iteration position backwards.
+]]
+function Map:PeekBackwards()
+	if not self:HasPrevious() then
+		return nil
+	end
+
+	local Key = self.Keys[ self.Position - 1 ]
 
 	return Key, self.MemberLookup[ Key ]
 end
@@ -196,11 +226,11 @@ function Map:SetPosition( Position )
 end
 
 local function IterateSet( self )
-    if self:HasNext() then
-        return self:GetNext()
-    end
+	if self:HasNext() then
+		return self:GetNext()
+	end
 
-    return nil
+	return nil
 end
 
 --[[
@@ -211,7 +241,7 @@ end
 function Map:Iterate()
 	self:ResetPosition()
 
-    return IterateSet, self
+	return IterateSet, self
 end
 
 local UNIT_TEST = false
