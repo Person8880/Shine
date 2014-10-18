@@ -2,7 +2,7 @@
 	Misc. stuff...
 ]]
 
---Called when the client first presses a button, this should be when they're ready to receive the MotD, among other things.
+--Called when the client first presses a button.
 Shared.RegisterNetworkMessage( "Shine_ClientConfirmConnect", {} )
 
 local SendNetMessage = Server and Server.SendNetworkMessage or Client.SendNetworkMessage

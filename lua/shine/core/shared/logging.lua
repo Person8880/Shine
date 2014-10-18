@@ -20,7 +20,8 @@ local function ReportErrors()
 	local PostData = TableConcat( ErrorQueue, "\n" )
 	PostData = PostData:sub( 1, 10240 )
 
-	Shared.SendHTTPRequest( URL, "POST", { error = PostData, blehstuffcake = "enihs" }, function() end )
+	Shared.SendHTTPRequest( URL, "POST", { error = PostData, blehstuffcake = "enihs" },
+		function() end )
 
 	TableEmpty( ErrorQueue )
 end

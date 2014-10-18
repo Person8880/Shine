@@ -142,7 +142,8 @@ function Shine:LoadConfig()
 end
 
 function Shine:SaveConfig( Silent )
-	local ConfigFile, Err = self.SaveJSONFile( self.Config, self.ConfigPath or GetConfigPath( false, true ) )
+	local ConfigFile, Err = self.SaveJSONFile( self.Config,
+		self.ConfigPath or GetConfigPath( false, true ) )
 
 	if not ConfigFile then --Something's gone horribly wrong!
 		Shine.Error = "Error writing config file: "..Err
@@ -453,7 +454,8 @@ end
 local function OnWebPluginTimeout( self, Plugins, Reload )
 	self.WebPluginTimeouts = ( self.WebPluginTimeouts or 0 ) + 1
 
-	Shine:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.", true, self.WebPluginTimeouts )
+	Shine:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.",
+		true, self.WebPluginTimeouts )
 
 	if self.WebPluginTimeouts >= self.Config.WebConfigs.MaxAttempts then
 		if not Reload then

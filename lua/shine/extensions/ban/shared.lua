@@ -186,7 +186,8 @@ function Plugin:SetupAdminMenu()
 			
 			local Reason = ReasonEntry:GetText()
 
-			Shine.AdminMenu:RunCommand( self.BanCommand, StringFormat( "%s %s %s", ID, Duration, Reason ) )
+			Shine.AdminMenu:RunCommand( self.BanCommand, StringFormat( "%s %s %s",
+				ID, Duration, Reason ) )
 
 			Shine.AdminMenu:DontDestroyOnClose( Window )
 			Window:Destroy()

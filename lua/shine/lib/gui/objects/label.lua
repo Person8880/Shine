@@ -47,7 +47,8 @@ function Label:GetText()
 end
 
 function Label:GetSize()
-	return Vector( self:GetTextWidth() * self.TextScale.x, self:GetTextHeight() * self.TextScale.y, 0 )
+	return Vector( self:GetTextWidth() * self.TextScale.x,
+		self:GetTextHeight() * self.TextScale.y, 0 )
 end
 
 function Label:SetTextAlignmentX( Align )

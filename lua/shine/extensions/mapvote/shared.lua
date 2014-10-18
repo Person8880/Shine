@@ -55,12 +55,13 @@ function Plugin:Initialise()
 	RBPS.oldShowNextAward = RBPS.oldShowNextAward or RBPS.clientShowNextAward
 
 	--Taken straight from the NS2stats code, just modified the starting height.
-	function RBPS:clientShowNextAward( id )
-		local addY = id * 22
-		local col = Color( 230/255, 230/255, 0/255 )             
+	function RBPS:clientShowNextAward( ID )
+		local AddY = ID * 22
+		local Col = Color( 230 / 255, 230 / 255, 0 )             
 		
-		Cout:addClientTextMessage(Client.GetScreenWidth() * 6/8,(Client.GetScreenHeight() * 1/3) + addY
-			,RBPSclientAwards[id],30-id, col, "awardmsg" .. id)                    
+		Cout:addClientTextMessage( Client.GetScreenWidth() * 6 / 8,
+			( Client.GetScreenHeight() * 1 / 3 ) + AddY,
+			RBPSclientAwards[ ID ], 30 - ID, Col, "awardmsg"..ID )                    
 	end
 
 	return true
@@ -216,10 +217,12 @@ function Plugin:ReceiveVoteOptions( Message )
 	local VoteMessage
 
 	if ButtonBound then
-		VoteMessage = StringFormat( ButtonBoundMessage, NextMap and "Voting for the next map has begun" or "Map vote has begun",
+		VoteMessage = StringFormat( ButtonBoundMessage,
+			NextMap and "Voting for the next map has begun" or "Map vote has begun",
 			VoteButton )
 	else 
-		VoteMessage = StringFormat( ButtonUnboundMessage, NextMap and "Voting for the next map has begun." or "Map vote has begun.",
+		VoteMessage = StringFormat( ButtonUnboundMessage,
+			NextMap and "Voting for the next map has begun." or "Map vote has begun.",
 			Options )
 	end
 
@@ -228,14 +231,19 @@ function Plugin:ReceiveVoteOptions( Message )
 	end
 
 	if NextMap and ShowTimeLeft then
-		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2, nil, nil, true )
+		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2,
+			VoteMessage, Duration, 255, 0, 0, 2, nil, nil, true )
 
 		ScreenText.TimeLeft = TimeLeft
 
-		ScreenText.Obj:SetText( StringFormat( ScreenText.Text, string.TimeToString( ScreenText.Duration ), string.TimeToString( ScreenText.TimeLeft ) ) )
+		ScreenText.Obj:SetText( StringFormat( ScreenText.Text,
+			string.TimeToString( ScreenText.Duration ),
+			string.TimeToString( ScreenText.TimeLeft ) ) )
 
 		function ScreenText:UpdateText()
-			self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ), string.TimeToString( self.TimeLeft ) ) )
+			self.Obj:SetText( StringFormat( self.Text,
+				string.TimeToString( self.Duration ),
+				string.TimeToString( self.TimeLeft ) ) )
 		end
 
 		function ScreenText:Think()
@@ -245,17 +253,20 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Colour = Color( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
+				local FirstLine = "Vote for the next map in progress"
+
 				if ButtonBound then
-					self.Text = StringFormat( "Vote for the next map in progress. Press %s to vote.\nTime left to vote: %%s.", VoteButton )
+					self.Text = StringFormat( ButtonBoundMessage, FirstLine, VoteButton )
 				else 
-					self.Text = StringFormat( "Vote for the next map in progress.\nMaps: %s\nType !vote <map> to vote.\nTime left to vote: %%s.", Options )
+					self.Text = StringFormat( ButtonUnboundMessage, FirstLine, Options )
 				end
 
 				if self.TimeLeft > 0 then
 					self.Text = self.Text.."\nTime left on the current map: %s."
 				end
 
-				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ), string.TimeToString( self.TimeLeft ) ) )
+				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ),
+					string.TimeToString( self.TimeLeft ) ) )
 
 				return
 			end
@@ -266,16 +277,19 @@ function Plugin:ReceiveVoteOptions( Message )
 			end
 		end
 	else
-		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2, VoteMessage, Duration, 255, 0, 0, 2 )
+		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2,
+			VoteMessage, Duration, 255, 0, 0, 2 )
 
-		ScreenText.Obj:SetText( StringFormat( ScreenText.Text, string.TimeToString( ScreenText.Duration ) ) )
+		ScreenText.Obj:SetText( StringFormat( ScreenText.Text,
+			string.TimeToString( ScreenText.Duration ) ) )
 
 		function ScreenText:Think()
 			if self.Duration == Duration - 10 then
 				self.Colour = Color( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
-				local FirstLine = NextMap and "Vote for the next map in progress" or "Map vote in progress"
+				local FirstLine = NextMap and "Vote for the next map in progress"
+					or "Map vote in progress"
 
 				if ButtonBound then
 					self.Text = StringFormat( ButtonBoundMessage, FirstLine, VoteButton )

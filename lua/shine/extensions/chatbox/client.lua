@@ -122,7 +122,8 @@ local Hooked
 
 function Plugin:Initialise()
 	if not Hooked then
-		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility", "EvaluateUIVisibility", "PassivePost" )
+		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility",
+			"EvaluateUIVisibility", "PassivePost" )
 
 		Hooked = true
 	end
@@ -395,7 +396,8 @@ function Plugin:CreateChatbox()
 		--Don't go sending blank messages.
 		if #Text > 0 and Text:find( "[^%s]" ) then
 			Shine.SendNetworkMessage( "ChatClient", 
-				BuildChatClientMessage( Plugin.TeamChat, Text:UTF8Sub( 1, kMaxChatLength ) ), true )
+				BuildChatClientMessage( Plugin.TeamChat,
+					Text:UTF8Sub( 1, kMaxChatLength ) ), true )
 		end
 
 		self:SetText( "" )
@@ -721,7 +723,8 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		local MessageText = Message.Message:GetText():gsub( "\n", " " )
 		local MessageCol = Message.Message:GetColour()
 
-		Recreate[ i ] = { PreText = PreText, PreCol = PreCol, MessageText = MessageText, MessageCol = MessageCol }
+		Recreate[ i ] = { PreText = PreText, PreCol = PreCol,
+			MessageText = MessageText, MessageCol = MessageCol }
 	end
 
 	--Recreate the entire chat box, it's easier than rescaling.
@@ -738,7 +741,8 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 
 	for i = 1, #Recreate do
 		local Message = Recreate[ i ]
-		self:AddMessage( Message.PreCol, Message.PreText, Message.MessageCol, Message.MessageText )
+		self:AddMessage( Message.PreCol, Message.PreText,
+			Message.MessageCol, Message.MessageText )
 	end
 end
 
@@ -928,7 +932,8 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	MessageLabel:SetPos( MessagePos )
 
 	if SGUI.IsValid( ChatBox.Scrollbar ) then
-		ChatBox:SetMaxHeight( MessageLabel:GetPos().y + MessageLabel:GetSize().y + ChatBox.BufferAmount )
+		ChatBox:SetMaxHeight( MessageLabel:GetPos().y + MessageLabel:GetSize().y
+			+ ChatBox.BufferAmount )
 	end
 
 	--Reuse the removed message table if there was one.
@@ -1053,7 +1058,8 @@ local EnableCommand = Shine:RegisterClientCommand( "sh_chatbox", function( Enabl
 		Shared.Message( "[Shine] Chatbox disabled. The chatbox will no longer autoload." )
 	end
 end )
-EnableCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Plugin.Enabled end }
+EnableCommand:AddParam{ Type = "boolean", Optional = true,
+	Default = function() return not Plugin.Enabled end }
 
 Shine.Hook.Add( "OnMapLoad", "NotifyAboutChatBox", function()
 	Shine.AddStartupMessage( "Shine has a chatbox that you can enable/disable by entering \"sh_chatbox\" into the console." )

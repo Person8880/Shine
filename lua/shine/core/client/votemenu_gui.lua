@@ -168,7 +168,8 @@ function VoteMenu:PlayerKeyPress( Key, Down )
 		return
 	end
 
-	local IsCloseKey = Key == InputKey.MouseButton0 or Key == InputKey.MouseButton1 or Key == InputKey.Escape
+	local IsCloseKey = Key == InputKey.MouseButton0 or Key == InputKey.MouseButton1
+		or Key == InputKey.Escape
 
 	if Down and IsCloseKey then
 		self:SetIsVisible( false )
@@ -517,7 +518,10 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align )
 	end
 	
 	Pos.y = ( Index - 1 ) * ( self.ButtonSize.y + Padding )
-	local Offset = Cos( Clamp( ( Index - 1 ) / ( MaxRequestsPerSide - 1 ), 0, 1 ) * Pi * 2 ) * self.MaxButtonOffset + self.ButtonClipping
+
+	local Offset = Cos( Clamp( ( Index - 1 ) / ( MaxRequestsPerSide - 1 ),
+		0, 1 ) * Pi * 2 ) * self.MaxButtonOffset + self.ButtonClipping
+
 	Pos.x = Pos.x + Direction * Offset
 
 	Button:SetPos( Pos )

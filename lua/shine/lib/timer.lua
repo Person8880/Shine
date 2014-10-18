@@ -175,9 +175,11 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			local Success = xpcall( Timer.Func, OnError, Timer )
 
 			if not Success then
-				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true, Name, Error, StackTrace )
+				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true,
+					Name, Error, StackTrace )
 
-				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.", Name, Error ), StackTrace )
+				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.",
+					Name, Error ), StackTrace )
 				
 				Error = nil
 				StackTrace = nil

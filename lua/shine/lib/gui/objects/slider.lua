@@ -183,7 +183,8 @@ end
 	Sets the slider's position by fraction.
 ]]
 function Slider:SetFraction( Fraction )
-	self.Value = Clamp( Round( self.Min + ( Fraction * self.Range ), self.Decimals ), self.Min, self.Max )
+	self.Value = Clamp( Round( self.Min + ( Fraction * self.Range ), self.Decimals ),
+		self.Min, self.Max )
 	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
 
 	self.HandlePos.x = self.Width * self.Fraction

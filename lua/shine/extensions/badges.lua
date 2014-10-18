@@ -62,8 +62,8 @@ function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups )
 			local BadgeName = GroupRowBadges[ i ]
 
 			if not AssignBadge( ID, BadgeName, Row ) then
-				Print( "%s has a non-existant or reserved badge: %s", GroupName or "The default group",
-					BadgeName )
+				Print( "%s has a non-existant or reserved badge: %s",
+					GroupName or "The default group", BadgeName )
 			end
 		end
 	end

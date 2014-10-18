@@ -48,7 +48,10 @@ function Plugin:Initialise()
 	return true
 end
 
---Prevent players from joining the spectator team, and prevent going back to the ready room after being forced out of it.
+--[[
+	Prevent players from joining the spectator team,
+	and prevent going back to the ready room after being forced out of it.
+]]
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
 
@@ -76,7 +79,8 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 			Client.SHNextNotify = Time + 5
 
-			Shine:NotifyColour( Client, 255, 160, 0, "You have just been moved to a team. You cannot go back to the ready room yet." )
+			Shine:NotifyColour( Client, 255, 160, 0,
+				"You have just been moved to a team. You cannot go back to the ready room yet." )
 
 			return false
 		end
@@ -188,7 +192,8 @@ end
 
 function Plugin:AssignToTeam( Player )
 	if self.Config.NotifyOnTeamForce then
-		Shine:NotifyColour( Player, 255, 160, 0, "You were moved onto a random team for being in the ready room too long." )
+		Shine:NotifyColour( Player, 255, 160, 0,
+			"You were moved onto a random team for being in the ready room too long." )
 	end
 	
 	return self:JoinRandomTeam( Player )

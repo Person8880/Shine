@@ -1873,7 +1873,8 @@ local function TypeCheck( Arg, Type, ArgNumber, FuncName )
 	local ArgType = type( Arg )
 
 	if ArgType ~= Type then
-		error( StringFormat( "Bad argument #%i to '%s' (%s expected, got %s)", ArgNumber, FuncName, Type, ArgType ), 2 )
+		error( StringFormat( "Bad argument #%i to '%s' (%s expected, got %s)",
+			ArgNumber, FuncName, Type, ArgType ), 2 )
 	end
 end
 

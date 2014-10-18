@@ -41,7 +41,8 @@ function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()
 
 	if Gamemode ~= "ns2" then
-		return false, StringFormat( "The tournamentmode plugin does not work with %s.", Gamemode )
+		return false, StringFormat( "The tournamentmode plugin does not work with %s.",
+			Gamemode )
 	end
 
 	self.TeamMembers = {}
@@ -217,7 +218,8 @@ function Plugin:ClientConfirmConnect( Client )
 
 	if self.Config.ForceTeams then
 		if self.TeamMembers[ ID ] then
-			Gamerules:JoinTeam( Client:GetControllingPlayer(), self.TeamMembers[ ID ], nil, true )     
+			Gamerules:JoinTeam( Client:GetControllingPlayer(), self.TeamMembers[ ID ],
+				nil, true )     
 		end
 	end
 end
@@ -295,11 +297,13 @@ function Plugin:CheckStart()
 
 		local GameStartTime = string.TimeToString( CountdownTime )
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..GameStartTime, 5, 255, 255, 255, 1, 3, 1 ) )
+		Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+			"Game starts in "..GameStartTime, 5, 255, 255, 255, 1, 3, 1 ) )
 
 		--Game starts in 5 seconds!
 		self:CreateTimer( self.FiveSecondTimer, CountdownTime - 5, 1, function()
-			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+				"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 		end )
 
 		--If we get this far, then we can start.
@@ -352,7 +356,8 @@ function Plugin:CreateCommands()
 
 		if self.Config.EveryoneReady then
 			if self.ReadiedPlayers[ Client ] then
-				Shine:NotifyError( Client, "You are already ready! Use !unready to unready yourself." )
+				Shine:NotifyError( Client,
+					"You are already ready! Use !unready to unready yourself." )
 
 				return
 			end
@@ -388,7 +393,8 @@ function Plugin:CreateCommands()
 			if OtherReady then
 				self:Notify( true, nil, "%s is now ready.", true, TeamName )
 			else
-				self:Notify( true, nil, "%s is now ready. Waiting on %s to start.", true, TeamName, self:GetTeamName( OtherTeam ) )
+				self:Notify( true, nil, "%s is now ready. Waiting on %s to start.",
+					true, TeamName, self:GetTeamName( OtherTeam ) )
 			end
 
 			self:CheckStart()
@@ -411,7 +417,8 @@ function Plugin:CreateCommands()
 			if OtherReady then
 				self:Notify( true, nil, "%s is now ready.", true, TeamName )
 			else
-				self:Notify( true, nil, "%s is now ready. Waiting on %s to start.", true, TeamName, self:GetTeamName( OtherTeam ) )
+				self:Notify( true, nil, "%s is now ready. Waiting on %s to start.",
+					true, TeamName, self:GetTeamName( OtherTeam ) )
 			end
 			
 			--Add a delay to prevent ready->unready spam.
@@ -419,7 +426,8 @@ function Plugin:CreateCommands()
 
 			self:CheckStart()
 		else
-			Shine:NotifyError( Client, "Your team is already ready! Use !unready to unready your team." )
+			Shine:NotifyError( Client,
+				"Your team is already ready! Use !unready to unready your team." )
 		end
 	end
 	local ReadyCommand = self:BindCommand( "sh_ready", { "rdy", "ready" }, ReadyUp, true )
@@ -446,7 +454,8 @@ function Plugin:CreateCommands()
 
 		if self.Config.EveryoneReady then
 			if not self.ReadiedPlayers[ Client ] then
-				Shine:NotifyError( Client, "You haven't readied yet! Use !ready to ready yourself." )
+				Shine:NotifyError( Client,
+					"You haven't readied yet! Use !ready to ready yourself." )
 
 				return
 			end
@@ -485,7 +494,8 @@ function Plugin:CreateCommands()
 
 			self:CheckStart()
 		else
-			Shine:NotifyError( Client, "Your team has not readied yet! Use !ready to ready your team." )
+			Shine:NotifyError( Client,
+				"Your team has not readied yet! Use !ready to ready your team." )
 		end
 	end
 	local UnReadyCommand = self:BindCommand( "sh_unready", { "unrdy", "unready" }, Unready, true )
@@ -498,7 +508,8 @@ function Plugin:CreateCommands()
 		self.dt.MarineName = Marine
 		self.dt.AlienName = Alien
 	end
-	local SetTeamNamesCommand = self:BindCommand( "sh_setteamnames", { "teamnames" }, SetTeamNames )
+	local SetTeamNamesCommand = self:BindCommand( "sh_setteamnames",
+		{ "teamnames" }, SetTeamNames )
 	SetTeamNamesCommand:AddParam{ Type = "string", Optional = true, Default = "" }
 	SetTeamNamesCommand:AddParam{ Type = "string", Optional = true, Default = "" }
 	SetTeamNamesCommand:Help( "<Marine Name> <Alien Name> Sets the names of the marine and alien teams." )
@@ -510,7 +521,8 @@ function Plugin:CreateCommands()
 		self.dt.MarineScore = Marine
 		self.dt.AlienScore = Alien
 	end
-	local SetTeamScoresCommand = self:BindCommand( "sh_setteamscores", { "scores" }, SetTeamScores )
+	local SetTeamScoresCommand = self:BindCommand( "sh_setteamscores",
+		{ "scores" }, SetTeamScores )
 	SetTeamScoresCommand:AddParam{ Type = "number", Min = 0, Max = 255, Round = true, Optional = true, Default = 0 }
 	SetTeamScoresCommand:AddParam{ Type = "number", Min = 0, Max = 255, Round = true, Optional = true, Default = 0 }
 	SetTeamScoresCommand:Help( "<Marine Score> <Alien Score> Sets the score for the marine and alien teams." )

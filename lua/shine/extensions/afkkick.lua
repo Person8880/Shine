@@ -144,7 +144,8 @@ function Plugin:OnProcessMove( Player, Input )
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
 
-	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0 and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
+	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
+	and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
 		DataTable.LastMove = Time
 
 		if DataTable.Warn then
@@ -169,10 +170,13 @@ function Plugin:OnProcessMove( Player, Input )
 
 			local AFKTime = Time - DataTable.LastMove
 			
-			Shine.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
+			Shine.SendNetworkMessage( Client, "AFKWarning", {
+				timeAFK = AFKTime,
+				maxAFKTime = KickTime
+			}, true )
 
+			--Sometimes this event receives one of the weird "ghost" players that can't switch teams.
 			if self.Config.MoveToReadyRoomOnWarn and Team ~= kTeamReadyRoom then
-				--Sometimes this event receives one of the weird "ghost" players that can't switch teams.
 				Player = Client:GetControllingPlayer()
 				pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
 			elseif self.Config.MoveToSpectateOnWarn and Team ~= kSpectatorIndex then

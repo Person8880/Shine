@@ -35,7 +35,8 @@ function Shine:RequestUsers( Reload )
 
 		if not IsType( UserData, "table" ) or not next( UserData ) then
 			if Reload then --Don't replace with a blank table if request failed when reloading.
-				self:AdminPrint( nil, "Reloading from the web failed. User data has not been changed." )
+				self:AdminPrint( nil,
+					"Reloading from the web failed. User data has not been changed." )
 
 				return 
 			end 
@@ -51,16 +52,19 @@ function Shine:RequestUsers( Reload )
 
 		self:ConvertData( self.UserData, true )
 
-		--Cache the current user data, so if we fail to load it on a later map we still have something to load.
+		--Cache the current user data, so if we fail to load it on
+		--a later map we still have something to load.
 		self:SaveUsers( true )
 
-		Notify( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
+		Notify( Reload and "Shine reloaded users from the web."
+			or "Shine loaded users from web." )
 
 		self.Hook.Call( "OnUserReload" )
 	end
 
 	if self.Config.GetUsersWithPOST then
-		Shared.SendHTTPRequest( self.Config.UsersURL, "POST", self.Config.UserRetrieveArguments, UsersResponse )
+		Shared.SendHTTPRequest( self.Config.UsersURL, "POST",
+			self.Config.UserRetrieveArguments, UsersResponse )
 	else
 		Shared.SendHTTPRequest( self.Config.UsersURL, "GET", UsersResponse )
 	end
@@ -68,7 +72,8 @@ end
 
 --[[
 	Loads the Shine user data either from a local JSON file or from one hosted on a webserver.
-	If retrieving the web users fails, it will fall back to a local file. If a local file does not exist, the default is created and used.
+	If retrieving the web users fails, it will fall back to a local file.
+	If a local file does not exist, the default is created and used.
 ]]
 function Shine:LoadUsers( Web, Reload )
 	if Web then
@@ -109,7 +114,8 @@ function Shine:LoadUsers( Web, Reload )
 
 	self.UserData = Decode( Data )
 
-	if not self.UserData or not IsType( self.UserData, "table" ) or not next( self.UserData ) then
+	if not self.UserData or not IsType( self.UserData, "table" )
+	or not next( self.UserData ) then
 		Notify( "The user data file is not valid JSON, unable to load user data." )
 	
 		--Dummy data to avoid errors.
@@ -307,7 +313,8 @@ function Shine:GetUserData( Client )
 	if not self.UserData then return nil end
 	if not self.UserData.Users then return nil end
 	
-	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+	local ID = IsType( Client, "number" ) and Client
+		or ( Client.GetUserId and Client:GetUserId() )
 
 	if not ID then return nil end
 
@@ -490,7 +497,8 @@ function Shine:GetPermission( Client, ConCommand )
 	local GroupTable = self:GetGroupData( UserGroup )
 
 	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+			true, ID, UserGroup )
 
 		return false
 	end
@@ -526,7 +534,8 @@ local function AddPermissionsToTable( Permissions, Table, Blacklist )
 			if Command then
 				local Allowed = Entry.Allowed
 
-				--Blacklists should take the lowest allowed entry, whitelists should take the highest.
+				--Blacklists should take the lowest allowed entry,
+				--whitelists should take the highest.
 				if Blacklist then
 					Table[ Command ] = Allowed or true
 				elseif not Table[ Command ] then
@@ -538,10 +547,11 @@ local function AddPermissionsToTable( Permissions, Table, Blacklist )
 end
 
 --[[
-	Recursively builds permissions table from all inherited groups, and their inherited groups,
-	and their inherited groups and...
+	Recursively builds permissions table from all inherited groups,
+	and their inherited groups, and their inherited groups and...
 
-	Inputs: Current group name, current group table, blacklist setting, permissions table to build.
+	Inputs: Current group name, current group table, blacklist setting,
+	permissions table to build.
 ]]
 local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions, Processed )
 	Processed = Processed or {}
@@ -572,7 +582,8 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		else
 			if not Processed[ DefaultGroup ] then
 				Processed[ DefaultGroup ] = true
-				if self:VerifyGroup( nil, DefaultGroup ) and DefaultGroup.IsBlacklist == Blacklist then
+				if self:VerifyGroup( nil, DefaultGroup )
+				and DefaultGroup.IsBlacklist == Blacklist then
 					AddPermissionsToTable( DefaultGroup.Commands, Permissions, Blacklist )
 				end
 			end
@@ -586,7 +597,8 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 			local CurGroup = self:GetGroupData( Name )
 
 			if not CurGroup then
-				self:Print( "Group with ID %s inherits from a non-existant group (%s)!", true, GroupName, Name )
+				self:Print( "Group with ID %s inherits from a non-existant group (%s)!",
+					true, GroupName, Name )
 			else
 				BuildPermissions( self, Name, CurGroup, Blacklist, Permissions, Processed )
 			end
@@ -611,14 +623,16 @@ function Shine:GetPermissionInheritance( GroupName, GroupTable, ConCommand )
 
 	if not InheritFromDefault then
 		if not IsType( InheritGroups, "table" ) then
-			self:Print( "Group with ID %s has a non-array entry for \"InheritsFrom\"!", true, GroupName )
+			self:Print( "Group with ID %s has a non-array entry for \"InheritsFrom\"!",
+				true, GroupName )
 
 			return false
 		end
 
 		local NumInheritGroups = #InheritGroups
 		if NumInheritGroups == 0 then
-			self:Print( "Group with ID %s has an empty \"InheritsFrom\" entry!", true, GroupName )
+			self:Print( "Group with ID %s has an empty \"InheritsFrom\" entry!",
+				true, GroupName )
 
 			return false
 		end
@@ -696,7 +710,8 @@ function Shine:HasAccess( Client, ConCommand )
 	local GroupTable = self:GetGroupData( UserGroup )
 
 	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!", true, ID, UserGroup )
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+			true, ID, UserGroup )
 		return false
 	end
 
@@ -845,7 +860,8 @@ function Shine:IsInGroup( Client, Group )
 
 	if not UserData then return false end
 
-	local ID = IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+	local ID = IsType( Client, "number" ) and Client
+		or ( Client.GetUserId and Client:GetUserId() )
 
 	if not ID then return false end
 

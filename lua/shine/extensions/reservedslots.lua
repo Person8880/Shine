@@ -54,7 +54,8 @@ function Plugin:CreateCommands()
 		self:SaveConfig()
 	end
 	local SetSlotCommand = self:BindCommand( "sh_setresslots", "resslots", SetSlotCount )
-	SetSlotCommand:AddParam{ Type = "number", Min = 0, Round = true, Error = "Please specify the number of slots to set." }
+	SetSlotCommand:AddParam{ Type = "number", Min = 0, Round = true,
+		Error = "Please specify the number of slots to set." }
 	SetSlotCommand:Help( "<slots> Sets the number of reserved slots." )
 end
 

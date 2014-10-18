@@ -58,7 +58,9 @@ VoteMenu:AddPage( "ServerSwitch", function( self )
 	end
 
 	for ID, Server in pairs( Servers ) do
-		local Button = self:AddSideButton( Server.Name, function() return ClickServer( ID ) end )
+		local Button = self:AddSideButton( Server.Name, function()
+			return ClickServer( ID )
+		end )
 
 		Shine.QueryServer( Server.IP, tonumber( Server.Port ) + 1, function( Data )
 			if not Data then return end

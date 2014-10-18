@@ -284,7 +284,9 @@ end
 
 --[[
 	Registers a control meta-table.
-	We'll use this to create instances of it (instead of loading a script file every time like UWE).
+	We'll use this to create instances of it (instead of loading a script
+	file every time like UWE).
+
 	Inputs:
 		1. Control name
 		2. Control meta-table.
@@ -761,7 +763,8 @@ end
 function ControlMeta:GetScreenPos()
 	if not self.Background then return end
 	
-	return self.Background:GetScreenPosition( Client.GetScreenWidth(), Client.GetScreenHeight() )
+	return self.Background:GetScreenPosition( Client.GetScreenWidth(),
+		Client.GetScreenHeight() )
 end
 
 local Anchors = {
@@ -897,7 +900,7 @@ function ControlMeta:ProcessMove()
 	local MoveData = self.MoveData
 
 	local Duration = MoveData.Duration
-	local Progress = MoveData.Elapsed / Duration--( Duration - MoveData.EndTime + Time ) / Duration
+	local Progress = MoveData.Elapsed / Duration
 
 	local LerpValue = MoveData.EaseFunc( Progress, MoveData.Power )
 
@@ -1078,10 +1081,11 @@ function ControlMeta:Think( DeltaTime )
 
 			if Start <= Time then
 				if Elapsed <= Duration then
-					local Progress = Elapsed / Duration--( Duration - Fade.EndTime + Time ) / Duration
+					local Progress = Elapsed / Duration
 					local CurCol = Fade.CurCol
 
-					SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff ) --Linear progress.
+					--Linear progress.
+					SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff ) 
 
 					Fade.Obj:SetColor( CurCol ) --Sets the GUI element's colour.
 				elseif not Fade.Finished then
@@ -1105,7 +1109,7 @@ function ControlMeta:Think( DeltaTime )
 
 			if Start <= Time then
 				if Elapsed <= Duration then
-					local Progress = Elapsed / Duration--( Duration - Size.EndTime + Time ) / Duration
+					local Progress = Elapsed / Duration
 					local CurSize = Size.CurSize
 
 					local LerpValue = Size.EaseFunc( Progress, Size.Power )
@@ -1159,7 +1163,8 @@ function ControlMeta:OnMouseMove( Down )
 		if self:MouseIn( self.Background, self.HighlightMult ) then
 			if not self.Highlighted then
 				if not self.TextureHighlight then
-					self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol, 0, 0.25, function( Background )
+					self:FadeTo( self.Background, self.InactiveCol,
+					self.ActiveCol, 0, 0.25, function( Background )
 						Background:SetColor( self.ActiveCol )
 					end )
 				else
@@ -1171,7 +1176,8 @@ function ControlMeta:OnMouseMove( Down )
 		else
 			if self.Highlighted then
 				if not self.TextureHighlight then
-					self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.25, function( Background )
+					self:FadeTo( self.Background, self.ActiveCol,
+					self.InactiveCol, 0, 0.25, function( Background )
 						Background:SetColor( self.InactiveCol )
 					end )
 				else

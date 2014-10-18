@@ -90,7 +90,8 @@ function Plugin:CreateCommands()
 
 		local NextUse = self.Users[ Client ]
 		if NextUse and NextUse > Time then
-			Shine:NotifyError( Player, "You must wait %s before using unstuck again.", true, string.TimeToString( NextUse - Time ) )
+			Shine:NotifyError( Player, "You must wait %s before using unstuck again.",
+				true, string.TimeToString( NextUse - Time ) )
 
 			return
 		end
@@ -102,7 +103,8 @@ function Plugin:CreateCommands()
 
 			self.Users[ Client ] = Time + self.Config.TimeBetweenUse
 		else
-			Shine:NotifyError( Player, "Unable to unstick. Try again in %s.", true, string.TimeToString( self.Config.MinTime ) )
+			Shine:NotifyError( Player, "Unable to unstick. Try again in %s.",
+				true, string.TimeToString( self.Config.MinTime ) )
 
 			self.Users[ Client ] = Time + self.Config.MinTime
 		end

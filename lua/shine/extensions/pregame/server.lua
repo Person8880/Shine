@@ -32,7 +32,8 @@ Plugin.CheckConfigTypes = true
 Plugin.FiveSecTimer = "PreGameFiveSeconds"
 Plugin.CountdownTimer = "PreGameCountdown"
 
-Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "ActivePre" )
+Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
+	"CheckPlayerCanAttack", "ActivePre" )
 
 function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()
@@ -81,7 +82,8 @@ function Plugin:ClientConfirmConnect( Client )
 	local StartDelay = self.Config.StartDelay
 
 	if StartDelay > 0 and SharedTime() < StartDelay then
-		self:SendNetworkMessage( Client, "StartDelay", { StartTime = Floor( StartDelay ) }, true )
+		self:SendNetworkMessage( Client, "StartDelay",
+			{ StartTime = Floor( StartDelay ) }, true )
 	end
 
 	if not self.CountStart then return end
@@ -91,15 +93,17 @@ function Plugin:ClientConfirmConnect( Client )
 
 	if TimeLeft <= 0 or TimeLeft > 5 then return end
 
-	Shine:SendText( Client, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+	Shine:SendText( Client, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s",
+		TimeLeft, 255, 0, 0, 1, 3, 0 ) )
 end
 
 function Plugin:CheckPlayerCanAttack()
 	if self.Config.AllowAttackPreGame then return end
 
 	local Gamerules = GetGamerules()
+	local GameState = Gamerules:GetGameState()
 
-	if Gamerules:GetGameState() == kGameState.PreGame or Gamerules:GetGameState() == kGameState.NotStarted then
+	if GameState == kGameState.PreGame or GameState == kGameState.NotStarted then
 		return false
 	end
 end
@@ -128,7 +132,8 @@ function Plugin:DestroyTimers()
 end
 
 function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 100, 255, "[Pre Game]", 255, 255, 255, Message, Format, ... )
+	Shine:NotifyDualColour( Player, 100, 100, 255, "[Pre Game]", 255, 255, 255,
+		Message, Format, ... )
 end
 
 Plugin.UpdateFuncs = {
@@ -149,7 +154,8 @@ Plugin.UpdateFuncs = {
 				Gamerules:SetGameState( kGameState.NotStarted )
 
 				self:Notify( nil, "Game start aborted, %s is empty.", true,
-					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
+					or Shine:GetTeamName( 2, nil, true ) )
 			end
 
 			return
@@ -168,7 +174,9 @@ Plugin.UpdateFuncs = {
 			Gamerules:SetGameState( kGameState.PreGame )
 
 			if self.Config.ShowCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( Duration ), 5, 255, 255, 255, 1, 3, 1 ) )
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+					"Game starts in "..string.TimeToString( Duration ), 5,
+					255, 255, 255, 1, 3, 1 ) )
 			end
 
 			return
@@ -178,7 +186,8 @@ Plugin.UpdateFuncs = {
 
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+					"Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
 				self.SentCountdown = true
 			end
 		end
@@ -227,7 +236,8 @@ Plugin.UpdateFuncs = {
 				Shine:RemoveText( nil, { ID = 2 } )
 
 				self:Notify( nil, "Game start aborted, %s is empty.", true,
-					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
+					or Shine:GetTeamName( 2, nil, true ) )
 
 				self.GameStarting = false
 
@@ -244,8 +254,11 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		--Both teams have a commander, begin countdown, but only if the 1 commander countdown isn't past the 2 commander countdown time length left.
-		if Team1Com and Team2Com and not self.GameStarting and not ( self.CountEnd and self.CountEnd - Time <= self.Config.CountdownTime ) then
+		--Both teams have a commander, begin countdown,
+		--but only if the 1 commander countdown isn't past the 2
+		--commander countdown time length left.
+		if Team1Com and Team2Com and not self.GameStarting
+		and not ( self.CountEnd and self.CountEnd - Time <= self.Config.CountdownTime ) then
 			self.GameStarting = true
 
 			Gamerules:SetGameState( kGameState.PreGame )
@@ -253,7 +266,9 @@ Plugin.UpdateFuncs = {
 			local CountdownTime = self.Config.CountdownTime
 
 			if self.Config.ShowCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( CountdownTime ), 5, 255, 255, 255, 1, 3, 1 ) )
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+					"Game starts in "..string.TimeToString( CountdownTime ),
+					5, 255, 255, 255, 1, 3, 1 ) )
 			end
 
 			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
@@ -273,7 +288,8 @@ Plugin.UpdateFuncs = {
 					return
 				end
 
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+					"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 			end )
 
 			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
@@ -297,7 +313,8 @@ Plugin.UpdateFuncs = {
 
 				if Team1Count == 0 or Team2Count == 0 then
 					self:Notify( nil, "Game start aborted, %s is empty.", true,
-						Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
+						Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
+						or Shine:GetTeamName( 2, nil, true ) )
 
 					self.GameStarting = false
 
@@ -319,7 +336,8 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = nil
 
 				self:Notify( nil, "Game start aborted, %s is empty.", true,
-					Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
+					Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
+					or Shine:GetTeamName( 2, nil, true ) )
 
 				Gamerules:SetGameState( kGameState.NotStarted )
 
@@ -340,12 +358,14 @@ Plugin.UpdateFuncs = {
 					local Team1Name = Shine:GetTeamName( 1, true )
 					local Team2Name = Shine:GetTeamName( 2, true )
 					
-					local Message = StringFormat( "%s have a commander. %s have %s to choose their commander.",
+					local Message = StringFormat( 
+						"%s have a commander. %s have %s to choose their commander.",
 						Team1Com and Team1Name or Team2Name, 
 						Team1Com and Team2Name or Team1Name, 
 						string.TimeToString( Duration ) )
 
-					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, Message, 5, 255, 255, 255, 1, 3, 1 ) )
+					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+						Message, 5, 255, 255, 255, 1, 3, 1 ) )
 				end
 			end
 		else
@@ -369,7 +389,8 @@ Plugin.UpdateFuncs = {
 
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+					"Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
 
 				Gamerules:SetGameState( kGameState.PreGame )
 
@@ -446,7 +467,9 @@ Plugin.UpdateFuncs = {
 			local CountdownTime = self.Config.CountdownTime
 
 			if self.Config.ShowCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in "..string.TimeToString( CountdownTime ), 5, 255, 255, 255, 1, 3, 1 ) )
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+					"Game starts in "..string.TimeToString( CountdownTime ),
+					5, 255, 255, 255, 1, 3, 1 ) )
 			end
 
 			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
@@ -466,7 +489,8 @@ Plugin.UpdateFuncs = {
 					return
 				end
 
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+					"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
 			end )
 
 			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
@@ -490,7 +514,8 @@ Plugin.UpdateFuncs = {
 
 				if Team1Count == 0 or Team2Count == 0 then
 					self:Notify( nil, "Game start aborted, %s is empty.", true,
-						Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
+						Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
+						or Shine:GetTeamName( 2, nil, true ) )
 
 					self.GameStarting = false
 
@@ -516,7 +541,9 @@ Plugin.UpdateFuncs = {
 				if Team1Count == 0 or Team2Count == 0 then return end
 
 				if not self.StartedGame then
-					self:Notify( nil, "Pregame has exceeded %s and there is one commander. Starting game...", true, string.TimeToString( self.Config.PreGameTime ) )
+					self:Notify( nil,
+						"Pregame has exceeded %s and there is one commander. Starting game...",
+						true, string.TimeToString( self.Config.PreGameTime ) )
 
 					self.StartedGame = true
 
@@ -543,7 +570,8 @@ Plugin.UpdateFuncs = {
 
 						if Team1Count == 0 or Team2Count == 0 then
 							self:Notify( nil, "Game start aborted, %s is empty.", true,
-								Team1Count == 0 and Shine:GetTeamName( 1, nil, true ) or Shine:GetTeamName( 2, nil, true ) )
+								Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
+								or Shine:GetTeamName( 2, nil, true ) )
 
 							self.StartedGame = false
 

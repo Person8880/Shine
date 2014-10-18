@@ -65,7 +65,8 @@ local function OnJoinError( Error )
 	local Trace = Traceback()
 
 	Shine:DebugLog( "Error: %s.\nEvenlySpreadTeams failed. %s", true, Error, Trace )
-	Shine:AddErrorReport( StringFormat( "A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
+	Shine:AddErrorReport( StringFormat(
+		"A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
 end
 
 local OldRespawnPlayer = Team.RespawnPlayer
@@ -139,7 +140,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	local AlienTeam = Gamerules.team2
 
 	for i, Player in pairs( Marine ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
+			OnJoinError, Gamerules, Player, 1, nil, true )
 
 		if Success then
 			Marine[ i ] = NewPlayer
@@ -149,7 +151,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	end
 
 	for i, Player in pairs( Alien ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
+			OnJoinError, Gamerules, Player, 2, nil, true )
 
 		if Success then
 			Alien[ i ] = NewPlayer
@@ -173,7 +176,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
 			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
 				"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\nActual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\nNew Teams:\nMarines:\n%s\nAliens:\n%s",
-				true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount, NewAlienCount, NewDiff, Marines, Aliens )
+				true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount,
+				NewAlienCount, NewDiff, Marines, Aliens )
 		end
 	end
 end

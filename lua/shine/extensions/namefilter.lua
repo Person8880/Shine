@@ -6,6 +6,7 @@ local Shine = Shine
 
 local Clamp = math.Clamp
 local Floor = math.floor
+local GetOwner = Server.GetOwner
 local Max = math.max
 local pcall = pcall
 local Random = math.random
@@ -46,7 +47,8 @@ function Plugin:Initialise()
 end
 
 function Plugin:CreateCommands()
-	local RenameCommand = self:BindCommand( "sh_rename", "rename", function( Client, Target, NewName )
+	local RenameCommand = self:BindCommand( "sh_rename", "rename",
+	function( Client, Target, NewName )
 		local TargetPlayer = Target:GetControllingPlayer()
 
 		if not TargetPlayer then return end
@@ -74,7 +76,7 @@ Plugin.FilterActions = {
 		
 		Player:SetName( FinalUserName )
 
-		local Client = Server.GetOwner( Player )
+		local Client = GetOwner( Player )
 
 		if not Client then return end
 	
@@ -83,7 +85,7 @@ Plugin.FilterActions = {
 	end,
 
 	function( self, Player, OldName ) --Kick them out.
-		local Client = Server.GetOwner( Player )
+		local Client = GetOwner( Player )
 
 		if not Client then return end
 		
@@ -94,7 +96,7 @@ Plugin.FilterActions = {
 	end,
 
 	function( self, Player, OldName ) --Ban them.
-		local Client = Server.GetOwner( Player )
+		local Client = GetOwner( Player )
 
 		if not Client then return end
 
@@ -106,10 +108,11 @@ Plugin.FilterActions = {
 			Shine:Print( "[NameFilter] Client %s[%s] was banned for filtered name.", true,
 				OldName, ID )
 
-			BanPlugin:AddBan( ID, OldName, self.Config.BanLength * 60, "NameFilter", 0, "Player used filtered name." )
+			BanPlugin:AddBan( ID, OldName, self.Config.BanLength * 60, "NameFilter", 0,
+				"Player used filtered name." )
 		else
-			Shine:Print( "[NameFilter] Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).", true,
-				OldName, ID )
+			Shine:Print( "[NameFilter] Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).",
+				true, OldName, ID )
 		end
 
 		Server.DisconnectClient( Client )
@@ -124,7 +127,7 @@ Plugin.FilterActions = {
 function Plugin:ProcessFilter( Player, Name, Pattern, Excluded )
 	if not Pattern then return end
 
-	local Client = Server.GetOwner( Player )
+	local Client = GetOwner( Player )
 
 	--This is the real player!
 	if Client and tostring( Client:GetUserId() ) == tostring( Excluded ) then return end

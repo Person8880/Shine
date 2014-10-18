@@ -112,7 +112,8 @@ function Plugin:CreateCommands()
 		}, true )
 	end
 	local SwitchServerCommand = self:BindCommand( "sh_switchserver", "server", SwitchServer, true )
-	SwitchServerCommand:AddParam{ Type = "number", Min = 1, Round = true, Error = "Please specify a server number to switch to." }
+	SwitchServerCommand:AddParam{ Type = "number", Min = 1, Round = true,
+	Error = "Please specify a server number to switch to." }
 	SwitchServerCommand:Help( "<number> Connects you to the given registered server." )
 
 	local function ListServers( Client )
@@ -131,7 +132,8 @@ function Plugin:CreateCommands()
 		for i = 1, #ServerData do
 			local Data = ServerData[ i ]
 
-			local String = StringFormat( "%i) - %s | %s:%s", i, Data.Name or "No name", Data.IP, Data.Port )
+			local String = StringFormat( "%i) - %s | %s:%s", i, Data.Name or "No name",
+				Data.IP, Data.Port )
 
 			if Client then
 				ServerAdminPrint( Client, String )

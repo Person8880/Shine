@@ -58,7 +58,8 @@ end
 		Type - The network variable's type, e.g "string (128)".
 		Name - The name on the data table to give this variable.
 		Default - The default value.
-		Access - Optional access string, if set, only clients with access to this will receive this variable.
+		Access - Optional access string, if set,
+		only clients with access to this will receive this variable.
 ]]
 function PluginMeta:AddDTVar( Type, Name, Default, Access )
 	self.DTVars = self.DTVars or {}
@@ -77,7 +78,8 @@ end
 function PluginMeta:InitDataTable( Name )
 	if not self.DTVars then return end
 	
-	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys, self.DTVars.Defaults, self.DTVars.Access )
+	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys,
+		self.DTVars.Defaults, self.DTVars.Access )
 
 	if self.NetworkUpdate then
 		self.dt:__SetChangeCallback( self, self.NetworkUpdate )
@@ -157,7 +159,8 @@ function PluginMeta:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
 
 	if Save then
-		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
+		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
+			or ClientConfigPath..self.ConfigName
 
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -172,7 +175,8 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig( Silent )
-	local Path = Server and ( rawget( self, "__ConfigPath" ) or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
+	local Path = Server and ( rawget( self, "__ConfigPath" )
+		or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -189,7 +193,8 @@ end
 
 function PluginMeta:LoadConfig()
 	local PluginConfig
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
+		or ClientConfigPath..self.ConfigName
 
 	local Err
 	local Pos
@@ -524,7 +529,8 @@ function Shine:LoadExtension( Name, DontEnable )
 	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
 	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
 	
-	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ] or PluginFiles[ ServerFile ]
+	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ]
+		or PluginFiles[ ServerFile ]
 
 	if PluginFiles[ SharedFile ] then
 		include( SharedFile )
@@ -676,7 +682,8 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		return false, Err
 	end
 
-	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then --We need to inform clients to enable the client portion.
+	--We need to inform clients to enable the client portion.
+	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then 
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
 	end
 
@@ -752,7 +759,8 @@ for Path in pairs( PluginFiles ) do
 				AllPlugins[ Name ] = true
 			end
 
-			Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
+			--Shared plugins should load into memory for network messages.
+			Shine:LoadExtension( Name, true )
 		end
 	else
 		Name = Name:gsub( "%.lua", "" )

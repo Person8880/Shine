@@ -69,7 +69,8 @@ function Plugin:CreateCommands()
 		if not self:MovePlayerToPlayer( Player, TargetPlayer ) then
 			Shine:NotifyError( Client, "Failed to find valid location near player." )
 		else
-			Shine:CommandNotify( Client, "teleported to %s.", true, TargetPlayer:GetName() or "<unknown>" )
+			Shine:CommandNotify( Client, "teleported to %s.", true,
+				TargetPlayer:GetName() or "<unknown>" )
 		end
 	end
 	local GoToCommand = self:BindCommand( "sh_goto", "goto", GoTo )
@@ -87,7 +88,8 @@ function Plugin:CreateCommands()
 		if not self:MovePlayerToPlayer( TargetPlayer, Player ) then
 			Shine:NotifyError( Client, "Failed to find valid location near you." )
 		else
-			Shine:CommandNotify( Client, "teleported %s to themself.", true, TargetPlayer:GetName() or "<unknown>" )
+			Shine:CommandNotify( Client, "teleported %s to themself.",
+				true, TargetPlayer:GetName() or "<unknown>" )
 		end
 	end
 	local BringCommand = self:BindCommand( "sh_bring", "bring", Bring )
