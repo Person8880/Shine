@@ -17,7 +17,11 @@ Plugin.HYBRID_MODE = 3
 Plugin.DefaultConfig = {
 	Mode = Plugin.TEXT_MODE,
 	URL = "http://www.unknownworlds.com/ns2/",
-	MessageText = { "Welcome to my awesome server!", "Admins can be reached @ mywebsite.com", "Have a pleasant stay!" }, --Message lines.
+	MessageText = {
+		"Welcome to my awesome server!",
+		"Admins can be reached @ mywebsite.com",
+		"Have a pleasant stay!"
+	},
 	Accepted = {},
 	Delay = 5
 }
@@ -52,7 +56,10 @@ function Plugin:ShowMotD( Client, OnConnect )
 		return
 	end
 
-	Shine.SendNetworkMessage( Client, "Shine_Web", { URL = self.Config.URL, Title = "Message of the day" }, true )
+	Shine.SendNetworkMessage( Client, "Shine_Web", {
+		URL = self.Config.URL,
+		Title = "Message of the day"
+	}, true )
 end
 
 function Plugin:ClientConfirmConnect( Client )
@@ -92,7 +99,7 @@ function Plugin:CreateCommands()
 		end
 
 		self.Config.Accepted[ tostring( ID ) ] = true
-		self:SaveConfig()
+		self:SaveConfig( true )
 
 		self:Notify( Client, "Thank you for accepting the message of the day." )
 	end
