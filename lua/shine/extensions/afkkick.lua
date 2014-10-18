@@ -50,6 +50,12 @@ function Plugin:Initialise()
 		self:SaveConfig( true )
 	end
 
+	if self.Enabled ~= nil then
+		for Client in pairs( self.Users ) do
+			self:ResetAFKTime( Client )
+		end
+	end
+
 	self.Enabled = true
 
 	return true
