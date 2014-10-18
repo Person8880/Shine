@@ -15,7 +15,7 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
 
-Plugin.Users = {}
+Plugin.Users = setmetatable( {}, { __mode = "k" } )
 
 Plugin.DefaultConfig = {
 	MinPlayers = 10,
@@ -269,14 +269,6 @@ function Plugin:ClientDisconnect( Client )
 	if self.Users[ Client ] then
 		self.Users[ Client ] = nil
 	end
-end
-
-function Plugin:Cleanup()
-	for k, v in pairs( self.Users ) do
-		self.Users[ k ] = nil
-	end
-
-	self.Enabled = false
 end
 
 --Override the built in randomise ready room vote to not move AFK players.
