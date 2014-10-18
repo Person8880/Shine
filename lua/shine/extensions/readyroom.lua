@@ -117,17 +117,8 @@ end
 function Plugin:EndGame()
 	self.GameStarted = false
 
-	local ReadyRoomTracker = self.ReadyRoomTracker
-
-	for k in pairs( ReadyRoomTracker ) do
-		ReadyRoomTracker[ k ] = nil
-	end
-
-	local BlockedClients = self.BlockedClients
-
-	for k in pairs( BlockedClients ) do
-		BlockedClients[ k ] = nil
-	end
+	TableEmpty( self.ReadyRoomTracker )
+	TableEmpty( self.BlockedClients )
 
 	local Players = Shine.GetAllPlayers()
 

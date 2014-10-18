@@ -297,9 +297,9 @@ if Server then
 	]]
 	function PluginMeta:Cleanup()
 		if rawget( self, "Commands" ) then
-			for k, Command in pairs( self.Commands ) do
+			for Key, Command in pairs( self.Commands ) do
 				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-				self.Commands[ k ] = nil
+				self.Commands[ Key ] = nil
 			end
 		end
 
@@ -332,9 +332,9 @@ elseif Client then
 
 	function PluginMeta:Cleanup()
 		if rawget( self, "Commands" ) then
-			for k, Command in pairs( self.Commands ) do
+			for Key, Command in pairs( self.Commands ) do
 				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
-				self.Commands[ k ] = nil
+				self.Commands[ Key ] = nil
 			end
 		end
 
@@ -441,7 +441,7 @@ function PluginMeta:Suspend()
 	end
 
 	if rawget( self, "Commands" ) then
-		for k, Command in pairs( self.Commands ) do
+		for Key, Command in pairs( self.Commands ) do
 			Command.Disabled = true
 		end
 	end
@@ -459,7 +459,7 @@ function PluginMeta:Resume()
 	end
 
 	if rawget( self, "Commands" ) then
-		for k, Command in pairs( self.Commands ) do
+		for Key, Command in pairs( self.Commands ) do
 			Command.Disabled = nil
 		end
 	end

@@ -13,8 +13,8 @@ local TableSort = table.sort
 	Clears a table.
 ]]
 local function TableEmpty( Table )
-	for k in pairs( Table ) do
-		Table[ k ] = nil
+	for Key in pairs( Table ) do
+		Table[ Key ] = nil
 	end
 end
 table.Empty = TableEmpty
@@ -205,7 +205,7 @@ table.Copy = CopyTable
 function table.Count( Table )
 	local i = 0
 
-	for k in pairs( Table ) do 
+	for Key in pairs( Table ) do 
 		i = i + 1 
 	end
 
