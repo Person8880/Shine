@@ -14,6 +14,7 @@ local Scripts = {
 	"lib/table.lua",
 	"lib/class.lua",
 	"lib/math.lua",
+	"lib/map.lua",
 	"core/shared/hook.lua",
 	"core/shared/misc.lua",
 	"core/shared/logging.lua",

@@ -34,7 +34,9 @@ local RepeatMessageTimer = "RepeatModUpdateMessage"
 function Plugin:Initialise()
 	self.Config.CheckInterval = Max( self.Config.CheckInterval, 15 )
 	self.Config.NotifyInterval = Max( self.Config.NotifyInterval, 15 )
-	self.Config.ForceMapChangeAfterNotifications = Max( self.Config.ForceMapChangeAfterNotifications, 0 )
+
+	local NotificationNum = self.Config.ForceMapChangeAfterNotifications
+	self.Config.ForceMapChangeAfterNotifications = Max( NotificationNum, 0 )
 
 	if self.Config.ForceMapChangeAfterNotifications > 0 then
 		RemainingNotifications = self.Config.ForceMapChangeAfterNotifications
@@ -156,7 +158,9 @@ function Plugin:NotifyOrCycle( Recall )
 	end
 
 	if self.Config.RepeatNotifications then
-		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function() self:NotifyOrCycle( true ) end )
+		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function()
+			self:NotifyOrCycle( true )
+		end )
 	end
 end
 

@@ -6,11 +6,11 @@ function Shine:BuildPluginData()
 	local Plugins = self.Plugins
 
 	return {
-		Shuffle = Plugins.voterandom and Plugins.voterandom.Enabled or false,
-		RTV = Plugins.mapvote and Plugins.mapvote.Enabled and Plugins.mapvote.Config.EnableRTV or false,
-		Surrender = Plugins.votesurrender and Plugins.votesurrender.Enabled or false,
-		Unstuck = Plugins.unstuck and Plugins.unstuck.Enabled or false,
-		MOTD = Plugins.motd and Plugins.motd.Enabled or false
+		Shuffle = self:IsExtensionEnabled( "voterandom" ),
+		RTV = self:IsExtensionEnabled( "mapvote" ) and Plugins.mapvote.Config.EnableRTV or false,
+		Surrender = self:IsExtensionEnabled( "votesurrender" ),
+		Unstuck = self:IsExtensionEnabled( "unstuck" ),
+		MOTD = self:IsExtensionEnabled( "motd" )
 	}
 end
 

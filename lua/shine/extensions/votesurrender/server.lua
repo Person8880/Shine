@@ -5,6 +5,7 @@
 local Shine = Shine
 
 local GetOwner = Server.GetOwner
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
 local Ceil = math.ceil
@@ -29,20 +30,19 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 function Plugin:Initialise()
-	self.Votes = {
-		Shine:CreateVote( function() return self:GetVotesNeeded( 1 ) end, function() self:Surrender( 1 ) end,
-		function( Vote )
-			if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
-				Vote:Reset()
-			end
-		end ),
+	local function VoteTimeout( Vote )
+		local LastVoted = Vote.LastVoted
+		if LastVoted and SharedTime() - LastVoted > self.Config.VoteTimeout then
+			Vote:Reset()
+		end
+	end
 
-		Shine:CreateVote( function() return self:GetVotesNeeded( 2 ) end, function() self:Surrender( 2 ) end,
-		function( Vote )
-			if Vote.LastVoted and Shared.GetTime() - Vote.LastVoted > self.Config.VoteTimeout then
-				Vote:Reset()
-			end
-		end )
+	self.Votes = {
+		Shine:CreateVote( function() return self:GetVotesNeeded( 1 ) end,
+			function() self:Surrender( 1 ) end, VoteTimeout ),
+
+		Shine:CreateVote( function() return self:GetVotesNeeded( 2 ) end,
+			function() self:Surrender( 2 ) end, VoteTimeout )
 	}
 
 	self.NextVote = 0
@@ -62,7 +62,7 @@ end
 ]]
 function Plugin:SetGameState( Gamerules, State, OldState )
 	if State == kGameState.Started then
-		self.NextVote = Shared.GetTime() + ( self.Config.VoteDelay * 60 )
+		self.NextVote = SharedTime() + ( self.Config.VoteDelay * 60 )
 	end
 end
 
@@ -103,13 +103,15 @@ function Plugin:CanStartVote( Team )
 	local State = Gamerules:GetGameState()
 	local TeamCount = self:GetTeamPlayerCount( Team )
 
-	return State == kGameState.Started and TeamCount >= self.Config.MinPlayers and self.NextVote < Shared.GetTime()
+	return State == kGameState.Started and TeamCount >= self.Config.MinPlayers
+		and self.NextVote < SharedTime()
 end
 
 function Plugin:AddVote( Client, Team )
 	if not Client then return end
 
-	if Team ~= 1 and Team ~= 2 then return false, "spectators can't surrender!" end --Would be a fun bug...
+	--Would be a fun bug...
+	if Team ~= 1 and Team ~= 2 then return false, "spectators can't surrender!" end
 	
 	if not self:CanStartVote( Team ) then return false, "can't start" end
 	local Success, Err = self.Votes[ Team ]:AddVote( Client )
@@ -188,8 +190,10 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	local Votes = self.Votes[ Team ]:GetVotes()
 	local Success, Err = self:AddVote( Client, Team )
 
-	if not Success then return true end --We failed to add the vote, but we should still stop it going through NS2's system...
-	if self.Surrendered then return true end --We've surrendered, no need to say another player's voted.
+	--We failed to add the vote, but we should still stop it going through NS2's system...
+	if not Success then return true end
+	--We've surrendered, no need to say another player's voted.
+	if self.Surrendered then return true end
 
 	local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
 	
@@ -210,7 +214,8 @@ function Plugin:AnnounceVote( Player, Team, VotesNeeded )
 		local Ply = Players[ i ]
 
 		if Ply then
-			Shine.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true ) --Use NS2's built in concede, it's localised.
+			--Use NS2's built in concede, it's localised.
+			Shine.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true )
 		end
 	end
 end
@@ -246,6 +251,7 @@ function Plugin:CreateCommands()
 			Shine:NotifyError( Player, "You cannot start a surrender vote at this time." )
 		end
 	end
-	local VoteSurrenderCommand = self:BindCommand( "sh_votesurrender", { "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )
+	local VoteSurrenderCommand = self:BindCommand( "sh_votesurrender",
+		{ "surrender", "votesurrender", "surrendervote" }, VoteSurrender, true )
 	VoteSurrenderCommand:Help( "Votes to surrender the round." )
 end

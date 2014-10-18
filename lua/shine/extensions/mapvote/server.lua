@@ -108,7 +108,8 @@ function Plugin:Initialise()
 
 	self.Vote.Nominated = {} --Table of nominated maps.
 
-	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end, function() self:StartVote() end )
+	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end,
+		function() self:StartVote() end )
 
 	self.Vote.Votes = 0 --Number of map votes that have taken place.
 	self.Vote.Voted = {} --Table of players that have voted for a map.
@@ -197,7 +198,8 @@ function Plugin:Initialise()
 				local Time = SharedTime()
 				local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
 
-				self:CreateTimer( self.NextMapTimer, ( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
+				self:CreateTimer( self.NextMapTimer,
+					( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
 					local Players = Shine.GetAllPlayers()
 					if #Players > 0 then
 						self:StartVote( true )
@@ -349,7 +351,8 @@ function Plugin:ClientConfirmConnect( Client )
 	local OptionsText = self.Vote.OptionsText
 
 	--Send them the current vote progress and options.
-	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining(), not self.VoteOnEnd )
+	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
+		self:GetTimeRemaining(), not self.VoteOnEnd )
 
 	--Update their radial menu vote counters.
 	for Map, Votes in pairs( self.Vote.VoteList ) do
@@ -373,7 +376,8 @@ function Plugin:SendVoteData( Client )
 
 	local OptionsText = self.Vote.OptionsText
 
-	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting, self:GetTimeRemaining(), not self.VoteOnEnd )
+	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
+		self:GetTimeRemaining(), not self.VoteOnEnd )
 end
 
 local function GetMapName( Map )
@@ -473,7 +477,7 @@ end
 function Plugin:Think()
 	if not self.Config.CycleOnEmpty then return end
 	if SharedTime() <= ( self.MapCycle.time * 60 ) then return end
-	if TableCount( Shine.GameIDs ) > self.Config.EmptyPlayerCount then return end
+	if Shine.GameIDs:GetCount() > self.Config.EmptyPlayerCount then return end
 
 	if not self.Cycled then
 		self.Cycled = true
@@ -559,7 +563,8 @@ function Plugin:EndGame()
 
 				TimeLeft = self.Config.ForceChange + 1
 
-				local RoundMessage = RoundsLeft ~= 1 and StringFormat( "are %i rounds", RoundsLeft ) or "is 1 round"  
+				local RoundMessage = RoundsLeft ~= 1 and StringFormat( "are %i rounds", RoundsLeft )
+					or "is 1 round"  
 
 				Message = StringFormat( "There %s remaining on this map.", RoundMessage )
 			end
@@ -567,7 +572,8 @@ function Plugin:EndGame()
 
 		if TimeLeft <= self.Config.ForceChange then
 			if not self:VoteStarted() and not self.VoteOnEnd then
-				Shine:NotifyColour( nil, 255, 160, 0, "The server will now cycle to %s.", true, self:GetNextMap() )
+				Shine:NotifyColour( nil, 255, 160, 0, "The server will now cycle to %s.", true,
+					self:GetNextMap() )
 
 				local Gamerules = GetGamerules()
 
@@ -632,7 +638,8 @@ function Plugin:OnVoteStart( ID )
 
 		String = Vowel == "E" and "an "..String or "a "..String
 
-		return false, StringFormat( "You cannot start %s teams vote while the map vote is running.", String )
+		return false, StringFormat( "You cannot start %s teams vote while the map vote is running.",
+			String )
 	end
 end
 
@@ -826,7 +833,8 @@ function Plugin:ExtendMap( Time, NextMap )
 		
 		self:Notify( nil, "Extending the current map for another round." )
 	else 
-		self:Notify( nil, "Extending the current map for another %s.", true, string.TimeToString( ExtendTime ) )
+		self:Notify( nil, "Extending the current map for another %s.", true,
+			string.TimeToString( ExtendTime ) )
 	end
 	
 	self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -920,7 +928,8 @@ function Plugin:ProcessResults( NextMap )
 	--Only one map won.
 	if Count == 1 then
 		if not NextMap then
-			self:Notify( nil, "%s won the vote with %s/%s votes.", true, Results[ 1 ], MaxVotes, TotalVotes )
+			self:Notify( nil, "%s won the vote with %s/%s votes.", true,
+				Results[ 1 ], MaxVotes, TotalVotes )
 
 			local Choice = Results[ 1 ]
 			if Choice == Shared.GetMapName() then
@@ -931,7 +940,8 @@ function Plugin:ProcessResults( NextMap )
 				return
 			end
 
-			self:Notify( nil, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+			self:Notify( nil, "Map changing in %s.", true,
+				string.TimeToString( self.Config.ChangeDelay ) )
 
 			self.Vote.CanVeto = true --Allow admins to cancel the change.
 
@@ -1032,7 +1042,8 @@ function Plugin:ProcessResults( NextMap )
 				return
 			end
 
-			self:Notify( nil, "Map changing in %s.", true, string.TimeToString( self.Config.ChangeDelay ) )
+			self:Notify( nil, "Map changing in %s.", true,
+				string.TimeToString( self.Config.ChangeDelay ) )
 
 			self.CyclingMap = true
 
@@ -1117,7 +1128,8 @@ end
 function Plugin:CanExtend()
 	local CurMap = Shared.GetMapName()
 
-	return self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends and not self.Config.DontExtend[ CurMap ]
+	return self.Config.AllowExtend and self.NextMap.Extends < self.Config.MaxExtends
+		and not self.Config.DontExtend[ CurMap ]
 end
 
 --[[
@@ -1272,7 +1284,8 @@ function Plugin:StartVote( NextMap, Force )
 		end
 	end )
 
-	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(), not self.VoteOnEnd )
+	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(),
+		not self.VoteOnEnd )
 
 	--This timer runs when the vote ends, and sorts out the results.
 	self:CreateTimer( self.VoteTimer, VoteLength, 1, function()
@@ -1379,7 +1392,8 @@ function Plugin:CreateCommands()
 			
 			local VotesNeeded = self.StartingVote:GetVotesNeeded()
 
-			self:Notify( nil, "%s voted to change the map (%s more votes needed).", true, PlayerName, VotesNeeded )
+			self:Notify( nil, "%s voted to change the map (%s more votes needed).", true,
+				PlayerName, VotesNeeded )
 
 			return
 		end
@@ -1390,7 +1404,8 @@ function Plugin:CreateCommands()
 			Notify( Err )
 		end
 	end
-	local StartVoteCommand = self:BindCommand( "sh_votemap", { "rtv", "votemap", "mapvote" }, VoteToChange, true )
+	local StartVoteCommand = self:BindCommand( "sh_votemap", { "rtv", "votemap", "mapvote" },
+		VoteToChange, true )
 	StartVoteCommand:Help( "Begin a vote to change the map." )
 
 	local function Vote( Client, Map )
@@ -1505,7 +1520,8 @@ function Plugin:CreateCommands()
 		if not self:VoteStarted() then
 			self:StartVote( nil, true )
 
-			Shine:Print( "%s[%s] forced a map vote.", true, PlayerName, Client and Client:GetUserId() or "N/A" )
+			Shine:Print( "%s[%s] forced a map vote.", true, PlayerName,
+				Client and Client:GetUserId() or "N/A" )
 
 			Shine:CommandNotify( Client, "forced a map vote." )
 		else
@@ -1595,9 +1611,11 @@ function Plugin:CreateCommands()
 		Time = Time * 60
 
 		if Time > 0 then
-			Shine:CommandNotify( Client, "extended the map by %s.", true, string.TimeToString( Time ) )
+			Shine:CommandNotify( Client, "extended the map by %s.", true,
+				string.TimeToString( Time ) )
 		else
-			Shine:CommandNotify( Client, "shortened the map by %s.", true, string.TimeToString( -Time ) )
+			Shine:CommandNotify( Client, "shortened the map by %s.", true,
+				string.TimeToString( -Time ) )
 		end
 	end
 	local AddTimeCommand = self:BindCommand( "sh_addtimelimit", "addtimelimit", AddTime )
@@ -1631,7 +1649,8 @@ function Plugin:CreateCommands()
 		end
 	end
 	local AddRoundsCommand = self:BindCommand( "sh_addroundlimit", "addroundlimit", AddRounds )
-	AddRoundsCommand:AddParam{ Type = "number", Round = true, Error = "Please specify the amount of rounds to add." }
+	AddRoundsCommand:AddParam{ Type = "number", Round = true,
+		Error = "Please specify the amount of rounds to add." }
 	AddRoundsCommand:Help( "<rounds> Adds the given number of rounds to the round limit." )
 
 	local function SetRounds( Client, Rounds )
@@ -1642,7 +1661,8 @@ function Plugin:CreateCommands()
 		Shine:CommandNotify( Client, "set the round limit to %s.", true, RoundString )
 	end
 	local SetRoundsCommand = self:BindCommand( "sh_setroundlimit", "setroundlimit", SetRounds )
-	SetRoundsCommand:AddParam{ Type = "number", Round = true, Min = 0, Error = "Please specify a round limit." }
+	SetRoundsCommand:AddParam{ Type = "number", Round = true, Min = 0,
+		Error = "Please specify a round limit." }
 	SetRoundsCommand:Help( "<rounds> Sets the round limit." )
 end
 

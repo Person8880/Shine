@@ -50,20 +50,23 @@ local TableRemove = table.remove
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local TableToString = table.ToString
+local tonumber = tonumber
 local Traceback = debug.traceback
+local type = type
 
 --[[
 	Returns whether the given client is valid.
 ]]
 function Shine:IsValidClient( Client )
-	return Client and self.GameIDs[ Client ] ~= nil
+	return Client and self.GameIDs:Get( Client ) ~= nil
 end
 
 local function OnJoinError( Error )
 	local Trace = Traceback()
 
 	Shine:DebugLog( "Error: %s.\nEvenlySpreadTeams failed. %s", true, Error, Trace )
-	Shine:AddErrorReport( StringFormat( "A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
+	Shine:AddErrorReport( StringFormat(
+		"A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
 end
 
 local OldRespawnPlayer = Team.RespawnPlayer
@@ -137,7 +140,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	local AlienTeam = Gamerules.team2
 
 	for i, Player in pairs( Marine ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 1, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
+			OnJoinError, Gamerules, Player, 1, nil, true )
 
 		if Success then
 			Marine[ i ] = NewPlayer
@@ -147,7 +151,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	end
 
 	for i, Player in pairs( Alien ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam, OnJoinError, Gamerules, Player, 2, nil, true )
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
+			OnJoinError, Gamerules, Player, 2, nil, true )
 
 		if Success then
 			Alien[ i ] = NewPlayer
@@ -171,7 +176,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
 			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
 				"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\nActual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\nNew Teams:\nMarines:\n%s\nAliens:\n%s",
-				true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount, NewAlienCount, NewDiff, Marines, Aliens )
+				true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount,
+				NewAlienCount, NewDiff, Marines, Aliens )
 		end
 	end
 end
@@ -184,7 +190,7 @@ function Shine.GetHumanPlayerCount()
 
 	local GameIDs = Shine.GameIDs
 
-	for Client, ID in pairs( GameIDs ) do
+	for Client, ID in GameIDs:Iterate() do
 		if Client.GetIsVirtual and not Client:GetIsVirtual() then
 			Count = Count + 1
 		end
@@ -202,7 +208,7 @@ function Shine.GetAllPlayers()
 
 	local GameIDs = Shine.GameIDs
 
-	for Client, ID in pairs( GameIDs ) do
+	for Client, ID in GameIDs:Iterate() do
 		local Player = Client.GetControllingPlayer and Client:GetControllingPlayer()
 
 		if Player then
@@ -260,7 +266,7 @@ function Shine.GetAllClients()
 
 	local GameIDs = Shine.GameIDs
 
-	for Client, ID in pairs( GameIDs ) do
+	for Client, ID in GameIDs:Iterate() do
 		Clients[ Count ] = Client
 		Count = Count + 1
 	end
@@ -274,7 +280,7 @@ end
 function Shine.GetClientByID( ID )
 	local GameIDs = Shine.GameIDs
 
-	for Client, GameID in pairs( GameIDs ) do
+	for Client, GameID in GameIDs:Iterate() do
 		if ID == GameID then
 			return Client
 		end
@@ -291,7 +297,7 @@ function Shine.GetClientByNS2ID( ID )
 	
 	local Clients = Shine.GameIDs
 	
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		if Client:GetUserId() == ID then
 			return Client
 		end
@@ -312,7 +318,7 @@ function Shine.GetClientByName( Name )
 	local SortTable = {}
 	local Count = 0
 
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		local Player = Client:GetControllingPlayer()
 
 		if Player then
@@ -342,13 +348,29 @@ function Shine.NS2ToSteamID( ID )
 	return StringFormat( "STEAM_0:%i:%i", ID % 2, Floor( ID * 0.5 ) )
 end
 
+function Shine.NS2ToSteam3ID( ID )
+	ID = tonumber( ID )
+	if not ID then return "" end
+
+	return StringFormat( "[U:1:%i]", ID )
+end
+
 function Shine.SteamIDToNS2( ID )
-	if type( ID ) ~= "string" or not ID:match( "^STEAM_%d:%d:%d+$" ) then return nil end
+	if type( ID ) ~= "string" then return nil end
 
-	local Num = tonumber( ID:sub( 11 ) )
-	local Extra = tonumber( ID:sub( 9, 9 ) )
+	--STEAM_0:X:YYYYYYY
+	if ID:match( "^STEAM_%d:%d:%d+$" ) then
+		local Num = tonumber( ID:sub( 11 ) )
+		local Extra = tonumber( ID:sub( 9, 9 ) )
 
-	return Num * 2 + Extra
+		return Num * 2 + Extra
+	else
+		--[U:1:YYYYYYY]
+		local NS2ID = ID:match( "^%[U:%d:(%d+)%]$" )
+		if not NS2ID then return nil end
+
+		return tonumber( NS2ID )
+	end
 end
 
 function Shine:GetClientBySteamID( ID )
@@ -387,7 +409,7 @@ function Shine:GetClientsWithAccess( Access )
 	local Ret = {}
 	local Count = 0
 
-	for Client in pairs( self.GameIDs ) do
+	for Client in self.GameIDs:Iterate() do
 		if self:HasAccess( Client, Access ) then
 			Count = Count + 1
 			Ret[ Count ] = Client
@@ -415,7 +437,7 @@ function Shine:GetClientsByGroup( Group )
 	local Count = 0
 	local Ret = {}
 
-	for Client in pairs( Clients ) do
+	for Client in Clients:Iterate() do
 		if self:IsInGroup( Client, Group ) then
 			Count = Count + 1
 			Ret[ Count ] = Client

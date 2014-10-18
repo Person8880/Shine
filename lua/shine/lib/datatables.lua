@@ -11,10 +11,14 @@
 
 	and so on.
 
-	Values are cached and only sent when changed. They are sent to new clients that connect too.
+	Values are cached and only sent when changed. They are sent to new
+	clients that connect too.
 
-	It is imperative that datatables are created on the client and server, you cannot create them on one side then leave the other side for later.
-	The game requires the same number of network messages on the client and server when it has finished loading.
+	It is imperative that datatables are created on the client and server,
+	you cannot create them on one side then leave the other side for later.
+
+	The game requires the same number of network messages on the client
+	and server when it has finished loading.
 ]]
 
 local Shine = Shine
@@ -108,7 +112,8 @@ if Server then
 				local Client = Clients[ i ]
 
 				if Client then
-					Shine.SendNetworkMessage( Client, self.__Name..Key, { [ Key ] = Value }, true )
+					Shine.SendNetworkMessage( Client, self.__Name..Key,
+						{ [ Key ] = Value }, true )
 				end
 			end
 
@@ -188,7 +193,8 @@ if Server then
 
 				for Key, Value in pairs( Data ) do
 					if not Access[ Key ] or Shine:HasAccess( Client, Access[ Key ] ) then
-						Shine.SendNetworkMessage( Client, Table.__Name..Key, { [ Key ] = Value }, true )
+						Shine.SendNetworkMessage( Client, Table.__Name..Key,
+							{ [ Key ] = Value }, true )
 					end
 				end
 			end

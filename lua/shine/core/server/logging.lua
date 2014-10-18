@@ -277,7 +277,7 @@ function Shine:CommandNotify( Client, Message, Format, ... )
 	local NotifyAnonymous = self.Config.NotifyAnonymous
 	local NotifyAdminAnonymous = self.Config.NotifyAdminAnonymous
 
-	for Target in pairs( Clients ) do
+	for Target in Clients:Iterate() do
 		--Console should always notify with its special name.
 		if IsConsole then
 			self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message, Format, ... )

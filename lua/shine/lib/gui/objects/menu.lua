@@ -77,7 +77,8 @@ function Menu:AddButton( Text, DoClick )
 
 	self.ButtonCount = self.ButtonCount + 1
 
-	self.Background:SetSize( Padding * 2 + self.ButtonSize + ( self.ButtonCount - 1 ) * self.ButtonOffset )
+	self.Background:SetSize( Padding * 2 + self.ButtonSize
+		+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
 
 	self.Buttons[ self.ButtonCount ] = Button
 end

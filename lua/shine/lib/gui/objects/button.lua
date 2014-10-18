@@ -10,6 +10,7 @@ local Button = {}
 
 local ClickSound = "sound/NS2.fev/common/button_enter"
 Client.PrecacheLocalSound( ClickSound )
+Button.Sound = ClickSound
 
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
@@ -19,8 +20,6 @@ function Button:Initialise()
 	local Background = GetGUIManager():CreateGraphicItem()
 
 	self.Background = Background
-
-	self.Sound = ClickSound
 
 	local Scheme = SGUI:GetSkin()
 

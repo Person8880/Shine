@@ -58,7 +58,8 @@ end
 		Type - The network variable's type, e.g "string (128)".
 		Name - The name on the data table to give this variable.
 		Default - The default value.
-		Access - Optional access string, if set, only clients with access to this will receive this variable.
+		Access - Optional access string, if set,
+		only clients with access to this will receive this variable.
 ]]
 function PluginMeta:AddDTVar( Type, Name, Default, Access )
 	self.DTVars = self.DTVars or {}
@@ -77,7 +78,8 @@ end
 function PluginMeta:InitDataTable( Name )
 	if not self.DTVars then return end
 	
-	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys, self.DTVars.Defaults, self.DTVars.Access )
+	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys,
+		self.DTVars.Defaults, self.DTVars.Access )
 
 	if self.NetworkUpdate then
 		self.dt:__SetChangeCallback( self, self.NetworkUpdate )
@@ -157,7 +159,8 @@ function PluginMeta:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
 
 	if Save then
-		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
+		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
+			or ClientConfigPath..self.ConfigName
 
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -172,7 +175,8 @@ function PluginMeta:GenerateDefaultConfig( Save )
 end
 
 function PluginMeta:SaveConfig( Silent )
-	local Path = Server and ( rawget( self, "__ConfigPath" ) or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
+	local Path = Server and ( rawget( self, "__ConfigPath" )
+		or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -189,7 +193,8 @@ end
 
 function PluginMeta:LoadConfig()
 	local PluginConfig
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName or ClientConfigPath..self.ConfigName
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
+		or ClientConfigPath..self.ConfigName
 
 	local Err
 	local Pos
@@ -297,9 +302,9 @@ if Server then
 	]]
 	function PluginMeta:Cleanup()
 		if rawget( self, "Commands" ) then
-			for k, Command in pairs( self.Commands ) do
+			for Key, Command in pairs( self.Commands ) do
 				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
-				self.Commands[ k ] = nil
+				self.Commands[ Key ] = nil
 			end
 		end
 
@@ -332,9 +337,9 @@ elseif Client then
 
 	function PluginMeta:Cleanup()
 		if rawget( self, "Commands" ) then
-			for k, Command in pairs( self.Commands ) do
+			for Key, Command in pairs( self.Commands ) do
 				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
-				self.Commands[ k ] = nil
+				self.Commands[ Key ] = nil
 			end
 		end
 
@@ -441,7 +446,7 @@ function PluginMeta:Suspend()
 	end
 
 	if rawget( self, "Commands" ) then
-		for k, Command in pairs( self.Commands ) do
+		for Key, Command in pairs( self.Commands ) do
 			Command.Disabled = true
 		end
 	end
@@ -459,7 +464,7 @@ function PluginMeta:Resume()
 	end
 
 	if rawget( self, "Commands" ) then
-		for k, Command in pairs( self.Commands ) do
+		for Key, Command in pairs( self.Commands ) do
 			Command.Disabled = nil
 		end
 	end
@@ -524,7 +529,8 @@ function Shine:LoadExtension( Name, DontEnable )
 	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
 	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
 	
-	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ] or PluginFiles[ ServerFile ]
+	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ]
+		or PluginFiles[ ServerFile ]
 
 	if PluginFiles[ SharedFile ] then
 		include( SharedFile )
@@ -676,7 +682,8 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		return false, Err
 	end
 
-	if Server and Plugin.IsShared and next( self.GameIDs ) then --We need to inform clients to enable the client portion.
+	--We need to inform clients to enable the client portion.
+	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then 
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
 	end
 
@@ -694,7 +701,7 @@ function Shine:UnloadExtension( Name )
 
 	Plugin.Enabled = false
 
-	if Server and Plugin.IsShared and next( self.GameIDs ) then
+	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
 
@@ -719,8 +726,12 @@ function Shine:IsExtensionEnabled( Name )
 end
 
 local ClientPlugins = {}
---Store a list of all plugins in existance. When the server config loads, we use it.
-Shine.AllPlugins = {}
+--Store a list of all plugins in existence. When the server config loads, we use it.
+local AllPlugins = {}
+Shine.AllPlugins = AllPlugins
+
+local AllPluginsArray = {}
+Shine.AllPluginsArray = AllPluginsArray
 
 --[[
 	Prepare shared plugins.
@@ -737,17 +748,27 @@ for Path in pairs( PluginFiles ) do
 		if not ClientPlugins[ Name ] then
 			local LoweredFileName = File:lower()
 
-			if LoweredFileName == "shared.lua" then
-				ClientPlugins[ Name ] = "boolean" --Generate the network message.
-				Shine.AllPlugins[ Name ] = true
-			elseif LoweredFileName == "server.lua" then
-				Shine.AllPlugins[ Name ] = true
+			if not AllPlugins[ Name ] then
+				AllPluginsArray[ #AllPluginsArray + 1 ] = Name
 			end
 
-			Shine:LoadExtension( Name, true ) --Shared plugins should load into memory for network messages.
+			if LoweredFileName == "shared.lua" then
+				ClientPlugins[ Name ] = "boolean" --Generate the network message.
+				AllPlugins[ Name ] = true
+			elseif LoweredFileName == "server.lua" then
+				AllPlugins[ Name ] = true
+			end
+
+			--Shared plugins should load into memory for network messages.
+			Shine:LoadExtension( Name, true )
 		end
 	else
-		Shine.AllPlugins[ Name:gsub( "%.lua", "" ) ] = true
+		Name = Name:gsub( "%.lua", "" )
+
+		if not AllPlugins[ Name ] then
+			AllPlugins[ Name ] = true
+			AllPluginsArray[ #AllPluginsArray + 1 ] = Name
+		end
 	end
 end
 

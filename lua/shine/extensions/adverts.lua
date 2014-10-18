@@ -15,8 +15,20 @@ Plugin.ConfigName = "Adverts.json"
 
 Plugin.DefaultConfig = {
 	Adverts = { 
-		{ Message = "Welcome to Natural Selection 2.", Type = "chat", R = 255, G = 255, B = 255 },
-		{ Message = "This server is running the Shine administration mod.", Type = "chat", R = 255, G = 255, B = 255 }
+		{
+			Message = "Welcome to Natural Selection 2.",
+			Type = "chat",
+			R = 255,
+			G = 255,
+			B = 255
+		},
+		{
+			Message = "This server is running the Shine administration mod.",
+			Type = "chat",
+			R = 255,
+			G = 255,
+			B = 255
+		}
 	},
 	Interval = 60
 }
@@ -46,7 +58,8 @@ function Plugin:ParseAdvert( ID, Advert )
 		local Message = Advert.Message
 
 		if not Message then
-			Shine:Print( "[Adverts] Misconfigured advert #%i, missing \"Message\" value.", true, ID )
+			Shine:Print( "[Adverts] Misconfigured advert #%i, missing \"Message\" value.",
+				true, ID )
 
 			TableRemove( self.Config.Adverts, ID )
 
@@ -71,7 +84,8 @@ function Plugin:ParseAdvert( ID, Advert )
 				X, Y = 0.5, 0.8
 			end
 
-			Shine:SendText( nil, Shine.BuildScreenMessage( 20, X, Y, Message, 7, R, G, B, Align, 2, 1 ) )
+			Shine:SendText( nil, Shine.BuildScreenMessage( 20, X, Y, Message,
+				7, R, G, B, Align, 2, 1 ) )
 		end
 	end
 end

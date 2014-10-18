@@ -19,7 +19,10 @@ Plugin.Welcomed = {}
 Plugin.DefaultConfig = {
 	MessageDelay = 5,
 	Users = {
-		[ "90000001" ] = { Welcome = "Bob has joined the party!", Leave = "Bob is off to fight more important battles." }
+		[ "90000001" ] = {
+			Welcome = "Bob has joined the party!",
+			Leave = "Bob is off to fight more important battles."
+		}
 	},
 	ShowGeneric = false
 }

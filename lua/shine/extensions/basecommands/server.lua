@@ -499,7 +499,7 @@ function Plugin:CreateCommands()
 		local SortTable = {}
 		local Count = 0
 
-		for Client, ID in pairs( GameIDs ) do
+		for Client, ID in GameIDs:Iterate() do
 			Count = Count + 1
 			SortTable[ Count ] = { ID, Client }
 		end
@@ -543,7 +543,7 @@ function Plugin:CreateCommands()
 			local SortTable = {}
 			local Count = 0
 
-			for Client, ID in pairs( GameIDs ) do
+			for Client, ID in GameIDs:Iterate() do
 				Count = Count + 1
 				SortTable[ Count ] = { Client:GetUserId(), Client }
 			end

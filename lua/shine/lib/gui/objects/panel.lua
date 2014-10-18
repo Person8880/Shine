@@ -249,7 +249,7 @@ function Panel:SetIsVisible( Visible )
 
 	if not Children then return end
 
-	for Child in pairs( Children ) do
+	for Child in Children:Iterate() do
 		Child:SetIsVisible( Visible )
 	end
 end
@@ -259,7 +259,7 @@ end
 ]]
 function Panel:Clear()
 	if self.Children then
-		for Element in pairs( self.Children ) do
+		for Element in self.Children:Iterate() do
 			if Element ~= self.Scrollbar then
 				Element:SetParent()
 				Element:Destroy()
@@ -301,7 +301,8 @@ function Panel:SetScrollbarWidthMult( Mult )
 	self.ScrollbarWidthMult = Mult
 
 	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:SetSize( Vector( 10 * Mult, self:GetSize().y - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+		self.Scrollbar:SetSize( Vector( 10 * Mult,
+			self:GetSize().y - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
 	end
 end
 
@@ -316,7 +317,8 @@ function Panel:SetMaxHeight( Height )
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
 		Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 		Scrollbar:SetPos( self.ScrollPos or ScrollPos )
-		Scrollbar:SetSize( Vector( 10 * ( self.ScrollbarWidthMult or 1 ), MaxHeight - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+		Scrollbar:SetSize( Vector( 10 * ( self.ScrollbarWidthMult or 1 ),
+			MaxHeight - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
 		Scrollbar:SetScrollSize( MaxHeight / Height )
 
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )

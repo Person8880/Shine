@@ -15,7 +15,7 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
 
-Plugin.Users = {}
+Plugin.Users = setmetatable( {}, { __mode = "k" } )
 
 Plugin.DefaultConfig = {
 	MinPlayers = 10,
@@ -48,6 +48,12 @@ function Plugin:Initialise()
 
 	if Edited then
 		self:SaveConfig( true )
+	end
+
+	if self.Enabled ~= nil then
+		for Client in pairs( self.Users ) do
+			self:ResetAFKTime( Client )
+		end
 	end
 
 	self.Enabled = true
@@ -138,7 +144,8 @@ function Plugin:OnProcessMove( Player, Input )
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
 
-	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0 and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
+	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
+	and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
 		DataTable.LastMove = Time
 
 		if DataTable.Warn then
@@ -163,10 +170,13 @@ function Plugin:OnProcessMove( Player, Input )
 
 			local AFKTime = Time - DataTable.LastMove
 			
-			Shine.SendNetworkMessage( Client, "AFKWarning", { timeAFK = AFKTime, maxAFKTime = KickTime }, true )
+			Shine.SendNetworkMessage( Client, "AFKWarning", {
+				timeAFK = AFKTime,
+				maxAFKTime = KickTime
+			}, true )
 
+			--Sometimes this event receives one of the weird "ghost" players that can't switch teams.
 			if self.Config.MoveToReadyRoomOnWarn and Team ~= kTeamReadyRoom then
-				--Sometimes this event receives one of the weird "ghost" players that can't switch teams.
 				Player = Client:GetControllingPlayer()
 				pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
 			elseif self.Config.MoveToSpectateOnWarn and Team ~= kSpectatorIndex then
@@ -193,6 +203,17 @@ function Plugin:OnProcessMove( Player, Input )
 		Client.DisconnectReason = "AFK for too long"
 
 		Server.DisconnectClient( Client )
+	end
+end
+
+function Plugin:PlayerSay( Client, MessageTable )
+	self:ResetAFKTime( Client )
+end
+
+function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
+	local Client = GetOwner( Speaker )
+	if Client then
+		self:ResetAFKTime( Client )
 	end
 end
 
@@ -258,14 +279,6 @@ function Plugin:ClientDisconnect( Client )
 	if self.Users[ Client ] then
 		self.Users[ Client ] = nil
 	end
-end
-
-function Plugin:Cleanup()
-	for k, v in pairs( self.Users ) do
-		self.Users[ k ] = nil
-	end
-
-	self.Enabled = false
 end
 
 --Override the built in randomise ready room vote to not move AFK players.

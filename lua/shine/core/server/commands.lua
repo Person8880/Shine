@@ -22,24 +22,28 @@ CommandMeta.__index = CommandMeta
 
 --[[
 	Adds a parameter to a command. This defines what an argument should be parsed into.
-	For instance, a paramter of type "client" will be parsed into a client from their name or Steam ID.
+	For instance, a paramter of type "client" will be parsed into a client
+	from their name or Steam ID.
 ]]
 function CommandMeta:AddParam( Table )
-	Shine.Assert( type( Table ) == "table", "Bad argument #1 to AddParam, table expected, got %s", type( Table ) )
+	Shine.Assert( type( Table ) == "table", "Bad argument #1 to AddParam, table expected, got %s",
+		type( Table ) )
 
 	local Args = self.Arguments
 	Args[ #Args + 1 ] = Table
 end
 
 function CommandMeta:Help( HelpString )
-	Shine.Assert( type( HelpString ) == "string", "Bad argument #1 to Help, string expected, got %s", type( HelpString ) )
+	Shine.Assert( type( HelpString ) == "string",
+		"Bad argument #1 to Help, string expected, got %s", type( HelpString ) )
 
 	self.Help = HelpString
 end
 
 --[[
 	Creates a command object. 
-	The object stores the console command, chat command, function to run, permission setting and silent setting.
+	The object stores the console command, chat command, function to run,
+	permission setting and silent setting.
 	It can also have parameters added to it to pass to its function.
 ]]
 local function Command( ConCommand, ChatCommand, Function, NoPermissions, Silent )
@@ -69,15 +73,17 @@ local HookedCommands = {}
 	Output: Command object.
 ]]
 function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silent )
-	self.Assert( type( ConCommand ) == "string", "Bad argument #1 to RegisterCommand, string expected, got %s", type( ConCommand ) )
+	self.Assert( type( ConCommand ) == "string",
+		"Bad argument #1 to RegisterCommand, string expected, got %s", type( ConCommand ) )
 
 	if ChatCommand then
 		self.Assert( type( ChatCommand ) == "string" or type( ChatCommand ) == "table", 
-			"Bad argument #2 to RegisterCommand, string or table expected, got %s", type( ChatCommand ) 
-		)
+			"Bad argument #2 to RegisterCommand, string or table expected, got %s",
+			type( ChatCommand ) )
 	end
 
-	self.Assert( type( Function ) == "function", "Bad argument #3 to RegisterCommand, function expected, got %s", type( Function ) )
+	self.Assert( type( Function ) == "function",
+		"Bad argument #3 to RegisterCommand, function expected, got %s", type( Function ) )
 
 	local Commands = self.Commands
 
@@ -98,7 +104,7 @@ function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silen
 		end
 	end
 
-	--This prevents hooking again if a plugin is reloaded, which causes doubles or more of the command.
+	--This prevents hooking again if a plugin is reloaded.
 	if not HookedCommands[ ConCommand ] then
 		Event.Hook( "Console_"..ConCommand, function( Client, ... )
 			return Shine:RunCommand( Client, ConCommand, ... )
@@ -113,7 +119,8 @@ end
 	Removes a registered Shine command.
 	Inputs: Console command, optional chat command.
 
-	Note that we do not remove the command from 'HookedCommands', as NS2's hook system lacks a way to remove hooks.
+	Note that we do not remove the command from 'HookedCommands',
+	as NS2's hook system lacks a way to remove hooks.
 ]]
 function Shine:RemoveCommand( ConCommand, ChatCommand )
 	self.Commands[ ConCommand ] = nil
@@ -161,7 +168,8 @@ local TargetFuncs = {
 local ParamTypes = {
 	--Strings return simply the string (clipped to max length if given).
 	string = function( Client, String, Table ) 
-		if not String or String == "" then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
+		if not String or String == "" then return IsType( Table.Default, "function" )
+			and Table.Default() or Table.Default end
 
 		return Table.MaxLength and String:UTF8Sub( 1, Table.MaxLength ) or String
 	end,
@@ -199,9 +207,11 @@ local ParamTypes = {
 
 		return Target
 	end,
-	--Clients looks for matching clients by game ID, Steam ID, name or special targeting directive. Returns a table of clients.
+	--Clients looks for matching clients by game ID, Steam ID, name
+	--or special targeting directive. Returns a table of clients.
 	clients = function( Client, String, Table ) 
-		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
+		if not String then return IsType( Table.Default, "function" )
+			and Table.Default() or Table.Default end
 
 		local Vals = StringExplode( String, "," )
 		
@@ -324,7 +334,8 @@ local ParamTypes = {
 
 		return Clients
 	end,
-	--Number performs tonumber() on the string and clamps the result between the given min and max if set. Also rounds if asked.
+	--Number performs tonumber() on the string and clamps the result between
+	--the given min and max if set. Also rounds if asked.
 	number = function( Client, String, Table )
 		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
@@ -352,9 +363,11 @@ local ParamTypes = {
 
 		return String ~= "false"
 	end,
-	--Team takes either 0 - 3 directly or takes a string matching a team name and turns it into the team number.
+	--Team takes either 0 - 3 directly or takes a string matching a team name
+	--and turns it into the team number.
 	team = function( Client, String, Table )
-		if not String then return IsType( Table.Default, "function" ) and Table.Default() or Table.Default end
+		if not String then return IsType( Table.Default, "function" )
+			and Table.Default() or Table.Default end
 
 		local ToNum = tonumber( String )
 
@@ -428,7 +441,8 @@ local ArgValidators = {
 
 --[[
 	Executes a Shine command. Should not be called directly.
-	Inputs: Client running the command, console command to run, string arguments passed to the command.
+	Inputs: Client running the command, console command to run,
+	string arguments passed to the command.
 ]]
 function Shine:RunCommand( Client, ConCommand, ... )
 	local Command = self.Commands[ ConCommand ]
@@ -454,7 +468,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 	if Args[ 1 ] == nil and ExpectedCount > 0 and not ExpectedArgs[ 1 ].Optional then
 		if Client then
-			ServerAdminPrint( Client, StringFormat( "%s - %s", ConCommand, Command.Help or "No help available." ) )
+			ServerAdminPrint( Client, StringFormat( "%s - %s", ConCommand,
+				Command.Help or "No help available." ) )
 		else
 			Print( "%s - %s", ConCommand, Command.Help or "No help available." )
 		end
@@ -480,7 +495,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 						CurArg.Type == "client" and "player was" or "players were" )
 				end
 			else
-				self:NotifyError( Player, CurArg.Error or "Incorrect argument #%i to %s, expected %s.", 
+				self:NotifyError( Player,
+					CurArg.Error or "Incorrect argument #%i to %s, expected %s.", 
 					true, i, ConCommand, CurArg.Type )
 			end
 
@@ -495,11 +511,13 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 			--Apply restrictions.
 			if Func then
-				ParsedArgs[ i ] = Func( Client, ParsedArgs[ i ], ArgRestrictions[ RestrictionIndex ] )
+				ParsedArgs[ i ] = Func( Client, ParsedArgs[ i ],
+					ArgRestrictions[ RestrictionIndex ] )
 			
 				--The restriction wiped the argument as it's not allowed.
 				if ParsedArgs[ i ] == nil then
-					self:NotifyError( Player, "Invalid argument #%i, restricted in rank settings.", true, i )
+					self:NotifyError( Player,
+						"Invalid argument #%i, restricted in rank settings.", true, i )
 
 					return
 				end
@@ -520,7 +538,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:NotifyError( Player, "The author of this command misconfigured it. If you know them, tell them!" )
+				self:NotifyError( Player,
+					"The author of this command misconfigured it. If you know them, tell them!" )
 
 				return
 			end
@@ -557,7 +576,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				FixArray( ParsedArg )
 
 				if #ParsedArg == 0 then
-					self:NotifyError( Player, "You do not have permission to target anyone you specified." )
+					self:NotifyError( Player,
+						"You do not have permission to target anyone you specified." )
 
 					return
 				end
@@ -593,7 +613,8 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 
 	if not FirstWord then return end
 
-	if FirstWord:sub( 1, 1 ):find( "[^%w]" ) then --They've done !, / or some other special character first.
+	--They've done !, / or some other special character first.
+	if FirstWord:sub( 1, 1 ):find( "[^%w]" ) then
 		Directive = FirstWord:sub( 1, 1 )
 		Exploded[ 1 ] = FirstWord:sub( 2 )
 	end
@@ -614,7 +635,10 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 
 	Shine:RunCommand( Client, ConCommand, unpack( Exploded ) ) --Run the command.
 
-	if CommandObj.Silent then return "" end --If the command specifies it is silent, override their message with blank.
-	if Shine.Config.SilentChatCommands then return "" end --If the global silent chat commands setting is on, silence the message.
-	if Directive == "/" then return "" end --If they used / to invoke the command, silence it. (SourceMod style)
+	--If the command specifies it is silent, override their message with blank.
+	if CommandObj.Silent then return "" end
+	--If the global silent chat commands setting is on, silence the message.
+	if Shine.Config.SilentChatCommands then return "" end
+	--If they used / to invoke the command, silence it. (SourceMod style)
+	if Directive == "/" then return "" end
 end, -20 )

@@ -19,7 +19,6 @@ local IsType = Shine.IsType
 local Max = math.max
 local Min = math.min
 local next = next
-local pairs = pairs
 local Random = math.random
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
