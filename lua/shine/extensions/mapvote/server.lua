@@ -278,8 +278,6 @@ function Plugin:ShouldCycleMap()
 	if not Winner then return end
 
 	local Time = SharedTime()
-
-	--if self.Vote.GraceTime and self.Vote.GraceTime > Time then return false end
 	
 	if self.NextMap.ExtendTime and Time < self.NextMap.ExtendTime then
 		return false 
@@ -830,13 +828,13 @@ function Plugin:ExtendMap( Time, NextMap )
 
 	if self.Config.RoundLimit > 0 then
 		self.Round = self.Round - 1
-		
+
 		self:Notify( nil, "Extending the current map for another round." )
 	else 
 		self:Notify( nil, "Extending the current map for another %s.", true,
 			string.TimeToString( ExtendTime ) )
 	end
-	
+
 	self.NextMap.ExtendTime = BaseTime + ExtendTime
 	self.NextMap.Extends = self.NextMap.Extends + 1
 
@@ -900,7 +898,7 @@ function Plugin:ProcessResults( NextMap )
 		end
 
 		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
-		
+
 		if NextMap then
 			self.NextMap.Voting = false
 		end
@@ -936,6 +934,8 @@ function Plugin:ProcessResults( NextMap )
 				self.NextMap.Winner = Choice
 
 				self:ExtendMap( Time, false )
+
+				self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 
 				return
 			end
@@ -983,8 +983,6 @@ function Plugin:ProcessResults( NextMap )
 
 		self.NextMap.Voting = false
 
-		self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
-
 		return
 	end
 
@@ -992,7 +990,7 @@ function Plugin:ProcessResults( NextMap )
 	--If we're set to fail on a tie, then fail.
 	if self.Config.TieFails then
 		self:Notify( nil, "Votes were tied. Map vote failed." )
-		self.Vote.NextVote = SharedTime() + ( self.Config.VoteDelay * 60 )
+		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 
 		if NextMap then
 			self.NextMap.Voting = false
@@ -1039,6 +1037,8 @@ function Plugin:ProcessResults( NextMap )
 
 				self:ExtendMap( Time, false )
 
+				self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
+
 				return
 			end
 
@@ -1067,13 +1067,11 @@ function Plugin:ProcessResults( NextMap )
 
 		if Choice == Shared.GetMapName() then
 			self:ExtendMap( Time, true )
-
-			self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 		else
 			if not self.VoteOnEnd then
-				self:Notify( nil, "Setting next map in the cycle to %s.", true, Choice, Choice )
+				self:Notify( nil, "Setting as next map in the cycle...", true, Choice, Choice )
 			else
-				self:Notify( nil, "The map will now cycle to %s.", true, Choice, Choice )
+				self:Notify( nil, "Cycling map...", true, Choice, Choice )
 
 				self.CyclingMap = true
 
@@ -1088,7 +1086,8 @@ function Plugin:ProcessResults( NextMap )
 		return
 	end
 
-	self:DestroyTimer( self.VoteTimer ) --Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
+	--Now we're dealing with the case where we want to revote on fail, so we need to get rid of the timer.
+	self:DestroyTimer( self.VoteTimer ) 
 
 	if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
 		self:Notify( nil, "Votes were tied, map vote failed. Beginning revote." )
@@ -1100,12 +1099,6 @@ function Plugin:ProcessResults( NextMap )
 		end )
 	else
 		self:Notify( nil, "Votes were tied, map vote failed. Revote limit reached." )
-
-		if not NextMap then
-			self.Vote.NextVote = SharedTime() + ( self.Config.VoteDelay * 60 )
-		end
-
-		self.Vote.GraceTime = Time + self.Config.ChangeDelay * 2
 
 		if NextMap then
 			self.NextMap.Voting = false
@@ -1121,6 +1114,8 @@ function Plugin:ProcessResults( NextMap )
 					MapCycle_ChangeMap( Map )
 				end )
 			end
+		else
+			self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 		end
 	end
 end
