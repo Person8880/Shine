@@ -101,10 +101,7 @@ function Plugin:Initialise()
 	self.Round = 0
 
 	self.Vote = self.Vote or {}
-
-	if self.Enabled == nil then
-		self.Vote.NextVote = SharedTime() + ( self.Config.VoteDelay * 60 )
-	end
+	self.Vote.NextVote = self.Vote.NextVote or ( SharedTime() + ( self.Config.VoteDelay * 60 ) )
 
 	self.Vote.Nominated = {} --Table of nominated maps.
 
