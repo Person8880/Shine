@@ -79,8 +79,6 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Plugin.Commands = {}
-
 Plugin.VoteTimer = "MapVote"
 Plugin.NextMapTimer = "MapVoteNext"
 
