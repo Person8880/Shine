@@ -33,8 +33,6 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Plugin.Commands = {}
-
 function Plugin:Initialise()
 	self.Config.BanLength = Max( 0, self.Config.BanLength )
 	self.Config.FilterAction = Clamp( Floor( self.Config.FilterAction ), 1, 3 )

@@ -30,8 +30,6 @@ Plugin.Version = "1.1"
 Plugin.HasConfig = true
 Plugin.ConfigName = "BaseCommands.json"
 
-Plugin.Commands = {}
-
 Plugin.DefaultConfig = {
 	AllTalk = false,
 	AllTalkPreGame = false,

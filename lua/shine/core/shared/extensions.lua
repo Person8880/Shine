@@ -672,15 +672,23 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 
 	--There was a Lua error.
 	if not Success then
-		Plugin.Enabled = false
+		pcall( Plugin.Cleanup, Plugin )
+		--Just in case the cleanup failed, we have to make sure this has run.
+		Plugin.BaseClass.Cleanup( Plugin )
+
+		Plugin.Enabled = nil
 
 		return false, StringFormat( "Lua error: %s", Loaded )
 	end
 
 	--The plugin has refused to load.
 	if not Loaded then
+		Plugin.Enabled = nil
+
 		return false, Err
 	end
+
+	Plugin.Enabled = true
 
 	--We need to inform clients to enable the client portion.
 	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then 
@@ -696,6 +704,7 @@ function Shine:UnloadExtension( Name )
 	local Plugin = self.Plugins[ Name ]
 
 	if not Plugin then return end
+	if not Plugin.Enabled then return end
 
 	Plugin:Cleanup()
 
