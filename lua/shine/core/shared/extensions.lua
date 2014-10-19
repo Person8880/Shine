@@ -672,6 +672,10 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 
 	--There was a Lua error.
 	if not Success then
+		pcall( Plugin.Cleanup, Plugin )
+		--Just in case the cleanup failed, we have to make sure this has run.
+		Plugin.BaseClass.Cleanup( Plugin )
+
 		Plugin.Enabled = false
 
 		return false, StringFormat( "Lua error: %s", Loaded )
