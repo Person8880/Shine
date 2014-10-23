@@ -708,7 +708,7 @@ local function OnCleanupError( Err )
 
 	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
 
-	Shine:DebugPrint( "Plugin cleanup rrror: %s.\n%s", true, Err, Trace )
+	Shine:DebugPrint( "Plugin cleanup error: %s.\n%s", true, Err, Trace )
 	Shine:AddErrorReport( StringFormat( "Plugin cleanup error: %s.", Err ),
 		"%s\nLocals:\n%s", true, Trace, Locals )
 end
