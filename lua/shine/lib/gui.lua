@@ -299,16 +299,16 @@ function SGUI:Register( Name, Table, Parent )
 			if Table[ Key ] then return Table[ Key ] end
 			if ParentTable and ParentTable[ Key ] then return ParentTable[ Key ] end
 			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
-			
+
 			return nil
 		end
 	else
 		--No parent means only look in its meta-table and the base meta-table.
 		function Table:__index( Key )
 			if Table[ Key ] then return Table[ Key ] end
-			
+
 			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
-			
+
 			return nil
 		end
 	end
@@ -598,8 +598,8 @@ function ControlMeta:SetParent( Control, Element )
 	end
 
 	if not Control then
-		self.Parent = nil 
-		return 
+		self.Parent = nil
+		return
 	end
 
 	--Parent to a specific part of a control.

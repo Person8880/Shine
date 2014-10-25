@@ -104,7 +104,7 @@ function Plugin:SetupAdminMenuCommands()
 		OnInit = function( Panel, Data )
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
-			List:SetPos( Vector( 16, 24, 0 ) )
+			List:SetPos( Vector( 16, 28, 0 ) )
 			List:SetColumns( 1, "Map" )
 			List:SetSpacing( 1 )
 			List:SetSize( Vector( 640, 512, 0 ) )
@@ -169,7 +169,7 @@ function Plugin:SetupAdminMenuCommands()
 		OnInit = function( Panel, Data )
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
-			List:SetPos( Vector( 16, 24, 0 ) )
+			List:SetPos( Vector( 16, 28, 0 ) )
 			List:SetColumns( 2, "Plugin", "State" )
 			List:SetSpacing( 0.7, 0.3 )
 			List:SetSize( Vector( 640, 512, 0 ) )
@@ -277,7 +277,7 @@ function Plugin:SetupAdminMenuCommands()
 			Hook.Add( "OnPluginLoad", "AdminMenu_OnPluginLoad", function( Name, Plugin, Shared )
 				local Row = self.PluginRows[ Name ]
 
-				if Row then
+				if SGUI.IsValid( Row ) then
 					Row:SetColumnText( 2, "Enabled" )
 				end
 			end )
@@ -285,7 +285,7 @@ function Plugin:SetupAdminMenuCommands()
 			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Shared )
 				local Row = self.PluginRows[ Name ]
 
-				if Row then
+				if SGUI.IsValid( Row ) then
 					Row:SetColumnText( 2, "Disabled" )
 				end
 			end )
