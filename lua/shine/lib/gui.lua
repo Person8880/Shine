@@ -114,15 +114,13 @@ end
 local ToDebugString = table.ToDebugString
 local Traceback = debug.traceback
 
-local CallingEvent
-
 local function OnError( Error )
 	local Trace = Traceback()
 
 	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
 
 	Shine:DebugPrint( "SGUI Error: %s.\n%s", true, Error, Trace )
-	Shine:AddErrorReport( StringFormat( "SGUI Error (%s): %s.", CallingEvent, Error ),
+	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ),
 		"%s\nLocals:\n%s", true, Trace, Locals )
 end
 
@@ -137,8 +135,6 @@ end
 function SGUI:CallEvent( FocusChange, Name, ... )
 	local Windows = SGUI.Windows
 	local WindowCount = #Windows
-
-	CallingEvent = Name
 
 	--The focused window is the last in the list, so we call backwards.
 	for i = WindowCount, 1, - 1 do
