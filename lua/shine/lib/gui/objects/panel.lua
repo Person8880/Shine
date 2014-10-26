@@ -81,10 +81,10 @@ function Panel:AddTitleBar( Title, Font )
 	self.TitleLabel = TitleLabel
 
 	local CloseButton = SGUI:Create( "Button", TitlePanel )
-	CloseButton:SetSize( Vector( self.TitleBarHeight - 4, self.TitleBarHeight - 4, 0 ) )
+	CloseButton:SetSize( Vector( self.TitleBarHeight, self.TitleBarHeight, 0 ) )
 	CloseButton:SetText( "X" )
 	CloseButton:SetAnchor( "TopRight" )
-	CloseButton:SetPos( Vector( -self.TitleBarHeight - 4, 2, 0 ) )
+	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
 	if self.UseScheme then
 		local Skin = SGUI:GetSkin()
 

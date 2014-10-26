@@ -226,10 +226,10 @@ end
 
 function TabPanel:AddCloseButton()
 	local CloseButton = SGUI:Create( "Button", self )
-	CloseButton:SetSize( Vector( self.TitleBarHeight - 4, self.TitleBarHeight - 4, 0 ) )
+	CloseButton:SetSize( Vector( self.TitleBarHeight, self.TitleBarHeight, 0 ) )
 	CloseButton:SetText( "X" )
 	CloseButton:SetAnchor( "TopRight" )
-	CloseButton:SetPos( Vector( -self.TitleBarHeight + 2, 2, 0 ) )
+	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
 
 	local Skin = SGUI:GetSkin()
 

@@ -323,3 +323,26 @@ Test( "GenericFor", function()
 
 	assert( i == 30, "Generic for misses values: "..i )
 end )
+
+Test( "GenericForRemoval", function()
+	local Map = Map()
+
+	for i = 1, 30 do
+		Map:Add( i, i )
+	end
+
+	local Done = {}
+	local i = 0
+	for Key, Value in Map:Iterate() do
+		assert( not Done[ Key ], "Generic for is iterating elements multiple times!" )
+
+		i = i + 1
+		if i % 5 == 0 then
+			Map:Remove( Key )
+		end
+
+		Done[ Key ] = true
+	end
+
+	assert( i == 30, "Generic for didn't iterate enough times after removing!" )
+end )

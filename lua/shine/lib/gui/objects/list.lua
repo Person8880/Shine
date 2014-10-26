@@ -496,7 +496,7 @@ function List:GetSelectedRows()
 	for i = 1, #Rows do
 		local Row = Rows[ i ]
 
-		if Row.Selected then
+		if SGUI.IsValid( Row ) and Row.Selected then
 			Count = Count + 1
 
 			Selected[ Count ] = Row
@@ -508,7 +508,11 @@ end
 
 function List:GetSelectedRow()
 	if self.MultiSelect then return self:GetSelectedRows() end
-	
+
+	if not SGUI.IsValid( self.SelectedRow ) then
+		return nil
+	end
+
 	return self.SelectedRow
 end
 

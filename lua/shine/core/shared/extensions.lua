@@ -13,7 +13,10 @@ local rawget = rawget
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local ToDebugString = table.ToDebugString
+local Traceback = debug.traceback
 local type = type
+local xpcall = xpcall
 
 local function Print( ... )
 	return Notify( StringFormat( ... ) )
@@ -674,7 +677,7 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	if not Success then
 		pcall( Plugin.Cleanup, Plugin )
 		--Just in case the cleanup failed, we have to make sure this has run.
-		Plugin.BaseClass.Cleanup( Plugin )
+		PluginMeta.Cleanup( Plugin )
 
 		Plugin.Enabled = nil
 
@@ -700,15 +703,29 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	return true
 end
 
+local function OnCleanupError( Err )
+	local Trace = Traceback()
+
+	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
+
+	Shine:DebugPrint( "Plugin cleanup error: %s.\n%s", true, Err, Trace )
+	Shine:AddErrorReport( StringFormat( "Plugin cleanup error: %s.", Err ),
+		"%s\nLocals:\n%s", true, Trace, Locals )
+end
+
 function Shine:UnloadExtension( Name )
 	local Plugin = self.Plugins[ Name ]
 
 	if not Plugin then return end
 	if not Plugin.Enabled then return end
 
-	Plugin:Cleanup()
-
 	Plugin.Enabled = false
+
+	--Make sure cleanup doesn't break us by erroring.
+	local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
+	if not Success then
+		PluginMeta.Cleanup( Plugin )
+	end
 
 	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
@@ -742,6 +759,13 @@ Shine.AllPlugins = AllPlugins
 local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
 
+local function AddToPluginsLists( Name )
+	if not AllPlugins[ Name ] then
+		AllPlugins[ Name ] = true
+		AllPluginsArray[ #AllPluginsArray + 1 ] = Name
+	end
+end
+
 --[[
 	Prepare shared plugins.
 
@@ -757,15 +781,11 @@ for Path in pairs( PluginFiles ) do
 		if not ClientPlugins[ Name ] then
 			local LoweredFileName = File:lower()
 
-			if not AllPlugins[ Name ] then
-				AllPluginsArray[ #AllPluginsArray + 1 ] = Name
-			end
-
 			if LoweredFileName == "shared.lua" then
 				ClientPlugins[ Name ] = "boolean" --Generate the network message.
-				AllPlugins[ Name ] = true
+				AddToPluginsLists( Name )
 			elseif LoweredFileName == "server.lua" then
-				AllPlugins[ Name ] = true
+				AddToPluginsLists( Name )
 			end
 
 			--Shared plugins should load into memory for network messages.
@@ -774,10 +794,7 @@ for Path in pairs( PluginFiles ) do
 	else
 		Name = Name:gsub( "%.lua", "" )
 
-		if not AllPlugins[ Name ] then
-			AllPlugins[ Name ] = true
-			AllPluginsArray[ #AllPluginsArray + 1 ] = Name
-		end
+		AddToPluginsLists( Name )
 	end
 end
 

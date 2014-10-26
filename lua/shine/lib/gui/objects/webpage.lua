@@ -36,11 +36,11 @@ function Webpage:LoadURL( URL, W, H )
 
 		self.WebView = Client.CreateWebView( W, H )
 		self.WebView:SetTargetTexture( TextureName )
-		
+
 		self.Background:SetSize( Vector( W, H, 0 ) )
 		self.Background:SetTexture( TextureName )
 	end
-	
+
 	self.WebView:LoadUrl( URL )
 end
 
