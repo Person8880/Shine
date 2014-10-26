@@ -784,7 +784,7 @@ for Path in pairs( PluginFiles ) do
 			if LoweredFileName == "shared.lua" then
 				ClientPlugins[ Name ] = "boolean" --Generate the network message.
 				AddToPluginsLists( Name )
-			elseif LoweredFileName == "server.lua" then
+			elseif LoweredFileName == "server.lua" or LoweredFileName == "client.lua" then
 				AddToPluginsLists( Name )
 			end
 
