@@ -361,6 +361,9 @@ function Shine:GetDefaultGroup()
 	if not self.UserData then return nil end
 	if not self.UserData.DefaultGroup then return nil end
 
+	self.UserData.DefaultGroup.InheritsFrom = nil
+	self.UserData.DefaultGroup.InheritFromDefault = nil
+
 	return self.UserData.DefaultGroup
 end
 
