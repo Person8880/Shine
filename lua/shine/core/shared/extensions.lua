@@ -532,8 +532,8 @@ function Shine:LoadExtension( Name, DontEnable )
 	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
 	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
 	
-	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ]
-		or PluginFiles[ ServerFile ]
+	local IsShared = PluginFiles[ SharedFile ]
+		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
 
 	if PluginFiles[ SharedFile ] then
 		include( SharedFile )
