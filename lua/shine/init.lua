@@ -17,6 +17,7 @@ local Scripts = {
 	"lib/math.lua",
 	"lib/class.lua",
 	"lib/map.lua",
+	"lib/game.lua",
 	"core/shared/hook.lua",
 	"core/shared/misc.lua",
 	"lib/player.lua",
@@ -24,7 +25,6 @@ local Scripts = {
 	"lib/datatables.lua",
 	"lib/votes.lua",
 	"lib/query.lua",
-	"lib/game.lua",
 	"core/shared/logging.lua",
 	"core/server/permissions.lua",
 	"core/server/commands.lua",
@@ -42,6 +42,13 @@ local Scripts = {
 	"core/server/votemenu.lua"
 }
 
+local OnLoadedFuncs = {
+	[ "lib/game.lua" ] = function()
+		Shine.IsNS2Combat = Shine.GetGamemode() == "combat"
+		Shine.BaseGamemode = Shine.IsNS2Combat and "combat" or "ns2"
+	end
+}
+
 for i = 1, #Scripts do
 	include( "lua/shine/"..Scripts[ i ] )
 	
@@ -51,6 +58,10 @@ for i = 1, #Scripts do
 		end
 
 		break
+	end
+
+	if OnLoadedFuncs[ Scripts[ i ] ] then
+		OnLoadedFuncs[ Scripts[ i ] ]()
 	end
 end
 

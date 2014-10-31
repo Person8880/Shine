@@ -7,6 +7,8 @@
 local Shine = Shine
 
 local Floor = math.floor
+local GetNumPlayersTotal = Server.GetNumPlayersTotal
+local GetMaxPlayers = Server.GetMaxPlayers
 local Max = math.max
 local tonumber = tonumber
 
@@ -99,6 +101,10 @@ local GetNumPlayers = Server.GetNumPlayers
 	Takes into account connecting but not loaded players.
 ]]
 function Plugin:GetRealPlayerCount()
+	if GetNumPlayersTotal then
+		return GetNumPlayersTotal()
+	end
+
 	return GetNumPlayers() + self.ConnectingCount
 end
 
@@ -108,6 +114,8 @@ end
 	then remove them if they haven't connected by then.
 ]]
 function Plugin:AddConnectingPlayer( ID )
+	if GetNumPlayersTotal then return end
+
 	--We don't want to add them again if they're still in the list.
 	if not self.Connecting[ ID ] then
 		self.Connecting[ ID ] = true
@@ -159,7 +167,7 @@ function Plugin:CheckConnectionAllowed( ID )
 	ID = tonumber( ID )
 
 	local Connected = self:GetRealPlayerCount()
-	local MaxPlayers = Server.GetMaxPlayers()
+	local MaxPlayers = GetMaxPlayers()
 
 	local Slots = self.Config.Slots
 

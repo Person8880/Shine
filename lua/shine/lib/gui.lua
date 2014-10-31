@@ -18,6 +18,7 @@ local next = next
 local pairs = pairs
 local setmetatable = setmetatable
 local StringFormat = string.format
+local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
@@ -525,8 +526,18 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	}
 
 	MouseTracker_ListenToMovement( Listener )
-	MouseTracker_ListenToWheel( Listener )
 	MouseTracker_ListenToButtons( Listener )
+
+	if Shine.IsNS2Combat then
+		--Combat has a userdata listener at the top which blocks SGUI scrolling.
+		--So we're going to put ourselves above it.
+		local Listeners = Shine.GetUpValue( MouseTracker_ListenToWheel,
+			"gMouseWheelMovementListeners" )
+
+		TableInsert( Listeners, 1, Listener )
+	else
+		MouseTracker_ListenToWheel( Listener )
+	end
 end )
 
 --------------------- BASE CLASS ---------------------

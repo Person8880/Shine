@@ -733,7 +733,7 @@ function Plugin:GetVoteChoice( Map )
 
 	Map = Map:lower()
 
-	if Map == "ns2_" or Map == "ns2" then return nil end --Not specific enough.
+	if #Map < 4 then return nil end --Not specific enough.
 
 	for Name, Votes in pairs( Choices ) do
 		if Name:lower():find( Map, 1, true ) then

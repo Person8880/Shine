@@ -931,22 +931,24 @@ function Plugin:CreateCommands()
 	local ForceRoundStartCommand = self:BindCommand( "sh_forceroundstart", "forceroundstart", ForceRoundStart )
 	ForceRoundStartCommand:Help( "Forces the round to start." )
 
-	local function Eject( Client, Target )
-		local Player = Target:GetControllingPlayer()
+	if not Shine.IsNS2Combat then
+		local function Eject( Client, Target )
+			local Player = Target:GetControllingPlayer()
 
-		if not Player then return end
+			if not Player then return end
 
-		if Player:isa( "Commander" ) then
-			Player:Eject()
+			if Player:isa( "Commander" ) then
+				Player:Eject()
 
-			Shine:CommandNotify( Client, "ejected %s.", true, Player:GetName() or "<unknown>" )
-		else
-			NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
+				Shine:CommandNotify( Client, "ejected %s.", true, Player:GetName() or "<unknown>" )
+			else
+				NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
+			end
 		end
+		local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
+		EjectCommand:AddParam{ Type = "client" }
+		EjectCommand:Help( "<player> Ejects the given commander." )
 	end
-	local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
-	EjectCommand:AddParam{ Type = "client" }
-	EjectCommand:Help( "<player> Ejects the given commander." )
 
 	local function AdminSay( Client, Message )
 		Shine:Notify( nil, "All", ( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
@@ -1114,8 +1116,8 @@ function Plugin:CreateCommands()
 	BWLimitCommand:Help( "<limit in kbytes> Sets the bandwidth limit per player and saves it." )
 	
 	local function SendRate( Client, NewRate )
-		if NewRate >= self.Config.TickRate then
-			NotifyError( Client, "Send rate cannot be greater-equal to tick rate (%i).",
+		if NewRate > self.Config.TickRate then
+			NotifyError( Client, "Send rate cannot be greater than tick rate (%i).",
 				true, self.Config.TickRate )
 			return
 		end

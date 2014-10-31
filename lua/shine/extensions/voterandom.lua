@@ -90,9 +90,11 @@ local ModeError = [[Error in voterandom config, FallbackMode is not set as a val
 Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3 (Elo) or 5 (Hive).
 Setting FallbackMode to KDR mode (4).]]
 
+local ModeClamp = Shine.IsNS2Combat and 4 or 5
+
 function Plugin:Initialise()
-	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, 5 )
-	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, 5 )
+	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, ModeClamp )
+	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, ModeClamp )
 
 	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 

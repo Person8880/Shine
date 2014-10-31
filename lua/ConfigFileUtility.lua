@@ -23,7 +23,7 @@ Script.Load("lua/dkjson.lua")
 if not Shine then
 	local Trace = debug.traceback()
 
-	if not Trace:find( "Main.lua" ) then
+	if not Trace:find( "Main.lua" ) and not Trace:find( "Loading.lua" ) then
 		if Server then
 			Script.Load( "lua/shine/init.lua" )
 		elseif Client then
