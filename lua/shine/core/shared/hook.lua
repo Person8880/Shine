@@ -611,16 +611,18 @@ Add( "Think", "ReplaceMethods", function()
 	SetupClassHook( Gamerules, "EndGame", "EndGame", "PassivePre" )
 	SetupClassHook( Gamerules, "OnEntityKilled", "OnEntityKilled", "PassivePre" )
 
-	SetupClassHook( "CommandStructure", "LoginPlayer", "CommLoginPlayer", "PassivePre" )
-	SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
-	SetupClassHook( "CommandStructure", "OnUse", "CheckCommLogin", "ActivePre" )
+	if not Shine.IsNS2Combat then
+		SetupClassHook( "CommandStructure", "LoginPlayer", "CommLoginPlayer", "PassivePre" )
+		SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
+		SetupClassHook( "CommandStructure", "OnUse", "CheckCommLogin", "ActivePre" )
 
-	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
-	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
+		SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
+		SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
 
-	SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction",
-		"PassivePre" )
-	SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
+		SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction",
+			"PassivePre" )
+		SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
+	end
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
 	

@@ -4,6 +4,8 @@
 
 local Plugin = {}
 
+Plugin.NS2Only = true
+
 Shine:RegisterExtension( "commbans", Plugin, {
 	Base = "ban",
 	BlacklistKeys = {

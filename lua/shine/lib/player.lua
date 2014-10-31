@@ -16,6 +16,7 @@ local TeamNames = {
 		{ "Ready Room", "ready room", "ready room" }
 	}
 }
+TeamNames.combat = TeamNames.ns2
 
 --[[
 	Returns a nice name for the given team number.

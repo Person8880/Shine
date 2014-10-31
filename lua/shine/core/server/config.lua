@@ -79,6 +79,7 @@ local DefaultConfig = {
 }
 
 local CheckConfig = Shine.RecursiveCheckConfig
+local DefaultGamemode = Shine.BaseGamemode
 
 --[[
 	Gets the gamemode dependent config file.
@@ -86,7 +87,7 @@ local CheckConfig = Shine.RecursiveCheckConfig
 local function GetConfigPath( Backup, Default )
 	local Gamemode = Shine.GetGamemode()
 
-	if Gamemode == "ns2" or Default then
+	if Gamemode == DefaultGamemode or Default then
 		return Backup and BackupPath..".json" or ConfigPath..".json"
 	end
 
@@ -359,7 +360,7 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 		--Is the config we're loading for a specific gamemode?
 		local GamemodeResponse = Data.Gamemode or Data.gamemode
-		local NeedDifferentPath = GamemodeResponse and GamemodeResponse ~= "ns2"
+		local NeedDifferentPath = GamemodeResponse and GamemodeResponse ~= DefaultGamemode
 
 		if not Success then
 			self:Print( "[WebConfigs] Server responded with error for plugin %s: %s.", true,

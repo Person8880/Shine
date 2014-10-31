@@ -206,7 +206,7 @@ function PluginMeta:LoadConfig()
 		local Gamemode = Shine.GetGamemode()
 
 		--Look for gamemode specific config file.
-		if Gamemode ~= "ns2" then
+		if Gamemode ~= Shine.BaseGamemode then
 			local Paths = {
 				StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
 				Path
@@ -532,8 +532,8 @@ function Shine:LoadExtension( Name, DontEnable )
 	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
 	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
 	
-	local IsShared = PluginFiles[ ClientFile ] and PluginFiles[ SharedFile ]
-		or PluginFiles[ ServerFile ]
+	local IsShared = PluginFiles[ SharedFile ]
+		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
 
 	if PluginFiles[ SharedFile ] then
 		include( SharedFile )
@@ -542,6 +542,12 @@ function Shine:LoadExtension( Name, DontEnable )
 
 		if not Plugin then
 			return false, "plugin did not register itself"
+		end
+
+		--NS2:Combat, don't load irrelevant plugins. Make sure we stop before network messages.
+		if self.IsNS2Combat and Plugin.NS2Only then
+			self.Plugins[ Name ] = nil
+			return false, "plugin not compatible with NS2:Combat"
 		end
 
 		if Plugin.SetupDataTable then --Networked variables.
@@ -560,6 +566,11 @@ function Shine:LoadExtension( Name, DontEnable )
 		end
 
 		Plugin = OldValue --Just in case someone else uses Plugin as a global...
+
+		if self.Plugins[ Name ] and self.IsNS2Combat and self.Plugins[ Name ].NS2Only then
+			self.Plugins[ Name ] = nil
+			return false, "plugin not compatible with NS2:Combat"
+		end
 
 		return true
 	end
@@ -608,6 +619,11 @@ function Shine:LoadExtension( Name, DontEnable )
 
 	if not Plugin then
 		return false, "plugin did not register itself."
+	end
+
+	if self.IsNS2Combat and Plugin.NS2Only then
+		self.Plugins[ Name ] = nil
+		return false, "plugin not compatible with NS2:Combat"
 	end
 
 	Plugin.IsShared = IsShared and true or nil

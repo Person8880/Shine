@@ -217,51 +217,53 @@ function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	end
 end
 
-function Plugin:OnConstructInit( Building )
-	local ID = Building:GetId()
-	local Team = Building:GetTeam()
+if not Shine.IsNS2Combat then
+	function Plugin:OnConstructInit( Building )
+		local ID = Building:GetId()
+		local Team = Building:GetTeam()
 
-	if not Team or not Team.GetCommander then return end
+		if not Team or not Team.GetCommander then return end
 
-	local Owner = Building:GetOwner()
-	Owner = Owner or Team:GetCommander()
+		local Owner = Building:GetOwner()
+		Owner = Owner or Team:GetCommander()
 
-	if not Owner then return end
-	
-	local Client = GetOwner( Owner )
+		if not Owner then return end
+		
+		local Client = GetOwner( Owner )
 
-	if not Client then return end
+		if not Client then return end
 
-	self:ResetAFKTime( Client )
-end
+		self:ResetAFKTime( Client )
+	end
 
-function Plugin:OnRecycle( Building, ResearchID )
-	local ID = Building:GetId()
-	local Team = Building:GetTeam()
+	function Plugin:OnRecycle( Building, ResearchID )
+		local ID = Building:GetId()
+		local Team = Building:GetTeam()
 
-	if not Team or not Team.GetCommander then return end
+		if not Team or not Team.GetCommander then return end
 
-	local Commander = Team:GetCommander()
-	if not Commander then return end
+		local Commander = Team:GetCommander()
+		if not Commander then return end
 
-	local Client = GetOwner( Commander )
-	if not Client then return end
-	
-	self:ResetAFKTime( Client )
-end
+		local Client = GetOwner( Commander )
+		if not Client then return end
+		
+		self:ResetAFKTime( Client )
+	end
 
-function Plugin:OnCommanderTechTreeAction( Commander, ... )
-	local Client = GetOwner( Commander )
-	if not Client then return end
-	
-	self:ResetAFKTime( Client )
-end
+	function Plugin:OnCommanderTechTreeAction( Commander, ... )
+		local Client = GetOwner( Commander )
+		if not Client then return end
+		
+		self:ResetAFKTime( Client )
+	end
 
-function Plugin:OnCommanderNotify( Commander, ... )
-	local Client = GetOwner( Commander )
-	if not Client then return end
-	
-	self:ResetAFKTime( Client )
+	function Plugin:OnCommanderNotify( Commander, ... )
+		local Client = GetOwner( Commander )
+		if not Client then return end
+		
+		self:ResetAFKTime( Client )
+	end
 end
 
 --[[
