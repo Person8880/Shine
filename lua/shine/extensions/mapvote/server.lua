@@ -95,7 +95,8 @@ function Plugin:Initialise()
 	self.Config.NextMapVote = Clamp( self.Config.NextMapVote, 0, 1 )
 	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
 	self.Config.PercentToStart = Clamp( self.Config.PercentToStart, 0, 1 )
-	
+	self.Config.VoteLength = Max( self.Config.VoteLength, 0.25 )
+
 	self.Round = 0
 
 	self.Vote = self.Vote or {}
