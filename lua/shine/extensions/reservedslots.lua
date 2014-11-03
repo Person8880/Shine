@@ -102,7 +102,8 @@ local GetNumPlayers = Server.GetNumPlayers
 ]]
 function Plugin:GetRealPlayerCount()
 	if GetNumPlayersTotal then
-		return GetNumPlayersTotal()
+		--This includes the connecting player for whatever reason...
+		return GetNumPlayersTotal() - 1
 	end
 
 	return GetNumPlayers() + self.ConnectingCount
