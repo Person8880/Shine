@@ -533,9 +533,11 @@ function Plugin:Cleanup()
 	self.ReadyStates = nil
 	self.TeamNames = nil
 
-	Server.SetConfigSetting( "auto_team_balance", self.OldTeamBalanceSetting or {} )
-	Server.SetConfigSetting( "end_round_on_team_unbalance", true )
-	Server.SetConfigSetting( "force_even_teams_on_join", true )
+	if Server.SetConfigSetting then
+		Server.SetConfigSetting( "auto_team_balance", self.OldTeamBalanceSetting or {} )
+		Server.SetConfigSetting( "end_round_on_team_unbalance", true )
+		Server.SetConfigSetting( "force_even_teams_on_join", true )
+	end
 
 	self.Enabled = false
 end
