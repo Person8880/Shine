@@ -16,7 +16,6 @@ local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
 local WindowColour = Colour( 0.3, 0.3, 0.3, 1 )
-local TitleColour = Colour( 0.4, 0.4, 0.4, 1 )
 local TextColour = Colour( 1, 1, 1, 1 )
 local CloseButtonCol = Colour( 0.6, 0.3, 0.1, 1 )
 local CloseButtonHighlight = Colour( 0.8, 0.4, 0.1, 1 )
@@ -26,21 +25,18 @@ local SteamButtonHighlight = Colour( 0.15, 0.9, 0.3, 1 )
 local LoadingFont = Fonts.kAgencyFB_Large
 local TitleFont = Fonts.kAgencyFB_Small
 
-local CloseButtonPos = Vector( -22, 2, 0 )
-local CloseButtonSize = Vector( 20, 20, 0 )
-
-local SteamButtonPos = Vector( -150, 2, 0 )
-local SteamButtonSize = Vector( 116, 20, 0 )
+local SteamButtonPos = Vector( -150, 0, 0 )
+local SteamButtonSize = Vector( 116, 24, 0 )
 local SteamButtonScale = Vector( 0.8, 0.8, 0 )
 
-local PopupSize = Vector( 400, 150, 0 )
+local PopupSize = Vector( 400, 176, 0 )
 local PopupPos = Vector( -150, -100, 0 )
 
 local NowButtonPos = Vector( -105, -37, 0 )
 local PopupButtonSize = Vector( 100, 32, 0 )
 local AlwaysButtonPos = Vector( 5, -37, 0 )
 
-local PopupTextPos = Vector( 0, -48, 0 )
+local PopupTextPos = Vector( 0, -32, 0 )
 
 local PopupText = [[Open this page in the Steam overlay?
 (If you choose always, type "sh_viewwebinsteam 0" 
@@ -54,6 +50,7 @@ local function OpenInSteamPopup( URL )
 		Pos = PopupPos,
 		Colour = WindowColour
 	}
+	Window:AddTitleBar( "Open in Steam Overlay" )
 
 	local OldOnMouseDown = Window.OnMouseDown
 
@@ -149,58 +146,15 @@ function Shine:OpenWebpage( URL, TitleText )
 		Pos = Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 ),
 		Colour = WindowColour
 	}
+	Window:AddTitleBar( TitleText or "Message of the day" )
 
 	self.ActiveWebPage = Window
 
-	local TitleBar = SGUI:Create( "Panel", Window )
-	TitleBar:SetSize( Vector( WindowWidth, 24, 0 ) )
-	TitleBar:SetColour( TitleColour )
-
-	local Title = TitleBar:Add( "Label" )
-	Title:SetupFromTable{
-		Anchor = "CentreMiddle",
-		Text = TitleText or "Message of the day",
-		Font = TitleFont,
-		Colour = TextColour,
-		TextAlignmentX = GUIItem.Align_Center,
-		TextAlignmentY = GUIItem.Align_Center
-	}
-
-	local LoadingText = Window:Add( "Label" )
-	LoadingText:SetupFromTable{
-		Anchor = "CentreMiddle",
-		Text = "Loading...",
-		Font = LoadingFont,
-		Colour = TextColour,
-		TextAlignmentX = GUIItem.Align_Center,
-		TextAlignmentY = GUIItem.Align_Center
-	}
-
-	local WebpageWidth = WindowWidth - 10
-	local WebpageHeight = WindowHeight - 34
-
-	local Webpage = Window:Add( "Webpage" )
-	Webpage:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + 12, 0 ) )
-	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
-
-	local CloseButton = TitleBar:Add( "Button" )
-	CloseButton:SetupFromTable{
-		Anchor = "TopRight",
-		Pos = CloseButtonPos,
-		Size = CloseButtonSize,
-		IsSchemed = false,
-		Text = "X",
-		TextColour = TextColour,
-		ActiveCol = CloseButtonHighlight,
-		InactiveCol = CloseButtonCol
-	}
-
-	function CloseButton:DoClick()
+	function Window.CloseButton.DoClick()
 		Shine:CloseWebPage()
 	end
 
-	local OpenInSteam = TitleBar:Add( "Button" )
+	local OpenInSteam = Window.TitleBar:Add( "Button" )
 	OpenInSteam:SetupFromTable{
 		Anchor = "TopRight",
 		Pos = SteamButtonPos,
@@ -219,6 +173,24 @@ function Shine:OpenWebpage( URL, TitleText )
 
 		Window:DeleteOnRemove( Popup )
 	end
+
+	local LoadingText = Window:Add( "Label" )
+	LoadingText:SetupFromTable{
+		Anchor = "CentreMiddle",
+		Text = "Loading...",
+		Font = LoadingFont,
+		Colour = TextColour,
+		TextAlignmentX = GUIItem.Align_Center,
+		TextAlignmentY = GUIItem.Align_Center
+	}
+
+	local WebpageWidth = WindowWidth - 10
+	local WebpageHeight = WindowHeight - 34
+
+	local Webpage = Window:Add( "Webpage" )
+	Webpage:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + 12, 0 ) )
+	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
 
 	SGUI:EnableMouse( true )
 end
