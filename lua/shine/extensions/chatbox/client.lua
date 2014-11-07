@@ -436,6 +436,8 @@ function Plugin:CreateChatbox()
 		Plugin:OpenSettings( DummyPanel, UIScale, ScalarScale )
 	end
 
+	SettingsButton:SetTooltip( "Opens/closes the chatbox settings." )
+
 	self.SettingsButton = SettingsButton
 
 	return true

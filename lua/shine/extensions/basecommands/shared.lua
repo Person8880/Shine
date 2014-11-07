@@ -138,6 +138,7 @@ function Plugin:SetupAdminMenuCommands()
 
 				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
 			end
+			ChangeMap:SetTooltip( "Changes the map immediately." )
 			
 			if Shine:IsExtensionEnabled( "mapvote" ) then
 				local CallVote = SGUI:Create( "Button", Panel )
@@ -149,6 +150,7 @@ function Plugin:SetupAdminMenuCommands()
 				function CallVote.DoClick()
 					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 				end
+				CallVote:SetTooltip( "Calls a map vote." )
 			end
 		end,
 
@@ -218,6 +220,7 @@ function Plugin:SetupAdminMenuCommands()
 
 				Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
 			end
+			UnloadPlugin:SetTooltip( "Temporarily unloads the plugin." )
 
 			local DisablePlugin = SGUI:Create( "Button", Panel )
 			DisablePlugin:SetAnchor( "BottomLeft" )
@@ -233,6 +236,7 @@ function Plugin:SetupAdminMenuCommands()
 
 				Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
 			end
+			DisablePlugin:SetTooltip( "Saves the plugin as disabled." )
 			
 			local LoadPlugin = SGUI:Create( "Button", Panel )
 			LoadPlugin:SetAnchor( "BottomRight" )
@@ -248,6 +252,7 @@ function Plugin:SetupAdminMenuCommands()
 
 				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
 			end
+			LoadPlugin:SetTooltip( "Temporarily loads the plugin." )
 
 			local EnablePlugin = SGUI:Create( "Button", Panel )
 			EnablePlugin:SetAnchor( "BottomRight" )
@@ -263,6 +268,7 @@ function Plugin:SetupAdminMenuCommands()
 
 				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
 			end
+			EnablePlugin:SetTooltip( "Saves the plugin as enabled." )
 
 			function List:OnRowSelected( Index, Row )
 				local State = Row:GetColumnText( 2 )

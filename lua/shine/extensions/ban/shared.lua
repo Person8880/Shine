@@ -100,6 +100,7 @@ function Plugin:SetupAdminMenu()
 		MenuButton:SetText( ">" )
 		MenuButton:SetFont( Fonts.kAgencyFB_Small )
 		MenuButton:SetPos( Vector( -48, 64, 0 ) )
+		MenuButton:SetTooltip( "Select a player." )
 		local Menu
 
 		function MenuButton.DoClick( Button )
@@ -256,6 +257,7 @@ function Plugin:SetupAdminMenu()
 			function LoadMore.DoClick()
 				self:RequestBanData()
 			end
+			LoadMore:SetTooltip( "Loads more entries from the server." )
 
 			local AddBan = SGUI:Create( "Button", Panel )
 			AddBan:SetAnchor( "BottomRight" )
