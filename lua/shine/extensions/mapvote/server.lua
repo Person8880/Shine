@@ -152,7 +152,7 @@ function Plugin:Initialise()
 							self.Config.RoundLimit = Max( tonumber( Map.rounds or Map.Rounds ), 0 )
 						end
 
-						local Chance = tonumber( Map.chance or Map.Chance ) or 1
+						local Chance = Clamp( tonumber( Map.chance or Map.Chance ) or 1, 0, 1 )
 						self.MapProbabilities[ Map.map ] = Chance
 					end
 				elseif IsType( Map, "string" ) then
