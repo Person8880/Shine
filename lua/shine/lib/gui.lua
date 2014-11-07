@@ -8,6 +8,7 @@ Shine.GUI = Shine.GUI or {}
 
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
+local IsType = Shine.IsType
 local Map = Shine.Map
 
 local assert = assert
@@ -158,8 +159,6 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 		end
 	end
 end
-
-local IsType = Shine.IsType
 
 --[[
 	Calls an event on all active SGUI controls, out of order.
@@ -841,7 +840,12 @@ function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	end
 
 	if Mult then
-		Size = Size * Mult
+		if IsType( Mult, "number" ) then
+			Size = Size * Mult
+		else
+			Size.x = Size.x * Mult.x
+			Size.y = Size.y * Mult.y
+		end
 	end
 
 	MaxX = MaxX or Size.x
@@ -1171,7 +1175,7 @@ function ControlMeta:OnMouseMove( Down )
 			if not self.Highlighted then
 				if not self.TextureHighlight then
 					self:FadeTo( self.Background, self.InactiveCol,
-					self.ActiveCol, 0, 0.25, function( Background )
+					self.ActiveCol, 0, 0.1, function( Background )
 						Background:SetColor( self.ActiveCol )
 					end )
 				else
@@ -1184,7 +1188,7 @@ function ControlMeta:OnMouseMove( Down )
 			if self.Highlighted then
 				if not self.TextureHighlight then
 					self:FadeTo( self.Background, self.ActiveCol,
-					self.InactiveCol, 0, 0.25, function( Background )
+					self.InactiveCol, 0, 0.1, function( Background )
 						Background:SetColor( self.InactiveCol )
 					end )
 				else
