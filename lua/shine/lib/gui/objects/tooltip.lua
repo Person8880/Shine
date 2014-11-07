@@ -7,9 +7,14 @@
 local SGUI = Shine.GUI
 
 local Tooltip = {}
+Tooltip.IsWindow = true
+
+local Texture = "ui/insight_resources.dds"
 
 local InnerPos = Vector( 1, 1, 0 )
-local Padding = Vector( 5, 0, 0 )
+local Padding = Vector( 16, 0, 0 )
+
+local TextureCoords = { 265, 0, 1023, 98 }
 
 function Tooltip:Initialise()
 	self.BaseClass.Initialise( self )
@@ -17,30 +22,8 @@ function Tooltip:Initialise()
 	local Manager = GetGUIManager()
 
 	local Background = Manager:CreateGraphicItem()
-
+	Background:SetTexture( Texture )
 	self.Background = Background
-
-	local Inner = Manager:CreateGraphicItem()
-	Inner:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Inner:SetPosition( InnerPos )
-
-	Background:AddChild( Inner )
-
-	self.Inner = Inner
-
-	local Scheme = SGUI:GetSkin()
-
-	local BorderCol = SGUI.CopyColour( Scheme.TooltipBorder )
-	local InnerCol = SGUI.CopyColour( Scheme.Tooltip )
-
-	BorderCol.a = 0
-	InnerCol.a = 0
-
-	self.BorderCol = BorderCol
-	self.InnerCol = InnerCol
-
-	Background:SetColor( BorderCol )
-	Inner:SetColor( InnerCol )
 end
 
 function Tooltip:OnSchemeChange( Scheme )
@@ -53,7 +36,7 @@ function Tooltip:OnSchemeChange( Scheme )
 	self.Inner:SetColor( self.InnerCol )
 
 	if self.Text then
-		self.Text:SetColor( Scheme.DarkText )
+		self.Text:SetColor( Scheme.BrightText )
 	end
 end
 
@@ -61,7 +44,8 @@ function Tooltip:SetSize( Vec )
 	self.Size = Vec
 
 	self.Background:SetSize( Vec )
-	self.Inner:SetSize( Vector( Vec.x - 2, Vec.y - 2, 0 ) )
+	self.Background:SetTexturePixelCoordinates( TextureCoords[ 1 ], TextureCoords[ 2 ],
+		TextureCoords[ 3 ], TextureCoords[ 4 ] )
 end
 
 function Tooltip:SetText( Text )
@@ -77,17 +61,18 @@ function Tooltip:SetText( Text )
 	TextObj:SetAnchor( GUIItem.Left, GUIItem.Middle )
 	TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 	TextObj:SetText( Text )
+	TextObj:SetFontName( Fonts.kAgencyFB_Small )
 	TextObj:SetPosition( Padding )
 
-	local Width = TextObj:GetTextWidth( Text ) + 10
-	local Height = TextObj:GetTextHeight( Text ) + 5
+	local Width = TextObj:GetTextWidth( Text ) + 32
+	local Height = TextObj:GetTextHeight( Text ) + 16
 
 	self:SetSize( Vector( Width, Height, 0 ) )
 
 	if self.Visible then
-		TextObj:SetColor( Scheme.DarkText )
+		TextObj:SetColor( Scheme.BrightText )
 	else
-		local TextCol = SGUI.CopyColour( Scheme.DarkText )
+		local TextCol = SGUI.CopyColour( Scheme.BrightText )
 
 		TextCol.a = 0
 		self.TextCol = TextCol
@@ -101,76 +86,41 @@ function Tooltip:SetText( Text )
 end
 
 function Tooltip:FadeIn()
-	local Start = self.BorderCol
-	Start.a = 0
+	local Start = self.Background:GetColor()
+	local End = Colour( Start.r, Start.g, Start.b, 1 )
 
-	local End = SGUI.CopyColour( self.BorderCol )
-	End.a = 255
+	self:FadeTo( self.Background, Start, End, 0, 0.2 )
 
-	self:FadeTo( self.Background, Start, End, 0, 0.5, function( Background )
-		Background:SetColor( End )
-	end )
+	if not self.Text then return end
 
-	local InStart = self.InnerCol
-	InStart.a = 0
+	Start = self.Text:GetColor()
+	End = Colour( Start.r, Start.g, Start.b, 1 )
 
-	local InEnd = SGUI.CopyColour( self.InnerCol )
-	InEnd.a = 255
-
-	self:FadeTo( self.Inner, InStart, InEnd, 0, 0.5, function( Inner )
-		Inner:SetColor( InEnd )
-	end )
-
-	local TextStart = self.TextCol
-
-	if not TextStart then return end
-	TextStart.a = 0
-
-	local TextEnd = SGUI.CopyColour( self.TextCol )
-	TextEnd.a = 255
-
-	self:FadeTo( self.Text, TextStart, TextEnd, 0, 0.5, function( TextObj )
-		TextObj:SetColor( TextEnd )
-	end )
-
-	local EndPos = self.Background:GetPosition() + Vector( 0, -self.Size.y, 0 )
-	self:SetPos( EndPos )
+	self:FadeTo( self.Text, Start, End, 0, 0.2 )
 end
 
-function Tooltip:FadeOut()
-	local Start = self.BorderCol
-	Start.a = 255
+function Tooltip:FadeOut( Callback )
+	local Start = self.Background:GetColor()
+	local End = Colour( Start.r, Start.g, Start.b, 0 )
 
-	local End = SGUI.CopyColour( self.BorderCol )
-	End.a = 0
+	self:FadeTo( self.Background, Start, End, 0, 0.2, function()
+		if Callback then
+			Callback()
+		end
 
-	self:FadeTo( self.Background, Start, End, 0, 0.25, function( Background )
-		return
-	end )
+		--Remember to remove the fade on the text!
+		self:StopFade( self.Text )
 
-	local InStart = self.InnerCol
-	InStart.a = 255
-
-	local InEnd = SGUI.CopyColour( self.InnerCol )
-	InEnd.a = 0
-
-	self:FadeTo( self.Inner, InStart, InEnd, 0, 0.25, function( Inner )
-		return
-	end )
-
-	local TextStart = self.TextCol
-
-	if not TextStart then return end
-
-	TextStart.a = 255
-
-	local TextEnd = SGUI.CopyColour( self.TextCol )
-	TextEnd.a = 0
-
-	self:FadeTo( self.Text, TextStart, TextEnd, 0, 0.25, function( TextObj )
 		self:SetParent()
 		self:Destroy()
 	end )
+
+	if not self.Text then return end
+
+	Start = self.Text:GetColor()
+	End = Colour( Start.r, Start.g, Start.b, 0 )
+
+	self:FadeTo( self.Text, Start, End, 0, 0.2 )
 end
 
 function Tooltip:Cleanup()

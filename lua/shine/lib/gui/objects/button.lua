@@ -134,26 +134,6 @@ function Button:SetTextColour( Col )
 	self.Text:SetColor( Col )
 end
 
-function Button:SetTooltip( Text )
-	self.TooltipText = Text
-
-	function self:OnHover( X, Y )
-		local Tooltip = SGUI:Create( "Tooltip", self )
-		Tooltip:SetAnchor( GUIItem.Left, GUIItem.Top )
-		Tooltip:SetPos( Vector( X, Y, 0 ) )
-		Tooltip:SetText( self.TooltipText )
-		Tooltip:FadeIn()
-
-		self.Tooltip = Tooltip
-	end
-
-	function self:OnLoseHover()
-		if self.Tooltip then
-			self.Tooltip:FadeOut()
-		end
-	end
-end
-
 function Button:SetIsVisible( Bool )
 	if not self.Background then return end
 	
