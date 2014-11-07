@@ -603,10 +603,12 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		end
 	end
 
-	if InheritGroups then
-		for i = 1, #InheritGroups do
-			local Name = InheritGroups[ i ]
+	if not InheritGroups then return end
 
+	for i = 1, #InheritGroups do
+		local Name = InheritGroups[ i ]
+
+		if Name then
 			local CurGroup = self:GetGroupData( Name )
 
 			if not CurGroup then
