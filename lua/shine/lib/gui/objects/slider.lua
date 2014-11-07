@@ -264,15 +264,9 @@ function Slider:OnMouseUp( Key )
 
 		local Fraction = X / self.Width
 		self:SetFraction( Fraction )
-
-		if self.OnValueChanged then
-			self:OnValueChanged( self:GetValue() )
-		end
-
-		return true
+	else
+		self.Dragging = false
 	end
-
-	self.Dragging = false
 
 	if self.OnValueChanged then
 		self:OnValueChanged( self:GetValue() )
