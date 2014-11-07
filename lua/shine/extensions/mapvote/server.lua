@@ -133,6 +133,8 @@ function Plugin:Initialise()
 			self.Config.Maps = {}
 			local ConfigMaps = self.Config.Maps
 
+			self.MapProbabilities = {}
+
 			for i = 1, #Maps do
 				local Map = Maps[ i ]
 
@@ -149,9 +151,13 @@ function Plugin:Initialise()
 						if tonumber( Map.rounds or Map.Rounds ) then
 							self.Config.RoundLimit = Max( tonumber( Map.rounds or Map.Rounds ), 0 )
 						end
+
+						local Chance = tonumber( Map.chance or Map.Chance ) or 1
+						self.MapProbabilities[ Map.map ] = Chance
 					end
 				elseif IsType( Map, "string" ) then
 					ConfigMaps[ Map ] = true
+					self.MapProbabilities[ Map ] = 1
 				end
 			end
 		end
@@ -1123,6 +1129,52 @@ function Plugin:CanExtend()
 		and not self.Config.DontExtend[ CurMap ]
 end
 
+do
+	local TableRandom = table.ChooseRandom
+
+	local BaseEntryCount = 10
+
+	local function RemoveAllMatches( Table, Value )
+		local Offset = 0
+
+		for i = 1, #Table do
+			local Key = i - Offset
+
+			if Table[ Key ] == Value then
+				TableRemove( Table, Key )
+				Offset = Offset + 1
+			end
+		end
+	end
+
+	--[[
+		Chooses random maps from the remaining maps pool, weighting each map according
+		to their chance setting.
+	]]
+	function Plugin:ChooseRandomMaps( AllMaps, MapList, MaxOptions )
+		local MapBucket = {}
+		local Count = 0
+
+		for Map in pairs( AllMaps ) do
+			local Chance = self.MapProbabilities[ Map ] or 1
+			local NumEntries = Ceil( Chance * BaseEntryCount )
+
+			--The higher the chance, the more times the map appears in the bucket.
+			for i = 1, NumEntries do
+				Count = Count + 1
+				MapBucket[ Count ] = Map
+			end
+		end
+
+		while #MapList < MaxOptions and #MapBucket > 0 do
+			local Choice = TableRandom( MapBucket )
+
+			MapList[ #MapList + 1 ] = Choice
+
+			RemoveAllMatches( MapBucket, Choice )
+		end
+	end
+end
 --[[
 	Sets up and begins a map vote.
 ]]
@@ -1230,15 +1282,7 @@ function Plugin:StartVote( NextMap, Force )
 	--If we didn't have enough nominations to fill the vote list, add maps from the allowed list that weren't nominated.
 	if RemainingSpaces > 0 then
 		if next( AllMaps ) then
-			for Name, _ in RandomPairs( AllMaps ) do
-				if AllowCurMap or Name ~= CurMap then
-					MapList[ #MapList + 1 ] = Name
-				end
-
-				if #MapList == MaxOptions then
-					break
-				end
-			end
+			self:ChooseRandomMaps( AllMaps, MapList, MaxOptions )
 		end
 	end
 
