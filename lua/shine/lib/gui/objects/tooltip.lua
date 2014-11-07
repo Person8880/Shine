@@ -11,8 +11,7 @@ Tooltip.IsWindow = true
 
 local Texture = "ui/insight_resources.dds"
 
-local InnerPos = Vector( 1, 1, 0 )
-local Padding = Vector( 16, 0, 0 )
+local Padding = Vector( 0, 8, 0 )
 
 local TextureCoords = { 265, 0, 1023, 98 }
 
@@ -28,12 +27,6 @@ end
 
 function Tooltip:OnSchemeChange( Scheme )
 	if not self.Visible then return end
-
-	self.BorderCol = SGUI.CopyColour( Scheme.TooltipBorder )
-	self.InnerCol = SGUI.CopyColour( Scheme.Tooltip )
-	
-	self.Background:SetColor( self.BorderCol )
-	self.Inner:SetColor( self.InnerCol )
 
 	if self.Text then
 		self.Text:SetColor( Scheme.BrightText )
@@ -58,8 +51,9 @@ function Tooltip:SetText( Text )
 	local Scheme = SGUI:GetSkin()
 
 	local TextObj = GetGUIManager():CreateTextItem()
-	TextObj:SetAnchor( GUIItem.Left, GUIItem.Middle )
-	TextObj:SetTextAlignmentY( GUIItem.Align_Center )
+	--Align center doesn't want to play nice...
+	TextObj:SetAnchor( GUIItem.Middle, GUIItem.Top )
+	TextObj:SetTextAlignmentX( GUIItem.Align_Center )
 	TextObj:SetText( Text )
 	TextObj:SetFontName( Fonts.kAgencyFB_Small )
 	TextObj:SetPosition( Padding )

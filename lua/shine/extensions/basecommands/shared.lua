@@ -72,13 +72,14 @@ end
 function Plugin:SetupAdminMenuCommands()
 	local Category = "Base Commands"
 
-	self:AddAdminMenuCommand( Category, "Eject", "sh_eject", false )
+	self:AddAdminMenuCommand( Category, "Eject", "sh_eject", false, nil,
+		"Ejects the player from the command station/hive." )
 	self:AddAdminMenuCommand( Category, "Kick", "sh_kick", false, {
 		"No Reason", "",
 		"Trolling", "Trolling.",
 		"Offensive language", "Offensive language.",
 		"Mic spamming", "Mic spamming."
-	} )
+	}, "Kicks the player from the server." )
 	self:AddAdminMenuCommand( Category, "Gag", "sh_gag", false, {
 		"5 minutes", "300",
 		"10 minutes", "600",
@@ -86,10 +87,13 @@ function Plugin:SetupAdminMenuCommands()
 		"20 minutes", "1200",
 		"30 minutes", "1800",
 		"Until map change", ""
-	} )
-	self:AddAdminMenuCommand( Category, "Ungag", "sh_ungag", false )
-	self:AddAdminMenuCommand( Category, "Force Random", "sh_forcerandom", true )
-	self:AddAdminMenuCommand( Category, "Ready Room", "sh_rr", true )
+	}, "Stops the player from using text and voice chat." )
+	self:AddAdminMenuCommand( Category, "Ungag", "sh_ungag", false, nil, 
+		"Allows a previously gagged player to speak again." )
+	self:AddAdminMenuCommand( Category, "Force Random", "sh_forcerandom", true, nil,
+		"Moves the selected player(s) onto a random team." )
+	self:AddAdminMenuCommand( Category, "Ready Room", "sh_rr", true, nil,
+		"Moves the selected player(s) into the ready room." )
 	local Teams = {}
 	for i = 0, 3 do
 		local TeamName = Shine:GetTeamName( i, true )
@@ -98,7 +102,8 @@ function Plugin:SetupAdminMenuCommands()
 		Teams[ i * 2 - 1 ] = TeamName
 		Teams[ i * 2 ] = tostring( i - 1 )
 	end
-	self:AddAdminMenuCommand( Category, "Set Team", "sh_setteam", true, Teams )
+	self:AddAdminMenuCommand( Category, "Set Team", "sh_setteam", true, Teams,
+		"Moves the selected player(s) onto the selected team." )
 
 	self:AddAdminMenuTab( "Maps", {
 		OnInit = function( Panel, Data )

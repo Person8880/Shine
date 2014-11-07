@@ -212,7 +212,7 @@ do
 		end
 	end
 
-	local function GenerateButton( Text, DoClick )
+	local function GenerateButton( Text, DoClick, Tooltip )
 		local Button = SGUI:Create( "Button" )
 		Button:SetSize( Vector( 192, 32, 0 ) )
 		Button:SetText( Text )
@@ -220,6 +220,7 @@ do
 		Button.DoClick = function( Button )
 			DoClick( Button, PlayerList:GetSelectedRow() )
 		end
+		Button:SetTooltip( Tooltip )
 
 		return Button
 	end
@@ -283,10 +284,12 @@ do
 				Commands:AddCategory( Name )
 
 				for j = 1, #CommandList do
-					local Command = CommandList[ j ].Name
-					local DoClick = CommandList[ j ].DoClick
+					local CommandData = CommandList[ j ]
+					local Command = CommandData.Name
+					local DoClick = CommandData.DoClick
+					local Tooltip = CommandData.Tooltip
 
-					Commands:AddObject( Name, GenerateButton( Command, DoClick ) )
+					Commands:AddObject( Name, GenerateButton( Command, DoClick, Tooltip ) )
 				end
 			end
 
@@ -377,7 +380,7 @@ do
 		end
 	end
 
-	function AdminMenu:AddCommand( Category, Name, Command, MultiPlayer, DoClick )
+	function AdminMenu:AddCommand( Category, Name, Command, MultiPlayer, DoClick, Tooltip )
 		if not DoClick then
 			DoClick = function( Button, Rows )
 				if #Rows == 0 then return end
@@ -508,14 +511,14 @@ do
 
 		local CommandsList = CategoryObj.Commands
 		
-		CommandsList[ #CommandsList + 1 ] = { Name = Name, DoClick = DoClick }
+		CommandsList[ #CommandsList + 1 ] = { Name = Name, DoClick = DoClick, Tooltip = Tooltip }
 
 		if Commands then
 			if ShouldAdd then
 				Commands:AddCategory( Category )
 			end
 			
-			Commands:AddObject( Category, GenerateButton( Name, DoClick ) )
+			Commands:AddObject( Category, GenerateButton( Name, DoClick, Tooltip ) )
 		end
 	end
 

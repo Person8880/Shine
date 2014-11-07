@@ -301,11 +301,11 @@ elseif Client then
 		return Command
 	end
 
-	function PluginMeta:AddAdminMenuCommand( Category, Name, Command, MultiSelect, DoClick )
+	function PluginMeta:AddAdminMenuCommand( Category, Name, Command, MultiSelect, DoClick, Tooltip )
 		self.AdminMenuCommands = rawget( self, "AdminMenuCommands" ) or {}
 		self.AdminMenuCommands[ Category ] = true
 
-		Shine.AdminMenu:AddCommand( Category, Name, Command, MultiSelect, DoClick )
+		Shine.AdminMenu:AddCommand( Category, Name, Command, MultiSelect, DoClick, Tooltip )
 	end
 
 	function PluginMeta:AddAdminMenuTab( Name, Data )
