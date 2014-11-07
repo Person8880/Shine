@@ -374,6 +374,10 @@ end
 function SGUI:Destroy( Control )
 	self.ActiveControls:Remove( Control )
 
+	if self.IsValid( Control.Tooltip ) then
+		Control.Tooltip:Destroy()
+	end
+
 	--SGUI children, not GUIItems.
 	if Control.Children then
 		for Control in Control.Children:Iterate() do
