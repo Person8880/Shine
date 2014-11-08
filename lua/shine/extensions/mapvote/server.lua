@@ -126,14 +126,14 @@ function Plugin:Initialise()
 		end
 	end
 
+	self.MapProbabilities = {}
+
 	if self.Config.GetMapsFromMapCycle then
 		local Maps = Cycle and Cycle.maps
 
 		if Maps then
 			self.Config.Maps = {}
 			local ConfigMaps = self.Config.Maps
-
-			self.MapProbabilities = {}
 
 			for i = 1, #Maps do
 				local Map = Maps[ i ]
