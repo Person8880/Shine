@@ -117,6 +117,10 @@ function Tooltip:FadeOut( Callback )
 	self:FadeTo( self.Text, Start, End, 0, 0.2 )
 end
 
+function Tooltip:OnLoseWindowFocus()
+	self:Destroy()
+end
+
 function Tooltip:Cleanup()
 	if self.Parent then return end
 	

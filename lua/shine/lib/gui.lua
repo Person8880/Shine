@@ -110,6 +110,10 @@ function SGUI:SetWindowFocus( Window, i )
 		Window:SetLayer( self.BaseLayer + i )
 	end
 
+	if self.IsValid( self.FocusedWindow ) and self.FocusedWindow.OnLoseWindowFocus then
+		self.FocusedWindow:OnLoseWindowFocus( Window )
+	end
+
 	self.FocusedWindow = Window
 end
 
@@ -1203,9 +1207,15 @@ end
 function ControlMeta:ShowTooltip( X, Y )
 	local SelfPos = self:GetScreenPos()
 
-	local Tooltip = self.Tooltip or SGUI:Create( "Tooltip" )
-	Tooltip:SetPos( Vector( SelfPos.x + X, SelfPos.y + Y, 0 ) )
+	X = SelfPos.x + X
+	Y = SelfPos.y + Y
+
+	local Tooltip = SGUI.IsValid( self.Tooltip ) and self.Tooltip or SGUI:Create( "Tooltip" )
 	Tooltip:SetText( self.TooltipText )
+
+	Y = Y - Tooltip:GetSize().y - 4
+
+	Tooltip:SetPos( Vector( X, Y, 0 ) )
 	Tooltip:FadeIn()
 
 	self.Tooltip = Tooltip
