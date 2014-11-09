@@ -154,13 +154,14 @@ end
 	Advances the iteration position.
 ]]
 function Map:GetNext()
-	if not self:HasNext( true ) then
+	local InFront = self.Position + 1
+	if InFront > self.NumMembers then
 		return nil
 	end
 
-	self.Position = self.Position + 1
+	self.Position = InFront
 
-	local Key = self.Keys[ self.Position ]
+	local Key = self.Keys[ InFront ]
 
 	return Key, self.MemberLookup[ Key ]
 end
@@ -170,11 +171,12 @@ end
 	Does not advance the iteration position.
 ]]
 function Map:PeekForward()
-	if not self:HasNext( true ) then
+	local InFront = self.Position + 1
+	if InFront > self.NumMembers then
 		return nil
 	end
 
-	local Key = self.Keys[ self.Position + 1 ]
+	local Key = self.Keys[ InFront ]
 
 	return Key, self.MemberLookup[ Key ]
 end
@@ -184,13 +186,14 @@ end
 	Moves the iteration position backwards.
 ]]
 function Map:GetPrevious()
-	if not self:HasPrevious() then
+	local Behind = self.Position - 1
+	if Behind <= 0 then
 		return nil
 	end
 
-	self.Position = self.Position - 1
+	self.Position = Behind
 
-	local Key = self.Keys[ self.Position ]
+	local Key = self.Keys[ Behind ]
 
 	return Key, self.MemberLookup[ Key ]
 end
@@ -200,11 +203,12 @@ end
 	Does not move the iteration position backwards.
 ]]
 function Map:PeekBackwards()
-	if not self:HasPrevious() then
+	local Behind = self.Position - 1
+	if Behind <= 0 then
 		return nil
 	end
 
-	local Key = self.Keys[ self.Position - 1 ]
+	local Key = self.Keys[ Behind ]
 
 	return Key, self.MemberLookup[ Key ]
 end
@@ -225,11 +229,19 @@ function Map:SetPosition( Position )
 	self.Position = Clamp( Position, 1, #self.Keys )
 end
 
-local function IterateSet( self )
-	if self:HasNext() then
-		return self:GetNext()
-	end
+local GetNext = Map.GetNext
+local GetPrevious = Map.GetPrevious
 
+local function IterateForward( self )
+	return GetNext( self )
+end
+
+local function IterateBackwards( self )
+	return GetPrevious( self )
+end
+
+--If the map's empty, we don't even need to iterate.
+local function Nope()
 	return nil
 end
 
@@ -241,7 +253,24 @@ end
 function Map:Iterate()
 	self:ResetPosition()
 
-	return IterateSet, self
+	if self.NumMembers == 0 then
+		return Nope
+	end
+
+	return IterateForward, self
+end
+
+--[[
+	Iterator for going backwards along the keys of the map.
+]]
+function Map:IterateBackwards()
+	if self.NumMembers == 0 then
+		return Nope
+	end
+
+	self.Position = self.NumMembers + 1
+
+	return IterateBackwards, self
 end
 
 local UNIT_TEST = false
@@ -345,4 +374,42 @@ Test( "GenericForRemoval", function()
 	end
 
 	assert( i == 30, "Generic for didn't iterate enough times after removing!" )
+end )
+
+Test( "GenericForBackwards", function()
+	local Map = Map()
+
+	for i = 1, 30 do
+		Map:Add( i, i )
+	end
+
+	local Done = {}
+	local i = 31
+	local IterCount = 0
+
+	for Key, Value in Map:IterateBackwards() do
+		i = i - 1
+		IterCount = IterCount + 1
+		assert( i == Key and i == Value, "Generic for backwards doesn't iterate in order!" )
+	end
+
+	assert( IterCount == 30, "Generic for backwards misses values: "..IterCount )
+end )
+
+Test( "EmptyMapIterators", function()
+	local Map = Map()
+
+	local i = 0
+
+	for Key, Value in Map:Iterate() do
+		i = i + 1
+	end
+
+	assert( i == 0, "Generic for on an empty map iterated > 0 times!" )
+
+	for Key, Value in Map:IterateBackwards() do
+		i = i + 1
+	end
+
+	assert( i == 0, "Generic for backwards on an empty map iterated > 0 times!" )
 end )
