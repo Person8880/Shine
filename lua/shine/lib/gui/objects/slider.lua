@@ -225,10 +225,19 @@ function Slider:SetBounds( Min, Max )
 end
 
 local GetCursorPos
+local LineMult = Vector( 1, 0.5, 0 )
 
 function Slider:OnMouseDown( Key )
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:MouseIn( self.Handle, 1.25 ) then return end
+	if not self:MouseIn( self.Handle, 1.25 ) then
+		if self:MouseIn( self.Background, LineMult ) then
+			self.ClickingLine = true
+
+			return true, self
+		end
+
+		return
+	end
 
 	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
@@ -247,7 +256,17 @@ end
 function Slider:OnMouseUp( Key )
 	if Key ~= InputKey.MouseButton0 then return end
 
-	self.Dragging = false
+	if self.ClickingLine then
+		self.ClickingLine = nil
+
+		local In, X, Y = self:MouseIn( self.Background, LineMult )
+		if not In then return end
+
+		local Fraction = X / self.Width
+		self:SetFraction( Fraction )
+	else
+		self.Dragging = false
+	end
 
 	if self.OnValueChanged then
 		self:OnValueChanged( self:GetValue() )

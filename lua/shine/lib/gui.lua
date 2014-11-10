@@ -8,6 +8,7 @@ Shine.GUI = Shine.GUI or {}
 
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
+local IsType = Shine.IsType
 local Map = Shine.Map
 
 local assert = assert
@@ -109,6 +110,10 @@ function SGUI:SetWindowFocus( Window, i )
 		Window:SetLayer( self.BaseLayer + i )
 	end
 
+	if self.IsValid( self.FocusedWindow ) and self.FocusedWindow.OnLoseWindowFocus then
+		self.FocusedWindow:OnLoseWindowFocus( Window )
+	end
+
 	self.FocusedWindow = Window
 end
 
@@ -158,8 +163,6 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 		end
 	end
 end
-
-local IsType = Shine.IsType
 
 --[[
 	Calls an event on all active SGUI controls, out of order.
@@ -374,6 +377,10 @@ end
 ]]
 function SGUI:Destroy( Control )
 	self.ActiveControls:Remove( Control )
+
+	if self.IsValid( Control.Tooltip ) then
+		Control.Tooltip:Destroy()
+	end
 
 	--SGUI children, not GUIItems.
 	if Control.Children then
@@ -767,11 +774,15 @@ function ControlMeta:GetPos()
 	return self.Background:GetPosition()
 end
 
+local ScrW, ScrH
+
 function ControlMeta:GetScreenPos()
 	if not self.Background then return end
-	
-	return self.Background:GetScreenPosition( Client.GetScreenWidth(),
-		Client.GetScreenHeight() )
+
+	ScrW = ScrW or Client.GetScreenWidth
+	ScrH = ScrH or Client.GetScreenHeight
+
+	return self.Background:GetScreenPosition( ScrW(), ScrH() )
 end
 
 local Anchors = {
@@ -817,7 +828,6 @@ function ControlMeta:GetAnchor()
 end
 
 --We call this so many times it really needs to be local, not global.
-local ScrW, ScrH
 local MousePos
 
 --[[
@@ -841,7 +851,12 @@ function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	end
 
 	if Mult then
-		Size = Size * Mult
+		if IsType( Mult, "number" ) then
+			Size = Size * Mult
+		else
+			Size.x = Size.x * Mult.x
+			Size.y = Size.y * Mult.y
+		end
 	end
 
 	MaxX = MaxX or Size.x
@@ -1036,15 +1051,26 @@ function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
 	self.TextureHighlight = TextureMode
 end
 
+function ControlMeta:SetTooltip( Text )
+	if Text == nil then
+		self.TooltipText = nil
+
+		self.OnHover = nil
+		self.OnLoseHover = nil
+
+		return
+	end
+
+	self.TooltipText = Text
+
+	self.OnHover = self.ShowTooltip
+	self.OnLoseHover = self.HideTooltip
+end
+
 function ControlMeta:StopFade( Element )
 	if not self.Fades then return end
-	
-	local Fade = self.Fades[ Element ]
 
-	if not Fade then return end
-	
-	Fade.Elapsed = Fade.Duration
-	Fade.Finished = true
+	self.Fades:Remove( Element )
 end
 
 --[[
@@ -1076,7 +1102,7 @@ function ControlMeta:Think( DeltaTime )
 	end
 
 	--Fading handling.
-	if self.Fades and next( self.Fades ) then
+	if self.Fades and not self.Fades:IsEmpty() then
 		for Element, Fade in self.Fades:Iterate() do
 			local Start = Fade.StartTime
 			local Duration = Fade.Duration
@@ -1084,7 +1110,6 @@ function ControlMeta:Think( DeltaTime )
 			Fade.Elapsed = Fade.Elapsed + DeltaTime
 
 			local Elapsed = Fade.Elapsed
-			--local End = Fade.EndTime
 
 			if Start <= Time then
 				if Elapsed <= Duration then
@@ -1094,17 +1119,23 @@ function ControlMeta:Think( DeltaTime )
 					--Linear progress.
 					SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff ) 
 
-					Fade.Obj:SetColor( CurCol ) --Sets the GUI element's colour.
+					Element:SetColor( CurCol ) --Sets the GUI element's colour.
 				elseif not Fade.Finished then
-					Fade.Callback( Element )
-				
+					Element:SetColor( Fade.EndCol )
+
 					Fade.Finished = true
+
+					self.Fades:Remove( Element )
+
+					if Fade.Callback then
+						Fade.Callback( Element )
+					end
 				end
 			end
 		end
 	end
 
-	if self.SizeAnims and next( self.SizeAnims ) then
+	if self.SizeAnims and not self.SizeAnims:IsEmpty() then
 		for Element, Size in self.SizeAnims:Iterate() do
 			local Start = Size.StartTime
 			local Duration = Size.Duration
@@ -1112,7 +1143,6 @@ function ControlMeta:Think( DeltaTime )
 			Size.Elapsed = Size.Elapsed + DeltaTime
 			
 			local Elapsed = Size.Elapsed
-			--local End = Size.EndTime
 
 			if Start <= Time then
 				if Elapsed <= Duration then
@@ -1127,12 +1157,22 @@ function ControlMeta:Think( DeltaTime )
 					if Element == self.Background then
 						self:SetSize( CurSize )
 					else
-						Size.Obj:SetSize( CurSize )
+						Element:SetSize( CurSize )
 					end
 				elseif not Size.Finished then
-					Size.Callback( Element )
-				
+					if Element == self.Background then
+						self:SetSize( Size.End )
+					else
+						Element:SetSize( Size.End )
+					end
+
 					Size.Finished = true
+
+					self.SizeAnims:Remove( Element )
+
+					if Size.Callback then
+						Size.Callback( Element )
+					end
 				end
 			end
 		end
@@ -1164,34 +1204,61 @@ function ControlMeta:Think( DeltaTime )
 	end
 end
 
+function ControlMeta:ShowTooltip( X, Y )
+	local SelfPos = self:GetScreenPos()
+
+	X = SelfPos.x + X
+	Y = SelfPos.y + Y
+
+	local Tooltip = SGUI.IsValid( self.Tooltip ) and self.Tooltip or SGUI:Create( "Tooltip" )
+	Tooltip:SetText( self.TooltipText )
+
+	Y = Y - Tooltip:GetSize().y - 4
+
+	Tooltip:SetPos( Vector( X, Y, 0 ) )
+	Tooltip:FadeIn()
+
+	self.Tooltip = Tooltip
+end
+
+function ControlMeta:HideTooltip()
+	if not SGUI.IsValid( self.Tooltip ) then return end
+
+	self.Tooltip:FadeOut( function()
+		self.Tooltip = nil
+	end )
+end
+
 function ControlMeta:OnMouseMove( Down )
 	--Basic highlight on mouse over handling.
-	if self.HighlightOnMouseOver then
-		if self:MouseIn( self.Background, self.HighlightMult ) then
-			if not self.Highlighted then
-				if not self.TextureHighlight then
-					self:FadeTo( self.Background, self.InactiveCol,
-					self.ActiveCol, 0, 0.25, function( Background )
-						Background:SetColor( self.ActiveCol )
-					end )
-				else
-					self.Background:SetTexture( self.HighlightTexture )
-				end
+	if not self.HighlightOnMouseOver then
+		return
+	end
 
-				self.Highlighted = true
+	if self:MouseIn( self.Background, self.HighlightMult ) then
+		if not self.Highlighted then
+			self.Highlighted = true
+
+			if not self.TextureHighlight then
+				self:FadeTo( self.Background, self.InactiveCol,
+				self.ActiveCol, 0, 0.1, function( Background )
+					Background:SetColor( self.ActiveCol )
+				end )
+			else
+				self.Background:SetTexture( self.HighlightTexture )
 			end
-		else
-			if self.Highlighted then
-				if not self.TextureHighlight then
-					self:FadeTo( self.Background, self.ActiveCol,
-					self.InactiveCol, 0, 0.25, function( Background )
-						Background:SetColor( self.InactiveCol )
-					end )
-				else
-					self.Background:SetTexture( self.Texture )
-				end
+		end
+	else
+		if self.Highlighted then
+			self.Highlighted = false
 
-				self.Highlighted = false
+			if not self.TextureHighlight then
+				self:FadeTo( self.Background, self.ActiveCol,
+				self.InactiveCol, 0, 0.1, function( Background )
+					Background:SetColor( self.InactiveCol )
+				end )
+			else
+				self.Background:SetTexture( self.Texture )
 			end
 		end
 	end

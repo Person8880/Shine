@@ -206,6 +206,7 @@ end
 if not Shine.IsNS2Combat then
 	function Plugin:CommLoginPlayer( Chair, Player )
 		if not self.Config.LogCommanderLogin then return end
+		if not Player then return end
 		
 		Shine:LogString( StringFormat( "%s became the commander of the %s.", 
 			self:GetClientInfo( Server.GetOwner( Player ) ), 

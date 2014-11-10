@@ -45,12 +45,15 @@ function Plugin:HookChat( ChatElement )
 
 		self.Vis = Vis
 
-		if self.messages then
-			for Index, Element in pairs( self.messages ) do
-				--There's non-table elements in here???
-				if IsType( Element, "table" ) then
-					Element.Background:SetIsVisible( Vis )
-				end
+		local Messages = self.messages
+
+		if not Messages then return end
+
+		for i = 1, #Messages do
+			local Element = Messages[ i ]
+
+			if IsType( Element, "table" ) then
+				Element.Background:SetIsVisible( Vis )
 			end
 		end
 	end
@@ -61,7 +64,7 @@ function Plugin:HookChat( ChatElement )
 		if Plugin.Enabled then
 			return
 		end
-		
+
 		return OldSendKey( self, Key, Down )
 	end
 
@@ -149,53 +152,52 @@ function Plugin:EvaluateUIVisibility()
 	end
 end
 
-local ChatBoxSize = Vector( 800, 350, 0 )
-local CloseButtonSize = Vector( 16, 16, 0 )
-local InnerBoxSize = Vector( 760, 280, 0 )
-local TextBoxSize = Vector( 720, 40, 0 )
-local SettingsButtonSize = Vector( 36, 36, 0 )
-local SettingsClosedSize = Vector( 0, 350, 0 )
-local SettingsSize = Vector( 350, 350, 0 )
-local SliderSize = Vector( 250, 32, 0 )
+local LayoutData = {
+	Sizes = {
+		ChatBox = Vector( 800, 350, 0 ),
+		InnerBox = Vector( 760, 280, 0 ),
+		TextBox = Vector( 720, 40, 0 ),
+		SettingsButton = Vector( 36, 36, 0 ),
+		SettingsClosed = Vector( 0, 350, 0 ),
+		Settings = Vector( 350, 350, 0 ),
+		Slider = Vector( 250, 32, 0 )
+	},
 
-local BorderPos = Vector( 20, 20, 0 )
-local CloseButtonPos = Vector( -1, -1, 0 ) 
-local ModeTextPos = Vector( 65, -25, 0 )
-local ScrollbarPos = Vector( 2, 0, 0 )
-local SettingsButtonPos = Vector( -48, -43, 0 )
-local SettingsPos = Vector( 0, 0, 0 )
-local TextBoxPos = Vector( 74, -45, 0 )
+	Positions = {
+		Border = Vector( 20, 20, 0 ),
+		ModeText = Vector( 65, -25, 0 ),
+		Scrollbar = Vector( 2, 0, 0 ),
+		SettingsButton = Vector( -48, -43, 0 ),
+		Settings = Vector( 0, 0, 0 ),
+		TextBox = Vector( 74, -45, 0 ),
+		Title = Vector( 30, 10, 0 ),
+		AutoClose = Vector( 30, 50, 0 ),
+		AutoDelete = Vector( 30, 90, 0 ),
+		SmoothScroll = Vector( 30, 130, 0 ),
+		MessageMemoryText = Vector( 30, 170, 0 ),
+		MessageMemory = Vector( 30, 210, 0 ),
+		OpacityText = Vector( 30, 240, 0 ),
+		Opacity = Vector( 30, 280, 0 )
+	},
 
-local TitlePos = Vector( 30, 10, 0 )
-local AutoClosePos = Vector( 30, 50, 0 )
-local AutoDeletePos = Vector( 30, 90, 0 )
-local SmoothScrollPos = Vector( 30, 130, 0 )
-local MessageMemoryTextPos = Vector( 30, 170, 0 )
-local MessageMemoryPos = Vector( 30, 210, 0 )
-local OpacityTextPos = Vector( 30, 240, 0 )
-local OpacityPos = Vector( 30, 280, 0 )
+	Colours = {
+		Border = Colour( 0.6, 0.6, 0.6, 0.4 ),
+		Inner = Colour( 0.2, 0.2, 0.2, 0.8 ),
+		Settings = Colour( 0.6, 0.6, 0.6, 0.4 ),
+		ModeText = Colour( 1, 1, 1, 1 ),
+		TextDark = Colour( 0.2, 0.2, 0.2, 0.8 ),
+		TextFocus = Colour( 0.2, 0.2, 0.2, 0.8 ),
+		TextBorder = Colour( 0, 0, 0, 0 ),
+		Text = Colour( 1, 1, 1, 1 ),
+		ButtonActive = Colour( 0.5, 0.5, 0.5, 0.8 ),
+		ButtonInActive = Colour( 0.2, 0.2, 0.2, 0.8 ),
+		CheckBack = Colour( 0.2, 0.2, 0.2, 1 ),
+		Checked = Colour( 0.8, 0.6, 0.1, 1 )
+	}
+}
 
 local SliderTextPadding = 20
-
 local TextScale = Vector( 1, 1, 0 )
-
-local BorderCol = Colour( 0.6, 0.6, 0.6, 0.4 )
-local InnerCol = Colour( 0.2, 0.2, 0.2, 0.8 )
-local SettingsCol = Colour( 0.6, 0.6, 0.6, 0.4 )
-
-local ModeTextCol = Colour( 1, 1, 1, 1 )
-
-local TextDarkCol = Colour( 0.2, 0.2, 0.2, 0.8 )--Colour( 0.5, 0.5, 0.5, 1 )
-local TextFocusCol = Colour( 0.2, 0.2, 0.2, 0.8 )
-local TextBorderCol = Colour( 0, 0, 0, 0 )
-local TextCol = Colour( 1, 1, 1, 1 )
-
-local ButtonActiveCol = Colour( 0.5, 0.5, 0.5, 0.8 )
-local ButtonInActiveCol = Colour( 0.2, 0.2, 0.2, 0.8 )
-
-local CheckBackCol = Colour( 0.2, 0.2, 0.2, 1 )
-local CheckedCol = Colour( 0.8, 0.6, 0.1, 1 ) 
-
 local Clear = Colour( 0, 0, 0, 0 )
 
 --Scales alpha value for elements that default to 0.8 rather than 0.4 alpha.
@@ -257,22 +259,18 @@ function Plugin:CreateChatbox()
 	UIScale.x = UIScale.x * WidthMult
 	UIScale.y = UIScale.y * HeightMult
 
-	--[[if ScreenWidth < 1600 then
-		ScalarScale = ScalarScale * WidthMult
-	end]]
-
 	self.UseTinyFont = ScreenWidth <= 1366
 
 	local Opacity = self.Config.Opacity
 	local ScaledOpacity = AlphaScale( Opacity )
 
-	BorderCol.a = Opacity
-	InnerCol.a = ScaledOpacity
-	SettingsCol.a = Opacity
-	TextDarkCol.a = ScaledOpacity
-	TextFocusCol.a = ScaledOpacity
-	ButtonActiveCol.a = ScaledOpacity
-	ButtonInActiveCol.a = ScaledOpacity
+	LayoutData.Colours.Border.a = Opacity
+	LayoutData.Colours.Inner.a = ScaledOpacity
+	LayoutData.Colours.Settings.a = Opacity
+	LayoutData.Colours.TextDark.a = ScaledOpacity
+	LayoutData.Colours.TextFocus.a = ScaledOpacity
+	LayoutData.Colours.ButtonActive.a = ScaledOpacity
+	LayoutData.Colours.ButtonInActive.a = ScaledOpacity
 
 	local ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * ScalarScale, 0 )
 
@@ -280,7 +278,7 @@ function Plugin:CreateChatbox()
 	local DummyPanel = SGUI:Create( "Panel" )
 	DummyPanel:SetupFromTable{
 		Anchor = "BottomLeft",
-		Size = VectorMultiply( ChatBoxSize, UIScale ),
+		Size = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale ),
 		Pos = ChatBoxPos,
 		Colour = Clear,
 		Draggable = true,
@@ -308,20 +306,20 @@ function Plugin:CreateChatbox()
 
 	self.MainPanel = DummyPanel
 
-	local BoxSize = VectorMultiply( InnerBoxSize, UIScale )
+	local BoxSize = VectorMultiply( LayoutData.Sizes.InnerBox, UIScale )
 
 	--Panel for messages.
 	local Box = SGUI:Create( "Panel", DummyPanel )
 	Box:SetupFromTable{
 		Anchor = "TopLeft",
-		ScrollbarPos = ScrollbarPos,
+		ScrollbarPos = LayoutData.Positions.Scrollbar,
 		ScrollbarHeightOffset = 0,
 		Scrollable = true,
 		AllowSmoothScroll = self.Config.SmoothScroll,
 		StickyScroll = true,
 		Size = BoxSize,
-		Colour = InnerCol,
-		Pos = VectorMultiply( BorderPos, UIScale ),
+		Colour = LayoutData.Colours.Inner,
+		Pos = VectorMultiply( LayoutData.Positions.Border, UIScale ),
 		ScrollbarWidthMult = WidthMult,
 		IsSchemed = false
 	}
@@ -332,10 +330,10 @@ function Plugin:CreateChatbox()
 	--Create, not Panel:Add as we don't want the border to scroll!
 	local Border = SGUI:Create( "Panel", Box )
 	Border:SetupFromTable{
-		Size = VectorMultiply( ChatBoxSize, UIScale ),
+		Size = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale ),
 		Anchor = "TopLeft",
-		Pos = VectorMultiply( -BorderPos, UIScale ),
-		Colour = BorderCol,
+		Pos = VectorMultiply( -LayoutData.Positions.Border, UIScale ),
+		Colour = LayoutData.Colours.Border,
 		BlockMouse = true,
 		IsSchemed = false
 	}
@@ -348,11 +346,11 @@ function Plugin:CreateChatbox()
 	local ModeText = Border:Add( "Label" )
 	ModeText:SetupFromTable{
 		Anchor = "BottomLeft",
-		Pos = VectorMultiply( ModeTextPos, UIScale ),
+		Pos = VectorMultiply( LayoutData.Positions.ModeText, UIScale ),
 		TextAlignmentX = GUIItem.Align_Max,
 		TextAlignmentY = GUIItem.Align_Center,
 		Font = Font,
-		Colour = ModeTextCol,
+		Colour = LayoutData.Colours.ModeText,
 		IsSchemed = false
 	}
 	if not self.UseTinyFont then
@@ -363,8 +361,8 @@ function Plugin:CreateChatbox()
 
 	self.Border = Border
 
-	local SettingsPos = VectorMultiply( SettingsButtonPos, UIScale )
-	local TextEntrySize = VectorMultiply( TextBoxSize, UIScale )
+	local SettingsPos = VectorMultiply( LayoutData.Positions.SettingsButton, UIScale )
+	local TextEntrySize = VectorMultiply( LayoutData.Sizes.TextBox, UIScale )
 	TextEntrySize.x = TextEntrySize.x + SettingsPos.x - 5
 
 	--Where messages are entered.
@@ -372,14 +370,14 @@ function Plugin:CreateChatbox()
 	TextEntry:SetupFromTable{
 		Size = TextEntrySize,
 		Anchor = "BottomLeft",
-		Pos = VectorMultiply( TextBoxPos, UIScale ),
+		Pos = VectorMultiply( LayoutData.Positions.TextBox, UIScale ),
 		--TextScale = ScalarScale * TextScale,
 		Text = "",
 		StickyFocus = true,
-		FocusColour = TextFocusCol,
-		DarkColour = TextDarkCol,
-		BorderColour = TextBorderCol,
-		TextColour = TextCol,
+		FocusColour = LayoutData.Colours.TextFocus,
+		DarkColour = LayoutData.Colours.TextDark,
+		BorderColour = LayoutData.Colours.TextBorder,
+		TextColour = LayoutData.Colours.Text,
 		Font = Font,
 		IsSchemed = false
 	}
@@ -387,7 +385,7 @@ function Plugin:CreateChatbox()
 		TextEntry:SetTextScale( ScalarScale * TextScale )
 	end
 
-	TextEntry.InnerBox:SetColor( TextDarkCol )
+	TextEntry.InnerBox:SetColor( LayoutData.Colours.TextDark )
 
 	--Send the message when the client presses enter.
 	function TextEntry:OnEnter()
@@ -426,11 +424,11 @@ function Plugin:CreateChatbox()
 	local SettingsButton = SGUI:Create( "Button", DummyPanel )
 	SettingsButton:SetupFromTable{
 		Anchor = "BottomRight",
-		Size = VectorMultiply( SettingsButtonSize, UIScale ),
-		Pos = VectorMultiply( SettingsButtonPos, UIScale ),
+		Size = VectorMultiply( LayoutData.Sizes.SettingsButton, UIScale ),
+		Pos = VectorMultiply( LayoutData.Positions.SettingsButton, UIScale ),
 		Text = ">",
-		ActiveCol = ButtonActiveCol,
-		InactiveCol = ButtonInActiveCol,
+		ActiveCol = LayoutData.Colours.ButtonActive,
+		InactiveCol = LayoutData.Colours.ButtonInActive,
 		IsSchemed = false
 	}
 
@@ -438,9 +436,71 @@ function Plugin:CreateChatbox()
 		Plugin:OpenSettings( DummyPanel, UIScale, ScalarScale )
 	end
 
+	SettingsButton:SetTooltip( "Opens/closes the chatbox settings." )
+
 	self.SettingsButton = SettingsButton
 
 	return true
+end
+
+local function CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale, Pos, Size, Checked, Label )
+	local CheckBox = SettingsPanel:Add( "CheckBox" )
+	CheckBox:SetupFromTable{
+		Pos = VectorMultiply( Pos, UIScale ),
+		Size = VectorMultiply( Size, UIScale ),
+		CheckedColour = LayoutData.Colours.Checked,
+		BackgroundColour = LayoutData.Colours.CheckBack,
+		Checked = Checked,
+		Font = self:GetFont(),
+		TextColour = LayoutData.Colours.ModeText,
+		IsSchemed = false
+	}
+	CheckBox:AddLabel( Label )
+
+	if not self.UseTinyFont then
+		CheckBox:SetTextScale( ScalarScale * TextScale )
+	end
+
+	return CheckBox
+end
+
+local function CreateLabel( self, SettingsPanel, UIScale, ScalarScale, Pos, Text )
+	local Label = SettingsPanel:Add( "Label" )
+	Label:SetupFromTable{
+		Pos = VectorMultiply( Pos, UIScale ),
+		Font = self:GetFont(),
+		Text = Text,
+		Colour = LayoutData.Colours.ModeText,
+		IsSchemed = false
+	}
+
+	if not self.UseTinyFont then
+		Label:SetTextScale( ScalarScale * TextScale )
+	end
+
+	return Label
+end
+
+local function CreateSlider( self, SettingsPanel, UIScale, ScalarScale, Pos, Value )
+	local Slider = SettingsPanel:Add( "Slider" )
+	Slider:SetupFromTable{
+		Pos = VectorMultiply( Pos, UIScale ),
+		Value = Value,
+		HandleColour = LayoutData.Colours.Checked,
+		LineColour = LayoutData.Colours.ModeText,
+		DarkLineColour = LayoutData.Colours.TextDark,
+		Font = self:GetFont(),
+		TextColour = LayoutData.Colours.ModeText,
+		Size = VectorMultiply( LayoutData.Sizes.Slider, UIScale ),
+		IsSchemed = false,
+		Padding = SliderTextPadding * ScalarScale
+	}
+
+	if not self.UseTinyFont then
+		Slider:SetTextScale( ScalarScale * TextScale )
+	end
+
+	return Slider
 end
 
 function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
@@ -449,45 +509,22 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 	local SettingsPanel = SGUI:Create( "Panel", DummyPanel )
 	SettingsPanel:SetupFromTable{
 		Anchor = "TopRight",
-		Pos = VectorMultiply( SettingsPos, UIScale ),
+		Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 		Scrollable = true,
-		Size = VectorMultiply( SettingsClosedSize, UIScale ),
-		Colour = SettingsCol,
+		Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
+		Colour = LayoutData.Colours.Settings,
 		ShowScrollbar = false,
 		IsSchemed = false
 	}
 
 	self.SettingsPanel = SettingsPanel
 
-	local Title = SettingsPanel:Add( "Label" )
-	Title:SetupFromTable{
-		Pos = VectorMultiply( TitlePos, UIScale ),
-		Font = Font,
-		Text = "Settings",
-		Colour = ModeTextCol,
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false
-	}
-	if not self.UseTinyFont then
-		Title:SetTextScale( ScalarScale * TextScale )
-	end
+	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.Title, "Settings" )
 
-	local AutoClose = SettingsPanel:Add( "CheckBox" )
-	AutoClose:SetupFromTable{
-		Pos = VectorMultiply( AutoClosePos, UIScale ),
-		Size = VectorMultiply( SettingsButtonSize, UIScale ),
-		CheckedColour = CheckedCol,
-		BackgroundColour = CheckBackCol,
-		Checked = self.Config.AutoClose,
-		Font = Font,
-		TextColour = ModeTextCol,
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false
-	}
-	AutoClose:AddLabel( "Auto close after sending." )
-	if not self.UseTinyFont then
-		AutoClose:SetTextScale( ScalarScale * TextScale )
-	end
+	local AutoClose = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.AutoClose, LayoutData.Sizes.SettingsButton,
+		self.Config.AutoClose, "Auto close after sending." )
 
 	function AutoClose:OnChecked( Value )
 		if Value == Plugin.Config.AutoClose then return end
@@ -497,22 +534,9 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		Plugin:SaveConfig()
 	end
 
-	local AutoDelete = SettingsPanel:Add( "CheckBox" )
-	AutoDelete:SetupFromTable{
-		Pos = VectorMultiply( AutoDeletePos, UIScale ),
-		Size = VectorMultiply( SettingsButtonSize, UIScale ),
-		CheckedColour = CheckedCol,
-		BackgroundColour = CheckBackCol,
-		Checked = self.Config.DeleteOnClose,
-		Font = Font,
-		TextColour = ModeTextCol,
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false
-	}
-	AutoDelete:AddLabel( "Auto delete on close." )
-	if not self.UseTinyFont then
-		AutoDelete:SetTextScale( ScalarScale * TextScale )
-	end
+	local AutoDelete = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.AutoDelete, LayoutData.Sizes.SettingsButton,
+		self.Config.DeleteOnClose, "Auto delete on close." )
 
 	function AutoDelete:OnChecked( Value )
 		if Value == Plugin.Config.DeleteOnClose then return end
@@ -522,64 +546,25 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		Plugin:SaveConfig()
 	end
 
-	local SmoothScroll = SettingsPanel:Add( "CheckBox" )
-	SmoothScroll:SetupFromTable{
-		Pos = VectorMultiply( SmoothScrollPos, UIScale ),
-		Size = VectorMultiply( SettingsButtonSize, UIScale ),
-		CheckedColour = CheckedCol,
-		BackgroundColour = CheckBackCol,
-		Checked = self.Config.SmoothScroll,
-		Font = Font,
-		TextColour = ModeTextCol,
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false
-	}
-	SmoothScroll:AddLabel( "Use smooth scrolling." )
-	if not self.UseTinyFont then
-		SmoothScroll:SetTextScale( ScalarScale * TextScale )
-	end
+	local SmoothScroll = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.SmoothScroll, LayoutData.Sizes.SettingsButton,
+		self.Config.SmoothScroll, "Use smooth scrolling." )
 
 	function SmoothScroll:OnChecked( Value )
 		if Value == Plugin.Config.SmoothScroll then return end
 		
 		Plugin.Config.SmoothScroll = Value
-
 		Plugin.ChatBox:SetAllowSmoothScroll( Value )
 
 		Plugin:SaveConfig()
 	end
 
-	local MessageMemoryText = SettingsPanel:Add( "Label" )
-	MessageMemoryText:SetupFromTable{
-		Pos = VectorMultiply( MessageMemoryTextPos, UIScale ),
-		Font = Font,
-		Text = "Message memory",
-		Colour = ModeTextCol,
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false
-	}
-	if not self.UseTinyFont then
-		MessageMemoryText:SetTextScale( ScalarScale * TextScale )
-	end
+	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.MessageMemoryText, "Message memory" )
 
-	local MessageMemory = SettingsPanel:Add( "Slider" )
-	MessageMemory:SetupFromTable{
-		Pos = VectorMultiply( MessageMemoryPos, UIScale ),
-		Value = self.Config.MessageMemory,
-		HandleColour = CheckedCol,
-		LineColour = ModeTextCol,
-		DarkLineColour = TextDarkCol,
-		Font = Font,
-		TextColour = ModeTextCol,
-		Size = VectorMultiply( SliderSize, UIScale ),
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false,
-		Padding = SliderTextPadding * ScalarScale
-	}
+	local MessageMemory = CreateSlider( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.MessageMemory, self.Config.MessageMemory )
 	MessageMemory:SetBounds( 10, 100 )
-	if not self.UseTinyFont then
-		MessageMemory:SetTextScale( ScalarScale * TextScale )
-	end
 
 	function MessageMemory:OnValueChanged( Value )
 		if Plugin.Config.MessageMemory == Value then return end
@@ -589,37 +574,12 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		Plugin:SaveConfig()
 	end
 
-	local OpacityText = SettingsPanel:Add( "Label" )
-	OpacityText:SetupFromTable{
-		Pos = VectorMultiply( OpacityTextPos, UIScale ),
-		Font = Font,
-		Text = "Opacity (%)",
-		Colour = ModeTextCol,
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false
-	}
-	if not self.UseTinyFont then
-		OpacityText:SetTextScale( ScalarScale * TextScale )
-	end
+	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.OpacityText, "Opacity (%)" )
 
-	local Opacity = SettingsPanel:Add( "Slider" )
-	Opacity:SetupFromTable{
-		Pos = VectorMultiply( OpacityPos, UIScale ),
-		Value = self.Config.Opacity * 100,
-		HandleColour = CheckedCol,
-		LineColour = ModeTextCol,
-		DarkLineColour = TextDarkCol,
-		Font = Font,
-		TextColour = ModeTextCol,
-		Size = VectorMultiply( SliderSize, UIScale ),
-		--TextScale = ScalarScale * TextScale,
-		IsSchemed = false,
-		Padding = SliderTextPadding * ScalarScale
-	}
+	local Opacity = CreateSlider( self, SettingsPanel, UIScale, ScalarScale,
+		LayoutData.Positions.Opacity, self.Config.Opacity * 100 )
 	Opacity:SetBounds( 0, 100 )
-	if not self.UseTinyFont then
-		Opacity:SetTextScale( ScalarScale * TextScale )
-	end
 
 	function Opacity:OnValueChanged( Value )
 		Value = Value * 0.01
@@ -632,24 +592,24 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 
 		local ScaledOpacity = AlphaScale( Value )
 
-		BorderCol.a = Value
-		InnerCol.a = ScaledOpacity
-		SettingsCol.a = Value
-		TextDarkCol.a = ScaledOpacity
-		TextFocusCol.a = ScaledOpacity
-		ButtonActiveCol.a = ScaledOpacity
-		ButtonInActiveCol.a = ScaledOpacity
+		LayoutData.Colours.Border.a = Value
+		LayoutData.Colours.Inner.a = ScaledOpacity
+		LayoutData.Colours.Settings.a = Value
+		LayoutData.Colours.TextDark.a = ScaledOpacity
+		LayoutData.Colours.TextFocus.a = ScaledOpacity
+		LayoutData.Colours.ButtonActive.a = ScaledOpacity
+		LayoutData.Colours.ButtonInActive.a = ScaledOpacity
 
-		SettingsPanel:SetColour( SettingsCol )
+		SettingsPanel:SetColour( LayoutData.Colours.Settings )
 
-		Plugin.ChatBox:SetColour( InnerCol )
-		Plugin.Border:SetColour( BorderCol )
+		Plugin.ChatBox:SetColour( LayoutData.Colours.Inner )
+		Plugin.Border:SetColour( LayoutData.Colours.Border )
 
-		Plugin.TextEntry:SetFocusColour( TextFocusCol )
-		Plugin.TextEntry:SetDarkColour( TextDarkCol )
+		Plugin.TextEntry:SetFocusColour( LayoutData.Colours.TextFocus )
+		Plugin.TextEntry:SetDarkColour( LayoutData.Colours.TextDark )
 
-		Plugin.SettingsButton:SetActiveCol( ButtonActiveCol )
-		Plugin.SettingsButton:SetInactiveCol( ButtonInActiveCol )
+		Plugin.SettingsButton:SetActiveCol( LayoutData.Colours.ButtonActive )
+		Plugin.SettingsButton:SetInactiveCol( LayoutData.Colours.ButtonInActive )
 	end
 end
 
@@ -667,8 +627,8 @@ function Plugin:OpenSettings( DummyPanel, UIScale, ScalarScale )
 	local SettingsPanel = Plugin.SettingsPanel
 
 	if not SettingsButton.Expanded then
-		local Start = VectorMultiply( SettingsClosedSize, UIScale )
-		local End = VectorMultiply( SettingsSize, UIScale )
+		local Start = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
+		local End = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
 		local Element = SettingsPanel.Background
 
 		SettingsPanel:SetIsVisible( true )
@@ -682,8 +642,8 @@ function Plugin:OpenSettings( DummyPanel, UIScale, ScalarScale )
 			SettingsButton.Expanding = false
 		end )
 	else
-		local End = VectorMultiply( SettingsClosedSize, UIScale )
-		local Start = VectorMultiply( SettingsSize, UIScale )
+		local End = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
+		local Start = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
 		local Element = SettingsPanel.Background
 
 		SettingsPanel:SizeTo( Element, Start, End, 0, 0.5, function( Panel )
@@ -920,11 +880,11 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 
 		MessageLabel:SetText( MessageName )
 
-		local ChatboxSize = self.ChatBox:GetSize().x
+		local ChatBoxSize = self.ChatBox:GetSize().x
 		local XPos = PrePos.x + 5 + PreLabel:GetTextWidth()
 
-		if XPos + MessageLabel:GetTextWidth( MessageName ) > ChatboxSize then
-			WordWrap( MessageLabel, MessageName, XPos, ChatboxSize )
+		if XPos + MessageLabel:GetTextWidth( MessageName ) > ChatBoxSize then
+			WordWrap( MessageLabel, MessageName, XPos, ChatBoxSize )
 		end
 	end
 
@@ -1001,10 +961,10 @@ function Plugin:StartChat( Team )
 	--Get our text entry accepting input.
 	self.TextEntry:RequestFocus()
 
-	self.TextEntry:SetFocusColour( TextFocusCol )
-	self.TextEntry:SetDarkColour( TextDarkCol )
-	self.TextEntry:SetBorderColour( TextBorderCol )
-	self.TextEntry:SetTextColour( TextCol )
+	self.TextEntry:SetFocusColour( LayoutData.Colours.TextFocus )
+	self.TextEntry:SetDarkColour( LayoutData.Colours.TextDark )
+	self.TextEntry:SetBorderColour( LayoutData.Colours.TextBorder )
+	self.TextEntry:SetTextColour( LayoutData.Colours.Text )
 
 	self.Visible = true
 

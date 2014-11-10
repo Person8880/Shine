@@ -221,22 +221,27 @@ end
 ]]
 function Shine:ConvertData( Data, DontSave )
 	local Edited
-	
+
 	if Data.groups then
 		if not DontSave then
 			Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
 		end
-		
+
 		Data.Groups = {}
-		
+
 		for Name, Vals in pairs( Data.groups ) do
-			Data.Groups[ Name ] = { 
-				IsBlacklist = Vals.type == "disallowed",
-				Commands = Vals.commands and ConvertCommands( Vals.commands ) or {}, 
-				Immunity = Vals.level or 10, 
-				Badge = Vals.badge,
-				Badges = Vals.badges
-			}
+			if Vals.type or Vals.commands or Vals.level then
+				Data.Groups[ Name ] = { 
+					IsBlacklist = Vals.type == "disallowed",
+					Commands = Vals.commands and ConvertCommands( Vals.commands ) or {}, 
+					Immunity = Vals.level or 10, 
+					Badge = Vals.badge,
+					Badges = Vals.badges
+				}
+			--Someone's called it "groups" without knowing it's case sensitive...
+			elseif Vals.Commands and Vals.Immunity then
+				Data.Groups[ Name ] = Vals
+			end
 		end
 
 		Edited = true
@@ -249,16 +254,21 @@ function Shine:ConvertData( Data, DontSave )
 		end
 
 		Data.Users = {}
-		
+
 		for Name, Vals in pairs( Data.users ) do
-			Data.Users[ tostring( Vals.id ) ] = { 
-				Group = Vals.groups[ 1 ],
-				Immunity = Vals.level,
-				Badge = Vals.badge,
-				Badges = Vals.badges
-			}
+			if Vals.id then
+				Data.Users[ tostring( Vals.id ) ] = { 
+					Group = Vals.groups and Vals.groups[ 1 ],
+					Immunity = Vals.level,
+					Badge = Vals.badge,
+					Badges = Vals.badges
+				}
+			--Someone's called it "users" without knowing it's case sensitive...
+			elseif Vals.Group or Vals.Immunity or Vals.Badge or Vals.Badges then
+				Data.Users[ Name ] = Vals
+			end
 		end
-		
+
 		Edited = true
 		Data.users = nil
 	end
@@ -593,10 +603,12 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		end
 	end
 
-	if InheritGroups then
-		for i = 1, #InheritGroups do
-			local Name = InheritGroups[ i ]
+	if not InheritGroups then return end
 
+	for i = 1, #InheritGroups do
+		local Name = InheritGroups[ i ]
+
+		if Name then
 			local CurGroup = self:GetGroupData( Name )
 
 			if not CurGroup then
