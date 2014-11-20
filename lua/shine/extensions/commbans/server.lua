@@ -10,6 +10,7 @@ local Encode = json.encode
 local Decode = json.decode
 local GetOwner = Server.GetOwner
 local Max = math.max
+local StringFormat = string.format
 local Time = os.time
 
 Plugin.Version = "1.0"
