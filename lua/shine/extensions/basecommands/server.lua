@@ -902,6 +902,16 @@ function Plugin:CreateCommands()
 	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify a team to move to." }
 	ChangeTeamCommand:Help( "<players> <team name> Sets the given player(s) onto the given team." )
 
+	if not Shine.IsNS2Combat then
+		local function HiveTeams( Client )
+			--Force even teams is such an overconfident term...
+			Shine:CommandNotify( Client, "shuffled the teams using the Hive skill shuffler." )
+			ForceEvenTeams()
+		end
+		local HiveShuffle = self:BindCommand( "sh_hiveteams", { "hiveteams" }, HiveTeams )
+		HiveShuffle:Help( "Runs NS2's Hive skill team shuffler." )
+	end
+
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
 		Server.SetConfigSetting( "auto_team_balance", Enable and { enabled_on_unbalance_amount = UnbalanceAmount, enabled_after_seconds = Delay } or nil )
 		if Enable then
