@@ -35,49 +35,38 @@ function string.Explode( String, Pattern )
 	return Ret
 end
 
-function string.TimeToString( Time )
-	if Time < 1 then return "0 seconds" end
-	
-	local Seconds = Floor( Time % 60 )
-	local Minutes = Time / 60
-	local Hours = Minutes / 60
-	local Days = Hours / 24
-	local Weeks = Days / 7
+do
+	local TimeFuncs = {
+		function( Time ) return Floor( Time % 60 ), "second" end,
+		function( Time ) return Floor( Time / 60 ) % 60, "minute" end,
+		function( Time ) return Floor( Time / 3600 ) % 24, "hour" end,
+		function( Time ) return Floor( Time / 86400 ) % 7, "day" end,
+		function( Time ) return Floor( Time / 604800 ), "week" end
+	}
+	local NumTimes = #TimeFuncs
 
-	local FloorMins = Floor( Minutes )
-	local FloorHours = Floor( Hours )
-	local FloorDays = Floor( Days )
-	local FloorWeeks = Floor( Weeks )
+	function string.TimeToString( Time )
+		if Time < 1 then return "0 seconds" end
 
-	if FloorHours >= 1 then FloorMins = FloorMins % 60 end
-	if FloorDays >= 1 then FloorHours = FloorHours % 24 end
-	if FloorWeeks >= 1 then FloorDays = FloorDays % 7 end
+		local Result = {}
+		local Count = 0
+		for i = NumTimes, 1, -1 do
+			local Value, String = TimeFuncs[ i ]( Time )
 
-	local Strings = {}
+			if Value > 0 then
+				Count = Count + 1
+				Result[ Count ] = StringFormat( "%i %s%s", Value, String,
+					Value > 1 and "s" or "" )
+			end
+		end
 
-	if FloorWeeks >= 1 then
-		Strings[ #Strings + 1 ] = FloorWeeks == 1 and "1 week" or FloorWeeks.." weeks"
+		if Count == 1 then
+			return Result[ 1 ]
+		end
+
+		return StringFormat( "%s and %s", TableConcat( Result, ", ", 1, Count - 1 ),
+			Result[ Count ] )
 	end
-	if FloorDays >= 1 then
-		Strings[ #Strings + 1 ] = FloorDays == 1 and "1 day" or FloorDays.." days"
-	end
-	if FloorHours >= 1 then
-		Strings[ #Strings + 1 ] = FloorHours == 1 and "1 hour" or FloorHours.." hours"
-	end
-	if FloorMins >= 1 then
-		Strings[ #Strings + 1 ] = FloorMins == 1 and "1 minute" or FloorMins.." minutes"
-	end
-	if Seconds >= 1 then
-		Strings[ #Strings + 1 ] = Seconds == 1 and "1 second" or Seconds.." seconds"
-	end
-
-	if #Strings == 1 then
-		return Strings[ 1 ]
-	end
-
-	local FinalString = TableConcat( Strings, ", ", 1, #Strings - 1 )
-
-	return StringFormat( "%s and %s", FinalString, Strings[ #Strings ] )
 end
 
 function string.DigitalTime( Time )
