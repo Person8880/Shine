@@ -977,6 +977,12 @@ function ControlMeta:FadeTo( Element, Start, End, Delay, Duration, Callback )
 	Fade.Callback = Callback
 end
 
+function ControlMeta:StopFade( Element )
+	if not self.Fades then return end
+
+	self.Fades:Remove( Element )
+end
+
 --[[
 	Resizes an element from one size to another.
 
@@ -1029,6 +1035,12 @@ function ControlMeta:SizeTo( Element, Start, End, Delay, Duration, Callback, Eas
 	Size.Callback = Callback
 end
 
+function ControlMeta:StopResizing( Element )
+	if not self.SizeAnims then return end
+	
+	self.SizeAnims:Remove( Element )
+end
+
 --[[
 	Sets an SGUI control to highlight on mouse over automatically.
 
@@ -1065,12 +1077,6 @@ function ControlMeta:SetTooltip( Text )
 
 	self.OnHover = self.ShowTooltip
 	self.OnLoseHover = self.HideTooltip
-end
-
-function ControlMeta:StopFade( Element )
-	if not self.Fades then return end
-
-	self.Fades:Remove( Element )
 end
 
 function ControlMeta:HandleMovement( Time, DeltaTime )
@@ -1212,7 +1218,7 @@ function ControlMeta:Think( DeltaTime )
 	self:HandleMovement( Time, DeltaTime )
 	self:HandleFading( Time, DeltaTime )
 	self:HandleResizing( Time, DeltaTime )
-	self:HandleHovering( Time, DeltaTime )
+	self:HandleHovering( Time )
 end
 
 function ControlMeta:ShowTooltip( X, Y )
