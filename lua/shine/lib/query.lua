@@ -1,114 +1,98 @@
 --[[
-	Queries my PHP script for server info.
+	Handles various useful HTTP queries.
 ]]
 
-local Encode, Decode = json.encode, json.decode
 local HTTPRequest = Shared.SendHTTPRequest
-local IsType = Shine.IsType
-local StringFormat = string.format
 local Time = os.clock
-local Timer = Shine.Timer
-local tonumber = tonumber
-local tostring = tostring
 
-local BaseURL = "http://5.39.89.152/shine/serverquery.php"
+do	
+	local Encode, Decode = json.encode, json.decode
+	local IsType = Shine.IsType
+	local StringFormat = string.format
+	local tostring = tostring
 
-local QueryCache = {}
+	local BaseURL = "http://5.39.89.152/shine/serverquery.php"
 
---[[
-	Query the state of a single server.
-]]
-function Shine.QueryServerPopulation( IP, Port, Callback )
-	local CacheKey = StringFormat( "%s:%s", IP, Port )
-	local Cache = QueryCache[ CacheKey ]
+	local QueryCache = {}
+	local function CallbackFailed( CacheKey, Callback )
+		QueryCache[ CacheKey ] = { Data = {}, ExpireTime = Time() + 10 }
 
-	if Cache and Cache.ExpireTime > Time() then
-		local Data = Cache.Data[ 1 ]
+		Callback()
+	end
 
-		if not Data then
-			Callback()
+	local function CacheResult( CacheKey, Data )
+		QueryCache[ CacheKey ] = { Data = Data, ExpireTime = Time() + 10 }
+	end
 
-			return
-		end
-
+	local function PopulationWrapper( Data, Callback )
 		Callback( Data[ 1 ].numberOfPlayers, Data[ 1 ].maxPlayers )
-
-		return
+	end
+	
+	local function FullDataWrapper( Data, Callback )
+		Callback( Data[ 1 ] )
 	end
 
-	local Params = {
-		servers = Encode( {
-			{ ip = IP, port = tostring( Port ) }
-		} )
-	}
+	local function QueryServer( IP, Port, Callback, Wrapper )
+		local CacheKey = StringFormat( "%s:%s", IP, Port )
+		local Cache = QueryCache[ CacheKey ]
 
-	HTTPRequest( BaseURL, "POST", Params, function( Body )
-		if not Body or #Body == 0 then
-			QueryCache[ CacheKey ] = { Data = {}, ExpireTime = Time() + 10 }
+		if Cache and Cache.ExpireTime > Time() then
+			local Data = Cache.Data
 
-			return Callback()
-		end
+			if not Data[ 1 ] then
+				Callback()
 
-		local Data = Decode( Body )
+				return
+			end
 
-		if not IsType( Data, "table" ) or #Data == 0 then
-			QueryCache[ CacheKey ] = { Data = {}, ExpireTime = Time() + 10 }
-
-			return Callback()
-		end
-
-		QueryCache[ CacheKey ] = { Data = Data, ExpireTime = Time() + 10 }
-		
-		return Callback( Data[ 1 ].numberOfPlayers, Data[ 1 ].maxPlayers )
-	end )
-end
-
---[[
-	Queries for the entire server data of a single server.
-]]
-function Shine.QueryServer( IP, Port, Callback )
-	local CacheKey = StringFormat( "%s:%s", IP, Port )
-	local Cache = QueryCache[ CacheKey ]
-
-	if Cache and Cache.ExpireTime > Time() then
-		local Data = Cache.Data[ 1 ]
-
-		if not Data then
-			Callback()
+			Wrapper( Data, Callback )
 
 			return
 		end
 
-		Callback( Data )
+		local Params = {
+			servers = Encode( {
+				{ ip = IP, port = tostring( Port ) }
+			} )
+		}
 
-		return
+		HTTPRequest( BaseURL, "POST", Params, function( Body )
+			if not Body or #Body == 0 then
+				CallbackFailed( CacheKey, Callback )
+
+				return
+			end
+
+			local Data = Decode( Body )
+
+			if not IsType( Data, "table" ) or #Data == 0 then
+				CallbackFailed( CacheKey, Callback )
+
+				return
+			end
+
+			CacheResult( CacheKey, Data )
+
+			Wrapper( Data, Callback )
+		end )
 	end
 
-	local Params = {
-		servers = Encode( {
-			{ ip = IP, port = tostring( Port ) }
-		} )
-	}
-	HTTPRequest( BaseURL, "POST", Params, function( Body )
-		if not Body or #Body == 0 then
-			QueryCache[ CacheKey ] = { Data = {}, ExpireTime = Time() + 10 }
+	--[[
+		Query the state of a single server.
+	]]
+	function Shine.QueryServerPopulation( IP, Port, Callback )
+		QueryServer( IP, Port, Callback, PopulationWrapper )
+	end
 
-			return Callback()
-		end
-
-		local Data = Decode( Body )
-
-		if not IsType( Data, "table" ) or #Data == 0 then
-			QueryCache[ CacheKey ] = { Data = {}, ExpireTime = Time() + 10 }
-
-			return Callback()
-		end
-
-		QueryCache[ CacheKey ] = { Data = Data, ExpireTime = Time() + 10 }
-		
-		return Callback( Data[ 1 ] )
-	end )
+	--[[
+		Queries for the entire server data of a single server.
+	]]
+	function Shine.QueryServer( IP, Port, Callback )
+		QueryServer( IP, Port, Callback, FullDataWrapper )
+	end
 end
+
+local Timer = Shine.Timer
 
 local DefaultTimeout = 5
 
