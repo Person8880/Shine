@@ -2,11 +2,9 @@
 	Shine table library.
 ]]
 
+local IsType = Shine.IsType
 local pairs = pairs
 local Random = math.random
-local StringFormat = string.format
-local StringRep = string.rep
-local TableConcat = table.concat
 local TableSort = table.sort
 
 --[[
@@ -123,56 +121,77 @@ function table.Average( Table )
 	return Sum / Count
 end
 
-local IsType = Shine.IsType
-local function ToPrintString( Value )
-	if IsType( Value, "string" ) then
-		return StringFormat( "%q", Value )
-	end
+do
+	local StringFormat = string.format
+	local StringRep = string.rep
+	local TableConcat = table.concat
+	local tonumber = tonumber
+	local tostring = tostring
 
-	return tostring( Value )
-end
+	local function ToPrintKey( Key )
+		local Type = type( Key )
 
-local function TableToString( Table, Indent, Done )
-	Indent = Indent or 1
-	Done = Done or {}
-
-	local Strings = {}
-	Strings[ 1 ] = "{"
-	local IndentString = StringRep( "\t", Indent )
-
-	for Key, Value in pairs( Table ) do
-		if IsType( Value, "table" ) and not Done[ Value ] then
-			Done[ Value ] = true
-			local TableAsString = TableToString( Value, Indent + 1, Done )
-			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
-				tostring( Key ), TableAsString )
-		else
-			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
-				tostring( Key ), ToPrintString( Value ) )
+		if Type ~= "string" and Type ~= "number" then
+			return StringFormat( "[ %s ]", tostring( Key ) )
 		end
+
+		if Type == "string" and tonumber( Key ) then
+			return StringFormat( "%q", Key )
+		end
+
+		return tostring( Key )
+	end
+	local function ToPrintString( Value )
+		if IsType( Value, "string" ) then
+			return StringFormat( "%q", Value )
+		end
+
+		return tostring( Value )
 	end
 
-	Strings[ #Strings + 1 ] = StringFormat( "%s}", StringRep( "\t", Indent - 1 ) )
+	local function TableToString( Table, Indent, Done )
+		Indent = Indent or 1
+		Done = Done or {}
 
-	return TableConcat( Strings, "\n" )
-end
-table.ToString = TableToString
+		local Strings = {}
+		Strings[ 1 ] = StringFormat( "%s {", tostring( Table ) )
+		local IndentString = StringRep( "\t", Indent )
 
---[[
-	Prints a nicely formatted table structure to the console.
-]]
-function PrintTable( Table )
-	Print( TableToString( Table ) )
-end
+		for Key, Value in pairs( Table ) do
+			if IsType( Value, "table" ) and not Done[ Value ] then
+				Done[ Value ] = true
+				local TableAsString = TableToString( Value, Indent + 1, Done )
+				Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
+					ToPrintKey( Key ), TableAsString )
+			else
+				Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
+					ToPrintKey( Key ), ToPrintString( Value ) )
+			end
+		end
 
-function table.ToDebugString( Table )
-	local Strings = {}
+		Strings[ #Strings + 1 ] = StringFormat( "%s}", StringRep( "\t", Indent - 1 ) )
 
-	for Key, Value in pairs( Table ) do
-		Strings[ #Strings + 1 ] = StringFormat( "%s = %s", tostring( Key ), ToPrintString( Value ) )
+		return TableConcat( Strings, "\n" )
+	end
+	table.ToString = TableToString
+
+	--[[
+		Prints a nicely formatted table structure to the console.
+	]]
+	function PrintTable( Table )
+		Print( TableToString( Table ) )
 	end
 
-	return TableConcat( Strings, "\n" )
+	function table.ToDebugString( Table )
+		local Strings = {}
+
+		for Key, Value in pairs( Table ) do
+			Strings[ #Strings + 1 ] = StringFormat( "%s = %s", ToPrintKey( Key ),
+				ToPrintString( Value ) )
+		end
+
+		return TableConcat( Strings, "\n" )
+	end
 end
 
 local function CopyTable( Table, LookupTable )
