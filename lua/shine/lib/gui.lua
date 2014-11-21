@@ -1073,135 +1073,146 @@ function ControlMeta:StopFade( Element )
 	self.Fades:Remove( Element )
 end
 
+function ControlMeta:HandleMovement( Time, DeltaTime )
+	if not self.MoveData or self.MoveData.StartTime > Time then
+		return
+	end
+
+	if self.MoveData.Elapsed <= self.MoveData.Duration then
+		self.MoveData.Elapsed = self.MoveData.Elapsed + DeltaTime
+
+		self:ProcessMove()
+	else
+		if not self.MoveData.Finished then
+			self.MoveData.Callback( self )
+
+			self.MoveData.Finished = true
+		end
+	end
+end
+
+function ControlMeta:HandleFading( Time, DeltaTime )
+	if not self.Fades or self.Fades:IsEmpty() then return end
+
+	for Element, Fade in self.Fades:Iterate() do
+		local Start = Fade.StartTime
+		local Duration = Fade.Duration
+		
+		Fade.Elapsed = Fade.Elapsed + DeltaTime
+
+		local Elapsed = Fade.Elapsed
+
+		if Start <= Time then
+			if Elapsed <= Duration then
+				local Progress = Elapsed / Duration
+				local CurCol = Fade.CurCol
+
+				--Linear progress.
+				SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff ) 
+
+				Element:SetColor( CurCol )
+			elseif not Fade.Finished then
+				Element:SetColor( Fade.EndCol )
+
+				Fade.Finished = true
+
+				self.Fades:Remove( Element )
+
+				if Fade.Callback then
+					Fade.Callback( Element )
+				end
+			end
+		end
+	end
+end
+
+function ControlMeta:HandleResizing( Time, DeltaTime )
+	if not self.SizeAnims or self.SizeAnims:IsEmpty() then return end
+
+	for Element, Size in self.SizeAnims:Iterate() do
+		local Start = Size.StartTime
+		local Duration = Size.Duration
+
+		Size.Elapsed = Size.Elapsed + DeltaTime
+		
+		local Elapsed = Size.Elapsed
+
+		if Start <= Time then
+			if Elapsed <= Duration then
+				local Progress = Elapsed / Duration
+				local CurSize = Size.CurSize
+
+				local LerpValue = Size.EaseFunc( Progress, Size.Power )
+
+				CurSize.x = Size.Start.x + LerpValue * Size.Diff.x
+				CurSize.y = Size.Start.y + LerpValue * Size.Diff.y
+
+				if Element == self.Background then
+					self:SetSize( CurSize )
+				else
+					Element:SetSize( CurSize )
+				end
+			elseif not Size.Finished then
+				if Element == self.Background then
+					self:SetSize( Size.End )
+				else
+					Element:SetSize( Size.End )
+				end
+
+				Size.Finished = true
+
+				self.SizeAnims:Remove( Element )
+
+				if Size.Callback then
+					Size.Callback( Element )
+				end
+			end
+		end
+	end
+end
+
+function ControlMeta:HandleHovering( Time )
+	if not self.OnHover then return end
+
+	local MouseIn, X, Y = self:MouseIn( self.Background )
+	if MouseIn then
+		if not self.MouseHoverStart then
+			self.MouseHoverStart = Time
+		else
+			if Time - self.MouseHoverStart > 1 and not self.MouseHovered then
+				self:OnHover( X, Y )
+
+				self.MouseHovered = true
+			end
+		end
+	else
+		self.MouseHoverStart = nil
+		if self.MouseHovered then
+			self.MouseHovered = nil
+
+			if self.OnLoseHover then
+				self:OnLoseHover()
+			end
+		end
+	end
+end
+
 --[[
 	Global update function. Called on client update.
 
 	You must call this inside a control's custom Think function with:
 		self.BaseClass.Think( self, DeltaTime )
 	if you want to use MoveTo, FadeTo, SetHighlightOnMouseOver etc.
+
+	Alternatively, call only the functions you want to use.
 ]]
 function ControlMeta:Think( DeltaTime )
 	local Time = Clock()
 
-	--I don't like nested if statements like this, but it's necessary.
-	--Move data handling.
-	if self.MoveData then
-		if self.MoveData.StartTime <= Time then 
-			if self.MoveData.Elapsed <= self.MoveData.Duration then
-				self.MoveData.Elapsed = self.MoveData.Elapsed + DeltaTime
-
-				self:ProcessMove()
-			else
-				if not self.MoveData.Finished then
-					self.MoveData.Callback( self )
-
-					self.MoveData.Finished = true
-				end
-			end
-		end
-	end
-
-	--Fading handling.
-	if self.Fades and not self.Fades:IsEmpty() then
-		for Element, Fade in self.Fades:Iterate() do
-			local Start = Fade.StartTime
-			local Duration = Fade.Duration
-			
-			Fade.Elapsed = Fade.Elapsed + DeltaTime
-
-			local Elapsed = Fade.Elapsed
-
-			if Start <= Time then
-				if Elapsed <= Duration then
-					local Progress = Elapsed / Duration
-					local CurCol = Fade.CurCol
-
-					--Linear progress.
-					SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff ) 
-
-					Element:SetColor( CurCol ) --Sets the GUI element's colour.
-				elseif not Fade.Finished then
-					Element:SetColor( Fade.EndCol )
-
-					Fade.Finished = true
-
-					self.Fades:Remove( Element )
-
-					if Fade.Callback then
-						Fade.Callback( Element )
-					end
-				end
-			end
-		end
-	end
-
-	if self.SizeAnims and not self.SizeAnims:IsEmpty() then
-		for Element, Size in self.SizeAnims:Iterate() do
-			local Start = Size.StartTime
-			local Duration = Size.Duration
-
-			Size.Elapsed = Size.Elapsed + DeltaTime
-			
-			local Elapsed = Size.Elapsed
-
-			if Start <= Time then
-				if Elapsed <= Duration then
-					local Progress = Elapsed / Duration
-					local CurSize = Size.CurSize
-
-					local LerpValue = Size.EaseFunc( Progress, Size.Power )
-
-					CurSize.x = Size.Start.x + LerpValue * Size.Diff.x
-					CurSize.y = Size.Start.y + LerpValue * Size.Diff.y
-
-					if Element == self.Background then
-						self:SetSize( CurSize )
-					else
-						Element:SetSize( CurSize )
-					end
-				elseif not Size.Finished then
-					if Element == self.Background then
-						self:SetSize( Size.End )
-					else
-						Element:SetSize( Size.End )
-					end
-
-					Size.Finished = true
-
-					self.SizeAnims:Remove( Element )
-
-					if Size.Callback then
-						Size.Callback( Element )
-					end
-				end
-			end
-		end
-	end
-
-	--Hovering handling for tooltips.
-	if self.OnHover then
-		local MouseIn, X, Y = self:MouseIn( self.Background )
-		if MouseIn then
-			if not self.MouseHoverStart then
-				self.MouseHoverStart = Time
-			else
-				if Time - self.MouseHoverStart > 1 and not self.MouseHovered then
-					self:OnHover( X, Y )
-
-					self.MouseHovered = true
-				end
-			end
-		else
-			self.MouseHoverStart = nil
-			if self.MouseHovered then
-				self.MouseHovered = nil
-
-				if self.OnLoseHover then
-					self:OnLoseHover()
-				end
-			end
-		end
-	end
+	self:HandleMovement( Time, DeltaTime )
+	self:HandleFading( Time, DeltaTime )
+	self:HandleResizing( Time, DeltaTime )
+	self:HandleHovering( Time, DeltaTime )
 end
 
 function ControlMeta:ShowTooltip( X, Y )
