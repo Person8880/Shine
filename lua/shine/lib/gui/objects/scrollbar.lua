@@ -159,12 +159,4 @@ function Scrollbar:OnMouseMove( Down )
 	self:SetScroll( self.StartingPos + Diff, true )
 end
 
-function Scrollbar:Cleanup()
-	if self.Parent then return end
-	
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-end
-
 SGUI:Register( "Scrollbar", Scrollbar )

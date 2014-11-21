@@ -1175,6 +1175,7 @@ do
 		end
 	end
 end
+
 --[[
 	Sets up and begins a map vote.
 ]]
@@ -1185,8 +1186,8 @@ function Plugin:StartVote( NextMap, Force )
 
 	self.StartingVote:Reset()
 
-	self.Vote.TotalVotes = 0 --Reset votes.
-	self.Vote.Voted = {} --Reset who has voted from last time.	
+	self.Vote.TotalVotes = 0
+	self.Vote.Voted = {}
 	
 	--First we compile the list of maps that are going to be available to vote for.
 	local MaxOptions = self.Config.MaxOptions
@@ -1263,10 +1264,10 @@ function Plugin:StartVote( NextMap, Force )
 		
 		if not DeniedMaps[ Nominee ] then
 			MapList[ #MapList + 1 ] = Nominee
-			AllMaps[ Nominee ] = nil --Remove this from the list of all maps as it's now in our vote list.
+			AllMaps[ Nominee ] = nil
 		end
 
-		Nominations[ i ] = nil --Remove the nomination.
+		Nominations[ i ] = nil
 	end
 
 	--If we have map extension enabled, ensure it's in the vote list.
@@ -1275,31 +1276,29 @@ function Plugin:StartVote( NextMap, Force )
 			MapList[ #MapList + 1 ] = CurMap
 			AllMaps[ CurMap ] = nil
 		end
+	else
+		--Otherwise remove it!
+		AllMaps[ CurMap ] = nil
 	end
 
 	local RemainingSpaces = MaxOptions - #MapList
 
-	--If we didn't have enough nominations to fill the vote list, add maps from the allowed list that weren't nominated.
+	--If we have more room, add maps from the allowed list that weren't nominated.
 	if RemainingSpaces > 0 then
 		if next( AllMaps ) then
 			self:ChooseRandomMaps( AllMaps, MapList, MaxOptions )
 		end
 	end
 
-	self.Vote.VoteList = {} --Our table of maps that are being voted for.
+	self.Vote.VoteList = {}
 	for i = 1, #MapList do
-		self.Vote.VoteList[ MapList[ i ] ] = 0 --Set each one to start with 0 votes.
+		self.Vote.VoteList[ MapList[ i ] ] = 0
 	end
 
-	--Get the list of maps as a comma separated string to print.
 	local OptionsText = TableConcat( MapList, ", " )
-
-	--Get our notification interval, length of the vote in seconds and the number of times to repeat our notification.
 	local VoteLength = self.Config.VoteLength * 60
 
 	local Time = SharedTime()
-
-	--This is when the map vote should end and collect its results.
 	local EndTime = Time + VoteLength
 
 	--Store these values for new clients.
@@ -1311,7 +1310,6 @@ function Plugin:StartVote( NextMap, Force )
 	end
 
 	self:SimpleTimer( 0.1, function()
-		--Notify players the map vote has started.
 		if not NextMap then
 			self:Notify( nil, "Map vote started." )
 		else
@@ -1322,7 +1320,6 @@ function Plugin:StartVote( NextMap, Force )
 	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(),
 		not self.VoteOnEnd )
 
-	--This timer runs when the vote ends, and sorts out the results.
 	self:CreateTimer( self.VoteTimer, VoteLength, 1, function()
 		self:ProcessResults( NextMap )
 	end )

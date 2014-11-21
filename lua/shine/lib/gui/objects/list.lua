@@ -546,14 +546,6 @@ function List:GetMultiSelect()
 	return self.MultiSelect
 end
 
-function List:Cleanup()
-	if self.Parent then return end
-	
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-end
-
 ------------------- Event calling -------------------
 function List:OnMouseDown( Key, DoubleClick )
 	if SGUI.IsValid( self.Scrollbar ) then

@@ -424,23 +424,30 @@ function Plugin:CreateCommands()
 	SetCheatsCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shared.GetCheatsEnabled() end }
 	SetCheatsCommand:Help( "Enables or disables cheats mode." )
 
-	local function AllTalk( Client, Enable )
-		self.Config.AllTalk = Enable
+	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString, NotifyString )
+		local function CommandFunc( Client, Enable )
+			self.Config[ ConfigOption ] = Enable
 
-		self:SaveConfig( true )
+			self:SaveConfig( true )
 
-		local Enabled = Enable and "enabled" or "disabled"
+			local Enabled = Enable and "enabled" or "disabled"
 
-		if Shine.Config.NotifyOnCommand then
-			Shine:CommandNotify( Client, "%s all-talk.", true, Enabled )
-		else
-			Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]",
-				255, 255, 255, "All talk has been %s.", true, Enabled )
+			if Shine.Config.NotifyOnCommand then
+				Shine:CommandNotify( Client, "%s %s.", true, Enabled, CommandNotifyString )
+			else
+				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]",
+					255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
+			end
 		end
+		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
+		Command:AddParam{ Type = "boolean", Optional = true,
+			Default = function() return not self.Config[ ConfigOption ] end }
+		Command:Help( StringFormat( "<true/false> Enables or disables %s.", CommandNotifyString ) )
 	end
-	local AllTalkCommand = self:BindCommand( "sh_alltalk", "alltalk", AllTalk )
-	AllTalkCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not self.Config.AllTalk end }
-	AllTalkCommand:Help( "<true/false> Enables or disables all talk, which allows everyone to hear each others voice chat regardless of team." )
+
+	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "all talk", "All talk" )
+	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
+		"all talk pre-game", "All talk pre-game" )
 
 	local function FriendlyFire( Client, Scale )
 		local OldState = self.Config.FriendlyFire
@@ -894,6 +901,16 @@ function Plugin:CreateCommands()
 	ChangeTeamCommand:AddParam{ Type = "clients" }
 	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify a team to move to." }
 	ChangeTeamCommand:Help( "<players> <team name> Sets the given player(s) onto the given team." )
+
+	if not Shine.IsNS2Combat then
+		local function HiveTeams( Client )
+			--Force even teams is such an overconfident term...
+			Shine:CommandNotify( Client, "shuffled the teams using the Hive skill shuffler." )
+			ForceEvenTeams()
+		end
+		local HiveShuffle = self:BindCommand( "sh_hiveteams", { "hiveteams" }, HiveTeams )
+		HiveShuffle:Help( "Runs NS2's Hive skill team shuffler." )
+	end
 
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
 		Server.SetConfigSetting( "auto_team_balance", Enable and { enabled_on_unbalance_amount = UnbalanceAmount, enabled_after_seconds = Delay } or nil )

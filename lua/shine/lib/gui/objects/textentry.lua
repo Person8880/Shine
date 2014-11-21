@@ -554,12 +554,4 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 	self.InnerBox:SetColor( self.FocusColour )
 end
 
-function TextEntry:Cleanup()
-	if self.Parent then return end
-	
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-end
-
 SGUI:Register( "TextEntry", TextEntry )

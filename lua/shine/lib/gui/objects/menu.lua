@@ -83,14 +83,6 @@ function Menu:AddButton( Text, DoClick )
 	self.Buttons[ self.ButtonCount ] = Button
 end
 
-function Menu:Cleanup()
-	if self.Parent then return end
-
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-end
-
 ------------------- Event calling -------------------
 function Menu:OnMouseDown( Key, DoubleClick )
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
