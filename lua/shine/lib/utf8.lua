@@ -6,7 +6,9 @@
 
 local error = error
 local pcall = pcall
+local StringByte = string.byte
 local StringFormat = string.format
+local StringSub = string.sub
 local TableConcat = table.concat
 local type = type
 
@@ -1890,72 +1892,72 @@ local function GetUTF8Bytes( String, Index )
 	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
 	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
 
-	local Byte = String:byte( Index )
+	local Byte = StringByte( String, Index )
 
 	if Byte > 0 and Byte <= 127 then
 		return Byte
 	elseif Byte >= 194 and Byte <= 223 then
-		local Byte2 = String:byte( Index + 1 )
+		local Byte2 = StringByte( String, Index + 1 )
 
 		if not Byte2 then
-			error( "UTF-8 string terminated early" )
+			error( "UTF-8 string terminated early after first byte, expected one more" )
 		end
 
 		if Byte2 < 128 or Byte2 > 191 then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid second byte" )
 		end
 
 		return Byte, Byte2
 	elseif Byte >= 224 and Byte <= 239 then
-		local Byte2 = String:byte( Index + 1 )
-		local Byte3 = String:byte( Index + 2 )
+		local Byte2 = StringByte( String, Index + 1 )
+		local Byte3 = StringByte( String, Index + 2 )
 
 		if not Byte2 or not Byte3 then
-			error("UTF-8 string terminated early")
+			error( "UTF-8 string terminated early after first byte, expected two more" )
 		end
 
 		if Byte == 224 and ( Byte2 < 160 or Byte2 > 191 ) then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid second byte" )
 		elseif Byte == 237 and ( Byte2 < 128 or Byte2 > 159 ) then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid second byte" )
 		elseif Byte2 < 128 or Byte2 > 191 then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid second byte" )
 		end
 
 		if Byte3 < 128 or Byte3 > 191 then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid third byte" )
 		end
 
 		return Byte, Byte2, Byte3
 	elseif Byte >= 240 and Byte <= 244 then
 		-- UTF8-4
-		local Byte2 = String:byte( Index + 1 )
-		local Byte3 = String:byte( Index + 2 )
-		local Byte4 = String:byte( Index + 3 )
+		local Byte2 = StringByte( String, Index + 1 )
+		local Byte3 = StringByte( String, Index + 2 )
+		local Byte4 = StringByte( String, Index + 3 )
 
 		if not Byte2 or not Byte3 or not Byte4 then
-			error( "UTF-8 string terminated early" )
+			error( "UTF-8 string terminated early after first byte, expected 3 more" )
 		end
 
 		if Byte == 240 and ( Byte2 < 144 or Byte2 > 191 ) then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid second byte" )
 		elseif Byte == 244 and ( Byte2 < 128 or Byte2 > 143 ) then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid second byte" )
 		elseif Byte2 < 128 or Byte2 > 191 then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid second byte" )
 		end
 		
 		if Byte3 < 128 or Byte3 > 191 then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid third byte" )
 		end
 
 		if Byte4 < 128 or Byte4 > 191 then
-			error( "Invalid UTF-8 character" )
+			error( "Invalid UTF-8 character, invalid fourth byte" )
 		end
 
 		return Byte, Byte2, Byte3, Byte4
 	else
-		error( "Invalid UTF-8 character" )
+		error( "Invalid UTF-8 character, invalid first byte" )
 	end
 end
 
@@ -1967,6 +1969,7 @@ end
 ]]
 local function GetNumUTF8Bytes( String, Index )
 	local Byte1, Byte2, Byte3, Byte4 = GetUTF8Bytes( String, Index )
+
 	if Byte4 then
 		return 4
 	elseif Byte3 then
@@ -1978,11 +1981,23 @@ local function GetNumUTF8Bytes( String, Index )
 	end    
 end
 
+--[[
+	Checks if a string is a valid UTF8 character.
+
+	Input: String to check, optional byte index of the string to start from.
+	Output: True if valid, false otherwise.
+]]
 function string.IsValidUTF8( String, Index )
 	local Success = pcall( GetUTF8Bytes, String, Index )
 	return Success
 end
 
+--[[
+	Returns up to 4 bytes of data representing the components of a UTF8 character.
+
+	Input: String to get character bytes from, optional byte index of the string to start from.
+	Output: Up to 4 bytes of data.
+]]
 function string.GetUTF8Bytes( String, Index )
 	local Success, Byte, Byte2, Byte3, Byte4 = pcall( GetUTF8Bytes, String, Index )
 	if Success then
@@ -1996,7 +2011,7 @@ end
 	Input: String
 	Output: Number of UTF-8 characters.
 ]]
-function string.UTF8Length( String )
+local function StringUTF8Length( String )
 	TypeCheck( String, "string", 1, "UTF8Length" )
 
 	local CurByte = 1
@@ -2010,6 +2025,7 @@ function string.UTF8Length( String )
 
 	return Count
 end
+string.UTF8Length = StringUTF8Length
 
 --[[
 	Returns the part of the string between Start and End where Start and End are UTF-8
@@ -2029,7 +2045,7 @@ function string.UTF8Sub( String, Start, End )
 	local Bytes = #String
 	local Count = 0
 
-	local UTF8Length = String:UTF8Length()
+	local UTF8Length = StringUTF8Length( String )
 	local StartChar = Start >= 0 and Start or UTF8Length + Start + 1
 	local EndChar = End >= 0 and End or UTF8Length + End + 1
 
@@ -2055,7 +2071,7 @@ function string.UTF8Sub( String, Start, End )
 		end
 	end
 
-	return String:sub( StartByte, EndByte )
+	return StringSub( String, StartByte, EndByte )
 end
 
 --[[
@@ -2075,7 +2091,7 @@ local function UTF8Replace( String, MapTable )
 
 	while CurByte <= Bytes do
 		local CharBytes = GetNumUTF8Bytes( String, CurByte )
-		local Char = String:sub( CurByte, CurByte + CharBytes - 1 )
+		local Char = StringSub( String, CurByte, CurByte + CharBytes - 1 )
 
 		Count = Count + 1
 		NewString[ Count ] = MapTable[ Char ] or Char
@@ -2086,6 +2102,7 @@ local function UTF8Replace( String, MapTable )
 	--Table concat saves garbage data from concatenating the string for each character.
 	return TableConcat( NewString, "" )
 end
+string.UTF8Replace = UTF8Replace
 
 function string.UTF8Upper( String )
 	return UTF8Replace( String, UTF8LowerToUpper )
@@ -2110,17 +2127,17 @@ function string.UTF8Reverse( String )
 	local Count = 0
 
 	while CurByte > 0 do
-		local Char = String:byte( CurByte )
+		local Char = StringByte( String, CurByte )
 
 		while Char >= 128 and Char <= 191 do
 			CurByte = CurByte - 1
-			Char = String:byte( CurByte )
+			Char = StringByte( String, CurByte )
 		end
 
 		local CharBytes = GetNumUTF8Bytes( String, CurByte )
 
 		Count = Count + 1
-		NewString[ Count ] = String:sub( CurByte, CurByte + CharBytes - 1 )
+		NewString[ Count ] = StringSub( String, CurByte, CurByte + CharBytes - 1 )
 
 		CurByte = CurByte - 1
 	end
