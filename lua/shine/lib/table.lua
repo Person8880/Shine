@@ -127,6 +127,7 @@ do
 	local TableConcat = table.concat
 	local tonumber = tonumber
 	local tostring = tostring
+	local type = type
 
 	local function ToPrintKey( Key )
 		local Type = type( Key )
