@@ -133,12 +133,4 @@ function ListHeader:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
 end
 
-function ListHeader:Cleanup()
-	if self.Parent then return end
-
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-end
-
 SGUI:Register( "ListHeader", ListHeader )

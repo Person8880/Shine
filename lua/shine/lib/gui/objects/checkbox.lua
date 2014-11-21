@@ -201,12 +201,4 @@ function CheckBox:SetTextScale( Scale )
 	self.Label:SetTextScale( Scale )
 end
 
-function CheckBox:Cleanup()
-	if self.Parent then return end
-	
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-end
-
 SGUI:Register( "CheckBox", CheckBox )

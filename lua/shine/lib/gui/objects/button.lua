@@ -185,16 +185,6 @@ function Button:OnMouseDown( Key, DoubleClick )
 	return true, self
 end
 
-function Button:Cleanup()
-	if self.Parent then return end --Parent will clean up our objects for us.
-
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-	
-	self.Background = nil
-end
-
 function Button:OnMouseUp( Key )
 	if not self:GetIsVisible() then return end
 	if not self.Highlighted then return end

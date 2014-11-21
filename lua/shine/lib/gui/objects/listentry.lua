@@ -214,12 +214,4 @@ function ListEntry:OnMouseUp( Key )
 	return true
 end
 
-function ListEntry:Cleanup()
-	if self.Parent then return end
-	
-	if self.Background then
-		GUI.DestroyItem( self.Background )
-	end
-end
-
 SGUI:Register( "ListEntry", ListEntry )
