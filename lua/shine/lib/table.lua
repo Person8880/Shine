@@ -124,54 +124,52 @@ function table.Average( Table )
 end
 
 local IsType = Shine.IsType
+local function ToPrintString( Value )
+	if IsType( Value, "string" ) then
+		return StringFormat( "%q", Value )
+	end
+
+	return tostring( Value )
+end
+
+local function TableToString( Table, Indent, Done )
+	Indent = Indent or 1
+	Done = Done or {}
+
+	local Strings = {}
+	Strings[ 1 ] = "{"
+	local IndentString = StringRep( "\t", Indent )
+
+	for Key, Value in pairs( Table ) do
+		if IsType( Value, "table" ) and not Done[ Value ] then
+			Done[ Value ] = true
+			local TableAsString = TableToString( Value, Indent + 1, Done )
+			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
+				tostring( Key ), TableAsString )
+		else
+			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
+				tostring( Key ), ToPrintString( Value ) )
+		end
+	end
+
+	Strings[ #Strings + 1 ] = StringFormat( "%s}", StringRep( "\t", Indent - 1 ) )
+
+	return TableConcat( Strings, "\n" )
+end
+table.ToString = TableToString
 
 --[[
 	Prints a nicely formatted table structure to the console.
 ]]
-function PrintTable( Table, Indent, Done )
-	Indent = Indent or 0
-	Done = Done or {}
-
-	local IndentString = StringRep( "\t", Indent )
-
-	for Key, Value in pairs( Table ) do
-		if IsType( Value, "table" ) and not Done[ Value ] then
-			Done[ Value ] = true
-			Print( "%s%s:\n", IndentString, tostring( Key ) )
-			PrintTable( Value, Indent + 2, Done )
-		else
-			Print( "%s%s = %s", IndentString, tostring( Key ), tostring( Value ) )
-		end
-	end
-end
-
-function table.ToString( Table, Indent, Done )
-	Indent = Indent or 0
-	Done = Done or {}
-	
-	local Strings = {}
-
-	local IndentString = StringRep( "\t", Indent )
-
-	for Key, Value in pairs( Table ) do
-		if IsType( Value, "table" ) and not Done[ Value ] then
-			Done[ Value ] = true
-			Strings[ #Strings + 1 ] = StringFormat( "%s%s:", IndentString, tostring( Key ) )
-			Strings[ #Strings + 1 ] = table.ToString( Value, Indent + 2, Done )
-		else
-			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
-				tostring( Key ), tostring( Value ) )
-		end
-	end
-
-	return TableConcat( Strings, "\n" )
+function PrintTable( Table )
+	Print( TableToString( Table ) )
 end
 
 function table.ToDebugString( Table )
 	local Strings = {}
 
 	for Key, Value in pairs( Table ) do
-		Strings[ #Strings + 1 ] = StringFormat( "%s = %s", tostring( Key ), tostring( Value ) )
+		Strings[ #Strings + 1 ] = StringFormat( "%s = %s", tostring( Key ), ToPrintString( Value ) )
 	end
 
 	return TableConcat( Strings, "\n" )
