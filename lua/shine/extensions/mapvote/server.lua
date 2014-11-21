@@ -1275,6 +1275,9 @@ function Plugin:StartVote( NextMap, Force )
 			MapList[ #MapList + 1 ] = CurMap
 			AllMaps[ CurMap ] = nil
 		end
+	else
+		--Otherwise remove it!
+		AllMaps[ CurMap ] = nil
 	end
 
 	local RemainingSpaces = MaxOptions - #MapList
