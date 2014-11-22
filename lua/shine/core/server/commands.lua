@@ -366,8 +366,9 @@ local ParamTypes = {
 	--Team takes either 0 - 3 directly or takes a string matching a team name
 	--and turns it into the team number.
 	team = function( Client, String, Table )
-		if not String then return IsType( Table.Default, "function" )
-			and Table.Default() or Table.Default end
+		if not String then
+			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
+		end
 
 		local ToNum = tonumber( String )
 
@@ -433,6 +434,16 @@ local ArgValidators = {
 	number = function( Client, ParsedArg, ArgRestrictor )
 		--Invalid restrictor, should be a table with min and/or max values.
 		if not IsType( ArgRestrictor, "table" ) then return ParsedArg end
+
+		--Strict means block the command rather than clamping it into range.
+		if ArgRestrictor.Strict then
+			local Clamped = MathClamp( ParsedArg, ArgRestrictor.Min, ArgRestrictor.Max )
+			if Clamped ~= ParsedArg then
+				return nil
+			end
+
+			return ParsedArg
+		end
 
 		--Clamp the argument in range.
 		return MathClamp( ParsedArg, ArgRestrictor.Min, ArgRestrictor.Max )
