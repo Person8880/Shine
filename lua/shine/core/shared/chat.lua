@@ -67,6 +67,21 @@ local function CheckArgs( RP, GP, BP, PreHex, Prefix, R, G, B, Message )
 	return true
 end
 
+local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Message )
+	ChatMessages[ #ChatMessages + 1 ] = PreHex
+	ChatMessages[ #ChatMessages + 1 ] = Prefix
+
+	ChatMessages[ #ChatMessages + 1 ] = Col
+	ChatMessages[ #ChatMessages + 1 ] = Message
+
+	ChatMessages[ #ChatMessages + 1 ] = ""
+	ChatMessages[ #ChatMessages + 1 ] = 0
+	ChatMessages[ #ChatMessages + 1 ] = 0
+	ChatMessages[ #ChatMessages + 1 ] = 0
+
+	StartSoundEffect( Player:GetChatSound() )
+end
+
 --[[
 	Adds a message to the chat.
 
@@ -86,27 +101,15 @@ function Shine.AddChatText( RP, GP, BP, Prefix, R, G, B, Message )
 	end
 
 	local Player = Client.GetLocalPlayer()
-
 	if not Player then return end
 
 	local PreHex = RGBToHex( RP, GP, BP )
 
 	if not CheckArgs( RP, GP, BP, PreHex, Prefix, R, G, B, Message ) then
 		return
-	end	
+	end
 
-	ChatMessages[ #ChatMessages + 1 ] = PreHex
-	ChatMessages[ #ChatMessages + 1 ] = Prefix
-
-	ChatMessages[ #ChatMessages + 1 ] = Color( R, G, B, 1 )
-	ChatMessages[ #ChatMessages + 1 ] = Message
-
-	ChatMessages[ #ChatMessages + 1 ] = ""
-	ChatMessages[ #ChatMessages + 1 ] = 0
-	ChatMessages[ #ChatMessages + 1 ] = 0
-	ChatMessages[ #ChatMessages + 1 ] = 0
-
-	Shared.PlaySound( nil, Player:GetChatSound() )
+	AddChatMessage( Player, ChatMessages, PreHex, Prefix, Color( R, G, B, 1 ), Message )
 end
 
 --Displays a coloured message.
@@ -131,7 +134,6 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 	end
 
 	local Player = Client.GetLocalPlayer()
-
 	if not Player then return end
 
 	local Notify
@@ -145,37 +147,17 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 		return
 	end
 
-	--Team colour.
-	ChatMessages[ #ChatMessages + 1 ] = PreHex
-
-	--This shows just the message, no name, no prefix.
+	--This shows just the message, no name, no prefix (no longer used as it doesn't work).
 	if Prefix == "" and Name == "" then
-		--[[
-			For some reason, blank messages cause it not to take up a line. 
-			i.e, sending 3 messages in a row of this form would render over each other.
-			Hence the hacky part where I set the message to a load of spaces.
-		]]
-		ChatMessages[ #ChatMessages + 1 ] = String
-		ChatMessages[ #ChatMessages + 1 ] = TeamCol
-		ChatMessages[ #ChatMessages + 1 ] = "                     "
+		Prefix = String
+		String = "                     "
+
 		Notify = true
 	else
-		--Prefix
-		local PrefixText = StringFormat( "%s%s: ", Prefix ~= "" and "("..Prefix..") " or "", Name )
-		ChatMessages[ #ChatMessages + 1 ] = PrefixText
-		--Team text colour.
-		ChatMessages[ #ChatMessages + 1 ] = TeamCol
-		--Message
-		ChatMessages[ #ChatMessages + 1 ] = String
+		Prefix = StringFormat( "%s%s: ", Prefix ~= "" and "("..Prefix..") " or "", Name )
 	end
 
-	--Useless stuff
-	ChatMessages[ #ChatMessages + 1 ] = ""
-	ChatMessages[ #ChatMessages + 1 ] = 0
-	ChatMessages[ #ChatMessages + 1 ] = 0
-	ChatMessages[ #ChatMessages + 1 ] = 0
-
-	Shared.PlaySound( nil, Player:GetChatSound() )
+	AddChatMessage( Player, ChatMessages, PreHex, Prefix, TeamCol, String )
 
 	if not Client.GetIsRunningServer() then
 		if not Notify then
