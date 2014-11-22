@@ -1131,7 +1131,7 @@ function Plugin:CreateCommands()
 		self:SaveConfig( true )
 	end
 	local TickRateCommand = self:BindCommand( "sh_tickrate", "tickrate", TickRate )
-	TickRateCommand:AddParam{ Type = "number", Min = 20, Round = true }
+	TickRateCommand:AddParam{ Type = "number", Min = 10, Round = true }
 	TickRateCommand:Help( "<rate> Sets the max server tickrate and saves it." )
 	
 	local function BWLimit( Client, NewLimit )
