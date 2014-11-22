@@ -704,7 +704,7 @@ function Plugin:CreateCommands()
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
 
 			--Update all players with the plugins state.
-			Shine:SendPluginData( nil, Shine:BuildPluginData() )
+			Shine:SendPluginData( nil )
 
 			if Save then
 				Shine.Config.ActiveExtensions[ Name ] = true
@@ -745,7 +745,7 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "Plugin %s unloaded successfully.", Name ) )
 
-		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+		Shine:SendPluginData( nil )
 
 		if Save then
 			Shine.Config.ActiveExtensions[ Name ] = false
@@ -770,7 +770,7 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "Plugin %s has been suspended.", Name ) )
 
-		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+		Shine:SendPluginData( nil )
 	end
 	local SuspendPluginCommand = self:BindCommand( "sh_suspendplugin", nil, SuspendPlugin )
 	SuspendPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to suspend." }
@@ -789,7 +789,7 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "Plugin %s has been resumed.", Name ) )
 
-		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+		Shine:SendPluginData( nil )
 	end
 	local ResumePluginCommand = self:BindCommand( "sh_resumeplugin", nil, ResumePlugin )
 	ResumePluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to resume." }
