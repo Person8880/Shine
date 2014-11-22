@@ -80,6 +80,56 @@ Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
 	end
 end )
 
+function Plugin:CheckRateValues()
+	local Fixed
+
+	if self.Config.MoveRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
+	end
+
+	if self.Config.TickRate > self.Config.MoveRate then
+		self.Config.TickRate = self.Config.MoveRate
+		Fixed = true
+		Notify( "Tick rate cannot be more than move rate. Clamping to move rate." )
+	end
+
+	if self.Config.TickRate ~= Server.GetTickrate() then
+		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
+	end
+
+	if self.Config.SendRate > self.Config.TickRate then
+		self.Config.SendRate = self.Config.TickRate - 10
+		Fixed = true
+		Notify( "Send rate cannot be more than tick rate. Clamping to tick rate - 10." )
+	end
+
+	if self.Config.SendRate ~= Server.GetSendrate() then
+		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
+	end
+
+	local MinInterp = 2 / self.Config.SendRate * 1000
+	if self.Config.Interp < MinInterp then
+		self.Config.Interp = MinInterp
+		Fixed = true
+		Notify( StringFormat( "Interp cannot be less than %.2fms, clamping...",
+			MinInterp ) )
+	end
+
+	if self.Config.Interp ~= 100 then
+		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
+	end
+
+	local BWLimit = self.Config.BWLimit * 1024
+	if BWLimit ~= Server.GetBwLimit() then
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", BWLimit ) )
+	end
+
+	if Fixed then
+		Notify( "Fixed incorrect rate values, check your config." )
+		self:SaveConfig( true )
+	end
+end
+
 function Plugin:Initialise()
 	self.Gagged = {}
 
@@ -93,45 +143,8 @@ function Plugin:Initialise()
 	self.Config.TickRate = Max( self.Config.TickRate, 20 )
 	self.Config.BWLimit = Max( self.Config.BWLimit, 10 )
 	self.Config.SendRate = Max( self.Config.SendRate, 10 )
-	
-	local Fixed
-	
-	if self.Config.MoveRate ~= 30 then
-		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
-	end
-	if self.Config.TickRate ~= 30 then
-		if self.Config.TickRate > self.Config.MoveRate then
-			self.Config.TickRate = self.Config.MoveRate
-			Fixed = true
-		end
 
-		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
-	end
-	if self.Config.SendRate ~= 20 then
-		if self.Config.SendRate > self.Config.TickRate then
-			self.Config.SendRate = self.Config.TickRate - 10
-			Fixed = true
-		end
-
-		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
-	end
-	if self.Config.Interp ~= 100 then
-		local MinInterp = 2 / self.Config.SendRate * 1000
-		if self.Config.Interp < MinInterp then
-			self.Config.Interp = MinInterp
-			Fixed = true
-		end
-
-		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
-	end
-	if self.Config.BWLimit ~= 25 then
-		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit * 1024 ) )
-	end
-
-	if Fixed then
-		Notify( "Fixed incorrect rate values, check your config." )
-		self:SaveConfig( true )
-	end
+	self:CheckRateValues()
 
 	self.Enabled = true
 
