@@ -6,8 +6,6 @@ local Plugin = Plugin
 
 local Shine = Shine
 
-local Encode = json.encode
-local Decode = json.decode
 local GetOwner = Server.GetOwner
 local Max = math.max
 local StringFormat = string.format
