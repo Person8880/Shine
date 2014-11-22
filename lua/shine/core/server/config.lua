@@ -301,13 +301,19 @@ local function LoadDefaultConfigs( self, List )
 	end
 end
 
+local function OnFail( self, List, FailMessage, Format, ... )
+	self:Print( FailMessage, Format, ... )
+
+	Notify( "[Shine] Loading cached/default configs..." )
+
+	LoadDefaultConfigs( self, List )
+
+	Notify( "[Shine] Finished loading." )
+end
+
 local function OnWebPluginSuccess( self, Response, List, Reload )
 	if not Response then
-		self:Print( "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
-
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
 
 		return
 	end
@@ -315,37 +321,21 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 	local Decoded = Decode( Response )
 
 	if not Decoded or not IsType( Decoded, "table" ) then
-		self:Print( "[WebConfigs] Web request for plugin configs received invalid JSON. Loading default/cache files..." )
-
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Loading default/cache files..." )
 
 		return
 	end
 
 	if not Decoded.success and not Decoded.Success then
-		self:Print( "[WebConfigs] Web request for plugin configs received error: %s.",
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received error: %s.",
 			true, Decoded.msg or Decoded.Msg or "unknown error" )
-
-		Notify( "[Shine] Loading cached/default configs..." )
-		
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
 
 		return
 	end
 
 	local PluginData = Decoded.plugins or Decoded.Plugins
 	if not PluginData then
-		self:Print( "[WebConfigs] Web request for plugin configs received incorrect response. Missing plugins table." )
-
-		Notify( "[Shine] Loading cached/default configs..." )
-
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received incorrect response. Missing plugins table." )
 
 		return
 	end
