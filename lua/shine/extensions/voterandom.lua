@@ -171,6 +171,21 @@ end
 local Requests = {}
 local ReqCount = 1
 
+function Plugin:OnNS2StatsFail( Fail, Message, Format, ... )
+	local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
+
+	Shine:Print( Message, Format, ... )
+
+	self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.",
+		true, FallbackMode )
+
+	self:ShuffleTeams( false, self.Config.FallbackMode )
+
+	if not Fail then return end
+
+	self:AddELOFail()
+end
+
 function Plugin:RequestNS2Stats( Gamerules, Callback )
 	local Players, NumPlayers = GetAllPlayers()
 	local Concat = {}
@@ -208,42 +223,13 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 
 	ReqCount = ReqCount + 1
 
-	self:SimpleTimer( 5, function()
-		if Requests[ CurRequest ] then
-			Shine:Print( "[Elo Vote] Connection to NS2Stats timed out." )
-
-			self:AddELOFail()
-
-			Callback()
-		end
-	end )
-
-	Shared.SendHTTPRequest( URL, "POST", Params, function( Response, Status )
-		local Time = SharedTime()
-
-		if Requests[ CurRequest ] < Time then
-			Shine:Print( "[Elo Vote] NS2Stats responded too late after %.2f seconds!",
-				true, Time - CurTime )
-
-			Requests[ CurRequest ] = nil
-
-			return
-		end
-
+	Shine.TimedHTTPRequest( URL, "POST", Params, function( Response, Status )
 		Requests[ CurRequest ] = nil
 
 		if not Response then
-			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
-
-			Shine:Print( "[Elo Vote] Could not connect to NS2Stats. Falling back to %s sorting...",
+			self:OnNS2StatsFail( true,
+				"[Elo Vote] Could not connect to NS2Stats. Falling back to %s sorting...",
 				true, FallbackMode )
-
-			self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.",
-				true, FallbackMode )
-
-			self:ShuffleTeams( false, self.Config.FallbackMode )
-
-			self:AddELOFail()
 
 			return
 		end
@@ -251,17 +237,9 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 		local Data = Decode( Response )
 
 		if not IsType( Data, "table" ) then
-			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
-
-			Shine:Print( "[Elo Vote] NS2Stats returned corrupt or empty data. Falling back to %s sorting...",
+			self:OnNS2StatsFail( true,
+				"[Elo Vote] NS2Stats returned corrupt or empty data. Falling back to %s sorting...",
 				true, FallbackMode )
-
-			self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.",
-				true, FallbackMode )
-
-			self:ShuffleTeams( false, self.Config.FallbackMode )
-
-			self:AddELOFail()
 
 			return
 		end
@@ -296,11 +274,18 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 		self.ELOFailed = nil
 
 		Callback()
+	end, function()
+		if Requests[ CurRequest ] then
+			Shine:Print( "[Elo Vote] Connection to NS2Stats timed out." )
+
+			self:AddELOFail()
+
+			Callback()
+		end
 	end )
 end
 
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
-local MaxELOSort = 8
 
 local function RandomiseSimilarSkill( Data, Count, Difference )
 	local LastSkill = Data[ 1 ] and Data[ 1 ].Skill or 0
@@ -661,15 +646,9 @@ Plugin.ShufflingModes = {
 			local StatsData = self.StatsData
 
 			if not StatsData or not next( StatsData ) then
-				local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
-
-				Shine:Print( "[Elo Vote] NS2Stats does not have any web data for players. Using %s sorting instead.",
+				self:OnNS2StatsFail( false,
+					"[Elo Vote] NS2Stats does not have any web data for players. Using %s sorting instead.",
 					true, FallbackMode )
-
-				self:Notify( nil, "NS2Stats failed to respond, falling back to %s sorting.",
-					true, FallbackMode )
-
-				self:ShuffleTeams( false, self.Config.FallbackMode )
 
 				return
 			end
