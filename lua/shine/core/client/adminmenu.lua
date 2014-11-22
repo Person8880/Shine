@@ -24,13 +24,16 @@ end )
 AdminMenu.Commands = {}
 AdminMenu.Tabs = {}
 
+AdminMenu.Pos = Vector( -400, -300, 0 )
+AdminMenu.Size = Vector( 800, 600, 0 )
+
 function AdminMenu:Create()
 	self.Created = true
 
 	local Window = SGUI:Create( "TabPanel" )
 	Window:SetAnchor( "CentreMiddle" )
-	Window:SetPos( Vector( -400, -300, 0 ) )
-	Window:SetSize( Vector( 800, 600, 0 ) )
+	Window:SetPos( self.Pos )
+	Window:SetSize( self.Size )
 
 	self.Window = Window
 
@@ -56,6 +59,8 @@ function AdminMenu:Create()
 				self.ToDestroyOnClose[ Panel ] = nil
 			end
 		end
+
+		return true
 	end
 end
 
@@ -71,17 +76,38 @@ function AdminMenu:DontDestroyOnClose( Object )
 	self.ToDestroyOnClose[ Object ] = nil
 end
 
+AdminMenu.EasingTime = 0.25
+
 function AdminMenu:SetIsVisible( Bool )
 	if not self.Created then
 		self:Create()
 	end
 
-	self.Window:SetIsVisible( Bool )
+	if not Bool and Shine.Config.AnimateUI then
+		Shine.Timer.Simple( self.EasingTime, function()
+			if not SGUI.IsValid( self.Window ) then return end
+			self.Window:SetIsVisible( false )
+		end )
+	else
+		self.Window:SetIsVisible( Bool )
+	end
 
 	if Bool and not self.Visible then
+		if Shine.Config.AnimateUI then
+			self.Window:SetPos( Vector( -Client.GetScreenWidth() + self.Pos.x, self.Pos.y, 0 ) )
+			self.Window:MoveTo( self.Pos, 0, self.EasingTime )
+		else
+			self.Window:SetPos( self.Pos )
+		end
+
 		SGUI:EnableMouse( true )
 	elseif not Bool and self.Visible then
 		SGUI:EnableMouse( false )
+
+		if Shine.Config.AnimateUI then
+			self.Window:MoveTo( Vector( Client.GetScreenWidth() - self.Pos.x, self.Pos.y, 0 ), 0,
+				self.EasingTime, math.EaseIn )
+		end
 	end
 
 	self.Visible = Bool

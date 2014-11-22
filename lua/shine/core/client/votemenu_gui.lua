@@ -51,6 +51,7 @@ local ButtonHighlightTexture =
 }
 
 local MaxRequestsPerSide = 5
+local EasingTime = 0.15
 
 VoteMenu.Pages = {}
 
@@ -372,28 +373,12 @@ end
 
 local White = Colour( 1, 1, 1, 1 )
 
---[[
-	Creates or sets the text/click function of the top button.
-]]
-function VoteMenu:AddTopButton( Text, DoClick )
-	local Buttons = self.Buttons
-	local TopButton = Buttons.Top
-
-	if SGUI.IsValid( TopButton ) then
-		TopButton:SetText( Text )
-		TopButton:SetDoClick( DoClick )
-		TopButton:SetIsVisible( true )
-
-		return TopButton
-	end
-
-	local Size = self.ButtonSize
-
-	TopButton = SGUI:Create( "Button", self.Background )
-	TopButton:SetupFromTable{
-		Anchor = "TopMiddle",
-		Size = Size,
-		Pos = Vector( -Size.x * 0.5, -Size.y, 0 ),
+local function AddButton( self, Pos, Anchor, Text, DoClick )
+	local Button = SGUI:Create( "Button", self.Background )
+	Button:SetupFromTable{
+		Anchor = Anchor,
+		Size = self.ButtonSize,
+		Pos = Pos,
 		ActiveCol = White,
 		InactiveCol = White,
 		Texture = ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ],
@@ -405,10 +390,52 @@ function VoteMenu:AddTopButton( Text, DoClick )
 		DoClick = DoClick,
 		IsSchemed = false
 	}
-	TopButton:SetHighlightOnMouseOver( true, 1, true )
-	TopButton.ClickDelay = 0
+	Button:SetHighlightOnMouseOver( true, 1, true )
+	Button.ClickDelay = 0
+
+	return Button
+end
+
+local function HandleButton( Button, Text, DoClick, StartPos, EndPos )
+	Button:SetText( Text )
+	Button:SetDoClick( DoClick )
+	Button:SetIsVisible( true )
+
+	if not StartPos then return end
+
+	if Shine.Config.AnimateUI then
+		Button:SetPos( StartPos )
+		Button:MoveTo( EndPos, 0, EasingTime )
+	else
+		Button:SetPos( EndPos )
+	end
+end
+
+--[[
+	Creates or sets the text/click function of the top button.
+]]
+function VoteMenu:AddTopButton( Text, DoClick )
+	local Buttons = self.Buttons
+	local TopButton = Buttons.Top
+
+	local Size = self.ButtonSize
+	local StartPos = Vector( -Size.x * 0.5, -Size.y + self.Background:GetSize().y * 0.5, 0 )
+	local EndPos = Vector( -Size.x * 0.5, -Size.y, 0 )
+
+	if SGUI.IsValid( TopButton ) then
+		HandleButton( TopButton, Text, DoClick, StartPos, EndPos )
+
+		return TopButton
+	end
+
+	local Pos = Shine.Config.AnimateUI and StartPos or EndPos
+	TopButton = AddButton( self, Pos, "TopMiddle", Text, DoClick )
 
 	Buttons.Top = TopButton
+
+	if Shine.Config.AnimateUI then
+		TopButton:MoveTo( EndPos, 0, EasingTime )
+	end
 
 	return TopButton
 end
@@ -420,35 +447,24 @@ function VoteMenu:AddBottomButton( Text, DoClick )
 	local Buttons = self.Buttons
 	local BottomButton = Buttons.Bottom
 
+	local Size = self.ButtonSize
+	local StartPos = Vector( -Size.x * 0.5, -self.Background:GetSize().y * 0.5, 0 )
+	local EndPos = Vector( StartPos.x, 0, 0 )
+
 	if SGUI.IsValid( BottomButton ) then
-		BottomButton:SetText( Text )
-		BottomButton:SetDoClick( DoClick )
-		BottomButton:SetIsVisible( true )
+		HandleButton( BottomButton, Text, DoClick, StartPos, EndPos )
 
 		return BottomButton
 	end
 
-	local Size = self.ButtonSize
-	BottomButton = SGUI:Create( "Button", self.Background )
-	BottomButton:SetupFromTable{
-		Anchor = "BottomMiddle",
-		Size = Size,
-		Pos = Vector( -Size.x * 0.5, 0, 0 ),
-		ActiveCol = White,
-		InactiveCol = White,
-		Texture = ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ],
-		HighlightTexture = ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ],
-		Text = Text,
-		Font = FontName,
-		TextScale = self.TextScale,
-		TextColour = TextCol,
-		DoClick = DoClick,
-		IsSchemed = false
-	}
-	BottomButton:SetHighlightOnMouseOver( true, 1, true )
-	BottomButton.ClickDelay = 0
+	local Pos = Shine.Config.AnimateUI and StartPos or EndPos
+	BottomButton = AddButton( self, Pos, "BottomMiddle", Text, DoClick )
 
 	Buttons.Bottom = BottomButton
+
+	if Shine.Config.AnimateUI then
+		BottomButton:MoveTo( EndPos, 0, EasingTime )
+	end
 
 	return BottomButton
 end
@@ -465,32 +481,14 @@ function VoteMenu:AddSideButton( Text, DoClick )
 	local Button = Buttons[ Index ]
 
 	if SGUI.IsValid( Button ) then
-		Button:SetText( Text )
-		Button:SetDoClick( DoClick )
-		Button:SetIsVisible( true )
+		HandleButton( Button, Text, DoClick )
 
 		self.ButtonIndex = Index
 
 		return Button
 	end
 
-	Button = SGUI:Create( "Button", self.Background )
-	Button:SetupFromTable{
-		Size = self.ButtonSize,
-		ActiveCol = White,
-		InactiveCol = White,
-		Texture = ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ],
-		HighlightTexture = ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ],
-		Text = Text,
-		Font = FontName,
-		TextScale = self.TextScale,
-		TextColour = TextCol,
-		DoClick = DoClick,
-		IsSchemed = false
-	}
-	Button:SetHighlightOnMouseOver( true, 1, true )
-	Button.ClickDelay = 0
-
+	Button = AddButton( self, nil, nil, Text, DoClick )
 	Buttons[ Index ] = Button
 
 	self.ButtonIndex = Index
@@ -524,7 +522,14 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align )
 
 	Pos.x = Pos.x + Direction * Offset
 
-	Button:SetPos( Pos )
+	if Shine.Config.AnimateUI then
+		local Size = self.Background:GetSize()
+		Button:SetPos( Vector( Align == GUIItem.Right and -Size.x * 0.5 or 0,
+			Size.y * 0.5, 0 ) )
+		Button:MoveTo( Pos, 0, EasingTime )
+	else
+		Button:SetPos( Pos )
+	end
 end
 
 --[[

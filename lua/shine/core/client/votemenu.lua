@@ -4,6 +4,7 @@
 
 Script.Load( "lua/shine/core/client/votemenu_gui.lua" )
 
+local Clock = os.clock
 local IsType = Shine.IsType
 local StringFormat = string.format
 local TableSort = table.sort
@@ -88,6 +89,7 @@ function Shine.OpenVoteMenu()
 	Shine.Hook.Call( "OnVoteMenuOpen" )
 end
 
+local NextPress = 0
 Event.Hook( "Console_sh_votemenu", function()
 	if #ActivePlugins == 0 then --Request addon list if our table is empty.
 		if not WaitingForData then
@@ -99,7 +101,13 @@ Event.Hook( "Console_sh_votemenu", function()
 		return 
 	end
 
-	Shine.OpenVoteMenu()
+	local Time = Clock()
+
+	if Time >= NextPress or not Shine.VoteMenu.Visible then
+		Shine.OpenVoteMenu()
+	end
+
+	NextPress = Time + 0.3
 end )
 
 local function CanBind( MenuBinds, Binds, Button )

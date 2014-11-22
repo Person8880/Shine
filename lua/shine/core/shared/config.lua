@@ -117,7 +117,8 @@ local BaseConfig = "config://shine/cl_config.json"
 local DefaultConfig = {
 	DisableWebWindows = false,
 	ShowWebInSteamBrowser = false,
-	ReportErrors = true
+	ReportErrors = true,
+	AnimateUI = true
 }
 
 function Shine:CreateClientBaseConfig()
@@ -184,6 +185,14 @@ local Options = {
 		},
 		MessageState = true,
 		Message = "Shine is set to report any errors it causes on your client when you disconnect. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console."
+	},
+	{
+		Data = {
+			"sh_animateui", "AnimateUI",
+			"UI animations have been", "enabled", "disabled"
+		},
+		AlwaysShowMessage = true,
+		Message = "You can enable/disable UI animations by entering \"sh_animateui\" into the console."
 	}
 }
 
@@ -191,7 +200,7 @@ for i = 1, #Options do
 	local Option = Options[ i ]
 
 	MakeClientOption( unpack( Option.Data ) )
-	if Shine.Config[ Option.Data[ 2 ] ] == Option.MessageState then
+	if Shine.Config[ Option.Data[ 2 ] ] == Option.MessageState or Option.AlwaysShowMessage then
 		Shine.AddStartupMessage( Option.Message )
 	end
 end
