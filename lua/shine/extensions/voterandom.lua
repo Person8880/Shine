@@ -168,9 +168,6 @@ function Plugin:AddELOFail()
 	end
 end
 
-local Requests = {}
-local ReqCount = 1
-
 function Plugin:OnNS2StatsFail( Fail, Message, Format, ... )
 	local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
@@ -216,16 +213,7 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 		players = TableConcat( Concat, "," )
 	}
 
-	local CurRequest = ReqCount
-	local CurTime = SharedTime()
-
-	Requests[ CurRequest ] = CurTime + 5 --No response after 5 seconds is a fail.
-
-	ReqCount = ReqCount + 1
-
 	Shine.TimedHTTPRequest( URL, "POST", Params, function( Response, Status )
-		Requests[ CurRequest ] = nil
-
 		if not Response then
 			self:OnNS2StatsFail( true,
 				"[Elo Vote] Could not connect to NS2Stats. Falling back to %s sorting...",
@@ -275,13 +263,11 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 
 		Callback()
 	end, function()
-		if Requests[ CurRequest ] then
-			Shine:Print( "[Elo Vote] Connection to NS2Stats timed out." )
+		Shine:Print( "[Elo Vote] Connection to NS2Stats timed out." )
 
-			self:AddELOFail()
+		self:AddELOFail()
 
-			Callback()
-		end
+		Callback()
 	end )
 end
 
