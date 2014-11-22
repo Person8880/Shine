@@ -139,10 +139,10 @@ function Plugin:Initialise()
 
 	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
 	self.Config.Interp = Max( self.Config.Interp, 0 )
-	self.Config.MoveRate = Max( self.Config.MoveRate, 5 )
-	self.Config.TickRate = Max( self.Config.TickRate, 20 )
-	self.Config.BWLimit = Max( self.Config.BWLimit, 10 )
-	self.Config.SendRate = Max( self.Config.SendRate, 10 )
+	self.Config.MoveRate = Max( Floor( self.Config.MoveRate ), 5 )
+	self.Config.TickRate = Max( Floor( self.Config.TickRate ), 5 )
+	self.Config.BWLimit = Max( self.Config.BWLimit, 5 )
+	self.Config.SendRate = Max( Floor( self.Config.SendRate ), 5 )
 
 	self:CheckRateValues()
 
@@ -1102,7 +1102,7 @@ function Plugin:CreateCommands()
 	local function Interp( Client, NewInterp )
 		local MinInterp = 2 / self.Config.SendRate * 1000
 		if NewInterp < MinInterp then
-			NotifyError( Client, "Interp is constrained by send rate to be %ims minimum.",
+			NotifyError( Client, "Interp is constrained by send rate to be %.2fms minimum.",
 				true, MinInterp )
 			return
 		end
@@ -1131,7 +1131,7 @@ function Plugin:CreateCommands()
 		self:SaveConfig( true )
 	end
 	local TickRateCommand = self:BindCommand( "sh_tickrate", "tickrate", TickRate )
-	TickRateCommand:AddParam{ Type = "number", Min = 20 }
+	TickRateCommand:AddParam{ Type = "number", Min = 20, Round = true }
 	TickRateCommand:Help( "<rate> Sets the max server tickrate and saves it." )
 	
 	local function BWLimit( Client, NewLimit )
@@ -1159,7 +1159,7 @@ function Plugin:CreateCommands()
 		self:SaveConfig( true )
 	end
 	local SendRateCommand = self:BindCommand( "sh_sendrate", "sendrate", SendRate )
-	SendRateCommand:AddParam{ Type = "number", Min = 10 }
+	SendRateCommand:AddParam{ Type = "number", Min = 10, Round = true }
 	SendRateCommand:Help( "<rate> Sets the rate of updates sent to clients and saves it." )
 	
 	local function MoveRate( Client, NewRate )
@@ -1170,7 +1170,7 @@ function Plugin:CreateCommands()
 		self:SaveConfig( true )
 	end
 	local MoveRateCommand = self:BindCommand( "sh_moverate", "moverate", MoveRate )
-	MoveRateCommand:AddParam{ Type = "number", Min = 5 }
+	MoveRateCommand:AddParam{ Type = "number", Min = 5, Round = true }
 	MoveRateCommand:Help( "<rate> Sets the move rate and saves it." )
 end
 
