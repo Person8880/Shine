@@ -15,15 +15,7 @@ function Shine:BuildPluginData()
 end
 
 function Shine:SendPluginData( Player, Data )
-	if Player then
-		self.SendNetworkMessage( Player, "Shine_PluginData", Data, true )
-	else
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_PluginData", Data, true )
-		end
-	end
+	self:ApplyNetworkMessage( Player, "Shine_PluginData", Data, true )
 end
 
 --Send plugin data on client connect.

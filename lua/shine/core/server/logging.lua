@@ -122,6 +122,12 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return self:NotifyColour( Player, 255, 255, 255, String, Format, ... )
 	end
 
+	if Player == "Console" then
+		Shared.Message( Message )
+
+		return
+	end
+
 	local MessageLength = Message:UTF8Length()
 	if MessageLength > kMaxChatLength then
 		local Iterations = Ceil( MessageLength / kMaxChatLength )
@@ -134,31 +140,10 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return
 	end
 
-	if IsType( Player, "table" ) then
-		local PlayerCount = #Player
+	local MessageTable = self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, 
+		kNeutralTeamType, Message )
 
-		for i = 1, PlayerCount do
-			local Ply = Player[ i ]
-			
-			self.SendNetworkMessage( Ply, "Shine_Chat",
-				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
-				true )
-		end
-	elseif Player and Player ~= "Console" then
-		self.SendNetworkMessage( Player, "Shine_Chat",
-			self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
-			true )
-	elseif Player == "Console" then
-		Shared.Message( Message )
-	else
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_Chat",
-				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
-				true )
-		end
-	end
+	self:ApplyNetworkMessage( Player, "Shine_Chat", MessageTable, true )
 	
 	Server.AddChatToHistory( Message, Name, 0, kTeamReadyRoom, false )
 end
@@ -182,23 +167,7 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 
 	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
-	if not Player then
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
-		end
-	elseif IsType( Player, "table" ) then
-		for i = 1, #Player do
-			local Ply = Player[ i ]
-
-			if Ply then
-				self.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
-			end
-		end 
-	else
-		self.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
-	end
+	self:ApplyNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 end
 
 --[[
@@ -220,23 +189,7 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 
 	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
-	if not Player then
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
-		end
-	elseif IsType( Player, "table" ) then
-		for i = 1, #Player do
-			local Ply = Player[ i ]
-
-			if Ply then
-				self.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
-			end
-		end 
-	else
-		self.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
-	end
+	self:ApplyNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 end
 
 --[[
@@ -348,7 +301,6 @@ function Shine:AdminPrint( Client, String, Format, ... )
 	self:Print( String, Format, ... )
 
 	local Message = Format and StringFormat( String, ... ) or String
-
 	local Admins = self:GetClientsForLog()
 
 	for i = 1, #Admins do
@@ -359,6 +311,6 @@ function Shine:AdminPrint( Client, String, Format, ... )
 	end
 
 	if not Client then return end
-	
+
 	return ServerAdminPrint( Client, Message )
 end

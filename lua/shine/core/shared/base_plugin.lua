@@ -113,19 +113,7 @@ if Server then
 	function PluginMeta:SendNetworkMessage( Target, Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
 
-		if IsType( Target, "table" ) then
-			for i = 1, #Target do
-				local Client = Target[ i ]
-
-				if Client then
-					Shine.SendNetworkMessage( Client, MessageName, Data, Reliable )
-				end
-			end
-		elseif Target then
-			Shine.SendNetworkMessage( Target, MessageName, Data, Reliable )
-		else
-			Shine.SendNetworkMessage( MessageName, Data, Reliable )
-		end
+		Shine:ApplyNetworkMessage( Target, MessageName, Data, Reliable )
 	end
 elseif Client then
 	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
