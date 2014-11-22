@@ -2,7 +2,6 @@
 	Shine console/chat command handling.
 ]]
 
-local FixArray = table.FixArray
 local Round = math.Round
 local StringExplode = string.Explode
 local StringFormat = string.format
@@ -577,14 +576,14 @@ function Shine:RunCommand( Client, ConCommand, ... )
 					return
 				end
 
+				local Offset = 0
 				for j = 1, #ParsedArg do
-					if not self:CanTarget( Client, ParsedArg[ j ] ) then
-						ParsedArg[ j ] = nil
+					local Key = j - Offset
+					if not self:CanTarget( Client, ParsedArg[ Key ] ) then
+						TableRemove( ParsedArg, Key )
+						Offset = Offset + 1
 					end
 				end
-
-				--Fix up any holes in our array.
-				FixArray( ParsedArg )
 
 				if #ParsedArg == 0 then
 					self:NotifyError( Player,
