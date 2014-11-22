@@ -10,7 +10,6 @@ local Floor = math.floor
 local SharedGetTime = Shared.GetTime
 local StringFormat = string.format
 local TableAverage = table.Average
-local TableEmpty = table.Empty
 
 local Map = Shine.Map
 
@@ -60,11 +59,30 @@ function Plugin:ClientDisconnect( Client )
 	self.Players:Remove( Client )
 end
 
+function Plugin:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, Reason, Message, Format, ... )
+	if Data.TimesOver == 0 and self.Config.Warn then
+		Shine:NotifyColour( Client, 255, 160, 0, Message, Format, ... )
+		Shine:NotifyColour( Client, 255, 160, 0, "If you do not lower it you will be kicked." )
+		return true
+	end
+
+	local Player = Client:GetControllingPlayer()
+	local Name = Player and Player:GetName() or "<unknown>"
+
+	Shine:LogString( StringFormat( 
+		"[PingTracker] Kicked client %s[%s]. Average ping: %.2f. Average jitter: %.2f.", 
+		Name, Client:GetUserId(), AveragePing, AverageJitter ) )
+
+	Client.DisconnectReason = Reason
+	Server.DisconnectClient( Client )
+
+	return false
+end
+
 function Plugin:CheckClient( Client, Data, Time )
+	if Data.NextCheck > Time then return end
 	if Shine:HasAccess( Client, "sh_pingimmune" ) then return end
 
-	if Data.NextCheck > Time then return end
-	
 	Data.NextCheck = Time + self.Config.MeasureInterval
 
 	local Pings = Data.Pings
@@ -79,63 +97,43 @@ function Plugin:CheckClient( Client, Data, Time )
 
 	Pings[ #Pings + 1 ] = Ping
 
-	if Data.NextAverage < Time then
-		local AveragePing = TableAverage( Pings )
-		local AverageJitter = TableAverage( DeltaPings )
+	if Data.NextAverage > Time then return end
 
-		local ShouldIncrease
+	local AveragePing = TableAverage( Pings )
+	local AverageJitter = TableAverage( DeltaPings )
 
-		if AveragePing > self.Config.MaxPing then
-			if Data.TimesOver == 0 and self.Config.Warn then
-				ShouldIncrease = true
+	local ShouldIncrease
 
-				Shine:NotifyColour( Client, 255, 160, 0, "Your ping is averaging at %s, which is too high for this server.", true, Ceil( AveragePing ) )
-				Shine:NotifyColour( Client, 255, 160, 0, "If you do not lower it you will be kicked." )
-			else
-				local Player = Client:GetControllingPlayer()
-				local Name = Player and Player:GetName() or "<unknown>"
+	if AveragePing > self.Config.MaxPing then
+		ShouldIncrease = self:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, 
+			"Ping too high",
+			"Your ping is averaging at %s, which is too high for this server.",
+			true, Ceil( AveragePing ) )
 
-				Shine:LogString( StringFormat( "[PingTracker] Kicked client %s[%s]. Average ping: %.2f. Average jitter: %.2f.", 
-					Name, Client:GetUserId(), AveragePing, AverageJitter ) )
-
-				Client.DisconnectReason = "Ping too high"
-
-				Server.DisconnectClient( Client )
-
-				return
-			end
+		if not ShouldIncrease then
+			return
 		end
-
-		if AverageJitter > self.Config.MaxJitter then
-			if Data.TimesOver == 0 and self.Config.Warn then
-				ShouldIncrease = true
-
-				Shine:NotifyColour( Client, 255, 160, 0, "Your ping is varying by an average of %s, which is too high for this server.", true, Ceil( AverageJitter ) )
-				Shine:NotifyColour( Client, 255, 160, 0, "If you do not lower it you will be kicked." )
-			else
-				local Player = Client:GetControllingPlayer()
-				local Name = Player and Player:GetName() or "<unknown>"
-				
-				Shine:LogString( StringFormat( "[PingTracker] Kicked client %s[%s]. Average ping: %.2f. Average jitter: %.2f.", 
-					Name, Client:GetUserId(), AveragePing, AverageJitter ) )
-
-				Client.DisconnectReason = "Ping jitter too high"
-
-				Server.DisconnectClient( Client )
-
-				return
-			end
-		end
-
-		if ShouldIncrease then
-			Data.TimesOver = 1
-		end
-
-		TableEmpty( Pings )
-		TableEmpty( DeltaPings )
-
-		Data.NextAverage = Time + self.Config.CheckInterval
 	end
+
+	if AverageJitter > self.Config.MaxJitter then
+		ShouldIncrease = self:WarnOrKickClient( Client, Data, AveragePing, AverageJitter,
+			"Ping jitter too high",
+			"Your ping is varying by an average of %s, which is too high for this server.",
+			true, Ceil( AverageJitter ) )
+
+		if not ShouldIncrease then
+			return
+		end
+	end
+
+	if ShouldIncrease then
+		Data.TimesOver = 1
+	end
+
+	Data.Pings = {}
+	Data.DeltaPings = {}
+
+	Data.NextAverage = Time + self.Config.CheckInterval
 end
 
 function Plugin:Think()
