@@ -14,7 +14,6 @@ local IsType = Shine.IsType
 
 local next = next
 local pairs = pairs
-local TableContains = table.contains
 local TableEmpty = table.Empty
 local tonumber = tonumber
 local tostring = tostring
@@ -417,24 +416,42 @@ function Shine:GetUserImmunity( Client )
 	return tonumber( GroupData.Immunity ) or 0
 end
 
+local PermissionCache = {}
+
 --[[
 	Checks a command list table for the given command name,
 	taking into account table entries with argument restrictions.
 ]]
-local function CheckForCommand( Table, Command )
-	for i = 1, #Table do
-		local Entry = Table[ i ]
+local function CheckForCommand( GroupName, Table, Command )
+	-- -1 denotes the default group, as JSON can't have a number key of -1.
+	GroupName = GroupName or -1
 
-		if IsType( Entry, "table" ) then
-			if Entry.Command == Command then
-				return true, Entry.Allowed
+	local Permissions = PermissionCache[ GroupName ]
+
+	if not Permissions then
+		Permissions = {}
+
+		for i = 1, #Table do
+			local Entry = Table[ i ]
+
+			if IsType( Entry, "table" ) then
+				Permissions[ Entry.Command ] = Entry
+			else
+				Permissions[ Entry ] = true
 			end
-		elseif Entry == Command then
-			return true
 		end
+
+		PermissionCache[ GroupName ] = Permissions
 	end
 
-	return false
+	local Entry = Permissions[ Command ]
+	if not Entry then return false end
+
+	if IsType( Entry, "table" ) then
+		return true, Entry
+	end
+
+	return true
 end
 
 --[[
@@ -463,7 +480,7 @@ end
 function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
 	if not self:VerifyGroup( GroupName, GroupTable ) then return false end
 
-	local Exists, AllowedArgs = CheckForCommand( GroupTable.Commands, ConCommand )
+	local Exists, AllowedArgs = CheckForCommand( GroupName, GroupTable.Commands, ConCommand )
 
 	if GroupTable.IsBlacklist then
 		--A blacklist entry with allowed arguments restricts to only those arguments.
@@ -621,8 +638,6 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	end
 end
 
-local PermissionCache = {}
-
 Shine.Hook.Add( "OnUserReload", "FlushPermissionCache", function()
 	TableEmpty( PermissionCache )
 end )
@@ -692,11 +707,14 @@ end
 function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand )
 	if not self:VerifyGroup( GroupName, GroupTable ) then return false end
 
+	local Exists = CheckForCommand( GroupName, GroupTable.Commands, ConCommand )
+
+	--Access doesn't care about allowed args, if it's present, we consider it denied.
 	if GroupTable.IsBlacklist then
-		return not TableContains( GroupTable.Commands, ConCommand )
+		return not Exists
 	end
 
-	return TableContains( GroupTable.Commands, ConCommand )
+	return Exists
 end
 
 --[[
