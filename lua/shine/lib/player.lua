@@ -6,13 +6,13 @@ local TeamNames = {
 	ns2 = {
 		{ "Marines", "marines", "marine team" },
 		{ "Aliens", "aliens", "alien team" },
-		{ "Spectate", "spectate", "spectate" },
+		{ "Spectate", "spectators", "spectate" },
 		{ "Ready Room", "ready room", "ready room" }
 	},
 	mvm = {
 		{ "Blue Team", "blue team", "blue team" },
 		{ "Gold Team", "gold team", "gold team" },
-		{ "Spectate", "spectate", "spectate" },
+		{ "Spectate", "spectators", "spectate" },
 		{ "Ready Room", "ready room", "ready room" }
 	}
 }

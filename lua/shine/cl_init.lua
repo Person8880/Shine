@@ -24,6 +24,7 @@ local Scripts = {
 	"lib/timer.lua",
 	"lib/query.lua",
 	"lib/player.lua",
+	"core/shared/commands.lua",
 	"core/client/commands.lua",
 	"core/shared/config.lua",
 	"core/shared/votemenu.lua",
@@ -32,7 +33,6 @@ local Scripts = {
 	"core/client/adminmenu.lua",
 	"core/shared/extensions.lua",
 	"core/shared/chat.lua",
-	"core/shared/commands.lua",
 	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
 	"lib/screentext/cl_screentext.lua"

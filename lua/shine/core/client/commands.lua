@@ -4,11 +4,7 @@
 
 local Notify = Shared.Message
 local setmetatable = setmetatable
-local Round = math.Round
-local StringExplode = string.Explode
 local StringFormat = string.format
-local TableConcat = table.concat
-local TableRemove = table.remove
 local Traceback = debug.traceback
 local type = type
 local xpcall = xpcall
@@ -78,78 +74,8 @@ function Shine:RemoveClientCommand( ConCommand )
 	ClientCommands[ ConCommand ] = nil
 end
 
---More generic clamp for use with the number argument type.
-local function MathClamp( Number, Min, Max )
-    if not Number then return nil end
-    if not Max and Min then
-        return Number > Min and Number or Min
-    elseif not Min and Max then
-        return Number < Max and Number or Max
-    elseif not Max and not Min then
-        return Number
-    else
-        if Number < Min then return Min end
-        if Number > Max then return Max end
-        return Number
-    end
-end
-
-local IsType = Shine.IsType
-
---These define all valid command parameter types and how to process a string into the type.
-local ParamTypes = {
-	--Strings return simply the string (clipped to max length if given).
-	string = function( String, Table ) 
-		if not String or String == "" then
-			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
-		end
-
-		return Table.MaxLength and String:UTF8Sub( 1, Table.MaxLength ) or String
-	end,
-	--Number performs tonumber() on the string and clamps the result between the given min and max.
-	number = function( String, Table )
-		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
-
-		if not Num then
-			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
-		end
-
-		return Table.Round and Round( Num ) or Num
-	end,
-	--Boolean turns "false" and 0 into false and everything else into true.
-	boolean = function( String, Table )
-		if not String or String == "" then 
-			if IsType( Table.Default, "function" ) then
-				return Table.Default() 
-			else
-				return Table.Default 
-			end
-		end
-
-		local ToNum = tonumber( String )
-
-		if ToNum then
-			return ToNum ~= 0
-		end
-
-		return String ~= "false"
-	end
-}
-
---[[
-	Parses the given string using the given parameter table and returns the result.
-	Inputs: Client, string argument, parameter table.
-	Output: Converted argument or nil.
-]]
-local function ParseParameter( String, Table )
-    local Type = Table.Type
-    if String then
-        return ParamTypes[ Type ] and ParamTypes[ Type ]( String, Table )
-    else
-        if not Table.Optional then return nil end
-        return ParamTypes[ Type ] and ParamTypes[ Type ]( String, Table )
-    end
-end
+local ParamTypes = Shine.CommandUtil.ParamTypes
+local ParseParameter = Shine.CommandUtil.ParseParameter
 
 local function OnError( Error )
 	local Trace = Traceback()
@@ -164,10 +90,7 @@ end
 ]]
 function Shine:RunClientCommand( ConCommand, ... )
 	local Command = ClientCommands[ ConCommand ]
-
-	if not Command then return end
-
-	if Command.Disabled then return end
+	if not Command or Command.Disabled then return end
 
 	local Args = { ... }
 
@@ -178,8 +101,7 @@ function Shine:RunClientCommand( ConCommand, ... )
 	for i = 1, ExpectedCount do
 		local CurArg = ExpectedArgs[ i ]
 
-		--Convert the string argument into the requested type.
-		ParsedArgs[ i ] = ParseParameter( Args[ i ], CurArg )
+		ParsedArgs[ i ] = ParseParameter( nil, Args[ i ], CurArg )
 
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
@@ -189,22 +111,12 @@ function Shine:RunClientCommand( ConCommand, ... )
 			return
 		end
 
-		--Take rest of line should grab the entire rest of the argument list.
 		if CurArg.Type == "string" and CurArg.TakeRestOfLine then
 			if i == ExpectedCount then
-				local Rest = TableConcat( Args, " ", i + 1 )
-
-				if Rest ~= "" then
-					ParsedArgs[ i ] = ParsedArgs[ i ].." "..Rest
-				end
-
-				if CurArg.MaxLength then
-					ParsedArgs[ i ] = ParsedArgs[ i ]:sub( 1, CurArg.MaxLength )
-				end
+				ParsedArgs[ i ] = self.CommandUtil.BuildLineFromArgs( CurArg, ParsedArgs[ i ],
+					Args, i )
 			else
 				error( "Take rest of line called on function expecting more arguments!" )
-
-				return
 			end
 		end
 	end
