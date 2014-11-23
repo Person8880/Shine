@@ -876,9 +876,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 
 				if Client then
 					if AFKEnabled then --Ignore AFK players in sorting.
-						local LastMove = AFKKick:GetLastMoveTime( Client )
-
-						if not ( LastMove and Time - LastMove > 60 ) then
+						if not AFKKick:IsAFKFor( Client, 60 ) then
 							SortPlayer( Player, Client, Commander, j )
 						elseif j == 1 then --Chuck AFK players into the ready room.
 							local Team = Player:GetTeamNumber()

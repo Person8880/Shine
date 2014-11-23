@@ -217,10 +217,8 @@ function Plugin:ProcessClient( Client, Time )
 		local Enabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 
 		if Enabled then
-			local LastMoveTime = AFKKick:GetLastMoveTime( Client )
-
 			--Ignore AFK players.
-			if LastMoveTime and Time - LastMoveTime >= ( AFKKick.Config.WarnTime * 60 ) then
+			if AFKKick:IsAFKFor( Client, AFKKick.Config.WarnTime * 60 ) then
 				return
 			end
 		end
