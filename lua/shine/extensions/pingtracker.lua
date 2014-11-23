@@ -35,6 +35,15 @@ function Plugin:Initialise()
 
 	self.Players = Map()
 
+	if self.Enabled ~= nil then
+		local Clients, Count = Shine.GetAllClients()
+
+		for i = 1, Count do
+			local Client = Clients[ i ]
+			self:ClientConnect( Client )
+		end
+	end
+
 	self.Enabled = true
 
 	return true

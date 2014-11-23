@@ -52,7 +52,19 @@ function Plugin:Initialise()
 
 	if self.Enabled ~= nil then
 		for Client in pairs( self.Users ) do
-			self:ResetAFKTime( Client )
+			if Shine:IsValidClient( Client ) then
+				self:ResetAFKTime( Client )
+			else
+				self.Users[ Client ] = nil
+			end
+		end
+
+		local Clients, Count = Shine.GetAllClients()
+		for i = 1, Count do
+			local Client = Clients[ i ]
+			if not self.Users[ Client ] then
+				self:ClientConnect( Client )
+			end
 		end
 	end
 

@@ -263,16 +263,16 @@ end
 ]]
 function Shine.GetAllClients()
 	local Clients = {}
-	local Count = 1
+	local Count = 0
 
 	local GameIDs = Shine.GameIDs
 
 	for Client, ID in GameIDs:Iterate() do
-		Clients[ Count ] = Client
 		Count = Count + 1
+		Clients[ Count ] = Client
 	end
 
-	return Clients
+	return Clients, Count
 end
 
 --[[
