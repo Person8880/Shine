@@ -157,6 +157,10 @@ do
 
 		local Strings = {}
 		Strings[ 1 ] = StringFormat( "%s {", tostring( Table ) )
+		if not next( Table ) then
+			return Strings[ 1 ].."}"
+		end
+
 		local IndentString = StringRep( "\t", Indent )
 
 		for Key, Value in pairs( Table ) do
