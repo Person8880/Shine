@@ -81,7 +81,8 @@ Plugin.DefaultConfig = {
 	IgnoreCommanders = true, --Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
-	MaxStoredRounds = 3 --How many rounds of score data should we buffer?
+	MaxStoredRounds = 3, --How many rounds of score data should we buffer?
+	ReconnectLogTime = 0 --How long (in seconds) after a shuffle to log reconnecting players for?
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -95,8 +96,8 @@ local ModeClamp = Shine.IsNS2Combat and 4 or 5
 function Plugin:Initialise()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, ModeClamp )
 	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, ModeClamp )
-
 	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
+	self.Config.ReconnectLogTime = Max( self.Config.ReconnectLogTime, 0 )
 
 	local BalanceMode = self.Config.BalanceMode
 	local FallbackMode = self.Config.FallbackMode
@@ -908,6 +909,8 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
 
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
+	self.ReconnectLogTimeout = SharedTime() + self.Config.ReconnectLogTime
+	self.ReconnectingClients = {}
 
 	local ModeFunc = self.ShufflingModes[ ForceMode or self.Config.BalanceMode ]
 
@@ -1267,6 +1270,26 @@ end
 
 function Plugin:ClientDisconnect( Client )
 	self.Vote:ClientDisconnect( Client )
+
+	if not self.ReconnectLogTimeout then return end
+	if SharedTime() > self.ReconnectLogTimeout then return end
+
+	self.ReconnectingClients[ Client:GetUserId() ] = true
+end
+
+function Plugin:ClientConnect( Client )
+	if not self.ReconnectingClients or not self.ReconnectLogTimeout then return end
+
+	if SharedTime() > self.ReconnectLogTimeout then
+		self.ReconnectingClients = nil
+
+		return
+	end
+
+	if not self.ReconnectingClients[ Client:GetUserId() ] then return end
+
+	Shine:Print( "[Shuffle] Client %s reconnected after a shuffle vote.", true,
+		Shine.GetClientInfo( Client ) )
 end
 
 function Plugin:GetVotesNeeded()
