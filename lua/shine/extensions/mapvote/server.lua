@@ -650,7 +650,6 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
 	if NewTeam == 0 then return end
 
-	local Time = SharedTime()
 	local Message = IsEndVote and "You cannot join a team whilst the map vote is in progress." or 
 		"The map is now changing, you cannot join a team."
 

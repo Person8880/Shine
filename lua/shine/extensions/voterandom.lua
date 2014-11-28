@@ -1218,7 +1218,6 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if Immune then return end
 	
 	local Team = Player:GetTeamNumber()
-	local Time = SharedTime()
 	local OnPlayingTeam = Team == 1 or Team == 2
 
 	local NumTeam1 = Gamerules.team1:GetNumPlayers()
