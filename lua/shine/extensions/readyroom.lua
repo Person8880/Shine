@@ -73,11 +73,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		local TimeToAllow = self.BlockedClients[ Client ]
 
 		if TimeToAllow and TimeToAllow > Time then
-			local NextNotify = Client.SHNextNotify or 0
-
-			if NextNotify > Time then return false end
-
-			Client.SHNextNotify = Time + 5
+			if not Shine:CanNotify( Client ) then return false end
 
 			Shine:NotifyColour( Client, 255, 160, 0,
 				"You have just been moved to a team. You cannot go back to the ready room yet." )
@@ -91,13 +87,9 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if not self.Config.DisableSpectate then return end
 	if Shine:HasAccess( Client, "sh_idleimmune" ) then return end
 
-	local NextNotify = Client.SHNextNotify or 0
-
-	if NextNotify > Time then return false end
-
-	Client.SHNextNotify = Time + 5 --Prevent message spam.
-
-	Shine:NotifyColour( Client, 255, 160, 0, "Spectator mode has been disabled." )
+	if Shine:CanNotify( Client ) then
+		Shine:NotifyColour( Client, 255, 160, 0, "Spectator mode has been disabled." )
+	end
 
 	local Team = Player:GetTeam():GetTeamNumber()
 

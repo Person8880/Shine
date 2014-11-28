@@ -11,6 +11,7 @@ local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetNumPlayers = Shine.GetHumanPlayerCount
+local GetOwner = Server.GetOwner
 local InRange = math.InRange
 local Max = math.max
 local next = next
@@ -647,17 +648,14 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if not ( self.CyclingMap or IsEndVote ) then return end
 	if not Player then return end
 	if ShineForce then return end
-
 	if NewTeam == 0 then return end
-	
+
 	local Time = SharedTime()
 	local Message = IsEndVote and "You cannot join a team whilst the map vote is in progress." or 
 		"The map is now changing, you cannot join a team."
 
-	if not Player.NextShineNotify or Player.NextShineNotify < Time then
+	if Shine:CanNotify( GetOwner( Player ) ) then
 		Shine:NotifyColour( Player, 255, 160, 0, Message )
-
-		Player.NextShineNotify = Time + 5
 	end
 
 	return false

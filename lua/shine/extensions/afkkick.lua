@@ -15,8 +15,6 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
 
-Plugin.Users = setmetatable( {}, { __mode = "k" } )
-
 Plugin.DefaultConfig = {
 	MinPlayers = 10,
 	WarnMinPlayers = 5,
@@ -66,6 +64,8 @@ function Plugin:Initialise()
 				self:ClientConnect( Client )
 			end
 		end
+	else
+		self.Users = {}
 	end
 
 	self.Enabled = true
@@ -300,9 +300,7 @@ end
 	When a client disconnects, remove them from the player list.
 ]]
 function Plugin:ClientDisconnect( Client )
-	if self.Users[ Client ] then
-		self.Users[ Client ] = nil
-	end
+	self.Users[ Client ] = nil
 end
 
 --Override the built in randomise ready room vote to not move AFK players.

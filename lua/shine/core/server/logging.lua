@@ -204,6 +204,28 @@ function Shine:NotifyError( Player, Message, Format, ... )
 	self:NotifyDualColour( Player, 255, 0, 0, "[Error]", 255, 255, 255, Message, Format, ... )
 end
 
+do
+	local SharedTime = Shared.GetTime
+
+	local NextNotification = {}
+	function Shine:CanNotify( Client )
+		if not Client then return false end
+
+		local NextTime = NextNotification[ Client ] or 0
+		local Time = SharedTime()
+
+		if Time < NextTime then return false end
+		
+		NextNotification[ Client ] = Time + 5
+
+		return true
+	end
+
+	Shine.Hook.Add( "ClientDisconnect", "NextNotification", function( Client )
+		NextNotification[ Client ] = nil
+	end )
+end
+
 --[[
 	Notifies players of a command, obeying the settings for who can see names,
 	and how the console should be displayed.

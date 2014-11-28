@@ -33,7 +33,6 @@ function Plugin:Initialise()
 	self:VerifyConfig()
 
 	self.Retries = {}
-	self.NextNotify = setmetatable( {}, { __mode = "k" } )
 
 	self:CreateCommands()
 	self:CheckBans()
@@ -66,9 +65,7 @@ function Plugin:CheckCommLogin( CommandStation, Player )
 			Player:TriggerInvalidSound()
 		end
 
-		if ( self.NextNotify[ Client ] or 0 ) <= CurTime then
-			self.NextNotify[ Client ] = CurTime + 10
-
+		if Shine:CanNotify( Client ) then
 			local Duration = BanData.UnbanTime == 0 and "permanently"
 				or "for "..string.TimeToString( BanData.UnbanTime - CurTime )
 

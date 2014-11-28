@@ -1236,11 +1236,9 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 			end
 		end
 		--Spamming F4 shouldn't spam messages...
-		if not Player.NextShineNotify or Player.NextShineNotify < Time then 
+		if Shine:CanNotify( Client ) then 
 			self:Notify( Player, "You cannot switch teams. %s teams are enabled.",
 				true, ModeStrings.Mode[ self.Config.BalanceMode ] )
-
-			Player.NextShineNotify = Time + 5
 		end
 
 		return false
