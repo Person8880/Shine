@@ -6,14 +6,13 @@ local Shine = Shine
 local Hook = Shine.Hook
 local Call = Hook.Call
 
-local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
-
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local Max = math.max
+local Min = math.min
+local Notify = Shared.Message
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
@@ -276,7 +275,7 @@ end
 
 local function Help( Client, Search )
 	local PageSize = 25
-	
+
 	local function GetBoundaryIndexes( PageNumber )
 		local LastIndexToShow = PageSize * PageNumber
 		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
@@ -318,29 +317,35 @@ local function Help( Client, Search )
 			end
 		end
 
-		TableSort( CommandNames, function( CommandName1, CommandName2 ) return CommandName1 < CommandName2 end )
+		TableSort( CommandNames, function( CommandName1, CommandName2 )
+			return CommandName1 < CommandName2
+		end )
 
 		History.Cache[ Query ] = CommandNames
 	end
 
-	PageNumber = CommandsAppearOnPage( #CommandNames, PageNumber ) and PageNumber or 1
+	local NumCommands = #CommandNames
+	PageNumber = CommandsAppearOnPage( NumCommands, PageNumber ) and PageNumber or 1
 
 	local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
-	FirstIndexToShow = FirstIndexToShow <= #CommandNames and FirstIndexToShow or #CommandNames
-	LastIndexToShow = LastIndexToShow <= #CommandNames and LastIndexToShow or #CommandNames
+	FirstIndexToShow = Min( FirstIndexToShow, NumCommands )
+	LastIndexToShow = Min( LastIndexToShow, NumCommands )
 
 	PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:", 
-		FirstIndexToShow, LastIndexToShow, #CommandNames, ( Search == nil and "" or " matching \"" .. Search .. "\"" ) ) )
+		FirstIndexToShow, LastIndexToShow, NumCommands,
+		Search == nil and "" or StringFormat( " matching %q", Search ) ) )
 
-	for i = 1, #CommandNames do
+	for i = 1, NumCommands do
 		local CommandName = CommandNames[ i ]
 		if CommandAppearsOnPage( i, PageNumber ) then
 			local Command = Shine.Commands[ CommandName ]
 
 			if Command then
+				local ChatCommand = type( Command.ChatCmd ) == "string"
+					and StringFormat( " (chat: !%s)", Command.ChatCmd ) or ""
+
 				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
-					( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), 
-					Command.Help or "No help available." )
+					ChatCommand, Command.Help or "No help available." )
 
 				PrintToConsole( Client, HelpLine )
 			end
@@ -353,9 +358,10 @@ local function Help( Client, Search )
 	Histories[ Client or "Console" ] = History
 
 	local EndMessage = "End command list."
-	if CommandsAppearOnPage( #CommandNames, PageNumber + 1 ) then
-		EndMessage = StringFormat( "There are more commands! Re-issue the \"sh_help%s\" command to view them.", 
-			( Search == nil and "" or StringFormat( " %s", Search ) ) )
+	if CommandsAppearOnPage( NumCommands, PageNumber + 1 ) then
+		EndMessage = StringFormat( 
+			"There are more commands! Re-issue the \"sh_help%s\" command to view them.", 
+			Search == nil and "" or StringFormat( " %s", Search ) )
 	end
 	PrintToConsole( Client, EndMessage )
 end
@@ -367,7 +373,8 @@ function Plugin:CreateCommands()
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
-		Shine:Print( "%s ran console command: %s", true, Client and Client:GetControllingPlayer():GetName() or "Console", Command )
+		Shine:Print( "%s ran console command: %s", true,
+			Shine.GetClientInfo( Client ), Command )
 	end
 	local RConCommand = self:BindCommand( "sh_rcon", "rcon", RCon )
 	RConCommand:AddParam{ Type = "string", TakeRestOfLine = true }
@@ -375,7 +382,8 @@ function Plugin:CreateCommands()
 
 	local function SetPassword( Client, Password )
 		Server.SetPassword( Password )
-		Shine:AdminPrint( Client, "Password %s", true, Password ~= "" and "set to "..Password or "reset" )
+		Shine:AdminPrint( Client, "Password %s", true,
+			Password ~= "" and "set to "..Password or "reset" )
 	end
 	local SetPasswordCommand = self:BindCommand( "sh_password", "password", SetPassword )
 	SetPasswordCommand:AddParam{ Type = "string", TakeRestOfLine = true, Optional = true, Default = "" }
@@ -439,8 +447,8 @@ function Plugin:CreateCommands()
 			if Shine.Config.NotifyOnCommand then
 				Shine:CommandNotify( Client, "%s %s.", true, Enabled, CommandNotifyString )
 			else
-				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]",
-					255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
+				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
+					"[All Talk]", 255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
 			end
 		end
 		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
@@ -471,7 +479,8 @@ function Plugin:CreateCommands()
 				Shine:CommandNotify( Client, "set friendly fire scale to %s.", true, Scale )
 			else
 				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[FF]",
-					255, 255, 255, "Friendly fire has been %s.", true, Enable and "enabled" or "disabled" )
+					255, 255, 255, "Friendly fire has been %s.", true,
+					Enable and "enabled" or "disabled" )
 			end
 		end
 	end
@@ -683,7 +692,8 @@ function Plugin:CreateCommands()
 				Shine.Config.ActiveExtensions[ Name ] = true
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to enabled in config.", Name ) )
+				Shine:AdminPrint( Client,
+					StringFormat( "Plugin %s now set to enabled in config.", Name ) )
 
 				return
 			end
@@ -722,7 +732,8 @@ function Plugin:CreateCommands()
 				Shine.Config.ActiveExtensions[ Name ] = false
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to disabled in config.", Name ) )
+				Shine:AdminPrint( Client,
+					StringFormat( "Plugin %s now set to disabled in config.", Name ) )
 
 				return
 			end
@@ -917,9 +928,16 @@ function Plugin:CreateCommands()
 	end
 
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
-		Server.SetConfigSetting( "auto_team_balance", Enable and { enabled_on_unbalance_amount = UnbalanceAmount, enabled_after_seconds = Delay } or nil )
+		Server.SetConfigSetting( "auto_team_balance",
+			Enable and {
+				enabled_on_unbalance_amount = UnbalanceAmount,
+				enabled_after_seconds = Delay
+			} or nil )
+
 		if Enable then
-			Shine:AdminPrint( Client, "Auto balance enabled. Player unbalance amount: %s. Delay: %s.", true, UnbalanceAmount, Delay )
+			Shine:AdminPrint( Client,
+				"Auto balance enabled. Player unbalance amount: %s. Delay: %s.",
+				true, UnbalanceAmount, Delay )
 		else
 			Shine:AdminPrint( Client, "Auto balance disabled." )
 		end
@@ -972,7 +990,8 @@ function Plugin:CreateCommands()
 	end
 
 	local function AdminSay( Client, Message )
-		Shine:Notify( nil, "All", ( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
+		Shine:Notify( nil, "All",
+			( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
 	end
 	local AdminSayCommand = self:BindCommand( "sh_say", "say", AdminSay, false, true )
 	AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength, TakeRestOfLine = true, Error = "Please specify a message." }
@@ -981,7 +1000,8 @@ function Plugin:CreateCommands()
 	local function AdminTeamSay( Client, Team, Message )
 		local Players = GetEntitiesForTeam( "Player", Team )
 
-		Shine:Notify( Players, "Team", ( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
+		Shine:Notify( Players, "Team",
+			( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
 	end
 	local AdminTeamSayCommand = self:BindCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
 	AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify a team." }
@@ -1036,7 +1056,8 @@ function Plugin:CreateCommands()
 			Colour = Colours.white
 		end
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 1, 2, 1 ) )
+		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6,
+			Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 1, 2, 1 ) )
 		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
 	end
 	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )
@@ -1058,7 +1079,8 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( nil, "%s[%s] gagged %s[%s]%s", true, PlayerName, ID, TargetName, TargetID,
 			Duration == 0 and "" or " for "..DurationString )
 
-		Shine:CommandNotify( Client, "gagged %s %s.", true, TargetName, Duration == 0 and "until map change" or "for "..DurationString )
+		Shine:CommandNotify( Client, "gagged %s %s.", true, TargetName,
+			Duration == 0 and "until map change" or "for "..DurationString )
 	end
 	local GagCommand = self:BindCommand( "sh_gag", "gag", GagPlayer )
 	GagCommand:AddParam{ Type = "client" }
