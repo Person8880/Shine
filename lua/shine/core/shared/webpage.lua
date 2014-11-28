@@ -15,8 +15,6 @@ local Hook = Shine.Hook
 
 local SGUI = Shine.GUI
 
-local WindowColour = Colour( 0.3, 0.3, 0.3, 1 )
-local TextColour = Colour( 1, 1, 1, 1 )
 local CloseButtonCol = Colour( 0.6, 0.3, 0.1, 1 )
 local CloseButtonHighlight = Colour( 0.8, 0.4, 0.1, 1 )
 local SteamButtonCol = Colour( 0.1, 0.6, 0.2, 1 )
@@ -47,10 +45,10 @@ local function OpenInSteamPopup( URL )
 	Window:SetupFromTable{
 		Size = PopupSize,
 		Anchor = "CentreMiddle",
-		Pos = PopupPos,
-		Colour = WindowColour
+		Pos = PopupPos
 	}
 	Window:AddTitleBar( "Open in Steam Overlay" )
+	Window:SkinColour()
 
 	local OldOnMouseDown = Window.OnMouseDown
 
@@ -69,7 +67,7 @@ local function OpenInSteamPopup( URL )
 		Pos = PopupTextPos,
 		Text = PopupText,
 		Font = TitleFont,
-		Colour = TextColour,
+		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
 		TextAlignmentY = GUIItem.Align_Center
 	}
@@ -82,7 +80,6 @@ local function OpenInSteamPopup( URL )
 		IsSchemed = false,
 		Text = "Now",
 		Font = TitleFont,
-		TextColour = TextColour,
 		ActiveCol = CloseButtonHighlight,
 		InactiveCol = CloseButtonCol
 	}
@@ -103,7 +100,6 @@ local function OpenInSteamPopup( URL )
 		IsSchemed = false,
 		Text = "Always",
 		Font = TitleFont,
-		TextColour = TextColour,
 		ActiveCol = SteamButtonHighlight,
 		InactiveCol = SteamButtonCol
 	}
@@ -112,9 +108,7 @@ local function OpenInSteamPopup( URL )
 		Window:Destroy()
 
 		Shine:CloseWebPage()
-
 		Shine.Config.ShowWebInSteamBrowser = true
-
 		Shine:SaveClientBaseConfig()
 
 		Client.ShowWebpage( URL )
@@ -143,10 +137,10 @@ function Shine:OpenWebpage( URL, TitleText )
 	Window:SetupFromTable{
 		Size = Vector( WindowWidth, WindowHeight, 0 ),
 		Anchor = "CentreMiddle",
-		Pos = Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 ),
-		Colour = WindowColour
+		Pos = Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 )
 	}
 	Window:AddTitleBar( TitleText or "Message of the day" )
+	Window:SkinColour()
 
 	self.ActiveWebPage = Window
 
@@ -161,7 +155,6 @@ function Shine:OpenWebpage( URL, TitleText )
 		Size = SteamButtonSize,
 		IsSchemed = false,
 		Text = "Open in Steam",
-		TextColour = TextColour,
 		Font = TitleFont,
 		TextScale = SteamButtonScale,
 		ActiveCol = SteamButtonHighlight,
@@ -179,7 +172,7 @@ function Shine:OpenWebpage( URL, TitleText )
 		Anchor = "CentreMiddle",
 		Text = "Loading...",
 		Font = LoadingFont,
-		Colour = TextColour,
+		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
 		TextAlignmentY = GUIItem.Align_Center
 	}
@@ -201,7 +194,6 @@ function Shine:CloseWebPage()
 	SGUI:EnableMouse( false )
 
 	self.ActiveWebPage:Destroy()
-
 	self.ActiveWebPage = nil
 end
 
