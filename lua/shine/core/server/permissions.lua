@@ -35,8 +35,8 @@ function Shine:RequestUsers( Reload )
 				self:AdminPrint( nil,
 					"Reloading from the web failed. User data has not been changed." )
 
-				return 
-			end 
+				return
+			end
 
 			Notify( "Loading from the web failed. Using local file instead." )
 
@@ -109,7 +109,7 @@ function Shine:LoadUsers( Web, Reload )
 
 	if not IsType( self.UserData, "table" ) or not next( self.UserData ) then
 		Notify( "The user data file is not valid JSON, unable to load user data." )
-	
+
 		--Dummy data to avoid errors.
 		if not Reload then
 			self.UserData = { Groups = {}, Users = {} }
@@ -190,7 +190,7 @@ local function ConvertCommands( Commands )
 			Ret[ i ] = Equivalent
 		else
 			Ret[ i ] = Command:gsub( "sv", "sh" )
-		end	
+		end
 	end
 
 	return Ret
@@ -212,10 +212,10 @@ function Shine:ConvertData( Data, DontSave )
 
 		for Name, Vals in pairs( Data.groups ) do
 			if Vals.type or Vals.commands or Vals.level then
-				Data.Groups[ Name ] = { 
+				Data.Groups[ Name ] = {
 					IsBlacklist = Vals.type == "disallowed",
-					Commands = Vals.commands and ConvertCommands( Vals.commands ) or {}, 
-					Immunity = Vals.level or 10, 
+					Commands = Vals.commands and ConvertCommands( Vals.commands ) or {},
+					Immunity = Vals.level or 10,
 					Badge = Vals.badge,
 					Badges = Vals.badges
 				}
@@ -238,7 +238,7 @@ function Shine:ConvertData( Data, DontSave )
 
 		for Name, Vals in pairs( Data.users ) do
 			if Vals.id then
-				Data.Users[ tostring( Vals.id ) ] = { 
+				Data.Users[ tostring( Vals.id ) ] = {
 					Group = Vals.groups and Vals.groups[ 1 ],
 					Immunity = Vals.level,
 					Badge = Vals.badge,
@@ -286,14 +286,18 @@ local GameID = 0
 Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
 	--I have a suspicion that this event is being called again for a client that never disconnected.
 	if GameIDs:Get( Client ) then return true end
-	
+
 	GameID = GameID + 1
 	GameIDs:Add( Client, GameID )
 end, -20 )
 
-Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client ) 
+Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
 	GameIDs:Remove( Client )
 end, -20 )
+
+local function GetIDFromClient( Client )
+	return IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+end
 
 --[[
 	Gets the user data table for the given client/NS2ID.
@@ -303,10 +307,8 @@ end, -20 )
 function Shine:GetUserData( Client )
 	if not self.UserData then return nil end
 	if not self.UserData.Users then return nil end
-	
-	local ID = IsType( Client, "number" ) and Client
-		or ( Client.GetUserId and Client:GetUserId() )
 
+	local ID = GetIDFromClient( Client )
 	if not ID then return nil end
 
 	local User = self.UserData.Users[ tostring( ID ) ]
@@ -341,7 +343,7 @@ function Shine:GetGroupData( GroupName )
 	if not GroupName then return self:GetDefaultGroup() end
 	if not self.UserData then return nil end
 	if not self.UserData.Groups then return nil end
-	
+
 	return self.UserData.Groups[ GroupName ]
 end
 
@@ -472,7 +474,7 @@ function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
 			return not Exists
 		end
 	end
-	
+
 	return Exists, AllowedArgs
 end
 
@@ -703,7 +705,7 @@ end
 	Determines if the given client has raw access to the given command.
 	Unlike get permission, this looks specifically for a user group with explicit permission.
 	It also does not require the command to exist.
-	
+
 	Inputs: Client or Steam ID, command name (sh_*)
 	Output: True if explicitly allowed.
 ]]
@@ -736,7 +738,37 @@ function Shine:HasAccess( Client, ConCommand )
 
 	return self:GetGroupAccess( UserGroup, GroupTable, ConCommand )
 end
-	
+
+local function GetGroupAndImmunity( self, Groups, User, ID )
+	if not User then
+		local DefaultGroup = self:GetDefaultGroup()
+
+		if not DefaultGroup then
+			return nil
+		end
+
+		return DefaultGroup, tonumber( DefaultGroup.Immunity ) or 0
+	end
+
+	local Group = Groups[ User.Group or -1 ]
+
+	if not Group then
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+			true, ID, tostring( User.Group ) )
+		return nil
+	end
+
+	--Read from the user's immunity first, then the groups.
+	local Immunity = tonumber( User.Immunity or Group.Immunity )
+
+	if not Immunity then
+		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)",
+			true, ID, tostring( User.Group ) )
+		return nil
+	end
+
+	return Group, Immunity
+end
 
 --[[
 	Determines if the given client can use a command on the given target client.
@@ -745,25 +777,19 @@ end
 ]]
 function Shine:CanTarget( Client, Target )
 	if not Client or not Target then return true end --Console can target all.
-
 	if Client == Target then return true end --Can always target yourself.
-
 	if not self.UserData then return false end
-
-	local ID = IsType( Client, "number" ) and Client
-		or ( Client.GetUserId and Client:GetUserId() )
-	local TargetID = IsType( Target, "number" ) and Target
-		or ( Target.GetUserId and Target:GetUserId() )
-
-	if not ID then return false end
-	if not TargetID then return false end
-
-	if ID == TargetID then return true end
 
 	local Users = self.UserData.Users
 	local Groups = self.UserData.Groups
-
 	if not Users or not Groups then return false end
+
+	local ID = GetIDFromClient( Client )
+	local TargetID = GetIDFromClient( Target )
+
+	if not ID then return false end
+	if not TargetID then return false end
+	if ID == TargetID then return true end
 
 	local User
 	local TargetUser
@@ -771,85 +797,25 @@ function Shine:CanTarget( Client, Target )
 	User, ID = self:GetUserData( ID )
 	TargetUser, TargetID = self:GetUserData( TargetID )
 
-	local TargetGroup
-	local TargetImmunity
-	local SkipTargetGroupCheck
-
-	if not TargetUser then
-		local DefaultGroup = self:GetDefaultGroup()
-
-		--Target is a guest, can always target guests if no default group is set.
-		if not DefaultGroup then
-			return true
-		end
-
-		SkipTargetGroupCheck = true
-		TargetGroup = DefaultGroup
+	local TargetGroup, TargetImmunity = GetGroupAndImmunity( self, Groups, TargetUser, TargetID )
+	if not TargetGroup then
+		return true
 	end
 
-	if not SkipTargetGroupCheck then
-		TargetGroup = Groups[ TargetUser.Group or -1 ]
-		if not TargetGroup then
-			self:Print( "User with ID %s belongs to a non-existent group (%s)!", true,
-				TargetID, tostring( TargetUser.Group ) )
-			return true 
-		end
-
-		TargetImmunity = tonumber( TargetUser.Immunity or TargetGroup.Immunity )
-		if not TargetImmunity then
-			self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
-				true, TargetID, tostring( TargetUser.Group ) )
-			return true
-		end
-	else
-		TargetImmunity = tonumber( TargetGroup.Immunity ) or 0
+	local Group, Immunity = GetGroupAndImmunity( self, Groups, User, ID )
+	if not Group then
+		--No user and no default group means can only target negative immunity groups.
+		return TargetImmunity < 0
 	end
 
-	local Group
-	local Immunity
-	local SkipUserGroupCheck
-
-	--Guests can target groups with immunity < 0.
-	if not User then
-		--Guest vs guest, always allowed.
-		if SkipTargetGroupCheck then
-			return true
-		end
-
-		local DefaultGroup = self:GetDefaultGroup()
-
-		if not DefaultGroup then
-			return TargetImmunity < 0
-		end
-		
-		SkipUserGroupCheck = true
-		Group = DefaultGroup
-	end
-
-	if not SkipUserGroupCheck then
-		Group = Groups[ User.Group or -1 ]
-
-		if not Group then
-			self:Print( "User with ID %s belongs to a non-existent group (%s)!",
-				true, ID, tostring( User.Group ) )
-			return false
-		end
-
-		--Read from the user's immunity first, then the groups.
-		Immunity = tonumber( User.Immunity or Group.Immunity )
-
-		if not Immunity then
-			self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)", 
-				true, ID, tostring( User.Group ) )
-			return false
-		end
-	else
-		Immunity = tonumber( Group.Immunity ) or 0
+	--Both guests in the default group.
+	if Group == TargetGroup and Group == self:GetDefaultGroup() then
+		return true
 	end
 
 	if self.Config.EqualsCanTarget then
 		return Immunity >= TargetImmunity
-	end 
+	end
 
 	return Immunity > TargetImmunity
 end
@@ -862,22 +828,18 @@ end
 function Shine:IsInGroup( Client, Group )
 	if not Client then return false end
 
-	if ( Client.GetIsVirtual and Client:GetIsVirtual() ) then 
-		return Group:lower() == "guest" 
+	if Client.GetIsVirtual and Client:GetIsVirtual() then
+		return Group:lower() == "guest"
 	end
 
 	if not self.UserData then return false end
-	
-	local GroupTable = self.UserData.Groups and self.UserData.Groups[ Group ]
-	if not GroupTable then return false end
-	
 	local UserData = self.UserData.Users
-
 	if not UserData then return false end
 
-	local ID = IsType( Client, "number" ) and Client
-		or ( Client.GetUserId and Client:GetUserId() )
+	local GroupTable = self.UserData.Groups and self.UserData.Groups[ Group ]
+	if not GroupTable then return false end
 
+	local ID = GetIDFromClient( Client )
 	if not ID then return false end
 
 	local User = self:GetUserData( ID )
@@ -885,19 +847,18 @@ function Shine:IsInGroup( Client, Group )
 	if User then
 		return User.Group == Group
 	end
-	
+
 	return Group:lower() == "guest"
 end
 
 --Deny vote kicks on players that are above in immunity level.
 Shine.Hook.Add( "NS2StartVote", "ImmunityCheck", function( VoteName, Client, Data )
 	if VoteName ~= "VoteKickPlayer" then return end
-	
+
 	local Target = Data.kick_client
 	if not Target then return end
-	
-	local TargetClient = GetClientById( Target )
 
+	local TargetClient = GetClientById( Target )
 	if not TargetClient then return end
 
 	if not Shine:CanTarget( Client, TargetClient ) then
