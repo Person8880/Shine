@@ -722,4 +722,5 @@ Add( "Think", "ReplaceMethods", function()
 
 	Call( "OnFirstThink" )
 	Hooks.OnFirstThink = nil
+	ReservedNames.OnFirstThink = nil
 end )
