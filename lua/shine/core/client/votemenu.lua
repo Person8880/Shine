@@ -5,6 +5,7 @@
 Script.Load( "lua/shine/core/client/votemenu_gui.lua" )
 
 local Clock = os.clock
+local Decode = json.decode
 local IsType = Shine.IsType
 local StringFormat = string.format
 local TableSort = table.sort
@@ -52,7 +53,7 @@ function Shine.CheckVoteMenuBind()
 	local BindsFile = CustomBinds:read( "*all" )
 	CustomBinds:close()
 
-	local Binds = json.decode( BindsFile ) or {}
+	local Binds = Decode( BindsFile ) or {}
 
 	if not IsType( Binds, "table" ) then
 		Shine.VoteButtonBound = nil
@@ -85,7 +86,6 @@ function Shine.OpenVoteMenu()
 	VoteMenu:SetIsVisible( true )
 
 	Shine.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
-
 	Shine.Hook.Call( "OnVoteMenuOpen" )
 end
 
@@ -118,9 +118,7 @@ local function CanBind( MenuBinds, Binds, Button )
 	end
 
 	if not Binds then return true end --No custom binds file.
-
 	if not Binds[ Button ] then return true end
-
 	if Binds[ Button ].command == "" then return true end
 
 	return false
@@ -134,15 +132,13 @@ local function BindVoteKey()
 	local MenuBinds = BindingsUI_GetBindingsTable()
 
 	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
-
 	local Binds
 
 	if CustomBinds then
 		local BindsFile = CustomBinds:read( "*all" )
-
 		CustomBinds:close()
 
-		Binds = json.decode( BindsFile ) or {}
+		Binds = Decode( BindsFile ) or {}
 
 		if IsType( Binds, "table" ) then
 			for Button, Data in pairs( Binds ) do
