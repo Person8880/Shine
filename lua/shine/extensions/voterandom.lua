@@ -106,7 +106,7 @@ function Plugin:Initialise()
 		self.Config.FallbackMode = self.MODE_KDR
 
 		Notify( ModeError )
-	
+
 		self:SaveConfig()
 	end
 
@@ -115,7 +115,7 @@ function Plugin:Initialise()
 	self.NextVote = 0
 
 	self.Vote = Shine:CreateVote( function() return self:GetVotesNeeded() end,
-		function() self:ApplyRandomSettings() end, 
+		function() self:ApplyRandomSettings() end,
 		function( Vote )
 		if Vote.LastVoted and SharedTime() - Vote.LastVoted > self.Config.VoteTimeout then
 			Vote:Reset()
@@ -164,7 +164,7 @@ function Plugin:AddELOFail()
 	if self.ELOFailCount >= 2 then
 		self.Config.BalanceMode = self.Config.FallbackMode
 
-		Shine:Print( "[Elo Vote] Connection to NS2Stats failed 2 times in a row, reverting to %s sorting for the rest of the map.", 
+		Shine:Print( "[Elo Vote] Connection to NS2Stats failed 2 times in a row, reverting to %s sorting for the rest of the map.",
 			true, ModeStrings.ModeLower[ self.Config.FallbackMode ] )
 	end
 end
@@ -204,12 +204,8 @@ function Plugin:RequestNS2Stats( Gamerules, Callback )
 	local URL
 	local _, NS2Stats = Shine:IsExtensionEnabled( "ns2stats" )
 
-	if NS2Stats then
-		URL = NS2Stats.Config.WebsiteUrl.."/api/players"
-	elseif RBPS then
-		URL = RBPS.websiteUrl.."/api/players"
-	end
-	
+	URL = NS2Stats.Config.WebsiteUrl.."/api/players"
+
 	local Params = {
 		players = TableConcat( Concat, "," )
 	}
@@ -416,7 +412,7 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 		elseif NumTeam2 > NumTeam1 then
 			LargetTeam = 2
 		end
-		local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2 
+		local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
 
 		--Just in case, though it ought to not infinitely loop even without this.
 		local Iterations = 0
@@ -611,13 +607,13 @@ Plugin.ShufflingModes = {
 	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats Elo based.
 		local NS2StatsEnabled, NS2Stats = Shine:IsExtensionEnabled( "ns2stats" )
 
-		if not RBPS and not NS2StatsEnabled then 
+		if not NS2StatsEnabled then
 			local FallbackMode = ModeStrings.ModeLower[ self.Config.FallbackMode ]
 
 			self:Notify( nil, "Shuffling based on Elo failed, falling back to %s sorting.",
 				true, FallbackMode )
 
-			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers ) 
+			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, Targets, TeamMembers )
 
 			self.LastShuffleMode = self.Config.FallbackMode
 
@@ -872,7 +868,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 				end
 
 				local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
-				
+
 				local Client = Player:GetClient()
 
 				if Client then
@@ -931,7 +927,7 @@ function Plugin:StoreScoreData( Player )
 	local Round = self.Round
 
 	assert( Round, "Attempted to store score data before round data was created!" )
-	
+
 	local ID = tostring( Client:GetUserId() )
 
 	local Mode = self.Config.BalanceMode
@@ -956,7 +952,7 @@ function Plugin:StoreScoreData( Player )
 		Kills = Kills + Assists * 0.5
 
 		--0 KDR is useless, let's just randomise them.
-		if Kills == 0 then return end 
+		if Kills == 0 then return end
 		--Don't want a NaN ratio!
 		if Deaths == 0 then Deaths = 1 end
 
@@ -969,7 +965,7 @@ end
 ]]
 function Plugin:GetAverageScoreData( ID )
 	ID = tostring( ID )
-	
+
 	local ScoreData = self.ScoreData
 	local RoundData = ScoreData.Rounds
 	local StoredRounds = #RoundData
@@ -999,7 +995,7 @@ function Plugin:SaveScoreData()
 		"config://shine/temp/voterandom_scores.json" )
 
 	if not Success then
-		Notify( "Error writing voterandom scoredata file: "..Err )	
+		Notify( "Error writing voterandom scoredata file: "..Err )
 
 		return
 	end
@@ -1023,7 +1019,7 @@ function Plugin:JoinRandomTeam( Player )
 
 	local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
-	
+
 	if Team1 < Team2 then
 		Gamerules:JoinTeam( Player, 1, nil, true )
 	elseif Team2 < Team1 then
@@ -1047,7 +1043,7 @@ function Plugin:JoinRandomTeam( Player )
 				--So we just hope for the best and put them on the worse team.
 				if PlayerSkill > 0 then
 					local NewTeam1Average = ( Team1Skill + PlayerSkill ) / ( Team1Count + 1 )
-					local NewTeam2Average = ( Team2Skill + PlayerSkill ) / ( Team2Count + 1 )	
+					local NewTeam2Average = ( Team2Skill + PlayerSkill ) / ( Team2Count + 1 )
 
 					--If we're going to make the lower team even worse, then put them on the "better" team.
 					if BetterTeam == 1 and NewTeam2Average < Team2Average then
@@ -1131,10 +1127,10 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	--Reset the randomised state of all players and store score data.
 	for i = 1, Count do
 		local Player = Players[ i ]
-		
+
 		if Player then
 			Player.ShineRandomised = nil
-			
+
 			if IsScoreBased then
 				self:StoreScoreData( Player )
 			end
@@ -1150,7 +1146,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 
 	if self.RandomOnNextRound then
 		self.RandomOnNextRound = false
-		
+
 		self:SimpleTimer( 15, function()
 			local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 
@@ -1164,7 +1160,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
 			self:ShuffleTeams()
-			
+
 			self.ForceRandom = true
 		end )
 
@@ -1180,7 +1176,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		if not ( Enabled and MapVote:IsEndVote() ) then
 			self:Notify( nil, "Shuffling teams %s due to previous vote.",
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
-			
+
 			self:ShuffleTeams()
 		end
 
@@ -1216,7 +1212,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
 	if Immune then return end
-	
+
 	local Team = Player:GetTeamNumber()
 	local OnPlayingTeam = Team == 1 or Team == 2
 
@@ -1235,7 +1231,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 			end
 		end
 		--Spamming F4 shouldn't spam messages...
-		if Shine:CanNotify( Client ) then 
+		if Shine:CanNotify( Client ) then
 			self:Notify( Player, "You cannot switch teams. %s teams are enabled.",
 				true, ModeStrings.Mode[ self.Config.BalanceMode ] )
 		end
@@ -1246,7 +1242,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if not Player.ShineRandomised then
 		if Team == 0 or Team == 3 then --They're going from the ready room/spectate to a team.
 			Player.ShineRandomised = true --Prevent an infinite loop!
-			
+
 			self:Notify( Player,
 				self.LastShuffleMode == self.MODE_HIVE and "You have been placed on a team based on Hive skill rank."
 				or "You have been placed on a random team." )
@@ -1257,7 +1253,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		end
 	else
 		--They came from ready room or spectate, i.e, we just randomised them.
-		if Team == 0 or Team == 3 then 
+		if Team == 0 or Team == 3 then
 			Player.ShineRandomised = nil
 
 			return
@@ -1333,7 +1329,7 @@ function Plugin:AddVote( Client )
 	end
 
 	if not Client then Client = "Console" end
-	
+
 	local Allow, Error = Shine.Hook.Call( "OnVoteStart", "random" )
 	if Allow == false then
 		return false, Error
@@ -1343,11 +1339,11 @@ function Plugin:AddVote( Client )
 	if not Success then
 		return false, Err
 	end
-	
+
 	Success = self.Vote:AddVote( Client )
-	if not Success then 
+	if not Success then
 		return false, StringFormat( "You have already voted for %s teams.",
-			ModeStrings.ModeLower[ self.Config.BalanceMode ] ) 
+			ModeStrings.ModeLower[ self.Config.BalanceMode ] )
 	end
 
 	return true
@@ -1377,7 +1373,7 @@ function Plugin:ApplyRandomSettings()
 
 		--Game hasn't started, apply the random settings now, as the next round is the one that's going to start...
 		if not Gamerules:GetGameStarted() then
-			self:Notify( nil, "Shuffling teams %s for the next round...", 
+			self:Notify( nil, "Shuffling teams %s for the next round...",
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
 			self:ShuffleTeams()
@@ -1387,7 +1383,7 @@ function Plugin:ApplyRandomSettings()
 			return
 		end
 
-		self:Notify( nil, "Teams will be forced to %s in the next round.", 
+		self:Notify( nil, "Teams will be forced to %s in the next round.",
 			true, ModeStrings.ModeLower[ self.Config.BalanceMode ] )
 
 		self.RandomOnNextRound = true
@@ -1401,7 +1397,7 @@ function Plugin:ApplyRandomSettings()
 	self.ForceRandom = true
 	self.NextVote = SharedTime() + Duration
 
-	self:Notify( nil, "%s teams have been enabled for the next %s.", 
+	self:Notify( nil, "%s teams have been enabled for the next %s.",
 		true, ModeStrings.Mode[ self.Config.BalanceMode ], string.TimeToString( Duration ) )
 
 	if self.Config.InstantForce then
@@ -1410,12 +1406,12 @@ function Plugin:ApplyRandomSettings()
 		local Started = Gamerules:GetGameStarted()
 
 		if Started then
-			self:Notify( nil, "Shuffling teams %s and restarting round...", 
+			self:Notify( nil, "Shuffling teams %s and restarting round...",
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
 			self:ShuffleTeams( true )
 		else
-			self:Notify( nil, "Shuffling teams %s...", 
+			self:Notify( nil, "Shuffling teams %s...",
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
 
 			self:ShuffleTeams()
@@ -1438,13 +1434,13 @@ function Plugin:CreateCommands()
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
 
-		local Success, Err = self:AddVote( Client )	
+		local Success, Err = self:AddVote( Client )
 
 		if Success then
 			local VotesNeeded = self.Vote:GetVotesNeeded()
 
 			if not self.RandomApplied then
-				self:Notify( nil, "%s voted to force %s teams (%s more votes needed).", 
+				self:Notify( nil, "%s voted to force %s teams (%s more votes needed).",
 					true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ], VotesNeeded )
 			end
 

@@ -723,28 +723,3 @@ Add( "Think", "ReplaceMethods", function()
 	Call( "OnFirstThink" )
 	Hooks.OnFirstThink = nil
 end )
-
---[[
-	Fix for NS2Stats way of overriding gamerules functions.
-]]
-Add( "ClientConnect", "ReplaceOnKilled", function( Client )
-	if not RBPS then
-		Remove( "ClientConnect", "ReplaceOnKilled" )
-
-		return
-	end
-
-	--They override the gamerules entity instead of the gamerules class...
-	local Ents = Shared.GetEntitiesWithClassname( "NS2Gamerules" )
-	local Gamerules = Ents:GetEntityAtIndex( 0 )
-
-	local OldOnEntityKilled = Gamerules.OnEntityKilled
-
-	function Gamerules:OnEntityKilled( TargetEnt, Attacker, Inflictor, Point, Dir )
-		Call( "OnEntityKilled", self, TargetEnt, Attacker, Inflictor, Point, Dir )
-
-		return OldOnEntityKilled( self, TargetEnt, Attacker, Inflictor, Point, Dir )
-	end
-
-	Remove( "ClientConnect", "ReplaceOnKilled" )
-end )
