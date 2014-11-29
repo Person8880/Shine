@@ -26,7 +26,7 @@ local function Remove( Event, Index )
 	local EventHooks = Hooks[ Event ]
 
 	if not EventHooks then return end
-	
+
 	local Priority = ReservedNames[ Event ][ Index ]
 	if not Priority then return end
 
@@ -103,14 +103,12 @@ end
 ]]
 local function Call( Event, ... )
 	if Shine.Hook.Disabled then return end
-	
+
 	local Plugins = Shine.Plugins
 	local AllPlugins = Shine.AllPluginsArray
 
 	local Hooked = Hooks[ Event ]
-
 	local MaxPriority = Hooked and Hooked[ -20 ]
-
 	local ProtectedHooks = RemovalExceptions[ Event ]
 
 	--Call max priority hooks BEFORE plugins.
@@ -214,7 +212,7 @@ end
 
 --[[
 	All available preset hooking methods for classes:
-	
+
 	- Replace: Replaces the function with a Shine hook call.
 
 	- PassivePre: Calls the given Shine hook, then runs the
@@ -224,7 +222,7 @@ end
 	then calls the Shine hook, then returns the original return values.
 
 	- ActivePre: Calls the given Shine hook and returns its values if it returned any.
-	Otherwise it returns the original function's values. 
+	Otherwise it returns the original function's values.
 
 	- ActivePost: Runs and stores the return values of the original function,
 	then calls the Shine hook. If the Shine hook returned values, they are returned.
@@ -410,7 +408,7 @@ local function SetupGlobalHook( FuncName, HookName, Mode )
 	local HookFunc = GlobalHookModes[ Mode ]
 
 	if not HookFunc then return nil end
-	
+
 	return HookFunc( FuncName, HookName )
 end
 Shine.Hook.SetupGlobalHook = SetupGlobalHook
@@ -433,7 +431,7 @@ function Shine.Hook.ReplaceLocalFunction( TargetFunc, UpvalueName, Replacement, 
 	local Value, i, Func = Shine.GetUpValue( TargetFunc, UpvalueName )
 
 	if not Value or not IsType( Value, "function" ) then return end
-	
+
 	--Copy all the upvalues from the original function to our replacement.
 	Shine.MimicFunction( Value, Replacement, DifferingValues, Recursive )
 
@@ -540,7 +538,7 @@ do
 		local Result = Call( "CheckConnectionAllowed", ID )
 
 		if Result ~= nil then return Result end
-		
+
 		return OldReservedSlot( ID )
 	end
 
@@ -551,7 +549,7 @@ do
 	]]
 	function Event.Hook( Name, Func )
 		local Override, NewFunc = Call( "NS2EventHook", Name, Func )
-		
+
 		if Override then
 			return OldEventHook( Name, NewFunc )
 		end
@@ -559,7 +557,7 @@ do
 		if Name ~= "CheckConnectionAllowed" then
 			return OldEventHook( Name, Func )
 		end
-		
+
 		OldReservedSlot = Func
 
 		Func = CheckConnectionAllowed
@@ -577,7 +575,7 @@ do
 			if Result == "" then return end
 			Message.message = Result
 		end
-		
+
 		return OldOnChatReceive( Client, Message )
 	end
 
@@ -594,7 +592,7 @@ do
 end
 
 --[[
-	Hook to run after everything has loaded. 
+	Hook to run after everything has loaded.
 	Here we replace class methods in order to hook into certain important events.
 ]]
 Add( "Think", "ReplaceMethods", function()
@@ -633,7 +631,7 @@ Add( "Think", "ReplaceMethods", function()
 	end
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
-	
+
 	SetupClassHook( Gamerules, "UpdatePregame", "UpdatePregame", "Halt" )
 	SetupClassHook( Gamerules, "CheckGameStart", "CheckGameStart", "Halt" )
 	SetupClassHook( Gamerules, "CastVoteByPlayer", "CastVoteByPlayer", "Halt" )
@@ -721,16 +719,19 @@ Add( "Think", "ReplaceMethods", function()
 	end
 
 	Remove( "Think", "ReplaceMethods" )
+
+	Call( "OnFirstThink" )
+	Hooks.OnFirstThink = nil
 end )
 
 --[[
 	Fix for NS2Stats way of overriding gamerules functions.
 ]]
 Add( "ClientConnect", "ReplaceOnKilled", function( Client )
-	if not RBPS then 
+	if not RBPS then
 		Remove( "ClientConnect", "ReplaceOnKilled" )
-		
-		return 
+
+		return
 	end
 
 	--They override the gamerules entity instead of the gamerules class...
@@ -741,7 +742,7 @@ Add( "ClientConnect", "ReplaceOnKilled", function( Client )
 
 	function Gamerules:OnEntityKilled( TargetEnt, Attacker, Inflictor, Point, Dir )
 		Call( "OnEntityKilled", self, TargetEnt, Attacker, Inflictor, Point, Dir )
-		
+
 		return OldOnEntityKilled( self, TargetEnt, Attacker, Inflictor, Point, Dir )
 	end
 

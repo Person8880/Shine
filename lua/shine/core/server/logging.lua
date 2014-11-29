@@ -35,9 +35,9 @@ Shared.OldMessage = Shared.OldMessage or Shared.Message
 
 --[[
 	Fun fact for anyone reading, this thread started Shine:
-	
+
 	http://forums.unknownworlds.com/discussion/126283/time-in-log-files
-	
+
 	and this function was its first feature.
 ]]
 function Shared.Message( String )
@@ -58,7 +58,7 @@ end
 
 function Shine:SaveLog()
 	if not self.Config.EnableLogging then return end
-	
+
 	local String = TableConcat( LogMessages, "\n" )
 
 	--This is dumb, but append mode appears to be broken.
@@ -70,7 +70,7 @@ function Shine:SaveLog()
 		Data = OldLog:read( "*all" )
 		OldLog:close()
 	end
-	
+
 	local LogFile, Err = io.open( GetCurrentLogFile(), "w+" )
 
 	if not LogFile then
@@ -140,11 +140,11 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return
 	end
 
-	local MessageTable = self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, 
+	local MessageTable = self.BuildChatMessage( Prefix, Name, kTeamReadyRoom,
 		kNeutralTeamType, Message )
 
 	self:ApplyNetworkMessage( Player, "Shine_Chat", MessageTable, true )
-	
+
 	Server.AddChatToHistory( Message, Name, 0, kTeamReadyRoom, false )
 end
 
@@ -215,7 +215,7 @@ do
 		local Time = SharedTime()
 
 		if Time < NextTime then return false end
-		
+
 		NextNotification[ Client ] = Time + 5
 
 		return true
@@ -232,7 +232,7 @@ end
 ]]
 function Shine:CommandNotify( Client, Message, Format, ... )
 	if not self.Config.NotifyOnCommand then return end
-	
+
 	local Clients = self.GameIDs
 	local IsConsole = not Client
 	local Immunity = self:GetUserImmunity( Client )
@@ -288,14 +288,14 @@ local OldServerAdminPrint = ServerAdminPrint
 
 local MaxPrintLength = 128
 
-Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
+Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime )
 	--[[
 		Rewrite ServerAdminPrint to not print to the server console when used,
 		otherwise we'll get spammed with repeat prints when sending to lots of people at once.
 	]]
 	function ServerAdminPrint( Client, Message )
 		if not Client then return end
-		
+
 		local MessageList = {}
 		local Count = 1
 
@@ -309,14 +309,12 @@ Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 		end
 
 		MessageList[ Count ] = Message
-		
+
 		for i = 1, #MessageList do
 			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
 				{ message = MessageList[ i ] }, true )
 		end
 	end
-
-	Shine.Hook.Remove( "Think", "OverrideServerAdminPrint" )
 end )
 
 function Shine:AdminPrint( Client, String, Format, ... )

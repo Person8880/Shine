@@ -181,7 +181,7 @@ function Plugin:OnProcessMove( Player, Input )
 			DataTable.Warn = true
 
 			local AFKTime = Time - DataTable.LastMove
-			
+
 			Shine.SendNetworkMessage( Client, "AFKWarning", {
 				timeAFK = AFKTime,
 				maxAFKTime = KickTime
@@ -240,7 +240,7 @@ if not Shine.IsNS2Combat then
 		Owner = Owner or Team:GetCommander()
 
 		if not Owner then return end
-		
+
 		local Client = GetOwner( Owner )
 
 		if not Client then return end
@@ -259,21 +259,21 @@ if not Shine.IsNS2Combat then
 
 		local Client = GetOwner( Commander )
 		if not Client then return end
-		
+
 		self:ResetAFKTime( Client )
 	end
 
 	function Plugin:OnCommanderTechTreeAction( Commander, ... )
 		local Client = GetOwner( Commander )
 		if not Client then return end
-		
+
 		self:ResetAFKTime( Client )
 	end
 
 	function Plugin:OnCommanderNotify( Commander, ... )
 		local Client = GetOwner( Commander )
 		if not Client then return end
-		
+
 		self:ResetAFKTime( Client )
 	end
 end
@@ -304,9 +304,7 @@ function Plugin:ClientDisconnect( Client )
 end
 
 --Override the built in randomise ready room vote to not move AFK players.
-Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
-	Shine.Hook.Remove( "Think", "AFKKick_OverrideVote" )
-
+Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 	local PlayingTeamNumbers = {
 		true, true
 	}
@@ -329,7 +327,7 @@ Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
 						else
 							local Team = Player:GetTeamNumber()
 							if PlayingTeamNumbers[ Team ] then
-								pcall( Gamerules.JoinTeam, Gamerules, Player, 
+								pcall( Gamerules.JoinTeam, Gamerules, Player,
 									kTeamReadyRoom, nil, true )
 							end
 						end
