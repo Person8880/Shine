@@ -6,13 +6,11 @@ local Shine = Shine
 
 Shine.UserData = {}
 
-local Encode, Decode = json.encode, json.decode
+local Decode = json.decode
 local GetClientById = Server.GetClientById
-local Notify = Shared.Message
-
 local IsType = Shine.IsType
-
 local next = next
+local Notify = Shared.Message
 local pairs = pairs
 local TableEmpty = table.Empty
 local tonumber = tonumber
@@ -89,13 +87,13 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	--Check the default path.
-	local UserFile = io.open( UserPath, "r" )
+	local UserFile = self.LoadJSONFile( UserPath )
 
 	if not UserFile then
-		UserFile = io.open( BackupPath, "r" ) --Check the secondary path.
+		UserFile = self.LoadJSONFile( BackupPath ) --Check the secondary path.
 
 		if not UserFile then
-			UserFile = io.open( DefaultUsers, "r" ) --Check the default NS2 users file.
+			UserFile = self.LoadJSONFile( DefaultUsers ) --Check the default NS2 users file.
 
 			if not UserFile then
 				self:GenerateDefaultUsers( true )
@@ -107,14 +105,9 @@ function Shine:LoadUsers( Web, Reload )
 
 	Notify( "Loading Shine users..." )
 
-	local Data = UserFile:read( "*all" )
+	self.UserData = UserFile
 
-	UserFile:close()
-
-	self.UserData = Decode( Data )
-
-	if not self.UserData or not IsType( self.UserData, "table" )
-	or not next( self.UserData ) then
+	if not IsType( self.UserData, "table" ) or not next( self.UserData ) then
 		Notify( "The user data file is not valid JSON, unable to load user data." )
 	
 		--Dummy data to avoid errors.
@@ -132,30 +125,19 @@ function Shine:LoadUsers( Web, Reload )
 	end
 end
 
-local JSONSettings = {
-	indent = true,
-	level = 1
-}
-
 --[[
 	Saves the Shine user data to the JSON file.
 ]]
 function Shine:SaveUsers( Silent )
-	local Data = Encode( self.UserData, JSONSettings )
+	local Success, Err = self.SaveJSONFile( self.UserData, UserPath )
 
-	local UserFile, Err = io.open( UserPath, "w+" )
-
-	if not UserFile then
+	if not Success then
 		self.Error = "Error writing user file: "..Err
 
 		Notify( self.Error )
 
 		return
 	end
-
-	UserFile:write( Data )
-
-	UserFile:close()
 
 	if not Silent then
 		Notify( "Saving Shine users..." )
