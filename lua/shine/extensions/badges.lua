@@ -14,12 +14,6 @@ Plugin.Version = "2.0"
 function Plugin:Initialise()
 	self.AssignedGuests = {}
 
-	if self.Enabled ~= nil then
-		self.Enabled = true
-
-		return true
-	end
-
 	self.Enabled = true
 
 	return true
