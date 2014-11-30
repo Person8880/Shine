@@ -240,12 +240,14 @@ function TabPanel:AddCloseButton()
 	CloseButton:SetTextColour( Skin.BrightText )
 
 	function CloseButton.DoClick()
-		self:SetIsVisible( false )
-
 		--Again for external usage.
 		if self.OnClose then
-			self:OnClose()
+			if self:OnClose() then
+				return
+			end
 		end
+
+		self:SetIsVisible( false )
 	end
 
 	self.CloseButton = CloseButton

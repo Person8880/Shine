@@ -50,27 +50,7 @@ Plugin.EndTime = 0
 function Plugin:Initialise()
 	self.Enabled = true
 
-	if not RBPS then return true end
-
-	RBPS.oldShowNextAward = RBPS.oldShowNextAward or RBPS.clientShowNextAward
-
-	--Taken straight from the NS2stats code, just modified the starting height.
-	function RBPS:clientShowNextAward( ID )
-		local AddY = ID * 22
-		local Col = Color( 230 / 255, 230 / 255, 0 )             
-		
-		Cout:addClientTextMessage( Client.GetScreenWidth() * 6 / 8,
-			( Client.GetScreenHeight() * 1 / 3 ) + AddY,
-			RBPSclientAwards[ ID ], 30 - ID, Col, "awardmsg"..ID )                    
-	end
-
 	return true
-end
-
-function Plugin:Cleanup()
-	if not RBPS then return end
-	
-	RBPS.clientShowNextAward = RBPS.oldShowNextAward
 end
 
 function Plugin:OnVoteMenuOpen()
@@ -120,16 +100,16 @@ local function SendMapVote( MapName )
 
 		return true
 	end
-	
+
 	return false
 end
 
 Shine.VoteMenu:AddPage( "MapVote", function( self )
 	local Maps = Plugin.Maps
-	if not Maps then 
-		return 
+	if not Maps then
+		return
 	end
-	
+
 	local NumMaps = #Maps
 
 	for i = 1, NumMaps do
@@ -220,7 +200,7 @@ function Plugin:ReceiveVoteOptions( Message )
 		VoteMessage = StringFormat( ButtonBoundMessage,
 			NextMap and "Voting for the next map has begun" or "Map vote has begun",
 			VoteButton )
-	else 
+	else
 		VoteMessage = StringFormat( ButtonUnboundMessage,
 			NextMap and "Voting for the next map has begun." or "Map vote has begun.",
 			Options )
@@ -257,7 +237,7 @@ function Plugin:ReceiveVoteOptions( Message )
 
 				if ButtonBound then
 					self.Text = StringFormat( ButtonBoundMessage, FirstLine, VoteButton )
-				else 
+				else
 					self.Text = StringFormat( ButtonUnboundMessage, FirstLine, Options )
 				end
 
@@ -293,7 +273,7 @@ function Plugin:ReceiveVoteOptions( Message )
 
 				if ButtonBound then
 					self.Text = StringFormat( ButtonBoundMessage, FirstLine, VoteButton )
-				else 
+				else
 					self.Text = StringFormat( ButtonUnboundMessage, FirstLine, Options )
 				end
 

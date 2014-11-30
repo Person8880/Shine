@@ -166,12 +166,26 @@ function Plugin:OnWebConfigLoaded()
 	self:VerifyConfig()
 end
 
+local function NS2EntryToShineEntry( Table )
+	local Duration = Table.duration
+		or ( Table.time > 0 and Table.time - Time() or 0 )
+
+	return {
+		Name = Table.name,
+		UnbanTime = Table.time,
+		Reason = Table.reason,
+		BannedBy = Table.bannedby or "<unknown>",
+		BannerID = Table.bannerid or 0,
+		Duration = Duration
+	}
+end
+
 --[[
 	Merges the NS2/Dak config into the Shine config.
 ]]
 function Plugin:MergeNS2IntoShine()
 	local Edited
-	
+
 	local VanillaBans = Shine.LoadJSONFile( self.VanillaConfig )
 	local MergedTable = self.Config.Banned
 	local VanillaIDs = {}
@@ -183,15 +197,10 @@ function Plugin:MergeNS2IntoShine()
 			
 			if ID then
 				VanillaIDs[ ID ] = true
-				
+
 				if not MergedTable[ ID ] or ( MergedTable[ ID ]
 				and MergedTable[ ID ].UnbanTime ~= Table.time ) then
-					MergedTable[ ID ] = {
-						Name = Table.name, UnbanTime = Table.time,
-						Reason = Table.reason, BannedBy = Table.bannedby or "<unknown>",
-						BannerID = Table.bannerid or 0,
-						Duration = Table.duration or ( Table.time > 0 and Table.time - Time() or 0 )
-					}
+					MergedTable[ ID ] = NS2EntryToShineEntry( Table )
 
 					Edited = true
 				end
@@ -225,18 +234,14 @@ function Plugin:NS2ToShine( Data )
 	for i = 1, #Data do
 		local Table = Data[ i ]
 		local SteamID = tostring( Table.id )
-		if SteamID then			
-			Data[ SteamID ] = {
-				Name = Table.name, UnbanTime = Table.time,
-				Reason = Table.reason, BannedBy = Table.bannedby or "<unknown>",
-				BannerID = Table.bannerid or 0,
-				Duration = Table.duration or ( Table.time > 0 and Table.time - Time() or 0 )
-			}
+
+		if SteamID then
+			Data[ SteamID ] = NS2EntryToShineEntry( Table )
 		end
-		
+
 		Data[ i ] = nil
 	end
-	
+
 	return Data
 end
 
@@ -245,15 +250,19 @@ end
 ]]
 function Plugin:ShineToNS2()
 	local NS2Bans = {}
-	
+
 	for ID, Table in pairs( self.Config.Banned ) do
 		NS2Bans[ #NS2Bans + 1 ] = {
-			name = Table.Name , id = tonumber( ID ), reason = Table.Reason,
-			time = Table.UnbanTime, bannedby = Table.BannedBy,
-			bannerid = Table.BannerID, duration = Table.Duration
+			name = Table.Name,
+			id = tonumber( ID ),
+			reason = Table.Reason,
+			time = Table.UnbanTime,
+			bannedby = Table.BannedBy,
+			bannerid = Table.BannerID,
+			duration = Table.Duration
 		}
 	end
-	
+
 	Shine.SaveJSONFile( NS2Bans, self.VanillaConfig )
 end
 

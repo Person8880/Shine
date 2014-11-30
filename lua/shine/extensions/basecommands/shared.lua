@@ -192,15 +192,19 @@ function Plugin:SetupAdminMenuCommands()
 
 			for Plugin in pairs( Shine.AllPlugins ) do
 				local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
-				
+				local Skip
 				--Server side plugin.
 				if not PluginTable then
 					Enabled = self.PluginData and self.PluginData[ Plugin ]
+				elseif PluginTable.IsClient and not PluginTable.IsShared then
+					Skip = true
 				end
-				
-				local Row = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
 
-				self.PluginRows[ Plugin ] = Row
+				if not Skip then
+					local Row = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
+
+					self.PluginRows[ Plugin ] = Row
+				end
 			end
 
 			if Data and Data.SortedColumn then

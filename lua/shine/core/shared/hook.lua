@@ -26,7 +26,7 @@ local function Remove( Event, Index )
 	local EventHooks = Hooks[ Event ]
 
 	if not EventHooks then return end
-	
+
 	local Priority = ReservedNames[ Event ][ Index ]
 	if not Priority then return end
 
@@ -77,41 +77,44 @@ local RemovalExceptions = {
 	PlayerSay = { CommandExecute = true }
 }
 
+local function CallHooks( HookMap, ProtectedHooks, Event, ... )
+	for Index, Func in HookMap:Iterate() do
+		local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
+
+		if not Success then
+			if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
+				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
+					true, Event, Index )
+
+				Remove( Event, Index )
+			else
+				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.",
+					true, Event, Index )
+			end
+		else
+			if a ~= nil then return a, b, c, d, e, f end
+		end
+	end
+end
+
 --[[
 	Calls an internal Shine hook.
 	Inputs: Event name, arguments to pass.
 ]]
 local function Call( Event, ... )
 	if Shine.Hook.Disabled then return end
-	
+
 	local Plugins = Shine.Plugins
 	local AllPlugins = Shine.AllPluginsArray
 
 	local Hooked = Hooks[ Event ]
-
 	local MaxPriority = Hooked and Hooked[ -20 ]
-
 	local ProtectedHooks = RemovalExceptions[ Event ]
 
 	--Call max priority hooks BEFORE plugins.
 	if MaxPriority then
-		for Index, Func in MaxPriority:Iterate() do
-			local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
-
-			if not Success then
-				if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
-					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-						true, Event, Index )
-
-					Remove( Event, Index )
-				else
-					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.",
-						true, Event, Index )
-				end
-			else
-				if a ~= nil then return a, b, c, d, e, f end
-			end
-		end
+		local a, b, c, d, e, f = CallHooks( MaxPriority, ProtectedHooks, Event, ... )
+		if a ~= nil then return a, b, c, d, e, f end
 	end
 
 	if Plugins then
@@ -146,26 +149,11 @@ local function Call( Event, ... )
 	if not Hooked then return end
 
 	for i = -19, 20 do
-		local HookTable = Hooked[ i ]
+		local HookMap = Hooked[ i ]
 
-		if HookTable then
-			for Index, Func in HookTable:Iterate() do
-				local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
-
-				if not Success then
-					if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
-						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-							true, Event, Index )
-
-						Remove( Event, Index )
-					else
-						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.",
-							true, Event, Index )
-					end
-				else
-					if a ~= nil then return a, b, c, d, e, f end
-				end
-			end
+		if HookMap then
+			local a, b, c, d, e, f = CallHooks( HookMap, ProtectedHooks, Event, ... )
+			if a ~= nil then return a, b, c, d, e, f end
 		end
 	end
 end
@@ -224,7 +212,7 @@ end
 
 --[[
 	All available preset hooking methods for classes:
-	
+
 	- Replace: Replaces the function with a Shine hook call.
 
 	- PassivePre: Calls the given Shine hook, then runs the
@@ -234,7 +222,7 @@ end
 	then calls the Shine hook, then returns the original return values.
 
 	- ActivePre: Calls the given Shine hook and returns its values if it returned any.
-	Otherwise it returns the original function's values. 
+	Otherwise it returns the original function's values.
 
 	- ActivePost: Runs and stores the return values of the original function,
 	then calls the Shine hook. If the Shine hook returned values, they are returned.
@@ -356,6 +344,16 @@ local GlobalHookModes = {
 
 			return a, b, c, d, e, f
 		end )
+	end,
+
+	Halt = function( FuncName, HookName )
+		AddGlobalHook( FuncName, function( OldFunc, ... )
+			local Ret = Call( HookName, ... )
+
+			if Ret ~= nil then return end
+
+			return OldFunc( ... )
+		end )
 	end
 }
 
@@ -410,7 +408,7 @@ local function SetupGlobalHook( FuncName, HookName, Mode )
 	local HookFunc = GlobalHookModes[ Mode ]
 
 	if not HookFunc then return nil end
-	
+
 	return HookFunc( FuncName, HookName )
 end
 Shine.Hook.SetupGlobalHook = SetupGlobalHook
@@ -433,7 +431,7 @@ function Shine.Hook.ReplaceLocalFunction( TargetFunc, UpvalueName, Replacement, 
 	local Value, i, Func = Shine.GetUpValue( TargetFunc, UpvalueName )
 
 	if not Value or not IsType( Value, "function" ) then return end
-	
+
 	--Copy all the upvalues from the original function to our replacement.
 	Shine.MimicFunction( Value, Replacement, DifferingValues, Recursive )
 
@@ -443,13 +441,15 @@ function Shine.Hook.ReplaceLocalFunction( TargetFunc, UpvalueName, Replacement, 
 	return Value
 end
 
---[[
-	Event hooks.
-]]
-local function UpdateServer( DeltaTime )
-	Call( "Think", DeltaTime )
+do
+	--[[
+		Event hooks.
+	]]
+	local function Think( DeltaTime )
+		Call( "Think", DeltaTime )
+	end
+	Event.Hook( Server and "UpdateServer" or "UpdateClient", Think )
 end
-Event.Hook( Server and "UpdateServer" or "UpdateClient", UpdateServer )
 
 --Client specific hooks.
 if Client then
@@ -503,90 +503,96 @@ if Client then
 	return
 end
 
-local function ClientConnect( Client )
-	Call( "ClientConnect", Client )
-end
-Event.Hook( "ClientConnect", ClientConnect )
+do
+	local function ClientConnect( Client )
+		Call( "ClientConnect", Client )
+	end
+	Event.Hook( "ClientConnect", ClientConnect )
 
-local function ClientDisconnect( Client )
-	Call( "ClientDisconnect", Client )
-end
-Event.Hook( "ClientDisconnect", ClientDisconnect )
+	local function ClientDisconnect( Client )
+		Call( "ClientDisconnect", Client )
+	end
+	Event.Hook( "ClientDisconnect", ClientDisconnect )
 
-local function MapPostLoad()
-	Call "MapPostLoad"
-end
-Event.Hook( "MapPostLoad", MapPostLoad )
+	local function MapPostLoad()
+		Call "MapPostLoad"
+	end
+	Event.Hook( "MapPostLoad", MapPostLoad )
 
-local function MapPreLoad()
-	Call "MapPreLoad"
-end
-Event.Hook( "MapPreLoad", MapPreLoad )
+	local function MapPreLoad()
+		Call "MapPreLoad"
+	end
+	Event.Hook( "MapPreLoad", MapPreLoad )
 
-local function MapLoadEntity( MapName, GroupName, Values )
-	Call( "MapLoadEntity", MapName, GroupName, Values )
-end
-Event.Hook( "MapLoadEntity", MapLoadEntity )
-
-local OldEventHook = Event.Hook
-local OldReservedSlot
-
-local function CheckConnectionAllowed( ID )
-	local Result = Call( "CheckConnectionAllowed", ID )
-
-	if Result ~= nil then return Result end
-	
-	return OldReservedSlot( ID )
+	local function MapLoadEntity( MapName, GroupName, Values )
+		Call( "MapLoadEntity", MapName, GroupName, Values )
+	end
+	Event.Hook( "MapLoadEntity", MapLoadEntity )
 end
 
---[[
-	Detour the event hook function so we can override the result of
-	CheckConnectionAllowed. Otherwise it would return the default function's value
-	and never call our hook.
-]]
-function Event.Hook( Name, Func )
-	local Override, NewFunc = Call( "NS2EventHook", Name, Func )
-	
-	if Override then
-		return OldEventHook( Name, NewFunc )
+do
+	local OldEventHook = Event.Hook
+	local OldReservedSlot
+
+	local function CheckConnectionAllowed( ID )
+		local Result = Call( "CheckConnectionAllowed", ID )
+
+		if Result ~= nil then return Result end
+
+		return OldReservedSlot( ID )
 	end
 
-	if Name ~= "CheckConnectionAllowed" then
+	--[[
+		Detour the event hook function so we can override the result of
+		CheckConnectionAllowed. Otherwise it would return the default function's value
+		and never call our hook.
+	]]
+	function Event.Hook( Name, Func )
+		local Override, NewFunc = Call( "NS2EventHook", Name, Func )
+
+		if Override then
+			return OldEventHook( Name, NewFunc )
+		end
+
+		if Name ~= "CheckConnectionAllowed" then
+			return OldEventHook( Name, Func )
+		end
+
+		OldReservedSlot = Func
+
+		Func = CheckConnectionAllowed
+
 		return OldEventHook( Name, Func )
 	end
-	
-	OldReservedSlot = Func
-
-	Func = CheckConnectionAllowed
-
-	return OldEventHook( Name, Func )
 end
 
-local OldOnChatReceive
+do
+	local OldOnChatReceive
 
-local function OnChatReceived( Client, Message )
-	local Result = Call( "PlayerSay", Client, Message )
-	if Result then
-		if Result == "" then return end
-		Message.message = Result
-	end
-	
-	return OldOnChatReceive( Client, Message )
-end
+	local function OnChatReceived( Client, Message )
+		local Result = Call( "PlayerSay", Client, Message )
+		if Result then
+			if Result == "" then return end
+			Message.message = Result
+		end
 
-local OriginalHookNWMessage = Server.HookNetworkMessage
-
-function Server.HookNetworkMessage( Message, Callback )
-	if Message == "ChatClient" then
-		OldOnChatReceive = Callback
-		Callback = OnChatReceived
+		return OldOnChatReceive( Client, Message )
 	end
 
-	OriginalHookNWMessage( Message, Callback )
+	local OriginalHookNWMessage = Server.HookNetworkMessage
+
+	function Server.HookNetworkMessage( Message, Callback )
+		if Message == "ChatClient" then
+			OldOnChatReceive = Callback
+			Callback = OnChatReceived
+		end
+
+		OriginalHookNWMessage( Message, Callback )
+	end
 end
 
 --[[
-	Hook to run after everything has loaded. 
+	Hook to run after everything has loaded.
 	Here we replace class methods in order to hook into certain important events.
 ]]
 Add( "Think", "ReplaceMethods", function()
@@ -625,7 +631,7 @@ Add( "Think", "ReplaceMethods", function()
 	end
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
-	
+
 	SetupClassHook( Gamerules, "UpdatePregame", "UpdatePregame", "Halt" )
 	SetupClassHook( Gamerules, "CheckGameStart", "CheckGameStart", "Halt" )
 	SetupClassHook( Gamerules, "CastVoteByPlayer", "CastVoteByPlayer", "Halt" )
@@ -636,13 +642,7 @@ Add( "Think", "ReplaceMethods", function()
 
 		Call( "SetGameState", self, State, CurState )
 	end )
-	SetupClassHook( Gamerules, "GetCanPlayerHearPlayer", "CanPlayerHearPlayer", function( OldFunc, self, Listener, Speaker )
-		local Result = Call( "CanPlayerHearPlayer", self, Listener, Speaker )
-
-		if Result ~= nil then return Result end
-		
-		return OldFunc( self, Listener, Speaker )
-	end )
+	SetupClassHook( Gamerules, "GetCanPlayerHearPlayer", "CanPlayerHearPlayer", "ActivePre" )
 	SetupClassHook( Gamerules, "JoinTeam", "JoinTeam", function( OldFunc, self, Player, NewTeam, Force, ShineForce )
 		local Override, OverrideTeam = Call( "JoinTeam", self, Player, NewTeam, Force, ShineForce )
 
@@ -719,29 +719,8 @@ Add( "Think", "ReplaceMethods", function()
 	end
 
 	Remove( "Think", "ReplaceMethods" )
-end )
 
---[[
-	Fix for NS2Stats way of overriding gamerules functions.
-]]
-Add( "ClientConnect", "ReplaceOnKilled", function( Client )
-	if not RBPS then 
-		Remove( "ClientConnect", "ReplaceOnKilled" )
-		
-		return 
-	end
-
-	--They override the gamerules entity instead of the gamerules class...
-	local Ents = Shared.GetEntitiesWithClassname( "NS2Gamerules" )
-	local Gamerules = Ents:GetEntityAtIndex( 0 )
-
-	local OldOnEntityKilled = Gamerules.OnEntityKilled
-
-	function Gamerules:OnEntityKilled( TargetEnt, Attacker, Inflictor, Point, Dir )
-		Call( "OnEntityKilled", self, TargetEnt, Attacker, Inflictor, Point, Dir )
-		
-		return OldOnEntityKilled( self, TargetEnt, Attacker, Inflictor, Point, Dir )
-	end
-
-	Remove( "ClientConnect", "ReplaceOnKilled" )
+	Call( "OnFirstThink" )
+	Hooks.OnFirstThink = nil
+	ReservedNames.OnFirstThink = nil
 end )

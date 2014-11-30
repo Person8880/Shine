@@ -15,8 +15,6 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
 
-Plugin.Users = setmetatable( {}, { __mode = "k" } )
-
 Plugin.DefaultConfig = {
 	MinPlayers = 10,
 	WarnMinPlayers = 5,
@@ -52,8 +50,22 @@ function Plugin:Initialise()
 
 	if self.Enabled ~= nil then
 		for Client in pairs( self.Users ) do
-			self:ResetAFKTime( Client )
+			if Shine:IsValidClient( Client ) then
+				self:ResetAFKTime( Client )
+			else
+				self.Users[ Client ] = nil
+			end
 		end
+
+		local Clients, Count = Shine.GetAllClients()
+		for i = 1, Count do
+			local Client = Clients[ i ]
+			if not self.Users[ Client ] then
+				self:ClientConnect( Client )
+			end
+		end
+	else
+		self.Users = {}
 	end
 
 	self.Enabled = true
@@ -169,7 +181,7 @@ function Plugin:OnProcessMove( Player, Input )
 			DataTable.Warn = true
 
 			local AFKTime = Time - DataTable.LastMove
-			
+
 			Shine.SendNetworkMessage( Client, "AFKWarning", {
 				timeAFK = AFKTime,
 				maxAFKTime = KickTime
@@ -228,7 +240,7 @@ if not Shine.IsNS2Combat then
 		Owner = Owner or Team:GetCommander()
 
 		if not Owner then return end
-		
+
 		local Client = GetOwner( Owner )
 
 		if not Client then return end
@@ -247,21 +259,21 @@ if not Shine.IsNS2Combat then
 
 		local Client = GetOwner( Commander )
 		if not Client then return end
-		
+
 		self:ResetAFKTime( Client )
 	end
 
 	function Plugin:OnCommanderTechTreeAction( Commander, ... )
 		local Client = GetOwner( Commander )
 		if not Client then return end
-		
+
 		self:ResetAFKTime( Client )
 	end
 
 	function Plugin:OnCommanderNotify( Commander, ... )
 		local Client = GetOwner( Commander )
 		if not Client then return end
-		
+
 		self:ResetAFKTime( Client )
 	end
 end
@@ -275,18 +287,31 @@ function Plugin:GetLastMoveTime( Client )
 end
 
 --[[
+	Returns true if the given client has been AFK for greater than the given time.
+]]
+function Plugin:IsAFKFor( Client, Time )
+	local LastMove = self:GetLastMoveTime( Client )
+	if not LastMove then return false end
+
+	return SharedTime() - LastMove > Time
+end
+
+--[[
 	When a client disconnects, remove them from the player list.
 ]]
 function Plugin:ClientDisconnect( Client )
-	if self.Users[ Client ] then
-		self.Users[ Client ] = nil
-	end
+	self.Users[ Client ] = nil
 end
 
 --Override the built in randomise ready room vote to not move AFK players.
-Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
+Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
+	local PlayingTeamNumbers = {
+		true, true
+	}
+
 	SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
-		local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
+		local Gamerules = GetGamerules()
+		local ReadyRoomPlayers = Gamerules:GetTeam( kTeamReadyRoom ):GetPlayers()
 		local Enabled, AFKPlugin = Shine:IsExtensionEnabled( "afkkick" )
 
 		for i = #ReadyRoomPlayers, 1, -1 do
@@ -297,11 +322,14 @@ Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
 					local Client = GetOwner( Player )
 
 					if Client then
-						local LastMove = AFKPlugin:GetLastMoveTime( Client )
-						local Time = SharedTime()
-
-						if not ( LastMove and Time - LastMove > 60 ) then
+						if not AFKPlugin:IsAFKFor( Client, 60 ) then
 							JoinRandomTeam( Player )
+						else
+							local Team = Player:GetTeamNumber()
+							if PlayingTeamNumbers[ Team ] then
+								pcall( Gamerules.JoinTeam, Gamerules, Player,
+									kTeamReadyRoom, nil, true )
+							end
 						end
 					end
 				end
@@ -311,7 +339,38 @@ Shine.Hook.Add( "Think", "AFKKick_OverrideVote", function()
 		end
 	end )
 
-	Shine.Hook.Remove( "Think", "AFKKick_OverrideVote" )
+	if Shine.IsNS2Combat then return end
+
+	local TableRemove = table.remove
+
+	local OldGetPlayers
+	OldGetPlayers = Shine.SetUpValue( ForceEvenTeams, "ForceEvenTeams_GetPlayers", function()
+		local Enabled, AFKPlugin = Shine:IsExtensionEnabled( "afkkick" )
+		if not Enabled then
+			return OldGetPlayers()
+		end
+
+		local Gamerules = GetGamerules()
+		local Players, Count = Shine.GetAllPlayers()
+		local Offset = 0
+
+		for i = 1, Count do
+			local Key = i - Offset
+			local Player = Players[ Key ]
+			local Client = GetOwner( Player )
+
+			if not Client or AFKPlugin:IsAFKFor( Client, 60 ) then
+				TableRemove( Players, Key )
+				Offset = Offset + 1
+
+				if Client and PlayingTeamNumbers[ Player:GetTeamNumber() ] then
+					pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
+				end
+			end
+		end
+
+		return Players
+	end )
 end )
 
 Shine:RegisterExtension( "afkkick", Plugin )

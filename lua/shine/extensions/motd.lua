@@ -5,7 +5,7 @@
 local Shine = Shine
 
 local Plugin = {}
-Plugin.Version = "1.1"
+Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MotD.json"
@@ -33,7 +33,7 @@ function Plugin:Initialise()
 	self:CreateCommands()
 
 	self.Enabled = true
-	
+
 	return true
 end
 
@@ -43,14 +43,14 @@ end
 
 function Plugin:ShowMotD( Client, OnConnect )
 	if not Shine:IsValidClient( Client ) then return end
-	
+
 	local Mode = self.Config.Mode
 
 	if Mode == self.TEXT_MODE or ( Mode == self.HYBRID_MODE and OnConnect ) then
 		local Messages = self.Config.MessageText
 
 		for i = 1, #Messages do
-			Shine:Notify( Client, "", "", Messages[ i ] )
+			Shine:NotifyColour( Client, 255, 255, 255, Messages[ i ] )
 		end
 
 		return
@@ -64,7 +64,7 @@ end
 
 function Plugin:ClientConfirmConnect( Client )
 	if Client:GetIsVirtual() then return end
-	
+
 	local ID = Client:GetUserId()
 
 	if self.Config.Accepted[ tostring( ID ) ] then return end

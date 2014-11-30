@@ -2,7 +2,7 @@
 	Shine voting radial menu server side.
 ]]
 
-function Shine:BuildPluginData()
+local function BuildPluginData( self )
 	local Plugins = self.Plugins
 
 	return {
@@ -14,21 +14,13 @@ function Shine:BuildPluginData()
 	}
 end
 
-function Shine:SendPluginData( Player, Data )
-	if Player then
-		self.SendNetworkMessage( Player, "Shine_PluginData", Data, true )
-	else
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_PluginData", Data, true )
-		end
-	end
+function Shine:SendPluginData( Player )
+	self:ApplyNetworkMessage( Player, "Shine_PluginData", BuildPluginData( self ), true )
 end
 
 --Send plugin data on client connect.
 Shine.Hook.Add( "ClientConnect", "SendPluginData", function( Client )
-	Shine:SendPluginData( Client, Shine:BuildPluginData() )
+	Shine:SendPluginData( Client )
 end )
 
 local VoteMenuPlugins = {
@@ -42,12 +34,12 @@ local VoteMenuPlugins = {
 Shine.Hook.Add( "OnPluginUnload", "SendPluginData", function( Name )
 	if not VoteMenuPlugins[ Name ] then return end
 	
-	Shine:SendPluginData( nil, Shine:BuildPluginData() )
+	Shine:SendPluginData( nil )
 end )
 
 --Client's requesting plugin data.
 Server.HookNetworkMessage( "Shine_RequestPluginData", function( Client, Message )
-	Shine:SendPluginData( Client, Shine:BuildPluginData() )
+	Shine:SendPluginData( Client )
 end )
 
 Server.HookNetworkMessage( "Shine_OpenedVoteMenu", function( Client )

@@ -282,7 +282,8 @@ function Plugin:SetupAdminMenu()
 				SortedColumn = SortedColumn,
 				Descending = Descending
 			}
-		end } )
+		end
+	} )
 end
 
 function Plugin:RequestBanData()

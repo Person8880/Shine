@@ -180,14 +180,15 @@ function Button:OnMouseDown( Key, DoubleClick )
 	end
 
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self.Highlighted then return end
+	--We can't trust self.Highlighted.
+	if not self:MouseIn( self.Background ) then return end
 
 	return true, self
 end
 
 function Button:OnMouseUp( Key )
 	if not self:GetIsVisible() then return end
-	if not self.Highlighted then return end
+	if not self:MouseIn( self.Background ) then return end
 
 	local Time = Clock()
 

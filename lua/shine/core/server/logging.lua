@@ -35,9 +35,9 @@ Shared.OldMessage = Shared.OldMessage or Shared.Message
 
 --[[
 	Fun fact for anyone reading, this thread started Shine:
-	
+
 	http://forums.unknownworlds.com/discussion/126283/time-in-log-files
-	
+
 	and this function was its first feature.
 ]]
 function Shared.Message( String )
@@ -58,7 +58,7 @@ end
 
 function Shine:SaveLog()
 	if not self.Config.EnableLogging then return end
-	
+
 	local String = TableConcat( LogMessages, "\n" )
 
 	--This is dumb, but append mode appears to be broken.
@@ -70,7 +70,7 @@ function Shine:SaveLog()
 		Data = OldLog:read( "*all" )
 		OldLog:close()
 	end
-	
+
 	local LogFile, Err = io.open( GetCurrentLogFile(), "w+" )
 
 	if not LogFile then
@@ -122,6 +122,12 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return self:NotifyColour( Player, 255, 255, 255, String, Format, ... )
 	end
 
+	if Player == "Console" then
+		Shared.Message( Message )
+
+		return
+	end
+
 	local MessageLength = Message:UTF8Length()
 	if MessageLength > kMaxChatLength then
 		local Iterations = Ceil( MessageLength / kMaxChatLength )
@@ -134,32 +140,11 @@ function Shine:Notify( Player, Prefix, Name, String, Format, ... )
 		return
 	end
 
-	if IsType( Player, "table" ) then
-		local PlayerCount = #Player
+	local MessageTable = self.BuildChatMessage( Prefix, Name, kTeamReadyRoom,
+		kNeutralTeamType, Message )
 
-		for i = 1, PlayerCount do
-			local Ply = Player[ i ]
-			
-			self.SendNetworkMessage( Ply, "Shine_Chat",
-				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
-				true )
-		end
-	elseif Player and Player ~= "Console" then
-		self.SendNetworkMessage( Player, "Shine_Chat",
-			self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
-			true )
-	elseif Player == "Console" then
-		Shared.Message( Message )
-	else
-		local Players = self.GetAllClients()
+	self:ApplyNetworkMessage( Player, "Shine_Chat", MessageTable, true )
 
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_Chat",
-				self.BuildChatMessage( Prefix, Name, kTeamReadyRoom, kNeutralTeamType, Message ),
-				true )
-		end
-	end
-	
 	Server.AddChatToHistory( Message, Name, 0, kTeamReadyRoom, false )
 end
 
@@ -182,23 +167,7 @@ function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
 
 	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
-	if not Player then
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
-		end
-	elseif IsType( Player, "table" ) then
-		for i = 1, #Player do
-			local Ply = Player[ i ]
-
-			if Ply then
-				self.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
-			end
-		end 
-	else
-		self.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
-	end
+	self:ApplyNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 end
 
 --[[
@@ -220,23 +189,7 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 
 	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
-	if not Player then
-		local Players = self.GetAllClients()
-
-		for i = 1, #Players do
-			self.SendNetworkMessage( Players[ i ], "Shine_ChatCol", MessageTable, true )
-		end
-	elseif IsType( Player, "table" ) then
-		for i = 1, #Player do
-			local Ply = Player[ i ]
-
-			if Ply then
-				self.SendNetworkMessage( Ply, "Shine_ChatCol", MessageTable, true )
-			end
-		end 
-	else
-		self.SendNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
-	end
+	self:ApplyNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 end
 
 --[[
@@ -251,13 +204,35 @@ function Shine:NotifyError( Player, Message, Format, ... )
 	self:NotifyDualColour( Player, 255, 0, 0, "[Error]", 255, 255, 255, Message, Format, ... )
 end
 
+do
+	local SharedTime = Shared.GetTime
+
+	local NextNotification = {}
+	function Shine:CanNotify( Client )
+		if not Client then return false end
+
+		local NextTime = NextNotification[ Client ] or 0
+		local Time = SharedTime()
+
+		if Time < NextTime then return false end
+
+		NextNotification[ Client ] = Time + 5
+
+		return true
+	end
+
+	Shine.Hook.Add( "ClientDisconnect", "NextNotification", function( Client )
+		NextNotification[ Client ] = nil
+	end )
+end
+
 --[[
 	Notifies players of a command, obeying the settings for who can see names,
 	and how the console should be displayed.
 ]]
 function Shine:CommandNotify( Client, Message, Format, ... )
 	if not self.Config.NotifyOnCommand then return end
-	
+
 	local Clients = self.GameIDs
 	local IsConsole = not Client
 	local Immunity = self:GetUserImmunity( Client )
@@ -313,14 +288,14 @@ local OldServerAdminPrint = ServerAdminPrint
 
 local MaxPrintLength = 128
 
-Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
+Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime )
 	--[[
 		Rewrite ServerAdminPrint to not print to the server console when used,
 		otherwise we'll get spammed with repeat prints when sending to lots of people at once.
 	]]
 	function ServerAdminPrint( Client, Message )
 		if not Client then return end
-		
+
 		local MessageList = {}
 		local Count = 1
 
@@ -334,21 +309,18 @@ Shine.Hook.Add( "Think", "OverrideServerAdminPrint", function( Deltatime )
 		end
 
 		MessageList[ Count ] = Message
-		
+
 		for i = 1, #MessageList do
 			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
 				{ message = MessageList[ i ] }, true )
 		end
 	end
-
-	Shine.Hook.Remove( "Think", "OverrideServerAdminPrint" )
 end )
 
 function Shine:AdminPrint( Client, String, Format, ... )
 	self:Print( String, Format, ... )
 
 	local Message = Format and StringFormat( String, ... ) or String
-
 	local Admins = self:GetClientsForLog()
 
 	for i = 1, #Admins do
@@ -359,6 +331,6 @@ function Shine:AdminPrint( Client, String, Format, ... )
 	end
 
 	if not Client then return end
-	
+
 	return ServerAdminPrint( Client, Message )
 end

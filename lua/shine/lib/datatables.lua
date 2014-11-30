@@ -27,6 +27,7 @@ local Floor = math.floor
 local pairs = pairs
 local rawset = rawset
 local StringExplode = string.Explode
+local tonumber = tonumber
 local type = type
 
 local RealData = {}
@@ -92,11 +93,9 @@ if Server then
 		rawset( self, Key, nil )
 
 		local Cached = RealData[ self ][ Key ]
-
 		if Cached == nil or Cached == Value then return end
 
 		Value = TypeCheck( self.__Values[ Key ], Value )
-
 		if Value == nil then return end
 
 		RealData[ self ][ Key ] = Value
@@ -212,21 +211,15 @@ end
 --Process a complete network message.
 function DataTableMeta:ProcessComplete( Data )
 	for Key, Value in pairs( Data ) do
-		--rawset( self, "__FirstUpdate"..Key, nil )
-
 		RealData[ self ][ Key ] = Value
 	end
 end
 
 --Processes a partial network message.
 function DataTableMeta:ProcessPartial( Key, Data )
-	--if not rawget( self, "__FirstUpdate"..Key ) then --Don't call on change on first sync.
-		if self.__OnChange then
-			self.__OnChange( self.__Host, Key, RealData[ self ][ Key ], Data[ Key ] )
-		end
-	--[[else
-		rawset( self, "__FirstUpdate"..Key, nil )
-	end]]
+	if self.__OnChange then
+		self.__OnChange( self.__Host, Key, RealData[ self ][ Key ], Data[ Key ] )
+	end
 
 	RealData[ self ][ Key ] = Data[ Key ]
 end
@@ -265,8 +258,6 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access )
 		if not Access[ Key ] then
 			Data[ Key ] = Defaults[ Key ]
 		end
-
-		--DT[ "__FirstUpdate"..Key ] = true
 
 		local ID = Name..Key
 

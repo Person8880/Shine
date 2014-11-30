@@ -89,6 +89,8 @@ function Shine:LoadExtension( Name, DontEnable )
 			return false, "plugin not compatible with NS2:Combat"
 		end
 
+		Plugin.IsShared = true
+
 		if Plugin.SetupDataTable then --Networked variables.
 			Plugin:SetupDataTable()
 			Plugin:InitDataTable( Name )
@@ -106,10 +108,14 @@ function Shine:LoadExtension( Name, DontEnable )
 
 		Plugin = OldValue --Just in case someone else uses Plugin as a global...
 
-		if self.Plugins[ Name ] and self.IsNS2Combat and self.Plugins[ Name ].NS2Only then
+		local Plugin = self.Plugins[ Name ]
+
+		if Plugin and self.IsNS2Combat and Plugin.NS2Only then
 			self.Plugins[ Name ] = nil
 			return false, "plugin not compatible with NS2:Combat"
 		end
+
+		Plugin.IsClient = true
 
 		return true
 	end

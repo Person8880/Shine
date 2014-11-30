@@ -2,7 +2,7 @@
 	Shine console/chat command handling.
 ]]
 
-local FixArray = table.FixArray
+local MathClamp = math.ClampEx
 local Round = math.Round
 local StringExplode = string.Explode
 local StringFormat = string.format
@@ -135,22 +135,6 @@ function Shine:RemoveCommand( ConCommand, ChatCommand )
 	end
 end
 
---More generic clamp for use with the number argument type.
-local function MathClamp( Number, Min, Max )
-    if not Number then return nil end
-    if not Max and Min then
-        return Number > Min and Number or Min
-    elseif not Min and Max then
-        return Number < Max and Number or Max
-    elseif not Max and not Min then
-        return Number
-    else
-        if Number < Min then return Min end
-        if Number > Max then return Max end
-        return Number
-    end
-end
-
 local IsType = Shine.IsType
 
 --These define what to return for the given command arguments.
@@ -164,246 +148,190 @@ local TargetFuncs = {
 	[ "@gold" ] = function() return Shine.GetTeamClients( 2 ) end
 }
 
---These define all valid command parameter types and how to process a string into the type.
-local ParamTypes = {
-	--Strings return simply the string (clipped to max length if given).
-	string = function( Client, String, Table ) 
-		if not String or String == "" then return IsType( Table.Default, "function" )
-			and Table.Default() or Table.Default end
+local GetDefault = Shine.CommandUtil.GetDefaultValue
+local ParamTypes = Shine.CommandUtil.ParamTypes
 
-		return Table.MaxLength and String:UTF8Sub( 1, Table.MaxLength ) or String
-	end,
-	--Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
-	client = function( Client, String, Table ) 
-		if not String then
-			if IsType( Table.Default, "function" ) then
-				return Table.Default()
-			elseif Table.Default ~= nil then
-				return Table.Default
-			else
-				return Client
-			end
+--Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
+ParamTypes.client = function( Client, String, Table ) 
+	if not String then
+		return GetDefault( Table ) or Client
+	end
+
+	local Target
+	if String == "^" then 
+		Target = Client 
+	elseif String:sub( 1, 1 ) == "$" then
+		local ID = String:sub( 2 )
+		local ToNum = tonumber( ID )
+
+		if ToNum then
+			Target = Shine.GetClientByNS2ID( ToNum )
+		else
+			Target = Shine:GetClientBySteamID( ID )
+		end
+	else
+		Target = Shine:GetClient( String )
+	end
+	
+	if Table.NotSelf and Target == Client then
+		return nil, true
+	end
+
+	return Target
+end
+--Clients looks for matching clients by game ID, Steam ID, name
+--or special targeting directive. Returns a table of clients.
+ParamTypes.clients = function( Client, String, Table ) 
+	if not String then
+		return GetDefault( Table )
+	end
+
+	local Vals = StringExplode( String, "," )
+	
+	local Clients = {}
+	local Targets = {}
+
+	local AllClients = Shine.GetAllClients()
+	local NumClients = #AllClients
+	
+	for i = 1, #Vals do
+		local CurrentTargets = {}
+
+		local Val = Vals[ i ]
+		local Negate
+
+		local ControlChar = Val:sub( 1, 1 )
+
+		if ControlChar == "!" then
+			Val = Val:sub( 2 )
+			Negate = true
 		end
 
-		local Target
-		if String == "^" then 
-			Target = Client 
-		elseif String:sub( 1, 1 ) == "$" then
-			local ID = String:sub( 2 )
+		--Targeting a user group.
+		if ControlChar == "%" then
+			local Group = Val:sub( 2 )
+			local InGroup = Shine:GetClientsByGroup( Group )
+
+			if #InGroup > 0 then
+				for j = 1, #InGroup do
+					local CurClient = InGroup[ j ]
+
+					if not CurrentTargets[ CurClient ] then
+						CurrentTargets[ CurClient ] = true
+					end
+				end
+			end
+		elseif ControlChar == "$" then --Targetting a specific Steam ID.
+			local ID = Val:sub( 2 )
 			local ToNum = tonumber( ID )
 
+			local CurClient
+
 			if ToNum then
-				Target = Shine.GetClientByNS2ID( ToNum )
+				CurClient = Shine.GetClientByNS2ID( ToNum )
 			else
-				Target = Shine:GetClientBySteamID( ID )
+				CurClient = Shine:GetClientBySteamID( ID )
+			end
+
+			if CurClient and not CurrentTargets[ CurClient ] then
+				CurrentTargets[ CurClient ] = true
 			end
 		else
-			Target = Shine:GetClient( String )
-		end
-		
-		if Table.NotSelf and Target == Client then
-			return nil, true
-		end
+			if Val == "*" then --Targeting everyone.
+				for j = 1, NumClients do
+					local CurClient = AllClients[ j ]
 
-		return Target
-	end,
-	--Clients looks for matching clients by game ID, Steam ID, name
-	--or special targeting directive. Returns a table of clients.
-	clients = function( Client, String, Table ) 
-		if not String then return IsType( Table.Default, "function" )
-			and Table.Default() or Table.Default end
-
-		local Vals = StringExplode( String, "," )
-		
-		local Clients = {}
-		local Targets = {}
-
-		local AllClients = Shine.GetAllClients()
-		local NumClients = #AllClients
-		
-		for i = 1, #Vals do
-			local CurrentTargets = {}
-
-			local Val = Vals[ i ]
-			local Negate
-
-			local ControlChar = Val:sub( 1, 1 )
-
-			if ControlChar == "!" then
-				Val = Val:sub( 2 )
-				Negate = true
-			end
-
-			--Targeting a user group.
-			if ControlChar == "%" then
-				local Group = Val:sub( 2 )
-				local InGroup = Shine:GetClientsByGroup( Group )
-
-				if #InGroup > 0 then
-					for j = 1, #InGroup do
-						local CurClient = InGroup[ j ]
-
-						if not CurrentTargets[ CurClient ] then
-							CurrentTargets[ CurClient ] = true
-						end
+					if CurClient and not CurrentTargets[ CurClient ] then
+						CurrentTargets[ CurClient ] = true
 					end
 				end
-			elseif ControlChar == "$" then --Targetting a specific Steam ID.
-				local ID = Val:sub( 2 )
-				local ToNum = tonumber( ID )
+			elseif Val == "^" then --Targeting yourself.
+				local CurClient = Client
 
-				local CurClient
-
-				if ToNum then
-					CurClient = Shine.GetClientByNS2ID( ToNum )
-				else
-					CurClient = Shine:GetClientBySteamID( ID )
-				end
-
-				if CurClient and not CurrentTargets[ CurClient ] then
-					CurrentTargets[ CurClient ] = true
+				if not Table.NotSelf then
+					if not CurrentTargets[ CurClient ] then
+						CurrentTargets[ CurClient ] = true
+					end
 				end
 			else
-				if Val == "*" then --Targeting everyone.
-					for j = 1, NumClients do
-						local CurClient = AllClients[ j ]
+				if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
+					local Add = TargetFuncs[ Val ]()
 
-						if CurClient and not CurrentTargets[ CurClient ] then
-							CurrentTargets[ CurClient ] = true
-						end
-					end
-				elseif Val == "^" then --Targeting yourself.
-					local CurClient = Client
+					for j = 1, #Add do
+						local Adding = Add[ j ]
 
-					if not Table.NotSelf then
-						if not CurrentTargets[ CurClient ] then
-							CurrentTargets[ CurClient ] = true
+						if not CurrentTargets[ Adding ] then
+							CurrentTargets[ Adding ] = true
 						end
 					end
 				else
-					if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
-						local Add = TargetFuncs[ Val ]()
+					local CurClient = Shine:GetClient( Val )
 
-						for j = 1, #Add do
-							local Adding = Add[ j ]
-
-							if not CurrentTargets[ Adding ] then
-								CurrentTargets[ Adding ] = true
-							end
-						end
-					else
-						local CurClient = Shine:GetClient( Val )
-
-						if CurClient and not ( Table.NotSelf and CurClient == Client ) then
-							if not CurrentTargets[ CurClient ] then
-								CurrentTargets[ CurClient ] = true
-							end
+					if CurClient and not ( Table.NotSelf and CurClient == Client ) then
+						if not CurrentTargets[ CurClient ] then
+							CurrentTargets[ CurClient ] = true
 						end
 					end
 				end
 			end
+		end
 
-			if Negate then
-				if not next( Targets ) then
-					for j = 1, NumClients do
-						local CurClient = AllClients[ j ]
+		if Negate then
+			if not next( Targets ) then
+				for j = 1, NumClients do
+					local CurClient = AllClients[ j ]
 
-						if not CurrentTargets[ CurClient ] then
-							Targets[ CurClient ] = true
-						end
-					end
-				else
-					for CurClient, Bool in pairs( CurrentTargets ) do
-						Targets[ CurClient ] = nil	
+					if not CurrentTargets[ CurClient ] then
+						Targets[ CurClient ] = true
 					end
 				end
 			else
 				for CurClient, Bool in pairs( CurrentTargets ) do
-					Targets[ CurClient ] = true
+					Targets[ CurClient ] = nil	
 				end
 			end
-		end
-
-		if Table.NotSelf and Targets[ Client ] then
-			Targets[ Client ] = nil
-		end
-
-		for CurClient, Bool in pairs( Targets ) do
-			Clients[ #Clients + 1 ] = CurClient
-		end
-
-		return Clients
-	end,
-	--Number performs tonumber() on the string and clamps the result between
-	--the given min and max if set. Also rounds if asked.
-	number = function( Client, String, Table )
-		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
-
-		if not Num then
-			return IsType( Table.Default, "function" ) and Table.Default() or Table.Default
-		end
-
-		return Table.Round and Round( Num ) or Num
-	end,
-	--Boolean turns "false" and 0 into false and everything else into true.
-	boolean = function( Client, String, Table )
-		if not String or String == "" then 
-			if IsType( Table.Default, "function" ) then
-				return Table.Default() 
-			else
-				return Table.Default 
+		else
+			for CurClient, Bool in pairs( CurrentTargets ) do
+				Targets[ CurClient ] = true
 			end
 		end
+	end
 
-		local ToNum = tonumber( String )
+	if Table.NotSelf and Targets[ Client ] then
+		Targets[ Client ] = nil
+	end
 
-		if ToNum then
-			return ToNum ~= 0
-		end
+	for CurClient, Bool in pairs( Targets ) do
+		Clients[ #Clients + 1 ] = CurClient
+	end
 
-		return String ~= "false"
-	end,
-	--Team takes either 0 - 3 directly or takes a string matching a team name
-	--and turns it into the team number.
-	team = function( Client, String, Table )
-		if not String then return IsType( Table.Default, "function" )
-			and Table.Default() or Table.Default end
-
-		local ToNum = tonumber( String )
-
-		if ToNum then return MathClamp( Round( ToNum ), 0, 3 ) end
-
-		String = String:lower()
-
-		if String:find( "ready" ) then return 0 end
-		if String:find( "marine" ) then return 1 end
-		if String:find( "blu" ) then return 1 end	
-		if String:find( "alien" ) then return 2 end
-		if String:find( "orang" ) then return 2 end
-		if String:find( "gold" ) then return 2 end
-		if String:find( "spectat" ) then return 3 end
-
-		return nil
-	end 
-}
---[[
-	Parses the given string using the given parameter table and returns the result.
-	Inputs: Client, string argument, parameter table.
-	Output: Converted argument or nil.
-]]
-local function ParseParameter( Client, String, Table )
-    local Type = Table.Type
-    if not ParamTypes[ Type ] then
-    	return nil
-    end
-
-    if String then
-        return ParamTypes[ Type ]( Client, String, Table )
-    else
-        if not Table.Optional then return nil end
-        return ParamTypes[ Type ]( Client, String, Table )
-    end
+	return Clients
 end
+--Team takes either 0 - 3 directly or takes a string matching a team name
+--and turns it into the team number.
+ParamTypes.team = function( Client, String, Table )
+	if not String then
+		return GetDefault( Table )
+	end
+
+	local ToNum = tonumber( String )
+
+	if ToNum then return MathClamp( Round( ToNum ), 0, 3 ) end
+
+	String = String:lower()
+
+	if String:find( "ready" ) then return 0 end
+	if String:find( "marine" ) then return 1 end
+	if String:find( "blu" ) then return 1 end	
+	if String:find( "alien" ) then return 2 end
+	if String:find( "orang" ) then return 2 end
+	if String:find( "gold" ) then return 2 end
+	if String:find( "spectat" ) then return 3 end
+
+	return nil
+end
+
+local ParseParameter = Shine.CommandUtil.ParseParameter
 
 local Traceback = debug.traceback
 
@@ -434,6 +362,16 @@ local ArgValidators = {
 		--Invalid restrictor, should be a table with min and/or max values.
 		if not IsType( ArgRestrictor, "table" ) then return ParsedArg end
 
+		--Strict means block the command rather than clamping it into range.
+		if ArgRestrictor.Strict then
+			local Clamped = MathClamp( ParsedArg, ArgRestrictor.Min, ArgRestrictor.Max )
+			if Clamped ~= ParsedArg then
+				return nil
+			end
+
+			return ParsedArg
+		end
+
 		--Clamp the argument in range.
 		return MathClamp( ParsedArg, ArgRestrictor.Min, ArgRestrictor.Max )
 	end
@@ -447,11 +385,9 @@ local ArgValidators = {
 function Shine:RunCommand( Client, ConCommand, ... )
 	local Command = self.Commands[ ConCommand ]
 
-	if not Command then return end
-	if Command.Disabled then return end
+	if not Command or Command.Disabled then return end
 
 	local Allowed, ArgRestrictions = self:GetPermission( Client, ConCommand )
-
 	if not Allowed then 
 		self:NotifyError( Client, "You do not have permission to use %s.", true, ConCommand )
 
@@ -459,10 +395,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	end
 
 	local Player = Client or "Console"
-
 	local Args = { ... }
-
-	local ParsedArgs = {}
 	local ExpectedArgs = Command.Arguments
 	local ExpectedCount = #ExpectedArgs
 
@@ -476,6 +409,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 		return
 	end
+
+	local ParsedArgs = {}
 
 	for i = 1, ExpectedCount do
 		local CurArg = ExpectedArgs[ i ]
@@ -513,7 +448,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 			if Func then
 				ParsedArgs[ i ] = Func( Client, ParsedArgs[ i ],
 					ArgRestrictions[ RestrictionIndex ] )
-			
+
 				--The restriction wiped the argument as it's not allowed.
 				if ParsedArgs[ i ] == nil then
 					self:NotifyError( Player,
@@ -527,15 +462,8 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Take rest of line should grab the entire rest of the argument list.
 		if ArgType == "string" and CurArg.TakeRestOfLine then
 			if i == ExpectedCount then
-				local Rest = TableConcat( Args, " ", i + 1 )
-
-				if Rest ~= "" then
-					ParsedArgs[ i ] = StringFormat( "%s %s", ParsedArgs[ i ], Rest )
-				end
-
-				if CurArg.MaxLength then
-					ParsedArgs[ i ] = ParsedArgs[ i ]:sub( 1, CurArg.MaxLength )
-				end
+				ParsedArgs[ i ] = self.CommandUtil.BuildLineFromArgs( CurArg, ParsedArgs[ i ],
+					Args, i )
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
 				self:NotifyError( Player,
@@ -566,14 +494,14 @@ function Shine:RunCommand( Client, ConCommand, ... )
 					return
 				end
 
+				local Offset = 0
 				for j = 1, #ParsedArg do
-					if not self:CanTarget( Client, ParsedArg[ j ] ) then
-						ParsedArg[ j ] = nil
+					local Key = j - Offset
+					if not self:CanTarget( Client, ParsedArg[ Key ] ) then
+						TableRemove( ParsedArg, Key )
+						Offset = Offset + 1
 					end
 				end
-
-				--Fix up any holes in our array.
-				FixArray( ParsedArg )
 
 				if #ParsedArg == 0 then
 					self:NotifyError( Player,
@@ -584,33 +512,28 @@ function Shine:RunCommand( Client, ConCommand, ... )
 			end
 		end
 	end
-
-	local Arguments = TableConcat( Args, ", " )
-
-	--Run the command with the parsed arguments we've gathered.
-	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs ) )
 	
+	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs ) )
+
 	if not Success then
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
 	else
+		local Arguments = TableConcat( Args, ", " )
 		local Player = Client and Client:GetControllingPlayer()
 		local Name = Player and Player:GetName() or "Console"
 		local ID = Client and Client:GetUserId() or "N/A"
 
-		--Log the command's execution.
 		self:AdminPrint( nil, "%s[%s] ran command %s %s", true, 
 			Name, ID, ConCommand, 
 			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
 	end
 end
 
---Hook into the chat, execute commands if they match up.
 Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	local Exploded = StringExplode( Message.message, " " )
 
 	local Directive
 	local FirstWord = Exploded[ 1 ]
-
 	if not FirstWord then return end
 
 	--They've done !, / or some other special character first.
@@ -619,26 +542,16 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 		Exploded[ 1 ] = FirstWord:sub( 2 )
 	end
 
-	if not Directive then return end --Avoid accidental invocation.
+	if not Directive then return end
 
 	local CommandObj = Shine.ChatCommands[ Exploded[ 1 ] ]
-	
-	if not CommandObj then --Command does not exist.
-		return
-	end
+	if not CommandObj or CommandObj.Disabled then return end
 
-	if CommandObj.Disabled then return end
+	TableRemove( Exploded, 1 )
 
-	TableRemove( Exploded, 1 ) --Get rid of the first argument, it's just the chat command.
+	Shine:RunCommand( Client, CommandObj.ConCmd, unpack( Exploded ) )
 
-	local ConCommand = CommandObj.ConCmd --Get the associated console command.
-
-	Shine:RunCommand( Client, ConCommand, unpack( Exploded ) ) --Run the command.
-
-	--If the command specifies it is silent, override their message with blank.
 	if CommandObj.Silent then return "" end
-	--If the global silent chat commands setting is on, silence the message.
 	if Shine.Config.SilentChatCommands then return "" end
-	--If they used / to invoke the command, silence it. (SourceMod style)
 	if Directive == "/" then return "" end
 end, -20 )

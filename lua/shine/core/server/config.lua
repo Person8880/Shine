@@ -101,7 +101,7 @@ function Shine:LoadConfig()
 		GetConfigPath( true ),
 		GetConfigPath( true, true )
 	}
-	
+
 	local ConfigFile
 	local Err
 	local Pos
@@ -148,9 +148,9 @@ function Shine:SaveConfig( Silent )
 
 	if not ConfigFile then --Something's gone horribly wrong!
 		Shine.Error = "Error writing config file: "..Err
-		
+
 		Notify( Shine.Error )
-		
+
 		return
 	end
 
@@ -171,7 +171,7 @@ local function ConvertToLookup( Table )
 	local Count = #Table
 
 	if Count == 0 then return Table end
-	
+
 	--I've had the game crash before for not making a new table when doing this...
 	local NewTable = {}
 
@@ -240,7 +240,7 @@ function Shine:LoadExtensionConfigs()
 			--Load, but do not enable, the extension to determine its default state.
 			if not PluginTable then
 				self:LoadExtension( Plugin, true )
-			
+
 				PluginTable = self.Plugins[ Plugin ]
 
 				if PluginTable and PluginTable.DefaultState ~= nil then
@@ -277,7 +277,7 @@ function Shine:LoadExtensionConfigs()
 	local WebConfig = self.Config.WebConfigs
 
 	if WebConfig.Enabled then
-		self.Hook.Add( "Think", "LoadWebConfigs", function()
+		self.Hook.Add( "OnFirstThink", "LoadWebConfigs", function()
 			self:LoadWebPlugins( DontEnableNow )
 
 			if WebConfig.UpdateMode == 2 then
@@ -286,8 +286,6 @@ function Shine:LoadExtensionConfigs()
 					self:LoadWebPlugins( DontEnableNow, true )
 				end )
 			end
-
-			self.Hook.Remove( "Think", "LoadWebConfigs" )
 		end, -20 )
 	end
 end
@@ -301,13 +299,19 @@ local function LoadDefaultConfigs( self, List )
 	end
 end
 
+local function OnFail( self, List, FailMessage, Format, ... )
+	self:Print( FailMessage, Format, ... )
+
+	Notify( "[Shine] Loading cached/default configs..." )
+
+	LoadDefaultConfigs( self, List )
+
+	Notify( "[Shine] Finished loading." )
+end
+
 local function OnWebPluginSuccess( self, Response, List, Reload )
 	if not Response then
-		self:Print( "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
-
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
 
 		return
 	end
@@ -315,37 +319,21 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 	local Decoded = Decode( Response )
 
 	if not Decoded or not IsType( Decoded, "table" ) then
-		self:Print( "[WebConfigs] Web request for plugin configs received invalid JSON. Loading default/cache files..." )
-
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Loading default/cache files..." )
 
 		return
 	end
 
 	if not Decoded.success and not Decoded.Success then
-		self:Print( "[WebConfigs] Web request for plugin configs received error: %s.",
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received error: %s.",
 			true, Decoded.msg or Decoded.Msg or "unknown error" )
-
-		Notify( "[Shine] Loading cached/default configs..." )
-		
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
 
 		return
 	end
 
 	local PluginData = Decoded.plugins or Decoded.Plugins
 	if not PluginData then
-		self:Print( "[WebConfigs] Web request for plugin configs received incorrect response. Missing plugins table." )
-
-		Notify( "[Shine] Loading cached/default configs..." )
-
-		LoadDefaultConfigs( self, List )
-
-		Notify( "[Shine] Finished loading." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received incorrect response. Missing plugins table." )
 
 		return
 	end
@@ -390,7 +378,7 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 					--Set the gamemode config path if we've been given a gamemode config.
 					if NeedDifferentPath then
-						PluginTable.__ConfigPath = StringFormat( "%s%s/%s", 
+						PluginTable.__ConfigPath = StringFormat( "%s%s/%s",
 							self.Config.ExtensionDir, GamemodeResponse, PluginTable.ConfigName )
 					end
 
@@ -403,7 +391,7 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 					local Success, Err = self:EnableExtension( Name, true )
 
-					Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) 
+					Notify( Success and StringFormat( "- Extension '%s' loaded.", Name )
 						or StringFormat( "- Error loading %s: %s", Name, Err ) )
 				end
 			elseif not Reload then --We don't want to enable new extensions on reload.
@@ -421,7 +409,7 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 					end
 
 					if NeedDifferentPath then
-						PluginTable.__ConfigPath = StringFormat( "%s%s/%s", 
+						PluginTable.__ConfigPath = StringFormat( "%s%s/%s",
 							self.Config.ExtensionDir, GamemodeResponse, PluginTable.ConfigName )
 					end
 
@@ -433,13 +421,13 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 
 					Success, Err = self:EnableExtension( Name, true )
 
-					Notify( Success and StringFormat( "- Extension '%s' loaded.", Name ) 
+					Notify( Success and StringFormat( "- Extension '%s' loaded.", Name )
 						or StringFormat( "- Error loading %s: %s", Name, Err ) )
 				end
 			end
 		else
 			self:Print( "[WebConfigs] Server responded with success but supplied no config for plugin %s.", true, Name )
-		
+
 			if not Reload then
 				LoadPlugin( self, Name )
 			end

@@ -6,12 +6,32 @@ local TableRandom = table.ChooseRandom
 local TableRemove = table.remove
 
 local Floor = math.floor
+local Max = math.max
+local Min = math.min
 local Random = math.random
 
-function math.Clamp( Num, Low, Up )
-	if Num < Low then return Low end
-	if Num > Up then return Up end
-	return Num
+local function Clamp( Number, Lower, Upper )
+	if Number < Lower then return Lower end
+	if Number > Upper then return Upper end
+	return Number
+end
+math.Clamp = Clamp
+
+function math.ClampEx( Number, Lower, Upper )
+	if not Number then return nil end
+	if not Lower and not Upper then
+		return Number
+	end
+
+	if Lower and Upper then
+		return Clamp( Number, Lower, Upper )
+	end
+
+	if Lower then
+		return Max( Number, Lower )
+	end
+
+	return Min( Number, Upper )
 end
 
 function math.Round( Number, DecimalPlaces )

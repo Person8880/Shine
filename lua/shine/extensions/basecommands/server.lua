@@ -6,14 +6,13 @@ local Shine = Shine
 local Hook = Shine.Hook
 local Call = Hook.Call
 
-local Notify = Shared.Message
-local Encode, Decode = json.encode, json.decode
-
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local Max = math.max
+local Min = math.min
+local Notify = Shared.Message
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
@@ -40,7 +39,7 @@ Plugin.DefaultConfig = {
 	MoveRate = 30,
 	TickRate = 30,
 	SendRate = 20,
-	BWLimit = 25,
+	BWLimit = Shine.IsNS2Combat and 35 or 25,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
 	FriendlyFirePreGame = true
@@ -80,6 +79,56 @@ Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
 	end
 end )
 
+function Plugin:CheckRateValues()
+	local Fixed
+
+	if self.Config.MoveRate ~= 30 then
+		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
+	end
+
+	if self.Config.TickRate > self.Config.MoveRate then
+		self.Config.TickRate = self.Config.MoveRate
+		Fixed = true
+		Notify( "Tick rate cannot be more than move rate. Clamping to move rate." )
+	end
+
+	if self.Config.TickRate ~= Server.GetTickrate() then
+		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
+	end
+
+	if self.Config.SendRate > self.Config.TickRate then
+		self.Config.SendRate = self.Config.TickRate - 10
+		Fixed = true
+		Notify( "Send rate cannot be more than tick rate. Clamping to tick rate - 10." )
+	end
+
+	if self.Config.SendRate ~= Server.GetSendrate() then
+		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
+	end
+
+	local MinInterp = 2 / self.Config.SendRate * 1000
+	if self.Config.Interp < MinInterp then
+		self.Config.Interp = MinInterp
+		Fixed = true
+		Notify( StringFormat( "Interp cannot be less than %.2fms, clamping...",
+			MinInterp ) )
+	end
+
+	if self.Config.Interp ~= 100 then
+		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
+	end
+
+	local BWLimit = self.Config.BWLimit * 1024
+	if BWLimit ~= Server.GetBwLimit() then
+		Shared.ConsoleCommand( StringFormat( "bwlimit %s", BWLimit ) )
+	end
+
+	if Fixed then
+		Notify( "Fixed incorrect rate values, check your config." )
+		self:SaveConfig( true )
+	end
+end
+
 function Plugin:Initialise()
 	self.Gagged = {}
 
@@ -89,62 +138,16 @@ function Plugin:Initialise()
 
 	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
 	self.Config.Interp = Max( self.Config.Interp, 0 )
-	self.Config.MoveRate = Max( self.Config.MoveRate, 5 )
-	self.Config.TickRate = Max( self.Config.TickRate, 20 )
-	self.Config.BWLimit = Max( self.Config.BWLimit, 10 )
-	self.Config.SendRate = Max( self.Config.SendRate, 10 )
-	
-	local Fixed
-	
-	if self.Config.MoveRate ~= 30 then
-		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
-	end
-	if self.Config.TickRate ~= 30 then
-		if self.Config.TickRate > self.Config.MoveRate then
-			self.Config.TickRate = self.Config.MoveRate
-			Fixed = true
-		end
+	self.Config.MoveRate = Max( Floor( self.Config.MoveRate ), 5 )
+	self.Config.TickRate = Max( Floor( self.Config.TickRate ), 5 )
+	self.Config.BWLimit = Max( self.Config.BWLimit, 5 )
+	self.Config.SendRate = Max( Floor( self.Config.SendRate ), 5 )
 
-		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
-	end
-	if self.Config.SendRate ~= 20 then
-		if self.Config.SendRate > self.Config.TickRate then
-			self.Config.SendRate = self.Config.TickRate - 10
-			Fixed = true
-		end
-
-		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
-	end
-	if self.Config.Interp ~= 100 then
-		local MinInterp = 2 / self.Config.SendRate * 1000
-		if self.Config.Interp < MinInterp then
-			self.Config.Interp = MinInterp
-			Fixed = true
-		end
-
-		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
-	end
-	if self.Config.BWLimit ~= 25 then
-		Shared.ConsoleCommand( StringFormat( "bwlimit %s", self.Config.BWLimit * 1024 ) )
-	end
-
-	if Fixed then
-		Notify( "Fixed incorrect rate values, check your config." )
-		self:SaveConfig( true )
-	end
+	self:CheckRateValues()
 
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:ClientConnect( Client )
-	if self.Config.Interp ~= 100 then
-		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
-	end
-	if self.Config.MoveRate ~= 30 then
-		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
-	end
 end
 
 function Plugin:GetFriendlyFire()
@@ -272,7 +275,7 @@ end
 
 local function Help( Client, Search )
 	local PageSize = 25
-	
+
 	local function GetBoundaryIndexes( PageNumber )
 		local LastIndexToShow = PageSize * PageNumber
 		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
@@ -314,29 +317,35 @@ local function Help( Client, Search )
 			end
 		end
 
-		TableSort( CommandNames, function( CommandName1, CommandName2 ) return CommandName1 < CommandName2 end )
+		TableSort( CommandNames, function( CommandName1, CommandName2 )
+			return CommandName1 < CommandName2
+		end )
 
 		History.Cache[ Query ] = CommandNames
 	end
 
-	PageNumber = CommandsAppearOnPage( #CommandNames, PageNumber ) and PageNumber or 1
+	local NumCommands = #CommandNames
+	PageNumber = CommandsAppearOnPage( NumCommands, PageNumber ) and PageNumber or 1
 
 	local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
-	FirstIndexToShow = FirstIndexToShow <= #CommandNames and FirstIndexToShow or #CommandNames
-	LastIndexToShow = LastIndexToShow <= #CommandNames and LastIndexToShow or #CommandNames
+	FirstIndexToShow = Min( FirstIndexToShow, NumCommands )
+	LastIndexToShow = Min( LastIndexToShow, NumCommands )
 
-	PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:", 
-		FirstIndexToShow, LastIndexToShow, #CommandNames, ( Search == nil and "" or " matching \"" .. Search .. "\"" ) ) )
+	PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:",
+		FirstIndexToShow, LastIndexToShow, NumCommands,
+		Search == nil and "" or StringFormat( " matching %q", Search ) ) )
 
-	for i = 1, #CommandNames do
+	for i = 1, NumCommands do
 		local CommandName = CommandNames[ i ]
 		if CommandAppearsOnPage( i, PageNumber ) then
 			local Command = Shine.Commands[ CommandName ]
 
 			if Command then
-				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
-					( type( Command.ChatCmd ) == "string" and StringFormat( " (chat: !%s)", Command.ChatCmd ) or "" ), 
-					Command.Help or "No help available." )
+				local ChatCommand = type( Command.ChatCmd ) == "string"
+					and StringFormat( " (chat: !%s)", Command.ChatCmd ) or ""
+
+				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName,
+					ChatCommand, Command.Help or "No help available." )
 
 				PrintToConsole( Client, HelpLine )
 			end
@@ -349,9 +358,10 @@ local function Help( Client, Search )
 	Histories[ Client or "Console" ] = History
 
 	local EndMessage = "End command list."
-	if CommandsAppearOnPage( #CommandNames, PageNumber + 1 ) then
-		EndMessage = StringFormat( "There are more commands! Re-issue the \"sh_help%s\" command to view them.", 
-			( Search == nil and "" or StringFormat( " %s", Search ) ) )
+	if CommandsAppearOnPage( NumCommands, PageNumber + 1 ) then
+		EndMessage = StringFormat(
+			"There are more commands! Re-issue the \"sh_help%s\" command to view them.",
+			Search == nil and "" or StringFormat( " %s", Search ) )
 	end
 	PrintToConsole( Client, EndMessage )
 end
@@ -363,7 +373,8 @@ function Plugin:CreateCommands()
 
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
-		Shine:Print( "%s ran console command: %s", true, Client and Client:GetControllingPlayer():GetName() or "Console", Command )
+		Shine:Print( "%s ran console command: %s", true,
+			Shine.GetClientInfo( Client ), Command )
 	end
 	local RConCommand = self:BindCommand( "sh_rcon", "rcon", RCon )
 	RConCommand:AddParam{ Type = "string", TakeRestOfLine = true }
@@ -371,7 +382,8 @@ function Plugin:CreateCommands()
 
 	local function SetPassword( Client, Password )
 		Server.SetPassword( Password )
-		Shine:AdminPrint( Client, "Password %s", true, Password ~= "" and "set to "..Password or "reset" )
+		Shine:AdminPrint( Client, "Password %s", true,
+			Password ~= "" and "set to "..Password or "reset" )
 	end
 	local SetPasswordCommand = self:BindCommand( "sh_password", "password", SetPassword )
 	SetPasswordCommand:AddParam{ Type = "string", TakeRestOfLine = true, Optional = true, Default = "" }
@@ -435,8 +447,8 @@ function Plugin:CreateCommands()
 			if Shine.Config.NotifyOnCommand then
 				Shine:CommandNotify( Client, "%s %s.", true, Enabled, CommandNotifyString )
 			else
-				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[All Talk]",
-					255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
+				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
+					"[All Talk]", 255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
 			end
 		end
 		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
@@ -467,7 +479,8 @@ function Plugin:CreateCommands()
 				Shine:CommandNotify( Client, "set friendly fire scale to %s.", true, Scale )
 			else
 				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[FF]",
-					255, 255, 255, "Friendly fire has been %s.", true, Enable and "enabled" or "disabled" )
+					255, 255, 255, "Friendly fire has been %s.", true,
+					Enable and "enabled" or "disabled" )
 			end
 		end
 	end
@@ -582,10 +595,10 @@ function Plugin:CreateCommands()
 						GroupData and GroupData.Immunity or 0 ) )
 				end
 			end
-		
+
 			return
 		end
-		
+
 		local Player = Target:GetControllingPlayer()
 		if not Player then
 			PrintToConsole( Client, "Unknown user." )
@@ -644,7 +657,7 @@ function Plugin:CreateCommands()
 		for i = 1, #Maps do
 			local Map = Maps[ i ]
 			local MapName = IsType( Map, "table" ) and Map.map or Map
-			
+
 			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
 		end
 	end
@@ -679,19 +692,20 @@ function Plugin:CreateCommands()
 				Shine.Config.ActiveExtensions[ Name ] = true
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to enabled in config.", Name ) )
+				Shine:AdminPrint( Client,
+					StringFormat( "Plugin %s now set to enabled in config.", Name ) )
 
 				return
 			end
 
 			Success, Err = Shine:EnableExtension( Name )
 		end
-		
+
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
 
 			--Update all players with the plugins state.
-			Shine:SendPluginData( nil, Shine:BuildPluginData() )
+			Shine:SendPluginData( nil )
 
 			if Save then
 				Shine.Config.ActiveExtensions[ Name ] = true
@@ -718,13 +732,14 @@ function Plugin:CreateCommands()
 				Shine.Config.ActiveExtensions[ Name ] = false
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client, StringFormat( "Plugin %s now set to disabled in config.", Name ) )
+				Shine:AdminPrint( Client,
+					StringFormat( "Plugin %s now set to disabled in config.", Name ) )
 
 				return
 			end
 
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s is not loaded.", Name ) )
-			
+
 			return
 		end
 
@@ -732,7 +747,7 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "Plugin %s unloaded successfully.", Name ) )
 
-		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+		Shine:SendPluginData( nil )
 
 		if Save then
 			Shine.Config.ActiveExtensions[ Name ] = false
@@ -757,7 +772,7 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "Plugin %s has been suspended.", Name ) )
 
-		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+		Shine:SendPluginData( nil )
 	end
 	local SuspendPluginCommand = self:BindCommand( "sh_suspendplugin", nil, SuspendPlugin )
 	SuspendPluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to suspend." }
@@ -776,7 +791,7 @@ function Plugin:CreateCommands()
 
 		Shine:AdminPrint( Client, StringFormat( "Plugin %s has been resumed.", Name ) )
 
-		Shine:SendPluginData( nil, Shine:BuildPluginData() )
+		Shine:SendPluginData( nil )
 	end
 	local ResumePluginCommand = self:BindCommand( "sh_resumeplugin", nil, ResumePlugin )
 	ResumePluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to resume." }
@@ -913,9 +928,16 @@ function Plugin:CreateCommands()
 	end
 
 	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
-		Server.SetConfigSetting( "auto_team_balance", Enable and { enabled_on_unbalance_amount = UnbalanceAmount, enabled_after_seconds = Delay } or nil )
+		Server.SetConfigSetting( "auto_team_balance",
+			Enable and {
+				enabled_on_unbalance_amount = UnbalanceAmount,
+				enabled_after_seconds = Delay
+			} or nil )
+
 		if Enable then
-			Shine:AdminPrint( Client, "Auto balance enabled. Player unbalance amount: %s. Delay: %s.", true, UnbalanceAmount, Delay )
+			Shine:AdminPrint( Client,
+				"Auto balance enabled. Player unbalance amount: %s. Delay: %s.",
+				true, UnbalanceAmount, Delay )
 		else
 			Shine:AdminPrint( Client, "Auto balance disabled." )
 		end
@@ -968,7 +990,8 @@ function Plugin:CreateCommands()
 	end
 
 	local function AdminSay( Client, Message )
-		Shine:Notify( nil, "All", ( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
+		Shine:Notify( nil, "All",
+			( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
 	end
 	local AdminSayCommand = self:BindCommand( "sh_say", "say", AdminSay, false, true )
 	AdminSayCommand:AddParam{ Type = "string", MaxLength = kMaxChatLength, TakeRestOfLine = true, Error = "Please specify a message." }
@@ -977,7 +1000,8 @@ function Plugin:CreateCommands()
 	local function AdminTeamSay( Client, Team, Message )
 		local Players = GetEntitiesForTeam( "Player", Team )
 
-		Shine:Notify( Players, "Team", ( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
+		Shine:Notify( Players, "Team",
+			( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
 	end
 	local AdminTeamSayCommand = self:BindCommand( "sh_teamsay", "teamsay", AdminTeamSay, false, true )
 	AdminTeamSayCommand:AddParam{ Type = "team", Error = "Please specify a team." }
@@ -1032,7 +1056,8 @@ function Plugin:CreateCommands()
 			Colour = Colours.white
 		end
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 1, 2, 1 ) )
+		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6,
+			Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 1, 2, 1 ) )
 		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
 	end
 	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )
@@ -1054,7 +1079,8 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( nil, "%s[%s] gagged %s[%s]%s", true, PlayerName, ID, TargetName, TargetID,
 			Duration == 0 and "" or " for "..DurationString )
 
-		Shine:CommandNotify( Client, "gagged %s %s.", true, TargetName, Duration == 0 and "until map change" or "for "..DurationString )
+		Shine:CommandNotify( Client, "gagged %s %s.", true, TargetName,
+			Duration == 0 and "until map change" or "for "..DurationString )
 	end
 	local GagCommand = self:BindCommand( "sh_gag", "gag", GagPlayer )
 	GagCommand:AddParam{ Type = "client" }
@@ -1089,7 +1115,7 @@ function Plugin:CreateCommands()
 	local function Interp( Client, NewInterp )
 		local MinInterp = 2 / self.Config.SendRate * 1000
 		if NewInterp < MinInterp then
-			NotifyError( Client, "Interp is constrained by send rate to be %ims minimum.",
+			NotifyError( Client, "Interp is constrained by send rate to be %.2fms minimum.",
 				true, MinInterp )
 			return
 		end
@@ -1097,7 +1123,7 @@ function Plugin:CreateCommands()
 		self.Config.Interp = NewInterp
 
 		Shared.ConsoleCommand( StringFormat( "interp %s", NewInterp * 0.001 ) )
-	
+
 		self:SaveConfig( true )
 	end
 	local InterpCommand = self:BindCommand( "sh_interp", "interp", Interp )
@@ -1118,9 +1144,9 @@ function Plugin:CreateCommands()
 		self:SaveConfig( true )
 	end
 	local TickRateCommand = self:BindCommand( "sh_tickrate", "tickrate", TickRate )
-	TickRateCommand:AddParam{ Type = "number", Min = 20 }
+	TickRateCommand:AddParam{ Type = "number", Min = 10, Round = true }
 	TickRateCommand:Help( "<rate> Sets the max server tickrate and saves it." )
-	
+
 	local function BWLimit( Client, NewLimit )
 		self.Config.BWLimit = NewLimit
 
@@ -1131,7 +1157,7 @@ function Plugin:CreateCommands()
 	local BWLimitCommand = self:BindCommand( "sh_bwlimit", "bwlimit", BWLimit )
 	BWLimitCommand:AddParam{ Type = "number", Min = 10 }
 	BWLimitCommand:Help( "<limit in kbytes> Sets the bandwidth limit per player and saves it." )
-	
+
 	local function SendRate( Client, NewRate )
 		if NewRate > self.Config.TickRate then
 			NotifyError( Client, "Send rate cannot be greater than tick rate (%i).",
@@ -1146,9 +1172,9 @@ function Plugin:CreateCommands()
 		self:SaveConfig( true )
 	end
 	local SendRateCommand = self:BindCommand( "sh_sendrate", "sendrate", SendRate )
-	SendRateCommand:AddParam{ Type = "number", Min = 10 }
+	SendRateCommand:AddParam{ Type = "number", Min = 10, Round = true }
 	SendRateCommand:Help( "<rate> Sets the rate of updates sent to clients and saves it." )
-	
+
 	local function MoveRate( Client, NewRate )
 		self.Config.MoveRate = NewRate
 
@@ -1157,7 +1183,7 @@ function Plugin:CreateCommands()
 		self:SaveConfig( true )
 	end
 	local MoveRateCommand = self:BindCommand( "sh_moverate", "moverate", MoveRate )
-	MoveRateCommand:AddParam{ Type = "number", Min = 5 }
+	MoveRateCommand:AddParam{ Type = "number", Min = 5, Round = true }
 	MoveRateCommand:Help( "<rate> Sets the move rate and saves it." )
 end
 
@@ -1185,7 +1211,7 @@ end
 
 function Plugin:ReceiveRequestMapData( Client, Data )
 	if not Shine:GetPermission( Client, "sh_changelevel" ) then return end
-	
+
 	local Cycle = MapCycle_GetMapCycle()
 
 	if not Cycle or not Cycle.maps then
@@ -1199,7 +1225,7 @@ function Plugin:ReceiveRequestMapData( Client, Data )
 		local IsTable = IsType( Map, "table" )
 
 		local MapName = IsTable and Map.map or Map
-		
+
 		self:SendNetworkMessage( Client, "MapData", { Name = MapName }, true )
 	end
 end
@@ -1208,7 +1234,7 @@ function Plugin:ReceiveRequestPluginData( Client, Data )
 	if not Shine:GetPermission( Client, "sh_loadplugin" ) then return end
 
 	self.PluginClients = self.PluginClients or {}
-	
+
 	self.PluginClients[ Client ] = true
 
 	local Plugins = Shine.AllPlugins
@@ -1221,11 +1247,11 @@ end
 
 function Plugin:OnPluginLoad( Name, Plugin, Shared )
 	if Shared then return end
-	
+
 	local Clients = self.PluginClients
 
 	if not Clients then return end
-	
+
 	for Client in pairs( Clients ) do
 		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = true }, true )
 	end
@@ -1233,11 +1259,11 @@ end
 
 function Plugin:OnPluginUnload( Name, Shared )
 	if Shared then return end
-	
+
 	local Clients = self.PluginClients
 
 	if not Clients then return end
-	
+
 	for Client in pairs( Clients ) do
 		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = false }, true )
 	end

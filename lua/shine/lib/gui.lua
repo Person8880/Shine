@@ -1080,7 +1080,7 @@ function ControlMeta:SetTooltip( Text )
 end
 
 function ControlMeta:HandleMovement( Time, DeltaTime )
-	if not self.MoveData or self.MoveData.StartTime > Time then
+	if not self.MoveData or self.MoveData.StartTime > Time or self.MoveData.Finished then
 		return
 	end
 
@@ -1089,12 +1089,16 @@ function ControlMeta:HandleMovement( Time, DeltaTime )
 
 		self:ProcessMove()
 	else
-		if not self.MoveData.Finished then
+		self.MoveData.Element:SetPosition( self.MoveData.NewPos )
+		if self.MoveData.Callback then
 			self.MoveData.Callback( self )
-
-			self.MoveData.Finished = true
 		end
+
+		self.MoveData.Finished = true
 	end
+
+	--We call this to update highlighting if the control is moving and the mouse is not.
+	self.BaseClass.OnMouseMove( self, false )
 end
 
 function ControlMeta:HandleFading( Time, DeltaTime )

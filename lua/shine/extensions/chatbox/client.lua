@@ -18,6 +18,8 @@ local pairs = pairs
 local select = select
 local StringExplode = string.Explode
 local StringFormat = string.format
+local StringUTF8Length = string.UTF8Length
+local StringUTF8Sub = string.UTF8Sub
 local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
@@ -115,7 +117,7 @@ Hook.Add( "Think", "GetGUIChat", function()
 			Plugin.GUIChat = Script
 
 			Hook.Remove( "Think", "GetGUIChat" )
-			
+
 			return
 		end
 	end
@@ -221,7 +223,7 @@ end
 --[[
 	Creates the chatbox UI elements.
 
-	Essentially, 
+	Essentially,
 		1. An invisible dummy panel to contain everything.
 		2. A smaller panel to contain the chat messages, scrollable.
 		3. A larger panel parented to the smaller one, that provides a border.
@@ -233,7 +235,7 @@ function Plugin:CreateChatbox()
 	--For some reason, some people don't have this. Without it, we can't do anything...
 	if not self.GUIChat.inputItem then
 		Shine:AddErrorReport( "GUIChat is missing its inputItem!",
-			"Type: %s. inputItem: %s. messages: %s.", true, type( self.GUIChat ), 
+			"Type: %s. inputItem: %s. messages: %s.", true, type( self.GUIChat ),
 			tostring( self.GUIChat.inputItem ), tostring( self.GUIChat.messages ) )
 
 		Shine:UnloadExtension( "chatbox" )
@@ -393,9 +395,9 @@ function Plugin:CreateChatbox()
 
 		--Don't go sending blank messages.
 		if #Text > 0 and Text:find( "[^%s]" ) then
-			Shine.SendNetworkMessage( "ChatClient", 
+			Shine.SendNetworkMessage( "ChatClient",
 				BuildChatClientMessage( Plugin.TeamChat,
-					Text:UTF8Sub( 1, kMaxChatLength ) ), true )
+					StringUTF8Sub( Text, 1, kMaxChatLength ) ), true )
 		end
 
 		self:SetText( "" )
@@ -409,7 +411,7 @@ function Plugin:CreateChatbox()
 	function TextEntry:ShouldAllowChar( Char )
 		local Text = self:GetText()
 
-		if Text:UTF8Length() >= kMaxChatLength then
+		if StringUTF8Length( Text ) >= kMaxChatLength then
 			return false
 		end
 
@@ -528,7 +530,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 
 	function AutoClose:OnChecked( Value )
 		if Value == Plugin.Config.AutoClose then return end
-		
+
 		Plugin.Config.AutoClose = Value
 
 		Plugin:SaveConfig()
@@ -540,7 +542,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 
 	function AutoDelete:OnChecked( Value )
 		if Value == Plugin.Config.DeleteOnClose then return end
-		
+
 		Plugin.Config.DeleteOnClose = Value
 
 		Plugin:SaveConfig()
@@ -552,7 +554,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 
 	function SmoothScroll:OnChecked( Value )
 		if Value == Plugin.Config.SmoothScroll then return end
-		
+
 		Plugin.Config.SmoothScroll = Value
 		Plugin.ChatBox:SetAllowSmoothScroll( Value )
 
@@ -568,7 +570,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 
 	function MessageMemory:OnValueChanged( Value )
 		if Plugin.Config.MessageMemory == Value then return end
-		
+
 		Plugin.Config.MessageMemory = Value
 
 		Plugin:SaveConfig()
@@ -585,7 +587,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		Value = Value * 0.01
 
 		if Plugin.Config.Opacity == Value then return end
-		
+
 		Plugin.Config.Opacity = Value
 
 		Plugin:SaveConfig()
@@ -716,21 +718,22 @@ local function TextWrap( Label, Text, XPos, MaxWidth )
 	local i = 1
 	local FirstLine = Text
 	local SecondLine = ""
+	local Length = StringUTF8Length( Text )
 
 	--Character by character, extend the text until it exceeds the width limit.
 	repeat
-		local CurText = Text:UTF8Sub( 1, i )
+		local CurText = StringUTF8Sub( Text, 1, i )
 
 		--Once it reaches the limit, we go back a character, and set our first and second line results.
 		if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-			FirstLine = Text:UTF8Sub( 1, i - 1 )
-			SecondLine = Text:UTF8Sub( i )
+			FirstLine = StringUTF8Sub( Text, 1, i - 1 )
+			SecondLine = StringUTF8Sub( Text, i )
 
 			break
 		end
 
 		i = i + 1
-	until i >= Text:UTF8Length()
+	until i >= Length
 
 	return FirstLine, SecondLine
 end
@@ -786,7 +789,7 @@ local IntToColour
 
 --[[
 	Adds a message to the chatbox.
-	
+
 	Inputs are derived from the GUIChat inputs as we want to maintain compatability.
 
 	Theoretically, we can make messages with any number of colours, but for now this will do.
@@ -794,7 +797,7 @@ local IntToColour
 function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
 	if not SGUI.IsValid( self.MainPanel ) then
 		self:CreateChatbox()
-	
+
 		if not self.Visible then
 			self.MainPanel:SetIsVisible( false )
 		end
@@ -805,7 +808,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	or not IsType( MessageColour, "cdata" ) or not IsType( MessageName, "string" ) then
 		return
 	end
-	
+
 	--I've decided not to scale this text, scaling blurs or pixelates and it's very hard to read.
 	local UIScale = 1
 
@@ -907,7 +910,7 @@ end
 ]]
 function Plugin:CloseChat()
 	if not SGUI.IsValid( self.MainPanel ) then return end
-	
+
 	self.MainPanel:SetIsVisible( false )
 	self.GUIChat:SetIsVisible( true ) --Allow the GUIChat messages to show.
 
@@ -928,7 +931,7 @@ end
 function Plugin:StartChat( Team )
 	if MainMenu_GetIsOpened and MainMenu_GetIsOpened() then return true end
 	if not self.GUIChat then return end
-	
+
 	self.TeamChat = Team
 
 	if not SGUI.IsValid( self.MainPanel ) then
@@ -980,7 +983,7 @@ end
 ]]
 function Plugin:Cleanup()
 	if not SGUI.IsValid( self.MainPanel ) then return end
-	
+
 	self.IgnoreRemove = true
 	self.MainPanel:Destroy()
 	self.IgnoreRemove = nil

@@ -122,6 +122,7 @@ function table.Average( Table )
 end
 
 do
+	local Notify = Shared.Message
 	local StringFormat = string.format
 	local StringRep = string.rep
 	local TableConcat = table.concat
@@ -156,6 +157,10 @@ do
 
 		local Strings = {}
 		Strings[ 1 ] = StringFormat( "%s {", tostring( Table ) )
+		if not next( Table ) then
+			return Strings[ 1 ].."}"
+		end
+
 		local IndentString = StringRep( "\t", Indent )
 
 		for Key, Value in pairs( Table ) do
@@ -180,7 +185,7 @@ do
 		Prints a nicely formatted table structure to the console.
 	]]
 	function PrintTable( Table )
-		Print( TableToString( Table ) )
+		Notify( TableToString( Table ) )
 	end
 
 	function table.ToDebugString( Table )

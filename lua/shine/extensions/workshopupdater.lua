@@ -4,12 +4,12 @@
 
 local Shine = Shine
 
-local Max = math.max
+local Decode = json.decode
 local HTTPRequest = Shared.SendHTTPRequest
 local Huge = math.huge
+local Max = math.max
 local StringFormat = string.format
 local tonumber = tonumber
-local JsonDecode = json.decode
 
 local Plugin = {}
 
@@ -29,7 +29,6 @@ Plugin.DefaultConfig = {
 
 local RemainingNotifications = Huge
 local ModChangeTimer = "CheckForModChange"
-local RepeatMessageTimer = "RepeatModUpdateMessage"
 
 function Plugin:Initialise()
 	self.Config.CheckInterval = Max( self.Config.CheckInterval, 15 )
@@ -69,7 +68,6 @@ function Plugin:ParseModInfo( ModInfo )
 
 	--Steam API error
 	if Response.result ~= 1 then return end
-
 	if not Response.publishedfiledetails then return end
 
 	for _, Res in pairs( Response.publishedfiledetails ) do
@@ -105,7 +103,7 @@ function Plugin:CheckForModChange()
 
 	local URL = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
 	HTTPRequest( URL, "POST", Params, function( Response )
-		self:ParseModInfo( JsonDecode( Response ) )
+		self:ParseModInfo( Decode( Response ) )
 	end )
 end
 
@@ -146,7 +144,7 @@ function Plugin:NotifyOrCycle( Recall )
 
 		local TimeBeforeChange = RemainingNotifications * self.Config.NotifyInterval
 		if TimeBeforeChange > 5 then
-			TimeRemainingString = StringFormat( "in %s", string.TimeToString( TimeBeforeChange ))
+			TimeRemainingString = StringFormat( "in %s", string.TimeToString( TimeBeforeChange ) )
 		end
 
 		self:Notify( "The map will cycle %s.", true, TimeRemainingString )
@@ -158,7 +156,7 @@ function Plugin:NotifyOrCycle( Recall )
 	end
 
 	if self.Config.RepeatNotifications then
-		self:CreateTimer( RepeatMessageTimer, self.Config.NotifyInterval, 1, function()
+		self:SimpleTimer( self.Config.NotifyInterval, function()
 			self:NotifyOrCycle( true )
 		end )
 	end

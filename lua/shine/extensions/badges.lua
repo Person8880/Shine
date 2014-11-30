@@ -14,21 +14,13 @@ Plugin.Version = "2.0"
 function Plugin:Initialise()
 	self.AssignedGuests = {}
 
-	if self.Enabled ~= nil then 
-		self.Enabled = true
-
-		return true
-	end
-
-	Shine.Hook.Add( "Think", "ReplaceBadges", function( Deltatime )
-		self:Setup()
-
-		Shine.Hook.Remove( "Think", "ReplaceBadges" )
-	end )
-
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:OnFirstThink()
+	self:Setup()
 end
 
 function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups )
@@ -126,7 +118,7 @@ function Plugin:Setup()
 				for Row, UserRowBadges in pairs( UserBadges ) do
 					for i = 1, #UserRowBadges do
 						local BadgeName = UserRowBadges[ i ]
-	
+
 						if not AssignBadge( ID, BadgeName, Row ) then
 							Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
 						end

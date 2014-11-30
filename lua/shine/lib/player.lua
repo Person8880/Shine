@@ -6,13 +6,13 @@ local TeamNames = {
 	ns2 = {
 		{ "Marines", "marines", "marine team" },
 		{ "Aliens", "aliens", "alien team" },
-		{ "Spectate", "spectate", "spectate" },
+		{ "Spectate", "spectators", "spectate" },
 		{ "Ready Room", "ready room", "ready room" }
 	},
 	mvm = {
 		{ "Blue Team", "blue team", "blue team" },
 		{ "Gold Team", "gold team", "gold team" },
-		{ "Spectate", "spectate", "spectate" },
+		{ "Spectate", "spectators", "spectate" },
 		{ "Ready Room", "ready room", "ready room" }
 	}
 }
@@ -263,16 +263,16 @@ end
 ]]
 function Shine.GetAllClients()
 	local Clients = {}
-	local Count = 1
+	local Count = 0
 
 	local GameIDs = Shine.GameIDs
 
 	for Client, ID in GameIDs:Iterate() do
-		Clients[ Count ] = Client
 		Count = Count + 1
+		Clients[ Count ] = Client
 	end
 
-	return Clients
+	return Clients, Count
 end
 
 --[[
@@ -455,7 +455,9 @@ function Shine.GetClientInfo( Client )
 
 	local Player = Client:GetControllingPlayer()
 
-	if not Player then return ConsoleInfo end
+	if not Player then
+		return StringFormat( "Unknown[%i]", Client:GetUserId() )
+	end
 
-	return StringFormat( "%s[%s]", Player:GetName(), Client:GetUserId() )
+	return StringFormat( "%s[%i]", Player:GetName(), Client:GetUserId() )
 end
