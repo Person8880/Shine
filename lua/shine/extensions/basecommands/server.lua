@@ -39,7 +39,7 @@ Plugin.DefaultConfig = {
 	MoveRate = 30,
 	TickRate = 30,
 	SendRate = 20,
-	BWLimit = 25,
+	BWLimit = Shine.IsNS2Combat and 35 or 25,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
 	FriendlyFirePreGame = true
@@ -331,7 +331,7 @@ local function Help( Client, Search )
 	FirstIndexToShow = Min( FirstIndexToShow, NumCommands )
 	LastIndexToShow = Min( LastIndexToShow, NumCommands )
 
-	PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:", 
+	PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:",
 		FirstIndexToShow, LastIndexToShow, NumCommands,
 		Search == nil and "" or StringFormat( " matching %q", Search ) ) )
 
@@ -344,7 +344,7 @@ local function Help( Client, Search )
 				local ChatCommand = type( Command.ChatCmd ) == "string"
 					and StringFormat( " (chat: !%s)", Command.ChatCmd ) or ""
 
-				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName, 
+				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName,
 					ChatCommand, Command.Help or "No help available." )
 
 				PrintToConsole( Client, HelpLine )
@@ -359,8 +359,8 @@ local function Help( Client, Search )
 
 	local EndMessage = "End command list."
 	if CommandsAppearOnPage( NumCommands, PageNumber + 1 ) then
-		EndMessage = StringFormat( 
-			"There are more commands! Re-issue the \"sh_help%s\" command to view them.", 
+		EndMessage = StringFormat(
+			"There are more commands! Re-issue the \"sh_help%s\" command to view them.",
 			Search == nil and "" or StringFormat( " %s", Search ) )
 	end
 	PrintToConsole( Client, EndMessage )
@@ -595,10 +595,10 @@ function Plugin:CreateCommands()
 						GroupData and GroupData.Immunity or 0 ) )
 				end
 			end
-		
+
 			return
 		end
-		
+
 		local Player = Target:GetControllingPlayer()
 		if not Player then
 			PrintToConsole( Client, "Unknown user." )
@@ -657,7 +657,7 @@ function Plugin:CreateCommands()
 		for i = 1, #Maps do
 			local Map = Maps[ i ]
 			local MapName = IsType( Map, "table" ) and Map.map or Map
-			
+
 			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
 		end
 	end
@@ -700,7 +700,7 @@ function Plugin:CreateCommands()
 
 			Success, Err = Shine:EnableExtension( Name )
 		end
-		
+
 		if Success then
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
 
@@ -739,7 +739,7 @@ function Plugin:CreateCommands()
 			end
 
 			Shine:AdminPrint( Client, StringFormat( "Plugin %s is not loaded.", Name ) )
-			
+
 			return
 		end
 
@@ -1123,7 +1123,7 @@ function Plugin:CreateCommands()
 		self.Config.Interp = NewInterp
 
 		Shared.ConsoleCommand( StringFormat( "interp %s", NewInterp * 0.001 ) )
-	
+
 		self:SaveConfig( true )
 	end
 	local InterpCommand = self:BindCommand( "sh_interp", "interp", Interp )
@@ -1146,7 +1146,7 @@ function Plugin:CreateCommands()
 	local TickRateCommand = self:BindCommand( "sh_tickrate", "tickrate", TickRate )
 	TickRateCommand:AddParam{ Type = "number", Min = 10, Round = true }
 	TickRateCommand:Help( "<rate> Sets the max server tickrate and saves it." )
-	
+
 	local function BWLimit( Client, NewLimit )
 		self.Config.BWLimit = NewLimit
 
@@ -1157,7 +1157,7 @@ function Plugin:CreateCommands()
 	local BWLimitCommand = self:BindCommand( "sh_bwlimit", "bwlimit", BWLimit )
 	BWLimitCommand:AddParam{ Type = "number", Min = 10 }
 	BWLimitCommand:Help( "<limit in kbytes> Sets the bandwidth limit per player and saves it." )
-	
+
 	local function SendRate( Client, NewRate )
 		if NewRate > self.Config.TickRate then
 			NotifyError( Client, "Send rate cannot be greater than tick rate (%i).",
@@ -1174,7 +1174,7 @@ function Plugin:CreateCommands()
 	local SendRateCommand = self:BindCommand( "sh_sendrate", "sendrate", SendRate )
 	SendRateCommand:AddParam{ Type = "number", Min = 10, Round = true }
 	SendRateCommand:Help( "<rate> Sets the rate of updates sent to clients and saves it." )
-	
+
 	local function MoveRate( Client, NewRate )
 		self.Config.MoveRate = NewRate
 
@@ -1211,7 +1211,7 @@ end
 
 function Plugin:ReceiveRequestMapData( Client, Data )
 	if not Shine:GetPermission( Client, "sh_changelevel" ) then return end
-	
+
 	local Cycle = MapCycle_GetMapCycle()
 
 	if not Cycle or not Cycle.maps then
@@ -1225,7 +1225,7 @@ function Plugin:ReceiveRequestMapData( Client, Data )
 		local IsTable = IsType( Map, "table" )
 
 		local MapName = IsTable and Map.map or Map
-		
+
 		self:SendNetworkMessage( Client, "MapData", { Name = MapName }, true )
 	end
 end
@@ -1234,7 +1234,7 @@ function Plugin:ReceiveRequestPluginData( Client, Data )
 	if not Shine:GetPermission( Client, "sh_loadplugin" ) then return end
 
 	self.PluginClients = self.PluginClients or {}
-	
+
 	self.PluginClients[ Client ] = true
 
 	local Plugins = Shine.AllPlugins
@@ -1247,11 +1247,11 @@ end
 
 function Plugin:OnPluginLoad( Name, Plugin, Shared )
 	if Shared then return end
-	
+
 	local Clients = self.PluginClients
 
 	if not Clients then return end
-	
+
 	for Client in pairs( Clients ) do
 		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = true }, true )
 	end
@@ -1259,11 +1259,11 @@ end
 
 function Plugin:OnPluginUnload( Name, Shared )
 	if Shared then return end
-	
+
 	local Clients = self.PluginClients
 
 	if not Clients then return end
-	
+
 	for Client in pairs( Clients ) do
 		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = false }, true )
 	end
