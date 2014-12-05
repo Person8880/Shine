@@ -25,12 +25,12 @@ Shine.CommandUtil.GetDefaultValue = GetDefault
 
 Shine.CommandUtil.ParamTypes = {
 	--Strings return simply the string (clipped to max length if given).
-	string = function( Client, String, Table ) 
+	string = function( Client, String, Table )
 		if not String or String == "" then
 			return GetDefault( Table )
 		end
 
-		return Table.MaxLength and String:UTF8Sub( 1, Table.MaxLength ) or String
+		return Table.MaxLength and StringUTF8Sub( String, 1, Table.MaxLength ) or String
 	end,
 	--Number performs tonumber() on the string and clamps the result between
 	--the given min and max if set. Also rounds if asked.
@@ -45,7 +45,7 @@ Shine.CommandUtil.ParamTypes = {
 	end,
 	--Boolean turns "false" and 0 into false and everything else into true.
 	boolean = function( Client, String, Table )
-		if not String or String == "" then 
+		if not String or String == "" then
 			return GetDefault( Table )
 		end
 
