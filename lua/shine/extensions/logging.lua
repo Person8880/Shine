@@ -32,7 +32,7 @@ function Plugin:Initialise()
 	if not Shine.Config.EnableLogging then
 		return false, "Shine logging must be enabled, check your BaseConfig.json file."
 	end
-	
+
 	self.Enabled = true
 
 	return true
@@ -40,7 +40,7 @@ end
 
 function Plugin:GetClientInfo( Client, NoTeam )
 	if not Client then return "Console" end
-	
+
 	local Player = Client:GetControllingPlayer()
 	local PlayerName = Player and Player:GetName() or "<unknown>"
 	local ID = Client.GetUserId and Client:GetUserId() or 0
@@ -50,14 +50,14 @@ function Plugin:GetClientInfo( Client, NoTeam )
 
 		return StringFormat( "%s[%s][%s]", PlayerName, ID, Team )
 	end
-	
+
 	return StringFormat( "%s[%s - %s]<%s>", PlayerName, ID,
 		Shine.NS2ToSteamID( ID ), IPAddressToString( Server.GetClientAddress( Client ) ) )
 end
 
 function Plugin:ClientConfirmConnect( Client )
 	if not self.Config.LogConnections then return end
-	
+
 	if not Client then return end
 
 	if Client:GetIsVirtual() then
@@ -72,7 +72,7 @@ function Plugin:ClientDisconnect( Client )
 	if not self.Config.LogConnections then return end
 
 	if not Client then return end
-	
+
 	if Client:GetIsVirtual() then
 		Shine:LogString( "Bot removed." )
 		return
@@ -90,7 +90,7 @@ function Plugin:PlayerNameChange( Player, Name, OldName )
 
 	local Client = Server.GetOwner( Player )
 	if Client and Client:GetIsVirtual() then return end
-	
+
 	Shine:LogString( StringFormat( "%s changed their name from '%s' to '%s'.",
 		self:GetClientInfo( Client ), OldName or "", Name ) )
 end
@@ -102,19 +102,19 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	local Client = Server.GetOwner( Player )
 
 	if not Client then return end
-	
+
 	local UserID = Client.GetUserId and Client:GetUserId() or 0
 
-	Shine:LogString( StringFormat( "Player %s[%s] joined team %s.", 
+	Shine:LogString( StringFormat( "Player %s[%s] joined team %s.",
 		Player:GetName(),
-		UserID, 
+		UserID,
 		Shine:GetTeamName( NewTeam )
 	) )
 end
 
 function Plugin:PlayerSay( Client, Message )
 	if not self.Config.LogChat then return end
-	
+
 	Shine:LogString( StringFormat( "%s from %s: %s",
 		Message.teamOnly and "Team Chat" or "Chat", self:GetClientInfo( Client ),
 		Message.message ) )
@@ -122,7 +122,7 @@ end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
 	if not self.Config.LogRoundStartEnd then return end
-	
+
 	if State == kGameState.Started then
 		Shine:LogString( StringFormat( "Round started. Build: %s. Map: %s.",
 			Shared.GetBuildNumber(), Shared.GetMapName() ) )
@@ -131,12 +131,13 @@ end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
 	if not self.Config.LogRoundStartEnd then return end
+	if not Gamerules.gameStartTime then return end
 
 	local Build = Shared.GetBuildNumber()
 	local Map = Shared.GetMapName()
 
 	local RoundLength = string.TimeToString( Shared.GetTime() - Gamerules.gameStartTime )
-	
+
 	local StartLoc1 = Gamerules.startingLocationNameTeam1
 	local StartLoc2 = Gamerules.startingLocationNameTeam2
 
@@ -151,7 +152,11 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		return
 	end
 
-	local WinnerNum = IsType( WinningTeam, "number" ) and WinningTeam or WinningTeam:GetTeamType()
+	local WinnerNum = IsType( WinningTeam, "number" ) and WinningTeam
+		or ( WinningTeam.GetTeamType and WinningTeam:GetTeamType() )
+
+	if not WinnerNum then return end
+
 	local TeamString = Shine:GetTeamName( WinnerNum )
 
 	Shine:LogString( StringFormat( "Round ended with %s winning. Build: %s. Map: %s. Round length: %s. %s start: %s. %s start: %s.",
@@ -168,7 +173,7 @@ end
 function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, Dir )
 	if not self.Config.LogKills then return end
 	if not Attacker or not Inflictor or not Victim then return end
-	
+
 	local AttackerPos = Attacker:GetOrigin()
 	local VictimPos = Victim:GetOrigin()
 
@@ -187,7 +192,7 @@ end
 function Plugin:CastVoteByPlayer( Gamerules, VoteTechID, Player )
 	if not self.Config.LogEjectVotes then return end
 	if VoteTechID ~= kTechId.VoteDownCommander1 and VoteTechID ~= kTechId.VoteDownCommander2 and VoteTechID ~= kTechId.VoteDownCommander3 then return end
-	
+
 	local Commanders = GetEntitiesForTeam( "Commander", Player:GetTeamNumber() )
 	local Comm = VoteTechID - kTechId.VoteDownCommander1 + 1
 	local CommPlayer = Commanders[ Comm ]
@@ -207,9 +212,9 @@ if not Shine.IsNS2Combat then
 	function Plugin:CommLoginPlayer( Chair, Player )
 		if not self.Config.LogCommanderLogin then return end
 		if not Player then return end
-		
-		Shine:LogString( StringFormat( "%s became the commander of the %s.", 
-			self:GetClientInfo( Server.GetOwner( Player ) ), 
+
+		Shine:LogString( StringFormat( "%s became the commander of the %s.",
+			self:GetClientInfo( Server.GetOwner( Player ) ),
 			Shine:GetTeamName( Player:GetTeamNumber(), nil, true )
 		) )
 	end
@@ -228,7 +233,7 @@ if not Shine.IsNS2Combat then
 
 	function Plugin:OnBuildingRecycled( Building, ResearchID )
 		if not self.Config.LogRecycling then return end
-		
+
 		local ID = Building:GetId()
 		local Name = Building:GetClassName()
 
@@ -250,7 +255,7 @@ if not Shine.IsNS2Combat then
 		if ResearchID ~= kTechId.Recycle then return end
 
 		local Client = Server.GetOwner( Commander )
-		
+
 		Shine:LogString( StringFormat( "%s began recycling %s[%s].",
 			self:GetClientInfo( Client ), Name, ID ) )
 	end
@@ -258,7 +263,7 @@ end
 
 function Plugin:OnConstructInit( Building )
 	if not self.Config.LogConstruction then return end
-	
+
 	local ID = Building:GetId()
 	local Name = Building:GetClassName()
 	local Team = Building:GetTeam()
@@ -272,7 +277,7 @@ function Plugin:OnConstructInit( Building )
 	Owner = Owner or Team:GetCommander()
 
 	if not Owner then return end
-	
+
 	local Client = Server.GetOwner( Owner )
 	Shine:LogString( StringFormat( "%s began construction of %s[%s].",
 		self:GetClientInfo( Client ), Name, ID ) )
