@@ -187,6 +187,7 @@ function Plugin:OnProcessMove( Player, Input )
 	if not DataTable then return end
 
 	local Time = SharedTime()
+	if DataTable.LastMove > Time then return end
 
 	if self.Config.OnlyCheckOnStarted and not Started then
 		self:ResetAFKTime( Client )
@@ -218,8 +219,6 @@ function Plugin:OnProcessMove( Player, Input )
 
 		return
 	end
-
-	if DataTable.LastMove > Time then return end
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
 	local DeltaTime = Time - DataTable.LastMeasurement
