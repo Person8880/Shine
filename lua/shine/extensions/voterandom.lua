@@ -1367,11 +1367,11 @@ function Plugin:ApplyRandomSettings()
 		self.RandomApplied = false
 	end )
 
-	--Set up random teams for the next round.
+	--Set up teams for the next round.
 	if self.Config.RandomOnNextRound then
 		local Gamerules = GetGamerules()
 
-		--Game hasn't started, apply the random settings now, as the next round is the one that's going to start...
+		--Game hasn't started, apply the settings now, as the next round is the one that's going to start...
 		if not Gamerules:GetGameStarted() then
 			self:Notify( nil, "Shuffling teams %s for the next round...",
 				true, ModeStrings.Action[ self.Config.BalanceMode ] )
@@ -1391,14 +1391,22 @@ function Plugin:ApplyRandomSettings()
 		return
 	end
 
-	--Set up random teams now and make them last for the given time in the config.
+	--Set up teams now and make them last for the given time in the config.
 	local Duration = self.Config.Duration * 60
 
-	self.ForceRandom = true
-	self.NextVote = SharedTime() + Duration
+	if Duration > 0 then
+		self.ForceRandom = true
+		self.NextVote = SharedTime() + Duration
 
-	self:Notify( nil, "%s teams have been enabled for the next %s.",
-		true, ModeStrings.Mode[ self.Config.BalanceMode ], string.TimeToString( Duration ) )
+		self:Notify( nil, "%s teams have been enabled for the next %s.",
+			true, ModeStrings.Mode[ self.Config.BalanceMode ], string.TimeToString( Duration ) )
+
+		self:CreateTimer( self.RandomEndTimer, Duration, 1, function()
+			self:Notify( nil, "%s team enforcing disabled, time limit reached.",
+				true, ModeStrings.Mode[ self.LastShuffleMode or self.Config.BalanceMode ] )
+			self.ForceRandom = false
+		end )
+	end
 
 	if self.Config.InstantForce then
 		local Gamerules = GetGamerules()
@@ -1421,12 +1429,6 @@ function Plugin:ApplyRandomSettings()
 			Gamerules:ResetGame()
 		end
 	end
-
-	self:CreateTimer( self.RandomEndTimer, Duration, 1, function()
-		self:Notify( nil, "%s team enforcing disabled, time limit reached.",
-			true, ModeStrings.Mode[ self.LastShuffleMode or self.Config.BalanceMode ] )
-		self.ForceRandom = false
-	end )
 end
 
 function Plugin:CreateCommands()

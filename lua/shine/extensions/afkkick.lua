@@ -6,11 +6,12 @@ local Shine = Shine
 
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
+local Max = math.max
 local pcall = pcall
 local SharedTime = Shared.GetTime
 
 local Plugin = {}
-Plugin.Version = "1.0"
+Plugin.Version = "1.5"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
@@ -31,6 +32,26 @@ Plugin.DefaultConfig = {
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
+
+do
+	local Call = Shine.Hook.Call
+	local GetEntity = Shared.GetEntity
+
+	Shine.Hook.SetupClassHook( "PlayerInfoEntity", "UpdateScore", "OnPlayerInfoUpdate",
+	function( OldFunc, self )
+		local Player = GetEntity( self.playerId )
+
+		if not Player then return OldFunc( self ) end
+
+		Call( "PrePlayerInfoUpdate", self, Player )
+
+		local Ret = OldFunc( self )
+
+		Call( "PostPlayerInfoUpdate", self, Player )
+
+		return Ret
+	end )
+end
 
 function Plugin:Initialise()
 	local Edited
@@ -73,6 +94,30 @@ function Plugin:Initialise()
 	return true
 end
 
+do
+	local OldFunc
+
+	local function GetName( self )
+		return "AFK - "..OldFunc( self )
+	end
+
+	function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
+		OldFunc = Player.GetName
+
+		local Client = GetOwner( Player )
+		local Data = Plugin.Users[ Client ]
+		if not Data or not Data.IsAFK then return end
+
+		Player.GetName = GetName
+	end
+
+	function Plugin:PostPlayerInfoUpdate( PlayerInfo, Player )
+		Player.GetName = OldFunc
+
+		OldFunc = nil
+	end
+end
+
 --[[
 	On client connect, add the client to our table of clients.
 ]]
@@ -82,26 +127,48 @@ function Plugin:ClientConnect( Client )
 	if Client:GetIsVirtual() then return end
 
 	local Player = Client:GetControllingPlayer()
-
 	if not Player then return end
 
+	local MeasureStartTime = SharedTime() + ( self.Config.Delay * 60 )
+
 	self.Users[ Client ] = {
-		LastMove = SharedTime() + ( self.Config.Delay * 60 ),
+		LastMove = MeasureStartTime,
+		LastMeasurement = MeasureStartTime,
+		AFKAmount = 0,
 		Pos = Player:GetOrigin(),
-		Ang = Player:GetViewAngles()
+		Ang = Player:GetViewAngles(),
+		IsAFK = false
 	}
 end
 
 function Plugin:ResetAFKTime( Client )
 	local DataTable = self.Users[ Client ]
-
 	if not DataTable then return end
 
-	DataTable.LastMove = SharedTime()
+	local Time = SharedTime()
+
+	DataTable.LastMove = Time
 
 	if DataTable.Warn then
 		DataTable.Warn = false
 	end
+
+	DataTable.AFKAmount = 0
+	DataTable.LastMeasurement = Time
+
+	if DataTable.IsAFK then
+		DataTable.IsAFK = false
+	end
+end
+
+function Plugin:SubtractAFKTime( Client, Time )
+	local DataTable = self.Users[ Client ]
+	if not DataTable then return end
+
+	DataTable.LastMove = SharedTime()
+	DataTable.LastMeasurement = DataTable.LastMove
+	DataTable.AFKAmount = Max( DataTable.AFKAmount - Time, 0 )
+	DataTable.IsAFK = false
 end
 
 --[[
@@ -120,16 +187,17 @@ function Plugin:OnProcessMove( Player, Input )
 	if not DataTable then return end
 
 	local Time = SharedTime()
+	if DataTable.LastMove > Time then return end
 
 	if self.Config.OnlyCheckOnStarted and not Started then
-		DataTable.LastMove = Time
+		self:ResetAFKTime( Client )
 
 		return
 	end
 
 	local Players = GetHumanPlayerCount()
 	if Players < self.Config.WarnMinPlayers then
-		DataTable.LastMove = Time
+		self:ResetAFKTime( Client )
 
 		return
 	end
@@ -139,8 +207,7 @@ function Plugin:OnProcessMove( Player, Input )
 	local Team = Player:GetTeamNumber()
 
 	if Team == kSpectatorIndex and self.Config.IgnoreSpectators then
-		DataTable.LastMove = Time
-		DataTable.Warn = false
+		self:ResetAFKTime( Client )
 
 		return
 	end
@@ -148,36 +215,67 @@ function Plugin:OnProcessMove( Player, Input )
 	--Ignore players waiting to respawn/watching the end of the game.
 	if Player:GetIsWaitingForTeamBalance() or ( Player.GetIsRespawning
 	and Player:GetIsRespawning() ) or Player:isa( "TeamSpectator" ) then
-		DataTable.LastMove = Time
-		DataTable.Warn = false
+		self:ResetAFKTime( Client )
 
 		return
 	end
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
+	local DeltaTime = Time - DataTable.LastMeasurement
+
+	DataTable.LastMeasurement = Time
+	local WarnTime = self.Config.WarnTime * 60
 
 	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
 	and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
 		DataTable.LastMove = Time
 
-		if DataTable.Warn then
-			DataTable.Warn = false
+		--Subtract the measurement time from their AFK time, so they have to stay
+		--active for a while to get it back to 0 time.
+		--We use a multiplier as we want activity to count for more than inactivity to avoid
+		--overzealous kicks.
+		DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * 5, 0 )
+
+		if self.Config.Warn and DataTable.AFKAmount < WarnTime then
+			if DataTable.Warn then
+				DataTable.Warn = false
+			end
 		end
+	else
+		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
 	end
 
 	DataTable.LastPitch = Pitch
 	DataTable.LastYaw = Yaw
 
-	if Shine:HasAccess( Client, "sh_afk" ) then --Immunity.
+	if Shine:HasAccess( Client, "sh_afk" ) then
 		return
 	end
 
 	local KickTime = self.Config.KickTime * 60
 
+	local AFKAmount = DataTable.AFKAmount
+	local TimeSinceLastMove = Time - DataTable.LastMove
+
+	--Use time since last move rather than the total,
+	--as they may have spoken in voice chat and it would look silly to
+	--say they're AFK still...
+	if TimeSinceLastMove > KickTime * 0.25 then
+		if not DataTable.IsAFK then
+			DataTable.IsAFK = true
+		end
+	else
+		if DataTable.IsAFK then
+			DataTable.IsAFK = false
+		end
+	end
+
 	if not DataTable.Warn and self.Config.Warn then
 		local WarnTime = self.Config.WarnTime * 60
 
-		if DataTable.LastMove + WarnTime < Time then
+		--Again, using time since last move so we don't end up warning players constantly
+		--if they hover near the warn time barrier in total AFK time.
+		if TimeSinceLastMove >= WarnTime then
 			DataTable.Warn = true
 
 			local AFKTime = Time - DataTable.LastMove
@@ -198,14 +296,12 @@ function Plugin:OnProcessMove( Player, Input )
 
 			return
 		end
-
-		return
 	end
 
 	if Shine:HasAccess( Client, "sh_afk_partial" ) then return end
 
-	--Only kick if we're past the min player count to do so.
-	if DataTable.LastMove + KickTime < Time and Players >= self.Config.MinPlayers then
+	--Only kick if we're past the min player count to do so, and use their "total" time.
+	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
 		self:ClientDisconnect( Client ) --Failsafe.
 
 		Shine:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
@@ -225,7 +321,7 @@ end
 function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	local Client = GetOwner( Speaker )
 	if Client then
-		self:ResetAFKTime( Client )
+		self:SubtractAFKTime( Client, 0.1 )
 	end
 end
 
