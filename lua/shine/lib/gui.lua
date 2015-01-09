@@ -202,7 +202,7 @@ function SGUI:EnableMouse( Enable )
 
 	if Enable then
 		self.MouseObjects = self.MouseObjects + 1
-	
+
 		if self.MouseObjects == 1 then
 			if not ( IsCommander and IsCommander() ) then
 				ShowMouse( true )
@@ -370,7 +370,7 @@ end
 --[[
 	Destroys an SGUI control, leaving the table in storage for use as a new object later.
 
-	This runs the control's cleanup function then empties its table. 
+	This runs the control's cleanup function then empties its table.
 	The cleanup function should remove all GUI elements, this will not do it.
 
 	Input: SGUI control object.
@@ -561,7 +561,7 @@ end
 ]]
 function ControlMeta:Cleanup()
 	if self.Parent then return end
-	
+
 	if self.Background then
 		GUI.DestroyItem( self.Background )
 	end
@@ -671,13 +671,13 @@ end
 ]]
 function ControlMeta:AddChild( GUIItem )
 	if not self.Background then return end
-	
+
 	self.Background:AddChild( GUIItem )
 end
 
 function ControlMeta:SetLayer( Layer )
 	if not self.Background then return end
-	
+
 	self.Background:SetLayer( Layer )
 end
 
@@ -704,7 +704,7 @@ end
 function ControlMeta:SetIsVisible( Bool )
 	if not self.Background then return end
 	if self.Background.GetIsVisible and self.Background:GetIsVisible() == Bool then return end
-	
+
 	self.Background:SetIsVisible( Bool )
 
 	if self.IsAWindow then
@@ -722,7 +722,7 @@ function ControlMeta:SetIsVisible( Bool )
 			end
 		else --Give focus to the next window down on hide.
 			if SGUI.WindowFocus ~= self then return end
-			
+
 			local Windows = SGUI.Windows
 			local NextDown = #Windows - 1
 
@@ -738,7 +738,7 @@ end
 ]]
 function ControlMeta:GetIsVisible()
 	if not self.Background.GetIsVisible then return false end
-	
+
 	return self.Background:GetIsVisible()
 end
 
@@ -747,13 +747,13 @@ end
 ]]
 function ControlMeta:SetSize( SizeVec )
 	if not self.Background then return end
-	
+
 	self.Background:SetSize( SizeVec )
 end
 
 function ControlMeta:GetSize()
 	if not self.Background then return end
-	
+
 	return self.Background:GetSize()
 end
 
@@ -764,13 +764,13 @@ end
 ]]
 function ControlMeta:SetPos( Vec )
 	if not self.Background then return end
-	
+
 	self.Background:SetPosition( Vec )
 end
 
 function ControlMeta:GetPos()
 	if not self.Background then return end
-	
+
 	return self.Background:GetPosition()
 end
 
@@ -836,16 +836,16 @@ local MousePos
 ]]
 function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	if not Element then return end
-	
+
 	MousePos = MousePos or Client.GetCursorPosScreen
 	ScrW = ScrW or Client.GetScreenWidth
 	ScrH = ScrH or Client.GetScreenHeight
 
 	local X, Y = MousePos()
-	
+
 	local Pos = Element:GetScreenPosition( ScrW(), ScrH() )
 	local Size = Element:GetSize()
-	
+
 	if Element.GetIsScaling and Element:GetIsScaling() and Element.scale then
 		Size = Size * Element.scale
 	end
@@ -861,7 +861,7 @@ function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 
 	MaxX = MaxX or Size.x
 	MaxY = MaxY or Size.y
-	
+
 	local InX = X >= Pos.x and X <= Pos.x + MaxX
 	local InY = Y >= Pos.y and Y <= Pos.y + MaxY
 
@@ -880,7 +880,7 @@ end
 
 	TODO: Refactor to behave like FadeTo to allow multiple elements moving at once.
 
-	Inputs: 
+	Inputs:
 		1. New position vector.
 		2. Time delay before starting
 		3. Duration of movement.
@@ -1037,7 +1037,7 @@ end
 
 function ControlMeta:StopResizing( Element )
 	if not self.SizeAnims then return end
-	
+
 	self.SizeAnims:Remove( Element )
 end
 
@@ -1107,7 +1107,7 @@ function ControlMeta:HandleFading( Time, DeltaTime )
 	for Element, Fade in self.Fades:Iterate() do
 		local Start = Fade.StartTime
 		local Duration = Fade.Duration
-		
+
 		Fade.Elapsed = Fade.Elapsed + DeltaTime
 
 		local Elapsed = Fade.Elapsed
@@ -1118,7 +1118,7 @@ function ControlMeta:HandleFading( Time, DeltaTime )
 				local CurCol = Fade.CurCol
 
 				--Linear progress.
-				SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff ) 
+				SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff )
 
 				Element:SetColor( CurCol )
 			elseif not Fade.Finished then
@@ -1144,7 +1144,7 @@ function ControlMeta:HandleResizing( Time, DeltaTime )
 		local Duration = Size.Duration
 
 		Size.Elapsed = Size.Elapsed + DeltaTime
-		
+
 		local Elapsed = Size.Elapsed
 
 		if Start <= Time then
@@ -1306,7 +1306,7 @@ end
 ]]
 function ControlMeta:LoseFocus()
 	if not self:HasFocus() then return end
-	
+
 	NotifyFocusChange()
 end
 

@@ -18,6 +18,7 @@ local pairs = pairs
 local select = select
 local StringExplode = string.Explode
 local StringFormat = string.format
+local StringGSub = string.gsub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableConcat = table.concat
@@ -167,9 +168,9 @@ local LayoutData = {
 
 	Positions = {
 		Border = Vector( 20, 20, 0 ),
-		ModeText = Vector( 65, -25, 0 ),
+		ModeText = Vector( 70, -25, 0 ),
 		Scrollbar = Vector( 2, 0, 0 ),
-		SettingsButton = Vector( -48, -43, 0 ),
+		SettingsButton = Vector( -56, -43, 0 ),
 		Settings = Vector( 0, 0, 0 ),
 		TextBox = Vector( 74, -45, 0 ),
 		Title = Vector( 30, 10, 0 ),
@@ -183,16 +184,20 @@ local LayoutData = {
 	},
 
 	Colours = {
-		Border = Colour( 0.6, 0.6, 0.6, 0.4 ),
-		Inner = Colour( 0.2, 0.2, 0.2, 0.8 ),
-		Settings = Colour( 0.6, 0.6, 0.6, 0.4 ),
+		StandardOpacity = {
+			Border = Colour( 0.6, 0.6, 0.6, 0.4 ),
+			Settings = Colour( 0.6, 0.6, 0.6, 0.4 )
+		},
+		HalfOpacity = {
+			Inner = Colour( 0.2, 0.2, 0.2, 0.8 ),
+			TextDark = Colour( 0.2, 0.2, 0.2, 0.8 ),
+			TextFocus = Colour( 0.2, 0.2, 0.2, 0.8 ),
+			ButtonActive = Colour( 0.5, 0.5, 0.5, 0.8 ),
+			ButtonInActive = Colour( 0.2, 0.2, 0.2, 0.8 )
+		},
 		ModeText = Colour( 1, 1, 1, 1 ),
-		TextDark = Colour( 0.2, 0.2, 0.2, 0.8 ),
-		TextFocus = Colour( 0.2, 0.2, 0.2, 0.8 ),
 		TextBorder = Colour( 0, 0, 0, 0 ),
 		Text = Colour( 1, 1, 1, 1 ),
-		ButtonActive = Colour( 0.5, 0.5, 0.5, 0.8 ),
-		ButtonInActive = Colour( 0.2, 0.2, 0.2, 0.8 ),
 		CheckBack = Colour( 0.2, 0.2, 0.2, 1 ),
 		Checked = Colour( 0.8, 0.6, 0.1, 1 )
 	}
@@ -218,6 +223,18 @@ end
 
 function Plugin:GetFont()
 	return self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small
+end
+
+local function UpdateOpacity( self, Opacity )
+	local ScaledOpacity = AlphaScale( Opacity )
+
+	for Name, Colour in pairs( LayoutData.Colours.StandardOpacity ) do
+		Colour.a = Opacity
+	end
+
+	for Name, Colour in pairs( LayoutData.Colours.HalfOpacity ) do
+		Colour.a = ScaledOpacity
+	end
 end
 
 --[[
@@ -264,15 +281,7 @@ function Plugin:CreateChatbox()
 	self.UseTinyFont = ScreenWidth <= 1366
 
 	local Opacity = self.Config.Opacity
-	local ScaledOpacity = AlphaScale( Opacity )
-
-	LayoutData.Colours.Border.a = Opacity
-	LayoutData.Colours.Inner.a = ScaledOpacity
-	LayoutData.Colours.Settings.a = Opacity
-	LayoutData.Colours.TextDark.a = ScaledOpacity
-	LayoutData.Colours.TextFocus.a = ScaledOpacity
-	LayoutData.Colours.ButtonActive.a = ScaledOpacity
-	LayoutData.Colours.ButtonInActive.a = ScaledOpacity
+	UpdateOpacity( self, Opacity )
 
 	local ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * ScalarScale, 0 )
 
@@ -320,7 +329,7 @@ function Plugin:CreateChatbox()
 		AllowSmoothScroll = self.Config.SmoothScroll,
 		StickyScroll = true,
 		Size = BoxSize,
-		Colour = LayoutData.Colours.Inner,
+		Colour = LayoutData.Colours.HalfOpacity.Inner,
 		Pos = VectorMultiply( LayoutData.Positions.Border, UIScale ),
 		ScrollbarWidthMult = WidthMult,
 		IsSchemed = false
@@ -335,7 +344,7 @@ function Plugin:CreateChatbox()
 		Size = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale ),
 		Anchor = "TopLeft",
 		Pos = VectorMultiply( -LayoutData.Positions.Border, UIScale ),
-		Colour = LayoutData.Colours.Border,
+		Colour = LayoutData.Colours.StandardOpacity.Border,
 		BlockMouse = true,
 		IsSchemed = false
 	}
@@ -373,11 +382,10 @@ function Plugin:CreateChatbox()
 		Size = TextEntrySize,
 		Anchor = "BottomLeft",
 		Pos = VectorMultiply( LayoutData.Positions.TextBox, UIScale ),
-		--TextScale = ScalarScale * TextScale,
 		Text = "",
 		StickyFocus = true,
-		FocusColour = LayoutData.Colours.TextFocus,
-		DarkColour = LayoutData.Colours.TextDark,
+		FocusColour = LayoutData.Colours.HalfOpacity.TextFocus,
+		DarkColour = LayoutData.Colours.HalfOpacity.TextDark,
 		BorderColour = LayoutData.Colours.TextBorder,
 		TextColour = LayoutData.Colours.Text,
 		Font = Font,
@@ -387,7 +395,7 @@ function Plugin:CreateChatbox()
 		TextEntry:SetTextScale( ScalarScale * TextScale )
 	end
 
-	TextEntry.InnerBox:SetColor( LayoutData.Colours.TextDark )
+	TextEntry.InnerBox:SetColor( LayoutData.Colours.HalfOpacity.TextDark )
 
 	--Send the message when the client presses enter.
 	function TextEntry:OnEnter()
@@ -429,8 +437,8 @@ function Plugin:CreateChatbox()
 		Size = VectorMultiply( LayoutData.Sizes.SettingsButton, UIScale ),
 		Pos = VectorMultiply( LayoutData.Positions.SettingsButton, UIScale ),
 		Text = ">",
-		ActiveCol = LayoutData.Colours.ButtonActive,
-		InactiveCol = LayoutData.Colours.ButtonInActive,
+		ActiveCol = LayoutData.Colours.HalfOpacity.ButtonActive,
+		InactiveCol = LayoutData.Colours.HalfOpacity.ButtonInActive,
 		IsSchemed = false
 	}
 
@@ -490,7 +498,7 @@ local function CreateSlider( self, SettingsPanel, UIScale, ScalarScale, Pos, Val
 		Value = Value,
 		HandleColour = LayoutData.Colours.Checked,
 		LineColour = LayoutData.Colours.ModeText,
-		DarkLineColour = LayoutData.Colours.TextDark,
+		DarkLineColour = LayoutData.Colours.HalfOpacity.TextDark,
 		Font = self:GetFont(),
 		TextColour = LayoutData.Colours.ModeText,
 		Size = VectorMultiply( LayoutData.Sizes.Slider, UIScale ),
@@ -514,7 +522,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 		Scrollable = true,
 		Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
-		Colour = LayoutData.Colours.Settings,
+		Colour = LayoutData.Colours.StandardOpacity.Settings,
 		ShowScrollbar = false,
 		IsSchemed = false
 	}
@@ -528,12 +536,17 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		LayoutData.Positions.AutoClose, LayoutData.Sizes.SettingsButton,
 		self.Config.AutoClose, "Auto close after sending." )
 
+	local function UpdateConfigValue( Key, Value )
+		if self.Config[ Key ] == Value then return false end
+
+		self.Config[ Key ] = Value
+		self:SaveConfig()
+
+		return true
+	end
+
 	function AutoClose:OnChecked( Value )
-		if Value == Plugin.Config.AutoClose then return end
-
-		Plugin.Config.AutoClose = Value
-
-		Plugin:SaveConfig()
+		UpdateConfigValue( "AutoClose", Value )
 	end
 
 	local AutoDelete = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
@@ -541,11 +554,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		self.Config.DeleteOnClose, "Auto delete on close." )
 
 	function AutoDelete:OnChecked( Value )
-		if Value == Plugin.Config.DeleteOnClose then return end
-
-		Plugin.Config.DeleteOnClose = Value
-
-		Plugin:SaveConfig()
+		UpdateConfigValue( "DeleteOnClose", Value )
 	end
 
 	local SmoothScroll = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
@@ -553,12 +562,8 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 		self.Config.SmoothScroll, "Use smooth scrolling." )
 
 	function SmoothScroll:OnChecked( Value )
-		if Value == Plugin.Config.SmoothScroll then return end
-
-		Plugin.Config.SmoothScroll = Value
+		if not UpdateConfigValue( "SmoothScroll", Value ) then return end
 		Plugin.ChatBox:SetAllowSmoothScroll( Value )
-
-		Plugin:SaveConfig()
 	end
 
 	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
@@ -569,11 +574,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 	MessageMemory:SetBounds( 10, 100 )
 
 	function MessageMemory:OnValueChanged( Value )
-		if Plugin.Config.MessageMemory == Value then return end
-
-		Plugin.Config.MessageMemory = Value
-
-		Plugin:SaveConfig()
+		UpdateConfigValue( "MessageMemory", Value )
 	end
 
 	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
@@ -586,32 +587,20 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 	function Opacity:OnValueChanged( Value )
 		Value = Value * 0.01
 
-		if Plugin.Config.Opacity == Value then return end
+		if not UpdateConfigValue( "Opacity", Value ) then return end
 
-		Plugin.Config.Opacity = Value
+		UpdateOpacity( self, Value )
 
-		Plugin:SaveConfig()
+		SettingsPanel:SetColour( LayoutData.Colours.StandardOpacity.Settings )
 
-		local ScaledOpacity = AlphaScale( Value )
+		Plugin.ChatBox:SetColour( LayoutData.Colours.HalfOpacity.Inner )
+		Plugin.Border:SetColour( LayoutData.Colours.StandardOpacity.Border )
 
-		LayoutData.Colours.Border.a = Value
-		LayoutData.Colours.Inner.a = ScaledOpacity
-		LayoutData.Colours.Settings.a = Value
-		LayoutData.Colours.TextDark.a = ScaledOpacity
-		LayoutData.Colours.TextFocus.a = ScaledOpacity
-		LayoutData.Colours.ButtonActive.a = ScaledOpacity
-		LayoutData.Colours.ButtonInActive.a = ScaledOpacity
+		Plugin.TextEntry:SetFocusColour( LayoutData.Colours.HalfOpacity.TextFocus )
+		Plugin.TextEntry:SetDarkColour( LayoutData.Colours.HalfOpacity.TextDark )
 
-		SettingsPanel:SetColour( LayoutData.Colours.Settings )
-
-		Plugin.ChatBox:SetColour( LayoutData.Colours.Inner )
-		Plugin.Border:SetColour( LayoutData.Colours.Border )
-
-		Plugin.TextEntry:SetFocusColour( LayoutData.Colours.TextFocus )
-		Plugin.TextEntry:SetDarkColour( LayoutData.Colours.TextDark )
-
-		Plugin.SettingsButton:SetActiveCol( LayoutData.Colours.ButtonActive )
-		Plugin.SettingsButton:SetInactiveCol( LayoutData.Colours.ButtonInActive )
+		Plugin.SettingsButton:SetActiveCol( LayoutData.Colours.HalfOpacity.ButtonActive )
+		Plugin.SettingsButton:SetInactiveCol( LayoutData.Colours.HalfOpacity.ButtonInActive )
 	end
 end
 
@@ -621,44 +610,35 @@ function Plugin:OpenSettings( DummyPanel, UIScale, ScalarScale )
 	end
 
 	local SettingsButton = self.SettingsButton
-
 	if SettingsButton.Expanding then return end
 
 	SettingsButton.Expanding = true
 
 	local SettingsPanel = Plugin.SettingsPanel
+	local Start, End, Expanded
 
 	if not SettingsButton.Expanded then
-		local Start = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
-		local End = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
-		local Element = SettingsPanel.Background
+		Start = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
+		End = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
+		Expanded = true
 
 		SettingsPanel:SetIsVisible( true )
-
-		SettingsPanel:SizeTo( Element, Start, End, 0, 0.5, function( Panel )
-			SettingsPanel:SetSize( End )
-			SettingsButton.Expanded = true
-
-			Plugin.SettingsButton:SetText( "<" )
-
-			SettingsButton.Expanding = false
-		end )
 	else
-		local End = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
-		local Start = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
-		local Element = SettingsPanel.Background
-
-		SettingsPanel:SizeTo( Element, Start, End, 0, 0.5, function( Panel )
-			SettingsPanel:SetSize( End )
-			SettingsButton.Expanded = false
-
-			SettingsPanel:SetIsVisible( false )
-
-			Plugin.SettingsButton:SetText( ">" )
-
-			SettingsButton.Expanding = false
-		end )
+		Start = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
+		End = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
+		Expanded = false
 	end
+
+	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.5, function( Panel )
+		SettingsButton.Expanded = Expanded
+
+		Plugin.SettingsButton:SetText( Expanded and "<" or ">" )
+		if not Expanded then
+			SettingsPanel:SetIsVisible( false )
+		end
+
+		SettingsButton.Expanding = false
+	end )
 end
 
 --Close on pressing escape (it's not hardcoded, unlike Source!)
@@ -682,7 +662,7 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		local PreCol = Message.Pre:GetColour()
 
 		--Take out any new line characters, we'll re-wrap the text for the new size when we add the message back.
-		local MessageText = Message.Message:GetText():gsub( "\n", " " )
+		local MessageText = StringGSub( Message.Message:GetText(), "\n", " " )
 		local MessageCol = Message.Message:GetColour()
 
 		Recreate[ i ] = { PreText = PreText, PreCol = PreCol,
@@ -964,8 +944,8 @@ function Plugin:StartChat( Team )
 	--Get our text entry accepting input.
 	self.TextEntry:RequestFocus()
 
-	self.TextEntry:SetFocusColour( LayoutData.Colours.TextFocus )
-	self.TextEntry:SetDarkColour( LayoutData.Colours.TextDark )
+	self.TextEntry:SetFocusColour( LayoutData.Colours.HalfOpacity.TextFocus )
+	self.TextEntry:SetDarkColour( LayoutData.Colours.HalfOpacity.TextDark )
 	self.TextEntry:SetBorderColour( LayoutData.Colours.TextBorder )
 	self.TextEntry:SetTextColour( LayoutData.Colours.Text )
 
