@@ -166,7 +166,8 @@ local ButtonUnboundMessage =
 [[%s.
 Maps: %s.
 Type !vote <map> to vote.
-Time left to vote: %%s.]]
+Time left to vote: %%s.
+Bind a key to sh_votemenu to make voting easier.]]
 
 function Plugin:ReceiveVoteOptions( Message )
 	Shine.CheckVoteMenuBind()
