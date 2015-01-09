@@ -1272,9 +1272,15 @@ function Plugin:CreateCommands()
 		end
 	end
 
-	local function Nominate( Client, Map )
+	local function GetPlayerData( Client )
 		local Player = Client and Client:GetControllingPlayer()
 		local PlayerName = Player and Player:GetName() or "Console"
+
+		return Player, PlayerName
+	end
+
+	local function Nominate( Client, Map )
+		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self.Config.Maps[ Map ] then
 			NotifyError( Player, "%s is not on the map list.", true, Map )
@@ -1326,8 +1332,7 @@ function Plugin:CreateCommands()
 	NominateCommand:Help( "<mapname> Nominates a map for the next map vote." )
 
 	local function VoteToChange( Client )
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
+		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self.Config.EnableRTV then
 			NotifyError( Player, "RTV has been disabled." )
@@ -1361,9 +1366,18 @@ function Plugin:CreateCommands()
 		VoteToChange, true )
 	StartVoteCommand:Help( "Begin a vote to change the map." )
 
+	local function ShowVoteChoice( PlayerName, Map, Revote )
+		local NumForThis = self.Vote.VoteList[ Map ]
+		local NumTotal = self.Vote.TotalVotes
+
+		self:Notify( nil, "%s %s for %s (%s for this, %i total)", true,
+			PlayerName, Revote and "revoted" or "voted", Map,
+			NumForThis > 1 and NumForThis.." votes" or "1 vote",
+			NumTotal )
+	end
+
 	local function Vote( Client, Map )
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
+		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self:VoteStarted() then
 			NotifyError( Player, "There is no map vote in progress." )
@@ -1375,63 +1389,32 @@ function Plugin:CreateCommands()
 
 		if Success then
 			if self.Config.ShowVoteChoices then
-				local NumForThis = self.Vote.VoteList[ Err ]
-				local NumTotal = self.Vote.TotalVotes
-
-				self:Notify( nil, "%s voted for %s (%s for this, %i total)", true,
-					PlayerName, Err,
-					NumForThis > 1 and NumForThis.." votes" or "1 vote",
-					NumTotal )
+				ShowVoteChoice( PlayerName, Err )
 			end
 
 			return
 		end
 
 		if Err == "already voted" then
-			Shine.Commands.sh_revote.Func( Client, Map )
-		else
-			NotifyError( Player, "%s is not a valid map choice.", true, Map )
+			local Success, Err = self:AddVote( Client, Map, true )
+
+			if Success then
+				if self.Config.ShowVoteChoices then
+					ShowVoteChoice( PlayerName, Err, true )
+				end
+
+				return
+			end
 		end
+
+		NotifyError( Player, "%s is not a valid map choice.", true, Map )
 	end
 	local VoteCommand = self:BindCommand( "sh_vote", "vote", Vote, true )
 	VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for." }
 	VoteCommand:Help( "<mapname> Vote for a particular map in the active map vote." )
 
-	local function ReVote( Client, Map )
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
-
-		if not self:VoteStarted() then
-			NotifyError( Player, "There is no map vote in progress." )
-
-			return
-		end
-
-		local Success, Err = self:AddVote( Client, Map, true )
-
-		if Success then
-			if self.Config.ShowVoteChoices then
-				local NumForThis = self.Vote.VoteList[ Err ]
-				local NumTotal = self.Vote.TotalVotes
-
-				self:Notify( nil, "%s revoted for %s (%s for this, %i total)", true,
-					PlayerName, Err,
-					NumForThis > 1 and NumForThis.." votes" or "1 vote",
-					NumTotal )
-			end
-
-			return
-		end
-
-		NotifyError( Player, "%s is not a valid map choice.", true, Map )
-	end
-	local ReVoteCommand = self:BindCommand( "sh_revote", "revote", ReVote, true )
-	ReVoteCommand:AddParam{ Type = "string", Error = "Please specify your new map choice." }
-	ReVoteCommand:Help( "<mapname> Change your vote to another map in the vote." )
-
 	local function Veto( Client )
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
+		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self.Vote.CanVeto then
 			NotifyError( Player, "There is no map change in progress." )
@@ -1440,15 +1423,13 @@ function Plugin:CreateCommands()
 		end
 
 		self.Vote.Veto = true
-
 		self:Notify( nil, "%s cancelled the map change.", true, PlayerName )
 	end
 	local VetoCommand = self:BindCommand( "sh_veto", "veto", Veto )
 	VetoCommand:Help( "Cancels a map change from a successful map vote." )
 
 	local function ForceVote( Client )
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
+		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self:VoteStarted() then
 			self:StartVote( nil, true )
