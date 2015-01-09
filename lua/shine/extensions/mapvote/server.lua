@@ -629,16 +629,8 @@ function Plugin:OnVoteStart( ID )
 	if ID == "random" and self:IsEndVote() then
 		local VoteRandom = Shine.Plugins.voterandom
 
-		local Mode = VoteRandom.Config.BalanceMode
-		local ModeStrings = VoteRandom.ModeStrings
-
-		local String = ModeStrings.ModeLower[ Mode ]
-		local Vowel = String:sub( 1, 1 )
-
-		String = Vowel == "E" and "an "..String or "a "..String
-
 		return false, StringFormat( "You cannot start %s teams vote while the map vote is running.",
-			String )
+			VoteRandom:GetVoteName() )
 	end
 end
 
