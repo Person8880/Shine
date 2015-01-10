@@ -416,16 +416,8 @@ function Plugin:GetNextMap()
 
 			local MapName = Map.map
 
-			if Min and PlayerCount < Min then
-				if not IgnoreList[ MapName ] then
-					IgnoreList[ MapName ] = 1
-				end
-			elseif Max and PlayerCount > Max then
-				if not IgnoreList[ MapName ] then
-					IgnoreList[ MapName ] = 1
-				end
-			elseif IgnoreList[ MapName ] == 1 then
-				IgnoreList[ MapName ] = nil
+			if ( Min and PlayerCount < Min ) or ( Max and PlayerCount > Max ) then
+				IgnoreList[ MapName ] = true
 			end
 		end
 	end
