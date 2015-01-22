@@ -57,7 +57,7 @@ end
 ]]
 function PluginMeta:InitDataTable( Name )
 	if not self.DTVars then return end
-	
+
 	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys,
 		self.DTVars.Defaults, self.DTVars.Access )
 
@@ -79,7 +79,7 @@ end
 function PluginMeta:AddNetworkMessage( Name, Params, Receiver )
 	self.__NetworkMessages = rawget( self, "__NetworkMessages" ) or {}
 
-	Shine.Assert( not self.__NetworkMessages[ Name ], 
+	Shine.Assert( not self.__NetworkMessages[ Name ],
 		"Attempted to register network message %s for plugin %s twice!", Name, self.__Name )
 
 	local MessageName = StringFormat( "SH_%s_%s", self.__Name, Name )
@@ -133,9 +133,9 @@ function PluginMeta:GenerateDefaultConfig( Save )
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 		if not Success then
-			Print( "Error writing %s config file: %s", self.__Name, Err )	
+			Print( "Error writing %s config file: %s", self.__Name, Err )
 
-			return	
+			return
 		end
 
 		Print( "Shine %s config file created.", self.__Name )
@@ -149,7 +149,7 @@ function PluginMeta:SaveConfig( Silent )
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 	if not Success then
-		Print( "Error writing %s config file: %s", self.__Name, Err )	
+		Print( "Error writing %s config file: %s", self.__Name, Err )
 
 		return
 	end
@@ -374,19 +374,19 @@ end
 
 function PluginMeta:PauseTimer( Name )
 	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return end
-	
+
 	self.Timers[ Name ]:Pause()
 end
 
 function PluginMeta:ResumeTimer( Name )
 	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return end
-	
+
 	self.Timers[ Name ]:Resume()
 end
 
 function PluginMeta:DestroyTimer( Name )
 	if not rawget( self, "Timers" ) or not self.Timers[ Name ] then return end
-	
+
 	self.Timers[ Name ]:Destroy()
 
 	self.Timers[ Name ] = nil
@@ -406,7 +406,7 @@ function PluginMeta:Suspend()
 	if self.OnSuspend then
 		self:OnSuspend()
 	end
-	
+
 	if rawget( self, "Timers" ) then
 		for Name, Timer in pairs( self.Timers ) do
 			Timer:Pause()
@@ -443,6 +443,17 @@ function PluginMeta:Resume()
 	if self.OnResume then
 		self:OnResume()
 	end
+end
+
+--Provides an easy way to delay actions in think-esque hooks.
+function PluginMeta:CanRunAction( Action, Time, Delay )
+	self.TimedActions = rawget( self, "TimedActions" ) or {}
+
+	if ( self.TimedActions[ Action ] or 0 ) > Time then return false end
+
+	self.TimedActions[ Action ] = Time + Delay
+
+	return true
 end
 
 --Support plugins inheriting from other plugins.

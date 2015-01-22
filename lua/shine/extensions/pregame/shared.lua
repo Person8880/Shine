@@ -8,11 +8,20 @@ Plugin.NS2Only = true
 
 function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "StartDelay", { StartTime = "integer" }, "Client" )
+	self:AddNetworkMessage( "StartNag", { Message = "string (64)" }, "Client" )
 end
 
 Shine:RegisterExtension( "pregame", Plugin )
 
 if Server then return end
+
+function Plugin:ReceiveStartNag( Data )
+	local Player = Client.GetLocalPlayer()
+
+	if not Player or not HasMixin( Player, "TeamMessage" ) then return end
+
+	Player:SetTeamMessage( Data.Message:upper() )
+end
 
 local DigitalTime = string.DigitalTime
 local Round = math.Round

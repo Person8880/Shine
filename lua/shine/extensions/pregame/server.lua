@@ -11,7 +11,7 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
 local Plugin = Plugin
-Plugin.Version = "1.5"
+Plugin.Version = "1.6"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
@@ -31,6 +31,8 @@ Plugin.CheckConfigTypes = true
 
 Plugin.FiveSecTimer = "PreGameFiveSeconds"
 Plugin.CountdownTimer = "PreGameCountdown"
+
+Plugin.StartNagInterval = 10
 
 Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
 	"CheckPlayerCanAttack", "ActivePre" )
@@ -144,6 +146,34 @@ function Plugin:AbortGameStart( Gamerules, Message, Format, ... )
 	Shine:RemoveText( nil, { ID = 2 } )
 end
 
+function Plugin:ShowGameStart( TimeTillStart, Red )
+	if self.Config.ShowCountdown then
+		Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+			"Game starts in "..string.TimeToString( TimeTillStart ), 5,
+			255, 255, 255, 1, 3, 1 ) )
+	end
+end
+
+function Plugin:ShowCountdown()
+	Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
+		"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+end
+
+function Plugin:SendStartNag( Message )
+	self:SendNetworkMessage( nil, "StartNag", {
+		Message = Message
+	}, true )
+end
+
+function Plugin:NagForTeam( WaitingForTeam )
+	local TeamName = Shine:GetTeamName( WaitingForTeam, true )
+	self:SendStartNag( StringFormat( "Waiting on %s to choose a commander", TeamName ) )
+end
+
+function Plugin:NagForBoth()
+	self:SendStartNag( "Waiting on both teams to choose a commander" )
+end
+
 Plugin.UpdateFuncs = {
 	--Legacy functionality, fixed time for pregame then start.
 	[ 0 ] = function( self, Gamerules )
@@ -152,6 +182,8 @@ Plugin.UpdateFuncs = {
 
 		local Team1Count = Team1:GetNumPlayers()
 		local Team2Count = Team2:GetNumPlayers()
+
+		local Time = SharedTime()
 
 		if Team1Count == 0 or Team2Count == 0 then
 			if self.CountStart then
@@ -170,23 +202,18 @@ Plugin.UpdateFuncs = {
 		if not self.CountStart then
 			local Duration = self.Config.PreGameTime
 
-			self.CountStart = SharedTime()
-			self.CountEnd = SharedTime() + Duration
-
+			self.CountStart = Time
+			self.CountEnd = Time + Duration
 			self.GameStarting = true
 
 			Gamerules:SetGameState( kGameState.PreGame )
 
-			if self.Config.ShowCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-					"Game starts in "..string.TimeToString( Duration ), 5,
-					255, 255, 255, 1, 3, 1 ) )
-			end
+			self:ShowGameStart( Duration )
 
 			return
 		end
 
-		local TimeLeft = Ceil( self.CountEnd - SharedTime() )
+		local TimeLeft = Ceil( self.CountEnd - Time )
 
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
@@ -196,7 +223,7 @@ Plugin.UpdateFuncs = {
 			end
 		end
 
-		if self.CountEnd <= SharedTime() then
+		if self.CountEnd <= Time then
 			self.CountStart = nil
 			self.CountEnd = nil
 			self.SentCountdown = nil
@@ -222,7 +249,6 @@ Plugin.UpdateFuncs = {
 		if self.GameStarting then
 			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
 				self:DestroyTimers()
-
 				self:AbortGameStart( Gamerules, "Game start aborted, a commander dropped out." )
 				self.GameStarting = false
 
@@ -261,9 +287,7 @@ Plugin.UpdateFuncs = {
 			local CountdownTime = self.Config.CountdownTime
 
 			if self.Config.ShowCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-					"Game starts in "..string.TimeToString( CountdownTime ),
-					5, 255, 255, 255, 1, 3, 1 ) )
+				self:ShowGameStart( CountdownTime )
 			end
 
 			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
@@ -283,8 +307,7 @@ Plugin.UpdateFuncs = {
 					return
 				end
 
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-					"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+				self:ShowCountdown()
 			end )
 
 			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
@@ -363,22 +386,29 @@ Plugin.UpdateFuncs = {
 
 				self:AbortGameStart( Gamerules, "Game start aborted, a commander dropped out." )
 			end
+
+			if not self.CountStart and self:CanRunAction( "StartNag", Time, self.StartNagInterval ) then
+				self:NagForBoth()
+			end
 		end
 
 		if not self.CountEnd then return end
-		if self.GameStarting then return end
 
 		local TimeLeft = Ceil( self.CountEnd - Time )
-
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-					"Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+				self:ShowCountdown()
 
 				Gamerules:SetGameState( kGameState.PreGame )
 
 				self.SentCountdown = true
 			end
+		end
+
+		if TimeLeft > 5 and ( Team1Com or Team2Com )
+		and self:CanRunAction( "StartNag", Time, self.StartNagInterval ) then
+			local WaitingForTeam = Team1Com and 2 or 1
+			self:NagForTeam( WaitingForTeam )
 		end
 
 		if self.CountEnd <= Time then
@@ -393,11 +423,13 @@ Plugin.UpdateFuncs = {
 
 	--After the set time, if one team has a commander, start the game.
 	[ 2 ] = function( self, Gamerules )
+		local Time = SharedTime()
+
 		if not self.CountStart then
 			local Duration = self.Config.PreGameTime
 
-			self.CountStart = SharedTime()
-			self.CountEnd = SharedTime() + Duration
+			self.CountStart = Time
+			self.CountEnd = Time + Duration
 
 			return
 		end
@@ -438,9 +470,7 @@ Plugin.UpdateFuncs = {
 			local CountdownTime = self.Config.CountdownTime
 
 			if self.Config.ShowCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-					"Game starts in "..string.TimeToString( CountdownTime ),
-					5, 255, 255, 255, 1, 3, 1 ) )
+				self:ShowGameStart( CountdownTime )
 			end
 
 			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
@@ -460,8 +490,7 @@ Plugin.UpdateFuncs = {
 					return
 				end
 
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-					"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+				self:ShowCountdown()
 			end )
 
 			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
@@ -497,7 +526,7 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		local TimeLeft = Ceil( self.CountEnd - SharedTime() )
+		local TimeLeft = Ceil( self.CountEnd - Time )
 
 		--Time's up!
 		if TimeLeft <= 0 and ( Team1Com or Team2Com ) then
@@ -545,6 +574,17 @@ Plugin.UpdateFuncs = {
 
 				self:StartCountdown()
 			end )
+
+			return
+		end
+
+		if not self:CanRunAction( "StartNag", Time, self.StartNagInterval ) then return end
+
+		if Team1Com or Team2Com then
+			local WaitingForTeam = Team1Com and 2 or 1
+			self:NagForTeam( WaitingForTeam )
+		else
+			self:NagForBoth()
 		end
 	end,
 }

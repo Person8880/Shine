@@ -91,12 +91,7 @@ end )
 
 local function SendMapVote( MapName )
 	if Shine.VoteMenu.GetCanSendVote() then
-		if not Plugin.SentVote then
-			Shared.ConsoleCommand( "sh_vote "..MapName )
-			Plugin.SentVote = true
-		else
-			Shared.ConsoleCommand( "sh_revote "..MapName )
-		end
+		Shared.ConsoleCommand( "sh_vote "..MapName )
 
 		return true
 	end
@@ -166,7 +161,8 @@ local ButtonUnboundMessage =
 [[%s.
 Maps: %s.
 Type !vote <map> to vote.
-Time left to vote: %%s.]]
+Time left to vote: %%s.
+Bind a key to sh_votemenu to make voting easier.]]
 
 function Plugin:ReceiveVoteOptions( Message )
 	Shine.CheckVoteMenuBind()
@@ -288,6 +284,4 @@ function Plugin:ReceiveVoteOptions( Message )
 			end
 		end
 	end
-
-	self.SentVote = false
 end

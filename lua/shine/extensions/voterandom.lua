@@ -1291,6 +1291,14 @@ function Plugin:GetVotesNeeded()
 	return Ceil( PlayerCount * self.Config.PercentNeeded )
 end
 
+function Plugin:GetVoteName()
+	local String = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+
+	String = String:sub( 1, 1 ) == "E" and "an "..String or "a "..String
+
+	return String
+end
+
 function Plugin:CanStartVote()
 	local PlayerCount = GetNumPlayers()
 
@@ -1299,11 +1307,7 @@ function Plugin:CanStartVote()
 	end
 
 	if self.NextVote >= SharedTime() then
-		local String = ModeStrings.ModeLower[ self.Config.BalanceMode ]
-
-		String = String:sub( 1, 1 ) == "E" and "an "..String or "a "..String
-
-		return false, StringFormat( "You cannot start %s teams vote at this time.", String )
+		return false, StringFormat( "You cannot start %s teams vote at this time.", self:GetVoteName() )
 	end
 
 	if self.RandomOnNextRound then
