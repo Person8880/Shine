@@ -2002,6 +2002,8 @@ function string.GetUTF8Bytes( String, Index )
 	local Success, Byte, Byte2, Byte3, Byte4 = pcall( GetUTF8Bytes, String, Index )
 	if Success then
 		return Byte, Byte2, Byte3, Byte4
+	else
+		return false
 	end
 end
 
