@@ -7,6 +7,7 @@
 local error = error
 local pcall = pcall
 local StringByte = string.byte
+local StringFind = string.find
 local StringFormat = string.format
 local StringSub = string.sub
 local TableConcat = table.concat
@@ -2009,6 +2010,10 @@ local function MakeWrapperFunc( Func, Original )
 		local Success, Result = pcall( Func, ... )
 
 		if not Success then
+			if StringFind( Result, "Bad argument" ) then
+				error( Result, 0 )
+			end
+
 			return Original( ... )
 		end
 
