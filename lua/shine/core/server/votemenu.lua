@@ -33,7 +33,7 @@ local VoteMenuPlugins = {
 
 Shine.Hook.Add( "OnPluginUnload", "SendPluginData", function( Name )
 	if not VoteMenuPlugins[ Name ] then return end
-	
+
 	Shine:SendPluginData( nil )
 end )
 
@@ -44,4 +44,10 @@ end )
 
 Server.HookNetworkMessage( "Shine_OpenedVoteMenu", function( Client )
 	Shine.Hook.Call( "OnVoteMenuOpen", Client )
+end )
+
+Server.HookNetworkMessage( "Shine_AuthAdminMenu", function( Client, Message )
+	if not Shine:HasAccess( Client, "sh_adminmenu" ) then return end
+
+	Shine.SendNetworkMessage( Client, "Shine_AuthAdminMenu", {}, true )
 end )
