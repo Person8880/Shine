@@ -578,22 +578,38 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 	return Sorted
 end
 
+local function GetFallbackTargets( Targets, Sorted )
+	local FallbackTargets = {}
+
+	for i = 1, #Targets do
+		local Player = Targets[ i ]
+
+		if Player and not Sorted[ Player ] then
+			FallbackTargets[ #FallbackTargets + 1 ] = Player
+			Sorted[ Player ] = true
+		end
+	end
+
+	return FallbackTargets
+end
+
+local function AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
+	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+
+	for i = 1, NumPlayers do
+		local Player = Targets[ i ]
+		if Player then
+			local TeamTable = TeamMembers[ TeamSequence[ i ] ]
+
+			TeamTable[ #TeamTable + 1 ] = Player
+		end
+	end
+end
+
 Plugin.ShufflingModes = {
 	--Random only.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
-		local NumPlayers = #Targets
-
-		local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
-
-		for i = 1, NumPlayers do
-			local Player = Targets[ i ]
-			if Player then
-				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
-
-				TeamTable[ #TeamTable + 1 ] = Player
-			end
-		end
-
+		AddPlayersRandomly( Targets, #Targets, TeamMembers )
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		if not Silent then
@@ -653,13 +669,7 @@ Plugin.ShufflingModes = {
 		local RandomTableCount = #RandomTable
 
 		if RandomTableCount > 0 then
-			local TeamSequence = math.GenerateSequence( RandomTableCount, { 1, 2 } )
-
-			for i = 1, RandomTableCount do
-				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
-
-				TeamTable[ #TeamTable + 1 ] = RandomTable[ i ]
-			end
+			AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -740,31 +750,20 @@ Plugin.ShufflingModes = {
 				return nil
 			end )
 
+			Shine:LogString( "[Elo Vote] Teams were sorted based on NS2Stats Elo ranking." )
+
 			--Sort the remaining players with the fallback method.
-			local FallbackTargets = {}
-
-			for i = 1, #Targets do
-				local Player = Targets[ i ]
-
-				if Player and not Sorted[ Player ] then
-					FallbackTargets[ #FallbackTargets + 1 ] = Player
-					Sorted[ Player ] = true
-				end
-			end
+			local FallbackTargets = GetFallbackTargets( Targets, Sorted )
 
 			if #FallbackTargets > 0 then
 				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
 					FallbackTargets, TeamMembers, true )
-
-				Shine:LogString( "[Elo Vote] Teams were sorted based on NS2Stats Elo ranking." )
 
 				--We return as the fallback has already evenly spread the teams.
 				return
 			end
 
 			EvenlySpreadTeams( Gamerules, TeamMembers )
-
-			Shine:LogString( "[Elo Vote] Teams were sorted based on NS2Stats Elo ranking." )
 		end )
 	end,
 
@@ -789,13 +788,10 @@ Plugin.ShufflingModes = {
 		for i = 1, TargetCount do
 			local Ply = Targets[ i ]
 
-			if Ply and Ply.GetPlayerSkill then
-				local SkillData = Ply:GetPlayerSkill()
-
-				if SkillData and SkillData > 0 then
-					Count = Count + 1
-					SortTable[ Count ] = { Player = Ply, Skill = SkillData }
-				end
+			local Skill = GetHiveSkill( Ply )
+			if Skill and Skill > 0 then
+				Count = Count + 1
+				SortTable[ Count ] = { Player = Ply, Skill = Skill }
 			end
 		end
 
@@ -807,50 +803,34 @@ Plugin.ShufflingModes = {
 
 		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count, TargetCount, GetHiveSkill )
 
+		Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
+
 		--If some players have rank 0 or no rank data, sort them with the fallback instead.
-		local FallbackTargets = {}
-
-		for i = 1, TargetCount do
-			local Player = Targets[ i ]
-
-			if Player and not Sorted[ Player ] then
-				FallbackTargets[ #FallbackTargets + 1 ] = Player
-				Sorted[ Player ] = true
-			end
-		end
+		local FallbackTargets = GetFallbackTargets( Targets, Sorted )
 
 		if #FallbackTargets > 0 then
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
 				FallbackTargets, TeamMembers, true )
-
-			Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
-
-			local Marines = GetEntitiesForTeam( "Player", 1 )
-			local Aliens = GetEntitiesForTeam( "Player", 2 )
-
-			local MarineSkill = GetAverageSkill( Marines )
-			local AlienSkill = GetAverageSkill( Aliens )
-
-			self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
-				true, MarineSkill, AlienSkill )
+			self:NotifyAverageSkills()
 
 			return
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
-
-		Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
-
-		local Marines = GetEntitiesForTeam( "Player", 1 )
-		local Aliens = GetEntitiesForTeam( "Player", 2 )
-
-		local MarineSkill = GetAverageSkill( Marines )
-		local AlienSkill = GetAverageSkill( Aliens )
-
-		self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
-			true, MarineSkill, AlienSkill )
+		self:NotifyAverageSkills()
 	end
 }
+
+function Plugin:NotifyAverageSkills()
+	local Marines = GetEntitiesForTeam( "Player", 1 )
+	local Aliens = GetEntitiesForTeam( "Player", 2 )
+
+	local MarineSkill = GetAverageSkill( Marines )
+	local AlienSkill = GetAverageSkill( Aliens )
+
+	self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
+		true, MarineSkill, AlienSkill )
+end
 
 --[[
 	Gets all valid targets for sorting.
