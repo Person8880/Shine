@@ -24,14 +24,14 @@ function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
 
 	if self.Background then GUI.DestroyItem( self.Background ) end
-	
+
 	local Manager = GetGUIManager()
 
 	--Border.
 	local Background = Manager:CreateGraphicItem()
 
 	self.Background = Background
-	
+
 	--Coloured entry field.
 	local InnerBox = Manager:CreateGraphicItem()
 	InnerBox:SetAnchor( GUIItem.Left, GUIItem.Top )
@@ -145,7 +145,7 @@ end
 ]]
 function TextEntry:OnSchemeChange( Scheme )
 	if not self.UseScheme then return end
-	
+
 	self.FocusColour = Scheme.TextEntryFocus
 	self.DarkCol = Scheme.TextEntry
 
@@ -364,7 +364,7 @@ end
 function TextEntry:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
 
-	if self.Enabled then 
+	if self.Enabled then
 		local Time = Clock()
 
 		if ( self.NextCaretChange or 0 ) < Time then
@@ -375,34 +375,34 @@ function TextEntry:Think( DeltaTime )
 			self.Caret:SetColor( self.CaretVis and CaretCol or Clear )
 		end
 
-		return 
+		return
 	else
 		self.BaseClass.Think( self, DeltaTime )
 	end
 end
 
 function TextEntry:OnMouseMove( Down )
-	if not self:MouseIn( self.Background ) then 
+	if not self:MouseIn( self.Background ) then
 		if self.Highlighted then
-			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.5, function( InnerBox )
-				if self.Enabled then 
+			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1, function( InnerBox )
+				if self.Enabled then
 					InnerBox:SetColor( self.FocusColour )
 
-					return 
+					return
 				end
-				
+
 				InnerBox:SetColor( self.DarkCol )
 			end )
-		
-			self.Highlighted = false 
+
+			self.Highlighted = false
 		end
 
-		return 
+		return
 	end
-	
+
 	if self.Highlighted then return end
 
-	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.5, function( InnerBox )
+	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.1, function( InnerBox )
 		InnerBox:SetColor( self.FocusColour )
 	end )
 
@@ -458,18 +458,18 @@ function TextEntry:OnMouseDown( Key, DoubleClick )
 
 				return true, self
 			end
-		
+
 			return
 		end
 
 		if not In then
 			if self.StickyFocus then return end
-			
+
 			self:LoseFocus()
 
 			return
 		end
-		
+
 		self.Column = self:GetColumnFromMouse( X )
 
 		self:SetCaretPos( self.Column )
@@ -527,7 +527,7 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 
 			return true
 		end
-		
+
 		if self.Enabled then
 			self.Enabled = false
 
@@ -537,7 +537,7 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 
 					return
 				end
-				
+
 				InnerBox:SetColor( self.DarkCol )
 			end )
 		end

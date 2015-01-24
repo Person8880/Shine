@@ -23,7 +23,7 @@ function Plugin:NetworkUpdate( Key, Old, New )
 			--The game state changes back to 1, then to 3 to start. This is VERY annoying...
 			self:SimpleTimer( 1, function()
 				if not self.Enabled then return end
-				
+
 				if self.dt.Gamestate == 1 then
 					self:UpdateAllTalk( self.dt.Gamestate )
 				end
@@ -88,7 +88,7 @@ function Plugin:SetupAdminMenuCommands()
 		"30 minutes", "1800",
 		"Until map change", ""
 	}, "Stops the player from using text and voice chat." )
-	self:AddAdminMenuCommand( Category, "Ungag", "sh_ungag", false, nil, 
+	self:AddAdminMenuCommand( Category, "Ungag", "sh_ungag", false, nil,
 		"Allows a previously gagged player to speak again." )
 	self:AddAdminMenuCommand( Category, "Force Random", "sh_forcerandom", true, nil,
 		"Moves the selected player(s) onto a random team." )
@@ -114,7 +114,7 @@ function Plugin:SetupAdminMenuCommands()
 			List:SetSpacing( 1 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
-			
+
 			self.MapList = List
 
 			if not self.MapData then
@@ -127,6 +127,8 @@ function Plugin:SetupAdminMenuCommands()
 
 			if Data and Data.SortedColumn then
 				List:SortRows( Data.SortedColumn, nil, Data.Descending )
+			else
+				List:SortRows( 1 )
 			end
 
 			local ChangeMap = SGUI:Create( "Button", Panel )
@@ -138,13 +140,13 @@ function Plugin:SetupAdminMenuCommands()
 			function ChangeMap.DoClick()
 				local Selected = List:GetSelectedRow()
 				if not Selected then return end
-				
+
 				local Map = Selected:GetColumnText( 1 )
 
 				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
 			end
 			ChangeMap:SetTooltip( "Changes the map immediately." )
-			
+
 			if Shine:IsExtensionEnabled( "mapvote" ) then
 				local CallVote = SGUI:Create( "Button", Panel )
 				CallVote:SetAnchor( "BottomRight" )
@@ -181,7 +183,7 @@ function Plugin:SetupAdminMenuCommands()
 			List:SetSpacing( 0.7, 0.3 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
-			
+
 			self.PluginList = List
 			self.PluginRows = self.PluginRows or {}
 
@@ -215,77 +217,81 @@ function Plugin:SetupAdminMenuCommands()
 
 			local ButtonSize = Vector( 128, 32, 0 )
 
+			local function GetSelectedPlugin()
+				local Selected = List:GetSelectedRow()
+				if not Selected then return end
+
+				return Selected:GetColumnText( 1 )
+			end
+
 			local UnloadPlugin = SGUI:Create( "Button", Panel )
 			UnloadPlugin:SetAnchor( "BottomLeft" )
 			UnloadPlugin:SetSize( ButtonSize )
 			UnloadPlugin:SetPos( Vector( 16, -48, 0 ) )
 			UnloadPlugin:SetText( "Unload Plugin" )
 			UnloadPlugin:SetFont( Fonts.kAgencyFB_Small )
-			function UnloadPlugin.DoClick()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
-				
-				local Plugin = Selected:GetColumnText( 1 )
+			function UnloadPlugin:DoClick()
+				local Plugin = GetSelectedPlugin()
+				if not Plugin then return false end
 
-				Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
+				local Menu = self:AddMenu()
+
+				Menu:AddButton( "Now", function()
+					Menu:Destroy()
+
+					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
+				end, "Temporarily unloads the plugin." )
+
+				Menu:AddButton( "Permanently", function()
+					Menu:Destroy()
+
+					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
+				end, "Saves the plugin as disabled." )
 			end
-			UnloadPlugin:SetTooltip( "Temporarily unloads the plugin." )
 
-			local DisablePlugin = SGUI:Create( "Button", Panel )
-			DisablePlugin:SetAnchor( "BottomLeft" )
-			DisablePlugin:SetSize( ButtonSize )
-			DisablePlugin:SetPos( Vector( 160, -48, 0 ) )
-			DisablePlugin:SetText( "Disable Plugin" )
-			DisablePlugin:SetFont( Fonts.kAgencyFB_Small )
-			function DisablePlugin.DoClick()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
-				
-				local Plugin = Selected:GetColumnText( 1 )
-
-				Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
-			end
-			DisablePlugin:SetTooltip( "Saves the plugin as disabled." )
-			
 			local LoadPlugin = SGUI:Create( "Button", Panel )
 			LoadPlugin:SetAnchor( "BottomRight" )
 			LoadPlugin:SetSize( ButtonSize )
-			LoadPlugin:SetPos( Vector( -288, -48, 0 ) )
+			LoadPlugin:SetPos( Vector( -144, -48, 0 ) )
 			LoadPlugin:SetText( "Load Plugin" )
 			LoadPlugin:SetFont( Fonts.kAgencyFB_Small )
-			function LoadPlugin.DoClick()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
-				
-				local Plugin = Selected:GetColumnText( 1 )
+			local function NormalLoadDoClick( self )
+				local Plugin = GetSelectedPlugin()
+				if not Plugin then return false end
+
+				local Menu = self:AddMenu()
+
+				Menu:AddButton( "Now", function()
+					Menu:Destroy()
+
+					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
+				end, "Temporarily loads the plugin." )
+
+				Menu:AddButton( "Permanently", function()
+					Menu:Destroy()
+
+					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
+				end, "Saves the plugin as enabled." )
+			end
+
+			local function ReloadDoClick()
+				local Plugin = GetSelectedPlugin()
+				if not Plugin then return false end
 
 				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
 			end
-			LoadPlugin:SetTooltip( "Temporarily loads the plugin." )
 
-			local EnablePlugin = SGUI:Create( "Button", Panel )
-			EnablePlugin:SetAnchor( "BottomRight" )
-			EnablePlugin:SetSize( ButtonSize )
-			EnablePlugin:SetPos( Vector( -144, -48, 0 ) )
-			EnablePlugin:SetText( "Enable Plugin" )
-			EnablePlugin:SetFont( Fonts.kAgencyFB_Small )
-			function EnablePlugin.DoClick()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
-				
-				local Plugin = Selected:GetColumnText( 1 )
-
-				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
-			end
-			EnablePlugin:SetTooltip( "Saves the plugin as enabled." )
+			LoadPlugin.DoClick = NormalLoadDoClick
 
 			function List:OnRowSelected( Index, Row )
 				local State = Row:GetColumnText( 2 )
 
 				if State == "Enabled" then
 					LoadPlugin:SetText( "Reload Plugin" )
+					LoadPlugin.DoClick = ReloadDoClick
 				else
 					LoadPlugin:SetText( "Load Plugin" )
+					LoadPlugin.DoClick = NormalLoadDoClick
 				end
 			end
 
@@ -294,6 +300,9 @@ function Plugin:SetupAdminMenuCommands()
 
 				if SGUI.IsValid( Row ) then
 					Row:SetColumnText( 2, "Enabled" )
+					if Row == List:GetSelectedRow() then
+						List:OnRowSelected( nil, Row )
+					end
 				end
 			end )
 
@@ -302,6 +311,9 @@ function Plugin:SetupAdminMenuCommands()
 
 				if SGUI.IsValid( Row ) then
 					Row:SetColumnText( 2, "Disabled" )
+					if Row == List:GetSelectedRow() then
+						List:OnRowSelected( nil, Row )
+					end
 				end
 			end )
 		end,
@@ -354,18 +366,21 @@ function Plugin:ReceivePluginData( Data )
 
 	if Row then
 		Row:SetColumnText( 2, Data.Enabled and "Enabled" or "Disabled" )
+		if Row == self.PluginList:GetSelectedRow() then
+			self.PluginList:OnRowSelected( nil, Row )
+		end
 	end
 end
 
 function Plugin:UpdateAllTalk( State )
 	if not self.dt.AllTalk then return end
-	
+
 	if State >= COUNTDOWN then
 		if not self.TextObj then return end
-		
+
 		self:RemoveAllTalkText()
 
-		return	
+		return
 	end
 
 	local Enabled = State > NOT_STARTED and "disabled." or "enabled."
@@ -374,7 +389,7 @@ function Plugin:UpdateAllTalk( State )
 		local GB = State > NOT_STARTED and 0 or 255
 
 		--A bit of a hack, but the whole screen text stuff is in dire need of a replacement...
-		self.TextObj = Shine:AddMessageToQueue( -1, 0.5, 0.95, 
+		self.TextObj = Shine:AddMessageToQueue( -1, 0.5, 0.95,
 			StringFormat( "All talk is %s", Enabled ), -2, 255, GB, GB, 1, 2, 1, true )
 
 		return
@@ -390,7 +405,7 @@ end
 
 function Plugin:RemoveAllTalkText()
 	if not self.TextObj then return end
-	
+
 	self.TextObj.LastUpdate = Shared.GetTime() - 1
 	self.TextObj.Duration = 1
 
