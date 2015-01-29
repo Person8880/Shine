@@ -8,7 +8,7 @@ Skin.BrightText = Colour( 1, 1, 1, 1 )
 Skin.DarkText = Colour( 0, 0, 0, 1 )
 
 Skin.InactiveButton = Colour( 0.2, 0.2, 0.2, 1 )
-Skin.ActiveButton = Colour( 0.5, 0.5, 0.5, 1 )
+Skin.ActiveButton = Colour( 0.8, 0.5, 0.1, 1 )
 Skin.ButtonBorder = Colour( 0, 0, 0, 1 )
 
 Skin.MenuButton = Colour( 0.25, 0.25, 0.25, 1 )
@@ -62,6 +62,8 @@ Skin.SliderUnfilledLine = Colour( 0.2, 0.2, 0.2, 1 )
 
 Skin.TabPanel = {}
 Skin.TabPanel.TabFont = Fonts.kAgencyFB_Small
+Skin.TabPanel.ActiveButton = Skin.WindowBackground
+Skin.TabPanel.InactiveButton = Skin.InactiveButton
 
 Skin.CategoryPanel = {}
 Skin.CategoryPanel.Font = Fonts.kAgencyFB_Small

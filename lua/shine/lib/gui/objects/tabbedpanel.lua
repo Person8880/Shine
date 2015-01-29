@@ -17,13 +17,27 @@ function TabPanelButton:Initialise()
 	--We'll handle it ourselves.
 	self:SetHighlightOnMouseOver( false )
 
-	local Scheme = SGUI:GetSkin()
+	local Skin = SGUI:GetSkin()
+	self.ActiveCol = Skin.TabPanel.ActiveButton
+	self.InactiveCol = Skin.TabPanel.InactiveButton
 
-	self:SetFont( Scheme.TabPanel.TabFont )
+	self.Background:SetColor( self.InactiveCol )
+
+	self:SetFont( Skin.TabPanel.TabFont )
 end
 
 function TabPanelButton:OnSchemeChange( Skin )
-	Controls.Button.OnSchemeChange( self, Skin )
+	if not self.UseScheme then return end
+
+	self.ActiveCol = Skin.TabPanel.ActiveButton
+	self.InactiveCol = Skin.TabPanel.InactiveButton
+	self.TextCol = Skin.BrightText
+
+	if self.Text then
+		self.Text:SetColor( self.TextCol )
+	end
+
+	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
 
 	self:SetFont( Skin.TabPanel.TabFont )
 end

@@ -13,5 +13,5 @@ local PluginMessage = {
 }
 
 Shared.RegisterNetworkMessage( "Shine_PluginData", PluginMessage )
-
 Shared.RegisterNetworkMessage( "Shine_RequestPluginData", {} )
+Shared.RegisterNetworkMessage( "Shine_AuthAdminMenu", {} )

@@ -77,6 +77,7 @@ Plugin.DefaultConfig = {
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
 	BalanceMode = Plugin.MODE_HIVE, --How should teams be balanced?
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if Elo/Hive fails?
+	UseStandardDeviation = true, --Should standard deviation be accounted for when sorting?
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = true, --Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
@@ -323,21 +324,43 @@ local function GetAverageSkillFunc( Players, Func )
 	return PlayerSkillSum / Count, PlayerSkillSum, Count
 end
 
---Gets the average skill ranking of a table of players.
-local function GetAverageSkill( Players )
-	return GetAverageSkillFunc( Players, function( Ply )
-		--[[local Client = GetOwner( Ply )
+local DebugMode = false
+local function GetHiveSkill( Ply )
+	if DebugMode then
+		local Client = GetOwner( Ply )
 		if Client and Client:GetIsVirtual() then
 			Client.Skill = Client.Skill or Random( 1000, 4000 )
 			return Client.Skill
-		end]]
-
-		if Ply.GetPlayerSkill then
-			return Ply:GetPlayerSkill()
 		end
+	end
 
-		return nil
-	end )
+	if Ply.GetPlayerSkill then
+		return Ply:GetPlayerSkill()
+	end
+
+	return nil
+end
+--Gets the average skill ranking of a table of players.
+local function GetAverageSkill( Players )
+	return GetAverageSkillFunc( Players, GetHiveSkill )
+end
+
+local Sqrt = math.sqrt
+
+local function GetStandardDeviation( Players, Count, Average, RankFunc, Ply, Target )
+	local Sum = 0
+	for i = 1, Count do
+		local Player = Players[ i ]
+		if Player and Player ~= Ply then
+			Sum = Sum + ( RankFunc( Player ) - Average ) ^ 2
+		end
+	end
+
+	if Target then
+		Sum = Sum + ( RankFunc( Target ) - Average ) ^ 2
+	end
+
+	return Sqrt( Sum / Count )
 end
 
 function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
@@ -398,137 +421,195 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 		end
 	end
 
+	if NoSecondPass then
+		return Sorted
+	end
+
 	--Second pass, optimise the teams by swapping players that will reduce the average skill difference.
-	if not NoSecondPass then
-		local Stop
-		local Team1 = TeamMembers[ 1 ]
-		local Team2 = TeamMembers[ 2 ]
-		local NumTeam1 = #Team1
-		local NumTeam2 = #Team2
+	local NumTeam1 = #TeamMembers[ 1 ]
+	local NumTeam2 = #TeamMembers[ 2 ]
 
-		local LargerTeam
-		if NumTeam1 > NumTeam2 then
-			LargerTeam = 1
-		elseif NumTeam2 > NumTeam1 then
-			LargetTeam = 2
+	local LargerTeam
+	if NumTeam1 > NumTeam2 then
+		LargerTeam = 1
+	elseif NumTeam2 > NumTeam1 then
+		LargetTeam = 2
+	end
+	local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
+
+	--Just in case, though it ought to not infinitely loop even without this.
+	local Iterations = 0
+	local Huge = math.huge
+
+	local IgnoreCommanders = self.Config.IgnoreCommanders
+	local UseStandardDeviation = self.Config.UseStandardDeviation
+
+	local function CheckSwap( Ply, Skill, Target, TargetSkill, LargerIndex, LesserIndex, SwapData )
+		local SwapResult = { {}, {} }
+
+		for i = 1, 2 do
+			local Total = TeamSkills[ i ][ 2 ]
+			local Count = TeamSkills[ i ][ 3 ]
+
+			local PreAverage = Total / Count
+			SwapResult[ i ].PreAverage = PreAverage
+			if UseStandardDeviation then
+				SwapResult[ i ].PreStdDev = SwapData.StdDevs[ i ]
+					or GetStandardDeviation( TeamMembers[ i ], Count, PreAverage, RankFunc )
+				SwapData.StdDevs[ i ] = SwapResult[ i ].PreStdDev
+			end
+
+			local IsLesserTeam = i == LesserTeam
+			SwapResult[ i ].Losing = IsLesserTeam and Target or Ply
+			SwapResult[ i ].Gaining = IsLesserTeam and Ply or Target
+			SwapResult[ i ].Index = IsLesserTeam and LesserIndex or LargerIndex
+
+			local NewTotal = Total - ( IsLesserTeam and TargetSkill or Skill )
+				+ ( IsLesserTeam and Skill or TargetSkill )
+			if not Target then
+				Count = Count + ( IsLesserTeam and 1 or -1 )
+			end
+
+			local NewAverage = NewTotal / Count
+			SwapResult[ i ].PostAverage = NewAverage
+			if UseStandardDeviation then
+				SwapResult[ i ].PostStdDev = GetStandardDeviation( TeamMembers[ i ],
+					Count, NewAverage, RankFunc,
+					SwapResult[ i ].Losing, SwapResult[ i ].Gaining )
+			end
+
+			SwapResult[ i ].NewTotal = NewTotal
 		end
-		local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
 
-		--Just in case, though it ought to not infinitely loop even without this.
-		local Iterations = 0
+		local PreDiff = Abs( SwapResult[ 1 ].PreAverage - SwapResult[ 2 ].PreAverage )
+		local NewDiff = Abs( SwapResult[ 1 ].PostAverage - SwapResult[ 2 ].PostAverage )
+		local AverageIsBetter = NewDiff < PreDiff and NewDiff < SwapData.BestDiff
 
-		local function CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
-			local Team1Total = TeamSkills[ LargerTeam or 1 ][ 2 ]
-			local Team1Count = TeamSkills[ LargerTeam or 1 ][ 3 ]
+		local StdDevIsBetter
+		local NewStdDiff
+		if not UseStandardDeviation then
+			StdDevIsBetter = true
+		else
+			local PreStdDiff = Abs( SwapResult[ 1 ].PreStdDev - SwapResult[ 2 ].PreStdDev )
+			NewStdDiff = Abs( SwapResult[ 1 ].PostStdDev - SwapResult[ 2 ].PostStdDev )
 
-			local Team2Total = TeamSkills[ LesserTeam ][ 2 ]
-			local Team2Count = TeamSkills[ LesserTeam ][ 3 ]
+			StdDevIsBetter = NewStdDiff < PreStdDiff and NewStdDiff < SwapData.BestStdDiff
+		end
 
-			local Team1Average = Team1Total / Team1Count
-			local Team2Average = Team2Total / Team2Count
-			local Diff = Abs( Team2Average - Team1Average )
-
-			local NewTeam1Total = Team1Total - Skill + TargetSkill
-			local NewTeam2Total = Team2Total - TargetSkill + Skill
-
-			local NewTeam1Average = NewTeam1Total / Team1Count
-			local NewTeam2Average = NewTeam2Total / Team2Count
-			local NewDiff = Abs( NewTeam2Average - NewTeam1Average )
-
-			if NewDiff < Diff and NewDiff < SwapData.BestDiff then
-				SwapData.BestDiff = NewDiff
-				SwapData.BestPlayers[ LargerTeam or 1 ] = Target
-				SwapData.BestPlayers[ LesserTeam ] = Ply
-				SwapData.Indices[ LargerTeam or 1 ] = i
-				SwapData.Indices[ LesserTeam ] = j
-				SwapData.Totals[ LargerTeam or 1 ] = NewTeam1Total
-				SwapData.Totals[ LesserTeam ] = NewTeam2Total
+		if AverageIsBetter and StdDevIsBetter then
+			SwapData.BestDiff = NewDiff
+			SwapData.BestStdDiff = NewStdDiff
+			for i = 1, 2 do
+				SwapData.BestPlayers[ i ] = SwapResult[ i ].Gaining
+				SwapData.Indices[ i ] = SwapResult[ i ].Index
+				SwapData.Totals[ i ] = SwapResult[ i ].NewTotal
 			end
 		end
+	end
 
-		while Iterations < 30 do
-			local Changed
+	while Iterations < 30 do
+		local Changed
 
-			local SwapData = {
-				BestDiff = math.huge,
-				BestPlayers = {},
-				Indices = {},
-				Totals = {}
-			}
+		local SwapData = {
+			BestDiff = Huge,
+			BestPlayers = {},
+			Indices = {},
+			Totals = {}
+		}
+		if UseStandardDeviation then
+			SwapData.BestStdDiff = Huge
+			SwapData.StdDevs = {}
+		end
 
-			for i = 1, #TeamMembers[ LargerTeam or 1 ] do
-				local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
-				if Ply then
-					local Skill = RankFunc( Ply )
-					local ShouldIgnorePly = self.Config.IgnoreCommanders and Ply:isa( "Commander" )
+		for i = 1, #TeamMembers[ LargerTeam or 1 ] do
+			local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
+			if Ply then
+				local Skill = RankFunc( Ply )
+				local ShouldIgnorePly = IgnoreCommanders and Ply:isa( "Commander" )
 
-					if Skill and not ShouldIgnorePly then
-						for j = 1, #TeamMembers[ LesserTeam ] do
-							local Target = TeamMembers[ LesserTeam ][ j ]
-							local TargetSkill = RankFunc( Target )
-							local ShouldIgnoreTarget = self.Config.IgnoreCommanders
-								and Target:isa( "Commander" )
+				if Skill and not ShouldIgnorePly then
+					for j = 1, #TeamMembers[ LesserTeam ] do
+						local Target = TeamMembers[ LesserTeam ][ j ]
+						local TargetSkill = RankFunc( Target )
+						local ShouldIgnoreTarget = IgnoreCommanders
+							and Target:isa( "Commander" )
 
-							if TargetSkill and not ShouldIgnoreTarget then
-								CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
-							end
+						if TargetSkill and not ShouldIgnoreTarget then
+							CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
 						end
+					end
 
-						if LargerTeam then
-							local Team2Count = TeamSkills[ LesserTeam ][ 3 ] + 1
+					if LargerTeam then
+						local Team2Count = TeamSkills[ LesserTeam ][ 3 ] + 1
 
-							CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
-						end
+						CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
 					end
 				end
 			end
+		end
 
-			--We've found a match that lowers the difference in averages the most.
-			if SwapData.BestDiff < math.huge then
-				for i = 1, 2 do
-					local SwapPly = SwapData.BestPlayers[ i ]
-					--If we're moving a player from one side to the other, drop them properly.
-					if not SwapPly then
-						TableRemove( TeamMembers[ i ], SwapData.Indices[ i ] )
-						--Update player counts for the teams.
-						TeamSkills[ LargerTeam ][ 3 ] = TeamSkills[ LargerTeam ][ 3 ] - 1
-						TeamSkills[ LesserTeam ][ 3 ] = TeamSkills[ LesserTeam ][ 3 ] + 1
-						--Cycle the larger/lesser teams.
-						LargerTeam = ( LargerTeam % 2 ) + 1
-						LesserTeam = ( LesserTeam % 2 ) + 1
-					else
-						TeamMembers[ i ][ SwapData.Indices[ i ] ] = SwapPly
-					end
-					TeamSkills[ i ][ 2 ] = SwapData.Totals[ i ]
+		--We've found a match that lowers the difference in averages the most.
+		if SwapData.BestDiff < Huge then
+			for i = 1, 2 do
+				local SwapPly = SwapData.BestPlayers[ i ]
+				--If we're moving a player from one side to the other, drop them properly.
+				if not SwapPly then
+					TableRemove( TeamMembers[ i ], SwapData.Indices[ i ] )
+					--Update player counts for the teams.
+					TeamSkills[ LargerTeam ][ 3 ] = TeamSkills[ LargerTeam ][ 3 ] - 1
+					TeamSkills[ LesserTeam ][ 3 ] = TeamSkills[ LesserTeam ][ 3 ] + 1
+					--Cycle the larger/lesser teams.
+					LargerTeam = ( LargerTeam % 2 ) + 1
+					LesserTeam = ( LesserTeam % 2 ) + 1
+				else
+					TeamMembers[ i ][ SwapData.Indices[ i ] ] = SwapPly
 				end
-				Changed = true
+				TeamSkills[ i ][ 2 ] = SwapData.Totals[ i ]
 			end
 
-			if not Changed then break end
-
-			Iterations = Iterations + 1
+			Changed = true
 		end
+
+		if not Changed then break end
+
+		Iterations = Iterations + 1
 	end
 
 	return Sorted
 end
 
+local function GetFallbackTargets( Targets, Sorted )
+	local FallbackTargets = {}
+
+	for i = 1, #Targets do
+		local Player = Targets[ i ]
+
+		if Player and not Sorted[ Player ] then
+			FallbackTargets[ #FallbackTargets + 1 ] = Player
+			Sorted[ Player ] = true
+		end
+	end
+
+	return FallbackTargets
+end
+
+local function AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
+	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
+
+	for i = 1, NumPlayers do
+		local Player = Targets[ i ]
+		if Player then
+			local TeamTable = TeamMembers[ TeamSequence[ i ] ]
+
+			TeamTable[ #TeamTable + 1 ] = Player
+		end
+	end
+end
+
 Plugin.ShufflingModes = {
 	--Random only.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
-		local NumPlayers = #Targets
-
-		local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
-
-		for i = 1, NumPlayers do
-			local Player = Targets[ i ]
-			if Player then
-				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
-
-				TeamTable[ #TeamTable + 1 ] = Player
-			end
-		end
-
+		AddPlayersRandomly( Targets, #Targets, TeamMembers )
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		if not Silent then
@@ -588,13 +669,7 @@ Plugin.ShufflingModes = {
 		local RandomTableCount = #RandomTable
 
 		if RandomTableCount > 0 then
-			local TeamSequence = math.GenerateSequence( RandomTableCount, { 1, 2 } )
-
-			for i = 1, RandomTableCount do
-				local TeamTable = TeamMembers[ TeamSequence[ i ] ]
-
-				TeamTable[ #TeamTable + 1 ] = RandomTable[ i ]
-			end
+			AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -675,31 +750,20 @@ Plugin.ShufflingModes = {
 				return nil
 			end )
 
+			Shine:LogString( "[Elo Vote] Teams were sorted based on NS2Stats Elo ranking." )
+
 			--Sort the remaining players with the fallback method.
-			local FallbackTargets = {}
-
-			for i = 1, #Targets do
-				local Player = Targets[ i ]
-
-				if Player and not Sorted[ Player ] then
-					FallbackTargets[ #FallbackTargets + 1 ] = Player
-					Sorted[ Player ] = true
-				end
-			end
+			local FallbackTargets = GetFallbackTargets( Targets, Sorted )
 
 			if #FallbackTargets > 0 then
 				self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
 					FallbackTargets, TeamMembers, true )
-
-				Shine:LogString( "[Elo Vote] Teams were sorted based on NS2Stats Elo ranking." )
 
 				--We return as the fallback has already evenly spread the teams.
 				return
 			end
 
 			EvenlySpreadTeams( Gamerules, TeamMembers )
-
-			Shine:LogString( "[Elo Vote] Teams were sorted based on NS2Stats Elo ranking." )
 		end )
 	end,
 
@@ -724,13 +788,10 @@ Plugin.ShufflingModes = {
 		for i = 1, TargetCount do
 			local Ply = Targets[ i ]
 
-			if Ply and Ply.GetPlayerSkill then
-				local SkillData = Ply:GetPlayerSkill()
-
-				if SkillData and SkillData > 0 then
-					Count = Count + 1
-					SortTable[ Count ] = { Player = Ply, Skill = SkillData }
-				end
+			local Skill = GetHiveSkill( Ply )
+			if Skill and Skill > 0 then
+				Count = Count + 1
+				SortTable[ Count ] = { Player = Ply, Skill = Skill }
 			end
 		end
 
@@ -740,64 +801,36 @@ Plugin.ShufflingModes = {
 
 		RandomiseSimilarSkill( SortTable, Count, 10 )
 
-		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count, TargetCount, function( Ply )
-			--[[local Client = GetOwner( Ply )
-			if Client and Client:GetIsVirtual() then
-				Client.Skill = Client.Skill or Random( 1000, 4000 )
-				return Client.Skill
-			end]]
+		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count, TargetCount, GetHiveSkill )
 
-			if Ply.GetPlayerSkill then
-				return Ply:GetPlayerSkill()
-			end
-
-			return nil
-		end )
+		Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
 
 		--If some players have rank 0 or no rank data, sort them with the fallback instead.
-		local FallbackTargets = {}
-
-		for i = 1, TargetCount do
-			local Player = Targets[ i ]
-
-			if Player and not Sorted[ Player ] then
-				FallbackTargets[ #FallbackTargets + 1 ] = Player
-				Sorted[ Player ] = true
-			end
-		end
+		local FallbackTargets = GetFallbackTargets( Targets, Sorted )
 
 		if #FallbackTargets > 0 then
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
 				FallbackTargets, TeamMembers, true )
-
-			Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
-
-			local Marines = GetEntitiesForTeam( "Player", 1 )
-			local Aliens = GetEntitiesForTeam( "Player", 2 )
-
-			local MarineSkill = GetAverageSkill( Marines )
-			local AlienSkill = GetAverageSkill( Aliens )
-
-			self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
-				true, MarineSkill, AlienSkill )
+			self:NotifyAverageSkills()
 
 			return
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
-
-		Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
-
-		local Marines = GetEntitiesForTeam( "Player", 1 )
-		local Aliens = GetEntitiesForTeam( "Player", 2 )
-
-		local MarineSkill = GetAverageSkill( Marines )
-		local AlienSkill = GetAverageSkill( Aliens )
-
-		self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
-			true, MarineSkill, AlienSkill )
+		self:NotifyAverageSkills()
 	end
 }
+
+function Plugin:NotifyAverageSkills()
+	local Marines = GetEntitiesForTeam( "Player", 1 )
+	local Aliens = GetEntitiesForTeam( "Player", 2 )
+
+	local MarineSkill = GetAverageSkill( Marines )
+	local AlienSkill = GetAverageSkill( Aliens )
+
+	self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
+		true, MarineSkill, AlienSkill )
+end
 
 --[[
 	Gets all valid targets for sorting.

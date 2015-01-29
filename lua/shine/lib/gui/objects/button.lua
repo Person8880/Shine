@@ -14,7 +14,7 @@ Button.Sound = ClickSound
 
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
-	
+
 	if self.Background then GUI.DestroyItem( self.Background ) end
 
 	local Background = GetGUIManager():CreateGraphicItem()
@@ -35,7 +35,7 @@ end
 
 function Button:OnSchemeChange( Scheme )
 	if not self.UseScheme then return end
-	
+
 	self.ActiveCol = Scheme.ActiveButton
 	self.InactiveCol = Scheme.InactiveButton
 	self.TextCol = Scheme.BrightText
@@ -51,7 +51,7 @@ function Button:SetupStencil()
 	self.BaseClass.SetupStencil( self )
 
 	if not self.Text then return end
-	
+
 	self.Text:SetInheritsParentStencilSettings( true )
 end
 
@@ -98,7 +98,7 @@ function Button:SetFont( Font )
 	self.Font = Font
 
 	if not self.Text then return end
-	
+
 	self.Text:SetFontName( Font )
 end
 
@@ -130,13 +130,13 @@ function Button:SetTextColour( Col )
 	self.TextCol = Col
 
 	if not self.Text then return end
-	
+
 	self.Text:SetColor( Col )
 end
 
 function Button:SetIsVisible( Bool )
 	if not self.Background then return end
-	
+
 	Bool = Bool and true or false
 
 	local WasVisible = self.Background:GetIsVisible()
@@ -155,7 +155,7 @@ function Button:Think( DeltaTime )
 		self.Tooltip:Think( DeltaTime )
 	end
 
-	self:CallOnChildren( "Think", DeltaTime ) 
+	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function Button:SetDoClick( Func )
@@ -169,6 +169,28 @@ end
 
 function Button:SetHighlightTexture( Texture )
 	self.HighlightTexture = Texture
+end
+
+function Button:AddMenu( Size )
+	if SGUI.IsValid( self.Menu ) then
+		return self.Menu
+	end
+
+	local Pos = self:GetScreenPos()
+	Pos.x = Pos.x + self:GetSize().x
+
+	local Menu = SGUI:Create( "Menu" )
+	Menu:SetPos( Pos )
+	Menu:SetButtonSize( Size or self:GetSize() )
+
+	self.ForceHighlight = true
+	Menu:CallOnRemove( function()
+		self.ForceHighlight = nil
+	end )
+
+	self.Menu = Menu
+
+	return Menu
 end
 
 function Button:OnMouseDown( Key, DoubleClick )
@@ -193,7 +215,7 @@ function Button:OnMouseUp( Key )
 	local Time = Clock()
 
 	if ( self.ClickDelay or 0.1 ) > 0 and ( self.NextClick or 0 ) > Time then return true end
-	
+
 	self.NextClick = Time + ( self.ClickDelay or 0.1 )
 
 	if self.DoClick then

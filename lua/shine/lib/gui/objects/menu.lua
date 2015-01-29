@@ -35,7 +35,7 @@ end
 
 function Menu:OnSchemeChange( Scheme )
 	if not self.UseScheme then return end
-	
+
 	self.Background:SetColor( Scheme.MenuButton )
 	for i = 1, #Buttons do
 		Buttons[ i ]:SetInactiveCol( Scheme.MenuButton )
@@ -45,9 +45,9 @@ end
 function Menu:SetIsVisible( Bool )
 	if not self.Background then return end
 	if self.Background:GetIsVisible() == Bool then return end
-	
+
 	self.Background:SetIsVisible( Bool )
-	
+
 	local Buttons = self.Buttons
 
 	for i = 1, #Buttons do
@@ -60,7 +60,7 @@ function Menu:SetButtonSize( Vec )
 	self.ButtonOffset = Vector( 0, Vec.y, 0 )
 end
 
-function Menu:AddButton( Text, DoClick )
+function Menu:AddButton( Text, DoClick, Tooltip )
 	local Button = SGUI:Create( "Button", self )
 	Button:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Button:SetPos( Padding + self.ButtonCount * self.ButtonOffset )
@@ -71,6 +71,9 @@ function Menu:AddButton( Text, DoClick )
 		Button:SetFont( self.Font )
 	end
 	Button.UseScheme = false
+	if Tooltip then
+		Button:SetTooltip( Tooltip )
+	end
 
 	local Scheme = SGUI:GetSkin()
 	Button:SetInactiveCol( Scheme.MenuButton )
@@ -81,6 +84,8 @@ function Menu:AddButton( Text, DoClick )
 		+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
 
 	self.Buttons[ self.ButtonCount ] = Button
+
+	return Button
 end
 
 ------------------- Event calling -------------------
@@ -90,9 +95,9 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	if Result ~= nil then return true, Child end
 
 	--Delay so we don't mess up the event calling.
-	Shine.Timer.Simple( 0.1, function()
+	SGUI:AddPostEventAction( function()
 		if not self:IsValid() then return end
-		
+
 		self:SetParent()
 		self:Destroy()
 	end )

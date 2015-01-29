@@ -130,6 +130,25 @@ local function OnError( Error )
 		"%s\nLocals:\n%s", true, Trace, Locals )
 end
 
+function SGUI:PostCallEvent()
+	local PostEventActions = self.PostEventActions
+	if not PostEventActions then return end
+
+	for i = 1, #PostEventActions do
+		xpcall( PostEventActions[ i ], OnError )
+	end
+
+	self.PostEventActions = nil
+end
+
+function SGUI:AddPostEventAction( Action )
+	if not self.PostEventActions then
+		self.PostEventActions = {}
+	end
+
+	self.PostEventActions[ #self.PostEventActions + 1 ] = Action
+end
+
 --[[
 	Passes an event to all active SGUI windows.
 
@@ -152,8 +171,10 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 			if Success then
 				if Result ~= nil then
 					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-						SGUI:SetWindowFocus( Window, i )
+						self:SetWindowFocus( Window, i )
 					end
+
+					self:PostCallEvent()
 
 					return Result, Control
 				end
@@ -162,6 +183,8 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 			end
 		end
 	end
+
+	self:PostCallEvent()
 end
 
 --[[
@@ -1270,7 +1293,7 @@ function ControlMeta:OnMouseMove( Down )
 			end
 		end
 	else
-		if self.Highlighted then
+		if self.Highlighted and not self.ForceHighlight then
 			self.Highlighted = false
 
 			if not self.TextureHighlight then
