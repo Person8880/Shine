@@ -36,22 +36,22 @@ function WriteDefaultConfigFile(fileName, defaultConfig)
 
     local configFile = io.open("config://" .. fileName, "r")
     if not configFile then
-    
+
         configFile = io.open("config://" .. fileName, "w+")
         if configFile == nil then
             return
         end
         configFile:write(json.encode(defaultConfig, { indent = true }))
-        
+
     end
-    
+
     io.close(configFile)
-    
+
 end
 
 function CheckConfig(config, defaultConfig, dontRemove)
     local updated
-    
+
     --Add new keys.
     local function addkeys(config, defaultConfig)
         for option, value in pairs(defaultConfig) do
@@ -59,13 +59,13 @@ function CheckConfig(config, defaultConfig, dontRemove)
                 config[option] = value
                 updated = true
             end
-            if type( config[option] ) == "table" then 
+            if type( config[option] ) == "table" then
                 addkeys( config[option] , defaultConfig[option])
             end
         end
     end
     addkeys(config, defaultConfig)
-    
+
     if dontRemove then return updated end
 
     --Remove old keys.
@@ -76,7 +76,7 @@ function CheckConfig(config, defaultConfig, dontRemove)
                 config[option] = nil
                 updated = true
             end
-            if type( defaultConfig[option] ) == "table" then 
+            if type( defaultConfig[option] ) == "table" then
                 removekeys( config[option] , defaultConfig[option])
             end
         end
@@ -89,47 +89,47 @@ end
 function LoadConfigFile( fileName, defaultConfig, check)
 
     local fname = "config://" .. fileName
-        
+
     Shared.Message("Loading " .. fname)
 
-    local openedFile = GetFileExists(fname) and io.open(fname, "r")
+    local openedFile = io.open(fname, "r")
     if openedFile then
-    
+
         local parsedFile, _, errStr = json.decode(openedFile:read("*all"))
         if errStr then
             Shared.Message("Error while opening " .. fileName .. ": " .. errStr)
         end
         io.close(openedFile)
-        
+
         if defaultConfig and check then
             local update = CheckConfig(parsedFile, defaultConfig)
             if update then
-                SaveConfigFile(fileName, parsedFile) 
+                SaveConfigFile(fileName, parsedFile)
             end
         end
-        
+
         return parsedFile
-        
+
     elseif defaultConfig then
         WriteDefaultConfigFile(fileName, defaultConfig)
         return defaultConfig
     end
-    
+
     return
-    
+
 end
 
 function SaveConfigFile(fileName, data)
 
     Shared.Message("Saving " .. "config://" .. fileName)
-    
+
     local openedFile = io.open("config://" .. fileName, "w+")
-    
+
     if openedFile then
-    
+
         openedFile:write(json.encode(data, { indent = true }))
         io.close(openedFile)
-        
+
     end
-    
+
 end
