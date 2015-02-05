@@ -39,11 +39,11 @@ function AdminMenu:Create()
 
 	Window.OnPreTabChange = function( Window )
 		if not Window.ActiveTab then return end
-		
+
 		local Tab = Window.Tabs[ Window.ActiveTab ]
 
 		if not Tab then return end
-		
+
 		self:OnTabCleanup( Window, Tab.Name )
 	end
 
@@ -72,7 +72,7 @@ end
 
 function AdminMenu:DontDestroyOnClose( Object )
 	if not self.ToDestroyOnClose then return end
-	
+
 	self.ToDestroyOnClose[ Object ] = nil
 end
 
@@ -115,7 +115,7 @@ end
 
 function AdminMenu:PlayerKeyPress( Key, Down )
 	if not self.Visible then return end
-	
+
 	if Key == InputKey.Escape and Down then
 		self:SetIsVisible( false )
 
@@ -146,7 +146,7 @@ function AdminMenu:RemoveTab( Name )
 	local Data = self.Tabs[ Name ]
 
 	if not Data then return end
-	
+
 	--Remove the actual menu tab.
 	if Data.TabObj and SGUI.IsValid( Data.TabObj.TabButton ) then
 		self.Window:RemoveTab( Data.TabObj.TabButton.Index )
@@ -189,11 +189,11 @@ function AdminMenu:OnTabCleanup( Window, Name )
 	local Tab = self.Tabs[ Name ]
 
 	if not Tab then return end
-	
+
 	local OnCleanup = Tab.OnCleanup
 
 	if not OnCleanup then return end
-	
+
 	local Ret = OnCleanup( Window.ContentPanel )
 
 	if Ret then
@@ -258,7 +258,7 @@ do
 			Label:SetBright( true )
 			Label:SetText( "Select a player (or players) and a command to run." )
 			Label:SetPos( Vector( 16, 24, 0 ) )
-			
+
 			PlayerList = SGUI:Create( "List", Panel )
 			PlayerList:SetAnchor( GUIItem.Left, GUIItem.Top )
 			PlayerList:SetPos( Vector( 16, 72, 0 ) )
@@ -273,7 +273,7 @@ do
 
 			Shine.Timer.Create( "AdminMenu_Update", 1, -1, function()
 				if not SGUI.IsValid( PlayerList ) then return end
-				
+
 				UpdatePlayers()
 			end )
 
@@ -410,7 +410,7 @@ do
 		if not DoClick then
 			DoClick = function( Button, Rows )
 				if #Rows == 0 then return end
-				
+
 				if not MultiPlayer and #Rows > 1 then
 					self:AskForSinglePlayer()
 
@@ -468,15 +468,7 @@ do
 					Args = Rows[ 1 ]:GetColumnText( 2 )
 				end
 
-				local Pos = Button:GetScreenPos()
-				Pos.x = Pos.x + Button:GetSize().x
-
-				Menu = SGUI:Create( "Menu" )
-				Menu:SetPos( Pos )
-				Menu:SetButtonSize( Vector( 128, 32, 0 ) )
-				Menu:CallOnRemove( function()
-					Menu = nil
-				end )
+				Menu = Button:AddMenu( Vector( 128, 32, 0 ) )
 				self:DestroyOnClose( Menu )
 
 				for i = 1, #Data, 2 do
@@ -499,7 +491,7 @@ do
 					elseif IsType( Arg, "function" ) then
 						Menu:AddButton( Option, function()
 							Arg()
-							
+
 							self:DontDestroyOnClose( Menu )
 
 							Menu:Destroy()
@@ -509,7 +501,7 @@ do
 				end
 			end
 		end
-		
+
 		local Categories = self.Commands
 		local CategoryObj
 
@@ -536,14 +528,14 @@ do
 		end
 
 		local CommandsList = CategoryObj.Commands
-		
+
 		CommandsList[ #CommandsList + 1 ] = { Name = Name, DoClick = DoClick, Tooltip = Tooltip }
 
 		if Commands then
 			if ShouldAdd then
 				Commands:AddCategory( Category )
 			end
-			
+
 			Commands:AddObject( Category, GenerateButton( Name, DoClick, Tooltip ) )
 		end
 	end
@@ -599,7 +591,7 @@ Special thanks to:
 				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
 			end
 
-			if not WebPage then
+			if not SGUI.IsValid( WebPage ) then
 				WebPage = SGUI:Create( "Webpage", Panel )
 				WebPage:SetPos( Vector( 16, 224, 0 ) )
 				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
@@ -607,11 +599,14 @@ Special thanks to:
 				WebPage:SetParent( Panel )
 				WebPage:SetIsVisible( true )
 			end
+
+			AdminMenu:DontDestroyOnClose( WebPage )
 		end,
 
 		OnCleanup = function( Panel )
 			WebPage:SetParent()
 			WebPage:SetIsVisible( false )
+			AdminMenu:DestroyOnClose( WebPage )
 		end
 	} )
 end

@@ -36,14 +36,14 @@ local MenuTexture =
 	[ kNeutralTeamType ] = "ui/marine_request_menu.dds",
 }
 
-local ButtonTexture = 
+local ButtonTexture =
 {
 	[ kMarineTeamType ] = "ui/marine_request_button.dds",
 	[ kAlienTeamType ] = "ui/alien_request_button.dds",
 	[ kNeutralTeamType ] = "ui/marine_request_button.dds",
 }
 
-local ButtonHighlightTexture = 
+local ButtonHighlightTexture =
 {
 	[ kMarineTeamType ] = "ui/marine_request_button_highlighted.dds",
 	[ kAlienTeamType ] = "ui/alien_request_button_highlighted.dds",
@@ -133,8 +133,8 @@ function VoteMenu:Create()
 end
 
 function VoteMenu:SetIsVisible( Bool )
-	if not SGUI.IsValid( self.Background ) then 
-		self:Create() 
+	if not SGUI.IsValid( self.Background ) then
+		self:Create()
 	end
 
 	if Bool then
@@ -188,7 +188,7 @@ function VoteMenu:Think( DeltaTime )
 	local ActivePage = self.ActivePage
 
 	if not ActivePage then return end
-	
+
 	local Think = self.Pages[ ActivePage ].Think
 
 	if Think then
@@ -202,7 +202,7 @@ end )
 
 Hook.Add( "OnCommanderUILogout", "VoteMenuLogout", function()
 	if not VoteMenu.Visible then return end
-	
+
 	VoteMenu:SetIsVisible( false )
 end )
 
@@ -233,10 +233,10 @@ function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
 			Button:SetParent()
 			Button:Destroy()
 		end
-		
+
 		SideButtons[ Key ] = nil
 	end
-	
+
 	self.Background:Destroy()
 
 	self:Create()
@@ -265,7 +265,7 @@ function VoteMenu:EditPage( Name, ExtraFunc, ExtraThink )
 	local Page = self.Pages[ Name ]
 
 	if not Page then return self:AddPage( Name, ExtraFunc, ExtraThink ) end
-	
+
 	if ExtraFunc then
 		local OldPopulate = Page.Populate
 
@@ -274,7 +274,7 @@ function VoteMenu:EditPage( Name, ExtraFunc, ExtraThink )
 			ExtraFunc( self )
 		end
 	end
-	
+
 	if ExtraThink then
 		local OldThink = Page.Think
 
@@ -294,7 +294,7 @@ end
 ]]
 function VoteMenu:SetPage( Name )
 	--if Name == self.ActivePage then return end
-	
+
 	local Page = self.Pages[ Name ]
 
 	if not Page or not Page.Populate then return end
@@ -338,13 +338,19 @@ function VoteMenu:Clear()
 	self.ButtonIndex = 0
 end
 
+function VoteMenu:SetupButtonForTeam( Button, TeamType )
+	Button:SetTexture( ButtonTexture[ TeamType ] )
+	Button:SetHighlightTexture( ButtonHighlightTexture[ TeamType ] )
+end
+
 --[[
 	Updates the textures of all active buttons.
 ]]
 function VoteMenu:UpdateTeamType()
-	self.TeamType = PlayerUI_GetTeamType()
+	local TeamType = PlayerUI_GetTeamType()
+	self.TeamType = TeamType
 
-	self.Background:SetTexture( MenuTexture[ self.TeamType ] )
+	self.Background:SetTexture( MenuTexture[ TeamType ] )
 
 	local Buttons = self.Buttons
 	local SideButtons = Buttons.Side
@@ -352,21 +358,18 @@ function VoteMenu:UpdateTeamType()
 	local BottomButton = Buttons.Bottom
 
 	if SGUI.IsValid( TopButton ) then
-		TopButton:SetTexture( ButtonTexture[ self.TeamType ] )
-		TopButton:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType ] )
+		self:SetupButtonForTeam( TopButton, TeamType )
 	end
 
 	if SGUI.IsValid( BottomButton ) then
-		BottomButton:SetTexture( ButtonTexture[ self.TeamType ] )
-		BottomButton:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType ] )
+		self:SetupButtonForTeam( BottomButton, TeamType )
 	end
 
 	for i = 1, #SideButtons do
 		local Button = SideButtons[ i ]
 
 		if SGUI.IsValid( Button ) then
-			Button:SetTexture( ButtonTexture[ self.TeamType ] )
-			Button:SetHighlightTexture( ButtonHighlightTexture[ self.TeamType ] )
+			self:SetupButtonForTeam( Button, TeamType )
 		end
 	end
 end
@@ -499,22 +502,22 @@ end
 --[[
 	Positions a side button based on the number of buttons on the side.
 ]]
-function VoteMenu:PositionButton( Button, Index, MaxIndex, Align )
+function VoteMenu:PositionButton( Button, Index, MaxIndex, Align, IgnoreAnim )
 	local Button = self.Buttons.Side[ Button ]
 
 	if not SGUI.IsValid( Button ) then return end
-	
+
 	Index = Index + ( MaxRequestsPerSide - MaxIndex ) * 0.5
 
 	Button:SetAnchor( Align, GUIItem.Top )
 
 	local Pos = Vector( 0, 0, 0 )
-	local Direction = -1    
-	if Align == GUIItem.Left then        
+	local Direction = -1
+	if Align == GUIItem.Left then
 		Pos.x = -self.ButtonSize.x
 		Direction = 1
 	end
-	
+
 	Pos.y = ( Index - 1 ) * ( self.ButtonSize.y + Padding )
 
 	local Offset = Cos( Clamp( ( Index - 1 ) / ( MaxRequestsPerSide - 1 ),
@@ -522,7 +525,7 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align )
 
 	Pos.x = Pos.x + Direction * Offset
 
-	if Shine.Config.AnimateUI then
+	if not IgnoreAnim and Shine.Config.AnimateUI then
 		local Size = self.Background:GetSize()
 		Button:SetPos( Vector( Align == GUIItem.Right and -Size.x * 0.5 or 0,
 			Size.y * 0.5, 0 ) )
@@ -535,16 +538,23 @@ end
 --[[
 	This should be called after all side buttons have been added.
 ]]
-function VoteMenu:SortSideButtons()
+function VoteMenu:SortSideButtons( IgnoreAnim )
 	local MaxIndex = Ceil( self.ButtonIndex * 0.5 )
 
 	for i = 1, MaxIndex do
-		self:PositionButton( i, i, MaxIndex, GUIItem.Left )
+		self:PositionButton( i, i, MaxIndex, GUIItem.Left, IgnoreAnim )
 	end
 
 	for i = 1, MaxIndex do
-		self:PositionButton( i + MaxIndex, i, MaxIndex, GUIItem.Right )
+		self:PositionButton( i + MaxIndex, i, MaxIndex, GUIItem.Right, IgnoreAnim )
 	end
+end
+
+function VoteMenu:AddAdminMenuButton()
+	self:AddSideButton( "Admin Menu", function()
+		Shared.ConsoleCommand( "sh_adminmenu" )
+		self:SetIsVisible( false )
+	end )
 end
 
 --[[
@@ -557,5 +567,26 @@ VoteMenu:AddPage( "Main", function( self )
 		local Plugin = ActivePlugins[ i ]
 
 		self:AddSideButton( Plugin, ClickFuncs[ Plugin ] )
+	end
+
+	if self.RequestedAdminMenu == nil then
+		self.RequestedAdminMenu = true
+
+		Shine.SendNetworkMessage( "Shine_AuthAdminMenu", {}, true )
+
+		return
+	end
+
+	if not self.CanViewAdminMenu then return end
+
+	self:AddAdminMenuButton()
+end )
+
+Client.HookNetworkMessage( "Shine_AuthAdminMenu", function( Data )
+	VoteMenu.CanViewAdminMenu = true
+
+	if VoteMenu.Visible and VoteMenu.ActivePage == "Main" then
+		VoteMenu:AddAdminMenuButton()
+		VoteMenu:SortSideButtons( true )
 	end
 end )

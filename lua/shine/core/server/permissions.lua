@@ -798,7 +798,7 @@ function Shine:CanTarget( Client, Target )
 	TargetUser, TargetID = self:GetUserData( TargetID )
 
 	local TargetGroup, TargetImmunity = GetGroupAndImmunity( self, Groups, TargetUser, TargetID )
-	if not TargetGroup then
+	if not TargetGroup or TargetGroup.CanAlwaysTarget then
 		return true
 	end
 

@@ -7,6 +7,7 @@
 local error = error
 local pcall = pcall
 local StringByte = string.byte
+local StringFind = string.find
 local StringFormat = string.format
 local StringSub = string.sub
 local TableConcat = table.concat
@@ -1946,7 +1947,7 @@ local function GetUTF8Bytes( String, Index )
 		elseif Byte2 < 128 or Byte2 > 191 then
 			error( "Invalid UTF-8 character, invalid second byte" )
 		end
-		
+
 		if Byte3 < 128 or Byte3 > 191 then
 			error( "Invalid UTF-8 character, invalid third byte" )
 		end
@@ -1978,7 +1979,7 @@ local function GetNumUTF8Bytes( String, Index )
 		return 2
 	elseif Byte1 then
 		return 1
-	end    
+	end
 end
 
 --[[
@@ -1988,15 +1989,14 @@ end
 	Output: True if valid, false otherwise.
 ]]
 function string.IsValidUTF8( String, Index )
-	local Success = pcall( GetUTF8Bytes, String, Index )
-	return Success
+	return ( pcall( GetUTF8Bytes, String, Index ) )
 end
 
 --[[
 	Returns up to 4 bytes of data representing the components of a UTF8 character.
 
 	Input: String to get character bytes from, optional byte index of the string to start from.
-	Output: Up to 4 bytes of data.
+	Output: Up to 4 bytes of data. Returns nil if the character is invalid UTF8.
 ]]
 function string.GetUTF8Bytes( String, Index )
 	local Success, Byte, Byte2, Byte3, Byte4 = pcall( GetUTF8Bytes, String, Index )
@@ -2004,6 +2004,22 @@ function string.GetUTF8Bytes( String, Index )
 		return Byte, Byte2, Byte3, Byte4
 	else
 		return false
+	end
+end
+
+local function MakeWrapperFunc( Func, Original )
+	return function( ... )
+		local Success, Result = pcall( Func, ... )
+
+		if not Success then
+			if StringFind( Result, "Bad argument" ) then
+				error( Result, 0 )
+			end
+
+			return Original( ... )
+		end
+
+		return Result
 	end
 end
 
@@ -2027,7 +2043,7 @@ local function StringUTF8Length( String )
 
 	return Count
 end
-string.UTF8Length = StringUTF8Length
+string.UTF8Length = MakeWrapperFunc( StringUTF8Length, string.len )
 
 --[[
 	Returns the part of the string between Start and End where Start and End are UTF-8
@@ -2036,7 +2052,7 @@ string.UTF8Length = StringUTF8Length
 	Inputs: String, starting character position, ending character position.
 	Output: String between the two points.
 ]]
-function string.UTF8Sub( String, Start, End )
+local function UTF8Sub( String, Start, End )
 	End = End or -1
 
 	TypeCheck( String, "string", 1, "UTF8Sub" )
@@ -2075,6 +2091,7 @@ function string.UTF8Sub( String, Start, End )
 
 	return StringSub( String, StartByte, EndByte )
 end
+string.UTF8Sub = MakeWrapperFunc( UTF8Sub, string.sub )
 
 --[[
 	Replaces UTF-8 characters based on a mapping table.
@@ -2104,15 +2121,18 @@ local function UTF8Replace( String, MapTable )
 	--Table concat saves garbage data from concatenating the string for each character.
 	return TableConcat( NewString, "" )
 end
+--Potentially unsafe, has no direct Lua equivalent.
 string.UTF8Replace = UTF8Replace
 
-function string.UTF8Upper( String )
+local function UTF8Upper( String )
 	return UTF8Replace( String, UTF8LowerToUpper )
 end
+string.UTF8Upper = MakeWrapperFunc( UTF8Upper, string.upper )
 
-function string.UTF8Lower( String )
+local function UTF8Lower( String )
 	return UTF8Replace( String, UTF8UpperToLower )
 end
+string.UTF8Lower = MakeWrapperFunc( UTF8Lower, string.lower )
 
 --[[
 	Reverses a UTF-8 string.
@@ -2120,7 +2140,7 @@ end
 	Input: String.
 	Output: Reversed UTF-8 aware string.
 ]]
-function string.UTF8Reverse( String )
+local function UTF8Reverse( String )
 	TypeCheck( String, "string", 1, "UTF8Reverse" )
 
 	local Bytes = #String
@@ -2147,3 +2167,4 @@ function string.UTF8Reverse( String )
 	--Table concat saves garbage data from concatenating the string for each character.
 	return TableConcat( NewString, "" )
 end
+string.UTF8Reverse = MakeWrapperFunc( UTF8Reverse, string.reverse )
