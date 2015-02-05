@@ -73,14 +73,14 @@ function Plugin:HookChat( ChatElement )
 
 	local OldAddMessage = ChatElement.AddMessage
 
-	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
+	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 		Plugin.GUIChat = self
 
 		if Plugin.Enabled then
-			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
+			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 		end
 
-		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName )
+		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 
 		if Plugin.Enabled and Plugin.Visible then
 			local JustAdded = self.messages[ #self.messages ]
