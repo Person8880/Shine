@@ -14,6 +14,7 @@ local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local TableSort = table.sort
 local ToDebugString = table.ToDebugString
 local Traceback = debug.traceback
 local xpcall = xpcall
@@ -49,7 +50,7 @@ function Shine:RegisterExtension( Name, Table, Options )
 	if Options then
 		local Base = Options.Base
 		if not Base then return end
-		
+
 		if not self.Plugins[ Base ] then
 			if not self:LoadExtension( Base, true ) then
 				return
@@ -70,7 +71,7 @@ function Shine:LoadExtension( Name, DontEnable )
 	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
 	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
 	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
-	
+
 	local IsShared = PluginFiles[ SharedFile ]
 		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
 
@@ -174,7 +175,7 @@ function Shine:LoadExtension( Name, DontEnable )
 	Plugin.IsShared = IsShared and true or nil
 
 	if DontEnable then return true end
-	
+
 	return self:EnableExtension( Name )
 end
 
@@ -255,7 +256,7 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	Plugin.Enabled = true
 
 	--We need to inform clients to enable the client portion.
-	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then 
+	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
 	end
 
@@ -330,7 +331,7 @@ end
 --[[
 	Prepare shared plugins.
 
-	Important to note: Shine does not support hot loading plugin files. 
+	Important to note: Shine does not support hot loading plugin files.
 	That is, it will only know about plugin files that were present when it started.
 ]]
 for Path in pairs( PluginFiles ) do
@@ -358,6 +359,11 @@ for Path in pairs( PluginFiles ) do
 		AddToPluginsLists( Name )
 	end
 end
+
+--Alphabetical order for hook calling consistency.
+TableSort( AllPluginsArray, function( A, B )
+	return A:lower() < B:lower()
+end )
 
 Shared.RegisterNetworkMessage( "Shine_PluginSync", ClientPlugins )
 Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
@@ -424,7 +430,7 @@ elseif Client then
 		if not self.AutoLoadPlugins then return end
 
 		AutoLoad = AutoLoad or false
-		
+
 		self.AutoLoadPlugins[ Name ] = AutoLoad
 
 		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
