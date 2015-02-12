@@ -633,6 +633,8 @@ end
 	Sets a control's parent manually.
 ]]
 function ControlMeta:SetParent( Control, Element )
+	assert( Control ~= self, "[SGUI] Cannot parent an object to itself!" )
+
 	if self.Parent then
 		self.Parent.Children:Remove( self )
 		self.ParentElement:RemoveChild( self.Background )
