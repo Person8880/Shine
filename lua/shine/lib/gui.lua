@@ -76,7 +76,7 @@ Hook.Add( "PlayerKeyPress", "SGUICtrlMonitor", function( Key, Down )
 	end
 end, -20 )
 
-function SGUI:GetCtrlDown()
+function SGUI:IsControlDown()
 	return self.SpecialKeyStates.Ctrl
 end
 
@@ -529,7 +529,7 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 			return SGUI:CallEvent( false, "OnMouseWheel", Down )
 		end,
 		OnMouseDown = function( _, Key, DoubleClick )
-			local Result, Control = SGUI:CallEvent( true, "OnMouseDown", Key )
+			local Result, Control = SGUI:CallEvent( true, "OnMouseDown", Key, DoubleClick )
 
 			if Result and Control then
 				if not Control.UsesKeyboardFocus then
