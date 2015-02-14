@@ -105,6 +105,7 @@ function TextEntry:Initialise()
 	self.DarkCol = Scheme.TextEntry
 
 	self.Padding = 2
+	self.CaretOffset = 0
 
 	Background:SetColor( Scheme.ButtonBorder )
 	InnerBox:SetColor( self.DarkCol )
@@ -195,33 +196,25 @@ function TextEntry:SetupCaret()
 	local Height = TextObj:GetTextHeight( "!" ) * self.HeightScale * 0.8
 
 	Caret:SetSize( Vector( 1, Height, 0 ) )
-	local SelectionSize = SelectionBox:GetSize()
-	SelectionBox:SetSize( Vector( SelectionSize.x, Height, 0 ) )
-
-	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
+	SelectionBox:SetSize( Vector( SelectionBox:GetSize().x, Height, 0 ) )
 
 	if not self.Width then return end
+
+	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
+	self.Column = StringUTF8Length( self.Text )
 
 	if Width > self.Width then
 		local Diff = -( Width - self.Width )
 
 		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
-
-		self.Column = StringUTF8Length( self.Text )
-
-		Caret:SetPosition( Vector( Width + Diff, self.Height * 0.5 - Height * 0.5, 0 ) )
+		Caret:SetPosition( Vector( Width + Diff + self.CaretOffset, self.Height * 0.5 - Height * 0.5, 0 ) )
 
 		self.TextOffset = Diff
 	else
 		self.TextOffset = self.Padding
 
-		self.Column = StringUTF8Length( self.Text )
-
-		local Pos = Caret:GetPosition()
-
-		Caret:SetPosition( Vector( Width, self.Height * 0.5 - Height * 0.5, 0 ) )
-
-		TextObj:SetPosition( TextPos )
+		Caret:SetPosition( Vector( Width + self.Padding + self.CaretOffset, self.Height * 0.5 - Height * 0.5, 0 ) )
+		TextObj:SetPosition( Vector( self.Padding, 0, 0 ) )
 	end
 end
 
@@ -249,9 +242,7 @@ function TextEntry:SetCaretPos( Column )
 	local TextObj = self.TextObj
 
 	local Pos = Caret:GetPosition()
-
 	local UTF8W = TextObj:GetTextWidth( StringUTF8Sub( self.Text, 1, self.Column ) ) * self.WidthScale
-
 	local NewPos = UTF8W + self.TextOffset
 
 	--We need to move the text along with the caret, otherwise it'll go out of vision!
@@ -261,19 +252,15 @@ function TextEntry:SetCaretPos( Column )
 		if self.Column == 0 then
 			self.TextOffset = self.Padding
 		end
-
-		TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 	elseif NewPos > self.Width then
 		local Diff = NewPos - self.Width
 
 		self.TextOffset = self.TextOffset - Diff
-
-		TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 	end
 
-	NewPos = Clamp( NewPos, 0, self.Width )
-
+	NewPos = Clamp( NewPos + self.CaretOffset, 0, self.Width )
 	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
+	TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 end
 
 function TextEntry:ResetSelectionBounds()
@@ -370,7 +357,7 @@ function TextEntry:HandleSelectingText()
 		--Have to perform the adjustment after so we get the correct text offset value.
 		local BeforeText = StringUTF8Sub( self.Text, 1, LowerBound )
 		local Pos = self.Caret:GetPosition()
-		Pos.x = self.TextObj:GetTextWidth( BeforeText ) * self.WidthScale + self.TextOffset
+		Pos.x = self.TextObj:GetTextWidth( BeforeText ) * self.WidthScale + self.TextOffset + self.CaretOffset
 
 		self:MoveTo( Pos, 0, 0.2, nil, 3, nil, self.SelectionBox )
 	end
@@ -382,7 +369,7 @@ function TextEntry:SelectAll()
 
 	self.SelectionBox:SetPosition( self.Caret:GetPosition() )
 	self:SetCaretPos( self.SelectionBounds[ 2 ] )
-	self:UpdateSelectionBounds( nil, self.Padding )
+	self:UpdateSelectionBounds( nil, self.Padding + self.CaretOffset )
 end
 
 function TextEntry:SetText( Text )
@@ -400,7 +387,6 @@ end
 
 function TextEntry:AllowChar( Char )
 	if not Char:IsValidUTF8() then return false end
-
 	if self:ShouldAllowChar( Char ) == false then return false end
 
 	return true
@@ -561,9 +547,7 @@ function TextEntry:Think( DeltaTime )
 
 		if ( self.NextCaretChange or 0 ) < Time then
 			self.NextCaretChange = Time + 0.5
-
 			self.CaretVis = not self.CaretVis
-
 			self.Caret:SetColor( self.CaretVis and CaretCol or Clear )
 		end
 	end
@@ -587,7 +571,6 @@ function TextEntry:OnMouseMove( Down )
 	if not self:MouseIn( self.Background ) then
 		if not self.Enabled and self.Highlighted then
 			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
-
 			self.Highlighted = false
 		end
 
@@ -597,7 +580,6 @@ function TextEntry:OnMouseMove( Down )
 	if self.Highlighted or self.Enabled then return end
 
 	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.1 )
-
 	self.Highlighted = true
 end
 
@@ -607,10 +589,8 @@ function TextEntry:GetColumnFromMouse( X )
 	local TextObj = self.TextObj
 
 	local Length = StringUTF8Length( Text )
-
 	local i = 0
-
-	local Width = TextObj:GetTextWidth( StringUTF8Sub( Text, 1, i ) ) * self.WidthScale + Offset
+	local Width = TextObj:GetTextWidth( StringUTF8Sub( Text, 1, i ) ) * self.WidthScale
 
 	repeat
 		local Pos = Width + Offset
@@ -747,9 +727,7 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 	end
 
 	self:StopFade( self.InnerBox )
-
 	self.Enabled = true
-
 	self.InnerBox:SetColor( self.FocusColour )
 end
 
