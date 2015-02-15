@@ -74,8 +74,9 @@ local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Messag
 	ChatMessages[ #ChatMessages + 1 ] = Col
 	ChatMessages[ #ChatMessages + 1 ] = Message
 
-	ChatMessages[ #ChatMessages + 1 ] = ""
-	ChatMessages[ #ChatMessages + 1 ] = 0
+	ChatMessages[ #ChatMessages + 1 ] = false
+	ChatMessages[ #ChatMessages + 1 ] = false
+
 	ChatMessages[ #ChatMessages + 1 ] = 0
 	ChatMessages[ #ChatMessages + 1 ] = 0
 

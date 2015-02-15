@@ -57,7 +57,17 @@ function Shine:RegisterExtension( Name, Table, Options )
 			end
 		end
 
-		Table.__Inherit = self.Plugins[ Base ]
+		local ParentPlugin = self.Plugins[ Base ]
+
+		if ParentPlugin.__Inherit == Table then
+			self.Plugins[ Name ] = nil
+
+			error( StringFormat(
+				"[Shine] Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
+				Name, Base, Base, Name ) )
+		end
+
+		Table.__Inherit = ParentPlugin
 		Table.__InheritBlacklist = Options.BlacklistKeys
 		Table.__InheritWhitelist = Options.WhitelistKeys
 	end

@@ -16,8 +16,9 @@ Skin.MenuButton = Colour( 0.25, 0.25, 0.25, 1 )
 Skin.CloseButtonActive = Colour( 0.7, 0.2, 0.2, 1 )
 Skin.CloseButtonInactive = Colour( 0.5, 0.2, 0.2, 1 )
 
-Skin.TextEntryFocus = Colour( 1, 0.4, 0.1, 1 )
+Skin.TextEntryFocus = Colour( 0.6, 0.6, 0.6, 1 )
 Skin.TextEntry = Colour( 0.4, 0.4, 0.4, 1 )
+Skin.TextSelection = Colour( 1, 0.6, 0, 0.5 )
 
 Skin.WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
 Skin.WindowTitle = Colour( 0.25, 0.25, 0.25, 1 )

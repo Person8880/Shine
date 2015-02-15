@@ -393,6 +393,11 @@ function Plugin:CreateChatbox()
 	}
 	if not self.UseTinyFont then
 		TextEntry:SetTextScale( ScalarScale * TextScale )
+	else
+		--For some reason, the tiny font is always 1 behind where it should be...
+		TextEntry.Padding = 3
+		TextEntry.CaretOffset = -1
+		TextEntry:SetupCaret()
 	end
 
 	TextEntry.InnerBox:SetColor( LayoutData.Colours.HalfOpacity.TextDark )

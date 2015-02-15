@@ -76,7 +76,7 @@ Hook.Add( "PlayerKeyPress", "SGUICtrlMonitor", function( Key, Down )
 	end
 end, -20 )
 
-function SGUI:GetCtrlDown()
+function SGUI:IsControlDown()
 	return self.SpecialKeyStates.Ctrl
 end
 
@@ -318,8 +318,16 @@ end
 function SGUI:Register( Name, Table, Parent )
 	--If we have set a parent, then we want to setup a slightly different __index function.
 	if Parent then
+		Table.ParentControl = Parent
+
 		--This may not be defined yet, so we get it when needed.
-		local ParentTable
+		local ParentTable = self.Controls[ Parent ]
+
+		if ParentTable and ParentTable.ParentControl == Name then
+			error( StringFormat( "[SGUI] Cyclic dependency detected. %s depends on %s while %s also depends on %s.",
+				Name, Parent, Parent, Name ) )
+		end
+
 		function Table:__index( Key )
 			ParentTable = ParentTable or SGUI.Controls[ Parent ]
 
@@ -529,7 +537,7 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 			return SGUI:CallEvent( false, "OnMouseWheel", Down )
 		end,
 		OnMouseDown = function( _, Key, DoubleClick )
-			local Result, Control = SGUI:CallEvent( true, "OnMouseDown", Key )
+			local Result, Control = SGUI:CallEvent( true, "OnMouseDown", Key, DoubleClick )
 
 			if Result and Control then
 				if not Control.UsesKeyboardFocus then
@@ -633,6 +641,8 @@ end
 	Sets a control's parent manually.
 ]]
 function ControlMeta:SetParent( Control, Element )
+	assert( Control ~= self, "[SGUI] Cannot parent an object to itself!" )
+
 	if self.Parent then
 		self.Parent.Children:Remove( self )
 		self.ParentElement:RemoveChild( self.Background )
