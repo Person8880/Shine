@@ -318,8 +318,16 @@ end
 function SGUI:Register( Name, Table, Parent )
 	--If we have set a parent, then we want to setup a slightly different __index function.
 	if Parent then
+		Table.ParentControl = Parent
+
 		--This may not be defined yet, so we get it when needed.
-		local ParentTable
+		local ParentTable = self.Controls[ Parent ]
+
+		if ParentTable and ParentTable.ParentControl == Name then
+			error( StringFormat( "[SGUI] Cyclic dependency detected. %s depends on %s while %s also depends on %s.",
+				Name, Parent, Parent, Name ) )
+		end
+
 		function Table:__index( Key )
 			ParentTable = ParentTable or SGUI.Controls[ Parent ]
 
