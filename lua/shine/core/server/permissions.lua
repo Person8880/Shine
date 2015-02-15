@@ -38,8 +38,7 @@ function Shine:RequestUsers( Reload )
 				return
 			end
 
-			Notify( "Loading from the web failed. Using local file instead." )
-
+			self:Print( "Loading from the web failed. Using local file instead." )
 			self:LoadUsers()
 
 			return
@@ -52,8 +51,7 @@ function Shine:RequestUsers( Reload )
 		--Cache the current user data, so if we fail to load it on
 		--a later map we still have something to load.
 		self:SaveUsers( true )
-
-		Notify( Reload and "Shine reloaded users from the web."
+		self:Print( Reload and "Shine reloaded users from the web."
 			or "Shine loaded users from web." )
 
 		self.Hook.Call( "OnUserReload" )
