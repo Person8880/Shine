@@ -368,7 +368,7 @@ local function GetStandardDeviation( Players, Count, Average, RankFunc, Ply, Tar
 
 		if Skill then
 			RealCount = RealCount + 1
-			Sum = Sum + ( RankFunc( Target ) - Average ) ^ 2
+			Sum = Sum + ( Skill - Average ) ^ 2
 		end
 	end
 
