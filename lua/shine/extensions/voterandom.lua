@@ -349,18 +349,34 @@ local Sqrt = math.sqrt
 
 local function GetStandardDeviation( Players, Count, Average, RankFunc, Ply, Target )
 	local Sum = 0
+	local RealCount = 0
+
 	for i = 1, Count do
 		local Player = Players[ i ]
 		if Player and Player ~= Ply then
-			Sum = Sum + ( RankFunc( Player ) - Average ) ^ 2
+			local Skill = RankFunc( Player )
+
+			if Skill then
+				RealCount = RealCount + 1
+				Sum = Sum + ( Skill - Average ) ^ 2
+			end
 		end
 	end
 
 	if Target then
-		Sum = Sum + ( RankFunc( Target ) - Average ) ^ 2
+		local Skill = RankFunc( Target )
+
+		if Skill then
+			RealCount = RealCount + 1
+			Sum = Sum + ( RankFunc( Target ) - Average ) ^ 2
+		end
 	end
 
-	return Sqrt( Sum / Count )
+	if RealCount == 0 then
+		return 0
+	end
+
+	return Sqrt( Sum / RealCount )
 end
 
 function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
