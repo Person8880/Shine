@@ -149,7 +149,7 @@ function Plugin:NotifyOrCycle( Recall )
 	end
 
 	self:Notify( "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
-	self:Notify( "Players may be unable connect to the server until map change." )
+	self:Notify( "Players may be unable to connect to the server until map change." )
 
 	if RemainingNotifications < Huge then
 		local TimeRemainingString = "now"
