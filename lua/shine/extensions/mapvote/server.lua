@@ -153,36 +153,30 @@ function Plugin:Initialise()
 
 				if IsType( Map, "table" ) and IsType( Map.map, "string" ) then
 					ConfigMaps[ Map.map ] = true
-					self.MapChoices[ #self.MapChoices + 1 ] = Map
 					self.MapProbabilities[ Map.map ] = Clamp( tonumber( Map.chance or Map.Chance ) or 1, 0, 1 )
 				elseif IsType( Map, "string" ) then
 					ConfigMaps[ Map ] = true
 					self.MapProbabilities[ Map ] = 1
-					self.MapChoices[ #self.MapChoices + 1 ] = Map
 				end
+
+				self.MapChoices[ #self.MapChoices + 1 ] = Map
 			end
 		end
 	else
-		local Done = {}
-
 		for Map, Data in pairs( self.Config.Maps ) do
-			Done[ Map ] = true
 			if IsType( Data, "table" ) then
 				Data.map = Map
-				self.MapChoices[ #self.MapChoices + 1 ] = Data
 				self.MapProbabilities[ Map ] = Clamp( tonumber( Data.chance or Data.Chance ) or 1, 0, 1 )
-			elseif Data then
-				self.MapChoices[ #self.MapChoices + 1 ] = Map
 			end
 		end
 
 		if Cycle.maps then
 			for i = 1, #Cycle.maps do
 				local Map = Cycle.maps[ i ]
-
-				if not Done[ GetMapName( Map ) ] then
-					self.MapChoices[ #self.MapChoices + 1 ] = Map
+				if IsType( Map, "table" ) and IsType( Map.map, "string" ) then
+					self.MapProbabilities[ Map.map ] = Clamp( tonumber( Map.chance or Map.Chance ) or 1, 0, 1 )
 				end
+				self.MapChoices[ #self.MapChoices + 1 ] = Map
 			end
 		end
 	end
@@ -258,21 +252,31 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:SetupFromMapData( Data )
+	if tonumber( Data.time or Data.Time ) then
+		self.MapCycle.time = tonumber( Data.time or Data.Time )
+	end
+
+	if tonumber( Data.rounds or Data.Rounds ) then
+		self.Config.RoundLimit = Max( tonumber( Data.rounds or Data.Rounds ), 0 )
+	end
+end
+
 function Plugin:OnFirstThink()
 	local CurMap = Shared.GetMapName()
+
+	local ConfigData = self.Config.Maps[ CurMap ]
+	if IsType( ConfigData, "table" ) then
+		self:SetupFromMapData( ConfigData )
+		return
+	end
 
 	local Choices = self.MapChoices
 	for i = 1, #Choices do
 		local Data = Choices[ i ]
 
 		if IsType( Data, "table" ) and Data.map == CurMap then
-			if tonumber( Data.time or Data.Time ) then
-				self.MapCycle.time = tonumber( Data.time or Data.Time )
-			end
-
-			if tonumber( Data.rounds or Data.Rounds ) then
-				self.Config.RoundLimit = Max( tonumber( Data.rounds or Data.Rounds ), 0 )
-			end
+			self:SetupFromMapData( Data )
 
 			break
 		end
@@ -1116,26 +1120,36 @@ function Plugin:StartVote( NextMap, Force )
 
 	local DeniedMaps = {}
 
+	local function SortOutMinMax( Map )
+		if not IsType( Map, "table" ) or not IsType( Map.map, "string" ) then
+			return
+		end
+
+		local Min = Map.min
+		local Max = Map.max
+
+		local MapName = Map.map
+
+		if Min and PlayerCount < Min then
+			AllMaps[ MapName ] = nil
+			DeniedMaps[ MapName ] = true
+		elseif Max and PlayerCount > Max then
+			AllMaps[ MapName ] = nil
+			DeniedMaps[ MapName ] = true
+		end
+	end
+
 	--Handle min/max player count maps.
 	if CycleMaps then
 		for i = 1, #CycleMaps do
 			local Map = CycleMaps[ i ]
 
-			if IsType( Map, "table" ) then
-				local Min = Map.min
-				local Max = Map.max
-
-				local MapName = Map.map
-
-				if Min and PlayerCount < Min then
-					AllMaps[ MapName ] = nil
-					DeniedMaps[ MapName ] = true
-				elseif Max and PlayerCount > Max then
-					AllMaps[ MapName ] = nil
-					DeniedMaps[ MapName ] = true
-				end
-			end
+			SortOutMinMax( Map )
 		end
+	end
+
+	for Map, Data in pairs( self.Config.Maps ) do
+		SortOutMinMax( Data )
 	end
 
 	--Remove the last maps played.
