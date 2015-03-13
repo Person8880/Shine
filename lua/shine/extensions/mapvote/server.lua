@@ -164,7 +164,10 @@ function Plugin:Initialise()
 		end
 	else
 		for Map, Data in pairs( self.Config.Maps ) do
-			if IsType( Data, "table" ) then
+			if not Data then
+				--No need to exist at all...
+				self.Config.Maps[ Map ] = nil
+			elseif IsType( Data, "table" ) then
 				Data.map = Map
 				self.MapProbabilities[ Map ] = Clamp( tonumber( Data.chance or Data.Chance ) or 1, 0, 1 )
 			end
