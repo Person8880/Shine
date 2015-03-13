@@ -171,7 +171,7 @@ function Plugin:Initialise()
 				Data.map = Map
 				self.MapChoices[ #self.MapChoices + 1 ] = Data
 				self.MapProbabilities[ Map ] = Clamp( tonumber( Data.chance or Data.Chance ) or 1, 0, 1 )
-			else
+			elseif Data then
 				self.MapChoices[ #self.MapChoices + 1 ] = Map
 			end
 		end
