@@ -530,7 +530,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 	if not Success then
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
 	else
-		local Arguments = TableConcat( Args, ", " )
+		local Arguments = TableConcat( Args, " " )
 		local Player = Client and Client:GetControllingPlayer()
 		local Name = Player and Player:GetName() or "Console"
 		local ID = Client and Client:GetUserId() or "N/A"
