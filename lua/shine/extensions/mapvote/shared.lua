@@ -38,6 +38,7 @@ end
 local Shine = Shine
 local SGUI = Shine.GUI
 
+local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableEmpty = table.Empty
@@ -54,7 +55,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:OnVoteMenuOpen()
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	if ( self.NextVoteOptionRequest or 0 ) < Time and self.EndTime < Time then
 		self.NextVoteOptionRequest = Time + 10
@@ -64,7 +65,7 @@ function Plugin:OnVoteMenuOpen()
 end
 
 Shine.VoteMenu:EditPage( "Main", function( self )
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	if ( Plugin.EndTime or 0 ) > Time then
 		self:AddTopButton( "Vote", function()
@@ -74,7 +75,7 @@ Shine.VoteMenu:EditPage( "Main", function( self )
 end, function( self )
 	local TopButton = self.Buttons.Top
 
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	if Plugin.EndTime > Time then
 		if not SGUI.IsValid( TopButton ) or not TopButton:GetIsVisible() then
@@ -126,7 +127,7 @@ Shine.VoteMenu:AddPage( "MapVote", function( self )
 		self:SetPage( "Main" )
 	end )
 end, function( self )
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	if Plugin.EndTime < Time then
 		self:SetPage( "Main" )
@@ -151,6 +152,7 @@ function Plugin:ReceiveEndVote( Data )
 
 	TableEmpty( self.MapVoteCounts )
 	TableEmpty( self.MapButtons )
+	Shine:EndMessage( 1 )
 end
 
 local ButtonBoundMessage =
@@ -177,7 +179,7 @@ function Plugin:ReceiveVoteOptions( Message )
 	local Maps = StringExplode( Options, ", " )
 
 	self.Maps = Maps
-	self.EndTime = Shared.GetTime() + Duration
+	self.EndTime = SharedTime() + Duration
 
 	for i = 1, #Maps do
 		local Map = Maps[ i ]

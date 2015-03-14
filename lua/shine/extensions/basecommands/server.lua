@@ -822,7 +822,10 @@ function Plugin:CreateCommands()
 		local TargetCount = #Targets
 
 		for i = 1, TargetCount do
-			Gamerules:JoinTeam( Targets[ i ]:GetControllingPlayer(), kTeamReadyRoom, nil, true )
+			local Player = Targets[ i ]:GetControllingPlayer()
+			if Player then
+				Gamerules:JoinTeam( Player, kTeamReadyRoom, nil, true )
+			end
 		end
 
 		if TargetCount > 0 then

@@ -24,7 +24,7 @@ Plugin.DefaultConfig = {
 	NotifyInterval = 180,
 	ForceMapChangeAfterNotifications = 5,
 	ForceMapvote = false,
-	ForceMapvoteAtRoundEnd = false	
+	ForceMapvoteAtRoundEnd = false
 }
 
 local RemainingNotifications = Huge
@@ -45,8 +45,21 @@ function Plugin:Initialise()
 		self:CheckForModChange()
 	end )
 
+	if not Shine.IsNS2Combat then
+		--Have to load manually as Server.GetConfigSetting doesn't exist at the point this is run
+		local ServerConfig = Shine.LoadJSONFile( "config://ServerConfig.json" )
+
+		if ServerConfig then
+			local BackupServers = ServerConfig.settings and ServerConfig.settings.mod_backup_servers
+
+			if BackupServers and #BackupServers > 0 then
+				return false, "backup server is configured, this plugin is not required"
+			end
+		end
+	end
+
 	self.Enabled = true
-	
+
 	return true
 end
 
@@ -63,7 +76,7 @@ local LastKnownUpdate = {}
 ]]
 function Plugin:ParseModInfo( ModInfo )
 	if not ModInfo then return end
-	
+
 	local Response = ModInfo.response or {}
 
 	--Steam API error
@@ -73,7 +86,7 @@ function Plugin:ParseModInfo( ModInfo )
 	for _, Res in pairs( Response.publishedfiledetails ) do
 		if Res.time_updated and Res.title and Res.publishedfileid then
 			if not LastKnownUpdate[ Res.publishedfileid ] then
-				LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated            
+				LastKnownUpdate[ Res.publishedfileid ] = Res.time_updated
 			elseif LastKnownUpdate[ Res.publishedfileid ] ~= Res.time_updated then
 				self.ChangedModName = Res.title
 
@@ -125,18 +138,18 @@ function Plugin:NotifyOrCycle( Recall )
 	if Enabled and not Recall then
 		--Deny extension of the map.
 		MapVote.Config.AllowExtend = false
-		
+
 		if self.Config.ForceMapvote and not MapVote:VoteStarted() then
-		    MapVote:StartVote( nil, true )   
+		    MapVote:StartVote( nil, true )
 		elseif self.Config.ForceMapvoteAtRoundEnd then
 		    MapVote.VoteOnEnd = true
 		    MapVote.Round = MapVote.Config.RoundLimit
-		    MapVote.MapCycle.time = Shared.GetTime() / 60		    		    
+		    MapVote.MapCycle.time = Shared.GetTime() / 60
 		end
 	end
 
 	self:Notify( "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
-	self:Notify( "Players cannot connect to the server until map change." )
+	self:Notify( "Players may be unable to connect to the server until map change." )
 
 	if RemainingNotifications < Huge then
 		local TimeRemainingString = "now"
