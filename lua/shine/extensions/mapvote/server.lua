@@ -186,7 +186,7 @@ function Plugin:Initialise()
 
 	local MapCount = #self.MapChoices
 	if MapCount == 0 then
-		return false, "No maps configured in either the map cycle or the allowed config list"
+		return false, "No maps configured in the map cycle"
 	end
 
 	local AllowVotes = MapCount > 1
