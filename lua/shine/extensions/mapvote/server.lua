@@ -731,11 +731,7 @@ end
 	Sends the number of votes the given map has to the given player or everyone.
 ]]
 function Plugin:SendMapVoteCount( Client, Map, Count )
-	if Client then
-		self:SendNetworkMessage( Client, "VoteProgress", { Map = Map, Votes = Count }, true )
-	else
-		self:SendNetworkMessage( nil, "VoteProgress", { Map = Map, Votes = Count }, true )
-	end
+	self:SendNetworkMessage( Client, "VoteProgress", { Map = Map, Votes = Count }, true )
 end
 
 --[[
@@ -789,11 +785,7 @@ local BlankTable = {}
 	Tells the given player or everyone that the vote is over.
 ]]
 function Plugin:EndVote( Player )
-	if Player then
-		self:SendNetworkMessage( Player, "EndVote", BlankTable, true )
-	else
-		self:SendNetworkMessage( nil, "EndVote", BlankTable, true )
-	end
+	self:SendNetworkMessage( Player, "EndVote", BlankTable, true )
 end
 
 function Plugin:ExtendMap( Time, NextMap )
@@ -913,7 +905,6 @@ function Plugin:OnNextMapVoteFail()
 end
 
 function Plugin:ProcessResults( NextMap )
-	Shine:RemoveText( nil, { ID = 1 } )
 	self:EndVote()
 
 	local Cycle = self.MapCycle
@@ -1560,7 +1551,6 @@ function Plugin:Cleanup()
 		self:Notify( nil, "Map vote plugin disabled. Current vote cancelled." )
 
 		--Remember to clean up client side vote text/menu entries...
-		Shine:RemoveText( nil, { ID = 1 } )
 		self:EndVote()
 	end
 

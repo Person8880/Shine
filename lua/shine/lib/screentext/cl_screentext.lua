@@ -105,7 +105,7 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		string.TimeToString( Duration ) ) )
 	Obj:SetColor( MessageTable.Colour )
 	Obj:SetScale( ScaleVec )
-	
+
 	MessageTable.Obj = Obj
 
 	if ShouldFade then
@@ -190,12 +190,12 @@ local function ProcessFades( DeltaTime )
 				Message.Fading = false
 
 				Message.Colour.a = In and 1 or 0
-			
+
 				Message.Obj:SetColor( Message.Colour )
 			else
 				local Progress = Message.FadeElapsed / Message.FadeDuration
 				local Alpha = 1 * ( In and Progress or ( 1 - Progress ) )
-				
+
 				Message.Colour.a = Alpha
 
 				Message.Obj:SetColor( Message.Colour )
@@ -207,10 +207,19 @@ end
 function Shine:RemoveMessage( Index )
 	local Message = Messages:Get( Index )
 	if not Message then return end
-	
+
 	GUI.DestroyItem( Message.Obj )
 
 	Messages:Remove( Index )
+end
+
+function Shine:EndMessage( Index )
+	local MessageTable = Messages:Get( Index )
+
+	if not MessageTable then return end
+
+	MessageTable.LastUpdate = Shared.GetTime() - 1
+	MessageTable.Duration = 1
 end
 
 Shine.Hook.Add( "Think", "ScreenText", function( DeltaTime )
@@ -232,10 +241,5 @@ Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextRemove", function( Message )
-	local MessageTable = Messages:Get( Message.ID )
-
-	if not MessageTable then return end
-
-	MessageTable.LastUpdate = Shared.GetTime() - 1
-	MessageTable.Duration = 1
+	Shine:EndMessage( Message.ID )
 end )
