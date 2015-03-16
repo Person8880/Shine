@@ -31,6 +31,19 @@ local RemainingNotifications = Huge
 local ModChangeTimer = "CheckForModChange"
 
 function Plugin:Initialise()
+	if not Shine.IsNS2Combat then
+		--Have to load manually as Server.GetConfigSetting doesn't exist at the point this is run
+		local ServerConfig = Shine.LoadJSONFile( "config://ServerConfig.json" )
+
+		if ServerConfig then
+			local BackupServers = ServerConfig.settings and ServerConfig.settings.mod_backup_servers
+
+			if BackupServers and #BackupServers > 0 then
+				return false, "backup server is configured, this plugin is not required"
+			end
+		end
+	end
+
 	self.Config.CheckInterval = Max( self.Config.CheckInterval, 15 )
 	self.Config.NotifyInterval = Max( self.Config.NotifyInterval, 15 )
 
@@ -44,19 +57,6 @@ function Plugin:Initialise()
 	self:CreateTimer( ModChangeTimer, self.Config.CheckInterval, -1, function()
 		self:CheckForModChange()
 	end )
-
-	if not Shine.IsNS2Combat then
-		--Have to load manually as Server.GetConfigSetting doesn't exist at the point this is run
-		local ServerConfig = Shine.LoadJSONFile( "config://ServerConfig.json" )
-
-		if ServerConfig then
-			local BackupServers = ServerConfig.settings and ServerConfig.settings.mod_backup_servers
-
-			if BackupServers and #BackupServers > 0 then
-				return false, "backup server is configured, this plugin is not required"
-			end
-		end
-	end
 
 	self.Enabled = true
 
