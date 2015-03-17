@@ -417,7 +417,7 @@ local function CheckForCommand( GroupName, Table, Command )
 			local Entry = Table[ i ]
 
 			if IsType( Entry, "table" ) then
-				Permissions[ Entry.Command ] = Entry
+				Permissions[ Entry.Command ] = Entry.Allowed
 			else
 				Permissions[ Entry ] = true
 			end
