@@ -110,7 +110,7 @@ function Plugin:SetupAdminMenu()
 				Menu = nil
 				return
 			end
-			
+
 			local Pos = Button:GetScreenPos()
 			Pos.x = Pos.x - TextEntrySize.x + 32
 			Pos.y = Pos.y + TextEntrySize.y
@@ -130,7 +130,9 @@ function Plugin:SetupAdminMenu()
 				local Name = Ent.playerName
 
 				Menu:AddButton( Name, function()
-					IDEntry:SetText( SteamID )
+					if SGUI.IsValid( IDEntry ) then
+						IDEntry:SetText( SteamID )
+					end
 
 					Shine.AdminMenu:DontDestroyOnClose( Menu )
 					Menu:Destroy()
@@ -181,10 +183,10 @@ function Plugin:SetupAdminMenu()
 		function AddBan.DoClick()
 			local ID = tonumber( IDEntry:GetText() )
 			if not ID then return end
-			
+
 			local Duration = tonumber( DurationEntry:GetText() )
 			if not Duration then return end
-			
+
 			local Reason = ReasonEntry:GetText()
 
 			Shine.AdminMenu:RunCommand( self.BanCommand, StringFormat( "%s %s %s",
@@ -195,7 +197,7 @@ function Plugin:SetupAdminMenu()
 			Window = nil
 		end
 	end
-	
+
 	self:AddAdminMenuTab( self.AdminTab, {
 		OnInit = function( Panel, Data )
 			local List = SGUI:Create( "List", Panel )
@@ -240,7 +242,7 @@ function Plugin:SetupAdminMenu()
 			function Unban.DoClick()
 				local Row = List:GetSelectedRow()
 				if not Row then return end
-				
+
 				local Data = Row.BanData
 				if not Data then return end
 				local ID = Data.ID
@@ -294,7 +296,7 @@ function Plugin:ReceiveUnban( Data )
 	local ID = Data.ID
 
 	if not self.BanData then return end
-	
+
 	local BanData = self.BanData
 	local Rows = self.Rows
 	local List = self.BanList
