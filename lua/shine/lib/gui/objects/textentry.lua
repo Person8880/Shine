@@ -363,13 +363,57 @@ function TextEntry:HandleSelectingText()
 	end
 end
 
-function TextEntry:SelectAll()
-	self.SelectionBounds[ 1 ] = 0
-	self.SelectionBounds[ 2 ] = StringUTF8Length( self.Text )
+function TextEntry:SetSelection( Lower, Upper, XOverride )
+	self.SelectionBounds[ 1 ] = Lower
+	self.SelectionBounds[ 2 ] = Upper
 
+	self:SetCaretPos( Lower )
 	self.SelectionBox:SetPosition( self.Caret:GetPosition() )
-	self:SetCaretPos( self.SelectionBounds[ 2 ] )
-	self:UpdateSelectionBounds( nil, self.Padding + self.CaretOffset )
+	self:UpdateSelectionBounds( nil, XOverride )
+	self:SetCaretPos( Upper )
+end
+
+function TextEntry:SelectAll()
+	self:SetSelection( 0, StringUTF8Length( self.Text ), self.Padding + self.CaretOffset )
+end
+
+local function FindFurthestSpace( Text )
+	local PreviousSpace = StringFind( Text, " " )
+	--Find the furthest along space before the caret.
+	while PreviousSpace do
+		local NextSpace = StringFind( Text, " ", PreviousSpace + 1 )
+
+		if NextSpace then
+			PreviousSpace = NextSpace
+		else
+			break
+		end
+	end
+
+	return PreviousSpace or 1
+end
+
+function TextEntry:SelectWord( CharPos )
+	local Text = self.Text
+	local Length = StringUTF8Length( Text )
+	if Length == 0 then return end
+
+	CharPos = CharPos + 1
+
+	local Before = StringUTF8Sub( Text, 1, CharPos - 1 )
+	local PreSpace = FindFurthestSpace( Before )
+
+	if PreSpace > 1 then
+		PreSpace = StringUTF8Length( StringSub( Text, 1, PreSpace ) )
+	else
+		PreSpace = 0
+	end
+
+	local After = StringUTF8Sub( Text, CharPos )
+	local NextSpace = StringFind( After, " " ) or ( #After + 1 )
+	NextSpace = StringUTF8Length( Before ) + StringUTF8Length( StringSub( After, 1, NextSpace - 1 ) )
+
+	self:SetSelection( PreSpace, NextSpace )
 end
 
 function TextEntry:SetText( Text )
@@ -456,21 +500,7 @@ function TextEntry:RemoveWord( Forward )
 
 		Before = StringUTF8Sub( self.Text, 1, self.Column - 1 )
 
-		local PreviousSpace = StringFind( Before, " " )
-		--Find the furthest along space before the caret.
-		while PreviousSpace do
-			local NextSpace = StringFind( Before, " ", PreviousSpace + 1 )
-
-			if NextSpace then
-				PreviousSpace = NextSpace
-			else
-				break
-			end
-		end
-
-		if not PreviousSpace then
-			PreviousSpace = 1
-		end
+		local PreviousSpace = FindFurthestSpace( Before )
 
 		Before = StringSub( self.Text, 1, PreviousSpace - 1 )
 		After = StringUTF8Sub( self.Text, self.Column + 1 )
@@ -558,6 +588,10 @@ end
 function TextEntry:OnMouseUp()
 	self.SelectingText = false
 
+	if self.DoubleClick and Clock() - self.ClickStart < 0.3 then
+		self:SelectWord( self.SelectingColumn )
+	end
+
 	return true
 end
 
@@ -643,6 +677,8 @@ function TextEntry:OnMouseDown( Key, DoubleClick )
 		self.SelectingText = true
 
 		local Column = self:GetColumnFromMouse( X )
+		self.DoubleClick = DoubleClick
+		self.ClickStart = Clock()
 		self.SelectingColumn = Column
 
 		self.SelectionBounds[ 1 ] = Column
