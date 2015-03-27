@@ -67,14 +67,14 @@ function Plugin:Initialise()
 	end
 
 	self:CreateCommands()
-	
+
 	self.Enabled = true
 
 	return true
 end
 
 function Plugin:Notify( Positive, Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, Positive and 0 or 255, Positive and 255 or 0, 0, 
+	Shine:NotifyDualColour( Player, Positive and 0 or 255, Positive and 255 or 0, 0,
 		"[TournamentMode]", 255, 255, 255, Message, Format, ... )
 end
 
@@ -89,7 +89,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	--Record the winner, and network it.
 	if WinningTeam == Gamerules.team1 or WinningTeam == 1 then
 		self.TeamScores[ 1 ] = self.TeamScores[ 1 ] + 1
-	
+
 		self.dt.MarineScore = self.TeamScores[ 1 ]
 	elseif WinningTeam == Gamerules.team2 or WinningTeam == 2 then
 		self.TeamScores[ 2 ] = self.TeamScores[ 2 ] + 1
@@ -104,7 +104,7 @@ local NextStartNag = 0
 
 function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
-	
+
 	if State == kGameState.PreGame or State == kGameState.NotStarted then
 		self.GameStarted = false
 
@@ -132,7 +132,7 @@ function Plugin:GetStartNag()
 	local AliensReady = self.ReadyStates[ 2 ]
 
 	if MarinesReady and AliensReady then return nil end
-	
+
 	if MarinesReady and not AliensReady then
 		return StringFormat( "Waiting on %s to start", self:GetTeamName( 2 ) )
 	elseif AliensReady and not MarinesReady then
@@ -181,7 +181,7 @@ function Plugin:StartGame( Gamerules )
 
 	for i = 1, Count do
 		local Player = Players[ i ]
-		
+
 		if Player.ResetScores then
 			Player:ResetScores()
 		end
@@ -209,7 +209,7 @@ function Plugin:ClientConfirmConnect( Client )
 
 		self.DisabledAutobalance = true
 	end
-	
+
 	if Client:GetIsVirtual() then return end
 
 	local ID = Client:GetUserId()
@@ -217,7 +217,7 @@ function Plugin:ClientConfirmConnect( Client )
 	if self.Config.ForceTeams then
 		if self.TeamMembers[ ID ] then
 			Gamerules:JoinTeam( Client:GetControllingPlayer(), self.TeamMembers[ ID ],
-				nil, true )     
+				nil, true )
 		end
 	end
 end
@@ -266,7 +266,7 @@ end
 ]]
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if NewTeam == 0 or NewTeam == 3 then return end
-	
+
 	local Client = Server.GetOwner( Player )
 
 	if not Client then return end
@@ -339,13 +339,13 @@ function Plugin:CreateCommands()
 		local Player = Client:GetControllingPlayer()
 
 		if not Player then return end
-		
+
 		local Team = Player:GetTeamNumber()
 
 		if Team ~= 1 and Team ~= 2 then return end
 
 		if not Player:isa( "Commander" ) and not self.Config.EveryoneReady then
-			Shine:NotifyError( Client, "Only the commander can ready up the team." )
+			Shine:NotifyCommandError( Client, "Only the commander can ready up the team." )
 
 			return
 		end
@@ -354,7 +354,7 @@ function Plugin:CreateCommands()
 
 		if self.Config.EveryoneReady then
 			if self.ReadiedPlayers[ Client ] then
-				Shine:NotifyError( Client,
+				Shine:NotifyCommandError( Client,
 					"You are already ready! Use !unready to unready yourself." )
 
 				return
@@ -380,7 +380,7 @@ function Plugin:CreateCommands()
 			end
 
 			if not Ready then return end
-			
+
 			self.ReadyStates[ Team ] = true
 
 			local TeamName = self:GetTeamName( Team )
@@ -418,32 +418,32 @@ function Plugin:CreateCommands()
 				self:Notify( true, nil, "%s is now ready. Waiting on %s to start.",
 					true, TeamName, self:GetTeamName( OtherTeam ) )
 			end
-			
+
 			--Add a delay to prevent ready->unready spam.
 			self.NextReady[ Team ] = Time + 5
 
 			self:CheckStart()
 		else
-			Shine:NotifyError( Client,
+			Shine:NotifyCommandError( Client,
 				"Your team is already ready! Use !unready to unready your team." )
 		end
 	end
 	local ReadyCommand = self:BindCommand( "sh_ready", { "rdy", "ready" }, ReadyUp, true )
 	ReadyCommand:Help( "Makes your team ready to start the game." )
-	
+
 	local function Unready( Client )
 		if self.GameStarted then return end
 
 		local Player = Client:GetControllingPlayer()
 
 		if not Player then return end
-		
+
 		local Team = Player:GetTeamNumber()
 
 		if Team ~= 1 and Team ~= 2 then return end
 
 		if not Player:isa( "Commander" ) and not self.Config.EveryoneReady then
-			Shine:NotifyError( Client, "Only the commander can ready up the team." )
+			Shine:NotifyCommandError( Client, "Only the commander can ready up the team." )
 
 			return
 		end
@@ -452,7 +452,7 @@ function Plugin:CreateCommands()
 
 		if self.Config.EveryoneReady then
 			if not self.ReadiedPlayers[ Client ] then
-				Shine:NotifyError( Client,
+				Shine:NotifyCommandError( Client,
 					"You haven't readied yet! Use !ready to ready yourself." )
 
 				return
@@ -492,7 +492,7 @@ function Plugin:CreateCommands()
 
 			self:CheckStart()
 		else
-			Shine:NotifyError( Client,
+			Shine:NotifyCommandError( Client,
 				"Your team has not readied yet! Use !ready to ready your team." )
 		end
 	end

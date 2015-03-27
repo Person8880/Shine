@@ -252,7 +252,7 @@ local function NotifyError( Client, Message, Format, ... )
 		return
 	end
 
-	Shine:NotifyError( Client, Message, Format, ... )
+	Shine:NotifyCommandError( Client, Message, Format, ... )
 end
 
 local Histories = {}
@@ -1193,6 +1193,8 @@ function Plugin:CreateCommands()
 		local StartVote
 
 		local function CustomVote( Client, VoteQuestion )
+			if not Client then return end
+
 			StartVote = StartVote or Shine.GetUpValue( RegisterVoteType, "StartVote", true )
 			if not StartVote then return end
 

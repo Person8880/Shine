@@ -8,7 +8,9 @@ local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
 local StringGSub = string.gsub
+local StringSub = string.sub
 local TableConcat = table.concat
+local TableInsert = table.insert
 local TableRemove = table.remove
 local TableSort = table.sort
 local tostring = tostring
@@ -109,7 +111,7 @@ function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silen
 	--This prevents hooking again if a plugin is reloaded.
 	if not HookedCommands[ ConCommand ] then
 		Event.Hook( "Console_"..ConCommand, function( Client, ... )
-			return Shine:RunCommand( Client, ConCommand, ... )
+			return Shine:RunCommand( Client, ConCommand, false, ... )
 		end )
 		HookedCommands[ ConCommand ] = true
 	end
@@ -389,35 +391,66 @@ local ArgValidators = {
 	end
 }
 
---[[
-	Executes a Shine command. Should not be called directly.
-	Inputs: Client running the command, console command to run,
-	string arguments passed to the command.
-]]
-function Shine:RunCommand( Client, ConCommand, ... )
-	local Command = self.Commands[ ConCommand ]
+function Shine:NotifyCommandError( Client, Message, Format, ... )
+	Message = Format and StringFormat( Message, ... ) or Message
 
-	if not Command or Command.Disabled then return end
+	if not Client then
+		Print( Message )
+		return
+	end
 
-	local Allowed, ArgRestrictions = self:GetPermission( Client, ConCommand )
-	if not Allowed then
-		self:NotifyError( Client, "You do not have permission to use %s.", true, ConCommand )
+	local FromChat = self:IsCommandFromChat()
+	if FromChat then
+		self:NotifyError( Client, Message )
 
 		return
 	end
 
-	local Player = Client or "Console"
-	local Args = { ... }
+	ServerAdminPrint( Client, Message )
+end
+
+local function Notify( Client, FromChat, Message, Format, ... )
+	Message = Format and StringFormat( Message, ... ) or Message
+
+	if not Client then
+		Print( Message )
+		return
+	end
+
+	if FromChat then
+		Shine:NotifyColour( Client, 255, 160, 0, Message )
+
+		return
+	end
+
+	ServerAdminPrint( Client, Message )
+end
+
+Shine.CommandStack = {}
+
+--Store a stack of calling commands, which tells us if it's from the chat or not.
+--This is purely in case someone uses Shine:RunCommand() during a command (which you really shouldn't).
+function Shine:IsCommandFromChat()
+	return self.CommandStack[ #self.CommandStack ] == true
+end
+
+local function PopCommandStack( self )
+	self.CommandStack[ #self.CommandStack ] = nil
+end
+
+local function GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args )
+	local Allowed, ArgRestrictions = self:GetPermission( Client, ConCommand )
+	if not Allowed then
+		self:NotifyCommandError( Client, "You do not have permission to use %s.", true, ConCommand )
+
+		return
+	end
+
 	local ExpectedArgs = Command.Arguments
 	local ExpectedCount = #ExpectedArgs
 
 	if Args[ 1 ] == nil and ExpectedCount > 0 and not ExpectedArgs[ 1 ].Optional then
-		if Client then
-			ServerAdminPrint( Client, StringFormat( "%s - %s", ConCommand,
-				Command.Help or "No help available." ) )
-		else
-			Print( "%s - %s", ConCommand, Command.Help or "No help available." )
-		end
+		Notify( Client, FromChat, "%s - %s", true, ConCommand, Command.Help or "No help available." )
 
 		return
 	end
@@ -435,14 +468,14 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
 			if CurArg.Type:find( "client" ) then
 				if CurArg.Type == "client" and Extra then
-					self:NotifyError( Player, "You cannot target yourself with this command." )
+					self:NotifyCommandError( Client, "You cannot target yourself with this command." )
 				else
 					--No client means no match.
-					self:NotifyError( Player, "No matching %s found.", true,
+					self:NotifyCommandError( Client, "No matching %s found.", true,
 						CurArg.Type == "client" and "player was" or "players were" )
 				end
 			else
-				self:NotifyError( Player,
+				self:NotifyCommandError( Client,
 					CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
 					true, i, ConCommand, CurArg.Type )
 			end
@@ -463,7 +496,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 				--The restriction wiped the argument as it's not allowed.
 				if ParsedArgs[ i ] == nil then
-					self:NotifyError( Player,
+					self:NotifyCommandError( Client,
 						"Invalid argument #%i, restricted in rank settings.", true, i )
 
 					return
@@ -478,7 +511,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 					Args, i )
 			else
 				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:NotifyError( Player,
+				self:NotifyCommandError( Client,
 					"The author of this command misconfigured it. If you know them, tell them!" )
 
 				return
@@ -488,7 +521,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		--Ensure the calling client can target the return client.
 		if ArgType == "client" and not CurArg.IgnoreCanTarget then
 			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:NotifyError( Player, "You do not have permission to target %s.",
+				self:NotifyCommandError( Client, "You do not have permission to target %s.",
 					true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
 
 				return
@@ -501,7 +534,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 
 			if ParsedArg then
 				if #ParsedArg == 0 then
-					self:NotifyError( Player, "No matching players found." )
+					self:NotifyCommandError( Client, "No matching players found." )
 
 					return
 				end
@@ -516,7 +549,7 @@ function Shine:RunCommand( Client, ConCommand, ... )
 				end
 
 				if #ParsedArg == 0 then
-					self:NotifyError( Player,
+					self:NotifyCommandError( Client,
 						"You do not have permission to target anyone you specified." )
 
 					return
@@ -525,7 +558,36 @@ function Shine:RunCommand( Client, ConCommand, ... )
 		end
 	end
 
+	return ParsedArgs
+end
+
+--[[
+	Executes a Shine command. Should not be called directly.
+	Inputs: Client running the command, console command to run,
+	string arguments passed to the command.
+]]
+function Shine:RunCommand( Client, ConCommand, FromChat, ... )
+	local Command = self.Commands[ ConCommand ]
+	if not Command or Command.Disabled then return end
+
+	local Args = { ... }
+	--In case someone was calling Shine:RunCommand() directly (even though it says "Should not be called directly.")
+	if not IsType( FromChat, "boolean" ) then
+		TableInsert( Args, 1, FromChat )
+		FromChat = false
+	end
+
+	self.CommandStack[ #self.CommandStack + 1 ] = FromChat
+
+	local ParsedArgs = GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args )
+	if not ParsedArgs then
+		PopCommandStack( self )
+		return
+	end
+
 	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs ) )
+
+	PopCommandStack( self )
 
 	if not Success then
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
@@ -549,9 +611,9 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if not FirstWord then return end
 
 	--They've done !, / or some other special character first.
-	if FirstWord:sub( 1, 1 ):find( "[^%w]" ) then
-		Directive = FirstWord:sub( 1, 1 )
-		Exploded[ 1 ] = FirstWord:sub( 2 )
+	if StringFind( StringSub( FirstWord, 1, 1 ), "[^%w]" ) then
+		Directive = StringSub( FirstWord, 1, 1 )
+		Exploded[ 1 ] = StringSub( FirstWord, 2 )
 	end
 
 	if not Directive then return end
@@ -561,7 +623,7 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 
 	TableRemove( Exploded, 1 )
 
-	Shine:RunCommand( Client, CommandObj.ConCmd, unpack( Exploded ) )
+	Shine:RunCommand( Client, CommandObj.ConCmd, true, unpack( Exploded ) )
 
 	if CommandObj.Silent then return "" end
 	if Shine.Config.SilentChatCommands then return "" end
