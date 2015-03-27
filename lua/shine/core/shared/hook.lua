@@ -117,7 +117,7 @@ local function Call( Event, ... )
 		if a ~= nil then return a, b, c, d, e, f end
 	end
 
-	if Plugins then
+	if Plugins and AllPlugins then
 		--Automatically call the plugin hooks.
 		for i = 1, #AllPlugins do
 			local Plugin = AllPlugins[ i ]
@@ -451,6 +451,40 @@ do
 	Event.Hook( Server and "UpdateServer" or "UpdateClient", Think )
 end
 
+do
+	local OldScriptLoad = Script.Load
+
+	--Override Script.Load during the load process to allow finer entry point control.
+	local function ScriptLoad( Script, Reload )
+		Call( "PreLoadScript", Script, Reload )
+
+		local Ret = OldScriptLoad( Script, Reload )
+
+		Call( "PostLoadScript", Script, Reload )
+
+		return Ret
+	end
+	Script.Load = ScriptLoad
+
+	local function MapPreLoad()
+		--Restore Script.Load so we don't bog it down anymore.
+		if Script.Load == ScriptLoad then
+			Script.Load = OldScriptLoad
+		else
+			--Find the point that overrode our override, and replace their upvalue of us, with the original.
+			Shine.SetUpValueByValue( Script.Load, ScriptLoad, OldScriptLoad, true )
+		end
+
+		Call "MapPreLoad"
+	end
+	Event.Hook( "MapPreLoad", MapPreLoad )
+
+	local function MapPostLoad()
+		Call "MapPostLoad"
+	end
+	Event.Hook( "MapPostLoad", MapPostLoad )
+end
+
 --Client specific hooks.
 if Client then
 	local function LoadComplete()
@@ -513,16 +547,6 @@ do
 		Call( "ClientDisconnect", Client )
 	end
 	Event.Hook( "ClientDisconnect", ClientDisconnect )
-
-	local function MapPostLoad()
-		Call "MapPostLoad"
-	end
-	Event.Hook( "MapPostLoad", MapPostLoad )
-
-	local function MapPreLoad()
-		Call "MapPreLoad"
-	end
-	Event.Hook( "MapPreLoad", MapPreLoad )
 
 	local function MapLoadEntity( MapName, GroupName, Values )
 		Call( "MapLoadEntity", MapName, GroupName, Values )

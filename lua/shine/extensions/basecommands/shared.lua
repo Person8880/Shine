@@ -44,7 +44,29 @@ end
 
 Shine:RegisterExtension( "basecommands", Plugin )
 
-if Server then return end
+if Server then
+	RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
+
+	SetVoteSuccessfulCallback( "ShineCustomVote", 4, function( Data )
+		Plugin:OnCustomVoteSuccess( Data )
+	end )
+
+	return
+end
+
+Shine.Hook.Add( "PostLoadScript", "SetupCustomVote", function( Script )
+	if Script ~= "lua/Voting.lua" then return end
+
+	Shine.Hook.Remove( "PostLoadScript", "SetupCustomVote" )
+
+	RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
+
+	AddVoteSetupCallback( function( VoteMenu )
+		AddVoteStartListener( "ShineCustomVote", function( Data )
+			return Data.VoteQuestion
+		end )
+	end )
+end )
 
 local Shine = Shine
 local Hook = Shine.Hook

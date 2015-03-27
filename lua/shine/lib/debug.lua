@@ -10,44 +10,67 @@ local pairs = pairs
 local StringFormat = string.format
 local type = type
 
---[[
-	Gets an upvalue from the given function.
-
-	Inputs:
-		1. Function to get the upvalue from.
-		2. Name of the upvalue variable.
-	Outputs:
-		1. Upvalue or nil if not found.
-		2. Index at which the upvalue was found.
-		3. Function the upvalue was found first in,
-		   or nil if it was found in the input function.
-]]
-function Shine.GetUpValue( Func, Name, Recursive, Done )
+local function ForEachUpValue( Func, Filter, Recursive, Done )
 	local i = 1
 	--Avoid upvalue cycles (it is possible.)
 	Done = Done or {}
 	if Done[ Func ] then return nil end
-	
+
 	Done[ Func ] = true
 
 	while true do
 		local N, Val = DebugGetUpValue( Func, i )
 		if not N then break end
 
-		if N == Name then
-			return Val, i
-		elseif Recursive and not Done[ Val ] and type( Val ) == "function" then
-			local LowerVal, j, Function = Shine.GetUpValue( Val, Name, true, Done )
+		if Filter( Func, N, Val, i ) then
+			return Val, i, Func
+		end
 
-			if LowerVal then
-				return LowerVal, j, Function or Val
+		if Recursive and not Done[ Val ] and type( Val ) == "function" then
+			local LowerVal, j, Function = ForEachUpValue( Val, Filter, true, Done )
+			if LowerVal ~= nil then
+				return LowerVal, j, Function
 			end
 		end
 
 		i = i + 1
 	end
+end
 
-	return nil
+--[[
+	Gets an upvalue from the given function.
+
+	Inputs:
+		1. Function to get the upvalue from.
+		2. Name of the upvalue variable.
+		3. Boolean flag to indicate whether function upvalues should also be searched.
+	Outputs:
+		1. Upvalue or nil if not found.
+		2. Index at which the upvalue was found.
+		3. Function the upvalue was found first in.
+]]
+function Shine.GetUpValue( Func, Name, Recursive )
+	return ForEachUpValue( Func, function( Function, N, Val, i )
+		return N == Name
+	end, Recursive )
+end
+
+--[[
+	Finds an upvalue in the given function matching the given value.
+
+	Inputs:
+		1. Function to search.
+		2. Value to match with.
+		3. Boolean flag to indicate whether function upvalues should also be searched.
+	Outputs:
+		1. Upvalue or nil if not found.
+		2. Index at which the upvalue was found.
+		3. Function the upvalue was found first in.
+]]
+function Shine.FindUpValue( Func, Value, Recursive, Done )
+	return ForEachUpValue( Func, function( Function, N, Val, i )
+		return Val == Value
+	end, Recursive )
 end
 
 --[[
@@ -59,17 +82,11 @@ end
 		Table of key, value upvalue pairs.
 ]]
 function Shine.GetUpValues( Func )
-	local i = 1
 	local Values = {}
 
-	while true do
-		local N, Val = DebugGetUpValue( Func, i )
-		if not N then break end
-
+	ForEachUpValue( Func, function( Function, N, Val, i )
 		Values[ N ] = Val
-
-		i = i + 1
-	end
+	end )
 
 	return Values
 end
@@ -81,15 +98,37 @@ end
 		1. Function to set the upvalue for.
 		2. Name of the upvalue variable.
 		3. New value to set as the upvalue's value.
+		4. Boolean flag to indicate whether function upvalues should also be searched.
 	Output:
 		Old value on success, or nil on failure.
 ]]
 function Shine.SetUpValue( Func, Name, Value, Recursive )
 	local OldValue, Index, Function = Shine.GetUpValue( Func, Name, Recursive )
 
-	if not OldValue then return nil end
-	
-	DebugSetUpValue( Function or Func, Index, Value )
+	if not Index then return nil end
+
+	DebugSetUpValue( Function, Index, Value )
+
+	return OldValue
+end
+
+--[[
+	Sets an upvalue for the given function by matching against the given value.
+
+	Inputs:
+		1. Function to set the upvalue for.
+		2. Value to search for.
+		3. New value to set as the upvalue's value.
+		4. Boolean flag to indicate whether function upvalues should also be searched.
+	Output:
+		Old value on success, or nil on failure.
+]]
+function Shine.SetUpValueByValue( Func, Value, NewValue, Recursive )
+	local OldValue, Index, Function = Shine.FindUpValue( Func, Value, Recursive )
+
+	if not Index then return nil end
+
+	DebugSetUpValue( Function, Index, NewValue )
 
 	return OldValue
 end
@@ -103,26 +142,11 @@ end
 		3. Optional recursion.
 ]]
 function Shine.SetUpValues( Func, Values, Recursive, Done )
-	local i = 1
-	Done = Done or {}
-	if Done[ Func ] then return nil end
-
-	Done[ Func ] = true
-
-	while true do
-		local N, Val = DebugGetUpValue( Func, i )
-		if not N then break end
-		
+	ForEachUpValue( Func, function( Function, N, Val, i )
 		if Values[ N ] then
-			DebugSetUpValue( Func, i, Values[ N ] )
+			DebugSetUpValue( Function, i, Values[ N ] )
 		end
-
-		if Recursive and not Done[ Val ] and type( Val ) == "function" then
-			Shine.SetUpValues( Val, Values, true, Done )
-		end
-
-		i = i + 1
-	end
+	end, Recursive )
 end
 
 --[[
