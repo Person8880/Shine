@@ -601,6 +601,11 @@ function Plugin:EndGame()
 			return
 		end
 
+		--Don't say anything if there's more than an hour left.
+		if TimeLeft > 3600 then
+			return
+		end
+
 		--Round the time down to the nearest 30 seconds.
 		if TimeLeft > 30 then
 			TimeLeft = TimeLeft - ( TimeLeft % 30 )
