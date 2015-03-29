@@ -100,30 +100,16 @@ function string.DigitalTime( Time )
 end
 
 do
-	local StringGSub = string.gsub
+	local StringGMatch = string.gmatch
 	local StringLower = string.lower
 	local tonumber = tonumber
 
 	local Times = {
-		sec = 1,
-		secs = 1,
-		s = 1,
-		second = 1,
-		seconds = 1,
-		m = 60,
-		minute = 60,
-		minutes = 60,
-		min = 60,
-		mins = 60,
-		h = 3600,
-		hour = 3600,
-		hours = 3600,
-		d = 86400,
-		day = 86400,
-		days = 86400,
-		w = 604800,
-		week = 604800,
-		weeks = 604800
+		sec = 1, secs = 1, s = 1, second = 1, seconds = 1,
+		m = 60,	minute = 60, minutes = 60, min = 60, mins = 60,
+		h = 3600, hr = 3600, hrs = 3600, hour = 3600, hours = 3600,
+		d = 86400, day = 86400, days = 86400,
+		w = 604800, week = 604800, weeks = 604800
 	}
 
 	--[[
@@ -135,16 +121,15 @@ do
 	function string.ToTime( String )
 		local Time = 0
 
-		StringGSub( StringLower( String ), "([%-%d%.]+)%s-([a-zA-Z]+)", function( Amount, Unit )
+		for Amount, Unit in StringGMatch( StringLower( String ), "([%-%d%.]+)%s-([a-z]+)" ) do
 			local Magnitude = Times[ Unit ]
-			if not Magnitude then return "" end
-
-			Amount = tonumber( Amount )
-			if not Amount then return "" end
-			Time = Time + Amount * Magnitude
-
-			return ""
-		end )
+			if Magnitude then
+				Amount = tonumber( Amount )
+				if Amount then
+					Time = Time + Amount * Magnitude
+				end
+			end
+		end
 
 		return Time
 	end
