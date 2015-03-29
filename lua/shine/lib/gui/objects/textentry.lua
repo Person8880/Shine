@@ -275,14 +275,15 @@ function TextEntry:HasSelection()
 end
 
 function TextEntry:RemoveSelectedText()
-	local Length = StringUTF8Length( self.Text )
+	local Text = self.Text
+	local Length = StringUTF8Length( Text )
 
 	local LowerBound = self.SelectionBounds[ 1 ] + 1
 	local UpperBound = self.SelectionBounds[ 2 ]
 
-	local Before = StringUTF8Sub( self.Text, 1, LowerBound - 1 )
+	local Before = StringUTF8Sub( Text, 1, LowerBound - 1 )
 	if UpperBound < Length then
-		local After = StringUTF8Sub( self.Text, UpperBound + 1 )
+		local After = StringUTF8Sub( Text, UpperBound + 1 )
 		self.Text = Before..After
 	else
 		self.Text = Before
@@ -292,6 +293,10 @@ function TextEntry:RemoveSelectedText()
 
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
+
+	if self.OnTextChanged then
+		self:OnTextChanged( Text, self.Text )
+	end
 end
 
 function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
@@ -438,19 +443,23 @@ end
 
 function TextEntry:ShouldAllowChar( Char )
 	if self.Numeric then
-		return tonumber( Char ) or false
+		return tonumber( Char ) ~= nil
+	end
+
+	if self.AlphaNumeric then
+		return StringFind( Char, "[%w]" ) ~= nil
+	end
+
+	if self.CharPattern then
+		return StringFind( Char, self.CharPattern ) ~= nil
 	end
 
 	return true
 end
 
-function TextEntry:GetNumeric()
-	return self.Numeric
-end
-
-function TextEntry:SetNumeric( Bool )
-	self.Numeric = Bool
-end
+SGUI.AddProperty( TextEntry, "Numeric" )
+SGUI.AddProperty( TextEntry, "AlphaNumeric" )
+SGUI.AddProperty( TextEntry, "CharPattern" )
 
 --[[
 	Inserts a character wherever the caret is.
@@ -477,11 +486,17 @@ function TextEntry:AddCharacter( Char )
 
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
+
+	if self.OnTextChanged then
+		self:OnTextChanged( Text, self.Text )
+	end
 end
 
 function TextEntry:RemoveWord( Forward )
 	local Before
 	local After
+
+	local Text = self.Text
 
 	if Forward then
 		if self.Column == StringUTF8Length( self.Text ) then return end
@@ -509,6 +524,10 @@ function TextEntry:RemoveWord( Forward )
 	self.Text = Before..After
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( StringUTF8Length( Before ) )
+
+	if self.OnTextChanged then
+		self:OnTextChanged( Text, self.Text )
+	end
 end
 
 --[[
@@ -528,26 +547,27 @@ function TextEntry:RemoveCharacter( Forward )
 		return
 	end
 
-	local Length = StringUTF8Length( self.Text )
+	local Text = self.Text
+	local Length = StringUTF8Length( Text )
 
 	if Forward then
 		if self.Column > 0 then
-			local Before = StringUTF8Sub( self.Text, 1, self.Column )
+			local Before = StringUTF8Sub( Text, 1, self.Column )
 
 			if self.Column + 2 <= Length then
-				local After = StringUTF8Sub( self.Text, self.Column + 2 )
+				local After = StringUTF8Sub( Text, self.Column + 2 )
 				self.Text = Before..After
 			else
 				self.Text = Before
 			end
 		else
-			self.Text = StringUTF8Sub( self.Text, 2 )
+			self.Text = StringUTF8Sub( Text, 2 )
 		end
 	else
-		local Before = StringUTF8Sub( self.Text, 1, self.Column - 1 )
+		local Before = StringUTF8Sub( Text, 1, self.Column - 1 )
 
 		if self.Column + 1 <= Length then
-			local After = StringUTF8Sub( self.Text, self.Column + 1 )
+			local After = StringUTF8Sub( Text, self.Column + 1 )
 			self.Text = Before..After
 		else
 			self.Text = Before
@@ -558,6 +578,10 @@ function TextEntry:RemoveCharacter( Forward )
 
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
+
+	if self.OnTextChanged then
+		self:OnTextChanged( Text, self.Text )
+	end
 end
 
 function TextEntry:PlayerType( Char )

@@ -34,6 +34,7 @@ local SGUI = Shine.GUI
 
 local Date = os.date
 local StringFormat = string.format
+local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
 local TableRemove = table.remove
 
@@ -56,8 +57,8 @@ function Plugin:SetupAdminMenu()
 
 		Window = SGUI:Create( "Panel" )
 		Window:SetAnchor( "CentreMiddle" )
-		Window:SetSize( Vector( 400, 296, 0 ) )
-		Window:SetPos( Vector( -200, -148, 0 ) )
+		Window:SetSize( Vector( 400, 328, 0 ) )
+		Window:SetPos( Vector( -200, -164, 0 ) )
 		Window:AddTitleBar( "Add ban" )
 		Window:SkinColour()
 
@@ -74,15 +75,20 @@ function Plugin:SetupAdminMenu()
 		local DurationEntry
 		local ReasonEntry
 
+		local X = 16
+		local Y = 32
+
 		local IDLabel = SGUI:Create( "Label", Window )
 		IDLabel:SetText( "NS2ID:" )
 		IDLabel:SetFont( Fonts.kAgencyFB_Small )
 		IDLabel:SetBright( true )
-		IDLabel:SetPos( Vector( 16, 32, 0 ) )
+		IDLabel:SetPos( Vector( X, Y, 0 ) )
+
+		Y = Y + 32
 
 		local IDEntry = SGUI:Create( "TextEntry", Window )
 		IDEntry:SetSize( TextEntrySize - Vector( 32, 0, 0 ) )
-		IDEntry:SetPos( Vector( 16, 64, 0 ) )
+		IDEntry:SetPos( Vector( X, Y, 0 ) )
 		IDEntry:SetFont( Fonts.kAgencyFB_Small )
 		IDEntry:SetNumeric( true )
 		function IDEntry:OnTab()
@@ -99,7 +105,7 @@ function Plugin:SetupAdminMenu()
 		MenuButton:SetSize( Vector( 32, 32, 0 ) )
 		MenuButton:SetText( ">" )
 		MenuButton:SetFont( Fonts.kAgencyFB_Small )
-		MenuButton:SetPos( Vector( -48, 64, 0 ) )
+		MenuButton:SetPos( Vector( -48, Y, 0 ) )
 		MenuButton:SetTooltip( "Select a player." )
 		local Menu
 
@@ -141,32 +147,63 @@ function Plugin:SetupAdminMenu()
 			end
 		end
 
+		Y = Y + 40
+
 		local DurationLabel = SGUI:Create( "Label", Window )
 		DurationLabel:SetText( "Duration (in minutes, 0 for permanent):" )
 		DurationLabel:SetFont( Fonts.kAgencyFB_Small )
 		DurationLabel:SetBright( true )
-		DurationLabel:SetPos( Vector( 16, 104, 0 ) )
+		DurationLabel:SetPos( Vector( X, Y, 0 ) )
+
+		Y = Y + 32
 
 		DurationEntry = SGUI:Create( "TextEntry", Window )
 		DurationEntry:SetSize( TextEntrySize )
-		DurationEntry:SetPos( Vector( 16, 136, 0 ) )
+		DurationEntry:SetPos( Vector( X, Y, 0 ) )
 		DurationEntry:SetFont( Fonts.kAgencyFB_Small )
-		DurationEntry:SetNumeric( true )
+		DurationEntry:SetCharPattern( "[%w%.%-]" )
 		function DurationEntry:OnTab()
 			self:LoseFocus()
 
 			ReasonEntry:RequestFocus()
 		end
 
+		Y = Y + 40
+
+		local DurationValueLabel = SGUI:Create( "Label", Window )
+		DurationValueLabel:SetText( "Please enter a duration..." )
+		DurationValueLabel:SetFont( Fonts.kAgencyFB_Small )
+		DurationValueLabel:SetBright( true )
+		DurationValueLabel:SetPos( Vector( X, Y, 0 ) )
+		local DurationOptions = { Units = "minutes", Min = 0, Round = true }
+		function DurationEntry:OnTextChanged( OldValue, NewValue )
+			if NewValue == "" then
+				DurationValueLabel:SetText( "Please enter a duration..." )
+				return
+			end
+
+			local Minutes = Shine.CommandUtil.ParamTypes.time( nil, NewValue, DurationOptions )
+			if Minutes == 0 then
+				DurationValueLabel:SetText( "Duration: Permanent." )
+				return
+			end
+
+			DurationValueLabel:SetText( StringFormat( "Duration: %s", StringTimeToString( Minutes * 60 ) ) )
+		end
+
+		Y = Y + 32
+
 		local ReasonLabel = SGUI:Create( "Label", Window )
 		ReasonLabel:SetText( "Reason:" )
 		ReasonLabel:SetFont( Fonts.kAgencyFB_Small )
 		ReasonLabel:SetBright( true )
-		ReasonLabel:SetPos( Vector( 16, 176, 0 ) )
+		ReasonLabel:SetPos( Vector( X, Y, 0 ) )
+
+		Y = Y + 32
 
 		ReasonEntry = SGUI:Create( "TextEntry", Window )
 		ReasonEntry:SetSize( TextEntrySize )
-		ReasonEntry:SetPos( Vector( 16, 208, 0 ) )
+		ReasonEntry:SetPos( Vector( X, Y, 0 ) )
 		ReasonEntry:SetFont( Fonts.kAgencyFB_Small )
 		function ReasonEntry:OnTab()
 			self:LoseFocus()
@@ -177,7 +214,7 @@ function Plugin:SetupAdminMenu()
 		local AddBan = SGUI:Create( "Button", Window )
 		AddBan:SetAnchor( "BottomMiddle" )
 		AddBan:SetSize( Vector( 128, 32, 0 ) )
-		AddBan:SetPos( Vector( -64, -48, 0 ) )
+		AddBan:SetPos( Vector( -64, -44, 0 ) )
 		AddBan:SetText( "Add Ban" )
 		AddBan:SetFont( Fonts.kAgencyFB_Small )
 		function AddBan.DoClick()
