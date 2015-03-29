@@ -390,6 +390,7 @@ local ArgValidators = {
 		return MathClamp( ParsedArg, ArgRestrictor.Min, ArgRestrictor.Max )
 	end
 }
+ArgValidators.time = ArgValidators.number
 
 function Shine:NotifyCommandError( Client, Message, Format, ... )
 	Message = Format and StringFormat( Message, ... ) or Message
@@ -459,9 +460,23 @@ local function GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args
 
 	for i = 1, ExpectedCount do
 		local CurArg = ExpectedArgs[ i ]
+		local ArgString = Args[ i ]
+		local TakeRestOfLine = CurArg.TakeRestOfLine
+
+		if TakeRestOfLine then
+			if i < ExpectedCount then
+				self:Print( "Take rest of line called on function expecting more arguments!" )
+				self:NotifyCommandError( Client,
+					"The author of this command misconfigured it. If you know them, tell them!" )
+
+				return
+			end
+
+			ArgString = self.CommandUtil.BuildLineFromArgs( Args, i )
+		end
 
 		--Convert the string argument into the requested type.
-		local Result, Extra = ParseParameter( Client, Args[ i ], CurArg )
+		local Result, Extra = ParseParameter( Client, ArgString, CurArg )
 		ParsedArgs[ i ] = Result
 
 		--Specifically check for nil (boolean argument could be false).
@@ -501,20 +516,6 @@ local function GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args
 
 					return
 				end
-			end
-		end
-
-		--Take rest of line should grab the entire rest of the argument list.
-		if ArgType == "string" and CurArg.TakeRestOfLine then
-			if i == ExpectedCount then
-				ParsedArgs[ i ] = self.CommandUtil.BuildLineFromArgs( CurArg, ParsedArgs[ i ],
-					Args, i )
-			else
-				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:NotifyCommandError( Client,
-					"The author of this command misconfigured it. If you know them, tell them!" )
-
-				return
 			end
 		end
 

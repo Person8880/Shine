@@ -195,6 +195,8 @@ function Plugin:SetupAdminMenu()
 			Shine.AdminMenu:DontDestroyOnClose( Window )
 			Window:Destroy()
 			Window = nil
+
+			self:RequestBanData()
 		end
 	end
 

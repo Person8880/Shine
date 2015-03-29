@@ -1499,7 +1499,8 @@ function Plugin:CreateCommands()
 		end
 	end
 	local AddTimeCommand = self:BindCommand( "sh_addtimelimit", "addtimelimit", AddTime )
-	AddTimeCommand:AddParam{ Type = "number", Error = "Please specify a time to add." }
+	AddTimeCommand:AddParam{ Type = "time", Units = "minutes", TakeRestOfLine = true,
+		Error = "Please specify a time to add." }
 	AddTimeCommand:Help( "<time in minutes> Adds the given time to the current map's time limit." )
 
 	local function SetTime( Client, Time )
@@ -1510,7 +1511,8 @@ function Plugin:CreateCommands()
 		Shine:CommandNotify( Client, "set the map time to %s.", true, string.TimeToString( Time ) )
 	end
 	local SetTimeCommand = self:BindCommand( "sh_settimelimit", "settimelimit", SetTime )
-	SetTimeCommand:AddParam{ Type = "number", Min = 0, Error = "Please specify the map time." }
+	SetTimeCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, TakeRestOfLine = true,
+		Error = "Please specify the map time." }
 	SetTimeCommand:Help( "<time in minutes> Sets the current map's time limit." )
 
 	local function AddRounds( Client, Rounds )

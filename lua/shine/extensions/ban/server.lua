@@ -511,7 +511,7 @@ function Plugin:CreateCommands()
 	end
 	local BanCommand = self:BindCommand( "sh_ban", "ban", Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
-	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+	BanCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given." }
@@ -615,7 +615,7 @@ function Plugin:CreateCommands()
 	end
 	local BanIDCommand = self:BindCommand( "sh_banid", "banid", BanID )
 	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
-	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+	BanIDCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given." }
