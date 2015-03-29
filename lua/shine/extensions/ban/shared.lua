@@ -221,8 +221,8 @@ function Plugin:SetupAdminMenu()
 			local ID = tonumber( IDEntry:GetText() )
 			if not ID then return end
 
-			local Duration = tonumber( DurationEntry:GetText() )
-			if not Duration then return end
+			local Duration = DurationEntry:GetText()
+			if Duration == "" then return end
 
 			local Reason = ReasonEntry:GetText()
 
