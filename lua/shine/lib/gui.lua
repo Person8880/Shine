@@ -80,6 +80,14 @@ function SGUI:IsControlDown()
 	return self.SpecialKeyStates.Ctrl
 end
 
+function SGUI:IsAltDown()
+	return self.SpecialKeyStates.Alt
+end
+
+function SGUI:IsShiftDown()
+	return self.SpecialKeyStates.Shift
+end
+
 --[[
 	Sets the current in-focus window.
 	Inputs: Window object, windows index.
@@ -399,10 +407,9 @@ function SGUI:Create( Class, Parent )
 end
 
 --[[
-	Destroys an SGUI control, leaving the table in storage for use as a new object later.
+	Destroys an SGUI control.
 
-	This runs the control's cleanup function then empties its table.
-	The cleanup function should remove all GUI elements, this will not do it.
+	This runs the control's cleanup function. Do not attempt to use the object again.
 
 	Input: SGUI control object.
 ]]
@@ -581,7 +588,6 @@ end )
 --------------------- BASE CLASS ---------------------
 --[[
 	Base initialise. Be sure to override this!
-	Though you should call it in your override if you want to be schemed.
 ]]
 function ControlMeta:Initialise()
 	self.UseScheme = true
@@ -589,6 +595,8 @@ end
 
 --[[
 	Generic cleanup, for most controls this is adequate.
+
+	The only time you need to override it is if you have more than a background object.
 ]]
 function ControlMeta:Cleanup()
 	if self.Parent then return end
@@ -616,6 +624,11 @@ function ControlMeta:DeleteOnRemove( Control )
 	Table[ #Table + 1 ] = Control
 end
 
+--[[
+	Adds a function to be called when this control is destroyed.
+
+	It will be passed this control when called as its argument.
+]]
 function ControlMeta:CallOnRemove( Func )
 	self.__CallOnRemove = self.__CallOnRemove or {}
 
@@ -685,7 +698,7 @@ end
 function ControlMeta:CallOnChildren( Name, ... )
 	if not self.Children then return nil end
 
-	--Call the event on every child of this object, no particular order.
+	--Call the event on every child of this object in the order they were added.
 	for Child in self.Children:Iterate() do
 		if Child[ Name ] and not Child._CallEventsManually then
 			local Result, Control = Child[ Name ]( Child, ... )
@@ -809,6 +822,9 @@ end
 
 local ScrW, ScrH
 
+--[[
+	Returns the absolute position of the control on the screen.
+]]
 function ControlMeta:GetScreenPos()
 	if not self.Background then return end
 
@@ -866,6 +882,18 @@ local MousePos
 --[[
 	Gets whether the mouse cursor is inside the bounds of a GUIItem.
 	The multiplier will increase or reduce the size we use to calculate this.
+
+	Inputs:
+		1. Element to check.
+		2. Multiplier value to increase/reduce the size of the bounding box.
+		3. X value to override the width of the bounding box.
+		4. Y value to override the height of the bounding box.
+	Outputs:
+		1. Boolean value to indicate whether the mouse is inside.
+		2. X position of the mouse relative to the element.
+		3. Y position of the mouse relative to the element.
+		4. If the mouse is inside, the size of the bounding box used.
+		5. If the mouse is inside, the element's absolute screen position.
 ]]
 function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	if not Element then return end
@@ -940,7 +968,6 @@ function ControlMeta:MoveTo( NewPos, Delay, Time, EaseFunc, Power, Callback, Ele
 	self.MoveData.StartTime = CurTime + Delay
 	self.MoveData.Duration = Time
 	self.MoveData.Elapsed = 0
-	--self.MoveData.EndTime = CurTime + Delay + Time
 
 	self.MoveData.Element = Element or self.Background
 
@@ -1005,7 +1032,6 @@ function ControlMeta:FadeTo( Element, Start, End, Delay, Duration, Callback )
 	Fade.StartTime = Time + Delay
 	Fade.Duration = Duration
 	Fade.Elapsed = 0
-	--Fade.EndTime = Time + Delay + Duration
 
 	Fade.Callback = Callback
 end
@@ -1063,7 +1089,6 @@ function ControlMeta:SizeTo( Element, Start, End, Delay, Duration, Callback, Eas
 	Size.StartTime = Time + Delay
 	Size.Duration = Duration
 	Size.Elapsed = 0
-	--Size.EndTime = Time + Delay + Duration
 
 	Size.Callback = Callback
 end
@@ -1096,6 +1121,12 @@ function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
 	self.TextureHighlight = TextureMode
 end
 
+--[[
+	Sets up a tooltip for the given element.
+	This should work on any element without needing special code for it.
+
+	Input: Text value to display as a tooltip, pass in nil to remove the tooltip.
+]]
 function ControlMeta:SetTooltip( Text )
 	if Text == nil then
 		self.TooltipText = nil
@@ -1319,23 +1350,25 @@ function ControlMeta:OnMouseMove( Down )
 end
 
 --[[
-	Requests focus, for text entry controls.
+	Requests focus, for controls with keyboard input.
 ]]
 function ControlMeta:RequestFocus()
+	if not self.UsesKeyboardFocus then return end
+
 	SGUI.FocusedControl = self
 
 	NotifyFocusChange( self )
 end
 
 --[[
-	Returns whether the current control has focus.
+	Returns whether the current control has keyboard focus.
 ]]
 function ControlMeta:HasFocus()
 	return SGUI.FocusedControl == self
 end
 
 --[[
-	Drops focus on the given element.
+	Drops keyboard focus on the given element.
 ]]
 function ControlMeta:LoseFocus()
 	if not self:HasFocus() then return end

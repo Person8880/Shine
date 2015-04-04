@@ -54,7 +54,7 @@ Plugin.SilentConfigSave = true
 ]]
 function Plugin:Initialise()
 	self.Retries = {}
-	
+
 	if self.Config.GetBansFromWeb then
 		--Load bans list after everything else.
 		self:SimpleTimer( 1, function()
@@ -63,18 +63,18 @@ function Plugin:Initialise()
 	else
 		self:MergeNS2IntoShine()
 	end
-	
+
 	self:CreateCommands()
 	self:CheckBans()
 
 	if not Hooked then
 		--Hook into the default banning commands.
 		Event.Hook( "Console_sv_ban", function( Client, ... )
-			Shine:RunCommand( Client, "sh_ban", ... )
+			Shine:RunCommand( Client, "sh_ban", false, ... )
 		end )
 
 		Event.Hook( "Console_sv_unban", function( Client, ... )
-			Shine:RunCommand( Client, "sh_unban", ... )
+			Shine:RunCommand( Client, "sh_unban", false, ... )
 		end )
 
 		--Override the bans list function (have to do it after everything's loaded).
@@ -98,9 +98,9 @@ function Plugin:Initialise()
 
 		Hooked = true
 	end
-	
+
 	self:VerifyConfig()
-	
+
 	self.Enabled = true
 
 	return true
@@ -151,7 +151,7 @@ end
 
 function Plugin:SaveConfig()
 	self:ShineToNS2()
-	
+
 	self.BaseClass.SaveConfig( self )
 end
 
@@ -194,7 +194,7 @@ function Plugin:MergeNS2IntoShine()
 		for i = 1, #VanillaBans do
 			local Table = VanillaBans[ i ]
 			local ID = tostring( Table.id )
-			
+
 			if ID then
 				VanillaIDs[ ID ] = true
 
@@ -319,11 +319,11 @@ end
 	Output: Success.
 ]]
 function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
-	if not tonumber( ID ) then 
+	if not tonumber( ID ) then
 		ID = Shine.SteamIDToNS2( ID )
 
 		if not ID then
-			return false, "invalid Steam ID" 
+			return false, "invalid Steam ID"
 		end
 	end
 
@@ -360,7 +360,7 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 			self.Retries[ ID ] = nil
 
 			if not Data then return end
-			
+
 			local Decoded = Decode( Data )
 
 			if not Decoded then return end
@@ -386,7 +386,7 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 
 				return
 			end
-			
+
 			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams,
 				SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
 		end
@@ -430,7 +430,7 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 			self.Retries[ ID ] = nil
 
 			if not Data then return end
-			
+
 			local Decoded = Decode( Data )
 
 			if not Decoded then return end
@@ -456,7 +456,7 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 
 				return
 			end
-			
+
 			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams,
 				SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
 		end
@@ -511,7 +511,7 @@ function Plugin:CreateCommands()
 	end
 	local BanCommand = self:BindCommand( "sh_ban", "ban", Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
-	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+	BanCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given." }
@@ -589,18 +589,18 @@ function Plugin:CreateCommands()
 		local BanningID = Client and Client:GetUserId() or 0
 		local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
 		local TargetName = "<unknown>"
-		
+
 		if Target then
 			TargetName = Target:GetControllingPlayer():GetName()
 		end
-		
+
 		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
 			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 				or "permanently"
 
 			Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName,
 				ID, DurationString )
-			
+
 			if Target then
 				Server.DisconnectClient( Target )
 
@@ -615,7 +615,7 @@ function Plugin:CreateCommands()
 	end
 	local BanIDCommand = self:BindCommand( "sh_banid", "banid", BanID )
 	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
-	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+	BanIDCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given." }
@@ -626,7 +626,7 @@ function Plugin:CreateCommands()
 			Shine:AdminPrint( Client, "There are no bans on record." )
 			return
 		end
-		
+
 		Shine:AdminPrint( Client, "Currently stored bans:" )
 		for ID, BanTable in pairs( self.Config.Banned ) do
 			local TimeRemaining = BanTable.UnbanTime == 0 and "Forever"
@@ -730,7 +730,7 @@ function Plugin:NetworkUnban( ID )
 	end
 
 	if not self.BanNetworkedClients then return end
-	
+
 	for Client in pairs( self.BanNetworkedClients ) do
 		self:SendNetworkMessage( Client, "Unban", { ID = ID }, true )
 	end
@@ -738,7 +738,7 @@ end
 
 function Plugin:ReceiveRequestBanData( Client, Data )
 	if not Shine:GetPermission( Client, self.ListPermission ) then return end
-	
+
 	self.BanNetworkedClients = self.BanNetworkedClients or {}
 
 	self.BanNetworkedClients[ Client ] = self.BanNetworkedClients[ Client ] or 1

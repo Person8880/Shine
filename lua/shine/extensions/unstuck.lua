@@ -25,7 +25,7 @@ function Plugin:Initialise()
 	self:CreateCommands()
 
 	self.Enabled = true
-	
+
 	return true
 end
 
@@ -47,7 +47,7 @@ function Plugin:UnstickPlayer( Player, Pos )
 	end
 
 	local Height, Radius = GetTraceCapsuleFromExtents( Bounds )
-	
+
 	local SpawnPoint
 	local ResourceNear
 	local i = 1
@@ -85,7 +85,7 @@ function Plugin:CreateCommands()
 
 			return
 		end
-		
+
 		local Time = Shared.GetTime()
 
 		local NextUse = self.Users[ Client ]

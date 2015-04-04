@@ -28,7 +28,7 @@ function CommandMeta:AddParam( Table )
 end
 
 --[[
-	Creates a command object. 
+	Creates a command object.
 	The object stores the console command and the function to run.
 	It can also have parameters added to it to pass to its function.
 ]]
@@ -100,8 +100,18 @@ function Shine:RunClientCommand( ConCommand, ... )
 
 	for i = 1, ExpectedCount do
 		local CurArg = ExpectedArgs[ i ]
+		local ArgString = Args[ i ]
+		local TakeRestOfLine = CurArg.TakeRestOfLine
 
-		ParsedArgs[ i ] = ParseParameter( nil, Args[ i ], CurArg )
+		if TakeRestOfLine then
+			if i < ExpectedCount then
+				error( "Take rest of line called on function expecting more arguments!" )
+			end
+
+			ArgString = self.CommandUtil.BuildLineFromArgs( Args, i )
+		end
+
+		ParsedArgs[ i ] = ParseParameter( nil, ArgString, CurArg )
 
 		--Specifically check for nil (boolean argument could be false).
 		if ParsedArgs[ i ] == nil and not CurArg.Optional then
@@ -109,15 +119,6 @@ function Shine:RunClientCommand( ConCommand, ... )
 				i, ConCommand, CurArg.Type ) )
 
 			return
-		end
-
-		if CurArg.Type == "string" and CurArg.TakeRestOfLine then
-			if i == ExpectedCount then
-				ParsedArgs[ i ] = self.CommandUtil.BuildLineFromArgs( CurArg, ParsedArgs[ i ],
-					Args, i )
-			else
-				error( "Take rest of line called on function expecting more arguments!" )
-			end
 		end
 	end
 

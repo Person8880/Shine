@@ -57,7 +57,7 @@ function Plugin:CheckCommLogin( CommandStation, Player )
 	local BanData = self.Config.Banned[ ID ]
 
 	if not BanData then return end
-	
+
 	local CurTime = Time()
 
 	if BanData.UnbanTime == 0 or BanData.UnbanTime > CurTime then
@@ -117,7 +117,7 @@ function Plugin:CreateCommands()
 	end
 	local BanCommand = self:BindCommand( "sh_commban", "commban", Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
-	BanCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+	BanCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given." }
@@ -189,18 +189,18 @@ function Plugin:CreateCommands()
 		local BanningID = Client and Client:GetUserId() or 0
 		local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
 		local TargetName = "<unknown>"
-		
+
 		if Target then
 			TargetName = Target:GetControllingPlayer():GetName()
 		end
-		
+
 		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
 			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 				or "permanently"
 
 			Shine:AdminPrint( nil, "%s banned %s[%s] from commanding %s.", true, BanningName,
 				TargetName, ID, DurationString )
-			
+
 			if Target then
 				local TargetPlayer = Target:GetControllingPlayer()
 				if TargetPlayer and TargetPlayer:isa( "Commander" ) then
@@ -219,7 +219,7 @@ function Plugin:CreateCommands()
 	end
 	local BanIDCommand = self:BindCommand( "sh_commbanid", "commbanid", BanID )
 	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
-	BanIDCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true,
+	BanIDCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given." }

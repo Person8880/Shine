@@ -63,7 +63,7 @@ end
 
 function Plugin:ClientConfirmConnect( Client )
 	if not Shine:IsValidClient( Client ) then return end
-	
+
 	self:ProcessClient( Client )
 end
 
@@ -81,7 +81,7 @@ function Plugin:CreateCommands()
 		local Player = Client:GetControllingPlayer()
 
 		if not Player then return end
-		
+
 		local ServerData = self.Config.Servers[ Num ]
 
 		if not ServerData then
@@ -101,13 +101,13 @@ function Plugin:CreateCommands()
 
 		local Password = ServerData.Password
 
-		if not Password then 
+		if not Password then
 			Password = ""
 		elseif Password ~= "" then
 			Password = " "..Password
 		end
-		
-		Shine.SendNetworkMessage( Client, "Shine_Command", { 
+
+		Shine.SendNetworkMessage( Client, "Shine_Command", {
 			Command = StringFormat( "connect %s:%s%s", ServerData.IP, ServerData.Port, Password )
 		}, true )
 	end

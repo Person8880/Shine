@@ -69,7 +69,7 @@ Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
 	if Name == "Console_sv_say" then
 		local function NewSay( Client, ... )
 			if Shine:IsExtensionEnabled( "basecommands" ) then
-				return Shine:RunCommand( Client, "sh_say", ... )
+				return Shine:RunCommand( Client, "sh_say", false, ... )
 			end
 
 			return OldFunc( Client, ... )
@@ -252,7 +252,7 @@ local function NotifyError( Client, Message, Format, ... )
 		return
 	end
 
-	Shine:NotifyError( Client, Message, Format, ... )
+	Shine:NotifyCommandError( Client, Message, Format, ... )
 end
 
 local Histories = {}
@@ -1188,6 +1188,26 @@ function Plugin:CreateCommands()
 	local MoveRateCommand = self:BindCommand( "sh_moverate", "moverate", MoveRate )
 	MoveRateCommand:AddParam{ Type = "number", Min = 5, Round = true }
 	MoveRateCommand:Help( "<rate> Sets the move rate and saves it." )
+
+	do
+		local StartVote
+
+		local function CustomVote( Client, VoteQuestion )
+			if not Client then return end
+
+			StartVote = StartVote or Shine.GetUpValue( RegisterVoteType, "StartVote", true )
+			if not StartVote then return end
+
+			StartVote( "ShineCustomVote", Client, { VoteQuestion = VoteQuestion } )
+		end
+		local CustomVoteCommand = self:BindCommand( "sh_customvote", "customvote", CustomVote )
+		CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true }
+		CustomVoteCommand:Help( "<question> Starts a vote with the given question." )
+	end
+end
+
+function Plugin:OnCustomVoteSuccess( Data )
+
 end
 
 function Plugin:IsClientGagged( Client )

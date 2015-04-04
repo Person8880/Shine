@@ -8,6 +8,15 @@ local StringFormat = string.format
 local StringSub = string.sub
 local TableConcat = table.concat
 
+--[[
+	Splits the given string by the given pattern.
+
+	Inputs:
+		1. String to split.
+		2. Pattern to split with.
+	Output:
+		Table containing strings separated by the given pattern.
+]]
 function string.Explode( String, Pattern )
 	local Ret = {}
 	local FindPattern = "(.-)"..Pattern
@@ -45,6 +54,12 @@ do
 	}
 	local NumTimes = #TimeFuncs
 
+	--[[
+		Converts a time value into a "nice" time string.
+
+		Input: Time value in seconds.
+		Output: "Nice" time string, e.g 65 -> "1 minute and 5 seconds".
+	]]
 	function string.TimeToString( Time )
 		if Time < 1 then return "0 seconds" end
 
@@ -69,11 +84,53 @@ do
 	end
 end
 
+--[[
+	Converts a time value to a digital representation in minutes:seconds.
+
+	Input: Time value in seconds.
+	Output: Digital time.
+]]
 function string.DigitalTime( Time )
 	if Time <= 0 then return "00:00" end
-	
+
 	local Seconds = Floor( Time % 60 )
 	local Minutes = Floor( Time / 60 )
 
 	return StringFormat( "%.2i:%.2i", Minutes, Seconds )
+end
+
+do
+	local StringGMatch = string.gmatch
+	local StringLower = string.lower
+	local tonumber = tonumber
+
+	local Times = {
+		sec = 1, secs = 1, s = 1, second = 1, seconds = 1,
+		m = 60,	minute = 60, minutes = 60, min = 60, mins = 60,
+		h = 3600, hr = 3600, hrs = 3600, hour = 3600, hours = 3600,
+		d = 86400, day = 86400, days = 86400,
+		w = 604800, week = 604800, weeks = 604800
+	}
+
+	--[[
+		Converts a string of time magnitude -> time unit to a time value in seconds.
+
+		Input: String containing some kind of time information.
+		Output: Time value the string represents in seconds.
+	]]
+	function string.ToTime( String )
+		local Time = 0
+
+		for Amount, Unit in StringGMatch( StringLower( String ), "([%-%d%.]+)%s-([a-z]+)" ) do
+			local Magnitude = Times[ Unit ]
+			if Magnitude then
+				Amount = tonumber( Amount )
+				if Amount then
+					Time = Time + Amount * Magnitude
+				end
+			end
+		end
+
+		return Time
+	end
 end
