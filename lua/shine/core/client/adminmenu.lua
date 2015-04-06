@@ -221,8 +221,6 @@ function AdminMenu.GetListState( List )
 		end
 	end
 
-	Print( "SelectedIndex: %s", tostring( SelectedIndex ) )
-
 	return {
 		SortedColumn = List.SortedColumn,
 		Descending = List.Descending,
