@@ -160,9 +160,7 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			end
 
-			if Data and Data.SortedColumn then
-				List:SortRows( Data.SortedColumn, nil, Data.Descending )
-			else
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
 				List:SortRows( 1 )
 			end
 
@@ -197,15 +195,10 @@ function Plugin:SetupAdminMenuCommands()
 		end,
 
 		OnCleanup = function( Panel )
-			local SortColumn = self.MapList.SortedColumn
-			local Descending = self.MapList.Descending
-
+			local MapList = self.MapList
 			self.MapList = nil
 
-			return {
-				SortedColumn = SortColumn,
-				Descending = Descending
-			}
+			return Shine.AdminMenu.GetListState( MapList )
 		end
 	} )
 
@@ -244,9 +237,7 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			end
 
-			if Data and Data.SortedColumn then
-				List:SortRows( Data.SortedColumn, nil, Data.Descending )
-			else
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
 				List:SortRows( 1 )
 			end
 
@@ -360,15 +351,13 @@ function Plugin:SetupAdminMenuCommands()
 
 			TableEmpty( self.PluginRows )
 
+			local PluginList = self.PluginList
 			self.PluginList = nil
 
 			Hook.Remove( "OnPluginLoad", "AdminMenu_OnPluginLoad" )
 			Hook.Remove( "OnPluginUnload", "AdminMenu_OnPluginUnload" )
 
-			return {
-				SortedColumn = SortColumn,
-				Descending = Descending
-			}
+			return Shine.AdminMenu.GetListState( PluginList )
 		end
 	} )
 end

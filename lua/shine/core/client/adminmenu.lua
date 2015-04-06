@@ -6,6 +6,7 @@ local Shine = Shine
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
 
+local IsType = Shine.IsType
 local StringFormat = string.format
 local TableConcat = table.concat
 
@@ -201,11 +202,71 @@ function AdminMenu:OnTabCleanup( Window, Name )
 	end
 end
 
+function AdminMenu.GetListState( List )
+	local SelectedIndex
+
+	if List.MultiSelect then
+		local Selected = List:GetSelectedRows()
+
+		if #Selected > 0 then
+			SelectedIndex = {}
+			for i = 1, #Selected do
+				SelectedIndex[ i ] = Selected[ i ].Index
+			end
+		end
+	else
+		local Row = List:GetSelectedRow()
+		if Row then
+			SelectedIndex = Row.Index
+		end
+	end
+
+	Print( "SelectedIndex: %s", tostring( SelectedIndex ) )
+
+	return {
+		SortedColumn = List.SortedColumn,
+		Descending = List.Descending,
+		SelectedIndex = SelectedIndex
+	}
+end
+
+function AdminMenu.RestoreListState( List, Data )
+	if not Data then return end
+	if not Data.SortedColumn and not Data.SelectedIndex then return end
+
+	if Data.SortedColumn then
+		List:SortRows( Data.SortedColumn, nil, Data.Descending )
+	end
+
+	if Data.SelectedIndex and List.Rows then
+		if List.MultiSelect and IsType( Data.SelectedIndex, "table" ) then
+			local Selected = Data.SelectedIndex
+
+			for i = 1, #Selected do
+				local Row = List.Rows[ Selected[ i ] ]
+
+				if Row then
+					Row:SetHighlighted( true, true )
+					Row.Selected = true
+				end
+			end
+		elseif not List.MultiSelect and IsType( Data.SelectedIndex, "number" ) then
+			local Row = List.Rows[ Data.SelectedIndex ]
+			if Row then
+				List:OnRowSelect( Data.SelectedIndex, Row )
+				Row:SetHighlighted( true, true )
+				Row.Selected = true
+			end
+		end
+	end
+
+	return Data.SortedColumn ~= nil
+end
+
 --Setup the commands tab.
 do
 	local GetEnts = Shared.GetEntitiesWithClassname
 	local IterateEntList = ientitylist
-	local IsType = Shine.IsType
 	local TableEmpty = table.Empty
 	local TableRemove = table.remove
 	local TableSort = table.sort
@@ -277,9 +338,7 @@ do
 				UpdatePlayers()
 			end )
 
-			if Data and Data.SortingColumn then
-				List:SortRows( Data.SortingColumn, nil, Data.Descending )
-			end
+			AdminMenu.RestoreListState( List, Data )
 
 			Hook.Add( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers", function( ClientID )
 				local Row = Rows[ ClientID ]
@@ -330,14 +389,10 @@ do
 
 		OnCleanup = function( Panel )
 			--Save column sorting, and command category expansions.
-			local SortedColumn = PlayerList.SortedColumn
-			local Descending = PlayerList.Descending
-
-			local Data = {
-				SortedColumn = SortedColumn,
-				Descending = Descending,
-				CommandExpansions = {}
-			}
+			local Data = AdminMenu.GetListState( PlayerList )
+			--Don't save selected players as the order/list can easily change.
+			Data.SelectedIndex = nil
+			Data.CommandExpansions = {}
 
 			local Categories = Commands.Categories
 

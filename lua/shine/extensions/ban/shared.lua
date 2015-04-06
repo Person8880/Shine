@@ -268,9 +268,7 @@ function Plugin:SetupAdminMenu()
 				self:RequestBanData()
 			end
 
-			if Data and Data.SortedColumn then
-				List:SortRows( Data.SortedColumn, nil, Data.Descending )
-			end
+			Shine.AdminMenu.RestoreListState( List, Data )
 
 			local Unban = SGUI:Create( "Button", Panel )
 			Unban:SetAnchor( "BottomLeft" )
@@ -314,15 +312,10 @@ function Plugin:SetupAdminMenu()
 		OnCleanup = function( Panel )
 			TableEmpty( self.Rows )
 
-			local SortedColumn = self.BanList.SortedColumn
-			local Descending = self.BanList.Descending
-
+			local BanList = self.BanList
 			self.BanList = nil
 
-			return {
-				SortedColumn = SortedColumn,
-				Descending = Descending
-			}
+			return Shine.AdminMenu.GetListState( BanList )
 		end
 	} )
 end
