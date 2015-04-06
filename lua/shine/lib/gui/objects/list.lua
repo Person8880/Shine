@@ -418,7 +418,7 @@ local function UpdateHeaderHighlighting( self, Column, OldSortingColumn )
 	if not ColumnHeader then return end
 
 	ColumnHeader.ForceHighlight = true
-	ColumnHeader:SetHighlighted( true )
+	ColumnHeader:SetHighlighted( true, true )
 
 	if OldSortingColumn then
 		local OldHeader = self.Columns[ OldSortingColumn ]

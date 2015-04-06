@@ -1314,17 +1314,20 @@ function ControlMeta:HideTooltip()
 	end )
 end
 
-function ControlMeta:SetHighlighted( Highlighted )
+function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 	if Highlighted == self.Highlighted then return end
 
 	if Highlighted then
 		self.Highlighted = true
 
 		if not self.TextureHighlight then
-			self:FadeTo( self.Background, self.InactiveCol,
-			self.ActiveCol, 0, 0.1, function( Background )
-				Background:SetColor( self.ActiveCol )
-			end )
+			if SkipAnim then
+				self.Background:SetColor( self.ActiveCol )
+				return
+			end
+
+			self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol,
+				0, 0.1 )
 		else
 			self.Background:SetTexture( self.HighlightTexture )
 		end
@@ -1332,10 +1335,13 @@ function ControlMeta:SetHighlighted( Highlighted )
 		self.Highlighted = false
 
 		if not self.TextureHighlight then
-			self:FadeTo( self.Background, self.ActiveCol,
-			self.InactiveCol, 0, 0.1, function( Background )
-				Background:SetColor( self.InactiveCol )
-			end )
+			if SkipAnim then
+				self.Background:SetColor( self.InactiveCol )
+				return
+			end
+
+			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol,
+				0, 0.1 )
 		else
 			self.Background:SetTexture( self.Texture )
 		end
