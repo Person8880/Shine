@@ -336,7 +336,7 @@ do
 				UpdatePlayers()
 			end )
 
-			AdminMenu.RestoreListState( List, Data )
+			AdminMenu.RestoreListState( PlayerList, Data )
 
 			Hook.Add( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers", function( ClientID )
 				local Row = Rows[ ClientID ]
