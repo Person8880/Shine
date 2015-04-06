@@ -13,6 +13,7 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessage( "RequestPluginData", {}, "Server" )
 	self:AddNetworkMessage( "PluginData", { Name = "string (32)", Enabled = "boolean" }, "Client" )
+	self:AddNetworkMessage( "PluginTabAuthed", {}, "Client" )
 end
 
 function Plugin:NetworkUpdate( Key, Old, New )
@@ -218,23 +219,11 @@ function Plugin:SetupAdminMenuCommands()
 			--We need information about the server side only plugins too.
 			if not self.PluginData then
 				self:RequestPluginData()
+				self.PluginData = {}
 			end
 
-			for Plugin in pairs( Shine.AllPlugins ) do
-				local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
-				local Skip
-				--Server side plugin.
-				if not PluginTable then
-					Enabled = self.PluginData and self.PluginData[ Plugin ]
-				elseif PluginTable.IsClient and not PluginTable.IsShared then
-					Skip = true
-				end
-
-				if not Skip then
-					local Row = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
-
-					self.PluginRows[ Plugin ] = Row
-				end
+			if self.PluginAuthed then
+				self:PopulatePluginList()
 			end
 
 			if not Shine.AdminMenu.RestoreListState( List, Data ) then
@@ -380,6 +369,33 @@ end
 
 function Plugin:RequestPluginData()
 	self:SendNetworkMessage( "RequestPluginData", {}, true )
+end
+
+function Plugin:ReceivePluginTabAuthed()
+	self.PluginAuthed = true
+	self:PopulatePluginList()
+end
+
+function Plugin:PopulatePluginList()
+	local List = self.PluginList
+	if not SGUI.IsValid( List ) then return end
+
+	for Plugin in pairs( Shine.AllPlugins ) do
+		local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
+		local Skip
+		--Server side plugin.
+		if not PluginTable then
+			Enabled = self.PluginData and self.PluginData[ Plugin ]
+		elseif PluginTable.IsClient and not PluginTable.IsShared then
+			Skip = true
+		end
+
+		if not Skip then
+			local Row = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
+
+			self.PluginRows[ Plugin ] = Row
+		end
+	end
 end
 
 function Plugin:ReceivePluginData( Data )
