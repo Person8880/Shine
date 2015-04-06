@@ -1314,6 +1314,34 @@ function ControlMeta:HideTooltip()
 	end )
 end
 
+function ControlMeta:SetHighlighted( Highlighted )
+	if Highlighted == self.Highlighted then return end
+
+	if Highlighted then
+		self.Highlighted = true
+
+		if not self.TextureHighlight then
+			self:FadeTo( self.Background, self.InactiveCol,
+			self.ActiveCol, 0, 0.1, function( Background )
+				Background:SetColor( self.ActiveCol )
+			end )
+		else
+			self.Background:SetTexture( self.HighlightTexture )
+		end
+	else
+		self.Highlighted = false
+
+		if not self.TextureHighlight then
+			self:FadeTo( self.Background, self.ActiveCol,
+			self.InactiveCol, 0, 0.1, function( Background )
+				Background:SetColor( self.InactiveCol )
+			end )
+		else
+			self.Background:SetTexture( self.Texture )
+		end
+	end
+end
+
 function ControlMeta:OnMouseMove( Down )
 	--Basic highlight on mouse over handling.
 	if not self.HighlightOnMouseOver then
@@ -1321,30 +1349,10 @@ function ControlMeta:OnMouseMove( Down )
 	end
 
 	if self:MouseIn( self.Background, self.HighlightMult ) then
-		if not self.Highlighted then
-			self.Highlighted = true
-
-			if not self.TextureHighlight then
-				self:FadeTo( self.Background, self.InactiveCol,
-				self.ActiveCol, 0, 0.1, function( Background )
-					Background:SetColor( self.ActiveCol )
-				end )
-			else
-				self.Background:SetTexture( self.HighlightTexture )
-			end
-		end
+		self:SetHighlighted( true )
 	else
 		if self.Highlighted and not self.ForceHighlight then
-			self.Highlighted = false
-
-			if not self.TextureHighlight then
-				self:FadeTo( self.Background, self.ActiveCol,
-				self.InactiveCol, 0, 0.1, function( Background )
-					Background:SetColor( self.InactiveCol )
-				end )
-			else
-				self.Background:SetTexture( self.Texture )
-			end
+			self:SetHighlighted( false )
 		end
 	end
 end
