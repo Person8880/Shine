@@ -256,7 +256,7 @@ function Plugin:SetupAdminMenuCommands()
 				local Selected = List:GetSelectedRow()
 				if not Selected then return end
 
-				return Selected:GetColumnText( 1 )
+				return Selected:GetColumnText( 1 ), Selected:GetColumnText( 2 ) == "Enabled"
 			end
 
 			local UnloadPlugin = SGUI:Create( "Button", Panel )
@@ -266,8 +266,9 @@ function Plugin:SetupAdminMenuCommands()
 			UnloadPlugin:SetText( "Unload Plugin" )
 			UnloadPlugin:SetFont( Fonts.kAgencyFB_Small )
 			function UnloadPlugin:DoClick()
-				local Plugin = GetSelectedPlugin()
+				local Plugin, Enabled = GetSelectedPlugin()
 				if not Plugin then return false end
+				if not Enabled then return false end
 
 				local Menu = self:AddMenu()
 
