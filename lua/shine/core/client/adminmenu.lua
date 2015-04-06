@@ -469,6 +469,9 @@ do
 				end
 
 				Menu = Button:AddMenu( Vector( 128, 32, 0 ) )
+				Menu:CallOnRemove( function()
+					Menu = nil
+				end )
 				self:DestroyOnClose( Menu )
 
 				for i = 1, #Data, 2 do
