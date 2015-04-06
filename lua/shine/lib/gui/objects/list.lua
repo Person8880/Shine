@@ -622,6 +622,8 @@ function List:OnMouseWheel( Down )
 		return
 	end
 
+	self.Scrollbar.MouseWheelScroll = ( self.LineSize or 32 ) * 3
+
 	return self.Scrollbar:OnMouseWheel( Down )
 end
 
