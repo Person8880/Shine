@@ -325,11 +325,11 @@ function Plugin:CreateChatbox()
 	if not Pos.x or not Pos.y then
 		ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * ScalarScale, 0 )
 	else
-		Pos.x = Clamp( Pos.x, 0, ScreenWidth - PanelSize.x )
-		Pos.y = Clamp( Pos.y, -ScreenHeight + PanelSize.y, -PanelSize.y )
-
 		ChatBoxPos = Vector( Pos.x, Pos.y, 0 )
 	end
+
+	ChatBoxPos.x = Clamp( ChatBoxPos.x, 0, ScreenWidth - PanelSize.x )
+	ChatBoxPos.y = Clamp( ChatBoxPos.y, -ScreenHeight + PanelSize.y, -PanelSize.y )
 
 	--Invisible background.
 	local DummyPanel = SGUI:Create( "Panel" )
