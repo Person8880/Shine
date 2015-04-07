@@ -9,6 +9,7 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local IsType = Shine.IsType
+local WordWrap = SGUI.WordWrap
 
 local Clamp = math.Clamp
 local Clock = os.clock
@@ -17,12 +18,10 @@ local Max = math.max
 local Min = math.min
 local pairs = pairs
 local select = select
-local StringExplode = string.Explode
 local StringFormat = string.format
 local StringGSub = string.gsub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
-local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
 local type = type
@@ -276,17 +275,8 @@ function Plugin:CreateChatbox()
 	local HeightMult = Max( ScreenHeight / 1080, 0.7 )
 
 	if ScreenWidth > 2880 then
-		--Scale up the 1080p value, don't really want to recode the scaling everywhere else.
-		local function TenEightyScale( Value )
-			local MinValue = Min( ScreenWidth, ScreenHeight )
-			local TenEightyP = math.scaledown( Value, 1080, 1280 )
-				* ( 2 - ( 1080 / 1280 ) )
-
-			return TenEightyP
-		end
-
-		UIScale = TenEightyScale( Vector( 1, 1, 1 ) )
-		ScalarScale = TenEightyScale( 1 )
+		UIScale = SGUI.TenEightyPScale( Vector( 1, 1, 1 ) )
+		ScalarScale = SGUI.TenEightyPScale( 1 )
 	end
 
 	local FourToThreeHeight = ( ScreenWidth / 4 ) * 3
@@ -745,83 +735,6 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		self:AddMessage( Message.PreCol, Message.PreText,
 			Message.MessageCol, Message.MessageText )
 	end
-end
-
---[[
-	Wraps text to fit the size limit. Used for long words...
-
-	Returns two strings, first one fits entirely on one line, the other may not, and should be
-	added to the next word.
-]]
-local function TextWrap( Label, Text, XPos, MaxWidth )
-	local i = 1
-	local FirstLine = Text
-	local SecondLine = ""
-	local Length = StringUTF8Length( Text )
-
-	--Character by character, extend the text until it exceeds the width limit.
-	repeat
-		local CurText = StringUTF8Sub( Text, 1, i )
-
-		--Once it reaches the limit, we go back a character, and set our first and second line results.
-		if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-			FirstLine = StringUTF8Sub( Text, 1, i - 1 )
-			SecondLine = StringUTF8Sub( Text, i )
-
-			break
-		end
-
-		i = i + 1
-	until i >= Length
-
-	return FirstLine, SecondLine
-end
-
---[[
-	Word wraps text, adding new lines where the text exceeds the width limit.
-
-	This time, it shouldn't freeze the game...
-]]
-local function WordWrap( Label, Text, XPos, MaxWidth )
-	local Words = StringExplode( Text, " " )
-	local StartIndex = 1
-	local Lines = {}
-	local i = 1
-
-	--While loop, as the size of the Words table may increase.
-	while i <= #Words do
-		local CurText = TableConcat( Words, " ", StartIndex, i )
-
-		if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-			--This means one word is wider than the whole chatbox, so we need to cut it part way through.
-			if StartIndex == i then
-				local FirstLine, SecondLine = TextWrap( Label, CurText, XPos, MaxWidth )
-
-				Lines[ #Lines + 1 ] = FirstLine
-
-				--Add the second line to the next word, or as a new next word if none exists.
-				if Words[ i + 1 ] then
-					Words[ i + 1 ] = StringFormat( "%s %s", SecondLine, Words[ i + 1 ] )
-				else
-					Words[ i + 1 ] = SecondLine
-				end
-
-				StartIndex = i + 1
-			else
-				Lines[ #Lines + 1 ] = TableConcat( Words, " ", StartIndex, i - 1 )
-
-				--We need to jump back a step, as we've still got another word to check.
-				StartIndex = i
-				i = i - 1
-			end
-		elseif i == #Words then --We're at the end!
-			Lines[ #Lines + 1 ] = CurText
-		end
-
-		i = i + 1
-	end
-
-	Label:SetText( TableConcat( Lines, "\n" ) )
 end
 
 local IntToColour

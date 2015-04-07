@@ -54,7 +54,7 @@ function Panel:SkinColour()
 	self.UseScheme = true
 end
 
-function Panel:AddTitleBar( Title, Font )
+function Panel:AddTitleBar( Title, Font, TextScale )
 	local TitlePanel = SGUI:Create( "Panel", self )
 	TitlePanel:SetSize( Vector( self:GetSize().x, self.TitleBarHeight, 0 ) )
 	if self.UseScheme then
@@ -76,6 +76,9 @@ function Panel:AddTitleBar( Title, Font )
 		local Skin = SGUI:GetSkin()
 
 		TitleLabel:SetColour( Skin.BrightText )
+	end
+	if TextScale then
+		TitleLabel:SetTextScale( TextScale )
 	end
 
 	self.TitleLabel = TitleLabel
