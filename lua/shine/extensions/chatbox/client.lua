@@ -224,7 +224,7 @@ local function VectorMultiply( Vec1, Vec2 )
 end
 
 function Plugin:GetFont()
-	return self.Font--self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small
+	return self.Font
 end
 
 function Plugin:GetTextScale()
