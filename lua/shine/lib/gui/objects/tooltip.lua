@@ -41,7 +41,7 @@ function Tooltip:SetSize( Vec )
 		TextureCoords[ 3 ], TextureCoords[ 4 ] )
 end
 
-function Tooltip:SetText( Text )
+function Tooltip:SetText( Text, Font, Scale )
 	if self.Text then
 		self.Text:SetText( Text )
 
@@ -55,11 +55,17 @@ function Tooltip:SetText( Text )
 	TextObj:SetAnchor( GUIItem.Middle, GUIItem.Top )
 	TextObj:SetTextAlignmentX( GUIItem.Align_Center )
 	TextObj:SetText( Text )
-	TextObj:SetFontName( Fonts.kAgencyFB_Small )
+	TextObj:SetFontName( Font or Fonts.kAgencyFB_Small )
 	TextObj:SetPosition( Padding )
+	if Scale then
+		TextObj:SetScale( Scale )
+	end
 
-	local Width = TextObj:GetTextWidth( Text ) + 32
-	local Height = TextObj:GetTextHeight( Text ) + 16
+	local WidthScale = Scale and Scale.x or 1
+	local HeightScale = Scale and Scale.y or 1
+
+	local Width = TextObj:GetTextWidth( Text ) * WidthScale + 32
+	local Height = TextObj:GetTextHeight( Text ) * HeightScale + 16
 
 	self:SetSize( Vector( Width, Height, 0 ) )
 
@@ -75,7 +81,7 @@ function Tooltip:SetText( Text )
 	end
 
 	self.Text = TextObj
-	
+
 	self.Background:AddChild( TextObj )
 end
 
