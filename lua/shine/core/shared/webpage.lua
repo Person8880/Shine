@@ -25,7 +25,7 @@ local TitleFont = Fonts.kAgencyFB_Small
 
 local SteamButtonPos = Vector( -150, 0, 0 )
 local SteamButtonSize = Vector( 116, 24, 0 )
-local SteamButtonScale = Vector( 0.8, 0.8, 0 )
+local SteamButtonScale = 0.8
 
 local PopupSize = Vector( 400, 176, 0 )
 local PopupPos = Vector( -150, -100, 0 )
@@ -37,17 +37,28 @@ local AlwaysButtonPos = Vector( 5, -37, 0 )
 local PopupTextPos = Vector( 0, -32, 0 )
 
 local PopupText = [[Open this page in the Steam overlay?
-(If you choose always, type "sh_viewwebinsteam 0" 
+(If you choose always, type "sh_viewwebinsteam 0"
 in the console to get this window back)]]
 
-local function OpenInSteamPopup( URL )
+local Max = math.max
+
+local function Scale( Value, WidthMult, HeightMult )
+	return Vector( Value.x * WidthMult, Value.y * HeightMult, 0 )
+end
+
+local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
+	local WidthMult = Max( ScrW / 1920, 1 )
+	local HeightMult = Max( ScrH / 1080, 1 )
+
 	local Window = SGUI:Create( "Panel" )
+	local WindowSize = Scale( PopupSize, WidthMult, HeightMult )
 	Window:SetupFromTable{
-		Size = PopupSize,
+		Size = WindowSize,
 		Anchor = "CentreMiddle",
-		Pos = PopupPos
+		Pos = Scale( PopupPos, WidthMult, HeightMult )
 	}
-	Window:AddTitleBar( "Open in Steam Overlay" )
+	Window.TitleBarHeight = TitleBarH
+	Window:AddTitleBar( "Open in Steam Overlay", Font, TextScale )
 	Window:SkinColour()
 
 	local OldOnMouseDown = Window.OnMouseDown
@@ -64,45 +75,55 @@ local function OpenInSteamPopup( URL )
 	local Text = Window:Add( "Label" )
 	Text:SetupFromTable{
 		Anchor = "CentreMiddle",
-		Pos = PopupTextPos,
-		Text = PopupText,
-		Font = TitleFont,
+		Pos = Scale( PopupTextPos, WidthMult, HeightMult ),
+		Text = PopupText:gsub( "\n", " " ),
+		Font = Font,
 		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
 		TextAlignmentY = GUIItem.Align_Center
 	}
+	if TextScale then
+		Text:SetTextScale( TextScale )
+	end
+	SGUI.WordWrap( Text, Text:GetText(), 0, WindowSize.x * 0.9 )
 
 	local NowButton = Window:Add( "Button" )
 	NowButton:SetupFromTable{
 		Anchor = "BottomMiddle",
-		Pos = NowButtonPos,
-		Size = PopupButtonSize,
+		Pos = Scale( NowButtonPos, WidthMult, HeightMult ),
+		Size = Scale( PopupButtonSize, WidthMult, HeightMult ),
 		IsSchemed = false,
 		Text = "Now",
-		Font = TitleFont,
+		Font = Font,
 		ActiveCol = CloseButtonHighlight,
 		InactiveCol = CloseButtonCol
 	}
+	if TextScale then
+		NowButton:SetTextScale( TextScale )
+	end
 
 	function NowButton:DoClick()
 		Window:Destroy()
 
 		Shine:CloseWebPage()
-	
+
 		Client.ShowWebpage( URL )
 	end
 
 	local AlwaysButton = Window:Add( "Button" )
 	AlwaysButton:SetupFromTable{
 		Anchor = "BottomMiddle",
-		Pos = AlwaysButtonPos,
-		Size = PopupButtonSize,
+		Pos = Scale( AlwaysButtonPos, WidthMult, HeightMult ),
+		Size = Scale( PopupButtonSize, WidthMult, HeightMult ),
 		IsSchemed = false,
 		Text = "Always",
-		Font = TitleFont,
+		Font = Font,
 		ActiveCol = SteamButtonHighlight,
 		InactiveCol = SteamButtonCol
 	}
+	if TextScale then
+		AlwaysButton:SetTextScale( TextScale )
+	end
 
 	function AlwaysButton:DoClick()
 		Window:Destroy()
@@ -124,14 +145,29 @@ function Shine:OpenWebpage( URL, TitleText )
 
 		return
 	end
-	
+
 	self:CloseWebPage()
 
 	local W = Client.GetScreenWidth()
 	local H = Client.GetScreenHeight()
 
+	local WidthMult = Max( W / 1920, 1 )
+	local HeightMult = Max( H / 1080, 1 )
+
+	local TitleBarH = 24
+	local Font = Fonts.kAgencyFB_Small
+	local TextScale
+	if W > 1920 and W <= 2880 then
+		TitleBarH = TitleBarH * 1.5
+		Font = Fonts.kAgencyFB_Medium
+	elseif W > 2880 then
+		TitleBarH = TitleBarH * 2.5
+		Font = Fonts.kAgencyFB_Huge
+		TextScale = Vector( 0.6, 0.6, 0 )
+	end
+
 	local WindowWidth = W * 0.8
-	local WindowHeight = H * 0.8 + 24
+	local WindowHeight = H * 0.8 + TitleBarH
 
 	local Window = SGUI:Create( "Panel" )
 	Window:SetupFromTable{
@@ -139,7 +175,8 @@ function Shine:OpenWebpage( URL, TitleText )
 		Anchor = "CentreMiddle",
 		Pos = Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 )
 	}
-	Window:AddTitleBar( TitleText or "Message of the day" )
+	Window.TitleBarHeight = TitleBarH
+	Window:AddTitleBar( TitleText or "Message of the day", Font, TextScale )
 	Window:SkinColour()
 
 	self.ActiveWebPage = Window
@@ -148,21 +185,23 @@ function Shine:OpenWebpage( URL, TitleText )
 		Shine:CloseWebPage()
 	end
 
+	local OpenInSteamSize = Scale( SteamButtonSize, WidthMult, HeightMult )
+	OpenInSteamSize.y = TitleBarH
 	local OpenInSteam = Window.TitleBar:Add( "Button" )
 	OpenInSteam:SetupFromTable{
 		Anchor = "TopRight",
-		Pos = SteamButtonPos,
-		Size = SteamButtonSize,
+		Pos = Scale( SteamButtonPos, WidthMult, HeightMult ),
+		Size = OpenInSteamSize,
 		IsSchemed = false,
 		Text = "Open in Steam",
-		Font = TitleFont,
-		TextScale = SteamButtonScale,
+		Font = Font,
+		TextScale = SteamButtonScale * ( TextScale or Vector( 1, 1, 0 ) ),
 		ActiveCol = SteamButtonHighlight,
 		InactiveCol = SteamButtonCol
 	}
 
 	function OpenInSteam:DoClick()
-		local Popup = OpenInSteamPopup( URL )
+		local Popup = OpenInSteamPopup( URL, W, H, TitleBarH, Font, TextScale )
 
 		Window:DeleteOnRemove( Popup )
 	end
@@ -178,11 +217,11 @@ function Shine:OpenWebpage( URL, TitleText )
 	}
 
 	local WebpageWidth = WindowWidth - 10
-	local WebpageHeight = WindowHeight - 34
+	local WebpageHeight = WindowHeight - 10 - TitleBarH
 
 	local Webpage = Window:Add( "Webpage" )
 	Webpage:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + 12, 0 ) )
+	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + TitleBarH * 0.5, 0 ) )
 	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
 
 	SGUI:EnableMouse( true )
@@ -199,7 +238,7 @@ end
 
 Hook.Add( "PlayerKeyPress", "WebpageClose", function( Key, Down, Amount )
 	if not SGUI.IsValid( Shine.ActiveWebPage ) then return end
-	
+
 	if Key == InputKey.Escape then
 		Shine:CloseWebPage()
 

@@ -7,9 +7,11 @@ local Shine = Shine
 
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
+local IsType = Shine.IsType
 
 local Ceil = math.ceil
 local Cos = math.cos
+local Max = math.max
 local Pi = math.pi
 
 local VoteMenu = {}
@@ -104,7 +106,42 @@ local ClickFuncs = {
 function VoteMenu:Create()
 	self.TeamType = PlayerUI_GetTeamType()
 
-	local BackSize = GUIScale( MenuSize )
+	local ScreenWidth = Client.GetScreenWidth()
+	local ScreenHeight = Client.GetScreenHeight()
+
+	local WidthMult = Max( ScreenWidth / 1920, 1 )
+	local HeightMult = Max( ScreenHeight / 1080, 1 )
+
+	local function Scale( Value )
+		local Scale
+		if ScreenWidth > 2880 then
+			Scale =  SGUI.TenEightyPScale( Value )
+		else
+			Scale = GUIScale( Value )
+		end
+
+		if IsType( Scale, "number" ) then
+			return Scale * WidthMult
+		end
+
+		Scale.x = Scale.x * WidthMult
+		Scale.y = Scale.y * HeightMult
+
+		return Scale
+	end
+
+	local BackSize = Scale( MenuSize )
+
+	if ScreenWidth <= 1920 then
+		self.Font = FontName
+		self.TextScale = Scale( FontScale )
+	elseif ScreenWidth <= 2880 then
+		self.Font = Fonts.kAgencyFB_Medium
+		self.TextScale = FontScale
+	else
+		self.Font = Fonts.kAgencyFB_Huge
+		self.TextScale = FontScale * 0.6
+	end
 
 	local Background = SGUI:Create( "Panel" )
 	Background:SetAnchor( GUIItem.Middle, GUIItem.Center )
@@ -120,10 +157,9 @@ function VoteMenu:Create()
 
 	self.ButtonIndex = 0
 
-	self.TextScale = GUIScale( 1 ) * FontScale
-	self.ButtonSize = GUIScale( ButtonSize )
-	self.ButtonClipping = GUIScale( ButtonClipping )
-	self.MaxButtonOffset = GUIScale( MaxButtonOffset )
+	self.ButtonSize = Scale( ButtonSize )
+	self.ButtonClipping = Scale( ButtonClipping )
+	self.MaxButtonOffset = Scale( MaxButtonOffset )
 
 	self:SetPage( self.ActivePage or "Main" )
 
@@ -387,7 +423,7 @@ local function AddButton( self, Pos, Anchor, Text, DoClick )
 		Texture = ButtonTexture[ self.TeamType or PlayerUI_GetTeamType() ],
 		HighlightTexture = ButtonHighlightTexture[ self.TeamType or PlayerUI_GetTeamType() ],
 		Text = Text,
-		Font = FontName,
+		Font = self.Font,
 		TextScale = self.TextScale,
 		TextColour = TextCol,
 		DoClick = DoClick,

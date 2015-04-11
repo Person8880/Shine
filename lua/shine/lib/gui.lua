@@ -60,6 +60,94 @@ function SGUI.GetChar( Char )
 	return WideStringToString( Char )
 end
 
+do
+	local StringExplode = string.Explode
+	local StringUTF8Length = string.UTF8Length
+	local StringUTF8Sub = string.UTF8Sub
+	local TableConcat = table.concat
+
+	--[[
+		Wraps text to fit the size limit. Used for long words...
+
+		Returns two strings, first one fits entirely on one line, the other may not, and should be
+		added to the next word.
+	]]
+	local function TextWrap( Label, Text, XPos, MaxWidth )
+		local i = 1
+		local FirstLine = Text
+		local SecondLine = ""
+		local Length = StringUTF8Length( Text )
+
+		--Character by character, extend the text until it exceeds the width limit.
+		repeat
+			local CurText = StringUTF8Sub( Text, 1, i )
+
+			--Once it reaches the limit, we go back a character, and set our first and second line results.
+			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
+				FirstLine = StringUTF8Sub( Text, 1, i - 1 )
+				SecondLine = StringUTF8Sub( Text, i )
+
+				break
+			end
+
+			i = i + 1
+		until i >= Length
+
+		return FirstLine, SecondLine
+	end
+
+	--[[
+		Word wraps text, adding new lines where the text exceeds the width limit.
+
+		This time, it shouldn't freeze the game...
+	]]
+	function SGUI.WordWrap( Label, Text, XPos, MaxWidth )
+		local Words = StringExplode( Text, " " )
+		local StartIndex = 1
+		local Lines = {}
+		local i = 1
+
+		--While loop, as the size of the Words table may increase.
+		while i <= #Words do
+			local CurText = TableConcat( Words, " ", StartIndex, i )
+
+			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
+				--This means one word is wider than the whole chatbox, so we need to cut it part way through.
+				if StartIndex == i then
+					local FirstLine, SecondLine = TextWrap( Label, CurText, XPos, MaxWidth )
+
+					Lines[ #Lines + 1 ] = FirstLine
+
+					--Add the second line to the next word, or as a new next word if none exists.
+					if Words[ i + 1 ] then
+						Words[ i + 1 ] = StringFormat( "%s %s", SecondLine, Words[ i + 1 ] )
+					else
+						Words[ i + 1 ] = SecondLine
+					end
+
+					StartIndex = i + 1
+				else
+					Lines[ #Lines + 1 ] = TableConcat( Words, " ", StartIndex, i - 1 )
+
+					--We need to jump back a step, as we've still got another word to check.
+					StartIndex = i
+					i = i - 1
+				end
+			elseif i == #Words then --We're at the end!
+				Lines[ #Lines + 1 ] = CurText
+			end
+
+			i = i + 1
+		end
+
+		Label:SetText( TableConcat( Lines, "\n" ) )
+	end
+end
+
+function SGUI.TenEightyPScale( Value )
+	return math.scaledown( Value, 1080, 1280 ) * ( 2 - ( 1080 / 1280 ) )
+end
+
 SGUI.SpecialKeyStates = {
 	Ctrl = false,
 	Alt = false,
@@ -1296,7 +1384,24 @@ function ControlMeta:ShowTooltip( X, Y )
 	Y = SelfPos.y + Y
 
 	local Tooltip = SGUI.IsValid( self.Tooltip ) and self.Tooltip or SGUI:Create( "Tooltip" )
-	Tooltip:SetText( self.TooltipText )
+
+	ScrW = ScrW or Client.GetScreenWidth
+	ScrH = ScrH or Client.GetScreenHeight
+
+	local W = ScrW()
+	local Font
+	local TextScale
+
+	if W <= 1366 then
+		Font = Fonts.kAgencyFB_Tiny
+	elseif W > 1920 and W <= 2880 then
+		Font = Fonts.kAgencyFB_Medium
+	elseif W > 2880 then
+		Font = Fonts.kAgencyFB_Huge
+		TextScale = Vector( 0.5, 0.5, 0 )
+	end
+
+	Tooltip:SetText( self.TooltipText, Font, TextScale )
 
 	Y = Y - Tooltip:GetSize().y - 4
 
@@ -1314,6 +1419,40 @@ function ControlMeta:HideTooltip()
 	end )
 end
 
+function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
+	if Highlighted == self.Highlighted then return end
+
+	if Highlighted then
+		self.Highlighted = true
+
+		if not self.TextureHighlight then
+			if SkipAnim then
+				self.Background:SetColor( self.ActiveCol )
+				return
+			end
+
+			self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol,
+				0, 0.1 )
+		else
+			self.Background:SetTexture( self.HighlightTexture )
+		end
+	else
+		self.Highlighted = false
+
+		if not self.TextureHighlight then
+			if SkipAnim then
+				self.Background:SetColor( self.InactiveCol )
+				return
+			end
+
+			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol,
+				0, 0.1 )
+		else
+			self.Background:SetTexture( self.Texture )
+		end
+	end
+end
+
 function ControlMeta:OnMouseMove( Down )
 	--Basic highlight on mouse over handling.
 	if not self.HighlightOnMouseOver then
@@ -1321,30 +1460,10 @@ function ControlMeta:OnMouseMove( Down )
 	end
 
 	if self:MouseIn( self.Background, self.HighlightMult ) then
-		if not self.Highlighted then
-			self.Highlighted = true
-
-			if not self.TextureHighlight then
-				self:FadeTo( self.Background, self.InactiveCol,
-				self.ActiveCol, 0, 0.1, function( Background )
-					Background:SetColor( self.ActiveCol )
-				end )
-			else
-				self.Background:SetTexture( self.HighlightTexture )
-			end
-		end
+		self:SetHighlighted( true )
 	else
 		if self.Highlighted and not self.ForceHighlight then
-			self.Highlighted = false
-
-			if not self.TextureHighlight then
-				self:FadeTo( self.Background, self.ActiveCol,
-				self.InactiveCol, 0, 0.1, function( Background )
-					Background:SetColor( self.InactiveCol )
-				end )
-			else
-				self.Background:SetTexture( self.Texture )
-			end
+			self:SetHighlighted( false )
 		end
 	end
 end

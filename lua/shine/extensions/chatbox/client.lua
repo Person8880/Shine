@@ -9,19 +9,19 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local IsType = Shine.IsType
+local WordWrap = SGUI.WordWrap
 
 local Clamp = math.Clamp
 local Clock = os.clock
 local Floor = math.floor
 local Max = math.max
+local Min = math.min
 local pairs = pairs
 local select = select
-local StringExplode = string.Explode
 local StringFormat = string.format
 local StringGSub = string.gsub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
-local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
 local type = type
@@ -36,7 +36,8 @@ Plugin.DefaultConfig = {
 	DeleteOnClose = true, --Should whatever's entered be deleted if the chatbox is closed before sending?
 	MessageMemory = 50, --How many messages should the chatbox store before removing old ones?
 	SmoothScroll = true, --Should the scrolling be smoothed?
-	Opacity = 0.4 --How opaque should the chatbox be?
+	Opacity = 0.4, --How opaque should the chatbox be?
+	Pos = {} --Remembers the position of the chatbox when it's moved.
 }
 
 Plugin.CheckConfig = true
@@ -222,7 +223,11 @@ local function VectorMultiply( Vec1, Vec2 )
 end
 
 function Plugin:GetFont()
-	return self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small
+	return self.Font
+end
+
+function Plugin:GetTextScale()
+	return self.TextScale
 end
 
 local function UpdateOpacity( self, Opacity )
@@ -266,8 +271,13 @@ function Plugin:CreateChatbox()
 	local ScreenWidth = Client.GetScreenWidth()
 	local ScreenHeight = Client.GetScreenHeight()
 
-	local WidthMult = Clamp( ScreenWidth / 1920, 0.7, 1 )
-	local HeightMult = Clamp( ScreenHeight / 1080, 0.7, 1 )
+	local WidthMult = Max( ScreenWidth / 1920, 0.7 )
+	local HeightMult = Max( ScreenHeight / 1080, 0.7 )
+
+	if ScreenWidth > 2880 then
+		UIScale = SGUI.TenEightyPScale( Vector( 1, 1, 1 ) )
+		ScalarScale = SGUI.TenEightyPScale( 1 )
+	end
 
 	local FourToThreeHeight = ( ScreenWidth / 4 ) * 3
 	--Use a more boxy box for 4:3 monitors.
@@ -278,18 +288,44 @@ function Plugin:CreateChatbox()
 	UIScale.x = UIScale.x * WidthMult
 	UIScale.y = UIScale.y * HeightMult
 
-	self.UseTinyFont = ScreenWidth <= 1366
+	self.TextScale = TextScale * ScalarScale
+	self.MessageTextScale = TextScale
+
+	if ScreenWidth <= 1366 then
+		self.Font = Fonts.kAgencyFB_Tiny
+		self.TextScale = TextScale
+	elseif ScreenWidth <= 1920 then
+		self.Font = Fonts.kAgencyFB_Small
+	elseif ScreenWidth <= 2880 then --1440p probably.
+		self.Font = Fonts.kAgencyFB_Medium
+		self.TextScale = TextScale
+	else --Assumming 4K here. "Large" font is too small, so we need huge at a scale.
+		self.Font = Fonts.kAgencyFB_Huge
+		self.TextScale = TextScale * 0.6
+		self.MessageTextScale = self.TextScale
+	end
 
 	local Opacity = self.Config.Opacity
 	UpdateOpacity( self, Opacity )
 
-	local ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * ScalarScale, 0 )
+	local Pos = self.Config.Pos
+	local ChatBoxPos
+	local PanelSize = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale )
+
+	if not Pos.x or not Pos.y then
+		ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * ScalarScale, 0 )
+	else
+		ChatBoxPos = Vector( Pos.x, Pos.y, 0 )
+	end
+
+	ChatBoxPos.x = Clamp( ChatBoxPos.x, 0, ScreenWidth - PanelSize.x )
+	ChatBoxPos.y = Clamp( ChatBoxPos.y, -ScreenHeight + PanelSize.y, -PanelSize.y )
 
 	--Invisible background.
 	local DummyPanel = SGUI:Create( "Panel" )
 	DummyPanel:SetupFromTable{
 		Anchor = "BottomLeft",
-		Size = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale ),
+		Size = PanelSize,
 		Pos = ChatBoxPos,
 		Colour = Clear,
 		Draggable = true,
@@ -299,6 +335,14 @@ function Plugin:CreateChatbox()
 	--Double click the title bar to return it to the default position.
 	function DummyPanel:ReturnToDefaultPos()
 		self:SetPos( ChatBoxPos )
+	end
+
+	--Update our saved position on drag finish.
+	function DummyPanel.OnDragFinished( Panel, Pos )
+		self.Config.Pos.x = Pos.x
+		self.Config.Pos.y = Pos.y
+
+		self:SaveConfig()
 	end
 
 	--If, for some reason, there's an error in a panel hook, then this is removed.
@@ -364,8 +408,8 @@ function Plugin:CreateChatbox()
 		Colour = LayoutData.Colours.ModeText,
 		IsSchemed = false
 	}
-	if not self.UseTinyFont then
-		ModeText:SetTextScale( ScalarScale * TextScale )
+	if self.TextScale ~= 1 then
+		ModeText:SetTextScale( self.TextScale )
 	end
 
 	self.ModeText = ModeText
@@ -391,9 +435,9 @@ function Plugin:CreateChatbox()
 		Font = Font,
 		IsSchemed = false
 	}
-	if not self.UseTinyFont then
-		TextEntry:SetTextScale( ScalarScale * TextScale )
-	else
+	if self.TextScale ~= 1 then
+		TextEntry:SetTextScale( self.TextScale )
+	elseif Font == Fonts.kAgencyFB_Tiny then
 		--For some reason, the tiny font is always 1 behind where it should be...
 		TextEntry.Padding = 3
 		TextEntry.CaretOffset = -1
@@ -472,8 +516,8 @@ local function CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale, Pos, S
 	}
 	CheckBox:AddLabel( Label )
 
-	if not self.UseTinyFont then
-		CheckBox:SetTextScale( ScalarScale * TextScale )
+	if self.TextScale ~= 1 then
+		CheckBox:SetTextScale( self.TextScale )
 	end
 
 	return CheckBox
@@ -489,8 +533,8 @@ local function CreateLabel( self, SettingsPanel, UIScale, ScalarScale, Pos, Text
 		IsSchemed = false
 	}
 
-	if not self.UseTinyFont then
-		Label:SetTextScale( ScalarScale * TextScale )
+	if self.TextScale ~= 1 then
+		Label:SetTextScale( self.TextScale )
 	end
 
 	return Label
@@ -511,8 +555,8 @@ local function CreateSlider( self, SettingsPanel, UIScale, ScalarScale, Pos, Val
 		Padding = SliderTextPadding * ScalarScale
 	}
 
-	if not self.UseTinyFont then
-		Slider:SetTextScale( ScalarScale * TextScale )
+	if self.TextScale ~= 1 then
+		Slider:SetTextScale( self.TextScale )
 	end
 
 	return Slider
@@ -693,83 +737,6 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	end
 end
 
---[[
-	Wraps text to fit the size limit. Used for long words...
-
-	Returns two strings, first one fits entirely on one line, the other may not, and should be
-	added to the next word.
-]]
-local function TextWrap( Label, Text, XPos, MaxWidth )
-	local i = 1
-	local FirstLine = Text
-	local SecondLine = ""
-	local Length = StringUTF8Length( Text )
-
-	--Character by character, extend the text until it exceeds the width limit.
-	repeat
-		local CurText = StringUTF8Sub( Text, 1, i )
-
-		--Once it reaches the limit, we go back a character, and set our first and second line results.
-		if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-			FirstLine = StringUTF8Sub( Text, 1, i - 1 )
-			SecondLine = StringUTF8Sub( Text, i )
-
-			break
-		end
-
-		i = i + 1
-	until i >= Length
-
-	return FirstLine, SecondLine
-end
-
---[[
-	Word wraps text, adding new lines where the text exceeds the width limit.
-
-	This time, it shouldn't freeze the game...
-]]
-local function WordWrap( Label, Text, XPos, MaxWidth )
-	local Words = StringExplode( Text, " " )
-	local StartIndex = 1
-	local Lines = {}
-	local i = 1
-
-	--While loop, as the size of the Words table may increase.
-	while i <= #Words do
-		local CurText = TableConcat( Words, " ", StartIndex, i )
-
-		if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-			--This means one word is wider than the whole chatbox, so we need to cut it part way through.
-			if StartIndex == i then
-				local FirstLine, SecondLine = TextWrap( Label, CurText, XPos, MaxWidth )
-
-				Lines[ #Lines + 1 ] = FirstLine
-
-				--Add the second line to the next word, or as a new next word if none exists.
-				if Words[ i + 1 ] then
-					Words[ i + 1 ] = StringFormat( "%s %s", SecondLine, Words[ i + 1 ] )
-				else
-					Words[ i + 1 ] = SecondLine
-				end
-
-				StartIndex = i + 1
-			else
-				Lines[ #Lines + 1 ] = TableConcat( Words, " ", StartIndex, i - 1 )
-
-				--We need to jump back a step, as we've still got another word to check.
-				StartIndex = i
-				i = i - 1
-			end
-		elseif i == #Words then --We're at the end!
-			Lines[ #Lines + 1 ] = CurText
-		end
-
-		i = i + 1
-	end
-
-	Label:SetText( TableConcat( Lines, "\n" ) )
-end
-
 local IntToColour
 
 --[[
@@ -849,15 +816,15 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	PreLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	PreLabel:SetFont( self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small )
+	PreLabel:SetFont( self:GetFont() )
 	PreLabel:SetColour( PlayerColour )
-	PreLabel:SetTextScale( TextScale * UIScale )
+	PreLabel:SetTextScale( self.MessageTextScale )
 	PreLabel:SetText( PlayerName )
 	PreLabel:SetPos( PrePos )
 
 	MessageLabel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	MessageLabel:SetFont( self.UseTinyFont and Fonts.kAgencyFB_Tiny or Fonts.kAgencyFB_Small )
-	MessageLabel:SetTextScale( TextScale * UIScale )
+	MessageLabel:SetFont( self:GetFont() )
+	MessageLabel:SetTextScale( self.MessageTextScale )
 	MessageLabel:SetColour( MessageColour )
 	MessageLabel:SetText( MessageName )
 

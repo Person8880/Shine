@@ -749,10 +749,14 @@ function Plugin:AddVote( Client, Map, Revote )
 	if self.Vote.Voted[ Client ] and not Revote then return false, "already voted" end
 
 	local Choice = self:GetVoteChoice( Map )
-	if not Choice then return false, "map is not a valid choice" end
+	if not Choice then return false, StringFormat( "%s is not a valid map choice.", Map ) end
 
 	if Revote then
 		local OldVote = self.Vote.Voted[ Client ]
+		if OldVote == Choice then
+			return false, StringFormat( "You have already voted for %s.", Choice )
+		end
+
 		if OldVote then
 			self.Vote.VoteList[ OldVote ] = self.Vote.VoteList[ OldVote ] - 1
 		end
@@ -1392,9 +1396,13 @@ function Plugin:CreateCommands()
 
 				return
 			end
+
+			NotifyError( Player, Err )
+
+			return
 		end
 
-		NotifyError( Player, "%s is not a valid map choice.", true, Map )
+		NotifyError( Player, Err )
 	end
 	local VoteCommand = self:BindCommand( "sh_vote", "vote", Vote, true )
 	VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for." }

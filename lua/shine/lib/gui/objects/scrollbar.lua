@@ -117,7 +117,7 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
 	local X, Y = GetCursorPos()
-	
+
 	self.Scrolling = true
 
 	self.StartingPos = self.Pos
@@ -128,11 +128,15 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	return true, self
 end
 
+SGUI.AddProperty( Scrollbar, "MouseWheelScroll" )
+
 function Scrollbar:OnMouseWheel( Down )
 	local Parent = self.Parent
 
 	if self:MouseIn( self.Background ) or Parent:MouseIn( Parent.Background ) then
-		self:SetScroll( self.Pos + ( Down and -32 or 32 ) * self.ScrollSize, true )
+		local ScrollMagnitude = self.MouseWheelScroll or 32
+
+		self:SetScroll( self.Pos + ( Down and -ScrollMagnitude or ScrollMagnitude ) * self.ScrollSize, true )
 
 		return true
 	end
@@ -140,7 +144,7 @@ end
 
 function Scrollbar:OnMouseUp( Key )
 	if Key ~= InputKey.MouseButton0 then return end
-	
+
 	self.Scrolling = false
 
 	self.Bar:SetColor( self.InactiveCol )
@@ -151,7 +155,7 @@ end
 function Scrollbar:OnMouseMove( Down )
 	if not Down then return end
 	if not self.Scrolling then return end
-	
+
 	local X, Y = GetCursorPos()
 
 	local Diff = Y - self.StartingY

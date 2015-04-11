@@ -72,7 +72,7 @@ function ListHeader:SetTextScale( Scale )
 	self.TextScale = Scale
 
 	if not self.TextObj then return end
-	
+
 	self.TextObj:SetScale( Scale )
 end
 
@@ -80,7 +80,7 @@ function ListHeader:SetFont( Font )
 	self.Font = Font
 
 	if not self.TextObj then return end
-	
+
 	self.TextObj:SetFontName( Font )
 end
 
@@ -88,7 +88,7 @@ function ListHeader:SetTextColour( Col )
 	self.TextColour = Col
 
 	if not self.TextObj then return end
-	
+
 	self.TextObj:SetColor( Col )
 end
 
@@ -104,14 +104,14 @@ end
 
 function ListHeader:GetIsVisible()
 	if not self.Parent:GetIsVisible() then return false end
-	
+
 	return self.Background:GetIsVisible()
 end
 
 function ListHeader:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self.Highlighted then return end
+	if not self:MouseIn( self.Background, self.HighlightMult ) then return end
 
 	return true, self
 end
@@ -119,7 +119,7 @@ end
 function ListHeader:OnMouseUp( Key )
 	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self.Highlighted then return end
+	if not self:MouseIn( self.Background, self.HighlightMult ) then return end
 
 	self.Parent:SortRows( self.Index )
 	Shared.PlaySound( nil, SGUI.Controls.Button.Sound )
@@ -129,7 +129,7 @@ end
 
 function ListHeader:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
-	
+
 	self.BaseClass.Think( self, DeltaTime )
 end
 

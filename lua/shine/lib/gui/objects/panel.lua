@@ -28,7 +28,7 @@ end
 
 function Panel:OnSchemeChange( Skin )
 	if not self.UseScheme then return end
-	
+
 	self.Background:SetColor( Skin.WindowBackground )
 
 	if SGUI.IsValid( self.TitleBar ) then
@@ -54,7 +54,7 @@ function Panel:SkinColour()
 	self.UseScheme = true
 end
 
-function Panel:AddTitleBar( Title, Font )
+function Panel:AddTitleBar( Title, Font, TextScale )
 	local TitlePanel = SGUI:Create( "Panel", self )
 	TitlePanel:SetSize( Vector( self:GetSize().x, self.TitleBarHeight, 0 ) )
 	if self.UseScheme then
@@ -76,6 +76,9 @@ function Panel:AddTitleBar( Title, Font )
 		local Skin = SGUI:GetSkin()
 
 		TitleLabel:SetColour( Skin.BrightText )
+	end
+	if TextScale then
+		TitleLabel:SetTextScale( TextScale )
 	end
 
 	self.TitleLabel = TitleLabel
@@ -116,7 +119,7 @@ function Panel:SetScrollable()
 	Stencil:SetInheritsParentStencilSettings( false )
 	Stencil:SetClearsStencilBuffer( true )
 
-	Stencil:SetSize( self.Background:GetSize() ) 
+	Stencil:SetSize( self.Background:GetSize() )
 
 	self.Background:AddChild( Stencil )
 
@@ -124,7 +127,7 @@ function Panel:SetScrollable()
 
 	local ScrollParent = Manager:CreateGraphicItem()
 	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
-	ScrollParent:SetColor( ZeroColour ) 
+	ScrollParent:SetColor( ZeroColour )
 
 	self.Background:AddChild( ScrollParent )
 
@@ -154,7 +157,7 @@ function Panel:Add( Class, Created )
 	local OldSetPos = Element.SetPos
 	function Element:SetPos( Pos )
 		OldSetPos( self, Pos )
-		
+
 		if not Pan.ScrollParent then return end
 
 		local OurSize = self:GetSize()
@@ -190,7 +193,7 @@ function Panel:Add( Class, Created )
 
 		local Pos = self:GetPos()
 		local PanSize = Pan:GetSize()
-		
+
 		local AnchorX, AnchorY = self:GetAnchor()
 
 		if AnchorY == GUIItem.Top then
@@ -221,7 +224,7 @@ function Panel:SetSize( Vec )
 	self.BaseClass.SetSize( self, Vec )
 
 	if not self.Stencil then return end
-	
+
 	self.Stencil:SetSize( Vec )
 
 	if SGUI.IsValid( self.Scrollbar ) then
@@ -396,9 +399,9 @@ local Clock = os and os.clock or Shared.GetTime
 
 function Panel:DragClick( Key, DoubleClick )
 	if not self.Draggable then return end
-	
+
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:MouseIn( self.Background, nil, nil, 20 ) then return end
+	if not self:MouseIn( self.Background, nil, nil, self:GetSize().y * 0.05 ) then return end
 
 	if Clock() - LastInput < 0.2 then
 		DoubleClick = true
@@ -415,7 +418,7 @@ function Panel:DragClick( Key, DoubleClick )
 	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
 	local X, Y = GetCursorPos()
-	
+
 	self.Dragging = true
 
 	self.DragStartX = X
@@ -431,13 +434,17 @@ function Panel:DragRelease( Key )
 	if not self.Draggable then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	self.Dragging = false
+
+	if self.OnDragFinished then
+		self:OnDragFinished( self:GetPos() )
+	end
 end
 
 function Panel:DragMove( Down )
 	if not self.Draggable then return end
 	if not Down then return end
 	if not self.Dragging then return end
-	
+
 	local X, Y = GetCursorPos()
 
 	local XDiff = X - self.DragStartX
@@ -460,13 +467,13 @@ function Panel:OnMouseDown( Key, DoubleClick )
 			return true, self.Scrollbar
 		end
 	end
-	
+
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
 	if Result ~= nil then return true, Child end
 
 	if self:DragClick( Key, DoubleClick ) then return true, self end
-	
+
 	if self.IsAWindow or self.BlockOnMouseDown then
 		if self:MouseIn( self.Background ) then return true, self end
 	end
@@ -511,7 +518,7 @@ function Panel:OnMouseWheel( Down )
 
 	if not SGUI.IsValid( self.Scrollbar ) then
 		if self.IsAWindow then return true end
-		
+
 		return
 	end
 

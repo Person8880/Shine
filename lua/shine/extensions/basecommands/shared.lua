@@ -13,6 +13,7 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessage( "RequestPluginData", {}, "Server" )
 	self:AddNetworkMessage( "PluginData", { Name = "string (32)", Enabled = "boolean" }, "Client" )
+	self:AddNetworkMessage( "PluginTabAuthed", {}, "Client" )
 end
 
 function Plugin:NetworkUpdate( Key, Old, New )
@@ -160,9 +161,7 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			end
 
-			if Data and Data.SortedColumn then
-				List:SortRows( Data.SortedColumn, nil, Data.Descending )
-			else
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
 				List:SortRows( 1 )
 			end
 
@@ -197,15 +196,10 @@ function Plugin:SetupAdminMenuCommands()
 		end,
 
 		OnCleanup = function( Panel )
-			local SortColumn = self.MapList.SortedColumn
-			local Descending = self.MapList.Descending
-
+			local MapList = self.MapList
 			self.MapList = nil
 
-			return {
-				SortedColumn = SortColumn,
-				Descending = Descending
-			}
+			return Shine.AdminMenu.GetListState( MapList )
 		end
 	} )
 
@@ -225,28 +219,14 @@ function Plugin:SetupAdminMenuCommands()
 			--We need information about the server side only plugins too.
 			if not self.PluginData then
 				self:RequestPluginData()
+				self.PluginData = {}
 			end
 
-			for Plugin in pairs( Shine.AllPlugins ) do
-				local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
-				local Skip
-				--Server side plugin.
-				if not PluginTable then
-					Enabled = self.PluginData and self.PluginData[ Plugin ]
-				elseif PluginTable.IsClient and not PluginTable.IsShared then
-					Skip = true
-				end
-
-				if not Skip then
-					local Row = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
-
-					self.PluginRows[ Plugin ] = Row
-				end
+			if self.PluginAuthed then
+				self:PopulatePluginList()
 			end
 
-			if Data and Data.SortedColumn then
-				List:SortRows( Data.SortedColumn, nil, Data.Descending )
-			else
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
 				List:SortRows( 1 )
 			end
 
@@ -256,7 +236,7 @@ function Plugin:SetupAdminMenuCommands()
 				local Selected = List:GetSelectedRow()
 				if not Selected then return end
 
-				return Selected:GetColumnText( 1 )
+				return Selected:GetColumnText( 1 ), Selected:GetColumnText( 2 ) == "Enabled"
 			end
 
 			local UnloadPlugin = SGUI:Create( "Button", Panel )
@@ -266,8 +246,9 @@ function Plugin:SetupAdminMenuCommands()
 			UnloadPlugin:SetText( "Unload Plugin" )
 			UnloadPlugin:SetFont( Fonts.kAgencyFB_Small )
 			function UnloadPlugin:DoClick()
-				local Plugin = GetSelectedPlugin()
+				local Plugin, Enabled = GetSelectedPlugin()
 				if not Plugin then return false end
+				if not Enabled then return false end
 
 				local Menu = self:AddMenu()
 
@@ -359,15 +340,13 @@ function Plugin:SetupAdminMenuCommands()
 
 			TableEmpty( self.PluginRows )
 
+			local PluginList = self.PluginList
 			self.PluginList = nil
 
 			Hook.Remove( "OnPluginLoad", "AdminMenu_OnPluginLoad" )
 			Hook.Remove( "OnPluginUnload", "AdminMenu_OnPluginUnload" )
 
-			return {
-				SortedColumn = SortColumn,
-				Descending = Descending
-			}
+			return Shine.AdminMenu.GetListState( PluginList )
 		end
 	} )
 end
@@ -390,6 +369,33 @@ end
 
 function Plugin:RequestPluginData()
 	self:SendNetworkMessage( "RequestPluginData", {}, true )
+end
+
+function Plugin:ReceivePluginTabAuthed()
+	self.PluginAuthed = true
+	self:PopulatePluginList()
+end
+
+function Plugin:PopulatePluginList()
+	local List = self.PluginList
+	if not SGUI.IsValid( List ) then return end
+
+	for Plugin in pairs( Shine.AllPlugins ) do
+		local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
+		local Skip
+		--Server side plugin.
+		if not PluginTable then
+			Enabled = self.PluginData and self.PluginData[ Plugin ]
+		elseif PluginTable.IsClient and not PluginTable.IsShared then
+			Skip = true
+		end
+
+		if not Skip then
+			local Row = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
+
+			self.PluginRows[ Plugin ] = Row
+		end
+	end
 end
 
 function Plugin:ReceivePluginData( Data )

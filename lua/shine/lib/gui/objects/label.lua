@@ -47,8 +47,7 @@ function Label:GetText()
 end
 
 function Label:GetSize()
-	return Vector( self:GetTextWidth() * self.TextScale.x,
-		self:GetTextHeight() * self.TextScale.y, 0 )
+	return Vector( self:GetTextWidth(), self:GetTextHeight(), 0 )
 end
 
 function Label:SetTextAlignmentX( Align )
@@ -66,12 +65,18 @@ function Label:SetTextScale( Scale )
 end
 
 function Label:GetTextWidth( Text )
-	return self.Text:GetTextWidth( Text or self.Text:GetText() )
+	local Scale = self.TextScale
+	Scale = Scale and Scale.x or 1
+
+	return self.Text:GetTextWidth( Text or self.Text:GetText() ) * Scale
 end
 
 function Label:GetTextHeight( Text )
+	local Scale = self.TextScale
+	Scale = Scale and Scale.y or 1
+
 	if Text then
-		return self.Text:GetTextHeight( Text )
+		return self.Text:GetTextHeight( Text ) * Scale
 	end
 
 	local Lines = 1
@@ -81,7 +86,7 @@ function Label:GetTextHeight( Text )
 		Lines = Lines + 1
 	end
 
-	return self.Text:GetTextHeight( "!" ) * Lines
+	return self.Text:GetTextHeight( "!" ) * Lines * Scale
 end
 
 function Label:SetFont( Name )

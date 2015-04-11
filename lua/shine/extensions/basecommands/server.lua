@@ -1254,7 +1254,12 @@ function Plugin:ReceiveRequestMapData( Client, Data )
 end
 
 function Plugin:ReceiveRequestPluginData( Client, Data )
-	if not Shine:GetPermission( Client, "sh_loadplugin" ) then return end
+	if not Shine:GetPermission( Client, "sh_loadplugin" )
+	and not Shine:GetPermission( Client, "sh_unloadplugin" ) then
+		return
+	end
+
+	self:SendNetworkMessage( Client, "PluginTabAuthed", {}, true )
 
 	self.PluginClients = self.PluginClients or {}
 

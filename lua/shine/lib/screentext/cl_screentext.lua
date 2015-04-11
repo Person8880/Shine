@@ -2,29 +2,53 @@
 	Shine screen text rendering client side file.
 ]]
 
+local IsType = Shine.IsType
 local StringFormat = string.format
 
 local Messages = Shine.Map()
 Shine.TextMessages = Messages
 
-local Font = {
+local StandardFonts = {
 	Fonts.kAgencyFB_Small,
 	Fonts.kAgencyFB_Medium,
 	Fonts.kAgencyFB_Large
+}
+local HighResFonts = {
+	Fonts.kAgencyFB_Medium,
+	Fonts.kAgencyFB_Large,
+	{ Fonts.kAgencyFB_Huge, 0.6 }
+}
+local FourKFonts = {
+	{ Fonts.kAgencyFB_Huge, 0.6 },
+	{ Fonts.kAgencyFB_Huge, 0.8 },
+	Fonts.kAgencyFB_Huge
 }
 
 function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size, FadeIn, IgnoreFormat )
 	FadeIn = FadeIn or 0.5
 	Size = Size or 1
 
-	local UseFont = Font[ Size ] or Fonts.kAgencyFB_Small
+	local ScrW = Client.GetScreenWidth()
+	local ScrH = Client.GetScreenHeight()
+	local Font = StandardFonts[ Size ]
+
+	if ScrW > 1920 and ScrW <= 2880 then
+		Font = HighResFonts[ Size ]
+	elseif ScrW > 2880 then
+		Font = FourKFonts[ Size ]
+	end
 
 	local ShouldFade = FadeIn > 0.05
 
 	local Time = Shared.GetTime()
 
-	local Scale = GUIScale( 1 )
-	local ScaleVec = Vector( 1, 1, 1 ) * Scale
+	local ScaleVec
+	if IsType( Font, "table" ) then
+		ScaleVec = Vector( Font[ 2 ], Font[ 2 ], 0 )
+		Font = Font[ 1 ]
+	else
+		ScaleVec = ScrW <= 1920 and GUIScale( Vector( 1, 1, 1 ) ) or Vector( 1, 1, 1 )
+	end
 
 	local TextObj = Messages:Get( ID )
 
@@ -48,9 +72,9 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		Obj:SetText( IgnoreFormat and Text or StringFormat( Text,
 			string.TimeToString( Duration ) ) )
 		Obj:SetScale( ScaleVec )
-		Obj:SetPosition( Vector( Client.GetScreenWidth() * x, Client.GetScreenHeight() * y, 0 ) )
+		Obj:SetPosition( Vector( ScrW * x, ScrH * y, 0 ) )
 		Obj:SetColor( TextObj.Colour )
-		Obj:SetFontName( UseFont )
+		Obj:SetFontName( Font )
 
 		function TextObj:UpdateText()
 			if IgnoreFormat then
@@ -92,12 +116,12 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 
 	Obj:SetOptionFlag( GUIItem.ManageRender )
 
-	Obj:SetPosition( Vector( Client.GetScreenWidth() * x, Client.GetScreenHeight() * y, 0 ) )
+	Obj:SetPosition( Vector( ScrW * x, ScrH * y, 0 ) )
 
 	Obj:SetTextAlignmentX( Alignment )
 	Obj:SetTextAlignmentY( GUIItem.Align_Center )
 
-	Obj:SetFontName( UseFont )
+	Obj:SetFontName( Font )
 
 	Obj:SetIsVisible( true )
 
