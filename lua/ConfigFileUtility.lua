@@ -59,7 +59,7 @@ function CheckConfig(config, defaultConfig, dontRemove)
                 config[option] = value
                 updated = true
             end
-            if type( config[option] ) == "table" then
+            if type( config[option] ) == "table" and type( defaultConfig[ option ] ) == "table" then
                 addkeys( config[option] , defaultConfig[option])
             end
         end
@@ -76,7 +76,7 @@ function CheckConfig(config, defaultConfig, dontRemove)
                 config[option] = nil
                 updated = true
             end
-            if type( defaultConfig[option] ) == "table" then
+            if type( defaultConfig[option] ) == "table" and type( config[ option ] ) == "table" then
                 removekeys( config[option] , defaultConfig[option])
             end
         end
