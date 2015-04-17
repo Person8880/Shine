@@ -502,8 +502,7 @@ function Plugin:CreateCommands()
 			self.NextReady[ Team ] = Time + 5
 			self:ReadyTeam( Team )
 		else
-			Shine:NotifyCommandError( Client,
-				"Your team is already ready! Use !unready to unready your team." )
+			Unready( Client )
 		end
 	end
 	local ReadyCommand = self:BindCommand( "sh_ready", { "rdy", "ready" }, ReadyUp, true )
