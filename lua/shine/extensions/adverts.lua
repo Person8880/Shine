@@ -14,7 +14,7 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "Adverts.json"
 
 Plugin.DefaultConfig = {
-	Adverts = { 
+	Adverts = {
 		{
 			Message = "Welcome to Natural Selection 2.",
 			Type = "chat",
@@ -84,8 +84,14 @@ function Plugin:ParseAdvert( ID, Advert )
 				X, Y = 0.5, 0.8
 			end
 
-			Shine:SendText( nil, Shine.BuildScreenMessage( 20, X, Y, Message,
-				7, R, G, B, Align, 2, 1 ) )
+			Shine.ScreenText.Add( 20, {
+				X = X, Y = Y,
+				Text = Message,
+				Duration = 7,
+				R = R, G = G, B = B,
+				Alignment = Align,
+				Size = 2, FadeIn = 1
+			} )
 		end
 	end
 end

@@ -313,13 +313,27 @@ function Plugin:CheckStart()
 
 		local GameStartTime = string.TimeToString( CountdownTime )
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-			"Game starts in "..GameStartTime, 5, 255, 255, 255, 1, 3, 1 ) )
+		Shine.ScreenText.Add( 2, {
+			X = 0.5, Y = 0.7,
+			Text = "Game starts in "..GameStartTime,
+			Duration = 5,
+			R = 255, G = 255, B = 255,
+			Alignment = 1,
+			Size = 3,
+			FadeIn = 1
+		} )
 
 		--Game starts in 5 seconds!
 		self:CreateTimer( self.FiveSecondTimer, CountdownTime - 5, 1, function()
-			Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-				"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+			Shine.ScreenText.Add( 2, {
+				X = 0.5, Y = 0.7,
+				Text = "Game starts in %s",
+				Duration = 5,
+				R = 255, G = 0, B = 0,
+				Alignment = 1,
+				Size = 3,
+				FadeIn = 1
+			} )
 		end )
 
 		--If we get this far, then we can start.
@@ -336,7 +350,7 @@ function Plugin:CheckStart()
 		self:DestroyTimer( self.CountdownTimer )
 
 		--Remove the countdown text.
-		Shine:RemoveText( nil, { ID = 2 } )
+		Shine.ScreenText.End( 2 )
 
 		self:Notify( false, nil, "Game start aborted." )
 	end

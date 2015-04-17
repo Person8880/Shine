@@ -152,7 +152,7 @@ function Plugin:ReceiveEndVote( Data )
 
 	TableEmpty( self.MapVoteCounts )
 	TableEmpty( self.MapButtons )
-	Shine:EndMessage( 1 )
+	Shine.ScreenText.End( 1 )
 end
 
 local ButtonBoundMessage =
@@ -209,8 +209,16 @@ function Plugin:ReceiveVoteOptions( Message )
 	end
 
 	if NextMap and ShowTimeLeft then
-		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2,
-			VoteMessage, Duration, 255, 0, 0, 2, nil, nil, true )
+		local ScreenText = Shine.ScreenText.Add( 1, {
+			X = 0.95, Y = 0.2,
+			Text = VoteMessage,
+			Duration = Duration,
+			R = 255, G = 0, B = 0,
+			Alignment = 2,
+			Size = 1,
+			FadeIn = 0.5,
+			IgnoreFormat = true
+		} )
 
 		ScreenText.TimeLeft = TimeLeft
 
@@ -255,8 +263,15 @@ function Plugin:ReceiveVoteOptions( Message )
 			end
 		end
 	else
-		local ScreenText = Shine:AddMessageToQueue( 1, 0.95, 0.2,
-			VoteMessage, Duration, 255, 0, 0, 2 )
+		local ScreenText = Shine.ScreenText.Add( 1, {
+			X = 0.95, Y = 0.2,
+			Text = VoteMessage,
+			Duration = Duration,
+			R = 255, G = 0, B = 0,
+			Alignment = 2,
+			Size = 1,
+			FadeIn = 0.5
+		} )
 
 		ScreenText.Obj:SetText( StringFormat( ScreenText.Text,
 			string.TimeToString( ScreenText.Duration ) ) )

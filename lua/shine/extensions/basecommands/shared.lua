@@ -400,7 +400,6 @@ end
 
 function Plugin:ReceivePluginData( Data )
 	self.PluginData = self.PluginData or {}
-
 	self.PluginData[ Data.Name ] = Data.Enabled
 
 	local Row = self.PluginRows[ Data.Name ]
@@ -430,8 +429,15 @@ function Plugin:UpdateAllTalk( State )
 		local GB = State > NOT_STARTED and 0 or 255
 
 		--A bit of a hack, but the whole screen text stuff is in dire need of a replacement...
-		self.TextObj = Shine:AddMessageToQueue( -1, 0.5, 0.95,
-			StringFormat( "All talk is %s", Enabled ), -2, 255, GB, GB, 1, 2, 1, true )
+		self.TextObj = Shine.ScreenText.Add( -1, {
+			X = 0.5, Y = 0.95,
+			Text = StringFormat( "All talk is %s", Enabled ),
+			R = 255, G = GB, B = GB,
+			Alignment = 1,
+			Size = 2,
+			FadeIn = 1,
+			IgnoreFormat = true
+		} )
 
 		return
 	end
@@ -440,16 +446,13 @@ function Plugin:UpdateAllTalk( State )
 
 	local Col = State > NOT_STARTED and Color( 255, 0, 0 ) or Color( 255, 255, 255 )
 
-	self.TextObj.Colour = Col
-	self.TextObj.Obj:SetColor( Col )
+	self.TextObj:SetColour( Col )
 end
 
 function Plugin:RemoveAllTalkText()
 	if not self.TextObj then return end
 
-	self.TextObj.LastUpdate = Shared.GetTime() - 1
-	self.TextObj.Duration = 1
-
+	self.TextObj:End()
 	self.TextObj = nil
 end
 

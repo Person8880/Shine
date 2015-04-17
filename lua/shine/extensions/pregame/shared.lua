@@ -29,12 +29,12 @@ local SharedTime = Shared.GetTime
 
 function Plugin:RemoveText()
 	if self.TextObj then
-		Shine:RemoveMessage( self.TextObj.Index )
+		self.TextObj:Remove()
 		self.TextObj = nil
 	end
 
 	if self.TimeObj then
-		Shine:RemoveMessage( self.TimeObj.Index )
+		self.TimeObj:Remove()
 		self.TimeObj = nil
 	end
 end
@@ -45,14 +45,26 @@ function Plugin:ReceiveStartDelay( Data )
 
 	if Time < StartTime then
 		local Duration = Round( StartTime - Time )
-		local TextObj = Shine:AddMessageToQueue( "PreGameStartDelay1", 0.5, 0.1,
-			"Game start waiting for players to load.", Duration, 255, 255, 255,
-			1, 1, 1, true )
-		local TimeObj = Shine:AddMessageToQueue( "PreGameStartDelay2", 0.5, 0.126,
-			"%s", Duration, 255, 255, 255, 1, 1, 1 )
 
-		self.TextObj = TextObj
-		self.TimeObj = TimeObj
+		self.TextObj = Shine.ScreenText.Add( "PreGameStartDelay1", {
+			X = 0.5, Y = 0.1,
+			Text = "Game start waiting for players to load.",
+			Duration = Duration,
+			R = 255, G = 255, B = 255,
+			Alignment = 1,
+			Size = 1,
+			FadeIn = 1,
+			IgnoreFormat = true
+		} )
+		self.TimeObj = Shine.ScreenText.Add( "PreGameStartDelay2", {
+			X = 0.5, Y = 0.126,
+			Text = "%s",
+			Duration = Duration,
+			R = 255, G = 255, B = 255,
+			Alignment = 1,
+			Size = 1,
+			FadeIn = 1
+		} )
 
 		self.TimeObj.Digital = true
 		self.TimeObj.Obj:SetText( DigitalTime( Duration ) )

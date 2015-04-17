@@ -95,8 +95,15 @@ function Plugin:ClientConfirmConnect( Client )
 
 	if TimeLeft <= 0 or TimeLeft > 5 then return end
 
-	Shine:SendText( Client, Shine.BuildScreenMessage( 2, 0.5, 0.7, "Game starts in %s",
-		TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+	Shine.ScreenText.Add( 2, {
+		X = 0.5, Y = 0.7,
+		Text = "Game starts in %s",
+		Duration = TimeLeft,
+		R = 255, G = 0, B = 0,
+		Alignment = 1,
+		Size = 3,
+		FadeIn = 0
+	}, Client )
 end
 
 function Plugin:CheckPlayerCanAttack()
@@ -143,20 +150,33 @@ function Plugin:AbortGameStart( Gamerules, Message, Format, ... )
 
 	self:Notify( nil, Message, Format, ... )
 
-	Shine:RemoveText( nil, { ID = 2 } )
+	Shine.ScreenText.End( 2 )
 end
 
 function Plugin:ShowGameStart( TimeTillStart, Red )
 	if self.Config.ShowCountdown then
-		Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-			"Game starts in "..string.TimeToString( TimeTillStart ), 5,
-			255, 255, 255, 1, 3, 1 ) )
+		Shine.ScreenText.Add( 2, {
+			X = 0.5, Y = 0.7,
+			Text = "Game starts in "..string.TimeToString( TimeTillStart ),
+			Duration = 5,
+			R = 255, G = 255, B = 255,
+			Alignment = 1,
+			Size = 3,
+			FadeIn = 1
+		} )
 	end
 end
 
 function Plugin:ShowCountdown()
-	Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-		"Game starts in %s", 5, 255, 0, 0, 1, 3, 0 ) )
+	Shine.ScreenText.Add( 2, {
+		X = 0.5, Y = 0.7,
+		Text = "Game starts in %s",
+		Duration = 5,
+		R = 255, G = 0, B = 0,
+		Alignment = 1,
+		Size = 3,
+		FadeIn = 0
+	} )
 end
 
 function Plugin:SendStartNag( Message )
@@ -217,8 +237,15 @@ Plugin.UpdateFuncs = {
 
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
-				Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-					"Game starts in %s", TimeLeft, 255, 0, 0, 1, 3, 0 ) )
+				Shine.ScreenText.Add( 2, {
+					X = 0.5, Y = 0.7,
+					Text = "Game starts in %s",
+					Duration = TimeLeft,
+					R = 255, G = 0, B = 0,
+					Alignment = 1,
+					Size = 3,
+					FadeIn = 0
+				} )
 				self.SentCountdown = true
 			end
 		end
@@ -375,8 +402,15 @@ Plugin.UpdateFuncs = {
 						Team1Com and Team2Name or Team1Name,
 						string.TimeToString( Duration ) )
 
-					Shine:SendText( nil, Shine.BuildScreenMessage( 2, 0.5, 0.7,
-						Message, 5, 255, 255, 255, 1, 3, 1 ) )
+					Shine.ScreenText.Add( 2, {
+						X = 0.5, Y = 0.7,
+						Text = Message,
+						Duration = 5,
+						R = 255, G = 255, B = 255,
+						Alignment = 1,
+						Size = 3,
+						FadeIn = 1
+					} )
 				end
 			end
 		else

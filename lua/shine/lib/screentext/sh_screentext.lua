@@ -2,47 +2,39 @@
 	Screen text rendering shared file.
 ]]
 
-local NWMessage = {
-	r = "integer (0 to 255)",
-	g = "integer (0 to 255)",
-	b = "integer (0 to 255)",
-	Message = "string (255)",
-	x = "float (0 to 1 by 0.05)",
-	y = "float (0 to 1 by 0.05)",
-	Duration = "integer (0 to 1800)",
-	ID = "integer (0 to 100)",
-	Align = "integer (0 to 2)",
-	Size = "integer (1 to 3)",
-	FadeIn = "float (0 to 2 by 0.05)"
-}
+Shine.ScreenText = {}
 
-function Shine.BuildScreenMessage( ID, x, y, Message, Duration, r, g, b, Align, Size, FadeIn )
+--DEPRECATED! Please use Shine.ScreenText.Add( ID, Params[, Player] )
+function Shine.BuildScreenMessage( ID, X, Y, Text, Duration, R, G, B, Alignment, Size, FadeIn )
 	return {
 		ID = ID,
-		r = r,
-		g = g,
-		b = b,
-		x = x,
-		y = y,
-		Message = Message,
+		R = R, G = G, B = B,
+		X = X, Y = Y,
+		Text = Text,
 		Duration = Duration,
-		Align = Align,
+		Alignment = Alignment,
 		Size = Size,
 		FadeIn = FadeIn
 	}
 end
 
-Shared.RegisterNetworkMessage( "Shine_ScreenText", NWMessage )
-
-local UpdateMessage = {
+Shared.RegisterNetworkMessage( "Shine_ScreenText", {
+	R = "integer (0 to 255)",
+	G = "integer (0 to 255)",
+	B = "integer (0 to 255)",
+	Text = "string (255)",
+	X = "float (0 to 1 by 0.05)",
+	Y = "float (0 to 1 by 0.05)",
+	Duration = "integer (0 to 1800)",
 	ID = "integer (0 to 100)",
-	Message = "string (255)"
-}
-
-Shared.RegisterNetworkMessage( "Shine_ScreenTextUpdate", UpdateMessage )
-
-local RemoveMessage = {
+	Alignment = "integer (0 to 2)",
+	Size = "integer (1 to 3)",
+	FadeIn = "float (0 to 2 by 0.05)"
+} )
+Shared.RegisterNetworkMessage( "Shine_ScreenTextUpdate", {
+	ID = "integer (0 to 100)",
+	Text = "string (255)"
+} )
+Shared.RegisterNetworkMessage( "Shine_ScreenTextRemove", {
 	ID = "integer (0 to 100)"
-}
-
-Shared.RegisterNetworkMessage( "Shine_ScreenTextRemove", RemoveMessage )
+} )
