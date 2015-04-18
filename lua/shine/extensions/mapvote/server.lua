@@ -788,13 +788,11 @@ function Plugin:AddVote( Client, Map, Revote )
 	return true, Choice
 end
 
-local BlankTable = {}
-
 --[[
 	Tells the given player or everyone that the vote is over.
 ]]
 function Plugin:EndVote( Player )
-	self:SendNetworkMessage( Player, "EndVote", BlankTable, true )
+	self:SendNetworkMessage( Player, "EndVote", {}, true )
 end
 
 function Plugin:ExtendMap( Time, NextMap )
@@ -1570,6 +1568,4 @@ function Plugin:Cleanup()
 	end
 
 	self.BaseClass.Cleanup( self )
-
-	self.Enabled = false
 end

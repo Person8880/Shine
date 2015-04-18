@@ -428,8 +428,7 @@ function Plugin:UpdateAllTalk( State )
 	if not self.TextObj then
 		local GB = State > NOT_STARTED and 0 or 255
 
-		--A bit of a hack, but the whole screen text stuff is in dire need of a replacement...
-		self.TextObj = Shine.ScreenText.Add( -1, {
+		self.TextObj = Shine.ScreenText.Add( "AllTalkState", {
 			X = 0.5, Y = 0.95,
 			Text = StringFormat( "All talk is %s", Enabled ),
 			R = 255, G = GB, B = GB,

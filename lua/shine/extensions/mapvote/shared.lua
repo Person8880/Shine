@@ -48,12 +48,6 @@ Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
 Plugin.EndTime = 0
 
-function Plugin:Initialise()
-	self.Enabled = true
-
-	return true
-end
-
 function Plugin:OnVoteMenuOpen()
 	local Time = SharedTime()
 
@@ -152,7 +146,7 @@ function Plugin:ReceiveEndVote( Data )
 
 	TableEmpty( self.MapVoteCounts )
 	TableEmpty( self.MapButtons )
-	Shine.ScreenText.End( 1 )
+	Shine.ScreenText.End( "MapVote" )
 end
 
 local ButtonBoundMessage =
@@ -209,7 +203,7 @@ function Plugin:ReceiveVoteOptions( Message )
 	end
 
 	if NextMap and ShowTimeLeft then
-		local ScreenText = Shine.ScreenText.Add( 1, {
+		local ScreenText = Shine.ScreenText.Add( "MapVote", {
 			X = 0.95, Y = 0.2,
 			Text = VoteMessage,
 			Duration = Duration,
@@ -263,7 +257,7 @@ function Plugin:ReceiveVoteOptions( Message )
 			end
 		end
 	else
-		local ScreenText = Shine.ScreenText.Add( 1, {
+		local ScreenText = Shine.ScreenText.Add( "MapVote", {
 			X = 0.95, Y = 0.2,
 			Text = VoteMessage,
 			Duration = Duration,
