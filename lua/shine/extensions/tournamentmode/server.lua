@@ -332,7 +332,7 @@ function Plugin:CheckStart()
 				R = 255, G = 0, B = 0,
 				Alignment = 1,
 				Size = 3,
-				FadeIn = 1
+				FadeIn = 0
 			} )
 		end )
 
