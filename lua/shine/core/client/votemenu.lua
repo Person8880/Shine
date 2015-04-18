@@ -15,7 +15,7 @@ Shine.ActivePlugins = ActivePlugins
 
 local WaitingForData = false
 
-Client.HookNetworkMessage( "Shine_PluginData", function( Message ) 
+Client.HookNetworkMessage( "Shine_PluginData", function( Message )
 	if #ActivePlugins > 0 then
 		for i = 1, #ActivePlugins do
 			ActivePlugins[ i ] = nil
@@ -43,11 +43,11 @@ end )
 function Shine.CheckVoteMenuBind()
 	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
 
-	if not CustomBinds then 
+	if not CustomBinds then
 		Shine.VoteButtonBound = nil
 		Shine.VoteButton = nil
 
-		return 
+		return
 	end
 
 	local BindsFile = CustomBinds:read( "*all" )
@@ -89,26 +89,29 @@ function Shine.OpenVoteMenu()
 	Shine.Hook.Call( "OnVoteMenuOpen" )
 end
 
-local NextPress = 0
-Event.Hook( "Console_sh_votemenu", function()
-	if #ActivePlugins == 0 then --Request addon list if our table is empty.
-		if not WaitingForData then
-			Shine.SendNetworkMessage( "Shine_RequestPluginData", {}, true )
+do
+	local NextPress = 0
 
-			WaitingForData = true
+	Shine:RegisterClientCommand( "sh_votemenu", function()
+		if #ActivePlugins == 0 then --Request addon list if our table is empty.
+			if not WaitingForData then
+				Shine.SendNetworkMessage( "Shine_RequestPluginData", {}, true )
+
+				WaitingForData = true
+			end
+
+			return
 		end
 
-		return 
-	end
+		local Time = Clock()
 
-	local Time = Clock()
+		if Time >= NextPress or not Shine.VoteMenu.Visible then
+			Shine.OpenVoteMenu()
+		end
 
-	if Time >= NextPress or not Shine.VoteMenu.Visible then
-		Shine.OpenVoteMenu()
-	end
-
-	NextPress = Time + 0.3
-end )
+		NextPress = Time + 0.3
+	end )
+end
 
 local function CanBind( MenuBinds, Binds, Button )
 	for i = 1, #MenuBinds do --Main menu binds.
