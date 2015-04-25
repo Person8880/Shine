@@ -456,8 +456,13 @@ function PluginMeta:CanRunAction( Action, Time, Delay )
 	return true
 end
 
+local ReservedKeys = {
+	Enabled = true,
+	Suspended = true
+}
 --Support plugins inheriting from other plugins.
 function PluginMeta:__index( Key )
+	if ReservedKeys[ Key ] then return nil end
 	if PluginMeta[ Key ] then return PluginMeta[ Key ] end
 
 	local Inherit = rawget( self, "__Inherit" )
