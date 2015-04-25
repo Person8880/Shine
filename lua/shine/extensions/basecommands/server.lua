@@ -1059,8 +1059,15 @@ function Plugin:CreateCommands()
 			Colour = Colours.white
 		end
 
-		Shine:SendText( nil, Shine.BuildScreenMessage( 3, 0.5, 0.25, Message, 6,
-			Colour[ 1 ], Colour[ 2 ], Colour[ 3 ], 1, 2, 1 ) )
+		Shine.ScreenText.Add( 3, {
+			X = 0.5, Y = 0.25,
+			Text = Message,
+			Duration = 6,
+			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
+			Alignment = 1,
+			Size = 2,
+			FadeIn = 1
+		} )
 		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
 	end
 	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )

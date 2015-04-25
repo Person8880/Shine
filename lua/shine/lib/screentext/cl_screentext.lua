@@ -2,8 +2,11 @@
 	Shine screen text rendering client side file.
 ]]
 
+local DigitalTime = string.DigitalTime
 local IsType = Shine.IsType
+local SharedTime = Shared.GetTime
 local StringFormat = string.format
+local TimeToString = string.TimeToString
 
 local Messages = Shine.Map()
 Shine.TextMessages = Messages
@@ -24,9 +27,59 @@ local FourKFonts = {
 	Fonts.kAgencyFB_Huge
 }
 
-function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, Size, FadeIn, IgnoreFormat )
-	FadeIn = FadeIn or 0.5
-	Size = Size or 1
+local ScreenText = {}
+ScreenText.__index = ScreenText
+
+function ScreenText:UpdateText()
+	if self.IgnoreFormat then
+		self.Obj:SetText( self.Text )
+		return
+	end
+
+	local TimeConverter = self.Digital and DigitalTime or TimeToString
+	self.Obj:SetText( StringFormat( self.Text, TimeConverter( self.Duration ) ) )
+end
+
+function ScreenText:End()
+	self.LastUpdate = SharedTime() - 1
+	self.Duration = 1
+end
+
+function ScreenText:Remove()
+	Shine.ScreenText.Remove( self.Index )
+end
+
+function ScreenText:IsValid()
+	return Messages:Get( self.Index ) ~= nil
+end
+
+function ScreenText:SetColour( Col )
+	self.Colour = Col
+	self.Obj:SetColor( Col )
+end
+
+function ScreenText:SetText( Text )
+	self.Text = Text
+	self.Obj:SetText( Text )
+end
+
+--[[
+	Adds or updates a text label with the given ID and parameters.
+]]
+function Shine.ScreenText.Add( ID, Params )
+	local X = Params.X
+	local Y = Params.Y
+	local Text = Params.Text
+	local Duration = Params.Duration
+	local R, G, B = Params.R, Params.G, Params.B
+	local Alignment = Params.Alignment
+	local FadeIn = Params.FadeIn or 0.5
+	local Size = Params.Size or 1
+	local IgnoreFormat = Params.IgnoreFormat
+
+	if not Duration then
+		IgnoreFormat = true
+	end
 
 	local ScrW = Client.GetScreenWidth()
 	local ScrH = Client.GetScreenHeight()
@@ -50,7 +103,8 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		ScaleVec = ScrW <= 1920 and GUIScale( Vector( 1, 1, 1 ) ) or Vector( 1, 1, 1 )
 	end
 
-	local TextObj = Messages:Get( ID )
+	local MessageTable = Messages:Get( ID )
+	local GUIObj
 
 	if Alignment == 0 then
 		Alignment = GUIItem.Align_Min
@@ -60,77 +114,37 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 		Alignment = GUIItem.Align_Max
 	end
 
-	if TextObj then
-		TextObj.Text = Text
-		TextObj.Colour = Color( r / 255, g / 255, b / 255, ShouldFade and 0 or 1 )
-		TextObj.Duration = Duration
-		TextObj.x = x
-		TextObj.y = y
+	if not MessageTable then
+		MessageTable = setmetatable( {
+			Index = ID
+		}, ScreenText )
 
-		local Obj = TextObj.Obj
+		Messages:Add( ID, MessageTable )
 
-		Obj:SetText( IgnoreFormat and Text or StringFormat( Text,
-			string.TimeToString( Duration ) ) )
-		Obj:SetScale( ScaleVec )
-		Obj:SetPosition( Vector( ScrW * x, ScrH * y, 0 ) )
-		Obj:SetColor( TextObj.Colour )
-		Obj:SetFontName( Font )
+		GUIObj = GUI.CreateItem()
+		GUIObj:SetOptionFlag( GUIItem.ManageRender )
+		GUIObj:SetTextAlignmentY( GUIItem.Align_Center )
+		GUIObj:SetIsVisible( true )
 
-		function TextObj:UpdateText()
-			if IgnoreFormat then
-				self.Obj:SetText( self.Text )
-			else
-				if self.Digital then
-					self.Obj:SetText( StringFormat( self.Text,
-						string.DigitalTime( self.Duration ) ) )
-				else
-					self.Obj:SetText( StringFormat( self.Text,
-						string.TimeToString( self.Duration ) ) )
-				end
-			end
-		end
-
-		if ShouldFade then
-			TextObj.Fading = true
-			TextObj.FadedIn = true
-			TextObj.FadingIn = true
-			TextObj.FadeElapsed = 0
-			TextObj.FadeDuration = FadeIn
-		end
-
-		TextObj.LastUpdate = Time
-
-		return TextObj
+		MessageTable.Obj = GUIObj
+	else
+		GUIObj = MessageTable.Obj
 	end
 
-	local MessageTable = {
-		Index = ID,
-		Colour = Color( r / 255, g / 255, b / 255, ShouldFade and 0 or 1 ),
-		Text = Text,
-		Duration = Duration,
-		x = x,
-		y = y
-	}
+	MessageTable.Text = Text
+	MessageTable.Colour = Color( R / 255, G / 255, B / 255, ShouldFade and 0 or 1 )
+	MessageTable.Duration = Duration
+	MessageTable.x = X
+	MessageTable.y = Y
+	MessageTable.IgnoreFormat = IgnoreFormat
 
-	local Obj = GUI.CreateItem()
-
-	Obj:SetOptionFlag( GUIItem.ManageRender )
-
-	Obj:SetPosition( Vector( ScrW * x, ScrH * y, 0 ) )
-
-	Obj:SetTextAlignmentX( Alignment )
-	Obj:SetTextAlignmentY( GUIItem.Align_Center )
-
-	Obj:SetFontName( Font )
-
-	Obj:SetIsVisible( true )
-
-	Obj:SetText( IgnoreFormat and Text or StringFormat( Text,
-		string.TimeToString( Duration ) ) )
-	Obj:SetColor( MessageTable.Colour )
-	Obj:SetScale( ScaleVec )
-
-	MessageTable.Obj = Obj
+	GUIObj:SetTextAlignmentX( Alignment )
+	GUIObj:SetText( IgnoreFormat and Text or StringFormat( Text,
+		TimeToString( Duration ) ) )
+	GUIObj:SetScale( ScaleVec )
+	GUIObj:SetPosition( Vector( ScrW * X, ScrH * Y, 0 ) )
+	GUIObj:SetColor( MessageTable.Colour )
+	GUIObj:SetFontName( Font )
 
 	if ShouldFade then
 		MessageTable.Fading = true
@@ -142,29 +156,13 @@ function Shine:AddMessageToQueue( ID, x, y, Text, Duration, r, g, b, Alignment, 
 
 	MessageTable.LastUpdate = Time
 
-	function MessageTable:UpdateText()
-		if IgnoreFormat then
-			self.Obj:SetText( self.Text )
-		else
-			if self.Digital then
-				self.Obj:SetText( StringFormat( self.Text,
-					string.DigitalTime( self.Duration ) ) )
-			else
-				self.Obj:SetText( StringFormat( self.Text,
-					string.TimeToString( self.Duration ) ) )
-			end
-		end
-	end
-
-	Messages:Add( ID, MessageTable )
-
 	return MessageTable
 end
 
-function Shine:UpdateMessageText( Message )
-	local ID = Message.ID
-	local Text = Message.Message
-
+--[[
+	Changes the text of a text label.
+]]
+function Shine.ScreenText.SetText( ID, Text )
 	local MessageTable = Messages:Get( ID )
 	if not MessageTable then return end
 
@@ -172,33 +170,74 @@ function Shine:UpdateMessageText( Message )
 	MessageTable.Obj:SetText( Text )
 end
 
+--[[
+	Immediately removes a text label.
+]]
+function Shine.ScreenText.Remove( ID )
+	local Message = Messages:Get( ID )
+	if not Message then return end
+
+	GUI.DestroyItem( Message.Obj )
+	Messages:Remove( ID )
+end
+
+--[[
+	Sets a text label to fade out from now. Looks better than removing.
+]]
+function Shine.ScreenText.End( ID )
+	local MessageTable = Messages:Get( ID )
+	if not MessageTable then return end
+
+	MessageTable:End()
+end
+
+--SUPER DUPER DEPRECATED! Use Shine.ScreenText.Add( ID, Params ), and save yourself function argument hell.
+function Shine:AddMessageToQueue( ID, X, Y, Text, Duration, R, G, B, Alignment, Size, FadeIn, IgnoreFormat )
+	self.ScreenText.Add( ID, {
+		X = X, Y = Y,
+		Text = Text,
+		Duration = Duration,
+		R = R, G = G, B = B,
+		Alignment = Alignment,
+		Size = Size,
+		FadeIn = FadeIn,
+		IgnoreFormat = IgnoreFormat
+	} )
+end
+
+local function UpdateMessage( Index, Message, Time )
+	if not Message.LastUpdate then
+		Message.LastUpdate = Time
+	end
+
+	if Message.LastUpdate + 1 > Time then return end
+
+	if Message.Duration then
+		Message.Duration = Message.Duration - 1
+	end
+
+	Message.LastUpdate = Message.LastUpdate + 1
+	Message:UpdateText()
+
+	if Message.Think then
+		Message:Think()
+	end
+
+	if Message.Duration == 0 then
+		Message.FadingIn = false
+		Message.Fading = true
+		Message.FadeElapsed = 0
+		Message.FadeDuration = 1
+	end
+
+	if Message.Duration == -1 then
+		Shine.ScreenText.Remove( Index )
+	end
+end
+
 local function ProcessQueue( Time )
 	for Index, Message in Messages:Iterate() do
-		if not Message.LastUpdate then
-			Message.LastUpdate = Time
-		end
-
-		if Message.LastUpdate + 1 <= Time then
-			Message.Duration = Message.Duration - 1
-			Message.LastUpdate = Message.LastUpdate + 1
-
-			Message:UpdateText()
-
-			if Message.Think then
-				Message:Think()
-			end
-
-			if Message.Duration == 0 then
-				Message.FadingIn = false
-				Message.Fading = true
-				Message.FadeElapsed = 0
-				Message.FadeDuration = 1
-			end
-
-			if Message.Duration == -1 then
-				Shine:RemoveMessage( Index )
-			end
-		end
+		UpdateMessage( Index, Message, Time )
 	end
 end
 
@@ -228,42 +267,31 @@ local function ProcessFades( DeltaTime )
 	end
 end
 
+--DEPRECATED! Use Shine.ScreenText.Remove( Index )
 function Shine:RemoveMessage( Index )
-	local Message = Messages:Get( Index )
-	if not Message then return end
-
-	GUI.DestroyItem( Message.Obj )
-
-	Messages:Remove( Index )
+	self.ScreenText.Remove( Index )
 end
 
+--DEPRECATED! Use Shine.ScreenText.End( Index )
 function Shine:EndMessage( Index )
-	local MessageTable = Messages:Get( Index )
-
-	if not MessageTable then return end
-
-	MessageTable.LastUpdate = Shared.GetTime() - 1
-	MessageTable.Duration = 1
+	self.ScreenText.End( Index )
 end
 
 Shine.Hook.Add( "Think", "ScreenText", function( DeltaTime )
-	local Time = Shared.GetTime()
+	local Time = SharedTime()
 
 	ProcessQueue( Time )
-
 	ProcessFades( DeltaTime )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenText", function( Message )
-	Shine:AddMessageToQueue( Message.ID, Message.x, Message.y,
-		Message.Message, Message.Duration, Message.r, Message.g, Message.b,
-		Message.Align, Message.Size, Message.FadeIn )
+	Shine.ScreenText.Add( Message.ID, Message )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
-	Shine:UpdateMessageText( Message )
+	Shine.ScreenText.SetText( Message.ID, Message.Text )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextRemove", function( Message )
-	Shine:EndMessage( Message.ID )
+	Shine.ScreenText.End( Message.ID )
 end )
