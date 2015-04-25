@@ -193,7 +193,7 @@ end
 
 --SUPER DUPER DEPRECATED! Use Shine.ScreenText.Add( ID, Params ), and save yourself function argument hell.
 function Shine:AddMessageToQueue( ID, X, Y, Text, Duration, R, G, B, Alignment, Size, FadeIn, IgnoreFormat )
-	self.ScreenText.Add( ID, {
+	return self.ScreenText.Add( ID, {
 		X = X, Y = Y,
 		Text = Text,
 		Duration = Duration,
