@@ -1366,6 +1366,15 @@ function Plugin:CreateCommands()
 			NumTotal )
 	end
 
+	local function ShowVoteToPlayer( Player, Map, Revote )
+		local NumForThis = self.Vote.VoteList[ Map ]
+		local NumTotal = self.Vote.TotalVotes
+		self:Notify( Player, "You %s %s (%s for this, %i total)", true,
+			Revote and "changed your vote to" or "voted for",
+			Map, NumForThis > 1 and NumForThis.." votes" or "1 vote",
+			NumTotal )
+	end
+
 	local function Vote( Client, Map )
 		local Player, PlayerName = GetPlayerData( Client )
 
@@ -1380,6 +1389,8 @@ function Plugin:CreateCommands()
 		if Success then
 			if self.Config.ShowVoteChoices then
 				ShowVoteChoice( PlayerName, Err )
+			else
+				ShowVoteToPlayer( Client, Map )
 			end
 
 			return
@@ -1391,6 +1402,8 @@ function Plugin:CreateCommands()
 			if Success then
 				if self.Config.ShowVoteChoices then
 					ShowVoteChoice( PlayerName, Err, true )
+				else
+					ShowVoteToPlayer( Client, Map, true )
 				end
 
 				return
