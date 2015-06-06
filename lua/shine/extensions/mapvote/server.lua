@@ -14,6 +14,7 @@ local Max = math.max
 local Notify = Shared.Message
 local next = next
 local pairs = pairs
+local pcall = pcall
 local Random = math.random
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
@@ -532,7 +533,7 @@ function Plugin:ForcePlayersIntoReadyRoom()
 		local Ply = Players[ i ]
 
 		if Ply then
-			Gamerules:JoinTeam( Ply, 0, nil, true )
+			pcall( Gamerules.JoinTeam, Gamerules, Ply, 0, nil, true )
 		end
 	end
 end
