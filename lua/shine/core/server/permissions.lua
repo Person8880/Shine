@@ -323,7 +323,7 @@ function Shine:GetUserData( Client )
 
 		--Try the [U:1:YYYY] format
 		local Steam3ID = self.NS2ToSteam3ID( ID )
-		User = self.UserData.Users[ ID ]
+		User = self.UserData.Users[ Steam3ID ]
 
 		if User then
 			return User, Steam3ID
