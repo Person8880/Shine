@@ -279,14 +279,16 @@ function Panel:SetStickyScroll( Enable )
 	self.StickyScroll = Enable and true or false
 end
 
+function Panel:UpdateScrollbarSize()
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:SetSize( Vector( ( self.ScrollbarWidth or 10 ) * ( self.ScrollbarWidthMult or 1 ),
+			self:GetSize().y - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+	end
+end
+
 function Panel:SetScrollbarHeightOffset( Offset )
 	self.ScrollbarHeightOffset = Offset
-
-	if SGUI.IsValid( self.Scrollbar ) then
-		local Height = self:GetSize().y
-
-		self.Scrollbar:SetSize( Vector( 10, Height - Offset, 0 ) )
-	end
+	self:UpdateScrollbarSize()
 end
 
 function Panel:SetShowScrollbar( Show )
@@ -302,11 +304,12 @@ end
 
 function Panel:SetScrollbarWidthMult( Mult )
 	self.ScrollbarWidthMult = Mult
+	self:UpdateScrollbarSize()
+end
 
-	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:SetSize( Vector( 10 * Mult,
-			self:GetSize().y - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
-	end
+function Panel:SetScrollbarWidth( Width )
+	self.ScrollbarWidth = Width
+	self:UpdateScrollbarSize()
 end
 
 function Panel:SetMaxHeight( Height )
@@ -318,10 +321,11 @@ function Panel:SetMaxHeight( Height )
 
 	if not SGUI.IsValid( self.Scrollbar ) then
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
+		self.Scrollbar = Scrollbar
+
 		Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 		Scrollbar:SetPos( self.ScrollPos or ScrollPos )
-		Scrollbar:SetSize( Vector( 10 * ( self.ScrollbarWidthMult or 1 ),
-			MaxHeight - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+		self:UpdateScrollbarSize()
 		Scrollbar:SetScrollSize( MaxHeight / Height )
 
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )
@@ -344,8 +348,6 @@ function Panel:SetMaxHeight( Height )
 				self.ScrollParent:SetPosition( self.ScrollParentPos )
 			end
 		end
-
-		self.Scrollbar = Scrollbar
 
 		Scrollbar._CallEventsManually = true
 
@@ -501,7 +503,6 @@ function Panel:OnMouseMove( Down )
 	end
 
 	self:CallOnChildren( "OnMouseMove", Down )
-
 	self:DragMove( Down )
 
 	local MouseIn

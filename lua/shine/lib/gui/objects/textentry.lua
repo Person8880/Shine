@@ -155,6 +155,52 @@ function TextEntry:SetHighlightColour( Col )
 	self.SelectionBox:SetColor( Col )
 end
 
+function TextEntry:SetPlaceholderText( Text )
+	if Text == "" then
+		if self.PlaceholderText then
+			GUI.DestroyItem( self.PlaceholderText )
+		end
+		self.PlaceholderText = nil
+		self.Placeholder = nil
+
+		return
+	end
+
+	self.Placeholder = Text
+
+	if self.PlaceholderText then
+		self.PlaceholderText:SetText( Text )
+
+		return
+	end
+
+	local Manager = GetGUIManager()
+	local PlaceholderText = Manager:CreateTextItem()
+	PlaceholderText:SetAnchor( GUIItem.Left, GUIItem.Top )
+	PlaceholderText:SetTextAlignmentY( GUIItem.Align_Center )
+	PlaceholderText:SetInheritsParentStencilSettings( false )
+	PlaceholderText:SetStencilFunc( GUIItem.NotEqual )
+	PlaceholderText:SetText( Text )
+
+	if self.Font then
+		PlaceholderText:SetFontName( self.Font )
+	end
+
+	if self.TextScale then
+		PlaceholderText:SetScale( self.TextScale )
+	end
+
+	PlaceholderText:SetPosition( Vector( 0, 0, 0 ) )
+
+	local Skin = SGUI:GetSkin()
+	if Skin.TextEntryPlaceholder then
+		PlaceholderText:SetColor( Skin.TextEntryPlaceholder )
+	end
+
+	self.TextObj:AddChild( PlaceholderText )
+	self.PlaceholderText = PlaceholderText
+end
+
 function TextEntry:GetIsVisible()
 	if self.Parent and not self.Parent:GetIsVisible() then
 		return false
@@ -180,12 +226,20 @@ function TextEntry:OnSchemeChange( Scheme )
 	else
 		self.InnerBox:SetColor( self.DarkCol )
 	end
+
+	if self.PlaceholderText and Scheme.TextEntryPlaceholder then
+		self.PlaceholderText:SetColor( Scheme.TextEntryPlaceholder )
+	end
 end
 
 function TextEntry:SetFont( Font )
+	self.Font = Font
 	self.TextObj:SetFontName( Font )
-
 	self:SetupCaret()
+
+	if self.PlaceholderText then
+		self.PlaceholderText:SetFontName( Font )
+	end
 end
 
 function TextEntry:SetupCaret()
@@ -223,6 +277,7 @@ function TextEntry:SetTextScale( Scale )
 
 	self.WidthScale = Scale.x
 	self.HeightScale = Scale.y
+	self.TextScale = Scale
 
 	self:SetupCaret()
 end
@@ -430,6 +485,10 @@ function TextEntry:SetText( Text )
 	self.TextObj:SetText( Text )
 
 	self:SetupCaret()
+
+	if self.PlaceholderText then
+		self.PlaceholderText:SetIsVisible( Text == "" )
+	end
 end
 
 function TextEntry:GetText()
@@ -491,6 +550,10 @@ function TextEntry:AddCharacter( Char )
 
 	if self.OnTextChanged then
 		self:OnTextChanged( Text, self.Text )
+	end
+
+	if self.PlaceholderText then
+		self.PlaceholderText:SetIsVisible( false )
 	end
 end
 
@@ -730,12 +793,11 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		end
 	end
 
-	if Key == InputKey.Back then
-		self:RemoveCharacter()
-
-		return true
-	elseif Key == InputKey.Delete then
-		self:RemoveCharacter( true )
+	if Key == InputKey.Back or Key == InputKey.Delete then
+		self:RemoveCharacter( Key == InputKey.Delete )
+		if self.PlaceholderText and self.Text == "" then
+			self.PlaceholderText:SetIsVisible( true )
+		end
 
 		return true
 	elseif Key == InputKey.Left then

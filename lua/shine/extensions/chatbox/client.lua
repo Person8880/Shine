@@ -11,6 +11,7 @@ local SGUI = Shine.GUI
 local IsType = Shine.IsType
 local WordWrap = SGUI.WordWrap
 
+local Ceil = math.ceil
 local Clamp = math.Clamp
 local Clock = os.clock
 local Floor = math.floor
@@ -159,8 +160,8 @@ end
 local LayoutData = {
 	Sizes = {
 		ChatBox = Vector( 800, 350, 0 ),
-		InnerBox = Vector( 760, 280, 0 ),
-		TextBox = Vector( 720, 40, 0 ),
+		InnerBox = Vector( 790, 300, 0 ),
+		TextBox = Vector( 795, 40, 0 ),
 		SettingsButton = Vector( 36, 36, 0 ),
 		SettingsClosed = Vector( 0, 350, 0 ),
 		Settings = Vector( 350, 350, 0 ),
@@ -168,12 +169,11 @@ local LayoutData = {
 	},
 
 	Positions = {
-		Border = Vector( 20, 20, 0 ),
-		ModeText = Vector( 70, -25, 0 ),
-		Scrollbar = Vector( 2, 0, 0 ),
-		SettingsButton = Vector( -56, -43, 0 ),
+		Border = Vector( 5, 5, 0 ),
+		Scrollbar = Vector( -8, 0, 0 ),
+		SettingsButton = Vector( -41, -40, 0 ),
 		Settings = Vector( 0, 0, 0 ),
-		TextBox = Vector( 74, -45, 0 ),
+		TextBox = Vector( 5, -42, 0 ),
 		Title = Vector( 30, 10, 0 ),
 		AutoClose = Vector( 30, 50, 0 ),
 		AutoDelete = Vector( 30, 90, 0 ),
@@ -361,22 +361,23 @@ function Plugin:CreateChatbox()
 
 	self.MainPanel = DummyPanel
 
-	local BoxSize = VectorMultiply( LayoutData.Sizes.InnerBox, UIScale )
-
 	--Panel for messages.
 	local Box = SGUI:Create( "Panel", DummyPanel )
+	local ScrollbarPos = LayoutData.Positions.Scrollbar * WidthMult
+	ScrollbarPos.x = Ceil( ScrollbarPos.x )
 	Box:SetupFromTable{
 		Anchor = "TopLeft",
-		ScrollbarPos = LayoutData.Positions.Scrollbar,
+		ScrollbarPos = ScrollbarPos,
+		ScrollbarWidth = Ceil( 8 * WidthMult ),
 		ScrollbarHeightOffset = 0,
 		Scrollable = true,
 		AllowSmoothScroll = self.Config.SmoothScroll,
 		StickyScroll = true,
-		Size = BoxSize,
+		Size = VectorMultiply( LayoutData.Sizes.InnerBox, UIScale ),
 		Colour = LayoutData.Colours.HalfOpacity.Inner,
 		Pos = VectorMultiply( LayoutData.Positions.Border, UIScale ),
-		ScrollbarWidthMult = WidthMult,
-		IsSchemed = false
+		IsSchemed = false,
+		AutoHideScrollbar = true
 	}
 	Box.BufferAmount = 5
 
@@ -396,23 +397,6 @@ function Plugin:CreateChatbox()
 	Border.Background:SetStencilFunc( GUIItem.Equal )
 
 	local Font = self:GetFont()
-
-	--Shows either "All:"" or "Team:"
-	local ModeText = Border:Add( "Label" )
-	ModeText:SetupFromTable{
-		Anchor = "BottomLeft",
-		Pos = VectorMultiply( LayoutData.Positions.ModeText, UIScale ),
-		TextAlignmentX = GUIItem.Align_Max,
-		TextAlignmentY = GUIItem.Align_Center,
-		Font = Font,
-		Colour = LayoutData.Colours.ModeText,
-		IsSchemed = false
-	}
-	if self.TextScale ~= 1 then
-		ModeText:SetTextScale( self.TextScale )
-	end
-
-	self.ModeText = ModeText
 
 	self.Border = Border
 
@@ -893,7 +877,7 @@ function Plugin:StartChat( Team )
 	end
 
 	--This is somehow gone for some people?
-	if not SGUI.IsValid( self.TextEntry ) or not SGUI.IsValid( self.ModeText ) then
+	if not SGUI.IsValid( self.TextEntry ) then
 		if SGUI.IsValid( self.MainPanel ) then
 			self.IgnoreRemove = true
 			self.MainPanel:Destroy()
@@ -905,8 +889,7 @@ function Plugin:StartChat( Team )
 		end
 	end
 
-	--The little text to the left of the text entry.
-	self.ModeText:SetText( self.TeamChat and "Team:" or "All:" )
+	self.TextEntry:SetPlaceholderText( self.TeamChat and "Say to team..." or "Say to all..." )
 
 	SGUI:EnableMouse( true )
 
@@ -944,7 +927,6 @@ function Plugin:Cleanup()
 	self.MainPanel = nil
 	self.ChatBox = nil
 	self.TextEntry = nil
-	self.ModeText = nil
 	self.Border = nil
 	self.SettingsPanel = nil
 
