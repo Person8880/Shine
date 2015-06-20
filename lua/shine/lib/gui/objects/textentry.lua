@@ -314,6 +314,8 @@ function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 		if SkipAnim then
 			self.SelectionBox:SetPosition( Pos )
 			self.SelectionBox:SetSize( Size )
+			self:StopMoving()
+			self:StopResizing( self.SelectionBox )
 		else
 			self:MoveTo( Pos, 0, 0.2, nil, 3, nil, self.SelectionBox )
 			self:SizeTo( self.SelectionBox, nil, Size, 0, 0.2 )

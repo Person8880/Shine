@@ -1062,6 +1062,10 @@ function ControlMeta:MoveTo( NewPos, Delay, Time, EaseFunc, Power, Callback, Ele
 	self.MoveData.Finished = false
 end
 
+function ControlMeta:StopMoving()
+	self.MoveData = nil
+end
+
 --[[
 	Processes a control's movement. Internally called.
 	Input: Current game time.
