@@ -353,6 +353,16 @@ function Panel:SetMaxHeight( Height )
 			Scrollbar:ScrollToBottom( true )
 		end
 
+		if self.AutoHideScrollbar and not self:MouseIn( self.Background ) then
+			local BackCol = Scrollbar.Background:GetColor()
+			BackCol.a = 0
+			local BarCol = Scrollbar.Bar:GetColor()
+			BarCol.a = 0
+
+			Scrollbar.Background:SetColor( BackCol )
+			Scrollbar.Bar:SetColor( BarCol )
+		end
+
 		return
 	end
 
@@ -389,6 +399,8 @@ end
 function Panel:SetTexture( Texture )
 	self.Background:SetTexture( Texture )
 end
+
+SGUI.AddProperty( Panel, "AutoHideScrollbar" )
 
 local GetCursorPos
 
@@ -492,9 +504,33 @@ function Panel:OnMouseMove( Down )
 
 	self:DragMove( Down )
 
+	local MouseIn
+	if self.AutoHideScrollbar and SGUI.IsValid( self.Scrollbar ) then
+		MouseIn = self:MouseIn( self.Background )
+
+		if not MouseIn and self.ScrollbarIsVisible then
+			if not self.Scrollbar:HasMouseFocus() then
+				self.ScrollbarIsVisible = false
+				self.Scrollbar:AlphaTo( nil, nil, 0, 0, 0.3 )
+				self.Scrollbar:AlphaTo( self.Scrollbar.Bar, nil, 0, 0, 0.3 )
+			end
+		elseif MouseIn and not self.ScrollbarIsVisible then
+			self.ScrollbarIsVisible = true
+
+			local Background = self.Scrollbar.Background
+			local Bar = self.Scrollbar.Bar
+
+			self.Scrollbar:AlphaTo( nil, nil, self.Scrollbar:GetNormalAlpha( Background ), 0, 0.3 )
+			self.Scrollbar:AlphaTo( Bar, nil, self.Scrollbar:GetNormalAlpha( Bar ), 0, 0.3 )
+		end
+	end
+
 	--Block mouse movement for lower windows.
 	if self.IsAWindow or self.BlockOnMouseDown then
-		if self:MouseIn( self.Background ) then return true end
+		if MouseIn == nil then
+			MouseIn = self:MouseIn( self.Background )
+		end
+		if MouseIn then return true end
 	end
 end
 
