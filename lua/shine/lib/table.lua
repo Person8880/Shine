@@ -65,11 +65,11 @@ function table.Shuffle( Table )
 
 	for Index, Value in pairs( Table ) do
 		SortTable[ Value ] = Random()
-		
+
 		--Add the value to a new table to get rid of potential holes in the array.
 		Count = Count + 1
 		NewTable[ Count ] = Value
-		
+
 		Table[ Index ] = nil
 	end
 
@@ -84,7 +84,7 @@ function table.Shuffle( Table )
 end
 
 --[[
-	Chooses a random entry from the table 
+	Chooses a random entry from the table
 	with each entry having equal probability of being picked.
 ]]
 function table.ChooseRandom( Table )
@@ -109,9 +109,9 @@ end
 ]]
 function table.Average( Table )
 	local Count = #Table
-	
+
 	if Count == 0 then return 0 end
-	
+
 	local Sum = 0
 
 	for i = 1, Count do
@@ -138,14 +138,14 @@ do
 		end
 
 		if Type == "string" and tonumber( Key ) then
-			return StringFormat( "%q", Key )
+			return StringFormat( "\"%s\"", Key )
 		end
 
 		return tostring( Key )
 	end
 	local function ToPrintString( Value )
 		if IsType( Value, "string" ) then
-			return StringFormat( "%q", Value )
+			return StringFormat( "\"%s\"", Value )
 		end
 
 		return tostring( Value )
@@ -202,7 +202,7 @@ end
 
 local function CopyTable( Table, LookupTable )
 	if not Table then return nil end
-	
+
 	local Copy = {}
 	setmetatable( Copy, getmetatable( Table ) )
 
@@ -228,8 +228,8 @@ table.Copy = CopyTable
 function table.Count( Table )
 	local i = 0
 
-	for Key in pairs( Table ) do 
-		i = i + 1 
+	for Key in pairs( Table ) do
+		i = i + 1
 	end
 
 	return i
@@ -243,7 +243,7 @@ function RandomPairs( Table, Desc )
 		Count = Count + 1
 		Sorted[ Count ] = { Key = Key, Rand = Random() }
 	end
-	
+
 	if Desc then
 		TableSort( Sorted, function( A, B )
 			return A.Rand > B.Rand
@@ -286,7 +286,7 @@ function SortedPairs( Table, Desc )
 			return A < B
 		end )
 	end
-	
+
 	local i = 1
 
 	return function()
