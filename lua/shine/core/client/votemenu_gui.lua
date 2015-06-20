@@ -444,7 +444,7 @@ local function HandleButton( Button, Text, DoClick, StartPos, EndPos )
 
 	if Shine.Config.AnimateUI then
 		Button:SetPos( StartPos )
-		Button:MoveTo( EndPos, 0, EasingTime )
+		Button:MoveTo( nil, nil, EndPos, 0, EasingTime )
 	else
 		Button:SetPos( EndPos )
 	end
@@ -473,7 +473,7 @@ function VoteMenu:AddTopButton( Text, DoClick )
 	Buttons.Top = TopButton
 
 	if Shine.Config.AnimateUI then
-		TopButton:MoveTo( EndPos, 0, EasingTime )
+		TopButton:MoveTo( nil, nil, EndPos, 0, EasingTime )
 	end
 
 	return TopButton
@@ -502,7 +502,7 @@ function VoteMenu:AddBottomButton( Text, DoClick )
 	Buttons.Bottom = BottomButton
 
 	if Shine.Config.AnimateUI then
-		BottomButton:MoveTo( EndPos, 0, EasingTime )
+		BottomButton:MoveTo( nil, nil, EndPos, 0, EasingTime )
 	end
 
 	return BottomButton
@@ -565,7 +565,7 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align, IgnoreAnim )
 		local Size = self.Background:GetSize()
 		Button:SetPos( Vector( Align == GUIItem.Right and -Size.x * 0.5 or 0,
 			Size.y * 0.5, 0 ) )
-		Button:MoveTo( Pos, 0, EasingTime )
+		Button:MoveTo( nil, nil, Pos, 0, EasingTime )
 	else
 		Button:SetPos( Pos )
 	end

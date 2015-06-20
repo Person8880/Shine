@@ -317,7 +317,7 @@ function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 			self:StopMoving()
 			self:StopResizing( self.SelectionBox )
 		else
-			self:MoveTo( Pos, 0, 0.2, nil, 3, nil, self.SelectionBox )
+			self:MoveTo( self.SelectionBox, nil, Pos, 0, 0.2, nil, nil, 3 )
 			self:SizeTo( self.SelectionBox, nil, Size, 0, 0.2 )
 		end
 
@@ -332,7 +332,7 @@ function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 	if Size.x == 0 and not XOverride then
 		self.SelectionBox:SetPosition( Pos )
 	else
-		self:MoveTo( Pos, 0, 0.2, nil, 3, nil, self.SelectionBox )
+		self:MoveTo( self.SelectionBox, nil, Pos, 0, 0.2, nil, nil, 3 )
 	end
 
 	self:SizeTo( self.SelectionBox, nil, Vector( Width, self.Caret:GetSize().y, 0 ), 0, 0.2 )
@@ -366,7 +366,7 @@ function TextEntry:HandleSelectingText()
 		local Pos = self.Caret:GetPosition()
 		Pos.x = self.TextObj:GetTextWidth( BeforeText ) * self.WidthScale + self.TextOffset + self.CaretOffset
 
-		self:MoveTo( Pos, 0, 0.2, nil, 3, nil, self.SelectionBox )
+		self:MoveTo( self.SelectionBox, nil, Pos, 0, 0.2, nil, nil, 3 )
 	end
 end
 

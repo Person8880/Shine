@@ -388,9 +388,7 @@ function List:AddScrollbar()
 		end
 
 		if Smoothed then
-			self:MoveTo( self.ScrollParentPos, 0, 0.3, math.EaseOut, 3, function( List )
-				List.ScrollParent:SetPosition( self.ScrollParentPos )
-			end, self.ScrollParent )
+			self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.3, nil, math.EaseOut, 3 )
 		else
 			self.ScrollParent:SetPosition( self.ScrollParentPos )
 		end

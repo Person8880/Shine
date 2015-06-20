@@ -1024,63 +1024,196 @@ function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	return false, PosX, PosY
 end
 
+function ControlMeta:HasMouseFocus()
+	return SGUI.MouseDownControl == self
+end
+
+local function SubtractValues( End, Start )
+	if IsType( End, "number" ) or not End.r then
+		return End - Start
+	end
+
+	return SGUI.ColourSub( End, Start )
+end
+
+local function CopyValue( Value )
+	if IsType( Value, "number" ) then
+		return Value
+	end
+
+	if Value.r then
+		return SGUI.CopyColour( Value )
+	end
+
+	return Vector( Value.x, Value.y, 0 )
+end
+
+function ControlMeta:EaseValue( Element, Start, End, Delay, Duration, Callback, EasingHandlers )
+	self.EasingProcesses = self.EasingProcesses or Map()
+
+	local Easers = self.EasingProcesses:Get( EasingHandlers )
+	if not Easers then
+		Easers = Map()
+		self.EasingProcesses:Add( EasingHandlers, Easers )
+	end
+
+	Element = Element or self.Background
+
+	local EasingData = Easers:Get( Element )
+	if not EasingData then
+		EasingData = {}
+		Easers:Add( Element, EasingData )
+	end
+
+	EasingData.Element = Element
+	Start = Start or EasingHandlers.Getter( self, Element )
+	EasingData.Start = Start
+	EasingData.End = End
+	EasingData.Diff = SubtractValues( End, Start )
+	EasingData.CurValue = CopyValue( Start )
+	EasingData.Easer = EasingHandlers.Easer
+
+	EasingData.StartTime = Clock() + Delay
+	EasingData.Duration = Duration
+	EasingData.Elapsed = 0
+
+	EasingData.Callback = Callback
+
+	return EasingData
+end
+
+function ControlMeta:HandleEasing( Time, DeltaTime )
+	if not self.EasingProcesses or self.EasingProcesses:IsEmpty() then return end
+
+	for EasingHandler, Easings in self.EasingProcesses:Iterate() do
+		for Element, EasingData in Easings:Iterate() do
+			local Start = EasingData.StartTime
+			local Duration = EasingData.Duration
+
+			EasingData.Elapsed = EasingData.Elapsed + DeltaTime
+
+			local Elapsed = EasingData.Elapsed
+
+			if Start <= Time then
+				if Elapsed <= Duration then
+					local Progress = Elapsed / Duration
+					if EasingData.EaseFunc then
+						Progress = EasingData.EaseFunc( Progress, EasingData.Power )
+					end
+
+					EasingData.Easer( self, Element, EasingData, Progress )
+					EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
+				else
+					EasingHandler.Setter( self, Element, EasingData.End, EasingData )
+					Easings:Remove( Element )
+
+					if EasingData.Callback then
+						EasingData.Callback( Element )
+					end
+				end
+			end
+		end
+
+		if Easings:IsEmpty() then
+			self.EasingProcesses:Remove( EasingHandler )
+		end
+	end
+end
+
+local Easers = {
+	Fade = {
+		Easer = function( self, Element, EasingData, Progress )
+			SGUI.ColourLerp( EasingData.CurValue, EasingData.Start, Progress, EasingData.Diff )
+		end,
+		Setter = function( self, Element, Colour )
+			Element:SetColor( Colour )
+		end,
+		Getter = function( self, Element )
+			return Element:GetColor()
+		end
+	},
+	Alpha = {
+		Easer = function( self, Element, EasingData, Progress )
+			EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
+			EasingData.Colour.a = EasingData.CurValue
+		end,
+		Setter = function( self, Element, Alpha, EasingData )
+			Element:SetColor( EasingData.Colour )
+		end,
+		Getter = function( self, Element )
+			return Element:GetColor().a
+		end
+	},
+	Move = {
+		Easer = function( self, Element, EasingData, Progress )
+			local CurValue = EasingData.CurValue
+			local Start = EasingData.Start
+			local Diff = EasingData.Diff
+
+			CurValue.x = Start.x + Diff.x * Progress
+			CurValue.y = Start.y + Diff.y * Progress
+		end,
+		Setter = function( self, Element, Pos )
+			Element:SetPosition( Pos )
+			self.BaseClass.OnMouseMove( self, false )
+		end,
+		Getter = function( self, Element )
+			return Element:GetPosition()
+		end
+	},
+	Size = {
+		Setter = function( self, Element, Size )
+			if Element == self.Background then
+				self:SetSize( Size )
+			else
+				Element:SetSize( Size )
+			end
+		end,
+		Getter = function( self, Element )
+			return Element:GetSize()
+		end
+	}
+}
+Easers.Size.Easer = Easers.Move.Easer
+
+function ControlMeta:StopEasing( Element, EasingHandler )
+	if not self.EasingProcesses then return end
+
+	local Easers = self.EasingProcesses:Get( EasingHandler )
+	if not Easers then return end
+
+	Easers:Remove( Element or self.Background )
+end
+
 --[[
 	Sets an SGUI control to move from its current position.
 
-	TODO: Refactor to behave like FadeTo to allow multiple elements moving at once.
-
 	Inputs:
-		1. New position vector.
-		2. Time delay before starting
-		3. Duration of movement.
-		4. Easing function (math.EaseIn, math.EaseOut, math.EaseInOut).
-		5. Easing power (higher powers are more 'sticky', they take longer to start and stop).
+		1. Element to move, nil uses self.Background.
+		2. Starting position, nil uses current position.
+		3. Ending position.
+		4. Delay in seconds to wait before moving.
+		5. Duration of movement.
 		6. Callback function to run once movement is complete.
-		7. Optional element to apply movement to.
+		7. Easing function to use to perform movement, otherwise linear movement is used.
+		8. Power to pass to the easing function.
 ]]
-function ControlMeta:MoveTo( NewPos, Delay, Time, EaseFunc, Power, Callback, Element )
-	self.MoveData = self.MoveData or {}
+function ControlMeta:MoveTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
+	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback,
+		Easers.Move )
+	EasingData.EaseFunc = EaseFunc or math.EaseOut
+	EasingData.Power = Power or 3
 
-	local StartPos = Element and Element:GetPosition() or self.Background:GetPosition()
-
-	self.MoveData.NewPos = NewPos
-	self.MoveData.StartPos = StartPos
-	self.MoveData.Dir = NewPos - StartPos
-
-	self.MoveData.EaseFunc = EaseFunc or math.EaseOut
-	self.MoveData.Power = Power or 3
-	self.MoveData.Callback = Callback
-
-	local CurTime = Clock()
-
-	self.MoveData.StartTime = CurTime + Delay
-	self.MoveData.Duration = Time
-	self.MoveData.Elapsed = 0
-
-	self.MoveData.Element = Element or self.Background
-
-	self.MoveData.Finished = false
+	return EasingData
 end
 
-function ControlMeta:StopMoving()
-	self.MoveData = nil
+function ControlMeta:StopMoving( Element )
+	self:StopEasing( Element, Easers.Move )
 end
 
---[[
-	Processes a control's movement. Internally called.
-	Input: Current game time.
-]]
-function ControlMeta:ProcessMove()
-	local MoveData = self.MoveData
-
-	local Duration = MoveData.Duration
-	local Progress = MoveData.Elapsed / Duration
-
-	local LerpValue = MoveData.EaseFunc( Progress, MoveData.Power )
-
-	local EndPos = MoveData.StartPos + LerpValue * MoveData.Dir
-
-	MoveData.Element:SetPosition( EndPos )
+local function AddEaseFunc( EasingData, EaseFunc, Power )
+	EasingData.EaseFunc = EaseFunc or math.EaseOut
+	EasingData.Power = Power or 3
 end
 
 --[[
@@ -1096,42 +1229,28 @@ end
 		5. Duration of the fade.
 		6. Callback function to run once the fading has completed.
 ]]
-function ControlMeta:FadeTo( Element, Start, End, Delay, Duration, Callback )
-	self.Fades = self.Fades or Map()
+function ControlMeta:FadeTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
+	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback, Easers.Fade )
+	EasingData.EaseFunc = EaseFunc
+	EasingData.Power = Power
 
-	local Fade = self.Fades:Get( Element )
-	if not Fade then
-		self.Fades:Add( Element, {} )
-		Fade = self.Fades:Get( Element )
-	end
-
-	Fade.Obj = Element
-
-	Fade.Started = true
-	Fade.Finished = false
-
-	local Time = Clock()
-
-	local Diff = SGUI.ColourSub( End, Start )
-	local CurCol = SGUI.CopyColour( Start )
-
-	Fade.Diff = Diff
-	Fade.CurCol = CurCol
-
-	Fade.StartCol = Start
-	Fade.EndCol = End
-
-	Fade.StartTime = Time + Delay
-	Fade.Duration = Duration
-	Fade.Elapsed = 0
-
-	Fade.Callback = Callback
+	return EasingData
 end
 
 function ControlMeta:StopFade( Element )
-	if not self.Fades then return end
+	self:StopEasing( Element, Easers.Fade )
+end
 
-	self.Fades:Remove( Element )
+function ControlMeta:AlphaTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
+	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback, Easers.Alpha )
+	EasingData.Colour = EasingData.Element:GetColor()
+	AddEaseFunc( EasingData, EaseFunc, Power )
+
+	return EasingData
+end
+
+function ControlMeta:StopAlpha( Element )
+	self:StopEasing( Element, Easers.Alpha )
 end
 
 --[[
@@ -1148,47 +1267,15 @@ end
 		8. Optional power to pass to the easing function.
 ]]
 function ControlMeta:SizeTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
-	self.SizeAnims = self.SizeAnims or Map()
-	local Sizes = self.SizeAnims
+	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback,
+		Easers.Size )
+	AddEaseFunc( EasingData, EaseFunc, Power )
 
-	local Size = Sizes:Get( Element )
-	if not Size then
-		self.SizeAnims:Add( Element, {} )
-		Size = self.SizeAnims:Get( Element )
-	end
-
-	Size.Obj = Element
-
-	Size.Started = true
-	Size.Finished = false
-
-	Size.EaseFunc = EaseFunc or math.EaseOut
-	Size.Power = Power or 3
-
-	local Time = Clock()
-
-	Start = Start or Element:GetSize()
-
-	local Diff = End - Start
-	local CurSize = Start
-
-	Size.Diff = Diff
-	Size.CurSize = Vector( CurSize.x, CurSize.y, 0 )
-
-	Size.Start = CurSize
-	Size.End = End
-
-	Size.StartTime = Time + Delay
-	Size.Duration = Duration
-	Size.Elapsed = 0
-
-	Size.Callback = Callback
+	return EasingData
 end
 
 function ControlMeta:StopResizing( Element )
-	if not self.SizeAnims then return end
-
-	self.SizeAnims:Remove( Element )
+	self:StopEasing( Element, Easers.Size )
 end
 
 --[[
@@ -1235,108 +1322,6 @@ function ControlMeta:SetTooltip( Text )
 	self.OnLoseHover = self.HideTooltip
 end
 
-function ControlMeta:HandleMovement( Time, DeltaTime )
-	if not self.MoveData or self.MoveData.StartTime > Time or self.MoveData.Finished then
-		return
-	end
-
-	if self.MoveData.Elapsed <= self.MoveData.Duration then
-		self.MoveData.Elapsed = self.MoveData.Elapsed + DeltaTime
-
-		self:ProcessMove()
-	else
-		self.MoveData.Element:SetPosition( self.MoveData.NewPos )
-		if self.MoveData.Callback then
-			self.MoveData.Callback( self )
-		end
-
-		self.MoveData.Finished = true
-	end
-
-	--We call this to update highlighting if the control is moving and the mouse is not.
-	self.BaseClass.OnMouseMove( self, false )
-end
-
-function ControlMeta:HandleFading( Time, DeltaTime )
-	if not self.Fades or self.Fades:IsEmpty() then return end
-
-	for Element, Fade in self.Fades:Iterate() do
-		local Start = Fade.StartTime
-		local Duration = Fade.Duration
-
-		Fade.Elapsed = Fade.Elapsed + DeltaTime
-
-		local Elapsed = Fade.Elapsed
-
-		if Start <= Time then
-			if Elapsed <= Duration then
-				local Progress = Elapsed / Duration
-				local CurCol = Fade.CurCol
-
-				--Linear progress.
-				SGUI.ColourLerp( CurCol, Fade.StartCol, Progress, Fade.Diff )
-
-				Element:SetColor( CurCol )
-			elseif not Fade.Finished then
-				Element:SetColor( Fade.EndCol )
-
-				Fade.Finished = true
-
-				self.Fades:Remove( Element )
-
-				if Fade.Callback then
-					Fade.Callback( Element )
-				end
-			end
-		end
-	end
-end
-
-function ControlMeta:HandleResizing( Time, DeltaTime )
-	if not self.SizeAnims or self.SizeAnims:IsEmpty() then return end
-
-	for Element, Size in self.SizeAnims:Iterate() do
-		local Start = Size.StartTime
-		local Duration = Size.Duration
-
-		Size.Elapsed = Size.Elapsed + DeltaTime
-
-		local Elapsed = Size.Elapsed
-
-		if Start <= Time then
-			if Elapsed <= Duration then
-				local Progress = Elapsed / Duration
-				local CurSize = Size.CurSize
-
-				local LerpValue = Size.EaseFunc( Progress, Size.Power )
-
-				CurSize.x = Size.Start.x + LerpValue * Size.Diff.x
-				CurSize.y = Size.Start.y + LerpValue * Size.Diff.y
-
-				if Element == self.Background then
-					self:SetSize( CurSize )
-				else
-					Element:SetSize( CurSize )
-				end
-			elseif not Size.Finished then
-				if Element == self.Background then
-					self:SetSize( Size.End )
-				else
-					Element:SetSize( Size.End )
-				end
-
-				Size.Finished = true
-
-				self.SizeAnims:Remove( Element )
-
-				if Size.Callback then
-					Size.Callback( Element )
-				end
-			end
-		end
-	end
-end
-
 function ControlMeta:HandleHovering( Time )
 	if not self.OnHover then return end
 
@@ -1375,9 +1360,7 @@ end
 function ControlMeta:Think( DeltaTime )
 	local Time = Clock()
 
-	self:HandleMovement( Time, DeltaTime )
-	self:HandleFading( Time, DeltaTime )
-	self:HandleResizing( Time, DeltaTime )
+	self:HandleEasing( Time, DeltaTime )
 	self:HandleHovering( Time )
 end
 

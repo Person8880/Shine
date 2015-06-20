@@ -339,9 +339,7 @@ function Panel:SetMaxHeight( Height )
 			end
 
 			if Smoothed and self.AllowSmoothScroll then
-				self:MoveTo( self.ScrollParentPos, 0, 0.2, math.EaseOut, 3, function( Panel )
-					Panel.ScrollParent:SetPosition( self.ScrollParentPos )
-				end, self.ScrollParent )
+				self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, nil, math.EaseOut, 3 )
 			else
 				self.ScrollParent:SetPosition( self.ScrollParentPos )
 			end

@@ -96,7 +96,7 @@ function AdminMenu:SetIsVisible( Bool )
 	if Bool and not self.Visible then
 		if Shine.Config.AnimateUI then
 			self.Window:SetPos( Vector( -Client.GetScreenWidth() + self.Pos.x, self.Pos.y, 0 ) )
-			self.Window:MoveTo( self.Pos, 0, self.EasingTime )
+			self.Window:MoveTo( nil, nil, self.Pos, 0, self.EasingTime )
 		else
 			self.Window:SetPos( self.Pos )
 		end
@@ -106,8 +106,8 @@ function AdminMenu:SetIsVisible( Bool )
 		SGUI:EnableMouse( false )
 
 		if Shine.Config.AnimateUI then
-			self.Window:MoveTo( Vector( Client.GetScreenWidth() - self.Pos.x, self.Pos.y, 0 ), 0,
-				self.EasingTime, math.EaseIn )
+			self.Window:MoveTo( nil, nil, Vector( Client.GetScreenWidth() - self.Pos.x, self.Pos.y, 0 ), 0,
+				self.EasingTime, nil, math.EaseIn )
 		end
 	end
 
