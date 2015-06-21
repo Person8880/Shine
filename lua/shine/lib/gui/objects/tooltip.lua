@@ -85,6 +85,14 @@ function Tooltip:SetText( Text, Font, Scale )
 	self.Background:AddChild( TextObj )
 end
 
+function Tooltip:Think( DeltaTime )
+	if not SGUI.EnabledMouse then
+		self:FadeOut()
+	end
+
+	self.BaseClass.Think( self, DeltaTime )
+end
+
 function Tooltip:FadeIn()
 	local Start = self.Background:GetColor()
 	local End = Colour( Start.r, Start.g, Start.b, 1 )
@@ -100,6 +108,10 @@ function Tooltip:FadeIn()
 end
 
 function Tooltip:FadeOut( Callback )
+	if self.FadingOut then return end
+
+	self.FadingOut = true
+
 	local Start = self.Background:GetColor()
 	local End = Colour( Start.r, Start.g, Start.b, 0 )
 

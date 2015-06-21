@@ -279,14 +279,16 @@ function Panel:SetStickyScroll( Enable )
 	self.StickyScroll = Enable and true or false
 end
 
+function Panel:UpdateScrollbarSize()
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:SetSize( Vector( ( self.ScrollbarWidth or 10 ) * ( self.ScrollbarWidthMult or 1 ),
+			self:GetSize().y - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+	end
+end
+
 function Panel:SetScrollbarHeightOffset( Offset )
 	self.ScrollbarHeightOffset = Offset
-
-	if SGUI.IsValid( self.Scrollbar ) then
-		local Height = self:GetSize().y
-
-		self.Scrollbar:SetSize( Vector( 10, Height - Offset, 0 ) )
-	end
+	self:UpdateScrollbarSize()
 end
 
 function Panel:SetShowScrollbar( Show )
@@ -302,11 +304,12 @@ end
 
 function Panel:SetScrollbarWidthMult( Mult )
 	self.ScrollbarWidthMult = Mult
+	self:UpdateScrollbarSize()
+end
 
-	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:SetSize( Vector( 10 * Mult,
-			self:GetSize().y - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
-	end
+function Panel:SetScrollbarWidth( Width )
+	self.ScrollbarWidth = Width
+	self:UpdateScrollbarSize()
 end
 
 function Panel:SetMaxHeight( Height )
@@ -318,10 +321,11 @@ function Panel:SetMaxHeight( Height )
 
 	if not SGUI.IsValid( self.Scrollbar ) then
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
+		self.Scrollbar = Scrollbar
+
 		Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 		Scrollbar:SetPos( self.ScrollPos or ScrollPos )
-		Scrollbar:SetSize( Vector( 10 * ( self.ScrollbarWidthMult or 1 ),
-			MaxHeight - ( self.ScrollbarHeightOffset or 20 ), 0 ) )
+		self:UpdateScrollbarSize()
 		Scrollbar:SetScrollSize( MaxHeight / Height )
 
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )
@@ -339,20 +343,26 @@ function Panel:SetMaxHeight( Height )
 			end
 
 			if Smoothed and self.AllowSmoothScroll then
-				self:MoveTo( self.ScrollParentPos, 0, 0.2, math.EaseOut, 3, function( Panel )
-					Panel.ScrollParent:SetPosition( self.ScrollParentPos )
-				end, self.ScrollParent )
+				self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, nil, math.EaseOut, 3 )
 			else
 				self.ScrollParent:SetPosition( self.ScrollParentPos )
 			end
 		end
 
-		self.Scrollbar = Scrollbar
-
 		Scrollbar._CallEventsManually = true
 
 		if self.StickyScroll then
 			Scrollbar:ScrollToBottom( true )
+		end
+
+		if self.AutoHideScrollbar and not self:MouseIn( self.Background ) then
+			local BackCol = Scrollbar.Background:GetColor()
+			BackCol.a = 0
+			local BarCol = Scrollbar.Bar:GetColor()
+			BarCol.a = 0
+
+			Scrollbar.Background:SetColor( BackCol )
+			Scrollbar.Bar:SetColor( BarCol )
 		end
 
 		return
@@ -391,6 +401,8 @@ end
 function Panel:SetTexture( Texture )
 	self.Background:SetTexture( Texture )
 end
+
+SGUI.AddProperty( Panel, "AutoHideScrollbar" )
 
 local GetCursorPos
 
@@ -491,12 +503,35 @@ function Panel:OnMouseMove( Down )
 	end
 
 	self:CallOnChildren( "OnMouseMove", Down )
-
 	self:DragMove( Down )
+
+	local MouseIn
+	if self.AutoHideScrollbar and SGUI.IsValid( self.Scrollbar ) then
+		MouseIn = self:MouseIn( self.Background )
+
+		if not MouseIn and self.ScrollbarIsVisible then
+			if not self.Scrollbar:HasMouseFocus() then
+				self.ScrollbarIsVisible = false
+				self.Scrollbar:AlphaTo( nil, nil, 0, 0, 0.3 )
+				self.Scrollbar:AlphaTo( self.Scrollbar.Bar, nil, 0, 0, 0.3 )
+			end
+		elseif MouseIn and not self.ScrollbarIsVisible then
+			self.ScrollbarIsVisible = true
+
+			local Background = self.Scrollbar.Background
+			local Bar = self.Scrollbar.Bar
+
+			self.Scrollbar:AlphaTo( nil, nil, self.Scrollbar:GetNormalAlpha( Background ), 0, 0.3 )
+			self.Scrollbar:AlphaTo( Bar, nil, self.Scrollbar:GetNormalAlpha( Bar ), 0, 0.3 )
+		end
+	end
 
 	--Block mouse movement for lower windows.
 	if self.IsAWindow or self.BlockOnMouseDown then
-		if self:MouseIn( self.Background ) then return true end
+		if MouseIn == nil then
+			MouseIn = self:MouseIn( self.Background )
+		end
+		if MouseIn then return true end
 	end
 end
 

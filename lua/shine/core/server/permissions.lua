@@ -12,6 +12,7 @@ local IsType = Shine.IsType
 local next = next
 local Notify = Shared.Message
 local pairs = pairs
+local StringLower = string.lower
 local TableEmpty = table.Empty
 local tonumber = tonumber
 local tostring = tostring
@@ -19,6 +20,69 @@ local tostring = tostring
 local UserPath = "config://shine/UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
+
+--[[
+	Converts the default/DAK style user file into one compatible with Shine.
+	Inputs: Userdata table, optional boolean to not save (for web loading).
+]]
+local function ConvertData( Data, DontSave )
+	local Edited
+
+	if Data.groups then
+		if not DontSave then
+			Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
+		end
+
+		Data.Groups = {}
+
+		for Name, Vals in pairs( Data.groups ) do
+			if Vals.type or Vals.commands or Vals.level then
+				Data.Groups[ Name ] = {
+					IsBlacklist = Vals.type == "disallowed",
+					Commands = Vals.commands and ConvertCommands( Vals.commands ) or {},
+					Immunity = Vals.level or 10,
+					Badge = Vals.badge,
+					Badges = Vals.badges
+				}
+			--Someone's called it "groups" without knowing it's case sensitive...
+			elseif Vals.Commands and Vals.Immunity then
+				Data.Groups[ Name ] = Vals
+			end
+		end
+
+		Edited = true
+		Data.groups = nil
+	end
+
+	if Data.users then
+		if not DontSave then
+			Shared.Message( "Converting users from NS2/DAK format to Shine format..." )
+		end
+
+		Data.Users = {}
+
+		for Name, Vals in pairs( Data.users ) do
+			if Vals.id then
+				Data.Users[ tostring( Vals.id ) ] = {
+					Group = Vals.groups and Vals.groups[ 1 ],
+					Immunity = Vals.level,
+					Badge = Vals.badge,
+					Badges = Vals.badges
+				}
+			--Someone's called it "users" without knowing it's case sensitive...
+			elseif Vals.Group or Vals.Immunity or Vals.Badge or Vals.Badges then
+				Data.Users[ Name ] = Vals
+			end
+		end
+
+		Edited = true
+		Data.users = nil
+	end
+
+	if Edited and not DontSave then
+		Shine:SaveUsers()
+	end
+end
 
 function Shine:RequestUsers( Reload )
 	local function UsersResponse( Response )
@@ -46,7 +110,7 @@ function Shine:RequestUsers( Reload )
 
 		self.UserData = UserData
 
-		self:ConvertData( self.UserData, true )
+		ConvertData( self.UserData, true )
 
 		--Cache the current user data, so if we fail to load it on
 		--a later map we still have something to load.
@@ -116,7 +180,7 @@ function Shine:LoadUsers( Web, Reload )
 		return
 	end
 
-	self:ConvertData( self.UserData )
+	ConvertData( self.UserData )
 
 	if Reload then
 		self.Hook.Call( "OnUserReload" )
@@ -195,69 +259,6 @@ local function ConvertCommands( Commands )
 end
 
 --[[
-	Converts the default/DAK style user file into one compatible with Shine.
-	Inputs: Userdata table, optional boolean to not save (for web loading).
-]]
-function Shine:ConvertData( Data, DontSave )
-	local Edited
-
-	if Data.groups then
-		if not DontSave then
-			Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
-		end
-
-		Data.Groups = {}
-
-		for Name, Vals in pairs( Data.groups ) do
-			if Vals.type or Vals.commands or Vals.level then
-				Data.Groups[ Name ] = {
-					IsBlacklist = Vals.type == "disallowed",
-					Commands = Vals.commands and ConvertCommands( Vals.commands ) or {},
-					Immunity = Vals.level or 10,
-					Badge = Vals.badge,
-					Badges = Vals.badges
-				}
-			--Someone's called it "groups" without knowing it's case sensitive...
-			elseif Vals.Commands and Vals.Immunity then
-				Data.Groups[ Name ] = Vals
-			end
-		end
-
-		Edited = true
-		Data.groups = nil
-	end
-
-	if Data.users then
-		if not DontSave then
-			Shared.Message( "Converting users from NS2/DAK format to Shine format..." )
-		end
-
-		Data.Users = {}
-
-		for Name, Vals in pairs( Data.users ) do
-			if Vals.id then
-				Data.Users[ tostring( Vals.id ) ] = {
-					Group = Vals.groups and Vals.groups[ 1 ],
-					Immunity = Vals.level,
-					Badge = Vals.badge,
-					Badges = Vals.badges
-				}
-			--Someone's called it "users" without knowing it's case sensitive...
-			elseif Vals.Group or Vals.Immunity or Vals.Badge or Vals.Badges then
-				Data.Users[ Name ] = Vals
-			end
-		end
-
-		Edited = true
-		Data.users = nil
-	end
-
-	if Edited and not DontSave then
-		self:SaveUsers()
-	end
-end
-
---[[
 	We need to load the users after loading the configuration file.
 	This ensures we know whether we should be getting them from the web or not.
 ]]
@@ -275,23 +276,25 @@ end )
 --[[
 	Game IDs handling.
 ]]
-local GameIDs = Shine.Map()
+do
+	local GameIDs = Shine.Map()
 
-Shine.GameIDs = GameIDs
+	Shine.GameIDs = GameIDs
 
-local GameID = 0
+	local GameID = 0
 
-Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
-	--I have a suspicion that this event is being called again for a client that never disconnected.
-	if GameIDs:Get( Client ) then return true end
+	Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
+		--I have a suspicion that this event is being called again for a client that never disconnected.
+		if GameIDs:Get( Client ) then return true end
 
-	GameID = GameID + 1
-	GameIDs:Add( Client, GameID )
-end, -20 )
+		GameID = GameID + 1
+		GameIDs:Add( Client, GameID )
+	end, -20 )
 
-Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
-	GameIDs:Remove( Client )
-end, -20 )
+	Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
+		GameIDs:Remove( Client )
+	end, -20 )
+end
 
 local function GetIDFromClient( Client )
 	return IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
@@ -320,7 +323,7 @@ function Shine:GetUserData( Client )
 
 		--Try the [U:1:YYYY] format
 		local Steam3ID = self.NS2ToSteam3ID( ID )
-		User = self.UserData.Users[ ID ]
+		User = self.UserData.Users[ Steam3ID ]
 
 		if User then
 			return User, Steam3ID
@@ -382,10 +385,10 @@ function Shine:GetUserImmunity( Client )
 	if not self.UserData.Groups then return 0 end
 
 	local Data = self:GetUserData( Client )
-
 	if not Data then
 		return self:GetDefaultImmunity()
 	end
+
 	if Data.Immunity then return tonumber( Data.Immunity ) or 0 end
 
 	local Group = Data.Group
@@ -441,10 +444,10 @@ end
 	Inputs: Group name, group table.
 	Output: True if the group has a commands table, false otherwise.
 ]]
-function Shine:VerifyGroup( GroupName, GroupTable )
+local function VerifyGroup( GroupName, GroupTable )
 	if not IsType( GroupTable.Commands, "table" ) then
 		if GroupName then
-			self:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			Shine:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
 		end
 
@@ -452,74 +455,6 @@ function Shine:VerifyGroup( GroupName, GroupTable )
 	end
 
 	return true
-end
-
---[[
-	Gets whether the given group has the given permission.
-	Inputs: Group name, group table, command.
-	Output: True/false permission, allowed arguments if set.
-]]
-function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
-	if not self:VerifyGroup( GroupName, GroupTable ) then return false end
-
-	local Exists, AllowedArgs = CheckForCommand( GroupName, GroupTable.Commands, ConCommand )
-
-	if GroupTable.IsBlacklist then
-		--A blacklist entry with allowed arguments restricts to only those arguments.
-		if AllowedArgs then
-			return true, AllowedArgs
-		else
-			return not Exists
-		end
-	end
-
-	return Exists, AllowedArgs
-end
-
---[[
-	Determines if the given client has permission to run the given command.
-	Inputs: Client or Steam ID, command name (sh_*).
-	Output: True if allowed.
-]]
-function Shine:GetPermission( Client, ConCommand )
-	local Command = self.Commands[ ConCommand ]
-
-	if not Command then return false end
-	if not Client then return true end
-
-	local User, ID = self:GetUserData( Client )
-
-	if not User then
-		if Command.NoPerm then
-			return true
-		end
-
-		local DefaultGroup = self:GetDefaultGroup()
-
-		if not DefaultGroup then
-			return false
-		end
-
-		return self:GetGroupPermission( nil, DefaultGroup, ConCommand )
-	end
-
-	if Command.NoPerm then return true end
-
-	local UserGroup = User.Group
-	local GroupTable = self:GetGroupData( UserGroup )
-
-	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
-			true, ID, UserGroup )
-
-		return false
-	end
-
-	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
-		return self:GetPermissionInheritance( UserGroup, GroupTable, ConCommand )
-	end
-
-	return self:GetGroupPermission( UserGroup, GroupTable, ConCommand )
 end
 
 --[[
@@ -589,13 +524,14 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	--Inherit from the default group, which cannot inherit from others.
 	if InheritFromDefault then
 		local DefaultGroup = self:GetDefaultGroup()
+
 		if not DefaultGroup then
 			self:Print( "Group with ID %s inherits from the default group, but no default group exists!", true, GroupName )
 		else
 			if not Processed[ DefaultGroup ] then
 				Processed[ DefaultGroup ] = true
-				if self:VerifyGroup( nil, DefaultGroup )
-				and DefaultGroup.IsBlacklist == Blacklist then
+
+				if VerifyGroup( nil, DefaultGroup ) and DefaultGroup.IsBlacklist == Blacklist then
 					AddPermissionsToTable( DefaultGroup.Commands, Permissions, Blacklist )
 				end
 			end
@@ -629,7 +565,7 @@ end )
 	Inputs: Group name, group table, command name.
 	Output: True if allowed.
 ]]
-function Shine:GetPermissionInheritance( GroupName, GroupTable, ConCommand )
+local function GetPermissionInheritance( self, GroupName, GroupTable, ConCommand )
 	local InheritGroups = GroupTable.InheritsFrom
 	local InheritFromDefault = GroupTable.InheritFromDefault
 
@@ -682,12 +618,84 @@ function Shine:GetPermissionInheritance( GroupName, GroupTable, ConCommand )
 end
 
 --[[
+	Gets whether the given group has the given permission.
+	Inputs: Group name, group table, command.
+	Output: True/false permission, allowed arguments if set.
+]]
+function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
+	if not VerifyGroup( GroupName, GroupTable ) then return false end
+
+	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
+		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand )
+	end
+
+	local Exists, AllowedArgs = CheckForCommand( GroupName, GroupTable.Commands, ConCommand )
+
+	if GroupTable.IsBlacklist then
+		--A blacklist entry with allowed arguments restricts to only those arguments.
+		if AllowedArgs then
+			return true, AllowedArgs
+		else
+			return not Exists
+		end
+	end
+
+	return Exists, AllowedArgs
+end
+
+--[[
+	Determines if the given client has permission to run the given command.
+	Inputs: Client or Steam ID, command name (sh_*).
+	Output: True if allowed.
+]]
+function Shine:GetPermission( Client, ConCommand )
+	local Command = self.Commands[ ConCommand ]
+
+	if not Command then return false end
+	if not Client then return true end
+
+	local User, ID = self:GetUserData( Client )
+
+	if not User then
+		if Command.NoPerm then
+			return true
+		end
+
+		local DefaultGroup = self:GetDefaultGroup()
+
+		if not DefaultGroup then
+			return false
+		end
+
+		return self:GetGroupPermission( nil, DefaultGroup, ConCommand )
+	end
+
+	if Command.NoPerm then return true end
+
+	local UserGroup = User.Group
+	local GroupTable = self:GetGroupData( UserGroup )
+
+	if not GroupTable then
+		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+			true, ID, UserGroup )
+
+		return false
+	end
+
+	return self:GetGroupPermission( UserGroup, GroupTable, ConCommand )
+end
+
+--[[
 	Gets whether the given group has raw acccess to the given permission.
 	Inputs: Group name, group table, command.
 	Output: True/false permission.
 ]]
 function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand )
-	if not self:VerifyGroup( GroupName, GroupTable ) then return false end
+	if not VerifyGroup( GroupName, GroupTable ) then return false end
+
+	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
+		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand )
+	end
 
 	local Exists = CheckForCommand( GroupName, GroupTable.Commands, ConCommand )
 
@@ -728,10 +736,6 @@ function Shine:HasAccess( Client, ConCommand )
 		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, UserGroup )
 		return false
-	end
-
-	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
-		return self:GetPermissionInheritance( UserGroup, GroupTable, ConCommand )
 	end
 
 	return self:GetGroupAccess( UserGroup, GroupTable, ConCommand )
@@ -827,7 +831,7 @@ function Shine:IsInGroup( Client, Group )
 	if not Client then return false end
 
 	if Client.GetIsVirtual and Client:GetIsVirtual() then
-		return Group:lower() == "guest"
+		return StringLower( Group ) == "guest"
 	end
 
 	if not self.UserData then return false end
@@ -846,7 +850,7 @@ function Shine:IsInGroup( Client, Group )
 		return User.Group == Group
 	end
 
-	return Group:lower() == "guest"
+	return StringLower( Group ) == "guest"
 end
 
 --Deny vote kicks on players that are above in immunity level.

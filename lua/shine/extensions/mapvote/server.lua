@@ -526,15 +526,13 @@ end
 
 function Plugin:ForcePlayersIntoReadyRoom()
 	local Gamerules = GetGamerules()
-	local Players = Shine.GetAllPlayers()
 
-	for i = 1, #Players do
-		local Ply = Players[ i ]
-
-		if Ply then
-			Gamerules:JoinTeam( Ply, 0, nil, true )
-		end
+	local function MoveToReadyRoom( Player )
+		Gamerules:JoinTeam( Player, 0, nil, true )
 	end
+
+	Gamerules.team1:ForEachPlayer( MoveToReadyRoom )
+	Gamerules.team2:ForEachPlayer( MoveToReadyRoom )
 end
 
 --[[
@@ -1365,6 +1363,15 @@ function Plugin:CreateCommands()
 			NumTotal )
 	end
 
+	local function ShowVoteToPlayer( Player, Map, Revote )
+		local NumForThis = self.Vote.VoteList[ Map ]
+		local NumTotal = self.Vote.TotalVotes
+		self:Notify( Player, "You %s %s (%s for this, %i total)", true,
+			Revote and "changed your vote to" or "voted for",
+			Map, NumForThis > 1 and NumForThis.." votes" or "1 vote",
+			NumTotal )
+	end
+
 	local function Vote( Client, Map )
 		local Player, PlayerName = GetPlayerData( Client )
 
@@ -1379,6 +1386,8 @@ function Plugin:CreateCommands()
 		if Success then
 			if self.Config.ShowVoteChoices then
 				ShowVoteChoice( PlayerName, Err )
+			else
+				ShowVoteToPlayer( Client, Map )
 			end
 
 			return
@@ -1390,6 +1399,8 @@ function Plugin:CreateCommands()
 			if Success then
 				if self.Config.ShowVoteChoices then
 					ShowVoteChoice( PlayerName, Err, true )
+				else
+					ShowVoteToPlayer( Client, Map, true )
 				end
 
 				return

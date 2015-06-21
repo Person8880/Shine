@@ -39,6 +39,16 @@ function Scrollbar:Initialise()
 	self.ScrollSize = 1
 end
 
+function Scrollbar:GetNormalAlpha( Element )
+	local Skin = SGUI:GetSkin()
+
+	if Element == self.Background then
+		return Skin.ScrollbarBackground.a
+	end
+
+	return Skin.Scrollbar.a
+end
+
 function Scrollbar:OnSchemeChange( Skin )
 	self.Background:SetColor( Skin.ScrollbarBackground )
 	self.Bar:SetColor( Skin.Scrollbar )
