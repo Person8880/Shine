@@ -14,7 +14,6 @@ local Max = math.max
 local Notify = Shared.Message
 local next = next
 local pairs = pairs
-local pcall = pcall
 local Random = math.random
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
@@ -527,15 +526,13 @@ end
 
 function Plugin:ForcePlayersIntoReadyRoom()
 	local Gamerules = GetGamerules()
-	local Players = Shine.GetAllPlayers()
 
-	for i = 1, #Players do
-		local Ply = Players[ i ]
-
-		if Ply then
-			pcall( Gamerules.JoinTeam, Gamerules, Ply, 0, nil, true )
-		end
+	local function MoveToReadyRoom( Player )
+		Gamerules:JoinTeam( Player, 0, nil, true )
 	end
+
+	Gamerules.team1:ForEachPlayer( MoveToReadyRoom )
+	Gamerules.team2:ForEachPlayer( MoveToReadyRoom )
 end
 
 --[[
