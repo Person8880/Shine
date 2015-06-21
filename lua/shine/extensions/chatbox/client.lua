@@ -161,7 +161,7 @@ local LayoutData = {
 	Sizes = {
 		ChatBox = Vector( 800, 350, 0 ),
 		InnerBox = Vector( 790, 300, 0 ),
-		TextBox = Vector( 795, 40, 0 ),
+		TextBox = Vector( 797, 40, 0 ),
 		SettingsButton = Vector( 36, 36, 0 ),
 		SettingsClosed = Vector( 0, 350, 0 ),
 		Settings = Vector( 350, 350, 0 ),
@@ -173,7 +173,7 @@ local LayoutData = {
 		Scrollbar = Vector( -8, 0, 0 ),
 		SettingsButton = Vector( -41, -40, 0 ),
 		Settings = Vector( 0, 0, 0 ),
-		TextBox = Vector( 5, -42, 0 ),
+		TextBox = Vector( 3, -42, 0 ),
 		Title = Vector( 30, 10, 0 ),
 		AutoClose = Vector( 30, 50, 0 ),
 		AutoDelete = Vector( 30, 90, 0 ),
@@ -421,7 +421,8 @@ function Plugin:CreateChatbox()
 	}
 	if self.TextScale ~= 1 then
 		TextEntry:SetTextScale( self.TextScale )
-	elseif Font == Fonts.kAgencyFB_Tiny then
+	end
+	if Font == Fonts.kAgencyFB_Tiny then
 		--For some reason, the tiny font is always 1 behind where it should be...
 		TextEntry.Padding = 3
 		TextEntry.CaretOffset = -1
