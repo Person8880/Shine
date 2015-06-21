@@ -21,6 +21,37 @@ local UserPath = "config://shine/UserConfig.json"
 local BackupPath = "config://Shine_UserConfig.json"
 local DefaultUsers = "config://ServerAdmin.json"
 
+local CommandMapping = {
+	sv_hasreserve = "sh_reservedslot",
+	sv_rrall = "sh_rr",
+	sv_afkimmune = "sh_afk",
+	sv_randomall = "sh_forcerandom",
+	sv_switchteam = "sh_setteam",
+	sv_maps = "sh_listmaps",
+	sv_randomon = "sh_enablerandom",
+	sv_cancelmapvote = "sh_veto",
+	sv_nick = "sh_rename",
+	sv_reloadplugins = "sh_loadplugin",
+	sv_dontrandom = "sh_randomimmune"
+}
+
+local function ConvertCommands( Commands )
+	local Ret = {}
+
+	for i = 1, #Commands do
+		local Command = Commands[ i ]
+		local Equivalent = CommandMapping[ Command ]
+
+		if Equivalent then
+			Ret[ i ] = Equivalent
+		else
+			Ret[ i ] = Command:gsub( "sv", "sh" )
+		end
+	end
+
+	return Ret
+end
+
 --[[
 	Converts the default/DAK style user file into one compatible with Shine.
 	Inputs: Userdata table, optional boolean to not save (for web loading).
@@ -225,37 +256,6 @@ function Shine:GenerateDefaultUsers( Save )
 	if Save then
 		self:SaveUsers()
 	end
-end
-
-local CommandMapping = {
-	sv_hasreserve = "sh_reservedslot",
-	sv_rrall = "sh_rr",
-	sv_afkimmune = "sh_afk",
-	sv_randomall = "sh_forcerandom",
-	sv_switchteam = "sh_setteam",
-	sv_maps = "sh_listmaps",
-	sv_randomon = "sh_enablerandom",
-	sv_cancelmapvote = "sh_veto",
-	sv_nick = "sh_rename",
-	sv_reloadplugins = "sh_loadplugin",
-	sv_dontrandom = "sh_randomimmune"
-}
-
-local function ConvertCommands( Commands )
-	local Ret = {}
-
-	for i = 1, #Commands do
-		local Command = Commands[ i ]
-		local Equivalent = CommandMapping[ Command ]
-
-		if Equivalent then
-			Ret[ i ] = Equivalent
-		else
-			Ret[ i ] = Command:gsub( "sv", "sh" )
-		end
-	end
-
-	return Ret
 end
 
 --[[
