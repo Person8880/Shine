@@ -63,6 +63,40 @@ function ScreenText:SetText( Text )
 	self.Obj:SetText( Text )
 end
 
+local function GetFontAndScale( ScrW, ScrH, Size )
+	local Font = StandardFonts[ Size ]
+
+	if ScrW > 1920 and ScrW <= 2880 then
+		Font = HighResFonts[ Size ]
+	elseif ScrW > 2880 then
+		Font = FourKFonts[ Size ]
+	end
+
+	local ScaleVec
+	if IsType( Font, "table" ) then
+		ScaleVec = Vector( Font[ 2 ], Font[ 2 ], 0 )
+		Font = Font[ 1 ]
+	else
+		ScaleVec = ScrW <= 1920 and GUIScale( Vector( 1, 1, 1 ) ) or Vector( 1, 1, 1 )
+	end
+
+	return Font, ScaleVec
+end
+
+function ScreenText:Recompute()
+	local GUIObj = self.Obj
+	if not GUIObj then return end
+
+	local ScrW = Client.GetScreenWidth()
+	local ScrH = Client.GetScreenHeight()
+
+	local Font, ScaleVec = GetFontAndScale( ScrW, ScrH, self.Size )
+
+	GUIObj:SetScale( ScaleVec )
+	GUIObj:SetPosition( Vector( ScrW * self.x, ScrH * self.y, 0 ) )
+	GUIObj:SetFontName( Font )
+end
+
 --[[
 	Adds or updates a text label with the given ID and parameters.
 ]]
@@ -83,25 +117,8 @@ function Shine.ScreenText.Add( ID, Params )
 
 	local ScrW = Client.GetScreenWidth()
 	local ScrH = Client.GetScreenHeight()
-	local Font = StandardFonts[ Size ]
 
-	if ScrW > 1920 and ScrW <= 2880 then
-		Font = HighResFonts[ Size ]
-	elseif ScrW > 2880 then
-		Font = FourKFonts[ Size ]
-	end
-
-	local ShouldFade = FadeIn > 0.05
-
-	local Time = Shared.GetTime()
-
-	local ScaleVec
-	if IsType( Font, "table" ) then
-		ScaleVec = Vector( Font[ 2 ], Font[ 2 ], 0 )
-		Font = Font[ 1 ]
-	else
-		ScaleVec = ScrW <= 1920 and GUIScale( Vector( 1, 1, 1 ) ) or Vector( 1, 1, 1 )
-	end
+	local Font, ScaleVec = GetFontAndScale( ScrW, ScrH, Size )
 
 	local MessageTable = Messages:Get( ID )
 	local GUIObj
@@ -131,12 +148,15 @@ function Shine.ScreenText.Add( ID, Params )
 		GUIObj = MessageTable.Obj
 	end
 
+	local ShouldFade = FadeIn > 0.05
+
 	MessageTable.Text = Text
 	MessageTable.Colour = Color( R / 255, G / 255, B / 255, ShouldFade and 0 or 1 )
 	MessageTable.Duration = Duration
 	MessageTable.x = X
 	MessageTable.y = Y
 	MessageTable.IgnoreFormat = IgnoreFormat
+	MessageTable.Size = Size
 
 	GUIObj:SetTextAlignmentX( Alignment )
 	GUIObj:SetText( IgnoreFormat and Text or StringFormat( Text,
@@ -154,7 +174,7 @@ function Shine.ScreenText.Add( ID, Params )
 		MessageTable.FadeDuration = FadeIn
 	end
 
-	MessageTable.LastUpdate = Time
+	MessageTable.LastUpdate = SharedTime()
 
 	return MessageTable
 end
@@ -294,4 +314,10 @@ end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextRemove", function( Message )
 	Shine.ScreenText.End( Message.ID )
+end )
+
+Shine.Hook.Add( "OnResolutionChanged", "ScreenText", function( OldX, OldY, NewX, NewY )
+	for Index, Message in Messages:Iterate() do
+		Message:Recompute()
+	end
 end )
