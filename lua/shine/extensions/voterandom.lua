@@ -1495,8 +1495,9 @@ function Plugin:CreateCommands()
 			local VotesNeeded = self.Vote:GetVotesNeeded()
 
 			if not self.RandomApplied then
-				self:Notify( nil, "%s voted to force %s teams (%s more votes needed).",
-					true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ], VotesNeeded )
+				self:Notify( nil, "%s voted to force %s teams (%s more vote%s needed).",
+					true, PlayerName, ModeStrings.ModeLower[ self.Config.BalanceMode ],
+					VotesNeeded, VotesNeeded ~= 1 and "s" or "" )
 			end
 
 			--Somehow it didn't apply random settings??

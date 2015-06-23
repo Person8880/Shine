@@ -1341,8 +1341,8 @@ function Plugin:CreateCommands()
 
 			local VotesNeeded = self.StartingVote:GetVotesNeeded()
 
-			self:Notify( nil, "%s voted to change the map (%s more votes needed).", true,
-				PlayerName, VotesNeeded )
+			self:Notify( nil, "%s voted to change the map (%s more vote%s needed).", true,
+				PlayerName, VotesNeeded, VotesNeeded ~= 1 and "s" or "" )
 
 			return
 		end
