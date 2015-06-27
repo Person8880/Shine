@@ -277,6 +277,7 @@ function List:SetSize( Size )
 		self.Scrollbar:Destroy()
 
 		self.Scrollbar = nil
+		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 	end
 
 	if not self.RowSize then
@@ -514,6 +515,9 @@ function List:RemoveRow( Index )
 
 			self.Scrollbar = nil
 		end
+
+		--Make sure the scrolling is reset if there's no longer a scrollbar.
+		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 	else
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	end
