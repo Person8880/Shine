@@ -68,6 +68,9 @@ function Scrollbar:SetSize( Size )
 end
 
 function Scrollbar:SetScrollSize( Size )
+	local OldPos = self.Pos or 0
+	local OldDiff = self.Size.y - self.ScrollSizeVec.y
+
 	self.ScrollSize = Size
 
 	if self.ScrollSizeVec then
@@ -77,6 +80,12 @@ function Scrollbar:SetScrollSize( Size )
 	end
 
 	self.Bar:SetSize( self.ScrollSizeVec )
+
+	local NewDiff = self.Size.y - self.ScrollSizeVec.y
+	--If the scrolling size has shrunk, we may need to move up.
+	if NewDiff < OldDiff then
+		self:SetScroll( OldPos )
+	end
 end
 
 --[[

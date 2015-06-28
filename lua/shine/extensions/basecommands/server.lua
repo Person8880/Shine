@@ -345,7 +345,7 @@ local function Help( Client, Search )
 					and StringFormat( " (chat: !%s)", Command.ChatCmd ) or ""
 
 				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName,
-					ChatCommand, Command.Help or "No help available." )
+					ChatCommand, Command.HelpString or "No help available." )
 
 				PrintToConsole( Client, HelpLine )
 			end

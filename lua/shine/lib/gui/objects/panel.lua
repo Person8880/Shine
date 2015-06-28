@@ -220,12 +220,12 @@ function Panel:Add( Class, Created )
 	return Element
 end
 
-function Panel:SetSize( Vec )
-	self.BaseClass.SetSize( self, Vec )
+function Panel:SetSize( Size )
+	self.BaseClass.SetSize( self, Size )
 
 	if not self.Stencil then return end
 
-	self.Stencil:SetSize( Vec )
+	self.Stencil:SetSize( Size )
 
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:SetParent()
@@ -233,11 +233,18 @@ function Panel:SetSize( Vec )
 
 		self.Scrollbar = nil
 
-		self:SetMaxHeight( self.MaxHeight )
+		if Size.y < self.MaxHeight then
+			self:SetMaxHeight( self.MaxHeight )
+		else
+			--Make sure the parent gets reset, and we clear the MaxHeight field
+			--so auto-resize is calculated from the panel height which is now larger.
+			self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
+			self.MaxHeight = nil
+		end
 	end
 
 	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetSize( Vector( Vec.x, self.TitleBarHeight, 0 ) )
+		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
 	end
 end
 

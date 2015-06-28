@@ -41,7 +41,7 @@ function CommandMeta:Help( HelpString )
 	Shine.Assert( type( HelpString ) == "string",
 		"Bad argument #1 to Help, string expected, got %s", type( HelpString ) )
 
-	self.Help = HelpString
+	self.HelpString = HelpString
 end
 
 --[[
@@ -451,7 +451,7 @@ local function GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args
 	local ExpectedCount = #ExpectedArgs
 
 	if Args[ 1 ] == nil and ExpectedCount > 0 and not ExpectedArgs[ 1 ].Optional then
-		Notify( Client, FromChat, "%s - %s", true, ConCommand, Command.Help or "No help available." )
+		Notify( Client, FromChat, "%s - %s", true, ConCommand, Command.HelpString or "No help available." )
 
 		return
 	end
