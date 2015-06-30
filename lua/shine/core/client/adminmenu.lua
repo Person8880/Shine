@@ -132,6 +132,7 @@ function AdminMenu:AddTab( Name, Data )
 	self.Tabs[ Name ] = Data
 
 	if self.Created then
+		local ActiveTab = self.Window:GetActiveTab()
 		local Tabs = self.Window.Tabs
 
 		--A bit brute force, but its the easiest way to preserve tab order.
@@ -140,6 +141,15 @@ function AdminMenu:AddTab( Name, Data )
 		end
 
 		self:PopulateTabs( self.Window )
+
+		local WindowTabs = self.Window.Tabs
+		for i = 1, #WindowTabs do
+			local Tab = WindowTabs[ i ]
+			if Tab.Name == ActiveTab.Name then
+				Tab.TabButton:DoClick()
+				break
+			end
+		end
 	end
 end
 
