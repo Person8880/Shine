@@ -77,16 +77,6 @@ function Plugin:GetTeamPlayerCount( Team )
 	end
 end
 
-function Plugin:GetTeamPlayers( Team )
-	local Gamerules = GetGamerules()
-
-	if Team == 1 then
-		return Gamerules.team1:GetPlayers()
-	else
-		return Gamerules.team2:GetPlayers()
-	end
-end
-
 function Plugin:GetVotesNeeded( Team )
 	local TeamCount = self:GetTeamPlayerCount( Team )
 
