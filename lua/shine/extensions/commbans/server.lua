@@ -110,8 +110,10 @@ function Plugin:CreateCommands()
 		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 			or "permanently"
 
-		Shine:CommandNotify( Client, "banned %s from commanding %s.", true,
-			TargetName, DurationString )
+		self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
+			TargetName = TargetName,
+			Duration = Duration
+		} )
 		Shine:AdminPrint( nil, "%s banned %s[%s] from commanding %s.", true,
 			BanningName, TargetName, ID, DurationString )
 	end
@@ -207,8 +209,10 @@ function Plugin:CreateCommands()
 					TargetPlayer:Eject()
 				end
 
-				Shine:CommandNotify( Client, "banned %s from commanding %s.", true,
-					TargetName, DurationString )
+				self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
+					TargetName = TargetName,
+					Duration = Duration
+				} )
 			end
 
 			return

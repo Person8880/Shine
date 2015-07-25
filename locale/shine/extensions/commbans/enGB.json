@@ -1,0 +1,4 @@
+{
+	"Comm Bans": "Comm Bans",
+	"PLAYER_BANNED": "banned {TargetName} from commanding {Duration:NonZero:for }{Duration:Duration:PERMANENTLY:Lower}."
+}
