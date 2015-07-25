@@ -20,11 +20,131 @@ local MapVotesMessage = {
 Shine:RegisterExtension( "mapvote", Plugin )
 
 function Plugin:SetupDataTable()
+	local MapNameField = "string (24)"
+
+	local MessageTypes = {
+		Duration = {
+			Duration = "integer"
+		},
+		Empty = {},
+		MapName = {
+			MapName = MapNameField
+		},
+		MapVotes = {
+			MapName = MapNameField,
+			Votes = "integer (0 to 127)",
+			TotalVotes = "integer (0 to 127)"
+		},
+		MapNames = {
+			MapNames = "string (255)"
+		},
+		Nomination = {
+			TargetName = self:GetNameNetworkField(),
+			MapName = MapNameField
+		},
+		RTV = {
+			TargetName = self:GetNameNetworkField(),
+			VotesNeeded = "integer (0 to 127)"
+		},
+		PlayerVote = {
+			TargetName = self:GetNameNetworkField(),
+			Revote = "boolean",
+			MapName = MapNameField,
+			Votes = "integer (0 to 127)",
+			TotalVotes = "integer (0 to 127)"
+		},
+		PlayerVotePrivate = {
+			Revote = "boolean",
+			MapName = MapNameField,
+			Votes = "integer (0 to 127)",
+			TotalVotes = "integer (0 to 127)"
+		},
+		Veto = {
+			TargetName = self:GetNameNetworkField()
+		},
+		TimeLeftCommand = {
+			Rounds = "boolean",
+			Duration = "integer"
+		},
+		TeamSwitchFail = {
+			IsEndVote = "boolean"
+		}
+	}
+
 	self:AddNetworkMessage( "VoteOptions", VoteOptionsMessage, "Client" )
-	self:AddNetworkMessage( "EndVote", {}, "Client" )
+	self:AddNetworkMessage( "EndVote", MessageTypes.Empty, "Client" )
 	self:AddNetworkMessage( "VoteProgress", MapVotesMessage, "Client" )
 
-	self:AddNetworkMessage( "RequestVoteOptions", {}, "Server" )
+	self:AddNetworkMessage( "RequestVoteOptions", MessageTypes.Empty, "Server" )
+
+	self:AddNetworkMessages( "AddTranslatedMessage", {
+		[ table.Copy( MessageTypes.Empty ) ] = {
+			"FORCED_VOTE"
+		},
+		[ table.Copy( MessageTypes.Duration ) ] = {
+			"MAP_EXTENDED_TIME", "SET_MAP_TIME", "MAP_EXTENDED_ROUNDS",
+			"SET_MAP_ROUNDS"
+		}
+	} )
+
+	self:AddNetworkMessages( "AddTranslatedNotify", {
+		[ MessageTypes.Empty ] = {
+			"EXTENDING_ROUND", "WINNER_NEXT_MAP2", "WINNER_CYCLING2",
+			"NO_VOTES", "VOTES_TIED_FAILURE", "VOTES_TIED_REVOTE",
+			"VOTES_TIED_LIMIT", "RTV_STARTED", "NEXT_MAP_STARTED",
+			"PLUGIN_DISABLED"
+		},
+		[ MessageTypes.Duration ] = {
+			"TimeLeftNotify", "RoundLeftNotify", "EXTENDING_TIME",
+			"MAP_CHANGING"
+		},
+		[ MessageTypes.MapName ] = {
+			"MapCycling", "WINNER_NEXT_MAP", "WINNER_CYCLING",
+			"CHOOSING_RANDOM_MAP", "NextMapCommand"
+		},
+		[ MessageTypes.MapVotes ] = {
+			"WINNER_VOTES"
+		},
+		[ MessageTypes.MapNames ] = {
+			"VOTES_TIED"
+		},
+		[ MessageTypes.Nomination ] = {
+			"NOMINATED_MAP"
+		},
+		[ MessageTypes.RTV ] = {
+			"RTV_VOTED"
+		},
+		[ MessageTypes.PlayerVote ] = {
+			"PLAYER_VOTED"
+		},
+		[ MessageTypes.PlayerVotePrivate ] = {
+			"PLAYER_VOTED_PRIVATE"
+		},
+		[ MessageTypes.Veto ] = {
+			"VETO"
+		},
+		[ MessageTypes.TimeLeftCommand ] = {
+			"TimeLeftCommand"
+		},
+		[ MessageTypes.TeamSwitchFail ] = {
+			"TeamSwitchFail"
+		}
+	} )
+
+	self:AddNetworkMessages( "AddTranslatedError", {
+		[ MessageTypes.Empty ] = {
+			"VOTE_FAIL_MAP_CHANGE", "VOTE_FAIL_INSUFFICIENT_PLAYERS",
+			"VOTE_FAIL_TIME", "VOTE_FAIL_IN_PROGRESS",
+			"VOTE_FAIL_ALREADY_VOTED", "NOMINATE_FAIL",
+			"NOMINATIONS_FULL", "RTV_DISABLED", "NO_VOTE_IN_PROGRESS",
+			"NO_CHANGE_IN_PROGRESS", "CANT_FORCE"
+		},
+		[ MessageTypes.MapName ] = {
+			"VOTE_FAIL_INVALID_MAP", "VOTE_FAIL_VOTED_MAP",
+			"MAP_NOT_ON_LIST", "ALREADY_NOMINATED",
+			"RECENTLY_PLAYED"
+		}
+	} )
 end
 
 if Server then
@@ -48,6 +168,51 @@ Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
 Plugin.EndTime = 0
 
+Plugin.NotifyPrefixColour = {
+	255, 255, 0
+}
+
+function Plugin:TimeLeftNotify( Message )
+	self:AddChatLine( 0, 0, 0, "", 255, 160, 0, Message )
+end
+
+function Plugin:ReceiveTimeLeftNotify( Data )
+	self:TimeLeftNotify( self:GetInterpolatedPhrase( "TIME_LEFT_NOTIFY", Data ) )
+end
+
+function Plugin:ReceiveRoundLeftNotify( Data )
+	self:TimeLeftNotify( self:GetInterpolatedPhrase( "ROUND_LEFT_NOTIFY", Data ) )
+end
+
+function Plugin:ReceiveMapCycling( Data )
+	self:TimeLeftNotify( self:GetInterpolatedPhrase( "CYCLING_NOTIFY", Data ) )
+end
+
+function Plugin:ReceiveTimeLeftCommand( Data )
+	if Data.Duration == 0 then
+		self:AddChatLine( 0, 0, 0, "", 255, 255, 255, self:GetPhrase( "MAP_WILL_CYCLE" ) )
+		return
+	end
+
+	if Data.Duration < 0 then
+		self:AddChatLine( 0, 0, 0, "", 255, 255, 255, self:GetPhrase( "NO_CYCLE" ) )
+		return
+	end
+
+	local Key = Data.Rounds and "ROUNDS_LEFT" or "TIME_LEFT"
+	self:AddChatLine( 0, 0, 0, "", 255, 255, 255, self:GetInterpolatedPhrase( Key, Data ) )
+end
+
+function Plugin:ReceiveNextMapCommand( Data )
+	self:AddChatLine( 0, 0, 0, "", 255, 255, 255, self:GetInterpolatedPhrase( "NEXT_MAP_SET_TO", Data ) )
+end
+
+function Plugin:ReceiveTeamSwitchFail( Data )
+	local Key = Data.IsEndVote and "TEAM_CHANGE_FAIL_VOTE" or "TEAM_CHANGE_FAIL_MAP_CHANGE"
+	local Phrase = self:GetPhrase( Key )
+	self:TimeLeftNotify( Phrase )
+end
+
 function Plugin:OnVoteMenuOpen()
 	local Time = SharedTime()
 
@@ -62,7 +227,7 @@ Shine.VoteMenu:EditPage( "Main", function( self )
 	local Time = SharedTime()
 
 	if ( Plugin.EndTime or 0 ) > Time then
-		self:AddTopButton( "Vote", function()
+		self:AddTopButton( Plugin:GetPhrase( "VOTE" ), function()
 			self:SetPage( "MapVote" )
 		end )
 	end
@@ -73,7 +238,7 @@ end, function( self )
 
 	if Plugin.EndTime > Time then
 		if not SGUI.IsValid( TopButton ) or not TopButton:GetIsVisible() then
-			self:AddTopButton( "Vote", function()
+			self:AddTopButton( Plugin:GetPhrase( "VOTE" ), function()
 				self:SetPage( "MapVote" )
 			end )
 		end
@@ -117,7 +282,7 @@ Shine.VoteMenu:AddPage( "MapVote", function( self )
 		end )
 	end
 
-	self:AddTopButton( "Back", function()
+	self:AddTopButton( Plugin:GetPhrase( "BACK" ), function()
 		self:SetPage( "Main" )
 	end )
 end, function( self )
@@ -149,16 +314,28 @@ function Plugin:ReceiveEndVote( Data )
 	Shine.ScreenText.End( "MapVote" )
 end
 
-local ButtonBoundMessage =
-[[%s. Press %s to vote.
-Time left to vote: %%s.]]
+local function GetMapVoteText( self, NextMap, VoteButton, Options, InitialText )
+	local Description
+	if InitialText then
+		Description = NextMap and self:GetPhrase( "NEXT_MAP_DESCRIPTION" )
+			or self:GetPhrase( "RTV_DESCRIPTION" )
+	else
+		Description = NextMap and self:GetPhrase( "NEXT_MAP_DESCRIPTION2" )
+			or self:GetPhrase( "RTV_DESCRIPTION2" )
+	end
 
-local ButtonUnboundMessage =
-[[%s.
-Maps: %s.
-Type !vote <map> to vote.
-Time left to vote: %%s.
-Bind a key to sh_votemenu to make voting easier.]]
+	if VoteButton then
+		return self:GetInterpolatedPhrase( "VOTE_BOUND_MESSAGE", {
+			VoteDescription = Description,
+			Button = VoteButton
+		} )
+	end
+
+	return self:GetInterpolatedPhrase( "VOTE_UNBOUND_MESSAGE", {
+		VoteDescription = Description,
+		MapList = Options
+	} )
+end
 
 function Plugin:ReceiveVoteOptions( Message )
 	Shine.CheckVoteMenuBind()
@@ -186,20 +363,10 @@ function Plugin:ReceiveVoteOptions( Message )
 	local ButtonBound = Shine.VoteButtonBound
 	local VoteButton = Shine.VoteButton or "M"
 
-	local VoteMessage
-
-	if ButtonBound then
-		VoteMessage = StringFormat( ButtonBoundMessage,
-			NextMap and "Voting for the next map has begun" or "Map vote has begun",
-			VoteButton )
-	else
-		VoteMessage = StringFormat( ButtonUnboundMessage,
-			NextMap and "Voting for the next map has begun." or "Map vote has begun.",
-			Options )
-	end
+	local VoteMessage = GetMapVoteText( self, NextMap, ButtonBound and VoteButton or nil, Options, true )
 
 	if NextMap and TimeLeft > 0 and ShowTimeLeft then
-		VoteMessage = VoteMessage.."\nTime left on the current map: %s."
+		VoteMessage = StringFormat( "%s\n%s", VoteMessage, self:GetPhrase( "TIME_LEFT" ) )
 	end
 
 	if NextMap and ShowTimeLeft then
@@ -233,16 +400,10 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Colour = Color( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
-				local FirstLine = "Vote for the next map in progress"
-
-				if ButtonBound then
-					self.Text = StringFormat( ButtonBoundMessage, FirstLine, VoteButton )
-				else
-					self.Text = StringFormat( ButtonUnboundMessage, FirstLine, Options )
-				end
+				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil, Options, false )
 
 				if self.TimeLeft > 0 then
-					self.Text = self.Text.."\nTime left on the current map: %s."
+					self.Text = StringFormat( "%s\n%s", self.Text, Plugin:GetPhrase( "TIME_LEFT" ) )
 				end
 
 				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ),
@@ -275,15 +436,7 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Colour = Color( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
-				local FirstLine = NextMap and "Vote for the next map in progress"
-					or "Map vote in progress"
-
-				if ButtonBound then
-					self.Text = StringFormat( ButtonBoundMessage, FirstLine, VoteButton )
-				else
-					self.Text = StringFormat( ButtonUnboundMessage, FirstLine, Options )
-				end
-
+				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil, Options, false )
 				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 
 				return
