@@ -427,10 +427,10 @@ elseif Client then
 		local TimeToString = string.TimeToString
 		local Transformers = string.InterpolateTransformers
 
-		-- Transforms a boolean into one of two translated strings.
+		-- Transforms a boolean into one of two strings.
 		Transformers.BoolToPhrase = function( FormatArg, TransformArg )
 			local Args = StringExplode( TransformArg, "|" )
-			return Shine.Locale:GetPhrase( "Core", FormatArg and Args[ 1 ] or Args[ 2 ] )
+			return FormatArg and Args[ 1 ] or Args[ 2 ]
 		end
 
 		-- Transforms a team number into a team name using Shine:GetTeamName().
