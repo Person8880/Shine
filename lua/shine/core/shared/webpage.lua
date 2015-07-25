@@ -12,7 +12,7 @@ Shared.RegisterNetworkMessage( "Shine_Web", WebOpen )
 if Server then return end
 
 local Hook = Shine.Hook
-
+local Locale = Shine.Locale
 local SGUI = Shine.GUI
 
 local CloseButtonCol = Colour( 0.6, 0.3, 0.1, 1 )
@@ -36,10 +36,6 @@ local AlwaysButtonPos = Vector( 5, -37, 0 )
 
 local PopupTextPos = Vector( 0, -32, 0 )
 
-local PopupText = [[Open this page in the Steam overlay?
-(If you choose always, type "sh_viewwebinsteam 0"
-in the console to get this window back)]]
-
 local Max = math.max
 
 local function Scale( Value, WidthMult, HeightMult )
@@ -58,7 +54,7 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Pos = Scale( PopupPos, WidthMult, HeightMult )
 	}
 	Window.TitleBarHeight = TitleBarH
-	Window:AddTitleBar( "Open in Steam Overlay", Font, TextScale )
+	Window:AddTitleBar( Locale:GetPhrase( "Core", "OPEN_IN_STEAM_OVERLAY" ), Font, TextScale )
 	Window:SkinColour()
 
 	local OldOnMouseDown = Window.OnMouseDown
@@ -76,7 +72,7 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 	Text:SetupFromTable{
 		Anchor = "CentreMiddle",
 		Pos = Scale( PopupTextPos, WidthMult, HeightMult ),
-		Text = PopupText:gsub( "\n", " " ),
+		Text = Locale:GetPhrase( "Core", "OPEN_IN_STEAM_OVERLAY_DESCRIPTION" ):gsub( "\n", " " ),
 		Font = Font,
 		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
@@ -93,7 +89,7 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Pos = Scale( NowButtonPos, WidthMult, HeightMult ),
 		Size = Scale( PopupButtonSize, WidthMult, HeightMult ),
 		IsSchemed = false,
-		Text = "Now",
+		Text = Locale:GetPhrase( "Core", "NOW" ),
 		Font = Font,
 		ActiveCol = CloseButtonHighlight,
 		InactiveCol = CloseButtonCol
@@ -116,7 +112,7 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Pos = Scale( AlwaysButtonPos, WidthMult, HeightMult ),
 		Size = Scale( PopupButtonSize, WidthMult, HeightMult ),
 		IsSchemed = false,
-		Text = "Always",
+		Text = Locale:GetPhrase( "Core", "ALWAYS" ),
 		Font = Font,
 		ActiveCol = SteamButtonHighlight,
 		InactiveCol = SteamButtonCol
@@ -176,7 +172,7 @@ function Shine:OpenWebpage( URL, TitleText )
 		Pos = Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 )
 	}
 	Window.TitleBarHeight = TitleBarH
-	Window:AddTitleBar( TitleText or "Message of the day", Font, TextScale )
+	Window:AddTitleBar( TitleText or Locale:GetPhrase( "Core", "MESSAGE_OF_THE_DAY" ), Font, TextScale )
 	Window:SkinColour()
 
 	self.ActiveWebPage = Window
@@ -193,7 +189,7 @@ function Shine:OpenWebpage( URL, TitleText )
 		Pos = Scale( SteamButtonPos, WidthMult, HeightMult ),
 		Size = OpenInSteamSize,
 		IsSchemed = false,
-		Text = "Open in Steam",
+		Text = Locale:GetPhrase( "Core", "OPEN_IN_STEAM" ),
 		Font = Font,
 		TextScale = SteamButtonScale * ( TextScale or Vector( 1, 1, 0 ) ),
 		ActiveCol = SteamButtonHighlight,
@@ -209,7 +205,7 @@ function Shine:OpenWebpage( URL, TitleText )
 	local LoadingText = Window:Add( "Label" )
 	LoadingText:SetupFromTable{
 		Anchor = "CentreMiddle",
-		Text = "Loading...",
+		Text = Locale:GetPhrase( "Core", "LOADING" ),
 		Font = LoadingFont,
 		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,

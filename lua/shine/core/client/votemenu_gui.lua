@@ -8,6 +8,7 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local IsType = Shine.IsType
+local Locale = Shine.Locale
 
 local Ceil = math.ceil
 local Cos = math.cos
@@ -587,7 +588,7 @@ function VoteMenu:SortSideButtons( IgnoreAnim )
 end
 
 function VoteMenu:AddAdminMenuButton()
-	self:AddSideButton( "Admin Menu", function()
+	self:AddSideButton( Locale:GetPhrase( "Core", "ADMIN_MENU" ), function()
 		Shared.ConsoleCommand( "sh_adminmenu" )
 		self:SetIsVisible( false )
 	end )
@@ -602,7 +603,7 @@ VoteMenu:AddPage( "Main", function( self )
 	for i = 1, #ActivePlugins do
 		local Plugin = ActivePlugins[ i ]
 
-		self:AddSideButton( Plugin, ClickFuncs[ Plugin ] )
+		self:AddSideButton( Locale:GetPhrase( "Core", Plugin ), ClickFuncs[ Plugin ] )
 	end
 
 	if self.RequestedAdminMenu == nil then
