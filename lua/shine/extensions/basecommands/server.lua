@@ -664,7 +664,9 @@ function Plugin:CreateAdminCommands()
 
 	local function SetCheats( Client, Enable )
 		Shared.ConsoleCommand( "cheats "..( Enable and "1" or "0" ) )
-		Shine:CommandNotify( Client, "%s cheats.", true, Enable and "enabled" or "disabled" )
+		self:SendTranslatedMessage( Client, "CHEATS_TOGGLED", {
+			Enabled = Enable
+		} )
 	end
 	local SetCheatsCommand = self:BindCommand( "sh_cheats", "cheats", SetCheats )
 	SetCheatsCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shared.GetCheatsEnabled() end }
@@ -682,9 +684,15 @@ function Plugin:CreateAdminCommands()
 		Server.DisconnectClient( Target )
 
 		if Reason == "" then
-			Shine:CommandNotify( Client, "kicked %s.", true, TargetName )
+			self:SendTranslatedMessage( Client, "ClientKicked", {
+				TargetName = TargetName,
+				Reason = ""
+			} )
 		else
-			Shine:CommandNotify( Client, "kicked %s (%s).", true, TargetName, Reason )
+			self:SendTranslatedMessage( Client, "ClientKicked", {
+				TargetName = TargetName,
+				Reason = Reason
+			} )
 		end
 	end
 	local KickCommand = self:BindCommand( "sh_kick", "kick", Kick )
@@ -861,16 +869,16 @@ function Plugin:CreateAllTalkCommands()
 	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString, NotifyString )
 		local function CommandFunc( Client, Enable )
 			self.Config[ ConfigOption ] = Enable
-
 			self:SaveConfig( true )
 
-			local Enabled = Enable and "enabled" or "disabled"
-
 			if Shine.Config.NotifyOnCommand then
-				Shine:CommandNotify( Client, "%s %s.", true, Enabled, CommandNotifyString )
+				self:SendTranslatedMessage( Client, CommandNotifyString, {
+					Enabled = Enable
+				} )
 			else
-				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
-					"[All Talk]", 255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
+				Shine:TranslatedNotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
+					"ALL_TALK_TAG", 255, 255, 255, NotifyString..( Enable and "ENABLED" or "DISABLED" ),
+					self.__Name )
 			end
 		end
 		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
@@ -879,14 +887,15 @@ function Plugin:CreateAllTalkCommands()
 		Command:Help( StringFormat( "<true/false> Enables or disables %s.", CommandNotifyString ) )
 	end
 
-	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "all talk", "All talk" )
+	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "ALLTALK_NOTIFY_" )
 	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
-		"all talk pre-game", "All talk pre-game" )
+		"ALLTALK_PREGAME_TOGGLED", "ALLTALK_PREGAME_NOTIFY" )
 end
 
 function Plugin:CreateGameplayCommands()
 	local function FriendlyFire( Client, Scale )
 		local OldState = self.Config.FriendlyFire
+		local OldScale = self.Config.FriendlyFireScale
 		local Enable = Scale > 0
 
 		if Enable then
@@ -898,15 +907,21 @@ function Plugin:CreateGameplayCommands()
 
 		self:SaveConfig( true )
 
-		if OldState ~= self.Config.FriendlyFire then
-			if Shine.Config.NotifyOnCommand then
-				Shine:CommandNotify( Client, "set friendly fire scale to %s.", true, Scale )
-			else
-				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[FF]",
-					255, 255, 255, "Friendly fire has been %s.", true,
-					Enable and "enabled" or "disabled" )
-			end
+		if Shine.Config.NotifyOnCommand then
+			if OldScale == Scale then return end
+
+			self:SendTranslatedMessage( Client, "FRIENDLY_FIRE_SCALE", {
+				Scale = Scale
+			} )
+
+			return
 		end
+
+		if OldState == Enable then return end
+
+		Shine:TranslatedNotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "FF_TAG",
+			255, 255, 255, Enable and "FRIENDLY_FIRE_ENABLED" or "FRIENDLY_FIRE_DISABLED",
+			self.__Name )
 	end
 	local FriendlyFireCommand = self:BindCommand( "sh_friendlyfire", { "ff", "friendlyfire" }, FriendlyFire )
 	FriendlyFireCommand:AddParam{ Type = "number", Min = 0, Error = "Please specify a scale, or 0 for off." }
@@ -922,28 +937,6 @@ function Plugin:CreateGameplayCommands()
 	end
 	local ResetGameCommand = self:BindCommand( "sh_reset", "reset", ResetGame )
 	ResetGameCommand:Help( "Resets the game round." )
-
-	local function ReadyRoom( Client, Targets )
-		local Gamerules = GetGamerules()
-		if not Gamerules then return end
-
-		local TargetCount = #Targets
-
-		for i = 1, TargetCount do
-			local Player = Targets[ i ]:GetControllingPlayer()
-			if Player then
-				Gamerules:JoinTeam( Player, kTeamReadyRoom, nil, true )
-			end
-		end
-
-		if TargetCount > 0 then
-			local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
-			Shine:CommandNotify( Client, "moved %s to the ready room.", true, Players )
-		end
-	end
-	local ReadyRoomCommand = self:BindCommand( "sh_rr", "rr", ReadyRoom )
-	ReadyRoomCommand:AddParam{ Type = "clients" }
-	ReadyRoomCommand:Help( "<players> Sends the given player(s) to the ready room." )
 
 	local function ForceRandom( Client, Targets )
 		local Gamerules = GetGamerules()
@@ -996,9 +989,9 @@ function Plugin:CreateGameplayCommands()
 
 		Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
-		local PlayerString = NumPlayers == 1 and "1 player" or NumPlayers.." players"
-
-		Shine:CommandNotify( Client, "placed %s onto a random team.", true, PlayerString )
+		self:SendTranslatedMessage( Client, "RANDOM_TEAM", {
+			TargetCount = NumPlayers
+		} )
 	end
 	local ForceRandomCommand = self:BindCommand( "sh_forcerandom", "forcerandom", ForceRandom )
 	ForceRandomCommand:AddParam{ Type = "clients" }
@@ -1009,6 +1002,7 @@ function Plugin:CreateGameplayCommands()
 		if not Gamerules then return end
 
 		local TargetCount = #Targets
+		if TargetCount == 0 then return end
 
 		for i = 1, TargetCount do
 			local Player = Targets[ i ]:GetControllingPlayer()
@@ -1018,20 +1012,27 @@ function Plugin:CreateGameplayCommands()
 			end
 		end
 
-		if TargetCount > 0 then
-			local Players = TargetCount == 1 and "1 player" or TargetCount.." players"
-			Shine:CommandNotify( Client, "moved %s to the %s.", true, Players, Shine:GetTeamName( Team ) )
-		end
+		self:SendTranslatedMessage( Client, "CHANGE_TEAM", {
+			TargetCount = TargetCount,
+			Team = Team
+		} )
 	end
 	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
 	ChangeTeamCommand:AddParam{ Type = "clients" }
 	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify a team to move to." }
 	ChangeTeamCommand:Help( "<players> <team name> Sets the given player(s) onto the given team." )
 
+	local function ReadyRoom( Client, Targets )
+		ChangeTeam( Client, Targets, kTeamReadyRoom )
+	end
+	local ReadyRoomCommand = self:BindCommand( "sh_rr", "rr", ReadyRoom )
+	ReadyRoomCommand:AddParam{ Type = "clients" }
+	ReadyRoomCommand:Help( "<players> Sends the given player(s) to the ready room." )
+
 	if not Shine.IsNS2Combat then
 		local function HiveTeams( Client )
 			--Force even teams is such an overconfident term...
-			Shine:CommandNotify( Client, "shuffled the teams using the Hive skill shuffler." )
+			self:SendTranslatedMessage( Client, "HIVE_TEAMS", {} )
 			ForceEvenTeams()
 		end
 		local HiveShuffle = self:BindCommand( "sh_hiveteams", { "hiveteams" }, HiveTeams )
@@ -1055,7 +1056,7 @@ function Plugin:CreateGameplayCommands()
 		Gamerules.countdownTime = kCountDownLength
 		Gamerules.lastCountdownPlayed = nil
 
-		Shine:CommandNotify( Client, "forced the round to start." )
+		self:SendTranslatedMessage( Client, "FORCE_START", {} )
 	end
 	local ForceRoundStartCommand = self:BindCommand( "sh_forceroundstart", "forceroundstart", ForceRoundStart )
 	ForceRoundStartCommand:Help( "Forces the round to start." )
@@ -1063,13 +1064,14 @@ function Plugin:CreateGameplayCommands()
 	if not Shine.IsNS2Combat then
 		local function Eject( Client, Target )
 			local Player = Target:GetControllingPlayer()
-
 			if not Player then return end
 
 			if Player:isa( "Commander" ) then
 				Player:Eject()
 
-				Shine:CommandNotify( Client, "ejected %s.", true, Player:GetName() or "<unknown>" )
+				self:SendTranslatedMessage( Client, "PLAYER_EJECTED", {
+					TargetName = Player:GetName() or "<unknown>"
+				} )
 			else
 				NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
 			end
@@ -1178,8 +1180,10 @@ function Plugin:CreateMessageCommands()
 		Shine:AdminPrint( nil, "%s[%s] gagged %s[%s]%s", true, PlayerName, ID, TargetName, TargetID,
 			Duration == 0 and "" or " for "..DurationString )
 
-		Shine:CommandNotify( Client, "gagged %s %s.", true, TargetName,
-			Duration == 0 and "until map change" or "for "..DurationString )
+		self:SendTranslatedMessage( Client, "PLAYER_GAGGED", {
+			TargetName = TargetName,
+			Duration = Duration
+		} )
 	end
 	local GagCommand = self:BindCommand( "sh_gag", "gag", GagPlayer )
 	GagCommand:AddParam{ Type = "client" }
@@ -1205,7 +1209,9 @@ function Plugin:CreateMessageCommands()
 
 		Shine:AdminPrint( nil, "%s[%s] ungagged %s[%s]", true, PlayerName, ID, TargetName, TargetID )
 
-		Shine:CommandNotify( Client, "ungagged %s.", true, TargetName )
+		self:SendTranslatedMessage( Client, "PLAYER_UNGAGGED", {
+			TargetName = TargetName
+		} )
 	end
 	local UngagCommand = self:BindCommand( "sh_ungag", "ungag", UngagPlayer )
 	UngagCommand:AddParam{ Type = "client" }
