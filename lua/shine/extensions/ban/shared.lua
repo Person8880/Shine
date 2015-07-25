@@ -19,6 +19,11 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "RequestBanData", {}, "Server" )
 	self:AddNetworkMessage( "BanData", BanData, "Client" )
 	self:AddNetworkMessage( "Unban", { ID = "string (32)" }, "Client" )
+
+	self:AddTranslatedMessage( "PLAYER_BANNED", {
+		TargetName = self:GetNameNetworkField(),
+		Duration = "integer"
+	} )
 end
 
 Shine:RegisterExtension( "ban", Plugin )
@@ -46,6 +51,10 @@ function Plugin:Initialise()
 	return true
 end
 
+local function GetDurationLabel( self, Permanent, UnbanTime )
+	return Permanent and self:GetPhrase( "NEVER" ) or Date( self:GetPhrase( "DATE_FORMAT" ), UnbanTime )
+end
+
 function Plugin:SetupAdminMenu()
 	local Window
 	local function OpenAddBanWindow()
@@ -59,7 +68,7 @@ function Plugin:SetupAdminMenu()
 		Window:SetAnchor( "CentreMiddle" )
 		Window:SetSize( Vector( 400, 328, 0 ) )
 		Window:SetPos( Vector( -200, -164, 0 ) )
-		Window:AddTitleBar( "Add ban" )
+		Window:AddTitleBar( self:GetPhrase( "ADD_BAN" ) )
 		Window:SkinColour()
 
 		function Window.CloseButton.DoClick()
@@ -106,7 +115,7 @@ function Plugin:SetupAdminMenu()
 		MenuButton:SetText( ">" )
 		MenuButton:SetFont( Fonts.kAgencyFB_Small )
 		MenuButton:SetPos( Vector( -48, Y, 0 ) )
-		MenuButton:SetTooltip( "Select a player." )
+		MenuButton:SetTooltip( self:GetPhrase( "SELECT_PLAYER" ) )
 		local Menu
 
 		function MenuButton.DoClick( Button )
@@ -150,7 +159,7 @@ function Plugin:SetupAdminMenu()
 		Y = Y + 40
 
 		local DurationLabel = SGUI:Create( "Label", Window )
-		DurationLabel:SetText( "Duration (in minutes, 0 for permanent):" )
+		DurationLabel:SetText( self:GetPhrase( "DURATION_LABEL" ) )
 		DurationLabel:SetFont( Fonts.kAgencyFB_Small )
 		DurationLabel:SetBright( true )
 		DurationLabel:SetPos( Vector( X, Y, 0 ) )
@@ -171,30 +180,32 @@ function Plugin:SetupAdminMenu()
 		Y = Y + 40
 
 		local DurationValueLabel = SGUI:Create( "Label", Window )
-		DurationValueLabel:SetText( "Please enter a duration..." )
+		DurationValueLabel:SetText( self:GetPhrase( "DURATION_HINT" )  )
 		DurationValueLabel:SetFont( Fonts.kAgencyFB_Small )
 		DurationValueLabel:SetBright( true )
 		DurationValueLabel:SetPos( Vector( X, Y, 0 ) )
 		local DurationOptions = { Units = "minutes", Min = 0, Round = true }
-		function DurationEntry:OnTextChanged( OldValue, NewValue )
+		function DurationEntry.OnTextChanged( TextEntry, OldValue, NewValue )
 			if NewValue == "" then
-				DurationValueLabel:SetText( "Please enter a duration..." )
+				DurationValueLabel:SetText( self:GetPhrase( "DURATION_HINT" ) )
 				return
 			end
 
 			local Minutes = Shine.CommandUtil.ParamTypes.time( nil, NewValue, DurationOptions )
 			if Minutes == 0 then
-				DurationValueLabel:SetText( "Duration: Permanent." )
+				DurationValueLabel:SetText( self:GetPhrase( "DURATION_PERMANENT" ) )
 				return
 			end
 
-			DurationValueLabel:SetText( StringFormat( "Duration: %s", StringTimeToString( Minutes * 60 ) ) )
+			DurationValueLabel:SetText( self:GetInterpolatedPhrase( "DURATION_TIME", {
+				Time = StringTimeToString( Minutes * 60 )
+			} ) )
 		end
 
 		Y = Y + 32
 
 		local ReasonLabel = SGUI:Create( "Label", Window )
-		ReasonLabel:SetText( "Reason:" )
+		ReasonLabel:SetText( self:GetPhrase( "REASON" ) )
 		ReasonLabel:SetFont( Fonts.kAgencyFB_Small )
 		ReasonLabel:SetBright( true )
 		ReasonLabel:SetPos( Vector( X, Y, 0 ) )
@@ -215,7 +226,7 @@ function Plugin:SetupAdminMenu()
 		AddBan:SetAnchor( "BottomMiddle" )
 		AddBan:SetSize( Vector( 128, 32, 0 ) )
 		AddBan:SetPos( Vector( -64, -44, 0 ) )
-		AddBan:SetText( "Add Ban" )
+		AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
 		AddBan:SetFont( Fonts.kAgencyFB_Small )
 		function AddBan.DoClick()
 			local ID = tonumber( IDEntry:GetText() )
@@ -237,12 +248,12 @@ function Plugin:SetupAdminMenu()
 		end
 	end
 
-	self:AddAdminMenuTab( self.AdminTab, {
+	self:AddAdminMenuTab( self:GetPhrase( self.AdminTab ), {
 		OnInit = function( Panel, Data )
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
 			List:SetPos( Vector( 16, 28, 0 ) )
-			List:SetColumns( 3, "Name", "Banned By", "Expiry" )
+			List:SetColumns( 3, self:GetPhrase( "NAME" ), self:GetPhrase( "BANNED_BY" ), self:GetPhrase( "EXPIRY" ) )
 			List:SetSpacing( 0.35, 0.35, 0.3 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
@@ -258,7 +269,7 @@ function Plugin:SetupAdminMenu()
 					local Permanent = UnbanTime == 0
 
 					local Row = List:AddRow( Data.Name, Data.BannedBy,
-						Permanent and "Never" or Date( "%d %B %Y %H:%M", UnbanTime ) )
+						GetDurationLabel( self, Permanent, UnbanTime ) )
 
 					Row.BanData = Data
 
@@ -274,7 +285,7 @@ function Plugin:SetupAdminMenu()
 			Unban:SetAnchor( "BottomLeft" )
 			Unban:SetSize( Vector( 128, 32, 0 ) )
 			Unban:SetPos( Vector( 16, -48, 0 ) )
-			Unban:SetText( "Unban" )
+			Unban:SetText( self:GetPhrase( "UNBAN" ) )
 			Unban:SetFont( Fonts.kAgencyFB_Small )
 			function Unban.DoClick()
 				local Row = List:GetSelectedRow()
@@ -291,18 +302,18 @@ function Plugin:SetupAdminMenu()
 			LoadMore:SetAnchor( "BottomMiddle" )
 			LoadMore:SetSize( Vector( 128, 32, 0 ) )
 			LoadMore:SetPos( Vector( -64, -48, 0 ) )
-			LoadMore:SetText( "Load more" )
+			LoadMore:SetText( self:GetPhrase( "LOAD_MORE" ) )
 			LoadMore:SetFont( Fonts.kAgencyFB_Small )
 			function LoadMore.DoClick()
 				self:RequestBanData()
 			end
-			LoadMore:SetTooltip( "Loads more entries from the server." )
+			LoadMore:SetTooltip( self:GetPhrase( "LOAD_MORE_TIP" ) )
 
 			local AddBan = SGUI:Create( "Button", Panel )
 			AddBan:SetAnchor( "BottomRight" )
 			AddBan:SetSize( Vector( 128, 32, 0 ) )
 			AddBan:SetPos( Vector( -144, -48, 0 ) )
-			AddBan:SetText( "Add Ban" )
+			AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
 			AddBan:SetFont( Fonts.kAgencyFB_Small )
 			function AddBan.DoClick()
 				OpenAddBanWindow()
@@ -381,7 +392,7 @@ function Plugin:ReceiveBanData( Data )
 
 			local Name = Data.Name
 			local BannedBy = Data.BannedBy
-			local Expiry = Permanent and "Never" or Date( "%d %b %Y %H:%M", UnbanTime )
+			local Expiry = GetDurationLabel( self, Permanent, UnbanTime )
 			if not Row then
 				Row = List:AddRow( Name, BannedBy, Expiry )
 				self.Rows[ Data.ID ] = Row
@@ -407,7 +418,7 @@ function Plugin:ReceiveBanData( Data )
 	local Permanent = UnbanTime == 0
 
 	local Row = List:AddRow( Data.Name, Data.BannedBy,
-		Permanent and "Never" or Date( "%d %b %Y %H:%M", UnbanTime ) )
+		GetDurationLabel( self, Permanent, UnbanTime ) )
 
 	Row.BanData = RealData
 
