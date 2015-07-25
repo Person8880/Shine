@@ -9,13 +9,14 @@ local StringFormat = string.format
 
 local Scripts = {
 	"lib/debug.lua",
-	"lib/string.lua",
 	"lib/utf8.lua",
+	"lib/string.lua",
 	"lib/table.lua",
 	"lib/class.lua",
 	"lib/math.lua",
 	"lib/map.lua",
 	"lib/game.lua",
+	"lib/locale.lua",
 	"core/shared/hook.lua",
 	"core/shared/misc.lua",
 	"core/shared/logging.lua",
@@ -63,3 +64,5 @@ for i = 1, #Scripts do
 		OnLoadedFuncs[ Scripts[ i ] ]()
 	end
 end
+
+Shine.Locale:RegisterSource( "Core", "locale/shine/core" )

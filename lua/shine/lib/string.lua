@@ -134,3 +134,59 @@ do
 		return Time
 	end
 end
+
+do
+	local StringExplode = string.Explode
+	local StringGSub = string.gsub
+	local StringMatch = string.match
+	local TableRemove = table.remove
+	local tostring = tostring
+
+	local Transformers = {
+		Lower = string.UTF8Lower,
+		Upper = string.UTF8Upper,
+		Format = function( FormatArg, TransformArg )
+			return StringFormat( TransformArg, FormatArg )
+		end,
+		Abs = math.abs
+	}
+	string.InterpolateTransformers = Transformers
+
+	--[[
+		Provides a way to format strings by placing arguments at any point in the
+		string enclosed in {}.
+
+		Example:
+		string.Interpolate( "Cake is {Opinion}!", { Opinion = "great" } )
+		-> "Cake is great!"
+
+		Also supports UTF-8 aware upper and lower case, and formatting arguments:
+		string.Interpolate( "{Thing} is {Opinion:Upper} x {Scale:Format:%.2f}!", {
+			Thing = "Cake",
+			Opinion = "great",
+			Scale = 2.5
+		} )
+		-> "Cake is GREAT x 2.50!"
+	]]
+	function string.Interpolate( String, FormatArgs )
+		return ( StringGSub( String, "{(.-)}", function( Match )
+			local Args = StringExplode( Match, ":" )
+			local Transformation = Args[ 2 ]
+
+			if not Transformation then
+				return tostring( FormatArgs[ Match ] or Match )
+			end
+
+			local Ret = FormatArgs[ TableRemove( Args, 1 ) ]
+
+			for i = 1, #Args, 2 do
+				local Transformer = Args[ i ]
+				local TransformerArgs = Args[ i + 1 ]
+
+				Ret = Transformers[ Transformer ]( Ret, TransformerArgs )
+			end
+
+			return tostring( Ret )
+		end ) )
+	end
+end
