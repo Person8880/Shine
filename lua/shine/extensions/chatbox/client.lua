@@ -480,7 +480,7 @@ function Plugin:CreateChatbox()
 		Plugin:OpenSettings( DummyPanel, UIScale, ScalarScale )
 	end
 
-	SettingsButton:SetTooltip( "Opens/closes the chatbox settings." )
+	SettingsButton:SetTooltip( self:GetPhrase( "SETTINGS_TOOLTIP" ) )
 
 	self.SettingsButton = SettingsButton
 
@@ -564,11 +564,11 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 	self.SettingsPanel = SettingsPanel
 
 	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
-		LayoutData.Positions.Title, "Settings" )
+		LayoutData.Positions.Title, self:GetPhrase( "SETTINGS_TITLE" ) )
 
 	local AutoClose = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
 		LayoutData.Positions.AutoClose, LayoutData.Sizes.SettingsButton,
-		self.Config.AutoClose, "Auto close after sending." )
+		self.Config.AutoClose, self:GetPhrase( "AUTO_CLOSE" ) )
 
 	local function UpdateConfigValue( Key, Value )
 		if self.Config[ Key ] == Value then return false end
@@ -585,7 +585,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 
 	local AutoDelete = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
 		LayoutData.Positions.AutoDelete, LayoutData.Sizes.SettingsButton,
-		self.Config.DeleteOnClose, "Auto delete on close." )
+		self.Config.DeleteOnClose, self:GetPhrase( "AUTO_DELETE" ) )
 
 	function AutoDelete:OnChecked( Value )
 		UpdateConfigValue( "DeleteOnClose", Value )
@@ -593,7 +593,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 
 	local SmoothScroll = CreateCheckBox( self, SettingsPanel, UIScale, ScalarScale,
 		LayoutData.Positions.SmoothScroll, LayoutData.Sizes.SettingsButton,
-		self.Config.SmoothScroll, "Use smooth scrolling." )
+		self.Config.SmoothScroll, self:GetPhrase( "SMOOTH_SCROLL" ) )
 
 	function SmoothScroll:OnChecked( Value )
 		if not UpdateConfigValue( "SmoothScroll", Value ) then return end
@@ -601,7 +601,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 	end
 
 	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
-		LayoutData.Positions.MessageMemoryText, "Message memory" )
+		LayoutData.Positions.MessageMemoryText, self:GetPhrase( "MESSAGE_MEMORY" ) )
 
 	local MessageMemory = CreateSlider( self, SettingsPanel, UIScale, ScalarScale,
 		LayoutData.Positions.MessageMemory, self.Config.MessageMemory )
@@ -612,7 +612,7 @@ function Plugin:CreateSettings( DummyPanel, UIScale, ScalarScale )
 	end
 
 	CreateLabel( self, SettingsPanel, UIScale, ScalarScale,
-		LayoutData.Positions.OpacityText, "Opacity (%)" )
+		LayoutData.Positions.OpacityText, self:GetPhrase( "OPACITY" ) )
 
 	local Opacity = CreateSlider( self, SettingsPanel, UIScale, ScalarScale,
 		LayoutData.Positions.Opacity, self.Config.Opacity * 100 )
@@ -890,7 +890,7 @@ function Plugin:StartChat( Team )
 		end
 	end
 
-	self.TextEntry:SetPlaceholderText( self.TeamChat and "Say to team..." or "Say to all..." )
+	self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
 
 	SGUI:EnableMouse( true )
 
