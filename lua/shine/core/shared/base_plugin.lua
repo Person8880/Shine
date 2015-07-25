@@ -68,35 +68,85 @@ function PluginMeta:InitDataTable( Name )
 	self.DTVars = nil
 end
 
---[[
-	Adds a network message to the plugin.
+do
+	local function GetReceiverName( Name )
+		return StringFormat( "Receive%s", Name )
+	end
 
-	Calls Plugin:Receive<Name>( Client, Data ) if receiving on the server side,
-	or Plugin:Receive<Name>( Data ) if receiving on the client side.
+	--[[
+		Adds a network message to the plugin.
 
-	Call this function inside shared.lua -> Plugin:SetupDataTable().
-]]
-function PluginMeta:AddNetworkMessage( Name, Params, Receiver )
-	self.__NetworkMessages = rawget( self, "__NetworkMessages" ) or {}
+		Calls Plugin:Receive<Name>( Client, Data ) if receiving on the server side,
+		or Plugin:Receive<Name>( Data ) if receiving on the client side.
 
-	Shine.Assert( not self.__NetworkMessages[ Name ],
-		"Attempted to register network message %s for plugin %s twice!", Name, self.__Name )
+		Call this function inside shared.lua -> Plugin:SetupDataTable().
+	]]
+	function PluginMeta:AddNetworkMessage( Name, Params, Receiver )
+		self.__NetworkMessages = rawget( self, "__NetworkMessages" ) or {}
 
-	local MessageName = StringFormat( "SH_%s_%s", self.__Name, Name )
-	local FuncName = StringFormat( "Receive%s", Name )
+		Shine.Assert( not self.__NetworkMessages[ Name ],
+			"Attempted to register network message %s for plugin %s twice!", Name, self.__Name )
 
-	self.__NetworkMessages[ Name ] = MessageName
+		local MessageName = StringFormat( "SH_%s_%s", self.__Name, Name )
+		local FuncName = GetReceiverName( Name )
 
-	Shared.RegisterNetworkMessage( MessageName, Params )
+		self.__NetworkMessages[ Name ] = MessageName
 
-	if Receiver == "Server" and Server then
-		Server.HookNetworkMessage( MessageName, function( Client, Data )
-			self[ FuncName ]( self, Client, Data )
+		Shared.RegisterNetworkMessage( MessageName, Params )
+
+		if Receiver == "Server" and Server then
+			Server.HookNetworkMessage( MessageName, function( Client, Data )
+				self[ FuncName ]( self, Client, Data )
+			end )
+		elseif Receiver == "Client" and Client then
+			Client.HookNetworkMessage( MessageName, function( Data )
+				self[ FuncName ]( self, Data )
+			end )
+		end
+	end
+
+	function PluginMeta:GetNameNetworkField()
+		local NameLength = kMaxNameLength * 4 + 1
+		return StringFormat( "string (%i)", NameLength )
+	end
+
+	function PluginMeta:AddNetworkMessageHandler( Name, Params, Handler )
+		self:AddNetworkMessage( Name, Params, "Client" )
+
+		if not Client then return end
+
+		local FuncName = GetReceiverName( Name )
+		if self[ FuncName ] then return end
+
+		self[ FuncName ] = Handler
+	end
+
+	function PluginMeta:AddTranslatedMessage( Name, Params )
+		Params.AdminName = self:GetNameNetworkField()
+
+		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+			self:CommandNotify( Data.AdminName, Name, Data )
 		end )
-	elseif Receiver == "Client" and Client then
-		Client.HookNetworkMessage( MessageName, function( Data )
-			self[ FuncName ]( self, Data )
+	end
+
+	function PluginMeta:AddTranslatedNotify( Name, Params )
+		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+			self:Notify( self:GetInterpolatedPhrase( Name, Data ) )
 		end )
+	end
+
+	function PluginMeta:AddTranslatedError( Name, Params )
+		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+			self:NotifyError( self:GetInterpolatedPhrase( Name, Data ) )
+		end )
+	end
+
+	function PluginMeta:AddNetworkMessages( Method, Messages )
+		for Type, Names in pairs( Messages ) do
+			for i = 1, #Names do
+				self[ Method ]( self, Names[ i ], Type )
+			end
+		end
 	end
 end
 
@@ -114,6 +164,26 @@ if Server then
 		local MessageName = self.__NetworkMessages[ Name ]
 
 		Shine:ApplyNetworkMessage( Target, MessageName, Data, Reliable )
+	end
+
+	local function SendTranslatedCommandNotify( Shine, Target, Name, Message, Plugin, MessageName )
+		Message.AdminName = Name
+		Plugin:SendNetworkMessage( Target, MessageName, Message, true )
+	end
+
+	--[[
+		Sends a translated command notification.
+	]]
+	function PluginMeta:SendTranslatedMessage( Client, Name, Params )
+		Shine:DoCommandNotify( Client, Params or {}, SendTranslatedCommandNotify, self, Name )
+	end
+
+	function PluginMeta:SendTranslatedNotify( Target, Name, Params )
+		self:SendNetworkMessage( Target, Name, Params or {}, true )
+	end
+
+	function PluginMeta:SendTranslatedError( Target, Name, Params )
+		self:SendNetworkMessage( Target, Name, Params or {}, true )
 	end
 elseif Client then
 	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
@@ -301,6 +371,100 @@ elseif Client then
 		self.AdminMenuTabs[ Name ] = true
 
 		Shine.AdminMenu:AddTab( Name, Data )
+	end
+
+	function PluginMeta:GetPhrase( Key )
+		local Phrase = Shine.Locale:GetPhrase( self.__Name, Key )
+
+		if self.__Inherit and Phrase == Key then
+			return self.__Inherit:GetPhrase( Key )
+		end
+
+		if Phrase == Key then
+			return Shine.Locale:GetPhrase( "Core", Key )
+		end
+
+		return Phrase
+	end
+
+	function PluginMeta:GetInterpolatedPhrase( Key, FormatArgs )
+		local Phrase = Shine.Locale:GetInterpolatedPhrase( self.__Name, Key, FormatArgs )
+
+		if self.__Inherit and Phrase == Key then
+			return self.__Inherit:GetInterpolatedPhrase( Key, FormatArgs )
+		end
+
+		if Phrase == Key then
+			return Shine.Locale:GetInterpolatedPhrase( "Core", Key, FormatArgs )
+		end
+
+		return Phrase
+	end
+
+	function PluginMeta:AddChatLine( RP, GP, BP, Prefix, R, G, B, Message )
+		Shine.AddChatText( RP, GP, BP, Prefix, R / 255, G / 255, B / 255, Message )
+	end
+
+	function PluginMeta:CommandNotify( AdminName, MessageKey, Data )
+		self:AddChatLine( 255, 255, 0, AdminName,
+			255, 255, 255, self:GetInterpolatedPhrase( MessageKey, Data ) )
+	end
+
+	function PluginMeta:Notify( Message )
+		local PrefixCol = self.NotifyPrefixColour
+
+		self:AddChatLine( PrefixCol[ 1 ], PrefixCol[ 2 ], PrefixCol[ 3 ], self:GetPhrase( "NOTIFY_PREFIX" ),
+			255, 255, 255, Message )
+	end
+
+	function PluginMeta:NotifyError( Message )
+		self:AddChatLine( 255, 0, 0, self:GetPhrase( "ERROR_TAG" ), 255, 255, 255, Message )
+	end
+
+	do
+		local StringExplode = string.Explode
+		local StringFind = string.find
+		local TimeToString = string.TimeToString
+		local Transformers = string.InterpolateTransformers
+
+		-- Transforms a boolean into one of two translated strings.
+		Transformers.BoolToPhrase = function( FormatArg, TransformArg )
+			local Args = StringExplode( TransformArg, "|" )
+			return Shine.Locale:GetPhrase( "Core", FormatArg and Args[ 1 ] or Args[ 2 ] )
+		end
+
+		-- Transforms a team number into a team name using Shine:GetTeamName().
+		Transformers.TeamName = function( FormatArg, TransformArg )
+			return Shine:GetTeamName( FormatArg,
+				StringFind( TransformArg, "capitals" ) ~= nil,
+				StringFind( TransformArg, "singular" ) ~= nil )
+		end
+
+		-- Transforms a number into a phrase, if the number is 1, then the first, otherwise the second.
+		Transformers.Pluralise = function( FormatArg, TransformArg )
+			local Args = StringExplode( TransformArg, "|" )
+			return FormatArg == 1 and Args[ 1 ] or Args[ 2 ]
+		end
+
+		-- Transforms a time value into a string duration. Optionally, a translation key for 0 can be given.
+		Transformers.Duration = function( FormatArg, TransformArg )
+			if FormatArg == 0 and TransformArg ~= "" then
+				return Shine.Locale:GetPhrase( "Core", TransformArg )
+			end
+
+			return TimeToString( FormatArg )
+		end
+
+		-- Adds the argument only if the value is non-zero.
+		Transformers.NonZero = function( FormatArg, TransformArg )
+			return FormatArg == 0 and "" or TransformArg
+		end
+
+		-- Adds one of two values depending on if the value is negative or not.
+		Transformers.Sign = function( FormatArg, TransformArg )
+			local Args = StringExplode( TransformArg, "|" )
+			return FormatArg < 0 and Args[ 1 ] or Args[ 2 ]
+		end
 	end
 
 	function PluginMeta:Cleanup()

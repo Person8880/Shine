@@ -47,6 +47,10 @@ function Shine:RegisterExtension( Name, Table, Options )
 	Table.BaseClass = PluginMeta
 	Table.__Name = Name
 
+	if Client then
+		self.Locale:RegisterSource( Name, "locale/shine/extensions/"..Name )
+	end
+
 	if Options then
 		local Base = Options.Base
 		if not Base then return end
