@@ -4,6 +4,14 @@
 
 local Plugin = {}
 
+function Plugin:SetupDataTable()
+	local TeleportMessage = {
+		TargetName = self:GetNameNetworkField()
+	}
+	self:AddTranslatedMessage( "TELEPORTED_GOTO", TeleportMessage )
+	self:AddTranslatedMessage( "TELEPORTED_BRING", TeleportMessage )
+end
+
 Shine:RegisterExtension( "funcommands", Plugin )
 
 if Server then return end
@@ -23,14 +31,14 @@ end
 function Plugin:SetupAdminMenuCommands()
 	local Category = "Fun Commands"
 
-	self:AddAdminMenuCommand( Category, "Go To", "sh_goto", false, nil,
-		"Teleports you to the selected player." )
-	self:AddAdminMenuCommand( Category, "Bring", "sh_bring", false, nil,
-		"Brings the selected player to you." )
-	self:AddAdminMenuCommand( Category, "Slay", "sh_slay", false, nil,
-		"Kills the selected player." )
-	self:AddAdminMenuCommand( Category, "Darwin Mode", "sh_darwin", true, {
-		"Enable", "true",
-		"Disable", "false"
-	}, "Toggles invulnerability and infinite\nammo on the selected player(s)." )
+	self:AddAdminMenuCommand( Category, self:GetPhrase( "GOTO" ), "sh_goto", false, nil,
+		self:GetPhrase( "GOTO_TIP" ) )
+	self:AddAdminMenuCommand( Category, self:GetPhrase( "BRING" ), "sh_bring", false, nil,
+		self:GetPhrase( "BRING_TIP" ) )
+	self:AddAdminMenuCommand( Category, self:GetPhrase( "SLAY" ), "sh_slay", false, nil,
+		self:GetPhrase( "SLAY_TIP" ) )
+	self:AddAdminMenuCommand( Category, self:GetPhrase( "DARWIN_MODE" ), "sh_darwin", true, {
+		self:GetPhrase( "ENABLE" ), "true",
+		self:GetPhrase( "DISABLE" ), "false"
+	}, self:GetPhrase( "DARWIN_MODE_TIP" ) )
 end
