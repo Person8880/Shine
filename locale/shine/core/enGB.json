@@ -29,5 +29,18 @@
 	"DISABLE": "Disable",
 	"BACK": "Back",
 	"REST_OF_MAP": "the duration of the current map.",
-	"ERROR_TAG": "[Error]"
+	"ERROR_TAG": "[Error]",
+	"TIME_VALUE": "{Value} {TimeUnit}",
+	"TIME_SENTENCE": "{Before} and {After}",
+	"TIME_SEPARATOR": ", ",
+	"SECOND": "second",
+	"SECONDS": "seconds",
+	"MINUTE": "minute",
+	"MINUTES": "minutes",
+	"HOUR": "hour",
+	"HOURS": "hours",
+	"DAY": "day",
+	"DAYS": "days",
+	"WEEK": "week",
+	"WEEKS": "weeks"
 }

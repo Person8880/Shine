@@ -45,13 +45,65 @@ function string.Explode( String, Pattern )
 end
 
 do
-	local TimeFuncs = {
-		function( Time ) return Floor( Time % 60 ), "second" end,
-		function( Time ) return Floor( Time / 60 ) % 60, "minute" end,
-		function( Time ) return Floor( Time / 3600 ) % 24, "hour" end,
-		function( Time ) return Floor( Time / 86400 ) % 7, "day" end,
-		function( Time ) return Floor( Time / 604800 ), "week" end
-	}
+	local Shine = Shine
+
+	local TimeFuncs
+	local GetAsString
+	local JoinMultiResults
+	local GetSeparator
+
+	if Server then
+		GetAsString = function( Value, Singular, Plural )
+			return StringFormat( "%i %s", Value, Value == 1 and Singular or Plural )
+		end
+
+		JoinMultiResults = function( Before, After )
+			return StringFormat( "%s and %s", Before, After )
+		end
+
+		GetSeparator = function()
+			return ", "
+		end
+
+		TimeFuncs = {
+			function( Time ) return Floor( Time % 60 ), "second", "seconds" end,
+			function( Time ) return Floor( Time / 60 ) % 60, "minute", "minutes" end,
+			function( Time ) return Floor( Time / 3600 ) % 24, "hour", "hours" end,
+			function( Time ) return Floor( Time / 86400 ) % 7, "day", "days" end,
+			function( Time ) return Floor( Time / 604800 ), "week", "weeks" end
+		}
+	else
+		local function GetPhrase( Phrase )
+			return Shine.Locale:GetPhrase( "Core", Phrase )
+		end
+
+		GetAsString = function( Value, Singular, Plural )
+			return Shine.Locale:GetInterpolatedPhrase( "Core", "TIME_VALUE", {
+				Value = Value,
+				TimeUnit = Value == 1 and Singular or Plural
+			} )
+		end
+
+		JoinMultiResults = function( Before, After )
+			return Shine.Locale:GetInterpolatedPhrase( "Core", "TIME_SENTENCE", {
+				Before = Before,
+				After = After
+			} )
+		end
+
+		GetSeparator = function()
+			return GetPhrase( "TIME_SEPARATOR" )
+		end
+
+		TimeFuncs = {
+			function( Time ) return Floor( Time % 60 ), GetPhrase( "SECOND" ), GetPhrase( "SECONDS" ) end,
+			function( Time ) return Floor( Time / 60 ) % 60, GetPhrase( "MINUTE" ), GetPhrase( "MINUTES" ) end,
+			function( Time ) return Floor( Time / 3600 ) % 24, GetPhrase( "HOUR" ), GetPhrase( "HOURS" ) end,
+			function( Time ) return Floor( Time / 86400 ) % 7, GetPhrase( "DAY" ), GetPhrase( "DAYS" ) end,
+			function( Time ) return Floor( Time / 604800 ), GetPhrase( "WEEK" ), GetPhrase( "WEEKS" ) end
+		}
+	end
+
 	local NumTimes = #TimeFuncs
 
 	--[[
@@ -61,17 +113,16 @@ do
 		Output: "Nice" time string, e.g 65 -> "1 minute and 5 seconds".
 	]]
 	function string.TimeToString( Time )
-		if Time < 1 then return "0 seconds" end
+		if Time < 1 then return GetAsString( TimeFuncs[ 1 ]( 0 ) ) end
 
 		local Result = {}
 		local Count = 0
 		for i = NumTimes, 1, -1 do
-			local Value, String = TimeFuncs[ i ]( Time )
+			local Value, Singular, Plural = TimeFuncs[ i ]( Time )
 
 			if Value > 0 then
 				Count = Count + 1
-				Result[ Count ] = StringFormat( "%i %s%s", Value, String,
-					Value > 1 and "s" or "" )
+				Result[ Count ] = GetAsString( Value, Singular, Plural )
 			end
 		end
 
@@ -79,8 +130,10 @@ do
 			return Result[ 1 ]
 		end
 
-		return StringFormat( "%s and %s", TableConcat( Result, ", ", 1, Count - 1 ),
-			Result[ Count ] )
+		local Before = TableConcat( Result, GetSeparator(), 1, Count - 1 )
+		local After = Result[ Count ]
+
+		return JoinMultiResults( Before, After )
 	end
 end
 
