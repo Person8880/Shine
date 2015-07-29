@@ -171,6 +171,10 @@ function TabPanel:AddTab( Name, OnPopulate )
 	return Tabs[ self.NumTabs ]
 end
 
+function TabPanel:GetActiveTab()
+	return self.Tabs[ self.ActiveTab ]
+end
+
 function TabPanel:OnTabSelect( Tab, SuppressPre )
 	local Index = Tab.Index
 	local Tabs = self.Tabs

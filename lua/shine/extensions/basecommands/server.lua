@@ -273,104 +273,338 @@ function Plugin:OnUserReload()
 	TableEmpty( Histories )
 end
 
-local function Help( Client, Search )
-	local PageSize = 25
+function Plugin:CreateInfoCommands()
+	local function Help( Client, Search )
+		local PageSize = 25
 
-	local function GetBoundaryIndexes( PageNumber )
-		local LastIndexToShow = PageSize * PageNumber
-		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+		local function GetBoundaryIndexes( PageNumber )
+			local LastIndexToShow = PageSize * PageNumber
+			local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
 
-		return FirstIndexToShow, LastIndexToShow
-	end
+			return FirstIndexToShow, LastIndexToShow
+		end
 
-	local function CommandsAppearOnPage( TotalCommandsCount, PageNumber )
+		local function CommandsAppearOnPage( TotalCommandsCount, PageNumber )
+			local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
+
+			return FirstIndexToShow <= TotalCommandsCount
+		end
+
+		local function CommandAppearsOnPage( Index, PageNumber )
+			local LastIndexToShow = PageSize * PageNumber
+			local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+
+			return Index >= FirstIndexToShow and Index <= LastIndexToShow
+		end
+
+		local Query = tostring( Search )
+
+		local History = Histories[ Client or "Console" ] or {}
+		local PageNumber = History.Search == Query and ( ( History.PageNumber or 0 ) + 1 ) or 1
+
+		History.Cache = History.Cache or {}
+		local CommandNames = History.Cache[ Query ]
+
+		if not CommandNames then
+			CommandNames = {}
+			local Count = 0
+
+			for CommandName, CommandData in pairs( Shine.Commands ) do
+				if Shine:GetPermission( Client, CommandName ) and CommandName ~= "sh_help" then
+					if Search == nil or CommandName:find( Search ) then
+						Count = Count + 1
+						CommandNames[ Count ] = CommandName
+					end
+				end
+			end
+
+			TableSort( CommandNames, function( CommandName1, CommandName2 )
+				return CommandName1 < CommandName2
+			end )
+
+			History.Cache[ Query ] = CommandNames
+		end
+
+		local NumCommands = #CommandNames
+		PageNumber = CommandsAppearOnPage( NumCommands, PageNumber ) and PageNumber or 1
+
 		local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
+		FirstIndexToShow = Min( FirstIndexToShow, NumCommands )
+		LastIndexToShow = Min( LastIndexToShow, NumCommands )
 
-		return FirstIndexToShow <= TotalCommandsCount
-	end
+		PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:",
+			FirstIndexToShow, LastIndexToShow, NumCommands,
+			Search == nil and "" or StringFormat( " matching %q", Search ) ) )
 
-	local function CommandAppearsOnPage( Index, PageNumber )
-		local LastIndexToShow = PageSize * PageNumber
-		local FirstIndexToShow = LastIndexToShow - ( PageSize - 1 )
+		for i = 1, NumCommands do
+			local CommandName = CommandNames[ i ]
+			if CommandAppearsOnPage( i, PageNumber ) then
+				local Command = Shine.Commands[ CommandName ]
 
-		return Index >= FirstIndexToShow and Index <= LastIndexToShow
-	end
+				if Command then
+					local ChatCommand = type( Command.ChatCmd ) == "string"
+						and StringFormat( " (chat: !%s)", Command.ChatCmd ) or ""
 
-	local Query = tostring( Search )
+					local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName,
+						ChatCommand, Command.HelpString or "No help available." )
 
-	local History = Histories[ Client or "Console" ] or {}
-	local PageNumber = History.Search == Query and ( ( History.PageNumber or 0 ) + 1 ) or 1
-
-	History.Cache = History.Cache or {}
-	local CommandNames = History.Cache[ Query ]
-
-	if not CommandNames then
-		CommandNames = {}
-		local Count = 0
-
-		for CommandName, CommandData in pairs( Shine.Commands ) do
-			if Shine:GetPermission( Client, CommandName ) and CommandName ~= "sh_help" then
-				if Search == nil or CommandName:find( Search ) then
-					Count = Count + 1
-					CommandNames[ Count ] = CommandName
+					PrintToConsole( Client, HelpLine )
 				end
 			end
 		end
 
-		TableSort( CommandNames, function( CommandName1, CommandName2 )
-			return CommandName1 < CommandName2
-		end )
+		History.Search = Query
+		History.PageNumber = PageNumber
 
-		History.Cache[ Query ] = CommandNames
-	end
+		Histories[ Client or "Console" ] = History
 
-	local NumCommands = #CommandNames
-	PageNumber = CommandsAppearOnPage( NumCommands, PageNumber ) and PageNumber or 1
-
-	local FirstIndexToShow, LastIndexToShow = GetBoundaryIndexes( PageNumber )
-	FirstIndexToShow = Min( FirstIndexToShow, NumCommands )
-	LastIndexToShow = Min( LastIndexToShow, NumCommands )
-
-	PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:",
-		FirstIndexToShow, LastIndexToShow, NumCommands,
-		Search == nil and "" or StringFormat( " matching %q", Search ) ) )
-
-	for i = 1, NumCommands do
-		local CommandName = CommandNames[ i ]
-		if CommandAppearsOnPage( i, PageNumber ) then
-			local Command = Shine.Commands[ CommandName ]
-
-			if Command then
-				local ChatCommand = type( Command.ChatCmd ) == "string"
-					and StringFormat( " (chat: !%s)", Command.ChatCmd ) or ""
-
-				local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName,
-					ChatCommand, Command.HelpString or "No help available." )
-
-				PrintToConsole( Client, HelpLine )
-			end
+		local EndMessage = "End command list."
+		if CommandsAppearOnPage( NumCommands, PageNumber + 1 ) then
+			EndMessage = StringFormat(
+				"There are more commands! Re-issue the \"sh_help%s\" command to view them.",
+				Search == nil and "" or StringFormat( " %s", Search ) )
 		end
+		PrintToConsole( Client, EndMessage )
 	end
-
-	History.Search = Query
-	History.PageNumber = PageNumber
-
-	Histories[ Client or "Console" ] = History
-
-	local EndMessage = "End command list."
-	if CommandsAppearOnPage( NumCommands, PageNumber + 1 ) then
-		EndMessage = StringFormat(
-			"There are more commands! Re-issue the \"sh_help%s\" command to view them.",
-			Search == nil and "" or StringFormat( " %s", Search ) )
-	end
-	PrintToConsole( Client, EndMessage )
-end
-
-function Plugin:CreateCommands()
 	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
 	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true }
 	HelpCommand:Help( "<search text> View help info for available commands (omit <search text> to see all)." )
 
+	local StringRep = string.rep
+
+	local function PrintTableToConsole( Client, Columns, Data )
+		local CharSizes = {}
+		local RowData = {}
+		local TotalLength = 0
+		-- I really wish the console was a monospace font...
+		local SpaceMultiplier = 1.5
+
+		for i = 1, #Columns do
+			local Column = Columns[ i ]
+
+			Column.OldName = Column.OldName or Column.Name
+			Column.Name = Column.OldName..StringRep( " ", 4 )
+
+			local Name = Column.Name
+			local Getter = Column.Getter
+
+			local Rows = {}
+
+			local Max = #Name
+			for j = 1, #Data do
+				local Entry = Data[ j ]
+
+				local String = Getter( Entry )
+				local StringLength = #String + 4
+				if StringLength > Max then
+					Max = StringLength
+				end
+
+				Rows[ j ] = String
+			end
+
+			for j = 1, #Rows do
+				local Entry = Rows[ j ]
+				local Diff = Max - #Entry
+				if Diff > 0 then
+					Rows[ j ] = Entry..StringRep( " ", Diff )
+				end
+			end
+
+			TotalLength = TotalLength + Max
+
+			local NameDiff = Max - #Name
+			if NameDiff > 0 then
+				Column.Name = Name..StringRep( " ", Floor( NameDiff * SpaceMultiplier ) )
+			end
+
+			RowData[ i ] = Rows
+		end
+
+		local TopRow = {}
+		for i = 1, #Columns do
+			TopRow[ i ] = Columns[ i ].Name
+		end
+
+		PrintToConsole( Client, TableConcat( TopRow, "" ) )
+		PrintToConsole( Client, StringRep( "=", TotalLength ) )
+
+		for i = 1, #Data do
+			local Row = {}
+
+			for j = 1, #RowData do
+				Row[ j ] = RowData[ j ][ i ]
+			end
+
+			PrintToConsole( Client, TableConcat( Row, "" ) )
+		end
+	end
+
+	local NameColumn = {
+		Name = "Name",
+		Getter = function( Entry )
+			local Client = Entry[ 2 ]
+			local Player = Client:GetControllingPlayer()
+			return StringFormat( "'%s'", Player and Player:GetName() or "NSPlayer" )
+		end
+	}
+	local SteamIDColumn = {
+		Name = "Steam ID",
+		Getter = function( Entry )
+			local Client = Entry[ 2 ]
+			local ID = Client:GetUserId()
+
+			return StringFormat( "%s - %s", ID, Shine.NS2ToSteamID( ID ) )
+		end
+	}
+
+	local function Status( Client )
+		local CanSeeIPs = Shine:HasAccess( Client, "sh_status" )
+
+		local GameIDs = Shine.GameIDs
+		local SortTable = {}
+		local Count = 0
+
+		for Client, ID in GameIDs:Iterate() do
+			Count = Count + 1
+			SortTable[ Count ] = { ID, Client }
+		end
+
+		TableSort( SortTable, function( A, B )
+			if A[ 1 ] < B[ 1 ] then return true end
+			return false
+		end )
+
+		PrintToConsole( Client, StringFormat( "Showing %s:", Count == 1 and "1 connected player" or Count.." connected players" ) )
+
+		local Columns = {
+			{
+				Name = "ID",
+				Getter = function( Entry )
+					return tostring( Entry[ 1 ] )
+				end
+			},
+			NameColumn,
+			SteamIDColumn,
+			{
+				Name = "Team",
+				Getter = function( Entry )
+					local Client = Entry[ 2 ]
+					local Player = Client:GetControllingPlayer()
+					return Shine:GetTeamName( Player and Player:GetTeamNumber() or 0, true )
+				end
+			}
+		}
+		if CanSeeIPs then
+			Columns[ #Columns + 1 ] = {
+				Name = "IP",
+				Getter = function( Entry )
+					return IPAddressToString( Server.GetClientAddress( Entry[ 2 ] ) )
+				end
+			}
+		end
+
+		PrintTableToConsole( Client, Columns, SortTable )
+	end
+	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
+	StatusCommand:Help( "Prints a list of all connected players and their relevant information." )
+
+	local function Who( Client, Target )
+		local Columns = {
+			NameColumn,
+			SteamIDColumn,
+			{
+				Name = "Group",
+				Getter = function( Entry )
+					local UserData = Shine:GetUserData( Entry[ 2 ] )
+
+					return UserData and UserData.Group or "None"
+				end
+			},
+			{
+				Name = "Immunity",
+				Getter = function( Entry )
+					local UserData = Shine:GetUserData( Entry[ 2 ] )
+					local GroupName = UserData and UserData.Group
+					local GroupData = GroupName and Shine:GetGroupData( GroupName )
+
+					return tostring( GroupData and GroupData.Immunity or 0 )
+				end
+			}
+		}
+
+		if not Target then
+			local GameIDs = Shine.GameIDs
+			local SortTable = {}
+			local Count = 0
+
+			for Client, ID in GameIDs:Iterate() do
+				Count = Count + 1
+				SortTable[ Count ] = { Client:GetUserId(), Client }
+			end
+
+			TableSort( SortTable, function( A, B )
+				if A[ 1 ] < B[ 1 ] then return true end
+				return false
+			end )
+
+			PrintTableToConsole( Client, Columns, SortTable )
+
+			return
+		end
+
+		local Player = Target:GetControllingPlayer()
+		if not Player then
+			PrintToConsole( Client, "Unknown user." )
+
+			return
+		end
+
+		local SortTable = {
+			{ Target:GetUserId(), Target }
+		}
+
+		PrintTableToConsole( Client, Columns, SortTable )
+	end
+	local WhoCommand = self:BindCommand( "sh_who", nil, Who, true )
+	WhoCommand:AddParam{ Type = "client", Optional = true, Default = false }
+	WhoCommand:Help( "<optional player> Displays rank information about the given player, or all players." )
+
+	local function ListMaps( Client )
+		local Cycle = MapCycle_GetMapCycle()
+
+		if not Cycle or not Cycle.maps then
+			Shine:AdminPrint( Client, "Unable to load map cycle list." )
+
+			return
+		end
+
+		local Maps = Cycle.maps
+
+		Shine:AdminPrint( Client, "Installed maps:" )
+		for i = 1, #Maps do
+			local Map = Maps[ i ]
+			local MapName = IsType( Map, "table" ) and Map.map or Map
+
+			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
+		end
+	end
+	local ListMapsCommand = self:BindCommand( "sh_listmaps", nil, ListMaps )
+	ListMapsCommand:Help( "Lists all installed maps on the server." )
+
+	local function ListPlugins( Client )
+		Shine:AdminPrint( Client, "Loaded plugins:" )
+		for Name, Table in pairs( Shine.Plugins ) do
+			if Table.Enabled then
+				Shine:AdminPrint( Client, StringFormat( "%s - version: %s", Name, Table.Version or "1.0" ) )
+			end
+		end
+	end
+	local ListPluginsCommand = self:BindCommand( "sh_listplugins", nil, ListPlugins )
+	ListPluginsCommand:Help( "Lists all loaded plugins." )
+end
+
+function Plugin:CreateAdminCommands()
 	local function RCon( Client, Command )
 		Shared.ConsoleCommand( Command )
 		Shine:Print( "%s ran console command: %s", true,
@@ -436,58 +670,6 @@ function Plugin:CreateCommands()
 	SetCheatsCommand:AddParam{ Type = "boolean", Optional = true, Default = function() return not Shared.GetCheatsEnabled() end }
 	SetCheatsCommand:Help( "Enables or disables cheats mode." )
 
-	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString, NotifyString )
-		local function CommandFunc( Client, Enable )
-			self.Config[ ConfigOption ] = Enable
-
-			self:SaveConfig( true )
-
-			local Enabled = Enable and "enabled" or "disabled"
-
-			if Shine.Config.NotifyOnCommand then
-				Shine:CommandNotify( Client, "%s %s.", true, Enabled, CommandNotifyString )
-			else
-				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
-					"[All Talk]", 255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
-			end
-		end
-		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
-		Command:AddParam{ Type = "boolean", Optional = true,
-			Default = function() return not self.Config[ ConfigOption ] end }
-		Command:Help( StringFormat( "<true/false> Enables or disables %s.", CommandNotifyString ) )
-	end
-
-	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "all talk", "All talk" )
-	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
-		"all talk pre-game", "All talk pre-game" )
-
-	local function FriendlyFire( Client, Scale )
-		local OldState = self.Config.FriendlyFire
-		local Enable = Scale > 0
-
-		if Enable then
-			self.Config.FriendlyFire = true
-			self.Config.FriendlyFireScale = Scale
-		else
-			self.Config.FriendlyFire = false
-		end
-
-		self:SaveConfig( true )
-
-		if OldState ~= self.Config.FriendlyFire then
-			if Shine.Config.NotifyOnCommand then
-				Shine:CommandNotify( Client, "set friendly fire scale to %s.", true, Scale )
-			else
-				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[FF]",
-					255, 255, 255, "Friendly fire has been %s.", true,
-					Enable and "enabled" or "disabled" )
-			end
-		end
-	end
-	local FriendlyFireCommand = self:BindCommand( "sh_friendlyfire", { "ff", "friendlyfire" }, FriendlyFire )
-	FriendlyFireCommand:AddParam{ Type = "number", Min = 0, Error = "Please specify a scale, or 0 for off." }
-	FriendlyFireCommand:Help( "<scale> Sets the friendly fire scale. Use 0 to disable friendly fire." )
-
 	local function Kick( Client, Target, Reason )
 		local TargetPlayer = Target:GetControllingPlayer()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
@@ -510,122 +692,6 @@ function Plugin:CreateCommands()
 	KickCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true, Default = "" }
 	KickCommand:Help( "<player> Kicks the given player." )
 
-	local function Status( Client )
-		local CanSeeIPs = Shine:HasAccess( Client, "sh_status" )
-
-		local GameIDs = Shine.GameIDs
-		local SortTable = {}
-		local Count = 0
-
-		for Client, ID in GameIDs:Iterate() do
-			Count = Count + 1
-			SortTable[ Count ] = { ID, Client }
-		end
-
-		TableSort( SortTable, function( A, B )
-			if A[ 1 ] < B[ 1 ] then return true end
-			return false
-		end )
-
-		PrintToConsole( Client, StringFormat( "Showing %s:", Count == 1 and "1 connected player" or Count.." connected players" ) )
-		PrintToConsole( Client, StringFormat( "ID\t\tName\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tTeam%s", CanSeeIPs and "\t\t\t\t\t\tIP" or "" ) )
-		PrintToConsole( Client, "=============================================================================" )
-
-		for i = 1, #SortTable do
-			local Data = SortTable[ i ]
-
-			local GameID = Data[ 1 ]
-			local PlayerClient = Data[ 2 ]
-
-			local Player = PlayerClient:GetControllingPlayer()
-
-			if Player then
-				local ID = PlayerClient:GetUserId()
-
-				PrintToConsole( Client, StringFormat( "%s\t\t'%s'\t\t%s\t%s\t\t'%s'%s",
-					GameID,
-					Player:GetName(),
-					ID,
-					Shine.NS2ToSteamID( ID ),
-					Shine:GetTeamName( Player:GetTeamNumber(), true ),
-					CanSeeIPs and "\t\t"..IPAddressToString( Server.GetClientAddress( PlayerClient ) ) or "" ) )
-			end
-		end
-	end
-	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
-	StatusCommand:Help( "Prints a list of all connected players and their relevant information." )
-
-	local function Who( Client, Target )
-		if not Target then
-			local GameIDs = Shine.GameIDs
-			local SortTable = {}
-			local Count = 0
-
-			for Client, ID in GameIDs:Iterate() do
-				Count = Count + 1
-				SortTable[ Count ] = { Client:GetUserId(), Client }
-			end
-
-			TableSort( SortTable, function( A, B )
-				if A[ 1 ] < B[ 1 ] then return true end
-				return false
-			end )
-
-			PrintToConsole( Client, "Name\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tGroup\t\t\t\t\tImmunity" )
-			PrintToConsole( Client, "=============================================================================" )
-
-			for i = 1, #SortTable do
-				local Data = SortTable[ i ]
-
-				local ID = Data[ 1 ]
-				local PlayerClient = Data[ 2 ]
-
-				local Player = PlayerClient:GetControllingPlayer()
-				if Player then
-					local UserData = Shine:GetUserData( PlayerClient )
-
-					local GroupName = UserData and UserData.Group
-					local GroupData = GroupName and Shine:GetGroupData( GroupName )
-
-					PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
-						Player:GetName(),
-						ID,
-						Shine.NS2ToSteamID( ID ),
-						GroupName or "None",
-						GroupData and GroupData.Immunity or 0 ) )
-				end
-			end
-
-			return
-		end
-
-		local Player = Target:GetControllingPlayer()
-		if not Player then
-			PrintToConsole( Client, "Unknown user." )
-
-			return
-		end
-
-		PrintToConsole( Client, "Name\t\t\t\tSteam ID\t\t\t\t\t\t\t\t\t\t\t\tGroup\t\t\t\t\tImmunity" )
-		PrintToConsole( Client, "=============================================================================" )
-
-		local UserData = Shine:GetUserData( Target )
-		local ID = Target:GetUserId()
-
-		local GroupName = UserData and UserData.Group
-		local GroupData = GroupName and Shine:GetGroupData( GroupName )
-
-		PrintToConsole( Client, StringFormat( "'%s'\t\t%s\t\t%s\t'%s'\t\t%s",
-			Player:GetName(),
-			ID,
-			Shine.NS2ToSteamID( ID ),
-			GroupName or "-None-",
-			GroupData and GroupData.Immunity or 0 ) )
-	end
-	local WhoCommand = self:BindCommand( "sh_who", nil, Who, true )
-	WhoCommand:AddParam{ Type = "client", Optional = true, Default = false }
-	WhoCommand:Help( "<optional player> Displays rank information about the given player, or all players." )
-
 	local function ChangeLevel( Client, MapName )
 		MapCycle_ChangeMap( MapName )
 	end
@@ -639,41 +705,6 @@ function Plugin:CreateCommands()
 	end
 	local CycleMapCommand = self:BindCommand( "sh_cyclemap", "cyclemap", CycleMap )
 	CycleMapCommand:Help( "Cycles the map to the next one in the map cycle." )
-
-	local IsType = Shine.IsType
-
-	local function ListMaps( Client )
-		local Cycle = MapCycle_GetMapCycle()
-
-		if not Cycle or not Cycle.maps then
-			Shine:AdminPrint( Client, "Unable to load map cycle list." )
-
-			return
-		end
-
-		local Maps = Cycle.maps
-
-		Shine:AdminPrint( Client, "Installed maps:" )
-		for i = 1, #Maps do
-			local Map = Maps[ i ]
-			local MapName = IsType( Map, "table" ) and Map.map or Map
-
-			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
-		end
-	end
-	local ListMapsCommand = self:BindCommand( "sh_listmaps", nil, ListMaps )
-	ListMapsCommand:Help( "Lists all installed maps on the server." )
-
-	local function ResetGame( Client )
-		local Gamerules = GetGamerules()
-		if not Gamerules then return end
-
-		Gamerules:ResetGame()
-
-		Shine:CommandNotify( Client, "reset the game." )
-	end
-	local ResetGameCommand = self:BindCommand( "sh_reset", "reset", ResetGame )
-	ResetGameCommand:Help( "Resets the game round." )
 
 	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
@@ -797,23 +828,100 @@ function Plugin:CreateCommands()
 	ResumePluginCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a plugin to resume." }
 	ResumePluginCommand:Help( "<plugin> Resumes a plugin." )
 
-	local function ListPlugins( Client )
-		Shine:AdminPrint( Client, "Loaded plugins:" )
-		for Name, Table in pairs( Shine.Plugins ) do
-			if Table.Enabled then
-				Shine:AdminPrint( Client, StringFormat( "%s - version: %s", Name, Table.Version or "1.0" ) )
-			end
-		end
-	end
-	local ListPluginsCommand = self:BindCommand( "sh_listplugins", nil, ListPlugins )
-	ListPluginsCommand:Help( "Lists all loaded plugins." )
-
 	local function ReloadUsers( Client )
 		Shine:AdminPrint( Client, "Reloading users..." )
 		Shine:LoadUsers( Shine.Config.GetUsersFromWeb, true )
 	end
 	local ReloadUsersCommand = self:BindCommand( "sh_reloadusers", nil, ReloadUsers )
 	ReloadUsersCommand:Help( "Reloads the user data, either from the web or locally depending on your config settings." )
+
+	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
+		Server.SetConfigSetting( "auto_team_balance",
+			Enable and {
+				enabled_on_unbalance_amount = UnbalanceAmount,
+				enabled_after_seconds = Delay
+			} or nil )
+
+		if Enable then
+			Shine:AdminPrint( Client,
+				"Auto balance enabled. Player unbalance amount: %s. Delay: %s.",
+				true, UnbalanceAmount, Delay )
+		else
+			Shine:AdminPrint( Client, "Auto balance disabled." )
+		end
+	end
+	local AutoBalanceCommand = self:BindCommand( "sh_autobalance", "autobalance", AutoBalance )
+	AutoBalanceCommand:AddParam{ Type = "boolean", Error = "Please specify whether auto balance should be enabled." }
+	AutoBalanceCommand:AddParam{ Type = "number", Min = 1, Round = true, Optional = true, Default = 2 }
+	AutoBalanceCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = 10 }
+	AutoBalanceCommand:Help( "<true/false> <player amount> <seconds> Enables or disables auto balance. Player amount and seconds are optional." )
+end
+
+function Plugin:CreateAllTalkCommands()
+	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString, NotifyString )
+		local function CommandFunc( Client, Enable )
+			self.Config[ ConfigOption ] = Enable
+
+			self:SaveConfig( true )
+
+			local Enabled = Enable and "enabled" or "disabled"
+
+			if Shine.Config.NotifyOnCommand then
+				Shine:CommandNotify( Client, "%s %s.", true, Enabled, CommandNotifyString )
+			else
+				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
+					"[All Talk]", 255, 255, 255, "%s has been %s.", true, NotifyString, Enabled )
+			end
+		end
+		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
+		Command:AddParam{ Type = "boolean", Optional = true,
+			Default = function() return not self.Config[ ConfigOption ] end }
+		Command:Help( StringFormat( "<true/false> Enables or disables %s.", CommandNotifyString ) )
+	end
+
+	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "all talk", "All talk" )
+	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
+		"all talk pre-game", "All talk pre-game" )
+end
+
+function Plugin:CreateGameplayCommands()
+	local function FriendlyFire( Client, Scale )
+		local OldState = self.Config.FriendlyFire
+		local Enable = Scale > 0
+
+		if Enable then
+			self.Config.FriendlyFire = true
+			self.Config.FriendlyFireScale = Scale
+		else
+			self.Config.FriendlyFire = false
+		end
+
+		self:SaveConfig( true )
+
+		if OldState ~= self.Config.FriendlyFire then
+			if Shine.Config.NotifyOnCommand then
+				Shine:CommandNotify( Client, "set friendly fire scale to %s.", true, Scale )
+			else
+				Shine:NotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0, "[FF]",
+					255, 255, 255, "Friendly fire has been %s.", true,
+					Enable and "enabled" or "disabled" )
+			end
+		end
+	end
+	local FriendlyFireCommand = self:BindCommand( "sh_friendlyfire", { "ff", "friendlyfire" }, FriendlyFire )
+	FriendlyFireCommand:AddParam{ Type = "number", Min = 0, Error = "Please specify a scale, or 0 for off." }
+	FriendlyFireCommand:Help( "<scale> Sets the friendly fire scale. Use 0 to disable friendly fire." )
+
+	local function ResetGame( Client )
+		local Gamerules = GetGamerules()
+		if not Gamerules then return end
+
+		Gamerules:ResetGame()
+
+		Shine:CommandNotify( Client, "reset the game." )
+	end
+	local ResetGameCommand = self:BindCommand( "sh_reset", "reset", ResetGame )
+	ResetGameCommand:Help( "Resets the game round." )
 
 	local function ReadyRoom( Client, Targets )
 		local Gamerules = GetGamerules()
@@ -930,27 +1038,6 @@ function Plugin:CreateCommands()
 		HiveShuffle:Help( "Runs NS2's Hive skill team shuffler." )
 	end
 
-	local function AutoBalance( Client, Enable, UnbalanceAmount, Delay )
-		Server.SetConfigSetting( "auto_team_balance",
-			Enable and {
-				enabled_on_unbalance_amount = UnbalanceAmount,
-				enabled_after_seconds = Delay
-			} or nil )
-
-		if Enable then
-			Shine:AdminPrint( Client,
-				"Auto balance enabled. Player unbalance amount: %s. Delay: %s.",
-				true, UnbalanceAmount, Delay )
-		else
-			Shine:AdminPrint( Client, "Auto balance disabled." )
-		end
-	end
-	local AutoBalanceCommand = self:BindCommand( "sh_autobalance", "autobalance", AutoBalance )
-	AutoBalanceCommand:AddParam{ Type = "boolean", Error = "Please specify whether auto balance should be enabled." }
-	AutoBalanceCommand:AddParam{ Type = "number", Min = 1, Round = true, Optional = true, Default = 2 }
-	AutoBalanceCommand:AddParam{ Type = "number", Min = 0, Round = true, Optional = true, Default = 10 }
-	AutoBalanceCommand:Help( "<true/false> <player amount> <seconds> Enables or disables auto balance. Player amount and seconds are optional." )
-
 	local function ForceRoundStart( Client )
 		local Gamerules = GetGamerules()
 		Gamerules:ResetGame()
@@ -991,7 +1078,9 @@ function Plugin:CreateCommands()
 		EjectCommand:AddParam{ Type = "client" }
 		EjectCommand:Help( "<player> Ejects the given commander." )
 	end
+end
 
+function Plugin:CreateMessageCommands()
 	local function AdminSay( Client, Message )
 		Shine:Notify( nil, "All",
 			( Client and Shine.Config.ChatName ) or Shine.Config.ConsoleName, Message )
@@ -1122,6 +1211,24 @@ function Plugin:CreateCommands()
 	UngagCommand:AddParam{ Type = "client" }
 	UngagCommand:Help( "<player> Stops silencing the given player's chat." )
 
+	do
+		local StartVote
+
+		local function CustomVote( Client, VoteQuestion )
+			if not Client then return end
+
+			StartVote = StartVote or Shine.GetUpValue( RegisterVoteType, "StartVote", true )
+			if not StartVote then return end
+
+			StartVote( "ShineCustomVote", Client, { VoteQuestion = VoteQuestion } )
+		end
+		local CustomVoteCommand = self:BindCommand( "sh_customvote", "customvote", CustomVote )
+		CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true }
+		CustomVoteCommand:Help( "<question> Starts a vote with the given question." )
+	end
+end
+
+function Plugin:CreatePerformanceCommands()
 	local function Interp( Client, NewInterp )
 		local MinInterp = 2 / self.Config.SendRate * 1000
 		if NewInterp < MinInterp then
@@ -1195,22 +1302,15 @@ function Plugin:CreateCommands()
 	local MoveRateCommand = self:BindCommand( "sh_moverate", "moverate", MoveRate )
 	MoveRateCommand:AddParam{ Type = "number", Min = 5, Round = true }
 	MoveRateCommand:Help( "<rate> Sets the move rate and saves it." )
+end
 
-	do
-		local StartVote
-
-		local function CustomVote( Client, VoteQuestion )
-			if not Client then return end
-
-			StartVote = StartVote or Shine.GetUpValue( RegisterVoteType, "StartVote", true )
-			if not StartVote then return end
-
-			StartVote( "ShineCustomVote", Client, { VoteQuestion = VoteQuestion } )
-		end
-		local CustomVoteCommand = self:BindCommand( "sh_customvote", "customvote", CustomVote )
-		CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true }
-		CustomVoteCommand:Help( "<question> Starts a vote with the given question." )
-	end
+function Plugin:CreateCommands()
+	self:CreateInfoCommands()
+	self:CreateAdminCommands()
+	self:CreateAllTalkCommands()
+	self:CreateGameplayCommands()
+	self:CreateMessageCommands()
+	self:CreatePerformanceCommands()
 end
 
 function Plugin:OnCustomVoteSuccess( Data )

@@ -24,6 +24,7 @@ Plugin.DefaultConfig = {
 	VoteDelay = 10, --Time after round start before surrender vote is available
 	MinPlayers = 6, --Min players needed for voting to be enabled.
 	VoteTimeout = 120, --How long after no votes before the vote should reset?
+	AllowVoteWithMultipleBases = true --Is a team allowed to surrender with multiple bases
 }
 
 Plugin.CheckConfig = true
@@ -76,16 +77,6 @@ function Plugin:GetTeamPlayerCount( Team )
 	end
 end
 
-function Plugin:GetTeamPlayers( Team )
-	local Gamerules = GetGamerules()
-
-	if Team == 1 then
-		return Gamerules.team1:GetPlayers()
-	else
-		return Gamerules.team2:GetPlayers()
-	end
-end
-
 function Plugin:GetVotesNeeded( Team )
 	local TeamCount = self:GetTeamPlayerCount( Team )
 
@@ -93,7 +84,8 @@ function Plugin:GetVotesNeeded( Team )
 end
 
 --[[
-	Make sure we only vote when a round has started.
+	Make sure we only vote when a round has started and
+	the team data pass the config params
 ]]
 function Plugin:CanStartVote( Team )
 	local Gamerules = GetGamerules()
@@ -101,10 +93,14 @@ function Plugin:CanStartVote( Team )
 	if not Gamerules then return false end
 
 	local State = Gamerules:GetGameState()
-	local TeamCount = self:GetTeamPlayerCount( Team )
+	local PlayingTeam = Gamerules:GetTeam( Team )
+	local TeamCount = PlayingTeam:GetNumPlayers()
 
-	return State == kGameState.Started and TeamCount >= self.Config.MinPlayers
-		and self.NextVote < SharedTime()
+	local AllowWithNumBases = self.Config.AllowVoteWithMultipleBases or
+			PlayingTeam:GetNumCapturedTechPoints() == 1
+
+	return State == kGameState.Started and AllowWithNumBases and
+			TeamCount >= self.Config.MinPlayers and self.NextVote < SharedTime()
 end
 
 function Plugin:AddVote( Client, Team )
