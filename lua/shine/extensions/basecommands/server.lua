@@ -701,7 +701,7 @@ function Plugin:CreateAdminCommands()
 
 	local function CycleMap( Client )
 		--The map vote plugin hooks this so we don't have to worry.
-		MapCycle_CycleMap()
+		MapCycle_CycleMap( Shared.GetMapName() )
 	end
 	local CycleMapCommand = self:BindCommand( "sh_cyclemap", "cyclemap", CycleMap )
 	CycleMapCommand:Help( "Cycles the map to the next one in the map cycle." )
