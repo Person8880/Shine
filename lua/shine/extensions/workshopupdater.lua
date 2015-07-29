@@ -127,7 +127,7 @@ end
 ]]
 function Plugin:NotifyOrCycle( Recall )
 	if Shine.GetHumanPlayerCount() == 0 then
-		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
+		self:SimpleTimer( 5, function() MapCycle_CycleMap( Shared.GetMapName() ) end )
 
 		return
 	end
@@ -164,7 +164,7 @@ function Plugin:NotifyOrCycle( Recall )
 	end
 
 	if RemainingNotifications == 0 then
-		self:SimpleTimer( 5, function() MapCycle_CycleMap() end )
+		self:SimpleTimer( 5, function() MapCycle_CycleMap( Shared.GetMapName() ) end )
 		return
 	end
 

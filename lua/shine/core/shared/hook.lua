@@ -704,14 +704,14 @@ Add( "Think", "ReplaceMethods", function()
 		return OldChangeMap( MapName )
 	end
 
-	function MapCycle_CycleMap()
+	function MapCycle_CycleMap( CurrentMap )
 		local Result = Call( "OnCycleMap" )
 
 		if Result ~= nil then return end
 
 		Call( "MapChange" )
 
-		return OldCycleMap()
+		return OldCycleMap( CurrentMap )
 	end
 
 	local OldTestCycle = MapCycle_TestCycleMap
