@@ -78,14 +78,15 @@ function Plugin:HookChat( ChatElement )
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 		Plugin.GUIChat = self
 
-		if Plugin.Enabled then
-			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
-		end
-
 		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 
+		local JustAdded = self.messages[ #self.messages ]
+
+		if Plugin.Enabled then
+			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, JustAdded )
+		end
+
 		if Plugin.Enabled and Plugin.Visible then
-			local JustAdded = self.messages[ #self.messages ]
 			if IsType( JustAdded, "table" ) then
 				JustAdded.Background:SetIsVisible( false )
 			end
@@ -731,7 +732,7 @@ local IntToColour
 
 	Theoretically, we can make messages with any number of colours, but for now this will do.
 ]]
-function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName )
+function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, ChatLine )
 	if not SGUI.IsValid( self.MainPanel ) then
 		self:CreateChatbox()
 
@@ -754,7 +755,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	local Messages = self.Messages
 	local LastMessage = Messages[ #Messages ]
 
-	local PreLabel, MessageLabel, ReUse
+	local Tag, PreLabel, MessageLabel, ReUse
 
 	local NextIndex = #Messages + 1
 
@@ -763,6 +764,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		local FirstMessage = TableRemove( Messages, 1 )
 		ReUse = FirstMessage
 
+		Tag = FirstMessage.Tag
 		PreLabel = FirstMessage.Pre
 		MessageLabel = FirstMessage.Message
 
@@ -773,9 +775,13 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		for i = 1, #Messages do
 			local MessageTable = Messages[ i ]
 
+			local TagPos = MessageTable.Tag and MessageTable.Tag:GetPos()
 			local PrePos = MessageTable.Pre:GetPos()
 			local MessagePos = MessageTable.Message:GetPos()
 
+			if MessageTable.Tag then
+				MessageTable.Tag:SetPos( Vector( TagPos.x, TagPos.y - Height, 0 ) )
+			end
 			MessageTable.Pre:SetPos( Vector( PrePos.x, PrePos.y - Height, 0 ) )
 			MessageTable.Message:SetPos( Vector( MessagePos.x, MessagePos.y - Height, 0 ) )
 		end
@@ -785,6 +791,19 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	local PrePos, PostPos
+	local IsCommander = ChatLine.Commander and ChatLine.Commander:GetIsVisible()
+	local IsRookie = ChatLine.Rookie and ChatLine.Rookie:GetIsVisible()
+	if IsCommander or IsRookie then
+		if not Tag then
+			Tag = self.ChatBox:Add( "Label" )
+		end
+	elseif Tag then
+		Tag:SetParent()
+		Tag:Destroy()
+
+		ReUse.Tag = nil
+		Tag = nil
+	end
 
 	--Now calculate the next message's position, it's important to do this after moving old ones up.
 	--Otherwise the scrollbar would increase its size thinking there's text further down.
@@ -793,6 +812,18 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	else
 		local LastPre = LastMessage.Pre
 		PrePos = Vector( 5, LastPre:GetPos().y + LastMessage.Message:GetTextHeight() + 2, 0 )
+	end
+
+	if Tag then
+		local Element = IsCommander and ChatLine.Commander or ChatLine.Rookie
+		Tag:SetAnchor( GUIItem.Left, GUIItem.Top )
+		Tag:SetFont( self:GetFont() )
+		Tag:SetColour( Element:GetColor() )
+		Tag:SetTextScale( self.MessageTextScale )
+		Tag:SetText( Element:GetText() )
+		Tag:SetPos( PrePos )
+
+		PrePos.x = PrePos.x + Tag:GetSize().x
 	end
 
 	--Why did they use int for the first colour, then colour object for the second?
@@ -837,7 +868,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	--Reuse the removed message table if there was one.
-	Messages[ #Messages + 1 ] = ReUse or { Pre = PreLabel, Message = MessageLabel }
+	Messages[ #Messages + 1 ] = ReUse or { Pre = PreLabel, Message = MessageLabel, Tag = Tag }
 end
 
 --[[
