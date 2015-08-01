@@ -8,6 +8,32 @@ local Random = math.random
 local TableSort = table.sort
 
 --[[
+	Finds a table entry by the value of the given field.
+]]
+function table.FindByField( Table, Field, Value )
+	for i = 1, #Table do
+		if Table[ i ][ Field ] == Value then
+			return Table[ i ], i
+		end
+	end
+
+	return nil
+end
+
+--[[
+	Returns a table that contains the given table's values as keys.
+]]
+function table.AsSet( Table )
+	local Ret = {}
+
+	for i = 1, #Table do
+		Ret[ Table[ i ] ] = true
+	end
+
+	return Ret
+end
+
+--[[
 	Clears a table.
 ]]
 local function TableEmpty( Table )
@@ -199,6 +225,9 @@ do
 		return TableConcat( Strings, "\n" )
 	end
 end
+
+local getmetatable = getmetatable
+local setmetatable = setmetatable
 
 local function CopyTable( Table, LookupTable )
 	if not Table then return nil end
