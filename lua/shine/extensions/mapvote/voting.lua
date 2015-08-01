@@ -556,10 +556,8 @@ function Plugin:StartVote( NextMap, Force )
 	--If we have a map group, then get rid of any maps that aren't in the group.
 	if MapGroup then
 		local GroupMaps = TableAsSet( MapGroup.maps )
-		PrintTable( GroupMaps )
 
 		for Map in pairs( AllMaps ) do
-			Print( Map )
 			if not GroupMaps[ Map ] then
 				AllMaps[ Map ] = nil
 			end
