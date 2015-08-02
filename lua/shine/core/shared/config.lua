@@ -9,32 +9,44 @@ local JSONSettings = { indent = true, level = 1 }
 
 local IsType = Shine.IsType
 
-function Shine.LoadJSONFile( Path )
+local function ReadFile( Path )
 	local File, Err = Open( Path, "r" )
-
 	if not File then
 		return nil, Err
 	end
 
-	local Data = File:read( "*all" )
-
+	local Contents = File:read( "*all" )
 	File:close()
 
-	return Decode( Data )
+	return Contents
 end
+Shine.ReadFile = ReadFile
 
-function Shine.SaveJSONFile( Table, Path )
+local function WriteFile( Path, Contents )
 	local File, Err = Open( Path, "w+" )
 
 	if not File then
 		return nil, Err
 	end
 
-	File:write( Encode( Table, JSONSettings ) )
-
+	File:write( Contents )
 	File:close()
 
 	return true
+end
+Shine.WriteFile = WriteFile
+
+function Shine.LoadJSONFile( Path )
+	local Data, Err = ReadFile( Path )
+	if not Data then
+		return nil, Err
+	end
+
+	return Decode( Data )
+end
+
+function Shine.SaveJSONFile( Table, Path )
+	return WriteFile( Path, Encode( Table, JSONSettings ) )
 end
 
 --Checks a config for missing entries including the first level of sub-tables.
