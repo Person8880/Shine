@@ -796,6 +796,9 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	if IsCommander or IsRookie then
 		if not Tag then
 			Tag = self.ChatBox:Add( "Label" )
+			if ReUse then
+				ReUse.Tag = Tag
+			end
 		end
 	elseif Tag then
 		Tag:SetParent()
