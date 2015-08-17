@@ -83,7 +83,29 @@ function Plugin:HookChat( ChatElement )
 		local JustAdded = self.messages[ #self.messages ]
 
 		if Plugin.Enabled then
-			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, JustAdded )
+			local Tags
+			local Rookie = JustAdded.Rookie and JustAdded.Rookie:GetIsVisible()
+			local Commander = JustAdded.Commander and JustAdded.Commander:GetIsVisible()
+
+			if Rookie or Commander then
+				Tags = {}
+
+				if Commander then
+					Tags[ 1 ] = {
+						Colour = JustAdded.Commander:GetColor(),
+						Text = JustAdded.Commander:GetText()
+					}
+				end
+
+				if Rookie then
+					Tags[ #Tags + 1 ] = {
+						Colour = JustAdded.Rookie:GetColor(),
+						Text = JustAdded.Rookie:GetText()
+					}
+				end
+			end
+
+			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
 		end
 
 		if Plugin.Enabled and Plugin.Visible then
@@ -700,8 +722,24 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		local MessageText = StringGSub( Message.Message:GetText(), "\n", " " )
 		local MessageCol = Message.Message:GetColour()
 
-		Recreate[ i ] = { PreText = PreText, PreCol = PreCol,
-			MessageText = MessageText, MessageCol = MessageCol }
+		local TagData
+		local Tags = Message.Tags
+		if Tags then
+			TagData = {}
+
+			for j = 1, #Tags do
+				TagData[ j ] = {
+					Colour = Tags[ j ]:GetColour(),
+					Text = Tags[ j ]:GetText()
+				}
+			end
+		end
+
+		Recreate[ i ] = {
+			TagData = TagData,
+			PreText = PreText, PreCol = PreCol,
+			MessageText = MessageText, MessageCol = MessageCol
+		}
 	end
 
 	--Recreate the entire chat box, it's easier than rescaling.
@@ -719,7 +757,7 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	for i = 1, #Recreate do
 		local Message = Recreate[ i ]
 		self:AddMessage( Message.PreCol, Message.PreText,
-			Message.MessageCol, Message.MessageText )
+			Message.MessageCol, Message.MessageText, Message.TagData )
 	end
 end
 
@@ -732,7 +770,7 @@ local IntToColour
 
 	Theoretically, we can make messages with any number of colours, but for now this will do.
 ]]
-function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, ChatLine )
+function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
 	if not SGUI.IsValid( self.MainPanel ) then
 		self:CreateChatbox()
 
@@ -755,7 +793,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	local Messages = self.Messages
 	local LastMessage = Messages[ #Messages ]
 
-	local Tag, PreLabel, MessageLabel, ReUse
+	local Tags, PreLabel, MessageLabel, ReUse
 
 	local NextIndex = #Messages + 1
 
@@ -764,7 +802,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		local FirstMessage = TableRemove( Messages, 1 )
 		ReUse = FirstMessage
 
-		Tag = FirstMessage.Tag
+		Tags = FirstMessage.Tags
 		PreLabel = FirstMessage.Pre
 		MessageLabel = FirstMessage.Message
 
@@ -774,14 +812,18 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		--Move all messages up to compensate for the removal.
 		for i = 1, #Messages do
 			local MessageTable = Messages[ i ]
+			local MessageTags = MessageTable.Tags
 
-			local TagPos = MessageTable.Tag and MessageTable.Tag:GetPos()
+			if MessageTags then
+				for j = 1, #MessageTags do
+					local Pos = MessageTags[ j ]:GetPos()
+					MessageTags[ j ]:SetPos( Vector( Pos.x, Pos.y - Height, 0 ) )
+				end
+			end
+
 			local PrePos = MessageTable.Pre:GetPos()
 			local MessagePos = MessageTable.Message:GetPos()
 
-			if MessageTable.Tag then
-				MessageTable.Tag:SetPos( Vector( TagPos.x, TagPos.y - Height, 0 ) )
-			end
 			MessageTable.Pre:SetPos( Vector( PrePos.x, PrePos.y - Height, 0 ) )
 			MessageTable.Message:SetPos( Vector( MessagePos.x, MessagePos.y - Height, 0 ) )
 		end
@@ -791,21 +833,32 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	local PrePos, PostPos
-	local IsCommander = ChatLine.Commander and ChatLine.Commander:GetIsVisible()
-	local IsRookie = ChatLine.Rookie and ChatLine.Rookie:GetIsVisible()
-	if IsCommander or IsRookie then
-		if not Tag then
-			Tag = self.ChatBox:Add( "Label" )
-			if ReUse then
-				ReUse.Tag = Tag
+	if TagData and #TagData > 0 then
+		if not Tags then
+			Tags = {}
+		end
+
+		for i = 1, Max( #Tags, #TagData ) do
+			if TagData[ i ] then
+				Tags[ i ] = Tags[ i ] or self.ChatBox:Add( "Label" )
+			elseif Tags[ i ] then
+				Tags[ i ]:SetParent()
+				Tags[ i ]:Destroy()
+				Tags[ i ] = nil
 			end
 		end
-	elseif Tag then
-		Tag:SetParent()
-		Tag:Destroy()
 
-		ReUse.Tag = nil
-		Tag = nil
+		if ReUse then
+			ReUse.Tags = Tags
+		end
+	elseif Tags then
+		for i = 1, #Tags do
+			Tags[ i ]:SetParent()
+			Tags[ i ]:Destroy()
+		end
+
+		ReUse.Tags = nil
+		Tags = nil
 	end
 
 	--Now calculate the next message's position, it's important to do this after moving old ones up.
@@ -817,16 +870,20 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		PrePos = Vector( 5, LastPre:GetPos().y + LastMessage.Message:GetTextHeight() + 2, 0 )
 	end
 
-	if Tag then
-		local Element = IsCommander and ChatLine.Commander or ChatLine.Rookie
-		Tag:SetAnchor( GUIItem.Left, GUIItem.Top )
-		Tag:SetFont( self:GetFont() )
-		Tag:SetColour( Element:GetColor() )
-		Tag:SetTextScale( self.MessageTextScale )
-		Tag:SetText( Element:GetText() )
-		Tag:SetPos( PrePos )
+	if Tags then
+		for i = 1, #Tags do
+			local Tag = Tags[ i ]
+			local Data = TagData[ i ]
 
-		PrePos.x = PrePos.x + Tag:GetSize().x
+			Tag:SetAnchor( GUIItem.Left, GUIItem.Top )
+			Tag:SetFont( self:GetFont() )
+			Tag:SetColour( Data.Colour )
+			Tag:SetTextScale( self.MessageTextScale )
+			Tag:SetText( Data.Text )
+			Tag:SetPos( PrePos )
+
+			PrePos.x = PrePos.x + Tag:GetSize().x
+		end
 	end
 
 	--Why did they use int for the first colour, then colour object for the second?
@@ -871,7 +928,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	--Reuse the removed message table if there was one.
-	Messages[ #Messages + 1 ] = ReUse or { Pre = PreLabel, Message = MessageLabel, Tag = Tag }
+	Messages[ #Messages + 1 ] = ReUse or { Pre = PreLabel, Message = MessageLabel, Tags = Tags }
 end
 
 --[[
