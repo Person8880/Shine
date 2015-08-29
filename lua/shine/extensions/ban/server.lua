@@ -664,9 +664,7 @@ end
 	Drops a client if they're on the ban list and still banned.
 	If they're past their ban time, their ban is removed.
 ]]
-function Plugin:ClientConnect( Client )
-	local ID = Client:GetUserId()
-
+function Plugin:CheckConnectionAllowed( ID )
 	local BanEntry = self.Config.Banned[ tostring( ID ) ]
 
 	if BanEntry then
@@ -674,7 +672,7 @@ function Plugin:ClientConnect( Client )
 
 		--Either a perma-ban or not expired.
 		if not BanEntry.UnbanTime or BanEntry.UnbanTime == 0 or BanEntry.UnbanTime > Time() then
-			Server.DisconnectClient( Client )
+			return false
 		else
 			self:RemoveBan( ID )
 		end
