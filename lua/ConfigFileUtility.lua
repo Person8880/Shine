@@ -119,9 +119,11 @@ function LoadConfigFile( fileName, defaultConfig, check)
 
 end
 
-function SaveConfigFile(fileName, data)
+function SaveConfigFile(fileName, data, outputMessage)
 
-    Shared.Message("Saving " .. "config://" .. fileName)
+    if outputMessage and outputMessage ~= false then
+        Shared.Message("Saving " .. "config://" .. fileName)
+    end
 
     local openedFile = io.open("config://" .. fileName, "w+")
 
