@@ -9,7 +9,7 @@ Plugin.NS2Only = true
 Shine:RegisterExtension( "commbans", Plugin, {
 	Base = "ban",
 	BlacklistKeys = {
-		ClientConnect = true,
+		CheckConnectionAllowed = true,
 		OnWebConfigLoaded = true,
 		BanNetworkData = true,
 		BanNetworkedClients = true,
