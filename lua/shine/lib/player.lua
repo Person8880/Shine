@@ -70,10 +70,14 @@ local function OnJoinError( Error )
 		"A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
 end
 
+local Hook = Shine.Hook
+
 --[[
 	Ensures no team has more than 1 extra player compared to the other.
 ]]
 function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
+	Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
+
 	local Marine = TeamMembers[ 1 ]
 	local Alien = TeamMembers[ 2 ]
 
@@ -168,6 +172,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 				NewAlienCount, NewDiff, Marines, Aliens )
 		end
 	end
+
+	Hook.Call( "PostEvenlySpreadTeams", Gamerules, TeamMembers )
 end
 
 --[[
