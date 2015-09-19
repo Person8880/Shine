@@ -15,7 +15,9 @@ local DebugTraceback = debug.traceback
 local pcall = pcall
 local xpcall = xpcall
 
-function UnitTest:Test( Description, TestFunction, Finally )
+local IsType = Shine.IsType
+
+function UnitTest:Test( Description, TestFunction, Finally, Reps )
 	local Result = {
 		Description = Description,
 		FuncInfo = DebugGetInfo( TestFunction, "nS" )
@@ -26,15 +28,22 @@ function UnitTest:Test( Description, TestFunction, Finally )
 		Result.Traceback = DebugTraceback()
 	end
 
-	local Success, Err = xpcall( TestFunction, ErrorHandler, self.Assert )
-	if not Success then
-		Result.Errored = true
-	else
-		Result.Passed = true
+	Reps = Reps or 1
+
+	for i = 1, Reps do
+		local Success, Err = xpcall( TestFunction, ErrorHandler, self.Assert )
+		if not Success then
+			Result.Errored = true
+			break
+		end
+
+		if Finally then
+			pcall( Finally )
+		end
 	end
 
-	if Finally then
-		pcall( Finally )
+	if not Result.Errored then
+		Result.Passed = true
 	end
 
 	self.Results[ #self.Results + 1 ] = Result
@@ -53,7 +62,19 @@ UnitTest.Assert = {
 	NotNil = function( A ) return A ~= nil end,
 
 	Exists = function( Table, Key ) return Table[ Key ] ~= nil end,
-	NotExists = function( Table, Key ) return Table[ Key ] == nil end
+	NotExists = function( Table, Key ) return Table[ Key ] == nil end,
+
+	ArrayEquals = function( Array, OtherArray )
+		if #Array ~= #OtherArray then return false end
+
+		for i = 1, #Array do
+			if Array[ i ] ~= OtherArray[ i ] then
+				return false
+			end
+		end
+
+		return true
+	end
 }
 
 for Name, Func in pairs( UnitTest.Assert ) do
@@ -61,6 +82,10 @@ for Name, Func in pairs( UnitTest.Assert ) do
 		local Success = Func( ... )
 
 		if not Success then
+			if IsType( Description, "table" ) then
+				Description = "Assertion failed!"
+			end
+
 			error( { Message = Description, Args = { ... } } )
 		end
 	end

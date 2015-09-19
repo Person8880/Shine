@@ -65,14 +65,14 @@ Shine.UserData = {
 ---- GETTER TESTS ----
 UnitTest:Test( "GetUserData", function ( Assert )
 	for ID in pairs( Shine.UserData.Users ) do
-		Assert.Truthy( nil, Shine:GetUserData( tonumber( ID ) ) )
+		Assert:Truthy( Shine:GetUserData( tonumber( ID ) ) )
 	end
 
 	Shine.UserData.Users[ "STEAM_0:0:100" ] = {}
-	Assert.Truthy( nil, Shine:GetUserData( 200 ) )
+	Assert:Truthy( Shine:GetUserData( 200 ) )
 
 	Shine.UserData.Users[ "[U:1:300]" ] = {}
-	Assert.Truthy( nil, Shine:GetUserData( 300 ) )
+	Assert:Truthy( Shine:GetUserData( 300 ) )
 end, function()
 	Shine.UserData.Users[ "STEAM_0:0:100" ] = nil
 	Shine.UserData.Users[ "[U:1:300]" ] = nil
@@ -80,25 +80,25 @@ end )
 
 UnitTest:Test( "GetGroupData", function( Assert )
 	for Name in pairs( Shine.UserData.Groups ) do
-		Assert.Truthy( nil, Shine:GetGroupData( Name ) )
+		Assert:Truthy( Shine:GetGroupData( Name ) )
 	end
 end )
 
 UnitTest:Test( "GetDefaultGroup", function( Assert )
-	Assert.Truthy( nil, Shine:GetDefaultGroup() )
+	Assert:Truthy( Shine:GetDefaultGroup() )
 end )
 
 UnitTest:Test( "GetDefaultImmunity", function( Assert )
-	Assert.Equals( nil, 0, Shine:GetDefaultImmunity() )
+	Assert:Equals( 0, Shine:GetDefaultImmunity() )
 end )
 
 UnitTest:Test( "GetUserImmunity", function( Assert )
-	Assert.Equals( nil, 25, Shine:GetUserImmunity( 123 ) )
-	Assert.Equals( nil, 50, Shine:GetUserImmunity( 456 ) )
+	Assert:Equals( 25, Shine:GetUserImmunity( 123 ) )
+	Assert:Equals( 50, Shine:GetUserImmunity( 456 ) )
 end )
 
 UnitTest:Test( "IsInGroup", function( Assert )
-	Assert.Truthy( nil, Shine:IsInGroup( { GetUserId = function() return 123 end }, "SuperAdmin" ) )
+	Assert:Truthy( Shine:IsInGroup( { GetUserId = function() return 123 end }, "SuperAdmin" ) )
 end )
 
 ---- GROUP PERMISSION TESTS ----
@@ -106,90 +106,90 @@ UnitTest:Test( "GetGroupPermission", function( Assert )
 	local GroupName = "SuperAdmin"
 	local GroupTable = Shine:GetGroupData( GroupName )
 
-	Assert.Truthy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Truthy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
 
 	GroupName = "Admin"
 	GroupTable = Shine:GetGroupData( GroupName )
 
-	Assert.Truthy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
 
 	GroupName = "Moderator"
 	GroupTable = Shine:GetGroupData( GroupName )
-	Assert.Truthy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
 
 	GroupName = "Member"
 	GroupTable = Shine:GetGroupData( GroupName )
-	Assert.Truthy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
 end )
 
 UnitTest:Test( "GetGroupAccess", function( Assert )
 	local GroupName = "SuperAdmin"
 	local GroupTable = Shine:GetGroupData( GroupName )
 
-	Assert.Truthy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
 
 	GroupName = "Admin"
 	GroupTable = Shine:GetGroupData( GroupName )
 
-	Assert.Truthy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
 
 	GroupName = "Moderator"
 	GroupTable = Shine:GetGroupData( GroupName )
-	Assert.Truthy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
 
 	GroupName = "Member"
 	GroupTable = Shine:GetGroupData( GroupName )
-	Assert.Truthy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
 end )
 
 ---- USER PERMISSION TESTS ----
 UnitTest:Test( "Default group targeting", function( Assert )
-	Assert.Truthy( nil, Shine:CanTarget( 999, 998 ) )
-	Assert.Falsy( nil, Shine:CanTarget( 999, 123 ) )
-	Assert.Truthy( nil, Shine:CanTarget( 123, 999 ) )
+	Assert:Truthy( Shine:CanTarget( 999, 998 ) )
+	Assert:Falsy( Shine:CanTarget( 999, 123 ) )
+	Assert:Truthy( Shine:CanTarget( 123, 999 ) )
 end )
 
 UnitTest:Test( "Immunity between users", function( Assert )
-	Assert.Falsy( nil, Shine:CanTarget( 123, 456 ) )
+	Assert:Falsy( Shine:CanTarget( 123, 456 ) )
 	Assert.Truthy( "Per-user immunity value should be used", Shine:CanTarget( 456, 123 ) )
 
-	Assert.Falsy( nil, Shine:CanTarget( 789, 456 ) )
-	Assert.Truthy( nil, Shine:CanTarget( 456, 789 ) )
+	Assert:Falsy( Shine:CanTarget( 789, 456 ) )
+	Assert:Truthy( Shine:CanTarget( 456, 789 ) )
 end )
 
 UnitTest:Test( "Default group user permissions", function( Assert )
-	Assert.Falsy( nil, Shine:GetPermission( 999, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:HasAccess( 999, "sh_kick" ) )
+	Assert:Falsy( Shine:GetPermission( 999, "sh_kick" ) )
+	Assert:Falsy( Shine:HasAccess( 999, "sh_kick" ) )
 end )
 
 UnitTest:Test( "Blacklist", function( Assert )
-	Assert.Truthy( nil, Shine:GetPermission( 123, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:HasAccess( 123, "sh_randomimmune" ) )
+	Assert:Truthy( Shine:GetPermission( 123, "sh_kick" ) )
+	Assert:Falsy( Shine:HasAccess( 123, "sh_randomimmune" ) )
 end )
 
 UnitTest:Test( "Whitelist", function( Assert )
-	Assert.Truthy( nil, Shine:GetPermission( 789, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:GetPermission( 789, "sh_ban" ) )
+	Assert:Truthy( Shine:GetPermission( 789, "sh_kick" ) )
+	Assert:Falsy( Shine:GetPermission( 789, "sh_ban" ) )
 end )
 
 UnitTest:Test( "Blacklist inheritance", function( Assert )
-	Assert.Truthy( nil, Shine:GetPermission( 456, "sh_kick" ) )
-	Assert.Falsy( nil, Shine:HasAccess( 456, "sh_randomimmune" ) )
-	Assert.Falsy( nil, Shine:GetPermission( 456, "sh_loadplugin" ) )
+	Assert:Truthy( Shine:GetPermission( 456, "sh_kick" ) )
+	Assert:Falsy( Shine:HasAccess( 456, "sh_randomimmune" ) )
+	Assert:Falsy( Shine:GetPermission( 456, "sh_loadplugin" ) )
 end )
 
 UnitTest:Test( "Whitelist inheritance", function( Assert )
-	Assert.Truthy( nil, Shine:GetPermission( 100, "sh_kick" ) )
-	Assert.Truthy( nil, Shine:GetPermission( 100, "sh_ban" ) )
-	Assert.Truthy( nil, Shine:GetPermission( 100, "sh_slay" ) )
+	Assert:Truthy( Shine:GetPermission( 100, "sh_kick" ) )
+	Assert:Truthy( Shine:GetPermission( 100, "sh_ban" ) )
+	Assert:Truthy( Shine:GetPermission( 100, "sh_slay" ) )
 end )
 
 Shine.UserData = OldUserData

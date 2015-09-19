@@ -321,7 +321,11 @@ local function GetAverageSkillFunc( Players, Func )
 		return 0, 0, 0
 	end
 
-	return PlayerSkillSum / Count, PlayerSkillSum, Count
+	return {
+		Average = PlayerSkillSum / Count,
+		Total = PlayerSkillSum,
+		Count = Count
+	}
 end
 
 local DebugMode = false
@@ -379,16 +383,16 @@ local function GetStandardDeviation( Players, Count, Average, RankFunc, Ply, Tar
 	return Sqrt( Sum / RealCount )
 end
 
-function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
+function Plugin:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills )
 	local Add = Random() >= 0.5 and 1 or 0
-
-	local TeamSkills = {
-		{ GetAverageSkillFunc( TeamMembers[ 1 ], RankFunc ) },
-		{ GetAverageSkillFunc( TeamMembers[ 2 ], RankFunc ) }
-	}
-
 	local Team = 1 + Add
 	local MaxForTeam = Ceil( ( NumTargets + #TeamMembers[ 1 ] + #TeamMembers[ 2 ] ) * 0.5 )
+
+	local function GetAverages( Team, JoiningSkill )
+		local Skills = TeamSkills[ Team ]
+		return Skills.Average, ( Skills.Total + JoiningSkill ) / ( Skills.Count + 1 )
+	end
+
 	local Sorted = {}
 
 	--First pass, place unassigned players onto the team with the lesser average skill rating.
@@ -401,18 +405,11 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 
 			if #TeamMembers[ Team ] < MaxForTeam then
 				if #TeamMembers[ OtherTeam ] < MaxForTeam then
-					local OtherAverage = TeamSkills[ OtherTeam ][ 1 ]
-					local OtherTeamSkill = TeamSkills[ OtherTeam ][ 2 ]
-					local OtherTeamCount = TeamSkills[ OtherTeam ][ 3 ]
-					local OurAverage = TeamSkills[ Team ][ 1 ]
-					local OurTeamSkill = TeamSkills[ Team ][ 2 ]
-					local OurTeamCount = TeamSkills[ Team ][ 3 ]
-
-					local NewAverage = ( OurTeamSkill + Skill ) / ( OurTeamCount + 1 )
-					local TheirNewAverage = ( OtherTeamSkill + Skill ) / ( OtherTeamCount + 1 )
+					local OtherAverage, TheirNewAverage = GetAverages( OtherTeam, Skill )
+					local OurAverage, NewAverage = GetAverages( Team, Skill )
 
 					if OurAverage > OtherAverage then
-						if TheirNewAverage > NewAverage then
+						if TheirNewAverage > OtherAverage then
 							TeamToJoin = OtherTeam
 							Team = OtherTeam
 						end
@@ -427,20 +424,46 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 			TeamTable[ #TeamTable + 1 ] = Player
 			Sorted[ Player ] = true
 
-			local SkillSum = TeamSkills[ TeamToJoin ][ 2 ] + Skill
-			local PlayerCount = TeamSkills[ TeamToJoin ][ 3 ] + 1
+			local SkillSum = TeamSkills[ TeamToJoin ].Total + Skill
+			local PlayerCount = TeamSkills[ TeamToJoin ].Count + 1
 			local AverageSkill = SkillSum / PlayerCount
 
-			TeamSkills[ TeamToJoin ][ 1 ] = AverageSkill
-			TeamSkills[ TeamToJoin ][ 2 ] = SkillSum
-			TeamSkills[ TeamToJoin ][ 3 ] = PlayerCount
+			TeamSkills[ TeamToJoin ].Average = AverageSkill
+			TeamSkills[ TeamToJoin ].Total = SkillSum
+			TeamSkills[ TeamToJoin ].Count = PlayerCount
 		end
 	end
 
-	if NoSecondPass then
-		return Sorted
+	return Sorted
+end
+
+local Huge = math.huge
+
+function Plugin:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
+	--We've found a match that lowers the difference in averages the most.
+	if SwapData.BestDiff >= Huge then return nil, LargerTeam, LesserTeam end
+
+	for i = 1, 2 do
+		local SwapPly = SwapData.BestPlayers[ i ]
+		--If we're moving a player from one side to the other, drop them properly.
+		if not SwapPly then
+			TableRemove( TeamMembers[ i ], SwapData.Indices[ i ] )
+			--Update player counts for the teams.
+			TeamSkills[ LargerTeam ].Count = TeamSkills[ LargerTeam ].Count - 1
+			TeamSkills[ LesserTeam ].Count = TeamSkills[ LesserTeam ].Count + 1
+			--Cycle the larger/lesser teams.
+			LargerTeam = ( LargerTeam % 2 ) + 1
+			LesserTeam = ( LesserTeam % 2 ) + 1
+		else
+			TeamMembers[ i ][ SwapData.Indices[ i ] ] = SwapPly
+		end
+		TeamSkills[ i ].Total = SwapData.Totals[ i ]
 	end
 
+	return true, LargerTeam, LesserTeam
+end
+
+function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	--Second pass, optimise the teams by swapping players that will reduce the average skill difference.
 	local NumTeam1 = #TeamMembers[ 1 ]
 	local NumTeam2 = #TeamMembers[ 2 ]
@@ -455,7 +478,6 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 
 	--Just in case, though it ought to not infinitely loop even without this.
 	local Iterations = 0
-	local Huge = math.huge
 
 	local IgnoreCommanders = self.Config.IgnoreCommanders
 	local UseStandardDeviation = self.Config.UseStandardDeviation
@@ -464,8 +486,8 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 		local SwapResult = { {}, {} }
 
 		for i = 1, 2 do
-			local Total = TeamSkills[ i ][ 2 ]
-			local Count = TeamSkills[ i ][ 3 ]
+			local Total = TeamSkills[ i ].Total
+			local Count = TeamSkills[ i ].Count
 
 			local PreAverage = Total / Count
 			SwapResult[ i ].PreAverage = PreAverage
@@ -556,7 +578,7 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 					end
 
 					if LargerTeam then
-						local Team2Count = TeamSkills[ LesserTeam ][ 3 ] + 1
+						local Team2Count = TeamSkills[ LesserTeam ].Count + 1
 
 						CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
 					end
@@ -564,32 +586,27 @@ function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, Ra
 			end
 		end
 
-		--We've found a match that lowers the difference in averages the most.
-		if SwapData.BestDiff < Huge then
-			for i = 1, 2 do
-				local SwapPly = SwapData.BestPlayers[ i ]
-				--If we're moving a player from one side to the other, drop them properly.
-				if not SwapPly then
-					TableRemove( TeamMembers[ i ], SwapData.Indices[ i ] )
-					--Update player counts for the teams.
-					TeamSkills[ LargerTeam ][ 3 ] = TeamSkills[ LargerTeam ][ 3 ] - 1
-					TeamSkills[ LesserTeam ][ 3 ] = TeamSkills[ LesserTeam ][ 3 ] + 1
-					--Cycle the larger/lesser teams.
-					LargerTeam = ( LargerTeam % 2 ) + 1
-					LesserTeam = ( LesserTeam % 2 ) + 1
-				else
-					TeamMembers[ i ][ SwapData.Indices[ i ] ] = SwapPly
-				end
-				TeamSkills[ i ][ 2 ] = SwapData.Totals[ i ]
-			end
-
-			Changed = true
-		end
+		Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
 
 		if not Changed then break end
 
 		Iterations = Iterations + 1
 	end
+end
+
+function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
+	local TeamSkills = {
+		GetAverageSkillFunc( TeamMembers[ 1 ], RankFunc ),
+		GetAverageSkillFunc( TeamMembers[ 2 ], RankFunc )
+	}
+
+	local Sorted = self:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills )
+
+	if NoSecondPass then
+		return Sorted
+	end
+
+	self:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	return Sorted
 end
@@ -845,7 +862,7 @@ function Plugin:NotifyAverageSkills()
 	local AlienSkill = GetAverageSkill( Aliens )
 
 	self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
-		true, MarineSkill, AlienSkill )
+		true, MarineSkill.Average, AlienSkill.Average )
 end
 
 --[[
@@ -1078,28 +1095,24 @@ function Plugin:JoinRandomTeam( Player )
 			local Team1Players = Gamerules.team1:GetPlayers()
 			local Team2Players = Gamerules.team2:GetPlayers()
 
-			local Team1Average, Team1Skill, Team1Count = GetAverageSkill( Team1Players )
-			local Team2Average, Team2Skill, Team2Count = GetAverageSkill( Team2Players )
+			local Team1Skill = GetAverageSkill( Team1Players )
+			local Team2Skill = GetAverageSkill( Team2Players )
 
 			--If team skill is identical, then we should just pick a random team.
-			if Team1Average ~= Team2Average then
-				local BetterTeam = Team1Average > Team2Average and 1 or 2
+			if Team1Skill.Average ~= Team2Skill.Average then
+				local BetterTeam = Team1Skill.Average > Team2Skill.Average and 1 or 2
 
 				local PlayerSkill = Player.GetPlayerSkill and Player:GetPlayerSkill() or 0
 				local TeamToJoin = BetterTeam == 1 and 2 or 1
 
-				--If they have a skill of 0, there will be no real effect on the average.
-				--So we just hope for the best and put them on the worse team.
-				if PlayerSkill > 0 then
-					local NewTeam1Average = ( Team1Skill + PlayerSkill ) / ( Team1Count + 1 )
-					local NewTeam2Average = ( Team2Skill + PlayerSkill ) / ( Team2Count + 1 )
+				local NewTeam1Average = ( Team1Skill.Total + PlayerSkill ) / ( Team1Skill.Count + 1 )
+				local NewTeam2Average = ( Team2Skill.Total + PlayerSkill ) / ( Team2Skill.Count + 1 )
 
-					--If we're going to make the lower team even worse, then put them on the "better" team.
-					if BetterTeam == 1 and NewTeam2Average < Team2Average then
-						TeamToJoin = 1
-					elseif BetterTeam == 2 and NewTeam1Average < Team1Average then
-						TeamToJoin = 2
-					end
+				--If we're going to make the lower team even worse, then put them on the "better" team.
+				if BetterTeam == 1 and NewTeam2Average < Team2Skill.Average then
+					TeamToJoin = 1
+				elseif BetterTeam == 2 and NewTeam1Average < Team1Skill.Average then
+					TeamToJoin = 2
 				end
 
 				Gamerules:JoinTeam( Player, TeamToJoin, nil, true )
