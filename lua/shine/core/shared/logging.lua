@@ -12,11 +12,27 @@ local OS = jit and jit.os or "Unknown"
 local next = next
 local TableConcat = table.concat
 local TableEmpty = table.Empty
+local TableInsert = table.insert
+local tonumber = tonumber
+local tostring = tostring
 
 local function ReportErrors()
 	if not Shine.Config.ReportErrors then return end
 	if not next( ErrorQueue ) then return end
-	
+
+	TableInsert( ErrorQueue, 1, StringFormat( "Operating system: %s. Game: %s.", OS,
+			Shine.IsNS2Combat and "NS2: Combat" or "Natural Selection 2" ) )
+
+	if Server then
+		local ModCount = Server.GetNumActiveMods()
+		local Mods = {}
+		for i = 1, ModCount do
+			Mods[ i ] = tostring( tonumber( Server.GetActiveModId( i ), 16 ) )
+		end
+
+		TableInsert( ErrorQueue, 2, "Installed mods: "..TableConcat( Mods, ", " ) )
+	end
+
 	local PostData = TableConcat( ErrorQueue, "\n" )
 	PostData = PostData:sub( 1, 10240 )
 
@@ -58,11 +74,6 @@ function Shine:AddErrorReport( BaseError, Extra, Format, ... )
 		String = BaseError
 	end
 
-	if #ErrorQueue == 0 then
-		ErrorQueue[ 1 ] = StringFormat( "Operating system: %s. Game: %s.", OS,
-			self.IsNS2Combat and "NS2: Combat" or "Natural Selection 2" )
-	end
-
 	ErrorQueue[ #ErrorQueue + 1 ] = String
 end
 
@@ -70,6 +81,8 @@ end
 	Logs debug/error messages from hooks and timers.
 ]]
 function Shine:DebugLog( String, Format, ... )
+	if not self.Config.DebugLogging then return end
+
 	String = Format and StringFormat( String, ... ) or String
 
 	local File, Err = io.open( DebugFile, "r" )
@@ -89,7 +102,7 @@ function Shine:DebugLog( String, Format, ... )
 	File, Err = io.open( DebugFile, "w+" )
 
 	if not File then return end
-	
+
 	File:write( Data, String, "\n" )
 	File:close()
 end
