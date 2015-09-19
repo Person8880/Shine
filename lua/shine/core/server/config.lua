@@ -14,6 +14,7 @@ local BackupPath = "config://Shine_BaseConfig"
 
 local DefaultConfig = {
 	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
+	DebugLogging = false,
 	LogDir = "config://shine/logs/", --Logging directory.
 	DateFormat = "dd-mm-yyyy", --Format for logging dates.
 
