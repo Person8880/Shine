@@ -11,7 +11,8 @@ local DefaultConfig = {
 	DisableWebWindows = false,
 	ShowWebInSteamBrowser = false,
 	ReportErrors = true,
-	AnimateUI = true
+	AnimateUI = true,
+	DebugLogging = false
 }
 
 function Shine:CreateClientBaseConfig()
