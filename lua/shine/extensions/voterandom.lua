@@ -300,7 +300,13 @@ end
 local function GetAverageSkillFunc( Players, Func )
 	local PlayerCount = #Players
 
-	if PlayerCount == 0 then return 0, 0, 0 end
+	if PlayerCount == 0 then
+		return {
+			Average = 0,
+			Total = 0,
+			Count = 0
+		}
+	end
 
 	local PlayerSkillSum = 0
 	local Count = 0
@@ -318,7 +324,11 @@ local function GetAverageSkillFunc( Players, Func )
 	end
 
 	if Count == 0 then
-		return 0, 0, 0
+		return {
+			Average = 0,
+			Total = 0,
+			Count = 0
+		}
 	end
 
 	return {
