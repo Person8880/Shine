@@ -468,6 +468,7 @@ function Plugin:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, Less
 			TeamMembers[ i ][ SwapData.Indices[ i ] ] = SwapPly
 		end
 		TeamSkills[ i ].Total = SwapData.Totals[ i ]
+		TeamSkills[ i ].Average = TeamSkills[ i ].Total / TeamSkills[ i ].Count
 	end
 
 	return true, LargerTeam, LesserTeam
@@ -541,7 +542,9 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 			local PreStdDiff = Abs( SwapResult[ 1 ].PreStdDev - SwapResult[ 2 ].PreStdDev )
 			NewStdDiff = Abs( SwapResult[ 1 ].PostStdDev - SwapResult[ 2 ].PostStdDev )
 
-			StdDevIsBetter = NewStdDiff < PreStdDiff and NewStdDiff < SwapData.BestStdDiff
+			-- Allow a slight increase in standard deviation difference if we're improving the averages.
+			StdDevIsBetter = ( NewStdDiff <= PreStdDiff and NewStdDiff <= SwapData.BestStdDiff )
+				or ( NewStdDiff - PreStdDiff ) < 40
 		end
 
 		if AverageIsBetter and StdDevIsBetter then
