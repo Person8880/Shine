@@ -258,12 +258,8 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 		end )
 
 		local AsSkillArray = {}
-		local Sum = 0
 		for j = 1, #TeamTable do
-			local Skill = Skills[ TeamTable[ j ] ]
-			AsSkillArray[ j ] = Skill
-
-			Sum = Sum + ( Skill - TeamSkills[ i ].Average ) ^ 2
+			AsSkillArray[ j ] = Skills[ TeamTable[ j ] ]
 		end
 
 		Assert:ArrayEquals( FinalTeams[ i ], AsSkillArray )
