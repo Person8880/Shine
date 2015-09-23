@@ -12,6 +12,8 @@ end
 
 if not VoteShuffle then return end
 
+local TableSort = table.sort
+
 UnitTest:Test( "AssignPlayers", function( Assert )
 	local TeamMembers = {
 		{
@@ -199,6 +201,73 @@ UnitTest:Test( "OptimiseTeams", function( Assert )
 	-- 2000, 1000, 1000
 	Assert:Equals( 4000, TeamSkills[ 1 ].Total )
 	Assert:Equals( 4000, TeamSkills[ 2 ].Total )
+end, nil, 100 )
+
+UnitTest:Test( "OptimiseLargeTeams", function( Assert )
+	local Skills = {
+		2000, 2000, 2000, 1800, 1700, 1500, 1200, 1000,
+		1000, 1000, 1000, 700, 600, 500, 0, 0
+	}
+
+	local function RankFunc( Player )
+		return Skills[ Player ]
+	end
+
+	local TeamMembers = {
+		{
+			1, 2, 3, 4, 5, 6, 7, 8
+		},
+		{
+			9, 10, 11, 12, 13, 14, 15, 16
+		}
+	}
+
+	local TeamSkills = {}
+	local Team = 1
+	local PerTeam = #Skills * 0.5
+	for i = 1, #Skills, PerTeam do
+		local Data = {}
+		local Sum = 0
+
+		for j = i, i + PerTeam - 1 do
+			Sum = Sum + Skills[ j ]
+		end
+
+		Data.Total = Sum
+		Data.Average = Sum / PerTeam
+		Data.Count = PerTeam
+
+		TeamSkills[ Team ] = Data
+		Team = Team + 1
+	end
+
+	VoteShuffle.Config.IgnoreCommanders = false
+	VoteShuffle.Config.UseStandardDeviation = true
+
+	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+
+	local FinalTeams = {
+		{ 2000, 2000, 1700, 1200, 1000, 600, 500, 0 },
+		{ 2000, 1800, 1500, 1000, 1000, 1000, 700, 0 }
+	}
+
+	for i = 1, 2 do
+		local TeamTable = TeamMembers[ i ]
+		TableSort( TeamTable, function( A, B )
+			return Skills[ A ] > Skills[ B ]
+		end )
+
+		local AsSkillArray = {}
+		local Sum = 0
+		for j = 1, #TeamTable do
+			local Skill = Skills[ TeamTable[ j ] ]
+			AsSkillArray[ j ] = Skill
+
+			Sum = Sum + ( Skill - TeamSkills[ i ].Average ) ^ 2
+		end
+
+		Assert:ArrayEquals( FinalTeams[ i ], AsSkillArray )
+	end
 end, nil, 100 )
 
 UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
