@@ -338,7 +338,7 @@ local function GetAverageSkillFunc( Players, Func )
 	}
 end
 
-local DebugMode = true
+local DebugMode = false
 local function GetHiveSkill( Ply )
 	if DebugMode then
 		local Client = GetOwner( Ply )
