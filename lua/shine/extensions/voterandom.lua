@@ -544,7 +544,7 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 			-- Allow a slight increase in standard deviation difference if we're improving the averages.
 			StdDevIsBetter = ( NewStdDiff <= PreStdDiff and NewStdDiff <= SwapData.BestStdDiff )
-				or ( NewStdDiff - PreStdDiff ) < 40
+				or ( SwapData.BestStdDiff == Huge and ( NewStdDiff - PreStdDiff ) < 40 )
 		end
 
 		if AverageIsBetter and StdDevIsBetter then

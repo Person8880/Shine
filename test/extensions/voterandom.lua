@@ -247,8 +247,8 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	local FinalTeams = {
-		{ 2000, 2000, 1700, 1200, 1000, 600, 500, 0 },
-		{ 2000, 1800, 1500, 1000, 1000, 1000, 700, 0 }
+		{ 2000, 2000, 1500, 1200, 1000, 700, 600, 0 },
+		{ 2000, 1800, 1700, 1000, 1000, 1000, 500, 0 }
 	}
 
 	for i = 1, 2 do
