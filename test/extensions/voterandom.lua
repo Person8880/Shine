@@ -12,6 +12,10 @@ end
 
 if not VoteShuffle then return end
 
+VoteShuffle.Config.IgnoreCommanders = false
+VoteShuffle.Config.UseStandardDeviation = true
+VoteShuffle.Config.StandardDeviationTolerance = 40
+
 local TableSort = table.sort
 
 UnitTest:Test( "AssignPlayers", function( Assert )
@@ -191,9 +195,6 @@ UnitTest:Test( "OptimiseTeams", function( Assert )
 		}
 	}
 
-	VoteShuffle.Config.IgnoreCommanders = false
-	VoteShuffle.Config.UseStandardDeviation = true
-
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	-- Final team layout should be:
@@ -240,9 +241,6 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 		TeamSkills[ Team ] = Data
 		Team = Team + 1
 	end
-
-	VoteShuffle.Config.IgnoreCommanders = false
-	VoteShuffle.Config.UseStandardDeviation = true
 
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
@@ -297,9 +295,6 @@ UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
 			Count = 2
 		}
 	}
-
-	VoteShuffle.Config.IgnoreCommanders = false
-	VoteShuffle.Config.UseStandardDeviation = true
 
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
