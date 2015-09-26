@@ -314,12 +314,14 @@ local function GetAverageSkillFunc( Players, Func )
 		return {
 			Average = 0,
 			Total = 0,
-			Count = 0
+			Count = 0,
+			Skills = {}
 		}
 	end
 
 	local PlayerSkillSum = 0
 	local Count = 0
+	local Skills = {}
 
 	for i = 1, PlayerCount do
 		local Ply = Players[ i ]
@@ -329,6 +331,8 @@ local function GetAverageSkillFunc( Players, Func )
 			if Skill then
 				Count = Count + 1
 				PlayerSkillSum = PlayerSkillSum + Skill
+
+				Skills[ Count ] = Skill
 			end
 		end
 	end
@@ -337,14 +341,20 @@ local function GetAverageSkillFunc( Players, Func )
 		return {
 			Average = 0,
 			Total = 0,
-			Count = 0
+			Count = 0,
+			Skills = Skills
 		}
 	end
+
+	TableSort( Skills, function( A, B )
+		return A > B
+	end )
 
 	return {
 		Average = PlayerSkillSum / Count,
 		Total = PlayerSkillSum,
-		Count = Count
+		Count = Count,
+		Skills = Skills
 	}
 end
 
@@ -353,7 +363,7 @@ local function GetHiveSkill( Ply )
 	if DebugMode then
 		local Client = GetOwner( Ply )
 		if Client and Client:GetIsVirtual() then
-			Client.Skill = Client.Skill or Random( 1000, 4000 )
+			Client.Skill = Client.Skill or Random( 0, 2500 )
 			return Client.Skill
 		end
 	end
@@ -868,25 +878,27 @@ Plugin.ShufflingModes = {
 		if #FallbackTargets > 0 then
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
 				FallbackTargets, TeamMembers, true )
-			self:NotifyAverageSkills()
 
 			return
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
-		self:NotifyAverageSkills()
 	end
 }
 
-function Plugin:NotifyAverageSkills()
+function Plugin:GetTeamStats()
 	local Marines = GetEntitiesForTeam( "Player", 1 )
 	local Aliens = GetEntitiesForTeam( "Player", 2 )
 
 	local MarineSkill = GetAverageSkill( Marines )
-	local AlienSkill = GetAverageSkill( Aliens )
+	MarineSkill.StandardDeviation = GetStandardDeviation( Marines, #Marines, MarineSkill.Average, GetHiveSkill )
 
-	self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
-		true, MarineSkill.Average, AlienSkill.Average )
+	local AlienSkill = GetAverageSkill( Aliens )
+	AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, #Aliens, AlienSkill.Average, GetHiveSkill )
+
+	return {
+		MarineSkill, AlienSkill
+	}
 end
 
 --[[
@@ -1581,6 +1593,43 @@ function Plugin:CreateCommands()
 	ForceRandomCommand:AddParam{ Type = "boolean", Optional = true,
 		Default = function() return not self.ForceRandom end }
 	ForceRandomCommand:Help( "<true/false> Enables (and applies) or disables forcing shuffled teams." )
+
+	local function ViewTeamStats( Client )
+		if self.Config.BalanceMode ~= self.MODE_HIVE then
+			Shine:NotifyCommandError( Client, "Hive balancing is not currently enabled." )
+			return
+		end
+
+		local TeamStats = self:GetTeamStats()
+		local Message = {}
+
+		Message[ 1 ] = "Team stats:"
+
+		for i = 1, 2 do
+			Message[ #Message + 1 ] = "========="
+			Message[ #Message + 1 ] = Shine:GetTeamName( i, true )
+			Message[ #Message + 1 ] = "========="
+
+			local Stats = TeamStats[ i ]
+			local Skills = Stats.Skills
+			for j = 1, #Skills do
+				Message[ #Message + 1 ] = tostring( Skills[ j ] )
+			end
+
+			Message[ #Message + 1 ] = StringFormat( "Average: %.1f. Standard Deviation: %.1f",
+				Stats.Average, Stats.StandardDeviation )
+		end
+
+		if not Client then
+			Notify( TableConcat( Message, "\n" ) )
+		else
+			for i = 1, #Message do
+				ServerAdminPrint( Client, Message[ i ] )
+			end
+		end
+	end
+	local StatsCommand = self:BindCommand( "sh_teamstats", nil, ViewTeamStats, true )
+	StatsCommand:Help( "View Hive skill based team statistics." )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )
