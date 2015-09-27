@@ -21,8 +21,6 @@ function Panel:Initialise()
 	local Background = GetGUIManager():CreateGraphicItem()
 
 	self.Background = Background
-
-	self.ShowScrollbar = true
 	self.TitleBarHeight = 24
 end
 
@@ -136,6 +134,7 @@ function Panel:SetScrollable()
 	self.BufferAmount = self.BufferAmount or DefaultBuffer
 
 	self.AllowSmoothScroll = true
+	self.ShowScrollbar = true
 
 	self:SetSize( self:GetSize() )
 end
