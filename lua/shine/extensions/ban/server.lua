@@ -505,7 +505,7 @@ function Plugin:CreateCommands()
 		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 			or "permanently"
 
-		Shine:CommandNotify( Client, "banned %s %s.", true, TargetName, DurationString )
+		Shine:CommandNotify( Client, "banned %s %s (%s).", true, TargetName, DurationString, Reason )
 		Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName,
 			ID, DurationString )
 	end
