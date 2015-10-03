@@ -306,3 +306,25 @@ UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
 	Assert:Equals( 3000, TeamSkills[ 2 ].Total )
 	Assert:Equals( 2, TeamSkills[ 2 ].Count )
 end, nil, 100 )
+
+UnitTest:Test( "NormaliseSkills", function( Assert )
+	local ScoreTable = {
+		{
+			Player = {}, Skill = 1.5
+		},
+		{
+			Player = {}, Skill = 3
+		},
+		{
+			Player = {}, Skill = 2
+		}
+	}
+
+	VoteShuffle:NormaliseSkills( ScoreTable, 3 )
+
+	local NormalisedScoreFactor = VoteShuffle.NormalisedScoreFactor
+
+	Assert:Equals( NormalisedScoreFactor * 0.5, ScoreTable[ 1 ].Skill )
+	Assert:Equals( NormalisedScoreFactor, ScoreTable[ 2 ].Skill )
+	Assert:Equals( NormalisedScoreFactor / 3 * 2, ScoreTable[ 3 ].Skill )
+end )
