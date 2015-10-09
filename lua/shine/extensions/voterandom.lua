@@ -558,9 +558,6 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	end
 	local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
 
-	--Just in case, though it ought to not infinitely loop even without this.
-	local Iterations = 0
-
 	local IgnoreCommanders = self.Config.IgnoreCommanders
 	local UseStandardDeviation = self.Config.UseStandardDeviation
 	local StandardDeviationTolerance = self.Config.StandardDeviationTolerance
@@ -630,52 +627,65 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		end
 	end
 
-	while Iterations < 30 do
-		local Changed
+	TeamMembers.TeamPreferences = TeamMembers.TeamPreferences or {}
+	-- If there's at least one player with a preferred team, then perform 2 passes.
+	local NumPasses = next( TeamMembers.TeamPreferences ) and 2 or 1
 
-		local SwapData = {
-			BestDiff = Huge,
-			BestPlayers = {},
-			Indices = {},
-			Totals = {}
-		}
-		if UseStandardDeviation then
-			SwapData.BestStdDiff = Huge
-			SwapData.StdDevs = {}
-		end
+	for Pass = 1, NumPasses do
+		--Just in case, though it ought to not infinitely loop even without this.
+		local Iterations = 0
 
-		for i = 1, #TeamMembers[ LargerTeam or 1 ] do
-			local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
-			if Ply then
-				local Skill = RankFunc( Ply )
-				local ShouldIgnorePly = IgnoreCommanders and Ply:isa( "Commander" )
+		while Iterations < 30 do
+			local Changed
 
-				if Skill and not ShouldIgnorePly then
-					for j = 1, #TeamMembers[ LesserTeam ] do
-						local Target = TeamMembers[ LesserTeam ][ j ]
-						local TargetSkill = RankFunc( Target )
-						local ShouldIgnoreTarget = IgnoreCommanders
-							and Target:isa( "Commander" )
+			local SwapData = {
+				BestDiff = Huge,
+				BestPlayers = {},
+				Indices = {},
+				Totals = {}
+			}
+			if UseStandardDeviation then
+				SwapData.BestStdDiff = Huge
+				SwapData.StdDevs = {}
+			end
 
-						if TargetSkill and not ShouldIgnoreTarget then
-							CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
+			for i = 1, #TeamMembers[ LargerTeam or 1 ] do
+				local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
+
+				if Ply and ( Pass == 2 or not TeamMembers.TeamPreferences[ Ply ] ) then
+					local Skill = RankFunc( Ply )
+					local ShouldIgnorePly = IgnoreCommanders and Ply:isa( "Commander" )
+
+					if Skill and not ShouldIgnorePly then
+						for j = 1, #TeamMembers[ LesserTeam ] do
+							local Target = TeamMembers[ LesserTeam ][ j ]
+
+							if Pass == 2 or not TeamMembers.TeamPreferences[ Target ] then
+								local TargetSkill = RankFunc( Target )
+								local ShouldIgnoreTarget = IgnoreCommanders
+									and Target:isa( "Commander" )
+
+								if TargetSkill and not ShouldIgnoreTarget then
+									CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
+								end
+							end
 						end
-					end
 
-					if LargerTeam then
-						local Team2Count = TeamSkills[ LesserTeam ].Count + 1
+						if LargerTeam then
+							local Team2Count = TeamSkills[ LesserTeam ].Count + 1
 
-						CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
+							CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
+						end
 					end
 				end
 			end
+
+			Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
+
+			if not Changed then break end
+
+			Iterations = Iterations + 1
 		end
-
-		Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
-
-		if not Changed then break end
-
-		Iterations = Iterations + 1
 	end
 end
 
@@ -962,7 +972,8 @@ function Plugin:GetTargetsForSorting( ResetScores )
 	local Targets = {}
 	local TeamMembers = {
 		{},
-		{}
+		{},
+		TeamPreferences = {}
 	}
 
 	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
@@ -988,6 +999,8 @@ function Plugin:GetTargetsForSorting( ResetScores )
 				if TeamTable then
 					TeamTable[ #TeamTable + 1 ] = Player
 				end
+
+				TeamMembers.TeamPreferences[ Player ] = true
 			end
 
 			return
@@ -1003,6 +1016,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 			local TeamTable = TeamMembers[ Team ]
 
 			TeamTable[ #TeamTable + 1 ] = Player
+			TeamMembers.TeamPreferences[ Player ] = true
 		else
 			Targets[ #Targets + 1 ] = Player
 		end
