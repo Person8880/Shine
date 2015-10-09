@@ -328,3 +328,46 @@ UnitTest:Test( "NormaliseSkills", function( Assert )
 	Assert:Equals( NormalisedScoreFactor, ScoreTable[ 2 ].Skill )
 	Assert:Equals( NormalisedScoreFactor / 3 * 2, ScoreTable[ 3 ].Skill )
 end )
+
+UnitTest:Test( "OptimiseTeams with preference", function( Assert )
+	local Skills = {
+		2000, 2000, 1000,
+		1000, 1000, 1000
+	}
+
+	local function RankFunc( Player )
+		return Skills[ Player ]
+	end
+
+	local TeamMembers = {
+		{
+			1, 2, 3
+		},
+		{
+			4, 5, 6
+		},
+		TeamPreferences = {
+			[ 4 ] = true,
+			[ 5 ] = true
+		}
+	}
+
+	local TeamSkills = {
+		{
+			Average = 5000 / 3,
+			Total = 5000,
+			Count = 3
+		},
+		{
+			Average = 1000,
+			Total = 3000,
+			Count = 3
+		}
+	}
+
+	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+
+	-- It should always swap 1 and 6, as 4 and 5 have chosen team 2 specifically.
+	Assert:ArrayEquals( { 6, 2, 3 }, TeamMembers[ 1 ] )
+	Assert:ArrayEquals( { 4, 5, 1 }, TeamMembers[ 2 ] )
+end, nil, 100 )
