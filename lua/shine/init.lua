@@ -1,12 +1,7 @@
 --[[
-	Shine admin startup.
+	Shine admin server-side startup.
 	Loads stuff.
 ]]
-
---I have no idea why it's called this.
-Shine = {}
-
-local include = Script.Load
 
 --Load order.
 local Scripts = {
@@ -49,26 +44,12 @@ local OnLoadedFuncs = {
 	end
 }
 
-for i = 1, #Scripts do
-	include( "lua/shine/"..Scripts[ i ] )
-	
-	if Shine.Error then 
-		if Shine.Hook then
-			Shine.Hook.Disabled = true
-		end
+Shine.LoadScripts( Scripts, OnLoadedFuncs )
 
-		break
-	end
-
-	if OnLoadedFuncs[ Scripts[ i ] ] then
-		OnLoadedFuncs[ Scripts[ i ] ]()
-	end
-end
-
-if Shine.Error then 
+if Shine.Error then
 	Shared.Message( "Shine failed to start. Check the console for errors." )
 
-	return 
+	return
 end
 
 Shine:Print( "Shine started up successfully." )
