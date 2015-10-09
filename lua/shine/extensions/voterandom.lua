@@ -70,19 +70,29 @@ Plugin.ModeStrings = ModeStrings
 Plugin.DefaultConfig = {
 	MinPlayers = 10, --Minimum number of players on the server to enable voting.
 	PercentNeeded = 0.75, --Percentage of the server population needing to vote for it to succeed.
+
 	Duration = 15, --Time to force people onto teams for after a vote. Also time between successful votes.
 	BlockAfterTime = 0, --Time after round start to block the vote. 0 to disable blocking.
 	RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
 	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
+
 	BalanceMode = Plugin.MODE_HIVE, --How should teams be balanced?
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if Elo/Hive fails?
 	UseStandardDeviation = true, --Should standard deviation be accounted for when sorting?
+	--[[
+		How much of an increase in standard deviation should be allowed if the
+		average is being improved but the standard deviation can't be?
+	]]
+	StandardDeviationTolerance = 40,
+
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = true, --Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
+
 	MaxStoredRounds = 3, --How many rounds of score data should we buffer?
+
 	ReconnectLogTime = 0 --How long (in seconds) after a shuffle to log reconnecting players for?
 }
 Plugin.CheckConfig = true
@@ -93,6 +103,27 @@ Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode i
 Setting FallbackMode to KDR mode (4).]]
 
 local ModeClamp = Shine.IsNS2Combat and 4 or 5
+
+do
+	local select = select
+
+	local function SupplimentAdder( Adder, ExtraKey, PointsIndex )
+		local OldFunc = ScoringMixin[ Adder ]
+
+		ScoringMixin[ Adder ] = function( self, ... )
+			OldFunc( self, ... )
+
+			if not GetGamerules():GetGameStarted() then return end
+
+			self[ ExtraKey ] = ( self[ ExtraKey ] or 0 ) + ( PointsIndex and select( PointsIndex, ... ) or 1 )
+		end
+	end
+
+	SupplimentAdder( "AddScore", "totalScore", 1 )
+	SupplimentAdder( "AddKill", "totalKills" )
+	SupplimentAdder( "AddDeaths", "totalDeaths" )
+	SupplimentAdder( "AddAssistKill", "totalAssists" )
+end
 
 function Plugin:Initialise()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, ModeClamp )
@@ -125,20 +156,7 @@ function Plugin:Initialise()
 
 	self.ForceRandomEnd = 0 --Time based.
 	self.RandomOnNextRound = false --Round based.
-
 	self.ForceRandom = self.Config.AlwaysEnabled
-
-	self.ScoreData = self:LoadScoreData()
-
-	--We need this value to keep track of where we store the next round data.
-	if not self.ScoreData.Round then
-		self.ScoreData.Round = 1
-	end
-
-	if not self.ScoreData.Rounds then
-		self.ScoreData.Rounds = {}
-	end
-
 	self.Enabled = true
 
 	return true
@@ -304,12 +322,14 @@ local function GetAverageSkillFunc( Players, Func )
 		return {
 			Average = 0,
 			Total = 0,
-			Count = 0
+			Count = 0,
+			Skills = {}
 		}
 	end
 
 	local PlayerSkillSum = 0
 	local Count = 0
+	local Skills = {}
 
 	for i = 1, PlayerCount do
 		local Ply = Players[ i ]
@@ -319,6 +339,8 @@ local function GetAverageSkillFunc( Players, Func )
 			if Skill then
 				Count = Count + 1
 				PlayerSkillSum = PlayerSkillSum + Skill
+
+				Skills[ Count ] = Skill
 			end
 		end
 	end
@@ -327,36 +349,85 @@ local function GetAverageSkillFunc( Players, Func )
 		return {
 			Average = 0,
 			Total = 0,
-			Count = 0
+			Count = 0,
+			Skills = Skills
 		}
 	end
+
+	TableSort( Skills, function( A, B )
+		return A > B
+	end )
 
 	return {
 		Average = PlayerSkillSum / Count,
 		Total = PlayerSkillSum,
-		Count = Count
+		Count = Count,
+		Skills = Skills
 	}
 end
 
 local DebugMode = false
-local function GetHiveSkill( Ply )
-	if DebugMode then
-		local Client = GetOwner( Ply )
-		if Client and Client:GetIsVirtual() then
-			Client.Skill = Client.Skill or Random( 1000, 4000 )
-			return Client.Skill
+Plugin.SkillGetters = {
+	GetHiveSkill = function( Ply )
+		if DebugMode then
+			local Client = GetOwner( Ply )
+			if Client and Client:GetIsVirtual() then
+				Client.Skill = Client.Skill or Random( 0, 2500 )
+				return Client.Skill
+			end
 		end
-	end
 
-	if Ply.GetPlayerSkill then
-		return Ply:GetPlayerSkill()
-	end
+		if Ply.GetPlayerSkill then
+			return Ply:GetPlayerSkill()
+		end
 
-	return nil
-end
+		return nil
+	end,
+
+	-- KA/D Ratio.
+	GetKDR = function( Ply )
+		if DebugMode then
+			local Client = GetOwner( Ply )
+			if Client and Client:GetIsVirtual() then
+				Client.Skill = Client.Skill or Random() * 3
+				return Client.Skill
+			end
+		end
+
+		local Kills = Ply.totalKills
+		local Deaths = Ply.totalDeaths
+		local Assists = Ply.totalAssists or 0
+
+		if Kills and Deaths then
+			if Deaths == 0 then Deaths = 1 end
+
+			return ( Kills + Assists * 0.1 ) / Deaths
+		end
+
+		return nil
+	end,
+
+	-- Score per minute played.
+	GetScore = function( Ply )
+		if DebugMode then
+			local Client = GetOwner( Ply )
+			if Client and Client:GetIsVirtual() then
+				Client.Skill = Client.Skill or Random() * 10
+				return Client.Skill
+			end
+		end
+
+		if not Ply.totalScore then
+			return nil
+		end
+
+		return Ply.totalScore / ( ( Ply.totalPlayTime + Ply.playTime ) / 60 )
+	end
+}
+
 --Gets the average skill ranking of a table of players.
 local function GetAverageSkill( Players )
-	return GetAverageSkillFunc( Players, GetHiveSkill )
+	return GetAverageSkillFunc( Players, Plugin.SkillGetters.GetHiveSkill )
 end
 
 local Sqrt = math.sqrt
@@ -468,6 +539,7 @@ function Plugin:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, Less
 			TeamMembers[ i ][ SwapData.Indices[ i ] ] = SwapPly
 		end
 		TeamSkills[ i ].Total = SwapData.Totals[ i ]
+		TeamSkills[ i ].Average = TeamSkills[ i ].Total / TeamSkills[ i ].Count
 	end
 
 	return true, LargerTeam, LesserTeam
@@ -486,11 +558,9 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	end
 	local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
 
-	--Just in case, though it ought to not infinitely loop even without this.
-	local Iterations = 0
-
 	local IgnoreCommanders = self.Config.IgnoreCommanders
 	local UseStandardDeviation = self.Config.UseStandardDeviation
+	local StandardDeviationTolerance = self.Config.StandardDeviationTolerance
 
 	local function CheckSwap( Ply, Skill, Target, TargetSkill, LargerIndex, LesserIndex, SwapData )
 		local SwapResult = { {}, {} }
@@ -541,7 +611,9 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 			local PreStdDiff = Abs( SwapResult[ 1 ].PreStdDev - SwapResult[ 2 ].PreStdDev )
 			NewStdDiff = Abs( SwapResult[ 1 ].PostStdDev - SwapResult[ 2 ].PostStdDev )
 
-			StdDevIsBetter = NewStdDiff < PreStdDiff and NewStdDiff < SwapData.BestStdDiff
+			-- Allow a slight increase in standard deviation difference if we're improving the averages.
+			StdDevIsBetter = ( NewStdDiff <= PreStdDiff and NewStdDiff <= SwapData.BestStdDiff )
+				or ( SwapData.BestStdDiff == Huge and ( NewStdDiff - PreStdDiff ) < StandardDeviationTolerance )
 		end
 
 		if AverageIsBetter and StdDevIsBetter then
@@ -555,52 +627,65 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		end
 	end
 
-	while Iterations < 30 do
-		local Changed
+	TeamMembers.TeamPreferences = TeamMembers.TeamPreferences or {}
+	-- If there's at least one player with a preferred team, then perform 2 passes.
+	local NumPasses = next( TeamMembers.TeamPreferences ) and 2 or 1
 
-		local SwapData = {
-			BestDiff = Huge,
-			BestPlayers = {},
-			Indices = {},
-			Totals = {}
-		}
-		if UseStandardDeviation then
-			SwapData.BestStdDiff = Huge
-			SwapData.StdDevs = {}
-		end
+	for Pass = 1, NumPasses do
+		--Just in case, though it ought to not infinitely loop even without this.
+		local Iterations = 0
 
-		for i = 1, #TeamMembers[ LargerTeam or 1 ] do
-			local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
-			if Ply then
-				local Skill = RankFunc( Ply )
-				local ShouldIgnorePly = IgnoreCommanders and Ply:isa( "Commander" )
+		while Iterations < 30 do
+			local Changed
 
-				if Skill and not ShouldIgnorePly then
-					for j = 1, #TeamMembers[ LesserTeam ] do
-						local Target = TeamMembers[ LesserTeam ][ j ]
-						local TargetSkill = RankFunc( Target )
-						local ShouldIgnoreTarget = IgnoreCommanders
-							and Target:isa( "Commander" )
+			local SwapData = {
+				BestDiff = Huge,
+				BestPlayers = {},
+				Indices = {},
+				Totals = {}
+			}
+			if UseStandardDeviation then
+				SwapData.BestStdDiff = Huge
+				SwapData.StdDevs = {}
+			end
 
-						if TargetSkill and not ShouldIgnoreTarget then
-							CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
+			for i = 1, #TeamMembers[ LargerTeam or 1 ] do
+				local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
+
+				if Ply and ( Pass == 2 or not TeamMembers.TeamPreferences[ Ply ] ) then
+					local Skill = RankFunc( Ply )
+					local ShouldIgnorePly = IgnoreCommanders and Ply:isa( "Commander" )
+
+					if Skill and not ShouldIgnorePly then
+						for j = 1, #TeamMembers[ LesserTeam ] do
+							local Target = TeamMembers[ LesserTeam ][ j ]
+
+							if Pass == 2 or not TeamMembers.TeamPreferences[ Target ] then
+								local TargetSkill = RankFunc( Target )
+								local ShouldIgnoreTarget = IgnoreCommanders
+									and Target:isa( "Commander" )
+
+								if TargetSkill and not ShouldIgnoreTarget then
+									CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
+								end
+							end
 						end
-					end
 
-					if LargerTeam then
-						local Team2Count = TeamSkills[ LesserTeam ].Count + 1
+						if LargerTeam then
+							local Team2Count = TeamSkills[ LesserTeam ].Count + 1
 
-						CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
+							CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
+						end
 					end
 				end
 			end
+
+			Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
+
+			if not Changed then break end
+
+			Iterations = Iterations + 1
 		end
-
-		Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
-
-		if not Changed then break end
-
-		Iterations = Iterations + 1
 	end
 end
 
@@ -649,6 +734,66 @@ local function AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
 	end
 end
 
+Plugin.NormalisedScoreFactor = 2000
+
+function Plugin:NormaliseSkills( ScoreTable, Max )
+	-- Normalise KDR/Score amount to be similar values to Hive skill.
+	-- This allows the optimise method to not have to worry about different scales.
+	for i = 1, #ScoreTable do
+		local Data = ScoreTable[ i ]
+		local Skill = Data.Skill
+		Data.Skill = Skill / Max * self.NormalisedScoreFactor
+		ScoreTable[ Data.Player ] = Data.Skill
+	end
+end
+
+function Plugin:SortByScore( Gamerules, Targets, TeamMembers, Silent, RankFunc )
+	local ScoreTable = {}
+	local RandomTable = {}
+
+	local Max = 0
+	for i = 1, #Targets do
+		local Player = Targets[ i ]
+
+		if Player then
+			local Score = RankFunc( Player )
+			if Score then
+				ScoreTable[ #ScoreTable + 1 ] = { Player = Player, Skill = Score }
+				if Score > Max then
+					Max = Score
+				end
+			else
+				RandomTable[ #RandomTable + 1 ] = Player
+			end
+		end
+	end
+
+	self:NormaliseSkills( ScoreTable, Max )
+
+	local ScoreSortCount = #ScoreTable
+
+	if ScoreSortCount > 0 then
+		TableSort( ScoreTable, function( A, B ) return A.Skill > B.Skill end )
+
+		--Make sure we ignore the second pass if we're a fallback for skill/Elo sorting.
+		self:SortPlayersByRank( TeamMembers, ScoreTable, ScoreSortCount, #Targets, function( Player )
+			return ScoreTable[ Player ]
+		end, Silent )
+	end
+
+	local RandomTableCount = #RandomTable
+
+	if RandomTableCount > 0 then
+		AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
+	end
+
+	EvenlySpreadTeams( Gamerules, TeamMembers )
+
+	if not Silent then
+		Shine:LogString( "[Shuffle] Teams were sorted based on score." )
+	end
+end
+
 Plugin.ShufflingModes = {
 	--Random only.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
@@ -660,66 +805,8 @@ Plugin.ShufflingModes = {
 		end
 	end,
 	--Score based if available, random if not.
-	function( self, Gamerules, Targets, TeamMembers, Silent, KDRSort )
-		local ScoreData = self.ScoreData
-
-		local ScoreTable = {}
-		local RandomTable = {}
-
-		for i = 1, #Targets do
-			local Player = Targets[ i ]
-
-			if Player then
-				local Client = GetOwner( Player )
-
-				if Client and Client.GetUserId then
-					local ID = Client:GetUserId()
-
-					local Data = self:GetAverageScoreData( ID )
-
-					if Data then
-						ScoreTable[ #ScoreTable + 1 ] = { Player = Player, Skill = Data }
-					else
-						RandomTable[ #RandomTable + 1 ] = Player
-					end
-				end
-			end
-		end
-
-		local ScoreSortCount = #ScoreTable
-
-		if ScoreSortCount > 0 then
-			TableSort( ScoreTable, function( A, B ) return A.Skill > B.Skill end )
-			local IgnoreSecondPass
-
-			if not KDRSort and Silent then
-				IgnoreSecondPass = true
-			end
-
-			--Make sure we ignore the second pass if we're a fallback for skill/Elo sorting.
-			self:SortPlayersByRank( TeamMembers, ScoreTable, ScoreSortCount, #Targets, function( Player )
-				local Client = GetOwner( Player )
-
-				if Client and Client.GetUserId then
-					local ID = Client:GetUserId()
-					return self:GetAverageScoreData( ID )
-				end
-
-				return nil
-			end, IgnoreSecondPass )
-		end
-
-		local RandomTableCount = #RandomTable
-
-		if RandomTableCount > 0 then
-			AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
-		end
-
-		EvenlySpreadTeams( Gamerules, TeamMembers )
-
-		if not Silent then
-			Shine:LogString( "[Shuffle] Teams were sorted based on score." )
-		end
+	function( self, Gamerules, Targets, TeamMembers, Silent )
+		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetScore )
 	end,
 
 	function( self, Gamerules, Targets, TeamMembers ) --NS2Stats Elo based.
@@ -812,12 +899,7 @@ Plugin.ShufflingModes = {
 
 	--KDR based works identically to score, the score data is what is different.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
-		if not Silent then
-			Shine:LogString( "[Shuffle] Teams were sorted based on KDR." )
-		end
-
-		return self.ShufflingModes[ self.MODE_SCORE ]( self, Gamerules, Targets,
-			TeamMembers, true, not Silent )
+		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetKDR )
 	end,
 
 	--Hive data based. Relies on UWE's ranking data to be correct for it to work.
@@ -831,7 +913,7 @@ Plugin.ShufflingModes = {
 		for i = 1, TargetCount do
 			local Ply = Targets[ i ]
 
-			local Skill = GetHiveSkill( Ply )
+			local Skill = self.SkillGetters.GetHiveSkill( Ply )
 			if Skill and Skill > 0 then
 				Count = Count + 1
 				SortTable[ Count ] = { Player = Ply, Skill = Skill }
@@ -844,7 +926,7 @@ Plugin.ShufflingModes = {
 
 		RandomiseSimilarSkill( SortTable, Count, 10 )
 
-		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count, TargetCount, GetHiveSkill )
+		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count, TargetCount, self.SkillGetters.GetHiveSkill )
 
 		Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
 
@@ -854,25 +936,27 @@ Plugin.ShufflingModes = {
 		if #FallbackTargets > 0 then
 			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
 				FallbackTargets, TeamMembers, true )
-			self:NotifyAverageSkills()
 
 			return
 		end
 
 		EvenlySpreadTeams( Gamerules, TeamMembers )
-		self:NotifyAverageSkills()
 	end
 }
 
-function Plugin:NotifyAverageSkills()
+function Plugin:GetTeamStats()
 	local Marines = GetEntitiesForTeam( "Player", 1 )
 	local Aliens = GetEntitiesForTeam( "Player", 2 )
 
 	local MarineSkill = GetAverageSkill( Marines )
-	local AlienSkill = GetAverageSkill( Aliens )
+	MarineSkill.StandardDeviation = GetStandardDeviation( Marines, #Marines, MarineSkill.Average, self.SkillGetters.GetHiveSkill )
 
-	self:Notify( nil, "Average skill rankings - Marines: %.1f. Aliens: %.1f.",
-		true, MarineSkill.Average, AlienSkill.Average )
+	local AlienSkill = GetAverageSkill( Aliens )
+	AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, #Aliens, AlienSkill.Average, self.SkillGetters.GetHiveSkill )
+
+	return {
+		MarineSkill, AlienSkill
+	}
 end
 
 --[[
@@ -888,7 +972,8 @@ function Plugin:GetTargetsForSorting( ResetScores )
 	local Targets = {}
 	local TeamMembers = {
 		{},
-		{}
+		{},
+		TeamPreferences = {}
 	}
 
 	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
@@ -914,6 +999,8 @@ function Plugin:GetTargetsForSorting( ResetScores )
 				if TeamTable then
 					TeamTable[ #TeamTable + 1 ] = Player
 				end
+
+				TeamMembers.TeamPreferences[ Player ] = true
 			end
 
 			return
@@ -929,6 +1016,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 			local TeamTable = TeamMembers[ Team ]
 
 			TeamTable[ #TeamTable + 1 ] = Player
+			TeamMembers.TeamPreferences[ Player ] = true
 		else
 			Targets[ #Targets + 1 ] = Player
 		end
@@ -987,103 +1075,6 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	local ModeFunc = self.ShufflingModes[ ForceMode or self.Config.BalanceMode ]
 
 	return ModeFunc( self, Gamerules, Targets, TeamMembers )
-end
-
---[[
-	Stores a player's score.
-]]
-function Plugin:StoreScoreData( Player )
-	local Client = GetOwner( Player )
-
-	if not Client then return end
-
-	if Client.GetIsVirtual and Client:GetIsVirtual() then return end
-	if not Client.GetUserId then return end
-
-	local Round = self.Round
-
-	assert( Round, "Attempted to store score data before round data was created!" )
-
-	local ID = tostring( Client:GetUserId() )
-
-	local Mode = self.Config.BalanceMode
-
-	if Mode == self.MODE_ELO or Mode == self.MODE_HIVE then
-		Mode = self.Config.FallbackMode
-	end
-
-	local DataTable = self.ScoreData.Rounds[ Round ]
-
-	if Mode == self.MODE_SCORE then
-		--Don't want to store data about 0 score players, we'll just randomise them.
-		if Player.score and Player.score > 0 then
-			DataTable[ ID ] = Player.score
-		end
-	elseif Mode == self.MODE_KDR then
-		local Kills = Player.GetKills and Player:GetKills() or 0
-		local Assists = Player.GetAssistKills and Player:GetAssistKills() or 0
-		local Deaths = Player.GetDeaths and Player:GetDeaths() or 0
-
-		--Each assist counts for 0.5.
-		Kills = Kills + Assists * 0.5
-
-		--0 KDR is useless, let's just randomise them.
-		if Kills == 0 then return end
-		--Don't want a NaN ratio!
-		if Deaths == 0 then Deaths = 1 end
-
-		DataTable[ ID ] = Kills / Deaths
-	end
-end
-
---[[
-	Gets the average of all stored round scores for the given Steam ID.
-]]
-function Plugin:GetAverageScoreData( ID )
-	ID = tostring( ID )
-
-	local ScoreData = self.ScoreData
-	local RoundData = ScoreData.Rounds
-	local StoredRounds = #RoundData
-
-	local Score = 0
-	local StoredForPlayer = 0
-
-	for i = 1, StoredRounds do
-		local CurScore = RoundData[ i ][ ID ]
-
-		if CurScore then
-			Score = Score + CurScore
-			StoredForPlayer = StoredForPlayer + 1
-		end
-	end
-
-	if StoredForPlayer == 0 then return 0 end
-
-	return Score / StoredForPlayer
-end
-
---[[
-	Saves the score data for previous rounds.
-]]
-function Plugin:SaveScoreData()
-	local Success, Err = Shine.SaveJSONFile( self.ScoreData,
-		"config://shine/temp/voterandom_scores.json" )
-
-	if not Success then
-		Notify( "Error writing voterandom scoredata file: "..Err )
-
-		return
-	end
-end
-
---[[
-	Loads the stored data from the file, will load on plugin load only.
-]]
-function Plugin:LoadScoreData()
-	local Data = Shine.LoadJSONFile( "config://shine/temp/voterandom_scores.json" )
-
-	return Data or { Round = 1, Rounds = {} }
 end
 
 --[[
@@ -1174,42 +1165,14 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	self.VoteBlockTime = nil
 
 	local Players, Count = GetAllPlayers()
-	local BalanceMode = self.Config.BalanceMode
-	local IsScoreBased = BalanceMode == self.MODE_SCORE or BalanceMode == self.MODE_KDR
-
-	if BalanceMode == self.MODE_ELO or BalanceMode == self.MODE_HIVE then
-		local Fallback = self.Config.FallbackMode
-		IsScoreBased = Fallback == self.MODE_SCORE or Fallback == self.MODE_KDR
-	end
-
-	if IsScoreBased then
-		local ScoreData = self.ScoreData
-		local Round = ScoreData.Round
-		local RoundData = ScoreData.Rounds
-
-		RoundData[ Round ] = RoundData[ Round ] or {}
-
-		TableEmpty( RoundData[ Round ] )
-
-		self.Round = Round
-
-		ScoreData.Round = ( Round % self.Config.MaxStoredRounds ) + 1
-	end
-
-	--Reset the randomised state of all players and store score data.
+	--Reset the randomised state of all players.
 	for i = 1, Count do
 		local Player = Players[ i ]
 
 		if Player then
 			Player.ShineRandomised = nil
-
-			if IsScoreBased then
-				self:StoreScoreData( Player )
-			end
 		end
 	end
-
-	self:SaveScoreData()
 
 	--If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then
@@ -1567,6 +1530,43 @@ function Plugin:CreateCommands()
 	ForceRandomCommand:AddParam{ Type = "boolean", Optional = true,
 		Default = function() return not self.ForceRandom end }
 	ForceRandomCommand:Help( "<true/false> Enables (and applies) or disables forcing shuffled teams." )
+
+	local function ViewTeamStats( Client )
+		if self.Config.BalanceMode ~= self.MODE_HIVE then
+			Shine:NotifyCommandError( Client, "Hive balancing is not currently enabled." )
+			return
+		end
+
+		local TeamStats = self:GetTeamStats()
+		local Message = {}
+
+		Message[ 1 ] = "Team stats:"
+
+		for i = 1, 2 do
+			Message[ #Message + 1 ] = "========="
+			Message[ #Message + 1 ] = Shine:GetTeamName( i, true )
+			Message[ #Message + 1 ] = "========="
+
+			local Stats = TeamStats[ i ]
+			local Skills = Stats.Skills
+			for j = 1, #Skills do
+				Message[ #Message + 1 ] = tostring( Skills[ j ] )
+			end
+
+			Message[ #Message + 1 ] = StringFormat( "Average: %.1f. Standard Deviation: %.1f",
+				Stats.Average, Stats.StandardDeviation )
+		end
+
+		if not Client then
+			Notify( TableConcat( Message, "\n" ) )
+		else
+			for i = 1, #Message do
+				ServerAdminPrint( Client, Message[ i ] )
+			end
+		end
+	end
+	local StatsCommand = self:BindCommand( "sh_teamstats", nil, ViewTeamStats, true )
+	StatsCommand:Help( "View Hive skill based team statistics." )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )

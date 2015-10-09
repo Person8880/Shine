@@ -2,8 +2,6 @@
 	Shine client side startup.
 ]]
 
-Shine = {}
-
 local include = Script.Load
 local StringFormat = string.format
 
@@ -57,12 +55,5 @@ function Shine.AddStartupMessage( Message, Format, ... )
 	StartupMessages[ #StartupMessages + 1 ] = Message
 end
 
-for i = 1, #Scripts do
-	include( "lua/shine/"..Scripts[ i ] )
-
-	if OnLoadedFuncs[ Scripts[ i ] ] then
-		OnLoadedFuncs[ Scripts[ i ] ]()
-	end
-end
-
+Shine.LoadScripts( Scripts, OnLoadedFuncs )
 Shine.Locale:RegisterSource( "Core", "locale/shine/core" )

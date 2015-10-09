@@ -14,5 +14,5 @@
 	"UNBAN": "Unban",
 	"LOAD_MORE": "Load more",
 	"LOAD_MORE_TIP": "Loads more entries from the server.",
-	"PLAYER_BANNED": "banned {TargetName} {Duration:NonZero:for }{Duration:Duration:PERMANENTLY:Lower}."
+	"PLAYER_BANNED": "banned {TargetName} {Duration:NonZero:for }{Duration:Duration:PERMANENTLY:Lower} ({Reason})."
 }

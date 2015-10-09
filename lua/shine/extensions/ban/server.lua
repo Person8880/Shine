@@ -507,8 +507,10 @@ function Plugin:CreateCommands()
 
 		self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
 			TargetName = TargetName,
-			Duration = Duration
+			Duration = Duration,
+			Reason = Reason
 		} )
+
 		Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName,
 			ID, DurationString )
 	end

@@ -22,7 +22,8 @@ function Plugin:SetupDataTable()
 
 	self:AddTranslatedMessage( "PLAYER_BANNED", {
 		TargetName = self:GetNameNetworkField(),
-		Duration = "integer"
+		Duration = "integer",
+		Reason = "string (128)"
 	} )
 end
 
