@@ -724,7 +724,7 @@ Add( "Think", "ReplaceMethods", function()
 		return OldTestCycle()
 	end
 
-	local OldStartVote = Shine.GetUpValue( RegisterVoteType, "StartVote", true )
+	local OldStartVote = Shine.GetUpValue( HookStartVote, "StartVote", true )
 	if OldStartVote then
 		local function BuildNetworkReceiver( VoteName )
 			return function( Client, Data )
@@ -748,9 +748,9 @@ Add( "Think", "ReplaceMethods", function()
 			end
 		end
 
-		Shine.SetUpValue( RegisterVoteType, "HookStartVote", function( VoteName )
+		function HookStartVote( VoteName )
 			Server.HookNetworkMessage( VoteName, BuildNetworkReceiver( VoteName ) )
-		end )
+		end
 	end
 
 	Remove( "Think", "ReplaceMethods" )
