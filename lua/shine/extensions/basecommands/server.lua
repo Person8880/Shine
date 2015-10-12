@@ -1217,7 +1217,7 @@ function Plugin:CreateMessageCommands()
 		local function CustomVote( Client, VoteQuestion )
 			if not Client then return end
 
-			StartVote = StartVote or Shine.GetUpValue( RegisterVoteType, "StartVote", true )
+			StartVote = StartVote or Shine.StartNS2Vote
 			if not StartVote then return end
 
 			StartVote( "ShineCustomVote", Client, { VoteQuestion = VoteQuestion } )

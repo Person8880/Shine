@@ -748,6 +748,8 @@ Add( "Think", "ReplaceMethods", function()
 			end
 		end
 
+		Shine.StartNS2Vote = OldStartVote
+
 		function HookStartVote( VoteName )
 			Server.HookNetworkMessage( VoteName, BuildNetworkReceiver( VoteName ) )
 		end
