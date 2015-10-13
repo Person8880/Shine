@@ -724,40 +724,15 @@ Add( "Think", "ReplaceMethods", function()
 		return OldTestCycle()
 	end
 
-	local OldStartVote = Shine.GetUpValue( HookStartVote, "StartVote", true )
-	if OldStartVote then
-		local function BuildNetworkReceiver( VoteName )
-			return function( Client, Data )
-				if Call( "NS2StartVote", VoteName, Client, Data ) == false then
-					Shine.SendNetworkMessage( Client, "VoteCannotStart",
-						{
-							reason = kVoteCannotStartReason.DisabledByAdmin
-						}, true )
-
-					return
-				end
-
-				OldStartVote( VoteName, Client, Data )
-			end
-		end
-
-		local AlreadyRegistered = Shine.GetUpValue( SetVoteSuccessfulCallback, "voteSuccessfulCallbacks" )
-		if AlreadyRegistered then
-			for Name in pairs( AlreadyRegistered ) do
-				Server.HookNetworkMessage( Name, BuildNetworkReceiver( Name ) )
-			end
-		end
-
-		Shine.StartNS2Vote = OldStartVote
-
-		function HookStartVote( VoteName )
-			Server.HookNetworkMessage( VoteName, BuildNetworkReceiver( VoteName ) )
-		end
-	end
-
 	Remove( "Think", "ReplaceMethods" )
 
 	Call( "OnFirstThink" )
 	Hooks.OnFirstThink = nil
 	ReservedNames.OnFirstThink = nil
 end )
+
+--[[
+	Setup the votinghook directly after Voting.lua has been loaded.
+	At this point HookStartVote hasn't been called yet.
+ ]]
+ModLoader.SetupFileHook("lua/Voting.lua", "lua/shine/shared/votinghook", "post")
