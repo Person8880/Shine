@@ -232,14 +232,6 @@ end
 local GetNext = Map.GetNext
 local GetPrevious = Map.GetPrevious
 
-local function IterateForward( self )
-	return GetNext( self )
-end
-
-local function IterateBackwards( self )
-	return GetPrevious( self )
-end
-
 --If the map's empty, we don't even need to iterate.
 local function Nope()
 	return nil
@@ -257,7 +249,7 @@ function Map:Iterate()
 		return Nope
 	end
 
-	return IterateForward, self
+	return GetNext, self
 end
 
 --[[
@@ -270,5 +262,5 @@ function Map:IterateBackwards()
 
 	self.Position = self.NumMembers + 1
 
-	return IterateBackwards, self
+	return GetPrevious, self
 end

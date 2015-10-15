@@ -1,0 +1,4 @@
+modEntry = {
+	FileHooks = "lua/shine/startup.lua",
+	Priority = 50
+}

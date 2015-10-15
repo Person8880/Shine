@@ -439,25 +439,22 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 
 	local TableRemove = table.remove
 
-	local OldGetPlayers
-	OldGetPlayers = Shine.SetUpValue( ForceEvenTeams, "ForceEvenTeams_GetPlayers", function()
+	local OldGetPlayers = ForceEvenTeams_GetPlayers
+	function ForceEvenTeams_GetPlayers()
 		local Enabled, AFKPlugin = Shine:IsExtensionEnabled( "afkkick" )
 		if not Enabled then
 			return OldGetPlayers()
 		end
 
 		local Gamerules = GetGamerules()
-		local Players, Count = Shine.GetAllPlayers()
-		local Offset = 0
+		local Players = OldGetPlayers()
 
-		for i = 1, Count do
-			local Key = i - Offset
-			local Player = Players[ Key ]
+		for i = #Players, 1, -1 do
+			local Player = Players[ i ]
 			local Client = GetOwner( Player )
 
 			if not Client or AFKPlugin:IsAFKFor( Client, 60 ) then
-				TableRemove( Players, Key )
-				Offset = Offset + 1
+				TableRemove( Players, i )
 
 				if Client and PlayingTeamNumbers[ Player:GetTeamNumber() ] then
 					pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
@@ -466,7 +463,7 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 		end
 
 		return Players
-	end )
+	end
 end )
 
 Shine:RegisterExtension( "afkkick", Plugin )

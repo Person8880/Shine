@@ -121,6 +121,7 @@ function Shine.ScreenText.Add( ID, Params )
 	local Font, ScaleVec = GetFontAndScale( ScrW, ScrH, Size )
 
 	local MessageTable = Messages:Get( ID )
+	local AlreadyExists = MessageTable ~= nil
 	local GUIObj
 
 	if Alignment == 0 then
@@ -148,7 +149,7 @@ function Shine.ScreenText.Add( ID, Params )
 		GUIObj = MessageTable.Obj
 	end
 
-	local ShouldFade = FadeIn > 0.05
+	local ShouldFade = FadeIn > 0.05 and not AlreadyExists
 
 	MessageTable.Text = Text
 	MessageTable.Colour = Color( R / 255, G / 255, B / 255, ShouldFade and 0 or 1 )
@@ -168,10 +169,11 @@ function Shine.ScreenText.Add( ID, Params )
 
 	if ShouldFade then
 		MessageTable.Fading = true
-		MessageTable.FadedIn = true
 		MessageTable.FadingIn = true
 		MessageTable.FadeElapsed = 0
 		MessageTable.FadeDuration = FadeIn
+	else
+		MessageTable.Fading = false
 	end
 
 	MessageTable.LastUpdate = SharedTime()
