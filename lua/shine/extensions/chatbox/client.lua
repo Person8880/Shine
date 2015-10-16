@@ -297,7 +297,7 @@ function Plugin:CreateChatbox()
 	local WidthMult = Max( ScreenWidth / 1920, 0.7 )
 	local HeightMult = Max( ScreenHeight / 1080, 0.7 )
 
-	if ScreenWidth > 2880 then
+	if ScreenWidth > 1920 then
 		UIScale = SGUI.TenEightyPScale( Vector( 1, 1, 1 ) )
 		ScalarScale = SGUI.TenEightyPScale( 1 )
 	end
