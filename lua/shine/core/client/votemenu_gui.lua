@@ -114,7 +114,7 @@ function VoteMenu:Create()
 
 	local function Scale( Value )
 		local Scale
-		if ScreenWidth > 2880 then
+		if ScreenWidth > 1920 then
 			Scale =  SGUI.TenEightyPScale( Value )
 		else
 			Scale = GUIScale( Value )
