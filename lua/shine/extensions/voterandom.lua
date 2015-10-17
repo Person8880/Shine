@@ -417,11 +417,16 @@ Plugin.SkillGetters = {
 			end
 		end
 
-		if not Ply.totalScore then
+		if not Ply.totalScore or not Ply.totalPlayTime then
 			return nil
 		end
 
-		return Ply.totalScore / ( ( Ply.totalPlayTime + Ply.playTime ) / 60 )
+		local PlayTime = Ply.totalPlayTime + ( Ply.playTime or 0 )
+		if PlayTime <= 0 then
+			return nil
+		end
+
+		return Ply.totalScore / ( PlayTime / 60 )
 	end
 }
 
