@@ -17,6 +17,17 @@ local xpcall = xpcall
 
 local IsType = Shine.IsType
 
+function UnitTest:LoadExtension( Name )
+	local Plugin = Shine.Plugins[ Name ]
+
+	if not Plugin then
+		Shine:LoadExtension( Name )
+		Plugin = Shine.Plugins[ Name ]
+	end
+
+	return Plugin
+end
+
 function UnitTest:Test( Description, TestFunction, Finally, Reps )
 	local Result = {
 		Description = Description,

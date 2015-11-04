@@ -27,10 +27,18 @@ local function GetMapName( Map )
 	return Map
 end
 
+local function SetupFromTable( self, Map )
+	self.MapProbabilities[ Map.map ] = Clamp( tonumber( Map.chance or Map.Chance ) or 1, 0, 1 )
+
+	if IsType( Map.percent or Map.Percent, "number" ) then
+		self.TrackMapStats = true
+	end
+end
+
 function Plugin:AddMapFromCycle( ConfigMaps, Map )
 	if IsType( Map, "table" ) and IsType( Map.map, "string" ) then
 		ConfigMaps[ Map.map ] = true
-		self.MapProbabilities[ Map.map ] = Clamp( tonumber( Map.chance or Map.Chance ) or 1, 0, 1 )
+		SetupFromTable( self, Map )
 	elseif IsType( Map, "string" ) then
 		ConfigMaps[ Map ] = true
 		self.MapProbabilities[ Map ] = 1
@@ -67,19 +75,25 @@ function Plugin:SetupMaps( Cycle )
 				self.Config.Maps[ Map ] = nil
 			elseif IsType( Data, "table" ) then
 				Data.map = Map
-				self.MapProbabilities[ Map ] = Clamp( tonumber( Data.chance or Data.Chance ) or 1, 0, 1 )
+				SetupFromTable( self, Data )
 			end
 		end
 
 		if Cycle.maps then
 			for i = 1, #Cycle.maps do
 				local Map = Cycle.maps[ i ]
+
 				if IsType( Map, "table" ) and IsType( Map.map, "string" ) then
-					self.MapProbabilities[ Map.map ] = Clamp( tonumber( Map.chance or Map.Chance ) or 1, 0, 1 )
+					SetupFromTable( self, Map )
 				end
+
 				self.MapChoices[ #self.MapChoices + 1 ] = Map
 			end
 		end
+	end
+
+	if self.TrackMapStats then
+		self:LoadMapStats()
 	end
 end
 
@@ -106,6 +120,41 @@ do
 		local NextGroup = self.MapGroups[ NextIndex ]
 		Shine.WriteFile( MapGroupFile, NextGroup.name )
 	end
+end
+
+--[[
+	Checks various restrictions to see if the map should be available.
+]]
+function Plugin:IsValidMapChoice( Map, PlayerCount )
+	if not IsType( Map, "table" ) or not IsType( Map.map, "string" ) then
+		return true
+	end
+
+	local Min = Map.min
+	local Max = Map.max
+
+	local MapName = Map.map
+
+	if IsType( Min, "number" ) and PlayerCount < Min then
+		return false
+	end
+
+	if IsType( Max, "number" ) and PlayerCount > Max then
+		return false
+	end
+
+	-- Track percentage of total maps played.
+	local Percent = Map.percent or Map.Percent
+	if self.TrackMapStats and IsType( Percent, "number" ) then
+		local Stats = self.MapStats
+		local CurrentPercent = ( Stats[ MapName ] or 0 ) / self.TotalPlayedMaps * 100
+
+		if CurrentPercent >= Percent then
+			return false
+		end
+	end
+
+	return true
 end
 
 --[[
@@ -146,15 +195,8 @@ function Plugin:GetNextMap()
 	for i = 1, #Maps do
 		local Map = Maps[ i ]
 
-		if IsType( Map, "table" ) then
-			local Min = Map.min
-			local Max = Map.max
-
-			local MapName = Map.map
-
-			if ( Min and PlayerCount < Min ) or ( Max and PlayerCount > Max ) then
-				IgnoreList[ MapName ] = true
-			end
+		if not self:IsValidMapChoice( Map, PlayerCount ) then
+			IgnoreList[ Map.map ] = true
 		end
 	end
 
@@ -198,6 +240,7 @@ function Plugin:Think()
 end
 
 local LastMapsFile = "config://shine/temp/lastmaps.json"
+local MapStatsFile = "config://shine/temp/mapstats.json"
 
 function Plugin:LoadLastMaps()
 	local File, Err = Shine.LoadJSONFile( LastMapsFile )
@@ -229,6 +272,32 @@ function Plugin:SaveLastMaps()
 	end
 end
 
+function Plugin:LoadMapStats()
+	self.MapStats = Shine.LoadJSONFile( MapStatsFile ) or {}
+
+	local TotalPlayed = 0
+	for Map, Count in pairs( self.MapStats ) do
+		TotalPlayed = TotalPlayed + Count
+	end
+
+	if TotalPlayed <= 0 then
+		TotalPlayed = 1
+	end
+
+	self.TotalPlayedMaps = TotalPlayed
+end
+
+function Plugin:SaveMapStats()
+	local Map = Shared.GetMapName()
+
+	self.MapStats[ Map ] = ( self.MapStats[ Map ] or 0 ) + 1
+
+	local Success, Err = Shine.SaveJSONFile( self.MapStats, MapStatsFile )
+	if not Success then
+		Notify( "Error saving mapvote stats file: "..Err )
+	end
+end
+
 function Plugin:GetLastMaps()
 	return self.LastMapData
 end
@@ -239,9 +308,13 @@ end
 ]]
 function Plugin:MapChange()
 	if self.Config.ExcludeLastMaps > 0 and not self.StoredCurrentMap then
-		self:SaveLastMaps()
-
 		self.StoredCurrentMap = true
+		self:SaveLastMaps()
+	end
+
+	if self.TrackMapStats and not self.StoredMapStats then
+		self.StoredMapStats = true
+		self:SaveMapStats()
 	end
 
 	if self.LastMapGroup then

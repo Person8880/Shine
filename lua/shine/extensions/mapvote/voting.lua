@@ -576,21 +576,9 @@ function Plugin:StartVote( NextMap, Force )
 	local DeniedMaps = {}
 
 	local function SortOutMinMax( Map )
-		if not IsType( Map, "table" ) or not IsType( Map.map, "string" ) then
-			return
-		end
-
-		local Min = Map.min
-		local Max = Map.max
-
-		local MapName = Map.map
-
-		if Min and PlayerCount < Min then
-			AllMaps[ MapName ] = nil
-			DeniedMaps[ MapName ] = true
-		elseif Max and PlayerCount > Max then
-			AllMaps[ MapName ] = nil
-			DeniedMaps[ MapName ] = true
+		if not self:IsValidMapChoice( Map, PlayerCount ) then
+			AllMaps[ Map.map ] = nil
+			DeniedMaps[ Map.map ] = true
 		end
 	end
 

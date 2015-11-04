@@ -4,12 +4,7 @@
 
 local UnitTest = Shine.UnitTest
 
-local VoteShuffle = Shine.Plugins.voterandom
-if not VoteShuffle then
-	Shine:LoadExtension( "voterandom" )
-	VoteShuffle = Shine.Plugins.voterandom
-end
-
+local VoteShuffle = UnitTest:LoadExtension( "voterandom" )
 if not VoteShuffle then return end
 
 VoteShuffle.Config.IgnoreCommanders = false
