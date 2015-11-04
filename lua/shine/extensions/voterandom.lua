@@ -1136,6 +1136,11 @@ function Plugin:JoinRandomTeam( Player )
 end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
+	-- Reset the block time when the round stops.
+	if NewState == kGameState.NotStarted then
+		self.VoteBlockTime = nil
+	end
+
 	if NewState ~= kGameState.Countdown then return end
 
 	--Block the vote after the set time.
