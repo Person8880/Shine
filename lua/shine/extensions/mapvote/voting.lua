@@ -577,8 +577,8 @@ function Plugin:StartVote( NextMap, Force )
 
 	local function SortOutMinMax( Map )
 		if not self:IsValidMapChoice( Map, PlayerCount ) then
-			AllMaps[ MapName ] = nil
-			DeniedMaps[ MapName ] = true
+			AllMaps[ Map.map ] = nil
+			DeniedMaps[ Map.map ] = true
 		end
 	end
 
