@@ -114,20 +114,8 @@ end
 	with each entry having equal probability of being picked.
 ]]
 function table.ChooseRandom( Table )
-	local Count = #Table
-	local Interval = 1 / Count
-
-	local Rand = Random()
-	local InRange = math.InRange
-
-	for i = 1, Count do
-		local Lower = Interval * ( i - 1 )
-		local Upper = i ~= Count and ( Interval * i ) or 1
-
-		if InRange( Lower, Rand, Upper ) then
-			return Table[ i ], i
-		end
-	end
+	local Index = Random( 1, #Table )
+	return Table[ Index ], Index
 end
 
 --[[
