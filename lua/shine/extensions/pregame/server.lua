@@ -32,7 +32,7 @@ Plugin.CheckConfigTypes = true
 Plugin.FiveSecTimer = "PreGameFiveSeconds"
 Plugin.CountdownTimer = "PreGameCountdown"
 
-Plugin.StartNagInterval = 10
+Plugin.StartNagInterval = 30
 
 Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
 	"CheckPlayerCanAttack", "ActivePre" )
