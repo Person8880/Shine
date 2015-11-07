@@ -33,6 +33,7 @@ Plugin.DefaultConfig = {
 	AllTalk = false,
 	AllTalkPreGame = false,
 	AllTalkSpectator = false,
+	AllTalkLocal = false,
 	EjectVotesNeeded = 0.5,
 	DisableLuaRun = false,
 	Interp = 100,
@@ -213,22 +214,39 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	self.dt.Gamestate = NewState
 end
 
---[[
-	Override voice chat to allow everyone to hear each other with alltalk on.
-]]
-function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
-	local SpeakerClient = GetOwner( Speaker )
+do
+	local function IsPregameAllTalk( self, Gamerules )
+		return self.Config.AllTalkPreGame and Gamerules:GetGameState() == kGameState.NotStarted
+	end
 
-	if SpeakerClient and self:IsClientGagged( SpeakerClient ) then return false end
-	if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
+	local function IsSpectatorAllTalk( self, Listener )
+		return self.Config.AllTalkSpectator and Listener:GetTeamNumber() == ( kSpectatorIndex or 3 )
+	end
 
-	if self.Config.AllTalkPreGame and GetGamerules():GetGameState() == kGameState.NotStarted then return true end
-	if self.Config.AllTalk then return true end
+	-- Will need updating if it changes in NS2Gamerules...
+	local MaxWorldSoundDistance = 30 * 30
 
-	if self.Config.AllTalkSpectator then
-		local ListenerTeam = Listener:GetTeamNumber()
+	--[[
+		Override voice chat to allow everyone to hear each other with alltalk on.
+	]]
+	function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker, ChannelType )
+		local SpeakerClient = GetOwner( Speaker )
 
-		if ListenerTeam == ( kSpectatorIndex or 3 ) then
+		if SpeakerClient and self:IsClientGagged( SpeakerClient ) then return false end
+		if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
+
+		if ChannelType ~= VoiceChannel.Global then
+			-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
+			if self.Config.AllTalkLocal or self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
+			or IsSpectatorAllTalk( self, Listener ) then
+				return Listener:GetDistanceSquared( Speaker ) < MaxWorldSoundDistance
+			end
+
+			return
+		end
+
+		if self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
+		or IsSpectatorAllTalk( self, Listener ) then
 			return true
 		end
 	end
@@ -882,6 +900,7 @@ function Plugin:CreateAllTalkCommands()
 	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "all talk", "All talk" )
 	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
 		"all talk pre-game", "All talk pre-game" )
+	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal", "local all talk", "Local all talk" )
 end
 
 function Plugin:CreateGameplayCommands()
