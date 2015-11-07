@@ -55,7 +55,7 @@ if Server then
 			Value = tonumber( Value )
 
 			if not Value then return nil end
-			
+
 			return Floor( Value )
 		end,
 		float = function( Value )
@@ -90,8 +90,6 @@ if Server then
 	end
 
 	function DataTableMeta:__newindex( Key, Value )
-		rawset( self, Key, nil )
-
 		local Cached = RealData[ self ][ Key ]
 		if Cached == nil or Cached == Value then return end
 
@@ -205,7 +203,7 @@ end
 
 --Refuse creation/editing keys on the client.
 function DataTableMeta:__newindex( Key, Value )
-	rawset( self, Key, nil ) --Make sure the assignment doesn't hold!
+
 end
 
 --Process a complete network message.
