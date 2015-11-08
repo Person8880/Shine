@@ -103,7 +103,7 @@ do
 
 		This time, it shouldn't freeze the game...
 	]]
-	function SGUI.WordWrap( Label, Text, XPos, MaxWidth )
+	function SGUI.WordWrap( Label, Text, XPos, MaxWidth, MaxLines )
 		local Words = StringExplode( Text, " " )
 		local StartIndex = 1
 		local Lines = {}
@@ -135,6 +135,10 @@ do
 					StartIndex = i
 					i = i - 1
 				end
+
+				if MaxLines and #Lines >= MaxLines then
+					break
+				end
 			elseif i == #Words then --We're at the end!
 				Lines[ #Lines + 1 ] = CurText
 			end
@@ -143,6 +147,10 @@ do
 		end
 
 		Label:SetText( TableConcat( Lines, "\n" ) )
+
+		if MaxLines then
+			return TableConcat( Words, " ", StartIndex )
+		end
 	end
 end
 
