@@ -790,6 +790,8 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	local Messages = self.Messages
 	local LastMessage = Messages[ #Messages ]
 	local StartX = 5
+	local PrefixMargin = 5
+	local LineMargin = 2
 
 	local Tags, PreLabel, MessageLabel, MessageLabel2, ReUse
 
@@ -868,12 +870,12 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	--Now calculate the next message's position, it's important to do this after moving old ones up.
 	--Otherwise the scrollbar would increase its size thinking there's text further down.
 	if not LastMessage then
-		PrePos = Vector( StartX, 5, 0 )
+		PrePos = Vector( StartX, PrefixMargin, 0 )
 	else
 		local LastPre = LastMessage.Pre
-		PrePos = Vector( StartX, LastPre:GetPos().y + LastMessage.Message:GetTextHeight() + 2, 0 )
+		PrePos = Vector( StartX, LastPre:GetPos().y + LastMessage.Message:GetTextHeight() + LineMargin, 0 )
 		if LastMessage.Message2 then
-			PrePos.y = PrePos.y + LastMessage.Message2:GetTextHeight() + 2
+			PrePos.y = PrePos.y + LastMessage.Message2:GetTextHeight() + LineMargin
 		end
 	end
 
@@ -919,7 +921,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		MessageLabel:SetText( MessageName )
 
 		local ChatBoxSize = self.ChatBox:GetSize().x
-		local XPos = PrePos.x + 5 + PreLabel:GetTextWidth()
+		local XPos = PrePos.x + PrefixMargin + PreLabel:GetTextWidth()
 		local NeedsSecondLine
 
 		if XPos + MessageLabel:GetTextWidth( MessageName ) > ChatBoxSize then
@@ -939,7 +941,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 				MessageLabel2:SetColour( MessageColour )
 				MessageLabel2:SetText( Remaining )
 
-				XPos = 5
+				XPos = StartX
 				if XPos + MessageLabel2:GetTextWidth( Remaining ) > ChatBoxSize then
 					WordWrap( MessageLabel2, Remaining, XPos, ChatBoxSize )
 				end
@@ -958,11 +960,11 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		end
 	end
 
-	local MessagePos = Vector( PrePos.x + 5 + PreLabel:GetTextWidth(), PrePos.y, 0 )
+	local MessagePos = Vector( PrePos.x + PrefixMargin + PreLabel:GetTextWidth(), PrePos.y, 0 )
 	MessageLabel:SetPos( MessagePos )
 
 	if MessageLabel2 then
-		MessageLabel2:SetPos( Vector( StartX, PrePos.y + MessageLabel:GetTextHeight() + 2, 0 ) )
+		MessageLabel2:SetPos( Vector( StartX, PrePos.y + MessageLabel:GetTextHeight() + LineMargin, 0 ) )
 	end
 
 	if SGUI.IsValid( ChatBox.Scrollbar ) then
