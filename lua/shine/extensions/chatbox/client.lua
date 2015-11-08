@@ -785,15 +785,13 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		return
 	end
 
-	--I've decided not to scale this text, scaling blurs or pixelates and it's very hard to read.
-	local UIScale = 1
-
 	IntToColour = IntToColour or ColorIntToColor
 
 	local Messages = self.Messages
 	local LastMessage = Messages[ #Messages ]
+	local StartX = 5
 
-	local Tags, PreLabel, MessageLabel, ReUse
+	local Tags, PreLabel, MessageLabel, MessageLabel2, ReUse
 
 	local NextIndex = #Messages + 1
 
@@ -805,6 +803,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		Tags = FirstMessage.Tags
 		PreLabel = FirstMessage.Pre
 		MessageLabel = FirstMessage.Message
+		MessageLabel2 = FirstMessage.Message2
 
 		--local Height = Max( PreLabel:GetTextHeight(), MessageLabel:GetTextHeight() )
 		local Height = Messages[ 1 ].Pre:GetPos().y
@@ -826,6 +825,11 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 
 			MessageTable.Pre:SetPos( Vector( PrePos.x, PrePos.y - Height, 0 ) )
 			MessageTable.Message:SetPos( Vector( MessagePos.x, MessagePos.y - Height, 0 ) )
+
+			if MessageTable.Message2 then
+				local MessagePos2 = MessageTable.Message2:GetPos()
+				MessageTable.Message2:SetPos( Vector( MessagePos2.x, MessagePos2.y - Height, 0 ) )
+			end
 		end
 	else
 		PreLabel = self.ChatBox:Add( "Label" )
@@ -864,10 +868,13 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	--Now calculate the next message's position, it's important to do this after moving old ones up.
 	--Otherwise the scrollbar would increase its size thinking there's text further down.
 	if not LastMessage then
-		PrePos = Vector( 5, 5, 0 )
+		PrePos = Vector( StartX, 5, 0 )
 	else
 		local LastPre = LastMessage.Pre
-		PrePos = Vector( 5, LastPre:GetPos().y + LastMessage.Message:GetTextHeight() + 2, 0 )
+		PrePos = Vector( StartX, LastPre:GetPos().y + LastMessage.Message:GetTextHeight() + 2, 0 )
+		if LastMessage.Message2 then
+			PrePos.y = PrePos.y + LastMessage.Message2:GetTextHeight() + 2
+		end
 	end
 
 	if Tags then
@@ -913,22 +920,59 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 
 		local ChatBoxSize = self.ChatBox:GetSize().x
 		local XPos = PrePos.x + 5 + PreLabel:GetTextWidth()
+		local NeedsSecondLine
 
 		if XPos + MessageLabel:GetTextWidth( MessageName ) > ChatBoxSize then
-			WordWrap( MessageLabel, MessageName, XPos, ChatBoxSize )
+			local Remaining = WordWrap( MessageLabel, MessageName, XPos, ChatBoxSize, 1 )
+
+			if Remaining ~= "" then
+				NeedsSecondLine = true
+
+				MessageLabel2 = MessageLabel2 or self.ChatBox:Add( "Label" )
+				if ReUse then
+					ReUse.Message2 = MessageLabel2
+				end
+
+				MessageLabel2:SetAnchor( GUIItem.Left, GUIItem.Top )
+				MessageLabel2:SetFont( self:GetFont() )
+				MessageLabel2:SetTextScale( self.MessageTextScale )
+				MessageLabel2:SetColour( MessageColour )
+				MessageLabel2:SetText( Remaining )
+
+				XPos = 5
+				if XPos + MessageLabel2:GetTextWidth( Remaining ) > ChatBoxSize then
+					WordWrap( MessageLabel2, Remaining, XPos, ChatBoxSize )
+				end
+			end
+		end
+
+		if not NeedsSecondLine and MessageLabel2 then
+			MessageLabel2:SetParent()
+			MessageLabel2:Destroy()
+
+			MessageLabel2 = nil
+
+			if ReUse then
+				ReUse.Message2 = nil
+			end
 		end
 	end
 
 	local MessagePos = Vector( PrePos.x + 5 + PreLabel:GetTextWidth(), PrePos.y, 0 )
 	MessageLabel:SetPos( MessagePos )
 
+	if MessageLabel2 then
+		MessageLabel2:SetPos( Vector( StartX, PrePos.y + MessageLabel:GetTextHeight() + 2, 0 ) )
+	end
+
 	if SGUI.IsValid( ChatBox.Scrollbar ) then
 		ChatBox:SetMaxHeight( MessageLabel:GetPos().y + MessageLabel:GetSize().y
+			+ ( MessageLabel2 and MessageLabel2:GetSize().y or 0 )
 			+ ChatBox.BufferAmount )
 	end
 
 	--Reuse the removed message table if there was one.
-	Messages[ #Messages + 1 ] = ReUse or { Pre = PreLabel, Message = MessageLabel, Tags = Tags }
+	Messages[ #Messages + 1 ] = ReUse or { Pre = PreLabel, Message = MessageLabel, Message2 = MessageLabel2, Tags = Tags }
 end
 
 --[[
