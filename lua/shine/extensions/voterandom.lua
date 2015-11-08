@@ -726,7 +726,20 @@ local function GetFallbackTargets( Targets, Sorted )
 	return FallbackTargets
 end
 
-local function AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
+function Plugin:AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
+	while NumPlayers > 0 and #TeamMembers[ 1 ] ~= #TeamMembers[ 2 ] do
+		NumPlayers = NumPlayers - 1
+
+		local Team = #TeamMembers[ 1 ] < #TeamMembers[ 2 ] and 1 or 2
+		local TeamTable = TeamMembers[ Team ]
+		local Player = Targets[ #Targets ]
+
+		TeamTable[ #TeamTable + 1 ] = Player
+		Targets[ #Targets ] = nil
+	end
+
+	if NumPlayers == 0 then return end
+
 	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
 
 	for i = 1, NumPlayers do
@@ -789,7 +802,7 @@ function Plugin:SortByScore( Gamerules, Targets, TeamMembers, Silent, RankFunc )
 	local RandomTableCount = #RandomTable
 
 	if RandomTableCount > 0 then
-		AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
+		self:AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
 	end
 
 	EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -802,7 +815,7 @@ end
 Plugin.ShufflingModes = {
 	--Random only.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
-		AddPlayersRandomly( Targets, #Targets, TeamMembers )
+		self:AddPlayersRandomly( Targets, #Targets, TeamMembers )
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		if not Silent then

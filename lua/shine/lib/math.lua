@@ -68,13 +68,11 @@ function math.GenerateSequence( Length, Nums )
 	for i = 1, Length do
 		local Option, Index = TableRandom( Nums )
 
+		Count[ Option ] = Count[ Option ] + 1
+
 		if Count[ Option ] >= Max then
 			TableRemove( Nums, Index )
-
-			Option = TableRandom( Nums )
 		end
-
-		Count[ Option ] = Count[ Option ] + 1
 
 		Sequence[ i ] = Option
 	end

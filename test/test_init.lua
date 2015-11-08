@@ -10,9 +10,10 @@ local UnitTest = Shine.UnitTest
 UnitTest.Results = {}
 
 local assert = assert
-local DebugGetInfo = debug.getinfo
 local DebugTraceback = debug.traceback
 local pcall = pcall
+local StringFormat = string.format
+local TableConcat = table.concat
 local xpcall = xpcall
 
 local IsType = Shine.IsType
@@ -30,8 +31,7 @@ end
 
 function UnitTest:Test( Description, TestFunction, Finally, Reps )
 	local Result = {
-		Description = Description,
-		FuncInfo = DebugGetInfo( TestFunction, "nS" )
+		Description = Description
 	}
 
 	local function ErrorHandler( Err )
@@ -102,7 +102,7 @@ for Name, Func in pairs( UnitTest.Assert ) do
 	end
 end
 
-function UnitTest:Output( File )
+function UnitTest:Output( File, Duration )
 	local Passed = 0
 	local Failed = 0
 
@@ -114,12 +114,22 @@ function UnitTest:Output( File )
 		else
 			Failed = Failed + 1
 			Print( "Test failure: %s", Result.Description )
-			PrintTable( Result )
+
+			local Err = Result.Err
+			if type( Err ) == "table" then
+				for i = 1, #Err.Args do
+					Err.Args[ i ] = tostring( Err.Args[ i ] )
+				end
+
+				Err = StringFormat( "%s - Args: %s", Err.Message, TableConcat( Err.Args, ", " ) )
+			end
+
+			Print( "Error: %s\n%s", Err, Result.Traceback )
 		end
 	end
 
-	Print( "Result summary for %s: %i/%i passed, %.2f%% success rate.",
-		File, Passed, #self.Results, Passed / #self.Results * 100 )
+	Print( "Result summary for %s: %i/%i passed, %.2f%% success rate. Time taken: %.2fus.",
+		File, Passed, #self.Results, Passed / #self.Results * 100, Duration * 1e6 )
 
 	return Passed, #self.Results
 end
@@ -132,9 +142,11 @@ local FinalResults = {
 }
 for i = 1, #Files do
 	if Files[ i ] ~= "test/test_init.lua" then
+		local Start = Shared.GetSystemTimeReal()
 		Script.Load( Files[ i ], true )
+		local Duration = Shared.GetSystemTimeReal() - Start
 
-		local Passed, Total = UnitTest:Output( Files[ i ] )
+		local Passed, Total = UnitTest:Output( Files[ i ], Duration )
 		FinalResults.Passed = FinalResults.Passed + Passed
 		FinalResults.Total = FinalResults.Total + Total
 
