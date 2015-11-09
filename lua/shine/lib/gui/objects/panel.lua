@@ -325,6 +325,23 @@ function Panel:SetMaxHeight( Height )
 
 	local MaxHeight = self:GetSize().y
 
+	-- Height has reduced below the max height, so remove the scrollbar.
+	if MaxHeight >= Height then
+		if SGUI.IsValid( self.Scrollbar ) then
+			self.Scrollbar:SetParent()
+			self.Scrollbar:Destroy()
+			self.Scrollbar = nil
+
+			if self.ScrollParentPos then
+				self.ScrollParentPos.y = 0
+			end
+
+			self.ScrollParent:SetPosition( self.ScrollParentPos or Vector( 0, 0, 0 ) )
+		end
+
+		return
+	end
+
 	if not SGUI.IsValid( self.Scrollbar ) then
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
 		self.Scrollbar = Scrollbar

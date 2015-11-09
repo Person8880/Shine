@@ -235,7 +235,7 @@ do
 		if SpeakerClient and self:IsClientGagged( SpeakerClient ) then return false end
 		if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
 
-		if ChannelType ~= VoiceChannel.Global then
+		if ChannelType and ChannelType ~= VoiceChannel.Global then
 			-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
 			if self.Config.AllTalkLocal or self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
 			or IsSpectatorAllTalk( self, Listener ) then

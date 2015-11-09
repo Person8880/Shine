@@ -61,10 +61,12 @@ function SGUI.GetChar( Char )
 end
 
 do
+	local Max = math.max
 	local StringExplode = string.Explode
 	local StringUTF8Length = string.UTF8Length
 	local StringUTF8Sub = string.UTF8Sub
 	local TableConcat = table.concat
+	local TableInsert = table.insert
 
 	--[[
 		Wraps text to fit the size limit. Used for long words...
@@ -84,14 +86,14 @@ do
 
 			--Once it reaches the limit, we go back a character, and set our first and second line results.
 			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-				FirstLine = StringUTF8Sub( Text, 1, i - 1 )
-				SecondLine = StringUTF8Sub( Text, i )
+				FirstLine = StringUTF8Sub( Text, 1, Max( i - 1, 1 ) )
+				SecondLine = StringUTF8Sub( Text, Max( i, 2 ) )
 
 				break
 			end
 
 			i = i + 1
-		until i >= Length
+		until i > Length
 
 		return FirstLine, SecondLine
 	end
@@ -101,7 +103,7 @@ do
 
 		This time, it shouldn't freeze the game...
 	]]
-	function SGUI.WordWrap( Label, Text, XPos, MaxWidth )
+	function SGUI.WordWrap( Label, Text, XPos, MaxWidth, MaxLines )
 		local Words = StringExplode( Text, " " )
 		local StartIndex = 1
 		local Lines = {}
@@ -118,9 +120,9 @@ do
 
 					Lines[ #Lines + 1 ] = FirstLine
 
-					--Add the second line to the next word, or as a new next word if none exists.
+					--Add the second line as the next word, or as a new next word if none exists.
 					if Words[ i + 1 ] then
-						Words[ i + 1 ] = StringFormat( "%s %s", SecondLine, Words[ i + 1 ] )
+						TableInsert( Words, i + 1, SecondLine )
 					else
 						Words[ i + 1 ] = SecondLine
 					end
@@ -133,6 +135,10 @@ do
 					StartIndex = i
 					i = i - 1
 				end
+
+				if MaxLines and #Lines >= MaxLines then
+					break
+				end
 			elseif i == #Words then --We're at the end!
 				Lines[ #Lines + 1 ] = CurText
 			end
@@ -141,6 +147,10 @@ do
 		end
 
 		Label:SetText( TableConcat( Lines, "\n" ) )
+
+		if MaxLines then
+			return TableConcat( Words, " ", StartIndex )
+		end
 	end
 end
 
