@@ -244,7 +244,8 @@ do
 			local ListenerClient = GetOwner( Listener )
 
 			-- Default behaviour for those that have chosen to disable it.
-			if ListenerClient and DisableLocalAllTalkClients[ ListenerClient ] then
+			if ( ListenerClient and DisableLocalAllTalkClients[ ListenerClient ] )
+			or ( SpeakerClient and DisableLocalAllTalkClients[ SpeakerClient ] ) then
 				return
 			end
 
