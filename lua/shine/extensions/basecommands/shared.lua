@@ -14,6 +14,8 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "RequestPluginData", {}, "Server" )
 	self:AddNetworkMessage( "PluginData", { Name = "string (32)", Enabled = "boolean" }, "Client" )
 	self:AddNetworkMessage( "PluginTabAuthed", {}, "Client" )
+
+	self:AddNetworkMessage( "EnableLocalAllTalk", { Enabled = "boolean" }, "Server" )
 end
 
 function Plugin:NetworkUpdate( Key, Old, New )
@@ -68,6 +70,14 @@ if Server then
 	return
 end
 
+Plugin.HasConfig = true
+Plugin.ConfigName = "BaseCommands.json"
+Plugin.DefaultConfig = {
+	DisableLocalAllTalk = false
+}
+Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
+
 Shine.Hook.Add( "PostLoadScript", "SetupCustomVote", function( Script )
 	if Script ~= "lua/Voting.lua" then return end
 
@@ -99,10 +109,27 @@ function Plugin:Initialise()
 	end
 
 	self:SetupAdminMenuCommands()
+	self:SetupClientConfig()
 
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:SetupClientConfig()
+	Shine.AddStartupMessage( "You can choose to enable/disable local all talk for yourself by entering sh_alltalklocal_cl true/false." )
+
+	if self.Config.DisableLocalAllTalk then
+		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = false }, true )
+	end
+
+	self:BindCommand( "sh_alltalklocal_cl", function( Enable )
+		self.Config.DisableLocalAllTalk = not Enable
+		self:SaveConfig( true )
+		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = Enable }, true )
+
+		Print( "Local all talk is now %s.", Enable and "enabled" or "disabled" )
+	end ):AddParam{ Type = "boolean", Optional = true, Default = function() return self.Config.DisableLocalAllTalk end }
 end
 
 function Plugin:SetupAdminMenuCommands()

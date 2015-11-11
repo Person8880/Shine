@@ -225,6 +225,11 @@ do
 
 	-- Will need updating if it changes in NS2Gamerules...
 	local MaxWorldSoundDistance = 30 * 30
+	local DisableLocalAllTalkClients = {}
+
+	function Plugin:RemoveAllTalkPreference( Client )
+		DisableLocalAllTalkClients[ Client ] = nil
+	end
 
 	--[[
 		Override voice chat to allow everyone to hear each other with alltalk on.
@@ -236,6 +241,14 @@ do
 		if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
 
 		if ChannelType and ChannelType ~= VoiceChannel.Global then
+			local ListenerClient = GetOwner( Listener )
+
+			-- Default behaviour for those that have chosen to disable it.
+			if ( ListenerClient and DisableLocalAllTalkClients[ ListenerClient ] )
+			or ( SpeakerClient and DisableLocalAllTalkClients[ SpeakerClient ] ) then
+				return
+			end
+
 			-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
 			if self.Config.AllTalkLocal or self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
 			or IsSpectatorAllTalk( self, Listener ) then
@@ -249,6 +262,10 @@ do
 		or IsSpectatorAllTalk( self, Listener ) then
 			return true
 		end
+	end
+
+	function Plugin:ReceiveEnableLocalAllTalk( Client, Data )
+		DisableLocalAllTalkClients[ Client ] = not Data.Enabled
 	end
 end
 
@@ -281,6 +298,8 @@ function Plugin:ClientDisconnect( Client )
 	if self.PluginClients then
 		self.PluginClients[ Client ] = nil
 	end
+
+	self:RemoveAllTalkPreference( Client )
 end
 
 --[[
