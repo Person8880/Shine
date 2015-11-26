@@ -4,13 +4,19 @@
 	Massive data dump at the start for upper -> lower case and vice-versa.
 ]]
 
+local BitBand = bit.band
+local BitBor = bit.bor
+local BitRShift = bit.rshift
 local error = error
-local pcall = pcall
+local Max = math.max
+local Min = math.min
 local StringByte = string.byte
-local StringFind = string.find
+local StringChar = string.char
 local StringFormat = string.format
+local StringLen = string.len
 local StringSub = string.sub
 local TableConcat = table.concat
+local TableReverse = table.Reverse
 local type = type
 
 local UTF8LowerToUpper = {
@@ -1881,11 +1887,53 @@ local function TypeCheck( Arg, Type, ArgNumber, FuncName )
 	end
 end
 
+local ByteRules = {
+	{
+		{ 1, 127 }
+	},
+	{
+		{ 194, 223 },
+		{ 128, 191 }
+	},
+	{
+		{ 224, 239 },
+		{ 128, 191 },
+		{ 128, 191 },
+		EdgeCases = function( Bytes )
+			if Bytes[ 1 ] == 224 and ( Bytes[ 2 ] < 160 or Bytes[ 2 ] > 191 ) then
+				return false
+			end
+			if Bytes[ 1 ] == 237 and ( Bytes[ 2 ] < 128 or Bytes[ 2 ] > 159 ) then
+				return false
+			end
+
+			return true
+		end
+	},
+	{
+		{ 240, 244 },
+		{ 128, 191 },
+		{ 128, 191 },
+		{ 128, 191 },
+		EdgeCases = function( Bytes )
+			if Bytes[ 1 ] == 240 and ( Bytes[ 2 ] < 144 or Bytes[ 2 ] > 191 ) then
+				return false
+			end
+			if Bytes[ 1 ] == 244 and ( Bytes[ 2 ] < 128 or Bytes[ 2 ] > 143 ) then
+				return false
+			end
+
+			return true
+		end
+	}
+}
+local NumRules = #ByteRules
+
 --[[
 	Returns the bytes used by the UTF-8 character.
 
 	Inputs: String to check, Index byte to start at.
-	Output: Bytes used by the UTF-8 character.
+	Output: Table of bytes used by the UTF-8 character.
 ]]
 local function GetUTF8Bytes( String, Index )
 	Index = Index or 1
@@ -1893,73 +1941,40 @@ local function GetUTF8Bytes( String, Index )
 	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
 	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
 
-	local Byte = StringByte( String, Index )
+	local FirstByte = StringByte( String, Index )
 
-	if Byte > 0 and Byte <= 127 then
-		return Byte
-	elseif Byte >= 194 and Byte <= 223 then
-		local Byte2 = StringByte( String, Index + 1 )
+	for i = 1, NumRules do
+		local Rule = ByteRules[ i ]
+		local FirstInterval = Rule[ 1 ]
 
-		if not Byte2 then
-			error( "UTF-8 string terminated early after first byte, expected one more" )
+		if FirstByte >= FirstInterval[ 1 ] and FirstByte <= FirstInterval[ 2 ] then
+			local Matches = true
+			local Bytes = { FirstByte }
+
+			for j = 2, i do
+				local Interval = Rule[ j ]
+				local CurByte = StringByte( String, Index + j - 1 )
+
+				if CurByte < Interval[ 1 ] or CurByte > Interval[ 2 ] then
+					Matches = false
+					break
+				end
+
+				Bytes[ j ] = CurByte
+			end
+
+			if Matches then
+				local EdgeCases = Rule.EdgeCases
+				if not EdgeCases or EdgeCases( Bytes ) then
+					return Bytes
+				end
+			end
+
+			break
 		end
-
-		if Byte2 < 128 or Byte2 > 191 then
-			error( "Invalid UTF-8 character, invalid second byte" )
-		end
-
-		return Byte, Byte2
-	elseif Byte >= 224 and Byte <= 239 then
-		local Byte2 = StringByte( String, Index + 1 )
-		local Byte3 = StringByte( String, Index + 2 )
-
-		if not Byte2 or not Byte3 then
-			error( "UTF-8 string terminated early after first byte, expected two more" )
-		end
-
-		if Byte == 224 and ( Byte2 < 160 or Byte2 > 191 ) then
-			error( "Invalid UTF-8 character, invalid second byte" )
-		elseif Byte == 237 and ( Byte2 < 128 or Byte2 > 159 ) then
-			error( "Invalid UTF-8 character, invalid second byte" )
-		elseif Byte2 < 128 or Byte2 > 191 then
-			error( "Invalid UTF-8 character, invalid second byte" )
-		end
-
-		if Byte3 < 128 or Byte3 > 191 then
-			error( "Invalid UTF-8 character, invalid third byte" )
-		end
-
-		return Byte, Byte2, Byte3
-	elseif Byte >= 240 and Byte <= 244 then
-		-- UTF8-4
-		local Byte2 = StringByte( String, Index + 1 )
-		local Byte3 = StringByte( String, Index + 2 )
-		local Byte4 = StringByte( String, Index + 3 )
-
-		if not Byte2 or not Byte3 or not Byte4 then
-			error( "UTF-8 string terminated early after first byte, expected 3 more" )
-		end
-
-		if Byte == 240 and ( Byte2 < 144 or Byte2 > 191 ) then
-			error( "Invalid UTF-8 character, invalid second byte" )
-		elseif Byte == 244 and ( Byte2 < 128 or Byte2 > 143 ) then
-			error( "Invalid UTF-8 character, invalid second byte" )
-		elseif Byte2 < 128 or Byte2 > 191 then
-			error( "Invalid UTF-8 character, invalid second byte" )
-		end
-
-		if Byte3 < 128 or Byte3 > 191 then
-			error( "Invalid UTF-8 character, invalid third byte" )
-		end
-
-		if Byte4 < 128 or Byte4 > 191 then
-			error( "Invalid UTF-8 character, invalid fourth byte" )
-		end
-
-		return Byte, Byte2, Byte3, Byte4
-	else
-		error( "Invalid UTF-8 character, invalid first byte" )
 	end
+
+	return nil
 end
 
 --[[
@@ -1969,17 +1984,12 @@ end
 	Output: Number of bytes used by the UTF-8 character.
 ]]
 local function GetNumUTF8Bytes( String, Index )
-	local Byte1, Byte2, Byte3, Byte4 = GetUTF8Bytes( String, Index )
-
-	if Byte4 then
-		return 4
-	elseif Byte3 then
-		return 3
-	elseif Byte2 then
-		return 2
-	elseif Byte1 then
-		return 1
+	local Bytes = GetUTF8Bytes( String, Index )
+	if Bytes then
+		return #Bytes
 	end
+
+	return nil
 end
 
 --[[
@@ -1989,7 +1999,7 @@ end
 	Output: True if valid, false otherwise.
 ]]
 function string.IsValidUTF8( String, Index )
-	return ( pcall( GetUTF8Bytes, String, Index ) )
+	return GetUTF8Bytes( String, Index ) ~= nil
 end
 
 --[[
@@ -1999,26 +2009,84 @@ end
 	Output: Up to 4 bytes of data. Returns nil if the character is invalid UTF8.
 ]]
 function string.GetUTF8Bytes( String, Index )
-	local Success, Byte, Byte2, Byte3, Byte4 = pcall( GetUTF8Bytes, String, Index )
-	if Success then
-		return Byte, Byte2, Byte3, Byte4
+	local Bytes = GetUTF8Bytes( String, Index )
+	if Bytes then
+		return unpack( Bytes )
 	end
 end
 
-local function MakeWrapperFunc( Func, Original )
-	return function( ... )
-		local Success, Result = pcall( Func, ... )
+--[[
+	Converts a character numeric value into a UTF-8 character.
+]]
+local function UTF8Char( Char )
+	if Char < 0 or Char > 0x10FFFF then
+		error( "bad argument #1 to UTF8Char (out of range)", 2 )
+	end
 
-		if not Success then
-			if StringFind( Result, "Bad argument" ) then
-				error( Result, 0 )
-			end
+	local Byte1, Byte2, Byte3, Byte4
 
-			return Original( ... )
+	if Char < 0x80 then
+		return StringChar( Char )
+	end
+
+	if Char < 0x800 then
+		Byte1 = BitBor( 0xC0, BitBand( BitRShift( Char, 6 ), 0x1F ) )
+		Byte2 = BitBor( 0x80, BitBand( Char, 0x3F ) )
+
+		return StringChar( Byte1, Byte2 )
+	end
+
+	if Char < 0x10000 then
+		Byte1 = BitBor( 0xE0, BitBand( BitRShift( Char, 12 ), 0x0F ) )
+		Byte2 = BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) )
+		Byte3 = BitBor( 0x80, BitBand( Char, 0x3F ) )
+
+		return StringChar( Byte1, Byte2, Byte3 )
+	end
+
+	Byte1 = BitBor( 0xF0, BitBand( BitRShift( Char, 18 ), 0x07 ) )
+	Byte2 = BitBor( 0x80, BitBand( BitRShift( Char, 12 ), 0x3F ) )
+	Byte3 = BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) )
+	Byte4 = BitBor( 0x80, BitBand( Char, 0x3F ) )
+
+	return StringChar( Byte1, Byte2, Byte3, Byte4 )
+end
+string.UTF8Char = UTF8Char
+
+--[[
+	Encodes a string into valid UTF-8, returning a table of UTF-8 characters.
+]]
+local function UTF8Encode( String )
+	local CurByte = 1
+	local Bytes = StringLen( String )
+	local Count = 0
+	local NewString = {}
+
+	while CurByte <= Bytes do
+		local CharBytes = GetNumUTF8Bytes( String, CurByte )
+		local Char
+
+		if not CharBytes then
+			CharBytes = 1
+			Char = UTF8Char( 0xFFFD )
+		else
+			Char = StringSub( String, CurByte, CurByte + CharBytes - 1 )
 		end
 
-		return Result
+		Count = Count + 1
+		NewString[ Count ] = Char
+		CurByte = CurByte + CharBytes
 	end
+
+	return NewString
+end
+string.UTF8Encode = UTF8Encode
+
+--[[
+	Encodes a string into valid UTF-8, returning the string.
+]]
+function string.UTF8EncodeString( String )
+	return TableConcat( UTF8Encode( String ), "" )
 end
 
 --[[
@@ -2027,21 +2095,13 @@ end
 	Input: String
 	Output: Number of UTF-8 characters.
 ]]
-local function StringUTF8Length( String )
+local function UTF8Length( String )
 	TypeCheck( String, "string", 1, "UTF8Length" )
 
-	local CurByte = 1
-	local Bytes = #String
-	local Count = 0
-
-	while CurByte <= Bytes do
-		Count = Count + 1
-		CurByte = CurByte + GetNumUTF8Bytes( String, CurByte )
-	end
-
-	return Count
+	local Chars = UTF8Encode( String )
+	return #Chars
 end
-string.UTF8Length = MakeWrapperFunc( StringUTF8Length, string.len )
+string.UTF8Length = UTF8Length
 
 --[[
 	Returns the part of the string between Start and End where Start and End are UTF-8
@@ -2057,39 +2117,20 @@ local function UTF8Sub( String, Start, End )
 	TypeCheck( Start, "number", 2, "UTF8Sub" )
 	TypeCheck( End, "number", 3, "UTF8Sub" )
 
-	local CurByte = 1
-	local Bytes = #String
-	local Count = 0
+	local Chars = UTF8Encode( String )
+	local UTF8Length = #Chars
+	if UTF8Length == 0 then return "" end
 
-	local UTF8Length = StringUTF8Length( String )
 	local StartChar = Start >= 0 and Start or UTF8Length + Start + 1
 	local EndChar = End >= 0 and End or UTF8Length + End + 1
 
-	if StartChar > EndChar then
+	if StartChar > EndChar or EndChar == 0 then
 		return ""
 	end
 
-	local StartByte, EndByte = 1, Bytes
-
-	while CurByte <= Bytes do
-		Count = Count + 1
-
-		if Count == StartChar then
-			StartByte = CurByte
-		end
-
-		CurByte = CurByte + GetNumUTF8Bytes( String, CurByte )
-
-		if Count == EndChar then
-			EndByte = CurByte - 1
-
-			break
-		end
-	end
-
-	return StringSub( String, StartByte, EndByte )
+	return TableConcat( Chars, "", Max( StartChar, 1 ), Min( EndChar, UTF8Length ) )
 end
-string.UTF8Sub = MakeWrapperFunc( UTF8Sub, string.sub )
+string.UTF8Sub = UTF8Sub
 
 --[[
 	Replaces UTF-8 characters based on a mapping table.
@@ -2101,36 +2142,25 @@ local function UTF8Replace( String, MapTable )
 	TypeCheck( String, "string", 1, "UTF8Replace" )
 	TypeCheck( MapTable, "table", 2, "UTF8Replace" )
 
-	local CurByte = 1
-	local Bytes = #String
-	local NewString = {}
-	local Count = 0
-
-	while CurByte <= Bytes do
-		local CharBytes = GetNumUTF8Bytes( String, CurByte )
-		local Char = StringSub( String, CurByte, CurByte + CharBytes - 1 )
-
-		Count = Count + 1
-		NewString[ Count ] = MapTable[ Char ] or Char
-
-		CurByte = CurByte + CharBytes
+	local Chars = UTF8Encode( String )
+	for i = 1, #Chars do
+		local Mapping = MapTable[ Chars[ i ] ]
+		if Mapping then
+			Chars[ i ] = Mapping
+		end
 	end
 
-	--Table concat saves garbage data from concatenating the string for each character.
-	return TableConcat( NewString, "" )
+	return TableConcat( Chars, "" )
 end
---Potentially unsafe, has no direct Lua equivalent.
 string.UTF8Replace = UTF8Replace
 
-local function UTF8Upper( String )
+function string.UTF8Upper( String )
 	return UTF8Replace( String, UTF8LowerToUpper )
 end
-string.UTF8Upper = MakeWrapperFunc( UTF8Upper, string.upper )
 
-local function UTF8Lower( String )
+function string.UTF8Lower( String )
 	return UTF8Replace( String, UTF8UpperToLower )
 end
-string.UTF8Lower = MakeWrapperFunc( UTF8Lower, string.lower )
 
 --[[
 	Reverses a UTF-8 string.
@@ -2138,31 +2168,9 @@ string.UTF8Lower = MakeWrapperFunc( UTF8Lower, string.lower )
 	Input: String.
 	Output: Reversed UTF-8 aware string.
 ]]
-local function UTF8Reverse( String )
+function string.UTF8Reverse( String )
 	TypeCheck( String, "string", 1, "UTF8Reverse" )
 
-	local Bytes = #String
-	local CurByte = Bytes
-	local NewString = {}
-	local Count = 0
-
-	while CurByte > 0 do
-		local Char = StringByte( String, CurByte )
-
-		while Char >= 128 and Char <= 191 do
-			CurByte = CurByte - 1
-			Char = StringByte( String, CurByte )
-		end
-
-		local CharBytes = GetNumUTF8Bytes( String, CurByte )
-
-		Count = Count + 1
-		NewString[ Count ] = StringSub( String, CurByte, CurByte + CharBytes - 1 )
-
-		CurByte = CurByte - 1
-	end
-
-	--Table concat saves garbage data from concatenating the string for each character.
-	return TableConcat( NewString, "" )
+	local Chars = UTF8Encode( String )
+	return TableConcat( TableReverse( Chars ), "" )
 end
-string.UTF8Reverse = MakeWrapperFunc( UTF8Reverse, string.reverse )
