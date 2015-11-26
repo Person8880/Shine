@@ -559,7 +559,7 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	if NumTeam1 > NumTeam2 then
 		LargerTeam = 1
 	elseif NumTeam2 > NumTeam1 then
-		LargetTeam = 2
+		LargerTeam = 2
 	end
 	local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
 
