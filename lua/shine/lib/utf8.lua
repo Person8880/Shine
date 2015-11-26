@@ -18,6 +18,7 @@ local StringSub = string.sub
 local TableConcat = table.concat
 local TableReverse = table.Reverse
 local type = type
+local unpack = unpack
 
 local UTF8LowerToUpper = {
 	["a"] = "A",
