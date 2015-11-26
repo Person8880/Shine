@@ -551,6 +551,9 @@ function Plugin:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, Less
 end
 
 function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	-- Sanity check, make sure both team tables have even counts.
+	Shine.EqualiseTeamCounts( TeamMembers )
+
 	--Second pass, optimise the teams by swapping players that will reduce the average skill difference.
 	local NumTeam1 = #TeamMembers[ 1 ]
 	local NumTeam2 = #TeamMembers[ 2 ]
