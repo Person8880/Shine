@@ -8,8 +8,8 @@ local StringFormat = string.format
 local Scripts = {
 	"lib/debug.lua",
 	"lib/string.lua",
-	"lib/utf8.lua",
 	"lib/table.lua",
+	"lib/utf8.lua",
 	"lib/class.lua",
 	"lib/math.lua",
 	"lib/map.lua",
