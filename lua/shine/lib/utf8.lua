@@ -2061,7 +2061,7 @@ local function UTF8Encode( String )
 	local CurByte = 1
 	local Bytes = StringLen( String )
 	local Count = 0
-	local NewString = {}
+	local Chars = {}
 
 	while CurByte <= Bytes do
 		local CharBytes = GetNumUTF8Bytes( String, CurByte )
@@ -2075,11 +2075,11 @@ local function UTF8Encode( String )
 		end
 
 		Count = Count + 1
-		NewString[ Count ] = Char
+		Chars[ Count ] = Char
 		CurByte = CurByte + CharBytes
 	end
 
-	return NewString
+	return Chars
 end
 string.UTF8Encode = UTF8Encode
 
@@ -2099,8 +2099,7 @@ end
 local function UTF8Length( String )
 	TypeCheck( String, "string", 1, "UTF8Length" )
 
-	local Chars = UTF8Encode( String )
-	return #Chars
+	return #UTF8Encode( String )
 end
 string.UTF8Length = UTF8Length
 
@@ -2125,7 +2124,7 @@ local function UTF8Sub( String, Start, End )
 	local StartChar = Start >= 0 and Start or UTF8Length + Start + 1
 	local EndChar = End >= 0 and End or UTF8Length + End + 1
 
-	if StartChar > EndChar or EndChar == 0 then
+	if StartChar > EndChar or EndChar <= 0 then
 		return ""
 	end
 
