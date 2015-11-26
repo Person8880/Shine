@@ -13,8 +13,10 @@ local StringFormat = string.format
 local StringLength = string.len
 local StringLower = string.lower
 local StringSub = string.sub
+local StringUTF8Encode = string.UTF8Encode
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
+local TableConcat = table.concat
 local tonumber = tonumber
 
 local TextEntry = {}
@@ -711,16 +713,17 @@ function TextEntry:GetColumnFromMouse( X )
 	local Text = self.Text
 	local TextObj = self.TextObj
 
-	local Length = StringUTF8Length( Text )
+	local Chars = StringUTF8Encode( Text )
+	local Length = #Chars
 	local i = 0
-	local Width = TextObj:GetTextWidth( StringUTF8Sub( Text, 1, i ) ) * self.WidthScale
+	local Width = TextObj:GetTextWidth( TableConcat( Chars, "", 1, i ) ) * self.WidthScale
 
 	repeat
 		local Pos = Width + Offset
 
 		if Pos > X then
 			local Dist = Pos - X
-			local PrevWidth = TextObj:GetTextWidth( StringUTF8Sub( Text, i - 1, i - 1 ) ) * self.WidthScale
+			local PrevWidth = TextObj:GetTextWidth( Chars[ i - 1 ] or "" ) * self.WidthScale
 
 			if Dist < PrevWidth * 0.5 then
 				return i
@@ -731,7 +734,7 @@ function TextEntry:GetColumnFromMouse( X )
 
 		i = i + 1
 
-		Width = TextObj:GetTextWidth( StringUTF8Sub( Text, 1, i ) ) * self.WidthScale
+		Width = TextObj:GetTextWidth( TableConcat( Chars, "", 1, i ) ) * self.WidthScale
 	until i >= Length
 
 	return Length
