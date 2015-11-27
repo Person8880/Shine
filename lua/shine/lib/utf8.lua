@@ -1956,7 +1956,7 @@ local function GetUTF8Bytes( String, Index )
 				local Interval = Rule[ j ]
 				local CurByte = StringByte( String, Index + j - 1 )
 
-				if CurByte < Interval[ 1 ] or CurByte > Interval[ 2 ] then
+				if not CurByte or ( CurByte < Interval[ 1 ] or CurByte > Interval[ 2 ] ) then
 					Matches = false
 					break
 				end
