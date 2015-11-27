@@ -1945,6 +1945,7 @@ local function GetUTF8Bytes( String, Index )
 	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
 
 	local FirstByte = StringByte( String, Index )
+	if not FirstByte then return nil end
 
 	for i = 1, NumRules do
 		local Rule = ByteRules[ i ]
