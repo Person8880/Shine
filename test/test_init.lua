@@ -41,6 +41,7 @@ function UnitTest:Test( Description, TestFunction, Finally, Reps )
 
 	Reps = Reps or 1
 
+	local Start = Shared.GetSystemTimeReal()
 	for i = 1, Reps do
 		local Success, Err = xpcall( TestFunction, ErrorHandler, self.Assert )
 		if not Success then
@@ -52,6 +53,7 @@ function UnitTest:Test( Description, TestFunction, Finally, Reps )
 			pcall( Finally )
 		end
 	end
+	Result.Duration = Shared.GetSystemTimeReal() - Start
 
 	if not Result.Errored then
 		Result.Passed = true
@@ -102,9 +104,10 @@ for Name, Func in pairs( UnitTest.Assert ) do
 	end
 end
 
-function UnitTest:Output( File, Duration )
+function UnitTest:Output( File )
 	local Passed = 0
 	local Failed = 0
+	local Duration = 0
 
 	for i = 1, #self.Results do
 		local Result = self.Results[ i ]
@@ -118,7 +121,8 @@ function UnitTest:Output( File, Duration )
 			local Err = Result.Err
 			if type( Err ) == "table" then
 				for i = 1, #Err.Args do
-					Err.Args[ i ] = tostring( Err.Args[ i ] )
+					Err.Args[ i ] = IsType( Err.Args[ i ], "table" ) and table.ToString( Err.Args[ i ] )
+						or tostring( Err.Args[ i ] )
 				end
 
 				Err = StringFormat( "%s - Args: %s", Err.Message, TableConcat( Err.Args, ", " ) )
@@ -126,6 +130,8 @@ function UnitTest:Output( File, Duration )
 
 			Print( "Error: %s\n%s", Err, Result.Traceback )
 		end
+
+		Duration = Duration + Result.Duration
 	end
 
 	Print( "Result summary for %s: %i/%i passed, %.2f%% success rate. Time taken: %.2fus.",
@@ -142,11 +148,9 @@ local FinalResults = {
 }
 for i = 1, #Files do
 	if Files[ i ] ~= "test/test_init.lua" then
-		local Start = Shared.GetSystemTimeReal()
 		Script.Load( Files[ i ], true )
-		local Duration = Shared.GetSystemTimeReal() - Start
 
-		local Passed, Total = UnitTest:Output( Files[ i ], Duration )
+		local Passed, Total = UnitTest:Output( Files[ i ] )
 		FinalResults.Passed = FinalResults.Passed + Passed
 		FinalResults.Total = FinalResults.Total + Total
 

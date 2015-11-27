@@ -496,8 +496,12 @@ function Plugin:CreateChatbox()
 		Text = ">",
 		ActiveCol = LayoutData.Colours.HalfOpacity.ButtonActive,
 		InactiveCol = LayoutData.Colours.HalfOpacity.ButtonInActive,
+		Font = Font,
 		IsSchemed = false
 	}
+	if self.TextScale ~= 1 then
+		SettingsButton:SetTextScale( self.TextScale )
+	end
 
 	function SettingsButton:DoClick()
 		Plugin:OpenSettings( DummyPanel, UIScale, ScalarScale )

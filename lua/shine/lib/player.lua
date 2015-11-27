@@ -72,17 +72,12 @@ end
 
 local Hook = Shine.Hook
 
---[[
-	Ensures no team has more than 1 extra player compared to the other.
-]]
-function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
-	Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
-
+function Shine.EqualiseTeamCounts( TeamMembers )
 	local Marine = TeamMembers[ 1 ]
 	local Alien = TeamMembers[ 2 ]
 
-	local NumMarine = #TeamMembers[ 1 ]
-	local NumAlien = #TeamMembers[ 2 ]
+	local NumMarine = #Marine
+	local NumAlien = #Alien
 
 	local MarineGreater = NumMarine > NumAlien
 	local Diff = Abs( NumMarine - NumAlien )
@@ -108,6 +103,23 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 			end
 		end
 	end
+
+	return Diff
+end
+
+--[[
+	Ensures no team has more than 1 extra player compared to the other.
+]]
+function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
+	Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
+
+	-- Yes, we repeat this, but the reporting needs it...
+	local Marine = TeamMembers[ 1 ]
+	local Alien = TeamMembers[ 2 ]
+
+	local NumMarine = #Marine
+	local NumAlien = #Alien
+	local Diff = Shine.EqualiseTeamCounts( TeamMembers )
 
 	local Reported
 

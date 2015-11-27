@@ -34,6 +34,20 @@ function table.AsSet( Table )
 end
 
 --[[
+	Returns a new table that holds the same elements as the input table but in reverse order.
+]]
+function table.Reverse( Table )
+	local Ret = {}
+	local Length = #Table
+
+	for i = 1, Length do
+		Ret[ Length - i + 1 ] = Table[ i ]
+	end
+
+	return Ret
+end
+
+--[[
 	Clears a table.
 ]]
 local function TableEmpty( Table )

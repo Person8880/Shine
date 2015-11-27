@@ -63,8 +63,7 @@ end
 do
 	local Max = math.max
 	local StringExplode = string.Explode
-	local StringUTF8Length = string.UTF8Length
-	local StringUTF8Sub = string.UTF8Sub
+	local StringUTF8Encode = string.UTF8Encode
 	local TableConcat = table.concat
 	local TableInsert = table.insert
 
@@ -78,16 +77,17 @@ do
 		local i = 1
 		local FirstLine = Text
 		local SecondLine = ""
-		local Length = StringUTF8Length( Text )
+		local Chars = StringUTF8Encode( Text )
+		local Length = #Chars
 
 		--Character by character, extend the text until it exceeds the width limit.
 		repeat
-			local CurText = StringUTF8Sub( Text, 1, i )
+			local CurText = TableConcat( Chars, "", 1, i )
 
 			--Once it reaches the limit, we go back a character, and set our first and second line results.
 			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-				FirstLine = StringUTF8Sub( Text, 1, Max( i - 1, 1 ) )
-				SecondLine = StringUTF8Sub( Text, Max( i, 2 ) )
+				FirstLine = TableConcat( Chars, "", 1, Max( i - 1, 1 ) )
+				SecondLine = TableConcat( Chars, "", Max( i, 2 ) )
 
 				break
 			end
