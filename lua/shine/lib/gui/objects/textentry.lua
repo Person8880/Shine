@@ -715,8 +715,12 @@ function TextEntry:GetColumnFromMouse( X )
 
 	local Chars = StringUTF8Encode( Text )
 	local Length = #Chars
+	if Length == 0 then
+		return 0
+	end
+
 	local i = 0
-	local Width = TextObj:GetTextWidth( TableConcat( Chars, "", 1, i ) ) * self.WidthScale
+	local Width = 0
 
 	repeat
 		local Pos = Width + Offset
