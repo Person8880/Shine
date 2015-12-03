@@ -189,6 +189,11 @@ function Shine:LoadExtension( Name, DontEnable )
 	return self:EnableExtension( Name )
 end
 
+local HasFirstThinkOccurred
+Hook.Add( "OnFirstThink", "ExtensionFirstThink", function()
+	HasFirstThinkOccurred = true
+end )
+
 --Shared extensions need to be enabled once the server tells it to.
 function Shine:EnableExtension( Name, DontLoadConfig )
 	local Plugin = self.Plugins[ Name ]
@@ -196,6 +201,8 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	if not Plugin then
 		return false, "plugin does not exist"
 	end
+
+	local FirstEnable = Plugin.Enabled == nil
 
 	if Plugin.Enabled then
 		self:UnloadExtension( Name )
@@ -261,6 +268,10 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		Plugin.Enabled = nil
 
 		return false, Err
+	end
+
+	if FirstEnable and HasFirstThinkOccurred and Plugin.OnFirstThink then
+		Plugin:OnFirstThink()
 	end
 
 	Plugin.Enabled = true

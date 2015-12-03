@@ -34,7 +34,9 @@ local TeamScores = {
 	[ 2 ] = 0,
 }
 
-Shine.Hook.SetupClassHook( "ScoringMixin", "AddScore", "OnScore", "PassivePost" )
+function Plugin:OnFirstThink()
+	Shine.Hook.SetupClassHook( "ScoringMixin", "AddScore", "OnScore", "PassivePost" )
+end
 
 function Plugin:Initialise()
 	self.Config.WinCondition = Clamp( Floor( self.Config.WinCondition ), 1, 3 )
@@ -50,11 +52,11 @@ end
 function Plugin:OnScore( Player, Points, Res, WasKill )
 	if self.Config.WinCondition ~= self.WIN_SCORE then return end
 	if not Points then return end
-	
-	local Team = Player.GetTeamNumber and Player:GetTeamNumber()    
+
+	local Team = Player.GetTeamNumber and Player:GetTeamNumber()
 	if not TeamScores[ Team ] then return end
-	
-	TeamScores[ Team ] = TeamScores[ Team ] + Points   
+
+	TeamScores[ Team ] = TeamScores[ Team ] + Points
 end
 
 --[[
@@ -65,10 +67,10 @@ function Plugin:EndRound()
 
 	local Gamerules = GetGamerules()
 	if not Gamerules then return end
-	
+
 	local WinCondition = self.Config.WinCondition
 	local ModeAddition = "total team score"
-	
+
 	--Team with the most points scored over the game.
 	if WinCondition == self.WIN_SCORE then
 		if TeamScores[ 1 ] > TeamScores[ 2 ] then Winner = 1 end
@@ -85,7 +87,7 @@ function Plugin:EndRound()
 		Harvesters = Harvesters + Hives
 
 		if Extractors > Harvesters then Winner = 1 end
-		
+
 		ModeAddition = "number of captured RTs at the end"
 	--Team that collected the most team resources (i.e resources over the whole game).
 	elseif WinCondition == self.WIN_COLLECTEDRES then
@@ -96,13 +98,13 @@ function Plugin:EndRound()
 		local AlienRes = Aliens:GetTotalTeamResources()
 
 		if MarineRes > AlienRes then Winner = 1 end
-		
+
 		ModeAddition = "total collected team resources"
 	end
-	
+
 	Shine:NotifyDualColour( nil, 100, 255, 100, "[RoundLimiter]", 255, 255, 255,
 		StringFormat( "Ending round due to time limit. Winner chosen by %s.", ModeAddition ) )
-	
+
 	Gamerules:EndGame( Winner == 2 and Gamerules.team2 or Gamerules.team1 )
 end
 
@@ -110,7 +112,7 @@ local WarningsLeft = 0
 
 function Plugin:DisplayWarning()
 	local TimeLeft = WarningsLeft * self.Config.WarningTime * 60 / self.Config.WarningRepeatTimes
-	
+
 	local WinCondition = self.Config.WinCondition
 	local ModeAddition = "total team score"
 	if WinCondition == self.WIN_RTS then
@@ -118,8 +120,8 @@ function Plugin:DisplayWarning()
 	elseif WinCondition == self.WIN_COLLECTEDRES then
 		ModeAddition = "total collected team resources"
 	end
-	
-	local Message = StringFormat( "%s left until this round ends. Winner will be chosen by %s.", 
+
+	local Message = StringFormat( "%s left until this round ends. Winner will be chosen by %s.",
 		TimeToString( TimeLeft ), ModeAddition )
 
 	WarningsLeft = WarningsLeft - 1
@@ -141,8 +143,8 @@ function Plugin:StartWarning()
 	end
 end
 
-function Plugin:SetGameState( Gamerules, NewState, OldState )    
-	if NewState ~= kGameState.Started then 
+function Plugin:SetGameState( Gamerules, NewState, OldState )
+	if NewState ~= kGameState.Started then
 		self:DestroyAllTimers()
 
 		return
@@ -155,7 +157,7 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	--Queue the warnings.
 	if self.Config.WarningTime > 0 then
 		local WarnTime = ( self.Config.MaxRoundLength - self.Config.WarningTime ) * 60
-		
+
 		self:SimpleTimer( WarnTime, function()
 			self:StartWarning()
 		end )

@@ -49,21 +49,23 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Hook.SetupClassHook( "Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
-Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+function Plugin:OnFirstThink()
+	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 
-local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
-	local NewDamage, NewArmour, NewHealth = Call( "TakeDamage", self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+	local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+		local NewDamage, NewArmour, NewHealth = Call( "TakeDamage", self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
 
-	if NewDamage ~= nil then
-		Damage = NewDamage
-		ArmourUsed = NewArmour or ArmourUsed
-		HealthUsed = NewHealth or HealthUsed
+		if NewDamage ~= nil then
+			Damage = NewDamage
+			ArmourUsed = NewArmour or ArmourUsed
+			HealthUsed = NewHealth or HealthUsed
+		end
+
+		return OldFunc( self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
 	end
-
-	return OldFunc( self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+	Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 end
-Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 
 --Override sv_say with sh_say.
 Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
@@ -925,6 +927,7 @@ end
 function Plugin:CreateGameplayCommands()
 	local function FriendlyFire( Client, Scale )
 		local OldState = self.Config.FriendlyFire
+		local OldScale = self.Config.FriendlyFireScale
 		local Enable = Scale > 0
 
 		if Enable then
@@ -936,7 +939,7 @@ function Plugin:CreateGameplayCommands()
 
 		self:SaveConfig( true )
 
-		if OldState ~= self.Config.FriendlyFire then
+		if OldState ~= self.Config.FriendlyFire or OldScale ~= self.Config.FriendlyFireScale then
 			if Shine.Config.NotifyOnCommand then
 				Shine:CommandNotify( Client, "set friendly fire scale to %s.", true, Scale )
 			else

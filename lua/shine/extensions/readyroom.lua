@@ -32,11 +32,11 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 function Plugin:Initialise()
-	local Gamerules = GetGamerules()
+	local Gamerules = GetGamerules and GetGamerules()
 
 	if Gamerules and Gamerules:GetGameStarted() then
 		self.GameStarted = true
-	end 
+	end
 
 	self.ReadyRoomTracker = {}
 	self.BlockedClients = {}
@@ -56,12 +56,12 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
 
 	if NewTeam ~= kSpectatorIndex and NewTeam ~= kTeamReadyRoom then return end
-	
+
 	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 	if Enabled and ( MapVote.CyclingMap or MapVote:IsEndVote() ) then
 		return
 	end
-	
+
 	local Client = GetOwner( Player )
 
 	if not Client then return end
@@ -168,7 +168,7 @@ function Plugin:JoinRandomTeam( Player )
 			return
 		elseif LastTeam == 2 then
 			Gamerules:JoinTeam( Player, 1 )
-		
+
 			return
 		end
 
@@ -187,13 +187,13 @@ function Plugin:AssignToTeam( Player )
 		Shine:NotifyColour( Player, 255, 160, 0,
 			"You were moved onto a random team for being in the ready room too long." )
 	end
-	
+
 	return self:JoinRandomTeam( Player )
 end
 
 function Plugin:ProcessClient( Client, Time )
 	if Client:GetIsVirtual() then return end
-	
+
 	local ReadyRoomTracker = self.ReadyRoomTracker
 	local BlockedClients = self.BlockedClients
 
@@ -202,7 +202,7 @@ function Plugin:ProcessClient( Client, Time )
 	local Player = Client:GetControllingPlayer()
 
 	if not Player then return end
-	
+
 	local Team = Player:GetTeam():GetTeamNumber()
 
 	if Team == kTeamReadyRoom then
@@ -216,7 +216,7 @@ function Plugin:ProcessClient( Client, Time )
 		end
 
 		local TimeToMove = ReadyRoomTracker[ Client ]
-		
+
 		if not TimeToMove then
 			ReadyRoomTracker[ Client ] = Time + self.Config.MaxIdleTime
 		else
@@ -264,7 +264,7 @@ function Plugin:Think()
 	end
 
 	if ( self.NextThink or 0 ) > Time then return end
-	
+
 	self.NextThink = Time + 1
 
 	local Clients = Shine.GameIDs
