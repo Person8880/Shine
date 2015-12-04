@@ -485,6 +485,12 @@ do
 	Event.Hook( "MapPostLoad", MapPostLoad )
 end
 
+local function CallOnFirstThink()
+	Call( "OnFirstThink" )
+	Hooks.OnFirstThink = nil
+	ReservedNames.OnFirstThink = nil
+end
+
 --Client specific hooks.
 if Client then
 	local function LoadComplete()
@@ -533,6 +539,11 @@ if Client then
 		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
 		SetupGlobalHook( "CommanderUI_Logout", "OnCommanderUILogout", "PassivePost" )
 	end, -20 )
+
+	Add( "Think", "ClientOnFirstThink", function()
+		CallOnFirstThink()
+		Remove( "Think", "ClientOnFirstThink" )
+	end )
 
 	return
 end
@@ -756,8 +767,5 @@ Add( "Think", "ReplaceMethods", function()
 	end
 
 	Remove( "Think", "ReplaceMethods" )
-
-	Call( "OnFirstThink" )
-	Hooks.OnFirstThink = nil
-	ReservedNames.OnFirstThink = nil
+	CallOnFirstThink()
 end )
