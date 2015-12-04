@@ -188,6 +188,44 @@ function Shine.MimicFunction( Func, TargetFunc, DifferingValues, Recursive )
 end
 
 --[[
+	Joins the upvalues of TargetFunc to those of Func, following the mapping given.
+
+	Inputs:
+		1. The function whose upvalues should be joined from.
+		2. The function whose upvalues should be joined to.
+		3. A table defining a map of upvalue name from function 1,
+		   mapping to the name of the upvalue in function 2.
+
+	For example:
+
+	Shine.JoinUpValues( Func, TargetFunc, {
+		UpValue1 = "OtherUpValue",
+		UpValue2 = "OtherUpValue2"
+	} )
+
+	maps UpValue1 in Func to OtherUpValue in TargetFunc, and UpValue2 in Func to OtherUpValue2 in TargetFunc.
+
+	This avoids needing to constantly get up values.
+]]
+function Shine.JoinUpValues( Func, TargetFunc, Mapping )
+	local UpValueIndex = {}
+	local InverseMapping = {}
+
+	ForEachUpValue( Func, function( Function, Name, Value, i )
+		if Mapping[ Name ] then
+			UpValueIndex[ Name ] = i
+			InverseMapping[ Mapping[ Name ] ] = Name
+		end
+	end )
+
+	ForEachUpValue( TargetFunc, function( Function, Name, Value, i )
+		if InverseMapping[ Name ] then
+			DebugUpValueJoin( TargetFunc, i, Func, UpValueIndex[ InverseMapping[ Name ] ] )
+		end
+	end )
+end
+
+--[[
 	Checks a given object's type.
 
 	Inputs:
