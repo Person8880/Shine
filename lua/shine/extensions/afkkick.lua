@@ -33,7 +33,7 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-do
+function Plugin:OnFirstThink()
 	local Call = Shine.Hook.Call
 	local GetEntity = Shared.GetEntity
 

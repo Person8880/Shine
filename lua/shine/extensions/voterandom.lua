@@ -104,7 +104,7 @@ Setting FallbackMode to KDR mode (4).]]
 
 local ModeClamp = Shine.IsNS2Combat and 4 or 5
 
-do
+function Plugin:OnFirstThink()
 	local select = select
 
 	local function SupplimentAdder( Adder, ExtraKey, PointsIndex )

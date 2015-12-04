@@ -6,10 +6,12 @@
 
 local BitBand = bit.band
 local BitBor = bit.bor
+local BitLShift = bit.lshift
 local BitRShift = bit.rshift
 local error = error
 local Max = math.max
 local Min = math.min
+local select = select
 local StringByte = string.byte
 local StringChar = string.char
 local StringFormat = string.format
@@ -1943,6 +1945,7 @@ local function GetUTF8Bytes( String, Index )
 	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
 
 	local FirstByte = StringByte( String, Index )
+	if not FirstByte then return nil end
 
 	for i = 1, NumRules do
 		local Rule = ByteRules[ i ]
@@ -1956,7 +1959,7 @@ local function GetUTF8Bytes( String, Index )
 				local Interval = Rule[ j ]
 				local CurByte = StringByte( String, Index + j - 1 )
 
-				if CurByte < Interval[ 1 ] or CurByte > Interval[ 2 ] then
+				if not CurByte or ( CurByte < Interval[ 1 ] or CurByte > Interval[ 2 ] ) then
 					Matches = false
 					break
 				end
@@ -2053,6 +2056,49 @@ local function UTF8Char( Char )
 	return StringChar( Byte1, Byte2, Byte3, Byte4 )
 end
 string.UTF8Char = UTF8Char
+
+do
+	local function GetMask( Bits )
+		local Mask = 1
+		for i = 1, Bits do
+			Mask = Mask + 2 ^ i
+		end
+		return Mask
+	end
+
+	--[[
+		Returns the UTF-8 code point for the given bytes.
+	]]
+	function string.UTF8CodePoint( ... )
+		local Bytes = select( "#", ... )
+		if Bytes == 0 or Bytes > 4 then
+			error( "incorrect number of arguments to UTF8CodePoint, expected between 1 and 4 bytes", 2 )
+		end
+
+		if Bytes == 1 then
+			return BitBand( select( 1, ... ), 0x7F )
+		end
+
+		-- Bits is really Bits - 1, as we start from 2 ^ 0.
+		local Bits = 5
+		local CodePoint = 0
+
+		for i = Bytes, 1, -1 do
+			local Byte = select( i, ... )
+			local ShiftAmount = ( Bytes - i ) * 6
+
+			if i == 1 then
+				Bits = 6 - Bytes
+			end
+
+			local Mask = GetMask( Bits )
+			-- Cut out extra byte data, then shift.
+			CodePoint = CodePoint + BitLShift( BitBand( Byte, Mask ), ShiftAmount )
+		end
+
+		return CodePoint
+	end
+end
 
 --[[
 	Encodes a string into valid UTF-8, returning a table of UTF-8 characters.

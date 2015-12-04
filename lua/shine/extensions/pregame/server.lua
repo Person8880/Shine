@@ -34,8 +34,10 @@ Plugin.CountdownTimer = "PreGameCountdown"
 
 Plugin.StartNagInterval = 30
 
-Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
-	"CheckPlayerCanAttack", "ActivePre" )
+function Plugin:OnFirstThink()
+	Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
+		"CheckPlayerCanAttack", "ActivePre" )
+end
 
 function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()

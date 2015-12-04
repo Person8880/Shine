@@ -127,6 +127,7 @@ function Plugin:SetupAdminMenu()
 			Menu:CallOnRemove( function()
 				Menu = nil
 			end )
+			Menu:SetMaxVisibleButtons( 12 )
 			Shine.AdminMenu:DestroyOnClose( Menu )
 
 			local PlayerEnts = GetEnts( "PlayerInfoEntity" )

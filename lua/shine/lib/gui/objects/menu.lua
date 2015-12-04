@@ -5,6 +5,7 @@
 ]]
 
 local SGUI = Shine.GUI
+local Controls = SGUI.Controls
 
 local Menu = {}
 
@@ -12,25 +13,32 @@ Menu.IsWindow = true
 
 local DefaultSize = Vector( 200, 32, 0 )
 local DefaultOffset = Vector( 0, 32, 0 )
-local Padding = Vector( 0, 0, 0 )
+
+SGUI.AddProperty( Menu, "Padding" )
+SGUI.AddProperty( Menu, "MaxVisibleButtons" )
 
 function Menu:Initialise()
-	self.BaseClass.Initialise( self )
-
-	local Background = GetGUIManager():CreateGraphicItem()
-
-	self.Background = Background
+	Controls.Panel.Initialise( self )
 
 	local Scheme = SGUI:GetSkin()
-
-	Background:SetColor( Scheme.MenuButton )
+	self.Background:SetColor( Scheme.MenuButton )
 
 	self.ButtonSize = DefaultSize
 	self.ButtonOffset = DefaultOffset
 	self.Buttons = {}
 	self.ButtonCount = 0
+	self.Padding = Vector( 0, 0, 0 )
 
 	self.Font = Fonts.kAgencyFB_Small
+end
+
+function Menu:SetMaxVisibleButtons( Max )
+	self.MaxVisibleButtons = Max
+	self:SetScrollable()
+	self:SetScrollbarPos( Vector( -8, 0, 0 ) )
+	self:SetScrollbarWidth( 8 )
+	self:SetScrollbarHeightOffset( 0 )
+	self.BufferAmount = 0
 end
 
 function Menu:OnSchemeChange( Scheme )
@@ -42,28 +50,15 @@ function Menu:OnSchemeChange( Scheme )
 	end
 end
 
-function Menu:SetIsVisible( Bool )
-	if not self.Background then return end
-	if self.Background:GetIsVisible() == Bool then return end
-
-	self.Background:SetIsVisible( Bool )
-
-	local Buttons = self.Buttons
-
-	for i = 1, #Buttons do
-		Buttons[ i ]:SetIsVisible( Bool )
-	end
-end
-
 function Menu:SetButtonSize( Vec )
 	self.ButtonSize = Vec
 	self.ButtonOffset = Vector( 0, Vec.y, 0 )
 end
 
 function Menu:AddButton( Text, DoClick, Tooltip )
-	local Button = SGUI:Create( "Button", self )
+	local Button = self.MaxVisibleButtons and self:Add( "Button" ) or SGUI:Create( "Button", self )
 	Button:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Button:SetPos( Padding + self.ButtonCount * self.ButtonOffset )
+	Button:SetPos( self.Padding + self.ButtonCount * self.ButtonOffset )
 	Button:SetDoClick( DoClick )
 	Button:SetSize( self.ButtonSize )
 	Button:SetText( Text )
@@ -79,17 +74,24 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	Button:SetInactiveCol( Scheme.MenuButton )
 
 	self.ButtonCount = self.ButtonCount + 1
-
-	self.Background:SetSize( Padding * 2 + self.ButtonSize
-		+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
-
 	self.Buttons[ self.ButtonCount ] = Button
+
+	if not ( self.MaxVisibleButtons and self.ButtonCount > self.MaxVisibleButtons ) then
+		self:SetSize( self.Padding * 2 + self.ButtonSize
+			+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
+	end
 
 	return Button
 end
 
 ------------------- Event calling -------------------
 function Menu:OnMouseDown( Key, DoubleClick )
+	if SGUI.IsValid( self.Scrollbar ) then
+		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
+			return true, self.Scrollbar
+		end
+	end
+
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 
 	if Result ~= nil then return true, Child end
@@ -103,36 +105,4 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	end )
 end
 
-function Menu:OnMouseMove( Down )
-	self:CallOnChildren( "OnMouseMove", Down )
-
-	if self:MouseIn( self.Background ) then
-		return true
-	end
-end
-
-function Menu:Think( DeltaTime )
-	self.BaseClass.Think( self, DeltaTime )
-
-	self:CallOnChildren( "Think", DeltaTime )
-end
-
-function Menu:OnMouseWheel( Down )
-	local Result = self:CallOnChildren( "OnMouseWheel", Down )
-
-	if Result ~= nil then return true end
-end
-
-function Menu:PlayerKeyPress( Key, Down )
-	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
-		return true
-	end
-end
-
-function Menu:PlayerType( Char )
-	if self:CallOnChildren( "PlayerType", Char ) then
-		return true
-	end
-end
-
-SGUI:Register( "Menu", Menu )
+SGUI:Register( "Menu", Menu, "Panel" )
