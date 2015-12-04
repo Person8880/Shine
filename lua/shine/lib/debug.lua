@@ -6,6 +6,7 @@ local assert = assert
 local DebugGetLocal = debug.getlocal
 local DebugGetUpValue = debug.getupvalue
 local DebugSetUpValue = debug.setupvalue
+local DebugUpValueJoin = debug.upvaluejoin
 local pairs = pairs
 local StringFormat = string.format
 local type = type
@@ -240,4 +241,20 @@ function Shine.GetLocals( Stacklevel )
 	end
 
 	return Values
+end
+
+do
+	local SharedMessage = Shared.Message
+	local tostring = tostring
+	local TableConcat = table.concat
+
+	function LuaPrint( ... )
+		local Out = { ... }
+
+		for i = 1, #Out do
+			Out[ i ] = tostring( Out[ i ] )
+		end
+
+		SharedMessage( TableConcat( Out, "\t" ) )
+	end
 end
