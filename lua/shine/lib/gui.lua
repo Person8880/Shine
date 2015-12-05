@@ -21,6 +21,7 @@ local setmetatable = setmetatable
 local StringFormat = string.format
 local TableInsert = table.insert
 local TableRemove = table.remove
+local Vector = Vector
 local xpcall = xpcall
 
 --Useful functions for colours.
@@ -39,13 +40,51 @@ SGUI.BaseLayer = 20
 
 --Global control meta-table.
 local ControlMeta = {}
+SGUI.BaseControl = ControlMeta
+
+local function Vector2( X, Y )
+	return Vector( X, Y, 0 )
+end
+_G.Vector2 = Vector2
+
+SGUI.PropertyModifiers = {
+	InvalidatesLayout = function( self, Value )
+		self:InvalidateLayout()
+	end,
+	InvalidatesLayoutNow = function( self, Value )
+		self:InvalidateLayout( true )
+	end,
+	InvalidatesParent = function( self, Value )
+		self:InvalidateParent()
+	end,
+	InvalidatesParentNow = function( self, Value )
+		self:InvalidateParent( true )
+	end
+}
 
 --[[
 	Adds Get and Set functions for a property name, with an optional default value.
 ]]
-function SGUI.AddProperty( Table, Name, Default )
-	Table[ "Set"..Name ] = function( self, Value )
-		self[ Name ] = Value
+function SGUI.AddProperty( Table, Name, Default, Modifiers )
+	if Modifiers then
+		local RealModifiers = {}
+
+		for i = 1, #Modifiers do
+			RealModifiers[ #RealModifiers + 1 ] = SGUI.PropertyModifiers[ Modifiers[ i ] ]
+		end
+
+		local NumModifiers = #RealModifiers
+
+		Table[ "Set"..Name ] = function( self, Value )
+			self[ Name ] = Value
+			for i = 1, NumModifiers do
+				RealModifiers[ i ]( self, Value )
+			end
+		end
+	else
+		Table[ "Set"..Name ] = function( self, Value )
+			self[ Name ] = Value
+		end
 	end
 
 	Table[ "Get"..Name ] = function( self )
@@ -156,6 +195,17 @@ end
 
 function SGUI.TenEightyPScale( Value )
 	return math.scaledown( Value, 1080, 1280 ) * ( 2 - ( 1080 / 1280 ) )
+end
+
+do
+	local ScrW, ScrH
+
+	function SGUI.GetScreenSize()
+		ScrW = ScrW or Client.GetScreenWidth
+		ScrH = ScrH or Client.GetScreenHeight
+
+		return ScrW(), ScrH()
+	end
 end
 
 SGUI.SpecialKeyStates = {
@@ -608,19 +658,8 @@ end
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
-	local Controls = {}
-	Shared.GetMatchingFileNames( "lua/shine/lib/gui/objects/*.lua", false, Controls )
-
-	for i = 1, #Controls do
-		include( Controls[ i ] )
-	end
-
-	local Skins = {}
-	Shared.GetMatchingFileNames( "lua/shine/lib/gui/skins/*.lua", false, Skins )
-
-	for i = 1, #Skins do
-		include( Skins[ i ] )
-	end
+	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
+	Shine.LoadScriptsByPath( "lua/shine/lib/gui/skins" )
 
 	--Apparently this isn't loading for some people???
 	if not SGUI.Skins.Default then
@@ -772,12 +811,12 @@ function ControlMeta:SetParent( Control, Element )
 		Control.Children = Control.Children or Map()
 		Control.Children:Add( self, true )
 
-		Element:AddChild( self.Background )
+		if self.Background then
+			Element:AddChild( self.Background )
+		end
 
 		return
 	end
-
-	if not Control.Background or not self.Background then return end
 
 	self.Parent = Control
 	self.ParentElement = Control.Background
@@ -785,7 +824,9 @@ function ControlMeta:SetParent( Control, Element )
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
 
-	Control.Background:AddChild( self.Background )
+	if Control.Background and self.Background then
+		Control.Background:AddChild( self.Background )
+	end
 end
 
 --[[
@@ -886,13 +927,154 @@ function ControlMeta:GetIsVisible()
 	return self.Background:GetIsVisible()
 end
 
+SGUI.AddProperty( ControlMeta, "Layout" )
+
 --[[
-	Sets the size of the control (background).
+	Sets a layout handler for the element. This will be updated every time
+	a layout-changing property on the element is altered (such as size).
+]]
+function ControlMeta:SetLayout( Layout )
+	self.Layout = Layout
+	Layout:SetParent( self )
+	self:InvalidateLayout( true )
+end
+
+--[[
+	This event is called whenever layout is invalidated by a property change.
+
+	By default, it updates the set layout handler.
+]]
+function ControlMeta:PerformLayout()
+	if not self.Layout then return end
+
+	local Margin = self.Layout:GetComputedMargin()
+	local Size = self:GetSize()
+
+	self.Layout:SetPos( Vector2( Margin[ 1 ], Margin[ 2 ] ) )
+	-- Setting its size will trigger the layout's PerformLayout event.
+	self.Layout:SetSize( Vector2( Size.x - Margin[ 1 ] - Margin[ 3 ],
+		Size.y - Margin[ 2 ] - Margin[ 4 ] ) )
+end
+
+--[[
+	Marks the element's parent's layout as invalid, if the element has a parent.
+
+	Pass true to force the layout to update immediately, or leave false/nil to defer until
+	the next frame.
+]]
+function ControlMeta:InvalidateParent( Now )
+	if not self.Parent then return end
+
+	self.Parent:InvalidateLayout( Now )
+end
+
+--[[
+	Marks the element's layout as invalid.
+
+	Pass true to force the layout to update immediately, or leave false/nil to defer until
+	the next frame. Deferring is preferred, as there may be multiple property changes in a
+	single frame that all trigger layout invalidation.
+]]
+function ControlMeta:InvalidateLayout( Now )
+	if Now then
+		self.LayoutIsInvalid = false
+		self:PerformLayout()
+
+		if self.Layout then
+			self.Layout:InvalidateLayout( true )
+		end
+
+		return
+	end
+
+	self.LayoutIsInvalid = true
+end
+
+--[[
+	Sets the size of the control (background), and invalidates the control's layout.
 ]]
 function ControlMeta:SetSize( SizeVec )
 	if not self.Background then return end
 
 	self.Background:SetSize( SizeVec )
+	self:InvalidateLayout()
+end
+
+--[[
+	Alignment controls whether elements are placed at the start or end of a layout.
+
+	For example, MIN in vertical layout places from the top, while MAX places from
+	the bottom.
+]]
+SGUI.LayoutAlignment = {
+	MIN = 1,
+	MAX = 2
+}
+
+SGUI.AddProperty( ControlMeta, "Alignment", SGUI.LayoutAlignment.MIN )
+-- AutoSize controls how to resize the control during layout. You should pass a UnitVector, with
+-- your dynamic units (e.g. GUIScaled, Percentage).
+SGUI.AddProperty( ControlMeta, "AutoSize" )
+-- Fill controls whether the element should have its size computed automatically during layout.
+SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
+-- Margin controls separation of elements in layouts.
+SGUI.AddProperty( ControlMeta, "Margin", nil, { "InvalidatesParent" } )
+-- Padding controls the space from the element borders to where the layout may place elements.
+SGUI.AddProperty( ControlMeta, "Padding", nil, { "InvalidatesLayout" } )
+
+function ControlMeta:GetParentSize()
+	return self.Parent and self.Parent:GetSize() or Vector2( SGUI.GetScreenSize() )
+end
+
+-- You can either use AutoSize as part of a layout, or on its own by passing true for UpdateNow.
+function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
+	self.AutoSize = AutoSize
+	if not UpdateNow then return end
+
+	local ParentSize = self:GetParentSize()
+
+	self:SetSize( Vector2( self:GetComputedSize( 1, ParentSize.x ),
+		self:GetComputedSize( 2, ParentSize.y ) ) )
+end
+
+--[[
+	Computes the size of the control based on the units provided.
+]]
+function ControlMeta:GetComputedSize( Index, ParentSize )
+	-- Fill means take the size given.
+	if self:GetFill() then
+		return ParentSize
+	end
+
+	-- No auto-size means the element has a fixed size.
+	local Size = self.AutoSize
+	if not Size then
+		return self:GetSize()[ Index == 1 and "x" or "y" ]
+	end
+
+	-- Auto-size means use our set auto-size units relative to the passed in size.
+	return Size[ Index ]:GetValue( ParentSize )
+end
+
+function ControlMeta:ComputeSpacing( Spacing )
+	local Computed = {}
+
+	local Parent = self.Parent
+	local ParentSize = self:GetParentSize()
+
+	for i = 1, 4 do
+		Computed[ i ] = Spacing and Spacing[ i ]:GetValue( ParentSize[ i % 2 == 0 and "y" or "x" ] ) or 0
+	end
+
+	return Computed
+end
+
+function ControlMeta:GetComputedPadding()
+	return self:ComputeSpacing( self.Padding )
+end
+
+function ControlMeta:GetComputedMargin()
+	return self:ComputeSpacing( self.Margin )
 end
 
 function ControlMeta:GetSize()
@@ -918,18 +1100,12 @@ function ControlMeta:GetPos()
 	return self.Background:GetPosition()
 end
 
-local ScrW, ScrH
-
 --[[
 	Returns the absolute position of the control on the screen.
 ]]
 function ControlMeta:GetScreenPos()
 	if not self.Background then return end
-
-	ScrW = ScrW or Client.GetScreenWidth
-	ScrH = ScrH or Client.GetScreenHeight
-
-	return self.Background:GetScreenPosition( ScrW(), ScrH() )
+	return self.Background:GetScreenPosition( SGUI.GetScreenSize() )
 end
 
 local Anchors = {
@@ -949,6 +1125,7 @@ local Anchors = {
 	BottomMiddle = { GUIItem.Middle, GUIItem.Bottom },
 	BottomRight = { GUIItem.Right, GUIItem.Bottom }
 }
+SGUI.Anchors = Anchors
 
 --[[
 	Sets the origin anchors for the control.
@@ -997,12 +1174,10 @@ function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 	if not Element then return end
 
 	MousePos = MousePos or Client.GetCursorPosScreen
-	ScrW = ScrW or Client.GetScreenWidth
-	ScrH = ScrH or Client.GetScreenHeight
 
 	local X, Y = MousePos()
 
-	local Pos = Element:GetScreenPosition( ScrW(), ScrH() )
+	local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
 	local Size = Element:GetSize()
 
 	if Element.GetIsScaling and Element:GetIsScaling() and Element.scale then
@@ -1358,6 +1533,17 @@ function ControlMeta:HandleHovering( Time )
 	end
 end
 
+function ControlMeta:HandleLayout( DeltaTime )
+	if self.Layout then
+		self.Layout:Think( DeltaTime )
+	end
+
+	if not self.LayoutIsInvalid then return end
+
+	self.LayoutIsInvalid = false
+	self:PerformLayout()
+end
+
 --[[
 	Global update function. Called on client update.
 
@@ -1372,6 +1558,7 @@ function ControlMeta:Think( DeltaTime )
 
 	self:HandleEasing( Time, DeltaTime )
 	self:HandleHovering( Time )
+	self:HandleLayout( DeltaTime )
 end
 
 function ControlMeta:ShowTooltip( X, Y )
@@ -1382,10 +1569,7 @@ function ControlMeta:ShowTooltip( X, Y )
 
 	local Tooltip = SGUI.IsValid( self.Tooltip ) and self.Tooltip or SGUI:Create( "Tooltip" )
 
-	ScrW = ScrW or Client.GetScreenWidth
-	ScrH = ScrH or Client.GetScreenHeight
-
-	local W = ScrW()
+	local W = SGUI.GetScreenSize()
 	local Font
 	local TextScale
 
@@ -1499,3 +1683,5 @@ end
 function ControlMeta:IsValid()
 	return SGUI.ActiveControls:Get( self ) ~= nil
 end
+
+include( "lua/shine/lib/gui/layout/layout.lua" )
