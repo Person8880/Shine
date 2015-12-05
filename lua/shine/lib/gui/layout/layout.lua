@@ -52,14 +52,6 @@ function BaseLayout:Init( Data )
 	return self
 end
 
-function BaseLayout:GetComputedSize( Index, ParentSize )
-	if not self.AutoSize then
-		return ParentSize
-	end
-
-	return self.AutoSize[ Index ]:GetValue( ParentSize )
-end
-
 function BaseLayout:AddElement( Element )
 	local Elements = self.Elements
 	Elements[ #Elements + 1 ] = Element
@@ -86,6 +78,7 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"ComputeSpacing",
 	"GetComputedPadding",
 	"GetComputedMargin",
+	"GetComputedSize",
 	"GetParentSize",
 	"InvalidateParent",
 	"InvalidateLayout",
