@@ -38,7 +38,7 @@ function BaseLayout:Init( Data )
 	self.Padding = Data.Padding or Spacing( 0, 0, 0, 0 )
 	self.Parent = Data.Parent
 	self.Anchor = Data.Anchor or SGUI.Anchors.TopLeft
-	if Data.Fill == nil then
+	if Data.Fill ~= false then
 		self.Fill = true
 	end
 
