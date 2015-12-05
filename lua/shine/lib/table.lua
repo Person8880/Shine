@@ -5,6 +5,7 @@
 local IsType = Shine.IsType
 local pairs = pairs
 local Random = math.random
+local TableRemove = table.remove
 local TableSort = table.sort
 
 --[[
@@ -31,6 +32,29 @@ function table.AsSet( Table )
 	end
 
 	return Ret
+end
+
+--[[
+	Finds and removes the given value from the given table.
+]]
+function table.RemoveByValue( Table, Value )
+	for i = 1, #Table do
+		if Table[ i ] == Value then
+			TableRemove( Table, i )
+			return true
+		end
+	end
+
+	return false
+end
+
+--[[
+	Copies all values under the given keys from the source to the destination table.
+]]
+function table.Mixin( Source, Destination, Keys )
+	for i = 1, #Keys do
+		Destination[ Keys[ i ] ] = Source[ Keys[ i ] ]
+	end
 end
 
 --[[
