@@ -31,6 +31,17 @@ function Shine.LoadScripts( Scripts, OnLoadedFuncs )
 	end
 end
 
+function Shine.LoadScriptsByPath( Path, Recursive )
+	local Scripts = {}
+	Shared.GetMatchingFileNames( Path.."/*.lua", Recursive or false, Scripts )
+
+	for i = 1, #Scripts do
+		include( Scripts[ i ] )
+	end
+
+	return Scripts
+end
+
 local InitScript
 
 if Server then
