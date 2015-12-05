@@ -19,7 +19,6 @@ local Min = math.min
 local pairs = pairs
 local select = select
 local StringFormat = string.format
-local StringGSub = string.gsub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableEmpty = table.Empty
@@ -50,7 +49,6 @@ function Plugin:HookChat( ChatElement )
 		self.Vis = Vis
 
 		local Messages = self.messages
-
 		if not Messages then return end
 
 		for i = 1, #Messages do
@@ -65,52 +63,46 @@ function Plugin:HookChat( ChatElement )
 	local OldSendKey = ChatElement.SendKeyEvent
 
 	function ChatElement:SendKeyEvent( Key, Down )
-		if Plugin.Enabled then
-			return
-		end
-
+		if Plugin.Enabled then return end
 		return OldSendKey( self, Key, Down )
 	end
 
 	local OldAddMessage = ChatElement.AddMessage
+	local function GetTag( Element )
+		return {
+			Colour = Element:GetColor(),
+			Text = Element:GetText()
+		}
+	end
 
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 		Plugin.GUIChat = self
 
 		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 
+		if not Plugin.Enabled then return end
+
 		local JustAdded = self.messages[ #self.messages ]
+		local Tags
+		local Rookie = JustAdded.Rookie and JustAdded.Rookie:GetIsVisible()
+		local Commander = JustAdded.Commander and JustAdded.Commander:GetIsVisible()
 
-		if Plugin.Enabled then
-			local Tags
-			local Rookie = JustAdded.Rookie and JustAdded.Rookie:GetIsVisible()
-			local Commander = JustAdded.Commander and JustAdded.Commander:GetIsVisible()
+		if Rookie or Commander then
+			Tags = {}
 
-			if Rookie or Commander then
-				Tags = {}
-
-				if Commander then
-					Tags[ 1 ] = {
-						Colour = JustAdded.Commander:GetColor(),
-						Text = JustAdded.Commander:GetText()
-					}
-				end
-
-				if Rookie then
-					Tags[ #Tags + 1 ] = {
-						Colour = JustAdded.Rookie:GetColor(),
-						Text = JustAdded.Rookie:GetText()
-					}
-				end
+			if Commander then
+				Tags[ 1 ] = GetTag( JustAdded.Commander )
 			end
 
-			Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
+			if Rookie then
+				Tags[ #Tags + 1 ] = GetTag( JustAdded.Rookie )
+			end
 		end
 
-		if Plugin.Enabled and Plugin.Visible then
-			if IsType( JustAdded, "table" ) then
-				JustAdded.Background:SetIsVisible( false )
-			end
+		Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
+
+		if Plugin.Visible and IsType( JustAdded, "table" ) then
+			JustAdded.Background:SetIsVisible( false )
 		end
 	end
 end
@@ -161,7 +153,6 @@ function Plugin:Initialise()
 	Script.Load( "lua/shine/extensions/chatbox/chatline.lua" )
 
 	self.Messages = self.Messages or {}
-
 	self.Enabled = true
 
 	return true
@@ -188,6 +179,12 @@ local UnitVector = Units.UnitVector
 local Scaled = Units.Scaled
 local Spacing = Units.Spacing
 
+local Colours = {
+	Background = Colour( 0.6, 0.6, 0.6, 0.4 ),
+	Dark = Colour( 0.2, 0.2, 0.2, 0.8 ),
+	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 )
+}
+
 local LayoutData = {
 	Sizes = {
 		ChatBox = Vector2( 800, 350 ),
@@ -204,15 +201,15 @@ local LayoutData = {
 
 	Colours = {
 		StandardOpacity = {
-			Border = Colour( 0.6, 0.6, 0.6, 0.4 ),
-			Settings = Colour( 0.6, 0.6, 0.6, 0.4 )
+			Border = Colours.Background,
+			Settings = Colours.Background
 		},
 		HalfOpacity = {
-			Inner = Colour( 0.2, 0.2, 0.2, 0.8 ),
-			TextDark = Colour( 0.2, 0.2, 0.2, 0.8 ),
-			TextFocus = Colour( 0.2, 0.2, 0.2, 0.8 ),
-			ButtonActive = Colour( 0.5, 0.5, 0.5, 0.8 ),
-			ButtonInActive = Colour( 0.2, 0.2, 0.2, 0.8 )
+			Inner = Colours.Dark,
+			TextDark = Colours.Dark,
+			TextFocus = Colours.Dark,
+			ButtonActive = Colours.Highlight,
+			ButtonInActive = Colours.Dark
 		},
 		ModeText = Colour( 1, 1, 1, 1 ),
 		TextBorder = Colour( 0, 0, 0, 0 ),
@@ -234,9 +231,9 @@ local function AlphaScale( Alpha )
 	return 0.8 + ( ( Alpha - 0.4 ) / 3 )
 end
 
---UWE's vector type has no multiplication defined.
+--UWE's vector type has no Hadamard product defined.
 local function VectorMultiply( Vec1, Vec2 )
-	return Vector( Vec1.x * Vec2.x, Vec1.y * Vec2.y, 0 )
+	return Vector2( Vec1.x * Vec2.x, Vec1.y * Vec2.y )
 end
 
 function Plugin:GetFont()
@@ -1001,7 +998,7 @@ local EnableCommand = Shine:RegisterClientCommand( "sh_chatbox", function( Enabl
 		Shine:EnableExtension( "chatbox" )
 		Shine:SetPluginAutoLoad( "chatbox", true )
 
-		Shared.Message( "[Shine] Chatbox enabled. The chatbox will now autoload on any server running Shine with the right version." )
+		Shared.Message( "[Shine] Chatbox enabled. The chatbox will now autoload on any server running Shine." )
 	else
 		Shine:UnloadExtension( "chatbox" )
 		Shine:SetPluginAutoLoad( "chatbox", false )
