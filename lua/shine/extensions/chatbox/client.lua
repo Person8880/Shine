@@ -853,8 +853,9 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 
 	--Don't add anything if one of the elements is the wrong type. Default chat will error instead.
-	if not IsType( PlayerColour, "number" ) or not IsType( PlayerName, "string" )
-	or not IsType( MessageColour, "cdata" ) or not IsType( MessageName, "string" ) then
+	if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
+	or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
+	or not IsType( MessageName, "string" ) then
 		return
 	end
 
