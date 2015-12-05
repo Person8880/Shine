@@ -343,6 +343,7 @@ function Plugin:CreateChatbox()
 	--Double click the title bar to return it to the default position.
 	function Border:ReturnToDefaultPos()
 		self:SetPos( ChatBoxPos )
+		self:OnDragFinished( ChatBoxPos )
 	end
 
 	--Update our saved position on drag finish.
