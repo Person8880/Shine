@@ -63,11 +63,21 @@ end
 function BaseLayout:AddElement( Element )
 	local Elements = self.Elements
 	Elements[ #Elements + 1 ] = Element
+
+	if Element.IsLayout then
+		Element:SetParent( self )
+	end
+
 	self:InvalidateLayout()
 end
 
 function BaseLayout:RemoveElement( Element )
-	TableRemoveByValue( self.Elements, Element )
+	if not TableRemoveByValue( self.Elements, Element ) then return end
+
+	if Element.IsLayout then
+		Element:SetParent( nil )
+	end
+
 	self:InvalidateLayout()
 end
 
