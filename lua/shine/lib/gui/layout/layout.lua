@@ -66,7 +66,7 @@ end
 function BaseLayout:RemoveElement( Element )
 	if not TableRemoveByValue( self.Elements, Element ) then return end
 
-	if Element.IsLayout then
+	if Element.IsLayout and Element.Parent == self then
 		Element:SetParent( nil )
 	end
 
