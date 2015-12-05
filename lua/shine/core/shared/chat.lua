@@ -88,7 +88,7 @@ local function GetChatMessages()
 end
 
 local function SetupChatMessages()
-	if not ChatMessages then
+	if not GetChatMessages() then
 		Shine.JoinUpValues( ChatUI_GetMessages, GetChatMessages, {
 			chatMessages = "ChatMessages"
 		} )
