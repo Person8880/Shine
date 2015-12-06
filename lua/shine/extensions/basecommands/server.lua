@@ -1433,7 +1433,7 @@ function Plugin:OnPluginLoad( Name, Plugin, Shared )
 	end
 end
 
-function Plugin:OnPluginUnload( Name, Shared )
+function Plugin:OnPluginUnload( Name, Plugin, Shared )
 	if Shared then return end
 
 	local Clients = self.PluginClients

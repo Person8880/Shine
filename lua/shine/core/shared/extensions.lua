@@ -314,7 +314,7 @@ function Shine:UnloadExtension( Name )
 		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 	end
 
-	Hook.Call( "OnPluginUnload", Name, Plugin.IsShared )
+	Hook.Call( "OnPluginUnload", Name, Plugin, Plugin.IsShared )
 end
 
 --[[
@@ -466,6 +466,24 @@ elseif Client then
 
 		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
 	end
+
+	Shine:RegisterClientCommand( "sh_loadplugin_cl", function( Name )
+		Shine:SetPluginAutoLoad( Name, true )
+		local Success, Err = Shine:EnableExtension( Name )
+
+		if Success then
+			Print( "[Shine] Enabled the '%s' extension.", Name )
+		else
+			Print( "[Shine] Could not load extension '%s': %s", Name, Err )
+		end
+	end ):AddParam{ Type = "string", TakeRestOfLine = true }
+
+	Shine:RegisterClientCommand( "sh_unloadplugin_cl", function( Name )
+		Shine:SetPluginAutoLoad( Name, false )
+		Shine:UnloadExtension( Name )
+
+		Print( "[Shine] Disabled the '%s' extension.", Name )
+	end ):AddParam{ Type = "string", TakeRestOfLine = true }
 
 	Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
 		local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )

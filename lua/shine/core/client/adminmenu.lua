@@ -79,38 +79,41 @@ end
 
 AdminMenu.EasingTime = 0.25
 
+function AdminMenu.AnimateVisibility( Window, Show, Visible, EasingTime, TargetPos )
+	if not Show and Shine.Config.AnimateUI then
+		Shine.Timer.Simple( EasingTime, function()
+			if not SGUI.IsValid( Window ) then return end
+			Window:SetIsVisible( false )
+		end )
+	else
+		Window:SetIsVisible( Show )
+	end
+
+	if Show and not Visible then
+		if Shine.Config.AnimateUI then
+			Window:SetPos( Vector2( -Client.GetScreenWidth() + TargetPos.x, TargetPos.y ) )
+			Window:MoveTo( nil, nil, TargetPos, 0, EasingTime )
+		else
+			Window:SetPos( TargetPos )
+		end
+
+		SGUI:EnableMouse( true )
+	elseif not Show and Visible then
+		SGUI:EnableMouse( false )
+
+		if Shine.Config.AnimateUI then
+			Window:MoveTo( nil, nil, Vector2( Client.GetScreenWidth() - TargetPos.x, TargetPos.y ), 0,
+				EasingTime, nil, math.EaseIn )
+		end
+	end
+end
+
 function AdminMenu:SetIsVisible( Bool )
 	if not self.Created then
 		self:Create()
 	end
 
-	if not Bool and Shine.Config.AnimateUI then
-		Shine.Timer.Simple( self.EasingTime, function()
-			if not SGUI.IsValid( self.Window ) then return end
-			self.Window:SetIsVisible( false )
-		end )
-	else
-		self.Window:SetIsVisible( Bool )
-	end
-
-	if Bool and not self.Visible then
-		if Shine.Config.AnimateUI then
-			self.Window:SetPos( Vector( -Client.GetScreenWidth() + self.Pos.x, self.Pos.y, 0 ) )
-			self.Window:MoveTo( nil, nil, self.Pos, 0, self.EasingTime )
-		else
-			self.Window:SetPos( self.Pos )
-		end
-
-		SGUI:EnableMouse( true )
-	elseif not Bool and self.Visible then
-		SGUI:EnableMouse( false )
-
-		if Shine.Config.AnimateUI then
-			self.Window:MoveTo( nil, nil, Vector( Client.GetScreenWidth() - self.Pos.x, self.Pos.y, 0 ), 0,
-				self.EasingTime, nil, math.EaseIn )
-		end
-	end
-
+	self.AnimateVisibility( self.Window, Bool, self.Visible, self.EasingTime, self.Pos )
 	self.Visible = Bool
 end
 

@@ -605,6 +605,11 @@ VoteMenu:AddPage( "Main", function( self )
 		self:AddSideButton( Plugin, ClickFuncs[ Plugin ] )
 	end
 
+	self:AddSideButton( "Client Config", function()
+		Shared.ConsoleCommand( "sh_clientconfigmenu" )
+		self:SetIsVisible( false )
+	end )
+
 	if self.RequestedAdminMenu == nil then
 		self.RequestedAdminMenu = true
 
