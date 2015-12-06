@@ -110,6 +110,8 @@ function Panel:SetTitle( Title )
 end
 
 function Panel:SetScrollable()
+	if self.Stencil then return end
+
 	local Manager = GetGUIManager()
 
 	local Stencil = Manager:CreateGraphicItem()
@@ -279,6 +281,8 @@ function Panel:Clear()
 	if self.Scrollbar then
 		self:SetMaxHeight( self:GetSize().y )
 	end
+
+	self.Layout = nil
 end
 
 function Panel:SetStickyScroll( Enable )
