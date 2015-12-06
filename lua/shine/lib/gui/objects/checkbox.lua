@@ -33,6 +33,9 @@ function CheckBox:Initialise()
 	self.BoxHideCol = SGUI.CopyColour( Scheme.ActiveButton )
 	self.BoxHideCol.a = 0
 
+	self.Font = Scheme.ButtonFont
+	self.TextColour = Scheme.BrightText
+
 	Box:SetColor( self.BoxHideCol )
 	Background:SetColor( self.BackgroundCol )
 

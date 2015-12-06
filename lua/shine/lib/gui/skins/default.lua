@@ -72,4 +72,6 @@ Skin.CategoryPanel.Font = Fonts.kAgencyFB_Small
 Skin.CategoryPanel.ActiveCol = Colour( 1, 0.4, 0.1, 1 )
 Skin.CategoryPanel.InactiveCol = Colour( 0.3, 0.3, 0.3, 1 )
 
+Skin.ButtonFont = Fonts.kAgencyFB_Small
+
 Shine.GUI:RegisterSkin( "Default", Skin )
