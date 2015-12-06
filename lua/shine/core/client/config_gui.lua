@@ -11,20 +11,51 @@ local ConfigMenu = {}
 ConfigMenu.Tabs = {}
 
 local Units = SGUI.Layout.Units
+local HighResScaled = Units.HighResScaled
 local Percentage = Units.Percentage
 local Spacing = Units.Spacing
 local UnitVector = Units.UnitVector
 
-ConfigMenu.Size = Vector2( 600, 500 )
-ConfigMenu.Pos = ConfigMenu.Size * -0.5
+ConfigMenu.Size = UnitVector( HighResScaled( 600 ), HighResScaled( 500 ) )
 ConfigMenu.EasingTime = 0.25
+
+local function NeedsToScale()
+	return SGUI.GetScreenSize() > 1920
+end
+
+local function GetSmallFont()
+	if NeedsToScale() then
+		return SGUI.FontManager.GetFont( "kAgencyFB", 27 )
+	end
+
+	return Fonts.kAgencyFB_Small
+end
+
+local function GetMediumFont()
+	if NeedsToScale() then
+		return SGUI.FontManager.GetFont( "kAgencyFB", 33 )
+	end
+
+	return Fonts.kAgencyFB_Medium
+end
 
 function ConfigMenu:Create()
 	if self.Menu then return end
 
 	self.Menu = SGUI:Create( "TabPanel" )
 	self.Menu:SetAnchor( "CentreMiddle" )
-	self.Menu:SetSize( self.Size )
+	self.Menu:SetAutoSize( self.Size, true )
+
+	self.Menu:SetTabWidth( HighResScaled( 128 ):GetValue() )
+	self.Menu:SetTabHeight( HighResScaled( 96 ):GetValue() )
+
+	local Font, Scale = GetSmallFont()
+	self.Menu:SetFont( Font )
+	if Scale then
+		self.Menu:SetTextScale( Scale )
+	end
+
+	self.Pos = self.Menu:GetSize() * -0.5
 	self.Menu:SetPos( self.Pos )
 
 	self.Menu.OnPreTabChange = function( Window )
@@ -36,14 +67,31 @@ function ConfigMenu:Create()
 		Tab.OnCleanup( Window.ContentPanel )
 	end
 
+	self.Menu.TitleBarHeight = HighResScaled( 24 ):GetValue()
 	self:PopulateTabs( self.Menu )
 
 	self.Menu:AddCloseButton()
+	if NeedsToScale() then
+		local Font, Scale = SGUI.FontManager.GetFont( "kArial", 20 )
+		self.Menu.CloseButton:SetFont( Font )
+		self.Menu.CloseButton:SetTextScale( Scale )
+	end
 	self.Menu.OnClose = function()
 		self:SetIsVisible( false )
 		return true
 	end
 end
+
+Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", function()
+	if not ConfigMenu.Menu then return end
+
+	ConfigMenu.Menu:Destroy()
+	ConfigMenu.Menu = nil
+
+	if ConfigMenu.Visible then
+		ConfigMenu:Create()
+	end
+end )
 
 function ConfigMenu:SetIsVisible( Bool )
 	if self.Visible == Bool then return end
@@ -78,8 +126,13 @@ local SettingsTypes = {
 	Boolean = {
 		Create = function( Panel, Entry )
 			local CheckBox = Panel:Add( "CheckBox" )
+			local Font, Scale = GetSmallFont()
+			CheckBox:SetFont( Font )
+			if Scale then
+				CheckBox:SetTextScale( Scale )
+			end
 			CheckBox:AddLabel( Entry.Description )
-			CheckBox:SetAutoSize( UnitVector( 24, 24 ) )
+			CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 
 			local Enabled
 			if IsType( Entry.ConfigOption, "string" ) then
@@ -104,13 +157,18 @@ ConfigMenu:AddTab( "Settings", {
 
 		local Settings = Shine.ClientSettings
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( 24, 32, 24, 32 )
+			Padding = Spacing( HighResScaled( 24 ), HighResScaled( 32 ),
+				HighResScaled( 24 ), HighResScaled( 32 ) )
 		} )
 
 		local Title = Panel:Add( "Label" )
-		Title:SetFont( Fonts.kAgencyFB_Medium )
+		local Font, Scale = GetMediumFont()
+		Title:SetFont( Font )
+		if Scale then
+			Title:SetTextScale( Scale )
+		end
 		Title:SetText( "Client Settings" )
-		Title:SetMargin( Spacing( 0, 0, 0, 16 ) )
+		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 16 ) ) )
 		Title:SetBright( true )
 		Layout:AddElement( Title )
 
@@ -120,7 +178,7 @@ ConfigMenu:AddTab( "Settings", {
 
 			if Creator then
 				local Object = Creator.Create( Panel, Setting )
-				Object:SetMargin( Spacing( 0, 0, 0, 8 ) )
+				Object:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
 				Layout:AddElement( Object )
 			end
 		end
@@ -132,7 +190,8 @@ ConfigMenu:AddTab( "Settings", {
 ConfigMenu:AddTab( "Plugins", {
 	OnInit = function( Panel )
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( 16, 32, 16, 16 )
+			Padding = Spacing( HighResScaled( 16 ), HighResScaled( 32 ),
+				HighResScaled( 16 ), HighResScaled( 16 ) )
 		} )
 
 		local List = SGUI:Create( "List", Panel )
@@ -140,14 +199,27 @@ ConfigMenu:AddTab( "Plugins", {
 		List:SetSpacing( 0.7, 0.3 )
 		List.ScrollPos = Vector2( 0, 32 )
 		List:SetFill( true )
-		List:SetMargin( Spacing( 0, 0, 0, 8 ) )
+		List:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+		List:SetLineSize( HighResScaled( 32 ):GetValue() )
+		List:SetHeaderSize( List.LineSize )
+
+		local Font, Scale = GetSmallFont()
+		List:SetHeaderFont( Font )
+		List:SetRowFont( Font )
+		if Scale then
+			List:SetHeaderTextScale( Scale )
+			List:SetRowTextScale( Scale )
+		end
 
 		Layout:AddElement( List )
 
 		local EnableButton = SGUI:Create( "Button", Panel )
-		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), 32 ) )
+		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
 		EnableButton:SetText( "Enable Plugin" )
-		EnableButton:SetFont( Fonts.kAgencyFB_Small )
+		EnableButton:SetFont( Font )
+		if Scale then
+			EnableButton:SetTextScale( Scale )
+		end
 
 		Layout:AddElement( EnableButton )
 
