@@ -109,6 +109,19 @@ do
 end
 
 --[[
+	GUIScales the value only if the resolution is > 1080p.
+]]
+do
+	local SGUI = Shine.GUI
+	local HighResScaled = NewUnit( "HighResScaled" )
+	local HIGH_RES_WIDTH = 1920
+
+	function HighResScaled:GetValue()
+		return SGUI.GetScreenSize() > HIGH_RES_WIDTH and GUIScale( self.Value ) or self.Value
+	end
+end
+
+--[[
 	Arbitrary scale.
 ]]
 do
