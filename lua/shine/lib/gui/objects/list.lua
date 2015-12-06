@@ -311,6 +311,26 @@ function List:SetSize( Size )
 	end
 end
 
+function List:SetRowFont( Font )
+	self.RowFont = Font
+
+	local Rows = self.Rows
+	if not Rows then return end
+	for i = 1, #Rows do
+		Rows[ i ]:SetFont( Font )
+	end
+end
+
+function List:SetRowTextScale( Scale )
+	self.RowTextScale = Scale
+
+	local Rows = self.Rows
+	if not Rows then return end
+	for i = 1, #Rows do
+		Rows[ i ]:SetTextScale( Scale )
+	end
+end
+
 --[[
 	Adds a row to the list.
 	Inputs: Column values in the row.
@@ -327,6 +347,14 @@ function List:AddRow( ... )
 	Row.Background:SetStencilFunc( GUIItem.NotEqual )
 	Row:SetAnchor( GUIItem.Top, GUIItem.Left )
 	Row:SetPos( Vector( 0, self.HeaderSize + RowCount * self.LineSize, 0 ) )
+
+	if self.RowFont then
+		Row:SetFont( self.RowFont )
+	end
+
+	if self.RowTextScale then
+		Row:SetTextScale( self.RowTextScale )
+	end
 
 	RowCount = RowCount + 1
 

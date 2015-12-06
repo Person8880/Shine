@@ -176,6 +176,10 @@ function CheckBox:AddLabel( Text )
 		Label:SetFont( self.Font )
 	end
 
+	if self.TextScale then
+		Label:SetTextScale( self.TextScale )
+	end
+
 	if self.TextColour then
 		Label:SetColour( self.TextColour )
 	end
