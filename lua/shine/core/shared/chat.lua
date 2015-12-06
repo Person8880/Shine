@@ -41,7 +41,6 @@ Shared.RegisterNetworkMessage( "Shine_ChatCol", ColourMessage )
 
 if Server then return end
 
-local GetUpValue = Shine.GetUpValue
 local IsType = Shine.IsType
 local tonumber = tonumber
 local tostring = tostring
@@ -83,6 +82,19 @@ local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Messag
 	StartSoundEffect( Player:GetChatSound() )
 end
 
+local ChatMessages
+local function GetChatMessages()
+	return ChatMessages
+end
+
+local function SetupChatMessages()
+	if not GetChatMessages() then
+		Shine.JoinUpValues( ChatUI_GetMessages, GetChatMessages, {
+			chatMessages = "ChatMessages"
+		} )
+	end
+end
+
 --[[
 	Adds a message to the chat.
 
@@ -93,8 +105,9 @@ end
 		Message - Message text.
 ]]
 function Shine.AddChatText( RP, GP, BP, Prefix, R, G, B, Message )
-	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" )
+	SetupChatMessages()
 
+	local ChatMessages = GetChatMessages()
 	if not ChatMessages then
 		Shared.Message( "[Shine] Unable to retrieve message table!" )
 
@@ -127,7 +140,9 @@ end )
 
 --Deprecated chat message. Only useful for PMs/Admin say messages.
 Client.HookNetworkMessage( "Shine_Chat", function( Message )
-	local ChatMessages = GetUpValue( ChatUI_GetMessages, "chatMessages" )
+	SetupChatMessages()
+
+	local ChatMessages = GetChatMessages()
 
 	if not ChatMessages then
 		Shared.Message( "[Shine] Unable to retrieve message table!" )

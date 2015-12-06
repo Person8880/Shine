@@ -7,6 +7,8 @@ local SGUI = Shine.GUI
 local ListEntry = {}
 
 local select = select
+local StringUTF8Encode = string.UTF8Encode
+local TableConcat = table.concat
 local tostring = tostring
 
 local Padding = Vector( 5, 0, 0 )
@@ -18,7 +20,7 @@ end
 
 function ListEntry:Initialise()
 	if self.Background then GUI.DestroyItem( self.Background ) end
-	
+
 	self.BaseClass.Initialise( self )
 
 	local Background = GetGUIManager():CreateGraphicItem()
@@ -36,7 +38,7 @@ end
 
 function ListEntry:OnSchemeChange( Scheme )
 	if not self.UseScheme then return end
-	
+
 	if self.Index then
 		self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
 	else
@@ -59,9 +61,31 @@ function ListEntry:OnSchemeChange( Scheme )
 	end
 end
 
+function ListEntry:SetFont( Font )
+	self.Font = Font
+
+	local TextObjs = self.TextObjs
+	if not TextObjs then return end
+
+	for i = 1, #TextObjs do
+		TextObjs[ i ]:SetFontName( Font )
+	end
+end
+
+function ListEntry:SetTextScale( Scale )
+	self.TextScale = Scale
+
+	local TextObjs = self.TextObjs
+	if not TextObjs then return end
+
+	for i = 1, #TextObjs do
+		TextObjs[ i ]:SetScale( Font )
+	end
+end
+
 function ListEntry:Setup( Index, Columns, Size, ... )
 	self.Index = Index
-	
+
 	local Scheme = SGUI:GetSkin()
 
 	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
@@ -89,8 +113,14 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 		TextObj:SetText( Text )
 		TextObj:SetColor( TextCol )
 
-		if Scheme.List.EntryFont then
+		if self.Font then
+			TextObj:SetFontName( self.Font )
+		elseif Scheme.List.EntryFont then
 			TextObj:SetFontName( Scheme.List.EntryFont )
+		end
+
+		if self.TextScale then
+			TextObj:SetScale( self.TextScale )
 		end
 
 		Background:AddChild( TextObj )
@@ -101,7 +131,7 @@ end
 
 function ListEntry:OnReorder()
 	local Scheme = SGUI:GetSkin()
-	
+
 	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
 	self.Background:SetColor( ( self.Highlighted or self.Selected )
 		and self.ActiveCol or self.InactiveCol )
@@ -126,17 +156,21 @@ function ListEntry:SetSpacing( SpacingTable )
 		Spacing[ i ] = Vector( Size, 0, 0 )
 
 		local Text = Obj:GetText()
-
-		local Width = Obj:GetTextWidth( Text )
+		local Scale = Obj:GetScale()
+		local Width = Obj:GetTextWidth( Text ) * Scale.x
 
 		if Width > Size then
-			repeat
-				Text = Text:sub( 1, #Text - 1 )
+			local Chars = StringUTF8Encode( Text )
+			local End = #Chars
 
-				Width = Obj:GetTextWidth( Text )
+			repeat
+				End = End - 1
+				Text = TableConcat( Chars, "", 1, End )
+
+				Width = Obj:GetTextWidth( Text ) * Scale.x
 			until Width < Size or #Text == 0
 
-			Text = Text:sub( 1, #Text - 4 )
+			Text = TableConcat( Chars, "", 1, End - 4 )
 			Text = Text.."..."
 
 			Obj:SetText( Text )

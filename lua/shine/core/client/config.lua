@@ -16,8 +16,7 @@ local DefaultConfig = {
 }
 
 function Shine:CreateClientBaseConfig()
-	local Success, Err = self.SaveJSONFile( DefaultConfig, BaseConfig )
-
+	self.SaveJSONFile( DefaultConfig, BaseConfig )
 	self.Config = DefaultConfig
 end
 
@@ -38,7 +37,7 @@ function Shine:LoadClientBaseConfig()
 end
 
 function Shine:SaveClientBaseConfig()
-	local Success, Err = self.SaveJSONFile( self.Config, BaseConfig )
+	self.SaveJSONFile( self.Config, BaseConfig )
 end
 
 Shine:LoadClientBaseConfig()
@@ -57,6 +56,10 @@ end
 
 local Options = {
 	{
+		Type = "Boolean",
+		Command = "sh_disableweb",
+		Description = "Disable web page display from plugins.",
+		ConfigOption = "DisableWebWindows",
 		Data = {
 			"sh_disableweb", "DisableWebWindows",
 			"Web page display has been", "disabled", "enabled"
@@ -65,6 +68,10 @@ local Options = {
 		Message = "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console."
 	},
 	{
+		Type = "Boolean",
+		Command = "sh_viewwebinsteam",
+		Description = "View web pages in the Steam overlay.",
+		ConfigOption = "ShowWebInSteamBrowser",
 		Data = {
 			"sh_viewwebinsteam", "ShowWebInSteamBrowser",
 			"Web page display set to", "Steam browser", "in game window"
@@ -73,6 +80,10 @@ local Options = {
 		Message = "Shine is set to display web pages in the Steam overlay. If you wish to show them using the in game browser, then enter \"sh_viewwebinsteam 0\" into the console."
 	},
 	{
+		Type = "Boolean",
+		Command = "sh_errorreport",
+		Description = "Report script errors caused by Shine.",
+		ConfigOption = "ReportErrors",
 		Data = {
 			"sh_errorreport", "ReportErrors",
 			"Error reporting has been", "enabled", "disabled"
@@ -81,6 +92,10 @@ local Options = {
 		Message = "Shine is set to report any errors it causes on your client when you disconnect. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console."
 	},
 	{
+		Type = "Boolean",
+		Command = "sh_animateui",
+		Description = "Use animations in the UI.",
+		ConfigOption = "AnimateUI",
 		Data = {
 			"sh_animateui", "AnimateUI",
 			"UI animations have been", "enabled", "disabled"
@@ -89,6 +104,20 @@ local Options = {
 		Message = "You can enable/disable UI animations by entering \"sh_animateui\" into the console."
 	}
 }
+Shine.ClientSettings = Options
+
+do
+	local TableFindByField = table.FindByField
+
+	function Shine:RegisterClientSetting( Entry )
+		local Existing, Index = TableFindByField( Options, "Command", Entry.Command )
+		if Existing then
+			Options[ Index ] = Entry
+		else
+			Options[ #Options + 1 ] = Entry
+		end
+	end
+end
 
 for i = 1, #Options do
 	local Option = Options[ i ]
@@ -98,3 +127,5 @@ for i = 1, #Options do
 		Shine.AddStartupMessage( Option.Message )
 	end
 end
+
+Script.Load( "lua/shine/core/client/config_gui.lua" )

@@ -46,6 +46,8 @@ function Label:GetText()
 	return self.Text:GetText()
 end
 
+function Label:SetSize() end
+
 function Label:GetSize()
 	return Vector( self:GetTextWidth(), self:GetTextHeight(), 0 )
 end

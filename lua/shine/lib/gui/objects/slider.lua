@@ -110,6 +110,8 @@ function Slider:SetupStencil()
 end
 
 function Slider:SizeLines()
+	if not self.Width or not self.Height then return end
+
 	local LineWidth = self.Width * self.Fraction
 	self.LineSize.x = LineWidth
 	self.Line:SetSize( self.LineSize )
@@ -130,7 +132,7 @@ function Slider:SetSize( Size )
 	self.Height = Size.y
 	self.Width = Size.x
 
-	self:SizeLines()
+	self:SetValue( self.Value )
 end
 
 function Slider:SetFont( Name )
@@ -166,7 +168,7 @@ end
 ]]
 function Slider:SetValue( Value )
 	if not IsType( Value, "number" ) then return end
-	
+
 	self.Value = Clamp( Round( Value, self.Decimals ), self.Min, self.Max )
 
 	self.Fraction = Clamp( ( Value - self.Min ) / self.Range, 0, 1 )

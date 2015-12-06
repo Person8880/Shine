@@ -150,6 +150,20 @@ function TabPanel:SetSize( Size )
 	self.ContentPanel:SetPos( Vector( self.TabWidth, 0, 0 ) )
 end
 
+function TabPanel:SetFont( Font )
+	self.Font = Font
+	for i = 1, #self.Tabs do
+		self.Tabs[ i ]:SetFont( Font )
+	end
+end
+
+function TabPanel:SetTextScale( Scale )
+	self.TextScale = Scale
+	for i = 1, #self.Tabs do
+		self.Tabs[ i ]:SetTextScale( Scale )
+	end
+end
+
 function TabPanel:AddTab( Name, OnPopulate )
 	local Tabs = self.Tabs
 
@@ -157,6 +171,13 @@ function TabPanel:AddTab( Name, OnPopulate )
 	TabButton:SetTab( self.NumTabs + 1, Name )
 	TabButton:SetSize( Vector( self.TabWidth, self.TabHeight, 0 ) )
 	TabButton:SetPos( Vector( 0, self.NumTabs * self.TabHeight, 0 ) )
+
+	if self.Font then
+		TabButton:SetFont( self.Font )
+	end
+	if self.TextScale then
+		TabButton:SetTextScale( self.TextScale )
+	end
 
 	self.NumTabs = self.NumTabs + 1
 

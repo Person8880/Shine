@@ -108,6 +108,7 @@ function TextEntry:Initialise()
 
 	self.Padding = 2
 	self.CaretOffset = 0
+	self.BorderSize = BorderSize
 
 	Background:SetColor( Scheme.ButtonBorder )
 	InnerBox:SetColor( self.DarkCol )
@@ -120,13 +121,15 @@ end
 function TextEntry:SetSize( SizeVec )
 	self.Background:SetSize( SizeVec )
 
-	local InnerBoxSize = SizeVec - BorderSize * 2
+	local InnerBoxSize = SizeVec - self.BorderSize * 2
 
 	self.Stencil:SetSize( InnerBoxSize )
 	self.InnerBox:SetSize( InnerBoxSize )
 
 	self.Width = InnerBoxSize.x - 5
 	self.Height = InnerBoxSize.y
+
+	self:InvalidateLayout()
 end
 
 function TextEntry:SetFocusColour( Col )
@@ -155,6 +158,12 @@ end
 
 function TextEntry:SetHighlightColour( Col )
 	self.SelectionBox:SetColor( Col )
+end
+
+function TextEntry:SetBorderSize( BorderSize )
+	self.InnerBox:SetPosition( BorderSize )
+	self.BorderSize = BorderSize
+	self:SetSize( self.Background:GetSize() )
 end
 
 function TextEntry:SetPlaceholderText( Text )
@@ -242,6 +251,10 @@ function TextEntry:SetFont( Font )
 	if self.PlaceholderText then
 		self.PlaceholderText:SetFontName( Font )
 	end
+end
+
+function TextEntry:PerformLayout()
+	self:SetupCaret()
 end
 
 function TextEntry:SetupCaret()

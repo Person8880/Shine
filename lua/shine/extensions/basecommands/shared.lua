@@ -130,6 +130,13 @@ function Plugin:SetupClientConfig()
 
 		Print( "Local all talk is now %s.", Enable and "enabled" or "disabled" )
 	end ):AddParam{ Type = "boolean", Optional = true, Default = function() return self.Config.DisableLocalAllTalk end }
+
+	Shine:RegisterClientSetting( {
+		Type = "Boolean",
+		Command = "sh_alltalklocal_cl",
+		ConfigOption = function() return not self.Config.DisableLocalAllTalk end,
+		Description = "Enable local voice chat all-talk."
+	} )
 end
 
 function Plugin:SetupAdminMenuCommands()
@@ -349,7 +356,7 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			end )
 
-			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Shared )
+			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Plugin, Shared )
 				local Row = self.PluginRows[ Name ]
 
 				if SGUI.IsValid( Row ) then
