@@ -154,6 +154,9 @@ local SettingsTypes = {
 ConfigMenu:AddTab( "Settings", {
 	OnInit = function( Panel )
 		Panel:SetScrollable()
+		Panel:SetScrollbarHeightOffset( HighResScaled( 40 ):GetValue() )
+		Panel:SetScrollbarWidth( HighResScaled( 8 ):GetValue() )
+		Panel:SetScrollbarPos( Vector2( -HighResScaled( 16 ):GetValue(), HighResScaled( 32 ):GetValue() ) )
 
 		local Settings = Shine.ClientSettings
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
