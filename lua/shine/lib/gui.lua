@@ -1684,4 +1684,5 @@ function ControlMeta:IsValid()
 	return SGUI.ActiveControls:Get( self ) ~= nil
 end
 
+include( "lua/shine/lib/gui/font_manager.lua" )
 include( "lua/shine/lib/gui/layout/layout.lua" )
