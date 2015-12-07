@@ -5,13 +5,16 @@
 local Shine = Shine
 
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
+local GetMaxPlayers = Server.GetMaxPlayers
+local GetNumPlayersTotal = Server.GetNumPlayersTotal
 local GetOwner = Server.GetOwner
 local Max = math.max
 local pcall = pcall
 local SharedTime = Shared.GetTime
+local StringTimeToString = string.TimeToString
 
 local Plugin = {}
-Plugin.Version = "1.5"
+Plugin.Version = "1.6"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
@@ -22,12 +25,12 @@ Plugin.DefaultConfig = {
 	Delay = 1,
 	WarnTime = 5,
 	KickTime = 15,
-	--CommanderTime = 0.5,
 	IgnoreSpectators = false,
 	Warn = true,
 	MoveToReadyRoomOnWarn = false,
 	MoveToSpectateOnWarn = false,
-	OnlyCheckOnStarted = false
+	OnlyCheckOnStarted = false,
+	KickOnConnect = false
 }
 
 Plugin.CheckConfig = true
@@ -116,6 +119,41 @@ do
 
 		OldFunc = nil
 	end
+end
+
+function Plugin:KickClient( Client )
+	Client.DisconnectReason = "AFK for too long"
+	Server.DisconnectClient( Client )
+end
+
+--[[
+	On a new connection attempt when the server is full, kick the longest AFK player past
+	the kick time.
+]]
+function Plugin:CheckConnectionAllowed( ID )
+	if not self.Config.KickOnConnect then return end
+	if GetNumPlayersTotal() < GetMaxPlayers() then return end
+
+	local AFKForLongest
+	local TimeAFK = 0
+	local KickTime = self.Config.KickTime
+
+	for Client, Data in pairs( self.Users ) do
+		if not ( Shine:HasAccess( Client, "sh_afk" )
+		or Shine:HasAccess( Client, "sh_afk_partial" ) )
+		and Data.AFKTime >= KickTime and Data.AFKTime > TimeAFK then
+			TimeAFK = Data.AFKTime
+			AFKForLongest = Client
+		end
+	end
+
+	if not AFKForLongest then return end
+
+	Shine:Print( "[AFKKick] Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
+		true, Shine:GetClientInfo( AFKForLongest ), ID,
+		StringTimeToString( TimeAFK ) )
+
+	self:KickClient( AFKForLongest )
 end
 
 --[[
@@ -298,19 +336,15 @@ function Plugin:OnProcessMove( Player, Input )
 		end
 	end
 
-	if Shine:HasAccess( Client, "sh_afk_partial" ) then return end
+	if self.Config.KickOnConnect or Shine:HasAccess( Client, "sh_afk_partial" ) then return end
 
 	--Only kick if we're past the min player count to do so, and use their "total" time.
 	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
-		self:ClientDisconnect( Client ) --Failsafe.
-
 		Shine:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
-			true, Player:GetName(), Client:GetUserId(), string.TimeToString( KickTime ),
+			true, Player:GetName(), Client:GetUserId(), StringTimeToString( KickTime ),
 			Players, self.Config.MinPlayers )
 
-		Client.DisconnectReason = "AFK for too long"
-
-		Server.DisconnectClient( Client )
+		self:KickClient( Client )
 	end
 end
 
