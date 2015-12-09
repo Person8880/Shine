@@ -568,6 +568,7 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align, IgnoreAnim )
 		Button:MoveTo( nil, nil, Pos, 0, EasingTime )
 	else
 		Button:SetPos( Pos )
+		Button:StopMoving()
 	end
 end
 
