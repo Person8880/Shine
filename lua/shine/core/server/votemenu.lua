@@ -7,7 +7,7 @@ local function BuildPluginData( self )
 
 	return {
 		Shuffle = self:IsExtensionEnabled( "voterandom" ),
-		RTV = self:IsExtensionEnabled( "mapvote" ) and Plugins.mapvote.Config.EnableRTV or false,
+		[ "Map Vote" ] = self:IsExtensionEnabled( "mapvote" ) and Plugins.mapvote.Config.EnableRTV or false,
 		Surrender = self:IsExtensionEnabled( "votesurrender" ),
 		Unstuck = self:IsExtensionEnabled( "unstuck" ),
 		MOTD = self:IsExtensionEnabled( "motd" )

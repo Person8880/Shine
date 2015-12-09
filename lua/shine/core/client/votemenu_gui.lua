@@ -89,7 +89,7 @@ local ClickFuncs = {
 	Shuffle = function()
 		return GenericClick( "sh_voterandom" )
 	end,
-	RTV = function()
+	[ "Map Vote" ] = function()
 		return GenericClick( "sh_votemap" )
 	end,
 	Surrender = function()
@@ -568,6 +568,7 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align, IgnoreAnim )
 		Button:MoveTo( nil, nil, Pos, 0, EasingTime )
 	else
 		Button:SetPos( Pos )
+		Button:StopMoving()
 	end
 end
 
