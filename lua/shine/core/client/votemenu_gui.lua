@@ -89,7 +89,7 @@ local ClickFuncs = {
 	Shuffle = function()
 		return GenericClick( "sh_voterandom" )
 	end,
-	RTV = function()
+	[ "Map Vote" ] = function()
 		return GenericClick( "sh_votemap" )
 	end,
 	Surrender = function()

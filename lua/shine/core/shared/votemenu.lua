@@ -6,7 +6,7 @@ Shared.RegisterNetworkMessage( "Shine_OpenedVoteMenu", {} )
 
 local PluginMessage = {
 	Shuffle = "boolean",
-	RTV = "boolean",
+	[ "Map Vote" ] = "boolean",
 	Surrender = "boolean",
 	Unstuck = "boolean",
 	MOTD = "boolean"
