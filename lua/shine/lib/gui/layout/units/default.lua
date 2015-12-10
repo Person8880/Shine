@@ -6,21 +6,11 @@ local Layout = Shine.GUI.Layout
 
 local Absolute
 local IsType = Shine.IsType
+local setmetatable = setmetatable
 
 local function NewType( Name )
 	local Meta = {}
 	Layout:RegisterUnit( Name, Meta )
-	return Meta
-end
-
-local function NewUnit( Name )
-	local Meta = NewType( Name )
-
-	function Meta:Init( Value )
-		self.Value = Value
-		return self
-	end
-
 	return Meta
 end
 
@@ -31,6 +21,65 @@ local function ToUnit( Value )
 	end
 
 	return Value or Absolute( 0 )
+end
+
+local Operators = {
+	__add = function( A, B ) return A + B end,
+	__sub = function( A, B ) return A - B end,
+	__mul = function( A, B ) return A * B end,
+	__div = function( A, B ) return A / B end
+}
+
+local function BuildOperator( Meta, Operator )
+	return function( A, B )
+		A = ToUnit( A )
+		B = ToUnit( B )
+
+		return setmetatable( {
+			GetValue = function( self, ParentSize )
+				return Operator( A:GetValue( ParentSize ), B:GetValue( ParentSize ) )
+			end
+		}, Meta )
+	end
+end
+
+local function NewUnit( Name )
+	local Meta = NewType( Name )
+
+	function Meta:Init( Value )
+		self.Value = Value
+		return self
+	end
+
+	for MetaKey, Operator in pairs( Operators ) do
+		Meta[ MetaKey ] = BuildOperator( Meta, Operator )
+	end
+
+	function Meta:__unm()
+		return setmetatable( {
+			GetValue = function( _, ParentSize )
+				return -self:GetValue( ParentSize )
+			end
+		}, Meta )
+	end
+
+	function Meta:__mod( Mod )
+		return setmetatable( {
+			GetValue = function( _, ParentSize )
+				return self:GetValue( ParentSize ) % Mod
+			end
+		}, Meta )
+	end
+
+	function Meta:__pow( Power )
+		return setmetatable( {
+			GetValue = function( _, ParentSize )
+				return self:GetValue( ParentSize ) ^ Power
+			end
+		}, Meta )
+	end
+
+	return Meta
 end
 
 --[[
@@ -125,7 +174,7 @@ end
 	Arbitrary scale.
 ]]
 do
-	local Scaled = NewType( "Scaled" )
+	local Scaled = NewUnit( "Scaled" )
 
 	function Scaled:Init( Value, Scale )
 		self.Value = Value
@@ -143,7 +192,7 @@ end
 	Percentage units are computed based on the parent's size.
 ]]
 do
-	local Percentage = NewType( "Percentage" )
+	local Percentage = NewUnit( "Percentage" )
 
 	function Percentage:Init( Value )
 		self.Value = Value * 0.01
