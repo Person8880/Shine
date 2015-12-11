@@ -1001,6 +1001,17 @@ function ControlMeta:SetSize( SizeVec )
 end
 
 --[[
+	A simple shortcut method for setting font and potentially scale
+	simultaneously.
+]]
+function ControlMeta:SetFontScale( Font, Scale )
+	self:SetFont( Font )
+	if Scale then
+		self:SetTextScale( Scale )
+	end
+end
+
+--[[
 	Alignment controls whether elements are placed at the start or end of a layout.
 
 	For example, MIN in vertical layout places from the top, while MAX places from

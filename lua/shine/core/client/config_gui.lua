@@ -48,12 +48,7 @@ function ConfigMenu:Create()
 
 	self.Menu:SetTabWidth( HighResScaled( 128 ):GetValue() )
 	self.Menu:SetTabHeight( HighResScaled( 96 ):GetValue() )
-
-	local Font, Scale = GetSmallFont()
-	self.Menu:SetFont( Font )
-	if Scale then
-		self.Menu:SetTextScale( Scale )
-	end
+	self.Menu:SetFontScale( GetSmallFont() )
 
 	self.Pos = self.Menu:GetSize() * -0.5
 	self.Menu:SetPos( self.Pos )
@@ -73,8 +68,7 @@ function ConfigMenu:Create()
 	self.Menu:AddCloseButton()
 	if NeedsToScale() then
 		local Font, Scale = SGUI.FontManager.GetFont( "kArial", 20 )
-		self.Menu.CloseButton:SetFont( Font )
-		self.Menu.CloseButton:SetTextScale( Scale )
+		self.Menu.CloseButton:SetFontScale( Font, Scale )
 	end
 	self.Menu.OnClose = function()
 		self:SetIsVisible( false )
@@ -126,11 +120,7 @@ local SettingsTypes = {
 	Boolean = {
 		Create = function( Panel, Entry )
 			local CheckBox = Panel:Add( "CheckBox" )
-			local Font, Scale = GetSmallFont()
-			CheckBox:SetFont( Font )
-			if Scale then
-				CheckBox:SetTextScale( Scale )
-			end
+			CheckBox:SetFontScale( GetSmallFont() )
 			CheckBox:AddLabel( Entry.Description )
 			CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 
@@ -165,11 +155,7 @@ ConfigMenu:AddTab( "Settings", {
 		} )
 
 		local Title = Panel:Add( "Label" )
-		local Font, Scale = GetMediumFont()
-		Title:SetFont( Font )
-		if Scale then
-			Title:SetTextScale( Scale )
-		end
+		Title:SetFontScale( GetMediumFont() )
 		Title:SetText( "Client Settings" )
 		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 16 ) ) )
 		Title:SetBright( true )
@@ -219,10 +205,7 @@ ConfigMenu:AddTab( "Plugins", {
 		local EnableButton = SGUI:Create( "Button", Panel )
 		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
 		EnableButton:SetText( "Enable Plugin" )
-		EnableButton:SetFont( Font )
-		if Scale then
-			EnableButton:SetTextScale( Scale )
-		end
+		EnableButton:SetFontScale( Font, Scale )
 
 		Layout:AddElement( EnableButton )
 
