@@ -14,7 +14,7 @@ Menu.IsWindow = true
 local DefaultSize = Vector( 200, 32, 0 )
 local DefaultOffset = Vector( 0, 32, 0 )
 
-SGUI.AddProperty( Menu, "Padding" )
+SGUI.AddProperty( Menu, "ButtonSpacing" )
 SGUI.AddProperty( Menu, "MaxVisibleButtons" )
 
 function Menu:Initialise()
@@ -27,7 +27,7 @@ function Menu:Initialise()
 	self.ButtonOffset = DefaultOffset
 	self.Buttons = {}
 	self.ButtonCount = 0
-	self.Padding = Vector( 0, 0, 0 )
+	self.ButtonSpacing = Vector( 0, 0, 0 )
 
 	self.Font = Fonts.kAgencyFB_Small
 end
@@ -58,7 +58,7 @@ end
 function Menu:AddButton( Text, DoClick, Tooltip )
 	local Button = self.MaxVisibleButtons and self:Add( "Button" ) or SGUI:Create( "Button", self )
 	Button:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Button:SetPos( self.Padding + self.ButtonCount * self.ButtonOffset )
+	Button:SetPos( self.ButtonSpacing + self.ButtonCount * self.ButtonOffset )
 	Button:SetDoClick( DoClick )
 	Button:SetSize( self.ButtonSize )
 	Button:SetText( Text )
@@ -77,7 +77,7 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	self.Buttons[ self.ButtonCount ] = Button
 
 	if not ( self.MaxVisibleButtons and self.ButtonCount > self.MaxVisibleButtons ) then
-		self:SetSize( self.Padding * 2 + self.ButtonSize
+		self:SetSize( self.ButtonSpacing * 2 + self.ButtonSize
 			+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
 	end
 
