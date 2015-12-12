@@ -5,8 +5,26 @@
 local Floor = math.floor
 local StringFind = string.find
 local StringFormat = string.format
+local StringLen = string.len
 local StringSub = string.sub
 local TableConcat = table.concat
+
+--[[
+	Returns true if the given string ends with the given suffix.
+]]
+function string.EndsWith( String, Suffix )
+	local SuffixLength = StringLen( Suffix )
+	local StringLength = StringLen( String )
+
+	return StringSub( String, StringLength - SuffixLength + 1 ) == Suffix
+end
+
+--[[
+	Returns true if the given string starts with the given prefix.
+]]
+function string.StartsWith( String, Prefix )
+	return StringSub( String, 1, StringLen( Prefix ) ) == Prefix
+end
 
 --[[
 	Splits the given string by the given pattern.
