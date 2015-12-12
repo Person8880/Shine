@@ -56,45 +56,54 @@ function Plugin:OnFirstThink()
 	end )
 end
 
-function Plugin:Initialise()
-	local Edited
-	if self.Config.WarnMinPlayers > self.Config.MinPlayers then
-		self.Config.WarnMinPlayers = self.Config.MinPlayers
-		Edited = true
-	end
+do
+	local Validator = Shine.Validator()
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Config.WarnMinPlayers > Config.MinPlayers
+		end,
+		Fix = function( self, Config )
+			Config.WarnMinPlayers = Config.MinPlayers
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Config.MoveToReadyRoomOnWarn and Config.MoveToSpectateOnWarn
+		end,
+		Fix = function( self, Config )
+			Config.MoveToReadyRoomOnWarn = false
+		end
+	} )
 
-	if self.Config.MoveToReadyRoomOnWarn and self.Config.MoveToSpectateOnWarn then
-		self.Config.MoveToReadyRoomOnWarn = false
-		Edited = true
-	end
-
-	if Edited then
-		self:SaveConfig( true )
-	end
-
-	if self.Enabled ~= nil then
-		for Client in pairs( self.Users ) do
-			if Shine:IsValidClient( Client ) then
-				self:ResetAFKTime( Client )
-			else
-				self.Users[ Client ] = nil
-			end
+	function Plugin:Initialise()
+		if Validator:Validate( self.Config ) then
+			self:SaveConfig( true )
 		end
 
-		local Clients, Count = Shine.GetAllClients()
-		for i = 1, Count do
-			local Client = Clients[ i ]
-			if not self.Users[ Client ] then
-				self:ClientConnect( Client )
+		if self.Enabled ~= nil then
+			for Client in pairs( self.Users ) do
+				if Shine:IsValidClient( Client ) then
+					self:ResetAFKTime( Client )
+				else
+					self.Users[ Client ] = nil
+				end
 			end
+
+			local Clients, Count = Shine.GetAllClients()
+			for i = 1, Count do
+				local Client = Clients[ i ]
+				if not self.Users[ Client ] then
+					self:ClientConnect( Client )
+				end
+			end
+		else
+			self.Users = {}
 		end
-	else
-		self.Users = {}
+
+		self.Enabled = true
+
+		return true
 	end
-
-	self.Enabled = true
-
-	return true
 end
 
 do

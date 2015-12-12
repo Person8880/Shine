@@ -82,53 +82,84 @@ Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
 	end
 end )
 
-function Plugin:CheckRateValues()
-	local Fixed
+do
+	local Validator = Shine.Validator()
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Config.TickRate > Config.MoveRate
+		end,
+		Fix = function( self, Config )
+			Config.TickRate = Config.MoveRate
+			Notify( "Tick rate cannot be more than move rate. Clamping to move rate." )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Config.SendRate > Config.TickRate
+		end,
+		Fix = function( self, Config )
+			Config.SendRate = Config.TickRate - 10
+			Notify( "Send rate cannot be more than tick rate. Clamping to tick rate - 10." )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			local MinInterp = 2 / Config.SendRate * 1000
 
-	if self.Config.MoveRate ~= 30 then
-		Shared.ConsoleCommand( StringFormat( "mr %s", self.Config.MoveRate ) )
-	end
+			if Config.Interp < MinInterp then
+				Config.Interp = MinInterp
+				Notify( StringFormat( "Interp cannot be less than %.2fms, clamping...",
+					MinInterp ) )
+				return true
+			end
 
-	if self.Config.TickRate > self.Config.MoveRate then
-		self.Config.TickRate = self.Config.MoveRate
-		Fixed = true
-		Notify( "Tick rate cannot be more than move rate. Clamping to move rate." )
-	end
+			return false
+		end
+	} )
 
-	if self.Config.TickRate ~= Server.GetTickrate() then
-		Shared.ConsoleCommand( StringFormat( "tickrate %s", self.Config.MoveRate ) )
-	end
+	local Rates = {
+		{
+			Key = "MoveRate", Default = 30, Command = "mr %s"
+		},
+		{
+			Key = "TickRate", Default = function() return Server.GetTickrate() end, Command = "tickrate %s"
+		},
+		{
+			Key = "SendRate", Default = function() return Server.GetSendrate() end, Command = "sendrate %s"
+		},
+		{
+			Key = "Interp", Default = 100, Command = function( Value ) return StringFormat( "interp %s", Value * 0.001 ) end
+		},
+		{
+			Key = "BWLimit",
+			Transformer = function( Value ) return Value * 1024 end,
+			Default = function() return Server.GetBwLimit() end,
+			Command = "bwlimit %s"
+		}
+	}
 
-	if self.Config.SendRate > self.Config.TickRate then
-		self.Config.SendRate = self.Config.TickRate - 10
-		Fixed = true
-		Notify( "Send rate cannot be more than tick rate. Clamping to tick rate - 10." )
-	end
+	function Plugin:CheckRateValues()
+		if Validator:Validate( self.Config ) then
+			Notify( "Fixed incorrect rate values, check your config." )
+			self:SaveConfig( true )
+		end
 
-	if self.Config.SendRate ~= Server.GetSendrate() then
-		Shared.ConsoleCommand( StringFormat( "sendrate %s", self.Config.SendRate ) )
-	end
+		for i = 1, #Rates do
+			local Rate = Rates[ i ]
+			local ConfigValue = self.Config[ Rate.Key ]
+			if Rate.Transformer then
+				ConfigValue = Rate.Transformer( ConfigValue )
+			end
 
-	local MinInterp = 2 / self.Config.SendRate * 1000
-	if self.Config.Interp < MinInterp then
-		self.Config.Interp = MinInterp
-		Fixed = true
-		Notify( StringFormat( "Interp cannot be less than %.2fms, clamping...",
-			MinInterp ) )
-	end
+			local Default = IsType( Rate.Default, "function" ) and Rate.Default() or Rate.Default
 
-	if self.Config.Interp ~= 100 then
-		Shared.ConsoleCommand( StringFormat( "interp %s", self.Config.Interp * 0.001 ) )
-	end
+			if ConfigValue ~= Default then
+				local Command = IsType( Rate.Command, "function" ) and Rate.Command( ConfigValue )
+					or StringFormat( Rate.Command, ConfigValue )
 
-	local BWLimit = self.Config.BWLimit * 1024
-	if BWLimit ~= Server.GetBwLimit() then
-		Shared.ConsoleCommand( StringFormat( "bwlimit %s", BWLimit ) )
-	end
-
-	if Fixed then
-		Notify( "Fixed incorrect rate values, check your config." )
-		self:SaveConfig( true )
+				Shared.ConsoleCommand( Command )
+			end
+		end
 	end
 end
 

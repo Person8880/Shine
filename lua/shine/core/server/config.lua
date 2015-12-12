@@ -79,84 +79,113 @@ local DefaultConfig = {
 	ReportErrors = true --Should errors be reported at the end of a round?
 }
 
-local CheckConfig = Shine.RecursiveCheckConfig
 local DefaultGamemode = Shine.BaseGamemode
 
---[[
-	Gets the gamemode dependent config file.
-]]
-local function GetConfigPath( Backup, Default )
-	local Gamemode = Shine.GetGamemode()
+do
+	local CheckConfig = Shine.RecursiveCheckConfig
 
-	if Gamemode == DefaultGamemode or Default then
-		return Backup and BackupPath..".json" or ConfigPath..".json"
+	--[[
+		Gets the gamemode dependent config file.
+	]]
+	local function GetConfigPath( Backup, Default )
+		local Gamemode = Shine.GetGamemode()
+
+		if Gamemode == DefaultGamemode or Default then
+			return Backup and BackupPath..".json" or ConfigPath..".json"
+		end
+
+		return StringFormat( "%s_%s.json", Backup and BackupPath or ConfigPath, Gamemode )
 	end
 
-	return StringFormat( "%s_%s.json", Backup and BackupPath or ConfigPath, Gamemode )
-end
+	local function AddTrailingSlashRule( Key )
+		return {
+			Matches = function( self, Config )
+				return not Config[ Key ]:EndsWith( "/" ) and not Config[ Key ]:EndsWith( "\\" )
+			end,
+			Fix = function( self, Config )
+				Notify( StringFormat( "%s missing trailing /, appending...", Key ) )
+				Config[ Key ] = Config[ Key ].."/"
+			end
+		}
+	end
 
-function Shine:LoadConfig()
-	local Paths = {
-		GetConfigPath(),
-		GetConfigPath( false, true ),
-		GetConfigPath( true ),
-		GetConfigPath( true, true )
-	}
+	local Validator = Shine.Validator()
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Shine.TypeCheckConfig( "base", Config, DefaultConfig, true )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return CheckConfig( Config, DefaultConfig, true )
+		end
+	} )
+	Validator:AddRule( AddTrailingSlashRule( "LogDir" ) )
+	Validator:AddRule( AddTrailingSlashRule( "ExtensionDir" ) )
 
-	local ConfigFile
-	local Err
-	local Pos
+	function Shine:LoadConfig()
+		local Paths = {
+			GetConfigPath(),
+			GetConfigPath( false, true ),
+			GetConfigPath( true ),
+			GetConfigPath( true, true )
+		}
 
-	for i = 1, #Paths do
-		local Path = Paths[ i ]
+		local ConfigFile
+		local Err
+		local Pos
 
-		ConfigFile, Pos, Err = self.LoadJSONFile( Path )
+		for i = 1, #Paths do
+			local Path = Paths[ i ]
 
-		--Store what path we've loaded from so we update the right one!
-		if ConfigFile then
-			self.ConfigPath = Path
+			ConfigFile, Pos, Err = self.LoadJSONFile( Path )
 
-			break
+			--Store what path we've loaded from so we update the right one!
+			if ConfigFile then
+				self.ConfigPath = Path
+
+				break
+			end
+		end
+
+		Notify( "Loading Shine config..." )
+
+		if not ConfigFile or not IsType( ConfigFile, "table" ) then
+			if IsType( Pos, "string" ) then
+				--No file exists.
+				self:GenerateDefaultConfig( true )
+			else
+				--Invalid JSON. Load the default config but don't save.
+				self.Config = DefaultConfig
+
+				Notify( "Config has invalid JSON, loading default..." )
+			end
+
+			return
+		end
+
+		self.Config = ConfigFile
+
+		if Validator:Validate( self.Config ) then
+			self:SaveConfig()
 		end
 	end
 
-	Notify( "Loading Shine config..." )
+	function Shine:SaveConfig( Silent )
+		local ConfigFile, Err = self.SaveJSONFile( self.Config,
+			self.ConfigPath or GetConfigPath( false, true ) )
 
-	if not ConfigFile or not IsType( ConfigFile, "table" ) then
-		if IsType( Pos, "string" ) then
-			--No file exists.
-			self:GenerateDefaultConfig( true )
-		else
-			--Invalid JSON. Load the default config but don't save.
-			self.Config = DefaultConfig
+		if not ConfigFile then --Something's gone horribly wrong!
+			Shine.Error = "Error writing config file: "..Err
 
-			Notify( "Config has invalid JSON, loading default..." )
+			Notify( Shine.Error )
+
+			return
 		end
 
-		return
-	end
-
-	self.Config = ConfigFile
-
-	if CheckConfig( self.Config, DefaultConfig, true ) then
-		self:SaveConfig()
-	end
-end
-
-function Shine:SaveConfig( Silent )
-	local ConfigFile, Err = self.SaveJSONFile( self.Config,
-		self.ConfigPath or GetConfigPath( false, true ) )
-
-	if not ConfigFile then --Something's gone horribly wrong!
-		Shine.Error = "Error writing config file: "..Err
-
-		Notify( Shine.Error )
-
-		return
-	end
-
-	if not Silent then
-		Notify( "Updating Shine config..." )
+		if not Silent then
+			Notify( "Updating Shine config..." )
+		end
 	end
 end
 

@@ -159,71 +159,75 @@ function PluginMeta:SaveConfig( Silent )
 	end
 end
 
-function PluginMeta:LoadConfig()
-	local PluginConfig
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
-		or ClientConfigPath..self.ConfigName
+do
+	function PluginMeta:LoadConfig()
+		local PluginConfig
+		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
+			or ClientConfigPath..self.ConfigName
 
-	local Err
-	local Pos
+		local Err
+		local Pos
 
-	if Server then
-		local Gamemode = Shine.GetGamemode()
+		if Server then
+			local Gamemode = Shine.GetGamemode()
 
-		--Look for gamemode specific config file.
-		if Gamemode ~= Shine.BaseGamemode then
-			local Paths = {
-				StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
-				Path
-			}
+			--Look for gamemode specific config file.
+			if Gamemode ~= Shine.BaseGamemode then
+				local Paths = {
+					StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
+					Path
+				}
 
-			for i = 1, #Paths do
-				local File, ErrPos, ErrString = Shine.LoadJSONFile( Paths[ i ] )
+				for i = 1, #Paths do
+					local File, ErrPos, ErrString = Shine.LoadJSONFile( Paths[ i ] )
 
-				if File then
-					PluginConfig = File
+					if File then
+						PluginConfig = File
 
-					self.__ConfigPath = Paths[ i ]
+						self.__ConfigPath = Paths[ i ]
 
-					break
-				elseif IsType( ErrPos, "number" ) then
-					Err = ErrString
-					Pos = ErrPos
+						break
+					elseif IsType( ErrPos, "number" ) then
+						Err = ErrString
+						Pos = ErrPos
+					end
 				end
+			else
+				PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 			end
 		else
 			PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 		end
-	else
-		PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
-	end
 
-	if not PluginConfig or not IsType( PluginConfig, "table" ) then
-		if IsType( Pos, "string" ) then
-			self:GenerateDefaultConfig( true )
-		else
-			Print( "Invalid JSON for %s plugin config, loading default...", self.__Name )
+		if not PluginConfig or not IsType( PluginConfig, "table" ) then
+			if IsType( Pos, "string" ) then
+				self:GenerateDefaultConfig( true )
+			else
+				Print( "Invalid JSON for %s plugin config, loading default...", self.__Name )
 
-			self.Config = self.DefaultConfig
+				self.Config = self.DefaultConfig
+			end
+
+			return
 		end
 
-		return
-	end
+		self.Config = PluginConfig
 
-	self.Config = PluginConfig
+		local Validator = Shine.Validator()
+		Validator:AddRule( {
+			Matches = function( _, Config )
+				return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig )
+			end
+		} )
+		Validator:AddRule( {
+			Matches = function( _, Config )
+				return self.CheckConfigTypes and self:TypeCheckConfig()
+			end
+		} )
 
-	local NeedsSave
-
-	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then
-		NeedsSave = true
-	end
-
-	if self.CheckConfigTypes and self:TypeCheckConfig() then
-		NeedsSave = true
-	end
-
-	if NeedsSave then
-		self:SaveConfig()
+		if Validator:Validate( self.Config ) then
+			self:SaveConfig()
+		end
 	end
 end
 
