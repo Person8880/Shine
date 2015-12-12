@@ -228,25 +228,7 @@ function PluginMeta:LoadConfig()
 end
 
 function PluginMeta:TypeCheckConfig()
-	local Config = self.Config
-	local DefaultConfig = self.DefaultConfig
-
-	local Edited
-
-	for Key, Value in pairs( Config ) do
-		local ExpectedType = type( DefaultConfig[ Key ] )
-		local RealType = type( Value )
-
-		if ExpectedType ~= RealType then
-			Print( "Type mis-match in %s config for key '%s', expected type: '%s'. Reverting value to default.",
-				self.__Name, Key, ExpectedType )
-
-			Config[ Key ] = DefaultConfig[ Key ]
-			Edited = true
-		end
-	end
-
-	return Edited
+	return Shine.TypeCheckConfig( self.__Name, self.Config, self.DefaultConfig )
 end
 
 if Server then
