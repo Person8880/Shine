@@ -60,9 +60,10 @@ function Shine:SaveLog()
 	if not self.Config.EnableLogging then return end
 
 	local String = TableConcat( LogMessages, "\n" )
+	local CurrentLogFile = GetCurrentLogFile()
 
 	--This is dumb, but append mode appears to be broken.
-	local OldLog, Err = io.open( GetCurrentLogFile(), "r" )
+	local OldLog, Err = io.open( CurrentLogFile, "r" )
 
 	local Data = ""
 
@@ -71,7 +72,7 @@ function Shine:SaveLog()
 		OldLog:close()
 	end
 
-	local LogFile, Err = io.open( GetCurrentLogFile(), "w+" )
+	local LogFile, Err = io.open( CurrentLogFile, "w+" )
 
 	if not LogFile then
 		Shared.Message( StringFormat( "Error writing to log file: %s", Err  ) )
@@ -80,7 +81,6 @@ function Shine:SaveLog()
 	end
 
 	LogFile:write( Data, String, "\n" )
-
 	LogFile:close()
 
 	--Empty the logging table.
