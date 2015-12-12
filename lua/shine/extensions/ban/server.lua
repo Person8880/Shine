@@ -662,8 +662,6 @@ function Plugin:CheckConnectionAllowed( ID )
 	local BanEntry = self.Config.Banned[ tostring( ID ) ]
 
 	if BanEntry then
-		local SysTime = Time()
-
 		--Either a perma-ban or not expired.
 		if not BanEntry.UnbanTime or BanEntry.UnbanTime == 0 or BanEntry.UnbanTime > Time() then
 			return false
