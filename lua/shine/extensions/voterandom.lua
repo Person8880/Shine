@@ -91,8 +91,6 @@ Plugin.DefaultConfig = {
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
 
-	MaxStoredRounds = 3, --How many rounds of score data should we buffer?
-
 	ReconnectLogTime = 0 --How long (in seconds) after a shuffle to log reconnecting players for?
 }
 Plugin.CheckConfig = true
@@ -128,7 +126,6 @@ end
 function Plugin:Initialise()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, ModeClamp )
 	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, ModeClamp )
-	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 	self.Config.ReconnectLogTime = Max( self.Config.ReconnectLogTime, 0 )
 
 	local BalanceMode = self.Config.BalanceMode
