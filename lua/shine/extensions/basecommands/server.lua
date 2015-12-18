@@ -1332,6 +1332,14 @@ function Plugin:CreatePerformanceCommands()
 	InterpCommand:AddParam{ Type = "number", Min = 0, Help = "time in ms" }
 	InterpCommand:Help( "Sets the interpolation time and saves it." )
 
+	local function AddAdditionalInfo( Command, ConfigKey, Units )
+		Command.GetAdditionalInfo = function()
+			return StringFormat( " - Current value: %i%s", self.Config[ ConfigKey ], Units )
+		end
+	end
+
+	AddAdditionalInfo( InterpCommand, "Interp", "ms" )
+
 	local function TickRate( Client, NewRate )
 		if NewRate > self.Config.MoveRate then
 			NotifyError( Client, "Tick rate cannot be greater than move rate (%i).",
@@ -1349,6 +1357,8 @@ function Plugin:CreatePerformanceCommands()
 	TickRateCommand:AddParam{ Type = "number", Min = 10, Round = true, Help = "rate" }
 	TickRateCommand:Help( "Sets the max server tickrate and saves it." )
 
+	AddAdditionalInfo( TickRateCommand, "TickRate", "/s" )
+
 	local function BWLimit( Client, NewLimit )
 		self.Config.BWLimit = NewLimit
 
@@ -1359,6 +1369,8 @@ function Plugin:CreatePerformanceCommands()
 	local BWLimitCommand = self:BindCommand( "sh_bwlimit", "bwlimit", BWLimit )
 	BWLimitCommand:AddParam{ Type = "number", Min = 10, Help = "limit in kbytes" }
 	BWLimitCommand:Help( "Sets the bandwidth limit per player and saves it." )
+
+	AddAdditionalInfo( BWLimitCommand, "BWLimit", "kb/s" )
 
 	local function SendRate( Client, NewRate )
 		if NewRate > self.Config.TickRate then
@@ -1377,6 +1389,8 @@ function Plugin:CreatePerformanceCommands()
 	SendRateCommand:AddParam{ Type = "number", Min = 10, Round = true, Help = "rate" }
 	SendRateCommand:Help( "Sets the rate of updates sent to clients and saves it." )
 
+	AddAdditionalInfo( SendRateCommand, "SendRate", "/s" )
+
 	local function MoveRate( Client, NewRate )
 		self.Config.MoveRate = NewRate
 
@@ -1387,6 +1401,8 @@ function Plugin:CreatePerformanceCommands()
 	local MoveRateCommand = self:BindCommand( "sh_moverate", "moverate", MoveRate )
 	MoveRateCommand:AddParam{ Type = "number", Min = 5, Round = true, Help = "rate" }
 	MoveRateCommand:Help( "Sets the move rate and saves it." )
+
+	AddAdditionalInfo( MoveRateCommand, "MoveRate", "/s" )
 end
 
 function Plugin:CreateCommands()
