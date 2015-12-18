@@ -289,30 +289,56 @@ local OldServerAdminPrint = ServerAdminPrint
 local MaxPrintLength = 128
 
 Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime )
+	local StringExplode = string.Explode
+	local StringLen = string.len
+	local StringSub = string.sub
+	local TableInsert = table.insert
+
 	--[[
 		Rewrite ServerAdminPrint to not print to the server console when used,
 		otherwise we'll get spammed with repeat prints when sending to lots of people at once.
+
+		Also make it word-wrap overflowing text.
 	]]
 	function ServerAdminPrint( Client, Message )
 		if not Client then return end
 
-		local MessageList = {}
-		local Count = 1
-
-		while #Message > MaxPrintLength do
-			local Part = Message:sub( 0, MaxPrintLength - 1 )
-
-			MessageList[ Count ] = Part
-			Count = Count + 1
-
-			Message = Message:sub( MaxPrintLength )
+		local Len = StringLen( Message )
+		if Len <= MaxPrintLength then
+			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
+				{ message = Message }, true )
+			return
 		end
 
-		MessageList[ Count ] = Message
+		local Words = StringExplode( Message, " " )
+		local Lines = {}
+		local i = 1
+		local Start = i
 
-		for i = 1, #MessageList do
+		while i <= #Words do
+			local Text = TableConcat( Words, " ", Start, i )
+			if StringLen( Text ) > MaxPrintLength then
+				if i == Start then
+					TableInsert( Words, i + 1, StringSub( Text, MaxPrintLength + 1 ) )
+					Text = StringSub( Text, 1, MaxPrintLength )
+
+					Start = i + 1
+				else
+					Text = TableConcat( Words, " ", Start, i - 1 )
+					Start = i
+				end
+
+				Lines[ #Lines + 1 ] = Text
+			elseif i == #Words then
+				Lines[ #Lines + 1 ] = Text
+			end
+
+			i = i + 1
+		end
+
+		for i = 1, #Lines do
 			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
-				{ message = MessageList[ i ] }, true )
+				{ message = Lines[ i ] }, true )
 		end
 	end
 end )
