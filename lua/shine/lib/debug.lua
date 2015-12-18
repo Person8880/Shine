@@ -283,13 +283,14 @@ end
 
 do
 	local SharedMessage = Shared.Message
+	local select = select
 	local tostring = tostring
 	local TableConcat = table.concat
 
 	function LuaPrint( ... )
 		local Out = { ... }
 
-		for i = 1, #Out do
+		for i = 1, select( "#", ... ) do
 			Out[ i ] = tostring( Out[ i ] )
 		end
 
