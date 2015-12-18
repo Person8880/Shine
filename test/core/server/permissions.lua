@@ -4,6 +4,9 @@
 
 local UnitTest = Shine.UnitTest
 local OldUserData = Shine.UserData
+local OldSaveUsers = Shine.SaveUsers
+
+Shine.SaveUsers = function() end
 
 Shine.UserData = {
 	Users = {
@@ -192,4 +195,103 @@ UnitTest:Test( "Whitelist inheritance", function( Assert )
 	Assert:Truthy( Shine:GetPermission( 100, "sh_slay" ) )
 end )
 
+UnitTest:Test( "CreateGroup", function( Assert )
+	local Group = Shine:CreateGroup( "Test", 15, true )
+	Assert:Equals( 15, Group.Immunity )
+	Assert:True( Group.IsBlacklist )
+	Assert:Equals( Group, Shine.UserData.Groups.Test )
+end )
+
+UnitTest:Test( "ReinstateGroup", function( Assert )
+	local Group = {}
+	Shine:ReinstateGroup( "Test", Group )
+
+	Assert:Equals( Group, Shine.UserData.Groups.Test )
+end )
+
+UnitTest:Test( "DeleteGroup", function( Assert )
+	Shine.UserData.Groups.Test = nil
+
+	Assert:False( Shine:DeleteGroup( "Test" ) )
+
+	Shine.UserData.Groups.Test = {}
+	Assert:True( Shine:DeleteGroup( "Test" ) )
+	Assert:Nil( Shine.UserData.Groups.Test )
+end )
+
+UnitTest:Test( "CreateUser", function( Assert )
+	local User = Shine:CreateUser( 123456, "Test" )
+	Assert:Equals( "Test", User.Group )
+	Assert:Equals( User, Shine.UserData.Users[ "123456" ] )
+end )
+
+UnitTest:Test( "ReinstateUser", function( Assert )
+	local User = {}
+	Assert:True( Shine:ReinstateUser( 123456, User ) )
+	Assert:Equals( User, Shine.UserData.Users[ "123456" ] )
+end )
+
+UnitTest:Test( "DeleteUser", function( Assert )
+	Shine.UserData.Users[ "123456" ] = nil
+
+	Assert:False( Shine:DeleteUser( 123456 ) )
+
+	Shine.UserData.Users[ "123456" ] = {}
+	Assert:True( Shine:DeleteUser( 123456 ) )
+	Assert:Nil( Shine.UserData.Users[ "123456" ] )
+end )
+
+UnitTest:Test( "AddGroupInheritance", function( Assert )
+	local Group = {}
+	Shine.UserData.Groups.Test = Group
+
+	Assert:True( Shine:AddGroupInheritance( "Test", "Member" ) )
+	Assert:ArrayEquals( { "Member" }, Group.InheritsFrom )
+
+	Shine:AddGroupInheritance( "Test", "Member" )
+	Assert:ArrayEquals( { "Member" }, Group.InheritsFrom )
+
+	Shine:AddGroupInheritance( "Test", "Moderator" )
+	Assert:ArrayEquals( { "Member", "Moderator" }, Group.InheritsFrom )
+end )
+
+UnitTest:Test( "RemoveGroupInheritance", function( Assert )
+	local Group = {
+		InheritsFrom = { "Member", "Moderator" }
+	}
+	Shine.UserData.Groups.Test = Group
+
+	Assert:True( Shine:RemoveGroupInheritance( "Test", "Member" ) )
+	Assert:ArrayEquals( { "Moderator" }, Group.InheritsFrom )
+
+	Assert:False( Shine:RemoveGroupInheritance( "Test", "Member" ) )
+end )
+
+UnitTest:Test( "AddGroupAccess", function( Assert )
+	local Group = {
+		Commands = {}
+	}
+	Shine.UserData.Groups.Test = Group
+
+	Assert:True( Shine:AddGroupAccess( "Test", "sh_test" ) )
+	Assert:ArrayEquals( { "sh_test" }, Group.Commands )
+
+	Assert:True( Shine:AddGroupAccess( "Test", "sh_test2" ) )
+	Assert:ArrayEquals( { "sh_test", "sh_test2" }, Group.Commands )
+end )
+
+UnitTest:Test( "RevokeGroupAccess", function( Assert )
+	local Group = {
+		Commands = { "sh_test", "sh_test2" }
+	}
+	Shine.UserData.Groups.Test = Group
+
+	Assert:True( Shine:RevokeGroupAccess( "Test", "sh_test" ) )
+	Assert:ArrayEquals( { "sh_test2" }, Group.Commands )
+
+	Assert:True( Shine:RevokeGroupAccess( "Test", "sh_test2" ) )
+	Assert:ArrayEquals( {}, Group.Commands )
+end )
+
 Shine.UserData = OldUserData
+Shine.SaveUsers = OldSaveUsers
