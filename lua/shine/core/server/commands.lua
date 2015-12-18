@@ -2,12 +2,14 @@
 	Shine console/chat command handling.
 ]]
 
+local IsType = Shine.IsType
 local MathClamp = math.ClampEx
 local Round = math.Round
 local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
 local StringGSub = string.gsub
+local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local TableConcat = table.concat
 local TableInsert = table.insert
@@ -16,6 +18,8 @@ local TableSort = table.sort
 local tostring = tostring
 local type = type
 local xpcall = xpcall
+
+local ParamTypes = Shine.CommandUtil.ParamTypes
 
 --[[
 	Command object.
@@ -35,6 +39,8 @@ function CommandMeta:AddParam( Table )
 
 	local Args = self.Arguments
 	Args[ #Args + 1 ] = Table
+
+	return self
 end
 
 function CommandMeta:Help( HelpString )
@@ -42,6 +48,30 @@ function CommandMeta:Help( HelpString )
 		"Bad argument #1 to Help, string expected, got %s", type( HelpString ) )
 
 	self.HelpString = HelpString
+
+	return self
+end
+
+function CommandMeta:GetHelp()
+	local Args = self.Arguments
+
+	-- Legacy help message.
+	if #Args == 0 or StringStartsWith( self.HelpString, "<" ) then
+		return self.HelpString
+	end
+
+	local Message = {}
+
+	for i = 1, #Args do
+		local Arg = Args[ i ]
+		Message[ i ] = StringFormat( Arg.Optional and "(%s%s)" or "<%s>",
+			Arg.Help or ParamTypes[ Arg.Type ].Help,
+			IsType( Arg.Default, "function" ) and "" or StringFormat( " [default: '%s']", Arg.Default ) )
+	end
+
+	Message[ #Message + 1 ] = self.HelpString
+
+	return TableConcat( Message, " " )
 end
 
 --[[
@@ -153,187 +183,263 @@ local TargetFuncs = {
 }
 
 local GetDefault = Shine.CommandUtil.GetDefaultValue
-local ParamTypes = Shine.CommandUtil.ParamTypes
 
 --Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
-ParamTypes.client = function( Client, String, Table )
-	if not String then
-		return GetDefault( Table ) or Client
-	end
-
-	local Target
-	if String == "^" then
-		Target = Client
-	elseif String:sub( 1, 1 ) == "$" then
-		local ID = String:sub( 2 )
-		local ToNum = tonumber( ID )
-
-		if ToNum then
-			Target = Shine.GetClientByNS2ID( ToNum )
-		else
-			Target = Shine:GetClientBySteamID( ID )
-		end
-	else
-		Target = Shine:GetClient( String )
-	end
-
-	if Table.NotSelf and Target == Client then
-		return nil, true
-	end
-
-	return Target
-end
---Clients looks for matching clients by game ID, Steam ID, name
---or special targeting directive. Returns a table of clients.
-ParamTypes.clients = function( Client, String, Table )
-	if not String then
-		return GetDefault( Table )
-	end
-
-	local Vals = StringExplode( String, "," )
-
-	local Clients = {}
-	local Targets = {}
-
-	local AllClients = Shine.GetAllClients()
-	local NumClients = #AllClients
-
-	for i = 1, #Vals do
-		local CurrentTargets = {}
-
-		local Val = Vals[ i ]
-		local Negate
-
-		local ControlChar = Val:sub( 1, 1 )
-
-		if ControlChar == "!" then
-			Val = Val:sub( 2 )
-			Negate = true
+ParamTypes.client = {
+	Parse = function( Client, String, Table )
+		if not String then
+			return GetDefault( Table ) or Client
 		end
 
-		--Targeting a user group.
-		if ControlChar == "%" then
-			local Group = Val:sub( 2 )
-			local InGroup = Shine:GetClientsByGroup( Group )
-
-			if #InGroup > 0 then
-				for j = 1, #InGroup do
-					local CurClient = InGroup[ j ]
-
-					if not CurrentTargets[ CurClient ] then
-						CurrentTargets[ CurClient ] = true
-					end
-				end
-			end
-		elseif ControlChar == "$" then --Targetting a specific Steam ID.
-			local ID = Val:sub( 2 )
+		local Target
+		if String == "^" then
+			Target = Client
+		elseif String:sub( 1, 1 ) == "$" then
+			local ID = String:sub( 2 )
 			local ToNum = tonumber( ID )
 
-			local CurClient
-
 			if ToNum then
-				CurClient = Shine.GetClientByNS2ID( ToNum )
+				Target = Shine.GetClientByNS2ID( ToNum )
 			else
-				CurClient = Shine:GetClientBySteamID( ID )
-			end
-
-			if CurClient and not CurrentTargets[ CurClient ] then
-				CurrentTargets[ CurClient ] = true
+				Target = Shine:GetClientBySteamID( ID )
 			end
 		else
-			if Val == "*" then --Targeting everyone.
-				for j = 1, NumClients do
-					local CurClient = AllClients[ j ]
+			Target = Shine:GetClient( String )
+		end
 
-					if CurClient and not CurrentTargets[ CurClient ] then
-						CurrentTargets[ CurClient ] = true
-					end
-				end
-			elseif Val == "^" then --Targeting yourself.
-				local CurClient = Client
+		if Table.NotSelf and Target == Client then
+			return nil, true
+		end
 
-				if not Table.NotSelf then
-					if not CurrentTargets[ CurClient ] then
-						CurrentTargets[ CurClient ] = true
-					end
-				end
-			else
-				if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
-					local Add = TargetFuncs[ Val ]()
+		return Target
+	end,
+	Help = "player",
+	OnFailedMatch = function( Client, Arg, SelfTargeting )
+		if SelfTargeting then
+			Shine:NotifyCommandError( Client, "You cannot target yourself with this command." )
+		else
+			Shine:NotifyCommandError( Client, "No matching player was found." )
+		end
+	end,
+	Validate = function( Client, Arg, ParsedArg )
+		if not ParsedArg then return true end
+		if Arg.IgnoreCanTarget then return true end
 
-					for j = 1, #Add do
-						local Adding = Add[ j ]
+		if not Shine:CanTarget( Client, ParsedArg ) then
+			Shine:NotifyCommandError( Client, "You do not have permission to target %s.",
+				true, ParsedArg:GetControllingPlayer():GetName() )
 
-						if not CurrentTargets[ Adding ] then
-							CurrentTargets[ Adding ] = true
-						end
-					end
-				else
-					local CurClient = Shine:GetClient( Val )
+			return false
+		end
 
-					if CurClient and not ( Table.NotSelf and CurClient == Client ) then
+		return true
+	end
+}
+--Clients looks for matching clients by game ID, Steam ID, name
+--or special targeting directive. Returns a table of clients.
+ParamTypes.clients = {
+	Parse = function( Client, String, Table )
+		if not String then
+			return GetDefault( Table )
+		end
+
+		local Vals = StringExplode( String, "," )
+
+		local Clients = {}
+		local Targets = {}
+
+		local AllClients = Shine.GetAllClients()
+		local NumClients = #AllClients
+
+		for i = 1, #Vals do
+			local CurrentTargets = {}
+
+			local Val = Vals[ i ]
+			local Negate
+
+			local ControlChar = Val:sub( 1, 1 )
+
+			if ControlChar == "!" then
+				Val = Val:sub( 2 )
+				Negate = true
+			end
+
+			--Targeting a user group.
+			if ControlChar == "%" then
+				local Group = Val:sub( 2 )
+				local InGroup = Shine:GetClientsByGroup( Group )
+
+				if #InGroup > 0 then
+					for j = 1, #InGroup do
+						local CurClient = InGroup[ j ]
+
 						if not CurrentTargets[ CurClient ] then
 							CurrentTargets[ CurClient ] = true
 						end
 					end
 				end
+			elseif ControlChar == "$" then --Targetting a specific Steam ID.
+				local ID = Val:sub( 2 )
+				local ToNum = tonumber( ID )
+
+				local CurClient
+
+				if ToNum then
+					CurClient = Shine.GetClientByNS2ID( ToNum )
+				else
+					CurClient = Shine:GetClientBySteamID( ID )
+				end
+
+				if CurClient and not CurrentTargets[ CurClient ] then
+					CurrentTargets[ CurClient ] = true
+				end
+			else
+				if Val == "*" then --Targeting everyone.
+					for j = 1, NumClients do
+						local CurClient = AllClients[ j ]
+
+						if CurClient and not CurrentTargets[ CurClient ] then
+							CurrentTargets[ CurClient ] = true
+						end
+					end
+				elseif Val == "^" then --Targeting yourself.
+					local CurClient = Client
+
+					if not Table.NotSelf then
+						if not CurrentTargets[ CurClient ] then
+							CurrentTargets[ CurClient ] = true
+						end
+					end
+				else
+					if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
+						local Add = TargetFuncs[ Val ]()
+
+						for j = 1, #Add do
+							local Adding = Add[ j ]
+
+							if not CurrentTargets[ Adding ] then
+								CurrentTargets[ Adding ] = true
+							end
+						end
+					else
+						local CurClient = Shine:GetClient( Val )
+
+						if CurClient and not ( Table.NotSelf and CurClient == Client ) then
+							if not CurrentTargets[ CurClient ] then
+								CurrentTargets[ CurClient ] = true
+							end
+						end
+					end
+				end
 			end
-		end
 
-		if Negate then
-			if not next( Targets ) then
-				for j = 1, NumClients do
-					local CurClient = AllClients[ j ]
+			if Negate then
+				if not next( Targets ) then
+					for j = 1, NumClients do
+						local CurClient = AllClients[ j ]
 
-					if not CurrentTargets[ CurClient ] then
-						Targets[ CurClient ] = true
+						if not CurrentTargets[ CurClient ] then
+							Targets[ CurClient ] = true
+						end
+					end
+				else
+					for CurClient, Bool in pairs( CurrentTargets ) do
+						Targets[ CurClient ] = nil
 					end
 				end
 			else
 				for CurClient, Bool in pairs( CurrentTargets ) do
-					Targets[ CurClient ] = nil
+					Targets[ CurClient ] = true
 				end
 			end
-		else
-			for CurClient, Bool in pairs( CurrentTargets ) do
-				Targets[ CurClient ] = true
-			end
 		end
-	end
 
-	if Table.NotSelf and Targets[ Client ] then
-		Targets[ Client ] = nil
-	end
+		if Table.NotSelf and Targets[ Client ] then
+			Targets[ Client ] = nil
+		end
 
-	for CurClient, Bool in pairs( Targets ) do
-		Clients[ #Clients + 1 ] = CurClient
-	end
+		for CurClient, Bool in pairs( Targets ) do
+			Clients[ #Clients + 1 ] = CurClient
+		end
 
-	return Clients
-end
+		return Clients
+	end,
+	Help = "players",
+	OnFailedMatch = function( Client, Arg )
+		Shine:NotifyCommandError( Client, "No matching players were found." )
+	end,
+	Validate = function( Client, Arg, ParsedArg )
+		if not ParsedArg then return true end
+		if #ParsedArg == 0 then
+			Shine:NotifyCommandError( Client, "No matching players found." )
+
+			return false
+		end
+
+		if Arg.IgnoreCanTarget then return true end
+
+		Shine.Stream( ParsedArg ):Reduce( function( Value )
+			return Shine:CanTarget( Client, Value )
+		end )
+
+		if #ParsedArg == 0 then
+			Shine:NotifyCommandError( Client,
+				"You do not have permission to target anyone you specified." )
+
+			return false
+		end
+
+		return true
+	end
+}
 --Team takes either 0 - 3 directly or takes a string matching a team name
 --and turns it into the team number.
-ParamTypes.team = function( Client, String, Table )
-	if not String then
-		return GetDefault( Table )
-	end
+ParamTypes.team = {
+	Parse = function( Client, String, Table )
+		if not String then
+			return GetDefault( Table )
+		end
 
-	local ToNum = tonumber( String )
+		local ToNum = tonumber( String )
 
-	if ToNum then return MathClamp( Round( ToNum ), 0, 3 ) end
+		if ToNum then return MathClamp( Round( ToNum ), 0, 3 ) end
 
-	String = String:lower()
+		String = String:lower()
 
-	if String:find( "ready" ) then return 0 end
-	if String:find( "marine" ) then return 1 end
-	if String:find( "blu" ) then return 1 end
-	if String:find( "alien" ) then return 2 end
-	if String:find( "orang" ) then return 2 end
-	if String:find( "gold" ) then return 2 end
-	if String:find( "spectat" ) then return 3 end
+		if String:find( "ready" ) then return 0 end
+		if String:find( "marine" ) then return 1 end
+		if String:find( "blu" ) then return 1 end
+		if String:find( "alien" ) then return 2 end
+		if String:find( "orang" ) then return 2 end
+		if String:find( "gold" ) then return 2 end
+		if String:find( "spectat" ) then return 3 end
 
-	return nil
-end
+		return nil
+	end,
+	Help = "team"
+}
+ParamTypes.steamid = {
+	Parse = function( Client, String, Table )
+		local Num = tonumber( String )
+		if Num then return Num end
+
+		return Shine.SteamIDToNS2( String )
+	end,
+	Validate = function( Client, Arg, ParsedArg )
+		if not ParsedArg then return true end
+		if Arg.IgnoreCanTarget then return true end
+
+		if not Shine:CanTarget( Client, ParsedArg ) then
+			Shine:NotifyCommandError( Client, "You do not have permission to target %s.",
+				true, ParsedArg )
+
+			return false
+		end
+
+		return true
+	end,
+	Help = "steamid"
+}
 
 local ParseParameter = Shine.CommandUtil.ParseParameter
 
@@ -439,10 +545,54 @@ local function PopCommandStack( self )
 	self.CommandStack[ #self.CommandStack ] = nil
 end
 
-local function GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args )
-	local Allowed, ArgRestrictions = self:GetPermission( Client, ConCommand )
+function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg )
+	local ParamType = ParamTypes[ CurArg.Type ]
+
+	--Convert the string argument into the requested type.
+	local Result, Extra = ParseParameter( Client, ArgString, CurArg )
+
+	--Specifically check for nil (boolean argument could be false).
+	if Result == nil and not CurArg.Optional then
+		if ParamType.OnFailedMatch then
+			ParamType.OnFailedMatch( Client, CurArg, Extra )
+		else
+			Shine:NotifyCommandError( Client,
+				CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
+				true, i, ConCommand, CurArg.Type )
+		end
+
+		return
+	end
+
+	local ArgType = CurArg.Type
+	local RestrictionIndex = tostring( i )
+
+	if ArgRestrictions and ArgRestrictions[ RestrictionIndex ] then
+		local Func = ArgValidators[ ArgType ]
+
+		--Apply restrictions.
+		if Func then
+			Result = Func( Client, Result, ArgRestrictions[ RestrictionIndex ] )
+
+			--The restriction wiped the argument as it's not allowed.
+			if Result == nil then
+				Shine:NotifyCommandError( Client,
+					"Invalid argument #%i, restricted in rank settings.", true, i )
+
+				return
+			end
+		end
+	end
+
+	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result ) then return end
+
+	return true, Result
+end
+
+function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )
+	local Allowed, ArgRestrictions = Shine:GetPermission( Client, ConCommand )
 	if not Allowed then
-		self:NotifyCommandError( Client, "You do not have permission to use %s.", true, ConCommand )
+		Shine:NotifyCommandError( Client, "You do not have permission to use %s.", true, ConCommand )
 
 		return
 	end
@@ -451,7 +601,7 @@ local function GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args
 	local ExpectedCount = #ExpectedArgs
 
 	if Args[ 1 ] == nil and ExpectedCount > 0 and not ExpectedArgs[ 1 ].Optional then
-		Notify( Client, FromChat, "%s - %s", true, ConCommand, Command.HelpString or "No help available." )
+		Notify( Client, FromChat, "%s - %s", true, ConCommand, Command:GetHelp() or "No help available." )
 
 		return
 	end
@@ -465,98 +615,20 @@ local function GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args
 
 		if TakeRestOfLine then
 			if i < ExpectedCount then
-				self:Print( "Take rest of line called on function expecting more arguments!" )
-				self:NotifyCommandError( Client,
+				Shine:Print( "Take rest of line called on function expecting more arguments!" )
+				Shine:NotifyCommandError( Client,
 					"The author of this command misconfigured it. If you know them, tell them!" )
 
-				return
+				return nil
 			end
 
-			ArgString = self.CommandUtil.BuildLineFromArgs( Args, i )
+			ArgString = self.BuildLineFromArgs( Args, i )
 		end
 
-		--Convert the string argument into the requested type.
-		local Result, Extra = ParseParameter( Client, ArgString, CurArg )
+		local Success, Result = self:GetCommandArg( Client, ConCommand, ArgString, CurArg )
+		if not Success then return nil end
+
 		ParsedArgs[ i ] = Result
-
-		--Specifically check for nil (boolean argument could be false).
-		if ParsedArgs[ i ] == nil and not CurArg.Optional then
-			if CurArg.Type:find( "client" ) then
-				if CurArg.Type == "client" and Extra then
-					self:NotifyCommandError( Client, "You cannot target yourself with this command." )
-				else
-					--No client means no match.
-					self:NotifyCommandError( Client, "No matching %s found.", true,
-						CurArg.Type == "client" and "player was" or "players were" )
-				end
-			else
-				self:NotifyCommandError( Client,
-					CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
-					true, i, ConCommand, CurArg.Type )
-			end
-
-			return
-		end
-
-		local ArgType = CurArg.Type
-		local RestrictionIndex = tostring( i )
-
-		if ArgRestrictions and ArgRestrictions[ RestrictionIndex ] then
-			local Func = ArgValidators[ ArgType ]
-
-			--Apply restrictions.
-			if Func then
-				ParsedArgs[ i ] = Func( Client, ParsedArgs[ i ],
-					ArgRestrictions[ RestrictionIndex ] )
-
-				--The restriction wiped the argument as it's not allowed.
-				if ParsedArgs[ i ] == nil then
-					self:NotifyCommandError( Client,
-						"Invalid argument #%i, restricted in rank settings.", true, i )
-
-					return
-				end
-			end
-		end
-
-		--Ensure the calling client can target the return client.
-		if ArgType == "client" and not CurArg.IgnoreCanTarget then
-			if not self:CanTarget( Client, ParsedArgs[ i ] ) then
-				self:NotifyCommandError( Client, "You do not have permission to target %s.",
-					true, ParsedArgs[ i ]:GetControllingPlayer():GetName() )
-
-				return
-			end
-		end
-
-		--Ensure the calling client can target every returned client.
-		if ArgType == "clients" and not CurArg.IgnoreCanTarget then
-			local ParsedArg = ParsedArgs[ i ]
-
-			if ParsedArg then
-				if #ParsedArg == 0 then
-					self:NotifyCommandError( Client, "No matching players found." )
-
-					return
-				end
-
-				local Offset = 0
-				for j = 1, #ParsedArg do
-					local Key = j - Offset
-					if not self:CanTarget( Client, ParsedArg[ Key ] ) then
-						TableRemove( ParsedArg, Key )
-						Offset = Offset + 1
-					end
-				end
-
-				if #ParsedArg == 0 then
-					self:NotifyCommandError( Client,
-						"You do not have permission to target anyone you specified." )
-
-					return
-				end
-			end
-		end
 	end
 
 	return ParsedArgs
@@ -580,13 +652,13 @@ function Shine:RunCommand( Client, ConCommand, FromChat, ... )
 
 	self.CommandStack[ #self.CommandStack + 1 ] = FromChat
 
-	local ParsedArgs = GetCommandArgs( self, Client, ConCommand, FromChat, Command, Args )
+	local ParsedArgs = self.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )
 	if not ParsedArgs then
 		PopCommandStack( self )
 		return
 	end
 
-	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs ) )
+	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs, 1, #Command.Arguments ) )
 
 	PopCommandStack( self )
 

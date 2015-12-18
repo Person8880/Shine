@@ -39,57 +39,69 @@ end
 
 Shine.CommandUtil.ParamTypes = {
 	--Strings return simply the string (clipped to max length if given).
-	string = function( Client, String, Table )
-		if not String or String == "" then
-			return GetDefault( Table )
-		end
+	string = {
+		Parse = function( Client, String, Table )
+			if not String or String == "" then
+				return GetDefault( Table )
+			end
 
-		return Table.MaxLength and StringUTF8Sub( String, 1, Table.MaxLength ) or String
-	end,
+			return Table.MaxLength and StringUTF8Sub( String, 1, Table.MaxLength ) or String
+		end,
+		Help = "string"
+	},
 	--Number performs tonumber() on the string and clamps the result between
 	--the given min and max if set. Also rounds if asked.
-	number = function( Client, String, Table )
-		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
+	number = {
+		Parse = function( Client, String, Table )
+			local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
-		if not Num then
-			return GetDefault( Table )
-		end
+			if not Num then
+				return GetDefault( Table )
+			end
 
-		return Table.Round and Round( Num ) or Num
-	end,
+			return Table.Round and Round( Num ) or Num
+		end,
+		Help = "number"
+	},
 	--Time value, either a direct number or a "nice" string value.
 	--Units can be specified if seconds are not desired.
-	time = function( Client, String, Table )
-		if not String or String == "" then
-			return GetDefault( Table )
-		end
-
-		local Time = tonumber( String )
-		if not Time then
-			Time = StringToTime( String )
-			if Table.Units then
-				Time = TimeToUnits( Time, Table.Units )
+	time = {
+		Parse = function( Client, String, Table )
+			if not String or String == "" then
+				return GetDefault( Table )
 			end
-		end
 
-		Time = MathClamp( Time, Table.Min, Table.Max )
+			local Time = tonumber( String )
+			if not Time then
+				Time = StringToTime( String )
+				if Table.Units then
+					Time = TimeToUnits( Time, Table.Units )
+				end
+			end
 
-		return Table.Round and Round( Time ) or Time
-	end,
+			Time = MathClamp( Time, Table.Min, Table.Max )
+
+			return Table.Round and Round( Time ) or Time
+		end,
+		Help = "time"
+	},
 	--Boolean turns "false" and 0 into false and everything else into true.
-	boolean = function( Client, String, Table )
-		if not String or String == "" then
-			return GetDefault( Table )
-		end
+	boolean = {
+		Parse = function( Client, String, Table )
+			if not String or String == "" then
+				return GetDefault( Table )
+			end
 
-		local ToNum = tonumber( String )
+			local ToNum = tonumber( String )
 
-		if ToNum then
-			return ToNum ~= 0
-		end
+			if ToNum then
+				return ToNum ~= 0
+			end
 
-		return String ~= "false"
-	end
+			return String ~= "false"
+		end,
+		Help = "boolean"
+	}
 }
 local ParamTypes = Shine.CommandUtil.ParamTypes
 
@@ -100,10 +112,10 @@ function Shine.CommandUtil.ParseParameter( Client, String, Table )
 	end
 
 	if String then
-		return ParamTypes[ Type ]( Client, String, Table )
+		return ParamTypes[ Type ].Parse( Client, String, Table )
 	else
 		if not Table.Optional then return nil end
-		return ParamTypes[ Type ]( Client, String, Table )
+		return ParamTypes[ Type ].Parse( Client, String, Table )
 	end
 end
 
