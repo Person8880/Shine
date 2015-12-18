@@ -58,6 +58,7 @@ local DefaultConfig = {
 		serverswitch = false,
 		tournamentmode = false,
 		unstuck = true,
+		usermanagement = true,
 		voterandom = false,
 		votesurrender = true,
 		welcomemessages = false,
