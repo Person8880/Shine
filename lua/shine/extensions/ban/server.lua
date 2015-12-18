@@ -558,13 +558,6 @@ function Plugin:CreateCommands()
 	local function BanID( Client, ID, Duration, Reason )
 		Duration = Duration * 60
 
-		if not Shine:CanTarget( Client, ID ) then
-			Shine:NotifyError( Client, "You cannot ban %s.", true, ID )
-			Shine:AdminPrint( Client, "You cannot ban %s.", true, ID )
-
-			return
-		end
-
 		local IDString = tostring( ID )
 
 		--We're currently waiting for a response on this ban.
