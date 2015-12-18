@@ -442,6 +442,11 @@ function PluginMeta:CanRunAction( Action, Time, Delay )
 	return true
 end
 
+function PluginMeta:Print( Message, Format, ... )
+	Shine:Print( "[%s] %s", true, rawget( self, "PrintName" ) or self.__Name,
+		Format and StringFormat( Message, ... ) or Message )
+end
+
 local ReservedKeys = {
 	Enabled = true,
 	Suspended = true
