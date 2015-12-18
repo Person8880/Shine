@@ -307,18 +307,6 @@ do
 	end
 end
 
---[[
-	Helper for printing when the client may be the server console.
-]]
-local function PrintToConsole( Client, Message )
-	if not Client then
-		Notify( Message )
-		return
-	end
-
-	ServerAdminPrint( Client, Message )
-end
-
 local function NotifyError( Client, Message, Format, ... )
 	if not Client then
 		Notify( Format and StringFormat( Message, ... ) or Message )
@@ -407,7 +395,7 @@ function Plugin:CreateInfoCommands()
 		FirstIndexToShow = Min( FirstIndexToShow, NumCommands )
 		LastIndexToShow = Min( LastIndexToShow, NumCommands )
 
-		PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:",
+		Shine.PrintToConsole( Client, StringFormat( "Available commands (%s-%s; %s total)%s:",
 			FirstIndexToShow, LastIndexToShow, NumCommands,
 			Search == nil and "" or StringFormat( " matching %q", Search ) ) )
 
@@ -423,7 +411,7 @@ function Plugin:CreateInfoCommands()
 					local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName,
 						ChatCommand, Command:GetHelp() or "No help available." )
 
-					PrintToConsole( Client, HelpLine )
+					Shine.PrintToConsole( Client, HelpLine )
 				end
 			end
 		end
@@ -439,81 +427,13 @@ function Plugin:CreateInfoCommands()
 				"There are more commands! Re-issue the \"sh_help%s\" command to view them.",
 				Search == nil and "" or StringFormat( " %s", Search ) )
 		end
-		PrintToConsole( Client, EndMessage )
+		Shine.PrintToConsole( Client, EndMessage )
 	end
 	local HelpCommand = self:BindCommand( "sh_help", nil, Help, true )
 	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true, Help = "search text" }
 	HelpCommand:Help( "View help info for available commands (omit <search text> to see all)." )
 
-	local StringRep = string.rep
-
-	local function PrintTableToConsole( Client, Columns, Data )
-		local CharSizes = {}
-		local RowData = {}
-		local TotalLength = 0
-		-- I really wish the console was a monospace font...
-		local SpaceMultiplier = 1.5
-
-		for i = 1, #Columns do
-			local Column = Columns[ i ]
-
-			Column.OldName = Column.OldName or Column.Name
-			Column.Name = Column.OldName..StringRep( " ", 4 )
-
-			local Name = Column.Name
-			local Getter = Column.Getter
-
-			local Rows = {}
-
-			local Max = #Name
-			for j = 1, #Data do
-				local Entry = Data[ j ]
-
-				local String = Getter( Entry )
-				local StringLength = #String + 4
-				if StringLength > Max then
-					Max = StringLength
-				end
-
-				Rows[ j ] = String
-			end
-
-			for j = 1, #Rows do
-				local Entry = Rows[ j ]
-				local Diff = Max - #Entry
-				if Diff > 0 then
-					Rows[ j ] = Entry..StringRep( " ", Diff )
-				end
-			end
-
-			TotalLength = TotalLength + Max
-
-			local NameDiff = Max - #Name
-			if NameDiff > 0 then
-				Column.Name = Name..StringRep( " ", Floor( NameDiff * SpaceMultiplier ) )
-			end
-
-			RowData[ i ] = Rows
-		end
-
-		local TopRow = {}
-		for i = 1, #Columns do
-			TopRow[ i ] = Columns[ i ].Name
-		end
-
-		PrintToConsole( Client, TableConcat( TopRow, "" ) )
-		PrintToConsole( Client, StringRep( "=", TotalLength ) )
-
-		for i = 1, #Data do
-			local Row = {}
-
-			for j = 1, #RowData do
-				Row[ j ] = RowData[ j ][ i ]
-			end
-
-			PrintToConsole( Client, TableConcat( Row, "" ) )
-		end
-	end
+	local PrintTableToConsole = Shine.PrintTableToConsole
 
 	local NameColumn = {
 		Name = "Name",
@@ -550,7 +470,7 @@ function Plugin:CreateInfoCommands()
 			return false
 		end )
 
-		PrintToConsole( Client, StringFormat( "Showing %s:", Count == 1 and "1 connected player" or Count.." connected players" ) )
+		Shine.PrintToConsole( Client, StringFormat( "Showing %s:", Count == 1 and "1 connected player" or Count.." connected players" ) )
 
 		local Columns = {
 			{
@@ -630,7 +550,7 @@ function Plugin:CreateInfoCommands()
 
 		local Player = Target:GetControllingPlayer()
 		if not Player then
-			PrintToConsole( Client, "Unknown user." )
+			Shine.PrintToConsole( Client, "Unknown user." )
 
 			return
 		end

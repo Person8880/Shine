@@ -7,6 +7,7 @@ local Shine = Shine
 local Ceil = math.ceil
 local Date = os.date
 local Floor = math.floor
+local Notify = Shared.Message
 local StringFormat = string.format
 local TableConcat = table.concat
 local type = type
@@ -41,7 +42,7 @@ Shared.OldMessage = Shared.OldMessage or Shared.Message
 	and this function was its first feature.
 ]]
 function Shared.Message( String )
-	return Shared.OldMessage( GetTimeString()..String )
+	return Notify( GetTimeString()..String )
 end
 
 local function GetCurrentLogFile()
@@ -369,4 +370,87 @@ function Shine:AdminPrint( Client, String, Format, ... )
 	if not Client then return end
 
 	return ServerAdminPrint( Client, Message )
+end
+
+do
+	local StringRep = string.rep
+
+	local function PrintToConsole( Client, Message )
+		if not Client then
+			Notify( Message )
+			return
+		end
+
+		ServerAdminPrint( Client, Message )
+	end
+
+	Shine.PrintToConsole = PrintToConsole
+
+	function Shine.PrintTableToConsole( Client, Columns, Data )
+		local CharSizes = {}
+		local RowData = {}
+		local TotalLength = 0
+		-- I really wish the console was a monospace font...
+		local SpaceMultiplier = 1.5
+
+		for i = 1, #Columns do
+			local Column = Columns[ i ]
+
+			Column.OldName = Column.OldName or Column.Name
+			Column.Name = Column.OldName..StringRep( " ", 4 )
+
+			local Name = Column.Name
+			local Getter = Column.Getter
+
+			local Rows = {}
+
+			local Max = #Name
+			for j = 1, #Data do
+				local Entry = Data[ j ]
+
+				local String = Getter( Entry )
+				local StringLength = #String + 4
+				if StringLength > Max then
+					Max = StringLength
+				end
+
+				Rows[ j ] = String
+			end
+
+			for j = 1, #Rows do
+				local Entry = Rows[ j ]
+				local Diff = Max - #Entry
+				if Diff > 0 then
+					Rows[ j ] = Entry..StringRep( " ", Diff )
+				end
+			end
+
+			TotalLength = TotalLength + Max
+
+			local NameDiff = Max - #Name
+			if NameDiff > 0 then
+				Column.Name = Name..StringRep( " ", Floor( NameDiff * SpaceMultiplier ) )
+			end
+
+			RowData[ i ] = Rows
+		end
+
+		local TopRow = {}
+		for i = 1, #Columns do
+			TopRow[ i ] = Columns[ i ].Name
+		end
+
+		PrintToConsole( Client, TableConcat( TopRow, "" ) )
+		PrintToConsole( Client, StringRep( "=", TotalLength ) )
+
+		for i = 1, #Data do
+			local Row = {}
+
+			for j = 1, #RowData do
+				Row[ j ] = RowData[ j ][ i ]
+			end
+
+			PrintToConsole( Client, TableConcat( Row, "" ) )
+		end
+	end
 end
