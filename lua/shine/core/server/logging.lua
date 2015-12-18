@@ -317,6 +317,7 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 
 		while i <= #Words do
 			local Text = TableConcat( Words, " ", Start, i )
+
 			if StringLen( Text ) > MaxPrintLength then
 				if i == Start then
 					TableInsert( Words, i + 1, StringSub( Text, MaxPrintLength + 1 ) )
@@ -326,6 +327,7 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 				else
 					Text = TableConcat( Words, " ", Start, i - 1 )
 					Start = i
+					i = i - 1
 				end
 
 				Lines[ #Lines + 1 ] = Text
