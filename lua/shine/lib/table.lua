@@ -58,6 +58,20 @@ function table.Mixin( Source, Destination, Keys )
 end
 
 --[[
+	Merges any missing keys in the destination table from the source table.
+	Does not recurse.
+]]
+function table.ShallowMerge( Source, Destination )
+	for Key, Value in pairs( Source ) do
+		if Destination[ Key ] == nil then
+			Destination[ Key ] = Value
+		end
+	end
+
+	return Destination
+end
+
+--[[
 	Returns a new table that holds the same elements as the input table but in reverse order.
 ]]
 function table.Reverse( Table )

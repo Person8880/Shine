@@ -31,3 +31,18 @@ UnitTest:Test( "Mixin", function( Assert )
 	Assert:True( Destination.MoreCake )
 	Assert:Nil( Destination.SoMuchCake )
 end )
+
+UnitTest:Test( "ShallowMerge", function( Assert )
+	local Source = {
+		Cake = true,
+		MoreCake = false
+	}
+	local Destination = {
+		Cake = false
+	}
+
+	table.ShallowMerge( Source, Destination )
+
+	Assert:False( Destination.Cake )
+	Assert:False( Destination.MoreCake )
+end )
