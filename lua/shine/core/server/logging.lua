@@ -286,7 +286,7 @@ end
 
 local OldServerAdminPrint = ServerAdminPrint
 
-local MaxPrintLength = 128
+local MaxPrintLength = 127
 
 Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime )
 	local StringExplode = string.Explode
@@ -300,7 +300,7 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 
 		Also make it word-wrap overflowing text.
 	]]
-	function ServerAdminPrint( Client, Message )
+	function ServerAdminPrint( Client, Message, TextWrap )
 		if not Client then return end
 
 		local Len = StringLen( Message )
@@ -310,32 +310,40 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 			return
 		end
 
-		local Words = StringExplode( Message, " " )
 		local Lines = {}
-		local i = 1
-		local Start = i
 
-		while i <= #Words do
-			local Text = TableConcat( Words, " ", Start, i )
+		if TextWrap then
+			local Parts = Ceil( Len / MaxPrintLength )
+			for i = 1, Parts do
+				Lines[ i ] = StringSub( Message, ( i - 1 ) * MaxPrintLength + 1, i * MaxPrintLength )
+			end
+		else
+			local Words = StringExplode( Message, " " )
+			local i = 1
+			local Start = i
 
-			if StringLen( Text ) > MaxPrintLength then
-				if i == Start then
-					TableInsert( Words, i + 1, StringSub( Text, MaxPrintLength + 1 ) )
-					Text = StringSub( Text, 1, MaxPrintLength )
+			while i <= #Words do
+				local Text = TableConcat( Words, " ", Start, i )
 
-					Start = i + 1
-				else
-					Text = TableConcat( Words, " ", Start, i - 1 )
-					Start = i
-					i = i - 1
+				if StringLen( Text ) > MaxPrintLength then
+					if i == Start then
+						TableInsert( Words, i + 1, StringSub( Text, MaxPrintLength + 1 ) )
+						Text = StringSub( Text, 1, MaxPrintLength )
+
+						Start = i + 1
+					else
+						Text = TableConcat( Words, " ", Start, i - 1 )
+						Start = i
+						i = i - 1
+					end
+
+					Lines[ #Lines + 1 ] = Text
+				elseif i == #Words then
+					Lines[ #Lines + 1 ] = Text
 				end
 
-				Lines[ #Lines + 1 ] = Text
-			elseif i == #Words then
-				Lines[ #Lines + 1 ] = Text
+				i = i + 1
 			end
-
-			i = i + 1
 		end
 
 		for i = 1, #Lines do
