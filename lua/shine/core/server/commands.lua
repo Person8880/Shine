@@ -63,6 +63,23 @@ do
 		return ParamType.Help( Arg )
 	end
 
+	local function GetArgDefaultMessage( Arg, ParamType )
+		if IsType( Arg.Default, "function" ) then
+			return ""
+		end
+
+		local Default = Arg.Default
+		if Default == nil then
+			Default = ParamType.Default
+		end
+
+		if Default ~= nil then
+			return StringFormat( " [default: '%s']", Default )
+		end
+
+		return ""
+	end
+
 	function CommandMeta:GetHelp()
 		local Args = self.Arguments
 
@@ -78,7 +95,7 @@ do
 			local ParamType = ParamTypes[ Arg.Type ]
 			Message[ i ] = StringFormat( Arg.Optional and "(%s%s)" or "<%s>",
 				GetArgHelp( Arg, ParamType ),
-				IsType( Arg.Default, "function" ) and "" or StringFormat( " [default: '%s']", Arg.Default ) )
+				GetArgDefaultMessage( Arg, ParamType ) )
 		end
 
 		Message[ #Message + 1 ] = self.HelpString
@@ -246,7 +263,8 @@ ParamTypes.client = {
 		end
 
 		return true
-	end
+	end,
+	Default = "^"
 }
 --Clients looks for matching clients by game ID, Steam ID, name
 --or special targeting directive. Returns a table of clients.
