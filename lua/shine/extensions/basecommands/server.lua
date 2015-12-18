@@ -134,9 +134,14 @@ do
 			Key = "BWLimit",
 			Transformer = function( Value ) return Value * 1024 end,
 			Default = function() return Server.GetBwLimit() end,
-			Command = "bwlimit %s"
+			Command = "bwlimit %s",
+			WarnIfBelow = 50
 		}
 	}
+
+	local function Transform( Rate, Value )
+		return Rate.Transformer and Rate.Transformer( Value ) or Value
+	end
 
 	function Plugin:CheckRateValues()
 		if Validator:Validate( self.Config ) then
@@ -146,11 +151,7 @@ do
 
 		for i = 1, #Rates do
 			local Rate = Rates[ i ]
-			local ConfigValue = self.Config[ Rate.Key ]
-			if Rate.Transformer then
-				ConfigValue = Rate.Transformer( ConfigValue )
-			end
-
+			local ConfigValue = Transform( Rate, self.Config[ Rate.Key ] )
 			local Default = IsType( Rate.Default, "function" ) and Rate.Default() or Rate.Default
 
 			if ConfigValue ~= Default then
@@ -158,6 +159,10 @@ do
 					or StringFormat( Rate.Command, ConfigValue )
 
 				Shared.ConsoleCommand( Command )
+			end
+
+			if Rate.WarnIfBelow and ConfigValue < Transform( Rate, Rate.WarnIfBelow ) then
+				Notify( StringFormat( "WARNING: %s is below the default of %s", Rate.Key, Rate.WarnIfBelow ) )
 			end
 		end
 	end
