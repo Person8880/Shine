@@ -11,7 +11,6 @@ Stream.__index = Stream
 
 function Stream:Init( Table )
 	self.Data = Table
-	self.Operations = {}
 
 	return self
 end
