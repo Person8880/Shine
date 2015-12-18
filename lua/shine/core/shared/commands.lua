@@ -83,7 +83,7 @@ Shine.CommandUtil.ParamTypes = {
 
 			return Table.Round and Round( Time ) or Time
 		end,
-		Help = "time"
+		Help = function( Arg ) return StringFormat( "duration in %s", Arg.Units or "seconds" ) end
 	},
 	--Boolean turns "false" and 0 into false and everything else into true.
 	boolean = {

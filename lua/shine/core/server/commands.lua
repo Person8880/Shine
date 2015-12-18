@@ -52,26 +52,39 @@ function CommandMeta:Help( HelpString )
 	return self
 end
 
-function CommandMeta:GetHelp()
-	local Args = self.Arguments
+do
+	local function GetArgHelp( Arg, ParamType )
+		if Arg.Help then return Arg.Help end
 
-	-- Legacy help message.
-	if #Args == 0 or StringStartsWith( self.HelpString, "<" ) then
-		return self.HelpString
+		if IsType( ParamType.Help, "string" ) then
+			return ParamType.Help
+		end
+
+		return ParamType.Help( Arg )
 	end
 
-	local Message = {}
+	function CommandMeta:GetHelp()
+		local Args = self.Arguments
 
-	for i = 1, #Args do
-		local Arg = Args[ i ]
-		Message[ i ] = StringFormat( Arg.Optional and "(%s%s)" or "<%s>",
-			Arg.Help or ParamTypes[ Arg.Type ].Help,
-			IsType( Arg.Default, "function" ) and "" or StringFormat( " [default: '%s']", Arg.Default ) )
+		-- Legacy help message.
+		if #Args == 0 or StringStartsWith( self.HelpString, "<" ) then
+			return self.HelpString
+		end
+
+		local Message = {}
+
+		for i = 1, #Args do
+			local Arg = Args[ i ]
+			local ParamType = ParamTypes[ Arg.Type ]
+			Message[ i ] = StringFormat( Arg.Optional and "(%s%s)" or "<%s>",
+				GetArgHelp( Arg, ParamType ),
+				IsType( Arg.Default, "function" ) and "" or StringFormat( " [default: '%s']", Arg.Default ) )
+		end
+
+		Message[ #Message + 1 ] = self.HelpString
+
+		return TableConcat( Message, " " )
 	end
-
-	Message[ #Message + 1 ] = self.HelpString
-
-	return TableConcat( Message, " " )
 end
 
 --[[
