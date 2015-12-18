@@ -632,7 +632,8 @@ function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command
 	local ExpectedCount = #ExpectedArgs
 
 	if Args[ 1 ] == nil and ExpectedCount > 0 and not ExpectedArgs[ 1 ].Optional then
-		Notify( Client, FromChat, "%s - %s", true, ConCommand, Command:GetHelp() or "No help available." )
+		Notify( Client, FromChat, "%s - %s%s", true, ConCommand, Command:GetHelp() or "No help available.",
+			Command.GetAdditionalInfo and Command:GetAdditionalInfo() or "" )
 
 		return
 	end
