@@ -111,7 +111,7 @@ function Plugin:CreateCommands()
 	end
 	local ShowMotDCommand = self:BindCommand( "sh_showmotd", "showmotd", ShowMotD )
 	ShowMotDCommand:AddParam{ Type = "client" }
-	ShowMotDCommand:Help( "<player> Shows the message of the day to the given player." )
+	ShowMotDCommand:Help( "Shows the message of the day to the given player." )
 end
 
 Shine:RegisterExtension( "motd", Plugin )

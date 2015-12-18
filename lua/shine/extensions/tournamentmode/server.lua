@@ -531,9 +531,9 @@ function Plugin:CreateCommands()
 	end
 	local SetTeamNamesCommand = self:BindCommand( "sh_setteamnames",
 		{ "teamnames" }, SetTeamNames )
-	SetTeamNamesCommand:AddParam{ Type = "string", Optional = true, Default = "" }
-	SetTeamNamesCommand:AddParam{ Type = "string", Optional = true, Default = "" }
-	SetTeamNamesCommand:Help( "<Marine Name> <Alien Name> Sets the names of the marine and alien teams." )
+	SetTeamNamesCommand:AddParam{ Type = "string", Optional = true, Default = "", Help = "Marine Name" }
+	SetTeamNamesCommand:AddParam{ Type = "string", Optional = true, Default = "", Help = "Alien Name" }
+	SetTeamNamesCommand:Help( "Sets the names of the marine and alien teams." )
 
 	local function SetTeamScores( Client, Marine, Alien )
 		self.TeamScores[ 1 ] = Marine
@@ -544,9 +544,11 @@ function Plugin:CreateCommands()
 	end
 	local SetTeamScoresCommand = self:BindCommand( "sh_setteamscores",
 		{ "scores" }, SetTeamScores )
-	SetTeamScoresCommand:AddParam{ Type = "number", Min = 0, Max = 255, Round = true, Optional = true, Default = 0 }
-	SetTeamScoresCommand:AddParam{ Type = "number", Min = 0, Max = 255, Round = true, Optional = true, Default = 0 }
-	SetTeamScoresCommand:Help( "<Marine Score> <Alien Score> Sets the score for the marine and alien teams." )
+	SetTeamScoresCommand:AddParam{ Type = "number", Min = 0, Max = 255, Round = true, Optional = true, Default = 0,
+		Help = "Marine Score" }
+	SetTeamScoresCommand:AddParam{ Type = "number", Min = 0, Max = 255, Round = true, Optional = true, Default = 0,
+		Help = "Alien Score" }
+	SetTeamScoresCommand:Help( "Sets the score for the marine and alien teams." )
 end
 
 function Plugin:Cleanup()

@@ -50,7 +50,7 @@ function Plugin:CreateCommands()
 		local TargetPlayer = Target:GetControllingPlayer()
 
 		if not TargetPlayer then return end
-		
+
 		local CallingInfo = Shine.GetClientInfo( Client )
 		local TargetInfo = Shine.GetClientInfo( Target )
 
@@ -59,8 +59,8 @@ function Plugin:CreateCommands()
 		Shine:Print( "%s was renamed to '%s' by %s.", true, TargetInfo, NewName, CallingInfo )
 	end )
 	RenameCommand:AddParam{ Type = "client" }
-	RenameCommand:AddParam{ Type = "string", TakeRestOfLine = true }
-	RenameCommand:Help( "<player> <new name> Renames the given player." )
+	RenameCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "new name" }
+	RenameCommand:Help( "Renames the given player." )
 end
 
 Plugin.FilterActions = {
@@ -69,15 +69,15 @@ Plugin.FilterActions = {
 		for i = 1, Random( 5, 10 ) do
 			UserName[ i ] = StringChar( Random( 65, 122 ) )
 		end
-		
+
 		local FinalUserName = TableConcat( UserName, "" )
-		
+
 		Player:SetName( FinalUserName )
 
 		local Client = GetOwner( Player )
 
 		if not Client then return end
-	
+
 		Shine:Print( "[NameFilter] Client %s[%s] was renamed from filtered name: %s", true,
 			FinalUserName, Client:GetUserId(), OldName )
 	end,
@@ -86,7 +86,7 @@ Plugin.FilterActions = {
 		local Client = GetOwner( Player )
 
 		if not Client then return end
-		
+
 		Shine:Print( "[NameFilter] Client %s[%s] was kicked for filtered name.", true,
 			OldName, Client:GetUserId() )
 
@@ -140,7 +140,7 @@ function Plugin:ProcessFilter( Player, Name, Pattern, Excluded )
 
 	if Start then
 		self.FilterActions[ self.Config.FilterAction ]( self, Player, Name )
-	
+
 		return true
 	end
 end

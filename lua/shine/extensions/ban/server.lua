@@ -514,13 +514,15 @@ function Plugin:CreateCommands()
 	BanCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
-		Default = "No reason given." }
-	BanCommand:Help( "<player> <duration in minutes> <reason> Bans the given player for the given time in minutes. 0 is a permanent ban." )
+		Default = "No reason given.", Help = "reason" }
+	BanCommand:Help( "Bans the given player for the given time in minutes. 0 is a permanent ban." )
 
 	--[[
 		Unban by Steam ID.
 	]]
 	local function Unban( Client, ID )
+		ID = tostring( ID )
+
 		if self.Config.Banned[ ID ] then
 			--We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
@@ -547,8 +549,8 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( Client, ErrorText )
 	end
 	local UnbanCommand = self:BindCommand( "sh_unban", "unban", Unban )
-	UnbanCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to unban." }
-	UnbanCommand:Help( "<steamid> Unbans the given Steam ID." )
+	UnbanCommand:AddParam{ Type = "steamid", Error = "Please specify a Steam ID to unban.", IgnoreCanTarget = true }
+	UnbanCommand:Help( "Unbans the given Steam ID." )
 
 	--[[
 		Ban by Steam ID whether they're in the server or not.
@@ -556,50 +558,40 @@ function Plugin:CreateCommands()
 	local function BanID( Client, ID, Duration, Reason )
 		Duration = Duration * 60
 
-		--We want the NS2ID, not Steam ID.
-		if ID:find( "STEAM" ) then
-			ID = Shine.SteamIDToNS2( ID )
-
-			if not ID then
-				Shine:NotifyError( Client, "Invalid Steam ID for banning." )
-				Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
-
-				return
-			end
-		end
-
-		if not Shine:CanTarget( Client, tonumber( ID ) ) then
+		if not Shine:CanTarget( Client, ID ) then
 			Shine:NotifyError( Client, "You cannot ban %s.", true, ID )
 			Shine:AdminPrint( Client, "You cannot ban %s.", true, ID )
 
 			return
 		end
 
+		local IDString = tostring( ID )
+
 		--We're currently waiting for a response on this ban.
-		if self.Retries[ ID ] then
+		if self.Retries[ IDString ] then
 			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
-				true, ID )
+				true, IDString )
 			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
-				true, ID )
+				true, IDString )
 
 			return
 		end
 
 		local BanningName = Client and Client:GetControllingPlayer():GetName() or "Console"
 		local BanningID = Client and Client:GetUserId() or 0
-		local Target = Shine.GetClientByNS2ID( tonumber( ID ) )
+		local Target = Shine.GetClientByNS2ID( ID )
 		local TargetName = "<unknown>"
 
 		if Target then
 			TargetName = Target:GetControllingPlayer():GetName()
 		end
 
-		if self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason ) then
+		if self:AddBan( IDString, TargetName, Duration, BanningName, BanningID, Reason ) then
 			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 				or "permanently"
 
 			Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName,
-				ID, DurationString )
+				IDString, DurationString )
 
 			if Target then
 				Server.DisconnectClient( Target )
@@ -614,12 +606,12 @@ function Plugin:CreateCommands()
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
 	local BanIDCommand = self:BindCommand( "sh_banid", "banid", BanID )
-	BanIDCommand:AddParam{ Type = "string", Error = "Please specify a Steam ID to ban." }
+	BanIDCommand:AddParam{ Type = "steamid", Error = "Please specify a Steam ID to ban." }
 	BanIDCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
-		Default = "No reason given." }
-	BanIDCommand:Help( "<steamid> <duration in minutes> <reason> Bans the given Steam ID for the given time in minutes. 0 is a permanent ban." )
+		Default = "No reason given.", Help = "reason" }
+	BanIDCommand:Help( "Bans the given Steam ID for the given time in minutes. 0 is a permanent ban." )
 
 	local function ListBans( Client )
 		if not next( self.Config.Banned ) then

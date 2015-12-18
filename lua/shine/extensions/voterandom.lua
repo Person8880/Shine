@@ -1552,7 +1552,7 @@ function Plugin:CreateCommands()
 		{ "enablerandom", "enableshuffle" }, ForceRandomTeams )
 	ForceRandomCommand:AddParam{ Type = "boolean", Optional = true,
 		Default = function() return not self.ForceRandom end }
-	ForceRandomCommand:Help( "<true/false> Enables (and applies) or disables forcing shuffled teams." )
+	ForceRandomCommand:Help( "Enables (and applies) or disables forcing shuffled teams." )
 
 	local function ViewTeamStats( Client )
 		if self.Config.BalanceMode ~= self.MODE_HIVE then
