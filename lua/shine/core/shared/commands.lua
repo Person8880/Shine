@@ -105,18 +105,33 @@ Shine.CommandUtil.ParamTypes = {
 }
 local ParamTypes = Shine.CommandUtil.ParamTypes
 
-function Shine.CommandUtil.ParseParameter( Client, String, Table )
-	local Type = Table.Type
+local function ParseByType( Client, String, Table, Type )
 	if not ParamTypes[ Type ] then
 		return nil
 	end
 
-	if String then
-		return ParamTypes[ Type ].Parse( Client, String, Table )
-	else
-		if not Table.Optional then return nil end
-		return ParamTypes[ Type ].Parse( Client, String, Table )
+	return ParamTypes[ Type ].Parse( Client, String, Table )
+end
+
+function Shine.CommandUtil.ParseParameter( Client, String, Table )
+	if not String and not Table.Optional then return nil end
+
+	-- Single typed value.
+	local Type = Table.Type
+	if IsType( Type, "string" ) then
+		return ParseByType( Client, String, Table, Type )
 	end
+
+	-- Multi-type value, take the first parse that succeeds.
+	for i = 1, #Type do
+		local Value, Extra = ParseByType( Client, String, Table, Type[ i ] )
+		if Value ~= nil then
+			return Value, Extra, Type[ i ]
+		end
+	end
+
+	-- If none succeed, then use the first type as the failure point.
+	return nil, nil, Type[ 1 ]
 end
 
 function Shine.CommandUtil.BuildLineFromArgs( Args, i )

@@ -53,9 +53,7 @@ function CommandMeta:Help( HelpString )
 end
 
 do
-	local function GetArgHelp( Arg, ParamType )
-		if Arg.Help then return Arg.Help end
-
+	local function GetParamHelp( ParamType, Arg )
 		if IsType( ParamType.Help, "string" ) then
 			return ParamType.Help
 		end
@@ -63,10 +61,28 @@ do
 		return ParamType.Help( Arg )
 	end
 
-	local function GetArgDefaultMessage( Arg, ParamType )
+	local function GetArgHelp( Arg, Type )
+		if Arg.Help then return Arg.Help end
+
+		if IsType( Type, "string" ) then
+			return GetParamHelp( ParamTypes[ Type ], Arg )
+		end
+
+		local ParamHelpText = {}
+
+		for i = 1, #Type do
+			ParamHelpText[ i ] = GetParamHelp( ParamTypes[ Type[ i ] ], Arg )
+		end
+
+		return TableConcat( ParamHelpText, " or " )
+	end
+
+	local function GetArgDefaultMessage( Arg, Type )
 		if IsType( Arg.Default, "function" ) then
 			return ""
 		end
+
+		local ParamType = IsType( Type, "string" ) and ParamTypes[ Type ] or ParamTypes[ Type[ 1 ] ]
 
 		local Default = Arg.Default
 		if Default == nil then
@@ -92,10 +108,12 @@ do
 
 		for i = 1, #Args do
 			local Arg = Args[ i ]
+			local Type = Arg.Type
+
 			local ParamType = ParamTypes[ Arg.Type ]
 			Message[ i ] = StringFormat( Arg.Optional and "(%s%s)" or "<%s>",
-				GetArgHelp( Arg, ParamType ),
-				GetArgDefaultMessage( Arg, ParamType ) )
+				GetArgHelp( Arg, Type ),
+				GetArgDefaultMessage( Arg, Type ) )
 		end
 
 		Message[ #Message + 1 ] = self.HelpString
@@ -577,10 +595,11 @@ local function PopCommandStack( self )
 end
 
 function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg )
-	local ParamType = ParamTypes[ CurArg.Type ]
-
 	--Convert the string argument into the requested type.
-	local Result, Extra = ParseParameter( Client, ArgString, CurArg )
+	local Result, Extra, MatchedType = ParseParameter( Client, ArgString, CurArg )
+	MatchedType = MatchedType or CurArg.Type
+
+	local ParamType = ParamTypes[ MatchedType ]
 
 	--Specifically check for nil (boolean argument could be false).
 	if Result == nil and not CurArg.Optional then
@@ -595,11 +614,10 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg 
 		return
 	end
 
-	local ArgType = CurArg.Type
 	local RestrictionIndex = tostring( i )
 
 	if ArgRestrictions and ArgRestrictions[ RestrictionIndex ] then
-		local Func = ArgValidators[ ArgType ]
+		local Func = ArgValidators[ MatchedType ]
 
 		--Apply restrictions.
 		if Func then
