@@ -416,9 +416,7 @@ function Plugin:CreateCommands()
 
 				local Group = Shine:GetGroupData( GroupName )
 				Shine.PrintToConsole( Client, StringFormat( "Displaying information for group '%s':", GroupName ) )
-
-				local Commands = TableConcat( Group.Commands, ", " )
-				Shine.PrintToConsole( Client, StringFormat( "Commands:\n%s", Commands ) )
+				Shine.PrintToConsole( Client, StringFormat( "Commands:\n%s", TableConcat( Group.Commands, ", " ) ) )
 				Shine.PrintToConsole( Client, StringFormat( "Immunity: %i", Group.Immunity ) )
 				Shine.PrintToConsole( Client, StringFormat( "Commands are a blacklist: %s", Group.IsBlacklist and "Yes" or "No" ) )
 				if Group.InheritsFrom then
