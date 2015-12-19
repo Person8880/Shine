@@ -30,6 +30,7 @@ local tostring = tostring
 
 local Plugin = {}
 Plugin.Version = "2.0"
+Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteRandom.json"
@@ -1339,7 +1340,7 @@ function Plugin:ClientConnect( Client )
 
 	if not self.ReconnectingClients[ Client:GetUserId() ] then return end
 
-	Shine:Print( "[Shuffle] Client %s reconnected after a shuffle vote.", true,
+	self:Print( "Client %s reconnected after a shuffle vote.", true,
 		Shine.GetClientInfo( Client ) )
 end
 

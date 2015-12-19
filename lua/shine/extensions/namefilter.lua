@@ -17,6 +17,8 @@ local tostring = tostring
 
 local Plugin = {}
 
+Plugin.PrintName = "Name Filter"
+
 Plugin.ConfigName = "NameFilter.json"
 Plugin.HasConfig = true
 
@@ -56,7 +58,7 @@ function Plugin:CreateCommands()
 
 		TargetPlayer:SetName( NewName )
 
-		Shine:Print( "%s was renamed to '%s' by %s.", true, TargetInfo, NewName, CallingInfo )
+		self:Print( "%s was renamed to '%s' by %s.", true, TargetInfo, NewName, CallingInfo )
 	end )
 	RenameCommand:AddParam{ Type = "client" }
 	RenameCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "new name" }
@@ -78,7 +80,7 @@ Plugin.FilterActions = {
 
 		if not Client then return end
 
-		Shine:Print( "[NameFilter] Client %s[%s] was renamed from filtered name: %s", true,
+		self:Print( "Client %s[%s] was renamed from filtered name: %s", true,
 			FinalUserName, Client:GetUserId(), OldName )
 	end,
 
@@ -87,7 +89,7 @@ Plugin.FilterActions = {
 
 		if not Client then return end
 
-		Shine:Print( "[NameFilter] Client %s[%s] was kicked for filtered name.", true,
+		self:Print( "Client %s[%s] was kicked for filtered name.", true,
 			OldName, Client:GetUserId() )
 
 		Server.DisconnectClient( Client )
@@ -103,13 +105,13 @@ Plugin.FilterActions = {
 		local Enabled, BanPlugin = Shine:IsExtensionEnabled( "ban" )
 
 		if Enabled then
-			Shine:Print( "[NameFilter] Client %s[%s] was banned for filtered name.", true,
+			self:Print( "Client %s[%s] was banned for filtered name.", true,
 				OldName, ID )
 
 			BanPlugin:AddBan( ID, OldName, self.Config.BanLength * 60, "NameFilter", 0,
 				"Player used filtered name." )
 		else
-			Shine:Print( "[NameFilter] Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).",
+			self:Print( "Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).",
 				true, OldName, ID )
 		end
 

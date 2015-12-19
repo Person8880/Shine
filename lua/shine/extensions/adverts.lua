@@ -9,6 +9,7 @@ local type = type
 
 local Plugin = {}
 Plugin.Version = "1.0"
+Plugin.PrintName = "Adverts"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Adverts.json"
@@ -58,7 +59,7 @@ function Plugin:ParseAdvert( ID, Advert )
 		local Message = Advert.Message
 
 		if not Message then
-			Shine:Print( "[Adverts] Misconfigured advert #%i, missing \"Message\" value.",
+			self:Print( "Misconfigured advert #%i, missing \"Message\" value.",
 				true, ID )
 
 			TableRemove( self.Config.Adverts, ID )

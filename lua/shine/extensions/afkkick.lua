@@ -15,6 +15,7 @@ local StringTimeToString = string.TimeToString
 
 local Plugin = {}
 Plugin.Version = "1.6"
+Plugin.PrintName = "AFKKick"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
@@ -158,7 +159,7 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	if not AFKForLongest then return end
 
-	Shine:Print( "[AFKKick] Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
+	self:Print( "Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
 		true, Shine:GetClientInfo( AFKForLongest ), ID,
 		StringTimeToString( TimeAFK ) )
 
@@ -349,7 +350,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	--Only kick if we're past the min player count to do so, and use their "total" time.
 	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
-		Shine:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
+		self:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
 			true, Player:GetName(), Client:GetUserId(), StringTimeToString( KickTime ),
 			Players, self.Config.MinPlayers )
 
