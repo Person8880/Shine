@@ -61,34 +61,86 @@ SGUI.PropertyModifiers = {
 		self:InvalidateParent( true )
 	end
 }
-
---[[
-	Adds Get and Set functions for a property name, with an optional default value.
-]]
-function SGUI.AddProperty( Table, Name, Default, Modifiers )
-	if Modifiers then
+do
+	local function GetModifiers( Modifiers )
 		local RealModifiers = {}
 
 		for i = 1, #Modifiers do
 			RealModifiers[ #RealModifiers + 1 ] = SGUI.PropertyModifiers[ Modifiers[ i ] ]
 		end
 
-		local NumModifiers = #RealModifiers
+		return RealModifiers, #RealModifiers
+	end
 
-		Table[ "Set"..Name ] = function( self, Value )
+	--[[
+		Adds Get and Set functions for a property name, with an optional default value.
+	]]
+	function SGUI.AddProperty( Table, Name, Default, Modifiers )
+		local TableSetter = "Set"..Name
+
+		Table[ TableSetter ] = function( self, Value )
 			self[ Name ] = Value
+		end
+
+		Table[ "Get"..Name ] = function( self )
+			return self[ Name ] or Default
+		end
+
+		if not Modifiers then return end
+
+		local RealModifiers, NumModifiers = GetModifiers( Modifiers )
+
+		local Old = Table[ TableSetter ]
+		Table[ TableSetter ] = function( self, Value )
+			Old( self, Value )
 			for i = 1, NumModifiers do
 				RealModifiers[ i ]( self, Value )
 			end
 		end
-	else
-		Table[ "Set"..Name ] = function( self, Value )
-			self[ Name ] = Value
-		end
 	end
 
-	Table[ "Get"..Name ] = function( self )
-		return self[ Name ] or Default
+	local StringExplode = string.Explode
+	local unpack = unpack
+
+	local function GetBindingInfo( BoundObject )
+		return unpack( StringExplode( BoundObject, ":" ) )
+	end
+
+	--[[
+		Adds Get/Set property methods that pass through the value to a field
+		on the table as well as storing it.
+
+		Used to perform actions on GUIItems without boilerplate code.
+	]]
+	function SGUI.AddBoundProperty( Table, Name, BoundObject, Modifiers )
+		local BoundField, Setter = GetBindingInfo( BoundObject )
+		Setter = Setter or "Set"..Name
+
+		Table[ "Get"..Name ] = function( self )
+			return self[ Name ]
+		end
+
+		local TableSetter = "Set"..Name
+		Table[ TableSetter ] = function( self, Value )
+			self[ Name ] = Value
+
+			local Object = self[ BoundField ]
+			if not Object then return end
+
+			Object[ Setter ]( Object, Value )
+		end
+
+		if not Modifiers then return end
+
+		local RealModifiers, NumModifiers = GetModifiers( Modifiers )
+
+		local Old = Table[ TableSetter ]
+		Table[ TableSetter ] = function( self, Value )
+			Old( self, Value )
+			for i = 1, NumModifiers do
+				RealModifiers[ i ]( self, Value )
+			end
+		end
 	end
 end
 
@@ -723,6 +775,8 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 end )
 
 --------------------- BASE CLASS ---------------------
+SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
+
 --[[
 	Base initialise. Be sure to override this!
 ]]

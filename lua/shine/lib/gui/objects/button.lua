@@ -28,7 +28,7 @@ function Button:Initialise()
 
 	Background:SetColor( self.InactiveCol )
 
-	self.TextCol = Scheme.BrightText
+	self.TextColour = Scheme.BrightText
 
 	self:SetHighlightOnMouseOver( true )
 end
@@ -38,10 +38,10 @@ function Button:OnSchemeChange( Scheme )
 
 	self.ActiveCol = Scheme.ActiveButton
 	self.InactiveCol = Scheme.InactiveButton
-	self.TextCol = Scheme.BrightText
+	self.TextColour = Scheme.BrightText
 
 	if self.Text then
-		self.Text:SetColor( self.TextCol )
+		self.Text:SetColor( self.TextColour )
 	end
 
 	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
@@ -71,7 +71,7 @@ function Button:SetText( Text )
 	Description:SetTextAlignmentX( GUIItem.Align_Center )
 	Description:SetTextAlignmentY( GUIItem.Align_Center )
 	Description:SetText( Text )
-	Description:SetColor( self.TextCol )
+	Description:SetColor( self.TextColour )
 
 	if self.Font then
 		Description:SetFontName( self.Font )
@@ -94,21 +94,9 @@ function Button:GetText()
 	return self.Text:GetText()
 end
 
-function Button:SetFont( Font )
-	self.Font = Font
-
-	if not self.Text then return end
-
-	self.Text:SetFontName( Font )
-end
-
-function Button:SetTextScale( Scale )
-	self.TextScale = Scale
-
-	if not self.Text then return end
-
-	self.Text:SetScale( Scale )
-end
+SGUI.AddBoundProperty( Button, "Font", "Text:SetFontName" )
+SGUI.AddBoundProperty( Button, "TextColour", "Text:SetColor" )
+SGUI.AddBoundProperty( Button, "TextScale", "Text:SetScale" )
 
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
@@ -124,14 +112,6 @@ function Button:SetInactiveCol( Col )
 	if not self.Highlighted then
 		self.Background:SetColor( Col )
 	end
-end
-
-function Button:SetTextColour( Col )
-	self.TextCol = Col
-
-	if not self.Text then return end
-
-	self.Text:SetColor( Col )
 end
 
 function Button:SetIsVisible( Bool )
@@ -160,11 +140,6 @@ end
 
 function Button:SetDoClick( Func )
 	self.DoClick = Func
-end
-
-function Button:SetTexture( Texture )
-	self.Background:SetTexture( Texture )
-	self.Texture = Texture
 end
 
 function Button:SetHighlightTexture( Texture )

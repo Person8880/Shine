@@ -603,13 +603,7 @@ function List:OnRowDeselect( Index, Row )
 	end
 end
 
-function List:SetMultiSelect( Bool )
-	self.MultiSelect = Bool and true or false
-end
-
-function List:GetMultiSelect()
-	return self.MultiSelect
-end
+SGUI.AddProperty( List, "MultiSelect" )
 
 ------------------- Event calling -------------------
 function List:OnMouseDown( Key, DoubleClick )

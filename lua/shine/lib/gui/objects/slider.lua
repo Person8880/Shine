@@ -106,7 +106,7 @@ function Slider:SetupStencil()
 	self.Handle:SetInheritsParentStencilSettings( true )
 	self.Line:SetInheritsParentStencilSettings( true )
 	self.DarkLine:SetInheritsParentStencilSettings( true )
-	self.Label.Text:SetInheritsParentStencilSettings( true )
+	self.Label.Label:SetInheritsParentStencilSettings( true )
 end
 
 function Slider:SizeLines()
@@ -135,29 +135,12 @@ function Slider:SetSize( Size )
 	self:SetValue( self.Value )
 end
 
-function Slider:SetFont( Name )
-	self.Label:SetFont( Name )
-end
-
-function Slider:SetTextColour( Col )
-	self.Label:SetColour( Col )
-end
-
-function Slider:SetTextScale( Scale )
-	self.Label:SetTextScale( Scale )
-end
-
-function Slider:SetHandleColour( Col )
-	self.Handle:SetColor( Col )
-end
-
-function Slider:SetLineColour( Col )
-	self.Line:SetColor( Col )
-end
-
-function Slider:SetDarkLineColour( Col )
-	self.DarkLine:SetColor( Col )
-end
+SGUI.AddBoundProperty( Slider, "Font", "Label" )
+SGUI.AddBoundProperty( Slider, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( Slider, "TextScale", "Label" )
+SGUI.AddBoundProperty( Slider, "HandleColour", "Handle:SetColor" )
+SGUI.AddBoundProperty( Slider, "LineColour", "Line:SetColor" )
+SGUI.AddBoundProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
 
 function Slider:SetPadding( Value )
 	self.Label:SetPos( Vector( Value, 0, 0 ) )
@@ -202,16 +185,7 @@ function Slider:GetValue()
 	return self.Value
 end
 
---[[
-	Set this to enforce rounding of the value.
-]]
-function Slider:SetDecimals( Decimals )
-	self.Decimals = Decimals
-end
-
-function Slider:GetDecimals()
-	return self.Decimals
-end
+SGUI.AddProperty( Slider, "Decimals" )
 
 --[[
 	Sets the bounds of the slider.

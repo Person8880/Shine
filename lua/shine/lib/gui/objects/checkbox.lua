@@ -74,7 +74,7 @@ function CheckBox:SetupStencil()
 	self.Box:SetInheritsParentStencilSettings( true )
 
 	if self.Label then
-		self.Label.Text:SetInheritsParentStencilSettings( true )
+		self.Label.Label:SetInheritsParentStencilSettings( true )
 	end
 end
 
@@ -185,34 +185,14 @@ function CheckBox:AddLabel( Text )
 	end
 
 	if self.Stencilled then
-		Label.Text:SetInheritsParentStencilSettings( true )
+		Label.Label:SetInheritsParentStencilSettings( true )
 	end
 
 	self.Label = Label
 end
 
-function CheckBox:SetFont( Name )
-	self.Font = Name
-
-	if not self.Label then return end
-
-	self.Label:SetFont( Name )
-end
-
-function CheckBox:SetTextColour( Col )
-	self.TextColour = Col
-
-	if not self.Label then return end
-
-	self.Label:SetColour( Col )
-end
-
-function CheckBox:SetTextScale( Scale )
-	self.TextScale = Scale
-
-	if not self.Label then return end
-
-	self.Label:SetTextScale( Scale )
-end
+SGUI.AddBoundProperty( CheckBox, "Font", "Label" )
+SGUI.AddBoundProperty( CheckBox, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( CheckBox, "TextScale", "Label" )
 
 SGUI:Register( "CheckBox", CheckBox )

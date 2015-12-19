@@ -285,9 +285,7 @@ function Panel:Clear()
 	self.Layout = nil
 end
 
-function Panel:SetStickyScroll( Enable )
-	self.StickyScroll = Enable and true or false
-end
+SGUI.AddProperty( Panel, "StickyScroll" )
 
 function Panel:UpdateScrollbarSize()
 	if SGUI.IsValid( self.Scrollbar ) then
@@ -417,18 +415,8 @@ function Panel:SetScrollbarPos( Pos )
 	end
 end
 
-function Panel:SetColour( Col )
-	self.Background:SetColor( Col )
-end
-
-function Panel:SetDraggable( Bool )
-	self.Draggable = Bool and true or false
-end
-
-function Panel:SetTexture( Texture )
-	self.Background:SetTexture( Texture )
-end
-
+SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
+SGUI.AddProperty( Panel, "Draggable" )
 SGUI.AddProperty( Panel, "AutoHideScrollbar" )
 
 local GetCursorPos
@@ -493,10 +481,6 @@ function Panel:DragMove( Down )
 	self.CurPos.y = self.StartPos.y + YDiff
 
 	self:SetPos( self.CurPos )
-end
-
-function Panel:SetBlockMouse( Bool )
-	--self.BlockOnMouseDown = Bool and true or false
 end
 
 ------------------- Event calling -------------------

@@ -68,39 +68,9 @@ function ListHeader:SetText( Text )
 	self.TextObj = TextObj
 end
 
-function ListHeader:SetTextScale( Scale )
-	self.TextScale = Scale
-
-	if not self.TextObj then return end
-
-	self.TextObj:SetScale( Scale )
-end
-
-function ListHeader:SetFont( Font )
-	self.Font = Font
-
-	if not self.TextObj then return end
-
-	self.TextObj:SetFontName( Font )
-end
-
-function ListHeader:SetTextColour( Col )
-	self.TextColour = Col
-
-	if not self.TextObj then return end
-
-	self.TextObj:SetColor( Col )
-end
-
-function ListHeader:SetSize( Size )
-	self.Size = Size
-
-	self.Background:SetSize( Size )
-end
-
-function ListHeader:GetSize()
-	return self.Size
-end
+SGUI.AddBoundProperty( ListHeader, "Font", "TextObj:SetFontName" )
+SGUI.AddBoundProperty( ListHeader, "TextColour", "TextObj:SetColor" )
+SGUI.AddBoundProperty( ListHeader, "TextScale", "TextObj:SetScale" )
 
 function ListHeader:GetIsVisible()
 	if not self.Parent:GetIsVisible() then return false end
