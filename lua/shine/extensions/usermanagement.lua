@@ -349,67 +349,88 @@ function Plugin:CreateCommands()
 			end,
 			Operation = self.Operation.REMOVE_GROUP,
 			Params = {
-				{ Type = "string", Error = "Please provide a group name.", Help = "groupname" },
+				{ Type = "string", Error = "Please provide a group name.", Help = "groupname", TakeRestOfLine = true },
 			},
 			Help = "Deletes the given group."
 		},
 		{
-			ConCommand = "sh_listgroups",
+			ConCommand = "sh_groupinfo",
 			PreCondition = function() return true end,
-			Action = function( Client )
-				local Columns = {
-					{
-						Name = "Name",
-						Getter = function( Entry )
-							return StringFormat( "'%s'", Entry.Name )
-						end
-					},
-					{
-						Name = "Immunity",
-						Getter = function( Entry )
-							return tostring( Entry.Immunity )
-						end
-					},
-					{
-						Name = "Is Blacklist",
-						Getter = function( Entry )
-							return Entry.IsBlacklist and "Yes" or "No"
-						end
-					},
-					{
-						Name = "Inherits Groups",
-						Getter = function( Entry )
-							return Entry.InheritsFrom and StringFormat( "'%s'", TableConcat( Entry.InheritsFrom, "', '" ) ) or ""
-						end
+			Action = function( Client, GroupName )
+				if not GroupName then
+					local Columns = {
+						{
+							Name = "Name",
+							Getter = function( Entry )
+								return StringFormat( "'%s'", Entry.Name )
+							end
+						},
+						{
+							Name = "Immunity",
+							Getter = function( Entry )
+								return tostring( Entry.Immunity )
+							end
+						},
+						{
+							Name = "Is Blacklist",
+							Getter = function( Entry )
+								return Entry.IsBlacklist and "Yes" or "No"
+							end
+						},
+						{
+							Name = "Inherits Groups",
+							Getter = function( Entry )
+								return Entry.InheritsFrom and StringFormat( "'%s'", TableConcat( Entry.InheritsFrom, "', '" ) ) or ""
+							end
+						}
 					}
-				}
 
-				local Data = {}
-				for Group, GroupData in pairs( Shine.UserData.Groups ) do
-					Data[ #Data + 1 ] = {
-						Name = Group,
-						Immunity = GroupData.Immunity,
-						IsBlacklist = GroupData.IsBlacklist,
-						InheritsFrom = GroupData.InheritsFrom
-					}
-				end
-
-				TableSort( Data, function( A, B )
-					local Comparison = 0
-					if A.Immunity > B.Immunity then
-						Comparison = -2
-					elseif A.Immunity < B.Immunity then
-						Comparison = 2
+					local Data = {}
+					for Group, GroupData in pairs( Shine.UserData.Groups ) do
+						Data[ #Data + 1 ] = {
+							Name = Group,
+							Immunity = GroupData.Immunity,
+							IsBlacklist = GroupData.IsBlacklist,
+							InheritsFrom = GroupData.InheritsFrom
+						}
 					end
 
-					Comparison = Comparison + ( A.Name < B.Name and -1 or 1 )
+					TableSort( Data, function( A, B )
+						local Comparison = 0
+						if A.Immunity > B.Immunity then
+							Comparison = -2
+						elseif A.Immunity < B.Immunity then
+							Comparison = 2
+						end
 
-					return Comparison < 0
-				end )
+						Comparison = Comparison + ( A.Name < B.Name and -1 or 1 )
 
-				Shine.PrintTableToConsole( Client, Columns, Data )
+						return Comparison < 0
+					end )
+
+					Shine.PrintTableToConsole( Client, Columns, Data )
+					return
+				end
+
+				if not CheckGroupExists( GroupName ) then return end
+
+				local Group = Shine:GetGroupData( GroupName )
+				Shine.PrintToConsole( Client, StringFormat( "Displaying information for group '%s':", GroupName ) )
+
+				local Commands = TableConcat( Group.Commands, ", " )
+				Shine.PrintToConsole( Client, StringFormat( "Commands:\n%s", Commands ) )
+				Shine.PrintToConsole( Client, StringFormat( "Immunity: %i", Group.Immunity ) )
+				Shine.PrintToConsole( Client, StringFormat( "Commands are a blacklist: %s", Group.IsBlacklist and "Yes" or "No" ) )
+				if Group.InheritsFrom then
+					Shine.PrintToConsole( Client, StringFormat( "Inherits from: %s", TableConcat( Group.InheritsFrom, ", " ) ) )
+				else
+					Shine.PrintToConsole( Client, "Group does not inherit from any other groups." )
+				end
 			end,
-			Help = "Lists all groups to the console."
+			Params = {
+				{ Type = "string", TakeRestOfLine = true, Help = "groupname", Optional = true }
+			},
+			Help = "Displays information on the currently configured groups. Pass a group name to display more information."
 		},
 		{
 			ConCommand = "sh_listusers",
