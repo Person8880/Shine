@@ -662,44 +662,60 @@ function Shine:RemoveGroupInheritance( GroupName, InheritGroup )
 	return true
 end
 
-function Shine:AddGroupAccess( GroupName, Access )
-	local Group = self:GetGroupData( GroupName )
-	if not Group then return false end
-
-	for i = 1, #Group.Commands do
-		local Entry = Group.Commands[ i ]
-		if Entry == Access or ( IsType( Entry, "table" ) and Entry.Command == Access ) then
-			return false
+do
+	local function ForEachInheritingGroup( GroupName, Action )
+		for Name, Group in pairs( Shine.UserData.Groups ) do
+			if Group.InheritsFrom and table.contains( Group.InheritsFrom, GroupName ) then
+				Action( Name, Group )
+			end
 		end
 	end
 
-	Group.Commands[ #Group.Commands + 1 ] = Access
-
-	if PermissionCache[ GroupName ] and not PermissionCache[ GroupName ][ Access ] then
-		PermissionCache[ GroupName ] = nil
+	local function FlushPermissionsCache( Name )
+		PermissionCache[ Name ] = nil
 	end
 
-	self:SaveUsers( true )
+	function Shine:AddGroupAccess( GroupName, Access )
+		local Group = self:GetGroupData( GroupName )
+		if not Group then return false end
 
-	return true
-end
+		for i = 1, #Group.Commands do
+			local Entry = Group.Commands[ i ]
+			if Entry == Access or ( IsType( Entry, "table" ) and Entry.Command == Access ) then
+				return false
+			end
+		end
 
-function Shine:RevokeGroupAccess( GroupName, Access )
-	local Group = self:GetGroupData( GroupName )
-	if not Group then return false end
+		Group.Commands[ #Group.Commands + 1 ] = Access
 
-	local Removed = TableRemoveByValue( Group.Commands, Access )
-	if not Removed then
-		return false
+		if PermissionCache[ GroupName ] and not PermissionCache[ GroupName ][ Access ] then
+			PermissionCache[ GroupName ] = nil
+			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
+		end
+
+		self:SaveUsers( true )
+
+		return true
 	end
 
-	if PermissionCache[ GroupName ] then
-		PermissionCache[ GroupName ][ Access ] = nil
+	function Shine:RevokeGroupAccess( GroupName, Access )
+		local Group = self:GetGroupData( GroupName )
+		if not Group then return false end
+
+		local Removed = TableRemoveByValue( Group.Commands, Access )
+		if not Removed then
+			return false
+		end
+
+		if PermissionCache[ GroupName ] then
+			PermissionCache[ GroupName ][ Access ] = nil
+			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
+		end
+
+		self:SaveUsers( true )
+
+		return true
 	end
-
-	self:SaveUsers( true )
-
-	return true
 end
 
 Shine.Hook.Add( "OnUserReload", "FlushPermissionCache", function()
