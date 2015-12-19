@@ -114,7 +114,7 @@ function Plugin:CreateCommands()
 
 	local function CheckGroupExists( Client, GroupName )
 		if not Shine:GetGroupData( GroupName ) then
-			Shine:NotifyCommandError( Client, "No group named %s exists.", true, GroupName )
+			Shine:NotifyCommandError( Client, "No group named '%s' exists.", true, GroupName )
 			return false
 		end
 
@@ -157,7 +157,7 @@ function Plugin:CreateCommands()
 					Undo = FunctionCall( SetField, Existing, "Group", OldGroup )
 				end
 
-				Shine:AdminPrint( Client, "User %s now belongs to group %s.", true, ID, GroupName )
+				Shine:AdminPrint( Client, "User '%s' now belongs to group '%s'.", true, ID, GroupName )
 
 				return BuildHTTPData( ID, Existing ), Undo
 			end,
@@ -179,7 +179,7 @@ function Plugin:CreateCommands()
 
 				SetField( Existing, "Immunity", Immunity )
 
-				Shine:AdminPrint( Client, "User %s now has %s.", true, ID,
+				Shine:AdminPrint( Client, "User '%s' now has %s.", true, ID,
 					Immunity and StringFormat( "immunity %i", Immunity ) or "no immunity" )
 
 				return BuildHTTPData( ID, Existing ), Undo
@@ -200,7 +200,7 @@ function Plugin:CreateCommands()
 				local Undo = FunctionCall( Shine.ReinstateUser, Shine, ID, User )
 
 				Shine:DeleteUser( Target )
-				Shine:AdminPrint( Client, "Removed user %s.", true, ID )
+				Shine:AdminPrint( Client, "Removed user '%s'.", true, ID )
 
 				return BuildHTTPData( ID, User ), Undo
 			end,
@@ -226,7 +226,7 @@ function Plugin:CreateCommands()
 				local Undo = FunctionCall( Shine.DeleteGroup, Shine, GroupName )
 
 				Shine:AdminPrint( Client, "Group '%s' created. Immunity level %i. Commands are blacklist: %s.", true,
-					GroupName, Immunity, Blacklist )
+					GroupName, Immunity, Blacklist and "Yes" or "No" )
 
 				return BuildHTTPData( GroupName, NewGroup ), Undo
 			end,
@@ -269,7 +269,7 @@ function Plugin:CreateCommands()
 				local Undo = FunctionCall( SetField, Group, "IsBlacklist", OldIsBlacklist )
 				SetField( Group, "IsBlacklist", IsBlacklist )
 
-				Shine:AdminPrint( Client, "Group %s's commands are now a %s.", true,
+				Shine:AdminPrint( Client, "Commands for the '%s' group are now a %s.", true,
 					GroupName, IsBlacklist and "blacklist" or "whitelist" )
 
 				return BuildHTTPData( GroupName, Group ), Undo
@@ -295,7 +295,7 @@ function Plugin:CreateCommands()
 				local Method = Remove and Shine.RemoveGroupInheritance or Shine.AddGroupInheritance
 				Method( Shine, GroupName, InheritGroup )
 
-				Shine:AdminPrint( Client, "Group '%s' now %s from %s.", true,
+				Shine:AdminPrint( Client, "Group '%s' now %s from '%s'.", true,
 					GroupName, Remove and "no longer inherits" or "inherits", InheritGroup )
 
 				return BuildHTTPData( GroupName, Group ), Undo
@@ -320,7 +320,7 @@ function Plugin:CreateCommands()
 				local Method = Revoke and Shine.RevokeGroupAccess or Shine.AddGroupAccess
 				Method( Shine, GroupName, Access )
 
-				Shine:AdminPrint( Client, "Group '%s' now %s to %s.", true,
+				Shine:AdminPrint( Client, "Group '%s' now %s to '%s'.", true,
 					GroupName, Revoke and "no longer has access to" or "has access to", Access )
 
 				return BuildHTTPData( GroupName, Group ), Undo
