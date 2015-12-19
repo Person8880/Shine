@@ -103,6 +103,11 @@ Shine.Timer.Create( "LogSave", 300, -1, function()
 	Shine:SaveLog()
 end )
 
+Shine:RegisterCommand( "sh_flushlog", nil, function( Client )
+	Shine:SaveLog()
+	Shine:AdminPrint( Client, "Log flushed successfully." )
+end )
+
 function Shine:Print( String, Format, ... )
 	String = Format and StringFormat( String, ... ) or String
 
