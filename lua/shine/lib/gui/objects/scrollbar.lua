@@ -33,7 +33,7 @@ end
 
 function Scrollbar:GetNormalAlpha( Element )
 	if Element == self.Background then
-		return self:GetStyleValue( "Colour" ).a
+		return self:GetStyleValue( "BackgroundColour" ).a
 	end
 
 	return self:GetStyleValue( "InactiveCol" ).a
