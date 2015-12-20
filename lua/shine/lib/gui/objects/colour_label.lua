@@ -23,13 +23,6 @@ function ColourLabel:SetSize()
 	self:InvalidateLayout()
 end
 
-function ColourLabel:ForEachLabel( Method, ... )
-	for i = 1, #self.Labels do
-		local Label = self.Labels[ i ]
-		Label[ Method ]( Label, ... )
-	end
-end
-
 local function AddProperty( Key, Modifiers )
 	SGUI.AddProperty( ColourLabel, Key, nil, Modifiers )
 
@@ -37,7 +30,7 @@ local function AddProperty( Key, Modifiers )
 	local Old = ColourLabel[ Setter ]
 	ColourLabel[ Setter ] = function( self, Value )
 		Old( self, Value )
-		self:ForEachLabel( Setter, Value )
+		self:ForEach( "Labels", Setter, Value )
 	end
 end
 
@@ -46,7 +39,7 @@ AddProperty( "TextScale", { "InvalidatesParent" } )
 AddProperty( "Colour" )
 
 function ColourLabel:AlphaTo( ... )
-	self:ForEachLabel( "AlphaTo", ... )
+	self:ForEach( "Labels", "AlphaTo", ... )
 end
 
 function ColourLabel:SetText( TextContent )

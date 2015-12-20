@@ -20,22 +20,10 @@ SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParen
 function Label:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Text = GetGUIManager():CreateTextItem()
-	self.Label = Text
+	self.Label = GetGUIManager():CreateTextItem()
 	self.Background = self.Label
-	self.Bright = false
-
-	local Skin = SGUI:GetSkin()
-
-	Text:SetColor( Skin.DarkText )
-
+	self.Bright = true
 	self.TextScale = Vector( 1, 1, 0 )
-end
-
-function Label:OnSchemeChange( Skin )
-	local Colour = self.Bright and Skin.BrightText or Skin.DarkText
-
-	self.Label:SetColor( Colour )
 end
 
 function Label:SetupStencil()
@@ -75,10 +63,7 @@ function Label:GetTextHeight( Text )
 end
 
 function Label:SetBright( Bright )
-	self.Bright = Bright and true or false
-
-	local Skin = SGUI:GetSkin()
-	self.Label:SetColor( Bright and Skin.BrightText or Skin.DarkText )
+	-- Deprecated, does nothing.
 end
 
 SGUI:Register( "Label", Label )

@@ -68,23 +68,13 @@ function Slider:Initialise()
 	Label:SetPos( Padding )
 
 	self.Label = Label
-
-	local Skin = SGUI:GetSkin()
-
-	Handle:SetColor( Skin.SliderHandle )
-	Line:SetColor( Skin.SliderFillLine )
-	UnfilledLine:SetColor( Skin.SliderUnfilledLine )
-
 	self.Width = DefaultSize.x
 
 	self.Fraction = 0
-
 	self.Min = 0
 	self.Max = 100
 	self.Range = 100
-
 	self.Value = 0
-
 	self.Decimals = 0
 
 	self.HandleSize = Vector( 10, 32, 0 )
@@ -92,12 +82,6 @@ function Slider:Initialise()
 	self.LineSize = Vector( 250, 5, 0 )
 	self.DarkLineSize = Vector( 0, 5, 0 )
 	self.DarkLinePos = Vector( 250, -2.5, 0 )
-end
-
-function Slider:OnSchemeChange( Skin )
-	self.Line:SetColor( Skin.SliderFillLine )
-	self.DarkLine:SetColor( Skin.SliderUnfilledLine )
-	self.Handle:SetColor( Skin.SliderHandle )
 end
 
 function Slider:SetupStencil()

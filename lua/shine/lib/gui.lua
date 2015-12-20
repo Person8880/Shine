@@ -457,63 +457,6 @@ function SGUI:EnableMouse( Enable )
 end
 
 --[[
-	Registers a skin.
-	Inputs: Skin name, table of colour/texture/font/size values.
-]]
-function SGUI:RegisterSkin( Name, Values )
-	self.Skins[ Name ] = Values
-end
-
-local function CheckIsSchemed( Control )
-	return Control.UseScheme
-end
-
---[[
-	Sets the current skin. This will reskin all active globally skinned objects.
-	Input: Skin name registered with SGUI:RegisterSkin()
-]]
-function SGUI:SetSkin( Name )
-	local SchemeTable = self.Skins[ Name ]
-
-	assert( SchemeTable, "[SGUI] Attempted to set a non-existant skin!" )
-
-	self.ActiveSkin = Name
-	--Notify all elements of the change.
-	return SGUI:CallGlobalEvent( "OnSchemeChange", CheckIsSchemed, SchemeTable )
-end
-
---[[
-	Returns the active colour scheme data table.
-]]
-function SGUI:GetSkin()
-	local SchemeName = self.ActiveSkin
-	local SchemeTable = SchemeName and self.Skins[ SchemeName ]
-
-	assert( SchemeTable, "[SGUI] No active skin!" )
-
-	return SchemeTable
-end
-
---[[
-	Reloads all skin files and calls the scheme change SGUI event.
-	Consistency checking will hate you and kick you if you use this with Lua files being checked.
-]]
-function SGUI:ReloadSkins()
-	local Skins = {}
-	Shared.GetMatchingFileNames( "lua/shine/lib/gui/skins/*.lua", false, Skins )
-
-	for i = 1, #Skins do
-		include( Skins[ i ], true )
-	end
-
-	if self.ActiveSkin then
-		self:SetSkin( self.ActiveSkin )
-	end
-
-	Shared.Message( "[SGUI] Skins reloaded successfully." )
-end
-
---[[
 	Registers a control meta-table.
 	We'll use this to create instances of it (instead of loading a script
 	file every time like UWE).
@@ -555,6 +498,8 @@ function SGUI:Register( Name, Table, Parent )
 			return nil
 		end
 	end
+
+	Table.__tostring = Table.__tostring or ControlMeta.__tostring
 
 	--Used to call base class functions for things like :MoveTo()
 	Table.BaseClass = ControlMeta
@@ -598,6 +543,8 @@ function SGUI:Create( Class, Parent )
 
 		Control.IsAWindow = true
 	end
+
+	self.SkinManager:ApplySkin( Control )
 
 	if not Parent then return Control end
 
@@ -711,19 +658,7 @@ end
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
-	Shine.LoadScriptsByPath( "lua/shine/lib/gui/skins" )
-
-	--Apparently this isn't loading for some people???
-	if not SGUI.Skins.Default then
-		local Skin = next( SGUI.Skins )
-		--If there's a different skin, load it.
-		--Otherwise whoever's running this is missing the skin file, I can't fix that.
-		if Skin then
-			SGUI:SetSkin( Skin )
-		end
-	else
-		SGUI:SetSkin( "Default" )
-	end
+	include( "lua/shine/lib/gui/skin_manager.lua" )
 
 	local Listener = {
 		OnMouseMove = function( _, LMB )
@@ -776,6 +711,14 @@ end )
 
 --------------------- BASE CLASS ---------------------
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
+SGUI.AddProperty( ControlMeta, "Skin" )
+SGUI.AddProperty( ControlMeta, "StyleName" )
+
+function ControlMeta:__tostring()
+	return StringFormat( "[SGUI] %s | %s | %i Children", self.Class,
+		self:IsValid() and "ACTIVE" or "DESTROYED",
+		self.Children and self.Children:GetCount() or 0 )
+end
 
 --[[
 	Base initialise. Be sure to override this!
@@ -826,6 +769,15 @@ function ControlMeta:CallOnRemove( Func )
 	local Table = self.__CallOnRemove
 
 	Table[ #Table + 1 ] = Func
+end
+
+function ControlMeta:SetStyleName( Name )
+	self.StyleName = Name
+	SGUI.SkinManager:ApplySkin( self )
+end
+
+function ControlMeta:GetStyleValue( Key )
+	return SGUI.SkinManager:GetStyleForElement( self )[ Key ]
 end
 
 --[[
@@ -903,6 +855,16 @@ function ControlMeta:CallOnChildren( Name, ... )
 	end
 
 	return nil
+end
+
+function ControlMeta:ForEach( TableKey, MethodName, ... )
+	local Objects = self[ TableKey ]
+	if not Objects then return end
+
+	for i = 1, #Objects do
+		local Object = Objects[ i ]
+		Object[ MethodName ]( Object, ... )
+	end
 end
 
 --[[

@@ -20,6 +20,8 @@ local ZeroVector = Vector( 0, 0, 0 )
 local DefaultHeaderSize = 32
 local DefaultLineSize = 32
 
+SGUI.AddBoundProperty( List, "Colour", "Background:SetColor" )
+
 function List:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -47,60 +49,12 @@ function List:Initialise()
 	Background:AddChild( ScrollParent )
 
 	self.ScrollParent = ScrollParent
-
-	local Scheme = SGUI:GetSkin()
-
-	Background:SetColor( Scheme.InactiveButton )
-
 	self.RowCount = 0
-
 	self.HeaderSize = DefaultHeaderSize
 	self.LineSize = DefaultLineSize
 
-	local ListData = Scheme.List
-
-	if ListData.HeaderSize then
-		self:SetHeaderSize( ListData.HeaderSize )
-	end
-
-	if ListData.LineSize then
-		self:SetLineSize( ListData.LineSize )
-	end
-
-	if ListData.HeaderFont then
-		self:SetHeaderFont( ListData.HeaderFont )
-	end
-
-	if ListData.HeaderTextColour then
-		self:SetHeaderTextColour( ListData.HeaderTextColour )
-	end
-
 	--Sort descending first.
 	self.Descending = true
-end
-
-function List:OnSchemeChange( Scheme )
-	self.Background:SetColor( Scheme.InactiveButton )
-
-	if not Scheme.List then return end
-
-	local ListData = Scheme.List
-
-	if ListData.HeaderSize then
-		self:SetHeaderSize( ListData.HeaderSize )
-	end
-
-	if ListData.LineSize then
-		self:SetLineSize( ListData.LineSize )
-	end
-
-	if ListData.HeaderFont then
-		self:SetHeaderFont( ListData.HeaderFont )
-	end
-
-	if ListData.HeaderTextColour then
-		self:SetHeaderTextColour( ListData.HeaderTextColour )
-	end
 end
 
 --[[
@@ -109,9 +63,7 @@ end
 function List:SetHeaderSize( Size )
 	self.HeaderSize = Size
 
-	local Columns = self.Columns
-
-	if not Columns then return end
+	if not self.Columns then return end
 
 	if self.Size then
 		self:SetSize( self.Size )
@@ -155,44 +107,17 @@ end
 
 function List:SetHeaderFont( Font )
 	self.HeaderFont = Font
-
-	local Columns = self.Columns
-
-	if not Columns then return end
-
-	for i = 1, #Columns do
-		local Header = Columns[ i ]
-
-		Header:SetFont( Font )
-	end
+	self:ForEach( "Columns", "SetFont", Font )
 end
 
 function List:SetHeaderTextScale( Scale )
 	self.HeaderTextScale = Scale
-
-	local Columns = self.Columns
-
-	if not Columns then return end
-
-	for i = 1, #Columns do
-		local Header = Columns[ i ]
-
-		Header:SetTextScale( Scale )
-	end
+	self:ForEach( "Columns", "SetTextScale", Scale )
 end
 
 function List:SetHeaderTextColour( Col )
 	self.HeaderTextColour = Col
-
-	local Columns = self.Columns
-
-	if not Columns then return end
-
-	for i = 1, #Columns do
-		local Header = Columns[ i ]
-
-		Header:SetTextColour( Col )
-	end
+	self:ForEach( "Columns", "SetTextColour", Col )
 end
 
 --[[
@@ -313,22 +238,12 @@ end
 
 function List:SetRowFont( Font )
 	self.RowFont = Font
-
-	local Rows = self.Rows
-	if not Rows then return end
-	for i = 1, #Rows do
-		Rows[ i ]:SetFont( Font )
-	end
+	self:ForEach( "Rows", "SetFont", Font )
 end
 
 function List:SetRowTextScale( Scale )
 	self.RowTextScale = Scale
-
-	local Rows = self.Rows
-	if not Rows then return end
-	for i = 1, #Rows do
-		Rows[ i ]:SetTextScale( Scale )
-	end
+	self:ForEach( "Rows", "SetTextScale", Scale )
 end
 
 --[[
@@ -357,7 +272,6 @@ function List:AddRow( ... )
 	end
 
 	RowCount = RowCount + 1
-
 	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
 
 	local Spacing = {}

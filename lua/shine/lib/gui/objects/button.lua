@@ -14,37 +14,8 @@ Button.Sound = ClickSound
 
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
-
-	if self.Background then GUI.DestroyItem( self.Background ) end
-
-	local Background = GetGUIManager():CreateGraphicItem()
-
-	self.Background = Background
-
-	local Scheme = SGUI:GetSkin()
-
-	self.ActiveCol = Scheme.ActiveButton
-	self.InactiveCol = Scheme.InactiveButton
-
-	Background:SetColor( self.InactiveCol )
-
-	self.TextColour = Scheme.BrightText
-
+	self.Background = GetGUIManager():CreateGraphicItem()
 	self:SetHighlightOnMouseOver( true )
-end
-
-function Button:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.ActiveCol = Scheme.ActiveButton
-	self.InactiveCol = Scheme.InactiveButton
-	self.TextColour = Scheme.BrightText
-
-	if self.Text then
-		self.Text:SetColor( self.TextColour )
-	end
-
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
 end
 
 function Button:SetupStencil()

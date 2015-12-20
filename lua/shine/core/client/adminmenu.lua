@@ -327,7 +327,6 @@ do
 		OnInit = function( Panel, Data )
 			Label = SGUI:Create( "Label", Panel )
 			Label:SetFont( Fonts.kAgencyFB_Small )
-			Label:SetBright( true )
 			Label:SetText( "Select a player (or players) and a command to run." )
 			Label:SetPos( Vector( 16, 24, 0 ) )
 
@@ -448,12 +447,9 @@ do
 			Window:Destroy()
 		end
 
-		Window:SkinColour()
-
 		local Label = SGUI:Create( "Label", Window )
 		Label:SetAnchor( "CentreMiddle" )
 		Label:SetFont( Fonts.kAgencyFB_Small )
-		Label:SetBright( true )
 		Label:SetText( "Please select a single player." )
 		Label:SetPos( Vector( 0, -40, 0 ) )
 		Label:SetTextAlignmentX( GUIItem.Align_Center )
@@ -648,7 +644,6 @@ Special thanks to:
 			Label:SetPos( Vector( 16, 24, 0 ) )
 			Label:SetFont( "fonts/AgencyFB_small.fnt" )
 			Label:SetText( Text )
-			Label:SetBright( true )
 
 			local HomeButton = SGUI:Create( "Button", Panel )
 			HomeButton:SetAnchor( "TopRight" )

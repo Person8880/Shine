@@ -100,20 +100,9 @@ function TextEntry:Initialise()
 	self.WidthScale = 1
 	self.HeightScale = 1
 
-	local Scheme = SGUI:GetSkin()
-
-	--Default colour scheme.
-	self.FocusColour = Scheme.TextEntryFocus
-	self.DarkCol = Scheme.TextEntry
-
 	self.Padding = 2
 	self.CaretOffset = 0
 	self.BorderSize = BorderSize
-
-	Background:SetColor( Scheme.ButtonBorder )
-	InnerBox:SetColor( self.DarkCol )
-	Text:SetColor( Scheme.BrightText )
-	SelectionBox:SetColor( Scheme.TextSelection )
 
 	self.SelectionBounds = { 0, 0 }
 end
@@ -131,6 +120,8 @@ function TextEntry:SetSize( SizeVec )
 
 	self:InvalidateLayout()
 end
+
+SGUI.AddBoundProperty( TextEntry, "PlaceholderTextColour", "PlaceholderText:SetColor" )
 
 function TextEntry:SetFocusColour( Col )
 	self.FocusColour = Col
@@ -202,11 +193,7 @@ function TextEntry:SetPlaceholderText( Text )
 	end
 
 	PlaceholderText:SetPosition( Vector( 0, 0, 0 ) )
-
-	local Skin = SGUI:GetSkin()
-	if Skin.TextEntryPlaceholder then
-		PlaceholderText:SetColor( Skin.TextEntryPlaceholder )
-	end
+	PlaceholderText:SetColor( self.PlaceholderTextColour )
 
 	self.TextObj:AddChild( PlaceholderText )
 	self.PlaceholderText = PlaceholderText
@@ -218,29 +205,6 @@ function TextEntry:GetIsVisible()
 	end
 
 	return self.Background:GetIsVisible()
-end
-
---[[
-	Colour scheme changed, change our colours!
-]]
-function TextEntry:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.FocusColour = Scheme.TextEntryFocus
-	self.DarkCol = Scheme.TextEntry
-
-	self.Background:SetColor( Scheme.ButtonBorder )
-	self.TextObj:SetColor( Scheme.BrightText )
-
-	if self.Highlighted or self.Enabled then
-		self.InnerBox:SetColor( self.FocusColour )
-	else
-		self.InnerBox:SetColor( self.DarkCol )
-	end
-
-	if self.PlaceholderText and Scheme.TextEntryPlaceholder then
-		self.PlaceholderText:SetColor( Scheme.TextEntryPlaceholder )
-	end
 end
 
 function TextEntry:SetFont( Font )

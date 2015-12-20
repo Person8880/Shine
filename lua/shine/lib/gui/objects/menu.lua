@@ -20,9 +20,6 @@ SGUI.AddProperty( Menu, "MaxVisibleButtons" )
 function Menu:Initialise()
 	Controls.Panel.Initialise( self )
 
-	local Scheme = SGUI:GetSkin()
-	self.Background:SetColor( Scheme.MenuButton )
-
 	self.ButtonSize = DefaultSize
 	self.ButtonOffset = DefaultOffset
 	self.Buttons = {}
@@ -41,15 +38,6 @@ function Menu:SetMaxVisibleButtons( Max )
 	self.BufferAmount = 0
 end
 
-function Menu:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.Background:SetColor( Scheme.MenuButton )
-	for i = 1, #Buttons do
-		Buttons[ i ]:SetInactiveCol( Scheme.MenuButton )
-	end
-end
-
 function Menu:SetButtonSize( Vec )
 	self.ButtonSize = Vec
 	self.ButtonOffset = Vector( 0, Vec.y, 0 )
@@ -65,13 +53,10 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	if self.Font then
 		Button:SetFont( self.Font )
 	end
-	Button.UseScheme = false
+	Button:SetStyleName( "MenuButton" )
 	if Tooltip then
 		Button:SetTooltip( Tooltip )
 	end
-
-	local Scheme = SGUI:GetSkin()
-	Button:SetInactiveCol( Scheme.MenuButton )
 
 	self.ButtonCount = self.ButtonCount + 1
 	self.Buttons[ self.ButtonCount ] = Button

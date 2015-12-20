@@ -19,30 +19,10 @@ CategoryPanel.BufferAmount = 0
 function CategoryPanel:Initialise()
 	Controls.Panel.Initialise( self )
 
-	local Skin = SGUI:GetSkin()
-
-	self:SetColour( Skin.WindowBackground )
-
 	self.Categories = {}
 	self.NumCategories = 0
 
 	self:SetScrollable()
-end
-
-function CategoryPanel:OnSchemeChange( Skin )
-	self:SetColour( Skin.WindowBackground )
-
-	local Categories = self.Categories
-
-	for i = 1, self.NumCategories do
-		local Category = Categories[ i ]
-
-		local Button = Category.Header
-
-		Button:SetFont( Skin.CategoryPanel.Font )
-		Button:SetActiveCol( Skin.CategoryPanel.ActiveCol )
-		Button:SetInactiveCol( Skin.CategoryPanel.InactiveCol )
-	end
 end
 
 function CategoryPanel:SetIsVisible( Visible )
@@ -74,15 +54,11 @@ end
 
 function CategoryPanel:AddCategory( Name )
 	local Categories = self.Categories
-	local Skin = SGUI:GetSkin()
 
 	local Button = self:Add( "Button" )
 	Button:SetSize( Vector( self:GetSize().x, self.CategoryHeight, 0 ) )
 	Button:SetText( Name )
-	Button.UseScheme = false
-	Button:SetFont( Skin.CategoryPanel.Font )
-	Button:SetActiveCol( Skin.CategoryPanel.ActiveCol )
-	Button:SetInactiveCol( Skin.CategoryPanel.InactiveCol )
+	Button:SetStyleName( "CategoryPanelButton" )
 
 	self.NumCategories = self.NumCategories + 1
 
@@ -135,15 +111,15 @@ function CategoryPanel:RemoveCategory( Name )
 	end
 
 	if not CategoryObj then return end
-	
+
 	--We get the total height taken up by this category, and destroy its objects.
 	local Objects = CategoryObj.Objects
 	local Height = 0
 	for i = 1, #Objects do
 		local Object = Objects[ i ]
-		
+
 		Height = Height + Object:GetSize().y
-		
+
 		Object.Removing = true
 		Object:SetParent()
 		Object:Destroy()
@@ -186,7 +162,7 @@ function CategoryPanel:SetCategoryExpanded( Name, Expand )
 		if not Found and Category.Name == Name then
 			if Expand and Category.Expanded then return end
 			if not Expand and not Category.Expanded then return end
-			
+
 			--Here we get the amount to move all objects below by.
 			Found = true
 			for j = 1, #Category.Objects do
@@ -240,7 +216,7 @@ function CategoryPanel:AddObject( CatName, Object )
 	end
 
 	if not CategoryObj then return end
-	
+
 	local Objects = CategoryObj.Objects
 	local LastObject = Objects[ #Objects ]
 	local Header = CategoryObj.Header
@@ -258,7 +234,7 @@ function CategoryPanel:AddObject( CatName, Object )
 	Object:CallOnRemove( function()
 		--The whole thing's being removed.
 		if not SGUI.IsValid( self ) or Object.Removing then return end
-		
+
 		local HeightDiff = Vector( 0, -Object:GetSize().y, 0 )
 
 		--Move objects below us up to compensate for our removal.

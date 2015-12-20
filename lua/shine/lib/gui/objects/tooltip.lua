@@ -25,14 +25,6 @@ function Tooltip:Initialise()
 	self.Background = Background
 end
 
-function Tooltip:OnSchemeChange( Scheme )
-	if not self.Visible then return end
-
-	if self.Text then
-		self.Text:SetColor( Scheme.BrightText )
-	end
-end
-
 function Tooltip:SetSize( Vec )
 	self.Size = Vec
 
@@ -41,14 +33,27 @@ function Tooltip:SetSize( Vec )
 		TextureCoords[ 3 ], TextureCoords[ 4 ] )
 end
 
+function Tooltip:SetTextColour( Col )
+	self.TextCol = Col
+
+	if not self.Text then return end
+
+	if self.Visible then
+		self.Text:SetColor( Col )
+	else
+		local TextCol = SGUI.CopyColour( Col )
+		TextCol.a = 0
+
+		self.Text:SetColor( TextCol )
+	end
+end
+
 function Tooltip:SetText( Text, Font, Scale )
 	if self.Text then
 		self.Text:SetText( Text )
 
 		return
 	end
-
-	local Scheme = SGUI:GetSkin()
 
 	local TextObj = GetGUIManager():CreateTextItem()
 	--Align center doesn't want to play nice...
@@ -69,16 +74,9 @@ function Tooltip:SetText( Text, Font, Scale )
 
 	self:SetSize( Vector( Width, Height, 0 ) )
 
-	if self.Visible then
-		TextObj:SetColor( Scheme.BrightText )
-	else
-		local TextCol = SGUI.CopyColour( Scheme.BrightText )
-
-		TextCol.a = 0
-		self.TextCol = TextCol
-
-		TextObj:SetColor( TextCol )
-	end
+	local TextCol = self.TextCol
+	TextCol.a = self.Visible and 1 or 0
+	TextObj:SetColor( TextCol )
 
 	self.Text = TextObj
 

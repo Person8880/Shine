@@ -16,30 +16,6 @@ function TabPanelButton:Initialise()
 
 	--We'll handle it ourselves.
 	self:SetHighlightOnMouseOver( false )
-
-	local Skin = SGUI:GetSkin()
-	self.ActiveCol = Skin.TabPanel.ActiveButton
-	self.InactiveCol = Skin.TabPanel.InactiveButton
-
-	self.Background:SetColor( self.InactiveCol )
-
-	self:SetFont( Skin.TabPanel.TabFont )
-end
-
-function TabPanelButton:OnSchemeChange( Skin )
-	if not self.UseScheme then return end
-
-	self.ActiveCol = Skin.TabPanel.ActiveButton
-	self.InactiveCol = Skin.TabPanel.InactiveButton
-	self.TextCol = Skin.BrightText
-
-	if self.Text then
-		self.Text:SetColor( self.TextCol )
-	end
-
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
-
-	self:SetFont( Skin.TabPanel.TabFont )
 end
 
 function TabPanelButton:SetTab( Index, Name )
@@ -83,6 +59,9 @@ TabPanel.IsWindow = true
 TabPanel.TabWidth = 128
 TabPanel.TabHeight = 96
 
+SGUI.AddBoundProperty( TabPanel, "TabBackgroundColour", "TabPanel:SetColour" )
+SGUI.AddBoundProperty( TabPanel, "PanelColour", "ContentPanel:SetColour" )
+
 function TabPanel:Initialise()
 	Controls.Panel.Initialise( self )
 
@@ -93,29 +72,15 @@ function TabPanel:Initialise()
 	self.TabPanel.ScrollbarHeightOffset = 0
 	self.TabPanel.BufferAmount = 0
 
-	local Skin = SGUI:GetSkin()
 	self.TabPanel.UseScheme = false
-	self.TabPanel:SetColour( Skin.InactiveButton )
 
 	--This panel is populated with a tab's content.
 	self.ContentPanel = SGUI:Create( "Panel", self )
 	self.ContentPanel:SetPos( Vector( self.TabWidth, 0, 0 ) )
 	self.ContentPanel.UseScheme = false
-	self.ContentPanel:SetColour( Skin.WindowBackground )
 
 	self.Tabs = {}
 	self.NumTabs = 0
-end
-
-function TabPanel:OnSchemeChange( Skin )
-	self.TabPanel:SetColour( Skin.InactiveButton )
-	self.ContentPanel:SetColour( Skin.WindowBackground )
-
-	if self.CloseButton then
-		self.CloseButton:SetActiveCol( Skin.CloseButtonActive )
-		self.CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
-		self.CloseButton:SetTextColour( Skin.BrightText )
-	end
 end
 
 --Setting the tab width or tab height means we should resize the panels too.
@@ -269,14 +234,7 @@ function TabPanel:AddCloseButton()
 	CloseButton:SetText( "X" )
 	CloseButton:SetAnchor( "TopRight" )
 	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
-
-	local Skin = SGUI:GetSkin()
-
-	CloseButton.UseScheme = false
-
-	CloseButton:SetActiveCol( Skin.CloseButtonActive )
-	CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
-	CloseButton:SetTextColour( Skin.BrightText )
+	CloseButton:SetStyleName( "CloseButton" )
 
 	function CloseButton.DoClick()
 		--Again for external usage.

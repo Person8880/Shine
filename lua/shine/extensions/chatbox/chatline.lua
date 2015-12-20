@@ -43,12 +43,7 @@ do
 			CallMethod( self.WrappedLabel, Method, ... )
 		end
 
-		local Tags = self.Tags
-		if not Tags then return end
-
-		for i = 1, #Tags do
-			CallMethod( Tags[ i ], Method, ... )
-		end
+		self:ForEach( "Tags", Method, ... )
 	end
 end
 

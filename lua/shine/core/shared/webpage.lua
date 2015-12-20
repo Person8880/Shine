@@ -59,7 +59,6 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 	}
 	Window.TitleBarHeight = TitleBarH
 	Window:AddTitleBar( "Open in Steam Overlay", Font, TextScale )
-	Window:SkinColour()
 
 	local OldOnMouseDown = Window.OnMouseDown
 
@@ -177,7 +176,6 @@ function Shine:OpenWebpage( URL, TitleText )
 	}
 	Window.TitleBarHeight = TitleBarH
 	Window:AddTitleBar( TitleText or "Message of the day", Font, TextScale )
-	Window:SkinColour()
 
 	self.ActiveWebPage = Window
 

@@ -18,48 +18,18 @@ local ZeroColour = Colour( 0, 0, 0, 0 )
 function Panel:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Background = GetGUIManager():CreateGraphicItem()
-
-	self.Background = Background
+	self.Background = GetGUIManager():CreateGraphicItem()
 	self.TitleBarHeight = 24
 end
 
-function Panel:OnSchemeChange( Skin )
-	if not self.UseScheme then return end
-
-	self.Background:SetColor( Skin.WindowBackground )
-
-	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetColour( Skin.WindowTitle )
-	end
-
-	if SGUI.IsValid( self.CloseButton ) then
-		self.CloseButton:SetActiveCol( Skin.CloseButtonActive )
-		self.CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
-		self.CloseButton:SetTextColour( Skin.BrightText )
-	end
-
-	if SGUI.IsValid( self.TitleLabel ) then
-		self.TitleLabel:SetColour( Skin.BrightText )
-	end
-end
-
 function Panel:SkinColour()
-	local Scheme = SGUI:GetSkin()
-
-	self.Background:SetColor( Scheme.WindowBackground )
-
-	self.UseScheme = true
+	-- Deprecated, does nothing.
 end
 
 function Panel:AddTitleBar( Title, Font, TextScale )
 	local TitlePanel = SGUI:Create( "Panel", self )
 	TitlePanel:SetSize( Vector( self:GetSize().x, self.TitleBarHeight, 0 ) )
-	if self.UseScheme then
-		local Skin = SGUI:GetSkin()
-
-		TitlePanel:SetColour( Skin.WindowTitle )
-	end
+	TitlePanel:SetStyleName( "TitleBar" )
 	TitlePanel:SetAnchor( "TopLeft" )
 
 	self.TitleBar = TitlePanel
@@ -70,11 +40,6 @@ function Panel:AddTitleBar( Title, Font, TextScale )
 	TitleLabel:SetText( Title )
 	TitleLabel:SetTextAlignmentX( GUIItem.Align_Center )
 	TitleLabel:SetTextAlignmentY( GUIItem.Align_Center )
-	if self.UseScheme then
-		local Skin = SGUI:GetSkin()
-
-		TitleLabel:SetColour( Skin.BrightText )
-	end
 	if TextScale then
 		TitleLabel:SetTextScale( TextScale )
 	end
@@ -86,15 +51,7 @@ function Panel:AddTitleBar( Title, Font, TextScale )
 	CloseButton:SetText( "X" )
 	CloseButton:SetAnchor( "TopRight" )
 	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
-	if self.UseScheme then
-		local Skin = SGUI:GetSkin()
-
-		CloseButton.UseScheme = false
-
-		CloseButton:SetActiveCol( Skin.CloseButtonActive )
-		CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
-		CloseButton:SetTextColour( Skin.BrightText )
-	end
+	CloseButton:SetStyleName( "CloseButton" )
 
 	function CloseButton.DoClick()
 		self:SetIsVisible( false )

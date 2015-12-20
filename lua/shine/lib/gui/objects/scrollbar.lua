@@ -9,49 +9,34 @@ local Scrollbar = {}
 local Clamp = math.Clamp
 local Vector = Vector
 
+SGUI.AddBoundProperty( Scrollbar, "BackgroundColour", "Background:SetColor" )
+SGUI.AddBoundProperty( Scrollbar, "InactiveCol", "Bar:SetColor" )
+SGUI.AddProperty( Scrollbar, "ActiveCol" )
+
 function Scrollbar:Initialise()
 	self.BaseClass.Initialise( self )
 
 	local Manager = GetGUIManager()
-
 	local Background = Manager:CreateGraphicItem()
 
 	self.Background = Background
 
 	local Bar = Manager:CreateGraphicItem()
 	Bar:SetAnchor( GUIItem.Left, GUIItem.Top )
-
 	Background:AddChild( Bar )
 
-	local Scheme = SGUI:GetSkin()
-
-	Background:SetColor( Scheme.ScrollbarBackground )
-	Bar:SetColor( Scheme.Scrollbar )
-
-	self.ActiveCol = Scheme.ScrollbarActive
-	self.InactiveCol = Scheme.Scrollbar
-
 	self.Bar = Bar
-
 	self.BarPos = Vector( 0, 0, 0 )
-
 	self.Pos = 0
 	self.ScrollSize = 1
 end
 
 function Scrollbar:GetNormalAlpha( Element )
-	local Skin = SGUI:GetSkin()
-
 	if Element == self.Background then
-		return Skin.ScrollbarBackground.a
+		return self:GetStyleValue( "Colour" ).a
 	end
 
-	return Skin.Scrollbar.a
-end
-
-function Scrollbar:OnSchemeChange( Skin )
-	self.Background:SetColor( Skin.ScrollbarBackground )
-	self.Bar:SetColor( Skin.Scrollbar )
+	return self:GetStyleValue( "InactiveCol" ).a
 end
 
 function Scrollbar:SetSize( Size )

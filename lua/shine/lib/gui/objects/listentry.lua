@@ -26,70 +26,30 @@ function ListEntry:Initialise()
 	local Background = GetGUIManager():CreateGraphicItem()
 
 	self.Background = Background
-
-	local Scheme = SGUI:GetSkin()
-	Background:SetColor( Scheme.InactiveButton )
-
-	self.InactiveCol = Scheme.InactiveButton
-	self.ActiveCol = Scheme.List.EntryActive
-
 	self:SetHighlightOnMouseOver( true, 0.9 )
 end
 
-function ListEntry:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	if self.Index then
-		self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
-	else
-		self.InactiveCol = Scheme.InactiveButton
-	end
-	self.ActiveCol = Scheme.List.EntryActive
-
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
-
-	local TextObjs = self.TextObjs
-
-	if TextObjs then
-		local TextCol = Scheme.List.EntryTextColour or Scheme.DarkText
-
-		for i = 1, self.Columns do
-			local Text = TextObjs[ i ]
-
-			Text:SetColor( TextCol )
-		end
-	end
+function ListEntry:SetTextColour( Colour )
+	self.TextColour = Colour
+	self:ForEach( "TextObjs", "SetColor", Colour )
 end
 
 function ListEntry:SetFont( Font )
 	self.Font = Font
-
-	local TextObjs = self.TextObjs
-	if not TextObjs then return end
-
-	for i = 1, #TextObjs do
-		TextObjs[ i ]:SetFontName( Font )
-	end
+	self:ForEach( "TextObjs", "SetFontName", Font )
 end
 
 function ListEntry:SetTextScale( Scale )
 	self.TextScale = Scale
-
-	local TextObjs = self.TextObjs
-	if not TextObjs then return end
-
-	for i = 1, #TextObjs do
-		TextObjs[ i ]:SetScale( Font )
-	end
+	self:ForEach( "TextObjs", "SetScale", Scale )
 end
 
 function ListEntry:Setup( Index, Columns, Size, ... )
 	self.Index = Index
 
-	local Scheme = SGUI:GetSkin()
-
-	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
+	if IsEven( Index ) then
+		self:SetStyleName( "DefaultEven" )
+	end
 
 	self.Columns = Columns
 
@@ -102,7 +62,7 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	Background:SetSize( Size )
 
 	local Manager = GetGUIManager()
-	local TextCol = Scheme.List.EntryTextColour or Scheme.DarkText
+	local TextCol = self.TextColour
 
 	for i = 1, Columns do
 		local Text = tostring( select( i, ... ) )
@@ -115,8 +75,6 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 
 		if self.Font then
 			TextObj:SetFontName( self.Font )
-		elseif Scheme.List.EntryFont then
-			TextObj:SetFontName( Scheme.List.EntryFont )
 		end
 
 		if self.TextScale then
@@ -130,11 +88,7 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 end
 
 function ListEntry:OnReorder()
-	local Scheme = SGUI:GetSkin()
-
-	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
-	self.Background:SetColor( ( self.Highlighted or self.Selected )
-		and self.ActiveCol or self.InactiveCol )
+	self:SetStyleName( IsEven( self.Index ) and "DefaultEven" or nil )
 end
 
 function ListEntry:SetSpacing( SpacingTable )
@@ -248,4 +202,4 @@ function ListEntry:OnMouseUp( Key )
 	return true
 end
 
-SGUI:Register( "ListEntry", ListEntry )
+SGUI:Register( "ListEntry", ListEntry, "Button" )

@@ -158,7 +158,6 @@ ConfigMenu:AddTab( "Settings", {
 		Title:SetFontScale( GetMediumFont() )
 		Title:SetText( "Client Settings" )
 		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 16 ) ) )
-		Title:SetBright( true )
 		Layout:AddElement( Title )
 
 		for i = 1, #Settings do

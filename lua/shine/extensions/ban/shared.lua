@@ -60,7 +60,6 @@ function Plugin:SetupAdminMenu()
 		Window:SetSize( Vector( 400, 328, 0 ) )
 		Window:SetPos( Vector( -200, -164, 0 ) )
 		Window:AddTitleBar( "Add ban" )
-		Window:SkinColour()
 
 		function Window.CloseButton.DoClick()
 			Shine.AdminMenu:DontDestroyOnClose( Window )
@@ -81,7 +80,6 @@ function Plugin:SetupAdminMenu()
 		local IDLabel = SGUI:Create( "Label", Window )
 		IDLabel:SetText( "NS2ID:" )
 		IDLabel:SetFont( Fonts.kAgencyFB_Small )
-		IDLabel:SetBright( true )
 		IDLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -153,7 +151,6 @@ function Plugin:SetupAdminMenu()
 		local DurationLabel = SGUI:Create( "Label", Window )
 		DurationLabel:SetText( "Duration (in minutes, 0 for permanent):" )
 		DurationLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationLabel:SetBright( true )
 		DurationLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -174,7 +171,6 @@ function Plugin:SetupAdminMenu()
 		local DurationValueLabel = SGUI:Create( "Label", Window )
 		DurationValueLabel:SetText( "Please enter a duration..." )
 		DurationValueLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationValueLabel:SetBright( true )
 		DurationValueLabel:SetPos( Vector( X, Y, 0 ) )
 		local DurationOptions = { Units = "minutes", Min = 0, Round = true }
 		function DurationEntry:OnTextChanged( OldValue, NewValue )
@@ -197,7 +193,6 @@ function Plugin:SetupAdminMenu()
 		local ReasonLabel = SGUI:Create( "Label", Window )
 		ReasonLabel:SetText( "Reason:" )
 		ReasonLabel:SetFont( Fonts.kAgencyFB_Small )
-		ReasonLabel:SetBright( true )
 		ReasonLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32

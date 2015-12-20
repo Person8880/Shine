@@ -11,10 +11,7 @@ local CheckBox = {}
 function CheckBox:Initialise()
 	self.BaseClass.Initialise( self )
 
-	if self.Background then GUI.DestroyItem( self.Background ) end
-
 	local Manager = GetGUIManager()
-
 	local Background = Manager:CreateGraphicItem()
 
 	self.Background = Background
@@ -25,33 +22,7 @@ function CheckBox:Initialise()
 	Background:AddChild( Box )
 
 	self.Box = Box
-
-	local Scheme = SGUI:GetSkin()
-
-	self.BackgroundCol = Scheme.InactiveButton
-	self.BoxCol = Scheme.ActiveButton
-	self.BoxHideCol = SGUI.CopyColour( Scheme.ActiveButton )
-	self.BoxHideCol.a = 0
-
-	self.Font = Scheme.ButtonFont
-	self.TextColour = Scheme.BrightText
-
-	Box:SetColor( self.BoxHideCol )
-	Background:SetColor( self.BackgroundCol )
-
 	self.Checked = false
-end
-
-function CheckBox:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.BackgroundCol = Scheme.InactiveButton
-	self.BoxCol = Scheme.ActiveButton
-	self.BoxHideCol = SGUI.CopyColour( Scheme.ActiveButton )
-	self.BoxHideCol.a = 0
-
-	self.Box:SetColor( self.Checked and self.BoxCol or self.BoxHideCol )
-	self.Background:SetColor( self.BackgroundCol )
 end
 
 function CheckBox:SetCheckedColour( Col )
