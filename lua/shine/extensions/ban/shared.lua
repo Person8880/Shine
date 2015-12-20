@@ -179,7 +179,7 @@ function Plugin:SetupAdminMenu()
 				return
 			end
 
-			local Minutes = Shine.CommandUtil.ParamTypes.time( nil, NewValue, DurationOptions )
+			local Minutes = Shine.CommandUtil.ParamTypes.time.Parse( nil, NewValue, DurationOptions )
 			if Minutes == 0 then
 				DurationValueLabel:SetText( "Duration: Permanent." )
 				return
