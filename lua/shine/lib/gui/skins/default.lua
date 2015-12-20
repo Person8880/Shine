@@ -25,6 +25,12 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = Colour( 1, 0.4, 0.1, 1 ),
 			InactiveCol = Colour( 0.3, 0.3, 0.3, 1 )
+		},
+		SuccessButton = {
+			ActiveCol = Colour( 0.1, 0.6, 0.1, 1 )
+		},
+		DangerButton = {
+			ActiveCol = Colour( 1, 0.2, 0.1, 1 )
 		}
 	},
 	CategoryPanel = {
