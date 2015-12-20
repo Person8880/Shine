@@ -58,7 +58,7 @@ function Shine:LogString( String )
 end
 
 function Shine:SaveLog()
-	if not self.Config.EnableLogging then return end
+	if not self.Config.EnableLogging then return false end
 
 	local String = TableConcat( LogMessages, "\n" )
 	local CurrentLogFile = GetCurrentLogFile()
@@ -78,7 +78,7 @@ function Shine:SaveLog()
 	if not LogFile then
 		Shared.Message( StringFormat( "Error writing to log file: %s", Err  ) )
 
-		return
+		return false
 	end
 
 	LogFile:write( Data, String, "\n" )
@@ -88,6 +88,8 @@ function Shine:SaveLog()
 	for i = 1, #LogMessages do
 		LogMessages[ i ] = nil
 	end
+
+	return true
 end
 
 --Periodically save the log file.
@@ -104,9 +106,12 @@ Shine.Timer.Create( "LogSave", 300, -1, function()
 end )
 
 Shine:RegisterCommand( "sh_flushlog", nil, function( Client )
-	Shine:SaveLog()
-	Shine:AdminPrint( Client, "Log flushed successfully." )
-end )
+	if Shine:SaveLog() then
+		Shine:AdminPrint( Client, "Log flushed successfully." )
+	else
+		Shine:AdminPrint( Client, "Failed to flush log. Either logging is disabled, or an error occurred." )
+	end
+end ):Help( "Flushes Shine's current log file to disk." )
 
 function Shine:Print( String, Format, ... )
 	String = Format and StringFormat( String, ... ) or String
