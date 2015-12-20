@@ -4,6 +4,7 @@
 
 local IsType = Shine.IsType
 local MathClamp = math.ClampEx
+local Min = math.min
 local Round = math.Round
 local StringExplode = string.Explode
 local StringFind = string.find
@@ -12,6 +13,7 @@ local StringGSub = string.gsub
 local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local TableConcat = table.concat
+local TableCopy = table.Copy
 local TableInsert = table.insert
 local TableRemove = table.remove
 local TableSort = table.sort
@@ -96,12 +98,10 @@ do
 		return ""
 	end
 
-	function CommandMeta:GetHelp()
+	function CommandMeta:GetParameterHelp()
 		local Args = self.Arguments
-
-		-- Legacy help message.
-		if #Args == 0 or StringStartsWith( self.HelpString, "<" ) then
-			return self.HelpString
+		if #Args == 0 then
+			return ""
 		end
 
 		local Message = {}
@@ -116,9 +116,18 @@ do
 				GetArgDefaultMessage( Arg, Type ) )
 		end
 
-		Message[ #Message + 1 ] = self.HelpString
-
 		return TableConcat( Message, " " )
+	end
+
+	function CommandMeta:GetHelp( OnlyHelpString )
+		local Args = self.Arguments
+
+		-- Legacy help message.
+		if OnlyHelpString or #Args == 0 or StringStartsWith( self.HelpString, "<" ) then
+			return self.HelpString
+		end
+
+		return StringFormat( "%s %s", self:GetParameterHelp(), self.HelpString )
 	end
 end
 
@@ -195,6 +204,48 @@ function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silen
 	end
 
 	return CmdObj
+end
+
+function Shine:FindCommands( SearchText, Field )
+	local Results = {}
+
+	for ConCommand, Command in pairs( self.Commands ) do
+		if not Command.Disabled and Command[ Field ] then
+			local Value = Command[ Field ]
+			local Start
+			local MatchedIndex
+
+			if IsType( Value, "string" ) then
+				Start = Value == SearchText and 0 or StringFind( Value, SearchText, 1, true )
+			else
+				for i = 1, #Value do
+					local CurStart = Value[ i ] == SearchText and 0 or StringFind( Value[ i ], SearchText, 1, true )
+
+					if CurStart then
+						if not Start then
+							Start = CurStart
+							MatchedIndex = i
+						elseif CurStart < Start then
+							MatchedIndex = i
+							Start = CurStart
+						end
+					end
+				end
+			end
+
+			if Start then
+				Results[ #Results + 1 ] = { Start = Start, Command = Command, MatchedIndex = MatchedIndex }
+			end
+		end
+	end
+
+	return Shine.Stream( Results ):Sort( function( A, B )
+		return A.Start < B.Start
+	end ):Map( function( Value )
+		local Command = TableCopy( Value.Command )
+		Command.MatchedIndex = Value.MatchedIndex
+		return Command
+	end ):AsTable()
 end
 
 --[[
