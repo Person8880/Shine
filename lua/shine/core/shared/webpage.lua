@@ -77,7 +77,6 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Pos = Scale( PopupTextPos, WidthMult, HeightMult ),
 		Text = PopupText:gsub( "\n", " " ),
 		Font = Font,
-		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
 		TextAlignmentY = GUIItem.Align_Center
 	}
@@ -209,7 +208,6 @@ function Shine:OpenWebpage( URL, TitleText )
 		Anchor = "CentreMiddle",
 		Text = "Loading...",
 		Font = LoadingFont,
-		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
 		TextAlignmentY = GUIItem.Align_Center
 	}

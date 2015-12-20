@@ -22,7 +22,6 @@ function Label:Initialise()
 
 	self.Label = GetGUIManager():CreateTextItem()
 	self.Background = self.Label
-	self.Bright = true
 	self.TextScale = Vector( 1, 1, 0 )
 end
 
