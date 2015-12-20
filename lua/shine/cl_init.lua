@@ -35,7 +35,8 @@ local Scripts = {
 	"core/shared/chat.lua",
 	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
-	"lib/screentext/cl_screentext.lua"
+	"lib/screentext/cl_screentext.lua",
+	"core/shared/autocomplete.lua"
 }
 
 local OnLoadedFuncs = {

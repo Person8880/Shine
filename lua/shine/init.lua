@@ -35,7 +35,8 @@ local Scripts = {
 	"lib/screentext/sv_screentext.lua",
 	"core/shared/adminmenu.lua",
 	"core/shared/votemenu.lua",
-	"core/server/votemenu.lua"
+	"core/server/votemenu.lua",
+	"core/shared/autocomplete.lua"
 }
 
 local OnLoadedFuncs = {
