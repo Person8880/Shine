@@ -18,7 +18,10 @@ local Max = math.max
 local Min = math.min
 local pairs = pairs
 local select = select
+local StringFind = string.find
 local StringFormat = string.format
+local StringLen = string.len
+local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableEmpty = table.Empty
@@ -215,7 +218,9 @@ local LayoutData = {
 		TextBorder = Colour( 0, 0, 0, 0 ),
 		Text = Colour( 1, 1, 1, 1 ),
 		CheckBack = Colour( 0.2, 0.2, 0.2, 1 ),
-		Checked = Colour( 0.8, 0.6, 0.1, 1 )
+		Checked = Colour( 0.8, 0.6, 0.1, 1 ),
+		AutoCompleteCommand = Colour( 1, 0.8, 0 ),
+		AutoCompleteParams = Colour( 1, 0.5, 0 )
 	}
 }
 
@@ -448,6 +453,7 @@ function Plugin:CreateChatbox()
 		end
 
 		self:SetText( "" )
+		Plugin:DestroyAutoCompletePanel()
 
 		if Plugin.Config.AutoClose then
 			Plugin:CloseChat()
@@ -466,6 +472,16 @@ function Plugin:CreateChatbox()
 		if ( Plugin.OpenTime or 0 ) + 0.05 > Clock() then
 			return false
 		end
+	end
+
+	function TextEntry.OnUnhandledKey( TextEntry, Key, Down )
+		if Key == InputKey.Down or Key == InputKey.Up then
+			self:ScrollAutoComplete( Key == InputKey.Down and 1 or -1 )
+		end
+	end
+
+	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
+		self:AutoCompleteCommand( NewText )
 	end
 
 	self.TextEntry = TextEntry
@@ -903,6 +919,140 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 end
 
+local MaxAutoCompleteResult = 3
+
+function Plugin:ScrollAutoComplete( Amount )
+	if not self.AutoCompleteResults then return end
+
+	local Results = self.AutoCompleteResults
+	self.CurrentResult = ( self.CurrentResult or 0 ) + Amount
+	if self.CurrentResult > Min( MaxAutoCompleteResult, #Results ) then
+		self.CurrentResult = 1
+	end
+
+	local Text = StringFormat( "%s%s ", self.AutoCompleteLetter,
+		self.AutoCompleteResults[ self.CurrentResult ].ChatCommand )
+	self.TextEntry:SetText( Text )
+end
+
+function Plugin:SubmitAutoCompleteRequest( Text )
+	local FirstLetter = StringSub( Text, 1, 1 )
+	self.AutoCompleteLetter = FirstLetter
+
+	local FirstSpace = StringFind( Text, " " )
+	local SearchText = StringSub( Text, 2, FirstSpace and ( FirstSpace - 1 ) or StringLen( Text ) )
+
+	if self.LastSearch == SearchText then return end
+
+	self.LastSearch = SearchText
+
+	Shine.AutoComplete:Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
+		if not self.Visible then return end
+
+		self.AutoCompleteResults = Results
+
+		local ResultPanel = self.AutoCompletePanel
+		if not ResultPanel then
+			ResultPanel = SGUI:Create( "Panel", self.MainPanel )
+			self.AutoCompletePanel = ResultPanel
+
+			ResultPanel:SetAnchor( "BottomLeft" )
+
+			local Padding = self.MainPanel.Layout:GetComputedPadding()
+			ResultPanel:SetPos( Vector2( Padding[ 1 ], 0 ) )
+			ResultPanel:SetColour( Colour( 0, 0, 0, 0 ) )
+			ResultPanel:SetLayout( SGUI.Layout:CreateLayout( "Vertical", {} ) )
+		end
+
+		local Layout = ResultPanel.Layout
+		local Elements = Layout.Elements
+
+		for i = 1, Max( #Results, #Elements ) do
+			local Label = Elements[ i ]
+			if not Results[ i ] then
+				if Label then
+					Label:AlphaTo( nil, nil, 0, 0, 0.3, function()
+						if not Label then return end
+
+						Label:SetParent()
+						Label:Destroy()
+						Label = nil
+						Elements[ i ] = nil
+					end )
+				end
+			else
+				local ShouldFade
+				if not Label then
+					ShouldFade = true
+					Label = SGUI:Create( "ColourLabel", ResultPanel )
+					Label:SetMargin( Spacing( 0, 0, 0, Scaled( 2, self.ScalarScale ) ) )
+					Elements[ i ] = Label
+				end
+
+				local Result = Results[ i ]
+
+				Label:SetFont( self:GetFont() )
+				Label:SetTextScale( self.MessageTextScale )
+
+				local Colours = LayoutData.Colours
+
+				local TextContent = {
+					Colours.ModeText, FirstLetter,
+					Colours.AutoCompleteCommand, Result.ChatCommand.." "
+				}
+				if Result.Parameters ~= "" then
+					TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+					TextContent[ #TextContent + 1 ] = Result.Parameters.." "
+				end
+
+				TextContent[ #TextContent + 1 ] = Colours.ModeText
+				TextContent[ #TextContent + 1 ] = Result.Description
+
+				Label:SetText( TextContent )
+				Label:InvalidateLayout( true )
+
+				if ShouldFade then
+					Label:AlphaTo( nil, 0, 1, 0, 0.3, nil, math.EaseIn )
+				end
+			end
+		end
+
+		ResultPanel:InvalidateLayout( true )
+	end )
+end
+
+function Plugin:DestroyAutoCompletePanel()
+	if not self.AutoCompletePanel then return end
+
+	if self.AutoCompleteTimer then
+		self.AutoCompleteTimer:Destroy()
+		self.AutoCompleteTimer = nil
+	end
+
+	self.AutoCompletePanel:SetParent()
+	self.AutoCompletePanel:Destroy()
+	self.AutoCompletePanel = nil
+
+	self.AutoCompleteResults = nil
+	self.AutoCompleteLetter = nil
+	self.LastSearch = nil
+	self.CurrentResult = nil
+end
+
+function Plugin:AutoCompleteCommand( Text )
+	if not StringFind( Text, "^[!/]" ) or StringLen( Text ) <= 1 then
+		self:DestroyAutoCompletePanel()
+
+		return
+	end
+
+	self.AutoCompleteTimer = self.AutoCompleteTimer or self:SimpleTimer( 0.3, function()
+		self.AutoCompleteTimer = nil
+		self:SubmitAutoCompleteRequest( self.TextEntry:GetText() )
+	end )
+	self.AutoCompleteTimer:Debounce()
+end
+
 function Plugin:CloseChat()
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
@@ -913,6 +1063,7 @@ function Plugin:CloseChat()
 
 	if self.Config.DeleteOnClose then
 		self.TextEntry:SetText( "" )
+		self:DestroyAutoCompletePanel()
 	end
 
 	self.TextEntry:LoseFocus()
