@@ -86,7 +86,7 @@ end
 local Requests = {}
 local ID = 0
 
-function AutoComplete:Request( SearchText, Type, DesiredResults, OnReceived )
+function AutoComplete.Request( SearchText, Type, DesiredResults, OnReceived )
 	ID = ( ID + 1 ) % MaxID
 
 	Shine.SendNetworkMessage( "Shine_AutoCompleteRequest", {

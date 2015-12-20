@@ -946,7 +946,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 	self.LastSearch = SearchText
 
-	Shine.AutoComplete:Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
+	Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
 		if not self.Visible then return end
 
 		self.AutoCompleteResults = Results
