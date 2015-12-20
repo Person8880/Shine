@@ -405,8 +405,17 @@ function Plugin:CreateInfoCommands()
 				local Command = Shine.Commands[ CommandName ]
 
 				if Command then
-					local ChatCommand = type( Command.ChatCmd ) == "string"
-						and StringFormat( " (chat: !%s)", Command.ChatCmd ) or ""
+					local ChatCommand = ""
+					if Command.ChatCmd then
+						local ChatCommandString
+						if IsType( Command.ChatCmd, "string" ) then
+							ChatCommandString = Command.ChatCmd
+						else
+							ChatCommandString = TableConcat( Command.ChatCmd, " or !" )
+						end
+
+						ChatCommand = StringFormat( " (chat: !%s)", ChatCommandString )
+					end
 
 					local HelpLine = StringFormat( "%s. %s%s: %s", i, CommandName,
 						ChatCommand, Command:GetHelp() or "No help available." )
