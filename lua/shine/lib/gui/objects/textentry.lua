@@ -800,6 +800,10 @@ function TextEntry:OnMouseDown( Key, DoubleClick )
 	end
 end
 
+function TextEntry:OnUnhandledKey( Key, Down )
+
+end
+
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
@@ -847,6 +851,8 @@ function TextEntry:PlayerKeyPress( Key, Down )
 
 		return true
 	end
+
+	self:OnUnhandledKey( Key, Down )
 
 	return true
 end
