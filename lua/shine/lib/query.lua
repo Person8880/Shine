@@ -158,7 +158,7 @@ function Shine.HTTPRequestWithRetry( URL, Protocol, Params, OnSuccess, OnFailure
 
 	local function OnTimeout()
 		Attempts = Attempts + 1
-		if Attempts > MaxAttempts then
+		if Attempts >= MaxAttempts then
 			OnFailure()
 			return
 		end
