@@ -47,7 +47,7 @@ if Server then
 			Message.Type == AutoComplete.CHAT_COMMAND and "ChatCmd" or "ConCmd" )
 
 		Shine.Stream( Matches ):Reduce( function( Result )
-			return Shine:HasAccess( Client, Result.Command.ConCmd )
+			return Shine:GetPermission( Client, Result.Command.ConCmd )
 		end )
 
 		local NumResults = Min( #Matches, Message.DesiredResults, MaxResponses )
