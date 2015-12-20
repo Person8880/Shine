@@ -5,6 +5,7 @@
 local IsType = Shine.IsType
 local MathClamp = math.ClampEx
 local Min = math.min
+local pairs = pairs
 local Round = math.Round
 local StringExplode = string.Explode
 local StringFind = string.find
@@ -13,7 +14,6 @@ local StringGSub = string.gsub
 local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local TableConcat = table.concat
-local TableCopy = table.Copy
 local TableInsert = table.insert
 local TableRemove = table.remove
 local TableSort = table.sort
@@ -241,10 +241,6 @@ function Shine:FindCommands( SearchText, Field )
 
 	return Shine.Stream( Results ):Sort( function( A, B )
 		return A.Start < B.Start
-	end ):Map( function( Value )
-		local Command = TableCopy( Value.Command )
-		Command.MatchedIndex = Value.MatchedIndex
-		return Command
 	end ):AsTable()
 end
 

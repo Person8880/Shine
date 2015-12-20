@@ -39,14 +39,15 @@ do
 end
 
 if Server then
+	local IsType = Shine.IsType
 	local Min = math.min
 
 	Server.HookNetworkMessage( "Shine_AutoCompleteRequest", function( Client, Message )
 		local Matches = Shine:FindCommands( Message.SearchText,
 			Message.Type == AutoComplete.CHAT_COMMAND and "ChatCmd" or "ConCmd" )
 
-		Shine.Stream( Matches ):Reduce( function( Command )
-			return Shine:HasAccess( Client, Command.ConCmd )
+		Shine.Stream( Matches ):Reduce( function( Result )
+			return Shine:HasAccess( Client, Result.Command.ConCmd )
 		end )
 
 		local NumResults = Min( #Matches, Message.DesiredResults, MaxResponses )
@@ -58,10 +59,16 @@ if Server then
 			return
 		end
 
+		local IsConsoleCommandSearch = Message.Type == AutoComplete.CONSOLE_COMMAND
+
 		for i = 1, NumResults do
-			local Command = Matches[ i ]
-			local ChatCommand = Command.MatchedIndex
-				and Command.ChatCmd[ Command.MatchedIndex ] or Command.ChatCmd
+			local Result = Matches[ i ]
+			local Command = Result.Command
+			local ChatCommand = Result.MatchedIndex
+				and Command.ChatCmd[ Result.MatchedIndex ] or Command.ChatCmd
+			if IsConsoleCommandSearch and IsType( ChatCommand, "table" ) then
+				ChatCommand = ChatCommand[ 1 ]
+			end
 
 			local Description = Command:GetHelp( true ) or "No help provided."
 			if Command.GetAdditionalInfo then
@@ -69,7 +76,7 @@ if Server then
 			end
 
 			Shine.SendNetworkMessage( Client, "Shine_AutoCompleteResponse", {
-				ChatCommand = ChatCommand,
+				ChatCommand = ChatCommand or "",
 				ConsoleCommand = Command.ConCmd,
 				Parameters = Command:GetParameterHelp(),
 				Description = Description,
