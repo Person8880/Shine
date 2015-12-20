@@ -1,5 +1,8 @@
 --[[
 	Basic table streams.
+
+	Provides a way to interact with array structures with simple functional methods.
+	Note that streams will modify the table passed in directly.
 ]]
 
 local setmetatable = setmetatable
@@ -48,6 +51,19 @@ end
 ]]
 function Stream:Sort( Comparator )
 	TableSort( self.Data, Comparator )
+
+	return self
+end
+
+--[[
+	Imposes a limit on the number of results.
+]]
+function Stream:Limit( Limit )
+	if #self.Data <= Limit then return self end
+
+	for i = Limit + 1, #self.Data do
+		self.Data[ i ] = nil
+	end
 
 	return self
 end

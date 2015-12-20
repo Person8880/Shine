@@ -28,3 +28,13 @@ UnitTest:Test( "Sort", function( Assert )
 
 	Assert:ArrayEquals( { 1, 2, 3, 4, 5, 6 }, Data )
 end )
+
+UnitTest:Test( "Limit", function( Assert )
+	local Data = { 1, 2, 3, 4, 5, 6 }
+
+	Stream( Data ):Limit( 3 )
+	Assert:ArrayEquals( { 1, 2, 3 }, Data )
+
+	Stream( Data ):Limit( 3 )
+	Assert:ArrayEquals( { 1, 2, 3 }, Data )
+end )
