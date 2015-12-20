@@ -641,26 +641,13 @@ local function PopCommandStack( self )
 	self.CommandStack[ #self.CommandStack ] = nil
 end
 
-function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg )
-	--Convert the string argument into the requested type.
-	local Result, Extra, MatchedType = ParseParameter( Client, ArgString, CurArg )
-	MatchedType = MatchedType or CurArg.Type
+function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
+	Shine:NotifyCommandError( Client,
+		CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
+		true, i, ConCommand, CurArg.Type )
+end
 
-	local ParamType = ParamTypes[ MatchedType ]
-
-	--Specifically check for nil (boolean argument could be false).
-	if Result == nil and not CurArg.Optional then
-		if ParamType.OnFailedMatch then
-			ParamType.OnFailedMatch( Client, CurArg, Extra )
-		else
-			Shine:NotifyCommandError( Client,
-				CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
-				true, i, ConCommand, CurArg.Type )
-		end
-
-		return
-	end
-
+function Shine.CommandUtil:Validate( Client, ConCommand, Result, CurArg, i )
 	local RestrictionIndex = tostring( i )
 
 	if ArgRestrictions and ArgRestrictions[ RestrictionIndex ] then
@@ -675,14 +662,12 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg 
 				Shine:NotifyCommandError( Client,
 					"Invalid argument #%i, restricted in rank settings.", true, i )
 
-				return
+				return nil
 			end
 		end
 	end
 
-	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result ) then return end
-
-	return true, Result
+	return Result
 end
 
 function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )
@@ -722,7 +707,7 @@ function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command
 			ArgString = self.BuildLineFromArgs( Args, i )
 		end
 
-		local Success, Result = self:GetCommandArg( Client, ConCommand, ArgString, CurArg )
+		local Success, Result = self:GetCommandArg( Client, ConCommand, ArgString, CurArg, i )
 		if not Success then return nil end
 
 		ParsedArgs[ i ] = Result

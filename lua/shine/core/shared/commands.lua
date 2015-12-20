@@ -134,6 +134,32 @@ function Shine.CommandUtil.ParseParameter( Client, String, Table )
 	return nil, nil, Type[ 1 ]
 end
 
+function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg, i )
+	-- Convert the string argument into the requested type.
+	local Result, Extra, MatchedType = self.ParseParameter( Client, ArgString, CurArg )
+	MatchedType = MatchedType or CurArg.Type
+
+	local ParamType = ParamTypes[ MatchedType ]
+
+	-- Specifically check for nil (boolean argument could be false).
+	if Result == nil and not CurArg.Optional then
+		if ParamType.OnFailedMatch then
+			ParamType.OnFailedMatch( Client, CurArg, Extra )
+		else
+			self:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
+		end
+
+		return
+	end
+
+	Result = self:Validate( Client, ConCommand, Result, CurArg, i )
+	if Result == nil then return end
+
+	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result ) then return end
+
+	return true, Result
+end
+
 function Shine.CommandUtil.BuildLineFromArgs( Args, i )
 	return TableConcat( Args, " ", i )
 end
