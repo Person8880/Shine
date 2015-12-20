@@ -46,7 +46,7 @@ if Server then
 		local Matches = Shine:FindCommands( Message.SearchText,
 			Message.Type == AutoComplete.CHAT_COMMAND and "ChatCmd" or "ConCmd" )
 
-		Shine.Stream( Matches ):Reduce( function( Result )
+		Shine.Stream( Matches ):Filter( function( Result )
 			return Shine:GetPermission( Client, Result.Command.ConCmd )
 		end )
 

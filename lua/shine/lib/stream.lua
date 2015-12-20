@@ -23,7 +23,7 @@ end
 
 	Any value for which the predicate returns false will be removed.
 ]]
-function Stream:Reduce( Predicate )
+function Stream:Filter( Predicate )
 	for i = #self.Data, 1, -1 do
 		if not Predicate( self.Data[ i ] ) then
 			TableRemove( self.Data, i )

@@ -474,7 +474,7 @@ ParamTypes.clients = {
 
 		if Arg.IgnoreCanTarget then return true end
 
-		Shine.Stream( ParsedArg ):Reduce( function( Value )
+		Shine.Stream( ParsedArg ):Filter( function( Value )
 			return Shine:CanTarget( Client, Value )
 		end )
 

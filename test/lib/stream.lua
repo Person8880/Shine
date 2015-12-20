@@ -5,10 +5,10 @@
 local UnitTest = Shine.UnitTest
 local Stream = Shine.Stream
 
-UnitTest:Test( "Reduce", function( Assert )
+UnitTest:Test( "Filter", function( Assert )
 	local Data = { 1, 2, 3, 4, 5, 6 }
 
-	Stream( Data ):Reduce( function( Value ) return Value > 3 end )
+	Stream( Data ):Filter( function( Value ) return Value > 3 end )
 
 	Assert:ArrayEquals( { 4, 5, 6 }, Data )
 end )
