@@ -265,12 +265,10 @@ end
 	Creates the chatbox UI elements.
 
 	Essentially,
-		1. An invisible dummy panel to contain everything.
+		1. An outer panel to contain everything.
 		2. A smaller panel to contain the chat messages, scrollable.
-		3. A larger panel parented to the smaller one, that provides a border.
-		4. A text entry for entering chat messages.
-		5. Text to show if it's all chat or team chat.
-		6. A settings button that opens up the chatbox settings.
+		3. A text entry for entering chat messages (with placeholder text indicating team/all mode).
+		4. A settings button that opens up the chatbox settings.
 ]]
 function Plugin:CreateChatbox()
 	local UIScale = GUIScale( Vector( 1, 1, 1 ) )
@@ -921,6 +919,10 @@ end
 
 local MaxAutoCompleteResult = 3
 
+--[[
+	Scrolls the auto-complete suggestion up/down, setting the text in the text entry to
+	the completed command. This does not trigger a new auto-complete request.
+]]
 function Plugin:ScrollAutoComplete( Amount )
 	if not self.AutoCompleteResults then return end
 
@@ -935,10 +937,17 @@ function Plugin:ScrollAutoComplete( Amount )
 	self.TextEntry:SetText( Text )
 end
 
+--[[
+	Submits a request to the server for auto-completion of chat commands.
+
+	If the current text is the same request as last time (i.e. typing past the first word),
+	no request is sent.
+]]
 function Plugin:SubmitAutoCompleteRequest( Text )
 	local FirstLetter = StringSub( Text, 1, 1 )
 	self.AutoCompleteLetter = FirstLetter
 
+	-- Cut the text down to just the first word.
 	local FirstSpace = StringFind( Text, " " )
 	local SearchText = StringSub( Text, 2, FirstSpace and ( FirstSpace - 1 ) or StringLen( Text ) )
 
@@ -946,6 +955,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 	self.LastSearch = SearchText
 
+	-- On receiving the results, add labels beneath the chatbox showing the completed command(s).
 	Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
 		if not self.Visible then return end
 
@@ -996,6 +1006,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 				local Colours = LayoutData.Colours
 
+				-- Completion of the form: !command <param> Help text.
 				local TextContent = {
 					Colours.ModeText, FirstLetter,
 					Colours.AutoCompleteCommand, Result.ChatCommand.." "
@@ -1040,12 +1051,14 @@ function Plugin:DestroyAutoCompletePanel()
 end
 
 function Plugin:AutoCompleteCommand( Text )
+	-- Only auto-complete when the text starts with ! or /, and there's a command being typed.
 	if not StringFind( Text, "^[!/]" ) or StringLen( Text ) <= 1 then
 		self:DestroyAutoCompletePanel()
 
 		return
 	end
 
+	-- Keep debouncing the timer until the user stops typing to avoid spamming completion requests.
 	self.AutoCompleteTimer = self.AutoCompleteTimer or self:SimpleTimer( 0.3, function()
 		self.AutoCompleteTimer = nil
 		self:SubmitAutoCompleteRequest( self.TextEntry:GetText() )
