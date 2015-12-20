@@ -7,6 +7,8 @@
 
 local SGUI = Shine.GUI
 
+local IsType = Shine.IsType
+local pairs = pairs
 local TableShallowMerge = table.ShallowMerge
 
 local SkinManager = {}
@@ -72,7 +74,16 @@ function SkinManager:ApplySkin( Element )
 	local StyleDef = self:GetStyleForElement( Element )
 	if not StyleDef then return end
 
-	Element:SetupFromTable( StyleDef )
+	local StyleCopy = {}
+	for Key, Value in pairs( StyleDef ) do
+		if IsType( Value, "cdata" ) and Value.r then
+			StyleCopy[ Key ] = SGUI.CopyColour( Value )
+		else
+			StyleCopy[ Key ] = Value
+		end
+	end
+
+	Element:SetupFromTable( StyleCopy )
 end
 
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/skins" )
