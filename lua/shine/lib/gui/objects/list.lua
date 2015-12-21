@@ -7,18 +7,24 @@ local SGUI = Shine.GUI
 local List = {}
 
 local Floor = math.floor
+local IsType = Shine.IsType
 local select = select
 local TableRemove = table.remove
 local TableSort = table.sort
 local tonumber = tonumber
 local Vector = Vector
 
-local ScrollPos = Vector( 10, 32, 0 )
+local ScrollPos = Vector( 0, 32, 0 )
 local ZeroColour = Colour( 0, 0, 0, 0 )
 local ZeroVector = Vector( 0, 0, 0 )
 
 local DefaultHeaderSize = 32
 local DefaultLineSize = 32
+
+local Units = SGUI.Layout.Units
+local Absolute = Units.Absolute
+local Percentage = Units.Percentage
+local UnitVector = Units.UnitVector
 
 SGUI.AddBoundProperty( List, "Colour", "Background:SetColor" )
 
@@ -55,6 +61,16 @@ function List:Initialise()
 
 	-- Sort ascending first.
 	self.Descending = false
+
+	self.HeaderLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+		Fill = false,
+		AutoSize = UnitVector( Percentage( 100 ), self.HeaderSize )
+	} )
+	self.Layout = SGUI.Layout:CreateLayout( "Vertical", {
+		Elements = {
+			self.HeaderLayout
+		}
+	} )
 end
 
 --[[
@@ -62,12 +78,8 @@ end
 ]]
 function List:SetHeaderSize( Size )
 	self.HeaderSize = Size
-
-	if not self.Columns then return end
-
-	if self.Size then
-		self:SetSize( self.Size )
-	end
+	self.HeaderLayout.AutoSize[ 2 ] = Absolute( Size )
+	self:InvalidateLayout()
 end
 
 --[[
@@ -87,7 +99,6 @@ function List:SetLineSize( Size )
 	end
 
 	local Rows = self.Rows
-
 	if not Rows then return end
 
 	for i = 1, #Rows do
@@ -102,7 +113,7 @@ function List:SetLineSize( Size )
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	end
 
-	self:Reorder()
+	self:InvalidateLayout()
 end
 
 function List:SetHeaderFont( Font )
@@ -122,15 +133,33 @@ end
 
 --[[
 	Sets up the column names.
-	Inputs: Number of columns, columns names.
+	Inputs: Columns names.
 ]]
-function List:SetColumns( Number, ... )
+function List:SetColumns( ... )
+	-- Backwards compatibility with the old number argument.
+	local Number = select( 1, ... )
+	local Start = 2
+	if not IsType( Number, "number" ) then
+		Number = select( "#", ... )
+		Start = 1
+	end
+
 	self.ColumnCount = Number
+
+	if self.Columns then
+		for i = 1, self.Columns do
+			self.Columns[ i ]:SetParent()
+			self.Columns[ i ]:Destroy()
+		end
+	end
 
 	local Columns = {}
 	self.Columns = Columns
 
-	for i = 1, Number do
+	self.HeaderLayout.Elements = {}
+
+	local Count = 1
+	for i = Start, Start + Number - 1 do
 		local Header = SGUI:Create( "ListHeader", self )
 		Header:SetText( select( i, ... ) )
 		Header:SetAnchor( GUIItem.Left, GUIItem.Top )
@@ -146,12 +175,14 @@ function List:SetColumns( Number, ... )
 			Header:SetTextColour( self.HeaderTextColour )
 		end
 
-		Columns[ i ] = Header
+		Columns[ Count ] = Header
+		Count = Count + 1
+
+		self.HeaderLayout:AddElement( Header )
 	end
 
-	if self.Size then
-		self:SetSize( self.Size )
-	end
+	self.HeaderLayout:InvalidateLayout()
+	self:InvalidateLayout()
 end
 
 function List:SetNumericColumn( Col )
@@ -172,11 +203,10 @@ function List:SetSpacing( ... )
 		local Size = select( i, ... )
 
 		HeaderSizes[ i ] = Size
+		self.Columns[ i ]:SetAutoSize( UnitVector( Percentage( Size * 100 ), Percentage( 100 ) ) )
 	end
 
-	if self.Size then
-		self:SetSize( self.Size )
-	end
+	self:InvalidateLayout()
 end
 
 --[[
@@ -186,14 +216,19 @@ function List:SetSize( Size )
 	self.Background:SetSize( Size )
 	self.Stencil:SetSize( Size )
 	self.Size = Size
+	self:InvalidateLayout()
+end
 
-	self.ScrollPos = Vector( 10, self.HeaderSize, 0 )
+function List:PerformLayout()
+	local Size = self.Size
+	self.ScrollPos = Vector( 0, self.HeaderSize, 0 )
 
 	self.MaxRows = Floor( ( Size.y - self.HeaderSize ) / self.LineSize )
 
 	if self.RowCount > self.MaxRows then
 		if self.Scrollbar then
 			self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
+			self.Scrollbar:SetPos( self.ScrollPos )
 		else
 			self:AddScrollbar()
 		end
@@ -211,29 +246,7 @@ function List:SetSize( Size )
 		self.RowSize.x = Size.x
 	end
 
-	local Columns = self.Columns
-
-	if Columns then
-		local HeaderSizes = self.HeaderSizes
-
-		if not HeaderSizes then return end
-
-		for i = 1, self.ColumnCount do
-			local Obj = Columns[ i ]
-
-			local X = HeaderSizes[ i ] * Size.x
-
-			Obj:SetSize( Vector( X, self.HeaderSize, 0 ) )
-
-			local LastColumn = Columns[ i - 1 ]
-			local LastSize = LastColumn and LastColumn:GetSize() or ZeroVector
-			LastSize.y = 0
-
-			local LastPos = LastColumn and LastColumn:GetPos() or ZeroVector
-
-			Obj:SetPos( LastPos + LastSize )
-		end
-	end
+	self.BaseClass.PerformLayout( self )
 end
 
 function List:SetRowFont( Font )
@@ -251,6 +264,10 @@ end
 	Inputs: Column values in the row.
 ]]
 function List:AddRow( ... )
+	if not self.RowSize then
+		self:InvalidateLayout( true )
+	end
+
 	local Rows = self.Rows or {}
 	self.Rows = Rows
 
@@ -261,7 +278,6 @@ function List:AddRow( ... )
 	Row.Background:SetInheritsParentStencilSettings( false )
 	Row.Background:SetStencilFunc( GUIItem.NotEqual )
 	Row:SetAnchor( GUIItem.Top, GUIItem.Left )
-	Row:SetPos( Vector( 0, self.HeaderSize + RowCount * self.LineSize, 0 ) )
 
 	if self.RowFont then
 		Row:SetFont( self.RowFont )
@@ -273,6 +289,8 @@ function List:AddRow( ... )
 
 	RowCount = RowCount + 1
 	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
+
+	self.Layout:AddElement( Row )
 
 	local Spacing = {}
 	local X = self.RowSize.x
@@ -301,6 +319,8 @@ function List:AddRow( ... )
 
 	if self.SortedColumn then
 		self:SortRows( self.SortedColumn, self.SortingFunc, self.Descending )
+	else
+		self:InvalidateLayout()
 	end
 
 	return Row
@@ -347,11 +367,12 @@ function List:Reorder()
 
 	for i = 1, self.RowCount do
 		local Row = Rows[ i ]
-
-		Row:SetPos( Vector( 0, self.HeaderSize + ( i - 1 ) * self.LineSize, 0 ) )
 		Row.Index = i
 		Row:OnReorder()
+		self.Layout.Elements[ i + 1 ] = Row
 	end
+
+	self:InvalidateLayout( true )
 end
 
 local function UpdateHeaderHighlighting( self, Column, OldSortingColumn )
@@ -414,7 +435,7 @@ function List:SortRows( Column, SortFunc, Desc )
 		UpdateHeaderHighlighting( self, Column, OldSortingColumn )
 	end
 
-	return self:Reorder()
+	self:Reorder()
 end
 
 --[[
@@ -426,13 +447,13 @@ function List:RemoveRow( Index )
 	if not Rows then return end
 
 	local OldRow = Rows[ Index ]
-
 	if not OldRow then return end
 
 	OldRow:SetParent() --This allows it to run its cleanup function.
 	OldRow:Destroy()
 
 	TableRemove( Rows, Index )
+	self.Layout:RemoveElement( OldRow )
 
 	self.RowCount = self.RowCount - 1
 
@@ -450,7 +471,7 @@ function List:RemoveRow( Index )
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	end
 
-	return self:Reorder()
+	self:Reorder()
 end
 
 function List:GetSelectedRows()

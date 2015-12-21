@@ -86,7 +86,14 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 end
 
 function ListEntry:OnReorder()
+	local Font, TextScale = self.Font, self.TextScale
 	self:SetStyleName( IsEven( self.Index ) and "DefaultEven" or nil )
+	if Font then
+		self:SetFont( Font )
+	end
+	if TextScale then
+		self:SetTextScale( TextScale )
+	end
 end
 
 function ListEntry:UpdateText( Obj, Size )
