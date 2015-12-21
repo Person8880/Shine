@@ -11,21 +11,17 @@ local StringUTF8Encode = string.UTF8Encode
 local TableConcat = table.concat
 local tostring = tostring
 
-local Padding = Vector( 5, 0, 0 )
-local ZeroVector = Vector( 0, 0, 0 )
+local Padding = Vector2( 5, 0 )
+local ZeroVector = Vector2( 0, 0 )
 
 local function IsEven( Num )
 	return Num % 2 == 0
 end
 
 function ListEntry:Initialise()
-	if self.Background then GUI.DestroyItem( self.Background ) end
-
 	self.BaseClass.Initialise( self )
 
-	local Background = GetGUIManager():CreateGraphicItem()
-
-	self.Background = Background
+	self.Background = GetGUIManager():CreateGraphicItem()
 	self:SetHighlightOnMouseOver( true, 0.9 )
 end
 
@@ -46,26 +42,28 @@ end
 
 function ListEntry:Setup( Index, Columns, Size, ... )
 	self.Index = Index
+	self.Size = Size
+	self.Columns = Columns
 
 	if IsEven( Index ) then
 		self:SetStyleName( "DefaultEven" )
 	end
 
-	self.Columns = Columns
-
 	local TextObjs = {}
 	self.TextObjs = TextObjs
 
 	local Background = self.Background
-	self.Size = Size
-
 	Background:SetSize( Size )
 
 	local Manager = GetGUIManager()
 	local TextCol = self.TextColour
 
+	self.ColumnText = {}
+
 	for i = 1, Columns do
 		local Text = tostring( select( i, ... ) )
+
+		self.ColumnText[ i ] = Text
 
 		local TextObj = Manager:CreateTextItem()
 		TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
@@ -91,6 +89,28 @@ function ListEntry:OnReorder()
 	self:SetStyleName( IsEven( self.Index ) and "DefaultEven" or nil )
 end
 
+function ListEntry:UpdateText( Obj, Size )
+	local Text = Obj:GetText()
+	local Scale = Obj:GetScale().x
+	local Width = Obj:GetTextWidth( Text ) * Scale
+
+	if Width > Size then
+		local Chars = StringUTF8Encode( Text )
+		local End = #Chars
+
+		repeat
+			End = End - 1
+			Text = TableConcat( Chars, "", 1, End )
+
+			Width = Obj:GetTextWidth( Text ) * Scale
+		until Width < Size or End == 0
+
+		Text = TableConcat( Chars, "", 1, End - 4 ).."..."
+
+		Obj:SetText( Text )
+	end
+end
+
 function ListEntry:SetSpacing( SpacingTable )
 	local TextObjs = self.TextObjs
 
@@ -106,51 +126,27 @@ function ListEntry:SetSpacing( SpacingTable )
 		Obj:SetPosition( Padding + ( Spacing[ i - 1 ] or ZeroVector ) + LastPos )
 
 		local Size = SpacingTable[ i ]
+		Spacing[ i ] = Vector2( Size, 0 )
 
-		Spacing[ i ] = Vector( Size, 0, 0 )
-
-		local Text = Obj:GetText()
-		local Scale = Obj:GetScale()
-		local Width = Obj:GetTextWidth( Text ) * Scale.x
-
-		if Width > Size then
-			local Chars = StringUTF8Encode( Text )
-			local End = #Chars
-
-			repeat
-				End = End - 1
-				Text = TableConcat( Chars, "", 1, End )
-
-				Width = Obj:GetTextWidth( Text ) * Scale.x
-			until Width < Size or #Text == 0
-
-			Text = TableConcat( Chars, "", 1, End - 4 )
-			Text = Text.."..."
-
-			Obj:SetText( Text )
-		end
+		self:UpdateText( Obj, Size )
 	end
 end
 
 function ListEntry:SetColumnText( Index, Text )
 	local TextObjs = self.TextObjs
-
 	if not TextObjs or not TextObjs[ Index ] then return end
 
+	self.ColumnText[ Index ] = Text
+
 	TextObjs[ Index ]:SetText( Text )
+	self:UpdateText( TextObjs[ Index ], self.Spacing[ Index ].x )
 end
 
 function ListEntry:GetColumnText( Index )
-	local TextObjs = self.TextObjs
-
-	if not TextObjs or not TextObjs[ Index ] then return "" end
-
-	return TextObjs[ Index ]:GetText()
+	return self.ColumnText[ Index ] or ""
 end
 
-function ListEntry:SetSelected( Bool )
-	self.Selected = Bool and true or false
-end
+SGUI.AddProperty( ListEntry, "Selected" )
 
 --Visibility checking should account for being outside the stencil box of the parent list.
 function ListEntry:GetIsVisible()
