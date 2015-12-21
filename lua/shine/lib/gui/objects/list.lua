@@ -53,8 +53,8 @@ function List:Initialise()
 	self.HeaderSize = DefaultHeaderSize
 	self.LineSize = DefaultLineSize
 
-	--Sort descending first.
-	self.Descending = true
+	-- Sort ascending first.
+	self.Descending = false
 end
 
 --[[
@@ -380,7 +380,7 @@ function List:SortRows( Column, SortFunc, Desc )
 
 	if not Rows then
 		self.SortedColumn = Column
-		self.Descending = Desc
+		self.Descending = Desc or false
 		self.SortingFunc = SortFunc
 
 		UpdateHeaderHighlighting( self, Column, OldSortingColumn )
@@ -393,33 +393,19 @@ function List:SortRows( Column, SortFunc, Desc )
 		if OldSortingColumn == Column then
 			self.Descending = not self.Descending
 		else
-			self.Descending = true
+			self.Descending = false
 		end
 	else
 		self.Descending = Desc
 	end
 
-	if not self.NumericColumns or not self.NumericColumns[ Column ] then
-		if self.Descending then
-			TableSort( Rows, SortFunc or function( A, B )
-				return A:GetColumnText( Column ):lower() < B:GetColumnText( Column ):lower()
-			end )
-		else
-			TableSort( Rows, SortFunc or function( A, B )
-				return A:GetColumnText( Column ):lower() > B:GetColumnText( Column ):lower()
-			end )
-		end
-	else
-		if self.Descending then
-			TableSort( Rows, SortFunc or function( A, B )
-				return tonumber( A:GetColumnText( Column ) ) < tonumber( B:GetColumnText( Column ) )
-			end )
-		else
-			TableSort( Rows, SortFunc or function( A, B )
-				return tonumber( A:GetColumnText( Column ) ) > tonumber( B:GetColumnText( Column ) )
-			end )
-		end
-	end
+	local IsNumeric = self.NumericColumns and self.NumericColumns[ Column ]
+	local Comparator = SortFunc or Shine.Comparator( "Method",
+		self.Descending and -1 or 1, "GetColumnText",
+		Column,
+		IsNumeric and tonumber or string.UTF8Lower ):Compile()
+
+	TableSort( Rows, Comparator )
 
 	self.SortedColumn = Column
 	self.SortingFunc = SortFunc

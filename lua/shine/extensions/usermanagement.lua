@@ -357,7 +357,7 @@ function Plugin:CreateCommands()
 			ConCommand = "sh_groupinfo",
 			PreCondition = function() return true end,
 			Action = function( Client, GroupName )
-				if not GroupName then
+				if not GroupName or GroupName == "" then
 					local Columns = {
 						{
 							Name = "Name",
@@ -395,18 +395,11 @@ function Plugin:CreateCommands()
 						}
 					end
 
-					TableSort( Data, function( A, B )
-						local Comparison = 0
-						if A.Immunity > B.Immunity then
-							Comparison = -2
-						elseif A.Immunity < B.Immunity then
-							Comparison = 2
-						end
+					local NameComparator = Shine.Comparator( "Field", 1, "Name" )
+					local ImmunityComparator = Shine.Comparator( "Field", -1, "Immunity", 0 )
+					local Comparator = Shine.Comparator( "Composition", NameComparator, ImmunityComparator )
 
-						Comparison = Comparison + ( A.Name < B.Name and -1 or 1 )
-
-						return Comparison < 0
-					end )
+					TableSort( Data, Comparator:Compile() )
 
 					Shine.PrintTableToConsole( Client, Columns, Data )
 					return
@@ -464,18 +457,11 @@ function Plugin:CreateCommands()
 					}
 				end
 
-				TableSort( Data, function( A, B )
-					local Comparison = 0
-					if A.Group > B.Group then
-						Comparison = -2
-					elseif A.Group < B.Group then
-						Comparison = 2
-					end
+				local GroupComparator = Shine.Comparator( "Field", 1, "Group" )
+				local ImmunityComparator = Shine.Comparator( "Field", -1, "Immunity", 0 )
+				local Comparator = Shine.Comparator( "Composition", ImmunityComparator, GroupComparator )
 
-					Comparison = Comparison + ( ( A.Immunity or 0 ) < ( B.Immunity or 0 ) and -1 or 1 )
-
-					return Comparison < 0
-				end )
+				TableSort( Data, Comparator:Compile() )
 
 				Shine.PrintTableToConsole( Client, Columns, Data )
 			end,
