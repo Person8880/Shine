@@ -87,7 +87,7 @@ function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg,
 end
 
 function Shine.CommandUtil:Validate( Client, ConCommand, Result, CurArg, i )
-	return Result
+	return true, Result
 end
 
 --[[

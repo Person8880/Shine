@@ -662,12 +662,12 @@ function Shine.CommandUtil:Validate( Client, ConCommand, Result, CurArg, i )
 				Shine:NotifyCommandError( Client,
 					"Invalid argument #%i, restricted in rank settings.", true, i )
 
-				return nil
+				return false
 			end
 		end
 	end
 
-	return Result
+	return true, Result
 end
 
 function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )

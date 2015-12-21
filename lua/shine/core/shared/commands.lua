@@ -152,8 +152,10 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg,
 		return
 	end
 
-	Result = self:Validate( Client, ConCommand, Result, CurArg, i )
-	if Result == nil then return end
+	local Success, NewResult = self:Validate( Client, ConCommand, Result, CurArg, i )
+	if not Success then return end
+
+	Result = NewResult or Result
 
 	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result ) then return end
 
