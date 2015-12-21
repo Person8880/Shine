@@ -7,7 +7,6 @@
 
 local SGUI = Shine.GUI
 
-local IsType = Shine.IsType
 local pairs = pairs
 local TableShallowMerge = table.ShallowMerge
 
@@ -76,7 +75,7 @@ function SkinManager:ApplySkin( Element )
 
 	local StyleCopy = {}
 	for Key, Value in pairs( StyleDef ) do
-		if IsType( Value, "cdata" ) and Value.r then
+		if SGUI.IsColour( Value ) then
 			StyleCopy[ Key ] = SGUI.CopyColour( Value )
 		else
 			StyleCopy[ Key ] = Value
