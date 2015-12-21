@@ -10,7 +10,7 @@ local Max = math.max
 local Notify = Shared.Message
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
-local TableContains = table.contains
+local TableHasValue = table.HasValue
 local TableCount = table.Count
 
 local Plugin = Plugin
@@ -375,14 +375,14 @@ function Plugin:CreateCommands()
 
 		local Nominated = self.Vote.Nominated
 
-		if self.Config.ForcedMaps[ Map ] or TableContains( Nominated, Map ) then
+		if self.Config.ForcedMaps[ Map ] or TableHasValue( Nominated, Map ) then
 			NotifyError( Player, "%s has already been nominated.", true, Map )
 
 			return
 		end
 
 		local LastMaps = self:GetLastMaps()
-		if LastMaps and TableContains( LastMaps, Map ) then
+		if LastMaps and TableHasValue( LastMaps, Map ) then
 			NotifyError( Player, "%s was recently played and cannot be voted for yet.", true, Map )
 
 			return

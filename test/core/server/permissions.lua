@@ -248,10 +248,10 @@ UnitTest:Test( "AddGroupInheritance", function( Assert )
 	Assert:True( Shine:AddGroupInheritance( "Test", "Member" ) )
 	Assert:ArrayEquals( { "Member" }, Group.InheritsFrom )
 
-	Shine:AddGroupInheritance( "Test", "Member" )
+	Assert:False( Shine:AddGroupInheritance( "Test", "Member" ) )
 	Assert:ArrayEquals( { "Member" }, Group.InheritsFrom )
 
-	Shine:AddGroupInheritance( "Test", "Moderator" )
+	Assert:True( Shine:AddGroupInheritance( "Test", "Moderator" ) )
 	Assert:ArrayEquals( { "Member", "Moderator" }, Group.InheritsFrom )
 end )
 

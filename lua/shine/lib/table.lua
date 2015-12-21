@@ -8,6 +8,27 @@ local Random = math.random
 local TableRemove = table.remove
 local TableSort = table.sort
 
+do
+	local function HasValue( Table, Value )
+		for i = 1, #Table do
+			if Table[ i ] == Value then
+				return true, i
+			end
+		end
+
+		return false
+	end
+	table.HasValue = HasValue
+
+	function table.InsertUnique( Table, Value )
+		if HasValue( Table, Value ) then return false end
+
+		Table[ #Table + 1 ] = Value
+
+		return true
+	end
+end
+
 --[[
 	Finds a table entry by the value of the given field.
 ]]

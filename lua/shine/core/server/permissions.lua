@@ -14,6 +14,7 @@ local Notify = Shared.Message
 local pairs = pairs
 local StringLower = string.lower
 local TableEmpty = table.Empty
+local TableInsertUnique = table.InsertUnique
 local TableRemoveByValue = table.RemoveByValue
 local tonumber = tonumber
 local tostring = tostring
@@ -634,7 +635,10 @@ function Shine:AddGroupInheritance( GroupName, InheritGroup )
 		Group.InheritsFrom = InheritsFrom
 	end
 
-	table.insertunique( InheritsFrom, InheritGroup )
+	if not TableInsertUnique( InheritsFrom, InheritGroup ) then
+		return false
+	end
+
 	self:SaveUsers( true )
 
 	PermissionCache[ GroupName ] = nil
@@ -647,8 +651,7 @@ function Shine:RemoveGroupInheritance( GroupName, InheritGroup )
 	if not Group then return false end
 	if not Group.InheritsFrom then return false end
 
-	local Removed = TableRemoveByValue( Group.InheritsFrom, InheritGroup )
-	if not Removed then
+	if not TableRemoveByValue( Group.InheritsFrom, InheritGroup ) then
 		return false
 	end
 
@@ -663,9 +666,11 @@ function Shine:RemoveGroupInheritance( GroupName, InheritGroup )
 end
 
 do
+	local TableHasValue = table.HasValue
+
 	local function ForEachInheritingGroup( GroupName, Action )
 		for Name, Group in pairs( Shine.UserData.Groups ) do
-			if Group.InheritsFrom and table.contains( Group.InheritsFrom, GroupName ) then
+			if Group.InheritsFrom and TableHasValue( Group.InheritsFrom, GroupName ) then
 				Action( Name, Group )
 			end
 		end
