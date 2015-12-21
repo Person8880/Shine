@@ -7,6 +7,7 @@
 local Scripts = {
 	"lib/debug.lua",
 	"lib/table.lua",
+	"lib/comparator.lua",
 	"lib/stream.lua",
 	"lib/string.lua",
 	"lib/utf8.lua",
