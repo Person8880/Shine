@@ -333,7 +333,7 @@ do
 			PlayerList = SGUI:Create( "List", Panel )
 			PlayerList:SetAnchor( GUIItem.Left, GUIItem.Top )
 			PlayerList:SetPos( Vector( 16, 72, 0 ) )
-			PlayerList:SetColumns( 3, "Name", "NS2ID", "Team" )
+			PlayerList:SetColumns( "Name", "NS2ID", "Team" )
 			PlayerList:SetSpacing( 0.45, 0.3, 0.25 )
 			PlayerList:SetSize( Vector( 640 - 192 - 16, 512, 0 ) )
 			PlayerList:SetNumericColumn( 2 )

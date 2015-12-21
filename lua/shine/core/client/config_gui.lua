@@ -183,7 +183,7 @@ ConfigMenu:AddTab( "Plugins", {
 		} )
 
 		local List = SGUI:Create( "List", Panel )
-		List:SetColumns( 2, "Plugin", "State" )
+		List:SetColumns( "Plugin", "State" )
 		List:SetSpacing( 0.7, 0.3 )
 		List.ScrollPos = Vector2( 0, 32 )
 		List:SetFill( true )
