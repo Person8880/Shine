@@ -415,6 +415,8 @@ function Shine:CreateGroup( GroupName, Immunity, Blacklist )
 	self.UserData.Groups[ GroupName ] = Group
 	self:SaveUsers( true )
 
+	Shine.Hook.Call( "OnGroupCreated", GroupName, Group )
+
 	return Group
 end
 
@@ -422,16 +424,21 @@ function Shine:ReinstateGroup( GroupName, Group )
 	self.UserData.Groups[ GroupName ] = Group
 	self:SaveUsers( true )
 
+	Shine.Hook.Call( "OnGroupCreated", GroupName, Group )
+
 	return true
 end
 
 function Shine:DeleteGroup( GroupName )
-	if not self.UserData.Groups[ GroupName ] then return false end
+	local DeletedGroup = self.UserData.Groups[ GroupName ]
+	if not DeletedGroup then return false end
 
 	self.UserData.Groups[ GroupName ] = nil
 	self:SaveUsers( true )
 
 	PermissionCache[ GroupName ] = nil
+
+	Shine.Hook.Call( "OnGroupDeleted", GroupName, DeletedGroup )
 
 	return true
 end
@@ -447,6 +454,8 @@ function Shine:CreateUser( Client, GroupName )
 	self.UserData.Users[ tostring( ID ) ] = User
 	self:SaveUsers( true )
 
+	Shine.Hook.Call( "OnUserCreated", ID, User )
+
 	return User
 end
 
@@ -457,6 +466,8 @@ function Shine:ReinstateUser( Client, User )
 	self.UserData.Users[ tostring( ID ) ] = User
 	self:SaveUsers( true )
 
+	Shine.Hook.Call( "OnUserCreated", ID, User )
+
 	return true
 end
 
@@ -464,10 +475,13 @@ function Shine:DeleteUser( Client )
 	local ID = GetIDFromClient( Client )
 	ID = ID and tostring( ID ) or Client
 
-	if not self.UserData.Users[ ID ] then return false end
+	local DeletedUser = self.UserData.Users[ ID ]
+	if not DeletedUser then return false end
 
 	self.UserData.Users[ ID ] = nil
 	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnUserDeleted", ID, DeletedUser )
 
 	return true
 end
@@ -643,6 +657,8 @@ function Shine:AddGroupInheritance( GroupName, InheritGroup )
 
 	PermissionCache[ GroupName ] = nil
 
+	Shine.Hook.Call( "OnGroupInheritanceAdded", GroupName, Group, InheritGroup )
+
 	return true
 end
 
@@ -661,6 +677,8 @@ function Shine:RemoveGroupInheritance( GroupName, InheritGroup )
 
 	PermissionCache[ GroupName ] = nil
 	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnGroupInheritanceRemoved", GroupName, Group, InheritGroup )
 
 	return true
 end
@@ -700,6 +718,8 @@ do
 
 		self:SaveUsers( true )
 
+		Shine.Hook.Call( "OnGroupAccessGranted", GroupName, Group, Access )
+
 		return true
 	end
 
@@ -718,6 +738,8 @@ do
 		end
 
 		self:SaveUsers( true )
+
+		Shine.Hook.Call( "OnGroupAccessRevoked", GroupName, Group, Access )
 
 		return true
 	end
