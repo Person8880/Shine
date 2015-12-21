@@ -18,11 +18,19 @@ local setmetatable = setmetatable
 local StringFormat = string.format
 local TableInsert = table.insert
 local TableRemove = table.remove
-local Vector = Vector
 local xpcall = xpcall
 
 --Useful functions for colours.
 include "lua/shine/lib/colour.lua"
+
+do
+	local Vector = Vector
+
+	-- A little easier than having to always include that 0 z value.
+	function Vector2( X, Y )
+		return Vector( X, Y, 0 )
+	end
+end
 
 SGUI.Controls = {}
 
@@ -38,11 +46,6 @@ SGUI.BaseLayer = 20
 --Global control meta-table.
 local ControlMeta = {}
 SGUI.BaseControl = ControlMeta
-
-local function Vector2( X, Y )
-	return Vector( X, Y, 0 )
-end
-_G.Vector2 = Vector2
 
 SGUI.PropertyModifiers = {
 	InvalidatesLayout = function( self, Value )
@@ -141,11 +144,13 @@ do
 	end
 end
 
-local WideStringToString
+do
+	local WideStringToString
 
-function SGUI.GetChar( Char )
-	WideStringToString = WideStringToString or ConvertWideStringToString
-	return WideStringToString( Char )
+	function SGUI.GetChar( Char )
+		WideStringToString = WideStringToString or ConvertWideStringToString
+		return WideStringToString( Char )
+	end
 end
 
 do
@@ -167,12 +172,14 @@ do
 		local Chars = StringUTF8Encode( Text )
 		local Length = #Chars
 
-		--Character by character, extend the text until it exceeds the width limit.
+		-- Character by character, extend the text until it exceeds the width limit.
 		repeat
 			local CurText = TableConcat( Chars, "", 1, i )
 
-			--Once it reaches the limit, we go back a character, and set our first and second line results.
+			-- Once it reaches the limit, we go back a character, and set our first and second line results.
 			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
+				-- The max makes sure we're cutting at least one character out of the text,
+				-- to avoid an infinite loop.
 				FirstLine = TableConcat( Chars, "", 1, Max( i - 1, 1 ) )
 				SecondLine = TableConcat( Chars, "", Max( i, 2 ) )
 
@@ -196,21 +203,22 @@ do
 		local Lines = {}
 		local i = 1
 
-		--While loop, as the size of the Words table may increase.
+		-- While loop, as the size of the Words table may increase.
 		while i <= #Words do
 			local CurText = TableConcat( Words, " ", StartIndex, i )
 
 			if XPos + Label:GetTextWidth( CurText ) > MaxWidth then
-				--This means one word is wider than the whole chatbox, so we need to cut it part way through.
+				-- This means one word is wider than the whole chatbox, so we need to cut it part way through.
 				if StartIndex == i then
 					local FirstLine, SecondLine = TextWrap( Label, CurText, XPos, MaxWidth )
 
 					Lines[ #Lines + 1 ] = FirstLine
 
-					--Add the second line as the next word, or as a new next word if none exists.
+					-- Add the second line as the next word, or as a new next word if none exists.
 					if Words[ i + 1 ] then
 						TableInsert( Words, i + 1, SecondLine )
 					else
+						-- This is just a micro-optimisation really, it's slightly quicker than table.insert.
 						Words[ i + 1 ] = SecondLine
 					end
 
@@ -218,7 +226,7 @@ do
 				else
 					Lines[ #Lines + 1 ] = TableConcat( Words, " ", StartIndex, i - 1 )
 
-					--We need to jump back a step, as we've still got another word to check.
+					-- We need to jump back a step, as we've still got another word to check.
 					StartIndex = i
 					i = i - 1
 				end
@@ -226,7 +234,7 @@ do
 				if MaxLines and #Lines >= MaxLines then
 					break
 				end
-			elseif i == #Words then --We're at the end!
+			elseif i == #Words then -- We're at the end!
 				Lines[ #Lines + 1 ] = CurText
 			end
 
@@ -391,63 +399,45 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 	self:PostCallEvent()
 end
 
---[[
-	Calls an event on all active SGUI controls, out of order.
 
-	Inputs: Event name, optional check function, arguments.
-]]
-function SGUI:CallGlobalEvent( Name, CheckFunc, ... )
-	if IsType( CheckFunc, "function" ) then
-		for Control in self.ActiveControls:Iterate() do
-			if Control[ Name ] and CheckFunc( Control ) then
-				Control[ Name ]( Control, Name, ... )
-			end
-		end
-	else
-		for Control in self.ActiveControls:Iterate() do
-			if Control[ Name ] then
-				Control[ Name ]( Control, Name, ... )
-			end
-		end
-	end
-end
+do
+	SGUI.MouseObjects = 0
 
-SGUI.MouseObjects = 0
+	local IsCommander
+	local ShowMouse
 
-local IsCommander
-local ShowMouse
-
---[[
-	Allow for multiple windows to "enable" the mouse, without
-	disabling it after one closes.
-]]
-function SGUI:EnableMouse( Enable )
-	if not ShowMouse then
-		ShowMouse = MouseTracker_SetIsVisible
-		IsCommander = CommanderUI_IsLocalPlayerCommander
-	end
-
-	if Enable then
-		self.MouseObjects = self.MouseObjects + 1
-
-		if self.MouseObjects == 1 then
-			if not ( IsCommander and IsCommander() ) then
-				ShowMouse( true )
-				self.EnabledMouse = true
-			end
+	--[[
+		Allow for multiple windows to "enable" the mouse, without
+		disabling it after one closes.
+	]]
+	function SGUI:EnableMouse( Enable )
+		if not ShowMouse then
+			ShowMouse = MouseTracker_SetIsVisible
+			IsCommander = CommanderUI_IsLocalPlayerCommander
 		end
 
-		return
-	end
+		if Enable then
+			self.MouseObjects = self.MouseObjects + 1
 
-	if self.MouseObjects <= 0 then return end
+			if self.MouseObjects == 1 then
+				if not ( IsCommander and IsCommander() ) then
+					ShowMouse( true )
+					self.EnabledMouse = true
+				end
+			end
 
-	self.MouseObjects = self.MouseObjects - 1
+			return
+		end
 
-	if self.MouseObjects == 0 then
-		if not ( IsCommander and IsCommander() ) or self.EnabledMouse then
-			ShowMouse( false )
-			self.EnabledMouse = false
+		if self.MouseObjects <= 0 then return end
+
+		self.MouseObjects = self.MouseObjects - 1
+
+		if self.MouseObjects == 0 then
+			if not ( IsCommander and IsCommander() ) or self.EnabledMouse then
+				ShowMouse( false )
+				self.EnabledMouse = false
+			end
 		end
 	end
 end
