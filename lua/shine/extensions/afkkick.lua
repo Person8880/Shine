@@ -151,8 +151,8 @@ function Plugin:CheckConnectionAllowed( ID )
 	for Client, Data in pairs( self.Users ) do
 		if not ( Shine:HasAccess( Client, "sh_afk" )
 		or Shine:HasAccess( Client, "sh_afk_partial" ) )
-		and Data.AFKTime >= KickTime and Data.AFKTime > TimeAFK then
-			TimeAFK = Data.AFKTime
+		and Data.AFKAmount >= KickTime and Data.AFKAmount > TimeAFK then
+			TimeAFK = Data.AFKAmount
 			AFKForLongest = Client
 		end
 	end
