@@ -18,6 +18,7 @@ local pairs = pairs
 local StringFormat = string.format
 local TableCopy = table.Copy
 local TableRemove = table.remove
+local TableShallowMerge = table.ShallowMerge
 local Time = os.time
 
 Plugin.HasConfig = true
@@ -313,6 +314,41 @@ function Plugin:CheckBans()
 	end
 end
 
+function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
+	TableShallowMerge( self.Config.BansSubmitArguments, PostParams )
+
+	local function SuccessFunc( Data )
+		self.Retries[ ID ] = nil
+
+		if not Data then
+			self:Print( "Received no repsonse for %s of %s.", true, Operation, ID )
+			return
+		end
+
+		local Decoded = Decode( Data )
+		if not Decoded then
+			self:Print( "Received invalid JSON for %s of %s.", true, Operation, ID )
+			return
+		end
+
+		if Decoded.success == false then
+			Revert()
+			self:SaveConfig()
+			self:Print( "Server rejected %s of %s, reverting...", true, Operation, ID )
+		end
+	end
+
+	local function FailureFunc()
+		self.Retries[ ID ] = nil
+		self:Print( "Sending %s for %s timed out after %i retries.", true, Operation, ID, self.Config.MaxSubmitRetries )
+	end
+
+	self.Retries[ ID ] = true
+
+	Shine.HTTPRequestWithRetry( self.Config.BansSubmitURL, "POST", PostParams,
+			SuccessFunc, FailureFunc, self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
+end
+
 --[[
 	Registers a ban.
 	Inputs: Steam ID, player name, ban duration in seconds, name of player performing the ban.
@@ -341,58 +377,18 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 	}
 
 	self.Config.Banned[ ID ] = BanData
-
 	self:SaveConfig()
-
 	self:AddBanToNetData( BanData )
 
-	if self.Config.BansSubmitURL ~= "" then
-		local PostParams = {
+	if self.Config.BansSubmitURL ~= "" and not self.Retries[ ID ] then
+		self:SendHTTPRequest( ID, {
 			bandata = Encode( BanData ),
 			unban = 0
-		}
-
-		for Key, Value in pairs( self.Config.BansSubmitArguments ) do
-			PostParams[ Key ] = Value
-		end
-
-		local function SuccessFunc( Data )
-			self.Retries[ ID ] = nil
-
-			if not Data then return end
-
-			local Decoded = Decode( Data )
-
-			if not Decoded then return end
-
-			if Decoded.success == false then
-				--The web request told us that they shouldn't be banned.
-				self.Config.Banned[ ID ] = nil
-
-				self:NetworkUnban( ID )
-
-				self:SaveConfig()
-			end
-		end
-
-		self.Retries[ ID ] = 0
-
-		local TimeoutFunc
-		TimeoutFunc = function()
-			self.Retries[ ID ] = self.Retries[ ID ] + 1
-
-			if self.Retries[ ID ] > self.Config.MaxSubmitRetries then
-				self.Retries[ ID ] = nil
-
-				return
-			end
-
-			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams,
-				SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
-		end
-
-		Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams,
-			SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
+		}, "ban", function()
+			-- The web request told us that they shouldn't be banned.
+			self.Config.Banned[ ID ] = nil
+			self:NetworkUnban( ID )
+		end )
 	end
 
 	Hook.Call( "OnPlayerBanned", ID, Name, Duration, BannedBy, Reason )
@@ -410,59 +406,20 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	local BanData = self.Config.Banned[ ID ]
 
 	self.Config.Banned[ ID ] = nil
-
 	self:NetworkUnban( ID )
 
-	if self.Config.BansSubmitURL ~= "" then
-		local PostParams = {
+	if self.Config.BansSubmitURL ~= "" and not self.Retries[ ID ] then
+		self:SendHTTPRequest( ID, {
 			unbandata = Encode{
 				ID = ID,
 				UnbannerID = UnbannerID or 0
 			},
 			unban = 1
-		}
-
-		for Key, Value in pairs( self.Config.BansSubmitArguments ) do
-			PostParams[ Key ] = Value
-		end
-
-		local function SuccessFunc( Data )
-			self.Retries[ ID ] = nil
-
-			if not Data then return end
-
-			local Decoded = Decode( Data )
-
-			if not Decoded then return end
-
-			if Decoded.success == false then
-				--The web request told us that they shouldn't be unbanned.
-				self.Config.Banned[ ID ] = BanData
-
-				self:AddBanToNetData( BanData )
-
-				self:SaveConfig()
-			end
-		end
-
-		self.Retries[ ID ] = 0
-
-		local TimeoutFunc
-		TimeoutFunc = function()
-			self.Retries[ ID ] = self.Retries[ ID ] + 1
-
-			if self.Retries[ ID ] > self.Config.MaxSubmitRetries then
-				self.Retries[ ID ] = nil
-
-				return
-			end
-
-			Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams,
-				SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
-		end
-
-		Shine.TimedHTTPRequest( self.Config.BansSubmitURL, "POST", PostParams,
-			SuccessFunc, TimeoutFunc, self.Config.SubmitTimeout )
+		}, "unban", function()
+			-- The web request told us that they shouldn't be unbanned.
+			self.Config.Banned[ ID ] = BanData
+			self:AddBanToNetData( BanData )
+		end )
 	end
 
 	Hook.Call( "OnPlayerUnbanned", ID )
