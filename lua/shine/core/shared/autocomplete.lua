@@ -26,7 +26,7 @@ do
 	Shared.RegisterNetworkMessage( "Shine_AutoCompleteResponse", {
 		ChatCommand = "string (32)",
 		ConsoleCommand = "string (32)",
-		Parameters = "string (64)",
+		Parameters = "string (96)",
 		Description = "string (128)",
 		Index = StringFormat( "integer (1 to %i)", MaxResponses ),
 		Total = StringFormat( "integer (1 to %i)", MaxResponses ),
