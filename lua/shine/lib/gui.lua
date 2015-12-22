@@ -292,6 +292,18 @@ function SGUI:IsShiftDown()
 	return self.SpecialKeyStates.Shift
 end
 
+do
+	local ClipboardText = ""
+
+	function SGUI.GetClipboardText()
+		return ClipboardText
+	end
+
+	function SGUI.SetClipboardText( Text )
+		ClipboardText = Text
+	end
+end
+
 --[[
 	Sets the current in-focus window.
 	Inputs: Window object, windows index.

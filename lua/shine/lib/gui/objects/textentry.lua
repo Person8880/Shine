@@ -308,6 +308,10 @@ function TextEntry:HasSelection()
 	return self.SelectionBounds[ 1 ] ~= self.SelectionBounds[ 2 ]
 end
 
+function TextEntry:GetSelectedText()
+	return StringUTF8Sub( self.Text, self.SelectionBounds[ 1 ] + 1, self.SelectionBounds[ 2 ] )
+end
+
 function TextEntry:RemoveSelectedText()
 	local Text = self.Text
 	local Length = StringUTF8Length( Text )
@@ -505,7 +509,7 @@ SGUI.AddProperty( TextEntry, "CharPattern" )
 	Inserts a character wherever the caret is.
 ]]
 function TextEntry:AddCharacter( Char )
-	if not self:AllowChar( Char ) then return end
+	if not self:AllowChar( Char ) then return false end
 
 	if self:HasSelection() then
 		self:RemoveSelectedText()
@@ -534,6 +538,8 @@ function TextEntry:AddCharacter( Char )
 	if self.PlaceholderText then
 		self.PlaceholderText:SetIsVisible( false )
 	end
+
+	return true
 end
 
 function TextEntry:RemoveWord( Forward )
@@ -776,6 +782,30 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	if SGUI:IsControlDown() then
 		if Key == InputKey.A then
 			self:SelectAll()
+
+			return true
+		end
+
+		if self:HasSelection() then
+			if Key == InputKey.C then
+				SGUI.SetClipboardText( self:GetSelectedText() )
+
+				return true
+			end
+
+			if Key == InputKey.X then
+				SGUI.SetClipboardText( self:GetSelectedText() )
+				self:RemoveSelectedText()
+
+				return true
+			end
+		end
+
+		if Key == InputKey.V then
+			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
+			for i = 1, #Chars do
+				if not self:AddCharacter( Chars[ i ] ) then break end
+			end
 
 			return true
 		end
