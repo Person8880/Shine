@@ -6,6 +6,8 @@ local UnitTest = Shine.UnitTest
 local ParamTypes = Shine.CommandUtil.ParamTypes
 local NotifyCommandError = Shine.NotifyCommandError
 
+Shine.NotifyCommandError = function() end
+
 UnitTest:Test( "GetCommandArg", function( Assert )
 	local Failed
 	local Parsed
@@ -30,8 +32,6 @@ UnitTest:Test( "GetCommandArg", function( Assert )
 			Assert:True( Extra )
 		end
 	}
-
-	Shine.NotifyCommandError = function() end
 
 	-- Parse fails, should call OnFailedMatch
 	local Success, Result = Shine.CommandUtil:GetCommandArg( TestClient, "sh_test", "", Arg )
@@ -85,6 +85,43 @@ UnitTest:Test( "GetCommandArg", function( Assert )
 	Assert:True( Parsed )
 	Assert:True( Validated )
 end, function()
-	Shine.NotifyCommandError = NotifyCommandError
 	ParamTypes.test = nil
 end )
+
+local GetPermission = Shine.GetPermission
+
+UnitTest:Test( "Validate", function( Assert )
+	local Client = {}
+	local ConCommand = "sh_test"
+	local Result = "cake"
+	local MatchedType = "string"
+	local i = 1
+	local CurArg = { Type = "string" }
+
+	Shine.GetPermission = function()
+		return true
+	end
+
+	local Success, NewResult = Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+	Assert:True( Success )
+	Assert:Nil( NewResult )
+
+	Shine.GetPermission = function()
+		return true, {
+			[ "1" ] = "cake"
+		}
+	end
+
+	Success, NewResult = Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+	Assert:True( Success )
+	Assert:Equals( Result, NewResult )
+
+	Result = "not cake"
+
+	Success, NewResult = Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+	Assert:False( Success )
+	Assert:Nil( NewResult )
+end )
+
+Shine.GetPermission = GetPermission
+Shine.NotifyCommandError = NotifyCommandError
