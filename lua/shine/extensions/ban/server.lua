@@ -23,6 +23,7 @@ local Time = os.time
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Bans.json"
+Plugin.PrintName = "Bans"
 
 Plugin.VanillaConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
 
@@ -429,10 +430,21 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	self:SaveConfig()
 end
 
+Plugin.OperationSuffix = ""
+Plugin.CommandNames = {
+	Ban = { "sh_ban", "ban" },
+	BanID = { "sh_banid", "banid" },
+	Unban = { "sh_unban", "unban" }
+}
+
+function Plugin:PerformBan( Target )
+	Server.DisconnectClient( Target )
+end
+
 --[[
 	Creates the plugins console/chat commands.
 ]]
-function Plugin:CreateCommands()
+function Plugin:CreateBanCommands()
 	--[[
 		Bans by name/Steam ID when in the server.
 	]]
@@ -456,23 +468,23 @@ function Plugin:CreateCommands()
 		local TargetName = Player:GetName()
 
 		self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason )
-
-		Server.DisconnectClient( Target )
+		self:PerformBan( Target, Player )
 
 		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 			or "permanently"
 
-		Shine:CommandNotify( Client, "banned %s %s (%s).", true, TargetName, DurationString, Reason )
-		Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName,
-			ID, DurationString )
+		Shine:CommandNotify( Client, "banned %s%s %s (%s).", true, TargetName, self.OperationSuffix, DurationString, Reason )
+		Shine:AdminPrint( nil, "%s banned %s[%s]%s %s.", true, BanningName, TargetName,
+			ID, self.OperationSuffix, DurationString )
 	end
-	local BanCommand = self:BindCommand( "sh_ban", "ban", Ban )
+	local BanCommand = self:BindCommand( self.CommandNames.Ban[ 1 ], self.CommandNames.Ban[ 2 ], Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
 	BanCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given.", Help = "reason" }
-	BanCommand:Help( "Bans the given player for the given time in minutes. 0 is a permanent ban." )
+	BanCommand:Help( StringFormat( "Bans the given player%s for the given time in minutes. 0 is a permanent ban.",
+		self.OperationSuffix ) )
 
 	--[[
 		Unban by Steam ID.
@@ -494,20 +506,20 @@ function Plugin:CreateCommands()
 			local Unbanner = ( Client and Client.GetUserId and Client:GetUserId() ) or 0
 
 			self:RemoveBan( ID, nil, Unbanner )
-			Shine:AdminPrint( nil, "%s unbanned %s.", true, Client
-				and Client:GetControllingPlayer():GetName() or "Console", ID )
+			Shine:AdminPrint( nil, "%s unbanned %s%s.", true, Client
+				and Client:GetControllingPlayer():GetName() or "Console", ID, self.OperationSuffix )
 
 			return
 		end
 
-		local ErrorText = StringFormat( "%s is not banned.", ID )
+		local ErrorText = StringFormat( "%s is not banned%s.", ID, self.OperationSuffix )
 
 		Shine:NotifyError( Client, ErrorText )
 		Shine:AdminPrint( Client, ErrorText )
 	end
-	local UnbanCommand = self:BindCommand( "sh_unban", "unban", Unban )
+	local UnbanCommand = self:BindCommand( self.CommandNames.Unban[ 1 ], self.CommandNames.Unban[ 2 ], Unban )
 	UnbanCommand:AddParam{ Type = "steamid", Error = "Please specify a Steam ID to unban.", IgnoreCanTarget = true }
-	UnbanCommand:Help( "Unbans the given Steam ID." )
+	UnbanCommand:Help( StringFormat( "Unbans the given Steam ID%s.", self.OperationSuffix ) )
 
 	--[[
 		Ban by Steam ID whether they're in the server or not.
@@ -540,13 +552,13 @@ function Plugin:CreateCommands()
 			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 				or "permanently"
 
-			Shine:AdminPrint( nil, "%s banned %s[%s] %s.", true, BanningName, TargetName,
-				IDString, DurationString )
+			Shine:AdminPrint( nil, "%s banned %s[%s]%s %s.", true, BanningName, TargetName,
+				IDString, self.OperationSuffix, DurationString )
 
 			if Target then
-				Server.DisconnectClient( Target )
+				self:PerformBan( Target, Target:GetControllingPlayer() )
 
-				Shine:CommandNotify( Client, "banned %s %s.", true, TargetName, DurationString )
+				Shine:CommandNotify( Client, "banned %s%s %s.", true, TargetName, self.OperationSuffix, DurationString )
 			end
 
 			return
@@ -555,13 +567,18 @@ function Plugin:CreateCommands()
 		Shine:NotifyError( Client, "Invalid Steam ID for banning." )
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
-	local BanIDCommand = self:BindCommand( "sh_banid", "banid", BanID )
+	local BanIDCommand = self:BindCommand( self.CommandNames.BanID[ 1 ], self.CommandNames.BanID[ 2 ], BanID )
 	BanIDCommand:AddParam{ Type = "steamid", Error = "Please specify a Steam ID to ban." }
 	BanIDCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, Round = true, Optional = true,
 		Default = self.Config.DefaultBanTime }
 	BanIDCommand:AddParam{ Type = "string", Optional = true, TakeRestOfLine = true,
 		Default = "No reason given.", Help = "reason" }
-	BanIDCommand:Help( "Bans the given Steam ID for the given time in minutes. 0 is a permanent ban." )
+	BanIDCommand:Help( StringFormat( "Bans the given Steam ID%s for the given time in minutes. 0 is a permanent ban.",
+		self.OperationSuffix ) )
+end
+
+function Plugin:CreateCommands()
+	self:CreateBanCommands()
 
 	local function ListBans( Client )
 		if not next( self.Config.Banned ) then
