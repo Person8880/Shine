@@ -152,7 +152,7 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg,
 		return
 	end
 
-	local Success, NewResult = self:Validate( Client, ConCommand, Result, CurArg, i )
+	local Success, NewResult = self:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
 	if not Success then return end
 
 	if NewResult ~= nil then

@@ -647,24 +647,25 @@ function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg,
 		true, i, ConCommand, CurArg.Type )
 end
 
-function Shine.CommandUtil:Validate( Client, ConCommand, Result, CurArg, i )
+function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+	-- Yes, it's repeating it, but getting permissions is pretty much free once cached.
+	local Allowed, ArgRestrictions = Shine:GetPermission( Client, ConCommand )
+	if not ArgRestrictions then return true end
+
 	local RestrictionIndex = tostring( i )
+	if not ArgRestrictions[ RestrictionIndex ] then return true end
 
-	if ArgRestrictions and ArgRestrictions[ RestrictionIndex ] then
-		local Func = ArgValidators[ MatchedType ]
+	local Func = ArgValidators[ MatchedType ]
+	if not Func then return true end
 
-		--Apply restrictions.
-		if Func then
-			Result = Func( Client, Result, ArgRestrictions[ RestrictionIndex ] )
+	Result = Func( Client, Result, ArgRestrictions[ RestrictionIndex ] )
 
-			--The restriction wiped the argument as it's not allowed.
-			if Result == nil then
-				Shine:NotifyCommandError( Client,
-					"Invalid argument #%i, restricted in rank settings.", true, i )
+	--The restriction wiped the argument as it's not allowed.
+	if Result == nil then
+		Shine:NotifyCommandError( Client,
+			"Invalid argument #%i, restricted in rank settings.", true, i )
 
-				return false
-			end
-		end
+		return false
 	end
 
 	return true, Result
