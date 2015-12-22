@@ -453,6 +453,16 @@ end
 		3. Optional parent name. This will make the object inherit the parent's table keys.
 ]]
 function SGUI:Register( Name, Table, Parent )
+	local rawget = rawget
+	local ValidityKey = "IsValid"
+
+	local function CheckDestroyed( self, Key )
+		local Destroyed = rawget( self, "__Destroyed" )
+		if Destroyed and Key ~= ValidityKey and Destroyed < SGUI.FrameNumber() then
+			error( "Attempted to use a destroyed SGUI object!", 3 )
+		end
+	end
+
 	--If we have set a parent, then we want to setup a slightly different __index function.
 	if Parent then
 		Table.ParentControl = Parent
@@ -466,6 +476,8 @@ function SGUI:Register( Name, Table, Parent )
 		end
 
 		function Table:__index( Key )
+			CheckDestroyed( self, Key )
+
 			ParentTable = ParentTable or SGUI.Controls[ Parent ]
 
 			if Table[ Key ] then return Table[ Key ] end
@@ -477,6 +489,8 @@ function SGUI:Register( Name, Table, Parent )
 	else
 		--No parent means only look in its meta-table and the base meta-table.
 		function Table:__index( Key )
+			CheckDestroyed( self, Key )
+
 			if Table[ Key ] then return Table[ Key ] end
 
 			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
@@ -601,6 +615,8 @@ function SGUI:Destroy( Control, RemoveFromParent )
 
 		self:SetWindowFocus( Windows[ #Windows ] )
 	end
+
+	Control.__Destroyed = SGUI.FrameNumber()
 end
 
 --[[
@@ -613,9 +629,17 @@ function SGUI.IsValid( Control )
 	return Control and Control.IsValid and Control:IsValid()
 end
 
-Hook.Add( "Think", "UpdateSGUI", function( DeltaTime )
-	SGUI:CallEvent( false, "Think", DeltaTime )
-end )
+do
+	local FrameNumber = 0
+	function SGUI.FrameNumber()
+		return FrameNumber
+	end
+
+	Hook.Add( "Think", "UpdateSGUI", function( DeltaTime )
+		FrameNumber = FrameNumber + 1
+		SGUI:CallEvent( false, "Think", DeltaTime )
+	end )
+end
 
 Hook.Add( "PlayerKeyPress", "UpdateSGUI", function( Key, Down )
 	if SGUI:CallEvent( false, "PlayerKeyPress", Key, Down ) then

@@ -56,7 +56,10 @@ function AdminMenu:Create()
 
 		if self.ToDestroyOnClose then
 			for Panel in pairs( self.ToDestroyOnClose ) do
-				Panel:Destroy()
+				if Panel:IsValid() then
+					Panel:Destroy()
+				end
+
 				self.ToDestroyOnClose[ Panel ] = nil
 			end
 		end
