@@ -110,6 +110,18 @@ do
 		}
 	end
 
+	local function InConfigDirectoryRule( Key )
+		return {
+			Matches = function( self, Config )
+				return not Config[ Key ]:StartsWith( "config://" )
+			end,
+			Fix = function( self, Config )
+				Notify( StringFormat( "%s does not point to the config directory, resetting to default...", Key ) )
+				Config[ Key ] = DefaultConfig[ Key ]
+			end
+		}
+	end
+
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( self, Config )
@@ -122,7 +134,9 @@ do
 		end
 	} )
 	Validator:AddRule( AddTrailingSlashRule( "LogDir" ) )
+	Validator:AddRule( InConfigDirectoryRule( "LogDir" ) )
 	Validator:AddRule( AddTrailingSlashRule( "ExtensionDir" ) )
+	Validator:AddRule( InConfigDirectoryRule( "ExtensionDir" ) )
 
 	function Shine:LoadConfig()
 		local Paths = {
