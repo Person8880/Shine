@@ -11,7 +11,11 @@ UnitTest.Results = {}
 
 local assert = assert
 local DebugTraceback = debug.traceback
+local getmetatable = getmetatable
 local pcall = pcall
+local select = select
+local setmetatable = setmetatable
+local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
 local xpcall = xpcall
@@ -29,6 +33,28 @@ function UnitTest:LoadExtension( Name )
 	return Plugin
 end
 
+local AssertionError = setmetatable( {}, {
+	__call = function( self, Data )
+		return setmetatable( Data, self )
+	end
+} )
+
+local function IsAssertionFailure( Error )
+	return getmetatable( Error ) == AssertionError
+end
+
+local function CleanTraceback( Traceback )
+	local Lines = StringExplode( Traceback, "\n" )
+
+	for i = 1, #Lines do
+		if Lines[ i ]:find( "^%s*test/test_init.lua:%d+: in function 'Test'" ) then
+			return TableConcat( Lines, "\n", 1, i - 2 )
+		end
+	end
+
+	return Traceback
+end
+
 function UnitTest:Test( Description, TestFunction, Finally, Reps )
 	local Result = {
 		Description = Description
@@ -36,7 +62,9 @@ function UnitTest:Test( Description, TestFunction, Finally, Reps )
 
 	local function ErrorHandler( Err )
 		Result.Err = Err
-		Result.Traceback = DebugTraceback()
+		local IsAssertion = IsAssertionFailure( Err )
+		Result.Traceback = CleanTraceback( DebugTraceback( IsAssertion and Err.Message or Err,
+			IsAssertionFailure( Err ) and 4 or 2 ) )
 	end
 
 	Reps = Reps or 1
@@ -99,7 +127,11 @@ for Name, Func in pairs( UnitTest.Assert ) do
 				Description = "Assertion failed!"
 			end
 
-			error( { Message = Description, Args = { ... } } )
+			error( AssertionError{
+				Message = Description,
+				Args = { ... },
+				NumArgs = select( "#", ... )
+			}, 2 )
 		end
 	end
 end
@@ -119,13 +151,14 @@ function UnitTest:Output( File )
 			Print( "Test failure: %s", Result.Description )
 
 			local Err = Result.Err
-			if type( Err ) == "table" then
-				for i = 1, #Err.Args do
-					Err.Args[ i ] = IsType( Err.Args[ i ], "table" ) and table.ToString( Err.Args[ i ] )
+			if IsAssertionFailure( Err ) then
+				for i = 1, Err.NumArgs do
+					local AsString = IsType( Err.Args[ i ], "table" ) and table.ToString( Err.Args[ i ] )
 						or tostring( Err.Args[ i ] )
+					Err.Args[ i ] = StringFormat( "%i. [%s] %s", i, type( Err.Args[ i ] ), AsString )
 				end
 
-				Err = StringFormat( "%s - Args: %s", Err.Message, TableConcat( Err.Args, ", " ) )
+				Err = StringFormat( "Args:\n%s", TableConcat( Err.Args, "\n------------\n" ) )
 			end
 
 			Print( "Error: %s\n%s", Err, Result.Traceback )
