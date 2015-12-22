@@ -150,7 +150,7 @@ end
 	Sends a request to a given URL, accounting for timeouts and retrying up to the given
 	number of max attempts.
 ]]
-function Shine.HTTPRequestWithRetry( URL, Protocol, Params, OnSuccess, OnFailure, MaxAttempts, Timeout )
+function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttempts, Timeout )
 	MaxAttempts = MaxAttempts or 3
 
 	local Attempts = 0
@@ -158,8 +158,13 @@ function Shine.HTTPRequestWithRetry( URL, Protocol, Params, OnSuccess, OnFailure
 
 	local function OnTimeout()
 		Attempts = Attempts + 1
+
+		if Callbacks.OnTimeout then
+			Callbacks.OnTimeout( Attempts )
+		end
+
 		if Attempts >= MaxAttempts then
-			OnFailure()
+			Callbacks.OnFailure()
 			return
 		end
 
@@ -167,7 +172,7 @@ function Shine.HTTPRequestWithRetry( URL, Protocol, Params, OnSuccess, OnFailure
 	end
 
 	Submit = function()
-		Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Timeout )
+		Shine.TimedHTTPRequest( URL, Protocol, Params, Callbacks.OnSuccess, OnTimeout, Timeout )
 	end
 
 	Submit()

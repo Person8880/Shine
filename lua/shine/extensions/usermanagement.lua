@@ -72,30 +72,31 @@ function Plugin:SubmitOperation( OperationID, KeyValues, Revert )
 		data = Encode( KeyValues )
 	} )
 
-	local function OnSuccess( Data )
-		if not Data then
-			self:Print( "Received no response for operation %s.", true, OperationID )
-			return
-		end
+	local Callbacks = {
+		OnSuccess = function( Data )
+			if not Data then
+				self:Print( "Received no response for operation %s.", true, OperationID )
+				return
+			end
 
-		local Decoded = Decode( Data )
-		if not Decoded then
-			self:Print( "Received invalid JSON in response for operation %s.", true, OperationID )
-			return
-		end
+			local Decoded = Decode( Data )
+			if not Decoded then
+				self:Print( "Received invalid JSON in response for operation %s.", true, OperationID )
+				return
+			end
 
-		if ( Decoded.success or Decoded.Success ) == false then
-			Revert()
-			self:Print( "Server rejected operation %s, reverting...", true, OperationID )
+			if ( Decoded.success or Decoded.Success ) == false then
+				Revert()
+				self:Print( "Server rejected operation %s, reverting...", true, OperationID )
+			end
+		end,
+		OnFailure = function()
+			self:Print( "Failed to submit %s after %i retries.", true, OperationID, self.Config.MaxSubmitRetries )
 		end
-	end
-
-	local function OnFailure()
-		self:Print( "Failed to submit %s after %i retries.", true, OperationID, self.Config.MaxSubmitRetries )
-	end
+	}
 
 	Shine.HTTPRequestWithRetry( self.Config.APIURL, "POST", Params,
-		OnSuccess, OnFailure, self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
+		Callbacks, self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
 end
 
 function Plugin:CreateCommands()

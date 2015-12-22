@@ -318,36 +318,38 @@ end
 function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
 	TableShallowMerge( self.Config.BansSubmitArguments, PostParams )
 
-	local function SuccessFunc( Data )
-		self.Retries[ ID ] = nil
+	local Callbacks = {
+		OnSuccess = function( Data )
+			self.Retries[ ID ] = nil
 
-		if not Data then
-			self:Print( "Received no repsonse for %s of %s.", true, Operation, ID )
-			return
+			if not Data then
+				self:Print( "Received no repsonse for %s of %s.", true, Operation, ID )
+				return
+			end
+
+			local Decoded = Decode( Data )
+			if not Decoded then
+				self:Print( "Received invalid JSON for %s of %s.", true, Operation, ID )
+				return
+			end
+
+			if Decoded.success == false then
+				Revert()
+				self:SaveConfig()
+				self:Print( "Server rejected %s of %s, reverting...", true, Operation, ID )
+			end
+		end,
+		OnFailure = function()
+			self.Retries[ ID ] = nil
+			self:Print( "Sending %s for %s timed out after %i retries.", true, Operation, ID,
+				self.Config.MaxSubmitRetries )
 		end
-
-		local Decoded = Decode( Data )
-		if not Decoded then
-			self:Print( "Received invalid JSON for %s of %s.", true, Operation, ID )
-			return
-		end
-
-		if Decoded.success == false then
-			Revert()
-			self:SaveConfig()
-			self:Print( "Server rejected %s of %s, reverting...", true, Operation, ID )
-		end
-	end
-
-	local function FailureFunc()
-		self.Retries[ ID ] = nil
-		self:Print( "Sending %s for %s timed out after %i retries.", true, Operation, ID, self.Config.MaxSubmitRetries )
-	end
+	}
 
 	self.Retries[ ID ] = true
 
 	Shine.HTTPRequestWithRetry( self.Config.BansSubmitURL, "POST", PostParams,
-			SuccessFunc, FailureFunc, self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
+		Callbacks, self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
 end
 
 --[[
