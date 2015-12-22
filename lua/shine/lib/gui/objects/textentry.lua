@@ -3,6 +3,7 @@
 ]]
 
 local SGUI = Shine.GUI
+local Timer = Shine.Timer
 
 local Clamp = math.Clamp
 local Clock = os.clock
@@ -17,6 +18,7 @@ local StringUTF8Encode = string.UTF8Encode
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableConcat = table.concat
+local TableRemove = table.remove
 local tonumber = tonumber
 
 local TextEntry = {}
@@ -27,6 +29,8 @@ local BorderSize = Vector( 2, 2, 0 )
 local CaretCol = Color( 1, 1, 1, 1 )
 local Clear = Color( 0, 0, 0, 0 )
 local TextPos = Vector( 2, 0, 0 )
+
+SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
 
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
@@ -105,6 +109,8 @@ function TextEntry:Initialise()
 	self.BorderSize = BorderSize
 
 	self.SelectionBounds = { 0, 0 }
+	self.UndoPosition = 0
+	self.UndoStack = {}
 end
 
 function TextEntry:SetSize( SizeVec )
@@ -461,7 +467,11 @@ function TextEntry:SelectWord( CharPos )
 	self:SetSelection( PreSpace, NextSpace )
 end
 
-function TextEntry:SetText( Text )
+function TextEntry:SetText( Text, IgnoreUndo )
+	if not IgnoreUndo and Text ~= self.Text then
+		self:PushUndoState()
+	end
+
 	self:ResetSelectionBounds()
 	self.Text = Text
 
@@ -505,11 +515,24 @@ SGUI.AddProperty( TextEntry, "Numeric" )
 SGUI.AddProperty( TextEntry, "AlphaNumeric" )
 SGUI.AddProperty( TextEntry, "CharPattern" )
 
+function TextEntry:QueueUndo()
+	if not self.UndoTimer then
+		self:PushUndoState()
+		self.UndoTimer = Timer.Create( self, 0.5, 1, function()
+			self.UndoTimer = nil
+		end )
+	end
+
+	self.UndoTimer:Debounce()
+end
+
 --[[
 	Inserts a character wherever the caret is.
 ]]
 function TextEntry:AddCharacter( Char )
 	if not self:AllowChar( Char ) then return false end
+
+	self:QueueUndo()
 
 	if self:HasSelection() then
 		self:RemoveSelectedText()
@@ -543,6 +566,8 @@ function TextEntry:AddCharacter( Char )
 end
 
 function TextEntry:RemoveWord( Forward )
+	self:QueueUndo()
+
 	local Before
 	local After
 
@@ -585,6 +610,7 @@ end
 ]]
 function TextEntry:RemoveCharacter( Forward )
 	if self:HasSelection() then
+		self:QueueUndo()
 		self:RemoveSelectedText()
 
 		return
@@ -596,6 +622,8 @@ function TextEntry:RemoveCharacter( Forward )
 		self:RemoveWord( Forward )
 		return
 	end
+
+	self:QueueUndo()
 
 	local Text = self.Text
 	local Length = StringUTF8Length( Text )
@@ -774,6 +802,66 @@ function TextEntry:OnUnhandledKey( Key, Down )
 
 end
 
+function TextEntry:GetState()
+	return {
+		Text = self.Text,
+		CaretPos = self.Column
+	}
+end
+
+function TextEntry:ResetUndoState()
+	self.UndoPosition = 0
+	self.UndoStack = {}
+end
+
+function TextEntry:PushUndoState()
+	local MaxHistory = self:GetMaxUndoHistory()
+	for i = self.UndoPosition + 1, #self.UndoStack do
+		self.UndoStack[ i ] = nil
+	end
+
+	self.UndoStack[ #self.UndoStack + 1 ] = self:GetState()
+
+	while #self.UndoStack > MaxHistory do
+		TableRemove( self.UndoStack, 1 )
+	end
+
+	self.UndoPosition = #self.UndoStack
+end
+
+function TextEntry:RestoreState( State )
+	local Text = self.Text
+
+	self:SetText( State.Text, true )
+	self:SetCaretPos( State.CaretPos )
+
+	if self.OnTextChanged then
+		self:OnTextChanged( Text, self.Text )
+	end
+end
+
+function TextEntry:Undo()
+	local UndoPos = self.UndoPosition
+	local Entry = self.UndoStack[ UndoPos ]
+
+	if not Entry then return end
+
+	Entry.Redo = self:GetState()
+
+	self.UndoPosition = self.UndoPosition - 1
+	self:RestoreState( Entry )
+end
+
+function TextEntry:Redo()
+	local UndoPos = self.UndoPosition + 1
+	local Entry = self.UndoStack[ UndoPos ]
+
+	if not Entry then return end
+
+	self.UndoPosition = UndoPos
+	self:RestoreState( Entry.Redo )
+end
+
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
@@ -794,6 +882,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 			end
 
 			if Key == InputKey.X then
+				self:PushUndoState()
 				SGUI.SetClipboardText( self:GetSelectedText() )
 				self:RemoveSelectedText()
 
@@ -802,11 +891,22 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		end
 
 		if Key == InputKey.V then
+			self:PushUndoState()
 			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
 			for i = 1, #Chars do
 				if not self:AddCharacter( Chars[ i ] ) then break end
 			end
 
+			return true
+		end
+
+		if Key == InputKey.Z then
+			self:Undo()
+			return true
+		end
+
+		if Key == InputKey.Y then
+			self:Redo()
 			return true
 		end
 	end

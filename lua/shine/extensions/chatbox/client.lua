@@ -465,6 +465,8 @@ function Plugin:CreateChatbox()
 		end
 
 		self:SetText( "" )
+		self:ResetUndoState()
+
 		Plugin:DestroyAutoCompletePanel()
 
 		if Plugin.Config.AutoClose then
@@ -1061,6 +1063,7 @@ function Plugin:CloseChat()
 
 	if self.Config.DeleteOnClose then
 		self.TextEntry:SetText( "" )
+		self.TextEntry:ResetUndoState()
 		self:DestroyAutoCompletePanel()
 	end
 
