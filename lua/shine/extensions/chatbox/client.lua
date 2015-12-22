@@ -185,7 +185,36 @@ local Spacing = Units.Spacing
 local Colours = {
 	Background = Colour( 0.6, 0.6, 0.6, 0.4 ),
 	Dark = Colour( 0.2, 0.2, 0.2, 0.8 ),
-	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 )
+	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 ),
+	ModeText = Colour( 1, 1, 1, 1 ),
+	AutoCompleteCommand = Colour( 1, 0.8, 0 ),
+	AutoCompleteParams = Colour( 1, 0.5, 0 )
+}
+
+local Skin = {
+	Button = {
+		Default = {
+			ActiveCol = Colours.Highlight,
+			InactiveCol = Colours.Dark
+		}
+	},
+	Panel = {
+		Default = {
+			Colour = Colours.Background
+		},
+		MessageList = {
+			Colour = Colours.Dark
+		}
+	},
+	TextEntry = {
+		Default = {
+			FocusColour = Colours.Dark,
+			DarkColour = Colours.Dark,
+			BorderColour = Colour( 0, 0, 0, 0 ),
+			TextColour = Colour( 1, 1, 1, 1 )
+		}
+	},
+
 }
 
 local LayoutData = {
@@ -200,27 +229,6 @@ local LayoutData = {
 	Positions = {
 		Scrollbar = Vector2( -8, 0 ),
 		Settings = Vector2( 0, 0 )
-	},
-
-	Colours = {
-		StandardOpacity = {
-			Border = Colours.Background,
-			Settings = Colours.Background
-		},
-		HalfOpacity = {
-			Inner = Colours.Dark,
-			TextDark = Colours.Dark,
-			TextFocus = Colours.Dark,
-			ButtonActive = Colours.Highlight,
-			ButtonInActive = Colours.Dark
-		},
-		ModeText = Colour( 1, 1, 1, 1 ),
-		TextBorder = Colour( 0, 0, 0, 0 ),
-		Text = Colour( 1, 1, 1, 1 ),
-		CheckBack = Colour( 0.2, 0.2, 0.2, 1 ),
-		Checked = Colour( 0.8, 0.6, 0.1, 1 ),
-		AutoCompleteCommand = Colour( 1, 0.8, 0 ),
-		AutoCompleteParams = Colour( 1, 0.5, 0 )
 	}
 }
 
@@ -249,15 +257,27 @@ function Plugin:GetTextScale()
 	return self.TextScale
 end
 
+local OpacityVariantControls = {
+	"MainPanel",
+	"ChatBox",
+	"TextEntry",
+	"SettingsButton",
+	"SettingsPanel"
+}
+
 local function UpdateOpacity( self, Opacity )
 	local ScaledOpacity = AlphaScale( Opacity )
 
-	for Name, Colour in pairs( LayoutData.Colours.StandardOpacity ) do
-		Colour.a = Opacity
-	end
+	Colours.Background.a = Opacity
+	Colours.Dark.a = ScaledOpacity
+	Colours.Highlight.a = ScaledOpacity
 
-	for Name, Colour in pairs( LayoutData.Colours.HalfOpacity ) do
-		Colour.a = ScaledOpacity
+	for i = 1, #OpacityVariantControls do
+		local Control = self[ OpacityVariantControls[ i ] ]
+		-- Force the skin to refresh.
+		if Control then
+			Control:SetStyleName( Control:GetStyleName() )
+		end
 	end
 end
 
@@ -335,9 +355,8 @@ function Plugin:CreateChatbox()
 		Anchor = "BottomLeft",
 		Size = PanelSize,
 		Pos = ChatBoxPos,
-		Colour = LayoutData.Colours.StandardOpacity.Border,
-		Draggable = true,
-		IsSchemed = false
+		Skin = Skin,
+		Draggable = true
 	}
 
 	--Double click the title bar to return it to the default position.
@@ -388,8 +407,8 @@ function Plugin:CreateChatbox()
 		Scrollable = true,
 		AllowSmoothScroll = self.Config.SmoothScroll,
 		StickyScroll = true,
-		Colour = LayoutData.Colours.HalfOpacity.Inner,
-		IsSchemed = false,
+		Skin = Skin,
+		StyleName = "MessageList",
 		AutoHideScrollbar = true,
 		Layout = SGUI.Layout:CreateLayout( "Vertical", {
 			Elements = self.Messages,
@@ -418,12 +437,8 @@ function Plugin:CreateChatbox()
 		BorderSize = Vector2( 0, 0 ),
 		Text = "",
 		StickyFocus = true,
-		FocusColour = LayoutData.Colours.HalfOpacity.TextFocus,
-		DarkColour = LayoutData.Colours.HalfOpacity.TextDark,
-		BorderColour = LayoutData.Colours.TextBorder,
-		TextColour = LayoutData.Colours.Text,
+		Skin = Skin,
 		Font = Font,
-		IsSchemed = false,
 		Fill = true
 	}
 	if self.TextScale ~= 1 then
@@ -436,7 +451,6 @@ function Plugin:CreateChatbox()
 		TextEntry:SetupCaret()
 	end
 
-	TextEntry.InnerBox:SetColor( LayoutData.Colours.HalfOpacity.TextDark )
 	TextEntryLayout:AddElement( TextEntry )
 
 	--Send the message when the client presses enter.
@@ -487,10 +501,8 @@ function Plugin:CreateChatbox()
 	local SettingsButton = SGUI:Create( "Button", Border )
 	SettingsButton:SetupFromTable{
 		Text = ">",
-		ActiveCol = LayoutData.Colours.HalfOpacity.ButtonActive,
-		InactiveCol = LayoutData.Colours.HalfOpacity.ButtonInActive,
+		Skin = Skin,
 		Font = Font,
-		IsSchemed = false,
 		AutoSize = UnitVector( Scaled( SettingsButtonSize, ScalarScale ),
 			Scaled( SettingsButtonSize, ScalarScale ) ),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 )
@@ -533,12 +545,8 @@ do
 				local CheckBox = SettingsPanel:Add( "CheckBox" )
 				CheckBox:SetupFromTable{
 					AutoSize = Size,
-					CheckedColour = LayoutData.Colours.Checked,
-					BackgroundColour = LayoutData.Colours.CheckBack,
 					Checked = Checked,
 					Font = self:GetFont(),
-					TextColour = LayoutData.Colours.ModeText,
-					IsSchemed = false,
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
 				CheckBox:AddLabel( Label )
@@ -571,8 +579,6 @@ do
 				Label:SetupFromTable{
 					Font = self:GetFont(),
 					Text = Text,
-					Colour = LayoutData.Colours.ModeText,
-					IsSchemed = false,
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
 
@@ -591,12 +597,7 @@ do
 				Slider:SetupFromTable{
 					AutoSize = Size,
 					Value = Value,
-					HandleColour = LayoutData.Colours.Checked,
-					LineColour = LayoutData.Colours.ModeText,
-					DarkLineColour = LayoutData.Colours.HalfOpacity.TextDark,
 					Font = self:GetFont(),
-					TextColour = LayoutData.Colours.ModeText,
-					IsSchemed = false,
 					Padding = SliderTextPadding * self.ScalarScale,
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
@@ -689,17 +690,6 @@ do
 				if not UpdateConfigValue( self, "Opacity", Value ) then return end
 
 				UpdateOpacity( self, Value )
-
-				self.SettingsPanel:SetColour( LayoutData.Colours.StandardOpacity.Settings )
-
-				self.ChatBox:SetColour( LayoutData.Colours.HalfOpacity.Inner )
-				self.MainPanel:SetColour( LayoutData.Colours.StandardOpacity.Border )
-
-				self.TextEntry:SetFocusColour( LayoutData.Colours.HalfOpacity.TextFocus )
-				self.TextEntry:SetDarkColour( LayoutData.Colours.HalfOpacity.TextDark )
-
-				self.SettingsButton:SetActiveCol( LayoutData.Colours.HalfOpacity.ButtonActive )
-				self.SettingsButton:SetInactiveCol( LayoutData.Colours.HalfOpacity.ButtonInActive )
 			end,
 			Bounds = { 0, 100 },
 			Values = function( self )
@@ -722,9 +712,8 @@ do
 			Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 			Scrollable = true,
 			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
-			Colour = LayoutData.Colours.StandardOpacity.Settings,
-			ShowScrollbar = false,
-			IsSchemed = false
+			Skin = Skin,
+			ShowScrollbar = false
 		}
 
 		self.SettingsPanel = SettingsPanel
@@ -1004,8 +993,6 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				Label:SetFont( self:GetFont() )
 				Label:SetTextScale( self.MessageTextScale )
 
-				local Colours = LayoutData.Colours
-
 				-- Completion of the form: !command <param> Help text.
 				local TextContent = {
 					Colours.ModeText, FirstLetter,
@@ -1121,12 +1108,6 @@ function Plugin:StartChat( Team )
 
 	--Get our text entry accepting input.
 	self.TextEntry:RequestFocus()
-
-	self.TextEntry:SetFocusColour( LayoutData.Colours.HalfOpacity.TextFocus )
-	self.TextEntry:SetDarkColour( LayoutData.Colours.HalfOpacity.TextDark )
-	self.TextEntry:SetBorderColour( LayoutData.Colours.TextBorder )
-	self.TextEntry:SetTextColour( LayoutData.Colours.Text )
-
 	self.Visible = true
 
 	--Set this so we don't accept text input straight away, avoids the bind button making it in.

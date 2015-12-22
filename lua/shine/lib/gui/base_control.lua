@@ -80,6 +80,11 @@ function ControlMeta:SetStyleName( Name )
 	SGUI.SkinManager:ApplySkin( self )
 end
 
+function ControlMeta:SetSkin( Skin )
+	self.Skin = Skin
+	SGUI.SkinManager:ApplySkin( self )
+end
+
 function ControlMeta:GetStyleValue( Key )
 	return SGUI.SkinManager:GetStyleForElement( self )[ Key ]
 end
