@@ -46,8 +46,7 @@ function ColourLabel:SetText( TextContent )
 	if #self.Labels > 0 then
 		for i = 1, #self.Labels do
 			local Label = self.Labels[ i ]
-			Label:SetParent()
-			Label:Destroy()
+			Label:Destroy( true )
 
 			self.Layout.Elements[ i ] = nil
 			self.Labels[ i ] = nil

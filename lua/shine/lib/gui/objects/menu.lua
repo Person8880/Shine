@@ -85,8 +85,7 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	SGUI:AddPostEventAction( function()
 		if not self:IsValid() then return end
 
-		self:SetParent()
-		self:Destroy()
+		self:Destroy( true )
 	end )
 end
 

@@ -47,8 +47,8 @@ end
 --[[
 	Destroys a control.
 ]]
-function ControlMeta:Destroy()
-	return SGUI:Destroy( self )
+function ControlMeta:Destroy( RemoveFromParent )
+	return SGUI:Destroy( self, RemoveFromParent )
 end
 
 --[[

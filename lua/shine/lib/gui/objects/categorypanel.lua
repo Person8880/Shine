@@ -121,14 +121,12 @@ function CategoryPanel:RemoveCategory( Name )
 		Height = Height + Object:GetSize().y
 
 		Object.Removing = true
-		Object:SetParent()
-		Object:Destroy()
+		Object:Destroy( true )
 	end
 
 	Height = Height + CategoryObj.Header:GetSize().y
 
-	CategoryObj.Header:SetParent()
-	CategoryObj.Header:Destroy()
+	CategoryObj.Header:Destroy( true )
 
 	TableRemove( Categories, Index )
 

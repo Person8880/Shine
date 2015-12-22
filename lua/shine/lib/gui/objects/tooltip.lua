@@ -120,9 +120,7 @@ function Tooltip:FadeOut( Callback )
 
 		--Remember to remove the fade on the text!
 		self:StopFade( self.Text )
-
-		self:SetParent()
-		self:Destroy()
+		self:Destroy( true )
 	end )
 
 	if not self.Text then return end

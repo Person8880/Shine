@@ -148,8 +148,7 @@ function List:SetColumns( ... )
 
 	if self.Columns then
 		for i = 1, self.Columns do
-			self.Columns[ i ]:SetParent()
-			self.Columns[ i ]:Destroy()
+			self.Columns[ i ]:Destroy( true )
 		end
 	end
 
@@ -233,8 +232,7 @@ function List:PerformLayout()
 			self:AddScrollbar()
 		end
 	elseif self.Scrollbar then
-		self.Scrollbar:SetParent()
-		self.Scrollbar:Destroy()
+		self.Scrollbar:Destroy( true )
 
 		self.Scrollbar = nil
 		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
@@ -449,8 +447,7 @@ function List:RemoveRow( Index )
 	local OldRow = Rows[ Index ]
 	if not OldRow then return end
 
-	OldRow:SetParent() --This allows it to run its cleanup function.
-	OldRow:Destroy()
+	OldRow:Destroy( true )
 
 	TableRemove( Rows, Index )
 	self.Layout:RemoveElement( OldRow )
@@ -459,9 +456,7 @@ function List:RemoveRow( Index )
 
 	if self.RowCount <= self.MaxRows then
 		if self.Scrollbar then
-			self.Scrollbar:SetParent()
-			self.Scrollbar:Destroy()
-
+			self.Scrollbar:Destroy( true )
 			self.Scrollbar = nil
 		end
 

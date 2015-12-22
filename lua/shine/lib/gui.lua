@@ -546,7 +546,11 @@ end
 
 	Input: SGUI control object.
 ]]
-function SGUI:Destroy( Control )
+function SGUI:Destroy( Control, RemoveFromParent )
+	if RemoveFromParent then
+		Control:SetParent()
+	end
+
 	self.ActiveControls:Remove( Control )
 
 	if self.IsValid( Control.Tooltip ) then

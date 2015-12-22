@@ -973,8 +973,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 					Label:AlphaTo( nil, nil, 0, 0, 0.3, function()
 						if not Label then return end
 
-						Label:SetParent()
-						Label:Destroy()
+						Label:Destroy( true )
 						Label = nil
 						Elements[ i ] = nil
 					end )
@@ -1027,8 +1026,7 @@ function Plugin:DestroyAutoCompletePanel()
 		self.AutoCompleteTimer = nil
 	end
 
-	self.AutoCompletePanel:SetParent()
-	self.AutoCompletePanel:Destroy()
+	self.AutoCompletePanel:Destroy( true )
 	self.AutoCompletePanel = nil
 
 	self.AutoCompleteResults = nil
