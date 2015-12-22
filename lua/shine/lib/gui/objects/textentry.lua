@@ -529,10 +529,12 @@ end
 --[[
 	Inserts a character wherever the caret is.
 ]]
-function TextEntry:AddCharacter( Char )
+function TextEntry:AddCharacter( Char, SkipUndo )
 	if not self:AllowChar( Char ) then return false end
 
-	self:QueueUndo()
+	if not SkipUndo then
+		self:QueueUndo()
+	end
 
 	if self:HasSelection() then
 		self:RemoveSelectedText()
@@ -894,7 +896,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 			self:PushUndoState()
 			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
 			for i = 1, #Chars do
-				if not self:AddCharacter( Chars[ i ] ) then break end
+				if not self:AddCharacter( Chars[ i ], true ) then break end
 			end
 
 			return true
