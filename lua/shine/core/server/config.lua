@@ -470,30 +470,16 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 	end
 end
 
---Timeout means retry up to the max attempts.
-local function OnWebPluginTimeout( self, Plugins, Reload )
-	self.WebPluginTimeouts = ( self.WebPluginTimeouts or 0 ) + 1
+local function OnWebPluginFailure( self, Plugins, Reload )
+	if Reload then return end
 
-	Shine:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.",
-		true, self.WebPluginTimeouts )
+	Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
 
-	if self.WebPluginTimeouts >= self.Config.WebConfigs.MaxAttempts then
-		if not Reload then
-			Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
-
-			for Plugin in pairs( Plugins ) do
-				LoadPlugin( self, Plugin )
-			end
-
-			Notify( "[Shine] Finished loading." )
-		end
-
-		self.WebPluginTimeouts = 0
-
-		return
+	for Plugin in pairs( Plugins ) do
+		LoadPlugin( self, Plugin )
 	end
 
-	self:LoadWebPlugins( Plugins, Reload )
+	Notify( "[Shine] Finished loading." )
 end
 
 --[[
@@ -526,11 +512,17 @@ function Shine:LoadWebPlugins( Plugins, Reload )
 		Args[ Arg ] = Value
 	end
 
-	self.TimedHTTPRequest( WebConfig.RequestURL, "POST", Args, function( Response )
-		OnWebPluginSuccess( self, Response, List, Reload )
-	end, function()
-		OnWebPluginTimeout( self, Plugins, Reload )
-	end )
+	self.HTTPRequestWithRetry( WebConfig.RequestURL, "POST", Args, {
+		OnSuccess = function( Response )
+			OnWebPluginSuccess( self, Response, List, Reload )
+		end,
+		OnFailure = function()
+			OnWebPluginFailure( self, Plugins, Reload )
+		end,
+		OnTimeout = function( Attempt )
+			self:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.", true, Attempt )
+		end
+	}, WebConfig.MaxAttempts )
 end
 
 Shine:LoadExtensionConfigs()
