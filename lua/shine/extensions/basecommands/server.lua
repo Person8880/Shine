@@ -442,8 +442,6 @@ function Plugin:CreateInfoCommands()
 	HelpCommand:AddParam{ Type = "string", TakeRestofLine = true, Optional = true, Help = "search text" }
 	HelpCommand:Help( "View help info for available commands (omit <search text> to see all)." )
 
-	local PrintTableToConsole = Shine.PrintTableToConsole
-
 	local NameColumn = {
 		Name = "Name",
 		Getter = function( Entry )
@@ -508,7 +506,7 @@ function Plugin:CreateInfoCommands()
 			}
 		end
 
-		PrintTableToConsole( Client, Columns, SortTable )
+		Shine.PrintTableToConsole( Client, Columns, SortTable )
 	end
 	local StatusCommand = self:BindCommand( "sh_status", nil, Status, true )
 	StatusCommand:Help( "Prints a list of all connected players and their relevant information." )
@@ -552,7 +550,7 @@ function Plugin:CreateInfoCommands()
 				return false
 			end )
 
-			PrintTableToConsole( Client, Columns, SortTable )
+			Shine.PrintTableToConsole( Client, Columns, SortTable )
 
 			return
 		end
@@ -568,7 +566,7 @@ function Plugin:CreateInfoCommands()
 			{ Target:GetUserId(), Target }
 		}
 
-		PrintTableToConsole( Client, Columns, SortTable )
+		Shine.PrintTableToConsole( Client, Columns, SortTable )
 	end
 	local WhoCommand = self:BindCommand( "sh_who", nil, Who, true )
 	WhoCommand:AddParam{ Type = "client", Optional = true, Default = false }
