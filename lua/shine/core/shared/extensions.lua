@@ -342,6 +342,13 @@ Shine.AllPlugins = AllPlugins
 local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
 
+local PluginFileMapping = {}
+
+local function AddPluginFile( Name, File )
+	PluginFileMapping[ Name ] = PluginFileMapping[ Name ] or {}
+	PluginFileMapping[ Name ][ File ] = true
+end
+
 local function AddToPluginsLists( Name )
 	if not AllPlugins[ Name ] then
 		AllPlugins[ Name ] = true
@@ -375,14 +382,32 @@ for Path in pairs( PluginFiles ) do
 			Shine:LoadExtension( Name, true )
 		end
 	else
+		File = Name
 		Name = Name:gsub( "%.lua", "" )
 
 		AddToPluginsLists( Name )
 	end
+
+	AddPluginFile( Name, File )
 end
 
---Alphabetical order for hook calling consistency.
-TableSort( AllPluginsArray, function( A, B )
+-- Alphabetical order for hook calling consistency.
+Shine.Stream( AllPluginsArray ):Filter( function( Name )
+	-- Filter out plugins that exist on the side we're not.
+	local Mapping = PluginFileMapping[ Name ]
+
+	-- Client-side only plugin will not have server.lua, shared.lua or pluginname.lua.
+	if Server and not Mapping[ "server.lua" ] and not Mapping[ "shared.lua" ] and not Mapping[ Name..".lua" ] then
+		return false
+	end
+
+	-- Server-side only will not have shared.lua or client.lua.
+	if Client and not Mapping[ "client.lua" ] and not Mapping[ "shared.lua" ] then
+		return false
+	end
+
+	return true
+end ):Sort( function( A, B )
 	return A:lower() < B:lower()
 end )
 
