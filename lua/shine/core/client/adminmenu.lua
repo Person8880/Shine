@@ -282,6 +282,7 @@ do
 	local GetEnts = Shared.GetEntitiesWithClassname
 	local IterateEntList = ientitylist
 	local TableEmpty = table.Empty
+	local TableFindByField = table.FindByField
 	local TableRemove = table.remove
 	local TableSort = table.sort
 
@@ -571,17 +572,7 @@ do
 		end
 
 		local Categories = self.Commands
-		local CategoryObj
-
-		for i = 1, #Categories do
-			local Obj = Categories[ i ]
-
-			if Obj.Name == Category then
-				CategoryObj = Obj
-				break
-			end
-		end
-
+		local CategoryObj = TableFindByField( Categories, "Name", Category )
 		local ShouldAdd
 
 		if not CategoryObj then
@@ -610,17 +601,7 @@ do
 
 	function AdminMenu:RemoveCommandCategory( Category )
 		local Categories = self.Commands
-		local Index
-
-		for i = 1, #Categories do
-			local Obj = Categories[ i ]
-
-			if Obj.Name == Category then
-				Index = i
-				break
-			end
-		end
-
+		local Obj, Index = TableFindByField( Categories, "Name", Category )
 		if not Index then return end
 
 		TableRemove( Categories, Index )
@@ -632,48 +613,61 @@ do
 end
 
 do
-local WebPage
-local Text = [[Shine was created by Person8880.
+-- Apparently labels have a character limit.
+local Text = {
+[[Shine was created by Person8880.
 
 Special thanks to:
 - Ghoul for being the first major plugin author and helping with pull requests.
 - Lance Hilliard for also helping with pull requests.
 - DePara for being the first server admin to use Shine.
-- You for using my mod and therefore reading this text!]]
+- You for using my mod and therefore reading this text!
+
+Got an issue or a feature request? Head over to the mod's GitHub page and post an issue,
+or leave a comment on the workshop page.
+]],
+[[The mod's GitHub issue tracker can be found here:
+https://github.com/Person8880/Shine/issues
+
+If you need help with how the mod functions, you can view the wiki by clicking the button
+below. If you want to get to it outside the game, visit:
+https://github.com/Person8880/Shine/wiki]]
+}
+
+	local Units = SGUI.Layout.Units
+	local Percentage = Units.Percentage
+	local Spacing = Units.Spacing
+	local UnitVector = Units.UnitVector
 
 	AdminMenu:AddTab( "About", {
 		OnInit = function( Panel )
-			local Label = SGUI:Create( "Label", Panel )
-			Label:SetPos( Vector( 16, 24, 0 ) )
-			Label:SetFont( "fonts/AgencyFB_small.fnt" )
-			Label:SetText( Text )
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( 16, 24, 16, 24 )
+			} )
+			Panel:SetLayout( Layout )
+
+			for i = 1, #Text do
+				local Label = SGUI:Create( "Label", Panel )
+				Label:SetFont( Fonts.kAgencyFB_Small )
+				Label:SetText( Text[ i ] )
+				Layout:AddElement( Label )
+			end
 
 			local HomeButton = SGUI:Create( "Button", Panel )
-			HomeButton:SetAnchor( "TopRight" )
-			HomeButton:SetPos( Vector( -144, 176, 0 ) )
-			HomeButton:SetSize( Vector( 128, 32, 0 ) )
+			HomeButton:SetAutoSize( UnitVector( Percentage( 100 ), 32 ) )
+			HomeButton:SetAlignment( SGUI.LayoutAlignment.MAX )
 			HomeButton:SetFont( Fonts.kAgencyFB_Small )
-			HomeButton:SetText( "Back to wiki" )
+			HomeButton:SetText( "Open the Wiki" )
 			function HomeButton:DoClick()
-				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
+				Shine:OpenWebpage( "https://github.com/Person8880/Shine/wiki", "Shine Wiki" )
 			end
 
-			if not SGUI.IsValid( WebPage ) then
-				WebPage = SGUI:Create( "Webpage", Panel )
-				WebPage:SetPos( Vector( 16, 224, 0 ) )
-				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
-			else
-				WebPage:SetParent( Panel )
-				WebPage:SetIsVisible( true )
-			end
-
-			AdminMenu:DontDestroyOnClose( WebPage )
+			Layout:AddElement( HomeButton )
+			Panel:InvalidateLayout( true )
 		end,
 
 		OnCleanup = function( Panel )
-			WebPage:SetParent()
-			WebPage:SetIsVisible( false )
-			AdminMenu:DestroyOnClose( WebPage )
+
 		end
 	} )
 end
