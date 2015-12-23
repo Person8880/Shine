@@ -251,23 +251,20 @@ function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	local BottomButton = Buttons.Bottom
 
 	if SGUI.IsValid( TopButton ) then
-		TopButton:SetParent()
-		TopButton:Destroy()
+		TopButton:Destroy( true )
 
 		Buttons.Top = nil
 	end
 
 	if SGUI.IsValid( BottomButton ) then
-		BottomButton:SetParent()
-		BottomButton:Destroy()
+		BottomButton:Destroy( true )
 
 		Buttons.Bottom = nil
 	end
 
 	for Key, Button in pairs( SideButtons ) do
 		if SGUI.IsValid( Button ) then
-			Button:SetParent()
-			Button:Destroy()
+			Button:Destroy( true )
 		end
 
 		SideButtons[ Key ] = nil

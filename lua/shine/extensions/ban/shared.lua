@@ -60,7 +60,6 @@ function Plugin:SetupAdminMenu()
 		Window:SetSize( Vector( 400, 328, 0 ) )
 		Window:SetPos( Vector( -200, -164, 0 ) )
 		Window:AddTitleBar( "Add ban" )
-		Window:SkinColour()
 
 		function Window.CloseButton.DoClick()
 			Shine.AdminMenu:DontDestroyOnClose( Window )
@@ -81,7 +80,6 @@ function Plugin:SetupAdminMenu()
 		local IDLabel = SGUI:Create( "Label", Window )
 		IDLabel:SetText( "NS2ID:" )
 		IDLabel:SetFont( Fonts.kAgencyFB_Small )
-		IDLabel:SetBright( true )
 		IDLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -153,7 +151,6 @@ function Plugin:SetupAdminMenu()
 		local DurationLabel = SGUI:Create( "Label", Window )
 		DurationLabel:SetText( "Duration (in minutes, 0 for permanent):" )
 		DurationLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationLabel:SetBright( true )
 		DurationLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -174,7 +171,6 @@ function Plugin:SetupAdminMenu()
 		local DurationValueLabel = SGUI:Create( "Label", Window )
 		DurationValueLabel:SetText( "Please enter a duration..." )
 		DurationValueLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationValueLabel:SetBright( true )
 		DurationValueLabel:SetPos( Vector( X, Y, 0 ) )
 		local DurationOptions = { Units = "minutes", Min = 0, Round = true }
 		function DurationEntry:OnTextChanged( OldValue, NewValue )
@@ -183,7 +179,7 @@ function Plugin:SetupAdminMenu()
 				return
 			end
 
-			local Minutes = Shine.CommandUtil.ParamTypes.time( nil, NewValue, DurationOptions )
+			local Minutes = Shine.CommandUtil.ParamTypes.time.Parse( nil, NewValue, DurationOptions )
 			if Minutes == 0 then
 				DurationValueLabel:SetText( "Duration: Permanent." )
 				return
@@ -197,7 +193,6 @@ function Plugin:SetupAdminMenu()
 		local ReasonLabel = SGUI:Create( "Label", Window )
 		ReasonLabel:SetText( "Reason:" )
 		ReasonLabel:SetFont( Fonts.kAgencyFB_Small )
-		ReasonLabel:SetBright( true )
 		ReasonLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -218,6 +213,7 @@ function Plugin:SetupAdminMenu()
 		AddBan:SetPos( Vector( -64, -44, 0 ) )
 		AddBan:SetText( "Add Ban" )
 		AddBan:SetFont( Fonts.kAgencyFB_Small )
+		AddBan:SetStyleName( "SuccessButton" )
 		function AddBan.DoClick()
 			local ID = tonumber( IDEntry:GetText() )
 			if not ID then return end
@@ -243,7 +239,7 @@ function Plugin:SetupAdminMenu()
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
 			List:SetPos( Vector( 16, 28, 0 ) )
-			List:SetColumns( 3, "Name", "Banned By", "Expiry" )
+			List:SetColumns( "Name", "Banned By", "Expiry" )
 			List:SetSpacing( 0.35, 0.35, 0.3 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
@@ -277,6 +273,7 @@ function Plugin:SetupAdminMenu()
 			Unban:SetPos( Vector( 16, -48, 0 ) )
 			Unban:SetText( "Unban" )
 			Unban:SetFont( Fonts.kAgencyFB_Small )
+			Unban:SetStyleName( "DangerButton" )
 			function Unban.DoClick()
 				local Row = List:GetSelectedRow()
 				if not Row then return end

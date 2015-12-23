@@ -5,7 +5,7 @@
 local HTTPRequest = Shared.SendHTTPRequest
 local Time = os.clock
 
-do	
+do
 	local Encode, Decode = json.encode, json.decode
 	local IsType = Shine.IsType
 	local StringFormat = string.format
@@ -27,7 +27,7 @@ do
 	local function PopulationWrapper( Data, Callback )
 		Callback( Data[ 1 ].numberOfPlayers, Data[ 1 ].maxPlayers )
 	end
-	
+
 	local function FullDataWrapper( Data, Callback )
 		Callback( Data[ 1 ] )
 	end
@@ -119,7 +119,7 @@ function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Ti
 	end
 
 	Timeout = Timeout or DefaultTimeout
-	
+
 	local TimeoutTime = Time() + Timeout
 	local Succeeded
 
@@ -127,21 +127,53 @@ function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Ti
 		if Time() > TimeoutTime then
 			return
 		end
-		
+
 		Succeeded = true
 
 		OnSuccess( Data )
 	end
 
 	if NeedParams then
-		HTTPRequest( URL, Protocol, Params, Callback )	
+		HTTPRequest( URL, Protocol, Params, Callback )
 	else
 		HTTPRequest( URL, Protocol, Callback )
 	end
-	
+
 	Timer.Simple( Timeout, function()
 		if not Succeeded then
 			OnTimeout()
 		end
 	end )
+end
+
+--[[
+	Sends a request to a given URL, accounting for timeouts and retrying up to the given
+	number of max attempts.
+]]
+function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttempts, Timeout )
+	MaxAttempts = MaxAttempts or 3
+
+	local Attempts = 0
+	local Submit
+
+	local function OnTimeout()
+		Attempts = Attempts + 1
+
+		if Callbacks.OnTimeout then
+			Callbacks.OnTimeout( Attempts )
+		end
+
+		if Attempts >= MaxAttempts then
+			Callbacks.OnFailure()
+			return
+		end
+
+		Submit()
+	end
+
+	Submit = function()
+		Shine.TimedHTTPRequest( URL, Protocol, Params, Callbacks.OnSuccess, OnTimeout, Timeout )
+	end
+
+	Submit()
 end

@@ -11,10 +11,7 @@ local CheckBox = {}
 function CheckBox:Initialise()
 	self.BaseClass.Initialise( self )
 
-	if self.Background then GUI.DestroyItem( self.Background ) end
-
 	local Manager = GetGUIManager()
-
 	local Background = Manager:CreateGraphicItem()
 
 	self.Background = Background
@@ -25,33 +22,7 @@ function CheckBox:Initialise()
 	Background:AddChild( Box )
 
 	self.Box = Box
-
-	local Scheme = SGUI:GetSkin()
-
-	self.BackgroundCol = Scheme.InactiveButton
-	self.BoxCol = Scheme.ActiveButton
-	self.BoxHideCol = SGUI.CopyColour( Scheme.ActiveButton )
-	self.BoxHideCol.a = 0
-
-	self.Font = Scheme.ButtonFont
-	self.TextColour = Scheme.BrightText
-
-	Box:SetColor( self.BoxHideCol )
-	Background:SetColor( self.BackgroundCol )
-
 	self.Checked = false
-end
-
-function CheckBox:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.BackgroundCol = Scheme.InactiveButton
-	self.BoxCol = Scheme.ActiveButton
-	self.BoxHideCol = SGUI.CopyColour( Scheme.ActiveButton )
-	self.BoxHideCol.a = 0
-
-	self.Box:SetColor( self.Checked and self.BoxCol or self.BoxHideCol )
-	self.Background:SetColor( self.BackgroundCol )
 end
 
 function CheckBox:SetCheckedColour( Col )
@@ -74,7 +45,7 @@ function CheckBox:SetupStencil()
 	self.Box:SetInheritsParentStencilSettings( true )
 
 	if self.Label then
-		self.Label.Text:SetInheritsParentStencilSettings( true )
+		self.Label.Label:SetInheritsParentStencilSettings( true )
 	end
 end
 
@@ -185,34 +156,14 @@ function CheckBox:AddLabel( Text )
 	end
 
 	if self.Stencilled then
-		Label.Text:SetInheritsParentStencilSettings( true )
+		Label.Label:SetInheritsParentStencilSettings( true )
 	end
 
 	self.Label = Label
 end
 
-function CheckBox:SetFont( Name )
-	self.Font = Name
-
-	if not self.Label then return end
-
-	self.Label:SetFont( Name )
-end
-
-function CheckBox:SetTextColour( Col )
-	self.TextColour = Col
-
-	if not self.Label then return end
-
-	self.Label:SetColour( Col )
-end
-
-function CheckBox:SetTextScale( Scale )
-	self.TextScale = Scale
-
-	if not self.Label then return end
-
-	self.Label:SetTextScale( Scale )
-end
+SGUI.AddBoundProperty( CheckBox, "Font", "Label" )
+SGUI.AddBoundProperty( CheckBox, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( CheckBox, "TextScale", "Label" )
 
 SGUI:Register( "CheckBox", CheckBox )

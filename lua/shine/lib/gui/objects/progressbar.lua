@@ -11,6 +11,10 @@ local ProgressBar = {}
 
 local Padding = Vector( 1, 1, 0 )
 
+SGUI.AddBoundProperty( ProgressBar, "BorderColour", "Background:SetColor" )
+SGUI.AddBoundProperty( ProgressBar, "ProgressColour", "Bar:SetColor" )
+SGUI.AddBoundProperty( ProgressBar, "Colour", "InnerBack:SetColor" )
+
 function ProgressBar:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -27,12 +31,6 @@ function ProgressBar:Initialise()
 	InnerBack:AddChild( Bar )
 
 	InnerBack:SetPosition( Padding )
-
-	local Skin = SGUI:GetSkin()
-
-	Background:SetColor( Skin.ButtonBorder )
-	InnerBack:SetColor( Skin.ProgressBarEmpty )
-	Bar:SetColor( Skin.ProgressBar )
 
 	self.Background = Background
 	self.InnerBack = InnerBack
@@ -55,12 +53,6 @@ function ProgressBar:SetSize( Size )
 	self.BarSize.y = BoxSize.y
 
 	self.Bar:SetSize( self.BarSize )
-end
-
-function ProgressBar:OnSchemeChange( Skin )
-	self.Background:SetColor( Skin.ButtonBorder )
-	self.InnerBack:SetColor( Skin.ProgressBarEmpty )
-	self.Bar:SetColor( Skin.ProgressBar )
 end
 
 function ProgressBar:SetupStencil()

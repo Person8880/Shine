@@ -6,7 +6,7 @@ local pairs = pairs
 local tonumber = tonumber
 local IsType = Shine.IsType
 local Notify = Shared.Message
-local InsertUnique = table.insertunique
+local InsertUnique = table.InsertUnique
 
 local Plugin = {}
 Plugin.Version = "2.0"

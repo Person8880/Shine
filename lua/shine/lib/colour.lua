@@ -4,10 +4,19 @@
 
 local SGUI = Shine.GUI
 
-local Color = Color
-
 Colour = Color --I'm British, I can't stand writing Color.
 local Colour = Colour
+
+local getmetatable = getmetatable
+local ColourMetatable = getmetatable( Colour( 0, 0, 0 ) )
+
+--[[
+	Determines if the passed in object is a colour.
+]]
+function SGUI.IsColour( Object )
+	-- Apparently vectors and colours share the same metatable...
+	return getmetatable( Object ) == ColourMetatable and Object.r
+end
 
 --[[
 	Returns the sum of two colours.

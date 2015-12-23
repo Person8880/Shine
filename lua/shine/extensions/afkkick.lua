@@ -15,6 +15,7 @@ local StringTimeToString = string.TimeToString
 
 local Plugin = {}
 Plugin.Version = "1.6"
+Plugin.PrintName = "AFKKick"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
@@ -56,45 +57,54 @@ function Plugin:OnFirstThink()
 	end )
 end
 
-function Plugin:Initialise()
-	local Edited
-	if self.Config.WarnMinPlayers > self.Config.MinPlayers then
-		self.Config.WarnMinPlayers = self.Config.MinPlayers
-		Edited = true
-	end
+do
+	local Validator = Shine.Validator()
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Config.WarnMinPlayers > Config.MinPlayers
+		end,
+		Fix = function( self, Config )
+			Config.WarnMinPlayers = Config.MinPlayers
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Config.MoveToReadyRoomOnWarn and Config.MoveToSpectateOnWarn
+		end,
+		Fix = function( self, Config )
+			Config.MoveToReadyRoomOnWarn = false
+		end
+	} )
 
-	if self.Config.MoveToReadyRoomOnWarn and self.Config.MoveToSpectateOnWarn then
-		self.Config.MoveToReadyRoomOnWarn = false
-		Edited = true
-	end
-
-	if Edited then
-		self:SaveConfig( true )
-	end
-
-	if self.Enabled ~= nil then
-		for Client in pairs( self.Users ) do
-			if Shine:IsValidClient( Client ) then
-				self:ResetAFKTime( Client )
-			else
-				self.Users[ Client ] = nil
-			end
+	function Plugin:Initialise()
+		if Validator:Validate( self.Config ) then
+			self:SaveConfig( true )
 		end
 
-		local Clients, Count = Shine.GetAllClients()
-		for i = 1, Count do
-			local Client = Clients[ i ]
-			if not self.Users[ Client ] then
-				self:ClientConnect( Client )
+		if self.Enabled ~= nil then
+			for Client in pairs( self.Users ) do
+				if Shine:IsValidClient( Client ) then
+					self:ResetAFKTime( Client )
+				else
+					self.Users[ Client ] = nil
+				end
 			end
+
+			local Clients, Count = Shine.GetAllClients()
+			for i = 1, Count do
+				local Client = Clients[ i ]
+				if not self.Users[ Client ] then
+					self:ClientConnect( Client )
+				end
+			end
+		else
+			self.Users = {}
 		end
-	else
-		self.Users = {}
+
+		self.Enabled = true
+
+		return true
 	end
-
-	self.Enabled = true
-
-	return true
 end
 
 do
@@ -141,15 +151,15 @@ function Plugin:CheckConnectionAllowed( ID )
 	for Client, Data in pairs( self.Users ) do
 		if not ( Shine:HasAccess( Client, "sh_afk" )
 		or Shine:HasAccess( Client, "sh_afk_partial" ) )
-		and Data.AFKTime >= KickTime and Data.AFKTime > TimeAFK then
-			TimeAFK = Data.AFKTime
+		and Data.AFKAmount >= KickTime and Data.AFKAmount > TimeAFK then
+			TimeAFK = Data.AFKAmount
 			AFKForLongest = Client
 		end
 	end
 
 	if not AFKForLongest then return end
 
-	Shine:Print( "[AFKKick] Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
+	self:Print( "Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
 		true, Shine:GetClientInfo( AFKForLongest ), ID,
 		StringTimeToString( TimeAFK ) )
 
@@ -340,7 +350,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	--Only kick if we're past the min player count to do so, and use their "total" time.
 	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
-		Shine:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
+		self:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
 			true, Player:GetName(), Client:GetUserId(), StringTimeToString( KickTime ),
 			Players, self.Config.MinPlayers )
 

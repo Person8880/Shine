@@ -74,14 +74,20 @@ function Shine:RemoveClientCommand( ConCommand )
 	ClientCommands[ ConCommand ] = nil
 end
 
-local ParamTypes = Shine.CommandUtil.ParamTypes
-local ParseParameter = Shine.CommandUtil.ParseParameter
-
 local function OnError( Error )
 	local Trace = Traceback()
 
 	Shine:DebugPrint( "Error: %s.\n%s", true, Error, Trace )
 	Shine:AddErrorReport( StringFormat( "Client command error: %s.", Error ), Trace )
+end
+
+function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
+	Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.",
+		i, ConCommand, CurArg.Type ) )
+end
+
+function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+	return true, Result
 end
 
 --[[
@@ -111,19 +117,14 @@ function Shine:RunClientCommand( ConCommand, ... )
 			ArgString = self.CommandUtil.BuildLineFromArgs( Args, i )
 		end
 
-		ParsedArgs[ i ] = ParseParameter( nil, ArgString, CurArg )
+		local Success, Result = self.CommandUtil:GetCommandArg( nil, ConCommand, ArgString, CurArg, i )
+		if not Success then return end
 
-		--Specifically check for nil (boolean argument could be false).
-		if ParsedArgs[ i ] == nil and not CurArg.Optional then
-			Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.",
-				i, ConCommand, CurArg.Type ) )
-
-			return
-		end
+		ParsedArgs[ i ] = Result
 	end
 
 	--Run the command with the parsed arguments we've gathered.
-	local Success = xpcall( Command.Func, OnError, unpack( ParsedArgs ) )
+	local Success = xpcall( Command.Func, OnError, unpack( ParsedArgs, 1, ExpectedCount ) )
 
 	if not Success then
 		Shine:DebugPrint( "An error occurred when running the command: '%s'.", true, ConCommand )

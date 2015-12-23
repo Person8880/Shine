@@ -14,30 +14,7 @@ function ListHeader:Initialise()
 	local Background = GetGUIManager():CreateGraphicItem()
 
 	self.Background = Background
-
-	local Scheme = SGUI:GetSkin()
-
-	Background:SetColor( Scheme.List.HeaderColour )
-
-	self.ActiveCol = Scheme.List.ActiveHeaderColour
-	self.InactiveCol = Scheme.List.HeaderColour
-
 	self:SetHighlightOnMouseOver( true )
-end
-
-function ListHeader:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.ActiveCol = Scheme.List.ActiveHeaderColour
-	self.InactiveCol = Scheme.List.HeaderColour
-
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
-
-	self.TextColour = Scheme.List.HeaderTextColour or Scheme.BrightText
-
-	if self.TextObj then
-		self.TextObj:SetColor( self.TextColour )
-	end
 end
 
 function ListHeader:SetText( Text )
@@ -52,55 +29,21 @@ function ListHeader:SetText( Text )
 	TextObj:SetText( Text )
 	TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 	TextObj:SetPosition( Padding )
+	TextObj:SetColor( self.TextColour )
 	if self.Font then
-		TextObj:SetFont( self.Font )
+		TextObj:SetFontName( self.Font )
 	end
 	if self.TextScale then
 		TextObj:SetScale( self.TextScale )
 	end
 
 	self.Background:AddChild( TextObj )
-
-	local Scheme = SGUI:GetSkin()
-
-	TextObj:SetColor( self.TextColour or Scheme.BrightText )
-
 	self.TextObj = TextObj
 end
 
-function ListHeader:SetTextScale( Scale )
-	self.TextScale = Scale
-
-	if not self.TextObj then return end
-
-	self.TextObj:SetScale( Scale )
-end
-
-function ListHeader:SetFont( Font )
-	self.Font = Font
-
-	if not self.TextObj then return end
-
-	self.TextObj:SetFontName( Font )
-end
-
-function ListHeader:SetTextColour( Col )
-	self.TextColour = Col
-
-	if not self.TextObj then return end
-
-	self.TextObj:SetColor( Col )
-end
-
-function ListHeader:SetSize( Size )
-	self.Size = Size
-
-	self.Background:SetSize( Size )
-end
-
-function ListHeader:GetSize()
-	return self.Size
-end
+SGUI.AddBoundProperty( ListHeader, "Font", "TextObj:SetFontName" )
+SGUI.AddBoundProperty( ListHeader, "TextColour", "TextObj:SetColor" )
+SGUI.AddBoundProperty( ListHeader, "TextScale", "TextObj:SetScale" )
 
 function ListHeader:GetIsVisible()
 	if not self.Parent:GetIsVisible() then return false end
@@ -133,4 +76,4 @@ function ListHeader:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
 end
 
-SGUI:Register( "ListHeader", ListHeader )
+SGUI:Register( "ListHeader", ListHeader, "Button" )

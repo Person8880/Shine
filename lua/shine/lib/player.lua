@@ -395,14 +395,8 @@ end
 function Shine:GetClient( String )
 	if type( String ) == "number" or tonumber( String ) then
 		local Num = tonumber( String )
-
-		local Result = self.GetClientByID( Num ) or self.GetClientByNS2ID( Num )
-
-		if not Result then
-			return self.GetClientByName( tostring( String ) )
-		end
-
-		return Result
+		-- Do not look up by name if provided a number, only game ID and NS2ID.
+		return self.GetClientByID( Num ) or self.GetClientByNS2ID( Num )
 	end
 
 	return self:GetClientBySteamID( String ) or self.GetClientByName( tostring( String ) )

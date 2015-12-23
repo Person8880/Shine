@@ -14,20 +14,17 @@ Menu.IsWindow = true
 local DefaultSize = Vector( 200, 32, 0 )
 local DefaultOffset = Vector( 0, 32, 0 )
 
-SGUI.AddProperty( Menu, "Padding" )
+SGUI.AddProperty( Menu, "ButtonSpacing" )
 SGUI.AddProperty( Menu, "MaxVisibleButtons" )
 
 function Menu:Initialise()
 	Controls.Panel.Initialise( self )
 
-	local Scheme = SGUI:GetSkin()
-	self.Background:SetColor( Scheme.MenuButton )
-
 	self.ButtonSize = DefaultSize
 	self.ButtonOffset = DefaultOffset
 	self.Buttons = {}
 	self.ButtonCount = 0
-	self.Padding = Vector( 0, 0, 0 )
+	self.ButtonSpacing = Vector( 0, 0, 0 )
 
 	self.Font = Fonts.kAgencyFB_Small
 end
@@ -41,15 +38,6 @@ function Menu:SetMaxVisibleButtons( Max )
 	self.BufferAmount = 0
 end
 
-function Menu:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.Background:SetColor( Scheme.MenuButton )
-	for i = 1, #Buttons do
-		Buttons[ i ]:SetInactiveCol( Scheme.MenuButton )
-	end
-end
-
 function Menu:SetButtonSize( Vec )
 	self.ButtonSize = Vec
 	self.ButtonOffset = Vector( 0, Vec.y, 0 )
@@ -58,26 +46,23 @@ end
 function Menu:AddButton( Text, DoClick, Tooltip )
 	local Button = self.MaxVisibleButtons and self:Add( "Button" ) or SGUI:Create( "Button", self )
 	Button:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Button:SetPos( self.Padding + self.ButtonCount * self.ButtonOffset )
+	Button:SetPos( self.ButtonSpacing + self.ButtonCount * self.ButtonOffset )
 	Button:SetDoClick( DoClick )
 	Button:SetSize( self.ButtonSize )
 	Button:SetText( Text )
 	if self.Font then
 		Button:SetFont( self.Font )
 	end
-	Button.UseScheme = false
+	Button:SetStyleName( "MenuButton" )
 	if Tooltip then
 		Button:SetTooltip( Tooltip )
 	end
-
-	local Scheme = SGUI:GetSkin()
-	Button:SetInactiveCol( Scheme.MenuButton )
 
 	self.ButtonCount = self.ButtonCount + 1
 	self.Buttons[ self.ButtonCount ] = Button
 
 	if not ( self.MaxVisibleButtons and self.ButtonCount > self.MaxVisibleButtons ) then
-		self:SetSize( self.Padding * 2 + self.ButtonSize
+		self:SetSize( self.ButtonSpacing * 2 + self.ButtonSize
 			+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
 	end
 
@@ -100,8 +85,7 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	SGUI:AddPostEventAction( function()
 		if not self:IsValid() then return end
 
-		self:SetParent()
-		self:Destroy()
+		self:Destroy( true )
 	end )
 end
 

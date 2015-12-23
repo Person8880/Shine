@@ -50,6 +50,10 @@ function TimerMeta:SetFunction( Func )
 	self.Func = Func
 end
 
+function TimerMeta:Debounce()
+	self.NextRun = SharedTime() + self.Delay
+end
+
 function TimerMeta:Pause()
 	if self.Paused then return end
 
@@ -137,7 +141,7 @@ Shine.Timer.Exists = Exists
 
 function Shine.Timer.Pause( Name )
 	if not Exists( Name ) then return end
-	
+
 	local Timer = Timers:Get( Name )
 
 	Timer:Pause()
@@ -145,9 +149,9 @@ end
 
 function Shine.Timer.Resume( Name )
 	if not Exists( Name ) then return end
-	
+
 	local Timer = Timers:Get( Name )
-	
+
 	Timer:Resume()
 end
 
@@ -180,7 +184,7 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 
 				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.",
 					Name, Error ), StackTrace )
-				
+
 				Error = nil
 				StackTrace = nil
 

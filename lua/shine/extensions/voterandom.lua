@@ -30,6 +30,7 @@ local tostring = tostring
 
 local Plugin = {}
 Plugin.Version = "2.0"
+Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteRandom.json"
@@ -91,8 +92,6 @@ Plugin.DefaultConfig = {
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
 
-	MaxStoredRounds = 3, --How many rounds of score data should we buffer?
-
 	ReconnectLogTime = 0 --How long (in seconds) after a shuffle to log reconnecting players for?
 }
 Plugin.CheckConfig = true
@@ -128,7 +127,6 @@ end
 function Plugin:Initialise()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, ModeClamp )
 	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, ModeClamp )
-	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 	self.Config.ReconnectLogTime = Max( self.Config.ReconnectLogTime, 0 )
 
 	local BalanceMode = self.Config.BalanceMode
@@ -1342,7 +1340,7 @@ function Plugin:ClientConnect( Client )
 
 	if not self.ReconnectingClients[ Client:GetUserId() ] then return end
 
-	Shine:Print( "[Shuffle] Client %s reconnected after a shuffle vote.", true,
+	self:Print( "Client %s reconnected after a shuffle vote.", true,
 		Shine.GetClientInfo( Client ) )
 end
 
@@ -1555,7 +1553,7 @@ function Plugin:CreateCommands()
 		{ "enablerandom", "enableshuffle" }, ForceRandomTeams )
 	ForceRandomCommand:AddParam{ Type = "boolean", Optional = true,
 		Default = function() return not self.ForceRandom end }
-	ForceRandomCommand:Help( "<true/false> Enables (and applies) or disables forcing shuffled teams." )
+	ForceRandomCommand:Help( "Enables (and applies) or disables forcing shuffled teams." )
 
 	local function ViewTeamStats( Client )
 		if self.Config.BalanceMode ~= self.MODE_HIVE then

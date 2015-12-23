@@ -14,6 +14,8 @@ local Notify = Shared.Message
 local pairs = pairs
 local StringLower = string.lower
 local TableEmpty = table.Empty
+local TableInsertUnique = table.InsertUnique
+local TableRemoveByValue = table.RemoveByValue
 local tonumber = tonumber
 local tostring = tostring
 
@@ -403,6 +405,87 @@ end
 
 local PermissionCache = {}
 
+function Shine:CreateGroup( GroupName, Immunity, Blacklist )
+	local Group = {
+		Immunity = Immunity or 10,
+		IsBlacklist = Blacklist or false,
+		Commands = {}
+	}
+
+	self.UserData.Groups[ GroupName ] = Group
+	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnGroupCreated", GroupName, Group )
+
+	return Group
+end
+
+function Shine:ReinstateGroup( GroupName, Group )
+	self.UserData.Groups[ GroupName ] = Group
+	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnGroupCreated", GroupName, Group )
+
+	return true
+end
+
+function Shine:DeleteGroup( GroupName )
+	local DeletedGroup = self.UserData.Groups[ GroupName ]
+	if not DeletedGroup then return false end
+
+	self.UserData.Groups[ GroupName ] = nil
+	self:SaveUsers( true )
+
+	PermissionCache[ GroupName ] = nil
+
+	Shine.Hook.Call( "OnGroupDeleted", GroupName, DeletedGroup )
+
+	return true
+end
+
+function Shine:CreateUser( Client, GroupName )
+	local ID = GetIDFromClient( Client )
+	if not ID then return nil end
+
+	local User = {
+		Group = GroupName
+	}
+
+	self.UserData.Users[ tostring( ID ) ] = User
+	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnUserCreated", ID, User )
+
+	return User
+end
+
+function Shine:ReinstateUser( Client, User )
+	local ID = GetIDFromClient( Client )
+	if not ID then return false end
+
+	self.UserData.Users[ tostring( ID ) ] = User
+	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnUserCreated", ID, User )
+
+	return true
+end
+
+function Shine:DeleteUser( Client )
+	local ID = GetIDFromClient( Client )
+	ID = ID and tostring( ID ) or Client
+
+	local DeletedUser = self.UserData.Users[ ID ]
+	if not DeletedUser then return false end
+
+	self.UserData.Users[ ID ] = nil
+	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnUserDeleted", ID, DeletedUser )
+
+	return true
+end
+
 --[[
 	Checks a command list table for the given command name,
 	taking into account table entries with argument restrictions.
@@ -553,6 +636,112 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 				BuildPermissions( self, Name, CurGroup, Blacklist, Permissions, Processed )
 			end
 		end
+	end
+end
+
+function Shine:AddGroupInheritance( GroupName, InheritGroup )
+	local Group = self:GetGroupData( GroupName )
+	if not Group then return false end
+
+	local InheritsFrom = Group.InheritsFrom
+	if not InheritsFrom then
+		InheritsFrom = {}
+		Group.InheritsFrom = InheritsFrom
+	end
+
+	if not TableInsertUnique( InheritsFrom, InheritGroup ) then
+		return false
+	end
+
+	self:SaveUsers( true )
+
+	PermissionCache[ GroupName ] = nil
+
+	Shine.Hook.Call( "OnGroupInheritanceAdded", GroupName, Group, InheritGroup )
+
+	return true
+end
+
+function Shine:RemoveGroupInheritance( GroupName, InheritGroup )
+	local Group = self:GetGroupData( GroupName )
+	if not Group then return false end
+	if not Group.InheritsFrom then return false end
+
+	if not TableRemoveByValue( Group.InheritsFrom, InheritGroup ) then
+		return false
+	end
+
+	if #Group.InheritsFrom == 0 then
+		Group.InheritsFrom = nil
+	end
+
+	PermissionCache[ GroupName ] = nil
+	self:SaveUsers( true )
+
+	Shine.Hook.Call( "OnGroupInheritanceRemoved", GroupName, Group, InheritGroup )
+
+	return true
+end
+
+do
+	local TableHasValue = table.HasValue
+
+	local function ForEachInheritingGroup( GroupName, Action )
+		for Name, Group in pairs( Shine.UserData.Groups ) do
+			if Group.InheritsFrom and TableHasValue( Group.InheritsFrom, GroupName ) then
+				Action( Name, Group )
+			end
+		end
+	end
+
+	local function FlushPermissionsCache( Name )
+		PermissionCache[ Name ] = nil
+	end
+
+	function Shine:AddGroupAccess( GroupName, Access )
+		local Group = self:GetGroupData( GroupName )
+		if not Group then return false end
+
+		for i = 1, #Group.Commands do
+			local Entry = Group.Commands[ i ]
+			if Entry == Access or ( IsType( Entry, "table" ) and Entry.Command == Access ) then
+				return false
+			end
+		end
+
+		Group.Commands[ #Group.Commands + 1 ] = Access
+
+		if PermissionCache[ GroupName ] and not PermissionCache[ GroupName ][ Access ] then
+			PermissionCache[ GroupName ] = nil
+			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
+		end
+
+		self:SaveUsers( true )
+
+		Shine.Hook.Call( "OnGroupAccessGranted", GroupName, Group, Access )
+
+		return true
+	end
+
+	function Shine:RevokeGroupAccess( GroupName, Access )
+		local Group = self:GetGroupData( GroupName )
+		if not Group then return false end
+
+		local Removed = TableRemoveByValue( Group.Commands, Access )
+		if not Removed then
+			return false
+		end
+
+		if PermissionCache[ GroupName ] then
+			PermissionCache[ GroupName ][ Access ] = nil
+			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
+		end
+
+		self:SaveUsers( true )
+
+		Shine.Hook.Call( "OnGroupAccessRevoked", GroupName, Group, Access )
+
+		return true
 	end
 end
 

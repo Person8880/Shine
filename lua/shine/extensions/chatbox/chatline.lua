@@ -43,12 +43,7 @@ do
 			CallMethod( self.WrappedLabel, Method, ... )
 		end
 
-		local Tags = self.Tags
-		if not Tags then return end
-
-		for i = 1, #Tags do
-			CallMethod( Tags[ i ], Method, ... )
-		end
+		self:ForEach( "Tags", Method, ... )
 	end
 end
 
@@ -82,8 +77,7 @@ function ChatLine:RemoveTags()
 	if not Tags then return end
 
 	for i = 1, #Tags do
-		Tags[ i ]:SetParent()
-		Tags[ i ]:Destroy()
+		Tags[ i ]:Destroy( true )
 	end
 
 	self.Tags = nil
@@ -118,8 +112,7 @@ do
 				Tags[ i ] = Tags[ i ] or SGUI:Create( "Label", self.Parent )
 				self:SetupTag( Tags[ i ], TagData[ i ] )
 			elseif Tags[ i ] then
-				Tags[ i ]:SetParent()
-				Tags[ i ]:Destroy()
+				Tags[ i ]:Destroy( true )
 				Tags[ i ] = nil
 			end
 		end
@@ -240,9 +233,7 @@ end
 function ChatLine:RemoveWrappedLine()
 	if not self.WrappedLabel then return end
 
-	self.WrappedLabel:SetParent()
-	self.WrappedLabel:Destroy()
-
+	self.WrappedLabel:Destroy( true )
 	self.WrappedLabel = nil
 end
 

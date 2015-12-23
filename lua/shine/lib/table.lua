@@ -8,6 +8,27 @@ local Random = math.random
 local TableRemove = table.remove
 local TableSort = table.sort
 
+do
+	local function HasValue( Table, Value )
+		for i = 1, #Table do
+			if Table[ i ] == Value then
+				return true, i
+			end
+		end
+
+		return false
+	end
+	table.HasValue = HasValue
+
+	function table.InsertUnique( Table, Value )
+		if HasValue( Table, Value ) then return false end
+
+		Table[ #Table + 1 ] = Value
+
+		return true
+	end
+end
+
 --[[
 	Finds a table entry by the value of the given field.
 ]]
@@ -55,6 +76,20 @@ function table.Mixin( Source, Destination, Keys )
 	for i = 1, #Keys do
 		Destination[ Keys[ i ] ] = Source[ Keys[ i ] ]
 	end
+end
+
+--[[
+	Merges any missing keys in the destination table from the source table.
+	Does not recurse.
+]]
+function table.ShallowMerge( Source, Destination )
+	for Key, Value in pairs( Source ) do
+		if Destination[ Key ] == nil then
+			Destination[ Key ] = Value
+		end
+	end
+
+	return Destination
 end
 
 --[[

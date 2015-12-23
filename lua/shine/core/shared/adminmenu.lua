@@ -8,4 +8,4 @@ if Client then return end
 
 Shine:RegisterCommand( "sh_adminmenu", "menu", function( Client )
 	Shine.SendNetworkMessage( Client, "Shine_AdminMenu_Open", {}, true )
-end )
+end ):Help( "Opens the admin menu." )

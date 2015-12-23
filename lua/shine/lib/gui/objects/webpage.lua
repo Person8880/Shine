@@ -5,6 +5,8 @@
 local SGUI = Shine.GUI
 
 local Clamp = math.Clamp
+local StringByte = string.byte
+local StringUTF8Encode = string.UTF8Encode
 
 local Webpage = {}
 
@@ -46,7 +48,7 @@ end
 
 function Webpage:GetHasLoaded()
 	if not self.WebView then return false end
-	
+
 	return self.WebView:GetUrlLoaded()
 end
 
@@ -54,11 +56,19 @@ function Webpage:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self:HasFocus() then return end
 	if not self.WebView then return end
+	if not Down then return end
 
 	if Key == InputKey.Return then
 		self.WebView:OnEnter( Down )
 	elseif Key == InputKey.Back then
 		self.WebView:OnBackSpace( Down )
+	end
+
+	if SGUI:IsControlDown() and Key == InputKey.V then
+		local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
+		for i = 1, #Chars do
+			self:PlayerType( Chars[ i ] )
+		end
 	end
 
 	return true
@@ -68,19 +78,18 @@ function Webpage:PlayerType( Char )
 	if not self:GetIsVisible() then return end
 	if not self:HasFocus() then return end
 	if not self.WebView then return end
-	
-	local Num = Char:byte()
 
+	local Num = StringByte( Char )
 	if Num <= 255 then
 		self.WebView:OnSendCharacter( Num )
 	end
-	
+
 	return true
 end
 
 function Webpage:OnMouseMove( LMB )
 	if not self.WebView then return end
-	
+
 	local In, X, Y = self:MouseIn( self.Background )
 
 	X = Clamp( X, 0, self.Width )
@@ -95,7 +104,7 @@ function Webpage:OnMouseDown( Key, DoubleClick )
 
 	local MouseButton0 = InputKey.MouseButton0
 	if Key ~= MouseButton0 then return end
-	
+
 	local KeyCode = Key - MouseButton0
 	self.WebView:OnMouseDown( KeyCode )
 

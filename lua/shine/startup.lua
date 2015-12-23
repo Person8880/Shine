@@ -31,12 +31,12 @@ function Shine.LoadScripts( Scripts, OnLoadedFuncs )
 	end
 end
 
-function Shine.LoadScriptsByPath( Path, Recursive )
+function Shine.LoadScriptsByPath( Path, Recursive, Reload )
 	local Scripts = {}
 	Shared.GetMatchingFileNames( Path.."/*.lua", Recursive or false, Scripts )
 
 	for i = 1, #Scripts do
-		include( Scripts[ i ] )
+		include( Scripts[ i ], Reload )
 	end
 
 	return Scripts

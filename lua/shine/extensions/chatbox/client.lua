@@ -18,7 +18,10 @@ local Max = math.max
 local Min = math.min
 local pairs = pairs
 local select = select
+local StringFind = string.find
 local StringFormat = string.format
+local StringLen = string.len
+local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableEmpty = table.Empty
@@ -182,7 +185,36 @@ local Spacing = Units.Spacing
 local Colours = {
 	Background = Colour( 0.6, 0.6, 0.6, 0.4 ),
 	Dark = Colour( 0.2, 0.2, 0.2, 0.8 ),
-	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 )
+	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 ),
+	ModeText = Colour( 1, 1, 1, 1 ),
+	AutoCompleteCommand = Colour( 1, 0.8, 0 ),
+	AutoCompleteParams = Colour( 1, 0.5, 0 )
+}
+
+local Skin = {
+	Button = {
+		Default = {
+			ActiveCol = Colours.Highlight,
+			InactiveCol = Colours.Dark
+		}
+	},
+	Panel = {
+		Default = {
+			Colour = Colours.Background
+		},
+		MessageList = {
+			Colour = Colours.Dark
+		}
+	},
+	TextEntry = {
+		Default = {
+			FocusColour = Colours.Dark,
+			DarkColour = Colours.Dark,
+			BorderColour = Colour( 0, 0, 0, 0 ),
+			TextColour = Colour( 1, 1, 1, 1 )
+		}
+	},
+
 }
 
 local LayoutData = {
@@ -197,25 +229,6 @@ local LayoutData = {
 	Positions = {
 		Scrollbar = Vector2( -8, 0 ),
 		Settings = Vector2( 0, 0 )
-	},
-
-	Colours = {
-		StandardOpacity = {
-			Border = Colours.Background,
-			Settings = Colours.Background
-		},
-		HalfOpacity = {
-			Inner = Colours.Dark,
-			TextDark = Colours.Dark,
-			TextFocus = Colours.Dark,
-			ButtonActive = Colours.Highlight,
-			ButtonInActive = Colours.Dark
-		},
-		ModeText = Colour( 1, 1, 1, 1 ),
-		TextBorder = Colour( 0, 0, 0, 0 ),
-		Text = Colour( 1, 1, 1, 1 ),
-		CheckBack = Colour( 0.2, 0.2, 0.2, 1 ),
-		Checked = Colour( 0.8, 0.6, 0.1, 1 )
 	}
 }
 
@@ -244,15 +257,27 @@ function Plugin:GetTextScale()
 	return self.TextScale
 end
 
+local OpacityVariantControls = {
+	"MainPanel",
+	"ChatBox",
+	"TextEntry",
+	"SettingsButton",
+	"SettingsPanel"
+}
+
 local function UpdateOpacity( self, Opacity )
 	local ScaledOpacity = AlphaScale( Opacity )
 
-	for Name, Colour in pairs( LayoutData.Colours.StandardOpacity ) do
-		Colour.a = Opacity
-	end
+	Colours.Background.a = Opacity
+	Colours.Dark.a = ScaledOpacity
+	Colours.Highlight.a = ScaledOpacity
 
-	for Name, Colour in pairs( LayoutData.Colours.HalfOpacity ) do
-		Colour.a = ScaledOpacity
+	for i = 1, #OpacityVariantControls do
+		local Control = self[ OpacityVariantControls[ i ] ]
+		-- Force the skin to refresh.
+		if Control then
+			Control:SetStyleName( Control:GetStyleName() )
+		end
 	end
 end
 
@@ -260,12 +285,10 @@ end
 	Creates the chatbox UI elements.
 
 	Essentially,
-		1. An invisible dummy panel to contain everything.
+		1. An outer panel to contain everything.
 		2. A smaller panel to contain the chat messages, scrollable.
-		3. A larger panel parented to the smaller one, that provides a border.
-		4. A text entry for entering chat messages.
-		5. Text to show if it's all chat or team chat.
-		6. A settings button that opens up the chatbox settings.
+		3. A text entry for entering chat messages (with placeholder text indicating team/all mode).
+		4. A settings button that opens up the chatbox settings.
 ]]
 function Plugin:CreateChatbox()
 	local UIScale = GUIScale( Vector( 1, 1, 1 ) )
@@ -332,9 +355,8 @@ function Plugin:CreateChatbox()
 		Anchor = "BottomLeft",
 		Size = PanelSize,
 		Pos = ChatBoxPos,
-		Colour = LayoutData.Colours.StandardOpacity.Border,
-		Draggable = true,
-		IsSchemed = false
+		Skin = Skin,
+		Draggable = true
 	}
 
 	--Double click the title bar to return it to the default position.
@@ -385,8 +407,8 @@ function Plugin:CreateChatbox()
 		Scrollable = true,
 		AllowSmoothScroll = self.Config.SmoothScroll,
 		StickyScroll = true,
-		Colour = LayoutData.Colours.HalfOpacity.Inner,
-		IsSchemed = false,
+		Skin = Skin,
+		StyleName = "MessageList",
 		AutoHideScrollbar = true,
 		Layout = SGUI.Layout:CreateLayout( "Vertical", {
 			Elements = self.Messages,
@@ -415,12 +437,8 @@ function Plugin:CreateChatbox()
 		BorderSize = Vector2( 0, 0 ),
 		Text = "",
 		StickyFocus = true,
-		FocusColour = LayoutData.Colours.HalfOpacity.TextFocus,
-		DarkColour = LayoutData.Colours.HalfOpacity.TextDark,
-		BorderColour = LayoutData.Colours.TextBorder,
-		TextColour = LayoutData.Colours.Text,
+		Skin = Skin,
 		Font = Font,
-		IsSchemed = false,
 		Fill = true
 	}
 	if self.TextScale ~= 1 then
@@ -433,7 +451,6 @@ function Plugin:CreateChatbox()
 		TextEntry:SetupCaret()
 	end
 
-	TextEntry.InnerBox:SetColor( LayoutData.Colours.HalfOpacity.TextDark )
 	TextEntryLayout:AddElement( TextEntry )
 
 	--Send the message when the client presses enter.
@@ -448,6 +465,9 @@ function Plugin:CreateChatbox()
 		end
 
 		self:SetText( "" )
+		self:ResetUndoState()
+
+		Plugin:DestroyAutoCompletePanel()
 
 		if Plugin.Config.AutoClose then
 			Plugin:CloseChat()
@@ -468,15 +488,23 @@ function Plugin:CreateChatbox()
 		end
 	end
 
+	function TextEntry.OnUnhandledKey( TextEntry, Key, Down )
+		if Key == InputKey.Down or Key == InputKey.Up then
+			self:ScrollAutoComplete( Key == InputKey.Down and 1 or -1 )
+		end
+	end
+
+	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
+		self:AutoCompleteCommand( NewText )
+	end
+
 	self.TextEntry = TextEntry
 
 	local SettingsButton = SGUI:Create( "Button", Border )
 	SettingsButton:SetupFromTable{
 		Text = ">",
-		ActiveCol = LayoutData.Colours.HalfOpacity.ButtonActive,
-		InactiveCol = LayoutData.Colours.HalfOpacity.ButtonInActive,
+		Skin = Skin,
 		Font = Font,
-		IsSchemed = false,
 		AutoSize = UnitVector( Scaled( SettingsButtonSize, ScalarScale ),
 			Scaled( SettingsButtonSize, ScalarScale ) ),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 )
@@ -519,12 +547,8 @@ do
 				local CheckBox = SettingsPanel:Add( "CheckBox" )
 				CheckBox:SetupFromTable{
 					AutoSize = Size,
-					CheckedColour = LayoutData.Colours.Checked,
-					BackgroundColour = LayoutData.Colours.CheckBack,
 					Checked = Checked,
 					Font = self:GetFont(),
-					TextColour = LayoutData.Colours.ModeText,
-					IsSchemed = false,
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
 				CheckBox:AddLabel( Label )
@@ -557,8 +581,6 @@ do
 				Label:SetupFromTable{
 					Font = self:GetFont(),
 					Text = Text,
-					Colour = LayoutData.Colours.ModeText,
-					IsSchemed = false,
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
 
@@ -577,12 +599,7 @@ do
 				Slider:SetupFromTable{
 					AutoSize = Size,
 					Value = Value,
-					HandleColour = LayoutData.Colours.Checked,
-					LineColour = LayoutData.Colours.ModeText,
-					DarkLineColour = LayoutData.Colours.HalfOpacity.TextDark,
 					Font = self:GetFont(),
-					TextColour = LayoutData.Colours.ModeText,
-					IsSchemed = false,
 					Padding = SliderTextPadding * self.ScalarScale,
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
@@ -675,17 +692,6 @@ do
 				if not UpdateConfigValue( self, "Opacity", Value ) then return end
 
 				UpdateOpacity( self, Value )
-
-				self.SettingsPanel:SetColour( LayoutData.Colours.StandardOpacity.Settings )
-
-				self.ChatBox:SetColour( LayoutData.Colours.HalfOpacity.Inner )
-				self.MainPanel:SetColour( LayoutData.Colours.StandardOpacity.Border )
-
-				self.TextEntry:SetFocusColour( LayoutData.Colours.HalfOpacity.TextFocus )
-				self.TextEntry:SetDarkColour( LayoutData.Colours.HalfOpacity.TextDark )
-
-				self.SettingsButton:SetActiveCol( LayoutData.Colours.HalfOpacity.ButtonActive )
-				self.SettingsButton:SetInactiveCol( LayoutData.Colours.HalfOpacity.ButtonInActive )
 			end,
 			Bounds = { 0, 100 },
 			Values = function( self )
@@ -708,9 +714,8 @@ do
 			Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 			Scrollable = true,
 			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
-			Colour = LayoutData.Colours.StandardOpacity.Settings,
-			ShowScrollbar = false,
-			IsSchemed = false
+			Skin = Skin,
+			ShowScrollbar = false
 		}
 
 		self.SettingsPanel = SettingsPanel
@@ -903,6 +908,151 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	end
 end
 
+local MaxAutoCompleteResult = 3
+
+--[[
+	Scrolls the auto-complete suggestion up/down, setting the text in the text entry to
+	the completed command. This does not trigger a new auto-complete request.
+]]
+function Plugin:ScrollAutoComplete( Amount )
+	if not self.AutoCompleteResults then return end
+
+	local Results = self.AutoCompleteResults
+	self.CurrentResult = ( self.CurrentResult or 0 ) + Amount
+	if self.CurrentResult > Min( MaxAutoCompleteResult, #Results ) then
+		self.CurrentResult = 1
+	end
+
+	local Text = StringFormat( "%s%s ", self.AutoCompleteLetter,
+		self.AutoCompleteResults[ self.CurrentResult ].ChatCommand )
+	self.TextEntry:SetText( Text )
+end
+
+--[[
+	Submits a request to the server for auto-completion of chat commands.
+
+	If the current text is the same request as last time (i.e. typing past the first word),
+	no request is sent.
+]]
+function Plugin:SubmitAutoCompleteRequest( Text )
+	local FirstLetter = StringSub( Text, 1, 1 )
+	self.AutoCompleteLetter = FirstLetter
+
+	-- Cut the text down to just the first word.
+	local FirstSpace = StringFind( Text, " " )
+	local SearchText = StringSub( Text, 2, FirstSpace and ( FirstSpace - 1 ) or StringLen( Text ) )
+
+	if self.LastSearch == SearchText then return end
+
+	self.LastSearch = SearchText
+
+	-- On receiving the results, add labels beneath the chatbox showing the completed command(s).
+	Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
+		if not self.Visible then return end
+
+		self.AutoCompleteResults = Results
+
+		local ResultPanel = self.AutoCompletePanel
+		if not ResultPanel then
+			ResultPanel = SGUI:Create( "Panel", self.MainPanel )
+			self.AutoCompletePanel = ResultPanel
+
+			ResultPanel:SetAnchor( "BottomLeft" )
+
+			local Padding = self.MainPanel.Layout:GetComputedPadding()
+			ResultPanel:SetPos( Vector2( Padding[ 1 ], 0 ) )
+			ResultPanel:SetColour( Colour( 0, 0, 0, 0 ) )
+			ResultPanel:SetLayout( SGUI.Layout:CreateLayout( "Vertical", {} ) )
+		end
+
+		local Layout = ResultPanel.Layout
+		local Elements = Layout.Elements
+
+		for i = 1, Max( #Results, #Elements ) do
+			local Label = Elements[ i ]
+			if not Results[ i ] then
+				if Label then
+					Label:AlphaTo( nil, nil, 0, 0, 0.3, function()
+						if not Label then return end
+
+						Label:Destroy( true )
+						Label = nil
+						Elements[ i ] = nil
+					end )
+				end
+			else
+				local ShouldFade
+				if not Label then
+					ShouldFade = true
+					Label = SGUI:Create( "ColourLabel", ResultPanel )
+					Label:SetMargin( Spacing( 0, 0, 0, Scaled( 2, self.ScalarScale ) ) )
+					Elements[ i ] = Label
+				end
+
+				local Result = Results[ i ]
+
+				Label:SetFont( self:GetFont() )
+				Label:SetTextScale( self.MessageTextScale )
+
+				-- Completion of the form: !command <param> Help text.
+				local TextContent = {
+					Colours.ModeText, FirstLetter,
+					Colours.AutoCompleteCommand, Result.ChatCommand.." "
+				}
+				if Result.Parameters ~= "" then
+					TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+					TextContent[ #TextContent + 1 ] = Result.Parameters.." "
+				end
+
+				TextContent[ #TextContent + 1 ] = Colours.ModeText
+				TextContent[ #TextContent + 1 ] = Result.Description
+
+				Label:SetText( TextContent )
+				Label:InvalidateLayout( true )
+
+				if ShouldFade then
+					Label:AlphaTo( nil, 0, 1, 0, 0.3, nil, math.EaseIn )
+				end
+			end
+		end
+
+		ResultPanel:InvalidateLayout( true )
+	end )
+end
+
+function Plugin:DestroyAutoCompletePanel()
+	if not self.AutoCompletePanel then return end
+
+	if self.AutoCompleteTimer then
+		self.AutoCompleteTimer:Destroy()
+		self.AutoCompleteTimer = nil
+	end
+
+	self.AutoCompletePanel:Destroy( true )
+	self.AutoCompletePanel = nil
+
+	self.AutoCompleteResults = nil
+	self.AutoCompleteLetter = nil
+	self.LastSearch = nil
+	self.CurrentResult = nil
+end
+
+function Plugin:AutoCompleteCommand( Text )
+	-- Only auto-complete when the text starts with ! or /, and there's a command being typed.
+	if not StringFind( Text, "^[!/]" ) or StringLen( Text ) <= 1 then
+		self:DestroyAutoCompletePanel()
+
+		return
+	end
+
+	-- Keep debouncing the timer until the user stops typing to avoid spamming completion requests.
+	self.AutoCompleteTimer = self.AutoCompleteTimer or self:SimpleTimer( 0.3, function()
+		self.AutoCompleteTimer = nil
+		self:SubmitAutoCompleteRequest( self.TextEntry:GetText() )
+	end )
+	self.AutoCompleteTimer:Debounce()
+end
+
 function Plugin:CloseChat()
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
@@ -913,6 +1063,8 @@ function Plugin:CloseChat()
 
 	if self.Config.DeleteOnClose then
 		self.TextEntry:SetText( "" )
+		self.TextEntry:ResetUndoState()
+		self:DestroyAutoCompletePanel()
 	end
 
 	self.TextEntry:LoseFocus()
@@ -957,12 +1109,6 @@ function Plugin:StartChat( Team )
 
 	--Get our text entry accepting input.
 	self.TextEntry:RequestFocus()
-
-	self.TextEntry:SetFocusColour( LayoutData.Colours.HalfOpacity.TextFocus )
-	self.TextEntry:SetDarkColour( LayoutData.Colours.HalfOpacity.TextDark )
-	self.TextEntry:SetBorderColour( LayoutData.Colours.TextBorder )
-	self.TextEntry:SetTextColour( LayoutData.Colours.Text )
-
 	self.Visible = true
 
 	--Set this so we don't accept text input straight away, avoids the bind button making it in.

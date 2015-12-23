@@ -31,3 +31,46 @@ UnitTest:Test( "Mixin", function( Assert )
 	Assert:True( Destination.MoreCake )
 	Assert:Nil( Destination.SoMuchCake )
 end )
+
+UnitTest:Test( "ShallowMerge", function( Assert )
+	local Source = {
+		Cake = true,
+		MoreCake = false
+	}
+	local Destination = {
+		Cake = false
+	}
+
+	table.ShallowMerge( Source, Destination )
+
+	Assert:False( Destination.Cake )
+	Assert:False( Destination.MoreCake )
+end )
+
+UnitTest:Test( "HasValue", function( Assert )
+	local Table = {
+		1, 2, 4, 3, 5, 6
+	}
+
+	local Exists, Index = table.HasValue( Table, 3 )
+	Assert:True( Exists )
+	Assert:Equals( 4, Index )
+
+	Exists, Index = table.HasValue( Table, 7 )
+	Assert:False( Exists )
+	Assert:Nil( Index )
+end )
+
+UnitTest:Test( "InsertUnique", function( Assert )
+	local Table = {
+		1, 2, 3
+	}
+
+	local Inserted = table.InsertUnique( Table, 4 )
+	Assert:True( Inserted )
+	Assert:ArrayEquals( { 1, 2, 3, 4 }, Table )
+
+	Inserted = table.InsertUnique( Table, 4 )
+	Assert:False( Inserted )
+	Assert:ArrayEquals( { 1, 2, 3, 4 }, Table )
+end )
