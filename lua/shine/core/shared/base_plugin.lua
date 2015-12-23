@@ -203,7 +203,7 @@ do
 			if IsType( Pos, "string" ) then
 				self:GenerateDefaultConfig( true )
 			else
-				Print( "Invalid JSON for %s plugin config, loading default...", self.__Name )
+				Print( "Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
 
 				self.Config = self.DefaultConfig
 			end

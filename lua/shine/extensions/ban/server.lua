@@ -117,21 +117,24 @@ end
 function Plugin:LoadBansFromWeb()
 	local function BansResponse( Response )
 		if not Response then
-			Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
+			self:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
 
 			return
 		end
 
-		local BansData = Decode( Response ) or {}
+		local BansData, Pos, Err = Decode( Response )
+		if not IsType( BansData, "table" ) then
+			self:Print( "[Error] Loading bans from the web received invalid JSON. Error: %s", true, Err )
+			return
+		end
+
 		local Edited
-		if IsType( BansData, "table" ) then
-			if BansData.Banned then
-				Edited = true
-				self.Config.Banned = BansData.Banned
-			elseif BansData[ 1 ] and BanData[ 1 ].id then
-				Edited = true
-				self.Config.Banned = self:NS2ToShine( BansData )
-			end
+		if BansData.Banned then
+			Edited = true
+			self.Config.Banned = BansData.Banned
+		elseif BansData[ 1 ] and BanData[ 1 ].id then
+			Edited = true
+			self.Config.Banned = self:NS2ToShine( BansData )
 		end
 
 		--Cache the data in case we get a bad response later.
@@ -327,9 +330,9 @@ function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
 				return
 			end
 
-			local Decoded = Decode( Data )
+			local Decoded, Pos, Err = Decode( Data )
 			if not Decoded then
-				self:Print( "Received invalid JSON for %s of %s.", true, Operation, ID )
+				self:Print( "Received invalid JSON for %s of %s. Error: %s", true, Operation, ID, Err )
 				return
 			end
 

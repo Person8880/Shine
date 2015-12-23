@@ -156,7 +156,7 @@ do
 			ConfigFile, Pos, Err = self.LoadJSONFile( Path )
 
 			--Store what path we've loaded from so we update the right one!
-			if ConfigFile then
+			if ConfigFile ~= false then
 				self.ConfigPath = Path
 
 				break
@@ -172,8 +172,9 @@ do
 			else
 				--Invalid JSON. Load the default config but don't save.
 				self.Config = DefaultConfig
+				self.ConfigHasSyntaxError = true
 
-				Notify( "Config has invalid JSON, loading default..." )
+				Notify( StringFormat( "Config has invalid JSON. Error: %s. Loading default...", Err ) )
 			end
 
 			return
@@ -187,6 +188,8 @@ do
 	end
 
 	function Shine:SaveConfig( Silent )
+		if self.ConfigHasSyntaxError then return end
+
 		local ConfigFile, Err = self.SaveJSONFile( self.Config,
 			self.ConfigPath or GetConfigPath( false, true ) )
 
@@ -272,12 +275,13 @@ function Shine:LoadExtensionConfigs()
 		Server.AddTag( "shine" )
 	end
 
-	local AllPlugins = self.AllPlugins
+	local AllPlugins = self.AllPluginsArray
 	local ActiveExtensions = self.Config.ActiveExtensions
 	local Modified = false
 
 	--Find any new plugins we don't have in our config, and add them.
-	for Plugin in pairs( AllPlugins ) do
+	for i = 1, #AllPlugins do
+		local Plugin = AllPlugins[ i ]
 		if ActiveExtensions[ Plugin ] == nil then
 			local PluginTable = self.Plugins[ Plugin ]
 			local DefaultState = false
@@ -361,10 +365,11 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 		return
 	end
 
-	local Decoded = Decode( Response )
+	local Decoded, Pos, Err = Decode( Response )
 
 	if not Decoded or not IsType( Decoded, "table" ) then
-		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Loading default/cache files..." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Error: %s. Loading default/cache files...",
+			true, Err )
 
 		return
 	end

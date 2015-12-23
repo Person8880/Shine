@@ -13,6 +13,7 @@ local next = next
 local Notify = Shared.Message
 local pairs = pairs
 local StringLower = string.lower
+local StringFormat = string.format
 local TableEmpty = table.Empty
 local TableInsertUnique = table.InsertUnique
 local TableRemoveByValue = table.RemoveByValue
@@ -125,17 +126,17 @@ function Shine:RequestUsers( Reload )
 			return
 		end
 
-		local UserData = Decode( Response ) or {}
+		local UserData, Pos, Err = Decode( Response )
 
 		if not IsType( UserData, "table" ) or not next( UserData ) then
 			if Reload then --Don't replace with a blank table if request failed when reloading.
 				self:AdminPrint( nil,
-					"Reloading from the web failed. User data has not been changed." )
+					"Reloading from the web failed. User data has not been changed. Error: %s", true, Err )
 
 				return
 			end
 
-			self:Print( "Loading from the web failed. Using local file instead." )
+			self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
 			self:LoadUsers()
 
 			return
@@ -182,13 +183,13 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	--Check the default path.
-	local UserFile = self.LoadJSONFile( UserPath )
+	local UserFile, Pos, Err = self.LoadJSONFile( UserPath )
 
-	if not UserFile then
-		UserFile = self.LoadJSONFile( BackupPath ) --Check the secondary path.
+	if UserFile == false then
+		UserFile, Pos, Err = self.LoadJSONFile( BackupPath ) --Check the secondary path.
 
-		if not UserFile then
-			UserFile = self.LoadJSONFile( DefaultUsers ) --Check the default NS2 users file.
+		if UserFile == false then
+			UserFile, Pos, Err = self.LoadJSONFile( DefaultUsers ) --Check the default NS2 users file.
 
 			if not UserFile then
 				self:GenerateDefaultUsers( true )
@@ -200,10 +201,9 @@ function Shine:LoadUsers( Web, Reload )
 
 	Notify( "Loading Shine users..." )
 
-	self.UserData = UserFile
-
-	if not IsType( self.UserData, "table" ) or not next( self.UserData ) then
-		Notify( "The user data file is not valid JSON, unable to load user data." )
+	if not IsType( UserFile, "table" ) or not next( UserFile ) then
+		Notify( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
+			Err ) )
 
 		--Dummy data to avoid errors.
 		if not Reload then
@@ -212,6 +212,8 @@ function Shine:LoadUsers( Web, Reload )
 
 		return
 	end
+
+	self.UserData = UserFile
 
 	ConvertData( self.UserData )
 
