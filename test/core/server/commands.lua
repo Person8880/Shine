@@ -123,5 +123,47 @@ UnitTest:Test( "Validate", function( Assert )
 	Assert:Nil( NewResult )
 end )
 
+local GetAllClients = Shine.GetAllClients
+local ClientsParamType = Shine.CommandUtil.ParamTypes.clients
+local ControlCharacters = ClientsParamType.ControlCharacters
+
+UnitTest:Test( "ClientsParse", function( Assert )
+	ControlCharacters[ "&" ] = {
+		Parse = function( Client, Context )
+			local Value = tonumber( Context.Value )
+			Assert:NotNil( Value )
+
+			if Value > 0 and Value <= Context.NumClients then
+				return { Value }
+			end
+			return nil
+		end
+	}
+
+	function Shine.GetAllClients()
+		return { 1, 2, 3, 4 }, 4
+	end
+
+	local Arg = { Type = "clients" }
+
+	local function ParseString( Client, String, Table )
+		local Results = ClientsParamType.Parse( Client, String, Table )
+		table.sort( Results )
+		return Results
+	end
+
+	Assert:ArrayEquals( { 1, 3, 4 }, ParseString( 2, "!^", Arg ) )
+	Assert:ArrayEquals( { 1, 4 }, ParseString( 2, "!^,!&3", Arg ) )
+	Assert:ArrayEquals( { 1, 2, 3, 4 }, ParseString( 2, "*,!&24", Arg ) )
+
+	Assert:ArrayEquals( { 1, 2, 3, 4 }, ParseString( 2, "*", Arg ) )
+	Assert:ArrayEquals( {}, ParseString( 2, "*blah", Arg ) )
+	Assert:ArrayEquals( { 2, 3, 4 }, ParseString( 2, "&3,&4,^", Arg ) )
+	Assert:ArrayEquals( { 3, 4 }, ParseString( 2, "&3,&4,&24", Arg ) )
+end, function()
+	ControlCharacters[ "&" ] = nil
+end )
+
+Shine.GetAllClients = GetAllClients
 Shine.GetPermission = GetPermission
 Shine.NotifyCommandError = NotifyCommandError

@@ -265,18 +265,6 @@ function Shine:RemoveCommand( ConCommand, ChatCommand )
 end
 
 local IsType = Shine.IsType
-
---These define what to return for the given command arguments.
-local TargetFuncs = {
-	[ "@spectate" ] = function() return Shine.GetTeamClients( 3 ) end,
-	[ "@readyroom" ] = function() return Shine.GetTeamClients( kTeamReadyRoom ) end,
-	[ "@marine" ] = function() return Shine.GetTeamClients( 1 ) end,
-	[ "@alien" ] = function() return Shine.GetTeamClients( 2 ) end,
-	[ "@blue" ] = function() return Shine.GetTeamClients( 1 ) end,
-	[ "@orange" ] = function() return Shine.GetTeamClients( 2 ) end,
-	[ "@gold" ] = function() return Shine.GetTeamClients( 2 ) end
-}
-
 local GetDefault = Shine.CommandUtil.GetDefaultValue
 
 --Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
@@ -331,163 +319,197 @@ ParamTypes.client = {
 	end,
 	Default = "^"
 }
---Clients looks for matching clients by game ID, Steam ID, name
---or special targeting directive. Returns a table of clients.
-ParamTypes.clients = {
-	Parse = function( Client, String, Table )
-		if not String then
-			return GetDefault( Table )
+
+do
+	local TeamDefs = {
+		[ "spectate" ] = 3,
+		[ "readyroom" ] = kTeamReadyRoom,
+		[ "marine" ] = 1,
+		[ "alien" ] = 2,
+		[ "blue" ] = 1,
+		[ "orange" ] = 2,
+		[ "gold" ] = 2
+	}
+
+	local function ParseValue( Client, Value, Context, ControlCharacters )
+		local CurrentTargets = {}
+		local Negate
+
+		-- If the first character is a !, then it's a negation.
+		local ControlChar = StringSub( Value, 1, 1 )
+		if ControlChar == "!" then
+			Value = StringSub( Value, 2 )
+			ControlChar = StringSub( Value, 1, 1 )
+			Negate = true
 		end
 
-		local Vals = StringExplode( String, "," )
+		Context.IsNegative = Negate
 
-		local Clients = {}
-		local Targets = {}
+		local Parser = ControlCharacters[ ControlChar ]
+		if Parser and ( not Parser.MustEqual or Value == ControlChar ) then
+			Context.Value = StringSub( Value, 2 )
 
-		local AllClients = Shine.GetAllClients()
-		local NumClients = #AllClients
-
-		for i = 1, #Vals do
-			local CurrentTargets = {}
-
-			local Val = Vals[ i ]
-			local Negate
-
-			local ControlChar = Val:sub( 1, 1 )
-
-			if ControlChar == "!" then
-				Val = Val:sub( 2 )
-				Negate = true
-			end
-
-			--Targeting a user group.
-			if ControlChar == "%" then
-				local Group = Val:sub( 2 )
-				local InGroup = Shine:GetClientsByGroup( Group )
-
-				if #InGroup > 0 then
-					for j = 1, #InGroup do
-						local CurClient = InGroup[ j ]
-
-						if not CurrentTargets[ CurClient ] then
-							CurrentTargets[ CurClient ] = true
-						end
-					end
-				end
-			elseif ControlChar == "$" then --Targetting a specific Steam ID.
-				local ID = Val:sub( 2 )
-				local ToNum = tonumber( ID )
-
-				local CurClient
-
-				if ToNum then
-					CurClient = Shine.GetClientByNS2ID( ToNum )
-				else
-					CurClient = Shine:GetClientBySteamID( ID )
+			local Targets = Parser.Parse( Client, Context )
+			if Targets then
+				for i = 1, #Targets do
+					CurrentTargets[ Targets[ i ] ] = true
 				end
 
-				if CurClient and not CurrentTargets[ CurClient ] then
-					CurrentTargets[ CurClient ] = true
-				end
-			else
-				if Val == "*" then --Targeting everyone.
-					for j = 1, NumClients do
-						local CurClient = AllClients[ j ]
-
-						if CurClient and not CurrentTargets[ CurClient ] then
-							CurrentTargets[ CurClient ] = true
-						end
-					end
-				elseif Val == "^" then --Targeting yourself.
-					local CurClient = Client
-
-					if not Table.NotSelf then
-						if not CurrentTargets[ CurClient ] then
-							CurrentTargets[ CurClient ] = true
-						end
-					end
-				else
-					if TargetFuncs[ Val ] then --Allows for targetting multiple @types at once.
-						local Add = TargetFuncs[ Val ]()
-
-						for j = 1, #Add do
-							local Adding = Add[ j ]
-
-							if not CurrentTargets[ Adding ] then
-								CurrentTargets[ Adding ] = true
-							end
-						end
-					else
-						local CurClient = Shine:GetClient( Val )
-
-						if CurClient and not ( Table.NotSelf and CurClient == Client ) then
-							if not CurrentTargets[ CurClient ] then
-								CurrentTargets[ CurClient ] = true
-							end
-						end
-					end
-				end
-			end
-
-			if Negate then
-				if not next( Targets ) then
-					for j = 1, NumClients do
-						local CurClient = AllClients[ j ]
-
-						if not CurrentTargets[ CurClient ] then
-							Targets[ CurClient ] = true
-						end
-					end
-				else
-					for CurClient, Bool in pairs( CurrentTargets ) do
-						Targets[ CurClient ] = nil
-					end
-				end
-			else
-				for CurClient, Bool in pairs( CurrentTargets ) do
-					Targets[ CurClient ] = true
-				end
+				return CurrentTargets
 			end
 		end
 
-		if Table.NotSelf and Targets[ Client ] then
-			Targets[ Client ] = nil
-		end
+		local Target = Shine:GetClient( Value )
+		if not Target then return CurrentTargets end
 
-		for CurClient, Bool in pairs( Targets ) do
-			Clients[ #Clients + 1 ] = CurClient
-		end
+		CurrentTargets[ Target ] = true
 
-		return Clients
-	end,
-	Help = "players",
-	OnFailedMatch = function( Client, Arg )
-		Shine:NotifyCommandError( Client, "No matching players were found." )
-	end,
-	Validate = function( Client, Arg, ParsedArg )
-		if not ParsedArg then return true end
-		if #ParsedArg == 0 then
-			Shine:NotifyCommandError( Client, "No matching players found." )
-
-			return false
-		end
-
-		if Arg.IgnoreCanTarget then return true end
-
-		Shine.Stream( ParsedArg ):Filter( function( Value )
-			return Shine:CanTarget( Client, Value )
-		end )
-
-		if #ParsedArg == 0 then
-			Shine:NotifyCommandError( Client,
-				"You do not have permission to target anyone you specified." )
-
-			return false
-		end
-
-		return true
+		return CurrentTargets
 	end
-}
+
+	local function AddToTargets( CurrentTargets, Context )
+		local Targets = Context.Targets
+
+		if Context.IsNegative then
+			-- If this is the first target specifier, then negate from all connected clients.
+			if Context.ValueIndex == 1 then
+				for j = 1, Context.NumClients do
+					local Target = Context.AllClients[ j ]
+
+					if not CurrentTargets[ Target ] then
+						Targets[ Target ] = true
+					end
+				end
+			else
+				for Target in pairs( CurrentTargets ) do
+					Targets[ Target ] = nil
+				end
+			end
+		else
+			for Target in pairs( CurrentTargets ) do
+				Targets[ Target ] = true
+			end
+		end
+	end
+
+	-- Clients looks for matching clients by game ID, Steam ID, name
+	-- or special targeting directive. Returns a table of clients.
+	ParamTypes.clients = {
+		TeamDefs = TeamDefs, -- If anyone ever has teams in their mod, you can add to this.
+		ControlCharacters = {
+			[ "%" ] = {
+				-- Finds by user group name.
+				Parse = function( Client, Context )
+					return Shine:GetClientsByGroup( Context.Value )
+				end
+			},
+			[ "$" ] = {
+				-- Finds by NS2/Steam ID.
+				Parse = function( Client, Context )
+					local NS2ID = tonumber( Context.Value )
+					local Target
+
+					if NS2ID then
+						Target = Shine.GetClientByNS2ID( NS2ID )
+					else
+						Target = Shine:GetClientBySteamID( Context.Value )
+					end
+
+					return { Target }
+				end
+			},
+			[ "@" ] = {
+				-- Finds by team name.
+				Parse = function( Client, Context )
+					local TeamIndex = TeamDefs[ Context.Value ]
+					if not TeamIndex then
+						return nil
+					end
+
+					return Shine.GetTeamClients( TeamIndex )
+				end
+			},
+			[ "*" ] = {
+				-- Matches all clients connected.
+				Parse = function( Client, Context )
+					return Context.AllClients
+				end,
+				MustEqual = true
+			},
+			[ "^" ] = {
+				-- Matches the calling client.
+				Parse = function( Client, Context )
+					return { Client }
+				end,
+				MustEqual = true
+			}
+		},
+		Parse = function( Client, String, Table )
+			if not String then
+				return GetDefault( Table )
+			end
+
+			local Values = StringExplode( String, "," )
+			local Targets = {}
+
+			local AllClients, NumClients = Shine.GetAllClients()
+			local Context = {
+				AllClients = AllClients,
+				NumClients = NumClients,
+				ArgDef = Table,
+				Targets = Targets
+			}
+
+			local ControlCharacters = ParamTypes.clients.ControlCharacters
+
+			for i = 1, #Values do
+				Context.ValueIndex = i
+
+				local CurrentTargets = ParseValue( Client, Values[ i ], Context, ControlCharacters )
+				AddToTargets( CurrentTargets, Context )
+			end
+
+			if Table.NotSelf and Targets[ Client ] then
+				Targets[ Client ] = nil
+			end
+
+			local Clients = {}
+			for Target in pairs( Targets ) do
+				Clients[ #Clients + 1 ] = Target
+			end
+
+			return Clients
+		end,
+		Help = "players",
+		OnFailedMatch = function( Client, Arg )
+			Shine:NotifyCommandError( Client, "No matching players were found." )
+		end,
+		Validate = function( Client, Arg, ParsedArg )
+			if not ParsedArg then return true end
+			if #ParsedArg == 0 then
+				Shine:NotifyCommandError( Client, "No matching players found." )
+
+				return false
+			end
+
+			if Arg.IgnoreCanTarget then return true end
+
+			Shine.Stream( ParsedArg ):Filter( function( Value )
+				return Shine:CanTarget( Client, Value )
+			end )
+
+			if #ParsedArg == 0 then
+				Shine:NotifyCommandError( Client,
+					"You do not have permission to target anyone you specified." )
+
+				return false
+			end
+
+			return true
+		end
+	}
+end
+
 --Team takes either 0 - 3 directly or takes a string matching a team name
 --and turns it into the team number.
 ParamTypes.team = {
