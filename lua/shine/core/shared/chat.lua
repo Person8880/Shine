@@ -4,66 +4,52 @@
 
 local StringFormat = string.format
 
-local StringMessage = StringFormat( "string (%i)", kMaxChatLength * 4 + 1 )
+do
+	local StringMessage = StringFormat( "string (%i)", kMaxChatLength * 4 + 1 )
 
-local ChatMessage = {
-	Prefix = "string (25)",
-	Name = StringFormat( "string (%i)", kMaxNameLength ),
-	TeamNumber = StringFormat( "integer (%i to %i)", kTeamInvalid, kSpectatorIndex ),
-	TeamType = StringFormat( "integer (%i to %i)", kNeutralTeamType, kAlienTeamType ),
-	Message = StringMessage
-}
-
-function Shine.BuildChatMessage( Prefix, Name, TeamNumber, TeamType, Message )
-	return {
-		Prefix = Prefix,
-		Name = Name,
-		TeamNumber = TeamNumber,
-		TeamType = TeamType,
-		Message = Message
+	local ChatMessage = {
+		Prefix = "string (25)",
+		Name = StringFormat( "string (%i)", kMaxNameLength ),
+		TeamNumber = StringFormat( "integer (%i to %i)", kTeamInvalid, kSpectatorIndex ),
+		TeamType = StringFormat( "integer (%i to %i)", kNeutralTeamType, kAlienTeamType ),
+		Message = StringMessage
 	}
+
+	function Shine.BuildChatMessage( Prefix, Name, TeamNumber, TeamType, Message )
+		return {
+			Prefix = Prefix,
+			Name = Name,
+			TeamNumber = TeamNumber,
+			TeamType = TeamType,
+			Message = Message
+		}
+	end
+
+	Shared.RegisterNetworkMessage( "Shine_Chat", ChatMessage )
+
+	local ColourMessage = {
+		RP = "integer (0 to 255)",
+		GP = "integer (0 to 255)",
+		BP = "integer (0 to 255)",
+		Prefix = StringMessage,
+		R = "integer (0 to 255)",
+		G = "integer (0 to 255)",
+		B = "integer (0 to 255)",
+		Message = StringMessage
+	}
+
+	Shared.RegisterNetworkMessage( "Shine_ChatCol", ColourMessage )
 end
-
-Shared.RegisterNetworkMessage( "Shine_Chat", ChatMessage )
-
-local ColourMessage = {
-	RP = "integer (0 to 255)",
-	GP = "integer (0 to 255)",
-	BP = "integer (0 to 255)",
-	Prefix = StringMessage,
-	R = "integer (0 to 255)",
-	G = "integer (0 to 255)",
-	B = "integer (0 to 255)",
-	Message = StringMessage
-}
-
-Shared.RegisterNetworkMessage( "Shine_ChatCol", ColourMessage )
 
 if Server then return end
 
+local BitLShift = bit.lshift
 local IsType = Shine.IsType
 local tonumber = tonumber
 local tostring = tostring
 
 local function RGBToHex( R, G, B )
-	return tonumber( StringFormat( "0x%.2X%.2X%.2X", R, G, B ) )
-end
-
---Oh boy this is awful, but I'd rather catch the error than have pretty code.
-local function CheckArgs( RP, GP, BP, PreHex, Prefix, R, G, B, Message )
-	if not IsType( PreHex, "number" ) or not IsType( Prefix, "string" )
-	or not IsType( R, "number" ) or not IsType( G, "number" )
-	or not IsType( B, "number" ) or not IsType( Message, "string" ) then
-		Shine:AddErrorReport( "Shine.AddChatText did not receive correct values.",
-			"RGBP: %s %s %s. PreHex: %s. Prefix: '%s'. Message: '%s'. RGB: %s %s %s", true,
-			tostring( RP ), tostring( GP ), tostring( BP ),
-			tostring( PreHex ), tostring( Prefix ), tostring( Message ),
-			tostring( R ), tostring( G ), tostring( B ) )
-
-		return false
-	end
-
-	return true
+	return BitLShift( R, 16 ) + BitLShift( G, 8 ) + B
 end
 
 local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Message )
@@ -82,17 +68,29 @@ local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Messag
 	StartSoundEffect( Player:GetChatSound() )
 end
 
-local ChatMessages
+local GUIChatMessages
 local function GetChatMessages()
-	return ChatMessages
+	return GUIChatMessages
 end
 
 local function SetupChatMessages()
 	if not GetChatMessages() then
 		Shine.JoinUpValues( ChatUI_GetMessages, GetChatMessages, {
-			chatMessages = "ChatMessages"
+			chatMessages = "GUIChatMessages"
 		} )
 	end
+end
+
+local function SetupAndGetChatMessages()
+	SetupChatMessages()
+
+	local ChatMessages = GetChatMessages()
+	if not ChatMessages then
+		Shared.Message( "[Shine] Unable to retrieve message table!" )
+		return nil
+	end
+
+	return ChatMessages
 end
 
 --[[
@@ -105,25 +103,14 @@ end
 		Message - Message text.
 ]]
 function Shine.AddChatText( RP, GP, BP, Prefix, R, G, B, Message )
-	SetupChatMessages()
-
-	local ChatMessages = GetChatMessages()
-	if not ChatMessages then
-		Shared.Message( "[Shine] Unable to retrieve message table!" )
-
-		return
-	end
+	local ChatMessages = SetupAndGetChatMessages()
+	if not ChatMessages then return end
 
 	local Player = Client.GetLocalPlayer()
 	if not Player then return end
 
-	local PreHex = RGBToHex( RP, GP, BP )
-
-	if not CheckArgs( RP, GP, BP, PreHex, Prefix, R, G, B, Message ) then
-		return
-	end
-
-	AddChatMessage( Player, ChatMessages, PreHex, Prefix, Color( R, G, B, 1 ), Message )
+	AddChatMessage( Player, ChatMessages, RGBToHex( RP, GP, BP ),
+		Prefix, Color( R, G, B, 1 ), Message )
 end
 
 --Displays a coloured message.
@@ -140,14 +127,8 @@ end )
 
 --Deprecated chat message. Only useful for PMs/Admin say messages.
 Client.HookNetworkMessage( "Shine_Chat", function( Message )
-	SetupChatMessages()
-
-	local ChatMessages = GetChatMessages()
-
-	if not ChatMessages then
-		Shared.Message( "[Shine] Unable to retrieve message table!" )
-		return
-	end
+	local ChatMessages = SetupAndGetChatMessages()
+	if not ChatMessages then return end
 
 	local Player = Client.GetLocalPlayer()
 	if not Player then return end
@@ -158,10 +139,6 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 	local Name = Message.Name
 	local String = Message.Message
 	local TeamCol = kChatTextColor[ Message.TeamType ] or Color( 1, 1, 1, 1 )
-
-	if not CheckArgs( nil, nil, nil, PreHex, Prefix, TeamCol.r, TeamCol.g, TeamCol.b, String ) then
-		return
-	end
 
 	--This shows just the message, no name, no prefix (no longer used as it doesn't work).
 	if Prefix == "" and Name == "" then
