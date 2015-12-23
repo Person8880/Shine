@@ -122,6 +122,7 @@ Client.HookNetworkMessage( "Shine_AutoCompleteResponse", function( Message )
 	end
 
 	Request.Callback( Request.Results )
+	Requests[ Message.RequestID ] = nil
 end )
 
 Client.HookNetworkMessage( "Shine_AutoCompleteFailed", function( Message )
@@ -129,4 +130,5 @@ Client.HookNetworkMessage( "Shine_AutoCompleteFailed", function( Message )
 	if not Request then return end
 
 	Request.Callback( Request.Results )
+	Requests[ Message.RequestID ] = nil
 end )
