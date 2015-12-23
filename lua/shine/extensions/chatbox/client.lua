@@ -275,7 +275,7 @@ local function UpdateOpacity( self, Opacity )
 	for i = 1, #OpacityVariantControls do
 		local Control = self[ OpacityVariantControls[ i ] ]
 		-- Force the skin to refresh.
-		if Control then
+		if SGUI.IsValid( Control ) then
 			Control:SetStyleName( Control:GetStyleName() )
 		end
 	end
