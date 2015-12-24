@@ -6,6 +6,7 @@
 ]]
 
 local setmetatable = setmetatable
+local TableConcat = table.concat
 local TableRemove = table.remove
 local TableSort = table.sort
 
@@ -66,6 +67,20 @@ function Stream:Limit( Limit )
 	end
 
 	return self
+end
+
+--[[
+	Concatenates the values in the stream into a single string based
+	on the string value returned by the transformation function.
+]]
+function Stream:Concat( Separator, ToStringFunc )
+	local Values = {}
+
+	for i = 1, #self.Data do
+		Values[ i ] = ToStringFunc( self.Data[ i ] )
+	end
+
+	return TableConcat( Values, Separator )
 end
 
 --[[

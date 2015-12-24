@@ -38,3 +38,9 @@ UnitTest:Test( "Limit", function( Assert )
 	Stream( Data ):Limit( 3 )
 	Assert:ArrayEquals( { 1, 2, 3 }, Data )
 end )
+
+UnitTest:Test( "Concat", function( Assert )
+	local Data = { 1, 2, 3, 4, 5, 6 }
+
+	Assert:Equals( "1, 2, 3, 4, 5, 6", Stream( Data ):Concat( ", ", tostring ) )
+end )
