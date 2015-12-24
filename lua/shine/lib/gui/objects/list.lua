@@ -461,7 +461,6 @@ end
 ]]
 function List:RemoveRow( Index )
 	local Rows = self.Rows
-
 	if not Rows then return end
 
 	local OldRow = Rows[ Index ]
@@ -484,6 +483,10 @@ function List:RemoveRow( Index )
 		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 	else
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
+	end
+
+	if self.SelectedRow == OldRow then
+		self.SelectedRow = nil
 	end
 
 	self:Reorder()

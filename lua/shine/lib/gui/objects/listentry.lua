@@ -94,6 +94,10 @@ function ListEntry:OnReorder()
 	if TextScale then
 		self:SetTextScale( TextScale )
 	end
+
+	if self.Selected then
+		self.Background:SetColor( self.ActiveCol )
+	end
 end
 
 function ListEntry:UpdateText( Obj, Size )
