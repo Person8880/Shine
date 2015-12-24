@@ -195,6 +195,9 @@ Hook.Add( "OnFirstThink", "ExtensionFirstThink", function()
 	HasFirstThinkOccurred = true
 end )
 
+-- This table holds all plugins that have a method for a given event.
+local EventCache = {}
+
 --Shared extensions need to be enabled once the server tells it to.
 function Shine:EnableExtension( Name, DontLoadConfig )
 	local Plugin = self.Plugins[ Name ]
@@ -275,6 +278,10 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		Plugin:OnFirstThink()
 	end
 
+	-- Flush event cache. We can't be smarter than this, because it could be loading mid-event call.
+	-- If we edited the specific event table at that point, it would potentially cause double event calls
+	-- or missed event calls. Plugin load/unload should be a rare occurence anyway.
+	EventCache = {}
 	Plugin.Enabled = true
 
 	--We need to inform clients to enable the client portion.
@@ -305,7 +312,10 @@ function Shine:UnloadExtension( Name )
 
 	Plugin.Enabled = false
 
-	--Make sure cleanup doesn't break us by erroring.
+	-- Flush event cache.
+	EventCache = {}
+
+	-- Make sure cleanup doesn't break us by erroring.
 	local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
 	if not Success then
 		PluginMeta.Cleanup( Plugin )
@@ -344,36 +354,58 @@ local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
 
 --[[
+	Builds a list of all enabled plugins that have a method for the given event.
+]]
+local function BuildPluginCache( self, Event )
+	local Plugins = self.Plugins
+	local PluginsWithEvent = {}
+	local Count = 0
+
+	for i = 1, #AllPluginsArray do
+		local Plugin = Plugins[ AllPluginsArray[ i ] ]
+
+		if Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" ) then
+			Count = Count + 1
+			PluginsWithEvent[ Count ] = Plugin
+		end
+	end
+
+	PluginsWithEvent.NumberOfPlugins = Count
+
+	return PluginsWithEvent
+end
+
+--[[
 	Calls an event on all active extensions.
 	Called by the hook system, should not be called directly.
 ]]
 function Shine:CallExtensionEvent( Event, OnError, ... )
-	local Plugins = self.Plugins
+	local PluginsWithEvent = EventCache[ Event ]
+	if not PluginsWithEvent then
+		PluginsWithEvent = BuildPluginCache( self, Event )
+		EventCache[ Event ] = PluginsWithEvent
+	end
 
-	-- Automatically call the plugin hooks.
-	for i = 1, #AllPluginsArray do
-		local Plugin = AllPluginsArray[ i ]
-		local Table = Plugins[ Plugin ]
+	-- Automatically call the plugin hooks from our known list of plugins with this event.
+	for i = 1, PluginsWithEvent.NumberOfPlugins do
+		local Plugin = PluginsWithEvent[ i ]
+		local Success, a, b, c, d, e, f = xpcall( Plugin[ Event ], OnError, Plugin, ... )
 
-		if Table and Table.Enabled and IsType( Table[ Event ], "function" ) then
-			local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
+		if not Success then
+			Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+			self:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
+				true, Event, Plugin.__Name, Plugin.__HookErrors )
 
-			if not Success then
-				Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
-				self:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
-					true, Event, Plugin, Table.__HookErrors )
+			if Plugin.__HookErrors >= 10 then
+				self:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
+					true, Plugin.__Name, Plugin.__HookErrors )
 
-				if Table.__HookErrors >= 10 then
-					self:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
-						true, Plugin, Table.__HookErrors )
+				Plugin.__HookErrors = 0
 
-					Table.__HookErrors = 0
-
-					self:UnloadExtension( Plugin )
-				end
-			else
-				if a ~= nil then return a, b, c, d, e, f end
+				self:UnloadExtension( Plugin.__Name )
 			end
+		else
+			if a ~= nil then return a, b, c, d, e, f end
 		end
 	end
 end
