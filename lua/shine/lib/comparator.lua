@@ -30,10 +30,17 @@ local function Compile( Comparator )
 	end
 end
 
+local function CompileStable( Comparator )
+	return function( A, B )
+		return Comparator:Compare( A, B )
+	end
+end
+
 local function NewComparatorType( Name )
 	local Meta = {}
 	Meta.__index = Meta
 	Meta.Compile = Compile
+	Meta.CompileStable = CompileStable
 
 	Comparators[ Name ] = Meta
 
