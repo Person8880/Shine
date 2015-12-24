@@ -221,8 +221,9 @@ Hook.Add( "PlayerKeyPress", "VoteMenuKeyPress", function( Key, Down )
 end, 1 )
 
 function VoteMenu:Think( DeltaTime )
-	local ActivePage = self.ActivePage
+	if not self.Visible then return end
 
+	local ActivePage = self.ActivePage
 	if not ActivePage then return end
 
 	local Think = self.Pages[ ActivePage ].Think
