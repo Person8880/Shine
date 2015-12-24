@@ -10,7 +10,7 @@ local Floor = math.floor
 local IsType = Shine.IsType
 local select = select
 local TableRemove = table.remove
-local TableSort = table.sort
+local TableMergeSort = table.MergeSort
 local tonumber = tonumber
 local Vector = Vector
 
@@ -438,13 +438,13 @@ function List:SortRows( Column, SortFunc, Desc )
 
 		if SecondarySortColumn then
 			Comparator = Shine.Comparator( "Composition", self:GetComparator( SecondarySortColumn, 1 ),
-				self:GetComparator( Column ) ):Compile()
+				self:GetComparator( Column ) ):CompileStable()
 		else
-			Comparator = self:GetComparator( Column ):Compile()
+			Comparator = self:GetComparator( Column ):CompileStable()
 		end
 	end
 
-	TableSort( Rows, Comparator )
+	TableMergeSort( Rows, Comparator )
 
 	self.SortedColumn = Column
 	self.SortingFunc = SortFunc
