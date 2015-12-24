@@ -317,6 +317,8 @@ do
 				Rows[ ID ] = nil
 			end
 		end
+
+		PlayerList:RefreshSorting()
 	end
 
 	local function GenerateButton( Text, DoClick, Tooltip )

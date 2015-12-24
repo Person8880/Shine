@@ -403,6 +403,12 @@ function List:GetComparator( Column, Direction )
 		Column, IsNumeric and tonumber or string.UTF8Lower )
 end
 
+function List:RefreshSorting()
+	if not self.SortedColumn then return end
+
+	self:SortRows( self.SortedColumn, self.SortingFunc, self.Descending )
+end
+
 --[[
 	Sorts the rows, generally used to sort by column values.
 	Inputs: Column to sort by, optional sorting function.
