@@ -547,5 +547,5 @@ end
 Shine:LoadExtensionConfigs()
 
 if not Shine.Error then
-	Shine.Hook.Call( "PostloadConfig" )
+	Shine.Hook.CallOnce( "PostloadConfig" )
 end

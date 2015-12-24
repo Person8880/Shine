@@ -7,6 +7,7 @@
 local Shine = Shine
 
 local include = Script.Load
+local IsType = Shine.IsType
 local next = next
 local pairs = pairs
 local Notify = Shared.Message
@@ -341,6 +342,41 @@ Shine.AllPlugins = AllPlugins
 
 local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
+
+--[[
+	Calls an event on all active extensions.
+	Called by the hook system, should not be called directly.
+]]
+function Shine:CallExtensionEvent( Event, OnError, ... )
+	local Plugins = self.Plugins
+
+	-- Automatically call the plugin hooks.
+	for i = 1, #AllPluginsArray do
+		local Plugin = AllPluginsArray[ i ]
+		local Table = Plugins[ Plugin ]
+
+		if Table and Table.Enabled and IsType( Table[ Event ], "function" ) then
+			local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
+
+			if not Success then
+				Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
+				self:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
+					true, Event, Plugin, Table.__HookErrors )
+
+				if Table.__HookErrors >= 10 then
+					self:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
+						true, Plugin, Table.__HookErrors )
+
+					Table.__HookErrors = 0
+
+					self:UnloadExtension( Plugin )
+				end
+			else
+				if a ~= nil then return a, b, c, d, e, f end
+			end
+		end
+	end
+end
 
 local PluginFileMapping = {}
 
