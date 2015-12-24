@@ -353,59 +353,61 @@ Shine.AllPlugins = AllPlugins
 local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
 
---[[
-	Builds a list of all enabled plugins that have a method for the given event.
-]]
-local function BuildPluginCache( self, Event )
-	local Plugins = self.Plugins
-	local PluginsWithEvent = {}
-	local Count = 0
+do
+	--[[
+		Builds a list of all enabled plugins that have a method for the given event.
+	]]
+	local function BuildPluginCache( self, Event )
+		local Plugins = self.Plugins
+		local PluginsWithEvent = {}
+		local Count = 0
 
-	for i = 1, #AllPluginsArray do
-		local Plugin = Plugins[ AllPluginsArray[ i ] ]
+		for i = 1, #AllPluginsArray do
+			local Plugin = Plugins[ AllPluginsArray[ i ] ]
 
-		if Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" ) then
-			Count = Count + 1
-			PluginsWithEvent[ Count ] = Plugin
-		end
-	end
-
-	PluginsWithEvent.NumberOfPlugins = Count
-
-	return PluginsWithEvent
-end
-
---[[
-	Calls an event on all active extensions.
-	Called by the hook system, should not be called directly.
-]]
-function Shine:CallExtensionEvent( Event, OnError, ... )
-	local PluginsWithEvent = EventCache[ Event ]
-	if not PluginsWithEvent then
-		PluginsWithEvent = BuildPluginCache( self, Event )
-		EventCache[ Event ] = PluginsWithEvent
-	end
-
-	-- Automatically call the plugin hooks from our known list of plugins with this event.
-	for i = 1, PluginsWithEvent.NumberOfPlugins do
-		local Plugin = PluginsWithEvent[ i ]
-		local Success, a, b, c, d, e, f = xpcall( Plugin[ Event ], OnError, Plugin, ... )
-
-		if not Success then
-			Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
-			self:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
-				true, Event, Plugin.__Name, Plugin.__HookErrors )
-
-			if Plugin.__HookErrors >= 10 then
-				self:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
-					true, Plugin.__Name, Plugin.__HookErrors )
-
-				Plugin.__HookErrors = 0
-
-				self:UnloadExtension( Plugin.__Name )
+			if Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" ) then
+				Count = Count + 1
+				PluginsWithEvent[ Count ] = Plugin
 			end
-		else
-			if a ~= nil then return a, b, c, d, e, f end
+		end
+
+		PluginsWithEvent.NumberOfPlugins = Count
+
+		return PluginsWithEvent
+	end
+
+	--[[
+		Calls an event on all active extensions.
+		Called by the hook system, should not be called directly.
+	]]
+	function Shine:CallExtensionEvent( Event, OnError, ... )
+		local PluginsWithEvent = EventCache[ Event ]
+		if not PluginsWithEvent then
+			PluginsWithEvent = BuildPluginCache( self, Event )
+			EventCache[ Event ] = PluginsWithEvent
+		end
+
+		-- Automatically call the plugin hooks from our known list of plugins with this event.
+		for i = 1, PluginsWithEvent.NumberOfPlugins do
+			local Plugin = PluginsWithEvent[ i ]
+			local Success, a, b, c, d, e, f = xpcall( Plugin[ Event ], OnError, Plugin, ... )
+
+			if not Success then
+				Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+				self:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
+					true, Event, Plugin.__Name, Plugin.__HookErrors )
+
+				if Plugin.__HookErrors >= 10 then
+					self:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
+						true, Plugin.__Name, Plugin.__HookErrors )
+
+					Plugin.__HookErrors = 0
+
+					self:UnloadExtension( Plugin.__Name )
+				end
+			else
+				if a ~= nil then return a, b, c, d, e, f end
+			end
 		end
 	end
 end
@@ -499,102 +501,104 @@ if Server then
 
 		Shine.SendNetworkMessage( Client, "Shine_PluginSync", Message, true )
 	end )
-elseif Client then
-	Client.HookNetworkMessage( "Shine_PluginSync", function( Data )
-		for Name, Enabled in pairs( Data ) do
-			if Enabled then
-				Shine:EnableExtension( Name )
-			end
-		end
 
-		Shine.AddStartupMessage = nil
+	return
+end
 
-		local StartupMessages = Shine.StartupMessages
-
-		Notify( "==============================" )
-		Notify( "Shine started up successfully." )
-
-		for i = 1, #StartupMessages do
-			Notify( StartupMessages[ i ] )
-		end
-
-		Notify( "==============================" )
-
-		Shine.StartupMessages = nil
-	end )
-
-	Client.HookNetworkMessage( "Shine_PluginEnable", function( Data )
-		local Name = Data.Plugin
-		local Enabled = Data.Enabled
-
+Client.HookNetworkMessage( "Shine_PluginSync", function( Data )
+	for Name, Enabled in pairs( Data ) do
 		if Enabled then
 			Shine:EnableExtension( Name )
-		else
-			Shine:UnloadExtension( Name )
 		end
-	end )
-
-	--[[
-		Adds a plugin to be auto loaded on the client.
-		This should only be used for client side plugins, not shared.
-
-		Inputs: Plugin name, boolean AutoLoad.
-	]]
-	function Shine:SetPluginAutoLoad( Name, AutoLoad )
-		if not self.AutoLoadPlugins then return end
-
-		AutoLoad = AutoLoad or false
-
-		self.AutoLoadPlugins[ Name ] = AutoLoad
-
-		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
 	end
 
-	local DefaultAutoLoad = {
-		chatbox = true
-	}
+	Shine.AddStartupMessage = nil
 
-	function Shine:CreateDefaultAutoLoad()
-		self.AutoLoadPlugins = DefaultAutoLoad
+	local StartupMessages = Shine.StartupMessages
 
-		self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
+	Notify( "==============================" )
+	Notify( "Shine started up successfully." )
+
+	for i = 1, #StartupMessages do
+		Notify( StartupMessages[ i ] )
 	end
 
-	Shine:RegisterClientCommand( "sh_loadplugin_cl", function( Name )
-		Shine:SetPluginAutoLoad( Name, true )
-		local Success, Err = Shine:EnableExtension( Name )
+	Notify( "==============================" )
 
-		if Success then
-			Print( "[Shine] Enabled the '%s' extension.", Name )
-		else
-			Print( "[Shine] Could not load extension '%s': %s", Name, Err )
-		end
-	end ):AddParam{ Type = "string", TakeRestOfLine = true }
+	Shine.StartupMessages = nil
+end )
 
-	Shine:RegisterClientCommand( "sh_unloadplugin_cl", function( Name )
-		Shine:SetPluginAutoLoad( Name, false )
+Client.HookNetworkMessage( "Shine_PluginEnable", function( Data )
+	local Name = Data.Plugin
+	local Enabled = Data.Enabled
+
+	if Enabled then
+		Shine:EnableExtension( Name )
+	else
 		Shine:UnloadExtension( Name )
+	end
+end )
 
-		Print( "[Shine] Disabled the '%s' extension.", Name )
-	end ):AddParam{ Type = "string", TakeRestOfLine = true }
+--[[
+	Adds a plugin to be auto loaded on the client.
+	This should only be used for client side plugins, not shared.
 
-	Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
-		local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )
+	Inputs: Plugin name, boolean AutoLoad.
+]]
+function Shine:SetPluginAutoLoad( Name, AutoLoad )
+	if not self.AutoLoadPlugins then return end
 
-		if not AutoLoad or not next( AutoLoad ) then
-			Shine:CreateDefaultAutoLoad()
-		else
-			Shine.AutoLoadPlugins = AutoLoad
-		end
+	AutoLoad = AutoLoad or false
 
-		if Shine.CheckConfig( Shine.AutoLoadPlugins, DefaultAutoLoad, true ) then
-			Shine.SaveJSONFile( Shine.AutoLoadPlugins, AutoLoadPath )
-		end
+	self.AutoLoadPlugins[ Name ] = AutoLoad
 
-		for Plugin, Load in pairs( Shine.AutoLoadPlugins ) do
-			if Load then
-				Shine:EnableExtension( Plugin )
-			end
-		end
-	end, -20 )
+	self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
 end
+
+local DefaultAutoLoad = {
+	chatbox = true
+}
+
+function Shine:CreateDefaultAutoLoad()
+	self.AutoLoadPlugins = DefaultAutoLoad
+
+	self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
+end
+
+Shine:RegisterClientCommand( "sh_loadplugin_cl", function( Name )
+	Shine:SetPluginAutoLoad( Name, true )
+	local Success, Err = Shine:EnableExtension( Name )
+
+	if Success then
+		Print( "[Shine] Enabled the '%s' extension.", Name )
+	else
+		Print( "[Shine] Could not load extension '%s': %s", Name, Err )
+	end
+end ):AddParam{ Type = "string", TakeRestOfLine = true }
+
+Shine:RegisterClientCommand( "sh_unloadplugin_cl", function( Name )
+	Shine:SetPluginAutoLoad( Name, false )
+	Shine:UnloadExtension( Name )
+
+	Print( "[Shine] Disabled the '%s' extension.", Name )
+end ):AddParam{ Type = "string", TakeRestOfLine = true }
+
+Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
+	local AutoLoad = Shine.LoadJSONFile( AutoLoadPath )
+
+	if not AutoLoad or not next( AutoLoad ) then
+		Shine:CreateDefaultAutoLoad()
+	else
+		Shine.AutoLoadPlugins = AutoLoad
+	end
+
+	if Shine.CheckConfig( Shine.AutoLoadPlugins, DefaultAutoLoad, true ) then
+		Shine.SaveJSONFile( Shine.AutoLoadPlugins, AutoLoadPath )
+	end
+
+	for Plugin, Load in pairs( Shine.AutoLoadPlugins ) do
+		if Load then
+			Shine:EnableExtension( Plugin )
+		end
+	end
+end, -20 )
