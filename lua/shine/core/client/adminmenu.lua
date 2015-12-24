@@ -304,9 +304,18 @@ do
 
 	local function UpdatePlayers()
 		local PlayerEnts = GetEnts( "PlayerInfoEntity" )
+		local ExistingPlayers = {}
 
 		for _, Ent in IterateEntList( PlayerEnts ) do
 			AddPlayerToList( Ent )
+			ExistingPlayers[ Ent.clientId ] = true
+		end
+
+		for ID, Row in pairs( Rows ) do
+			if not ExistingPlayers[ ID ] then
+				PlayerList:RemoveRow( Row.Index )
+				Rows[ ID ] = nil
+			end
 		end
 	end
 
