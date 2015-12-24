@@ -246,6 +246,7 @@ function Plugin:SetupAdminMenuCommands()
 			List:SetSpacing( 0.7, 0.3 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetSecondarySortColumn( 2, 1 )
 
 			self.PluginList = List
 			self.PluginRows = self.PluginRows or {}

@@ -390,6 +390,20 @@ local function UpdateHeaderHighlighting( self, Column, OldSortingColumn )
 end
 
 --[[
+	Sets a secondary column to sort by when sorting by the given column.
+]]
+function List:SetSecondarySortColumn( Column, SecondaryColumn )
+	self.SecondarySortColumns = self.SecondarySortColumns or {}
+	self.SecondarySortColumns[ Column ] = SecondaryColumn
+end
+
+function List:GetComparator( Column, Direction )
+	local IsNumeric = self.NumericColumns and self.NumericColumns[ Column ]
+	return Shine.Comparator( "Method", Direction or ( self.Descending and -1 or 1 ), "GetColumnText",
+		Column, IsNumeric and tonumber or string.UTF8Lower )
+end
+
+--[[
 	Sorts the rows, generally used to sort by column values.
 	Inputs: Column to sort by, optional sorting function.
 ]]
@@ -418,11 +432,17 @@ function List:SortRows( Column, SortFunc, Desc )
 		self.Descending = Desc
 	end
 
-	local IsNumeric = self.NumericColumns and self.NumericColumns[ Column ]
-	local Comparator = SortFunc or Shine.Comparator( "Method",
-		self.Descending and -1 or 1, "GetColumnText",
-		Column,
-		IsNumeric and tonumber or string.UTF8Lower ):Compile()
+	local Comparator = SortFunc
+	if not Comparator then
+		local SecondarySortColumn = self.SecondarySortColumns and self.SecondarySortColumns[ Column ]
+
+		if SecondarySortColumn then
+			Comparator = Shine.Comparator( "Composition", self:GetComparator( SecondarySortColumn, 1 ),
+				self:GetComparator( Column ) ):Compile()
+		else
+			Comparator = self:GetComparator( Column ):Compile()
+		end
+	end
 
 	TableSort( Rows, Comparator )
 
