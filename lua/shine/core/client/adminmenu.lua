@@ -8,7 +8,6 @@ local Hook = Shine.Hook
 
 local IsType = Shine.IsType
 local StringFormat = string.format
-local TableConcat = table.concat
 
 Shine.AdminMenu = {}
 
@@ -204,15 +203,12 @@ end
 
 function AdminMenu:OnTabCleanup( Window, Name )
 	local Tab = self.Tabs[ Name ]
-
 	if not Tab then return end
 
 	local OnCleanup = Tab.OnCleanup
-
 	if not OnCleanup then return end
 
 	local Ret = OnCleanup( Window.ContentPanel )
-
 	if Ret then
 		Tab.Data = Ret
 	end
@@ -426,7 +422,8 @@ do
 			Hook.Remove( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers" )
 
 			return Data
-		end } )
+		end
+	} )
 
 	function AdminMenu:RunCommand( Command, Args )
 		if not Args then
@@ -444,10 +441,10 @@ do
 
 		Window:AddTitleBar( "Error" )
 
-		Shine.AdminMenu:DestroyOnClose( Window )
+		self:DestroyOnClose( Window )
 
 		function Window.CloseButton.DoClick()
-			Shine.AdminMenu:DontDestroyOnClose( Window )
+			self:DontDestroyOnClose( Window )
 			Window:Destroy()
 		end
 
@@ -467,9 +464,19 @@ do
 		OK:SetText( "OK" )
 
 		function OK.DoClick()
-			Shine.AdminMenu:DontDestroyOnClose( Window )
+			self:DontDestroyOnClose( Window )
 			Window:Destroy()
 		end
+	end
+
+	local function GetArgsFromRows( Rows, MultiPlayer )
+		if MultiPlayer then
+			return Shine.Stream( Rows ):Concat( ",", function( Row )
+				return Row:GetColumnText( 2 )
+			end )
+		end
+
+		return Rows[ 1 ]:GetColumnText( 2 )
 	end
 
 	function AdminMenu:AddCommand( Category, Name, Command, MultiPlayer, DoClick, Tooltip )
@@ -479,60 +486,34 @@ do
 
 				if not MultiPlayer and #Rows > 1 then
 					self:AskForSinglePlayer()
-
 					return
 				end
 
-				if MultiPlayer then
-					local IDs = {}
-
-					for i = 1, #Rows do
-						local Row = Rows[ i ]
-
-						IDs[ i ] = Row:GetColumnText( 2 )
-					end
-
-					self:RunCommand( Command, TableConcat( IDs, "," ) )
-				else
-					self:RunCommand( Command, Rows[ 1 ]:GetColumnText( 2 ) )
-				end
+				self:RunCommand( Command, GetArgsFromRows( Rows, MultiPlayer ) )
 			end
 		elseif IsType( DoClick, "table" ) then
 			local Data = DoClick
 
 			local Menu
+			local function CleanupMenu()
+				self:DontDestroyOnClose( Menu )
+				Menu:Destroy()
+				Menu = nil
+			end
 			DoClick = function( Button, Rows )
 				if #Rows == 0 then return end
 
 				if Menu then
-					self:DontDestroyOnClose( Menu )
-
-					Menu:Destroy()
-					Menu = nil
-
+					CleanupMenu()
 					return
 				end
 
 				if not MultiPlayer and #Rows > 1 then
 					self:AskForSinglePlayer()
-
 					return
 				end
 
-				local Args
-				if MultiPlayer then
-					local IDs = {}
-
-					for i = 1, #Rows do
-						local Row = Rows[ i ]
-
-						IDs[ i ] = Row:GetColumnText( 2 )
-					end
-
-					Args = TableConcat( IDs, "," )
-				else
-					Args = Rows[ 1 ]:GetColumnText( 2 )
-				end
+				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
 				Menu = Button:AddMenu( Vector( 128, 32, 0 ) )
 				Menu:CallOnRemove( function()
@@ -552,19 +533,12 @@ do
 								self:RunCommand( Command, StringFormat( "%s %s", Args, Arg ) )
 							end
 
-							self:DontDestroyOnClose( Menu )
-
-							Menu:Destroy()
-							Menu = nil
+							CleanupMenu()
 						end )
 					elseif IsType( Arg, "function" ) then
 						Menu:AddButton( Option, function()
 							Arg()
-
-							self:DontDestroyOnClose( Menu )
-
-							Menu:Destroy()
-							Menu = nil
+							CleanupMenu()
 						end )
 					end
 				end
