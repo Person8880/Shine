@@ -282,6 +282,35 @@ function Shine.GetLocals( Stacklevel )
 end
 
 do
+	local DebugTraceback = debug.traceback
+	local StringGSub = string.gsub
+
+	--[[
+		Work around Lua 5.1 traceback behaviour where you must provide a string
+		to set the traceback level, which adds a useless line.
+	]]
+	function Shine.Traceback( Level )
+		local Trace = DebugTraceback( "", Level + 1 )
+		return ( StringGSub( Trace, "^([^\n]*)\n(.*)$", "%2" ) )
+	end
+end
+
+--[[
+	Builds an error handler function for use with xpcall. Reports and logs any errors encountered,
+	including the local values of the caller.
+]]
+function Shine.BuildErrorHandler( ErrorType )
+	return function( Err )
+		local Trace = Shine.Traceback( 2 )
+		local Locals = table.ToDebugString( Shine.GetLocals( 1 ) )
+
+		Shine:DebugPrint( "%s: %s\n%s", true, ErrorType, Err, Trace )
+		Shine:AddErrorReport( StringFormat( "%s: %s", ErrorType, Err ),
+			"%s\nLocals:\n%s", true, Trace, Locals )
+	end
+end
+
+do
 	local SharedMessage = Shared.Message
 	local select = select
 	local tostring = tostring

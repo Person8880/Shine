@@ -74,13 +74,6 @@ function Shine:RemoveClientCommand( ConCommand )
 	ClientCommands[ ConCommand ] = nil
 end
 
-local function OnError( Error )
-	local Trace = Traceback()
-
-	Shine:DebugPrint( "Error: %s.\n%s", true, Error, Trace )
-	Shine:AddErrorReport( StringFormat( "Client command error: %s.", Error ), Trace )
-end
-
 function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
 	Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.",
 		i, ConCommand, CurArg.Type ) )
@@ -89,6 +82,8 @@ end
 function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
 	return true, Result
 end
+
+local OnError = Shine.BuildErrorHandler( "Client command error" )
 
 --[[
 	Executes a client side Shine command. Should not be called directly.

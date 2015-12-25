@@ -561,15 +561,6 @@ ParamTypes.steamid = {
 
 local ParseParameter = Shine.CommandUtil.ParseParameter
 
-local Traceback = debug.traceback
-
-local function OnError( Err )
-	local Trace = Traceback()
-
-	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
-	Shine:AddErrorReport( StringFormat( "Command error: %s.", Err ), Trace )
-end
-
 local function MatchStringRestriction( ParsedArg, Restriction )
 	if not StringFind( Restriction, "*" ) then
 		return ParsedArg == Restriction
@@ -738,6 +729,8 @@ function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command
 
 	return ParsedArgs
 end
+
+local OnError = Shine.BuildErrorHandler( "Command error" )
 
 --[[
 	Executes a Shine command. Should not be called directly.

@@ -341,18 +341,7 @@ function SGUI:SetWindowFocus( Window, i )
 	self.FocusedWindow = Window
 end
 
-local ToDebugString = table.ToDebugString
-local Traceback = debug.traceback
-
-local function OnError( Error )
-	local Trace = Traceback()
-
-	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
-
-	Shine:DebugPrint( "SGUI Error: %s.\n%s", true, Error, Trace )
-	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ),
-		"%s\nLocals:\n%s", true, Trace, Locals )
-end
+local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
 function SGUI:PostCallEvent()
 	local PostEventActions = self.PostEventActions

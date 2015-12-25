@@ -63,18 +63,7 @@ local function Add( Event, Index, Function, Priority )
 end
 Hook.Add = Add
 
-local ToDebugString = table.ToDebugString
-local Traceback = debug.traceback
-
-local function OnError( Err )
-	local Trace = Traceback()
-
-	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
-
-	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
-	Shine:AddErrorReport( StringFormat( "Hook error: %s.", Err ),
-		"%s\nLocals:\n%s", true, Trace, Locals )
-end
+local OnError = Shine.BuildErrorHandler( "Hook error" )
 
 local function CallHooks( HookMap, Event, ... )
 	for Index, Func in HookMap:Iterate() do

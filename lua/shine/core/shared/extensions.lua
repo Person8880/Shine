@@ -294,15 +294,7 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	return true
 end
 
-local function OnCleanupError( Err )
-	local Trace = Traceback()
-
-	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
-
-	Shine:DebugPrint( "Plugin cleanup error: %s.\n%s", true, Err, Trace )
-	Shine:AddErrorReport( StringFormat( "Plugin cleanup error: %s.", Err ),
-		"%s\nLocals:\n%s", true, Trace, Locals )
-end
+local OnCleanupError = Shine.BuildErrorHandler( "Plugin cleanup error" )
 
 function Shine:UnloadExtension( Name )
 	local Plugin = self.Plugins[ Name ]
