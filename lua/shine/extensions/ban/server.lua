@@ -19,6 +19,7 @@ local StringFormat = string.format
 local TableCopy = table.Copy
 local TableRemove = table.remove
 local TableShallowMerge = table.ShallowMerge
+local TableSort = table.sort
 local Time = os.time
 
 Plugin.HasConfig = true
@@ -274,7 +275,10 @@ end
 function Plugin:GenerateNetworkData()
 	local BanData = TableCopy( self.Config.Banned )
 
-	local NetData = self.BanNetworkData or {}
+	local NetData = self.BanNetworkData
+	local ShouldSort = NetData == nil
+
+	NetData = NetData or {}
 
 	--Remove all the bans we already know about.
 	for i = 1, #NetData do
@@ -293,6 +297,22 @@ function Plugin:GenerateNetworkData()
 	for ID, Data in pairs( BanData ) do
 		NetData[ #NetData + 1 ] = Data
 		Data.ID = ID
+	end
+
+	-- On initial population, sort by expiry, starting at the soonest to expire.
+	if ShouldSort then
+		TableSort( NetData, function( A, B )
+			-- Push permanent bans back to the end of the list.
+			if not A.UnbanTime or A.UnbanTime == 0 then
+				return false
+			end
+
+			if not B.UnbanTime or B.UnbanTime == 0 then
+				return true
+			end
+
+			return A.UnbanTime < B.UnbanTime
+		end )
 	end
 
 	self.BanNetworkData = NetData
