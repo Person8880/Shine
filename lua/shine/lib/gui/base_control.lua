@@ -493,6 +493,39 @@ do
 	--We call this so many times it really needs to be local, not global.
 	local MousePos
 
+	local function GetMousePos()
+		MousePos = MousePos or Client.GetCursorPosScreen
+		return MousePos()
+	end
+
+	local function IsInBox( Pos, Size, Mult, MaxX, MaxY )
+		if Mult then
+			if IsType( Mult, "number" ) then
+				Size = Size * Mult
+			else
+				Size.x = Size.x * Mult.x
+				Size.y = Size.y * Mult.y
+			end
+		end
+
+		MaxX = MaxX or Size.x
+		MaxY = MaxY or Size.y
+
+		local X, Y = GetMousePos()
+
+		local InX = X >= Pos.x and X < Pos.x + MaxX
+		local InY = Y >= Pos.y and Y < Pos.y + MaxY
+
+		local PosX = X - Pos.x
+		local PosY = Y - Pos.y
+
+		if InX and InY then
+			return true, PosX, PosY, Size, Pos
+		end
+
+		return false, PosX, PosY
+	end
+
 	--[[
 		Gets whether the mouse cursor is inside the bounds of a GUIItem.
 		The multiplier will increase or reduce the size we use to calculate this.
@@ -512,10 +545,6 @@ do
 	function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
 		if not Element then return end
 
-		MousePos = MousePos or Client.GetCursorPosScreen
-
-		local X, Y = MousePos()
-
 		local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
 		local Size = Element:GetSize()
 
@@ -523,29 +552,20 @@ do
 			Size = Size * Element.scale
 		end
 
-		if Mult then
-			if IsType( Mult, "number" ) then
-				Size = Size * Mult
-			else
-				Size.x = Size.x * Mult.x
-				Size.y = Size.y * Mult.y
-			end
-		end
+		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
+	end
 
-		MaxX = MaxX or Size.x
-		MaxY = MaxY or Size.y
+	--[[
+		Similar to MouseIn, but uses the control's native GetScreenPos and GetSize instead
+		of a GUIItem's.
 
-		local InX = X >= Pos.x and X <= Pos.x + MaxX
-		local InY = Y >= Pos.y and Y <= Pos.y + MaxY
+		Useful for controls whose size/position does not match a GUIItem directly.
+	]]
+	function ControlMeta:MouseInControl( Mult, MaxX, MaxY )
+		local Pos = self:GetScreenPos()
+		local Size = self:GetSize()
 
-		local PosX = X - Pos.x
-		local PosY = Y - Pos.y
-
-		if InX and InY then
-			return true, PosX, PosY, Size, Pos
-		end
-
-		return false, PosX, PosY
+		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
 	end
 end
 
