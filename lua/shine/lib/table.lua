@@ -211,6 +211,7 @@ end
 do
 	local Notify = Shared.Message
 	local StringFormat = string.format
+	local StringLower = string.lower
 	local StringRep = string.rep
 	local TableConcat = table.concat
 	local tonumber = tonumber
@@ -220,12 +221,12 @@ do
 	local function ToPrintKey( Key )
 		local Type = type( Key )
 
-		if Type ~= "string" and Type ~= "number" then
+		if Type ~= "string" then
 			return StringFormat( "[ %s ]", tostring( Key ) )
 		end
 
 		if Type == "string" and tonumber( Key ) then
-			return StringFormat( "\"%s\"", Key )
+			return StringFormat( "[ \"%s\" ]", Key )
 		end
 
 		return tostring( Key )
@@ -236,6 +237,24 @@ do
 		end
 
 		return tostring( Value )
+	end
+
+	local function KeySorter( A, B )
+		local AIsNumber = IsType( A, "number" )
+		local BIsNumber = IsType( B, "number" )
+		if AIsNumber and BIsNumber then
+			return A < B
+		end
+
+		if AIsNumber then
+			return true
+		end
+
+		if BIsNumber then
+			return false
+		end
+
+		return StringLower( tostring( A ) ) < StringLower( tostring( B ) )
 	end
 
 	local function TableToString( Table, Indent, Done )
@@ -250,7 +269,17 @@ do
 
 		local IndentString = StringRep( "\t", Indent )
 
-		for Key, Value in pairs( Table ) do
+		local Keys = {}
+		for Key in pairs( Table ) do
+			Keys[ #Keys + 1 ] = Key
+		end
+
+		TableSort( Keys, KeySorter )
+
+		for i = 1, #Keys do
+			local Key = Keys[ i ]
+			local Value = Table[ Key ]
+
 			if IsType( Value, "table" ) and not Done[ Value ] then
 				Done[ Value ] = true
 				local TableAsString = TableToString( Value, Indent + 1, Done )
