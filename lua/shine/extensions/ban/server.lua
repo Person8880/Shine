@@ -139,7 +139,7 @@ function Plugin:LoadBansFromWeb()
 		end
 
 		--Cache the data in case we get a bad response later.
-		if Edited then
+		if Edited and not self:CheckBans() then
 			self:SaveConfig()
 		end
 		self:GenerateNetworkData()
@@ -336,6 +336,8 @@ function Plugin:CheckBans()
 	if Edited then
 		self:SaveConfig()
 	end
+
+	return Edited
 end
 
 function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
