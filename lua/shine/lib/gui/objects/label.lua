@@ -65,4 +65,5 @@ function Label:SetBright( Bright )
 	-- Deprecated, does nothing.
 end
 
+SGUI:AddMixin( Label, "Clickable" )
 SGUI:Register( "Label", Label )
