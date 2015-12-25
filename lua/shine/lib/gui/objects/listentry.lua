@@ -147,7 +147,10 @@ function ListEntry:SetSpacing( SpacingTable )
 end
 
 function ListEntry:SetData( Index, Data )
+	if self.Data[ Index ] == Data then return end
+
 	self.Data[ Index ] = Data
+	self.Parent:RefreshSorting()
 end
 
 function ListEntry:GetData( Index )
@@ -164,7 +167,9 @@ function ListEntry:SetColumnText( Index, Text )
 	TextObjs[ Index ]:SetText( Text )
 	self:UpdateText( TextObjs[ Index ], self.Spacing[ Index ].x )
 
-	self.Parent:RefreshSorting()
+	if self.Data[ Index ] == nil then
+		self.Parent:RefreshSorting()
+	end
 end
 
 function ListEntry:GetColumnText( Index )
