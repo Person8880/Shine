@@ -595,12 +595,25 @@ Special thanks to:
 Got an issue or a feature request? Head over to the mod's GitHub page and post an issue,
 or leave a comment on the workshop page.
 ]],
-[[The mod's GitHub issue tracker can be found here:
-https://github.com/Person8880/Shine/issues
+[[The mod's GitHub issue tracker can be found here:]],
+{
+	Text = [[https://github.com/Person8880/Shine/issues]],
+	StyleName = "Link",
+	DoClick = function( self )
+		Client.ShowWebpage( self:GetText() )
+	end
+},
+[[
 
 If you need help with how the mod functions, you can view the wiki by clicking the button
-below. If you want to get to it outside the game, visit:
-https://github.com/Person8880/Shine/wiki]]
+below. If you want to get to it outside the game, visit:]],
+{
+	Text = [[https://github.com/Person8880/Shine/wiki]],
+	StyleName = "Link",
+	DoClick = function( self )
+		Client.ShowWebpage( self:GetText() )
+	end
+}
 }
 
 	local Units = SGUI.Layout.Units
@@ -618,7 +631,15 @@ https://github.com/Person8880/Shine/wiki]]
 			for i = 1, #Text do
 				local Label = SGUI:Create( "Label", Panel )
 				Label:SetFont( Fonts.kAgencyFB_Small )
-				Label:SetText( Text[ i ] )
+
+				local LabelText = Text[ i ]
+				if IsType( LabelText, "string" ) then
+					Label:SetText( LabelText )
+				else
+					Label:SetText( LabelText.Text )
+					Label:SetStyleName( LabelText.StyleName )
+					Label.DoClick = LabelText.DoClick
+				end
 				Layout:AddElement( Label )
 			end
 

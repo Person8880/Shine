@@ -54,6 +54,9 @@ local Skin = {
 	Label = {
 		Default = {
 			Colour = BrightText
+		},
+		Link = {
+			Colour = Colour( 1, 0.8, 0 )
 		}
 	},
 	List = {
