@@ -29,6 +29,14 @@ UnitTest:Test( "Sort", function( Assert )
 	Assert:ArrayEquals( { 1, 2, 3, 4, 5, 6 }, Data )
 end )
 
+UnitTest:Test( "StableSort", function( Assert )
+	local Data = { 5, 3, 6, 4, 2, 1 }
+
+	Stream( Data ):StableSort()
+
+	Assert:ArrayEquals( { 1, 2, 3, 4, 5, 6 }, Data )
+end )
+
 UnitTest:Test( "Limit", function( Assert )
 	local Data = { 1, 2, 3, 4, 5, 6 }
 

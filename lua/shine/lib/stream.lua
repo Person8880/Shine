@@ -7,6 +7,7 @@
 
 local setmetatable = setmetatable
 local TableConcat = table.concat
+local TableMergeSort = table.MergeSort
 local TableRemove = table.remove
 local TableSort = table.sort
 
@@ -52,6 +53,15 @@ end
 ]]
 function Stream:Sort( Comparator )
 	TableSort( self.Data, Comparator )
+
+	return self
+end
+
+--[[
+	Sorts the values in the stream with the given comparator using a stable merge sort.
+]]
+function Stream:StableSort( Comparator )
+	TableMergeSort( self.Data, Comparator )
 
 	return self
 end
