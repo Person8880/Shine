@@ -21,8 +21,11 @@ end
 function ListEntry:Initialise()
 	self.BaseClass.Initialise( self )
 
+	-- Real data may be different to what's displayed (e.g. time values)
+	self.Data = {}
+
 	self.Background = GetGUIManager():CreateGraphicItem()
-	self:SetHighlightOnMouseOver( true, 0.9 )
+	self:SetHighlightOnMouseOver( true )
 end
 
 function ListEntry:SetTextColour( Colour )
@@ -143,14 +146,25 @@ function ListEntry:SetSpacing( SpacingTable )
 	end
 end
 
+function ListEntry:SetData( Index, Data )
+	self.Data[ Index ] = Data
+end
+
+function ListEntry:GetData( Index )
+	return self.Data[ Index ] or self.ColumnText[ Index ] or ""
+end
+
 function ListEntry:SetColumnText( Index, Text )
 	local TextObjs = self.TextObjs
 	if not TextObjs or not TextObjs[ Index ] then return end
+	if Text == self.ColumnText[ Index ] then return end
 
 	self.ColumnText[ Index ] = Text
 
 	TextObjs[ Index ]:SetText( Text )
 	self:UpdateText( TextObjs[ Index ], self.Spacing[ Index ].x )
+
+	self.Parent:RefreshSorting()
 end
 
 function ListEntry:GetColumnText( Index )
@@ -185,7 +199,7 @@ function ListEntry:OnMouseDown( Key, DoubleClick )
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background, 0.9 ) then return end
+	if not self:MouseIn( self.Background ) then return end
 
 	return true, self
 end
@@ -194,7 +208,7 @@ function ListEntry:OnMouseUp( Key )
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background, 0.9 ) then return end
+	if not self:MouseIn( self.Background ) then return end
 
 	if not self.Selected and self.Parent.OnRowSelect then
 		self.Parent:OnRowSelect( self.Index, self )

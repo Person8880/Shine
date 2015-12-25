@@ -316,7 +316,7 @@ function List:AddRow( ... )
 	end
 
 	if self.SortedColumn then
-		self:SortRows( self.SortedColumn, self.SortingFunc, self.Descending )
+		self:RefreshSorting()
 	else
 		self:InvalidateLayout()
 	end
@@ -399,14 +399,20 @@ end
 
 function List:GetComparator( Column, Direction )
 	local IsNumeric = self.NumericColumns and self.NumericColumns[ Column ]
-	return Shine.Comparator( "Method", Direction or ( self.Descending and -1 or 1 ), "GetColumnText",
+	return Shine.Comparator( "Method", Direction or ( self.Descending and -1 or 1 ), "GetData",
 		Column, IsNumeric and tonumber or string.UTF8Lower )
 end
 
-function List:RefreshSorting()
+function List:RefreshSorting( Now )
 	if not self.SortedColumn then return end
 
-	self:SortRows( self.SortedColumn, self.SortingFunc, self.Descending )
+	if Now then
+		self.NeedsSortingRefresh = false
+		self:SortRows( self.SortedColumn, self.SortingFunc, self.Descending )
+		return
+	end
+
+	self.NeedsSortingRefresh = true
 end
 
 --[[
@@ -572,6 +578,10 @@ function List:OnMouseMove( Down )
 end
 
 function List:Think( DeltaTime )
+	if self.NeedsSortingRefresh then
+		self:RefreshSorting( true )
+	end
+
 	self.BaseClass.Think( self, DeltaTime )
 
 	if SGUI.IsValid( self.Scrollbar ) then
