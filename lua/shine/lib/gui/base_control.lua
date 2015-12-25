@@ -1002,7 +1002,7 @@ function ControlMeta:OnMouseMove( Down )
 		return
 	end
 
-	if self:MouseIn( self.Background, self.HighlightMult ) then
+	if self:GetIsVisible() and self:MouseIn( self.Background, self.HighlightMult ) then
 		self:SetHighlighted( true )
 	else
 		if self.Highlighted and not self.ForceHighlight then
