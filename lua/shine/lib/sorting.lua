@@ -40,7 +40,26 @@ local function Merge( Table, Min, Centre, Max, Comparator )
 	end
 end
 
+local function NaturalOrder( A, B )
+	return A == B and 0 or ( A < B and -1 or 1 )
+end
+
+--[[
+	Performs an inline sort of the given table using the merge sort algorithm.
+
+	Lua's table.sort() is not guaranteed to place elements with equal precedence
+	in the same order each time. This produces a sorting that is always identical
+	every time it is run.
+
+	The comparator takes two values, A and B, and should return a single number:
+	- Negative if value A belongs before the value B
+	- 0 if the values have equal precedence
+	- Positive if the value A belongs after the value B.
+
+	This is not the same as for Lua's standard table.sort, which expects a boolean return value.
+]]
 local function MergeSort( Table, Comparator, Start, End )
+	Comparator = Comparator or NaturalOrder
 	Start = Start or 1
 	End = End or #Table
 
