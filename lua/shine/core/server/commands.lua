@@ -579,6 +579,8 @@ local function MatchStringRestriction( ParsedArg, Restriction )
 		return ParsedArg == Restriction
 	end
 
+	-- Escape any patterns in the string.
+	Restriction = StringGSub( Restriction, "([%%%[%]%^%$%(%)%.%+%-%?])", "%%%1" )
 	Restriction = StringGSub( Restriction, "*", "(.-)" ).."$"
 
 	return StringFind( ParsedArg, Restriction ) ~= nil
