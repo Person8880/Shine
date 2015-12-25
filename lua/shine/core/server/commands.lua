@@ -487,7 +487,7 @@ do
 		Validate = function( Client, Arg, ParsedArg )
 			if not ParsedArg then return true end
 			if #ParsedArg == 0 then
-				Shine:NotifyCommandError( Client, "No matching players found." )
+				Shine:NotifyCommandError( Client, "No matching players were found." )
 
 				return false
 			end
@@ -510,36 +510,49 @@ do
 	}
 end
 
---Team takes either 0 - 3 directly or takes a string matching a team name
---and turns it into the team number.
-ParamTypes.team = {
-	Parse = function( Client, String, Table )
-		if not String then
-			return GetDefault( Table )
-		end
+do
+	local TeamMatches = {
+		{ "ready", 0 },
+		{ "marine", 1 },
+		{ "alien", 2 },
+		{ "spectat", 3 },
+		{ "blu", 1 },
+		{ "orang", 2 },
+		{ "gold", 2 },
+		{ "^rr", 0 }
+	}
 
-		local ToNum = tonumber( String )
+	local StringLower = string.lower
 
-		if ToNum then return MathClamp( Round( ToNum ), 0, 3 ) end
+	-- Team takes either 0 - 3 directly or takes a string matching a team name
+	-- and turns it into the team number.
+	ParamTypes.team = {
+		Parse = function( Client, String, Table )
+			if not String then
+				return GetDefault( Table )
+			end
 
-		String = String:lower()
+			local TeamNumber = tonumber( String )
+			if TeamNumber then return MathClamp( Round( TeamNumber ), 0, 3 ) end
 
-		if String:find( "ready" ) then return 0 end
-		if String:find( "marine" ) then return 1 end
-		if String:find( "blu" ) then return 1 end
-		if String:find( "alien" ) then return 2 end
-		if String:find( "orang" ) then return 2 end
-		if String:find( "gold" ) then return 2 end
-		if String:find( "spectat" ) then return 3 end
+			String = StringLower( String )
 
-		return nil
-	end,
-	Help = "team"
-}
+			for i = 1, #TeamMatches do
+				if StringFind( String, TeamMatches[ i ][ 1 ] ) then
+					return TeamMatches[ i ][ 2 ]
+				end
+			end
+
+			return nil
+		end,
+		Help = "team"
+	}
+end
+
 ParamTypes.steamid = {
 	Parse = function( Client, String, Table )
-		local Num = tonumber( String )
-		if Num then return Num end
+		local NS2ID = tonumber( String )
+		if NS2ID then return NS2ID end
 
 		return Shine.SteamIDToNS2( String )
 	end,
