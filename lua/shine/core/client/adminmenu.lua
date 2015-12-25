@@ -13,10 +13,6 @@ Shine.AdminMenu = {}
 
 local AdminMenu = Shine.AdminMenu
 
-Hook.Add( "OnMapLoad", "AdminMenu_Hook", function()
-	Hook.SetupGlobalHook( "Scoreboard_OnClientDisconnect", "OnClientIDDisconnect", "PassivePre" )
-end )
-
 Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
 	AdminMenu:SetIsVisible( true )
 end )
@@ -349,6 +345,7 @@ do
 			PlayerList:SetSize( Vector( 640 - 192 - 16, 512, 0 ) )
 			PlayerList:SetNumericColumn( 2 )
 			PlayerList:SetMultiSelect( true )
+			PlayerList:SetSecondarySortColumn( 3, 1 )
 			PlayerList.ScrollPos = Vector( 0, 32, 0 )
 
 			UpdatePlayers()
@@ -360,16 +357,6 @@ do
 			end )
 
 			AdminMenu.RestoreListState( PlayerList, Data )
-
-			Hook.Add( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers", function( ClientID )
-				local Row = Rows[ ClientID ]
-
-				if SGUI.IsValid( PlayerList ) and SGUI.IsValid( Row ) then
-					PlayerList:RemoveRow( Row.Index )
-
-					Rows[ ClientID ] = nil
-				end
-			end )
 
 			Commands = SGUI:Create( "CategoryPanel", Panel )
 			Commands:SetAnchor( "TopRight" )
@@ -430,7 +417,6 @@ do
 			TableEmpty( Rows )
 
 			Shine.Timer.Destroy( "AdminMenu_Update" )
-			Hook.Remove( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers" )
 
 			return Data
 		end
