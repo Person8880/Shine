@@ -258,6 +258,11 @@ do
 	end
 
 	local function TableToString( Table, Indent, Done )
+		if not IsType( Table, "table" ) then
+			error( StringFormat( "bad argument #1 to 'table.ToString' (expected table, got %s)",
+				type( Table ) ), 2 )
+		end
+
 		Indent = Indent or 1
 		Done = Done or {}
 
