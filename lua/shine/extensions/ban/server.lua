@@ -239,7 +239,7 @@ end
 function Plugin:NS2ToShine( Data )
 	for i = 1, #Data do
 		local Table = Data[ i ]
-		local SteamID = tostring( Table.id )
+		local SteamID = Table.id and tostring( Table.id )
 
 		if SteamID then
 			Data[ SteamID ] = NS2EntryToShineEntry( Table )
