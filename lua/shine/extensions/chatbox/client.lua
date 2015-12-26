@@ -514,7 +514,7 @@ function Plugin:CreateChatbox()
 	end
 
 	function SettingsButton:DoClick()
-		Plugin:OpenSettings( Border, UIScale, ScalarScale )
+		return Plugin:OpenSettings( Border, UIScale, ScalarScale )
 	end
 
 	SettingsButton:SetTooltip( "Opens/closes the chatbox settings." )
@@ -547,11 +547,11 @@ do
 				local CheckBox = SettingsPanel:Add( "CheckBox" )
 				CheckBox:SetupFromTable{
 					AutoSize = Size,
-					Checked = Checked,
 					Font = self:GetFont(),
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
 				CheckBox:AddLabel( Label )
+				CheckBox:SetChecked( Checked, true )
 
 				if self.TextScale ~= 1 then
 					CheckBox:SetTextScale( self.TextScale )
@@ -743,7 +743,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 	end
 
 	local SettingsButton = self.SettingsButton
-	if SettingsButton.Expanding then return end
+	if SettingsButton.Expanding then return false end
 
 	SettingsButton.Expanding = true
 
@@ -772,6 +772,8 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 
 		SettingsButton.Expanding = false
 	end )
+
+	return true
 end
 
 --Close on pressing escape (it's not hardcoded, unlike Source!)
