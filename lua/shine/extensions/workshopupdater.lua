@@ -27,6 +27,11 @@ Plugin.DefaultConfig = {
 	ForceMapvoteAtRoundEnd = false
 }
 
+Plugin.PrintName = "Workshop"
+Plugin.NotifyPrefixColour = {
+	255, 160, 0
+}
+
 local RemainingNotifications = Huge
 local ModChangeTimer = "CheckForModChange"
 
@@ -61,12 +66,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:Notify( String, Format, ... )
-	String = Format and StringFormat( String, ... ) or String
-
-	Shine:NotifyDualColour( nil, 255, 160, 0, "[Workshop]", 255, 255, 255, String )
 end
 
 local LastKnownUpdate = {}
@@ -148,8 +147,8 @@ function Plugin:NotifyOrCycle( Recall )
 		end
 	end
 
-	self:Notify( "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
-	self:Notify( "Players may be unable to connect to the server until map change." )
+	self:Notify( nil, "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
+	self:Notify( nil, "Players may be unable to connect to the server until map change." )
 
 	if RemainingNotifications < Huge then
 		local TimeRemainingString = "now"
@@ -160,7 +159,7 @@ function Plugin:NotifyOrCycle( Recall )
 			TimeRemainingString = StringFormat( "in %s", string.TimeToString( TimeBeforeChange ) )
 		end
 
-		self:Notify( "The map will cycle %s.", true, TimeRemainingString )
+		self:Notify( nil, "The map will cycle %s.", true, TimeRemainingString )
 	end
 
 	if RemainingNotifications == 0 then

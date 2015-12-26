@@ -15,6 +15,9 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "CommBans.json"
 Plugin.PrintName = "CommBans"
+Plugin.NotifyPrefixColour = {
+	255, 50, 0
+}
 
 Plugin.DefaultConfig = {
 	Banned = {},
@@ -41,10 +44,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:Notify( Player, String, Format, ... )
-	Shine:NotifyDualColour( Player, 255, 50, 0, "[CommBan]", 255, 255, 255, String, Format, ... )
 end
 
 --[[

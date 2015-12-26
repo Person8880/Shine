@@ -6,7 +6,8 @@
 ]]
 
 local setmetatable = setmetatable
-local TableRemove = table.remove
+local TableConcat = table.concat
+local TableMergeSort = table.MergeSort
 local TableSort = table.sort
 
 local Stream = {}
@@ -24,10 +25,30 @@ end
 	Any value for which the predicate returns false will be removed.
 ]]
 function Stream:Filter( Predicate )
-	for i = #self.Data, 1, -1 do
+	local Size = #self.Data
+	local Offset = 0
+
+	for i = 1, Size do
+		self.Data[ i - Offset ] = self.Data[ i ]
 		if not Predicate( self.Data[ i ] ) then
-			TableRemove( self.Data, i )
+			self.Data[ i ] = nil
+			Offset = Offset + 1
 		end
+	end
+
+	for i = Size, Size - Offset + 1, -1 do
+		self.Data[ i ] = nil
+	end
+
+	return self
+end
+
+--[[
+	Performs an action on all values in the stream, without changing the stream.
+]]
+function Stream:ForEach( Function )
+	for i = 1, #self.Data do
+		Function( self.Data[ i ] )
 	end
 
 	return self
@@ -56,6 +77,15 @@ function Stream:Sort( Comparator )
 end
 
 --[[
+	Sorts the values in the stream with the given comparator using a stable merge sort.
+]]
+function Stream:StableSort( Comparator )
+	TableMergeSort( self.Data, Comparator )
+
+	return self
+end
+
+--[[
 	Imposes a limit on the number of results.
 ]]
 function Stream:Limit( Limit )
@@ -66,6 +96,20 @@ function Stream:Limit( Limit )
 	end
 
 	return self
+end
+
+--[[
+	Concatenates the values in the stream into a single string based
+	on the string value returned by the transformation function.
+]]
+function Stream:Concat( Separator, ToStringFunc )
+	local Values = {}
+
+	for i = 1, #self.Data do
+		Values[ i ] = ToStringFunc( self.Data[ i ] )
+	end
+
+	return TableConcat( Values, Separator )
 end
 
 --[[

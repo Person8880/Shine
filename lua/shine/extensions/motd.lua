@@ -29,16 +29,17 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
+Plugin.PrintName = "MOTD"
+Plugin.NotifyPrefixColour = {
+	0, 100, 255
+}
+
 function Plugin:Initialise()
 	self:CreateCommands()
 
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:Notify( Player, String, Format, ... )
-	Shine:NotifyDualColour( Player, 0, 100, 255, "[MOTD]", 255, 255, 255, String, Format, ... )
 end
 
 function Plugin:ShowMotD( Client, OnConnect )

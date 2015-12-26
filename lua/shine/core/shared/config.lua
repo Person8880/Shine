@@ -42,7 +42,7 @@ Shine.WriteFile = WriteFile
 function Shine.LoadJSONFile( Path )
 	local Data, Err = ReadFile( Path )
 	if not Data then
-		return nil, Err
+		return false, Err
 	end
 
 	return Decode( Data )

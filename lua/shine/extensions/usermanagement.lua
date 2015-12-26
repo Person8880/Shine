@@ -79,9 +79,9 @@ function Plugin:SubmitOperation( OperationID, KeyValues, Revert )
 				return
 			end
 
-			local Decoded = Decode( Data )
+			local Decoded, Pos, Err = Decode( Data )
 			if not Decoded then
-				self:Print( "Received invalid JSON in response for operation %s.", true, OperationID )
+				self:Print( "Received invalid JSON in response for operation %s. Error: %s", true, OperationID, Err )
 				return
 			end
 

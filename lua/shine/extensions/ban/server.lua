@@ -19,6 +19,7 @@ local StringFormat = string.format
 local TableCopy = table.Copy
 local TableRemove = table.remove
 local TableShallowMerge = table.ShallowMerge
+local TableSort = table.sort
 local Time = os.time
 
 Plugin.HasConfig = true
@@ -117,25 +118,28 @@ end
 function Plugin:LoadBansFromWeb()
 	local function BansResponse( Response )
 		if not Response then
-			Shine:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
+			self:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
 
 			return
 		end
 
-		local BansData = Decode( Response ) or {}
+		local BansData, Pos, Err = Decode( Response )
+		if not IsType( BansData, "table" ) then
+			self:Print( "[Error] Loading bans from the web received invalid JSON. Error: %s", true, Err )
+			return
+		end
+
 		local Edited
-		if IsType( BansData, "table" ) then
-			if BansData.Banned then
-				Edited = true
-				self.Config.Banned = BansData.Banned
-			elseif BansData[ 1 ] and BanData[ 1 ].id then
-				Edited = true
-				self.Config.Banned = self:NS2ToShine( BansData )
-			end
+		if BansData.Banned then
+			Edited = true
+			self.Config.Banned = BansData.Banned
+		elseif BansData[ 1 ] and BanData[ 1 ].id then
+			Edited = true
+			self.Config.Banned = self:NS2ToShine( BansData )
 		end
 
 		--Cache the data in case we get a bad response later.
-		if Edited then
+		if Edited and not self:CheckBans() then
 			self:SaveConfig()
 		end
 		self:GenerateNetworkData()
@@ -235,7 +239,7 @@ end
 function Plugin:NS2ToShine( Data )
 	for i = 1, #Data do
 		local Table = Data[ i ]
-		local SteamID = tostring( Table.id )
+		local SteamID = Table.id and tostring( Table.id )
 
 		if SteamID then
 			Data[ SteamID ] = NS2EntryToShineEntry( Table )
@@ -271,7 +275,10 @@ end
 function Plugin:GenerateNetworkData()
 	local BanData = TableCopy( self.Config.Banned )
 
-	local NetData = self.BanNetworkData or {}
+	local NetData = self.BanNetworkData
+	local ShouldSort = NetData == nil
+
+	NetData = NetData or {}
 
 	--Remove all the bans we already know about.
 	for i = 1, #NetData do
@@ -290,6 +297,22 @@ function Plugin:GenerateNetworkData()
 	for ID, Data in pairs( BanData ) do
 		NetData[ #NetData + 1 ] = Data
 		Data.ID = ID
+	end
+
+	-- On initial population, sort by expiry, starting at the soonest to expire.
+	if ShouldSort then
+		TableSort( NetData, function( A, B )
+			-- Push permanent bans back to the end of the list.
+			if not A.UnbanTime or A.UnbanTime == 0 then
+				return false
+			end
+
+			if not B.UnbanTime or B.UnbanTime == 0 then
+				return true
+			end
+
+			return A.UnbanTime < B.UnbanTime
+		end )
 	end
 
 	self.BanNetworkData = NetData
@@ -313,6 +336,8 @@ function Plugin:CheckBans()
 	if Edited then
 		self:SaveConfig()
 	end
+
+	return Edited
 end
 
 function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
@@ -327,9 +352,9 @@ function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
 				return
 			end
 
-			local Decoded = Decode( Data )
+			local Decoded, Pos, Err = Decode( Data )
 			if not Decoded then
-				self:Print( "Received invalid JSON for %s of %s.", true, Operation, ID )
+				self:Print( "Received invalid JSON for %s of %s. Error: %s", true, Operation, ID, Err )
 				return
 			end
 

@@ -147,31 +147,7 @@ function Button:OnMouseDown( Key, DoubleClick )
 		return true, Child
 	end
 
-	if Key ~= InputKey.MouseButton0 then return end
-	--We can't trust self.Highlighted.
-	if not self:MouseIn( self.Background ) then return end
-
-	return true, self
-end
-
-function Button:OnMouseUp( Key )
-	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background ) then return end
-
-	local Time = Clock()
-
-	if ( self.ClickDelay or 0.1 ) > 0 and ( self.NextClick or 0 ) > Time then return true end
-
-	self.NextClick = Time + ( self.ClickDelay or 0.1 )
-
-	if self.DoClick then
-		local Sound = self.Sound
-		if self:DoClick() ~= false and Sound then
-			Shared.PlaySound( nil, Sound )
-		end
-
-		return true
-	end
+	return self.Mixins.Clickable.OnMouseDown( self, Key, DoubleClick )
 end
 
 function Button:OnMouseMove( Down )
@@ -198,4 +174,5 @@ function Button:PlayerType( Char )
 	end
 end
 
+SGUI:AddMixin( Button, "Clickable" )
 SGUI:Register( "Button", Button )

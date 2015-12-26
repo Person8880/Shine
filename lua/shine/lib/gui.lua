@@ -341,18 +341,7 @@ function SGUI:SetWindowFocus( Window, i )
 	self.FocusedWindow = Window
 end
 
-local ToDebugString = table.ToDebugString
-local Traceback = debug.traceback
-
-local function OnError( Error )
-	local Trace = Traceback()
-
-	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
-
-	Shine:DebugPrint( "SGUI Error: %s.\n%s", true, Error, Trace )
-	Shine:AddErrorReport( StringFormat( "SGUI Error: %s.", Error ),
-		"%s\nLocals:\n%s", true, Trace, Locals )
-end
+local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
 function SGUI:PostCallEvent()
 	local PostEventActions = self.PostEventActions
@@ -451,6 +440,25 @@ do
 				self.EnabledMouse = false
 			end
 		end
+	end
+end
+
+SGUI.Mixins = {}
+
+function SGUI:RegisterMixin( Name, Table )
+	self.Mixins[ Name ] = Table
+end
+
+do
+	local TableShallowMerge = table.ShallowMerge
+
+	function SGUI:AddMixin( Table, Name )
+		local Mixin = self.Mixins[ Name ]
+
+		TableShallowMerge( Mixin, Table )
+
+		Table.Mixins = Table.Mixins or {}
+		Table.Mixins[ Name ] = Mixin
 	end
 end
 
@@ -684,6 +692,7 @@ SGUI.NotifyFocusChange = NotifyFocusChange
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
+	Shine.LoadScriptsByPath( "lua/shine/lib/gui/mixins" )
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 

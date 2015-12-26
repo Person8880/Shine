@@ -2,6 +2,8 @@
 	Shine internal hook system.
 ]]
 
+local Shine = Shine
+
 local Clamp = math.Clamp
 local DebugSetUpValue = debug.setupvalue
 local Floor = math.floor
@@ -13,7 +15,8 @@ local StringFormat = string.format
 
 local Map = Shine.Map
 
-Shine.Hook = {}
+local Hook = {}
+Shine.Hook = Hook
 
 local Hooks = {}
 local ReservedNames = {}
@@ -33,7 +36,7 @@ local function Remove( Event, Index )
 	EventHooks[ Priority ]:Remove( Index )
 	ReservedNames[ Event ][ Index ] = nil
 end
-Shine.Hook.Remove = Remove
+Hook.Remove = Remove
 
 --[[
 	Adds a function to Shine's internal hook system.
@@ -58,43 +61,28 @@ local function Add( Event, Index, Function, Priority )
 	Hooks[ Event ][ Priority ]:Add( Index, Function )
 	ReservedNames[ Event ][ Index ] = Priority
 end
-Shine.Hook.Add = Add
+Hook.Add = Add
 
-local ToDebugString = table.ToDebugString
-local Traceback = debug.traceback
+local OnError = Shine.BuildErrorHandler( "Hook error" )
 
-local function OnError( Err )
-	local Trace = Traceback()
-
-	local Locals = ToDebugString( Shine.GetLocals( 1 ) )
-
-	Shine:DebugPrint( "Error: %s.\n%s", true, Err, Trace )
-	Shine:AddErrorReport( StringFormat( "Hook error: %s.", Err ),
-		"%s\nLocals:\n%s", true, Trace, Locals )
-end
-
-local RemovalExceptions = {
-	PlayerSay = { CommandExecute = true }
-}
-
-local function CallHooks( HookMap, ProtectedHooks, Event, ... )
+local function CallHooks( HookMap, Event, ... )
 	for Index, Func in HookMap:Iterate() do
 		local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
 
 		if not Success then
-			if not ( ProtectedHooks and ProtectedHooks[ Index ] ) then
-				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-					true, Event, Index )
+			Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
+				true, Event, Index )
 
-				Remove( Event, Index )
-			else
-				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed.",
-					true, Event, Index )
-			end
+			Remove( Event, Index )
 		else
 			if a ~= nil then return a, b, c, d, e, f end
 		end
 	end
+end
+
+-- Placeholder until the extensions file is loaded.
+if not Shine.CallExtensionEvent then
+	Shine.CallExtensionEvent = function() end
 end
 
 --[[
@@ -102,48 +90,23 @@ end
 	Inputs: Event name, arguments to pass.
 ]]
 local function Call( Event, ... )
-	if Shine.Hook.Disabled then return end
-
-	local Plugins = Shine.Plugins
-	local AllPlugins = Shine.AllPluginsArray
+	if Hook.Disabled then return end
 
 	local Hooked = Hooks[ Event ]
-	local MaxPriority = Hooked and Hooked[ -20 ]
-	local ProtectedHooks = RemovalExceptions[ Event ]
 
-	--Call max priority hooks BEFORE plugins.
-	if MaxPriority then
-		local a, b, c, d, e, f = CallHooks( MaxPriority, ProtectedHooks, Event, ... )
-		if a ~= nil then return a, b, c, d, e, f end
+	do
+		local MaxPriority = Hooked and Hooked[ -20 ]
+		-- Call max priority hooks BEFORE plugins.
+		if MaxPriority then
+			local a, b, c, d, e, f = CallHooks( MaxPriority, Event, ... )
+			if a ~= nil then return a, b, c, d, e, f end
+		end
 	end
 
-	if Plugins and AllPlugins then
-		--Automatically call the plugin hooks.
-		for i = 1, #AllPlugins do
-			local Plugin = AllPlugins[ i ]
-			local Table = Plugins[ Plugin ]
-
-			if Table and Table.Enabled and IsType( Table[ Event ], "function" ) then
-				local Success, a, b, c, d, e, f = xpcall( Table[ Event ], OnError, Table, ... )
-
-				if not Success then
-					Table.__HookErrors = ( Table.__HookErrors or 0 ) + 1
-					Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
-						true, Event, Plugin, Table.__HookErrors )
-
-					if Table.__HookErrors >= 10 then
-						Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
-							true, Plugin, Table.__HookErrors )
-
-						Table.__HookErrors = 0
-
-						Shine:UnloadExtension( Plugin )
-					end
-				else
-					if a ~= nil then return a, b, c, d, e, f end
-				end
-			end
-		end
+	-- Now call plugins (when loaded).
+	do
+		local a, b, c, d, e, f = Shine:CallExtensionEvent( Event, OnError, ... )
+		if a ~= nil then return a, b, c, d, e, f end
 	end
 
 	if not Hooked then return end
@@ -152,14 +115,24 @@ local function Call( Event, ... )
 		local HookMap = Hooked[ i ]
 
 		if HookMap then
-			local a, b, c, d, e, f = CallHooks( HookMap, ProtectedHooks, Event, ... )
+			local a, b, c, d, e, f = CallHooks( HookMap, Event, ... )
 			if a ~= nil then return a, b, c, d, e, f end
 		end
 	end
 end
-Shine.Hook.Call = Call
+Hook.Call = Call
 
-function Shine.Hook.GetTable()
+local function CallOnce( Event, ... )
+	local a, b, c, d, e, f = Call( Event, ... )
+
+	Hooks[ Event ] = nil
+	ReservedNames[ Event ] = nil
+
+	return a, b, c, d, e, f
+end
+Hook.CallOnce = CallOnce
+
+function Hook.GetTable()
 	return Hooks
 end
 
@@ -169,7 +142,7 @@ end
 	Inputs: Class name, method name, replacement function.
 	Output: Original function.
 ]]
-local function AddClassHook( Class, Method, ReplacementFunc )
+local function AddClassHook( ReplacementFunc, Class, Method )
 	local OldFunc
 
 	OldFunc = ReplaceMethod( Class, Method, function( ... )
@@ -185,7 +158,7 @@ end
 	Inputs: Global function name, replacement function.
 	Output: Original function.
 ]]
-local function AddGlobalHook( FuncName, ReplacementFunc )
+local function AddGlobalHook( ReplacementFunc, FuncName )
 	local Path = StringExplode( FuncName, "%." )
 
 	local Func = _G
@@ -211,7 +184,7 @@ local function AddGlobalHook( FuncName, ReplacementFunc )
 end
 
 --[[
-	All available preset hooking methods for classes:
+	All available preset hooking methods:
 
 	- Replace: Replaces the function with a Shine hook call.
 
@@ -231,33 +204,31 @@ end
 	- Halt: Calls the given Shine hook. If it returns a non-nil value,
 	the method is stopped and returns nothing. Otherwise the original method is returned.
 ]]
-local ClassHookModes = {
-	Replace = function( Class, Method, HookName )
-		AddClassHook( Class, Method, function( OldFunc, ... )
+local HookModes = {
+	Replace = function( Adder, HookName, ... )
+		Adder( function( OldFunc, ... )
 			return Call( HookName, ... )
-		end )
+		end, ... )
 	end,
-
-	PassivePre = function( Class, Method, HookName )
-		AddClassHook( Class, Method, function( OldFunc, ... )
+	PassivePre = function( Adder, HookName, ... )
+		Adder( function( OldFunc, ... )
 			Call( HookName, ... )
 
 			return OldFunc( ... )
-		end )
+		end, ... )
 	end,
-
-	PassivePost = function( Class, Method, HookName )
-		AddClassHook( Class, Method, function( OldFunc, ... )
+	PassivePost = function( Adder, HookName, ... )
+		Adder( function( OldFunc, ... )
 			local a, b, c, d, e, f = OldFunc( ... )
 
 			Call( HookName, ... )
 
 			return a, b, c, d, e, f
-		end )
+		end, ... )
 	end,
 
-	ActivePre = function( Class, Method, HookName )
-		AddClassHook( Class, Method, function( OldFunc, ... )
+	ActivePre = function( Adder, HookName, ... )
+		Adder( function( OldFunc, ... )
 			local a, b, c, d, e, f = Call( HookName, ... )
 
 			if a ~= nil then
@@ -265,11 +236,11 @@ local ClassHookModes = {
 			end
 
 			return OldFunc( ... )
-		end )
+		end, ... )
 	end,
 
-	ActivePost = function( Class, Method, HookName )
-		AddClassHook( Class, Method, function( OldFunc, ... )
+	ActivePost = function( Adder, HookName, ... )
+		Adder( function( OldFunc, ... )
 			local a, b, c, d, e, f = OldFunc( ... )
 
 			local g, h, i, j, k, l = Call( HookName, ... )
@@ -279,81 +250,17 @@ local ClassHookModes = {
 			end
 
 			return a, b, c, d, e, f
-		end )
+		end, ... )
 	end,
 
-	Halt = function( Class, Method, HookName )
-		AddClassHook( Class, Method, function( OldFunc, ... )
+	Halt = function( Adder, HookName, ... )
+		Adder( function( OldFunc, ... )
 			local Ret = Call( HookName, ... )
 
 			if Ret ~= nil then return end
 
 			return OldFunc( ... )
-		end )
-	end
-}
-
---All available preset hooking methods for global functions.
---Explanations are same as for class hooks.
-local GlobalHookModes = {
-	Replace = function( FuncName, HookName )
-		AddGlobalHook( FuncName, function( OldFunc, ... )
-			return Call( HookName, ... )
-		end )
-	end,
-
-	PassivePre = function( FuncName, HookName )
-		AddGlobalHook( FuncName, function( OldFunc, ... )
-			Call( HookName, ... )
-
-			return OldFunc( ... )
-		end )
-	end,
-
-	PassivePost = function( FuncName, HookName )
-		AddGlobalHook( FuncName, function( OldFunc, ... )
-			local a, b, c, d, e, f = OldFunc( ... )
-
-			Call( HookName, ... )
-
-			return a, b, c, d, e, f
-		end )
-	end,
-
-	ActivePre = function( FuncName, HookName )
-		AddGlobalHook( FuncName, function( OldFunc, ... )
-			local a, b, c, d, e, f = Call( HookName, ... )
-
-			if a ~= nil then
-				return a, b, c, d, e, f
-			end
-
-			return OldFunc( ... )
-		end )
-	end,
-
-	ActivePost = function( FuncName, HookName )
-		AddGlobalHook( FuncName, function( OldFunc, ... )
-			local a, b, c, d, e, f = OldFunc( ... )
-
-			local g, h, i, j, k, l = Call( HookName, ... )
-
-			if g ~= nil then
-				return g, h, i, j, k, l
-			end
-
-			return a, b, c, d, e, f
-		end )
-	end,
-
-	Halt = function( FuncName, HookName )
-		AddGlobalHook( FuncName, function( OldFunc, ... )
-			local Ret = Call( HookName, ... )
-
-			if Ret ~= nil then return end
-
-			return OldFunc( ... )
-		end )
+		end, ... )
 	end
 }
 
@@ -368,23 +275,22 @@ local GlobalHookModes = {
 
 	Output: Original function we have now replaced.
 
-	Mode can either be a string from the ClassHookModes table above,
+	Mode can either be a string from the HookModes table above,
 	or it can be a custom hook function.
 
 	The function will be passed the original function, then the arguments it was run with.
 ]]
 local function SetupClassHook( Class, Method, HookName, Mode )
 	if IsType( Mode, "function" ) then
-		return AddClassHook( Class, Method, Mode )
+		return AddClassHook( Mode, Class, Method )
 	end
 
-	local HookFunc = ClassHookModes[ Mode ]
-
+	local HookFunc = HookModes[ Mode ]
 	if not HookFunc then return nil end
 
-	return HookFunc( Class, Method, HookName )
+	return HookFunc( AddClassHook, HookName, Class, Method )
 end
-Shine.Hook.SetupClassHook = SetupClassHook
+Hook.SetupClassHook = SetupClassHook
 
 --[[
 	Sets up a Shine hook for a global function.
@@ -395,23 +301,22 @@ Shine.Hook.SetupClassHook = SetupClassHook
 
 	Output: Original function we have now replaced.
 
-	Mode can either be a string from the GlobalHookModes table above,
+	Mode can either be a string from the HookModes table above,
 	or it can be a custom hook function.
 
 	The function will be passed the original function, then the arguments it was run with.
 ]]
 local function SetupGlobalHook( FuncName, HookName, Mode )
 	if IsType( Mode, "function" ) then
-		return AddGlobalHook( FuncName, Mode )
+		return AddGlobalHook( Mode, FuncName )
 	end
 
-	local HookFunc = GlobalHookModes[ Mode ]
-
+	local HookFunc = HookModes[ Mode ]
 	if not HookFunc then return nil end
 
-	return HookFunc( FuncName, HookName )
+	return HookFunc( AddGlobalHook, HookName, FuncName )
 end
-Shine.Hook.SetupGlobalHook = SetupGlobalHook
+Hook.SetupGlobalHook = SetupGlobalHook
 
 --[[
 	Replaces a function upvalue in the upvalues of TargetFunc.
@@ -427,7 +332,7 @@ Shine.Hook.SetupGlobalHook = SetupGlobalHook
 	Output:
 		The original function that has now been replaced.
 ]]
-function Shine.Hook.ReplaceLocalFunction( TargetFunc, UpvalueName, Replacement, DifferingValues, Recursive )
+function Hook.ReplaceLocalFunction( TargetFunc, UpvalueName, Replacement, DifferingValues, Recursive )
 	local Value, i, Func = Shine.GetUpValue( TargetFunc, UpvalueName )
 
 	if not Value or not IsType( Value, "function" ) then return end
@@ -475,26 +380,20 @@ do
 			Shine.SetUpValueByValue( Script.Load, ScriptLoad, OldScriptLoad, true )
 		end
 
-		Call "MapPreLoad"
+		CallOnce "MapPreLoad"
 	end
 	Event.Hook( "MapPreLoad", MapPreLoad )
 
 	local function MapPostLoad()
-		Call "MapPostLoad"
+		CallOnce "MapPostLoad"
 	end
 	Event.Hook( "MapPostLoad", MapPostLoad )
-end
-
-local function CallOnFirstThink()
-	Call( "OnFirstThink" )
-	Hooks.OnFirstThink = nil
-	ReservedNames.OnFirstThink = nil
 end
 
 --Client specific hooks.
 if Client then
 	local function LoadComplete()
-		Call "OnMapLoad"
+		CallOnce "OnMapLoad"
 	end
 	Event.Hook( "LoadComplete", LoadComplete )
 
@@ -541,7 +440,7 @@ if Client then
 	end, -20 )
 
 	Add( "Think", "ClientOnFirstThink", function()
-		CallOnFirstThink()
+		CallOnce( "OnFirstThink" )
 		Remove( "Think", "ClientOnFirstThink" )
 	end )
 
@@ -631,6 +530,8 @@ end
 	Here we replace class methods in order to hook into certain important events.
 ]]
 Add( "Think", "ReplaceMethods", function()
+	Remove( "Think", "ReplaceMethods" )
+
 	local Gamerules = "NS2Gamerules"
 
 	--For the factions mod.
@@ -766,6 +667,5 @@ Add( "Think", "ReplaceMethods", function()
 		end
 	end
 
-	Remove( "Think", "ReplaceMethods" )
-	CallOnFirstThink()
+	CallOnce( "OnFirstThink" )
 end )

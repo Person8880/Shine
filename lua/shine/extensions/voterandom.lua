@@ -31,6 +31,9 @@ local tostring = tostring
 local Plugin = {}
 Plugin.Version = "2.0"
 Plugin.PrintName = "Shuffle"
+Plugin.NotifyPrefixColour = {
+	100, 255, 100
+}
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteRandom.json"
@@ -158,10 +161,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 255, 100, "[Shuffle]", 255, 255, 255, Message, Format, ... )
 end
 
 --[[

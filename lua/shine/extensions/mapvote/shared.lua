@@ -94,39 +94,48 @@ local function SendMapVote( MapName )
 	return false
 end
 
-Shine.VoteMenu:AddPage( "MapVote", function( self )
-	local Maps = Plugin.Maps
-	if not Maps then
-		return
+do
+	local function ClosePageIfVoteFinished( self )
+		local Time = SharedTime()
+
+		if Plugin.EndTime < Time then
+			self:SetPage( "Main" )
+			return true
+		end
+
+		return false
 	end
 
-	local NumMaps = #Maps
+	Shine.VoteMenu:AddPage( "MapVote", function( self )
+		if ClosePageIfVoteFinished( self ) then return end
 
-	for i = 1, NumMaps do
-		local Map = Maps[ i ]
-		local Votes = Plugin.MapVoteCounts[ Map ]
+		local Maps = Plugin.Maps
+		if not Maps then
+			return
+		end
 
-		local Text = StringFormat( "%s (%i)", Map, Votes )
+		local NumMaps = #Maps
 
-		Plugin.MapButtons[ Map ] = self:AddSideButton( Text, function()
-			if SendMapVote( Map ) then
-				self:SetIsVisible( false )
-			else
-				return false
-			end
+		for i = 1, NumMaps do
+			local Map = Maps[ i ]
+			local Votes = Plugin.MapVoteCounts[ Map ]
+
+			local Text = StringFormat( "%s (%i)", Map, Votes )
+
+			Plugin.MapButtons[ Map ] = self:AddSideButton( Text, function()
+				if SendMapVote( Map ) then
+					self:SetIsVisible( false )
+				else
+					return false
+				end
+			end )
+		end
+
+		self:AddTopButton( "Back", function()
+			self:SetPage( "Main" )
 		end )
-	end
-
-	self:AddTopButton( "Back", function()
-		self:SetPage( "Main" )
-	end )
-end, function( self )
-	local Time = SharedTime()
-
-	if Plugin.EndTime < Time then
-		self:SetPage( "Main" )
-	end
-end )
+	end, ClosePageIfVoteFinished )
+end
 
 function Plugin:ReceiveVoteProgress( Data )
 	local MapName = Data.Map

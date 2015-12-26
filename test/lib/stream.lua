@@ -6,11 +6,27 @@ local UnitTest = Shine.UnitTest
 local Stream = Shine.Stream
 
 UnitTest:Test( "Filter", function( Assert )
-	local Data = { 1, 2, 3, 4, 5, 6 }
+	local Data = { 1, 4, 3, 5, 2, 6 }
 
 	Stream( Data ):Filter( function( Value ) return Value > 3 end )
 
 	Assert:ArrayEquals( { 4, 5, 6 }, Data )
+end )
+
+UnitTest:Test( "ForEach", function( Assert )
+	local Data = { "a", "b", "c", "d", "e", "f" }
+	local Visited = {}
+	local Count = 0
+
+	Stream( Data ):ForEach( function( Value )
+		Count = Count + 1
+		Visited[ Value ] = true
+	end )
+
+	Assert:Equals( #Data, Count )
+	for i = 1, Count do
+		Assert:True( Visited[ Data[ i ] ] )
+	end
 end )
 
 UnitTest:Test( "Map", function( Assert )
@@ -29,6 +45,14 @@ UnitTest:Test( "Sort", function( Assert )
 	Assert:ArrayEquals( { 1, 2, 3, 4, 5, 6 }, Data )
 end )
 
+UnitTest:Test( "StableSort", function( Assert )
+	local Data = { 5, 3, 6, 4, 2, 1 }
+
+	Stream( Data ):StableSort()
+
+	Assert:ArrayEquals( { 1, 2, 3, 4, 5, 6 }, Data )
+end )
+
 UnitTest:Test( "Limit", function( Assert )
 	local Data = { 1, 2, 3, 4, 5, 6 }
 
@@ -37,4 +61,10 @@ UnitTest:Test( "Limit", function( Assert )
 
 	Stream( Data ):Limit( 3 )
 	Assert:ArrayEquals( { 1, 2, 3 }, Data )
+end )
+
+UnitTest:Test( "Concat", function( Assert )
+	local Data = { 1, 2, 3, 4, 5, 6 }
+
+	Assert:Equals( "1, 2, 3, 4, 5, 6", Stream( Data ):Concat( ", ", tostring ) )
 end )

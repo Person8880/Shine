@@ -12,6 +12,8 @@ local pcall = pcall
 local Random = math.random
 local StringChar = string.char
 local StringFind = string.find
+local StringGSub = string.gsub
+local StringLower = string.lower
 local TableConcat = table.concat
 local tostring = tostring
 
@@ -40,6 +42,7 @@ function Plugin:Initialise()
 	self.Config.FilterAction = Clamp( Floor( self.Config.FilterAction ), 1, 3 )
 
 	self:CreateCommands()
+	self.InvalidFilters = {}
 
 	self.Enabled = true
 
@@ -66,22 +69,15 @@ function Plugin:CreateCommands()
 end
 
 Plugin.FilterActions = {
-	function( self, Player, OldName ) --Rename them to a random string.
-		local UserName = {}
-		for i = 1, Random( 5, 10 ) do
-			UserName[ i ] = StringChar( Random( 65, 122 ) )
-		end
-
-		local FinalUserName = TableConcat( UserName, "" )
-
-		Player:SetName( FinalUserName )
+	function( self, Player, OldName ) -- Rename them to NSPlayer<RandomLargeNumber>
+		local UserName = "NSPlayer"..Random( 1e3, 1e5 )
+		Player:SetName( UserName )
 
 		local Client = GetOwner( Player )
-
 		if not Client then return end
 
 		self:Print( "Client %s[%s] was renamed from filtered name: %s", true,
-			FinalUserName, Client:GetUserId(), OldName )
+			UserName, Client:GetUserId(), OldName )
 	end,
 
 	function( self, Player, OldName ) --Kick them out.
@@ -97,11 +93,9 @@ Plugin.FilterActions = {
 
 	function( self, Player, OldName ) --Ban them.
 		local Client = GetOwner( Player )
-
 		if not Client then return end
 
 		local ID = Client:GetUserId()
-
 		local Enabled, BanPlugin = Shine:IsExtensionEnabled( "ban" )
 
 		if Enabled then
@@ -124,21 +118,29 @@ Plugin.FilterActions = {
 
 	Excluded should be an NS2ID which identifies the player who owns this name pattern.
 ]]
-function Plugin:ProcessFilter( Player, Name, Pattern, Excluded )
-	if not Pattern then return end
+function Plugin:ProcessFilter( Player, Name, Filter )
+	if not Filter.Pattern then return end
 
 	local Client = GetOwner( Player )
+	if Client and tostring( Client:GetUserId() ) == tostring( Filter.Excluded ) then return end
 
-	--This is the real player!
-	if Client and tostring( Client:GetUserId() ) == tostring( Excluded ) then return end
+	local LoweredName = StringLower( Name )
+	local Pattern = StringLower( Filter.Pattern )
 
-	local LoweredName = Name:lower()
-	Pattern = Pattern:lower()
+	local Start
+	if Filter.PlainText then
+		Start = StringFind( LoweredName, Pattern, 1, true )
+	else
+		local Success
+		Success, Start = pcall( StringFind, LoweredName, Pattern )
 
-	--If someone doesn't know about regex, they could pass an invalid pattern...
-	local Success, Start = pcall( StringFind, LoweredName, Pattern )
-
-	if not Success then return end
+		if not Success then
+			self.InvalidFilters[ Filter ] = true
+			self:Print( "Pattern '%s' is invalid: %s. Set \"PlainText\": true if you do not want to use a Lua pattern match.",
+				true, Pattern, StringGSub( Start, "^.+:%d+:(.+)$", "%1" ) )
+			return
+		end
+	end
 
 	if Start then
 		self.FilterActions[ self.Config.FilterAction ]( self, Player, Name )
@@ -154,11 +156,8 @@ function Plugin:PlayerNameChange( Player, Name, OldName )
 	local Filters = self.Config.Filters
 
 	for i = 1, #Filters do
-		local Filter = Filters[ i ]
-		local Pattern = Filter.Pattern
-		local Excluded = Filter.Excluded
-
-		if self:ProcessFilter( Player, Name, Pattern, Excluded ) then
+		if not self.InvalidFilters[ Filters[ i ] ]
+		and self:ProcessFilter( Player, Name, Filters[ i ] ) then
 			break
 		end
 	end

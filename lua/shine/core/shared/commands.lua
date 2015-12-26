@@ -144,7 +144,7 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg,
 	-- Specifically check for nil (boolean argument could be false).
 	if Result == nil and not CurArg.Optional then
 		if ParamType.OnFailedMatch then
-			ParamType.OnFailedMatch( Client, CurArg, Extra )
+			ParamType.OnFailedMatch( Client, CurArg, Extra, ArgString )
 		else
 			self:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
 		end
@@ -159,13 +159,73 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg,
 		Result = NewResult
 	end
 
-	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result ) then return end
+	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result, ArgString ) then return end
 
 	return true, Result
 end
 
 function Shine.CommandUtil.BuildLineFromArgs( Args, i )
 	return TableConcat( Args, " ", i )
+end
+
+do
+	local StringEndsWith = string.EndsWith
+	local StringGSub = string.gsub
+	local StringLen = string.len
+	local StringMatch = string.match
+	local StringStartsWith = string.StartsWith
+	local StringSub = string.sub
+
+	local function RemoveQuotes( String )
+		-- If the quote wasn't terminated, go to the end of the string.
+		local EndIndex = StringLen( String ) - ( StringEndsWith( String, "\"" ) and 1 or 0 )
+		String = StringSub( String, 2, EndIndex )
+		return StringGSub( String, "\\\"", "\"" )
+	end
+
+	local function GetArgBetweenQuotes( Args, StartIndex, EndIndex )
+		-- Add all text between the quotes, not including the quotes.
+		local String = TableConcat( Args, " ", StartIndex, EndIndex )
+		return RemoveQuotes( String )
+	end
+
+	--[[
+		Takes arguments bounded by quotes as a single argument.
+	]]
+	function Shine.CommandUtil.AdjustArguments( Args )
+		local RealArgs = {}
+		local Count = 0
+		local StartIndex
+
+		for i = 1, #Args do
+			local Arg = Args[ i ]
+
+			if StartIndex then
+				if StringMatch( Arg, "[^\\]\"$" ) then
+					Count = Count + 1
+					RealArgs[ Count ] = GetArgBetweenQuotes( Args, StartIndex, i )
+					StartIndex = nil
+				end
+			elseif StringStartsWith( Arg, "\"" ) then
+				if StringMatch( Arg, "[^\\]\"$" ) then
+					Count = Count + 1
+					RealArgs[ Count ] = RemoveQuotes( Arg )
+				else
+					StartIndex = i
+				end
+			else
+				Count = Count + 1
+				RealArgs[ Count ] = Arg
+			end
+		end
+
+		if StartIndex then
+			Count = Count + 1
+			RealArgs[ Count ] = GetArgBetweenQuotes( Args, StartIndex, #Args )
+		end
+
+		return RealArgs
+	end
 end
 
 if Server then return end

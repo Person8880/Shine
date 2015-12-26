@@ -88,4 +88,5 @@ function ColourLabel:Think( DeltaTime )
 	self:CallOnChildren( "Think", DeltaTime )
 end
 
+SGUI:AddMixin( ColourLabel, "Clickable" )
 SGUI:Register( "ColourLabel", ColourLabel )

@@ -145,7 +145,7 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
 	for i, Player in pairs( Marine ) do
 		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-			OnJoinError, Gamerules, Player, 1, nil, true )
+			OnJoinError, Gamerules, Player, 1, Player:GetTeamNumber() ~= 1, true )
 
 		if Success then
 			Marine[ i ] = NewPlayer
@@ -156,7 +156,7 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
 	for i, Player in pairs( Alien ) do
 		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-			OnJoinError, Gamerules, Player, 2, nil, true )
+			OnJoinError, Gamerules, Player, 2, Player:GetTeamNumber() ~= 2, true )
 
 		if Success then
 			Alien[ i ] = NewPlayer

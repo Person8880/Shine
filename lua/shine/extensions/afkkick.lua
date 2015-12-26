@@ -449,62 +449,64 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 		true, true
 	}
 
-	SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
-		local Gamerules = GetGamerules()
-		local ReadyRoomPlayers = Gamerules:GetTeam( kTeamReadyRoom ):GetPlayers()
-		local Enabled, AFKPlugin = Shine:IsExtensionEnabled( "afkkick" )
+	do
+		local function CheckPlayerIsAFK( Player )
+			if not Player then return end
 
-		for i = #ReadyRoomPlayers, 1, -1 do
-			local Player = ReadyRoomPlayers[ i ]
+			local Client = GetOwner( Player )
+			if not Client then return end
 
-			if Enabled then
-				if Player then
-					local Client = GetOwner( Player )
-
-					if Client then
-						if not AFKPlugin:IsAFKFor( Client, 60 ) then
-							JoinRandomTeam( Player )
-						else
-							local Team = Player:GetTeamNumber()
-							if PlayingTeamNumbers[ Team ] then
-								pcall( Gamerules.JoinTeam, Gamerules, Player,
-									kTeamReadyRoom, nil, true )
-							end
-						end
-					end
-				end
-			else
+			if not Plugin:IsAFKFor( Client, 60 ) then
 				JoinRandomTeam( Player )
+				return
+			end
+
+			if PlayingTeamNumbers[ Player:GetTeamNumber() ] then
+				local Gamerules = GetGamerules()
+
+				pcall( Gamerules.JoinTeam, Gamerules, Player,
+					kTeamReadyRoom, nil, true )
 			end
 		end
-	end )
+
+		SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
+			local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
+			local Enabled = Shine:IsExtensionEnabled( "afkkick" )
+			local Action = Enabled and CheckPlayerIsAFK or JoinRandomTeam
+
+			Shine.Stream( ReadyRoomPlayers ):ForEach( Action )
+		end )
+	end
 
 	if Shine.IsNS2Combat then return end
 
-	local TableRemove = table.remove
+	local function FilterPlayers( Player )
+		local ShouldKeep = true
+		local Client = GetOwner( Player )
+
+		if not Client or Plugin:IsAFKFor( Client, 60 ) then
+			ShouldKeep = false
+
+			if Client and PlayingTeamNumbers[ Player:GetTeamNumber() ] then
+				local Gamerules = GetGamerules()
+
+				pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
+			end
+		end
+
+		return ShouldKeep
+	end
 
 	local OldGetPlayers = ForceEvenTeams_GetPlayers
 	function ForceEvenTeams_GetPlayers()
-		local Enabled, AFKPlugin = Shine:IsExtensionEnabled( "afkkick" )
+		local Enabled = Shine:IsExtensionEnabled( "afkkick" )
 		if not Enabled then
 			return OldGetPlayers()
 		end
 
-		local Gamerules = GetGamerules()
 		local Players = OldGetPlayers()
 
-		for i = #Players, 1, -1 do
-			local Player = Players[ i ]
-			local Client = GetOwner( Player )
-
-			if not Client or AFKPlugin:IsAFKFor( Client, 60 ) then
-				TableRemove( Players, i )
-
-				if Client and PlayingTeamNumbers[ Player:GetTeamNumber() ] then
-					pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
-				end
-			end
-		end
+		Shine.Stream( Players ):Filter( FilterPlayers )
 
 		return Players
 	end

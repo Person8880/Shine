@@ -10,7 +10,7 @@ local Floor = math.floor
 local IsType = Shine.IsType
 local select = select
 local TableRemove = table.remove
-local TableSort = table.sort
+local TableMergeSort = table.MergeSort
 local tonumber = tonumber
 local Vector = Vector
 
@@ -316,7 +316,7 @@ function List:AddRow( ... )
 	end
 
 	if self.SortedColumn then
-		self:SortRows( self.SortedColumn, self.SortingFunc, self.Descending )
+		self:RefreshSorting()
 	else
 		self:InvalidateLayout()
 	end
@@ -390,6 +390,32 @@ local function UpdateHeaderHighlighting( self, Column, OldSortingColumn )
 end
 
 --[[
+	Sets a secondary column to sort by when sorting by the given column.
+]]
+function List:SetSecondarySortColumn( Column, SecondaryColumn )
+	self.SecondarySortColumns = self.SecondarySortColumns or {}
+	self.SecondarySortColumns[ Column ] = SecondaryColumn
+end
+
+function List:GetComparator( Column, Direction )
+	local IsNumeric = self.NumericColumns and self.NumericColumns[ Column ]
+	return Shine.Comparator( "Method", Direction or ( self.Descending and -1 or 1 ), "GetData",
+		Column, IsNumeric and tonumber or string.UTF8Lower )
+end
+
+function List:RefreshSorting( Now )
+	if not self.SortedColumn then return end
+
+	if Now then
+		self.NeedsSortingRefresh = false
+		self:SortRows( self.SortedColumn, self.SortingFunc, self.Descending )
+		return
+	end
+
+	self.NeedsSortingRefresh = true
+end
+
+--[[
 	Sorts the rows, generally used to sort by column values.
 	Inputs: Column to sort by, optional sorting function.
 ]]
@@ -418,13 +444,19 @@ function List:SortRows( Column, SortFunc, Desc )
 		self.Descending = Desc
 	end
 
-	local IsNumeric = self.NumericColumns and self.NumericColumns[ Column ]
-	local Comparator = SortFunc or Shine.Comparator( "Method",
-		self.Descending and -1 or 1, "GetColumnText",
-		Column,
-		IsNumeric and tonumber or string.UTF8Lower ):Compile()
+	local Comparator = SortFunc
+	if not Comparator then
+		local SecondarySortColumn = self.SecondarySortColumns and self.SecondarySortColumns[ Column ]
 
-	TableSort( Rows, Comparator )
+		if SecondarySortColumn then
+			Comparator = Shine.Comparator( "Composition", self:GetComparator( SecondarySortColumn, 1 ),
+				self:GetComparator( Column ) ):CompileStable()
+		else
+			Comparator = self:GetComparator( Column ):CompileStable()
+		end
+	end
+
+	TableMergeSort( Rows, Comparator )
 
 	self.SortedColumn = Column
 	self.SortingFunc = SortFunc
@@ -441,7 +473,6 @@ end
 ]]
 function List:RemoveRow( Index )
 	local Rows = self.Rows
-
 	if not Rows then return end
 
 	local OldRow = Rows[ Index ]
@@ -464,6 +495,10 @@ function List:RemoveRow( Index )
 		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 	else
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
+	end
+
+	if self.SelectedRow == OldRow then
+		self.SelectedRow = nil
 	end
 
 	self:Reorder()
@@ -543,6 +578,10 @@ function List:OnMouseMove( Down )
 end
 
 function List:Think( DeltaTime )
+	if self.NeedsSortingRefresh then
+		self:RefreshSorting( true )
+	end
+
 	self.BaseClass.Think( self, DeltaTime )
 
 	if SGUI.IsValid( self.Scrollbar ) then

@@ -8,15 +8,10 @@ local Hook = Shine.Hook
 
 local IsType = Shine.IsType
 local StringFormat = string.format
-local TableConcat = table.concat
 
 Shine.AdminMenu = {}
 
 local AdminMenu = Shine.AdminMenu
-
-Hook.Add( "OnMapLoad", "AdminMenu_Hook", function()
-	Hook.SetupGlobalHook( "Scoreboard_OnClientDisconnect", "OnClientIDDisconnect", "PassivePre" )
-end )
 
 Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
 	AdminMenu:SetIsVisible( true )
@@ -204,15 +199,12 @@ end
 
 function AdminMenu:OnTabCleanup( Window, Name )
 	local Tab = self.Tabs[ Name ]
-
 	if not Tab then return end
 
 	local OnCleanup = Tab.OnCleanup
-
 	if not OnCleanup then return end
 
 	local Ret = OnCleanup( Window.ContentPanel )
-
 	if Ret then
 		Tab.Data = Ret
 	end
@@ -308,9 +300,18 @@ do
 
 	local function UpdatePlayers()
 		local PlayerEnts = GetEnts( "PlayerInfoEntity" )
+		local ExistingPlayers = {}
 
 		for _, Ent in IterateEntList( PlayerEnts ) do
 			AddPlayerToList( Ent )
+			ExistingPlayers[ Ent.clientId ] = true
+		end
+
+		for ID, Row in pairs( Rows ) do
+			if not ExistingPlayers[ ID ] then
+				PlayerList:RemoveRow( Row.Index )
+				Rows[ ID ] = nil
+			end
 		end
 	end
 
@@ -342,6 +343,7 @@ do
 			PlayerList:SetSize( Vector( 640 - 192 - 16, 512, 0 ) )
 			PlayerList:SetNumericColumn( 2 )
 			PlayerList:SetMultiSelect( true )
+			PlayerList:SetSecondarySortColumn( 3, 1 )
 			PlayerList.ScrollPos = Vector( 0, 32, 0 )
 
 			UpdatePlayers()
@@ -353,16 +355,6 @@ do
 			end )
 
 			AdminMenu.RestoreListState( PlayerList, Data )
-
-			Hook.Add( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers", function( ClientID )
-				local Row = Rows[ ClientID ]
-
-				if SGUI.IsValid( PlayerList ) and SGUI.IsValid( Row ) then
-					PlayerList:RemoveRow( Row.Index )
-
-					Rows[ ClientID ] = nil
-				end
-			end )
 
 			Commands = SGUI:Create( "CategoryPanel", Panel )
 			Commands:SetAnchor( "TopRight" )
@@ -423,10 +415,10 @@ do
 			TableEmpty( Rows )
 
 			Shine.Timer.Destroy( "AdminMenu_Update" )
-			Hook.Remove( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers" )
 
 			return Data
-		end } )
+		end
+	} )
 
 	function AdminMenu:RunCommand( Command, Args )
 		if not Args then
@@ -444,10 +436,10 @@ do
 
 		Window:AddTitleBar( "Error" )
 
-		Shine.AdminMenu:DestroyOnClose( Window )
+		self:DestroyOnClose( Window )
 
 		function Window.CloseButton.DoClick()
-			Shine.AdminMenu:DontDestroyOnClose( Window )
+			self:DontDestroyOnClose( Window )
 			Window:Destroy()
 		end
 
@@ -467,9 +459,19 @@ do
 		OK:SetText( "OK" )
 
 		function OK.DoClick()
-			Shine.AdminMenu:DontDestroyOnClose( Window )
+			self:DontDestroyOnClose( Window )
 			Window:Destroy()
 		end
+	end
+
+	local function GetArgsFromRows( Rows, MultiPlayer )
+		if MultiPlayer then
+			return Shine.Stream( Rows ):Concat( ",", function( Row )
+				return Row:GetColumnText( 2 )
+			end )
+		end
+
+		return Rows[ 1 ]:GetColumnText( 2 )
 	end
 
 	function AdminMenu:AddCommand( Category, Name, Command, MultiPlayer, DoClick, Tooltip )
@@ -479,60 +481,34 @@ do
 
 				if not MultiPlayer and #Rows > 1 then
 					self:AskForSinglePlayer()
-
 					return
 				end
 
-				if MultiPlayer then
-					local IDs = {}
-
-					for i = 1, #Rows do
-						local Row = Rows[ i ]
-
-						IDs[ i ] = Row:GetColumnText( 2 )
-					end
-
-					self:RunCommand( Command, TableConcat( IDs, "," ) )
-				else
-					self:RunCommand( Command, Rows[ 1 ]:GetColumnText( 2 ) )
-				end
+				self:RunCommand( Command, GetArgsFromRows( Rows, MultiPlayer ) )
 			end
 		elseif IsType( DoClick, "table" ) then
 			local Data = DoClick
 
 			local Menu
+			local function CleanupMenu()
+				self:DontDestroyOnClose( Menu )
+				Menu:Destroy()
+				Menu = nil
+			end
 			DoClick = function( Button, Rows )
 				if #Rows == 0 then return end
 
 				if Menu then
-					self:DontDestroyOnClose( Menu )
-
-					Menu:Destroy()
-					Menu = nil
-
+					CleanupMenu()
 					return
 				end
 
 				if not MultiPlayer and #Rows > 1 then
 					self:AskForSinglePlayer()
-
 					return
 				end
 
-				local Args
-				if MultiPlayer then
-					local IDs = {}
-
-					for i = 1, #Rows do
-						local Row = Rows[ i ]
-
-						IDs[ i ] = Row:GetColumnText( 2 )
-					end
-
-					Args = TableConcat( IDs, "," )
-				else
-					Args = Rows[ 1 ]:GetColumnText( 2 )
-				end
+				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
 				Menu = Button:AddMenu( Vector( 128, 32, 0 ) )
 				Menu:CallOnRemove( function()
@@ -552,19 +528,12 @@ do
 								self:RunCommand( Command, StringFormat( "%s %s", Args, Arg ) )
 							end
 
-							self:DontDestroyOnClose( Menu )
-
-							Menu:Destroy()
-							Menu = nil
+							CleanupMenu()
 						end )
 					elseif IsType( Arg, "function" ) then
 						Menu:AddButton( Option, function()
 							Arg()
-
-							self:DontDestroyOnClose( Menu )
-
-							Menu:Destroy()
-							Menu = nil
+							CleanupMenu()
 						end )
 					end
 				end
@@ -626,12 +595,25 @@ Special thanks to:
 Got an issue or a feature request? Head over to the mod's GitHub page and post an issue,
 or leave a comment on the workshop page.
 ]],
-[[The mod's GitHub issue tracker can be found here:
-https://github.com/Person8880/Shine/issues
+[[The mod's GitHub issue tracker can be found here:]],
+{
+	Text = [[https://github.com/Person8880/Shine/issues]],
+	StyleName = "Link",
+	DoClick = function( self )
+		Client.ShowWebpage( self:GetText() )
+	end
+},
+[[
 
 If you need help with how the mod functions, you can view the wiki by clicking the button
-below. If you want to get to it outside the game, visit:
-https://github.com/Person8880/Shine/wiki]]
+below. If you want to get to it outside the game, visit:]],
+{
+	Text = [[https://github.com/Person8880/Shine/wiki]],
+	StyleName = "Link",
+	DoClick = function( self )
+		Client.ShowWebpage( self:GetText() )
+	end
+}
 }
 
 	local Units = SGUI.Layout.Units
@@ -649,7 +631,15 @@ https://github.com/Person8880/Shine/wiki]]
 			for i = 1, #Text do
 				local Label = SGUI:Create( "Label", Panel )
 				Label:SetFont( Fonts.kAgencyFB_Small )
-				Label:SetText( Text[ i ] )
+
+				local LabelText = Text[ i ]
+				if IsType( LabelText, "string" ) then
+					Label:SetText( LabelText )
+				else
+					Label:SetText( LabelText.Text )
+					Label:SetStyleName( LabelText.StyleName )
+					Label.DoClick = LabelText.DoClick
+				end
 				Layout:AddElement( Label )
 			end
 
