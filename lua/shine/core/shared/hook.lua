@@ -282,7 +282,7 @@ local HookModes = {
 ]]
 local function SetupClassHook( Class, Method, HookName, Mode )
 	if IsType( Mode, "function" ) then
-		return AddClassHook( Class, Method, Mode )
+		return AddClassHook( Mode, Class, Method )
 	end
 
 	local HookFunc = HookModes[ Mode ]
@@ -308,7 +308,7 @@ Hook.SetupClassHook = SetupClassHook
 ]]
 local function SetupGlobalHook( FuncName, HookName, Mode )
 	if IsType( Mode, "function" ) then
-		return AddGlobalHook( FuncName, Mode )
+		return AddGlobalHook( Mode, FuncName )
 	end
 
 	local HookFunc = HookModes[ Mode ]
