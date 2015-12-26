@@ -357,6 +357,8 @@ function Plugin:OnNextMapVoteFail()
 	end
 end
 
+local TableRandom = table.ChooseRandom
+
 function Plugin:ProcessResults( NextMap )
 	self:EndVote()
 
@@ -435,17 +437,7 @@ function Plugin:ProcessResults( NextMap )
 
 	--We're set to choose randomly between them on tie.
 	if self.Config.ChooseRandomOnTie then
-		local NewCount = Count * 100 --If there were 3 tied choices, we're looking at numbers between 1 and 300.
-		local RandNum = Random( 1, Count )
-		local Choice = ""
-
-		for i = 1, Count do
-			if InRange( ( i - 1 ) * 100, i * 100, ( i + 1 ) * 100 ) then --Is this map the winner?
-				Choice = Results[ i ]
-				break
-			end
-		end
-
+		local Choice = TableRandom( Results )
 		local Tied = TableConcat( Results, ", " )
 
 		self.Vote.CanVeto = true --Allow vetos.
@@ -486,22 +478,7 @@ function Plugin:ProcessResults( NextMap )
 end
 
 do
-	local TableRandom = table.ChooseRandom
-
 	local BaseEntryCount = 10
-
-	local function RemoveAllMatches( Table, Value )
-		local Offset = 0
-
-		for i = 1, #Table do
-			local Key = i - Offset
-
-			if Table[ Key ] == Value then
-				TableRemove( Table, Key )
-				Offset = Offset + 1
-			end
-		end
-	end
 
 	--[[
 		Chooses random maps from the remaining maps pool, weighting each map according
@@ -509,6 +486,7 @@ do
 	]]
 	function Plugin:ChooseRandomMaps( AllMaps, MapList, MaxOptions )
 		local MapBucket = {}
+		local Stream = Shine.Stream( MapBucket )
 		local Count = 0
 
 		for Map in pairs( AllMaps ) do
@@ -527,7 +505,9 @@ do
 
 			MapList[ #MapList + 1 ] = Choice
 
-			RemoveAllMatches( MapBucket, Choice )
+			Stream:Filter( function( Value )
+				return Value ~= Choice
+			end )
 		end
 	end
 end
