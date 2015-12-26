@@ -8,7 +8,6 @@
 local setmetatable = setmetatable
 local TableConcat = table.concat
 local TableMergeSort = table.MergeSort
-local TableRemove = table.remove
 local TableSort = table.sort
 
 local Stream = {}
@@ -26,10 +25,19 @@ end
 	Any value for which the predicate returns false will be removed.
 ]]
 function Stream:Filter( Predicate )
-	for i = #self.Data, 1, -1 do
+	local Size = #self.Data
+	local Offset = 0
+
+	for i = 1, Size do
+		self.Data[ i - Offset ] = self.Data[ i ]
 		if not Predicate( self.Data[ i ] ) then
-			TableRemove( self.Data, i )
+			self.Data[ i ] = nil
+			Offset = Offset + 1
 		end
+	end
+
+	for i = Size, Size - Offset + 1, -1 do
+		self.Data[ i ] = nil
 	end
 
 	return self

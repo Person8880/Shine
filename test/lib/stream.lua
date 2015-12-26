@@ -6,7 +6,7 @@ local UnitTest = Shine.UnitTest
 local Stream = Shine.Stream
 
 UnitTest:Test( "Filter", function( Assert )
-	local Data = { 1, 2, 3, 4, 5, 6 }
+	local Data = { 1, 4, 3, 5, 2, 6 }
 
 	Stream( Data ):Filter( function( Value ) return Value > 3 end )
 
