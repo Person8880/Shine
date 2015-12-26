@@ -324,6 +324,7 @@ do
 	local TeamDefs = {
 		[ "spectate" ] = 3,
 		[ "readyroom" ] = kTeamReadyRoom,
+		[ "rr" ] = kTeamReadyRoom,
 		[ "marine" ] = 1,
 		[ "alien" ] = 2,
 		[ "blue" ] = 1,
