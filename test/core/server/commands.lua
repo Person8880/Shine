@@ -8,6 +8,23 @@ local NotifyCommandError = Shine.NotifyCommandError
 
 Shine.NotifyCommandError = function() end
 
+UnitTest:Test( "AdjustArguments", function( Assert )
+	local Args = {
+		"sh_test", "\"this", "is", "a", "single", "argument\"", "this", "isn't",
+		"\"this", "is", "\\\"and", "this", "is", "escaped\\\"", "end\"",
+		"\"this came from the console\"",
+		"\"this", "is", "an", "unfinished", "quote", "at", "the", "end"
+	}
+
+	local CommandArguments = Shine.CommandUtil.AdjustArguments( Args )
+	Assert:ArrayEquals( {
+		"sh_test", "this is a single argument", "this", "isn't",
+		"this is \"and this is escaped\" end",
+		"this came from the console",
+		"this is an unfinished quote at the end"
+	}, CommandArguments )
+end )
+
 UnitTest:Test( "GetCommandArg", function( Assert )
 	local Failed
 	local Parsed

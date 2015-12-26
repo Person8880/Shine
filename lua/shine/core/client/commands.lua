@@ -93,7 +93,7 @@ function Shine:RunClientCommand( ConCommand, ... )
 	local Command = ClientCommands[ ConCommand ]
 	if not Command or Command.Disabled then return end
 
-	local Args = { ... }
+	local Args = self.CommandUtil.AdjustArguments{ ... }
 
 	local ParsedArgs = {}
 	local ExpectedArgs = Command.Arguments

@@ -765,6 +765,8 @@ function Shine:RunCommand( Client, ConCommand, FromChat, ... )
 		FromChat = false
 	end
 
+	Args = self.CommandUtil.AdjustArguments( Args )
+
 	self.CommandStack[ #self.CommandStack + 1 ] = FromChat
 
 	local ParsedArgs = self.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )
