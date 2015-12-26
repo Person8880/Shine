@@ -758,14 +758,14 @@ function Shine:RunCommand( Client, ConCommand, FromChat, ... )
 	local Command = self.Commands[ ConCommand ]
 	if not Command or Command.Disabled then return end
 
-	local Args = { ... }
+	local OriginalArgs = { ... }
 	--In case someone was calling Shine:RunCommand() directly (even though it says "Should not be called directly.")
 	if not IsType( FromChat, "boolean" ) then
-		TableInsert( Args, 1, FromChat )
+		TableInsert( OriginalArgs, 1, FromChat )
 		FromChat = false
 	end
 
-	Args = self.CommandUtil.AdjustArguments( Args )
+	Args = self.CommandUtil.AdjustArguments( OriginalArgs )
 
 	self.CommandStack[ #self.CommandStack + 1 ] = FromChat
 
@@ -782,7 +782,7 @@ function Shine:RunCommand( Client, ConCommand, FromChat, ... )
 	if not Success then
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
 	else
-		local Arguments = TableConcat( Args, " " )
+		local Arguments = TableConcat( OriginalArgs, " " )
 		local Player = Client and Client:GetControllingPlayer()
 		local Name = Player and Player:GetName() or "Console"
 		local ID = Client and Client:GetUserId() or "N/A"
