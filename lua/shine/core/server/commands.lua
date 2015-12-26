@@ -323,6 +323,7 @@ ParamTypes.client = {
 do
 	local TeamDefs = {
 		[ "spectate" ] = 3,
+		[ "spectator" ] = 3,
 		[ "readyroom" ] = kTeamReadyRoom,
 		[ "rr" ] = kTeamReadyRoom,
 		[ "marine" ] = 1,
