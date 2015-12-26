@@ -920,13 +920,17 @@ function Plugin:ScrollAutoComplete( Amount )
 	if not self.AutoCompleteResults then return end
 
 	local Results = self.AutoCompleteResults
+	if #Results == 0 then return end
+
 	self.CurrentResult = ( self.CurrentResult or 0 ) + Amount
 	if self.CurrentResult > Min( MaxAutoCompleteResult, #Results ) then
 		self.CurrentResult = 1
+	elseif self.CurrentResult < 1 then
+		self.CurrentResult = #Results
 	end
 
 	local Text = StringFormat( "%s%s ", self.AutoCompleteLetter,
-		self.AutoCompleteResults[ self.CurrentResult ].ChatCommand )
+		Results[ self.CurrentResult ].ChatCommand )
 	self.TextEntry:SetText( Text )
 end
 
@@ -1030,7 +1034,9 @@ function Plugin:DestroyAutoCompletePanel()
 		self.AutoCompleteTimer = nil
 	end
 
-	self.AutoCompletePanel:Destroy( true )
+	if SGUI.IsValid( self.AutoCompletePanel ) then
+		self.AutoCompletePanel:Destroy( true )
+	end
 	self.AutoCompletePanel = nil
 
 	self.AutoCompleteResults = nil
