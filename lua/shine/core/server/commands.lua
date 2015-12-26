@@ -297,11 +297,11 @@ ParamTypes.client = {
 		return Target
 	end,
 	Help = "player",
-	OnFailedMatch = function( Client, Arg, SelfTargeting )
+	OnFailedMatch = function( Client, Arg, SelfTargeting, ArgString )
 		if SelfTargeting then
 			Shine:NotifyCommandError( Client, "You cannot target yourself with this command." )
 		else
-			Shine:NotifyCommandError( Client, "No matching player was found." )
+			Shine:NotifyCommandError( Client, "No player matching '%s' was found.", true, ArgString )
 		end
 	end,
 	Validate = function( Client, Arg, ParsedArg )
@@ -483,13 +483,13 @@ do
 			return Clients
 		end,
 		Help = "players",
-		OnFailedMatch = function( Client, Arg )
-			Shine:NotifyCommandError( Client, "No matching players were found." )
+		OnFailedMatch = function( Client, Arg, Extra, ArgString )
+			Shine:NotifyCommandError( Client, "No players matching '%s' were found.", true, ArgString )
 		end,
-		Validate = function( Client, Arg, ParsedArg )
+		Validate = function( Client, Arg, ParsedArg, ArgString )
 			if not ParsedArg then return true end
 			if #ParsedArg == 0 then
-				Shine:NotifyCommandError( Client, "No matching players were found." )
+				Shine:NotifyCommandError( Client, "No players matching '%s' were found.", true, ArgString )
 
 				return false
 			end

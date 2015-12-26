@@ -144,7 +144,7 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg,
 	-- Specifically check for nil (boolean argument could be false).
 	if Result == nil and not CurArg.Optional then
 		if ParamType.OnFailedMatch then
-			ParamType.OnFailedMatch( Client, CurArg, Extra )
+			ParamType.OnFailedMatch( Client, CurArg, Extra, ArgString )
 		else
 			self:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
 		end
@@ -159,7 +159,7 @@ function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg,
 		Result = NewResult
 	end
 
-	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result ) then return end
+	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result, ArgString ) then return end
 
 	return true, Result
 end
