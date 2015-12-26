@@ -15,6 +15,10 @@ Plugin.Version = "1.6"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
+Plugin.PrintName = "Pre Game"
+Plugin.NotifyPrefixColour = {
+	100, 100, 255
+}
 
 Plugin.DefaultConfig = {
 	PreGameTime = 45,
@@ -140,11 +144,6 @@ end
 function Plugin:DestroyTimers()
 	self:DestroyTimer( self.FiveSecTimer )
 	self:DestroyTimer( self.CountdownTimer )
-end
-
-function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 100, 255, "[Pre Game]", 255, 255, 255,
-		Message, Format, ... )
 end
 
 function Plugin:AbortGameStart( Gamerules, Message, Format, ... )

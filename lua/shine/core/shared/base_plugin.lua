@@ -159,75 +159,73 @@ function PluginMeta:SaveConfig( Silent )
 	end
 end
 
-do
-	function PluginMeta:LoadConfig()
-		local PluginConfig
-		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
-			or ClientConfigPath..self.ConfigName
+function PluginMeta:LoadConfig()
+	local PluginConfig
+	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
+		or ClientConfigPath..self.ConfigName
 
-		local Err
-		local Pos
+	local Err
+	local Pos
 
-		if Server then
-			local Gamemode = Shine.GetGamemode()
+	if Server then
+		local Gamemode = Shine.GetGamemode()
 
-			--Look for gamemode specific config file.
-			if Gamemode ~= Shine.BaseGamemode then
-				local Paths = {
-					StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
-					Path
-				}
+		--Look for gamemode specific config file.
+		if Gamemode ~= Shine.BaseGamemode then
+			local Paths = {
+				StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
+				Path
+			}
 
-				for i = 1, #Paths do
-					local File, ErrPos, ErrString = Shine.LoadJSONFile( Paths[ i ] )
+			for i = 1, #Paths do
+				local File, ErrPos, ErrString = Shine.LoadJSONFile( Paths[ i ] )
 
-					if File then
-						PluginConfig = File
+				if File then
+					PluginConfig = File
 
-						self.__ConfigPath = Paths[ i ]
+					self.__ConfigPath = Paths[ i ]
 
-						break
-					elseif IsType( ErrPos, "number" ) then
-						Err = ErrString
-						Pos = ErrPos
-					end
+					break
+				elseif IsType( ErrPos, "number" ) then
+					Err = ErrString
+					Pos = ErrPos
 				end
-			else
-				PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 			end
 		else
 			PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
 		end
+	else
+		PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
+	end
 
-		if not PluginConfig or not IsType( PluginConfig, "table" ) then
-			if IsType( Pos, "string" ) then
-				self:GenerateDefaultConfig( true )
-			else
-				Print( "Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
+	if not PluginConfig or not IsType( PluginConfig, "table" ) then
+		if IsType( Pos, "string" ) then
+			self:GenerateDefaultConfig( true )
+		else
+			Print( "Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
 
-				self.Config = self.DefaultConfig
-			end
-
-			return
+			self.Config = self.DefaultConfig
 		end
 
-		self.Config = PluginConfig
+		return
+	end
 
-		local Validator = Shine.Validator()
-		Validator:AddRule( {
-			Matches = function( _, Config )
-				return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig )
-			end
-		} )
-		Validator:AddRule( {
-			Matches = function( _, Config )
-				return self.CheckConfigTypes and self:TypeCheckConfig()
-			end
-		} )
+	self.Config = PluginConfig
 
-		if Validator:Validate( self.Config ) then
-			self:SaveConfig()
+	local Validator = Shine.Validator()
+	Validator:AddRule( {
+		Matches = function( _, Config )
+			return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig )
 		end
+	} )
+	Validator:AddRule( {
+		Matches = function( _, Config )
+			return self.CheckConfigTypes and self:TypeCheckConfig()
+		end
+	} )
+
+	if Validator:Validate( self.Config ) then
+		self:SaveConfig()
 	end
 end
 
@@ -442,9 +440,22 @@ function PluginMeta:CanRunAction( Action, Time, Delay )
 	return true
 end
 
-function PluginMeta:Print( Message, Format, ... )
-	Shine:Print( "[%s] %s", true, rawget( self, "PrintName" ) or self.__Name,
-		Format and StringFormat( Message, ... ) or Message )
+if Server then
+	local function GetName( self )
+		return rawget( self, "PrintName" ) or self.__Name
+	end
+
+	function PluginMeta:Print( Message, Format, ... )
+		Shine:Print( "[%s] %s", true, GetName( self ),
+			Format and StringFormat( Message, ... ) or Message )
+	end
+
+	function PluginMeta:Notify( Player, Message, Format, ... )
+		local NotifyColour = self.NotifyPrefixColour
+
+		Shine:NotifyDualColour( Player, NotifyColour[ 1 ], NotifyColour[ 2 ], NotifyColour[ 3 ],
+			StringFormat( "[%s]", GetName( self ) ), 255, 255, 255, Message, Format, ... )
+	end
 end
 
 local ReservedKeys = {

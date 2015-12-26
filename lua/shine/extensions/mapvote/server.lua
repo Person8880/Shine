@@ -18,6 +18,10 @@ Plugin.Version = "1.6"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
+Plugin.PrintName = "Map Vote"
+Plugin.NotifyPrefixColour = {
+	255, 255, 0
+}
 
 Plugin.DefaultConfig = {
 	GetMapsFromMapCycle = true, --Get the valid votemaps directly from the mapcycle file.
@@ -225,10 +229,6 @@ function Plugin:OnFirstThink()
 			break
 		end
 	end
-end
-
-function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 255, 255, 0, "[Map Vote]", 255, 255, 255, Message, Format, ... )
 end
 
 function Plugin:ForcePlayersIntoReadyRoom()

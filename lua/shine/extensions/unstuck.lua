@@ -19,6 +19,11 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
+Plugin.PrintName = "Unstuck"
+Plugin.NotifyPrefixColour = {
+	0, 255, 0
+}
+
 function Plugin:Initialise()
 	self.Users = {}
 
@@ -27,10 +32,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:Notify( Player, String, Format, ... )
-	Shine:NotifyDualColour( Player, 0, 255, 0, "[Unstuck]", 255, 255, 255, String, Format, ... )
 end
 
 function Plugin:UnstickPlayer( Player, Pos )
