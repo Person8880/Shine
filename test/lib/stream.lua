@@ -13,6 +13,22 @@ UnitTest:Test( "Filter", function( Assert )
 	Assert:ArrayEquals( { 4, 5, 6 }, Data )
 end )
 
+UnitTest:Test( "ForEach", function( Assert )
+	local Data = { "a", "b", "c", "d", "e", "f" }
+	local Visited = {}
+	local Count = 0
+
+	Stream( Data ):ForEach( function( Value )
+		Count = Count + 1
+		Visited[ Value ] = true
+	end )
+
+	Assert:Equals( #Data, Count )
+	for i = 1, Count do
+		Assert:True( Visited[ Data[ i ] ] )
+	end
+end )
+
 UnitTest:Test( "Map", function( Assert )
 	local Data = { 1, 2, 3, 4, 5, 6 }
 

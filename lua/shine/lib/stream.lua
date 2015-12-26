@@ -44,6 +44,17 @@ function Stream:Filter( Predicate )
 end
 
 --[[
+	Performs an action on all values in the stream, without changing the stream.
+]]
+function Stream:ForEach( Function )
+	for i = 1, #self.Data do
+		Function( self.Data[ i ] )
+	end
+
+	return self
+end
+
+--[[
 	Maps the values of the stream using the given Mapper function.
 
 	All values in the stream are replaced with what the mapper function returns for them.
