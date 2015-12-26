@@ -7,16 +7,13 @@ local Shine = Shine
 local Ceil = math.ceil
 local Floor = math.floor
 local GetNumPlayers = Shine.GetHumanPlayerCount
-local InRange = math.InRange
 local next = next
 local pairs = pairs
-local Random = math.random
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
 local TableCopy = table.Copy
-local TableRemove = table.remove
 
 local Plugin = Plugin
 local IsType = Shine.IsType
