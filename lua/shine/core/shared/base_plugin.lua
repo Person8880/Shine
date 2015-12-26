@@ -465,21 +465,26 @@ local ReservedKeys = {
 --Support plugins inheriting from other plugins.
 function PluginMeta:__index( Key )
 	if ReservedKeys[ Key ] then return nil end
-	if PluginMeta[ Key ] then return PluginMeta[ Key ] end
 
 	local Inherit = rawget( self, "__Inherit" )
-
 	if Inherit then
 		local InheritBlacklist = rawget( self, "__InheritBlacklist" )
 		local InheritWhitelist = rawget( self, "__InheritWhitelist" )
+		local InheritedValue = Inherit[ Key ]
 
 		if not InheritBlacklist and not InheritWhitelist then
-			return Inherit[ Key ]
+			if InheritedValue ~= nil then
+				return InheritedValue
+			end
+		else
+			if InheritBlacklist and InheritBlacklist[ Key ] then return PluginMeta[ Key ] end
+			if InheritWhitelist and not InheritWhitelist[ Key ] then return PluginMeta[ Key ] end
+
+			if InheritedValue ~= nil then
+				return InheritedValue
+			end
 		end
-
-		if InheritBlacklist and InheritBlacklist[ Key ] then return nil end
-		if InheritWhitelist and not InheritWhitelist[ Key ] then return nil end
-
-		return Inherit[ Key ]
 	end
+
+	if PluginMeta[ Key ] then return PluginMeta[ Key ] end
 end
