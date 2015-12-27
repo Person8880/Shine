@@ -1106,9 +1106,9 @@ function Plugin:JoinRandomTeam( Player )
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
 
 	if Team1 < Team2 then
-		Gamerules:JoinTeam( Player, 1, nil, true )
+		Gamerules:JoinTeam( Player, 1 )
 	elseif Team2 < Team1 then
-		Gamerules:JoinTeam( Player, 2, nil, true )
+		Gamerules:JoinTeam( Player, 2 )
 	else
 		if self.LastShuffleMode == self.MODE_HIVE then
 			local Team1Players = Gamerules.team1:GetPlayers()
@@ -1134,16 +1134,16 @@ function Plugin:JoinRandomTeam( Player )
 					TeamToJoin = 2
 				end
 
-				Gamerules:JoinTeam( Player, TeamToJoin, nil, true )
+				Gamerules:JoinTeam( Player, TeamToJoin )
 
 				return
 			end
 		end
 
 		if Random() < 0.5 then
-			Gamerules:JoinTeam( Player, 1, nil, true )
+			Gamerules:JoinTeam( Player, 1 )
 		else
-			Gamerules:JoinTeam( Player, 2, nil, true )
+			Gamerules:JoinTeam( Player, 2 )
 		end
 	end
 end
