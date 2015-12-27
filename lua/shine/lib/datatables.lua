@@ -58,9 +58,7 @@ if Server then
 
 			return Floor( Value )
 		end,
-		float = function( Value )
-			return tonumber( Value )
-		end,
+		float = tonumber,
 		boolean = function( Value )
 			if type( Value ) == "boolean" then
 				return Value
@@ -68,21 +66,15 @@ if Server then
 
 			return nil
 		end,
-		entityid = function( Value )
-			return tonumber( Value )
-		end,
-		enum = function( Value )
-			return tonumber( Value )
-		end,
+		entityid = tonumber,
+		enum = tonumber,
 		vector = function( Value )
 			return Value.isa and Value:isa( "Vector" ) and Value or nil
 		end,
 		angle = function( Value )
 			return Value.isa and Value:isa( "Angles" ) and Value or nil
 		end,
-		time = function( Value )
-			return tonumber( Value )
-		end
+		time = tonumber
 	}
 
 	local function TypeCheck( Type, Value )
