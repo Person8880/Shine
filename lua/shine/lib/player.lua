@@ -390,18 +390,12 @@ function Shine:GetClientBySteamID( ID )
 end
 
 do
-	local Huge = math.huge
+	local StringMatch = string.match
 
-	-- LuaJIT's tonumber returns inf for "inf" and nan for "nan"...
+	-- Only accept positive base-10 integer values, no hex, no inf, no nan.
 	local function SafeToNumber( String )
-		local AsNumber = tonumber( String )
-		if not AsNumber then return nil end
-
-		if AsNumber ~= AsNumber or Abs( AsNumber ) >= Huge then
-			return nil
-		end
-
-		return AsNumber
+		if not StringMatch( String, "^[0-9]+$" ) then return nil end
+		return tonumber( String )
 	end
 
 	--[[
