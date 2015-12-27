@@ -1257,14 +1257,6 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won
 	or GameState == kGameState.Draw then return end
 
-	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-
-	if Enabled then
-		if MapVote:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce ) == false then
-			return false
-		end
-	end
-
 	local Client = GetOwner( Player )
 	if not Client then return false end
 
