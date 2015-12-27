@@ -45,6 +45,7 @@ if Client then return end
 local Abs = math.abs
 local Floor = math.floor
 local GetOwner = Server.GetOwner
+local IsType = Shine.IsType
 local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
@@ -53,7 +54,6 @@ local TableSort = table.sort
 local TableToString = table.ToString
 local tonumber = tonumber
 local Traceback = debug.traceback
-local type = type
 
 --[[
 	Returns whether the given client is valid.
@@ -299,7 +299,7 @@ end
 	Returns a client matching the given Steam ID.
 ]]
 function Shine.GetClientByNS2ID( ID )
-	if type( ID ) ~= "number" then return nil end
+	if not IsType( ID, "number" ) then return nil end
 
 	local Clients = Shine.GameIDs
 
@@ -316,7 +316,7 @@ end
 	Returns the client closest matching the given name.
 ]]
 function Shine.GetClientByName( Name )
-	if type( Name ) ~= "string" then return nil end
+	if not IsType( Name, "string" ) then return nil end
 
 	Name = Name:lower()
 
@@ -362,7 +362,7 @@ function Shine.NS2ToSteam3ID( ID )
 end
 
 function Shine.SteamIDToNS2( ID )
-	if type( ID ) ~= "string" then return nil end
+	if not IsType( ID, "string" ) then return nil end
 
 	--STEAM_0:X:YYYYYYY
 	if ID:match( "^STEAM_%d:%d:%d+$" ) then
@@ -380,7 +380,7 @@ function Shine.SteamIDToNS2( ID )
 end
 
 function Shine:GetClientBySteamID( ID )
-	if type( ID ) ~= "string" then return nil end
+	if not IsType( ID, "string" ) then return nil end
 
 	local NS2ID = self.SteamIDToNS2( ID )
 
@@ -394,6 +394,7 @@ do
 
 	-- Only accept positive base-10 integer values, no hex, no inf, no nan.
 	local function SafeToNumber( String )
+		if IsType( String, "number" ) then return String end
 		if not StringMatch( String, "^[0-9]+$" ) then return nil end
 		return tonumber( String )
 	end
