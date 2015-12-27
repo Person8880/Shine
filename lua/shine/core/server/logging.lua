@@ -163,22 +163,7 @@ end
 	Sends a coloured notification to the given player(s).
 ]]
 function Shine:NotifyColour( Player, R, G, B, String, Format, ... )
-	local Message = Format and StringFormat( String, ... ) or String
-
-	local MessageTable = {
-		R = R,
-		G = G,
-		B = B,
-		Message = Message,
-		RP = 0,
-		GP = 0,
-		BP = 0,
-		Prefix = ""
-	}
-
-	Message = Message:UTF8Sub( 1, kMaxChatLength )
-
-	self:ApplyNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
+	self:NotifyDualColour( Player, 0, 0, 0, "", R, G, B, String, Format, ... )
 end
 
 --[[
@@ -186,6 +171,7 @@ end
 ]]
 function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Format, ... )
 	local Message = Format and StringFormat( String, ... ) or String
+	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
 	local MessageTable = {
 		R = R,
@@ -197,8 +183,6 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 		BP = BP,
 		Prefix = Prefix
 	}
-
-	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
 	self:ApplyNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 end
