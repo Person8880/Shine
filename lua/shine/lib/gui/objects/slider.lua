@@ -6,7 +6,6 @@ local SGUI = Shine.GUI
 
 local Clamp = math.Clamp
 local Round = math.Round
-local tonumber = tonumber
 local tostring = tostring
 local type = type
 

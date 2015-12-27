@@ -486,5 +486,5 @@ function PluginMeta:__index( Key )
 		end
 	end
 
-	if PluginMeta[ Key ] then return PluginMeta[ Key ] end
+	return PluginMeta[ Key ]
 end

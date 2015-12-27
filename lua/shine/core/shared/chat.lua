@@ -45,7 +45,6 @@ if Server then return end
 
 local BitLShift = bit.lshift
 local IsType = Shine.IsType
-local tonumber = tonumber
 local tostring = tostring
 
 local function RGBToHex( R, G, B )
