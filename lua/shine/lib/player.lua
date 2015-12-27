@@ -389,17 +389,33 @@ function Shine:GetClientBySteamID( ID )
 	return self.GetClientByNS2ID( NS2ID )
 end
 
---[[
-	Returns a client matching the given Steam ID or name.
-]]
-function Shine:GetClient( String )
-	if type( String ) == "number" or tonumber( String ) then
-		local Num = tonumber( String )
-		-- Do not look up by name if provided a number, only game ID and NS2ID.
-		return self.GetClientByID( Num ) or self.GetClientByNS2ID( Num )
+do
+	local Huge = math.huge
+
+	-- LuaJIT's tonumber returns inf for "inf" and nan for "nan"...
+	local function SafeToNumber( String )
+		local AsNumber = tonumber( String )
+		if not AsNumber then return nil end
+
+		if AsNumber ~= AsNumber or Abs( AsNumber ) >= Huge then
+			return nil
+		end
+
+		return AsNumber
 	end
 
-	return self:GetClientBySteamID( String ) or self.GetClientByName( tostring( String ) )
+	--[[
+		Returns a client matching the given Steam ID or name.
+	]]
+	function Shine:GetClient( String )
+		local NumberValue = SafeToNumber( String )
+		if NumberValue then
+			-- Do not look up by name if provided a number, only game ID and NS2ID.
+			return self.GetClientByID( NumberValue ) or self.GetClientByNS2ID( NumberValue )
+		end
+
+		return self:GetClientBySteamID( String ) or self.GetClientByName( tostring( String ) )
+	end
 end
 
 --[[
