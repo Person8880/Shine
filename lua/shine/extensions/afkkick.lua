@@ -160,7 +160,7 @@ function Plugin:CheckConnectionAllowed( ID )
 	if not AFKForLongest then return end
 
 	self:Print( "Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
-		true, Shine:GetClientInfo( AFKForLongest ), ID,
+		true, Shine.GetClientInfo( AFKForLongest ), ID,
 		StringTimeToString( TimeAFK ) )
 
 	self:KickClient( AFKForLongest )
