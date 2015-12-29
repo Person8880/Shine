@@ -1106,9 +1106,9 @@ function Plugin:JoinRandomTeam( Player )
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
 
 	if Team1 < Team2 then
-		Gamerules:JoinTeam( Player, 1, nil, true )
+		Gamerules:JoinTeam( Player, 1 )
 	elseif Team2 < Team1 then
-		Gamerules:JoinTeam( Player, 2, nil, true )
+		Gamerules:JoinTeam( Player, 2 )
 	else
 		if self.LastShuffleMode == self.MODE_HIVE then
 			local Team1Players = Gamerules.team1:GetPlayers()
@@ -1134,16 +1134,16 @@ function Plugin:JoinRandomTeam( Player )
 					TeamToJoin = 2
 				end
 
-				Gamerules:JoinTeam( Player, TeamToJoin, nil, true )
+				Gamerules:JoinTeam( Player, TeamToJoin )
 
 				return
 			end
 		end
 
 		if Random() < 0.5 then
-			Gamerules:JoinTeam( Player, 1, nil, true )
+			Gamerules:JoinTeam( Player, 1 )
 		else
-			Gamerules:JoinTeam( Player, 2, nil, true )
+			Gamerules:JoinTeam( Player, 2 )
 		end
 	end
 end
@@ -1256,14 +1256,6 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	--Don't block them from going back to the ready room at the end of the round.
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won
 	or GameState == kGameState.Draw then return end
-
-	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-
-	if Enabled then
-		if MapVote:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce ) == false then
-			return false
-		end
-	end
 
 	local Client = GetOwner( Player )
 	if not Client then return false end

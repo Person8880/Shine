@@ -327,10 +327,7 @@ end
 	Clears out the votemenu, then populate with the given page.
 ]]
 function VoteMenu:SetPage( Name )
-	--if Name == self.ActivePage then return end
-
 	local Page = self.Pages[ Name ]
-
 	if not Page or not Page.Populate then return end
 
 	self:Clear()
@@ -338,8 +335,19 @@ function VoteMenu:SetPage( Name )
 	Page.Populate( self )
 
 	self:SortSideButtons()
-
 	self.ActivePage = Name
+end
+
+local function ClearButton( Button )
+	if not SGUI.IsValid( Button ) then return end
+
+	Button:SetIsVisible( false )
+	Button:SetTooltip( nil )
+
+	if Button.OnClear then
+		Button:OnClear()
+		Button.OnClear = nil
+	end
 end
 
 --[[
@@ -353,20 +361,11 @@ function VoteMenu:Clear()
 	local TopButton = Buttons.Top
 	local BottomButton = Buttons.Bottom
 
-	if SGUI.IsValid( TopButton ) then
-		TopButton:SetIsVisible( false )
-	end
-
-	if SGUI.IsValid( BottomButton ) then
-		BottomButton:SetIsVisible( false )
-	end
+	ClearButton( TopButton )
+	ClearButton( BottomButton )
 
 	for i = 1, #SideButtons do
-		local Button = SideButtons[ i ]
-
-		if SGUI.IsValid( Button ) then
-			Button:SetIsVisible( false )
-		end
+		ClearButton( SideButtons[ i ] )
 	end
 
 	self.ButtonIndex = 0
