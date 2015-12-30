@@ -28,7 +28,7 @@ local TableRemove = table.remove
 local TableSort = table.sort
 local tostring = tostring
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "2.0"
 Plugin.PrintName = "Shuffle"
 Plugin.NotifyPrefixColour = {
@@ -95,7 +95,8 @@ Plugin.DefaultConfig = {
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
 
-	ReconnectLogTime = 0 --How long (in seconds) after a shuffle to log reconnecting players for?
+	ReconnectLogTime = 0, --How long (in seconds) after a shuffle to log reconnecting players for?
+	HighlightTeamSwaps = false -- Should players swapping teams be highlighted on the scoreboard?
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -158,6 +159,9 @@ function Plugin:Initialise()
 	self.ForceRandomEnd = 0 --Time based.
 	self.RandomOnNextRound = false --Round based.
 	self.ForceRandom = self.Config.AlwaysEnabled
+
+	self.dt.HighlightTeamSwaps = self.Config.HighlightTeamSwaps
+
 	self.Enabled = true
 
 	return true
@@ -1583,5 +1587,3 @@ function Plugin:CreateCommands()
 	local StatsCommand = self:BindCommand( "sh_teamstats", nil, ViewTeamStats, true )
 	StatsCommand:Help( "View Hive skill based team statistics." )
 end
-
-Shine:RegisterExtension( "voterandom", Plugin )
