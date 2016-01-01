@@ -4,18 +4,13 @@
 ]]
 
 local Clamp = math.Clamp
-local rawset = rawset
 local TableRemove = table.remove
 
 local Map = {}
 Map.__index = Map
 
-setmetatable( Map, { __call = function( self )
-	return setmetatable( {}, self ):Init()
-end } )
-
 function Shine.Map()
-	return Map()
+	return setmetatable( {}, Map ):Init()
 end
 
 function Map:Init()
@@ -46,14 +41,12 @@ function Map:Add( Key, Value )
 
 	if self.MemberLookup[ Key ] ~= nil then
 		self.MemberLookup[ Key ] = Value
-
 		return
 	end
 
 	local NumMembers = self.NumMembers + 1
 
 	self.NumMembers = NumMembers
-
 	self.Keys[ NumMembers ] = Key
 	self.MemberLookup[ Key ] = Value
 end
@@ -75,11 +68,11 @@ end
 	Output: The removed key, value pair if it existed in the map, otherwise nil.
 ]]
 function Map:Remove( Key )
-	if not self.MemberLookup[ Key ] then return nil end
+	if self.MemberLookup[ Key ] == nil then return nil end
 
 	local Keys = self.Keys
 
-	--Optimise removal if it's the current key.
+	-- Optimise removal if it's the current key.
 	if Keys[ self.Position ] == Key then
 		return self:RemoveAtPosition()
 	end

@@ -40,6 +40,15 @@ UnitTest:Test( "IterationOrder", function( Assert )
 	end
 end )
 
+UnitTest:Test( "RemovalOfFalse", function( Assert )
+	local Map = Map()
+	Map:Add( 1, false )
+
+	Assert.False( "Map didn't store false!", Map:Get( 1 ) )
+	Map:Remove( 1 )
+	Assert.Nil( "Map didn't remove false!", Map:Get( 1 ) )
+end )
+
 UnitTest:Test( "IterationRemoval", function( Assert )
 	local Map = Map()
 
