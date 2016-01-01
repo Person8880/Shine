@@ -43,6 +43,8 @@ function Plugin:Initialise()
 	-- Track changes in a separate timer too as the scoreboard's team update
 	-- only runs when the scoreboard is visible.
 	self:CreateTimer( "TrackTeamChanges", 1, -1, function()
+		if not self.dt.HighlightTeamSwaps then return end
+
 		local Scores = ScoreboardUI_GetAllScores()
 		local CurTime = SharedGetTime()
 		local Clients = {}
