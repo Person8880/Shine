@@ -19,8 +19,50 @@ function Plugin:OnFirstThink()
 	Shine.Hook.SetupClassHook( "GUIScoreboard", "UpdateTeam", "OnGUIScoreboardUpdateTeam", "PassivePost" )
 end
 
+local pairs = pairs
+local SharedGetTime = Shared.GetTime
+
+function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
+	local MemoryEntry = self.TeamTracking[ ClientIndex ]
+	if not MemoryEntry then
+		MemoryEntry = {}
+		self.TeamTracking[ ClientIndex ] = MemoryEntry
+	end
+
+	if MemoryEntry.TeamNumber ~= TeamNumber then
+		MemoryEntry.TeamNumber = TeamNumber
+		MemoryEntry.LastChange = CurTime
+	end
+
+	return MemoryEntry
+end
+
 function Plugin:Initialise()
 	self.TeamTracking = {}
+
+	-- Track changes in a separate timer too as the scoreboard's team update
+	-- only runs when the scoreboard is visible.
+	self:CreateTimer( "TrackTeamChanges", 1, -1, function()
+		local Scores = ScoreboardUI_GetAllScores()
+		local CurTime = SharedGetTime()
+		local Clients = {}
+
+		for i = 1, #Scores do
+			local Entry = Scores[ i ]
+
+			local ClientIndex = Entry.ClientIndex
+			Clients[ ClientIndex ] = true
+
+			self:UpdateTeamMemoryEntry( ClientIndex, Entry.EntityTeamNumber, CurTime )
+		end
+
+		for ClientIndex in pairs( self.TeamTracking ) do
+			if not Clients[ ClientIndex ] then
+				self.TeamTracking[ ClientIndex ] = nil
+			end
+		end
+	end )
+
 	self.Enabled = true
 
 	return true
@@ -39,9 +81,7 @@ local function GetLocalPlayerTeam()
 	return Player:GetTeamNumber()
 end
 
-local SharedGetTime = Shared.GetTime
 local CopyColour = Shine.GUI.CopyColour
-local pairs = pairs
 local FadeAlphaMin = 0.3
 local FadeAlphaMult = 1 - FadeAlphaMin
 local HighlightDuration = 10
@@ -59,45 +99,24 @@ local function FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastCh
 end
 
 local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
-	local ClientID = Row.ClientIndex
-	local Entry = Scoreboard_GetPlayerRecord( ClientID )
-	local MemoryEntry = self.TeamTracking[ ClientID ]
-
-	if not MemoryEntry then
-		MemoryEntry = {
-			TeamNumber = TeamNumber,
-			LastChange = CurTime
-		}
-		self.TeamTracking[ ClientID ] = MemoryEntry
-		return
-	end
-
-	if MemoryEntry.TeamNumber ~= TeamNumber then
-		MemoryEntry.TeamNumber = TeamNumber
-		MemoryEntry.LastChange = CurTime
-	end
+	local ClientIndex = Row.ClientIndex
+	local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 
 	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
 	if TimeSinceLastChange >= HighlightDuration then return end
 
-	FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
+	FadeRowIn( Row, Scoreboard_GetPlayerRecord( ClientIndex ), Team,
+		OurTeam, TeamNumber, TimeSinceLastChange )
 end
 
 function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	if not self.dt.HighlightTeamSwaps then return end
 
-	local PlayerList = Team.PlayerList
 	local TeamNumber = Team.TeamNumber
 	local OurTeam = GetLocalPlayerTeam()
 
 	local CurTime = SharedGetTime()
-	for Index, Row in pairs( PlayerList ) do
+	for Index, Row in pairs( Team.PlayerList ) do
 		CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
-	end
-
-	for ClientID in pairs( self.TeamTracking ) do
-		if not Scoreboard_GetPlayerRecord( ClientID ) then
-			self.TeamTracking[ ClientID ] = nil
-		end
 	end
 end
