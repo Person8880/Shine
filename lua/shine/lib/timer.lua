@@ -2,24 +2,18 @@
 	Shine timer library.
 ]]
 
+local Shine = Shine
+
 local SharedTime = Shared.GetTime
-local StringFormat = string.format
-local TableRemove = table.remove
-local xpcall = xpcall
-
-local Map = Shine.Map
-
-local Timers = Map()
-
-Shine.Timer = {}
+local Timers = Shine.Map()
+local Timer = {}
+Shine.Timer = Timer
 
 local TimerMeta = {}
 TimerMeta.__index = TimerMeta
 
 function TimerMeta:Destroy()
-	if self.Name then
-		Timers:Remove( self.Name )
-	end
+	Timers:Remove( self.Name )
 end
 
 function TimerMeta:GetReps()
@@ -69,90 +63,75 @@ function TimerMeta:Resume()
 	self.TimeLeft = nil
 end
 
---[[
-	Creates a timer.
-	Inputs: Name, delay in seconds, number of times to repeat, function to run.
-	Pass a negative number to reps to have it repeat indefinitely.
-]]
-local function Create( Name, Delay, Reps, Func )
-	local Time = SharedTime()
+do
+	local setmetatable = setmetatable
 
-	local OldObject = Timers:Get( Name )
+	--[[
+		Creates a timer.
+		Inputs: Name, delay in seconds, number of times to repeat, function to run.
+		Pass a negative number to reps to have it repeat indefinitely.
+	]]
+	local function Create( Name, Delay, Reps, Func )
+		-- Edit it so it's not destroyed if it's created again inside its old function.
+		local TimerObject = Timers:Get( Name )
+		if not TimerObject then
+			TimerObject = setmetatable( {}, TimerMeta )
+			Timers:Add( Name, TimerObject )
+		end
 
-	--Edit it so it's not destroyed if it's created again inside its old function.
-	if OldObject then
-		OldObject.Delay = Delay
-		OldObject.Reps = Reps
-		OldObject.Func = Func
-		OldObject.LastRun = 0
-		OldObject.NextRun = Time + Delay
+		TimerObject.Name = Name
+		TimerObject.Delay = Delay
+		TimerObject.Reps = Reps
+		TimerObject.Func = Func
+		TimerObject.LastRun = 0
+		TimerObject.NextRun = SharedTime() + Delay
 
-		return OldObject
+		return TimerObject
 	end
+	Timer.Create = Create
 
-	local Timer = setmetatable( {
-		Name = Name,
-		Delay = Delay,
-		Reps = Reps,
-		Func = Func,
-		LastRun = 0,
-		NextRun = Time + Delay
-	}, TimerMeta )
+	local SimpleCount = 1
 
-	Timers:Add( Name, Timer )
+	--[[
+		Creates a simple timer.
+		Inputs: Delay in seconds, function to run.
+		Unlike a standard timer, this will only run once.
+	]]
+	function Timer.Simple( Delay, Func )
+		local Index = "Simple"..SimpleCount
+		SimpleCount = SimpleCount + 1
 
-	return Timer
-end
-Shine.Timer.Create = Create
-
-local SimpleCount = 1
-
---[[
-	Creates a simple timer.
-	Inputs: Delay in seconds, function to run.
-	Unlike a standard timer, this will only run once.
-]]
-function Shine.Timer.Simple( Delay, Func )
-	local Index = "Simple"..SimpleCount
-
-	SimpleCount = SimpleCount + 1
-
-	return Create( Index, Delay, 1, Func )
+		return Create( Index, Delay, 1, Func )
+	end
 end
 
 --[[
 	Removes a timer.
 	Input: Timer name to remove.
 ]]
-function Shine.Timer.Destroy( Name )
-	if Timers:Get( Name ) then
-		Timers:Remove( Name )
+function Timer.Destroy( Name )
+	Timers:Remove( Name )
+end
+
+do
+	--[[
+		Returns whether the given timer exists.
+		Input: Timer name to check.
+	]]
+	local function Exists( Name )
+		return Timers:Get( Name ) ~= nil
 	end
-end
+	Timer.Exists = Exists
 
---[[
-	Returns whether the given timer exists.
-	Input: Timer name to check.
-]]
-local function Exists( Name )
-	return Timers:Get( Name ) ~= nil
-end
-Shine.Timer.Exists = Exists
+	function Timer.Pause( Name )
+		if not Exists( Name ) then return end
+		Timers:Get( Name ):Pause()
+	end
 
-function Shine.Timer.Pause( Name )
-	if not Exists( Name ) then return end
-
-	local Timer = Timers:Get( Name )
-
-	Timer:Pause()
-end
-
-function Shine.Timer.Resume( Name )
-	if not Exists( Name ) then return end
-
-	local Timer = Timers:Get( Name )
-
-	Timer:Resume()
+	function Timer.Resume( Name )
+		if not Exists( Name ) then return end
+		Timers:Get( Name ):Resume()
+	end
 end
 
 local Error
@@ -160,8 +139,11 @@ local StackTrace
 
 local function OnError( Err )
 	Error = Err
-	StackTrace = debug.traceback()
+	StackTrace = Shine.Traceback( 2 )
 end
+
+local StringFormat = string.format
+local xpcall = xpcall
 
 --[[
 	Checks and executes timers on server update.
@@ -169,7 +151,6 @@ end
 Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 	local Time = SharedTime()
 
-	--Run the timers.
 	for Name, Timer in Timers:Iterate() do
 		if Timer.NextRun <= Time and not Timer.Paused then
 			if Timer.Reps > 0 then
@@ -177,11 +158,9 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			end
 
 			local Success = xpcall( Timer.Func, OnError, Timer )
-
 			if not Success then
 				Shine:DebugPrint( "Timer %s failed: %s.\n%s", true,
 					Name, Error, StackTrace )
-
 				Shine:AddErrorReport( StringFormat( "Timer %s failed: %s.",
 					Name, Error ), StackTrace )
 
