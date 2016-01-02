@@ -148,7 +148,7 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	local AFKForLongest
 	local TimeAFK = 0
-	local KickTime = self.Config.KickTime
+	local KickTime = self.Config.KickTime * 60
 
 	for Client, Data in pairs( self.Users ) do
 		if not ( Shine:HasAccess( Client, "sh_afk" )
