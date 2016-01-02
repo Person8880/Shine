@@ -138,13 +138,17 @@ function Plugin:KickClient( Client )
 	Server.DisconnectClient( Client )
 end
 
+function Plugin:CanKickForConnectingClient()
+	return GetNumPlayersTotal() >= GetMaxPlayers()
+end
+
 --[[
 	On a new connection attempt when the server is full, kick the longest AFK player past
 	the kick time.
 ]]
 function Plugin:CheckConnectionAllowed( ID )
 	if not self.Config.KickOnConnect then return end
-	if GetNumPlayersTotal() < GetMaxPlayers() then return end
+	if not self:CanKickForConnectingClient() then return end
 
 	local AFKForLongest
 	local TimeAFK = 0
