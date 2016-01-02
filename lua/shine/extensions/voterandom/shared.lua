@@ -89,6 +89,8 @@ local FadeAlphaMult = 1 - FadeAlphaMin
 local HighlightDuration = 10
 
 local function FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
+	if not Entry then return end
+
 	local IsCommander = IsVisibleTeam( OurTeam, TeamNumber ) and Entry.IsCommander
 	local OriginalColour = IsCommander and GUIScoreboard.kCommanderFontColor or Team.Color
 
@@ -102,6 +104,8 @@ end
 
 local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	local ClientIndex = Row.ClientIndex
+	if not ClientIndex then return end
+
 	local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 
 	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
