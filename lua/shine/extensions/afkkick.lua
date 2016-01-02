@@ -55,6 +55,8 @@ function Plugin:OnFirstThink()
 
 		return Ret
 	end )
+
+	Shine.Hook.SetupClassHook( "Commander", "OrderEntities", "OnCommanderOrderEntities", "PassivePost" )
 end
 
 do
@@ -146,7 +148,7 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	local AFKForLongest
 	local TimeAFK = 0
-	local KickTime = self.Config.KickTime
+	local KickTime = self.Config.KickTime * 60
 
 	for Client, Data in pairs( self.Users ) do
 		if not ( Shine:HasAccess( Client, "sh_afk" )
@@ -371,27 +373,21 @@ end
 
 if not Shine.IsNS2Combat then
 	function Plugin:OnConstructInit( Building )
-		local ID = Building:GetId()
 		local Team = Building:GetTeam()
-
 		if not Team or not Team.GetCommander then return end
 
 		local Owner = Building:GetOwner()
 		Owner = Owner or Team:GetCommander()
-
 		if not Owner then return end
 
 		local Client = GetOwner( Owner )
-
 		if not Client then return end
 
 		self:ResetAFKTime( Client )
 	end
 
 	function Plugin:OnRecycle( Building, ResearchID )
-		local ID = Building:GetId()
 		local Team = Building:GetTeam()
-
 		if not Team or not Team.GetCommander then return end
 
 		local Commander = Team:GetCommander()
@@ -403,19 +399,18 @@ if not Shine.IsNS2Combat then
 		self:ResetAFKTime( Client )
 	end
 
-	function Plugin:OnCommanderTechTreeAction( Commander, ... )
-		local Client = GetOwner( Commander )
-		if not Client then return end
+	local function ResetForCommander()
+		return function( self, Commander )
+			local Client = GetOwner( Commander )
+			if not Client then return end
 
-		self:ResetAFKTime( Client )
+			self:ResetAFKTime( Client )
+		end
 	end
 
-	function Plugin:OnCommanderNotify( Commander, ... )
-		local Client = GetOwner( Commander )
-		if not Client then return end
-
-		self:ResetAFKTime( Client )
-	end
+	Plugin.OnCommanderTechTreeAction = ResetForCommander()
+	Plugin.OnCommanderNotify = ResetForCommander()
+	Plugin.OnCommanderOrderEntities = ResetForCommander()
 end
 
 --[[
