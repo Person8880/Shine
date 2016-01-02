@@ -105,6 +105,14 @@ UnitTest.Assert = {
 	Exists = function( Table, Key ) return Table[ Key ] ~= nil end,
 	NotExists = function( Table, Key ) return Table[ Key ] == nil end,
 
+	Contains = function( Table, Value )
+		for i = 1, #Table do
+			if Table[ i ] == Value then return true end
+		end
+
+		return false
+	end,
+
 	ArrayEquals = function( Array, OtherArray )
 		if #Array ~= #OtherArray then return false end
 
