@@ -28,7 +28,7 @@ end
 
 UnitTest:Test( "GetMasterBadgeLookup", function( Assert )
 	local MasterBadgeTable
-	Assert:Nil( Badges:GetMasterBadgeLookup( MasterBadgeTable )	)
+	Assert:Nil( Badges:GetMasterBadgeLookup( MasterBadgeTable ) )
 
 	MasterBadgeTable = {
 		[ "1" ] = {
