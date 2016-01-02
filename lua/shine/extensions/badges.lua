@@ -6,14 +6,12 @@ local pairs = pairs
 local tonumber = tonumber
 local IsType = Shine.IsType
 local Notify = Shared.Message
-local InsertUnique = table.InsertUnique
 
 local Plugin = {}
-Plugin.Version = "2.0"
+Plugin.Version = "2.1"
 
 function Plugin:Initialise()
 	self.AssignedGuests = {}
-
 	self.Enabled = true
 
 	return true
@@ -23,55 +21,36 @@ function Plugin:OnFirstThink()
 	self:Setup()
 end
 
-function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups )
-	local AssignBadge = GiveBadge
+local DefaultRow = 5
+Plugin.DefaultRow = DefaultRow
 
+function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups, MasterBadgeTable )
 	if not Group then return end
 
 	AssignedGroups = AssignedGroups or {}
-
 	if AssignedGroups[ Group ] then return end
 
 	AssignedGroups[ Group ] = true
 
-	local GroupBadges = Group.Badges or Group.badges or {}
-	if not IsType( GroupBadges, "table" ) then
-		GroupBadges = {}
-	end
+	-- Assign badges defined in the group's table.
+	self:AssignBadgesToID( ID, Group, MasterBadgeTable, GroupName or "The default group" )
 
-	if GroupBadges[ 1 ] and IsType( GroupBadges[ 1 ], "string" ) then
-		GroupBadges = {}
-		GroupBadges[ 5 ] = Group.Badges or Group.badges
-	end
-
-	if IsType( Group.Badge or Group.badge, "string" ) then
-		if not GroupBadges[ 5 ] then GroupBadges[ 5 ] = {} end
-		InsertUnique( GroupBadges[ 5 ], Group.Badge or Group.badge )
-	end
-
-	for Row, GroupRowBadges in pairs( GroupBadges ) do
-		for i = 1, #GroupRowBadges do
-			local BadgeName = GroupRowBadges[ i ]
-
-			if not AssignBadge( ID, BadgeName, Row ) then
-				Print( "%s has a non-existant or reserved badge: %s",
-					GroupName or "The default group", BadgeName )
-			end
-		end
-	end
-
+	-- Assign the badge for the group's (lowercase) name.
 	if GroupName then
-		AssignBadge( ID, GroupName:lower() )
+		local GroupBadgeName = GroupName:lower()
+		local Row = MasterBadgeTable and MasterBadgeTable[ GroupBadgeName ]
+		GiveBadge( ID, GroupBadgeName, Row )
 	end
 
 	local InheritTable = Group.InheritsFrom
 	local UserData = Shine.UserData
 
-	--Inherit group badges.
+	-- Inherit group badges.
 	if GroupName and IsType( InheritTable, "table" ) then
 		for i = 1, #InheritTable do
 			local Name = InheritTable[ i ]
-			self:AssignGroupBadge( ID, Name, UserData.Groups[ Name ], AssignedGroups )
+			self:AssignGroupBadge( ID, Name, UserData.Groups[ Name ],
+				AssignedGroups, MasterBadgeTable )
 		end
 	end
 
@@ -79,7 +58,89 @@ function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups )
 		local DefaultGroup = Shine:GetDefaultGroup()
 		if not DefaultGroup then return end
 
-		self:AssignGroupBadge( ID, nil, DefaultGroup, AssignedGroups )
+		self:AssignGroupBadge( ID, nil, DefaultGroup, AssignedGroups, MasterBadgeTable )
+	end
+end
+
+--[[
+	Maps a set of badges contained in rows to their row number.
+]]
+function Plugin:GetMasterBadgeLookup( MasterBadgeTable )
+	if not IsType( MasterBadgeTable, "table" ) then return nil end
+
+	local Lookup = {}
+	for Row, Badges in pairs( MasterBadgeTable ) do
+		for i = 1, #Badges do
+			Lookup[ Badges[ i ] ] = tonumber( Row )
+		end
+	end
+
+	return Lookup
+end
+
+--[[
+	Takes a badge list, and produces a table of badge rows, where each badge has been
+	placed in the row they're mapped to by the MasterBadgeTable, or otherwise the default row.
+]]
+function Plugin:MapBadgesToRows( BadgeList, MasterBadgeTable )
+	local BadgeRows = {}
+
+	for i = 1, #BadgeList do
+		local Badge = BadgeList[ i ]
+		local Row = MasterBadgeTable[ Badge ] or DefaultRow
+		local BadgeRow = BadgeRows[ Row ]
+		if not BadgeRow then
+			BadgeRow = {}
+			BadgeRows[ Row ] = BadgeRow
+		end
+
+		BadgeRow[ #BadgeRow + 1 ] = Badge
+	end
+
+	return BadgeRows
+end
+
+--[[
+	Assigns badges to the given NS2ID from the given table.
+
+	The table will either be a user entry, or a group entry, both of which may
+	have a single value under "Badge" or a an array under "Badges".
+]]
+function Plugin:AssignBadgesToID( ID, Entry, MasterBadgeTable, OwnerName )
+	local AssignBadge = GiveBadge
+	local SingleBadge = Entry.Badge or Entry.badge
+	local BadgeList = Entry.Badges or Entry.badges
+
+	if IsType( SingleBadge, "string" ) then
+		local Row = MasterBadgeTable and MasterBadgeTable[ SingleBadge ]
+		if not AssignBadge( ID, SingleBadge, Row ) then
+			Print( "%s has a non-existant or reserved badge: %s",
+				OwnerName or ID, SingleBadge )
+		end
+	end
+
+	if IsType( BadgeList, "table" ) then
+		if BadgeList[ 1 ] and IsType( BadgeList[ 1 ], "string" ) then
+			-- If it's an array and we have a master badge list, map the badges.
+			if MasterBadgeTable then
+				BadgeList = self:MapBadgesToRows( BadgeList, MasterBadgeTable )
+			else
+				-- Otherwise take the array to be the default row.
+				BadgeList = {}
+				BadgeList[ DefaultRow ] = Entry.Badges or Entry.badges
+			end
+		end
+
+		for Row, Badges in pairs( BadgeList ) do
+			for i = 1, #Badges do
+				local BadgeName = Badges[ i ]
+
+				if not AssignBadge( ID, BadgeName, tonumber( Row ) ) then
+					Print( "%s has a non-existant or reserved badge: %s",
+						OwnerName or ID, BadgeName )
+				end
+			end
+		end
 	end
 end
 
@@ -90,50 +151,26 @@ function Plugin:Setup()
 		return
 	end
 
-	local AssignBadge = GiveBadge
-
 	local UserData = Shine.UserData
 	if not UserData or not UserData.Groups or not UserData.Users then return end
+
+	local MasterBadgeTable = self:GetMasterBadgeLookup( UserData.Badges )
 
 	for ID, User in pairs( UserData.Users ) do
 		ID = tonumber( ID )
 
 		if ID then
 			local GroupName = User.Group
-			local UserBadge = User.Badge or User.badge
-			local UserBadges = User.Badges or User.badges
 
-			if IsType( UserBadge, "string" ) then
-				if not AssignBadge( ID, UserBadge ) then
-					Print( "%s has a non-existant or reserved badge: %s", ID, UserBadge )
-				end
-			end
-
-			if IsType( UserBadges, "table" ) then
-				if UserBadges[ 1 ] and IsType( UserBadges[ 1 ], "string" ) then
-					UserBadges = {}
-					UserBadges[ 5 ] = User.Badges or User.badges
-				end
-
-				for Row, UserRowBadges in pairs( UserBadges ) do
-					for i = 1, #UserRowBadges do
-						local BadgeName = UserRowBadges[ i ]
-
-						if not AssignBadge( ID, BadgeName, Row ) then
-							Print( "%s has a non-existant or reserved badge: %s", ID, BadgeName )
-						end
-					end
-				end
-			end
-
-			self:AssignGroupBadge( ID, GroupName, UserData.Groups[ GroupName ] )
+			self:AssignBadgesToID( ID, User, MasterBadgeTable )
+			self:AssignGroupBadge( ID, GroupName, UserData.Groups[ GroupName ],
+				MasterBadgeTable )
 		end
 	end
 end
 
 function Plugin:OnUserReload()
 	self.AssignedGuests = {}
-
 	self:Setup()
 end
 
@@ -143,14 +180,11 @@ function Plugin:ClientConnect( Client )
 
 	local ID = Client:GetUserId()
 	local UserData = Shine:GetUserData( ID )
+	if UserData or self.AssignedGuests[ ID ] then return end
 
-	if not UserData then
-		if self.AssignedGuests[ ID ] then return end
-
-		self.AssignedGuests[ ID ] = true
-
-		self:AssignGroupBadge( ID, nil, DefaultGroup )
-	end
+	self.AssignedGuests[ ID ] = true
+	self:AssignGroupBadge( ID, nil, DefaultGroup,
+		self:GetMasterBadgeLookup( Shine.UserData.Badges ) )
 end
 
 Shine:RegisterExtension( "badges", Plugin )
