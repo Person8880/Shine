@@ -165,7 +165,6 @@ function Plugin:Setup()
 			self:AssignBadgesToID( ID, User, MasterBadgeTable )
 			self:AssignGroupBadge( ID, GroupName, UserData.Groups[ GroupName ], {},
 				MasterBadgeTable )
-			}
 		end
 	end
 end
@@ -186,7 +185,6 @@ function Plugin:ClientConnect( Client )
 	self.AssignedGuests[ ID ] = true
 	self:AssignGroupBadge( ID, nil, DefaultGroup, {},
 		self:GetMasterBadgeLookup( Shine.UserData.Badges ) )
-	}
 end
 
 Shine:RegisterExtension( "badges", Plugin )
