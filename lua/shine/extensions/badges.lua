@@ -163,7 +163,7 @@ function Plugin:Setup()
 			local GroupName = User.Group
 
 			self:AssignBadgesToID( ID, User, MasterBadgeTable )
-			self:AssignGroupBadge( ID, GroupName, UserData.Groups[ GroupName ],
+			self:AssignGroupBadge( ID, GroupName, UserData.Groups[ GroupName ], {},
 				MasterBadgeTable )
 		end
 	end
@@ -183,7 +183,7 @@ function Plugin:ClientConnect( Client )
 	if UserData or self.AssignedGuests[ ID ] then return end
 
 	self.AssignedGuests[ ID ] = true
-	self:AssignGroupBadge( ID, nil, DefaultGroup,
+	self:AssignGroupBadge( ID, nil, DefaultGroup, {},
 		self:GetMasterBadgeLookup( Shine.UserData.Badges ) )
 end
 
