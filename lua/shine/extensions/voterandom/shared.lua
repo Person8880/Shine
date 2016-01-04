@@ -83,10 +83,14 @@ local function GetLocalPlayerTeam()
 	return Player:GetTeamNumber()
 end
 
+local Abs = math.abs
 local CopyColour = Shine.GUI.CopyColour
+local Cos = math.cos
+
 local FadeAlphaMin = 0.3
 local FadeAlphaMult = 1 - FadeAlphaMin
 local HighlightDuration = 10
+local OscillationMultiplier = HighlightDuration * math.pi * 0.5
 
 local function FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
 	if not Entry then return end
@@ -95,7 +99,7 @@ local function FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastCh
 	local OriginalColour = IsCommander and GUIScoreboard.kCommanderFontColor or Team.Color
 
 	-- Fade the entry in for a short time after joining a team.
-	local Mult = FadeAlphaMin + ( TimeSinceLastChange / HighlightDuration ) * FadeAlphaMult
+	local Mult = FadeAlphaMin + Abs( Cos( TimeSinceLastChange / HighlightDuration * OscillationMultiplier ) ) * FadeAlphaMult
 	local HighlightColour = CopyColour( OriginalColour )
 	HighlightColour.a = Mult * OriginalColour.a
 
