@@ -261,7 +261,6 @@ end
 
 local getmetatable = getmetatable
 local pairs = pairs
-local TableRemoveByValue = table.RemoveByValue
 
 --[[
 	A multimap is a map that can map multiple values per key. It abstracts away the idiom of
