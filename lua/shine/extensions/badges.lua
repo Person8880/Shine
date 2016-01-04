@@ -4,6 +4,7 @@
 
 local pairs = pairs
 local tonumber = tonumber
+local tostring = tostring
 local IsType = Shine.IsType
 local Notify = Shared.Message
 
@@ -22,6 +23,7 @@ function Plugin:OnFirstThink()
 end
 
 local DefaultRow = 5
+local MaxBadgeRows = 10
 Plugin.DefaultRow = DefaultRow
 
 function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups, MasterBadgeTable )
@@ -38,8 +40,10 @@ function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups, MasterBa
 	-- Assign the badge for the group's (lowercase) name.
 	if GroupName then
 		local GroupBadgeName = GroupName:lower()
-		local Row = MasterBadgeTable and MasterBadgeTable[ GroupBadgeName ]
-		GiveBadge( ID, GroupBadgeName, Row )
+		local Rows = MasterBadgeTable and MasterBadgeTable:Get( GroupBadgeName ) or { DefaultRow }
+		for i = 1, #Rows do
+			GiveBadge( ID, GroupBadgeName, Rows[ i ] )
+		end
 	end
 
 	local InheritTable = Group.InheritsFrom
@@ -68,10 +72,14 @@ end
 function Plugin:GetMasterBadgeLookup( MasterBadgeTable )
 	if not IsType( MasterBadgeTable, "table" ) then return nil end
 
-	local Lookup = {}
-	for Row, Badges in pairs( MasterBadgeTable ) do
-		for i = 1, #Badges do
-			Lookup[ Badges[ i ] ] = tonumber( Row )
+	local Lookup = Shine.Multimap()
+	-- Use a numeric loop to keep order consistent.
+	for i = 1, MaxBadgeRows do
+		local Badges = MasterBadgeTable[ tostring( i ) ]
+		if Badges then
+			for j = 1, #Badges do
+				Lookup:Add( Badges[ j ], i )
+			end
 		end
 	end
 
@@ -83,21 +91,18 @@ end
 	placed in the row they're mapped to by the MasterBadgeTable, or otherwise the default row.
 ]]
 function Plugin:MapBadgesToRows( BadgeList, MasterBadgeTable )
-	local BadgeRows = {}
+	local BadgeRows = Shine.Multimap()
 
 	for i = 1, #BadgeList do
 		local Badge = BadgeList[ i ]
-		local Row = MasterBadgeTable[ Badge ] or DefaultRow
-		local BadgeRow = BadgeRows[ Row ]
-		if not BadgeRow then
-			BadgeRow = {}
-			BadgeRows[ Row ] = BadgeRow
-		end
+		local Rows = MasterBadgeTable:Get( Badge ) or { DefaultRow }
 
-		BadgeRow[ #BadgeRow + 1 ] = Badge
+		for j = 1, #Rows do
+			BadgeRows:Add( Rows[ j ], Badge )
+		end
 	end
 
-	return BadgeRows
+	return BadgeRows:AsTable()
 end
 
 --[[
@@ -112,10 +117,12 @@ function Plugin:AssignBadgesToID( ID, Entry, MasterBadgeTable, OwnerName )
 	local BadgeList = Entry.Badges or Entry.badges
 
 	if IsType( SingleBadge, "string" ) then
-		local Row = MasterBadgeTable and MasterBadgeTable[ SingleBadge ]
-		if not AssignBadge( ID, SingleBadge, Row ) then
-			Print( "%s has a non-existant or reserved badge: %s",
-				OwnerName or ID, SingleBadge )
+		local Rows = MasterBadgeTable and MasterBadgeTable:Get( SingleBadge ) or { DefaultRow }
+		for i = 1, #Rows do
+			if not AssignBadge( ID, SingleBadge, Rows[ i ] ) then
+				Print( "%s has a non-existant or reserved badge: %s",
+					OwnerName or ID, SingleBadge )
+			end
 		end
 	end
 
@@ -131,13 +138,17 @@ function Plugin:AssignBadgesToID( ID, Entry, MasterBadgeTable, OwnerName )
 			end
 		end
 
-		for Row, Badges in pairs( BadgeList ) do
-			for i = 1, #Badges do
-				local BadgeName = Badges[ i ]
+		for i = 1, MaxBadgeRows do
+			local Badges = BadgeList[ i ] or BadgeList[ tostring( i ) ]
 
-				if not AssignBadge( ID, BadgeName, tonumber( Row ) ) then
-					Print( "%s has a non-existant or reserved badge: %s",
-						OwnerName or ID, BadgeName )
+			if Badges then
+				for j = 1, #Badges do
+					local BadgeName = Badges[ j ]
+
+					if not AssignBadge( ID, BadgeName, i ) then
+						Print( "%s has a non-existant or reserved badge: %s",
+							OwnerName or ID, BadgeName )
+					end
 				end
 			end
 		end

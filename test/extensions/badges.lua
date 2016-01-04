@@ -38,22 +38,22 @@ UnitTest:Test( "GetMasterBadgeLookup", function( Assert )
 			"test2", "test2b"
 		},
 		[ "8" ] = {
-			"test8"
+			"test8", "test1"
 		}
 	}
 
 	local Lookup = Badges:GetMasterBadgeLookup( MasterBadgeTable )
 	Assert:NotNil( Lookup )
-	Assert:Equals( 1, Lookup.test1 )
-	Assert:Equals( 2, Lookup.test2 )
-	Assert:Equals( 2, Lookup.test2b )
-	Assert:Equals( 8, Lookup.test8 )
+	Assert:ArrayEquals( { 1, 8 }, Lookup:Get( "test1" ) )
+	Assert:ArrayEquals( { 2 }, Lookup:Get( "test2" ) )
+	Assert:ArrayEquals( { 2 }, Lookup:Get( "test2b" ) )
+	Assert:ArrayEquals( { 8 }, Lookup:Get( "test8" ) )
 end )
 
 UnitTest:Test( "MapBadgesToRows", function( Assert )
 	local BadgeList = { "test1", "test2", "test2b", "test8" }
-	local Lookup = {
-		test1 = 1, test2 = 2, test2b = 2, test8 = 8
+	local Lookup = Shine.Multimap{
+		test1 = { 1, 8 }, test2 = { 2 }, test2b = { 2 }, test8 = { 8 }
 	}
 
 	local Rows = Badges:MapBadgesToRows( BadgeList, Lookup )
@@ -65,7 +65,7 @@ UnitTest:Test( "MapBadgesToRows", function( Assert )
 
 	Assert:ArrayEquals( { "test1" }, Rows[ 1 ] )
 	Assert:ArrayEquals( { "test2", "test2b" }, Rows[ 2 ] )
-	Assert:ArrayEquals( { "test8" }, Rows[ 8 ] )
+	Assert:ArrayEquals( { "test1", "test8" }, Rows[ 8 ] )
 end )
 
 UnitTest:Test( "AssignBadgesToID", function( Assert )
@@ -80,10 +80,10 @@ UnitTest:Test( "AssignBadgesToID", function( Assert )
 	Assert:NotNil( Assigned[ ID ][ Badges.DefaultRow ] )
 	Assert:Contains( Assigned[ ID ][ Badges.DefaultRow ], "cake" )
 
-	local MasterTable = {
-		test1 = 1,
-		test2 = 2,
-		test3 = 3
+	local MasterTable = Shine.Multimap{
+		test1 = { 1 },
+		test2 = { 2 },
+		test3 = { 3 }
 	}
 
 	-- Master table, one entry.
@@ -91,18 +91,18 @@ UnitTest:Test( "AssignBadgesToID", function( Assert )
 		Badge = "test1"
 	}, MasterTable )
 
-	Assert:NotNil( Assigned[ ID ][ MasterTable.test1 ] )
-	Assert:Contains( Assigned[ ID ][ MasterTable.test1 ], "test1" )
+	Assert:NotNil( Assigned[ ID ][ 1 ] )
+	Assert:Contains( Assigned[ ID ][ 1 ], "test1" )
 
 	-- Master table, multiple entries.
 	Badges:AssignBadgesToID( ID, {
 		Badges = { "test2", "test3" }
 	}, MasterTable )
 
-	Assert:NotNil( Assigned[ ID ][ MasterTable.test2 ] )
-	Assert:NotNil( Assigned[ ID ][ MasterTable.test3 ] )
-	Assert:Contains( Assigned[ ID ][ MasterTable.test2 ], "test2" )
-	Assert:Contains( Assigned[ ID ][ MasterTable.test3 ], "test3" )
+	Assert:NotNil( Assigned[ ID ][ 2 ] )
+	Assert:NotNil( Assigned[ ID ][ 3 ] )
+	Assert:Contains( Assigned[ ID ][ 2 ], "test2" )
+	Assert:Contains( Assigned[ ID ][ 3 ], "test3" )
 
 	-- No master table, multiple entries.
 	Badges:AssignBadgesToID( ID, {
