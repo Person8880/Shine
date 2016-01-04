@@ -285,6 +285,8 @@ end
 function Multimap:Init( Values )
 	Map.Init( self )
 
+	self.Count = 0
+
 	if not Values then return self end
 
 	if getmetatable( Values ) == Multimap then
@@ -307,6 +309,14 @@ function Multimap:Init( Values )
 end
 
 --[[
+	Returns the number of distinct key-value pairs in the multimap,
+	not the number of keys.
+]]
+function Multimap:GetCount()
+	return self.Count
+end
+
+--[[
 	Adds a new value under the given key if the given key-value pair has not
 	been mapped already.
 ]]
@@ -315,8 +325,10 @@ function Multimap:Add( Key, Value )
 	if not Entry then
 		Entry = NewMap()
 		Map.Add( self, Key, Entry )
+
+		self.Count = self.Count + 1
 	elseif Entry:Get( Value ) == nil then
-		self.NumMembers = self.NumMembers + 1
+		self.Count = self.Count + 1
 	end
 
 	Entry:Add( Value, Value )
@@ -332,7 +344,7 @@ function Multimap:RemoveKeyValue( Key, Value )
 
 	local Removed = Entry:Remove( Value ) ~= nil
 	if Removed then
-		self.NumMembers = self.NumMembers - 1
+		self.Count = self.Count - 1
 	end
 
 	return Removed
