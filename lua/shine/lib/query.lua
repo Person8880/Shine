@@ -110,7 +110,6 @@ local DefaultTimeout = 5
 ]]
 function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Timeout )
 	local NeedParams = true
-
 	if Protocol ~= "POST" then
 		Timeout = OnTimeout
 		OnTimeout = OnSuccess
@@ -153,6 +152,14 @@ end
 function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttempts, Timeout )
 	MaxAttempts = MaxAttempts or 3
 
+	local NeedParams = true
+	if Protocol ~= "POST" then
+		Timeout = MaxAttempts
+		MaxAttempts = Callbacks
+		Callbacks = Params
+		NeedParams = false
+	end
+
 	local Attempts = 0
 	local Submit
 
@@ -172,7 +179,11 @@ function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttemp
 	end
 
 	Submit = function()
-		Shine.TimedHTTPRequest( URL, Protocol, Params, Callbacks.OnSuccess, OnTimeout, Timeout )
+		if NeedsParams then
+			Shine.TimedHTTPRequest( URL, Protocol, Params, Callbacks.OnSuccess, OnTimeout, Timeout )
+		else
+			Shine.TimedHTTPRequest( URL, Protocol, Callbacks.OnSuccess, OnTimeout, Timeout )
+		end
 	end
 
 	Submit()
