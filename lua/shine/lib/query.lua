@@ -188,3 +188,5 @@ function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttemp
 
 	Submit()
 end
+
+Script.Load( "lua/shine/lib/external_apis.lua" )
