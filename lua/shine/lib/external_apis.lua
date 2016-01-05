@@ -85,6 +85,7 @@ do
 		local URL = APIData.URL..Data.URL
 		local IsPOST = Data.Protocol == "POST"
 
+		-- Inherit the base API definition's parameters automatically.
 		setmetatable( Data.Params, { __index = APIData.Params } )
 
 		APICallers[ APIName ][ EndPointName ] = function( RequestParams, Callbacks, Attempts )
@@ -98,6 +99,7 @@ do
 				return Data.Params[ Match ]( RequestParams[ Match ] )
 			end )
 
+			-- Pass the transformed JSON response through to the OnSuccess callback.
 			local OldOnSuccess = Callbacks.OnSuccess
 			Callbacks.OnSuccess = function( Response )
 				OldOnSuccess( Data.ResponseTransformer( Decode( Response ) ) )
@@ -176,6 +178,9 @@ function ExternalAPIHandler:GetEndPoint( APIName, EndPointName )
 	return APIs[ APIName ] and APIs[ APIName ][ EndPointName ]
 end
 
+--[[
+	Internal function, throws an error if the given API and endpoint do not exist.
+]]
 function ExternalAPIHandler:VerifyEndPoint( APIName, EndPointName )
 	local EndPoint = self:GetEndPoint( APIName, EndPointName )
 	if not EndPoint then
@@ -231,10 +236,11 @@ do
 		Inputs:
 			1. APIName - The name of the API.
 			2. EndPointName - The name of the endpoint under the API.
-			3. Params - The request parameters, endpoint dependent.
+			3. Params - The request parameters, endpoint dependent. If the endpoint uses the
+			   "POST" protocol, then add a sub-table under Params.POST to set the POST request values.
 			4. Callbacks - A table containing functions "OnSuccess", "OnFailure" and
 			   optionally "OnTimeout". "OnSuccess" receives the response from the API (transformed by
-			   the endpoint definition if it has a transformer function).
+			   the endpoint definition).
 			5. Attempts - Optional maximum number of retry attempts, defaults to only 1 attempt.
 	]]
 	function ExternalAPIHandler:PerformRequest( APIName, EndPointName, Params, Callbacks, Attempts )
@@ -276,12 +282,13 @@ do
 		Internal function, do not call. This is called automatically as requests
 		are added and satisfied.
 
-		Advanced the request queue, if there are still requests pending.
+		Advances the request queue, if there are still requests pending.
 	]]
 	function ExternalAPIHandler:ProcessQueue()
 		local Queued = self.Queue:Pop()
 		if not Queued then return end
 
+		-- If the function fails, skip it and go to the next entry.
 		local Success = xpcall( Queued.Caller, OnQueueError, unpack( Queued.Args ) )
 		if not Success then
 			self:ProcessQueue()
