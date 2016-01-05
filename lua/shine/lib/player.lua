@@ -386,7 +386,7 @@ do
 
 	--[[
 		Lua in NS2 uses double precision floats, which cannot express a 64 bit
-		integer entirely. Thus, the first 4 digits are ignored, as the 32bit
+		integer entirely. Thus, the first 5 digits are ignored, as the 32bit
 		Steam ID should never bring the 64 bit ID to the point where it has to increment
 		any of those digits.
 	]]
