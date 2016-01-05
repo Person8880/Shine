@@ -210,6 +210,7 @@ end
 do
 	local OnError = Shine.BuildErrorHandler( "External API callback error" )
 	local TableBuild = table.Build
+	local unpack = unpack
 	local xpcall = xpcall
 
 	function ExternalAPIHandler:AddToCache( APIName, EndPointName, Params, Result )
@@ -268,17 +269,22 @@ do
 
 		self:ProcessQueue()
 	end
-end
 
---[[
-	Internal function, do not call. This is called automatically as requests
-	are added and satisfied.
+	local OnQueueError = Shine.BuildErrorHandler( "External API call error" )
 
-	Advanced the request queue, if there are still requests pending.
-]]
-function ExternalAPIHandler:ProcessQueue()
-	local Queued = self.Queue:Pop()
-	if not Queued then return end
+	--[[
+		Internal function, do not call. This is called automatically as requests
+		are added and satisfied.
 
-	Queued.Caller( unpack( Queued.Args ) )
+		Advanced the request queue, if there are still requests pending.
+	]]
+	function ExternalAPIHandler:ProcessQueue()
+		local Queued = self.Queue:Pop()
+		if not Queued then return end
+
+		local Success = xpcall( Queued.Caller, OnQueueError, unpack( Queued.Args ) )
+		if not Success then
+			self:ProcessQueue()
+		end
+	end
 end
