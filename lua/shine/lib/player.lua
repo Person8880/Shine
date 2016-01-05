@@ -379,6 +379,27 @@ function Shine.SteamIDToNS2( ID )
 	end
 end
 
+do
+	local RemovedDigits = 6
+	local SteamID64Int = 197960265728
+	local StringSub = string.sub
+
+	--[[
+		Lua in NS2 uses double precision floats, which cannot express a 64 bit
+		integer entirely. Thus, the first 4 digits are ignored, as the 32bit
+		Steam ID should never bring the 64 bit ID to the point where it has to increment
+		any of those digits.
+	]]
+	function Shine.NS2IDTo64( ID )
+		return StringFormat( "76561%s", ID + SteamID64Int )
+	end
+
+	function Shine.SteamID64ToNS2ID( SteamID64 )
+		local UsableInt = tonumber( StringSub( SteamID64, RemovedDigits ) )
+		return UsableInt - SteamID64Int
+	end
+end
+
 function Shine:GetClientBySteamID( ID )
 	if not IsType( ID, "string" ) then return nil end
 
