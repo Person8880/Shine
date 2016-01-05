@@ -267,8 +267,9 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 
 	--Ignore players waiting to respawn/watching the end of the game.
-	if Player:GetIsWaitingForTeamBalance() or ( Player.GetIsRespawning
-	and Player:GetIsRespawning() ) or Player:isa( "TeamSpectator" ) then
+	if Player:isa( "TeamSpectator" )
+	or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
+	or ( Player.GetIsRespawning and Player:GetIsRespawning() ) then
 		self:ResetAFKTime( Client )
 
 		return
