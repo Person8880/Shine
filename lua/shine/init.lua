@@ -10,6 +10,7 @@ local Scripts = {
 	"lib/comparator.lua",
 	"lib/sorting.lua",
 	"lib/stream.lua",
+	"lib/queue.lua",
 	"lib/string.lua",
 	"lib/utf8.lua",
 	"lib/math.lua",
