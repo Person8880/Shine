@@ -5,6 +5,7 @@
 local IsType = Shine.IsType
 local pairs = pairs
 local Random = math.random
+local select = select
 local TableRemove = table.remove
 local TableSort = table.sort
 
@@ -27,6 +28,23 @@ do
 
 		return true
 	end
+end
+
+--[[
+	Takes a base table and a list of keys, and populates down to the last key with tables.
+]]
+function table.Build( Base, ... )
+	for i = 1, select( "#", ... ) do
+		local Key = select( i, ... )
+		local Entry = Base[ Key ]
+		if not Entry then
+			Entry = {}
+			Base[ Key ] = Entry
+		end
+		Base = Entry
+	end
+
+	return Base
 end
 
 --[[

@@ -123,7 +123,9 @@ UnitTest.Assert = {
 		end
 
 		return true
-	end
+	end,
+
+	IsType = IsType
 }
 
 for Name, Func in pairs( UnitTest.Assert ) do

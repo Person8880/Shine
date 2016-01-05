@@ -74,3 +74,14 @@ UnitTest:Test( "InsertUnique", function( Assert )
 	Assert:False( Inserted )
 	Assert:ArrayEquals( { 1, 2, 3, 4 }, Table )
 end )
+
+UnitTest:Test( "Build", function( Assert )
+	local Base = {}
+	local ReallySubChild = table.Build( Base, "Child", "SubChild", "ReallySubChild" )
+
+	Assert:IsType( Base.Child, "table" )
+	Assert:IsType( Base.Child.SubChild, "table" )
+	Assert:IsType( Base.Child.SubChild.ReallySubChild, "table" )
+
+	Assert:Equals( Base.Child.SubChild.ReallySubChild, ReallySubChild )
+end )
