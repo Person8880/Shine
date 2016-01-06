@@ -181,7 +181,7 @@ if Server then
 	Shine.Hook.Add( "PostloadConfig", "ExternalAPIHandlerCache", function()
 		local DiskCache = Shine.LoadJSONFile( APICacheFile )
 		ExternalAPIHandler.Cache = DiskCache or ExternalAPIHandler.Cache
-		ExternalAPIHandler.LoadedFromDisk = DiskCache ~= nil
+		ExternalAPIHandler.LoadedFromDisk = DiskCache ~= false
 
 		TrimCache( ExternalAPIHandler.Cache )
 
