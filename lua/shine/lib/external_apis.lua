@@ -41,19 +41,6 @@ local APIs = {
 
 local APICallers = {}
 
---[[
-	Registers an external API.
-
-	Data should contain the following fields:
-	- GlobalRequestParams: If provided, a table of parameters to use as defaults for all requests
-	  under this API. Useful for a single global API key.
-	- Params: If provided, a list of parameters that are always required, e.g. an API key.
-	- URL: The base URL all endpoints start with.
-]]
-function Shine.RegisterExternalAPI( APIName, Data )
-	APIs[ APIName ] = Data
-end
-
 do
 	local Decode = json.decode
 	local setmetatable = setmetatable
@@ -83,7 +70,7 @@ do
 			error( "Attempted to register an endpoint before its API", 2 )
 		end
 
-		APIData[ EndPointName ] = Data
+		APIData.EndPoints[ EndPointName ] = Data
 		APICallers[ APIName ] = APICallers[ APIName ] or {}
 
 		local URL = APIData.URL..Data.URL
@@ -121,10 +108,31 @@ do
 	end
 	Shine.RegisterExternalAPIEndPoint = RegisterEndPoint
 
-	for APIName, APIData in pairs( APIs ) do
+	local function RegisterAPI( APIName, APIData )
 		for EndPointName, Data in pairs( APIData.EndPoints ) do
 			RegisterEndPoint( APIName, EndPointName, Data )
 		end
+	end
+
+	--[[
+		Registers an external API.
+
+		Data should contain the following fields:
+		- EndPoints: A table of endpoint definitions.
+		- GlobalRequestParams: If provided, a table of parameters to use as defaults for all requests
+		  under this API. Useful for a single global API key.
+		- Params: If provided, a list of parameters that are always required, e.g. an API key.
+		- URL: The base URL all endpoints start with.
+	]]
+	function Shine.RegisterExternalAPI( APIName, Data )
+		Data.EndPoints = Data.EndPoints or {}
+		APIs[ APIName ] = Data
+
+		RegisterAPI( APIName, Data )
+	end
+
+	for APIName, APIData in pairs( APIs ) do
+		RegisterAPI( APIName, APIData )
 	end
 end
 
@@ -205,7 +213,7 @@ end
 	Returns the requested endpoint definition, if it exists.
 ]]
 function ExternalAPIHandler:GetEndPoint( APIName, EndPointName )
-	return APIs[ APIName ] and APIs[ APIName ][ EndPointName ]
+	return APIs[ APIName ] and APIs[ APIName ].EndPoints[ EndPointName ]
 end
 
 --[[
