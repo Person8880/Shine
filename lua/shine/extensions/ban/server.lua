@@ -45,7 +45,8 @@ Plugin.DefaultConfig = {
 	BansSubmitArguments = {},
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5,
-	VanillaConfigUpToDate = false
+	VanillaConfigUpToDate = false,
+	CheckFamilySharing = false
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -432,6 +433,7 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	ID = tostring( ID )
 
 	local BanData = self.Config.Banned[ ID ]
+	if not BanData then return end
 
 	self.Config.Banned[ ID ] = nil
 	self:NetworkUnban( ID )
@@ -639,22 +641,92 @@ function Plugin:CreateCommands()
 	ForceSyncCommand:Help( "Forces the bans plugin to reload ban data from the web." )
 end
 
+function Plugin:GetBanEntry( ID )
+	return self.Config.Banned[ tostring( ID ) ]
+end
+
+function Plugin:IsBanExpired( BanEntry )
+	return BanEntry.UnbanTime and BanEntry.UnbanTime ~= 0 and BanEntry.UnbanTime <= Time()
+end
+
+function Plugin:IsIDBanned( ID )
+	local BanEntry = self:GetBanEntry( ID )
+	if not BanEntry or self:IsBanExpired( BanEntry ) then return false end
+
+	return true
+end
+
 --[[
-	Runs on client connect.
-	Drops a client if they're on the ban list and still banned.
+	Checks whether the given ID is family sharing with a banned account.
+]]
+function Plugin:CheckFamilySharing( ID, NoAPIRequest )
+	if not self.Config.CheckFamilySharing then return false end
+
+	local RequestParams = {
+		SteamID = ID
+	}
+
+	local Sharer = Shine.ExternalAPIHandler:GetCachedValue( "Steam", "IsPlayingSharedGame", RequestParams )
+	if Sharer ~= nil then
+		if not Sharer then return false end
+
+		return self:IsIDBanned( Sharer ), Sharer
+	end
+
+	if NoAPIRequest then return false end
+	if not Shine.ExternalAPIHandler:HasAPIKey( "Steam" ) then return false end
+
+	Shine.ExternalAPIHandler:PerformRequest( "Steam", "IsPlayingSharedGame", RequestParams, {
+		OnSuccess = function( Sharer )
+			if not Sharer or not self:IsIDBanned( Sharer ) then return end
+
+			-- Unlikely, but possible that the client's already loaded before Steam responds.
+			local Target = Shine.GetClientByNS2ID( ID )
+			if Target then
+				self:KickForFamilySharing( Target, Sharer )
+			end
+		end,
+		OnFailure = function()
+			self:Print( "Failed to receive response from Steam for user %s's family sharing status.",
+				true, ID )
+		end
+	} )
+
+	return false
+end
+
+function Plugin:KickForFamilySharing( Client, Sharer )
+	self:Print( "Kicking %s for family sharing with a banned account. Sharer ID: %s.", true,
+			Shine.GetClientInfo( Client ), Sharer )
+	self:PerformBan( Client )
+end
+
+--[[
+	On client connect, check if they're family sharing without an API request.
+
+	This will pick up on the result of a request sent on connection that's finished now
+	the client's connected.
+]]
+function Plugin:ClientConnect( Client )
+	local IsSharing, Sharer = self:CheckFamilySharing( Client:GetUserId(), true )
+	if IsSharing then
+		self:KickForFamilySharing( Client, Sharer )
+	end
+end
+
+--[[
+	Runs on client connection attempt.
+	Rejects a client if they're on the ban list and still banned.
 	If they're past their ban time, their ban is removed.
 ]]
 function Plugin:CheckConnectionAllowed( ID )
-	local BanEntry = self.Config.Banned[ tostring( ID ) ]
-
-	if BanEntry then
-		--Either a perma-ban or not expired.
-		if not BanEntry.UnbanTime or BanEntry.UnbanTime == 0 or BanEntry.UnbanTime > Time() then
-			return false
-		else
-			self:RemoveBan( ID )
-		end
+	if self:IsIDBanned( ID ) then
+		return false
 	end
+
+	self:RemoveBan( ID )
+
+	if self:CheckFamilySharing( ID ) then return false end
 end
 
 function Plugin:ClientDisconnect( Client )

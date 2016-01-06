@@ -10,6 +10,7 @@ Shine:RegisterExtension( "commbans", Plugin, {
 	Base = "ban",
 	BlacklistKeys = {
 		CheckConnectionAllowed = true,
+		ClientConnect = true,
 		OnWebConfigLoaded = true,
 		BanNetworkData = true,
 		BanNetworkedClients = true,
