@@ -149,6 +149,8 @@ if Server then
 	ExternalAPIHandler.CacheLifeTime = 60 * 60 * 24
 
 	function ExternalAPIHandler:SaveCache()
+		if not next( self.Cache ) and not self.LoadedFromDisk then return end
+
 		Shine.SaveJSONFile( self.Cache, APICacheFile )
 	end
 
@@ -177,7 +179,10 @@ if Server then
 	end
 
 	Shine.Hook.Add( "PostloadConfig", "ExternalAPIHandlerCache", function()
-		ExternalAPIHandler.Cache = Shine.LoadJSONFile( APICacheFile ) or ExternalAPIHandler.Cache
+		local DiskCache = Shine.LoadJSONFile( APICacheFile )
+		ExternalAPIHandler.Cache = DiskCache or ExternalAPIHandler.Cache
+		ExternalAPIHandler.LoadedFromDisk = DiskCache ~= nil
+
 		TrimCache( ExternalAPIHandler.Cache )
 
 		for Name, Key in pairs( Shine.Config.APIKeys ) do
