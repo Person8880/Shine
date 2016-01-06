@@ -14,6 +14,7 @@ local APIs = {
 		Params = {
 			APIKey = tostring
 		},
+		GlobalRequestParams = {},
 		EndPoints = {
 			-- Determines if a player is playing with a family shared account.
 			-- Callback returns the NS2ID of the player sharing the game, or false if the player owns the game.
@@ -44,15 +45,18 @@ local APICallers = {}
 	Registers an external API.
 
 	Data should contain the following fields:
+	- GlobalRequestParams: If provided, a table of parameters to use as defaults for all requests
+	  under this API. Useful for a single global API key.
 	- Params: If provided, a list of parameters that are always required, e.g. an API key.
 	- URL: The base URL all endpoints start with.
 ]]
 function Shine.RegisterExternalAPI( APIName, Data )
-	APIData[ APIName ] = Data
+	APIs[ APIName ] = Data
 end
 
 do
 	local Decode = json.decode
+	local setmetatable = setmetatable
 	local StringGSub = string.gsub
 
 	--[[
@@ -90,6 +94,9 @@ do
 
 		APICallers[ APIName ][ EndPointName ] = function( RequestParams, Callbacks, Attempts )
 			Attempts = Attempts or 1
+
+			-- Inherit the base API definition's global request parameters (e.g. for an API key).
+			setmetatable( RequestParams, { __index = APIData.GlobalRequestParams } )
 
 			-- Parse the request parameters using the set converters.
 			local RequestURL = StringGSub( URL, "{([^}]+)}", function( Match )
@@ -164,11 +171,34 @@ if Server then
 	Shine.Hook.Add( "PostloadConfig", "ExternalAPIHandlerCache", function()
 		ExternalAPIHandler.Cache = Shine.LoadJSONFile( APICacheFile ) or ExternalAPIHandler.Cache
 		TrimCache( ExternalAPIHandler.Cache )
+
+		for Name, Key in pairs( Shine.Config.APIKeys ) do
+			if Key ~= "" and APIs[ Name ] and APIs[ Name ].GlobalRequestParams then
+				APIs[ Name ].GlobalRequestParams.APIKey = Key
+			end
+		end
 	end )
 
 	Shine.Hook.Add( "MapChange", "ExternalAPIHandlerCache", function()
 		ExternalAPIHandler:SaveCache()
 	end )
+end
+
+--[[
+	Returns the requested API definition, if it exists.
+]]
+function ExternalAPIHandler:GetAPI( APIName )
+	return APIs[ APIName ]
+end
+
+--[[
+	Returns true if the given API has an "APIKey" global request parameter stored.
+]]
+function ExternalAPIHandler:HasAPIKey( APIName )
+	local APIData = APIs[ APIName ]
+	if not APIData then return false end
+
+	return ( APIData.GlobalRequestParams and APIData.GlobalRequestParams.APIKey ) ~= nil
 end
 
 --[[
