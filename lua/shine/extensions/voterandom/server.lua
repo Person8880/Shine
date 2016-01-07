@@ -96,7 +96,8 @@ Plugin.DefaultConfig = {
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
 
 	ReconnectLogTime = 0, --How long (in seconds) after a shuffle to log reconnecting players for?
-	HighlightTeamSwaps = false -- Should players swapping teams be highlighted on the scoreboard?
+	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
+	DisplayStandardDeviations = false -- Should the scoreboard show each team's standard deviation of skill?
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -161,6 +162,8 @@ function Plugin:Initialise()
 	self.ForceRandom = self.Config.AlwaysEnabled
 
 	self.dt.HighlightTeamSwaps = self.Config.HighlightTeamSwaps
+	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
+		and BalanceMode == self.MODE_HIVE
 
 	self.Enabled = true
 
