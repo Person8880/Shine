@@ -40,6 +40,14 @@ function Shine:GetTeamName( Team, Capitals, Singular )
 	return Names[ Team ][ 2 ]
 end
 
+do
+	local PlayingTeams = { true, true }
+
+	function Shine.IsPlayingTeam( TeamNumber )
+		return PlayingTeams[ TeamNumber ] or false
+	end
+end
+
 if Client then return end
 
 local Abs = math.abs

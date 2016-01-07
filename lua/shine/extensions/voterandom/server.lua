@@ -1268,7 +1268,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if Immune then return end
 
 	local Team = Player:GetTeamNumber()
-	local OnPlayingTeam = Team == 1 or Team == 2
+	local OnPlayingTeam = Shine.IsPlayingTeam( Team )
 
 	local NumTeam1 = Gamerules.team1:GetNumPlayers()
 	local NumTeam2 = Gamerules.team2:GetNumPlayers()

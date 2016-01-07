@@ -445,10 +445,6 @@ end
 
 --Override the built in randomise ready room vote to not move AFK players.
 Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
-	local PlayingTeamNumbers = {
-		true, true
-	}
-
 	do
 		local function CheckPlayerIsAFK( Player )
 			if not Player then return end
@@ -461,7 +457,7 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 				return
 			end
 
-			if PlayingTeamNumbers[ Player:GetTeamNumber() ] then
+			if Shine.IsPlayingTeam( Player:GetTeamNumber() ) then
 				local Gamerules = GetGamerules()
 
 				pcall( Gamerules.JoinTeam, Gamerules, Player,
@@ -487,7 +483,7 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 		if not Client or Plugin:IsAFKFor( Client, 60 ) then
 			ShouldKeep = false
 
-			if Client and PlayingTeamNumbers[ Player:GetTeamNumber() ] then
+			if Client and Shine.IsPlayingTeam( Player:GetTeamNumber() ) then
 				local Gamerules = GetGamerules()
 
 				pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
