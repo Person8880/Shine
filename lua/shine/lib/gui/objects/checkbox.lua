@@ -76,9 +76,7 @@ function CheckBox:SetChecked( Value, DontFade )
 			end )
 		end
 
-		if self.OnChecked then
-			self:OnChecked( true )
-		end
+		self:OnChecked( true )
 
 		return
 	end
@@ -93,9 +91,7 @@ function CheckBox:SetChecked( Value, DontFade )
 		end )
 	end
 
-	if self.OnChecked then
-		self:OnChecked( false )
-	end
+	self:OnChecked( false )
 end
 
 function CheckBox:OnMouseDown( Key, DoubleClick )
@@ -160,6 +156,10 @@ function CheckBox:AddLabel( Text )
 	end
 
 	self.Label = Label
+end
+
+function CheckBox:OnChecked( Checked )
+
 end
 
 SGUI.AddBoundProperty( CheckBox, "Font", "Label" )

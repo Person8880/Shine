@@ -141,9 +141,7 @@ function Slider:SetValue( Value )
 	self.HandlePos.x = self.Width * self.Fraction
 
 	self.Handle:SetPosition( self.HandlePos )
-
 	self.Label:SetText( tostring( self.Value ) )
-
 	self:SizeLines()
 end
 
@@ -156,11 +154,9 @@ function Slider:SetFraction( Fraction )
 	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
 
 	self.HandlePos.x = self.Width * self.Fraction
-
 	self.Handle:SetPosition( self.HandlePos )
 
 	self.Label:SetText( tostring( self.Value ) )
-
 	self:SizeLines()
 end
 
@@ -227,9 +223,7 @@ function Slider:OnMouseUp( Key )
 		self.Dragging = false
 	end
 
-	if self.OnValueChanged then
-		self:OnValueChanged( self:GetValue() )
-	end
+	self:OnValueChanged( self:GetValue() )
 
 	return true
 end
@@ -244,7 +238,26 @@ function Slider:OnMouseMove( Down )
 
 	self.CurPos.x = Clamp( self.StartingPos.x + Diff, 0, self.Width )
 
+	local OldValue = self.Value
 	self:SetFraction( self.CurPos.x / self.Width )
+
+	if OldValue ~= self.Value then
+		self:OnSlide( self.Value )
+	end
+end
+
+--[[
+	Called when the slider has stopped being moved.
+]]
+function Slider:OnValueChanged( Value )
+
+end
+
+--[[
+	Called as the slider is being moved.
+]]
+function Slider:OnSlide( Value )
+
 end
 
 SGUI:Register( "Slider", Slider )
