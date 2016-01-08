@@ -615,6 +615,10 @@ do
 			Setup = function( self, Object, Data )
 				Object:SetBounds( unpack( Data.Bounds ) )
 
+				if Data.OnSlide then
+					Object.OnSlide = Data.OnSlide
+				end
+
 				if IsType( Data.ConfigValue, "string" ) then
 					Object.OnValueChanged = function( Object, Value )
 						UpdateConfigValue( self, Data.ConfigValue, Value )
@@ -692,6 +696,9 @@ do
 				if not UpdateConfigValue( self, "Opacity", Value ) then return end
 
 				UpdateOpacity( self, Value )
+			end,
+			OnSlide = function( Slider, Value )
+				UpdateOpacity( Plugin, Value * 0.01 )
 			end,
 			Bounds = { 0, 100 },
 			Values = function( self )
