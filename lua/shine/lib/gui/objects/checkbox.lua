@@ -11,10 +11,7 @@ local CheckBox = {}
 function CheckBox:Initialise()
 	self.BaseClass.Initialise( self )
 
-	if self.Background then GUI.DestroyItem( self.Background ) end
-	
 	local Manager = GetGUIManager()
-
 	local Background = Manager:CreateGraphicItem()
 
 	self.Background = Background
@@ -25,30 +22,7 @@ function CheckBox:Initialise()
 	Background:AddChild( Box )
 
 	self.Box = Box
-
-	local Scheme = SGUI:GetSkin()
-
-	self.BackgroundCol = Scheme.InactiveButton
-	self.BoxCol = Scheme.ActiveButton
-	self.BoxHideCol = SGUI.CopyColour( Scheme.ActiveButton )
-	self.BoxHideCol.a = 0
-
-	Box:SetColor( self.BoxHideCol )
-	Background:SetColor( self.BackgroundCol )
-
 	self.Checked = false
-end
-
-function CheckBox:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-	
-	self.BackgroundCol = Scheme.InactiveButton
-	self.BoxCol = Scheme.ActiveButton
-	self.BoxHideCol = SGUI.CopyColour( Scheme.ActiveButton )
-	self.BoxHideCol.a = 0
-
-	self.Box:SetColor( self.Checked and self.BoxCol or self.BoxHideCol )
-	self.Background:SetColor( self.BackgroundCol )
 end
 
 function CheckBox:SetCheckedColour( Col )
@@ -67,11 +41,11 @@ end
 
 function CheckBox:SetupStencil()
 	self.BaseClass.SetupStencil( self )
-	
+
 	self.Box:SetInheritsParentStencilSettings( true )
 
 	if self.Label then
-		self.Label.Text:SetInheritsParentStencilSettings( true )
+		self.Label.Label:SetInheritsParentStencilSettings( true )
 	end
 end
 
@@ -82,6 +56,8 @@ function CheckBox:SetSize( Vec )
 
 	self.Box:SetSize( BoxSize )
 	self.Box:SetPosition( -BoxSize * 0.5 )
+
+	self:InvalidateLayout()
 end
 
 function CheckBox:GetChecked()
@@ -106,17 +82,17 @@ function CheckBox:SetChecked( Value, DontFade )
 
 		return
 	end
-	
+
 	self.Checked = false
 
 	if DontFade then
-		self.Box:SetColor( self.BoxHideCol )	
+		self.Box:SetColor( self.BoxHideCol )
 	else
 		self:FadeTo( self.Box, self.BoxCol, self.BoxHideCol, 0, 0.1, function( Box )
 			Box:SetColor( self.BoxHideCol )
 		end )
 	end
-	
+
 	if self.OnChecked then
 		self:OnChecked( false )
 	end
@@ -136,7 +112,7 @@ function CheckBox:OnMouseUp( Key )
 	if not self.Background:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Background ) then return end
-	
+
 	if not self.Checked then
 		self:SetChecked( true )
 	else
@@ -146,12 +122,17 @@ function CheckBox:OnMouseUp( Key )
 	return true
 end
 
+function CheckBox:PerformLayout()
+	if self.Label then
+		local Size = self:GetSize().x
+		self.Label:SetPos( Vector( Size + 10, 0, 0 ) )
+	end
+end
+
 function CheckBox:AddLabel( Text )
 	if self.Label then
 		self.Label:SetText( Text )
-		local Size = self:GetSize().x
-
-		self.Label:SetPos( Vector( Size + 10, 0, 0 ) )
+		self:InvalidateLayout()
 
 		return
 	end
@@ -166,39 +147,23 @@ function CheckBox:AddLabel( Text )
 		Label:SetFont( self.Font )
 	end
 
+	if self.TextScale then
+		Label:SetTextScale( self.TextScale )
+	end
+
 	if self.TextColour then
 		Label:SetColour( self.TextColour )
 	end
 
 	if self.Stencilled then
-		Label.Text:SetInheritsParentStencilSettings( true )
+		Label.Label:SetInheritsParentStencilSettings( true )
 	end
 
 	self.Label = Label
 end
 
-function CheckBox:SetFont( Name )
-	self.Font = Name
-
-	if not self.Label then return end
-	
-	self.Label:SetFont( Name )
-end
-
-function CheckBox:SetTextColour( Col )
-	self.TextColour = Col
-
-	if not self.Label then return end
-	
-	self.Label:SetColour( Col )
-end
-
-function CheckBox:SetTextScale( Scale )
-	self.TextScale = Scale
-
-	if not self.Label then return end
-	
-	self.Label:SetTextScale( Scale )
-end
+SGUI.AddBoundProperty( CheckBox, "Font", "Label" )
+SGUI.AddBoundProperty( CheckBox, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( CheckBox, "TextScale", "Label" )
 
 SGUI:Register( "CheckBox", CheckBox )

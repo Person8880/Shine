@@ -7,9 +7,13 @@ local StringFormat = string.format
 
 local Scripts = {
 	"lib/debug.lua",
-	"lib/utf8.lua",
 	"lib/string.lua",
 	"lib/table.lua",
+	"lib/comparator.lua",
+	"lib/sorting.lua",
+	"lib/stream.lua",
+	"lib/queue.lua",
+	"lib/utf8.lua",
 	"lib/class.lua",
 	"lib/math.lua",
 	"lib/map.lua",
@@ -35,7 +39,8 @@ local Scripts = {
 	"core/shared/chat.lua",
 	"core/shared/webpage.lua",
 	"lib/screentext/sh_screentext.lua",
-	"lib/screentext/cl_screentext.lua"
+	"lib/screentext/cl_screentext.lua",
+	"core/shared/autocomplete.lua"
 }
 
 local OnLoadedFuncs = {

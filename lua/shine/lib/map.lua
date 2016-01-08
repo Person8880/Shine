@@ -4,19 +4,15 @@
 ]]
 
 local Clamp = math.Clamp
-local rawset = rawset
 local TableRemove = table.remove
 
 local Map = {}
 Map.__index = Map
 
-setmetatable( Map, { __call = function( self )
-	return setmetatable( {}, self ):Init()
-end } )
-
-function Shine.Map()
-	return Map()
+local function NewMap()
+	return setmetatable( {}, Map ):Init()
 end
+Shine.Map = NewMap
 
 function Map:Init()
 	self.Keys = {}
@@ -46,14 +42,12 @@ function Map:Add( Key, Value )
 
 	if self.MemberLookup[ Key ] ~= nil then
 		self.MemberLookup[ Key ] = Value
-
 		return
 	end
 
 	local NumMembers = self.NumMembers + 1
 
 	self.NumMembers = NumMembers
-
 	self.Keys[ NumMembers ] = Key
 	self.MemberLookup[ Key ] = Value
 end
@@ -75,11 +69,11 @@ end
 	Output: The removed key, value pair if it existed in the map, otherwise nil.
 ]]
 function Map:Remove( Key )
-	if not self.MemberLookup[ Key ] then return nil end
+	if self.MemberLookup[ Key ] == nil then return nil end
 
 	local Keys = self.Keys
 
-	--Optimise removal if it's the current key.
+	-- Optimise removal if it's the current key.
 	if Keys[ self.Position ] == Key then
 		return self:RemoveAtPosition()
 	end
@@ -232,14 +226,6 @@ end
 local GetNext = Map.GetNext
 local GetPrevious = Map.GetPrevious
 
-local function IterateForward( self )
-	return GetNext( self )
-end
-
-local function IterateBackwards( self )
-	return GetPrevious( self )
-end
-
 --If the map's empty, we don't even need to iterate.
 local function Nope()
 	return nil
@@ -257,7 +243,7 @@ function Map:Iterate()
 		return Nope
 	end
 
-	return IterateForward, self
+	return GetNext, self
 end
 
 --[[
@@ -270,5 +256,118 @@ function Map:IterateBackwards()
 
 	self.Position = self.NumMembers + 1
 
-	return IterateBackwards, self
+	return GetPrevious, self
+end
+
+local getmetatable = getmetatable
+local pairs = pairs
+
+--[[
+	A multimap is a map that can map multiple values per key. It abstracts away the idiom of
+	storing lists in a map structure.
+]]
+local Multimap = setmetatable( {}, { __index = Map } )
+Multimap.__index = Multimap
+
+function Shine.Multimap( Values )
+	return setmetatable( {}, Multimap ):Init( Values )
+end
+
+--[[
+	Initialises the multimap.
+
+	If passed another multimap, it will copy all key-value pairs into this multimap.
+
+	If passed a normal table, it will copy all key-value pairs under the assumption
+	that all values are array-like.
+]]
+function Multimap:Init( Values )
+	Map.Init( self )
+
+	self.Count = 0
+
+	if not Values then return self end
+
+	if getmetatable( Values ) == Multimap then
+		for Key, List in Values:Iterate() do
+			for Value in List:Iterate() do
+				self:Add( Key, Value )
+			end
+		end
+
+		return self
+	end
+
+	for Key, List in pairs( Values ) do
+		for i = 1, #List do
+			self:Add( Key, List[ i ] )
+		end
+	end
+
+	return self
+end
+
+--[[
+	Returns the number of distinct key-value pairs in the multimap,
+	not the number of keys.
+]]
+function Multimap:GetCount()
+	return self.Count
+end
+
+--[[
+	Adds a new value under the given key if the given key-value pair has not
+	been mapped already.
+]]
+function Multimap:Add( Key, Value )
+	local Entry = Map.Get( self, Key )
+	if not Entry then
+		Entry = NewMap()
+		Map.Add( self, Key, Entry )
+
+		self.Count = self.Count + 1
+	elseif Entry:Get( Value ) == nil then
+		self.Count = self.Count + 1
+	end
+
+	Entry:Add( Value, Value )
+end
+
+--[[
+	Removes a key-value pair from the multimap, if it exists. Returns true if the
+	given pair was found and removed, false otherwise.
+]]
+function Multimap:RemoveKeyValue( Key, Value )
+	local Entry = Map.Get( self, Key )
+	if not Entry then return end
+
+	local Removed = Entry:Remove( Value ) ~= nil
+	if Removed then
+		self.Count = self.Count - 1
+	end
+
+	return Removed
+end
+
+--[[
+	Returns a table will all values for the given key. Avoid modifying this table,
+	or you will disrupt the multimap.
+]]
+function Multimap:Get( Key )
+	local Entry = Map.Get( self, Key )
+	if not Entry then return nil end
+
+	return Entry.Keys
+end
+
+--[[
+	Returns a table copy of the multimap as a standard Lua table of keys and
+	table of values.
+]]
+function Multimap:AsTable()
+	local Table = {}
+	for Row, List in self:Iterate() do
+		Table[ Row ] = List.Keys
+	end
+	return Table
 end

@@ -7,81 +7,66 @@ local SGUI = Shine.GUI
 local ListEntry = {}
 
 local select = select
+local StringUTF8Encode = string.UTF8Encode
+local TableConcat = table.concat
 local tostring = tostring
 
-local Padding = Vector( 5, 0, 0 )
-local ZeroVector = Vector( 0, 0, 0 )
+local Padding = Vector2( 5, 0 )
+local ZeroVector = Vector2( 0, 0 )
 
 local function IsEven( Num )
 	return Num % 2 == 0
 end
 
 function ListEntry:Initialise()
-	if self.Background then GUI.DestroyItem( self.Background ) end
-	
 	self.BaseClass.Initialise( self )
 
-	local Background = GetGUIManager():CreateGraphicItem()
+	-- Real data may be different to what's displayed (e.g. time values)
+	self.Data = {}
 
-	self.Background = Background
-
-	local Scheme = SGUI:GetSkin()
-	Background:SetColor( Scheme.InactiveButton )
-
-	self.InactiveCol = Scheme.InactiveButton
-	self.ActiveCol = Scheme.List.EntryActive
-
-	self:SetHighlightOnMouseOver( true, 0.9 )
+	self.Background = GetGUIManager():CreateGraphicItem()
+	self:SetHighlightOnMouseOver( true )
 end
 
-function ListEntry:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-	
-	if self.Index then
-		self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
-	else
-		self.InactiveCol = Scheme.InactiveButton
-	end
-	self.ActiveCol = Scheme.List.EntryActive
+function ListEntry:SetTextColour( Colour )
+	self.TextColour = Colour
+	self:ForEach( "TextObjs", "SetColor", Colour )
+end
 
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
+function ListEntry:SetFont( Font )
+	self.Font = Font
+	self:ForEach( "TextObjs", "SetFontName", Font )
+end
 
-	local TextObjs = self.TextObjs
-
-	if TextObjs then
-		local TextCol = Scheme.List.EntryTextColour or Scheme.DarkText
-
-		for i = 1, self.Columns do
-			local Text = TextObjs[ i ]
-
-			Text:SetColor( TextCol )
-		end
-	end
+function ListEntry:SetTextScale( Scale )
+	self.TextScale = Scale
+	self:ForEach( "TextObjs", "SetScale", Scale )
 end
 
 function ListEntry:Setup( Index, Columns, Size, ... )
 	self.Index = Index
-	
-	local Scheme = SGUI:GetSkin()
-
-	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
-
+	self.Size = Size
 	self.Columns = Columns
+
+	if IsEven( Index ) then
+		self:SetStyleName( "DefaultEven" )
+	end
 
 	local TextObjs = {}
 	self.TextObjs = TextObjs
 
 	local Background = self.Background
-	self.Size = Size
-
 	Background:SetSize( Size )
 
 	local Manager = GetGUIManager()
-	local TextCol = Scheme.List.EntryTextColour or Scheme.DarkText
+	local TextCol = self.TextColour
+
+	self.ColumnText = {}
 
 	for i = 1, Columns do
 		local Text = tostring( select( i, ... ) )
+
+		self.ColumnText[ i ] = Text
 
 		local TextObj = Manager:CreateTextItem()
 		TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
@@ -89,8 +74,12 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 		TextObj:SetText( Text )
 		TextObj:SetColor( TextCol )
 
-		if Scheme.List.EntryFont then
-			TextObj:SetFontName( Scheme.List.EntryFont )
+		if self.Font then
+			TextObj:SetFontName( self.Font )
+		end
+
+		if self.TextScale then
+			TextObj:SetScale( self.TextScale )
 		end
 
 		Background:AddChild( TextObj )
@@ -100,11 +89,40 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 end
 
 function ListEntry:OnReorder()
-	local Scheme = SGUI:GetSkin()
-	
-	self.InactiveCol = IsEven( self.Index ) and Scheme.List.EntryEven or Scheme.List.EntryOdd
-	self.Background:SetColor( ( self.Highlighted or self.Selected )
-		and self.ActiveCol or self.InactiveCol )
+	local Font, TextScale = self.Font, self.TextScale
+	self:SetStyleName( IsEven( self.Index ) and "DefaultEven" or nil )
+	if Font then
+		self:SetFont( Font )
+	end
+	if TextScale then
+		self:SetTextScale( TextScale )
+	end
+
+	if self.Selected then
+		self.Background:SetColor( self.ActiveCol )
+	end
+end
+
+function ListEntry:UpdateText( Obj, Size )
+	local Text = Obj:GetText()
+	local Scale = Obj:GetScale().x
+	local Width = Obj:GetTextWidth( Text ) * Scale
+
+	if Width > Size then
+		local Chars = StringUTF8Encode( Text )
+		local End = #Chars
+
+		repeat
+			End = End - 1
+			Text = TableConcat( Chars, "", 1, End )
+
+			Width = Obj:GetTextWidth( Text ) * Scale
+		until Width < Size or End == 0
+
+		Text = TableConcat( Chars, "", 1, End - 4 ).."..."
+
+		Obj:SetText( Text )
+	end
 end
 
 function ListEntry:SetSpacing( SpacingTable )
@@ -122,47 +140,43 @@ function ListEntry:SetSpacing( SpacingTable )
 		Obj:SetPosition( Padding + ( Spacing[ i - 1 ] or ZeroVector ) + LastPos )
 
 		local Size = SpacingTable[ i ]
+		Spacing[ i ] = Vector2( Size, 0 )
 
-		Spacing[ i ] = Vector( Size, 0, 0 )
-
-		local Text = Obj:GetText()
-
-		local Width = Obj:GetTextWidth( Text )
-
-		if Width > Size then
-			repeat
-				Text = Text:sub( 1, #Text - 1 )
-
-				Width = Obj:GetTextWidth( Text )
-			until Width < Size or #Text == 0
-
-			Text = Text:sub( 1, #Text - 4 )
-			Text = Text.."..."
-
-			Obj:SetText( Text )
-		end
+		self:UpdateText( Obj, Size )
 	end
+end
+
+function ListEntry:SetData( Index, Data )
+	if self.Data[ Index ] == Data then return end
+
+	self.Data[ Index ] = Data
+	self.Parent:RefreshSorting()
+end
+
+function ListEntry:GetData( Index )
+	return self.Data[ Index ] or self.ColumnText[ Index ] or ""
 end
 
 function ListEntry:SetColumnText( Index, Text )
 	local TextObjs = self.TextObjs
-
 	if not TextObjs or not TextObjs[ Index ] then return end
+	if Text == self.ColumnText[ Index ] then return end
+
+	self.ColumnText[ Index ] = Text
 
 	TextObjs[ Index ]:SetText( Text )
+	self:UpdateText( TextObjs[ Index ], self.Spacing[ Index ].x )
+
+	if self.Data[ Index ] == nil then
+		self.Parent:RefreshSorting()
+	end
 end
 
 function ListEntry:GetColumnText( Index )
-	local TextObjs = self.TextObjs
-
-	if not TextObjs or not TextObjs[ Index ] then return "" end
-
-	return TextObjs[ Index ]:GetText()
+	return self.ColumnText[ Index ] or ""
 end
 
-function ListEntry:SetSelected( Bool )
-	self.Selected = Bool and true or false
-end
+SGUI.AddProperty( ListEntry, "Selected" )
 
 --Visibility checking should account for being outside the stencil box of the parent list.
 function ListEntry:GetIsVisible()
@@ -190,7 +204,7 @@ function ListEntry:OnMouseDown( Key, DoubleClick )
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background, 0.9 ) then return end
+	if not self:MouseIn( self.Background ) then return end
 
 	return true, self
 end
@@ -199,7 +213,7 @@ function ListEntry:OnMouseUp( Key )
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background, 0.9 ) then return end
+	if not self:MouseIn( self.Background ) then return end
 
 	if not self.Selected and self.Parent.OnRowSelect then
 		self.Parent:OnRowSelect( self.Index, self )
@@ -214,4 +228,4 @@ function ListEntry:OnMouseUp( Key )
 	return true
 end
 
-SGUI:Register( "ListEntry", ListEntry )
+SGUI:Register( "ListEntry", ListEntry, "Button" )

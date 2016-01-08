@@ -10,26 +10,66 @@ local UnitTest = Shine.UnitTest
 UnitTest.Results = {}
 
 local assert = assert
-local DebugGetInfo = debug.getinfo
 local DebugTraceback = debug.traceback
+local getmetatable = getmetatable
 local pcall = pcall
+local select = select
+local setmetatable = setmetatable
+local StringExplode = string.Explode
+local StringFormat = string.format
+local TableConcat = table.concat
 local xpcall = xpcall
 
 local IsType = Shine.IsType
 
+function UnitTest:LoadExtension( Name )
+	local Plugin = Shine.Plugins[ Name ]
+
+	if not Plugin then
+		Shine:LoadExtension( Name )
+		Plugin = Shine.Plugins[ Name ]
+	end
+
+	return Plugin
+end
+
+local AssertionError = setmetatable( {}, {
+	__call = function( self, Data )
+		return setmetatable( Data, self )
+	end
+} )
+
+local function IsAssertionFailure( Error )
+	return getmetatable( Error ) == AssertionError
+end
+
+local function CleanTraceback( Traceback )
+	local Lines = StringExplode( Traceback, "\n" )
+
+	for i = 1, #Lines do
+		if Lines[ i ]:find( "^%s*test/test_init.lua:%d+: in function 'Test'" ) then
+			return TableConcat( Lines, "\n", 1, i - 2 )
+		end
+	end
+
+	return Traceback
+end
+
 function UnitTest:Test( Description, TestFunction, Finally, Reps )
 	local Result = {
-		Description = Description,
-		FuncInfo = DebugGetInfo( TestFunction, "nS" )
+		Description = Description
 	}
 
 	local function ErrorHandler( Err )
 		Result.Err = Err
-		Result.Traceback = DebugTraceback()
+		local IsAssertion = IsAssertionFailure( Err )
+		Result.Traceback = CleanTraceback( DebugTraceback( IsAssertion and Err.Message or Err,
+			IsAssertionFailure( Err ) and 4 or 2 ) )
 	end
 
 	Reps = Reps or 1
 
+	local Start = Shared.GetSystemTimeReal()
 	for i = 1, Reps do
 		local Success, Err = xpcall( TestFunction, ErrorHandler, self.Assert )
 		if not Success then
@@ -41,6 +81,7 @@ function UnitTest:Test( Description, TestFunction, Finally, Reps )
 			pcall( Finally )
 		end
 	end
+	Result.Duration = Shared.GetSystemTimeReal() - Start
 
 	if not Result.Errored then
 		Result.Passed = true
@@ -64,6 +105,14 @@ UnitTest.Assert = {
 	Exists = function( Table, Key ) return Table[ Key ] ~= nil end,
 	NotExists = function( Table, Key ) return Table[ Key ] == nil end,
 
+	Contains = function( Table, Value )
+		for i = 1, #Table do
+			if Table[ i ] == Value then return true end
+		end
+
+		return false
+	end,
+
 	ArrayEquals = function( Array, OtherArray )
 		if #Array ~= #OtherArray then return false end
 
@@ -74,7 +123,9 @@ UnitTest.Assert = {
 		end
 
 		return true
-	end
+	end,
+
+	IsType = IsType
 }
 
 for Name, Func in pairs( UnitTest.Assert ) do
@@ -86,7 +137,11 @@ for Name, Func in pairs( UnitTest.Assert ) do
 				Description = "Assertion failed!"
 			end
 
-			error( { Message = Description, Args = { ... } } )
+			error( AssertionError{
+				Message = Description,
+				Args = { ... },
+				NumArgs = select( "#", ... )
+			}, 2 )
 		end
 	end
 end
@@ -94,6 +149,7 @@ end
 function UnitTest:Output( File )
 	local Passed = 0
 	local Failed = 0
+	local Duration = 0
 
 	for i = 1, #self.Results do
 		local Result = self.Results[ i ]
@@ -103,12 +159,26 @@ function UnitTest:Output( File )
 		else
 			Failed = Failed + 1
 			Print( "Test failure: %s", Result.Description )
-			PrintTable( Result )
+
+			local Err = Result.Err
+			if IsAssertionFailure( Err ) then
+				for i = 1, Err.NumArgs do
+					local AsString = IsType( Err.Args[ i ], "table" ) and table.ToString( Err.Args[ i ] )
+						or tostring( Err.Args[ i ] )
+					Err.Args[ i ] = StringFormat( "%i. [%s] %s", i, type( Err.Args[ i ] ), AsString )
+				end
+
+				Err = StringFormat( "Args:\n%s", TableConcat( Err.Args, "\n------------\n" ) )
+			end
+
+			Print( "Error: %s\n%s", Err, Result.Traceback )
 		end
+
+		Duration = Duration + Result.Duration
 	end
 
-	Print( "Result summary for %s: %i/%i passed, %.2f%% success rate.",
-		File, Passed, #self.Results, Passed / #self.Results * 100 )
+	Print( "Result summary for %s: %i/%i passed, %.2f%% success rate. Time taken: %.2fus.",
+		File, Passed, #self.Results, Passed / #self.Results * 100, Duration * 1e6 )
 
 	return Passed, #self.Results
 end

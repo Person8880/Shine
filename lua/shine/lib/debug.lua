@@ -6,6 +6,7 @@ local assert = assert
 local DebugGetLocal = debug.getlocal
 local DebugGetUpValue = debug.getupvalue
 local DebugSetUpValue = debug.setupvalue
+local DebugUpValueJoin = debug.upvaluejoin
 local pairs = pairs
 local StringFormat = string.format
 local type = type
@@ -187,6 +188,44 @@ function Shine.MimicFunction( Func, TargetFunc, DifferingValues, Recursive )
 end
 
 --[[
+	Joins the upvalues of TargetFunc to those of Func, following the mapping given.
+
+	Inputs:
+		1. The function whose upvalues should be joined from.
+		2. The function whose upvalues should be joined to.
+		3. A table defining a map of upvalue name from function 1,
+		   mapping to the name of the upvalue in function 2.
+
+	For example:
+
+	Shine.JoinUpValues( Func, TargetFunc, {
+		UpValue1 = "OtherUpValue",
+		UpValue2 = "OtherUpValue2"
+	} )
+
+	maps UpValue1 in Func to OtherUpValue in TargetFunc, and UpValue2 in Func to OtherUpValue2 in TargetFunc.
+
+	This avoids needing to constantly get up values.
+]]
+function Shine.JoinUpValues( Func, TargetFunc, Mapping )
+	local UpValueIndex = {}
+	local InverseMapping = {}
+
+	ForEachUpValue( Func, function( Function, Name, Value, i )
+		if Mapping[ Name ] then
+			UpValueIndex[ Name ] = i
+			InverseMapping[ Mapping[ Name ] ] = Name
+		end
+	end )
+
+	ForEachUpValue( TargetFunc, function( Function, Name, Value, i )
+		if InverseMapping[ Name ] then
+			DebugUpValueJoin( TargetFunc, i, Func, UpValueIndex[ InverseMapping[ Name ] ] )
+		end
+	end )
+end
+
+--[[
 	Checks a given object's type.
 
 	Inputs:
@@ -240,4 +279,50 @@ function Shine.GetLocals( Stacklevel )
 	end
 
 	return Values
+end
+
+do
+	local DebugTraceback = debug.traceback
+	local StringGSub = string.gsub
+
+	--[[
+		Work around Lua 5.1 traceback behaviour where you must provide a string
+		to set the traceback level, which adds a useless line.
+	]]
+	function Shine.Traceback( Level )
+		local Trace = DebugTraceback( "", Level + 1 )
+		return ( StringGSub( Trace, "^([^\n]*)\n(.*)$", "%2" ) )
+	end
+end
+
+--[[
+	Builds an error handler function for use with xpcall. Reports and logs any errors encountered,
+	including the local values of the caller.
+]]
+function Shine.BuildErrorHandler( ErrorType )
+	return function( Err )
+		local Trace = Shine.Traceback( 2 )
+		local Locals = table.ToDebugString( Shine.GetLocals( 1 ) )
+
+		Shine:DebugPrint( "%s: %s\n%s", true, ErrorType, Err, Trace )
+		Shine:AddErrorReport( StringFormat( "%s: %s", ErrorType, Err ),
+			"%s\nLocals:\n%s", true, Trace, Locals )
+	end
+end
+
+do
+	local SharedMessage = Shared.Message
+	local select = select
+	local tostring = tostring
+	local TableConcat = table.concat
+
+	function LuaPrint( ... )
+		local Out = { ... }
+
+		for i = 1, select( "#", ... ) do
+			Out[ i ] = tostring( Out[ i ] )
+		end
+
+		SharedMessage( TableConcat( Out, "\t" ) )
+	end
 end

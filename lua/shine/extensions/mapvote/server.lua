@@ -10,7 +10,7 @@ local Max = math.max
 local Notify = Shared.Message
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
-local TableContains = table.contains
+local TableHasValue = table.HasValue
 local TableCount = table.Count
 
 local Plugin = Plugin
@@ -18,6 +18,10 @@ Plugin.Version = "1.6"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
+Plugin.PrintName = "Map Vote"
+Plugin.NotifyPrefixColour = {
+	255, 255, 0
+}
 
 Plugin.DefaultConfig = {
 	GetMapsFromMapCycle = true, --Get the valid votemaps directly from the mapcycle file.
@@ -227,6 +231,17 @@ function Plugin:OnFirstThink()
 	end
 end
 
+function Plugin:ForcePlayersIntoReadyRoom()
+	local Gamerules = GetGamerules()
+
+	local function MoveToReadyRoom( Player )
+		Gamerules:JoinTeam( Player, 0, nil, true )
+	end
+
+	Gamerules.team1:ForEachPlayer( MoveToReadyRoom )
+	Gamerules.team2:ForEachPlayer( MoveToReadyRoom )
+end
+
 function Plugin:EndGame()
 	self:SimpleTimer( 10, function()
 		local Time = SharedTime()
@@ -365,7 +380,7 @@ function Plugin:CreateCommands()
 
 		local Nominated = self.Vote.Nominated
 
-		if self.Config.ForcedMaps[ Map ] or TableContains( Nominated, Map ) then
+		if self.Config.ForcedMaps[ Map ] or TableHasValue( Nominated, Map ) then
 			NotifyError( Player, "ALREADY_NOMINATED", {
 				MapName = Map
 			}, "%s has already been nominated.", true, Map )
@@ -374,11 +389,10 @@ function Plugin:CreateCommands()
 		end
 
 		local LastMaps = self:GetLastMaps()
-		if LastMaps and TableContains( LastMaps, Map ) then
+		if LastMaps and TableHasValue( LastMaps, Map ) then
 			NotifyError( Player, "RECENTLY_PLAYED", {
 				MapName = Map
 			}, "%s was recently played and cannot be voted for yet.", true, Map )
-
 			return
 		end
 
@@ -404,8 +418,8 @@ function Plugin:CreateCommands()
 		} )
 	end
 	local NominateCommand = self:BindCommand( "sh_nominate", "nominate", Nominate, true )
-	NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate." }
-	NominateCommand:Help( "<mapname> Nominates a map for the next map vote." )
+	NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate.", Help = "mapname" }
+	NominateCommand:Help( "Nominates a map for the next map vote." )
 
 	local function VoteToChange( Client )
 		local Player, PlayerName = GetPlayerData( Client )
@@ -511,8 +525,8 @@ function Plugin:CreateCommands()
 		NotifyError( Player, Key, Data, Err )
 	end
 	local VoteCommand = self:BindCommand( "sh_vote", "vote", Vote, true )
-	VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for." }
-	VoteCommand:Help( "<mapname> Vote for a particular map in the active map vote." )
+	VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for.", Help = "mapname" }
+	VoteCommand:Help( "Vote for a particular map in the active map vote." )
 
 	local function Veto( Client )
 		local Player, PlayerName = GetPlayerData( Client )
@@ -638,7 +652,7 @@ function Plugin:CreateCommands()
 	local AddTimeCommand = self:BindCommand( "sh_addtimelimit", "addtimelimit", AddTime )
 	AddTimeCommand:AddParam{ Type = "time", Units = "minutes", TakeRestOfLine = true,
 		Error = "Please specify a time to add." }
-	AddTimeCommand:Help( "<time in minutes> Adds the given time to the current map's time limit." )
+	AddTimeCommand:Help( "Adds the given time to the current map's time limit." )
 
 	local function SetTime( Client, Time )
 		self.MapCycle.time = Time
@@ -651,7 +665,7 @@ function Plugin:CreateCommands()
 	local SetTimeCommand = self:BindCommand( "sh_settimelimit", "settimelimit", SetTime )
 	SetTimeCommand:AddParam{ Type = "time", Units = "minutes", Min = 0, TakeRestOfLine = true,
 		Error = "Please specify the map time." }
-	SetTimeCommand:Help( "<time in minutes> Sets the current map's time limit." )
+	SetTimeCommand:Help( "Sets the current map's time limit." )
 
 	local function AddRounds( Client, Rounds )
 		if Rounds == 0 then return end
@@ -663,8 +677,8 @@ function Plugin:CreateCommands()
 	end
 	local AddRoundsCommand = self:BindCommand( "sh_addroundlimit", "addroundlimit", AddRounds )
 	AddRoundsCommand:AddParam{ Type = "number", Round = true,
-		Error = "Please specify the amount of rounds to add." }
-	AddRoundsCommand:Help( "<rounds> Adds the given number of rounds to the round limit." )
+		Error = "Please specify the amount of rounds to add.", Help = "rounds" }
+	AddRoundsCommand:Help( "Adds the given number of rounds to the round limit." )
 
 	local function SetRounds( Client, Rounds )
 		self.Config.RoundLimit = Rounds
@@ -674,8 +688,8 @@ function Plugin:CreateCommands()
 	end
 	local SetRoundsCommand = self:BindCommand( "sh_setroundlimit", "setroundlimit", SetRounds )
 	SetRoundsCommand:AddParam{ Type = "number", Round = true, Min = 0,
-		Error = "Please specify a round limit." }
-	SetRoundsCommand:Help( "<rounds> Sets the round limit." )
+		Error = "Please specify a round limit.", Help = "rounds" }
+	SetRoundsCommand:Help( "Sets the round limit." )
 end
 
 function Plugin:Cleanup()

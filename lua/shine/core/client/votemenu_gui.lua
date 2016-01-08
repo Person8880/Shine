@@ -90,7 +90,7 @@ local ClickFuncs = {
 	Shuffle = function()
 		return GenericClick( "sh_voterandom" )
 	end,
-	RTV = function()
+	[ "Map Vote" ] = function()
 		return GenericClick( "sh_votemap" )
 	end,
 	Surrender = function()
@@ -115,7 +115,7 @@ function VoteMenu:Create()
 
 	local function Scale( Value )
 		local Scale
-		if ScreenWidth > 2880 then
+		if ScreenWidth > 1920 then
 			Scale =  SGUI.TenEightyPScale( Value )
 		else
 			Scale = GUIScale( Value )
@@ -222,8 +222,9 @@ Hook.Add( "PlayerKeyPress", "VoteMenuKeyPress", function( Key, Down )
 end, 1 )
 
 function VoteMenu:Think( DeltaTime )
-	local ActivePage = self.ActivePage
+	if not self.Visible then return end
 
+	local ActivePage = self.ActivePage
 	if not ActivePage then return end
 
 	local Think = self.Pages[ ActivePage ].Think
@@ -252,23 +253,20 @@ function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	local BottomButton = Buttons.Bottom
 
 	if SGUI.IsValid( TopButton ) then
-		TopButton:SetParent()
-		TopButton:Destroy()
+		TopButton:Destroy( true )
 
 		Buttons.Top = nil
 	end
 
 	if SGUI.IsValid( BottomButton ) then
-		BottomButton:SetParent()
-		BottomButton:Destroy()
+		BottomButton:Destroy( true )
 
 		Buttons.Bottom = nil
 	end
 
 	for Key, Button in pairs( SideButtons ) do
 		if SGUI.IsValid( Button ) then
-			Button:SetParent()
-			Button:Destroy()
+			Button:Destroy( true )
 		end
 
 		SideButtons[ Key ] = nil
@@ -330,10 +328,7 @@ end
 	Clears out the votemenu, then populate with the given page.
 ]]
 function VoteMenu:SetPage( Name )
-	--if Name == self.ActivePage then return end
-
 	local Page = self.Pages[ Name ]
-
 	if not Page or not Page.Populate then return end
 
 	self:Clear()
@@ -341,8 +336,19 @@ function VoteMenu:SetPage( Name )
 	Page.Populate( self )
 
 	self:SortSideButtons()
-
 	self.ActivePage = Name
+end
+
+local function ClearButton( Button )
+	if not SGUI.IsValid( Button ) then return end
+
+	Button:SetIsVisible( false )
+	Button:SetTooltip( nil )
+
+	if Button.OnClear then
+		Button:OnClear()
+		Button.OnClear = nil
+	end
 end
 
 --[[
@@ -356,20 +362,11 @@ function VoteMenu:Clear()
 	local TopButton = Buttons.Top
 	local BottomButton = Buttons.Bottom
 
-	if SGUI.IsValid( TopButton ) then
-		TopButton:SetIsVisible( false )
-	end
-
-	if SGUI.IsValid( BottomButton ) then
-		BottomButton:SetIsVisible( false )
-	end
+	ClearButton( TopButton )
+	ClearButton( BottomButton )
 
 	for i = 1, #SideButtons do
-		local Button = SideButtons[ i ]
-
-		if SGUI.IsValid( Button ) then
-			Button:SetIsVisible( false )
-		end
+		ClearButton( SideButtons[ i ] )
 	end
 
 	self.ButtonIndex = 0
@@ -569,6 +566,7 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align, IgnoreAnim )
 		Button:MoveTo( nil, nil, Pos, 0, EasingTime )
 	else
 		Button:SetPos( Pos )
+		Button:StopMoving()
 	end
 end
 
@@ -605,6 +603,11 @@ VoteMenu:AddPage( "Main", function( self )
 
 		self:AddSideButton( Locale:GetPhrase( "Core", Plugin ), ClickFuncs[ Plugin ] )
 	end
+
+	self:AddSideButton( "Client Config", function()
+		Shared.ConsoleCommand( "sh_clientconfigmenu" )
+		self:SetIsVisible( false )
+	end )
 
 	if self.RequestedAdminMenu == nil then
 		self.RequestedAdminMenu = true

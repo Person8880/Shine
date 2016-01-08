@@ -4,12 +4,7 @@
 
 local UnitTest = Shine.UnitTest
 
-local VoteShuffle = Shine.Plugins.voterandom
-if not VoteShuffle then
-	Shine:LoadExtension( "voterandom" )
-	VoteShuffle = Shine.Plugins.voterandom
-end
-
+local VoteShuffle = UnitTest:LoadExtension( "voterandom" )
 if not VoteShuffle then return end
 
 VoteShuffle.Config.IgnoreCommanders = false
@@ -371,3 +366,33 @@ UnitTest:Test( "OptimiseTeams with preference", function( Assert )
 	Assert:ArrayEquals( { 6, 2, 3 }, TeamMembers[ 1 ] )
 	Assert:ArrayEquals( { 4, 5, 1 }, TeamMembers[ 2 ] )
 end, nil, 100 )
+
+UnitTest:Test( "AddPlayersRandomly", function( Assert )
+	local TeamMembers = {
+		{
+			1
+		},
+		{
+			2, 3, 4
+		}
+	}
+	local Targets = { 5, 6, 7, 8 }
+
+	VoteShuffle:AddPlayersRandomly( Targets, #Targets, TeamMembers )
+	Assert:Equals( 4, #TeamMembers[ 1 ] )
+	Assert:Equals( 4, #TeamMembers[ 2 ] )
+
+	TeamMembers = {
+		{
+			1
+		},
+		{
+			2, 3, 4
+		}
+	}
+	Targets = { 5, 6 }
+
+	VoteShuffle:AddPlayersRandomly( Targets, #Targets, TeamMembers )
+	Assert:Equals( 3, #TeamMembers[ 1 ] )
+	Assert:Equals( 3, #TeamMembers[ 2 ] )
+end )

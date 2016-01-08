@@ -19,6 +19,11 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
+Plugin.PrintName = "Unstuck"
+Plugin.NotifyPrefixColour = {
+	0, 255, 0
+}
+
 function Plugin:Initialise()
 	self.Users = {}
 
@@ -29,19 +34,19 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:Notify( Player, String, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 100, 100, "[Unstuck]", 255, 255, 255, String, Format, ... )
-end
-
 function Plugin:UnstickPlayer( Player, Pos )
-	local TechID = kTechId.Skulk
+	-- Respawn ready room players instead of trying to find a spawn point near them.
+	if Player:GetTeamNumber() == kTeamReadyRoom then
+		GetGamerules():JoinTeam( Player, kTeamReadyRoom, true )
+		return true
+	end
 
+	local TechID = kTechId.Skulk
 	if Player:GetIsAlive() then
 		TechID = Player:GetTechId()
 	end
 
 	local Bounds = LookupTechData( TechID, kTechDataMaxExtents )
-
 	if not Bounds then
 		return false
 	end
@@ -65,7 +70,7 @@ function Plugin:UnstickPlayer( Player, Pos )
 	until not ResourceNear or i > 100
 
 	if SpawnPoint then
-		SpawnPlayerAtPoint( Player, SpawnPoint )
+		Player:SetOrigin( SpawnPoint )
 
 		return true
 	end
@@ -76,8 +81,8 @@ end
 function Plugin:CreateCommands()
 	local function Unstick( Client )
 		if not Client then return end
-		local Player = Client:GetControllingPlayer()
 
+		local Player = Client:GetControllingPlayer()
 		if not Player then return end
 
 		if not Player:GetIsAlive() then
@@ -99,11 +104,11 @@ function Plugin:CreateCommands()
 		local Success = self:UnstickPlayer( Player, Player:GetOrigin() )
 
 		if Success then
-			self:Notify( Player, "Successfully unstuck." )
+			self:Notify( Client, "Successfully unstuck." )
 
 			self.Users[ Client ] = Time + self.Config.TimeBetweenUse
 		else
-			Shine:NotifyError( Player, "Unable to unstick. Try again in %s.",
+			Shine:NotifyError( Client, "Unable to unstick. Try again in %s.",
 				true, string.TimeToString( self.Config.MinTime ) )
 
 			self.Users[ Client ] = Time + self.Config.MinTime

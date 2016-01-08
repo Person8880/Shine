@@ -113,8 +113,8 @@ function Plugin:CreateCommands()
 	end
 	local SwitchServerCommand = self:BindCommand( "sh_switchserver", "server", SwitchServer, true )
 	SwitchServerCommand:AddParam{ Type = "number", Min = 1, Round = true,
-	Error = "Please specify a server number to switch to." }
-	SwitchServerCommand:Help( "<number> Connects you to the given registered server." )
+		Error = "Please specify a server number to switch to." }
+	SwitchServerCommand:Help( "Connects you to the given registered server." )
 
 	local function ListServers( Client )
 		local ServerData = self.Config.Servers

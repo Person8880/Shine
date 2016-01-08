@@ -40,6 +40,15 @@ UnitTest:Test( "IterationOrder", function( Assert )
 	end
 end )
 
+UnitTest:Test( "RemovalOfFalse", function( Assert )
+	local Map = Map()
+	Map:Add( 1, false )
+
+	Assert.False( "Map didn't store false!", Map:Get( 1 ) )
+	Map:Remove( 1 )
+	Assert.Nil( "Map didn't remove false!", Map:Get( 1 ) )
+end )
+
 UnitTest:Test( "IterationRemoval", function( Assert )
 	local Map = Map()
 
@@ -138,4 +147,60 @@ UnitTest:Test( "EmptyMapIterators", function( Assert )
 	end
 
 	Assert.Equals( "Generic for backwards on an empty map iterated > 0 times!", 0, i )
+end )
+
+local Multimap = Shine.Multimap
+
+UnitTest:Test( "Multimap:Add()/Get()/GetCount()", function( Assert )
+	local Map = Multimap()
+
+	Map:Add( 1, 1 )
+	Map:Add( 1, 2 )
+	Map:Add( 1, 3 )
+	Map:Add( 2, 1 )
+	Map:Add( 3, 1 )
+	Map:Add( 3, 2 )
+
+	Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+	Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
+	Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
+
+	Assert:Equals( 6, Map:GetCount() )
+end )
+
+UnitTest:Test( "Multimap:RemoveKeyValue()", function( Assert )
+	local Map = Multimap()
+	Map:Add( 1, 1 )
+	Map:Add( 1, 2 )
+	Map:Add( 1, 3 )
+
+	Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+	Assert:Equals( 3, Map:GetCount() )
+
+	Map:RemoveKeyValue( 1, 2 )
+	Assert:ArrayEquals( { 1, 3 }, Map:Get( 1 ) )
+	Assert:Equals( 2, Map:GetCount() )
+end )
+
+UnitTest:Test( "Multimap from table", function( Assert )
+	local Map = Multimap{
+		{ 1, 2, 3 }, { 1 }, { 1, 2 }
+	}
+
+	Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+	Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
+	Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
+
+	Assert:Equals( 6, Map:GetCount() )
+end )
+
+UnitTest:Test( "Multimap from multimap", function( Assert )
+	local Map = Multimap()
+	Map:Add( 1, 1 )
+	Map:Add( 1, 2 )
+	Map:Add( 1, 3 )
+
+	local Map2 = Multimap( Map )
+	Assert:ArrayEquals( { 1, 2, 3 }, Map2:Get( 1 ) )
+	Assert:Equals( 3, Map2:GetCount() )
 end )

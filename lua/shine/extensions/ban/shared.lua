@@ -70,7 +70,6 @@ function Plugin:SetupAdminMenu()
 		Window:SetSize( Vector( 400, 328, 0 ) )
 		Window:SetPos( Vector( -200, -164, 0 ) )
 		Window:AddTitleBar( self:GetPhrase( "ADD_BAN" ) )
-		Window:SkinColour()
 
 		function Window.CloseButton.DoClick()
 			Shine.AdminMenu:DontDestroyOnClose( Window )
@@ -91,7 +90,6 @@ function Plugin:SetupAdminMenu()
 		local IDLabel = SGUI:Create( "Label", Window )
 		IDLabel:SetText( "NS2ID:" )
 		IDLabel:SetFont( Fonts.kAgencyFB_Small )
-		IDLabel:SetBright( true )
 		IDLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -137,6 +135,7 @@ function Plugin:SetupAdminMenu()
 			Menu:CallOnRemove( function()
 				Menu = nil
 			end )
+			Menu:SetMaxVisibleButtons( 12 )
 			Shine.AdminMenu:DestroyOnClose( Menu )
 
 			local PlayerEnts = GetEnts( "PlayerInfoEntity" )
@@ -162,7 +161,6 @@ function Plugin:SetupAdminMenu()
 		local DurationLabel = SGUI:Create( "Label", Window )
 		DurationLabel:SetText( self:GetPhrase( "DURATION_LABEL" ) )
 		DurationLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationLabel:SetBright( true )
 		DurationLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -183,7 +181,6 @@ function Plugin:SetupAdminMenu()
 		local DurationValueLabel = SGUI:Create( "Label", Window )
 		DurationValueLabel:SetText( self:GetPhrase( "DURATION_HINT" )  )
 		DurationValueLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationValueLabel:SetBright( true )
 		DurationValueLabel:SetPos( Vector( X, Y, 0 ) )
 		local DurationOptions = { Units = "minutes", Min = 0, Round = true }
 		function DurationEntry.OnTextChanged( TextEntry, OldValue, NewValue )
@@ -192,7 +189,7 @@ function Plugin:SetupAdminMenu()
 				return
 			end
 
-			local Minutes = Shine.CommandUtil.ParamTypes.time( nil, NewValue, DurationOptions )
+			local Minutes = Shine.CommandUtil.ParamTypes.time.Parse( nil, NewValue, DurationOptions )
 			if Minutes == 0 then
 				DurationValueLabel:SetText( self:GetPhrase( "DURATION_PERMANENT" ) )
 				return
@@ -208,7 +205,6 @@ function Plugin:SetupAdminMenu()
 		local ReasonLabel = SGUI:Create( "Label", Window )
 		ReasonLabel:SetText( self:GetPhrase( "REASON" ) )
 		ReasonLabel:SetFont( Fonts.kAgencyFB_Small )
-		ReasonLabel:SetBright( true )
 		ReasonLabel:SetPos( Vector( X, Y, 0 ) )
 
 		Y = Y + 32
@@ -229,6 +225,7 @@ function Plugin:SetupAdminMenu()
 		AddBan:SetPos( Vector( -64, -44, 0 ) )
 		AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
 		AddBan:SetFont( Fonts.kAgencyFB_Small )
+		AddBan:SetStyleName( "SuccessButton" )
 		function AddBan.DoClick()
 			local ID = tonumber( IDEntry:GetText() )
 			if not ID then return end
@@ -254,10 +251,14 @@ function Plugin:SetupAdminMenu()
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
 			List:SetPos( Vector( 16, 28, 0 ) )
-			List:SetColumns( 3, self:GetPhrase( "NAME" ), self:GetPhrase( "BANNED_BY" ), self:GetPhrase( "EXPIRY" ) )
+			List:SetColumns( self:GetPhrase( "NAME" ), self:GetPhrase( "BANNED_BY" ),
+				self:GetPhrase( "EXPIRY" ) )
 			List:SetSpacing( 0.35, 0.35, 0.3 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetNumericColumn( 3 )
+			List:SetSecondarySortColumn( 3, 1 )
+			List:SetSecondarySortColumn( 2, 1 )
 
 			self.BanList = List
 			self.Rows = self.Rows or {}
@@ -266,21 +267,15 @@ function Plugin:SetupAdminMenu()
 			if BanData then
 				for i = 1, #BanData do
 					local Data = BanData[ i ]
-					local UnbanTime = Data.UnbanTime
-					local Permanent = UnbanTime == 0
-
-					local Row = List:AddRow( Data.Name, Data.BannedBy,
-						GetDurationLabel( self, Permanent, UnbanTime ) )
-
-					Row.BanData = Data
-
-					self.Rows[ Data.ID ] = Row
+					self.Rows[ Data.ID ] = self:AddBanRow( Data )
 				end
 			else
 				self:RequestBanData()
 			end
 
-			Shine.AdminMenu.RestoreListState( List, Data )
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
+				List:SortRows( 3 )
+			end
 
 			local Unban = SGUI:Create( "Button", Panel )
 			Unban:SetAnchor( "BottomLeft" )
@@ -288,6 +283,7 @@ function Plugin:SetupAdminMenu()
 			Unban:SetPos( Vector( 16, -48, 0 ) )
 			Unban:SetText( self:GetPhrase( "UNBAN" ) )
 			Unban:SetFont( Fonts.kAgencyFB_Small )
+			Unban:SetStyleName( "DangerButton" )
 			function Unban.DoClick()
 				local Row = List:GetSelectedRow()
 				if not Row then return end
@@ -361,6 +357,32 @@ function Plugin:ReceiveUnban( Data )
 	end
 end
 
+function Plugin:AddBanRow( Data )
+	local UnbanTime = Data.UnbanTime
+	local Permanent = UnbanTime == 0
+
+	local Row = self.Rows[ Data.ID ]
+
+	local Name = StringFormat( "%s [%s]", Data.Name, Data.ID )
+	local BannedBy = StringFormat( "%s [%s]", Data.BannedBy, Data.BannerID or "?" )
+	local Expiry = GetDurationLabel( self, Permanent, UnbanTime )
+	if not Row then
+		Row = self.BanList:AddRow( Name, BannedBy, Expiry )
+		self.Rows[ Data.ID ] = Row
+	else
+		Row:SetColumnText( 1, Name )
+		Row:SetColumnText( 2, BannedBy )
+		Row:SetColumnText( 3, Expiry )
+	end
+
+	Row:SetData( 1, Data.Name )
+	Row:SetData( 2, Data.BannedBy )
+	Row:SetData( 3, Permanent and math.huge or UnbanTime )
+	Row.BanData = Data
+
+	return Row
+end
+
 function Plugin:ReceiveBanData( Data )
 	self.BanData = self.BanData or {}
 
@@ -383,27 +405,9 @@ function Plugin:ReceiveBanData( Data )
 			BanData[ i ] = RealData
 
 			local List = self.BanList
-
 			if not SGUI.IsValid( List ) then return end
 
-			local UnbanTime = Data.UnbanTime
-			local Permanent = UnbanTime == 0
-
-			local Row = self.Rows[ Data.ID ]
-
-			local Name = Data.Name
-			local BannedBy = Data.BannedBy
-			local Expiry = GetDurationLabel( self, Permanent, UnbanTime )
-			if not Row then
-				Row = List:AddRow( Name, BannedBy, Expiry )
-				self.Rows[ Data.ID ] = Row
-			else
-				Row:SetColumnText( 1, Name )
-				Row:SetColumnText( 2, BannedBy )
-				Row:SetColumnText( 3, Expiry )
-			end
-
-			Row.BanData = RealData
+			self:AddBanRow( RealData )
 
 			return
 		end
@@ -412,16 +416,7 @@ function Plugin:ReceiveBanData( Data )
 	BanData[ #BanData + 1 ] = RealData
 
 	local List = self.BanList
-
 	if not SGUI.IsValid( List ) then return end
 
-	local UnbanTime = Data.UnbanTime
-	local Permanent = UnbanTime == 0
-
-	local Row = List:AddRow( Data.Name, Data.BannedBy,
-		GetDurationLabel( self, Permanent, UnbanTime ) )
-
-	Row.BanData = RealData
-
-	self.Rows[ Data.ID ] = Row
+	self.Rows[ Data.ID ] = self:AddBanRow( RealData )
 end

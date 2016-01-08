@@ -39,76 +39,193 @@ end
 
 Shine.CommandUtil.ParamTypes = {
 	--Strings return simply the string (clipped to max length if given).
-	string = function( Client, String, Table )
-		if not String or String == "" then
-			return GetDefault( Table )
-		end
+	string = {
+		Parse = function( Client, String, Table )
+			if not String or String == "" then
+				return GetDefault( Table )
+			end
 
-		return Table.MaxLength and StringUTF8Sub( String, 1, Table.MaxLength ) or String
-	end,
+			return Table.MaxLength and StringUTF8Sub( String, 1, Table.MaxLength ) or String
+		end,
+		Help = "string"
+	},
 	--Number performs tonumber() on the string and clamps the result between
 	--the given min and max if set. Also rounds if asked.
-	number = function( Client, String, Table )
-		local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
+	number = {
+		Parse = function( Client, String, Table )
+			local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
 
-		if not Num then
-			return GetDefault( Table )
-		end
+			if not Num then
+				return GetDefault( Table )
+			end
 
-		return Table.Round and Round( Num ) or Num
-	end,
+			return Table.Round and Round( Num ) or Num
+		end,
+		Help = "number"
+	},
 	--Time value, either a direct number or a "nice" string value.
 	--Units can be specified if seconds are not desired.
-	time = function( Client, String, Table )
-		if not String or String == "" then
-			return GetDefault( Table )
-		end
-
-		local Time = tonumber( String )
-		if not Time then
-			Time = StringToTime( String )
-			if Table.Units then
-				Time = TimeToUnits( Time, Table.Units )
+	time = {
+		Parse = function( Client, String, Table )
+			if not String or String == "" then
+				return GetDefault( Table )
 			end
-		end
 
-		Time = MathClamp( Time, Table.Min, Table.Max )
+			local Time = tonumber( String )
+			if not Time then
+				Time = StringToTime( String )
+				if Table.Units then
+					Time = TimeToUnits( Time, Table.Units )
+				end
+			end
 
-		return Table.Round and Round( Time ) or Time
-	end,
+			Time = MathClamp( Time, Table.Min, Table.Max )
+
+			return Table.Round and Round( Time ) or Time
+		end,
+		Help = function( Arg ) return StringFormat( "duration in %s", Arg.Units or "seconds" ) end
+	},
 	--Boolean turns "false" and 0 into false and everything else into true.
-	boolean = function( Client, String, Table )
-		if not String or String == "" then
-			return GetDefault( Table )
-		end
+	boolean = {
+		Parse = function( Client, String, Table )
+			if not String or String == "" then
+				return GetDefault( Table )
+			end
 
-		local ToNum = tonumber( String )
+			local ToNum = tonumber( String )
 
-		if ToNum then
-			return ToNum ~= 0
-		end
+			if ToNum then
+				return ToNum ~= 0
+			end
 
-		return String ~= "false"
-	end
+			return String ~= "false"
+		end,
+		Help = "boolean"
+	}
 }
 local ParamTypes = Shine.CommandUtil.ParamTypes
 
-function Shine.CommandUtil.ParseParameter( Client, String, Table )
-	local Type = Table.Type
+local function ParseByType( Client, String, Table, Type )
 	if not ParamTypes[ Type ] then
 		return nil
 	end
 
-	if String then
-		return ParamTypes[ Type ]( Client, String, Table )
-	else
-		if not Table.Optional then return nil end
-		return ParamTypes[ Type ]( Client, String, Table )
+	return ParamTypes[ Type ].Parse( Client, String, Table )
+end
+
+function Shine.CommandUtil.ParseParameter( Client, String, Table )
+	if not String and not Table.Optional then return nil end
+
+	-- Single typed value.
+	local Type = Table.Type
+	if IsType( Type, "string" ) then
+		return ParseByType( Client, String, Table, Type )
 	end
+
+	-- Multi-type value, take the first parse that succeeds.
+	for i = 1, #Type do
+		local Value, Extra = ParseByType( Client, String, Table, Type[ i ] )
+		if Value ~= nil then
+			return Value, Extra, Type[ i ]
+		end
+	end
+
+	-- If none succeed, then use the first type as the failure point.
+	return nil, nil, Type[ 1 ]
+end
+
+function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg, i )
+	-- Convert the string argument into the requested type.
+	local Result, Extra, MatchedType = self.ParseParameter( Client, ArgString, CurArg )
+	MatchedType = MatchedType or CurArg.Type
+
+	local ParamType = ParamTypes[ MatchedType ]
+
+	-- Specifically check for nil (boolean argument could be false).
+	if Result == nil and not CurArg.Optional then
+		if ParamType.OnFailedMatch then
+			ParamType.OnFailedMatch( Client, CurArg, Extra, ArgString )
+		else
+			self:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
+		end
+
+		return
+	end
+
+	local Success, NewResult = self:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+	if not Success then return end
+
+	if NewResult ~= nil then
+		Result = NewResult
+	end
+
+	if ParamType.Validate and not ParamType.Validate( Client, CurArg, Result, ArgString ) then return end
+
+	return true, Result
 end
 
 function Shine.CommandUtil.BuildLineFromArgs( Args, i )
 	return TableConcat( Args, " ", i )
+end
+
+do
+	local StringEndsWith = string.EndsWith
+	local StringGSub = string.gsub
+	local StringLen = string.len
+	local StringMatch = string.match
+	local StringStartsWith = string.StartsWith
+	local StringSub = string.sub
+
+	local function RemoveQuotes( String )
+		-- If the quote wasn't terminated, go to the end of the string.
+		local EndIndex = StringLen( String ) - ( StringEndsWith( String, "\"" ) and 1 or 0 )
+		String = StringSub( String, 2, EndIndex )
+		return StringGSub( String, "\\\"", "\"" )
+	end
+
+	local function GetArgBetweenQuotes( Args, StartIndex, EndIndex )
+		-- Add all text between the quotes, not including the quotes.
+		local String = TableConcat( Args, " ", StartIndex, EndIndex )
+		return RemoveQuotes( String )
+	end
+
+	--[[
+		Takes arguments bounded by quotes as a single argument.
+	]]
+	function Shine.CommandUtil.AdjustArguments( Args )
+		local RealArgs = {}
+		local Count = 0
+		local StartIndex
+
+		for i = 1, #Args do
+			local Arg = Args[ i ]
+
+			if StartIndex then
+				if StringMatch( Arg, "[^\\]\"$" ) then
+					Count = Count + 1
+					RealArgs[ Count ] = GetArgBetweenQuotes( Args, StartIndex, i )
+					StartIndex = nil
+				end
+			elseif StringStartsWith( Arg, "\"" ) then
+				if StringMatch( Arg, "[^\\]\"$" ) then
+					Count = Count + 1
+					RealArgs[ Count ] = RemoveQuotes( Arg )
+				else
+					StartIndex = i
+				end
+			else
+				Count = Count + 1
+				RealArgs[ Count ] = Arg
+			end
+		end
+
+		if StartIndex then
+			Count = Count + 1
+			RealArgs[ Count ] = GetArgBetweenQuotes( Args, StartIndex, #Args )
+		end
+
+		return RealArgs
+	end
 end
 
 if Server then return end

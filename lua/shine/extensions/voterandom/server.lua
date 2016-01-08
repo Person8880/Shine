@@ -28,8 +28,12 @@ local TableRemove = table.remove
 local TableSort = table.sort
 local tostring = tostring
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "2.0"
+Plugin.PrintName = "Shuffle"
+Plugin.NotifyPrefixColour = {
+	100, 255, 100
+}
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteRandom.json"
@@ -91,9 +95,9 @@ Plugin.DefaultConfig = {
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
 
-	MaxStoredRounds = 3, --How many rounds of score data should we buffer?
-
-	ReconnectLogTime = 0 --How long (in seconds) after a shuffle to log reconnecting players for?
+	ReconnectLogTime = 0, --How long (in seconds) after a shuffle to log reconnecting players for?
+	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
+	DisplayStandardDeviations = false -- Should the scoreboard show each team's standard deviation of skill?
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -104,7 +108,7 @@ Setting FallbackMode to KDR mode (4).]]
 
 local ModeClamp = Shine.IsNS2Combat and 4 or 5
 
-do
+function Plugin:OnFirstThink()
 	local select = select
 
 	local function SupplimentAdder( Adder, ExtraKey, PointsIndex )
@@ -128,7 +132,6 @@ end
 function Plugin:Initialise()
 	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, ModeClamp )
 	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, ModeClamp )
-	self.Config.MaxStoredRounds = Max( Floor( self.Config.MaxStoredRounds ), 1 )
 	self.Config.ReconnectLogTime = Max( self.Config.ReconnectLogTime, 0 )
 
 	local BalanceMode = self.Config.BalanceMode
@@ -157,13 +160,14 @@ function Plugin:Initialise()
 	self.ForceRandomEnd = 0 --Time based.
 	self.RandomOnNextRound = false --Round based.
 	self.ForceRandom = self.Config.AlwaysEnabled
+
+	self.dt.HighlightTeamSwaps = self.Config.HighlightTeamSwaps
+	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
+		and BalanceMode == self.MODE_HIVE
+
 	self.Enabled = true
 
 	return true
-end
-
-function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 255, 100, "[Shuffle]", 255, 255, 255, Message, Format, ... )
 end
 
 --[[
@@ -417,11 +421,16 @@ Plugin.SkillGetters = {
 			end
 		end
 
-		if not Ply.totalScore then
+		if not Ply.totalScore or not Ply.totalPlayTime then
 			return nil
 		end
 
-		return Ply.totalScore / ( ( Ply.totalPlayTime + Ply.playTime ) / 60 )
+		local PlayTime = Ply.totalPlayTime + ( Ply.playTime or 0 )
+		if PlayTime <= 0 then
+			return nil
+		end
+
+		return Ply.totalScore / ( PlayTime / 60 )
 	end
 }
 
@@ -546,6 +555,9 @@ function Plugin:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, Less
 end
 
 function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	-- Sanity check, make sure both team tables have even counts.
+	Shine.EqualiseTeamCounts( TeamMembers )
+
 	--Second pass, optimise the teams by swapping players that will reduce the average skill difference.
 	local NumTeam1 = #TeamMembers[ 1 ]
 	local NumTeam2 = #TeamMembers[ 2 ]
@@ -554,7 +566,7 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	if NumTeam1 > NumTeam2 then
 		LargerTeam = 1
 	elseif NumTeam2 > NumTeam1 then
-		LargetTeam = 2
+		LargerTeam = 2
 	end
 	local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
 
@@ -721,7 +733,20 @@ local function GetFallbackTargets( Targets, Sorted )
 	return FallbackTargets
 end
 
-local function AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
+function Plugin:AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
+	while NumPlayers > 0 and #TeamMembers[ 1 ] ~= #TeamMembers[ 2 ] do
+		NumPlayers = NumPlayers - 1
+
+		local Team = #TeamMembers[ 1 ] < #TeamMembers[ 2 ] and 1 or 2
+		local TeamTable = TeamMembers[ Team ]
+		local Player = Targets[ #Targets ]
+
+		TeamTable[ #TeamTable + 1 ] = Player
+		Targets[ #Targets ] = nil
+	end
+
+	if NumPlayers == 0 then return end
+
 	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
 
 	for i = 1, NumPlayers do
@@ -784,7 +809,7 @@ function Plugin:SortByScore( Gamerules, Targets, TeamMembers, Silent, RankFunc )
 	local RandomTableCount = #RandomTable
 
 	if RandomTableCount > 0 then
-		AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
+		self:AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
 	end
 
 	EvenlySpreadTeams( Gamerules, TeamMembers )
@@ -797,7 +822,7 @@ end
 Plugin.ShufflingModes = {
 	--Random only.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
-		AddPlayersRandomly( Targets, #Targets, TeamMembers )
+		self:AddPlayersRandomly( Targets, #Targets, TeamMembers )
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		if not Silent then
@@ -1088,9 +1113,9 @@ function Plugin:JoinRandomTeam( Player )
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
 
 	if Team1 < Team2 then
-		Gamerules:JoinTeam( Player, 1, nil, true )
+		Gamerules:JoinTeam( Player, 1 )
 	elseif Team2 < Team1 then
-		Gamerules:JoinTeam( Player, 2, nil, true )
+		Gamerules:JoinTeam( Player, 2 )
 	else
 		if self.LastShuffleMode == self.MODE_HIVE then
 			local Team1Players = Gamerules.team1:GetPlayers()
@@ -1116,21 +1141,26 @@ function Plugin:JoinRandomTeam( Player )
 					TeamToJoin = 2
 				end
 
-				Gamerules:JoinTeam( Player, TeamToJoin, nil, true )
+				Gamerules:JoinTeam( Player, TeamToJoin )
 
 				return
 			end
 		end
 
 		if Random() < 0.5 then
-			Gamerules:JoinTeam( Player, 1, nil, true )
+			Gamerules:JoinTeam( Player, 1 )
 		else
-			Gamerules:JoinTeam( Player, 2, nil, true )
+			Gamerules:JoinTeam( Player, 2 )
 		end
 	end
 end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
+	-- Reset the block time when the round stops.
+	if NewState == kGameState.NotStarted then
+		self.VoteBlockTime = nil
+	end
+
 	if NewState ~= kGameState.Countdown then return end
 
 	--Block the vote after the set time.
@@ -1234,14 +1264,6 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won
 	or GameState == kGameState.Draw then return end
 
-	local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-
-	if Enabled then
-		if MapVote:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce ) == false then
-			return false
-		end
-	end
-
 	local Client = GetOwner( Player )
 	if not Client then return false end
 
@@ -1249,7 +1271,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if Immune then return end
 
 	local Team = Player:GetTeamNumber()
-	local OnPlayingTeam = Team == 1 or Team == 2
+	local OnPlayingTeam = Shine.IsPlayingTeam( Team )
 
 	local NumTeam1 = Gamerules.team1:GetNumPlayers()
 	local NumTeam2 = Gamerules.team2:GetNumPlayers()
@@ -1316,7 +1338,7 @@ function Plugin:ClientConnect( Client )
 
 	if not self.ReconnectingClients[ Client:GetUserId() ] then return end
 
-	Shine:Print( "[Shuffle] Client %s reconnected after a shuffle vote.", true,
+	self:Print( "Client %s reconnected after a shuffle vote.", true,
 		Shine.GetClientInfo( Client ) )
 end
 
@@ -1529,7 +1551,7 @@ function Plugin:CreateCommands()
 		{ "enablerandom", "enableshuffle" }, ForceRandomTeams )
 	ForceRandomCommand:AddParam{ Type = "boolean", Optional = true,
 		Default = function() return not self.ForceRandom end }
-	ForceRandomCommand:Help( "<true/false> Enables (and applies) or disables forcing shuffled teams." )
+	ForceRandomCommand:Help( "Enables (and applies) or disables forcing shuffled teams." )
 
 	local function ViewTeamStats( Client )
 		if self.Config.BalanceMode ~= self.MODE_HIVE then
@@ -1568,5 +1590,3 @@ function Plugin:CreateCommands()
 	local StatsCommand = self:BindCommand( "sh_teamstats", nil, ViewTeamStats, true )
 	StatsCommand:Help( "View Hive skill based team statistics." )
 end
-
-Shine:RegisterExtension( "voterandom", Plugin )

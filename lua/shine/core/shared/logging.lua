@@ -1,4 +1,6 @@
-local StringFormat = string.format
+--[[
+	Error report handling.
+]]
 
 local DebugFile = "config://shine/DebugLog.txt"
 
@@ -10,6 +12,7 @@ local URL = "http://5.39.89.152/shine/errorreport.php"
 local OS = jit and jit.os or "Unknown"
 
 local next = next
+local StringFormat = string.format
 local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableInsert = table.insert

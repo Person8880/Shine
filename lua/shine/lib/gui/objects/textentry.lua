@@ -3,6 +3,7 @@
 ]]
 
 local SGUI = Shine.GUI
+local Timer = Shine.Timer
 
 local Clamp = math.Clamp
 local Clock = os.clock
@@ -13,8 +14,11 @@ local StringFormat = string.format
 local StringLength = string.len
 local StringLower = string.lower
 local StringSub = string.sub
+local StringUTF8Encode = string.UTF8Encode
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
+local TableConcat = table.concat
+local TableRemove = table.remove
 local tonumber = tonumber
 
 local TextEntry = {}
@@ -25,6 +29,8 @@ local BorderSize = Vector( 2, 2, 0 )
 local CaretCol = Color( 1, 1, 1, 1 )
 local Clear = Color( 0, 0, 0, 0 )
 local TextPos = Vector( 2, 0, 0 )
+
+SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
 
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
@@ -98,34 +104,30 @@ function TextEntry:Initialise()
 	self.WidthScale = 1
 	self.HeightScale = 1
 
-	local Scheme = SGUI:GetSkin()
-
-	--Default colour scheme.
-	self.FocusColour = Scheme.TextEntryFocus
-	self.DarkCol = Scheme.TextEntry
-
 	self.Padding = 2
 	self.CaretOffset = 0
-
-	Background:SetColor( Scheme.ButtonBorder )
-	InnerBox:SetColor( self.DarkCol )
-	Text:SetColor( Scheme.BrightText )
-	SelectionBox:SetColor( Scheme.TextSelection )
+	self.BorderSize = BorderSize
 
 	self.SelectionBounds = { 0, 0 }
+	self.UndoPosition = 0
+	self.UndoStack = {}
 end
 
 function TextEntry:SetSize( SizeVec )
 	self.Background:SetSize( SizeVec )
 
-	local InnerBoxSize = SizeVec - BorderSize * 2
+	local InnerBoxSize = SizeVec - self.BorderSize * 2
 
 	self.Stencil:SetSize( InnerBoxSize )
 	self.InnerBox:SetSize( InnerBoxSize )
 
 	self.Width = InnerBoxSize.x - 5
 	self.Height = InnerBoxSize.y
+
+	self:InvalidateLayout()
 end
+
+SGUI.AddBoundProperty( TextEntry, "PlaceholderTextColour", "PlaceholderText:SetColor" )
 
 function TextEntry:SetFocusColour( Col )
 	self.FocusColour = Col
@@ -153,6 +155,12 @@ end
 
 function TextEntry:SetHighlightColour( Col )
 	self.SelectionBox:SetColor( Col )
+end
+
+function TextEntry:SetBorderSize( BorderSize )
+	self.InnerBox:SetPosition( BorderSize )
+	self.BorderSize = BorderSize
+	self:SetSize( self.Background:GetSize() )
 end
 
 function TextEntry:SetPlaceholderText( Text )
@@ -191,11 +199,7 @@ function TextEntry:SetPlaceholderText( Text )
 	end
 
 	PlaceholderText:SetPosition( Vector( 0, 0, 0 ) )
-
-	local Skin = SGUI:GetSkin()
-	if Skin.TextEntryPlaceholder then
-		PlaceholderText:SetColor( Skin.TextEntryPlaceholder )
-	end
+	PlaceholderText:SetColor( self.PlaceholderTextColour )
 
 	self.TextObj:AddChild( PlaceholderText )
 	self.PlaceholderText = PlaceholderText
@@ -209,29 +213,6 @@ function TextEntry:GetIsVisible()
 	return self.Background:GetIsVisible()
 end
 
---[[
-	Colour scheme changed, change our colours!
-]]
-function TextEntry:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.FocusColour = Scheme.TextEntryFocus
-	self.DarkCol = Scheme.TextEntry
-
-	self.Background:SetColor( Scheme.ButtonBorder )
-	self.TextObj:SetColor( Scheme.BrightText )
-
-	if self.Highlighted or self.Enabled then
-		self.InnerBox:SetColor( self.FocusColour )
-	else
-		self.InnerBox:SetColor( self.DarkCol )
-	end
-
-	if self.PlaceholderText and Scheme.TextEntryPlaceholder then
-		self.PlaceholderText:SetColor( Scheme.TextEntryPlaceholder )
-	end
-end
-
 function TextEntry:SetFont( Font )
 	self.Font = Font
 	self.TextObj:SetFontName( Font )
@@ -240,6 +221,10 @@ function TextEntry:SetFont( Font )
 	if self.PlaceholderText then
 		self.PlaceholderText:SetFontName( Font )
 	end
+end
+
+function TextEntry:PerformLayout()
+	self:SetupCaret()
 end
 
 function TextEntry:SetupCaret()
@@ -327,6 +312,10 @@ end
 
 function TextEntry:HasSelection()
 	return self.SelectionBounds[ 1 ] ~= self.SelectionBounds[ 2 ]
+end
+
+function TextEntry:GetSelectedText()
+	return StringUTF8Sub( self.Text, self.SelectionBounds[ 1 ] + 1, self.SelectionBounds[ 2 ] )
 end
 
 function TextEntry:RemoveSelectedText()
@@ -478,7 +467,11 @@ function TextEntry:SelectWord( CharPos )
 	self:SetSelection( PreSpace, NextSpace )
 end
 
-function TextEntry:SetText( Text )
+function TextEntry:SetText( Text, IgnoreUndo )
+	if not IgnoreUndo and Text ~= self.Text then
+		self:PushUndoState()
+	end
+
 	self:ResetSelectionBounds()
 	self.Text = Text
 
@@ -522,11 +515,26 @@ SGUI.AddProperty( TextEntry, "Numeric" )
 SGUI.AddProperty( TextEntry, "AlphaNumeric" )
 SGUI.AddProperty( TextEntry, "CharPattern" )
 
+function TextEntry:QueueUndo()
+	if not self.UndoTimer then
+		self:PushUndoState()
+		self.UndoTimer = Timer.Create( self, 0.5, 1, function()
+			self.UndoTimer = nil
+		end )
+	end
+
+	self.UndoTimer:Debounce()
+end
+
 --[[
 	Inserts a character wherever the caret is.
 ]]
-function TextEntry:AddCharacter( Char )
-	if not self:AllowChar( Char ) then return end
+function TextEntry:AddCharacter( Char, SkipUndo )
+	if not self:AllowChar( Char ) then return false end
+
+	if not SkipUndo then
+		self:QueueUndo()
+	end
 
 	if self:HasSelection() then
 		self:RemoveSelectedText()
@@ -555,9 +563,13 @@ function TextEntry:AddCharacter( Char )
 	if self.PlaceholderText then
 		self.PlaceholderText:SetIsVisible( false )
 	end
+
+	return true
 end
 
 function TextEntry:RemoveWord( Forward )
+	self:QueueUndo()
+
 	local Before
 	local After
 
@@ -600,6 +612,7 @@ end
 ]]
 function TextEntry:RemoveCharacter( Forward )
 	if self:HasSelection() then
+		self:QueueUndo()
 		self:RemoveSelectedText()
 
 		return
@@ -611,6 +624,8 @@ function TextEntry:RemoveCharacter( Forward )
 		self:RemoveWord( Forward )
 		return
 	end
+
+	self:QueueUndo()
 
 	local Text = self.Text
 	local Length = StringUTF8Length( Text )
@@ -711,16 +726,21 @@ function TextEntry:GetColumnFromMouse( X )
 	local Text = self.Text
 	local TextObj = self.TextObj
 
-	local Length = StringUTF8Length( Text )
+	local Chars = StringUTF8Encode( Text )
+	local Length = #Chars
+	if Length == 0 then
+		return 0
+	end
+
 	local i = 0
-	local Width = TextObj:GetTextWidth( StringUTF8Sub( Text, 1, i ) ) * self.WidthScale
+	local Width = 0
 
 	repeat
 		local Pos = Width + Offset
 
 		if Pos > X then
 			local Dist = Pos - X
-			local PrevWidth = TextObj:GetTextWidth( StringUTF8Sub( Text, i - 1, i - 1 ) ) * self.WidthScale
+			local PrevWidth = TextObj:GetTextWidth( Chars[ i - 1 ] or "" ) * self.WidthScale
 
 			if Dist < PrevWidth * 0.5 then
 				return i
@@ -731,7 +751,7 @@ function TextEntry:GetColumnFromMouse( X )
 
 		i = i + 1
 
-		Width = TextObj:GetTextWidth( StringUTF8Sub( Text, 1, i ) ) * self.WidthScale
+		Width = TextObj:GetTextWidth( TableConcat( Chars, "", 1, i ) ) * self.WidthScale
 	until i >= Length
 
 	return Length
@@ -780,6 +800,70 @@ function TextEntry:OnMouseDown( Key, DoubleClick )
 	end
 end
 
+function TextEntry:OnUnhandledKey( Key, Down )
+
+end
+
+function TextEntry:GetState()
+	return {
+		Text = self.Text,
+		CaretPos = self.Column
+	}
+end
+
+function TextEntry:ResetUndoState()
+	self.UndoPosition = 0
+	self.UndoStack = {}
+end
+
+function TextEntry:PushUndoState()
+	local MaxHistory = self:GetMaxUndoHistory()
+	for i = self.UndoPosition + 1, #self.UndoStack do
+		self.UndoStack[ i ] = nil
+	end
+
+	self.UndoStack[ #self.UndoStack + 1 ] = self:GetState()
+
+	while #self.UndoStack > MaxHistory do
+		TableRemove( self.UndoStack, 1 )
+	end
+
+	self.UndoPosition = #self.UndoStack
+end
+
+function TextEntry:RestoreState( State )
+	local Text = self.Text
+
+	self:SetText( State.Text, true )
+	self:SetCaretPos( State.CaretPos )
+
+	if self.OnTextChanged then
+		self:OnTextChanged( Text, self.Text )
+	end
+end
+
+function TextEntry:Undo()
+	local UndoPos = self.UndoPosition
+	local Entry = self.UndoStack[ UndoPos ]
+
+	if not Entry then return end
+
+	Entry.Redo = self:GetState()
+
+	self.UndoPosition = self.UndoPosition - 1
+	self:RestoreState( Entry )
+end
+
+function TextEntry:Redo()
+	local UndoPos = self.UndoPosition + 1
+	local Entry = self.UndoStack[ UndoPos ]
+
+	if not Entry then return end
+
+	self.UndoPosition = UndoPos
+	self:RestoreState( Entry.Redo )
+end
+
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
@@ -789,6 +873,42 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		if Key == InputKey.A then
 			self:SelectAll()
 
+			return true
+		end
+
+		if self:HasSelection() then
+			if Key == InputKey.C then
+				SGUI.SetClipboardText( self:GetSelectedText() )
+
+				return true
+			end
+
+			if Key == InputKey.X then
+				self:PushUndoState()
+				SGUI.SetClipboardText( self:GetSelectedText() )
+				self:RemoveSelectedText()
+
+				return true
+			end
+		end
+
+		if Key == InputKey.V then
+			self:PushUndoState()
+			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
+			for i = 1, #Chars do
+				if not self:AddCharacter( Chars[ i ], true ) then break end
+			end
+
+			return true
+		end
+
+		if Key == InputKey.Z then
+			self:Undo()
+			return true
+		end
+
+		if Key == InputKey.Y then
+			self:Redo()
 			return true
 		end
 	end
@@ -827,6 +947,8 @@ function TextEntry:PlayerKeyPress( Key, Down )
 
 		return true
 	end
+
+	self:OnUnhandledKey( Key, Down )
 
 	return true
 end

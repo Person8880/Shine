@@ -69,6 +69,7 @@ function Plugin:SetupDataTable()
 			"PLAYER_GAGGED"
 		}
 	} )
+	self:AddNetworkMessage( "EnableLocalAllTalk", { Enabled = "boolean" }, "Server" )
 end
 
 function Plugin:NetworkUpdate( Key, Old, New )
@@ -123,6 +124,14 @@ if Server then
 	return
 end
 
+Plugin.HasConfig = true
+Plugin.ConfigName = "BaseCommands.json"
+Plugin.DefaultConfig = {
+	DisableLocalAllTalk = false
+}
+Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
+
 Shine.Hook.Add( "PostLoadScript", "SetupCustomVote", function( Script )
 	if Script ~= "lua/Voting.lua" then return end
 
@@ -155,6 +164,7 @@ function Plugin:Initialise()
 	end
 
 	self:SetupAdminMenuCommands()
+	self:SetupClientConfig()
 
 	self.Enabled = true
 
@@ -164,6 +174,29 @@ end
 function Plugin:ReceiveClientKicked( Data )
 	local Key = Data.Reason ~= "" and "CLIENT_KICKED_REASON" or "CLIENT_KICKED"
 	self:CommandNotify( Data.AdminName, Key, Data )
+end
+
+function Plugin:SetupClientConfig()
+	Shine.AddStartupMessage( "You can choose to enable/disable local all talk for yourself by entering sh_alltalklocal_cl true/false." )
+
+	if self.Config.DisableLocalAllTalk then
+		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = false }, true )
+	end
+
+	self:BindCommand( "sh_alltalklocal_cl", function( Enable )
+		self.Config.DisableLocalAllTalk = not Enable
+		self:SaveConfig( true )
+		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = Enable }, true )
+
+		Print( "Local all talk is now %s.", Enable and "enabled" or "disabled" )
+	end ):AddParam{ Type = "boolean", Optional = true, Default = function() return self.Config.DisableLocalAllTalk end }
+
+	Shine:RegisterClientSetting( {
+		Type = "Boolean",
+		Command = "sh_alltalklocal_cl",
+		ConfigOption = function() return not self.Config.DisableLocalAllTalk end,
+		Description = "Enable local voice chat all-talk."
+	} )
 end
 
 function Plugin:SetupAdminMenuCommands()
@@ -217,7 +250,7 @@ function Plugin:SetupAdminMenuCommands()
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
 			List:SetPos( Vector( 16, 28, 0 ) )
-			List:SetColumns( 1, self:GetPhrase( "MAP" ) )
+			List:SetColumns( self:GetPhrase( "MAP" ) )
 			List:SetSpacing( 1 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
@@ -279,10 +312,11 @@ function Plugin:SetupAdminMenuCommands()
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
 			List:SetPos( Vector( 16, 28, 0 ) )
-			List:SetColumns( 2, self:GetPhrase( "PLUGIN" ), self:GetPhrase( "STATE" ) )
+			List:SetColumns( self:GetPhrase( "PLUGIN" ), self:GetPhrase( "STATE" ) )
 			List:SetSpacing( 0.7, 0.3 )
 			List:SetSize( Vector( 640, 512, 0 ) )
 			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetSecondarySortColumn( 2, 1 )
 
 			self.PluginList = List
 			self.PluginRows = self.PluginRows or {}
@@ -298,7 +332,7 @@ function Plugin:SetupAdminMenuCommands()
 			end
 
 			if not Shine.AdminMenu.RestoreListState( List, Data ) then
-				List:SortRows( 1 )
+				List:SortRows( 2, nil, true )
 			end
 
 			local ButtonSize = Vector( 128, 32, 0 )
@@ -382,35 +416,28 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			end
 
-			Hook.Add( "OnPluginLoad", "AdminMenu_OnPluginLoad", function( Name, Plugin, Shared )
+			local function UpdateRow( Name, State )
 				local Row = self.PluginRows[ Name ]
 
 				if SGUI.IsValid( Row ) then
-					Row:SetColumnText( 2, self:GetPhrase( "ENABLED" ) )
-					Row.PluginEnabled = true
+					Row:SetColumnText( 2, State and self:GetPhrase( "ENABLED" ) or self:GetPhrase( "DISABLED" ) )
+					Row.PluginEnabled = State
 					if Row == List:GetSelectedRow() then
 						List:OnRowSelected( nil, Row )
 					end
 				end
+			end
+
+			Hook.Add( "OnPluginLoad", "AdminMenu_OnPluginLoad", function( Name, Plugin, Shared )
+				UpdateRow( Name, true )
 			end )
 
-			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Shared )
-				local Row = self.PluginRows[ Name ]
-
-				if SGUI.IsValid( Row ) then
-					Row:SetColumnText( 2, self:GetPhrase( "DISABLED" ) )
-					Row.PluginEnabled = false
-					if Row == List:GetSelectedRow() then
-						List:OnRowSelected( nil, Row )
-					end
-				end
+			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Plugin, Shared )
+				UpdateRow( Name, false )
 			end )
 		end,
 
 		OnCleanup = function( Panel )
-			local SortColumn = self.PluginList.SortedColumn
-			local Descending = self.PluginList.Descending
-
 			TableEmpty( self.PluginRows )
 
 			local PluginList = self.PluginList

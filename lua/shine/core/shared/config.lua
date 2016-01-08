@@ -4,6 +4,9 @@
 
 local Encode, Decode = json.encode, json.decode
 local Open = io.open
+local pairs = pairs
+local StringFormat = string.format
+local type = type
 
 local JSONSettings = { indent = true, level = 1 }
 
@@ -39,7 +42,7 @@ Shine.WriteFile = WriteFile
 function Shine.LoadJSONFile( Path )
 	local Data, Err = ReadFile( Path )
 	if not Data then
-		return nil, Err
+		return false, Err
 	end
 
 	return Decode( Data )
@@ -117,4 +120,61 @@ function Shine.CheckConfig( Config, DefaultConfig, DontRemove )
 	end
 
 	return Updated
+end
+
+function Shine.TypeCheckConfig( Name, Config, DefaultConfig, Recursive )
+	local Edited
+
+	for Key, Value in pairs( Config ) do
+		if DefaultConfig[ Key ] ~= nil then
+			local ExpectedType = type( DefaultConfig[ Key ] )
+			local RealType = type( Value )
+
+			if ExpectedType ~= RealType then
+				Print( "Type mis-match in %s config for key '%s', expected type: '%s', got type '%s'. Reverting value to default.",
+					Name, Key, ExpectedType, RealType )
+
+				Config[ Key ] = DefaultConfig[ Key ]
+				Edited = true
+			end
+
+			if Recursive and ExpectedType == "table" then
+				local SubEdited = Shine.TypeCheckConfig( StringFormat( "%s.%s", Name, Key ),
+					Value, DefaultConfig[ Key ], Recursive )
+				Edited = Edited or SubEdited
+			end
+		end
+	end
+
+	return Edited
+end
+
+do
+	local Validator = {}
+	Validator.__index = Validator
+
+	function Validator:AddRule( Rule )
+		self.Rules[ #self.Rules + 1 ] = Rule
+	end
+
+	function Validator:Validate( Config )
+		local ChangesMade = false
+
+		for i = 1, #self.Rules do
+			local Rule = self.Rules[ i ]
+
+			if Rule:Matches( Config ) then
+				ChangesMade = true
+				if Rule.Fix then
+					Rule:Fix( Config )
+				end
+			end
+		end
+
+		return ChangesMade
+	end
+
+	function Shine.Validator()
+		return setmetatable( { Rules = {} }, Validator )
+	end
 end

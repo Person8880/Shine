@@ -15,6 +15,10 @@ Plugin.Version = "1.6"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
+Plugin.PrintName = "Pre Game"
+Plugin.NotifyPrefixColour = {
+	100, 100, 255
+}
 
 Plugin.DefaultConfig = {
 	PreGameTime = 45,
@@ -32,10 +36,12 @@ Plugin.CheckConfigTypes = true
 Plugin.FiveSecTimer = "PreGameFiveSeconds"
 Plugin.CountdownTimer = "PreGameCountdown"
 
-Plugin.StartNagInterval = 10
+Plugin.StartNagInterval = 30
 
-Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
-	"CheckPlayerCanAttack", "ActivePre" )
+function Plugin:OnFirstThink()
+	Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
+		"CheckPlayerCanAttack", "ActivePre" )
+end
 
 function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()
@@ -130,11 +136,6 @@ end
 function Plugin:DestroyTimers()
 	self:DestroyTimer( self.FiveSecTimer )
 	self:DestroyTimer( self.CountdownTimer )
-end
-
-function Plugin:Notify( Player, Message, Format, ... )
-	Shine:NotifyDualColour( Player, 100, 100, 255, "[Pre Game]", 255, 255, 255,
-		Message, Format, ... )
 end
 
 function Plugin:AbortGameStart( Gamerules, Message, Args )

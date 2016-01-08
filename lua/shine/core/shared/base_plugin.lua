@@ -272,7 +272,7 @@ function PluginMeta:LoadConfig()
 		if IsType( Pos, "string" ) then
 			self:GenerateDefaultConfig( true )
 		else
-			Print( "Invalid JSON for %s plugin config, loading default...", self.__Name )
+			Print( "Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
 
 			self.Config = self.DefaultConfig
 		end
@@ -282,41 +282,25 @@ function PluginMeta:LoadConfig()
 
 	self.Config = PluginConfig
 
-	local NeedsSave
+	local Validator = Shine.Validator()
+	Validator:AddRule( {
+		Matches = function( _, Config )
+			return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( _, Config )
+			return self.CheckConfigTypes and self:TypeCheckConfig()
+		end
+	} )
 
-	if self.CheckConfig and Shine.CheckConfig( self.Config, self.DefaultConfig ) then
-		NeedsSave = true
-	end
-
-	if self.CheckConfigTypes and self:TypeCheckConfig() then
-		NeedsSave = true
-	end
-
-	if NeedsSave then
+	if Validator:Validate( self.Config ) then
 		self:SaveConfig()
 	end
 end
 
 function PluginMeta:TypeCheckConfig()
-	local Config = self.Config
-	local DefaultConfig = self.DefaultConfig
-
-	local Edited
-
-	for Key, Value in pairs( Config ) do
-		local ExpectedType = type( DefaultConfig[ Key ] )
-		local RealType = type( Value )
-
-		if ExpectedType ~= RealType then
-			Print( "Type mis-match in %s config for key '%s', expected type: '%s'. Reverting value to default.",
-				self.__Name, Key, ExpectedType )
-
-			Config[ Key ] = DefaultConfig[ Key ]
-			Edited = true
-		end
-	end
-
-	return Edited
+	return Shine.TypeCheckConfig( self.__Name, self.Config, self.DefaultConfig )
 end
 
 if Server then
@@ -620,6 +604,24 @@ function PluginMeta:CanRunAction( Action, Time, Delay )
 	return true
 end
 
+if Server then
+	local function GetName( self )
+		return rawget( self, "PrintName" ) or self.__Name
+	end
+
+	function PluginMeta:Print( Message, Format, ... )
+		Shine:Print( "[%s] %s", true, GetName( self ),
+			Format and StringFormat( Message, ... ) or Message )
+	end
+
+	function PluginMeta:Notify( Player, Message, Format, ... )
+		local NotifyColour = self.NotifyPrefixColour
+
+		Shine:NotifyDualColour( Player, NotifyColour[ 1 ], NotifyColour[ 2 ], NotifyColour[ 3 ],
+			StringFormat( "[%s]", GetName( self ) ), 255, 255, 255, Message, Format, ... )
+	end
+end
+
 local ReservedKeys = {
 	Enabled = true,
 	Suspended = true
@@ -627,21 +629,26 @@ local ReservedKeys = {
 --Support plugins inheriting from other plugins.
 function PluginMeta:__index( Key )
 	if ReservedKeys[ Key ] then return nil end
-	if PluginMeta[ Key ] then return PluginMeta[ Key ] end
 
 	local Inherit = rawget( self, "__Inherit" )
-
 	if Inherit then
 		local InheritBlacklist = rawget( self, "__InheritBlacklist" )
 		local InheritWhitelist = rawget( self, "__InheritWhitelist" )
+		local InheritedValue = Inherit[ Key ]
 
 		if not InheritBlacklist and not InheritWhitelist then
-			return Inherit[ Key ]
+			if InheritedValue ~= nil then
+				return InheritedValue
+			end
+		else
+			if InheritBlacklist and InheritBlacklist[ Key ] then return PluginMeta[ Key ] end
+			if InheritWhitelist and not InheritWhitelist[ Key ] then return PluginMeta[ Key ] end
+
+			if InheritedValue ~= nil then
+				return InheritedValue
+			end
 		end
-
-		if InheritBlacklist and InheritBlacklist[ Key ] then return nil end
-		if InheritWhitelist and not InheritWhitelist[ Key ] then return nil end
-
-		return Inherit[ Key ]
 	end
+
+	return PluginMeta[ Key ]
 end

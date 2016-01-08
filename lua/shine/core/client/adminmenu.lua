@@ -9,15 +9,10 @@ local Locale = Shine.Locale
 
 local IsType = Shine.IsType
 local StringFormat = string.format
-local TableConcat = table.concat
 
 Shine.AdminMenu = {}
 
 local AdminMenu = Shine.AdminMenu
-
-Hook.Add( "OnMapLoad", "AdminMenu_Hook", function()
-	Hook.SetupGlobalHook( "Scoreboard_OnClientDisconnect", "OnClientIDDisconnect", "PassivePre" )
-end )
 
 Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
 	AdminMenu:SetIsVisible( true )
@@ -57,7 +52,10 @@ function AdminMenu:Create()
 
 		if self.ToDestroyOnClose then
 			for Panel in pairs( self.ToDestroyOnClose ) do
-				Panel:Destroy()
+				if Panel:IsValid() then
+					Panel:Destroy()
+				end
+
 				self.ToDestroyOnClose[ Panel ] = nil
 			end
 		end
@@ -80,38 +78,41 @@ end
 
 AdminMenu.EasingTime = 0.25
 
+function AdminMenu.AnimateVisibility( Window, Show, Visible, EasingTime, TargetPos )
+	if not Show and Shine.Config.AnimateUI then
+		Shine.Timer.Simple( EasingTime, function()
+			if not SGUI.IsValid( Window ) then return end
+			Window:SetIsVisible( false )
+		end )
+	else
+		Window:SetIsVisible( Show )
+	end
+
+	if Show and not Visible then
+		if Shine.Config.AnimateUI then
+			Window:SetPos( Vector2( -Client.GetScreenWidth() + TargetPos.x, TargetPos.y ) )
+			Window:MoveTo( nil, nil, TargetPos, 0, EasingTime )
+		else
+			Window:SetPos( TargetPos )
+		end
+
+		SGUI:EnableMouse( true )
+	elseif not Show and Visible then
+		SGUI:EnableMouse( false )
+
+		if Shine.Config.AnimateUI then
+			Window:MoveTo( nil, nil, Vector2( Client.GetScreenWidth() - TargetPos.x, TargetPos.y ), 0,
+				EasingTime, nil, math.EaseIn )
+		end
+	end
+end
+
 function AdminMenu:SetIsVisible( Bool )
 	if not self.Created then
 		self:Create()
 	end
 
-	if not Bool and Shine.Config.AnimateUI then
-		Shine.Timer.Simple( self.EasingTime, function()
-			if not SGUI.IsValid( self.Window ) then return end
-			self.Window:SetIsVisible( false )
-		end )
-	else
-		self.Window:SetIsVisible( Bool )
-	end
-
-	if Bool and not self.Visible then
-		if Shine.Config.AnimateUI then
-			self.Window:SetPos( Vector( -Client.GetScreenWidth() + self.Pos.x, self.Pos.y, 0 ) )
-			self.Window:MoveTo( nil, nil, self.Pos, 0, self.EasingTime )
-		else
-			self.Window:SetPos( self.Pos )
-		end
-
-		SGUI:EnableMouse( true )
-	elseif not Bool and self.Visible then
-		SGUI:EnableMouse( false )
-
-		if Shine.Config.AnimateUI then
-			self.Window:MoveTo( nil, nil, Vector( Client.GetScreenWidth() - self.Pos.x, self.Pos.y, 0 ), 0,
-				self.EasingTime, nil, math.EaseIn )
-		end
-	end
-
+	self.AnimateVisibility( self.Window, Bool, self.Visible, self.EasingTime, self.Pos )
 	self.Visible = Bool
 end
 
@@ -199,15 +200,12 @@ end
 
 function AdminMenu:OnTabCleanup( Window, Name )
 	local Tab = self.Tabs[ Name ]
-
 	if not Tab then return end
 
 	local OnCleanup = Tab.OnCleanup
-
 	if not OnCleanup then return end
 
 	local Ret = OnCleanup( Window.ContentPanel )
-
 	if Ret then
 		Tab.Data = Ret
 	end
@@ -277,6 +275,7 @@ do
 	local GetEnts = Shared.GetEntitiesWithClassname
 	local IterateEntList = ientitylist
 	local TableEmpty = table.Empty
+	local TableFindByField = table.FindByField
 	local TableRemove = table.remove
 	local TableSort = table.sort
 
@@ -302,9 +301,18 @@ do
 
 	local function UpdatePlayers()
 		local PlayerEnts = GetEnts( "PlayerInfoEntity" )
+		local ExistingPlayers = {}
 
 		for _, Ent in IterateEntList( PlayerEnts ) do
 			AddPlayerToList( Ent )
+			ExistingPlayers[ Ent.clientId ] = true
+		end
+
+		for ID, Row in pairs( Rows ) do
+			if not ExistingPlayers[ ID ] then
+				PlayerList:RemoveRow( Row.Index )
+				Rows[ ID ] = nil
+			end
 		end
 	end
 
@@ -325,18 +333,19 @@ do
 		OnInit = function( Panel, Data )
 			Label = SGUI:Create( "Label", Panel )
 			Label:SetFont( Fonts.kAgencyFB_Small )
-			Label:SetBright( true )
 			Label:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_PLAYERS_HELP" ) )
 			Label:SetPos( Vector( 16, 24, 0 ) )
 
 			PlayerList = SGUI:Create( "List", Panel )
 			PlayerList:SetAnchor( GUIItem.Left, GUIItem.Top )
 			PlayerList:SetPos( Vector( 16, 72, 0 ) )
-			PlayerList:SetColumns( 3, Locale:GetPhrase( "Core", "NAME" ), "NS2ID", Locale:GetPhrase( "Core", "TEAM" ) )
+			PlayerList:SetColumns( Locale:GetPhrase( "Core", "NAME" ), "NS2ID",
+				Locale:GetPhrase( "Core", "TEAM" ) )
 			PlayerList:SetSpacing( 0.45, 0.3, 0.25 )
 			PlayerList:SetSize( Vector( 640 - 192 - 16, 512, 0 ) )
 			PlayerList:SetNumericColumn( 2 )
 			PlayerList:SetMultiSelect( true )
+			PlayerList:SetSecondarySortColumn( 3, 1 )
 			PlayerList.ScrollPos = Vector( 0, 32, 0 )
 
 			UpdatePlayers()
@@ -348,16 +357,6 @@ do
 			end )
 
 			AdminMenu.RestoreListState( PlayerList, Data )
-
-			Hook.Add( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers", function( ClientID )
-				local Row = Rows[ ClientID ]
-
-				if SGUI.IsValid( PlayerList ) and SGUI.IsValid( Row ) then
-					PlayerList:RemoveRow( Row.Index )
-
-					Rows[ ClientID ] = nil
-				end
-			end )
 
 			Commands = SGUI:Create( "CategoryPanel", Panel )
 			Commands:SetAnchor( "TopRight" )
@@ -418,10 +417,10 @@ do
 			TableEmpty( Rows )
 
 			Shine.Timer.Destroy( "AdminMenu_Update" )
-			Hook.Remove( "OnClientIDDisconnect", "AdminMenu_UpdatePlayers" )
 
 			return Data
-		end } )
+		end
+	} )
 
 	function AdminMenu:RunCommand( Command, Args )
 		if not Args then
@@ -439,19 +438,16 @@ do
 
 		Window:AddTitleBar( Locale:GetPhrase( "Core", "ERROR" ) )
 
-		Shine.AdminMenu:DestroyOnClose( Window )
+		self:DestroyOnClose( Window )
 
 		function Window.CloseButton.DoClick()
-			Shine.AdminMenu:DontDestroyOnClose( Window )
+			self:DontDestroyOnClose( Window )
 			Window:Destroy()
 		end
-
-		Window:SkinColour()
 
 		local Label = SGUI:Create( "Label", Window )
 		Label:SetAnchor( "CentreMiddle" )
 		Label:SetFont( Fonts.kAgencyFB_Small )
-		Label:SetBright( true )
 		Label:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_SELECT_SINGLE_PLAYER" ) )
 		Label:SetPos( Vector( 0, -40, 0 ) )
 		Label:SetTextAlignmentX( GUIItem.Align_Center )
@@ -465,9 +461,19 @@ do
 		OK:SetText( Locale:GetPhrase( "Core", "OK" ) )
 
 		function OK.DoClick()
-			Shine.AdminMenu:DontDestroyOnClose( Window )
+			self:DontDestroyOnClose( Window )
 			Window:Destroy()
 		end
+	end
+
+	local function GetArgsFromRows( Rows, MultiPlayer )
+		if MultiPlayer then
+			return Shine.Stream( Rows ):Concat( ",", function( Row )
+				return Row:GetColumnText( 2 )
+			end )
+		end
+
+		return Rows[ 1 ]:GetColumnText( 2 )
 	end
 
 	function AdminMenu:AddCommand( Category, Name, Command, MultiPlayer, DoClick, Tooltip )
@@ -477,60 +483,34 @@ do
 
 				if not MultiPlayer and #Rows > 1 then
 					self:AskForSinglePlayer()
-
 					return
 				end
 
-				if MultiPlayer then
-					local IDs = {}
-
-					for i = 1, #Rows do
-						local Row = Rows[ i ]
-
-						IDs[ i ] = Row:GetColumnText( 2 )
-					end
-
-					self:RunCommand( Command, TableConcat( IDs, "," ) )
-				else
-					self:RunCommand( Command, Rows[ 1 ]:GetColumnText( 2 ) )
-				end
+				self:RunCommand( Command, GetArgsFromRows( Rows, MultiPlayer ) )
 			end
 		elseif IsType( DoClick, "table" ) then
 			local Data = DoClick
 
 			local Menu
+			local function CleanupMenu()
+				self:DontDestroyOnClose( Menu )
+				Menu:Destroy()
+				Menu = nil
+			end
 			DoClick = function( Button, Rows )
 				if #Rows == 0 then return end
 
 				if Menu then
-					self:DontDestroyOnClose( Menu )
-
-					Menu:Destroy()
-					Menu = nil
-
+					CleanupMenu()
 					return
 				end
 
 				if not MultiPlayer and #Rows > 1 then
 					self:AskForSinglePlayer()
-
 					return
 				end
 
-				local Args
-				if MultiPlayer then
-					local IDs = {}
-
-					for i = 1, #Rows do
-						local Row = Rows[ i ]
-
-						IDs[ i ] = Row:GetColumnText( 2 )
-					end
-
-					Args = TableConcat( IDs, "," )
-				else
-					Args = Rows[ 1 ]:GetColumnText( 2 )
-				end
+				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
 				Menu = Button:AddMenu( Vector( 128, 32, 0 ) )
 				Menu:CallOnRemove( function()
@@ -550,19 +530,12 @@ do
 								self:RunCommand( Command, StringFormat( "%s %s", Args, Arg ) )
 							end
 
-							self:DontDestroyOnClose( Menu )
-
-							Menu:Destroy()
-							Menu = nil
+							CleanupMenu()
 						end )
 					elseif IsType( Arg, "function" ) then
 						Menu:AddButton( Option, function()
 							Arg()
-
-							self:DontDestroyOnClose( Menu )
-
-							Menu:Destroy()
-							Menu = nil
+							CleanupMenu()
 						end )
 					end
 				end
@@ -570,17 +543,7 @@ do
 		end
 
 		local Categories = self.Commands
-		local CategoryObj
-
-		for i = 1, #Categories do
-			local Obj = Categories[ i ]
-
-			if Obj.Name == Category then
-				CategoryObj = Obj
-				break
-			end
-		end
-
+		local CategoryObj = TableFindByField( Categories, "Name", Category )
 		local ShouldAdd
 
 		if not CategoryObj then
@@ -609,17 +572,7 @@ do
 
 	function AdminMenu:RemoveCommandCategory( Category )
 		local Categories = self.Commands
-		local Index
-
-		for i = 1, #Categories do
-			local Obj = Categories[ i ]
-
-			if Obj.Name == Category then
-				Index = i
-				break
-			end
-		end
-
+		local Obj, Index = TableFindByField( Categories, "Name", Category )
 		if not Index then return end
 
 		TableRemove( Categories, Index )
@@ -631,49 +584,82 @@ do
 end
 
 do
-local WebPage
-local Text = [[Shine was created by Person8880.
+-- Apparently labels have a character limit.
+local Text = {
+[[Shine was created by Person8880.
 
 Special thanks to:
 - Ghoul for being the first major plugin author and helping with pull requests.
 - Lance Hilliard for also helping with pull requests.
 - DePara for being the first server admin to use Shine.
-- You for using my mod and therefore reading this text!]]
+- You for using my mod and therefore reading this text!
+
+Got an issue or a feature request? Head over to the mod's GitHub page and post an issue,
+or leave a comment on the workshop page.
+]],
+[[The mod's GitHub issue tracker can be found here:]],
+{
+	Text = [[https://github.com/Person8880/Shine/issues]],
+	StyleName = "Link",
+	DoClick = function( self )
+		Client.ShowWebpage( self:GetText() )
+	end
+},
+[[
+
+If you need help with how the mod functions, you can view the wiki by clicking the button
+below. If you want to get to it outside the game, visit:]],
+{
+	Text = [[https://github.com/Person8880/Shine/wiki]],
+	StyleName = "Link",
+	DoClick = function( self )
+		Client.ShowWebpage( self:GetText() )
+	end
+}
+}
+
+	local Units = SGUI.Layout.Units
+	local Percentage = Units.Percentage
+	local Spacing = Units.Spacing
+	local UnitVector = Units.UnitVector
 
 	AdminMenu:AddTab( "About", {
 		OnInit = function( Panel )
-			local Label = SGUI:Create( "Label", Panel )
-			Label:SetPos( Vector( 16, 24, 0 ) )
-			Label:SetFont( "fonts/AgencyFB_small.fnt" )
-			Label:SetText( Text )
-			Label:SetBright( true )
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( 16, 24, 16, 24 )
+			} )
+			Panel:SetLayout( Layout )
+
+			for i = 1, #Text do
+				local Label = SGUI:Create( "Label", Panel )
+				Label:SetFont( Fonts.kAgencyFB_Small )
+
+				local LabelText = Text[ i ]
+				if IsType( LabelText, "string" ) then
+					Label:SetText( LabelText )
+				else
+					Label:SetText( LabelText.Text )
+					Label:SetStyleName( LabelText.StyleName )
+					Label.DoClick = LabelText.DoClick
+				end
+				Layout:AddElement( Label )
+			end
 
 			local HomeButton = SGUI:Create( "Button", Panel )
-			HomeButton:SetAnchor( "TopRight" )
-			HomeButton:SetPos( Vector( -144, 176, 0 ) )
-			HomeButton:SetSize( Vector( 128, 32, 0 ) )
+			HomeButton:SetAutoSize( UnitVector( Percentage( 100 ), 32 ) )
+			HomeButton:SetAlignment( SGUI.LayoutAlignment.MAX )
 			HomeButton:SetFont( Fonts.kAgencyFB_Small )
-			HomeButton:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_BACK_WIKI" ) )
+			HomeButton:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_OPEN_WIKI" ) )
 			function HomeButton:DoClick()
-				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
+				Shine:OpenWebpage( "https://github.com/Person8880/Shine/wiki", "Shine Wiki" )
 			end
 
-			if not SGUI.IsValid( WebPage ) then
-				WebPage = SGUI:Create( "Webpage", Panel )
-				WebPage:SetPos( Vector( 16, 224, 0 ) )
-				WebPage:LoadURL( "https://github.com/Person8880/Shine/wiki", 640, 360 )
-			else
-				WebPage:SetParent( Panel )
-				WebPage:SetIsVisible( true )
-			end
-
-			AdminMenu:DontDestroyOnClose( WebPage )
+			Layout:AddElement( HomeButton )
+			Panel:InvalidateLayout( true )
 		end,
 
 		OnCleanup = function( Panel )
-			WebPage:SetParent()
-			WebPage:SetIsVisible( false )
-			AdminMenu:DestroyOnClose( WebPage )
+
 		end
 	} )
 end

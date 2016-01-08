@@ -5,7 +5,47 @@
 local IsType = Shine.IsType
 local pairs = pairs
 local Random = math.random
+local select = select
+local TableRemove = table.remove
 local TableSort = table.sort
+
+do
+	local function HasValue( Table, Value )
+		for i = 1, #Table do
+			if Table[ i ] == Value then
+				return true, i
+			end
+		end
+
+		return false
+	end
+	table.HasValue = HasValue
+
+	function table.InsertUnique( Table, Value )
+		if HasValue( Table, Value ) then return false end
+
+		Table[ #Table + 1 ] = Value
+
+		return true
+	end
+end
+
+--[[
+	Takes a base table and a list of keys, and populates down to the last key with tables.
+]]
+function table.Build( Base, ... )
+	for i = 1, select( "#", ... ) do
+		local Key = select( i, ... )
+		local Entry = Base[ Key ]
+		if not Entry then
+			Entry = {}
+			Base[ Key ] = Entry
+		end
+		Base = Entry
+	end
+
+	return Base
+end
 
 --[[
 	Finds a table entry by the value of the given field.
@@ -28,6 +68,57 @@ function table.AsSet( Table )
 
 	for i = 1, #Table do
 		Ret[ Table[ i ] ] = true
+	end
+
+	return Ret
+end
+
+--[[
+	Finds and removes the given value from the given table.
+]]
+function table.RemoveByValue( Table, Value )
+	for i = 1, #Table do
+		if Table[ i ] == Value then
+			TableRemove( Table, i )
+			return true
+		end
+	end
+
+	return false
+end
+
+--[[
+	Copies all values under the given keys from the source to the destination table.
+]]
+function table.Mixin( Source, Destination, Keys )
+	for i = 1, #Keys do
+		Destination[ Keys[ i ] ] = Source[ Keys[ i ] ]
+	end
+end
+
+--[[
+	Merges any missing keys in the destination table from the source table.
+	Does not recurse.
+]]
+function table.ShallowMerge( Source, Destination )
+	for Key, Value in pairs( Source ) do
+		if Destination[ Key ] == nil then
+			Destination[ Key ] = Value
+		end
+	end
+
+	return Destination
+end
+
+--[[
+	Returns a new table that holds the same elements as the input table but in reverse order.
+]]
+function table.Reverse( Table )
+	local Ret = {}
+	local Length = #Table
+
+	for i = 1, Length do
+		Ret[ Length - i + 1 ] = Table[ i ]
 	end
 
 	return Ret
@@ -80,32 +171,38 @@ function table.FixArray( Table )
 	end
 end
 
---[[
-	Shuffles a table randomly.
-]]
-function table.Shuffle( Table )
-	local SortTable = {}
-	local NewTable = {}
-
-	local Count = 0
-
-	for Index, Value in pairs( Table ) do
-		SortTable[ Value ] = Random()
-
-		--Add the value to a new table to get rid of potential holes in the array.
-		Count = Count + 1
-		NewTable[ Count ] = Value
-
-		Table[ Index ] = nil
+do
+	--[[
+		Shuffles a table randomly assuming there are no gaps.
+	]]
+	local function QuickShuffle( Table )
+		for i = #Table, 2, -1 do
+			local j = Random( i )
+			Table[ i ], Table[ j ] = Table[ j ], Table[ i ]
+		end
 	end
+	table.QuickShuffle = QuickShuffle
 
-	TableSort( NewTable, function( A, B )
-		return SortTable[ A ] > SortTable[ B ]
-	end )
+	--[[
+		Shuffles a table randomly, accounting for gaps in the array structure.
+	]]
+	function table.Shuffle( Table )
+		local NewTable = {}
+		local Count = 0
 
-	--Repopulate the input table with our sorted table. This won't have holes.
-	for i = 1, Count do
-		Table[ i ] = NewTable[ i ]
+		for Index, Value in pairs( Table ) do
+			--Add the value to a new table to get rid of potential holes in the array.
+			Count = Count + 1
+			NewTable[ Count ] = Value
+			Table[ Index ] = nil
+		end
+
+		QuickShuffle( NewTable )
+
+		--Repopulate the input table with our sorted table. This won't have holes.
+		for i = 1, Count do
+			Table[ i ] = NewTable[ i ]
+		end
 	end
 end
 
@@ -114,20 +211,8 @@ end
 	with each entry having equal probability of being picked.
 ]]
 function table.ChooseRandom( Table )
-	local Count = #Table
-	local Interval = 1 / Count
-
-	local Rand = Random()
-	local InRange = math.InRange
-
-	for i = 1, Count do
-		local Lower = Interval * ( i - 1 )
-		local Upper = i ~= Count and ( Interval * i ) or 1
-
-		if InRange( Lower, Rand, Upper ) then
-			return Table[ i ], i
-		end
-	end
+	local Index = Random( 1, #Table )
+	return Table[ Index ], Index
 end
 
 --[[
@@ -150,6 +235,7 @@ end
 do
 	local Notify = Shared.Message
 	local StringFormat = string.format
+	local StringLower = string.lower
 	local StringRep = string.rep
 	local TableConcat = table.concat
 	local tonumber = tonumber
@@ -159,12 +245,12 @@ do
 	local function ToPrintKey( Key )
 		local Type = type( Key )
 
-		if Type ~= "string" and Type ~= "number" then
+		if Type ~= "string" then
 			return StringFormat( "[ %s ]", tostring( Key ) )
 		end
 
 		if Type == "string" and tonumber( Key ) then
-			return StringFormat( "\"%s\"", Key )
+			return StringFormat( "[ \"%s\" ]", Key )
 		end
 
 		return tostring( Key )
@@ -177,7 +263,30 @@ do
 		return tostring( Value )
 	end
 
+	local function KeySorter( A, B )
+		local AIsNumber = IsType( A, "number" )
+		local BIsNumber = IsType( B, "number" )
+		if AIsNumber and BIsNumber then
+			return A < B
+		end
+
+		if AIsNumber then
+			return true
+		end
+
+		if BIsNumber then
+			return false
+		end
+
+		return StringLower( tostring( A ) ) < StringLower( tostring( B ) )
+	end
+
 	local function TableToString( Table, Indent, Done )
+		if not IsType( Table, "table" ) then
+			error( StringFormat( "bad argument #1 to 'table.ToString' (expected table, got %s)",
+				type( Table ) ), 2 )
+		end
+
 		Indent = Indent or 1
 		Done = Done or {}
 
@@ -189,7 +298,17 @@ do
 
 		local IndentString = StringRep( "\t", Indent )
 
-		for Key, Value in pairs( Table ) do
+		local Keys = {}
+		for Key in pairs( Table ) do
+			Keys[ #Keys + 1 ] = Key
+		end
+
+		TableSort( Keys, KeySorter )
+
+		for i = 1, #Keys do
+			local Key = Keys[ i ]
+			local Value = Table[ Key ]
+
 			if IsType( Value, "table" ) and not Done[ Value ] then
 				Done[ Value ] = true
 				local TableAsString = TableToString( Value, Indent + 1, Done )
@@ -253,6 +372,19 @@ local function CopyTable( Table, LookupTable )
 	return Copy
 end
 table.Copy = CopyTable
+
+--[[
+	Copies an array-like structure without recursion.
+]]
+function table.QuickCopy( Table )
+	local Copy = {}
+
+	for i = 1, #Table do
+		Copy[ i ] = Table[ i ]
+	end
+
+	return Copy
+end
 
 function table.Count( Table )
 	local i = 0

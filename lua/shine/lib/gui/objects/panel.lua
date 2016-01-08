@@ -18,48 +18,18 @@ local ZeroColour = Colour( 0, 0, 0, 0 )
 function Panel:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Background = GetGUIManager():CreateGraphicItem()
-
-	self.Background = Background
+	self.Background = GetGUIManager():CreateGraphicItem()
 	self.TitleBarHeight = 24
 end
 
-function Panel:OnSchemeChange( Skin )
-	if not self.UseScheme then return end
-
-	self.Background:SetColor( Skin.WindowBackground )
-
-	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetColour( Skin.WindowTitle )
-	end
-
-	if SGUI.IsValid( self.CloseButton ) then
-		self.CloseButton:SetActiveCol( Skin.CloseButtonActive )
-		self.CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
-		self.CloseButton:SetTextColour( Skin.BrightText )
-	end
-
-	if SGUI.IsValid( self.TitleLabel ) then
-		self.TitleLabel:SetColour( Skin.BrightText )
-	end
-end
-
 function Panel:SkinColour()
-	local Scheme = SGUI:GetSkin()
-
-	self.Background:SetColor( Scheme.WindowBackground )
-
-	self.UseScheme = true
+	-- Deprecated, does nothing.
 end
 
 function Panel:AddTitleBar( Title, Font, TextScale )
 	local TitlePanel = SGUI:Create( "Panel", self )
 	TitlePanel:SetSize( Vector( self:GetSize().x, self.TitleBarHeight, 0 ) )
-	if self.UseScheme then
-		local Skin = SGUI:GetSkin()
-
-		TitlePanel:SetColour( Skin.WindowTitle )
-	end
+	TitlePanel:SetStyleName( "TitleBar" )
 	TitlePanel:SetAnchor( "TopLeft" )
 
 	self.TitleBar = TitlePanel
@@ -70,11 +40,6 @@ function Panel:AddTitleBar( Title, Font, TextScale )
 	TitleLabel:SetText( Title )
 	TitleLabel:SetTextAlignmentX( GUIItem.Align_Center )
 	TitleLabel:SetTextAlignmentY( GUIItem.Align_Center )
-	if self.UseScheme then
-		local Skin = SGUI:GetSkin()
-
-		TitleLabel:SetColour( Skin.BrightText )
-	end
 	if TextScale then
 		TitleLabel:SetTextScale( TextScale )
 	end
@@ -86,15 +51,7 @@ function Panel:AddTitleBar( Title, Font, TextScale )
 	CloseButton:SetText( "X" )
 	CloseButton:SetAnchor( "TopRight" )
 	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
-	if self.UseScheme then
-		local Skin = SGUI:GetSkin()
-
-		CloseButton.UseScheme = false
-
-		CloseButton:SetActiveCol( Skin.CloseButtonActive )
-		CloseButton:SetInactiveCol( Skin.CloseButtonInactive )
-		CloseButton:SetTextColour( Skin.BrightText )
-	end
+	CloseButton:SetStyleName( "CloseButton" )
 
 	function CloseButton.DoClick()
 		self:SetIsVisible( false )
@@ -110,6 +67,8 @@ function Panel:SetTitle( Title )
 end
 
 function Panel:SetScrollable()
+	if self.Stencil then return end
+
 	local Manager = GetGUIManager()
 
 	local Stencil = Manager:CreateGraphicItem()
@@ -227,9 +186,7 @@ function Panel:SetSize( Size )
 	self.Stencil:SetSize( Size )
 
 	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:SetParent()
-		self.Scrollbar:Destroy()
-
+		self.Scrollbar:Destroy( true )
 		self.Scrollbar = nil
 
 		if Size.y < self.MaxHeight then
@@ -270,8 +227,7 @@ function Panel:Clear()
 	if self.Children then
 		for Element in self.Children:Iterate() do
 			if Element ~= self.Scrollbar then
-				Element:SetParent()
-				Element:Destroy()
+				Element:Destroy( true )
 			end
 		end
 	end
@@ -279,11 +235,11 @@ function Panel:Clear()
 	if self.Scrollbar then
 		self:SetMaxHeight( self:GetSize().y )
 	end
+
+	self.Layout = nil
 end
 
-function Panel:SetStickyScroll( Enable )
-	self.StickyScroll = Enable and true or false
-end
+SGUI.AddProperty( Panel, "StickyScroll" )
 
 function Panel:UpdateScrollbarSize()
 	if SGUI.IsValid( self.Scrollbar ) then
@@ -301,8 +257,7 @@ function Panel:SetShowScrollbar( Show )
 	self.ShowScrollbar = Show
 
 	if SGUI.IsValid( self.Scrollbar ) and not Show then
-		self.Scrollbar:SetParent()
-		self.Scrollbar:Destroy()
+		self.Scrollbar:Destroy( true )
 
 		self.Scrollbar = nil
 	end
@@ -324,6 +279,22 @@ function Panel:SetMaxHeight( Height )
 	if not self.ShowScrollbar then return end
 
 	local MaxHeight = self:GetSize().y
+
+	-- Height has reduced below the max height, so remove the scrollbar.
+	if MaxHeight >= Height then
+		if SGUI.IsValid( self.Scrollbar ) then
+			self.Scrollbar:Destroy( true )
+			self.Scrollbar = nil
+
+			if self.ScrollParentPos then
+				self.ScrollParentPos.y = 0
+			end
+
+			self.ScrollParent:SetPosition( self.ScrollParentPos or Vector( 0, 0, 0 ) )
+		end
+
+		return
+	end
 
 	if not SGUI.IsValid( self.Scrollbar ) then
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
@@ -396,18 +367,8 @@ function Panel:SetScrollbarPos( Pos )
 	end
 end
 
-function Panel:SetColour( Col )
-	self.Background:SetColor( Col )
-end
-
-function Panel:SetDraggable( Bool )
-	self.Draggable = Bool and true or false
-end
-
-function Panel:SetTexture( Texture )
-	self.Background:SetTexture( Texture )
-end
-
+SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
+SGUI.AddProperty( Panel, "Draggable" )
 SGUI.AddProperty( Panel, "AutoHideScrollbar" )
 
 local GetCursorPos
@@ -472,10 +433,6 @@ function Panel:DragMove( Down )
 	self.CurPos.y = self.StartPos.y + YDiff
 
 	self:SetPos( self.CurPos )
-end
-
-function Panel:SetBlockMouse( Bool )
-	--self.BlockOnMouseDown = Bool and true or false
 end
 
 ------------------- Event calling -------------------

@@ -55,7 +55,6 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 	}
 	Window.TitleBarHeight = TitleBarH
 	Window:AddTitleBar( Locale:GetPhrase( "Core", "OPEN_IN_STEAM_OVERLAY" ), Font, TextScale )
-	Window:SkinColour()
 
 	local OldOnMouseDown = Window.OnMouseDown
 
@@ -74,7 +73,6 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Pos = Scale( PopupTextPos, WidthMult, HeightMult ),
 		Text = Locale:GetPhrase( "Core", "OPEN_IN_STEAM_OVERLAY_DESCRIPTION" ):gsub( "\n", " " ),
 		Font = Font,
-		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
 		TextAlignmentY = GUIItem.Align_Center
 	}
@@ -173,7 +171,6 @@ function Shine:OpenWebpage( URL, TitleText )
 	}
 	Window.TitleBarHeight = TitleBarH
 	Window:AddTitleBar( TitleText or Locale:GetPhrase( "Core", "MESSAGE_OF_THE_DAY" ), Font, TextScale )
-	Window:SkinColour()
 
 	self.ActiveWebPage = Window
 
@@ -207,7 +204,6 @@ function Shine:OpenWebpage( URL, TitleText )
 		Anchor = "CentreMiddle",
 		Text = Locale:GetPhrase( "Core", "LOADING" ),
 		Font = LoadingFont,
-		Bright = true,
 		TextAlignmentX = GUIItem.Align_Center,
 		TextAlignmentY = GUIItem.Align_Center
 	}

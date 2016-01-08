@@ -58,10 +58,15 @@ local DefaultConfig = {
 		serverswitch = false,
 		tournamentmode = false,
 		unstuck = true,
+		usermanagement = true,
 		voterandom = false,
 		votesurrender = true,
 		welcomemessages = false,
 		workshopupdater = false
+	},
+
+	APIKeys = {
+		Steam = ""
 	},
 
 	EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
@@ -79,84 +84,130 @@ local DefaultConfig = {
 	ReportErrors = true --Should errors be reported at the end of a round?
 }
 
-local CheckConfig = Shine.RecursiveCheckConfig
 local DefaultGamemode = Shine.BaseGamemode
 
---[[
-	Gets the gamemode dependent config file.
-]]
-local function GetConfigPath( Backup, Default )
-	local Gamemode = Shine.GetGamemode()
+do
+	local CheckConfig = Shine.RecursiveCheckConfig
 
-	if Gamemode == DefaultGamemode or Default then
-		return Backup and BackupPath..".json" or ConfigPath..".json"
+	--[[
+		Gets the gamemode dependent config file.
+	]]
+	local function GetConfigPath( Backup, Default )
+		local Gamemode = Shine.GetGamemode()
+
+		if Gamemode == DefaultGamemode or Default then
+			return Backup and BackupPath..".json" or ConfigPath..".json"
+		end
+
+		return StringFormat( "%s_%s.json", Backup and BackupPath or ConfigPath, Gamemode )
 	end
 
-	return StringFormat( "%s_%s.json", Backup and BackupPath or ConfigPath, Gamemode )
-end
+	local function AddTrailingSlashRule( Key )
+		return {
+			Matches = function( self, Config )
+				return not Config[ Key ]:EndsWith( "/" ) and not Config[ Key ]:EndsWith( "\\" )
+			end,
+			Fix = function( self, Config )
+				Notify( StringFormat( "%s missing trailing /, appending...", Key ) )
+				Config[ Key ] = Config[ Key ].."/"
+			end
+		}
+	end
 
-function Shine:LoadConfig()
-	local Paths = {
-		GetConfigPath(),
-		GetConfigPath( false, true ),
-		GetConfigPath( true ),
-		GetConfigPath( true, true )
-	}
+	local function InConfigDirectoryRule( Key )
+		return {
+			Matches = function( self, Config )
+				return not Config[ Key ]:StartsWith( "config://" )
+			end,
+			Fix = function( self, Config )
+				Notify( StringFormat( "%s does not point to the config directory, resetting to default...", Key ) )
+				Config[ Key ] = DefaultConfig[ Key ]
+			end
+		}
+	end
 
-	local ConfigFile
-	local Err
-	local Pos
+	local Validator = Shine.Validator()
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Shine.TypeCheckConfig( "base", Config, DefaultConfig, true )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return CheckConfig( Config, DefaultConfig, true )
+		end
+	} )
+	Validator:AddRule( AddTrailingSlashRule( "LogDir" ) )
+	Validator:AddRule( InConfigDirectoryRule( "LogDir" ) )
+	Validator:AddRule( AddTrailingSlashRule( "ExtensionDir" ) )
+	Validator:AddRule( InConfigDirectoryRule( "ExtensionDir" ) )
 
-	for i = 1, #Paths do
-		local Path = Paths[ i ]
+	function Shine:LoadConfig()
+		local Paths = {
+			GetConfigPath(),
+			GetConfigPath( false, true ),
+			GetConfigPath( true ),
+			GetConfigPath( true, true )
+		}
 
-		ConfigFile, Pos, Err = self.LoadJSONFile( Path )
+		local ConfigFile
+		local Err
+		local Pos
 
-		--Store what path we've loaded from so we update the right one!
-		if ConfigFile then
-			self.ConfigPath = Path
+		for i = 1, #Paths do
+			local Path = Paths[ i ]
 
-			break
+			ConfigFile, Pos, Err = self.LoadJSONFile( Path )
+
+			--Store what path we've loaded from so we update the right one!
+			if ConfigFile ~= false then
+				self.ConfigPath = Path
+
+				break
+			end
+		end
+
+		Notify( "Loading Shine config..." )
+
+		if not ConfigFile or not IsType( ConfigFile, "table" ) then
+			if IsType( Pos, "string" ) then
+				--No file exists.
+				self:GenerateDefaultConfig( true )
+			else
+				--Invalid JSON. Load the default config but don't save.
+				self.Config = DefaultConfig
+				self.ConfigHasSyntaxError = true
+
+				Notify( StringFormat( "Config has invalid JSON. Error: %s. Loading default...", Err ) )
+			end
+
+			return
+		end
+
+		self.Config = ConfigFile
+
+		if Validator:Validate( self.Config ) then
+			self:SaveConfig()
 		end
 	end
 
-	Notify( "Loading Shine config..." )
+	function Shine:SaveConfig( Silent )
+		if self.ConfigHasSyntaxError then return end
 
-	if not ConfigFile or not IsType( ConfigFile, "table" ) then
-		if IsType( Pos, "string" ) then
-			--No file exists.
-			self:GenerateDefaultConfig( true )
-		else
-			--Invalid JSON. Load the default config but don't save.
-			self.Config = DefaultConfig
+		local ConfigFile, Err = self.SaveJSONFile( self.Config,
+			self.ConfigPath or GetConfigPath( false, true ) )
 
-			Notify( "Config has invalid JSON, loading default..." )
+		if not ConfigFile then --Something's gone horribly wrong!
+			Shine.Error = "Error writing config file: "..Err
+
+			Notify( Shine.Error )
+
+			return
 		end
 
-		return
-	end
-
-	self.Config = ConfigFile
-
-	if CheckConfig( self.Config, DefaultConfig, true ) then
-		self:SaveConfig()
-	end
-end
-
-function Shine:SaveConfig( Silent )
-	local ConfigFile, Err = self.SaveJSONFile( self.Config,
-		self.ConfigPath or GetConfigPath( false, true ) )
-
-	if not ConfigFile then --Something's gone horribly wrong!
-		Shine.Error = "Error writing config file: "..Err
-
-		Notify( Shine.Error )
-
-		return
-	end
-
-	if not Silent then
-		Notify( "Updating Shine config..." )
+		if not Silent then
+			Notify( "Updating Shine config..." )
+		end
 	end
 end
 
@@ -228,12 +279,13 @@ function Shine:LoadExtensionConfigs()
 		Server.AddTag( "shine" )
 	end
 
-	local AllPlugins = self.AllPlugins
+	local AllPlugins = self.AllPluginsArray
 	local ActiveExtensions = self.Config.ActiveExtensions
 	local Modified = false
 
 	--Find any new plugins we don't have in our config, and add them.
-	for Plugin in pairs( AllPlugins ) do
+	for i = 1, #AllPlugins do
+		local Plugin = AllPlugins[ i ]
 		if ActiveExtensions[ Plugin ] == nil then
 			local PluginTable = self.Plugins[ Plugin ]
 			local DefaultState = false
@@ -317,10 +369,11 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 		return
 	end
 
-	local Decoded = Decode( Response )
+	local Decoded, Pos, Err = Decode( Response )
 
 	if not Decoded or not IsType( Decoded, "table" ) then
-		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Loading default/cache files..." )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Error: %s. Loading default/cache files...",
+			true, Err )
 
 		return
 	end
@@ -440,30 +493,16 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 	end
 end
 
---Timeout means retry up to the max attempts.
-local function OnWebPluginTimeout( self, Plugins, Reload )
-	self.WebPluginTimeouts = ( self.WebPluginTimeouts or 0 ) + 1
+local function OnWebPluginFailure( self, Plugins, Reload )
+	if Reload then return end
 
-	Shine:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.",
-		true, self.WebPluginTimeouts )
+	Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
 
-	if self.WebPluginTimeouts >= self.Config.WebConfigs.MaxAttempts then
-		if not Reload then
-			Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
-
-			for Plugin in pairs( Plugins ) do
-				LoadPlugin( self, Plugin )
-			end
-
-			Notify( "[Shine] Finished loading." )
-		end
-
-		self.WebPluginTimeouts = 0
-
-		return
+	for Plugin in pairs( Plugins ) do
+		LoadPlugin( self, Plugin )
 	end
 
-	self:LoadWebPlugins( Plugins, Reload )
+	Notify( "[Shine] Finished loading." )
 end
 
 --[[
@@ -496,15 +535,21 @@ function Shine:LoadWebPlugins( Plugins, Reload )
 		Args[ Arg ] = Value
 	end
 
-	self.TimedHTTPRequest( WebConfig.RequestURL, "POST", Args, function( Response )
-		OnWebPluginSuccess( self, Response, List, Reload )
-	end, function()
-		OnWebPluginTimeout( self, Plugins, Reload )
-	end )
+	self.HTTPRequestWithRetry( WebConfig.RequestURL, "POST", Args, {
+		OnSuccess = function( Response )
+			OnWebPluginSuccess( self, Response, List, Reload )
+		end,
+		OnFailure = function()
+			OnWebPluginFailure( self, Plugins, Reload )
+		end,
+		OnTimeout = function( Attempt )
+			self:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.", true, Attempt )
+		end
+	}, WebConfig.MaxAttempts )
 end
 
 Shine:LoadExtensionConfigs()
 
 if not Shine.Error then
-	Shine.Hook.Call( "PostloadConfig" )
+	Shine.Hook.CallOnce( "PostloadConfig" )
 end

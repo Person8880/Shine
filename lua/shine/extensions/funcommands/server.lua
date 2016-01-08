@@ -56,7 +56,7 @@ function Plugin:CreateCommands()
 	end
 	local SlayCommand = self:BindCommand( "sh_slay", "slay", Slay )
 	SlayCommand:AddParam{ Type = "clients" }
-	SlayCommand:Help( "<players> Slays the given player(s)." )
+	SlayCommand:Help( "Slays the given player(s)." )
 
 	local function GoTo( Client, Target )
 		if not Client then return end
@@ -76,7 +76,7 @@ function Plugin:CreateCommands()
 	end
 	local GoToCommand = self:BindCommand( "sh_goto", "goto", GoTo )
 	GoToCommand:AddParam{ Type = "client", NotSelf = true, IgnoreCanTarget = true }
-	GoToCommand:Help( "<player> Moves you to the given player." )
+	GoToCommand:Help( "Moves you to the given player." )
 
 	local function Bring( Client, Target )
 		if not Client then return end
@@ -96,7 +96,7 @@ function Plugin:CreateCommands()
 	end
 	local BringCommand = self:BindCommand( "sh_bring", "bring", Bring )
 	BringCommand:AddParam{ Type = "client", NotSelf = true }
-	BringCommand:Help( "<player> Moves the given player to your location." )
+	BringCommand:Help( "Moves the given player to your location." )
 
 	local function DarwinMode( Client, Targets, Enable )
 		for i = 1, #Targets do
@@ -109,5 +109,5 @@ function Plugin:CreateCommands()
 	local DarwinModeCommand = self:BindCommand( "sh_darwin", { "god", "darwin" }, DarwinMode )
 	DarwinModeCommand:AddParam{ Type = "clients" }
 	DarwinModeCommand:AddParam{ Type = "boolean", Optional = true, Default = true }
-	DarwinModeCommand:Help( "<players> <true/false> Enables or disables Darwin mode on the given players (unlimited health and ammo)." )
+	DarwinModeCommand:Help( "Enables or disables Darwin mode on the given players (unlimited health and ammo)." )
 end

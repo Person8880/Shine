@@ -259,39 +259,123 @@ local function SendMapVote( MapName )
 	return false
 end
 
-Shine.VoteMenu:AddPage( "MapVote", function( self )
-	local Maps = Plugin.Maps
-	if not Maps then
-		return
+do
+	local function ClosePageIfVoteFinished( self )
+		local Time = SharedTime()
+
+		if Plugin.EndTime < Time then
+			self:SetPage( "Main" )
+			return true
+		end
+
+		return false
 	end
 
-	local NumMaps = #Maps
+	local MapIcons = {}
 
-	for i = 1, NumMaps do
-		local Map = Maps[ i ]
-		local Votes = Plugin.MapVoteCounts[ Map ]
+	do
+		local StringMatch = string.match
+		Shared.GetMatchingFileNames( "maps/overviews/*.tga", false, MapIcons )
 
-		local Text = StringFormat( "%s (%i)", Map, Votes )
+		for i = 1, #MapIcons do
+			local Path = MapIcons[ i ]
+			local Map = StringMatch( Path, "^maps/overviews/(.+)%.tga$" )
 
-		Plugin.MapButtons[ Map ] = self:AddSideButton( Text, function()
-			if SendMapVote( Map ) then
-				self:SetIsVisible( false )
-			else
-				return false
+			MapIcons[ i ] = nil
+			MapIcons[ Map ] = Path
+		end
+	end
+
+	local Units = SGUI.Layout.Units
+	local GUIScaled = Units.GUIScaled
+	local UnitVector = Units.UnitVector
+
+	local function SetupMapPreview( Button, Map )
+		local Texture = MapIcons[ Map ]
+		local PreviewSize = 256
+
+		local PreviewPanel
+		function Button:OnHover()
+			if not SGUI.IsValid( PreviewPanel ) then
+				local Anchor = self:GetAnchor()
+				local IsLeft = Anchor == GUIItem.Left
+
+				-- The only reason it's parented to the panel is so it shows above the buttons.
+				PreviewPanel = SGUI:Create( "Panel", self.Parent )
+				PreviewPanel:SetAutoSize( UnitVector( GUIScaled( PreviewSize ),
+					GUIScaled( PreviewSize ) ), true )
+				PreviewPanel:SetAnchor( self:GetAnchor() )
+
+				local Size = PreviewPanel:GetSize()
+				PreviewPanel:SetPos( self:GetPos() + Vector2( IsLeft and -Size.x or self:GetSize().x,
+					-Size.y * 0.5 + self:GetSize().y * 0.5 ) )
+
+				local Image = SGUI:Create( "Image", PreviewPanel )
+				Image:SetSize( Size )
+				Image:SetTexture( Texture )
+				PreviewPanel.Image = Image
+
+				Image:SetColour( Colour( 1, 1, 1, 0 ) )
+				PreviewPanel:SetColour( Colour( 0, 0, 0, 0 ) )
 			end
+
+			PreviewPanel.Image:AlphaTo( nil, nil, 1, 0, 0.3 )
+			PreviewPanel:AlphaTo( nil, nil, 0.25, 0, 0.3 )
+		end
+
+		function Button:OnLoseHover()
+			if not SGUI.IsValid( PreviewPanel ) then return end
+
+			PreviewPanel.Image:AlphaTo( nil, nil, 0, 0, 0.3 )
+			PreviewPanel:AlphaTo( nil, nil, 0, 0, 0.3, function()
+				PreviewPanel.Image:StopAlpha()
+				PreviewPanel:Destroy( true )
+				PreviewPanel = nil
+			end )
+		end
+
+		function Button:OnClear()
+			if not SGUI.IsValid( PreviewPanel ) then return end
+
+			PreviewPanel.Image:StopAlpha()
+			PreviewPanel:Destroy( true )
+		end
+	end
+
+	Shine.VoteMenu:AddPage( "MapVote", function( self )
+		if ClosePageIfVoteFinished( self ) then return end
+
+		local Maps = Plugin.Maps
+		if not Maps then
+			return
+		end
+
+		local NumMaps = #Maps
+
+		for i = 1, NumMaps do
+			local Map = Maps[ i ]
+			local Votes = Plugin.MapVoteCounts[ Map ]
+			local Text = StringFormat( "%s (%i)", Map, Votes )
+			local Button = self:AddSideButton( Text, function()
+				if SendMapVote( Map ) then
+					self:SetIsVisible( false )
+				else
+					return false
+				end
+			end )
+
+			if MapIcons[ Map ] then
+				SetupMapPreview( Button, Map )
+			end
+
+			Plugin.MapButtons[ Map ] = Button
+		end
+
+		self:AddTopButton( Plugin:GetPhrase( "BACK" ), function()
+			self:SetPage( "Main" )
 		end )
-	end
-
-	self:AddTopButton( Plugin:GetPhrase( "BACK" ), function()
-		self:SetPage( "Main" )
-	end )
-end, function( self )
-	local Time = SharedTime()
-
-	if Plugin.EndTime < Time then
-		self:SetPage( "Main" )
-	end
-end )
+	end, ClosePageIfVoteFinished )
+end
 
 function Plugin:ReceiveVoteProgress( Data )
 	local MapName = Data.Map

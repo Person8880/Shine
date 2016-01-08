@@ -55,12 +55,10 @@ if Server then
 			Value = tonumber( Value )
 
 			if not Value then return nil end
-			
+
 			return Floor( Value )
 		end,
-		float = function( Value )
-			return tonumber( Value )
-		end,
+		float = tonumber,
 		boolean = function( Value )
 			if type( Value ) == "boolean" then
 				return Value
@@ -68,21 +66,15 @@ if Server then
 
 			return nil
 		end,
-		entityid = function( Value )
-			return tonumber( Value )
-		end,
-		enum = function( Value )
-			return tonumber( Value )
-		end,
+		entityid = tonumber,
+		enum = tonumber,
 		vector = function( Value )
 			return Value.isa and Value:isa( "Vector" ) and Value or nil
 		end,
 		angle = function( Value )
 			return Value.isa and Value:isa( "Angles" ) and Value or nil
 		end,
-		time = function( Value )
-			return tonumber( Value )
-		end
+		time = tonumber
 	}
 
 	local function TypeCheck( Type, Value )
@@ -90,8 +82,6 @@ if Server then
 	end
 
 	function DataTableMeta:__newindex( Key, Value )
-		rawset( self, Key, nil )
-
 		local Cached = RealData[ self ][ Key ]
 		if Cached == nil or Cached == Value then return end
 
@@ -205,7 +195,7 @@ end
 
 --Refuse creation/editing keys on the client.
 function DataTableMeta:__newindex( Key, Value )
-	rawset( self, Key, nil ) --Make sure the assignment doesn't hold!
+
 end
 
 --Process a complete network message.

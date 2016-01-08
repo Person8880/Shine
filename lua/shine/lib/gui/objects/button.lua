@@ -14,37 +14,8 @@ Button.Sound = ClickSound
 
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
-
-	if self.Background then GUI.DestroyItem( self.Background ) end
-
-	local Background = GetGUIManager():CreateGraphicItem()
-
-	self.Background = Background
-
-	local Scheme = SGUI:GetSkin()
-
-	self.ActiveCol = Scheme.ActiveButton
-	self.InactiveCol = Scheme.InactiveButton
-
-	Background:SetColor( self.InactiveCol )
-
-	self.TextCol = Scheme.BrightText
-
+	self.Background = GetGUIManager():CreateGraphicItem()
 	self:SetHighlightOnMouseOver( true )
-end
-
-function Button:OnSchemeChange( Scheme )
-	if not self.UseScheme then return end
-
-	self.ActiveCol = Scheme.ActiveButton
-	self.InactiveCol = Scheme.InactiveButton
-	self.TextCol = Scheme.BrightText
-
-	if self.Text then
-		self.Text:SetColor( self.TextCol )
-	end
-
-	self.Background:SetColor( self.Highlighted and self.ActiveCol or self.InactiveCol )
 end
 
 function Button:SetupStencil()
@@ -71,7 +42,7 @@ function Button:SetText( Text )
 	Description:SetTextAlignmentX( GUIItem.Align_Center )
 	Description:SetTextAlignmentY( GUIItem.Align_Center )
 	Description:SetText( Text )
-	Description:SetColor( self.TextCol )
+	Description:SetColor( self.TextColour )
 
 	if self.Font then
 		Description:SetFontName( self.Font )
@@ -94,21 +65,9 @@ function Button:GetText()
 	return self.Text:GetText()
 end
 
-function Button:SetFont( Font )
-	self.Font = Font
-
-	if not self.Text then return end
-
-	self.Text:SetFontName( Font )
-end
-
-function Button:SetTextScale( Scale )
-	self.TextScale = Scale
-
-	if not self.Text then return end
-
-	self.Text:SetScale( Scale )
-end
+SGUI.AddBoundProperty( Button, "Font", "Text:SetFontName" )
+SGUI.AddBoundProperty( Button, "TextColour", "Text:SetColor" )
+SGUI.AddBoundProperty( Button, "TextScale", "Text:SetScale" )
 
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
@@ -124,14 +83,6 @@ function Button:SetInactiveCol( Col )
 	if not self.Highlighted then
 		self.Background:SetColor( Col )
 	end
-end
-
-function Button:SetTextColour( Col )
-	self.TextCol = Col
-
-	if not self.Text then return end
-
-	self.Text:SetColor( Col )
 end
 
 function Button:SetIsVisible( Bool )
@@ -160,11 +111,6 @@ end
 
 function Button:SetDoClick( Func )
 	self.DoClick = Func
-end
-
-function Button:SetTexture( Texture )
-	self.Background:SetTexture( Texture )
-	self.Texture = Texture
 end
 
 function Button:SetHighlightTexture( Texture )
@@ -201,31 +147,7 @@ function Button:OnMouseDown( Key, DoubleClick )
 		return true, Child
 	end
 
-	if Key ~= InputKey.MouseButton0 then return end
-	--We can't trust self.Highlighted.
-	if not self:MouseIn( self.Background ) then return end
-
-	return true, self
-end
-
-function Button:OnMouseUp( Key )
-	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background ) then return end
-
-	local Time = Clock()
-
-	if ( self.ClickDelay or 0.1 ) > 0 and ( self.NextClick or 0 ) > Time then return true end
-
-	self.NextClick = Time + ( self.ClickDelay or 0.1 )
-
-	if self.DoClick then
-		local Sound = self.Sound
-		if self:DoClick() ~= false and Sound then
-			Shared.PlaySound( nil, Sound )
-		end
-
-		return true
-	end
+	return self.Mixins.Clickable.OnMouseDown( self, Key, DoubleClick )
 end
 
 function Button:OnMouseMove( Down )
@@ -252,4 +174,5 @@ function Button:PlayerType( Char )
 	end
 end
 
+SGUI:AddMixin( Button, "Clickable" )
 SGUI:Register( "Button", Button )

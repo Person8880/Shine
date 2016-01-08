@@ -68,13 +68,11 @@ function math.GenerateSequence( Length, Nums )
 	for i = 1, Length do
 		local Option, Index = TableRandom( Nums )
 
+		Count[ Option ] = Count[ Option ] + 1
+
 		if Count[ Option ] >= Max then
 			TableRemove( Nums, Index )
-
-			Option = TableRandom( Nums )
 		end
-
-		Count[ Option ] = Count[ Option ] + 1
 
 		Sequence[ i ] = Option
 	end
@@ -111,4 +109,25 @@ end
 function math.EaseOut( Progress, Power )
 	Progress = 1 - Progress
 	return 1 - Progress ^ Power
+end
+
+do
+	local Sqrt = math.sqrt
+	local TableAverage = table.Average
+
+	--[[
+		Computes the standard deviation of a table of values.
+	]]
+	function math.StandardDeviation( Values )
+		local Sum = 0
+		local Count = #Values
+		if Count == 0 then return 0 end
+
+		local Average = TableAverage( Values )
+		for i = 1, Count do
+			Sum = Sum + ( Values[ i ] - Average ) ^ 2
+		end
+
+		return Sqrt( Sum / Count )
+	end
 end

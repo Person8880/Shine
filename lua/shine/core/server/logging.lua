@@ -7,6 +7,7 @@ local Shine = Shine
 local Ceil = math.ceil
 local Date = os.date
 local Floor = math.floor
+local Notify = Shared.Message
 local StringFormat = string.format
 local TableConcat = table.concat
 local type = type
@@ -41,7 +42,7 @@ Shared.OldMessage = Shared.OldMessage or Shared.Message
 	and this function was its first feature.
 ]]
 function Shared.Message( String )
-	return Shared.OldMessage( GetTimeString()..String )
+	return Notify( GetTimeString()..String )
 end
 
 local function GetCurrentLogFile()
@@ -57,12 +58,13 @@ function Shine:LogString( String )
 end
 
 function Shine:SaveLog()
-	if not self.Config.EnableLogging then return end
+	if not self.Config.EnableLogging then return false end
 
 	local String = TableConcat( LogMessages, "\n" )
+	local CurrentLogFile = GetCurrentLogFile()
 
 	--This is dumb, but append mode appears to be broken.
-	local OldLog, Err = io.open( GetCurrentLogFile(), "r" )
+	local OldLog, Err = io.open( CurrentLogFile, "r" )
 
 	local Data = ""
 
@@ -71,22 +73,23 @@ function Shine:SaveLog()
 		OldLog:close()
 	end
 
-	local LogFile, Err = io.open( GetCurrentLogFile(), "w+" )
+	local LogFile, Err = io.open( CurrentLogFile, "w+" )
 
 	if not LogFile then
 		Shared.Message( StringFormat( "Error writing to log file: %s", Err  ) )
 
-		return
+		return false
 	end
 
 	LogFile:write( Data, String, "\n" )
-
 	LogFile:close()
 
 	--Empty the logging table.
 	for i = 1, #LogMessages do
 		LogMessages[ i ] = nil
 	end
+
+	return true
 end
 
 --Periodically save the log file.
@@ -101,6 +104,14 @@ end, -20 )
 Shine.Timer.Create( "LogSave", 300, -1, function()
 	Shine:SaveLog()
 end )
+
+Shine:RegisterCommand( "sh_flushlog", nil, function( Client )
+	if Shine:SaveLog() then
+		Shine:AdminPrint( Client, "Log flushed successfully." )
+	else
+		Shine:AdminPrint( Client, "Failed to flush log. Either logging is disabled, or an error occurred." )
+	end
+end ):Help( "Flushes Shine's current log file to disk." )
 
 function Shine:Print( String, Format, ... )
 	String = Format and StringFormat( String, ... ) or String
@@ -160,6 +171,7 @@ end
 ]]
 function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Format, ... )
 	local Message = Format and StringFormat( String, ... ) or String
+	Message = Message:UTF8Sub( 1, kMaxChatLength )
 
 	local MessageTable = {
 		R = R,
@@ -172,8 +184,6 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 		Prefix = Prefix
 	}
 
-	Message = Message:UTF8Sub( 1, kMaxChatLength )
-
 	self:ApplyNetworkMessage( Player, "Shine_ChatCol", MessageTable, true )
 end
 
@@ -181,6 +191,7 @@ end
 	Similar to NotifyColour, except the message is a translation key which is
 	resolved client-side.
 ]]
+
 function Shine:TranslatedNotifyColour( Player, R, G, B, String, Source )
 	self:TranslatedNotifyDualColour( Player, 0, 0, 0, "", R, G, B, String, Source )
 end
@@ -314,33 +325,69 @@ end
 
 local OldServerAdminPrint = ServerAdminPrint
 
-local MaxPrintLength = 128
+local MaxPrintLength = 127
 
 Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime )
+	local StringExplode = string.Explode
+	local StringLen = string.len
+	local StringSub = string.sub
+	local TableInsert = table.insert
+
 	--[[
 		Rewrite ServerAdminPrint to not print to the server console when used,
 		otherwise we'll get spammed with repeat prints when sending to lots of people at once.
+
+		Also make it word-wrap overflowing text.
 	]]
-	function ServerAdminPrint( Client, Message )
+	function ServerAdminPrint( Client, Message, TextWrap )
 		if not Client then return end
 
-		local MessageList = {}
-		local Count = 1
-
-		while #Message > MaxPrintLength do
-			local Part = Message:sub( 0, MaxPrintLength - 1 )
-
-			MessageList[ Count ] = Part
-			Count = Count + 1
-
-			Message = Message:sub( MaxPrintLength )
+		local Len = StringLen( Message )
+		if Len <= MaxPrintLength then
+			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
+				{ message = Message }, true )
+			return
 		end
 
-		MessageList[ Count ] = Message
+		local Lines = {}
 
-		for i = 1, #MessageList do
+		if TextWrap then
+			local Parts = Ceil( Len / MaxPrintLength )
+			for i = 1, Parts do
+				Lines[ i ] = StringSub( Message, ( i - 1 ) * MaxPrintLength + 1, i * MaxPrintLength )
+			end
+		else
+			local Words = StringExplode( Message, " " )
+			local i = 1
+			local Start = i
+
+			while i <= #Words do
+				local Text = TableConcat( Words, " ", Start, i )
+
+				if StringLen( Text ) > MaxPrintLength then
+					if i == Start then
+						TableInsert( Words, i + 1, StringSub( Text, MaxPrintLength + 1 ) )
+						Text = StringSub( Text, 1, MaxPrintLength )
+
+						Start = i + 1
+					else
+						Text = TableConcat( Words, " ", Start, i - 1 )
+						Start = i
+						i = i - 1
+					end
+
+					Lines[ #Lines + 1 ] = Text
+				elseif i == #Words then
+					Lines[ #Lines + 1 ] = Text
+				end
+
+				i = i + 1
+			end
+		end
+
+		for i = 1, #Lines do
 			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
-				{ message = MessageList[ i ] }, true )
+				{ message = Lines[ i ] }, true )
 		end
 	end
 end )
@@ -361,4 +408,87 @@ function Shine:AdminPrint( Client, String, Format, ... )
 	if not Client then return end
 
 	return ServerAdminPrint( Client, Message )
+end
+
+do
+	local StringRep = string.rep
+
+	local function PrintToConsole( Client, Message )
+		if not Client then
+			Notify( Message )
+			return
+		end
+
+		ServerAdminPrint( Client, Message )
+	end
+
+	Shine.PrintToConsole = PrintToConsole
+
+	function Shine.PrintTableToConsole( Client, Columns, Data )
+		local CharSizes = {}
+		local RowData = {}
+		local TotalLength = 0
+		-- I really wish the console was a monospace font...
+		local SpaceMultiplier = 1.5
+
+		for i = 1, #Columns do
+			local Column = Columns[ i ]
+
+			Column.OldName = Column.OldName or Column.Name
+			Column.Name = Column.OldName..StringRep( " ", 4 )
+
+			local Name = Column.Name
+			local Getter = Column.Getter
+
+			local Rows = {}
+
+			local Max = #Name
+			for j = 1, #Data do
+				local Entry = Data[ j ]
+
+				local String = Getter( Entry )
+				local StringLength = #String + 4
+				if StringLength > Max then
+					Max = StringLength
+				end
+
+				Rows[ j ] = String
+			end
+
+			for j = 1, #Rows do
+				local Entry = Rows[ j ]
+				local Diff = Max - #Entry
+				if Diff > 0 then
+					Rows[ j ] = Entry..StringRep( " ", Diff )
+				end
+			end
+
+			TotalLength = TotalLength + Max
+
+			local NameDiff = Max - #Name
+			if NameDiff > 0 then
+				Column.Name = Name..StringRep( " ", Floor( NameDiff * SpaceMultiplier ) )
+			end
+
+			RowData[ i ] = Rows
+		end
+
+		local TopRow = {}
+		for i = 1, #Columns do
+			TopRow[ i ] = Columns[ i ].Name
+		end
+
+		PrintToConsole( Client, TableConcat( TopRow, "" ) )
+		PrintToConsole( Client, StringRep( "=", TotalLength ) )
+
+		for i = 1, #Data do
+			local Row = {}
+
+			for j = 1, #RowData do
+				Row[ j ] = RowData[ j ][ i ]
+			end
+
+			PrintToConsole( Client, TableConcat( Row, "" ) )
+		end
+	end
 end

@@ -40,11 +40,20 @@ function Shine:GetTeamName( Team, Capitals, Singular )
 	return Names[ Team ][ 2 ]
 end
 
+do
+	local PlayingTeams = { true, true }
+
+	function Shine.IsPlayingTeam( TeamNumber )
+		return PlayingTeams[ TeamNumber ] or false
+	end
+end
+
 if Client then return end
 
 local Abs = math.abs
 local Floor = math.floor
 local GetOwner = Server.GetOwner
+local IsType = Shine.IsType
 local pairs = pairs
 local StringFormat = string.format
 local TableRemove = table.remove
@@ -53,7 +62,6 @@ local TableSort = table.sort
 local TableToString = table.ToString
 local tonumber = tonumber
 local Traceback = debug.traceback
-local type = type
 
 --[[
 	Returns whether the given client is valid.
@@ -72,17 +80,12 @@ end
 
 local Hook = Shine.Hook
 
---[[
-	Ensures no team has more than 1 extra player compared to the other.
-]]
-function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
-	Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
-
+function Shine.EqualiseTeamCounts( TeamMembers )
 	local Marine = TeamMembers[ 1 ]
 	local Alien = TeamMembers[ 2 ]
 
-	local NumMarine = #TeamMembers[ 1 ]
-	local NumAlien = #TeamMembers[ 2 ]
+	local NumMarine = #Marine
+	local NumAlien = #Alien
 
 	local MarineGreater = NumMarine > NumAlien
 	local Diff = Abs( NumMarine - NumAlien )
@@ -109,6 +112,23 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 		end
 	end
 
+	return Diff
+end
+
+--[[
+	Ensures no team has more than 1 extra player compared to the other.
+]]
+function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
+	Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
+
+	-- Yes, we repeat this, but the reporting needs it...
+	local Marine = TeamMembers[ 1 ]
+	local Alien = TeamMembers[ 2 ]
+
+	local NumMarine = #Marine
+	local NumAlien = #Alien
+	local Diff = Shine.EqualiseTeamCounts( TeamMembers )
+
 	local Reported
 
 	if Abs( #Marine - #Alien ) > 1 then
@@ -133,7 +153,7 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
 	for i, Player in pairs( Marine ) do
 		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-			OnJoinError, Gamerules, Player, 1, nil, true )
+			OnJoinError, Gamerules, Player, 1, Player:GetTeamNumber() ~= 1, true )
 
 		if Success then
 			Marine[ i ] = NewPlayer
@@ -144,7 +164,7 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 
 	for i, Player in pairs( Alien ) do
 		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-			OnJoinError, Gamerules, Player, 2, nil, true )
+			OnJoinError, Gamerules, Player, 2, Player:GetTeamNumber() ~= 2, true )
 
 		if Success then
 			Alien[ i ] = NewPlayer
@@ -287,7 +307,7 @@ end
 	Returns a client matching the given Steam ID.
 ]]
 function Shine.GetClientByNS2ID( ID )
-	if type( ID ) ~= "number" then return nil end
+	if not IsType( ID, "number" ) then return nil end
 
 	local Clients = Shine.GameIDs
 
@@ -304,7 +324,7 @@ end
 	Returns the client closest matching the given name.
 ]]
 function Shine.GetClientByName( Name )
-	if type( Name ) ~= "string" then return nil end
+	if not IsType( Name, "string" ) then return nil end
 
 	Name = Name:lower()
 
@@ -350,7 +370,7 @@ function Shine.NS2ToSteam3ID( ID )
 end
 
 function Shine.SteamIDToNS2( ID )
-	if type( ID ) ~= "string" then return nil end
+	if not IsType( ID, "string" ) then return nil end
 
 	--STEAM_0:X:YYYYYYY
 	if ID:match( "^STEAM_%d:%d:%d+$" ) then
@@ -367,8 +387,29 @@ function Shine.SteamIDToNS2( ID )
 	end
 end
 
+do
+	local RemovedDigits = 6
+	local SteamID64Int = 197960265728
+	local StringSub = string.sub
+
+	--[[
+		Lua in NS2 uses double precision floats, which cannot express a 64 bit
+		integer entirely. Thus, the first 5 digits are ignored, as the 32bit
+		Steam ID should never bring the 64 bit ID to the point where it has to increment
+		any of those digits.
+	]]
+	function Shine.NS2IDTo64( ID )
+		return StringFormat( "76561%s", ID + SteamID64Int )
+	end
+
+	function Shine.SteamID64ToNS2ID( SteamID64 )
+		local UsableInt = tonumber( StringSub( SteamID64, RemovedDigits ) )
+		return UsableInt - SteamID64Int
+	end
+end
+
 function Shine:GetClientBySteamID( ID )
-	if type( ID ) ~= "string" then return nil end
+	if not IsType( ID, "string" ) then return nil end
 
 	local NS2ID = self.SteamIDToNS2( ID )
 
@@ -377,23 +418,28 @@ function Shine:GetClientBySteamID( ID )
 	return self.GetClientByNS2ID( NS2ID )
 end
 
---[[
-	Returns a client matching the given Steam ID or name.
-]]
-function Shine:GetClient( String )
-	if type( String ) == "number" or tonumber( String ) then
-		local Num = tonumber( String )
+do
+	local StringMatch = string.match
 
-		local Result = self.GetClientByID( Num ) or self.GetClientByNS2ID( Num )
-
-		if not Result then
-			return self.GetClientByName( tostring( String ) )
-		end
-
-		return Result
+	-- Only accept positive base-10 integer values, no hex, no inf, no nan.
+	local function SafeToNumber( String )
+		if IsType( String, "number" ) then return String end
+		if not StringMatch( String, "^[0-9]+$" ) then return nil end
+		return tonumber( String )
 	end
 
-	return self:GetClientBySteamID( String ) or self.GetClientByName( tostring( String ) )
+	--[[
+		Returns a client matching the given Steam ID or name.
+	]]
+	function Shine:GetClient( String )
+		local NumberValue = SafeToNumber( String )
+		if NumberValue then
+			-- Do not look up by name if provided a number, only game ID and NS2ID.
+			return self.GetClientByID( NumberValue ) or self.GetClientByNS2ID( NumberValue )
+		end
+
+		return self:GetClientBySteamID( String ) or self.GetClientByName( tostring( String ) )
+	end
 end
 
 --[[
