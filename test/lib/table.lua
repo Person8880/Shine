@@ -85,3 +85,22 @@ UnitTest:Test( "Build", function( Assert )
 
 	Assert:Equals( Base.Child.SubChild.ReallySubChild, ReallySubChild )
 end )
+
+UnitTest:Test( "QuickShuffle", function( Assert )
+	local Data = { 1, 2, 3, 4, 5, 6 }
+	table.QuickShuffle( Data )
+	Assert:Equals( 6, #Data )
+	for i = 1, 6 do
+		Assert:NotNil( Data[ i ] )
+	end
+end )
+
+UnitTest:Test( "QuickCopy", function( Assert )
+	local Table = { 1, 2, {}, 4 }
+	local Copy = table.QuickCopy( Table )
+
+	Assert:NotEquals( Table, Copy )
+	for i = 1, #Table do
+		Assert:Equals( Table[ i ], Copy[ i ] )
+	end
+end )

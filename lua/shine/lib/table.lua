@@ -171,32 +171,38 @@ function table.FixArray( Table )
 	end
 end
 
---[[
-	Shuffles a table randomly.
-]]
-function table.Shuffle( Table )
-	local SortTable = {}
-	local NewTable = {}
-
-	local Count = 0
-
-	for Index, Value in pairs( Table ) do
-		SortTable[ Value ] = Random()
-
-		--Add the value to a new table to get rid of potential holes in the array.
-		Count = Count + 1
-		NewTable[ Count ] = Value
-
-		Table[ Index ] = nil
+do
+	--[[
+		Shuffles a table randomly assuming there are no gaps.
+	]]
+	local function QuickShuffle( Table )
+		for i = #Table, 2, -1 do
+			local j = Random( i )
+			Table[ i ], Table[ j ] = Table[ j ], Table[ i ]
+		end
 	end
+	table.QuickShuffle = QuickShuffle
 
-	TableSort( NewTable, function( A, B )
-		return SortTable[ A ] > SortTable[ B ]
-	end )
+	--[[
+		Shuffles a table randomly, accounting for gaps in the array structure.
+	]]
+	function table.Shuffle( Table )
+		local NewTable = {}
+		local Count = 0
 
-	--Repopulate the input table with our sorted table. This won't have holes.
-	for i = 1, Count do
-		Table[ i ] = NewTable[ i ]
+		for Index, Value in pairs( Table ) do
+			--Add the value to a new table to get rid of potential holes in the array.
+			Count = Count + 1
+			NewTable[ Count ] = Value
+			Table[ Index ] = nil
+		end
+
+		QuickShuffle( NewTable )
+
+		--Repopulate the input table with our sorted table. This won't have holes.
+		for i = 1, Count do
+			Table[ i ] = NewTable[ i ]
+		end
 	end
 end
 
@@ -366,6 +372,19 @@ local function CopyTable( Table, LookupTable )
 	return Copy
 end
 table.Copy = CopyTable
+
+--[[
+	Copies an array-like structure without recursion.
+]]
+function table.QuickCopy( Table )
+	local Copy = {}
+
+	for i = 1, #Table do
+		Copy[ i ] = Table[ i ]
+	end
+
+	return Copy
+end
 
 function table.Count( Table )
 	local i = 0
