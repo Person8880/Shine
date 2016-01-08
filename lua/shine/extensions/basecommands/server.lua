@@ -895,9 +895,9 @@ function Plugin:CreateAllTalkCommands()
 
 	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "ALLTALK_NOTIFY_" )
 	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
-		"ALLTALK_PREGAME_TOGGLED", "ALLTALK_PREGAME_NOTIFY" )
+		"ALLTALK_PREGAME_TOGGLED", "ALLTALK_PREGAME_NOTIFY_" )
 	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal", "ALLTALK_LOCAL_TOGGLED",
-		"ALLTALK_LOCAL_NOTIFY" )
+		"ALLTALK_LOCAL_NOTIFY_" )
 end
 
 function Plugin:CreateGameplayCommands()

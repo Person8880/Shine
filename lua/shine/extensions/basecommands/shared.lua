@@ -195,7 +195,8 @@ function Plugin:SetupClientConfig()
 		Type = "Boolean",
 		Command = "sh_alltalklocal_cl",
 		ConfigOption = function() return not self.Config.DisableLocalAllTalk end,
-		Description = "Enable local voice chat all-talk."
+		Description = "ALL_TALK_LOCAL_DESCRIPTION",
+		TranslationSource = self.__Name
 	} )
 end
 

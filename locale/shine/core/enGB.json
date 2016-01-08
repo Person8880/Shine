@@ -42,5 +42,12 @@
 	"DAY": "day",
 	"DAYS": "days",
 	"WEEK": "week",
-	"WEEKS": "weeks"
+	"WEEKS": "weeks",
+	"CLIENT_SETTINGS": "Client Settings",
+	"ENABLE_PLUGIN": "Enable Plugin",
+	"DISABLE_PLUGIN": "Disable Plugin",
+	"DISABLE_WEB_DESCRIPTION": "Disable web page display from plugins.",
+	"VIEW_WEB_IN_STEAM_DESCRIPTION": "View web pages in the Steam overlay.",
+	"REPORT_ERRORS_DESCRIPTION": "Report script errors caused by Shine.",
+	"ANIMATE_UI_DESCRIPTION": "Use animations in the UI."
 }
