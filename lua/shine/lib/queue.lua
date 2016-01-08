@@ -57,6 +57,9 @@ function Queue:Pop()
 
 	self.Size = self.Size - 1
 	self.FirstNode = Node.Next
+	if self.Size == 0 then
+		self.LastNode = nil
+	end
 
 	return Node.Value
 end
