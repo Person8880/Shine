@@ -669,7 +669,7 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest )
 	if not self.Config.CheckFamilySharing then return false end
 
 	local RequestParams = {
-		SteamID = ID
+		steamid = ID
 	}
 
 	local Sharer = Shine.ExternalAPIHandler:GetCachedValue( "Steam", "IsPlayingSharedGame", RequestParams )

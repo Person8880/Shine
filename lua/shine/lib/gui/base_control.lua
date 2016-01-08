@@ -102,6 +102,17 @@ function ControlMeta:SetupFromTable( Table )
 	end
 end
 
+do
+	local TableShallowMerge = table.ShallowMerge
+
+	--[[
+		Use to more easily setup multiple callback methods.
+	]]
+	function ControlMeta:AddMethods( Methods )
+		TableShallowMerge( Methods, self, true )
+	end
+end
+
 --[[
 	Sets a control's parent manually.
 ]]

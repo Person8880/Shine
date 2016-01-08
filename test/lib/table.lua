@@ -45,6 +45,24 @@ UnitTest:Test( "ShallowMerge", function( Assert )
 
 	Assert:False( Destination.Cake )
 	Assert:False( Destination.MoreCake )
+
+	-- Add an inherited value.
+	setmetatable( Destination, {
+		__index = {
+			InheritedKey = true
+		}
+	} )
+	Source.InheritedKey = false
+
+	-- Default is standard indexing, so it will see the inherited value.
+	table.ShallowMerge( Source, Destination )
+
+	Assert:True( Destination.InheritedKey )
+
+	-- Now the raw flag means it will override the inherited value.
+	table.ShallowMerge( Source, Destination, true )
+
+	Assert:False( Destination.InheritedKey )
 end )
 
 UnitTest:Test( "HasValue", function( Assert )

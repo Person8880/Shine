@@ -44,6 +44,7 @@ UnitTest:Test( "Pop", function( Assert )
 
 	Queue:Pop()
 	Assert:Nil( Queue.FirstNode )
+	Assert:Nil( Queue.LastNode )
 	Assert:Equals( 0, Queue:GetCount() )
 end )
 
@@ -69,4 +70,25 @@ UnitTest:Test( "EmptyIterate", function( Assert )
 
 	end
 	Assert:Equals( 0, i )
+end )
+
+UnitTest:Test( "Add, then pop, then add", function( Assert )
+	local Data = {}
+	local Queue = Shine.Queue()
+
+	Queue:Add( Data )
+	Assert:Equals( 1, Queue:GetCount() )
+	Assert:Equals( Data, Queue.FirstNode.Value )
+	Assert:Equals( Data, Queue.LastNode.Value )
+
+	-- Popping should clear both the first and last node on the last pop.
+	Queue:Pop()
+	Assert:Equals( 0, Queue:GetCount() )
+	Assert:Nil( Queue.FirstNode )
+	Assert:Nil( Queue.LastNode )
+
+	Queue:Add( Data )
+	Assert:Equals( 1, Queue:GetCount() )
+	Assert:Equals( Data, Queue.FirstNode.Value )
+	Assert:Equals( Data, Queue.LastNode.Value )
 end )

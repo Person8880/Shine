@@ -12,19 +12,24 @@ local APIs = {
 	Steam = {
 		URL = "http://api.steampowered.com/",
 		Params = {
-			APIKey = tostring
+			key = tostring
 		},
 		GlobalRequestParams = {},
+		APIKey = "key",
 		EndPoints = {
 			-- Determines if a player is playing with a family shared account.
 			-- Callback returns the NS2ID of the player sharing the game, or false if the player owns the game.
 			IsPlayingSharedGame = {
 				Protocol = "GET",
-				URL = "IPlayerService/IsPlayingSharedGame/v0001/?key={APIKey}&steamid={SteamID}&appid_playing=4920&format=json",
+				URL = "IPlayerService/IsPlayingSharedGame/v0001/",
 				Params = {
-					SteamID = Shine.NS2IDTo64
+					steamid = Shine.NS2IDTo64
 				},
-				GetCacheKey = function( Params ) return tostring( Params.SteamID ) end,
+				DefaultRequestParams = {
+					appid_playing = "4920",
+					format = "json"
+				},
+				GetCacheKey = function( Params ) return tostring( Params.steamid ) end,
 				ResponseTransformer = function( Response )
 					-- Do not cache on invalid JSON.
 					if not Response then return nil end
@@ -43,13 +48,18 @@ local APICallers = {}
 
 do
 	local Decode = json.decode
+	local next = next
+	local pairs = pairs
 	local setmetatable = setmetatable
-	local StringGSub = string.gsub
+	local TableShallowMerge = table.ShallowMerge
 
 	--[[
 		Registers an endpoint under the given API.
 
 		Data should contain the following fields:
+		- DefaultRequestParams: If provided, a table of query parameters that should always
+		  be sent with every request.
+
 		- GetCacheKey: If provided, should be a function that returns a single string that
 		  uniquely identifies the given request parameters.
 
@@ -74,24 +84,30 @@ do
 		APICallers[ APIName ] = APICallers[ APIName ] or {}
 
 		local URL = APIData.URL..Data.URL
-		local IsPOST = Data.Protocol == "POST"
 
 		-- Inherit the base API definition's parameters automatically.
-		setmetatable( Data.Params, { __index = APIData.Params } )
+		if Data.DefaultRequestParams then
+			setmetatable( Data.DefaultRequestParams, { __index = APIData.GlobalRequestParams } )
+		end
+
+		local Params = TableShallowMerge( Data.Params, {} )
+		TableShallowMerge( APIData.Params, Params )
 
 		APICallers[ APIName ][ EndPointName ] = function( RequestParams, Callbacks, Attempts )
 			Attempts = Attempts or 1
 
 			-- Inherit the base API definition's global request parameters (e.g. for an API key).
-			setmetatable( RequestParams, { __index = APIData.GlobalRequestParams } )
+			setmetatable( RequestParams, { __index = Data.DefaultRequestParams or APIData.GlobalRequestParams } )
 
 			-- Parse the request parameters using the set converters.
-			local RequestURL = StringGSub( URL, "{([^}]+)}", function( Match )
-				if not RequestParams[ Match ] then
-					error( StringFormat( "Missing request parameter: '%s'", Match ), 3 )
+			local FinalParams = {}
+			for Key, Transformer in pairs( Params ) do
+				if not RequestParams[ Key ] then
+					error( StringFormat( "Missing request parameter: '%s'", Key ), 2 )
 				end
-				return Data.Params[ Match ]( RequestParams[ Match ] )
-			end )
+
+				FinalParams[ Key ] = Transformer( RequestParams[ Key ] )
+			end
 
 			-- Pass the transformed JSON response through to the OnSuccess callback.
 			local OldOnSuccess = Callbacks.OnSuccess
@@ -99,10 +115,10 @@ do
 				OldOnSuccess( Data.ResponseTransformer( Decode( Response ) ) )
 			end
 
-			if IsPOST then
-				Shine.HTTPRequestWithRetry( RequestURL, Data.Protocol, RequestParams.POST, Callbacks, Attempts )
+			if next( FinalParams ) then
+				Shine.HTTPRequestWithRetry( URL, Data.Protocol, FinalParams, Callbacks, Attempts )
 			else
-				Shine.HTTPRequestWithRetry( RequestURL, Data.Protocol, Callbacks, Attempts )
+				Shine.HTTPRequestWithRetry( URL, Data.Protocol, Callbacks, Attempts )
 			end
 		end
 	end
@@ -118,10 +134,15 @@ do
 		Registers an external API.
 
 		Data should contain the following fields:
+		- APIKey: Determines the request parameter that represents the API key for this API.
+
 		- EndPoints: A table of endpoint definitions.
+
 		- GlobalRequestParams: If provided, a table of parameters to use as defaults for all requests
 		  under this API. Useful for a single global API key.
+
 		- Params: If provided, a list of parameters that are always required, e.g. an API key.
+
 		- URL: The base URL all endpoints start with.
 	]]
 	function Shine.RegisterExternalAPI( APIName, Data )
@@ -186,8 +207,9 @@ if Server then
 		TrimCache( ExternalAPIHandler.Cache )
 
 		for Name, Key in pairs( Shine.Config.APIKeys ) do
-			if Key ~= "" and APIs[ Name ] and APIs[ Name ].GlobalRequestParams then
-				APIs[ Name ].GlobalRequestParams.APIKey = Key
+			local APIData = APIs[ Name ]
+			if Key ~= "" and APIData and APIData.GlobalRequestParams then
+				APIData.GlobalRequestParams[ APIData.APIKey or "key" ] = Key
 			end
 		end
 	end )
@@ -211,7 +233,7 @@ function ExternalAPIHandler:HasAPIKey( APIName )
 	local APIData = APIs[ APIName ]
 	if not APIData then return false end
 
-	return ( APIData.GlobalRequestParams and APIData.GlobalRequestParams.APIKey ) ~= nil
+	return ( APIData.GlobalRequestParams and APIData.GlobalRequestParams[ APIData.APIKey ] ) ~= nil
 end
 
 --[[
