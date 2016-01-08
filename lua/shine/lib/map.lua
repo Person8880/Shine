@@ -1,6 +1,6 @@
 --[[
 	An iterable map, provides the speed of a numeric based loop
-	while still allowing instant member checking and adding.
+	while still allowing constant time member checking and adding.
 ]]
 
 local Clamp = math.Clamp
@@ -223,40 +223,42 @@ function Map:SetPosition( Position )
 	self.Position = Clamp( Position, 1, #self.Keys )
 end
 
-local GetNext = Map.GetNext
-local GetPrevious = Map.GetPrevious
+do
+	local GetNext = Map.GetNext
+	local GetPrevious = Map.GetPrevious
 
---If the map's empty, we don't even need to iterate.
-local function Nope()
-	return nil
-end
-
---[[
-	Iterator for the generic for loop.
-
-	Avoids creating a new function, so is more JIT friendly than pairs.
-]]
-function Map:Iterate()
-	self:ResetPosition()
-
-	if self.NumMembers == 0 then
-		return Nope
+	--If the map's empty, we don't even need to iterate.
+	local function Nope()
+		return nil
 	end
 
-	return GetNext, self
-end
+	--[[
+		Iterator for the generic for loop.
 
---[[
-	Iterator for going backwards along the keys of the map.
-]]
-function Map:IterateBackwards()
-	if self.NumMembers == 0 then
-		return Nope
+		Avoids creating a new function, so is more JIT friendly than pairs.
+	]]
+	function Map:Iterate()
+		self:ResetPosition()
+
+		if self.NumMembers == 0 then
+			return Nope
+		end
+
+		return GetNext, self
 	end
 
-	self.Position = self.NumMembers + 1
+	--[[
+		Iterator for going backwards along the keys of the map.
+	]]
+	function Map:IterateBackwards()
+		if self.NumMembers == 0 then
+			return Nope
+		end
 
-	return GetPrevious, self
+		self.Position = self.NumMembers + 1
+
+		return GetPrevious, self
+	end
 end
 
 local getmetatable = getmetatable
@@ -265,6 +267,9 @@ local pairs = pairs
 --[[
 	A multimap is a map that can map multiple values per key. It abstracts away the idiom of
 	storing lists in a map structure.
+
+	This implementation does not allow multiple instances of distinct key-value pairs. That is,
+	you could not map key A to value B twice and have B show up twice in the value list for key A.
 ]]
 local Multimap = setmetatable( {}, { __index = Map } )
 Multimap.__index = Multimap
@@ -350,7 +355,7 @@ function Multimap:RemoveKeyValue( Key, Value )
 end
 
 --[[
-	Returns a table will all values for the given key. Avoid modifying this table,
+	Returns a table with all values for the given key. Avoid modifying this table,
 	or you will disrupt the multimap.
 ]]
 function Multimap:Get( Key )
@@ -362,12 +367,13 @@ end
 
 --[[
 	Returns a table copy of the multimap as a standard Lua table of keys and
-	table of values.
+	table of values. Note that each table is directly linked to the multimap, so
+	should not be edited.
 ]]
 function Multimap:AsTable()
 	local Table = {}
-	for Row, List in self:Iterate() do
-		Table[ Row ] = List.Keys
+	for Key, List in self:Iterate() do
+		Table[ Key ] = List.Keys
 	end
 	return Table
 end
