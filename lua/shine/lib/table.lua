@@ -96,18 +96,27 @@ function table.Mixin( Source, Destination, Keys )
 	end
 end
 
---[[
-	Merges any missing keys in the destination table from the source table.
-	Does not recurse.
-]]
-function table.ShallowMerge( Source, Destination )
-	for Key, Value in pairs( Source ) do
-		if Destination[ Key ] == nil then
-			Destination[ Key ] = Value
-		end
+do
+	local rawget = rawget
+	local function Get( Table, Key )
+		return Table[ Key ]
 	end
 
-	return Destination
+	--[[
+		Merges any missing keys in the destination table from the source table.
+		Does not recurse.
+	]]
+	function table.ShallowMerge( Source, Destination, Raw )
+		local Getter = Raw and rawget or Get
+
+		for Key, Value in pairs( Source ) do
+			if Getter( Destination, Key ) == nil then
+				Destination[ Key ] = Value
+			end
+		end
+
+		return Destination
+	end
 end
 
 --[[
