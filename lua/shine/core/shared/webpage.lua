@@ -170,6 +170,8 @@ function Shine:OpenWebpage( URL, TitleText )
 		Pos = Vector( -WindowWidth * 0.5, -WindowHeight * 0.5, 0 )
 	}
 	Window.TitleBarHeight = TitleBarH
+
+	TitleText = TitleText and Locale:GetPhrase( "Core", TitleText )
 	Window:AddTitleBar( TitleText or Locale:GetPhrase( "Core", "MESSAGE_OF_THE_DAY" ), Font, TextScale )
 
 	self.ActiveWebPage = Window
