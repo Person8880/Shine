@@ -482,8 +482,10 @@ function Plugin:CreateBanCommands()
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
-			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
-				true, ID )
+			if Client then
+				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
+					true, ID )
+			end
 			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
 				true, ID )
 
@@ -523,8 +525,10 @@ function Plugin:CreateBanCommands()
 		if self.Config.Banned[ ID ] then
 			--We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
-				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
-					true, ID )
+				if Client then
+					Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
+						true, ID )
+				end
 				Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
 					true, ID )
 
@@ -559,8 +563,10 @@ function Plugin:CreateBanCommands()
 
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ IDString ] then
-			Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
-				true, IDString )
+			if Client then
+				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
+					true, IDString )
+			end
 			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
 				true, IDString )
 
