@@ -604,7 +604,7 @@ VoteMenu:AddPage( "Main", function( self )
 		self:AddSideButton( Locale:GetPhrase( "Core", Plugin ), ClickFuncs[ Plugin ] )
 	end
 
-	self:AddSideButton( "Client Config", function()
+	self:AddSideButton( Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" ), function()
 		Shared.ConsoleCommand( "sh_clientconfigmenu" )
 		self:SetIsVisible( false )
 	end )
