@@ -30,7 +30,7 @@ function Plugin:SetupDataTable()
 		ID = {
 			ID = "string (32)"
 		},
-		Emtpy = {}
+		Empty = {}
 	}
 
 	self:AddNetworkMessages( "AddTranslatedError", {
