@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local Ceil = math.ceil
 local Decode = json.decode
 local HTTPRequest = Shared.SendHTTPRequest
 local Huge = math.huge
@@ -11,7 +12,7 @@ local Max = math.max
 local StringFormat = string.format
 local tonumber = tonumber
 
-local Plugin = {}
+local Plugin = Plugin
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "WorkshopUpdater.json"
@@ -28,9 +29,6 @@ Plugin.DefaultConfig = {
 }
 
 Plugin.PrintName = "Workshop"
-Plugin.NotifyPrefixColour = {
-	255, 160, 0
-}
 
 local RemainingNotifications = Huge
 local ModChangeTimer = "CheckForModChange"
@@ -147,19 +145,22 @@ function Plugin:NotifyOrCycle( Recall )
 		end
 	end
 
-	self:Notify( nil, "The \"%s\" mod has updated on the Steam Workshop.", true, self.ChangedModName )
-	self:Notify( nil, "Players may be unable to connect to the server until map change." )
+	self:SendTranslatedNotify( nil, "MOD_CHANGED", {
+		ModName = self.ChangedModName
+	} )
+	self:NotifyTranslated( nil, "MAY_BE_UNABLE_TO_CONNECT" )
 
 	if RemainingNotifications < Huge then
-		local TimeRemainingString = "now"
 		RemainingNotifications = RemainingNotifications - 1
 
-		local TimeBeforeChange = RemainingNotifications * self.Config.NotifyInterval
-		if TimeBeforeChange > 5 then
-			TimeRemainingString = StringFormat( "in %s", string.TimeToString( TimeBeforeChange ) )
+		local TimeBeforeChange = Ceil( RemainingNotifications * self.Config.NotifyInterval )
+		if TimeBeforeChange <= 5 then
+			TimeBeforeChange = 0
 		end
 
-		self:Notify( nil, "The map will cycle %s.", true, TimeRemainingString )
+		self:SendTranslatedNotify( nil, "MAP_CYCLE", {
+			TimeLeft = TimeBeforeChange
+		} )
 	end
 
 	if RemainingNotifications == 0 then
@@ -173,5 +174,3 @@ function Plugin:NotifyOrCycle( Recall )
 		end )
 	end
 end
-
-Shine:RegisterExtension( "workshopupdater", Plugin )
