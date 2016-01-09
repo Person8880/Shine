@@ -591,7 +591,8 @@ function Plugin:CreateBanCommands()
 				self:PerformBan( Target, Target:GetControllingPlayer() )
 				self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
 					TargetName = TargetName,
-					Duration = Duration
+					Duration = Duration,
+					Reason = Reason
 				} )
 			end
 

@@ -686,17 +686,10 @@ function Plugin:CreateAdminCommands()
 		)
 		Server.DisconnectClient( Target )
 
-		if Reason == "" then
-			self:SendTranslatedMessage( Client, "ClientKicked", {
-				TargetName = TargetName,
-				Reason = ""
-			} )
-		else
-			self:SendTranslatedMessage( Client, "ClientKicked", {
-				TargetName = TargetName,
-				Reason = Reason
-			} )
-		end
+		self:SendTranslatedMessage( Client, "ClientKicked", {
+			TargetName = TargetName,
+			Reason = Reason
+		} )
 	end
 	local KickCommand = self:BindCommand( "sh_kick", "kick", Kick )
 	KickCommand:AddParam{ Type = "client", NotSelf = true }
@@ -937,7 +930,7 @@ function Plugin:CreateGameplayCommands()
 
 		Gamerules:ResetGame()
 
-		Shine:CommandNotify( Client, "reset the game." )
+		self:SendTranslatedMessage( Client, "RESET_GAME" )
 	end
 	local ResetGameCommand = self:BindCommand( "sh_reset", "reset", ResetGame )
 	ResetGameCommand:Help( "Resets the game round." )
