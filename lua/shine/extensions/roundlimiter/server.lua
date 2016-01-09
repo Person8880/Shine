@@ -9,7 +9,7 @@ local Floor = math.floor
 local StringFormat = string.format
 local TimeToString = string.TimeToString
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.0"
 
 Plugin.WIN_SCORE = 1
@@ -69,7 +69,7 @@ function Plugin:EndRound()
 	if not Gamerules then return end
 
 	local WinCondition = self.Config.WinCondition
-	local ModeAddition = "total team score"
+	local RoundEndTranslationKey = "ROUND_END_TOTAL_TEAM_SCORE"
 
 	--Team with the most points scored over the game.
 	if WinCondition == self.WIN_SCORE then
@@ -88,7 +88,7 @@ function Plugin:EndRound()
 
 		if Extractors > Harvesters then Winner = 1 end
 
-		ModeAddition = "number of captured RTs at the end"
+		RoundEndTranslationKey = "ROUND_END_TOTAL_RTS"
 	--Team that collected the most team resources (i.e resources over the whole game).
 	elseif WinCondition == self.WIN_COLLECTEDRES then
 		local Marines = Gamerules.team1
@@ -99,11 +99,10 @@ function Plugin:EndRound()
 
 		if MarineRes > AlienRes then Winner = 1 end
 
-		ModeAddition = "total collected team resources"
+		RoundEndTranslationKey = "ROUND_END_TOTAL_TEAM_RES"
 	end
 
-	Shine:NotifyDualColour( nil, 100, 255, 100, "[RoundLimiter]", 255, 255, 255,
-		StringFormat( "Ending round due to time limit. Winner chosen by %s.", ModeAddition ) )
+	self:TranslatedNotify( nil, RoundEndTranslationKey )
 
 	Gamerules:EndGame( Winner == 2 and Gamerules.team2 or Gamerules.team1 )
 end
@@ -111,22 +110,21 @@ end
 local WarningsLeft = 0
 
 function Plugin:DisplayWarning()
-	local TimeLeft = WarningsLeft * self.Config.WarningTime * 60 / self.Config.WarningRepeatTimes
+	local TimeLeft = Floor( WarningsLeft * self.Config.WarningTime * 60 / self.Config.WarningRepeatTimes )
 
 	local WinCondition = self.Config.WinCondition
-	local ModeAddition = "total team score"
+	local RoundWarningTranslationKey = "ROUND_WARNING_TOTAL_SCORE"
 	if WinCondition == self.WIN_RTS then
-		ModeAddition = "number of captured RTs at the end"
+		RoundWarningTranslationKey = "ROUND_WARNING_TOTAL_RTS"
 	elseif WinCondition == self.WIN_COLLECTEDRES then
-		ModeAddition = "total collected team resources"
+		RoundWarningTranslationKey = "ROUND_WARNING_TOTAL_TEAM_RES"
 	end
 
-	local Message = StringFormat( "%s left until this round ends. Winner will be chosen by %s.",
-		TimeToString( TimeLeft ), ModeAddition )
+	self:SendTranslatedNotify( nil, RoundWarningTranslationKey, {
+		TimeLeft = TimeLeft
+	} )
 
 	WarningsLeft = WarningsLeft - 1
-
-	Shine:NotifyDualColour( nil , 100, 255, 100, "[RoundLimiter]", 255, 255, 255, Message )
 end
 
 function Plugin:StartWarning()
@@ -168,5 +166,3 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 		self:EndRound()
 	end )
 end
-
-Shine:RegisterExtension( "roundlimiter", Plugin )
