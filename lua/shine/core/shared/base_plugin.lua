@@ -135,6 +135,16 @@ do
 		end )
 	end
 
+	function PluginMeta:AddTranslatedNotifyColour( Name, Params )
+		Params.R = "integer (0 to 255)"
+		Params.G = Params.R
+		Params.B = Params.R
+
+		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+			self:NotifySingleColour( Data.R, Data.G, Data.B, self:GetInterpolatedPhrase( Name, Data ) )
+		end )
+	end
+
 	function PluginMeta:AddTranslatedError( Name, Params )
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
 			self:NotifyError( self:GetInterpolatedPhrase( Name, Data ) )
@@ -182,9 +192,8 @@ if Server then
 		self:SendNetworkMessage( Target, Name, Params or {}, true )
 	end
 
-	function PluginMeta:SendTranslatedError( Target, Name, Params )
-		self:SendNetworkMessage( Target, Name, Params or {}, true )
-	end
+	PluginMeta.SendTranslatedError = PluginMeta.SendTranslatedNotify
+	PluginMeta.SendTranslatedNotifyColour = PluginMeta.SendTranslatedNotify
 elseif Client then
 	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
@@ -399,6 +408,10 @@ elseif Client then
 
 		self:AddChatLine( PrefixCol[ 1 ], PrefixCol[ 2 ], PrefixCol[ 3 ], self:GetPhrase( "NOTIFY_PREFIX" ),
 			255, 255, 255, Message )
+	end
+
+	function PluginMeta:NotifySingleColour( R, G, B, Message )
+		self:AddChatLine( 0, 0, 0, "", R, G, B, Message )
 	end
 
 	function PluginMeta:NotifyError( Message )
