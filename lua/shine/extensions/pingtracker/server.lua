@@ -69,7 +69,7 @@ end
 function Plugin:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, Reason, Message, Args )
 	if Data.TimesOver == 0 and self.Config.Warn then
 		self:SendTranslatedNotify( Client, Message, Args )
-		self:TranslatedNotify( Client, "KICK_WARNING" )
+		self:NotifyTranslated( Client, "KICK_WARNING" )
 		return true
 	end
 

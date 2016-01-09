@@ -78,7 +78,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		if TimeToAllow and TimeToAllow > Time then
 			if not Shine:CanNotify( Client ) then return false end
 
-			self:TranslatedNotify( Client, "SWITCH_TEAM_BLOCKED" )
+			self:NotifyTranslated( Client, "SWITCH_TEAM_BLOCKED" )
 
 			return false
 		end
@@ -90,7 +90,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if Shine:HasAccess( Client, "sh_idleimmune" ) then return end
 
 	if Shine:CanNotify( Client ) then
-		self:TranslatedNotify( Client, "SPECTATOR_DISABLED" )
+		self:NotifyTranslated( Client, "SPECTATOR_DISABLED" )
 	end
 
 	local Team = Player:GetTeam():GetTeamNumber()
@@ -186,7 +186,7 @@ end
 
 function Plugin:AssignToTeam( Player )
 	if self.Config.NotifyOnTeamForce then
-		self:TranslatedNotify( Player, "IN_READY_ROOM_TOO_LONG" )
+		self:NotifyTranslated( Player, "IN_READY_ROOM_TOO_LONG" )
 	end
 
 	return self:JoinRandomTeam( Player )

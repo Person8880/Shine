@@ -102,7 +102,7 @@ function Plugin:EndRound()
 		RoundEndTranslationKey = "ROUND_END_TOTAL_TEAM_RES"
 	end
 
-	self:TranslatedNotify( nil, RoundEndTranslationKey )
+	self:NotifyTranslated( nil, RoundEndTranslationKey )
 
 	Gamerules:EndGame( Winner == 2 and Gamerules.team2 or Gamerules.team1 )
 end
