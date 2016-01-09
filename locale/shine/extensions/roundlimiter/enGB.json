@@ -4,5 +4,6 @@
 	"ROUND_END_TOTAL_TEAM_RES": "Ending round due to time limit. Winner chosen by total collected team resources.",
 	"ROUND_WARNING_TOTAL_SCORE": "{TimeLeft:Duration} left until this round ends. Winner will be chosen by total team score.",
 	"ROUND_WARNING_TOTAL_RTS": "{TimeLeft:Duration} left until this round ends. Winner will be chosen by number of captured RTs at the end.",
-	"ROUND_WARNING_TOTAL_TEAM_RES": "{TimeLeft:Duration} left until this round ends. Winner will be chosen by total collected team resources."
+	"ROUND_WARNING_TOTAL_TEAM_RES": "{TimeLeft:Duration} left until this round ends. Winner will be chosen by total collected team resources.",
+	"NOTIFY_PREFIX": "[Round Limiter]"
 }
