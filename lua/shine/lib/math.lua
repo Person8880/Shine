@@ -110,3 +110,24 @@ function math.EaseOut( Progress, Power )
 	Progress = 1 - Progress
 	return 1 - Progress ^ Power
 end
+
+do
+	local Sqrt = math.sqrt
+	local TableAverage = table.Average
+
+	--[[
+		Computes the standard deviation of a table of values.
+	]]
+	function math.StandardDeviation( Values )
+		local Sum = 0
+		local Count = #Values
+		if Count == 0 then return 0 end
+
+		local Average = TableAverage( Values )
+		for i = 1, Count do
+			Sum = Sum + ( Values[ i ] - Average ) ^ 2
+		end
+
+		return Sqrt( Sum / Count )
+	end
+end

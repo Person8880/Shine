@@ -6,6 +6,7 @@ local Plugin = {}
 
 function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "HighlightTeamSwaps", false )
+	self:AddDTVar( "boolean", "DisplayStandardDeviations", false )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )
@@ -115,9 +116,16 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
 	if TimeSinceLastChange >= HighlightDuration then return end
 
-	FadeRowIn( Row, Scoreboard_GetPlayerRecord( ClientIndex ), Team,
-		OurTeam, TeamNumber, TimeSinceLastChange )
+	local Entry = Scoreboard_GetPlayerRecord( ClientIndex )
+
+	FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
+
+	return Entry
 end
+
+local IsPlayingTeam = Shine.IsPlayingTeam
+local MathStandardDeviation = math.StandardDeviation
+local StringFormat = string.format
 
 function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	if not self.dt.HighlightTeamSwaps then return end
@@ -125,8 +133,20 @@ function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	local TeamNumber = Team.TeamNumber
 	local OurTeam = GetLocalPlayerTeam()
 
+	local SkillValues = {}
 	local CurTime = SharedGetTime()
 	for Index, Row in pairs( Team.PlayerList ) do
-		CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
+		local Entry = CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
+		if Entry then
+			SkillValues[ #SkillValues + 1 ] = Entry.Skill
+		end
 	end
+
+	if not self.dt.DisplayStandardDeviations or not IsPlayingTeam( TeamNumber ) then return end
+
+	local TeamNameItem = Team.GUIs.TeamName
+	local StandardDeviation = MathStandardDeviation( SkillValues )
+
+	TeamNameItem:SetText( StringFormat( "%s - Skill SD: %.2f",
+		TeamNameItem:GetText(), StandardDeviation ) )
 end

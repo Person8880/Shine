@@ -3,11 +3,11 @@
 ]]
 
 local HTTPRequest = Shared.SendHTTPRequest
+local IsType = Shine.IsType
 local Time = os.clock
 
 do
 	local Encode, Decode = json.encode, json.decode
-	local IsType = Shine.IsType
 	local StringFormat = string.format
 	local tostring = tostring
 
@@ -111,7 +111,7 @@ local DefaultTimeout = 5
 function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Timeout )
 	local NeedParams = true
 
-	if Protocol ~= "POST" then
+	if Protocol ~= "POST" and not IsType( Params, "table" ) then
 		Timeout = OnTimeout
 		OnTimeout = OnSuccess
 		OnSuccess = Params
@@ -153,6 +153,14 @@ end
 function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttempts, Timeout )
 	MaxAttempts = MaxAttempts or 3
 
+	local NeedParams = true
+	if Protocol ~= "POST" and not IsType( Callbacks, "table" ) then
+		Timeout = MaxAttempts
+		MaxAttempts = Callbacks
+		Callbacks = Params
+		NeedParams = false
+	end
+
 	local Attempts = 0
 	local Submit
 
@@ -172,8 +180,14 @@ function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttemp
 	end
 
 	Submit = function()
-		Shine.TimedHTTPRequest( URL, Protocol, Params, Callbacks.OnSuccess, OnTimeout, Timeout )
+		if NeedParams then
+			Shine.TimedHTTPRequest( URL, Protocol, Params, Callbacks.OnSuccess, OnTimeout, Timeout )
+		else
+			Shine.TimedHTTPRequest( URL, Protocol, Callbacks.OnSuccess, OnTimeout, Timeout )
+		end
 	end
 
 	Submit()
 end
+
+Script.Load( "lua/shine/lib/external_apis.lua" )

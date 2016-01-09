@@ -338,9 +338,7 @@ function TextEntry:RemoveSelectedText()
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
 
-	if self.OnTextChanged then
-		self:OnTextChanged( Text, self.Text )
-	end
+	self:OnTextChanged( Text, self.Text )
 end
 
 function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
@@ -526,6 +524,10 @@ function TextEntry:QueueUndo()
 	self.UndoTimer:Debounce()
 end
 
+function TextEntry:OnTextChanged( OldText, NewText )
+
+end
+
 --[[
 	Inserts a character wherever the caret is.
 ]]
@@ -555,10 +557,7 @@ function TextEntry:AddCharacter( Char, SkipUndo )
 
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
-
-	if self.OnTextChanged then
-		self:OnTextChanged( Text, self.Text )
-	end
+	self:OnTextChanged( Text, self.Text )
 
 	if self.PlaceholderText then
 		self.PlaceholderText:SetIsVisible( false )
@@ -602,9 +601,7 @@ function TextEntry:RemoveWord( Forward )
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( StringUTF8Length( Before ) )
 
-	if self.OnTextChanged then
-		self:OnTextChanged( Text, self.Text )
-	end
+	self:OnTextChanged( Text, self.Text )
 end
 
 --[[
@@ -659,9 +656,7 @@ function TextEntry:RemoveCharacter( Forward )
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
 
-	if self.OnTextChanged then
-		self:OnTextChanged( Text, self.Text )
-	end
+	self:OnTextChanged( Text, self.Text )
 end
 
 function TextEntry:PlayerType( Char )
@@ -836,10 +831,7 @@ function TextEntry:RestoreState( State )
 
 	self:SetText( State.Text, true )
 	self:SetCaretPos( State.CaretPos )
-
-	if self.OnTextChanged then
-		self:OnTextChanged( Text, self.Text )
-	end
+	self:OnTextChanged( Text, self.Text )
 end
 
 function TextEntry:Undo()
@@ -968,13 +960,27 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 		end
 
 		self.Caret:SetColor( Clear )
+		self:OnLoseFocus()
 
 		return
 	end
 
 	self:StopFade( self.InnerBox )
-	self.Enabled = true
 	self.InnerBox:SetColor( self.FocusColour )
+
+	if not self.Enabled then
+		self:OnGainFocus()
+	end
+
+	self.Enabled = true
+end
+
+function TextEntry:OnGainFocus()
+
+end
+
+function TextEntry:OnLoseFocus()
+
 end
 
 SGUI:Register( "TextEntry", TextEntry )

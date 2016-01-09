@@ -2142,12 +2142,11 @@ end
 	Input: String
 	Output: Number of UTF-8 characters.
 ]]
-local function UTF8Length( String )
+function string.UTF8Length( String )
 	TypeCheck( String, "string", 1, "UTF8Length" )
 
 	return #UTF8Encode( String )
 end
-string.UTF8Length = UTF8Length
 
 --[[
 	Returns the part of the string between Start and End where Start and End are UTF-8
@@ -2156,7 +2155,7 @@ string.UTF8Length = UTF8Length
 	Inputs: String, starting character position, ending character position.
 	Output: String between the two points.
 ]]
-local function UTF8Sub( String, Start, End )
+function string.UTF8Sub( String, Start, End )
 	End = End or -1
 
 	TypeCheck( String, "string", 1, "UTF8Sub" )
@@ -2176,7 +2175,6 @@ local function UTF8Sub( String, Start, End )
 
 	return TableConcat( Chars, "", Max( StartChar, 1 ), Min( EndChar, UTF8Length ) )
 end
-string.UTF8Sub = UTF8Sub
 
 --[[
 	Replaces UTF-8 characters based on a mapping table.

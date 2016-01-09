@@ -65,6 +65,10 @@ local DefaultConfig = {
 		workshopupdater = false
 	},
 
+	APIKeys = {
+		Steam = ""
+	},
+
 	EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
 
 	NotifyOnCommand = false, --Should we display a notification for commands such as kick, ban etc?
