@@ -4,7 +4,9 @@
 
 local Shine = Shine
 
-local Plugin = {}
+local Ceil = math.ceil
+
+local Plugin = Plugin
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true
@@ -20,9 +22,6 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 Plugin.PrintName = "Unstuck"
-Plugin.NotifyPrefixColour = {
-	0, 255, 0
-}
 
 function Plugin:Initialise()
 	self.Users = {}
@@ -86,7 +85,7 @@ function Plugin:CreateCommands()
 		if not Player then return end
 
 		if not Player:GetIsAlive() then
-			Shine:NotifyError( Player, "You cannot be unstuck when you are dead." )
+			self:NotifyTranslatedError( Client, "ERROR_NOT_ALIVE" )
 
 			return
 		end
@@ -95,8 +94,9 @@ function Plugin:CreateCommands()
 
 		local NextUse = self.Users[ Client ]
 		if NextUse and NextUse > Time then
-			Shine:NotifyError( Player, "You must wait %s before using unstuck again.",
-				true, string.TimeToString( NextUse - Time ) )
+			self:SendTranslatedError( Client, "ERROR_WAIT", {
+				TimeLeft = Ceil( NextUse - Time )
+			} )
 
 			return
 		end
@@ -104,12 +104,13 @@ function Plugin:CreateCommands()
 		local Success = self:UnstickPlayer( Player, Player:GetOrigin() )
 
 		if Success then
-			self:Notify( Client, "Successfully unstuck." )
+			self:NotifyTranslated( Client, "SUCCESS" )
 
 			self.Users[ Client ] = Time + self.Config.TimeBetweenUse
 		else
-			Shine:NotifyError( Client, "Unable to unstick. Try again in %s.",
-				true, string.TimeToString( self.Config.MinTime ) )
+			self:SendTranslatedError( Client, "ERROR_FAIL", {
+				TimeLeft = Ceil( self.Config.MinTime )
+			} )
 
 			self.Users[ Client ] = Time + self.Config.MinTime
 		end
@@ -117,5 +118,3 @@ function Plugin:CreateCommands()
 	local UnstickCommand = self:BindCommand( "sh_unstuck", { "unstuck", "stuck" }, Unstick, true )
 	UnstickCommand:Help( "Attempts to free you from being trapped inside world geometry." )
 end
-
-Shine:RegisterExtension( "unstuck", Plugin )
