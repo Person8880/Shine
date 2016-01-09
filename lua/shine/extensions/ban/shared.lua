@@ -25,6 +25,22 @@ function Plugin:SetupDataTable()
 		Duration = "integer",
 		Reason = "string (128)"
 	} )
+
+	local ErrorTypes = {
+		ID = {
+			ID = "string (32)"
+		},
+		Emtpy = {}
+	}
+
+	self:AddNetworkMessages( "AddTranslatedError", {
+		[ ErrorTypes.ID ] = {
+			"PLAYER_REQUEST_IN_PROGRESS", "ERROR_NOT_BANNED"
+		},
+		[ ErrorTypes.Empty ] = {
+			"ERROR_INVALID_STEAMID"
+		}
+	} )
 end
 
 Shine:RegisterExtension( "ban", Plugin )
