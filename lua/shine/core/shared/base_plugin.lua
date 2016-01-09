@@ -620,6 +620,13 @@ if Server then
 		Shine:NotifyDualColour( Player, NotifyColour[ 1 ], NotifyColour[ 2 ], NotifyColour[ 3 ],
 			StringFormat( "[%s]", GetName( self ) ), 255, 255, 255, Message, Format, ... )
 	end
+
+	function PluginMeta:NotifyTranslated( Player, Message )
+		local NotifyColour = self.NotifyPrefixColour
+
+		Shine:TranslatedNotifyDualColour( Player, NotifyColour[ 1 ], NotifyColour[ 2 ], NotifyColour[ 3 ],
+			"NOTIFY_PREFIX", 255, 255, 255, Message, self.__Name )
+	end
 end
 
 local ReservedKeys = {
