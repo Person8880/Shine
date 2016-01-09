@@ -307,13 +307,13 @@ do
 	end
 end
 
-local function NotifyError( Client, Message, Format, ... )
+local function NotifyError( Client, TranslationKey, Data, Message, Format, ... )
 	if not Client then
 		Notify( Format and StringFormat( Message, ... ) or Message )
 		return
 	end
 
-	Shine:NotifyCommandError( Client, Message, Format, ... )
+	Plugin:SendTranslatedError( Client, TranslationKey, Data )
 end
 
 local Histories = {}
@@ -1070,7 +1070,9 @@ function Plugin:CreateGameplayCommands()
 					TargetName = Player:GetName() or "<unknown>"
 				} )
 			else
-				NotifyError( Client, "%s is not a commander.", true, Player:GetName() )
+				NotifyError( Client, "ERROR_NOT_COMMANDER", {
+					TargetName = Player:GetName()
+				}, "%s is not a commander.", true, Player:GetName() )
 			end
 		end
 		local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
@@ -1197,7 +1199,9 @@ function Plugin:CreateMessageCommands()
 		local TargetID = Target:GetUserId() or 0
 
 		if not self.Gagged[ Target ] then
-			NotifyError( Client, "%s is not gagged.", true, TargetName )
+			NotifyError( Client, "ERROR_NOT_GAGGED", {
+				TargetName = TargetName
+			}, "%s is not gagged.", true, TargetName )
 
 			return
 		end
@@ -1239,8 +1243,9 @@ function Plugin:CreatePerformanceCommands()
 	local function Interp( Client, NewInterp )
 		local MinInterp = 2 / self.Config.SendRate * 1000
 		if NewInterp < MinInterp then
-			NotifyError( Client, "Interp is constrained by send rate to be %.2fms minimum.",
-				true, MinInterp )
+			NotifyError( Client, "ERROR_INTERP_CONSTRAINT", {
+				Rate = MinInterp
+			}, "Interp is constrained by send rate to be %.2fms minimum.", true, MinInterp )
 			return
 		end
 
@@ -1264,8 +1269,9 @@ function Plugin:CreatePerformanceCommands()
 
 	local function TickRate( Client, NewRate )
 		if NewRate > self.Config.MoveRate then
-			NotifyError( Client, "Tick rate cannot be greater than move rate (%i).",
-				true, self.Config.MoveRate )
+			NotifyError( Client, "ERROR_TICKRATE_CONSTRAINT", {
+				Rate = self.Config.MoveRate
+			}, "Tick rate cannot be greater than move rate (%i).", true, self.Config.MoveRate )
 			return
 		end
 
@@ -1296,8 +1302,9 @@ function Plugin:CreatePerformanceCommands()
 
 	local function SendRate( Client, NewRate )
 		if NewRate > self.Config.TickRate then
-			NotifyError( Client, "Send rate cannot be greater than tick rate (%i).",
-				true, self.Config.TickRate )
+			NotifyError( Client, "ERROR_SENDRATE_CONSTRAINT", {
+				Rate = self.Config.TickRate
+			}, "Send rate cannot be greater than tick rate (%i).", true, self.Config.TickRate )
 			return
 		end
 

@@ -40,6 +40,12 @@ function Plugin:SetupDataTable()
 		Gagged = {
 			TargetName = self:GetNameNetworkField(),
 			Duration = "integer (0 to 1800)"
+		},
+		FloatRate = {
+			Rate = "float (0 to 1000 by 0.01)"
+		},
+		IntegerRate = {
+			Rate = "integer (0 to 1000)"
 		}
 	}
 
@@ -69,6 +75,19 @@ function Plugin:SetupDataTable()
 			"PLAYER_GAGGED"
 		}
 	} )
+
+	self:AddNetworkMessages( "AddTranslatedError", {
+		[ MessageTypes.TargetName ] = {
+			"ERROR_NOT_COMMANDER", "ERROR_NOT_GAGGED"
+		},
+		[ MessageTypes.FloatRate ] = {
+			"ERROR_INTERP_CONSTRAINT"
+		},
+		[ MessageTypes.IntegerRate ] = {
+			"ERROR_TICKRATE_CONSTRAINT", "ERROR_SENDRATE_CONSTRAINT"
+		}
+	} )
+
 	self:AddNetworkMessage( "EnableLocalAllTalk", { Enabled = "boolean" }, "Server" )
 end
 

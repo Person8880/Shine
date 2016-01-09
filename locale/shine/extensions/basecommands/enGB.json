@@ -55,5 +55,10 @@
 	"FORCE_START": "forced the round to start.",
 	"PLAYER_EJECTED": "ejected {TargetName}.",
 	"PLAYER_GAGGED": "gagged {TargetName} for {Duration:Duration:REST_OF_MAP}.",
-	"PLAYER_UNGAGGED": "ungagged {TargetName}."
+	"PLAYER_UNGAGGED": "ungagged {TargetName}.",
+	"ERROR_NOT_COMMANDER": "{TargetName} is not a commander.",
+	"ERROR_NOT_GAGGED": "{TargetName} is not gagged.",
+	"ERROR_INTERP_CONSTRAINT": "Interp is constrained by send rate to be {Rate:Format:%.2f}ms minimum.",
+	"ERROR_TICKRATE_CONSTRAINT": "Tick rate cannot be greater than move rate ({Rate}).",
+	"ERROR_SENDRATE_CONSTRAINT": "Send rate cannot be greater than tick rate ({Rate})."
 }
