@@ -267,59 +267,6 @@ end
 local IsType = Shine.IsType
 local GetDefault = Shine.CommandUtil.GetDefaultValue
 
---Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
-ParamTypes.client = {
-	Parse = function( Client, String, Table )
-		if not String then
-			return GetDefault( Table ) or Client
-		end
-
-		local Target
-		if String == "^" then
-			Target = Client
-		elseif String:sub( 1, 1 ) == "$" then
-			local ID = String:sub( 2 )
-			local ToNum = tonumber( ID )
-
-			if ToNum then
-				Target = Shine.GetClientByNS2ID( ToNum )
-			else
-				Target = Shine:GetClientBySteamID( ID )
-			end
-		else
-			Target = Shine:GetClient( String )
-		end
-
-		if Table.NotSelf and Target == Client then
-			return nil, true
-		end
-
-		return Target
-	end,
-	Help = "player",
-	OnFailedMatch = function( Client, Arg, SelfTargeting, ArgString )
-		if SelfTargeting then
-			Shine:NotifyCommandError( Client, "You cannot target yourself with this command." )
-		else
-			Shine:NotifyCommandError( Client, "No player matching '%s' was found.", true, ArgString )
-		end
-	end,
-	Validate = function( Client, Arg, ParsedArg )
-		if not ParsedArg then return true end
-		if Arg.IgnoreCanTarget then return true end
-
-		if not Shine:CanTarget( Client, ParsedArg ) then
-			Shine:NotifyCommandError( Client, "You do not have permission to target %s.",
-				true, ParsedArg:GetControllingPlayer():GetName() )
-
-			return false
-		end
-
-		return true
-	end,
-	Default = "^"
-}
-
 do
 	local TeamDefs = {
 		[ "spectate" ] = 3,
@@ -333,13 +280,13 @@ do
 		[ "gold" ] = 2
 	}
 
-	local function ParseValue( Client, Value, Context, ControlCharacters )
+	local function ParseValue( Client, Value, Context, ControlCharacters, SingleTarget )
 		local CurrentTargets = {}
 		local Negate
 
 		-- If the first character is a !, then it's a negation.
 		local ControlChar = StringSub( Value, 1, 1 )
-		if ControlChar == "!" then
+		if ControlChar == "!" and not SingleTarget then
 			Value = StringSub( Value, 2 )
 			ControlChar = StringSub( Value, 1, 1 )
 			Negate = true
@@ -348,7 +295,8 @@ do
 		Context.IsNegative = Negate
 
 		local Parser = ControlCharacters[ ControlChar ]
-		if Parser and ( not Parser.MustEqual or Value == ControlChar ) then
+		if Parser and ( not Parser.MustEqual or Value == ControlChar )
+		and ( not SingleTarget or Parser.SingleTarget ) then
 			Context.Value = StringSub( Value, 2 )
 
 			local Targets = Parser.Parse( Client, Context )
@@ -394,6 +342,51 @@ do
 		end
 	end
 
+	local next = next
+
+	-- Client looks for a matching client by game ID, Steam ID and name. Returns 1 client.
+	ParamTypes.client = {
+		Parse = function( Client, String, Table )
+			if not String then
+				return GetDefault( Table ) or Client
+			end
+
+			local ControlCharacters = ParamTypes.clients.ControlCharacters
+			local Targets = ParseValue( Client, String, {
+				ArgDef = Table
+			}, ControlCharacters, true )
+			local Target = next( Targets )
+
+			if Table.NotSelf and Target == Client then
+				return nil, true
+			end
+
+			return Target
+		end,
+		Help = "player",
+		OnFailedMatch = function( Client, Arg, SelfTargeting, ArgString )
+			if SelfTargeting then
+				Shine:NotifyCommandError( Client, "You cannot target yourself with this command." )
+			else
+				Shine:NotifyCommandError( Client, "No player matching '%s' was found.", true, ArgString )
+			end
+		end,
+		Validate = function( Client, Arg, ParsedArg )
+			if not ParsedArg then return true end
+			if Arg.IgnoreCanTarget then return true end
+
+			if not Shine:CanTarget( Client, ParsedArg ) then
+				Shine:NotifyCommandError( Client, "You do not have permission to target %s.",
+					true, ParsedArg:GetControllingPlayer():GetName() )
+
+				return false
+			end
+
+			return true
+		end,
+		Default = "^"
+	}
+
 	-- Clients looks for matching clients by game ID, Steam ID, name
 	-- or special targeting directive. Returns a table of clients.
 	ParamTypes.clients = {
@@ -418,7 +411,8 @@ do
 					end
 
 					return { Target }
-				end
+				end,
+				SingleTarget = true
 			},
 			[ "@" ] = {
 				-- Finds by team name.
@@ -443,7 +437,8 @@ do
 				Parse = function( Client, Context )
 					return { Client }
 				end,
-				MustEqual = true
+				MustEqual = true,
+				SingleTarget = true
 			}
 		},
 		Parse = function( Client, String, Table )
