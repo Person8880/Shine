@@ -323,12 +323,11 @@ end
 	Checks bans on startup.
 ]]
 function Plugin:CheckBans()
-	local CurTime = Time()
 	local Bans = self.Config.Banned
 	local Edited
 
 	for ID, Data in pairs( Bans ) do
-		if Data.UnbanTime and Data.UnbanTime ~= 0 and Data.UnbanTime < CurTime then
+		if self:IsBanExpired( Data ) then
 			self:RemoveBan( ID, true )
 			Edited = true
 		end
