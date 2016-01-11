@@ -778,12 +778,9 @@ function Shine:RunCommand( Client, ConCommand, FromChat, ... )
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
 	else
 		local Arguments = TableConcat( OriginalArgs, " " )
-		local Player = Client and Client:GetControllingPlayer()
-		local Name = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or "N/A"
 
-		self:AdminPrint( nil, "%s[%s] ran command %s %s", true,
-			Name, ID, ConCommand,
+		self:AdminPrint( nil, "%s ran command %s %s", true,
+			Shine.GetClientInfo( Client ), ConCommand,
 			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
 	end
 end

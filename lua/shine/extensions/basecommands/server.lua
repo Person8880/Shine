@@ -630,16 +630,12 @@ function Plugin:CreateAdminCommands()
 		local pcall = pcall
 
 		local function RunLua( Client, Code )
-			local Player = Client and Client:GetControllingPlayer()
-
-			local Name = Player and Player:GetName() or "Console"
-
 			local Func, Err = loadstring( Code )
 
 			if Func then
 				local Success, Err = pcall( Func )
 				if Success then
-					Shine:Print( "%s ran: %s", true, Name, Code )
+					Shine:Print( "%s ran: %s", true, Shine.GetClientInfo( Client ), Code )
 					if Client then
 						ServerAdminPrint( Client, "Lua run was successful." )
 					end
@@ -678,8 +674,8 @@ function Plugin:CreateAdminCommands()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
 
 		Shine:Print( "%s kicked %s.%s", true,
-			Client and Client:GetControllingPlayer():GetName() or "Console",
-			TargetName,
+			Shine.GetClientInfo( Client ),
+			Shine.GetClientInfo( Target ),
 			Reason ~= "" and " Reason: "..Reason or ""
 		)
 		Server.DisconnectClient( Target )
@@ -1146,10 +1142,6 @@ function Plugin:CreateMessageCommands()
 	}
 
 	local function CSay( Client, Message )
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or "N/A"
-
 		local Words = StringExplode( Message, " " )
 		local Colour = Colours[ Words[ 1 ] ]
 
@@ -1168,7 +1160,7 @@ function Plugin:CreateMessageCommands()
 			Size = 2,
 			FadeIn = 1
 		} )
-		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
+		Shine:AdminPrint( nil, "CSay from %s: %s", true, Shine.GetClientInfo( Client ), Message )
 	end
 	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )
 	CSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.",
