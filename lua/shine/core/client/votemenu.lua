@@ -145,7 +145,7 @@ local function BindVoteKey()
 
 		if IsType( Binds, "table" ) then
 			for Button, Data in pairs( Binds ) do
-				if Data.command and Data.command:find( "sh_votemenu" ) then
+				if IsType( Data, "table" ) and Data.command and Data.command:find( "sh_votemenu" ) then
 					Shine.VoteButtonBound = true
 					Shine.VoteButton = Button
 					return

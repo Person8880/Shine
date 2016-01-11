@@ -100,14 +100,12 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if not Player then return end
 
 	local Client = Server.GetOwner( Player )
-
 	if not Client then return end
 
 	local UserID = Client.GetUserId and Client:GetUserId() or 0
 
-	Shine:LogString( StringFormat( "Player %s[%s] joined team %s.",
-		Player:GetName(),
-		UserID,
+	Shine:LogString( StringFormat( "Player %s joined team %s.",
+		Shine.GetClientInfo( Client ),
 		Shine:GetTeamName( NewTeam )
 	) )
 end

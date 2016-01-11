@@ -73,12 +73,9 @@ function Plugin:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, Reas
 		return true
 	end
 
-	local Player = Client:GetControllingPlayer()
-	local Name = Player and Player:GetName() or "<unknown>"
-
 	Shine:LogString( StringFormat(
-		"[PingTracker] Kicked client %s[%s]. Average ping: %.2f. Average jitter: %.2f.",
-		Name, Client:GetUserId(), AveragePing, AverageJitter ) )
+		"[PingTracker] Kicked client %s. Average ping: %.2f. Average jitter: %.2f.",
+		Shine.GetClientInfo( Client ), AveragePing, AverageJitter ) )
 
 	Client.DisconnectReason = Reason
 	Server.DisconnectClient( Client )

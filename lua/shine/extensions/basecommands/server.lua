@@ -630,16 +630,12 @@ function Plugin:CreateAdminCommands()
 		local pcall = pcall
 
 		local function RunLua( Client, Code )
-			local Player = Client and Client:GetControllingPlayer()
-
-			local Name = Player and Player:GetName() or "Console"
-
 			local Func, Err = loadstring( Code )
 
 			if Func then
 				local Success, Err = pcall( Func )
 				if Success then
-					Shine:Print( "%s ran: %s", true, Name, Code )
+					Shine:Print( "%s ran: %s", true, Shine.GetClientInfo( Client ), Code )
 					if Client then
 						ServerAdminPrint( Client, "Lua run was successful." )
 					end
@@ -680,8 +676,8 @@ function Plugin:CreateAdminCommands()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
 
 		Shine:Print( "%s kicked %s.%s", true,
-			Client and Client:GetControllingPlayer():GetName() or "Console",
-			TargetName,
+			Shine.GetClientInfo( Client ),
+			Shine.GetClientInfo( Target ),
 			Reason ~= "" and " Reason: "..Reason or ""
 		)
 		Server.DisconnectClient( Target )
@@ -1139,10 +1135,6 @@ function Plugin:CreateMessageCommands()
 	}
 
 	local function CSay( Client, Message )
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or "N/A"
-
 		local Words = StringExplode( Message, " " )
 		local Colour = Colours[ Words[ 1 ] ]
 
@@ -1161,7 +1153,7 @@ function Plugin:CreateMessageCommands()
 			Size = 2,
 			FadeIn = 1
 		} )
-		Shine:AdminPrint( nil, "CSay from %s[%s]: %s", true, PlayerName, ID, Message )
+		Shine:AdminPrint( nil, "CSay from %s: %s", true, Shine.GetClientInfo( Client ), Message )
 	end
 	local CSayCommand = self:BindCommand( "sh_csay", "csay", CSay )
 	CSayCommand:AddParam{ Type = "string", TakeRestOfLine = true, Error = "Please specify a message to send.",
@@ -1169,18 +1161,15 @@ function Plugin:CreateMessageCommands()
 	CSayCommand:Help( "Displays a message in the centre of all player's screens." )
 
 	local function GagPlayer( Client, Target, Duration )
-		self.Gagged[ Target ] = Duration == 0 and true or SharedTime() + Duration
-
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or 0
+		self.Gagged[ Target:GetUserId() ] = Duration == 0 and true or SharedTime() + Duration
 
 		local TargetPlayer = Target:GetControllingPlayer()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
-		local TargetID = Target:GetUserId() or 0
 		local DurationString = string.TimeToString( Duration )
 
-		Shine:AdminPrint( nil, "%s[%s] gagged %s[%s]%s", true, PlayerName, ID, TargetName, TargetID,
+		Shine:AdminPrint( nil, "%s gagged %s%s", true,
+			Shine.GetClientInfo( Client ),
+			Shine.GetClientInfo( Target ),
 			Duration == 0 and "" or " for "..DurationString )
 
 		self:SendTranslatedMessage( Client, "PLAYER_GAGGED", {
@@ -1198,7 +1187,7 @@ function Plugin:CreateMessageCommands()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
 		local TargetID = Target:GetUserId() or 0
 
-		if not self.Gagged[ Target ] then
+		if not self.Gagged[ TargetID ] then
 			NotifyError( Client, "ERROR_NOT_GAGGED", {
 				TargetName = TargetName
 			}, "%s is not gagged.", true, TargetName )
@@ -1206,13 +1195,11 @@ function Plugin:CreateMessageCommands()
 			return
 		end
 
-		self.Gagged[ Target ] = nil
+		self.Gagged[ TargetID ] = nil
 
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or 0
-
-		Shine:AdminPrint( nil, "%s[%s] ungagged %s[%s]", true, PlayerName, ID, TargetName, TargetID )
+		Shine:AdminPrint( nil, "%s ungagged %s", true,
+			Shine.GetClientInfo( Client ),
+			Shine.GetClientInfo( Target ) )
 
 		self:SendTranslatedMessage( Client, "PLAYER_UNGAGGED", {
 			TargetName = TargetName
@@ -1348,14 +1335,15 @@ function Plugin:OnCustomVoteSuccess( Data )
 end
 
 function Plugin:IsClientGagged( Client )
-	local GagData = self.Gagged[ Client ]
+	local ID = Client:GetUserId()
+	local GagData = self.Gagged[ ID ]
 
 	if not GagData then return false end
 
 	if GagData == true then return true end
 	if GagData > SharedTime() then return true end
 
-	self.Gagged[ Client ] = nil
+	self.Gagged[ ID ] = nil
 
 	return false
 end

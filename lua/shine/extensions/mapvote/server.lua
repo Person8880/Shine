@@ -551,8 +551,7 @@ function Plugin:CreateCommands()
 		if not self:VoteStarted() then
 			self:StartVote( nil, true )
 
-			Shine:Print( "%s[%s] forced a map vote.", true, PlayerName,
-				Client and Client:GetUserId() or "N/A" )
+			Shine:Print( "%s forced a map vote.", true, Shine.GetClientInfo( Client ) )
 
 			self:SendTranslatedMessage( Client, "FORCED_VOTE", {} )
 		else

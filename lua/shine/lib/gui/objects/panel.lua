@@ -354,7 +354,7 @@ function Panel:SetMaxHeight( Height )
 	self.Scrollbar:SetScrollSize( NewScrollSize )
 
 	if self.StickyScroll and OldPos >= OldSize then
-		local ShouldSmooth = NewScrollSize < OldScrollSize
+		local ShouldSmooth = NewScrollSize < OldScrollSize and self:GetIsVisible()
 		self.Scrollbar:ScrollToBottom( ShouldSmooth )
 	end
 end

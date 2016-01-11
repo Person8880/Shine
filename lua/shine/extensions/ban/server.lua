@@ -504,13 +504,16 @@ function Plugin:CreateBanCommands()
 		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 			or "permanently"
 
+
 		self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
 			TargetName = TargetName,
 			Duration = Duration,
 			Reason = Reason
 		} )
-		Shine:AdminPrint( nil, "%s banned %s[%s]%s %s.", true, BanningName, TargetName,
-			ID, self.OperationSuffix, DurationString )
+		Shine:AdminPrint( nil, "%s banned %s%s %s.", true,
+			Shine.GetClientInfo( Client ),
+			Shine.GetClientInfo( Target ),
+			self.OperationSuffix, DurationString )
 	end
 	local BanCommand = self:BindCommand( self.CommandNames.Ban[ 1 ], self.CommandNames.Ban[ 2 ], Ban )
 	BanCommand:AddParam{ Type = "client", NotSelf = true }
@@ -544,8 +547,8 @@ function Plugin:CreateBanCommands()
 			local Unbanner = ( Client and Client.GetUserId and Client:GetUserId() ) or 0
 
 			self:RemoveBan( ID, nil, Unbanner )
-			Shine:AdminPrint( nil, "%s unbanned %s%s.", true, Client
-				and Client:GetControllingPlayer():GetName() or "Console", ID, self.OperationSuffix )
+			Shine:AdminPrint( nil, "%s unbanned %s%s.", true, Shine.GetClientInfo( Client ),
+				ID, self.OperationSuffix )
 
 			return
 		end
@@ -597,8 +600,8 @@ function Plugin:CreateBanCommands()
 			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 				or "permanently"
 
-			Shine:AdminPrint( nil, "%s banned %s[%s]%s %s.", true, BanningName, TargetName,
-				IDString, self.OperationSuffix, DurationString )
+			Shine:AdminPrint( nil, "%s banned %s[%s]%s %s.", true, Shine.GetClientInfo( Client ),
+				TargetName, IDString, self.OperationSuffix, DurationString )
 
 			if Target then
 				self:PerformBan( Target, Target:GetControllingPlayer() )
