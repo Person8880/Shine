@@ -1176,18 +1176,15 @@ function Plugin:CreateMessageCommands()
 	CSayCommand:Help( "Displays a message in the centre of all player's screens." )
 
 	local function GagPlayer( Client, Target, Duration )
-		self.Gagged[ Target ] = Duration == 0 and true or SharedTime() + Duration
-
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or 0
+		self.Gagged[ Target:GetUserId() ] = Duration == 0 and true or SharedTime() + Duration
 
 		local TargetPlayer = Target:GetControllingPlayer()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
-		local TargetID = Target:GetUserId() or 0
 		local DurationString = string.TimeToString( Duration )
 
-		Shine:AdminPrint( nil, "%s[%s] gagged %s[%s]%s", true, PlayerName, ID, TargetName, TargetID,
+		Shine:AdminPrint( nil, "%s gagged %s%s", true,
+			Shine.GetClientInfo( Client ),
+			Shine.GetClientInfo( Target ),
 			Duration == 0 and "" or " for "..DurationString )
 
 		Shine:CommandNotify( Client, "gagged %s %s.", true, TargetName,
@@ -1203,19 +1200,17 @@ function Plugin:CreateMessageCommands()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
 		local TargetID = Target:GetUserId() or 0
 
-		if not self.Gagged[ Target ] then
+		if not self.Gagged[ TargetID ] then
 			NotifyError( Client, "%s is not gagged.", true, TargetName )
 
 			return
 		end
 
-		self.Gagged[ Target ] = nil
+		self.Gagged[ TargetID ] = nil
 
-		local Player = Client and Client:GetControllingPlayer()
-		local PlayerName = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or 0
-
-		Shine:AdminPrint( nil, "%s[%s] ungagged %s[%s]", true, PlayerName, ID, TargetName, TargetID )
+		Shine:AdminPrint( nil, "%s ungagged %s", true,
+			Shine.GetClientInfo( Client ),
+			Shine.GetClientInfo( Target ) )
 
 		Shine:CommandNotify( Client, "ungagged %s.", true, TargetName )
 	end
@@ -1346,14 +1341,15 @@ function Plugin:OnCustomVoteSuccess( Data )
 end
 
 function Plugin:IsClientGagged( Client )
-	local GagData = self.Gagged[ Client ]
+	local ID = Client:GetUserId()
+	local GagData = self.Gagged[ ID ]
 
 	if not GagData then return false end
 
 	if GagData == true then return true end
 	if GagData > SharedTime() then return true end
 
-	self.Gagged[ Client ] = nil
+	self.Gagged[ ID ] = nil
 
 	return false
 end
