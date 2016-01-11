@@ -108,7 +108,7 @@ function Plugin:AddVote( Client, Team )
 
 	--Would be a fun bug...
 	if Team ~= 1 and Team ~= 2 then return false, "spectators can't surrender!" end
-	
+
 	if not self:CanStartVote( Team ) then return false, "can't start" end
 	local Success, Err = self.Votes[ Team ]:AddVote( Client )
 
@@ -176,7 +176,7 @@ end
 function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	if not Player then return end
 	if ID ~= kTechId.VoteConcedeRound then return end
-	
+
 	local Client = Player:GetClient()
 	if not Client then return true end
 
@@ -192,7 +192,7 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	if self.Surrendered then return true end
 
 	local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
-	
+
 	self:AnnounceVote( Player, Team, VotesNeeded )
 
 	return true
@@ -215,7 +215,7 @@ function Plugin:AnnounceVote( Player, Team, VotesNeeded )
 		end
 	end
 end
-			
+
 function Plugin:CreateCommands()
 	local function VoteSurrender( Client )
 		if not Client then return end
@@ -226,11 +226,11 @@ function Plugin:CreateCommands()
 		local Team = Player:GetTeamNumber()
 
 		if not self.Votes[ Team ] then
-			Shine:NotifyError( Player, "You cannot start a surrender vote on this team." )
+			self:NotifyTranslatedError( Player, "ERROR_WRONG_TEAM" )
 
 			return
 		end
-		
+
 		local Success, Err = self:AddVote( Client, Team )
 
 		if Success then
@@ -242,9 +242,9 @@ function Plugin:CreateCommands()
 		end
 
 		if Err == "already voted" then
-			Shine:NotifyError( Player, "You have already voted to surrender." )
+			self:NotifyTranslatedError( Player, "ERROR_ALREADY_VOTED" )
 		else
-			Shine:NotifyError( Player, "You cannot start a surrender vote at this time." )
+			self:NotifyTranslatedError( Player, "ERROR_ROUND_TIME" )
 		end
 	end
 	local VoteSurrenderCommand = self:BindCommand( "sh_votesurrender",
