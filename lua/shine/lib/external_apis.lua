@@ -58,10 +58,10 @@ do
 
 		Data should contain the following fields:
 		- DefaultRequestParams: If provided, a table of query parameters that should always
-		  be sent with every request.
+		  be sent with every request to this endpoint.
 
 		- GetCacheKey: If provided, should be a function that returns a single string that
-		  uniquely identifies the given request parameters.
+		  uniquely identifies the given request parameters for this endpoint.
 
 		- Params: A table of functions which receive a single value, and return a string.
 		  These will be used to convert the provided request parameters.
@@ -69,10 +69,11 @@ do
 		- Protocol: The protocol the API requires, e.g. "GET" or "POST".
 
 		- ResponseTransformer: A function that receives the JSON object from the response,
-		  and should return a value representing the response.
+		  and should return a value representing the response. The value returned will also
+		  be the value cached if a cache key is provided for the request. Returning nil will
+		  prevent the response being cached.
 
-		- URL: The path to append to the API's primary URL. Request parameters should be
-		  placed using {Param}.
+		- URL: The path to append to the API's primary URL.
 	]]
 	local function RegisterEndPoint( APIName, EndPointName, Data )
 		local APIData = APIs[ APIName ]
@@ -134,9 +135,11 @@ do
 		Registers an external API.
 
 		Data should contain the following fields:
-		- APIKey: Determines the request parameter that represents the API key for this API.
+		- APIKey: Determines the request parameter that represents the API key for this API. If provided,
+		  a matching key for the API's name in the base config will be mapped to this request parameter
+		  under the "GlobalRequestParams" table.
 
-		- EndPoints: A table of endpoint definitions.
+		- EndPoints: A table of endpoint definitions (see above).
 
 		- GlobalRequestParams: If provided, a table of parameters to use as defaults for all requests
 		  under this API. Useful for a single global API key.
@@ -227,7 +230,8 @@ function ExternalAPIHandler:GetAPI( APIName )
 end
 
 --[[
-	Returns true if the given API has an "APIKey" global request parameter stored.
+	Returns true if the given API has an API key global request parameter stored, as defined
+	by the "APIKey" entry in the API's definition.
 ]]
 function ExternalAPIHandler:HasAPIKey( APIName )
 	local APIData = APIs[ APIName ]
@@ -283,7 +287,15 @@ do
 	local unpack = unpack
 	local xpcall = xpcall
 
+	--[[
+		Adds a value to the request cache for the given API/endpoint.
+
+		Cached values have a fixed lifetime, after which they expire if they have not
+		been accessed or updated.
+	]]
 	function ExternalAPIHandler:AddToCache( APIName, EndPointName, Params, Result )
+		if Result == nil then return end
+
 		local EndPoint = self:GetEndPoint( APIName, EndPointName )
 		local CacheKey = EndPoint.GetCacheKey and EndPoint.GetCacheKey( Params )
 		if CacheKey == nil then return end
@@ -301,8 +313,7 @@ do
 		Inputs:
 			1. APIName - The name of the API.
 			2. EndPointName - The name of the endpoint under the API.
-			3. Params - The request parameters, endpoint dependent. If the endpoint uses the
-			   "POST" protocol, then add a sub-table under Params.POST to set the POST request values.
+			3. Params - The request parameters, endpoint dependent.
 			4. Callbacks - A table containing functions "OnSuccess", "OnFailure" and
 			   optionally "OnTimeout". "OnSuccess" receives the response from the API (transformed by
 			   the endpoint definition).
