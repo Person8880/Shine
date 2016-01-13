@@ -319,7 +319,7 @@ function Shine:LoadExtensionConfigs()
 
 	Notify( "Loading extensions..." )
 
-	for Name, Enabled in pairs( ActiveExtensions ) do
+	for Name, Enabled in SortedPairs( ActiveExtensions ) do
 		if Enabled and not DontEnableNow[ Name ] then
 			LoadPlugin( self, Name )
 		end
@@ -346,9 +346,7 @@ end
 local function LoadDefaultConfigs( self, List )
 	--Just call the default enable, it'll load the HDD/default config.
 	for i = 1, #List do
-		local Name = List[ i ]
-
-		LoadPlugin( self, Name )
+		LoadPlugin( self, List[ i ] )
 	end
 end
 
@@ -396,7 +394,7 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 		Notify( "[Shine] Parsing web config response..." )
 	end
 
-	for Name, Data in pairs( PluginData ) do
+	for Name, Data in SortedPairs( PluginData ) do
 		local Success = Data.success or Data.Success
 		local ConfigData = Data.config or Data.Config
 
@@ -498,8 +496,8 @@ local function OnWebPluginFailure( self, Plugins, Reload )
 
 	Notify( "[Shine] Web config retrieval reached max retries. Loading extensions from cache/default configs..." )
 
-	for Plugin in pairs( Plugins ) do
-		LoadPlugin( self, Plugin )
+	for i = 1, #Plugins do
+		LoadPlugin( self, Plugins[ i ] )
 	end
 
 	Notify( "[Shine] Finished loading." )
@@ -517,7 +515,7 @@ function Shine:LoadWebPlugins( Plugins, Reload )
 	local List = {}
 	local Count = 0
 
-	for Plugin in pairs( Plugins ) do
+	for Plugin in SortedPairs( Plugins ) do
 		Count = Count + 1
 		List[ Count ] = Plugin
 	end
@@ -540,7 +538,7 @@ function Shine:LoadWebPlugins( Plugins, Reload )
 			OnWebPluginSuccess( self, Response, List, Reload )
 		end,
 		OnFailure = function()
-			OnWebPluginFailure( self, Plugins, Reload )
+			OnWebPluginFailure( self, List, Reload )
 		end,
 		OnTimeout = function( Attempt )
 			self:Print( "[WebConfigs] Timeout number %i on web plugin config retrieval.", true, Attempt )

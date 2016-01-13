@@ -597,7 +597,7 @@ Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
 		Shine.SaveJSONFile( Shine.AutoLoadPlugins, AutoLoadPath )
 	end
 
-	for Plugin, Load in pairs( Shine.AutoLoadPlugins ) do
+	for Plugin, Load in SortedPairs( Shine.AutoLoadPlugins ) do
 		if Load then
 			Shine:EnableExtension( Plugin )
 		end

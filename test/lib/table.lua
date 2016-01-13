@@ -122,3 +122,44 @@ UnitTest:Test( "QuickCopy", function( Assert )
 		Assert:Equals( Table[ i ], Copy[ i ] )
 	end
 end )
+
+local function GetTestTable()
+	return {
+		Key1 = true,
+		Key2 = true,
+		Key3 = true
+	}
+end
+
+UnitTest:Test( "GetKeys", function( Assert )
+	local Table = GetTestTable()
+
+	local Keys, Count = table.GetKeys( Table )
+	Assert:Equals( 3, Count )
+	for i = 1, Count do
+		Assert:True( Table[ Keys[ i ] ] )
+		Table[ Keys[ i ] ] = nil
+	end
+end )
+
+local function BuildIteratorTest( Iterator )
+	return function( Assert )
+		local Table = GetTestTable()
+		local Keys = {}
+
+		for Key, Value in Iterator( Table ) do
+			Assert:True( Value )
+			Assert:True( Table[ Key ] )
+			Table[ Key ] = nil
+			Keys[ #Keys + 1 ] = Key
+		end
+
+		return Keys
+	end
+end
+
+UnitTest:Test( "RandomPairs", BuildIteratorTest( RandomPairs ) )
+UnitTest:Test( "SortedPairs", function( Assert )
+	local Keys = BuildIteratorTest( SortedPairs )( Assert )
+	Assert:ArrayEquals( { "Key1", "Key2", "Key3" }, Keys )
+end )
