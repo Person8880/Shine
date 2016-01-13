@@ -5,8 +5,6 @@
 local IsType = Shine.IsType
 local pairs = pairs
 local Random = math.random
-local select = select
-local TableRemove = table.remove
 local TableSort = table.sort
 
 do
@@ -30,21 +28,25 @@ do
 	end
 end
 
---[[
-	Takes a base table and a list of keys, and populates down to the last key with tables.
-]]
-function table.Build( Base, ... )
-	for i = 1, select( "#", ... ) do
-		local Key = select( i, ... )
-		local Entry = Base[ Key ]
-		if not Entry then
-			Entry = {}
-			Base[ Key ] = Entry
-		end
-		Base = Entry
-	end
+do
+	local select = select
 
-	return Base
+	--[[
+		Takes a base table and a list of keys, and populates down to the last key with tables.
+	]]
+	function table.Build( Base, ... )
+		for i = 1, select( "#", ... ) do
+			local Key = select( i, ... )
+			local Entry = Base[ Key ]
+			if not Entry then
+				Entry = {}
+				Base[ Key ] = Entry
+			end
+			Base = Entry
+		end
+
+		return Base
+	end
 end
 
 --[[
@@ -73,18 +75,22 @@ function table.AsSet( Table )
 	return Ret
 end
 
---[[
-	Finds and removes the given value from the given table.
-]]
-function table.RemoveByValue( Table, Value )
-	for i = 1, #Table do
-		if Table[ i ] == Value then
-			TableRemove( Table, i )
-			return true
-		end
-	end
+do
+	local TableRemove = table.remove
 
-	return false
+	--[[
+		Finds and removes the given value from the given table.
+	]]
+	function table.RemoveByValue( Table, Value )
+		for i = 1, #Table do
+			if Table[ i ] == Value then
+				TableRemove( Table, i )
+				return true
+			end
+		end
+
+		return false
+	end
 end
 
 --[[
@@ -136,12 +142,11 @@ end
 --[[
 	Clears a table.
 ]]
-local function TableEmpty( Table )
+function table.Empty( Table )
 	for Key in pairs( Table ) do
 		Table[ Key ] = nil
 	end
 end
-table.Empty = TableEmpty
 
 --[[
 	Fixes an array with holes in it.
@@ -229,7 +234,6 @@ end
 ]]
 function table.Average( Table )
 	local Count = #Table
-
 	if Count == 0 then return 0 end
 
 	local Sum = 0
@@ -354,33 +358,35 @@ do
 	end
 end
 
-local getmetatable = getmetatable
-local setmetatable = setmetatable
+do
+	local getmetatable = getmetatable
+	local setmetatable = setmetatable
 
-local function CopyTable( Table, LookupTable )
-	if not Table then return nil end
+	local function CopyTable( Table, LookupTable )
+		if not Table then return nil end
 
-	local Copy = {}
-	setmetatable( Copy, getmetatable( Table ) )
+		local Copy = {}
+		setmetatable( Copy, getmetatable( Table ) )
 
-	for Key, Value in pairs( Table ) do
-		if not IsType( Value, "table" ) then
-			Copy[ Key ] = Value
-		else
-			LookupTable = LookupTable or {}
-			LookupTable[ Table ] = Copy
-
-			if LookupTable[ Value ] then
-				Copy[ Key ] = LookupTable[ Value ]
+		for Key, Value in pairs( Table ) do
+			if not IsType( Value, "table" ) then
+				Copy[ Key ] = Value
 			else
-				Copy[ Key ] = CopyTable( Value, LookupTable )
+				LookupTable = LookupTable or {}
+				LookupTable[ Table ] = Copy
+
+				if LookupTable[ Value ] then
+					Copy[ Key ] = LookupTable[ Value ]
+				else
+					Copy[ Key ] = CopyTable( Value, LookupTable )
+				end
 			end
 		end
-	end
 
-	return Copy
+		return Copy
+	end
+	table.Copy = CopyTable
 end
-table.Copy = CopyTable
 
 --[[
 	Copies an array-like structure without recursion.
@@ -395,78 +401,71 @@ function table.QuickCopy( Table )
 	return Copy
 end
 
-function table.Count( Table )
-	local i = 0
+do
+	--[[
+		Returns an array of all keys in the given table in an undefined order.
+	]]
+	local function GetKeys( Table )
+		local Keys = {}
+		local Count = 0
 
-	for Key in pairs( Table ) do
-		i = i + 1
+		for Key in pairs( Table ) do
+			Count = Count + 1
+			Keys[ Count ] = Key
+		end
+
+		return Keys, Count
+	end
+	table.GetKeys = GetKeys
+
+	--[[
+		Returns the number of keys in the table.
+	]]
+	function table.Count( Table )
+		local Keys, Count = GetKeys( Table )
+		return Count
 	end
 
-	return i
-end
+	local function KeyValueIterator( Keys, Table )
+		local i = 1
+		return function()
+			local Key = Keys[ i ]
+			if Key == nil then return nil end
 
-function RandomPairs( Table, Desc )
-	local Sorted = {}
-	local Count = 0
+			local Value = Table[ Key ]
 
-	for Key in pairs( Table ) do
-		Count = Count + 1
-		Sorted[ Count ] = { Key = Key, Rand = Random() }
+			i = i + 1
+
+			return Key, Value
+		end
 	end
 
-	if Desc then
-		TableSort( Sorted, function( A, B )
-			return A.Rand > B.Rand
-		end )
-	else
-		TableSort( Sorted, function( A, B )
-			return A.Rand < B.Rand
-		end )
+	local QuickShuffle = table.QuickShuffle
+
+	--[[
+		Iterates the given table's key-value pairs in a random order.
+	]]
+	function RandomPairs( Table )
+		local Keys = GetKeys( Table )
+		QuickShuffle( Keys )
+
+		return KeyValueIterator( Keys, Table )
 	end
 
-	local i = 1
+	--[[
+		Iterates the given table's key-value pairs in the order the table's
+		keys are naturally sorted.
+	]]
+	function SortedPairs( Table, Desc )
+		local Keys = GetKeys( Table )
+		if Desc then
+			TableSort( Keys, function( A, B )
+				return A > B
+			end )
+		else
+			TableSort( Keys )
+		end
 
-	return function()
-		local Key = Sorted[ i ] and Sorted[ i ].Key
-		if Key == nil then return nil end
-
-		local Value = Table[ Key ]
-
-		i = i + 1
-
-		return Key, Value
-	end
-end
-
-function SortedPairs( Table, Desc )
-	local Sorted = {}
-	local Count = 0
-
-	for Key in pairs( Table ) do
-		Count = Count + 1
-		Sorted[ Count ] = Key
-	end
-
-	if Desc then
-		TableSort( Sorted, function( A, B )
-			return A > B
-		end )
-	else
-		TableSort( Sorted, function( A, B )
-			return A < B
-		end )
-	end
-
-	local i = 1
-
-	return function()
-		local Key = Sorted[ i ]
-		if Key == nil then return nil end
-
-		local Value = Table[ Key ]
-
-		i = i + 1
-
-		return Key, Value
+		return KeyValueIterator( Keys, Table )
 	end
 end
