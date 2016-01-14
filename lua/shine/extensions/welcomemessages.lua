@@ -70,15 +70,16 @@ end
 
 local Ceil = math.ceil
 
-local function ColourIntToTable( Int )
+local function ColourIntToTable( Int, Multiplier )
 	local Colour = ColorIntToColor( Int )
-	return { Ceil( Colour.r * 255 ), Ceil( Colour.g * 255 ), Ceil( Colour.b * 255 ) }
+	return { Ceil( Colour.r * 255 * Multiplier ), Ceil( Colour.g * 255 * Multiplier ),
+		Ceil( Colour.b * 255 * Multiplier ) }
 end
 
 local TeamColours = {
 	[ 0 ] = { 255, 255, 255 },
-	[ 1 ] = ColourIntToTable( kMarineTeamColor or 0x4DB1FF ),
-	[ 2 ] = ColourIntToTable( kAlienTeamColor or 0xFFCA3A )
+	[ 1 ] = ColourIntToTable( kMarineTeamColor or 0x4DB1FF, 0.8 ),
+	[ 2 ] = ColourIntToTable( kAlienTeamColor or 0xFFCA3A, 0.8 )
 }
 
 function Plugin:ClientDisconnect( Client )
