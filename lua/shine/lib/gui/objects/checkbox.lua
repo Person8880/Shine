@@ -52,6 +52,9 @@ function CheckBox:SetupStencil()
 end
 
 function CheckBox:SetSize( Vec )
+	Vec.x = RoundTo( Vec.x, 2 )
+	Vec.y = RoundTo( Vec.y, 2 )
+
 	self.Background:SetSize( Vec )
 
 	local BoxSize = Vec * 0.75
