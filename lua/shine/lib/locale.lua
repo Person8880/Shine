@@ -43,7 +43,7 @@ function Locale:LoadStrings( Source, Lang )
 		return nil
 	end
 
-	local LanguageStrings = Shine.LoadJSONFile( self:ResolveFilePath( Folder, Lang ) )
+	local LanguageStrings = Shine.LoadJSONFile( Path )
 	if LanguageStrings then
 		self.Strings[ Source ][ Lang ] = LanguageStrings
 	end
