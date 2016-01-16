@@ -5,6 +5,7 @@
 local Shine = Shine
 
 local Clamp = math.Clamp
+local Floor = math.floor
 local GetOwner = Server.GetOwner
 local Max = math.max
 local Notify = Shared.Message
