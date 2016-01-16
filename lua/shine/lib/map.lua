@@ -379,7 +379,7 @@ function Multimap:AsTable()
 end
 
 --[[
-	Modify GetNext() and GetPrevious() to return the table of values under they key
+	Modify GetNext() and GetPrevious() to return the table of values under the key
 	as the value, rather than the internal map holding them.
 ]]
 function Multimap:GetNext()
