@@ -284,7 +284,15 @@ function ExternalAPIHandler:GetCachedValue( APIName, EndPointName, Params )
 	-- Refresh the expiry time on access.
 	local CacheEntry = EndPointCache[ CacheKey ]
 	if CacheEntry then
-		CacheEntry.ExpiryTime = OSTime() + ( EndPoint.CacheLifeTime or self.CacheLifeTime )
+		local Time = OSTime()
+
+		-- Expire if it's past the expiry time, don't refresh.
+		if CacheEntry.ExpiryTime <= Time then
+			EndPointCache[ CacheKey ] = nil
+			return nil
+		end
+
+		CacheEntry.ExpiryTime = Time + ( EndPoint.CacheLifeTime or self.CacheLifeTime )
 	end
 
 	return CacheEntry and CacheEntry.Value
