@@ -68,7 +68,7 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.RandomTeam ] = {
 			"RANDOM_TEAM"
 		},
-		[ MessageTypes.TargetName ] = {
+		[ table.Copy( MessageTypes.TargetName ) ] = {
 			"PLAYER_EJECTED", "PLAYER_UNGAGGED"
 		},
 		[ MessageTypes.Gagged ] = {
