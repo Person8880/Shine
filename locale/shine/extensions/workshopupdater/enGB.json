@@ -1,0 +1,6 @@
+{
+	"MOD_CHANGED": "The \"{ModName}\" mod has updated on the Steam Workshop.",
+	"MAY_BE_UNABLE_TO_CONNECT": "Players may be unable to connect to the server until map change.",
+	"MAP_CYCLE": "The map will cycle {TimeLeft:NonZero:in }{TimeLeft:Duration:now}.",
+	"NOTIFY_PREFIX": "[Workshop]"
+}

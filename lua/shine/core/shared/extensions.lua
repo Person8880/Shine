@@ -48,6 +48,10 @@ function Shine:RegisterExtension( Name, Table, Options )
 	Table.BaseClass = PluginMeta
 	Table.__Name = Name
 
+	if Client then
+		self.Locale:RegisterSource( Name, "locale/shine/extensions/"..Name )
+	end
+
 	if Options then
 		local Base = Options.Base
 		if not Base then return end
@@ -415,6 +419,11 @@ local function AddToPluginsLists( Name )
 	if not AllPlugins[ Name ] then
 		AllPlugins[ Name ] = true
 		AllPluginsArray[ #AllPluginsArray + 1 ] = Name
+
+		if Client then
+			-- Register plugin locales here so that server-only plugins can send translated messages.
+			Shine.Locale:RegisterSource( Name, "locale/shine/extensions/"..Name )
+		end
 	end
 end
 

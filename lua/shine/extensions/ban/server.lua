@@ -483,8 +483,9 @@ function Plugin:CreateBanCommands()
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
 			if Client then
-				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
-					true, ID )
+				self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+					ID = ID
+				} )
 			end
 			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
 				true, ID )
@@ -503,7 +504,12 @@ function Plugin:CreateBanCommands()
 		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
 			or "permanently"
 
-		Shine:CommandNotify( Client, "banned %s%s %s (%s).", true, TargetName, self.OperationSuffix, DurationString, Reason )
+
+		self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
+			TargetName = TargetName,
+			Duration = Duration,
+			Reason = Reason
+		} )
 		Shine:AdminPrint( nil, "%s banned %s%s %s.", true,
 			Shine.GetClientInfo( Client ),
 			Shine.GetClientInfo( Target ),
@@ -528,8 +534,9 @@ function Plugin:CreateBanCommands()
 			--We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
 				if Client then
-					Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
-						true, ID )
+					self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+						ID = ID
+					} )
 				end
 				Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
 					true, ID )
@@ -548,7 +555,11 @@ function Plugin:CreateBanCommands()
 
 		local ErrorText = StringFormat( "%s is not banned%s.", ID, self.OperationSuffix )
 
-		Shine:NotifyError( Client, ErrorText )
+		if Client then
+			self:SendTranslatedError( Client, "ERROR_NOT_BANNED", {
+				ID = ID
+			} )
+		end
 		Shine:AdminPrint( Client, ErrorText )
 	end
 	local UnbanCommand = self:BindCommand( self.CommandNames.Unban[ 1 ], self.CommandNames.Unban[ 2 ], Unban )
@@ -566,8 +577,9 @@ function Plugin:CreateBanCommands()
 		--We're currently waiting for a response on this ban.
 		if self.Retries[ IDString ] then
 			if Client then
-				Shine:NotifyError( Client, "Please wait for the current ban request on %s to finish.",
-					true, IDString )
+				self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+					ID = ID
+				} )
 			end
 			Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
 				true, IDString )
@@ -593,14 +605,19 @@ function Plugin:CreateBanCommands()
 
 			if Target then
 				self:PerformBan( Target, Target:GetControllingPlayer() )
-
-				Shine:CommandNotify( Client, "banned %s%s %s.", true, TargetName, self.OperationSuffix, DurationString )
+				self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
+					TargetName = TargetName,
+					Duration = Duration,
+					Reason = Reason
+				} )
 			end
 
 			return
 		end
 
-		Shine:NotifyError( Client, "Invalid Steam ID for banning." )
+		if Client then
+			self:SendTranslatedError( Client, "ERROR_INVALID_STEAMID" )
+		end
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
 	local BanIDCommand = self:BindCommand( self.CommandNames.BanID[ 1 ], self.CommandNames.BanID[ 2 ], BanID )

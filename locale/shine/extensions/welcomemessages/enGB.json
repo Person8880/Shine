@@ -1,0 +1,5 @@
+{
+	"PLAYER_JOINED_GENERIC": "{TargetName} has joined the game.",
+	"PLAYER_LEAVE_GENERIC": "{TargetName} has left the game.",
+	"PLAYER_LEAVE_REASON": "Dropped {TargetName} ({Reason})."
+}

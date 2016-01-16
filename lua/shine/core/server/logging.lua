@@ -188,6 +188,33 @@ function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Fo
 end
 
 --[[
+	Similar to NotifyColour, except the message is a translation key which is
+	resolved client-side.
+]]
+
+function Shine:TranslatedNotifyColour( Player, R, G, B, String, Source )
+	self:TranslatedNotifyDualColour( Player, 0, 0, 0, "", R, G, B, String, Source )
+end
+
+--[[
+	Similar to NotifyDualColour, except the prefix and message are translation keys which
+	are resolved client-side.
+]]
+function Shine:TranslatedNotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Source )
+	self:ApplyNetworkMessage( Player, "Shine_TranslatedChatCol", {
+		R = R,
+		G = G,
+		B = B,
+		Message = String,
+		RP = RP,
+		GP = GP,
+		BP = BP,
+		Prefix = Prefix,
+		Source = Source or ""
+	}, true )
+end
+
+--[[
 	An easy error message function.
 ]]
 function Shine:NotifyError( Player, Message, Format, ... )
@@ -197,6 +224,15 @@ function Shine:NotifyError( Player, Message, Format, ... )
 	end
 
 	self:NotifyDualColour( Player, 255, 0, 0, "[Error]", 255, 255, 255, Message, Format, ... )
+end
+
+--[[
+	Sends a translation key which the client will resolve to an error message.
+]]
+function Shine:TranslatedNotifyError( Player, Message, Source )
+	if Player == "Console" then return end
+
+	self:TranslatedNotifyDualColour( Player, 255, 0, 0, "ERROR_TAG", 255, 255, 255, Message, Source )
 end
 
 do
@@ -221,11 +257,7 @@ do
 	end )
 end
 
---[[
-	Notifies players of a command, obeying the settings for who can see names,
-	and how the console should be displayed.
-]]
-function Shine:CommandNotify( Client, Message, Format, ... )
+function Shine:DoCommandNotify( Client, Message, Sender, ... )
 	if not self.Config.NotifyOnCommand then return end
 
 	local Clients = self.GameIDs
@@ -250,32 +282,44 @@ function Shine:CommandNotify( Client, Message, Format, ... )
 	for Target in Clients:Iterate() do
 		--Console should always notify with its special name.
 		if IsConsole then
-			self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message, Format, ... )
+			Sender( self, Target, Name, Message, ... )
 		else
 			--If admins can't see it, no one can.
 			if NotifyAdminAnonymous then
-				self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName,
-					255, 255, 255, Message, Format, ... )
+				Sender( self, Target, self.Config.ChatName, Message, ... )
 			else
 				local TargetImmunity = self:GetUserImmunity( Target )
 				local IsGreaterEqual = TargetImmunity >= Immunity
 
 				--They're greater equal in rank, so show the name.
 				if IsGreaterEqual then
-					self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255,
-						Message, Format, ... )
+					Sender( self, Target, Name, Message, ... )
 				else
 					--If we're set to be anonymous to lower ranks, use the set generic admin name.
 					if NotifyAnonymous then
-						self:NotifyDualColour( Target, 255, 255, 0, self.Config.ChatName,
-							255, 255, 255, Message, Format, ... )
+						Sender( self, Target, self.Config.ChatName, Message, ... )
 					else --Otherwise use the admin's name.
-						self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255,
-							Message, Format, ... )
+						Sender( self, Target, Name, Message, ... )
 					end
 				end
 			end
 		end
+	end
+end
+
+do
+	local function SendNonTranslatedMessage( self, Target, Name, Message )
+		self:NotifyDualColour( Target, 255, 255, 0, Name, 255, 255, 255, Message )
+	end
+
+	--[[
+		Notifies players of a command, obeying the settings for who can see names,
+		and how the console should be displayed.
+	]]
+	function Shine:CommandNotify( Client, Message, Format, ... )
+		Message = Format and StringFormat( Message, ... ) or Message
+
+		self:DoCommandNotify( Client, Message, SendNonTranslatedMessage )
 	end
 end
 
@@ -347,6 +391,16 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 		end
 	end
 end )
+
+--[[
+	Prints a translated value to the given target(s) console.
+]]
+function Shine:TranslatedConsolePrint( Client, MessageKey, Source )
+	self:ApplyNetworkMessage( Client, "Shine_TranslatedConsoleMessage", {
+		Source = Source,
+		MessageKey = MessageKey
+	}, true )
+end
 
 function Shine:AdminPrint( Client, String, Format, ... )
 	self:Print( String, Format, ... )

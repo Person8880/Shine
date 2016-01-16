@@ -1,0 +1,14 @@
+{
+	"GOTO": "Go To",
+	"GOTO_TIP": "Teleports you to the selected player.",
+	"BRING": "Bring",
+	"BRING_TIP": "Brings the selected player to you.",
+	"SLAY": "Slay",
+	"SLAY_TIP": "Kills the selected player.",
+	"DARWIN_MODE": "Darwin Mode",
+	"DARWIN_MODE_TIP": "Toggles invulnerability and infinite\nammo on the selected player(s).",
+	"TELEPORTED_GOTO": "teleported to {TargetName}.",
+	"TELEPORTED_BRING": "teleported {TargetName} to themself.",
+	"ERROR_CANT_GOTO": "Failed to find valid location near player.",
+	"ERROR_CANT_BRING": "Failed to find valid location near you."
+}

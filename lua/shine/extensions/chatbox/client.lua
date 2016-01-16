@@ -520,7 +520,7 @@ function Plugin:CreateChatbox()
 		return Plugin:OpenSettings( Border, UIScale, ScalarScale )
 	end
 
-	SettingsButton:SetTooltip( "Opens/closes the chatbox settings." )
+	SettingsButton:SetTooltip( self:GetPhrase( "SETTINGS_TOOLTIP" ) )
 
 	TextEntryLayout:AddElement( SettingsButton )
 
@@ -553,7 +553,7 @@ do
 					Font = self:GetFont(),
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
-				CheckBox:AddLabel( Label )
+				CheckBox:AddLabel( self:GetPhrase( Label ) )
 				CheckBox:SetChecked( Checked, true )
 
 				if self.TextScale ~= 1 then
@@ -583,7 +583,7 @@ do
 				local Label = SettingsPanel:Add( "Label" )
 				Label:SetupFromTable{
 					Font = self:GetFont(),
-					Text = Text,
+					Text = self:GetPhrase( Text ),
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
 
@@ -653,20 +653,20 @@ do
 	local Elements = {
 		{
 			Type = "Label",
-			Values = { "Settings" }
+			Values = { "SETTINGS_TITLE" }
 		},
 		{
 			Type = "CheckBox",
 			ConfigValue = "AutoClose",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.AutoClose, "Auto close after sending."
+				return GetCheckBoxSize( self ), self.Config.AutoClose, "AUTO_CLOSE"
 			end
 		},
 		{
 			Type = "CheckBox",
 			ConfigValue = "DeleteOnClose",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.DeleteOnClose, "Auto delete on close."
+				return GetCheckBoxSize( self ), self.Config.DeleteOnClose, "AUTO_DELETE"
 			end
 		},
 		{
@@ -676,12 +676,12 @@ do
 				Plugin.ChatBox:SetAllowSmoothScroll( Value )
 			end,
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.SmoothScroll, "Use smooth scrolling."
+				return GetCheckBoxSize( self ), self.Config.SmoothScroll, "SMOOTH_SCROLL"
 			end
 		},
 		{
 			Type = "Label",
-			Values = { "Message memory" }
+			Values = { "MESSAGE_MEMORY" }
 		},
 		{
 			Type = "Slider",
@@ -693,7 +693,7 @@ do
 		},
 		{
 			Type = "Label",
-			Values = { "Opacity (%)" }
+			Values = { "OPACITY" }
 		},
 		{
 			Type = "Slider",
@@ -714,7 +714,7 @@ do
 		},
 		{
 			Type = "Label",
-			Values = { "Scale (will re-open chatbox)" }
+			Values = { "SCALE" }
 		},
 		{
 			Type = "Slider",
@@ -1139,7 +1139,7 @@ function Plugin:StartChat( Team )
 		end
 	end
 
-	self.TextEntry:SetPlaceholderText( self.TeamChat and "Say to team..." or "Say to all..." )
+	self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
 
 	SGUI:EnableMouse( true )
 

@@ -1,0 +1,12 @@
+{
+	"SAY_TEAM": "Say to team...",
+	"SAY_ALL": "Say to all...",
+	"SETTINGS_TITLE": "Settings",
+	"AUTO_CLOSE": "Auto close after sending.",
+	"AUTO_DELETE": "Auto delete on close.",
+	"SMOOTH_SCROLL": "Use smooth scrolling.",
+	"MESSAGE_MEMORY": "Message memory",
+	"OPACITY": "Opacity (%)",
+	"SCALE": "Scale (will re-open chatbox)",
+	"SETTINGS_TOOLTIP": "Opens/closes the chatbox settings."
+}

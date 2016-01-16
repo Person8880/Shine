@@ -2,7 +2,7 @@
 	Shine ping tracking plugin.
 ]]
 
-local Plugin = {}
+local Plugin = Plugin
 
 local Abs = math.abs
 local Ceil = math.ceil
@@ -12,8 +12,6 @@ local StringFormat = string.format
 local TableAverage = table.Average
 
 local Map = Shine.Map
-
-local Plugin = {}
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true
@@ -68,10 +66,10 @@ function Plugin:ClientDisconnect( Client )
 	self.Players:Remove( Client )
 end
 
-function Plugin:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, Reason, Message, Format, ... )
+function Plugin:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, Reason, Message, Args )
 	if Data.TimesOver == 0 and self.Config.Warn then
-		Shine:NotifyColour( Client, 255, 160, 0, Message, Format, ... )
-		Shine:NotifyColour( Client, 255, 160, 0, "If you do not lower it you will be kicked." )
+		self:SendTranslatedNotify( Client, Message, Args )
+		self:NotifyTranslated( Client, "KICK_WARNING" )
 		return true
 	end
 
@@ -112,9 +110,9 @@ function Plugin:CheckClient( Client, Data, Time )
 
 	if AveragePing > self.Config.MaxPing then
 		ShouldIncrease = self:WarnOrKickClient( Client, Data, AveragePing, AverageJitter,
-			"Ping too high",
-			"Your ping is averaging at %s, which is too high for this server.",
-			true, Ceil( AveragePing ) )
+			"Ping too high", "PING_TOO_HIGH", {
+				Amount = Ceil( AveragePing )
+			} )
 
 		if not ShouldIncrease then
 			return
@@ -123,9 +121,9 @@ function Plugin:CheckClient( Client, Data, Time )
 
 	if AverageJitter > self.Config.MaxJitter then
 		ShouldIncrease = self:WarnOrKickClient( Client, Data, AveragePing, AverageJitter,
-			"Ping jitter too high",
-			"Your ping is varying by an average of %s, which is too high for this server.",
-			true, Ceil( AverageJitter ) )
+			"Ping jitter too high", "JITTER_TOO_HIGH", {
+				Amount = Ceil( AverageJitter )
+			} )
 
 		if not ShouldIncrease then
 			return
@@ -152,8 +150,5 @@ end
 
 function Plugin:Cleanup()
 	self.Players = nil
-
-	self.Enabled = false
+	self.BaseClass.Cleanup( self )
 end
-
-Shine:RegisterExtension( "pingtracker", Plugin )
