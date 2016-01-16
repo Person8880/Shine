@@ -238,7 +238,7 @@ do
 		Avoids creating a new function, so is more JIT friendly than pairs.
 	]]
 	function Map:Iterate()
-		self:ResetPosition()
+		self.Position = 0
 
 		if self.NumMembers == 0 then
 			return Nope
@@ -295,8 +295,8 @@ function Multimap:Init( Values )
 
 	if getmetatable( Values ) == Multimap then
 		for Key, List in Values:Iterate() do
-			for Value in List:Iterate() do
-				self:Add( Key, Value )
+			for i = 1, #List do
+				self:Add( Key, List[ i ] )
 			end
 		end
 
@@ -373,7 +373,52 @@ end
 function Multimap:AsTable()
 	local Table = {}
 	for Key, List in self:Iterate() do
-		Table[ Key ] = List.Keys
+		Table[ Key ] = List
 	end
 	return Table
+end
+
+--[[
+	Modify GetNext() and GetPrevious() to return the table of values under they key
+	as the value, rather than the internal map holding them.
+]]
+function Multimap:GetNext()
+	local Key, Values = Map.GetNext( self )
+	if Key ~= nil then
+		return Key, Values.Keys
+	end
+
+	return nil
+end
+
+function Multimap:GetPrevious()
+	local Key, Values = Map.GetPrevious( self )
+	if Key ~= nil then
+		return Key, Values.Keys
+	end
+
+	return nil
+end
+
+--[[
+	Modify iterators to make use of the modified GetNext()/GetPrevious().
+]]
+do
+	local GetNext = Multimap.GetNext
+
+	function Multimap:Iterate()
+		self.Position = 0
+
+		return GetNext, self
+	end
+end
+
+do
+	local GetPrevious = Multimap.GetPrevious
+
+	function Multimap:IterateBackwards()
+		self.Position = self.NumMembers + 1
+
+		return GetPrevious, self
+	end
 end

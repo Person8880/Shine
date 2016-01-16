@@ -204,3 +204,32 @@ UnitTest:Test( "Multimap from multimap", function( Assert )
 	Assert:ArrayEquals( { 1, 2, 3 }, Map2:Get( 1 ) )
 	Assert:Equals( 3, Map2:GetCount() )
 end )
+
+UnitTest:Test( "Multimap:Iterate()/IterateBackwards()", function( Assert )
+	local Map = Multimap()
+	Map:Add( 1, 1 )
+	Map:Add( 1, 2 )
+	Map:Add( 1, 3 )
+	Map:Add( 2, 1 )
+	Map:Add( 2, 2 )
+	Map:Add( 3, 1 )
+
+	local ExpectedValues = {
+		{ 1, 2, 3 },
+		{ 1, 2 },
+		{ 1 }
+	}
+
+	local Index = 0
+	for Key, Values in Map:Iterate() do
+		Index = Index + 1
+		Assert:Equals( Index, Key )
+		Assert:ArrayEquals( ExpectedValues[ Key ], Values )
+	end
+
+	for Key, Values in Map:IterateBackwards() do
+		Assert:Equals( Index, Key )
+		Assert:ArrayEquals( ExpectedValues[ Key ], Values )
+		Index = Index - 1
+	end
+end )
