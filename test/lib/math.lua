@@ -28,3 +28,10 @@ UnitTest:Test( "StandardDeviation", function( Assert )
 	Data = { 1000, 1200, 1100, 900 }
 	Assert:Equals( 112, math.ceil( math.StandardDeviation( Data ) ) )
 end )
+
+UnitTest:Test( "RoundTo", function( Assert )
+	Assert:Equals( 2, math.RoundTo( 1, 2 ) )
+	Assert:Equals( 3, math.RoundTo( 2, 3 ) )
+	Assert:Equals( 0, math.RoundTo( 1, 3 ) )
+	Assert:Equals( 90, math.RoundTo( 60, 90 ) )
+end )

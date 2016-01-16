@@ -40,6 +40,17 @@ function math.Round( Number, DecimalPlaces )
 end
 
 --[[
+	Rounds a value to a given modulus.
+]]
+function math.RoundTo( Number, Modulus )
+	local Diff = Number % Modulus
+	if Diff >= Modulus * 0.5 then
+		return Number + Modulus - Diff
+	end
+	return Number - Diff
+end
+
+--[[
 	Determines if the given number lies between the given lower and upper bound.
 	Lower < Num <= Upper.
 ]]

@@ -27,3 +27,14 @@ UnitTest:Test( "JoinUpValues", function( Assert )
 	Assert:Equals( 3, Up1 )
 	Assert:Equals( 4, Up2 )
 end )
+
+UnitTest:Test( "TypeCheck", function( Assert )
+	local Value = 1
+	local Success, Err = pcall( Shine.TypeCheck, Value, "string", 1, "Test", 0 )
+
+	Assert:False( Success )
+	Assert:Equals( "Bad argument #1 to 'Test' (string expected, got number)", Err )
+
+	Success, Err = pcall( Shine.TypeCheck, Value, "number", 1, "Test", 0 )
+	Assert:True( Success )
+end )

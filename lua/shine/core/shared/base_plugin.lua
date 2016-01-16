@@ -42,6 +42,12 @@ end
 		only clients with access to this will receive this variable.
 ]]
 function PluginMeta:AddDTVar( Type, Name, Default, Access )
+	Shine.TypeCheck( Type, "string", 1, "AddDTVar" )
+	Shine.TypeCheck( Name, "string", 2, "AddDTVar" )
+	if Access ~= nil then
+		Shine.TypeCheck( Access, "string", 4, "AddDTVar" )
+	end
+
 	self.DTVars = self.DTVars or {}
 	self.DTVars.Keys = self.DTVars.Keys or {}
 	self.DTVars.Defaults = self.DTVars.Defaults or {}
@@ -495,6 +501,10 @@ end
 	Inputs: Same as Shine.Timer.Create.
 ]]
 function PluginMeta:CreateTimer( Name, Delay, Reps, Func )
+	Shine.TypeCheck( Delay, "number", 2, "CreateTimer" )
+	Shine.TypeCheck( Reps, "number", 3, "CreateTimer" )
+	Shine.TypeCheck( Func, "function", 4, "CreateTimer" )
+
 	self.Timers = rawget( self, "Timers" ) or setmetatable( {}, { __mode = "v" } )
 
 	local RealName = StringFormat( "%s_%s", self.__Name, Name )
@@ -510,6 +520,9 @@ end
 	Inputs: Same as Shine.Timer.Simple.
 ]]
 function PluginMeta:SimpleTimer( Delay, Func )
+	Shine.TypeCheck( Delay, "number", 1, "SimpleTimer" )
+	Shine.TypeCheck( Func, "function", 2, "SimpleTimer" )
+
 	self.Timers = rawget( self, "Timers" ) or setmetatable( {}, { __mode = "v" } )
 
 	local Timer = Shine.Timer.Simple( Delay, Func )
@@ -628,6 +641,8 @@ if Server then
 	end
 
 	function PluginMeta:Notify( Player, Message, Format, ... )
+		Shine.TypeCheck( Message, "string", 2, "Notify" )
+
 		local NotifyColour = self.NotifyPrefixColour
 
 		Shine:NotifyDualColour( Player, NotifyColour[ 1 ], NotifyColour[ 2 ], NotifyColour[ 3 ],

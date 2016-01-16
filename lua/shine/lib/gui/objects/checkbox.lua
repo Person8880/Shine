@@ -6,6 +6,8 @@
 
 local SGUI = Shine.GUI
 
+local RoundTo = math.RoundTo
+
 local CheckBox = {}
 
 function CheckBox:Initialise()
@@ -50,9 +52,14 @@ function CheckBox:SetupStencil()
 end
 
 function CheckBox:SetSize( Vec )
+	Vec.x = RoundTo( Vec.x, 2 )
+	Vec.y = RoundTo( Vec.y, 2 )
+
 	self.Background:SetSize( Vec )
 
 	local BoxSize = Vec * 0.75
+	BoxSize.x = RoundTo( BoxSize.x, 2 )
+	BoxSize.y = RoundTo( BoxSize.y, 2 )
 
 	self.Box:SetSize( BoxSize )
 	self.Box:SetPosition( -BoxSize * 0.5 )

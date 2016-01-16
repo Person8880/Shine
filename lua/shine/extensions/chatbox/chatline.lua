@@ -142,9 +142,12 @@ function ChatLine:PerformLayout()
 
 	self.PreLabel:SetPos( Pos )
 
-	Pos.x = Pos.x + self.PreLabel:GetTextWidth() + self.PreMargin:GetValue()
-	self.MessageLabel:SetPos( Pos )
+	local PreTextW = self.PreLabel:GetTextWidth()
+	if PreTextW > 0 then
+		Pos.x = Pos.x + PreTextW + self.PreMargin:GetValue()
+	end
 
+	self.MessageLabel:SetPos( Pos )
 	self:ComputeWrapping( Pos.x )
 
 	if self.WrappedLabel then
