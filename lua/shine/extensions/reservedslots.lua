@@ -45,6 +45,8 @@ function Plugin:CreateCommands()
 
 		self:UpdateTag( self:GetFreeReservedSlots() )
 		self:SaveConfig()
+		Shine:AdminPrint( Client, "%s set reserved slot count to %i", true,
+			Shine.GetClientInfo( Client ), Slots )
 	end
 	local SetSlotCommand = self:BindCommand( "sh_setresslots", "resslots", SetSlotCount )
 	SetSlotCommand:AddParam{ Type = "number", Min = 0, Round = true,

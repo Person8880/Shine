@@ -1240,6 +1240,10 @@ function Plugin:CreatePerformanceCommands()
 
 		Shared.ConsoleCommand( StringFormat( "interp %s", NewInterp * 0.001 ) )
 
+		Shine:AdminPrint( Client, "%s set interp to %.2fms", true,
+			Shine.GetClientInfo( Client ),
+			NewInterp )
+
 		self:SaveConfig( true )
 	end
 	local InterpCommand = self:BindCommand( "sh_interp", "interp", Interp )
@@ -1266,6 +1270,10 @@ function Plugin:CreatePerformanceCommands()
 
 		Shared.ConsoleCommand( StringFormat( "tickrate %s", NewRate ) )
 
+		Shine:AdminPrint( Client, "%s set tick rate to %i/s", true,
+			Shine.GetClientInfo( Client ),
+			NewRate )
+
 		self:SaveConfig( true )
 	end
 	local TickRateCommand = self:BindCommand( "sh_tickrate", "tickrate", TickRate )
@@ -1278,6 +1286,10 @@ function Plugin:CreatePerformanceCommands()
 		self.Config.BWLimit = NewLimit
 
 		Shared.ConsoleCommand( StringFormat( "bwlimit %s", NewLimit * 1024 ) )
+
+		Shine:AdminPrint( Client, "%s set bandwidth limit to %.2fkb/s", true,
+			Shine.GetClientInfo( Client ),
+			NewLimit )
 
 		self:SaveConfig( true )
 	end
@@ -1299,6 +1311,10 @@ function Plugin:CreatePerformanceCommands()
 
 		Shared.ConsoleCommand( StringFormat( "sendrate %s", NewRate ) )
 
+		Shine:AdminPrint( Client, "%s set send rate to %i/s", true,
+			Shine.GetClientInfo( Client ),
+			NewRate )
+
 		self:SaveConfig( true )
 	end
 	local SendRateCommand = self:BindCommand( "sh_sendrate", "sendrate", SendRate )
@@ -1311,6 +1327,10 @@ function Plugin:CreatePerformanceCommands()
 		self.Config.MoveRate = NewRate
 
 		Shared.ConsoleCommand( StringFormat( "mr %s", NewRate ) )
+
+		Shine:AdminPrint( Client, "%s set move rate to %i/s", true,
+			Shine.GetClientInfo( Client ),
+			NewRate )
 
 		self:SaveConfig( true )
 	end
