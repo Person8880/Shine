@@ -401,7 +401,7 @@ function Plugin:CreateCommands()
 		if not Valid then return end
 
 		if not Player:isa( "Commander" ) and not self.Config.EveryoneReady then
-			self:NotifyTranslatedError( Client, "ERROR_ONLY_COMMANDER_UNREADY" )
+			self:NotifyTranslatedCommandError( Client, "ERROR_ONLY_COMMANDER_UNREADY" )
 
 			return
 		end
@@ -410,7 +410,7 @@ function Plugin:CreateCommands()
 
 		if self.Config.EveryoneReady then
 			if not self.ReadiedPlayers[ Client ] then
-				self:NotifyTranslatedError( Client, "ERROR_NOT_READY" )
+				self:NotifyTranslatedCommandError( Client, "ERROR_NOT_READY" )
 
 				return
 			end
@@ -448,7 +448,7 @@ function Plugin:CreateCommands()
 			self.NextReady[ Team ] = Time + 5
 			self:UnReadyTeam( Team, true )
 		else
-			self:NotifyTranslatedError( Client, "ERROR_NOT_TEAM_READY" )
+			self:NotifyTranslatedCommandError( Client, "ERROR_NOT_TEAM_READY" )
 		end
 	end
 	local UnReadyCommand = self:BindCommand( "sh_unready", { "unrdy", "unready" }, Unready, true )
@@ -460,7 +460,7 @@ function Plugin:CreateCommands()
 		if not Valid then return end
 
 		if not Player:isa( "Commander" ) and not self.Config.EveryoneReady then
-			self:NotifyTranslatedError( Client, "ERROR_ONLY_COMMANDER_READY" )
+			self:NotifyTranslatedCommandError( Client, "ERROR_ONLY_COMMANDER_READY" )
 
 			return
 		end
