@@ -68,3 +68,39 @@ UnitTest:Test( "Concat", function( Assert )
 
 	Assert:Equals( "1, 2, 3, 4, 5, 6", Stream( Data ):Concat( ", ", tostring ) )
 end )
+
+UnitTest:Test( "Reduce", function( Assert )
+	local Index = 2
+	local ExpectedSum = 1
+
+	local StreamSum = Stream( { 1, 2, 3, 4, 5, 6 } ):Reduce( function( Sum, CurrentValue, StreamIndex )
+		Assert:Equals( Index, StreamIndex )
+		Assert:Equals( ExpectedSum, Sum )
+		Assert:Equals( Index, CurrentValue )
+
+		ExpectedSum = ExpectedSum + CurrentValue
+		Index = Index + 1
+
+		return Sum + CurrentValue
+	end )
+
+	Assert:Equals( 1 + 2 + 3 + 4 + 5 + 6, StreamSum )
+end )
+
+UnitTest:Test( "Reduce with start value", function( Assert )
+	local Index = 1
+	local ExpectedSum = 0
+
+	local StreamSum = Stream( { 1, 2, 3, 4, 5, 6 } ):Reduce( function( Sum, CurrentValue, StreamIndex )
+		Assert:Equals( Index, StreamIndex )
+		Assert:Equals( ExpectedSum, Sum )
+		Assert:Equals( Index, CurrentValue )
+
+		ExpectedSum = ExpectedSum + CurrentValue
+		Index = Index + 1
+
+		return Sum + CurrentValue
+	end, 0 )
+
+	Assert:Equals( 1 + 2 + 3 + 4 + 5 + 6, StreamSum )
+end )
