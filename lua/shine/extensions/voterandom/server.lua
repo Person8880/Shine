@@ -1148,6 +1148,10 @@ function Plugin:GetVotesNeeded()
 	return Ceil( PlayerCount * self.Config.PercentNeeded )
 end
 
+function Plugin:GetStartFailureMessage()
+	return "ERROR_CANNOT_START", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
+end
+
 function Plugin:CanStartVote()
 	local PlayerCount = GetNumPlayers()
 
@@ -1156,7 +1160,7 @@ function Plugin:CanStartVote()
 	end
 
 	if self.NextVote >= SharedTime() then
-		return false, "ERROR_CANNOT_START", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
+		return false, self:GetStartFailureMessage()
 	end
 
 	if self.RandomOnNextRound then
@@ -1180,9 +1184,9 @@ function Plugin:AddVote( Client )
 
 	if not Client then Client = "Console" end
 
-	local Allow, Error = Shine.Hook.Call( "OnVoteStart", "random" )
+	local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
 	if Allow == false then
-		return false, Error
+		return false, TranslationKey, Args
 	end
 
 	local Success, Err, Args = self:CanStartVote()

@@ -78,14 +78,15 @@ end
 
 function Plugin:OnVoteStart( ID )
 	if self.CyclingMap then
-		return false, "The map is now changing, unable to start a vote.", "VOTE_FAIL_MAP_CHANGE", {}
+		return false, "The map is now changing, unable to start a vote.",
+			"VOTE_FAIL_MAP_CHANGE", {}
 	end
 
 	if ID == "random" and self:IsEndVote() then
 		local VoteRandom = Shine.Plugins.voterandom
 
-		return false, StringFormat( "You cannot start %s teams vote while the map vote is running.",
-			VoteRandom:GetVoteName() )
+		return false, "You cannot start a vote while the map vote is running.",
+			VoteRandom:GetStartFailureMessage()
 	end
 end
 
