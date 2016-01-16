@@ -637,6 +637,16 @@ function Shine:NotifyCommandError( Client, Message, Format, ... )
 	ServerAdminPrint( Client, Message )
 end
 
+function Shine:TranslatedNotifyCommandError( Client, MessageKey, Source )
+	local FromChat = self:IsCommandFromChat()
+	if FromChat then
+		self:TranslatedNotifyError( Client, MessageKey, Source )
+		return
+	end
+
+	self:TranslatedConsolePrint( Client, MessageKey, Source )
+end
+
 local function Notify( Client, FromChat, Message, Format, ... )
 	Message = Format and StringFormat( Message, ... ) or Message
 

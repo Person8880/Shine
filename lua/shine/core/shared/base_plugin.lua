@@ -665,6 +665,10 @@ if Server then
 	function PluginMeta:NotifyTranslatedError( Player, Message )
 		Shine:TranslatedNotifyError( Player, Message, self.__Name )
 	end
+
+	function PluginMeta:NotifyTranslatedCommandError( Player, Message )
+		Shine:TranslatedNotifyCommandError( Player, Message, self.__Name )
+	end
 end
 
 local ReservedKeys = {

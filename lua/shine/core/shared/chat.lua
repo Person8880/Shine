@@ -47,9 +47,22 @@ do
 		Message = StringMessage,
 		Source = "string (20)"
 	} )
+	Shared.RegisterNetworkMessage( "Shine_TranslatedConsoleMessage", {
+		Source = "string (20)",
+		MessageKey = "string (32)"
+	} )
 end
 
 if Server then return end
+
+Client.HookNetworkMessage( "Shine_TranslatedConsoleMessage", function( Data )
+	local Source = Data.Source
+	if Source == "" then
+		Source = "Core"
+	end
+
+	Shared.Message( Shine.Locale:GetPhrase( Source, Data.MessageKey ) )
+end )
 
 local BitLShift = bit.lshift
 local IsType = Shine.IsType

@@ -392,6 +392,16 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 	end
 end )
 
+--[[
+	Prints a translated value to the given target(s) console.
+]]
+function Shine:TranslatedConsolePrint( Client, MessageKey, Source )
+	self:ApplyNetworkMessage( Client, "Shine_TranslatedConsoleMessage", {
+		Source = Source,
+		MessageKey = MessageKey
+	}, true )
+end
+
 function Shine:AdminPrint( Client, String, Format, ... )
 	self:Print( String, Format, ... )
 
