@@ -298,14 +298,6 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	end
 end
 
-function Plugin:GetTeamName( Team )
-	if self.TeamNames[ Team ] then
-		return self.TeamNames[ Team ]
-	end
-
-	return Shine:GetTeamName( Team, true )
-end
-
 function Plugin:CheckStart()
 	--Both teams are ready, start the countdown.
 	if self.ReadyStates[ 1 ] and self.ReadyStates[ 2 ] then
