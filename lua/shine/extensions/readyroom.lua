@@ -278,10 +278,8 @@ end
 function Plugin:Cleanup()
 	self.ReadyRoomTracker = nil
 	self.BlockedClients = nil
-
 	self.GameStarted = nil
-
-	self.Enabled = false
+	self.BaseClass.Cleanup( self )
 end
 
 Shine:RegisterExtension( "readyroom", Plugin )
