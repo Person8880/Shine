@@ -144,6 +144,10 @@ Client.HookNetworkMessage( "Shine_TranslatedChatCol", function( Message )
 
 	local String = Shine.Locale:GetPhrase( Source, Message.Message )
 	local Prefix = Shine.Locale:GetPhrase( Source, Message.Prefix )
+	-- Fall back to core strings for prefix if not found.
+	if Prefix == Message.Prefix and Source ~= "Core" then
+		Prefix = Shine.Locale:GetPhrase( "Core", Message.Prefix )
+	end
 
 	Shine.AddChatText( Message.RP, Message.GP, Message.BP, Prefix, R, G, B, String )
 end )
