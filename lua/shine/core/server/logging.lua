@@ -171,7 +171,24 @@ end
 ]]
 function Shine:NotifyDualColour( Player, RP, GP, BP, Prefix, R, G, B, String, Format, ... )
 	local Message = Format and StringFormat( String, ... ) or String
-	Message = Message:UTF8Sub( 1, kMaxChatLength )
+
+	-- Use the maximum amount of the allowed byte length.
+	local MaxBytes = kMaxChatLength * 4
+	if #Message > MaxBytes then
+		local Chars = Message:UTF8Encode()
+		local NumBytes = 0
+		local StopIndex = 1
+
+		for i = 1, #Chars do
+			NumBytes = NumBytes + #Chars[ i ]
+			if NumBytes > MaxBytes then
+				StopIndex = i - 1
+				break
+			end
+		end
+
+		Message = TableConcat( Chars, "", 1, StopIndex )
+	end
 
 	local MessageTable = {
 		R = R,
