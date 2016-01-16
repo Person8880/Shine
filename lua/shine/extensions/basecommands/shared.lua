@@ -381,13 +381,13 @@ function Plugin:SetupAdminMenuCommands()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
-				end, "Temporarily unloads the plugin." )
+				end, self:GetPhrase( "UNLOAD_PLUGIN_TIP" ) )
 
 				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
-				end, "Saves the plugin as disabled." )
+				end, self:GetPhrase( "UNLOAD_PLUGIN_SAVE_TIP" ) )
 			end
 
 			local LoadPlugin = SGUI:Create( "Button", Panel )
@@ -406,13 +406,13 @@ function Plugin:SetupAdminMenuCommands()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
-				end, "Temporarily loads the plugin." )
+				end, self:GetPhrase( "LOAD_PLUGIN_TIP" ) )
 
 				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
-				end, "Saves the plugin as enabled." )
+				end, self:GetPhrase( "LOAD_PLUGIN_SAVE_TIP" ) )
 			end
 
 			local function ReloadDoClick()
