@@ -468,6 +468,12 @@ elseif Client then
 			local Args = StringExplode( TransformArg, "|" )
 			return FormatArg < 0 and Args[ 1 ] or Args[ 2 ]
 		end
+
+		-- Gets a translation value from a given source.
+		Transformers.Translation = function( FormatArg, TransformArg )
+			local Source = TransformArg or "Core"
+			return Shine.Locale:GetPhrase( Source, FormatArg )
+		end
 	end
 
 	function PluginMeta:Cleanup()
