@@ -253,6 +253,18 @@ function Shine.Assert( Assertion, Error, ... )
 end
 
 --[[
+	Checks a value's type, and throws an error if it doesn't match.
+]]
+function Shine.TypeCheck( Arg, Type, ArgNumber, FuncName, Level )
+	local ArgType = type( Arg )
+
+	if ArgType ~= Type then
+		error( StringFormat( "Bad argument #%i to '%s' (%s expected, got %s)",
+			ArgNumber, FuncName, Type, ArgType ), Level or 2 )
+	end
+end
+
+--[[
 	Gets all local values in a table at the given stack level.
 
 	Input:
