@@ -57,11 +57,14 @@ do
 		Registers an endpoint under the given API.
 
 		Data should contain the following fields:
+		- CacheLifeTime: If provided, the amount of time, in seconds, to cache responses.
+
 		- DefaultRequestParams: If provided, a table of query parameters that should always
 		  be sent with every request to this endpoint.
 
 		- GetCacheKey: If provided, should be a function that returns a single string that
-		  uniquely identifies the given request parameters for this endpoint.
+		  uniquely identifies the given request parameters for this endpoint. If not provided,
+		  the end point's results will not be cached.
 
 		- Params: A table of functions which receive a single value, and return a string.
 		  These will be used to convert the provided request parameters.
@@ -93,6 +96,8 @@ do
 
 		local Params = TableShallowMerge( Data.Params, {} )
 		TableShallowMerge( APIData.Params, Params )
+
+		Data.CacheLifeTime = Data.CacheLifeTime or APIData.CacheLifeTime
 
 		APICallers[ APIName ][ EndPointName ] = function( RequestParams, Callbacks, Attempts )
 			Attempts = Attempts or 1
@@ -139,6 +144,9 @@ do
 		  a matching key for the API's name in the base config will be mapped to this request parameter
 		  under the "GlobalRequestParams" table.
 
+		- CacheLifeTime: If provided, the amount of time, in seconds, to cache responses for all endpoints
+		  under this API (except those that provide their own value).
+
 		- EndPoints: A table of endpoint definitions (see above).
 
 		- GlobalRequestParams: If provided, a table of parameters to use as defaults for all requests
@@ -170,6 +178,7 @@ Shine.ExternalAPIHandler = ExternalAPIHandler
 if Server then
 	local APICacheFile = "config://shine/ExternalAPICache.json"
 
+	-- Default cache life time is 1 day. APIs and their endpoints may override this.
 	ExternalAPIHandler.CacheLifeTime = 60 * 60 * 24
 
 	function ExternalAPIHandler:SaveCache()
@@ -275,7 +284,7 @@ function ExternalAPIHandler:GetCachedValue( APIName, EndPointName, Params )
 	-- Refresh the expiry time on access.
 	local CacheEntry = EndPointCache[ CacheKey ]
 	if CacheEntry then
-		CacheEntry.ExpiryTime = OSTime() + self.CacheLifeTime
+		CacheEntry.ExpiryTime = OSTime() + ( EndPoint.CacheLifeTime or self.CacheLifeTime )
 	end
 
 	return CacheEntry and CacheEntry.Value
@@ -303,7 +312,7 @@ do
 		local Cached = TableBuild( self.Cache, APIName, EndPointName )
 		Cached[ CacheKey ] = {
 			Value = Result,
-			ExpiryTime = OSTime() + self.CacheLifeTime
+			ExpiryTime = OSTime() + ( EndPoint.CacheLifeTime or self.CacheLifeTime )
 		}
 	end
 
