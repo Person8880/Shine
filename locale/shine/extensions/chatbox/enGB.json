@@ -7,5 +7,6 @@
 	"SMOOTH_SCROLL": "Use smooth scrolling.",
 	"MESSAGE_MEMORY": "Message memory",
 	"OPACITY": "Opacity (%)",
+	"SCALE": "Scale (will re-open chatbox)",
 	"SETTINGS_TOOLTIP": "Opens/closes the chatbox settings."
 }

@@ -714,7 +714,7 @@ do
 		},
 		{
 			Type = "Label",
-			Values = { "Scale (will re-open chatbox)" }
+			Values = { "SCALE" }
 		},
 		{
 			Type = "Slider",
