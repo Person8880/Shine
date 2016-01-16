@@ -3,10 +3,55 @@
 ]]
 
 local Plugin = {}
+Plugin.NotifyPrefixColour = {
+	100, 255, 100
+}
 
 function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "HighlightTeamSwaps", false )
 	self:AddDTVar( "boolean", "DisplayStandardDeviations", false )
+
+	local MessageTypes = {
+		ShuffleType = {
+			ShuffleType = "string (24)"
+		},
+		ShuffleDuration = {
+			ShuffleType = "string (24)",
+			Duration = "integer"
+		},
+		PlayerVote  = {
+			ShuffleType = "string (24)",
+			PlayerName = self:GetNameNetworkField(),
+			VotesNeeded = "integer"
+		}
+	}
+
+	self:AddNetworkMessages( "AddTranslatedMessage", {
+		[ table.Copy( MessageTypes.ShuffleType ) ] = {
+			"ENABLED_TEAMS"
+		}
+	} )
+	self:AddNetworkMessages( "AddTranslatedNotify", {
+		[ MessageTypes.ShuffleType ] = {
+			"AUTO_SHUFFLE", "PREVIOUS_VOTE_SHUFFLE",
+			"TEAM_SWITCH_DENIED", "NEXT_ROUND_SHUFFLE",
+			"TEAMS_FORCED_NEXT_ROUND",
+			"SHUFFLE_AND_RESTART", "SHUFFLING_TEAMS",
+			"TEAM_ENFORCING_TIMELIMIT", "DISABLED_TEAMS"
+		},
+		[ MessageTypes.ShuffleDuration ] = {
+			"TEAMS_SHUFFLED_FOR_DURATION"
+		},
+		[ MessageTypes.PlayerVote ] = {
+			"PLAYER_VOTED"
+		}
+	} )
+	self:AddNetworkMessages( "AddTranslatedError", {
+		[ MessageTypes.ShuffleType ] = {
+			"ERROR_CANNOT_START", "ERROR_ALREADY_ENABLED",
+			"ERROR_TEAMS_FORCED", "ERROR_ALREADY_VOTED"
+		}
+	} )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )
