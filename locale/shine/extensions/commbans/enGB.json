@@ -1,4 +1,6 @@
 {
 	"Comm Bans": "Comm Bans",
-	"PLAYER_BANNED": "banned {TargetName} from commanding {Duration:NonZero:for }{Duration:Duration:PERMANENTLY:Lower}."
+	"PLAYER_BANNED": "banned {TargetName} from commanding {Duration:NonZero:for }{Duration:Duration:permanently}.",
+	"BANNED_WARNING": "You are banned from commanding {Duration:NonZero:for }{Duration:Duration:permanently}.",
+	"NOTIFY_PREFIX": "[Comm Bans]"
 }
