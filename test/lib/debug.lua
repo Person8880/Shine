@@ -37,4 +37,11 @@ UnitTest:Test( "TypeCheck", function( Assert )
 
 	Success, Err = pcall( Shine.TypeCheck, Value, "number", 1, "Test", 0 )
 	Assert:True( Success )
+
+	Success, Err = pcall( Shine.TypeCheck, Value, { "number", "string" }, 1, "Test", 0 )
+	Assert:True( Success )
+
+	Success, Err = pcall( Shine.TypeCheck, Value, { "string", "table" }, 1, "Test", 0 )
+	Assert:False( Success )
+	Assert:Equals( "Bad argument #1 to 'Test' (string or table expected, got number)", Err )
 end )
