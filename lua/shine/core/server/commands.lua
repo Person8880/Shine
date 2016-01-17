@@ -18,7 +18,6 @@ local TableInsert = table.insert
 local TableRemove = table.remove
 local TableSort = table.sort
 local tostring = tostring
-local type = type
 local xpcall = xpcall
 
 local ParamTypes = Shine.CommandUtil.ParamTypes
@@ -36,8 +35,7 @@ CommandMeta.__index = CommandMeta
 	from their name or Steam ID.
 ]]
 function CommandMeta:AddParam( Table )
-	Shine.Assert( type( Table ) == "table", "Bad argument #1 to AddParam, table expected, got %s",
-		type( Table ) )
+	Shine.TypeCheck( Table, "table", 1, "AddParam" )
 
 	local Args = self.Arguments
 	Args[ #Args + 1 ] = Table
@@ -46,10 +44,18 @@ function CommandMeta:AddParam( Table )
 end
 
 function CommandMeta:Help( HelpString )
-	Shine.Assert( type( HelpString ) == "string",
-		"Bad argument #1 to Help, string expected, got %s", type( HelpString ) )
+	Shine.TypeCheck( HelpString, "string", 1, "Help" )
 
 	self.HelpString = HelpString
+
+	return self
+end
+
+--[[
+	If true, then the command does not require ! or / before it to fire.
+]]
+function CommandMeta:SetAlwaysMatchChat( ShouldAlwaysMatchChat )
+	self.ShouldAlwaysMatchChat = ShouldAlwaysMatchChat
 
 	return self
 end
@@ -164,29 +170,21 @@ local HookedCommands = {}
 	Output: Command object.
 ]]
 function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silent )
-	self.Assert( type( ConCommand ) == "string",
-		"Bad argument #1 to RegisterCommand, string expected, got %s", type( ConCommand ) )
-
+	Shine.TypeCheck( ConCommand, "string", 1, "RegisterCommand" )
 	if ChatCommand then
-		self.Assert( type( ChatCommand ) == "string" or type( ChatCommand ) == "table",
-			"Bad argument #2 to RegisterCommand, string or table expected, got %s",
-			type( ChatCommand ) )
+		Shine.TypeCheck( ChatCommand, { "string", "table" }, 2, "RegisterCommand" )
 	end
-
-	self.Assert( type( Function ) == "function",
-		"Bad argument #3 to RegisterCommand, function expected, got %s", type( Function ) )
+	Shine.TypeCheck( Function, "function", 3, "RegisterCommand" )
 
 	local Commands = self.Commands
-
 	local CmdObj = Command( ConCommand, ChatCommand, Function, NoPerm, Silent )
-
 	Commands[ ConCommand ] = CmdObj
 
 	if ChatCommand then
 		local ChatCommands = self.ChatCommands
 
 		--Adding a table of chat commands so a console command can be tied to more than one.
-		if type( ChatCommand ) == "table" then
+		if IsType( ChatCommand, "table" ) then
 			for i = 1, #ChatCommand do
 				ChatCommands[ ChatCommand[ i ] ] = CmdObj
 			end
@@ -254,7 +252,7 @@ end
 function Shine:RemoveCommand( ConCommand, ChatCommand )
 	self.Commands[ ConCommand ] = nil
 	if ChatCommand then
-		if type( ChatCommand ) == "table" then
+		if IsType( ChatCommand, "table" ) then
 			for i = 1, #ChatCommand do
 				self.ChatCommands[ ChatCommand[ i ] ] = nil
 			end
@@ -802,18 +800,18 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	local FirstWord = Exploded[ 1 ]
 	if not FirstWord then return end
 
-	--They've done !, / or some other special character first.
+	-- They've done !, / or some other special character first.
 	if StringFind( StringSub( FirstWord, 1, 1 ), "[^%w]" ) then
 		Directive = StringSub( FirstWord, 1, 1 )
 		Exploded[ 1 ] = StringSub( FirstWord, 2 )
 	end
 
-	if not Directive then return end
-
-	local CommandObj = Shine.ChatCommands[ Exploded[ 1 ] ]
+	local CommandObj = Shine.ChatCommands[ TableRemove( Exploded, 1 ) ]
 	if not CommandObj or CommandObj.Disabled then return end
 
-	TableRemove( Exploded, 1 )
+	if not Directive and not CommandObj.ShouldAlwaysMatchChat then
+		return
+	end
 
 	Shine:RunCommand( Client, CommandObj.ConCmd, true, unpack( Exploded ) )
 
