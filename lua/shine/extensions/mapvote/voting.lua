@@ -326,25 +326,24 @@ function Plugin:ApplyNextMapWinner( Time, Choice, MentionMap )
 	if Choice == Shared.GetMapName() then
 		self:ExtendMap( Time, true )
 	else
+		local Key
 		if not self.VoteOnEnd then
-			local Key = MentionMap and "WINNER_NEXT_MAP" or "WINNER_NEXT_MAP2"
-			local Message = {}
-			if MentionMap then
-				Message.MapName = Choice
-			end
-			self:SendTranslatedNotify( nil, Key, Message )
+			Key = MentionMap and "WINNER_NEXT_MAP" or "WINNER_NEXT_MAP2"
 		else
-			local Key = MentionMap and "WINNER_CYCLING" or "WINNER_CYCLING2"
-			local Message = {}
-			if MentionMap then
-				Message.MapName = Choice
-			end
-			self:SendTranslatedNotify( nil, Key, Message )
+			Key = MentionMap and "WINNER_CYCLING" or "WINNER_CYCLING2"
 
 			self.CyclingMap = true
 			self:SimpleTimer( 5, function()
 				MapCycle_ChangeMap( Choice )
 			end )
+		end
+
+		if MentionMap then
+			self:SendTranslatedNotify( nil, Key, {
+				MapName = Choice
+			} )
+		else
+			self:NotifyTranslated( nil, Key )
 		end
 	end
 
