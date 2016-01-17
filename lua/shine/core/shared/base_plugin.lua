@@ -451,7 +451,7 @@ elseif Client then
 
 		-- Transforms a time value into a string duration. Optionally, a translation key for 0 can be given.
 		Transformers.Duration = function( FormatArg, TransformArg )
-			if FormatArg == 0 and TransformArg ~= "" then
+			if FormatArg == 0 and TransformArg and TransformArg ~= "" then
 				return Shine.Locale:GetPhrase( "Core", TransformArg )
 			end
 
