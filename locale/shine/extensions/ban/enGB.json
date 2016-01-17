@@ -14,7 +14,7 @@
 	"UNBAN": "Unban",
 	"LOAD_MORE": "Load more",
 	"LOAD_MORE_TIP": "Loads more entries from the server.",
-	"PLAYER_BANNED": "banned {TargetName} {Duration:NonZero:for }{Duration:Duration:PERMANENTLY:Lower} ({Reason}).",
+	"PLAYER_BANNED": "banned {TargetName} {Duration:NonZero:for }{Duration:Duration:permanently} ({Reason}).",
 	"PLAYER_REQUEST_IN_PROGRESS": "Please wait for the current ban request on {ID} to finish.",
 	"ERROR_NOT_BANNED": "{ID} is not banned.",
 	"ERROR_INVALID_STEAMID": "Invalid Steam ID for banning."
