@@ -445,6 +445,7 @@ function Plugin:CreateCommands()
 	end
 	local UnReadyCommand = self:BindCommand( "sh_unready", { "unrdy", "unready" }, Unready, true )
 	UnReadyCommand:Help( "Makes your team not ready to start the game." )
+	UnReadyCommand:SetAlwaysMatchChat( true )
 
 	local function ReadyUp( Client )
 		if self.GameStarted then return end
@@ -508,6 +509,7 @@ function Plugin:CreateCommands()
 	end
 	local ReadyCommand = self:BindCommand( "sh_ready", { "rdy", "ready" }, ReadyUp, true )
 	ReadyCommand:Help( "Makes your team ready to start the game." )
+	ReadyCommand:SetAlwaysMatchChat( true )
 
 	local function SetTeamNames( Client, Marine, Alien )
 		self.TeamNames[ 1 ] = Marine
