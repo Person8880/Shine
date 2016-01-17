@@ -262,8 +262,10 @@ ConfigMenu:AddTab( "Plugins", {
 			local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
 
 			if PluginTable and PluginTable.IsClient and not PluginTable.IsShared then
-				Rows[ Plugin ] = List:AddRow( Plugin, Enabled and Locale:GetPhrase( "Core", "ENABLED" )
+				local Row = List:AddRow( Plugin, Enabled and Locale:GetPhrase( "Core", "ENABLED" )
 					or Locale:GetPhrase( "Core", "DISABLED" ) )
+				Row.PluginEnabled = Enabled
+				Rows[ Plugin ] = Row
 			end
 		end
 
