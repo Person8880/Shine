@@ -1068,8 +1068,8 @@ function Plugin:DestroyAutoCompletePanel()
 	if SGUI.IsValid( self.AutoCompletePanel ) then
 		self.AutoCompletePanel:Destroy( true )
 	end
-	self.AutoCompletePanel = nil
 
+	self.AutoCompletePanel = nil
 	self.AutoCompleteResults = nil
 	self.AutoCompleteLetter = nil
 	self.LastSearch = nil
@@ -1121,19 +1121,6 @@ function Plugin:StartChat( Team )
 	self.TeamChat = Team
 
 	if not SGUI.IsValid( self.MainPanel ) then
-		if not self:CreateChatbox() then
-			return
-		end
-	end
-
-	--This is somehow gone for some people?
-	if not SGUI.IsValid( self.TextEntry ) then
-		if SGUI.IsValid( self.MainPanel ) then
-			self.IgnoreRemove = true
-			self.MainPanel:Destroy()
-			self.IgnoreRemove = nil
-		end
-
 		if not self:CreateChatbox() then
 			return
 		end
