@@ -4,10 +4,9 @@
 
 Script.Load( "lua/shine/core/client/votemenu_gui.lua" )
 
-local Clock = os.clock
-local Decode = json.decode
 local IsType = Shine.IsType
 local StringFormat = string.format
+local TableFindByField = table.FindByField
 local TableSort = table.sort
 
 local ActivePlugins = {}
@@ -16,10 +15,8 @@ Shine.ActivePlugins = ActivePlugins
 local WaitingForData = false
 
 Client.HookNetworkMessage( "Shine_PluginData", function( Message )
-	if #ActivePlugins > 0 then
-		for i = 1, #ActivePlugins do
-			ActivePlugins[ i ] = nil
-		end
+	for i = 1, #ActivePlugins do
+		ActivePlugins[ i ] = nil
 	end
 
 	for Index, Data in pairs( Message ) do
@@ -32,46 +29,47 @@ Client.HookNetworkMessage( "Shine_PluginData", function( Message )
 
 	if WaitingForData then
 		Shine.OpenVoteMenu()
-
 		WaitingForData = false
 	end
 end )
 
---[[
-	Updates the binding data in case they changed it whilst connected.
-]]
-function Shine.CheckVoteMenuBind()
-	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
+do
+	local ConsoleBindingsFile = "config://ConsoleBindings.json"
+	local function FindBind( Binds, Command )
+		for Button, Data in pairs( Binds ) do
+			if IsType( Data, "table" ) and IsType( Data.command, "string" )
+			and Data.command:find( Command ) then
+				return Button
+			end
+		end
 
-	if not CustomBinds then
-		Shine.VoteButtonBound = nil
-		Shine.VoteButton = nil
-
-		return
+		return nil
 	end
 
-	local BindsFile = CustomBinds:read( "*all" )
-	CustomBinds:close()
+	--[[
+		Updates the binding data in case they changed it whilst connected.
+	]]
+	function Shine.CheckVoteMenuBind()
+		local CustomBinds = Shine.LoadJSONFile( ConsoleBindingsFile )
+		if not IsType( CustomBinds, "table" ) then
+			Shine.VoteButtonBound = nil
+			Shine.VoteButton = nil
 
-	local Binds = Decode( BindsFile ) or {}
+			return false, CustomBinds
+		end
 
-	if not IsType( Binds, "table" ) then
-		Shine.VoteButtonBound = nil
-		Shine.VoteButton = nil
-
-		return
-	end
-
-	for Button, Data in pairs( Binds ) do
-		if Data.command:find( "sh_votemenu" ) then
+		local Button = FindBind( CustomBinds, "sh_votemenu" )
+		if Button then
 			Shine.VoteButtonBound = true
 			Shine.VoteButton = Button
-			return
+			return true, CustomBinds
 		end
-	end
 
-	Shine.VoteButtonBound = nil
-	Shine.VoteButton = nil
+		Shine.VoteButtonBound = nil
+		Shine.VoteButton = nil
+
+		return false, CustomBinds
+	end
 end
 
 function Shine.OpenVoteMenu()
@@ -90,13 +88,13 @@ function Shine.OpenVoteMenu()
 end
 
 do
+	local Clock = os.clock
 	local NextPress = 0
 
 	Shine:RegisterClientCommand( "sh_votemenu", function()
 		if #ActivePlugins == 0 then --Request addon list if our table is empty.
 			if not WaitingForData then
 				Shine.SendNetworkMessage( "Shine_RequestPluginData", {}, true )
-
 				WaitingForData = true
 			end
 
@@ -104,7 +102,6 @@ do
 		end
 
 		local Time = Clock()
-
 		if Time >= NextPress or not Shine.VoteMenu.Visible then
 			Shine.OpenVoteMenu()
 		end
@@ -114,50 +111,31 @@ do
 end
 
 local function CanBind( MenuBinds, Binds, Button )
-	for i = 1, #MenuBinds do --Main menu binds.
-		if MenuBinds[ i ].current == Button then
-			return false
-		end
+	-- Search main menu binds first, then custom binds file.
+	if TableFindByField( MenuBinds, "current", Button ) then
+		return false
 	end
 
-	if not Binds then return true end --No custom binds file.
-	if not Binds[ Button ] then return true end
+	if not IsType( Binds, "table" ) then return true end
+	if not IsType( Binds[ Button ], "table" ) then return true end
 	if Binds[ Button ].command == "" then return true end
 
 	return false
 end
 
-local KeysToTry = {
-	"M", "N", "C"
-}
-
 local function BindVoteKey()
+	local Found, CustomBinds = Shine.CheckVoteMenuBind()
+	if Found then return end
+
 	local MenuBinds = BindingsUI_GetBindingsTable()
-
-	local CustomBinds = io.open( "config://ConsoleBindings.json", "r" )
-	local Binds
-
-	if CustomBinds then
-		local BindsFile = CustomBinds:read( "*all" )
-		CustomBinds:close()
-
-		Binds = Decode( BindsFile ) or {}
-
-		if IsType( Binds, "table" ) then
-			for Button, Data in pairs( Binds ) do
-				if IsType( Data, "table" ) and Data.command and Data.command:find( "sh_votemenu" ) then
-					Shine.VoteButtonBound = true
-					Shine.VoteButton = Button
-					return
-				end
-			end
-		end
-	end
+	local KeysToTry = {
+		"M", "N", "C"
+	}
 
 	for i = 1, #KeysToTry do
 		local Key = KeysToTry[ i ]
 
-		if CanBind( MenuBinds, Binds, Key ) then
+		if CanBind( MenuBinds, CustomBinds, Key ) then
 			Shared.ConsoleCommand( StringFormat( "bind %s sh_votemenu", Key ) )
 			Shine.VoteButtonBound = true
 			Shine.VoteButton = Key
