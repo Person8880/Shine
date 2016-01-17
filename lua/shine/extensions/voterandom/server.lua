@@ -1249,7 +1249,7 @@ function Plugin:ApplyRandomSettings()
 	--Set up teams now and make them last for the given time in the config.
 	local Duration = self.Config.Duration * 60
 
-	if Duration > 0 then
+	if Duration > 5 then
 		self.ForceRandom = true
 		self.NextVote = SharedTime() + Duration
 
