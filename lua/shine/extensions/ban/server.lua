@@ -616,7 +616,7 @@ function Plugin:CreateBanCommands()
 		end
 
 		if Client then
-			self:SendTranslatedError( Client, "ERROR_INVALID_STEAMID" )
+			self:NotifyTranslatedError( Client, "ERROR_INVALID_STEAMID" )
 		end
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end

@@ -141,7 +141,11 @@ end
 function Plugin:AbortGameStart( Gamerules, Message, Args )
 	Gamerules:SetGameState( kGameState.NotStarted )
 
-	self:SendTranslatedNotify( nil, Message, Args )
+	if Args then
+		self:SendTranslatedNotify( nil, Message, Args )
+	else
+		self:NotifyTranslated( nil, Message )
+	end
 
 	Shine.ScreenText.End( 2 )
 end

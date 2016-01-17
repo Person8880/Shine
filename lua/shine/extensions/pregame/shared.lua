@@ -3,6 +3,9 @@
 ]]
 
 local Plugin = {}
+Plugin.NotifyPrefixColour = {
+	100, 100, 255
+}
 
 Plugin.NS2Only = true
 
@@ -26,7 +29,7 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessages( "AddTranslatedNotify", {
 		[ MessageTypes.Empty ] = {
-			"ABORT_COMMANDER_DROP", "WaitingForBoth"
+			"WaitingForBoth"
 		},
 		[ MessageTypes.Team ] = {
 			"ABORT_EMPTY_TEAM", "WaitingForTeam"
@@ -43,10 +46,6 @@ end
 Shine:RegisterExtension( "pregame", Plugin )
 
 if Server then return end
-
-Plugin.NotifyPrefixColour = {
-	100, 100, 255
-}
 
 function Plugin:SetTeamMessage( Message )
 	local Player = Client.GetLocalPlayer()
