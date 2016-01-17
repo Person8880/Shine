@@ -30,6 +30,9 @@ Plugin.DefaultConfig = {
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
+Plugin.NotifyPrefixColour = {
+	255, 160, 0
+}
 
 function Plugin:Initialise()
 	local Gamerules = GetGamerules and GetGamerules()
@@ -75,8 +78,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		if TimeToAllow and TimeToAllow > Time then
 			if not Shine:CanNotify( Client ) then return false end
 
-			Shine:NotifyColour( Client, 255, 160, 0,
-				"You have just been moved to a team. You cannot go back to the ready room yet." )
+			self:NotifyTranslated( Client, "SWITCH_TEAM_BLOCKED" )
 
 			return false
 		end
@@ -88,7 +90,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if Shine:HasAccess( Client, "sh_idleimmune" ) then return end
 
 	if Shine:CanNotify( Client ) then
-		Shine:NotifyColour( Client, 255, 160, 0, "Spectator mode has been disabled." )
+		self:NotifyTranslated( Client, "SPECTATOR_DISABLED" )
 	end
 
 	local Team = Player:GetTeam():GetTeamNumber()
@@ -184,8 +186,7 @@ end
 
 function Plugin:AssignToTeam( Player )
 	if self.Config.NotifyOnTeamForce then
-		Shine:NotifyColour( Player, 255, 160, 0,
-			"You were moved onto a random team for being in the ready room too long." )
+		self:NotifyTranslated( Player, "IN_READY_ROOM_TOO_LONG" )
 	end
 
 	return self:JoinRandomTeam( Player )
@@ -277,10 +278,8 @@ end
 function Plugin:Cleanup()
 	self.ReadyRoomTracker = nil
 	self.BlockedClients = nil
-
 	self.GameStarted = nil
-
-	self.Enabled = false
+	self.BaseClass.Cleanup( self )
 end
 
 Shine:RegisterExtension( "readyroom", Plugin )

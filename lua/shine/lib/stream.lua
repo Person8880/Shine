@@ -68,6 +68,29 @@ function Stream:Map( Mapper )
 end
 
 --[[
+	Returns a single value built from all values in the stream.
+
+	Consumer should be a function which takes the following parameters:
+		1. Current reducing value, starts at StartValue if provided.
+		2. Value at the current step in the stream.
+		3. The current step.
+	It should return the new reducing value which will be passed into the next step.
+
+	If no start value is provided, then the first step will be at index 2 in the stream,
+	with the current reducing value equal to the first value in the stream.
+]]
+function Stream:Reduce( Consumer, StartValue )
+	local ReducingValue = StartValue or self.Data[ 1 ]
+	local StartIndex = StartValue and 1 or 2
+
+	for i = StartIndex, #self.Data do
+		ReducingValue = Consumer( ReducingValue, self.Data[ i ], i )
+	end
+
+	return ReducingValue
+end
+
+--[[
 	Sorts the values in the stream with the given comparator, or nil for natural order.
 ]]
 function Stream:Sort( Comparator )

@@ -26,8 +26,7 @@ do
 	end
 
 	Shared.RegisterNetworkMessage( "Shine_Chat", ChatMessage )
-
-	local ColourMessage = {
+	Shared.RegisterNetworkMessage( "Shine_ChatCol", {
 		RP = "integer (0 to 255)",
 		GP = "integer (0 to 255)",
 		BP = "integer (0 to 255)",
@@ -36,12 +35,34 @@ do
 		G = "integer (0 to 255)",
 		B = "integer (0 to 255)",
 		Message = StringMessage
-	}
-
-	Shared.RegisterNetworkMessage( "Shine_ChatCol", ColourMessage )
+	} )
+	Shared.RegisterNetworkMessage( "Shine_TranslatedChatCol", {
+		RP = "integer (0 to 255)",
+		GP = "integer (0 to 255)",
+		BP = "integer (0 to 255)",
+		Prefix = StringMessage,
+		R = "integer (0 to 255)",
+		G = "integer (0 to 255)",
+		B = "integer (0 to 255)",
+		Message = StringMessage,
+		Source = "string (20)"
+	} )
+	Shared.RegisterNetworkMessage( "Shine_TranslatedConsoleMessage", {
+		Source = "string (20)",
+		MessageKey = "string (32)"
+	} )
 end
 
 if Server then return end
+
+Client.HookNetworkMessage( "Shine_TranslatedConsoleMessage", function( Data )
+	local Source = Data.Source
+	if Source == "" then
+		Source = "Core"
+	end
+
+	Shared.Message( Shine.Locale:GetPhrase( Source, Data.MessageKey ) )
+end )
 
 local BitLShift = bit.lshift
 local IsType = Shine.IsType
@@ -120,6 +141,26 @@ Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
 
 	local String = Message.Message
 	local Prefix = Message.Prefix
+
+	Shine.AddChatText( Message.RP, Message.GP, Message.BP, Prefix, R, G, B, String )
+end )
+
+Client.HookNetworkMessage( "Shine_TranslatedChatCol", function( Message )
+	local R = Message.R / 255
+	local G = Message.G / 255
+	local B = Message.B / 255
+
+	local Source = Message.Source
+	if Source == "" then
+		Source = "Core"
+	end
+
+	local String = Shine.Locale:GetPhrase( Source, Message.Message )
+	local Prefix = Shine.Locale:GetPhrase( Source, Message.Prefix )
+	-- Fall back to core strings for prefix if not found.
+	if Prefix == Message.Prefix and Source ~= "Core" then
+		Prefix = Shine.Locale:GetPhrase( "Core", Message.Prefix )
+	end
 
 	Shine.AddChatText( Message.RP, Message.GP, Message.BP, Prefix, R, G, B, String )
 end )

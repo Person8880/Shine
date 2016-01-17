@@ -78,14 +78,15 @@ end
 
 function Plugin:OnVoteStart( ID )
 	if self.CyclingMap then
-		return false, "The map is now changing, unable to start a vote."
+		return false, "The map is now changing, unable to start a vote.",
+			"VOTE_FAIL_MAP_CHANGE", {}
 	end
 
 	if ID == "random" and self:IsEndVote() then
 		local VoteRandom = Shine.Plugins.voterandom
 
-		return false, StringFormat( "You cannot start %s teams vote while the map vote is running.",
-			VoteRandom:GetVoteName() )
+		return false, "You cannot start a vote while the map vote is running.",
+			VoteRandom:GetStartFailureMessage()
 	end
 end
 
@@ -118,11 +119,11 @@ function Plugin:CanStartVote()
 	local PlayerCount = GetNumPlayers()
 
 	if PlayerCount < self.Config.MinPlayers then
-		return false, "There are not enough players to start a vote."
+		return false, "There are not enough players to start a vote.", "VOTE_FAIL_INSUFFICIENT_PLAYERS", {}
 	end
 
 	if self.Vote.NextVote >= SharedTime() then
-		return false, "You cannot start a map vote at this time."
+		return false, "You cannot start a map vote at this time.", "VOTE_FAIL_TIME", {}
 	end
 
 	return true
@@ -140,15 +141,15 @@ end
 function Plugin:AddStartVote( Client )
 	if not Client then Client = "Console" end
 
-	local Allow, Error = Shine.Hook.Call( "OnVoteStart", "rtv" )
+	local Allow, Error, Key, Data = Shine.Hook.Call( "OnVoteStart", "rtv" )
 	if Allow == false then
-		return false, Error
+		return false, Error, Key, Data
 	end
 
-	if self:VoteStarted() then return false, "A vote is already in progress." end
+	if self:VoteStarted() then return false, "A vote is already in progress.", "VOTE_FAIL_IN_PROGRESS", {} end
 	local Success = self.StartingVote:AddVote( Client )
 
-	if not Success then return false, "You have already voted to begin a map vote." end
+	if not Success then return false, "You have already voted to begin a map vote.", "VOTE_FAIL_ALREADY_VOTED", {} end
 
 	return true
 end
@@ -192,12 +193,14 @@ function Plugin:AddVote( Client, Map, Revote )
 	if self.Vote.Voted[ Client ] and not Revote then return false, "already voted" end
 
 	local Choice = self:GetVoteChoice( Map )
-	if not Choice then return false, StringFormat( "%s is not a valid map choice.", Map ) end
+	if not Choice then
+		return false, StringFormat( "%s is not a valid map choice.", Map ), "VOTE_FAIL_INVALID_MAP", { MapName = Map }
+	end
 
 	if Revote then
 		local OldVote = self.Vote.Voted[ Client ]
 		if OldVote == Choice then
-			return false, StringFormat( "You have already voted for %s.", Choice )
+			return false, StringFormat( "You have already voted for %s.", Choice ), "VOTE_FAIL_VOTED_MAP", { MapName = Choice }
 		end
 
 		if OldVote then
@@ -248,11 +251,11 @@ function Plugin:ExtendMap( Time, NextMap )
 
 	if self.Config.RoundLimit > 0 then
 		self.Round = self.Round - 1
-
-		self:Notify( nil, "Extending the current map for another round." )
+		self:NotifyTranslated( nil, "EXTENDING_ROUND" )
 	else
-		self:Notify( nil, "Extending the current map for another %s.", true,
-			string.TimeToString( ExtendTime ) )
+		self:SendTranslatedNotify( nil, "EXTENDING_TIME", {
+			Duration = ExtendTime
+		} )
 	end
 
 	self.NextMap.ExtendTime = BaseTime + ExtendTime
@@ -296,8 +299,9 @@ function Plugin:ApplyRTVWinner( Time, Choice )
 		return
 	end
 
-	self:Notify( nil, "Map changing in %s.", true,
-		string.TimeToString( self.Config.ChangeDelay ) )
+	self:SendTranslatedNotify( nil, "MAP_CHANGING", {
+		Duration = self.Config.ChangeDelay
+	} )
 
 	self.Vote.CanVeto = true --Allow admins to cancel the change.
 	self.CyclingMap = true
@@ -322,17 +326,24 @@ function Plugin:ApplyNextMapWinner( Time, Choice, MentionMap )
 	if Choice == Shared.GetMapName() then
 		self:ExtendMap( Time, true )
 	else
+		local Key
 		if not self.VoteOnEnd then
-			self:Notify( nil, MentionMap and "%s won the vote. Setting as next map..."
-				or "Setting as next map in the cycle...", MentionMap, Choice )
+			Key = MentionMap and "WINNER_NEXT_MAP" or "WINNER_NEXT_MAP2"
 		else
-			self:Notify( nil, MentionMap and "%s won the vote. Cycling map..."
-				or "Cycling map...", MentionMap, Choice )
+			Key = MentionMap and "WINNER_CYCLING" or "WINNER_CYCLING2"
 
 			self.CyclingMap = true
 			self:SimpleTimer( 5, function()
 				MapCycle_ChangeMap( Choice )
 			end )
+		end
+
+		if MentionMap then
+			self:SendTranslatedNotify( nil, Key, {
+				MapName = Choice
+			} )
+		else
+			self:NotifyTranslated( nil, Key )
 		end
 	end
 
@@ -345,7 +356,9 @@ function Plugin:OnNextMapVoteFail()
 	if self.VoteOnEnd then
 		local Map = self:GetNextMap()
 
-		self:Notify( nil, "The map will now cycle to %s.", true, Map )
+		self:SendTranslatedNotify( nil, "MAP_CYCLING", {
+			MapName = Map
+		} )
 		self.CyclingMap = true
 
 		self:SimpleTimer( 5, function()
@@ -369,7 +382,7 @@ function Plugin:ProcessResults( NextMap )
 
 	--No one voted :|
 	if TotalVotes == 0 then
-		self:Notify( nil, "No votes made. Map vote failed." )
+		self:NotifyTranslated( nil, "NO_VOTES" )
 
 		if self.VoteOnEnd and NextMap then
 			self:OnNextMapVoteFail()
@@ -406,8 +419,11 @@ function Plugin:ProcessResults( NextMap )
 	--Only one map won.
 	if Count == 1 then
 		if not NextMap then
-			self:Notify( nil, "%s won the vote with %s/%s votes.", true,
-				Results[ 1 ], MaxVotes, TotalVotes )
+			self:SendTranslatedNotify( nil, "WINNER_VOTES", {
+				MapName = Results[ 1 ],
+				Votes = MaxVotes,
+				TotalVotes = TotalVotes
+			} )
 
 			self:ApplyRTVWinner( Time, Results[ 1 ] )
 
@@ -422,7 +438,7 @@ function Plugin:ProcessResults( NextMap )
 	--Now we're in the case where there's more than one map that won.
 	--If we're set to fail on a tie, then fail.
 	if self.Config.TieFails then
-		self:Notify( nil, "Votes were tied. Map vote failed." )
+		self:NotifyTranslated( nil, "VOTES_TIED_FAILURE" )
 		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 
 		if NextMap then
@@ -439,8 +455,12 @@ function Plugin:ProcessResults( NextMap )
 
 		self.Vote.CanVeto = true --Allow vetos.
 
-		self:Notify( nil, "Votes were tied between %s.", true, Tied )
-		self:Notify( nil, "Choosing random map. Map chosen: %s.", true, Choice )
+		self:SendTranslatedNotify( nil, "VOTES_TIED", {
+			MapNames = Tied
+		} )
+		self:SendTranslatedNotify( nil, "CHOOSING_RANDOM_MAP", {
+			MapName = Choice
+		} )
 
 		if not NextMap then
 			self:ApplyRTVWinner( Time, Choice )
@@ -456,7 +476,7 @@ function Plugin:ProcessResults( NextMap )
 	self:DestroyTimer( self.VoteTimer )
 
 	if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
-		self:Notify( nil, "Votes were tied, map vote failed. Beginning revote." )
+		self:NotifyTranslated( nil, "VOTES_TIED_REVOTE" )
 
 		self.Vote.Votes = self.Vote.Votes + 1
 
@@ -464,7 +484,7 @@ function Plugin:ProcessResults( NextMap )
 			self:StartVote( NextMap )
 		end )
 	else
-		self:Notify( nil, "Votes were tied, map vote failed. Revote limit reached." )
+		self:NotifyTranslated( nil, "VOTES_TIED_LIMIT" )
 
 		if NextMap then
 			self:OnNextMapVoteFail()
@@ -657,9 +677,9 @@ function Plugin:StartVote( NextMap, Force )
 
 	self:SimpleTimer( 0.1, function()
 		if not NextMap then
-			self:Notify( nil, "Map vote started." )
+			self:NotifyTranslated( nil, "RTV_STARTED" )
 		else
-			self:Notify( nil, "Voting for the next map has started." )
+			self:NotifyTranslated( nil, "NEXT_MAP_STARTED" )
 		end
 	end )
 

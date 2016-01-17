@@ -5,6 +5,7 @@
 local Shine = Shine
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
+local Locale = Shine.Locale
 
 local IsType = Shine.IsType
 local StringFormat = string.format
@@ -171,7 +172,7 @@ function AdminMenu:PopulateTabs( Window )
 	local CommandsTab = self.Tabs.Commands
 	local AboutTab = self.Tabs.About
 
-	local Tab = Window:AddTab( "Commands", function( Panel )
+	local Tab = Window:AddTab( Locale:GetPhrase( "Core", "ADMIN_MENU_COMMANDS_TAB" ), function( Panel )
 		CommandsTab.OnInit( Panel, CommandsTab.Data )
 	end )
 	CommandsTab.TabObj = Tab
@@ -191,7 +192,7 @@ function AdminMenu:PopulateTabs( Window )
 	self.Tabs.Commands = CommandsTab
 	self.Tabs.About = AboutTab
 
-	Tab = Window:AddTab( "About", function( Panel )
+	Tab = Window:AddTab( Locale:GetPhrase( "Core", "ADMIN_MENU_ABOUT_TAB" ), function( Panel )
 		AboutTab.OnInit( Panel )
 	end )
 	AboutTab.TabObj = Tab
@@ -332,13 +333,14 @@ do
 		OnInit = function( Panel, Data )
 			Label = SGUI:Create( "Label", Panel )
 			Label:SetFont( Fonts.kAgencyFB_Small )
-			Label:SetText( "Select a player (or players) and a command to run." )
+			Label:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_PLAYERS_HELP" ) )
 			Label:SetPos( Vector( 16, 24, 0 ) )
 
 			PlayerList = SGUI:Create( "List", Panel )
 			PlayerList:SetAnchor( GUIItem.Left, GUIItem.Top )
 			PlayerList:SetPos( Vector( 16, 72, 0 ) )
-			PlayerList:SetColumns( "Name", "NS2ID", "Team" )
+			PlayerList:SetColumns( Locale:GetPhrase( "Core", "NAME" ), "NS2ID",
+				Locale:GetPhrase( "Core", "TEAM" ) )
 			PlayerList:SetSpacing( 0.45, 0.3, 0.25 )
 			PlayerList:SetSize( Vector( 640 - 192 - 16, 512, 0 ) )
 			PlayerList:SetNumericColumn( 2 )
@@ -434,7 +436,7 @@ do
 		Window:SetSize( Vector( 400, 200, 0 ) )
 		Window:SetPos( Vector( -200, -100, 0 ) )
 
-		Window:AddTitleBar( "Error" )
+		Window:AddTitleBar( Locale:GetPhrase( "Core", "ERROR" ) )
 
 		self:DestroyOnClose( Window )
 
@@ -446,7 +448,7 @@ do
 		local Label = SGUI:Create( "Label", Window )
 		Label:SetAnchor( "CentreMiddle" )
 		Label:SetFont( Fonts.kAgencyFB_Small )
-		Label:SetText( "Please select a single player." )
+		Label:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_SELECT_SINGLE_PLAYER" ) )
 		Label:SetPos( Vector( 0, -40, 0 ) )
 		Label:SetTextAlignmentX( GUIItem.Align_Center )
 		Label:SetTextAlignmentY( GUIItem.Align_Center )
@@ -456,7 +458,7 @@ do
 		OK:SetSize( Vector( 128, 32, 0 ) )
 		OK:SetPos( Vector( -64, 40, 0 ) )
 		OK:SetFont( Fonts.kAgencyFB_Small )
-		OK:SetText( "OK" )
+		OK:SetText( Locale:GetPhrase( "Core", "OK" ) )
 
 		function OK.DoClick()
 			self:DontDestroyOnClose( Window )
@@ -647,7 +649,7 @@ below. If you want to get to it outside the game, visit:]],
 			HomeButton:SetAutoSize( UnitVector( Percentage( 100 ), 32 ) )
 			HomeButton:SetAlignment( SGUI.LayoutAlignment.MAX )
 			HomeButton:SetFont( Fonts.kAgencyFB_Small )
-			HomeButton:SetText( "Open the Wiki" )
+			HomeButton:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_OPEN_WIKI" ) )
 			function HomeButton:DoClick()
 				Shine:OpenWebpage( "https://github.com/Person8880/Shine/wiki", "Shine Wiki" )
 			end

@@ -5,6 +5,9 @@
 local Plugin = {}
 
 Plugin.NS2Only = true
+Plugin.NotifyPrefixColour = {
+	255, 50, 0
+}
 
 Shine:RegisterExtension( "commbans", Plugin, {
 	Base = "ban",
@@ -20,6 +23,13 @@ Shine:RegisterExtension( "commbans", Plugin, {
 		SaveConfig = true
 	}
 } )
+
+function Plugin:SetupDataTable()
+	self.__Inherit.SetupDataTable( self )
+	self:AddTranslatedNotify( "BANNED_WARNING", {
+		Duration = "integer"
+	} )
+end
 
 if Server then return end
 

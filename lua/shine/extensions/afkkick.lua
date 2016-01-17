@@ -357,8 +357,8 @@ function Plugin:OnProcessMove( Player, Input )
 
 	--Only kick if we're past the min player count to do so, and use their "total" time.
 	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
-		self:Print( "Client %s[%s] was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
-			true, Player:GetName(), Client:GetUserId(), StringTimeToString( KickTime ),
+		self:Print( "Client %s was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
+			true, Shine.GetClientInfo( Client ), StringTimeToString( KickTime ),
 			Players, self.Config.MinPlayers )
 
 		self:KickClient( Client )

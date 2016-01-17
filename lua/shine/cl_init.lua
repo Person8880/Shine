@@ -18,6 +18,7 @@ local Scripts = {
 	"lib/math.lua",
 	"lib/map.lua",
 	"lib/game.lua",
+	"lib/locale.lua",
 	"core/shared/hook.lua",
 	"core/shared/misc.lua",
 	"core/shared/logging.lua",
@@ -60,3 +61,4 @@ function Shine.AddStartupMessage( Message, Format, ... )
 end
 
 Shine.LoadScripts( Scripts, OnLoadedFuncs )
+Shine.Locale:RegisterSource( "Core", "locale/shine/core" )

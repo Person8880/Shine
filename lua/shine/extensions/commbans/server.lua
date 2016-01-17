@@ -15,9 +15,6 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "CommBans.json"
 Plugin.PrintName = "CommBans"
-Plugin.NotifyPrefixColour = {
-	255, 50, 0
-}
 
 Plugin.DefaultConfig = {
 	Banned = {},
@@ -66,10 +63,12 @@ function Plugin:CheckCommLogin( CommandStation, Player )
 		end
 
 		if Shine:CanNotify( Client ) then
-			local Duration = BanData.UnbanTime == 0 and "permanently"
-				or "for "..string.TimeToString( BanData.UnbanTime - CurTime )
+			local Duration = BanData.UnbanTime == 0 and 0
+				or ( BanData.UnbanTime - CurTime )
 
-			self:Notify( Client, "You are banned from commanding %s.", true, Duration )
+			self:SendTranslatedNotify( Client, "BANNED_WARNING", {
+				Duration = Duration
+			} )
 		end
 
 		return false

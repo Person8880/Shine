@@ -101,15 +101,7 @@ function Plugin:ClientConfirmConnect( Client )
 
 	if TimeLeft <= 0 or TimeLeft > 5 then return end
 
-	Shine.ScreenText.Add( 2, {
-		X = 0.5, Y = 0.7,
-		Text = "Game starts in %s",
-		Duration = TimeLeft,
-		R = 255, G = 0, B = 0,
-		Alignment = 1,
-		Size = 3,
-		FadeIn = 0
-	}, Client )
+	self:ShowCountdown( TimeLeft, Client )
 end
 
 function Plugin:CheckPlayerCanAttack()
@@ -146,53 +138,40 @@ function Plugin:DestroyTimers()
 	self:DestroyTimer( self.CountdownTimer )
 end
 
-function Plugin:AbortGameStart( Gamerules, Message, Format, ... )
+function Plugin:AbortGameStart( Gamerules, Message, Args )
 	Gamerules:SetGameState( kGameState.NotStarted )
 
-	self:Notify( nil, Message, Format, ... )
+	if Args then
+		self:SendTranslatedNotify( nil, Message, Args )
+	else
+		self:NotifyTranslated( nil, Message )
+	end
 
 	Shine.ScreenText.End( 2 )
 end
 
-function Plugin:ShowGameStart( TimeTillStart, Red )
+function Plugin:ShowGameStart( TimeTillStart )
 	if self.Config.ShowCountdown then
-		Shine.ScreenText.Add( 2, {
-			X = 0.5, Y = 0.7,
-			Text = "Game starts in "..string.TimeToString( TimeTillStart ),
-			Duration = 5,
-			R = 255, G = 255, B = 255,
-			Alignment = 1,
-			Size = 3,
-			FadeIn = 1
+		self:SendTranslatedNotify( nil, "GameStartsSoon", {
+			Duration = TimeTillStart
 		} )
 	end
 end
 
-function Plugin:ShowCountdown()
-	Shine.ScreenText.Add( 2, {
-		X = 0.5, Y = 0.7,
-		Text = "Game starts in %s",
-		Duration = 5,
-		R = 255, G = 0, B = 0,
-		Alignment = 1,
-		Size = 3,
-		FadeIn = 0
+function Plugin:ShowCountdown( Duration, Client )
+	self:SendTranslatedNotify( Client, "GameStarting", {
+		Duration = Duration or 5
 	} )
 end
 
-function Plugin:SendStartNag( Message )
-	self:SendNetworkMessage( nil, "StartNag", {
-		Message = Message
-	}, true )
-end
-
 function Plugin:NagForTeam( WaitingForTeam )
-	local TeamName = Shine:GetTeamName( WaitingForTeam, true )
-	self:SendStartNag( StringFormat( "Waiting on %s to choose a commander", TeamName ) )
+	self:SendTranslatedNotify( nil, "WaitingForTeam", {
+		Team = WaitingForTeam
+	} )
 end
 
 function Plugin:NagForBoth()
-	self:SendStartNag( "Waiting on both teams to choose a commander" )
+	self:SendTranslatedNotify( nil, "WaitingForBoth" )
 end
 
 Plugin.UpdateFuncs = {
@@ -212,9 +191,9 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = nil
 				self.SentCountdown = nil
 
-				self:AbortGameStart( Gamerules, "Game start aborted, %s is empty.", true,
-					Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
-					or Shine:GetTeamName( 2, nil, true ) )
+				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+					Team = Team1Count == 0 and 1 or 2
+				} )
 			end
 
 			return
@@ -238,15 +217,7 @@ Plugin.UpdateFuncs = {
 
 		if TimeLeft == 5 then
 			if self.Config.ShowCountdown and not self.SentCountdown then
-				Shine.ScreenText.Add( 2, {
-					X = 0.5, Y = 0.7,
-					Text = "Game starts in %s",
-					Duration = TimeLeft,
-					R = 255, G = 0, B = 0,
-					Alignment = 1,
-					Size = 3,
-					FadeIn = 0
-				} )
+				self:ShowCountdown()
 				self.SentCountdown = true
 			end
 		end
@@ -277,7 +248,7 @@ Plugin.UpdateFuncs = {
 		if self.GameStarting then
 			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
 				self:DestroyTimers()
-				self:AbortGameStart( Gamerules, "Game start aborted, a commander dropped out." )
+				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 				self.GameStarting = false
 
 				return
@@ -286,9 +257,9 @@ Plugin.UpdateFuncs = {
 			if Team1Count == 0 or Team2Count == 0 then
 				self:DestroyTimers()
 
-				self:AbortGameStart( Gamerules, "Game start aborted, %s is empty.", true,
-					Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
-					or Shine:GetTeamName( 2, nil, true ) )
+				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+					Team = Team1Count == 0 and 1 or 2
+				} )
 
 				self.GameStarting = false
 
@@ -344,8 +315,7 @@ Plugin.UpdateFuncs = {
 
 				if self.Config.AbortIfNoCom then
 					if not Team1Com or not Team2Com then
-						self:AbortGameStart( Gamerules,
-							"Game start aborted, a commander dropped out." )
+						self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 
 						self.GameStarting = false
 
@@ -357,9 +327,9 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "Game start aborted, %s is empty.", true,
-						Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
-						or Shine:GetTeamName( 2, nil, true ) )
+					self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+						Team = Team1Count == 0 and 1 or 2
+					} )
 
 					self.GameStarting = false
 
@@ -378,9 +348,9 @@ Plugin.UpdateFuncs = {
 				self.CountStart = nil
 				self.CountEnd = nil
 
-				self:AbortGameStart( Gamerules, "Game start aborted, %s is empty.", true,
-					Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
-					or Shine:GetTeamName( 2, nil, true ) )
+				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+					Team = Team1Count == 0 and 1 or 2
+				} )
 			end
 
 			return
@@ -394,23 +364,10 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = Time + Duration
 
 				if self.Config.ShowCountdown then
-					local Team1Name = Shine:GetTeamName( 1, true )
-					local Team2Name = Shine:GetTeamName( 2, true )
-
-					local Message = StringFormat(
-						"%s have a commander. %s have %s to choose their commander.",
-						Team1Com and Team1Name or Team2Name,
-						Team1Com and Team2Name or Team1Name,
-						string.TimeToString( Duration ) )
-
-					Shine.ScreenText.Add( 2, {
-						X = 0.5, Y = 0.7,
-						Text = Message,
-						Duration = 5,
-						R = 255, G = 255, B = 255,
-						Alignment = 1,
-						Size = 3,
-						FadeIn = 1
+					self:SendTranslatedNotify( nil, "TeamHasCommander", {
+						TeamWithCommander = Team1Com and 1 or 2,
+						TeamWithoutCommander = Team1Com and 2 or 1,
+						TimeLeft = Duration
 					} )
 				end
 			end
@@ -419,7 +376,7 @@ Plugin.UpdateFuncs = {
 				self.CountStart = nil
 				self.CountEnd = nil
 
-				self:AbortGameStart( Gamerules, "Game start aborted, a commander dropped out." )
+				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 			end
 
 			if not self.CountStart and self:CanRunAction( "StartNag", Time, self.StartNagInterval ) then
@@ -482,14 +439,18 @@ Plugin.UpdateFuncs = {
 			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
 				self:DestroyTimers()
 
-				self:AbortGameStart( Gamerules, "Game start aborted, a commander dropped out." )
+				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 				self.GameStarting = false
+
+				return
 			end
 
 			if Team1Count == 0 or Team2Count == 0 then
 				self:DestroyTimers()
 
-				self:AbortGameStart( Gamerules, "Game start aborted, a commander dropped out." )
+				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+					Team = Team1Count == 0 and 1 or 2
+				} )
 				self.GameStarting = false
 			end
 
@@ -534,8 +495,7 @@ Plugin.UpdateFuncs = {
 
 				if self.Config.AbortIfNoCom then
 					if not Team1Com or not Team2Com then
-						self:AbortGameStart( Gamerules,
-							"Game start aborted, a commander dropped out." )
+						self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 						self.GameStarting = false
 
 						return
@@ -546,9 +506,9 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "Game start aborted, %s is empty.", true,
-						Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
-						or Shine:GetTeamName( 2, nil, true ) )
+					self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+						Team = Team1Count == 0 and 1 or 2
+					} )
 
 					self.GameStarting = false
 
@@ -571,9 +531,9 @@ Plugin.UpdateFuncs = {
 			if Team1Count == 0 or Team2Count == 0 then return end
 			if self.StartedGame then return end
 
-			self:Notify( nil,
-				"Pregame has exceeded %s and there is one commander. Starting game...",
-				true, string.TimeToString( self.Config.PreGameTime ) )
+			self:SendTranslatedNotify( nil, "EXCEEDED_TIME", {
+				Duration = self.Config.PreGameTime
+			} )
 
 			self.StartedGame = true
 
@@ -585,8 +545,7 @@ Plugin.UpdateFuncs = {
 
 				if self.Config.AbortIfNoCom then
 					if not Team1Com and not Team2Com then
-						self:AbortGameStart( Gamerules,
-							"Game start aborted, a commander dropped out." )
+						self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 
 						self.StartedGame = false
 
@@ -598,9 +557,9 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "Game start aborted, %s is empty.",
-						true, Team1Count == 0 and Shine:GetTeamName( 1, nil, true )
-						or Shine:GetTeamName( 2, nil, true ) )
+					self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+						Team = Team1Count == 0 and 1 or 2
+					} )
 
 					self.StartedGame = false
 

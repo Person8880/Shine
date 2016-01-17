@@ -8,7 +8,7 @@ local GetOwner = Server.GetOwner
 local StringFormat = string.format
 local TableEmpty = table.Empty
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
@@ -64,21 +64,25 @@ function Plugin:ClientConnect( Client )
 		local Player = Client:GetControllingPlayer()
 		if not Player then return end
 
-		Shine:NotifyColour( nil, 255, 255, 255, "%s has joined the game.", true, Player:GetName() )
+		self:SendTranslatedNotifyColour( nil, "PLAYER_JOINED_GENERIC", {
+			R = 255, G = 255, B = 255,
+			TargetName = Player:GetName()
+		} )
 	end )
 end
 
 local Ceil = math.ceil
 
-local function ColourIntToTable( Int )
+local function ColourIntToTable( Int, Multiplier )
 	local Colour = ColorIntToColor( Int )
-	return { Ceil( Colour.r * 255 ), Ceil( Colour.g * 255 ), Ceil( Colour.b * 255 ) }
+	return { Ceil( Colour.r * 255 * Multiplier ), Ceil( Colour.g * 255 * Multiplier ),
+		Ceil( Colour.b * 255 * Multiplier ) }
 end
 
 local TeamColours = {
 	[ 0 ] = { 255, 255, 255 },
-	[ 1 ] = ColourIntToTable( kMarineTeamColor or 0x4DB1FF ),
-	[ 2 ] = ColourIntToTable( kAlienTeamColor or 0xFFCA3A )
+	[ 1 ] = ColourIntToTable( kMarineTeamColor or 0x4DB1FF, 0.8 ),
+	[ 2 ] = ColourIntToTable( kAlienTeamColor or 0xFFCA3A, 0.8 )
 }
 
 function Plugin:ClientDisconnect( Client )
@@ -108,11 +112,16 @@ function Plugin:ClientDisconnect( Client )
 	local Colour = TeamColours[ Team ] or TeamColours[ 0 ]
 
 	if not Client.DisconnectReason then
-		Shine:NotifyColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ],
-			StringFormat( "%s has left the game.", Player:GetName() ) )
+		self:SendTranslatedNotifyColour( nil, "PLAYER_LEAVE_GENERIC", {
+			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
+			TargetName = Player:GetName()
+		} )
 	else
-		Shine:NotifyColour( nil, Colour[ 1 ], Colour[ 2 ], Colour[ 3 ],
-			StringFormat( "Dropped %s (%s).", Player:GetName(), Client.DisconnectReason ) )
+		self:SendTranslatedNotifyColour( nil, "PLAYER_LEAVE_REASON", {
+			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
+			TargetName = Player:GetName(),
+			Reason = Client.DisconnectReason
+		} )
 	end
 end
 
@@ -146,5 +155,3 @@ function Plugin:Cleanup()
 end
 
 Shine.Hook.SetupGlobalHook( "Server.DisconnectClient", "OnScriptDisconnect", "PassivePre" )
-
-Shine:RegisterExtension( "welcomemessages", Plugin )

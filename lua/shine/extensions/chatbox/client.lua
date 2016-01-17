@@ -39,7 +39,8 @@ Plugin.DefaultConfig = {
 	MessageMemory = 50, --How many messages should the chatbox store before removing old ones?
 	SmoothScroll = true, --Should the scrolling be smoothed?
 	Opacity = 0.4, --How opaque should the chatbox be?
-	Pos = {} --Remembers the position of the chatbox when it's moved.
+	Pos = {}, --Remembers the position of the chatbox when it's moved.
+	Scale = 1 -- Sets a scale multiplier, requires recreating the chatbox when changed.
 }
 
 Plugin.CheckConfig = true
@@ -295,6 +296,8 @@ function Plugin:CreateChatbox()
 	local ScalarScale = GUIScale( 1 )
 
 	local ScreenWidth, ScreenHeight = SGUI.GetScreenSize()
+	ScreenWidth = ScreenWidth * self.Config.Scale
+	ScreenHeight = ScreenHeight * self.Config.Scale
 
 	local WidthMult = Max( ScreenWidth / 1920, 0.7 )
 	local HeightMult = Max( ScreenHeight / 1080, 0.7 )
@@ -517,7 +520,7 @@ function Plugin:CreateChatbox()
 		return Plugin:OpenSettings( Border, UIScale, ScalarScale )
 	end
 
-	SettingsButton:SetTooltip( "Opens/closes the chatbox settings." )
+	SettingsButton:SetTooltip( self:GetPhrase( "SETTINGS_TOOLTIP" ) )
 
 	TextEntryLayout:AddElement( SettingsButton )
 
@@ -550,7 +553,7 @@ do
 					Font = self:GetFont(),
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
-				CheckBox:AddLabel( Label )
+				CheckBox:AddLabel( self:GetPhrase( Label ) )
 				CheckBox:SetChecked( Checked, true )
 
 				if self.TextScale ~= 1 then
@@ -580,7 +583,7 @@ do
 				local Label = SettingsPanel:Add( "Label" )
 				Label:SetupFromTable{
 					Font = self:GetFont(),
-					Text = Text,
+					Text = self:GetPhrase( Text ),
 					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
 
@@ -612,8 +615,12 @@ do
 
 				return Slider
 			end,
-			Setup = function( self, Object, Data )
+			Setup = function( self, Object, Data, Size, Value )
 				Object:SetBounds( unpack( Data.Bounds ) )
+				if Data.Decimals then
+					Object:SetDecimals( Data.Decimals )
+				end
+				Object:SetValue( Value )
 
 				if Data.OnSlide then
 					Object.OnSlide = Data.OnSlide
@@ -635,31 +642,31 @@ do
 	}
 
 	local function GetCheckBoxSize( self )
-		return UnitVector( Scaled( 36, self.ScalarScale ),
-			Scaled( 36, self.ScalarScale ) )
+		return UnitVector( Scaled( 28, self.ScalarScale ),
+			Scaled( 28, self.ScalarScale ) )
 	end
 
 	local function GetSliderSize( self )
-		return UnitVector( Percentage( 80 ), Scaled( 32, self.UIScale.y ) )
+		return UnitVector( Percentage( 80 ), Scaled( 24, self.UIScale.y ) )
 	end
 
 	local Elements = {
 		{
 			Type = "Label",
-			Values = { "Settings" }
+			Values = { "SETTINGS_TITLE" }
 		},
 		{
 			Type = "CheckBox",
 			ConfigValue = "AutoClose",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.AutoClose, "Auto close after sending."
+				return GetCheckBoxSize( self ), self.Config.AutoClose, "AUTO_CLOSE"
 			end
 		},
 		{
 			Type = "CheckBox",
 			ConfigValue = "DeleteOnClose",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.DeleteOnClose, "Auto delete on close."
+				return GetCheckBoxSize( self ), self.Config.DeleteOnClose, "AUTO_DELETE"
 			end
 		},
 		{
@@ -669,12 +676,12 @@ do
 				Plugin.ChatBox:SetAllowSmoothScroll( Value )
 			end,
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.SmoothScroll, "Use smooth scrolling."
+				return GetCheckBoxSize( self ), self.Config.SmoothScroll, "SMOOTH_SCROLL"
 			end
 		},
 		{
 			Type = "Label",
-			Values = { "Message memory" }
+			Values = { "MESSAGE_MEMORY" }
 		},
 		{
 			Type = "Slider",
@@ -686,7 +693,7 @@ do
 		},
 		{
 			Type = "Label",
-			Values = { "Opacity (%)" }
+			Values = { "OPACITY" }
 		},
 		{
 			Type = "Slider",
@@ -703,6 +710,23 @@ do
 			Bounds = { 0, 100 },
 			Values = function( self )
 				return GetSliderSize( self ), self.Config.Opacity * 100
+			end
+		},
+		{
+			Type = "Label",
+			Values = { "SCALE" }
+		},
+		{
+			Type = "Slider",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "Scale", Value ) then return end
+				-- Re-create it after a scale change.
+				self:OnResolutionChanged()
+			end,
+			Bounds = { 0.75, 1.25 },
+			Decimals = 2,
+			Values = function( self )
+				return GetSliderSize( self ), self.Config.Scale
 			end
 		}
 	}
@@ -735,7 +759,7 @@ do
 
 			local Object = Creator.Create( self, SettingsPanel, Layout, unpack( Values ) )
 			if Creator.Setup then
-				Creator.Setup( self, Object, Data )
+				Creator.Setup( self, Object, Data, unpack( Values ) )
 			end
 		end
 
@@ -1044,8 +1068,8 @@ function Plugin:DestroyAutoCompletePanel()
 	if SGUI.IsValid( self.AutoCompletePanel ) then
 		self.AutoCompletePanel:Destroy( true )
 	end
-	self.AutoCompletePanel = nil
 
+	self.AutoCompletePanel = nil
 	self.AutoCompleteResults = nil
 	self.AutoCompleteLetter = nil
 	self.LastSearch = nil
@@ -1102,20 +1126,7 @@ function Plugin:StartChat( Team )
 		end
 	end
 
-	--This is somehow gone for some people?
-	if not SGUI.IsValid( self.TextEntry ) then
-		if SGUI.IsValid( self.MainPanel ) then
-			self.IgnoreRemove = true
-			self.MainPanel:Destroy()
-			self.IgnoreRemove = nil
-		end
-
-		if not self:CreateChatbox() then
-			return
-		end
-	end
-
-	self.TextEntry:SetPlaceholderText( self.TeamChat and "Say to team..." or "Say to all..." )
+	self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
 
 	SGUI:EnableMouse( true )
 

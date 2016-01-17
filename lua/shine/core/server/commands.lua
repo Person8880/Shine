@@ -637,6 +637,16 @@ function Shine:NotifyCommandError( Client, Message, Format, ... )
 	ServerAdminPrint( Client, Message )
 end
 
+function Shine:TranslatedNotifyCommandError( Client, MessageKey, Source )
+	local FromChat = self:IsCommandFromChat()
+	if FromChat then
+		self:TranslatedNotifyError( Client, MessageKey, Source )
+		return
+	end
+
+	self:TranslatedConsolePrint( Client, MessageKey, Source )
+end
+
 local function Notify( Client, FromChat, Message, Format, ... )
 	Message = Format and StringFormat( Message, ... ) or Message
 
@@ -778,12 +788,9 @@ function Shine:RunCommand( Client, ConCommand, FromChat, ... )
 		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
 	else
 		local Arguments = TableConcat( OriginalArgs, " " )
-		local Player = Client and Client:GetControllingPlayer()
-		local Name = Player and Player:GetName() or "Console"
-		local ID = Client and Client:GetUserId() or "N/A"
 
-		self:AdminPrint( nil, "%s[%s] ran command %s %s", true,
-			Name, ID, ConCommand,
+		self:AdminPrint( nil, "%s ran command %s %s", true,
+			Shine.GetClientInfo( Client ), ConCommand,
 			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
 	end
 end

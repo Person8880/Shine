@@ -1,0 +1,5 @@
+{
+	"ERROR_WRONG_TEAM": "You cannot start a surrender vote on this team.",
+	"ERROR_ALREADY_VOTED": "You have already voted to surrender.",
+	"ERROR_ROUND_TIME": "You cannot start a surrender vote at this time."
+}

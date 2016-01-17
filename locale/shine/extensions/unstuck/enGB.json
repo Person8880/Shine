@@ -1,0 +1,7 @@
+{
+	"ERROR_NOT_ALIVE": "You cannot be unstuck when you are dead.",
+	"ERROR_WAIT": "You must wait {TimeLeft:Duration} before using unstuck again.",
+	"SUCCESS": "Successfully unstuck.",
+	"ERROR_FAIL": "Unable to unstick. Try again in {TimeLeft:Duration}.",
+	"NOTIFY_PREFIX": "[Unstuck]"
+}

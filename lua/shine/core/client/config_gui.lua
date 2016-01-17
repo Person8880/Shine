@@ -3,6 +3,7 @@
 ]]
 
 local SGUI = Shine.GUI
+local Locale = Shine.Locale
 
 local IsType = Shine.IsType
 
@@ -121,7 +122,7 @@ local SettingsTypes = {
 		Create = function( Panel, Entry )
 			local CheckBox = Panel:Add( "CheckBox" )
 			CheckBox:SetFontScale( GetSmallFont() )
-			CheckBox:AddLabel( Entry.Description )
+			CheckBox:AddLabel( Locale:GetPhrase( Entry.TranslationSource or "Core", Entry.Description ) )
 			CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 
 			local Enabled
@@ -156,7 +157,7 @@ ConfigMenu:AddTab( "Settings", {
 
 		local Title = Panel:Add( "Label" )
 		Title:SetFontScale( GetMediumFont() )
-		Title:SetText( "Client Settings" )
+		Title:SetText( Locale:GetPhrase( "Core", "CLIENT_SETTINGS" ) )
 		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 16 ) ) )
 		Layout:AddElement( Title )
 
@@ -183,7 +184,8 @@ ConfigMenu:AddTab( "Plugins", {
 		} )
 
 		local List = SGUI:Create( "List", Panel )
-		List:SetColumns( "Plugin", "State" )
+		List:SetColumns( Locale:GetPhrase( "Core", "PLUGIN" ),
+			Locale:GetPhrase( "Core", "STATE" ) )
 		List:SetSpacing( 0.7, 0.3 )
 		List.ScrollPos = Vector2( 0, 32 )
 		List:SetFill( true )
@@ -203,7 +205,7 @@ ConfigMenu:AddTab( "Plugins", {
 
 		local EnableButton = SGUI:Create( "Button", Panel )
 		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
-		EnableButton:SetText( "Enable Plugin" )
+		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )
 
 		Layout:AddElement( EnableButton )
@@ -213,28 +215,30 @@ ConfigMenu:AddTab( "Plugins", {
 			if not Selected then return end
 
 			local Plugin = Selected:GetColumnText( 1 )
-			local Enabled = Selected:GetColumnText( 2 ) == "Enabled"
+			local Enabled = Selected.PluginEnabled
 
 			Shared.ConsoleCommand( ( Enabled and "sh_unloadplugin_cl " or "sh_loadplugin_cl " )..Plugin )
 		end
 
 		function List:OnRowSelected( Index, Row )
-			local State = Row:GetColumnText( 2 )
+			local State = Row.PluginEnabled
 
-			if State == "Enabled" then
-				EnableButton:SetText( "Disable Plugin" )
+			if State then
+				EnableButton:SetText( Locale:GetPhrase( "Core", "DISABLE_PLUGIN" ) )
 			else
-				EnableButton:SetText( "Enable Plugin" )
+				EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 			end
 		end
 
 		local Rows = {}
 
-		local function UpdateRow( Name, Text )
+		local function UpdateRow( Name, State )
 			local Row = Rows[ Name ]
 			if not Row then return end
 
-			Row:SetColumnText( 2, Text )
+			Row.PluginEnabled = State
+			Row:SetColumnText( 2, State and Locale:GetPhrase( "Core", "ENABLED" )
+				or Locale:GetPhrase( "Core", "DISABLED" ) )
 			if Row == List:GetSelectedRow() then
 				List:OnRowSelected( nil, Row )
 			end
@@ -243,13 +247,13 @@ ConfigMenu:AddTab( "Plugins", {
 		Shine.Hook.Add( "OnPluginLoad", "ClientConfig_OnPluginLoad", function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
-			UpdateRow( Name, "Enabled" )
+			UpdateRow( Name, true )
 		end )
 
 		Shine.Hook.Add( "OnPluginUnload", "ClientConfig_OnPluginUnload", function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
-			UpdateRow( Name, "Disabled" )
+			UpdateRow( Name, false )
 		end )
 
 		Panel:SetLayout( Layout )
@@ -258,7 +262,10 @@ ConfigMenu:AddTab( "Plugins", {
 			local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
 
 			if PluginTable and PluginTable.IsClient and not PluginTable.IsShared then
-				Rows[ Plugin ] = List:AddRow( Plugin, Enabled and "Enabled" or "Disabled" )
+				local Row = List:AddRow( Plugin, Enabled and Locale:GetPhrase( "Core", "ENABLED" )
+					or Locale:GetPhrase( "Core", "DISABLED" ) )
+				Row.PluginEnabled = Enabled
+				Rows[ Plugin ] = Row
 			end
 		end
 

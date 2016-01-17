@@ -58,7 +58,7 @@ local Options = {
 	{
 		Type = "Boolean",
 		Command = "sh_disableweb",
-		Description = "Disable web page display from plugins.",
+		Description = "DISABLE_WEB_DESCRIPTION",
 		ConfigOption = "DisableWebWindows",
 		Data = {
 			"sh_disableweb", "DisableWebWindows",
@@ -70,7 +70,7 @@ local Options = {
 	{
 		Type = "Boolean",
 		Command = "sh_viewwebinsteam",
-		Description = "View web pages in the Steam overlay.",
+		Description = "VIEW_WEB_IN_STEAM_DESCRIPTION",
 		ConfigOption = "ShowWebInSteamBrowser",
 		Data = {
 			"sh_viewwebinsteam", "ShowWebInSteamBrowser",
@@ -82,7 +82,7 @@ local Options = {
 	{
 		Type = "Boolean",
 		Command = "sh_errorreport",
-		Description = "Report script errors caused by Shine.",
+		Description = "REPORT_ERRORS_DESCRIPTION",
 		ConfigOption = "ReportErrors",
 		Data = {
 			"sh_errorreport", "ReportErrors",
@@ -94,7 +94,7 @@ local Options = {
 	{
 		Type = "Boolean",
 		Command = "sh_animateui",
-		Description = "Use animations in the UI.",
+		Description = "ANIMATE_UI_DESCRIPTION",
 		ConfigOption = "AnimateUI",
 		Data = {
 			"sh_animateui", "AnimateUI",

@@ -41,7 +41,7 @@ function Plugin:Initialise()
 end
 
 VoteMenu:AddPage( "ServerSwitch", function( self )
-	self:AddBottomButton( "Back", function()
+	self:AddBottomButton( Plugin:GetPhrase( "BACK" ), function()
 		self:SetPage( "Main" )
 	end )
 
@@ -91,7 +91,7 @@ end )
 
 VoteMenu:EditPage( "Main", function( self )
 	if Plugin.Enabled and next( Plugin.ServerList ) then
-		self:AddBottomButton( "Switch Server", function()
+		self:AddBottomButton( Plugin:GetPhrase( "VOTEMENU_BUTTON" ), function()
 			self:SetPage( "ServerSwitch" )
 		end )
 	end

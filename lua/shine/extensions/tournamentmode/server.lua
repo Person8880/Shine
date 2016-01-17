@@ -134,29 +134,27 @@ function Plugin:CheckGameStart( Gamerules )
 		if NextStartNag < Time then
 			NextStartNag = Time + 30
 
-			local Nag = self:GetStartNag()
+			local TeamWaitingFor = self:GetTeamNotReady()
+			if not TeamWaitingFor then return false end
 
-			if not Nag then return false end
-
-			self:SendNetworkMessage( nil, "StartNag", { Message = Nag }, true )
+			self:SendNetworkMessage( nil, "StartNag", { WaitingTeam = TeamWaitingFor }, true )
 		end
 
 		return false
 	end
 end
 
-function Plugin:GetStartNag()
+function Plugin:GetTeamNotReady()
 	local MarinesReady = self.ReadyStates[ 1 ]
 	local AliensReady = self.ReadyStates[ 2 ]
-
 	if MarinesReady and AliensReady then return nil end
 
 	if MarinesReady and not AliensReady then
-		return StringFormat( "Waiting on %s to start", self:GetTeamName( 2 ) )
+		return 2
 	elseif AliensReady and not MarinesReady then
-		return StringFormat( "Waiting on %s to start", self:GetTeamName( 1 ) )
+		return 1
 	else
-		return StringFormat( "Waiting on both teams to start" )
+		return 0
 	end
 end
 
@@ -174,17 +172,19 @@ function Plugin:CheckCommanders( Gamerules )
 
 	if MarinesReady and not Team1Com then
 		self.ReadyStates[ 1 ] = false
-
-		self:Notify( false, nil, "%s is no longer ready.", true, self:GetTeamName( 1 ) )
-
+		self:SendNetworkMessage( nil, "TeamReadyChange", {
+			Team = 1,
+			IsReady = false
+		}, true )
 		self:CheckStart()
 	end
 
 	if AliensReady and not Team2Com then
 		self.ReadyStates[ 2 ] = false
-
-		self:Notify( false, nil, "%s is no longer ready.", true, self:GetTeamName( 2 ) )
-
+		self:SendNetworkMessage( nil, "TeamReadyChange", {
+			Team = 2,
+			IsReady = false
+		}, true )
 		self:CheckStart()
 	end
 end
@@ -298,42 +298,21 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	end
 end
 
-function Plugin:GetTeamName( Team )
-	if self.TeamNames[ Team ] then
-		return self.TeamNames[ Team ]
-	end
-
-	return Shine:GetTeamName( Team, true )
-end
-
 function Plugin:CheckStart()
 	--Both teams are ready, start the countdown.
 	if self.ReadyStates[ 1 ] and self.ReadyStates[ 2 ] then
 		local CountdownTime = self.Config.CountdownTime
-
-		local GameStartTime = string.TimeToString( CountdownTime )
-
-		Shine.ScreenText.Add( 2, {
-			X = 0.5, Y = 0.7,
-			Text = "Game starts in "..GameStartTime,
-			Duration = 5,
-			R = 255, G = 255, B = 255,
-			Alignment = 1,
-			Size = 3,
-			FadeIn = 1
-		} )
+		self:SendNetworkMessage( nil, "GameStartCountdown", {
+			IsFinalCountdown = false,
+			CountdownTime = CountdownTime
+		}, true )
 
 		--Game starts in 5 seconds!
 		self:CreateTimer( self.FiveSecondTimer, CountdownTime - 5, 1, function()
-			Shine.ScreenText.Add( 2, {
-				X = 0.5, Y = 0.7,
-				Text = "Game starts in %s",
-				Duration = 5,
-				R = 255, G = 0, B = 0,
-				Alignment = 1,
-				Size = 3,
-				FadeIn = 0
-			} )
+			self:SendNetworkMessage( nil, "GameStartCountdown", {
+				IsFinalCountdown = true,
+				CountdownTime = 5
+			}, true )
 		end )
 
 		--If we get this far, then we can start.
@@ -349,10 +328,7 @@ function Plugin:CheckStart()
 		self:DestroyTimer( self.FiveSecondTimer )
 		self:DestroyTimer( self.CountdownTimer )
 
-		--Remove the countdown text.
-		Shine.ScreenText.End( 2 )
-
-		self:Notify( false, nil, "Game start aborted." )
+		self:SendNetworkMessage( nil, "GameStartAborted", {}, true )
 	end
 end
 
@@ -367,16 +343,19 @@ end
 function Plugin:ReadyTeam( Team )
 	self.ReadyStates[ Team ] = true
 
-	local TeamName = self:GetTeamName( Team )
-
 	local OtherTeam = self:GetOppositeTeam( Team )
 	local OtherReady = self:GetReadyState( OtherTeam )
 
 	if OtherReady then
-		self:Notify( true, nil, "%s is now ready.", true, TeamName )
+		self:SendNetworkMessage( nil, "TeamReadyChange", {
+			Team = Team,
+			IsReady = true
+		}, true )
 	else
-		self:Notify( true, nil, "%s is now ready. Waiting on %s to start.",
-			true, TeamName, self:GetTeamName( OtherTeam ) )
+		self:SendNetworkMessage( nil, "TeamReadyWaiting", {
+			ReadyTeam = Team,
+			WaitingTeam = OtherTeam
+		}, true )
 	end
 
 	self:CheckStart()
@@ -388,8 +367,10 @@ function Plugin:UnReadyTeam( Team, Notify )
 	end
 
 	if Notify then
-		local TeamName = self:GetTeamName( Team )
-		self:Notify( false, nil, "%s is no longer ready.", true, TeamName )
+		self:SendNetworkMessage( nil, "TeamReadyChange", {
+			Team = Team,
+			IsReady = false
+		}, true )
 	end
 
 	self:CheckStart()
@@ -412,7 +393,7 @@ function Plugin:CreateCommands()
 		if not Valid then return end
 
 		if not Player:isa( "Commander" ) and not self.Config.EveryoneReady then
-			Shine:NotifyCommandError( Client, "Only the commander can unready the team." )
+			self:NotifyTranslatedCommandError( Client, "ERROR_ONLY_COMMANDER_UNREADY" )
 
 			return
 		end
@@ -421,8 +402,7 @@ function Plugin:CreateCommands()
 
 		if self.Config.EveryoneReady then
 			if not self.ReadiedPlayers[ Client ] then
-				Shine:NotifyCommandError( Client,
-					"You haven't readied yet! Use !ready to ready yourself." )
+				self:NotifyTranslatedCommandError( Client, "ERROR_NOT_READY" )
 
 				return
 			end
@@ -435,10 +415,15 @@ function Plugin:CreateCommands()
 
 			local TeamWasReady = self.ReadyStates[ Team ]
 			if TeamWasReady then
-				self:Notify( false, nil, "%s is no longer ready as %s unreadied.",
-					true, self:GetTeamName( Team ), Player:GetName() )
+				self:SendNetworkMessage( nil, "TeamPlayerNotReady", {
+					Team = Team,
+					PlayerName = Player:GetName()
+				}, true )
 			else
-				self:Notify( false, nil, "%s is no longer ready.", true, Player:GetName() )
+				self:SendNetworkMessage( nil, "PlayerReadyChange", {
+					PlayerName = Player:GetName(),
+					IsReady = false
+				}, true )
 			end
 
 			self:UnReadyTeam( Team )
@@ -453,10 +438,9 @@ function Plugin:CreateCommands()
 
 			--Add a delay to prevent ready->unready spam.
 			self.NextReady[ Team ] = Time + 5
-			self:UnReadyTeam( Team )
+			self:UnReadyTeam( Team, true )
 		else
-			Shine:NotifyCommandError( Client,
-				"Your team has not readied yet! Use !ready to ready your team." )
+			self:NotifyTranslatedCommandError( Client, "ERROR_NOT_TEAM_READY" )
 		end
 	end
 	local UnReadyCommand = self:BindCommand( "sh_unready", { "unrdy", "unready" }, Unready, true )
@@ -468,7 +452,7 @@ function Plugin:CreateCommands()
 		if not Valid then return end
 
 		if not Player:isa( "Commander" ) and not self.Config.EveryoneReady then
-			Shine:NotifyCommandError( Client, "Only the commander can ready up the team." )
+			self:NotifyTranslatedCommandError( Client, "ERROR_ONLY_COMMANDER_READY" )
 
 			return
 		end
@@ -488,7 +472,10 @@ function Plugin:CreateCommands()
 			self.NextReady[ Client ] = Time + 5
 			self.ReadiedPlayers[ Client ] = true
 
-			self:Notify( true, nil, "%s is ready.", true, Player:GetName() )
+			self:SendNetworkMessage( nil, "PlayerReadyChange", {
+				PlayerName = Player:GetName(),
+				IsReady = true
+			}, true )
 
 			local Clients = Shine.GetTeamClients( Team )
 			local Ready = true

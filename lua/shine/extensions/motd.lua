@@ -59,7 +59,7 @@ function Plugin:ShowMotD( Client, OnConnect )
 
 	Shine.SendNetworkMessage( Client, "Shine_Web", {
 		URL = self.Config.URL,
-		Title = "Message of the day"
+		Title = "MESSAGE_OF_THE_DAY"
 	}, true )
 end
 
@@ -94,7 +94,7 @@ function Plugin:CreateCommands()
 		local ID = Client:GetUserId()
 
 		if self.Config.Accepted[ tostring( ID ) ] then
-			self:Notify( Client, "You have already accepted the message of the day." )
+			self:NotifyTranslated( Client, "ALREADY_ACCEPTED_MOTD" )
 
 			return
 		end
@@ -102,7 +102,7 @@ function Plugin:CreateCommands()
 		self.Config.Accepted[ tostring( ID ) ] = true
 		self:SaveConfig( true )
 
-		self:Notify( Client, "Thank you for accepting the message of the day." )
+		self:NotifyTranslated( Client, "ACCEPTED_MOTD_RESPONSE" )
 	end
 	local AcceptMotDCommand = self:BindCommand( "sh_acceptmotd", "acceptmotd", AcceptMotD, true )
 	AcceptMotDCommand:Help( "Accepts the message of the day so you no longer see it on connect." )
