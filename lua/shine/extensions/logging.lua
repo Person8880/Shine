@@ -102,8 +102,6 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	local Client = Server.GetOwner( Player )
 	if not Client then return end
 
-	local UserID = Client.GetUserId and Client:GetUserId() or 0
-
 	Shine:LogString( StringFormat( "Player %s joined team %s.",
 		Shine.GetClientInfo( Client ),
 		Shine:GetTeamName( NewTeam )
@@ -162,7 +160,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	) )
 end
 
-function Plugin:FormatPosition( Pos )
+local function FormatPosition( Pos )
 	local X, Y, Z = Pos.x, Pos.y, Pos.z
 
 	return StringFormat( "(%.3f, %.3f, %.3f)", X, Y, Z )
@@ -182,8 +180,8 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
 		AttackerClient and self:GetClientInfo( AttackerClient ) or Attacker:GetClassName(),
 		VictimClient and self:GetClientInfo( VictimClient ) or Victim:GetClassName(),
 		Inflictor:GetClassName(),
-		self:FormatPosition( AttackerPos ),
-		self:FormatPosition( VictimPos )
+		FormatPosition( AttackerPos ),
+		FormatPosition( VictimPos )
 	) )
 end
 
@@ -279,10 +277,6 @@ function Plugin:OnConstructInit( Building )
 	local Client = Server.GetOwner( Owner )
 	Shine:LogString( StringFormat( "%s began construction of %s[%s].",
 		self:GetClientInfo( Client ), Name, ID ) )
-end
-
-function Plugin:Cleanup()
-	self.Enabled = false
 end
 
 Shine:RegisterExtension( "logging", Plugin )
