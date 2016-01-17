@@ -3,6 +3,9 @@
 ]]
 
 local Plugin = {}
+Plugin.NotifyPrefixColour = {
+	255, 255, 0
+}
 
 local VoteOptionsMessage = {
 	Options = "string (255)",
@@ -88,12 +91,6 @@ function Plugin:SetupDataTable()
 	} )
 
 	self:AddNetworkMessages( "AddTranslatedNotify", {
-		[ MessageTypes.Empty ] = {
-			"EXTENDING_ROUND", "WINNER_NEXT_MAP2", "WINNER_CYCLING2",
-			"NO_VOTES", "VOTES_TIED_FAILURE", "VOTES_TIED_REVOTE",
-			"VOTES_TIED_LIMIT", "RTV_STARTED", "NEXT_MAP_STARTED",
-			"PLUGIN_DISABLED"
-		},
 		[ MessageTypes.Duration ] = {
 			"TimeLeftNotify", "RoundLeftNotify", "EXTENDING_TIME",
 			"MAP_CHANGING"
@@ -132,13 +129,6 @@ function Plugin:SetupDataTable()
 	} )
 
 	self:AddNetworkMessages( "AddTranslatedError", {
-		[ MessageTypes.Empty ] = {
-			"VOTE_FAIL_MAP_CHANGE", "VOTE_FAIL_INSUFFICIENT_PLAYERS",
-			"VOTE_FAIL_TIME", "VOTE_FAIL_IN_PROGRESS",
-			"VOTE_FAIL_ALREADY_VOTED", "NOMINATE_FAIL",
-			"NOMINATIONS_FULL", "RTV_DISABLED", "NO_VOTE_IN_PROGRESS",
-			"NO_CHANGE_IN_PROGRESS", "CANT_FORCE"
-		},
 		[ MessageTypes.MapName ] = {
 			"VOTE_FAIL_INVALID_MAP", "VOTE_FAIL_VOTED_MAP",
 			"MAP_NOT_ON_LIST", "ALREADY_NOMINATED",
@@ -167,10 +157,6 @@ Plugin.Maps = {}
 Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
 Plugin.EndTime = 0
-
-Plugin.NotifyPrefixColour = {
-	255, 255, 0
-}
 
 function Plugin:TimeLeftNotify( Message )
 	self:AddChatLine( 0, 0, 0, "", 255, 160, 0, Message )

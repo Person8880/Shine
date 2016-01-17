@@ -20,9 +20,6 @@ Plugin.Version = "1.6"
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
 Plugin.PrintName = "Map Vote"
-Plugin.NotifyPrefixColour = {
-	255, 255, 0
-}
 
 Plugin.DefaultConfig = {
 	GetMapsFromMapCycle = true, --Get the valid votemaps directly from the mapcycle file.
@@ -349,7 +346,11 @@ end
 function Plugin:CreateCommands()
 	local function NotifyError( Player, Key, Data, Message, Format, ... )
 		if Player then
-			self:SendTranslatedError( Player, Key, Data )
+			if not Data or not next( Data ) then
+				self:NotifyTranslatedError( Player, Key )
+			else
+				self:SendTranslatedError( Player, Key, Data )
+			end
 		else
 			Notify( Format and StringFormat( Message, ... ) or Message )
 		end
@@ -694,7 +695,7 @@ end
 
 function Plugin:Cleanup()
 	if self:VoteStarted() then
-		self:SendTranslatedNotify( nil, "PLUGIN_DISABLED" )
+		self:NotifyTranslated( nil, "PLUGIN_DISABLED" )
 
 		--Remember to clean up client side vote text/menu entries...
 		self:EndVote()

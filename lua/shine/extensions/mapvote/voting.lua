@@ -251,7 +251,7 @@ function Plugin:ExtendMap( Time, NextMap )
 
 	if self.Config.RoundLimit > 0 then
 		self.Round = self.Round - 1
-		self:SendTranslatedNotify( nil, "EXTENDING_ROUND" )
+		self:NotifyTranslated( nil, "EXTENDING_ROUND" )
 	else
 		self:SendTranslatedNotify( nil, "EXTENDING_TIME", {
 			Duration = ExtendTime
@@ -383,7 +383,7 @@ function Plugin:ProcessResults( NextMap )
 
 	--No one voted :|
 	if TotalVotes == 0 then
-		self:SendTranslatedNotify( nil, "NO_VOTES" )
+		self:NotifyTranslated( nil, "NO_VOTES" )
 
 		if self.VoteOnEnd and NextMap then
 			self:OnNextMapVoteFail()
@@ -439,7 +439,7 @@ function Plugin:ProcessResults( NextMap )
 	--Now we're in the case where there's more than one map that won.
 	--If we're set to fail on a tie, then fail.
 	if self.Config.TieFails then
-		self:SendTranslatedNotify( nil, "VOTES_TIED_FAILURE" )
+		self:NotifyTranslated( nil, "VOTES_TIED_FAILURE" )
 		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
 
 		if NextMap then
@@ -477,7 +477,7 @@ function Plugin:ProcessResults( NextMap )
 	self:DestroyTimer( self.VoteTimer )
 
 	if self.Vote.Votes < self.Config.MaxRevotes then --We can revote, so do so.
-		self:SendTranslatedNotify( nil, "VOTES_TIED_REVOTE" )
+		self:NotifyTranslated( nil, "VOTES_TIED_REVOTE" )
 
 		self.Vote.Votes = self.Vote.Votes + 1
 
@@ -485,7 +485,7 @@ function Plugin:ProcessResults( NextMap )
 			self:StartVote( NextMap )
 		end )
 	else
-		self:SendTranslatedNotify( nil, "VOTES_TIED_LIMIT" )
+		self:NotifyTranslated( nil, "VOTES_TIED_LIMIT" )
 
 		if NextMap then
 			self:OnNextMapVoteFail()
@@ -678,9 +678,9 @@ function Plugin:StartVote( NextMap, Force )
 
 	self:SimpleTimer( 0.1, function()
 		if not NextMap then
-			self:SendTranslatedNotify( nil, "RTV_STARTED" )
+			self:NotifyTranslated( nil, "RTV_STARTED" )
 		else
-			self:SendTranslatedNotify( nil, "NEXT_MAP_STARTED" )
+			self:NotifyTranslated( nil, "NEXT_MAP_STARTED" )
 		end
 	end )
 
