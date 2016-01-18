@@ -239,7 +239,7 @@ function Plugin:SetupAdminMenuCommands()
 		local Time = GagTimes[ i ]
 		local TimeString = StringTimeToString( Time )
 
-		GagLabels[ i * 2 - 1 ] = TimeToString
+		GagLabels[ i * 2 - 1 ] = TimeString
 		GagLabels[ i * 2 ] = tostring( Time )
 	end
 
@@ -265,7 +265,7 @@ function Plugin:SetupAdminMenuCommands()
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "SET_TEAM" ), "sh_setteam", true, Teams,
 		self:GetPhrase( "SET_TEAM_TIP" ) )
 
-	self:AddAdminMenuTab( "Maps", {
+	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
 		OnInit = function( Panel, Data )
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
@@ -327,7 +327,7 @@ function Plugin:SetupAdminMenuCommands()
 		end
 	} )
 
-	self:AddAdminMenuTab( "Plugins", {
+	self:AddAdminMenuTab( self:GetPhrase( "PLUGINS" ), {
 		OnInit = function( Panel, Data )
 			local List = SGUI:Create( "List", Panel )
 			List:SetAnchor( GUIItem.Left, GUIItem.Top )
