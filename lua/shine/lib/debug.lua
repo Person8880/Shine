@@ -252,15 +252,34 @@ function Shine.Assert( Assertion, Error, ... )
 	end
 end
 
---[[
-	Checks a value's type, and throws an error if it doesn't match.
-]]
-function Shine.TypeCheck( Arg, Type, ArgNumber, FuncName, Level )
-	local ArgType = type( Arg )
+do
+	local TableConcat = table.concat
 
-	if ArgType ~= Type then
-		error( StringFormat( "Bad argument #%i to '%s' (%s expected, got %s)",
-			ArgNumber, FuncName, Type, ArgType ), Level or 2 )
+	--[[
+		Checks a value's type, and throws an error if it doesn't match.
+	]]
+	function Shine.TypeCheck( Arg, Type, ArgNumber, FuncName, Level )
+		local ArgType = type( Arg )
+		local MatchesType = false
+		local ExpectedType = Type
+
+		if type( Type ) == "table" then
+			for i = 1, #Type do
+				if ArgType == Type[ i ] then
+					MatchesType = true
+					break
+				end
+			end
+
+			ExpectedType = TableConcat( Type, " or " )
+		else
+			MatchesType = ArgType == Type
+		end
+
+		if not MatchesType then
+			error( StringFormat( "Bad argument #%i to '%s' (%s expected, got %s)",
+				ArgNumber, FuncName, ExpectedType, ArgType ), Level or 3 )
+		end
 	end
 end
 

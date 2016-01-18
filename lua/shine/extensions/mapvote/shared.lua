@@ -97,7 +97,8 @@ function Plugin:SetupDataTable()
 		},
 		[ MessageTypes.MapName ] = {
 			"MapCycling", "WINNER_NEXT_MAP", "WINNER_CYCLING",
-			"CHOOSING_RANDOM_MAP", "NextMapCommand"
+			"CHOOSING_RANDOM_MAP", "NextMapCommand",
+			"MAP_CYCLING"
 		},
 		[ MessageTypes.MapVotes ] = {
 			"WINNER_VOTES"
