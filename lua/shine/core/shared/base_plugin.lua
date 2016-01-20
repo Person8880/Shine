@@ -178,6 +178,10 @@ if Server then
 	]]
 	function PluginMeta:SendNetworkMessage( Target, Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
+		if not MessageName then
+			error( StringFormat( "Attempted to send unregistered network message '%s' for plugin '%s'.",
+				Name, self.__Name ), 2 )
+		end
 
 		Shine:ApplyNetworkMessage( Target, MessageName, Data, Reliable )
 	end
@@ -203,6 +207,10 @@ if Server then
 elseif Client then
 	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
+		if not MessageName then
+			error( StringFormat( "Attempted to send unregistered network message '%s' for plugin '%s'.",
+				Name, self.__Name ), 2 )
+		end
 
 		Shine.SendNetworkMessage( MessageName, Data, Reliable )
 	end
