@@ -1,0 +1,12 @@
+{
+	"GAME_START": "Игра начнётся через %s.",
+	"GAME_START_SOON": "Игра начнётся через {Duration:Duration}.",
+	"WAITING_FOR_TEAM": "Ждём пока {Team:TeamName:capitals} выберет командира.",
+	"WAITING_FOR_BOTH": "Ждём пока обе команды выберут командиров.",
+	"ABORT_EMPTY_TEAM": "Начало игры остановлено, у {Team:TeamName:singular} нет игроков.",
+	"ABORT_COMMANDER_DROP": "Начало игры остановлено, отсутствует командир.",
+	"TEAM_HAS_COMMANDER": "У {TeamWithCommander:TeamName:capitals} есть командир. Команда {TeamWithoutCommander:TeamName:capitals} должна выбрать своего командира в течении {TimeLeft:Duration}.",
+	"EXCEEDED_TIME": "Время истекло ({Duration:Duration}). Игра началась...",
+	"NOTIFY_PREFIX": "[Pre Game]",
+	"WAITING_FOR_PLAYERS": "Игра не начнётся, пока идёт подключение игроков."
+}

@@ -1,0 +1,7 @@
+{
+	"ERROR_NOT_ALIVE": "Вы не можете мёртвым использовать \"unstuck\".",
+	"ERROR_WAIT": "Вы должны подождать {TimeLeft:Duration} перед повторным использованием \"unstuck\".",
+	"SUCCESS": "Успешно выполнена команда \"unstuck\".",
+	"ERROR_FAIL": "Не успешно выполнена команда \"unstuck\". Попробуйте её использовать снова через {TimeLeft:Duration}.",
+	"NOTIFY_PREFIX": "[Unstuck]"
+}

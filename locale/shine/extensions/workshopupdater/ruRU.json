@@ -1,0 +1,6 @@
+{
+	"MOD_CHANGED": "Мод \"{ModName}\" был обновлён в Steam Workshop.",
+	"MAY_BE_UNABLE_TO_CONNECT": "Игроки не смогут подключится к серверу пока не сменится карта.",
+	"MAP_CYCLE": "Карта сменится {TimeLeft:NonZero:in }{TimeLeft:Duration:now}.",
+	"NOTIFY_PREFIX": "[Workshop]"
+}
