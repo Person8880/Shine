@@ -1,0 +1,5 @@
+{
+	"PLAYER_JOINED_GENERIC": "{TargetName} игрок подключился к серверу.",
+	"PLAYER_LEAVE_GENERIC": "{TargetName} игрок вышел с сервера.",
+	"PLAYER_LEAVE_REASON": "{TargetName} был принудительно отключён. Причина: {Reason}."
+}
