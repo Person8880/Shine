@@ -102,6 +102,11 @@ UnitTest:Test( "Build", function( Assert )
 	Assert:IsType( Base.Child.SubChild.ReallySubChild, "table" )
 
 	Assert:Equals( Base.Child.SubChild.ReallySubChild, ReallySubChild )
+
+	-- Should not overwrite if tables already exist.
+	Base.Child.Cake = true
+	Assert:Equals( ReallySubChild, table.Build( Base, "Child", "SubChild", "ReallySubChild" ) )
+	Assert:True( Base.Child.Cake )
 end )
 
 UnitTest:Test( "QuickShuffle", function( Assert )
