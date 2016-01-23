@@ -1184,18 +1184,21 @@ function Plugin:AddVote( Client )
 
 	if not Client then Client = "Console" end
 
-	local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
-	if Allow == false then
-		return false, TranslationKey, Args
+	do
+		local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
+		if Allow == false then
+			return false, TranslationKey, Args
+		end
 	end
 
-	local Success, Err, Args = self:CanStartVote()
-	if not Success then
-		return false, Err, Args
+	do
+		local Success, Err, Args = self:CanStartVote()
+		if not Success then
+			return false, Err, Args
+		end
 	end
 
-	Success = self.Vote:AddVote( Client )
-	if not Success then
+	if not self.Vote:AddVote( Client ) then
 		return false, "ERROR_ALREADY_VOTED", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
 	end
 
