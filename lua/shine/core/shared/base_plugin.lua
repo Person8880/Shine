@@ -429,7 +429,7 @@ elseif Client then
 	end
 
 	function PluginMeta:NotifyError( Message )
-		self:AddChatLine( 255, 0, 0, self:GetPhrase( "ERROR_TAG" ), 255, 255, 255, Message )
+		Shine:NotifyError( Message )
 	end
 
 	do
