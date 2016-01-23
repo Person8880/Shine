@@ -52,5 +52,13 @@
 	"VIEW_WEB_IN_STEAM_DESCRIPTION": "View web pages in the Steam overlay.",
 	"REPORT_ERRORS_DESCRIPTION": "Report script errors caused by Shine.",
 	"ANIMATE_UI_DESCRIPTION": "Use animations in the UI.",
-	"CLIENT_CONFIG_MENU": "Client Config"
+	"CLIENT_CONFIG_MENU": "Client Config",
+	"ERROR_CANT_TARGET_SELF": "You cannot target yourself with this command.",
+	"ERROR_NO_MATCHING_PLAYER": "No player matching '{PlayerName}' was found.",
+	"ERROR_NO_MATCHING_PLAYERS": "No players matching '{PlayerName}' were found.",
+	"ERROR_CANT_TARGET": "You do not have permission to target {PlayerName}.",
+	"ERROR_CANT_TARGET_MULTIPLE": "You do not have permission to target anyone you specified.",
+	"COMMAND_DEFAULT_ERROR": "Incorrect argument #{ArgNum} to {CommandName}, expected {ExpectedType}.",
+	"COMMAND_RESTRICTED_ARG": "Invalid argument #{ArgNum}, restricted in rank settings.",
+	"COMMAND_NO_PERMISSION": "You do not have permission to use {CommandName}."
 }

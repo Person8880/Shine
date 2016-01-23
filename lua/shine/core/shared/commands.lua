@@ -2,6 +2,8 @@
 	Shine console commands system.
 ]]
 
+local Shine = Shine
+
 Shared.RegisterNetworkMessage( "Shine_Command", {
 	Command = "string (255)"
 } )
@@ -12,6 +14,64 @@ local StringFormat = string.format
 local StringToTime = string.ToTime
 local StringUTF8Sub = string.UTF8Sub
 local TableConcat = table.concat
+
+do
+	local function GetNetworkMessageName( Name, Source )
+		return StringFormat( "Shine_CommandNotify_%s%s", Source or "", Name )
+	end
+
+	function Shine.RegisterTranslatedCommandError( Name, Data, Source )
+		local MessageName = GetNetworkMessageName( Name, Source )
+		Data.IsConsole = "boolean"
+		Shared.RegisterNetworkMessage( MessageName, Data )
+
+		if Server then return end
+
+		Client.HookNetworkMessage( MessageName, function( Data )
+			local Message = Shine.Locale:GetInterpolatedPhrase( Source or "Core", Name, Data )
+			if Data.IsConsole then
+				Shared.Message( Message )
+			else
+				Shine:NotifyError( Message )
+			end
+		end )
+	end
+
+	function Shine:SendTranslatedCommandError( Client, Name, Data, Source )
+		Data.IsConsole = not self:IsCommandFromChat()
+		self:ApplyNetworkMessage( Client, GetNetworkMessageName( Name, Source ), Data, true )
+	end
+
+	local ErrorMessages = {
+		PlayerName = {
+			PlayerName = StringFormat( "string (%i)", kMaxNameLength * 4 + 1 )
+		},
+		BadArgument = {
+			ArgNum = "integer (1 to 32)",
+			CommandName = "string (24)",
+			ExpectedType = "string (32)"
+		},
+		ArgNum = {
+			ArgNum = "integer (1 to 32)"
+		},
+		CommandName = {
+			CommandName = "string (24)"
+		}
+	}
+
+	local Errors = {
+		ERROR_NO_MATCHING_PLAYER = ErrorMessages.PlayerName,
+		ERROR_NO_MATCHING_PLAYERS = ErrorMessages.PlayerName,
+		ERROR_CANT_TARGET = ErrorMessages.PlayerName,
+		COMMAND_DEFAULT_ERROR = ErrorMessages.BadArgument,
+		COMMAND_RESTRICTED_ARG = ErrorMessages.ArgNum,
+		COMMAND_NO_PERMISSION = ErrorMessages.CommandName
+	}
+
+	for Key, Data in pairs( Errors ) do
+		Shine.RegisterTranslatedCommandError( Key, Data )
+	end
+end
 
 Shine.CommandUtil = {}
 

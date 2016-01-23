@@ -157,6 +157,10 @@ do
 		end )
 	end
 
+	function PluginMeta:AddTranslatedCommandError( Name, Params )
+		Shine.RegisterTranslatedCommandError( Name, Params, self.__Name )
+	end
+
 	function PluginMeta:AddNetworkMessages( Method, Messages )
 		for Type, Names in pairs( Messages ) do
 			for i = 1, #Names do
@@ -204,6 +208,10 @@ if Server then
 
 	PluginMeta.SendTranslatedError = PluginMeta.SendTranslatedNotify
 	PluginMeta.SendTranslatedNotifyColour = PluginMeta.SendTranslatedNotify
+
+	function PluginMeta:SendTranslatedCommandError( Target, Name, Params )
+		Shine:SendTranslatedCommandError( Target, Name, Params, self.__Name )
+	end
 elseif Client then
 	function PluginMeta:SendNetworkMessage( Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
