@@ -37,9 +37,11 @@ do
 		end )
 	end
 
-	function Shine:SendTranslatedCommandError( Client, Name, Data, Source )
-		Data.IsConsole = not self:IsCommandFromChat()
-		self:ApplyNetworkMessage( Client, GetNetworkMessageName( Name, Source ), Data, true )
+	if Server then
+		function Shine:SendTranslatedCommandError( Client, Name, Data, Source )
+			Data.IsConsole = not self:IsCommandFromChat()
+			self:ApplyNetworkMessage( Client, GetNetworkMessageName( Name, Source ), Data, true )
+		end
 	end
 
 	local ErrorMessages = {
