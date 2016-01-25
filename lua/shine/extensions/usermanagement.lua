@@ -406,7 +406,7 @@ function Plugin:CreateCommands()
 					return
 				end
 
-				if not CheckGroupExists( GroupName ) then return end
+				if not CheckGroupExists( Client, GroupName ) then return end
 
 				local Group = Shine:GetGroupData( GroupName )
 				Shine.PrintToConsole( Client, StringFormat( "Displaying information for group '%s':", GroupName ) )
