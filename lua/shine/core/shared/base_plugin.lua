@@ -49,18 +49,12 @@ function PluginMeta:CallModuleEvent( Event, ... )
 	end
 end
 
-if Server then
-	--[[
-		Default cleanup will remove any bound commands.
-		Override to add/change behaviour, call it with self.BaseClass.Cleanup( self ).
-	]]
-	function PluginMeta:Cleanup()
-		self:CallModuleEvent( "Cleanup" )
-	end
-elseif Client then
-	function PluginMeta:Cleanup()
-		self:CallModuleEvent( "Cleanup" )
-	end
+--[[
+	Default cleanup will remove any bound commands.
+	Override to add/change behaviour, call it with self.BaseClass.Cleanup( self ).
+]]
+function PluginMeta:Cleanup()
+	self:CallModuleEvent( "Cleanup" )
 end
 
 --[[
