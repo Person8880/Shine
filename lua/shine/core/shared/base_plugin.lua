@@ -4,9 +4,7 @@
 
 local Shine = Shine
 
-local pairs = pairs
 local rawget = rawget
-local StringFormat = string.format
 local TableShallowMerge = table.ShallowMerge
 
 local PluginMeta = {}
