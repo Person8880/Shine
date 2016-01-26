@@ -597,7 +597,9 @@ function PluginMeta:DestroyAllTimers()
 	end
 end
 
---Suspends the plugin, stopping its hooks, pausing its timers, but not calling Cleanup().
+--[[
+	Suspends the plugin, stopping its hooks, pausing its timers, but not calling Cleanup().
+]]
 function PluginMeta:Suspend()
 	if self.OnSuspend then
 		self:OnSuspend()
@@ -619,7 +621,9 @@ function PluginMeta:Suspend()
 	self.Suspended = true
 end
 
---Resumes the plugin from suspension.
+--[[
+	Resumes the plugin from suspension.
+]]
 function PluginMeta:Resume()
 	if rawget( self, "Timers" ) then
 		for Name, Timer in pairs( self.Timers ) do
@@ -641,7 +645,9 @@ function PluginMeta:Resume()
 	end
 end
 
---Provides an easy way to delay actions in think-esque hooks.
+--[[
+	Provides an easy way to delay actions in think-esque hooks.
+]]
 function PluginMeta:CanRunAction( Action, Time, Delay )
 	self.TimedActions = rawget( self, "TimedActions" ) or {}
 
@@ -650,6 +656,17 @@ function PluginMeta:CanRunAction( Action, Time, Delay )
 	self.TimedActions[ Action ] = Time + Delay
 
 	return true
+end
+
+--[[
+	Wraps a callback so that it is only executed if the plugin is still enabled.
+]]
+function PluginMeta:WrapCallback( Callback )
+	return function( ... )
+		if not self.Enabled then return end
+
+		return Callback( ... )
+	end
 end
 
 if Server then
@@ -691,7 +708,6 @@ local ReservedKeys = {
 	Enabled = true,
 	Suspended = true
 }
---Support plugins inheriting from other plugins.
 function PluginMeta:__index( Key )
 	if ReservedKeys[ Key ] then return nil end
 
