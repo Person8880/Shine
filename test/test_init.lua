@@ -146,6 +146,10 @@ for Name, Func in pairs( UnitTest.Assert ) do
 	end
 end
 
+UnitTest.Assert.Fail = function( Failure )
+	error( Failure, 2 )
+end
+
 function UnitTest:Output( File )
 	local Passed = 0
 	local Failed = 0
