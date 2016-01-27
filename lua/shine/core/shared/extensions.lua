@@ -405,7 +405,7 @@ do
 		Called by the hook system, should not be called directly.
 	]]
 	function Shine:CallExtensionEvent( Event, OnError, ... )
-		Dispatcher:DispatchEvent( Event, OnError, ... )
+		return Dispatcher:DispatchEvent( Event, OnError, ... )
 	end
 end
 
