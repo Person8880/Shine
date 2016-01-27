@@ -5,6 +5,8 @@
 	and optionally, a function to check for timing out.
 ]]
 
+if Client then return end
+
 local Shine = Shine
 
 local Max = math.max
@@ -56,7 +58,7 @@ end
 
 function VoteMeta:AddVote( Client )
 	if self.Voted[ Client ] then return false, "already voted" end
-	
+
 	self.Voted[ Client ] = true
 	self.Votes = self.Votes + 1
 

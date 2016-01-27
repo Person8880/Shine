@@ -6,13 +6,9 @@
 local Clamp = math.Clamp
 local TableRemove = table.remove
 
-local Map = {}
-Map.__index = Map
+local Map = Shine.TypeDef()
 
-local function NewMap()
-	return setmetatable( {}, Map ):Init()
-end
-Shine.Map = NewMap
+Shine.Map = Map
 
 function Map:Init()
 	self.Keys = {}
@@ -271,12 +267,8 @@ local pairs = pairs
 	This implementation does not allow multiple instances of distinct key-value pairs. That is,
 	you could not map key A to value B twice and have B show up twice in the value list for key A.
 ]]
-local Multimap = setmetatable( {}, { __index = Map } )
-Multimap.__index = Multimap
-
-function Shine.Multimap( Values )
-	return setmetatable( {}, Multimap ):Init( Values )
-end
+local Multimap = Shine.TypeDef( Map )
+Shine.Multimap = Multimap
 
 --[[
 	Initialises the multimap.
