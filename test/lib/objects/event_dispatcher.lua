@@ -24,6 +24,8 @@ UnitTest:Test( "DispatchEvent with no valid listeners", function( Assert )
 
 	local Dispatcher = EventDispatcher( Listeners )
 	Dispatcher:DispatchEvent( "NoCake", true )
+	Assert:IsType( Dispatcher.ListenersWithEvent.NoCake, "table" )
+	Assert:Equals( 0, #Dispatcher.ListenersWithEvent.NoCake )
 end )
 
 UnitTest:Test( "DispatchEvent with valid listeners", function( Assert )
@@ -50,4 +52,5 @@ UnitTest:Test( "DispatchEvent with valid listeners", function( Assert )
 	Dispatcher:DispatchEvent( "Cake", false )
 
 	Assert:ArrayEquals( { 1, 2 }, Called )
+	Assert:ArrayEquals( { Listeners[ 1 ], Listeners[ 2 ] }, Dispatcher.ListenersWithEvent.Cake )
 end )
