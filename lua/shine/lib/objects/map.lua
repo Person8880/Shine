@@ -319,7 +319,7 @@ end
 function Multimap:Add( Key, Value )
 	local Entry = Map.Get( self, Key )
 	if not Entry then
-		Entry = NewMap()
+		Entry = Map()
 		Map.Add( self, Key, Entry )
 
 		self.Count = self.Count + 1
