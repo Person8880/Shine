@@ -27,8 +27,8 @@ end
 --[[
 	*STATIC* method to register a module against the plugin.
 
-	Modules are small self-contained bits of behaviour that are helpful to provide to
-	all plugins.
+	Modules are small self-contained bits of behaviour that split up distinct pieces of functionality
+	in a plugin.
 
 	The base plugin loads its modules from core/shared/base_plugin. Plugin instances receive
 	a copy of their parent's modules, which they can then add to.
@@ -51,7 +51,7 @@ end
 	Calls an event on all modules that have a listener for it.
 ]]
 function PluginMeta:CallModuleEvent( Event, ... )
-	self.EventDispatcher:DispatchEvent( Event, ... )
+	return self.EventDispatcher:DispatchEvent( Event, ... )
 end
 
 --[[
