@@ -15,6 +15,7 @@ local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
 local ToDebugString = table.ToDebugString
 local Traceback = debug.traceback
@@ -52,30 +53,46 @@ function Shine:RegisterExtension( Name, Table, Options )
 		self.Locale:RegisterSource( Name, "locale/shine/extensions/"..Name )
 	end
 
-	if Options then
-		local Base = Options.Base
-		if not Base then return end
-
-		if not self.Plugins[ Base ] then
-			if not self:LoadExtension( Base, true ) then
-				return
-			end
-		end
-
-		local ParentPlugin = self.Plugins[ Base ]
-
-		if ParentPlugin.__Inherit == Table then
-			self.Plugins[ Name ] = nil
-
-			error( StringFormat(
-				"[Shine] Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
-				Name, Base, Base, Name ) )
-		end
-
-		Table.__Inherit = ParentPlugin
-		Table.__InheritBlacklist = Options.BlacklistKeys
-		Table.__InheritWhitelist = Options.WhitelistKeys
+	-- Copy (by reference) all modules from the base of the plugin
+	-- This allows plugins to add their own modules progressively.
+	local function SetupModules( Base )
+		Table.Modules = TableQuickCopy( Base.Modules )
+		Table:SetupDispatcher()
 	end
+
+	if not Options then
+		SetupModules( PluginMeta )
+		return
+	end
+
+	local Base = Options.Base
+	if not Base then
+		SetupModules( PluginMeta )
+		return
+	end
+
+	if not self.Plugins[ Base ] then
+		if not self:LoadExtension( Base, true ) then
+			SetupModules( PluginMeta )
+			return
+		end
+	end
+
+	local ParentPlugin = self.Plugins[ Base ]
+
+	if ParentPlugin.__Inherit == Table then
+		self.Plugins[ Name ] = nil
+
+		error( StringFormat(
+			"[Shine] Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
+			Name, Base, Base, Name ) )
+	end
+
+	Table.__Inherit = ParentPlugin
+	Table.__InheritBlacklist = Options.BlacklistKeys
+	Table.__InheritWhitelist = Options.WhitelistKeys
+
+	SetupModules( ParentPlugin )
 end
 
 function Shine:LoadExtension( Name, DontEnable )
@@ -341,8 +358,8 @@ function Shine:IsExtensionEnabled( Name )
 	return false
 end
 
-local ClientPlugins = {}
 -- Store a list of all plugins in existence. When the server config loads, we use it.
+local ClientPlugins = {}
 local AllPlugins = {}
 Shine.AllPlugins = AllPlugins
 

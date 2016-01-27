@@ -25,10 +25,13 @@ function PluginMeta:Initialise()
 end
 
 --[[
-	*STATIC* method to register a module against the base plugin.
+	*STATIC* method to register a module against the plugin.
 
 	Modules are small self-contained bits of behaviour that are helpful to provide to
-	all plugins. They are loaded from core/shared/base_plugin.
+	all plugins.
+
+	The base plugin loads its modules from core/shared/base_plugin. Plugin instances receive
+	a copy of their parent's modules, which they can then add to.
 ]]
 function PluginMeta:AddModule( Module )
 	self.Modules[ #self.Modules + 1 ] = Module
@@ -36,15 +39,19 @@ function PluginMeta:AddModule( Module )
 end
 
 --[[
+	Internal function, do not call!
+
+	Sets up the event dispatcher for sending events to plugin modules.
+]]
+function PluginMeta:SetupDispatcher()
+	self.EventDispatcher = Shine.EventDispatcher( self.Modules )
+end
+
+--[[
 	Calls an event on all modules that have a listener for it.
 ]]
 function PluginMeta:CallModuleEvent( Event, ... )
-	for i = 1, #self.Modules do
-		local Module = self.Modules[ i ]
-		if Module[ Event ] then
-			Module[ Event ]( self, ... )
-		end
-	end
+	self.EventDispatcher:DispatchEvent( Event, ... )
 end
 
 --[[
