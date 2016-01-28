@@ -52,6 +52,10 @@ function BaseLayout:Init( Data )
 	return self
 end
 
+function BaseLayout:GetIsVisible()
+	return true
+end
+
 function BaseLayout:AddElement( Element )
 	local Elements = self.Elements
 	Elements[ #Elements + 1 ] = Element
