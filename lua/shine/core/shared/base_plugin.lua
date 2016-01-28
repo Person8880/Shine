@@ -18,7 +18,7 @@ PluginMeta.Modules = {}
 	Override to add to it.
 ]]
 function PluginMeta:Initialise()
-	self:CallModuleEvent( "Initialise" )
+	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
 
 	return true
@@ -36,6 +36,11 @@ end
 function PluginMeta:AddModule( Module )
 	self.Modules[ #self.Modules + 1 ] = Module
 	TableShallowMerge( Module, self )
+
+	-- Merge configuration values if provided.
+	if Module.DefaultConfig and self.DefaultConfig ~= Module.DefaultConfig then
+		TableShallowMerge( Module.DefaultConfig, self.DefaultConfig )
+	end
 end
 
 --[[
@@ -48,10 +53,19 @@ function PluginMeta:SetupDispatcher()
 end
 
 --[[
-	Calls an event on all modules that have a listener for it.
+	Calls an event on all modules that have a listener for it,
+	returning the values from the first module to return a value.
 ]]
 function PluginMeta:CallModuleEvent( Event, ... )
 	return self.EventDispatcher:DispatchEvent( Event, ... )
+end
+
+--[[
+	Calls an event on all modules that have a listener for it
+	without stopping if a module returns a value.
+]]
+function PluginMeta:BroadcastModuleEvent( Event, ... )
+	self.EventDispatcher:BroadcastEvent( Event, ... )
 end
 
 --[[
@@ -59,7 +73,7 @@ end
 	Override to add/change behaviour, call it with self.BaseClass.Cleanup( self ).
 ]]
 function PluginMeta:Cleanup()
-	self:CallModuleEvent( "Cleanup" )
+	self:BroadcastModuleEvent( "Cleanup" )
 end
 
 --[[
@@ -70,7 +84,7 @@ function PluginMeta:Suspend()
 		self:OnSuspend()
 	end
 
-	self:CallModuleEvent( "Suspend" )
+	self:BroadcastModuleEvent( "Suspend" )
 
 	self.Enabled = false
 	self.Suspended = true
@@ -80,7 +94,7 @@ end
 	Resumes the plugin from suspension.
 ]]
 function PluginMeta:Resume()
-	self:CallModuleEvent( "Resume" )
+	self:BroadcastModuleEvent( "Resume" )
 
 	self.Enabled = true
 	self.Suspended = nil
