@@ -49,8 +49,11 @@ end
 	for the given event.
 ]]
 function EventDispatcher:GetListenersForEvent( Event )
+	local Listeners = self.ListenersWithEvent[ Event ]
+	if Listeners then return Listeners end
+
 	local Count = 0
-	local Listeners = {}
+	Listeners = {}
 
 	for i = 1, #self.EventListeners do
 		local Listener = self:GetListener( self.EventListeners[ i ] )
@@ -61,6 +64,7 @@ function EventDispatcher:GetListenersForEvent( Event )
 	end
 
 	Listeners.Count = Count
+	self.ListenersWithEvent[ Event ] = Listeners
 
 	return Listeners
 end
@@ -72,16 +76,24 @@ end
 	Subsequent calls use the cached list until the cache is flushed.
 ]]
 function EventDispatcher:DispatchEvent( Event, ... )
-	local Listeners = self.ListenersWithEvent[ Event ]
-	if not Listeners then
-		Listeners = self:GetListenersForEvent( Event )
-		self.ListenersWithEvent[ Event ] = Listeners
-	end
-
+	local Listeners = self:GetListenersForEvent( Event )
 	for i = 1, Listeners.Count do
 		local a, b, c, d, e, f = self:CallEvent( Listeners[ i ], Listeners[ i ][ Event ], ... )
 		if a ~= nil then
 			return a, b, c, d, e, f
 		end
+	end
+end
+
+--[[
+	Broadcasts an event to all listeners that are listening for it.
+
+	Unlike DispatchEvent, listeners returning values does not stop the event
+	from continuing. All listeners are guaranteed to receive the event.
+]]
+function EventDispatcher:BroadcastEvent( Event, ... )
+	local Listeners = self:GetListenersForEvent( Event )
+	for i = 1, Listeners.Count do
+		self:CallEvent( Listeners[ i ], Listeners[ i ][ Event ], ... )
 	end
 end
