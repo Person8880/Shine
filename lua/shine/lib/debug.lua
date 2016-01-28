@@ -239,6 +239,23 @@ function Shine.IsType( Object, Type )
 end
 
 --[[
+	Asserts a condition at a given level, and formats the error message.
+
+	Inputs:
+		1. Assertion condition.
+		2. Error message.
+		3. Error level.
+		4. Format arguments for the error message.
+]]
+function Shine.AssertAtLevel( Assertion, Error, Level, ... )
+	if not Assertion then
+		error( StringFormat( Error, ... ), Level )
+	end
+
+	return Assertion
+end
+
+--[[
 	Asserts a condition and formats the error message.
 
 	Inputs:
@@ -247,9 +264,7 @@ end
 		3. Format arguments for the error message.
 ]]
 function Shine.Assert( Assertion, Error, ... )
-	if not Assertion then
-		error( StringFormat( Error, ... ), 2 )
-	end
+	return Shine.AssertAtLevel( Assertion, Error, 2, ... )
 end
 
 do
