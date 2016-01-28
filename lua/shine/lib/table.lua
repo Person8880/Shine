@@ -7,6 +7,22 @@ local pairs = pairs
 local Random = math.random
 local TableSort = table.sort
 
+--[[
+	Returns true if the given array structures have the same size
+	and equal elements in order.
+]]
+function table.ArraysEqual( Left, Right )
+	if #Left ~= #Right then return false end
+
+	for i = 1, #Left do
+		if Left[ i ] ~= Right[ i ] then
+			return false
+		end
+	end
+
+	return true
+end
+
 do
 	local function HasValue( Table, Value )
 		for i = 1, #Table do

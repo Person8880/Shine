@@ -168,3 +168,18 @@ UnitTest:Test( "SortedPairs", function( Assert )
 	local Keys = BuildIteratorTest( SortedPairs )( Assert )
 	Assert:ArrayEquals( { "Key1", "Key2", "Key3" }, Keys )
 end )
+
+UnitTest:Test( "ArraysEqual", function( Assert )
+	local Left = { 1, 2, 3 }
+	local Right = { 1, 2, 3 }
+
+	Assert:True( table.ArraysEqual( Left, Right ) )
+
+	Left[ 4 ] = 5
+	Right[ 4 ] = 4
+	Assert:False( table.ArraysEqual( Left, Right ) )
+
+	Left[ 4 ] = 4
+	Right[ 5 ] = 5
+	Assert:False( table.ArraysEqual( Left, Right ) )
+end )

@@ -113,17 +113,7 @@ UnitTest.Assert = {
 		return false
 	end,
 
-	ArrayEquals = function( Array, OtherArray )
-		if #Array ~= #OtherArray then return false end
-
-		for i = 1, #Array do
-			if Array[ i ] ~= OtherArray[ i ] then
-				return false
-			end
-		end
-
-		return true
-	end,
+	ArrayEquals = table.ArraysEqual,
 
 	IsType = IsType
 }
