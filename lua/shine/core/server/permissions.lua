@@ -1058,3 +1058,36 @@ Shine.Hook.Add( "NS2StartVote", "ImmunityCheck", function( VoteName, Client, Dat
 		return false
 	end
 end )
+
+do
+	local StringFind = string.find
+
+	local function BuildReplacementCommandChecker( OldGetClientCanRunCommand )
+		return function( Client, CommandName, PrintWarning )
+			if Shine:HasAccess( Client, CommandName ) then return true end
+
+			return OldGetClientCanRunCommand( Client, CommandName, PrintWarning )
+		end
+	end
+
+	-- Override sv_* commands as they are added to check Shine's permissions.
+	Shine.Hook.Add( "NS2EventHook", "OverrideSVCommandPermissions", function( Name, Func )
+		if not StringFind( Name, "^Console_sv_" ) then return end
+
+		local OldGetClientCanRunCommand = Shine.GetUpValue( Func, "GetClientCanRunCommand" )
+		if not OldGetClientCanRunCommand then return end
+
+		Shine.SetUpValue( Func, "GetClientCanRunCommand",
+			BuildReplacementCommandChecker( OldGetClientCanRunCommand ) )
+	end )
+
+	-- Pre-empt it being changed to a global.
+	Shine.Hook.Add( "PostLoadScript", "OverrideSVCommandPermissions", function( Script )
+		if Script ~= "lua/ServerAdmin.lua" then return end
+
+		local OldGetClientCanRunCommand = GetClientCanRunCommand
+		if not OldGetClientCanRunCommand then return end
+
+		GetClientCanRunCommand = BuildReplacementCommandChecker( OldGetClientCanRunCommand )
+	end )
+end
