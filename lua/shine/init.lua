@@ -6,12 +6,12 @@
 --Load order.
 local Scripts = {
 	"lib/debug.lua",
+	"lib/string.lua",
 	"lib/table.lua",
 	"lib/sorting.lua",
-	"lib/objects.lua",
-	"lib/string.lua",
 	"lib/utf8.lua",
 	"lib/math.lua",
+	"lib/objects.lua",
 	"lib/class.lua",
 	"lib/game.lua",
 	"core/shared/hook.lua",
