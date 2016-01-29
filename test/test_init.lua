@@ -55,39 +55,65 @@ local function CleanTraceback( Traceback )
 	return Traceback
 end
 
-function UnitTest:Test( Description, TestFunction, Finally, Reps )
-	local Result = {
-		Description = Description
-	}
+function UnitTest:Before( Action )
+	self.Befores[ #self.Befores + 1 ] = Action
+end
 
-	local function ErrorHandler( Err )
-		Result.Err = Err
-		local IsAssertion = IsAssertionFailure( Err )
-		Result.Traceback = CleanTraceback( DebugTraceback( IsAssertion and Err.Message or Err,
-			IsAssertionFailure( Err ) and 4 or 2 ) )
-	end
+function UnitTest:After( Action )
+	self.Afters[ #self.Afters + 1 ] = Action
+end
 
-	Reps = Reps or 1
+function UnitTest:ResetState()
+	self.Befores = {}
+	self.Afters = {}
+end
 
-	local Start = Shared.GetSystemTimeReal()
-	for i = 1, Reps do
-		local Success, Err = xpcall( TestFunction, ErrorHandler, self.Assert )
+do
+	local function CallPrePostAction( Action )
+		local Success, Err = xpcall( Action, DebugTraceback )
 		if not Success then
-			Result.Errored = true
-			break
-		end
-
-		if Finally then
-			pcall( Finally )
+			LuaPrint( Err )
 		end
 	end
-	Result.Duration = Shared.GetSystemTimeReal() - Start
 
-	if not Result.Errored then
-		Result.Passed = true
+	function UnitTest:Test( Description, TestFunction, Finally, Reps )
+		local Result = {
+			Description = Description
+		}
+
+		local function ErrorHandler( Err )
+			Result.Err = Err
+			local IsAssertion = IsAssertionFailure( Err )
+			Result.Traceback = CleanTraceback( DebugTraceback( IsAssertion and Err.Message or Err,
+				IsAssertionFailure( Err ) and 4 or 2 ) )
+		end
+
+		Reps = Reps or 1
+
+		Shine.Stream( self.Befores ):ForEach( CallPrePostAction )
+
+		local Start = Shared.GetSystemTimeReal()
+		for i = 1, Reps do
+			local Success, Err = xpcall( TestFunction, ErrorHandler, self.Assert )
+			if not Success then
+				Result.Errored = true
+				break
+			end
+
+			if Finally then
+				pcall( Finally )
+			end
+		end
+		Result.Duration = Shared.GetSystemTimeReal() - Start
+
+		Shine.Stream( self.Afters ):ForEach( CallPrePostAction )
+
+		if not Result.Errored then
+			Result.Passed = true
+		end
+
+		self.Results[ #self.Results + 1 ] = Result
 	end
-
-	self.Results[ #self.Results + 1 ] = Result
 end
 
 UnitTest.Assert = {
@@ -185,6 +211,8 @@ local FinalResults = {
 }
 for i = 1, #Files do
 	if Files[ i ] ~= "test/test_init.lua" then
+		UnitTest:ResetState()
+
 		Script.Load( Files[ i ], true )
 
 		local Passed, Total = UnitTest:Output( Files[ i ] )
