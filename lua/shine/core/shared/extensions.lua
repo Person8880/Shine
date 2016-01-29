@@ -377,7 +377,7 @@ do
 		return Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" )
 	end
 
-	function Dispatcher:CallEvent( Plugin, Method, OnError, ... )
+	function Dispatcher:CallEvent( Plugin, Method, OnError, Event, ... )
 		local Success, a, b, c, d, e, f = xpcall( Method, OnError, Plugin, ... )
 
 		if not Success then
@@ -405,7 +405,7 @@ do
 		Called by the hook system, should not be called directly.
 	]]
 	function Shine:CallExtensionEvent( Event, OnError, ... )
-		return Dispatcher:DispatchEvent( Event, OnError, ... )
+		return Dispatcher:DispatchEvent( Event, OnError, Event, ... )
 	end
 end
 
