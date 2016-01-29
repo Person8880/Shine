@@ -106,24 +106,32 @@ Setting FallbackMode to KDR mode (4).]]
 local ModeClamp = Shine.IsNS2Combat and 4 or 5
 
 function Plugin:OnFirstThink()
+	self:BroadcastModuleEvent( "OnFirstThink" )
+
 	local select = select
+	local Hooks = {
+		"AddScore", "AddKill", "AddDeaths", "AddAssistKill"
+	}
+	local StatKeys = {
+		"totalScore", "totalKills", "totalDeaths", "totalAssists"
+	}
+	local StatIndex = {
+		1
+	}
 
-	local function SupplimentAdder( Adder, ExtraKey, PointsIndex )
-		local OldFunc = ScoringMixin[ Adder ]
+	for i = 1, #Hooks do
+		local Event = Hooks[ i ]
+		Shine.Hook.SetupClassHook( "ScoringMixin", Event, Event, "PassivePost" )
 
-		ScoringMixin[ Adder ] = function( self, ... )
-			OldFunc( self, ... )
-
+		local ExtraKey = StatKeys[ i ]
+		local PointsIndex = StatIndex[ i ]
+		self[ Event ] = function( self, Player, ... )
+			if self:CallModuleEvent( Event, Player, ... ) then return end
 			if not GetGamerules():GetGameStarted() then return end
 
-			self[ ExtraKey ] = ( self[ ExtraKey ] or 0 ) + ( PointsIndex and select( PointsIndex, ... ) or 1 )
+			Player[ ExtraKey ] = ( Player[ ExtraKey ] or 0 ) + ( PointsIndex and select( PointsIndex, ... ) or 1 )
 		end
 	end
-
-	SupplimentAdder( "AddScore", "totalScore", 1 )
-	SupplimentAdder( "AddKill", "totalKills" )
-	SupplimentAdder( "AddDeaths", "totalDeaths" )
-	SupplimentAdder( "AddAssistKill", "totalAssists" )
 end
 
 function Plugin:Initialise()
@@ -168,6 +176,7 @@ function Plugin:Initialise()
 	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
 		and BalanceMode == self.MODE_HIVE
 
+	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
 
 	return true
@@ -280,6 +289,11 @@ Plugin.SkillGetters = {
 			end
 		end
 
+		do
+			local KDR = Plugin:CallModuleEvent( "GetPlayerKDR", Ply )
+			if KDR then return KDR end
+		end
+
 		local Kills = Ply.totalKills
 		local Deaths = Ply.totalDeaths
 		local Assists = Ply.totalAssists or 0
@@ -301,6 +315,11 @@ Plugin.SkillGetters = {
 				Client.Skill = Client.Skill or Random() * 10
 				return Client.Skill
 			end
+		end
+
+		do
+			local ScorePerMinute = Plugin:CallModuleEvent( "GetPlayerScorePerMinute", Ply )
+			if ScorePerMinute then return ScorePerMinute end
 		end
 
 		if not Ply.totalScore or not Ply.totalPlayTime then
@@ -965,6 +984,8 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 
 	if NewState ~= kGameState.Countdown then return end
 
+	self:BroadcastModuleEvent( "GameStarting", Gamerules )
+
 	--Block the vote after the set time.
 	if self.Config.BlockAfterTime > 0 then
 		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterTime * 60
@@ -1005,6 +1026,8 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 			Player.ShineRandomised = nil
 		end
 	end
+
+	self:BroadcastModuleEvent( "EndGame", Gamerules, WinningTeam, Players )
 
 	--If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then
@@ -1123,6 +1146,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 end
 
 function Plugin:ClientDisconnect( Client )
+	self:BroadcastModuleEvent( "ClientDisconnect", Client )
 	self.Vote:ClientDisconnect( Client )
 
 	if not self.ReconnectLogTimeout then return end
@@ -1408,3 +1432,5 @@ function Plugin:CreateCommands()
 	local StatsCommand = self:BindCommand( "sh_teamstats", nil, ViewTeamStats, true )
 	StatsCommand:Help( "View Hive skill based team statistics." )
 end
+
+Script.Load( "lua/shine/extensions/voterandom/local_stats.lua" )
