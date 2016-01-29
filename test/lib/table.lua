@@ -183,3 +183,14 @@ UnitTest:Test( "ArraysEqual", function( Assert )
 	Right[ 5 ] = 5
 	Assert:False( table.ArraysEqual( Left, Right ) )
 end )
+
+UnitTest:Test( "AsEnum", function( Assert )
+	local Values = {
+		"This", "Is", "An", "Enum"
+	}
+	local Enum = table.AsEnum( Values )
+	Assert:ArrayEquals( Values, Enum )
+	for i = 1, #Values do
+		Assert:Equals( Values[ i ], Enum[ Values[ i ] ] )
+	end
+end )

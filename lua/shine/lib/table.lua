@@ -91,6 +91,21 @@ function table.AsSet( Table )
 	return Ret
 end
 
+--[[
+	Returns a table that contains the given table's values as keys,
+	as well as the original table values.
+]]
+function table.AsEnum( Table )
+	local Ret = {}
+
+	for i = 1, #Table do
+		Ret[ i ] = Table[ i ]
+		Ret[ Table[ i ] ] = Table[ i ]
+	end
+
+	return Ret
+end
+
 do
 	local TableRemove = table.remove
 
