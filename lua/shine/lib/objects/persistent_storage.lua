@@ -5,9 +5,11 @@
 	rather than just reading/writing to the internal data table.
 ]]
 
+local Shine = Shine
+
 local StringStartsWith = string.StartsWith
-local TableArraysEqual = table.ArraysEqual
 local TableBuild = table.Build
+local tostring = tostring
 
 local Storage = Shine.TypeDef()
 Shine.Storage = Storage
@@ -47,7 +49,7 @@ end
 ]]
 function Storage:BeginTransaction()
 	Shine.AssertAtLevel( not self.Transaction, "A transaction has already been started.", 3 )
-	self.Transaction = {}
+	self.Transaction = Shine.Map()
 end
 
 --[[
@@ -59,8 +61,7 @@ function Storage:Commit()
 	local DataToCommit = Shine.AssertAtLevel( self.Transaction, "No transaction has been started.", 3 )
 	self.Transaction = nil
 
-	for i = 1, #DataToCommit do
-		local Data = DataToCommit[ i ]
+	for PathKey, Data in DataToCommit:Iterate() do
 		self:SetAtPath( Data.Value, unpack( Data.Path ) )
 	end
 
@@ -76,6 +77,11 @@ function Storage:Rollback()
 	self.Transaction = nil
 end
 
+local function GetPathKey( ... )
+	-- Can get away with this because JSON cannot have number and string indices in the same object.
+	return Shine.Stream( { ... } ):Concat( "", tostring )
+end
+
 --[[
 	Internal method, use GetAtPath(), not this.
 
@@ -83,17 +89,8 @@ end
 	the current transaction.
 ]]
 function Storage:GetInTransaction( ... )
-	local PathCount = select( "#", ... )
-	local Args = { ... }
-
-	for i = #self.Transaction, 1, -1 do
-		local Data = self.Transaction[ i ]
-		if TableArraysEqual( Data.Path, Args ) then
-			return Data.Value
-		end
-	end
-
-	return nil
+	local Entry = self.Transaction:Get( GetPathKey( ... ) )
+	return Entry and Entry.Value
 end
 
 --[[
@@ -131,17 +128,10 @@ end
 function Storage:SetAtPath( Value, ... )
 	-- If we're in a transaction, temporarily store the values outside the data table.
 	if self.Transaction then
-		local Path = { ... }
-
-		-- Filter out existing entry for the given path.
-		Shine.Stream( self.Transaction ):Filter( function( Value )
-			return not TableArraysEqual( Path, Value )
-		end )
-
-		self.Transaction[ #self.Transaction + 1 ] = {
+		self.Transaction:Add( GetPathKey( ... ), {
 			Value = Value,
-			Path = Path
-		}
+			Path = { ... }
+		} )
 
 		return
 	end
