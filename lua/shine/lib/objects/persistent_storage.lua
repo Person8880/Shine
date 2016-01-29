@@ -52,6 +52,10 @@ function Storage:BeginTransaction()
 	self.Transaction = Shine.Map()
 end
 
+function Storage:IsInTransaction()
+	return self.Transaction ~= nil
+end
+
 --[[
 	Commits the current transaction.
 
