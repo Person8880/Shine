@@ -549,7 +549,7 @@ UnitTest:Test( "StoreRoundEndData", function( Assert )
 	Assert:Equals( 1, GetStat( Player, "Losses" ) )
 	Assert:Equals( 0, GetStat( Player, "PlayTime" ) )
 
-	-- Alient playtime now enough, should add a win.
+	-- Alien playtime now enough, should add a win.
 	Player.AlienTime = Player.MarineTime
 	VoteShuffle:StoreRoundEndData( TestID, Player, 2, MinTeamTime )
 	Assert:Equals( 3, GetStat( Player, "Wins" ) )
