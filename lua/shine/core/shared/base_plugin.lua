@@ -50,6 +50,12 @@ end
 ]]
 function PluginMeta:SetupDispatcher()
 	self.EventDispatcher = Shine.EventDispatcher( self.Modules )
+
+	local Plugin = self
+	-- Call module events with self being the plugin.
+	function self.EventDispatcher:CallEvent( Module, Method, ... )
+		return Method( Plugin, ... )
+	end
 end
 
 --[[
