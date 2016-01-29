@@ -789,7 +789,6 @@ function Plugin:GetTargetsForSorting( ResetScores )
 	local Players, Count = GetAllPlayers()
 
 	local Gamerules = GetGamerules()
-
 	if not Gamerules then return end
 
 	local Targets = {}
@@ -800,13 +799,18 @@ function Plugin:GetTargetsForSorting( ResetScores )
 	}
 
 	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
+	local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
 
 	local Time = SharedTime()
 
 	local function SortPlayer( Player, Client, Commander, Pass )
 		local Team = Player:GetTeamNumber()
-
 		if Team == 3 and self.Config.IgnoreSpectators then
+			return
+		end
+
+		-- Don't move non-rookies on rookie servers.
+		if IsRookieMode and not Player:GetIsRookie() then
 			return
 		end
 
