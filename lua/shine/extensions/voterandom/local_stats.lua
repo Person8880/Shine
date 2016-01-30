@@ -185,6 +185,7 @@ function StatsModule:GetPlayerScorePerMinute( Player )
 end
 
 function StatsModule:ClientDisconnect( Client )
+	if not self.Config.UseLocalFileStats then return end
 	if Client:GetIsVirtual() then return end
 	if not self.StatsStorage:IsInTransaction() then return end
 
