@@ -25,7 +25,7 @@ if Server then
 	function CommandsModule:Cleanup()
 		if rawget( self, "Commands" ) then
 			for Key, Command in pairs( self.Commands ) do
-				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
+				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
 				self.Commands[ Key ] = nil
 			end
 		end
@@ -43,7 +43,7 @@ else
 	function CommandsModule:Cleanup()
 		if rawget( self, "Commands" ) then
 			for Key, Command in pairs( self.Commands ) do
-				Shine:RemoveCommand( Command.ConCmd, Command.ChatCmd )
+				Shine:RemoveClientCommand( Command.ConCmd, Command.ChatCmd )
 				self.Commands[ Key ] = nil
 			end
 		end
