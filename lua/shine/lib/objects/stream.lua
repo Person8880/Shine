@@ -10,8 +10,7 @@ local TableConcat = table.concat
 local TableMergeSort = table.MergeSort
 local TableSort = table.sort
 
-local Stream = {}
-Stream.__index = Stream
+local Stream = Shine.TypeDef()
 
 function Stream:Init( Table )
 	self.Data = Table
@@ -142,6 +141,4 @@ function Stream:AsTable()
 	return self.Data
 end
 
-function Shine.Stream( Table )
-	return setmetatable( {}, Stream ):Init( Table )
-end
+Shine.Stream = Stream

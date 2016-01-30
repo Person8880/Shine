@@ -265,6 +265,20 @@ end
 local IsType = Shine.IsType
 local GetDefault = Shine.CommandUtil.GetDefaultValue
 
+local function SendCommandError( Client, Key, Data, Message, Format, ... )
+	if not Client then
+		Shared.Message( Format and StringFormat( Message, ... ) or Message )
+		return
+	end
+
+	if not Data then
+		Shine:TranslatedNotifyCommandError( Client, Key, "Core" )
+		return
+	end
+
+	Shine:SendTranslatedCommandError( Client, Key, Data )
+end
+
 do
 	local TeamDefs = {
 		[ "spectate" ] = 3,
@@ -364,9 +378,12 @@ do
 		Help = "player",
 		OnFailedMatch = function( Client, Arg, SelfTargeting, ArgString )
 			if SelfTargeting then
-				Shine:NotifyCommandError( Client, "You cannot target yourself with this command." )
+				SendCommandError( Client, "ERROR_CANT_TARGET_SELF", nil,
+					"You cannot target yourself with this command." )
 			else
-				Shine:NotifyCommandError( Client, "No player matching '%s' was found.", true, ArgString )
+				SendCommandError( Client, "ERROR_NO_MATCHING_PLAYER", {
+					PlayerName = ArgString
+				}, "No player matching '%s' was found.", true, ArgString )
 			end
 		end,
 		Validate = function( Client, Arg, ParsedArg )
@@ -374,8 +391,11 @@ do
 			if Arg.IgnoreCanTarget then return true end
 
 			if not Shine:CanTarget( Client, ParsedArg ) then
-				Shine:NotifyCommandError( Client, "You do not have permission to target %s.",
-					true, ParsedArg:GetControllingPlayer():GetName() )
+				local TargetName = ParsedArg:GetControllingPlayer():GetName()
+
+				SendCommandError( Client, "ERROR_CANT_TARGET", {
+					PlayerName = TargetName
+				}, "You do not have permission to target %s.", true, TargetName )
 
 				return false
 			end
@@ -477,12 +497,16 @@ do
 		end,
 		Help = "players",
 		OnFailedMatch = function( Client, Arg, Extra, ArgString )
-			Shine:NotifyCommandError( Client, "No players matching '%s' were found.", true, ArgString )
+			SendCommandError( Client, "ERROR_NO_MATCHING_PLAYERS", {
+				PlayerName = ArgString
+			}, "No players matching '%s' were found.", true, ArgString )
 		end,
 		Validate = function( Client, Arg, ParsedArg, ArgString )
 			if not ParsedArg then return true end
 			if #ParsedArg == 0 then
-				Shine:NotifyCommandError( Client, "No players matching '%s' were found.", true, ArgString )
+				SendCommandError( Client, "ERROR_NO_MATCHING_PLAYERS", {
+					PlayerName = ArgString
+				}, "No players matching '%s' were found.", true, ArgString )
 
 				return false
 			end
@@ -494,7 +518,7 @@ do
 			end )
 
 			if #ParsedArg == 0 then
-				Shine:NotifyCommandError( Client,
+				SendCommandError( Client, "ERROR_CANT_TARGET_MULTIPLE", nil,
 					"You do not have permission to target anyone you specified." )
 
 				return false
@@ -556,8 +580,9 @@ ParamTypes.steamid = {
 		if Arg.IgnoreCanTarget then return true end
 
 		if not Shine:CanTarget( Client, ParsedArg ) then
-			Shine:NotifyCommandError( Client, "You do not have permission to target %s.",
-				true, ParsedArg )
+			SendCommandError( Client, "ERROR_CANT_TARGET", {
+				PlayerName = ParsedArg
+			}, "You do not have permission to target %s.", true, ParsedArg )
 
 			return false
 		end
@@ -675,9 +700,29 @@ local function PopCommandStack( self )
 end
 
 function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
-	Shine:NotifyCommandError( Client,
-		CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
-		true, i, ConCommand, CurArg.Type )
+	local ExpectedType = CurArg.Type
+	if IsType( ExpectedType, "table" ) then
+		ExpectedType = TableConcat( ExpectedType, " or " )
+	end
+
+	if CurArg.Error or not Client then
+		Shine:NotifyCommandError( Client,
+			CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
+			true, i, ConCommand, ExpectedType )
+		return
+	end
+
+	if CurArg.TranslatedErrorKey then
+		Shine:TranslatedNotifyCommandError( Client, CurArg.TranslatedErrorKey,
+			CurArg.TranslationSource or "Core" )
+		return
+	end
+
+	Shine:SendTranslatedCommandError( Client, "COMMAND_DEFAULT_ERROR", {
+		ArgNum = i,
+		CommandName = ConCommand,
+		ExpectedType = ExpectedType
+	} )
 end
 
 function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
@@ -695,8 +740,9 @@ function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, Cu
 
 	--The restriction wiped the argument as it's not allowed.
 	if Result == nil then
-		Shine:NotifyCommandError( Client,
-			"Invalid argument #%i, restricted in rank settings.", true, i )
+		SendCommandError( Client, "COMMAND_RESTRICTED_ARG", {
+			ArgNum = i
+		}, "Invalid argument #%i, restricted in rank settings.", true, i )
 
 		return false
 	end
@@ -707,7 +753,9 @@ end
 function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )
 	local Allowed, ArgRestrictions = Shine:GetPermission( Client, ConCommand )
 	if not Allowed then
-		Shine:NotifyCommandError( Client, "You do not have permission to use %s.", true, ConCommand )
+		SendCommandError( Client, "COMMAND_NO_PERMISSION", {
+			CommandName = ConCommand
+		}, "You do not have permission to use %s.", true, ConCommand )
 
 		return
 	end

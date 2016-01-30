@@ -112,9 +112,9 @@ function Plugin:CheckForModChange()
 	end
 
 	local URL = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
-	HTTPRequest( URL, "POST", Params, function( Response )
+	HTTPRequest( URL, "POST", Params, self:WrapCallback( function( Response )
 		self:ParseModInfo( Decode( Response ) )
-	end )
+	end ) )
 end
 
 --[[

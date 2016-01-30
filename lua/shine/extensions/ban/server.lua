@@ -701,7 +701,7 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest )
 	if not Shine.ExternalAPIHandler:HasAPIKey( "Steam" ) then return false end
 
 	Shine.ExternalAPIHandler:PerformRequest( "Steam", "IsPlayingSharedGame", RequestParams, {
-		OnSuccess = function( Sharer )
+		OnSuccess = self:WrapCallback( function( Sharer )
 			if not Sharer or not self:IsIDBanned( Sharer ) then return end
 
 			-- Unlikely, but possible that the client's already loaded before Steam responds.
@@ -709,7 +709,7 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest )
 			if Target then
 				self:KickForFamilySharing( Target, Sharer )
 			end
-		end,
+		end ),
 		OnFailure = function()
 			self:Print( "Failed to receive response from Steam for user %s's family sharing status.",
 				true, ID )

@@ -205,14 +205,6 @@ function TextEntry:SetPlaceholderText( Text )
 	self.PlaceholderText = PlaceholderText
 end
 
-function TextEntry:GetIsVisible()
-	if self.Parent and not self.Parent:GetIsVisible() then
-		return false
-	end
-
-	return self.Background:GetIsVisible()
-end
-
 function TextEntry:SetFont( Font )
 	self.Font = Font
 	self.TextObj:SetFontName( Font )

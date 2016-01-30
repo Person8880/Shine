@@ -39,14 +39,14 @@ local function ReportErrors()
 	local PostData = TableConcat( ErrorQueue, "\n" )
 	PostData = PostData:sub( 1, 10240 )
 
-	Shared.SendHTTPRequest( URL, "POST", { error = PostData, blehstuffcake = "enihs" },
-		function() end )
+	Shared.SendHTTPRequest( URL, "POST", { error = PostData, blehstuffcake = "enihs" } )
 
 	TableEmpty( ErrorQueue )
 end
 
 if Server then
 	Shine.Hook.Add( "EndGame", "ReportQueuedErrors", ReportErrors )
+	Shine.Hook.Add( "MapChange", "ReportQueuedErrors", ReportErrors )
 elseif Client then
 	Shine.Hook.Add( "ClientDisconnected", "ReportQueuedErrors", ReportErrors )
 end

@@ -133,6 +133,13 @@ function Shine.AddChatText( RP, GP, BP, Prefix, R, G, B, Message )
 		Prefix, Color( R, G, B, 1 ), Message )
 end
 
+--[[
+	Client-side version of notify error, displays the translated error tag and the passed in message.
+]]
+function Shine:NotifyError( Message )
+	self.AddChatText( 255, 0, 0, self.Locale:GetPhrase( "Core", "ERROR_TAG" ), 1, 1, 1, Message )
+end
+
 --Displays a coloured message.
 Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
 	local R = Message.R / 255

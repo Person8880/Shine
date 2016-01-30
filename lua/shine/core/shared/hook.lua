@@ -578,6 +578,7 @@ Add( "Think", "ReplaceMethods", function()
 
 		Call( "SetGameState", self, State, CurState )
 	end )
+	SetupClassHook( Gamerules, "ResetGame", "ResetGame", "PassivePost" )
 	SetupClassHook( Gamerules, "GetCanPlayerHearPlayer", "CanPlayerHearPlayer", "ActivePre" )
 	SetupClassHook( Gamerules, "JoinTeam", "JoinTeam", function( OldFunc, self, Player, NewTeam, Force, ShineForce )
 		local Override, OverrideTeam = Call( "JoinTeam", self, Player, NewTeam, Force, ShineForce )
