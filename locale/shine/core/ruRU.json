@@ -1,14 +1,14 @@
 {
-	"ADMIN_MENU_COMMANDS_TAB": "Команды управления",
+	"ADMIN_MENU_COMMANDS_TAB": "Команды",
 	"ADMIN_MENU_ABOUT_TAB": "О Shine",
-	"ADMIN_MENU_PLAYERS_HELP": "Выберите игрока(ов) и команду управления.",
+	"ADMIN_MENU_PLAYERS_HELP": "Выберите игрока или игроков и команду управления.",
 	"NAME": "Имя",
 	"TEAM": "Команда",
 	"ERROR": "Ошибка",
 	"OK": "OK",
 	"ADMIN_MENU_SELECT_SINGLE_PLAYER": "Выберите одного игрока.",
 	"ADMIN_MENU_OPEN_WIKI": "Открыть Wiki",
-	"ADMIN_MENU": "Меню администратора",
+	"ADMIN_MENU": "Администрирование",
 	"Shuffle": "Shuffle",
 	"Map Vote": "Смена карты",
 	"Surrender": "Сдаться",
@@ -52,5 +52,13 @@
 	"VIEW_WEB_IN_STEAM_DESCRIPTION": "Отображать веб-страницы в Steam overlay.",
 	"REPORT_ERRORS_DESCRIPTION": "Сообщать об ошибках в скриптах Shine.",
 	"ANIMATE_UI_DESCRIPTION": "Использовать анимацию в интерфейсе клиента.",
-	"CLIENT_CONFIG_MENU": "Конфигурация клиента"
+	"CLIENT_CONFIG_MENU": "Настройки клиента",
+	"ERROR_CANT_TARGET_SELF": "Вы не можете применить эту команду на себя.",
+	"ERROR_NO_MATCHING_PLAYER": "Игрок '{PlayerName}' не найден.",
+	"ERROR_NO_MATCHING_PLAYERS": "Игроки '{PlayerName}' не найдены.",
+	"ERROR_CANT_TARGET": "У вас нет прав для управления {PlayerName}.",
+	"ERROR_CANT_TARGET_MULTIPLE": "У вас нет прав для управления игроками, которых вы выбрали.",
+	"COMMAND_DEFAULT_ERROR": "Неправльный параметр #{ArgNum} для {CommandName}, должно быть {ExpectedType}.",
+	"COMMAND_RESTRICTED_ARG": "Неправльный парамет #{ArgNum}, ограничение диапазона значений в настройках.",
+	"COMMAND_NO_PERMISSION": "У вас нет прав для выполнения {CommandName}."
 }
