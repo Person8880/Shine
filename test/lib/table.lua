@@ -102,6 +102,11 @@ UnitTest:Test( "Build", function( Assert )
 	Assert:IsType( Base.Child.SubChild.ReallySubChild, "table" )
 
 	Assert:Equals( Base.Child.SubChild.ReallySubChild, ReallySubChild )
+
+	-- Should not overwrite if tables already exist.
+	Base.Child.Cake = true
+	Assert:Equals( ReallySubChild, table.Build( Base, "Child", "SubChild", "ReallySubChild" ) )
+	Assert:True( Base.Child.Cake )
 end )
 
 UnitTest:Test( "QuickShuffle", function( Assert )
@@ -162,4 +167,30 @@ UnitTest:Test( "RandomPairs", BuildIteratorTest( RandomPairs ) )
 UnitTest:Test( "SortedPairs", function( Assert )
 	local Keys = BuildIteratorTest( SortedPairs )( Assert )
 	Assert:ArrayEquals( { "Key1", "Key2", "Key3" }, Keys )
+end )
+
+UnitTest:Test( "ArraysEqual", function( Assert )
+	local Left = { 1, 2, 3 }
+	local Right = { 1, 2, 3 }
+
+	Assert:True( table.ArraysEqual( Left, Right ) )
+
+	Left[ 4 ] = 5
+	Right[ 4 ] = 4
+	Assert:False( table.ArraysEqual( Left, Right ) )
+
+	Left[ 4 ] = 4
+	Right[ 5 ] = 5
+	Assert:False( table.ArraysEqual( Left, Right ) )
+end )
+
+UnitTest:Test( "AsEnum", function( Assert )
+	local Values = {
+		"This", "Is", "An", "Enum"
+	}
+	local Enum = table.AsEnum( Values )
+	Assert:ArrayEquals( Values, Enum )
+	for i = 1, #Values do
+		Assert:Equals( Values[ i ], Enum[ Values[ i ] ] )
+	end
 end )

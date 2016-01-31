@@ -48,8 +48,8 @@ function Shine.LoadJSONFile( Path )
 	return Decode( Data )
 end
 
-function Shine.SaveJSONFile( Table, Path )
-	return WriteFile( Path, Encode( Table, JSONSettings ) )
+function Shine.SaveJSONFile( Table, Path, Settings )
+	return WriteFile( Path, Encode( Table, Settings or JSONSettings ) )
 end
 
 --Checks a config for missing entries including the first level of sub-tables.

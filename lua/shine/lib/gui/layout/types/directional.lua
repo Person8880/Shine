@@ -51,36 +51,39 @@ function Directional:LayoutElements( Elements, Context )
 
 	for i = 1, #Elements do
 		local Element = Elements[ i ]
-		local Margin = Element:GetComputedMargin()
-		local CurrentSize = self:SetElementSize( Element, RealSize, Margin )
 
-		if not Element:GetFill() then
-			-- If the element is not set to fill the space, then it will use up its margin + size.
-			AvailableFillSize = AvailableFillSize - self:GetFillSize( CurrentSize ) - self:GetMarginSize( Margin )
-		else
-			-- Otherwise, only the margin is used up.
-			AvailableFillSize = AvailableFillSize - self:GetMarginSize( Margin )
-			NumberOfFillElements = NumberOfFillElements + 1
-		end
+		if Element:GetIsVisible() then
+			local Margin = Element:GetComputedMargin()
+			local CurrentSize = self:SetElementSize( Element, RealSize, Margin )
 
-		local MinW, MinH = self:GetMinMargin( Margin )
-		local MaxW, MaxH = self:GetMaxMargin( Margin )
-		local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
+			if not Element:GetFill() then
+				-- If the element is not set to fill the space, then it will use up its margin + size.
+				AvailableFillSize = AvailableFillSize - self:GetFillSize( CurrentSize ) - self:GetMarginSize( Margin )
+			else
+				-- Otherwise, only the margin is used up.
+				AvailableFillSize = AvailableFillSize - self:GetMarginSize( Margin )
+				NumberOfFillElements = NumberOfFillElements + 1
+			end
 
-		-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
-		if IsMin then
-			X, Y = X + MinW, Y + MinH
-		else
-			X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
-		end
+			local MinW, MinH = self:GetMinMargin( Margin )
+			local MaxW, MaxH = self:GetMaxMargin( Margin )
+			local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
 
-		self:SetElementPos( Element, X, Y, Margin )
+			-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
+			if IsMin then
+				X, Y = X + MinW, Y + MinH
+			else
+				X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
+			end
 
-		-- Reverse for after.
-		if IsMin then
-			X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
-		else
-			X, Y = X - MinW, Y - MinH
+			self:SetElementPos( Element, X, Y, Margin )
+
+			-- Reverse for after.
+			if IsMin then
+				X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
+			else
+				X, Y = X - MinW, Y - MinH
+			end
 		end
 	end
 
@@ -108,33 +111,36 @@ function Directional:FillElements( Elements, Context )
 
 	for i = 1, #Elements do
 		local Element = Elements[ i ]
-		local Pos = Element:GetPos()
-		local Size = Element:GetSize()
 
-		-- If we're coming from min to max, then we add the offset before
-		-- we increase it.
-		if IsMin then
-			Pos.x = Pos.x + OffsetX
-			Pos.y = Pos.y + OffsetY
+		if Element:GetIsVisible() then
+			local Pos = Element:GetPos()
+			local Size = Element:GetSize()
+
+			-- If we're coming from min to max, then we add the offset before
+			-- we increase it.
+			if IsMin then
+				Pos.x = Pos.x + OffsetX
+				Pos.y = Pos.y + OffsetY
+			end
+
+			if Element:GetFill() then
+				local OldW, OldH = Size.x, Size.y
+				self:ModifyFillElementSize( Size, FillSize )
+				Element:SetSize( Size )
+
+				OffsetX = OffsetX + Size.x - OldW
+				OffsetY = OffsetY + Size.y - OldH
+			end
+
+			-- Otherwise, max to min subtracts the offset after changing size, as positioning
+			-- is always from the top left of an element.
+			if not IsMin then
+				Pos.x = Pos.x - OffsetX
+				Pos.y = Pos.y - OffsetY
+			end
+
+			Element:SetPos( Pos )
 		end
-
-		if Element:GetFill() then
-			local OldW, OldH = Size.x, Size.y
-			self:ModifyFillElementSize( Size, FillSize )
-			Element:SetSize( Size )
-
-			OffsetX = OffsetX + Size.x - OldW
-			OffsetY = OffsetY + Size.y - OldH
-		end
-
-		-- Otherwise, max to min subtracts the offset after changing size, as positioning
-		-- is always from the top left of an element.
-		if not IsMin then
-			Pos.x = Pos.x - OffsetX
-			Pos.y = Pos.y - OffsetY
-		end
-
-		Element:SetPos( Pos )
 	end
 end
 

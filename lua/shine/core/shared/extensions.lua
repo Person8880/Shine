@@ -15,6 +15,7 @@ local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
 local ToDebugString = table.ToDebugString
 local Traceback = debug.traceback
@@ -52,30 +53,46 @@ function Shine:RegisterExtension( Name, Table, Options )
 		self.Locale:RegisterSource( Name, "locale/shine/extensions/"..Name )
 	end
 
-	if Options then
-		local Base = Options.Base
-		if not Base then return end
-
-		if not self.Plugins[ Base ] then
-			if not self:LoadExtension( Base, true ) then
-				return
-			end
-		end
-
-		local ParentPlugin = self.Plugins[ Base ]
-
-		if ParentPlugin.__Inherit == Table then
-			self.Plugins[ Name ] = nil
-
-			error( StringFormat(
-				"[Shine] Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
-				Name, Base, Base, Name ) )
-		end
-
-		Table.__Inherit = ParentPlugin
-		Table.__InheritBlacklist = Options.BlacklistKeys
-		Table.__InheritWhitelist = Options.WhitelistKeys
+	-- Copy (by reference) all modules from the base of the plugin
+	-- This allows plugins to add their own modules progressively.
+	local function SetupModules( Base )
+		Table.Modules = TableQuickCopy( Base.Modules )
+		Table:SetupDispatcher()
 	end
+
+	if not Options then
+		SetupModules( PluginMeta )
+		return
+	end
+
+	local Base = Options.Base
+	if not Base then
+		SetupModules( PluginMeta )
+		return
+	end
+
+	if not self.Plugins[ Base ] then
+		if not self:LoadExtension( Base, true ) then
+			SetupModules( PluginMeta )
+			return
+		end
+	end
+
+	local ParentPlugin = self.Plugins[ Base ]
+
+	if ParentPlugin.__Inherit == Table then
+		self.Plugins[ Name ] = nil
+
+		error( StringFormat(
+			"[Shine] Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
+			Name, Base, Base, Name ) )
+	end
+
+	Table.__Inherit = ParentPlugin
+	Table.__InheritBlacklist = Options.BlacklistKeys
+	Table.__InheritWhitelist = Options.WhitelistKeys
+
+	SetupModules( ParentPlugin )
 end
 
 function Shine:LoadExtension( Name, DontEnable )
@@ -199,8 +216,8 @@ Hook.Add( "OnFirstThink", "ExtensionFirstThink", function()
 	HasFirstThinkOccurred = true
 end )
 
--- This table holds all plugins that have a method for a given event.
-local EventCache = {}
+-- Handles dispatching plugin events efficiently.
+local Dispatcher
 
 --Shared extensions need to be enabled once the server tells it to.
 function Shine:EnableExtension( Name, DontLoadConfig )
@@ -285,7 +302,7 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	-- Flush event cache. We can't be smarter than this, because it could be loading mid-event call.
 	-- If we edited the specific event table at that point, it would potentially cause double event calls
 	-- or missed event calls. Plugin load/unload should be a rare occurence anyway.
-	EventCache = {}
+	Dispatcher:FlushCache()
 	Plugin.Enabled = true
 
 	--We need to inform clients to enable the client portion.
@@ -309,7 +326,7 @@ function Shine:UnloadExtension( Name )
 	Plugin.Enabled = false
 
 	-- Flush event cache.
-	EventCache = {}
+	Dispatcher:FlushCache()
 
 	-- Make sure cleanup doesn't break us by erroring.
 	local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
@@ -341,8 +358,8 @@ function Shine:IsExtensionEnabled( Name )
 	return false
 end
 
+-- Store a list of all plugins in existence. When the server config loads, we use it.
 local ClientPlugins = {}
---Store a list of all plugins in existence. When the server config loads, we use it.
 local AllPlugins = {}
 Shine.AllPlugins = AllPlugins
 
@@ -350,26 +367,37 @@ local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
 
 do
-	--[[
-		Builds a list of all enabled plugins that have a method for the given event.
-	]]
-	local function BuildPluginCache( self, Event )
-		local Plugins = self.Plugins
-		local PluginsWithEvent = {}
-		local Count = 0
+	Dispatcher = Shine.EventDispatcher( AllPluginsArray )
 
-		for i = 1, #AllPluginsArray do
-			local Plugin = Plugins[ AllPluginsArray[ i ] ]
+	function Dispatcher:GetListener( PluginName )
+		return Shine.Plugins[ PluginName ]
+	end
 
-			if Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" ) then
-				Count = Count + 1
-				PluginsWithEvent[ Count ] = Plugin
+	function Dispatcher:IsListenerValidForEvent( Plugin, Event )
+		return Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" )
+	end
+
+	function Dispatcher:CallEvent( Plugin, Method, OnError, Event, ... )
+		local Success, a, b, c, d, e, f = xpcall( Method, OnError, Plugin, ... )
+
+		if not Success then
+			Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+			Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
+				true, Event, Plugin.__Name, Plugin.__HookErrors )
+
+			if Plugin.__HookErrors >= 10 then
+				Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
+					true, Plugin.__Name, Plugin.__HookErrors )
+
+				Plugin.__HookErrors = 0
+
+				Shine:UnloadExtension( Plugin.__Name )
 			end
+
+			return nil
 		end
 
-		PluginsWithEvent.NumberOfPlugins = Count
-
-		return PluginsWithEvent
+		return a, b, c, d, e, f
 	end
 
 	--[[
@@ -377,34 +405,7 @@ do
 		Called by the hook system, should not be called directly.
 	]]
 	function Shine:CallExtensionEvent( Event, OnError, ... )
-		local PluginsWithEvent = EventCache[ Event ]
-		if not PluginsWithEvent then
-			PluginsWithEvent = BuildPluginCache( self, Event )
-			EventCache[ Event ] = PluginsWithEvent
-		end
-
-		-- Automatically call the plugin hooks from our known list of plugins with this event.
-		for i = 1, PluginsWithEvent.NumberOfPlugins do
-			local Plugin = PluginsWithEvent[ i ]
-			local Success, a, b, c, d, e, f = xpcall( Plugin[ Event ], OnError, Plugin, ... )
-
-			if not Success then
-				Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
-				self:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
-					true, Event, Plugin.__Name, Plugin.__HookErrors )
-
-				if Plugin.__HookErrors >= 10 then
-					self:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
-						true, Plugin.__Name, Plugin.__HookErrors )
-
-					Plugin.__HookErrors = 0
-
-					self:UnloadExtension( Plugin.__Name )
-				end
-			else
-				if a ~= nil then return a, b, c, d, e, f end
-			end
-		end
+		return Dispatcher:DispatchEvent( Event, OnError, Event, ... )
 	end
 end
 

@@ -227,6 +227,7 @@ function ControlMeta:SetIsVisible( Bool )
 	if self.Background.GetIsVisible and self.Background:GetIsVisible() == Bool then return end
 
 	self.Background:SetIsVisible( Bool )
+	self:InvalidateLayout()
 
 	if self.IsAWindow then
 		if Bool then --Take focus on show.
@@ -252,6 +253,22 @@ function ControlMeta:SetIsVisible( Bool )
 			end
 		end
 	end
+end
+
+--[[
+	Computes the actual visibility state of the object, based on
+	whether it is set to be invisible, or otherwise if it has a parent
+	that is not visible.
+]]
+function ControlMeta:ComputeVisibility()
+	local OurVis = self:GetIsVisible()
+	if not OurVis then return false end
+
+	if SGUI.IsValid( self.Parent ) then
+		return self.Parent:ComputeVisibility()
+	end
+
+	return OurVis
 end
 
 --[[

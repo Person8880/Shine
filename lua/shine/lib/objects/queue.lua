@@ -2,16 +2,8 @@
 	A simple linked queue structure.
 ]]
 
-local Queue = {}
-Queue.__index = Queue
-
-do
-	local setmetatable = setmetatable
-
-	function Shine.Queue()
-		return setmetatable( {}, Queue ):Init()
-	end
-end
+local Queue = Shine.TypeDef()
+Shine.Queue = Queue
 
 function Queue:Init()
 	self.Size = 0

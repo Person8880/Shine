@@ -9,7 +9,7 @@ local Comparators = {}
 local setmetatable = setmetatable
 
 function Shine.Comparator( Type, ... )
-	return setmetatable( {}, Comparators[ Type ] ):Init( ... )
+	return Comparators[ Type ]( ... )
 end
 
 local Operators = {
@@ -37,8 +37,7 @@ local function CompileStable( Comparator )
 end
 
 local function NewComparatorType( Name )
-	local Meta = {}
-	Meta.__index = Meta
+	local Meta = Shine.TypeDef()
 	Meta.Compile = Compile
 	Meta.CompileStable = CompileStable
 

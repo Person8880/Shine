@@ -56,7 +56,6 @@ function Locale:GetLanguageStrings( Source, Lang )
 	if not LoadedStrings then return nil end
 
 	local LanguageStrings = LoadedStrings[ Lang ]
-
 	if not LanguageStrings then
 		LanguageStrings = self:LoadStrings( Source, Lang )
 	end
@@ -66,8 +65,7 @@ end
 
 function Locale:GetLocalisedString( Source, Lang, Key )
 	local LanguageStrings = self:GetLanguageStrings( Source, Lang )
-
-	if not LanguageStrings then
+	if not LanguageStrings or not LanguageStrings[ Key ] then
 		LanguageStrings = self:GetLanguageStrings( Source, self.DefaultLanguage )
 	end
 

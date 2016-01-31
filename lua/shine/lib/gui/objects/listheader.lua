@@ -45,12 +45,6 @@ SGUI.AddBoundProperty( ListHeader, "Font", "TextObj:SetFontName" )
 SGUI.AddBoundProperty( ListHeader, "TextColour", "TextObj:SetColor" )
 SGUI.AddBoundProperty( ListHeader, "TextScale", "TextObj:SetScale" )
 
-function ListHeader:GetIsVisible()
-	if not self.Parent:GetIsVisible() then return false end
-
-	return self.Background:GetIsVisible()
-end
-
 function ListHeader:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
