@@ -77,16 +77,20 @@ function Plugin:SendVoteData( Client )
 end
 
 function Plugin:OnVoteStart( ID )
+	if ID == "random" then
+		local VoteRandom = Shine.Plugins.voterandom
+
+		if self:IsEndVote() or self.CyclingMap then
+			return false, "You cannot start a vote at the end of the map.",
+				VoteRandom:GetStartFailureMessage()
+		end
+
+		return
+	end
+
 	if self.CyclingMap then
 		return false, "The map is now changing, unable to start a vote.",
 			"VOTE_FAIL_MAP_CHANGE", {}
-	end
-
-	if ID == "random" and self:IsEndVote() then
-		local VoteRandom = Shine.Plugins.voterandom
-
-		return false, "You cannot start a vote while the map vote is running.",
-			VoteRandom:GetStartFailureMessage()
 	end
 end
 
