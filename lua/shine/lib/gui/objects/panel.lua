@@ -212,7 +212,6 @@ function Panel:SetIsVisible( Visible )
 	self.BaseClass.SetIsVisible( self, Visible )
 
 	local Children = self.Children
-
 	if not Children then return end
 
 	for Child in Children:Iterate() do
@@ -354,7 +353,7 @@ function Panel:SetMaxHeight( Height )
 	self.Scrollbar:SetScrollSize( NewScrollSize )
 
 	if self.StickyScroll and OldPos >= OldSize then
-		local ShouldSmooth = NewScrollSize < OldScrollSize and self:GetIsVisible()
+		local ShouldSmooth = NewScrollSize < OldScrollSize and self:ComputeVisibility()
 		self.Scrollbar:ScrollToBottom( ShouldSmooth )
 	end
 end
