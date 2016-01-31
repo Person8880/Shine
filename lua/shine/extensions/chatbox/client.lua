@@ -930,10 +930,17 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	ChatLine:SetLineSpacing( LineMargin )
 
 	self.ChatBox.Layout:AddElement( ChatLine )
+	self:RefreshLayout()
+end
+
+function Plugin:RefreshLayout()
+	if #self.Messages == 0 then return end
+
 	-- Force layout refresh now so we can update the scrollbar.
 	self.ChatBox:InvalidateLayout( true )
 
 	if SGUI.IsValid( self.ChatBox.Scrollbar ) then
+		local ChatLine = self.Messages[ #self.Messages ]
 		local NewMaxHeight = ChatLine:GetPos().y + ChatLine:GetSize().y + self.ChatBox.BufferAmount
 		if NewMaxHeight < self.ChatBox:GetMaxHeight() then
 			self.ChatBox:SetMaxHeight( NewMaxHeight )
@@ -1132,6 +1139,8 @@ function Plugin:StartChat( Team )
 
 	self.MainPanel:SetIsVisible( true )
 	self.GUIChat:SetIsVisible( false )
+
+	self:RefreshLayout()
 
 	--Get our text entry accepting input.
 	self.TextEntry:RequestFocus()

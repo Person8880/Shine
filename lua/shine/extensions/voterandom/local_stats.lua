@@ -190,7 +190,7 @@ function StatsModule:ClientDisconnect( Client )
 	if not self.StatsStorage:IsInTransaction() then return end
 
 	local Player = Client:GetControllingPlayer()
-	if not Player or not Player.GetPlayTime then return end
+	if not Player or not Player.GetPlayTime or not Player:GetPlayTime() then return end
 
 	-- Store the client's playtime when they disconnect.
 	self:IncrementStatValue( GetClientUID( Client ), Player, "PlayTime", Player:GetPlayTime() )
