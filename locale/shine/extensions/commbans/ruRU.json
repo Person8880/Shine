@@ -1,6 +1,6 @@
 {
 	"Comm Bans": "Блок.командир.",
-	"PLAYER_BANNED": "заблокирован командовать {TargetName} {Duration:NonZero:на }{Duration:Duration:permanently}.",
-	"BANNED_WARNING": "Ваше командование заблокировано {Duration:NonZero:на }{Duration:Duration:permanently}.",
+	"PLAYER_BANNED": "заблокирован командовать {TargetName} {Duration:NonZero:на }{Duration:Duration:навсегда}.",
+	"BANNED_WARNING": "Ваше командование заблокировано {Duration:NonZero:на }{Duration:Duration:навсегда}.",
 	"NOTIFY_PREFIX": "[Блокировка командиров]"
 }
