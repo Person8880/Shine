@@ -1430,6 +1430,9 @@ function Plugin:CreateCommands()
 				Stats.Average, Stats.StandardDeviation )
 		end
 
+		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av",
+			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
+
 		if not Client then
 			Notify( TableConcat( Message, "\n" ) )
 		else
