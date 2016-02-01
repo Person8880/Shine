@@ -930,6 +930,9 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 	ChatLine:SetLineSpacing( LineMargin )
 
 	self.ChatBox.Layout:AddElement( ChatLine )
+
+	if not self.Visible then return end
+
 	self:RefreshLayout()
 end
 
