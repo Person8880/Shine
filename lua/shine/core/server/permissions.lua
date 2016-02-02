@@ -1070,26 +1070,12 @@ do
 		end
 	end
 
-	if Shared.GetBuildNumber() == 282 then
-		-- Override sv_* commands as they are added to check Shine's permissions.
-		Shine.Hook.Add( "NS2EventHook", "OverrideSVCommandPermissions", function( Name, Func )
-			if not StringFind( Name, "^Console_sv_" ) then return end
+	Shine.Hook.Add( "PostLoadScript", "OverrideSVCommandPermissions", function( Script )
+		if Script ~= "lua/ServerAdmin.lua" then return end
 
-			local OldGetClientCanRunCommand = Shine.GetUpValue( Func, "GetClientCanRunCommand" )
-			if not OldGetClientCanRunCommand then return end
+		local OldGetClientCanRunCommand = GetClientCanRunCommand
+		if not OldGetClientCanRunCommand then return end
 
-			Shine.SetUpValue( Func, "GetClientCanRunCommand",
-				BuildReplacementCommandChecker( OldGetClientCanRunCommand ) )
-		end )
-	else
-		-- Pre-empt it being changed to a global.
-		Shine.Hook.Add( "PostLoadScript", "OverrideSVCommandPermissions", function( Script )
-			if Script ~= "lua/ServerAdmin.lua" then return end
-
-			local OldGetClientCanRunCommand = GetClientCanRunCommand
-			if not OldGetClientCanRunCommand then return end
-
-			GetClientCanRunCommand = BuildReplacementCommandChecker( OldGetClientCanRunCommand )
-		end )
-	end
+		GetClientCanRunCommand = BuildReplacementCommandChecker( OldGetClientCanRunCommand )
+	end )
 end
