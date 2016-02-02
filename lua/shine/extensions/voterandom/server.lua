@@ -86,6 +86,12 @@ Plugin.DefaultConfig = {
 		average is being improved but the standard deviation can't be?
 	]]
 	StandardDeviationTolerance = 40,
+	--[[
+		How much difference between team averages should be considered good enough?
+		The shuffle process will carry on until either it reaches at or below this level,
+		or it can't improve the difference anymore.
+	]]
+	AverageValueTolerance = 0,
 
 	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = true, --Should the plugin ignore commanders when switching?
@@ -595,7 +601,10 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 			Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
 
-			if not Changed then break end
+			local AverageDiff = Abs( TeamSkills[ 1 ].Average - TeamSkills[ 2 ].Average )
+			if not Changed or AverageDiff <= self.Config.AverageValueTolerance then
+				break
+			end
 
 			Iterations = Iterations + 1
 		end
@@ -1420,6 +1429,9 @@ function Plugin:CreateCommands()
 			Message[ #Message + 1 ] = StringFormat( "Average: %.1f. Standard Deviation: %.1f",
 				Stats.Average, Stats.StandardDeviation )
 		end
+
+		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av",
+			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
 
 		if not Client then
 			Notify( TableConcat( Message, "\n" ) )

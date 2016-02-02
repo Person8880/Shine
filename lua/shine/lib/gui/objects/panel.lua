@@ -272,7 +272,7 @@ function Panel:SetScrollbarWidth( Width )
 	self:UpdateScrollbarSize()
 end
 
-function Panel:SetMaxHeight( Height )
+function Panel:SetMaxHeight( Height, ForceInstantScroll )
 	self.MaxHeight = Height
 
 	if not self.ShowScrollbar then return end
@@ -328,7 +328,7 @@ function Panel:SetMaxHeight( Height )
 		Scrollbar._CallEventsManually = true
 
 		if self.StickyScroll then
-			Scrollbar:ScrollToBottom( true )
+			Scrollbar:ScrollToBottom( not ForceInstantScroll )
 		end
 
 		if self.AutoHideScrollbar and not self:MouseIn( self.Background ) then
@@ -354,6 +354,11 @@ function Panel:SetMaxHeight( Height )
 
 	if self.StickyScroll and OldPos >= OldSize then
 		local ShouldSmooth = NewScrollSize < OldScrollSize and self:ComputeVisibility()
+			and not ForceInstantScroll
+		if not ShouldSmooth then
+			self:StopMoving( self.ScrollParent )
+		end
+
 		self.Scrollbar:ScrollToBottom( ShouldSmooth )
 	end
 end
