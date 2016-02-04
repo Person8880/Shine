@@ -601,8 +601,14 @@ function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 			Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
 
+			-- Halt the process completely if the tolerance is met.
 			local AverageDiff = Abs( TeamSkills[ 1 ].Average - TeamSkills[ 2 ].Average )
-			if not Changed or AverageDiff <= self.Config.AverageValueTolerance then
+			if AverageDiff <= self.Config.AverageValueTolerance then
+				return
+			end
+
+			-- Halt the current pass if there are no further swaps available.
+			if not Changed then
 				break
 			end
 
