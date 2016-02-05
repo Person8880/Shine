@@ -67,6 +67,7 @@
 	"ERROR_SENDRATE_CONSTRAINT": "Send rate не может быть больше чем tick rate ({Rate}).",
 	"ERROR_SENDRATE_MOVE_CONSTRAINT": "Send rate не может быть больше чем move rate ({Rate}).",
 	"ERROR_MOVERATE_CONSTRAINT": "Move rate не может быть больше чем tick rate ({Rate}).",
+	"ERROR_MOVERATE_SENDRATE_CONSTRAINT": "Move rate не может быть меньше чем send rate ({Rate}).",
 	"MAPS": "Карты",
 	"PLUGINS": "Плагины"
 }

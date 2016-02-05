@@ -67,6 +67,7 @@
 	"ERROR_SENDRATE_CONSTRAINT": "Send rate cannot be greater than tick rate ({Rate}).",
 	"ERROR_SENDRATE_MOVE_CONSTRAINT": "Send rate cannot be greater than move rate ({Rate}).",
 	"ERROR_MOVERATE_CONSTRAINT": "Move rate cannot be greater than tick rate ({Rate}).",
+	"ERROR_MOVERATE_SENDRATE_CONSTRAINT": "Move rate cannot be less than send rate ({Rate}).",
 	"MAPS": "Maps",
 	"PLUGINS": "Plugins"
 }
