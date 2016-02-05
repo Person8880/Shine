@@ -86,11 +86,11 @@ do
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( self, Config )
-			return Config.TickRate > Config.MoveRate
+			return Config.MoveRate > Config.TickRate
 		end,
 		Fix = function( self, Config )
-			Config.TickRate = Config.MoveRate
-			Notify( "Tick rate cannot be more than move rate. Clamping to move rate." )
+			Config.MoveRate = Config.TickRate
+			Notify( "Move rate cannot be more than tick rate. Clamping to tick rate." )
 		end
 	} )
 	Validator:AddRule( {
@@ -98,8 +98,17 @@ do
 			return Config.SendRate > Config.TickRate
 		end,
 		Fix = function( self, Config )
-			Config.SendRate = Config.TickRate - 10
-			Notify( "Send rate cannot be more than tick rate. Clamping to tick rate - 10." )
+			Config.SendRate = Config.TickRate
+			Notify( "Send rate cannot be more than tick rate. Clamping to tick rate." )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return Config.SendRate > Config.MoveRate
+		end,
+		Fix = function( self, Config )
+			Config.SendRate = Config.MoveRate
+			Notify( "Send rate should not be more than move rate. Clamping to move rate." )
 		end
 	} )
 	Validator:AddRule( {
@@ -1259,10 +1268,10 @@ function Plugin:CreatePerformanceCommands()
 	AddAdditionalInfo( InterpCommand, "Interp", "ms" )
 
 	local function TickRate( Client, NewRate )
-		if NewRate > self.Config.MoveRate then
+		if NewRate < self.Config.MoveRate then
 			NotifyError( Client, "ERROR_TICKRATE_CONSTRAINT", {
 				Rate = self.Config.MoveRate
-			}, "Tick rate cannot be greater than move rate (%i).", true, self.Config.MoveRate )
+			}, "Tick rate must be equal or greater than move rate (%i).", true, self.Config.MoveRate )
 			return
 		end
 
