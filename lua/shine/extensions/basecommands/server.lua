@@ -104,10 +104,10 @@ do
 	} )
 	Validator:AddRule( {
 		Matches = function( self, Config )
-			return Config.Sendrate > Config.MoveRate
+			return Config.SendRate > Config.MoveRate
 		end,
 		Fix = function( self, Config )
-			Config.Sendrate = Config.MoveRate
+			Config.SendRate = Config.MoveRate
 			Notify( "Send rate should not be more than move rate. Clamping to move rate." )
 		end
 	} )
@@ -1271,7 +1271,7 @@ function Plugin:CreatePerformanceCommands()
 		if NewRate < self.Config.MoveRate then
 			NotifyError( Client, "ERROR_TICKRATE_CONSTRAINT", {
 				Rate = self.Config.MoveRate
-			}, "Tick rate must be greater than move rate (%i).", true, self.Config.MoveRate )
+			}, "Tick rate must be equal or greater than move rate (%i).", true, self.Config.MoveRate )
 			return
 		end
 
