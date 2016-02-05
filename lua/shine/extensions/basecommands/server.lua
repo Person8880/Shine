@@ -108,7 +108,7 @@ do
 		end,
 		Fix = function( self, Config )
 			Config.SendRate = Config.MoveRate
-			Notify( "Send rate should not be more than move rate. Clamping to move rate." )
+			Notify( "Send rate cannot be more than move rate. Clamping to move rate." )
 		end
 	} )
 	Validator:AddRule( {
@@ -1313,6 +1313,13 @@ function Plugin:CreatePerformanceCommands()
 			NotifyError( Client, "ERROR_SENDRATE_CONSTRAINT", {
 				Rate = self.Config.TickRate
 			}, "Send rate cannot be greater than tick rate (%i).", true, self.Config.TickRate )
+			return
+		end
+
+		if NewRate > self.Config.MoveRate then
+			NotifyError( Client, "ERROR_SENDRATE_MOVE_CONSTRAINT", {
+				Rate = self.Config.MoveRate
+			}, "Send rate cannot be greater than move rate (%i).", true, self.Config.MoveRate )
 			return
 		end
 
