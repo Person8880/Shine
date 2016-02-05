@@ -1271,7 +1271,7 @@ function Plugin:CreatePerformanceCommands()
 		if NewRate < self.Config.MoveRate then
 			NotifyError( Client, "ERROR_TICKRATE_CONSTRAINT", {
 				Rate = self.Config.MoveRate
-			}, "Tick rate must be equal or greater than move rate (%i).", true, self.Config.MoveRate )
+			}, "Tick rate cannot be less than move rate (%i).", true, self.Config.MoveRate )
 			return
 		end
 
@@ -1340,6 +1340,12 @@ function Plugin:CreatePerformanceCommands()
 	AddAdditionalInfo( SendRateCommand, "SendRate", "/s" )
 
 	local function MoveRate( Client, NewRate )
+		if NewRate > self.Config.TickRate then
+			NotifyError( Client, "ERROR_MOVERATE_CONSTRAINT", {
+				Rate = self.Config.TickRate
+			}, "Move rate cannot be greater than tick rate (%i).", true, self.Config.TickRate )
+			return
+		end
 		self.Config.MoveRate = NewRate
 
 		Shared.ConsoleCommand( StringFormat( "mr %s", NewRate ) )

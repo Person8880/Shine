@@ -63,9 +63,10 @@
 	"ERROR_NOT_COMMANDER": "{TargetName} is not a commander.",
 	"ERROR_NOT_GAGGED": "{TargetName} is not gagged.",
 	"ERROR_INTERP_CONSTRAINT": "Interp is constrained by send rate to be {Rate:Format:%.2f}ms minimum.",
-	"ERROR_TICKRATE_CONSTRAINT": "Tick rate cannot be greater than move rate ({Rate}).",
+	"ERROR_TICKRATE_CONSTRAINT": "Tick rate cannot be less than move rate ({Rate}).",
 	"ERROR_SENDRATE_CONSTRAINT": "Send rate cannot be greater than tick rate ({Rate}).",
 	"ERROR_SENDRATE_MOVE_CONSTRAINT": "Send rate cannot be greater than move rate ({Rate}).",
+	"ERROR_MOVERATE_CONSTRAINT": "Move rate cannot be greater than tick rate ({Rate}).",
 	"MAPS": "Maps",
 	"PLUGINS": "Plugins"
 }

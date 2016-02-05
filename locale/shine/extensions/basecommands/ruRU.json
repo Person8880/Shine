@@ -63,9 +63,10 @@
 	"ERROR_NOT_COMMANDER": "{TargetName} не командир.",
 	"ERROR_NOT_GAGGED": "{TargetName} без молчанки.",
 	"ERROR_INTERP_CONSTRAINT": "Задержка ограничена send rate значением {Rate:Format:%.2f}ms минимум.",
-	"ERROR_TICKRATE_CONSTRAINT": "Tick rate не может быть больше чем move rate ({Rate}).",
+	"ERROR_TICKRATE_CONSTRAINT": "Tick rate не может быть меньше чем move rate ({Rate}).",
 	"ERROR_SENDRATE_CONSTRAINT": "Send rate не может быть больше чем tick rate ({Rate}).",
 	"ERROR_SENDRATE_MOVE_CONSTRAINT": "Send rate не может быть больше чем move rate ({Rate}).",
+	"ERROR_MOVERATE_CONSTRAINT": "Move rate не может быть больше чем tick rate ({Rate}).",
 	"MAPS": "Карты",
 	"PLUGINS": "Плагины"
 }
