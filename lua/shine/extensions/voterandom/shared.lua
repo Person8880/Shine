@@ -182,7 +182,7 @@ function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	local CurTime = SharedGetTime()
 	for Index, Row in pairs( Team.PlayerList ) do
 		local Entry = CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
-		if Entry then
+		if Entry and Entry.SteamId > 0 then
 			SkillValues[ #SkillValues + 1 ] = Entry.Skill
 		end
 	end
