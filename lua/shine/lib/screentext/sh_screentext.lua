@@ -4,20 +4,6 @@
 
 Shine.ScreenText = {}
 
---DEPRECATED! Please use Shine.ScreenText.Add( ID, Params[, Player] )
-function Shine.BuildScreenMessage( ID, X, Y, Text, Duration, R, G, B, Alignment, Size, FadeIn )
-	return {
-		ID = ID,
-		R = R, G = G, B = B,
-		X = X, Y = Y,
-		Text = Text,
-		Duration = Duration,
-		Alignment = Alignment,
-		Size = Size,
-		FadeIn = FadeIn
-	}
-end
-
 Shared.RegisterNetworkMessage( "Shine_ScreenText", {
 	R = "integer (0 to 255)",
 	G = "integer (0 to 255)",
