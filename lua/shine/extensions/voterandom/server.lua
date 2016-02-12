@@ -930,6 +930,7 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
 
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
+	self.LastShuffleTime = SharedTime()
 	self.ReconnectLogTimeout = SharedTime() + self.Config.ReconnectLogTime
 	self.ReconnectingClients = {}
 
@@ -1438,6 +1439,10 @@ function Plugin:CreateCommands()
 
 		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av",
 			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
+		Message[ #Message + 1 ] = StringFormat( "Standard deviation sorting is %s.",
+			self.Config.UseStandardDeviation and "enabled" or "disabled (this may result in worse teams)" )
+		Message[ #Message + 1 ] = self.LastShuffleTime and StringFormat( "Last shuffle was %s ago.",
+			string.TimeToString( SharedTime() - self.LastShuffleTime ) ) or "Teams have not yet been shuffled."
 
 		if not Client then
 			Notify( TableConcat( Message, "\n" ) )
