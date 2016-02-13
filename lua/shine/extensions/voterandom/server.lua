@@ -7,25 +7,17 @@ local Shine = Shine
 local Notify = Shared.Message
 
 local Abs = math.abs
-local assert = assert
 local Ceil = math.ceil
 local Clamp = math.Clamp
-local Decode = json.decode
 local Floor = math.floor
 local GetAllPlayers = Shine.GetAllPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
-local IsType = Shine.IsType
 local Max = math.max
-local Min = math.min
-local next = next
 local Random = math.random
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableConcat = table.concat
-local TableEmpty = table.Empty
-local TableRemove = table.remove
-local TableSort = table.sort
 local tostring = tostring
 
 local Plugin = Plugin
@@ -80,7 +72,6 @@ Plugin.DefaultConfig = {
 
 	BalanceMode = Plugin.MODE_HIVE, --How should teams be balanced?
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if Elo/Hive fails?
-	UseStandardDeviation = true, --Should standard deviation be accounted for when sorting?
 	--[[
 		How much of an increase in standard deviation should be allowed if the
 		average is being improved but the standard deviation can't be?
@@ -104,6 +95,8 @@ Plugin.DefaultConfig = {
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
+
+Script.Load( Shine.GetPluginFile( "voterandom", "team_balance.lua" ) )
 
 local ModeError = [[Error in voterandom config, FallbackMode is not set as a valid option.
 Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3 (Elo) or 5 (Hive).
@@ -188,643 +181,14 @@ function Plugin:Initialise()
 	return true
 end
 
-local EvenlySpreadTeams = Shine.EvenlySpreadTeams
-
-local function RandomiseSimilarSkill( Data, Count, Difference )
-	local LastSkill = Data[ 1 ] and Data[ 1 ].Skill or 0
-
-	--Swap those with a similar skill value randomly to make things different.
-	for i = 2, Count do
-		local Obj = Data[ i ]
-
-		local CurSkill = Obj.Skill
-
-		if LastSkill - CurSkill < Difference then
-			if Random() >= 0.5 then
-				local LastObj = Data[ i - 1 ]
-
-				Data[ i ] = LastObj
-				Data[ i - 1 ] = Obj
-
-				LastSkill = LastObj.Skill
-			else
-				LastSkill = CurSkill
-			end
-		else
-			LastSkill = CurSkill
-		end
-	end
-end
-
-local function GetAverageSkillFunc( Players, Func )
-	local PlayerCount = #Players
-
-	if PlayerCount == 0 then
-		return {
-			Average = 0,
-			Total = 0,
-			Count = 0,
-			Skills = {}
-		}
-	end
-
-	local PlayerSkillSum = 0
-	local Count = 0
-	local Skills = {}
-
-	for i = 1, PlayerCount do
-		local Ply = Players[ i ]
-
-		if Ply then
-			local Skill = Func( Ply )
-			if Skill then
-				Count = Count + 1
-				PlayerSkillSum = PlayerSkillSum + Skill
-
-				Skills[ Count ] = Skill
-			end
-		end
-	end
-
-	if Count == 0 then
-		return {
-			Average = 0,
-			Total = 0,
-			Count = 0,
-			Skills = Skills
-		}
-	end
-
-	TableSort( Skills, function( A, B )
-		return A > B
-	end )
-
-	return {
-		Average = PlayerSkillSum / Count,
-		Total = PlayerSkillSum,
-		Count = Count,
-		Skills = Skills
-	}
-end
-
-local DebugMode = false
-Plugin.SkillGetters = {
-	GetHiveSkill = function( Ply )
-		if DebugMode then
-			local Client = GetOwner( Ply )
-			if Client and Client:GetIsVirtual() then
-				Client.Skill = Client.Skill or Random( 0, 2500 )
-				return Client.Skill
-			end
-		end
-
-		if Ply.GetPlayerSkill then
-			return Ply:GetPlayerSkill()
-		end
-
-		return nil
-	end,
-
-	-- KA/D Ratio.
-	GetKDR = function( Ply )
-		if DebugMode then
-			local Client = GetOwner( Ply )
-			if Client and Client:GetIsVirtual() then
-				Client.Skill = Client.Skill or Random() * 3
-				return Client.Skill
-			end
-		end
-
-		do
-			local KDR = Plugin:CallModuleEvent( "GetPlayerKDR", Ply )
-			if KDR then return KDR end
-		end
-
-		local Kills = Ply.totalKills
-		local Deaths = Ply.totalDeaths
-		local Assists = Ply.totalAssists or 0
-
-		if Kills and Deaths then
-			if Deaths == 0 then Deaths = 1 end
-
-			return ( Kills + Assists * 0.1 ) / Deaths
-		end
-
-		return nil
-	end,
-
-	-- Score per minute played.
-	GetScore = function( Ply )
-		if DebugMode then
-			local Client = GetOwner( Ply )
-			if Client and Client:GetIsVirtual() then
-				Client.Skill = Client.Skill or Random() * 10
-				return Client.Skill
-			end
-		end
-
-		do
-			local ScorePerMinute = Plugin:CallModuleEvent( "GetPlayerScorePerMinute", Ply )
-			if ScorePerMinute then return ScorePerMinute end
-		end
-
-		if not Ply.totalScore or not Ply.totalPlayTime then
-			return nil
-		end
-
-		local PlayTime = Ply.totalPlayTime + ( Ply.playTime or 0 )
-		if PlayTime <= 0 then
-			return nil
-		end
-
-		return Ply.totalScore / ( PlayTime / 60 )
-	end
-}
-
---Gets the average skill ranking of a table of players.
-local function GetAverageSkill( Players )
-	return GetAverageSkillFunc( Players, Plugin.SkillGetters.GetHiveSkill )
-end
-
-local Sqrt = math.sqrt
-
-local function GetStandardDeviation( Players, Count, Average, RankFunc, Ply, Target )
-	local Sum = 0
-	local RealCount = 0
-
-	for i = 1, Count do
-		local Player = Players[ i ]
-		if Player and Player ~= Ply then
-			local Skill = RankFunc( Player )
-
-			if Skill then
-				RealCount = RealCount + 1
-				Sum = Sum + ( Skill - Average ) ^ 2
-			end
-		end
-	end
-
-	if Target then
-		local Skill = RankFunc( Target )
-
-		if Skill then
-			RealCount = RealCount + 1
-			Sum = Sum + ( Skill - Average ) ^ 2
-		end
-	end
-
-	if RealCount == 0 then
-		return 0
-	end
-
-	return Sqrt( Sum / RealCount )
-end
-
-function Plugin:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills )
-	local Add = Random() >= 0.5 and 1 or 0
-	local Team = 1 + Add
-	local MaxForTeam = Ceil( ( NumTargets + #TeamMembers[ 1 ] + #TeamMembers[ 2 ] ) * 0.5 )
-
-	local function GetAverages( Team, JoiningSkill )
-		local Skills = TeamSkills[ Team ]
-		return Skills.Average, ( Skills.Total + JoiningSkill ) / ( Skills.Count + 1 )
-	end
-
-	local Sorted = {}
-
-	--First pass, place unassigned players onto the team with the lesser average skill rating.
-	for i = 1, Count do
-		if SortTable[ i ] then
-			local Player = SortTable[ i ].Player
-			local Skill = SortTable[ i ].Skill
-			local TeamToJoin = Team
-			local OtherTeam = ( Team % 2 ) + 1
-
-			if #TeamMembers[ Team ] < MaxForTeam then
-				if #TeamMembers[ OtherTeam ] < MaxForTeam then
-					local OtherAverage, TheirNewAverage = GetAverages( OtherTeam, Skill )
-					local OurAverage, NewAverage = GetAverages( Team, Skill )
-
-					if OurAverage > OtherAverage then
-						if TheirNewAverage > OtherAverage then
-							TeamToJoin = OtherTeam
-							Team = OtherTeam
-						end
-					end
-				end
-			else
-				TeamToJoin = OtherTeam
-			end
-
-			local TeamTable = TeamMembers[ TeamToJoin ]
-
-			TeamTable[ #TeamTable + 1 ] = Player
-			Sorted[ Player ] = true
-
-			local SkillSum = TeamSkills[ TeamToJoin ].Total + Skill
-			local PlayerCount = TeamSkills[ TeamToJoin ].Count + 1
-			local AverageSkill = SkillSum / PlayerCount
-
-			TeamSkills[ TeamToJoin ].Average = AverageSkill
-			TeamSkills[ TeamToJoin ].Total = SkillSum
-			TeamSkills[ TeamToJoin ].Count = PlayerCount
-		end
-	end
-
-	return Sorted
-end
-
-local Huge = math.huge
-
-function Plugin:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
-	--We've found a match that lowers the difference in averages the most.
-	if SwapData.BestDiff >= Huge then return nil, LargerTeam, LesserTeam end
-
-	for i = 1, 2 do
-		local SwapPly = SwapData.BestPlayers[ i ]
-		--If we're moving a player from one side to the other, drop them properly.
-		if not SwapPly then
-			TableRemove( TeamMembers[ i ], SwapData.Indices[ i ] )
-			--Update player counts for the teams.
-			TeamSkills[ LargerTeam ].Count = TeamSkills[ LargerTeam ].Count - 1
-			TeamSkills[ LesserTeam ].Count = TeamSkills[ LesserTeam ].Count + 1
-			--Cycle the larger/lesser teams.
-			LargerTeam = ( LargerTeam % 2 ) + 1
-			LesserTeam = ( LesserTeam % 2 ) + 1
-		else
-			TeamMembers[ i ][ SwapData.Indices[ i ] ] = SwapPly
-		end
-		TeamSkills[ i ].Total = SwapData.Totals[ i ]
-		TeamSkills[ i ].Average = TeamSkills[ i ].Total / TeamSkills[ i ].Count
-	end
-
-	return true, LargerTeam, LesserTeam
-end
-
-function Plugin:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
-	-- Sanity check, make sure both team tables have even counts.
-	Shine.EqualiseTeamCounts( TeamMembers )
-
-	--Second pass, optimise the teams by swapping players that will reduce the average skill difference.
-	local NumTeam1 = #TeamMembers[ 1 ]
-	local NumTeam2 = #TeamMembers[ 2 ]
-
-	local LargerTeam
-	if NumTeam1 > NumTeam2 then
-		LargerTeam = 1
-	elseif NumTeam2 > NumTeam1 then
-		LargerTeam = 2
-	end
-	local LesserTeam = LargerTeam and ( ( LargerTeam % 2 ) + 1 ) or 2
-
-	local IgnoreCommanders = self.Config.IgnoreCommanders
-	local UseStandardDeviation = self.Config.UseStandardDeviation
-	local StandardDeviationTolerance = self.Config.StandardDeviationTolerance
-
-	local function CheckSwap( Ply, Skill, Target, TargetSkill, LargerIndex, LesserIndex, SwapData )
-		local SwapResult = { {}, {} }
-
-		for i = 1, 2 do
-			local Total = TeamSkills[ i ].Total
-			local Count = TeamSkills[ i ].Count
-
-			local PreAverage = Total / Count
-			SwapResult[ i ].PreAverage = PreAverage
-			if UseStandardDeviation then
-				SwapResult[ i ].PreStdDev = SwapData.StdDevs[ i ]
-					or GetStandardDeviation( TeamMembers[ i ], Count, PreAverage, RankFunc )
-				SwapData.StdDevs[ i ] = SwapResult[ i ].PreStdDev
-			end
-
-			local IsLesserTeam = i == LesserTeam
-			SwapResult[ i ].Losing = IsLesserTeam and Target or Ply
-			SwapResult[ i ].Gaining = IsLesserTeam and Ply or Target
-			SwapResult[ i ].Index = IsLesserTeam and LesserIndex or LargerIndex
-
-			local NewTotal = Total - ( IsLesserTeam and TargetSkill or Skill )
-				+ ( IsLesserTeam and Skill or TargetSkill )
-			if not Target then
-				Count = Count + ( IsLesserTeam and 1 or -1 )
-			end
-
-			local NewAverage = NewTotal / Count
-			SwapResult[ i ].PostAverage = NewAverage
-			if UseStandardDeviation then
-				SwapResult[ i ].PostStdDev = GetStandardDeviation( TeamMembers[ i ],
-					Count, NewAverage, RankFunc,
-					SwapResult[ i ].Losing, SwapResult[ i ].Gaining )
-			end
-
-			SwapResult[ i ].NewTotal = NewTotal
-		end
-
-		local PreDiff = Abs( SwapResult[ 1 ].PreAverage - SwapResult[ 2 ].PreAverage )
-		local NewDiff = Abs( SwapResult[ 1 ].PostAverage - SwapResult[ 2 ].PostAverage )
-		local AverageIsBetter = NewDiff < PreDiff and NewDiff < SwapData.BestDiff
-
-		local StdDevIsBetter
-		local NewStdDiff
-		if not UseStandardDeviation then
-			StdDevIsBetter = true
-		else
-			local PreStdDiff = Abs( SwapResult[ 1 ].PreStdDev - SwapResult[ 2 ].PreStdDev )
-			NewStdDiff = Abs( SwapResult[ 1 ].PostStdDev - SwapResult[ 2 ].PostStdDev )
-
-			-- Allow a slight increase in standard deviation difference if we're improving the averages.
-			StdDevIsBetter = ( NewStdDiff <= PreStdDiff and NewStdDiff <= SwapData.BestStdDiff )
-				or ( SwapData.BestStdDiff == Huge and ( NewStdDiff - PreStdDiff ) < StandardDeviationTolerance )
-		end
-
-		if AverageIsBetter and StdDevIsBetter then
-			SwapData.BestDiff = NewDiff
-			SwapData.BestStdDiff = NewStdDiff
-			for i = 1, 2 do
-				SwapData.BestPlayers[ i ] = SwapResult[ i ].Gaining
-				SwapData.Indices[ i ] = SwapResult[ i ].Index
-				SwapData.Totals[ i ] = SwapResult[ i ].NewTotal
-			end
-		end
-	end
-
-	TeamMembers.TeamPreferences = TeamMembers.TeamPreferences or {}
-	-- If there's at least one player with a preferred team, then perform 2 passes.
-	local NumPasses = next( TeamMembers.TeamPreferences ) and 2 or 1
-
-	for Pass = 1, NumPasses do
-		--Just in case, though it ought to not infinitely loop even without this.
-		local Iterations = 0
-
-		while Iterations < 30 do
-			local Changed
-
-			local SwapData = {
-				BestDiff = Huge,
-				BestPlayers = {},
-				Indices = {},
-				Totals = {}
-			}
-			if UseStandardDeviation then
-				SwapData.BestStdDiff = Huge
-				SwapData.StdDevs = {}
-			end
-
-			for i = 1, #TeamMembers[ LargerTeam or 1 ] do
-				local Ply = TeamMembers[ LargerTeam or 1 ][ i ]
-
-				if Ply and ( Pass == 2 or not TeamMembers.TeamPreferences[ Ply ] ) then
-					local Skill = RankFunc( Ply )
-					local ShouldIgnorePly = IgnoreCommanders and Ply:isa( "Commander" )
-
-					if Skill and not ShouldIgnorePly then
-						for j = 1, #TeamMembers[ LesserTeam ] do
-							local Target = TeamMembers[ LesserTeam ][ j ]
-
-							if Pass == 2 or not TeamMembers.TeamPreferences[ Target ] then
-								local TargetSkill = RankFunc( Target )
-								local ShouldIgnoreTarget = IgnoreCommanders
-									and Target:isa( "Commander" )
-
-								if TargetSkill and not ShouldIgnoreTarget then
-									CheckSwap( Ply, Skill, Target, TargetSkill, i, j, SwapData )
-								end
-							end
-						end
-
-						if LargerTeam then
-							local Team2Count = TeamSkills[ LesserTeam ].Count + 1
-
-							CheckSwap( Ply, Skill, nil, 0, i, Team2Count, SwapData )
-						end
-					end
-				end
-			end
-
-			Changed, LargerTeam, LesserTeam = self:PerformSwap( TeamMembers, TeamSkills, SwapData, LargerTeam, LesserTeam )
-
-			-- Halt the process completely if the tolerance is met.
-			local AverageDiff = Abs( TeamSkills[ 1 ].Average - TeamSkills[ 2 ].Average )
-			if AverageDiff <= self.Config.AverageValueTolerance then
-				return
-			end
-
-			-- Halt the current pass if there are no further swaps available.
-			if not Changed then
-				break
-			end
-
-			Iterations = Iterations + 1
-		end
-	end
-end
-
-function Plugin:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
-	local TeamSkills = {
-		GetAverageSkillFunc( TeamMembers[ 1 ], RankFunc ),
-		GetAverageSkillFunc( TeamMembers[ 2 ], RankFunc )
-	}
-
-	local Sorted = self:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills )
-
-	if NoSecondPass then
-		return Sorted
-	end
-
-	self:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
-
-	return Sorted
-end
-
-local function GetFallbackTargets( Targets, Sorted )
-	local FallbackTargets = {}
-
-	for i = 1, #Targets do
-		local Player = Targets[ i ]
-
-		if Player and not Sorted[ Player ] then
-			FallbackTargets[ #FallbackTargets + 1 ] = Player
-			Sorted[ Player ] = true
-		end
-	end
-
-	return FallbackTargets
-end
-
-function Plugin:AddPlayersRandomly( Targets, NumPlayers, TeamMembers )
-	while NumPlayers > 0 and #TeamMembers[ 1 ] ~= #TeamMembers[ 2 ] do
-		NumPlayers = NumPlayers - 1
-
-		local Team = #TeamMembers[ 1 ] < #TeamMembers[ 2 ] and 1 or 2
-		local TeamTable = TeamMembers[ Team ]
-		local Player = Targets[ #Targets ]
-
-		TeamTable[ #TeamTable + 1 ] = Player
-		Targets[ #Targets ] = nil
-	end
-
-	if NumPlayers == 0 then return end
-
-	local TeamSequence = math.GenerateSequence( NumPlayers, { 1, 2 } )
-
-	for i = 1, NumPlayers do
-		local Player = Targets[ i ]
-		if Player then
-			local TeamTable = TeamMembers[ TeamSequence[ i ] ]
-
-			TeamTable[ #TeamTable + 1 ] = Player
-		end
-	end
-end
-
-Plugin.NormalisedScoreFactor = 2000
-
-function Plugin:NormaliseSkills( ScoreTable, Max )
-	-- Normalise KDR/Score amount to be similar values to Hive skill.
-	-- This allows the optimise method to not have to worry about different scales.
-	for i = 1, #ScoreTable do
-		local Data = ScoreTable[ i ]
-		local Skill = Data.Skill
-		Data.Skill = Skill / Max * self.NormalisedScoreFactor
-		ScoreTable[ Data.Player ] = Data.Skill
-	end
-end
-
-function Plugin:SortByScore( Gamerules, Targets, TeamMembers, Silent, RankFunc )
-	local ScoreTable = {}
-	local RandomTable = {}
-
-	local Max = 0
-	for i = 1, #Targets do
-		local Player = Targets[ i ]
-
-		if Player then
-			local Score = RankFunc( Player )
-			if Score then
-				ScoreTable[ #ScoreTable + 1 ] = { Player = Player, Skill = Score }
-				if Score > Max then
-					Max = Score
-				end
-			else
-				RandomTable[ #RandomTable + 1 ] = Player
-			end
-		end
-	end
-
-	self:NormaliseSkills( ScoreTable, Max )
-
-	local ScoreSortCount = #ScoreTable
-
-	if ScoreSortCount > 0 then
-		TableSort( ScoreTable, function( A, B ) return A.Skill > B.Skill end )
-
-		--Make sure we ignore the second pass if we're a fallback for skill sorting.
-		self:SortPlayersByRank( TeamMembers, ScoreTable, ScoreSortCount, #Targets, function( Player )
-			return ScoreTable[ Player ]
-		end, Silent )
-	end
-
-	local RandomTableCount = #RandomTable
-
-	if RandomTableCount > 0 then
-		self:AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
-	end
-
-	EvenlySpreadTeams( Gamerules, TeamMembers )
-
-	if not Silent then
-		Shine:LogString( "[Shuffle] Teams were sorted based on score." )
-	end
-end
-
-Plugin.ShufflingModes = {
-	--Random only.
-	function( self, Gamerules, Targets, TeamMembers, Silent )
-		self:AddPlayersRandomly( Targets, #Targets, TeamMembers )
-		EvenlySpreadTeams( Gamerules, TeamMembers )
-
-		if not Silent then
-			Shine:LogString( "[Shuffle] Teams were sorted randomly." )
-		end
-	end,
-	--Score based if available, random if not.
-	function( self, Gamerules, Targets, TeamMembers, Silent )
-		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetScore )
-	end,
-
-	function( self, Gamerules, Targets, TeamMembers )
-		-- Was NS2Stats Elo, now does nothing.
-	end,
-
-	--KDR based works identically to score, the score data is what is different.
-	function( self, Gamerules, Targets, TeamMembers, Silent )
-		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetKDR )
-	end,
-
-	--Hive data based. Relies on UWE's ranking data to be correct for it to work.
-	function( self, Gamerules, Targets, TeamMembers )
-		local SortTable = {}
-		local Count = 0
-		local Sorted = {}
-
-		local TargetCount = #Targets
-
-		for i = 1, TargetCount do
-			local Ply = Targets[ i ]
-
-			local Skill = self.SkillGetters.GetHiveSkill( Ply )
-			if Skill and Skill > 0 then
-				Count = Count + 1
-				SortTable[ Count ] = { Player = Ply, Skill = Skill }
-			end
-		end
-
-		TableSort( SortTable, function( A, B )
-			return A.Skill > B.Skill
-		end )
-
-		RandomiseSimilarSkill( SortTable, Count, 10 )
-
-		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count, TargetCount, self.SkillGetters.GetHiveSkill )
-
-		Shine:LogString( "[Skill Vote] Teams were sorted based on Hive skill ranking." )
-
-		--If some players have rank 0 or no rank data, sort them with the fallback instead.
-		local FallbackTargets = GetFallbackTargets( Targets, Sorted )
-
-		if #FallbackTargets > 0 then
-			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
-				FallbackTargets, TeamMembers, true )
-
-			return
-		end
-
-		EvenlySpreadTeams( Gamerules, TeamMembers )
-	end
-}
-
-function Plugin:GetTeamStats()
-	local Marines = GetEntitiesForTeam( "Player", 1 )
-	local Aliens = GetEntitiesForTeam( "Player", 2 )
-
-	local MarineSkill = GetAverageSkill( Marines )
-	MarineSkill.StandardDeviation = GetStandardDeviation( Marines, #Marines, MarineSkill.Average, self.SkillGetters.GetHiveSkill )
-
-	local AlienSkill = GetAverageSkill( Aliens )
-	AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, #Aliens, AlienSkill.Average, self.SkillGetters.GetHiveSkill )
-
-	return {
-		MarineSkill, AlienSkill
-	}
-end
-
 --[[
 	Gets all valid targets for sorting.
 ]]
 function Plugin:GetTargetsForSorting( ResetScores )
-	local Players, Count = GetAllPlayers()
-
 	local Gamerules = GetGamerules()
 	if not Gamerules then return end
 
+	local Players, Count = GetAllPlayers()
 	local Targets = {}
 	local TeamMembers = {
 		{},
@@ -834,8 +198,6 @@ function Plugin:GetTargetsForSorting( ResetScores )
 
 	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 	local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
-
-	local Time = SharedTime()
 
 	local function SortPlayer( Player, Client, Commander, Pass )
 		local Team = Player:GetTeamNumber()
@@ -850,9 +212,9 @@ function Plugin:GetTargetsForSorting( ResetScores )
 
 		local IsImmune = Shine:HasAccess( Client, "sh_randomimmune" ) or Commander
 
-		--Pass 1, put all immune players into team slots.
-		--This ensures they're picked last if there's a team imbalance at the end of sorting.
-		--It does not stop them from being swapped if it helps overall balance though.
+		-- Pass 1, put all immune players into team slots.
+		-- This ensures they're picked last if there's a team imbalance at the end of sorting.
+		-- It does not stop them from being swapped if it helps overall balance though.
 		if Pass == 1 then
 			if IsImmune then
 				local TeamTable = TeamMembers[ Team ]
@@ -867,13 +229,11 @@ function Plugin:GetTargetsForSorting( ResetScores )
 			return
 		end
 
-		--Pass 2, put all non-immune players into team slots/target list.
+		-- Pass 2, put all non-immune players into team slots/target list.
 		if IsImmune then return end
 
-		local BalanceMode = self.Config.BalanceMode
-		local BiasTeams = BalanceMode == self.MODE_ELO or BalanceMode == self.MODE_HIVE
-		--If they're on a playing team, bias towards letting them keep it.
-		if ( Team == 1 or Team == 2 ) and BiasTeams then
+		-- If they're on a playing team, bias towards letting them keep it.
+		if Team == 1 or Team == 2 then
 			local TeamTable = TeamMembers[ Team ]
 
 			TeamTable[ #TeamTable + 1 ] = Player
@@ -883,36 +243,39 @@ function Plugin:GetTargetsForSorting( ResetScores )
 		end
 	end
 
-	for j = 1, 2 do
-		for i = 1, Count do
-			local Player = Players[ i ]
+	local function AddPlayer( Player, Pass )
+		if not Player then return end
 
-			if Player then
-				if Player.ResetScores and ResetScores then
-					Player:ResetScores()
-				end
+		if Player.ResetScores and ResetScores then
+			Player:ResetScores()
+		end
 
-				local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
+		local Client = Player:GetClient()
+		if not Client then return end
 
-				local Client = Player:GetClient()
+		local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 
-				if Client then
-					if AFKEnabled then --Ignore AFK players in sorting.
-						if not AFKKick:IsAFKFor( Client, 60 ) then
-							SortPlayer( Player, Client, Commander, j )
-						elseif j == 1 then --Chuck AFK players into the ready room.
-							local Team = Player:GetTeamNumber()
+		if AFKEnabled then -- Ignore AFK players in sorting.
+			if not AFKKick:IsAFKFor( Client, 60 ) then
+				SortPlayer( Player, Client, Commander, Pass )
+			elseif Pass == 1 then -- Chuck AFK players into the ready room.
+				local Team = Player:GetTeamNumber()
 
-							--Only move players on playing teams...
-							if Team == 1 or Team == 2 then
-								Gamerules:JoinTeam( Player, 0, nil, true )
-							end
-						end
-					else
-						SortPlayer( Player, Client, Commander, j )
-					end
+				-- Only move players on playing teams...
+				if Team == 1 or Team == 2 then
+					Gamerules:JoinTeam( Player, 0, nil, true )
 				end
 			end
+
+			return
+		end
+
+		SortPlayer( Player, Client, Commander, Pass )
+	end
+
+	for Pass = 1, 2 do
+		for i = 1, Count do
+			AddPlayer( Players[ i ], Pass )
 		end
 	end
 
@@ -924,18 +287,32 @@ end
 ]]
 function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	local Gamerules = GetGamerules()
-
 	if not Gamerules then return end
 
 	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
 
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
+	self.LastShuffleTime = SharedTime()
 	self.ReconnectLogTimeout = SharedTime() + self.Config.ReconnectLogTime
 	self.ReconnectingClients = {}
 
-	local ModeFunc = self.ShufflingModes[ ForceMode or self.Config.BalanceMode ]
+	local Mode = ForceMode or self.Config.BalanceMode
+	self.ShufflingModes[ Mode ]( self, Gamerules, Targets, TeamMembers )
 
-	return ModeFunc( self, Gamerules, Targets, TeamMembers )
+	-- Remember who was on what team at the point of shuffling, so we can work out
+	-- how close to the shuffled teams we are later.
+	local TeamLookup = {}
+	for i = 1, 2 do
+		for j = 1, #TeamMembers[ i ] do
+			local Player = TeamMembers[ i ][ j ]
+			if Player.GetClient and Player:GetClient() then
+				local Client = Player:GetClient()
+				local SteamID = Client:GetUserId()
+				TeamLookup[ SteamID ] = i
+			end
+		end
+	end
+	self.LastShuffleTeamLookup = TeamLookup
 end
 
 --[[
@@ -957,8 +334,8 @@ function Plugin:JoinRandomTeam( Player )
 			local Team1Players = Gamerules.team1:GetPlayers()
 			local Team2Players = Gamerules.team2:GetPlayers()
 
-			local Team1Skill = GetAverageSkill( Team1Players )
-			local Team2Skill = GetAverageSkill( Team2Players )
+			local Team1Skill = self:GetAverageSkill( Team1Players )
+			local Team2Skill = self:GetAverageSkill( Team2Players )
 
 			--If team skill is identical, then we should just pick a random team.
 			if Team1Skill.Average ~= Team2Skill.Average then
@@ -1438,6 +815,15 @@ function Plugin:CreateCommands()
 
 		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av",
 			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
+		if self.LastShuffleTime then
+			Message[ #Message + 1 ] = StringFormat(
+				"Last shuffle was %s ago. %i/%i players match their team from the last shuffle.",
+				string.TimeToString( SharedTime() - self.LastShuffleTime ),
+				TeamStats.NumMatchingTeams or 0,
+				TeamStats.TotalPlayers or 0 )
+		else
+			Message[ #Message + 1 ] = "Teams have not yet been shuffled."
+		end
 
 		if not Client then
 			Notify( TableConcat( Message, "\n" ) )
@@ -1451,4 +837,4 @@ function Plugin:CreateCommands()
 	StatsCommand:Help( "View Hive skill based team statistics." )
 end
 
-Script.Load( "lua/shine/extensions/voterandom/local_stats.lua" )
+Script.Load( Shine.GetPluginFile( "voterandom", "local_stats.lua" ) )

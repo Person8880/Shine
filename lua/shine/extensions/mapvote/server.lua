@@ -94,8 +94,8 @@ local function ConvertArrayToLookup( Table )
 	end
 end
 
-Script.Load( "lua/shine/extensions/mapvote/cycle.lua" )
-Script.Load( "lua/shine/extensions/mapvote/voting.lua" )
+Script.Load( Shine.GetPluginFile( "mapvote", "cycle.lua" ) )
+Script.Load( Shine.GetPluginFile( "mapvote", "voting.lua" ) )
 
 function Plugin:Initialise()
 	self.Config.ForceChange = Max( self.Config.ForceChange, 0 )

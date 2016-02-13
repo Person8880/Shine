@@ -90,6 +90,7 @@ function Plugin:Initialise()
 	-- only runs when the scoreboard is visible.
 	self:CreateTimer( "TrackTeamChanges", 1, -1, function()
 		if not self.dt.HighlightTeamSwaps then return end
+		if not ScoreboardUI_GetAllScores then return end
 
 		local Scores = ScoreboardUI_GetAllScores()
 		local CurTime = SharedGetTime()
@@ -182,7 +183,7 @@ function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	local CurTime = SharedGetTime()
 	for Index, Row in pairs( Team.PlayerList ) do
 		local Entry = CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
-		if Entry then
+		if Entry and Entry.SteamId > 0 then
 			SkillValues[ #SkillValues + 1 ] = Entry.Skill
 		end
 	end

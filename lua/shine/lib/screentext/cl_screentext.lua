@@ -59,6 +59,11 @@ function ScreenText:SetColour( Col )
 end
 
 function ScreenText:SetText( Text )
+	if not self.IgnoreFormat then
+		-- Force a check to make sure the text is valid for formatting.
+		StringFormat( Text, "" )
+	end
+
 	self.Text = Text
 	self.Obj:SetText( Text )
 end
@@ -188,8 +193,7 @@ function Shine.ScreenText.SetText( ID, Text )
 	local MessageTable = Messages:Get( ID )
 	if not MessageTable then return end
 
-	MessageTable.Text = Text
-	MessageTable.Obj:SetText( Text )
+	MessageTable:SetText( Text )
 end
 
 --[[
@@ -211,20 +215,6 @@ function Shine.ScreenText.End( ID )
 	if not MessageTable then return end
 
 	MessageTable:End()
-end
-
---SUPER DUPER DEPRECATED! Use Shine.ScreenText.Add( ID, Params ), and save yourself function argument hell.
-function Shine:AddMessageToQueue( ID, X, Y, Text, Duration, R, G, B, Alignment, Size, FadeIn, IgnoreFormat )
-	return self.ScreenText.Add( ID, {
-		X = X, Y = Y,
-		Text = Text,
-		Duration = Duration,
-		R = R, G = G, B = B,
-		Alignment = Alignment,
-		Size = Size,
-		FadeIn = FadeIn,
-		IgnoreFormat = IgnoreFormat
-	} )
 end
 
 local function UpdateMessage( Index, Message, Time )
@@ -287,16 +277,6 @@ local function ProcessFades( DeltaTime )
 			end
 		end
 	end
-end
-
---DEPRECATED! Use Shine.ScreenText.Remove( Index )
-function Shine:RemoveMessage( Index )
-	self.ScreenText.Remove( Index )
-end
-
---DEPRECATED! Use Shine.ScreenText.End( Index )
-function Shine:EndMessage( Index )
-	self.ScreenText.End( Index )
 end
 
 Shine.Hook.Add( "Think", "ScreenText", function( DeltaTime )
