@@ -323,8 +323,6 @@ function BalanceModule:SortByScore( Gamerules, Targets, TeamMembers, Silent, Ran
 
 	local ScoreSortCount = #ScoreTable
 	if ScoreSortCount > 0 then
-		TableSort( ScoreTable, function( A, B ) return A.Skill > B.Skill end )
-
 		--Make sure we ignore the second pass if we're a fallback for skill sorting.
 		self:SortPlayersByRank( TeamMembers, ScoreTable, ScoreSortCount, #Targets, function( Player, TeamNumber )
 			return ScoreTable[ Player ]
