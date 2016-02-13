@@ -7,25 +7,17 @@ local Shine = Shine
 local Notify = Shared.Message
 
 local Abs = math.abs
-local assert = assert
 local Ceil = math.ceil
 local Clamp = math.Clamp
-local Decode = json.decode
 local Floor = math.floor
 local GetAllPlayers = Shine.GetAllPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
-local IsType = Shine.IsType
 local Max = math.max
-local Min = math.min
-local next = next
 local Random = math.random
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableConcat = table.concat
-local TableEmpty = table.Empty
-local TableRemove = table.remove
-local TableSort = table.sort
 local tostring = tostring
 
 local Plugin = Plugin
