@@ -1,3 +1,6 @@
+--[[
+	Handles team balancing related stuff.
+]]
 
 Script.Load( Shine.GetPluginFile( "voterandom", "team_optimiser.lua" ) )
 
@@ -223,6 +226,10 @@ function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTarg
 	}
 
 	local Sorted = self:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills, RankFunc )
+
+	-- If you want/need to control number of players on teams, this is the best point to do it.
+	Shine.Hook.Call( "PreShuffleOptimiseTeams", TeamMembers )
+
 	if NoSecondPass then
 		return Sorted
 	end
