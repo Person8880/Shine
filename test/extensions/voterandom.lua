@@ -96,6 +96,7 @@ UnitTest:Test( "CommitSwap", function( Assert )
 		SwapData
 	}
 	Optimiser.CurrentPotentialState.Swaps = Swaps
+	Optimiser.SwapCount = 1
 
 	local Result = Optimiser:CommitSwap()
 	Assert:Nil( Result )
@@ -148,6 +149,7 @@ UnitTest:Test( "CommitSwap with uneven teams", function( Assert )
 		SwapData
 	}
 	Optimiser.CurrentPotentialState.Swaps = Swaps
+	Optimiser.SwapCount = 1
 
 	local Result = Optimiser:CommitSwap()
 

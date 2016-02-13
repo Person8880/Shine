@@ -90,7 +90,8 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc )
 		PreData = { {}, {} },
 		PostData = { {}, {} }
 	}
-	self.CurrentPotentialState = {}
+	self.CurrentPotentialState = { Swaps = {} }
+	self.SwapBuffer = {}
 
 	return self
 end
@@ -173,6 +174,20 @@ local function Difference( SkillHolder, Stat )
 	return Abs( SkillHolder[ 1 ][ Stat ] - SkillHolder[ 2 ][ Stat ] )
 end
 
+function TeamOptimiser:GetSwap( Index )
+	local Swap = self.CurrentPotentialState.Swaps[ Index ]
+	if not Swap then
+		Swap = {
+			Indices = {},
+			Players = {},
+			Totals = {}
+		}
+		self.CurrentPotentialState.Swaps[ Index ] = Swap
+	end
+
+	return Swap
+end
+
 --[[
 	Simulates a single swap (or move if index 2 is > team 2's size) of players.
 
@@ -194,6 +209,7 @@ function TeamOptimiser:SimulateSwap( ... )
 	end
 
 	local AverageDiffAfter = Difference( SwapContext.PostData, "Average" )
+	local StdDiff
 
 	self.CurrentPotentialState.AverageDiffBefore = Difference( SwapContext.PreData, "Average" )
 
@@ -201,35 +217,21 @@ function TeamOptimiser:SimulateSwap( ... )
 	if self.UseStandardDeviation then
 		self.CurrentPotentialState.StdDiffBefore = Difference( SwapContext.PreData, "StandardDeviation" )
 
-		local StdDiff = Difference( SwapContext.PostData, "StandardDeviation" )
+		StdDiff = Difference( SwapContext.PostData, "StandardDeviation" )
 		if not self:SwapPassesRequirements( AverageDiffAfter, StdDiff ) then return end
-
-		local NewSwap = {
-			Indices = { Indices[ 1 ], Indices[ 2 ] },
-			Players = { Players[ 1 ], Players[ 2 ] },
-			AverageDiff = AverageDiffAfter,
-			Totals = {
-				SwapContext.PostData[ 1 ].Total,
-				SwapContext.PostData[ 2 ].Total
-			},
-			StdDiff = StdDiff
-		}
-
-		PotentialSwaps[ #PotentialSwaps + 1 ] = NewSwap
 	else
 		if not self:SwapPassesRequirements( AverageDiffAfter ) then return end
-
-		local NewSwap = {
-			Indices = { Indices[ 1 ], Indices[ 2 ] },
-			Players = { Players[ 1 ], Players[ 2 ] },
-			AverageDiff = AverageDiffAfter,
-			Totals = {
-				SwapContext.PostData[ 1 ].Total,
-				SwapContext.PostData[ 2 ].Total
-			}
-		}
-		PotentialSwaps[ #PotentialSwaps + 1 ] = NewSwap
 	end
+
+	self.SwapCount = self.SwapCount + 1
+	local Swap = self:GetSwap( self.SwapCount )
+	for i = 1, 2 do
+		Swap.Indices[ i ] = Indices[ i ]
+		Swap.Players[ i ] = Players[ i ]
+		Swap.Totals[ i ] = SwapContext.PostData[ i ].Total
+	end
+	Swap.AverageDiff = AverageDiffAfter
+	Swap.StdDiff = StdDiff
 end
 
 --[[
@@ -314,14 +316,22 @@ local Comparator = Shine.Comparator( "Composition", CompareStdDiff, CompareAvera
 function TeamOptimiser:CommitSwap()
 	local Swaps = self.CurrentPotentialState.Swaps
 	local CurrentAverage = self.CurrentPotentialState.AverageDiffBefore
+	local SwapBuffer = self.SwapBuffer
+	for i = 1, self.SwapCount do
+		SwapBuffer[ i ] = Swaps[ i ]
+	end
 
 	-- Sort by average ascending, standard deviation descending.
 	-- This means the last entry has the largest average (but still lower than the current)
 	-- and the smallest standard deviation in that average group.
-	TableSort( Swaps, Comparator )
+	TableSort( SwapBuffer, Comparator )
 
-	local OptimalSwap = Swaps[ #Swaps ]
+	local OptimalSwap = SwapBuffer[ #SwapBuffer ]
 	if not OptimalSwap then return RESULT_NEXTPASS end
+
+	for i = 1, self.SwapCount do
+		SwapBuffer[ i ] = nil
+	end
 
 	local TeamSkills = self.TeamSkills
 	local TeamMembers = self.TeamMembers
@@ -362,7 +372,7 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 
 	while Iterations < 30 do
 		self:CacheStandardDeviations()
-		self.CurrentPotentialState.Swaps = {}
+		self.SwapCount = 0
 
 		-- Pre-populate the current pre-swap data.
 		for TeamNumber = 1, 2 do
