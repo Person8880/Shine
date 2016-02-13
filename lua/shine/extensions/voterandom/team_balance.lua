@@ -333,10 +333,6 @@ function BalanceModule:SortByScore( Gamerules, Targets, TeamMembers, Silent, Ran
 	end
 
 	EvenlySpreadTeams( Gamerules, TeamMembers )
-
-	if not Silent then
-		self:Print( "Teams were sorted based on score." )
-	end
 end
 
 BalanceModule.ShufflingModes = {
@@ -352,6 +348,10 @@ BalanceModule.ShufflingModes = {
 	--Score based if available, random if not.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
 		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetScore )
+
+		if not Silent then
+			self:Print( "Teams were sorted based on score per minute." )
+		end
 	end,
 
 	function( self, Gamerules, Targets, TeamMembers )
@@ -361,6 +361,10 @@ BalanceModule.ShufflingModes = {
 	--KDR based works identically to score, the score data is what is different.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
 		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetKDR )
+
+		if not Silent then
+			self:Print( "Teams were sorted based on KDR." )
+		end
 	end,
 
 	--Hive data based. Relies on UWE's ranking data to be correct for it to work.
