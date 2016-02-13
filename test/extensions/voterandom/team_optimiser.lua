@@ -44,20 +44,24 @@ UnitTest:Test( "CommitSwap", function( Assert )
 	}
 
 	local Optimiser = VoteShuffle.TeamOptimiser( TeamMembers, TeamSkills, function() end )
+	Optimiser.AverageValueTolerance = 100
 	local Swaps = {
 		SwapData
 	}
 	Optimiser.CurrentPotentialState.Swaps = Swaps
 	Optimiser.SwapCount = 1
 
+	-- Should terminate because the averages are within tolerance.
 	local Result = Optimiser:CommitSwap()
-	Assert:Nil( Result )
+	Assert:Equals( Optimiser.RESULT_TERMINATE, Result )
 
 	Assert:ArrayEquals( { 5, 2, 3 }, TeamMembers[ 1 ] )
 	Assert:ArrayEquals( { 4, 1, 6 }, TeamMembers[ 2 ] )
 
 	Assert:Equals( 2750, TeamSkills[ 1 ].Total )
 	Assert:Equals( 2500, TeamSkills[ 2 ].Total )
+	Assert:Equals( 2750 / 3, TeamSkills[ 1 ].Average )
+	Assert:Equals( 2500 / 3, TeamSkills[ 2 ].Average )
 end )
 
 UnitTest:Test( "CommitSwap with uneven teams", function( Assert )
@@ -104,7 +108,6 @@ UnitTest:Test( "CommitSwap with uneven teams", function( Assert )
 	Optimiser.SwapCount = 1
 
 	local Result = Optimiser:CommitSwap()
-
 	Assert:Nil( Result )
 	Assert:Equals( 2, Optimiser.LargerTeam )
 	Assert:Equals( 1, Optimiser.LesserTeam )
@@ -380,7 +383,7 @@ UnitTest:Test( "PerformOptimisationPass", function( Assert )
 	end
 
 	local Iterations = 0
-	local ReturnCode = 1
+	local ReturnCode = Optimiser.RESULT_TERMINATE
 	function Optimiser:CommitSwap()
 		CurrentPlayerIndex = 1
 		Iterations = Iterations + 1
@@ -395,7 +398,7 @@ UnitTest:Test( "PerformOptimisationPass", function( Assert )
 	Assert:Equals( 4, SwapsTried )
 
 	Iterations = 0
-	ReturnCode = 2
+	ReturnCode = Optimiser.RESULT_NEXTPASS
 	SwapsTried = 0
 
 	-- CommitSwap says to end the pass on iteration 2, so should return nil.

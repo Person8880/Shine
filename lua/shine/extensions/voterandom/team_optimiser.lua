@@ -262,8 +262,8 @@ function TeamOptimiser:TrySwaps( PlayerIndex, Pass )
 	end
 end
 
-local RESULT_TERMINATE = 1
-local RESULT_NEXTPASS = 2
+TeamOptimiser.RESULT_TERMINATE = 1
+TeamOptimiser.RESULT_NEXTPASS = 2
 
 function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff )
 	local CurrentAverage = self.CurrentPotentialState.AverageDiffBefore
@@ -308,7 +308,7 @@ function TeamOptimiser:CommitSwap()
 	TableSort( SwapBuffer, Comparator )
 
 	local OptimalSwap = SwapBuffer[ #SwapBuffer ]
-	if not OptimalSwap then return RESULT_NEXTPASS end
+	if not OptimalSwap then return self.RESULT_NEXTPASS end
 
 	for i = 1, self.SwapCount do
 		SwapBuffer[ i ] = nil
@@ -338,7 +338,7 @@ function TeamOptimiser:CommitSwap()
 
 	-- If an average tolerance is set, and we're now less-equal to it, stop completely.
 	if self.AverageValueTolerance > 0 and Difference( TeamSkills, "Average" ) <= self.AverageValueTolerance then
-		return RESULT_TERMINATE
+		return self.RESULT_TERMINATE
 	end
 end
 
@@ -376,8 +376,8 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 
 		-- Check if there's a good swap, and if we should continue.
 		local Result = self:CommitSwap()
-		if Result == RESULT_TERMINATE then return true end
-		if Result == RESULT_NEXTPASS then break end
+		if Result == self.RESULT_TERMINATE then return true end
+		if Result == self.RESULT_NEXTPASS then break end
 
 		Iterations = Iterations + 1
 	end
