@@ -36,20 +36,14 @@ UnitTest:Test( "AssignPlayers", function( Assert )
 		}
 	}
 
-	local SortTable = {
-		{
-			Player = {},
-			Skill = 1500
-		},
-		{
-			Player = {},
-			Skill = 1000
-		}
-	}
+	local SortTable = { 1, 2 }
+	local Skills = { 1500, 1000 }
 
 	local Count, NumTargets = 2, 2
 
-	VoteShuffle:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills )
+	VoteShuffle:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills, function( Player, TeamNumber )
+		return Skills[ Player ]
+	end )
 
 	-- Should place 1500 player on lower skill team.
 	Assert:Equals( 3750, TeamSkills[ 2 ].Total )
@@ -61,14 +55,15 @@ UnitTest:Test( "AssignPlayers", function( Assert )
 	Assert:Equals( 4000 / 4, TeamSkills[ 1 ].Average )
 end, nil, 100 )
 
-UnitTest:Test( "PerformSwap", function( Assert )
+UnitTest:Test( "CommitSwap", function( Assert )
 	local TeamMembers = {
 		{
 			1, 2, 3
 		},
 		{
 			4, 5, 6
-		}
+		},
+		TeamPreferences = {}
 	}
 
 	local TeamSkills = {
@@ -85,19 +80,25 @@ UnitTest:Test( "PerformSwap", function( Assert )
 	}
 
 	local SwapData = {
-		BestPlayers = {
-			5, 1
+		Players = {
+			1, 5
 		},
 		Indices = {
 			1, 2
 		},
 		Totals = {
 			2750, 2500
-		},
-		BestDiff = 0
+		}
 	}
 
-	VoteShuffle:PerformSwap( TeamMembers, TeamSkills, SwapData )
+	local Optimiser = VoteShuffle.TeamOptimiser( TeamMembers, TeamSkills, function() end )
+	local Swaps = {
+		SwapData
+	}
+	Optimiser.CurrentPotentialState.Swaps = Swaps
+
+	local Result = Optimiser:CommitSwap()
+	Assert:Nil( Result )
 
 	Assert:ArrayEquals( { 5, 2, 3 }, TeamMembers[ 1 ] )
 	Assert:ArrayEquals( { 4, 1, 6 }, TeamMembers[ 2 ] )
@@ -106,14 +107,15 @@ UnitTest:Test( "PerformSwap", function( Assert )
 	Assert:Equals( 2500, TeamSkills[ 2 ].Total )
 end )
 
-UnitTest:Test( "PerformSwap with uneven teams", function( Assert )
+UnitTest:Test( "CommitSwap with uneven teams", function( Assert )
 	local TeamMembers = {
 		{
 			1, 2, 3
 		},
 		{
 			4, 5
-		}
+		},
+		TeamPreferences = {}
 	}
 
 	local TeamSkills = {
@@ -130,23 +132,28 @@ UnitTest:Test( "PerformSwap with uneven teams", function( Assert )
 	}
 
 	local SwapData = {
-		BestPlayers = {
-			nil, 1
+		Players = {
+			1, nil
 		},
 		Indices = {
 			1, 3
 		},
 		Totals = {
 			2000, 2500
-		},
-		BestDiff = 0
+		}
 	}
 
-	local Changed, LargerTeam, LesserTeam = VoteShuffle:PerformSwap( TeamMembers, TeamSkills, SwapData, 1, 2 )
+	local Optimiser = VoteShuffle.TeamOptimiser( TeamMembers, TeamSkills, function() end )
+	local Swaps = {
+		SwapData
+	}
+	Optimiser.CurrentPotentialState.Swaps = Swaps
 
-	Assert:Truthy( Changed )
-	Assert:Equals( 2, LargerTeam )
-	Assert:Equals( 1, LesserTeam )
+	local Result = Optimiser:CommitSwap()
+
+	Assert:Nil( Result )
+	Assert:Equals( 2, Optimiser.LargerTeam )
+	Assert:Equals( 1, Optimiser.LesserTeam )
 
 	Assert:ArrayEquals( { 2, 3 }, TeamMembers[ 1 ] )
 	Assert:ArrayEquals( { 4, 5, 1 }, TeamMembers[ 2 ] )
@@ -174,7 +181,8 @@ UnitTest:Test( "OptimiseTeams", function( Assert )
 		},
 		{
 			4, 5, 6
-		}
+		},
+		TeamPreferences = {}
 	}
 
 	local TeamSkills = {
@@ -197,7 +205,7 @@ UnitTest:Test( "OptimiseTeams", function( Assert )
 	-- 2000, 1000, 1000
 	Assert:Equals( 4000, TeamSkills[ 1 ].Total )
 	Assert:Equals( 4000, TeamSkills[ 2 ].Total )
-end, nil, 100 )
+end, nil, 5 )
 
 UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 	local Skills = {
@@ -215,7 +223,8 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 		},
 		{
 			9, 10, 11, 12, 13, 14, 15, 16
-		}
+		},
+		TeamPreferences = {}
 	}
 
 	local TeamSkills = {}
@@ -240,8 +249,8 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	local FinalTeams = {
-		{ 2000, 2000, 1500, 1200, 1000, 700, 600, 0 },
-		{ 2000, 1800, 1700, 1000, 1000, 1000, 500, 0 }
+		{ 2000, 1800, 1700, 1200, 1000, 700, 600, 0 },
+		{ 2000, 2000, 1500, 1000, 1000, 1000, 500, 0 }
 	}
 
 	for i = 1, 2 do
@@ -257,7 +266,7 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 
 		Assert:ArrayEquals( FinalTeams[ i ], AsSkillArray )
 	end
-end, nil, 100 )
+end, nil, 5 )
 
 UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
 	local Skills = {
@@ -275,7 +284,8 @@ UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
 		},
 		{
 			4, 5
-		}
+		},
+		TeamPreferences = {}
 	}
 
 	local TeamSkills = {
@@ -294,24 +304,24 @@ UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	-- Final team layout should be:
-	-- 2000, 1000, 1000
 	-- 2000, 1000
-	Assert:Equals( 4000, TeamSkills[ 1 ].Total )
-	Assert:Equals( 3, TeamSkills[ 1 ].Count )
-	Assert:Equals( 3000, TeamSkills[ 2 ].Total )
-	Assert:Equals( 2, TeamSkills[ 2 ].Count )
-end, nil, 100 )
+	-- 2000, 1000, 1000
+	Assert:Equals( 3000, TeamSkills[ 1 ].Total )
+	Assert:Equals( 2, TeamSkills[ 1 ].Count )
+	Assert:Equals( 4000, TeamSkills[ 2 ].Total )
+	Assert:Equals( 3, TeamSkills[ 2 ].Count )
+end, nil, 5 )
 
 UnitTest:Test( "NormaliseSkills", function( Assert )
 	local ScoreTable = {
 		{
-			Player = {}, Skill = 1.5
+			Player = 4, Skill = 1.5
 		},
 		{
-			Player = {}, Skill = 3
+			Player = 5, Skill = 3
 		},
 		{
-			Player = {}, Skill = 2
+			Player = 6, Skill = 2
 		}
 	}
 
@@ -319,9 +329,9 @@ UnitTest:Test( "NormaliseSkills", function( Assert )
 
 	local NormalisedScoreFactor = VoteShuffle.NormalisedScoreFactor
 
-	Assert:Equals( NormalisedScoreFactor * 0.5, ScoreTable[ 1 ].Skill )
-	Assert:Equals( NormalisedScoreFactor, ScoreTable[ 2 ].Skill )
-	Assert:Equals( NormalisedScoreFactor / 3 * 2, ScoreTable[ 3 ].Skill )
+	Assert:Equals( NormalisedScoreFactor * 0.5, ScoreTable[ 4 ] )
+	Assert:Equals( NormalisedScoreFactor, ScoreTable[ 5 ] )
+	Assert:Equals( NormalisedScoreFactor / 3 * 2, ScoreTable[ 6 ] )
 end )
 
 UnitTest:Test( "OptimiseTeams with preference", function( Assert )
@@ -362,10 +372,10 @@ UnitTest:Test( "OptimiseTeams with preference", function( Assert )
 
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
-	-- It should always swap 1 and 6, as 4 and 5 have chosen team 2 specifically.
-	Assert:ArrayEquals( { 6, 2, 3 }, TeamMembers[ 1 ] )
-	Assert:ArrayEquals( { 4, 5, 1 }, TeamMembers[ 2 ] )
-end, nil, 100 )
+	-- It should always swap 2 and 6, as 4 and 5 have chosen team 2 specifically.
+	Assert:ArrayEquals( { 1, 6, 3 }, TeamMembers[ 1 ] )
+	Assert:ArrayEquals( { 4, 5, 2 }, TeamMembers[ 2 ] )
+end )--, nil, 100 )
 
 UnitTest:Test( "AddPlayersRandomly", function( Assert )
 	local TeamMembers = {
