@@ -297,7 +297,22 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	self.ReconnectingClients = {}
 
 	local Mode = ForceMode or self.Config.BalanceMode
-	return self.ShufflingModes[ Mode ]( self, Gamerules, Targets, TeamMembers )
+	self.ShufflingModes[ Mode ]( self, Gamerules, Targets, TeamMembers )
+
+	-- Remember who was on what team at the point of shuffling, so we can work out
+	-- how close to the shuffled teams we are later.
+	local TeamLookup = {}
+	for i = 1, 2 do
+		for j = 1, #TeamMembers[ i ] do
+			local Player = TeamMembers[ i ][ j ]
+			if Player.GetClient and Player:GetClient() then
+				local Client = Player:GetClient()
+				local SteamID = Client:GetUserId()
+				TeamLookup[ SteamID ] = i
+			end
+		end
+	end
+	self.LastShuffleTeamLookup = TeamLookup
 end
 
 --[[
@@ -800,10 +815,15 @@ function Plugin:CreateCommands()
 
 		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av",
 			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
-		Message[ #Message + 1 ] = StringFormat( "Standard deviation sorting is %s.",
-			self.Config.UseStandardDeviation and "enabled" or "disabled (this may result in worse teams)" )
-		Message[ #Message + 1 ] = self.LastShuffleTime and StringFormat( "Last shuffle was %s ago.",
-			string.TimeToString( SharedTime() - self.LastShuffleTime ) ) or "Teams have not yet been shuffled."
+		if self.LastShuffleTime then
+			Message[ #Message + 1 ] = StringFormat(
+				"Last shuffle was %s ago. %i/%i players match their team from the last shuffle.",
+				string.TimeToString( SharedTime() - self.LastShuffleTime ),
+				TeamStats.NumMatchingTeams or 0,
+				TeamStats.TotalPlayers or 0 )
+		else
+			Message[ #Message + 1 ] = "Teams have not yet been shuffled."
+		end
 
 		if not Client then
 			Notify( TableConcat( Message, "\n" ) )

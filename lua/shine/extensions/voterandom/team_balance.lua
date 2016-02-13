@@ -211,7 +211,6 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	end
 
 	TableMixin( self.Config, Optimiser, {
-		"UseStandardDeviation",
 		"StandardDeviationTolerance",
 		"AverageValueTolerance"
 	} )
@@ -441,6 +440,37 @@ do
 		local AlienSkill = self:GetAverageSkill( Aliens, 2 )
 		AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, AlienSkill.Average,
 			self.SkillGetters.GetHiveSkill, 2 )
+
+		if self.LastShuffleTeamLookup then
+			local NumMatchingTeams = 0
+			local NumTotal = 0
+			local Counted = {}
+			local function CountMatching( Player )
+				if not Player.GetClient or not Player:GetClient() or not Player.GetTeamNumber then return end
+
+				local Client = Player:GetClient()
+				local SteamID = Client:GetUserId()
+				if Counted[ SteamID ] then return end
+
+				Counted[ SteamID ] = true
+
+				local OldTeam = self.LastShuffleTeamLookup[ SteamID ]
+				NumTotal = NumTotal + 1
+
+				if Player:GetTeamNumber() == OldTeam then
+					NumMatchingTeams = NumMatchingTeams + 1
+				end
+			end
+
+			Shine.Stream( Marines ):ForEach( CountMatching )
+			Shine.Stream( Aliens ):ForEach( CountMatching )
+
+			return {
+				MarineSkill, AlienSkill,
+				TotalPlayers = NumTotal,
+				NumMatchingTeams = NumMatchingTeams
+			}
+		end
 
 		return {
 			MarineSkill, AlienSkill
