@@ -81,7 +81,6 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc )
 		end
 	end
 
-	self.UseStandardDeviation = true
 	self.StandardDeviationTolerance = 40
 	self.AverageTolerance = 0
 
@@ -117,8 +116,6 @@ end
 	Gets the standard deviation of the given players, accounting for a potential swap.
 ]]
 function TeamOptimiser:GetStandardDeviation( Players, Average, TeamNumber, GainingPlayer, Index )
-	if not self.UseStandardDeviation then return 0 end
-
 	local Count = #Players
 	if Count == 0 then return 0 end
 
@@ -164,11 +161,8 @@ function TeamOptimiser:SnapshotStats( TeamNumber, SwapContext )
 	local PostData = SwapContext.PostData[ TeamNumber ]
 	PostData.Average = Average
 	PostData.Total = Total
-
-	if self.UseStandardDeviation then
-		PostData.StandardDeviation = self:GetStandardDeviation( self.TeamMembers[ TeamNumber ],
-			PostData.Average, TeamNumber, GainingPlayer, SwapContext.Indices[ TeamNumber ] )
-	end
+	PostData.StandardDeviation = self:GetStandardDeviation( self.TeamMembers[ TeamNumber ],
+		PostData.Average, TeamNumber, GainingPlayer, SwapContext.Indices[ TeamNumber ] )
 end
 
 local function Difference( SkillHolder, Stat )
@@ -210,14 +204,8 @@ function TeamOptimiser:SimulateSwap( ... )
 	end
 
 	local AverageDiffAfter = Difference( SwapContext.PostData, "Average" )
-	local StdDiff
-
-	if self.UseStandardDeviation then
-		StdDiff = Difference( SwapContext.PostData, "StandardDeviation" )
-		if not self:SwapPassesRequirements( AverageDiffAfter, StdDiff ) then return end
-	else
-		if not self:SwapPassesRequirements( AverageDiffAfter ) then return end
-	end
+	local StdDiff = Difference( SwapContext.PostData, "StandardDeviation" )
+	if not self:SwapPassesRequirements( AverageDiffAfter, StdDiff ) then return end
 
 	self.SwapCount = self.SwapCount + 1
 	local Swap = self:GetSwap( self.SwapCount )
@@ -234,8 +222,6 @@ end
 	Caches the initial standard deviation of both teams, if required.
 ]]
 function TeamOptimiser:CacheStandardDeviations()
-	if not self.UseStandardDeviation then return end
-
 	self.StandardDeviationCache = self.StandardDeviationCache or {}
 	for i = 1, 2 do
 		self.StandardDeviationCache[ i ] = self:GetStandardDeviation( self.TeamMembers[ i ],
@@ -281,10 +267,6 @@ local RESULT_NEXTPASS = 2
 
 function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff )
 	local CurrentAverage = self.CurrentPotentialState.AverageDiffBefore
-	if not self.UseStandardDeviation then
-		return AverageDiff < CurrentAverage
-	end
-
 	-- Average must be improved.
 	if AverageDiff > CurrentAverage then return false end
 
@@ -383,9 +365,7 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 		end
 
 		self.CurrentPotentialState.AverageDiffBefore = Difference( SwapContext.PreData, "Average" )
-		if self.UseStandardDeviation then
-			self.CurrentPotentialState.StdDiffBefore = Difference( SwapContext.PreData, "StandardDeviation" )
-		end
+		self.CurrentPotentialState.StdDiffBefore = Difference( SwapContext.PreData, "StandardDeviation" )
 
 		-- Try swapping every player on the larger team, with every player on the smaller team.
 		for i = 1, #TeamMembers[ self.LargerTeam ] do

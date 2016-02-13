@@ -72,7 +72,6 @@ Plugin.DefaultConfig = {
 
 	BalanceMode = Plugin.MODE_HIVE, --How should teams be balanced?
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if Elo/Hive fails?
-	UseStandardDeviation = true, --Should standard deviation be accounted for when sorting?
 	--[[
 		How much of an increase in standard deviation should be allowed if the
 		average is being improved but the standard deviation can't be?
