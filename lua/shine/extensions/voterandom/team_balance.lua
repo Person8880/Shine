@@ -233,6 +233,11 @@ function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTarg
 		return Sorted
 	end
 
+	-- Update the team skill values in case the team members table was modified by the event.
+	for i = 1, 2 do
+		TeamSkills[ i ] = GetAverageSkillFunc( TeamMembers[ i ], RankFunc )
+	end
+
 	self:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	return Sorted
