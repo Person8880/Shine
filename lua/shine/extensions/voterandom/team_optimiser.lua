@@ -82,7 +82,7 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc )
 	end
 
 	self.StandardDeviationTolerance = 40
-	self.AverageTolerance = 0
+	self.AverageValueTolerance = 0
 
 	self.SwapContext = {
 		Players = {},
@@ -297,7 +297,6 @@ local Comparator = Shine.Comparator( "Composition", CompareStdDiff, CompareAvera
 ]]
 function TeamOptimiser:CommitSwap()
 	local Swaps = self.CurrentPotentialState.Swaps
-	local CurrentAverage = self.CurrentPotentialState.AverageDiffBefore
 	local SwapBuffer = self.SwapBuffer
 	for i = 1, self.SwapCount do
 		SwapBuffer[ i ] = Swaps[ i ]
@@ -337,7 +336,10 @@ function TeamOptimiser:CommitSwap()
 		TeamSkills[ i ].Average = TeamSkills[ i ].Total / TeamSkills[ i ].Count
 	end
 
-	if self.AverageTolerance > 0 and MinAverage <= self.AverageTolerance then return RESULT_TERMINATE end
+	-- If an average tolerance is set, and we're now less-equal to it, stop completely.
+	if self.AverageValueTolerance > 0 and Difference( TeamSkills, "Average" ) <= self.AverageValueTolerance then
+		return RESULT_TERMINATE
+	end
 end
 
 --[[
