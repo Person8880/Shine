@@ -60,6 +60,7 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc )
 	-- Larger and lesser may not actually be different sizes, this just makes the logic easier.
 	self.LargerTeam = Larger( #TeamMembers[ 1 ], #TeamMembers[ 2 ] )
 	self.LesserTeam = Opposite( self.LargerTeam )
+	self.TeamsAreEqual = #TeamMembers[ 1 ] == #TeamMembers[ 2 ]
 
 	do
 		local RankCache = {}
@@ -124,7 +125,7 @@ function TeamOptimiser:GetStandardDeviation( Players, Average, TeamNumber, Gaini
 	local Sum = 0
 	-- + 1 because we might be adding a new player on the end.
 	local RealCount = Count + 1
-	for i = 1, Count do
+	for i = 1, RealCount do
 		local Player = i == Index and GainingPlayer or Players[ i ]
 		if Player then
 			Sum = Sum + ( ( self.RankFunc( Player, TeamNumber ) or 0 ) - Average ) ^ 2
@@ -211,12 +212,7 @@ function TeamOptimiser:SimulateSwap( ... )
 	local AverageDiffAfter = Difference( SwapContext.PostData, "Average" )
 	local StdDiff
 
-	self.CurrentPotentialState.AverageDiffBefore = Difference( SwapContext.PreData, "Average" )
-
-	local PotentialSwaps = self.CurrentPotentialState.Swaps
 	if self.UseStandardDeviation then
-		self.CurrentPotentialState.StdDiffBefore = Difference( SwapContext.PreData, "StandardDeviation" )
-
 		StdDiff = Difference( SwapContext.PostData, "StandardDeviation" )
 		if not self:SwapPassesRequirements( AverageDiffAfter, StdDiff ) then return end
 	else
@@ -270,10 +266,14 @@ function TeamOptimiser:TrySwaps( PlayerIndex, Pass )
 	end
 
 	-- Nothing left to try if team numbers are equal.
-	if #TeamMembers[ self.LesserTeam ] == #TeamMembers[ self.LargerTeam ] then return end
+	if self.TeamsAreEqual then return end
 
 	-- Otherwise, try adding this player to the smaller team without a swap.
-	self:SimulateSwap( PlayerIndex, #TeamMembers[ self.LesserTeam ] + 1 )
+	if self.LargerTeam == 1 then
+		self:SimulateSwap( PlayerIndex, #TeamMembers[ self.LesserTeam ] + 1 )
+	else
+		self:SimulateSwap( #TeamMembers[ self.LesserTeam ] + 1, PlayerIndex )
+	end
 end
 
 local RESULT_TERMINATE = 1
@@ -368,6 +368,7 @@ end
 ]]
 function TeamOptimiser:PerformOptimisationPass( Pass )
 	local Iterations = 0
+	local SwapContext = self.SwapContext
 	local TeamMembers = self.TeamMembers
 
 	while Iterations < 1000 do
@@ -376,9 +377,14 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 
 		-- Pre-populate the current pre-swap data.
 		for TeamNumber = 1, 2 do
-			local PreData = self.SwapContext.PreData[ TeamNumber ]
+			local PreData = SwapContext.PreData[ TeamNumber ]
 			PreData.Average = self.TeamSkills[ TeamNumber ].Average
 			PreData.StandardDeviation = self.StandardDeviationCache[ TeamNumber ]
+		end
+
+		self.CurrentPotentialState.AverageDiffBefore = Difference( SwapContext.PreData, "Average" )
+		if self.UseStandardDeviation then
+			self.CurrentPotentialState.StdDiffBefore = Difference( SwapContext.PreData, "StandardDeviation" )
 		end
 
 		-- Try swapping every player on the larger team, with every player on the smaller team.
