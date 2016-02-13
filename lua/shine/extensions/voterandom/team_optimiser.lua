@@ -370,7 +370,7 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 	local Iterations = 0
 	local TeamMembers = self.TeamMembers
 
-	while Iterations < 30 do
+	while Iterations < 1000 do
 		self:CacheStandardDeviations()
 		self.SwapCount = 0
 
