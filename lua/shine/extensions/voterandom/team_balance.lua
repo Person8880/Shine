@@ -462,8 +462,7 @@ do
 				end
 			end
 
-			Shine.Stream( Marines ):ForEach( CountMatching )
-			Shine.Stream( Aliens ):ForEach( CountMatching )
+			Shine.Stream( Shine.GetAllPlayers() ):ForEach( CountMatching )
 
 			return {
 				MarineSkill, AlienSkill,
