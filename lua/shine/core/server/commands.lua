@@ -129,8 +129,8 @@ do
 		local Args = self.Arguments
 
 		-- Legacy help message.
-		if OnlyHelpString or #Args == 0 or StringStartsWith( self.HelpString, "<" ) then
-			return self.HelpString
+		if OnlyHelpString or not self.HelpString or #Args == 0 or StringStartsWith( self.HelpString, "<" ) then
+			return self.HelpString or "No help provided."
 		end
 
 		return StringFormat( "%s %s", self:GetParameterHelp(), self.HelpString )
