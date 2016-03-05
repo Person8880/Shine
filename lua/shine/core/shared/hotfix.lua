@@ -20,6 +20,9 @@ if Server then
 					-- getting their ID and break team swapping...
 					Shine.Stream( gServerBots ):Filter( ValidClientFilter )
 
+					-- Make sure this bot has a valid client too.
+					if not Shine:IsValidClient( self.client ) then return end
+
 					return OldDisconnect( self )
 				end )
 			end,
