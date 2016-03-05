@@ -206,8 +206,10 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		return next( TeamMembers.TeamPreferences ) and 2 or 1
 	end
 
+	local IgnoreCommanders = self.Config.IgnoreCommanders
 	function Optimiser:IsValidForSwap( Player, Pass )
-		return Pass == 2 or not TeamMembers.TeamPreferences[ Player ]
+		return ( Pass == 2 or not TeamMembers.TeamPreferences[ Player ] )
+			and not ( IgnoreCommanders and Player:isa( "Commander" ) )
 	end
 
 	TableMixin( self.Config, Optimiser, {
