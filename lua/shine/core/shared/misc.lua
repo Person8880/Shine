@@ -13,6 +13,8 @@ do
 	end
 end
 
+Script.Load( "lua/shine/core/shared/hotfix.lua" )
+
 if Server then
 	-- Called when the client first presses a button.
 	Server.HookNetworkMessage( "Shine_ClientConfirmConnect", function( Client, Data )
