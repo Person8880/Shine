@@ -115,6 +115,21 @@ function Shine.EqualiseTeamCounts( TeamMembers )
 	return Diff
 end
 
+local function MoveToTeam( Gamerules, Players, TeamNumber )
+	for i = #Players, 1, -1 do
+		local Player = Players[ i ]
+		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
+			OnJoinError, Gamerules, Player, TeamNumber,
+			Player:GetTeamNumber() ~= TeamNumber, true )
+
+		if Success then
+			Players[ i ] = NewPlayer
+		else
+			TableRemove( Players, i )
+		end
+	end
+end
+
 --[[
 	Ensures no team has more than 1 extra player compared to the other.
 ]]
@@ -151,27 +166,8 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	local MarineTeam = Gamerules.team1
 	local AlienTeam = Gamerules.team2
 
-	for i, Player in pairs( Marine ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-			OnJoinError, Gamerules, Player, 1, Player:GetTeamNumber() ~= 1, true )
-
-		if Success then
-			Marine[ i ] = NewPlayer
-		else
-			Marine[ i ] = nil
-		end
-	end
-
-	for i, Player in pairs( Alien ) do
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-			OnJoinError, Gamerules, Player, 2, Player:GetTeamNumber() ~= 2, true )
-
-		if Success then
-			Alien[ i ] = NewPlayer
-		else
-			Alien[ i ] = nil
-		end
-	end
+	MoveToTeam( Gamerules, Marine, 1 )
+	MoveToTeam( Gamerules, Alien, 2 )
 
 	local NewMarineCount = MarineTeam:GetNumPlayers()
 	local NewAlienCount = AlienTeam:GetNumPlayers()
