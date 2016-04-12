@@ -12,6 +12,7 @@ local pcall = pcall
 local Random = math.random
 local StringChar = string.char
 local StringFind = string.find
+local StringFormat = string.format
 local StringGSub = string.gsub
 local StringLower = string.lower
 local TableConcat = table.concat
