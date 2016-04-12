@@ -155,6 +155,12 @@ do
 	end
 end
 
+function string.TimeToDuration( Time )
+	if Time == 0 then return "permanently" end
+
+	return StringFormat( "for %s", string.TimeToString( Time ) )
+end
+
 --[[
 	Converts a time value to a digital representation in minutes:seconds.
 
