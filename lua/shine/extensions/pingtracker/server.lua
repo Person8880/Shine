@@ -78,7 +78,7 @@ function Plugin:WarnOrKickClient( Client, Data, AveragePing, AverageJitter, Reas
 		Shine.GetClientInfo( Client ), AveragePing, AverageJitter ) )
 
 	Client.DisconnectReason = Reason
-	Server.DisconnectClient( Client )
+	Server.DisconnectClient( Client, Reason )
 
 	return false
 end

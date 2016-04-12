@@ -135,7 +135,7 @@ end
 
 function Plugin:KickClient( Client )
 	Client.DisconnectReason = "AFK for too long"
-	Server.DisconnectClient( Client )
+	Server.DisconnectClient( Client, "AFK for too long." )
 end
 
 function Plugin:CanKickForConnectingClient()

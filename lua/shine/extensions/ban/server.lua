@@ -465,8 +465,13 @@ Plugin.CommandNames = {
 	Unban = { "sh_unban", "unban" }
 }
 
-function Plugin:PerformBan( Target )
-	Server.DisconnectClient( Target )
+function Plugin:PerformBan( Target, Player, BanningName, Duration, Reason )
+	local BanMessage = StringFormat( "Banned from server by %s %s: %s",
+		BanningName,
+		string.TimeToDuration( Duration ),
+		Reason )
+
+	Server.DisconnectClient( Target, BanMessage )
 end
 
 --[[
@@ -499,11 +504,9 @@ function Plugin:CreateBanCommands()
 		local TargetName = Player:GetName()
 
 		self:AddBan( ID, TargetName, Duration, BanningName, BanningID, Reason )
-		self:PerformBan( Target, Player )
+		self:PerformBan( Target, Player, BanningName, Duration, Reason )
 
-		local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
-			or "permanently"
-
+		local DurationString = string.TimeToDuration( Duration )
 
 		self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
 			TargetName = TargetName,
@@ -597,14 +600,13 @@ function Plugin:CreateBanCommands()
 		end
 
 		if self:AddBan( IDString, TargetName, Duration, BanningName, BanningID, Reason ) then
-			local DurationString = Duration ~= 0 and "for "..string.TimeToString( Duration )
-				or "permanently"
+			local DurationString = string.TimeToDuration( Duration )
 
 			Shine:AdminPrint( nil, "%s banned %s[%s]%s %s.", true, Shine.GetClientInfo( Client ),
 				TargetName, IDString, self.OperationSuffix, DurationString )
 
 			if Target then
-				self:PerformBan( Target, Target:GetControllingPlayer() )
+				self:PerformBan( Target, Target:GetControllingPlayer(), BanningName, Duration, Reason )
 				self:SendTranslatedMessage( Client, "PLAYER_BANNED", {
 					TargetName = TargetName,
 					Duration = Duration,

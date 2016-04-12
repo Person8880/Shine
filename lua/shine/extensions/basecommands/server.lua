@@ -689,7 +689,19 @@ function Plugin:CreateAdminCommands()
 			Shine.GetClientInfo( Target ),
 			Reason ~= "" and " Reason: "..Reason or ""
 		)
-		Server.DisconnectClient( Target )
+
+		do
+			local KickMessage
+			local KickerName = Shine.GetClientName( Client )
+			if Reason ~= "" then
+				KickMessage = StringFormat( "Kicked from server by %s: %s",
+					KickerName, Reason )
+			else
+				KickMessage = StringFormat( "Kicked from server by %s.", KickerName )
+			end
+
+			Server.DisconnectClient( Target, KickMessage )
+		end
 
 		self:SendTranslatedMessage( Client, "ClientKicked", {
 			TargetName = TargetName,
