@@ -125,7 +125,7 @@ function Plugin:ClientDisconnect( Client )
 	end
 end
 
-function Plugin:OnScriptDisconnect( Client )
+function Plugin:OnScriptDisconnect( Client, Reason )
 	local Player = Client:GetControllingPlayer()
 
 	if not Player then return end
@@ -134,6 +134,7 @@ function Plugin:OnScriptDisconnect( Client )
 	if not Team then return end
 
 	Client.DisconnectTeam = Team
+	Client.DisconnectReason = Client.DisconnectReason or Reason
 end
 
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineForce )

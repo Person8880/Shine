@@ -12,6 +12,7 @@ local pcall = pcall
 local Random = math.random
 local StringChar = string.char
 local StringFind = string.find
+local StringFormat = string.format
 local StringGSub = string.gsub
 local StringLower = string.lower
 local TableConcat = table.concat
@@ -88,7 +89,7 @@ Plugin.FilterActions = {
 		self:Print( "Client %s[%s] was kicked for filtered name.", true,
 			OldName, Client:GetUserId() )
 
-		Server.DisconnectClient( Client )
+		Server.DisconnectClient( Client, "Kicked for filtered name." )
 	end,
 
 	function( self, Player, OldName ) --Ban them.
@@ -97,19 +98,25 @@ Plugin.FilterActions = {
 
 		local ID = Client:GetUserId()
 		local Enabled, BanPlugin = Shine:IsExtensionEnabled( "ban" )
+		local BanReason
 
 		if Enabled then
 			self:Print( "Client %s[%s] was banned for filtered name.", true,
 				OldName, ID )
 
-			BanPlugin:AddBan( ID, OldName, self.Config.BanLength * 60, "NameFilter", 0,
+			local Duration = self.Config.BanLength * 60
+			BanPlugin:AddBan( ID, OldName, Duration, "NameFilter", 0,
 				"Player used filtered name." )
+
+			BanReason = StringFormat( "Banned %s for filtered name.", string.TimeToDuration( Duration ) )
 		else
 			self:Print( "Client %s[%s] was kicked for filtered name (unable to ban, ban plugin not loaded).",
 				true, OldName, ID )
+
+			BanReason = "Kicked for filtered name."
 		end
 
-		Server.DisconnectClient( Client )
+		Server.DisconnectClient( Client, BanReason )
 	end
 }
 
