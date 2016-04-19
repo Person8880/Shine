@@ -147,7 +147,7 @@ function Plugin:CheckConnectionAllowed( ID )
 		return true
 	end
 
-	return false
+	return false, "Server is currently full."
 end
 
 function Plugin:Cleanup()
