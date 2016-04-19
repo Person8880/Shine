@@ -37,7 +37,7 @@ Plugin.DefaultConfig = {
 	EjectVotesNeeded = 0.5,
 	DisableLuaRun = false,
 	Interp = 100,
-	MoveRate = 30,
+	MoveRate = 26,
 	TickRate = 30,
 	SendRate = 20,
 	BWLimit = Shine.IsNS2Combat and 35 or 50,
@@ -128,7 +128,7 @@ do
 
 	local Rates = {
 		{
-			Key = "MoveRate", Default = 30, Command = "mr %s"
+			Key = "MoveRate", Default = 26, Command = "mr %s"
 		},
 		{
 			Key = "TickRate", Default = function() return Server.GetTickrate() end, Command = "tickrate %s"
