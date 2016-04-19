@@ -469,9 +469,9 @@ do
 	local OldReservedSlot
 
 	local function CheckConnectionAllowed( ID )
-		local Result = Call( "CheckConnectionAllowed", ID )
+		local Result, Reason = Call( "CheckConnectionAllowed", ID )
 
-		if Result ~= nil then return Result end
+		if Result ~= nil then return Result, Reason end
 
 		return OldReservedSlot( ID )
 	end

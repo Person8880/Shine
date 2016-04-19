@@ -15,7 +15,9 @@ local Clamp = math.Clamp
 local Encode, Decode = json.encode, json.decode
 local Max = math.max
 local pairs = pairs
+local StringFind = string.find
 local StringFormat = string.format
+local TableConcat = table.concat
 local TableCopy = table.Copy
 local TableRemove = table.remove
 local TableShallowMerge = table.ShallowMerge
@@ -740,6 +742,37 @@ function Plugin:ClientConnect( Client )
 	end
 end
 
+function Plugin:GetBanMessage( BanEntry )
+	local Message = { "Banned from server" }
+
+	if BanEntry.BannedBy then
+		Message[ #Message + 1 ] = " by "
+		Message[ #Message + 1 ] = BanEntry.BannedBy
+	end
+
+	Message[ #Message + 1 ] = " "
+
+	local Duration = 0
+	if BanEntry.Duration then
+		Duration = BanEntry.Duration
+	elseif BanEntry.UnbanTime and BanEntry.UnbanTime ~= 0 then
+		Duration = BanEntry.UnbanTime - Time()
+	end
+
+	Message[ #Message + 1 ] = string.TimeToDuration( Duration )
+
+	if BanEntry.Reason and BanEntry.Reason ~= "" then
+		Message[ #Message + 1 ] = ": "
+		Message[ #Message + 1 ] = BanEntry.Reason
+	end
+
+	if not StringFind( Message[ #Message ], "[%.!%?]$" ) then
+		Message[ #Message + 1 ] = "."
+	end
+
+	return TableConcat( Message )
+end
+
 --[[
 	Runs on client connection attempt.
 	Rejects a client if they're on the ban list and still banned.
@@ -747,12 +780,12 @@ end
 ]]
 function Plugin:CheckConnectionAllowed( ID )
 	if self:IsIDBanned( ID ) then
-		return false
+		return false, self:GetBanMessage( self:GetBanEntry( ID ) )
 	end
 
 	self:RemoveBan( ID )
 
-	if self:CheckFamilySharing( ID ) then return false end
+	if self:CheckFamilySharing( ID ) then return false, "Family sharing with a banned account." end
 end
 
 function Plugin:ClientDisconnect( Client )
