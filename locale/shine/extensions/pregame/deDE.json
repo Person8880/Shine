@@ -1,0 +1,12 @@
+{
+	"GAME_START": "Spiel startet in %s",
+	"GAME_START_SOON": "Spiel startet in {Duration:Duration}",
+	"WAITING_FOR_TEAM": "Warte auf {Team:TeamName:capitals singular} einen Commander zu wählen",
+	"WAITING_FOR_BOTH": "Warte auf beide Teams einen Commander zu wählen",
+	"ABORT_EMPTY_TEAM": "Spielstart abgebrochen, {Team:TeamName:capitals singular} ist leer.",
+	"ABORT_COMMANDER_DROP": "Spielstart abgebrochen. Ein Commander is ausgestiegen.",
+	"TEAM_HAS_COMMANDER": "{TeamWithCommander:TeamName:capitals singular} haben einen Commander. {TeamWithoutCommander:TeamName:capitals} haben {TimeLeft:Duration} um ihren Commander zu wählen.",
+	"EXCEEDED_TIME": "Pre Game hat {Duration:Duration} überschritten und es gibt einen Commander. Starte Spiel...",
+	"NOTIFY_PREFIX": "[Pre Game]",
+	"WAITING_FOR_PLAYERS": "Spielstart wartet auf die anderen Spieler."
+}
