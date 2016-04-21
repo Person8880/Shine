@@ -24,7 +24,7 @@
 	"PLACED_ON_HIVE_TEAM": "Du wurdest gemäß deiner Hive Skill Bewertung einem Team zugeteilt.",
 	"ERROR_NOT_ENOUGH_PLAYERS": "Nicht genug Spieler um eine Abstimmung zu starten.",
 	"ERROR_CANNOT_START": "Du kannst derzeit nicht für {ShuffleType:Translation:voterandom}e Teams abstimmen.",
-	"ERROR_ALREADY_ENABLED": "Es wurde bereits für {ShuffleType:Translation:voterandom}e Teams f�r die n�chste Runde abgestimmt.",
+	"ERROR_ALREADY_ENABLED": "Es wurde bereits für {ShuffleType:Translation:voterandom}e Teams für die nächste Runde abgestimmt.",
 	"ERROR_TEAMS_FORCED": "Erzwungene, {ShuffleType:Translation:voterandom}e Teams sind vom Server aktiviert.",
 	"ERROR_ROUND_TOO_FAR": "Die aktuelle Runde läuft schon zu lange um eine Abstimmung zu starten.",
 	"ERROR_ALREADY_VOTED": "Du hast bereits für {ShuffleType:Translation:voterandom}e Teams abgestimmt.",
