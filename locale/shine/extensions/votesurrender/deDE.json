@@ -1,0 +1,5 @@
+{
+	"ERROR_WRONG_TEAM": "Du kannst keine Abstimmung für eine Kapitulation in diesem Team starten.",
+	"ERROR_ALREADY_VOTED": "Du hast bereits für eine Kapitulation abgestimmt.",
+	"ERROR_ROUND_TIME": "Du kannst zurzeit keine Abstimmung für eine Kapitulation starten."
+}
