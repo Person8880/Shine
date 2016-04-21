@@ -1,0 +1,12 @@
+{
+	"SAY_TEAM": "Mit Team sprechen...",
+	"SAY_ALL": "Mit allen sprechen...",
+	"SETTINGS_TITLE": "Einstellungen",
+	"AUTO_CLOSE": "Automatisch nach Senden schliessen.",
+	"AUTO_DELETE": "Automatisch nach Schliessen löschen.",
+	"SMOOTH_SCROLL": "Sanften Bildlauf verwenden.",
+	"MESSAGE_MEMORY": "Nachrichtenspeicher",
+	"OPACITY": "Transparenz (%)",
+	"SCALE": "Skalierung (Chatbox wird neu geöffnet)",
+	"SETTINGS_TOOLTIP": "Öffnet/Schliesst die Chatbox Einstellungen."
+}

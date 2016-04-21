@@ -1,0 +1,6 @@
+{
+	"KICK_WARNING": "Wenn du ihn nicht senkst wirst du gekickt.",
+	"PING_TOO_HIGH": "Dein Ping liegt durchschnittlich bei {Amount}ms, was über dem Limit dieses Server liegt.",
+	"JITTER_TOO_HIGH": "Dein Ping variiert durchschnittlich um {Amount}ms, was über dem Limit dieses Server liegt.",
+	"NOTIFY_PREFIX": "[Ping Tracker]"
+}

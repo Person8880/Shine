@@ -1,0 +1,19 @@
+{
+	"WAITING_FOR_TEAM": "WARTE AUF {TeamName:Upper} ZU STARTEN",
+	"MARINES": "Marines",
+	"ALIENS": "Aliens",
+	"BOTH_TEAMS": "beide Teams",
+	"PLAYER_READY": "{PlayerName} ist jetzt bereit.",
+	"PLAYER_NOT_READY": "{PlayerName} ist nicht länger bereit.",
+	"TEAM_READY": "{TeamName} sind jetzt bereit.",
+	"TEAM_READY_WAITING": "{TeamName} sind jetzt bereit. Warte auf {OtherTeamName} um zu starten.",
+	"TEAM_NOT_READY": "{TeamName} sind nicht länger bereit.",
+	"TEAM_NOT_READY_PLAYER": "{TeamName} sind nicht länger bereit da {PlayerName} nicht bereit ist.",
+	"GAME_START_COUNTDOWN": "Spiel startet in %s",
+	"GAME_START_ABORTED": "Spielstart abgebrochen.",
+	"ERROR_ONLY_COMMANDER_UNREADY": "Nur der Commander kann das Team als nicht bereit erklären.",
+	"ERROR_ONLY_COMMANDER_READY": "Nur der Commander kann das Team als bereit erklären.",
+	"ERROR_NOT_READY": "Du bist noch nicht bereit! Verwende !ready um dich als bereit zu erklären.",
+	"ERROR_NOT_TEAM_READY": "Dein Team is noch nicht bereit! erwende !ready um dein Team als bereit zu erklären.",
+	"NOTIFY_PREFIX": "[Wettkampfmodus]"
+}
