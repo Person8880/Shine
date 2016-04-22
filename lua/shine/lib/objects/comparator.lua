@@ -58,7 +58,7 @@ do
 	end
 
 	function FieldComparator:Compare( A, B )
-		return Operators[ self.Type ]( A[ self.Field ] or Default, B[ self.Field ] or Default )
+		return Operators[ self.Type ]( A[ self.Field ] or self.Default, B[ self.Field ] or self.Default )
 	end
 end
 
