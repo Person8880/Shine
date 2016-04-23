@@ -31,6 +31,31 @@ UnitTest:Test( "FieldComparator", function( Assert )
 	end
 end, nil, 100 )
 
+UnitTest:Test( "FieldComparator with default", function( Assert )
+	local Unsorted = {
+		{
+			SortField = "a"
+		},
+		{
+			SortField = "z"
+		},
+		{
+			SortField = "q"
+		},
+		{
+			SortField = "e"
+		},
+		{},
+	}
+
+	table.sort( Unsorted, Shine.Comparator( "Field", 1, "SortField", "b" ):Compile() )
+
+	local ExpectedOrder = { "a", nil, "e", "q", "z" }
+	for i = 1, #Unsorted do
+		Assert:Equals( ExpectedOrder[ i ], Unsorted[ i ].SortField )
+	end
+end )
+
 UnitTest:Test( "MethodComparator", function( Assert )
 	local function SortMethod( self, Arg )
 		return self.Value % Arg

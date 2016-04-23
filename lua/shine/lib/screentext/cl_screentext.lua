@@ -28,7 +28,35 @@ local FourKFonts = {
 }
 
 local ScreenText = {}
-ScreenText.__index = ScreenText
+
+do
+	local rawget = rawget
+	local rawset = rawset
+
+	local Text = setmetatable( {}, { __mode = "k" } )
+	ScreenText.__index = function( self, Key )
+		if Key == "Text" then
+			return Text[ self ]
+		end
+
+		return ScreenText[ Key ]
+	end
+
+	ScreenText.__newindex = function( self, Key, Value )
+		if Key == "Text" then
+			-- Force a format validity check now to avoid invalid text being assigned.
+			if not rawget( self, "IgnoreFormat" ) then
+				StringFormat( Value, "" )
+			end
+
+			Text[ self ] = Value
+
+			return
+		end
+
+		rawset( self, Key, Value )
+	end
+end
 
 function ScreenText:UpdateText()
 	if self.IgnoreFormat then
@@ -59,11 +87,6 @@ function ScreenText:SetColour( Col )
 end
 
 function ScreenText:SetText( Text )
-	if not self.IgnoreFormat then
-		-- Force a check to make sure the text is valid for formatting.
-		StringFormat( Text, "" )
-	end
-
 	self.Text = Text
 	self.Obj:SetText( Text )
 end
@@ -142,7 +165,10 @@ function Shine.ScreenText.Add( ID, Params )
 			Index = ID
 		}, ScreenText )
 
-		Messages:Add( ID, MessageTable )
+		MessageTable.IgnoreFormat = IgnoreFormat
+
+		-- Force text to be checked before we create a GUI item.
+		MessageTable.Text = Text
 
 		GUIObj = GUI.CreateItem()
 		GUIObj:SetOptionFlag( GUIItem.ManageRender )
@@ -156,12 +182,12 @@ function Shine.ScreenText.Add( ID, Params )
 
 	local ShouldFade = FadeIn > 0.05 and not AlreadyExists
 
+	MessageTable.IgnoreFormat = IgnoreFormat
 	MessageTable.Text = Text
 	MessageTable.Colour = Color( R / 255, G / 255, B / 255, ShouldFade and 0 or 1 )
 	MessageTable.Duration = Duration
 	MessageTable.x = X
 	MessageTable.y = Y
-	MessageTable.IgnoreFormat = IgnoreFormat
 	MessageTable.Size = Size
 
 	GUIObj:SetTextAlignmentX( Alignment )
@@ -182,6 +208,8 @@ function Shine.ScreenText.Add( ID, Params )
 	end
 
 	MessageTable.LastUpdate = SharedTime()
+
+	Messages:Add( ID, MessageTable )
 
 	return MessageTable
 end
