@@ -182,12 +182,12 @@ function Shine.ScreenText.Add( ID, Params )
 
 	local ShouldFade = FadeIn > 0.05 and not AlreadyExists
 
+	MessageTable.IgnoreFormat = IgnoreFormat
 	MessageTable.Text = Text
 	MessageTable.Colour = Color( R / 255, G / 255, B / 255, ShouldFade and 0 or 1 )
 	MessageTable.Duration = Duration
 	MessageTable.x = X
 	MessageTable.y = Y
-	MessageTable.IgnoreFormat = IgnoreFormat
 	MessageTable.Size = Size
 
 	GUIObj:SetTextAlignmentX( Alignment )
