@@ -95,9 +95,9 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 
 	local Team = Player:GetTeam():GetTeamNumber()
 
-	--Move ready room players onto a team if they attempt to spectate.
+	-- Respawn ready room players if they attempt to spectate.
 	if Team == kTeamReadyRoom then
-		self:JoinRandomTeam( Player )
+		Gamerules:JoinTeam( Player, kTeamReadyRoom, true, true )
 	end
 
 	return false
