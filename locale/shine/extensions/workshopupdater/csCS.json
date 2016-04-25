@@ -1,0 +1,6 @@
+{
+	"MOD_CHANGED": "Modifikace \"{ModName}\" byla aktualizována ve Steam Workshopu.",
+	"MAY_BE_UNABLE_TO_CONNECT": "Hráči se nemusí být schopni připojit k tomuto serveru dokud se nezmění mapa.",
+	"MAP_CYCLE": "Mapa se změní {TimeLeft:NonZero:za }{TimeLeft:Duration:nyní}.",
+	"NOTIFY_PREFIX": "[Workshop]"
+}

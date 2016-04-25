@@ -1,0 +1,9 @@
+{
+	"ROUND_END_TOTAL_TEAM_SCORE": "Kolo ukončeno kvůli dosažení časového limitu. Vítěz rozhodnut na základě celkového skóre týmu.",
+	"ROUND_END_TOTAL_RTS": "Kolo ukončeno kvůli dosažení časového limitu. Vítěz rozhodnut na základě počtu obsazených zdrojů surovin na konci hry.",
+	"ROUND_END_TOTAL_TEAM_RES": "Kolo ukončeno kvůli dosažení časového limitu. Vítěz rozhodnut na základě celkového počtu nashromážděných týmových surovin.",
+	"ROUND_WARNING_TOTAL_SCORE": "Zbývá {TimeLeft:Duration} do ukončení kola. Vítěz bude rozhodnut na základě celkového skóre týmu.",
+	"ROUND_WARNING_TOTAL_RTS": "Zbývá {TimeLeft:Duration} do ukončení kola. Vítěz bude rozhodnut na základě počtu obsazených zdrojů surovin na konci hry.",
+	"ROUND_WARNING_TOTAL_TEAM_RES": "Zbývá {TimeLeft:Duration} do ukončení kola. Vítěz bude rozhodnut na základě celkového počtu nashromážděných týmových surovin.",
+	"NOTIFY_PREFIX": "[Omezení kola]"
+}
