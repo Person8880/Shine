@@ -12,6 +12,7 @@ local Max = math.max
 local pcall = pcall
 local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
+local LastAnnouncedAfkStatuses = {}
 
 local Plugin = {}
 Plugin.Version = "1.6"
@@ -31,7 +32,8 @@ Plugin.DefaultConfig = {
 	MoveToReadyRoomOnWarn = false,
 	MoveToSpectateOnWarn = false,
 	OnlyCheckOnStarted = false,
-	KickOnConnect = false
+	KickOnConnect = false,
+	KickTimeIsAFKThreshold = 0.25
 }
 
 Plugin.CheckConfig = true
@@ -173,6 +175,21 @@ function Plugin:CheckConnectionAllowed( ID )
 end
 
 --[[
+	Notify other plugins when changing client's AFK status.
+]]
+local function ChangeIsAFK( Client, IsAFK )
+	local DataTable = Shine.Plugins.afkkick.Users[ Client ]
+	if not DataTable then return end
+
+	DataTable.IsAFK = IsAFK
+	if LastAnnouncedAfkStatuses[ Client ] == nil or LastAnnouncedAfkStatuses[ Client ] ~= IsAFK then
+		Shine.Hook.Call( "AFKChanged", Client, IsAFK )
+		LastAnnouncedAfkStatuses[ Client ] = IsAFK
+	end
+
+end
+
+--[[
 	On client connect, add the client to our table of clients.
 ]]
 function Plugin:ClientConnect( Client )
@@ -190,9 +207,9 @@ function Plugin:ClientConnect( Client )
 		LastMeasurement = MeasureStartTime,
 		AFKAmount = 0,
 		Pos = Player:GetOrigin(),
-		Ang = Player:GetViewAngles(),
-		IsAFK = false
+		Ang = Player:GetViewAngles()
 	}
+	ChangeIsAFK( Client, false )
 end
 
 function Plugin:ResetAFKTime( Client )
@@ -211,7 +228,7 @@ function Plugin:ResetAFKTime( Client )
 	DataTable.LastMeasurement = Time
 
 	if DataTable.IsAFK then
-		DataTable.IsAFK = false
+		ChangeIsAFK( Client, false )
 	end
 end
 
@@ -222,7 +239,7 @@ function Plugin:SubtractAFKTime( Client, Time )
 	DataTable.LastMove = SharedTime()
 	DataTable.LastMeasurement = DataTable.LastMove
 	DataTable.AFKAmount = Max( DataTable.AFKAmount - Time, 0 )
-	DataTable.IsAFK = false
+	ChangeIsAFK( Client, false )
 end
 
 --[[
@@ -315,13 +332,13 @@ function Plugin:OnProcessMove( Player, Input )
 	--Use time since last move rather than the total,
 	--as they may have spoken in voice chat and it would look silly to
 	--say they're AFK still...
-	if TimeSinceLastMove > KickTime * 0.25 then
+	if TimeSinceLastMove > KickTime * self.Config.KickTimeIsAFKThreshold then
 		if not DataTable.IsAFK then
-			DataTable.IsAFK = true
+			ChangeIsAFK( Client, true )
 		end
 	else
 		if DataTable.IsAFK then
-			DataTable.IsAFK = false
+			ChangeIsAFK( Client, false )
 		end
 	end
 
@@ -441,6 +458,7 @@ end
 ]]
 function Plugin:ClientDisconnect( Client )
 	self.Users[ Client ] = nil
+	LastAnnouncedAfkStatuses[ Client ] = nil
 end
 
 --Override the built in randomise ready room vote to not move AFK players.
