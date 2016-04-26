@@ -73,7 +73,8 @@ function Locale:GetLocalisedString( Source, Lang, Key )
 end
 
 function Locale:GetPhrase( Source, Key )
-	return self:GetLocalisedString( Source, NS2Locale.GetLocale(), Key )
+	return self:GetLocalisedString( Source,
+		Client.GetOptionString( "locale", self.DefaultLanguage ), Key )
 end
 
 function Locale:GetInterpolatedPhrase( Source, Key, FormatArgs )
