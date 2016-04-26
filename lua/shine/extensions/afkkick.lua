@@ -31,7 +31,8 @@ Plugin.DefaultConfig = {
 	MoveToReadyRoomOnWarn = false,
 	MoveToSpectateOnWarn = false,
 	OnlyCheckOnStarted = false,
-	KickOnConnect = false
+	KickOnConnect = false,
+	KickTimeIsAFKThreshold = 0.25
 }
 
 Plugin.CheckConfig = true
@@ -193,6 +194,7 @@ function Plugin:ClientConnect( Client )
 		Ang = Player:GetViewAngles(),
 		IsAFK = false
 	}
+	Shine.Hook.Call( "AFKChanged", Client, false )
 end
 
 function Plugin:ResetAFKTime( Client )
@@ -212,6 +214,7 @@ function Plugin:ResetAFKTime( Client )
 
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
+		Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
 	end
 end
 
@@ -222,7 +225,10 @@ function Plugin:SubtractAFKTime( Client, Time )
 	DataTable.LastMove = SharedTime()
 	DataTable.LastMeasurement = DataTable.LastMove
 	DataTable.AFKAmount = Max( DataTable.AFKAmount - Time, 0 )
-	DataTable.IsAFK = false
+	if DataTable.IsAFK then
+		DataTable.IsAFK = false
+		Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
+	end
 end
 
 --[[
@@ -315,13 +321,15 @@ function Plugin:OnProcessMove( Player, Input )
 	--Use time since last move rather than the total,
 	--as they may have spoken in voice chat and it would look silly to
 	--say they're AFK still...
-	if TimeSinceLastMove > KickTime * 0.25 then
+	if TimeSinceLastMove > KickTime * self.Config.KickTimeIsAFKThreshold then
 		if not DataTable.IsAFK then
 			DataTable.IsAFK = true
+			Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
 		end
 	else
 		if DataTable.IsAFK then
 			DataTable.IsAFK = false
+			Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
 		end
 	end
 
