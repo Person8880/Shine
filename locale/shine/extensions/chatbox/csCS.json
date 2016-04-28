@@ -1,0 +1,12 @@
+{
+	"SAY_TEAM": "Říct týmu...",
+	"SAY_ALL": "Říct všem...",
+	"SETTINGS_TITLE": "Nastavení",
+	"AUTO_CLOSE": "Automaticky zavřít po odeslání.",
+	"AUTO_DELETE": "Automaticky smazat po zavření.",
+	"SMOOTH_SCROLL": "Použít plynulé posouvání.",
+	"MESSAGE_MEMORY": "Paměť zpráv",
+	"OPACITY": "Průhlednost (%)",
+	"SCALE": "Měřítko (znovu otevře chatovací pole)",
+	"SETTINGS_TOOLTIP": "Otevře/zavře nastavení chatovacího pole."
+}

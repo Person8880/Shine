@@ -1,0 +1,19 @@
+{
+	"WAITING_FOR_TEAM": "SE SPUSTENIM SE CEKA NA {TeamName:Upper}",
+	"MARINES": "Tym Marinaku",
+	"ALIENS": "Tym Alienu",
+	"BOTH_TEAMS": "oba tymy",
+	"PLAYER_READY": "{PlayerName} je nyní připraven.",
+	"PLAYER_NOT_READY": "{PlayerName} již není připraven.",
+	"TEAM_READY": "{TeamName} je nyní připraven.",
+	"TEAM_READY_WAITING": "{TeamName} je nyní připraven. Se spuštěním se čeká na {OtherTeamName}.",
+	"TEAM_NOT_READY": "{TeamName} již není připraven.",
+	"TEAM_NOT_READY_PLAYER": "{TeamName} již není připraven, neboť {PlayerName} není připraven.",
+	"GAME_START_COUNTDOWN": "Hra začíná za %s",
+	"GAME_START_ABORTED": "Začátek hry zrušen.",
+	"ERROR_ONLY_COMMANDER_UNREADY": "Pouze Commander může označit tým jako nepřipravený.",
+	"ERROR_ONLY_COMMANDER_READY": "Pouze Commander může označit tým jako připravený.",
+	"ERROR_NOT_READY": "Stále ses neoznačil jako připravený! Použij !ready pro nastavení své připravenosti.",
+	"ERROR_NOT_TEAM_READY": "Tvůj tým se stále neoznačil jako připravený! Použij !ready pro nastavení připravenosti týmu.",
+	"NOTIFY_PREFIX": "[Turnajový režim]"
+}

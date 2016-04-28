@@ -1,0 +1,6 @@
+{
+	"KICK_WARNING": "Pokud ji nesnížíš, budeš vyhozen.",
+	"PING_TOO_HIGH": "Tvoje odezva je v průměru {Amount} ms, příliš vysoká pro tento server.",
+	"JITTER_TOO_HIGH": "Tvoje odezva má od průměru odchylku {Amount} ms, příliš vysokou pro tento server.",
+	"NOTIFY_PREFIX": "[Sledování odezvy]"
+}

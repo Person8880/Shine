@@ -1,0 +1,12 @@
+{
+	"GAME_START": "Hra začne za %s",
+	"GAME_START_SOON": "Hra začne za {Duration:Duration}",
+	"WAITING_FOR_TEAM": "Čeká se na tým {Team:TeamName:capitals} až si zvolí Commandera",
+	"WAITING_FOR_BOTH": "Čeká se na oba týmy až si zvolí Commandera",
+	"ABORT_EMPTY_TEAM": "Spuštění hry zrušeno, {Team:TeamName:singular} je prázdný.",
+	"ABORT_COMMANDER_DROP": "Spuštění hry zrušeno, Commander odešel.",
+	"TEAM_HAS_COMMANDER": "{TeamWithCommander:TeamName:capitals} mají Commandera. {TeamWithoutCommander:TeamName:capitals} mají {TimeLeft:Duration} na zvolení jejich Commandera.",
+	"EXCEEDED_TIME": "Předehra přesáhla {Duration:Duration} a je zde jeden Commander. Spouští se hra...",
+	"NOTIFY_PREFIX": "[Předehra]",
+	"WAITING_FOR_PLAYERS": "Se spuštěním hry se čeká, až se připojí hráči."
+}
