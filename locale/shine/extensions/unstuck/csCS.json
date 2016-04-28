@@ -1,0 +1,7 @@
+{
+	"ERROR_NOT_ALIVE": "Nelze spravit zaseknutí když jsi mrtvý.",
+	"ERROR_WAIT": "Musíš počkat {TimeLeft:Duration} než budeš moci použít opravu zaseknutí znovu.",
+	"SUCCESS": "Zaseknutí úspešně opraveno.",
+	"ERROR_FAIL": "Nelze opravit zaseknutí. Zkus to znovu za {TimeLeft:Duration}.",
+	"NOTIFY_PREFIX": "[Spravit zaseknutí]"
+}

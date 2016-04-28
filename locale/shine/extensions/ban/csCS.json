@@ -1,0 +1,21 @@
+{
+	"ADD_BAN": "Zakázat přístup",
+	"SELECT_PLAYER": "Zvol hráče.",
+	"DURATION_LABEL": "Doba (v minutách, 0 pro trvale):",
+	"DURATION_HINT": "Prosím zadej dobu trvání...",
+	"DURATION_PERMANENT": "Doba: Trvale.",
+	"DURATION_TIME": "Doba: {Time}",
+	"REASON": "Důvod:",
+	"Bans": "Zakázané přístupy",
+	"BANNED_BY": "Zákaz udělil",
+	"EXPIRY": "Vyprší",
+	"NEVER": "Nikdy",
+	"DATE_FORMAT": "%d.%m.%Y %H:%M",
+	"UNBAN": "Znovu povolit přístup",
+	"LOAD_MORE": "Načíst více",
+	"LOAD_MORE_TIP": "Načte více záznamů ze serveru.",
+	"PLAYER_BANNED": "přístup zakázán pro {TargetName} {Duration:NonZero:po dobu }{Duration:Duration:trvale} ({Reason}).",
+	"PLAYER_REQUEST_IN_PROGRESS": "Prosím počkej, než aktuální požadavek na zakázání přístupu pro {ID} bude dokončen.",
+	"ERROR_NOT_BANNED": "{ID} nemá zakázaný přístup.",
+	"ERROR_INVALID_STEAMID": "Neplatný identifikátor Steamu pro zákaz přístupu."
+}

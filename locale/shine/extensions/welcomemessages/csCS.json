@@ -1,0 +1,5 @@
+{
+	"PLAYER_JOINED_GENERIC": "{TargetName} se připojil do hry.",
+	"PLAYER_LEAVE_GENERIC": "{TargetName} opustil hru.",
+	"PLAYER_LEAVE_REASON": "Vypadl {TargetName} ({Reason})."
+}

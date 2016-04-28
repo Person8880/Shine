@@ -1,0 +1,14 @@
+{
+	"GOTO": "Jít k",
+	"GOTO_TIP": "Teleportuje tě k vybranému hráči.",
+	"BRING": "Přivolat",
+	"BRING_TIP": "Přesune vybraného hráče k tobě.",
+	"SLAY": "Zabít",
+	"SLAY_TIP": "Zabije vybraného hráče.",
+	"DARWIN_MODE": "Darwinův režim",
+	"DARWIN_MODE_TIP": "Přepne nezranitelnost a nekonečnou\nmunici pro zvolené hráče.",
+	"TELEPORTED_GOTO": "teleportován k {TargetName}.",
+	"TELEPORTED_BRING": "teleportoval {TargetName} k sobě.",
+	"ERROR_CANT_GOTO": "Nepovedlo se najít platné umístění poblíž hráče.",
+	"ERROR_CANT_BRING": "Nepovedlo se najít platné umístění poblíž tebe."
+}

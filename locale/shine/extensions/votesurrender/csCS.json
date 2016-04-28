@@ -1,0 +1,5 @@
+{
+	"ERROR_WRONG_TEAM": "Pro tento tým nemůžeš spustit hlasování o vzdání se.",
+	"ERROR_ALREADY_VOTED": "Již jsi hlasoval pro vzdání se.",
+	"ERROR_ROUND_TIME": "Nyní nemůžeš spustit hlasování o vzdání se."
+}
