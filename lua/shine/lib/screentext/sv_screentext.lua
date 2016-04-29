@@ -14,6 +14,16 @@ function Shine.ScreenText.SetText( ID, Text, Player )
 	Shine:ApplyNetworkMessage( Player, "Shine_ScreenTextUpdate", { ID = ID, Text = Text }, true )
 end
 
-function Shine.ScreenText.End( ID, Player )
-	Shine:ApplyNetworkMessage( Player, "Shine_ScreenTextRemove", { ID = ID }, true )
+do
+	local function RemoveText( ID, Player, Now )
+		Shine:ApplyNetworkMessage( Player, "Shine_ScreenTextRemove", { ID = ID, Now = Now }, true )
+	end
+
+	function Shine.ScreenText.End( ID, Player )
+		RemoveText( ID, Player, false )
+	end
+
+	function Shine.ScreenText.Remove( ID, Player )
+		RemoveText( ID, Player, true )
+	end
 end

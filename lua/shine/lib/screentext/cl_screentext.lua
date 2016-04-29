@@ -189,6 +189,7 @@ function Shine.ScreenText.Add( ID, Params )
 	MessageTable.x = X
 	MessageTable.y = Y
 	MessageTable.Size = Size
+	MessageTable.SuppressTextUpdates = false
 
 	GUIObj:SetTextAlignmentX( Alignment )
 	GUIObj:SetText( IgnoreFormat and Text or StringFormat( Text,
@@ -242,6 +243,7 @@ function Shine.ScreenText.End( ID )
 	local MessageTable = Messages:Get( ID )
 	if not MessageTable then return end
 
+	MessageTable.SuppressTextUpdates = true
 	MessageTable:End()
 end
 
@@ -257,13 +259,15 @@ local function UpdateMessage( Index, Message, Time )
 	end
 
 	Message.LastUpdate = Message.LastUpdate + 1
-	Message:UpdateText()
+	if not Message.SuppressTextUpdates then
+		Message:UpdateText()
 
-	if Message.Think then
-		Message:Think()
+		if Message.Think then
+			Message:Think()
+		end
 	end
 
-	if Message.Duration == 0 then
+	if Message.Duration == 0 and Message.Colour.a > 0 then
 		Message.FadingIn = false
 		Message.Fading = true
 		Message.FadeElapsed = 0
@@ -293,14 +297,12 @@ local function ProcessFades( DeltaTime )
 				Message.Fading = false
 
 				Message.Colour.a = In and 1 or 0
-
 				Message.Obj:SetColor( Message.Colour )
 			else
 				local Progress = Message.FadeElapsed / Message.FadeDuration
 				local Alpha = 1 * ( In and Progress or ( 1 - Progress ) )
 
 				Message.Colour.a = Alpha
-
 				Message.Obj:SetColor( Message.Colour )
 			end
 		end
@@ -323,7 +325,7 @@ Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
 end )
 
 Client.HookNetworkMessage( "Shine_ScreenTextRemove", function( Message )
-	Shine.ScreenText.End( Message.ID )
+	Shine.ScreenText[ Message.Now and "Remove" or "End" ]( Message.ID )
 end )
 
 Shine.Hook.Add( "OnResolutionChanged", "ScreenText", function( OldX, OldY, NewX, NewY )
