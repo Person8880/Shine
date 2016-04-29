@@ -175,6 +175,7 @@ end
 ]]
 do
 	local Scaled = NewUnit( "Scaled" )
+	local Round = math.Round
 
 	function Scaled:Init( Value, Scale )
 		self.Value = Value
@@ -184,7 +185,7 @@ do
 	end
 
 	function Scaled:GetValue()
-		return self.Value * self.Scale
+		return Round( self.Value * self.Scale )
 	end
 end
 
