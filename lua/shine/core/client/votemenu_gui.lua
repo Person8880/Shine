@@ -113,16 +113,20 @@ function VoteMenu:Create()
 	local WidthMult = Max( ScreenWidth / 1920, 1 )
 	local HeightMult = Max( ScreenHeight / 1080, 1 )
 
-	local function Scale( Value )
+	local function Scale( Value, ForFont )
 		local Scale
 		if ScreenWidth > 1920 then
-			Scale =  SGUI.TenEightyPScale( Value )
+			Scale = SGUI.TenEightyPScale( Value )
 		else
 			Scale = GUIScale( Value )
 		end
 
 		if IsType( Scale, "number" ) then
 			return Scale * WidthMult
+		end
+
+		if ForFont then
+			return Scale * HeightMult
 		end
 
 		Scale.x = Scale.x * WidthMult
@@ -133,10 +137,10 @@ function VoteMenu:Create()
 
 	local BackSize = Scale( MenuSize )
 
-	if ScreenWidth <= 1920 then
+	if ScreenHeight <= SGUI.ScreenHeight.Normal then
 		self.Font = FontName
-		self.TextScale = Scale( FontScale )
-	elseif ScreenWidth <= 2880 then
+		self.TextScale = Scale( FontScale, true )
+	elseif ScreenHeight <= SGUI.ScreenHeight.Large then
 		self.Font = Fonts.kAgencyFB_Medium
 		self.TextScale = FontScale
 	else

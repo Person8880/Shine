@@ -8,6 +8,8 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TimeToString = string.TimeToString
 
+local SGUI = Shine.GUI
+
 local Messages = Shine.Map()
 Shine.TextMessages = Messages
 
@@ -94,9 +96,9 @@ end
 local function GetFontAndScale( ScrW, ScrH, Size )
 	local Font = StandardFonts[ Size ]
 
-	if ScrW > 1920 and ScrW <= 2880 then
+	if ScrH > SGUI.ScreenHeight.Normal and ScrH <= SGUI.ScreenHeight.Large then
 		Font = HighResFonts[ Size ]
-	elseif ScrW > 2880 then
+	elseif ScrH > SGUI.ScreenHeight.Large then
 		Font = FourKFonts[ Size ]
 	end
 
@@ -105,7 +107,7 @@ local function GetFontAndScale( ScrW, ScrH, Size )
 		ScaleVec = Vector( Font[ 2 ], Font[ 2 ], 0 )
 		Font = Font[ 1 ]
 	else
-		ScaleVec = ScrW <= 1920 and GUIScale( Vector( 1, 1, 1 ) ) or Vector( 1, 1, 1 )
+		ScaleVec = ScrH <= SGUI.ScreenHeight.Normal and GUIScale( Vector( 1, 1, 1 ) ) or Vector( 1, 1, 1 )
 	end
 
 	return Font, ScaleVec

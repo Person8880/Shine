@@ -323,12 +323,12 @@ function Plugin:CreateChatbox()
 	self.TextScale = TextScale * ScalarScale
 	self.MessageTextScale = TextScale
 
-	if ScreenWidth <= 1366 then
+	if ScreenHeight <= SGUI.ScreenHeight.Small then
 		self.Font = Fonts.kAgencyFB_Tiny
 		self.TextScale = TextScale
-	elseif ScreenWidth <= 1920 then
+	elseif ScreenHeight <= SGUI.ScreenHeight.Normal then
 		self.Font = Fonts.kAgencyFB_Small
-	elseif ScreenWidth <= 2880 then --1440p probably.
+	elseif ScreenHeight <= SGUI.ScreenHeight.Large then
 		self.Font = Fonts.kAgencyFB_Medium
 		self.TextScale = TextScale
 	else --Assumming 4K here. "Large" font is too small, so we need huge at a scale.
