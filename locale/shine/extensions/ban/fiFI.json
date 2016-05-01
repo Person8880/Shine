@@ -1,0 +1,21 @@
+{
+	"ADD_BAN": "Anna porttikielti",
+	"SELECT_PLAYER": "Valitse pelaaja.",
+	"DURATION_LABEL": "Kesto (minuuteissa, 0 pysyvästi):",
+	"DURATION_HINT": "Ole hyvä, ja anna kesto...",
+	"DURATION_PERMANENT": "Kesto: Pysyvä.",
+	"DURATION_TIME": "Kesto: {Time}",
+	"REASON": "Syy:",
+	"Bans": "Porttikiellot",
+	"BANNED_BY": "Porttikiellon antoi",
+	"EXPIRY": "Vanhenee",
+	"NEVER": "Ei koskaan",
+	"DATE_FORMAT": "%d %B %Y %H.%M",
+	"UNBAN": "Poista porttikielto",
+	"LOAD_MORE": "Lataa lisää",
+	"LOAD_MORE_TIP": "Lataa lisää merkintöjä palvelimelta.",
+	"PLAYER_BANNED": "antoi porttikiellon {TargetName} {Duration:NonZero:ajalle }{Duration:Duration:pysyvästi} ({Reason}).",
+	"PLAYER_REQUEST_IN_PROGRESS": "Ole hyvä ja odota, että edellinen porttikielto {ID} on käsitelty loppuun.",
+	"ERROR_NOT_BANNED": "{ID} ei ole porttikieltoa.",
+	"ERROR_INVALID_STEAMID": "Väärä Steam ID porttikiellolle."
+}

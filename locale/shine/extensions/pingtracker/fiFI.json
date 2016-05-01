@@ -1,0 +1,6 @@
+{
+	"KICK_WARNING": "Jos et pienennä sitä, niin sinut potkitaan.",
+	"PING_TOO_HIGH": "Keskimääräinen pingisi on {Amount}ms, mikä on liian korkea tällä palvelimella.",
+	"JITTER_TOO_HIGH": "Pingisi vaihteluväli on keskimäärin {Amount}ms, mikä on liian korkea tällä palvelimella.",
+	"NOTIFY_PREFIX": "[Ping-seuranta]"
+}

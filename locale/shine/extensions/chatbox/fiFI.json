@@ -1,0 +1,12 @@
+{
+	"SAY_TEAM": "Kirjoita joukkueelle...",
+	"SAY_ALL": "Kirjoita kaikille...",
+	"SETTINGS_TITLE": "Asetukset",
+	"AUTO_CLOSE": "Sulje lähettämisen jälkeen.",
+	"AUTO_DELETE": "Poista automaattisesti sulkiessa.",
+	"SMOOTH_SCROLL": "Käytä pehmeää vieritystä.",
+	"MESSAGE_MEMORY": "Viestimuisti",
+	"OPACITY": "Läpikuultavuus (%)",
+	"SCALE": "Skaala (avaa keskusteluikkunan uudelleen)",
+	"SETTINGS_TOOLTIP": "Avaa/sulkee keskusteluikkunan asetukset."
+}

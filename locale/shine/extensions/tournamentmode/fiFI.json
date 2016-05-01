@@ -1,0 +1,19 @@
+{
+	"WAITING_FOR_TEAM": "ODOTETAAN {TeamName:Upper} VALMIIKSI",
+	"MARINES": "Marinet",
+	"ALIENS": "Alienit",
+	"BOTH_TEAMS": "molempia joukkueita",
+	"PLAYER_READY": "{PlayerName} on valmiina.",
+	"PLAYER_NOT_READY": "{PlayerName} ei ole valmiina.",
+	"TEAM_READY": "{TeamName} on valmiina.",
+	"TEAM_READY_WAITING": "{TeamName} on valmiina. Odotetaan joukkuetta {OtherTeamName} valmiiksi.",
+	"TEAM_NOT_READY": "{TeamName} ei ole valmiina.",
+	"TEAM_NOT_READY_PLAYER": "{PlayerName} kertoi, ettei {TeamName} ole vielä valmiina.",
+	"GAME_START_COUNTDOWN": "Pelin alkuun %s",
+	"GAME_START_ABORTED": "Pelin aloitus.",
+	"ERROR_ONLY_COMMANDER_UNREADY": "Vain commander voi kertoa, ettei joukkue ole valmiina.",
+	"ERROR_ONLY_COMMANDER_READY": "Vain commander voi kertoa joukkueen olevan valmiina.",
+	"ERROR_NOT_READY": "Et ole kertonut olevasi valmiina! Kirjoita !ready jos olet valmiina.",
+	"ERROR_NOT_TEAM_READY": "Ette ole kertoneet olevanne valmiita! Kirjoita !ready jos olette valmiita.",
+	"NOTIFY_PREFIX": "[Turnaustila]"
+}

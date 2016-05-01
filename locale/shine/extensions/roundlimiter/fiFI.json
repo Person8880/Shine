@@ -1,0 +1,9 @@
+{
+	"ROUND_END_TOTAL_TEAM_SCORE": "Erä päättyy, koska aika on loppunut. Voittaja on eniten yhteispisteitä kerännyt joukkue.",
+	"ROUND_END_TOTAL_RTS": "Erä päättyy, koska aika on loppunut. Voittaja on eniten resurssilähteitä haltuunsa ottanut joukkue.",
+	"ROUND_END_TOTAL_TEAM_RES": "Ending round due to time limit. Voittaja on eniten joukkueresursseja kerännyt joukkue.",
+	"ROUND_WARNING_TOTAL_SCORE": "{TimeLeft:Duration} erää jäljellä. Voittaja on eniten yhteispisteitä kerännyt joukkue.",
+	"ROUND_WARNING_TOTAL_RTS": "{TimeLeft:Duration} erää jäljellä. Voittaja on eniten resurssilähteitä haltuunsa ottanut joukkue.",
+	"ROUND_WARNING_TOTAL_TEAM_RES": "{TimeLeft:Duration} erää jäljellä. Voittaja on eniten jokkueresursseja kerännyt joukkue.",
+	"NOTIFY_PREFIX": "[Erien rajoitus]"
+}

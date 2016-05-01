@@ -1,0 +1,5 @@
+{
+	"ERROR_WRONG_TEAM": "Et voi äänestää tämän joukkueen luovuttamisesta.",
+	"ERROR_ALREADY_VOTED": "Olet jo äänestänyt luovuttamisesta.",
+	"ERROR_ROUND_TIME": "Et voi äänestää luovuttamisesta juuri nyt."
+}

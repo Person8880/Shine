@@ -1,0 +1,5 @@
+{
+	"PLAYER_JOINED_GENERIC": "{TargetName} liittyi peliin.",
+	"PLAYER_LEAVE_GENERIC": "{TargetName} poistui pelistä.",
+	"PLAYER_LEAVE_REASON": "{TargetName} poistui ({Reason})."
+}
