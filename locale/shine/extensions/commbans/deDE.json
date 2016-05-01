@@ -1,4 +1,4 @@
-{
+﻿{
 	"Comm Bans": "Commander Bans",
 	"PLAYER_BANNED": "{TargetName} wurde {Duration:NonZero:für }{Duration:Duration:permanent} vom Kommandieren gebannt.",
 	"BANNED_WARNING": "Du wurdest {Duration:NonZero:für }{Duration:Duration:permanent} vom Kommandieren gebannt.",

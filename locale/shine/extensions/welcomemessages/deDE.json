@@ -1,4 +1,4 @@
-{
+﻿{
 	"PLAYER_JOINED_GENERIC": "{TargetName} ist dem Spiel beigetreten.",
 	"PLAYER_LEAVE_GENERIC": "{TargetName} hat das Spiel verlassen.",
 	"PLAYER_LEAVE_REASON": "{TargetName} ist aus dem Spiel ausgeschieden ({Reason})."
