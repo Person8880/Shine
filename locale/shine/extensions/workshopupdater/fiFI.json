@@ -1,0 +1,6 @@
+{
+	"MOD_CHANGED": "\"{ModName}\" modi on päivittynyt Steam Workshopissa.",
+	"MAY_BE_UNABLE_TO_CONNECT": "Pelaajat eivät välttämättä voi liittyä palvelimelle kunnes kartta on vaihdettu.",
+	"MAP_CYCLE": "Kartta vaihtuu {TimeLeft:Duration:nyt} {TimeLeft:NonZero:kuluttua}.",
+	"NOTIFY_PREFIX": "[Workshop]"
+}

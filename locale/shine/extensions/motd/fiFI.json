@@ -1,0 +1,5 @@
+{
+	"ALREADY_ACCEPTED_MOTD": "Olet jo hyväksynyt päivän viestin.",
+	"ACCEPTED_MOTD_RESPONSE": "Kiitos, että hyväksyit päivän viestin.",
+	"NOTIFY_PREFIX": "[MOTD]"
+}

@@ -1,0 +1,7 @@
+{
+	"ERROR_NOT_ALIVE": "Jumia ei voi poistaa, koska olet kuolleena.",
+	"ERROR_WAIT": "Odota {TimeLeft:Duration} ennen jumin poiston uutta yritystä.",
+	"SUCCESS": "Onnistuneesti poistettu jumista.",
+	"ERROR_FAIL": "Ei voi poistaa jumista. Yritä uudelleen kun {TimeLeft:Duration} on kulunut.",
+	"NOTIFY_PREFIX": "[Jumissa]"
+}

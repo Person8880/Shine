@@ -1,0 +1,6 @@
+{
+	"Comm Bans": "Komentamiskiellot",
+	"PLAYER_BANNED": "Pelaajalla {TargetName} on porttikielto komentamiseen {Duration:NonZero:ajalle }{Duration:Duration:pysyvästi}.",
+	"BANNED_WARNING": "Sinulla on porttikielto komentamiseen {Duration:NonZero:ajalle }{Duration:Duration:pysyvästi}.",
+	"NOTIFY_PREFIX": "[Komentamiskielto]"
+}
