@@ -1,0 +1,12 @@
+{
+	"SAY_TEAM": "Dire à l'équipe...",
+	"SAY_ALL": "Dire à tout le monde...",
+	"SETTINGS_TITLE": "Paramètres",
+	"AUTO_CLOSE": "Se ferme automatiquement après envoi.",
+	"AUTO_DELETE": "Se supprime automatiquement après fermeture.",
+	"SMOOTH_SCROLL": "Utiliser défilement fluide.",
+	"MESSAGE_MEMORY": "Mémoire de stockage",
+	"OPACITY": "Opacité (%)",
+	"SCALE": "Échelle (va rouvrir la fenêtre de chat)",
+	"SETTINGS_TOOLTIP": "Ouvrir, ferme les paramètres de la fenêtre de chat."
+}

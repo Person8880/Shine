@@ -1,0 +1,5 @@
+{
+	"ERROR_WRONG_TEAM": "Vous ne pouvez pas lancer un vote pour capituler dans cette équipe.",
+	"ERROR_ALREADY_VOTED": "Vous avez déjà voté pour capituler.",
+	"ERROR_ROUND_TIME": "Vous ne pouvez pas lancer un vote pour capituler pour le moment."
+}

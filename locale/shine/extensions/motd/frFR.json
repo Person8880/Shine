@@ -1,0 +1,5 @@
+{
+	"ALREADY_ACCEPTED_MOTD": "Vous avez déjà accepté le message du jour.",
+	"ACCEPTED_MOTD_RESPONSE": "Merci d'avoir accepté le message du jour.",
+	"NOTIFY_PREFIX": "[MOTD]"
+}

@@ -1,0 +1,21 @@
+{
+	"ADD_BAN": "Ajouter Ban",
+	"SELECT_PLAYER": "Sélectionnez un joueur.",
+	"DURATION_LABEL": "Durée (en minutes, 0 pour permanent) :",
+	"DURATION_HINT": "Veuillez entrer une durée...",
+	"DURATION_PERMANENT": "Durée : Permanent.",
+	"DURATION_TIME": "Durée : {Time}",
+	"REASON": "Raison :",
+	"Bans": "Bans",
+	"BANNED_BY": "Banni Par",
+	"EXPIRY": "Expiration",
+	"NEVER": "Jamais",
+	"DATE_FORMAT": "%d %B %Y %H:%M",
+	"UNBAN": "Débannir",
+	"LOAD_MORE": "Charger plus",
+	"LOAD_MORE_TIP": "Charge plus d'entrées du serveur.",
+	"PLAYER_BANNED": "{TargetName} banni {Duration:NonZero:for }{Duration:Duration:permanently} ({Reason}).",
+	"PLAYER_REQUEST_IN_PROGRESS": "Veuillez attendre la fin de la requête de ban actuelle pour {ID}.",
+	"ERROR_NOT_BANNED": "{ID} n'est pas banni.",
+	"ERROR_INVALID_STEAMID": "Impossible de bannir en raison de l'ID Steam invalide."
+}

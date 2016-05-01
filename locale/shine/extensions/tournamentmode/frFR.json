@@ -1,0 +1,19 @@
+{
+	"WAITING_FOR_TEAM": "EN ATTENTE DE {TeamName:Upper} POUR COMMENCER",
+	"MARINES": "Marines",
+	"ALIENS": "Aliens",
+	"BOTH_TEAMS": "les deux équipes",
+	"PLAYER_READY": "{PlayerName} est maintenant prêt.",
+	"PLAYER_NOT_READY": "{PlayerName} n'est plus prêt.",
+	"TEAM_READY": "{TeamName} sont maintenant prêts.",
+	"TEAM_READY_WAITING": "{TeamName} sont maintenant prêts. En attente de {OtherTeamName} pour commencer.",
+	"TEAM_NOT_READY": "{TeamName} ne sont plus prêts.",
+	"TEAM_NOT_READY_PLAYER": "{PlayerName} a signifié que {TeamName} ne sont plus prêts.",
+	"GAME_START_COUNTDOWN": "La partie commence dans %s",
+	"GAME_START_ABORTED": "Démarrage de la partie annulé.",
+	"ERROR_ONLY_COMMANDER_UNREADY": "Seul le commandant peut signifier que l'équipe n'est pas prête.",
+	"ERROR_ONLY_COMMANDER_READY": "Seul le commandant peut signifier que l'équipe est prête.",
+	"ERROR_NOT_READY": "Vous n'avez toujours pas indiqué que vous êtes prêt ! Utilisez !ready lorsque vous êtes prêt.",
+	"ERROR_NOT_TEAM_READY": "Vous équipe n'a toujours pas indiqué que vous êtes prêt ! Utilisez !ready lorsque votre équipe est prête.",
+	"NOTIFY_PREFIX": "[Mode Tournoi]"
+}
