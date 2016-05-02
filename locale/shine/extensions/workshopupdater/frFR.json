@@ -1,6 +1,6 @@
 {
 	"MOD_CHANGED": "Le mod \"{ModName}\" a été mis à jour sur le Steam Workshop.",
 	"MAY_BE_UNABLE_TO_CONNECT": "Les joueurs ne peuvent pas se connecter au serveur jusqu'au prochain changement de carte.",
-	"MAP_CYCLE": "La carte va changer {TimeLeft:NonZero:in }{TimeLeft:Duration:now}.",
+	"MAP_CYCLE": "La carte va changer {TimeLeft:NonZero:dans }{TimeLeft:Duration:maintenant}.",
 	"NOTIFY_PREFIX": "[Workshop]"
 }
