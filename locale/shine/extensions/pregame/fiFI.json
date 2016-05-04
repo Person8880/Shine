@@ -1,0 +1,12 @@
+{
+	"GAME_START": "Pelin alkuun %s",
+	"GAME_START_SOON": "Pelin alkuun {Duration:Duration}",
+	"WAITING_FOR_TEAM": "Odotetaan joukkueen {Team:TeamName:capitals} commanderin valintaa",
+	"WAITING_FOR_BOTH": "Odotetaan joukkueiden commanderien valintaa",
+	"ABORT_EMPTY_TEAM": "Pelin aloitus keskeytetty, joukkueella {Team:TeamName:singular} ei ole pelaajia.",
+	"ABORT_COMMANDER_DROP": "Pelin aloitus keskeytetty, commander poistui.",
+	"TEAM_HAS_COMMANDER": "Joukkueella {TeamWithCommander:TeamName:capitals} on commander. Joukkueen {TeamWithoutCommander:TeamName:capitals} täytyy valita commander. Aikaa jäljellä valintaan {TimeLeft:Duration}.",
+	"EXCEEDED_TIME": "Lämmittelyaika on ylittynyt {Duration:Duration} ja toisella joukkueella on commander. Aloitetaan peli...",
+	"NOTIFY_PREFIX": "[Lämmittely]",
+	"WAITING_FOR_PLAYERS": "Odotetaan hetki pelaajia."
+}

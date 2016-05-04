@@ -43,6 +43,12 @@ SGUI.Skins = {}
 --Base visual layer.
 SGUI.BaseLayer = 20
 
+SGUI.ScreenHeight = {
+	Small = 768,
+	Normal = 1080,
+	Large = 1600
+}
+
 --Global control meta-table.
 local ControlMeta = {}
 SGUI.BaseControl = ControlMeta

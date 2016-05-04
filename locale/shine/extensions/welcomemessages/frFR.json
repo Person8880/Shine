@@ -1,0 +1,5 @@
+{
+	"PLAYER_JOINED_GENERIC": "{TargetName} a rejoint la partie.",
+	"PLAYER_LEAVE_GENERIC": "{TargetName} a quitté la partie.",
+	"PLAYER_LEAVE_REASON": "Dropped {TargetName} ({Reason})."
+}

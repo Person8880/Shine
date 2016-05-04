@@ -151,10 +151,10 @@ function Shine:OpenWebpage( URL, TitleText )
 	local TitleBarH = 24
 	local Font = Fonts.kAgencyFB_Small
 	local TextScale
-	if W > 1920 and W <= 2880 then
+	if H > SGUI.ScreenHeight.Normal and H <= SGUI.ScreenHeight.Large then
 		TitleBarH = TitleBarH * 1.5
 		Font = Fonts.kAgencyFB_Medium
-	elseif W > 2880 then
+	elseif H > SGUI.ScreenHeight.Large then
 		TitleBarH = TitleBarH * 2.5
 		Font = Fonts.kAgencyFB_Huge
 		TextScale = Vector( 0.6, 0.6, 0 )

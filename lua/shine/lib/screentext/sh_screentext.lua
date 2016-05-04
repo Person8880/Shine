@@ -22,5 +22,6 @@ Shared.RegisterNetworkMessage( "Shine_ScreenTextUpdate", {
 	Text = "string (255)"
 } )
 Shared.RegisterNetworkMessage( "Shine_ScreenTextRemove", {
-	ID = "integer (0 to 100)"
+	ID = "integer (0 to 100)",
+	Now = "boolean"
 } )

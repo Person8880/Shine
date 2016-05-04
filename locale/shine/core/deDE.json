@@ -1,4 +1,4 @@
-{
+﻿{
 	"ADMIN_MENU_COMMANDS_TAB": "Befehle",
 	"ADMIN_MENU_ABOUT_TAB": "Über",
 	"ADMIN_MENU_PLAYERS_HELP": "Wähle einen (oder mehrere) Spieler und einen Befehl zum Ausführen.",
@@ -28,7 +28,7 @@
 	"ENABLE": "Aktivieren",
 	"DISABLE": "Deaktivieren",
 	"BACK": "Zurück",
-	"REST_OF_MAP": "die Dauer der aktuellen Karte.",
+	"REST_OF_MAP": "die Dauer der aktuellen Karte",
 	"ERROR_TAG": "[Fehler]",
 	"TIME_VALUE": "{Value} {TimeUnit}",
 	"TIME_SENTENCE": "{Before} und {After}",
@@ -59,6 +59,6 @@
 	"ERROR_CANT_TARGET": "Du hast keine Berechtigung {PlayerName} als Ziel zu wählen.",
 	"ERROR_CANT_TARGET_MULTIPLE": "Du hast keine Berechtigung irgendjemanden den du ausgewählt hast als Ziel zu wählen.",
 	"COMMAND_DEFAULT_ERROR": "Falscher Parameter #{ArgNum} für {CommandName}, {ExpectedType} wurde erwartet.",
-	"COMMAND_RESTRICTED_ARG": "Ungültiger Parameter #{ArgNum}, ist beschränkt dürch die Rangeinstellungen.",
+	"COMMAND_RESTRICTED_ARG": "Ungültiger Parameter #{ArgNum}, ist beschränkt durch die Rangeinstellungen.",
 	"COMMAND_NO_PERMISSION": "Du hast keine Berechtigung {CommandName} zu verwenden."
 }

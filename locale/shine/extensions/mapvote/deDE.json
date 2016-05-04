@@ -1,4 +1,4 @@
-{
+﻿{
 	"VOTE": "Abstimmung",
 	"VOTE_BOUND_MESSAGE": "{VoteDescription}. Drücke {Button} zum abstimmen.\nZeit übrig zum Abstimmen: %s.",
 	"VOTE_UNBOUND_MESSAGE": "{VoteDescription}.\nKarten: {MapList}.\nTippe !vote <map> zum abstimmen.\nZeit übrig zum Abstimmen: %s.\nLege eine Taste auf sh_votemenu um das Abstimmen einfacher zu machen.",
@@ -18,7 +18,7 @@
 	"VOTE_FAIL_INVALID_MAP": "{MapName} ist keine gültige Kartenwahl.",
 	"VOTE_FAIL_VOTED_MAP": "Du hast bereits für {MapName} abgestimmt",
 	"TEAM_CHANGE_FAIL_VOTE": "Du kannst keinem Team beitreten während eine Kartenabstimmung läuft.",
-	"TEAM_CHANGE_FAIL_MAP_CHANGE": "Die Karte wechselt jetzt. Du kannst keine Team beitreten.",
+	"TEAM_CHANGE_FAIL_MAP_CHANGE": "Die Karte wechselt jetzt. Du kannst keinem Team beitreten.",
 	"EXTENDING_ROUND": "Es wird eine weitere Runde auf dieser Karte gespielt.",
 	"EXTENDING_TIME": "Auf dieser Karte wird noch weitere {Duration:Duration} gespielt.",
 	"MAP_CHANGING": "Karte wechselt in {Duration:Duration}.",
@@ -50,7 +50,7 @@
 	"NO_CHANGE_IN_PROGRESS": "Die Karte wird nicht gewechselt.",
 	"VETO": "{TargetName} hat die Kartenabstimmung abgebrochen.",
 	"FORCED_VOTE": "Kartenabstimmung erzwungen.",
-	"CANT_FORCE": "Kann keine neue Abstimmung starten, da bereits Eine läuft.",
+	"CANT_FORCE": "Kann keine neue Abstimmung starten, da bereits eine läuft.",
 	"MAP_WILL_CYCLE": "Die Karte wird bei Rundenende gewechselt.",
 	"ROUNDS_LEFT": "Es verbleiben noch {Duration} Runden.",
 	"NO_CYCLE": "Der Server hat keinen Kartenzyklus. Kein Zeitlimit vergeben.",

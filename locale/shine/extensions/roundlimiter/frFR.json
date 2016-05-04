@@ -1,0 +1,9 @@
+{
+	"ROUND_END_TOTAL_TEAM_SCORE": "Limite de temps atteinte, fin du round. Vainqueur déterminé en fonction du score total de l'équipe.",
+	"ROUND_END_TOTAL_RTS": "Limite de temps atteinte, fin du round. Vainqueur déterminé en fonction du nombre de RTs capturées.",
+	"ROUND_END_TOTAL_TEAM_RES": "Limite de temps atteinte, fin du round. Vainqueur déterminé en fonction du total de ressources collectées par l'équipe.",
+	"ROUND_WARNING_TOTAL_SCORE": "{TimeLeft:Duration} restantes avant la fin du round. Le vainqueur sera déterminé en fonction du score total de l'équipe.",
+	"ROUND_WARNING_TOTAL_RTS": "{TimeLeft:Duration} restantes avant la fin du round. Le vainqueur sera déterminé en fonction du nombre de RTs capturées.",
+	"ROUND_WARNING_TOTAL_TEAM_RES": "{TimeLeft:Duration} restantes avant la fin du round. Le vainqueur sera déterminé en fonction du total de ressources collectées par l'équipe.",
+	"NOTIFY_PREFIX": "[Round Limiter]"
+}

@@ -250,6 +250,7 @@ Plugin.UpdateFuncs = {
 				self:DestroyTimers()
 				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 				self.GameStarting = false
+				self.SentCountdown = nil
 
 				return
 			end
@@ -262,6 +263,7 @@ Plugin.UpdateFuncs = {
 				} )
 
 				self.GameStarting = false
+				self.SentCountdown = nil
 
 				if self.CountStart then
 					self.CountStart = nil
@@ -316,7 +318,7 @@ Plugin.UpdateFuncs = {
 				if self.Config.AbortIfNoCom then
 					if not Team1Com or not Team2Com then
 						self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
-
+						self.SentCountdown = nil
 						self.GameStarting = false
 
 						return
@@ -330,7 +332,7 @@ Plugin.UpdateFuncs = {
 					self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
 						Team = Team1Count == 0 and 1 or 2
 					} )
-
+					self.SentCountdown = nil
 					self.GameStarting = false
 
 					return
@@ -347,6 +349,7 @@ Plugin.UpdateFuncs = {
 			if self.CountStart then
 				self.CountStart = nil
 				self.CountEnd = nil
+				self.SentCountdown = nil
 
 				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
 					Team = Team1Count == 0 and 1 or 2
@@ -375,6 +378,7 @@ Plugin.UpdateFuncs = {
 			if self.Config.AbortIfNoCom and self.CountStart then
 				self.CountStart = nil
 				self.CountEnd = nil
+				self.SentCountdown = nil
 
 				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
 			end

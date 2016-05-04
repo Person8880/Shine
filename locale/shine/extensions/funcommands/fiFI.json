@@ -1,0 +1,14 @@
+{
+	"GOTO": "Mene",
+	"GOTO_TIP": "Menee suoraan valitun pelaajan sijaintiin.",
+	"BRING": "Tuo",
+	"BRING_TIP": "Tuo valitun pelaajan luoksesi.",
+	"SLAY": "Surmaa",
+	"SLAY_TIP": "Surmaa valitun pelaajan.",
+	"DARWIN_MODE": "Darwin-moodi",
+	"DARWIN_MODE_TIP": "Valituille pelaajille kuolemattomuus ja loppumattomat\nammukset päälle/pois päältä.",
+	"TELEPORTED_GOTO": "siirtyi pelaajan {TargetName} viereen.",
+	"TELEPORTED_BRING": "siirsi pelaajan {TargetName} viereensä.",
+	"ERROR_CANT_GOTO": "Pelaajan vierestä ei löytynyt sopivaa paikkaa.",
+	"ERROR_CANT_BRING": "Vierestäsi ei löytynyt sopivaa paikkaa."
+}

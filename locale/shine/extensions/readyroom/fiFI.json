@@ -1,0 +1,6 @@
+{
+	"SWITCH_TEAM_BLOCKED": "Sinut on juuri siirretty joukkueeseen. Et voi vielä mennä takaisin ready roomiin.",
+	"SPECTATOR_DISABLED": "Katsominen on kielletty.",
+	"IN_READY_ROOM_TOO_LONG": "Sinut siirrettiin satunnaiseen joukkueeseen koska olet ollut ready roomissa liian kauan.",
+	"NOTIFY_PREFIX": "[Ready Room]"
+}

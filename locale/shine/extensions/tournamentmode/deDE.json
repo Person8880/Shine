@@ -1,4 +1,4 @@
-{
+﻿{
 	"WAITING_FOR_TEAM": "WARTE AUF {TeamName:Upper} ZU STARTEN",
 	"MARINES": "Marines",
 	"ALIENS": "Aliens",
@@ -14,6 +14,6 @@
 	"ERROR_ONLY_COMMANDER_UNREADY": "Nur der Commander kann das Team als nicht bereit erklären.",
 	"ERROR_ONLY_COMMANDER_READY": "Nur der Commander kann das Team als bereit erklären.",
 	"ERROR_NOT_READY": "Du bist noch nicht bereit! Verwende !ready um dich als bereit zu erklären.",
-	"ERROR_NOT_TEAM_READY": "Dein Team is noch nicht bereit! erwende !ready um dein Team als bereit zu erklären.",
+	"ERROR_NOT_TEAM_READY": "Dein Team is noch nicht bereit! Verwende !ready um dein Team als bereit zu erklären.",
 	"NOTIFY_PREFIX": "[Wettkampfmodus]"
 }

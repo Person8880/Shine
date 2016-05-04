@@ -1,4 +1,4 @@
-{
+﻿{
 	"GOTO": "Gehe zu",
 	"GOTO_TIP": "Teleportiert dich zum ausgewählten Spieler.",
 	"BRING": "Bringen",
@@ -9,6 +9,6 @@
 	"DARWIN_MODE_TIP": "Umschalter für Unverwundbarkeit und unendlich\nMunition für den/die ausgewählten Spieler.",
 	"TELEPORTED_GOTO": "Zu {TargetName} teleportiert.",
 	"TELEPORTED_BRING": "{TargetName} zu dir teleportiert.",
-	"ERROR_CANT_GOTO": "Wir konnten keine gültige Position beim Spieler.",
+	"ERROR_CANT_GOTO": "Wir konnten keine gültige Position beim Spieler finden.",
 	"ERROR_CANT_BRING": "Wir konnten keine gültige Positionn bei dir finden."
 }

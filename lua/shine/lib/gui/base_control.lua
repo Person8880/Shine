@@ -959,15 +959,15 @@ function ControlMeta:ShowTooltip( X, Y )
 
 	local Tooltip = SGUI.IsValid( self.Tooltip ) and self.Tooltip or SGUI:Create( "Tooltip" )
 
-	local W = SGUI.GetScreenSize()
+	local W, H = SGUI.GetScreenSize()
 	local Font
 	local TextScale
 
-	if W <= 1366 then
+	if H <= SGUI.ScreenHeight.Small then
 		Font = Fonts.kAgencyFB_Tiny
-	elseif W > 1920 and W <= 2880 then
+	elseif H > SGUI.ScreenHeight.Normal and H <= SGUI.ScreenHeight.Large then
 		Font = Fonts.kAgencyFB_Medium
-	elseif W > 2880 then
+	elseif H > SGUI.ScreenHeight.Large then
 		Font = Fonts.kAgencyFB_Huge
 		TextScale = Vector2( 0.5, 0.5 )
 	end

@@ -1,4 +1,4 @@
-{
+﻿{
 	"MOD_CHANGED": "Die Modifikation \"{ModName}\" hat im Steam Workshop ein Update erhalten.",
 	"MAY_BE_UNABLE_TO_CONNECT": "Spieler können vielleicht bis zum Kartenwechsel nicht zu diesem Server verbinden.",
 	"MAP_CYCLE": "Die Karte wird {TimeLeft:NonZero:in }{TimeLeft:Duration:jetzt} gewechselt.",

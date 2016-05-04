@@ -1,0 +1,6 @@
+{
+	"SWITCH_TEAM_BLOCKED": "Vous avez été déplacé dans une équipe. Vous ne pouvez pas retourner dans la ready room pour l'instant.",
+	"SPECTATOR_DISABLED": "Le mode spectateur a été désactivé.",
+	"IN_READY_ROOM_TOO_LONG": "Vous avez été déplacé dans une équipe au hasard car vous êtes resté dans la ready room trop longtemps.",
+	"NOTIFY_PREFIX": "[Ready Room]"
+}

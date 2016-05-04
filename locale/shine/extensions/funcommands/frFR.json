@@ -1,0 +1,14 @@
+{
+	"GOTO": "Aller à",
+	"GOTO_TIP": "Vous téléporte au joueur sélectionné.",
+	"BRING": "Rapprocher",
+	"BRING_TIP": "Téléporte à vos côtés le joueur sélectionné.",
+	"SLAY": "Tuer",
+	"SLAY_TIP": "Tue le joueur sélectionné.",
+	"DARWIN_MODE": "Darwin Mode",
+	"DARWIN_MODE_TIP": "Active invulnérabilité et munitions\ninfinies pour le(s) joueur(s) sélectionné(s).",
+	"TELEPORTED_GOTO": "téléporté sur {TargetName}.",
+	"TELEPORTED_BRING": "{TargetName} téléporté à vos côtés.",
+	"ERROR_CANT_GOTO": "Impossible de trouver un emplacement valide près du joueur.",
+	"ERROR_CANT_BRING": "Impossible de trouver un emplacement valide près de vous."
+}

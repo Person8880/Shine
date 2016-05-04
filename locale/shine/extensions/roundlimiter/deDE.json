@@ -1,9 +1,9 @@
-{
-	"ROUND_END_TOTAL_TEAM_SCORE": "Die Runde wird durch das Zeitlimit beendet. Gewinner wird durch die Teampunktezahl gewählt.",
-	"ROUND_END_TOTAL_RTS": "Die Runde wird durch das Zeitlimit beendet. Gewinner wird durch eroberte RTs am Ende gewählt.",
-	"ROUND_END_TOTAL_TEAM_RES": "Die Runde wird durch das Zeitlimit beendet. Gewinner wird durch insgesamt gesammelte Team Ressourcen gewählt.",
-	"ROUND_WARNING_TOTAL_SCORE": "Diese Runde endet in {TimeLeft:Duration}. Gewinner wird durch die Teampunktezahl gewählt..",
-	"ROUND_WARNING_TOTAL_RTS": "Diese Runde endet in {TimeLeft:Duration}. Gewinner wird durch Anzahle der eroberten RTs am Ende gewählt.",
-	"ROUND_WARNING_TOTAL_TEAM_RES": "Diese Runde endet in {TimeLeft:Duration}. Gewinner wird durch die insgesamt gesammelte Team Ressourcen gewählt.",
+﻿{
+	"ROUND_END_TOTAL_TEAM_SCORE": "Die Runde wird durch das Zeitlimit beendet. Gewinner wird durch die Teampunktzahl gewählt.",
+	"ROUND_END_TOTAL_RTS": "Die Runde wird durch das Zeitlimit beendet. Gewinner wird durch die Anzahl der eroberten RTs am Ende gewählt.",
+	"ROUND_END_TOTAL_TEAM_RES": "Die Runde wird durch das Zeitlimit beendet. Gewinner wird durch die insgesamt gesammelten Team Ressourcen gewählt.",
+	"ROUND_WARNING_TOTAL_SCORE": "Diese Runde endet in {TimeLeft:Duration}. Gewinner wird durch die Teampunktzahl gewählt..",
+	"ROUND_WARNING_TOTAL_RTS": "Diese Runde endet in {TimeLeft:Duration}. Gewinner wird durch die Anzahl der eroberten RTs am Ende gewählt.",
+	"ROUND_WARNING_TOTAL_TEAM_RES": "Diese Runde endet in {TimeLeft:Duration}. Gewinner wird durch die insgesamt gesammelten Team Ressourcen gewählt.",
 	"NOTIFY_PREFIX": "[Rundenbegrenzer]"
 }

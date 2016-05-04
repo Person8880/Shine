@@ -1,6 +1,6 @@
-{
+﻿{
 	"SHUFFLE_RANDOM": "Stelle die Teams zufällig zusammen",
-	"SHUFFLE_SCORE": "Stelle die Teams basierend auf den Punkte pro Minute zusammen",
+	"SHUFFLE_SCORE": "Stelle die Teams basierend auf den Punkten pro Minute zusammen",
 	"SHUFFLE_KDR": "Stelle die Teams basierend auf den KDRs zusammen",
 	"SHUFFLE_HIVE": "Stelle die Teams basierend auf den Hive Skill Bewertungen zusammen",
 	"RANDOM_BASED_LOWER": "Zufällig",
@@ -20,7 +20,7 @@
 	"TEAMS_SHUFFLED_FOR_DURATION": "{ShuffleType:Translation:voterandom}e Teams wurden aktiviert für die nächsten {Duration:Duration}.",
 	"TEAM_ENFORCING_TIMELIMIT": "{ShuffleType:Translation:voterandom}e Teams erzwingen wurde deaktiviert, da das Zeitlimit erreicht ist.",
 	"TEAM_SWITCH_DENIED": "Du kannst das Team nicht wechseln. {ShuffleType:Translation:voterandom}e Teams sind aktiviert.",
-	"PLACED_ON_RANDOM_TEAM": "Du wurdest in einem zufälliges Team eingeteilt.",
+	"PLACED_ON_RANDOM_TEAM": "Du wurdest in ein zufälliges Team eingeteilt.",
 	"PLACED_ON_HIVE_TEAM": "Du wurdest gemäß deiner Hive Skill Bewertung einem Team zugeteilt.",
 	"ERROR_NOT_ENOUGH_PLAYERS": "Nicht genug Spieler um eine Abstimmung zu starten.",
 	"ERROR_CANNOT_START": "Du kannst derzeit nicht für {ShuffleType:Translation:voterandom}e Teams abstimmen.",
@@ -28,7 +28,7 @@
 	"ERROR_TEAMS_FORCED": "Erzwungene, {ShuffleType:Translation:voterandom}e Teams sind vom Server aktiviert.",
 	"ERROR_ROUND_TOO_FAR": "Die aktuelle Runde läuft schon zu lange um eine Abstimmung zu starten.",
 	"ERROR_ALREADY_VOTED": "Du hast bereits für {ShuffleType:Translation:voterandom}e Teams abgestimmt.",
-	"ERROR_NOT_HIVE_BASED": "Hive balancing is not currently enabled.",
+	"ERROR_NOT_HIVE_BASED": "Hive Skill Balancing ist gerade nicht aktiviert.",
 	"PLAYER_VOTED": "{PlayerName} hat für {ShuffleType:Translation:voterandom}e Teams abgestimmt ({VotesNeeded} mehr {VotesNeeded:Pluralise:Stimme|Stimme} benötigt)",
 	"ENABLED_TEAMS": "{ShuffleType:Translation:voterandom}e Teams aktiviert.",
 	"DISABLED_TEAMS": "{ShuffleType:Translation:voterandom}e Teams wurden deaktiviert.",

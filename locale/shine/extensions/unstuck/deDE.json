@@ -1,4 +1,4 @@
-{
+﻿{
 	"ERROR_NOT_ALIVE": "Du kannst nicht freikommen wenn du tot bist.",
 	"ERROR_WAIT": "Du must {TimeLeft:Duration} warten bevor du -unstuck- wieder verwenden kannst.",
 	"SUCCESS": "Erfolgreich freigekommen.",

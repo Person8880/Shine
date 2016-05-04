@@ -1,0 +1,12 @@
+{
+	"GAME_START": "La partie commence dans %s",
+	"GAME_START_SOON": "La partie commence dans {Duration:Duration}",
+	"WAITING_FOR_TEAM": "La partie commencera une fois qu'un commandant sera choisi par {Team:TeamName:capitals}",
+	"WAITING_FOR_BOTH": "La partie commencera une fois que les deux équipes auront choisi un commandant",
+	"ABORT_EMPTY_TEAM": "Démarrage de la partie annulé, {Team:TeamName:singular} est vide.",
+	"ABORT_COMMANDER_DROP": "Démarrage de la partie annulé, un commandant est manquant.",
+	"TEAM_HAS_COMMANDER": "{TeamWithCommander:TeamName:capitals} ont un commandant. {TeamWithoutCommander:TeamName:capitals} ont {TimeLeft:Duration} pour choisir leur commandant.",
+	"EXCEEDED_TIME": "La Pregame a dépassé {Duration:Duration} et l'un des commandants est en place. La partie va commencer...",
+	"NOTIFY_PREFIX": "[Pre Game]",
+	"WAITING_FOR_PLAYERS": "Chargement des joueurs nécessaire pour démarrer la partie."
+}
