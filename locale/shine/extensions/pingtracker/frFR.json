@@ -1,0 +1,6 @@
+{
+	"KICK_WARNING": "Si vous ne le réduisez pas, vous serez expulsé.",
+	"PING_TOO_HIGH": "Votre ping est en moyenne à {Amount}ms, ceci est trop élevé pour ce serveur.",
+	"JITTER_TOO_HIGH": "Votre ping varie en moyenne de {Amount}ms, ceci est trop élevé pour ce serveur.",
+	"NOTIFY_PREFIX": "[Ping Tracker]"
+}

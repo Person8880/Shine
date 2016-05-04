@@ -1,0 +1,7 @@
+{
+	"ERROR_NOT_ALIVE": "Vous ne pouvez pas vous débloquer lorsque vous êtes mort.",
+	"ERROR_WAIT": "Vous devez attendre {TimeLeft:Duration} avant d'utiliser unstuck à nouveau.",
+	"SUCCESS": "Tentative réussie.",
+	"ERROR_FAIL": "Impossible de vous débloquer. Essayez à nouveau dans {TimeLeft:Duration}.",
+	"NOTIFY_PREFIX": "[Unstuck]"
+}
