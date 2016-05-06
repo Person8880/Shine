@@ -25,6 +25,8 @@ function CommandMeta:AddParam( Table )
 
 	local Args = self.Arguments
 	Args[ #Args + 1 ] = Table
+
+	return self
 end
 
 --[[
