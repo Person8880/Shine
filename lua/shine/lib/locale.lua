@@ -166,3 +166,59 @@ end
 function Locale:GetInterpolatedPhrase( Source, Key, FormatArgs )
 	return StringInterpolate( self:GetPhrase( Source, Key ), FormatArgs, self:GetLanguageDefinition() )
 end
+
+function Locale:OnLoaded()
+	local TableSort = table.sort
+
+	Shine:RegisterClientCommand( "sh_missingtranslations", function( LangCode )
+		local Folders = Shine.Multimap()
+		for i = 1, #LangFiles do
+			local File = LangFiles[ i ]
+			local Folder = File:gsub( "/[^/]+%.json$", "" )
+			if Folder ~= "locale/shine" then
+				Folders:Add( Folder, File )
+			end
+		end
+
+		local Missing = Shine.Multimap()
+		for Folder, LangFiles in Folders:Iterate() do
+			local Strings = {}
+			for i = 1, #LangFiles do
+				local Lang = LangFiles[ i ]:match( "/(%a+)%.json$" )
+
+				if Lang == LangCode or Lang == Locale.DefaultLanguage then
+					Strings[ Lang ] = Shine.LoadJSONFile( LangFiles[ i ] )
+				end
+			end
+
+			local DefaultStrings = Strings[ Locale.DefaultLanguage ]
+			local LangStrings = Strings[ LangCode ] or {}
+			for Key in pairs( DefaultStrings ) do
+				if not LangStrings[ Key ] then
+					Missing:Add( Folder, Key )
+				end
+			end
+
+			local Keys = Missing:Get( Folder )
+			if Keys then
+				TableSort( Keys )
+			end
+		end
+
+		if Missing:Count() == 0 then
+			LuaPrint( "No missing keys." )
+			return
+		end
+
+		TableSort( Missing.Keys )
+
+		for Folder, MissingKeys in Missing:Iterate() do
+			LuaPrint( "Missing keys in: "..Folder )
+			Shine.Stream( MissingKeys ):ForEach( LuaPrint )
+		end
+	end ):AddParam{ Type = "string" }
+
+	Shine:RegisterClientCommand( "sh_testpluralform", function( LangCode, Value )
+		LuaPrint( "Plural form is variation: ", Locale:GetLanguageDefinition( LangCode ).GetPluralForm( Value ) )
+	end ):AddParam( { Type = "string" } ):AddParam{ Type = "number" }
+end
