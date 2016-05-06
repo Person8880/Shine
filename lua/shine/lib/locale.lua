@@ -205,7 +205,7 @@ function Locale:OnLoaded()
 			end
 		end
 
-		if Missing:Count() == 0 then
+		if Missing:GetCount() == 0 then
 			LuaPrint( "No missing keys." )
 			return
 		end
