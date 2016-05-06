@@ -30,7 +30,7 @@ function Plugin:SetupDataTable()
 		[ table.Copy( MessageTypes.ShuffleType ) ] = {
 			"ENABLED_TEAMS"
 		}
-	} )
+	}, "ShuffleType" )
 	self:AddNetworkMessages( "AddTranslatedNotify", {
 		[ MessageTypes.ShuffleType ] = {
 			"AUTO_SHUFFLE", "PREVIOUS_VOTE_SHUFFLE",
@@ -45,13 +45,13 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.PlayerVote ] = {
 			"PLAYER_VOTED"
 		}
-	} )
+	}, "ShuffleType" )
 	self:AddNetworkMessages( "AddTranslatedError", {
 		[ MessageTypes.ShuffleType ] = {
 			"ERROR_CANNOT_START", "ERROR_ALREADY_ENABLED",
 			"ERROR_TEAMS_FORCED", "ERROR_ALREADY_VOTED"
 		}
-	} )
+	}, "ShuffleType" )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )

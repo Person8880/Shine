@@ -51,11 +51,11 @@ local ModeStrings = {
 		"HIVE_BASED"
 	},
 	ModeLower = {
-		"RANDOM_BASED_LOWER",
-		"SCORE_BASED_LOWER",
+		"RANDOM_BASED",
+		"SCORE_BASED",
 		nil,
-		"KDR_BASED_LOWER",
-		"HIVE_BASED_LOWER"
+		"KDR_BASED",
+		"HIVE_BASED"
 	}
 }
 Plugin.ModeStrings = ModeStrings
