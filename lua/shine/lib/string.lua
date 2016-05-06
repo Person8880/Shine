@@ -218,6 +218,7 @@ do
 	local StringMatch = string.match
 	local TableRemove = table.remove
 	local tostring = tostring
+	local unpack = unpack
 
 	local Transformers = {
 		Lower = string.UTF8Lower,
@@ -228,6 +229,21 @@ do
 		Abs = math.abs
 	}
 	string.InterpolateTransformers = Transformers
+
+	do
+		--[[
+			Transforms a number into a phrase based on pluralisation rules.
+
+			For example:
+				- singular|plural with English definition: n == 1 and 1 or 2
+				- singular|between 2 and 4|more than 4 with definition:
+				( n == 1 and 1 ) or ( ( n >= 2 and n <= 4 ) and 2 ) or 3
+		]]
+		Transformers.Pluralise = function( FormatArg, TransformArg, LangDef )
+			local Args = StringExplode( TransformArg, "|" )
+			return Args[ LangDef.GetPluralForm( FormatArg ) ] or Args[ #Args ]
+		end
+	end
 
 	--[[
 		Provides a way to format strings by placing arguments at any point in the
@@ -245,7 +261,7 @@ do
 		} )
 		-> "Cake is GREAT x 2.50!"
 	]]
-	function string.Interpolate( String, FormatArgs )
+	function string.Interpolate( String, FormatArgs, LangDef )
 		return ( StringGSub( String, "{(.-)}", function( Match )
 			local Args = StringExplode( Match, ":" )
 			local Transformation = Args[ 2 ]
@@ -260,7 +276,7 @@ do
 				local Transformer = Args[ i ]
 				local TransformerArgs = Args[ i + 1 ]
 
-				Ret = Transformers[ Transformer ]( Ret, TransformerArgs )
+				Ret = Transformers[ Transformer ]( Ret, TransformerArgs, LangDef )
 			end
 
 			return tostring( Ret )
