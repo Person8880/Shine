@@ -1,8 +1,8 @@
 {
 	"WAITING_FOR_TEAM": "ODOTETAAN {TeamName:Upper} VALMIIKSI",
+	"WAITING_FOR_BOTH_TEAMS": "ODOTETAAN MOLEMPIA JOUKKUEITA VALMIIKSI",
 	"MARINES": "Marinet",
 	"ALIENS": "Alienit",
-	"BOTH_TEAMS": "molempia joukkueita",
 	"PLAYER_READY": "{PlayerName} on valmiina.",
 	"PLAYER_NOT_READY": "{PlayerName} ei ole valmiina.",
 	"TEAM_READY": "{TeamName} on valmiina.",

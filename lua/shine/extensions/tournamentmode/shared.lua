@@ -69,10 +69,6 @@ Shine:RegisterExtension( "tournamentmode", Plugin )
 if Server then return end
 
 function Plugin:GetTeamName( Team )
-	if Team == 0 then
-		return self:GetPhrase( "BOTH_TEAMS" )
-	end
-
 	if Team == 1 then
 		return self.dt.MarineName ~= "" and self.dt.MarineName or self:GetPhrase( "MARINES" )
 	end
@@ -83,6 +79,11 @@ end
 function Plugin:ReceiveStartNag( Data )
 	local Player = Client.GetLocalPlayer()
 	if not Player or not HasMixin( Player, "TeamMessage" ) then return end
+
+	if Data.WaitingTeam == 0 then
+		Player:SetTeamMessage( self:GetPhrase( "WAITING_FOR_BOTH_TEAMS" ) )
+		return
+	end
 
 	Player:SetTeamMessage( self:GetInterpolatedPhrase( "WAITING_FOR_TEAM", {
 		TeamName = self:GetTeamName( Data.WaitingTeam )
@@ -98,7 +99,7 @@ function Plugin:ReceiveTeamReadyChange( Data )
 	local TranslationKey = Data.IsReady and "TEAM_READY" or "TEAM_NOT_READY"
 
 	self:Notify( Data.IsReady, self:GetInterpolatedPhrase( TranslationKey, {
-			TeamName = self:GetTeamName( Data.Team )
+		TeamName = self:GetTeamName( Data.Team )
 	} ) )
 end
 

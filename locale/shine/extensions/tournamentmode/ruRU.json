@@ -1,8 +1,8 @@
 {
 	"WAITING_FOR_TEAM": "ЖДЁМ {TeamName:Upper}, ЧТОБЫ НАЧАТЬ ИГРУ",
+	"WAITING_FOR_BOTH_TEAMS": "ЖДЁМ ОБЕ КОМАНДЫ, ЧТОБЫ НАЧАТЬ ИГРУ",
 	"MARINES": "Космодесантники",
 	"ALIENS": "Кхараа",
-	"BOTH_TEAMS": "Обе команды",
 	"PLAYER_READY": "{PlayerName} готов сейчас играть.",
 	"PLAYER_NOT_READY": "{PlayerName} не готов сейчас играть.",
 	"TEAM_READY": "{TeamName} готовы сейчас играть.",
