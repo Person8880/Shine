@@ -18,8 +18,7 @@ function Plugin:SetupDataTable()
 			Team = "integer (0 to 3)"
 		},
 		CommanderAdd = {
-			TeamWithCommander = "integer (0 to 3)",
-			TeamWithoutCommander = "integer (0 to 3)",
+			Team = "integer (0 to 3)",
 			TimeLeft = "integer"
 		},
 		Duration = {
@@ -32,7 +31,7 @@ function Plugin:SetupDataTable()
 			"WaitingForBoth"
 		},
 		[ MessageTypes.Team ] = {
-			"ABORT_EMPTY_TEAM", "WaitingForTeam"
+			"EmptyTeamAbort", "WaitingForTeam"
 		},
 		[ MessageTypes.Duration ] = {
 			"EXCEEDED_TIME", "GameStartsSoon", "GameStarting"
@@ -55,7 +54,19 @@ function Plugin:SetTeamMessage( Message )
 end
 
 function Plugin:ReceiveWaitingForTeam( Data )
-	self:SetTeamMessage( self:GetInterpolatedPhrase( "WAITING_FOR_TEAM", Data ) )
+	local TeamKeys = {
+		"WAITING_FOR_MARINES",
+		"WAITING_FOR_ALIENS"
+	}
+	self:SetTeamMessage( self:GetPhrase( TeamKeys[ Data.Team ] ) )
+end
+
+function Plugin:ReceiveEmptyTeamAbort( Data )
+	local TeamKeys = {
+		"ABORT_MARINES_EMPTY",
+		"ABORT_ALIENS_EMPTY"
+	}
+	self:Notify( self:GetPhrase( TeamKeys[ Data.Team ] ) )
 end
 
 function Plugin:ReceiveWaitingForBoth( Data )
@@ -63,9 +74,13 @@ function Plugin:ReceiveWaitingForBoth( Data )
 end
 
 function Plugin:ReceiveTeamHasCommander( Data )
+	local TeamKeys = {
+		"MARINES_HAVE_COMMANDER",
+		"ALIENS_HAVE_COMMANDER"
+	}
 	Shine.ScreenText.Add( 2, {
 		X = 0.5, Y = 0.7,
-		Text = self:GetInterpolatedPhrase( "TEAM_HAS_COMMANDER", Data ),
+		Text = self:GetInterpolatedPhrase( TeamKeys[ Data.Team ], Data ),
 		Duration = 5,
 		R = 255, G = 255, B = 255,
 		Alignment = 1,

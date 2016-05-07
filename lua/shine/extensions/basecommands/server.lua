@@ -1026,7 +1026,7 @@ function Plugin:CreateGameplayCommands()
 			end
 		end
 
-		self:SendTranslatedMessage( Client, "CHANGE_TEAM", {
+		self:SendTranslatedMessage( Client, "ChangeTeam", {
 			TargetCount = TargetCount,
 			Team = Team
 		} )

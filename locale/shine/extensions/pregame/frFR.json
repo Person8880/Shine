@@ -1,11 +1,14 @@
 {
 	"GAME_START": "La partie commence dans %s",
 	"GAME_START_SOON": "La partie commence dans {Duration:Duration}",
-	"WAITING_FOR_TEAM": "La partie commencera une fois qu'un commandant sera choisi par {Team:TeamName:capitals}",
+	"WAITING_FOR_ALIENS": "La partie commencera une fois qu'un commandant sera choisi par Aliens",
+	"WAITING_FOR_MARINES": "La partie commencera une fois qu'un commandant sera choisi par Marines",
 	"WAITING_FOR_BOTH": "La partie commencera une fois que les deux équipes auront choisi un commandant",
-	"ABORT_EMPTY_TEAM": "Démarrage de la partie annulé, {Team:TeamName:singular} est vide.",
+	"ABORT_MARINES_EMPTY": "Démarrage de la partie annulé, marine team est vide.",
+	"ABORT_ALIENS_EMPTY": "Démarrage de la partie annulé, alien team est vide.",
 	"ABORT_COMMANDER_DROP": "Démarrage de la partie annulé, un commandant est manquant.",
-	"TEAM_HAS_COMMANDER": "{TeamWithCommander:TeamName:capitals} ont un commandant. {TeamWithoutCommander:TeamName:capitals} ont {TimeLeft:Duration} pour choisir leur commandant.",
+	"ALIENS_HAVE_COMMANDER": "Aliens ont un commandant. Marines ont {TimeLeft:Duration} pour choisir leur commandant.",
+	"MARINES_HAVE_COMMANDER": "Marines ont un commandant. Aliens ont {TimeLeft:Duration} pour choisir leur commandant.",
 	"EXCEEDED_TIME": "La Pregame a dépassé {Duration:Duration} et l'un des commandants est en place. La partie va commencer...",
 	"NOTIFY_PREFIX": "[Pre Game]",
 	"WAITING_FOR_PLAYERS": "Chargement des joueurs nécessaire pour démarrer la partie."
