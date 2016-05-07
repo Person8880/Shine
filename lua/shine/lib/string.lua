@@ -218,7 +218,6 @@ do
 	local StringMatch = string.match
 	local TableRemove = table.remove
 	local tostring = tostring
-	local unpack = unpack
 
 	local Transformers = {
 		Lower = string.UTF8Lower,
