@@ -98,7 +98,9 @@ do
 		GetAsString = function( Value, Singular, Plural )
 			return Shine.Locale:GetInterpolatedPhrase( "Core", "TIME_VALUE", {
 				Value = Value,
-				TimeUnit = Value == 1 and Singular or Plural
+				TimeUnit = Shine.Locale:GetInterpolatedPhrase( "Core", Singular, {
+					Value = Value
+				} )
 			} )
 		end
 
@@ -114,11 +116,11 @@ do
 		end
 
 		TimeFuncs = {
-			function( Time ) return Floor( Time % 60 ), GetPhrase( "SECOND" ), GetPhrase( "SECONDS" ) end,
-			function( Time ) return Floor( Time / 60 ) % 60, GetPhrase( "MINUTE" ), GetPhrase( "MINUTES" ) end,
-			function( Time ) return Floor( Time / 3600 ) % 24, GetPhrase( "HOUR" ), GetPhrase( "HOURS" ) end,
-			function( Time ) return Floor( Time / 86400 ) % 7, GetPhrase( "DAY" ), GetPhrase( "DAYS" ) end,
-			function( Time ) return Floor( Time / 604800 ), GetPhrase( "WEEK" ), GetPhrase( "WEEKS" ) end
+			function( Time ) return Floor( Time % 60 ), "SECOND" end,
+			function( Time ) return Floor( Time / 60 ) % 60, "MINUTE" end,
+			function( Time ) return Floor( Time / 3600 ) % 24, "HOUR" end,
+			function( Time ) return Floor( Time / 86400 ) % 7, "DAY" end,
+			function( Time ) return Floor( Time / 604800 ), "WEEK" end
 		}
 	end
 
