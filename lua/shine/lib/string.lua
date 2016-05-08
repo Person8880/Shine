@@ -98,7 +98,9 @@ do
 		GetAsString = function( Value, Singular, Plural )
 			return Shine.Locale:GetInterpolatedPhrase( "Core", "TIME_VALUE", {
 				Value = Value,
-				TimeUnit = Value == 1 and Singular or Plural
+				TimeUnit = Shine.Locale:GetInterpolatedPhrase( "Core", Singular, {
+					Value = Value
+				} )
 			} )
 		end
 
@@ -114,11 +116,11 @@ do
 		end
 
 		TimeFuncs = {
-			function( Time ) return Floor( Time % 60 ), GetPhrase( "SECOND" ), GetPhrase( "SECONDS" ) end,
-			function( Time ) return Floor( Time / 60 ) % 60, GetPhrase( "MINUTE" ), GetPhrase( "MINUTES" ) end,
-			function( Time ) return Floor( Time / 3600 ) % 24, GetPhrase( "HOUR" ), GetPhrase( "HOURS" ) end,
-			function( Time ) return Floor( Time / 86400 ) % 7, GetPhrase( "DAY" ), GetPhrase( "DAYS" ) end,
-			function( Time ) return Floor( Time / 604800 ), GetPhrase( "WEEK" ), GetPhrase( "WEEKS" ) end
+			function( Time ) return Floor( Time % 60 ), "SECOND" end,
+			function( Time ) return Floor( Time / 60 ) % 60, "MINUTE" end,
+			function( Time ) return Floor( Time / 3600 ) % 24, "HOUR" end,
+			function( Time ) return Floor( Time / 86400 ) % 7, "DAY" end,
+			function( Time ) return Floor( Time / 604800 ), "WEEK" end
 		}
 	end
 
@@ -229,6 +231,21 @@ do
 	}
 	string.InterpolateTransformers = Transformers
 
+	do
+		--[[
+			Transforms a number into a phrase based on pluralisation rules.
+
+			For example:
+				- singular|plural with English definition: n == 1 and 1 or 2
+				- singular|between 2 and 4|more than 4 with definition:
+				( n == 1 and 1 ) or ( ( n >= 2 and n <= 4 ) and 2 ) or 3
+		]]
+		Transformers.Pluralise = function( FormatArg, TransformArg, LangDef )
+			local Args = StringExplode( TransformArg, "|" )
+			return Args[ LangDef.GetPluralForm( FormatArg ) ] or Args[ #Args ]
+		end
+	end
+
 	--[[
 		Provides a way to format strings by placing arguments at any point in the
 		string enclosed in {}.
@@ -245,7 +262,7 @@ do
 		} )
 		-> "Cake is GREAT x 2.50!"
 	]]
-	function string.Interpolate( String, FormatArgs )
+	function string.Interpolate( String, FormatArgs, LangDef )
 		return ( StringGSub( String, "{(.-)}", function( Match )
 			local Args = StringExplode( Match, ":" )
 			local Transformation = Args[ 2 ]
@@ -260,7 +277,7 @@ do
 				local Transformer = Args[ i ]
 				local TransformerArgs = Args[ i + 1 ]
 
-				Ret = Transformers[ Transformer ]( Ret, TransformerArgs )
+				Ret = Transformers[ Transformer ]( Ret, TransformerArgs, LangDef )
 			end
 
 			return tostring( Ret )

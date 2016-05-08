@@ -63,7 +63,7 @@ function Plugin:SetupDataTable()
 			"FRIENDLY_FIRE_SCALE"
 		},
 		[ MessageTypes.TeamChange ] = {
-			"CHANGE_TEAM"
+			"ChangeTeam"
 		},
 		[ MessageTypes.RandomTeam ] = {
 			"RANDOM_TEAM"
@@ -195,6 +195,17 @@ end
 function Plugin:ReceiveClientKicked( Data )
 	local Key = Data.Reason ~= "" and "CLIENT_KICKED_REASON" or "CLIENT_KICKED"
 	self:CommandNotify( Data.AdminName, Key, Data )
+end
+
+function Plugin:ReceiveChangeTeam( Data )
+	local TeamKeys = {
+		[ 0 ] = "CHANGE_TEAM_READY_ROOM",
+		"CHANGE_TEAM_MARINE",
+		"CHANGE_TEAM_ALIEN",
+		"CHANGE_TEAM_SPECTATOR"
+	}
+
+	self:CommandNotify( Data.AdminName, TeamKeys[ Data.Team ], Data )
 end
 
 function Plugin:SetupClientConfig()

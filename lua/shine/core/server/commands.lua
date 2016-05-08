@@ -816,7 +816,7 @@ function Shine:RunCommand( Client, ConCommand, FromChat, ... )
 		FromChat = false
 	end
 
-	Args = self.CommandUtil.AdjustArguments( OriginalArgs )
+	local Args = self.CommandUtil.AdjustArguments( OriginalArgs )
 
 	self.CommandStack[ #self.CommandStack + 1 ] = FromChat
 

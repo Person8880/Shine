@@ -191,7 +191,7 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = nil
 				self.SentCountdown = nil
 
-				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
 					Team = Team1Count == 0 and 1 or 2
 				} )
 			end
@@ -258,7 +258,7 @@ Plugin.UpdateFuncs = {
 			if Team1Count == 0 or Team2Count == 0 then
 				self:DestroyTimers()
 
-				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
 					Team = Team1Count == 0 and 1 or 2
 				} )
 
@@ -329,7 +329,7 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+					self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
 						Team = Team1Count == 0 and 1 or 2
 					} )
 					self.SentCountdown = nil
@@ -351,7 +351,7 @@ Plugin.UpdateFuncs = {
 				self.CountEnd = nil
 				self.SentCountdown = nil
 
-				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
 					Team = Team1Count == 0 and 1 or 2
 				} )
 			end
@@ -368,8 +368,7 @@ Plugin.UpdateFuncs = {
 
 				if self.Config.ShowCountdown then
 					self:SendTranslatedNotify( nil, "TeamHasCommander", {
-						TeamWithCommander = Team1Com and 1 or 2,
-						TeamWithoutCommander = Team1Com and 2 or 1,
+						Team = Team1Com and 1 or 2,
 						TimeLeft = Duration
 					} )
 				end
@@ -452,7 +451,7 @@ Plugin.UpdateFuncs = {
 			if Team1Count == 0 or Team2Count == 0 then
 				self:DestroyTimers()
 
-				self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
 					Team = Team1Count == 0 and 1 or 2
 				} )
 				self.GameStarting = false
@@ -510,7 +509,7 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+					self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
 						Team = Team1Count == 0 and 1 or 2
 					} )
 
@@ -561,7 +560,7 @@ Plugin.UpdateFuncs = {
 				local Team2Count = Team2:GetNumPlayers()
 
 				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "ABORT_EMPTY_TEAM", {
+					self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
 						Team = Team1Count == 0 and 1 or 2
 					} )
 

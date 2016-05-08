@@ -59,3 +59,4 @@ end
 
 Shine.LoadScripts( Scripts, OnLoadedFuncs )
 Shine.Locale:RegisterSource( "Core", "locale/shine/core" )
+Shine.Locale:OnLoaded()

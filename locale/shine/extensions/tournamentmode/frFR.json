@@ -1,8 +1,8 @@
 {
 	"WAITING_FOR_TEAM": "EN ATTENTE DE {TeamName:Upper} POUR COMMENCER",
+	"WAITING_FOR_BOTH_TEAMS": "EN ATTENTE DE LES DEUX ÉQUIPES POUR COMMENCER",
 	"MARINES": "Marines",
 	"ALIENS": "Aliens",
-	"BOTH_TEAMS": "les deux équipes",
 	"PLAYER_READY": "{PlayerName} est maintenant prêt.",
 	"PLAYER_NOT_READY": "{PlayerName} n'est plus prêt.",
 	"TEAM_READY": "{TeamName} sont maintenant prêts.",

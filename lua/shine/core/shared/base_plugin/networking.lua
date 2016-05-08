@@ -106,33 +106,43 @@ do
 		self[ FuncName ] = Handler
 	end
 
-	function NetworkingModule:AddTranslatedMessage( Name, Params )
+	local function GetMessageTranslationKey( Name, VariationKey, Data )
+		local Key = Name
+		if VariationKey then
+			Key = StringFormat( "%s_%s", Key, Data[ VariationKey ] )
+		end
+		return Key
+	end
+
+	function NetworkingModule:AddTranslatedMessage( Name, Params, VariationKey )
 		Params.AdminName = self:GetNameNetworkField()
 
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
-			self:CommandNotify( Data.AdminName, Name, Data )
+			self:CommandNotify( Data.AdminName, GetMessageTranslationKey( Name, VariationKey, Data ), Data )
 		end )
 	end
 
-	function NetworkingModule:AddTranslatedNotify( Name, Params )
+	function NetworkingModule:AddTranslatedNotify( Name, Params, VariationKey )
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
-			self:Notify( self:GetInterpolatedPhrase( Name, Data ) )
+			self:Notify( self:GetInterpolatedPhrase( GetMessageTranslationKey( Name, VariationKey, Data ), Data ) )
 		end )
 	end
 
-	function NetworkingModule:AddTranslatedNotifyColour( Name, Params )
+	function NetworkingModule:AddTranslatedNotifyColour( Name, Params, VariationKey )
 		Params.R = "integer (0 to 255)"
 		Params.G = Params.R
 		Params.B = Params.R
 
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
-			self:NotifySingleColour( Data.R, Data.G, Data.B, self:GetInterpolatedPhrase( Name, Data ) )
+			local Key = GetMessageTranslationKey( Name, VariationKey, Data )
+			self:NotifySingleColour( Data.R, Data.G, Data.B, self:GetInterpolatedPhrase( Key, Data ) )
 		end )
 	end
 
-	function NetworkingModule:AddTranslatedError( Name, Params )
+	function NetworkingModule:AddTranslatedError( Name, Params, VariationKey )
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
-			self:NotifyError( self:GetInterpolatedPhrase( Name, Data ) )
+			local Key = GetMessageTranslationKey( Name, VariationKey, Data )
+			self:NotifyError( self:GetInterpolatedPhrase( Key, Data ) )
 		end )
 	end
 
@@ -140,10 +150,10 @@ do
 		Shine.RegisterTranslatedCommandError( Name, Params, self.__Name )
 	end
 
-	function NetworkingModule:AddNetworkMessages( Method, Messages )
+	function NetworkingModule:AddNetworkMessages( Method, Messages, ... )
 		for Type, Names in pairs( Messages ) do
 			for i = 1, #Names do
-				self[ Method ]( self, Names[ i ], Type )
+				self[ Method ]( self, Names[ i ], Type, ... )
 			end
 		end
 	end

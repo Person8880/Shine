@@ -1,8 +1,8 @@
 {
 	"WAITING_FOR_TEAM": "SE SPUSTENIM SE CEKA NA {TeamName:Upper}",
+	"WAITING_FOR_BOTH_TEAMS": "SE SPUSTENIM SE CEKA NA OBA TYMY",
 	"MARINES": "Tym Marinaku",
 	"ALIENS": "Tym Alienu",
-	"BOTH_TEAMS": "oba tymy",
 	"PLAYER_READY": "{PlayerName} je nyní připraven.",
 	"PLAYER_NOT_READY": "{PlayerName} již není připraven.",
 	"TEAM_READY": "{TeamName} je nyní připraven.",

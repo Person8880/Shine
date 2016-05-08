@@ -1,0 +1,3 @@
+{
+	"GetPluralForm": "( n == 1 and 1 ) or ( ( n >= 2 and n <= 4 ) and 2 ) or 3"
+}

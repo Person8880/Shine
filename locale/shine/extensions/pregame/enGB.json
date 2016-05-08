@@ -1,11 +1,14 @@
 {
 	"GAME_START": "Game starts in %s",
 	"GAME_START_SOON": "Game starts in {Duration:Duration}",
-	"WAITING_FOR_TEAM": "Waiting on {Team:TeamName:capitals} to choose a commander",
+	"WAITING_FOR_ALIENS": "Waiting on Aliens to choose a commander",
+	"WAITING_FOR_MARINES": "Waiting on Marines to choose a commander",
 	"WAITING_FOR_BOTH": "Waiting on both teams to choose a commander",
-	"ABORT_EMPTY_TEAM": "Game start aborted, {Team:TeamName:singular} is empty.",
+	"ABORT_MARINES_EMPTY": "Game start aborted, marine team is empty.",
+	"ABORT_ALIENS_EMPTY": "Game start aborted, alien team is empty.",
 	"ABORT_COMMANDER_DROP": "Game start aborted, a commander dropped out.",
-	"TEAM_HAS_COMMANDER": "{TeamWithCommander:TeamName:capitals} have a commander. {TeamWithoutCommander:TeamName:capitals} have {TimeLeft:Duration} to choose their commander.",
+	"ALIENS_HAVE_COMMANDER": "Aliens have a commander. Marines have {TimeLeft:Duration} to choose their commander.",
+	"MARINES_HAVE_COMMANDER": "Marines have a commander. Aliens have {TimeLeft:Duration} to choose their commander.",
 	"EXCEEDED_TIME": "Pregame has exceeded {Duration:Duration} and there is one commander. Starting game...",
 	"NOTIFY_PREFIX": "[Pre Game]",
 	"WAITING_FOR_PLAYERS": "Game start waiting for players to load."

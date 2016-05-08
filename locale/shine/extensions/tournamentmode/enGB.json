@@ -1,8 +1,8 @@
 {
 	"WAITING_FOR_TEAM": "WAITING ON {TeamName:Upper} TO START",
+	"WAITING_FOR_BOTH_TEAMS": "WAITING ON BOTH TEAMS TO START",
 	"MARINES": "Marines",
 	"ALIENS": "Aliens",
-	"BOTH_TEAMS": "both teams",
 	"PLAYER_READY": "{PlayerName} is now ready.",
 	"PLAYER_NOT_READY": "{PlayerName} is no longer ready.",
 	"TEAM_READY": "{TeamName} are now ready.",

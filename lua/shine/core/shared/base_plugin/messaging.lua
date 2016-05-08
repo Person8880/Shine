@@ -74,19 +74,6 @@ if Client then
 			return FormatArg and Args[ 1 ] or Args[ 2 ]
 		end
 
-		-- Transforms a team number into a team name using Shine:GetTeamName().
-		Transformers.TeamName = function( FormatArg, TransformArg )
-			return Shine:GetTeamName( FormatArg,
-				StringFind( TransformArg, "capitals" ) ~= nil,
-				StringFind( TransformArg, "singular" ) ~= nil )
-		end
-
-		-- Transforms a number into a phrase, if the number is 1, then the first, otherwise the second.
-		Transformers.Pluralise = function( FormatArg, TransformArg )
-			local Args = StringExplode( TransformArg, "|" )
-			return FormatArg == 1 and Args[ 1 ] or Args[ 2 ]
-		end
-
 		-- Transforms a time value into a string duration. Optionally, a translation key for 0 can be given.
 		Transformers.Duration = function( FormatArg, TransformArg )
 			if FormatArg == 0 and TransformArg and TransformArg ~= "" then

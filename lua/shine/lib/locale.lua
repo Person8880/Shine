@@ -30,6 +30,89 @@ function Locale:RegisterSource( Source, FilePath )
 	self.Strings[ Source ] = {}
 end
 
+do
+	local loadstring = loadstring
+	local DefaultDef = {
+		GetPluralForm = function( Value )
+			return Value == 1 and 1 or 2
+		end
+	}
+
+	local pcall = pcall
+	local setfenv = setfenv
+	local StringGSub = string.gsub
+
+	local PermittedKeywords = {
+		[ "and" ] = true,
+		[ "or" ] = true,
+		[ "not" ] = true,
+		[ "n" ] = true
+	}
+
+	local function SanitiseCode( Source )
+		return StringGSub( StringGSub( Source, "[\"'%[%]%.:]", "" ), "%a+", function( Keyword )
+			if not PermittedKeywords[ Keyword ] then return "" end
+		end )
+	end
+
+	local ExpectedDefKeys = {
+		GetPluralForm = function( Lang, Source )
+			if not Source then return DefaultDef.GetPluralForm end
+
+			local Code = StringFormat( "return ( function( n ) return ( %s ) end )( ... )",
+				SanitiseCode( Source ) )
+
+			local PluralFormFunc, Err = loadstring( Code )
+			local function Reject( Error )
+				Print( "[Shine Locale] Error in plural form for %s: %s", Lang, Error )
+				PluralFormFunc = DefaultDef.GetPluralForm
+			end
+
+			if PluralFormFunc then
+				setfenv( PluralFormFunc, {} )
+				local Valid, Err = pcall( PluralFormFunc, 1 )
+				if not Valid then
+					Reject( Err )
+				end
+			else
+				Reject( Err )
+			end
+
+			return PluralFormFunc
+		end
+	}
+
+	Locale.LanguageDefinitions = {}
+
+	function Locale:GetLanguageDefinition( Lang )
+		Lang = Lang or self:GetCurrentLanguage()
+
+		if self.LanguageDefinitions[ Lang ] then
+			return self.LanguageDefinitions[ Lang ]
+		end
+
+		local Path = self:ResolveFilePath( "locale/shine", StringFormat( "def-%s", Lang ) )
+		local Def = DefaultDef
+
+		if LangLookup[ Path ] then
+			local LangDefs = Shine.LoadJSONFile( Path )
+			if LangDefs then
+				Def = {}
+
+				for ExpectedKey, Loader in pairs( ExpectedDefKeys ) do
+					Def[ ExpectedKey ] = Loader( Lang, LangDefs[ ExpectedKey ] )
+				end
+			else
+				Def = DefaultDef
+			end
+		end
+
+		self.LanguageDefinitions[ Lang ] = Def
+
+		return Def
+	end
+end
+
 function Locale:ResolveFilePath( Folder, Lang )
 	return StringFormat( "%s/%s.json", Folder, Lang )
 end
@@ -72,11 +155,70 @@ function Locale:GetLocalisedString( Source, Lang, Key )
 	return LanguageStrings and LanguageStrings[ Key ] or Key
 end
 
+function Locale:GetCurrentLanguage()
+	return Client.GetOptionString( "locale", self.DefaultLanguage )
+end
+
 function Locale:GetPhrase( Source, Key )
-	return self:GetLocalisedString( Source,
-		Client.GetOptionString( "locale", self.DefaultLanguage ), Key )
+	return self:GetLocalisedString( Source, self:GetCurrentLanguage(), Key )
 end
 
 function Locale:GetInterpolatedPhrase( Source, Key, FormatArgs )
-	return StringInterpolate( self:GetPhrase( Source, Key ), FormatArgs )
+	return StringInterpolate( self:GetPhrase( Source, Key ), FormatArgs, self:GetLanguageDefinition() )
+end
+
+function Locale:OnLoaded()
+	local TableSort = table.sort
+
+	Shine:RegisterClientCommand( "sh_missingtranslations", function( LangCode )
+		local Folders = Shine.Multimap()
+		for i = 1, #LangFiles do
+			local File = LangFiles[ i ]
+			local Folder = File:gsub( "/[^/]+%.json$", "" )
+			if Folder ~= "locale/shine" then
+				Folders:Add( Folder, File )
+			end
+		end
+
+		local Missing = Shine.Multimap()
+		for Folder, LangFiles in Folders:Iterate() do
+			local Strings = {}
+			for i = 1, #LangFiles do
+				local Lang = LangFiles[ i ]:match( "/(%a+)%.json$" )
+
+				if Lang == LangCode or Lang == Locale.DefaultLanguage then
+					Strings[ Lang ] = Shine.LoadJSONFile( LangFiles[ i ] )
+				end
+			end
+
+			local DefaultStrings = Strings[ Locale.DefaultLanguage ]
+			local LangStrings = Strings[ LangCode ] or {}
+			for Key in pairs( DefaultStrings ) do
+				if not LangStrings[ Key ] then
+					Missing:Add( Folder, Key )
+				end
+			end
+
+			local Keys = Missing:Get( Folder )
+			if Keys then
+				TableSort( Keys )
+			end
+		end
+
+		if Missing:GetCount() == 0 then
+			LuaPrint( "No missing keys." )
+			return
+		end
+
+		TableSort( Missing.Keys )
+
+		for Folder, MissingKeys in Missing:Iterate() do
+			LuaPrint( "Missing keys in: "..Folder )
+			Shine.Stream( MissingKeys ):ForEach( LuaPrint )
+		end
+	end ):AddParam{ Type = "string" }
+
+	Shine:RegisterClientCommand( "sh_testpluralform", function( LangCode, Value )
+		LuaPrint( "Plural form is variation: ", Locale:GetLanguageDefinition( LangCode ).GetPluralForm( Value ) )
+	end ):AddParam( { Type = "string" } ):AddParam{ Type = "number" }
 end
