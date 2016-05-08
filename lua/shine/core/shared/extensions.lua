@@ -141,12 +141,14 @@ function Shine:LoadExtension( Name, DontEnable )
 
 		if PluginFiles[ ClientFile ] then
 			include( ClientFile )
+		elseif not self.Plugins[ Name ] then
+			-- No client file, and no shared file, or shared did not register.
+			return false, "plugin did not register itself"
 		end
 
 		Plugin = OldValue --Just in case someone else uses Plugin as a global...
 
 		local Plugin = self.Plugins[ Name ]
-
 		if Plugin and self.IsNS2Combat and Plugin.NS2Only then
 			self.Plugins[ Name ] = nil
 			return false, "plugin not compatible with NS2:Combat"
