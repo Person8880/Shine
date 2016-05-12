@@ -364,13 +364,14 @@ function Plugin:OnProcessMove( Player, Input )
 				if not Shine:IsValidClient( Client ) then return end
 				if not DataTable.IsAFK then return end
 
+				local CurrentPlayer = Client:GetControllingPlayer()
+				local CurrentTeam = CurrentPlayer:GetTeamNumber()
+
 				-- Sometimes this event receives one of the weird "ghost" players that can't switch teams.
-				if self.Config.MoveToReadyRoomOnWarn and Team ~= kTeamReadyRoom then
-					Player = Client:GetControllingPlayer()
-					pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
-				elseif self.Config.MoveToSpectateOnWarn and Team ~= kSpectatorIndex then
-					Player = Client:GetControllingPlayer()
-					pcall( Gamerules.JoinTeam, Gamerules, Player, kSpectatorIndex, nil, true )
+				if self.Config.MoveToReadyRoomOnWarn and CurrentTeam ~= kTeamReadyRoom then
+					pcall( Gamerules.JoinTeam, Gamerules, CurrentPlayer, kTeamReadyRoom, nil, true )
+				elseif self.Config.MoveToSpectateOnWarn and CurrentTeam ~= kSpectatorIndex then
+					pcall( Gamerules.JoinTeam, Gamerules, CurrentPlayer, kSpectatorIndex, nil, true )
 				end
 			end
 
