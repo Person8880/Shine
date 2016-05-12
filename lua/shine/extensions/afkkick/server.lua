@@ -13,7 +13,7 @@ local pcall = pcall
 local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
 
-local Plugin = {}
+local Plugin = Plugin
 Plugin.Version = "1.6"
 Plugin.PrintName = "AFKKick"
 
@@ -30,6 +30,8 @@ Plugin.DefaultConfig = {
 	Warn = true,
 	MoveToReadyRoomOnWarn = false,
 	MoveToSpectateOnWarn = false,
+	MovementDelaySeconds = 0,
+	NotifyOnWarn = false,
 	OnlyCheckOnStarted = false,
 	KickOnConnect = false,
 	KickTimeIsAFKThreshold = 0.25
@@ -272,7 +274,7 @@ function Plugin:OnProcessMove( Player, Input )
 		return
 	end
 
-	--Ignore players waiting to respawn/watching the end of the game.
+	-- Ignore players waiting to respawn/watching the end of the game.
 	if Player:isa( "TeamSpectator" )
 	or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
 	or ( Player.GetIsRespawning and Player:GetIsRespawning() ) then
@@ -291,10 +293,10 @@ function Plugin:OnProcessMove( Player, Input )
 	and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
 		DataTable.LastMove = Time
 
-		--Subtract the measurement time from their AFK time, so they have to stay
-		--active for a while to get it back to 0 time.
-		--We use a multiplier as we want activity to count for more than inactivity to avoid
-		--overzealous kicks.
+		-- Subtract the measurement time from their AFK time, so they have to stay
+		-- active for a while to get it back to 0 time.
+		-- We use a multiplier as we want activity to count for more than inactivity to avoid
+		-- overzealous kicks.
 		DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * 5, 0 )
 
 		if self.Config.Warn and DataTable.AFKAmount < WarnTime then
@@ -318,9 +320,9 @@ function Plugin:OnProcessMove( Player, Input )
 	local AFKAmount = DataTable.AFKAmount
 	local TimeSinceLastMove = Time - DataTable.LastMove
 
-	--Use time since last move rather than the total,
-	--as they may have spoken in voice chat and it would look silly to
-	--say they're AFK still...
+	-- Use time since last move rather than the total,
+	-- as they may have spoken in voice chat and it would look silly to
+	-- say they're AFK still...
 	if TimeSinceLastMove > KickTime * self.Config.KickTimeIsAFKThreshold then
 		if not DataTable.IsAFK then
 			DataTable.IsAFK = true
@@ -336,8 +338,8 @@ function Plugin:OnProcessMove( Player, Input )
 	if not DataTable.Warn and self.Config.Warn then
 		local WarnTime = self.Config.WarnTime * 60
 
-		--Again, using time since last move so we don't end up warning players constantly
-		--if they hover near the warn time barrier in total AFK time.
+		-- Again, using time since last move so we don't end up warning players constantly
+		-- if they hover near the warn time barrier in total AFK time.
 		if TimeSinceLastMove >= WarnTime then
 			DataTable.Warn = true
 
@@ -348,13 +350,35 @@ function Plugin:OnProcessMove( Player, Input )
 				maxAFKTime = KickTime
 			}, true )
 
-			--Sometimes this event receives one of the weird "ghost" players that can't switch teams.
-			if self.Config.MoveToReadyRoomOnWarn and Team ~= kTeamReadyRoom then
-				Player = Client:GetControllingPlayer()
-				pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
-			elseif self.Config.MoveToSpectateOnWarn and Team ~= kSpectatorIndex then
-				Player = Client:GetControllingPlayer()
-				pcall( Gamerules.JoinTeam, Gamerules, Player, kSpectatorIndex, nil, true )
+			if self.Config.NotifyOnWarn then
+				self:SendNetworkMessage( Client, "AFKNotify", {}, true )
+			end
+
+			-- Do nothing else if not set to move players.
+			if not self.Config.MoveToReadyRoomOnWarn and not self.Config.MoveToSpectateOnWarn then
+				return
+			end
+
+			local function MovePlayer()
+				-- Make sure the client still exists and is still AFK.
+				if not Shine:IsValidClient( Client ) then return end
+				if not DataTable.IsAFK then return end
+
+				-- Sometimes this event receives one of the weird "ghost" players that can't switch teams.
+				if self.Config.MoveToReadyRoomOnWarn and Team ~= kTeamReadyRoom then
+					Player = Client:GetControllingPlayer()
+					pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
+				elseif self.Config.MoveToSpectateOnWarn and Team ~= kSpectatorIndex then
+					Player = Client:GetControllingPlayer()
+					pcall( Gamerules.JoinTeam, Gamerules, Player, kSpectatorIndex, nil, true )
+				end
+			end
+
+			-- Either move the player now, or after the set delay.
+			if self.Config.MovementDelaySeconds == 0 then
+				MovePlayer()
+			else
+				self:SimpleTimer( self.Config.MovementDelaySeconds, MovePlayer )
 			end
 
 			return
@@ -363,7 +387,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	if self.Config.KickOnConnect or Shine:HasAccess( Client, "sh_afk_partial" ) then return end
 
-	--Only kick if we're past the min player count to do so, and use their "total" time.
+	-- Only kick if we're past the min player count to do so, and use their "total" time.
 	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
 		self:Print( "Client %s was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
 			true, Shine.GetClientInfo( Client ), StringTimeToString( KickTime ),
@@ -451,7 +475,6 @@ function Plugin:ClientDisconnect( Client )
 	self.Users[ Client ] = nil
 end
 
---Override the built in randomise ready room vote to not move AFK players.
 Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 	do
 		local function CheckPlayerIsAFK( Player )
@@ -473,6 +496,7 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 			end
 		end
 
+		-- Override the built in randomise ready room vote to not move AFK players.
 		SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
 			local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
 			local Enabled = Shine:IsExtensionEnabled( "afkkick" )
@@ -515,5 +539,3 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 		return Players
 	end
 end )
-
-Shine:RegisterExtension( "afkkick", Plugin )
