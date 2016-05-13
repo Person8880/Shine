@@ -160,14 +160,15 @@ function Plugin:Surrender( Team )
 
 	Shine.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
-	local SurrenderingTeam = Team == 1 and Gamerules.team2 or Gamerules.team1
+	local WinningTeam = Gamerules:GetTeam( Team == 1 and 2 or 1 )
+	local SurrenderingTeam = Gamerules:GetTeam( Team )
 
 	-- For the surrender sequence we have to set this flag
 	if not self.Config.SkipSequence then
 		SurrenderingTeam.conceded = true
 	end
 
-	Gamerules:EndGame( SurrenderingTeam )
+	Gamerules:EndGame( WinningTeam )
 
 	self.Surrendered = true
 	self:SimpleTimer( 0, function()
