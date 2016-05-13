@@ -276,12 +276,6 @@ function Plugin:OnProcessMove( Player, Input )
 		-- We use a multiplier as we want activity to count for more than inactivity to avoid
 		-- overzealous kicks.
 		DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * 5, 0 )
-
-		if self.Config.Warn and DataTable.AFKAmount < WarnTime then
-			if DataTable.Warn then
-				DataTable.Warn = false
-			end
-		end
 	else
 		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
 	end
@@ -313,12 +307,14 @@ function Plugin:OnProcessMove( Player, Input )
 		end
 	end
 
-	if not DataTable.Warn and self.Config.Warn then
+	if self.Config.Warn then
 		local WarnTime = self.Config.WarnTime * 60
 
 		-- Again, using time since last move so we don't end up warning players constantly
 		-- if they hover near the warn time barrier in total AFK time.
-		if TimeSinceLastMove >= WarnTime then
+		if TimeSinceLastMove < WarnTime then
+			DataTable.Warn = false
+		elseif not DataTable.Warn and TimeSinceLastMove >= WarnTime then
 			DataTable.Warn = true
 
 			local AFKTime = Time - DataTable.LastMove
@@ -340,7 +336,7 @@ function Plugin:OnProcessMove( Player, Input )
 			local function MovePlayer()
 				-- Make sure the client still exists and is still AFK.
 				if not Shine:IsValidClient( Client ) then return end
-				if not DataTable.IsAFK then return end
+				if not DataTable.Warn then return end
 
 				local CurrentPlayer = Client:GetControllingPlayer()
 				local CurrentTeam = CurrentPlayer:GetTeamNumber()
