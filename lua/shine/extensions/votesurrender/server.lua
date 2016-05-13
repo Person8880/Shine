@@ -24,7 +24,8 @@ Plugin.DefaultConfig = {
 	VoteDelay = 10, --Time after round start before surrender vote is available
 	MinPlayers = 6, --Min players needed for voting to be enabled.
 	VoteTimeout = 120, --How long after no votes before the vote should reset?
-	AllowVoteWithMultipleBases = true --Is a team allowed to surrender with multiple bases
+	AllowVoteWithMultipleBases = true, --Is a team allowed to surrender with multiple bases
+	SkipSequence = false --Skip the in-game surrender sequence?
 }
 
 Plugin.CheckConfig = true
@@ -161,7 +162,15 @@ function Plugin:Surrender( Team )
 
 	Shine.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
-	Gamerules:EndGame( Team == 1 and Gamerules.team2 or Gamerules.team1 )
+
+	local SurrenderingTeam = Team == 1 and Gamerules.team2 or Gamerules.team1
+
+	--For the surrender sequence we have to set this flag
+	if not self.Config.SkipSequence then
+		SurrenderingTeam.conceded = true
+	end
+
+	Gamerules:EndGame( SurrenderingTeam )
 
 	self.Surrendered = true
 
