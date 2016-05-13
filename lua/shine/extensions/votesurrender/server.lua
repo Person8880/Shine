@@ -20,12 +20,12 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "VoteSurrender.json"
 
 Plugin.DefaultConfig = {
-	PercentNeeded = 0.75, --Percentage of the team needing to vote in order to surrender.
-	VoteDelay = 10, --Time after round start before surrender vote is available
-	MinPlayers = 6, --Min players needed for voting to be enabled.
-	VoteTimeout = 120, --How long after no votes before the vote should reset?
-	AllowVoteWithMultipleBases = true, --Is a team allowed to surrender with multiple bases
-	SkipSequence = false --Skip the in-game surrender sequence?
+	PercentNeeded = 0.75, -- Percentage of the team needing to vote in order to surrender.
+	VoteDelay = 10, -- Time after round start before surrender vote is available
+	MinPlayers = 6, -- Min players needed for voting to be enabled.
+	VoteTimeout = 120, -- How long after no votes before the vote should reset?
+	AllowVoteWithMultipleBases = true, -- Is a team allowed to surrender with multiple bases
+	SkipSequence = false -- Skip the in-game surrender sequence?
 }
 
 Plugin.CheckConfig = true
@@ -48,7 +48,6 @@ function Plugin:Initialise()
 	}
 
 	self.NextVote = 0
-
 	self.dt.ConcedeTime = self.Config.VoteDelay
 
 	self:CreateCommands()
@@ -107,7 +106,7 @@ end
 function Plugin:AddVote( Client, Team )
 	if not Client then return end
 
-	--Would be a fun bug...
+	-- Would be a fun bug...
 	if Team ~= 1 and Team ~= 2 then return false, "spectators can't surrender!" end
 
 	if not self:CanStartVote( Team ) then return false, "can't start" end
@@ -157,15 +156,13 @@ end
 ]]
 function Plugin:Surrender( Team )
 	local Gamerules = GetGamerules()
-
 	if not Gamerules then return end
 
 	Shine.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
-
 	local SurrenderingTeam = Team == 1 and Gamerules.team2 or Gamerules.team1
 
-	--For the surrender sequence we have to set this flag
+	-- For the surrender sequence we have to set this flag
 	if not self.Config.SkipSequence then
 		SurrenderingTeam.conceded = true
 	end
@@ -173,7 +170,6 @@ function Plugin:Surrender( Team )
 	Gamerules:EndGame( SurrenderingTeam )
 
 	self.Surrendered = true
-
 	self:SimpleTimer( 0, function()
 		self.Surrendered = false
 	end )
@@ -195,9 +191,9 @@ function Plugin:CastVoteByPlayer( Gamerules, ID, Player )
 	local Votes = self.Votes[ Team ]:GetVotes()
 	local Success, Err = self:AddVote( Client, Team )
 
-	--We failed to add the vote, but we should still stop it going through NS2's system...
+	-- We failed to add the vote, but we should still stop it going through NS2's system...
 	if not Success then return true end
-	--We've surrendered, no need to say another player's voted.
+	-- We've surrendered, no need to say another player's voted.
 	if self.Surrendered then return true end
 
 	local VotesNeeded = self.Votes[ Team ]:GetVotesNeeded()
@@ -219,7 +215,7 @@ function Plugin:AnnounceVote( Player, Team, VotesNeeded )
 		local Ply = Players[ i ]
 
 		if Ply then
-			--Use NS2's built in concede, it's localised.
+			-- Use NS2's built in concede, it's localised.
 			Shine.SendNetworkMessage( Ply, "VoteConcedeCast", NWMessage, true )
 		end
 	end
