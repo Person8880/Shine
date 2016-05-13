@@ -158,7 +158,7 @@ function ChatLine:PerformLayout()
 end
 
 function ChatLine:SetSize( Size )
-	if self.MaxWidth == Size.x then return end
+	if self.MaxWidth == Size.x and self.ComputedWrapping then return end
 
 	self.MaxWidth = Size.x
 	self.ComputedWrapping = false
@@ -202,7 +202,7 @@ do
 		end
 
 		local WrappedLabel = self:GetWrappedLabel()
-		WrappedLabel:SetText( Remaining )
+		WordWrap( WrappedLabel, Remaining, 0, MaxWidth )
 		self.WrappedLabel = WrappedLabel
 	end
 end
