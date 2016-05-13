@@ -476,7 +476,7 @@ function Plugin:ClientDisconnect( Client )
 	self.Users[ Client ] = nil
 end
 
-Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
+function Plugin:OnFirstThink()
 	do
 		local function CheckPlayerIsAFK( Player )
 			if not Player then return end
@@ -484,7 +484,7 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 			local Client = GetOwner( Player )
 			if not Client then return end
 
-			if not Plugin:IsAFKFor( Client, 60 ) then
+			if not self:IsAFKFor( Client, 60 ) then
 				JoinRandomTeam( Player )
 				return
 			end
@@ -500,8 +500,7 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 		-- Override the built in randomise ready room vote to not move AFK players.
 		SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
 			local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
-			local Enabled = Shine:IsExtensionEnabled( "afkkick" )
-			local Action = Enabled and CheckPlayerIsAFK or JoinRandomTeam
+			local Action = self.Enabled and CheckPlayerIsAFK or JoinRandomTeam
 
 			Shine.Stream( ReadyRoomPlayers ):ForEach( Action )
 		end )
@@ -513,7 +512,7 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 		local ShouldKeep = true
 		local Client = GetOwner( Player )
 
-		if not Client or Plugin:IsAFKFor( Client, 60 ) then
+		if not Client or self:IsAFKFor( Client, 60 ) then
 			ShouldKeep = false
 
 			if Client and Shine.IsPlayingTeam( Player:GetTeamNumber() ) then
@@ -528,15 +527,12 @@ Shine.Hook.Add( "OnFirstThink", "AFKKick_OverrideVote", function()
 
 	local OldGetPlayers = ForceEvenTeams_GetPlayers
 	function ForceEvenTeams_GetPlayers()
-		local Enabled = Shine:IsExtensionEnabled( "afkkick" )
-		if not Enabled then
+		if not self.Enabled then
 			return OldGetPlayers()
 		end
 
-		local Players = OldGetPlayers()
-
-		Shine.Stream( Players ):Filter( FilterPlayers )
-
-		return Players
+		return Shine.Stream( OldGetPlayers() )
+			:Filter( FilterPlayers )
+			:AsTable()
 	end
-end )
+end
