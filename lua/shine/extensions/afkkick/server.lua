@@ -40,28 +40,6 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-function Plugin:OnFirstThink()
-	local Call = Shine.Hook.Call
-	local GetEntity = Shared.GetEntity
-
-	Shine.Hook.SetupClassHook( "PlayerInfoEntity", "UpdateScore", "OnPlayerInfoUpdate",
-	function( OldFunc, self )
-		local Player = GetEntity( self.playerId )
-
-		if not Player then return OldFunc( self ) end
-
-		Call( "PrePlayerInfoUpdate", self, Player )
-
-		local Ret = OldFunc( self )
-
-		Call( "PostPlayerInfoUpdate", self, Player )
-
-		return Ret
-	end )
-
-	Shine.Hook.SetupClassHook( "Commander", "OrderEntities", "OnCommanderOrderEntities", "PassivePost" )
-end
-
 do
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
@@ -477,6 +455,28 @@ function Plugin:ClientDisconnect( Client )
 end
 
 function Plugin:OnFirstThink()
+	do
+		local Call = Shine.Hook.Call
+		local GetEntity = Shared.GetEntity
+
+		Shine.Hook.SetupClassHook( "PlayerInfoEntity", "UpdateScore", "OnPlayerInfoUpdate",
+		function( OldFunc, self )
+			local Player = GetEntity( self.playerId )
+
+			if not Player then return OldFunc( self ) end
+
+			Call( "PrePlayerInfoUpdate", self, Player )
+
+			local Ret = OldFunc( self )
+
+			Call( "PostPlayerInfoUpdate", self, Player )
+
+			return Ret
+		end )
+	end
+
+	Shine.Hook.SetupClassHook( "Commander", "OrderEntities", "OnCommanderOrderEntities", "PassivePost" )
+
 	do
 		local function CheckPlayerIsAFK( Player )
 			if not Player then return end
