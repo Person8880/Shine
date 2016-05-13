@@ -123,7 +123,7 @@ do
 		OldFunc = Player.GetName
 
 		local Client = GetOwner( Player )
-		local Data = Plugin.Users[ Client ]
+		local Data = self.Users[ Client ]
 		if not Data or not Data.IsAFK then return end
 
 		Player.GetName = GetName
