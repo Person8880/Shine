@@ -265,7 +265,6 @@ function Plugin:OnProcessMove( Player, Input )
 	local DeltaTime = Time - DataTable.LastMeasurement
 
 	DataTable.LastMeasurement = Time
-	local WarnTime = self.Config.WarnTime * 60
 
 	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
 	and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
