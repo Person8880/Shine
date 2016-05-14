@@ -242,7 +242,7 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	local Conflicts = Plugin.Conflicts
 
 	--Deal with inter-plugin conflicts.
-	if Conflicts then
+	if Conflicts and Server then
 		local DisableThem = Conflicts.DisableThem
 		local DisableUs = Conflicts.DisableUs
 
