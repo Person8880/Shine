@@ -51,7 +51,7 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessages( "AddTranslatedMessage", {
 		[ MessageTypes.Empty ] = {
-			"RESET_GAME", "HIVE_TEAMS", "FORCE_START"
+			"RESET_GAME", "HIVE_TEAMS", "FORCE_START", "VOTE_STOPPED"
 		},
 		[ MessageTypes.Enabled ] = {
 			"CHEATS_TOGGLED", "ALLTALK_TOGGLED", "ALLTALK_PREGAME_TOGGLED"
@@ -122,28 +122,7 @@ end
 
 Shine:RegisterExtension( "basecommands", Plugin )
 
-if Server then
-	local function RegisterCustomVote()
-		RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
-
-		SetVoteSuccessfulCallback( "ShineCustomVote", 4, function( Data )
-			Plugin:OnCustomVoteSuccess( Data )
-		end )
-	end
-
-	if RegisterVoteType then
-		RegisterCustomVote()
-		return
-	end
-
-	Shine.Hook.Add( "PostLoadScript", "SetupCustomVote", function( Script )
-		if Script ~= "lua/Voting.lua" then return end
-
-		RegisterCustomVote()
-	end )
-
-	return
-end
+if Server then return end
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "BaseCommands.json"

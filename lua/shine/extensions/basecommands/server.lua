@@ -83,6 +83,77 @@ Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
 end )
 
 do
+	-- This whole thing is a lovely hack. It'll break very easily if lua/Voting.lua changes.
+	local function SetupStopVote()
+		local Events = debug.getregistry()[ "Event.HookTable" ]
+		if not Events then return end
+
+		local UpdateServerEvents = Events.UpdateServer
+		if not UpdateServerEvents then return end
+
+		local VoteUpdateFunc
+		for i = 1, #UpdateServerEvents do
+			local Source = debug.getinfo( UpdateServerEvents[ i ], "S" ).source
+			if Source == "@lua/Voting.lua" then
+				VoteUpdateFunc = UpdateServerEvents[ i ]
+				break
+			end
+		end
+
+		if not VoteUpdateFunc then return end
+
+		local ActiveVoteName
+		local ActiveVoteData
+		local ActiveVoteResults
+		local ActiveVoteStartedAtTime
+		local ActiveVoteID
+		function Plugin:StopVote()
+			if not ActiveVoteName then return false end
+
+			Server.SendNetworkMessage( "VoteComplete", { voteId = ActiveVoteID }, true )
+
+			ActiveVoteName = nil
+			ActiveVoteData = nil
+			ActiveVoteResults = nil
+			ActiveVoteStartedAtTime = nil
+
+			return true
+		end
+
+		Shine.JoinUpValues( VoteUpdateFunc, Plugin.StopVote, {
+			activeVoteName = "ActiveVoteName",
+			activeVoteData = "ActiveVoteData",
+			activeVoteResults = "ActiveVoteResults",
+			activeVoteStartedAtTime = "ActiveVoteStartedAtTime",
+			activeVoteId = "ActiveVoteID"
+		} )
+	end
+
+	local function RegisterCustomVote()
+		RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
+
+		SetVoteSuccessfulCallback( "ShineCustomVote", 4, function( Data )
+			Plugin:OnCustomVoteSuccess( Data )
+		end )
+	end
+
+	local function HookVotes()
+		RegisterCustomVote()
+		SetupStopVote()
+	end
+
+	if RegisterVoteType then
+		HookVotes()
+	else
+		Shine.Hook.Add( "PostLoadScript", "SetupCustomVote", function( Script )
+			if Script ~= "lua/Voting.lua" then return end
+
+			HookVotes()
+		end )
+	end
+end
+
+do
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( self, Config )
@@ -1245,6 +1316,17 @@ function Plugin:CreateMessageCommands()
 		CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "question" }
 		CustomVoteCommand:Help( "Starts a vote with the given question." )
 	end
+
+	local function StopVote( Client )
+		if self.StopVote and self:StopVote() then
+			Shine:AdminPrint( nil, "%s stopped the current vote.", true, Shine.GetClientInfo( Client ) )
+			self:SendTranslatedMessage( Client, "VOTE_STOPPED", {} )
+		else
+			self:NotifyTranslatedCommandError( Client, "ERROR_NO_VOTE_IN_PROGRESS" )
+		end
+	end
+	local StopVoteCommand = self:BindCommand( "sh_stopvote", "stopvote", StopVote )
+	StopVoteCommand:Help( "Stops the current vanilla vote." )
 end
 
 function Plugin:CreatePerformanceCommands()
