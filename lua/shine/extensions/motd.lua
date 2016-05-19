@@ -4,6 +4,8 @@
 
 local Shine = Shine
 
+local tonumber = tonumber
+
 local Plugin = {}
 Plugin.Version = "1.2"
 
@@ -52,9 +54,13 @@ function Plugin:ShowMotD( Client, OnConnect )
 		local Messages = self.Config.MessageText
 		local Colour = self.Config.MessageColour
 
+		local function GetColourValue( Index )
+			return tonumber( Colour[ Index ] ) or 255
+		end
+
 		for i = 1, #Messages do
 			Shine:NotifyColour( Client,
-				Colour[ 1 ] or 255, Colour[ 2 ] or 255, Colour[ 3 ] or 255,
+				GetColourValue( 1 ), GetColourValue( 2 ), GetColourValue( 3 ),
 				Messages[ i ] )
 		end
 
