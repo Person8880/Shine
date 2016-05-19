@@ -34,7 +34,8 @@ Plugin.DefaultConfig = {
 	NotifyOnWarn = false,
 	OnlyCheckOnStarted = false,
 	KickOnConnect = false,
-	KickTimeIsAFKThreshold = 0.25
+	KickTimeIsAFKThreshold = 0.25,
+	MarkPlayersAFK = true
 }
 
 Plugin.CheckConfig = true
@@ -99,6 +100,8 @@ do
 
 	function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
 		OldFunc = Player.GetName
+
+		if not self.Config.MarkPlayersAFK then return end
 
 		local Client = GetOwner( Player )
 		local Data = self.Users[ Client ]
