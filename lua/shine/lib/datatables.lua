@@ -207,11 +207,11 @@ end
 
 --Processes a partial network message.
 function DataTableMeta:ProcessPartial( Key, Data )
+	RealData[ self ][ Key ] = Data[ Key ]
+
 	if self.__OnChange then
 		self.__OnChange( self.__Host, Key, RealData[ self ][ Key ], Data[ Key ] )
 	end
-
-	RealData[ self ][ Key ] = Data[ Key ]
 end
 
 --[[
