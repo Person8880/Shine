@@ -104,6 +104,7 @@ function Plugin:OnFirstThink()
 	end )
 end
 
+local IsPlayingTeam = Shine.IsPlayingTeam
 local pairs = pairs
 local SharedGetTime = Shared.GetTime
 
@@ -114,9 +115,13 @@ function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 		self.TeamTracking[ ClientIndex ] = MemoryEntry
 	end
 
+	-- For some reason, spectators are constantly swapped between team 0 and 3.
+	-- So just don't both flashing for ready room/spectator.
 	if MemoryEntry.TeamNumber ~= TeamNumber then
 		MemoryEntry.TeamNumber = TeamNumber
-		MemoryEntry.LastChange = CurTime
+		if IsPlayingTeam( TeamNumber ) then
+			MemoryEntry.LastChange = CurTime
+		end
 	end
 
 	return MemoryEntry
@@ -197,6 +202,7 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	if not ClientIndex then return end
 
 	local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
+	if not MemoryEntry.LastChange then return end
 
 	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
 	if TimeSinceLastChange >= HighlightDuration then return end
@@ -208,7 +214,6 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	return Entry
 end
 
-local IsPlayingTeam = Shine.IsPlayingTeam
 local MathStandardDeviation = math.StandardDeviation
 local StringFormat = string.format
 
