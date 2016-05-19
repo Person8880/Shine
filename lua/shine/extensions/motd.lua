@@ -22,6 +22,7 @@ Plugin.DefaultConfig = {
 		"Admins can be reached @ mywebsite.com",
 		"Have a pleasant stay!"
 	},
+	MessageColour = { 255, 255, 255 },
 	Accepted = {},
 	Delay = 5
 }
@@ -49,9 +50,12 @@ function Plugin:ShowMotD( Client, OnConnect )
 
 	if Mode == self.TEXT_MODE or ( Mode == self.HYBRID_MODE and OnConnect ) then
 		local Messages = self.Config.MessageText
+		local Colour = self.Config.MessageColour
 
 		for i = 1, #Messages do
-			Shine:NotifyColour( Client, 255, 255, 255, Messages[ i ] )
+			Shine:NotifyColour( Client,
+				Colour[ 1 ] or 255, Colour[ 2 ] or 255, Colour[ 3 ] or 255,
+				Messages[ i ] )
 		end
 
 		return
