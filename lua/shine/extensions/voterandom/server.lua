@@ -69,6 +69,7 @@ Plugin.DefaultConfig = {
 	RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
 	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
+	NotifyOnVote = true, -- Should all players be told through the chat when a vote is cast?
 
 	BalanceMode = Plugin.MODE_HIVE, --How should teams be balanced?
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if Elo/Hive fails?
@@ -159,13 +160,25 @@ function Plugin:Initialise()
 
 	self.NextVote = 0
 
-	self.Vote = Shine:CreateVote( function() return self:GetVotesNeeded() end,
-		function() self:ApplyRandomSettings() end,
-		function( Vote )
+	local function GetVotesNeeded()
+		return self:GetVotesNeeded()
+	end
+
+	local function OnVotePassed()
+		self:ApplyRandomSettings()
+	end
+
+	local function OnTimeout( Vote )
 		if Vote.LastVoted and SharedTime() - Vote.LastVoted > self.Config.VoteTimeout then
 			Vote:Reset()
 		end
-	end )
+	end
+
+	self.Vote = Shine:CreateVote( GetVotesNeeded, OnVotePassed, OnTimeout )
+	function self.Vote.OnReset()
+		self.dt.CurrentShuffleVotes = 0
+		self.dt.RequiredShuffleVotes = 0
+	end
 
 	self.ForceRandomEnd = 0 --Time based.
 	self.RandomOnNextRound = false --Round based.
@@ -727,11 +740,21 @@ function Plugin:CreateCommands()
 			local VotesNeeded = self.Vote:GetVotesNeeded()
 
 			if not self.RandomApplied then
-				self:SendTranslatedNotify( nil, "PLAYER_VOTED", {
-					ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
-					VotesNeeded = VotesNeeded,
-					PlayerName = PlayerName
-				} )
+				if self.Config.NotifyOnVote then
+					self:SendTranslatedNotify( nil, "PLAYER_VOTED", {
+						ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
+						VotesNeeded = VotesNeeded,
+						PlayerName = PlayerName
+					} )
+				else
+					self:SendTranslatedNotify( Client, "PLAYER_VOTED_PRIVATE", {
+						ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
+						VotesNeeded = VotesNeeded,
+					} )
+				end
+
+				self.dt.CurrentShuffleVotes = self.Vote:GetVotes()
+				self.dt.RequiredShuffleVotes = self:GetVotesNeeded()
 			end
 
 			--Somehow it didn't apply random settings??
