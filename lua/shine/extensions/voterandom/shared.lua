@@ -93,15 +93,16 @@ function Plugin:NetworkUpdate( Key, Old, New )
 end
 
 function Plugin:OnFirstThink()
-	-- Defensive check in case the scoreboard code changes.
-	if not Scoreboard_GetPlayerRecord or not GUIScoreboard or not GUIScoreboard.UpdateTeam then return end
-
-	Shine.Hook.SetupClassHook( "GUIScoreboard", "UpdateTeam", "OnGUIScoreboardUpdateTeam", "PassivePost" )
 	Shine.VoteMenu:EditPage( "Main", function( VoteMenu )
 		if not self.Enabled then return end
 
 		self:UpdateShuffleButton()
 	end )
+
+	-- Defensive check in case the scoreboard code changes.
+	if not Scoreboard_GetPlayerRecord or not GUIScoreboard or not GUIScoreboard.UpdateTeam then return end
+
+	Shine.Hook.SetupClassHook( "GUIScoreboard", "UpdateTeam", "OnGUIScoreboardUpdateTeam", "PassivePost" )
 end
 
 local IsPlayingTeam = Shine.IsPlayingTeam
