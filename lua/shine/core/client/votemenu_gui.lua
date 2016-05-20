@@ -596,6 +596,19 @@ function VoteMenu:AddAdminMenuButton()
 	end )
 end
 
+function VoteMenu:GetButtonByPlugin( PluginName )
+	if self.ActivePage ~= "Main" then return nil end
+
+	local SideButtons = self.Buttons.Side
+	for i = 1, #SideButtons do
+		if SideButtons[ i ].Plugin == PluginName then
+			return SideButtons[ i ]
+		end
+	end
+
+	return nil
+end
+
 --[[
 	Default page.
 ]]
@@ -604,8 +617,10 @@ VoteMenu:AddPage( "Main", function( self )
 
 	for i = 1, #ActivePlugins do
 		local Plugin = ActivePlugins[ i ]
-
-		self:AddSideButton( Locale:GetPhrase( "Core", Plugin ), ClickFuncs[ Plugin ] )
+		local Text = Locale:GetPhrase( "Core", Plugin )
+		local Button = self:AddSideButton( Text, ClickFuncs[ Plugin ] )
+		Button.Plugin = Plugin
+		Button.DefaultText = Text
 	end
 
 	self:AddSideButton( Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" ), function()

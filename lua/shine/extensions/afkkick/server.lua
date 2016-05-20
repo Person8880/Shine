@@ -34,7 +34,8 @@ Plugin.DefaultConfig = {
 	NotifyOnWarn = false,
 	OnlyCheckOnStarted = false,
 	KickOnConnect = false,
-	KickTimeIsAFKThreshold = 0.25
+	KickTimeIsAFKThreshold = 0.25,
+	MarkPlayersAFK = true
 }
 
 Plugin.CheckConfig = true
@@ -99,6 +100,8 @@ do
 
 	function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
 		OldFunc = Player.GetName
+
+		if not self.Config.MarkPlayersAFK then return end
 
 		local Client = GetOwner( Player )
 		local Data = self.Users[ Client ]
@@ -265,7 +268,6 @@ function Plugin:OnProcessMove( Player, Input )
 	local DeltaTime = Time - DataTable.LastMeasurement
 
 	DataTable.LastMeasurement = Time
-	local WarnTime = self.Config.WarnTime * 60
 
 	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
 	and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then

@@ -71,6 +71,8 @@
 	"ERROR_SENDRATE_MOVE_CONSTRAINT": "Send rate cannot be greater than move rate ({Rate}).",
 	"ERROR_MOVERATE_CONSTRAINT": "Move rate cannot be greater than tick rate ({Rate}).",
 	"ERROR_MOVERATE_SENDRATE_CONSTRAINT": "Move rate cannot be less than send rate ({Rate}).",
+	"ERROR_NO_VOTE_IN_PROGRESS": "No stoppable vote is currently in progress.",
 	"MAPS": "Maps",
-	"PLUGINS": "Plugins"
+	"PLUGINS": "Plugins",
+	"VOTE_STOPPED": "stopped the current vote."
 }

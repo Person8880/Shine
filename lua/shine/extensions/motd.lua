@@ -4,6 +4,8 @@
 
 local Shine = Shine
 
+local tonumber = tonumber
+
 local Plugin = {}
 Plugin.Version = "1.2"
 
@@ -22,6 +24,7 @@ Plugin.DefaultConfig = {
 		"Admins can be reached @ mywebsite.com",
 		"Have a pleasant stay!"
 	},
+	MessageColour = { 255, 255, 255 },
 	Accepted = {},
 	Delay = 5
 }
@@ -49,9 +52,16 @@ function Plugin:ShowMotD( Client, OnConnect )
 
 	if Mode == self.TEXT_MODE or ( Mode == self.HYBRID_MODE and OnConnect ) then
 		local Messages = self.Config.MessageText
+		local Colour = self.Config.MessageColour
+
+		local function GetColourValue( Index )
+			return tonumber( Colour[ Index ] ) or 255
+		end
 
 		for i = 1, #Messages do
-			Shine:NotifyColour( Client, 255, 255, 255, Messages[ i ] )
+			Shine:NotifyColour( Client,
+				GetColourValue( 1 ), GetColourValue( 2 ), GetColourValue( 3 ),
+				Messages[ i ] )
 		end
 
 		return

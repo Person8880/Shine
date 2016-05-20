@@ -43,6 +43,10 @@ function VoteMeta:Reset()
 	TableEmpty( self.Voted )
 	self.Votes = 0
 	self.LastVoted = nil
+
+	if self.OnReset then
+		self:OnReset()
+	end
 end
 
 function VoteMeta:RemoveVote( Client )

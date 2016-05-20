@@ -10,6 +10,8 @@ Plugin.NotifyPrefixColour = {
 function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "HighlightTeamSwaps", false )
 	self:AddDTVar( "boolean", "DisplayStandardDeviations", false )
+	self:AddDTVar( "integer", "CurrentShuffleVotes", 0 )
+	self:AddDTVar( "integer", "RequiredShuffleVotes", 0 )
 
 	local MessageTypes = {
 		ShuffleType = {
@@ -22,6 +24,10 @@ function Plugin:SetupDataTable()
 		PlayerVote  = {
 			ShuffleType = "string (24)",
 			PlayerName = self:GetNameNetworkField(),
+			VotesNeeded = "integer"
+		},
+		PrivateVote = {
+			ShuffleType = "string (24)",
 			VotesNeeded = "integer"
 		}
 	}
@@ -44,6 +50,9 @@ function Plugin:SetupDataTable()
 		},
 		[ MessageTypes.PlayerVote ] = {
 			"PLAYER_VOTED"
+		},
+		[ MessageTypes.PrivateVote ] = {
+			"PLAYER_VOTED_PRIVATE"
 		}
 	}, "ShuffleType" )
 	self:AddNetworkMessages( "AddTranslatedError", {
@@ -58,13 +67,45 @@ Shine:RegisterExtension( "voterandom", Plugin )
 
 if Server then return end
 
+local StringFormat = string.format
+
+function Plugin:UpdateShuffleButton()
+	local ShuffleButton = Shine.VoteMenu:GetButtonByPlugin( "Shuffle" )
+	if not ShuffleButton then return end
+
+	if self.dt.CurrentShuffleVotes == 0 or self.dt.RequiredShuffleVotes == 0 then
+		ShuffleButton:SetText( ShuffleButton.DefaultText )
+		return
+	end
+
+	-- Update the button with the current vote count.
+	ShuffleButton:SetText( StringFormat( "%s (%d/%d)", ShuffleButton.DefaultText,
+		self.dt.CurrentShuffleVotes,
+		self.dt.RequiredShuffleVotes ) )
+end
+
+function Plugin:NetworkUpdate( Key, Old, New )
+	if Key == "RequiredShuffleVotes" or Key == "CurrentShuffleVotes" then
+		if not Shine.VoteMenu.Visible then return end
+
+		self:UpdateShuffleButton()
+	end
+end
+
 function Plugin:OnFirstThink()
+	Shine.VoteMenu:EditPage( "Main", function( VoteMenu )
+		if not self.Enabled then return end
+
+		self:UpdateShuffleButton()
+	end )
+
 	-- Defensive check in case the scoreboard code changes.
 	if not Scoreboard_GetPlayerRecord or not GUIScoreboard or not GUIScoreboard.UpdateTeam then return end
 
 	Shine.Hook.SetupClassHook( "GUIScoreboard", "UpdateTeam", "OnGUIScoreboardUpdateTeam", "PassivePost" )
 end
 
+local IsPlayingTeam = Shine.IsPlayingTeam
 local pairs = pairs
 local SharedGetTime = Shared.GetTime
 
@@ -75,9 +116,13 @@ function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 		self.TeamTracking[ ClientIndex ] = MemoryEntry
 	end
 
+	-- For some reason, spectators are constantly swapped between team 0 and 3.
+	-- So just don't both flashing for ready room/spectator.
 	if MemoryEntry.TeamNumber ~= TeamNumber then
 		MemoryEntry.TeamNumber = TeamNumber
-		MemoryEntry.LastChange = CurTime
+		if IsPlayingTeam( TeamNumber ) then
+			MemoryEntry.LastChange = CurTime
+		end
 	end
 
 	return MemoryEntry
@@ -158,6 +203,7 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	if not ClientIndex then return end
 
 	local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
+	if not MemoryEntry.LastChange then return end
 
 	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
 	if TimeSinceLastChange >= HighlightDuration then return end
@@ -169,7 +215,6 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	return Entry
 end
 
-local IsPlayingTeam = Shine.IsPlayingTeam
 local MathStandardDeviation = math.StandardDeviation
 local StringFormat = string.format
 
