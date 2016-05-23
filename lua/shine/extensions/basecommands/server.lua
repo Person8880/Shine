@@ -682,7 +682,7 @@ function Plugin:CreateInfoCommands()
 			end
 		end
 	end
-	local ListPluginsCommand = self:BindCommand( "sh_listplugins", nil, ListPlugins )
+	local ListPluginsCommand = self:BindCommand( "sh_listplugins", nil, ListPlugins, true )
 	ListPluginsCommand:Help( "Lists all loaded plugins." )
 end
 
