@@ -58,6 +58,9 @@ do
 		return StringFormat( "Receive%s", Name )
 	end
 
+	local NetworkReceiveError = Shine.BuildErrorHandler( "Plugin network receiver error" )
+	local xpcall = xpcall
+
 	--[[
 		Adds a network message to the plugin.
 
@@ -81,11 +84,11 @@ do
 
 		if Receiver == "Server" and Server then
 			Server.HookNetworkMessage( MessageName, function( Client, Data )
-				self[ FuncName ]( self, Client, Data )
+				xpcall( self[ FuncName ], NetworkReceiveError, self, Client, Data )
 			end )
 		elseif Receiver == "Client" and Client then
 			Client.HookNetworkMessage( MessageName, function( Data )
-				self[ FuncName ]( self, Data )
+				xpcall( self[ FuncName ], NetworkReceiveError, self, Data )
 			end )
 		end
 	end
