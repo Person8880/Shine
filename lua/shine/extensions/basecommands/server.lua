@@ -656,29 +656,29 @@ function Plugin:CreateInfoCommands()
 		local Cycle = MapCycle_GetMapCycle()
 
 		if not Cycle or not Cycle.maps then
-			Shine:AdminPrint( Client, "Unable to load map cycle list." )
+			Shine.PrintToConsole( Client, "Unable to load map cycle list." )
 
 			return
 		end
 
 		local Maps = Cycle.maps
 
-		Shine:AdminPrint( Client, "Installed maps:" )
+		Shine.PrintToConsole( Client, "Installed maps:" )
 		for i = 1, #Maps do
 			local Map = Maps[ i ]
 			local MapName = IsType( Map, "table" ) and Map.map or Map
 
-			Shine:AdminPrint( Client, StringFormat( "- %s", MapName ) )
+			Shine.PrintToConsole( Client, StringFormat( "- %s", MapName ) )
 		end
 	end
 	local ListMapsCommand = self:BindCommand( "sh_listmaps", nil, ListMaps )
 	ListMapsCommand:Help( "Lists all installed maps on the server." )
 
 	local function ListPlugins( Client )
-		Shine:AdminPrint( Client, "Loaded plugins:" )
+		Shine.PrintToConsole( Client, "Loaded plugins:" )
 		for Name, Table in SortedPairs( Shine.Plugins ) do
 			if Table.Enabled then
-				Shine:AdminPrint( Client, StringFormat( "%s - version: %s", Name, Table.Version or "1.0" ) )
+				Shine.PrintToConsole( Client, StringFormat( "%s - version: %s", Name, Table.Version or "1.0" ) )
 			end
 		end
 	end
@@ -801,7 +801,7 @@ function Plugin:CreateAdminCommands()
 
 	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
-			Shine:AdminPrint( Client, "You cannot reload the basecommands plugin." )
+			Shine.PrintToConsole( Client, "You cannot reload the basecommands plugin." )
 			return
 		end
 
@@ -846,7 +846,7 @@ function Plugin:CreateAdminCommands()
 
 	local function UnloadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
-			Shine:AdminPrint( Client, "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config." )
+			Shine.PrintToConsole( Client, "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config." )
 			return
 		end
 
@@ -887,7 +887,7 @@ function Plugin:CreateAdminCommands()
 		local Plugin = Shine.Plugins[ Name ]
 
 		if not Plugin or not Plugin.Enabled then
-			Shine:AdminPrint( Client, StringFormat( "The plugin %s is not loaded or already suspended.", Name ) )
+			Shine.PrintToConsole( Client, StringFormat( "The plugin %s is not loaded or already suspended.", Name ) )
 
 			return
 		end
@@ -907,7 +907,7 @@ function Plugin:CreateAdminCommands()
 		local Plugin = Shine.Plugins[ Name ]
 
 		if not Plugin or Plugin.Enabled or not Plugin.Suspended then
-			Shine:AdminPrint( Client, StringFormat( "The plugin %s is already running or is not suspended or not loaded.", Name ) )
+			Shine.PrintToConsole( Client, StringFormat( "The plugin %s is already running or is not suspended or not loaded.", Name ) )
 
 			return
 		end
