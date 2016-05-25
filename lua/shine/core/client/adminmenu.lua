@@ -594,8 +594,8 @@ Special thanks to:
 - DePara for being the first server admin to use Shine.
 - You for using my mod and therefore reading this text!
 
-Got an issue or a feature request? Head over to the mod's GitHub page and post an issue,
-or leave a comment on the workshop page.
+Got an issue or a feature request? Head over to the mod's GitHub page and post an
+issue, or leave a comment on the workshop page.
 ]],
 [[The mod's GitHub issue tracker can be found here:]],
 {
