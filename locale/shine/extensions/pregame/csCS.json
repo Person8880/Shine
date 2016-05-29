@@ -1,9 +1,9 @@
 {
 	"GAME_START": "Hra začne za %s",
 	"GAME_START_SOON": "Hra začne za {Duration:Duration}",
-	"WAITING_FOR_ALIENS": "Čeká se na tým alienů, až si zvolí Commandera",
-	"WAITING_FOR_MARINES": "Čeká se na tým mariňáků, až si zvolí Commandera",
-	"WAITING_FOR_BOTH": "Čeká se na oba týmy, až si zvolí Commandera",
+	"WAITING_FOR_ALIENS": "Ceka se na tym alienu, az si zvoli Commandera",
+	"WAITING_FOR_MARINES": "Ceka se na tym marinaku, az si zvoli Commandera",
+	"WAITING_FOR_BOTH": "Ceka se na oba tymy, az si zvoli Commandera",
 	"ABORT_MARINES_EMPTY": "Spuštění hry zrušeno, tým mariňáků je prázdný.",
 	"ABORT_ALIENS_EMPTY": "Spuštění hry zrušeno, tým alienů je prázdný.",
 	"ABORT_COMMANDER_DROP": "Spuštění hry zrušeno, Commander odešel.",
