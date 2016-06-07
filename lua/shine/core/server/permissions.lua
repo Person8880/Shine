@@ -944,7 +944,6 @@ local function GetGroupAndImmunity( self, Groups, User, ID )
 	end
 
 	local Group = Groups[ User.Group or -1 ]
-
 	if not Group then
 		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, tostring( User.Group ) )
@@ -953,7 +952,6 @@ local function GetGroupAndImmunity( self, Groups, User, ID )
 
 	--Read from the user's immunity first, then the groups.
 	local Immunity = tonumber( User.Immunity or Group.Immunity )
-
 	if not Immunity then
 		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)",
 			true, ID, tostring( User.Group ) )
@@ -969,8 +967,12 @@ end
 	Output: True if allowed.
 ]]
 function Shine:CanTarget( Client, Target )
-	if not Client or not Target then return true end --Console can target all.
-	if Client == Target then return true end --Can always target yourself.
+	-- Console can target all.
+	if not Client then return true end
+	-- Cannot target nil targets.
+	if not Target then return false end
+	-- Can always target yourself.
+	if Client == Target then return true end
 	if not self.UserData then return false end
 
 	local Users = self.UserData.Users
@@ -997,11 +999,11 @@ function Shine:CanTarget( Client, Target )
 
 	local Group, Immunity = GetGroupAndImmunity( self, Groups, User, ID )
 	if not Group then
-		--No user and no default group means can only target negative immunity groups.
+		-- No user and no default group means can only target negative immunity groups.
 		return TargetImmunity < 0
 	end
 
-	--Both guests in the default group.
+	-- Both guests in the default group.
 	if Group == TargetGroup and Group == self:GetDefaultGroup() then
 		return true
 	end
