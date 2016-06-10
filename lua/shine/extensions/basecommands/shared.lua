@@ -155,7 +155,6 @@ local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
 
 local NOT_STARTED = kGameState and kGameState.WarmUp or 2
-local PREGAME = kGameState and kGameState.PreGame or 3
 local COUNTDOWN = kGameState and kGameState.Countdown or 4
 
 function Plugin:Initialise()
