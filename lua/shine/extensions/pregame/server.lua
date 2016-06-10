@@ -110,7 +110,7 @@ function Plugin:CheckPlayerCanAttack()
 	local Gamerules = GetGamerules()
 	local GameState = Gamerules:GetGameState()
 
-	if GameState <= kGameState.PreGame then
+	if GameState == kGameState.PreGame or GameState == kGameState.NotStarted then
 		return false
 	end
 end
