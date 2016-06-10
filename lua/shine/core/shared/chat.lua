@@ -85,6 +85,8 @@ local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Messag
 	ChatMessages[ #ChatMessages + 1 ] = 0
 	ChatMessages[ #ChatMessages + 1 ] = 0
 
+	if not StartSoundEffect or not Player.GetChatSound then return end
+
 	StartSoundEffect( Player:GetChatSound() )
 end
 

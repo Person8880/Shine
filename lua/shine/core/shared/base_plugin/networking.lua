@@ -82,13 +82,22 @@ do
 
 		Shared.RegisterNetworkMessage( MessageName, Params )
 
+		local function CallReceiver( ... )
+			if not self[ FuncName ] then
+				-- Report better errors than "attempt to call a nil value"
+				error( StringFormat( "Plugin %s defined network message %s, but no receiver!", self.__Name, Name ), 0 )
+			end
+
+			self[ FuncName ]( ... )
+		end
+
 		if Receiver == "Server" and Server then
 			Server.HookNetworkMessage( MessageName, function( Client, Data )
-				xpcall( self[ FuncName ], NetworkReceiveError, self, Client, Data )
+				xpcall( CallReceiver, NetworkReceiveError, self, Client, Data )
 			end )
 		elseif Receiver == "Client" and Client then
 			Client.HookNetworkMessage( MessageName, function( Data )
-				xpcall( self[ FuncName ], NetworkReceiveError, self, Data )
+				xpcall( CallReceiver, NetworkReceiveError, self, Data )
 			end )
 		end
 	end

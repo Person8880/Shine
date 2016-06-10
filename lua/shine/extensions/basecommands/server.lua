@@ -282,7 +282,7 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 		local Gamerules = GetGamerules()
 		local State = Gamerules and Gamerules:GetGameState()
 
-		if State == kGameState.NotStarted or State == kGameState.PreGame then
+		if State <= kGameState.PreGame then
 			return
 		end
 	end
@@ -334,7 +334,7 @@ end
 
 do
 	local function IsPregameAllTalk( self, Gamerules )
-		return self.Config.AllTalkPreGame and Gamerules:GetGameState() == kGameState.NotStarted
+		return self.Config.AllTalkPreGame and Gamerules:GetGameState() < kGameState.PreGame
 	end
 
 	local function IsSpectatorAllTalk( self, Listener )

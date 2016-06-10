@@ -97,12 +97,12 @@ function Plugin:NetworkUpdate( Key, Old, New )
 	if Server then return end
 
 	if Key == "Gamestate" then
-		if Old == 2 and New == 1 then
+		if Old == kGameState.PreGame and New == kGameState.NotStarted then
 			--The game state changes back to 1, then to 3 to start. This is VERY annoying...
 			self:SimpleTimer( 1, function()
 				if not self.Enabled then return end
 
-				if self.dt.Gamestate == 1 then
+				if self.dt.Gamestate == kGameState.NotStarted then
 					self:UpdateAllTalk( self.dt.Gamestate )
 				end
 			end )
@@ -154,9 +154,8 @@ local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
 
-local NOT_STARTED = 1
-local PREGAME = 2
-local COUNTDOWN = 3
+local NOT_STARTED = kGameState and kGameState.WarmUp or 2
+local COUNTDOWN = kGameState and kGameState.Countdown or 4
 
 function Plugin:Initialise()
 	if self.dt.AllTalk then

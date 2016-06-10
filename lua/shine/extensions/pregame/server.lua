@@ -116,7 +116,7 @@ function Plugin:CheckPlayerCanAttack()
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
-	if State == kGameState.NotStarted or State == kGameState.PreGame then return end
+	if State <= kGameState.PreGame then return end
 
 	if self.CountStart then
 		self.CountStart = nil
@@ -595,7 +595,7 @@ end
 function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 
-	if State ~= kGameState.NotStarted and State ~= kGameState.PreGame then return end
+	if State > kGameState.PreGame then return end
 
 	--Do not allow starting too soon.
 	local StartDelay = self.Config.StartDelay

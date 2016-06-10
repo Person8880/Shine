@@ -22,6 +22,9 @@ Shine.UserData = {
 		},
 		[ "100" ] = {
 			Group = "Moderator"
+		},
+		[ "200" ] = {
+			Group = "Moderator"
 		}
 	},
 	Groups = {
@@ -167,6 +170,25 @@ UnitTest:Test( "Immunity between users", function( Assert )
 	Assert:Falsy( Shine:CanTarget( 789, 456 ) )
 	Assert:Truthy( Shine:CanTarget( 456, 789 ) )
 end )
+
+do
+	local OldCanTarget = Shine.Config.EqualsCanTarget
+
+	UnitTest:Test( "EqualsCanTarget setting", function( Assert )
+		-- Group immunity 25 vs group 25, fail as EqualsCanTarget = false
+		Shine.Config.EqualsCanTarget = false
+		Assert:Falsy( Shine:CanTarget( 100, 200 ) )
+
+		Shine.Config.EqualsCanTarget = true
+		Assert:Truthy( Shine:CanTarget( 100, 200 ) )
+		Shine.Config.EqualsCanTarget = false
+
+		-- Target yourself, pass.
+		Assert:Truthy( Shine:CanTarget( 100, 100 ) )
+	end )
+
+	Shine.Config.EqualsCanTarget = OldCanTarget
+end
 
 UnitTest:Test( "Default group user permissions", function( Assert )
 	Assert:Falsy( Shine:GetPermission( 999, "sh_kick" ) )
