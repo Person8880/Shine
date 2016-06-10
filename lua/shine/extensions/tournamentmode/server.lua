@@ -123,7 +123,7 @@ local NextStartNag = 0
 function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 
-	if State == kGameState.PreGame or State == kGameState.NotStarted then
+	if State <= kGameState.PreGame then
 		self.GameStarted = false
 
 		self:CheckCommanders( Gamerules )

@@ -595,7 +595,7 @@ end
 function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 
-	if State ~= kGameState.NotStarted and State ~= kGameState.PreGame then return end
+	if State > kGameState.PreGame then return end
 
 	--Do not allow starting too soon.
 	local StartDelay = self.Config.StartDelay
