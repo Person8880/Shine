@@ -194,3 +194,14 @@ UnitTest:Test( "AsEnum", function( Assert )
 		Assert:Equals( Values[ i ], Enum[ Values[ i ] ] )
 	end
 end )
+
+UnitTest:Test( "AsEnum with transformer", function( Assert )
+	local Values = {
+		"This", "Is", "An", "Enum"
+	}
+	local Enum = table.AsEnum( Values, function( Index ) return Index end )
+	Assert:ArrayEquals( Values, Enum )
+	for i = 1, #Values do
+		Assert:Equals( i, Enum[ Values[ i ] ] )
+	end
+end )
