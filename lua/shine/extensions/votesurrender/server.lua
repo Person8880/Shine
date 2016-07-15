@@ -69,12 +69,10 @@ end
 
 function Plugin:GetTeamPlayerCount( Team )
 	local Gamerules = GetGamerules()
+	local TeamData = Gamerules[ Team == 1 and "team1" or "team2" ]
+	local NumPlayers, NumRookies, NumBots = TeamData:GetNumPlayers()
 
-	if Team == 1 then
-		return Gamerules.team1:GetNumPlayers()
-	else
-		return Gamerules.team2:GetNumPlayers()
-	end
+	return NumPlayers - NumBots
 end
 
 function Plugin:GetVotesNeeded( Team )
@@ -94,7 +92,7 @@ function Plugin:CanStartVote( Team )
 
 	local State = Gamerules:GetGameState()
 	local PlayingTeam = Gamerules:GetTeam( Team )
-	local TeamCount = PlayingTeam:GetNumPlayers()
+	local TeamCount = self:GetTeamPlayerCount( Team )
 
 	local AllowWithNumBases = self.Config.AllowVoteWithMultipleBases or
 			PlayingTeam:GetNumCapturedTechPoints() == 1
