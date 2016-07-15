@@ -542,15 +542,15 @@ Plugin.UpdateFuncs = {
 		local Team1Com = Team1:GetCommander()
 		local Team2Com = Team2:GetCommander()
 
-		local Team1Count = Team1:GetNumPlayers()
-		local Team2Count = Team2:GetNumPlayers()
+		local Team1Count, Team1Rookies, Team1Bots = Team1:GetNumPlayers()
+		local Team2Count, Team2Rookies, Team2Bots = Team2:GetNumPlayers()
 
 		if self.GameStarting then
 			self:CheckTeamCounts( Gamerules, Team1Com, Team2Com, Team1Count, Team2Count )
 			return
 		end
 
-		local PlayerCount = Shine.GetHumanPlayerCount()
+		local PlayerCount = Team1Count + Team2Count - Team1Bots - Team2Bots
 		if PlayerCount < self.Config.MinPlayers then return end
 
 		if Team1Com and Team2Com then
