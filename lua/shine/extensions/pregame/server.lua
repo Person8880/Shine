@@ -20,12 +20,20 @@ Plugin.NotifyPrefixColour = {
 	100, 100, 255
 }
 
+Plugin.Modes = table.AsEnum( {
+	"TIME",
+	"ONE_COMMANDER_COUNTDOWN",
+	"MAX_WAIT_TIME",
+	"MIN_PLAYER_COUNT"
+}, function( Index ) return Index end )
+
 Plugin.DefaultConfig = {
 	PreGameTime = 45,
 	CountdownTime = 15,
 	StartDelay = 0,
 	ShowCountdown = true,
-	RequireComs = 1,
+	Mode = Plugin.Modes.ONE_COMMANDER_COUNTDOWN,
+	MinPlayers = 0,
 	AbortIfNoCom = false,
 	AllowAttackPreGame = true
 }
@@ -43,6 +51,15 @@ function Plugin:OnFirstThink()
 		"CheckPlayerCanAttack", "ActivePre" )
 end
 
+function Plugin:PreValidateConfig( Config )
+	if not Config.RequireComs then return end
+
+	Config.Mode = Config.RequireComs + 1
+	Config.RequireComs = nil
+
+	return true
+end
+
 function Plugin:Initialise()
 	local Gamemode = Shine.GetGamemode()
 
@@ -50,7 +67,7 @@ function Plugin:Initialise()
 		return false, StringFormat( "The pregame plugin does not work with %s.", Gamemode )
 	end
 
-	self.Config.RequireComs = Clamp( Floor( self.Config.RequireComs ), 0, 2 )
+	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, #self.Modes )
 
 	self.CountStart = nil
 	self.CountEnd = nil
@@ -174,9 +191,100 @@ function Plugin:NagForBoth()
 	self:SendTranslatedNotify( nil, "WaitingForBoth" )
 end
 
+function Plugin:QueueGameStart( Gamerules )
+	self.GameStarting = true
+
+	Gamerules:SetGameState( kGameState.PreGame )
+
+	local CountdownTime = self.Config.CountdownTime
+
+	if self.Config.ShowCountdown then
+		self:ShowGameStart( CountdownTime )
+	end
+
+	self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
+		local Team1Com = Team1:GetCommander()
+		local Team2Com = Team2:GetCommander()
+
+		if self.Config.AbortIfNoCom then
+			if not Team1Com or not Team2Com then
+				return
+			end
+		end
+
+		local Team1Count = Team1:GetNumPlayers()
+		local Team2Count = Team2:GetNumPlayers()
+
+		if Team1Count == 0 or Team2Count == 0 then
+			return
+		end
+
+		self:ShowCountdown()
+	end )
+
+	self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
+		local Team1Com = Team1:GetCommander()
+		local Team2Com = Team2:GetCommander()
+
+		if self.Config.AbortIfNoCom then
+			if not Team1Com or not Team2Com then
+				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
+				self.SentCountdown = nil
+				self.GameStarting = false
+
+				return
+			end
+		end
+
+		local Team1Count = Team1:GetNumPlayers()
+		local Team2Count = Team2:GetNumPlayers()
+
+		if Team1Count == 0 or Team2Count == 0 then
+			self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
+				Team = Team1Count == 0 and 1 or 2
+			} )
+			self.SentCountdown = nil
+			self.GameStarting = false
+
+			return
+		end
+
+		self:StartCountdown()
+	end )
+end
+
+function Plugin:CheckTeamCounts( Gamerules, Team1Com, Team2Com, Team1Count, Team2Count )
+	if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
+		self:DestroyTimers()
+		self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
+		self.GameStarting = false
+		self.SentCountdown = nil
+
+		return
+	end
+
+	if Team1Count == 0 or Team2Count == 0 then
+		self:DestroyTimers()
+
+		self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
+			Team = Team1Count == 0 and 1 or 2
+		} )
+
+		self.GameStarting = false
+		self.SentCountdown = nil
+
+		if self.CountStart then
+			self.CountStart = nil
+			self.CountEnd = nil
+		end
+
+		return
+	end
+end
+
 Plugin.UpdateFuncs = {
 	--Legacy functionality, fixed time for pregame then start.
-	[ 0 ] = function( self, Gamerules )
+	function( self, Gamerules )
 		local Team1 = Gamerules.team1
 		local Team2 = Gamerules.team2
 
@@ -233,7 +341,7 @@ Plugin.UpdateFuncs = {
 	end,
 
 	--Once one team has a commander, start a long countdown.
-	[ 1 ] = function( self, Gamerules )
+	function( self, Gamerules )
 		local Team1 = Gamerules.team1
 		local Team2 = Gamerules.team2
 
@@ -246,33 +354,7 @@ Plugin.UpdateFuncs = {
 		local Time = SharedTime()
 
 		if self.GameStarting then
-			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
-				self:DestroyTimers()
-				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
-				self.GameStarting = false
-				self.SentCountdown = nil
-
-				return
-			end
-
-			if Team1Count == 0 or Team2Count == 0 then
-				self:DestroyTimers()
-
-				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-					Team = Team1Count == 0 and 1 or 2
-				} )
-
-				self.GameStarting = false
-				self.SentCountdown = nil
-
-				if self.CountStart then
-					self.CountStart = nil
-					self.CountEnd = nil
-				end
-
-				return
-			end
-
+			self:CheckTeamCounts( Gamerules, Team1Com, Team2Com, Team1Count, Team2Count )
 			return
 		end
 
@@ -281,66 +363,7 @@ Plugin.UpdateFuncs = {
 		--commander countdown time length left.
 		if Team1Com and Team2Com and not self.GameStarting
 		and not ( self.CountEnd and self.CountEnd - Time <= self.Config.CountdownTime ) then
-			self.GameStarting = true
-
-			Gamerules:SetGameState( kGameState.PreGame )
-
-			local CountdownTime = self.Config.CountdownTime
-
-			if self.Config.ShowCountdown then
-				self:ShowGameStart( CountdownTime )
-			end
-
-			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
-				local Team1Com = Team1:GetCommander()
-				local Team2Com = Team2:GetCommander()
-
-				if self.Config.AbortIfNoCom then
-					if not Team1Com or not Team2Com then
-						return
-					end
-				end
-
-				local Team1Count = Team1:GetNumPlayers()
-				local Team2Count = Team2:GetNumPlayers()
-
-				if Team1Count == 0 or Team2Count == 0 then
-					return
-				end
-
-				self:ShowCountdown()
-			end )
-
-			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
-				local Team1Com = Team1:GetCommander()
-				local Team2Com = Team2:GetCommander()
-
-				if self.Config.AbortIfNoCom then
-					if not Team1Com or not Team2Com then
-						self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
-						self.SentCountdown = nil
-						self.GameStarting = false
-
-						return
-					end
-				end
-
-				local Team1Count = Team1:GetNumPlayers()
-				local Team2Count = Team2:GetNumPlayers()
-
-				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-						Team = Team1Count == 0 and 1 or 2
-					} )
-					self.SentCountdown = nil
-					self.GameStarting = false
-
-					return
-				end
-
-				self:StartCountdown()
-			end )
-
+			self:QueueGameStart( Gamerules )
 			return
 		end
 
@@ -417,7 +440,7 @@ Plugin.UpdateFuncs = {
 	end,
 
 	--After the set time, if one team has a commander, start the game.
-	[ 2 ] = function( self, Gamerules )
+	function( self, Gamerules )
 		local Time = SharedTime()
 
 		if not self.CountStart then
@@ -439,87 +462,13 @@ Plugin.UpdateFuncs = {
 		local Team2Count = Team2:GetNumPlayers()
 
 		if self.GameStarting then
-			if self.Config.AbortIfNoCom and ( not Team1Com or not Team2Com ) then
-				self:DestroyTimers()
-
-				self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
-				self.GameStarting = false
-
-				return
-			end
-
-			if Team1Count == 0 or Team2Count == 0 then
-				self:DestroyTimers()
-
-				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-					Team = Team1Count == 0 and 1 or 2
-				} )
-				self.GameStarting = false
-			end
-
+			self:CheckTeamCounts( Gamerules, Team1Com, Team2Com, Team1Count, Team2Count )
 			return
 		end
 
 		--Both teams have a commander, begin countdown.
 		if Team1Com and Team2Com and not self.StartedGame then
-			self.GameStarting = true
-
-			Gamerules:SetGameState( kGameState.PreGame )
-
-			local CountdownTime = self.Config.CountdownTime
-
-			if self.Config.ShowCountdown then
-				self:ShowGameStart( CountdownTime )
-			end
-
-			self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
-				local Team1Com = Team1:GetCommander()
-				local Team2Com = Team2:GetCommander()
-
-				if self.Config.AbortIfNoCom then
-					if not Team1Com or not Team2Com then
-						return
-					end
-				end
-
-				local Team1Count = Team1:GetNumPlayers()
-				local Team2Count = Team2:GetNumPlayers()
-
-				if Team1Count == 0 or Team2Count == 0 then
-					return
-				end
-
-				self:ShowCountdown()
-			end )
-
-			self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
-				local Team1Com = Team1:GetCommander()
-				local Team2Com = Team2:GetCommander()
-
-				if self.Config.AbortIfNoCom then
-					if not Team1Com or not Team2Com then
-						self:AbortGameStart( Gamerules, "ABORT_COMMANDER_DROP" )
-						self.GameStarting = false
-
-						return
-					end
-				end
-
-				local Team1Count = Team1:GetNumPlayers()
-				local Team2Count = Team2:GetNumPlayers()
-
-				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-						Team = Team1Count == 0 and 1 or 2
-					} )
-
-					self.GameStarting = false
-
-					return
-				end
-
-				self:StartCountdown()
-			end )
+			self:QueueGameStart( Gamerules )
 
 			return
 		end
@@ -584,6 +533,30 @@ Plugin.UpdateFuncs = {
 			self:NagForBoth()
 		end
 	end,
+
+	-- Do not allow the game to start until the minimum player count is reached, and there are two commanders.
+	function( self, Gamerules )
+		local Team1 = Gamerules.team1
+		local Team2 = Gamerules.team2
+
+		local Team1Com = Team1:GetCommander()
+		local Team2Com = Team2:GetCommander()
+
+		local Team1Count = Team1:GetNumPlayers()
+		local Team2Count = Team2:GetNumPlayers()
+
+		if self.GameStarting then
+			self:CheckTeamCounts( Gamerules, Team1Com, Team2Com, Team1Count, Team2Count )
+			return
+		end
+
+		local PlayerCount = Shine.GetHumanPlayerCount()
+		if PlayerCount < self.Config.MinPlayers then return end
+
+		if Team1Com and Team2Com then
+			self:QueueGameStart( Gamerules )
+		end
+	end
 }
 
 function Plugin:UpdatePregame( Gamerules )
@@ -603,7 +576,7 @@ function Plugin:CheckGameStart( Gamerules )
 		return false
 	end
 
-	self.UpdateFuncs[ self.Config.RequireComs ]( self, Gamerules )
+	self.UpdateFuncs[ self.Config.Mode ]( self, Gamerules )
 
 	return false
 end
