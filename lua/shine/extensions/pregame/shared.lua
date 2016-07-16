@@ -23,6 +23,9 @@ function Plugin:SetupDataTable()
 		},
 		Duration = {
 			Duration = "integer"
+		},
+		MinPlayers = {
+			MinPlayers = "integer"
 		}
 	}
 
@@ -38,6 +41,9 @@ function Plugin:SetupDataTable()
 		},
 		[ MessageTypes.CommanderAdd ] = {
 			"TeamHasCommander"
+		},
+		[ MessageTypes.MinPlayers ] = {
+			"WaitingForMinPlayers"
 		}
 	} )
 end
@@ -59,6 +65,10 @@ function Plugin:ReceiveWaitingForTeam( Data )
 		"WAITING_FOR_ALIENS"
 	}
 	self:SetTeamMessage( self:GetPhrase( TeamKeys[ Data.Team ] ) )
+end
+
+function Plugin:ReceiveWaitingForMinPlayers( Data )
+	self:SetTeamMessage( self:GetInterpolatedPhrase( "WAITING_FOR_PLAYER_COUNT", Data ) )
 end
 
 function Plugin:ReceiveEmptyTeamAbort( Data )

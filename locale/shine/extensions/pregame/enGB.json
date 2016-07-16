@@ -4,6 +4,7 @@
 	"WAITING_FOR_ALIENS": "Waiting on Aliens to choose a commander",
 	"WAITING_FOR_MARINES": "Waiting on Marines to choose a commander",
 	"WAITING_FOR_BOTH": "Waiting on both teams to choose a commander",
+	"WAITING_FOR_PLAYER_COUNT": "Waiting for at least {MinPlayers} {MinPlayers:Pluralise:player|players} to join teams",
 	"ABORT_MARINES_EMPTY": "Game start aborted, marine team is empty.",
 	"ABORT_ALIENS_EMPTY": "Game start aborted, alien team is empty.",
 	"ABORT_COMMANDER_DROP": "Game start aborted, a commander dropped out.",

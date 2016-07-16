@@ -7,6 +7,7 @@ local Shine = Shine
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
+local Max = math.max
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
@@ -68,6 +69,7 @@ function Plugin:Initialise()
 	end
 
 	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, #self.Modes )
+	self.Config.MinPlayers = Max( Floor( self.Config.MinPlayers ), 0 )
 
 	self.CountStart = nil
 	self.CountEnd = nil
@@ -551,7 +553,15 @@ Plugin.UpdateFuncs = {
 		end
 
 		local PlayerCount = Team1Count + Team2Count - Team1Bots - Team2Bots
-		if PlayerCount < self.Config.MinPlayers then return end
+		if PlayerCount < self.Config.MinPlayers then
+			if self:CanRunAction( "StartNag", SharedTime(), self.StartNagInterval ) then
+				self:SendTranslatedNotify( nil, "WaitingForMinPlayers", {
+					MinPlayers = self.Config.MinPlayers
+				} )
+			end
+
+			return
+		end
 
 		if Team1Com and Team2Com then
 			self:QueueGameStart( Gamerules )
