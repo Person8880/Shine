@@ -555,6 +555,16 @@ Plugin.UpdateFuncs = {
 
 		if Team1Com and Team2Com then
 			self:QueueGameStart( Gamerules )
+			return
+		end
+
+		if not self:CanRunAction( "StartNag", SharedTime(), self.StartNagInterval ) then return end
+
+		if Team1Com or Team2Com then
+			local WaitingForTeam = Team1Com and 2 or 1
+			self:NagForTeam( WaitingForTeam )
+		else
+			self:NagForBoth()
 		end
 	end
 }
