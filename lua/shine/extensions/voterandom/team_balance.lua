@@ -18,6 +18,8 @@ local TableSort = table.sort
 
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
 
+Shine.Hook.SetupClassHook( "BotTeamController", "UpdateBots", "UpdateBots", "ActivePre" )
+
 local function GetAverageSkillFunc( Players, Func, TeamNumber )
 	local PlayerCount = #Players
 	if PlayerCount == 0 then
@@ -195,6 +197,10 @@ function BalanceModule:AssignPlayers( TeamMembers, SortTable, Count, NumTargets,
 	end
 
 	return Sorted
+end
+
+function BalanceModule:UpdateBots()
+	if self.OptimisingTeams then return false end
 end
 
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )

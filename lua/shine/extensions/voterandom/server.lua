@@ -70,6 +70,7 @@ Plugin.DefaultConfig = {
 	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
 	NotifyOnVote = true, -- Should all players be told through the chat when a vote is cast?
+	ApplyToBots = false, -- Should bots be shuffled, or removed?
 
 	BalanceMode = Plugin.MODE_HIVE, --How should teams be balanced?
 	FallbackMode = Plugin.MODE_KDR, --Which method should be used if Elo/Hive fails?
@@ -266,6 +267,19 @@ function Plugin:GetTargetsForSorting( ResetScores )
 		local Client = Player:GetClient()
 		if not Client then return end
 
+		-- Bot and we don't want to deal with them, so kick them out.
+		if Client:GetIsVirtual() and not self.Config.ApplyToBots then
+			if Pass == 1 then
+				if Player.Disconnect then
+					Player:Disconnect()
+				else
+					Server.DisconnectClient( Client )
+				end
+			end
+
+			return
+		end
+
 		local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 
 		if AFKEnabled then -- Ignore AFK players in sorting.
@@ -302,6 +316,9 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	local Gamerules = GetGamerules()
 	if not Gamerules then return end
 
+	-- Prevent the bot controller interfering with our changes.
+	self.OptimisingTeams = true
+
 	local Targets, TeamMembers = self:GetTargetsForSorting( ResetScores )
 
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
@@ -311,6 +328,8 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 
 	local Mode = ForceMode or self.Config.BalanceMode
 	self.ShufflingModes[ Mode ]( self, Gamerules, Targets, TeamMembers )
+
+	self.OptimisingTeams = false
 
 	-- Remember who was on what team at the point of shuffling, so we can work out
 	-- how close to the shuffled teams we are later.
