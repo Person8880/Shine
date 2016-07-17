@@ -22,7 +22,8 @@ Plugin.DefaultConfig = {
 			Leave = "Bob is off to fight more important battles."
 		}
 	},
-	ShowGeneric = false
+	ShowGeneric = false,
+	ShowForBots = false
 }
 
 Plugin.CheckConfig = true
@@ -36,9 +37,14 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:ShouldShowMessage( Client )
+	return Shine:IsValidClient( Client ) and ( self.Config.ShowForBots
+		or not Client:GetIsVirtual() )
+end
+
 function Plugin:ClientConnect( Client )
 	self:SimpleTimer( self.Config.MessageDelay, function()
-		if not Shine:IsValidClient( Client ) then return end
+		if not self:ShouldShowMessage( Client ) then return end
 
 		local ID = Client:GetUserId()
 		local MessageTable = self.Config.Users[ tostring( ID ) ]
@@ -151,8 +157,6 @@ end
 function Plugin:Cleanup()
 	self.Welcomed = nil
 	self.BaseClass.Cleanup( self )
-
-	self.Enabled = false
 end
 
 Shine.Hook.SetupGlobalHook( "Server.DisconnectClient", "OnScriptDisconnect", "PassivePre" )

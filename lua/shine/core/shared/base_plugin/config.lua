@@ -109,6 +109,11 @@ function ConfigModule:LoadConfig()
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( _, Config )
+			return self.PreValidateConfig and self:PreValidateConfig( Config )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( _, Config )
 			return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig )
 		end
 	} )
