@@ -42,6 +42,8 @@ Plugin.DefaultConfig = {
 	PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
 	PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
 
+	MaxNominationsPerPlayer = 3, -- The maximum number of maps an individual player can nominate.
+
 	VoteLength = 2, --Time in minutes a vote should last before failing.
 	ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
 	VoteDelay = 10, --Time to wait in minutes after map change/vote fail before voting can occur.
@@ -109,10 +111,11 @@ function Plugin:Initialise()
 
 	self.Vote = self.Vote or {}
 	self.Vote.NextVote = self.Vote.NextVote or ( SharedTime() + ( self.Config.VoteDelay * 60 ) )
-	self.Vote.Nominated = {} --Table of nominated maps.
-	self.Vote.Votes = 0 --Number of map votes that have taken place.
-	self.Vote.Voted = {} --Table of players that have voted for a map.
-	self.Vote.TotalVotes = 0 --Number of votes in the current map vote.
+	self.Vote.Nominated = {} -- Table of nominated maps.
+	self.Vote.NominationTracker = {} -- Tracks the amount of times someone's nominated a map.
+	self.Vote.Votes = 0 -- Number of map votes that have taken place.
+	self.Vote.Voted = {} -- Table of players that have voted for a map.
+	self.Vote.TotalVotes = 0 -- Number of votes in the current map vote.
 
 	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end,
 		function() self:StartVote() end )
@@ -364,7 +367,15 @@ function Plugin:CreateCommands()
 	end
 
 	local function Nominate( Client, Map )
+		local SteamID = Client and Client:GetUserId() or "Console"
 		local Player, PlayerName = GetPlayerData( Client )
+
+		-- Verify the user hasn't nominated too many, and use their Steam ID to prevent rejoining resetting it.
+		local NominationCount = self.Vote.NominationTracker[ SteamID ] or 0
+		if NominationCount >= self.Config.MaxNominationsPerPlayer then
+			NotifyError( Player, "NOMINATE_DENIED", nil, "You have reached the limit of nominations permitted." )
+			return
+		end
 
 		if not self.Config.Maps[ Map ] then
 			NotifyError( Player, "MAP_NOT_ON_LIST", {
@@ -375,7 +386,7 @@ function Plugin:CreateCommands()
 		end
 
 		if not self:CanExtend() and Shared.GetMapName() == Map then
-			NotifyError( Player, "NOMINATE_FAIL", {}, "You cannot nominate the current map." )
+			NotifyError( Player, "NOMINATE_FAIL", nil, "You cannot nominate the current map." )
 
 			return
 		end
@@ -401,16 +412,18 @@ function Plugin:CreateCommands()
 		local Count = #Nominated
 
 		if Count >= self.MaxNominations then
-			NotifyError( Player, "NOMINATIONS_FULL", {}, "Nominations are full." )
+			NotifyError( Player, "NOMINATIONS_FULL", nil, "Nominations are full." )
 
 			return
 		end
 
 		if self:VoteStarted() then
-			NotifyError( Player, "VOTE_FAIL_IN_PROGRESS", {}, "A vote is already in progress." )
+			NotifyError( Player, "VOTE_FAIL_IN_PROGRESS", nil, "A vote is already in progress." )
 
 			return
 		end
+
+		self.Vote.NominationTracker[ SteamID ] = NominationCount + 1
 
 		Nominated[ Count + 1 ] = Map
 
@@ -427,7 +440,7 @@ function Plugin:CreateCommands()
 		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self.Config.EnableRTV then
-			NotifyError( Player, "RTV_DISABLED", {}, "RTV has been disabled." )
+			NotifyError( Player, "RTV_DISABLED", nil, "RTV has been disabled." )
 
 			return
 		end
@@ -489,7 +502,7 @@ function Plugin:CreateCommands()
 		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self:VoteStarted() then
-			NotifyError( Player, "NO_VOTE_IN_PROGRESS", {}, "There is no map vote in progress." )
+			NotifyError( Player, "NO_VOTE_IN_PROGRESS", nil, "There is no map vote in progress." )
 
 			return
 		end
@@ -534,7 +547,7 @@ function Plugin:CreateCommands()
 		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self.Vote.CanVeto then
-			NotifyError( Player, "NO_CHANGE_IN_PROGRESS", {}, "There is no map change in progress." )
+			NotifyError( Player, "NO_CHANGE_IN_PROGRESS", nil, "There is no map change in progress." )
 
 			return
 		end
@@ -557,7 +570,7 @@ function Plugin:CreateCommands()
 
 			self:SendTranslatedMessage( Client, "FORCED_VOTE", {} )
 		else
-			NotifyError( Client, "CANT_FORCE", {}, "Unable to start a new vote, a vote is already in progress." )
+			NotifyError( Client, "CANT_FORCE", nil, "Unable to start a new vote, a vote is already in progress." )
 		end
 	end
 	local ForceVoteCommand = self:BindCommand( "sh_forcemapvote", "forcemapvote", ForceVote )
