@@ -205,6 +205,8 @@ function Plugin:QueueGameStart( Gamerules )
 	end
 
 	self:CreateTimer( self.FiveSecTimer, CountdownTime - 5, 1, function()
+		local Team1 = Gamerules.team1
+		local Team2 = Gamerules.team2
 		local Team1Com = Team1:GetCommander()
 		local Team2Com = Team2:GetCommander()
 
@@ -225,6 +227,8 @@ function Plugin:QueueGameStart( Gamerules )
 	end )
 
 	self:CreateTimer( self.CountdownTimer, CountdownTime, 1, function()
+		local Team1 = Gamerules.team1
+		local Team2 = Gamerules.team2
 		local Team1Com = Team1:GetCommander()
 		local Team2Com = Team2:GetCommander()
 

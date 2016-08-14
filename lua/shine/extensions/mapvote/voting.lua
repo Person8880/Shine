@@ -545,6 +545,7 @@ function Plugin:StartVote( NextMap, Force )
 
 	self.Vote.TotalVotes = 0
 	self.Vote.Voted = {}
+	self.Vote.NominationTracker = {}
 
 	--First we compile the list of maps that are going to be available to vote for.
 	local MaxOptions = self.Config.MaxOptions

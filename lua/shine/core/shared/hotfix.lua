@@ -6,14 +6,14 @@ local Shine = Shine
 local Hotfixes
 
 if Server then
+	local function ValidClientFilter( Bot )
+		return Shine:IsValidClient( Bot.client )
+	end
+
 	-- Server hotfixes
 	Hotfixes = {
 		[ "lua/bots/Bot.lua" ] = {
 			Hotfix = function()
-				local function ValidClientFilter( Bot )
-					return Shine:IsValidClient( Bot.client )
-				end
-
 				local OldDisconnect
 				OldDisconnect = Shine.ReplaceClassMethod( "Bot", "Disconnect", function( self )
 					-- Get rid of bots whose client has disconnected so it doesn't script error
@@ -27,6 +27,19 @@ if Server then
 				end )
 			end,
 			ShouldApply = function() return gServerBots ~= nil end
+		},
+		[ "lua/bots/CommanderBot.lua" ] = {
+			Hotfix = function()
+				-- Same as above, but commander bots have their own global table...
+				local OldDisconnect
+				OldDisconnect = Shine.ReplaceClassMethod( "CommanderBot", "Disconnect", function( self )
+					Shine.Stream( gCommanderBots ):Filter( ValidClientFilter )
+
+					-- This will end up calling Bot.Disconnect which is covered above.
+					return OldDisconnect( self )
+				end )
+			end,
+			ShouldApply = function() return gCommanderBots ~= nil end
 		}
 	}
 else
