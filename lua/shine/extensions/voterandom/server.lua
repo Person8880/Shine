@@ -283,7 +283,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 		local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 
 		if AFKEnabled then -- Ignore AFK players in sorting.
-			if not AFKKick:IsAFKFor( Client, 60 ) then
+			if Commander or not AFKKick:IsAFKFor( Client, 60 ) then
 				SortPlayer( Player, Client, Commander, Pass )
 			elseif Pass == 1 then -- Chuck AFK players into the ready room.
 				local Team = Player:GetTeamNumber()
