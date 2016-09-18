@@ -202,15 +202,19 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	local ClientIndex = Row.ClientIndex
 	if not ClientIndex then return end
 
-	local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
-	if not MemoryEntry.LastChange then return end
-
-	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
-	if TimeSinceLastChange >= HighlightDuration then return end
-
 	local Entry = Scoreboard_GetPlayerRecord( ClientIndex )
 
-	FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
+	if self.dt.HighlightTeamSwaps then
+
+		local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
+		if not MemoryEntry.LastChange then return end
+
+		local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
+		if TimeSinceLastChange < HighlightDuration then
+			FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
+		end
+
+	end
 
 	return Entry
 end
@@ -219,8 +223,6 @@ local MathStandardDeviation = math.StandardDeviation
 local StringFormat = string.format
 
 function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
-	if not self.dt.HighlightTeamSwaps then return end
-
 	local TeamNumber = Team.TeamNumber
 	local OurTeam = GetLocalPlayerTeam()
 
