@@ -202,13 +202,14 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	local ClientIndex = Row.ClientIndex
 	if not ClientIndex then return end
 
+	local Entry = Scoreboard_GetPlayerRecord( ClientIndex )
+	if not self.dt.HighlightTeamSwaps then return Entry end
+
 	local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
-	if not MemoryEntry.LastChange then return end
+	if not MemoryEntry.LastChange then return Entry end
 
 	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
-	if TimeSinceLastChange >= HighlightDuration then return end
-
-	local Entry = Scoreboard_GetPlayerRecord( ClientIndex )
+	if TimeSinceLastChange >= HighlightDuration then return Entry end
 
 	FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
 
@@ -219,21 +220,23 @@ local MathStandardDeviation = math.StandardDeviation
 local StringFormat = string.format
 
 function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
-	if not self.dt.HighlightTeamSwaps then return end
-
 	local TeamNumber = Team.TeamNumber
+
+	local ShouldTrackStdDev = self.dt.DisplayStandardDeviations and IsPlayingTeam( TeamNumber )
+	if not ShouldTrackStdDev and not self.dt.HighlightTeamSwaps then return end
+
 	local OurTeam = GetLocalPlayerTeam()
 
-	local SkillValues = {}
+	local SkillValues = ShouldTrackStdDev and {}
 	local CurTime = SharedGetTime()
 	for Index, Row in pairs( Team.PlayerList ) do
 		local Entry = CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
-		if Entry and Entry.SteamId > 0 then
+		if ShouldTrackStdDev and Entry and Entry.SteamId > 0 then
 			SkillValues[ #SkillValues + 1 ] = Entry.Skill
 		end
 	end
 
-	if not self.dt.DisplayStandardDeviations or not IsPlayingTeam( TeamNumber ) then return end
+	if not ShouldTrackStdDev then return end
 
 	local TeamNameItem = Team.GUIs.TeamName
 	local StandardDeviation = MathStandardDeviation( SkillValues )
