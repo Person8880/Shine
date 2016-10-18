@@ -54,7 +54,8 @@ function Plugin:SetupDataTable()
 			"RESET_GAME", "HIVE_TEAMS", "FORCE_START", "VOTE_STOPPED"
 		},
 		[ MessageTypes.Enabled ] = {
-			"CHEATS_TOGGLED", "ALLTALK_TOGGLED", "ALLTALK_PREGAME_TOGGLED"
+			"CHEATS_TOGGLED", "ALLTALK_TOGGLED", "ALLTALK_PREGAME_TOGGLED",
+			"ALLTALK_LOCAL_TOGGLED"
 		},
 		[ MessageTypes.Kick ] = {
 			"ClientKicked"

@@ -181,11 +181,7 @@ end
 --[[
 	Clears a table.
 ]]
-function table.Empty( Table )
-	for Key in pairs( Table ) do
-		Table[ Key ] = nil
-	end
-end
+table.Empty = require "table.clear"
 
 --[[
 	Fixes an array with holes in it.

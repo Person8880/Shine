@@ -509,7 +509,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	local Gamestate = Gamerules:GetGameState()
 
 	--We'll do a mass balance, don't worry about them yet.
-	if self.Config.AlwaysEnabled and Gamestate < kGameState.Pregame then return end
+	if self.Config.AlwaysEnabled and Gamestate < kGameState.PreGame then return end
 
 	--Don't block them from going back to the ready room at the end of the round.
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won
@@ -549,7 +549,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	end
 
 	if not Player.ShineRandomised then
-		if Team == 0 or Team == 3 then --They're going from the ready room/spectate to a team.
+		if ( Team == 0 or Team == 3 ) and Shine.IsPlayingTeam( NewTeam ) then --They're going from the ready room/spectate to a team.
 			Player.ShineRandomised = true --Prevent an infinite loop!
 
 			self:NotifyTranslated( Player, self.LastShuffleMode == self.MODE_HIVE and "PLACED_ON_HIVE_TEAM"

@@ -41,6 +41,10 @@ function Webpage:LoadURL( URL, W, H )
 
 		self.Background:SetSize( Vector( W, H, 0 ) )
 		self.Background:SetTexture( TextureName )
+
+		self.WebView:HookJSAlert( function( ... )
+			self:OnJSAlert( ... )
+		end )
 	end
 
 	self.WebView:LoadUrl( URL )
@@ -50,6 +54,18 @@ function Webpage:GetHasLoaded()
 	if not self.WebView then return false end
 
 	return self.WebView:GetUrlLoaded()
+end
+
+function Webpage:OnJSAlert( ... )
+	-- Override to see JavaScript alerts...
+end
+
+function Webpage:ExecuteJS( JavaScript )
+	if not self.WebView or not self:GetHasLoaded() then
+		error( "Attempted to execute JavaScript before loading a page!", 2 )
+	end
+
+	self.WebView:ExecuteJS( JavaScript )
 end
 
 function Webpage:PlayerKeyPress( Key, Down )
