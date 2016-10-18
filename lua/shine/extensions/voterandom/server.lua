@@ -549,7 +549,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	end
 
 	if not Player.ShineRandomised then
-		if Team == 0 or Team == 3 then --They're going from the ready room/spectate to a team.
+		if ( Team == 0 or Team == 3 ) and Shine.IsPlayingTeam( NewTeam ) then --They're going from the ready room/spectate to a team.
 			Player.ShineRandomised = true --Prevent an infinite loop!
 
 			self:NotifyTranslated( Player, self.LastShuffleMode == self.MODE_HIVE and "PLACED_ON_HIVE_TEAM"
