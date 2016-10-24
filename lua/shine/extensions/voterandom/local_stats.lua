@@ -201,7 +201,7 @@ function StatsModule:StoreRoundEndData( ClientID, Player, WinningTeamNumber, Rou
 	local Team = Player:GetTeamNumber()
 
 	-- Only add win/loss if the player was on the team for more than the minimum time.
-	local TimeOnTeam = Team == 1 and Player:GetMarinePlayTime() or Player:GetAlienPlayTime()
+	local TimeOnTeam = Team == 1 and Player:GetMarinePlayTime() or Player:GetAlienPlayTime() or 0
 	if TimeOnTeam >= MinTimeOnTeam then
 		local Stat = Team == WinningTeamNumber and "Wins" or "Losses"
 		self:IncrementStatValue( ClientID, Player, Stat, 1 )
