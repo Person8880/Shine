@@ -8,6 +8,8 @@
 	"KICK_TROLLING": "Trolling",
 	"KICK_LANGUAGE": "Offensive language",
 	"KICK_MIC_SPAM": "Mic spamming",
+	"KICK_AFK": "AFK",
+	"KICK_CUSTOM": "Enter a custom reason...",
 	"GAG": "Gag",
 	"GAG_TIP": "Stops the player from using text and voice chat.",
 	"GAG_UNTIL_MAP_CHANGE": "Until map change",

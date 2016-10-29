@@ -220,7 +220,33 @@ function Plugin:SetupAdminMenuCommands()
 		self:GetPhrase( "KICK_NO_REASON" ), "",
 		self:GetPhrase( "KICK_TROLLING" ), "Trolling.",
 		self:GetPhrase( "KICK_LANGUAGE" ), "Offensive language.",
-		self:GetPhrase( "KICK_MIC_SPAM" ), "Mic spamming."
+		self:GetPhrase( "KICK_MIC_SPAM" ), "Mic spamming.",
+		self:GetPhrase( "KICK_AFK" ), "AFK.",
+		"Custom", {
+			Setup = function( Menu, Command, Player, CleanupMenu )
+				local Panel = SGUI:Create( "Panel", Menu )
+				local TextEntry = SGUI:Create( "TextEntry", Panel )
+				TextEntry:SetFill( true )
+				TextEntry:SetPlaceholderText( self:GetPhrase( "KICK_CUSTOM" ) )
+				TextEntry:SetFontScale( Fonts.kAgencyFB_Small, Vector2( 0.9, 0.9 ) )
+				function TextEntry:OnEnter()
+					local Text = self:GetText()
+					if #Text == 0 then return end
+
+					Shine.AdminMenu:RunCommand( Command, StringFormat( "%s %s", Player, Text ) )
+					CleanupMenu()
+				end
+
+				local Layout = SGUI.Layout:CreateLayout( "Horizontal", {
+					Padding = SGUI.Layout.Units.Spacing( 2, 2, 2, 2 )
+				} )
+				Layout:AddElement( TextEntry )
+				Panel:SetLayout( Layout )
+
+				Menu:AddPanel( Panel )
+			end
+		},
+		Width = 192
 	}, self:GetPhrase( "KICK_TIP" ) )
 
 	local GagTimes = {

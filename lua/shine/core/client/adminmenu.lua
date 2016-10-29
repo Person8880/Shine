@@ -515,7 +515,7 @@ do
 
 				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
-				Menu = Button:AddMenu( Vector( 128, 32, 0 ) )
+				Menu = Button:AddMenu( Vector( Data.Width or 144, Data.ButtonHeight or 32, 0 ) )
 				Menu:CallOnRemove( function()
 					Menu = nil
 				end )
@@ -540,6 +540,8 @@ do
 							Arg()
 							CleanupMenu()
 						end )
+					elseif IsType( Arg, "table" ) and Arg.Setup then
+						Arg.Setup( Menu, Command, Args, CleanupMenu )
 					end
 				end
 			end

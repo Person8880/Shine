@@ -61,12 +61,31 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	self.ButtonCount = self.ButtonCount + 1
 	self.Buttons[ self.ButtonCount ] = Button
 
+	self:Resize()
+
+	return Button
+end
+
+function Menu:AddPanel( Panel )
+	Panel:SetParent( self )
+	Panel:SetStyleName( "MenuPanel" )
+	Panel:SetAnchor( GUIItem.Left, GUIItem.Top )
+	Panel:SetPos( self.ButtonSpacing + self.ButtonCount * self.ButtonOffset )
+	Panel:SetSize( self.ButtonSize )
+
+	self.ButtonCount = self.ButtonCount + 1
+	self.Buttons[ self.ButtonCount ] = Button
+
+	self:Resize()
+
+	return Panel
+end
+
+function Menu:Resize()
 	if not ( self.MaxVisibleButtons and self.ButtonCount > self.MaxVisibleButtons ) then
 		self:SetSize( self.ButtonSpacing * 2 + self.ButtonSize
 			+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
 	end
-
-	return Button
 end
 
 ------------------- Event calling -------------------
