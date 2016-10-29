@@ -96,6 +96,9 @@ local Skin = {
 		},
 		TitleBar = {
 			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+		},
+		MenuPanel = {
+			Colour = Colour( 0.25, 0.25, 0.25, 1 )
 		}
 	},
 	ProgressBar = {
@@ -135,11 +138,17 @@ local Skin = {
 	},
 	TextEntry = {
 		Default = {
-			FocusColour = Colour( 0.6, 0.6, 0.6, 1 ),
+			FocusColour = Colour( 0.35, 0.35, 0.35, 1 ),
 			DarkColour = Colour( 0.4, 0.4, 0.4, 1 ),
-			HighlightColour = Colour( 1, 0.6, 0, 0.5 ),
-			PlaceholderTextColour = Colour( 0.8, 0.8, 0.8, 0.5 ),
-			BorderColour = Colour( 0, 0, 0, 1 )
+			HighlightColour = Colour( 1, 0.4, 0, 0.5 ),
+			PlaceholderTextColour = Colour( 0.9, 0.9, 0.9, 1 ),
+			BorderColour = Colour( 0.1, 0.1, 0.1, 1 ),
+			BorderSize = Vector2( 1, 1 ),
+			States = {
+				Focus = {
+					BorderColour = Colour( 1, 0.3, 0, 1 )
+				}
+			}
 		}
 	},
 	Tooltip = {

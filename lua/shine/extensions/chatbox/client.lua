@@ -212,7 +212,8 @@ local Skin = {
 			FocusColour = Colours.Dark,
 			DarkColour = Colours.Dark,
 			BorderColour = Colour( 0, 0, 0, 0 ),
-			TextColour = Colour( 1, 1, 1, 1 )
+			TextColour = Colour( 1, 1, 1, 1 ),
+			PlaceholderTextColour = Colour( 0.8, 0.8, 0.8, 0.5 )
 		}
 	},
 

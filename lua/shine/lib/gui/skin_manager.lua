@@ -73,6 +73,12 @@ function SkinManager:ApplySkin( Element )
 	local StyleDef = self:GetStyleForElement( Element )
 	if not StyleDef then return end
 
+	-- States can apply different scheme values, e.g. focus/hover etc.
+	local State = Element:GetStylingState()
+	if State and StyleDef.States then
+		StyleDef = StyleDef.States[ State ] or StyleDef
+	end
+
 	local StyleCopy = {}
 	for Key, Value in pairs( StyleDef ) do
 		if SGUI.IsColour( Value ) then

@@ -75,6 +75,21 @@ function ControlMeta:CallOnRemove( Func )
 	Table[ #Table + 1 ] = Func
 end
 
+--[[
+	Sets a new styling state, which will potentially apply different styling
+	values to the control.
+
+	This can be used to easily define focus/hover behaviour.
+]]
+function ControlMeta:SetStylingState( Name )
+	self.StylingState = Name
+	SGUI.SkinManager:ApplySkin( self )
+end
+
+function ControlMeta:GetStylingState()
+	return self.StylingState
+end
+
 function ControlMeta:SetStyleName( Name )
 	self.StyleName = Name
 	SGUI.SkinManager:ApplySkin( self )
