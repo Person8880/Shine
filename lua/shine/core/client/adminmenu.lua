@@ -48,19 +48,22 @@ function AdminMenu:Create()
 
 	Window:AddCloseButton()
 	Window.OnClose = function()
-		self:SetIsVisible( false )
-
-		if self.ToDestroyOnClose then
-			for Panel in pairs( self.ToDestroyOnClose ) do
-				if Panel:IsValid() then
-					Panel:Destroy()
-				end
-
-				self.ToDestroyOnClose[ Panel ] = nil
-			end
-		end
-
+		self:Close()
 		return true
+	end
+end
+
+function AdminMenu:Close()
+	self:SetIsVisible( false )
+
+	if self.ToDestroyOnClose then
+		for Panel in pairs( self.ToDestroyOnClose ) do
+			if Panel:IsValid() then
+				Panel:Destroy()
+			end
+
+			self.ToDestroyOnClose[ Panel ] = nil
+		end
 	end
 end
 
@@ -120,7 +123,7 @@ function AdminMenu:PlayerKeyPress( Key, Down )
 	if not self.Visible then return end
 
 	if Key == InputKey.Escape and Down then
-		self:SetIsVisible( false )
+		self:Close()
 
 		return true
 	end
