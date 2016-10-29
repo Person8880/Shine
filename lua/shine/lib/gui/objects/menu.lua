@@ -74,7 +74,7 @@ function Menu:AddPanel( Panel )
 	Panel:SetSize( self.ButtonSize )
 
 	self.ButtonCount = self.ButtonCount + 1
-	self.Buttons[ self.ButtonCount ] = Button
+	self.Buttons[ self.ButtonCount ] = Panel
 
 	self:Resize()
 
