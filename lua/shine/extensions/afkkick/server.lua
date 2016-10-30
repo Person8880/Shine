@@ -35,7 +35,8 @@ Plugin.DefaultConfig = {
 	OnlyCheckOnStarted = false,
 	KickOnConnect = false,
 	KickTimeIsAFKThreshold = 0.25,
-	MarkPlayersAFK = true
+	MarkPlayersAFK = true,
+	LenientModeForSpectators = false
 }
 
 Plugin.CheckConfig = true
@@ -278,14 +279,19 @@ function Plugin:OnProcessMove( Player, Input )
 	if not ( MovementIsEmpty and AnglesMatch ) then
 		DataTable.LastMove = Time
 
-		-- Spectator movement is weighted higher because it will occur less frequently.
-		local Multiplier = IsSpectator and SPECTATOR_MOVEMENT_MULTIPLIER or MOVEMENT_MULTIPLIER
+		if IsSpectator and self.Config.LenientModeForSpectators then
+			-- Lenient mode means reset AFK time on any movement for a spectator.
+			DataTable.AFKAmount = 0
+		else
+			-- Spectator movement is weighted higher because it will occur less frequently.
+			local Multiplier = IsSpectator and SPECTATOR_MOVEMENT_MULTIPLIER or MOVEMENT_MULTIPLIER
 
-		-- Subtract the measurement time from their AFK time, so they have to stay
-		-- active for a while to get it back to 0 time.
-		-- We use a multiplier as we want activity to count for more than inactivity to avoid
-		-- overzealous kicks.
-		DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * Multiplier, 0 )
+			-- Subtract the measurement time from their AFK time, so they have to stay
+			-- active for a while to get it back to 0 time.
+			-- We use a multiplier as we want activity to count for more than inactivity to avoid
+			-- overzealous kicks.
+			DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * Multiplier, 0 )
+		end
 	else
 		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
 	end
