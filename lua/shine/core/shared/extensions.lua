@@ -99,9 +99,12 @@ function Shine:RegisterExtension( Name, Table, Options )
 	SetupModules( ParentPlugin )
 end
 
+local LoadingErrors = {}
+
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
 
+	if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 	if self.Plugins[ Name ] then return true end
 
 	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
@@ -110,7 +113,6 @@ function Shine:LoadExtension( Name, DontEnable )
 
 	local IsShared = PluginFiles[ SharedFile ]
 		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
-
 	if PluginFiles[ SharedFile ] then
 		include( SharedFile )
 
@@ -248,12 +250,13 @@ end )
 -- Handles dispatching plugin events efficiently.
 local Dispatcher
 
---Shared extensions need to be enabled once the server tells it to.
+-- Shared extensions need to be enabled once the server tells it to.
 function Shine:EnableExtension( Name, DontLoadConfig )
-	local Plugin = self.Plugins[ Name ]
+	if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 
+	local Plugin = self.Plugins[ Name ]
 	if not Plugin then
-		return false, "plugin does not exist"
+		return false, LoadingErrors[ Name ] or "plugin does not exist"
 	end
 
 	local FirstEnable = Plugin.Enabled == nil
@@ -473,14 +476,19 @@ for Path in pairs( PluginFiles ) do
 			local LoweredFileName = File:lower()
 
 			if LoweredFileName == "shared.lua" then
-				ClientPlugins[ Name ] = "boolean" --Generate the network message.
+				ClientPlugins[ Name ] = "boolean" -- Generate the network message.
 				AddToPluginsLists( Name )
 			elseif LoweredFileName == "server.lua" or LoweredFileName == "client.lua" then
 				AddToPluginsLists( Name )
 			end
 
-			--Shared plugins should load into memory for network messages.
-			Shine:LoadExtension( Name, true )
+			-- Shared plugins should load into memory for network messages.
+			local Success, Err = Shine:LoadExtension( Name, true )
+			if not Success then
+				-- Remember the first loading error, as subsequent errors will be because
+				-- the plugin does not exist in Shine.Plugins.
+				LoadingErrors[ Name ] = Err
+			end
 		end
 	else
 		File = Name
