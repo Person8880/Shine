@@ -214,6 +214,9 @@ function Plugin:SubtractAFKTime( Client, Time )
 	end
 end
 
+local MOVEMENT_MULTIPLIER = 5
+local SPECTATOR_MOVEMENT_MULTIPLIER = 20
+
 --[[
 	Hook into movement processing to help prevent false positive AFK kicking.
 ]]
@@ -246,10 +249,10 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 
 	local Move = Input.move
-
 	local Team = Player:GetTeamNumber()
+	local IsSpectator = Team == kSpectatorIndex
 
-	if Team == kSpectatorIndex and self.Config.IgnoreSpectators then
+	if IsSpectator and self.Config.IgnoreSpectators then
 		self:ResetAFKTime( Client )
 
 		return
@@ -269,15 +272,20 @@ function Plugin:OnProcessMove( Player, Input )
 
 	DataTable.LastMeasurement = Time
 
-	if not ( Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
-	and DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch ) then
+	local MovementIsEmpty = Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
+	local AnglesMatch = DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch
+
+	if not ( MovementIsEmpty and AnglesMatch ) then
 		DataTable.LastMove = Time
+
+		-- Spectator movement is weighted higher because it will occur less frequently.
+		local Multiplier = IsSpectator and SPECTATOR_MOVEMENT_MULTIPLIER or MOVEMENT_MULTIPLIER
 
 		-- Subtract the measurement time from their AFK time, so they have to stay
 		-- active for a while to get it back to 0 time.
 		-- We use a multiplier as we want activity to count for more than inactivity to avoid
 		-- overzealous kicks.
-		DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * 5, 0 )
+		DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * Multiplier, 0 )
 	else
 		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
 	end
