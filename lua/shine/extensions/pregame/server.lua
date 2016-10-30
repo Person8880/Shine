@@ -47,6 +47,11 @@ Plugin.CountdownTimer = "PreGameCountdown"
 
 Plugin.StartNagInterval = 30
 
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true,
+	[ "mvm" ] = true
+}
+
 function Plugin:OnFirstThink()
 	Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
 		"CheckPlayerCanAttack", "ActivePre" )
@@ -62,12 +67,6 @@ function Plugin:PreValidateConfig( Config )
 end
 
 function Plugin:Initialise()
-	local Gamemode = Shine.GetGamemode()
-
-	if Gamemode ~= "ns2" and Gamemode ~= "mvm" then
-		return false, StringFormat( "The pregame plugin does not work with %s.", Gamemode )
-	end
-
 	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, #self.Modes )
 	self.Config.MinPlayers = Max( Floor( self.Config.MinPlayers ), 0 )
 

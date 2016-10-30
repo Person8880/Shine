@@ -29,6 +29,11 @@ Plugin.ConfigName = "VoteRandom.json"
 
 Plugin.RandomEndTimer = "VoteRandomTimer"
 
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true,
+	[ "mvm" ] = true
+}
+
 Plugin.MODE_RANDOM = 1
 Plugin.MODE_SCORE = 2
 Plugin.MODE_ELO = 3

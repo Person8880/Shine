@@ -31,6 +31,11 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true,
+	[ "mvm" ] = true
+}
+
 function Plugin:Initialise()
 	local function VoteTimeout( Vote )
 		local LastVoted = Vote.LastVoted
