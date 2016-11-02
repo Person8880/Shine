@@ -99,9 +99,12 @@ function Shine:RegisterExtension( Name, Table, Options )
 	SetupModules( ParentPlugin )
 end
 
+local LoadingErrors = {}
+
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
 
+	if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 	if self.Plugins[ Name ] then return true end
 
 	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
@@ -110,31 +113,30 @@ function Shine:LoadExtension( Name, DontEnable )
 
 	local IsShared = PluginFiles[ SharedFile ]
 		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
-
 	if PluginFiles[ SharedFile ] then
 		include( SharedFile )
 
 		local Plugin = self.Plugins[ Name ]
-
 		if not Plugin then
 			return false, "plugin did not register itself"
 		end
 
-		--NS2:Combat, don't load irrelevant plugins. Make sure we stop before network messages.
-		if self.IsNS2Combat and Plugin.NS2Only then
+		-- Don't load irrelevant plugins. Make sure we stop before network messages.
+		local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
+		if not CanLoad then
 			self.Plugins[ Name ] = nil
-			return false, "plugin not compatible with NS2:Combat"
+			return false, FailureReason
 		end
 
 		Plugin.IsShared = true
 
-		if Plugin.SetupDataTable then --Networked variables.
+		if Plugin.SetupDataTable then -- Networked variables.
 			Plugin:SetupDataTable()
 			Plugin:InitDataTable( Name )
 		end
 	end
 
-	--Client plugins load automatically, but enable themselves later when told to.
+	-- Client plugins load automatically, but enable themselves later when told to.
 	if Client then
 		local OldValue = Plugin
 		Plugin = self.Plugins[ Name ]
@@ -146,12 +148,17 @@ function Shine:LoadExtension( Name, DontEnable )
 			return false, "plugin did not register itself"
 		end
 
-		Plugin = OldValue --Just in case someone else uses Plugin as a global...
+		Plugin = OldValue -- Just in case someone else uses Plugin as a global...
 
 		local Plugin = self.Plugins[ Name ]
-		if Plugin and self.IsNS2Combat and Plugin.NS2Only then
+		if not Plugin then
+			return false, "plugin did not register itself"
+		end
+
+		local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
+		if not CanLoad then
 			self.Plugins[ Name ] = nil
-			return false, "plugin not compatible with NS2:Combat"
+			return false, FailureReason
 		end
 
 		Plugin.IsClient = true
@@ -167,7 +174,7 @@ function Shine:LoadExtension( Name, DontEnable )
 
 			local SearchTerm = StringFormat( "/%s.lua", Name )
 
-			--In case someone uses a different case file name to the plugin name...
+			-- In case someone uses a different case file name to the plugin name...
 			for File in pairs( PluginFiles ) do
 				local LowerF = File:lower()
 
@@ -185,7 +192,7 @@ function Shine:LoadExtension( Name, DontEnable )
 		end
 	end
 
-	--Global value so that the server file has access to the same table the shared one created.
+	-- Global value so that the server file has access to the same table the shared one created.
 	local OldValue = Plugin
 
 	if IsShared then
@@ -194,20 +201,20 @@ function Shine:LoadExtension( Name, DontEnable )
 
 	include( ServerFile )
 
-	--Clean it up afterwards ready for the next extension.
+	-- Clean it up afterwards ready for the next extension.
 	if IsShared then
 		Plugin = OldValue
 	end
 
 	local Plugin = self.Plugins[ Name ]
-
 	if not Plugin then
 		return false, "plugin did not register itself."
 	end
 
-	if self.IsNS2Combat and Plugin.NS2Only then
+	local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
+	if not CanLoad then
 		self.Plugins[ Name ] = nil
-		return false, "plugin not compatible with NS2:Combat"
+		return false, FailureReason
 	end
 
 	Plugin.IsShared = IsShared and true or nil
@@ -215,6 +222,24 @@ function Shine:LoadExtension( Name, DontEnable )
 	if DontEnable then return true end
 
 	return self:EnableExtension( Name )
+end
+
+function Shine:CanPluginLoad( Plugin )
+	if self.IsNS2Combat and Plugin.NS2Only then
+		return false, "plugin not compatible with NS2:Combat"
+	end
+
+	local Gamemode = Shine.GetGamemode()
+	-- Plugin has explicitly requested to be disabled for the gamemode.
+	local IsDisabled = Plugin.DisabledGamemodes and Plugin.DisabledGamemodes[ Gamemode ]
+	-- Plugin has expliclty requested to only be enabled for certain gamemodes.
+	local IsNotEnabled = Plugin.EnabledGamemodes and not Plugin.EnabledGamemodes[ Gamemode ]
+
+	if IsDisabled or IsNotEnabled then
+		return false, "plugin not compatible with gamemode: "..Gamemode
+	end
+
+	return true
 end
 
 local HasFirstThinkOccurred
@@ -225,12 +250,13 @@ end )
 -- Handles dispatching plugin events efficiently.
 local Dispatcher
 
---Shared extensions need to be enabled once the server tells it to.
+-- Shared extensions need to be enabled once the server tells it to.
 function Shine:EnableExtension( Name, DontLoadConfig )
-	local Plugin = self.Plugins[ Name ]
+	if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 
+	local Plugin = self.Plugins[ Name ]
 	if not Plugin then
-		return false, "plugin does not exist"
+		return false, LoadingErrors[ Name ] or "plugin does not exist"
 	end
 
 	local FirstEnable = Plugin.Enabled == nil
@@ -450,14 +476,19 @@ for Path in pairs( PluginFiles ) do
 			local LoweredFileName = File:lower()
 
 			if LoweredFileName == "shared.lua" then
-				ClientPlugins[ Name ] = "boolean" --Generate the network message.
+				ClientPlugins[ Name ] = "boolean" -- Generate the network message.
 				AddToPluginsLists( Name )
 			elseif LoweredFileName == "server.lua" or LoweredFileName == "client.lua" then
 				AddToPluginsLists( Name )
 			end
 
-			--Shared plugins should load into memory for network messages.
-			Shine:LoadExtension( Name, true )
+			-- Shared plugins should load into memory for network messages.
+			local Success, Err = Shine:LoadExtension( Name, true )
+			if not Success then
+				-- Remember the first loading error, as subsequent errors will be because
+				-- the plugin does not exist in Shine.Plugins.
+				LoadingErrors[ Name ] = Err
+			end
 		end
 	else
 		File = Name

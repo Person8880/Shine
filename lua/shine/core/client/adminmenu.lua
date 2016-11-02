@@ -48,19 +48,22 @@ function AdminMenu:Create()
 
 	Window:AddCloseButton()
 	Window.OnClose = function()
-		self:SetIsVisible( false )
-
-		if self.ToDestroyOnClose then
-			for Panel in pairs( self.ToDestroyOnClose ) do
-				if Panel:IsValid() then
-					Panel:Destroy()
-				end
-
-				self.ToDestroyOnClose[ Panel ] = nil
-			end
-		end
-
+		self:Close()
 		return true
+	end
+end
+
+function AdminMenu:Close()
+	self:SetIsVisible( false )
+
+	if self.ToDestroyOnClose then
+		for Panel in pairs( self.ToDestroyOnClose ) do
+			if Panel:IsValid() then
+				Panel:Destroy()
+			end
+
+			self.ToDestroyOnClose[ Panel ] = nil
+		end
 	end
 end
 
@@ -120,7 +123,7 @@ function AdminMenu:PlayerKeyPress( Key, Down )
 	if not self.Visible then return end
 
 	if Key == InputKey.Escape and Down then
-		self:SetIsVisible( false )
+		self:Close()
 
 		return true
 	end
@@ -512,7 +515,7 @@ do
 
 				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
-				Menu = Button:AddMenu( Vector( 128, 32, 0 ) )
+				Menu = Button:AddMenu( Vector( Data.Width or 144, Data.ButtonHeight or 32, 0 ) )
 				Menu:CallOnRemove( function()
 					Menu = nil
 				end )
@@ -537,6 +540,8 @@ do
 							Arg()
 							CleanupMenu()
 						end )
+					elseif IsType( Arg, "table" ) and Arg.Setup then
+						Arg.Setup( Menu, Command, Args, CleanupMenu )
 					end
 				end
 			end

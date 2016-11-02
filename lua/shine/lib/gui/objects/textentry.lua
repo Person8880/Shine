@@ -251,6 +251,9 @@ end
 
 function TextEntry:SetTextScale( Scale )
 	self.TextObj:SetScale( Scale )
+	if self.PlaceholderText then
+		self.PlaceholderText:SetScale( Scale )
+	end
 
 	self.WidthScale = Scale.x
 	self.HeightScale = Scale.y
@@ -949,6 +952,7 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 			self.Enabled = false
 			self.Highlighted = false
 			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+			self:SetStylingState( nil )
 		end
 
 		self.Caret:SetColor( Clear )
@@ -957,6 +961,7 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 		return
 	end
 
+	self:SetStylingState( "Focus" )
 	self:StopFade( self.InnerBox )
 	self.InnerBox:SetColor( self.FocusColour )
 

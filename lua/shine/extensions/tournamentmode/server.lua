@@ -35,6 +35,10 @@ Plugin.Conflicts = {
 Plugin.CountdownTimer = "Countdown"
 Plugin.FiveSecondTimer = "5SecondCount"
 
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true
+}
+
 function Plugin:StoreConfigSettings()
 	self.OriginalServerConfig = {
 		AutoBalance = Server.GetConfigSetting( "auto_team_balance" ),
@@ -52,13 +56,6 @@ function Plugin:RestoreConfigSettings()
 end
 
 function Plugin:Initialise()
-	local Gamemode = Shine.GetGamemode()
-
-	if Gamemode ~= "ns2" then
-		return false, StringFormat( "The tournamentmode plugin does not work with %s.",
-			Gamemode )
-	end
-
 	self.TeamMembers = {}
 	self.ReadyStates = { false, false }
 	self.TeamNames = {}
