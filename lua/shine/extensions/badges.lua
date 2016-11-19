@@ -3,6 +3,7 @@
 ]]
 
 local pairs = pairs
+local pcall = pcall
 local tonumber = tonumber
 local tostring = tostring
 local IsType = Shine.IsType
@@ -26,6 +27,15 @@ local DefaultRow = 5
 local MaxBadgeRows = 10
 Plugin.DefaultRow = DefaultRow
 
+local function AssignBadge( ID, Name, Row )
+	-- Catch error from badge enum missing values.
+	local Success, BadgeAssigned = pcall( GiveBadge, ID, Name, Row )
+	if not Success then
+		BadgeAssigned = false
+	end
+	return BadgeAssigned
+end
+
 function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups, MasterBadgeTable )
 	if not Group then return end
 
@@ -42,7 +52,7 @@ function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups, MasterBa
 		local GroupBadgeName = GroupName:lower()
 		local Rows = MasterBadgeTable and MasterBadgeTable:Get( GroupBadgeName ) or { DefaultRow }
 		for i = 1, #Rows do
-			GiveBadge( ID, GroupBadgeName, Rows[ i ] )
+			AssignBadge( ID, GroupBadgeName, Rows[ i ] )
 		end
 	end
 
@@ -112,7 +122,6 @@ end
 	have a single value under "Badge" or a an array under "Badges".
 ]]
 function Plugin:AssignBadgesToID( ID, Entry, MasterBadgeTable, OwnerName )
-	local AssignBadge = GiveBadge
 	local SingleBadge = Entry.Badge or Entry.badge
 	local BadgeList = Entry.Badges or Entry.badges
 
