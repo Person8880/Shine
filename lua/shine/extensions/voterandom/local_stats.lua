@@ -200,11 +200,13 @@ function StatsModule:StoreRoundEndData( ClientID, Player, WinningTeamNumber, Rou
 	local MinTimeOnTeam = Min( self.Config.StatsRecording.MinMinutesOnTeam * 60, RoundLength * 0.95 )
 	local Team = Player:GetTeamNumber()
 
-	-- Only add win/loss if the player was on the team for more than the minimum time.
-	local TimeOnTeam = Team == 1 and Player:GetMarinePlayTime() or Player:GetAlienPlayTime() or 0
-	if TimeOnTeam >= MinTimeOnTeam then
-		local Stat = Team == WinningTeamNumber and "Wins" or "Losses"
-		self:IncrementStatValue( ClientID, Player, Stat, 1 )
+	if WinningTeamNumber then
+		-- Only add win/loss if the player was on the team for more than the minimum time.
+		local TimeOnTeam = Team == 1 and Player:GetMarinePlayTime() or Player:GetAlienPlayTime() or 0
+		if TimeOnTeam >= MinTimeOnTeam then
+			local Stat = Team == WinningTeamNumber and "Wins" or "Losses"
+			self:IncrementStatValue( ClientID, Player, Stat, 1 )
+		end
 	end
 
 	-- Re-evaluate whether the player is still a rookie based upon the recorded data.
@@ -215,7 +217,7 @@ end
 function StatsModule:EndGame( Gamerules, WinningTeam, Players )
 	if not self.Config.UseLocalFileStats then return end
 
-	local WinningTeamNumber = WinningTeam:GetTeamNumber()
+	local WinningTeamNumber = WinningTeam and WinningTeam:GetTeamNumber()
 	local RoundLength = Shared.GetTime() - Gamerules.gameStartTime
 
 	for i = 1, #Players do
