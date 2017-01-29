@@ -206,6 +206,10 @@ function Plugin:SubtractAFKTime( Client, Time )
 	local DataTable = self.Users[ Client ]
 	if not DataTable then return end
 
+	-- Do not subtract any time if the player's Steam overlay is open.
+	-- It could be possible to leave the voice chat button going with it open.
+	if DataTable.SteamOverlayIsOpen then return end
+
 	DataTable.LastMove = SharedTime()
 	DataTable.LastMeasurement = DataTable.LastMove
 	DataTable.AFKAmount = Max( DataTable.AFKAmount - Time, 0 )
@@ -213,6 +217,15 @@ function Plugin:SubtractAFKTime( Client, Time )
 		DataTable.IsAFK = false
 		Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
 	end
+end
+
+function Plugin:ReceiveSteamOverlay( Client, Data )
+	local DataTable = self.Users[ Client ]
+	if not DataTable then return end
+
+	-- Players with their Steam overlay open are treated as AFK, regardless of
+	-- input received.
+	DataTable.SteamOverlayIsOpen = Data.Open
 end
 
 local MOVEMENT_MULTIPLIER = 5
@@ -276,7 +289,7 @@ function Plugin:OnProcessMove( Player, Input )
 	local MovementIsEmpty = Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
 	local AnglesMatch = DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch
 
-	if not ( MovementIsEmpty and AnglesMatch ) then
+	if not ( MovementIsEmpty and AnglesMatch or DataTable.SteamOverlayIsOpen ) then
 		DataTable.LastMove = Time
 
 		if IsSpectator and self.Config.LenientModeForSpectators then

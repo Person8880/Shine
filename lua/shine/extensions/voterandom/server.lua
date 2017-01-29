@@ -262,6 +262,26 @@ function Plugin:GetTargetsForSorting( ResetScores )
 		end
 	end
 
+	local function DisconnectBot( Client )
+		local Bots = gServerBots
+		local Found = false
+
+		if Bots then
+			-- No reference back to the bot, so have to search the table...
+			for i = 1, #Bots do
+				if Bots[ i ] and Bots[ i ].client == Client then
+					Found = true
+					Bots[ i ]:Disconnect()
+					break
+				end
+			end
+		end
+
+		if not Found then
+			Server.DisconnectClient( Client )
+		end
+	end
+
 	local function AddPlayer( Player, Pass )
 		if not Player then return end
 
@@ -275,11 +295,7 @@ function Plugin:GetTargetsForSorting( ResetScores )
 		-- Bot and we don't want to deal with them, so kick them out.
 		if Client:GetIsVirtual() and not self.Config.ApplyToBots then
 			if Pass == 1 then
-				if Player.Disconnect then
-					Player:Disconnect()
-				else
-					Server.DisconnectClient( Client )
-				end
+				DisconnectBot( Client )
 			end
 
 			return
