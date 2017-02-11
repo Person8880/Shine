@@ -44,7 +44,7 @@ Plugin.DefaultConfig = {
 
 	MaxNominationsPerPlayer = 3, -- The maximum number of maps an individual player can nominate.
 
-	VoteLength = 2, --Time in minutes a vote should last before failing.
+	VoteLength = 1, --Time in minutes a vote should last before failing.
 	ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
 	VoteDelay = 10, --Time to wait in minutes after map change/vote fail before voting can occur.
 
