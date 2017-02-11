@@ -70,7 +70,8 @@ Plugin.DefaultConfig = {
 	CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
 	EmptyPlayerCount = 0, --How many players defines 'empty'?
 
-	ExcludeLastMaps = 0 --How many previous maps should be excluded from votes?
+	ExcludeLastMaps = 0, --How many previous maps should be excluded from votes?
+	AutoExcludeMaps = false --Sets wether to automatically exclude to meet include targets
 }
 
 Plugin.CheckConfig = true
@@ -192,6 +193,10 @@ function Plugin:Initialise()
 
 	if self.Config.ExcludeLastMaps > 0 then
 		self:LoadLastMaps()
+	end
+	
+	if self.Config.AutoExcludeMaps == true then
+		self:LoadMapOrder()
 	end
 
 	self:CreateCommands()

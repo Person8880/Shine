@@ -656,8 +656,28 @@ function Plugin:StartVote( NextMap, Force )
 
 	--If we have more room, add maps from the allowed list that weren't nominated.
 	if RemainingSpaces > 0 then
+		
+		-- If we're automatically excluding the most recently played maps
+		if self.Config.AutoExcludeMaps == true then		
+			local MapOrder = self:GetMapOrder()		
+			
+			if MapOrder then			
+				local counter = 0
+				
+				for i = #MapOrder, 1, -1 do
+					if counter >= RemainingSpaces then break end
+					counter = counter + 1
+				
+					local Map = MapOrder[ i ]
+					AllMaps[ Map ] = nil
+					DeniedMaps[ Map ] = true
+				end		
+			end
+		end
+		
+		-- If theres still remaining spaces, choose them with the random selection algorithm
 		if next( AllMaps ) then
-			self:ChooseRandomMaps( AllMaps, MapList, MaxOptions )
+			self:ChooseRandomMaps( AllMaps, MapList, MaxOptions )		
 		end
 	end
 
