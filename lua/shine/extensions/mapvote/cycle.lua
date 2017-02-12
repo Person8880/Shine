@@ -240,6 +240,7 @@ function Plugin:Think()
 end
 
 local LastMapsFile = "config://shine/temp/lastmaps.json"
+local MapOrderFile = "config://shine/temp/maporder.json"
 local MapStatsFile = "config://shine/temp/mapstats.json"
 
 function Plugin:LoadLastMaps()
@@ -247,6 +248,14 @@ function Plugin:LoadLastMaps()
 
 	if File then
 		self.LastMapData = File
+	end
+end
+
+function Plugin:LoadMapOrder()
+	local File, Err = Shine.LoadJSONFile( MapOrderFile )
+
+	if File then
+		self.MapOrderData = File
 	end
 end
 
@@ -269,6 +278,32 @@ function Plugin:SaveLastMaps()
 
 	if not Success then
 		Notify( "Error saving mapvote previous maps file: "..Err )
+	end
+end
+
+function Plugin:SaveMapOrder()
+	local Include = self.Config.MaxOptions
+	local Data = self.MapOrderData
+	
+	if not Data then
+		self.MapOrderData = {}
+		Data = self.MapOrderData		
+	end
+
+	local curMap = Shared.GetMapName()	
+	
+	for k, v in pairs( Data ) do		
+		if GetMapName( v ) == curMap then
+			TableRemove(Data, k)
+		end
+	end
+
+	Data[ #Data + 1 ] = curMap	
+	
+	local Success, Err = Shine.SaveJSONFile( Data, MapOrderFile )
+
+	if not Success then
+		Notify( "Error saving mapvote map order file: "..Err )
 	end
 end
 
@@ -302,6 +337,10 @@ function Plugin:GetLastMaps()
 	return self.LastMapData
 end
 
+function Plugin:GetMapOrder()
+	return self.MapOrderData
+end
+
 --[[
 	Save the current map to the last maps list when we change map.
 	Also, advance the current map group if we have one.
@@ -311,6 +350,11 @@ function Plugin:MapChange()
 		self.StoredCurrentMap = true
 		self:SaveLastMaps()
 	end
+	
+	if self.Config.AutoExcludeMaps == true and not self.AddedCurrentMap then
+		self.AddedCurrentMap = true
+		self:SaveMapOrder()
+	end	
 
 	if self.TrackMapStats and not self.StoredMapStats then
 		self.StoredMapStats = true
