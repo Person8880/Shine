@@ -12,6 +12,25 @@ local TableSort = table.sort
 
 local Stream = Shine.TypeDef()
 
+-- Expose some useful predicate functions.
+Predicates = {
+	Equals = function( Value )
+		return function( Entry )
+			return Entry == Value
+		end
+	end,
+	Has = function( Set )
+		return function( Entry )
+			return Set[ Entry ]
+		end
+	end,
+	Not = function( Predicate )
+		return function( Entry )
+			return not Predicate( Entry )
+		end
+	end
+}
+
 function Stream:Init( Table )
 	self.Data = Table
 

@@ -436,6 +436,19 @@ function table.QuickCopy( Table )
 	return Copy
 end
 
+--[[
+	Copies an arbitrary table structure without deep-copying values.
+]]
+function table.ShallowCopy( Table )
+	local Copy = {}
+
+	for Key, Value in pairs( Table ) do
+		Copy[ Key ] = Value
+	end
+
+	return Copy
+end
+
 do
 	--[[
 		Returns an array of all keys in the given table in an undefined order.

@@ -128,6 +128,17 @@ UnitTest:Test( "QuickCopy", function( Assert )
 	end
 end )
 
+UnitTest:Test( "ShallowCopy", function( Assert )
+	local Table = { 1, 2, 3, Key = "Value" }
+	local Copy = table.ShallowCopy( Table )
+
+	Assert:NotEquals( Table, Copy )
+	for i = 1, #Table do
+		Assert:Equals( Table[ i ], Copy[ i ] )
+	end
+	Assert:Equals( "Value", Copy.Key )
+end )
+
 local function GetTestTable()
 	return {
 		Key1 = true,
