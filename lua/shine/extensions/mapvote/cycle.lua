@@ -251,7 +251,6 @@ function Plugin:LoadLastMaps()
 end
 
 function Plugin:SaveLastMaps()
-	local Max = self.Config.ExcludeLastMaps
 	local Data = self.LastMapData
 
 	if not Data then
@@ -259,11 +258,14 @@ function Plugin:SaveLastMaps()
 		Data = self.LastMapData
 	end
 
-	Data[ #Data + 1 ] = Shared.GetMapName()
-
-	while #Data > Max do
-		TableRemove( Data, 1 )
+	-- Store the last played maps in an ever repeating cycle.
+	local CurrentMap = Shared.GetMapName()
+	for i = #Data, 1, -1 do
+		if Data[ i ] == CurrentMap then
+			TableRemove( Data, i )
+		end
 	end
+	Data[ #Data + 1 ] = CurrentMap
 
 	local Success, Err = Shine.SaveJSONFile( Data, LastMapsFile )
 
@@ -307,7 +309,7 @@ end
 	Also, advance the current map group if we have one.
 ]]
 function Plugin:MapChange()
-	if self.Config.ExcludeLastMaps > 0 and not self.StoredCurrentMap then
+	if not self.StoredCurrentMap then
 		self.StoredCurrentMap = true
 		self:SaveLastMaps()
 	end

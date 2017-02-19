@@ -436,6 +436,19 @@ function table.QuickCopy( Table )
 	return Copy
 end
 
+--[[
+	Copies an arbitrary table structure without deep-copying values.
+]]
+function table.ShallowCopy( Table )
+	local Copy = {}
+
+	for Key, Value in pairs( Table ) do
+		Copy[ Key ] = Value
+	end
+
+	return Copy
+end
+
 do
 	--[[
 		Returns an array of all keys in the given table in an undefined order.
@@ -487,6 +500,50 @@ do
 		return KeyValueIterator( Keys, Table )
 	end
 
+	local DebugGetMetatable = debug.getmetatable
+	local tostring = tostring
+	local type = type
+
+	local ComparableTypes = {
+		number = true,
+		string = true
+	}
+
+	local function IsComparable( A, B )
+		local LeftType = type( A )
+		local RightType = type( B )
+
+		-- Identical types on either side, and comparable (e.g. number vs number).
+		if LeftType == RightType and ComparableTypes[ LeftType ] then return true end
+
+		local LeftMeta = DebugGetMetatable( A )
+		local RightMeta = DebugGetMetatable( B )
+
+		-- Two Lua objects are comparable if the appropriate meta-methods are the same on
+		-- the objects on either side. In this case we only need __lt.
+		if LeftMeta and LeftMeta.__lt and RightMeta and RightMeta.__lt == LeftMeta.__lt then
+			return true
+		end
+
+		-- Different or non-existent __lt, so not comparable.
+		return false
+	end
+
+	local function NaturalOrder( A, B )
+		if IsComparable( A, B ) then
+			return A < B
+		end
+
+		return tostring( A ) < tostring( B )
+	end
+	local function ReverseNaturalOrder( A, B )
+		if IsComparable( A, B ) then
+			return A > B
+		end
+
+		return tostring( A ) > tostring( B )
+	end
+
 	--[[
 		Iterates the given table's key-value pairs in the order the table's
 		keys are naturally sorted.
@@ -494,11 +551,9 @@ do
 	function SortedPairs( Table, Desc )
 		local Keys = GetKeys( Table )
 		if Desc then
-			TableSort( Keys, function( A, B )
-				return A > B
-			end )
+			TableSort( Keys, ReverseNaturalOrder )
 		else
-			TableSort( Keys )
+			TableSort( Keys, NaturalOrder )
 		end
 
 		return KeyValueIterator( Keys, Table )

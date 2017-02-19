@@ -21,6 +21,7 @@ local tostring = tostring
 local Plugin = {}
 
 Plugin.PrintName = "Name Filter"
+Plugin.Version = "1.0"
 
 Plugin.ConfigName = "NameFilter.json"
 Plugin.HasConfig = true

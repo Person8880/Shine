@@ -7,6 +7,7 @@ local Shine = Shine
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetOwner = Server.GetOwner
+local IsType = Shine.IsType
 local Max = math.max
 local Notify = Shared.Message
 local SharedTime = Shared.GetTime
@@ -15,7 +16,7 @@ local TableHasValue = table.HasValue
 local TableCount = table.Count
 
 local Plugin = Plugin
-Plugin.Version = "1.6"
+Plugin.Version = "1.7"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
@@ -44,7 +45,7 @@ Plugin.DefaultConfig = {
 
 	MaxNominationsPerPlayer = 3, -- The maximum number of maps an individual player can nominate.
 
-	VoteLength = 2, --Time in minutes a vote should last before failing.
+	VoteLength = 1, --Time in minutes a vote should last before failing.
 	ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
 	VoteDelay = 10, --Time to wait in minutes after map change/vote fail before voting can occur.
 
@@ -70,16 +71,33 @@ Plugin.DefaultConfig = {
 	CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
 	EmptyPlayerCount = 0, --How many players defines 'empty'?
 
-	ExcludeLastMaps = 0 --How many previous maps should be excluded from votes?
+	-- How many previous maps should be excluded from votes?
+	ExcludeLastMaps = {
+		Min = 0,
+		Max = 0
+	}
 }
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.7",
+		Apply = function( Config )
+			local OldCount = Config.ExcludeLastMaps
+			if IsType( OldCount, "number" ) then
+				Config.ExcludeLastMaps = {
+					Min = OldCount,
+					Max = OldCount
+				}
+			end
+		end
+	}
+}
+
 Plugin.VoteTimer = "MapVote"
 Plugin.NextMapTimer = "MapVoteNext"
-
-local IsType = Shine.IsType
 
 local function IsTableArray( Table )
 	local Count = #Table
@@ -106,6 +124,7 @@ function Plugin:Initialise()
 	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
 	self.Config.PercentToStart = Clamp( self.Config.PercentToStart, 0, 1 )
 	self.Config.VoteLength = Max( self.Config.VoteLength, 0.25 )
+	self.Config.ExcludeLastMaps.Min = Max( tonumber( self.Config.ExcludeLastMaps.Min ) or 0, 0 )
 
 	self.Round = 0
 
@@ -188,12 +207,7 @@ function Plugin:Initialise()
 	ConvertArrayToLookup( self.Config.DontExtend )
 	ConvertArrayToLookup( self.Config.IgnoreAutoCycle )
 
-	self.Config.ExcludeLastMaps = Max( self.Config.ExcludeLastMaps, 0 )
-
-	if self.Config.ExcludeLastMaps > 0 then
-		self:LoadLastMaps()
-	end
-
+	self:LoadLastMaps()
 	self:CreateCommands()
 
 	self.Enabled = true
