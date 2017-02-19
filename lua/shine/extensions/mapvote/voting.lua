@@ -7,13 +7,14 @@ local Shine = Shine
 local Ceil = math.ceil
 local Floor = math.floor
 local GetNumPlayers = Shine.GetHumanPlayerCount
+local Max = math.max
+local Min = math.min
 local next = next
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
-local TableCopy = table.Copy
 
 local Plugin = Plugin
 local IsType = Shine.IsType
@@ -498,6 +499,8 @@ function Plugin:ProcessResults( NextMap )
 	end
 end
 
+local Stream = Shine.Stream
+
 do
 	local BaseEntryCount = 10
 
@@ -505,32 +508,125 @@ do
 		Chooses random maps from the remaining maps pool, weighting each map according
 		to their chance setting.
 	]]
-	function Plugin:ChooseRandomMaps( AllMaps, MapList, MaxOptions )
+	function Plugin:ChooseRandomMaps( PotentialMaps, FinalChoices, MaxOptions )
 		local MapBucket = {}
-		local Stream = Shine.Stream( MapBucket )
+		local MapBucketStream = Stream( MapBucket )
 		local Count = 0
 
-		for Map in pairs( AllMaps ) do
+		for Map in PotentialMaps:Iterate() do
 			local Chance = self.MapProbabilities[ Map ] or 1
 			local NumEntries = Ceil( Chance * BaseEntryCount )
 
-			--The higher the chance, the more times the map appears in the bucket.
+			-- The higher the chance, the more times the map appears in the bucket.
 			for i = 1, NumEntries do
 				Count = Count + 1
 				MapBucket[ Count ] = Map
 			end
 		end
 
-		while #MapList < MaxOptions and #MapBucket > 0 do
+		while FinalChoices:GetCount() < MaxOptions and #MapBucket > 0 do
 			local Choice = TableRandom( MapBucket )
+			FinalChoices:Add( Choice )
 
-			MapList[ #MapList + 1 ] = Choice
-
-			Stream:Filter( function( Value )
+			MapBucketStream:Filter( function( Value )
 				return Value ~= Choice
 			end )
 		end
 	end
+end
+
+function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
+	local LastMaps = self:GetLastMaps()
+	if not LastMaps then return end
+
+	local ExclusionOptions = self.Config.ExcludeLastMaps
+
+	-- Start with the amount of extra options remaining vs the max.
+	local AmountToRemove = PotentialMaps:GetCount() - ( self.Config.MaxOptions - FinalChoices:GetCount() )
+	-- Must remove at least the minimum, regardless of whether it drops the option count.
+	AmountToRemove = Max( AmountToRemove, ExclusionOptions.Min )
+
+	-- If there's a maximum set, then do not remove more than that.
+	local MaxRemovable = tonumber( ExclusionOptions.Max ) or 0
+	if ExclusionOptions.Max and MaxRemovable >= 0 then
+		AmountToRemove = Min( AmountToRemove, MaxRemovable )
+	end
+
+	for i = #LastMaps, Max( #LastMaps - AmountToRemove + 1, 1 ), -1 do
+		PotentialMaps:Remove( LastMaps[ i ] )
+	end
+end
+
+function Plugin:BuildPotentialMapChoices()
+	local PotentialMaps = Shine.Set( self.Config.Maps )
+	local MapGroup = self:GetMapGroup()
+	local PlayerCount = GetNumPlayers()
+
+	-- If we have a map group, then get rid of any maps that aren't in the group.
+	if MapGroup then
+		local GroupMaps = TableAsSet( MapGroup.maps )
+		PotentialMaps:Intersection( GroupMaps )
+
+		self.LastMapGroup = MapGroup
+	end
+
+	-- We then look in the nominations, and enter those into the list.
+	local Nominations = self.Vote.Nominated
+	for i = 1, #Nominations do
+		local Nominee = Nominations[ i ]
+		PotentialMaps:Add( Nominee )
+
+		Nominations[ i ] = nil
+	end
+
+	-- Now filter out any maps that are invalid.
+	PotentialMaps:Filter( function( Map ) return self:IsValidMapChoice( Map, PlayerCount ) end )
+
+	return PotentialMaps
+end
+
+function Plugin:BuildMapChoices()
+	-- First we compile the list of maps that are going to be available to vote for.
+	local PotentialMaps = self:BuildPotentialMapChoices()
+
+	-- Now we build our actual map choices.
+	local AllowCurMap = self:CanExtend()
+	local CurMap = Shared.GetMapName()
+	local FinalChoices = Shine.Set()
+
+	-- Add forced maps, these skip validity checks.
+	if self.ForcedMapCount > 0 then
+		for Map in pairs( self.Config.ForcedMaps ) do
+			if Map ~= CurMap or AllowCurMap then
+				FinalChoices:Add( Map )
+				PotentialMaps:Remove( Map )
+			end
+		end
+	end
+
+	-- If we have map extension enabled and forced, ensure it's in the vote list.
+	if AllowCurMap then
+		if PotentialMaps:Contains( CurMap ) and self.Config.AlwaysExtend then
+			FinalChoices:Add( CurMap )
+			PotentialMaps:Remove( CurMap )
+		end
+	else
+		-- Otherwise remove it!
+		PotentialMaps:Remove( CurMap )
+	end
+
+	-- Get rid of any maps we've previously played based on the exclusion config.
+	self:RemoveLastMaps( PotentialMaps, FinalChoices )
+
+	local MaxOptions = self.Config.MaxOptions
+	local RemainingSpaces = MaxOptions - FinalChoices:GetCount()
+
+	-- Finally, if we have more room, add maps from the allowed list that weren't nominated.
+	if RemainingSpaces > 0 then
+		self:ChooseRandomMaps( PotentialMaps, FinalChoices, MaxOptions )
+	end
+
+	return FinalChoices:AsList()
 end
 
 --[[
@@ -547,119 +643,7 @@ function Plugin:StartVote( NextMap, Force )
 	self.Vote.Voted = {}
 	self.Vote.NominationTracker = {}
 
-	--First we compile the list of maps that are going to be available to vote for.
-	local MaxOptions = self.Config.MaxOptions
-	local Nominations = self.Vote.Nominated
-	local ForcedMaps = self.Config.ForcedMaps
-
-	local AllMaps = TableCopy( self.Config.Maps )
-	local MapGroup = self:GetMapGroup()
-
-	--If we have a map group, then get rid of any maps that aren't in the group.
-	if MapGroup then
-		local GroupMaps = TableAsSet( MapGroup.maps )
-
-		for Map in pairs( AllMaps ) do
-			if not GroupMaps[ Map ] then
-				AllMaps[ Map ] = nil
-			end
-		end
-
-		self.LastMapGroup = MapGroup
-	end
-
-	local MapList = {}
-
-	local PlayerCount = GetNumPlayers()
-
-	local Cycle = self.MapCycle
-	local CycleMaps = self.MapChoices
-
-	local DeniedMaps = {}
-
-	local function SortOutMinMax( Map )
-		if not self:IsValidMapChoice( Map, PlayerCount ) then
-			AllMaps[ Map.map ] = nil
-			DeniedMaps[ Map.map ] = true
-		end
-	end
-
-	--Handle min/max player count maps.
-	if CycleMaps then
-		for i = 1, #CycleMaps do
-			local Map = CycleMaps[ i ]
-
-			SortOutMinMax( Map )
-		end
-	end
-
-	for Map, Data in pairs( self.Config.Maps ) do
-		SortOutMinMax( Data )
-	end
-
-	--Remove the last maps played.
-	local LastMaps = self:GetLastMaps()
-
-	if LastMaps then
-		for i = 1, #LastMaps do
-			local Map = LastMaps[ i ]
-
-			AllMaps[ Map ] = nil
-			DeniedMaps[ Map ] = true
-		end
-	end
-
-	local CurMap = Shared.GetMapName()
-	local AllowCurMap = self:CanExtend()
-
-	local ForcedMapCount = self.ForcedMapCount
-
-	if ForcedMapCount > 0 then
-		--Check the forced maps that should always be an option.
-		local Count = 1
-
-		for Map in pairs( ForcedMaps ) do
-			if Map ~= CurMap or AllowCurMap then
-				MapList[ Count ] = Map
-
-				Count = Count + 1
-
-				AllMaps[ Map ] = nil
-			end
-		end
-	end
-
-	--We then look in the nominations, and enter those into the list.
-	for i = 1, #Nominations do
-		local Nominee = Nominations[ i ]
-
-		if not DeniedMaps[ Nominee ] then
-			MapList[ #MapList + 1 ] = Nominee
-			AllMaps[ Nominee ] = nil
-		end
-
-		Nominations[ i ] = nil
-	end
-
-	--If we have map extension enabled, ensure it's in the vote list.
-	if AllowCurMap then
-		if AllMaps[ CurMap ] and self.Config.AlwaysExtend then
-			MapList[ #MapList + 1 ] = CurMap
-			AllMaps[ CurMap ] = nil
-		end
-	else
-		--Otherwise remove it!
-		AllMaps[ CurMap ] = nil
-	end
-
-	local RemainingSpaces = MaxOptions - #MapList
-
-	--If we have more room, add maps from the allowed list that weren't nominated.
-	if RemainingSpaces > 0 then
-		if next( AllMaps ) then
-			self:ChooseRandomMaps( AllMaps, MapList, MaxOptions )
-		end
-	end
+	local MapList = self:BuildMapChoices()
 
 	self.Vote.VoteList = {}
 	for i = 1, #MapList do
@@ -668,11 +652,9 @@ function Plugin:StartVote( NextMap, Force )
 
 	local OptionsText = TableConcat( MapList, ", " )
 	local VoteLength = self.Config.VoteLength * 60
+	local EndTime = SharedTime() + VoteLength
 
-	local Time = SharedTime()
-	local EndTime = Time + VoteLength
-
-	--Store these values for new clients.
+	-- Store these values for new clients.
 	self.Vote.EndTime = EndTime
 	self.Vote.OptionsText = OptionsText
 
