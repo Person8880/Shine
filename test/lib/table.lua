@@ -139,46 +139,61 @@ UnitTest:Test( "ShallowCopy", function( Assert )
 	Assert:Equals( "Value", Copy.Key )
 end )
 
-local function GetTestTable()
-	return {
-		Key1 = true,
-		Key2 = true,
-		Key3 = true
+do
+	local Smaller = {}
+	local Larger = {}
+	local function LT( A, B )
+		return A == Smaller
+	end
+	local ComparableObjects = {
+		setmetatable( Smaller, { __lt = LT } ),
+		setmetatable( Larger, { __lt = LT } )
 	}
-end
-
-UnitTest:Test( "GetKeys", function( Assert )
-	local Table = GetTestTable()
-
-	local Keys, Count = table.GetKeys( Table )
-	Assert:Equals( 3, Count )
-	for i = 1, Count do
-		Assert:True( Table[ Keys[ i ] ] )
-		Table[ Keys[ i ] ] = nil
+	local function GetTestTable()
+		return {
+			Key1 = true,
+			Key2 = true,
+			Key3 = true,
+			[ ComparableObjects[ 1 ] ] = true,
+			[ ComparableObjects[ 2 ] ] = true,
+			true, true, true
+		}
 	end
-end )
 
-local function BuildIteratorTest( Iterator )
-	return function( Assert )
+	UnitTest:Test( "GetKeys", function( Assert )
 		local Table = GetTestTable()
-		local Keys = {}
 
-		for Key, Value in Iterator( Table ) do
-			Assert:True( Value )
-			Assert:True( Table[ Key ] )
-			Table[ Key ] = nil
-			Keys[ #Keys + 1 ] = Key
+		local Keys, Count = table.GetKeys( Table )
+		Assert:Equals( 8, Count )
+		for i = 1, Count do
+			Assert:True( Table[ Keys[ i ] ] )
+			Table[ Keys[ i ] ] = nil
 		end
+	end )
 
-		return Keys
+	local function BuildIteratorTest( Iterator )
+		return function( Assert )
+			local Table = GetTestTable()
+			local Keys = {}
+
+			for Key, Value in Iterator( Table ) do
+				Assert:True( Value )
+				Assert:True( Table[ Key ] )
+				Table[ Key ] = nil
+				Keys[ #Keys + 1 ] = Key
+			end
+
+			return Keys
+		end
 	end
-end
 
-UnitTest:Test( "RandomPairs", BuildIteratorTest( RandomPairs ) )
-UnitTest:Test( "SortedPairs", function( Assert )
-	local Keys = BuildIteratorTest( SortedPairs )( Assert )
-	Assert:ArrayEquals( { "Key1", "Key2", "Key3" }, Keys )
-end )
+	UnitTest:Test( "RandomPairs", BuildIteratorTest( RandomPairs ) )
+	UnitTest:Test( "SortedPairs", function( Assert )
+		local Keys = BuildIteratorTest( SortedPairs )( Assert )
+		Assert:ArrayEquals( { 1, 2, 3, "Key1", "Key2", "Key3",
+			ComparableObjects[ 1 ], ComparableObjects[ 2 ] }, Keys )
+	end )
+end
 
 UnitTest:Test( "ArraysEqual", function( Assert )
 	local Left = { 1, 2, 3 }

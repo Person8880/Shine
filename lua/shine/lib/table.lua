@@ -500,18 +500,44 @@ do
 		return KeyValueIterator( Keys, Table )
 	end
 
-	local IsType = Shine.IsType
+	local DebugGetMetatable = debug.getmetatable
 	local tostring = tostring
+	local type = type
+
+	local ComparableTypes = {
+		number = true,
+		string = true
+	}
+
+	local function IsComparable( A, B )
+		local LeftType = type( A )
+		local RightType = type( B )
+
+		-- Identical types on either side, and comparable (e.g. number vs number).
+		if LeftType == RightType and ComparableTypes[ LeftType ] then return true end
+
+		local LeftMeta = DebugGetMetatable( A )
+		local RightMeta = DebugGetMetatable( B )
+
+		-- Two Lua objects are comparable if the appropriate meta-methods are the same on
+		-- the objects on either side. In this case we only need __lt.
+		if LeftMeta and LeftMeta.__lt and RightMeta and RightMeta.__lt == LeftMeta.__lt then
+			return true
+		end
+
+		-- Different or non-existent __lt, so not comparable.
+		return false
+	end
 
 	local function NaturalOrder( A, B )
-		if IsType( A, "number" ) and IsType( B, "number" ) then
+		if IsComparable( A, B ) then
 			return A < B
 		end
 
 		return tostring( A ) < tostring( B )
 	end
 	local function ReverseNaturalOrder( A, B )
-		if IsType( A, "number" ) and IsType( B, "number" ) then
+		if IsComparable( A, B ) then
 			return A > B
 		end
 
