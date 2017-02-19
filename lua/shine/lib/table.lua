@@ -487,6 +487,24 @@ do
 		return KeyValueIterator( Keys, Table )
 	end
 
+	local IsType = Shine.IsType
+	local tostring = tostring
+
+	local function NaturalOrder( A, B )
+		if IsType( A, "number" ) and IsType( B, "number" ) then
+			return A < B
+		end
+
+		return tostring( A ) < tostring( B )
+	end
+	local function ReverseNaturalOrder( A, B )
+		if IsType( A, "number" ) and IsType( B, "number" ) then
+			return A > B
+		end
+
+		return tostring( A ) > tostring( B )
+	end
+
 	--[[
 		Iterates the given table's key-value pairs in the order the table's
 		keys are naturally sorted.
@@ -494,11 +512,9 @@ do
 	function SortedPairs( Table, Desc )
 		local Keys = GetKeys( Table )
 		if Desc then
-			TableSort( Keys, function( A, B )
-				return A > B
-			end )
+			TableSort( Keys, ReverseNaturalOrder )
 		else
-			TableSort( Keys )
+			TableSort( Keys, NaturalOrder )
 		end
 
 		return KeyValueIterator( Keys, Table )
