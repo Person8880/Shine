@@ -8,6 +8,9 @@ local pairs = pairs
 local StringFormat = string.format
 local type = type
 
+-- Make JSON encoding always have consistent order.
+Shine.SetUpValue( Encode, "pairs", SortedPairs, true )
+
 local JSONSettings = { indent = true, level = 1 }
 
 local IsType = Shine.IsType
@@ -96,7 +99,7 @@ function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 end
 
 --Checks a config for missing entries without checking sub-tables.
-function Shine.CheckConfig( Config, DefaultConfig, DontRemove )
+function Shine.CheckConfig( Config, DefaultConfig, DontRemove, ReservedKeys )
 	local Updated
 
 	--Add new keys.
@@ -112,7 +115,8 @@ function Shine.CheckConfig( Config, DefaultConfig, DontRemove )
 
 	--Remove old keys.
 	for Option, Value in pairs( Config ) do
-		if DefaultConfig[ Option ] == nil then
+		if DefaultConfig[ Option ] == nil
+		and not ( ReservedKeys and ReservedKeys[ Option ] ) then
 			Config[ Option ] = nil
 
 			Updated = true

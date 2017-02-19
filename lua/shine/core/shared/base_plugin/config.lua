@@ -114,12 +114,17 @@ function ConfigModule:LoadConfig()
 	} )
 	Validator:AddRule( {
 		Matches = function( _, Config )
-			return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig )
+			return self:MigrateConfig( Config )
 		end
 	} )
 	Validator:AddRule( {
 		Matches = function( _, Config )
-			return self.CheckConfigTypes and self:TypeCheckConfig()
+			return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig, false, { __Version = true } )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( _, Config )
+			return self.CheckConfigTypes and self:TypeCheckConfig( Config )
 		end
 	} )
 
@@ -128,8 +133,41 @@ function ConfigModule:LoadConfig()
 	end
 end
 
-function ConfigModule:TypeCheckConfig()
-	return Shine.TypeCheckConfig( self.__Name, self.Config, self.DefaultConfig )
+function ConfigModule:MigrateConfig( Config )
+	local CurrentConfigVersion = Shine.VersionHolder( Config.__Version or "0" )
+	local OurVersion = Shine.VersionHolder( self.Version or "1.0" )
+	if CurrentConfigVersion == OurVersion then return end
+
+	Print( "Updating %s config from version %s to %s...", self.__Name, CurrentConfigVersion, self.Version or "1.0" )
+
+	Config.__Version = self.Version or "1.0"
+
+	local MigrationSteps = self.ConfigMigrationSteps
+	if not MigrationSteps then return true end
+
+	local StartingStep
+	local EndStep = #MigrationSteps
+
+	-- Find the first step that migrates to a version later than the config's current version.
+	for i = 1, EndStep do
+		local Step = MigrationSteps[ i ]
+		if Shine.VersionHolder( Step.VersionTo ) > CurrentConfigVersion then
+			StartingStep = i
+			break
+		end
+	end
+
+	if not StartingStep then return true end
+
+	for i = StartingStep, EndStep do
+		MigrationSteps[ i ].Apply( Config )
+	end
+
+	return true
+end
+
+function ConfigModule:TypeCheckConfig( Config )
+	return Shine.TypeCheckConfig( self.__Name, Config, self.DefaultConfig )
 end
 
 Shine.BasePlugin:AddModule( ConfigModule )
