@@ -415,15 +415,18 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local LastMaps = self:GetLastMaps()
-		if LastMaps and TableHasValue( LastMaps, Map ) then
+		local Count = #Nominated
+
+		-- Approximate the maps that will be available by just taking the forced maps as chosen.
+		local TotalMapsAvailable = Shine.Set( self.Config.Maps ):GetCount()
+		local TotalForcedMaps = Shine.Set( self.Config.ForcedMaps ):GetCount()
+		local LastMaps = self:GetBlacklistedLastMaps( TotalMapsAvailable - TotalForcedMaps, TotalForcedMaps )
+		if TableHasValue( LastMaps, Map ) then
 			NotifyError( Player, "RECENTLY_PLAYED", {
 				MapName = Map
 			}, "%s was recently played and cannot be voted for yet.", true, Map )
 			return
 		end
-
-		local Count = #Nominated
 
 		if Count >= self.MaxNominations then
 			NotifyError( Player, "NOMINATIONS_FULL", nil, "Nominations are full." )
