@@ -535,14 +535,14 @@ do
 	end
 end
 
-function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
+function Plugin:GetBlacklistedLastMaps( NumAvailable, NumSelected )
 	local LastMaps = self:GetLastMaps()
-	if not LastMaps then return end
+	if not LastMaps then return {} end
 
 	local ExclusionOptions = self.Config.ExcludeLastMaps
 
 	-- Start with the amount of extra options remaining vs the max.
-	local AmountToRemove = PotentialMaps:GetCount() - ( self.Config.MaxOptions - FinalChoices:GetCount() )
+	local AmountToRemove = NumAvailable - ( self.Config.MaxOptions - NumSelected )
 	-- Must remove at least the minimum, regardless of whether it drops the option count.
 	AmountToRemove = Max( AmountToRemove, ExclusionOptions.Min )
 
@@ -552,8 +552,18 @@ function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
 		AmountToRemove = Min( AmountToRemove, MaxRemovable )
 	end
 
+	local Maps = {}
 	for i = #LastMaps, Max( #LastMaps - AmountToRemove + 1, 1 ), -1 do
-		PotentialMaps:Remove( LastMaps[ i ] )
+		Maps[ #Maps + 1 ] = LastMaps[ i ]
+	end
+
+	return Maps
+end
+
+function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
+	local MapsToRemove = self:GetBlacklistedLastMaps( PotentialMaps:GetCount(), FinalChoices:GetCount() )
+	for i = 1, #MapsToRemove do
+		PotentialMaps:Remove( MapsToRemove[ i ] )
 	end
 end
 
