@@ -7,12 +7,14 @@ local Stream = Shine.Stream
 
 local Module = {}
 
-Module.DefaultConfig = {
-	VoteSettings = {
-		ConsiderAFKPlayersInVotes = true,
-		AFKTimeInSeconds = 60
+if not Plugin.HandlesVoteConfig then
+	Module.DefaultConfig = {
+		VoteSettings = {
+			ConsiderAFKPlayersInVotes = true,
+			AFKTimeInSeconds = 60
+		}
 	}
-}
+end
 
 local function IsNotBot( Client )
 	return Client.GetIsVirtual and not Client:GetIsVirtual()
@@ -26,13 +28,16 @@ function Module:GetPlayerCountForVote()
 		return GetHumanPlayerCount()
 	end
 
+	return self:GetNumNonAFKHumans( self.Config.VoteSettings.AFKTimeInSeconds )
+end
+
+function Module:GetNumNonAFKHumans( AFKTime )
 	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 	if not AFKEnabled then
 		return GetHumanPlayerCount()
 	end
 
 	local Clients = Shine.GameIDs:GetKeys()
-	local AFKTime = self.Config.VoteSettings.AFKTimeInSeconds
 	return Stream.Of( Clients ):Filter( IsNotBot ):Filter( function( Client )
 		return not AFKKick:IsAFKFor( Client, AFKTime )
 	end ):GetCount()
