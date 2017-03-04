@@ -610,6 +610,7 @@ function Plugin:AddNominations( PotentialMaps, FinalChoices, Nominations )
 		local Nominee = Nominations[ i ]
 		if PotentialMaps:Contains( Nominee ) then
 			FinalChoices:Add( Nominee )
+			PotentialMaps:Remove( Nominee )
 		end
 	end
 end
