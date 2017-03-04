@@ -19,6 +19,8 @@ local TableConcat = table.concat
 local Plugin = Plugin
 local IsType = Shine.IsType
 
+Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
+
 function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, ShowTime )
 	local MessageTable = {
 		Options = Options,
@@ -107,7 +109,7 @@ end
 	Returns the number of votes needed to begin a map vote.
 ]]
 function Plugin:GetVotesNeededToStart()
-	return Ceil( GetNumPlayers() * self.Config.PercentToStart )
+	return Ceil( self:GetPlayerCountForVote() * self.Config.PercentToStart )
 end
 
 --[[
@@ -121,7 +123,7 @@ end
 	Returns whether a map vote can start.
 ]]
 function Plugin:CanStartVote()
-	local PlayerCount = GetNumPlayers()
+	local PlayerCount = self:GetPlayerCountForVote()
 
 	if PlayerCount < self.Config.MinPlayers then
 		return false, "There are not enough players to start a vote.", "VOTE_FAIL_INSUFFICIENT_PLAYERS", {}
@@ -135,8 +137,7 @@ function Plugin:CanStartVote()
 end
 
 function Plugin:GetVoteEnd()
-	local PlayerCount = GetNumPlayers()
-
+	local PlayerCount = self:GetPlayerCountForVote()
 	return Ceil( PlayerCount * self.Config.PercentToFinish )
 end
 

@@ -16,7 +16,7 @@ local TableHasValue = table.HasValue
 local TableCount = table.Count
 
 local Plugin = Plugin
-Plugin.Version = "1.7"
+Plugin.Version = "1.8"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"

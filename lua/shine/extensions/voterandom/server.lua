@@ -21,7 +21,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "2.0"
+Plugin.Version = "2.1"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -616,8 +616,7 @@ function Plugin:ClientConnect( Client )
 end
 
 function Plugin:GetVotesNeeded()
-	local PlayerCount = GetNumPlayers()
-
+	local PlayerCount = self:GetPlayerCountForVote()
 	return Ceil( PlayerCount * self.Config.PercentNeeded )
 end
 
@@ -626,7 +625,7 @@ function Plugin:GetStartFailureMessage()
 end
 
 function Plugin:CanStartVote()
-	local PlayerCount = GetNumPlayers()
+	local PlayerCount = self:GetPlayerCountForVote()
 
 	if PlayerCount < self.Config.MinPlayers then
 		return false, "ERROR_NOT_ENOUGH_PLAYERS"
@@ -901,3 +900,4 @@ function Plugin:CreateCommands()
 end
 
 Script.Load( Shine.GetPluginFile( "voterandom", "local_stats.lua" ) )
+Script.Load( Shine.GetModuleFile( "vote.lua" ), true )

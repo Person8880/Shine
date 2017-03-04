@@ -32,6 +32,10 @@ function Shine.GetPluginFile( Plugin, Path )
 	return StringFormat( "%s%s/%s", ExtensionPath, Plugin, Path )
 end
 
+function Shine.GetModuleFile( ModuleName )
+	return StringFormat( "lua/shine/modules/%s", ModuleName )
+end
+
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
 local Files = {}
 Shared.GetMatchingFileNames( ExtensionPath.."*.lua", true, Files )
