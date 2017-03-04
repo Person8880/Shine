@@ -585,8 +585,6 @@ function Plugin:BuildPotentialMapChoices()
 	for i = 1, #Nominations do
 		local Nominee = Nominations[ i ]
 		PotentialMaps:Add( Nominee )
-
-		Nominations[ i ] = nil
 	end
 
 	-- Now filter out any maps that are invalid.
@@ -595,26 +593,29 @@ function Plugin:BuildPotentialMapChoices()
 	return PotentialMaps
 end
 
-function Plugin:BuildMapChoices()
-	-- First we compile the list of maps that are going to be available to vote for.
-	local PotentialMaps = self:BuildPotentialMapChoices()
+function Plugin:AddForcedMaps( PotentialMaps, FinalChoices )
+	if self.ForcedMapCount <= 0 then return end
 
-	-- Now we build our actual map choices.
-	local AllowCurMap = self:CanExtend()
-	local CurMap = Shared.GetMapName()
-	local FinalChoices = Shine.Set()
-
-	-- Add forced maps, these skip validity checks.
-	if self.ForcedMapCount > 0 then
-		for Map in pairs( self.Config.ForcedMaps ) do
-			if Map ~= CurMap or AllowCurMap then
-				FinalChoices:Add( Map )
-				PotentialMaps:Remove( Map )
-			end
+	for Map in pairs( self.Config.ForcedMaps ) do
+		if Map ~= CurMap or AllowCurMap then
+			FinalChoices:Add( Map )
+			PotentialMaps:Remove( Map )
 		end
 	end
+end
 
-	-- If we have map extension enabled and forced, ensure it's in the vote list.
+function Plugin:AddNominations( PotentialMaps, FinalChoices, Nominations )
+	for i = 1, #Nominations do
+		local Nominee = Nominations[ i ]
+		if PotentialMaps:Contains( Nominee ) then
+			FinalChoices:Add( Nominee )
+		end
+	end
+end
+
+function Plugin:AddCurrentMap( PotentialMaps, FinalChoices )
+	local AllowCurMap = self:CanExtend()
+	local CurMap = Shared.GetMapName()
 	if AllowCurMap then
 		if PotentialMaps:Contains( CurMap ) and self.Config.AlwaysExtend then
 			FinalChoices:Add( CurMap )
@@ -624,6 +625,23 @@ function Plugin:BuildMapChoices()
 		-- Otherwise remove it!
 		PotentialMaps:Remove( CurMap )
 	end
+end
+
+function Plugin:BuildMapChoices()
+	-- First we compile the list of maps that are going to be available to vote for.
+	local PotentialMaps = self:BuildPotentialMapChoices()
+
+	-- Now we build our actual map choices.
+	local FinalChoices = Shine.Set()
+
+	-- Add forced maps, these skip validity checks.
+	self:AddForcedMaps( PotentialMaps, FinalChoices )
+
+	-- Add all nominations that are allowed to the vote list.
+	self:AddNominations( PotentialMaps, FinalChoices, self.Vote.Nominated )
+
+	-- If we have map extension enabled and forced, ensure it's in the vote list.
+	self:AddCurrentMap( PotentialMaps, FinalChoices )
 
 	-- Get rid of any maps we've previously played based on the exclusion config.
 	self:RemoveLastMaps( PotentialMaps, FinalChoices )
@@ -655,6 +673,7 @@ function Plugin:StartVote( NextMap, Force )
 
 	local MapList = self:BuildMapChoices()
 
+	self.Vote.Nominated = {}
 	self.Vote.VoteList = {}
 	for i = 1, #MapList do
 		self.Vote.VoteList[ MapList[ i ] ] = 0
