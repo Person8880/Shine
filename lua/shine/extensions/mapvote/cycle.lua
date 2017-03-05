@@ -33,6 +33,8 @@ local function SetupFromTable( self, Map )
 	if IsType( Map.percent or Map.Percent, "number" ) then
 		self.TrackMapStats = true
 	end
+
+	self.MapOptions[ Map.map ] = Map
 end
 
 function Plugin:AddMapFromCycle( ConfigMaps, Map )
@@ -50,6 +52,7 @@ end
 function Plugin:SetupMaps( Cycle )
 	self.MapProbabilities = {}
 	self.MapChoices = {}
+	self.MapOptions = {}
 
 	if self.Config.GetMapsFromMapCycle then
 		local Maps = Cycle and Cycle.maps
@@ -64,7 +67,6 @@ function Plugin:SetupMaps( Cycle )
 
 			for i = 1, #Maps do
 				local Map = Maps[ i ]
-
 				self:AddMapFromCycle( ConfigMaps, Map )
 			end
 		end
