@@ -3,10 +3,14 @@
 ]]
 
 local Plugin = {}
+Plugin.NotifyPrefixColour = { 255, 50, 0 }
 
 function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "AFKNotify", {}, "Client" )
 	self:AddNetworkMessage( "SteamOverlay", { Open = "boolean" }, "Server" )
+	self:AddTranslatedNotify( "WARN_KICK_ON_CONNECT", {
+		AFKTime = "integer"
+	} )
 end
 
 Shine:RegisterExtension( "afkkick", Plugin )

@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local Floor = math.floor
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetMaxPlayers = Server.GetMaxPlayers
 local GetNumPlayersTotal = Server.GetNumPlayersTotal
@@ -346,12 +347,18 @@ function Plugin:OnProcessMove( Player, Input )
 		elseif not DataTable.Warn and TimeSinceLastMove >= WarnTime then
 			DataTable.Warn = true
 
-			local AFKTime = Time - DataTable.LastMove
-
-			Shine.SendNetworkMessage( Client, "AFKWarning", {
-				timeAFK = AFKTime,
-				maxAFKTime = KickTime
-			}, true )
+			if not self.Config.KickOnConnect then
+				local AFKTime = Time - DataTable.LastMove
+				Shine.SendNetworkMessage( Client, "AFKWarning", {
+					timeAFK = AFKTime,
+					maxAFKTime = KickTime
+				}, true )
+			elseif Players >= self.Config.MinPlayers then
+				-- Only warn players if there's actually a possibity they'll be kicked.
+				self:SendTranslatedNotify( Client, "WARN_KICK_ON_CONNECT", {
+					AFKTime = Floor( WarnTime )
+				} )
+			end
 
 			if self.Config.NotifyOnWarn then
 				self:SendNetworkMessage( Client, "AFKNotify", {}, true )
