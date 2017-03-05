@@ -14,7 +14,7 @@ local Max = math.max
 local Random = math.random
 
 local Plugin = Plugin
-Plugin.Version = "1.2"
+Plugin.Version = "1.3"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteSurrender.json"
@@ -35,6 +35,8 @@ Plugin.EnabledGamemodes = {
 	[ "ns2" ] = true,
 	[ "mvm" ] = true
 }
+
+Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
 
 function Plugin:Initialise()
 	local function VoteTimeout( Vote )
@@ -75,9 +77,17 @@ end
 function Plugin:GetTeamPlayerCount( Team )
 	local Gamerules = GetGamerules()
 	local TeamData = Gamerules[ Team == 1 and "team1" or "team2" ]
-	local NumPlayers, NumRookies, NumBots = TeamData:GetNumPlayers()
 
-	return NumPlayers - NumBots
+	local Count = 0
+	local function CountPlayers( Player )
+		local Client = GetOwner( Player )
+		if Client and self:IsValidVoter( Client ) then
+			Count = Count + 1
+		end
+	end
+	TeamData:ForEachPlayer( CountPlayers )
+
+	return Count
 end
 
 function Plugin:GetVotesNeeded( Team )

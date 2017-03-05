@@ -24,7 +24,7 @@ local TableSort = table.sort
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "1.1"
+Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "BaseCommands.json"
@@ -43,11 +43,23 @@ Plugin.DefaultConfig = {
 	BWLimit = Shine.IsNS2Combat and 35 or 50,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
-	FriendlyFirePreGame = true
+	FriendlyFirePreGame = true,
+	VoteSettings = {
+		-- An example, but more can be added based on their vote name.
+		VoteKickPlayer = {
+			ConsiderAFKPlayersInVotes = true,
+			AFKTimeInSeconds = 60
+		}
+	}
 }
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
+
+-- Don't add anything to the config from the vote module below.
+Plugin.HandlesVoteConfig = true
+
+Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
 
 function Plugin:OnFirstThink()
 	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
@@ -127,6 +139,27 @@ do
 			activeVoteStartedAtTime = "ActiveVoteStartedAtTime",
 			activeVoteId = "ActiveVoteID"
 		} )
+
+		-- This is really, really bad. But there's no other way to solve it at the moment.
+		local GetNumVotingPlayers
+		local function OverrideVoteCount()
+			local OldGetNumVotingPlayers = GetNumVotingPlayers
+			GetNumVotingPlayers = function()
+				if not Plugin.Enabled then return OldGetNumVotingPlayers() end
+
+				local Settings = Plugin.Config.VoteSettings[ ActiveVoteName ]
+				if not Settings or Settings.ConsiderAFKPlayersInVotes then
+					return OldGetNumVotingPlayers()
+				end
+
+				return Plugin:GetNumNonAFKHumans( tonumber( Settings.AFKTimeInSeconds ) or 60 )
+			end
+		end
+		Shine.JoinUpValues( VoteUpdateFunc, OverrideVoteCount, {
+			activeVoteName = "ActiveVoteName",
+			GetNumVotingPlayers = "GetNumVotingPlayers"
+		} )
+		OverrideVoteCount()
 	end
 
 	local function RegisterCustomVote()

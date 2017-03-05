@@ -344,6 +344,34 @@ UnitTest:Test( "ChooseRandomMaps", function( Assert )
 	Assert:Equals( 5, FinalChoices:GetCount() )
 end )
 
+function MapVote:GetMapGroup() return nil end
+function MapVote:IsValidMapChoice( Map, PlayerCount ) return true end
+
+MapVote.Vote.Nominated = { "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome", "ns2_eclipse" }
+MapVote.Config.ExcludeLastMaps = {
+	Min = 0,
+	Max = 0
+}
+
+local OldForcedMaps = MapVote.Config.ForcedMaps
+MapVote.Config.ForcedMaps = {}
+
+UnitTest:Test( "BuildMapChoices - Respect nominations", function( Assert )
+	-- Nominated 5 maps, with 5 max options, so all nominations should be the choices.
+	Assert:ArrayEquals( MapVote.Vote.Nominated, MapVote:BuildMapChoices() )
+end )
+
+function MapVote:IsValidMapChoice( Map, PlayerCount ) return Map ~= "ns2_eclipse" end
+
+UnitTest:Test( "BuildMapChoices - Deny nominations", function( Assert )
+	-- Should use all nominations except the denied one.
+	local Choices = MapVote:BuildMapChoices()
+	for i = 1, 4 do
+		Assert:Equals( MapVote.Vote.Nominated[ i ], Choices[ i ] )
+	end
+	Assert:NotEquals( "ns2_eclipse", Choices[ 5 ] )
+end )
+
 MapVote.Config.MaxOptions = OldMaxOptions
 MapVote.Config.ExcludeLastMaps = OldExcludeLastMaps
 MapVote.LastMapData = OldLastMaps
@@ -351,3 +379,4 @@ MapVote.Config.Maps = OldMaps
 MapVote.IsValidMapChoice = OldIsValidMapChoice
 MapVote.GetMapGroup = OldGetMapGroup
 MapVote.Vote.Nominated = {}
+MapVote.Config.ForcedMaps = OldForcedMaps

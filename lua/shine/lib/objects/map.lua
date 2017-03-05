@@ -28,6 +28,10 @@ function Map:GetCount()
 	return self.NumMembers
 end
 
+function Map:GetKeys()
+	return self.Keys
+end
+
 --[[
 	Adds a key-value pair to the map, or updates the value if it is already in it.
 

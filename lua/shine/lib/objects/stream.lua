@@ -8,6 +8,7 @@
 local setmetatable = setmetatable
 local TableConcat = table.concat
 local TableMergeSort = table.MergeSort
+local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
 
 local Stream = Shine.TypeDef()
@@ -30,6 +31,13 @@ Predicates = {
 		end
 	end
 }
+
+--[[
+	Creates a stream containing the given values, but not referencing the original table.
+]]
+function Stream.Of( Table )
+	return Stream( TableQuickCopy( Table ) )
+end
 
 function Stream:Init( Table )
 	self.Data = Table
@@ -158,6 +166,10 @@ end
 ]]
 function Stream:AsTable()
 	return self.Data
+end
+
+function Stream:GetCount()
+	return #self.Data
 end
 
 Shine.Stream = Stream
