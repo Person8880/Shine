@@ -589,7 +589,7 @@ function Plugin:BuildPotentialMapChoices()
 	end
 
 	-- Now filter out any maps that are invalid.
-	PotentialMaps:Filter( function( Map ) return self:IsValidMapChoice( Map, PlayerCount ) end )
+	PotentialMaps:Filter( function( Map ) return self:IsValidMapChoice( self.MapOptions[ Map ] or Map, PlayerCount ) end )
 
 	return PotentialMaps
 end
