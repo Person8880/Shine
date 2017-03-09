@@ -172,7 +172,7 @@ if Server then
 		return setmetatable( DT, DataTableMeta )
 	end
 
-	--Obey permissions...
+	-- Obey permissions...
 	Shine.Hook.Add( "ClientConfirmConnect", "DataTablesUpdate", function( Client )
 		for Table, Data in pairs( RealData ) do
 			if not Table.__Access then
@@ -193,24 +193,25 @@ if Server then
 	return
 end
 
---Refuse creation/editing keys on the client.
+-- Refuse creation/editing keys on the client.
 function DataTableMeta:__newindex( Key, Value )
 
 end
 
---Process a complete network message.
+-- Process a complete network message.
 function DataTableMeta:ProcessComplete( Data )
 	for Key, Value in pairs( Data ) do
 		RealData[ self ][ Key ] = Value
 	end
 end
 
---Processes a partial network message.
+-- Processes a partial network message.
 function DataTableMeta:ProcessPartial( Key, Data )
+	local Old = RealData[ self ][ Key ]
 	RealData[ self ][ Key ] = Data[ Key ]
 
 	if self.__OnChange then
-		self.__OnChange( self.__Host, Key, RealData[ self ][ Key ], Data[ Key ] )
+		self.__OnChange( self.__Host, Key, Old, Data[ Key ] )
 	end
 end
 
