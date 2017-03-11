@@ -588,9 +588,27 @@ function Plugin:UpdatePregame( Gamerules )
 	end
 end
 
+function Plugin:GetNumPlayersFromGamerules( Gamerules )
+	local Team1Players, _, Team1Bots = Gamerules.team1:GetNumPlayers()
+	local Team2Players, _, Team2Bots = Gamerules.team2:GetNumPlayers()
+
+	return Team1Players + Team2Players - Team1Bots - Team2Bots
+end
+
+function Plugin:UpdateWarmUp( Gamerules )
+	local State = Gamerules:GetGameState()
+	if State ~= kGameState.WarmUp then return end
+
+	local NumPlayers = self:GetNumPlayersFromGamerules( Gamerules )
+	if NumPlayers >= Gamerules:GetWarmUpPlayerLimit() then
+		-- Restore old behaviour, go to NotStarted when players exceed warm up total.
+		Gamerules:SetGameState( kGameState.NotStarted )
+		return false
+	end
+end
+
 function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
-
 	if State > kGameState.PreGame then return end
 
 	--Do not allow starting too soon.
