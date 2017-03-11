@@ -6,6 +6,7 @@ local Shine = Shine
 
 function Shine.ScreenText.Add( ID, Params, Player )
 	Params.ID = ID
+	Params.IgnoreFormat = Params.IgnoreFormat or false
 
 	Shine:ApplyNetworkMessage( Player, "Shine_ScreenText", Params, true )
 end

@@ -1276,7 +1276,8 @@ function Plugin:CreateMessageCommands()
 			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
 			Alignment = 1,
 			Size = 2,
-			FadeIn = 1
+			FadeIn = 1,
+			IgnoreFormat = true
 		} )
 		Shine:AdminPrint( nil, "CSay from %s: %s", true, Shine.GetClientInfo( Client ), Message )
 	end

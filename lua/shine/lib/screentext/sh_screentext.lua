@@ -15,7 +15,8 @@ Shared.RegisterNetworkMessage( "Shine_ScreenText", {
 	ID = "integer (0 to 100)",
 	Alignment = "integer (0 to 2)",
 	Size = "integer (1 to 3)",
-	FadeIn = "float (0 to 2 by 0.05)"
+	FadeIn = "float (0 to 2 by 0.05)",
+	IgnoreFormat = "boolean"
 } )
 Shared.RegisterNetworkMessage( "Shine_ScreenTextUpdate", {
 	ID = "integer (0 to 100)",
