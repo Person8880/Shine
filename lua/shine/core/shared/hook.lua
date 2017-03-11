@@ -569,6 +569,7 @@ Add( "Think", "ReplaceMethods", function()
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
 
 	SetupClassHook( Gamerules, "UpdatePregame", "UpdatePregame", "Halt" )
+	SetupClassHook( Gamerules, "UpdateWarmUp", "UpdateWarmUp", "Halt" )
 	SetupClassHook( Gamerules, "CheckGameStart", "CheckGameStart", "Halt" )
 	SetupClassHook( Gamerules, "CastVoteByPlayer", "CastVoteByPlayer", "Halt" )
 	SetupClassHook( Gamerules, "SetGameState", "SetGameState", function( OldFunc, self, State )

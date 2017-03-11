@@ -98,11 +98,9 @@ function Plugin:NetworkUpdate( Key, Old, New )
 	if Server then return end
 
 	if Key == "Gamestate" then
-		if Old == kGameState.PreGame and New == kGameState.NotStarted then
-			--The game state changes back to 1, then to 3 to start. This is VERY annoying...
+		if ( Old == kGameState.PreGame or Old == kGameState.WarmUp ) and New == kGameState.NotStarted then
+			-- The game state changes back to NotStarted, then to Countdown to start. This is VERY annoying...
 			self:SimpleTimer( 1, function()
-				if not self.Enabled then return end
-
 				if self.dt.Gamestate == kGameState.NotStarted then
 					self:UpdateAllTalk( self.dt.Gamestate )
 				end
@@ -154,9 +152,6 @@ local SGUI = Shine.GUI
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
-
-local NOT_STARTED = kGameState and kGameState.WarmUp or 2
-local COUNTDOWN = kGameState and kGameState.Countdown or 4
 
 function Plugin:Initialise()
 	if self.dt.AllTalk then
@@ -553,14 +548,14 @@ function Plugin:ReceivePluginData( Data )
 	end
 end
 
+local NOT_STARTED = kGameState and kGameState.WarmUp or 2
+local COUNTDOWN = kGameState and kGameState.Countdown or 4
+
 function Plugin:UpdateAllTalk( State )
 	if not self.dt.AllTalk then return end
 
 	if State >= COUNTDOWN then
-		if not self.TextObj then return end
-
 		self:RemoveAllTalkText()
-
 		return
 	end
 
@@ -583,6 +578,7 @@ function Plugin:UpdateAllTalk( State )
 	end
 
 	self.TextObj.Text = Phrase
+	self.TextObj:UpdateText()
 
 	local Col = State > NOT_STARTED and Color( 255, 0, 0 ) or Color( 255, 255, 255 )
 
