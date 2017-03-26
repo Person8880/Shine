@@ -203,6 +203,15 @@ function BalanceModule:UpdateBots()
 	if self.OptimisingTeams then return false end
 end
 
+local function DebugLogTeamMembers( Logger, self, TeamMembers )
+	local TeamMemberOutput = {
+		self:AsLogOutput( TeamMembers[ 1 ] ),
+		self:AsLogOutput( TeamMembers[ 2 ] )
+	}
+
+	Logger:Debug( "Assigned team members:\n%s", table.ToString( TeamMemberOutput ) )
+end
+
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
@@ -224,6 +233,9 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	} )
 
 	Optimiser:Optimise()
+
+	self.Logger:Debug( "After optimisation:" )
+	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
 end
 
 function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
@@ -343,6 +355,9 @@ function BalanceModule:SortByScore( Gamerules, Targets, TeamMembers, Silent, Ran
 		self:AddPlayersRandomly( RandomTable, RandomTableCount, TeamMembers )
 	end
 
+	self.Logger:Debug( "After SortByScore:" )
+	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
+
 	EvenlySpreadTeams( Gamerules, TeamMembers )
 end
 
@@ -350,6 +365,10 @@ BalanceModule.ShufflingModes = {
 	--Random only.
 	function( self, Gamerules, Targets, TeamMembers, Silent )
 		self:AddPlayersRandomly( Targets, #Targets, TeamMembers )
+
+		self.Logger:Debug( "After AddPlayersRandomly:" )
+		self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
+
 		EvenlySpreadTeams( Gamerules, TeamMembers )
 
 		if not Silent then
