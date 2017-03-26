@@ -297,3 +297,59 @@ UnitTest:Test( "OptimiseTeams with preference", function( Assert )
 	Assert:ArrayEquals( { 1, 6, 3 }, TeamMembers[ 1 ] )
 	Assert:ArrayEquals( { 4, 5, 2 }, TeamMembers[ 2 ] )
 end, nil, 5 )
+
+VoteShuffle.Config.IgnoreCommanders = true
+
+UnitTest:Test( "OptimiseTeams with commanders", function( Assert )
+	local Index = 0
+	local Players = {}
+	local function Player( Skill, Commander )
+		Index = Index + 1
+		Players[ Index ] = {
+			Index = Index,
+			Skill = Skill,
+			isa = function() return Commander end,
+			Commander = Commander
+		}
+		return Players[ Index ]
+	end
+
+	local Marines = {
+		Player( 2000, true ), Player( 2000 ), Player( 1000 )
+	}
+	local Aliens = {
+		Player( 1000, true ), Player( 1000 ), Player( 1000 )
+	}
+
+	local function RankFunc( Player )
+		return Player.Skill
+	end
+
+	local TeamMembers = {
+		Marines,
+		Aliens,
+		TeamPreferences = {
+			[ Marines[ 1 ] ] = true,
+			[ Aliens[ 1 ] ] = true
+		}
+	}
+
+	local TeamSkills = {
+		{
+			Average = 5000 / 3,
+			Total = 5000,
+			Count = 3
+		},
+		{
+			Average = 1000,
+			Total = 3000,
+			Count = 3
+		}
+	}
+
+	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+
+	-- It should never swap the commanders.
+	Assert:ArrayEquals( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
+	Assert:ArrayEquals( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
+end, nil, 5 )
