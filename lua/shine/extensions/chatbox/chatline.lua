@@ -190,7 +190,7 @@ do
 		if not Text:find( "[^%s]" ) then return end
 
 		local Width = MessageLabel:GetTextWidth()
-		if Width <= MaxWidth then
+		if XPos + Width <= MaxWidth then
 			self:RemoveWrappedLine()
 			return
 		end

@@ -16,4 +16,6 @@ function Shine.TypeDef( Parent )
 	} )
 end
 
+Shine.Objects = {}
+
 Shine.LoadScriptsByPath( "lua/shine/lib/objects" )

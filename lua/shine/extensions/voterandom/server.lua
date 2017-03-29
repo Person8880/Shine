@@ -200,134 +200,178 @@ function Plugin:Initialise()
 	return true
 end
 
---[[
-	Gets all valid targets for sorting.
-]]
-function Plugin:GetTargetsForSorting( ResetScores )
-	local Gamerules = GetGamerules()
-	if not Gamerules then return end
+do
+	local function DebugLogTeamMembers( Logger, self, Targets, TeamMembers )
+		local TargetOutput = self:AsLogOutput( Targets )
+		local TeamMemberOutput = {
+			self:AsLogOutput( TeamMembers[ 1 ] ),
+			self:AsLogOutput( TeamMembers[ 2 ] ),
+			TeamPreferences = self:AsLogOutput( table.GetKeys( TeamMembers.TeamPreferences ) )
+		}
 
-	local Players, Count = GetAllPlayers()
-	local Targets = {}
-	local TeamMembers = {
-		{},
-		{},
-		TeamPreferences = {}
-	}
+		Logger:Debug( "Result of GetTargetsForSorting (IgnoreCommanders: %s):", self.Config.IgnoreCommanders )
+		Logger:Debug( "Unassigned targets:\n%s", table.ToString( TargetOutput ) )
+		Logger:Debug( "Assigned team members:\n%s", table.ToString( TeamMemberOutput ) )
+	end
 
-	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
-	local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
+	local function PlayerToString( Player )
+		local Client = Player:GetClient()
+		local NS2ID = Client:GetUserId()
 
-	local function SortPlayer( Player, Client, Commander, Pass )
-		local Team = Player:GetTeamNumber()
-		if Team == 3 and self.Config.IgnoreSpectators then
-			return
+		local Text = {}
+
+		if Player:isa( "Commander" ) then
+			Text[ 1 ] = "Commander - "
+		else
+			Text[ 1 ] = "Player - "
 		end
 
-		-- Don't move non-rookies on rookie servers.
-		if IsRookieMode and not Player:GetIsRookie() then
-			return
+		Text[ 2 ] = NS2ID
+
+		if Client:GetIsVirtual() then
+			Text[ 3 ] = " (Bot - "
+			Text[ 4 ] = Player:GetName()
+			Text[ 5 ] = ")"
 		end
 
-		local IsImmune = Shine:HasAccess( Client, "sh_randomimmune" ) or Commander
+		return TableConcat( Text )
+	end
 
-		-- Pass 1, put all immune players into team slots.
-		-- This ensures they're picked last if there's a team imbalance at the end of sorting.
-		-- It does not stop them from being swapped if it helps overall balance though.
-		if Pass == 1 then
-			if IsImmune then
+	function Plugin:AsLogOutput( Players )
+		return Shine.Stream.Of( Players ):Map( PlayerToString ):AsTable()
+	end
+
+	--[[
+		Gets all valid targets for sorting.
+	]]
+	function Plugin:GetTargetsForSorting( ResetScores )
+		local Gamerules = GetGamerules()
+		if not Gamerules then return end
+
+		local Players, Count = GetAllPlayers()
+		local Targets = {}
+		local TeamMembers = {
+			{},
+			{},
+			TeamPreferences = {}
+		}
+
+		local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
+		local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
+
+		local function SortPlayer( Player, Client, Commander, Pass )
+			local Team = Player:GetTeamNumber()
+			if Team == 3 and self.Config.IgnoreSpectators then
+				return
+			end
+
+			-- Don't move non-rookies on rookie servers.
+			if IsRookieMode and not Player:GetIsRookie() then
+				return
+			end
+
+			local IsImmune = Shine:HasAccess( Client, "sh_randomimmune" ) or Commander
+
+			-- Pass 1, put all immune players into team slots.
+			-- This ensures they're picked last if there's a team imbalance at the end of sorting.
+			-- It does not stop them from being swapped if it helps overall balance though.
+			if Pass == 1 then
+				if IsImmune then
+					local TeamTable = TeamMembers[ Team ]
+
+					if TeamTable then
+						TeamTable[ #TeamTable + 1 ] = Player
+					end
+
+					TeamMembers.TeamPreferences[ Player ] = true
+				end
+
+				return
+			end
+
+			-- Pass 2, put all non-immune players into team slots/target list.
+			if IsImmune then return end
+
+			-- If they're on a playing team, bias towards letting them keep it.
+			if Team == 1 or Team == 2 then
 				local TeamTable = TeamMembers[ Team ]
 
-				if TeamTable then
-					TeamTable[ #TeamTable + 1 ] = Player
-				end
-
+				TeamTable[ #TeamTable + 1 ] = Player
 				TeamMembers.TeamPreferences[ Player ] = true
-			end
-
-			return
-		end
-
-		-- Pass 2, put all non-immune players into team slots/target list.
-		if IsImmune then return end
-
-		-- If they're on a playing team, bias towards letting them keep it.
-		if Team == 1 or Team == 2 then
-			local TeamTable = TeamMembers[ Team ]
-
-			TeamTable[ #TeamTable + 1 ] = Player
-			TeamMembers.TeamPreferences[ Player ] = true
-		else
-			Targets[ #Targets + 1 ] = Player
-		end
-	end
-
-	local function DisconnectBot( Client )
-		local Bots = gServerBots
-		local Found = false
-
-		if Bots then
-			-- No reference back to the bot, so have to search the table...
-			for i = 1, #Bots do
-				if Bots[ i ] and Bots[ i ].client == Client then
-					Found = true
-					Bots[ i ]:Disconnect()
-					break
-				end
+			else
+				Targets[ #Targets + 1 ] = Player
 			end
 		end
 
-		if not Found then
-			Server.DisconnectClient( Client )
-		end
-	end
+		local function DisconnectBot( Client )
+			local Bots = gServerBots
+			local Found = false
 
-	local function AddPlayer( Player, Pass )
-		if not Player then return end
-
-		if Player.ResetScores and ResetScores then
-			Player:ResetScores()
-		end
-
-		local Client = Player:GetClient()
-		if not Client then return end
-
-		-- Bot and we don't want to deal with them, so kick them out.
-		if Client:GetIsVirtual() and not self.Config.ApplyToBots then
-			if Pass == 1 then
-				DisconnectBot( Client )
-			end
-
-			return
-		end
-
-		local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
-
-		if AFKEnabled then -- Ignore AFK players in sorting.
-			if Commander or not AFKKick:IsAFKFor( Client, 60 ) then
-				SortPlayer( Player, Client, Commander, Pass )
-			elseif Pass == 1 then -- Chuck AFK players into the ready room.
-				local Team = Player:GetTeamNumber()
-
-				-- Only move players on playing teams...
-				if Team == 1 or Team == 2 then
-					Gamerules:JoinTeam( Player, 0, nil, true )
+			if Bots then
+				-- No reference back to the bot, so have to search the table...
+				for i = 1, #Bots do
+					if Bots[ i ] and Bots[ i ].client == Client then
+						Found = true
+						Bots[ i ]:Disconnect()
+						break
+					end
 				end
 			end
 
-			return
+			if not Found then
+				Server.DisconnectClient( Client )
+			end
 		end
 
-		SortPlayer( Player, Client, Commander, Pass )
-	end
+		local function AddPlayer( Player, Pass )
+			if not Player then return end
 
-	for Pass = 1, 2 do
-		for i = 1, Count do
-			AddPlayer( Players[ i ], Pass )
+			if Player.ResetScores and ResetScores then
+				Player:ResetScores()
+			end
+
+			local Client = Player:GetClient()
+			if not Client then return end
+
+			-- Bot and we don't want to deal with them, so kick them out.
+			if Client:GetIsVirtual() and not self.Config.ApplyToBots then
+				if Pass == 1 then
+					DisconnectBot( Client )
+				end
+
+				return
+			end
+
+			local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
+
+			if AFKEnabled then -- Ignore AFK players in sorting.
+				if Commander or not AFKKick:IsAFKFor( Client, 60 ) then
+					SortPlayer( Player, Client, Commander, Pass )
+				elseif Pass == 1 then -- Chuck AFK players into the ready room.
+					local Team = Player:GetTeamNumber()
+
+					-- Only move players on playing teams...
+					if Team == 1 or Team == 2 then
+						Gamerules:JoinTeam( Player, 0, nil, true )
+					end
+				end
+
+				return
+			end
+
+			SortPlayer( Player, Client, Commander, Pass )
 		end
-	end
 
-	return Targets, TeamMembers
+		for Pass = 1, 2 do
+			for i = 1, Count do
+				AddPlayer( Players[ i ], Pass )
+			end
+		end
+
+		self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, Targets, TeamMembers )
+
+		return Targets, TeamMembers
+	end
 end
 
 --[[
@@ -901,3 +945,4 @@ end
 
 Script.Load( Shine.GetPluginFile( "voterandom", "local_stats.lua" ) )
 Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
+Script.Load( Shine.GetModuleFile( "logger.lua" ), true )
