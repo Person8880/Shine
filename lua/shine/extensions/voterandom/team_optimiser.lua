@@ -247,7 +247,11 @@ function TeamOptimiser:TrySwaps( PlayerIndex, Pass )
 		local OtherPlayer = TeamMembers[ self.LesserTeam ][ OtherPlayerIndex ]
 
 		if OtherPlayer and self:IsValidForSwap( OtherPlayer, Pass ) then
-			self:SimulateSwap( PlayerIndex, OtherPlayerIndex )
+			if self.LargerTeam == 1 then
+				self:SimulateSwap( PlayerIndex, OtherPlayerIndex )
+			else
+				self:SimulateSwap( OtherPlayerIndex, PlayerIndex )
+			end
 		end
 	end
 
