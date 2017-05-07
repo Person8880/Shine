@@ -48,7 +48,8 @@ Plugin.DefaultConfig = {
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5,
 	VanillaConfigUpToDate = false,
-	CheckFamilySharing = false
+	CheckFamilySharing = false,
+	BanSharerOnSharedBan = false
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -421,6 +422,16 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 		end )
 	end
 
+	if self.Config.BanSharerOnSharedBan then
+		-- If the player has the game shared to them, ban the player sharing it.
+		local function BanSharer( IsBannedAlready, Sharer )
+			if IsBannedAlready or not Sharer then return end
+
+			self:AddBan( Sharer, "<unknown>", Duration, BannedBy, BanningID, "Sharing to a banned account." )
+		end
+		BanSharer( self:CheckFamilySharing( ID, false, BanSharer ) )
+	end
+
 	Hook.Call( "OnPlayerBanned", ID, Name, Duration, BannedBy, Reason )
 
 	return true
@@ -687,9 +698,7 @@ end
 --[[
 	Checks whether the given ID is family sharing with a banned account.
 ]]
-function Plugin:CheckFamilySharing( ID, NoAPIRequest )
-	if not self.Config.CheckFamilySharing then return false end
-
+function Plugin:CheckFamilySharing( ID, NoAPIRequest, OnAsyncResponse )
 	local RequestParams = {
 		steamid = ID
 	}
@@ -706,13 +715,13 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest )
 
 	Shine.ExternalAPIHandler:PerformRequest( "Steam", "IsPlayingSharedGame", RequestParams, {
 		OnSuccess = self:WrapCallback( function( Sharer )
-			if not Sharer or not self:IsIDBanned( Sharer ) then return end
-
-			-- Unlikely, but possible that the client's already loaded before Steam responds.
-			local Target = Shine.GetClientByNS2ID( ID )
-			if Target then
-				self:KickForFamilySharing( Target, Sharer )
+			if not Sharer then
+				return OnAsyncResponse( false )
 			end
+
+			self:Print( "Player %s is playing through family sharing from account with ID: %s.", true, ID, Sharer )
+
+			OnAsyncResponse( self:IsIDBanned( Sharer ), Sharer )
 		end ),
 		OnFailure = function()
 			self:Print( "Failed to receive response from Steam for user %s's family sharing status.",
@@ -726,7 +735,7 @@ end
 function Plugin:KickForFamilySharing( Client, Sharer )
 	self:Print( "Kicking %s for family sharing with a banned account. Sharer ID: %s.", true,
 			Shine.GetClientInfo( Client ), Sharer )
-	self:PerformBan( Client )
+	Server.DisconnectClient( Client, "Family sharing with a banned account." )
 end
 
 --[[
@@ -736,6 +745,8 @@ end
 	the client's connected.
 ]]
 function Plugin:ClientConnect( Client )
+	if not self.Config.CheckFamilySharing then return end
+
 	local IsSharing, Sharer = self:CheckFamilySharing( Client:GetUserId(), true )
 	if IsSharing then
 		self:KickForFamilySharing( Client, Sharer )
@@ -785,7 +796,19 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	self:RemoveBan( ID )
 
-	if self:CheckFamilySharing( ID ) then return false, "Family sharing with a banned account." end
+	if not self.Config.CheckFamilySharing then return end
+
+	local IsSharingAndSharerBanned = self:CheckFamilySharing( ID, false, function( IsSharerBanned, Sharer )
+		if not Sharer or not IsSharerBanned then return end
+
+		-- Unlikely, but possible that the client's already loaded before Steam responds.
+		local Target = Shine.GetClientByNS2ID( ID )
+		if Target then
+			self:KickForFamilySharing( Target, Sharer )
+		end
+	end )
+
+	if IsSharingAndSharerBanned then return false, "Family sharing with a banned account." end
 end
 
 function Plugin:ClientDisconnect( Client )
