@@ -47,16 +47,21 @@ Shine.UserData = {
 			IsBlacklist = false,
 			InheritsFrom = { "Member" },
 			Commands = {
-				"sh_ban", "sh_slay"
+				"sh_ban", "sh_slay", "sh_help"
 			},
 			Immunity = 25
 		},
 		Member = {
 			IsBlacklist = false,
 			Commands = {
-				"sh_kick"
+				"sh_kick", { Command = "sh_help", Denied = true }
 			},
 			Immunity = 10
+		},
+		Player = {
+			IsBlacklist = false,
+			Commands = {},
+			Immunity = 5
 		}
 	},
 	DefaultGroup = {
@@ -67,6 +72,8 @@ Shine.UserData = {
 		}
 	}
 }
+
+Shine.Hook.Call( "OnUserReload" )
 
 ---- GETTER TESTS ----
 UnitTest:Test( "GetUserData", function ( Assert )
@@ -125,11 +132,22 @@ UnitTest:Test( "GetGroupPermission", function( Assert )
 	GroupTable = Shine:GetGroupData( GroupName )
 	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
 	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+	-- Denied in inherited group, but allowed in this one, so should be allowed.
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_help" ) )
 
 	GroupName = "Member"
 	GroupTable = Shine:GetGroupData( GroupName )
 	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
 	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+	-- Explictly denied, so should not be allowed.
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_help" ) )
+
+	GroupName = "Player"
+	GroupTable = Shine:GetGroupData( GroupName )
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+	-- Allowed by default, nothing explicitly denying it.
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_help" ) )
 end )
 
 UnitTest:Test( "GetGroupAccess", function( Assert )
@@ -149,11 +167,22 @@ UnitTest:Test( "GetGroupAccess", function( Assert )
 	GroupTable = Shine:GetGroupData( GroupName )
 	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
 	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
+	-- Access declared as allowed, overrides inherited denial.
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_help" ) )
 
 	GroupName = "Member"
 	GroupTable = Shine:GetGroupData( GroupName )
 	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
 	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune" ) )
+	-- Access declared as denied, so not allowed.
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_help" ) )
+
+	GroupName = "Player"
+	GroupTable = Shine:GetGroupData( GroupName )
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_loadplugin" ) )
+	-- Access not declared, so not allowed.
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_help" ) )
 end )
 
 ---- USER PERMISSION TESTS ----
@@ -302,14 +331,29 @@ UnitTest:Test( "AddGroupAccess", function( Assert )
 	Assert:ArrayEquals( { "sh_test", "sh_test2" }, Group.Commands )
 end )
 
+UnitTest:Test( "Add group access with existing right", function( Assert )
+	Assert:False( Shine:AddGroupAccess( "Test", "sh_test2" ) )
+	Assert:ArrayEquals( { "sh_test", "sh_test2" }, Shine.UserData.Groups.Test.Commands )
+end )
+
+UnitTest:Test( "Add group access with denied right", function( Assert )
+	local Commands = Shine.UserData.Groups.Test.Commands
+	Commands[ #Commands + 1 ] = { Command = "sh_test3", Denied = true }
+
+	-- Should remove the denied entry as well as adding the new entry.
+	Assert:True( Shine:AddGroupAccess( "Test", "sh_test3" ) )
+	Assert:ArrayEquals( { "sh_test", "sh_test2", "sh_test3" }, Shine.UserData.Groups.Test.Commands )
+end )
+
 UnitTest:Test( "RevokeGroupAccess", function( Assert )
+	local Test2Right = { Command = "sh_test2" }
 	local Group = {
-		Commands = { "sh_test", "sh_test2" }
+		Commands = { "sh_test", Test2Right }
 	}
 	Shine.UserData.Groups.Test = Group
 
 	Assert:True( Shine:RevokeGroupAccess( "Test", "sh_test" ) )
-	Assert:ArrayEquals( { "sh_test2" }, Group.Commands )
+	Assert:ArrayEquals( { Test2Right }, Group.Commands )
 
 	Assert:True( Shine:RevokeGroupAccess( "Test", "sh_test2" ) )
 	Assert:ArrayEquals( {}, Group.Commands )
@@ -317,3 +361,5 @@ end )
 
 Shine.UserData = OldUserData
 Shine.SaveUsers = OldSaveUsers
+
+Shine.Hook.Call( "OnUserReload" )

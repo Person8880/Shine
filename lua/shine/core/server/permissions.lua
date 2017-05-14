@@ -16,6 +16,7 @@ local StringLower = string.lower
 local StringFormat = string.format
 local TableEmpty = table.Empty
 local TableInsertUnique = table.InsertUnique
+local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
 local tonumber = tonumber
 local tostring = tostring
@@ -488,40 +489,74 @@ function Shine:DeleteUser( Client )
 	return true
 end
 
+local function InitialPermissions()
+	return {
+		Commands = {},
+		Denied = {}
+	}
+end
+
+local function AddCommand( Entry, Permissions, Blacklist )
+	if IsType( Entry, "string" ) then
+		if Blacklist or not Permissions.Commands[ Entry ] then
+			Permissions.Commands[ Entry ] = true
+		end
+		return
+	end
+
+	if not IsType( Entry, "table" ) then return end
+
+	local Command = Entry.Command
+	if not Command then return end
+
+	if Entry.Denied then
+		-- This entry is explicitly a denial.
+		if Blacklist then
+			-- Not really expected in blacklists, but treat it as a normal entry.
+			Permissions.Commands[ Command ] = true
+			return
+		end
+
+		-- For whitelists, an explicit denial allows blocking access to commands
+		-- that are allowed by default.
+		if not Permissions.Commands[ Command ] then
+			Permissions.Denied[ Command ] = true
+		end
+
+		return
+	end
+
+	local Allowed = Entry.Allowed
+	-- Blacklists should take the lowest allowed entry,
+	-- whitelists should take the highest.
+	if Blacklist then
+		Permissions.Commands[ Command ] = Allowed or true
+	elseif not Permissions.Commands[ Command ] then
+		Permissions.Commands[ Command ] = Allowed or true
+	end
+end
+
 --[[
 	Checks a command list table for the given command name,
 	taking into account table entries with argument restrictions.
 ]]
-local function CheckForCommand( GroupName, Table, Command )
+local function GetGroupPermissions( GroupName, GroupTable )
 	-- -1 denotes the default group, as JSON can't have a number key of -1.
 	GroupName = GroupName or -1
 
 	local Permissions = PermissionCache[ GroupName ]
 
 	if not Permissions then
-		Permissions = {}
+		Permissions = InitialPermissions()
 
-		for i = 1, #Table do
-			local Entry = Table[ i ]
-
-			if IsType( Entry, "table" ) then
-				Permissions[ Entry.Command ] = Entry.Allowed
-			else
-				Permissions[ Entry ] = true
-			end
+		for i = 1, #GroupTable.Commands do
+			AddCommand( GroupTable.Commands[ i ], Permissions, GroupTable.IsBlacklist )
 		end
 
 		PermissionCache[ GroupName ] = Permissions
 	end
 
-	local Entry = Permissions[ Command ]
-	if not Entry then return false end
-
-	if IsType( Entry, "table" ) then
-		return true, Entry
-	end
-
-	return true
+	return Permissions
 end
 
 --[[
@@ -543,38 +578,16 @@ local function VerifyGroup( GroupName, GroupTable )
 end
 
 --[[
-	Adds all commands in the Permissions table to the table of
-	commands being built. Will add argument restrictions to the table
+	Adds all commands in the commands table to the table of
+	permissions being built. Will add argument restrictions to the table
 	if they are set, otherwise just adds the command as 'true'.
 
 	Whitelists take the first occurrence of the command, blacklists take
 	the last occurrence.
 ]]
-local function AddPermissionsToTable( Permissions, Table, Blacklist )
-	for i = 1, #Permissions do
-		local Entry = Permissions[ i ]
-
-		if IsType( Entry, "string" ) then
-			if Blacklist then
-				Table[ Entry ] = true
-			elseif not Table[ Entry ] then
-				Table[ Entry ] = true
-			end
-		elseif IsType( Entry, "table" ) then
-			local Command = Entry.Command
-
-			if Command then
-				local Allowed = Entry.Allowed
-
-				--Blacklists should take the lowest allowed entry,
-				--whitelists should take the highest.
-				if Blacklist then
-					Table[ Command ] = Allowed or true
-				elseif not Table[ Command ] then
-					Table[ Command ] = Allowed or true
-				end
-			end
-		end
+local function AddPermissionsToTable( Commands, Permissions, Blacklist )
+	for i = 1, #Commands do
+		AddCommand( Commands[ i ], Permissions, Blacklist )
 	end
 end
 
@@ -588,7 +601,7 @@ end
 local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions, Processed )
 	Processed = Processed or {}
 
-	--Avoid cycles!
+	-- Avoid cycles!
 	if Processed[ GroupName ] then return end
 
 	Processed[ GroupName ] = true
@@ -606,7 +619,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		end
 	end
 
-	--Inherit from the default group, which cannot inherit from others.
+	-- Inherit from the default group, which cannot inherit from others.
 	if InheritFromDefault then
 		local DefaultGroup = self:GetDefaultGroup()
 
@@ -629,13 +642,13 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		local Name = InheritGroups[ i ]
 
 		if Name then
-			local CurGroup = self:GetGroupData( Name )
+			local InheritedGroup = self:GetGroupData( Name )
 
-			if not CurGroup then
-				self:Print( "Group with ID %s inherits from a non-existant group (%s)!",
+			if not InheritedGroup then
+				self:Print( "Group with ID %s inherits from a non-existent group (%s)!",
 					true, GroupName, Name )
 			else
-				BuildPermissions( self, Name, CurGroup, Blacklist, Permissions, Processed )
+				BuildPermissions( self, Name, InheritedGroup, Blacklist, Permissions, Processed )
 			end
 		end
 	end
@@ -700,48 +713,65 @@ do
 		PermissionCache[ Name ] = nil
 	end
 
-	function Shine:AddGroupAccess( GroupName, Access )
+	local function IsAllowedEntry( Entry, AccessRight )
+		return Entry == AccessRight or ( IsType( Entry, "table" )
+			and Entry.Command == AccessRight and not Entry.Denied )
+	end
+
+	function Shine:AddGroupAccess( GroupName, AccessRight )
 		local Group = self:GetGroupData( GroupName )
 		if not Group then return false end
 
-		for i = 1, #Group.Commands do
+		for i = #Group.Commands, 1, -1 do
 			local Entry = Group.Commands[ i ]
-			if Entry == Access or ( IsType( Entry, "table" ) and Entry.Command == Access ) then
+			if IsAllowedEntry( Entry, AccessRight ) then
 				return false
+			end
+
+			if IsType( Entry, "table" ) and Entry.Denied then
+				TableRemove( Group.Commands, i )
 			end
 		end
 
-		Group.Commands[ #Group.Commands + 1 ] = Access
+		Group.Commands[ #Group.Commands + 1 ] = AccessRight
 
-		if PermissionCache[ GroupName ] and not PermissionCache[ GroupName ][ Access ] then
+		local CachedPermissions = PermissionCache[ GroupName ]
+		if CachedPermissions and ( not CachedPermissions.Commands[ AccessRight ]
+		or CachedPermissions.Denied[ AccessRight ] ) then
 			PermissionCache[ GroupName ] = nil
 			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
 		end
 
 		self:SaveUsers( true )
 
-		Shine.Hook.Call( "OnGroupAccessGranted", GroupName, Group, Access )
+		Shine.Hook.Call( "OnGroupAccessGranted", GroupName, Group, AccessRight )
 
 		return true
 	end
 
-	function Shine:RevokeGroupAccess( GroupName, Access )
+	function Shine:RevokeGroupAccess( GroupName, AccessRight )
 		local Group = self:GetGroupData( GroupName )
 		if not Group then return false end
 
-		local Removed = TableRemoveByValue( Group.Commands, Access )
-		if not Removed then
-			return false
+		local Found
+		for i = #Group.Commands, 1, -1 do
+			local Entry = Group.Commands[ i ]
+			if IsAllowedEntry( Entry, AccessRight ) then
+				Found = true
+				TableRemove( Group.Commands, i )
+			end
 		end
 
+		if not Found then return false end
+
 		if PermissionCache[ GroupName ] then
-			PermissionCache[ GroupName ][ Access ] = nil
+			PermissionCache[ GroupName ].Commands[ AccessRight ] = nil
 			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
 		end
 
 		self:SaveUsers( true )
 
-		Shine.Hook.Call( "OnGroupAccessRevoked", GroupName, Group, Access )
+		Shine.Hook.Call( "OnGroupAccessRevoked", GroupName, Group, AccessRight )
 
 		return true
 	end
@@ -751,12 +781,44 @@ Shine.Hook.Add( "OnUserReload", "FlushPermissionCache", function()
 	TableEmpty( PermissionCache )
 end )
 
+local AccessLevel = {
+	DENIED = 0,
+	ABSTAIN = 1,
+	ALLOWED = 2
+}
+
+local function GetAccess( Permissions, Command, Blacklist )
+	if Blacklist then
+		if not Permissions.Commands[ Command ] then
+			return AccessLevel.ALLOWED
+		end
+
+		if IsType( Permissions.Commands[ Command ], "table" ) then
+			return AccessLevel.ALLOWED, Permissions.Commands[ Command ]
+		end
+
+		return AccessLevel.DENIED
+	end
+
+	-- Explicit denial of a usually allowed command.
+	if Permissions.Denied[ Command ] then
+		return AccessLevel.DENIED
+	end
+
+	-- Return the allowed arguments.
+	if IsType( Permissions.Commands[ Command ], "table" ) then
+		return AccessLevel.ALLOWED, Permissions.Commands[ Command ]
+	else
+		return Permissions.Commands[ Command ] and AccessLevel.ALLOWED or AccessLevel.ABSTAIN
+	end
+end
+
 --[[
 	Checks all inherited groups to determine command access.
 	Inputs: Group name, group table, command name.
 	Output: True if allowed.
 ]]
-local function GetPermissionInheritance( self, GroupName, GroupTable, ConCommand )
+local function GetPermissionInheritance( self, GroupName, GroupTable, Command )
 	local InheritGroups = GroupTable.InheritsFrom
 	local InheritFromDefault = GroupTable.InheritFromDefault
 
@@ -781,31 +843,24 @@ local function GetPermissionInheritance( self, GroupName, GroupTable, ConCommand
 	local Permissions = PermissionCache[ GroupName ]
 
 	if not Permissions then
-		Permissions = {}
+		Permissions = InitialPermissions()
 
 		BuildPermissions( self, GroupName, GroupTable, Blacklist, Permissions )
 
 		PermissionCache[ GroupName ] = Permissions
 	end
 
-	if Blacklist then
-		if not Permissions[ ConCommand ] then
-			return true
-		else
-			if IsType( Permissions[ ConCommand ], "table" ) then
-				return true, Permissions[ ConCommand ]
-			else
-				return false
-			end
-		end
+	return GetAccess( Permissions, Command, Blacklist )
+end
+
+local function IsCommandPermitted( Command, GrantedLevel, Restrictions )
+	if Command.NoPerm then
+		-- Commands that are default allowed to all must be explicitly denied.
+		return GrantedLevel ~= AccessLevel.DENIED, Restrictions
 	end
 
-	--Return the allowed arguments.
-	if IsType( Permissions[ ConCommand ], "table" ) then
-		return true, Permissions[ ConCommand ]
-	else
-		return Permissions[ ConCommand ]
-	end
+	-- Otherwise it's enough for them not to be listed in a whitelist.
+	return GrantedLevel == AccessLevel.ALLOWED, Restrictions
 end
 
 --[[
@@ -816,22 +871,17 @@ end
 function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
 	if not VerifyGroup( GroupName, GroupTable ) then return false end
 
+	local Command = self.Commands[ ConCommand ]
+	if not Command then return false end
+
 	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
-		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand )
+		return IsCommandPermitted( Command, GetPermissionInheritance( self, GroupName, GroupTable, ConCommand ) )
 	end
 
-	local Exists, AllowedArgs = CheckForCommand( GroupName, GroupTable.Commands, ConCommand )
+	local GroupPermissions = GetGroupPermissions( GroupName, GroupTable )
+	local GrantedLevel, Restrictions = GetAccess( GroupPermissions, ConCommand, GroupTable.IsBlacklist )
 
-	if GroupTable.IsBlacklist then
-		--A blacklist entry with allowed arguments restricts to only those arguments.
-		if AllowedArgs then
-			return true, AllowedArgs
-		else
-			return not Exists
-		end
-	end
-
-	return Exists, AllowedArgs
+	return IsCommandPermitted( Command, GrantedLevel, Restrictions )
 end
 
 --[[
@@ -848,10 +898,6 @@ function Shine:GetPermission( Client, ConCommand )
 	local User, ID = self:GetUserData( Client )
 
 	if not User then
-		if Command.NoPerm then
-			return true
-		end
-
 		local DefaultGroup = self:GetDefaultGroup()
 
 		if not DefaultGroup then
@@ -860,8 +906,6 @@ function Shine:GetPermission( Client, ConCommand )
 
 		return self:GetGroupPermission( nil, DefaultGroup, ConCommand )
 	end
-
-	if Command.NoPerm then return true end
 
 	local UserGroup = User.Group
 	local GroupTable = self:GetGroupData( UserGroup )
@@ -885,17 +929,11 @@ function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand )
 	if not VerifyGroup( GroupName, GroupTable ) then return false end
 
 	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
-		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand )
+		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand ) == AccessLevel.ALLOWED
 	end
 
-	local Exists = CheckForCommand( GroupName, GroupTable.Commands, ConCommand )
-
-	--Access doesn't care about allowed args, if it's present, we consider it denied.
-	if GroupTable.IsBlacklist then
-		return not Exists
-	end
-
-	return Exists
+	local GroupPermissions = GetGroupPermissions( GroupName, GroupTable )
+	return GetAccess( GroupPermissions, ConCommand, GroupTable.IsBlacklist ) == AccessLevel.ALLOWED
 end
 
 --[[
