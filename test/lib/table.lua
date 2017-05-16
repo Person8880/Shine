@@ -140,14 +140,12 @@ UnitTest:Test( "ShallowCopy", function( Assert )
 end )
 
 do
-	local Smaller = {}
-	local Larger = {}
 	local function LT( A, B )
-		return A == Smaller
+		return A.Index < B.Index
 	end
 	local ComparableObjects = {
-		setmetatable( Smaller, { __lt = LT } ),
-		setmetatable( Larger, { __lt = LT } )
+		setmetatable( { Index = 1 }, { __lt = LT } ),
+		setmetatable( { Index = 2 }, { __lt = LT } )
 	}
 	local function GetTestTable()
 		return {
