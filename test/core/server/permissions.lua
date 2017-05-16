@@ -224,6 +224,17 @@ UnitTest:Test( "Default group user permissions", function( Assert )
 	Assert:Falsy( Shine:HasAccess( 999, "sh_kick" ) )
 end )
 
+do
+	local DefaultGroup = Shine.UserData.DefaultGroup
+	Shine.UserData.DefaultGroup = nil
+
+	UnitTest:Test( "No default group is allowed default access", function( Assert )
+		Assert:True( Shine:GetPermission( 999, "sh_help" ) )
+	end )
+
+	Shine.UserData.DefaultGroup = DefaultGroup
+end
+
 UnitTest:Test( "Blacklist", function( Assert )
 	Assert:Truthy( Shine:GetPermission( 123, "sh_kick" ) )
 	Assert:Falsy( Shine:HasAccess( 123, "sh_randomimmune" ) )
