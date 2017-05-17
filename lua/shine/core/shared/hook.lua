@@ -439,8 +439,8 @@ if Client then
 		SetupGlobalHook( "CommanderUI_Logout", "OnCommanderUILogout", "PassivePost" )
 
 		--HelpScreen events
-		SetupClassHook( "HelpScreen", "Display", "OnHelpScreenDisplay", "PassivePost")
-		SetupClassHook( "HelpScreen", "Hide", "OnHelpScreenHide", "PassivePost")
+		SetupClassHook( "HelpScreen", "Display", "OnHelpScreenDisplay", "PassivePost" )
+		SetupClassHook( "HelpScreen", "Hide", "OnHelpScreenHide", "PassivePost" )
 
 	end, -20 )
 
