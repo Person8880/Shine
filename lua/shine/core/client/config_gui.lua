@@ -2,6 +2,7 @@
 	Clientside configuration menu.
 ]]
 
+local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local Locale = Shine.Locale
 
@@ -77,7 +78,7 @@ function ConfigMenu:Create()
 	end
 end
 
-Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", function()
+Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", function()
 	if not ConfigMenu.Menu then return end
 
 	ConfigMenu.Menu:Destroy()
@@ -91,6 +92,9 @@ end )
 function ConfigMenu:SetIsVisible( Bool )
 	if self.Visible == Bool then return end
 
+	--Check if the NS2 HelpScreen is open
+	if self._Visible == Bool then return end
+
 	if not self.Menu then
 		self:Create()
 	end
@@ -98,6 +102,30 @@ function ConfigMenu:SetIsVisible( Bool )
 	Shine.AdminMenu.AnimateVisibility( self.Menu, Bool, self.Visible, self.EasingTime, self.Pos )
 	self.Visible = Bool
 end
+
+function ConfigMenu:OnHelpScreenDisplay()
+	if not self.Visible then return end
+
+	self._Visible = true
+
+	self:SetIsVisible( false )
+end
+
+function ConfigMenu:OnHelpScreenHide()
+	if not self._Visible then return end
+
+	self._Visible = nil
+
+	self:SetIsVisible( true )
+end
+
+Hook.Add( "OnHelpScreenDisplay", "ConfigMenu_OnHelpScreenDisplay", function()
+	ConfigMenu:OnHelpScreenDisplay()
+end)
+
+Hook.Add( "OnHelpScreenHide", "ConfigMenu_OnHelpScreenHide", function()
+	ConfigMenu:OnHelpScreenHide()
+end)
 
 function ConfigMenu:PopulateTabs( Menu )
 	local Tabs = self.Tabs
@@ -244,13 +272,13 @@ ConfigMenu:AddTab( "Plugins", {
 			end
 		end
 
-		Shine.Hook.Add( "OnPluginLoad", "ClientConfig_OnPluginLoad", function( Name, Plugin, Shared )
+		Hook.Add( "OnPluginLoad", "ClientConfig_OnPluginLoad", function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
 			UpdateRow( Name, true )
 		end )
 
-		Shine.Hook.Add( "OnPluginUnload", "ClientConfig_OnPluginUnload", function( Name, Plugin, Shared )
+		Hook.Add( "OnPluginUnload", "ClientConfig_OnPluginUnload", function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
 			UpdateRow( Name, false )
@@ -273,8 +301,8 @@ ConfigMenu:AddTab( "Plugins", {
 	end,
 
 	OnCleanup = function( Panel )
-		Shine.Hook.Remove( "OnPluginLoad", "ClientConfig_OnPluginLoad" )
-		Shine.Hook.Remove( "OnPluginUnload", "ClientConfig_OnPluginUnload" )
+		Hook.Remove( "OnPluginLoad", "ClientConfig_OnPluginLoad" )
+		Hook.Remove( "OnPluginUnload", "ClientConfig_OnPluginUnload" )
 	end
 } )
 

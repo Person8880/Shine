@@ -111,6 +111,11 @@ function AdminMenu.AnimateVisibility( Window, Show, Visible, EasingTime, TargetP
 end
 
 function AdminMenu:SetIsVisible( Bool )
+	if self.Visible == Bool then return end
+
+	--Check if the NS2 HelpScreen is open
+	if self._Visible == Bool then return end
+
 	if not self.Created then
 		self:Create()
 	end
@@ -132,6 +137,30 @@ end
 Hook.Add( "PlayerKeyPress", "AdminMenu_KeyPress", function( Key, Down )
 	AdminMenu:PlayerKeyPress( Key, Down )
 end, 1 )
+
+function AdminMenu:OnHelpScreenDisplay()
+	if not self.Visible then return end
+
+	self._Visible = true
+	
+	self:SetIsVisible( false )
+end
+
+function AdminMenu:OnHelpScreenHide()
+	if not self._Visible then return end
+	
+	self._Visible = nil
+
+	self:SetIsVisible( true )
+end
+
+Hook.Add( "OnHelpScreenDisplay", "AdminMenu_OnHelpScreenDisplay", function()
+	AdminMenu:OnHelpScreenDisplay()
+end)
+
+Hook.Add( "OnHelpScreenHide", "AdminMenu_OnHelpScreenHide", function()
+	AdminMenu:OnHelpScreenHide()
+end)
 
 function AdminMenu:AddTab( Name, Data )
 	self.Tabs[ Name ] = Data
@@ -668,5 +697,3 @@ below. If you want to get to it outside the game, visit:]],
 		end
 	} )
 end
-
-
