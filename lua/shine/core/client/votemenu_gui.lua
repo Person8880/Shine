@@ -179,6 +179,9 @@ function VoteMenu:SetIsVisible( Bool )
 	end
 
 	if Bool then
+		--Check if the NS2 HelpScreen is open
+		if self._Visible then return end
+
 		self:UpdateTeamType()
 
 		Shared.PlaySound( nil, OpenSound )
@@ -224,6 +227,30 @@ end
 Hook.Add( "PlayerKeyPress", "VoteMenuKeyPress", function( Key, Down )
 	return VoteMenu:PlayerKeyPress( Key, Down )
 end, 1 )
+
+function VoteMenu:OnHelpScreenDisplay()
+	if not self.Visible then return end
+
+	self._Visible = true
+
+	self:SetIsVisible( false )
+end
+
+function VoteMenu:OnHelpScreenHide()
+	if not self._Visible then return end
+
+	self._Visible = nil
+
+	self:SetIsVisible( true )
+end
+
+Hook.Add( "OnHelpScreenDisplay", "VoteMenu_OnHelpScreenDisplay", function()
+	VoteMenu:OnHelpScreenDisplay()
+end)
+
+Hook.Add( "OnHelpScreenHide", "VoteMenu_OnHelpScreenHide", function()
+	VoteMenu:OnHelpScreenHide()
+end)
 
 function VoteMenu:Think( DeltaTime )
 	if not self.Visible then return end
