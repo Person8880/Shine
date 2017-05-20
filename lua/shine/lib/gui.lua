@@ -698,7 +698,6 @@ SGUI.NotifyFocusChange = NotifyFocusChange
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
-	Shine.LoadScriptsByPath( "lua/shine/lib/gui/mixins" )
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
@@ -754,3 +753,4 @@ end )
 include( "lua/shine/lib/gui/base_control.lua" )
 include( "lua/shine/lib/gui/font_manager.lua" )
 include( "lua/shine/lib/gui/layout/layout.lua" )
+Shine.LoadScriptsByPath( "lua/shine/lib/gui/mixins" )

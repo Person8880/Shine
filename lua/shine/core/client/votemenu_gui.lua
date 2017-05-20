@@ -18,6 +18,8 @@ local Pi = math.pi
 local VoteMenu = {}
 Shine.VoteMenu = VoteMenu
 
+SGUI:AddMixin( VoteMenu, "Visibility" )
+
 local OpenSound = "sound/NS2.fev/common/checkbox_on"
 Client.PrecacheLocalSound( OpenSound )
 
@@ -77,7 +79,7 @@ local function GenericClick( Command )
 	if GetCanSendVote() then
 		Shared.ConsoleCommand( Command )
 
-		VoteMenu:SetIsVisible( false )
+		VoteMenu:ForceHide()
 
 		return true
 	end
@@ -173,7 +175,9 @@ function VoteMenu:Create()
 	end
 end
 
-function VoteMenu:SetIsVisible( Bool )
+function VoteMenu:SetIsVisible( Bool, IgnoreAnim )
+	if self.Visible == Bool then return false end
+
 	if not SGUI.IsValid( self.Background ) then
 		self:Create()
 	end
@@ -187,8 +191,8 @@ function VoteMenu:SetIsVisible( Bool )
 
 		self.Background:SetIsVisible( true )
 
-		--Set the page to ensure only the correct buttons show after making the panel visible.
-		self:SetPage( self.ActivePage or "Main" )
+		-- Set the page to ensure only the correct buttons show after making the panel visible.
+		self:SetPage( self.ActivePage or "Main", IgnoreAnim )
 	else
 		SGUI:EnableMouse( false )
 
@@ -196,7 +200,15 @@ function VoteMenu:SetIsVisible( Bool )
 	end
 
 	self.Visible = Bool
+
+	return true
 end
+
+function VoteMenu:GetIsVisible()
+	return self.Visible or false
+end
+
+VoteMenu:BindVisibilityToEvents( "OnHelpScreenDisplay", "OnHelpScreenHide" )
 
 function VoteMenu:PlayerKeyPress( Key, Down )
 	if not self.Visible then return end
@@ -205,7 +217,7 @@ function VoteMenu:PlayerKeyPress( Key, Down )
 	local ChatboxEnabled = Enabled and Chatbox.Visible
 
 	if ChatUI_EnteringChatMessage() or ChatboxEnabled then
-		self:SetIsVisible( false )
+		self:ForceHide()
 
 		return
 	end
@@ -214,7 +226,7 @@ function VoteMenu:PlayerKeyPress( Key, Down )
 		or Key == InputKey.Escape
 
 	if Down and IsCloseKey then
-		self:SetIsVisible( false )
+		self:ForceHide()
 
 		return
 	end
@@ -243,9 +255,7 @@ Hook.Add( "Think", "VoteMenuThink", function( DeltaTime )
 end )
 
 Hook.Add( "OnCommanderUILogout", "VoteMenuLogout", function()
-	if not VoteMenu.Visible then return end
-
-	VoteMenu:SetIsVisible( false )
+	VoteMenu:ForceHide()
 end )
 
 function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
@@ -281,6 +291,7 @@ function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	self:Create()
 
 	if not self.Visible then
+		self.Visible = true
 		self:SetIsVisible( false )
 	end
 end
@@ -331,7 +342,7 @@ end
 --[[
 	Clears out the votemenu, then populate with the given page.
 ]]
-function VoteMenu:SetPage( Name )
+function VoteMenu:SetPage( Name, IgnoreAnim )
 	local Page = self.Pages[ Name ]
 	if not Page or not Page.Populate then return end
 
@@ -339,7 +350,7 @@ function VoteMenu:SetPage( Name )
 
 	Page.Populate( self )
 
-	self:SortSideButtons()
+	self:SortSideButtons( IgnoreAnim )
 	self.ActivePage = Name
 end
 
@@ -592,7 +603,7 @@ end
 function VoteMenu:AddAdminMenuButton()
 	self:AddSideButton( Locale:GetPhrase( "Core", "ADMIN_MENU" ), function()
 		Shared.ConsoleCommand( "sh_adminmenu" )
-		self:SetIsVisible( false )
+		self:ForceHide()
 	end )
 end
 
@@ -625,7 +636,7 @@ VoteMenu:AddPage( "Main", function( self )
 
 	self:AddSideButton( Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" ), function()
 		Shared.ConsoleCommand( "sh_clientconfigmenu" )
-		self:SetIsVisible( false )
+		self:ForceHide()
 	end )
 
 	if self.RequestedAdminMenu == nil then

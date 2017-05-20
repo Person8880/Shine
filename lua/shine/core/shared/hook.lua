@@ -437,6 +437,9 @@ if Client then
 
 		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
 		SetupGlobalHook( "CommanderUI_Logout", "OnCommanderUILogout", "PassivePost" )
+
+		SetupClassHook( "HelpScreen", "Display", "OnHelpScreenDisplay", "PassivePost" )
+		SetupClassHook( "HelpScreen", "Hide", "OnHelpScreenHide", "PassivePost" )
 	end, -20 )
 
 	Add( "Think", "ClientOnFirstThink", function()
