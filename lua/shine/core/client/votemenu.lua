@@ -76,15 +76,14 @@ function Shine.OpenVoteMenu()
 	local VoteMenu = Shine.VoteMenu
 
 	if VoteMenu.Visible then
-		VoteMenu:SetIsVisible( false )
-
+		VoteMenu:Hide()
 		return
 	end
 
-	VoteMenu:SetIsVisible( true )
-
-	Shine.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
-	Shine.Hook.Call( "OnVoteMenuOpen" )
+	if VoteMenu:Show() then
+		Shine.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
+		Shine.Hook.Call( "OnVoteMenuOpen" )
+	end
 end
 
 do

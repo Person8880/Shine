@@ -13,9 +13,10 @@ local StringFormat = string.format
 Shine.AdminMenu = {}
 
 local AdminMenu = Shine.AdminMenu
+SGUI:AddMixin( AdminMenu, "Visibility" )
 
 Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
-	AdminMenu:SetIsVisible( true )
+	AdminMenu:Show()
 end )
 
 AdminMenu.Commands = {}
@@ -54,7 +55,7 @@ function AdminMenu:Create()
 end
 
 function AdminMenu:Close()
-	self:SetIsVisible( false )
+	self:ForceHide()
 
 	if self.ToDestroyOnClose then
 		for Panel in pairs( self.ToDestroyOnClose ) do
@@ -81,8 +82,10 @@ end
 
 AdminMenu.EasingTime = 0.25
 
-function AdminMenu.AnimateVisibility( Window, Show, Visible, EasingTime, TargetPos )
-	if not Show and Shine.Config.AnimateUI then
+function AdminMenu.AnimateVisibility( Window, Show, Visible, EasingTime, TargetPos, IgnoreAnim )
+	local IsAnimated = Shine.Config.AnimateUI and not IgnoreAnim
+
+	if not Show and IsAnimated then
 		Shine.Timer.Simple( EasingTime, function()
 			if not SGUI.IsValid( Window ) then return end
 			Window:SetIsVisible( false )
@@ -92,7 +95,7 @@ function AdminMenu.AnimateVisibility( Window, Show, Visible, EasingTime, TargetP
 	end
 
 	if Show and not Visible then
-		if Shine.Config.AnimateUI then
+		if IsAnimated then
 			Window:SetPos( Vector2( -Client.GetScreenWidth() + TargetPos.x, TargetPos.y ) )
 			Window:MoveTo( nil, nil, TargetPos, 0, EasingTime )
 		else
@@ -103,21 +106,27 @@ function AdminMenu.AnimateVisibility( Window, Show, Visible, EasingTime, TargetP
 	elseif not Show and Visible then
 		SGUI:EnableMouse( false )
 
-		if Shine.Config.AnimateUI then
+		if IsAnimated then
 			Window:MoveTo( nil, nil, Vector2( Client.GetScreenWidth() - TargetPos.x, TargetPos.y ), 0,
 				EasingTime, nil, math.EaseIn )
 		end
 	end
 end
 
-function AdminMenu:SetIsVisible( Bool )
+function AdminMenu:SetIsVisible( Bool, IgnoreAnim )
 	if not self.Created then
 		self:Create()
 	end
 
-	self.AnimateVisibility( self.Window, Bool, self.Visible, self.EasingTime, self.Pos )
+	self.AnimateVisibility( self.Window, Bool, self.Visible, self.EasingTime, self.Pos, IgnoreAnim )
 	self.Visible = Bool
 end
+
+function AdminMenu:GetIsVisible()
+	return self.Visible or false
+end
+
+AdminMenu:BindVisibilityToEvents( "OnHelpScreenDisplay", "OnHelpScreenHide" )
 
 function AdminMenu:PlayerKeyPress( Key, Down )
 	if not self.Visible then return end

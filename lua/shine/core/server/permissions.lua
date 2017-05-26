@@ -899,9 +899,8 @@ function Shine:GetPermission( Client, ConCommand )
 
 	if not User then
 		local DefaultGroup = self:GetDefaultGroup()
-
 		if not DefaultGroup then
-			return false
+			return Command.NoPerm or false
 		end
 
 		return self:GetGroupPermission( nil, DefaultGroup, ConCommand )
@@ -914,7 +913,7 @@ function Shine:GetPermission( Client, ConCommand )
 		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, UserGroup )
 
-		return false
+		return Command.NoPerm or false
 	end
 
 	return self:GetGroupPermission( UserGroup, GroupTable, ConCommand )

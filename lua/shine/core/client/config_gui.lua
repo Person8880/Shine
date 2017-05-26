@@ -8,6 +8,7 @@ local Locale = Shine.Locale
 local IsType = Shine.IsType
 
 local ConfigMenu = {}
+SGUI:AddMixin( ConfigMenu, "Visibility" )
 
 ConfigMenu.Tabs = {}
 
@@ -72,7 +73,7 @@ function ConfigMenu:Create()
 		self.Menu.CloseButton:SetFontScale( Font, Scale )
 	end
 	self.Menu.OnClose = function()
-		self:SetIsVisible( false )
+		self:ForceHide()
 		return true
 	end
 end
@@ -88,16 +89,23 @@ Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", funct
 	end
 end )
 
-function ConfigMenu:SetIsVisible( Bool )
+function ConfigMenu:SetIsVisible( Bool, IgnoreAnim )
 	if self.Visible == Bool then return end
 
 	if not self.Menu then
 		self:Create()
 	end
 
-	Shine.AdminMenu.AnimateVisibility( self.Menu, Bool, self.Visible, self.EasingTime, self.Pos )
+	Shine.AdminMenu.AnimateVisibility( self.Menu, Bool, self.Visible, self.EasingTime, self.Pos, IgnoreAnim )
+
 	self.Visible = Bool
 end
+
+function ConfigMenu:GetIsVisible()
+	return self.Visible or false
+end
+
+ConfigMenu:BindVisibilityToEvents( "OnHelpScreenDisplay", "OnHelpScreenHide" )
 
 function ConfigMenu:PopulateTabs( Menu )
 	local Tabs = self.Tabs
@@ -279,5 +287,5 @@ ConfigMenu:AddTab( "Plugins", {
 } )
 
 Shine:RegisterClientCommand( "sh_clientconfigmenu", function()
-	ConfigMenu:SetIsVisible( true )
+	ConfigMenu:Show()
 end )

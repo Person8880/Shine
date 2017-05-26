@@ -10,7 +10,7 @@
 	"TEAM_NOT_READY": "{TeamName} ei ole valmiina.",
 	"TEAM_NOT_READY_PLAYER": "{PlayerName} kertoi, ettei {TeamName} ole vielä valmiina.",
 	"GAME_START_COUNTDOWN": "Pelin alkuun %s",
-	"GAME_START_ABORTED": "Pelin aloitus.",
+	"GAME_START_ABORTED": "Pelin aloitus keskeytetty.",
 	"ERROR_ONLY_COMMANDER_UNREADY": "Vain commander voi kertoa, ettei joukkue ole valmiina.",
 	"ERROR_ONLY_COMMANDER_READY": "Vain commander voi kertoa joukkueen olevan valmiina.",
 	"ERROR_NOT_READY": "Et ole kertonut olevasi valmiina! Kirjoita !ready jos olet valmiina.",
