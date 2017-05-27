@@ -641,35 +641,21 @@ Add( "Think", "ReplaceMethods", function()
 		return OldTestCycle()
 	end
 
-	local OldStartVote = Shine.GetUpValue( HookStartVote, "StartVote", true )
+	local OldStartVote = StartVote
 	if OldStartVote then
-		local function BuildNetworkReceiver( VoteName )
-			return function( Client, Data )
-				if Call( "NS2StartVote", VoteName, Client, Data ) == false then
-					Shine.SendNetworkMessage( Client, "VoteCannotStart",
-						{
-							reason = kVoteCannotStartReason.DisabledByAdmin
-						}, true )
+		StartVote = function( VoteName, Client, Data )
+			if Call( "NS2StartVote", VoteName, Client, Data ) == false then
+				Shine.SendNetworkMessage( Client, "VoteCannotStart", {
+					reason = kVoteCannotStartReason.DisabledByAdmin
+				}, true )
 
-					return
-				end
-
-				OldStartVote( VoteName, Client, Data )
+				return
 			end
-		end
 
-		local AlreadyRegistered = Shine.GetUpValue( SetVoteSuccessfulCallback, "voteSuccessfulCallbacks" )
-		if AlreadyRegistered then
-			for Name in pairs( AlreadyRegistered ) do
-				Server.HookNetworkMessage( Name, BuildNetworkReceiver( Name ) )
-			end
+			return OldStartVote( VoteName, Client, Data )
 		end
 
 		Shine.StartNS2Vote = OldStartVote
-
-		function HookStartVote( VoteName )
-			Server.HookNetworkMessage( VoteName, BuildNetworkReceiver( VoteName ) )
-		end
 	end
 
 	CallOnce( "OnFirstThink" )
