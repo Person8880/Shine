@@ -1,0 +1,16 @@
+{
+	"GAME_START": "战局即将开始...%s",
+	"GAME_START_SOON": "战局将于{Duration:Duration}后开始",
+	"WAITING_FOR_ALIENS": "等待异形选择他们的指挥员",
+	"WAITING_FOR_MARINES": "等待人族选择他们的指挥员",
+	"WAITING_FOR_BOTH": "等待双方队伍选择他们各自的指挥员",
+	"WAITING_FOR_PLAYER_COUNT": "等待至少{MinPlayers}{MinPlayers:Pluralise:玩家|玩家}加入队伍",
+	"ABORT_MARINES_EMPTY": "开局倒计时中断，因为陆战队里没人了。",
+	"ABORT_ALIENS_EMPTY": "开局倒计时中断，因为异形里没人了。",
+	"ABORT_COMMANDER_DROP": "开局倒计时中断，因为有一位指挥员缺勤。",
+	"ALIENS_HAVE_COMMANDER": "异形已有人指挥。陆战队现在有{TimeLeft:Duration}时间去选择他们的指挥员。",
+	"MARINES_HAVE_COMMANDER": "陆战队已有人指挥。异形现在有{TimeLeft:Duration}去选择他们的指挥员。",
+	"EXCEEDED_TIME": "开局准备时间已超过{Duration:Duration}并且有一方有人指挥。战局即将开始...",
+	"NOTIFY_PREFIX": "[开局准备]",
+	"WAITING_FOR_PLAYERS": "战局开始等待玩家加载。"
+}
