@@ -1,0 +1,5 @@
+{
+	"ALREADY_ACCEPTED_MOTD": "你已经领受了当日消息。",
+	"ACCEPTED_MOTD_RESPONSE": "感谢你对当日消息的接受。",
+	"NOTIFY_PREFIX": "[当日消息]"
+}
