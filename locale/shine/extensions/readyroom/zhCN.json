@@ -1,0 +1,6 @@
+{
+	"SWITCH_TEAM_BLOCKED": "你刚刚才被分配到队伍里。你现在不能返回预备室。",
+	"SPECTATOR_DISABLED": "观战看台已被禁用。",
+	"IN_READY_ROOM_TOO_LONG": "你被随机分配到了队伍里，因为你在预备室里的时间太久了。",
+	"NOTIFY_PREFIX": "[预备室]"
+}
