@@ -46,12 +46,12 @@
 	"NEXT_ROUND_SHUFFLE_SHUFFLE_RANDOM": "系统正在为下一回合进行随机分队...",
 	"NEXT_ROUND_SHUFFLE_SHUFFLE_SCORE": "依据每分钟得分能力，系统正在为下一回合进行分队...",
 
-	"PLAYER_VOTED_HIVE_BASED": "{PlayerName}投票让系统强制分配队伍（依据Hive排行榜战力值）。 （需要再来{VotesNeeded}票才能通过）",
+	"PLAYER_VOTED_HIVE_BASED": "{PlayerName}投票让系统强制分配队伍 （依据Hive排行榜战力值）。 （需要再来{VotesNeeded}票才能通过）",
 	"PLAYER_VOTED_KDR_BASED": "{PlayerName}投票让系统强制分配队伍（依据KD比率）。 （需要再来{VotesNeeded}票才能通过）",
-	"PLAYER_VOTED_RANDOM_BASED": "{PlayerName}投票让系统强制随机分配队伍。(已有{VotesNeeded}，仍需{VotesNeeded:Pluralise:票|票}）",
-	"PLAYER_VOTED_SCORE_BASED": "{PlayerName}投票让系统强制分配队伍（依据每分钟得分能力）。 （需要再来{VotesNeeded}票才能通过）",
+	"PLAYER_VOTED_RANDOM_BASED": "{PlayerName}投票让系统强制随机分配队伍。 （需要再来{VotesNeeded}票才能通过）",
+	"PLAYER_VOTED_SCORE_BASED": "{PlayerName}投票让系统强制分配队伍 （依据每分钟得分能力）。 （需要再来{VotesNeeded}票才能通过）",
 
-	"PLAYER_VOTED_PRIVATE_HIVE_BASED": "你投了一票让系统强制分配队伍（依据Hive排行榜战力值）。 （需要再来{VotesNeeded}票才能通过）",
+	"PLAYER_VOTED_PRIVATE_HIVE_BASED": "你投了一票让系统强制分配队伍 （依据Hive排行榜战力值）。 （需要再来{VotesNeeded}票才能通过）",
 	"PLAYER_VOTED_PRIVATE_KDR_BASED": "你投了一票让系统强制分配队伍（依据KD比率）。 （需要再来{VotesNeeded}票才能通过）",
 	"PLAYER_VOTED_PRIVATE_RANDOM_BASED": "你投了一票让系统强制随机分配队伍。 （需要再来{VotesNeeded}票才能通过）",
 	"PLAYER_VOTED_PRIVATE_SCORE_BASED": "你投了一票让系统强制分配队伍（依据每分钟得分能力）。 （需要再来{VotesNeeded}票才能通过）",
@@ -76,7 +76,7 @@
 	"TEAMS_FORCED_NEXT_ROUND_RANDOM_BASED": "下一回合时，系统将会强制随机分配队伍。",
 	"TEAMS_FORCED_NEXT_ROUND_SCORE_BASED": "下一回合时，系统将会强制分配队伍（依据每分钟得分能力）。",
 
-	"TEAMS_SHUFFLED_FOR_DURATION_HIVE_BASED": "强制分队（依据Hive排行榜战力值）将于接下来的{Duration:Duration}内。",
+	"TEAMS_SHUFFLED_FOR_DURATION_HIVE_BASED": "强制分队（依据Hive排行榜战力值）将于接下来的{Duration:Duration}内开启。",
 	"TEAMS_SHUFFLED_FOR_DURATION_KDR_BASED": "强制分队（依据KD比率）将于接下来的{Duration:Duration}内开启。",
 	"TEAMS_SHUFFLED_FOR_DURATION_RANDOM_BASED": "强制分队（纯随机）将于接下来的{Duration:Duration}内开启。",
 	"TEAMS_SHUFFLED_FOR_DURATION_SCORE_BASED": "强制分队（依据每分钟得分能力）将于接下来的{Duration:Duration}内开启。",
@@ -86,8 +86,8 @@
 	"TEAM_ENFORCING_TIMELIMIT_RANDOM_BASED": "时间限制达到，强制随机分队已被解除。",
 	"TEAM_ENFORCING_TIMELIMIT_SCORE_BASED": "时间限制达到，强制分队（依据每分钟得分能力）已被解除。",
 
-	"TEAM_SWITCH_DENIED_HIVE_BASED": "你无法切换队伍。系统已强制分配队伍了（依据Hive排行榜战力值）。",
-	"TEAM_SWITCH_DENIED_KDR_BASED": "你无法切换队伍。系统已强制分配队伍了（依据KD比率）。",
-	"TEAM_SWITCH_DENIED_RANDOM_BASED": "你无法切换队伍。系统已强制随机分配队伍了。",
-	"TEAM_SWITCH_DENIED_SCORE_BASED": "你无法切换队伍。系统已强制分配队伍了（依据每分钟得分能力）。"
+	"TEAM_SWITCH_DENIED_HIVE_BASED": "你无法切换队伍。系统已经强制分配队伍了（依据Hive排行榜战力值）。",
+	"TEAM_SWITCH_DENIED_KDR_BASED": "你无法切换队伍。系统已经强制分配队伍了（依据KD比率）。",
+	"TEAM_SWITCH_DENIED_RANDOM_BASED": "你无法切换队伍。系统已经强制随机分配队伍了。",
+	"TEAM_SWITCH_DENIED_SCORE_BASED": "你无法切换队伍。系统已经强制分配队伍了（依据每分钟得分能力）。"
 }
