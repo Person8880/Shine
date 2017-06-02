@@ -1,0 +1,12 @@
+{
+	"SAY_TEAM": "向队内发送...",
+	"SAY_ALL": "向全体发送...",
+	"SETTINGS_TITLE": "设置",
+	"AUTO_CLOSE": "发送后自动关闭。",
+	"AUTO_DELETE": "关闭后自动清除未发送内容。",
+	"SMOOTH_SCROLL": "使用平滑滚动。",
+	"MESSAGE_MEMORY": "消息保留数量",
+	"OPACITY": "不透明度(%)",
+	"SCALE": "窗体缩放（将会重新打开消息窗口）",
+	"SETTINGS_TOOLTIP": "打开或关闭消息窗口设置。"
+}
