@@ -1,0 +1,21 @@
+{
+	"ADD_BAN": "添加封禁",
+	"SELECT_PLAYER": "选择一位玩家。",
+	"DURATION_LABEL": "持续时间（单位：分钟，0就是永久）：",
+	"DURATION_HINT": "请输入一个持续时间...",
+	"DURATION_PERMANENT": "持续时间：永久。",
+	"DURATION_TIME": "持续时间：{Time}",
+	"REASON": "理由：",
+	"Bans": "封禁",
+	"BANNED_BY": "操作人",
+	"EXPIRY": "期限",
+	"NEVER": "永不",
+	"DATE_FORMAT": "%d %B %Y %H:%M",
+	"UNBAN": "解封",
+	"LOAD_MORE": "载入更多",
+	"LOAD_MORE_TIP": "从服务器载入更多数据。",
+	"PLAYER_BANNED": "已封禁{TargetName} {Duration:NonZero:for }{Duration:Duration:permanently} ({Reason}).",
+	"PLAYER_REQUEST_IN_PROGRESS": "请等待当前封禁{ID}的请求完成。",
+	"ERROR_NOT_BANNED": "{ID}并未被封禁。",
+	"ERROR_INVALID_STEAMID": "封禁了无效的SteamID。"
+}
