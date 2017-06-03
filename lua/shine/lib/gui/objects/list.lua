@@ -554,6 +554,21 @@ function List:OnRowDeselect( Index, Row )
 	end
 end
 
+function List:ResetSelection()
+	if self.MultiSelect then
+		local Rows = self.Rows
+		for i = 1, #Rows do
+			Rows[ i ]:SetSelected( false )
+		end
+
+		return
+	end
+
+	if self.SelectedRow then
+		self:OnRowDeselect( self.SelectedRow.Index, self.SelectedRow )
+	end
+end
+
 SGUI.AddProperty( List, "MultiSelect" )
 
 ------------------- Event calling -------------------

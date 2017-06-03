@@ -16,7 +16,11 @@ local AdminMenu = Shine.AdminMenu
 SGUI:AddMixin( AdminMenu, "Visibility" )
 
 Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
+	local WasVisible = AdminMenu.Visible
 	AdminMenu:Show()
+	if not WasVisible and AdminMenu.Visible then
+		Hook.Call( "OnAdminMenuOpened", AdminMenu )
+	end
 end )
 
 AdminMenu.Commands = {}
@@ -66,6 +70,8 @@ function AdminMenu:Close()
 			self.ToDestroyOnClose[ Panel ] = nil
 		end
 	end
+
+	Hook.Call( "OnAdminMenuClosed", self )
 end
 
 function AdminMenu:DestroyOnClose( Object )
@@ -368,6 +374,12 @@ do
 				UpdatePlayers()
 			end )
 
+			-- Forget selection when the admin menu is closed.
+			Hook.Add( "OnAdminMenuClosed", "AdminMenu_CommandsTab", function()
+				if not SGUI.IsValid( PlayerList ) then return end
+				PlayerList:ResetSelection()
+			end )
+
 			AdminMenu.RestoreListState( PlayerList, Data )
 
 			Commands = SGUI:Create( "CategoryPanel", Panel )
@@ -429,6 +441,7 @@ do
 			TableEmpty( Rows )
 
 			Shine.Timer.Destroy( "AdminMenu_Update" )
+			Hook.Remove( "OnAdminMenuClosed", "AdminMenu_CommandsTab" )
 
 			return Data
 		end
