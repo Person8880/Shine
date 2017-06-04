@@ -1,0 +1,5 @@
+{
+	"PLAYER_JOINED_GENERIC": "{TargetName}已加入战局。",
+	"PLAYER_LEAVE_GENERIC": "{TargetName}已离开战局。",
+	"PLAYER_LEAVE_REASON": "{TargetName}掉线（{Reason}）。"
+}

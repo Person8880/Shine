@@ -1,0 +1,19 @@
+{
+	"WAITING_FOR_TEAM": "等待{TeamName:Upper}以开局",
+	"WAITING_FOR_BOTH_TEAMS": "等待双方队伍以开局",
+	"MARINES": "陆战队",
+	"ALIENS": "异形",
+	"PLAYER_READY": "{PlayerName}现已准备完毕。",
+	"PLAYER_NOT_READY": "{PlayerName}解除准备。",
+	"TEAM_READY": "{TeamName}现已全部准备完毕。",
+	"TEAM_READY_WAITING": "{TeamName}现已全部准备完毕。等待{OtherTeamName}以开局。",
+	"TEAM_NOT_READY": "{TeamName}全部解除就绪。",
+	"TEAM_NOT_READY_PLAYER": "{TeamName}全部解除就绪，因为{PlayerName}解除了就绪。",
+	"GAME_START_COUNTDOWN": "战局即将开始 %s",
+	"GAME_START_ABORTED": "开局倒计时中断",
+	"ERROR_ONLY_COMMANDER_UNREADY": "只有指挥员能够解除队伍的准备就绪状态。",
+	"ERROR_ONLY_COMMANDER_READY": "只有指挥员能够使队伍准备就绪。",
+	"ERROR_NOT_READY": "你还没准备好！输入!ready来使你自己准备完毕。",
+	"ERROR_NOT_TEAM_READY": "你们队伍还没准备好！使用!ready来使你们队伍准备完毕。",
+	"NOTIFY_PREFIX": "[竞赛模式]"
+}

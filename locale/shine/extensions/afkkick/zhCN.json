@@ -1,0 +1,4 @@
+{
+	"NOTIFY_PREFIX": "[挂机清理]",
+	"WARN_KICK_ON_CONNECT": "你已经挂机超过{AFKTime:Duration}了。你会在新的玩家加入时被服务器踢出。"
+}

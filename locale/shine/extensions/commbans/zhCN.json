@@ -1,0 +1,6 @@
+{
+	"Comm Bans": "指挥员黑名单",
+	"PLAYER_BANNED": "从指挥员名单里拉黑了{TargetName}{Duration:NonZero:。}{Duration:Duration:，永久。}",
+	"BANNED_WARNING": "你已被指挥员名单{Duration:NonZero:拉黑了}{Duration:Duration:永久拉黑了}，无法指挥。",
+	"NOTIFY_PREFIX": "[指挥员黑名单]"
+}

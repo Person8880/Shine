@@ -1,0 +1,6 @@
+{
+	"KICK_WARNING": "如果你的延迟降不下来，你会被服务器踢出。",
+	"PING_TOO_HIGH": "你的延迟平均值是{Amount}毫秒，对于这个服务器来说太高了。",
+	"JITTER_TOO_HIGH": "你的延迟时高时低，取平均值为{Amount}毫秒，对于这个服务器来说太高了。",
+	"NOTIFY_PREFIX": "[延迟追踪器]"
+}
