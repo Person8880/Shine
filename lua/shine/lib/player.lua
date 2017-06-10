@@ -144,25 +144,6 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	local NumAlien = #Alien
 	local Diff = Shine.EqualiseTeamCounts( TeamMembers )
 
-	local Reported
-
-	if Abs( #Marine - #Alien ) > 1 then
-		local VoteRandom = Shine.Plugins.voterandom
-
-		if VoteRandom then
-			local BalanceMode = VoteRandom.Config.BalanceMode
-
-			local Marines = TableToString( Marine )
-			local Aliens = TableToString( Alien )
-
-			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams before applying.",
-				"Balance Mode: %s. Marine Size: %s. Alien Size: %s. Diff: %s. New Teams:\nMarines:\n%s\nAliens:\n%s",
-				true, BalanceMode, NumMarine, NumAlien, Diff, Marines, Aliens )
-		end
-
-		Reported = true
-	end
-
 	local MarineTeam = Gamerules.team1
 	local AlienTeam = Gamerules.team2
 
@@ -172,8 +153,10 @@ function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
 	local NewMarineCount = MarineTeam:GetNumPlayers()
 	local NewAlienCount = AlienTeam:GetNumPlayers()
 	local NewDiff = Abs( NewMarineCount - NewAlienCount )
+	-- If the number of players has changed, something else is interfering with teams and it's not our fault.
+	local IsSameAmountOfPlayers = NumMarine + NumAlien == NewMarineCount + NewAlienCount
 
-	if NewDiff > 1 and not Reported then
+	if NewDiff > 1 and IsSameAmountOfPlayers then
 		local VoteRandom = Shine.Plugins.voterandom
 
 		if VoteRandom then
