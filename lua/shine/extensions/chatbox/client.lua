@@ -47,23 +47,6 @@ Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
 function Plugin:HookChat( ChatElement )
-	function ChatElement:SetIsVisible( Vis )
-		if self.Vis == Vis then return end
-
-		self.Vis = Vis
-
-		local Messages = self.messages
-		if not Messages then return end
-
-		for i = 1, #Messages do
-			local Element = Messages[ i ]
-
-			if IsType( Element, "table" ) then
-				Element.Background:SetIsVisible( Vis )
-			end
-		end
-	end
-
 	local OldSendKey = ChatElement.SendKeyEvent
 
 	function ChatElement:SendKeyEvent( Key, Down )
