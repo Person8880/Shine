@@ -1,0 +1,5 @@
+{
+	"ERROR_WRONG_TEAM": "你不能在这个队伍里投票投降。",
+	"ERROR_ALREADY_VOTED": "你已经为投降投过票了。",
+	"ERROR_ROUND_TIME": "现在才这么早，你还不能投票投降。"
+}

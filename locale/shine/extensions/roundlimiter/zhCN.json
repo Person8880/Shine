@@ -1,0 +1,9 @@
+{
+	"ROUND_END_TOTAL_TEAM_SCORE": "由于时间限制，战局即将结束。队伍得分较高的一方将会获胜。",
+	"ROUND_END_TOTAL_RTS": "由于时间限制，战局即将结束。占领资源塔数量较多的一方将会获胜。",
+	"ROUND_END_TOTAL_TEAM_RES": "由于时间限制，战局即将结束。采集队伍资源数量较多的一方将会获胜。",
+	"ROUND_WARNING_TOTAL_SCORE": "距离战局结束还剩下{TimeLeft:Duration}。队伍得分较高的一方将会获胜。",
+	"ROUND_WARNING_TOTAL_RTS": "距离战局结束还剩下{TimeLeft:Duration}。占领资源塔数量较多的一方将会获胜。",
+	"ROUND_WARNING_TOTAL_TEAM_RES": "距离战局结束还剩下{TimeLeft:Duration}。采集队伍资源数量较多的一方将会获胜。",
+	"NOTIFY_PREFIX": "[回合限制器]"
+}

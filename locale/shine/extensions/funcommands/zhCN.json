@@ -1,0 +1,14 @@
+{
+	"GOTO": "飞去",
+	"GOTO_TIP": "让你瞬移到被选中的玩家身边。",
+	"BRING": "召来",
+	"BRING_TIP": "让被选中的玩家瞬移到你身边。",
+	"SLAY": "杀死",
+	"SLAY_TIP": "立即杀死选中的玩家。",
+	"DARWIN_MODE": "无敌模式",
+	"DARWIN_MODE_TIP": "使被选中的玩家无敌并且无限子弹。",
+	"TELEPORTED_GOTO": "瞬移到了{TargetName}身边。",
+	"TELEPORTED_BRING": "{TargetName}被瞬移到了你身边。",
+	"ERROR_CANT_GOTO": "无法在玩家周围找到一个有效位置。",
+	"ERROR_CANT_BRING": "无法在你周围找到一个有效位置。"
+}

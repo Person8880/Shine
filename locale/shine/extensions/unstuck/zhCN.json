@@ -1,0 +1,7 @@
+{
+	"ERROR_NOT_ALIVE": "你无法在你死了的时候卡墙自救。",
+	"ERROR_WAIT": "你必须等待{TimeLeft:Duration}才能再一次使用卡墙自救。",
+	"SUCCESS": "成功自救。",
+	"ERROR_FAIL": "无法自救。请于{TimeLeft:Duration}后再试一次。",
+	"NOTIFY_PREFIX": "[卡墙自救]"
+}
