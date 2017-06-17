@@ -1,6 +1,6 @@
 {
 	"MOD_CHANGED": "MOD“{ModName}”已经在创意工坊里更新了。",
-	"MAY_BE_UNABLE_TO_CONNECT": "在换图之前，玩家们可以能无法连接进入服务器。",
+	"MAY_BE_UNABLE_TO_CONNECT": "在换图之前，玩家们可能无法连接进入服务器。",
 	"MAP_CYCLE": "地图将会更换{TimeLeft:NonZero:于}{TimeLeft:Duration:现在}。",
 	"NOTIFY_PREFIX": "[创意工坊]"
 }
