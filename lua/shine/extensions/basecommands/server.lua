@@ -35,6 +35,7 @@ Plugin.DefaultConfig = {
 	AllTalkSpectator = false,
 	AllTalkLocal = false,
 	EjectVotesNeeded = 0.5,
+	CommanderBotVoteDelayInSeconds = 300,
 	DisableLuaRun = false,
 	Interp = 100,
 	MoveRate = 26,
@@ -359,10 +360,9 @@ end
 function Plugin:Think()
 	self.dt.AllTalk = self.Config.AllTalkPreGame
 
-	if self.SetEjectVotes then return end
+	if self.ConfiguredGamerulesSettings then return end
 
 	local Gamerules = GetGamerules()
-
 	if not Gamerules then return end
 
 	if not Gamerules.team1 or not Gamerules.team2 then return end
@@ -370,8 +370,9 @@ function Plugin:Think()
 
 	Gamerules.team1.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 	Gamerules.team2.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
+	Gamerules.kStartGameVoteDelay = self.Config.CommanderBotVoteDelayInSeconds
 
-	self.SetEjectVotes = true
+	self.ConfiguredGamerulesSettings = true
 end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
