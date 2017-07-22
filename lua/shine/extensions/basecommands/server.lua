@@ -24,7 +24,7 @@ local TableSort = table.sort
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "1.2"
+Plugin.Version = "1.3"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "BaseCommands.json"
@@ -44,6 +44,7 @@ Plugin.DefaultConfig = {
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
 	FriendlyFirePreGame = true,
+	GaggedPlayers = {},
 	VoteSettings = {
 		-- An example, but more can be added based on their vote name.
 		VoteKickPlayer = {
@@ -282,7 +283,7 @@ do
 end
 
 function Plugin:Initialise()
-	self.Gagged = {}
+	self.Gagged = self:LoadGaggedPlayers()
 
 	self:CreateCommands()
 
@@ -300,6 +301,18 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:LoadGaggedPlayers()
+	local GaggedPlayers = {}
+
+	for ID, Gagged in pairs( self.Config.GaggedPlayers ) do
+		if Gagged and tonumber( ID ) then
+			GaggedPlayers[ tonumber( ID ) ] = true
+		end
+	end
+
+	return GaggedPlayers
 end
 
 function Plugin:GetFriendlyFire()
@@ -1308,6 +1321,40 @@ function Plugin:CreateMessageCommands()
 	GagCommand:AddParam{ Type = "time", Round = true, Min = 0, Max = 1800, Optional = true, Default = 0 }
 	GagCommand:Help( "Silences the given player's chat. If no duration is given, it will hold for the remainder of the map." )
 
+	local function GagID( Client, ID )
+		self.Config.GaggedPlayers[ tostring( ID ) ] = true
+		self:SaveConfig()
+
+		self.Gagged[ ID ] = true
+
+		Shine:AdminPrint( nil, "%s gagged %s permanently.", true,
+			Shine.GetClientInfo( Client ), ID )
+	end
+	self:BindCommand( "sh_gagid", "gagid", GagID )
+		:AddParam{ Type = "steamid" }
+		:Help( "Silences the given Steam ID's chat permanently until ungagged, persisting between map changes." )
+
+	local function UngagID( Client, ID )
+		local IDAsString = tostring( ID )
+		if not self.Config.GaggedPlayers[ IDAsString ] then
+			NotifyError( Client, "ERROR_NOT_GAGGED", {
+				TargetName = IDAsString
+			}, "%s is not gagged.", true, IDAsString )
+
+			return
+		end
+
+		self.Gagged[ ID ] = nil
+		self.Config.GaggedPlayers[ IDAsString ] = nil
+		self:SaveConfig()
+
+		Shine:AdminPrint( nil, "%s ungagged %s.", true,
+			Shine.GetClientInfo( Client ), IDAsString )
+	end
+	self:BindCommand( "sh_ungagid", "ungagid", UngagID )
+		:AddParam{ Type = "steamid" }
+		:Help( "Stops silencing the given Steam ID's chat if they have been gagged with sh_gagid." )
+
 	local function UngagPlayer( Client, Target )
 		local TargetPlayer = Target:GetControllingPlayer()
 		local TargetName = TargetPlayer and TargetPlayer:GetName() or "<unknown>"
@@ -1322,6 +1369,12 @@ function Plugin:CreateMessageCommands()
 		end
 
 		self.Gagged[ TargetID ] = nil
+
+		local IDAsString = tostring( TargetID )
+		if self.Config.GaggedPlayers[ IDAsString ] then
+			self.Config.GaggedPlayers[ IDAsString ] = nil
+			self:SaveConfig()
+		end
 
 		Shine:AdminPrint( nil, "%s ungagged %s", true,
 			Shine.GetClientInfo( Client ),
