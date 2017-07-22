@@ -9,6 +9,7 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
 local Ceil = math.ceil
+local Clamp = math.Clamp
 local Floor = math.floor
 local Max = math.max
 local Random = math.random
@@ -49,6 +50,13 @@ Plugin.EnabledGamemodes = {
 Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
 
 function Plugin:Initialise()
+	local function ClampConfigOption( Option, Min, Max )
+		self.Config[ Option ] = Clamp( self.Config[ Option ], Min, Max )
+	end
+	ClampConfigOption( "PercentNeeded", 0, 1 )
+	ClampConfigOption( "PercentNeededInEarlyGame", 0, 1 )
+	ClampConfigOption( "LastCommandStructureMinHealthPercent", 0, 1 )
+
 	local function VoteTimeout( Vote )
 		local LastVoted = Vote.LastVoted
 		if LastVoted and SharedTime() - LastVoted > self.Config.VoteTimeout then
