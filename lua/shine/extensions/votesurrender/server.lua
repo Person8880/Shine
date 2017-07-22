@@ -14,18 +14,28 @@ local Max = math.max
 local Random = math.random
 
 local Plugin = Plugin
-Plugin.Version = "1.3"
+Plugin.Version = "1.4"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteSurrender.json"
 
 Plugin.DefaultConfig = {
-	PercentNeeded = 0.75, -- Percentage of the team needing to vote in order to surrender.
-	VoteDelay = 10, -- Time after round start before surrender vote is available
-	MinPlayers = 6, -- Min players needed for voting to be enabled.
-	VoteTimeout = 120, -- How long after no votes before the vote should reset?
-	AllowVoteWithMultipleBases = true, -- Is a team allowed to surrender with multiple bases
-	SkipSequence = false -- Skip the in-game surrender sequence?
+	-- Percentage of the team needing to vote in order to surrender.
+	PercentNeeded = 0.75,
+	-- Percentage of the team needing to vote in the early game to surrender (during VoteDelay time).
+	PercentNeededInEarlyGame = 0,
+	-- Time after round start before surrender vote is available/uses normal percentage (in minutes)
+	VoteDelay = 10,
+	-- Min players needed for voting to be enabled.
+	MinPlayers = 6,
+	-- How long after no votes before the vote should reset?
+	VoteTimeout = 120,
+	-- Is a team allowed to surrender with multiple bases
+	AllowVoteWithMultipleBases = true,
+	-- Skip the in-game surrender sequence?
+	SkipSequence = false,
+	-- How much health [0, 1] the final command structure must have greater-equal to allow a vote.
+	LastCommandStructureMinHealthPercent = 0
 }
 
 Plugin.CheckConfig = true
@@ -92,8 +102,32 @@ end
 
 function Plugin:GetVotesNeeded( Team )
 	local TeamCount = self:GetTeamPlayerCount( Team )
+	local IsEarlyGame = self.NextVote > SharedTime()
+	local PercentNeeded = IsEarlyGame and self.Config.PercentNeededInEarlyGame or self.Config.PercentNeeded
 
-	return Max( 1, Ceil( TeamCount * self.Config.PercentNeeded ) )
+	return Max( 1, Ceil( TeamCount * PercentNeeded ) )
+end
+
+--[[
+	Checks whether the given team has more than one command structure when the vote is set
+	to not allow surrendering with more than one.
+]]
+function Plugin:HasTooManyTechPoints( Gamerules, Team )
+	return not self.Config.AllowVoteWithMultipleBases and Gamerules:GetTeam( Team ):GetNumCapturedTechPoints() > 1
+end
+
+--[[
+	Checks whether the given team has a single command structure whose health is below the
+	minimum percentage permitted to surrender.
+]]
+function Plugin:HasCommandStructureAtTooLowHP( Team )
+	local CommandStructures = GetEntitiesForTeam( "CommandStructure", Team )
+	if #CommandStructures ~= 1 then return false end
+
+	local MinFraction = self.Config.LastCommandStructureMinHealthPercent
+	local CommandStructure = CommandStructures[ 1 ]
+
+	return CommandStructure:GetHealthFraction() < MinFraction
 end
 
 --[[
@@ -102,18 +136,16 @@ end
 ]]
 function Plugin:CanStartVote( Team )
 	local Gamerules = GetGamerules()
-
 	if not Gamerules then return false end
 
 	local State = Gamerules:GetGameState()
-	local PlayingTeam = Gamerules:GetTeam( Team )
-	local TeamCount = self:GetTeamPlayerCount( Team )
+	if State ~= kGameState.Started then return false end
 
-	local AllowWithNumBases = self.Config.AllowVoteWithMultipleBases or
-			PlayingTeam:GetNumCapturedTechPoints() == 1
+	if self:HasTooManyTechPoints( Gamerules, Team ) then return false end
+	if self:HasCommandStructureAtTooLowHP( Team ) then return false end
 
-	return State == kGameState.Started and AllowWithNumBases and
-			TeamCount >= self.Config.MinPlayers and self.NextVote < SharedTime()
+	return self:GetTeamPlayerCount( Team ) >= self.Config.MinPlayers
+		and ( self.NextVote <= SharedTime() or self.Config.PercentNeededInEarlyGame > 0 )
 end
 
 function Plugin:AddVote( Client, Team )
