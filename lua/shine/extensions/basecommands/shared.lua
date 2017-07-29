@@ -258,6 +258,10 @@ function Plugin:SetupAdminMenuCommands()
 
 	GagLabels[ #GagLabels + 1 ] = self:GetPhrase( "GAG_UNTIL_MAP_CHANGE" )
 	GagLabels[ #GagLabels + 1 ] = ""
+	GagLabels[ #GagLabels + 1 ] = self:GetPhrase( "PERMANENTLY" )
+	GagLabels[ #GagLabels + 1 ] = function( Args )
+		Shine.AdminMenu:RunCommand( "sh_gagid", Args )
+	end
 
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "GAG" ), "sh_gag", false, GagLabels,
 		self:GetPhrase( "GAG_TIP" ) )

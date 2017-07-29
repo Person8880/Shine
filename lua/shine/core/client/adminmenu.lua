@@ -447,11 +447,12 @@ do
 		end
 	} )
 
-	function AdminMenu:RunCommand( Command, Args )
-		if not Args then
+	local TableConcat = table.concat
+	function AdminMenu:RunCommand( Command, ... )
+		if not ... then
 			Shared.ConsoleCommand( Command )
 		else
-			Shared.ConsoleCommand( StringFormat( "%s %s", Command, Args ) )
+			Shared.ConsoleCommand( StringFormat( "%s %s", Command, TableConcat( { ... }, " " ) ) )
 		end
 	end
 
@@ -559,7 +560,7 @@ do
 						end )
 					elseif IsType( Arg, "function" ) then
 						Menu:AddButton( Option, function()
-							Arg()
+							Arg( Args )
 							CleanupMenu()
 						end )
 					elseif IsType( Arg, "table" ) and Arg.Setup then

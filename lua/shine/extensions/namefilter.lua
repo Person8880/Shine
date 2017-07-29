@@ -21,7 +21,7 @@ local tostring = tostring
 local Plugin = {}
 
 Plugin.PrintName = "Name Filter"
-Plugin.Version = "1.0"
+Plugin.Version = "1.1"
 
 Plugin.ConfigName = "NameFilter.json"
 Plugin.HasConfig = true
@@ -31,6 +31,7 @@ Plugin.KICK = 2
 Plugin.BAN = 3
 
 Plugin.DefaultConfig = {
+	ForcedNames = {},
 	Filters = {},
 	FilterAction = Plugin.RENAME,
 	BanLength = 1440
@@ -52,10 +53,8 @@ function Plugin:Initialise()
 end
 
 function Plugin:CreateCommands()
-	local RenameCommand = self:BindCommand( "sh_rename", "rename",
-	function( Client, Target, NewName )
+	self:BindCommand( "sh_rename", "rename", function( Client, Target, NewName )
 		local TargetPlayer = Target:GetControllingPlayer()
-
 		if not TargetPlayer then return end
 
 		local CallingInfo = Shine.GetClientInfo( Client )
@@ -63,11 +62,46 @@ function Plugin:CreateCommands()
 
 		TargetPlayer:SetName( NewName )
 
-		self:Print( "%s was renamed to '%s' by %s.", true, TargetInfo, NewName, CallingInfo )
+		Shine:AdminPrint( nil, "%s was renamed to '%s' by %s.", true,
+			TargetInfo, NewName, CallingInfo )
 	end )
-	RenameCommand:AddParam{ Type = "client" }
-	RenameCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "new name" }
-	RenameCommand:Help( "Renames the given player." )
+	:AddParam{ Type = "client" }
+	:AddParam{ Type = "string", TakeRestOfLine = true, Help = "new name" }
+	:Help( "Renames the given player." )
+
+	self:BindCommand( "sh_renameid", "renameid", function( Client, ID, NewName )
+		self.Config.ForcedNames[ tostring( ID ) ] = NewName
+		self:SaveConfig()
+
+		local Client = Shine.GetClientByNS2ID( ID )
+		if Client then
+			local Player = Client:GetControllingPlayer()
+			if Player then
+				Player:SetName( NewName )
+			end
+		end
+
+		Shine:AdminPrint( nil, "%s was permanently renamed to '%s' by %s", true,
+			ID, NewName, Shine.GetClientInfo( Client ) )
+	end )
+	:AddParam{ Type = "steamid" }
+	:AddParam{ Type = "string", TakeRestOfLine = true, Help = "new name" }
+	:Help( "Forces the player with the given Steam ID to always be named the given name." )
+
+	self:BindCommand( "sh_unrenameid", "unrenameid", function( Client, ID )
+		local IDAsString = tostring( ID )
+		if not self.Config.ForcedNames[ IDAsString ] then
+			Shine:NotifyCommandError( Client, "Player with Steam ID %s has not been renamed.", true, ID )
+			return
+		end
+
+		self.Config.ForcedNames[ IDAsString ] = nil
+		self:SaveConfig()
+
+		Shine:AdminPrint( nil, "%s reset the name of %s.", true, Shine.GetClientInfo( Client ), ID )
+	end )
+	:AddParam{ Type = "steamid" }
+	:Help( "Resets any forced name for the given Steam ID." )
 end
 
 Plugin.FilterActions = {
@@ -158,9 +192,28 @@ function Plugin:ProcessFilter( Player, Name, Filter )
 end
 
 --[[
+	Check for a forced name, and if the player has one, apply it.
+]]
+function Plugin:EnforceName( Player, NewName )
+	local Client = GetOwner( Player )
+	local ID = Client and Client:GetUserId()
+	local ForcedName = self.Config.ForcedNames[ tostring( ID ) ]
+
+	if ForcedName and ForcedName ~= NewName then
+		Player:SetName( ForcedName )
+		return true
+	end
+
+	return false
+end
+
+
+--[[
 	When a player's name changes, we check all set filters on their new name.
 ]]
 function Plugin:PlayerNameChange( Player, Name, OldName )
+	if self:EnforceName( Player, Name ) then return end
+
 	local Filters = self.Config.Filters
 
 	for i = 1, #Filters do
