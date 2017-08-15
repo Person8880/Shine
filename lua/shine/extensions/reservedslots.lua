@@ -68,26 +68,11 @@ function Plugin:GetFreeReservedSlots()
 	return Slots
 end
 
-function Plugin:RemoveRSTag()
-	local Tags = {}
-
-	Server.GetTags( Tags )
-
-	for i = 1, #Tags do
-		local Tag = Tags[ i ]
-
-		if Tag and Tag:find( "R_S" ) then
-			Server.RemoveTag( Tag )
-		end
-	end
-end
-
 --[[
-	Update the server tag with the current reserved slot count.
+	Updates the the current reserved slot count.
 ]]
-function Plugin:UpdateTag( Slots )
-	self:RemoveRSTag()
-	Server.AddTag( "R_S"..Slots )
+function Plugin:UpdateSlots( Slots )
+	Server.SetReservedSlotLimit(Slots)
 end
 
 function Plugin:GetRealPlayerCount()
@@ -117,7 +102,7 @@ end
 function Plugin:CheckConnectionAllowed( ID )
 	ID = tonumber( ID )
 
-	local Connected = self:GetRealPlayerCount()
+	local NumPlayers = self:GetRealPlayerCount()
 	local MaxPlayers = GetMaxPlayers()
 
 	local Slots = self.Config.Slots
@@ -129,25 +114,15 @@ function Plugin:CheckConnectionAllowed( ID )
 		self:UpdateTag( Slots )
 	end
 
-	--Deny on full.
-	if Connected >= MaxPlayers then return false end
-	--Allow if they have reserved access, skip checking the connected count.
-	if Shine:HasAccess( ID, "sh_reservedslot" ) then
+	--Check for available public slots
+	if NumPlayers < MaxPlayers - Slots then
 		return true
 	end
 
-	if Slots == 0 then
+	--Allow if they have reserved access
+	if NumPlayers < MaxPlayers and Shine:HasAccess( ID, "sh_reservedslot" ) then
 		return true
 	end
-
-	local MaxPublic = MaxPlayers - Slots
-
-	--We've got enough room for them.
-	if MaxPublic > Connected then
-		return true
-	end
-
-	return false, "Server is currently full."
 end
 
 function Plugin:Cleanup()
