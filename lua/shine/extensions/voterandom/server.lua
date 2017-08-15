@@ -260,6 +260,11 @@ do
 		local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
 
 		local function SortPlayer( Player, Client, Commander, Pass )
+			--Ignore clients that use a dedicated spectator slot
+			if Client:GetIsSpectator() then
+				return
+			end
+
 			local Team = Player:GetTeamNumber()
 			if Team == 3 and self.Config.IgnoreSpectators then
 				return
