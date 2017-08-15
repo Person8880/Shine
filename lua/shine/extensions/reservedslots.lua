@@ -76,12 +76,16 @@ function Plugin:UpdateSlots( Slots )
 end
 
 function Plugin:GetRealPlayerCount()
-	--This includes the connecting player for whatever reason...
+	--GetNumPlayersTotal returns the number of client connections (including the connecting client)
 	return GetNumPlayersTotal() - 1
 end
 
 function Plugin:ClientConnect( Client )
 	self:UpdateTag( self:GetFreeReservedSlots() )
+end
+
+function Plugin:HasReservedSlotAccess( Client )
+	return Shine:HasAccess( Client, "sh_reservedslot" )
 end
 
 --[[
@@ -90,7 +94,7 @@ end
 function Plugin:ClientDisconnect( Client )
 	if not self.Config.TakeSlotInstantly then return end
 
-	if self.Config.Slots > 0 and Shine:HasAccess( Client, "sh_reservedslot" ) then
+	if self.Config.Slots > 0 and self:HasReservedSlotAccess( Client ) then
 		self:UpdateTag( self:GetFreeReservedSlots() )
 	end
 end
@@ -120,7 +124,7 @@ function Plugin:CheckConnectionAllowed( ID )
 	end
 
 	--Allow if they have reserved access
-	if NumPlayers < MaxPlayers and Shine:HasAccess( ID, "sh_reservedslot" ) then
+	if NumPlayers < MaxPlayers and self:HasReservedSlotAccess( ID ) then
 		return true
 	end
 end

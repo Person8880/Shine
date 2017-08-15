@@ -571,6 +571,8 @@ Add( "Think", "ReplaceMethods", function()
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
 
+	SetupGlobalHook( "HasReservedSlotAccess", "HasReservedSlotAccess", "ActivePre" )
+
 	SetupClassHook( Gamerules, "UpdatePregame", "UpdatePregame", "Halt" )
 	SetupClassHook( Gamerules, "UpdateWarmUp", "UpdateWarmUp", "Halt" )
 	SetupClassHook( Gamerules, "CheckGameStart", "CheckGameStart", "Halt" )
