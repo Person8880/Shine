@@ -30,7 +30,7 @@ function Plugin:Initialise()
 	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )
 
 	if self.Config.Slots > 0 then
-		self:UpdateTag( self:GetFreeReservedSlots() )
+		self:UpdateSlots( self:GetFreeReservedSlots() )
 	end
 
 	self:CreateCommands()
@@ -43,7 +43,7 @@ function Plugin:CreateCommands()
 	local function SetSlotCount( Client, Slots )
 		self.Config.Slots = Slots
 
-		self:UpdateTag( self:GetFreeReservedSlots() )
+		self:UpdateSlots( self:GetFreeReservedSlots() )
 		self:SaveConfig()
 		Shine:AdminPrint( Client, "%s set reserved slot count to %i", true,
 			Shine.GetClientInfo( Client ), Slots )
@@ -81,7 +81,7 @@ function Plugin:GetRealPlayerCount()
 end
 
 function Plugin:ClientConnect( Client )
-	self:UpdateTag( self:GetFreeReservedSlots() )
+	self:UpdateSlots( self:GetFreeReservedSlots() )
 end
 
 function Plugin:HasReservedSlotAccess( Client )
@@ -95,7 +95,7 @@ function Plugin:ClientDisconnect( Client )
 	if not self.Config.TakeSlotInstantly then return end
 
 	if self.Config.Slots > 0 and self:HasReservedSlotAccess( Client ) then
-		self:UpdateTag( self:GetFreeReservedSlots() )
+		self:UpdateSlots( self:GetFreeReservedSlots() )
 	end
 end
 
@@ -115,7 +115,7 @@ function Plugin:CheckConnectionAllowed( ID )
 	if self.Config.TakeSlotInstantly then
 		Slots = self:GetFreeReservedSlots()
 
-		self:UpdateTag( Slots )
+		self:UpdateSlots( Slots )
 	end
 
 	--Check for available public slots
