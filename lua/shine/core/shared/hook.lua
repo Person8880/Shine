@@ -535,7 +535,7 @@ end
 Add( "Think", "ReplaceMethods", function()
 	Remove( "Think", "ReplaceMethods" )
 
-	SetupGlobalHook( "GetHasReservedSlotAcces", "HasReservedSlotAccess", "ActivePre" )
+	SetupGlobalHook( "GetHasReservedSlotAccess", "HasReservedSlotAccess", "ActivePre" )
 
 	local Gamerules = "NS2Gamerules"
 
