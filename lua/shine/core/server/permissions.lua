@@ -302,7 +302,18 @@ do
 end
 
 local function GetIDFromClient( Client )
-	return IsType( Client, "number" ) and Client or ( Client.GetUserId and Client:GetUserId() )
+	if IsType( Client, "number" ) then
+		-- It's an NS2ID
+		return Client
+	end
+
+	if IsType( Client, "string" ) then
+		-- It might be an NS2ID as a string
+		return tonumber( Client )
+	end
+
+	-- It might be a client
+	return Client.GetUserId and Client:GetUserId()
 end
 
 --[[
