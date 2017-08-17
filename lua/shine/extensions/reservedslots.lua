@@ -19,18 +19,20 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "ReservedSlots.json"
 
 Plugin.DefaultConfig = {
-	Slots = 2, --How many slots?
-	TakeSlotInstantly = true --Should a player with reserved access use up a slot straight away?
+	-- How many slots?
+	Slots = 2,
+	-- Should a player with reserved access use up a slot straight away?
+	TakeSlotInstantly = true
 }
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 function Plugin:Initialise()
-	self.Config.Slots = Floor( tonumber( self.Config.Slots ) or 0 )
+	self.Config.Slots = Max( Floor( tonumber( self.Config.Slots ) or 0 ), 0 )
 
 	if self.Config.Slots > 0 then
-		self:UpdateTag( self:GetFreeReservedSlots() )
+		self:SetReservedSlotCount( self:GetFreeReservedSlots() )
 	end
 
 	self:CreateCommands()
@@ -42,8 +44,7 @@ end
 function Plugin:CreateCommands()
 	local function SetSlotCount( Client, Slots )
 		self.Config.Slots = Slots
-
-		self:UpdateTag( self:GetFreeReservedSlots() )
+		self:SetReservedSlotCount( self:GetFreeReservedSlots() )
 		self:SaveConfig()
 		Shine:AdminPrint( Client, "%s set reserved slot count to %i", true,
 			Shine.GetClientInfo( Client ), Slots )
@@ -56,103 +57,83 @@ end
 
 function Plugin:GetFreeReservedSlots()
 	local Slots = self.Config.Slots
-
 	if not self.Config.TakeSlotInstantly then
 		return Slots
 	end
 
-	local Reserved, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
-
-	Slots = Max( Slots - Count, 0 )
-
-	return Slots
-end
-
-function Plugin:RemoveRSTag()
-	local Tags = {}
-
-	Server.GetTags( Tags )
-
-	for i = 1, #Tags do
-		local Tag = Tags[ i ]
-
-		if Tag and Tag:find( "R_S" ) then
-			Server.RemoveTag( Tag )
-		end
-	end
+	local _, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+	return Max( Slots - Count, 0 )
 end
 
 --[[
-	Update the server tag with the current reserved slot count.
+	Set the number of reserved slots for the server browser/NS2 code.
 ]]
-function Plugin:UpdateTag( Slots )
-	self:RemoveRSTag()
-	Server.AddTag( "R_S"..Slots )
+function Plugin:SetReservedSlotCount( NumSlots )
+	Server.SetReservedSlotLimit( NumSlots )
 end
 
 function Plugin:GetRealPlayerCount()
-	--This includes the connecting player for whatever reason...
+	-- This includes the connecting player for whatever reason...
 	return GetNumPlayersTotal() - 1
 end
 
+function Plugin:GetMaxPlayers()
+	return GetMaxPlayers()
+end
+
+function Plugin:HasReservedSlotAccess( Client )
+	return Shine:HasAccess( Client, "sh_reservedslot" )
+end
+
 function Plugin:ClientConnect( Client )
-	self:UpdateTag( self:GetFreeReservedSlots() )
+	self:SetReservedSlotCount( self:GetFreeReservedSlots() )
 end
 
 --[[
-	Update the server tag if a reserved slot client disconnects.
+	Update the number of free slots if a client who had reserved slot access
+	disconnects, and we take slots instantly.
 ]]
 function Plugin:ClientDisconnect( Client )
 	if not self.Config.TakeSlotInstantly then return end
 
-	if self.Config.Slots > 0 and Shine:HasAccess( Client, "sh_reservedslot" ) then
-		self:UpdateTag( self:GetFreeReservedSlots() )
+	if self.Config.Slots > 0 and self:HasReservedSlotAccess( Client ) then
+		self:SetReservedSlotCount( self:GetFreeReservedSlots() )
 	end
 end
 
 --[[
-	A simple and effective reserved slot system.
-	At last, a proper connection event.
+	Checks the given NS2ID to see if it has reserved slot access.
+
+	If they do, or if the server has enough free non-reserved slots, they are allowed in.
+	Otherwise NS2/another listener decides what happens to them.
 ]]
 function Plugin:CheckConnectionAllowed( ID )
 	ID = tonumber( ID )
 
-	local Connected = self:GetRealPlayerCount()
-	local MaxPlayers = GetMaxPlayers()
+	local NumPlayers = self:GetRealPlayerCount()
+	local MaxPlayers = self:GetMaxPlayers()
 
 	local Slots = self.Config.Slots
 
-	--Deduct reserved slot users from the number of reserved slots empty.
+	-- Deduct reserved slot users from the number of reserved slots empty.
 	if self.Config.TakeSlotInstantly then
 		Slots = self:GetFreeReservedSlots()
-
-		self:UpdateTag( Slots )
+		self:SetReservedSlotCount( Slots )
 	end
 
-	--Deny on full.
-	if Connected >= MaxPlayers then return false end
-	--Allow if they have reserved access, skip checking the connected count.
-	if Shine:HasAccess( ID, "sh_reservedslot" ) then
+	-- Allow if there's less players than public slots.
+	if NumPlayers < MaxPlayers - Slots then
 		return true
 	end
 
-	if Slots == 0 then
+	-- Allow if they have reserved access and we're not full.
+	if NumPlayers < MaxPlayers and self:HasReservedSlotAccess( ID ) then
 		return true
 	end
 
-	local MaxPublic = MaxPlayers - Slots
-
-	--We've got enough room for them.
-	if MaxPublic > Connected then
-		return true
-	end
-
-	return false, "Server is currently full."
-end
-
-function Plugin:Cleanup()
-	self.BaseClass.Cleanup( self )
-	self:RemoveRSTag()
+	-- Here either they have reserved slot access but the server is full,
+	-- or they don't have reserved slot access and there's no free public slots.
+	-- Thus, fall through to the default NS2 behaviour which handles spectator slots.
 end
 
 Shine:RegisterExtension( "reservedslots", Plugin )
