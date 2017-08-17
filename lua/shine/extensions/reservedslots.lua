@@ -41,6 +41,10 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:OnFirstThink()
+	self:SetReservedSlotCount( self:GetFreeReservedSlots() )
+end
+
 function Plugin:CreateCommands()
 	local function SetSlotCount( Client, Slots )
 		self.Config.Slots = Slots
