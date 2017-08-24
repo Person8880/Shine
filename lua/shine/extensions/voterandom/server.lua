@@ -260,6 +260,9 @@ do
 		local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
 
 		local function SortPlayer( Player, Client, Commander, Pass )
+			-- Do not shuffle clients that are in a spectator slot.
+			if Client:GetIsSpectator() then return end
+
 			local Team = Player:GetTeamNumber()
 			if Team == 3 and self.Config.IgnoreSpectators then
 				return

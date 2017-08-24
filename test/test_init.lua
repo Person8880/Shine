@@ -33,6 +33,29 @@ function UnitTest:LoadExtension( Name )
 	return Plugin
 end
 
+--[[
+	Creates a table that passes through to the given table, unless a value is written
+	to a key to override it.
+
+	This will also mock any table fields, allowing for seemless mock chains.
+]]
+function UnitTest.MockOf( Table )
+	return setmetatable( {}, {
+		__index = function( self, Key )
+			local Value = Table[ Key ]
+
+			-- Allow for recursive mocking (e.g. Plugin.Config)
+			if type( Value ) == "table" then
+				local Mock = UnitTest.MockOf( Value )
+				self[ Key ] = Mock
+				return Mock
+			end
+
+			return Value
+		end
+	} )
+end
+
 local AssertionError = setmetatable( {}, {
 	__call = function( self, Data )
 		return setmetatable( Data, self )

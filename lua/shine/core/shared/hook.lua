@@ -535,6 +535,8 @@ end
 Add( "Think", "ReplaceMethods", function()
 	Remove( "Think", "ReplaceMethods" )
 
+	SetupGlobalHook( "GetHasReservedSlotAccess", "HasReservedSlotAccess", "ActivePre" )
+
 	local Gamerules = "NS2Gamerules"
 
 	--For the factions mod.
