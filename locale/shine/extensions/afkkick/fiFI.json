@@ -1,0 +1,4 @@
+{
+	"NOTIFY_PREFIX": "[AFKKick]",
+	"WARN_KICK_ON_CONNECT": "Olet ollut poissa kauemmin kuin {AFKTime:Duration}. Sinut voidaan potkia, kun uusi pelaaja yrittää liittyä peliin."
+}
