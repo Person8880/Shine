@@ -151,8 +151,6 @@ end
 	number of max attempts.
 ]]
 function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttempts, Timeout )
-	MaxAttempts = MaxAttempts or 3
-
 	local NeedParams = true
 	if Protocol ~= "POST" and not IsType( Callbacks, "table" ) then
 		Timeout = MaxAttempts
@@ -160,6 +158,8 @@ function Shine.HTTPRequestWithRetry( URL, Protocol, Params, Callbacks, MaxAttemp
 		Callbacks = Params
 		NeedParams = false
 	end
+
+	MaxAttempts = MaxAttempts or 3
 
 	local Attempts = 0
 	local Submit
