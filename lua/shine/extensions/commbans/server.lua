@@ -20,6 +20,7 @@ Plugin.DefaultConfig = {
 	Banned = {},
 	BansSubmitURL = "",
 	BansSubmitArguments = {},
+	LogLevel = "Info",
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5,
 	DefaultBanTime = 60
@@ -29,6 +30,7 @@ Plugin.CheckConfig = true
 Plugin.ListPermission = "sh_uncommban"
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
 	self:GenerateNetworkData()
 
 	self:VerifyConfig()
