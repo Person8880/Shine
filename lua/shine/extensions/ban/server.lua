@@ -8,7 +8,7 @@ local Hook = Shine.Hook
 local IsType = Shine.IsType
 
 local Plugin = Plugin
-Plugin.Version = "1.4"
+Plugin.Version = "1.5"
 
 local Notify = Shared.Message
 local Clamp = math.Clamp
@@ -60,6 +60,7 @@ Plugin.SilentConfigSave = true
 	We return true to indicate a successful startup.
 ]]
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
 	self.Retries = {}
 
 	if self.Config.GetBansFromWeb then
@@ -122,14 +123,15 @@ end
 function Plugin:LoadBansFromWeb()
 	local function BansResponse( Response )
 		if not Response then
-			self:Print( "[Error] Loading bans from the web failed. Check the config to make sure the URL is correct." )
-
+			self.Logger:Error( "Loading bans from the web failed. Check the config to make sure the URL is correct." )
 			return
 		end
 
 		local BansData, Pos, Err = Decode( Response )
 		if not IsType( BansData, "table" ) then
-			self:Print( "[Error] Loading bans from the web received invalid JSON. Error: %s", true, Err )
+			self.Logger:Error( "Loading bans from the web received invalid JSON. Error: %s.",
+				Err )
+			self.Logger:Debug( "Response content:\n%s", Response )
 			return
 		end
 
@@ -142,20 +144,30 @@ function Plugin:LoadBansFromWeb()
 			self.Config.Banned = self:NS2ToShine( BansData )
 		end
 
-		--Cache the data in case we get a bad response later.
+		-- Cache the data in case we get a bad response later.
 		if Edited and not self:CheckBans() then
 			self:SaveConfig()
 		end
 		self:GenerateNetworkData()
 
-		Shine:LogString( "Shine loaded bans from web successfully." )
+		self.Logger:Info( "Loaded bans from web successfully." )
 	end
 
+	local Callbacks = {
+		OnSuccess = BansResponse,
+		OnFailure = function()
+			self.Logger:Error( "No response from server when attempting to load bans." )
+		end
+	}
+
+	self.Logger:Debug( "Retrieving bans from: %s", self.Config.BansURL )
+
 	if self.Config.GetBansWithPOST then
-		Shared.SendHTTPRequest( self.Config.BansURL, "POST", self.Config.BansSubmitArguments,
-			BansResponse )
+		Shine.HTTPRequestWithRetry( self.Config.BansURL, "POST", self.Config.BansSubmitArguments,
+			Callbacks, self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
 	else
-		Shared.SendHTTPRequest( self.Config.BansURL, "GET", BansResponse )
+		Shine.HTTPRequestWithRetry( self.Config.BansURL, "GET", Callbacks,
+			self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
 	end
 end
 
@@ -348,33 +360,38 @@ function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
 
 	local Callbacks = {
 		OnSuccess = function( Data )
+			self.Logger:Debug( "Received response from server for %s of %s", Operation, ID )
+
 			self.Retries[ ID ] = nil
 
 			if not Data then
-				self:Print( "Received no repsonse for %s of %s.", true, Operation, ID )
+				self.Logger:Error( "Received no repsonse for %s of %s.", Operation, ID )
 				return
 			end
 
 			local Decoded, Pos, Err = Decode( Data )
 			if not Decoded then
-				self:Print( "Received invalid JSON for %s of %s. Error: %s", true, Operation, ID, Err )
+				self.Logger:Error( "Received invalid JSON for %s of %s. Error: %s", Operation, ID, Err )
+				self.Logger:Debug( "Response content:\n%s", Data )
 				return
 			end
 
 			if Decoded.success == false then
 				Revert()
 				self:SaveConfig()
-				self:Print( "Server rejected %s of %s, reverting...", true, Operation, ID )
+				self.Logger:Info( "Server rejected %s of %s, reverting...", Operation, ID )
 			end
 		end,
 		OnFailure = function()
 			self.Retries[ ID ] = nil
-			self:Print( "Sending %s for %s timed out after %i retries.", true, Operation, ID,
+			self.Logger:Error( "Sending %s for %s timed out after %i retries.", Operation, ID,
 				self.Config.MaxSubmitRetries )
 		end
 	}
 
 	self.Retries[ ID ] = true
+
+	self.Logger:Debug( "Sending %s of %s to: %s", Operation, ID, self.Config.BansSubmitURL )
 
 	Shine.HTTPRequestWithRetry( self.Config.BansSubmitURL, "POST", PostParams,
 		Callbacks, self.Config.MaxSubmitRetries, self.Config.SubmitTimeout )
@@ -919,3 +936,5 @@ function Plugin:AddBanToNetData( BanData )
 
 	NetData[ #NetData + 1 ] = BanData
 end
+
+Script.Load( Shine.GetModuleFile( "logger.lua" ), true )

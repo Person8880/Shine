@@ -201,6 +201,7 @@ end
 
 function BalanceModule:UpdateBots()
 	if self.OptimisingTeams then return false end
+	if self.HasShuffledThisRound and not self.Config.ApplyToBots then return false end
 end
 
 local function DebugLogTeamMembers( Logger, self, TeamMembers )

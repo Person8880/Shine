@@ -186,9 +186,12 @@ function Plugin:Initialise()
 		self.dt.RequiredShuffleVotes = 0
 	end
 
-	self.ForceRandomEnd = 0 --Time based.
-	self.RandomOnNextRound = false --Round based.
+	-- Time based.
+	self.ForceRandomEnd = 0
+	-- Round based.
+	self.RandomOnNextRound = false
 	self.ForceRandom = self.Config.AlwaysEnabled
+	self.HasShuffledThisRound = false
 
 	self.dt.HighlightTeamSwaps = self.Config.HighlightTeamSwaps
 	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
@@ -398,6 +401,7 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	self.ShufflingModes[ Mode ]( self, Gamerules, Targets, TeamMembers )
 
 	self.OptimisingTeams = false
+	self.HasShuffledThisRound = true
 
 	-- Remember who was on what team at the point of shuffling, so we can work out
 	-- how close to the shuffled teams we are later.
@@ -507,6 +511,7 @@ end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
 	self.DoneStartShuffle = false
+	self.HasShuffledThisRound = false
 	self.VoteBlockTime = nil
 
 	local Players, Count = GetAllPlayers()
