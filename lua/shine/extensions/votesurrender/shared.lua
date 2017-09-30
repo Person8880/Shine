@@ -14,3 +14,11 @@ function Plugin:NetworkUpdate( Key, Old, New )
 		kMinTimeBeforeConcede = New or kMinTimeBeforeConcede
 	end
 end
+
+function Plugin:Initialise()
+	kMinTimeBeforeConcede = self.dt.ConcedeTime or kMinTimeBeforeConcede
+
+	self.Enabled = true
+
+	return true
+end

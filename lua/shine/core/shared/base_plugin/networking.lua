@@ -47,7 +47,7 @@ function NetworkingModule:InitDataTable( Name )
 		self.DTVars.Defaults, self.DTVars.Access )
 
 	if self.NetworkUpdate then
-		self.dt:__SetChangeCallback( self, self.NetworkUpdate )
+		self.dt:__SetChangeCallback( self, self:WrapCallback( self.NetworkUpdate ) )
 	end
 
 	self.DTVars = nil
