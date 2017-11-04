@@ -154,11 +154,55 @@ function Shine.TypeCheckConfig( Name, Config, DefaultConfig, Recursive )
 end
 
 do
+	local Clamp = math.Clamp
+	local StringExplode = string.Explode
+	local TableBuild = table.Build
+	local tonumber = tonumber
+	local unpack = unpack
+
 	local Validator = {}
 	Validator.__index = Validator
 
+	function Validator.Constant( Value )
+		return function() return Value end
+	end
+
+	function Validator.Min( MinValue )
+		return function( Value )
+			return ( tonumber( Value ) or 0 ) < MinValue
+		end, Validator.Constant( MinValue )
+	end
+	function Validator.Clamp( Min, Max )
+		return function( Value )
+			return Clamp( Value, Min, Max ) ~= Value
+		end, function( Value )
+			return Clamp( Value, Min, Max )
+		end
+	end
+
 	function Validator:AddRule( Rule )
 		self.Rules[ #self.Rules + 1 ] = Rule
+	end
+
+	function Validator:AddFieldRule( Field, CheckPredicate, FixFunction )
+		self:AddRule( {
+			Matches = function( self, Config )
+				local Path = StringExplode( Field, "%." )
+				local Value = Config
+				for i = 1, #Path do
+					Value = Value[ Path[ i ] ]
+					if Value == nil then break end
+				end
+
+				if CheckPredicate( Value ) then
+					local Table = TableBuild( Config, unpack( Path, 1, #Path - 1 ) )
+					Table[ Path[ #Path ] ] = FixFunction( Value )
+					return true
+				end
+
+				return false
+			end
+		} )
 	end
 
 	function Validator:Validate( Config )

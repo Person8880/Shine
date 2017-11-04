@@ -6,6 +6,7 @@ local Shine = Shine
 
 local Ceil = math.ceil
 local Floor = math.floor
+local GetMaxPlayers = Server.GetMaxPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
 local Max = math.max
 local Min = math.min
@@ -13,6 +14,7 @@ local next = next
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
+local StringLower = string.lower
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
 
@@ -97,6 +99,14 @@ function Plugin:OnVoteStart( ID )
 	end
 end
 
+function Plugin:GetVoteConstraint( Category, Type, PercentageTotal )
+	local Constraint = self.Config.Constraints[ Category ][ Type ]
+	if StringLower( Constraint.Type ) == "percent" then
+		return Ceil( Constraint.Value * PercentageTotal )
+	end
+	return Constraint.Value
+end
+
 function Plugin:IsEndVote()
 	return self.VoteOnEnd and self:VoteStarted() and self:IsNextMapVote()
 end
@@ -109,7 +119,7 @@ end
 	Returns the number of votes needed to begin a map vote.
 ]]
 function Plugin:GetVotesNeededToStart()
-	return Ceil( self:GetPlayerCountForVote() * self.Config.PercentToStart )
+	return self:GetVoteConstraint( "StartVote", "MinVotesRequired", self:GetPlayerCountForVote() )
 end
 
 --[[
@@ -125,7 +135,7 @@ end
 function Plugin:CanStartVote()
 	local PlayerCount = self:GetPlayerCountForVote()
 
-	if PlayerCount < self.Config.MinPlayers then
+	if PlayerCount < self:GetVoteConstraint( "StartVote", "MinPlayers", GetMaxPlayers() ) then
 		return false, "There are not enough players to start a vote.", "VOTE_FAIL_INSUFFICIENT_PLAYERS", {}
 	end
 
@@ -136,9 +146,9 @@ function Plugin:CanStartVote()
 	return true
 end
 
-function Plugin:GetVoteEnd()
+function Plugin:GetVoteEnd( Category )
 	local PlayerCount = self:GetPlayerCountForVote()
-	return Ceil( PlayerCount * self.Config.PercentToFinish )
+	return self:GetVoteConstraint( Category, "MinVotesToFinish", PlayerCount )
 end
 
 --[[
@@ -229,7 +239,7 @@ function Plugin:AddVote( Client, Map, Revote )
 
 	self.Vote.Voted[ Client ] = Choice
 
-	if not self:IsNextMapVote() and self.Vote.TotalVotes >= self:GetVoteEnd() then
+	if self.Vote.TotalVotes >= self:GetVoteEnd( self:GetVoteCategory( self:IsNextMapVote() ) ) then
 		self:SimpleTimer( 0, function()
 			self:ProcessResults()
 		end )
@@ -238,6 +248,10 @@ function Plugin:AddVote( Client, Map, Revote )
 	end
 
 	return true, Choice
+end
+
+function Plugin:GetVoteCategory( NextMap )
+	return NextMap and "NextMapVote" or "MapVote"
 end
 
 --[[
@@ -385,10 +399,12 @@ function Plugin:ProcessResults( NextMap )
 	local Voted = self.Vote.VoteList
 
 	local Time = SharedTime()
+	local Category = self:GetVoteCategory( NextMap )
+	local EligblePlayerCount = self:GetPlayerCountForVote()
 
-	--No one voted :|
-	if TotalVotes == 0 then
-		self:NotifyTranslated( nil, "NO_VOTES" )
+	-- Not enough players voted :|
+	if TotalVotes < Max( self:GetVoteConstraint( Category, "MinVotesRequired", EligblePlayerCount ), 1 ) then
+		self:NotifyTranslated( nil, "NOT_ENOUGH_VOTES" )
 
 		if self.VoteOnEnd and NextMap then
 			self:OnNextMapVoteFail()

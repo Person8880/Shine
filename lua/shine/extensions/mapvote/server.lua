@@ -14,9 +14,10 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableHasValue = table.HasValue
 local TableCount = table.Count
+local tonumber = tonumber
 
 local Plugin = Plugin
-Plugin.Version = "1.8"
+Plugin.Version = "1.9"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
@@ -39,9 +40,52 @@ Plugin.DefaultConfig = {
 	ForcedMaps = {}, --Maps that must always be in the vote list.
 	DontExtend = {}, --Maps that should never have an extension option.
 	IgnoreAutoCycle = {}, --Maps that should not be cycled to unless voted for.
-	MinPlayers = 10, --Minimum number of players needed to begin a map vote.
-	PercentToStart = 0.6, --Percentage of people needing to vote to change to start a vote.
-	PercentToFinish = 0.8, --Percentage of people needing to vote in order to skip the rest of an RTV vote's time.
+
+	Constraints = {
+		StartVote = {
+			-- Constraint on the number of voters needed to pass a start vote.
+			-- Percentage applies to the current server player count.
+			MinVotesRequired = {
+				Type = "Percent",
+				Value = 0.6
+			},
+			-- Constraint on the number of players needed to start a vote.
+			-- Percentage applies to the max player slot count.
+			MinPlayers = {
+				Type = "Absolute",
+				Value = 10
+			}
+		},
+		MapVote = {
+			-- Constraint on the number of voters needed to pass a map vote.
+			-- Percentage applies to the current server player count.
+			MinVotesRequired = {
+				Type = "Absolute",
+				Value = 0
+			},
+			-- Constraint on the number of voters needed to end a map vote early.
+			-- Percentage applies to the current server player count.
+			MinVotesToFinish = {
+				Type = "Percent",
+				Value = 0.8
+			}
+		},
+		NextMapVote = {
+			-- Constraint on the number of voters needed to pass a next map vote.
+			-- Percentage applies to the current server player count.
+			MinVotesRequired = {
+				Type = "Absolute",
+				Value = 0
+			},
+			-- Constraint on the number of voters needed to end a next map vote early.
+			-- Percentage applies to the current server player count.
+			MinVotesToFinish = {
+				Type = "Percent",
+				-- Never finish early by default.
+				Value = 2
+			}
+		}
+	},
 
 	MaxNominationsPerPlayer = 3, -- The maximum number of maps an individual player can nominate.
 
@@ -93,6 +137,46 @@ Plugin.ConfigMigrationSteps = {
 				}
 			end
 		end
+	},
+	{
+		VersionTo = "1.9",
+		Apply = function( Config )
+			Config.Constraints = {
+				StartVote = {
+					MinVotesRequired = {
+						Type = "Percent",
+						Value = tonumber( Config.PercentToStart ) or 0.6
+					},
+					MinPlayers = {
+						Type = "Absolute",
+						Value = tonumber( Config.MinPlayers ) or 10
+					}
+				},
+				MapVote = {
+					MinVotesRequired = {
+						Type = "Absolute",
+						Value = 0
+					},
+					MinVotesToFinish = {
+						Type = "Percent",
+						Value = tonumber( Config.PercentToFinish ) or 0.8
+					}
+				},
+				NextMapVote = {
+					MinVotesRequired = {
+						Type = "Absolute",
+						Value = 0
+					},
+					MinVotesToFinish = {
+						Type = "Percent",
+						Value = 2
+					}
+				}
+			}
+			Config.PercentToStart = nil
+			Config.MinPlayers = nil
+			Config.PercentToFinish = nil
+		end
 	}
 }
 
@@ -117,14 +201,79 @@ end
 Script.Load( Shine.GetPluginFile( "mapvote", "cycle.lua" ) )
 Script.Load( Shine.GetPluginFile( "mapvote", "voting.lua" ) )
 
+do
+	local StringLower = string.lower
+	local ValidTypes = {
+		percent = true,
+		absolute = true
+	}
+
+	local Validator = Shine.Validator()
+	Validator:AddFieldRule( "ForceChange", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "RoundLimit", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "VoteLength", Validator.Min( 0.25 ) )
+	Validator:AddFieldRule( "VoteLength", Validator.Clamp( 0, 1 ) )
+	Validator:AddFieldRule( "ExcludeLastMaps.Min", Validator.Min( 0 ) )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			local Constraints = Config.Constraints
+			local ChangesMade
+
+			local function ValidateConstraint( Category, CurrentValues, Type, Constraint )
+				local CurrentValue = CurrentValues[ Type ]
+				if not CurrentValue then
+					CurrentValues[ Type ] = Constraint
+					ChangesMade = true
+					return
+				end
+
+				if not IsType( CurrentValue.Value, "number" ) then
+					ChangesMade = true
+					CurrentValue.Value = tonumber( CurrentValue.Value ) or Constraint.Value
+					Plugin:Print( "Invalid value for constraint %s.%s, resetting to: %s", true,
+						Category, Type, CurrentValue.Value )
+				end
+
+				if not IsType( CurrentValue.Type, "string" )
+				or not ValidTypes[ StringLower( CurrentValue.Type ) ] then
+					ChangesMade = true
+					CurrentValue.Type = CurrentValue.Value < 1 and "Percent" or "Absolute"
+					Plugin:Print( "Invalid type for constraint %s.%s, inferring type as: %s", true,
+						Category, Type, CurrentValue.Type )
+				end
+			end
+
+			local function ValidateCategory( Category, Types )
+				local CurrentValues = Constraints[ Category ]
+				if not CurrentValues then
+					ChangesMade = true
+					Constraints[ Category ] = Types
+					return
+				end
+
+				for Type, Constraint in pairs( Types ) do
+					ValidateConstraint( Category, CurrentValues, Type, Constraint )
+				end
+			end
+
+			for Category, Types in pairs( Plugin.DefaultConfig.Constraints ) do
+				ValidateCategory( Category, Types )
+			end
+
+			return ChangesMade
+		end
+	} )
+
+	function Plugin:ValidateConfig()
+		if Validator:Validate( self.Config ) then
+			self:Print( "Corrected invalid configuration values, check your config." )
+			self:SaveConfig( true )
+		end
+	end
+end
+
 function Plugin:Initialise()
-	self.Config.ForceChange = Max( self.Config.ForceChange, 0 )
-	self.Config.RoundLimit = Max( self.Config.RoundLimit, 0 )
-	self.Config.NextMapVote = Clamp( self.Config.NextMapVote, 0, 1 )
-	self.Config.PercentToFinish = Clamp( self.Config.PercentToFinish, 0, 1 )
-	self.Config.PercentToStart = Clamp( self.Config.PercentToStart, 0, 1 )
-	self.Config.VoteLength = Max( self.Config.VoteLength, 0.25 )
-	self.Config.ExcludeLastMaps.Min = Max( tonumber( self.Config.ExcludeLastMaps.Min ) or 0, 0 )
+	self:ValidateConfig()
 
 	self.Round = 0
 
