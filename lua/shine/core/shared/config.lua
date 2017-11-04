@@ -170,13 +170,21 @@ do
 	function Validator.Min( MinValue )
 		return function( Value )
 			return ( tonumber( Value ) or 0 ) < MinValue
-		end, Validator.Constant( MinValue )
+		end,
+		Validator.Constant( MinValue ),
+		function()
+			return StringFormat( "%%s must be at least %s", MinValue )
+		end
 	end
 	function Validator.Clamp( Min, Max )
 		return function( Value )
 			return Clamp( Value, Min, Max ) ~= Value
-		end, function( Value )
+		end,
+		function( Value )
 			return Clamp( Value, Min, Max )
+		end,
+		function()
+			return StringFormat( "%%s must be between %s and %s", Min, Max )
 		end
 	end
 
@@ -184,7 +192,7 @@ do
 		self.Rules[ #self.Rules + 1 ] = Rule
 	end
 
-	function Validator:AddFieldRule( Field, CheckPredicate, FixFunction )
+	function Validator:AddFieldRule( Field, CheckPredicate, FixFunction, MessageSupplier )
 		self:AddRule( {
 			Matches = function( self, Config )
 				local Path = StringExplode( Field, "%." )
@@ -195,6 +203,10 @@ do
 				end
 
 				if CheckPredicate( Value ) then
+					if MessageSupplier then
+						Print( MessageSupplier(), Field )
+					end
+
 					local Table = TableBuild( Config, unpack( Path, 1, #Path - 1 ) )
 					Table[ Path[ #Path ] ] = FixFunction( Value )
 					return true

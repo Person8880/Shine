@@ -15,7 +15,7 @@ local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
 
 local Plugin = Plugin
-Plugin.Version = "1.6"
+Plugin.Version = "1.7"
 Plugin.PrintName = "AFKKick"
 
 Plugin.HasConfig = true
@@ -29,21 +29,58 @@ Plugin.DefaultConfig = {
 	KickTime = 15,
 	IgnoreSpectators = false,
 	Warn = true,
-	MoveToReadyRoomOnWarn = false,
-	MoveToSpectateOnWarn = false,
 	MovementDelaySeconds = 0,
-	NotifyOnWarn = false,
 	OnlyCheckOnStarted = false,
 	KickOnConnect = false,
 	KickTimeIsAFKThreshold = 0.25,
 	MarkPlayersAFK = true,
-	LenientModeForSpectators = false
+	LenientModeForSpectators = false,
+	WarnActions = {
+		-- Actions to perform to players when they are warned.
+		-- May be any of: MoveToSpectate, MoveToReadyRoom, Notify
+		NoImmunity = {},
+		PartialImmunity = {}
+	}
 }
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
+Plugin.WarnAction = table.AsEnum{
+	"MoveToSpectate", "MoveToReadyRoom", "Notify"
+}
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.7",
+		Apply = function( Config )
+			local Actions = {}
+			if Config.MoveToSpectateOnWarn then
+				Actions[ #Actions + 1 ] = Plugin.WarnAction.MoveToSpectate
+			end
+			if Config.MoveToReadyRoomOnWarn then
+				Actions[ #Actions + 1 ] = Plugin.WarnAction.MoveToReadyRoom
+			end
+			if Config.NotifyOnWarn then
+				Actions[ #Actions + 1 ] = Plugin.WarnAction.Notify
+			end
+
+			Config.WarnActions = {
+				NoImmunity = Actions,
+				PartialImmunity = Actions
+			}
+
+			Config.MoveToSpectateOnWarn = nil
+			Config.MoveToReadyRoomOnWarn = nil
+			Config.NotifyOnWarn = nil
+		end
+	}
+}
+
 do
+	local IsType = Shine.IsType
+	local StringLower = string.lower
+
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( self, Config )
@@ -55,17 +92,109 @@ do
 	} )
 	Validator:AddRule( {
 		Matches = function( self, Config )
-			return Config.MoveToReadyRoomOnWarn and Config.MoveToSpectateOnWarn
-		end,
-		Fix = function( self, Config )
-			Config.MoveToReadyRoomOnWarn = false
+			local Changed
+			if not IsType( Config.WarnActions.NoImmunity, "table" ) then
+				Config.WarnActions.NoImmunity = {}
+				Changed = true
+			end
+			if not IsType( Config.WarnActions.PartialImmunity, "table" ) then
+				Config.WarnActions.PartialImmunity = {}
+				Changed = true
+			end
+
+			local LowerCaseActions = table.AsEnum( Shine.Stream.Of( Plugin.WarnAction )
+				:Map( StringLower )
+				:AsTable() )
+			local NotAllowedTogether = {
+				[ LowerCaseActions[ "movetoreadyroom" ] ] = LowerCaseActions[ "movetospectate" ],
+				[ LowerCaseActions[ "movetospectate" ] ] = LowerCaseActions[ "movetoreadyroom" ]
+			}
+			local function CheckActions( Actions )
+				local Seen = {}
+				Shine.Stream( Actions ):Filter( function( Value )
+					if not IsType( Value, "string" ) or not LowerCaseActions[ StringLower( Value ) ] then
+						Changed = true
+						Plugin:Print( "Warn action '%s' is not valid", true, Value )
+						return false
+					end
+
+					local ActionName = StringLower( Value )
+					local ExclusiveAction = NotAllowedTogether[ ActionName ]
+					if Seen[ ExclusiveAction ] then
+						Changed = true
+						Plugin:Print( "Cannot perform both of warn actions '%s' and '%s'", true,
+							ActionName, ExclusiveAction )
+						return false
+					end
+					Seen[ ActionName ] = true
+
+					return true
+				end )
+			end
+			CheckActions( Config.WarnActions.NoImmunity )
+			CheckActions( Config.WarnActions.PartialImmunity )
+
+			return Changed
 		end
 	} )
 
-	function Plugin:Initialise()
+	local function MovePlayer( Client, Gamerules, DataTable, TargetTeam )
+		-- Make sure the client still exists and is still AFK.
+		if not Shine:IsValidClient( Client ) then return end
+		if not DataTable.Warn then return end
+
+		local CurrentPlayer = Client:GetControllingPlayer()
+		local CurrentTeam = CurrentPlayer:GetTeamNumber()
+
+		-- Sometimes this event receives one of the weird "ghost" players that can't switch teams.
+		if CurrentTeam ~= TargetTeam then
+			pcall( Gamerules.JoinTeam, Gamerules, CurrentPlayer, TargetTeam, nil, true )
+		end
+	end
+
+	local function BuildMovementAction( TargetTeam )
+		return function( self, Client, Gamerules, DataTable )
+			-- Either move the player now, or after the set delay.
+			if self.Config.MovementDelaySeconds <= 0 then
+				MovePlayer( Client, Gamerules, DataTable, TargetTeam )
+			else
+				self:SimpleTimer( self.Config.MovementDelaySeconds, function()
+					MovePlayer( Client, Gamerules, DataTable, TargetTeam )
+				end )
+			end
+		end
+	end
+
+	Plugin.WarnActionFunctions = {
+		[ "movetospectate" ] = BuildMovementAction( kSpectatorIndex ),
+		[ "movetoreadyroom" ] = BuildMovementAction( kTeamReadyRoom ),
+		[ "notify" ] = function( self, Client )
+			self:SendNetworkMessage( Client, "AFKNotify", {}, true )
+		end
+	}
+
+	function Plugin:BuildActions( ActionNames )
+		local ActionFunctions = {}
+		for i = 1, #ActionNames do
+			local Action = StringLower( ActionNames[ i ] )
+			ActionFunctions[ #ActionFunctions + 1 ] = self.WarnActionFunctions[ Action ]
+		end
+		return ActionFunctions
+	end
+
+	function Plugin:ValidateConfig()
 		if Validator:Validate( self.Config ) then
 			self:SaveConfig( true )
 		end
+	end
+
+	function Plugin:Initialise()
+		self:ValidateConfig()
+
+		self.WarnActions = {
+			NoImmunity = self:BuildActions( self.Config.WarnActions.NoImmunity ),
+			PartialImmunity = self:BuildActions( self.Config.WarnActions.PartialImmunity )
+		}
 
 		if self.Enabled ~= nil then
 			for Client in pairs( self.Users ) do
@@ -232,6 +361,10 @@ end
 local MOVEMENT_MULTIPLIER = 5
 local SPECTATOR_MOVEMENT_MULTIPLIER = 20
 
+function Plugin:GetWarnActions( IsPartiallyImmune )
+	return self.WarnActions[ IsPartiallyImmune and "PartialImmunity" or "NoImmunity" ]
+end
+
 --[[
 	Hook into movement processing to help prevent false positive AFK kicking.
 ]]
@@ -337,6 +470,8 @@ function Plugin:OnProcessMove( Player, Input )
 		end
 	end
 
+	local IsPartiallyImmune = Shine:HasAccess( Client, "sh_afk_partial" )
+
 	if self.Config.Warn then
 		local WarnTime = self.Config.WarnTime * 60
 
@@ -347,56 +482,31 @@ function Plugin:OnProcessMove( Player, Input )
 		elseif not DataTable.Warn and TimeSinceLastMove >= WarnTime then
 			DataTable.Warn = true
 
-			if not self.Config.KickOnConnect then
-				local AFKTime = Time - DataTable.LastMove
-				Shine.SendNetworkMessage( Client, "AFKWarning", {
-					timeAFK = AFKTime,
-					maxAFKTime = KickTime
-				}, true )
-			elseif Players >= self.Config.MinPlayers then
-				-- Only warn players if there's actually a possibity they'll be kicked.
-				self:SendTranslatedNotify( Client, "WARN_KICK_ON_CONNECT", {
-					AFKTime = Floor( WarnTime )
-				} )
-			end
-
-			if self.Config.NotifyOnWarn then
-				self:SendNetworkMessage( Client, "AFKNotify", {}, true )
-			end
-
-			-- Do nothing else if not set to move players.
-			if not self.Config.MoveToReadyRoomOnWarn and not self.Config.MoveToSpectateOnWarn then
-				return
-			end
-
-			local function MovePlayer()
-				-- Make sure the client still exists and is still AFK.
-				if not Shine:IsValidClient( Client ) then return end
-				if not DataTable.Warn then return end
-
-				local CurrentPlayer = Client:GetControllingPlayer()
-				local CurrentTeam = CurrentPlayer:GetTeamNumber()
-
-				-- Sometimes this event receives one of the weird "ghost" players that can't switch teams.
-				if self.Config.MoveToReadyRoomOnWarn and CurrentTeam ~= kTeamReadyRoom then
-					pcall( Gamerules.JoinTeam, Gamerules, CurrentPlayer, kTeamReadyRoom, nil, true )
-				elseif self.Config.MoveToSpectateOnWarn and CurrentTeam ~= kSpectatorIndex then
-					pcall( Gamerules.JoinTeam, Gamerules, CurrentPlayer, kSpectatorIndex, nil, true )
+			if not IsPartiallyImmune then
+				if not self.Config.KickOnConnect then
+					local AFKTime = Time - DataTable.LastMove
+					Shine.SendNetworkMessage( Client, "AFKWarning", {
+						timeAFK = AFKTime,
+						maxAFKTime = KickTime
+					}, true )
+				elseif Players >= self.Config.MinPlayers then
+					-- Only warn players if there's actually a possibity they'll be kicked.
+					self:SendTranslatedNotify( Client, "WARN_KICK_ON_CONNECT", {
+						AFKTime = Floor( WarnTime )
+					} )
 				end
 			end
 
-			-- Either move the player now, or after the set delay.
-			if self.Config.MovementDelaySeconds == 0 then
-				MovePlayer()
-			else
-				self:SimpleTimer( self.Config.MovementDelaySeconds, MovePlayer )
+			local WarnActions = self:GetWarnActions( IsPartiallyImmune )
+			for i = 1, #WarnActions do
+				WarnActions[ i ]( self, Client, Gamerules, DataTable )
 			end
 
 			return
 		end
 	end
 
-	if self.Config.KickOnConnect or Shine:HasAccess( Client, "sh_afk_partial" ) then return end
+	if self.Config.KickOnConnect or IsPartiallyImmune then return end
 
 	-- Only kick if we're past the min player count to do so, and use their "total" time.
 	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
