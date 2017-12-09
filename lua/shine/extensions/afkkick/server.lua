@@ -190,6 +190,7 @@ do
 
 	function Plugin:Initialise()
 		self:ValidateConfig()
+		self:BroadcastModuleEvent( "Initialise" )
 
 		self.WarnActions = {
 			NoImmunity = self:BuildActions( self.Config.WarnActions.NoImmunity ),
@@ -280,8 +281,8 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	if not AFKForLongest then return end
 
-	self:Print( "Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
-		true, Shine.GetClientInfo( AFKForLongest ), ID,
+	self.Logger:Info( "Kicking %s to make room for connecting player (NS2ID: %s). AFK time was %s.",
+		Shine.GetClientInfo( AFKForLongest ), ID,
 		StringTimeToString( TimeAFK ) )
 
 	self:KickClient( AFKForLongest )
@@ -356,6 +357,11 @@ function Plugin:ReceiveSteamOverlay( Client, Data )
 	-- Players with their Steam overlay open are treated as AFK, regardless of
 	-- input received.
 	DataTable.SteamOverlayIsOpen = Data.Open
+
+	if self.Logger:IsTraceEnabled() then
+		self.Logger:Trace( "Steam overlay of %s is now %s.", Shine.GetClientInfo( Client ),
+			Data.Open and "open" or "closed" )
+	end
 end
 
 local MOVEMENT_MULTIPLIER = 5
@@ -366,12 +372,21 @@ function Plugin:GetWarnActions( IsPartiallyImmune )
 end
 
 --[[
+	Determines if a player is frozen (i.e. cannot move for reasons beyond their control).
+]]
+function Plugin:IsPlayerFrozen( Player )
+	return Player:isa( "TeamSpectator" )
+		or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
+		or ( Player.GetIsRespawning and Player:GetIsRespawning() )
+		or ( Player.GetCountdownActive and Player:GetCountdownActive() )
+		or Player.concedeSequenceActive
+		or Player.frozen
+end
+
+--[[
 	Hook into movement processing to help prevent false positive AFK kicking.
 ]]
 function Plugin:OnProcessMove( Player, Input )
-	local Gamerules = GetGamerules()
-	local Started = Gamerules and Gamerules:GetGameStarted()
-
 	local Client = GetOwner( Player )
 
 	if not Client then return end
@@ -383,35 +398,23 @@ function Plugin:OnProcessMove( Player, Input )
 	local Time = SharedTime()
 	if DataTable.LastMove > Time then return end
 
+	local Gamerules = GetGamerules()
+	local Started = Gamerules and Gamerules:GetGameStarted()
+
 	if self.Config.OnlyCheckOnStarted and not Started then
 		self:ResetAFKTime( Client )
-
 		return
 	end
 
 	local Players = GetHumanPlayerCount()
 	if Players < self.Config.WarnMinPlayers then
 		self:ResetAFKTime( Client )
-
 		return
 	end
 
-	local Move = Input.move
-	local Team = Player:GetTeamNumber()
-	local IsSpectator = Team == kSpectatorIndex
-
+	local IsSpectator = Player:GetTeamNumber() == kSpectatorIndex
 	if IsSpectator and self.Config.IgnoreSpectators then
 		self:ResetAFKTime( Client )
-
-		return
-	end
-
-	-- Ignore players waiting to respawn/watching the end of the game.
-	if Player:isa( "TeamSpectator" )
-	or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
-	or ( Player.GetIsRespawning and Player:GetIsRespawning() ) then
-		self:ResetAFKTime( Client )
-
 		return
 	end
 
@@ -420,8 +423,15 @@ function Plugin:OnProcessMove( Player, Input )
 
 	DataTable.LastMeasurement = Time
 
+	local Move = Input.move
 	local MovementIsEmpty = Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
 	local AnglesMatch = DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch
+
+	DataTable.LastPitch = Pitch
+	DataTable.LastYaw = Yaw
+
+	-- Track frozen player's input, but do not punish them if they are not providing any.
+	local IsPlayerFrozen = self:IsPlayerFrozen( Player )
 
 	if not ( MovementIsEmpty and AnglesMatch or DataTable.SteamOverlayIsOpen ) then
 		DataTable.LastMove = Time
@@ -439,12 +449,9 @@ function Plugin:OnProcessMove( Player, Input )
 			-- overzealous kicks.
 			DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * Multiplier, 0 )
 		end
-	else
+	elseif not IsPlayerFrozen then
 		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
 	end
-
-	DataTable.LastPitch = Pitch
-	DataTable.LastYaw = Yaw
 
 	if Shine:HasAccess( Client, "sh_afk" ) then
 		return
@@ -469,6 +476,9 @@ function Plugin:OnProcessMove( Player, Input )
 			Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
 		end
 	end
+
+	-- Do not actually do anything with frozen players, just keep their state up to date.
+	if IsPlayerFrozen then return end
 
 	local IsPartiallyImmune = Shine:HasAccess( Client, "sh_afk_partial" )
 
@@ -498,6 +508,15 @@ function Plugin:OnProcessMove( Player, Input )
 			end
 
 			local WarnActions = self:GetWarnActions( IsPartiallyImmune )
+
+			if self.Logger:IsDebugEnabled() then
+				self.Logger:Debug( "Applying %s warn actions to %s as their last move time was %.2f vs. %.2f (no movement for %.2f seconds). Steam overlay is %s.",
+					IsPartiallyImmune and "partial immunity" or "normal",
+					Shine.GetClientInfo( Client ),
+					DataTable.LastMove, Time, TimeSinceLastMove,
+					DataTable.SteamOverlayIsOpen and "open" or "closed" )
+			end
+
 			for i = 1, #WarnActions do
 				WarnActions[ i ]( self, Client, Gamerules, DataTable )
 			end
@@ -510,9 +529,12 @@ function Plugin:OnProcessMove( Player, Input )
 
 	-- Only kick if we're past the min player count to do so, and use their "total" time.
 	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
-		self:Print( "Client %s was AFK for over %s. Player count: %i. Min Players: %i. Kicking...",
-			true, Shine.GetClientInfo( Client ), StringTimeToString( KickTime ),
+		self.Logger:Info( "Client %s was AFK for over %s. Player count: %d. Min Players: %d. Kicking...",
+			Shine.GetClientInfo( Client ), StringTimeToString( KickTime ),
 			Players, self.Config.MinPlayers )
+		self.Logger:Debug( "AFK amount was %.2f vs. time since last move of %.2f. Steam overlay is %s.",
+			AFKAmount, TimeSinceLastMove,
+			DataTable.SteamOverlayIsOpen and "open" or "closed" )
 
 		self:KickClient( Client )
 	end
@@ -678,3 +700,5 @@ function Plugin:OnFirstThink()
 			:AsTable()
 	end
 end
+
+Shine.LoadPluginModule( "logger.lua" )
