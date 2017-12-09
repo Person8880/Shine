@@ -47,7 +47,7 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 Plugin.WarnAction = table.AsEnum{
-	"MoveToSpectate", "MoveToReadyRoom", "Notify"
+	"MOVE_TO_SPECTATE", "MOVE_TO_READY_ROOM", "NOTIFY"
 }
 
 Plugin.ConfigMigrationSteps = {
@@ -56,13 +56,13 @@ Plugin.ConfigMigrationSteps = {
 		Apply = function( Config )
 			local Actions = {}
 			if Config.MoveToSpectateOnWarn then
-				Actions[ #Actions + 1 ] = Plugin.WarnAction.MoveToSpectate
+				Actions[ #Actions + 1 ] = Plugin.WarnAction.MOVE_TO_SPECTATE
 			end
 			if Config.MoveToReadyRoomOnWarn then
-				Actions[ #Actions + 1 ] = Plugin.WarnAction.MoveToReadyRoom
+				Actions[ #Actions + 1 ] = Plugin.WarnAction.MOVE_TO_READY_ROOM
 			end
 			if Config.NotifyOnWarn then
-				Actions[ #Actions + 1 ] = Plugin.WarnAction.Notify
+				Actions[ #Actions + 1 ] = Plugin.WarnAction.NOTIFY
 			end
 
 			Config.WarnActions = {
@@ -79,7 +79,7 @@ Plugin.ConfigMigrationSteps = {
 
 do
 	local IsType = Shine.IsType
-	local StringLower = string.lower
+	local StringUpper = string.upper
 
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
@@ -102,23 +102,20 @@ do
 				Changed = true
 			end
 
-			local LowerCaseActions = table.AsEnum( Shine.Stream.Of( Plugin.WarnAction )
-				:Map( StringLower )
-				:AsTable() )
 			local NotAllowedTogether = {
-				[ LowerCaseActions[ "movetoreadyroom" ] ] = LowerCaseActions[ "movetospectate" ],
-				[ LowerCaseActions[ "movetospectate" ] ] = LowerCaseActions[ "movetoreadyroom" ]
+				[ Plugin.WarnAction.MOVE_TO_READY_ROOM ] = Plugin.WarnAction.MOVE_TO_SPECTATE,
+				[ Plugin.WarnAction.MOVE_TO_SPECTATE ] = Plugin.WarnAction.MOVE_TO_READY_ROOM
 			}
 			local function CheckActions( Actions )
 				local Seen = {}
 				Shine.Stream( Actions ):Filter( function( Value )
-					if not IsType( Value, "string" ) or not LowerCaseActions[ StringLower( Value ) ] then
+					if not IsType( Value, "string" ) or not Plugin.WarnAction[ StringUpper( Value ) ] then
 						Changed = true
 						Plugin:Print( "Warn action '%s' is not valid", true, Value )
 						return false
 					end
 
-					local ActionName = StringLower( Value )
+					local ActionName = StringUpper( Value )
 					local ExclusiveAction = NotAllowedTogether[ ActionName ]
 					if Seen[ ExclusiveAction ] then
 						Changed = true
@@ -166,9 +163,9 @@ do
 	end
 
 	Plugin.WarnActionFunctions = {
-		[ "movetospectate" ] = BuildMovementAction( kSpectatorIndex ),
-		[ "movetoreadyroom" ] = BuildMovementAction( kTeamReadyRoom ),
-		[ "notify" ] = function( self, Client )
+		[ Plugin.WarnAction.MOVE_TO_SPECTATE ] = BuildMovementAction( kSpectatorIndex ),
+		[ Plugin.WarnAction.MOVE_TO_READY_ROOM ] = BuildMovementAction( kTeamReadyRoom ),
+		[ Plugin.WarnAction.NOTIFY ] = function( self, Client )
 			self:SendNetworkMessage( Client, "AFKNotify", {}, true )
 		end
 	}
@@ -176,7 +173,7 @@ do
 	function Plugin:BuildActions( ActionNames )
 		local ActionFunctions = {}
 		for i = 1, #ActionNames do
-			local Action = StringLower( ActionNames[ i ] )
+			local Action = StringUpper( ActionNames[ i ] )
 			ActionFunctions[ #ActionFunctions + 1 ] = self.WarnActionFunctions[ Action ]
 		end
 		return ActionFunctions

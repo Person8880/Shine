@@ -46,13 +46,13 @@ Plugin.DefaultConfig = {
 			-- Constraint on the number of voters needed to pass a start vote.
 			-- Percentage applies to the current server player count.
 			MinVotesRequired = {
-				Type = "Percent",
+				Type = "PERCENT",
 				Value = 0.6
 			},
 			-- Constraint on the number of players needed to start a vote.
 			-- Percentage applies to the max player slot count.
 			MinPlayers = {
-				Type = "Absolute",
+				Type = "ABSOLUTE",
 				Value = 10
 			}
 		},
@@ -60,13 +60,13 @@ Plugin.DefaultConfig = {
 			-- Constraint on the number of voters needed to pass a map vote.
 			-- Percentage applies to the current server player count.
 			MinVotesRequired = {
-				Type = "Absolute",
+				Type = "ABSOLUTE",
 				Value = 0
 			},
 			-- Constraint on the number of voters needed to end a map vote early.
 			-- Percentage applies to the current server player count.
 			MinVotesToFinish = {
-				Type = "Percent",
+				Type = "PERCENT",
 				Value = 0.8
 			}
 		},
@@ -74,13 +74,13 @@ Plugin.DefaultConfig = {
 			-- Constraint on the number of voters needed to pass a next map vote.
 			-- Percentage applies to the current server player count.
 			MinVotesRequired = {
-				Type = "Absolute",
+				Type = "ABSOLUTE",
 				Value = 0
 			},
 			-- Constraint on the number of voters needed to end a next map vote early.
 			-- Percentage applies to the current server player count.
 			MinVotesToFinish = {
-				Type = "Percent",
+				Type = "PERCENT",
 				-- Never finish early by default.
 				Value = 2
 			}
@@ -144,31 +144,31 @@ Plugin.ConfigMigrationSteps = {
 			Config.Constraints = {
 				StartVote = {
 					MinVotesRequired = {
-						Type = "Percent",
+						Type = "PERCENT",
 						Value = tonumber( Config.PercentToStart ) or 0.6
 					},
 					MinPlayers = {
-						Type = "Absolute",
+						Type = "ABSOLUTE",
 						Value = tonumber( Config.MinPlayers ) or 10
 					}
 				},
 				MapVote = {
 					MinVotesRequired = {
-						Type = "Absolute",
+						Type = "PERCENT",
 						Value = 0
 					},
 					MinVotesToFinish = {
-						Type = "Percent",
+						Type = "PERCENT",
 						Value = tonumber( Config.PercentToFinish ) or 0.8
 					}
 				},
 				NextMapVote = {
 					MinVotesRequired = {
-						Type = "Absolute",
+						Type = "ABSOLUTE",
 						Value = 0
 					},
 					MinVotesToFinish = {
-						Type = "Percent",
+						Type = "PERCENT",
 						Value = 2
 					}
 				}
@@ -202,10 +202,9 @@ Shine.LoadPluginFile( "mapvote", "cycle.lua" )
 Shine.LoadPluginFile( "mapvote", "voting.lua" )
 
 do
-	local StringLower = string.lower
-	local ValidTypes = {
-		percent = true,
-		absolute = true
+	local StringUpper = string.upper
+	Plugin.ConstraintType = table.AsEnum{
+		"PERCENT", "ABSOLUTE"
 	}
 
 	local Validator = Shine.Validator()
@@ -235,9 +234,10 @@ do
 				end
 
 				if not IsType( CurrentValue.Type, "string" )
-				or not ValidTypes[ StringLower( CurrentValue.Type ) ] then
+				or not Plugin.ConstraintType[ StringUpper( CurrentValue.Type ) ] then
 					ChangesMade = true
-					CurrentValue.Type = CurrentValue.Value < 1 and "Percent" or "Absolute"
+					CurrentValue.Type = CurrentValue.Value < 1 and Plugin.ConstraintType.PERCENT
+						or Plugin.ConstraintType.ABSOLUTE
 					Plugin:Print( "Invalid type for constraint %s.%s, inferring type as: %s", true,
 						Category, Type, CurrentValue.Type )
 				end

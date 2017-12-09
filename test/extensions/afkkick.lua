@@ -9,10 +9,10 @@ if not AFKKick then return end
 AFKKick = UnitTest.MockOf( AFKKick )
 
 AFKKick.Config.WarnActions.NoImmunity = {
-	"MoveToSpectate"
+	"MOVE_TO_SPECTATE"
 }
 AFKKick.Config.WarnActions.PartialImmunity = {
-	"MoveToReadyRoom"
+	"MOVE_TO_READY_ROOM"
 }
 UnitTest:Test( "ValidateConfig - All valid", function( Assert )
 	local Saved = false
@@ -22,15 +22,15 @@ UnitTest:Test( "ValidateConfig - All valid", function( Assert )
 
 	AFKKick:ValidateConfig()
 	Assert:False( Saved )
-	Assert:ArrayEquals( { "MoveToSpectate" }, AFKKick.Config.WarnActions.NoImmunity )
-	Assert:ArrayEquals( { "MoveToReadyRoom" }, AFKKick.Config.WarnActions.PartialImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_SPECTATE" }, AFKKick.Config.WarnActions.NoImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_READY_ROOM" }, AFKKick.Config.WarnActions.PartialImmunity )
 end )
 
 AFKKick.Config.WarnActions.NoImmunity = {
-	"MoveToSpectate", "MoveToReadyRoom"
+	"MOVE_TO_SPECTATE", "MOVE_TO_READY_ROOM"
 }
 AFKKick.Config.WarnActions.PartialImmunity = {
-	"MoveToSpectate", "MoveToReadyRoom"
+	"MOVE_TO_SPECTATE", "MOVE_TO_READY_ROOM"
 }
 
 UnitTest:Test( "ValidateConfig - Both move to ready room and spectate", function( Assert )
@@ -42,21 +42,21 @@ UnitTest:Test( "ValidateConfig - Both move to ready room and spectate", function
 	AFKKick:ValidateConfig()
 
 	Assert:True( Saved )
-	Assert:ArrayEquals( { "MoveToSpectate" }, AFKKick.Config.WarnActions.NoImmunity )
-	Assert:ArrayEquals( { "MoveToSpectate" }, AFKKick.Config.WarnActions.PartialImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_SPECTATE" }, AFKKick.Config.WarnActions.NoImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_SPECTATE" }, AFKKick.Config.WarnActions.PartialImmunity )
 
 	Saved = false
 	AFKKick.Config.WarnActions.NoImmunity = {
-		"MoveToReadyRoom", "MoveToSpectate"
+		"MOVE_TO_READY_ROOM", "MOVE_TO_SPECTATE"
 	}
 	AFKKick.Config.WarnActions.PartialImmunity = {
-		"MoveToReadyRoom", "MoveToSpectate"
+		"MOVE_TO_READY_ROOM", "MOVE_TO_SPECTATE"
 	}
 	AFKKick:ValidateConfig()
 
 	Assert:True( Saved )
-	Assert:ArrayEquals( { "MoveToReadyRoom" }, AFKKick.Config.WarnActions.NoImmunity )
-	Assert:ArrayEquals( { "MoveToReadyRoom" }, AFKKick.Config.WarnActions.PartialImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_READY_ROOM" }, AFKKick.Config.WarnActions.NoImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_READY_ROOM" }, AFKKick.Config.WarnActions.PartialImmunity )
 end )
 
 AFKKick.Config.WarnActions.NoImmunity = false

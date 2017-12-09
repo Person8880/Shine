@@ -14,7 +14,7 @@ local next = next
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
-local StringLower = string.lower
+local StringUpper = string.upper
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
 
@@ -101,7 +101,7 @@ end
 
 function Plugin:GetVoteConstraint( Category, Type, PercentageTotal )
 	local Constraint = self.Config.Constraints[ Category ][ Type ]
-	if StringLower( Constraint.Type ) == "percent" then
+	if StringUpper( Constraint.Type ) == self.ConstraintType.PERCENT then
 		return Ceil( Constraint.Value * PercentageTotal )
 	end
 	return Constraint.Value
