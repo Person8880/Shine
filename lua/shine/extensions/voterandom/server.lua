@@ -103,7 +103,7 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Script.Load( Shine.GetPluginFile( "voterandom", "team_balance.lua" ) )
+Shine.LoadPluginFile( "voterandom", "team_balance.lua" )
 
 local ModeError = [[Error in voterandom config, FallbackMode is not set as a valid option.
 Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3 (Elo) or 5 (Hive).
@@ -951,6 +951,6 @@ function Plugin:CreateCommands()
 	StatsCommand:Help( "View Hive skill based team statistics." )
 end
 
-Script.Load( Shine.GetPluginFile( "voterandom", "local_stats.lua" ) )
-Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
-Script.Load( Shine.GetModuleFile( "logger.lua" ), true )
+Shine.LoadPluginFile( "voterandom", "local_stats.lua" )
+Shine.LoadPluginModule( "vote.lua" )
+Shine.LoadPluginModule( "logger.lua" )

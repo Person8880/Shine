@@ -21,7 +21,7 @@ local TableConcat = table.concat
 local Plugin = Plugin
 local IsType = Shine.IsType
 
-Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
+Shine.LoadPluginModule( "vote.lua" )
 
 function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, ShowTime )
 	local MessageTable = {

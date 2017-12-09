@@ -198,8 +198,8 @@ local function ConvertArrayToLookup( Table )
 	end
 end
 
-Script.Load( Shine.GetPluginFile( "mapvote", "cycle.lua" ) )
-Script.Load( Shine.GetPluginFile( "mapvote", "voting.lua" ) )
+Shine.LoadPluginFile( "mapvote", "cycle.lua" )
+Shine.LoadPluginFile( "mapvote", "voting.lua" )
 
 do
 	local StringLower = string.lower

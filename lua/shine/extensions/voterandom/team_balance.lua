@@ -2,7 +2,7 @@
 	Handles team balancing related stuff.
 ]]
 
-Script.Load( Shine.GetPluginFile( "voterandom", "team_optimiser.lua" ) )
+Shine.LoadPluginFile( "voterandom", "team_optimiser.lua" )
 
 local BalanceModule = {}
 local Plugin = Plugin

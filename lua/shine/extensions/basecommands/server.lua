@@ -61,7 +61,7 @@ Plugin.CheckConfigTypes = true
 -- Don't add anything to the config from the vote module below.
 Plugin.HandlesVoteConfig = true
 
-Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
+Shine.LoadPluginModule( "vote.lua" )
 
 function Plugin:OnFirstThink()
 	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )

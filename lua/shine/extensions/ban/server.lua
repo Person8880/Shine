@@ -937,4 +937,4 @@ function Plugin:AddBanToNetData( BanData )
 	NetData[ #NetData + 1 ] = BanData
 end
 
-Script.Load( Shine.GetModuleFile( "logger.lua" ), true )
+Shine.LoadPluginModule( "logger.lua" )

@@ -137,7 +137,7 @@ function Plugin:Initialise()
 		Hooked = true
 	end
 
-	Script.Load( Shine.GetPluginFile( "chatbox", "chatline.lua" ) )
+	Shine.LoadPluginFile( "chatbox", "chatline.lua" )
 
 	self.Messages = self.Messages or {}
 	self.Enabled = true
