@@ -5,7 +5,7 @@
 local UnitTest = Shine.UnitTest
 
 local VoteShuffle = UnitTest:LoadExtension( "voterandom" )
-if not VoteShuffle then return end
+if not VoteShuffle or not VoteShuffle.Config then return end
 
 VoteShuffle.Config.IgnoreCommanders = false
 VoteShuffle.Config.UseStandardDeviation = true

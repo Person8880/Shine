@@ -156,7 +156,9 @@ end
 do
 	local Clamp = math.Clamp
 	local StringExplode = string.Explode
+	local StringUpper = string.upper
 	local TableBuild = table.Build
+	local TableRemove = table.remove
 	local tonumber = tonumber
 	local unpack = unpack
 
@@ -188,8 +190,59 @@ do
 		end
 	end
 
+	function Validator.InEnum( PossibleValues, DefaultValue )
+		return function( Value )
+			return not IsType( Value, "string" ) or PossibleValues[ StringUpper( Value ) ] == nil, StringUpper( Value )
+		end,
+		Validator.Constant( DefaultValue ),
+		function()
+			return StringFormat( "%%s must be one of [%s]", Shine.Stream( PossibleValues ):Concat( ", " ) )
+		end
+	end
+
+	function Validator.Each( Predicate, FixFunc, MessageFunc )
+		return function( Value )
+			local Passes = true
+			for i = 1, #Value do
+				local NeedsFix, CanonicalValue = Predicate( Value[ i ] )
+				if NeedsFix then
+					Passes = false
+				elseif CanonicalValue ~= nil then
+					Value[ i ] = CanonicalValue
+				end
+			end
+			return not Passes
+		end,
+		function( Value )
+			for i = #Value, 1, -1 do
+				if Predicate( Value[ i ] ) then
+					local Fixed = FixFunc( Value[ i ] )
+					if Fixed ~= nil then
+						Value[ i ] = Fixed
+					else
+						TableRemove( Value, i )
+					end
+				end
+			end
+			return Value
+		end,
+		MessageFunc
+	end
+
+	function Validator.IsType( Type, DefaultValue )
+		return function( Value )
+			return not IsType( Value, Type )
+		end,
+		Validator.Constant( DefaultValue )
+	end
+
 	function Validator:AddRule( Rule )
 		self.Rules[ #self.Rules + 1 ] = Rule
+	end
+
+	local function SetField( Root, Path, Value )
+		local Table = TableBuild( Root, unpack( Path, 1, #Path - 1 ) )
+		Table[ Path[ #Path ] ] = Value
 	end
 
 	function Validator:AddFieldRule( Field, CheckPredicate, FixFunction, MessageSupplier )
@@ -202,19 +255,34 @@ do
 					if Value == nil then break end
 				end
 
-				if CheckPredicate( Value ) then
+				local NeedsFix, CanonicalValue = CheckPredicate( Value )
+				if NeedsFix then
 					if MessageSupplier then
 						Print( MessageSupplier(), Field )
 					end
 
-					local Table = TableBuild( Config, unpack( Path, 1, #Path - 1 ) )
-					Table[ Path[ #Path ] ] = FixFunction( Value )
+					SetField( Config, Path, FixFunction( Value ) )
 					return true
+				end
+
+				if CanonicalValue ~= nil then
+					SetField( Config, Path, CanonicalValue )
 				end
 
 				return false
 			end
 		} )
+	end
+	function Validator:AddFieldRules( Fields, CheckPredicate, FixFunction, MessageSupplier )
+		for i = 1, #Fields do
+			self:AddFieldRule( Fields[ i ], CheckPredicate, FixFunction, MessageSupplier )
+		end
+	end
+
+	function Validator:Add( OtherValidator )
+		for i = 1, #OtherValidator.Rules do
+			self:AddRule( OtherValidator.Rules[ i ] )
+		end
 	end
 
 	function Validator:Validate( Config )

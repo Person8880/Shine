@@ -29,12 +29,22 @@ UnitTest:Test( "Validator", function( Assert )
 	Validator:AddFieldRule( "Nested.Field", Validator.Clamp( 0, 1 ) )
 	Validator:AddFieldRule( "Nested.NonExistent.Field", Validator.Min( 5 ) )
 
+	local Enum = table.AsEnum{
+		"A", "B"
+	}
+	Validator:AddFieldRule( "ListOfEnums", Validator.Each( Validator.InEnum( Enum ) ) )
+	Validator:AddFieldRules( { "SingleEnum", "AnotherEnum" }, Validator.InEnum( Enum, Enum.B ) )
+	Validator:AddFieldRule( "SingleEnum", Validator.IsType( "string", 1 ) )
+
 	local Config = {
 		TooSmallNumber = 5,
 		BigEnoughNumber = 11,
 		Nested = {
 			Field = 2
-		}
+		},
+		ListOfEnums = { "A", "C", "b" },
+		SingleEnum = "a",
+		AnotherEnum = "C"
 	}
 	Assert:True( Validator:Validate( Config ) )
 	Assert:True( Config.Fixed )
@@ -48,6 +58,12 @@ UnitTest:Test( "Validator", function( Assert )
 	Assert:Equals( 1, Config.Nested.Field )
 	-- Should create with the min value
 	Assert:Equals( 5, Config.Nested.NonExistent.Field )
+	-- Should remove the invalid enum, maintaining the array structure.
+	Assert:ArrayEquals( { "A", "B" }, Config.ListOfEnums )
+	-- Should upper-case the valid string enum.
+	Assert:Equals( "A", Config.SingleEnum )
+	-- Should replace the invalid enum.
+	Assert:Equals( "B", Config.AnotherEnum )
 end )
 
 UnitTest:Test( "TypeCheckConfig", function( Assert )
