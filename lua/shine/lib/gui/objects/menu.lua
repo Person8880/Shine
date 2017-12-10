@@ -104,7 +104,7 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	SGUI:AddPostEventAction( function()
 		if not self:IsValid() then return end
 
-		self:Destroy( true )
+		self:Destroy()
 	end )
 end
 

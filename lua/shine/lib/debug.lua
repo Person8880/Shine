@@ -307,7 +307,7 @@ end
 		Table of local values.
 ]]
 function Shine.GetLocals( Stacklevel )
-	Stacklevel = Stacklevel and ( Stacklevel + 2 ) or 3
+	Stacklevel = Stacklevel and ( Stacklevel + 1 ) or 2
 
 	local i = 1
 	local Values = {}
@@ -341,18 +341,55 @@ do
 	end
 end
 
+do
+	local DebugGetInfo = debug.getinfo
+	local TableConcat = table.concat
+	local TypeNames = {
+		C = function( Info )
+			local Name = Info.name and StringFormat( "'%s'", Info.name )
+				or StringFormat( "<%s:%d>", Info.short_src, Info.linedefined )
+			return StringFormat( "function %s", Name )
+		end,
+		main = function() return "main chunk" end
+	}
+	TypeNames.Lua = TypeNames.C
+
+	local INFO_MASK = "Snl"
+	function Shine.StackDump( Level )
+		Level = Level or 1
+
+		local CurrentLevel = Level + 1
+		local Info = DebugGetInfo( CurrentLevel, INFO_MASK )
+		local Output = { "Stack traceback:" }
+
+		while Info do
+			local TypePrinter = TypeNames[ Info.what ]
+			Output[ #Output + 1 ] = StringFormat( "    %s:%d in %s", Info.short_src,
+				Info.currentline or -1, TypePrinter and TypePrinter( Info ) or "?" )
+
+			local Locals = table.ToDebugString( Shine.GetLocals( CurrentLevel ), "        " )
+			if Locals ~= "" then
+				Output[ #Output + 1 ] = Locals
+			end
+
+			CurrentLevel = CurrentLevel + 1
+			Info = DebugGetInfo( CurrentLevel, INFO_MASK )
+		end
+
+		return TableConcat( Output, "\n" )
+	end
+end
+
 --[[
 	Builds an error handler function for use with xpcall. Reports and logs any errors encountered,
 	including the local values of the caller.
 ]]
 function Shine.BuildErrorHandler( ErrorType )
 	return function( Err )
-		local Trace = Shine.Traceback( 2 )
-		local Locals = table.ToDebugString( Shine.GetLocals( 1 ) )
+		local Trace = Shine.StackDump( 2 )
 
 		Shine:DebugPrint( "%s: %s\n%s", true, ErrorType, Err, Trace )
-		Shine:AddErrorReport( StringFormat( "%s: %s", ErrorType, Err ),
-			"%s\nLocals:\n%s", true, Trace, Locals )
+		Shine:AddErrorReport( StringFormat( "%s: %s", ErrorType, Err ), Trace )
 	end
 end
 

@@ -316,7 +316,7 @@ do
 			PreviewPanel.Image:AlphaTo( nil, nil, 0, 0, 0.3 )
 			PreviewPanel:AlphaTo( nil, nil, 0, 0, 0.3, function()
 				PreviewPanel.Image:StopAlpha()
-				PreviewPanel:Destroy( true )
+				PreviewPanel:Destroy()
 				PreviewPanel = nil
 			end )
 		end
@@ -325,7 +325,7 @@ do
 			if not SGUI.IsValid( PreviewPanel ) then return end
 
 			PreviewPanel.Image:StopAlpha()
-			PreviewPanel:Destroy( true )
+			PreviewPanel:Destroy()
 		end
 	end
 

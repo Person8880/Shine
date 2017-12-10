@@ -6,10 +6,89 @@ local UnitTest = Shine.UnitTest
 local AFKKick = UnitTest:LoadExtension( "afkkick" )
 if not AFKKick then return end
 
-local OldKickClient = AFKKick.KickClient
-local OldPrint = AFKKick.Print
-local OldCanKickForConnectingClient = AFKKick.CanKickForConnectingClient
-local OldGetClientInfo = Shine.GetClientInfo
+AFKKick = UnitTest.MockOf( AFKKick )
+
+AFKKick.Config.WarnActions.NoImmunity = {
+	"MOVE_TO_SPECTATE"
+}
+AFKKick.Config.WarnActions.PartialImmunity = {
+	"MOVE_TO_READY_ROOM"
+}
+UnitTest:Test( "ValidateConfig - All valid", function( Assert )
+	local Saved = false
+	AFKKick.SaveConfig = function()
+		Saved = true
+	end
+
+	AFKKick:ValidateConfig()
+	Assert:False( Saved )
+	Assert:ArrayEquals( { "MOVE_TO_SPECTATE" }, AFKKick.Config.WarnActions.NoImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_READY_ROOM" }, AFKKick.Config.WarnActions.PartialImmunity )
+end )
+
+AFKKick.Config.WarnActions.NoImmunity = {
+	"MOVE_TO_SPECTATE", "MOVE_TO_READY_ROOM"
+}
+AFKKick.Config.WarnActions.PartialImmunity = {
+	"MOVE_TO_SPECTATE", "MOVE_TO_READY_ROOM"
+}
+
+UnitTest:Test( "ValidateConfig - Both move to ready room and spectate", function( Assert )
+	local Saved
+	AFKKick.SaveConfig = function()
+		Saved = true
+	end
+
+	AFKKick:ValidateConfig()
+
+	Assert:True( Saved )
+	Assert:ArrayEquals( { "MOVE_TO_SPECTATE" }, AFKKick.Config.WarnActions.NoImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_SPECTATE" }, AFKKick.Config.WarnActions.PartialImmunity )
+
+	Saved = false
+	AFKKick.Config.WarnActions.NoImmunity = {
+		"MOVE_TO_READY_ROOM", "MOVE_TO_SPECTATE"
+	}
+	AFKKick.Config.WarnActions.PartialImmunity = {
+		"MOVE_TO_READY_ROOM", "MOVE_TO_SPECTATE"
+	}
+	AFKKick:ValidateConfig()
+
+	Assert:True( Saved )
+	Assert:ArrayEquals( { "MOVE_TO_READY_ROOM" }, AFKKick.Config.WarnActions.NoImmunity )
+	Assert:ArrayEquals( { "MOVE_TO_READY_ROOM" }, AFKKick.Config.WarnActions.PartialImmunity )
+end )
+
+AFKKick.Config.WarnActions.NoImmunity = false
+AFKKick.Config.WarnActions.PartialImmunity = false
+
+UnitTest:Test( "ValidateConfig - Missing immunity actions", function( Assert )
+	local Saved
+	AFKKick.SaveConfig = function()
+		Saved = true
+	end
+
+	AFKKick:ValidateConfig()
+
+	Assert:True( Saved )
+	Assert:IsType( AFKKick.Config.WarnActions.NoImmunity, "table" )
+	Assert:IsType( AFKKick.Config.WarnActions.PartialImmunity, "table" )
+end )
+
+AFKKick.Config.WarnMinPlayers = 10
+AFKKick.Config.MinPlayers = 0
+
+UnitTest:Test( "ValidateConfig - WarnMinPlayers <= MinPlayers", function( Assert )
+	local Saved
+	AFKKick.SaveConfig = function()
+		Saved = true
+	end
+
+	AFKKick:ValidateConfig()
+
+	Assert:True( Saved )
+	Assert:Equals( AFKKick.Config.MinPlayers, AFKKick.Config.WarnMinPlayers )
+end )
 
 AFKKick.Print = function() end
 Shine.GetClientInfo = function() return "" end
@@ -50,8 +129,3 @@ UnitTest:Test( "KickOnConnect", function( Assert )
 end, function()
 	AFKKick.Config.KickOnConnect = false
 end )
-
-AFKKick.Print = OldPrint
-AFKKick.KickClient = OldKickClient
-AFKKick.CanKickForConnectingClient = OldCanKickForConnectingClient
-Shine.GetClientInfo = OldGetClientInfo

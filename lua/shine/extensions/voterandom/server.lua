@@ -21,7 +21,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "2.1"
+Plugin.Version = "2.2"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -34,33 +34,43 @@ Plugin.EnabledGamemodes = {
 	[ "mvm" ] = true
 }
 
-Plugin.MODE_RANDOM = 1
-Plugin.MODE_SCORE = 2
-Plugin.MODE_ELO = 3
-Plugin.MODE_KDR = 4
-Plugin.MODE_HIVE = 5
+Plugin.ShufflePolicy = table.AsEnum{
+	"INSTANT", "NEXT_ROUND", "END_OF_PERIOD"
+}
+Plugin.EnforcementDurationType = table.AsEnum{
+	"NONE", "TIME", "PERIOD"
+}
+Plugin.EnforcementPolicyType = table.AsEnum{
+	"BLOCK_TEAMS", "ASSIGN_PLAYERS"
+}
+Plugin.ShuffleMode = table.AsEnum{
+	"RANDOM", "SCORE", "INVALID", "KDR", "HIVE"
+}
+
+Plugin.MODE_RANDOM = Plugin.ShuffleMode.RANDOM
+Plugin.MODE_SCORE = Plugin.ShuffleMode.SCORE
+Plugin.MODE_ELO = Plugin.ShuffleMode.INVALID
+Plugin.MODE_KDR = Plugin.ShuffleMode.KDR
+Plugin.MODE_HIVE = Plugin.ShuffleMode.HIVE
 
 local ModeStrings = {
 	Action = {
-		"SHUFFLE_RANDOM",
-		"SHUFFLE_SCORE",
-		nil,
-		"SHUFFLE_KDR",
-		"SHUFFLE_HIVE"
+		[ Plugin.ShuffleMode.RANDOM ] = "SHUFFLE_RANDOM",
+		[ Plugin.ShuffleMode.SCORE ] = "SHUFFLE_SCORE",
+		[ Plugin.ShuffleMode.KDR ] = "SHUFFLE_KDR",
+		[ Plugin.ShuffleMode.HIVE ] = "SHUFFLE_HIVE"
 	},
 	Mode = {
-		"RANDOM_BASED",
-		"SCORE_BASED",
-		nil,
-		"KDR_BASED",
-		"HIVE_BASED"
+		[ Plugin.ShuffleMode.RANDOM ] = "RANDOM_BASED",
+		[ Plugin.ShuffleMode.SCORE ] = "SCORE_BASED",
+		[ Plugin.ShuffleMode.KDR ] = "KDR_BASED",
+		[ Plugin.ShuffleMode.HIVE ] = "HIVE_BASED"
 	},
 	ModeLower = {
-		"RANDOM_BASED",
-		"SCORE_BASED",
-		nil,
-		"KDR_BASED",
-		"HIVE_BASED"
+		[ Plugin.ShuffleMode.RANDOM ] = "RANDOM_BASED",
+		[ Plugin.ShuffleMode.SCORE ] = "SCORE_BASED",
+		[ Plugin.ShuffleMode.KDR ] = "KDR_BASED",
+		[ Plugin.ShuffleMode.HIVE ] = "HIVE_BASED"
 	}
 }
 Plugin.ModeStrings = ModeStrings
@@ -69,16 +79,14 @@ Plugin.DefaultConfig = {
 	MinPlayers = 10, --Minimum number of players on the server to enable voting.
 	PercentNeeded = 0.75, --Percentage of the server population needing to vote for it to succeed.
 
-	Duration = 15, --Time to force people onto teams for after a vote. Also time between successful votes.
+	VoteCooldownInMinutes = 15, -- Cooldown time before another vote can be made.
 	BlockAfterTime = 0, --Time after round start to block the vote. 0 to disable blocking.
-	RandomOnNextRound = true, --If false, then random teams are forced for a duration instead.
-	InstantForce = true, --Forces a shuffle of everyone instantly when the vote succeeds (for time based).
 	VoteTimeout = 60, --Time after the last vote before the vote resets.
 	NotifyOnVote = true, -- Should all players be told through the chat when a vote is cast?
 	ApplyToBots = false, -- Should bots be shuffled, or removed?
 
-	BalanceMode = Plugin.MODE_HIVE, --How should teams be balanced?
-	FallbackMode = Plugin.MODE_KDR, --Which method should be used if Elo/Hive fails?
+	BalanceMode = Plugin.ShuffleMode.HIVE, --How should teams be balanced?
+	FallbackMode = Plugin.ShuffleMode.KDR, --Which method should be used if Elo/Hive fails?
 	--[[
 		How much of an increase in standard deviation should be allowed if the
 		average is being improved but the standard deviation can't be?
@@ -91,25 +99,248 @@ Plugin.DefaultConfig = {
 	]]
 	AverageValueTolerance = 0,
 
-	BlockTeams = true, --Should team changing/joining be blocked after an instant force or in a round?
 	IgnoreCommanders = true, --Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
 	AlwaysEnabled = false, --Should the plugin be always forcing each round?
 
 	ReconnectLogTime = 0, --How long (in seconds) after a shuffle to log reconnecting players for?
 	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
-	DisplayStandardDeviations = false -- Should the scoreboard show each team's standard deviation of skill?
+	DisplayStandardDeviations = false, -- Should the scoreboard show each team's standard deviation of skill?
+
+	--	ShufflePolicy may be one of INSTANT, NEXT_ROUND, END_OF_PERIOD
+	--	- INSTANT immediately shuffles the teams
+	--	- NEXT_ROUND queues a shuffle for the start of the next round
+	--	- END_OF_PERIOD queues a shuffle for the end of the current period, so for PreGame is the same as NEXT_ROUND,
+	--	  but for InGame it will shuffle as soon as the players are back in the ready room.
+
+	--	EnforcementDurationType may be one of NONE, TIME, PERIOD
+	--	- NONE does not prevent team swaps.
+	--	- TIME prevents team swaps and auto-assigns players for the given duration.
+	--	- PERIOD prevents team swaps and auto-assigns players for the entire period, at the point of shuffle.
+	--	  For example, a shuffle set for next round with period enforcement means teams are blocked for that round.
+
+	--	EnforcementPolicy may be any of BLOCK_TEAMS, ASSIGN_PLAYERS
+	--	- BLOCK_TEAMS prevents players from swapping teams, except if there is an imbalance.
+	--	- ASSIGN_PLAYERS forces players on the team that benefits from them most when they join a team from the ready room.
+	VotePassActions = {
+		-- What to do when a vote passes during the pregame.
+		PreGame = {
+			ShufflePolicy = Plugin.ShufflePolicy.INSTANT,
+			EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
+			EnforcementPolicy = { Plugin.EnforcementPolicyType.BLOCK_TEAMS, Plugin.EnforcementPolicyType.ASSIGN_PLAYERS },
+			DurationInMinutes = 15
+		},
+		-- What to do when a vote passes during an active game.
+		InGame = {
+			ShufflePolicy = Plugin.ShufflePolicy.INSTANT,
+			EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
+			EnforcementPolicy = { Plugin.EnforcementPolicyType.BLOCK_TEAMS, Plugin.EnforcementPolicyType.ASSIGN_PLAYERS },
+			DurationInMinutes = 15
+		}
+	}
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Script.Load( Shine.GetPluginFile( "voterandom", "team_balance.lua" ) )
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "2.2",
+		Apply = function( Config )
+			Config.BalanceMode = Plugin.ShuffleMode[ Config.BalanceMode ]
+			Config.FallbackMode = Plugin.ShuffleMode[ Config.FallbackMode ]
+
+			local WasInstant = Config.InstantForce
+			local EnforcementPolicy = { Plugin.EnforcementPolicyType.ASSIGN_PLAYERS }
+			if Config.BlockTeams then
+				EnforcementPolicy[ #EnforcementPolicy + 1 ] = Plugin.EnforcementPolicyType.BLOCK_TEAMS
+			end
+			Config.VotePassActions = {
+				PreGame = {
+					ShufflePolicy = Plugin.ShufflePolicy.INSTANT,
+					EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
+					EnforcementPolicy = EnforcementPolicy,
+					DurationInMinutes = Config.Duration
+				},
+				InGame = {
+					ShufflePolicy = WasInstant and Plugin.ShufflePolicy.INSTANT or Plugin.ShufflePolicy.END_OF_PERIOD,
+					EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
+					EnforcementPolicy = EnforcementPolicy,
+					DurationInMinutes = Config.Duration
+				}
+			}
+			Config.VoteCooldownInMinutes = Config.Duration
+
+			Config.InstantForce = nil
+			Config.Duration = nil
+			Config.RandomOnNextRound = nil
+			Config.BlockTeams = nil
+		end
+	}
+}
+
+do
+	local Validator = Shine.Validator()
+	Validator:AddFieldRule( "VotePassActions.PreGame", Validator.IsType( "table" ),
+		Validator.Constant( Plugin.DefaultConfig.PreGame ) )
+	Validator:AddFieldRule( "VotePassActions.InGame", Validator.IsType( "table" ),
+		Validator.Constant( Plugin.DefaultConfig.InGame ) )
+	Validator:AddFieldRules( {
+		"VotePassActions.PreGame.ShufflePolicy",
+		"VotePassActions.InGame.ShufflePolicy"
+	}, Validator.InEnum( Plugin.ShufflePolicy, Plugin.ShufflePolicy.INSTANT ) )
+	Validator:AddFieldRules( {
+		"VotePassActions.PreGame.EnforcementDurationType",
+		"VotePassActions.InGame.EnforcementDurationType"
+	}, Validator.InEnum( Plugin.EnforcementDurationType, Plugin.EnforcementDurationType.DURATION ) )
+	Validator:AddFieldRules( {
+		"VotePassActions.PreGame.EnforcementPolicy",
+		"VotePassActions.InGame.EnforcementPolicy"
+	}, Validator.Each( Validator.InEnum( Plugin.EnforcementPolicyType ) ) )
+	Validator:AddFieldRules( {
+		"VotePassActions.PreGame.DurationInMinutes",
+		"VotePassActions.InGame.DurationInMinutes"
+	}, Validator.IsType( "number", 15 ) )
+
+	Validator:AddFieldRule( "BalanceMode", Validator.InEnum( Plugin.ShuffleMode, Plugin.ShuffleMode.HIVE ) )
+	Validator:AddFieldRule( "FallbackMode", Validator.InEnum( Plugin.ShuffleMode, Plugin.ShuffleMode.KDR ) )
+
+	Plugin.ConfigValidator = Validator
+end
+
+local EnforcementPolicy = Shine.TypeDef()
+function EnforcementPolicy:Init( Policies )
+	self.Policies = table.AsSet( Policies )
+	return self
+end
+
+function EnforcementPolicy:IsActive()
+	return false
+end
+
+function EnforcementPolicy:OnStageChange( Stage )
+
+end
+
+function EnforcementPolicy:Announce( Plugin )
+
+end
+
+function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
+	local Client = GetOwner( Player )
+	if not Client then return false end
+
+	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
+	if Immune then return end
+
+	local Team = Player:GetTeamNumber()
+	local OnPlayingTeam = Shine.IsPlayingTeam( Team )
+
+	local NumTeam1 = Gamerules.team1:GetNumPlayers()
+	local NumTeam2 = Gamerules.team2:GetNumPlayers()
+
+	local ImbalancedTeams = Abs( NumTeam1 - NumTeam2 ) >= 2
+
+	-- Do not allow cheating the system.
+	if OnPlayingTeam and self.Policies[ Plugin.EnforcementPolicyType.BLOCK_TEAMS ] then
+		-- Allow players to switch if teams are imbalanced.
+		if ImbalancedTeams then
+			local MorePlayersTeam = NumTeam1 > NumTeam2 and 1 or 2
+			if Team == MorePlayersTeam then
+				return
+			end
+		end
+		-- Spamming F4 shouldn't spam messages...
+		if Shine:CanNotify( Client ) then
+			Plugin:SendTranslatedNotify( Player, "TEAM_SWITCH_DENIED", {
+				ShuffleType = ModeStrings.Mode[ Plugin.Config.BalanceMode ]
+			} )
+		end
+
+		return false
+	end
+
+	if not self.Policies[ Plugin.EnforcementPolicyType.ASSIGN_PLAYERS ] then return end
+
+	if not Player.ShineRandomised then
+		-- They're going from the ready room/spectate to a team.
+		if ( Team == 0 or Team == 3 ) and Shine.IsPlayingTeam( NewTeam ) then
+			Player.ShineRandomised = true -- Prevent an infinite loop!
+
+			Plugin:NotifyTranslated( Player, Plugin.LastShuffleMode == Plugin.ShuffleMode.HIVE and "PLACED_ON_HIVE_TEAM"
+				or "PLACED_ON_RANDOM_TEAM" )
+			Plugin:JoinRandomTeam( Player )
+
+			return false
+		end
+	else
+		-- They came from ready room or spectate, i.e, we just randomised them.
+		if Team == 0 or Team == 3 then
+			Player.ShineRandomised = nil
+			return
+		end
+	end
+end
+
+local DurationBasedEnforcement = Shine.TypeDef( EnforcementPolicy )
+function DurationBasedEnforcement:Init( Duration, Policies )
+	self.EndTime = SharedTime() + Duration
+	self.Duration = Duration
+	return EnforcementPolicy.Init( self, Policies )
+end
+
+function DurationBasedEnforcement:IsActive()
+	return SharedTime() < self.EndTime
+end
+
+function DurationBasedEnforcement:Announce( Plugin )
+	Plugin:SendTranslatedNotify( nil, "TEAMS_SHUFFLED_FOR_DURATION", {
+		ShuffleType = ModeStrings.Mode[ Plugin.Config.BalanceMode ],
+		Duration = Floor( self.Duration )
+	} )
+
+	Plugin:CreateTimer( Plugin.RandomEndTimer, self.Duration, 1, function()
+		Plugin:SendTranslatedNotify( nil, "TEAM_ENFORCING_TIMELIMIT", {
+			ShuffleType = ModeStrings.Mode[ Plugin.LastShuffleMode or Plugin.Config.BalanceMode ]
+		} )
+	end )
+end
+
+local PeriodBasedEnforcement = Shine.TypeDef( EnforcementPolicy )
+function PeriodBasedEnforcement:Init( InitialStage, Policies )
+	self.InitialStage = InitialStage
+	self.Active = true
+	return EnforcementPolicy.Init( self, Policies )
+end
+
+function PeriodBasedEnforcement:IsActive( Plugin )
+	return self.Active
+end
+
+function PeriodBasedEnforcement:OnStageChange( Stage )
+	if Stage ~= self.InitialStage then
+		self.Active = false
+	end
+end
+
+function PeriodBasedEnforcement:Announce( Plugin )
+	local Key = self.InitialStage == Plugin.Stage.PreGame and "TEAMS_SHUFFLED_UNTIL_NEXT_ROUND"
+		or "TEAMS_SHUFFLED_UNTIL_END_OF_ROUND"
+	Plugin:SendTranslatedNotify( nil, Key, {
+		ShuffleType = ModeStrings.Mode[ Plugin.Config.BalanceMode ]
+	} )
+end
+
+local NoOpEnforcement = Shine.TypeDef( EnforcementPolicy )
+function NoOpEnforcement:Init()
+	return self
+end
+function NoOpEnforcement:JoinTeam() end
+
+Shine.LoadPluginFile( "voterandom", "team_balance.lua" )
 
 local ModeError = [[Error in voterandom config, FallbackMode is not set as a valid option.
-Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not 3 (Elo) or 5 (Hive).
-Setting FallbackMode to KDR mode (4).]]
-
-local ModeClamp = Shine.IsNS2Combat and 4 or 5
+Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not "HIVE".
+Setting FallbackMode to "KDR" mode.]]
 
 function Plugin:OnFirstThink()
 	self:BroadcastModuleEvent( "OnFirstThink" )
@@ -141,21 +372,19 @@ function Plugin:OnFirstThink()
 end
 
 function Plugin:Initialise()
-	self.Config.BalanceMode = Clamp( Floor( self.Config.BalanceMode or 1 ), 1, ModeClamp )
-	self.Config.FallbackMode = Clamp( Floor( self.Config.FallbackMode or 1 ), 1, ModeClamp )
 	self.Config.ReconnectLogTime = Max( self.Config.ReconnectLogTime, 0 )
 
 	local BalanceMode = self.Config.BalanceMode
 	local FallbackMode = self.Config.FallbackMode
 
-	if BalanceMode == self.MODE_ELO then
-		BalanceMode = self.MODE_HIVE
+	if BalanceMode == self.ShuffleMode.INVALID then
+		BalanceMode = self.ShuffleMode.HIVE
 		self.Config.BalanceMode = BalanceMode
 		Notify( "NS2Stats Elo mode no longer exists. Switching to Hive skill mode..." )
 	end
 
-	if FallbackMode == self.MODE_ELO or FallbackMode == self.MODE_HIVE then
-		self.Config.FallbackMode = self.MODE_KDR
+	if FallbackMode == self.ShuffleMode.INVALID or FallbackMode == self.ShuffleMode.HIVE then
+		self.Config.FallbackMode = self.ShuffleMode.KDR
 
 		Notify( ModeError )
 
@@ -186,16 +415,20 @@ function Plugin:Initialise()
 		self.dt.RequiredShuffleVotes = 0
 	end
 
-	-- Time based.
-	self.ForceRandomEnd = 0
-	-- Round based.
-	self.RandomOnNextRound = false
-	self.ForceRandom = self.Config.AlwaysEnabled
+	self.ShuffleOnNextRound = false
+	self.ShuffleAtEndOfRound = false
 	self.HasShuffledThisRound = false
 
 	self.dt.HighlightTeamSwaps = self.Config.HighlightTeamSwaps
 	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
-		and BalanceMode == self.MODE_HIVE
+		and BalanceMode == self.ShuffleMode.HIVE
+
+	if self.Config.AlwaysEnabled and self:GetStage() == self.Stage.InGame then
+		self.EnforcementPolicy = self:BuildEnforcementPolicy( self:GetVoteActionSettings() )
+	else
+		-- Nothing to enforce at startup.
+		self.EnforcementPolicy = NoOpEnforcement()
+	end
 
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
@@ -434,7 +667,7 @@ function Plugin:JoinRandomTeam( Player )
 	elseif Team2 < Team1 then
 		Gamerules:JoinTeam( Player, 2 )
 	else
-		if self.LastShuffleMode == self.MODE_HIVE then
+		if self.LastShuffleMode == self.ShuffleMode.HIVE then
 			local Team1Players = Gamerules.team1:GetPlayers()
 			local Team2Players = Gamerules.team2:GetPlayers()
 
@@ -481,13 +714,17 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	if NewState ~= kGameState.Countdown then return end
 
 	self:BroadcastModuleEvent( "GameStarting", Gamerules )
+	self.EnforcementPolicy:OnStageChange( self.Stage.InGame )
 
-	--Block the vote after the set time.
+	-- Block the vote after the set time.
 	if self.Config.BlockAfterTime > 0 then
 		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterTime * 60
 	end
 
-	if not self.Config.AlwaysEnabled then return end
+	if not self.Config.AlwaysEnabled and not self.ShuffleOnNextRound then return end
+
+	self.ShuffleOnNextRound = false
+
 	if GetNumPlayers() < self.Config.MinPlayers then
 		return
 	end
@@ -498,13 +735,15 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 
 	local OldValue = self.Config.IgnoreCommanders
 
-	--Force ignoring commanders.
+	-- Force ignoring commanders.
 	self.Config.IgnoreCommanders = true
 
 	self:SendTranslatedNotify( nil, "AUTO_SHUFFLE", {
 		ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
 	} )
 	self:ShuffleTeams()
+	self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
+	self.QueuedStage = nil
 
 	self.Config.IgnoreCommanders = OldValue
 end
@@ -515,7 +754,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	self.VoteBlockTime = nil
 
 	local Players, Count = GetAllPlayers()
-	--Reset the randomised state of all players.
+	-- Reset the randomised state of all players.
 	for i = 1, Count do
 		local Player = Players[ i ]
 
@@ -525,121 +764,68 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	end
 
 	self:BroadcastModuleEvent( "EndGame", Gamerules, WinningTeam, Players )
+	self.EnforcementPolicy:OnStageChange( self.Stage.PreGame )
 
-	--If we're always enabled, we'll shuffle on round start.
+	-- If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then
+		self:DestroyTimer( self.RandomEndTimer )
+		self.EnforcementPolicy = NoOpEnforcement()
 		return
 	end
 
-	if self.RandomOnNextRound then
-		self.RandomOnNextRound = false
+	if self.ShuffleAtEndOfRound then
+		self.ShuffleAtEndOfRound = false
 
 		self:SimpleTimer( 15, function()
 			local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-
 			if Enabled and MapVote:IsEndVote() then
-				self.ForceRandom = true
-
 				return
 			end
 
 			self:SendTranslatedNotify( nil, "PREVIOUS_VOTE_SHUFFLE", {
 				ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
 			} )
-
 			self:ShuffleTeams()
-
-			self.ForceRandom = true
+			self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
+			self.QueuedStage = nil
 		end )
 
 		return
 	end
 
-	self.ForceRandom = false
-	if not self:TimerExists( self.RandomEndTimer ) then return end
+	if not self.EnforcementPolicy:IsActive( self ) then
+		return
+	end
 
+	-- Continue the existing policy (must be time based).
 	self:SimpleTimer( 15, function()
-		local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
+		if not self.EnforcementPolicy:IsActive( self ) then return end
 
+		local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
 		if not ( Enabled and MapVote:IsEndVote() ) then
 			self:SendTranslatedNotify( nil, "PREVIOUS_VOTE_SHUFFLE", {
 				ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
 			} )
-
 			self:ShuffleTeams()
-		end
-
-		if self:TimerExists( self.RandomEndTimer ) then
-			self.ForceRandom = true
 		end
 	end )
 end
 
 function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
-	if not self.ForceRandom then return end
 
 	local Gamestate = Gamerules:GetGameState()
 
-	--We'll do a mass balance, don't worry about them yet.
+	-- We'll do a mass balance, don't worry about them yet.
 	if self.Config.AlwaysEnabled and Gamestate < kGameState.PreGame then return end
 
-	--Don't block them from going back to the ready room at the end of the round.
+	-- Don't block them from going back to the ready room at the end of the round.
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won
 	or GameState == kGameState.Draw then return end
 
-	local Client = GetOwner( Player )
-	if not Client then return false end
+	if not self.EnforcementPolicy:IsActive( self ) then return end
 
-	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
-	if Immune then return end
-
-	local Team = Player:GetTeamNumber()
-	local OnPlayingTeam = Shine.IsPlayingTeam( Team )
-
-	local NumTeam1 = Gamerules.team1:GetNumPlayers()
-	local NumTeam2 = Gamerules.team2:GetNumPlayers()
-
-	local ImbalancedTeams = Abs( NumTeam1 - NumTeam2 ) >= 2
-
-	--Do not allow cheating the system.
-	if OnPlayingTeam and self.Config.BlockTeams then
-		--Allow players to switch if teams are imbalanced.
-		if ImbalancedTeams then
-			local MorePlayersTeam = NumTeam1 > NumTeam2 and 1 or 2
-			if Team == MorePlayersTeam then
-				return
-			end
-		end
-		--Spamming F4 shouldn't spam messages...
-		if Shine:CanNotify( Client ) then
-			self:SendTranslatedNotify( Player, "TEAM_SWITCH_DENIED", {
-				ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
-			} )
-		end
-
-		return false
-	end
-
-	if not Player.ShineRandomised then
-		if ( Team == 0 or Team == 3 ) and Shine.IsPlayingTeam( NewTeam ) then --They're going from the ready room/spectate to a team.
-			Player.ShineRandomised = true --Prevent an infinite loop!
-
-			self:NotifyTranslated( Player, self.LastShuffleMode == self.MODE_HIVE and "PLACED_ON_HIVE_TEAM"
-				or "PLACED_ON_RANDOM_TEAM" )
-
-			self:JoinRandomTeam( Player )
-
-			return false
-		end
-	else
-		--They came from ready room or spectate, i.e, we just randomised them.
-		if Team == 0 or Team == 3 then
-			Player.ShineRandomised = nil
-
-			return
-		end
-	end
+	return self.EnforcementPolicy:JoinTeam( self, Gamerules, Player, NewTeam, Force )
 end
 
 function Plugin:ClientDisconnect( Client )
@@ -687,7 +873,7 @@ function Plugin:CanStartVote()
 		return false, self:GetStartFailureMessage()
 	end
 
-	if self.RandomOnNextRound then
+	if self.ShuffleOnNextRound or self.ShuffleAtEndOfRound then
 		return false, "ERROR_ALREADY_ENABLED", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
 	end
 
@@ -736,66 +922,24 @@ function Plugin:Think()
 	self.Vote:Think()
 end
 
---[[
-	Applies the configured randomise settings.
-	If set to random teams on next round, it queues a force of random teams for the next round.
-	If set to a time duration, it enables random teams and queues the disabling of them.
-]]
-function Plugin:ApplyRandomSettings()
-	self.RandomApplied = true
-	self:SimpleTimer( 0, function()
-		self.RandomApplied = false
-	end )
+Plugin.Stage = table.AsEnum{
+	"PreGame", "InGame"
+}
 
-	--Set up teams for the next round.
-	if self.Config.RandomOnNextRound then
+function Plugin:GetStage()
+	local GameState = GetGamerules():GetGameState()
+	local IsInActiveRound = GameState >= kGameState.Countdown and GameState <= kGameState.Started
+	return IsInActiveRound and self.Stage.InGame or self.Stage.PreGame
+end
+
+function Plugin:GetVoteActionSettings( Stage )
+	return self.Config.VotePassActions[ Stage or self:GetStage() ]
+end
+
+Plugin.ShufflePolicyActions = {
+	-- Shuffle teams right when the vote passes.
+	[ Plugin.ShufflePolicy.INSTANT ] = function( self )
 		local Gamerules = GetGamerules()
-
-		--Game hasn't started, apply the settings now, as the next round is the one that's going to start...
-		if not Gamerules:GetGameStarted() then
-			self:SendTranslatedNotify( nil, "NEXT_ROUND_SHUFFLE", {
-				ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
-			} )
-
-			self:ShuffleTeams()
-
-			self.ForceRandom = true
-
-			return
-		end
-
-		self:SendTranslatedNotify( nil, "TEAMS_FORCED_NEXT_ROUND", {
-			ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
-		} )
-
-		self.RandomOnNextRound = true
-
-		return
-	end
-
-	--Set up teams now and make them last for the given time in the config.
-	local Duration = self.Config.Duration * 60
-
-	if Duration > 5 then
-		self.ForceRandom = true
-		self.NextVote = SharedTime() + Duration
-
-		self:SendTranslatedNotify( nil, "TEAMS_SHUFFLED_FOR_DURATION", {
-			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ],
-			Duration = Floor( Duration )
-		} )
-
-		self:CreateTimer( self.RandomEndTimer, Duration, 1, function()
-			self:SendTranslatedNotify( nil, "TEAM_ENFORCING_TIMELIMIT", {
-				ShuffleType = ModeStrings.Mode[ self.LastShuffleMode or self.Config.BalanceMode ]
-			} )
-			self.ForceRandom = false
-		end )
-	end
-
-	if self.Config.InstantForce then
-		local Gamerules = GetGamerules()
-
 		local Started = Gamerules:GetGameStarted()
 
 		if Started then
@@ -812,10 +956,94 @@ function Plugin:ApplyRandomSettings()
 			self:ShuffleTeams()
 		end
 
+		self:InitEnforcementPolicy( self:GetVoteActionSettings() )
+
 		if Started then
 			Gamerules:ResetGame()
 		end
+	end,
+	-- Queue a shuffle for the start of the next round.
+	[ Plugin.ShufflePolicy.NEXT_ROUND ] = function( self )
+		self:SendTranslatedNotify( nil, "TEAMS_FORCED_NEXT_ROUND", {
+			ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+		} )
+		self.ShuffleOnNextRound = true
+		self.QueuedStage = self:GetStage()
+		self.Logger:Debug( "Queued shuffle for the start of the next round." )
+	end,
+	-- Queue a shuffle for either the start of the next round, or the end of this one.
+	[ Plugin.ShufflePolicy.END_OF_PERIOD ] = function( self )
+		if self:GetStage() == self.Stage.PreGame then
+			return self.ShufflePolicyActions[ self.ShufflePolicy.NEXT_ROUND ]( self )
+		end
+
+		self.ShuffleAtEndOfRound = true
+		self.QueuedStage = self:GetStage()
+		self:SendTranslatedNotify( nil, "TEAMS_FORCED_END_OF_ROUND", {
+			ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+		} )
+		self.Logger:Debug( "Queued shuffle for the end of the current round." )
 	end
+}
+
+Plugin.EnforcementPolicies = {
+	-- Do not enforce anything.
+	[ Plugin.EnforcementDurationType.NONE ] = function( self, Settings )
+		return NoOpEnforcement()
+	end,
+	-- Enforce teams for the given duration.
+	[ Plugin.EnforcementDurationType.TIME ] = function( self, Settings )
+		local Duration = Settings.DurationInMinutes * 60
+		if Duration > 5 then
+			self.Logger:Debug( "Enforcement will end in %d seconds", Duration )
+			return DurationBasedEnforcement( Duration, Settings.EnforcementPolicy )
+		end
+
+		-- Not enough of a duration to bother with.
+		return NoOpEnforcement()
+	end,
+	-- Enforce teams until the game stage changes.
+	[ Plugin.EnforcementDurationType.PERIOD ] = function( self, Settings )
+		return PeriodBasedEnforcement( self:GetStage(), Settings.EnforcementPolicy )
+	end
+}
+
+function Plugin:BuildEnforcementPolicy( Settings )
+	if #Settings.EnforcementPolicy == 0 then
+		self.Logger:Debug( "No enforcement policies configured, disabling enforcement." )
+		-- No policies configured, so nothing to enforce.
+		return self.EnforcementPolicies[ self.EnforcementDurationType.NONE ]( self, Settings )
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug( "Applying enforcement policies [ %s ] with duration type %s",
+			Shine.Stream( Settings.EnforcementPolicy ):Concat( ", " ), Settings.EnforcementDurationType )
+	end
+
+	return self.EnforcementPolicies[ Settings.EnforcementDurationType ]( self, Settings )
+end
+
+function Plugin:InitEnforcementPolicy( Settings )
+	self:DestroyTimer( self.RandomEndTimer )
+
+	self.EnforcementPolicy = self:BuildEnforcementPolicy( Settings )
+	self.EnforcementPolicy:Announce( self )
+	return self.EnforcementPolicy
+end
+
+--[[
+	Applies the configured shuffle settings, based on the current game stage.
+]]
+function Plugin:ApplyRandomSettings()
+	self.RandomApplied = true
+	self:SimpleTimer( 0, function()
+		self.RandomApplied = false
+	end )
+
+	local Settings = self:GetVoteActionSettings()
+	self.ShufflePolicyActions[ Settings.ShufflePolicy ]( self )
+
+	self.NextVote = SharedTime() + self.Config.VoteCooldownInMinutes * 60
 end
 
 function Plugin:CreateCommands()
@@ -840,7 +1068,7 @@ function Plugin:CreateCommands()
 				else
 					self:SendTranslatedNotify( Client, "PLAYER_VOTED_PRIVATE", {
 						ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
-						VotesNeeded = VotesNeeded,
+						VotesNeeded = VotesNeeded
 					} )
 				end
 
@@ -876,13 +1104,13 @@ function Plugin:CreateCommands()
 				ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
 			} )
 		else
-			self:DestroyTimer( self.RandomEndTimer )
 			self.Vote:Reset()
 
-			self.RandomOnNextRound = false
-			self.ForceRandom = false
-
+			self.ShuffleOnNextRound = false
+			self.ShuffleAtEndOfRound = false
 			self.Config.AlwaysEnabled = false
+			self:DestroyTimer( self.RandomEndTimer )
+			self.EnforcementPolicy = NoOpEnforcement()
 
 			self:SendTranslatedNotify( nil, "DISABLED_TEAMS", {
 				ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
@@ -892,11 +1120,11 @@ function Plugin:CreateCommands()
 	local ForceRandomCommand = self:BindCommand( "sh_enablerandom",
 		{ "enablerandom", "enableshuffle" }, ForceRandomTeams )
 	ForceRandomCommand:AddParam{ Type = "boolean", Optional = true,
-		Default = function() return not self.ForceRandom end }
+		Default = true }
 	ForceRandomCommand:Help( "Enables (and applies) or disables forcing shuffled teams." )
 
 	local function ViewTeamStats( Client )
-		if self.Config.BalanceMode ~= self.MODE_HIVE then
+		if self.Config.BalanceMode ~= self.ShuffleMode.HIVE then
 			if not Client then
 				Notify( "Hive balancing is not currently enabled." )
 				return
@@ -951,6 +1179,6 @@ function Plugin:CreateCommands()
 	StatsCommand:Help( "View Hive skill based team statistics." )
 end
 
-Script.Load( Shine.GetPluginFile( "voterandom", "local_stats.lua" ) )
-Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
-Script.Load( Shine.GetModuleFile( "logger.lua" ), true )
+Shine.LoadPluginFile( "voterandom", "local_stats.lua" )
+Shine.LoadPluginModule( "vote.lua" )
+Shine.LoadPluginModule( "logger.lua" )

@@ -7,8 +7,30 @@ local UnitTest = Shine.UnitTest
 local MapVote = UnitTest:LoadExtension( "mapvote" )
 if not MapVote then return end
 
-MapVote.TrackMapStats = nil
-MapVote.MapStats = nil
+MapVote = UnitTest.MockOf( MapVote )
+
+MapVote.Config.Constraints.StartVote.MinVotesRequired = {
+	Type = "Absolute",
+	Value = 10
+}
+
+UnitTest:Test( "GetVoteConstraint - Absolute value", function( Assert )
+	Assert:Equals( 10, MapVote:GetVoteConstraint( "StartVote", "MinVotesRequired", 10 ) )
+end )
+
+MapVote.Config.Constraints.StartVote.MinVotesRequired = {
+	Type = "Percent",
+	Value = 0.5
+}
+
+UnitTest:Test( "GetVoteConstraint - Percentage value", function( Assert )
+	Assert:Equals( 5, MapVote:GetVoteConstraint( "StartVote", "MinVotesRequired", 9 ) )
+end )
+
+MapVote.Config.Constraints.StartVote.MinVotesRequired = nil
+
+MapVote.TrackMapStats = false
+MapVote.MapStats = {}
 
 UnitTest:Test( "IsValidMapChoice - Stats", function( Assert )
 	local Map = {
@@ -36,8 +58,8 @@ UnitTest:Test( "IsValidMapChoice - Stats", function( Assert )
 
 	Assert:True( MapVote:IsValidMapChoice( Map, 16 ) )
 end, function()
-	MapVote.TrackMapStats = nil
-	MapVote.MapStats = nil
+	MapVote.TrackMapStats = false
+	MapVote.MapStats = {}
 end )
 
 UnitTest:Test( "IsValidMapChoice - Player count", function( Assert )
@@ -59,10 +81,6 @@ UnitTest:Test( "IsValidMapChoice - Player count", function( Assert )
 		Assert:False( MapVote:IsValidMapChoice( Map, i ) )
 	end
 end )
-
-local OldMaxOptions = MapVote.Config.MaxOptions
-local OldExcludeLastMaps = MapVote.Config.ExcludeLastMaps
-local OldLastMaps = MapVote.LastMapData
 
 MapVote.Config.MaxOptions = 5
 MapVote.Config.ExcludeLastMaps = {
@@ -245,10 +263,6 @@ UnitTest:Test( "RemoveLastMaps - Min and max not equal, max larger than auto", f
 	} ), PotentialMaps )
 end )
 
-local OldMaps = MapVote.Config.Maps
-local OldGetMapGroup = MapVote.GetMapGroup
-local OldIsValidMapChoice = MapVote.IsValidMapChoice
-
 MapVote.Config.Maps = {
 	ns2_tram = true,
 	ns2_derelict = true,
@@ -353,7 +367,6 @@ MapVote.Config.ExcludeLastMaps = {
 	Max = 0
 }
 
-local OldForcedMaps = MapVote.Config.ForcedMaps
 MapVote.Config.ForcedMaps = {}
 
 UnitTest:Test( "BuildMapChoices - Respect nominations", function( Assert )
@@ -371,12 +384,3 @@ UnitTest:Test( "BuildMapChoices - Deny nominations", function( Assert )
 	end
 	Assert:NotEquals( "ns2_eclipse", Choices[ 5 ] )
 end )
-
-MapVote.Config.MaxOptions = OldMaxOptions
-MapVote.Config.ExcludeLastMaps = OldExcludeLastMaps
-MapVote.LastMapData = OldLastMaps
-MapVote.Config.Maps = OldMaps
-MapVote.IsValidMapChoice = OldIsValidMapChoice
-MapVote.GetMapGroup = OldGetMapGroup
-MapVote.Vote.Nominated = {}
-MapVote.Config.ForcedMaps = OldForcedMaps

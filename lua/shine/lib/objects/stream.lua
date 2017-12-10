@@ -10,6 +10,7 @@ local TableConcat = table.concat
 local TableMergeSort = table.MergeSort
 local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
+local tostring = tostring
 
 local Stream = Shine.TypeDef()
 
@@ -28,6 +29,16 @@ Predicates = {
 	Not = function( Predicate )
 		return function( Entry )
 			return not Predicate( Entry )
+		end
+	end,
+	And = function( Left, Right )
+		return function( Value )
+			return Left( Value ) and Right( Value )
+		end
+	end,
+	Or = function( Left, Right )
+		return function( Value )
+			return Left( Value ) or Right( Value )
 		end
 	end
 }
@@ -152,6 +163,8 @@ end
 	on the string value returned by the transformation function.
 ]]
 function Stream:Concat( Separator, ToStringFunc )
+	ToStringFunc = ToStringFunc or tostring
+
 	local Values = {}
 
 	for i = 1, #self.Data do

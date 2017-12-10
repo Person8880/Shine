@@ -47,7 +47,7 @@ Plugin.EnabledGamemodes = {
 	[ "mvm" ] = true
 }
 
-Script.Load( Shine.GetModuleFile( "vote.lua" ), true )
+Shine.LoadPluginModule( "vote.lua" )
 
 function Plugin:Initialise()
 	local function ClampConfigOption( Option, Min, Max )

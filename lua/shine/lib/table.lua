@@ -280,8 +280,27 @@ function table.Average( Table )
 	return Sum / Count
 end
 
+--[[
+	Returns an array of all keys in the given table in an undefined order.
+]]
+local function GetKeys( Table )
+	local Keys = {}
+	local Count = 0
+
+	for Key in pairs( Table ) do
+		Count = Count + 1
+		Keys[ Count ] = Key
+	end
+
+	return Keys, Count
+end
+table.GetKeys = GetKeys
+
 do
+	local DebugGetInfo = debug.getinfo
+	local getmetatable = getmetatable
 	local Notify = Shared.Message
+	local StringFind = string.find
 	local StringFormat = string.format
 	local StringLower = string.lower
 	local StringRep = string.rep
@@ -290,25 +309,37 @@ do
 	local tostring = tostring
 	local type = type
 
-	local function ToPrintKey( Key )
+	local DefaultPrinters = {
+		string = function( Value )
+			if StringFind( Value, "\n", 1, true ) then
+				return StringFormat( "[==[%s]==]", Value )
+			end
+			return StringFormat( "%q", Value )
+		end,
+		[ "function" ] = function( Value )
+			local Source = DebugGetInfo( Value, "S" )
+			return StringFormat( "%s (%s:%d)", Value, Source.short_src, Source.linedefined )
+		end,
+		userdata = function( Value )
+			local Meta = getmetatable( Value )
+			if IsType( Meta, "table" ) and Meta.__towatch then
+				return tostring( Meta.__towatch( Value ) )
+			end
+
+			if Value.GetClassName then
+				return StringFormat( "%s (%s)", Value, Value:GetClassName() )
+			end
+
+			return tostring( Value )
+		end
+	}
+
+	local function ToPrintKey( Key, Printers )
 		local Type = type( Key )
-
-		if Type ~= "string" then
-			return StringFormat( "[ %s ]", tostring( Key ) )
-		end
-
-		if Type == "string" and tonumber( Key ) then
-			return StringFormat( "[ \"%s\" ]", Key )
-		end
-
-		return tostring( Key )
+		return StringFormat( "[ %s ]", ( Printers[ Type ] or tostring )( Key ) )
 	end
-	local function ToPrintString( Value )
-		if IsType( Value, "string" ) then
-			return StringFormat( "\"%s\"", Value )
-		end
-
-		return tostring( Value )
+	local function ToPrintString( Value, Printers )
+		return ( Printers[ type( Value ) ] or tostring )( Value )
 	end
 
 	local function KeySorter( A, B )
@@ -346,11 +377,7 @@ do
 
 		local IndentString = StringRep( "\t", Indent )
 
-		local Keys = {}
-		for Key in pairs( Table ) do
-			Keys[ #Keys + 1 ] = Key
-		end
-
+		local Keys = GetKeys( Table )
 		TableSort( Keys, KeySorter )
 
 		for i = 1, #Keys do
@@ -361,10 +388,10 @@ do
 				Done[ Value ] = true
 				local TableAsString = TableToString( Value, Indent + 1, Done )
 				Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
-					ToPrintKey( Key ), TableAsString )
+					ToPrintKey( Key, DefaultPrinters ), TableAsString )
 			else
 				Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
-					ToPrintKey( Key ), ToPrintString( Value ) )
+					ToPrintKey( Key, DefaultPrinters ), ToPrintString( Value, DefaultPrinters ) )
 			end
 		end
 
@@ -381,12 +408,32 @@ do
 		Notify( TableToString( Table ) )
 	end
 
-	function table.ToDebugString( Table )
-		local Strings = {}
+	local DebugPrinters = setmetatable( {
+		table = function( Value )
+			return StringFormat( "%s (%d array element(s), %s)", Value, #Value,
+				next( Value ) ~= nil and "not empty" or "empty" )
+		end,
+		string = function( Value )
+			if StringFind( Value, "\n", 1, true ) then
+				return StringFormat( "[==[%s]==]", Value )
+			end
+			return Value
+		end
+	}, { __index = DefaultPrinters } )
 
-		for Key, Value in pairs( Table ) do
-			Strings[ #Strings + 1 ] = StringFormat( "%s = %s", ToPrintKey( Key ),
-				ToPrintString( Value ) )
+	function table.ToDebugString( Table, Indent )
+		Indent = Indent or ""
+
+		local Strings = {}
+		local Keys = GetKeys( Table )
+		TableSort( Keys, KeySorter )
+
+		for i = 1, #Keys do
+			local Key = Keys[ i ]
+			local Value = Table[ Key ]
+			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", Indent,
+				ToPrintString( Key, DebugPrinters ),
+				ToPrintString( Value, DebugPrinters ) )
 		end
 
 		return TableConcat( Strings, "\n" )
@@ -450,22 +497,6 @@ function table.ShallowCopy( Table )
 end
 
 do
-	--[[
-		Returns an array of all keys in the given table in an undefined order.
-	]]
-	local function GetKeys( Table )
-		local Keys = {}
-		local Count = 0
-
-		for Key in pairs( Table ) do
-			Count = Count + 1
-			Keys[ Count ] = Key
-		end
-
-		return Keys, Count
-	end
-	table.GetKeys = GetKeys
-
 	--[[
 		Returns the number of keys in the table.
 	]]

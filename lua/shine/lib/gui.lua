@@ -586,9 +586,9 @@ end
 
 	Input: SGUI control object.
 ]]
-function SGUI:Destroy( Control, RemoveFromParent )
-	if RemoveFromParent then
-		Control:SetParent()
+function SGUI:Destroy( Control )
+	if Control.Parent then
+		Control:SetParent( nil )
 	end
 
 	self.ActiveControls:Remove( Control )
@@ -597,7 +597,7 @@ function SGUI:Destroy( Control, RemoveFromParent )
 		Control.Tooltip:Destroy()
 	end
 
-	--SGUI children, not GUIItems.
+	-- SGUI children, not GUIItems.
 	if Control.Children then
 		for Control in Control.Children:Iterate() do
 			Control:Destroy()
@@ -626,7 +626,7 @@ function SGUI:Destroy( Control, RemoveFromParent )
 		end
 	end
 
-	--If it's a window, then clean it up.
+	-- If it's a window, then clean it up.
 	if Control.IsAWindow then
 		local Windows = self.Windows
 

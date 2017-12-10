@@ -8,6 +8,7 @@
 local Shine = Shine
 
 local StringFormat = string.format
+local TableCopy = table.Copy
 local TableEmpty = table.Empty
 
 local Plugin = Plugin
@@ -16,15 +17,15 @@ Plugin.Version = "1.0"
 Plugin.HasConfig = true
 Plugin.ConfigName = "TournamentMode.json"
 Plugin.DefaultConfig = {
-	CountdownTime = 15, --How long should the game wait after team are ready to start?
-	ForceTeams = false, --Force teams to stay the same.
-	EveryoneReady = false --Should the plugin require every player to be ready?
+	CountdownTime = 15, -- How long should the game wait after team are ready to start?
+	ForceTeams = false, -- Force teams to stay the same.
+	EveryoneReady = false -- Should the plugin require every player to be ready?
 }
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
---Don't allow the pregame or readyroom plugins to load with us.
+-- Don't allow the pregame or readyroom plugins to load with us.
 Plugin.Conflicts = {
 	DisableThem = {
 		"pregame",
@@ -39,8 +40,8 @@ Plugin.EnabledGamemodes = {
 	[ "ns2" ] = true
 }
 
-function Plugin:StoreConfigSettings()
-	self.OriginalServerConfig = {
+function Plugin:GetServerConfigSettings()
+	return {
 		AutoBalance = Server.GetConfigSetting( "auto_team_balance" ),
 		EndOnTeamUnbalance = Server.GetConfigSetting( "end_round_on_team_unbalance" ),
 		ForceEvenTeamsOnJoin = Server.GetConfigSetting( "force_even_teams_on_join" )
@@ -53,6 +54,21 @@ function Plugin:RestoreConfigSettings()
 	Server.SetConfigSetting( "auto_team_balance", self.OriginalServerConfig.AutoBalance )
 	Server.SetConfigSetting( "end_round_on_team_unbalance", self.OriginalServerConfig.EndOnTeamUnbalance )
 	Server.SetConfigSetting( "force_even_teams_on_join", self.OriginalServerConfig.ForceEvenTeamsOnJoin )
+
+	self.OriginalServerConfig = nil
+end
+
+function Plugin:SetupServerConfig()
+	if self.OriginalServerConfig then return end
+
+	self.OriginalServerConfig = self:GetServerConfigSettings()
+
+	local AutoBalance = TableCopy( self.OriginalServerConfig.AutoBalance )
+	AutoBalance.enabled = false
+
+	Server.SetConfigSetting( "auto_team_balance", AutoBalance )
+	Server.SetConfigSetting( "end_round_on_team_unbalance", false )
+	Server.SetConfigSetting( "force_even_teams_on_join", false )
 end
 
 function Plugin:Initialise()
@@ -72,13 +88,9 @@ function Plugin:Initialise()
 	self.dt.AlienName = ""
 	self.dt.MarineName = ""
 
-	--We've been reactivated, we can disable autobalance here and now.
+	-- We've been reactivated, we can disable autobalance here and now.
 	if self.Enabled ~= nil then
-		self:StoreConfigSettings()
-
-		Server.SetConfigSetting( "auto_team_balance", false )
-		Server.SetConfigSetting( "end_round_on_team_unbalance", false )
-		Server.SetConfigSetting( "force_even_teams_on_join", false )
+		self:SetupServerConfig()
 	end
 
 	self:CreateCommands()
@@ -93,7 +105,7 @@ function Plugin:Notify( Positive, Player, Message, Format, ... )
 		"[TournamentMode]", 255, 255, 255, Message, Format, ... )
 end
 
---Never allow the map to auto-cycle.
+-- Never allow the map to auto-cycle.
 function Plugin:ShouldCycleMap()
 	return false
 end
@@ -101,7 +113,7 @@ end
 function Plugin:EndGame( Gamerules, WinningTeam )
 	TableEmpty( self.TeamMembers )
 
-	--Record the winner, and network it.
+	-- Record the winner, and network it.
 	if WinningTeam == Gamerules.team1 or WinningTeam == 1 then
 		self.TeamScores[ 1 ] = self.TeamScores[ 1 ] + 1
 
@@ -127,7 +139,7 @@ function Plugin:CheckGameStart( Gamerules )
 
 		local Time = Shared.GetTime()
 
-		--Have you started yet? No? Start pls.
+		-- Have you started yet? No? Start pls.
 		if NextStartNag < Time then
 			NextStartNag = Time + 30
 
@@ -215,15 +227,7 @@ end
 	Rejoin a reconnected client to their old team.
 ]]
 function Plugin:ClientConfirmConnect( Client )
-	if not self.DisabledAutobalance then
-		self:StoreConfigSettings()
-
-		Server.SetConfigSetting( "auto_team_balance", false )
-		Server.SetConfigSetting( "end_round_on_team_unbalance", false )
-		Server.SetConfigSetting( "force_even_teams_on_join", false )
-
-		self.DisabledAutobalance = true
-	end
+	self:SetupServerConfig()
 
 	if Client:GetIsVirtual() then return end
 
@@ -296,7 +300,7 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 end
 
 function Plugin:CheckStart()
-	--Both teams are ready, start the countdown.
+	-- Both teams are ready, start the countdown.
 	if self.ReadyStates[ 1 ] and self.ReadyStates[ 2 ] then
 		local CountdownTime = self.Config.CountdownTime
 		self:SendNetworkMessage( nil, "GameStartCountdown", {
@@ -304,7 +308,7 @@ function Plugin:CheckStart()
 			CountdownTime = CountdownTime
 		}, true )
 
-		--Game starts in 5 seconds!
+		-- Game starts in 5 seconds!
 		self:CreateTimer( self.FiveSecondTimer, CountdownTime - 5, 1, function()
 			self:SendNetworkMessage( nil, "GameStartCountdown", {
 				IsFinalCountdown = true,
@@ -312,7 +316,7 @@ function Plugin:CheckStart()
 			}, true )
 		end )
 
-		--If we get this far, then we can start.
+		-- If we get this far, then we can start.
 		self:CreateTimer( self.CountdownTimer, self.Config.CountdownTime, 1, function()
 			self:StartGame( GetGamerules() )
 		end )
@@ -320,7 +324,7 @@ function Plugin:CheckStart()
 		return
 	end
 
-	--One or both teams are not ready, halt the countdown.
+	-- One or both teams are not ready, halt the countdown.
 	if self:TimerExists( self.CountdownTimer ) then
 		self:DestroyTimer( self.FiveSecondTimer )
 		self:DestroyTimer( self.CountdownTimer )
@@ -433,7 +437,7 @@ function Plugin:CreateCommands()
 		if self.ReadyStates[ Team ] then
 			if NextReady > Time then return end
 
-			--Add a delay to prevent ready->unready spam.
+			-- Add a delay to prevent ready->unready spam.
 			self.NextReady[ Team ] = Time + 5
 			self:UnReadyTeam( Team, true )
 		else
@@ -497,7 +501,7 @@ function Plugin:CreateCommands()
 		if not self.ReadyStates[ Team ] then
 			if NextReady > Time then return end
 
-			--Add a delay to prevent ready->unready spam.
+			-- Add a delay to prevent ready->unready spam.
 			self.NextReady[ Team ] = Time + 5
 			self:ReadyTeam( Team )
 		else
@@ -547,7 +551,7 @@ function Plugin:Cleanup()
 	self:RestoreConfigSettings()
 end
 
---Restore config settings on map change, in case this plugin is disabled on the next map.
+-- Restore config settings on map change, in case this plugin is disabled on the next map.
 function Plugin:MapChange()
 	self:RestoreConfigSettings()
 end

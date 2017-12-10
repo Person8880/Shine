@@ -27,7 +27,7 @@
 	"WINNER_CYCLING": "{MapName} won the vote. Cycling map...",
 	"WINNER_CYCLING2": "Cycling map...",
 	"MAP_CYCLING": "The map will now cycle to {MapName}.",
-	"NO_VOTES": "No votes made. Map vote failed.",
+	"NOT_ENOUGH_VOTES": "Not enough votes made. Map vote failed.",
 	"WINNER_VOTES": "{MapName} won the vote with {Votes}/{TotalVotes} votes.",
 	"VOTES_TIED_FAILURE": "Votes were tied. Map vote failed.",
 	"VOTES_TIED_REVOTE": "Votes were tied, map vote failed. Beginning revote.",

@@ -154,11 +154,135 @@ function Shine.TypeCheckConfig( Name, Config, DefaultConfig, Recursive )
 end
 
 do
+	local Clamp = math.Clamp
+	local StringExplode = string.Explode
+	local StringUpper = string.upper
+	local TableBuild = table.Build
+	local TableRemove = table.remove
+	local tonumber = tonumber
+	local unpack = unpack
+
 	local Validator = {}
 	Validator.__index = Validator
 
+	function Validator.Constant( Value )
+		return function() return Value end
+	end
+
+	function Validator.Min( MinValue )
+		return function( Value )
+			return ( tonumber( Value ) or 0 ) < MinValue
+		end,
+		Validator.Constant( MinValue ),
+		function()
+			return StringFormat( "%%s must be at least %s", MinValue )
+		end
+	end
+	function Validator.Clamp( Min, Max )
+		return function( Value )
+			return Clamp( Value, Min, Max ) ~= Value
+		end,
+		function( Value )
+			return Clamp( Value, Min, Max )
+		end,
+		function()
+			return StringFormat( "%%s must be between %s and %s", Min, Max )
+		end
+	end
+
+	function Validator.InEnum( PossibleValues, DefaultValue )
+		return function( Value )
+			return not IsType( Value, "string" ) or PossibleValues[ StringUpper( Value ) ] == nil, StringUpper( Value )
+		end,
+		Validator.Constant( DefaultValue ),
+		function()
+			return StringFormat( "%%s must be one of [%s]", Shine.Stream( PossibleValues ):Concat( ", " ) )
+		end
+	end
+
+	function Validator.Each( Predicate, FixFunc, MessageFunc )
+		return function( Value )
+			local Passes = true
+			for i = 1, #Value do
+				local NeedsFix, CanonicalValue = Predicate( Value[ i ] )
+				if NeedsFix then
+					Passes = false
+				elseif CanonicalValue ~= nil then
+					Value[ i ] = CanonicalValue
+				end
+			end
+			return not Passes
+		end,
+		function( Value )
+			for i = #Value, 1, -1 do
+				if Predicate( Value[ i ] ) then
+					local Fixed = FixFunc( Value[ i ] )
+					if Fixed ~= nil then
+						Value[ i ] = Fixed
+					else
+						TableRemove( Value, i )
+					end
+				end
+			end
+			return Value
+		end,
+		MessageFunc
+	end
+
+	function Validator.IsType( Type, DefaultValue )
+		return function( Value )
+			return not IsType( Value, Type )
+		end,
+		Validator.Constant( DefaultValue )
+	end
+
 	function Validator:AddRule( Rule )
 		self.Rules[ #self.Rules + 1 ] = Rule
+	end
+
+	local function SetField( Root, Path, Value )
+		local Table = TableBuild( Root, unpack( Path, 1, #Path - 1 ) )
+		Table[ Path[ #Path ] ] = Value
+	end
+
+	function Validator:AddFieldRule( Field, CheckPredicate, FixFunction, MessageSupplier )
+		self:AddRule( {
+			Matches = function( self, Config )
+				local Path = StringExplode( Field, "%." )
+				local Value = Config
+				for i = 1, #Path do
+					Value = Value[ Path[ i ] ]
+					if Value == nil then break end
+				end
+
+				local NeedsFix, CanonicalValue = CheckPredicate( Value )
+				if NeedsFix then
+					if MessageSupplier then
+						Print( MessageSupplier(), Field )
+					end
+
+					SetField( Config, Path, FixFunction( Value ) )
+					return true
+				end
+
+				if CanonicalValue ~= nil then
+					SetField( Config, Path, CanonicalValue )
+				end
+
+				return false
+			end
+		} )
+	end
+	function Validator:AddFieldRules( Fields, CheckPredicate, FixFunction, MessageSupplier )
+		for i = 1, #Fields do
+			self:AddFieldRule( Fields[ i ], CheckPredicate, FixFunction, MessageSupplier )
+		end
+	end
+
+	function Validator:Add( OtherValidator )
+		for i = 1, #OtherValidator.Rules do
+			self:AddRule( OtherValidator.Rules[ i ] )
+		end
 	end
 
 	function Validator:Validate( Config )

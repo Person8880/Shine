@@ -54,19 +54,43 @@ function Plugin:NetworkUpdate( Key, Old, New )
 
 	--Using team1 or team2 resets the other team's name...
 	if Key == "MarineName" and New ~= "" then
-		Shared.ConsoleCommand( StringFormat( "teams \"%s\" \"%s\"", New, self.dt.AlienName ) )
+		self:SetTeamNames( New, self.dt.AlienName )
 	elseif Key == "AlienName" and New ~= "" then
-		Shared.ConsoleCommand( StringFormat( "teams \"%s\" \"%s\"", self.dt.MarineName, New ) )
+		self:SetTeamNames( self.dt.MarineName, New )
 	elseif Key == "MarineScore" then
-		Shared.ConsoleCommand( StringFormat( "score1 %i", New ) )
+		self:SetMarineScore( New )
 	elseif Key == "AlienScore" then
-		Shared.ConsoleCommand( StringFormat( "score2 %i", New ) )
+		self:SetAlienScore( New )
 	end
 end
 
 Shine:RegisterExtension( "tournamentmode", Plugin )
 
 if Server then return end
+
+function Plugin:SetTeamNames( MarineName, AlienName )
+	if MarineName == "" and AlienName == "" then return end
+
+	Shared.ConsoleCommand( StringFormat( "teams \"%s\" \"%s\"", MarineName, AlienName ) )
+end
+
+function Plugin:SetMarineScore( Score )
+	Shared.ConsoleCommand( StringFormat( "score1 %d", Score ) )
+end
+
+function Plugin:SetAlienScore( Score )
+	Shared.ConsoleCommand( StringFormat( "score2 %d", Score ) )
+end
+
+function Plugin:Initialise()
+	self:SetTeamNames( self.dt.MarineName, self.dt.AlienName )
+	self:SetMarineScore( self.dt.MarineScore )
+	self:SetAlienScore( self.dt.AlienScore )
+
+	self.Enabled = true
+
+	return true
+end
 
 function Plugin:GetTeamName( Team )
 	if Team == 1 then

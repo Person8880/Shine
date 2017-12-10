@@ -123,14 +123,26 @@ function PluginMeta:CanRunAction( Action, Time, Delay )
 	return true
 end
 
---[[
-	Wraps a callback so that it is only executed if the plugin is still enabled.
-]]
-function PluginMeta:WrapCallback( Callback )
-	return function( ... )
-		if not self.Enabled then return end
+do
+	local ErrorHandler = Shine.BuildErrorHandler( "Plugin callback error" )
+	local xpcall = xpcall
 
-		return Callback( ... )
+	local function UnwrapResults( Success, ... )
+		if not Success then
+			return nil
+		end
+		return ...
+	end
+
+	--[[
+		Wraps a callback so that it is only executed if the plugin is still enabled.
+	]]
+	function PluginMeta:WrapCallback( Callback )
+		return function( ... )
+			if not self.Enabled then return end
+
+			return UnwrapResults( xpcall( Callback, ErrorHandler, ... ) )
+		end
 	end
 end
 

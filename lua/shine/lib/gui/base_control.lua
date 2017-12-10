@@ -136,15 +136,18 @@ function ControlMeta:SetParent( Control, Element )
 
 	if self.Parent then
 		self.Parent.Children:Remove( self )
-		self.ParentElement:RemoveChild( self.Background )
+		if self.ParentElement and self.Background then
+			self.ParentElement:RemoveChild( self.Background )
+		end
 	end
 
 	if not Control then
 		self.Parent = nil
+		self.ParentElement = nil
 		return
 	end
 
-	--Parent to a specific part of a control.
+	-- Parent to a specific part of a control.
 	if Element then
 		self.Parent = Control
 		self.ParentElement = Element
@@ -637,6 +640,8 @@ do
 		return Vector2( Value.x, Value.y )
 	end
 
+	local Max = math.max
+
 	function ControlMeta:EaseValue( Element, Start, End, Delay, Duration, Callback, EasingHandlers )
 		self.EasingProcesses = self.EasingProcesses or Map()
 
@@ -664,7 +669,7 @@ do
 
 		EasingData.StartTime = Clock() + Delay
 		EasingData.Duration = Duration
-		EasingData.Elapsed = 0
+		EasingData.Elapsed = Max( -Delay, 0 )
 
 		EasingData.Callback = Callback
 
@@ -765,6 +770,15 @@ local Easers = {
 	}
 }
 Easers.Size.Easer = Easers.Move.Easer
+
+function ControlMeta:GetEasing( Type, Element )
+	if not self.EasingProcesses then return end
+
+	local Easers = self.EasingProcesses:Get( Easers[ Type ] )
+	if not Easers then return end
+
+	return Easers:Get( Element or self )
+end
 
 function ControlMeta:StopEasing( Element, EasingHandler )
 	if not self.EasingProcesses then return end

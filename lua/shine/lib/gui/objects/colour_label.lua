@@ -43,10 +43,15 @@ function ColourLabel:AlphaTo( ... )
 end
 
 function ColourLabel:SetText( TextContent )
+	local Easing
 	if #self.Labels > 0 then
 		for i = 1, #self.Labels do
 			local Label = self.Labels[ i ]
-			Label:Destroy( true )
+			local LabelAlphaEase = Label:GetEasing( "Alpha" )
+			if LabelAlphaEase and not Easing then
+				Easing = LabelAlphaEase
+			end
+			Label:Destroy()
 
 			self.Layout.Elements[ i ] = nil
 			self.Labels[ i ] = nil
@@ -66,6 +71,11 @@ function ColourLabel:SetText( TextContent )
 
 		Count = Count + 1
 		self.Labels[ Count ] = Label
+	end
+
+	if Easing and Easing.Elapsed < Easing.Duration then
+		self:AlphaTo( nil, Easing.Start, Easing.End, -Easing.Elapsed, Easing.Duration, Easing.Callback,
+			Easing.EaseFunc, Easing.Power )
 	end
 end
 
