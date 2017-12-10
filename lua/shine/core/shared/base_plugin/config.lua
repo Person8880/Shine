@@ -127,6 +127,9 @@ function ConfigModule:LoadConfig()
 			return self.CheckConfigTypes and self:TypeCheckConfig( Config )
 		end
 	} )
+	if self.ConfigValidator then
+		Validator:Add( self.ConfigValidator )
+	end
 
 	if Validator:Validate( self.Config ) then
 		self:SaveConfig()

@@ -363,8 +363,8 @@ function BalanceModule:SortByScore( Gamerules, Targets, TeamMembers, Silent, Ran
 end
 
 BalanceModule.ShufflingModes = {
-	--Random only.
-	function( self, Gamerules, Targets, TeamMembers, Silent )
+	-- Random only.
+	[ Plugin.ShuffleMode.RANDOM ] = function( self, Gamerules, Targets, TeamMembers, Silent )
 		self:AddPlayersRandomly( Targets, #Targets, TeamMembers )
 
 		self.Logger:Debug( "After AddPlayersRandomly:" )
@@ -376,8 +376,8 @@ BalanceModule.ShufflingModes = {
 			self:Print( "Teams were sorted randomly." )
 		end
 	end,
-	--Score based if available, random if not.
-	function( self, Gamerules, Targets, TeamMembers, Silent )
+	-- Score based if available, random if not.
+	[ Plugin.ShuffleMode.SCORE ] = function( self, Gamerules, Targets, TeamMembers, Silent )
 		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetScore )
 
 		if not Silent then
@@ -385,12 +385,8 @@ BalanceModule.ShufflingModes = {
 		end
 	end,
 
-	function( self, Gamerules, Targets, TeamMembers )
-		-- Was NS2Stats Elo, now does nothing.
-	end,
-
-	--KDR based works identically to score, the score data is what is different.
-	function( self, Gamerules, Targets, TeamMembers, Silent )
+	-- KDR based works identically to score, the score data is what is different.
+	[ Plugin.ShuffleMode.KDR ] = function( self, Gamerules, Targets, TeamMembers, Silent )
 		self:SortByScore( Gamerules, Targets, TeamMembers, Silent, self.SkillGetters.GetKDR )
 
 		if not Silent then
@@ -398,8 +394,8 @@ BalanceModule.ShufflingModes = {
 		end
 	end,
 
-	--Hive data based. Relies on UWE's ranking data to be correct for it to work.
-	function( self, Gamerules, Targets, TeamMembers )
+	-- Hive data based. Relies on UWE's ranking data to be correct for it to work.
+	[ Plugin.ShuffleMode.HIVE ] = function( self, Gamerules, Targets, TeamMembers )
 		local SortTable = {}
 		local Count = 0
 		local Sorted = {}
