@@ -980,6 +980,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 	-- On receiving the results, add labels beneath the chatbox showing the completed command(s).
 	Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
 		if not self.Visible then return end
+		if not self:ShouldAutoComplete( self.TextEntry:GetText() ) then return end
 
 		self.AutoCompleteResults = Results
 
@@ -1070,16 +1071,19 @@ function Plugin:DestroyAutoCompletePanel()
 	self.CurrentResult = nil
 end
 
+function Plugin:ShouldAutoComplete( Text )
+	return StringFind( Text, "^[!/]" ) and StringLen( Text ) > 1
+end
+
 function Plugin:AutoCompleteCommand( Text )
 	-- Only auto-complete when the text starts with ! or /, and there's a command being typed.
-	if not StringFind( Text, "^[!/]" ) or StringLen( Text ) <= 1 then
+	if not self:ShouldAutoComplete( Text ) then
 		self:DestroyAutoCompletePanel()
-
 		return
 	end
 
 	-- Keep debouncing the timer until the user stops typing to avoid spamming completion requests.
-	self.AutoCompleteTimer = self.AutoCompleteTimer or self:SimpleTimer( 0.3, function()
+	self.AutoCompleteTimer = self.AutoCompleteTimer or self:SimpleTimer( 0.15, function()
 		self.AutoCompleteTimer = nil
 		self:SubmitAutoCompleteRequest( self.TextEntry:GetText() )
 	end )
