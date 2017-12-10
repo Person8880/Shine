@@ -1007,7 +1007,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 					Label:AlphaTo( nil, nil, 0, 0, 0.3, function()
 						if not Label then return end
 
-						Label:Destroy( true )
+						Label:Destroy()
 						Label = nil
 						Elements[ i ] = nil
 					end )
@@ -1061,7 +1061,7 @@ function Plugin:DestroyAutoCompletePanel()
 	end
 
 	if SGUI.IsValid( self.AutoCompletePanel ) then
-		self.AutoCompletePanel:Destroy( true )
+		self.AutoCompletePanel:Destroy()
 	end
 
 	self.AutoCompletePanel = nil

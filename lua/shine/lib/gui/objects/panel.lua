@@ -186,7 +186,7 @@ function Panel:SetSize( Size )
 	self.Stencil:SetSize( Size )
 
 	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:Destroy( true )
+		self.Scrollbar:Destroy()
 		self.Scrollbar = nil
 
 		if Size.y < self.MaxHeight then
@@ -226,7 +226,7 @@ function Panel:Clear()
 	if self.Children then
 		for Element in self.Children:Iterate() do
 			if Element ~= self.Scrollbar then
-				Element:Destroy( true )
+				Element:Destroy()
 			end
 		end
 	end
@@ -256,7 +256,7 @@ function Panel:SetShowScrollbar( Show )
 	self.ShowScrollbar = Show
 
 	if SGUI.IsValid( self.Scrollbar ) and not Show then
-		self.Scrollbar:Destroy( true )
+		self.Scrollbar:Destroy()
 
 		self.Scrollbar = nil
 	end
@@ -282,7 +282,7 @@ function Panel:SetMaxHeight( Height, ForceInstantScroll )
 	-- Height has reduced below the max height, so remove the scrollbar.
 	if MaxHeight >= Height then
 		if SGUI.IsValid( self.Scrollbar ) then
-			self.Scrollbar:Destroy( true )
+			self.Scrollbar:Destroy()
 			self.Scrollbar = nil
 
 			if self.ScrollParentPos then

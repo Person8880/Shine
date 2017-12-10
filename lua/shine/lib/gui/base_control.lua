@@ -136,15 +136,18 @@ function ControlMeta:SetParent( Control, Element )
 
 	if self.Parent then
 		self.Parent.Children:Remove( self )
-		self.ParentElement:RemoveChild( self.Background )
+		if self.ParentElement and self.Background then
+			self.ParentElement:RemoveChild( self.Background )
+		end
 	end
 
 	if not Control then
 		self.Parent = nil
+		self.ParentElement = nil
 		return
 	end
 
-	--Parent to a specific part of a control.
+	-- Parent to a specific part of a control.
 	if Element then
 		self.Parent = Control
 		self.ParentElement = Element

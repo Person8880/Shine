@@ -77,7 +77,7 @@ function ChatLine:RemoveTags()
 	if not Tags then return end
 
 	for i = 1, #Tags do
-		Tags[ i ]:Destroy( true )
+		Tags[ i ]:Destroy()
 	end
 
 	self.Tags = nil
@@ -112,7 +112,7 @@ do
 				Tags[ i ] = Tags[ i ] or SGUI:Create( "Label", self.Parent )
 				self:SetupTag( Tags[ i ], TagData[ i ] )
 			elseif Tags[ i ] then
-				Tags[ i ]:Destroy( true )
+				Tags[ i ]:Destroy()
 				Tags[ i ] = nil
 			end
 		end
@@ -236,7 +236,7 @@ end
 function ChatLine:RemoveWrappedLine()
 	if not self.WrappedLabel then return end
 
-	self.WrappedLabel:Destroy( true )
+	self.WrappedLabel:Destroy()
 	self.WrappedLabel = nil
 end
 

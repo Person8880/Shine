@@ -51,7 +51,7 @@ function ColourLabel:SetText( TextContent )
 			if LabelAlphaEase and not Easing then
 				Easing = LabelAlphaEase
 			end
-			Label:Destroy( true )
+			Label:Destroy()
 
 			self.Layout.Elements[ i ] = nil
 			self.Labels[ i ] = nil

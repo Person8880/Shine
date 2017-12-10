@@ -201,7 +201,7 @@ function TabPanel:RemoveTab( Index )
 	if not Tabs[ Index ] then return end
 
 	local TabButton = Tabs[ Index ].TabButton
-	TabButton:Destroy( true )
+	TabButton:Destroy()
 
 	TableRemove( Tabs, Index )
 
