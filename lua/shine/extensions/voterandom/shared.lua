@@ -62,13 +62,66 @@ function Plugin:SetupDataTable()
 			"ERROR_TEAMS_FORCED", "ERROR_ALREADY_VOTED"
 		}
 	}, "ShuffleType" )
+
+	self:AddNetworkMessage( "TeamPreference", { PreferredTeam = "integer" }, "Server" )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )
 
 if Server then return end
 
+Plugin.TeamType = table.AsEnum{
+	"MARINE", "ALIEN", "NONE"
+}
+Plugin.HasConfig = true
+Plugin.ConfigName = "VoteShuffle.json"
+Plugin.DefaultConfig = {
+	PreferredTeam = Plugin.TeamType.NONE
+}
+Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
+
 local StringFormat = string.format
+local StringUpper = string.upper
+
+do
+	local Validator = Shine.Validator()
+	Validator:AddFieldRule( "PreferredTeam", Validator.InEnum( Plugin.TeamType, Plugin.TeamType.NONE ) )
+	Plugin.ConfigValidator = Validator
+end
+
+function Plugin:SetupClientConfig()
+	Shine.AddStartupMessage( "You can choose a preferred team for shuffling by entering sh_shuffle_teampref <team> into the console." )
+
+	local function SendTeamPreference( PreferredTeam )
+		self:SendNetworkMessage( "TeamPreference", { PreferredTeam = PreferredTeam }, true )
+	end
+
+	do
+		local PreferredTeam = self.Config.PreferredTeam
+		for i = 1, #Plugin.TeamType do
+			if PreferredTeam == Plugin.TeamType[ i ] then
+				PreferredTeam = i
+				break
+			end
+		end
+
+		SendTeamPreference( PreferredTeam )
+	end
+
+	self:BindCommand( "sh_shuffle_teampref", function( PreferredTeam )
+		self.Config.PreferredTeam = self.TeamType[ PreferredTeam ] or self.TeamType.NONE
+		self:SaveConfig( true )
+		SendTeamPreference( PreferredTeam )
+
+		local ResetHint = ""
+		if self.Config.PreferredTeam ~= self.TeamType.NONE then
+			ResetHint = " Enter this command again with no arguments to reset your preference."
+		end
+
+		Print( "Team preference saved as: %s.%s", self.Config.PreferredTeam, ResetHint )
+	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
+end
 
 function Plugin:UpdateShuffleButton()
 	local ShuffleButton = Shine.VoteMenu:GetButtonByPlugin( "Shuffle" )
@@ -157,6 +210,8 @@ function Plugin:Initialise()
 			end
 		end
 	end )
+
+	self:SetupClientConfig()
 
 	self.Enabled = true
 

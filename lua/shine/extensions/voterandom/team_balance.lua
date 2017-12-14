@@ -10,10 +10,12 @@ local Plugin = Plugin
 local Abs = math.abs
 local Ceil = math.ceil
 local GetOwner = Server.GetOwner
+local IsType = Shine.IsType
 local Max = math.max
 local next = next
 local Random = math.random
 local TableMixin = table.Mixin
+local TableRemove = table.remove
 local TableSort = table.sort
 
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
@@ -146,6 +148,56 @@ BalanceModule.SkillGetters = {
 	end
 }
 
+BalanceModule.HappinessHistoryFile = "config://shine/temp/shuffle_happiness.json"
+BalanceModule.MaxHappinessHistoryRounds = 5
+
+function BalanceModule:Initialise()
+	self.HappinessHistory = self:LoadHappinessHistory()
+end
+
+function BalanceModule:LoadHappinessHistory()
+	return Shine.LoadJSONFile( self.HappinessHistoryFile ) or {}
+end
+
+function BalanceModule:SaveHappinessHistory()
+	Shine.SaveJSONFile( self.HappinessHistory, self.HappinessHistoryFile )
+end
+
+function BalanceModule:EndGame( Gamerules, WinningTeam, Players )
+	if not self.HasShuffledThisRound then return end
+
+	local LastTeamLookup = self.LastShuffleTeamLookup
+	local LastPreferences = self.LastShufflePreferences
+	if not LastPreferences then return end
+
+	local RoundData = {}
+
+	for i = 1, #Players do
+		local Player = Players[ i ]
+		local Client = Player:GetClient()
+		if Client then
+			local SteamID = Client:GetUserId()
+			local ShuffledTeam = LastTeamLookup[ SteamID ]
+			local Preference = LastPreferences[ SteamID ]
+			local EndOfRoundTeam = Player:GetTeamNumber()
+
+			if ShuffledTeam == EndOfRoundTeam and IsType( Preference, "number" ) then
+				-- Remember this player's preference vs the team they ended up on.
+				RoundData[ tostring( SteamID ) ] = Preference == EndOfRoundTeam
+				self.Logger:Debug( "%s was on team %d vs being shuffled to %d and having a preference of %d",
+					SteamID, EndOfRoundTeam, ShuffledTeam, Preference )
+			end
+		end
+	end
+
+	self.HappinessHistory[ #self.HappinessHistory + 1 ] = RoundData
+	while #self.HappinessHistory > self.MaxHappinessHistoryRounds do
+		TableRemove( self.HappinessHistory, 1 )
+	end
+
+	self:SaveHappinessHistory()
+end
+
 function BalanceModule:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills, RankFunc )
 	local Add = Random() >= 0.5 and 1 or 0
 	local Team = 1 + Add
@@ -213,6 +265,42 @@ local function DebugLogTeamMembers( Logger, self, TeamMembers )
 	Logger:Debug( "Assigned team members:\n%s", table.ToString( TeamMemberOutput ) )
 end
 
+function BalanceModule:GetHistoricHappinessWeight( Player )
+	local RoundHistory = self.HappinessHistory
+	local Client = Player:GetClient()
+	if not Client then return 1 end
+
+	local Weight = 1
+	local SteamID = tostring( Client:GetUserId() )
+	for i = 1, #RoundHistory do
+		local Round = RoundHistory[ i ]
+		local WasHappy = Round[ SteamID ]
+		if WasHappy ~= nil then
+			-- For every round they got the team they wanted, halve their weighting.
+			-- For every round they did not get the team they wanted, double their weighting.
+			-- This means that players that consistently get what they want will be less able to offset
+			-- unhappy players, and those that consistently do not get what they want will quickly grow
+			-- to have a far larger weighting than anyone else.
+			Weight = Weight * ( WasHappy and 0.5 or 2 )
+			self.Logger:Trace( "%s was %s in round %d, making their weight %s",
+				SteamID, WasHappy and "happy" or "not happy", i, Weight )
+		end
+	end
+
+	return Weight
+end
+
+function BalanceModule:GetWeightedHappiness( Player, TeamPreference, TeamAssigned )
+	if not IsType( TeamPreference, "number" ) then return 0 end
+
+	local HistoricWeighting = self:GetHistoricHappinessWeight( Player )
+	if TeamPreference == TeamAssigned then
+		return HistoricWeighting
+	end
+
+	return -HistoricWeighting
+end
+
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
@@ -237,6 +325,65 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	self.Logger:Debug( "After optimisation:" )
 	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
+
+	if not self.Config.UseTeamSkills then
+		-- Can only apply this optimisation if we are using a single skill value.
+		-- If a player has a different skill depending on which team they are on,
+		-- swapping will have dire consequences.
+		self:OptimiseHappiness( TeamMembers )
+
+		self.Logger:Debug( "After happiness optimisation:" )
+		self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
+	else
+		self.LastShufflePreferences = nil
+	end
+end
+
+--[[
+	This method attempts to satisfy player team preference by judging how many people
+	have the team they want vs. how many do not.
+
+	For each player, a weighting is applied to their happiness based on how many times
+	in recent history they have been on the team they prefer. Those that have been on the
+	team they want often have a lower weight, and vice-versa.
+]]
+function BalanceModule:OptimiseHappiness( TeamMembers )
+	local TotalHappiness = 0
+	local Preferences = TeamMembers.TeamPreferences
+
+	-- Collect the total happiness of the server population.
+	-- A player who is on the team they do not want has a happiness of -1 * historic happiness factor.
+	-- A player who is on the team they do want has a happiness of 1 * historic happiness factor.
+	-- The sum produces an overall idea of how happy everyone is.
+	local PreferenceLookup = {}
+	for i = 1, 2 do
+		local Team = TeamMembers[ i ]
+		for j = 1, #Team do
+			local Player = Team[ j ]
+			local Preference = Preferences[ Player ]
+			local Client = Player:GetClient()
+			if Client then
+				PreferenceLookup[ Client:GetUserId() ] = Preference
+			end
+
+			local PlayerHappiness = self:GetWeightedHappiness( Player, Preference, i )
+			TotalHappiness = TotalHappiness + PlayerHappiness
+			self.Logger:Trace( "Player %s has happiness %s", Client and Client:GetUserId() or Player, PlayerHappiness )
+		end
+	end
+
+	self.Logger:Debug( "Total happiness of server population is: %s", TotalHappiness )
+
+	self.LastShufflePreferences = PreferenceLookup
+
+	-- If there are more weighted unhappy players than happy, swap the teams around entirely.
+	-- This will put all the people who are not happy with their team onto the team they want, and vice-versa.
+	if TotalHappiness < 0 then
+		self.Logger:Debug( "Swapping teams due to happiness..." )
+		TeamMembers[ 1 ], TeamMembers[ 2 ] = TeamMembers[ 2 ], TeamMembers[ 1 ]
+	end
+
+	return TotalHappiness
 end
 
 function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )

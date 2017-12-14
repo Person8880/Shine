@@ -107,7 +107,146 @@ UnitTest:Test( "AddPlayersRandomly", function( Assert )
 	Assert:Equals( 3, #TeamMembers[ 2 ] )
 end )
 
+local function FakePlayer( SteamID, TeamNumber )
+	return {
+		GetClient = function()
+			return {
+				GetUserId = function() return SteamID end
+			}
+		end,
+		GetTeamNumber = function() return TeamNumber end
+	}
+end
+
+VoteShuffle.HappinessHistory = {}
+VoteShuffle.SaveHappinessHistory = function() end
+VoteShuffle.HasShuffledThisRound = false
+local BalanceModule = VoteShuffle.Modules[ #VoteShuffle.Modules - 3 ]
+
+UnitTest:Test( "BalanceModule:EndGame - Does nothing if not shuffled", function( Assert )
+	BalanceModule.EndGame( VoteShuffle, nil, nil, { FakePlayer( 1 ) } )
+	Assert:Equals( 0, #VoteShuffle.HappinessHistory )
+end )
+
+VoteShuffle.HasShuffledThisRound = true
+VoteShuffle.LastShufflePreferences = nil
+
+UnitTest:Test( "BalanceModule:EndGame - Does nothing if no preference stored", function( Assert )
+	BalanceModule.EndGame( VoteShuffle, nil, nil, { FakePlayer( 1 ) } )
+	Assert:Equals( 0, #VoteShuffle.HappinessHistory )
+end )
+
+VoteShuffle.LastShufflePreferences = {
+	[ 1 ] = 1,
+	[ 2 ] = 2
+}
+VoteShuffle.LastShuffleTeamLookup = {
+	[ 1 ] = 1,
+	[ 2 ] = 1,
+	[ 3 ] = 2
+}
+UnitTest:Test( "BalanceModule:EndGame - Remembers team preferences", function( Assert )
+	BalanceModule.EndGame( VoteShuffle, nil, nil, { FakePlayer( 1, 1 ), FakePlayer( 2, 1 ), FakePlayer( 3, 2 ) } )
+	-- Should store the round.
+	Assert:Equals( 1, #VoteShuffle.HappinessHistory )
+	-- Should remember that player 1 was on the team they wanted, while player 2 was not.
+	-- Player 3 has no preference so they should not be stored.
+	Assert:TableEquals( {
+		[ "1" ] = true,
+		[ "2" ] = false
+	}, VoteShuffle.HappinessHistory[ 1 ] )
+end )
+
+VoteShuffle.HappinessHistory = {
+	{
+		[ "1" ] = true,
+		[ "2" ] = false
+	},
+	{
+		[ "1" ] = true,
+		[ "2" ] = false,
+		[ "3" ] = true
+	},
+	{
+		[ "3" ] = false
+	}
+}
+
+UnitTest:Test( "GetHistoricHappinessWeight", function( Assert )
+	-- Two rounds, both on the preferred team, so should be a low weight.
+	Assert:Equals( 0.25, VoteShuffle:GetHistoricHappinessWeight( FakePlayer( 1 ) ) )
+	-- Two rounds, both on the non-preferred team, so should be a high weight.
+	Assert:Equals( 4, VoteShuffle:GetHistoricHappinessWeight( FakePlayer( 2 ) ) )
+	-- Two rounds, one on the preferred team and the other not, so should be weight 1.
+	Assert:Equals( 1, VoteShuffle:GetHistoricHappinessWeight( FakePlayer( 3 ) ) )
+end )
+
+VoteShuffle.GetHistoricHappinessWeight = function( self, Player )
+	return 1
+end
+
+UnitTest:Test( "OptimiseHappiness - More unhappiness swaps teams", function( Assert )
+	local TeamMembers = {
+		{ FakePlayer( 1 ), FakePlayer( 2 ) },
+		{ FakePlayer( 3 ), FakePlayer( 4 ) },
+	}
+	local Team1 = TeamMembers[ 1 ]
+	local Team2 = TeamMembers[ 2 ]
+	TeamMembers.TeamPreferences = {
+		-- Player 1 is unhappy
+		[ Team1[ 1 ] ] = 2,
+		-- Player 2 is happy
+		[ Team1[ 2 ] ] = 1,
+		-- Player 3 is unhappy
+		[ Team2[ 1 ] ] = 1
+		-- Player 4 is neutral
+	}
+
+	Assert:Equals( -1, VoteShuffle:OptimiseHappiness( TeamMembers ) )
+	Assert:Equals( Team2, TeamMembers[ 1 ] )
+	Assert:Equals( Team1, TeamMembers[ 2 ] )
+	Assert:TableEquals( {
+		[ 1 ] = 2,
+		[ 2 ] = 1,
+		[ 3 ] = 1
+	}, VoteShuffle.LastShufflePreferences )
+end )
+
+UnitTest:Test( "OptimiseHappiness - Less unhappiness does nothing", function( Assert )
+	local TeamMembers = {
+		{ FakePlayer( 1 ), FakePlayer( 2 ) },
+		{ FakePlayer( 3 ), FakePlayer( 4 ) },
+	}
+	local Team1 = TeamMembers[ 1 ]
+	local Team2 = TeamMembers[ 2 ]
+	TeamMembers.TeamPreferences = {
+		-- Player 1 is happy
+		[ Team1[ 1 ] ] = 1,
+		-- Player 2 is happy
+		[ Team1[ 2 ] ] = 1,
+		-- Player 3 is unhappy
+		[ Team2[ 1 ] ] = 1
+		-- Player 4 is neutral
+	}
+
+	Assert:Equals( 1, VoteShuffle:OptimiseHappiness( TeamMembers ) )
+	Assert:Equals( Team1, TeamMembers[ 1 ] )
+	Assert:Equals( Team2, TeamMembers[ 2 ] )
+	Assert:TableEquals( {
+		[ 1 ] = 1,
+		[ 2 ] = 1,
+		[ 3 ] = 1
+	}, VoteShuffle.LastShufflePreferences )
+end )
+
+VoteShuffle.SaveHappinessHistory = BalanceModule.SaveHappinessHistory
+VoteShuffle.GetHistoricHappinessWeight = BalanceModule.GetHistoricHappinessWeight
+
 ----- Integration tests for team optimisation -----
+
+-- Turn off happiness optimisation for integration tests.
+VoteShuffle.OptimiseHappiness = function() end
+
 UnitTest:Test( "OptimiseTeams", function( Assert )
 	local Skills = {
 		2000, 2000, 1000,
@@ -353,3 +492,5 @@ UnitTest:Test( "OptimiseTeams with commanders", function( Assert )
 	Assert:ArrayEquals( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
 	Assert:ArrayEquals( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
 end, nil, 5 )
+
+VoteShuffle.OptimiseHappiness = BalanceModule.OptimiseHappiness

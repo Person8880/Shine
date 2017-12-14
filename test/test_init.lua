@@ -143,6 +143,18 @@ UnitTest.Assert = {
 	Equals = function( A, B ) return A == B end,
 	NotEquals = function( A, B ) return A ~= B end,
 
+	TableEquals = function( A, B )
+		for Key, Value in pairs( A ) do
+			if Value ~= B[ Key ] then return false end
+		end
+
+		for Key, Value in pairs( B ) do
+			if Value ~= A[ Key ] then return false end
+		end
+
+		return true
+	end,
+
 	True = function( A ) return A == true end,
 	Truthy = function( A ) return A end,
 	False = function( A ) return A == false end,

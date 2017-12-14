@@ -430,10 +430,25 @@ function Plugin:Initialise()
 		self.EnforcementPolicy = NoOpEnforcement()
 	end
 
+	self.TeamPreferences = {}
+
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:ReceiveTeamPreference( Client, Data )
+	local Preference = Data.PreferredTeam
+	if Shine.IsPlayingTeam( Preference ) then
+		self.TeamPreferences[ Client ] = Preference
+	else
+		self.TeamPreferences[ Client ] = nil
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug( "%s prefers team %s", Shine.GetClientInfo( Client ), self.TeamPreferences[ Client ] or 0 )
+	end
 end
 
 do
@@ -494,6 +509,7 @@ do
 
 		local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 		local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
+		local IsEnforcingTeams = self.EnforcementPolicy:IsActive( self )
 
 		local function SortPlayer( Player, Client, Commander, Pass )
 			-- Do not shuffle clients that are in a spectator slot.
@@ -510,6 +526,8 @@ do
 			end
 
 			local IsImmune = Shine:HasAccess( Client, "sh_randomimmune" ) or Commander
+			local IsPlayingTeam = Team == 1 or Team == 2
+			local Preference = self.TeamPreferences[ Client ]
 
 			-- Pass 1, put all immune players into team slots.
 			-- This ensures they're picked last if there's a team imbalance at the end of sorting.
@@ -522,7 +540,10 @@ do
 						TeamTable[ #TeamTable + 1 ] = Player
 					end
 
-					TeamMembers.TeamPreferences[ Player ] = true
+					-- Either they have a set preference, or they joined the team they want.
+					Preference = Preference or ( IsPlayingTeam and Team )
+					-- Even without a preference, don't move them around if it can be helped.
+					TeamMembers.TeamPreferences[ Player ] = Preference or true
 				end
 
 				return
@@ -531,14 +552,22 @@ do
 			-- Pass 2, put all non-immune players into team slots/target list.
 			if IsImmune then return end
 
-			-- If they're on a playing team, bias towards letting them keep it.
-			if Team == 1 or Team == 2 then
+			if IsPlayingTeam then
 				local TeamTable = TeamMembers[ Team ]
-
 				TeamTable[ #TeamTable + 1 ] = Player
-				TeamMembers.TeamPreferences[ Player ] = true
+
+				if not IsEnforcingTeams then
+					-- If we're not enforcing teams, their preference is either the one they've set
+					-- or otherwise the team they decided to join.
+					TeamMembers.TeamPreferences[ Player ] = Preference or Team
+				else
+					-- If we are enforcing teams, then the only assumption about preference we have
+					-- is their configured choice, as they've been locked to a team.
+					TeamMembers.TeamPreferences[ Player ] = Preference
+				end
 			else
 				Targets[ #Targets + 1 ] = Player
+				TeamMembers.TeamPreferences[ Player ] = Preference
 			end
 		end
 
@@ -749,10 +778,6 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
-	self.DoneStartShuffle = false
-	self.HasShuffledThisRound = false
-	self.VoteBlockTime = nil
-
 	local Players, Count = GetAllPlayers()
 	-- Reset the randomised state of all players.
 	for i = 1, Count do
@@ -765,6 +790,10 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 
 	self:BroadcastModuleEvent( "EndGame", Gamerules, WinningTeam, Players )
 	self.EnforcementPolicy:OnStageChange( self.Stage.PreGame )
+
+	self.DoneStartShuffle = false
+	self.HasShuffledThisRound = false
+	self.VoteBlockTime = nil
 
 	-- If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then
@@ -831,6 +860,7 @@ end
 function Plugin:ClientDisconnect( Client )
 	self:BroadcastModuleEvent( "ClientDisconnect", Client )
 	self.Vote:ClientDisconnect( Client )
+	self.TeamPreferences[ Client ] = nil
 
 	if not self.ReconnectLogTimeout then return end
 	if SharedTime() > self.ReconnectLogTimeout then return end
