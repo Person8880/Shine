@@ -121,10 +121,12 @@ end
 VoteShuffle.HappinessHistory = {}
 VoteShuffle.SaveHappinessHistory = function() end
 VoteShuffle.HasShuffledThisRound = false
+
+local FakeGamerules = {}
 local BalanceModule = VoteShuffle.Modules[ #VoteShuffle.Modules - 3 ]
 
 UnitTest:Test( "BalanceModule:EndGame - Does nothing if not shuffled", function( Assert )
-	BalanceModule.EndGame( VoteShuffle, nil, nil, { FakePlayer( 1 ) } )
+	BalanceModule.EndGame( VoteShuffle, FakeGamerules, nil, { FakePlayer( 1 ) } )
 	Assert:Equals( 0, #VoteShuffle.HappinessHistory )
 end )
 
@@ -132,9 +134,17 @@ VoteShuffle.HasShuffledThisRound = true
 VoteShuffle.LastShufflePreferences = nil
 
 UnitTest:Test( "BalanceModule:EndGame - Does nothing if no preference stored", function( Assert )
-	BalanceModule.EndGame( VoteShuffle, nil, nil, { FakePlayer( 1 ) } )
+	BalanceModule.EndGame( VoteShuffle, FakeGamerules, nil, { FakePlayer( 1 ) } )
 	Assert:Equals( 0, #VoteShuffle.HappinessHistory )
 end )
+
+FakeGamerules.gameStartTime = Shared.GetTime()
+UnitTest:Test( "BalanceModule:EndGame - Does nothing if round is too short", function( Assert )
+	BalanceModule.EndGame( VoteShuffle, FakeGamerules, nil, { FakePlayer( 1 ) } )
+	Assert:Equals( 0, #VoteShuffle.HappinessHistory )
+end )
+
+FakeGamerules.gameStartTime = -math.huge
 
 VoteShuffle.LastShufflePreferences = {
 	[ 1 ] = 1,
@@ -146,7 +156,7 @@ VoteShuffle.LastShuffleTeamLookup = {
 	[ 3 ] = 2
 }
 UnitTest:Test( "BalanceModule:EndGame - Remembers team preferences", function( Assert )
-	BalanceModule.EndGame( VoteShuffle, nil, nil, { FakePlayer( 1, 1 ), FakePlayer( 2, 1 ), FakePlayer( 3, 2 ) } )
+	BalanceModule.EndGame( VoteShuffle, FakeGamerules, nil, { FakePlayer( 1, 1 ), FakePlayer( 2, 1 ), FakePlayer( 3, 2 ) } )
 	-- Should store the round.
 	Assert:Equals( 1, #VoteShuffle.HappinessHistory )
 	-- Should remember that player 1 was on the team they wanted, while player 2 was not.

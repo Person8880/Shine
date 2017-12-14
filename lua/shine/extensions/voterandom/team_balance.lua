@@ -150,6 +150,7 @@ BalanceModule.SkillGetters = {
 
 BalanceModule.HappinessHistoryFile = "config://shine/temp/shuffle_happiness.json"
 BalanceModule.MaxHappinessHistoryRounds = 5
+BalanceModule.MinRoundLengthToRecord = 5 * 60
 
 function BalanceModule:Initialise()
 	self.HappinessHistory = self:LoadHappinessHistory()
@@ -169,6 +170,10 @@ function BalanceModule:EndGame( Gamerules, WinningTeam, Players )
 	local LastTeamLookup = self.LastShuffleTeamLookup
 	local LastPreferences = self.LastShufflePreferences
 	if not LastPreferences then return end
+
+	if not Gamerules.gameStartTime or ( Shared.GetTime() - Gamerules.gameStartTime ) < self.MinRoundLengthToRecord then
+		return
+	end
 
 	local RoundData = {}
 
