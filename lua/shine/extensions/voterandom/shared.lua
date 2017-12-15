@@ -121,6 +121,15 @@ function Plugin:SetupClientConfig()
 
 		Print( "Team preference saved as: %s.%s", self.Config.PreferredTeam, ResetHint )
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
+
+	Shine:RegisterClientSetting( {
+		Type = "Radio",
+		Command = "sh_shuffle_teampref",
+		ConfigOption = function() return self.Config.PreferredTeam end,
+		Options = self.TeamType,
+		Description = "TEAM_PREFERENCE",
+		TranslationSource = self.__Name
+	} )
 end
 
 function Plugin:UpdateShuffleButton()
