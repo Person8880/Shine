@@ -125,6 +125,16 @@ function ConfigMenu:AddTab( Name, Tab )
 	self.Tabs[ #self.Tabs + 1 ] = Tab
 end
 
+local function GetConfiguredValue( Entry )
+	local Value
+	if IsType( Entry.ConfigOption, "string" ) then
+		Value = Shine.Config[ Entry.ConfigOption ]
+	else
+		Value = Entry.ConfigOption()
+	end
+	return Value
+end
+
 local SettingsTypes = {
 	Boolean = {
 		Create = function( Panel, Entry )
@@ -133,12 +143,7 @@ local SettingsTypes = {
 			CheckBox:AddLabel( Locale:GetPhrase( Entry.TranslationSource or "Core", Entry.Description ) )
 			CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 
-			local Enabled
-			if IsType( Entry.ConfigOption, "string" ) then
-				Enabled = Shine.Config[ Entry.ConfigOption ]
-			else
-				Enabled = Entry.ConfigOption()
-			end
+			local Enabled = GetConfiguredValue( Entry )
 
 			CheckBox:SetChecked( Enabled or false, true )
 			CheckBox.OnChecked = function( CheckBox, Value )
@@ -146,6 +151,60 @@ local SettingsTypes = {
 			end
 
 			return CheckBox
+		end
+	},
+	Radio = {
+		Create = function( Panel, Entry )
+			local RadioPanel = Panel:Add( "Panel" )
+			RadioPanel:SetAutoSize( UnitVector( Percentage( 75 ), HighResScaled( 56 ) ) )
+
+			local TranslationSource = Entry.TranslationSource or "Core"
+
+			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical", {} )
+			local Description = RadioPanel:Add( "Label" )
+			Description:SetFontScale( GetSmallFont() )
+			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
+			Description:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 24 ) ) )
+			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+			VerticalLayout:AddElement( Description )
+
+			local RadioLayout = SGUI.Layout:CreateLayout( "Horizontal", {} )
+
+			local CheckBoxes = {}
+			local CurrentChoice = GetConfiguredValue( Entry )
+			local PercentPerCheckbox = 100 / #Entry.Options
+			for i = 1, #Entry.Options do
+				local Option = Entry.Options[ i ]
+
+				local CheckBox = RadioPanel:Add( "CheckBox" )
+				CheckBox:SetFontScale( GetSmallFont() )
+				CheckBox:AddLabel( Locale:GetPhrase( TranslationSource, Option ) )
+				CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
+				if i > 1 then
+					CheckBox:SetMargin( Spacing( Percentage( PercentPerCheckbox ), 0, 0, 0 ) )
+				end
+				CheckBox:SetRadio( true )
+
+				CheckBox:SetChecked( CurrentChoice == Option )
+				CheckBox.OnChecked = function( CheckBox, Value )
+					if not Value then return end
+
+					Shared.ConsoleCommand( Entry.Command.." "..Option )
+					for j = 1, #CheckBoxes do
+						if CheckBoxes[ j ] ~= CheckBox then
+							CheckBoxes[ j ]:SetChecked( false )
+						end
+					end
+				end
+
+				RadioLayout:AddElement( CheckBox )
+				CheckBoxes[ #CheckBoxes + 1 ] = CheckBox
+			end
+
+			VerticalLayout:AddElement( RadioLayout )
+			RadioPanel:SetLayout( VerticalLayout )
+
+			return RadioPanel
 		end
 	}
 }
