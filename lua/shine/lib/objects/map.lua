@@ -4,18 +4,33 @@
 ]]
 
 local Clamp = math.Clamp
+local getmetatable = getmetatable
+local IsType = Shine.IsType
+local pairs = pairs
 local TableRemove = table.remove
 
 local Map = Shine.TypeDef()
 
 Shine.Map = Map
 
-function Map:Init()
+function Map:Init( InitialValues )
 	self.Keys = {}
 	self.MemberLookup = {}
 
 	self.Position = 0
 	self.NumMembers = 0
+
+	if IsType( InitialValues, "table" ) then
+		if getmetatable( InitialValues ) == Map then
+			for Key, Value in InitialValues:Iterate() do
+				self:Add( Key, Value )
+			end
+		else
+			for Key, Value in pairs( InitialValues ) do
+				self:Add( Key, Value )
+			end
+		end
+	end
 
 	return self
 end
@@ -260,9 +275,6 @@ do
 		return GetPrevious, self
 	end
 end
-
-local getmetatable = getmetatable
-local pairs = pairs
 
 --[[
 	A multimap is a map that can map multiple values per key. It abstracts away the idiom of

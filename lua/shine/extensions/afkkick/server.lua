@@ -195,24 +195,26 @@ do
 		}
 
 		if self.Enabled ~= nil then
-			for Client in pairs( self.Users ) do
+			for Client in self.Users:Iterate() do
 				if Shine:IsValidClient( Client ) then
 					self:ResetAFKTime( Client )
 				else
-					self.Users[ Client ] = nil
+					self.Users:Remove( Client )
 				end
 			end
 
 			local Clients, Count = Shine.GetAllClients()
 			for i = 1, Count do
 				local Client = Clients[ i ]
-				if not self.Users[ Client ] then
+				if not self.Users:Get( Client ) then
 					self:ClientConnect( Client )
 				end
 			end
 		else
-			self.Users = {}
+			self.Users = Shine.Map()
 		end
+
+		self:CreateTimer( "AFKCheck", 1, -1, function() self:EvaluatePlayers() end )
 
 		self.Enabled = true
 
@@ -233,7 +235,7 @@ do
 		if not self.Config.MarkPlayersAFK then return end
 
 		local Client = GetOwner( Player )
-		local Data = self.Users[ Client ]
+		local Data = self.Users:Get( Client )
 		if not Data or not Data.IsAFK then return end
 
 		Player.GetName = GetName
@@ -267,7 +269,7 @@ function Plugin:CheckConnectionAllowed( ID )
 	local TimeAFK = 0
 	local KickTime = self.Config.KickTime * 60
 
-	for Client, Data in pairs( self.Users ) do
+	for Client, Data in self.Users:Iterate() do
 		if not ( Shine:HasAccess( Client, "sh_afk" )
 		or Shine:HasAccess( Client, "sh_afk_partial" ) )
 		and Data.AFKAmount >= KickTime and Data.AFKAmount > TimeAFK then
@@ -289,40 +291,34 @@ end
 	On client connect, add the client to our table of clients.
 ]]
 function Plugin:ClientConnect( Client )
-	if not Client then return end
-
-	if Client:GetIsVirtual() then return end
+	if not Client or Client:GetIsVirtual() then return end
 
 	local Player = Client:GetControllingPlayer()
 	if not Player then return end
 
 	local MeasureStartTime = SharedTime() + ( self.Config.Delay * 60 )
 
-	self.Users[ Client ] = {
+	self.Users:Add( Client, {
 		LastMove = MeasureStartTime,
 		LastMeasurement = MeasureStartTime,
 		AFKAmount = 0,
 		Pos = Player:GetOrigin(),
 		Ang = Player:GetViewAngles(),
 		IsAFK = false
-	}
+	} )
 	Shine.Hook.Call( "AFKChanged", Client, false )
 end
 
 function Plugin:ResetAFKTime( Client )
-	local DataTable = self.Users[ Client ]
+	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
 
 	local Time = SharedTime()
 
+	DataTable.Warn = false
 	DataTable.LastMove = Time
-
-	if DataTable.Warn then
-		DataTable.Warn = false
-	end
-
-	DataTable.AFKAmount = 0
 	DataTable.LastMeasurement = Time
+	DataTable.AFKAmount = 0
 
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
@@ -331,16 +327,18 @@ function Plugin:ResetAFKTime( Client )
 end
 
 function Plugin:SubtractAFKTime( Client, Time )
-	local DataTable = self.Users[ Client ]
+	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
 
 	-- Do not subtract any time if the player's Steam overlay is open.
 	-- It could be possible to leave the voice chat button going with it open.
 	if DataTable.SteamOverlayIsOpen then return end
 
+	DataTable.Warn = false
 	DataTable.LastMove = SharedTime()
 	DataTable.LastMeasurement = DataTable.LastMove
 	DataTable.AFKAmount = Max( DataTable.AFKAmount - Time, 0 )
+
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
 		Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
@@ -348,7 +346,7 @@ function Plugin:SubtractAFKTime( Client, Time )
 end
 
 function Plugin:ReceiveSteamOverlay( Client, Data )
-	local DataTable = self.Users[ Client ]
+	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
 
 	-- Players with their Steam overlay open are treated as AFK, regardless of
@@ -360,9 +358,6 @@ function Plugin:ReceiveSteamOverlay( Client, Data )
 			Data.Open and "open" or "closed" )
 	end
 end
-
-local MOVEMENT_MULTIPLIER = 5
-local SPECTATOR_MOVEMENT_MULTIPLIER = 20
 
 function Plugin:GetWarnActions( IsPartiallyImmune )
 	return self.WarnActions[ IsPartiallyImmune and "PartialImmunity" or "NoImmunity" ]
@@ -380,34 +375,116 @@ function Plugin:IsPlayerFrozen( Player )
 		or Player.frozen
 end
 
+function Plugin:EvaluatePlayer( Client, DataTable, Params )
+	-- Do not actually do anything with frozen players, just keep their state up to date.
+	if Shine:HasAccess( Client, "sh_afk" ) or DataTable.IsPlayerFrozen then
+		return
+	end
+
+	local NumPlayers = Params.NumPlayers
+	local Time = Params.Time
+	local KickTime = Params.KickTime
+
+	local TimeSinceLastMove = Time - DataTable.LastMove
+	local IsPartiallyImmune = Shine:HasAccess( Client, "sh_afk_partial" )
+
+	if self.Config.Warn then
+		local WarnTime = self.Config.WarnTime * 60
+
+		-- Again, using time since last move so we don't end up warning players constantly
+		-- if they hover near the warn time barrier in total AFK time.
+		if TimeSinceLastMove < WarnTime then
+			DataTable.Warn = false
+		elseif not DataTable.Warn and TimeSinceLastMove >= WarnTime then
+			DataTable.Warn = true
+
+			if not IsPartiallyImmune then
+				if not self.Config.KickOnConnect then
+					local AFKTime = Time - DataTable.LastMove
+					Shine.SendNetworkMessage( Client, "AFKWarning", {
+						timeAFK = AFKTime,
+						maxAFKTime = KickTime
+					}, true )
+				elseif NumPlayers >= self.Config.MinPlayers then
+					-- Only warn players if there's actually a possibity they'll be kicked.
+					self:SendTranslatedNotify( Client, "WARN_KICK_ON_CONNECT", {
+						AFKTime = Floor( WarnTime )
+					} )
+				end
+			end
+
+			local WarnActions = self:GetWarnActions( IsPartiallyImmune )
+
+			if self.Logger:IsDebugEnabled() then
+				self.Logger:Debug( "Applying %s warn actions to %s as their last move time was %.2f vs. %.2f (no movement for %.2f seconds). Steam overlay is %s.",
+					IsPartiallyImmune and "partial immunity" or "normal",
+					Shine.GetClientInfo( Client ),
+					DataTable.LastMove, Time, TimeSinceLastMove,
+					DataTable.SteamOverlayIsOpen and "open" or "closed" )
+			end
+
+			for i = 1, #WarnActions do
+				WarnActions[ i ]( self, Client, Params.Gamerules, DataTable )
+			end
+
+			return
+		end
+	end
+
+	if self.Config.KickOnConnect or IsPartiallyImmune then return end
+
+	local AFKAmount = DataTable.AFKAmount
+	-- Only kick if we're past the min player count to do so, and use their "total" time.
+	if AFKAmount >= KickTime and NumPlayers >= self.Config.MinPlayers then
+		self.Logger:Info( "Client %s was AFK for over %s. Player count: %d. Min Players: %d. Kicking...",
+			Shine.GetClientInfo( Client ), StringTimeToString( KickTime ),
+			NumPlayers, self.Config.MinPlayers )
+		self.Logger:Debug( "AFK amount was %.2f vs. time since last move of %.2f. Steam overlay is %s.",
+			AFKAmount, TimeSinceLastMove,
+			DataTable.SteamOverlayIsOpen and "open" or "closed" )
+
+		self:KickClient( Client )
+	end
+end
+
+function Plugin:EvaluatePlayers()
+	local Gamerules = GetGamerules()
+	local Started = Gamerules and Gamerules:GetGameStarted()
+
+	if self.Config.OnlyCheckOnStarted and not Started then return end
+
+	local NumPlayers = GetHumanPlayerCount()
+	if NumPlayers < self.Config.WarnMinPlayers then return end
+
+	local Params = {
+		Time = SharedTime(),
+		KickTime = self.Config.KickTime * 60,
+		NumPlayers = NumPlayers,
+		Gamerules = Gamerules
+	}
+	for Client, DataTable in self.Users:Iterate() do
+		self:EvaluatePlayer( Client, DataTable, Params )
+	end
+end
+
+local MOVEMENT_MULTIPLIER = 5
+local SPECTATOR_MOVEMENT_MULTIPLIER = 20
+
 --[[
-	Hook into movement processing to help prevent false positive AFK kicking.
+	Track player movement, regardless of whether any actions will be applied.
+
+	This allows other plugins that use the AFK state to have the right information,
+	and means that as soon as actions should be applied, they will be.
 ]]
 function Plugin:OnProcessMove( Player, Input )
 	local Client = GetOwner( Player )
+	if not Client or Client:GetIsVirtual() then return end
 
-	if not Client then return end
-	if Client:GetIsVirtual() then return end
-
-	local DataTable = self.Users[ Client ]
+	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
 
 	local Time = SharedTime()
 	if DataTable.LastMove > Time then return end
-
-	local Gamerules = GetGamerules()
-	local Started = Gamerules and Gamerules:GetGameStarted()
-
-	if self.Config.OnlyCheckOnStarted and not Started then
-		self:ResetAFKTime( Client )
-		return
-	end
-
-	local Players = GetHumanPlayerCount()
-	if Players < self.Config.WarnMinPlayers then
-		self:ResetAFKTime( Client )
-		return
-	end
 
 	local IsSpectator = Player:GetTeamNumber() == kSpectatorIndex
 	if IsSpectator and self.Config.IgnoreSpectators then
@@ -450,13 +527,9 @@ function Plugin:OnProcessMove( Player, Input )
 		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
 	end
 
-	if Shine:HasAccess( Client, "sh_afk" ) then
-		return
-	end
+	DataTable.IsPlayerFrozen = IsPlayerFrozen
 
 	local KickTime = self.Config.KickTime * 60
-
-	local AFKAmount = DataTable.AFKAmount
 	local TimeSinceLastMove = Time - DataTable.LastMove
 
 	-- Use time since last move rather than the total,
@@ -472,68 +545,6 @@ function Plugin:OnProcessMove( Player, Input )
 			DataTable.IsAFK = false
 			Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
 		end
-	end
-
-	-- Do not actually do anything with frozen players, just keep their state up to date.
-	if IsPlayerFrozen then return end
-
-	local IsPartiallyImmune = Shine:HasAccess( Client, "sh_afk_partial" )
-
-	if self.Config.Warn then
-		local WarnTime = self.Config.WarnTime * 60
-
-		-- Again, using time since last move so we don't end up warning players constantly
-		-- if they hover near the warn time barrier in total AFK time.
-		if TimeSinceLastMove < WarnTime then
-			DataTable.Warn = false
-		elseif not DataTable.Warn and TimeSinceLastMove >= WarnTime then
-			DataTable.Warn = true
-
-			if not IsPartiallyImmune then
-				if not self.Config.KickOnConnect then
-					local AFKTime = Time - DataTable.LastMove
-					Shine.SendNetworkMessage( Client, "AFKWarning", {
-						timeAFK = AFKTime,
-						maxAFKTime = KickTime
-					}, true )
-				elseif Players >= self.Config.MinPlayers then
-					-- Only warn players if there's actually a possibity they'll be kicked.
-					self:SendTranslatedNotify( Client, "WARN_KICK_ON_CONNECT", {
-						AFKTime = Floor( WarnTime )
-					} )
-				end
-			end
-
-			local WarnActions = self:GetWarnActions( IsPartiallyImmune )
-
-			if self.Logger:IsDebugEnabled() then
-				self.Logger:Debug( "Applying %s warn actions to %s as their last move time was %.2f vs. %.2f (no movement for %.2f seconds). Steam overlay is %s.",
-					IsPartiallyImmune and "partial immunity" or "normal",
-					Shine.GetClientInfo( Client ),
-					DataTable.LastMove, Time, TimeSinceLastMove,
-					DataTable.SteamOverlayIsOpen and "open" or "closed" )
-			end
-
-			for i = 1, #WarnActions do
-				WarnActions[ i ]( self, Client, Gamerules, DataTable )
-			end
-
-			return
-		end
-	end
-
-	if self.Config.KickOnConnect or IsPartiallyImmune then return end
-
-	-- Only kick if we're past the min player count to do so, and use their "total" time.
-	if AFKAmount >= KickTime and Players >= self.Config.MinPlayers then
-		self.Logger:Info( "Client %s was AFK for over %s. Player count: %d. Min Players: %d. Kicking...",
-			Shine.GetClientInfo( Client ), StringTimeToString( KickTime ),
-			Players, self.Config.MinPlayers )
-		self.Logger:Debug( "AFK amount was %.2f vs. time since last move of %.2f. Steam overlay is %s.",
-			AFKAmount, TimeSinceLastMove,
-			DataTable.SteamOverlayIsOpen and "open" or "closed" )
-
-		self:KickClient( Client )
 	end
 end
 
@@ -594,8 +605,10 @@ end
 	Other plugins may wish to know this.
 ]]
 function Plugin:GetLastMoveTime( Client )
-	if not self.Users[ Client ] then return nil end
-	return self.Users[ Client ].LastMove
+	local DataTable = self.Users:Get( Client )
+	if not DataTable then return nil end
+
+	return DataTable.LastMove
 end
 
 --[[
@@ -612,7 +625,7 @@ end
 	When a client disconnects, remove them from the player list.
 ]]
 function Plugin:ClientDisconnect( Client )
-	self.Users[ Client ] = nil
+	self.Users:Remove( Client )
 end
 
 function Plugin:OnFirstThink()

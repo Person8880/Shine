@@ -90,6 +90,7 @@ UnitTest:Test( "ValidateConfig - WarnMinPlayers <= MinPlayers", function( Assert
 	Assert:Equals( AFKKick.Config.MinPlayers, AFKKick.Config.WarnMinPlayers )
 end )
 
+local OldGetClientInfo = Shine.GetClientInfo
 AFKKick.Print = function() end
 Shine.GetClientInfo = function() return "" end
 AFKKick.CanKickForConnectingClient = function() return true end
@@ -98,7 +99,7 @@ UnitTest:Test( "KickOnConnect", function( Assert )
 	AFKKick.Config.KickOnConnect = true
 	AFKKick.Config.KickTime = 2
 
-	AFKKick.Users = {
+	AFKKick.Users = Shine.Map( {
 		[ 1 ] = {
 			AFKAmount = 2.5 * 60
 		},
@@ -108,7 +109,7 @@ UnitTest:Test( "KickOnConnect", function( Assert )
 		[ 3 ] = {
 			AFKAmount = 5 * 60
 		}
-	}
+	} )
 
 	-- Should kick client 3
 	local Kicked
@@ -129,3 +130,5 @@ UnitTest:Test( "KickOnConnect", function( Assert )
 end, function()
 	AFKKick.Config.KickOnConnect = false
 end )
+
+Shine.GetClientInfo = OldGetClientInfo

@@ -149,6 +149,29 @@ UnitTest:Test( "EmptyMapIterators", function( Assert )
 	Assert.Equals( "Generic for backwards on an empty map iterated > 0 times!", 0, i )
 end )
 
+UnitTest:Test( "Construct with map", function( Assert )
+	local InitialMap = Map()
+	InitialMap:Add( "Test", "Value" )
+	InitialMap:Add( "AnotherTest", "AnotherValue" )
+
+	local Copy = Map( InitialMap )
+	Assert:Equals( 2, Copy:GetCount() )
+	Assert:Equals( "Value", Copy:Get( "Test" ) )
+	Assert:Equals( "AnotherValue", Copy:Get( "AnotherTest" ) )
+end )
+
+UnitTest:Test( "Construct with table", function( Assert )
+	local InitialValues = {
+		Test = "Value",
+		AnotherTest = "AnotherValue"
+	}
+
+	local Copy = Map( InitialValues )
+	Assert:Equals( 2, Copy:GetCount() )
+	Assert:Equals( "Value", Copy:Get( "Test" ) )
+	Assert:Equals( "AnotherValue", Copy:Get( "AnotherTest" ) )
+end )
+
 local Multimap = Shine.Multimap
 
 UnitTest:Test( "Multimap:Add()/Get()/GetCount()", function( Assert )
