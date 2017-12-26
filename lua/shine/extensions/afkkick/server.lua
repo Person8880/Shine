@@ -214,7 +214,11 @@ do
 			self.Users = Shine.Map()
 		end
 
-		self:CreateTimer( "AFKCheck", 1, -1, function() self:EvaluatePlayers() end )
+		if self.Config.Warn or not self.Config.KickOnConnect then
+			-- Need to periodically evaluate players if they need to be warned or if
+			-- kicking is not performed at connection time.
+			self:CreateTimer( "AFKCheck", 1, -1, function() self:EvaluatePlayers() end )
+		end
 
 		self.Enabled = true
 
