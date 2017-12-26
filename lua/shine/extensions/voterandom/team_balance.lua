@@ -20,6 +20,29 @@ local TableSort = table.sort
 
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
 
+BalanceModule.DefaultConfig = {
+	TeamPreferences = {
+		-- How many rounds to remember who got to play their preferred team for.
+		MaxHistoryRounds = 5,
+		-- The minimum time a round must be played before team preferences are recorded.
+		MinRoundLengthToRecordInSeconds = 5 * 60
+	}
+}
+
+do
+	local Validator = Shine.Validator()
+
+	Validator:AddFieldRule( "TeamPreferences.MaxHistoryRounds",
+		Validator.IsType( "number", BalanceModule.DefaultConfig.TeamPreferences.MaxHistoryRounds ) )
+	Validator:AddFieldRule( "TeamPreferences.MaxHistoryRounds", Validator.Min( 0 ) )
+
+	Validator:AddFieldRule( "TeamPreferences.MinRoundLengthToRecordInSeconds",
+		Validator.IsType( "number", BalanceModule.DefaultConfig.TeamPreferences.MinRoundLengthToRecordInSeconds ) )
+	Validator:AddFieldRule( "TeamPreferences.MinRoundLengthToRecordInSeconds", Validator.Min( 0 ) )
+
+	BalanceModule.ConfigValidator = Validator
+end
+
 Shine.Hook.SetupClassHook( "BotTeamController", "UpdateBots", "UpdateBots", "ActivePre" )
 
 local function GetAverageSkillFunc( Players, Func, TeamNumber )
@@ -149,8 +172,6 @@ BalanceModule.SkillGetters = {
 }
 
 BalanceModule.HappinessHistoryFile = "config://shine/temp/shuffle_happiness.json"
-BalanceModule.MaxHappinessHistoryRounds = 5
-BalanceModule.MinRoundLengthToRecord = 5 * 60
 
 function BalanceModule:Initialise()
 	self.HappinessHistory = self:LoadHappinessHistory()
@@ -171,7 +192,9 @@ function BalanceModule:EndGame( Gamerules, WinningTeam, Players )
 	local LastPreferences = self.LastShufflePreferences
 	if not LastPreferences then return end
 
-	if not Gamerules.gameStartTime or ( Shared.GetTime() - Gamerules.gameStartTime ) < self.MinRoundLengthToRecord then
+	local MinRoundLength = self.Config.TeamPreferences.MinRoundLengthToRecordInSeconds
+	if not Gamerules.gameStartTime
+	or ( Shared.GetTime() - Gamerules.gameStartTime ) < MinRoundLength then
 		return
 	end
 
@@ -196,7 +219,9 @@ function BalanceModule:EndGame( Gamerules, WinningTeam, Players )
 	end
 
 	self.HappinessHistory[ #self.HappinessHistory + 1 ] = RoundData
-	while #self.HappinessHistory > self.MaxHappinessHistoryRounds do
+
+	local MaxHistoryRounds = self.Config.TeamPreferences.MaxHistoryRounds
+	while #self.HappinessHistory > MaxHistoryRounds do
 		TableRemove( self.HappinessHistory, 1 )
 	end
 

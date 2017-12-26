@@ -233,7 +233,10 @@ do
 		return function( Value )
 			return not IsType( Value, Type )
 		end,
-		Validator.Constant( DefaultValue )
+		Validator.Constant( DefaultValue ),
+		function()
+			return StringFormat( "%%s must be a %s", Type )
+		end
 	end
 
 	function Validator:AddRule( Rule )

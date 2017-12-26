@@ -180,10 +180,10 @@ Plugin.ConfigMigrationSteps = {
 
 do
 	local Validator = Shine.Validator()
-	Validator:AddFieldRule( "VotePassActions.PreGame", Validator.IsType( "table" ),
-		Validator.Constant( Plugin.DefaultConfig.PreGame ) )
-	Validator:AddFieldRule( "VotePassActions.InGame", Validator.IsType( "table" ),
-		Validator.Constant( Plugin.DefaultConfig.InGame ) )
+	Validator:AddFieldRule( "VotePassActions.PreGame", Validator.IsType( "table",
+		Plugin.DefaultConfig.PreGame ) )
+	Validator:AddFieldRule( "VotePassActions.InGame", Validator.IsType( "table",
+		Plugin.DefaultConfig.InGame ) )
 	Validator:AddFieldRules( {
 		"VotePassActions.PreGame.ShufflePolicy",
 		"VotePassActions.InGame.ShufflePolicy"
