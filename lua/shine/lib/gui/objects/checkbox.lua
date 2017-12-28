@@ -72,6 +72,8 @@ function CheckBox:GetChecked()
 end
 
 function CheckBox:SetChecked( Value, DontFade )
+	if Value == self.Checked then return end
+
 	if Value then
 		self.Checked = true
 
@@ -118,7 +120,7 @@ function CheckBox:OnMouseUp( Key )
 
 	if not self.Checked then
 		self:SetChecked( true )
-	else
+	elseif not self.Radio then
 		self:SetChecked( false )
 	end
 
@@ -169,6 +171,7 @@ function CheckBox:OnChecked( Checked )
 
 end
 
+SGUI.AddProperty( CheckBox, "Radio" )
 SGUI.AddBoundProperty( CheckBox, "Font", "Label" )
 SGUI.AddBoundProperty( CheckBox, "TextColour", "Label:SetColour" )
 SGUI.AddBoundProperty( CheckBox, "TextScale", "Label" )

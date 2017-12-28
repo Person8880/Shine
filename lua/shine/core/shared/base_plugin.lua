@@ -41,6 +41,12 @@ function PluginMeta:AddModule( Module )
 	if Module.DefaultConfig and self.DefaultConfig ~= Module.DefaultConfig then
 		TableShallowMerge( Module.DefaultConfig, self.DefaultConfig )
 	end
+
+	-- Merge any configuration validation rules.
+	if Module.ConfigValidator and self.ConfigValidator
+	and self.ConfigValidator ~= Module.ConfigValidator then
+		self.ConfigValidator:Add( Module.ConfigValidator )
+	end
 end
 
 --[[

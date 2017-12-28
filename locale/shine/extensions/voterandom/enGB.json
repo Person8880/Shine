@@ -84,5 +84,9 @@
 	"TEAM_SWITCH_DENIED_HIVE_BASED": "You cannot switch teams. Hive skill based teams are enabled.",
 	"TEAM_SWITCH_DENIED_KDR_BASED": "You cannot switch teams. KDR based teams are enabled.",
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "You cannot switch teams. Random teams are enabled.",
-	"TEAM_SWITCH_DENIED_SCORE_BASED": "You cannot switch teams. Score based teams are enabled."
+	"TEAM_SWITCH_DENIED_SCORE_BASED": "You cannot switch teams. Score based teams are enabled.",
+	"TEAM_PREFERENCE": "Shuffle Team Preference:",
+	"MARINE": "Marines",
+	"ALIEN": "Aliens",
+	"NONE": "No Preference"
 }

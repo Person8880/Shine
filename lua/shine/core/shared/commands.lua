@@ -165,6 +165,46 @@ Shine.CommandUtil.ParamTypes = {
 		Help = "boolean"
 	}
 }
+
+do
+	local TeamMatches = {
+		{ "ready", 0 },
+		{ "marine", 1 },
+		{ "alien", 2 },
+		{ "spectat", 3 },
+		{ "blu", 1 },
+		{ "orang", 2 },
+		{ "gold", 2 },
+		{ "^rr", 0 }
+	}
+
+	local StringFind = string.find
+	local StringLower = string.lower
+
+	-- Team takes either 0 - 3 directly or takes a string matching a team name
+	-- and turns it into the team number.
+	Shine.CommandUtil.ParamTypes.team = {
+		Parse = function( Client, String, Table )
+			if not String then
+				return GetDefault( Table )
+			end
+
+			local TeamNumber = tonumber( String )
+			if TeamNumber then return MathClamp( Round( TeamNumber ), 0, 3 ) end
+
+			String = StringLower( String )
+
+			for i = 1, #TeamMatches do
+				if StringFind( String, TeamMatches[ i ][ 1 ] ) then
+					return TeamMatches[ i ][ 2 ]
+				end
+			end
+
+			return nil
+		end,
+		Help = "team"
+	}
+end
 local ParamTypes = Shine.CommandUtil.ParamTypes
 
 local function ParseByType( Client, String, Table, Type )

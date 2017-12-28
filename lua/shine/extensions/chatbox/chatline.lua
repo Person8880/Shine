@@ -27,7 +27,7 @@ end
 
 function ChatLine:SetParent( Parent )
 	self.BaseClass.SetParent( self, Parent )
-	self:ForEachLabel( "SetParent", Parent, Parent.ScrollParent )
+	self:ForEachLabel( "SetParent", Parent, Parent and Parent.ScrollParent )
 end
 
 do
