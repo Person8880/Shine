@@ -107,14 +107,20 @@ UnitTest:Test( "AddPlayersRandomly", function( Assert )
 	Assert:Equals( 3, #TeamMembers[ 2 ] )
 end )
 
-local function FakePlayer( SteamID, TeamNumber )
+local function FakePlayer( SteamID, TeamNumber, IsCommander )
 	return {
 		GetClient = function()
 			return {
 				GetUserId = function() return SteamID end
 			}
 		end,
-		GetTeamNumber = function() return TeamNumber end
+		GetTeamNumber = function() return TeamNumber end,
+		isa = function( self, Type )
+			if Type == "Commander" and IsCommander then
+				return true
+			end
+			return false
+		end
 	}
 end
 
@@ -248,6 +254,45 @@ UnitTest:Test( "OptimiseHappiness - Less unhappiness does nothing", function( As
 		[ 3 ] = 1
 	}, VoteShuffle.LastShufflePreferences )
 end )
+
+UnitTest:Test( "ShouldOptimiseHappiness - Not ignoring commanders accepts optimisation", function( Assert )
+	local TeamMembers = {
+		{ FakePlayer( 1 ), FakePlayer( 2 ) },
+		{ FakePlayer( 3 ), FakePlayer( 4, 2, true ) }
+	}
+	-- Can optimise with commanders
+	Assert:True( VoteShuffle:ShouldOptimiseHappiness( TeamMembers ) )
+	TeamMembers = {
+		{ FakePlayer( 1 ), FakePlayer( 2 ) },
+		{ FakePlayer( 3 ), FakePlayer( 4 ) }
+	}
+	-- Can optimise without commanders
+	Assert:True( VoteShuffle:ShouldOptimiseHappiness( TeamMembers ) )
+end )
+
+VoteShuffle.Config.IgnoreCommanders = true
+
+UnitTest:Test( "ShouldOptimiseHappiness - Ignoring commanders and having commanders rejects optimisation",
+function( Assert )
+	local TeamMembers = {
+		{ FakePlayer( 1 ), FakePlayer( 2 ) },
+		{ FakePlayer( 3 ), FakePlayer( 4, 2, true ) }
+	}
+	-- Cannot optimise when asked to ignore commanders and there are commanders present
+	Assert:False( VoteShuffle:ShouldOptimiseHappiness( TeamMembers ) )
+end )
+
+UnitTest:Test( "ShouldOptimiseHappiness - Ignoring commanders and not having commanders accepts optimisation",
+function( Assert )
+	local TeamMembers = {
+		{ FakePlayer( 1 ), FakePlayer( 2 ) },
+		{ FakePlayer( 3 ), FakePlayer( 4 ) }
+	}
+	-- Can optimise when asked to ignore commanders but there are no commanders present
+	Assert:True( VoteShuffle:ShouldOptimiseHappiness( TeamMembers ) )
+end )
+
+VoteShuffle.Config.IgnoreCommanders = false
 
 VoteShuffle.SaveHappinessHistory = BalanceModule.SaveHappinessHistory
 VoteShuffle.GetHistoricHappinessWeight = BalanceModule.GetHistoricHappinessWeight
