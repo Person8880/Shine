@@ -356,7 +356,7 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	self.Logger:Debug( "After optimisation:" )
 	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
 
-	if not self.Config.UseTeamSkills then
+	if not self.Config.UseTeamSkills and not IgnoreCommanders then
 		-- Can only apply this optimisation if we are using a single skill value.
 		-- If a player has a different skill depending on which team they are on,
 		-- swapping will have dire consequences.
