@@ -40,8 +40,9 @@ function Shine.GetModuleFile( ModuleName )
 	return StringFormat( "lua/shine/modules/%s", ModuleName )
 end
 
-function Shine.LoadPluginModule( ModuleName )
-	return Script.Load( Shine.GetModuleFile( ModuleName ), true )
+function Shine.LoadPluginModule( ModuleName, Plugin )
+	local File = loadfile( Shine.GetModuleFile( ModuleName ) )
+	return File( Plugin )
 end
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
