@@ -411,8 +411,7 @@ function Plugin:Initialise()
 
 	self.Vote = Shine:CreateVote( GetVotesNeeded, OnVotePassed, OnTimeout )
 	function self.Vote.OnReset()
-		self.dt.CurrentShuffleVotes = 0
-		self.dt.RequiredShuffleVotes = 0
+		self:ResetVoteCounters()
 	end
 
 	self.ShuffleOnNextRound = false
@@ -1102,8 +1101,7 @@ function Plugin:CreateCommands()
 					} )
 				end
 
-				self.dt.CurrentShuffleVotes = self.Vote:GetVotes()
-				self.dt.RequiredShuffleVotes = self:GetVotesNeeded()
+				self:UpdateVoteCounters( self.Vote )
 			end
 
 			--Somehow it didn't apply random settings??

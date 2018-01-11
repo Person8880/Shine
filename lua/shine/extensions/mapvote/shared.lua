@@ -23,6 +23,8 @@ local MapVotesMessage = {
 Shine:RegisterExtension( "mapvote", Plugin )
 
 function Plugin:SetupDataTable()
+	self:CallModuleEvent( "SetupDataTable" )
+
 	local MapNameField = "string (24)"
 
 	local MessageTypes = {
@@ -138,6 +140,8 @@ function Plugin:SetupDataTable()
 	} )
 end
 
+Shine.LoadPluginModule( "sh_vote.lua", Plugin )
+
 if Server then
 	function Plugin:ReceiveRequestVoteOptions( Client, Message )
 		self:SendVoteData( Client )
@@ -145,6 +149,8 @@ if Server then
 
 	return
 end
+
+Plugin.VoteButtonName = "Map Vote"
 
 local Shine = Shine
 local SGUI = Shine.GUI
