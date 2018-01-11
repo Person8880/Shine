@@ -242,6 +242,17 @@ function Shine:CanPluginLoad( Plugin )
 	end
 
 	local Gamemode = Shine.GetGamemode()
+
+	-- Allow external mods/gamemodes to decide whether the plugin can load if they know a plugin is compatible.
+	local Allowed = Hook.Call( "CanPluginLoad", Plugin, Gamemode )
+	if Allowed ~= nil then
+		if not Allowed then
+			return false, "plugin not compatible with gamemode: "..Gamemode
+		end
+
+		return true
+	end
+
 	-- Plugin has explicitly requested to be disabled for the gamemode.
 	local IsDisabled = Plugin.DisabledGamemodes and Plugin.DisabledGamemodes[ Gamemode ]
 	-- Plugin has expliclty requested to only be enabled for certain gamemodes.
