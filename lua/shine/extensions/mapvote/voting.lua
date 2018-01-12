@@ -63,6 +63,7 @@ end
 
 function Plugin:ClientDisconnect( Client )
 	self.StartingVote:ClientDisconnect( Client )
+	self:UpdateVoteCounters( self.StartingVote )
 end
 
 --[[

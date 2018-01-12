@@ -859,6 +859,7 @@ end
 function Plugin:ClientDisconnect( Client )
 	self:BroadcastModuleEvent( "ClientDisconnect", Client )
 	self.Vote:ClientDisconnect( Client )
+	self:UpdateVoteCounters( self.Vote )
 	self.TeamPreferences[ Client ] = nil
 
 	if not self.ReconnectLogTimeout then return end
@@ -1102,6 +1103,7 @@ function Plugin:CreateCommands()
 				end
 
 				self:UpdateVoteCounters( self.Vote )
+				self:NotifyVoted( Client )
 			end
 
 			--Somehow it didn't apply random settings??

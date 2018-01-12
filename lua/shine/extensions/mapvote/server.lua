@@ -634,6 +634,9 @@ function Plugin:CreateCommands()
 			} )
 
 			self:UpdateVoteCounters( self.StartingVote )
+			if Client then
+				self:NotifyVoted( Client )
+			end
 
 			return
 		end
