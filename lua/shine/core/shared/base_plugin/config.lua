@@ -119,7 +119,15 @@ function ConfigModule:LoadConfig()
 	} )
 	Validator:AddRule( {
 		Matches = function( _, Config )
-			return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig, false, { __Version = true } )
+			if self.CheckConfig then
+				local ReservedKeys = { __Version = true }
+
+				if self.CheckConfigRecursively then
+					return Shine.VerifyConfig( Config, self.DefaultConfig, ReservedKeys )
+				end
+
+				return Shine.CheckConfig( Config, self.DefaultConfig, false, ReservedKeys )
+			end
 		end
 	} )
 	Validator:AddRule( {
