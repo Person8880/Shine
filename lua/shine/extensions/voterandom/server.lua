@@ -869,6 +869,8 @@ function Plugin:ClientDisconnect( Client )
 end
 
 function Plugin:ClientConnect( Client )
+	self:UpdateVoteCounters( self.Vote )
+
 	if not self.ReconnectingClients or not self.ReconnectLogTimeout then return end
 
 	if SharedTime() > self.ReconnectLogTimeout then

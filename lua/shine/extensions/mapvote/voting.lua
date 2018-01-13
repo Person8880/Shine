@@ -39,6 +39,10 @@ function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, S
 	end
 end
 
+function Plugin:ClientConnect( Client )
+	self:UpdateVoteCounters( self.StartingVote )
+end
+
 --[[
 	Send the map vote text and map options when a new player connects and a map vote is in progress.
 ]]
