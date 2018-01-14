@@ -14,6 +14,12 @@ UnitTest:Test( "EndsWith", function( Assert )
 	Assert:False( string.EndsWith( "Test", "abc" ) )
 end )
 
+UnitTest:Test( "PatternSafe", function( Assert )
+	local Pattern = string.PatternSafe( ".*+-?()[]%^$\0" )
+	Assert.Equals( "Pattern should be escaped", "%.%*%+%-%?%(%)%[%]%%%^%$%z", Pattern )
+	Assert.True( "Should be able to search without error", pcall( string.find, ".*+-?()[]%^$", Pattern ) )
+end )
+
 do
 	local InterpolationTests = {
 		{

@@ -11,6 +11,7 @@ local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
 local StringGSub = string.gsub
+local StringPatternSafe = string.PatternSafe
 local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local TableConcat = table.concat
@@ -561,7 +562,7 @@ local function MatchStringRestriction( ParsedArg, Restriction )
 	end
 
 	-- Escape any patterns in the string.
-	Restriction = StringGSub( Restriction, "([%%%[%]%^%$%(%)%.%+%-%?])", "%%%1" )
+	Restriction = StringPatternSafe( Restriction )
 	Restriction = StringGSub( Restriction, "*", "(.-)" ).."$"
 
 	return StringFind( ParsedArg, Restriction ) ~= nil
