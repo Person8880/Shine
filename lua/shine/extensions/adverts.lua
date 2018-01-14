@@ -4,13 +4,14 @@
 
 local Shine = Shine
 
+local IsType = Shine.IsType
 local TableQuickCopy = table.QuickCopy
 local TableQuickShuffle = table.QuickShuffle
 local TableRemove = table.remove
-local type = type
+local tonumber = tonumber
 
 local Plugin = {}
-Plugin.Version = "1.1"
+Plugin.Version = "1.2"
 Plugin.PrintName = "Adverts"
 
 Plugin.HasConfig = true
@@ -21,20 +22,36 @@ Plugin.DefaultConfig = {
 		{
 			Message = "Welcome to Natural Selection 2.",
 			Type = "chat",
-			R = 255,
-			G = 255,
-			B = 255
+			Colour = { 255, 255, 255 }
 		},
 		{
 			Message = "This server is running the Shine administration mod.",
 			Type = "chat",
-			R = 255,
-			G = 255,
-			B = 255
+			Colour = { 255, 255, 255 }
 		}
 	},
 	Interval = 60,
 	RandomiseOrder = false
+}
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.2",
+		Apply = function( Config )
+			local Adverts = Config.Adverts
+			if not IsType( Adverts, "table" ) then return end
+
+			for i = 1, #Adverts do
+				local Advert = Adverts[ i ]
+				if IsType( Advert, "table" ) then
+					Advert.Colour = { Advert.R or 255, Advert.G or 255, Advert.B or 255 }
+					Advert.R = nil
+					Advert.G = nil
+					Advert.B = nil
+				end
+			end
+		end
+	}
 }
 
 Plugin.TimerName = "Adverts"
@@ -47,7 +64,13 @@ function Plugin:Initialise()
 	return true
 end
 
-local IsType = Shine.IsType
+local function UnpackColour( Colour )
+	if not Colour then return 255, 255, 255 end
+
+	return tonumber( Colour[ 1 ] ) or 255,
+		tonumber( Colour[ 2 ] ) or 255,
+		tonumber( Colour[ 3 ] ) or 255
+end
 
 function Plugin:ParseAdvert( ID, Advert )
 	if IsType( Advert, "string" ) then
@@ -65,8 +88,8 @@ function Plugin:ParseAdvert( ID, Advert )
 	end
 
 	local Message = Advert.Message
-	if not Message then
-		self:Print( "Misconfigured advert #%i, missing \"Message\" value.",
+	if not IsType( Message, "string" ) then
+		self:Print( "Misconfigured advert #%i, missing or invalid \"Message\" value.",
 			true, ID )
 
 		TableRemove( self.AdvertsList, ID )
@@ -74,13 +97,19 @@ function Plugin:ParseAdvert( ID, Advert )
 		return false
 	end
 
-	local R = Advert.R or Advert.r or 255
-	local G = Advert.G or Advert.g or 255
-	local B = Advert.B or Advert.b or 255
-
+	local R, G, B = UnpackColour( Advert.Colour )
 	local Type = Advert.Type
 
 	if not Type or Type == "chat" then
+		if IsType( Advert.Prefix, "string" ) then
+			-- Send the advert with a coloured prefix.
+			local PR, PG, PB = UnpackColour( Advert.PrefixColour or { 255, 255, 255 } )
+
+ 			Shine:NotifyDualColour( nil, PR, PG, PB, Advert.Prefix, R, G, B, Message )
+
+ 			return true
+		end
+
 		Shine:NotifyColour( nil, R, G, B, Message )
 	else
 		local Position = ( Advert.Position or "top" ):lower()
@@ -122,7 +151,7 @@ function Plugin:SetupTimer()
 
 		if self:ParseAdvert( Message, self.AdvertsList[ Message ] ) then
 			Message = ( Message % #self.AdvertsList ) + 1
-		elseif #self.AdvertList == 0 then
+		elseif #self.AdvertsList == 0 then
 			self:DestroyTimer( self.TimerName )
 		end
 	end )
