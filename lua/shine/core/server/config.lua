@@ -13,32 +13,32 @@ local ConfigPath = "config://shine/BaseConfig"
 local BackupPath = "config://Shine_BaseConfig"
 
 local DefaultConfig = {
-	EnableLogging = true, --Enable Shine's internal log. Note that plugins rely on this to log.
+	EnableLogging = true, -- Enable Shine's internal log. Note that plugins rely on this to log.
 	DebugLogging = false,
-	LogDir = "config://shine/logs/", --Logging directory.
-	DateFormat = "dd-mm-yyyy", --Format for logging dates.
+	LogDir = "config://shine/logs/", -- Logging directory.
+	DateFormat = "dd-mm-yyyy", -- Format for logging dates.
 
-	ExtensionDir = "config://shine/plugins/", --Plugin configs directory.
+	ExtensionDir = "config://shine/plugins/", -- Plugin configs directory.
 
-	GetUsersFromWeb = false, --Sets whether user data should be retrieved from the web.
-	GetUsersWithPOST = false, --Should we use POST to retrieve users?
-	UserRetrieveArguments = {}, --What extra arguments should be sent using POST?
-	UsersURL = "http://www.yoursite.com/users.json", --URL to get user data from if the above is true.
-	RefreshUsers = false, --Auto-refresh users every set amount of time.
-	RefreshInterval = 60, --How long in seconds between refreshes?
+	GetUsersFromWeb = false, -- Sets whether user data should be retrieved from the web.
+	GetUsersWithPOST = false, -- Should we use POST to retrieve users?
+	UserRetrieveArguments = {}, -- What extra arguments should be sent using POST?
+	UsersURL = "http://www.yoursite.com/users.json", -- URL to get user data from if the above is true.
+	RefreshUsers = false, -- Auto-refresh users every set amount of time.
+	RefreshInterval = 60, -- How long in seconds between refreshes?
 
 	WebConfigs = {
-		Enabled = false, --Should plugins get their configuration files from the web?
-		RequestURL = "", --Where should we request them from?
-		RequestArguments = {}, --What additional POST arguments should we send?
-		MaxAttempts = 3, --How many times should we attempt to get the configs before giving up?
-		UpdateMode = 1, --How should they be updated? 1 = on mapcycle, 2 = timed refresh.
-		UpdateInterval = 1, --How long in minutes between updates if set to time based?
-		IsBlacklist = false, --Is the plugins list a blacklist, or a whitelist?
-		Plugins = {} --List of plugins to get web configs for.
+		Enabled = false, -- Should plugins get their configuration files from the web?
+		RequestURL = "", -- Where should we request them from?
+		RequestArguments = {}, -- What additional POST arguments should we send?
+		MaxAttempts = 3, -- How many times should we attempt to get the configs before giving up?
+		UpdateMode = 1, -- How should they be updated? 1 = on mapcycle, 2 = timed refresh.
+		UpdateInterval = 1, -- How long in minutes between updates if set to time based?
+		IsBlacklist = false, -- Is the plugins list a blacklist, or a whitelist?
+		Plugins = {} -- List of plugins to get web configs for.
 	},
 
-	ActiveExtensions = { --Defines which plugins should be active.
+	ActiveExtensions = { -- Defines which plugins should be active.
 		adverts = false,
 		afkkick = false,
 		badges = false,
@@ -69,19 +69,19 @@ local DefaultConfig = {
 		Steam = ""
 	},
 
-	EqualsCanTarget = false, --Defines whether users with the same immunity can target each other or not.
+	EqualsCanTarget = false, -- Defines whether users with the same immunity can target each other or not.
 
-	NotifyOnCommand = false, --Should we display a notification for commands such as kick, ban etc?
-	NotifyAnonymous = true, --Should we hide who performed the operation?
-	NotifyAdminAnonymous = false, --Should we hide to players with greater-equal immunity who performed it?
-	ChatName = "Admin", --The name to use for anonymous output.
-	ConsoleName = "Admin", --The name to use for console running a command.
+	NotifyOnCommand = false, -- Should we display a notification for commands such as kick, ban etc?
+	NotifyAnonymous = true, -- Should we hide who performed the operation?
+	NotifyAdminAnonymous = false, -- Should we hide to players with greater-equal immunity who performed it?
+	ChatName = "Admin", -- The name to use for anonymous output.
+	ConsoleName = "Admin", -- The name to use for console running a command.
 
-	SilentChatCommands = true, --Defines whether to silence all chat commands, or only those starting with "/".
+	SilentChatCommands = true, -- Defines whether to silence all chat commands, or only those starting with "/".
 
-	AddTag = true, --Add 'shine' as a server tag.
+	AddTag = true, -- Add 'shine' as a server tag.
 
-	ReportErrors = true --Should errors be reported at the end of a round?
+	ReportErrors = true -- Should errors be reported at the end of a round?
 }
 
 local DefaultGamemode = Shine.BaseGamemode
@@ -159,7 +159,7 @@ do
 
 			ConfigFile, Pos, Err = self.LoadJSONFile( Path )
 
-			--Store what path we've loaded from so we update the right one!
+			-- Store what path we've loaded from so we update the right one!
 			if ConfigFile ~= false then
 				self.ConfigPath = Path
 
@@ -171,10 +171,10 @@ do
 
 		if not ConfigFile or not IsType( ConfigFile, "table" ) then
 			if IsType( Pos, "string" ) then
-				--No file exists.
+				-- No file exists.
 				self:GenerateDefaultConfig( true )
 			else
-				--Invalid JSON. Load the default config but don't save.
+				-- Invalid JSON. Load the default config but don't save.
 				self.Config = DefaultConfig
 				self.ConfigHasSyntaxError = true
 
@@ -197,7 +197,7 @@ do
 		local ConfigFile, Err = self.SaveJSONFile( self.Config,
 			self.ConfigPath or GetConfigPath( false, true ) )
 
-		if not ConfigFile then --Something's gone horribly wrong!
+		if not ConfigFile then -- Something's gone horribly wrong!
 			Shine.Error = "Error writing config file: "..Err
 
 			Notify( Shine.Error )
@@ -220,11 +220,9 @@ function Shine:GenerateDefaultConfig( Save )
 end
 
 local function ConvertToLookup( Table )
-	local Count = #Table
+	if #Table == 0 then return Table end
 
-	if Count == 0 then return Table end
-
-	--I've had the game crash before for not making a new table when doing this...
+	-- I've had the game crash before for not making a new table when doing this...
 	local NewTable = {}
 
 	for i = 1, #Table do
@@ -234,34 +232,34 @@ local function ConvertToLookup( Table )
 	return NewTable
 end
 
---Gets all plugins set to load their configs from the web.
+-- Gets all plugins set to load their configs from the web.
 local function GetWebLoadingPlugins( self )
 	local WebConfig = self.Config.WebConfigs
-
 	if not WebConfig.Enabled then
 		return {}
 	end
 
 	local ActiveExtensions = self.Config.ActiveExtensions
-	local PluginList = ConvertToLookup( WebConfig.Plugins )
+	local PluginsByName = ConvertToLookup( WebConfig.Plugins )
 
 	if WebConfig.IsBlacklist then
-		local DontLoad = {}
+		local LoadFromWeb = {}
 
 		for Plugin, Enabled in pairs( ActiveExtensions ) do
-			if not PluginList[ Plugin ] and Enabled then
-				DontLoad[ Plugin ] = true
+			if not PluginsByName[ Plugin ] and Enabled then
+				LoadFromWeb[ Plugin ] = true
 			end
 		end
 
-		return DontLoad
+		return LoadFromWeb
 	end
 
-	return PluginList
+	return PluginsByName
 end
 
 local function LoadPlugin( self, Name )
-	if self.Plugins[ Name ] then --We already loaded it, it was a shared plugin.
+	if self.Plugins[ Name ] then
+		-- We already loaded it, it was a shared plugin.
 		local Success, Err = self:EnableExtension( Name )
 		Notify( Success and StringFormat( "- Extension '%s' loaded.", Name )
 			or StringFormat( "- Error loading %s: %s", Name, Err ) )
@@ -275,7 +273,7 @@ end
 function Shine:LoadExtensionConfigs()
 	self:LoadConfig()
 
-	if self.Config.AddTag then --Would be nice to know who's running it.
+	if self.Config.AddTag then -- Would be nice to know who's running it.
 		Server.AddTag( "shine" )
 	end
 
@@ -283,14 +281,14 @@ function Shine:LoadExtensionConfigs()
 	local ActiveExtensions = self.Config.ActiveExtensions
 	local Modified = false
 
-	--Find any new plugins we don't have in our config, and add them.
+	-- Find any new plugins we don't have in our config, and add them.
 	for i = 1, #AllPlugins do
 		local Plugin = AllPlugins[ i ]
 		if ActiveExtensions[ Plugin ] == nil then
 			local PluginTable = self.Plugins[ Plugin ]
 			local DefaultState = false
 
-			--Load, but do not enable, the extension to determine its default state.
+			-- Load, but do not enable, the extension to determine its default state.
 			if not PluginTable then
 				self:LoadExtension( Plugin, true )
 
@@ -344,7 +342,7 @@ function Shine:LoadExtensionConfigs()
 end
 
 local function LoadDefaultConfigs( self, List )
-	--Just call the default enable, it'll load the HDD/default config.
+	-- Just call the default enable, it'll load the disk/default config.
 	for i = 1, #List do
 		LoadPlugin( self, List[ i ] )
 	end
@@ -360,6 +358,35 @@ local function OnFail( self, List, FailMessage, Format, ... )
 	Notify( "[Shine] Finished loading." )
 end
 
+local function ValidateAndSaveConfig( Name, PluginTable )
+	if PluginTable:ValidateConfigAfterLoad() then
+		Notify( StringFormat( "WARNING: '%s' config required changes to be valid."
+			.. " Check the local copy to see what changed.", Name ) )
+	end
+	PluginTable:SaveConfig( true )
+end
+
+local function LoadPluginWithConfig( self, Name, PluginTable, ConfigData, GamemodeName, NeedDifferentPath )
+	PluginTable.Config = ConfigData
+
+	-- Set the gamemode config path if we've been given a gamemode config.
+	if NeedDifferentPath then
+		PluginTable.__ConfigPath = StringFormat( "%s%s/%s",
+			self.Config.ExtensionDir, GamemodeName, PluginTable.ConfigName )
+	end
+
+	-- Cache to disk.
+	ValidateAndSaveConfig( Name, PluginTable )
+
+	if PluginTable.OnWebConfigLoaded then
+		PluginTable:OnWebConfigLoaded()
+	end
+
+	local Success, Err = self:EnableExtension( Name, true )
+	Notify( Success and StringFormat( "- Extension '%s' loaded.", Name )
+		or StringFormat( "- Error loading %s: %s", Name, Err ) )
+end
+
 local function OnWebPluginSuccess( self, Response, List, Reload )
 	if not Response then
 		OnFail( self, List, "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
@@ -370,8 +397,8 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 	local Decoded, Pos, Err = Decode( Response )
 
 	if not Decoded or not IsType( Decoded, "table" ) then
-		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Error: %s. Loading default/cache files...",
-			true, Err )
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Error: %s.\nResponse:\n%s\nLoading default/cache files...",
+			true, Err, Response )
 
 		return
 	end
@@ -394,13 +421,25 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 		Notify( "[Shine] Parsing web config response..." )
 	end
 
-	for Name, Data in SortedPairs( PluginData ) do
+	local Loaded = {}
+	local function ProcessPlugin( Name, Data )
+		if not IsType( Name, "string" ) or not IsType( Data, "table" ) then
+			self:Print( "[WebConfigs] Server responded with invalid key/value in config table: %s/%s", true, Name, Data )
+			if not Reload and IsType( Name, "string" ) then
+				Loaded[ Name ] = true
+				LoadPlugin( self, Name )
+			end
+			return
+		end
+
+		Loaded[ Name ] = true
+
 		local Success = Data.success or Data.Success
 		local ConfigData = Data.config or Data.Config
 
-		--Is the config we're loading for a specific gamemode?
-		local GamemodeResponse = Data.Gamemode or Data.gamemode
-		local NeedDifferentPath = GamemodeResponse and GamemodeResponse ~= DefaultGamemode
+		-- Is the config we're loading for a specific gamemode?
+		local GamemodeName = Data.Gamemode or Data.gamemode
+		local NeedDifferentPath = GamemodeName and GamemodeName ~= DefaultGamemode
 
 		if not Success then
 			self:Print( "[WebConfigs] Server responded with error for plugin %s: %s.", true,
@@ -413,74 +452,46 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 			local PluginTable = self.Plugins[ Name ]
 
 			if PluginTable then
-				--Reloading means we just need to update the given config keys.
 				if Reload then
+					-- Reloading means we just need to update the given config keys.
 					for Key, Value in pairs( ConfigData ) do
 						PluginTable.Config[ Key ] = Value
 					end
 
-					PluginTable:SaveConfig( true )
+					ValidateAndSaveConfig( Name, PluginTable )
 				else
-					PluginTable.Config = ConfigData
-
-					--Check and cache new/missing entries.
-					if PluginTable.CheckConfig then
-						Shine.CheckConfig( PluginTable.Config, PluginTable.DefaultConfig )
-					end
-
-					--Set the gamemode config path if we've been given a gamemode config.
-					if NeedDifferentPath then
-						PluginTable.__ConfigPath = StringFormat( "%s%s/%s",
-							self.Config.ExtensionDir, GamemodeResponse, PluginTable.ConfigName )
-					end
-
-					--Cache to HDD.
-					PluginTable:SaveConfig( true )
-
-					if PluginTable.OnWebConfigLoaded then
-						PluginTable:OnWebConfigLoaded()
-					end
-
-					local Success, Err = self:EnableExtension( Name, true )
-
-					Notify( Success and StringFormat( "- Extension '%s' loaded.", Name )
-						or StringFormat( "- Error loading %s: %s", Name, Err ) )
+					LoadPluginWithConfig( self, Name, PluginTable, ConfigData, GamemodeName, NeedDifferentPath )
 				end
-			elseif not Reload then --We don't want to enable new extensions on reload.
+			-- We don't want to enable new extensions on reload.
+			elseif not Reload then
 				local Success, Err = self:LoadExtension( Name, true )
 
 				if not Success then
 					Notify( StringFormat( "- Error loading %s: %s", Name, Err ) )
 				else
 					PluginTable = self.Plugins[ Name ]
-
-					PluginTable.Config = ConfigData
-
-					if PluginTable.CheckConfig then
-						Shine.CheckConfig( PluginTable.Config, PluginTable.DefaultConfig )
-					end
-
-					if NeedDifferentPath then
-						PluginTable.__ConfigPath = StringFormat( "%s%s/%s",
-							self.Config.ExtensionDir, GamemodeResponse, PluginTable.ConfigName )
-					end
-
-					PluginTable:SaveConfig( true )
-
-					if PluginTable.OnWebConfigLoaded then
-						PluginTable:OnWebConfigLoaded()
-					end
-
-					Success, Err = self:EnableExtension( Name, true )
-
-					Notify( Success and StringFormat( "- Extension '%s' loaded.", Name )
-						or StringFormat( "- Error loading %s: %s", Name, Err ) )
+					LoadPluginWithConfig( self, Name, PluginTable, ConfigData, GamemodeName, NeedDifferentPath )
 				end
 			end
 		else
 			self:Print( "[WebConfigs] Server responded with success but supplied no config for plugin %s.", true, Name )
 
 			if not Reload then
+				LoadPlugin( self, Name )
+			end
+		end
+	end
+
+	for Name, Data in SortedPairs( PluginData ) do
+		ProcessPlugin( Name, Data )
+	end
+
+	if not Reload then
+		-- Make sure any entries that weren't provided in the response are still loaded.
+		for i = 1, #List do
+			local Name = List[ i ]
+			if not Loaded[ Name ] then
+				self:Print( "[WebConfigs] No data was provided for plugin %s, so it was loaded from disk.", true, Name )
 				LoadPlugin( self, Name )
 			end
 		end

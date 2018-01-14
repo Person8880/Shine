@@ -106,6 +106,16 @@ function ConfigModule:LoadConfig()
 
 	self.Config = PluginConfig
 
+	if self:ValidateConfigAfterLoad() then
+		self:SaveConfig()
+	end
+end
+
+--[[
+	Validates the plugin's configuration, returning true if changes
+	were made.
+]]
+function ConfigModule:ValidateConfigAfterLoad()
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( _, Config )
@@ -139,9 +149,7 @@ function ConfigModule:LoadConfig()
 		Validator:Add( self.ConfigValidator )
 	end
 
-	if Validator:Validate( self.Config ) then
-		self:SaveConfig()
-	end
+	return Validator:Validate( self.Config )
 end
 
 function ConfigModule:MigrateConfig( Config )
