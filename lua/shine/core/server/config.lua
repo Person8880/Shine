@@ -459,6 +459,10 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 					end
 
 					ValidateAndSaveConfig( Name, PluginTable )
+
+					if PluginTable.OnWebConfigReloaded then
+						PluginTable:OnWebConfigReloaded()
+					end
 				else
 					LoadPluginWithConfig( self, Name, PluginTable, ConfigData, GamemodeName, NeedDifferentPath )
 				end
