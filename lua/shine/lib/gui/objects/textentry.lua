@@ -336,6 +336,8 @@ function TextEntry:RemoveSelectedText()
 	self:OnTextChanged( Text, self.Text )
 end
 
+TextEntry.SelectionEasingTime = 0.1
+
 function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 	local SelectionBounds = self.SelectionBounds
 
@@ -354,8 +356,8 @@ function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 			self:StopMoving()
 			self:StopResizing( self.SelectionBox )
 		else
-			self:MoveTo( self.SelectionBox, nil, Pos, 0, 0.2, nil, nil, 3 )
-			self:SizeTo( self.SelectionBox, nil, Size, 0, 0.2 )
+			self:MoveTo( self.SelectionBox, nil, Pos, 0, self.SelectionEasingTime, nil, nil, 3 )
+			self:SizeTo( self.SelectionBox, nil, Size, 0, self.SelectionEasingTime )
 		end
 
 		return
@@ -365,14 +367,20 @@ function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 		SelectionBounds[ 2 ] )
 	local Width = self.TextObj:GetTextWidth( TextBetween ) * self.WidthScale
 
-	--If it was hidden, don't ease it.
-	if Size.x == 0 and not XOverride then
+	-- If it was hidden, don't ease it.
+	if ( Size.x == 0 and not XOverride ) or SkipAnim then
+		self:StopMoving()
 		self.SelectionBox:SetPosition( Pos )
 	else
-		self:MoveTo( self.SelectionBox, nil, Pos, 0, 0.2, nil, nil, 3 )
+		self:MoveTo( self.SelectionBox, nil, Pos, 0, self.SelectionEasingTime, nil, nil, 3 )
 	end
 
-	self:SizeTo( self.SelectionBox, nil, Vector( Width, self.Caret:GetSize().y, 0 ), 0, 0.2 )
+	if SkipAnim then
+		self:StopResizing( self.SelectionBox )
+		self.SelectionBox:SetSize( Vector( Width, self.Caret:GetSize().y, 0 ) )
+	else
+		self:SizeTo( self.SelectionBox, nil, Vector( Width, self.Caret:GetSize().y, 0 ), 0, self.SelectionEasingTime )
+	end
 end
 
 function TextEntry:HandleSelectingText()
@@ -403,22 +411,61 @@ function TextEntry:HandleSelectingText()
 		local Pos = self.Caret:GetPosition()
 		Pos.x = self.TextObj:GetTextWidth( BeforeText ) * self.WidthScale + self.TextOffset + self.CaretOffset
 
-		self:MoveTo( self.SelectionBox, nil, Pos, 0, 0.2, nil, nil, 3 )
+		self:MoveTo( self.SelectionBox, nil, Pos, 0, self.SelectionEasingTime, nil, nil, 3 )
 	end
 end
 
-function TextEntry:SetSelection( Lower, Upper, XOverride )
+function TextEntry:SetSelection( Lower, Upper, SkipAnim, XOverride )
 	self.SelectionBounds[ 1 ] = Lower
 	self.SelectionBounds[ 2 ] = Upper
 
 	self:SetCaretPos( Lower )
 	self.SelectionBox:SetPosition( self.Caret:GetPosition() )
-	self:UpdateSelectionBounds( nil, XOverride )
+	self:UpdateSelectionBounds( SkipAnim, XOverride )
 	self:SetCaretPos( Upper )
 end
 
+function TextEntry:OffsetSelection( Amount )
+	local CaretPos = self.Column
+	local Bounds = self.SelectionBounds
+
+	if Bounds[ 1 ] == Bounds[ 2 ] then
+		if Amount < 0 then
+			Bounds[ 2 ] = CaretPos
+			CaretPos = Max( CaretPos + Amount, 0 )
+			Bounds[ 1 ] = CaretPos
+		else
+			Bounds[ 1 ] = CaretPos
+			CaretPos = Min( CaretPos + Amount, StringUTF8Length( self.Text ) )
+			Bounds[ 2 ] = CaretPos
+		end
+
+		self:SetSelection( Bounds[ 1 ], Bounds[ 2 ], true, Bounds[ 1 ] == 0 and ( self.Padding + self.CaretOffset ) or nil )
+		self:SetCaretPos( CaretPos )
+		return
+	end
+
+	local NewCaretPos = Clamp( CaretPos + Amount, 0, StringUTF8Length( self.Text ) )
+	if CaretPos <= Bounds[ 1 ] then
+		Bounds[ 1 ] = NewCaretPos
+		if Bounds[ 1 ] > Bounds[ 2 ] then
+			Bounds[ 1 ] = Bounds[ 2 ]
+			Bounds[ 2 ] = NewCaretPos
+		end
+	else
+		Bounds[ 2 ] = NewCaretPos
+		if Bounds[ 2 ] < Bounds[ 1 ] then
+			Bounds[ 2 ] = Bounds[ 1 ]
+			Bounds[ 1 ] = NewCaretPos
+		end
+	end
+
+	self:SetSelection( Bounds[ 1 ], Bounds[ 2 ], true, Bounds[ 1 ] == 0 and ( self.Padding + self.CaretOffset ) or nil )
+	self:SetCaretPos( NewCaretPos )
+end
+
 function TextEntry:SelectAll()
-	self:SetSelection( 0, StringUTF8Length( self.Text ), self.Padding + self.CaretOffset )
+	self:SetSelection( 0, StringUTF8Length( self.Text ), false, self.Padding + self.CaretOffset )
 end
 
 local function FindFurthestSpace( Text )
@@ -437,10 +484,10 @@ local function FindFurthestSpace( Text )
 	return PreviousSpace or 1
 end
 
-function TextEntry:SelectWord( CharPos )
+function TextEntry:FindWordBounds( CharPos )
 	local Text = self.Text
 	local Length = StringUTF8Length( Text )
-	if Length == 0 then return end
+	if Length == 0 then return 0, 0 end
 
 	CharPos = CharPos + 1
 
@@ -457,7 +504,23 @@ function TextEntry:SelectWord( CharPos )
 	local NextSpace = StringFind( After, " " ) or ( #After + 1 )
 	NextSpace = StringUTF8Length( Before ) + StringUTF8Length( StringSub( After, 1, NextSpace - 1 ) )
 
-	self:SetSelection( PreSpace, NextSpace )
+	return PreSpace, NextSpace
+end
+
+function TextEntry:FindNextWordBoundInDir( Pos, Dir )
+	local PrevSpace, NextSpace = self:FindWordBounds( Pos )
+
+	if Dir == 1 and NextSpace == Pos and Pos ~= StringUTF8Length( self.Text ) then
+		PrevSpace, NextSpace = self:FindWordBounds( Pos + 1 )
+	elseif Dir == -1 and PrevSpace == Pos and Pos ~= 0 then
+		PrevSpace = self:FindWordBounds( Pos - 1 )
+	end
+
+	return Dir == 1 and NextSpace or PrevSpace
+end
+
+function TextEntry:SelectWord( CharPos )
+	self:SetSelection( self:FindWordBounds( CharPos ) )
 end
 
 function TextEntry:SetText( Text, IgnoreUndo )
@@ -908,12 +971,50 @@ function TextEntry:PlayerKeyPress( Key, Down )
 
 		return true
 	elseif Key == InputKey.Left then
+		if SGUI:IsShiftDown() then
+			if SGUI:IsControlDown() then
+				local PrevSpace = self:FindNextWordBoundInDir( self.Column, -1 )
+				self:OffsetSelection( PrevSpace - self.Column )
+
+				return true
+			end
+
+			self:OffsetSelection( -1 )
+			return true
+		end
+
 		self:ResetSelectionBounds()
+
+		if SGUI:IsControlDown() then
+			local PrevSpace = self:FindNextWordBoundInDir( self.Column, -1 )
+			self:SetCaretPos( PrevSpace )
+			return true
+		end
+
 		self:SetCaretPos( self.Column - 1 )
 
 		return true
 	elseif Key == InputKey.Right then
+		if SGUI:IsShiftDown() then
+			if SGUI:IsControlDown() then
+				local NextSpace = self:FindNextWordBoundInDir( self.Column, 1 )
+				self:OffsetSelection( NextSpace - self.Column )
+
+				return true
+			end
+
+			self:OffsetSelection( 1 )
+			return true
+		end
+
 		self:ResetSelectionBounds()
+
+		if SGUI:IsControlDown() then
+			local NextSpace = self:FindNextWordBoundInDir( self.Column, 1 )
+			self:SetCaretPos( NextSpace )
+			return true
+		end
+
 		self:SetCaretPos( self.Column + 1 )
 
 		return true
