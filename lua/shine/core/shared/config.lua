@@ -6,8 +6,10 @@ local Encode, Decode = json.encode, json.decode
 local getmetatable = getmetatable
 local Open = io.open
 local pairs = pairs
+local xpcall = xpcall
 local setmetatable = setmetatable
 local StringFormat = string.format
+local TableToJSON = table.ToJSON
 local type = type
 
 -- Make JSON encoding always have consistent order.
@@ -53,8 +55,19 @@ function Shine.LoadJSONFile( Path )
 	return Decode( Data )
 end
 
+local JSONErrorHandler = Shine.BuildErrorHandler( "JSON serialisation error" )
 function Shine.SaveJSONFile( Table, Path, Settings )
-	return WriteFile( Path, Encode( Table, Settings or JSONSettings ) )
+	Settings = Settings or JSONSettings
+	local FormattingOptions = {
+		PrettyPrint = Settings.indent or false,
+		IndentSize = 4 * ( Settings.level or 1 )
+	}
+	local Success, JSON = xpcall( TableToJSON, JSONErrorHandler, Table, FormattingOptions )
+	if not Success then
+		-- Fallback to DKJSON if there's somehow a bug in our serialiser.
+		JSON = Encode( Table, Settings )
+	end
+	return WriteFile( Path, JSON )
 end
 
 -- Checks a config for missing entries including the first level of sub-tables.
