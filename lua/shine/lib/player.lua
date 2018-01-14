@@ -118,14 +118,16 @@ end
 local function MoveToTeam( Gamerules, Players, TeamNumber )
 	for i = #Players, 1, -1 do
 		local Player = Players[ i ]
-		local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-			OnJoinError, Gamerules, Player, TeamNumber,
-			Player:GetTeamNumber() ~= TeamNumber, true )
+		if Player:GetTeamNumber() ~= TeamNumber then
+			local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
+				OnJoinError, Gamerules, Player, TeamNumber,
+				true, true )
 
-		if Success then
-			Players[ i ] = NewPlayer
-		else
-			TableRemove( Players, i )
+			if Success then
+				Players[ i ] = NewPlayer
+			else
+				TableRemove( Players, i )
+			end
 		end
 	end
 end
