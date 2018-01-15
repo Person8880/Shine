@@ -300,6 +300,7 @@ do
 	local DebugGetInfo = debug.getinfo
 	local getmetatable = getmetatable
 	local Notify = Shared.Message
+	local pcall = pcall
 	local StringFind = string.find
 	local StringFormat = string.format
 	local StringLower = string.lower
@@ -308,6 +309,12 @@ do
 	local tonumber = tonumber
 	local tostring = tostring
 	local type = type
+
+	local function GetClassName( Value )
+		if Value.GetClassName then
+			return StringFormat( "%s (%s)", Value, Value:GetClassName() )
+		end
+	end
 
 	local DefaultPrinters = {
 		string = function( Value )
@@ -326,8 +333,10 @@ do
 				return tostring( Meta.__towatch( Value ) )
 			end
 
-			if Value.GetClassName then
-				return StringFormat( "%s (%s)", Value, Value:GetClassName() )
+			-- Some userdata may error for unknown keys.
+			local Success, Name = pcall( GetClassName, Value )
+			if Success and Name then
+				return Name
 			end
 
 			return tostring( Value )
