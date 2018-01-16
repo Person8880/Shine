@@ -48,23 +48,13 @@ function Module:UpdateVoteButton()
 
 	if self.dt.CurrentVotes == 0 or self.dt.RequiredVotes == 0 then
 		Button:SetText( Button.DefaultText )
-
-		if SGUI.IsValid( Button.CheckMark ) then
-			Button.CheckMark:Destroy()
-			Button.CheckMark = nil
-		end
+		Shine.VoteMenu:MarkAsSelected( Button, false )
 
 		return
 	end
 
-	if self.HasVoted and not SGUI.IsValid( Button.CheckMark ) then
-		local CheckMark = SGUI:Create( "Image", Button )
-		local Height = Button:GetSize().y * 0.75
-		CheckMark:SetAnchor( "CentreRight" )
-		CheckMark:SetSize( Vector2( Height, Height ) )
-		CheckMark:SetPos( Vector2( -Height, -Height * 0.5 ) )
-		CheckMark:SetTexture( TickTexture )
-		Button.CheckMark = CheckMark
+	if self.HasVoted then
+		Shine.VoteMenu:MarkAsSelected( Button, true )
 	end
 
 	-- Update the button with the current vote count.

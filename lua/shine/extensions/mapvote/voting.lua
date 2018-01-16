@@ -205,6 +205,13 @@ function Plugin:SendMapVoteCount( Client, Map, Count )
 end
 
 --[[
+	Sends a client's vote choice so their menu knows which map they have selected.
+]]
+function Plugin:SendVoteChoice( Client, Map )
+	self:SendNetworkMessage( Client, "ChosenMap", { MapName = Map }, true )
+end
+
+--[[
 	Adds a vote for a given map in the map vote.
 ]]
 function Plugin:AddVote( Client, Map, Revote )
@@ -228,15 +235,18 @@ function Plugin:AddVote( Client, Map, Revote )
 			self.Vote.VoteList[ OldVote ] = self.Vote.VoteList[ OldVote ] - 1
 		end
 
-		--Update all client's vote counters.
+		-- Update all client's vote counters.
 		self:SendMapVoteCount( nil, OldVote, self.Vote.VoteList[ OldVote ] )
 	end
 
 	local CurVotes = self.Vote.VoteList[ Choice ]
 	self.Vote.VoteList[ Choice ] = CurVotes + 1
 
-	--Update all client's vote counters.
+	-- Update all client's vote counters.
 	self:SendMapVoteCount( nil, Choice, self.Vote.VoteList[ Choice ] )
+	if Client ~= "Console" then
+		self:SendVoteChoice( Client, Choice )
+	end
 
 	if not Revote then
 		self.Vote.TotalVotes = self.Vote.TotalVotes + 1
