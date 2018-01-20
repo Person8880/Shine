@@ -67,7 +67,7 @@ function Stream:Filter( Predicate )
 
 	for i = 1, Size do
 		self.Data[ i - Offset ] = self.Data[ i ]
-		if not Predicate( self.Data[ i ] ) then
+		if not Predicate( self.Data[ i ], i ) then
 			self.Data[ i ] = nil
 			Offset = Offset + 1
 		end
@@ -85,7 +85,7 @@ end
 ]]
 function Stream:ForEach( Function )
 	for i = 1, #self.Data do
-		Function( self.Data[ i ] )
+		Function( self.Data[ i ], i )
 	end
 
 	return self
@@ -98,7 +98,7 @@ end
 ]]
 function Stream:Map( Mapper )
 	for i = 1, #self.Data do
-		self.Data[ i ] = Mapper( self.Data[ i ] )
+		self.Data[ i ] = Mapper( self.Data[ i ], i )
 	end
 
 	return self

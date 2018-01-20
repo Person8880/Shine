@@ -90,3 +90,75 @@ UnitTest:Test( "TypeCheckConfig", function( Assert )
 	Assert:True( Shine.TypeCheckConfig( "test", Config, DefaultConfig, true ) )
 	Assert:Equals( "String", Config.SubConfig.Test )
 end )
+
+UnitTest:Test( "VerifyConfig updates when required", function( Assert )
+	local DefaultConfig = {
+		A = true,
+		B = true,
+		C = {
+			A = true,
+			B = true,
+			C = { 1, 2, 3 }
+		},
+		D = Shine.IgnoreWhenChecking( {
+			A = true
+		} )
+	}
+
+	local ProvidedConfig = {
+		A = true,
+		C = {
+			B = true,
+			D = "cake",
+			C = { 1 }
+		},
+		D = {
+			B = true
+		},
+		E = "cake",
+		__Version = "1.0"
+	}
+
+	local Updated = Shine.VerifyConfig( ProvidedConfig, DefaultConfig, { __Version = true } )
+	Assert.True( "Config should have been updated", Updated )
+	Assert.Equals( "Should have added missing top-level key", true, ProvidedConfig.B )
+	Assert.Equals( "Should have added missing sub-level key", true, ProvidedConfig.C.A )
+	Assert.ArrayEquals( "Should have left array alone", { 1 }, ProvidedConfig.C.C )
+	Assert.TableEquals( "Should have left ignored table alone", { B = true }, ProvidedConfig.D )
+	Assert.Equals( "Should have removed obselete top-level key", nil, ProvidedConfig.E )
+	Assert.Equals( "Should have removed obselete sub-level key", nil, ProvidedConfig.C.D )
+	Assert.Equals( "Should have left reserved key alone", "1.0", ProvidedConfig.__Version )
+end )
+
+UnitTest:Test( "VerifyConfig does nothing when config matches", function( Assert )
+	local DefaultConfig = {
+		A = true,
+		B = true,
+		C = {
+			A = true,
+			B = true,
+			C = { 1, 2, 3 }
+		},
+		D = Shine.IgnoreWhenChecking( {
+			A = true
+		} )
+	}
+	local ProvidedConfig = {
+		A = true,
+		B = true,
+		C = {
+			A = true,
+			B = true,
+			C = { 1 }
+		},
+		D = {
+			B = true
+		},
+		__Version = "1.0"
+	}
+	local ExpectedConfig = table.Copy( ProvidedConfig )
+
+	local Updated = Shine.VerifyConfig( ProvidedConfig, DefaultConfig, { __Version = true } )
+	Assert.False( "Config should not have been updated", Updated )
+	Assert.DeepEquals( "Config values should remain unchanged", ExpectedConfig, ProvidedConfig )
+end )

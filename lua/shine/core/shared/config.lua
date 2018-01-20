@@ -3,9 +3,13 @@
 ]]
 
 local Encode, Decode = json.encode, json.decode
+local getmetatable = getmetatable
 local Open = io.open
 local pairs = pairs
+local xpcall = xpcall
+local setmetatable = setmetatable
 local StringFormat = string.format
+local TableToJSON = table.ToJSON
 local type = type
 
 -- Make JSON encoding always have consistent order.
@@ -51,15 +55,26 @@ function Shine.LoadJSONFile( Path )
 	return Decode( Data )
 end
 
+local JSONErrorHandler = Shine.BuildErrorHandler( "JSON serialisation error" )
 function Shine.SaveJSONFile( Table, Path, Settings )
-	return WriteFile( Path, Encode( Table, Settings or JSONSettings ) )
+	Settings = Settings or JSONSettings
+	local FormattingOptions = {
+		PrettyPrint = Settings.indent or false,
+		IndentSize = 4 * ( Settings.level or 1 )
+	}
+	local Success, JSON = xpcall( TableToJSON, JSONErrorHandler, Table, FormattingOptions )
+	if not Success then
+		-- Fallback to DKJSON if there's somehow a bug in our serialiser.
+		JSON = Encode( Table, Settings )
+	end
+	return WriteFile( Path, JSON )
 end
 
---Checks a config for missing entries including the first level of sub-tables.
+-- Checks a config for missing entries including the first level of sub-tables.
 function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 	local Updated
 
-	--Add new keys.
+	-- Add new keys.
 	for Option, Value in pairs( DefaultConfig ) do
 		if Config[ Option ] == nil then
 			Config[ Option ] = Value
@@ -78,7 +93,7 @@ function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 
 	if DontRemove then return Updated end
 
-	--Remove old keys.
+	-- Remove old keys.
 	for Option, Value in pairs( Config ) do
 		if DefaultConfig[ Option ] == nil then
 			Config[ Option ] = nil
@@ -98,11 +113,74 @@ function Shine.RecursiveCheckConfig( Config, DefaultConfig, DontRemove )
 	return Updated
 end
 
---Checks a config for missing entries without checking sub-tables.
+do
+	local IgnorableValue = {}
+	--[[
+		Marks a table value as ignorable when checking configuration
+		values.
+
+		This should be used when a table does not have fixed keys. It will not change
+		the table's behaviour at all, it just adds a marker meta-table.
+	]]
+	function Shine.IgnoreWhenChecking( Value )
+		Shine.TypeCheck( Value, "table", 1, "IgnoreWhenChecking" )
+		return setmetatable( Value, IgnorableValue )
+	end
+
+	local function ShouldIgnore( DefaultValue )
+		return getmetatable( DefaultValue ) == IgnorableValue
+	end
+
+	--[[
+		For each value in the configuration recursively, ensure that any missing
+		keys in the provided config are added, and that any keys not present in the
+		default config are removed.
+
+		This ignores any key that is a number on the basis that it's likely an array
+		value and thus it is not useful to check.
+
+		Tables can also be set to be ignored manually by using Shine.IgnoreWhenChecking().
+	]]
+	function Shine.VerifyConfig( Config, DefaultConfig, ReservedKeys )
+		local Updated = false
+
+		for Option, DefaultValue in pairs( DefaultConfig ) do
+			-- Ignore any number keys, assume they are default array options which can vary.
+			if not IsType( Option, "number" ) then
+				local ProvidedValue = Config[ Option ]
+				-- If no value has been provided for this key, add it.
+				if ProvidedValue == nil then
+					Config[ Option ] = DefaultValue
+					Updated = true
+				-- If the default value is a table, check its keys as long as it's not set
+				-- to be ignored in the default config.
+				elseif IsType( DefaultValue, "table" ) and IsType( ProvidedValue, "table" )
+				and not ShouldIgnore( DefaultValue ) then
+					Updated = Shine.VerifyConfig( ProvidedValue, DefaultValue ) or Updated
+				end
+			end
+		end
+
+		for Option, Value in pairs( Config ) do
+			-- If the value no longer exists in the default config, and it's not
+			-- an array value or reserved key, remove it.
+			if DefaultConfig[ Option ] == nil
+			and not ( ReservedKeys and ReservedKeys[ Option ] )
+			and not IsType( Option, "number" ) then
+				Config[ Option ] = nil
+				Updated = true
+			end
+		end
+
+		return Updated
+	end
+end
+
+-- Checks a config for missing entries without checking sub-tables.
 function Shine.CheckConfig( Config, DefaultConfig, DontRemove, ReservedKeys )
 	local Updated
 
-	--Add new keys.
+	-- Add new keys.
 	for Option, Value in pairs( DefaultConfig ) do
 		if Config[ Option ] == nil then
 			Config[ Option ] = Value
@@ -113,7 +191,7 @@ function Shine.CheckConfig( Config, DefaultConfig, DontRemove, ReservedKeys )
 
 	if DontRemove then return Updated end
 
-	--Remove old keys.
+	-- Remove old keys.
 	for Option, Value in pairs( Config ) do
 		if DefaultConfig[ Option ] == nil
 		and not ( ReservedKeys and ReservedKeys[ Option ] ) then

@@ -7,6 +7,7 @@ local Shine = Shine
 local Clamp = math.Clamp
 local DebugSetUpValue = debug.setupvalue
 local Floor = math.floor
+local IsCallable = Shine.IsCallable
 local IsType = Shine.IsType
 local xpcall = xpcall
 local ReplaceMethod = Shine.ReplaceClassMethod
@@ -27,7 +28,6 @@ local ReservedNames = {}
 ]]
 local function Remove( Event, Index )
 	local EventHooks = Hooks[ Event ]
-
 	if not EventHooks then return end
 
 	local Priority = ReservedNames[ Event ][ Index ]
@@ -43,7 +43,14 @@ Hook.Remove = Remove
 	Inputs: Event to hook into, unique identifier, function to run, optional priority.
 ]]
 local function Add( Event, Index, Function, Priority )
-	Priority = Clamp( Floor( tonumber( Priority ) or 0 ), -20, 20 )
+	Shine.AssertAtLevel( Event ~= nil, "Event identifier must not be nil!", 3 )
+	Shine.AssertAtLevel( Index ~= nil, "Index must not be nil!", 3 )
+	Shine.AssertAtLevel( IsCallable( Function ), "Function must be callable!", 3 )
+	if Priority ~= nil then
+		Shine.TypeCheck( Priority, "number", 4, "Add" )
+	end
+
+	Priority = Clamp( Floor( Priority or 0 ), -20, 20 )
 
 	if not Hooks[ Event ] then
 		Hooks[ Event ] = {}

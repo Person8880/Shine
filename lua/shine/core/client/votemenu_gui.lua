@@ -34,22 +34,19 @@ local FontName = Fonts.kAgencyFB_Small
 local FontScale = Vector( 1, 1, 0 )
 local TextCol = Colour( 1, 1, 1, 1 )
 
-local MenuTexture =
-{
+local MenuTexture = {
 	[ kMarineTeamType ] = "ui/marine_request_menu.dds",
 	[ kAlienTeamType ] = "ui/alien_request_menu.dds",
 	[ kNeutralTeamType ] = "ui/marine_request_menu.dds",
 }
 
-local ButtonTexture =
-{
+local ButtonTexture = {
 	[ kMarineTeamType ] = "ui/marine_request_button.dds",
 	[ kAlienTeamType ] = "ui/alien_request_button.dds",
 	[ kNeutralTeamType ] = "ui/marine_request_button.dds",
 }
 
-local ButtonHighlightTexture =
-{
+local ButtonHighlightTexture = {
 	[ kMarineTeamType ] = "ui/marine_request_button_highlighted.dds",
 	[ kAlienTeamType ] = "ui/alien_request_button_highlighted.dds",
 	[ kNeutralTeamType ] = "ui/marine_request_button_highlighted.dds",
@@ -352,9 +349,10 @@ function VoteMenu:SetPage( Name, IgnoreAnim )
 	self.ActivePage = Name
 end
 
-local function ClearButton( Button )
+local function ClearButton( self, Button )
 	if not SGUI.IsValid( Button ) then return end
 
+	self:MarkAsSelected( Button, false )
 	Button:SetIsVisible( false )
 	Button:SetTooltip( nil )
 
@@ -375,11 +373,11 @@ function VoteMenu:Clear()
 	local TopButton = Buttons.Top
 	local BottomButton = Buttons.Bottom
 
-	ClearButton( TopButton )
-	ClearButton( BottomButton )
+	ClearButton( self, TopButton )
+	ClearButton( self, BottomButton )
 
 	for i = 1, #SideButtons do
-		ClearButton( SideButtons[ i ] )
+		ClearButton( self, SideButtons[ i ] )
 	end
 
 	self.ButtonIndex = 0
@@ -544,6 +542,33 @@ function VoteMenu:AddSideButton( Text, DoClick )
 	self.ButtonIndex = Index
 
 	return Button
+end
+
+do
+	local TickTexture = PrecacheAsset( "ui/checkmark.dds" )
+
+	--[[
+		Marks or unmarks a given button as selected.
+		Selected buttons have a checkmark added to their right-hand side.
+	]]
+	function VoteMenu:MarkAsSelected( Button, Selected )
+		local HasCheckMark = SGUI.IsValid( Button.CheckMark )
+
+		if Selected and not HasCheckMark then
+			local Height = Button:GetSize().y * 0.75
+
+			local CheckMark = SGUI:Create( "Image", Button )
+			CheckMark:SetAnchor( "CentreRight" )
+			CheckMark:SetSize( Vector2( Height, Height ) )
+			CheckMark:SetPos( Vector2( -Height, -Height * 0.5 ) )
+			CheckMark:SetTexture( TickTexture )
+
+			Button.CheckMark = CheckMark
+		elseif not Selected and HasCheckMark then
+			Button.CheckMark:Destroy()
+			Button.CheckMark = nil
+		end
+	end
 end
 
 --[[

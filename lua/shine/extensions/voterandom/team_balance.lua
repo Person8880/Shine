@@ -331,6 +331,32 @@ function BalanceModule:GetWeightedHappiness( Player, TeamPreference, TeamAssigne
 	return -HistoricWeighting
 end
 
+local function TeamMembersContainCommander( TeamMembers )
+	for i = 1, 2 do
+		local Team = TeamMembers[ i ]
+		for j = 1, #Team do
+			local Player = Team[ j ]
+			if Player and Player:isa( "Commander" ) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+--[[
+	Can only apply this optimisation if we are using a single skill value.
+	If a player has a different skill depending on which team they are on,
+	swapping will have dire consequences.
+
+	Also, commanders must not be swapped if configured to ignore them, so
+	there also must be no commanders present in the teams if ignoring is enabled.
+]]
+function BalanceModule:ShouldOptimiseHappiness( TeamMembers )
+	return not self.Config.UseTeamSkills
+		and not ( self.Config.IgnoreCommanders and TeamMembersContainCommander( TeamMembers ) )
+end
+
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
@@ -356,10 +382,7 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	self.Logger:Debug( "After optimisation:" )
 	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
 
-	if not self.Config.UseTeamSkills and not IgnoreCommanders then
-		-- Can only apply this optimisation if we are using a single skill value.
-		-- If a player has a different skill depending on which team they are on,
-		-- swapping will have dire consequences.
+	if self:ShouldOptimiseHappiness( TeamMembers ) then
 		self:OptimiseHappiness( TeamMembers )
 
 		self.Logger:Debug( "After happiness optimisation:" )

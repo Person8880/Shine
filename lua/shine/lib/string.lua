@@ -5,6 +5,7 @@
 local Floor = math.floor
 local StringFind = string.find
 local StringFormat = string.format
+local StringGSub = string.gsub
 local StringLen = string.len
 local StringSub = string.sub
 local TableConcat = table.concat
@@ -24,6 +25,31 @@ end
 ]]
 function string.StartsWith( String, Prefix )
 	return StringSub( String, 1, StringLen( Prefix ) ) == Prefix
+end
+
+do
+	local PatternReplacements = {
+		[ "(" ] = "%(",
+		[ ")" ] = "%)",
+		[ "." ] = "%.",
+		[ "%" ] = "%%",
+		[ "+" ] = "%+",
+		[ "-" ] = "%-",
+		[ "*" ] = "%*",
+		[ "?" ] = "%?",
+		[ "[" ] = "%[",
+		[ "]" ] = "%]",
+		[ "^" ] = "%^",
+		[ "$" ] = "%$",
+		[ "\0" ] = "%z"
+	}
+
+	--[[
+		Returns the given string with all Lua pattern control characters escaped.
+	]]
+	function string.PatternSafe( String )
+		return StringGSub( String, ".", PatternReplacements )
+	end
 end
 
 --[[

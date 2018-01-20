@@ -106,6 +106,16 @@ function ConfigModule:LoadConfig()
 
 	self.Config = PluginConfig
 
+	if self:ValidateConfigAfterLoad() then
+		self:SaveConfig()
+	end
+end
+
+--[[
+	Validates the plugin's configuration, returning true if changes
+	were made.
+]]
+function ConfigModule:ValidateConfigAfterLoad()
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( _, Config )
@@ -119,7 +129,15 @@ function ConfigModule:LoadConfig()
 	} )
 	Validator:AddRule( {
 		Matches = function( _, Config )
-			return self.CheckConfig and Shine.CheckConfig( Config, self.DefaultConfig, false, { __Version = true } )
+			if self.CheckConfig then
+				local ReservedKeys = { __Version = true }
+
+				if self.CheckConfigRecursively then
+					return Shine.VerifyConfig( Config, self.DefaultConfig, ReservedKeys )
+				end
+
+				return Shine.CheckConfig( Config, self.DefaultConfig, false, ReservedKeys )
+			end
 		end
 	} )
 	Validator:AddRule( {
@@ -131,9 +149,7 @@ function ConfigModule:LoadConfig()
 		Validator:Add( self.ConfigValidator )
 	end
 
-	if Validator:Validate( self.Config ) then
-		self:SaveConfig()
-	end
+	return Validator:Validate( self.Config )
 end
 
 function ConfigModule:MigrateConfig( Config )

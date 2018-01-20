@@ -300,6 +300,7 @@ do
 	local DebugGetInfo = debug.getinfo
 	local getmetatable = getmetatable
 	local Notify = Shared.Message
+	local pcall = pcall
 	local StringFind = string.find
 	local StringFormat = string.format
 	local StringLower = string.lower
@@ -308,6 +309,12 @@ do
 	local tonumber = tonumber
 	local tostring = tostring
 	local type = type
+
+	local function GetClassName( Value )
+		if Value.GetClassName then
+			return StringFormat( "%s (%s)", Value, Value:GetClassName() )
+		end
+	end
 
 	local DefaultPrinters = {
 		string = function( Value )
@@ -326,8 +333,10 @@ do
 				return tostring( Meta.__towatch( Value ) )
 			end
 
-			if Value.GetClassName then
-				return StringFormat( "%s (%s)", Value, Value:GetClassName() )
+			-- Some userdata may error for unknown keys.
+			local Success, Name = pcall( GetClassName, Value )
+			if Success and Name then
+				return Name
 			end
 
 			return tostring( Value )
@@ -588,5 +597,255 @@ do
 		end
 
 		return KeyValueIterator( Keys, Table )
+	end
+end
+
+do
+	local GetMetaTable = debug.getmetatable
+	local Max = math.max
+	local StringByte = string.byte
+	local StringFormat = string.format
+	local StringGSub = string.gsub
+	local StringRep = string.rep
+	local TableConcat = table.concat
+	local tostring = tostring
+	local type = type
+
+	local OBJECT_TYPE = "object"
+	local function IsTableArray( Table, MetaTable )
+		if MetaTable and MetaTable.__jsontype == OBJECT_TYPE then
+			return false
+		end
+
+		local NumberOfElements = 0
+		local ProvidedSize = Table.n or #Table
+		local MaxIndex = 0
+
+		for Key, Value in pairs( Table ) do
+			if type( Key ) ~= "number" then return false end
+			MaxIndex = Max( Key, MaxIndex )
+			NumberOfElements = NumberOfElements + 1
+		end
+
+		if MaxIndex > 10 and MaxIndex > ProvidedSize and MaxIndex > NumberOfElements * 2 then
+			-- Keep consistent behaviour with DKJSON
+			return false
+		end
+
+		return true, MaxIndex
+	end
+
+	local function NewLineIfNecessary( Buffer, FormattingOptions, IndentLevel )
+		if not FormattingOptions.PrettyPrint then return end
+
+		Buffer[ #Buffer + 1 ] = FormattingOptions.NewLineChar
+		Buffer[ #Buffer + 1 ] = StringRep( FormattingOptions.IndentChar,
+			FormattingOptions.IndentSize * IndentLevel )
+	end
+
+	local function GetLocaleSeparator()
+		return string.match( tostring( 1.5 ), "([^15+]+)" )
+	end
+	local DECIMAL_SEP = string.PatternSafe( GetLocaleSeparator() )
+	local NON_NUMBER_PATTERN = "[^0-9%-%+eE"..DECIMAL_SEP.."]"
+
+	local ToJSON
+	local ESCAPE_CHARS = {
+		[ "\"" ] = "\\\"", [ "\\" ] = "\\\\", [ "\b" ] = "\\b",
+		[ "\f" ] = "\\f", [ "\n" ] = "\\n",  [ "\r" ] = "\\r",
+		[ "\t" ] = "\\t"
+	}
+	local function ToUnicodeEscape( Value )
+		return StringFormat( "\\u%.4x", StringByte( Value ) )
+	end
+	local Writers = {
+		[ "nil" ] = function() return "null" end,
+		[ "boolean" ] = tostring,
+		[ "number" ] = function( Value )
+			return StringGSub( StringGSub( tostring( Value ), NON_NUMBER_PATTERN, "" ), DECIMAL_SEP, "." )
+		end,
+		[ "table" ] = function( Value, FormattingOptions, State )
+			return ToJSON( Value, FormattingOptions, State )
+		end,
+		[ "string" ] = function( Value )
+			-- The JSON specification states that normal unicode characters do not need to be escaped.
+			-- Thus we just escape the control characters it states are needed, plus a few extra
+			-- such as the null byte.
+			return StringFormat( "\"%s\"", StringGSub(
+				StringGSub( Value, "[\r\n\b\f\t\"\\]", ESCAPE_CHARS ),
+				"[%z\1-\31\127-\159]",
+				ToUnicodeEscape
+			) )
+		end
+	}
+	local LengthGetters = {
+		[ "nil" ] = function() return 4 end,
+		[ "boolean" ] = function( Value ) return #tostring( Value ) end,
+		[ "number" ] = function( Value ) return #Writers.number( Value ) end,
+		[ "string" ] = function( Value ) return #Writers.string( Value ) end
+	}
+
+	local function WriteValue( Value, Buffer, FormattingOptions, State )
+		local ValueType = type( Value )
+
+		local Writer = Writers[ ValueType ]
+		if not Writer then
+			error( "Unsupported value type: "..ValueType )
+		end
+
+		local Output = Writer( Value, FormattingOptions, State )
+		if Output then
+			Buffer[ #Buffer + 1 ] = Output
+		end
+	end
+
+	local function DetermineIfArrayFitsOnLine( Table, MaxIndex, FormattingOptions, State )
+		-- This doesn't account for the length of the key behind the array, but it's a good
+		-- enough approximation.
+		local Length = FormattingOptions.IndentSize * State.IndentLevel
+		local SEPARATOR_LENGTH = 2
+		for i = 1, MaxIndex do
+			local Value = Table[ i ]
+			local ValueType = type( Value )
+
+			local LengthGetter = LengthGetters[ ValueType ]
+			if not LengthGetter then
+				-- Objects in the array always look better with newlines.
+				return false
+			end
+
+			Length = Length + LengthGetter( Value ) + SEPARATOR_LENGTH
+
+			if Length > FormattingOptions.PrintMargin then
+				return false
+			end
+		end
+		return true
+	end
+
+	ToJSON = function( Table, FormattingOptions, State )
+		if State.Seen[ Table ] then
+			error( "Cycle in input table" )
+		end
+
+		State.Seen[ Table ] = true
+
+		local Buffer = State.Buffer
+		local IsArray, MaxIndex = IsTableArray( Table, GetMetaTable( Table ) )
+		local IsPrettyPrint = FormattingOptions.PrettyPrint
+
+		if IsArray then
+			Buffer[ #Buffer + 1 ] = "["
+
+			State.IndentLevel = State.IndentLevel + 1
+
+			local ShouldSeparate = false
+			if IsPrettyPrint then
+				ShouldSeparate = not DetermineIfArrayFitsOnLine( Table, MaxIndex, FormattingOptions, State )
+			end
+
+			for i = 1, MaxIndex do
+				if ShouldSeparate then
+					NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
+				elseif IsPrettyPrint then
+					Buffer[ #Buffer + 1 ] = " "
+				end
+
+				WriteValue( Table[ i ], Buffer, FormattingOptions, State )
+
+				if i ~= MaxIndex then
+					Buffer[ #Buffer + 1 ] = ","
+				elseif not ShouldSeparate and IsPrettyPrint then
+					Buffer[ #Buffer + 1 ] = " "
+				end
+			end
+
+			State.IndentLevel = State.IndentLevel - 1
+
+			if MaxIndex >= 1 and ShouldSeparate then
+				NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
+			end
+
+			Buffer[ #Buffer + 1 ] = "]"
+		else
+			Buffer[ #Buffer + 1 ] = "{"
+			State.IndentLevel = State.IndentLevel + 1
+
+			local WroteValues = false
+			for Key, Value in FormattingOptions.TableIterator( Table ) do
+				if WroteValues then
+					Buffer[ #Buffer + 1 ] = ","
+				end
+
+				WroteValues = true
+				NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
+
+				local KeyType = type( Key )
+				if KeyType == "number" then
+					WriteValue( Key, Buffer, FormattingOptions, State )
+					Buffer[ #Buffer ] = StringFormat( "\"%s\"", Buffer[ #Buffer ] )
+				elseif KeyType == "string" then
+					WriteValue( Key, Buffer, FormattingOptions, State )
+				else
+					error( "Unsupported table key type: "..KeyType )
+				end
+
+				Buffer[ #Buffer + 1 ] = ":"
+				if FormattingOptions.PrettyPrint then
+					Buffer[ #Buffer + 1 ] = " "
+				end
+
+				WriteValue( Value, Buffer, FormattingOptions, State )
+			end
+
+			State.IndentLevel = State.IndentLevel - 1
+			if WroteValues then
+				NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
+			end
+
+			Buffer[ #Buffer + 1 ] = "}"
+		end
+
+		State.Seen[ Table ] = false
+	end
+
+	local DEFAULT_OPTIONS = {
+		-- Whether to print the output in a nice, human-readable format.
+		PrettyPrint = true,
+		-- The number of times to repeat the indent character per indent level.
+		IndentSize = 4,
+		-- The indent character (ideally " " or "\t").
+		IndentChar = " ",
+		-- The new line character.
+		NewLineChar = "\n",
+		-- The iterator to use to iterate non-array tables.
+		TableIterator = SortedPairs,
+		-- Roughly how far along to allow text before wrapping arrays in pretty print mode.
+		PrintMargin = 80
+	}
+	local InheritFromDefault = { __index = DEFAULT_OPTIONS }
+
+	--[[
+		Outputs a table in JSON form, providing better formatting options than
+		DKJSON.
+
+		Unlike DKJSON, this throws any error encountered while serialising.
+	]]
+	function table.ToJSON( Table, FormattingOptions )
+		if not FormattingOptions then
+			FormattingOptions = DEFAULT_OPTIONS
+		else
+			FormattingOptions = setmetatable( FormattingOptions, InheritFromDefault )
+		end
+
+		local State = {
+			IndentLevel = 0,
+			Seen = {},
+			Buffer = {}
+		}
+
+		ToJSON( Table, FormattingOptions, State )
+
+		return TableConcat( State.Buffer )
 	end
 end

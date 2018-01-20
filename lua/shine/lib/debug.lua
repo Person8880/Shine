@@ -4,6 +4,7 @@
 
 local assert = assert
 local DebugGetLocal = debug.getlocal
+local DebugGetMetaTable = debug.getmetatable
 local DebugGetUpValue = debug.getupvalue
 local DebugSetUpValue = debug.setupvalue
 local DebugUpValueJoin = debug.upvaluejoin
@@ -236,6 +237,17 @@ end
 ]]
 function Shine.IsType( Object, Type )
 	return type( Object ) == Type
+end
+
+--[[
+	Determines if a given object is callable. That is, if it is a function
+	or its metatable has a __call meta-method.
+]]
+function Shine.IsCallable( Object )
+	if type( Object ) == "function" then return true end
+
+	local Meta = DebugGetMetaTable( Object )
+	return Meta and type( Meta.__call ) == "function" or false
 end
 
 --[[

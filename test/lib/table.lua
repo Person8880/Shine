@@ -229,3 +229,100 @@ UnitTest:Test( "AsEnum with transformer", function( Assert )
 		Assert:Equals( i, Enum[ Values[ i ] ] )
 	end
 end )
+
+local StringToEscape = "This is\n\r\f\b\t\\a \"string\" with áéíóú unicode."..string.char( 0 )
+local ExpectedJSON = string.gsub( [[{
+	"Array": [
+		{
+			"String": "This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000"
+		},
+		null,
+		"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000",
+		1.5
+	],
+	"Boolean": true,
+	"Number": 1.5,
+	"Object": {
+		"1": "This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000",
+		"2": 1.5,
+		"Nested": {
+			"Array": [ 1, 2, 3 ],
+			"More": {}
+		}
+	},
+	"String": "This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000"
+}]], "\t", "    " )
+local Data = {
+	Array = {
+		{
+			String = StringToEscape
+		},
+		nil,
+		StringToEscape,
+		1.5
+	},
+	Boolean = true,
+	Number = 1.5,
+	Object = {
+		Nested = {
+			Array = { 1, 2, 3 },
+			More = setmetatable( {}, { __jsontype = "object" } )
+		},
+		StringToEscape,
+		1.5
+	},
+	String = StringToEscape
+}
+-- Will deserialised the array part of "Object" as string keys.
+local ExpectedData = table.Copy( Data )
+ExpectedData.Object[ "1" ] = ExpectedData.Object[ 1 ]
+ExpectedData.Object[ 1 ] = nil
+ExpectedData.Object[ "2" ] = ExpectedData.Object[ 2 ]
+ExpectedData.Object[ 2 ] = nil
+
+UnitTest:Test( "ToJSON with pretty printing", function( Assert )
+	local JSON = table.ToJSON( Data )
+	Assert.Equals( "Output should be exactly as specified", ExpectedJSON, JSON )
+	Assert.DeepEquals( "Deserialised output should be exactly the same as input",
+		ExpectedData, json.decode( JSON ) )
+end )
+
+ExpectedJSON = [[{"Array":[{"String":"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000"},null,]]
+..[["This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000",1.5],"Boolean":true,"Number":1.5,]]
+..[["Object":{"1":"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000","2":1.5,"Nested":{"Array":[1,2,3],]]
+..[["More":{}}},"String":"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000"}]]
+
+UnitTest:Test( "ToJSON without pretty printing", function( Assert )
+	local JSON = table.ToJSON( Data, { PrettyPrint = false } )
+	Assert.Equals( "Output should be exactly as specified", ExpectedJSON, JSON )
+	Assert.DeepEquals( "Deserialised output should be exactly the same as input",
+		ExpectedData, json.decode( JSON ) )
+end )
+
+local DataWithCycle = {}
+DataWithCycle.Cycle = DataWithCycle
+
+UnitTest:Test( "ToJSON rejects tables with cycles", function( Assert )
+	local Success, Err = pcall( table.ToJSON, DataWithCycle )
+	Assert.False( "Should reject data with cycles", Success )
+	Assert.True( "Error should reference the cycle", string.EndsWith( Err, "Cycle in input table" ) )
+end )
+
+local DataWithUnsupportedKey = {
+	[ {} ] = true
+}
+UnitTest:Test( "ToJSON rejects tables with unsupported key types", function( Assert )
+	local Success, Err = pcall( table.ToJSON, DataWithUnsupportedKey )
+	Assert.False( "Should reject data with unsupported key type", Success )
+	Assert.True( "Error should reference the value type", string.EndsWith( Err, "Unsupported table key type: table" ) )
+end )
+
+local DataWithUnsupportedValue = {
+	Function = function() end
+}
+
+UnitTest:Test( "ToJSON rejects tables with unsupported value types", function( Assert )
+	local Success, Err = pcall( table.ToJSON, DataWithUnsupportedValue )
+	Assert.False( "Should reject data with unsupported value type", Success )
+	Assert.True( "Error should reference the value type", string.EndsWith( Err, "Unsupported value type: function" ) )
+end )

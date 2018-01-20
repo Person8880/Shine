@@ -38,3 +38,14 @@ UnitTest:Test( "TypeDef inheritance", function( Assert )
 	local Instance = Child( false )
 	Assert:True( InitCalled )
 end )
+
+UnitTest:Test( "Implements", function( Assert )
+	local Base = Shine.TypeDef()
+	Base.Init = function( self ) return self end
+
+	local Child = Shine.TypeDef( Base )
+	local Value = Child()
+
+	Assert.True( "Object should implement its metatable", Shine.Implements( Value, Child ) )
+	Assert.True( "Object should implement the parent metatable", Shine.Implements( Value, Base ) )
+end )

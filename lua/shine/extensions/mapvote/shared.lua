@@ -23,6 +23,8 @@ local MapVotesMessage = {
 Shine:RegisterExtension( "mapvote", Plugin )
 
 function Plugin:SetupDataTable()
+	self:CallModuleEvent( "SetupDataTable" )
+
 	local MapNameField = "string (24)"
 
 	local MessageTypes = {
@@ -77,6 +79,7 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "VoteOptions", VoteOptionsMessage, "Client" )
 	self:AddNetworkMessage( "EndVote", MessageTypes.Empty, "Client" )
 	self:AddNetworkMessage( "VoteProgress", MapVotesMessage, "Client" )
+	self:AddNetworkMessage( "ChosenMap", MessageTypes.MapName, "Client" )
 
 	self:AddNetworkMessage( "RequestVoteOptions", MessageTypes.Empty, "Server" )
 
@@ -138,6 +141,8 @@ function Plugin:SetupDataTable()
 	} )
 end
 
+Shine.LoadPluginModule( "sh_vote.lua", Plugin )
+
 if Server then
 	function Plugin:ReceiveRequestVoteOptions( Client, Message )
 		self:SendVoteData( Client )
@@ -145,6 +150,8 @@ if Server then
 
 	return
 end
+
+Plugin.VoteButtonName = "Map Vote"
 
 local Shine = Shine
 local SGUI = Shine.GUI
@@ -351,6 +358,8 @@ do
 				end
 			end )
 
+			Shine.VoteMenu:MarkAsSelected( Button, Plugin.ChosenMap == Map )
+
 			if MapIcons[ Map ] then
 				SetupMapPreview( Button, Map )
 			end
@@ -377,8 +386,29 @@ function Plugin:ReceiveVoteProgress( Data )
 	end
 end
 
+function Plugin:ReceiveChosenMap( Data )
+	local MapName = Data.MapName
+
+	if self.ChosenMap then
+		-- Unmark the old selected map button if it's present.
+		local OldButton = self.MapButtons[ self.ChosenMap ]
+		if SGUI.IsValid( OldButton ) then
+			Shine.VoteMenu:MarkAsSelected( OldButton, false )
+		end
+	end
+
+	self.ChosenMap = MapName
+
+	-- Mark the selected map button.
+	local MapButton = self.MapButtons[ MapName ]
+	if SGUI.IsValid( MapButton ) then
+		Shine.VoteMenu:MarkAsSelected( MapButton, true )
+	end
+end
+
 function Plugin:ReceiveEndVote( Data )
 	self.EndTime = 0
+	self.ChosenMap = nil
 
 	TableEmpty( self.MapVoteCounts )
 	TableEmpty( self.MapButtons )

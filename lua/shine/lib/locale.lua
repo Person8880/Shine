@@ -212,9 +212,12 @@ function Locale:OnLoaded()
 
 		TableSort( Missing.Keys )
 
+		-- Ignore the array index when printing.
+		local function PrintValue( Value ) return LuaPrint( Value ) end
+
 		for Folder, MissingKeys in Missing:Iterate() do
 			LuaPrint( "Missing keys in: "..Folder )
-			Shine.Stream( MissingKeys ):ForEach( LuaPrint )
+			Shine.Stream( MissingKeys ):ForEach( PrintValue )
 		end
 	end ):AddParam{ Type = "string" }
 

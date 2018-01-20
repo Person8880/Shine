@@ -287,6 +287,9 @@ function Plugin:Initialise()
 
 	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end,
 		function() self:StartVote() end )
+	function self.StartingVote.OnReset()
+		self:ResetVoteCounters()
+	end
 
 	self.NextMap = {}
 	self.NextMap.Extends = 0
@@ -629,6 +632,11 @@ function Plugin:CreateCommands()
 				TargetName = PlayerName,
 				VotesNeeded = VotesNeeded
 			} )
+
+			self:UpdateVoteCounters( self.StartingVote )
+			if Client then
+				self:NotifyVoted( Client )
+			end
 
 			return
 		end

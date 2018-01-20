@@ -40,8 +40,13 @@ function Shine.GetModuleFile( ModuleName )
 	return StringFormat( "lua/shine/modules/%s", ModuleName )
 end
 
-function Shine.LoadPluginModule( ModuleName )
-	return Script.Load( Shine.GetModuleFile( ModuleName ), true )
+function Shine.LoadPluginModule( ModuleName, Plugin )
+	Plugin = Plugin or _G.Plugin
+	Shine.AssertAtLevel( Plugin and Plugin.AddModule,
+		"Called LoadPluginModule too early! Make sure the plugin has been registered first.", 3 )
+
+	local File = loadfile( Shine.GetModuleFile( ModuleName ) )
+	return File( Plugin )
 end
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
@@ -242,6 +247,17 @@ function Shine:CanPluginLoad( Plugin )
 	end
 
 	local Gamemode = Shine.GetGamemode()
+
+	-- Allow external mods/gamemodes to decide whether the plugin can load if they know a plugin is compatible.
+	local Allowed = Hook.Call( "CanPluginLoad", Plugin, Gamemode )
+	if Allowed ~= nil then
+		if not Allowed then
+			return false, "plugin not compatible with gamemode: "..Gamemode
+		end
+
+		return true
+	end
+
 	-- Plugin has explicitly requested to be disabled for the gamemode.
 	local IsDisabled = Plugin.DisabledGamemodes and Plugin.DisabledGamemodes[ Gamemode ]
 	-- Plugin has expliclty requested to only be enabled for certain gamemodes.

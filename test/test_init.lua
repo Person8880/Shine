@@ -12,12 +12,14 @@ UnitTest.Results = {}
 local assert = assert
 local DebugTraceback = debug.traceback
 local getmetatable = getmetatable
+local pairs = pairs
 local pcall = pcall
 local select = select
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
+local type = type
 local xpcall = xpcall
 
 local IsType = Shine.IsType
@@ -139,6 +141,23 @@ do
 	end
 end
 
+local function DeepEquals( Table1, Table2 )
+	if type( Table1 ) ~= type( Table2 ) then return false end
+	if type( Table1 ) ~= "table" then return Table1 == Table2 end
+
+	for Key, Value in pairs( Table1 ) do
+		local Table2Val = Table2[ Key ]
+		if not DeepEquals( Value, Table2Val ) then return false end
+	end
+
+	for Key, Value in pairs( Table2 ) do
+		local Table1Val = Table1[ Key ]
+		if not DeepEquals( Value, Table1Val ) then return false end
+	end
+
+	return true
+end
+
 UnitTest.Assert = {
 	Equals = function( A, B ) return A == B end,
 	NotEquals = function( A, B ) return A ~= B end,
@@ -154,6 +173,8 @@ UnitTest.Assert = {
 
 		return true
 	end,
+
+	DeepEquals = DeepEquals,
 
 	True = function( A ) return A == true end,
 	Truthy = function( A ) return A end,
