@@ -32,9 +32,6 @@ if Server then
 	return
 end
 
-local SGUI = Shine.GUI
-local TickTexture = PrecacheAsset( "ui/checkmark.dds" )
-
 local StringFormat = string.format
 
 function Module:ReceiveHasVoted( Message )
