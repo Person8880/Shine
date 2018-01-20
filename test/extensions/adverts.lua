@@ -67,6 +67,16 @@ Adverts.Config = {
 		{
 			Message = "",
 			Trigger = "INVALID"
+		},
+		{
+			Message = "I can't be used on any map",
+			Maps = { [ "ns2_invalid" ] = true },
+			Trigger = "START_OF_ROUND"
+		},
+		{
+			Message = "I can't be used on the current map",
+			ExcludedMaps = { [ Shared.GetMapName() ] = true },
+			Trigger = "START_OF_ROUND"
 		}
 	}
 }

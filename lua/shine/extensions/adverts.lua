@@ -131,6 +131,17 @@ function Plugin:ParseAdverts()
 
 	self.RequiresGameStateFiltering = false
 
+	local function IsValidForMap( Advert )
+		if Advert.Maps then
+			return Advert.Maps[ CurrentMapName ]
+		end
+		if Advert.ExcludedMaps then
+			return not Advert.ExcludedMaps[ CurrentMapName ]
+		end
+
+		return true
+	end
+
 	-- Parse the list of cycling adverts, filtering out any that are invalid or not enabled
 	-- for the current map.
 	self.AdvertsList = Shine.Stream.Of( self.Config.Adverts )
@@ -143,14 +154,7 @@ function Plugin:ParseAdverts()
 				self.RequiresGameStateFiltering = true
 			end
 
-			if Advert.Maps then
-				return Advert.Maps[ CurrentMapName ]
-			end
-			if Advert.ExcludedMaps then
-				return not Advert.ExcludedMaps[ CurrentMapName ]
-			end
-
-			return true
+			return IsValidForMap( Advert )
 		end )
 		:AsTable()
 
@@ -173,6 +177,7 @@ function Plugin:ParseAdverts()
 	Shine.Stream.Of( self.Config.TriggeredAdverts )
 		:Map( AssignTemplate )
 		:Filter( IsValidTriggerAdvert )
+		:Filter( IsValidForMap )
 		:ForEach( function( Advert, Index )
 			local TriggerName = StringUpper( Advert.Trigger )
 
