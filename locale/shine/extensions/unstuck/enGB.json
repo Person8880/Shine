@@ -2,6 +2,10 @@
 	"ERROR_NOT_ALIVE": "You cannot be unstuck when you are dead.",
 	"ERROR_WAIT": "You must wait {TimeLeft:Duration} before using unstuck again.",
 	"SUCCESS": "Successfully unstuck.",
+	"UNSTICKING": "You will be unstuck in {TimeLeft:Duration}...",
 	"ERROR_FAIL": "Unable to unstick. Try again in {TimeLeft:Duration}.",
+	"ERROR_MOVED": "You cannot be unstuck when moving.",
+	"ERROR_IN_PROGRESS": "You have already requested to be unstuck.",
+	"ERROR_NOT_APPLICABLE": "You cannot be unstuck as a spectator.",
 	"NOTIFY_PREFIX": "[Unstuck]"
 }
