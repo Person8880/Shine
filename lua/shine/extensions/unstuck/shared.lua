@@ -19,6 +19,7 @@ function Plugin:SetupDataTable()
 			"ERROR_WAIT", "ERROR_FAIL"
 		}
 	} )
+	self:AddTranslatedNotify( "UNSTICKING", MessageTypes.TimeLeft )
 end
 
 Shine:RegisterExtension( "unstuck", Plugin )

@@ -15,11 +15,18 @@ local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
 
 local Plugin = Plugin
-Plugin.Version = "1.7"
+Plugin.Version = "1.8"
 Plugin.PrintName = "AFKKick"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "AFKKick.json"
+
+Plugin.Leniency = table.AsEnum{
+	"STRICT", "LENIENT_FOR_SPECTATORS", "LENIENT"
+}
+
+local NO_IMMUNITY = "NoImmunity"
+local PARTIAL_IMMUNITY = "PartialImmunity"
 
 Plugin.DefaultConfig = {
 	MinPlayers = 10,
@@ -34,12 +41,20 @@ Plugin.DefaultConfig = {
 	KickOnConnect = false,
 	KickTimeIsAFKThreshold = 0.25,
 	MarkPlayersAFK = true,
-	LenientModeForSpectators = false,
 	WarnActions = {
 		-- Actions to perform to players when they are warned.
 		-- May be any of: MoveToSpectate, MoveToReadyRoom, Notify
-		NoImmunity = {},
-		PartialImmunity = {}
+		[ NO_IMMUNITY ] = {},
+		[ PARTIAL_IMMUNITY ] = {}
+	},
+	Leniency = {
+		-- The leniency of the AFK tracking can be one of:
+		-- STRICT - activity only reduces the AFK time, it does not reset it.
+		-- LENIENT_FOR_SPECTATORS - spectators reset their AFK time with activity,
+		-- but other players use the STRICT mode.
+		-- LENIENT - all players reset their AFK time with activity.
+		[ NO_IMMUNITY ] = Plugin.Leniency.STRICT,
+		[ PARTIAL_IMMUNITY ] = Plugin.Leniency.STRICT
 	}
 }
 
@@ -66,13 +81,28 @@ Plugin.ConfigMigrationSteps = {
 			end
 
 			Config.WarnActions = {
-				NoImmunity = Actions,
-				PartialImmunity = Actions
+				[ NO_IMMUNITY ] = Actions,
+				[ PARTIAL_IMMUNITY ] = Actions
 			}
 
 			Config.MoveToSpectateOnWarn = nil
 			Config.MoveToReadyRoomOnWarn = nil
 			Config.NotifyOnWarn = nil
+		end
+	},
+	{
+		VersionTo = "1.8",
+		Apply = function( Config )
+			local Leniency = Plugin.Leniency.STRICT
+			if Config.LenientModeForSpectators then
+				Leniency = Plugin.Leniency.LENIENT_FOR_SPECTATORS
+			end
+
+			Config.Leniency = {
+				[ NO_IMMUNITY ] = Leniency,
+				[ PARTIAL_IMMUNITY ] = Leniency
+			}
+			Config.LenientModeForSpectators = nil
 		end
 	}
 }
@@ -134,6 +164,11 @@ do
 			return Changed
 		end
 	} )
+	Validator:AddFieldRule( "Leniency.NoImmunity",
+		Validator.InEnum( Plugin.Leniency, Plugin.Leniency.STRICT ) )
+	Validator:AddFieldRule( "Leniency.PartialImmunity",
+		Validator.InEnum( Plugin.Leniency, Plugin.Leniency.STRICT ) )
+	Plugin.ConfigValidator = Validator
 
 	local function MovePlayer( Client, Gamerules, DataTable, TargetTeam )
 		-- Make sure the client still exists and is still AFK.
@@ -179,14 +214,7 @@ do
 		return ActionFunctions
 	end
 
-	function Plugin:ValidateConfig()
-		if Validator:Validate( self.Config ) then
-			self:SaveConfig( true )
-		end
-	end
-
 	function Plugin:Initialise()
-		self:ValidateConfig()
 		self:BroadcastModuleEvent( "Initialise" )
 
 		self.WarnActions = {
@@ -363,8 +391,12 @@ function Plugin:ReceiveSteamOverlay( Client, Data )
 	end
 end
 
+function Plugin:IsClientPartiallyImmune( Client )
+	return Shine:HasAccess( Client, "sh_afk_partial" )
+end
+
 function Plugin:GetWarnActions( IsPartiallyImmune )
-	return self.WarnActions[ IsPartiallyImmune and "PartialImmunity" or "NoImmunity" ]
+	return self.WarnActions[ IsPartiallyImmune and PARTIAL_IMMUNITY or NO_IMMUNITY ]
 end
 
 --[[
@@ -390,7 +422,7 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 	local KickTime = Params.KickTime
 
 	local TimeSinceLastMove = Time - DataTable.LastMove
-	local IsPartiallyImmune = Shine:HasAccess( Client, "sh_afk_partial" )
+	local IsPartiallyImmune = self:IsClientPartiallyImmune( Client )
 
 	if self.Config.Warn then
 		local WarnTime = self.Config.WarnTime * 60
@@ -474,6 +506,10 @@ end
 local MOVEMENT_MULTIPLIER = 5
 local SPECTATOR_MOVEMENT_MULTIPLIER = 20
 
+function Plugin:GetLeniency( IsPartiallyImmune )
+	return self.Config.Leniency[ IsPartiallyImmune and PARTIAL_IMMUNITY or NO_IMMUNITY ]
+end
+
 --[[
 	Track player movement, regardless of whether any actions will be applied.
 
@@ -514,8 +550,11 @@ function Plugin:OnProcessMove( Player, Input )
 	if not ( MovementIsEmpty and AnglesMatch or DataTable.SteamOverlayIsOpen ) then
 		DataTable.LastMove = Time
 
-		if IsSpectator and self.Config.LenientModeForSpectators then
-			-- Lenient mode means reset AFK time on any movement for a spectator.
+		local Leniency = self:GetLeniency( self:IsClientPartiallyImmune( Client ) )
+
+		if Leniency == self.Leniency.LENIENT
+		or ( IsSpectator and Leniency == self.Leniency.LENIENT_FOR_SPECTATORS ) then
+			-- Lenient mode means reset AFK time on any movement.
 			DataTable.AFKAmount = 0
 		else
 			-- Spectator movement is weighted higher because it will occur less frequently.
