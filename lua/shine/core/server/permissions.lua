@@ -1094,7 +1094,7 @@ function Shine:IsInGroup( Client, Group )
 	return StringLower( Group ) == "guest"
 end
 
---Deny vote kicks on players that are above in immunity level.
+-- Deny vote kicks on players that are above in immunity level.
 Shine.Hook.Add( "NS2StartVote", "ImmunityCheck", function( VoteName, Client, Data )
 	if VoteName ~= "VoteKickPlayer" then return end
 
@@ -1105,7 +1105,11 @@ Shine.Hook.Add( "NS2StartVote", "ImmunityCheck", function( VoteName, Client, Dat
 	if not TargetClient then return end
 
 	if not Shine:CanTarget( Client, TargetClient ) then
-		return false
+		Shine:SendTranslatedCommandError( Client, "ERROR_CANT_TARGET", {
+			PlayerName = TargetClient:GetControllingPlayer():GetName()
+		}, nil, false )
+
+		return false, false
 	end
 end )
 

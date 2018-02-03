@@ -104,6 +104,23 @@ function Plugin:OnVoteStart( ID )
 	end
 end
 
+-- Block these votes when the end of map vote is running.
+Plugin.BlockedEndOfMapVotes = {
+	VoteResetGame = true,
+	VoteRandomizeRR = true,
+	VotingForceEvenTeams = true,
+	VoteChangeMap = true,
+	VoteAddCommanderBots = true
+}
+
+function Plugin:NS2StartVote( VoteName, Client, Data )
+	if not self:IsEndVote() and not self.CyclingMap then return end
+
+	if self.BlockedEndOfMapVotes[ VoteName ] then
+		return false, kVoteCannotStartReason.Waiting
+	end
+end
+
 function Plugin:GetVoteConstraint( Category, Type, PercentageTotal )
 	local Constraint = self.Config.Constraints[ Category ][ Type ]
 	if StringUpper( Constraint.Type ) == self.ConstraintType.PERCENT then
