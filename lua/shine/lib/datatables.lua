@@ -92,18 +92,21 @@ if Server then
 	end
 
 	function DataTableMeta:__newindex( Key, Value )
-		local Cached = RealData[ self ][ Key ]
-		if Cached == nil or Cached == Value then return end
+		local FieldType = self.__Values[ Key ]
+		if not FieldType then return end
 
-		Value = TypeCheck( self.__Values[ Key ], Value )
-		if Value == nil then
+		local Cached = RealData[ self ][ Key ]
+		if Cached == Value then return end
+
+		local CoercedValue = TypeCheck( FieldType, Value )
+		if CoercedValue == nil then
 			error( StringFormat( "Invalid value provided for datatable field %s (expected %s, got %s)",
-				Key, self.__Values[ Key ], type( Value ) ), 2 )
+				Key, FieldType, type( Value ) ), 2 )
 		end
 
-		RealData[ self ][ Key ] = Value
+		RealData[ self ][ Key ] = CoercedValue
 
-		self:__SendChange( Key, Value )
+		self:__SendChange( Key, CoercedValue )
 	end
 
 	function DataTableMeta:__SendChange( Key, Value )
