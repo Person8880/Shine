@@ -47,18 +47,18 @@ function DataTableMeta:__SetChangeCallback( Table, Func )
 end
 
 if Server then
+	local getmetatable = getmetatable
+	local StringFormat = string.format
+
+	-- These are the same, but doing it this way makes it more future proof.
+	local AngleMeta = getmetatable( Angles() )
+	local VectorMeta = getmetatable( Vector() )
+
 	local TypeCheckers = {
-		string = function( Value )
-			return type( Value ) == "string" and Value or nil
+		angle = tonumber,
+		angles = function( Value )
+			return getmetatable( Value ) == AngleMeta and Value:isa( "Angles" ) and Value or nil
 		end,
-		integer = function( Value )
-			Value = tonumber( Value )
-
-			if not Value then return nil end
-
-			return Floor( Value )
-		end,
-		float = tonumber,
 		boolean = function( Value )
 			if type( Value ) == "boolean" then
 				return Value
@@ -68,14 +68,24 @@ if Server then
 		end,
 		entityid = tonumber,
 		enum = tonumber,
+		float = tonumber,
+		integer = function( Value )
+			Value = tonumber( Value )
+
+			if not Value then return nil end
+
+			return Floor( Value )
+		end,
+		resource = tonumber,
+		string = function( Value )
+			return type( Value ) == "string" and Value or nil
+		end,
+		time = tonumber,
 		vector = function( Value )
-			return Value.isa and Value:isa( "Vector" ) and Value or nil
-		end,
-		angle = function( Value )
-			return Value.isa and Value:isa( "Angles" ) and Value or nil
-		end,
-		time = tonumber
+			return getmetatable( Value ) == VectorMeta and Value:isa( "Vector" ) and Value or nil
+		end
 	}
+	TypeCheckers.position = TypeCheckers.vector
 
 	local function TypeCheck( Type, Value )
 		return TypeCheckers[ Type ]( Value )
@@ -86,7 +96,10 @@ if Server then
 		if Cached == nil or Cached == Value then return end
 
 		Value = TypeCheck( self.__Values[ Key ], Value )
-		if Value == nil then return end
+		if Value == nil then
+			error( StringFormat( "Invalid value provided for datatable field %s (expected %s, got %s)",
+				Key, self.__Values[ Key ], type( Value ) ), 2 )
+		end
 
 		RealData[ self ][ Key ] = Value
 
