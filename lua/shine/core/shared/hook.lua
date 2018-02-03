@@ -653,10 +653,13 @@ Add( "Think", "ReplaceMethods", function()
 	local OldStartVote = StartVote
 	if OldStartVote then
 		StartVote = function( VoteName, Client, Data )
-			if Call( "NS2StartVote", VoteName, Client, Data ) == false then
-				Shine.SendNetworkMessage( Client, "VoteCannotStart", {
-					reason = kVoteCannotStartReason.DisabledByAdmin
-				}, true )
+			local Allowed, Reason = Call( "NS2StartVote", VoteName, Client, Data )
+			if Allowed == false then
+				if Reason == nil or IsType( Reason, "number" ) then
+					Shine.SendNetworkMessage( Client, "VoteCannotStart", {
+						reason = Reason or kVoteCannotStartReason.DisabledByAdmin
+					}, true )
+				end
 
 				return
 			end

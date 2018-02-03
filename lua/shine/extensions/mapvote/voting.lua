@@ -117,7 +117,7 @@ function Plugin:NS2StartVote( VoteName, Client, Data )
 	if not self:IsEndVote() and not self.CyclingMap then return end
 
 	if self.BlockedEndOfMapVotes[ VoteName ] then
-		return false
+		return false, kVoteCannotStartReason.Waiting
 	end
 end
 
