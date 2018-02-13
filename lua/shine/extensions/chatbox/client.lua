@@ -488,150 +488,161 @@ function Plugin:CreateChatbox()
 	end
 
   -- Tab completion code
-  
-  -- Save a table of all current tab completions
-  local TabMatches = nil
-  -- What did the original text look like (Allows support for capital letters)
-  local TabOriginalState = nil
-  -- What is the state after tabbing; Hack to detect edition kept in TextEntry class.
-  local TabState = nil 
-  -- Which tab completion (index into TabMatches) have we shown latest
-  local TabIndex = 0
-  -- Which name prefixes should we ignore. Dont add [] tags here, as they are handled separately
-  local IgnoreNamePrefixes = { "The " }
-  -- Cache of sorted location names
-  local LocationNames = nil
+  do
+    -- Save a table of all current tab completions
+    local TabMatches = nil
+    -- What did the original text look like (Allows support for capital letters)
+    local TabOriginalState = nil
+    -- What is the state after tabbing; Hack to detect edition kept in TextEntry class.
+    local TabState = nil 
+    -- Which tab completion (index into TabMatches) have we shown latest
+    local TabIndex = 0
+    -- Which name prefixes should we ignore. Dont add [] tags here, as they are handled separately
+    local IgnoreNamePrefixes = { "The " }
+    -- Cache of sorted location names
+    local LocationNames = nil
 
-  function DestroyTabCompletion()
-    TabMatches = nil
-    TabOriginalState = nil
-    TabState = nil
-    -- LocationName = nil should not be needed as lua vm is destroyed on map change    
-  end
+    function DestroyTabCompletion()
+      TabMatches = nil
+      TabOriginalState = nil
+      TabState = nil
+      -- LocationName = nil should not be needed as lua vm is destroyed on map change    
+    end
 
-  local function CreateLocationNames()
-    -- A location can be multiple Entities with the same name
-    LocationNames = { }
-    local Duplicated = { }
-    for _, loc in ientitylist( Shared.GetEntitiesWithClassname( "Location" ) ) do
-      local Name = loc:GetName()
-      if not Duplicated[Name] then
-        Duplicated[Name] = true 
-        LocationNames[#LocationNames+1] = Name
+    local function CreateLocationNames()
+      -- A location can be multiple Entities with the same name
+      LocationNames = { }
+      local Duplicated = { }
+      for _, loc in ientitylist( Shared.GetEntitiesWithClassname( "Location" ) ) do
+        local Name = loc:GetName()
+        if not Duplicated[Name] then
+          Duplicated[Name] = true 
+          LocationNames[#LocationNames+1] = Name
+        end 
+      end
+
+      table.sort(LocationNames)
+    end
+
+    local function StartsWithCase( String, Prefix, CaseSensitive )
+      if not CaseSensitive then
+        String = String:lower()
+        Prefix = Prefix:lower()
+      end
+      return StringStartsWith( String, Prefix )
+    end
+
+    local function CheckPrefixMatch( Name, Prefix, CaseSensitive, Matches )
+      if StartsWithCase( Name , Prefix, CaseSensitive ) then
+        Matches[#Matches+1] = { #Prefix, Name .. " " }
+        return 
+      end
+
+      -- Remove common name prefixes
+      for _,ip in pairs( IgnoreNamePrefixes ) do
+        if StartsWithCase( Name, ip, false ) then
+          CheckPrefixMatch( Name:Sub(1,#ip), Prefix, CaseSensitive, Matches )
+        end
+      end
+
+      -- Remove clan tags and bot tags from name
+      local TagStart, TagEnd = Name:find( "^%[[^%]]*%]%s*[^%s]" )
+      if TagStart and TagEnd < #Name then
+        CheckPrefixMatch( Name:sub( TagEnd ), Prefix, CaseSensitive, Matches ) 
+      end
+    end
+
+    local function GenerateTabMatches( Text, Column )
+      -- Find all suffixes of the Text we can complete e.i. they become prefixes    
+      local Suffixs = { }
+      local Pos = -1
+
+      -- Start suffix after a space or at start of line
+      repeat
+        Suffixs[#Suffixs+1] = Text:sub( Pos+1, Column )
+        Pos = Text:find( "%s[^%s]", Pos+1 )
+      until not Pos or Pos > Column
+
+      -- Find all valid tab completions
+      local Matches = { }
+
+      -- Location names
+      -- Do these first so "Crossroad" would be c+tab+tab+tab every time, no matter player names.
+      if not LocationNames then
+        CreateLocationNames()
       end 
-    end
 
-    table.sort(LocationNames)
-  end
-
-  local function StartsWithCase( String, Prefix, CaseSensitive )
-    if not CaseSensitive then
-      String = String:lower()
-      Prefix = Prefix:lower()
-    end
-    return StringStartsWith( String, Prefix )
-  end
-
-  local function CheckPrefixMatch( Name, Prefix, CaseSensitive, Matches )
-    if StartsWithCase( Name , Prefix, CaseSensitive ) then
-        Matches[#Matches+1] = { #Prefix, Name .. " " } 
-    end
-
-    -- Remove common name prefixes
-    for _,ip in pairs( IgnoreNamePrefixes ) do
-      if StartsWithCase( Name, ip, false ) then
-        CheckPrefixMatch( Name:Sub(1,#ip), Prefix, CaseSensitive, Matches )
+      for _, LocName in pairs( LocationNames ) do
+        for _, Suffix in pairs( Suffixs ) do
+          CheckPrefixMatch( LocName, Suffix, Suffix:find("%u"), Matches )
+        end
       end
-    end
-    
-    -- Remove clan tags and bot tags from name
-    local TagStart, TagEnd = Name:find( "^%[[^%]]*%]%s*[^%s]" )
-    if TagStart and TagEnd < #Name then
-      CheckPrefixMatch( Name:sub( TagEnd ), Prefix, CaseSensitive, Matches ) 
-    end
-  end
 
-  local function GenerateTabMatches( Text, Column )
-    -- Find all suffixes of the Text we can complete e.i. they become prefixes    
-    local Suffixs = { }
-    local Pos = -1
-
-    -- Start suffix after a space or at start of line
-    repeat
-      Suffixs[#Suffixs+1] = Text:sub( Pos+1, Column )
-      Pos = Text:find( "%s[^%s]", Pos+1 )
-    until not Pos or Pos > Column
-        
-    -- Find all valid tab completions
-    local Matches = { }
-        
-    -- Location names
-    if not LocationNames then
-      CreateLocationNames()
-    end 
-    
-    for _, LocName in pairs( LocationNames ) do
-      for _, Suffix in pairs( Suffixs ) do
-        CheckPrefixMatch( LocName, Suffix, Suffix:find("%u"), Matches )
+      -- Player names
+      -- Look them up every time as ppl (di)sconnect and we dont want hook that here
+      local Names = { }
+      for _, pie in ientitylist( Shared.GetEntitiesWithClassname( "PlayerInfoEntity" ) ) do
+        Names[#Names+1] = pie.playerName
       end
-    end
-    
-    -- Player names
-    for _, pie in ientitylist( Shared.GetEntitiesWithClassname( "PlayerInfoEntity" ) ) do
-      for _,Suffix in pairs( Suffixs ) do
-        CheckPrefixMatch( pie.playerName, Suffix, Suffix:find("%u"), Matches )
+
+      table.sort(Names)
+      
+      for _, Name in pairs( Names ) do 
+        for _,Suffix in pairs( Suffixs ) do
+          CheckPrefixMatch(Name , Suffix, Suffix:find("%u"), Matches )
+        end
       end
-    end
 
-    -- Add the empty match so you can tab complete back to non altered text
-    if #Matches > 0 then
-      Matches[#Matches+1] = { 0 , "" }
-    end
-
-    return Matches   
-  end
-
-  function TextEntry.OnTab()
-    -- Is this start of new tab completion
-    local State = TextEntry:GetState()
-    
-    if not TabState or State.Text ~= TabState.Text or State.CaretPos ~= TabState.CaretPos then      
-      TabOriginalState = State
-      TabMatches = GenerateTabMatches( TabOriginalState.Text, TabOriginalState.CaretPos )
-      -- Set Index to the empty match (e.i. last match)
-      TabIndex = #TabMatches
-      if TabIndex == 0 then
-        DestroyTabCompletion()
-        return
+      -- Add the empty match so you can tab complete back to non altered text
+      if #Matches > 0 then
+        Matches[#Matches+1] = { 0 , "" }
       end
+
+      return Matches   
     end
 
-    -- Wrap completion selection
-    if SGUI:IsShiftDown() then
-      TabIndex = TabIndex - 1
-      if TabIndex < 1 then
+    function TextEntry.OnTab()
+      -- Is this start of new tab completion
+      local State = TextEntry:GetState()
+
+      if not TabState or State.CaretPos ~= TabState.CaretPos or State.Text ~= TabState.Text then      
+        TabOriginalState = State
+        TabMatches = GenerateTabMatches( TabOriginalState.Text, TabOriginalState.CaretPos )
+        -- Set Index to the empty match (e.i. last match)
         TabIndex = #TabMatches
+        if TabIndex == 0 then
+          DestroyTabCompletion()
+          return
+        end
       end
-    else
-      TabIndex = TabIndex + 1
-      if #TabMatches < TabIndex then
-        TabIndex = 1
+
+      -- Wrap completion selection
+      if SGUI:IsShiftDown() then
+        TabIndex = TabIndex - 1
+        if TabIndex < 1 then
+          TabIndex = #TabMatches
+        end
+      else
+        TabIndex = TabIndex + 1
+        if #TabMatches < TabIndex then
+          TabIndex = 1
+        end
       end
+
+      -- Replace Text
+      -- Note TabColumn is 0 based, and strings are 1 based
+      local OrgText = TabOriginalState.Text
+      local OrgCaretPos = TabOriginalState.CaretPos
+      local CurCompletion = TabMatches[TabIndex]
+      local StartMatch = OrgCaretPos - CurCompletion[1]
+      local NewText = OrgText:sub( 1, StartMatch ) .. CurCompletion[2] .. OrgText:sub( OrgCaretPos+1 )      
+
+      TextEntry:SetText( NewText , true )
+      TextEntry:SetCaretPos( StartMatch + #CurCompletion[2] )
+
+      -- Save state so we can detect changes
+      TabState = TextEntry:GetState()
     end
-
-    -- Replace Text
-    -- Note TabColumn is 0 based, and strings are 1 based
-    local OrgText = TabOriginalState.Text
-    local OrgCaretPos = TabOriginalState.CaretPos
-    local CurCompletion = TabMatches[TabIndex]
-    local StartMatch = OrgCaretPos - CurCompletion[1]
-    local NewText = OrgText:sub( 1, StartMatch ) .. CurCompletion[2] .. OrgText:sub( OrgCaretPos+1 )      
-
-    TextEntry:SetText( NewText , true )
-    TextEntry:SetCaretPos( StartMatch + #CurCompletion[2] )
-    
-    -- Save state so we can detect changes
-    TabState = TextEntry:GetState()
   end
 
 	self.TextEntry = TextEntry
