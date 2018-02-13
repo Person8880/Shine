@@ -489,7 +489,7 @@ function Plugin:CreateChatbox()
 
   -- Tab completion code
   do
-    -- Save a table of all current tab completions
+    -- Save a table of all current tab completions. Table of { UTF8 length of prefix, Replacement text }
     local TabMatches = nil
     -- What did the original text look like (Allows support for capital letters)
     local TabOriginalState = nil
@@ -526,28 +526,29 @@ function Plugin:CreateChatbox()
 
     local function StartsWithCase( String, Prefix, CaseSensitive )
       if not CaseSensitive then
-        String = String:lower()
-        Prefix = Prefix:lower()
+        String = string.UTF8Lower( String )
+        Prefix = string.UTF8Lower( Prefix )
       end
       return StringStartsWith( String, Prefix )
     end
 
     local function CheckPrefixMatch( Name, Prefix, CaseSensitive, Matches )
       if StartsWithCase( Name , Prefix, CaseSensitive ) then
-        Matches[#Matches+1] = { #Prefix, Name .. " " }
+        Matches[#Matches+1] = { StringUTF8Length( Prefix ), Name .. " " }
         return 
       end
 
       -- Remove common name prefixes
       for _,ip in pairs( IgnoreNamePrefixes ) do
         if StartsWithCase( Name, ip, false ) then
-          CheckPrefixMatch( Name:Sub(1,#ip), Prefix, CaseSensitive, Matches )
+          CheckPrefixMatch( StringUTF8Sub( Name, 1, StringUTF8Length( ip ) ), Prefix, CaseSensitive, Matches )
         end
       end
 
       -- Remove clan tags and bot tags from name
       local TagStart, TagEnd = Name:find( "^%[[^%]]*%]%s*[^%s]" )
       if TagStart and TagEnd < #Name then
+        -- Note using utf8 sub would be wrong here, as TagEnd is in byte offset
         CheckPrefixMatch( Name:sub( TagEnd ), Prefix, CaseSensitive, Matches ) 
       end
     end
@@ -557,17 +558,20 @@ function Plugin:CreateChatbox()
       local Suffixs = { }
       local Pos = -1
 
-      -- Start suffix after a space or at start of line
+      -- Column is in utf8 offset, we want in byte offset because we can use normal sub here
+      local ByteColumn = #StringUTF8Sub( Text, 1, Column )
+
+      -- Start suffix after a space or at start of line, both are the same in utf8 and byte strings
       repeat
-        Suffixs[#Suffixs+1] = Text:sub( Pos+1, Column )
+        Suffixs[#Suffixs+1] = Text:sub( Pos+1, ByteColumn )
         Pos = Text:find( "%s[^%s]", Pos+1 )
-      until not Pos or Pos > Column
+      until not Pos or Pos > ByteColumn
 
       -- Find all valid tab completions
       local Matches = { }
 
       -- Location names
-      -- Do these first so "Crossroad" would be c+tab+tab+tab every time, no matter player names.
+      -- Do these first so "Crossroad" would be c+tab+tab+tab _every_ time, no matter player names.
       if not LocationNames then
         CreateLocationNames()
       end 
@@ -579,7 +583,7 @@ function Plugin:CreateChatbox()
       end
 
       -- Player names
-      -- Look them up every time as ppl (di)sconnect and we dont want hook that here
+      -- Look them up every time as players (dis)connect and we don't want hook that here
       local Names = { }
       for _, pie in ientitylist( Shared.GetEntitiesWithClassname( "PlayerInfoEntity" ) ) do
         Names[#Names+1] = pie.playerName
@@ -635,10 +639,14 @@ function Plugin:CreateChatbox()
       local OrgCaretPos = TabOriginalState.CaretPos
       local CurCompletion = TabMatches[TabIndex]
       local StartMatch = OrgCaretPos - CurCompletion[1]
-      local NewText = OrgText:sub( 1, StartMatch ) .. CurCompletion[2] .. OrgText:sub( OrgCaretPos+1 )      
+      local MaxCompletionText = kMaxChatLength - StartMatch - ( StringUTF8Length( OrgText ) - OrgCaretPos ) 
+      local CompletionText = StringUTF8Sub( CurCompletion[2], 1, MaxCompletionText ) 
+      local NewText = StringUTF8Sub( OrgText, 1, StartMatch ) .. CompletionText .. StringUTF8Sub( OrgText, OrgCaretPos+1 )      
+
+      
 
       TextEntry:SetText( NewText , true )
-      TextEntry:SetCaretPos( StartMatch + #CurCompletion[2] )
+      TextEntry:SetCaretPos( StartMatch + StringUTF8Length( CompletionText ) )
 
       -- Save state so we can detect changes
       TabState = TextEntry:GetState()
