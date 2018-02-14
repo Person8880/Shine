@@ -541,7 +541,7 @@ function Plugin:CreateChatbox()
       -- Remove common name prefixes
       for _,ip in pairs( IgnoreNamePrefixes ) do
         if StartsWithCase( Name, ip, false ) then
-          CheckPrefixMatch( StringUTF8Sub( Name, StringUTF8Length( ip ) + 1` ), Prefix, CaseSensitive, Matches )
+          CheckPrefixMatch( StringUTF8Sub( Name, StringUTF8Length( ip ) + 1 ), Prefix, CaseSensitive, Matches )
         end
       end
 
