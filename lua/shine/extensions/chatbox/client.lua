@@ -21,6 +21,7 @@ local select = select
 local StringFind = string.find
 local StringFormat = string.format
 local StringLen = string.len
+local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
@@ -455,6 +456,7 @@ function Plugin:CreateChatbox()
 		self:ResetUndoState()
 
 		Plugin:DestroyAutoCompletePanel()
+    DestroyTabCompletion()
 
 		if Plugin.Config.AutoClose then
 			Plugin:CloseChat()
@@ -484,6 +486,172 @@ function Plugin:CreateChatbox()
 	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
 		self:AutoCompleteCommand( NewText )
 	end
+
+  -- Tab completion code
+  do
+    -- Save a table of all current tab completions. Table of { UTF8 length of prefix, Replacement text }
+    local TabMatches = nil
+    -- What did the original text look like (Allows support for capital letters)
+    local TabOriginalState = nil
+    -- What is the state after tabbing; Hack to detect edition kept in TextEntry class.
+    local TabState = nil 
+    -- Which tab completion (index into TabMatches) have we shown latest
+    local TabIndex = 0
+    -- Which name prefixes should we ignore. Dont add [] tags here, as they are handled separately
+    local IgnoreNamePrefixes = { "The " }
+    -- Cache of sorted location names
+    local LocationNames = nil
+
+    function DestroyTabCompletion()
+      TabMatches = nil
+      TabOriginalState = nil
+      TabState = nil
+      -- LocationName = nil should not be needed as lua vm is destroyed on map change    
+    end
+
+    local function CreateLocationNames()
+      -- A location can be multiple Entities with the same name
+      LocationNames = { }
+      local Duplicated = { }
+      for _, loc in ientitylist( Shared.GetEntitiesWithClassname( "Location" ) ) do
+        local Name = loc:GetName()
+        if not Duplicated[Name] then
+          Duplicated[Name] = true 
+          LocationNames[#LocationNames+1] = Name
+        end 
+      end
+
+      table.sort(LocationNames)
+    end
+
+    local function StartsWithCase( String, Prefix, CaseSensitive )
+      if not CaseSensitive then
+        String = string.UTF8Lower( String )
+        Prefix = string.UTF8Lower( Prefix )
+      end
+      return StringStartsWith( String, Prefix )
+    end
+
+    local function CheckPrefixMatch( Name, Prefix, CaseSensitive, Matches )
+      if StartsWithCase( Name , Prefix, CaseSensitive ) then
+        Matches[#Matches+1] = { StringUTF8Length( Prefix ), Name .. " " }
+        return 
+      end
+
+      -- Remove common name prefixes
+      for _,ip in pairs( IgnoreNamePrefixes ) do
+        if StartsWithCase( Name, ip, false ) then
+          CheckPrefixMatch( StringUTF8Sub( Name, StringUTF8Length( ip ) + 1 ), Prefix, CaseSensitive, Matches )
+        end
+      end
+
+      -- Remove clan tags and bot tags from name
+      local TagStart, TagEnd = Name:find( "^%[[^%]]*%]%s*[^%s]" )
+      if TagStart and TagEnd < #Name then
+        -- Note using utf8 sub would be wrong here, as TagEnd is in byte offset
+        CheckPrefixMatch( Name:sub( TagEnd ), Prefix, CaseSensitive, Matches ) 
+      end
+    end
+
+    local function GenerateTabMatches( Text, Column )
+      -- Find all suffixes of the Text we can complete e.i. they become prefixes    
+      local Suffixs = { }
+      local Pos = -1
+
+      -- Column is in utf8 offset, we want in byte offset because we can use normal sub here
+      local ByteColumn = #StringUTF8Sub( Text, 1, Column )
+
+      -- Start suffix after a space or at start of line, both are the same in utf8 and byte strings
+      repeat
+        Suffixs[#Suffixs+1] = Text:sub( Pos+1, ByteColumn )
+        Pos = Text:find( "%s[^%s]", Pos+1 )
+      until not Pos or Pos > ByteColumn
+
+      -- Find all valid tab completions
+      local Matches = { }
+
+      -- Location names
+      -- Do these first so "Crossroad" would be c+tab+tab+tab _every_ time, no matter player names.
+      if not LocationNames then
+        CreateLocationNames()
+      end 
+
+      for _, LocName in pairs( LocationNames ) do
+        for _, Suffix in pairs( Suffixs ) do
+          CheckPrefixMatch( LocName, Suffix, Suffix:find("%u"), Matches )
+        end
+      end
+
+      -- Player names
+      -- Look them up every time as players (dis)connect and we don't want hook that here
+      local Names = { }
+      for _, pie in ientitylist( Shared.GetEntitiesWithClassname( "PlayerInfoEntity" ) ) do
+        Names[#Names+1] = pie.playerName
+      end
+
+      table.sort(Names)
+      
+      for _, Name in pairs( Names ) do 
+        for _,Suffix in pairs( Suffixs ) do
+          CheckPrefixMatch(Name , Suffix, Suffix:find("%u"), Matches )
+        end
+      end
+
+      -- Add the empty match so you can tab complete back to non altered text
+      if #Matches > 0 then
+        Matches[#Matches+1] = { 0 , "" }
+      end
+
+      return Matches   
+    end
+
+    function TextEntry.OnTab()
+      -- Is this start of new tab completion
+      local State = TextEntry:GetState()
+
+      if not TabState or State.CaretPos ~= TabState.CaretPos or State.Text ~= TabState.Text then      
+        TabOriginalState = State
+        TabMatches = GenerateTabMatches( TabOriginalState.Text, TabOriginalState.CaretPos )
+        -- Set Index to the empty match (e.i. last match)
+        TabIndex = #TabMatches
+        if TabIndex == 0 then
+          DestroyTabCompletion()
+          return
+        end
+      end
+
+      -- Wrap completion selection
+      if SGUI:IsShiftDown() then
+        TabIndex = TabIndex - 1
+        if TabIndex < 1 then
+          TabIndex = #TabMatches
+        end
+      else
+        TabIndex = TabIndex + 1
+        if #TabMatches < TabIndex then
+          TabIndex = 1
+        end
+      end
+
+      -- Replace Text
+      -- Note TabColumn is 0 based, and strings are 1 based
+      local OrgText = TabOriginalState.Text
+      local OrgCaretPos = TabOriginalState.CaretPos
+      local CurCompletion = TabMatches[TabIndex]
+      local StartMatch = OrgCaretPos - CurCompletion[1]
+      local MaxCompletionText = kMaxChatLength - StartMatch - ( StringUTF8Length( OrgText ) - OrgCaretPos ) 
+      local CompletionText = StringUTF8Sub( CurCompletion[2], 1, MaxCompletionText ) 
+      local NewText = StringUTF8Sub( OrgText, 1, StartMatch ) .. CompletionText .. StringUTF8Sub( OrgText, OrgCaretPos+1 )      
+
+      
+
+      TextEntry:SetText( NewText , true )
+      TextEntry:SetCaretPos( StartMatch + StringUTF8Length( CompletionText ) )
+
+      -- Save state so we can detect changes
+      TabState = TextEntry:GetState()
+    end
+  end
 
 	self.TextEntry = TextEntry
 
