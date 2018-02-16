@@ -404,6 +404,7 @@ end
 ]]
 function Plugin:IsPlayerFrozen( Player )
 	return Player:isa( "TeamSpectator" )
+		or ( Player:isa( "Spectator" ) and Player:GetIsFirstPerson() )
 		or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
 		or ( Player.GetIsRespawning and Player:GetIsRespawning() )
 		or ( Player.GetCountdownActive and Player:GetCountdownActive() )
