@@ -418,6 +418,13 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 		return
 	end
 
+	local Player = Client:GetControllingPlayer()
+	if self:IsPlayerFrozen( Player ) then
+		-- Need to double check here, as first person spectate does not call OnProcessMove
+		-- for the player spectating.
+		return
+	end
+
 	local NumPlayers = Params.NumPlayers
 	local Time = Params.Time
 	local KickTime = Params.KickTime
