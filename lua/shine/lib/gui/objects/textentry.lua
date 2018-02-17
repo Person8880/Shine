@@ -31,6 +31,7 @@ local Clear = Color( 0, 0, 0, 0 )
 local TextPos = Vector( 2, 0, 0 )
 
 SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
+SGUI.AddProperty( TextEntry, "AutoCompleteHandler" )
 
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
@@ -551,6 +552,10 @@ function TextEntry:AllowChar( Char )
 	return true
 end
 
+function TextEntry:IsAtMaxLength()
+	return self.MaxLength and StringUTF8Length( self:GetText() ) >= self.MaxLength or false
+end
+
 function TextEntry:ShouldAllowChar( Char )
 	if self.Numeric then
 		return tonumber( Char ) ~= nil
@@ -564,12 +569,17 @@ function TextEntry:ShouldAllowChar( Char )
 		return StringFind( Char, self.CharPattern ) ~= nil
 	end
 
+	if self:IsAtMaxLength() then
+		return false
+	end
+
 	return true
 end
 
 SGUI.AddProperty( TextEntry, "Numeric" )
 SGUI.AddProperty( TextEntry, "AlphaNumeric" )
 SGUI.AddProperty( TextEntry, "CharPattern" )
+SGUI.AddProperty( TextEntry, "MaxLength" )
 
 function TextEntry:QueueUndo()
 	if not self.UndoTimer then
@@ -720,6 +730,10 @@ end
 function TextEntry:PlayerType( Char )
 	if not self.Enabled then return end
 	if not self:GetIsVisible() then return end
+
+	if self.AutoCompleteHandler then
+		self:ResetAutoComplete()
+	end
 
 	self:AddCharacter( Char )
 
@@ -882,6 +896,8 @@ function TextEntry:PushUndoState()
 	end
 
 	self.UndoPosition = #self.UndoStack
+
+	return self.UndoStack[ self.UndoPosition ]
 end
 
 function TextEntry:RestoreState( State )
@@ -914,10 +930,58 @@ function TextEntry:Redo()
 	self:RestoreState( Entry.Redo )
 end
 
+function TextEntry:OnTab()
+	if not self.AutoCompleteHandler then return end
+
+	local OldState
+	local WasAutoCompleting
+	if self.AutoCompleteHandler:IsAutoCompleting() then
+		WasAutoCompleting = true
+		OldState = self.AutoCompleteInitialState
+	else
+		OldState = self:GetState()
+	end
+
+	-- Auto completion should provide the new state of the text and caret.
+	-- Tab advances the match index, Shift + Tab reverses it.
+	local NewState = self.AutoCompleteHandler:PerformCompletion( OldState, SGUI:IsShiftDown() )
+	if not NewState then return end
+
+	if not WasAutoCompleting then
+		self.AutoCompleteInitialState = OldState
+	end
+
+	if self.MaxLength then
+		-- Enforce maximum length as this won't go through ShouldAllowChar.
+		NewState.Text = StringUTF8Sub( NewState.Text, 1, self.MaxLength )
+	end
+
+	-- If there's no change in the state, then ignore the completion.
+	local CurrentState = self:GetState()
+	if NewState.Text == CurrentState.Text and NewState.CaretPos == CurrentState.CaretPos then
+		return
+	end
+
+	self:PushUndoState()
+	self:RestoreState( NewState )
+end
+
+function TextEntry:ResetAutoComplete()
+	self.AutoCompleteInitialState = nil
+	self.AutoCompleteHandler:Reset()
+end
+
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
 	if not Down then return end
+
+	-- Reset the auto-completion list on any action other than pressing tab.
+	if Key ~= InputKey.Tab
+	and Key ~= InputKey.LeftShift and Key ~= InputKey.RightShift
+	and self.AutoCompleteHandler then
+		self:ResetAutoComplete()
+	end
 
 	if SGUI:IsControlDown() then
 		if Key == InputKey.A then
@@ -970,7 +1034,9 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		end
 
 		return true
-	elseif Key == InputKey.Left then
+	end
+
+	if Key == InputKey.Left then
 		if SGUI:IsShiftDown() then
 			if SGUI:IsControlDown() then
 				local PrevSpace = self:FindNextWordBoundInDir( self.Column, -1 )
@@ -994,7 +1060,9 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		self:SetCaretPos( self.Column - 1 )
 
 		return true
-	elseif Key == InputKey.Right then
+	end
+
+	if Key == InputKey.Right then
 		if SGUI:IsShiftDown() then
 			if SGUI:IsControlDown() then
 				local NextSpace = self:FindNextWordBoundInDir( self.Column, 1 )
@@ -1018,19 +1086,23 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		self:SetCaretPos( self.Column + 1 )
 
 		return true
-	elseif Key == InputKey.Return then
+	end
+
+	if Key == InputKey.Return then
 		if self.OnEnter then
 			self:OnEnter()
 		end
 
 		return true
-	elseif Key == InputKey.Tab then
-		if self.OnTab then
-			self:OnTab()
-		end
+	end
+
+	if Key == InputKey.Tab then
+		self:OnTab()
 
 		return true
-	elseif Key == InputKey.Escape then
+	end
+
+	if Key == InputKey.Escape then
 		self:LoseFocus()
 
 		return true
@@ -1080,5 +1152,7 @@ end
 function TextEntry:OnLoseFocus()
 
 end
+
+TextEntry.StandardAutoComplete = require "shine/lib/gui/objects/textentry/auto_complete"
 
 SGUI:Register( "TextEntry", TextEntry )
