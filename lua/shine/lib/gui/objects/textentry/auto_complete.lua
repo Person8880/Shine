@@ -6,6 +6,8 @@ local BitLShift = bit.lshift
 local Max = math.max
 local StringExplode = string.Explode
 local StringFind = string.find
+local StringLower = string.lower
+local StringGMatch = string.gmatch
 local StringReverse = string.reverse
 local StringStartsWith = string.StartsWith
 local StringSub = string.sub
@@ -33,7 +35,7 @@ end
 
 function CompletionContext:AddMatch( SubWeight, Offset, Match, Weight )
 	local Matches = self.Matches
-	Match = Match or self.Completion
+	Match = Match or ( self.Completion.." " )
 
 	if Matches.Seen[ Match ] then return end
 
@@ -64,43 +66,10 @@ function CompletionContext:GetSearchTextWords()
 	return self.SearchTextWords
 end
 
-local DefaultMatchers = {
-	-- Checks each word in the completion to see if it starts with the input.
-	-- If so, it will assign a sub-weight based on which word matched and how much of it was consumed.
-	function( Context )
-		local Word = Context.Input
-		local WordLength = Context:GetInputLength()
-		local WordsInCompletion = Context:GetSearchTextWords()
-
-		for i = 1, #WordsInCompletion do
-			local CompletionWord = WordsInCompletion[ i ]
-
-			if StringStartsWith( CompletionWord, Word ) then
-				-- How far into the completion is this word
-				local WordPositionWeighting = ( 1 / i ) ^ 2
-				-- How much of the word is consumed by the query
-				local WordSegmentWeighting = 1 / ( StringUTF8Length( CompletionWord ) - WordLength + 1 )
-				local SubWeight = WordPositionWeighting * WordSegmentWeighting
-				local Offset = #TableConcat( WordsInCompletion, " ", 1, i - 1 ) + 1
-
-				Context:AddMatch( SubWeight, Offset )
-			end
-		end
-	end,
-	-- Checks the completion to see if it contains the input anywhere inside it.
-	-- This is a less effective match and thus is ranked lower than word matches.
-	function( Context )
-		local Start = StringFind( Context.SearchText, Context.Input, 1, true )
-		-- Consider only matches that are large enough and towards the start.
-		-- Otherwise we can end up finding everything containing a single letter
-		-- which is almost certainly not the intention.
-		if Start and #Context.Input / Start > 0.5 then
-			Context:AddMatch( 1 / Start, Start - 1 )
-		end
-	end
-}
+local DefaultMatchers = require "shine/lib/gui/objects/textentry/default_matchers" ()
 
 local StandardAutoComplete = Shine.TypeDef()
+StandardAutoComplete.DefaultMatchers = DefaultMatchers
 
 --[[
 	Constructs a new auto-complete handler with the given supplier and (optionally) matchers.
@@ -250,11 +219,11 @@ function StandardAutoComplete:GetWord( State )
 	local TextBeforeCaret = StringUTF8Sub( State.Text, 1, State.CaretPos )
 	local Length = #TextBeforeCaret
 
-	-- Find the first space/punctuation character behind the caret (byte offset).
-	local LastSpaceOffset = StringFind( StringReverse( TextBeforeCaret ), "[%s%p]" )
+	-- Find the first space/@ character behind the caret (byte offset).
+	local LastSpaceOffset = StringFind( StringReverse( TextBeforeCaret ), "[%s@]" )
 	if LastSpaceOffset == 1 then return "" end
 
-	-- Cut to the start if no space/punctuation is behind the caret.
+	-- Cut to the start if no space/@ is behind the caret.
 	LastSpaceOffset = LastSpaceOffset or ( Length + 1 )
 
 	return StringSub( State.Text, Length - LastSpaceOffset + 2, Length )

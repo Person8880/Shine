@@ -557,7 +557,7 @@ do
 				local LocationName = PlayerUI_GetLocationName()
 				if not LocationName or LocationName == "" then return end
 
-				Context:AddMatch( 1, 1, LocationName )
+				Context:AddMatch( 1, 1, LocationName.." " )
 			end
 		end )
 

@@ -930,40 +930,46 @@ function TextEntry:Redo()
 	self:RestoreState( Entry.Redo )
 end
 
-function TextEntry:OnTab()
-	if not self.AutoCompleteHandler then return end
+do
+	local AutoCompleteErrorHandler = Shine.BuildErrorHandler( "Auto complete error" )
 
-	local OldState
-	local WasAutoCompleting
-	if self.AutoCompleteHandler:IsAutoCompleting() then
-		WasAutoCompleting = true
-		OldState = self.AutoCompleteInitialState
-	else
-		OldState = self:GetState()
+	function TextEntry:OnTab()
+		if not self.AutoCompleteHandler then return end
+
+		local OldState
+		local WasAutoCompleting
+		if self.AutoCompleteHandler:IsAutoCompleting() then
+			WasAutoCompleting = true
+			OldState = self.AutoCompleteInitialState
+		else
+			OldState = self:GetState()
+		end
+
+		-- Auto completion should provide the new state of the text and caret.
+		-- Tab advances the match index, Shift + Tab reverses it.
+		local Success, NewState = xpcall( self.AutoCompleteHandler.PerformCompletion,
+			AutoCompleteErrorHandler,
+			self.AutoCompleteHandler, OldState, SGUI:IsShiftDown() )
+		if not Success or not NewState then return end
+
+		if not WasAutoCompleting then
+			self.AutoCompleteInitialState = OldState
+		end
+
+		if self.MaxLength then
+			-- Enforce maximum length as this won't go through ShouldAllowChar.
+			NewState.Text = StringUTF8Sub( NewState.Text, 1, self.MaxLength )
+		end
+
+		-- If there's no change in the state, then ignore the completion.
+		local CurrentState = self:GetState()
+		if NewState.Text == CurrentState.Text and NewState.CaretPos == CurrentState.CaretPos then
+			return
+		end
+
+		self:PushUndoState()
+		self:RestoreState( NewState )
 	end
-
-	-- Auto completion should provide the new state of the text and caret.
-	-- Tab advances the match index, Shift + Tab reverses it.
-	local NewState = self.AutoCompleteHandler:PerformCompletion( OldState, SGUI:IsShiftDown() )
-	if not NewState then return end
-
-	if not WasAutoCompleting then
-		self.AutoCompleteInitialState = OldState
-	end
-
-	if self.MaxLength then
-		-- Enforce maximum length as this won't go through ShouldAllowChar.
-		NewState.Text = StringUTF8Sub( NewState.Text, 1, self.MaxLength )
-	end
-
-	-- If there's no change in the state, then ignore the completion.
-	local CurrentState = self:GetState()
-	if NewState.Text == CurrentState.Text and NewState.CaretPos == CurrentState.CaretPos then
-		return
-	end
-
-	self:PushUndoState()
-	self:RestoreState( NewState )
 end
 
 function TextEntry:ResetAutoComplete()
