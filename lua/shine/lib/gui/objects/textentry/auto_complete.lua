@@ -2,19 +2,14 @@
 	Auto-completion for text entries.
 ]]
 
-local BitLShift = bit.lshift
 local Max = math.max
 local StringExplode = string.Explode
 local StringFind = string.find
-local StringLower = string.lower
-local StringGMatch = string.gmatch
 local StringReverse = string.reverse
-local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Lower = string.UTF8Lower
 local StringUTF8Sub = string.UTF8Sub
-local TableConcat = table.concat
 local TableInsert = table.insert
 local TableQuickCopy = table.QuickCopy
 
