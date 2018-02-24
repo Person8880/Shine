@@ -8,6 +8,8 @@ local List = {}
 
 local Floor = math.floor
 local IsType = Shine.IsType
+local Max = math.max
+local Min = math.min
 local select = select
 local TableRemove = table.remove
 local TableMergeSort = table.MergeSort
@@ -500,6 +502,9 @@ function List:RemoveRow( Index )
 	if self.SelectedRow == OldRow then
 		self.SelectedRow = nil
 	end
+	if self.RootMultiSelectRow == OldRow then
+		self.RootMultiSelectRow = nil
+	end
 
 	self:Reorder()
 end
@@ -532,14 +537,50 @@ function List:GetSelectedRow()
 	return self.SelectedRow
 end
 
-function List:OnRowSelect( Index, Row )
-	if self.MultiSelect then return end
+function List:OnRowMultiSelect( Index, Row, SelectFromLast )
+	if not SelectFromLast or not self.RootMultiSelectRow then
+		self.RootMultiSelectRow = Row
+
+		-- Deselect all other rows if not holding CTRL.
+		local NumWereSelected = 0
+		if not SGUI:IsControlDown() then
+			local Rows = self.Rows
+			for i = 1, #Rows do
+				if Rows[ i ] ~= Row then
+					NumWereSelected = NumWereSelected + ( Rows[ i ]:GetSelected() and 1 or 0 )
+					Rows[ i ]:SetSelected( false )
+				end
+			end
+		end
+
+		Row:SetSelected( NumWereSelected > 0 or not Row:GetSelected() )
+	else
+		local RootSelected = self.RootMultiSelectRow
+		local RootIndex = RootSelected.Index
+
+		-- Select all rows between the original root and this row.
+		local MinIndex = Min( RootIndex, Index )
+		local MaxIndex = Max( RootIndex, Index )
+		local Rows = self.Rows
+		for i = 1, #Rows do
+			Rows[ i ]:SetSelected( i >= MinIndex and i <= MaxIndex )
+		end
+	end
+end
+
+function List:OnRowSelect( Index, Row, SelectFromLast )
+	if self.MultiSelect then
+		self:OnRowMultiSelect( Index, Row, SelectFromLast )
+		return
+	end
 
 	if self.SelectedRow and self.SelectedRow ~= Row then
-		self.SelectedRow.Selected = false
+		self.SelectedRow:SetSelected( false )
+		self:OnRowDeselect( self.SelectedRow.Index, self.SelectedRow )
 	end
 
 	self.SelectedRow = Row
+	Row:SetSelected( true )
 
 	if self.OnRowSelected then
 		self:OnRowSelected( Index, Row )
@@ -547,6 +588,11 @@ function List:OnRowSelect( Index, Row )
 end
 
 function List:OnRowDeselect( Index, Row )
+	if self.MultiSelect then
+		self:OnRowSelect( Index, Row )
+		return
+	end
+
 	self.SelectedRow = nil
 
 	if self.OnRowDeselected then
@@ -623,6 +669,12 @@ end
 
 function List:PlayerKeyPress( Key, Down )
 	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
+		return true
+	end
+
+	-- Block modifier keys used in multi-select from leaking out.
+	if self.MultiSelect and ( SGUI.IsShiftKey( Key ) or SGUI.IsControlKey( Key ) )
+	and self:MouseIn( self.Background ) then
 		return true
 	end
 end

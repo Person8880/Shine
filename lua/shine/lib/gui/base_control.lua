@@ -1020,7 +1020,7 @@ function ControlMeta:HideTooltip()
 end
 
 function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
-	if Highlighted == self.Highlighted then return end
+	if ( Highlighted or false ) == ( self.Highlighted or false ) then return end
 
 	if Highlighted then
 		self.Highlighted = true
