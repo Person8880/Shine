@@ -1,0 +1,11 @@
+{
+	"NOTIFY_PREFIX": "[AllTalk]",
+	"PLAYER_VOTED_ENABLE": "{PlayerName} voted to enable all talk ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE": "{PlayerName} voted to disable all talk ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_PRIVATE_ENABLE": "You voted to enable all talk ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_PRIVATE_DISABLE": "You voted to disable all talk ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"ERROR_ALREADY_VOTED_ENABLE": "You have already voted to enable all talk.",
+	"ERROR_ALREADY_VOTED_DISABLE": "You have already voted to disable all talk.",
+	"DISABLE_ALLTALK": "Disable All Talk",
+	"ENABLE_ALLTALK": "Enable All Talk"
+}

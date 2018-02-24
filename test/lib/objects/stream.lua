@@ -104,3 +104,8 @@ UnitTest:Test( "Reduce with start value", function( Assert )
 
 	Assert:Equals( 1 + 2 + 3 + 4 + 5 + 6, StreamSum )
 end )
+
+UnitTest:Test( "Distinct", function( Assert )
+	local StreamWithDuplicates = Stream( { 1, 1, 2, 2, 3, 4, 5 } )
+	Assert:ArrayEquals( { 1, 2, 3, 4, 5 }, StreamWithDuplicates:Distinct():AsTable() )
+end )

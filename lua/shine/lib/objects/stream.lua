@@ -105,6 +105,25 @@ function Stream:Map( Mapper )
 end
 
 --[[
+	Returns a new stream that holds the distinct values of the current stream.
+	This cannot contain nil values.
+]]
+function Stream:Distinct()
+	local Seen = {}
+	local Out = {}
+
+	for i = 1, #self.Data do
+		local Entry = self.Data[ i ]
+		if Entry ~= nil and not Seen[ Entry ] then
+			Seen[ Entry ] = true
+			Out[ #Out + 1 ] = Entry
+		end
+	end
+
+	return Stream( Out )
+end
+
+--[[
 	Returns a single value built from all values in the stream.
 
 	Consumer should be a function which takes the following parameters:

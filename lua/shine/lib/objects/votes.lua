@@ -69,11 +69,16 @@ function VoteMeta:AddVote( Client )
 	self.LastVoted = Shared.GetTime()
 
 	if self.Votes >= self.VotesNeeded() then
+		self.LastSuccessTime = self.LastVoted
 		self.OnSuccess()
 		self:Reset()
 	end
 
 	return true
+end
+
+function VoteMeta:HasSucceededOnLastVote()
+	return self.LastSuccessTime == Shared.GetTime()
 end
 
 function VoteMeta:GetHasClientVoted( Client )

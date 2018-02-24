@@ -426,7 +426,8 @@ function Plugin:CreateChatbox()
 		StickyFocus = true,
 		Skin = Skin,
 		Font = Font,
-		Fill = true
+		Fill = true,
+		MaxLength = kMaxChatLength
 	}
 	if self.TextScale ~= 1 then
 		TextEntry:SetTextScale( self.TextScale )
@@ -465,7 +466,7 @@ function Plugin:CreateChatbox()
 	function TextEntry:ShouldAllowChar( Char )
 		local Text = self:GetText()
 
-		if StringUTF8Length( Text ) >= kMaxChatLength then
+		if self:IsAtMaxLength() then
 			return false
 		end
 
@@ -484,6 +485,8 @@ function Plugin:CreateChatbox()
 	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
 		self:AutoCompleteCommand( NewText )
 	end
+
+	self:SetupAutoComplete( TextEntry )
 
 	self.TextEntry = TextEntry
 
@@ -514,6 +517,52 @@ function Plugin:CreateChatbox()
 	Border:InvalidateLayout( true )
 
 	return true
+end
+
+do
+	local LocationNames
+	local function FindLocations()
+		return Shine.Stream( EntityListToTable( Shared.GetEntitiesWithClassname( "Location" ) ) )
+			:Map( function( Location ) return Location:GetName() end )
+			:Distinct()
+			:Sort()
+			:AsTable()
+	end
+
+	local function GetLocations()
+		if not LocationNames then
+			LocationNames = FindLocations()
+		end
+		return LocationNames
+	end
+
+	function Plugin:SetupAutoComplete( TextEntry )
+		local function GetPlayerNames()
+			return Shine.Stream( EntityListToTable( Shared.GetEntitiesWithClassname( "PlayerInfoEntity" ) ) )
+				:Map( function( PlayerInfo ) return PlayerInfo.playerName end )
+				:AsTable()
+		end
+
+		-- Auto-complete location names and player names.
+		local AutoCompleteHandler = TextEntry.StandardAutoComplete( function()
+			return {
+				-- Rank locations as higher priority to player names.
+				GetLocations(),
+				GetPlayerNames()
+			}
+		end )
+		-- Also, replace "me" with the player's current location (as a priority match over other matches).
+		AutoCompleteHandler:AddMatcherToStart( function( Context )
+			if Context.Input == "me" then
+				local LocationName = PlayerUI_GetLocationName()
+				if not LocationName or LocationName == "" then return end
+
+				Context:AddMatch( 1, 1, LocationName.." " )
+			end
+		end )
+
+		TextEntry:SetAutoCompleteHandler( AutoCompleteHandler )
+	end
 end
 
 do

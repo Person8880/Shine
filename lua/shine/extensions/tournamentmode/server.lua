@@ -231,11 +231,10 @@ function Plugin:ClientConfirmConnect( Client )
 
 	if Client:GetIsVirtual() then return end
 
-	local ID = Client:GetUserId()
-
 	if self.Config.ForceTeams then
-		if self.TeamMembers[ ID ] then
-			Gamerules:JoinTeam( Client:GetControllingPlayer(), self.TeamMembers[ ID ],
+		local Team = self.TeamMembers[ Client:GetUserId() ]
+		if Team then
+			GetGamerules():JoinTeam( Client:GetControllingPlayer(), Team,
 				nil, true )
 		end
 	end

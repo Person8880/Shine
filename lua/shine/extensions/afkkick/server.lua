@@ -404,6 +404,7 @@ end
 ]]
 function Plugin:IsPlayerFrozen( Player )
 	return Player:isa( "TeamSpectator" )
+		or ( Player:isa( "Spectator" ) and Player:GetIsFirstPerson() )
 		or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
 		or ( Player.GetIsRespawning and Player:GetIsRespawning() )
 		or ( Player.GetCountdownActive and Player:GetCountdownActive() )
@@ -414,6 +415,13 @@ end
 function Plugin:EvaluatePlayer( Client, DataTable, Params )
 	-- Do not actually do anything with frozen players, just keep their state up to date.
 	if Shine:HasAccess( Client, "sh_afk" ) or DataTable.IsPlayerFrozen then
+		return
+	end
+
+	local Player = Client:GetControllingPlayer()
+	if self:IsPlayerFrozen( Player ) then
+		-- Need to double check here, as first person spectate does not call OnProcessMove
+		-- for the player spectating.
 		return
 	end
 

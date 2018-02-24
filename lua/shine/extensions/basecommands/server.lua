@@ -432,6 +432,39 @@ do
 	function Plugin:ReceiveEnableLocalAllTalk( Client, Data )
 		DisableLocalAllTalkClients[ Client ] = not Data.Enabled
 	end
+
+	local ALLTALK_TYPES = {
+		AllTalk = "ALLTALK_NOTIFY_",
+		AllTalkLocal = "ALLTALK_LOCAL_NOTIFY_",
+		AllTalkPreGame = "ALLTALK_PREGAME_NOTIFY_"
+	}
+
+	function Plugin:NotifyAllTalkState( Type, Enable )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+
+		Shine:TranslatedNotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
+			"ALL_TALK_TAG", 255, 255, 255, ALLTALK_TYPES[ Type ]..( Enable and "ENABLED" or "DISABLED" ),
+			self.__Name )
+	end
+
+	function Plugin:IsAllTalkEnabled( Type )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+
+		return self.Config[ Type ]
+	end
+
+	function Plugin:SetAllTalkEnabled( Type, Enabled, DontSave )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+
+		Enabled = Enabled and true or false
+		self.Config[ Type ] = Enabled
+
+		if not DontSave then
+			self:SaveConfig( true )
+		end
+
+		Shine.Hook.Call( "OnAllTalkStateChange", Type, Enabled )
+	end
 end
 
 local function NotifyError( Client, TranslationKey, Data, Message, Format, ... )
@@ -1000,19 +1033,16 @@ function Plugin:CreateAdminCommands()
 end
 
 function Plugin:CreateAllTalkCommands()
-	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString, NotifyString )
+	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString )
 		local function CommandFunc( Client, Enable )
-			self.Config[ ConfigOption ] = Enable
-			self:SaveConfig( true )
+			self:SetAllTalkEnabled( ConfigOption, Enable )
 
 			if Shine.Config.NotifyOnCommand then
 				self:SendTranslatedMessage( Client, CommandNotifyString, {
 					Enabled = Enable
 				} )
 			else
-				Shine:TranslatedNotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
-					"ALL_TALK_TAG", 255, 255, 255, NotifyString..( Enable and "ENABLED" or "DISABLED" ),
-					self.__Name )
+				self:NotifyAllTalkState( ConfigOption, Enable )
 			end
 		end
 		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
@@ -1021,11 +1051,10 @@ function Plugin:CreateAllTalkCommands()
 		Command:Help( StringFormat( "Enables or disables %s.", CommandNotifyString ) )
 	end
 
-	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "ALLTALK_NOTIFY_" )
+	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED" )
 	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
-		"ALLTALK_PREGAME_TOGGLED", "ALLTALK_PREGAME_NOTIFY_" )
-	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal", "ALLTALK_LOCAL_TOGGLED",
-		"ALLTALK_LOCAL_NOTIFY_" )
+		"ALLTALK_PREGAME_TOGGLED" )
+	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal", "ALLTALK_LOCAL_TOGGLED" )
 end
 
 function Plugin:CreateGameplayCommands()

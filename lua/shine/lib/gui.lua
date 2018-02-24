@@ -277,14 +277,21 @@ SGUI.SpecialKeyStates = {
 }
 
 Hook.Add( "PlayerKeyPress", "SGUICtrlMonitor", function( Key, Down )
-	if Key == InputKey.LeftControl or Key == InputKey.RightControl then
+	if SGUI.IsControlKey( Key ) then
 		SGUI.SpecialKeyStates.Ctrl = Down or false
 	elseif Key == InputKey.LeftAlt then
 		SGUI.SpecialKeyStates.Alt = Down or false
-	elseif Key == InputKey.LeftShift or Key == InputKey.RightShift then
+	elseif SGUI.IsShiftKey( Key ) then
 		SGUI.SpecialKeyStates.Shift = Down or false
 	end
 end, -20 )
+
+function SGUI.IsShiftKey( Key )
+	return Key == InputKey.LeftShift or Key == InputKey.RightShift
+end
+function SGUI.IsControlKey( Key )
+	return Key == InputKey.LeftControl or Key == InputKey.RightControl
+end
 
 function SGUI:IsControlDown()
 	return self.SpecialKeyStates.Ctrl

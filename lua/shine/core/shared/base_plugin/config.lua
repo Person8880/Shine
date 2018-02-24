@@ -19,6 +19,7 @@ local ClientConfigPath = "config://shine/cl_plugins/"
 
 function ConfigModule:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
+	self.Config.__Version = self.Version or "1.0"
 
 	if Save then
 		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName

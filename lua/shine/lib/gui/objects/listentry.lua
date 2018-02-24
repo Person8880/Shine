@@ -177,6 +177,11 @@ function ListEntry:GetColumnText( Index )
 end
 
 SGUI.AddProperty( ListEntry, "Selected" )
+function ListEntry:SetSelected( Selected, SkipAnim )
+	self.Selected = Selected
+	self:SetHighlighted( Selected, SkipAnim )
+	self.HighlightOnMouseOver = not Selected
+end
 
 -- Visibility checking should account for being outside the stencil box of the parent list.
 function ListEntry:IsInView()
@@ -190,8 +195,6 @@ end
 
 function ListEntry:Think( DeltaTime )
 	if not self:IsInView() then return end
-	if self.Selected then return end
-
 	self.BaseClass.Think( self, DeltaTime )
 end
 
@@ -210,14 +213,16 @@ function ListEntry:OnMouseUp( Key )
 	if not self:IsInView() then return end
 	if not self:MouseIn( self.Background ) then return end
 
+	if SGUI:IsShiftDown() then
+		-- Select multiple rows, if supported.
+		self.Parent:OnRowSelect( self.Index, self, true )
+		return true
+	end
+
 	if not self.Selected and self.Parent.OnRowSelect then
 		self.Parent:OnRowSelect( self.Index, self )
-
-		self.Selected = true
 	elseif self.Selected and self.Parent.OnRowDeselect then
 		self.Parent:OnRowDeselect( self.Index, self )
-
-		self.Selected = false
 	end
 
 	return true
