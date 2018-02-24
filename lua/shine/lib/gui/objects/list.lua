@@ -594,6 +594,7 @@ function List:OnRowDeselect( Index, Row )
 	end
 
 	self.SelectedRow = nil
+	Row:SetSelected( false )
 
 	if self.OnRowDeselected then
 		self:OnRowDeselected( Index, Row )
