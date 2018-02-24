@@ -278,6 +278,59 @@ end )
 -- Handles dispatching plugin events efficiently.
 local Dispatcher
 
+local function CheckPluginConflicts( self, Conflicts )
+	if not Conflicts or not Server then return true end
+
+	local DisableThem = Conflicts.DisableThem
+	local DisableUs = Conflicts.DisableUs
+
+	if DisableUs then
+		for i = 1, #DisableUs do
+			local Plugin = DisableUs[ i ]
+
+			local PluginTable = self.Plugins[ Plugin ]
+			local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
+
+			-- Halt our enabling, we're not allowed to load with this plugin enabled.
+			if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
+				return false, StringFormat( "unable to load alongside '%s'.", Plugin )
+			end
+		end
+	end
+
+	if DisableThem then
+		for i = 1, #DisableThem do
+			local Plugin = DisableThem[ i ]
+
+			local PluginTable = self.Plugins[ Plugin ]
+			local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
+
+			-- Don't allow them to load, or unload them if they have already.
+			if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
+				self.Config.ActiveExtensions[ Plugin ] = false
+
+				self:UnloadExtension( Plugin )
+			end
+		end
+	end
+
+	return true
+end
+
+local function CheckDependencies( self, Dependencies )
+	if not Dependencies then return true end
+
+	for i = 1, #Dependencies do
+		local Dependency = Dependencies[ i ]
+		if not self.Config.ActiveExtensions[ Dependency ]
+		and not self:IsExtensionEnabled( Dependency ) then
+			return false, StringFormat( "plugin depends on '%s'", Dependency )
+		end
+	end
+
+	return true
+end
+
 -- Shared extensions need to be enabled once the server tells it to.
 function Shine:EnableExtension( Name, DontLoadConfig )
 	if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
@@ -293,41 +346,19 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 		self:UnloadExtension( Name )
 	end
 
-	local Conflicts = Plugin.Conflicts
-
-	--Deal with inter-plugin conflicts.
-	if Conflicts and Server then
-		local DisableThem = Conflicts.DisableThem
-		local DisableUs = Conflicts.DisableUs
-
-		if DisableUs then
-			for i = 1, #DisableUs do
-				local Plugin = DisableUs[ i ]
-
-				local PluginTable = self.Plugins[ Plugin ]
-				local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
-
-				--Halt our enabling, we're not allowed to load with this plugin enabled.
-				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
-					return false, StringFormat( "unable to load alongside '%s'.", Plugin )
-				end
-			end
+	do
+		-- Deal with inter-plugin conflicts.
+		local OK, Err = CheckPluginConflicts( self, Conflicts )
+		if not OK then
+			return OK, Err
 		end
+	end
 
-		if DisableThem then
-			for i = 1, #DisableThem do
-				local Plugin = DisableThem[ i ]
-
-				local PluginTable = self.Plugins[ Plugin ]
-				local SetToEnable = self.Config.ActiveExtensions[ Plugin ]
-
-				--Don't allow them to load, or unload them if they have already.
-				if SetToEnable or ( PluginTable and PluginTable.Enabled ) then
-					self.Config.ActiveExtensions[ Plugin ] = false
-
-					self:UnloadExtension( Plugin )
-				end
-			end
+	do
+		-- Deal with plugin dependencies.
+		local OK, Err = CheckDependencies( self, Plugin.DependsOnPlugins )
+		if not OK then
+			return OK, Err
 		end
 	end
 
