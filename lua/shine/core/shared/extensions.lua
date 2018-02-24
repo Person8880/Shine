@@ -40,13 +40,13 @@ function Shine.GetModuleFile( ModuleName )
 	return StringFormat( "lua/shine/modules/%s", ModuleName )
 end
 
-function Shine.LoadPluginModule( ModuleName, Plugin )
+function Shine.LoadPluginModule( ModuleName, Plugin, ... )
 	Plugin = Plugin or _G.Plugin
 	Shine.AssertAtLevel( Plugin and Plugin.AddModule,
 		"Called LoadPluginModule too early! Make sure the plugin has been registered first.", 3 )
 
 	local File = loadfile( Shine.GetModuleFile( ModuleName ) )
-	return File( Plugin )
+	return File( Plugin, ... )
 end
 
 --Here we collect every extension file so we can be sure it exists before attempting to load it.
