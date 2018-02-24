@@ -59,6 +59,7 @@ local DefaultConfig = {
 		tournamentmode = false,
 		unstuck = true,
 		usermanagement = true,
+		votealltalk = false,
 		voterandom = false,
 		votesurrender = true,
 		welcomemessages = false,
