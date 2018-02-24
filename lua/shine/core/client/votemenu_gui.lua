@@ -355,6 +355,9 @@ local function ClearButton( self, Button )
 	self:MarkAsSelected( Button, false )
 	Button:SetIsVisible( false )
 	Button:SetTooltip( nil )
+	Button.DefaultText = nil
+	Button.Plugin = nil
+	Button.CheckMarkXScale = nil
 
 	if Button.OnClear then
 		Button:OnClear()
@@ -560,7 +563,10 @@ do
 			local CheckMark = SGUI:Create( "Image", Button )
 			CheckMark:SetAnchor( "CentreRight" )
 			CheckMark:SetSize( Vector2( Height, Height ) )
-			CheckMark:SetPos( Vector2( -Height, -Height * 0.5 ) )
+			CheckMark:SetPos( Vector2(
+				-Height * ( Button.CheckMarkXScale or 1 ),
+				-Height * 0.5
+			) )
 			CheckMark:SetTexture( TickTexture )
 
 			Button.CheckMark = CheckMark
