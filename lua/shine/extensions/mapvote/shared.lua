@@ -209,18 +209,31 @@ end
 
 function Plugin:OnVoteMenuOpen()
 	local Time = SharedTime()
-
-	if ( self.NextVoteOptionRequest or 0 ) < Time and self.EndTime < Time then
+	if ( self.NextVoteOptionRequest or 0 ) < Time and not self:IsVoteInProgress() then
 		self.NextVoteOptionRequest = Time + 10
 
 		self:SendNetworkMessage( "RequestVoteOptions", {}, true )
 	end
 end
 
-Shine.VoteMenu:EditPage( "Main", function( self )
-	local Time = SharedTime()
+function Plugin:IsVoteInProgress()
+	return ( self.EndTime or 0 ) > SharedTime()
+end
 
-	if ( Plugin.EndTime or 0 ) > Time then
+function Plugin:HandleVoteMenuButtonClick( VoteMenu )
+	if self:IsVoteInProgress() then
+		-- If a vote is in progress, make the "Map Vote" button do the
+		-- same thing as the "Vote" button at the top.
+		VoteMenu:SetPage( "MapVote" )
+		return true
+	end
+
+	-- Otherwise cast a vote to start a map vote.
+	return VoteMenu.GenericClick( "sh_votemap" )
+end
+
+Shine.VoteMenu:EditPage( "Main", function( self )
+	if Plugin:IsVoteInProgress() then
 		self:AddTopButton( Plugin:GetPhrase( "VOTE" ), function()
 			self:SetPage( "MapVote" )
 		end )
@@ -228,15 +241,13 @@ Shine.VoteMenu:EditPage( "Main", function( self )
 end, function( self )
 	local TopButton = self.Buttons.Top
 
-	local Time = SharedTime()
-
-	if Plugin.EndTime > Time then
+	if Plugin:IsVoteInProgress() then
 		if not SGUI.IsValid( TopButton ) or not TopButton:GetIsVisible() then
 			self:AddTopButton( Plugin:GetPhrase( "VOTE" ), function()
 				self:SetPage( "MapVote" )
 			end )
 		end
-	elseif Plugin.EndTime < Time then
+	else
 		if SGUI.IsValid( TopButton ) and TopButton:GetIsVisible() then
 			TopButton:SetIsVisible( false )
 		end
@@ -255,9 +266,7 @@ end
 
 do
 	local function ClosePageIfVoteFinished( self )
-		local Time = SharedTime()
-
-		if Plugin.EndTime < Time then
+		if not Plugin:IsVoteInProgress() then
 			self:SetPage( "Main" )
 			return true
 		end
