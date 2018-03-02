@@ -16,6 +16,15 @@ UnitTest:Test( "RemoveByValue", function( Assert )
 	Assert:ArrayEquals( { 1, 2, 4, 5, 6 }, Input )
 end )
 
+UnitTest:Test( "Add", function( Assert )
+	local Source = { 4, 5, 6 }
+	local Destination = { 1, 2, 3 }
+
+	Destination = table.Add( Destination, Source )
+
+	Assert:ArrayEquals( { 1, 2, 3, 4, 5 , 6 }, Destination )
+end )
+
 UnitTest:Test( "Mixin", function( Assert )
 	local Source = {
 		Cake = true,
