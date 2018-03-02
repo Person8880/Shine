@@ -227,6 +227,21 @@ function Shine.JoinUpValues( Func, TargetFunc, Mapping )
 end
 
 --[[
+	Returns a function that, when called, returns the current value stored in the
+	named upvalue of the given function.
+]]
+function Shine.GetUpValueAccessor( Function, UpValue )
+	local Value
+	local function GetValue()
+		return Value
+	end
+	Shine.JoinUpValues( Function, GetValue, {
+		[ UpValue ] = "Value"
+	} )
+	return GetValue
+end
+
+--[[
 	Checks a given object's type.
 
 	Inputs:
