@@ -86,14 +86,24 @@ Plugin.ConfigMigrationSteps = {
 Plugin.TimerName = "Adverts"
 
 function Plugin:Initialise()
-	self:ParseAdverts()
-	self:SetupTimer()
+	-- If this is the first time loading, the map may not be available yet.
+	if not self:IsFirstTimeLoaded() then
+		self:ParseAdverts()
+		self:SetupTimer()
+	end
+
 	self.Enabled = true
 
 	return true
 end
 
 function Plugin:OnWebConfigReloaded()
+	self:ParseAdverts()
+	self:SetupTimer()
+end
+
+-- Wait for the map to be loaded before parsing to ensure we know what it is.
+function Plugin:OnFirstThink()
 	self:ParseAdverts()
 	self:SetupTimer()
 end

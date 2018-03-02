@@ -25,6 +25,14 @@ function PluginMeta:Initialise()
 end
 
 --[[
+	Indicates whether the plugin has been previously enabled.
+	This assumes the plugin isn't touching its Enabled field before initialisation.
+]]
+function PluginMeta:IsFirstTimeLoaded()
+	return self.Enabled == nil
+end
+
+--[[
 	*STATIC* method to register a module against the plugin.
 
 	Modules are small self-contained bits of behaviour that split up distinct pieces of functionality
