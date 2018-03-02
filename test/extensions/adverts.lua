@@ -38,11 +38,13 @@ Adverts.Config = {
 		},
 		{
 			Message = "Did you know that Aliens bite things?",
-			Template = "RoundStarted"
+			Template = "RoundStarted",
+			Team = "ALIEN"
 		},
 		{
 			Message = "Get ready to shoot/bite!",
-			Template = "PreGame"
+			Template = "PreGame",
+			Team = { "MARINE", "ALIEN" }
 		},
 		"A string advert.",
 		{
@@ -56,6 +58,18 @@ Adverts.Config = {
 		{
 			Message = "I can't be used on the current map",
 			ExcludedMaps = { [ Shared.GetMapName() ] = true }
+		},
+		{
+			Message = "Invalid team",
+			Team = 1
+		},
+		{
+			Message = "Another invalid team",
+			Team = "NOPE"
+		},
+		{
+			Message = "Another invalid team",
+			Team = { "NOPE" }
 		}
 	},
 	TriggeredAdverts = {

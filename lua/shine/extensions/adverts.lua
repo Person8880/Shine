@@ -8,6 +8,7 @@ local IsType = Shine.IsType
 local setmetatable = setmetatable
 local StringFormat = string.format
 local StringUpper = string.upper
+local TableAdd = table.Add
 local TableQuickCopy = table.QuickCopy
 local TableQuickShuffle = table.QuickShuffle
 local TableRemove = table.remove
@@ -25,6 +26,15 @@ Plugin.ConfigName = "Adverts.json"
 Plugin.AdvertTrigger = table.AsEnum{
 	"COUNTDOWN", "START_OF_ROUND", "END_OF_ROUND",
 	"MARINE_VICTORY", "ALIEN_VICTORY", "DRAW"
+}
+Plugin.TeamType = table.AsEnum{
+	"MARINE", "ALIEN", "READY_ROOM", "SPECTATOR"
+}
+Plugin.TeamTypeToTeamNumber = {
+	[ Plugin.TeamType.MARINE ] = kTeam1Index,
+	[ Plugin.TeamType.ALIEN ] = kTeam2Index,
+	[ Plugin.TeamType.READY_ROOM ] = kTeamReadyRoom,
+	[ Plugin.TeamType.SPECTATOR ] = kSpectatorIndex
 }
 
 Plugin.DefaultConfig = {
@@ -118,9 +128,44 @@ function Plugin:ParseAdverts()
 			return false
 		end
 
-		if IsType( Advert, "table" ) and not IsType( Advert.Message, "string" ) then
-			self:Print( "%s[ %d ] has a missing or non-string message.", true, AdvertList, Index )
-			return false
+		if IsType( Advert, "table" ) then
+			if not IsType( Advert.Message, "string" ) then
+				self:Print( "%s[ %d ] has a missing or non-string message.", true, AdvertList, Index )
+				return false
+			end
+
+			if Advert.Team ~= nil then
+				local TeamType = type( Advert.Team )
+				if TeamType ~= "string" and TeamType ~= "table" then
+					self:Print( "%s[ %d ] has an invalid team filter. Must be a single team or list of teams.",
+						true, AdvertList, Index )
+					return false
+				end
+
+				if TeamType == "string" then
+					Advert.Team = StringUpper( Advert.Team )
+					if not self.TeamType[ Advert.Team ] then
+						self:Print( "%s[ %d ] has an invalid team filter.",
+							true, AdvertList, Index )
+						return false
+					end
+				else
+					for i = 1, #Advert.Team do
+						if not IsType( Advert.Team[ i ], "string" ) then
+							self:Print( "%s[ %d ] has an invalid team filter at index %d.",
+								true, AdvertList, Index, i )
+							return false
+						end
+
+						Advert.Team[ i ] = StringUpper( Advert.Team[ i ] )
+						if not self.TeamType[ Advert.Team[ i ] ] then
+							self:Print( "%s[ %d ] has an invalid team filter at index %d.",
+								true, AdvertList, Index, i )
+							return false
+						end
+					end
+				end
+			end
 		end
 
 		return true
@@ -210,6 +255,25 @@ local function UnpackColour( Colour )
 		tonumber( Colour[ 3 ] ) or 255
 end
 
+function Plugin:GetClientsForAdvert( Advert )
+	-- By default, show adverts to everyone.
+	local Targets = nil
+
+	if Advert.Team then
+		-- If a team is specified, filter down to just the clients on the team(s)
+		if IsType( Advert.Team, "string" ) then
+			Targets = Shine.GetTeamClients( self.TeamTypeToTeamNumber[ Advert.Team ] )
+		else
+			Targets = {}
+			for i = 1, #Advert.Team do
+				TableAdd( Targets, Shine.GetTeamClients( self.TeamTypeToTeamNumber[ Advert.Team[ i ] ] ) )
+			end
+		end
+	end
+
+	return Targets
+end
+
 function Plugin:DisplayAdvert( Advert )
 	if IsType( Advert, "string" ) then
 		Shine:NotifyColour( nil, 255, 255, 255, Advert )
@@ -220,17 +284,21 @@ function Plugin:DisplayAdvert( Advert )
 	local R, G, B = UnpackColour( Advert.Colour )
 	local Type = Advert.Type
 
+	local Targets = self:GetClientsForAdvert( Advert )
+	-- Don't send anything if there's no one to send to.
+	if Targets and #Targets == 0 then return end
+
 	if not Type or Type == "chat" then
 		if IsType( Advert.Prefix, "string" ) then
 			-- Send the advert with a coloured prefix.
 			local PR, PG, PB = UnpackColour( Advert.PrefixColour or { 255, 255, 255 } )
 
- 			Shine:NotifyDualColour( nil, PR, PG, PB, Advert.Prefix, R, G, B, Message )
+ 			Shine:NotifyDualColour( Targets, PR, PG, PB, Advert.Prefix, R, G, B, Message )
 
  			return
 		end
 
-		Shine:NotifyColour( nil, R, G, B, Message )
+		Shine:NotifyColour( Targets, R, G, B, Message )
 	else
 		local Position = ( Advert.Position or "top" ):lower()
 
@@ -248,7 +316,7 @@ function Plugin:DisplayAdvert( Advert )
 			R = R, G = G, B = B,
 			Alignment = Align,
 			Size = 2, FadeIn = 1
-		} )
+		}, Targets )
 	end
 end
 
