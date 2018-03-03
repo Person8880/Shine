@@ -158,6 +158,11 @@ function ConfigModule:MigrateConfig( Config )
 	local OurVersion = Shine.VersionHolder( self.Version or "1.0" )
 	if CurrentConfigVersion == OurVersion then return end
 
+	-- Do not permit loading a newer config version than the plugin.
+	Shine.AssertAtLevel( CurrentConfigVersion < OurVersion,
+		"Configuration on disk (%s) is a newer version than the loaded plugin (%s).", 0,
+		CurrentConfigVersion, OurVersion )
+
 	Print( "Updating %s config from version %s to %s...", self.__Name, CurrentConfigVersion, self.Version or "1.0" )
 
 	Config.__Version = self.Version or "1.0"

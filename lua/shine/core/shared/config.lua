@@ -329,7 +329,10 @@ do
 	function Validator:AddFieldRule( Field, CheckPredicate, FixFunction, MessageSupplier )
 		self:AddRule( {
 			Matches = function( self, Config )
-				local Path = StringExplode( Field, "%." )
+				local TableField = type( Field ) == "string" and Field or Field[ 1 ]
+				local PrintField = type( Field ) == "string" and Field or Field[ 2 ]
+
+				local Path = StringExplode( TableField, "%." )
 				local Value = Config
 				for i = 1, #Path do
 					Value = Value[ Path[ i ] ]
@@ -339,7 +342,7 @@ do
 				local NeedsFix, CanonicalValue = CheckPredicate( Value )
 				if NeedsFix then
 					if MessageSupplier then
-						Print( MessageSupplier(), Field )
+						Print( MessageSupplier(), PrintField )
 					end
 
 					SetField( Config, Path, FixFunction( Value ) )

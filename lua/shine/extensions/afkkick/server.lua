@@ -10,7 +10,7 @@ local GetMaxPlayers = Server.GetMaxPlayers
 local GetNumPlayersTotal = Server.GetNumPlayersTotal
 local GetOwner = Server.GetOwner
 local Max = math.max
-local pcall = pcall
+local xpcall = xpcall
 local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
 
@@ -107,6 +107,18 @@ Plugin.ConfigMigrationSteps = {
 	}
 }
 
+local TEAM_MOVE_ERROR_HANDLER = Shine.BuildErrorHandler( "AFK team move error" )
+local function AttemptToMovePlayerToTeam( Gamerules, Client, Player, Team )
+	local Success, Moved = xpcall( Gamerules.JoinTeam, TEAM_MOVE_ERROR_HANDLER,
+		Gamerules, Player, Team, nil, true )
+	if not Success or not Moved then
+		Plugin.Logger:Warn( "Unable to move %s to team %s: %s",
+			Shine.GetClientInfo( Client ),
+			Team,
+			Success and "Gamerules rejected movement" or Moved )
+	end
+end
+
 do
 	local IsType = Shine.IsType
 	local StringUpper = string.upper
@@ -180,7 +192,7 @@ do
 
 		-- Sometimes this event receives one of the weird "ghost" players that can't switch teams.
 		if CurrentTeam ~= TargetTeam then
-			pcall( Gamerules.JoinTeam, Gamerules, CurrentPlayer, TargetTeam, nil, true )
+			AttemptToMovePlayerToTeam( Gamerules, Client, CurrentPlayer, TargetTeam )
 		end
 	end
 
@@ -254,30 +266,14 @@ do
 	end
 end
 
-do
-	local OldFunc
+function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
+	if not self.Config.MarkPlayersAFK then return end
 
-	local function GetName( self )
-		return "AFK - "..OldFunc( self )
-	end
+	local Client = GetOwner( Player )
+	local Data = self.Users:Get( Client )
 
-	function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
-		OldFunc = Player.GetName
-
-		if not self.Config.MarkPlayersAFK then return end
-
-		local Client = GetOwner( Player )
-		local Data = self.Users:Get( Client )
-		if not Data or not Data.IsAFK then return end
-
-		Player.GetName = GetName
-	end
-
-	function Plugin:PostPlayerInfoUpdate( PlayerInfo, Player )
-		Player.GetName = OldFunc
-
-		OldFunc = nil
-	end
+	-- Network the AFK state of the player.
+	PlayerInfo.afk = Data and Data.IsAFK or false
 end
 
 function Plugin:KickClient( Client )
@@ -715,10 +711,7 @@ function Plugin:OnFirstThink()
 			end
 
 			if Shine.IsPlayingTeam( Player:GetTeamNumber() ) then
-				local Gamerules = GetGamerules()
-
-				pcall( Gamerules.JoinTeam, Gamerules, Player,
-					kTeamReadyRoom, nil, true )
+				AttemptToMovePlayerToTeam( GetGamerules(), Client, Player, kTeamReadyRoom )
 			end
 		end
 
@@ -741,9 +734,7 @@ function Plugin:OnFirstThink()
 			ShouldKeep = false
 
 			if Client and Shine.IsPlayingTeam( Player:GetTeamNumber() ) then
-				local Gamerules = GetGamerules()
-
-				pcall( Gamerules.JoinTeam, Gamerules, Player, kTeamReadyRoom, nil, true )
+				AttemptToMovePlayerToTeam( GetGamerules(), Client, Player, kTeamReadyRoom )
 			end
 		end
 
@@ -760,6 +751,15 @@ function Plugin:OnFirstThink()
 			:Filter( FilterPlayers )
 			:AsTable()
 	end
+end
+
+function Plugin:Cleanup()
+	local EntityList = Shared.GetEntitiesWithClassname( "PlayerInfoEntity" )
+	for _, Entity in ientitylist( EntityList ) do
+		Entity.afk = false
+	end
+
+	self.BaseClass.Cleanup( self )
 end
 
 Shine.LoadPluginModule( "logger.lua" )

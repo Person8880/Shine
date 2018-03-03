@@ -174,7 +174,9 @@ do
 	local TeamMatches = {
 		{ "ready", 0 },
 		{ "marine", 1 },
+		{ "frontier", 1 },
 		{ "alien", 2 },
+		{ "khara", 2 },
 		{ "spectat", 3 },
 		{ "blu", 1 },
 		{ "orang", 2 },

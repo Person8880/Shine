@@ -227,6 +227,21 @@ function Shine.JoinUpValues( Func, TargetFunc, Mapping )
 end
 
 --[[
+	Returns a function that, when called, returns the current value stored in the
+	named upvalue of the given function.
+]]
+function Shine.GetUpValueAccessor( Function, UpValue )
+	local Value
+	local function GetValue()
+		return Value
+	end
+	Shine.JoinUpValues( Function, GetValue, {
+		[ UpValue ] = "Value"
+	} )
+	return GetValue
+end
+
+--[[
 	Checks a given object's type.
 
 	Inputs:
@@ -359,7 +374,7 @@ do
 	local TypeNames = {
 		C = function( Info )
 			local Name = Info.name and StringFormat( "'%s'", Info.name )
-				or StringFormat( "<%s:%d>", Info.short_src, Info.linedefined )
+				or StringFormat( "<%s:%d>", Info.short_src, Info.linedefined or -1 )
 			return StringFormat( "function %s", Name )
 		end,
 		main = function() return "main chunk" end

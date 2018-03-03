@@ -114,6 +114,16 @@ do
 	end
 end
 
+--[[
+	Adds all elements in the source table to the destination table.
+]]
+function table.Add( Destination, Source )
+	for i = 1, #Source do
+		Destination[ #Destination + 1 ] = Source[ i ]
+	end
+	return Destination
+end
+
 do
 	local TableRemove = table.remove
 

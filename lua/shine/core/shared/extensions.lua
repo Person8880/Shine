@@ -363,7 +363,10 @@ function Shine:EnableExtension( Name, DontLoadConfig )
 	end
 
 	if Plugin.HasConfig and not DontLoadConfig then
-		Plugin:LoadConfig()
+		local Success, Err = pcall( Plugin.LoadConfig, Plugin )
+		if not Success then
+			return false, StringFormat( "Error while loading config: %s", Err )
+		end
 	end
 
 	local Success, Loaded, Err = pcall( Plugin.Initialise, Plugin )

@@ -764,6 +764,71 @@ function Plugin:CreateInfoCommands()
 	end
 	local ListPluginsCommand = self:BindCommand( "sh_listplugins", nil, ListPlugins, true )
 	ListPluginsCommand:Help( "Lists all loaded plugins." )
+
+	local StringRep = string.rep
+	local function PrintSeparator( Client )
+		Shine.PrintToConsole( Client, StringRep( "=", 24 ) )
+	end
+	local function GetSlotSummary( Client )
+		Shine.PrintToConsole( Client,
+			StringFormat( "%d / %d total clients (%d max player slot(s) | %d max spectator slot(s))",
+				Server.GetNumClientsTotal(),
+				Server.GetMaxPlayers() + Server.GetMaxSpectators(),
+				Server.GetMaxPlayers(),
+				Server.GetMaxSpectators()
+			)
+		)
+
+		PrintSeparator( Client )
+
+		Shine.PrintToConsole( Client, "PLAYER SLOTS" )
+		Shine.PrintToConsole( Client, StringFormat( "%d total player slot(s) occupied (including connecting players)",
+			Server.GetNumPlayersTotal() ) )
+		Shine.PrintToConsole( Client, StringFormat( "%d player slot(s) in use (excluding connecting players)",
+			Server.GetNumPlayers() ) )
+
+		PrintSeparator( Client )
+
+		Shine.PrintToConsole( Client, "SPECTATOR SLOTS" )
+		Shine.PrintToConsole( Client, StringFormat( "%d connected spectator(s)",
+			Server.GetNumSpectators() ) )
+
+		local function IsSpectator( Client )
+			return Client:GetIsSpectator()
+		end
+
+		local NumClientsMarkedAsSpec = Shine.Stream( Shine.GetAllClients() )
+			:Filter( IsSpectator )
+			:GetCount()
+		Shine.PrintToConsole( Client, StringFormat( "%d marked as spectator(s)",
+			NumClientsMarkedAsSpec ) )
+
+		PrintSeparator( Client )
+
+		Shine.PrintToConsole( Client, "RESERVED SLOTS" )
+		Shine.PrintToConsole( Client, StringFormat( "%d player slot(s) currently reserved",
+			Server.GetReservedSlotLimit() ) )
+
+		local ClientsWithReservedAccess = Shine.Stream( Shine.GetAllClients() )
+			:Filter( function( Client )
+				return GetHasReservedSlotAccess( Client:GetUserId() )
+			end )
+
+		local NumClientsWithReservedAccess = ClientsWithReservedAccess:GetCount()
+		local NumSpectatingReservedClients = ClientsWithReservedAccess
+			:Filter( IsSpectator )
+			:GetCount()
+
+		Shine.PrintToConsole( Client,
+			StringFormat( "%d connected player(s) with reserved slot access (%d spectator(s), %d player(s))",
+				NumClientsWithReservedAccess,
+				NumSpectatingReservedClients,
+				NumClientsWithReservedAccess - NumSpectatingReservedClients
+			)
+		)
+	end
+	local SlotSummaryCommand = self:BindCommand( "sh_slotsummary", nil, GetSlotSummary )
+	SlotSummaryCommand:Help( "Displays a summary of player/spectator/reserved slot usage." )
 end
 
 function Plugin:CreateAdminCommands()

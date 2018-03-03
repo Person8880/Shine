@@ -90,7 +90,10 @@ local ClickFuncs = {
 		return GenericClick( "sh_voterandom" )
 	end,
 	[ "Map Vote" ] = function()
-		return GenericClick( "sh_votemap" )
+		local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
+		if not Enabled then return GenericClick( "sh_votemap" ) end
+
+		return MapVote:HandleVoteMenuButtonClick( VoteMenu )
 	end,
 	Surrender = function()
 		return GenericClick( "sh_votesurrender" )

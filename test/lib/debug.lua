@@ -45,3 +45,16 @@ UnitTest:Test( "TypeCheck", function( Assert )
 	Assert:False( Success )
 	Assert:Equals( "Bad argument #1 to 'Test' (string or table expected, got number)", Err )
 end )
+
+UnitTest:Test( "GetUpValueAccessor", function( Assert )
+	local TargetUpValue = {}
+	local function FuncReferencingTarget()
+		return TargetUpValue
+	end
+
+	local Accessor = Shine.GetUpValueAccessor( FuncReferencingTarget, "TargetUpValue" )
+	Assert.Equals( "Accessor didn't return upvalue", Accessor(), TargetUpValue )
+
+	TargetUpValue = {}
+	Assert.Equals( "Accessor didn't return upvalue after re-assignment", Accessor(), TargetUpValue )
+end )

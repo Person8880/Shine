@@ -129,11 +129,15 @@ local function Call( Event, ... )
 end
 Hook.Call = Call
 
+local function ClearHooks( Event )
+	Hooks[ Event ] = nil
+	ReservedNames[ Event ] = nil
+end
+
 local function CallOnce( Event, ... )
 	local a, b, c, d, e, f = Call( Event, ... )
 
-	Hooks[ Event ] = nil
-	ReservedNames[ Event ] = nil
+	ClearHooks( Event )
 
 	return a, b, c, d, e, f
 end
@@ -366,7 +370,7 @@ end
 do
 	local OldScriptLoad = Script.Load
 
-	--Override Script.Load during the load process to allow finer entry point control.
+	-- Override Script.Load during the load process to allow finer entry point control.
 	local function ScriptLoad( Script, Reload )
 		Call( "PreLoadScript", Script, Reload )
 
@@ -379,13 +383,17 @@ do
 	Script.Load = ScriptLoad
 
 	local function MapPreLoad()
-		--Restore Script.Load so we don't bog it down anymore.
+		-- Restore Script.Load so we don't bog it down anymore.
 		if Script.Load == ScriptLoad then
 			Script.Load = OldScriptLoad
 		else
-			--Find the point that overrode our override, and replace their upvalue of us, with the original.
+			-- Find the point that overrode our override, and replace their upvalue of us, with the original.
 			Shine.SetUpValueByValue( Script.Load, ScriptLoad, OldScriptLoad, true )
 		end
+
+		-- Remove all listeners for the now removed events.
+		ClearHooks( "PreLoadScript" )
+		ClearHooks( "PostLoadScript" )
 
 		CallOnce "MapPreLoad"
 	end
