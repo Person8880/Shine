@@ -476,10 +476,10 @@ function Shine.GetClientInfo( Client )
 	local Player = Client:GetControllingPlayer()
 
 	if not Player then
-		return StringFormat( "Unknown[%i]", Client:GetUserId() )
+		return StringFormat( "Unknown[%d]", Client:GetUserId() )
 	end
 
-	return StringFormat( "%s[%i]", Player:GetName(), Client:GetUserId() )
+	return StringFormat( "%s[%d]", Player:GetName(), Client:GetUserId() )
 end
 
 function Shine.GetClientName( Client )
