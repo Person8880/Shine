@@ -753,4 +753,13 @@ function Plugin:OnFirstThink()
 	end
 end
 
+function Plugin:Cleanup()
+	local EntityList = Shared.GetEntitiesWithClassname( "PlayerInfoEntity" )
+	for _, Entity in ientitylist( EntityList ) do
+		Entity.afk = false
+	end
+
+	self.BaseClass.Cleanup( self )
+end
+
 Shine.LoadPluginModule( "logger.lua" )
