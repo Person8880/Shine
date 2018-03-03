@@ -375,16 +375,19 @@ function Plugin:ParseAdverts()
 			end )
 			:AsTable()
 
-		if RequiresGameStateFiltering then
-			-- Check every possible game state to ensure each list has at least one advert with a delay.
-			HasNonZeroDelay = not HasGameStateWithNoDelays( AdvertsList )
-		elseif not HasNonZeroDelay then
-			-- Otherwise ensure that there is at least one message with a delay.
-			self:Print( "None of the messages in %s have a delay, which will cause an infinite loop. This stream has been disabled.",
-				true, AdvertList )
+		local WillLoop = StreamConfig.Loop == nil or StreamConfig.Loop
+		if WillLoop then
+			if RequiresGameStateFiltering then
+				-- Check every possible game state to ensure each list has at least one advert with a delay.
+				HasNonZeroDelay = not HasGameStateWithNoDelays( AdvertsList )
+			elseif not HasNonZeroDelay then
+				-- Otherwise ensure that there is at least one message with a delay.
+				self:Print( "None of the messages in %s have a delay, which will cause an infinite loop. This stream has been disabled.",
+					true, AdvertList )
+			end
 		end
 
-		if #AdvertsList > 0 and HasNonZeroDelay then
+		if #AdvertsList > 0 and ( HasNonZeroDelay or not WillLoop ) then
 			-- If there are adverts to display on this map, then setup the stream.
 			-- Otherwise it would be pointless to setup as it would never display anything.
 			local StartingTriggers = StreamConfig.StartedBy
@@ -396,7 +399,7 @@ function Plugin:ParseAdverts()
 				RandomiseOrder = StreamConfig.RandomiseOrder,
 				StartingTriggers = StartingTriggers and TableAsSet( StartingTriggers ),
 				StoppingTriggers = StoppingTriggers and TableAsSet( StoppingTriggers ),
-				Loop = StreamConfig.Loop == nil or StreamConfig.Loop
+				Loop = WillLoop
 			} )
 
 			if RequiresGameStateFiltering then
