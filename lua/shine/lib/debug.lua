@@ -374,7 +374,7 @@ do
 	local TypeNames = {
 		C = function( Info )
 			local Name = Info.name and StringFormat( "'%s'", Info.name )
-				or StringFormat( "<%s:%d>", Info.short_src, Info.linedefined )
+				or StringFormat( "<%s:%d>", Info.short_src, Info.linedefined or -1 )
 			return StringFormat( "function %s", Name )
 		end,
 		main = function() return "main chunk" end
