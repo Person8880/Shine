@@ -12,6 +12,7 @@ local GetNumPlayersTotal = Server.GetNumPlayersTotal
 local GetMaxPlayers = Server.GetMaxPlayers
 local GetMaxSpectators = Server.GetMaxSpectators
 local Max = math.max
+local Min = math.min
 local tonumber = tonumber
 
 local Plugin = {}
@@ -71,9 +72,30 @@ function Plugin:CreateCommands()
 	SetSlotCommand:Help( "Sets the number of reserved slots." )
 end
 
-function Plugin:GetNumOccupiedReservedSlots()
-	local _, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
-	return Count
+function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam )
+	if OldTeam == kSpectatorIndex or NewTeam == kSpectatorIndex then
+		-- Update reserved slot count whenever spectators are added or removed.
+		self:SetReservedSlotCount( self:GetFreeReservedSlots() )
+	end
+end
+
+do
+	local function IsSpectator( Client ) return Client:GetIsSpectator() end
+
+	function Plugin:GetNumOccupiedReservedSlots()
+		local Clients, Count = Shine:GetClientsWithAccess( "sh_reservedslot" )
+		if self.Config.SlotType == self.SlotType.ALL then
+			-- When reserving all slots, the slot type a
+			-- reserved player is in doesn't matter.
+			return Count
+		end
+
+		local NumInSpectate = Shine.Stream( Clients )
+			:Filter( IsSpectator )
+			:GetCount()
+		-- For reserved player slots, only count those not in spectator slots.
+		return Count - Min( NumInSpectate, self:GetMaxSpectatorSlots() )
+	end
 end
 
 function Plugin:GetFreeReservedSlots()
