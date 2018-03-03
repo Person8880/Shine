@@ -47,7 +47,7 @@ function UnitTest.MockOf( Table )
 			local Value = Table[ Key ]
 
 			-- Allow for recursive mocking (e.g. Plugin.Config)
-			if type( Value ) == "table" then
+			if type( Value ) == "table" and getmetatable( Value ) == nil then
 				local Mock = UnitTest.MockOf( Value )
 				self[ Key ] = Mock
 				return Mock
