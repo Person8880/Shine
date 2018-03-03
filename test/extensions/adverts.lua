@@ -199,7 +199,12 @@ UnitTest:Test( "ParseAdverts parses as expected", function( Assert )
 		[ Adverts.AdvertTrigger.START_OF_ROUND ] = {
 			{
 				Message = "Get zem!",
-				Template = "RoundStarted"
+				Template = "RoundStarted",
+				Type = "chat",
+				Colour = { 255, 255, 255 },
+				Prefix = "[Hint]",
+				PrefixColour = { 0, 200, 255 },
+				GameState = "Started"
 			}
 		}
 	}, Adverts.TriggeredAdvertsByTrigger:AsTable() )

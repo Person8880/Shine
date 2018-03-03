@@ -5,12 +5,12 @@
 local Shine = Shine
 
 local IsType = Shine.IsType
-local setmetatable = setmetatable
 local StringFormat = string.format
 local StringUpper = string.upper
 local TableAdd = table.Add
 local TableAsSet = table.AsSet
 local TableShallowCopy = table.ShallowCopy
+local TableShallowMerge = table.ShallowMerge
 local tonumber = tonumber
 
 local Plugin = {}
@@ -229,14 +229,25 @@ function Plugin:ParseAdverts()
 	local function AssignTemplate( Advert )
 		if not IsType( Advert, "table" ) then return Advert end
 
-		local Template = self.Config.Templates[ Advert.Template ]
-
-		if IsType( Template, "table" ) then
-			-- Inherit values from the template.
-			return setmetatable( Advert, { __index = Template } )
+		local Templates = Advert.Template
+		if IsType( Templates, "string" ) then
+			Templates = { Templates }
+		elseif not IsType( Templates, "table" ) then
+			return Advert
 		end
 
-		return Advert
+		local TemplatedAdvert = TableShallowCopy( Advert )
+
+		for i = 1, #Templates do
+			local Template = self.Config.Templates[ Templates[ i ] ]
+
+			if IsType( Template, "table" ) then
+				-- Inherit values from the template.
+				TableShallowMerge( Template, TemplatedAdvert )
+			end
+		end
+
+		return TemplatedAdvert
 	end
 
 	local function IsValidForMap( Advert )
