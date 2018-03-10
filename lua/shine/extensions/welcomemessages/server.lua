@@ -33,6 +33,22 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 Plugin.SilentConfigSave = true
 
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.3",
+		Apply = function( Config )
+			if not IsType( Config.Users, "table" ) then return end
+
+			-- Remove any remaining "Said" entries.
+			for ID, Data in pairs( Config.Users ) do
+				if IsType( Data, "table" ) then
+					Data.Said = nil
+				end
+			end
+		end
+	}
+}
+
 do
 	local Validator = Shine.Validator()
 
