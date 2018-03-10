@@ -236,6 +236,7 @@ do
 	local StringExplode = string.Explode
 	local StringUpper = string.upper
 	local TableBuild = table.Build
+	local TableConcat = table.concat
 	local TableRemove = table.remove
 	local tonumber = tonumber
 	local unpack = unpack
@@ -304,7 +305,9 @@ do
 			end
 			return Value
 		end,
-		MessageFunc
+		function()
+			return "Elements of "..MessageFunc()
+		end
 	end
 
 	function Validator.IsType( Type, DefaultValue )
@@ -315,6 +318,31 @@ do
 		function()
 			return StringFormat( "%%s must be a %s", Type )
 		end
+	end
+
+	function Validator.IsAnyType( Types, DefaultValue )
+		return function( Value )
+			for i = 1, #Types do
+				if IsType( Value, Types[ i ] ) then
+					return false
+				end
+			end
+			return true
+		end,
+		Validator.Constant( DefaultValue ),
+		function()
+			return StringFormat( "%%s must have type %s", TableConcat( Types, " or " ) )
+		end
+	end
+
+	-- If the value is of the given type, then it will be validated with the given predicate.
+	function Validator.IfType( Type, CheckPredicate, FixFunction, MessageSupplier )
+		return function( Value )
+			if not IsType( Value, Type ) then
+				return false
+			end
+			return CheckPredicate( Value )
+		end, FixFunction, MessageSupplier
 	end
 
 	function Validator:AddRule( Rule )
