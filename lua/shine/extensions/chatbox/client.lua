@@ -168,6 +168,10 @@ local Spacing = Units.Spacing
 
 local Colours = {
 	Background = Colour( 0.6, 0.6, 0.6, 0.4 ),
+	Team1Background = Colour( 104 / 255, 191 / 255, 1, 0.4 ),
+	Team2Background = Colour( 0.8, 0.5, 0.1, 0.4 ),
+	NeutralTeamBackground = Colour( 1, 1, 1, 0.4 ),
+
 	Dark = Colour( 0.2, 0.2, 0.2, 0.8 ),
 	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 ),
 	ModeText = Colour( 1, 1, 1, 1 ),
@@ -187,13 +191,13 @@ local Skin = {
 			Colour = Colours.Background,
 			States = {
 				Team1 = {
-					Colour = Colour( 104 / 255, 191 / 255, 1, 0.4 )
+					Colour = Colours.Team1Background
 				},
 				Team2 = {
-					Colour = Colour( 0.8, 0.5, 0.1, 0.4 )
+					Colour = Colours.Team2Background
 				},
 				NeutralTeam = {
-					Colour = Colour( 1, 1, 1, 0.4 )
+					Colour = Colours.NeutralTeamBackground
 				}
 			}
 		},
@@ -265,6 +269,9 @@ local function UpdateOpacity( self, Opacity )
 	local ScaledOpacity = AlphaScale( Opacity )
 
 	Colours.Background.a = Opacity
+	Colours.Team1Background.a = Opacity
+	Colours.Team2Background.a = Opacity
+	Colours.NeutralTeamBackground.a = Opacity
 	Colours.Dark.a = ScaledOpacity
 	Colours.Highlight.a = ScaledOpacity
 
