@@ -417,6 +417,8 @@ function Shine.BuildErrorHandler( ErrorType )
 
 		Shine:DebugPrint( "%s: %s\n%s", true, ErrorType, Err, Trace )
 		Shine:AddErrorReport( StringFormat( "%s: %s", ErrorType, Err ), Trace )
+
+		return Err
 	end
 end
 
