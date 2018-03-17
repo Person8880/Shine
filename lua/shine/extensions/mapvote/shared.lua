@@ -191,6 +191,17 @@ function Plugin:SetupClientConfig()
 		.." by entering sh_mapvote_onvote <%s> into the console.", TableConcat( self.VoteAction, "|" ) ) )
 
 	self:BindCommand( "sh_mapvote_onvote", function( Choice )
+		if not Choice then
+			local Explanations = {
+				[ self.VoteAction.USE_SERVER_SETTINGS ] = "respect server settings",
+				[ self.VoteAction.OPEN_MENU ] = "open",
+				[ self.VoteAction.DO_NOT_OPEN_MENU ] = "do nothing"
+			}
+
+			Print( "The vote menu is currently set to %s when a map vote starts.", Explanations[ self.Config.OnVoteAction ] )
+			return
+		end
+
 		self.Config.OnVoteAction = self.VoteAction[ Choice ] or self.VoteAction.USE_SERVER_SETTINGS
 		self:SaveConfig( true )
 
@@ -201,7 +212,7 @@ function Plugin:SetupClientConfig()
 		}
 
 		Print( "The vote menu will %s when a map vote starts.", Explanations[ self.Config.OnVoteAction ] )
-	end ):AddParam{ Type = "string", Optional = true, Default = self.VoteAction.USE_SERVER_SETTINGS }
+	end ):AddParam{ Type = "string", Optional = true }
 
 	Shine:RegisterClientSetting( {
 		Type = "Radio",
