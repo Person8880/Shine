@@ -29,7 +29,8 @@ function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, S
 		Duration = Duration,
 		NextMap = NextMap,
 		TimeLeft = TimeLeft,
-		ShowTime = ShowTime
+		ShowTime = ShowTime,
+		ForceMenuOpen = self.Config.ForceMenuOpenOnMapVote
 	}
 
 	if Client then
@@ -315,12 +316,7 @@ function Plugin:ExtendMap( Time, NextMap )
 
 	if NextMap then
 		if not self.VoteOnEnd then
-			self:SimpleTimer( ExtendTime * self.Config.NextMapVote, function()
-				local Players = Shine.GetAllPlayers()
-				if #Players > 0 then
-					self:StartVote( true )
-				end
-			end )
+			self.NextMapVoteTime = Time + ExtendTime * self.Config.NextMapVote
 		end
 	else
 		if not self.Config.EnableNextMapVote then return end
@@ -334,10 +330,7 @@ function Plugin:ExtendMap( Time, NextMap )
 		end
 
 		if not self.VoteOnEnd then
-			self:DestroyTimer( self.NextMapTimer )
-			self:CreateTimer( self.NextMapTimer, NextVoteTime, 1, function()
-				self:StartVote( true )
-			end )
+			self.NextMapVoteTime = Time + NextVoteTime
 		end
 	end
 end

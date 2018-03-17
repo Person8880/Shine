@@ -652,6 +652,14 @@ function VoteMenu:GetButtonByPlugin( PluginName )
 	return nil
 end
 
+local PluginNames = {
+	Shuffle = "voterandom",
+	[ "Map Vote" ] = "mapvote",
+	Surrender = "votesurrender",
+	Unstuck = "unstuck",
+	MOTD = "motd"
+}
+
 --[[
 	Default page.
 ]]
@@ -659,10 +667,16 @@ VoteMenu:AddPage( "Main", function( self )
 	local ActivePlugins = Shine.ActivePlugins
 
 	for i = 1, #ActivePlugins do
-		local Plugin = ActivePlugins[ i ]
-		local Text = Locale:GetPhrase( "Core", Plugin )
-		local Button = self:AddSideButton( Text, ClickFuncs[ Plugin ] )
-		Button.Plugin = Plugin
+		local PluginButton = ActivePlugins[ i ]
+
+		local Enabled, Plugin = Shine:IsExtensionEnabled( PluginNames[ PluginButton ] )
+		local Text = Locale:GetPhrase( "Core", PluginButton )
+		if Enabled then
+			Text = Plugin.GetVoteButtonText and Plugin:GetVoteButtonText() or Text
+		end
+
+		local Button = self:AddSideButton( Text, ClickFuncs[ PluginButton ] )
+		Button.Plugin = PluginButton
 		Button.DefaultText = Text
 	end
 

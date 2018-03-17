@@ -18,7 +18,7 @@ local Percentage = Units.Percentage
 local Spacing = Units.Spacing
 local UnitVector = Units.UnitVector
 
-ConfigMenu.Size = UnitVector( HighResScaled( 600 ), HighResScaled( 500 ) )
+ConfigMenu.Size = UnitVector( HighResScaled( 700 ), HighResScaled( 500 ) )
 ConfigMenu.EasingTime = 0.25
 
 local function NeedsToScale()
@@ -156,7 +156,7 @@ local SettingsTypes = {
 	Radio = {
 		Create = function( Panel, Entry )
 			local RadioPanel = Panel:Add( "Panel" )
-			RadioPanel:SetAutoSize( UnitVector( Percentage( 75 ), HighResScaled( 56 ) ) )
+			RadioPanel:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 56 ) ) )
 
 			local TranslationSource = Entry.TranslationSource or "Core"
 

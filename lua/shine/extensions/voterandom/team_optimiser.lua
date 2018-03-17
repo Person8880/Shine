@@ -48,12 +48,19 @@ local function Opposite( TeamNum )
 	return TeamNum % 2 + 1
 end
 
+-- Sort by average ascending, standard deviation descending.
+-- This means the last entry has the largest average (but still lower than the current)
+-- and the smallest standard deviation in that average group.
+local CompareAverage = Shine.Comparator( "Field", 1, "AverageDiff" )
+local CompareStdDiff = Shine.Comparator( "Field", -1, "StdDiff" )
+local DEFAULT_COMPARATOR = Shine.Comparator( "Composition", CompareStdDiff, CompareAverage ):Compile()
+
 --[[
 	Initialise the team optimiser with a table of team members, a table containing the current skill
 	data (Total, Count and Average fields), and a function that returns a skill value for a player
 	on a given team.
 ]]
-function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc )
+function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc, Comparator )
 	self.TeamMembers = TeamMembers
 	self.TeamSkills = TeamSkills
 
@@ -61,6 +68,8 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc )
 	self.LargerTeam = Larger( #TeamMembers[ 1 ], #TeamMembers[ 2 ] )
 	self.LesserTeam = Opposite( self.LargerTeam )
 	self.TeamsAreEqual = #TeamMembers[ 1 ] == #TeamMembers[ 2 ]
+
+	self.TakeSwapImmediately = false
 
 	do
 		local RankCache = {}
@@ -80,6 +89,8 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc )
 			return Value
 		end
 	end
+
+	self.Comparator = Comparator or DEFAULT_COMPARATOR
 
 	self.StandardDeviationTolerance = 40
 	self.AverageValueTolerance = 0
@@ -205,7 +216,8 @@ function TeamOptimiser:SimulateSwap( ... )
 
 	local AverageDiffAfter = Difference( SwapContext.PostData, "Average" )
 	local StdDiff = Difference( SwapContext.PostData, "StandardDeviation" )
-	if not self:SwapPassesRequirements( AverageDiffAfter, StdDiff ) then return end
+	local Permitted, Cost = self:SwapPassesRequirements( AverageDiffAfter, StdDiff )
+	if not Permitted then return end
 
 	self.SwapCount = self.SwapCount + 1
 	local Swap = self:GetSwap( self.SwapCount )
@@ -216,6 +228,7 @@ function TeamOptimiser:SimulateSwap( ... )
 	end
 	Swap.AverageDiff = AverageDiffAfter
 	Swap.StdDiff = StdDiff
+	Swap.Cost = Cost
 end
 
 --[[
@@ -242,6 +255,7 @@ function TeamOptimiser:TrySwaps( PlayerIndex, Pass )
 	local Player = TeamMembers[ self.LargerTeam ][ PlayerIndex ]
 	if not Player or not self:IsValidForSwap( Player, Pass ) then return end
 
+	local TakeSwapImmediately = self.TakeSwapImmediately
 	-- Check every player on the other team against this player for a better swap.
 	for OtherPlayerIndex = 1, #TeamMembers[ self.LesserTeam ] do
 		local OtherPlayer = TeamMembers[ self.LesserTeam ][ OtherPlayerIndex ]
@@ -251,6 +265,10 @@ function TeamOptimiser:TrySwaps( PlayerIndex, Pass )
 				self:SimulateSwap( PlayerIndex, OtherPlayerIndex )
 			else
 				self:SimulateSwap( OtherPlayerIndex, PlayerIndex )
+			end
+
+			if TakeSwapImmediately and self.SwapCount > 0 then
+				return
 			end
 		end
 	end
@@ -289,10 +307,6 @@ function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff )
 	return StdDiff - CurrentStdDiff < self.StandardDeviationTolerance
 end
 
-local CompareAverage = Shine.Comparator( "Field", 1, "AverageDiff" )
-local CompareStdDiff = Shine.Comparator( "Field", -1, "StdDiff" )
-local Comparator = Shine.Comparator( "Composition", CompareStdDiff, CompareAverage ):Compile()
-
 --[[
 	Commits the best swap operation held in self.CurrentPotentialState.Swaps.
 
@@ -306,10 +320,10 @@ function TeamOptimiser:CommitSwap()
 		SwapBuffer[ i ] = Swaps[ i ]
 	end
 
-	-- Sort by average ascending, standard deviation descending.
-	-- This means the last entry has the largest average (but still lower than the current)
-	-- and the smallest standard deviation in that average group.
-	TableSort( SwapBuffer, Comparator )
+	-- Use the configured comparator to rank the swaps in descending order of improvement.
+	if not self.TakeSwapImmediately then
+		TableSort( SwapBuffer, self.Comparator )
+	end
 
 	local OptimalSwap = SwapBuffer[ #SwapBuffer ]
 	if not OptimalSwap then return self.RESULT_NEXTPASS end
@@ -340,6 +354,8 @@ function TeamOptimiser:CommitSwap()
 		TeamSkills[ i ].Average = TeamSkills[ i ].Total / TeamSkills[ i ].Count
 	end
 
+	self.CurrentPotentialState.Cost = OptimalSwap.Cost
+
 	-- If an average tolerance is set, and we're now less-equal to it, stop completely.
 	if self.AverageValueTolerance > 0 and Difference( TeamSkills, "Average" ) <= self.AverageValueTolerance then
 		return self.RESULT_TERMINATE
@@ -359,6 +375,8 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 	local SwapContext = self.SwapContext
 	local TeamMembers = self.TeamMembers
 
+	local TakeSwapImmediately = self.TakeSwapImmediately
+
 	while Iterations < 1000 do
 		self:CacheStandardDeviations()
 		self.SwapCount = 0
@@ -376,6 +394,10 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 		-- Try swapping every player on the larger team, with every player on the smaller team.
 		for i = 1, #TeamMembers[ self.LargerTeam ] do
 			self:TrySwaps( i, Pass )
+
+			if TakeSwapImmediately and self.SwapCount > 0 then
+				break
+			end
 		end
 
 		-- Check if there's a good swap, and if we should continue.

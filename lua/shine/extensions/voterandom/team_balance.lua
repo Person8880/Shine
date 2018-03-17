@@ -14,8 +14,10 @@ local IsType = Shine.IsType
 local Max = math.max
 local next = next
 local Random = math.random
+local TableCopy = table.Copy
 local TableMixin = table.Mixin
 local TableRemove = table.remove
+local TableShallowMerge = table.ShallowMerge
 local TableSort = table.sort
 
 local EvenlySpreadTeams = Shine.EvenlySpreadTeams
@@ -357,28 +359,106 @@ function BalanceModule:ShouldOptimiseHappiness( TeamMembers )
 		and not ( self.Config.IgnoreCommanders and TeamMembersContainCommander( TeamMembers ) )
 end
 
+do
+	local Exp = math.exp
+	local Max = math.max
+
+	-- These are derived from many simulated team optimisations.
+	-- They produce a good balance between average and standard deviation
+	-- without favouring either too much.
+	local AVERAGE_BOUND = 75
+	local STDDEV_BOUND = 150
+
+	local function TeamCost( AverageDiff, StdDiff )
+		-- The idea here is that, if the average or standard deviation differences grow
+		-- beyond an acceptable level (defined by the bounds above), their exponentials
+		-- will start to grow and easily cancel out any minor improvements in the other
+		-- parameter.
+		return AverageDiff * Exp( Max( AverageDiff - AVERAGE_BOUND, 0 ) )
+			+ StdDiff * Exp( Max( StdDiff - STDDEV_BOUND, 0 ) )
+	end
+
+	BalanceModule.OptimisationIterations = {
+		{
+			-- Legacy method, uses hard rules to determine if a swap
+			-- is valid.
+			TakeSwapImmediately = false
+		},
+		{
+			-- New cost-based method, usually ends up with a more balanced team composition.
+			SwapPassesRequirements = function( self, AverageDiff, StdDiff )
+				local NewCost = TeamCost( AverageDiff, StdDiff )
+				local CurrentCost = self.CurrentPotentialState.Cost
+				if not CurrentCost or CurrentCost > NewCost then
+					return true, NewCost
+				end
+				return false
+			end,
+			TakeSwapImmediately = true
+		}
+	}
+
+	function BalanceModule:GetCostForOptimiser( Optimiser )
+		local State = Optimiser.CurrentPotentialState
+		return TeamCost( State.AverageDiffBefore, State.StdDiffBefore )
+	end
+end
+
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
 
-	local Optimiser = self.TeamOptimiser( TeamMembers, TeamSkills, RankFunc )
-	function Optimiser:GetNumPasses()
+	local function GetNumPasses( self )
 		return next( TeamMembers.TeamPreferences ) and 2 or 1
 	end
 
 	local IgnoreCommanders = self.Config.IgnoreCommanders
-	function Optimiser:IsValidForSwap( Player, Pass )
+	local function IsValidForSwap( self, Player, Pass )
 		return ( Pass == 2 or not TeamMembers.TeamPreferences[ Player ] )
 			and not ( IgnoreCommanders and Player:isa( "Commander" ) )
 	end
 
-	TableMixin( self.Config, Optimiser, {
-		"StandardDeviationTolerance",
-		"AverageValueTolerance"
-	} )
+	local Iterations = self.OptimisationIterations
+	local Results = {}
 
-	Optimiser:Optimise()
+	for i = 1, #Iterations do
+		local Iteration = Iterations[ i ]
 
+		local IterationTeamMembers = TableCopy( TeamMembers )
+		local IterationTeamSkills = TableCopy( TeamSkills )
+
+		local Optimiser = self.TeamOptimiser( IterationTeamMembers, IterationTeamSkills, RankFunc )
+		Optimiser.GetNumPasses = GetNumPasses
+		Optimiser.IsValidForSwap = IsValidForSwap
+
+		TableShallowMerge( Iteration, Optimiser, true )
+		TableMixin( self.Config, Optimiser, {
+			"StandardDeviationTolerance",
+			"AverageValueTolerance"
+		} )
+
+		Optimiser:Optimise()
+
+		Results[ i ] = {
+			Iteration = i,
+			Cost = self:GetCostForOptimiser( Optimiser ),
+			TeamMembers = IterationTeamMembers,
+			TeamSkills = IterationTeamSkills
+		}
+	end
+
+	TableSort( Results, function( A, B )
+		return A.Cost < B.Cost
+	end )
+
+	local BestResult = Results[ 1 ]
+	for i = 1, 2 do
+		TeamMembers[ i ] = BestResult.TeamMembers[ i ]
+		TeamSkills[ i ] = BestResult.TeamSkills[ i ]
+	end
+
+	self.Logger:Debug( "Iteration %d produced the best result with cost %s",
+		BestResult.Iteration, BestResult.Cost )
 	self.Logger:Debug( "After optimisation:" )
 	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
 

@@ -62,5 +62,9 @@
 	"MAP_EXTENDED_ROUNDS": "{Duration:Sign:shortened|extended} the map by {Duration:Abs} {Duration:Abs::Pluralise:round|rounds}.",
 	"SET_MAP_ROUNDS": "set the round limit to {Duration} {Duration:Pluralise:round|rounds}.",
 	"NOTIFY_PREFIX": "[Map Vote]",
-	"PLUGIN_DISABLED": "Map vote plugin disabled. Current vote cancelled."
+	"PLUGIN_DISABLED": "Map vote plugin disabled. Current vote cancelled.",
+	"ON_VOTE_ACTION": "When a map vote starts:",
+	"USE_SERVER_SETTINGS": "Use Server Settings",
+	"OPEN_MENU": "Open Vote Menu",
+	"DO_NOT_OPEN_MENU": "Do Nothing"
 }

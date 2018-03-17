@@ -13,6 +13,9 @@ function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "HighlightTeamSwaps", false )
 	self:AddDTVar( "boolean", "DisplayStandardDeviations", false )
 
+	self:AddDTVar( "boolean", "IsAutoShuffling", false )
+	self:AddDTVar( "boolean", "IsVoteForAutoShuffle", false )
+
 	local MessageTypes = {
 		ShuffleType = {
 			ShuffleType = "string (24)"
@@ -44,16 +47,19 @@ function Plugin:SetupDataTable()
 			"TEAMS_FORCED_NEXT_ROUND", "TEAMS_FORCED_END_OF_ROUND",
 			"TEAMS_SHUFFLED_UNTIL_NEXT_ROUND", "TEAMS_SHUFFLED_UNTIL_END_OF_ROUND",
 			"SHUFFLE_AND_RESTART", "SHUFFLING_TEAMS",
-			"TEAM_ENFORCING_TIMELIMIT", "DISABLED_TEAMS"
+			"TEAM_ENFORCING_TIMELIMIT", "DISABLED_TEAMS",
+			"AUTO_SHUFFLE_DISABLED", "AUTO_SHUFFLE_ENABLED"
 		},
 		[ MessageTypes.ShuffleDuration ] = {
 			"TEAMS_SHUFFLED_FOR_DURATION"
 		},
 		[ MessageTypes.PlayerVote ] = {
-			"PLAYER_VOTED"
+			"PLAYER_VOTED", "PLAYER_VOTED_ENABLE_AUTO",
+			"PLAYER_VOTED_DISABLE_AUTO"
 		},
 		[ MessageTypes.PrivateVote ] = {
-			"PLAYER_VOTED_PRIVATE"
+			"PLAYER_VOTED_PRIVATE", "PLAYER_VOTED_ENABLE_AUTO_PRIVATE",
+			"PLAYER_VOTED_DISABLE_AUTO_PRIVATE"
 		}
 	}, "ShuffleType" )
 	self:AddNetworkMessages( "AddTranslatedError", {
@@ -72,6 +78,7 @@ Shine.LoadPluginModule( "sh_vote.lua", Plugin )
 if Server then return end
 
 Plugin.VoteButtonName = "Shuffle"
+Plugin.VoteButtonCheckMarkXScale = 0.5
 
 Plugin.TeamType = table.AsEnum{
 	"MARINE", "ALIEN", "NONE"
@@ -133,6 +140,30 @@ function Plugin:SetupClientConfig()
 		Description = "TEAM_PREFERENCE",
 		TranslationSource = self.__Name
 	} )
+end
+
+function Plugin:NetworkUpdate( Key, Old, New )
+	self:BroadcastModuleEvent( "NetworkUpdate", Key, Old, New )
+
+	if not self.dt.IsVoteForAutoShuffle then return end
+
+	if Key == "IsAutoShuffling" then
+		local Button = Shine.VoteMenu:GetButtonByPlugin( self.VoteButtonName )
+		if not Button then return end
+
+		Button.DefaultText = self:GetVoteButtonText()
+		Button:SetText( Button.DefaultText )
+	end
+end
+
+function Plugin:GetVoteButtonText()
+	if not self.dt.IsVoteForAutoShuffle then return end
+
+	if self.dt.IsAutoShuffling then
+		return self:GetPhrase( "DISABLE_AUTO_SHUFFLE" )
+	end
+
+	return self:GetPhrase( "ENABLE_AUTO_SHUFFLE" )
 end
 
 function Plugin:OnFirstThink()

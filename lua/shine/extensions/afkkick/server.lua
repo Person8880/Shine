@@ -41,6 +41,7 @@ Plugin.DefaultConfig = {
 	KickOnConnect = false,
 	KickTimeIsAFKThreshold = 0.25,
 	MarkPlayersAFK = true,
+	CheckSteamOverlay = true,
 	WarnActions = {
 		-- Actions to perform to players when they are warned.
 		-- May be any of: MoveToSpectate, MoveToReadyRoom, Notify
@@ -354,13 +355,17 @@ function Plugin:ResetAFKTime( Client )
 	end
 end
 
+function Plugin:IsSteamOverlayOpenFor( DataTable )
+	return DataTable.SteamOverlayIsOpen and self.Config.CheckSteamOverlay
+end
+
 function Plugin:SubtractAFKTime( Client, Time )
 	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
 
 	-- Do not subtract any time if the player's Steam overlay is open.
 	-- It could be possible to leave the voice chat button going with it open.
-	if DataTable.SteamOverlayIsOpen then return end
+	if self:IsSteamOverlayOpenFor( DataTable ) then return end
 
 	DataTable.Warn = false
 	DataTable.LastMove = SharedTime()
@@ -551,7 +556,7 @@ function Plugin:OnProcessMove( Player, Input )
 	-- Track frozen player's input, but do not punish them if they are not providing any.
 	local IsPlayerFrozen = self:IsPlayerFrozen( Player )
 
-	if not ( MovementIsEmpty and AnglesMatch or DataTable.SteamOverlayIsOpen ) then
+	if not ( MovementIsEmpty and AnglesMatch or self:IsSteamOverlayOpenFor( DataTable ) ) then
 		DataTable.LastMove = Time
 
 		local Leniency = self:GetLeniency( self:IsClientPartiallyImmune( Client ) )
