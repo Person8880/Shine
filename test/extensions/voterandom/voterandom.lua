@@ -544,8 +544,8 @@ UnitTest:Test( "OptimiseTeams with commanders", function( Assert )
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	-- It should never swap the commanders.
-	Assert:ArrayEquals( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
-	Assert:ArrayEquals( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
+	Assert:DeepEquals( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
+	Assert:DeepEquals( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
 end, nil, 5 )
 
 VoteShuffle.OptimiseHappiness = BalanceModule.OptimiseHappiness
