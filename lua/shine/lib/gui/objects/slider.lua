@@ -160,6 +160,17 @@ function Slider:SetFraction( Fraction )
 	self:SizeLines()
 end
 
+function Slider:ChangeValue( Value )
+	local OldValue = self.Value
+
+	self:SetValue( Value )
+
+	if OldValue ~= self.Value then
+		self:OnSlide( self.Value )
+		self:OnValueChanged( self.Value )
+	end
+end
+
 function Slider:GetValue()
 	return self.Value
 end
@@ -177,6 +188,20 @@ function Slider:SetBounds( Min, Max )
 
 	--Update our slider value to clamp it inside the new bounds if needed.
 	self:SetValue( self.Value )
+end
+
+function Slider:PlayerKeyPress( Key, Down )
+	if not self:MouseIn( self.Background ) then return end
+
+	if Key == InputKey.Left or Key == InputKey.Down then
+		self:ChangeValue( self:GetValue() - 1 * 10 ^ -self.Decimals )
+		return true
+	end
+
+	if Key == InputKey.Right or Key == InputKey.Up then
+		self:ChangeValue( self:GetValue() + 1 * 10 ^ -self.Decimals )
+		return true
+	end
 end
 
 local GetCursorPos
