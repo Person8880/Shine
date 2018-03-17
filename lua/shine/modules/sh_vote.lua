@@ -164,6 +164,10 @@ function Module:UpdateVoteButton()
 		return
 	end
 
+	if self.VoteButtonCheckMarkXScale then
+		Button.CheckMarkXScale = self.VoteButtonCheckMarkXScale
+	end
+
 	if self.HasVoted then
 		Shine.VoteMenu:MarkAsSelected( Button, true )
 	end

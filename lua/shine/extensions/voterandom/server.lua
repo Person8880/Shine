@@ -417,6 +417,7 @@ function Plugin:Initialise()
 	self.ShuffleOnNextRound = false
 	self.ShuffleAtEndOfRound = false
 	self.HasShuffledThisRound = false
+	self.SuppressAutoShuffle = false
 
 	self.dt.HighlightTeamSwaps = self.Config.HighlightTeamSwaps
 	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
@@ -428,6 +429,9 @@ function Plugin:Initialise()
 		-- Nothing to enforce at startup.
 		self.EnforcementPolicy = NoOpEnforcement()
 	end
+
+	self.dt.IsVoteForAutoShuffle = self.Config.AlwaysEnabled
+	self.dt.IsAutoShuffling = self.Config.AlwaysEnabled
 
 	self.TeamPreferences = {}
 
@@ -751,6 +755,14 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 
 	if not self.Config.AlwaysEnabled and not self.ShuffleOnNextRound then return end
 
+	if self.Config.AlwaysEnabled then
+		-- Reset any vote, as it cannot be used again until the round ends.
+		self.Vote:Reset()
+
+		-- If voted to disable auto-shuffle, do nothing.
+		if self.SuppressAutoShuffle then return end
+	end
+
 	self.ShuffleOnNextRound = false
 
 	if GetNumPlayers() < self.Config.MinPlayers then
@@ -796,8 +808,13 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 
 	-- If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then
+		self.SuppressAutoShuffle = false
+		self.dt.IsAutoShuffling = true
+		self.dt.IsVoteForAutoShuffle = true
+
 		self:DestroyTimer( self.RandomEndTimer )
 		self.EnforcementPolicy = NoOpEnforcement()
+
 		return
 	end
 
@@ -916,8 +933,9 @@ end
 	Adds a player's vote to the counter.
 ]]
 function Plugin:AddVote( Client )
-	if self.Config.AlwaysEnabled then
-		return false, "ERROR_TEAMS_FORCED", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
+	if self:GetStage() == self.Stage.InGame and self.Config.AlwaysEnabled then
+		-- Disabling/enabling auto shuffle should only be possible before a round starts.
+		return false, "ERROR_CANNOT_START", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
 	end
 
 	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
@@ -959,7 +977,10 @@ Plugin.Stage = table.AsEnum{
 }
 
 function Plugin:GetStage()
-	local GameState = GetGamerules():GetGameState()
+	local Gamerules = GetGamerules()
+	if not Gamerules then return self.Stage.PreGame end
+
+	local GameState = Gamerules:GetGameState()
 	local IsInActiveRound = GameState >= kGameState.Countdown and GameState <= kGameState.Started
 	return IsInActiveRound and self.Stage.InGame or self.Stage.PreGame
 end
@@ -1072,8 +1093,18 @@ function Plugin:ApplyRandomSettings()
 		self.RandomApplied = false
 	end )
 
-	local Settings = self:GetVoteActionSettings()
-	self.ShufflePolicyActions[ Settings.ShufflePolicy ]( self )
+	if self.Config.AlwaysEnabled then
+		self.SuppressAutoShuffle = not self.SuppressAutoShuffle
+		self.dt.IsAutoShuffling = not self.SuppressAutoShuffle
+
+		local Key = self.SuppressAutoShuffle and "AUTO_SHUFFLE_DISABLED" or "AUTO_SHUFFLE_ENABLED"
+		self:SendTranslatedNotify( nil, Key, {
+			ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+		} )
+	else
+		local Settings = self:GetVoteActionSettings()
+		self.ShufflePolicyActions[ Settings.ShufflePolicy ]( self )
+	end
 
 	self.NextVote = SharedTime() + self.Config.VoteCooldownInMinutes * 60
 end
@@ -1092,13 +1123,25 @@ function Plugin:CreateCommands()
 
 			if not self.RandomApplied then
 				if self.Config.NotifyOnVote then
-					self:SendTranslatedNotify( nil, "PLAYER_VOTED", {
+					local Key = "PLAYER_VOTED"
+					if self.Config.AlwaysEnabled then
+						Key = self.SuppressAutoShuffle and "PLAYER_VOTED_ENABLE_AUTO"
+							or "PLAYER_VOTED_DISABLE_AUTO"
+					end
+
+					self:SendTranslatedNotify( nil, Key, {
 						ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
 						VotesNeeded = VotesNeeded,
 						PlayerName = PlayerName
 					} )
 				else
-					self:SendTranslatedNotify( Client, "PLAYER_VOTED_PRIVATE", {
+					local Key = "PLAYER_VOTED_PRIVATE"
+					if self.Config.AlwaysEnabled then
+						Key = self.SuppressAutoShuffle and "PLAYER_VOTED_ENABLE_AUTO_PRIVATE"
+							or "PLAYER_VOTED_DISABLE_AUTO_PRIVATE"
+					end
+
+					self:SendTranslatedNotify( Client, Key, {
 						ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
 						VotesNeeded = VotesNeeded
 					} )
@@ -1130,7 +1173,7 @@ function Plugin:CreateCommands()
 	local function ForceRandomTeams( Client, Enable )
 		if Enable then
 			self.Vote:Reset()
-			self:ApplyRandomSettings()
+			self.ShufflePolicyActions[ self.ShufflePolicy.INSTANT ]( self )
 
 			self:SendTranslatedMessage( Client, "ENABLED_TEAMS", {
 				ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
@@ -1138,9 +1181,13 @@ function Plugin:CreateCommands()
 		else
 			self.Vote:Reset()
 
+			if self.Config.AlwaysEnabled then
+				self.SuppressAutoShuffle = true
+				self.dt.IsAutoShuffling = false
+			end
+
 			self.ShuffleOnNextRound = false
 			self.ShuffleAtEndOfRound = false
-			self.Config.AlwaysEnabled = false
 			self:DestroyTimer( self.RandomEndTimer )
 			self.EnforcementPolicy = NoOpEnforcement()
 

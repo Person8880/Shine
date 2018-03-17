@@ -88,5 +88,36 @@
 	"TEAM_PREFERENCE": "Shuffle Team Preference:",
 	"MARINE": "Marines",
 	"ALIEN": "Aliens",
-	"NONE": "No Preference"
+	"NONE": "No Preference",
+
+	"DISABLE_AUTO_SHUFFLE": "Disable Shuffle",
+	"ENABLE_AUTO_SHUFFLE": "Enable Shuffle",
+
+	"PLAYER_VOTED_ENABLE_AUTO_HIVE_BASED": "{PlayerName} voted to enable automatic Hive skill based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_ENABLE_AUTO_KDR_BASED": "{PlayerName} voted to enable automatic KDR based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_ENABLE_AUTO_RANDOM_BASED": "{PlayerName} voted to enable automatic random teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_ENABLE_AUTO_SCORE_BASED": "{PlayerName} voted to enable automatic score based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_ENABLE_AUTO_PRIVATE_HIVE_BASED": "You voted to enable automatic Hive skill based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_ENABLE_AUTO_PRIVATE_KDR_BASED": "You voted to enable automatic KDR based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_ENABLE_AUTO_PRIVATE_RANDOM_BASED": "You voted to enable automatic random teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_ENABLE_AUTO_PRIVATE_SCORE_BASED": "You voted to enable automatic score based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+
+	"PLAYER_VOTED_DISABLE_AUTO_HIVE_BASED": "{PlayerName} voted to disable automatic Hive skill based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE_AUTO_KDR_BASED": "{PlayerName} voted to disable automatic KDR based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE_AUTO_RANDOM_BASED": "{PlayerName} voted to disable automatic random teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE_AUTO_SCORE_BASED": "{PlayerName} voted to disable automatic score based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE_AUTO_PRIVATE_HIVE_BASED": "You voted to disable automatic Hive skill based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE_AUTO_PRIVATE_KDR_BASED": "You voted to disable automatic KDR based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE_AUTO_PRIVATE_RANDOM_BASED": "You voted to disable automatic random teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_DISABLE_AUTO_PRIVATE_SCORE_BASED": "You voted to disable automatic score based teams ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+
+	"AUTO_SHUFFLE_DISABLED_HIVE_BASED": "Automatic Hive skill based teams have been disabled.",
+	"AUTO_SHUFFLE_DISABLED_KDR_BASED": "Automatic KDR based teams have been disabled.",
+	"AUTO_SHUFFLE_DISABLED_RANDOM_BASED": "Automatic score based teams have been disabled.",
+	"AUTO_SHUFFLE_DISABLED_SCORE_BASED": "Automatic random teams have been disabled.",
+
+	"AUTO_SHUFFLE_ENABLED_HIVE_BASED": "Automatic Hive skill based teams have been enabled.",
+	"AUTO_SHUFFLE_ENABLED_KDR_BASED": "Automatic KDR based teams have been enabled.",
+	"AUTO_SHUFFLE_ENABLED_RANDOM_BASED": "Automatic score based teams have been enabled.",
+	"AUTO_SHUFFLE_ENABLED_SCORE_BASED": "Automatic random teams have been enabled."
 }
