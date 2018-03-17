@@ -24,8 +24,8 @@ Plugin.ConfigName = "MapVote.json"
 Plugin.PrintName = "Map Vote"
 
 Plugin.DefaultConfig = {
-	GetMapsFromMapCycle = true, --Get the valid votemaps directly from the mapcycle file.
-	Maps = { --Valid votemaps if you do not wish to get them from the map cycle.
+	GetMapsFromMapCycle = true, -- Get the valid votemaps directly from the mapcycle file.
+	Maps = { -- Valid votemaps if you do not wish to get them from the map cycle.
 		ns2_veil = true,
 		ns2_summit = true,
 		ns2_docking = true,
@@ -37,9 +37,9 @@ Plugin.DefaultConfig = {
 		ns2_eclipse = true,
 		ns2_kodiak = true
 	},
-	ForcedMaps = {}, --Maps that must always be in the vote list.
-	DontExtend = {}, --Maps that should never have an extension option.
-	IgnoreAutoCycle = {}, --Maps that should not be cycled to unless voted for.
+	ForcedMaps = {}, -- Maps that must always be in the vote list.
+	DontExtend = {}, -- Maps that should never have an extension option.
+	IgnoreAutoCycle = {}, -- Maps that should not be cycled to unless voted for.
 
 	Constraints = {
 		StartVote = {
@@ -89,31 +89,32 @@ Plugin.DefaultConfig = {
 
 	MaxNominationsPerPlayer = 3, -- The maximum number of maps an individual player can nominate.
 
-	VoteLength = 1, --Time in minutes a vote should last before failing.
-	ChangeDelay = 10, --Time in seconds to wait before changing map after a vote (gives time for veto)
-	VoteDelay = 10, --Time to wait in minutes after map change/vote fail before voting can occur.
+	VoteLength = 1, -- Time in minutes a vote should last before failing.
+	ChangeDelay = 10, -- Time in seconds to wait before changing map after a vote (gives time for veto)
+	VoteDelay = 10, -- Time to wait in minutes after map change/vote fail before voting can occur.
 
-	ShowVoteChoices = true, --Show who votes for what map.
-	MaxOptions = 4, --Max number of options to provide.
+	ShowVoteChoices = true, -- Show who votes for what map.
+	MaxOptions = 4, -- Max number of options to provide.
+	ForceMenuOpenOnMapVote = false, -- Whether to force the map vote menu to show when a vote starts.
 
-	AllowExtend = true, --Allow going to the same map to be an option.
-	ExtendTime = 15, --Time in minutes to extend the map.
-	MaxExtends = 1, --Maximum number of map extensions.
-	AlwaysExtend = true, --Always show an option to extend the map if not past the max extends.
+	AllowExtend = true, -- Allow going to the same map to be an option.
+	ExtendTime = 15, -- Time in minutes to extend the map.
+	MaxExtends = 1, -- Maximum number of map extensions.
+	AlwaysExtend = true, -- Always show an option to extend the map if not past the max extends.
 
-	TieFails = false, --A tie means the vote fails.
-	ChooseRandomOnTie = true, --Choose randomly between the tied maps. If not, a revote is called.
-	MaxRevotes = 1, --Maximum number of revotes.
+	TieFails = false, -- A tie means the vote fails.
+	ChooseRandomOnTie = true, -- Choose randomly between the tied maps. If not, a revote is called.
+	MaxRevotes = 1, -- Maximum number of revotes.
 
-	EnableRTV = true, --Enables RTV voting.
+	EnableRTV = true, -- Enables RTV voting.
 
-	EnableNextMapVote = true, --Enables the vote to choose the next map.
-	NextMapVote = 1, --How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
-	RoundLimit = 0, --How many rounds should the map last for? This overrides time based cycling.
+	EnableNextMapVote = true, -- Enables the vote to choose the next map.
+	NextMapVote = 1, -- How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
+	RoundLimit = 0, -- How many rounds should the map last for? This overrides time based cycling.
 
-	ForceChange = 60, --How long left on the current map when a round ends that should force a change to the next map.
-	CycleOnEmpty = false, --Should the map cycle when the server's empty and it's past the map's time limit?
-	EmptyPlayerCount = 0, --How many players defines 'empty'?
+	ForceChange = 60, -- How long left on the current map when a round ends that should force a change to the next map.
+	CycleOnEmpty = false, -- Should the map cycle when the server's empty and it's past the map's time limit?
+	EmptyPlayerCount = 0, -- How many players defines 'empty'?
 
 	-- How many previous maps should be excluded from votes?
 	ExcludeLastMaps = {
@@ -181,7 +182,6 @@ Plugin.ConfigMigrationSteps = {
 }
 
 Plugin.VoteTimer = "MapVote"
-Plugin.NextMapTimer = "MapVoteNext"
 
 local function IsTableArray( Table )
 	local Count = #Table
@@ -321,14 +321,7 @@ function Plugin:Initialise()
 		else
 			local Time = SharedTime()
 			local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
-
-			self:CreateTimer( self.NextMapTimer,
-				( CycleTime * self.Config.NextMapVote ) - Time, 1, function()
-				local Players = Shine.GetAllPlayers()
-				if #Players > 0 then
-					self:StartVote( true )
-				end
-			end )
+			self.NextMapVoteTime = Time + CycleTime * self.Config.NextMapVote
 		end
 	end
 
@@ -434,7 +427,7 @@ function Plugin:EndGame()
 
 			Key = "RoundLeftNotify"
 
-			--Prevent time based cycling from passing.
+			-- Prevent time based cycling from passing.
 			if Gamerules then
 				Gamerules.timeToCycleMap = nil
 			end
@@ -446,6 +439,10 @@ function Plugin:EndGame()
 				local RoundsLeft = self.Config.RoundLimit - self.Round
 				Message.Duration = RoundsLeft
 			end
+		end
+
+		if not self.VoteOnEnd and self.NextMapVoteTime and self.NextMapVoteTime <= Time then
+			self:StartVote( true )
 		end
 
 		if TimeLeft <= self.Config.ForceChange then
@@ -470,12 +467,12 @@ function Plugin:EndGame()
 			return
 		end
 
-		--Don't say anything if there's more than an hour left.
+		-- Don't say anything if there's more than an hour left.
 		if TimeLeft > 3600 then
 			return
 		end
 
-		--Round the time down to the nearest 30 seconds.
+		-- Round the time down to the nearest 30 seconds.
 		if TimeLeft > 30 then
 			TimeLeft = TimeLeft - ( TimeLeft % 30 )
 		end

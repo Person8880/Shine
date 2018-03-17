@@ -12,6 +12,7 @@ local VoteOptionsMessage = {
 	Duration = "integer (0 to 1800)",
 	NextMap = "boolean",
 	ShowTime = "boolean",
+	ForceMenuOpen = "boolean",
 	TimeLeft = "integer (0 to 32768)"
 }
 
@@ -159,12 +160,58 @@ local SGUI = Shine.GUI
 local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
 local StringFormat = string.format
+local TableConcat = table.concat
 local TableEmpty = table.Empty
+
+Plugin.VoteAction = table.AsEnum{
+	"USE_SERVER_SETTINGS", "OPEN_MENU", "DO_NOT_OPEN_MENU"
+}
+
+Plugin.HasConfig = true
+Plugin.ConfigName = "MapVote.json"
+Plugin.DefaultConfig = {
+	OnVoteAction = Plugin.VoteAction.USE_SERVER_SETTINGS
+}
+Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
 
 Plugin.Maps = {}
 Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
 Plugin.EndTime = 0
+
+function Plugin:Initialise()
+	self:SetupClientConfig()
+
+	return true
+end
+
+function Plugin:SetupClientConfig()
+	Shine.AddStartupMessage( StringFormat( "You can choose whether to automatically open the map vote"
+		.." by entering sh_mapvote_onvote <%s> into the console.", TableConcat( self.VoteAction, "|" ) ) )
+
+	self:BindCommand( "sh_mapvote_onvote", function( Choice )
+		self.Config.OnVoteAction = self.VoteAction[ Choice ] or self.VoteAction.USE_SERVER_SETTINGS
+		self:SaveConfig( true )
+
+		local Explanations = {
+			[ self.VoteAction.USE_SERVER_SETTINGS ] = "now respect server settings",
+			[ self.VoteAction.OPEN_MENU ] = "now open",
+			[ self.VoteAction.DO_NOT_OPEN_MENU ] = "no longer open"
+		}
+
+		Print( "The vote menu will %s when a map vote starts.", Explanations[ self.Config.OnVoteAction ] )
+	end ):AddParam{ Type = "string", Optional = true, Default = self.VoteAction.USE_SERVER_SETTINGS }
+
+	Shine:RegisterClientSetting( {
+		Type = "Radio",
+		Command = "sh_mapvote_onvote",
+		ConfigOption = function() return self.Config.OnVoteAction end,
+		Options = self.VoteAction,
+		Description = "ON_VOTE_ACTION",
+		TranslationSource = self.__Name
+	} )
+end
 
 function Plugin:TimeLeftNotify( Message )
 	self:AddChatLine( 0, 0, 0, "", 255, 160, 0, Message )
@@ -557,5 +604,23 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Obj:SetColor( self.Colour )
 			end
 		end
+	end
+
+	-- Do not open the map vote menu if a game is in-progress.
+	local GameInfo = GetGameInfoEntity()
+	if GameInfo and ( GameInfo:GetCountdownActive() or GameInfo:GetGameStarted() ) then
+		return
+	end
+
+	-- Open the map vote menu if configured to do so.
+	local ConfiguredAction = self.Config.OnVoteAction
+
+	if ConfiguredAction == self.VoteAction.OPEN_MENU
+	or ( ConfiguredAction == self.VoteAction.USE_SERVER_SETTINGS and Message.ForceMenuOpen ) then
+		if not Shine.VoteMenu.Visible then
+			Shine.OpenVoteMenu()
+		end
+
+		Shine.VoteMenu:SetPage( "MapVote" )
 	end
 end
