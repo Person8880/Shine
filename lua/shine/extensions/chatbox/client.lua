@@ -184,7 +184,18 @@ local Skin = {
 	},
 	Panel = {
 		Default = {
-			Colour = Colours.Background
+			Colour = Colours.Background,
+			States = {
+				Team1 = {
+					Colour = Colour( 104 / 255, 191 / 255, 1, 0.4 )
+				},
+				Team2 = {
+					Colour = Colour( 0.8, 0.5, 0.1, 0.4 )
+				},
+				NeutralTeam = {
+					Colour = Colour( 1, 1, 1, 0.4 )
+				}
+			}
 		},
 		MessageList = {
 			Colour = Colours.Dark
@@ -779,7 +790,8 @@ do
 			Scrollable = true,
 			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
 			Skin = Skin,
-			ShowScrollbar = false
+			ShowScrollbar = false,
+			StylingState = self.MainPanel:GetStylingState()
 		}
 
 		self.SettingsPanel = SettingsPanel
@@ -1158,38 +1170,58 @@ function Plugin:CloseChat()
 	self.Visible = false
 end
 
---[[
-	Opens the chatbox, and creates it first if it's not created yet.
-]]
-function Plugin:StartChat( Team )
-	if MainMenu_GetIsOpened and MainMenu_GetIsOpened() then return true end
-	if not self.GUIChat then return end
+do
+	local TeamStates = {
+		[ kMarineTeamType ] = "Team1",
+		[ kAlienTeamType ] = "Team2",
+		[ kNeutralTeamType ] = "NeutralTeam"
+	}
 
-	self.TeamChat = Team
+	--[[
+		Opens the chatbox, and creates it first if it's not created yet.
+	]]
+	function Plugin:StartChat( Team )
+		if MainMenu_GetIsOpened and MainMenu_GetIsOpened() then return true end
+		if not self.GUIChat then return end
 
-	if not SGUI.IsValid( self.MainPanel ) then
-		if not self:CreateChatbox() then
-			return
+		self.TeamChat = Team
+
+		if not SGUI.IsValid( self.MainPanel ) then
+			if not self:CreateChatbox() then
+				return
+			end
 		end
+
+		local StyleState
+		if Team then
+			-- Change the background colour for team chat to make it more obvious
+			-- which mode the chatbox is currently in.
+			StyleState = TeamStates[ PlayerUI_GetTeamType() ]
+		end
+
+		self.MainPanel:SetStylingState( StyleState )
+		if SGUI.IsValid( self.SettingsPanel ) then
+			self.SettingsPanel:SetStylingState( StyleState )
+		end
+
+		self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
+
+		SGUI:EnableMouse( true )
+
+		self.MainPanel:SetIsVisible( true )
+		self.GUIChat:SetIsVisible( false )
+
+		self:RefreshLayout( true )
+
+		--Get our text entry accepting input.
+		self.TextEntry:RequestFocus()
+		self.Visible = true
+
+		--Set this so we don't accept text input straight away, avoids the bind button making it in.
+		self.OpenTime = Clock()
+
+		return true
 	end
-
-	self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
-
-	SGUI:EnableMouse( true )
-
-	self.MainPanel:SetIsVisible( true )
-	self.GUIChat:SetIsVisible( false )
-
-	self:RefreshLayout( true )
-
-	--Get our text entry accepting input.
-	self.TextEntry:RequestFocus()
-	self.Visible = true
-
-	--Set this so we don't accept text input straight away, avoids the bind button making it in.
-	self.OpenTime = Clock()
-
-	return true
 end
 
 --[[
