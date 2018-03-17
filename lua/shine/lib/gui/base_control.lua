@@ -835,8 +835,7 @@ end
 ]]
 function ControlMeta:FadeTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
 	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback, Easers.Fade )
-	EasingData.EaseFunc = EaseFunc
-	EasingData.Power = Power
+	AddEaseFunc( EasingData, EaseFunc, Power )
 
 	return EasingData
 end

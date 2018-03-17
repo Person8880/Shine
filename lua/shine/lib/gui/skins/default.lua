@@ -153,7 +153,8 @@ local Skin = {
 	},
 	Tooltip = {
 		Default = {
-			TextColour = BrightText
+			TextColour = BrightText,
+			Colour = DarkButton
 		}
 	}
 }
