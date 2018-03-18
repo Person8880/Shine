@@ -627,7 +627,8 @@ Client.HookNetworkMessage( "Shine_PluginSync", function( Data )
 		end
 	end
 
-	Shine.AddStartupMessage = nil
+	-- Change startup messages to a no-op, in case plugins are enabled later.
+	Shine.AddStartupMessage = function() end
 
 	local StartupMessages = Shine.StartupMessages
 
