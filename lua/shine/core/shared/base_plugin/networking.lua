@@ -83,6 +83,8 @@ do
 		Shared.RegisterNetworkMessage( MessageName, Params )
 
 		local function CallReceiver( ... )
+			if not self.Enabled then return end
+
 			if not self[ FuncName ] then
 				-- Report better errors than "attempt to call a nil value"
 				error( StringFormat( "Plugin %s defined network message %s, but no receiver!", self.__Name, Name ), 0 )

@@ -331,108 +331,122 @@ local function CheckDependencies( self, Dependencies )
 	return true
 end
 
--- Shared extensions need to be enabled once the server tells it to.
-function Shine:EnableExtension( Name, DontLoadConfig )
-	if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
-
-	local Plugin = self.Plugins[ Name ]
-	if not Plugin then
-		return false, LoadingErrors[ Name ] or "plugin does not exist"
-	end
-
-	local FirstEnable = Plugin.Enabled == nil
-
-	if Plugin.Enabled then
-		self:UnloadExtension( Name )
-	end
-
-	do
-		-- Deal with inter-plugin conflicts.
-		local OK, Err = CheckPluginConflicts( self, Conflicts )
-		if not OK then
-			return OK, Err
+do
+	local OnInitError = Shine.BuildErrorHandler( "Plugin initialisation error" )
+	local function MarkAsDisabled( Plugin, FirstEnable )
+		if FirstEnable then
+			Plugin.Enabled = nil
+		else
+			Plugin.Enabled = false
 		end
 	end
 
-	do
-		-- Deal with plugin dependencies.
-		local OK, Err = CheckDependencies( self, Plugin.DependsOnPlugins )
-		if not OK then
-			return OK, Err
-		end
-	end
+	-- Shared extensions need to be enabled once the server tells it to.
+	function Shine:EnableExtension( Name, DontLoadConfig )
+		if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 
-	if Plugin.HasConfig and not DontLoadConfig then
-		local Success, Err = pcall( Plugin.LoadConfig, Plugin )
+		local Plugin = self.Plugins[ Name ]
+		if not Plugin then
+			return false, LoadingErrors[ Name ] or "plugin does not exist"
+		end
+
+		local FirstEnable = Plugin.Enabled == nil
+
+		if Plugin.Enabled then
+			self:UnloadExtension( Name )
+		end
+
+		do
+			-- Deal with inter-plugin conflicts.
+			local OK, Err = CheckPluginConflicts( self, Conflicts )
+			if not OK then
+				return OK, Err
+			end
+		end
+
+		do
+			-- Deal with plugin dependencies.
+			local OK, Err = CheckDependencies( self, Plugin.DependsOnPlugins )
+			if not OK then
+				return OK, Err
+			end
+		end
+
+		if Plugin.HasConfig and not DontLoadConfig then
+			local Success, Err = xpcall( Plugin.LoadConfig, OnInitError, Plugin )
+			if not Success then
+				return false, StringFormat( "Error while loading config: %s", Err )
+			end
+		end
+
+		local Success, Loaded, Err = xpcall( Plugin.Initialise, OnInitError, Plugin )
 		if not Success then
-			return false, StringFormat( "Error while loading config: %s", Err )
+			pcall( Plugin.Cleanup, Plugin )
+			-- Just in case the cleanup failed, we have to make sure this has run.
+			PluginMeta.Cleanup( Plugin )
+
+			MarkAsDisabled( Plugin, FirstEnable )
+
+			return false, StringFormat( "Lua error: %s", Loaded )
 		end
+
+		-- The plugin has refused to load.
+		if not Loaded then
+			MarkAsDisabled( Plugin, FirstEnable )
+
+			return false, Err
+		end
+
+		Plugin.Enabled = true
+
+		if FirstEnable and HasFirstThinkOccurred and Plugin.OnFirstThink then
+			-- If this were called as a hook, an error would be a strike against the plugin's hook
+			-- error count, so don't fail loading here if it fails.
+			if not xpcall( Plugin.OnFirstThink, OnInitError, Plugin ) then
+				Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+			end
+		end
+
+		-- Flush event cache. We can't be smarter than this, because it could be loading mid-event call.
+		-- If we edited the specific event table at that point, it would potentially cause double event calls
+		-- or missed event calls. Plugin load/unload should be a rare occurence anyway.
+		Dispatcher:FlushCache()
+
+		-- We need to inform clients to enable the client portion.
+		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
+			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
+		end
+
+		Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
+
+		return true
 	end
-
-	local Success, Loaded, Err = pcall( Plugin.Initialise, Plugin )
-
-	--There was a Lua error.
-	if not Success then
-		pcall( Plugin.Cleanup, Plugin )
-		--Just in case the cleanup failed, we have to make sure this has run.
-		PluginMeta.Cleanup( Plugin )
-
-		Plugin.Enabled = nil
-
-		return false, StringFormat( "Lua error: %s", Loaded )
-	end
-
-	--The plugin has refused to load.
-	if not Loaded then
-		Plugin.Enabled = nil
-
-		return false, Err
-	end
-
-	if FirstEnable and HasFirstThinkOccurred and Plugin.OnFirstThink then
-		Plugin:OnFirstThink()
-	end
-
-	-- Flush event cache. We can't be smarter than this, because it could be loading mid-event call.
-	-- If we edited the specific event table at that point, it would potentially cause double event calls
-	-- or missed event calls. Plugin load/unload should be a rare occurence anyway.
-	Dispatcher:FlushCache()
-	Plugin.Enabled = true
-
-	--We need to inform clients to enable the client portion.
-	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
-		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
-	end
-
-	Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
-
-	return true
 end
 
-local OnCleanupError = Shine.BuildErrorHandler( "Plugin cleanup error" )
+do
+	local OnCleanupError = Shine.BuildErrorHandler( "Plugin cleanup error" )
 
-function Shine:UnloadExtension( Name )
-	local Plugin = self.Plugins[ Name ]
+	function Shine:UnloadExtension( Name )
+		local Plugin = self.Plugins[ Name ]
+		if not Plugin or not Plugin.Enabled then return end
 
-	if not Plugin then return end
-	if not Plugin.Enabled then return end
+		Plugin.Enabled = false
 
-	Plugin.Enabled = false
+		-- Flush event cache.
+		Dispatcher:FlushCache()
 
-	-- Flush event cache.
-	Dispatcher:FlushCache()
+		-- Make sure cleanup doesn't break us by erroring.
+		local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
+		if not Success then
+			PluginMeta.Cleanup( Plugin )
+		end
 
-	-- Make sure cleanup doesn't break us by erroring.
-	local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
-	if not Success then
-		PluginMeta.Cleanup( Plugin )
+		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
+			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
+		end
+
+		Hook.Call( "OnPluginUnload", Name, Plugin, Plugin.IsShared )
 	end
-
-	if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
-		Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
-	end
-
-	Hook.Call( "OnPluginUnload", Name, Plugin, Plugin.IsShared )
 end
 
 --[[
@@ -601,7 +615,7 @@ if Server then
 		end
 
 		Shine.SendNetworkMessage( Client, "Shine_PluginSync", Message, true )
-	end )
+	end, -20 )
 
 	return
 end
@@ -613,7 +627,8 @@ Client.HookNetworkMessage( "Shine_PluginSync", function( Data )
 		end
 	end
 
-	Shine.AddStartupMessage = nil
+	-- Change startup messages to a no-op, in case plugins are enabled later.
+	Shine.AddStartupMessage = function() end
 
 	local StartupMessages = Shine.StartupMessages
 

@@ -175,6 +175,12 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
+do
+	local Validator = Shine.Validator()
+	Validator:AddFieldRule( "OnVoteAction", Validator.InEnum( Plugin.VoteAction, Plugin.VoteAction.USE_SERVER_SETTINGS ) )
+	Plugin.ConfigValidator = Validator
+end
+
 Plugin.Maps = {}
 Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
