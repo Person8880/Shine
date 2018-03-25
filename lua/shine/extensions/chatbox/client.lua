@@ -1158,7 +1158,7 @@ function Plugin:AutoCompleteCommand( Text )
 	self.AutoCompleteTimer:Debounce()
 end
 
-function Plugin:CloseChat()
+function Plugin:CloseChat( ForcePreserveText )
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
 	self.MainPanel:SetIsVisible( false )
@@ -1166,7 +1166,7 @@ function Plugin:CloseChat()
 
 	SGUI:EnableMouse( false )
 
-	if self.Config.DeleteOnClose then
+	if not ForcePreserveText and self.Config.DeleteOnClose then
 		self.TextEntry:SetText( "" )
 		self.TextEntry:ResetUndoState()
 		self:DestroyAutoCompletePanel()
@@ -1182,13 +1182,10 @@ end
 function Plugin:OnCommanderLogin()
 	if not self.Visible then return end
 
-	local WasDeletingOnClose = self.Config.DeleteOnClose
 	local WasTeamChat = self.TeamChat
 
 	-- Ensure existing text entry state is preserved.
-	self.Config.DeleteOnClose = false
-	self:CloseChat()
-	self.Config.DeleteOnClose = WasDeletingOnClose
+	self:CloseChat( true )
 
 	self:SimpleTimer( 0, function()
 		-- Wait a frame to allow the commander mouse to be pushed/popped first.
