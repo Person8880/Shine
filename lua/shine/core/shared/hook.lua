@@ -453,6 +453,18 @@ if Client then
 		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
 		SetupGlobalHook( "CommanderUI_Logout", "OnCommanderUILogout", "PassivePost" )
 
+		SetupClassHook( "Commander", "OnDestroy", "OnCommanderLogout", function( OldFunc, Commander )
+			-- Do nothing if the commander isn't the local player.
+			if not Commander.hudSetup then return OldFunc( Commander ) end
+
+			OldFunc( Commander )
+
+			-- Call after the mouse has been disabled for the commander to allow SGUI elements
+			-- to properly close themselves and avoid getting stuck on screen.
+			Call( "OnCommanderLogout", Commander )
+		end )
+		SetupClassHook( "Commander", "OnInitLocalClient", "OnCommanderLogin", "PassivePre" )
+
 		SetupClassHook( "HelpScreen", "Display", "OnHelpScreenDisplay", "PassivePost" )
 		SetupClassHook( "HelpScreen", "Hide", "OnHelpScreenHide", "PassivePost" )
 	end, -20 )

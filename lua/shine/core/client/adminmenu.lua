@@ -59,6 +59,8 @@ function AdminMenu:Create()
 end
 
 function AdminMenu:Close()
+	if not self.Visible then return end
+
 	self:ForceHide()
 
 	if self.ToDestroyOnClose then
@@ -137,16 +139,24 @@ AdminMenu:BindVisibilityToEvents( "OnHelpScreenDisplay", "OnHelpScreenHide" )
 function AdminMenu:PlayerKeyPress( Key, Down )
 	if not self.Visible then return end
 
-	if Key == InputKey.Escape and Down then
+	if ( Key == InputKey.Escape or GetIsBinding( Key, "Use" ) ) and Down then
 		self:Close()
 
-		return true
+		return Key == InputKey.Escape or nil
 	end
 end
 
 Hook.Add( "PlayerKeyPress", "AdminMenu_KeyPress", function( Key, Down )
-	AdminMenu:PlayerKeyPress( Key, Down )
+	return AdminMenu:PlayerKeyPress( Key, Down )
 end, 1 )
+
+-- Close when logging in/out of a command structure to avoid mouse problems.
+Hook.Add( "OnCommanderLogout", "AdminMenuLogout", function()
+	AdminMenu:Close()
+end )
+Hook.Add( "OnCommanderLogin", "AdminMenuLogin", function()
+	AdminMenu:Close()
+end )
 
 function AdminMenu:AddTab( Name, Data )
 	self.Tabs[ Name ] = Data

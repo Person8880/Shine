@@ -227,6 +227,17 @@ function TabPanel:RemoveTab( Index )
 	end
 end
 
+function TabPanel:Close()
+	-- Again for external usage.
+	if self.OnClose then
+		if self:OnClose() then
+			return
+		end
+	end
+
+	self:SetIsVisible( false )
+end
+
 function TabPanel:AddCloseButton()
 	local CloseButton = SGUI:Create( "Button", self )
 	CloseButton:SetSize( Vector( self.TitleBarHeight, self.TitleBarHeight, 0 ) )
@@ -236,14 +247,7 @@ function TabPanel:AddCloseButton()
 	CloseButton:SetStyleName( "CloseButton" )
 
 	function CloseButton.DoClick()
-		--Again for external usage.
-		if self.OnClose then
-			if self:OnClose() then
-				return
-			end
-		end
-
-		self:SetIsVisible( false )
+		self:Close()
 	end
 
 	self.CloseButton = CloseButton

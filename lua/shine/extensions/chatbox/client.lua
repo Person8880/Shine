@@ -1177,6 +1177,27 @@ function Plugin:CloseChat()
 	self.Visible = false
 end
 
+-- Close and re-open the chatbox when logging in/out of a command structure to
+-- avoid the mouse disappearing and/or elements getting stuck on the screen.
+function Plugin:OnCommanderLogin()
+	if not self.Visible then return end
+
+	local WasDeletingOnClose = self.Config.DeleteOnClose
+	local WasTeamChat = self.TeamChat
+
+	-- Ensure existing text entry state is preserved.
+	self.Config.DeleteOnClose = false
+	self:CloseChat()
+	self.Config.DeleteOnClose = WasDeletingOnClose
+
+	self:SimpleTimer( 0, function()
+		-- Wait a frame to allow the commander mouse to be pushed/popped first.
+		self:StartChat( WasTeamChat )
+	end )
+end
+
+Plugin.OnCommanderLogout = Plugin.OnCommanderLogin
+
 do
 	local TeamStates = {
 		[ kMarineTeamType ] = "Team1",
