@@ -223,7 +223,7 @@ function VoteMenu:PlayerKeyPress( Key, Down )
 	end
 
 	local IsCloseKey = Key == InputKey.MouseButton0 or Key == InputKey.MouseButton1
-		or Key == InputKey.Escape
+		or Key == InputKey.Escape or GetIsBinding( Key, "Use" )
 
 	if Down and IsCloseKey then
 		self:ForceHide()
@@ -254,7 +254,11 @@ Hook.Add( "Think", "VoteMenuThink", function( DeltaTime )
 	VoteMenu:Think( DeltaTime )
 end )
 
-Hook.Add( "OnCommanderUILogout", "VoteMenuLogout", function()
+-- Close when logging in/out of a command structure to avoid mouse problems.
+Hook.Add( "OnCommanderLogout", "VoteMenuLogout", function()
+	VoteMenu:ForceHide()
+end )
+Hook.Add( "OnCommanderLogin", "VoteMenuLogin", function()
 	VoteMenu:ForceHide()
 end )
 

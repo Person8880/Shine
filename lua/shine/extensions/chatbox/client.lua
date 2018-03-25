@@ -1158,7 +1158,7 @@ function Plugin:AutoCompleteCommand( Text )
 	self.AutoCompleteTimer:Debounce()
 end
 
-function Plugin:CloseChat()
+function Plugin:CloseChat( ForcePreserveText )
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
 	self.MainPanel:SetIsVisible( false )
@@ -1166,7 +1166,7 @@ function Plugin:CloseChat()
 
 	SGUI:EnableMouse( false )
 
-	if self.Config.DeleteOnClose then
+	if not ForcePreserveText and self.Config.DeleteOnClose then
 		self.TextEntry:SetText( "" )
 		self.TextEntry:ResetUndoState()
 		self:DestroyAutoCompletePanel()
@@ -1176,6 +1176,24 @@ function Plugin:CloseChat()
 
 	self.Visible = false
 end
+
+-- Close and re-open the chatbox when logging in/out of a command structure to
+-- avoid the mouse disappearing and/or elements getting stuck on the screen.
+function Plugin:OnCommanderLogin()
+	if not self.Visible then return end
+
+	local WasTeamChat = self.TeamChat
+
+	-- Ensure existing text entry state is preserved.
+	self:CloseChat( true )
+
+	self:SimpleTimer( 0, function()
+		-- Wait a frame to allow the commander mouse to be pushed/popped first.
+		self:StartChat( WasTeamChat )
+	end )
+end
+
+Plugin.OnCommanderLogout = Plugin.OnCommanderLogin
 
 do
 	local TeamStates = {

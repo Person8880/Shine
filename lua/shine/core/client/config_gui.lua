@@ -78,6 +78,12 @@ function ConfigMenu:Create()
 	end
 end
 
+function ConfigMenu:Close()
+	if not self.Menu or not self.Visible then return end
+
+	self.Menu:Close()
+end
+
 Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", function()
 	if not ConfigMenu.Menu then return end
 
@@ -87,6 +93,18 @@ Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", funct
 	if ConfigMenu.Visible then
 		ConfigMenu:Create()
 	end
+end )
+
+Shine.Hook.Add( "PlayerKeyPress", "ConfigMenu_KeyPress", function( Key, Down )
+	return Shine.AdminMenu.PlayerKeyPress( ConfigMenu, Key, Down )
+end, 1 )
+
+-- Close when logging in/out of a command structure to avoid mouse problems.
+Shine.Hook.Add( "OnCommanderLogout", "ConfigMenuLogout", function()
+	ConfigMenu:Close()
+end )
+Shine.Hook.Add( "OnCommanderLogin", "ConfigMenuLogin", function()
+	ConfigMenu:Close()
 end )
 
 function ConfigMenu:SetIsVisible( Bool, IgnoreAnim )
