@@ -602,7 +602,7 @@ do
 			end
 
 			local Client = Player:GetClient()
-			if not Client then return end
+			if not Shine:IsValidClient( Client ) then return end
 
 			-- Bot and we don't want to deal with them, so kick them out.
 			if Client:GetIsVirtual() and not self.Config.ApplyToBots then
