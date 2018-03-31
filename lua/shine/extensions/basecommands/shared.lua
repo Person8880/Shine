@@ -310,6 +310,7 @@ function Plugin:SetupAdminMenuCommands()
 			ChangeMap:SetPos( Vector( 16, -48, 0 ) )
 			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
 			ChangeMap:SetFont( Fonts.kAgencyFB_Small )
+			ChangeMap:SetStyleName( "DangerButton" )
 			function ChangeMap.DoClick()
 				local Selected = List:GetSelectedRow()
 				if not Selected then return end
@@ -385,6 +386,7 @@ function Plugin:SetupAdminMenuCommands()
 			UnloadPlugin:SetPos( Vector( 16, -48, 0 ) )
 			UnloadPlugin:SetText( self:GetPhrase( "UNLOAD_PLUGIN" ) )
 			UnloadPlugin:SetFont( Fonts.kAgencyFB_Small )
+			UnloadPlugin:SetStyleName( "DangerButton" )
 			function UnloadPlugin.DoClick( Button )
 				local Plugin, Enabled = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -396,13 +398,13 @@ function Plugin:SetupAdminMenuCommands()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
-				end, self:GetPhrase( "UNLOAD_PLUGIN_TIP" ) )
+				end, self:GetPhrase( "UNLOAD_PLUGIN_TIP" ) ):SetStyleName( "DangerButton" )
 
 				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
-				end, self:GetPhrase( "UNLOAD_PLUGIN_SAVE_TIP" ) )
+				end, self:GetPhrase( "UNLOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "DangerButton" )
 			end
 
 			local LoadPlugin = SGUI:Create( "Button", Panel )
@@ -411,6 +413,7 @@ function Plugin:SetupAdminMenuCommands()
 			LoadPlugin:SetPos( Vector( -144, -48, 0 ) )
 			LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
 			LoadPlugin:SetFont( Fonts.kAgencyFB_Small )
+			LoadPlugin:SetStyleName( "SuccessButton" )
 			local function NormalLoadDoClick( Button )
 				local Plugin = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -421,13 +424,13 @@ function Plugin:SetupAdminMenuCommands()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
-				end, self:GetPhrase( "LOAD_PLUGIN_TIP" ) )
+				end, self:GetPhrase( "LOAD_PLUGIN_TIP" ) ):SetStyleName( "SuccessButton" )
 
 				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
 					Menu:Destroy()
 
 					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
-				end, self:GetPhrase( "LOAD_PLUGIN_SAVE_TIP" ) )
+				end, self:GetPhrase( "LOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "SuccessButton" )
 			end
 
 			local function ReloadDoClick()
