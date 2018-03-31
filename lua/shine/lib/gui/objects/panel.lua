@@ -179,9 +179,11 @@ function Panel:Add( Class, Created )
 end
 
 function Panel:SetSize( Size )
+	local OldSize = self:GetSize()
+
 	self.BaseClass.SetSize( self, Size )
 
-	if not self.Stencil then return end
+	if not self.Stencil or Size == OldSize then return end
 
 	self.Stencil:SetSize( Size )
 
@@ -192,8 +194,8 @@ function Panel:SetSize( Size )
 		if Size.y < self.MaxHeight then
 			self:SetMaxHeight( self.MaxHeight )
 		else
-			--Make sure the parent gets reset, and we clear the MaxHeight field
-			--so auto-resize is calculated from the panel height which is now larger.
+			-- Make sure the parent gets reset, and we clear the MaxHeight field
+			-- so auto-resize is calculated from the panel height which is now larger.
 			self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 			self.MaxHeight = nil
 		end
@@ -273,6 +275,8 @@ function Panel:SetScrollbarWidth( Width )
 end
 
 function Panel:SetMaxHeight( Height, ForceInstantScroll )
+	local OldMaxHeight = self.MaxHeight
+
 	self.MaxHeight = Height
 
 	if not self.ShowScrollbar then return end
@@ -284,6 +288,7 @@ function Panel:SetMaxHeight( Height, ForceInstantScroll )
 		if SGUI.IsValid( self.Scrollbar ) then
 			self.Scrollbar:Destroy()
 			self.Scrollbar = nil
+			self.MaxHeight = nil
 
 			if self.ScrollParentPos then
 				self.ScrollParentPos.y = 0
@@ -352,7 +357,7 @@ function Panel:SetMaxHeight( Height, ForceInstantScroll )
 
 	self.Scrollbar:SetScrollSize( NewScrollSize )
 
-	if self.StickyScroll and OldPos >= OldSize then
+	if self.StickyScroll and OldPos >= OldSize and ( OldMaxHeight ~= Height or ForceInstantScroll ) then
 		local ShouldSmooth = NewScrollSize < OldScrollSize and self:ComputeVisibility()
 			and not ForceInstantScroll
 		if not ShouldSmooth then
