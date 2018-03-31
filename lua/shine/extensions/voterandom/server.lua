@@ -1151,11 +1151,6 @@ function Plugin:CreateCommands()
 				self:NotifyVoted( Client )
 			end
 
-			--Somehow it didn't apply random settings??
-			if VotesNeeded == 0 and not self.RandomApplied then
-				self:ApplyRandomSettings()
-			end
-
 			return
 		end
 
