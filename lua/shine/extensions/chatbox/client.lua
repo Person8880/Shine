@@ -913,6 +913,9 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 
 	if not self.Visible then
 		self.MainPanel:SetIsVisible( false )
+	else
+		self:CloseChat()
+		self:StartChat( self.TeamChat )
 	end
 
 	for i = 1, #Recreate do
