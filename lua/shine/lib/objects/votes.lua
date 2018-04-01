@@ -59,9 +59,14 @@ end
 
 function VoteMeta:ClientDisconnect( Client )
 	self:RemoveVote( Client )
-	-- The total required votes may have decreased without
-	-- removing any votes, thus the vote could pass now.
-	self:CheckForSuccess()
+
+	-- Wait a tick, as some vote results may attempt to act on the disconnecting
+	-- player.
+	Shine.Timer.Simple( 0, function()
+		-- The total required votes may have decreased without
+		-- removing any votes, thus the vote could pass now.
+		self:CheckForSuccess()
+	end )
 end
 
 function VoteMeta:AddVote( Client )
