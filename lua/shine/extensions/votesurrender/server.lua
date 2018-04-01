@@ -66,10 +66,10 @@ function Plugin:Initialise()
 
 	self.Votes = {
 		Shine:CreateVote( function() return self:GetVotesNeeded( 1 ) end,
-			function() self:Surrender( 1 ) end, VoteTimeout ),
+			self:WrapCallback( function() self:Surrender( 1 ) end ), VoteTimeout ),
 
 		Shine:CreateVote( function() return self:GetVotesNeeded( 2 ) end,
-			function() self:Surrender( 2 ) end, VoteTimeout )
+			self:WrapCallback( function() self:Surrender( 2 ) end ), VoteTimeout )
 	}
 
 	self.NextVote = 0
