@@ -127,6 +127,16 @@ UnitTest:Test( "GetOptimalTeamForPlayer - Even teams", function( Assert )
 	Assert.Nil( "Should not pick an optimal team, both are equivalent", TeamToJoin )
 end )
 
+UnitTest:Test( "GetOptimalTeamForPlayer - Empty teams", function( Assert )
+	local Team1Players = {}
+	local Team2Players = {}
+
+	local function SkillGetter( Player ) return Player end
+
+	local TeamToJoin = VoteShuffle:GetOptimalTeamForPlayer( 2000, Team1Players, Team2Players, SkillGetter )
+	Assert.Nil( "Should not pick an optimal team, both are empty", TeamToJoin )
+end )
+
 local function FakePlayer( SteamID, TeamNumber, IsCommander )
 	return {
 		GetClient = function()
