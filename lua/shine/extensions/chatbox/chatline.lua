@@ -177,6 +177,7 @@ end
 
 do
 	local WordWrap = SGUI.WordWrap
+	local FORCE_NEW_LINE_FRACTION = 0.9
 
 	function ChatLine:ComputeWrapping( XPos )
 		if self.ComputedWrapping then return end
@@ -195,7 +196,15 @@ do
 			return
 		end
 
-		local Remaining = WordWrap( MessageLabel, Text, XPos, MaxWidth, 1 )
+		local Remaining
+		if XPos / MaxWidth > FORCE_NEW_LINE_FRACTION then
+			-- Not enough room to bother wrapping, start on a new line.
+			MessageLabel:SetText( "" )
+			Remaining = Text
+		else
+			Remaining = WordWrap( MessageLabel, Text, XPos, MaxWidth, 1 )
+		end
+
 		if Remaining == "" then
 			self:RemoveWrappedLine()
 			return

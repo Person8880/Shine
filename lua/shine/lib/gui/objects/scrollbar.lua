@@ -100,9 +100,7 @@ function Scrollbar:ScrollToBottom( Smoothed )
 	local Diff = self.Size.y - self.ScrollSizeVec.y
 
 	self.Pos = Diff
-
 	self.BarPos.y = Diff
-
 	self.Bar:SetPosition( self.BarPos )
 
 	if self.Parent and self.Parent.OnScrollChange then

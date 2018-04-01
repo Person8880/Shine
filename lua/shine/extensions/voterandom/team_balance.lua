@@ -402,6 +402,10 @@ do
 		local State = Optimiser.CurrentPotentialState
 		return TeamCost( State.AverageDiffBefore, State.StdDiffBefore )
 	end
+
+	function BalanceModule:GetCostFromDiff( AverageDiff, StdDiff )
+		return TeamCost( AverageDiff, StdDiff )
+	end
 end
 
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )

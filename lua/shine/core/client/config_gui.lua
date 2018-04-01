@@ -310,8 +310,10 @@ ConfigMenu:AddTab( "Plugins", {
 
 			if State then
 				EnableButton:SetText( Locale:GetPhrase( "Core", "DISABLE_PLUGIN" ) )
+				EnableButton:SetStyleName( "DangerButton" )
 			else
 				EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
+				EnableButton:SetStyleName( "SuccessButton" )
 			end
 		end
 

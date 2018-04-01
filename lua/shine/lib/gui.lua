@@ -548,42 +548,49 @@ function SGUI.DestroyScript( Script )
 	return GetGUIManager():DestroyGUIScript( Script )
 end
 
---[[
-	Creates an SGUI control.
-	Input: SGUI control class name, optional parent object.
-	Output: SGUI control object.
-]]
-function SGUI:Create( Class, Parent )
-	local MetaTable = self.Controls[ Class ]
+do
+	local ID = 0
 
-	assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
+	--[[
+		Creates an SGUI control.
+		Input: SGUI control class name, optional parent object.
+		Output: SGUI control object.
+	]]
+	function SGUI:Create( Class, Parent )
+		local MetaTable = self.Controls[ Class ]
 
-	local Table = {}
+		assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
 
-	local Control = setmetatable( Table, MetaTable )
-	Control.Class = Class
-	Control:Initialise()
+		ID = ID + 1
 
-	self.ActiveControls:Add( Control, true )
+		local Table = {}
 
-	--If it's a window then we give it focus.
-	if MetaTable.IsWindow and not Parent then
-		local Windows = self.Windows
+		local Control = setmetatable( Table, MetaTable )
+		Control.Class = Class
+		Control.ID = ID
+		Control:Initialise()
 
-		Windows[ #Windows + 1 ] = Control
+		self.ActiveControls:Add( Control, true )
 
-		self:SetWindowFocus( Control )
+		--If it's a window then we give it focus.
+		if MetaTable.IsWindow and not Parent then
+			local Windows = self.Windows
 
-		Control.IsAWindow = true
+			Windows[ #Windows + 1 ] = Control
+
+			self:SetWindowFocus( Control )
+
+			Control.IsAWindow = true
+		end
+
+		self.SkinManager:ApplySkin( Control )
+
+		if not Parent then return Control end
+
+		Control:SetParent( Parent )
+
+		return Control
 	end
-
-	self.SkinManager:ApplySkin( Control )
-
-	if not Parent then return Control end
-
-	Control:SetParent( Parent )
-
-	return Control
 end
 
 --[[

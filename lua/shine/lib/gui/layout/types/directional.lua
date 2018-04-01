@@ -28,6 +28,14 @@ function Directional:SetElementSize( Element, RealSize, Margin )
 	return CurrentSize
 end
 
+function Directional:GetComputedFillSize( Element, RealSize, FillSizePerElement )
+	local Margin = Element:GetComputedMargin()
+	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 1 ] - Margin[ 3 ] )
+	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 2 ] - Margin[ 4 ] )
+
+	return self:GetFillElementSize( Element, Width, Height, FillSizePerElement )
+end
+
 --[[
 	This method handles laying out elements, including keeping track of margins between them.
 ]]
@@ -39,11 +47,7 @@ function Directional:LayoutElements( Elements, Context )
 	local Pos = Context.Pos
 	local RealSize = Context.RealSize
 	local Size = Context.Size
-
-	-- These keep track of how much space we have left over after all the fixed size elements
-	-- have been accounted for.
-	local AvailableFillSize = Context.AvailableFillSize
-	local NumberOfFillElements = Context.NumberOfFillElements
+	local FillSizePerElement = Context.FillSizePerElement
 
 	-- The start position depends on the direction and alignment.
 	-- Vertical will start either top left or bottom left, horizontal top left or top right.
@@ -54,17 +58,12 @@ function Directional:LayoutElements( Elements, Context )
 
 		if Element:GetIsVisible() then
 			local Margin = Element:GetComputedMargin()
-			local CurrentSize = self:SetElementSize( Element, RealSize, Margin )
-
-			if not Element:GetFill() then
-				-- If the element is not set to fill the space, then it will use up its margin + size.
-				AvailableFillSize = AvailableFillSize - self:GetFillSize( CurrentSize ) - self:GetMarginSize( Margin )
-			else
-				-- Otherwise, only the margin is used up.
-				AvailableFillSize = AvailableFillSize - self:GetMarginSize( Margin )
-				NumberOfFillElements = NumberOfFillElements + 1
+			if Element:GetFill() then
+				-- Fixed size elements have already been resized, just need to resize fill elements.
+				Element:SetSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
 			end
 
+			local CurrentSize = Element:GetSize()
 			local MinW, MinH = self:GetMinMargin( Margin )
 			local MaxW, MaxH = self:GetMaxMargin( Margin )
 			local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
@@ -86,62 +85,6 @@ function Directional:LayoutElements( Elements, Context )
 			end
 		end
 	end
-
-	Context.AvailableFillSize = AvailableFillSize
-	Context.NumberOfFillElements = NumberOfFillElements
-end
-
---[[
-	This method handles elements that have been set to fill any remaining space.
-
-	It will evenly distribute the remaining space to all of them, and re-position
-	everything else to compensate for size changes.
-]]
-function Directional:FillElements( Elements, Context )
-	local Alignment = Context.Alignment
-	local IsMin = Alignment == LayoutAlignment.MIN
-
-	local FillSize = Context.FillSize
-	local Padding = Context.Padding
-	local Pos = Context.Pos
-	local Size = Context.Size
-
-	local X, Y = self:GetStartPos( Pos, Size, Padding, Alignment )
-	local OffsetX, OffsetY = 0, 0
-
-	for i = 1, #Elements do
-		local Element = Elements[ i ]
-
-		if Element:GetIsVisible() then
-			local Pos = Element:GetPos()
-			local Size = Element:GetSize()
-
-			-- If we're coming from min to max, then we add the offset before
-			-- we increase it.
-			if IsMin then
-				Pos.x = Pos.x + OffsetX
-				Pos.y = Pos.y + OffsetY
-			end
-
-			if Element:GetFill() then
-				local OldW, OldH = Size.x, Size.y
-				self:ModifyFillElementSize( Size, FillSize )
-				Element:SetSize( Size )
-
-				OffsetX = OffsetX + Size.x - OldW
-				OffsetY = OffsetY + Size.y - OldH
-			end
-
-			-- Otherwise, max to min subtracts the offset after changing size, as positioning
-			-- is always from the top left of an element.
-			if not IsMin then
-				Pos.x = Pos.x - OffsetX
-				Pos.y = Pos.y - OffsetY
-			end
-
-			Element:SetPos( Pos )
-		end
-	end
 end
 
 function Directional:PerformLayout()
@@ -159,6 +102,10 @@ function Directional:PerformLayout()
 	local MinAlignedElements = {}
 	local MaxAlignedElements = {}
 
+	-- Pre-compute the size of each fill element by setting the size of fixed-size elements upfront.
+	local FillSize = self:GetFillSize( RealSize )
+	local NumberOfFillElements = 0
+
 	for i = 1, #Elements do
 		local Element = Elements[ i ]
 
@@ -166,6 +113,17 @@ function Directional:PerformLayout()
 			MaxAlignedElements[ #MaxAlignedElements + 1 ] = Element
 		else
 			MinAlignedElements[ #MinAlignedElements + 1 ] = Element
+		end
+
+		local Margin = Element:GetComputedMargin()
+		if not Element:GetFill() then
+			local CurrentSize = self:SetElementSize( Element, RealSize, Margin )
+			-- If the element is not set to fill the space, then it will use up its margin + size.
+			FillSize = FillSize - self:GetFillSize( CurrentSize ) - self:GetMarginSize( Margin )
+		else
+			-- Otherwise, only the margin is used up.
+			FillSize = FillSize - self:GetMarginSize( Margin )
+			NumberOfFillElements = NumberOfFillElements + 1
 		end
 	end
 
@@ -177,24 +135,14 @@ function Directional:PerformLayout()
 		Padding = Padding,
 		Pos = Pos,
 		RealSize = RealSize,
-		Size = Size
+		Size = Size,
+		FillSizePerElement = FillSize / NumberOfFillElements
 	}
 
-	-- Layout min then max aligned.
+	-- Layout min then max aligned, which will apply the fill size to all fill elements.
 	self:LayoutElements( MinAlignedElements, Context )
 	Context.Alignment = LayoutAlignment.MAX
 	self:LayoutElements( MaxAlignedElements, Context )
-
-	-- If there's no elements requesting to use the remaining space, we can stop.
-	if Context.NumberOfFillElements == 0 then return end
-
-	-- Run through again, setting the size of all fill elements to
-	-- evenly use up the remaining size.
-	Context.FillSize = Context.AvailableFillSize / Context.NumberOfFillElements
-
-	self:FillElements( MaxAlignedElements, Context )
-	Context.Alignment = LayoutAlignment.MIN
-	self:FillElements( MinAlignedElements, Context )
 end
 
 Shine.GUI.Layout:RegisterType( "Directional", Directional )

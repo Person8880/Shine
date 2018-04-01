@@ -139,6 +139,6 @@ do
 			Sum = Sum + ( Values[ i ] - Average ) ^ 2
 		end
 
-		return Sqrt( Sum / Count )
+		return Sqrt( Sum / Count ), Average
 	end
 end

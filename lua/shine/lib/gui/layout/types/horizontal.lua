@@ -40,13 +40,11 @@ function Horizontal:GetElementSizeOffset( Size )
 	return Size.x, 0
 end
 
-function Horizontal:ModifyFillElementSize( Size, FillSize )
-	Size.x = FillSize
-end
-
-function Horizontal:ModifyFillElementPos( X, Y, Pos, Size )
-	Pos.x = X
-	return X + Size.x, Y
+function Horizontal:GetFillElementSize( Element, Width, Height, FillSizePerElement )
+	local Size = Element:GetSize()
+	Size.x = FillSizePerElement
+	Size.y = Height
+	return Size
 end
 
 Shine.GUI.Layout:RegisterType( "Horizontal", Horizontal, "Directional" )

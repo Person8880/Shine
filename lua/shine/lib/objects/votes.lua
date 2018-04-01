@@ -11,6 +11,7 @@ local Shine = Shine
 
 local Max = math.max
 local setmetatable = setmetatable
+local SharedTime = Shared.GetTime
 local TableEmpty = table.Empty
 
 local VoteMeta = {}
@@ -57,7 +58,10 @@ function VoteMeta:RemoveVote( Client )
 end
 
 function VoteMeta:ClientDisconnect( Client )
-	return self:RemoveVote( Client )
+	self:RemoveVote( Client )
+	-- The total required votes may have decreased without
+	-- removing any votes, thus the vote could pass now.
+	self:CheckForSuccess()
 end
 
 function VoteMeta:AddVote( Client )
@@ -66,19 +70,23 @@ function VoteMeta:AddVote( Client )
 	self.Voted[ Client ] = true
 	self.Votes = self.Votes + 1
 
-	self.LastVoted = Shared.GetTime()
+	self.LastVoted = SharedTime()
 
-	if self.Votes >= self.VotesNeeded() then
-		self.LastSuccessTime = self.LastVoted
-		self.OnSuccess()
-		self:Reset()
-	end
+	self:CheckForSuccess()
 
 	return true
 end
 
+function VoteMeta:CheckForSuccess()
+	if self.Votes >= self.VotesNeeded() then
+		self.LastSuccessTime = SharedTime()
+		self.OnSuccess()
+		self:Reset()
+	end
+end
+
 function VoteMeta:HasSucceededOnLastVote()
-	return self.LastSuccessTime == Shared.GetTime()
+	return self.LastSuccessTime == SharedTime()
 end
 
 function VoteMeta:GetHasClientVoted( Client )
