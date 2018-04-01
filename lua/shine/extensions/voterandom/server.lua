@@ -16,6 +16,7 @@ local GetOwner = Server.GetOwner
 local Max = math.max
 local Random = math.random
 local SharedTime = Shared.GetTime
+local StandardDeviation = math.StandardDeviation
 local StringFormat = string.format
 local TableConcat = table.concat
 local tostring = tostring
@@ -684,6 +685,46 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	self.LastShuffleTeamLookup = TeamLookup
 end
 
+function Plugin:GetOptimalTeamForPlayer( Player, Team1Players, Team2Players, SkillGetter )
+	local Team1Skills = Shine.Stream( Team1Players ):Map( function( Player )
+		return SkillGetter( Player, 1 )
+	end ):AsTable()
+
+	local Team2Skills = Shine.Stream( Team2Players ):Map( function( Player )
+		return SkillGetter( Player, 2 )
+	end ):AsTable()
+
+	local StdDev1, Average1 = StandardDeviation( Team1Skills )
+	local StdDev2, Average2 = StandardDeviation( Team2Skills )
+
+	local function GetCostWithPlayerOnTeam( Skills, TeamNumber, AverageOther, StdDevOther )
+		Skills[ #Skills + 1 ] = SkillGetter( Player, TeamNumber )
+
+		local StdDev, Average = StandardDeviation( Skills )
+		local AverageDiff = Abs( Average - AverageOther )
+		local StdDiff = Abs( StdDev - StdDevOther )
+
+		return self:GetCostFromDiff( AverageDiff, StdDiff )
+	end
+
+	local CostOn1 = GetCostWithPlayerOnTeam( Team1Skills, 1, Average2, StdDev2 )
+	local CostOn2 = GetCostWithPlayerOnTeam( Team2Skills, 2, Average1, StdDev1 )
+
+	if CostOn1 ~= CostOn2 then
+		local TeamToJoin = 1
+		if CostOn1 > CostOn2 then
+			TeamToJoin = 2
+		end
+
+		self.Logger:Debug( "Picked team %d for %s (%s vs. %s)", TeamToJoin,
+			Player, CostOn1, CostOn2 )
+
+		return TeamToJoin
+	end
+
+	return nil
+end
+
 --[[
 	Moves a single player onto a random team.
 ]]
@@ -703,28 +744,11 @@ function Plugin:JoinRandomTeam( Player )
 			local Team1Players = Gamerules.team1:GetPlayers()
 			local Team2Players = Gamerules.team2:GetPlayers()
 
-			local Team1Skill = self:GetAverageSkill( Team1Players )
-			local Team2Skill = self:GetAverageSkill( Team2Players )
+			local TeamToJoin = self:GetOptimalTeamForPlayer( Player,
+				Team1Players, Team2Players, self.SkillGetters.GetHiveSkill )
 
-			--If team skill is identical, then we should just pick a random team.
-			if Team1Skill.Average ~= Team2Skill.Average then
-				local BetterTeam = Team1Skill.Average > Team2Skill.Average and 1 or 2
-
-				local PlayerSkill = Player.GetPlayerSkill and Player:GetPlayerSkill() or 0
-				local TeamToJoin = BetterTeam == 1 and 2 or 1
-
-				local NewTeam1Average = ( Team1Skill.Total + PlayerSkill ) / ( Team1Skill.Count + 1 )
-				local NewTeam2Average = ( Team2Skill.Total + PlayerSkill ) / ( Team2Skill.Count + 1 )
-
-				--If we're going to make the lower team even worse, then put them on the "better" team.
-				if BetterTeam == 1 and NewTeam2Average < Team2Skill.Average then
-					TeamToJoin = 1
-				elseif BetterTeam == 2 and NewTeam1Average < Team1Skill.Average then
-					TeamToJoin = 2
-				end
-
+			if TeamToJoin then
 				Gamerules:JoinTeam( Player, TeamToJoin )
-
 				return
 			end
 		end

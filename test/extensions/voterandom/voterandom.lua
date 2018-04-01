@@ -107,6 +107,26 @@ UnitTest:Test( "AddPlayersRandomly", function( Assert )
 	Assert:Equals( 3, #TeamMembers[ 2 ] )
 end )
 
+UnitTest:Test( "GetOptimalTeamForPlayer - Uneven teams", function( Assert )
+	local Team1Players = { 1000, 1000, 1000, 1000, 1500 }
+	local Team2Players = { 1000, 1000, 1000, 1000, 1000 }
+
+	local function SkillGetter( Player ) return Player end
+
+	local TeamToJoin = VoteShuffle:GetOptimalTeamForPlayer( 2000, Team1Players, Team2Players, SkillGetter )
+	Assert.Equals( "Should pick team 2 as the optimal team", 2, TeamToJoin )
+end )
+
+UnitTest:Test( "GetOptimalTeamForPlayer - Even teams", function( Assert )
+	local Team1Players = { 1000, 1000, 1000, 1000, 1000 }
+	local Team2Players = { 1000, 1000, 1000, 1000, 1000 }
+
+	local function SkillGetter( Player ) return Player end
+
+	local TeamToJoin = VoteShuffle:GetOptimalTeamForPlayer( 2000, Team1Players, Team2Players, SkillGetter )
+	Assert.Nil( "Should not pick an optimal team, both are equivalent", TeamToJoin )
+end )
+
 local function FakePlayer( SteamID, TeamNumber, IsCommander )
 	return {
 		GetClient = function()
