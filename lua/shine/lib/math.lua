@@ -132,7 +132,7 @@ do
 	function math.StandardDeviation( Values )
 		local Sum = 0
 		local Count = #Values
-		if Count == 0 then return 0 end
+		if Count == 0 then return 0, 0 end
 
 		local Average = TableAverage( Values )
 		for i = 1, Count do

@@ -410,7 +410,7 @@ function Plugin:Initialise()
 		end
 	end
 
-	self.Vote = Shine:CreateVote( GetVotesNeeded, OnVotePassed, OnTimeout )
+	self.Vote = Shine:CreateVote( GetVotesNeeded, self:WrapCallback( OnVotePassed ), OnTimeout )
 	function self.Vote.OnReset()
 		self:ResetVoteCounters()
 	end

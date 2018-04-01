@@ -286,7 +286,7 @@ function Plugin:Initialise()
 	self.Vote.TotalVotes = 0 -- Number of votes in the current map vote.
 
 	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end,
-		function() self:StartVote() end )
+		self:WrapCallback( function() self:StartVote() end ) )
 	function self.StartingVote.OnReset()
 		self:ResetVoteCounters()
 	end
