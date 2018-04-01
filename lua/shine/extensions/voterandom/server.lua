@@ -687,18 +687,18 @@ end
 
 function Plugin:GetOptimalTeamForPlayer( Player, Team1Players, Team2Players, SkillGetter )
 	local Team1Skills = Shine.Stream( Team1Players ):Map( function( Player )
-		return SkillGetter( Player, 1 )
+		return SkillGetter( Player, 1 ) or 0
 	end ):AsTable()
 
 	local Team2Skills = Shine.Stream( Team2Players ):Map( function( Player )
-		return SkillGetter( Player, 2 )
+		return SkillGetter( Player, 2 ) or 0
 	end ):AsTable()
 
 	local StdDev1, Average1 = StandardDeviation( Team1Skills )
 	local StdDev2, Average2 = StandardDeviation( Team2Skills )
 
 	local function GetCostWithPlayerOnTeam( Skills, TeamNumber, AverageOther, StdDevOther )
-		Skills[ #Skills + 1 ] = SkillGetter( Player, TeamNumber )
+		Skills[ #Skills + 1 ] = SkillGetter( Player, TeamNumber ) or 0
 
 		local StdDev, Average = StandardDeviation( Skills )
 		local AverageDiff = Abs( Average - AverageOther )
