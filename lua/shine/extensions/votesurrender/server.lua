@@ -87,6 +87,13 @@ end
 	If a round has started, we set the next vote time to current time + delay.
 ]]
 function Plugin:SetGameState( Gamerules, State, OldState )
+	if State >= kGameState.Started then
+		-- Game has started/ended, reset the votes.
+		for i = 1, 2 do
+			self.Votes[ i ]:Reset()
+		end
+	end
+
 	if State == kGameState.Started then
 		self.NextVote = SharedTime() + ( self.Config.VoteDelay * 60 )
 	end
@@ -209,7 +216,7 @@ end
 ]]
 function Plugin:Surrender( Team )
 	local Gamerules = GetGamerules()
-	if not Gamerules then return end
+	if not Gamerules or Gamerules:GetGameState() ~= kGameState.Started then return end
 
 	for i = 1, 2 do
 		self.Votes[ i ]:Reset()

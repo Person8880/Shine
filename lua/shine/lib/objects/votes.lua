@@ -12,6 +12,7 @@ local Shine = Shine
 local Max = math.max
 local setmetatable = setmetatable
 local SharedTime = Shared.GetTime
+local StringFormat = string.format
 local TableEmpty = table.Empty
 
 local VoteMeta = {}
@@ -104,6 +105,10 @@ end
 
 function VoteMeta:GetVotes()
 	return self.Votes
+end
+
+function VoteMeta:__tostring()
+	return StringFormat( "Vote[%s / %s]", self.Votes, self.VotesNeeded() )
 end
 
 function Shine:CreateVote( VotesNeeded, OnSuccess, Timeout )
