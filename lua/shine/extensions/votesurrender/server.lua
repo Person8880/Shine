@@ -211,6 +211,10 @@ function Plugin:Surrender( Team )
 	local Gamerules = GetGamerules()
 	if not Gamerules then return end
 
+	for i = 1, 2 do
+		self.Votes[ i ]:Reset()
+	end
+
 	Shine.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 
 	local WinningTeam = Gamerules:GetTeam( Team == 1 and 2 or 1 )
