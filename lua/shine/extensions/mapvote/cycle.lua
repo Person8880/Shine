@@ -159,11 +159,15 @@ function Plugin:IsValidMapChoice( Map, PlayerCount )
 	return true
 end
 
+function Plugin:GetCurrentMap()
+	return Shared.GetMapName()
+end
+
 --[[
 	Returns the next map in the map cycle or the map that's been voted for next.
 ]]
 function Plugin:GetNextMap()
-	local CurMap = Shared.GetMapName()
+	local CurMap = self:GetCurrentMap()
 
 	local Winner = self.NextMap.Winner
 	if Winner and Winner ~= CurMap then return Winner end --Winner decided.
@@ -261,7 +265,7 @@ function Plugin:SaveLastMaps()
 	end
 
 	-- Store the last played maps in an ever repeating cycle.
-	local CurrentMap = Shared.GetMapName()
+	local CurrentMap = self:GetCurrentMap()
 	for i = #Data, 1, -1 do
 		if Data[ i ] == CurrentMap then
 			TableRemove( Data, i )
@@ -292,7 +296,7 @@ function Plugin:LoadMapStats()
 end
 
 function Plugin:SaveMapStats()
-	local Map = Shared.GetMapName()
+	local Map = self:GetCurrentMap()
 
 	self.MapStats[ Map ] = ( self.MapStats[ Map ] or 0 ) + 1
 

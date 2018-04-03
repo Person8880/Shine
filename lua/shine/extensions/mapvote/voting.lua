@@ -129,6 +129,10 @@ function Plugin:NS2StartVote( VoteName, Client, Data )
 	end
 end
 
+function Plugin:GetVoteDelay()
+	return self.Config.VoteDelayInMinutes * 60
+end
+
 function Plugin:GetVoteConstraint( Category, Type, PercentageTotal )
 	local Constraint = self.Config.Constraints[ Category ][ Type ]
 	if StringUpper( Constraint.Type ) == self.ConstraintType.PERCENT then
@@ -313,7 +317,7 @@ end
 function Plugin:ExtendMap( Time, NextMap )
 	local Cycle = self.MapCycle
 
-	local ExtendTime = self.Config.ExtendTime * 60
+	local ExtendTime = self.Config.ExtendTimeInMinutes * 60
 
 	local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
 	local BaseTime = CycleTime > Time and CycleTime or Time
@@ -332,17 +336,17 @@ function Plugin:ExtendMap( Time, NextMap )
 
 	if NextMap then
 		if not self.VoteOnEnd then
-			self.NextMapVoteTime = Time + ExtendTime * self.Config.NextMapVote
+			self.NextMapVoteTime = Time + ExtendTime * self.Config.NextMapVoteMapTimeFraction
 		end
 	else
 		if not self.Config.EnableNextMapVote then return end
 
 		--Start the next timer taking the extended time as the new cycle time.
-		local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVote - Time
+		local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVoteMapTimeFraction - Time
 
 		--Timer would start immediately for the next map vote...
 		if NextVoteTime <= Time then
-			NextVoteTime = ExtendTime * self.Config.NextMapVote
+			NextVoteTime = ExtendTime * self.Config.NextMapVoteMapTimeFraction
 		end
 
 		if not self.VoteOnEnd then
@@ -352,27 +356,27 @@ function Plugin:ExtendMap( Time, NextMap )
 end
 
 function Plugin:ApplyRTVWinner( Time, Choice )
-	if Choice == Shared.GetMapName() then
+	if Choice == self:GetCurrentMap() then
 		self.NextMap.Winner = Choice
 		self:ExtendMap( Time, false )
-		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
+		self.Vote.NextVote = Time + self:GetVoteDelay()
 
 		return
 	end
 
 	self:SendTranslatedNotify( nil, "MAP_CHANGING", {
-		Duration = self.Config.ChangeDelay
+		Duration = self.Config.ChangeDelayInSeconds
 	} )
 
 	self.Vote.CanVeto = true --Allow admins to cancel the change.
 	self.CyclingMap = true
 
 	--Queue the change.
-	self:SimpleTimer( self.Config.ChangeDelay, function()
+	self:SimpleTimer( self.Config.ChangeDelayInSeconds, function()
 		if not self.Vote.Veto then --No one cancelled it, change map.
 			MapCycle_ChangeMap( Choice )
 		else --Someone cancelled it, set the next vote time.
-			self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
+			self.Vote.NextVote = Time + self:GetVoteDelay()
 			self.Vote.Veto = false
 			self.Vote.CanVeto = false --Veto has no meaning anymore.
 
@@ -384,7 +388,7 @@ end
 function Plugin:ApplyNextMapWinner( Time, Choice, MentionMap )
 	self.NextMap.Winner = Choice
 
-	if Choice == Shared.GetMapName() then
+	if Choice == self:GetCurrentMap() then
 		self:ExtendMap( Time, true )
 	else
 		local Key
@@ -453,7 +457,7 @@ function Plugin:ProcessResults( NextMap )
 			return
 		end
 
-		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
+		self.Vote.NextVote = Time + self:GetVoteDelay()
 
 		if NextMap then
 			self.NextMap.Voting = false
@@ -502,7 +506,7 @@ function Plugin:ProcessResults( NextMap )
 	--If we're set to fail on a tie, then fail.
 	if self.Config.TieFails then
 		self:NotifyTranslated( nil, "VOTES_TIED_FAILURE" )
-		self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
+		self.Vote.NextVote = Time + self:GetVoteDelay()
 
 		if NextMap then
 			self:OnNextMapVoteFail()
@@ -552,7 +556,7 @@ function Plugin:ProcessResults( NextMap )
 		if NextMap then
 			self:OnNextMapVoteFail()
 		else
-			self.Vote.NextVote = Time + ( self.Config.VoteDelay * 60 )
+			self.Vote.NextVote = Time + self:GetVoteDelay()
 		end
 	end
 end
@@ -618,6 +622,10 @@ function Plugin:GetBlacklistedLastMaps( NumAvailable, NumSelected )
 	return Maps
 end
 
+local function AreMapsSimilar( MapA, MapB )
+	return StringStartsWith( MapA, MapB ) or StringStartsWith( MapB, MapA )
+end
+
 function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
 	local MapsToRemove = self:GetBlacklistedLastMaps( PotentialMaps:GetCount(), FinalChoices:GetCount() )
 
@@ -631,8 +639,7 @@ function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
 			for i = 1, #MapsToRemove do
 				-- If the map is similarly named to a previous map, exclude it.
 				-- For example: ns2_veil vs. ns2_veil_five.
-				if StringStartsWith( Map, MapsToRemove[ i ] )
-				or StringStartsWith( MapsToRemove[ i ], Map ) then
+				if AreMapsSimilar( Map, MapsToRemove[ i ] ) then
 					return false
 				end
 			end
@@ -691,7 +698,7 @@ end
 
 function Plugin:AddCurrentMap( PotentialMaps, FinalChoices )
 	local AllowCurMap = self:CanExtend()
-	local CurMap = Shared.GetMapName()
+	local CurMap = self:GetCurrentMap()
 	if AllowCurMap then
 		if PotentialMaps:Contains( CurMap ) and self.Config.AlwaysExtend then
 			FinalChoices:Add( CurMap )
@@ -700,6 +707,13 @@ function Plugin:AddCurrentMap( PotentialMaps, FinalChoices )
 	else
 		-- Otherwise remove it!
 		PotentialMaps:Remove( CurMap )
+
+		if self.Config.ConsiderSimilarMapsAsExtension then
+			-- Remove any maps that are similar to the current map from the pool too.
+			PotentialMaps:Filter( function( Map )
+				return not AreMapsSimilar( Map, CurMap )
+			end )
+		end
 	end
 end
 
@@ -756,7 +770,7 @@ function Plugin:StartVote( NextMap, Force )
 	end
 
 	local OptionsText = TableConcat( MapList, ", " )
-	local VoteLength = self.Config.VoteLength * 60
+	local VoteLength = self.Config.VoteLengthInMinutes * 60
 	local EndTime = SharedTime() + VoteLength
 
 	-- Store these values for new clients.
