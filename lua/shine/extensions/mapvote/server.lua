@@ -17,7 +17,7 @@ local TableCount = table.Count
 local tonumber = tonumber
 
 local Plugin = Plugin
-Plugin.Version = "1.9"
+Plugin.Version = "1.10"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
@@ -92,6 +92,7 @@ Plugin.DefaultConfig = {
 	VoteLength = 1, -- Time in minutes a vote should last before failing.
 	ChangeDelay = 10, -- Time in seconds to wait before changing map after a vote (gives time for veto)
 	VoteDelay = 10, -- Time to wait in minutes after map change/vote fail before voting can occur.
+	BlockAfterRoundTimeInMinutes = 0, -- Time in minutes after a round start to block starting map votes.
 
 	ShowVoteChoices = true, -- Show who votes for what map.
 	MaxOptions = 4, -- Max number of options to provide.
@@ -119,7 +120,9 @@ Plugin.DefaultConfig = {
 	-- How many previous maps should be excluded from votes?
 	ExcludeLastMaps = {
 		Min = 0,
-		Max = 0
+		Max = 0,
+		-- Should the exclusion match exact names, or all similar maps?
+		UseStrictMatching = true
 	}
 }
 
@@ -178,6 +181,16 @@ Plugin.ConfigMigrationSteps = {
 			Config.MinPlayers = nil
 			Config.PercentToFinish = nil
 		end
+	},
+	{
+		VersionTo = "1.10",
+		Apply = function( Config )
+			if not IsType( Config.ExcludeLastMaps, "table" ) then return end
+
+			if Config.ExcludeLastMaps.UseStrictMatching == nil then
+				Config.ExcludeLastMaps.UseStrictMatching = true
+			end
+		end
 	}
 }
 
@@ -213,6 +226,7 @@ do
 	Validator:AddFieldRule( "VoteLength", Validator.Min( 0.25 ) )
 	Validator:AddFieldRule( "VoteLength", Validator.Clamp( 0, 1 ) )
 	Validator:AddFieldRule( "ExcludeLastMaps.Min", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "ExcludeLastMaps.UseStrictMatching", Validator.IsType( "boolean", true ) )
 	Validator:AddRule( {
 		Matches = function( self, Config )
 			local Constraints = Config.Constraints
@@ -284,6 +298,8 @@ function Plugin:Initialise()
 	self.Vote.Votes = 0 -- Number of map votes that have taken place.
 	self.Vote.Voted = {} -- Table of players that have voted for a map.
 	self.Vote.TotalVotes = 0 -- Number of votes in the current map vote.
+
+	self.VoteDisableTime = math.huge
 
 	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end,
 		self:WrapCallback( function() self:StartVote() end ) )

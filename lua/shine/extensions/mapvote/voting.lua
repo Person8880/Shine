@@ -14,6 +14,7 @@ local next = next
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
+local StringStartsWith = string.StartsWith
 local StringUpper = string.upper
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
@@ -71,6 +72,12 @@ function Plugin:ClientDisconnect( Client )
 	self:UpdateVoteCounters( self.StartingVote )
 end
 
+function Plugin:SetGameState( Gamerules, State, OldState )
+	if State == kGameState.Started and self.Config.BlockAfterRoundTimeInMinutes > 0 then
+		self.VoteDisableTime = SharedTime() + self.Config.BlockAfterRoundTimeInMinutes * 60
+	end
+end
+
 --[[
 	Client's requesting the vote data.
 ]]
@@ -78,9 +85,7 @@ function Plugin:SendVoteData( Client )
 	if not self:VoteStarted() then return end
 
 	local Time = SharedTime()
-
 	local Duration = Floor( self.Vote.EndTime - Time )
-
 	local OptionsText = self.Vote.OptionsText
 
 	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
@@ -162,8 +167,13 @@ function Plugin:CanStartVote()
 		return false, "There are not enough players to start a vote.", "VOTE_FAIL_INSUFFICIENT_PLAYERS", {}
 	end
 
-	if self.Vote.NextVote >= SharedTime() then
+	local Time = SharedTime()
+	if self.Vote.NextVote >= Time then
 		return false, "You cannot start a map vote at this time.", "VOTE_FAIL_TIME", {}
+	end
+
+	if Time > self.VoteDisableTime then
+		return false, "It is too far into the current round to begin a map vote.", "VOTE_FAIL_TOO_LATE", {}
 	end
 
 	return true
@@ -185,10 +195,14 @@ function Plugin:AddStartVote( Client )
 		return false, Error, Key, Data
 	end
 
-	if self:VoteStarted() then return false, "A vote is already in progress.", "VOTE_FAIL_IN_PROGRESS", {} end
-	local Success = self.StartingVote:AddVote( Client )
+	if self:VoteStarted() then
+		return false, "A vote is already in progress.", "VOTE_FAIL_IN_PROGRESS", {}
+	end
 
-	if not Success then return false, "You have already voted to begin a map vote.", "VOTE_FAIL_ALREADY_VOTED", {} end
+	local Success = self.StartingVote:AddVote( Client )
+	if not Success then
+		return false, "You have already voted to begin a map vote.", "VOTE_FAIL_ALREADY_VOTED", {}
+	end
 
 	return true
 end
@@ -604,8 +618,25 @@ end
 
 function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
 	local MapsToRemove = self:GetBlacklistedLastMaps( PotentialMaps:GetCount(), FinalChoices:GetCount() )
-	for i = 1, #MapsToRemove do
-		PotentialMaps:Remove( MapsToRemove[ i ] )
+
+	if self.Config.ExcludeLastMaps.UseStrictMatching then
+		-- Remove precisely the previous maps, ignoring any that are similar.
+		for i = 1, #MapsToRemove do
+			PotentialMaps:Remove( MapsToRemove[ i ] )
+		end
+	else
+		PotentialMaps:Filter( function( Map )
+			for i = 1, #MapsToRemove do
+				-- If the map is similarly named to a previous map, exclude it.
+				-- For example: ns2_veil vs. ns2_veil_five.
+				if StringStartsWith( Map, MapsToRemove[ i ] )
+				or StringStartsWith( MapsToRemove[ i ], Map ) then
+					return false
+				end
+			end
+
+			return true
+		end )
 	end
 end
 
