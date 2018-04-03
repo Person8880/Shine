@@ -563,7 +563,7 @@ local function MatchStringRestriction( ParsedArg, Restriction )
 
 	-- Escape any patterns in the string.
 	Restriction = StringPatternSafe( Restriction )
-	Restriction = StringGSub( Restriction, "*", "(.-)" ).."$"
+	Restriction = StringGSub( Restriction, "%%%*", "(.-)" ).."$"
 
 	return StringFind( ParsedArg, Restriction ) ~= nil
 end
