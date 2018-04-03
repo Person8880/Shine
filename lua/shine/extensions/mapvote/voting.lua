@@ -75,6 +75,8 @@ end
 function Plugin:SetGameState( Gamerules, State, OldState )
 	if State == kGameState.Started and self.Config.BlockAfterRoundTimeInMinutes > 0 then
 		self.VoteDisableTime = SharedTime() + self.Config.BlockAfterRoundTimeInMinutes * 60
+	else
+		self.VoteDisableTime = math.huge
 	end
 end
 
