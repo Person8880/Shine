@@ -261,6 +261,8 @@ do
 			self:CreateTimer( "AFKCheck", 1, -1, function() self:EvaluatePlayers() end )
 		end
 
+		self.dt.CheckSteamOverlay = self.Config.CheckSteamOverlay
+
 		self.Enabled = true
 
 		return true
