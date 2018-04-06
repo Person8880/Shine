@@ -1920,9 +1920,6 @@ ValidityChecks[ 0xED ] = function( Bytes ) return Bytes[ 2 ] <= 0x9F and Bytes o
 local function GetUTF8Bytes( String, Index )
 	Index = Index or 1
 
-	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
-	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
-
 	local FirstByte = StringByte( String, Index )
 	if not FirstByte then return nil end
 
@@ -1973,6 +1970,11 @@ end
 	Output: True if valid, false otherwise.
 ]]
 function string.IsValidUTF8( String, Index )
+	TypeCheck( String, "string", 1, "IsValidUTF8" )
+	if Index then
+		TypeCheck( Index, "number", 2, "IsValidUTF8" )
+	end
+
 	return GetUTF8Bytes( String, Index ) ~= nil
 end
 
@@ -1983,6 +1985,11 @@ end
 	Output: Up to 4 bytes of data. Returns nil if the character is invalid UTF8.
 ]]
 function string.GetUTF8Bytes( String, Index )
+	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
+	if Index then
+		TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
+	end
+
 	local Bytes = GetUTF8Bytes( String, Index )
 	if Bytes then
 		return unpack( Bytes )
@@ -1994,36 +2001,34 @@ end
 ]]
 local function UTF8Char( Char )
 	if Char < 0 or Char > 0x10FFFF then
-		error( "bad argument #1 to UTF8Char (out of range)", 2 )
+		error( "bad argument #1 to 'UTF8Char' (out of range)", 2 )
 	end
-
-	local Byte1, Byte2, Byte3, Byte4
 
 	if Char < 0x80 then
 		return StringChar( Char )
 	end
 
 	if Char < 0x800 then
-		Byte1 = BitBor( 0xC0, BitBand( BitRShift( Char, 6 ), 0x1F ) )
-		Byte2 = BitBor( 0x80, BitBand( Char, 0x3F ) )
-
-		return StringChar( Byte1, Byte2 )
+		return StringChar(
+			BitBor( 0xC0, BitBand( BitRShift( Char, 6 ), 0x1F ) ),
+			BitBor( 0x80, BitBand( Char, 0x3F ) )
+		)
 	end
 
 	if Char < 0x10000 then
-		Byte1 = BitBor( 0xE0, BitBand( BitRShift( Char, 12 ), 0x0F ) )
-		Byte2 = BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) )
-		Byte3 = BitBor( 0x80, BitBand( Char, 0x3F ) )
-
-		return StringChar( Byte1, Byte2, Byte3 )
+		return StringChar(
+			BitBor( 0xE0, BitBand( BitRShift( Char, 12 ), 0x0F ) ),
+			BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) ),
+			BitBor( 0x80, BitBand( Char, 0x3F ) )
+		)
 	end
 
-	Byte1 = BitBor( 0xF0, BitBand( BitRShift( Char, 18 ), 0x07 ) )
-	Byte2 = BitBor( 0x80, BitBand( BitRShift( Char, 12 ), 0x3F ) )
-	Byte3 = BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) )
-	Byte4 = BitBor( 0x80, BitBand( Char, 0x3F ) )
-
-	return StringChar( Byte1, Byte2, Byte3, Byte4 )
+	return StringChar(
+		BitBor( 0xF0, BitBand( BitRShift( Char, 18 ), 0x07 ) ),
+		BitBor( 0x80, BitBand( BitRShift( Char, 12 ), 0x3F ) ),
+		BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) ),
+		BitBor( 0x80, BitBand( Char, 0x3F ) )
+	)
 end
 string.UTF8Char = UTF8Char
 
