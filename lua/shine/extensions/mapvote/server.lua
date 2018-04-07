@@ -385,6 +385,7 @@ function Plugin:Initialise()
 
 	self:LoadLastMaps()
 	self:CreateCommands()
+	self:SetupEmptyCheckTimer()
 
 	self.Enabled = true
 
