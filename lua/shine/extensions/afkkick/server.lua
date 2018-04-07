@@ -532,7 +532,7 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
-	local DeltaTime = Time - DataTable.LastMeasurement
+	local DeltaTime = Max( Time - DataTable.LastMeasurement, 0 )
 
 	DataTable.LastMeasurement = Time
 
