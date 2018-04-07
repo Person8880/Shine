@@ -33,13 +33,16 @@ local Plugin = {}
 Plugin.HasConfig = true
 Plugin.ConfigName = "ChatBox.json"
 
+Plugin.Version = "1.1"
+
 Plugin.DefaultConfig = {
-	AutoClose = true, --Should the chatbox close after sending a message?
-	DeleteOnClose = true, --Should whatever's entered be deleted if the chatbox is closed before sending?
-	MessageMemory = 50, --How many messages should the chatbox store before removing old ones?
-	SmoothScroll = true, --Should the scrolling be smoothed?
-	Opacity = 0.4, --How opaque should the chatbox be?
-	Pos = {}, --Remembers the position of the chatbox when it's moved.
+	AutoClose = true, -- Should the chatbox close after sending a message?
+	DeleteOnClose = true, -- Should whatever's entered be deleted if the chatbox is closed before sending?
+	MessageMemory = 50, -- How many messages should the chatbox store before removing old ones?
+	SmoothScroll = true, -- Should the scrolling be smoothed?
+	ScrollToBottomOnOpen = false, -- Should the chatbox scroll to the bottom when re-opened?
+	Opacity = 0.4, -- How opaque should the chatbox be?
+	Pos = {}, -- Remembers the position of the chatbox when it's moved.
 	Scale = 1 -- Sets a scale multiplier, requires recreating the chatbox when changed.
 }
 
@@ -703,10 +706,6 @@ do
 
 	local Elements = {
 		{
-			Type = "Label",
-			Values = { "SETTINGS_TITLE" }
-		},
-		{
 			Type = "CheckBox",
 			ConfigValue = "AutoClose",
 			Values = function( self )
@@ -728,6 +727,13 @@ do
 			end,
 			Values = function( self )
 				return GetCheckBoxSize( self ), self.Config.SmoothScroll, "SMOOTH_SCROLL"
+			end
+		},
+		{
+			Type = "CheckBox",
+			ConfigValue = "ScrollToBottomOnOpen",
+			Values = function( self )
+				return GetCheckBoxSize( self ), self.Config.ScrollToBottomOnOpen, "SCROLL_TO_BOTTOM"
 			end
 		},
 		{
@@ -1241,11 +1247,15 @@ do
 
 		self:RefreshLayout( true )
 
-		--Get our text entry accepting input.
+		if self.Config.ScrollToBottomOnOpen then
+			self.ChatBox:ScrollToBottom( false )
+		end
+
+		-- Get our text entry accepting input.
 		self.TextEntry:RequestFocus()
 		self.Visible = true
 
-		--Set this so we don't accept text input straight away, avoids the bind button making it in.
+		-- Set this so we don't accept text input straight away, avoids the bind button making it in.
 		self.OpenTime = Clock()
 
 		return true
