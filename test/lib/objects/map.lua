@@ -49,6 +49,24 @@ UnitTest:Test( "RemovalOfFalse", function( Assert )
 	Assert.Nil( "Map didn't remove false!", Map:Get( 1 ) )
 end )
 
+UnitTest:Test( "Clear", function( Assert )
+	local Map = Map()
+	for i = 1, 30 do
+		Map:Add( i, i )
+	end
+
+	Assert:Equals( 30, Map:GetCount() )
+
+	Map:Clear()
+
+	for i = 1, 30 do
+		Assert:Nil( Map:Get( i ) )
+	end
+
+	Assert.True( "Map was not empty after clearing", Map:IsEmpty() )
+	Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
+end )
+
 UnitTest:Test( "IterationRemoval", function( Assert )
 	local Map = Map()
 
@@ -203,6 +221,23 @@ UnitTest:Test( "Multimap:RemoveKeyValue()", function( Assert )
 	Map:RemoveKeyValue( 1, 2 )
 	Assert:ArrayEquals( { 1, 3 }, Map:Get( 1 ) )
 	Assert:Equals( 2, Map:GetCount() )
+end )
+
+UnitTest:Test( "Multimap:Clear()", function( Assert )
+	local Map = Multimap()
+	for i = 1, 30 do
+		Map:Add( i % 2, i )
+	end
+
+	Assert:Equals( 30, Map:GetCount() )
+
+	Map:Clear()
+
+	Assert:Nil( Map:Get( 0 ) )
+	Assert:Nil( Map:Get( 1 ) )
+
+	Assert.True( "Map was not empty after clearing", Map:IsEmpty() )
+	Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
 end )
 
 UnitTest:Test( "Multimap from table", function( Assert )

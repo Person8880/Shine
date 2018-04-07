@@ -338,7 +338,7 @@ function Shine:LoadExtensionConfigs()
 					self:LoadWebPlugins( DontEnableNow, true )
 				end )
 			end
-		end, -20 )
+		end, self.Hook.MAX_PRIORITY )
 	end
 end
 

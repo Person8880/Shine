@@ -1,13 +1,17 @@
 --[[
-	A simple linked queue structure.
+	A simple queue structure.
 ]]
+
+local TableEmpty = table.Empty
 
 local Queue = Shine.TypeDef()
 Shine.Queue = Queue
 
 function Queue:Init()
 	self.Size = 0
-	self.Nodes = {}
+	self.Elements = {}
+	self.First = 1
+	self.Last = 1
 
 	return self
 end
@@ -17,21 +21,13 @@ function Queue:GetCount()
 end
 
 function Queue:Add( Value )
-	local Previous = self.LastNode
-	local Next = {
-		Value = Value,
-		Previous = Previous
-	}
-
-	self.Nodes[ Next ] = Next
-
-	if Previous then
-		Previous.Next = Next
+	if self.Size == 0 then
+		self.Elements[ self.First ] = Value
 	else
-		self.FirstNode = Next
+		self.Last = self.Last + 1
+		self.Elements[ self.Last ] = Value
 	end
 
-	self.LastNode = Next
 	self.Size = self.Size + 1
 end
 
@@ -40,76 +36,41 @@ function Queue:Pop()
 		return nil
 	end
 
-	local Node = self.FirstNode
-	self.Nodes[ Node ] = nil
+	local Value = self.Elements[ self.First ]
+	self.Elements[ self.First ] = nil
 
-	if Node.Next then
-		Node.Next.Previous = nil
-	end
-
+	self.First = self.First + 1
 	self.Size = self.Size - 1
-	self.FirstNode = Node.Next
+
 	if self.Size == 0 then
-		self.LastNode = nil
+		-- Take the chance to reset the indices to avoid them growing
+		-- extremely large.
+		self.First = 1
+		self.Last = 1
 	end
-
-	return Node.Value
-end
-
-function Queue:Peek()
-	return self.FirstNode and self.FirstNode.Value
-end
-
-function Queue:HasNext()
-	return ( self.CurrentNode and self.CurrentNode.Next or self.FirstNode ) ~= nil
-end
-
-function Queue:GetNext()
-	if not self.CurrentNode then return nil end
-
-	local Value = self.CurrentNode.Value
-	self.CurrentNode = self.CurrentNode.Next
 
 	return Value
 end
 
-do
-	local GetNext = Queue.GetNext
-	local function Nope() end
-
-	function Queue:Iterate()
-		if self.Size == 0 then return Nope end
-
-		self.CurrentNode = self.FirstNode
-
-		return GetNext, self
-	end
+function Queue:Peek()
+	return self.Elements[ self.First ]
 end
 
--- Avoid this, because it's not really how you should use a queue.
-function Queue:Remove( Node )
-	if not self.Nodes[ Node ] then return end
+function Queue:Clear()
+	self.Size = 0
+	self.First = 1
+	self.Last = 1
+	TableEmpty( self.Elements )
+end
 
-	if Node.Previous then
-		Node.Previous.Next = Node.Next
+do
+	local function Iterate( State )
+		local Index = State.Index + 1
+		State.Index = Index
+		return State.Elements[ Index ]
 	end
 
-	if Node.Next then
-		Node.Next.Previous = Node.Previous
+	function Queue:Iterate()
+		return Iterate, { Elements = self.Elements, Index = self.First - 1 }
 	end
-
-	if self.CurrentNode == Node then
-		self.CurrentNode = Node.Previous
-	end
-
-	if self.FirstNode == Node then
-		self.FirstNode = Node.Next
-	end
-
-	if self.LastNode == Node then
-		self.LastNode = Node.Previous
-	end
-
-	self.Size = self.Size - 1
-	self.Nodes[ Node ] = nil
 end

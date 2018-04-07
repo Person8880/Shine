@@ -615,7 +615,7 @@ if Server then
 		end
 
 		Shine.SendNetworkMessage( Client, "Shine_PluginSync", Message, true )
-	end, -20 )
+	end, Shine.Hook.MAX_PRIORITY )
 
 	return
 end
@@ -717,4 +717,4 @@ Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
 			Shine:EnableExtension( Plugin )
 		end
 	end
-end, -20 )
+end, Shine.Hook.MAX_PRIORITY )

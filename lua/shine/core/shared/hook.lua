@@ -14,32 +14,91 @@ local ReplaceMethod = Shine.ReplaceClassMethod
 local StringExplode = string.Explode
 local StringFormat = string.format
 
-local Map = Shine.Map
+local LinkedList = Shine.LinkedList
 
 local Hook = {}
 Shine.Hook = Hook
 
-local Hooks = {}
-local ReservedNames = {}
+-- A unique identifier for the callback that calls plugin hooks.
+local ExtensionIndex = setmetatable( {}, { __tostring = function() return "CallExtensionEvent" end } )
+
+-- A mapping of event -> hook index -> hook node.
+local HookNodes = {}
+-- A mapping of event -> hook index -> hook callback (for external use).
+local HooksByEventAndIndex = {}
+
+local OnError = Shine.BuildErrorHandler( "Hook error" )
+
+local Hooks = setmetatable( {}, {
+	-- On first call/addition of an event, setup a default hook to call the event on extensions.
+	__index = function( self, Event )
+		local HooksByIndex = LinkedList()
+		local Node = HooksByIndex:Add( {
+			-- This emulates the old behaviour, placing the event between -20 and -19.
+			-- No client of the public API can set non-integer priorities.
+			Priority = -19.5,
+			Callback = function( ... )
+				return Shine:CallExtensionEvent( Event, OnError, ... )
+			end,
+			Index = ExtensionIndex
+		} )
+
+		HookNodes[ Event ] = {
+			[ ExtensionIndex ] = Node
+		}
+		HooksByEventAndIndex[ Event ] = {
+			[ ExtensionIndex ] = Node.Value.Callback
+		}
+
+		-- Save the list on the table to avoid invoking this again.
+		self[ Event ] = HooksByIndex
+
+		return HooksByIndex
+	end
+} )
+
+-- Sort nodes by priority. Equal priority nodes will be placed in insertion order
+-- as the linked list will insert before the first node that is strictly after the
+-- one being inserted (as opposed to before the first node that is not strictly before).
+local function NodeComparator( A, B )
+	return A.Priority < B.Priority
+end
 
 --[[
 	Removes a function from Shine's internal hook system.
+
+	It is generally not a good idea to remove hooks mid-call, except for the
+	hook currently being executed.
+
 	Inputs: Event, unique identifier.
 ]]
 local function Remove( Event, Index )
-	local EventHooks = Hooks[ Event ]
-	if not EventHooks then return end
+	local Node = HookNodes[ Event ] and HookNodes[ Event ][ Index ]
+	if not Node then return end
 
-	local Priority = ReservedNames[ Event ][ Index ]
-	if not Priority then return end
+	HookNodes[ Event ][ Index ] = nil
+	HooksByEventAndIndex[ Event ][ Index ] = nil
 
-	EventHooks[ Priority ]:Remove( Index )
-	ReservedNames[ Event ][ Index ] = nil
+	-- The linked list allows this removal to be trivial.
+	local Callbacks = Hooks[ Event ]
+	Callbacks:Remove( Node )
 end
 Hook.Remove = Remove
 
+local MAX_PRIORITY = -20
+local DEFAULT_PRIORITY = 0
+local MIN_PRIORITY = 20
+
+Hook.MAX_PRIORITY = MAX_PRIORITY
+Hook.DEFAULT_PRIORITY = DEFAULT_PRIORITY
+Hook.MIN_PRIORITY = MIN_PRIORITY
+
 --[[
 	Adds a function to Shine's internal hook system.
+
+	Ordering is defined by the priority, with lower values being called before higher
+	values. For equal priorities, insertion order is respected.
+
 	Inputs: Event to hook into, unique identifier, function to run, optional priority.
 ]]
 local function Add( Event, Index, Function, Priority )
@@ -50,42 +109,28 @@ local function Add( Event, Index, Function, Priority )
 		Shine.TypeCheck( Priority, "number", 4, "Add" )
 	end
 
-	Priority = Clamp( Floor( Priority or 0 ), -20, 20 )
+	Priority = Clamp( Floor( Priority or DEFAULT_PRIORITY ), MAX_PRIORITY, MIN_PRIORITY )
 
-	if not Hooks[ Event ] then
-		Hooks[ Event ] = {}
-		ReservedNames[ Event ] = {}
-	end
-
-	if ReservedNames[ Event ][ Index ] then
+	-- If this index has already been used, replace it.
+	local Nodes = HookNodes[ Event ]
+	if Nodes and Nodes[ Index ] then
 		Remove( Event, Index )
 	end
 
-	if not Hooks[ Event ][ Priority ] then
-		Hooks[ Event ][ Priority ] = Map()
-	end
+	-- Maintain the order by inserting into the correct position in the
+	-- list of hooks upfront.
+	local Callbacks = Hooks[ Event ]
+	local Node = Callbacks:InsertByComparing( {
+		Priority = Priority,
+		Index = Index,
+		Callback = Function
+	}, NodeComparator )
 
-	Hooks[ Event ][ Priority ]:Add( Index, Function )
-	ReservedNames[ Event ][ Index ] = Priority
+	-- Remember this node for later removal.
+	HookNodes[ Event ][ Index ] = Node
+	HooksByEventAndIndex[ Event ][ Index ] = Function
 end
 Hook.Add = Add
-
-local OnError = Shine.BuildErrorHandler( "Hook error" )
-
-local function CallHooks( HookMap, Event, ... )
-	for Index, Func in HookMap:Iterate() do
-		local Success, a, b, c, d, e, f = xpcall( Func, OnError, ... )
-
-		if not Success then
-			Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-				true, Event, Index )
-
-			Remove( Event, Index )
-		else
-			if a ~= nil then return a, b, c, d, e, f end
-		end
-	end
-end
 
 -- Placeholder until the extensions file is loaded.
 if not Shine.CallExtensionEvent then
@@ -97,43 +142,40 @@ end
 	Inputs: Event name, arguments to pass.
 ]]
 local function Call( Event, ... )
-	if Hook.Disabled then return end
+	local Callbacks = Hooks[ Event ]
 
-	local Hooked = Hooks[ Event ]
+	for Entry in Callbacks:Iterate() do
+		local Success, a, b, c, d, e, f = xpcall( Entry.Callback, OnError, ... )
+		if not Success then
+			-- If the error came from calling extension events, don't remove the hook
+			-- (though it should never happen).
+			if Entry.Index ~= ExtensionIndex then
+				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
+					true, Event, Entry.Index )
 
-	do
-		local MaxPriority = Hooked and Hooked[ -20 ]
-		-- Call max priority hooks BEFORE plugins.
-		if MaxPriority then
-			local a, b, c, d, e, f = CallHooks( MaxPriority, Event, ... )
-			if a ~= nil then return a, b, c, d, e, f end
-		end
-	end
-
-	-- Now call plugins (when loaded).
-	do
-		local a, b, c, d, e, f = Shine:CallExtensionEvent( Event, OnError, ... )
-		if a ~= nil then return a, b, c, d, e, f end
-	end
-
-	if not Hooked then return end
-
-	for i = -19, 20 do
-		local HookMap = Hooked[ i ]
-
-		if HookMap then
-			local a, b, c, d, e, f = CallHooks( HookMap, Event, ... )
-			if a ~= nil then return a, b, c, d, e, f end
+				Remove( Event, Entry.Index )
+			end
+		elseif a ~= nil then
+			return a, b, c, d, e, f
 		end
 	end
 end
 Hook.Call = Call
 
+--[[
+	Clears all hooks for the given event.
+	This is called by CallOnce once it has invoked all hooks.
+]]
 local function ClearHooks( Event )
 	Hooks[ Event ] = nil
-	ReservedNames[ Event ] = nil
+	HooksByEventAndIndex[ Event ] = nil
+	HookNodes[ Event ] = nil
 end
+Hook.Clear = ClearHooks
 
+--[[
+	Calls the given event, then clears all hooks for it.
+]]
 local function CallOnce( Event, ... )
 	local a, b, c, d, e, f = Call( Event, ... )
 
@@ -144,7 +186,7 @@ end
 Hook.CallOnce = CallOnce
 
 function Hook.GetTable()
-	return Hooks
+	return HooksByEventAndIndex
 end
 
 --[[
@@ -467,7 +509,7 @@ if Client then
 
 		SetupClassHook( "HelpScreen", "Display", "OnHelpScreenDisplay", "PassivePost" )
 		SetupClassHook( "HelpScreen", "Hide", "OnHelpScreenHide", "PassivePost" )
-	end, -20 )
+	end, MAX_PRIORITY )
 
 	Add( "Think", "ClientOnFirstThink", function()
 		CallOnce( "OnFirstThink" )

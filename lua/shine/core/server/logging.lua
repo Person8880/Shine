@@ -95,11 +95,11 @@ end
 --Periodically save the log file.
 Shine.Hook.Add( "EndGame", "SaveLog", function()
 	Shine:SaveLog()
-end, -20 )
+end, Shine.Hook.MAX_PRIORITY )
 
 Shine.Hook.Add( "MapChange", "SaveLog", function()
 	Shine:SaveLog()
-end, -20 )
+end, Shine.Hook.MAX_PRIORITY )
 
 Shine.Timer.Create( "LogSave", 300, -1, function()
 	Shine:SaveLog()

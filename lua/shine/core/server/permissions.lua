@@ -177,7 +177,7 @@ function Shine:LoadUsers( Web, Reload )
 			self.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
 				self:RequestUsers()
 				self.Hook.Remove( "ClientConnect", "LoadUsers" )
-			end, -20 )
+			end, self.Hook.MAX_PRIORITY )
 		end
 
 		return
@@ -294,11 +294,11 @@ do
 
 		GameID = GameID + 1
 		GameIDs:Add( Client, GameID )
-	end, -20 )
+	end, Shine.Hook.MAX_PRIORITY )
 
 	Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
 		GameIDs:Remove( Client )
-	end, -20 )
+	end, Shine.Hook.MAX_PRIORITY )
 end
 
 local function GetIDFromClient( Client )

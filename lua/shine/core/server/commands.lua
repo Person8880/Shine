@@ -828,4 +828,4 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if CommandObj.Silent then return "" end
 	if Shine.Config.SilentChatCommands then return "" end
 	if Directive == "/" then return "" end
-end, -20 )
+end, Shine.Hook.MAX_PRIORITY )
