@@ -297,7 +297,10 @@ function Plugin:Initialise()
 	self.Config.BWLimit = Max( self.Config.BWLimit, 5 )
 	self.Config.SendRate = Max( Floor( self.Config.SendRate ), 5 )
 
+	self.dt.AllTalk = self.Config.AllTalkPreGame
+
 	self:CheckRateValues()
+	self:AttemptToConfigureGamerules( GetGamerules and GetGamerules() )
 
 	self.Enabled = true
 
@@ -357,14 +360,13 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 	return Damage, ArmourUsed, HealthUsed
 end
 
-function Plugin:Think()
-	self.dt.AllTalk = self.Config.AllTalkPreGame
+function Plugin:SetGameState( Gamerules, NewState, OldState )
+	self.dt.Gamestate = NewState
+	self:AttemptToConfigureGamerules( Gamerules )
+end
 
-	if self.ConfiguredGamerulesSettings then return end
-
-	local Gamerules = GetGamerules()
-	if not Gamerules then return end
-
+function Plugin:AttemptToConfigureGamerules( Gamerules )
+	if not Gamerules or self.ConfiguredGamerules then return end
 	if not Gamerules.team1 or not Gamerules.team2 then return end
 	if not Gamerules.team1.ejectCommVoteManager or not Gamerules.team2.ejectCommVoteManager then return end
 
@@ -372,11 +374,7 @@ function Plugin:Think()
 	Gamerules.team2.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
 	Gamerules.kStartGameVoteDelay = self.Config.CommanderBotVoteDelayInSeconds
 
-	self.ConfiguredGamerulesSettings = true
-end
-
-function Plugin:SetGameState( Gamerules, NewState, OldState )
-	self.dt.Gamestate = NewState
+	self.ConfiguredGamerules = true
 end
 
 do
@@ -458,6 +456,10 @@ do
 
 		Enabled = Enabled and true or false
 		self.Config[ Type ] = Enabled
+
+		if Type == "AllTalkPreGame" then
+			self.dt.AllTalk = Enabled
+		end
 
 		if not DontSave then
 			self:SaveConfig( true )
