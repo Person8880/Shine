@@ -1100,7 +1100,7 @@ function Plugin:CreateAdminCommands()
 end
 
 function Plugin:CreateAllTalkCommands()
-	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString )
+	local function GenerateAllTalkCommand( Command, ChatCommand, ConfigOption, CommandNotifyString, HelpName )
 		local function CommandFunc( Client, Enable )
 			self:SetAllTalkEnabled( ConfigOption, Enable )
 
@@ -1115,13 +1115,14 @@ function Plugin:CreateAllTalkCommands()
 		local Command = self:BindCommand( Command, ChatCommand, CommandFunc )
 		Command:AddParam{ Type = "boolean", Optional = true,
 			Default = function() return not self.Config[ ConfigOption ] end }
-		Command:Help( StringFormat( "Enables or disables %s.", CommandNotifyString ) )
+		Command:Help( StringFormat( "Enables or disables %s.", HelpName ) )
 	end
 
-	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED" )
+	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "all talk" )
 	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
-		"ALLTALK_PREGAME_TOGGLED" )
-	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal", "ALLTALK_LOCAL_TOGGLED" )
+		"ALLTALK_PREGAME_TOGGLED", "all talk in the pregame" )
+	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal",
+		"ALLTALK_LOCAL_TOGGLED", "local all talk" )
 end
 
 function Plugin:CreateGameplayCommands()
