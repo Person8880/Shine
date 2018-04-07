@@ -404,15 +404,20 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 		return
 	end
 
+	local Time = Params.Time
+	if DataTable.LastMove > Time then return end
+
 	local Player = Client:GetControllingPlayer()
 	if self:IsPlayerFrozen( Player ) then
 		-- Need to double check here, as first person spectate does not call OnProcessMove
-		-- for the player spectating.
+		-- for the player spectating. Ensure their last move time remains frozen.
+		DataTable.LastMove = DataTable.LastMove + ( Time - DataTable.LastMeasurement )
+		DataTable.LastMeasurement = Time
+
 		return
 	end
 
 	local NumPlayers = Params.NumPlayers
-	local Time = Params.Time
 	local KickTime = Params.KickTime
 
 	local TimeSinceLastMove = Time - DataTable.LastMove
@@ -565,8 +570,13 @@ function Plugin:OnProcessMove( Player, Input )
 			-- overzealous kicks.
 			DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * Multiplier, 0 )
 		end
-	elseif not IsPlayerFrozen then
-		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
+	else
+		if not IsPlayerFrozen then
+			DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
+		else
+			-- Effectively freeze their last move time without wiping it completely.
+			DataTable.LastMove = DataTable.LastMove + DeltaTime
+		end
 	end
 
 	DataTable.IsPlayerFrozen = IsPlayerFrozen
