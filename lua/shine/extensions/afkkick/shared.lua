@@ -6,10 +6,7 @@ local Plugin = {}
 Plugin.NotifyPrefixColour = { 255, 50, 0 }
 
 function Plugin:SetupDataTable()
-	self:AddDTVar( "boolean", "CheckSteamOverlay", true )
-
 	self:AddNetworkMessage( "AFKNotify", {}, "Client" )
-	self:AddNetworkMessage( "SteamOverlay", { Open = "boolean" }, "Server" )
 	self:AddTranslatedNotify( "WARN_KICK_ON_CONNECT", {
 		AFKTime = "integer"
 	} )
@@ -63,41 +60,6 @@ function Plugin:SetupAFKScoreboardPrefix()
 	end
 end
 
-local OVERLAY_TIMER_NAME = "SteamOverlayCheck"
-local GetIsSteamOverlayActive
 function Plugin:OnFirstThink()
-	GetIsSteamOverlayActive = Client.GetIsSteamOverlayActive
 	self:SetupAFKScoreboardPrefix()
-
-	if self.dt.CheckSteamOverlay then
-		self:SetupSteamOverlayCheck()
-	end
-end
-
-function Plugin:NetworkUpdate( Key, Old, New )
-	if Key == "CheckSteamOverlay" then
-		if New then
-			self:SetupSteamOverlayCheck()
-		else
-			self:DestroyTimer( OVERLAY_TIMER_NAME )
-		end
-	end
-end
-
-function Plugin:SetupSteamOverlayCheck()
-	self:CreateTimer( OVERLAY_TIMER_NAME, 1, -1, function()
-		self:CheckSteamOverlay()
-	end )
-end
-
-local SteamOverlayIsOpen = false
-function Plugin:CheckSteamOverlay()
-	local CurrentOverlayState = GetIsSteamOverlayActive()
-
-	-- Watch the Steam overlay. If it's opened, then the server should ignore all input
-	-- from the player until it closes, thus treating them as AFK.
-	if CurrentOverlayState ~= SteamOverlayIsOpen then
-		SteamOverlayIsOpen = CurrentOverlayState
-		self:SendNetworkMessage( "SteamOverlay", { Open = SteamOverlayIsOpen }, true )
-	end
 end
