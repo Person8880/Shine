@@ -218,6 +218,25 @@ UnitTest:Test( "Iterate", function( Assert )
 	Assert.Equals( "Iteration didn't iterate all values", 5, i )
 end )
 
+UnitTest:Test( "Iterate and remove", function( Assert )
+	local List = Shine.LinkedList()
+	local Nodes = {}
+	for i = 1, 5 do
+		Nodes[ i ] = List:Add( i )
+	end
+
+	local i = 0
+	for Value in List:Iterate() do
+		i = i + 1
+		Assert:Equals( i, Value )
+		-- Node still points at next node, so iteration should be unaffected.
+		List:Remove( Nodes[ i ] )
+	end
+
+	Assert.Equals( "Iteration didn't iterate all values", 5, i )
+	Assert.Equals( "List should be empty after iteration", 0, List:GetCount() )
+end )
+
 UnitTest:Test( "IterateNodes", function( Assert )
 	local List = Shine.LinkedList()
 	local Nodes = {}
