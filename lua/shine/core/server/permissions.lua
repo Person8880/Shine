@@ -230,9 +230,7 @@ function Shine:SaveUsers( Silent )
 	local Success, Err = self.SaveJSONFile( self.UserData, UserPath )
 
 	if not Success then
-		self.Error = "Error writing user file: "..Err
-
-		Notify( self.Error )
+		Notify( "Error writing user file: "..Err )
 
 		return
 	end

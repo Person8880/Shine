@@ -17,14 +17,6 @@ function Shine.LoadScripts( Scripts, OnLoadedFuncs )
 	for i = 1, #Scripts do
 		include( "lua/shine/"..Scripts[ i ] )
 
-		if Shine.Error then
-			if Shine.Hook then
-				Shine.Hook.Disabled = true
-			end
-
-			break
-		end
-
 		if OnLoadedFuncs[ Scripts[ i ] ] then
 			OnLoadedFuncs[ Scripts[ i ] ]()
 		end

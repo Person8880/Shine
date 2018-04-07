@@ -47,10 +47,4 @@ local OnLoadedFuncs = {
 
 Shine.LoadScripts( Scripts, OnLoadedFuncs )
 
-if Shine.Error then
-	Shared.Message( "Shine failed to start. Check the console for errors." )
-
-	return
-end
-
 Shine:Print( "Shine started up successfully." )
