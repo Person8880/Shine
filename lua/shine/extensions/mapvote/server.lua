@@ -64,8 +64,8 @@ Plugin.DefaultConfig = {
 			-- Constraint on the number of voters needed to pass a map vote.
 			-- Percentage applies to the current server player count.
 			MinVotesRequired = {
-				Type = Plugin.ConstraintType.ABSOLUTE,
-				Value = 0
+				Type = Plugin.ConstraintType.PERCENT,
+				Value = 0.6
 			},
 			-- Constraint on the number of voters needed to end a map vote early.
 			-- Percentage applies to the current server player count.
