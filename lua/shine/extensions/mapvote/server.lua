@@ -97,6 +97,7 @@ Plugin.DefaultConfig = {
 	ChangeDelayInSeconds = 10, -- Time in seconds to wait before changing map after a vote (gives time for veto)
 	VoteDelayInMinutes = 10, -- Time to wait in minutes after map change/vote fail before voting can occur.
 	BlockAfterRoundTimeInMinutes = 0, -- Time in minutes after a round start to block starting map votes.
+	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
 
 	ShowVoteChoices = true, -- Show who votes for what map.
 	MaxOptions = 4, -- Max number of options to provide.
@@ -318,6 +319,7 @@ function Plugin:Initialise()
 
 	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end,
 		self:WrapCallback( function() self:StartVote() end ) )
+	self:SetupVoteTimeout( self.StartingVote, self.Config.VoteTimeoutInSeconds )
 	function self.StartingVote.OnReset()
 		self:ResetVoteCounters()
 	end

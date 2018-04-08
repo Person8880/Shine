@@ -404,13 +404,8 @@ function Plugin:Initialise()
 		self:ApplyRandomSettings()
 	end
 
-	local function OnTimeout( Vote )
-		if Vote.LastVoted and SharedTime() - Vote.LastVoted > self.Config.VoteTimeout then
-			Vote:Reset()
-		end
-	end
-
-	self.Vote = Shine:CreateVote( GetVotesNeeded, self:WrapCallback( OnVotePassed ), OnTimeout )
+	self.Vote = Shine:CreateVote( GetVotesNeeded, self:WrapCallback( OnVotePassed ) )
+	self:SetupVoteTimeout( self.Vote, self.Config.VoteTimeout )
 	function self.Vote.OnReset()
 		self:ResetVoteCounters()
 	end
@@ -987,13 +982,6 @@ function Plugin:AddVote( Client )
 	end
 
 	return true
-end
-
---[[
-	Timeout the vote.
-]]
-function Plugin:Think()
-	self.Vote:Think()
 end
 
 Plugin.Stage = table.AsEnum{

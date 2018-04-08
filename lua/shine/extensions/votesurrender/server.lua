@@ -57,20 +57,16 @@ function Plugin:Initialise()
 	ClampConfigOption( "PercentNeededInEarlyGame", 0, 1 )
 	ClampConfigOption( "LastCommandStructureMinHealthPercent", 0, 1 )
 
-	local function VoteTimeout( Vote )
-		local LastVoted = Vote.LastVoted
-		if LastVoted and SharedTime() - LastVoted > self.Config.VoteTimeout then
-			Vote:Reset()
-		end
-	end
-
 	self.Votes = {
 		Shine:CreateVote( function() return self:GetVotesNeeded( 1 ) end,
-			self:WrapCallback( function() self:Surrender( 1 ) end ), VoteTimeout ),
+			self:WrapCallback( function() self:Surrender( 1 ) end ) ),
 
 		Shine:CreateVote( function() return self:GetVotesNeeded( 2 ) end,
-			self:WrapCallback( function() self:Surrender( 2 ) end ), VoteTimeout )
+			self:WrapCallback( function() self:Surrender( 2 ) end ) )
 	}
+	for i = 1, 2 do
+		self:SetupVoteTimeout( self.Votes[ i ], self.Config.VoteTimeout, "VoteTimeout"..i )
+	end
 
 	self.NextVote = 0
 	self.dt.ConcedeTime = self.Config.VoteDelay
@@ -175,15 +171,6 @@ function Plugin:AddVote( Client, Team )
 	if not Success then return false, Err end
 
 	return true
-end
-
---[[
-	Timeout the vote. 1 minute and no votes should reset it.
-]]
-function Plugin:Think()
-	for i = 1, 2 do
-		self.Votes[ i ]:Think()
-	end
 end
 
 --[[

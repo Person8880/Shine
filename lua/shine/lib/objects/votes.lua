@@ -35,10 +35,16 @@ function VoteMeta:SetTimeout( Func )
 	self.Timeout = Func
 end
 
+function VoteMeta:SetTimeoutDuration( DurationInSeconds )
+	self:SetTimeout( function( self )
+		if self.LastVoted and SharedTime() - self.LastVoted > DurationInSeconds then
+			self:Reset()
+		end
+	end )
+end
+
 function VoteMeta:Think()
-	if self.Timeout then
-		self:Timeout()
-	end
+	self:Timeout()
 end
 
 function VoteMeta:Reset()

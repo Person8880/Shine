@@ -18,6 +18,13 @@ if not Plugin.HandlesVoteConfig then
 	}
 end
 
+function Module:SetupVoteTimeout( Vote, TimeoutInSeconds, TimerName )
+	Vote:SetTimeoutDuration( TimeoutInSeconds )
+	self:CreateTimer( TimerName or "VoteTimeout", 1, -1, function()
+		Vote:Think()
+	end )
+end
+
 local function IsNotBot( Client )
 	return Client.GetIsVirtual and not Client:GetIsVirtual()
 end
