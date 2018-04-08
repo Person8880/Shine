@@ -199,9 +199,7 @@ do
 			self.ConfigPath or GetConfigPath( false, true ) )
 
 		if not ConfigFile then -- Something's gone horribly wrong!
-			Shine.Error = "Error writing config file: "..Err
-
-			Notify( Shine.Error )
+			Notify( "Error writing config file: "..Err )
 
 			return
 		end
@@ -338,7 +336,7 @@ function Shine:LoadExtensionConfigs()
 					self:LoadWebPlugins( DontEnableNow, true )
 				end )
 			end
-		end, -20 )
+		end, self.Hook.MAX_PRIORITY )
 	end
 end
 
@@ -564,6 +562,4 @@ end
 
 Shine:LoadExtensionConfigs()
 
-if not Shine.Error then
-	Shine.Hook.CallOnce( "PostloadConfig" )
-end
+Shine.Hook.CallOnce( "PostloadConfig" )

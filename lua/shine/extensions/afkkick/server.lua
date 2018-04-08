@@ -10,12 +10,13 @@ local GetMaxPlayers = Server.GetMaxPlayers
 local GetNumPlayersTotal = Server.GetNumPlayersTotal
 local GetOwner = Server.GetOwner
 local Max = math.max
-local xpcall = xpcall
+local Random = math.random
 local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
+local xpcall = xpcall
 
 local Plugin = Plugin
-Plugin.Version = "1.8"
+Plugin.Version = "1.9"
 Plugin.PrintName = "AFKKick"
 
 Plugin.HasConfig = true
@@ -41,7 +42,10 @@ Plugin.DefaultConfig = {
 	KickOnConnect = false,
 	KickTimeIsAFKThreshold = 0.25,
 	MarkPlayersAFK = true,
-	CheckSteamOverlay = true,
+	-- How frequently to sample player movement (in seconds, defaulting to ~4 times per second).
+	-- Lower values will have a negative impact on performance, while higher values will reduce
+	-- the accuracy of AFK checks.
+	SampleIntervalInSeconds = 0.25,
 	WarnActions = {
 		-- Actions to perform to players when they are warned.
 		-- May be any of: MoveToSpectate, MoveToReadyRoom, Notify
@@ -261,6 +265,8 @@ do
 			self:CreateTimer( "AFKCheck", 1, -1, function() self:EvaluatePlayers() end )
 		end
 
+		self.SampleInterval = self.Config.SampleIntervalInSeconds
+
 		self.Enabled = true
 
 		return true
@@ -330,6 +336,7 @@ function Plugin:ClientConnect( Client )
 	self.Users:Add( Client, {
 		LastMove = MeasureStartTime,
 		LastMeasurement = MeasureStartTime,
+		NextSample = MeasureStartTime,
 		AFKAmount = 0,
 		Pos = Player:GetOrigin(),
 		Ang = Player:GetViewAngles(),
@@ -355,17 +362,9 @@ function Plugin:ResetAFKTime( Client )
 	end
 end
 
-function Plugin:IsSteamOverlayOpenFor( DataTable )
-	return DataTable.SteamOverlayIsOpen and self.Config.CheckSteamOverlay
-end
-
 function Plugin:SubtractAFKTime( Client, Time )
 	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
-
-	-- Do not subtract any time if the player's Steam overlay is open.
-	-- It could be possible to leave the voice chat button going with it open.
-	if self:IsSteamOverlayOpenFor( DataTable ) then return end
 
 	DataTable.Warn = false
 	DataTable.LastMove = SharedTime()
@@ -375,20 +374,6 @@ function Plugin:SubtractAFKTime( Client, Time )
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
 		Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
-	end
-end
-
-function Plugin:ReceiveSteamOverlay( Client, Data )
-	local DataTable = self.Users:Get( Client )
-	if not DataTable then return end
-
-	-- Players with their Steam overlay open are treated as AFK, regardless of
-	-- input received.
-	DataTable.SteamOverlayIsOpen = Data.Open
-
-	if self.Logger:IsTraceEnabled() then
-		self.Logger:Trace( "Steam overlay of %s is now %s.", Shine.GetClientInfo( Client ),
-			Data.Open and "open" or "closed" )
 	end
 end
 
@@ -419,15 +404,20 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 		return
 	end
 
+	local Time = Params.Time
+	if DataTable.LastMove > Time then return end
+
 	local Player = Client:GetControllingPlayer()
 	if self:IsPlayerFrozen( Player ) then
 		-- Need to double check here, as first person spectate does not call OnProcessMove
-		-- for the player spectating.
+		-- for the player spectating. Ensure their last move time remains frozen.
+		DataTable.LastMove = DataTable.LastMove + ( Time - DataTable.LastMeasurement )
+		DataTable.LastMeasurement = Time
+
 		return
 	end
 
 	local NumPlayers = Params.NumPlayers
-	local Time = Params.Time
 	local KickTime = Params.KickTime
 
 	local TimeSinceLastMove = Time - DataTable.LastMove
@@ -461,11 +451,10 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 			local WarnActions = self:GetWarnActions( IsPartiallyImmune )
 
 			if self.Logger:IsDebugEnabled() then
-				self.Logger:Debug( "Applying %s warn actions to %s as their last move time was %.2f vs. %.2f (no movement for %.2f seconds). Steam overlay is %s.",
+				self.Logger:Debug( "Applying %s warn actions to %s as their last move time was %.2f vs. %.2f (no movement for %.2f seconds).",
 					IsPartiallyImmune and "partial immunity" or "normal",
 					Shine.GetClientInfo( Client ),
-					DataTable.LastMove, Time, TimeSinceLastMove,
-					DataTable.SteamOverlayIsOpen and "open" or "closed" )
+					DataTable.LastMove, Time, TimeSinceLastMove )
 			end
 
 			for i = 1, #WarnActions do
@@ -484,9 +473,8 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 		self.Logger:Info( "Client %s was AFK for over %s. Player count: %d. Min Players: %d. Kicking...",
 			Shine.GetClientInfo( Client ), StringTimeToString( KickTime ),
 			NumPlayers, self.Config.MinPlayers )
-		self.Logger:Debug( "AFK amount was %.2f vs. time since last move of %.2f. Steam overlay is %s.",
-			AFKAmount, TimeSinceLastMove,
-			DataTable.SteamOverlayIsOpen and "open" or "closed" )
+		self.Logger:Debug( "AFK amount was %.2f vs. time since last move of %.2f.",
+			AFKAmount, TimeSinceLastMove )
 
 		self:KickClient( Client )
 	end
@@ -507,6 +495,7 @@ function Plugin:EvaluatePlayers()
 		NumPlayers = NumPlayers,
 		Gamerules = Gamerules
 	}
+
 	for Client, DataTable in self.Users:Iterate() do
 		self:EvaluatePlayer( Client, DataTable, Params )
 	end
@@ -533,7 +522,13 @@ function Plugin:OnProcessMove( Player, Input )
 	if not DataTable then return end
 
 	local Time = SharedTime()
-	if DataTable.LastMove > Time then return end
+	if DataTable.LastMove > Time or DataTable.NextSample > Time then return end
+
+	-- Sample input in a fixed interval. We don't necessarily need to see every single
+	-- move command to know if they're AFK (and we work on delta-time between measurements
+	-- so we don't really care how long a time there is between them.)
+	-- We apply a random offset to the time to avoid clients being able to predict the window.
+	DataTable.NextSample = Time + self.SampleInterval + Random() * self.SampleInterval * 0.5
 
 	local IsSpectator = Player:GetTeamNumber() == kSpectatorIndex
 	if IsSpectator and self.Config.IgnoreSpectators then
@@ -542,7 +537,7 @@ function Plugin:OnProcessMove( Player, Input )
 	end
 
 	local Pitch, Yaw = Input.pitch, Input.yaw
-	local DeltaTime = Time - DataTable.LastMeasurement
+	local DeltaTime = Max( Time - DataTable.LastMeasurement, 0 )
 
 	DataTable.LastMeasurement = Time
 
@@ -556,7 +551,7 @@ function Plugin:OnProcessMove( Player, Input )
 	-- Track frozen player's input, but do not punish them if they are not providing any.
 	local IsPlayerFrozen = self:IsPlayerFrozen( Player )
 
-	if not ( MovementIsEmpty and AnglesMatch or self:IsSteamOverlayOpenFor( DataTable ) ) then
+	if not ( MovementIsEmpty and AnglesMatch ) then
 		DataTable.LastMove = Time
 
 		local Leniency = self:GetLeniency( self:IsClientPartiallyImmune( Client ) )
@@ -575,8 +570,13 @@ function Plugin:OnProcessMove( Player, Input )
 			-- overzealous kicks.
 			DataTable.AFKAmount = Max( DataTable.AFKAmount - DeltaTime * Multiplier, 0 )
 		end
-	elseif not IsPlayerFrozen then
-		DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
+	else
+		if not IsPlayerFrozen then
+			DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
+		else
+			-- Effectively freeze their last move time without wiping it completely.
+			DataTable.LastMove = DataTable.LastMove + DeltaTime
+		end
 	end
 
 	DataTable.IsPlayerFrozen = IsPlayerFrozen

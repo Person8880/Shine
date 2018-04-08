@@ -368,6 +368,12 @@ function Panel:SetMaxHeight( Height, ForceInstantScroll )
 	end
 end
 
+function Panel:ScrollToBottom( Smoothly )
+	if not SGUI.IsValid( self.Scrollbar ) then return end
+
+	self.Scrollbar:ScrollToBottom( Smoothly )
+end
+
 function Panel:SetScrollbarPos( Pos )
 	self.ScrollPos = Pos
 

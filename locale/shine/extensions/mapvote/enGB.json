@@ -17,6 +17,7 @@
 	"VOTE_FAIL_ALREADY_VOTED": "You have already voted to begin a map vote.",
 	"VOTE_FAIL_INVALID_MAP": "{MapName} is not a valid map choice.",
 	"VOTE_FAIL_VOTED_MAP": "You have already voted for {MapName}",
+	"VOTE_FAIL_TOO_LATE": "It is too far into the current round to begin a map vote.",
 	"TEAM_CHANGE_FAIL_VOTE": "You cannot join a team whilst the map vote is in progress.",
 	"TEAM_CHANGE_FAIL_MAP_CHANGE": "The map is now changing, you cannot join a team.",
 	"EXTENDING_ROUND": "Extending the current map for another round.",

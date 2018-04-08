@@ -15,7 +15,6 @@ local select = select
 local StringByte = string.byte
 local StringChar = string.char
 local StringFormat = string.format
-local StringLen = string.len
 local StringSub = string.sub
 local TableConcat = table.concat
 local TableReverse = table.Reverse
@@ -1890,47 +1889,27 @@ local function TypeCheck( Arg, Type, ArgNumber, FuncName )
 	end
 end
 
-local ByteRules = {
-	{
-		{ 1, 127 }
-	},
-	{
-		{ 194, 223 },
-		{ 128, 191 }
-	},
-	{
-		{ 224, 239 },
-		{ 128, 191 },
-		{ 128, 191 },
-		EdgeCases = function( Bytes )
-			if Bytes[ 1 ] == 224 and ( Bytes[ 2 ] < 160 or Bytes[ 2 ] > 191 ) then
-				return false
-			end
-			if Bytes[ 1 ] == 237 and ( Bytes[ 2 ] < 128 or Bytes[ 2 ] > 159 ) then
-				return false
-			end
+local function IdentityValid( Bytes ) return Bytes end
 
-			return true
-		end
-	},
-	{
-		{ 240, 244 },
-		{ 128, 191 },
-		{ 128, 191 },
-		{ 128, 191 },
-		EdgeCases = function( Bytes )
-			if Bytes[ 1 ] == 240 and ( Bytes[ 2 ] < 144 or Bytes[ 2 ] > 191 ) then
-				return false
-			end
-			if Bytes[ 1 ] == 244 and ( Bytes[ 2 ] < 128 or Bytes[ 2 ] > 143 ) then
-				return false
-			end
+local function IsValidContinuationByte( Byte )
+	-- Leftmost 2 bits must be 10
+	return Byte and BitBand( Byte, 0xC0 ) == 0x80
+end
 
-			return true
-		end
-	}
-}
-local NumRules = #ByteRules
+local function GetNumContinuationBytes( FirstByte )
+	return FirstByte >= 0xF0 and 3 or FirstByte >= 0xE0 and 2 or 1
+end
+
+local ValidityChecks = {}
+for i = 0xC2, 0xF4 do
+	ValidityChecks[ i ] = IdentityValid
+end
+-- Check for overlong encoding.
+ValidityChecks[ 0xE0 ] = function( Bytes ) return Bytes[ 2 ] >= 0xA0 and Bytes or nil end
+ValidityChecks[ 0xF0 ] = function( Bytes ) return Bytes[ 2 ] >= 0x90 and Bytes or nil end
+ValidityChecks[ 0xF4 ] = function( Bytes ) return Bytes[ 2 ] <= 0x8F and Bytes or nil end
+-- Check for UTF-16 surrogate halves (0xD800 - 0xDFFF).
+ValidityChecks[ 0xED ] = function( Bytes ) return Bytes[ 2 ] <= 0x9F and Bytes or nil end
 
 --[[
 	Returns the bytes used by the UTF-8 character.
@@ -1941,44 +1920,32 @@ local NumRules = #ByteRules
 local function GetUTF8Bytes( String, Index )
 	Index = Index or 1
 
-	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
-	TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
-
 	local FirstByte = StringByte( String, Index )
 	if not FirstByte then return nil end
 
-	for i = 1, NumRules do
-		local Rule = ByteRules[ i ]
-		local FirstInterval = Rule[ 1 ]
-
-		if FirstByte >= FirstInterval[ 1 ] and FirstByte <= FirstInterval[ 2 ] then
-			local Matches = true
-			local Bytes = { FirstByte }
-
-			for j = 2, i do
-				local Interval = Rule[ j ]
-				local CurByte = StringByte( String, Index + j - 1 )
-
-				if not CurByte or ( CurByte < Interval[ 1 ] or CurByte > Interval[ 2 ] ) then
-					Matches = false
-					break
-				end
-
-				Bytes[ j ] = CurByte
-			end
-
-			if Matches then
-				local EdgeCases = Rule.EdgeCases
-				if not EdgeCases or EdgeCases( Bytes ) then
-					return Bytes
-				end
-			end
-
-			break
-		end
+	if FirstByte < 0x80 then
+		-- Trivial case, no continuation bytes.
+		return { FirstByte }
 	end
 
-	return nil
+	if FirstByte < 0xC2 or FirstByte > 0xF4 then
+		-- Byte is invalid, or a continuation byte.
+		return nil
+	end
+
+	local NumContinuationBytes = GetNumContinuationBytes( FirstByte )
+	local Bytes = { FirstByte }
+	for i = 1, NumContinuationBytes do
+		local Byte = StringByte( String, Index + i )
+		if not IsValidContinuationByte( Byte ) then
+			-- Every continuation byte must have the same 10xxxxxx structure.
+			return nil
+		end
+
+		Bytes[ i + 1 ] = Byte
+	end
+
+	return ValidityChecks[ FirstByte ]( Bytes )
 end
 
 --[[
@@ -2003,6 +1970,11 @@ end
 	Output: True if valid, false otherwise.
 ]]
 function string.IsValidUTF8( String, Index )
+	TypeCheck( String, "string", 1, "IsValidUTF8" )
+	if Index then
+		TypeCheck( Index, "number", 2, "IsValidUTF8" )
+	end
+
 	return GetUTF8Bytes( String, Index ) ~= nil
 end
 
@@ -2013,6 +1985,11 @@ end
 	Output: Up to 4 bytes of data. Returns nil if the character is invalid UTF8.
 ]]
 function string.GetUTF8Bytes( String, Index )
+	TypeCheck( String, "string", 1, "GetUTF8Bytes" )
+	if Index then
+		TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
+	end
+
 	local Bytes = GetUTF8Bytes( String, Index )
 	if Bytes then
 		return unpack( Bytes )
@@ -2024,36 +2001,34 @@ end
 ]]
 local function UTF8Char( Char )
 	if Char < 0 or Char > 0x10FFFF then
-		error( "bad argument #1 to UTF8Char (out of range)", 2 )
+		error( "bad argument #1 to 'UTF8Char' (out of range)", 2 )
 	end
-
-	local Byte1, Byte2, Byte3, Byte4
 
 	if Char < 0x80 then
 		return StringChar( Char )
 	end
 
 	if Char < 0x800 then
-		Byte1 = BitBor( 0xC0, BitBand( BitRShift( Char, 6 ), 0x1F ) )
-		Byte2 = BitBor( 0x80, BitBand( Char, 0x3F ) )
-
-		return StringChar( Byte1, Byte2 )
+		return StringChar(
+			BitBor( 0xC0, BitBand( BitRShift( Char, 6 ), 0x1F ) ),
+			BitBor( 0x80, BitBand( Char, 0x3F ) )
+		)
 	end
 
 	if Char < 0x10000 then
-		Byte1 = BitBor( 0xE0, BitBand( BitRShift( Char, 12 ), 0x0F ) )
-		Byte2 = BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) )
-		Byte3 = BitBor( 0x80, BitBand( Char, 0x3F ) )
-
-		return StringChar( Byte1, Byte2, Byte3 )
+		return StringChar(
+			BitBor( 0xE0, BitBand( BitRShift( Char, 12 ), 0x0F ) ),
+			BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) ),
+			BitBor( 0x80, BitBand( Char, 0x3F ) )
+		)
 	end
 
-	Byte1 = BitBor( 0xF0, BitBand( BitRShift( Char, 18 ), 0x07 ) )
-	Byte2 = BitBor( 0x80, BitBand( BitRShift( Char, 12 ), 0x3F ) )
-	Byte3 = BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) )
-	Byte4 = BitBor( 0x80, BitBand( Char, 0x3F ) )
-
-	return StringChar( Byte1, Byte2, Byte3, Byte4 )
+	return StringChar(
+		BitBor( 0xF0, BitBand( BitRShift( Char, 18 ), 0x07 ) ),
+		BitBor( 0x80, BitBand( BitRShift( Char, 12 ), 0x3F ) ),
+		BitBor( 0x80, BitBand( BitRShift( Char, 6 ), 0x3F ) ),
+		BitBor( 0x80, BitBand( Char, 0x3F ) )
+	)
 end
 string.UTF8Char = UTF8Char
 
@@ -2061,7 +2036,7 @@ do
 	local function GetMask( Bits )
 		local Mask = 1
 		for i = 1, Bits do
-			Mask = Mask + 2 ^ i
+			Mask = Mask + BitLShift( 1, i )
 		end
 		return Mask
 	end
@@ -2100,12 +2075,13 @@ do
 	end
 end
 
+local REPLACEMENT_CHAR = UTF8Char( 0xFFFD )
 --[[
 	Encodes a string into valid UTF-8, returning a table of UTF-8 characters.
 ]]
 local function UTF8Encode( String )
 	local CurByte = 1
-	local Bytes = StringLen( String )
+	local Bytes = #String
 	local Count = 0
 	local Chars = {}
 
@@ -2115,7 +2091,7 @@ local function UTF8Encode( String )
 
 		if not CharBytes then
 			CharBytes = 1
-			Char = UTF8Char( 0xFFFD )
+			Char = REPLACEMENT_CHAR
 		else
 			Char = StringSub( String, CurByte, CurByte + CharBytes - 1 )
 		end

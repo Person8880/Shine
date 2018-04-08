@@ -17,37 +17,39 @@ UnitTest:Test( "GetUTF8Bytes", function( Assert )
 	end
 
 	-- 1 byte sequence, invalid first byte
-	Assert:Nil( GetBytesForChar( 128 ) )
-	Assert:Nil( GetBytesForChar( 245 ) )
+	Assert:Nil( GetBytesForChar( 0x80 ) )
+	Assert:Nil( GetBytesForChar( 0xF5 ) )
 
 	-- 2 byte sequence, invalid second byte
-	Assert:Nil( GetBytesForChar( 194, 1 ) )
-	Assert:Nil( GetBytesForChar( 194, 200 ) )
+	Assert:Nil( GetBytesForChar( 0xC2, 0x1 ) )
+	Assert:Nil( GetBytesForChar( 0xC2, 0xC0 ) )
 
 	-- 3 byte sequence, invalid second/third bytes
-	Assert:Nil( GetBytesForChar( 224, 1, 1 ) )
-	Assert:Nil( GetBytesForChar( 224, 200, 1 ) )
-	Assert:Nil( GetBytesForChar( 224, 160, 1 ) )
-	Assert:Nil( GetBytesForChar( 224, 160, 200 ) )
+	Assert:Nil( GetBytesForChar( 0xE0, 0xC0, 0x80 ) )
+	Assert:Nil( GetBytesForChar( 0xE0, 0x1, 0x80 ) )
+	Assert:Nil( GetBytesForChar( 0xE0, 0xA0, 0xC0 ) )
+	Assert:Nil( GetBytesForChar( 0xE0, 0xA0, 0x1 ) )
 
-	-- Edge case 1, byte 1 = 224
-	Assert:Nil( GetBytesForChar( 224, 128, 128 ) )
-	Assert:Nil( GetBytesForChar( 224, 192, 128 ) )
-	-- Edge case 2, byte 1 = 237
-	Assert:Nil( GetBytesForChar( 237, 160, 128 ) )
+	-- Edge case, byte 1 = 0xE0 (overlong encoding)
+	Assert:Nil( GetBytesForChar( 0xE0, 0x80, 0x80 ) )
+	Assert:Nil( GetBytesForChar( 0xE0, 0xC0, 0x80 ) )
+	-- Edge case, byte 1 = 0xED (UTF-16 surrogate half)
+	Assert:Nil( GetBytesForChar( 0xED, 0xA0, 0x80 ) )
 
 	-- 4 byte sequence, invalid second/third/fourth bytes
-	Assert:Nil( GetBytesForChar( 240, 1, 1, 1 ) )
-	Assert:Nil( GetBytesForChar( 240, 200, 1, 1 ) )
-	Assert:Nil( GetBytesForChar( 240, 144, 1, 1 ) )
-	Assert:Nil( GetBytesForChar( 240, 144, 200, 1 ) )
-	Assert:Nil( GetBytesForChar( 240, 144, 128, 1 ) )
-	Assert:Nil( GetBytesForChar( 240, 144, 128, 200 ) )
+	Assert:Nil( GetBytesForChar( 0xF0, 0x1, 0x80, 0x80 ) )
+	Assert:Nil( GetBytesForChar( 0xF0, 0xC0, 0x80, 0x80 ) )
 
-	-- Edge case 1, byte 1 = 240
-	Assert:Nil( GetBytesForChar( 240, 128, 128, 128 ) )
-	-- Edge case 2, byte 1 = 244
-	Assert:Nil( GetBytesForChar( 244, 144, 128, 128 ) )
+	Assert:Nil( GetBytesForChar( 0xF0, 0x90, 0x1, 0x80 ) )
+	Assert:Nil( GetBytesForChar( 0xF0, 0x90, 0xC0, 0x80 ) )
+
+	Assert:Nil( GetBytesForChar( 0xF0, 0x90, 0x80, 0x1 ) )
+	Assert:Nil( GetBytesForChar( 0xF0, 0x90, 0x80, 0xC0 ) )
+
+	-- Edge case, byte 1 = 0xF0 (overlong encoding)
+	Assert:Nil( GetBytesForChar( 0xF0, 0x80, 0x80, 0x80 ) )
+	-- Edge case, byte 1 = 0xF4 (overlong encoding)
+	Assert:Nil( GetBytesForChar( 0xF4, 0x90, 0x80, 0x80 ) )
 end )
 
 UnitTest:Test( "UTF8Char", function( Assert )
@@ -65,8 +67,18 @@ UnitTest:Test( "UTF8Encode", function( Assert )
 
 	local InvalidChar = StringChar( 128, 245 )
 	local ReplacementChar = string.UTF8Char( 0xFFFD )
-	Assert:ArrayEquals( { ReplacementChar, ReplacementChar }, string.UTF8Encode( InvalidChar ) )
-	Assert:ArrayEquals( { ReplacementChar, "$" }, string.UTF8Encode( StringChar( 128, 0x24 ) ) )
+
+	Assert.ArrayEquals(
+		"Should replace both invalid bytes with the replacement character",
+		{ ReplacementChar, ReplacementChar },
+		string.UTF8Encode( InvalidChar )
+	)
+
+	Assert.ArrayEquals(
+		"Should replace invalid bytes with the replacement character, but leave valid bytes alone",
+		{ ReplacementChar, ReplacementChar, "$", ReplacementChar, "$" },
+		string.UTF8Encode( StringChar( 128, 245, 0x24, 128, 0x24 ) )
+	)
 
 	Assert:ArrayEquals( { "$", "¢", "€", "𐍈" }, string.UTF8Encode( "$¢€𐍈" ) )
 end )

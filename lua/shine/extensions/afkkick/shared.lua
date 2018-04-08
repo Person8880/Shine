@@ -7,7 +7,6 @@ Plugin.NotifyPrefixColour = { 255, 50, 0 }
 
 function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "AFKNotify", {}, "Client" )
-	self:AddNetworkMessage( "SteamOverlay", { Open = "boolean" }, "Server" )
 	self:AddTranslatedNotify( "WARN_KICK_ON_CONNECT", {
 		AFKTime = "integer"
 	} )
@@ -61,20 +60,6 @@ function Plugin:SetupAFKScoreboardPrefix()
 	end
 end
 
-local GetIsSteamOverlayActive
 function Plugin:OnFirstThink()
-	GetIsSteamOverlayActive = Client.GetIsSteamOverlayActive
 	self:SetupAFKScoreboardPrefix()
-end
-
-local SteamOverlayIsOpen = false
-function Plugin:Think()
-	local CurrentOverlayState = GetIsSteamOverlayActive()
-
-	-- Watch the Steam overlay. If it's opened, then the server should ignore all input
-	-- from the player until it closes, thus treating them as AFK.
-	if CurrentOverlayState ~= SteamOverlayIsOpen then
-		SteamOverlayIsOpen = CurrentOverlayState
-		self:SendNetworkMessage( "SteamOverlay", { Open = SteamOverlayIsOpen }, true )
-	end
 end

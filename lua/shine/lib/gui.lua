@@ -284,7 +284,7 @@ Hook.Add( "PlayerKeyPress", "SGUICtrlMonitor", function( Key, Down )
 	elseif SGUI.IsShiftKey( Key ) then
 		SGUI.SpecialKeyStates.Shift = Down or false
 	end
-end, -20 )
+end, Hook.MAX_PRIORITY )
 
 function SGUI.IsShiftKey( Key )
 	return Key == InputKey.LeftShift or Key == InputKey.RightShift

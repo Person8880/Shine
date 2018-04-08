@@ -177,7 +177,7 @@ function Shine:LoadUsers( Web, Reload )
 			self.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
 				self:RequestUsers()
 				self.Hook.Remove( "ClientConnect", "LoadUsers" )
-			end, -20 )
+			end, self.Hook.MAX_PRIORITY )
 		end
 
 		return
@@ -230,9 +230,7 @@ function Shine:SaveUsers( Silent )
 	local Success, Err = self.SaveJSONFile( self.UserData, UserPath )
 
 	if not Success then
-		self.Error = "Error writing user file: "..Err
-
-		Notify( self.Error )
+		Notify( "Error writing user file: "..Err )
 
 		return
 	end
@@ -294,11 +292,11 @@ do
 
 		GameID = GameID + 1
 		GameIDs:Add( Client, GameID )
-	end, -20 )
+	end, Shine.Hook.MAX_PRIORITY )
 
 	Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
 		GameIDs:Remove( Client )
-	end, -20 )
+	end, Shine.Hook.MAX_PRIORITY )
 end
 
 local function GetIDFromClient( Client )

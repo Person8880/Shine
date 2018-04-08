@@ -12,6 +12,7 @@ local Shine = Shine
 local Max = math.max
 local setmetatable = setmetatable
 local SharedTime = Shared.GetTime
+local StringFormat = string.format
 local TableEmpty = table.Empty
 
 local VoteMeta = {}
@@ -34,10 +35,16 @@ function VoteMeta:SetTimeout( Func )
 	self.Timeout = Func
 end
 
+function VoteMeta:SetTimeoutDuration( DurationInSeconds )
+	self:SetTimeout( function( self )
+		if self.LastVoted and SharedTime() - self.LastVoted > DurationInSeconds then
+			self:Reset()
+		end
+	end )
+end
+
 function VoteMeta:Think()
-	if self.Timeout then
-		self:Timeout()
-	end
+	self:Timeout()
 end
 
 function VoteMeta:Reset()
@@ -104,6 +111,10 @@ end
 
 function VoteMeta:GetVotes()
 	return self.Votes
+end
+
+function VoteMeta:__tostring()
+	return StringFormat( "Vote[%s / %s]", self.Votes, self.VotesNeeded() )
 end
 
 function Shine:CreateVote( VotesNeeded, OnSuccess, Timeout )

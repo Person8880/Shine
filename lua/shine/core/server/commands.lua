@@ -563,7 +563,7 @@ local function MatchStringRestriction( ParsedArg, Restriction )
 
 	-- Escape any patterns in the string.
 	Restriction = StringPatternSafe( Restriction )
-	Restriction = StringGSub( Restriction, "*", "(.-)" ).."$"
+	Restriction = StringGSub( Restriction, "%%%*", "(.-)" ).."$"
 
 	return StringFind( ParsedArg, Restriction ) ~= nil
 end
@@ -828,4 +828,4 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if CommandObj.Silent then return "" end
 	if Shine.Config.SilentChatCommands then return "" end
 	if Directive == "/" then return "" end
-end, -20 )
+end, Shine.Hook.MAX_PRIORITY )

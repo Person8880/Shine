@@ -17,11 +17,15 @@ local TableCount = table.Count
 local tonumber = tonumber
 
 local Plugin = Plugin
-Plugin.Version = "1.9"
+Plugin.Version = "1.10"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
 Plugin.PrintName = "Map Vote"
+
+Plugin.ConstraintType = table.AsEnum{
+	"PERCENT", "ABSOLUTE"
+}
 
 Plugin.DefaultConfig = {
 	GetMapsFromMapCycle = true, -- Get the valid votemaps directly from the mapcycle file.
@@ -46,13 +50,13 @@ Plugin.DefaultConfig = {
 			-- Constraint on the number of voters needed to pass a start vote.
 			-- Percentage applies to the current server player count.
 			MinVotesRequired = {
-				Type = "PERCENT",
+				Type = Plugin.ConstraintType.PERCENT,
 				Value = 0.6
 			},
 			-- Constraint on the number of players needed to start a vote.
 			-- Percentage applies to the max player slot count.
 			MinPlayers = {
-				Type = "ABSOLUTE",
+				Type = Plugin.ConstraintType.ABSOLUTE,
 				Value = 10
 			}
 		},
@@ -60,13 +64,13 @@ Plugin.DefaultConfig = {
 			-- Constraint on the number of voters needed to pass a map vote.
 			-- Percentage applies to the current server player count.
 			MinVotesRequired = {
-				Type = "ABSOLUTE",
-				Value = 0
+				Type = Plugin.ConstraintType.PERCENT,
+				Value = 0.6
 			},
 			-- Constraint on the number of voters needed to end a map vote early.
 			-- Percentage applies to the current server player count.
 			MinVotesToFinish = {
-				Type = "PERCENT",
+				Type = Plugin.ConstraintType.PERCENT,
 				Value = 0.8
 			}
 		},
@@ -74,13 +78,13 @@ Plugin.DefaultConfig = {
 			-- Constraint on the number of voters needed to pass a next map vote.
 			-- Percentage applies to the current server player count.
 			MinVotesRequired = {
-				Type = "ABSOLUTE",
+				Type = Plugin.ConstraintType.ABSOLUTE,
 				Value = 0
 			},
 			-- Constraint on the number of voters needed to end a next map vote early.
 			-- Percentage applies to the current server player count.
 			MinVotesToFinish = {
-				Type = "PERCENT",
+				Type = Plugin.ConstraintType.PERCENT,
 				-- Never finish early by default.
 				Value = 2
 			}
@@ -89,18 +93,23 @@ Plugin.DefaultConfig = {
 
 	MaxNominationsPerPlayer = 3, -- The maximum number of maps an individual player can nominate.
 
-	VoteLength = 1, -- Time in minutes a vote should last before failing.
-	ChangeDelay = 10, -- Time in seconds to wait before changing map after a vote (gives time for veto)
-	VoteDelay = 10, -- Time to wait in minutes after map change/vote fail before voting can occur.
+	VoteLengthInMinutes = 1, -- Time in minutes a vote should last before failing.
+	ChangeDelayInSeconds = 10, -- Time in seconds to wait before changing map after a vote (gives time for veto)
+	VoteDelayInMinutes = 10, -- Time to wait in minutes after map change/vote fail before voting can occur.
+	BlockAfterRoundTimeInMinutes = 0, -- Time in minutes after a round start to block starting map votes.
+	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
 
 	ShowVoteChoices = true, -- Show who votes for what map.
 	MaxOptions = 4, -- Max number of options to provide.
 	ForceMenuOpenOnMapVote = false, -- Whether to force the map vote menu to show when a vote starts.
 
 	AllowExtend = true, -- Allow going to the same map to be an option.
-	ExtendTime = 15, -- Time in minutes to extend the map.
+	ExtendTimeInMinutes = 15, -- Time in minutes to extend the map.
 	MaxExtends = 1, -- Maximum number of map extensions.
 	AlwaysExtend = true, -- Always show an option to extend the map if not past the max extends.
+	-- Treat similarly named maps to the current map as extensions
+	-- (and thus prevent them from being an option when extension is denied)
+	ConsiderSimilarMapsAsExtension = false,
 
 	TieFails = false, -- A tie means the vote fails.
 	ChooseRandomOnTie = true, -- Choose randomly between the tied maps. If not, a revote is called.
@@ -109,17 +118,19 @@ Plugin.DefaultConfig = {
 	EnableRTV = true, -- Enables RTV voting.
 
 	EnableNextMapVote = true, -- Enables the vote to choose the next map.
-	NextMapVote = 1, -- How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
+	NextMapVoteMapTimeFraction = 1, -- How far into a game to begin a vote for the next map. Setting to 1 queues for the end of the map.
 	RoundLimit = 0, -- How many rounds should the map last for? This overrides time based cycling.
 
-	ForceChange = 60, -- How long left on the current map when a round ends that should force a change to the next map.
+	ForceChangeWhenSecondsLeft = 60, -- How long left on the current map when a round ends that should force a change to the next map.
 	CycleOnEmpty = false, -- Should the map cycle when the server's empty and it's past the map's time limit?
 	EmptyPlayerCount = 0, -- How many players defines 'empty'?
 
 	-- How many previous maps should be excluded from votes?
 	ExcludeLastMaps = {
 		Min = 0,
-		Max = 0
+		Max = 0,
+		-- Should the exclusion match exact names, or all similar maps?
+		UseStrictMatching = true
 	}
 }
 
@@ -145,31 +156,31 @@ Plugin.ConfigMigrationSteps = {
 			Config.Constraints = {
 				StartVote = {
 					MinVotesRequired = {
-						Type = "PERCENT",
+						Type = Plugin.ConstraintType.PERCENT,
 						Value = tonumber( Config.PercentToStart ) or 0.6
 					},
 					MinPlayers = {
-						Type = "ABSOLUTE",
+						Type = Plugin.ConstraintType.ABSOLUTE,
 						Value = tonumber( Config.MinPlayers ) or 10
 					}
 				},
 				MapVote = {
 					MinVotesRequired = {
-						Type = "PERCENT",
+						Type = Plugin.ConstraintType.PERCENT,
 						Value = 0
 					},
 					MinVotesToFinish = {
-						Type = "PERCENT",
+						Type = Plugin.ConstraintType.PERCENT,
 						Value = tonumber( Config.PercentToFinish ) or 0.8
 					}
 				},
 				NextMapVote = {
 					MinVotesRequired = {
-						Type = "ABSOLUTE",
+						Type = Plugin.ConstraintType.ABSOLUTE,
 						Value = 0
 					},
 					MinVotesToFinish = {
-						Type = "PERCENT",
+						Type = Plugin.ConstraintType.PERCENT,
 						Value = 2
 					}
 				}
@@ -177,6 +188,25 @@ Plugin.ConfigMigrationSteps = {
 			Config.PercentToStart = nil
 			Config.MinPlayers = nil
 			Config.PercentToFinish = nil
+		end
+	},
+	{
+		VersionTo = "1.10",
+		Apply = function( Config )
+			Config.VoteLengthInMinutes = Config.VoteLength
+			Config.ChangeDelayInSeconds = Config.ChangeDelay
+			Config.VoteDelayInMinutes = Config.VoteDelay
+
+			Config.ExtendTimeInMinutes = Config.ExtendTime
+
+			Config.NextMapVoteMapTimeFraction = Config.NextMapVote
+			Config.ForceChangeWhenSecondsLeft = Config.ForceChange
+
+			if not IsType( Config.ExcludeLastMaps, "table" ) then return end
+
+			if Config.ExcludeLastMaps.UseStrictMatching == nil then
+				Config.ExcludeLastMaps.UseStrictMatching = true
+			end
 		end
 	}
 }
@@ -203,16 +233,16 @@ Shine.LoadPluginFile( "mapvote", "voting.lua" )
 
 do
 	local StringUpper = string.upper
-	Plugin.ConstraintType = table.AsEnum{
-		"PERCENT", "ABSOLUTE"
-	}
 
 	local Validator = Shine.Validator()
-	Validator:AddFieldRule( "ForceChange", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "ForceChangeWhenSecondsLeft", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "RoundLimit", Validator.Min( 0 ) )
-	Validator:AddFieldRule( "VoteLength", Validator.Min( 0.25 ) )
-	Validator:AddFieldRule( "VoteLength", Validator.Clamp( 0, 1 ) )
+	Validator:AddFieldRule( "ChangeDelayInSeconds", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "VoteLengthInMinutes", Validator.Min( 0.25 ) )
+	Validator:AddFieldRule( "VoteLengthInMinutes", Validator.Clamp( 0, 1 ) )
+	Validator:AddFieldRule( "NextMapVoteMapTimeFraction", Validator.Clamp( 0, 1 ) )
 	Validator:AddFieldRule( "ExcludeLastMaps.Min", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "ExcludeLastMaps.UseStrictMatching", Validator.IsType( "boolean", true ) )
 	Validator:AddRule( {
 		Matches = function( self, Config )
 			local Constraints = Config.Constraints
@@ -278,15 +308,18 @@ function Plugin:Initialise()
 	self.Round = 0
 
 	self.Vote = self.Vote or {}
-	self.Vote.NextVote = self.Vote.NextVote or ( SharedTime() + ( self.Config.VoteDelay * 60 ) )
+	self.Vote.NextVote = self.Vote.NextVote or ( SharedTime() + self:GetVoteDelay() )
 	self.Vote.Nominated = {} -- Table of nominated maps.
 	self.Vote.NominationTracker = {} -- Tracks the amount of times someone's nominated a map.
 	self.Vote.Votes = 0 -- Number of map votes that have taken place.
 	self.Vote.Voted = {} -- Table of players that have voted for a map.
 	self.Vote.TotalVotes = 0 -- Number of votes in the current map vote.
 
+	self.VoteDisableTime = math.huge
+
 	self.StartingVote = Shine:CreateVote( function() return self:GetVotesNeededToStart() end,
 		self:WrapCallback( function() self:StartVote() end ) )
+	self:SetupVoteTimeout( self.StartingVote, self.Config.VoteTimeoutInSeconds )
 	function self.StartingVote.OnReset()
 		self:ResetVoteCounters()
 	end
@@ -316,12 +349,12 @@ function Plugin:Initialise()
 	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
 
 	if self.Config.EnableNextMapVote and AllowVotes then
-		if self.Config.NextMapVote == 1 or self.Config.RoundLimit > 0 then
+		if self.Config.NextMapVoteMapTimeFraction >= 1 or self.Config.RoundLimit > 0 then
 			self.VoteOnEnd = true
 		else
 			local Time = SharedTime()
 			local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
-			self.NextMapVoteTime = Time + CycleTime * self.Config.NextMapVote
+			self.NextMapVoteTime = Time + CycleTime * self.Config.NextMapVoteMapTimeFraction
 		end
 	end
 
@@ -354,6 +387,7 @@ function Plugin:Initialise()
 
 	self:LoadLastMaps()
 	self:CreateCommands()
+	self:SetupEmptyCheckTimer()
 
 	self.Enabled = true
 
@@ -445,7 +479,7 @@ function Plugin:EndGame()
 			self:StartVote( true )
 		end
 
-		if TimeLeft <= self.Config.ForceChange then
+		if TimeLeft <= self.Config.ForceChangeWhenSecondsLeft then
 			if not self:VoteStarted() and not self.VoteOnEnd then
 				self:SendTranslatedNotify( nil, "MapCycling", {
 					MapName = self:GetNextMap()

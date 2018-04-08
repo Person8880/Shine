@@ -57,20 +57,16 @@ function Plugin:Initialise()
 	ClampConfigOption( "PercentNeededInEarlyGame", 0, 1 )
 	ClampConfigOption( "LastCommandStructureMinHealthPercent", 0, 1 )
 
-	local function VoteTimeout( Vote )
-		local LastVoted = Vote.LastVoted
-		if LastVoted and SharedTime() - LastVoted > self.Config.VoteTimeout then
-			Vote:Reset()
-		end
-	end
-
 	self.Votes = {
 		Shine:CreateVote( function() return self:GetVotesNeeded( 1 ) end,
-			self:WrapCallback( function() self:Surrender( 1 ) end ), VoteTimeout ),
+			self:WrapCallback( function() self:Surrender( 1 ) end ) ),
 
 		Shine:CreateVote( function() return self:GetVotesNeeded( 2 ) end,
-			self:WrapCallback( function() self:Surrender( 2 ) end ), VoteTimeout )
+			self:WrapCallback( function() self:Surrender( 2 ) end ) )
 	}
+	for i = 1, 2 do
+		self:SetupVoteTimeout( self.Votes[ i ], self.Config.VoteTimeout, "VoteTimeout"..i )
+	end
 
 	self.NextVote = 0
 	self.dt.ConcedeTime = self.Config.VoteDelay
@@ -87,6 +83,13 @@ end
 	If a round has started, we set the next vote time to current time + delay.
 ]]
 function Plugin:SetGameState( Gamerules, State, OldState )
+	if State >= kGameState.Started then
+		-- Game has started/ended, reset the votes.
+		for i = 1, 2 do
+			self.Votes[ i ]:Reset()
+		end
+	end
+
 	if State == kGameState.Started then
 		self.NextVote = SharedTime() + ( self.Config.VoteDelay * 60 )
 	end
@@ -171,15 +174,6 @@ function Plugin:AddVote( Client, Team )
 end
 
 --[[
-	Timeout the vote. 1 minute and no votes should reset it.
-]]
-function Plugin:Think()
-	for i = 1, 2 do
-		self.Votes[ i ]:Think()
-	end
-end
-
---[[
 	Remove a client's vote if they disconnect!
 ]]
 function Plugin:ClientDisconnect( Client )
@@ -209,7 +203,11 @@ end
 ]]
 function Plugin:Surrender( Team )
 	local Gamerules = GetGamerules()
-	if not Gamerules then return end
+	if not Gamerules or Gamerules:GetGameState() ~= kGameState.Started then return end
+
+	for i = 1, 2 do
+		self.Votes[ i ]:Reset()
+	end
 
 	Shine.SendNetworkMessage( "TeamConceded", { teamNumber = Team } )
 

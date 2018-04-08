@@ -51,13 +51,8 @@ if Server then
 				self:OnVotePassed()
 			end
 
-			local function OnTimeout( Vote )
-				if Vote.LastVoted and SharedTime() - Vote.LastVoted > self.Config.VoteTimeoutInSeconds then
-					Vote:Reset()
-				end
-			end
-
-			self.Vote = Shine:CreateVote( GetVotesNeeded, self:WrapCallback( OnVotePassed ), OnTimeout )
+			self.Vote = Shine:CreateVote( GetVotesNeeded, self:WrapCallback( OnVotePassed ) )
+			self:SetupVoteTimeout( self.Vote, self.Config.VoteTimeoutInSeconds )
 			function self.Vote.OnReset()
 				self:ResetVoteCounters()
 			end
@@ -65,10 +60,6 @@ if Server then
 			self:CreateCommands()
 
 			return true
-		end
-
-		function Module:Think()
-			self.Vote:Think()
 		end
 
 		function Module:GetVotesNeeded()

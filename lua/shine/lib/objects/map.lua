@@ -7,6 +7,7 @@ local Clamp = math.Clamp
 local getmetatable = getmetatable
 local IsType = Shine.IsType
 local pairs = pairs
+local TableEmpty = table.Empty
 local TableRemove = table.remove
 
 local Map = Shine.TypeDef()
@@ -33,6 +34,14 @@ function Map:Init( InitialValues )
 	end
 
 	return self
+end
+
+function Map:Clear()
+	TableEmpty( self.Keys )
+	TableEmpty( self.MemberLookup )
+
+	self.Position = 0
+	self.NumMembers = 0
 end
 
 function Map:IsEmpty()
@@ -318,6 +327,11 @@ function Multimap:Init( Values )
 	end
 
 	return self
+end
+
+function Multimap:Clear()
+	Map.Clear( self )
+	self.Count = 0
 end
 
 --[[

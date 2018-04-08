@@ -159,11 +159,15 @@ function Plugin:IsValidMapChoice( Map, PlayerCount )
 	return true
 end
 
+function Plugin:GetCurrentMap()
+	return Shared.GetMapName()
+end
+
 --[[
 	Returns the next map in the map cycle or the map that's been voted for next.
 ]]
 function Plugin:GetNextMap()
-	local CurMap = Shared.GetMapName()
+	local CurMap = self:GetCurrentMap()
 
 	local Winner = self.NextMap.Winner
 	if Winner and Winner ~= CurMap then return Winner end --Winner decided.
@@ -227,18 +231,21 @@ function Plugin:GetNextMap()
 	return Map
 end
 
-function Plugin:Think()
+function Plugin:SetupEmptyCheckTimer()
 	if not self.Config.CycleOnEmpty then return end
-	if SharedTime() <= ( self.MapCycle.time * 60 ) then return end
-	if Shine.GameIDs:GetCount() > self.Config.EmptyPlayerCount then return end
 
-	if not self.Cycled then
-		self.Cycled = true
+	self:CreateTimer( "EmptyCheck", 1, -1, function()
+		if SharedTime() <= ( self.MapCycle.time * 60 ) then return end
+		if Shine.GameIDs:GetCount() > self.Config.EmptyPlayerCount then return end
 
-		Shine:LogString( "Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..." )
+		if not self.Cycled then
+			self.Cycled = true
 
-		MapCycle_ChangeMap( self:GetNextMap() )
-	end
+			Shine:LogString( "Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..." )
+
+			MapCycle_ChangeMap( self:GetNextMap() )
+		end
+	end )
 end
 
 local LastMapsFile = "config://shine/temp/lastmaps.json"
@@ -261,7 +268,7 @@ function Plugin:SaveLastMaps()
 	end
 
 	-- Store the last played maps in an ever repeating cycle.
-	local CurrentMap = Shared.GetMapName()
+	local CurrentMap = self:GetCurrentMap()
 	for i = #Data, 1, -1 do
 		if Data[ i ] == CurrentMap then
 			TableRemove( Data, i )
@@ -292,7 +299,7 @@ function Plugin:LoadMapStats()
 end
 
 function Plugin:SaveMapStats()
-	local Map = Shared.GetMapName()
+	local Map = self:GetCurrentMap()
 
 	self.MapStats[ Map ] = ( self.MapStats[ Map ] or 0 ) + 1
 

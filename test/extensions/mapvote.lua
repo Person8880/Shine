@@ -85,7 +85,8 @@ end )
 MapVote.Config.MaxOptions = 5
 MapVote.Config.ExcludeLastMaps = {
 	Min = 0,
-	Max = 0
+	Max = 0,
+	UseStrictMatching = true
 }
 MapVote.LastMapData = {
 	"ns2_refinery", "ns2_veil", "ns2_summit", "ns2_kodiak"
@@ -120,7 +121,8 @@ UnitTest:Test( "RemoveLastMaps - Min and max == 0", function( Assert )
 end )
 
 MapVote.Config.ExcludeLastMaps = {
-	Min = 3
+	Min = 3,
+	UseStrictMatching = true
 }
 
 UnitTest:Test( "RemoveLastMaps - Min == auto and no max", function( Assert )
@@ -173,7 +175,8 @@ end )
 
 MapVote.Config.ExcludeLastMaps = {
 	Min = 2,
-	Max = 2
+	Max = 2,
+	UseStrictMatching = true
 }
 
 UnitTest:Test( "RemoveLastMaps - Min and max equal", function( Assert )
@@ -204,7 +207,8 @@ end )
 
 MapVote.Config.ExcludeLastMaps = {
 	Min = 1,
-	Max = 2
+	Max = 2,
+	UseStrictMatching = true
 }
 
 UnitTest:Test( "RemoveLastMaps - Min and max not equal", function( Assert )
@@ -235,7 +239,8 @@ end )
 
 MapVote.Config.ExcludeLastMaps = {
 	Min = 2,
-	Max = 4
+	Max = 4,
+	UseStrictMatching = true
 }
 
 UnitTest:Test( "RemoveLastMaps - Min and max not equal, max larger than auto", function( Assert )
@@ -262,6 +267,180 @@ UnitTest:Test( "RemoveLastMaps - Min and max not equal, max larger than auto", f
 		ns2_biodome = true
 	} ), PotentialMaps )
 end )
+
+MapVote.Config.ExcludeLastMaps = {
+	Min = 2,
+	Max = 4,
+	UseStrictMatching = false
+}
+
+MapVote.LastMapData = {
+	"ns2_refinery", "ns2_veil", "ns2_tram_nextstop", "ns2_kodiak"
+}
+
+UnitTest:Test( "RemoveLastMaps - Non-strict matching removes similar maps", function( Assert )
+	local PotentialMaps = Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} )
+	local FinalChoices = Shine.Set()
+
+	MapVote:RemoveLastMaps( PotentialMaps, FinalChoices )
+
+	-- Should remove the last 3 maps, matching ns2_veil vs. ns2_veil_five
+	-- and ns2_tram vs. ns2_tram_nextstop.
+	Assert:Equals( Shine.Set( {
+		ns2_summit = true,
+		ns2_derelict = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} ), PotentialMaps )
+end )
+
+MapVote.Config.ExcludeLastMaps = {
+	Min = 2,
+	Max = 4,
+	UseStrictMatching = true
+}
+
+UnitTest:Test( "RemoveLastMaps - Strict matching removes only exactly matching maps", function( Assert )
+	local PotentialMaps = Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} )
+	local FinalChoices = Shine.Set()
+
+	MapVote:RemoveLastMaps( PotentialMaps, FinalChoices )
+
+	-- Should remove only ns2_kodiak as it's the only one with an exact match in the
+	-- last 3 maps.
+	Assert:Equals( Shine.Set( {
+		ns2_summit = true,
+		ns2_derelict = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true,
+		ns2_tram = true,
+		ns2_veil_five = true
+	} ), PotentialMaps )
+end )
+
+function MapVote:GetCurrentMap()
+	return "ns2_derelict"
+end
+
+MapVote.Config.ConsiderSimilarMapsAsExtension = true
+function MapVote:CanExtend() return false end
+
+UnitTest:Test( "AddCurrentMap - ConsiderSimilarMapsAsExtension excludes similar maps when enabled", function( Assert )
+	local PotentialMaps = Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict = true,
+		ns2_derelict_awesomeedition = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} )
+	local FinalChoices = Shine.Set()
+
+	MapVote:AddCurrentMap( PotentialMaps, FinalChoices )
+
+	-- Should remove both maps that are akin to ns2_derelict.
+	Assert:Equals( Shine.Set( {
+		ns2_tram = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} ), PotentialMaps )
+end )
+
+MapVote.Config.ConsiderSimilarMapsAsExtension = false
+
+UnitTest:Test( "AddCurrentMap - ConsiderSimilarMapsAsExtension includes similar maps when disabled", function( Assert )
+	local PotentialMaps = Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict = true,
+		ns2_derelict_awesomeedition = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} )
+	local FinalChoices = Shine.Set()
+
+	MapVote:AddCurrentMap( PotentialMaps, FinalChoices )
+
+	-- Should remove only ns2_derelict.
+	Assert:Equals( Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict_awesomeedition = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} ), PotentialMaps )
+end )
+
+function MapVote:CanExtend() return true end
+MapVote.Config.AlwaysExtend = true
+
+UnitTest:Test( "AddCurrentMap - AlwaysExtend adds map to final choices", function( Assert )
+	local PotentialMaps = Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict = true,
+		ns2_derelict_awesomeedition = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} )
+	local FinalChoices = Shine.Set()
+
+	MapVote:AddCurrentMap( PotentialMaps, FinalChoices )
+
+	-- Should remove the current map from the potential set, and add it to the final choices.
+	Assert:Equals( Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict_awesomeedition = true,
+		ns2_veil_five = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_refinery = true,
+		ns2_descent = true,
+		ns2_biodome = true
+	} ), PotentialMaps )
+	Assert.Equals( "Set of final choices does not include current map!", Shine.Set( {
+		ns2_derelict = true
+	} ), FinalChoices )
+end )
+
+MapVote.CanExtend = nil
+MapVote.Config.AlwaysExtend = false
 
 MapVote.Config.Maps = {
 	ns2_tram = true,
