@@ -6,9 +6,14 @@ local Clock = os.clock
 
 local Clickable = {}
 
+local function GetClickMethod( self, Key )
+	return Key == InputKey.MouseButton0 and self.DoClick or self.DoRightClick
+end
+
 function Clickable:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 and Key ~= InputKey.MouseButton1 then return end
 	if not self:MouseInControl() then return end
+	if not GetClickMethod( self, Key ) then return end
 
 	return true, self
 end
@@ -32,7 +37,7 @@ function Clickable:OnMouseUp( Key )
 
 	self.NextClick = Time + ( self.ClickDelay or 0.1 )
 
-	CallClickMethod( self, Key == InputKey.MouseButton0 and self.DoClick or self.DoRightClick )
+	CallClickMethod( self, GetClickMethod( self, Key ) )
 end
 
 Shine.GUI:RegisterMixin( "Clickable", Clickable )

@@ -1,5 +1,6 @@
 {
 	"ADD_BAN": "Anna porttikielti",
+	"ADD_BAN_TITLE": "Anna porttikielti",
 	"SELECT_PLAYER": "Valitse pelaaja.",
 	"DURATION_LABEL": "Kesto (minuuteissa, 0 pysyvästi):",
 	"DURATION_HINT": "Ole hyvä, ja anna kesto...",
@@ -17,5 +18,6 @@
 	"PLAYER_BANNED": "antoi porttikiellon {TargetName} {Duration:NonZero:ajalle }{Duration:Duration:pysyvästi} ({Reason}).",
 	"PLAYER_REQUEST_IN_PROGRESS": "Ole hyvä ja odota, että edellinen porttikielto {ID} on käsitelty loppuun.",
 	"ERROR_NOT_BANNED": "{ID} ei ole porttikieltoa.",
-	"ERROR_INVALID_STEAMID": "Väärä Steam ID porttikiellolle."
+	"ERROR_INVALID_STEAMID": "Väärä Steam ID porttikiellolle.",
+	"CATEGORY": "Porttikiellot"
 }

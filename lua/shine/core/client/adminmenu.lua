@@ -524,6 +524,20 @@ do
 
 				self:RunCommand( Command, GetArgsFromRows( Rows, MultiPlayer ) )
 			end
+		elseif IsType( DoClick, "function" ) then
+			local OldDoClick = DoClick
+			DoClick = function( Button, Rows )
+				if #Rows == 0 then return end
+
+				if not MultiPlayer and #Rows > 1 then
+					self:AskForSinglePlayer()
+					return
+				end
+
+				OldDoClick( Button, Shine.Stream.Of( Rows ):Map( function( Row )
+					return Row:GetColumnText( 2 )
+				end ):AsTable() )
+			end
 		elseif IsType( DoClick, "table" ) then
 			local Data = DoClick
 

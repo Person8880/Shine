@@ -2,5 +2,6 @@
 	"Comm Bans": "Zákaz hraní Commandera",
 	"PLAYER_BANNED": "zakázal hráči {TargetName} hrát Commandera {Duration:NonZero:na dobu }{Duration:Duration:trvale}.",
 	"BANNED_WARNING": "Máte zákaz hraní Commandera {Duration:NonZero:po dobu }{Duration:Duration:trvale}.",
-	"NOTIFY_PREFIX": "[Zákaz Commandera]"
+	"NOTIFY_PREFIX": "[Zákaz Commandera]",
+	"CATEGORY": "Zakázané přístupy"
 }

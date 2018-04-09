@@ -1,5 +1,6 @@
 {
 	"ADD_BAN": "Zakázat přístup",
+	"ADD_BAN_TITLE": "Zakázat přístup",
 	"SELECT_PLAYER": "Zvol hráče.",
 	"DURATION_LABEL": "Doba (v minutách, 0 pro trvale):",
 	"DURATION_HINT": "Prosím zadej dobu trvání...",
@@ -17,5 +18,6 @@
 	"PLAYER_BANNED": "přístup zakázán pro {TargetName} {Duration:NonZero:po dobu }{Duration:Duration:trvale} ({Reason}).",
 	"PLAYER_REQUEST_IN_PROGRESS": "Prosím počkej, než aktuální požadavek na zakázání přístupu pro {ID} bude dokončen.",
 	"ERROR_NOT_BANNED": "{ID} nemá zakázaný přístup.",
-	"ERROR_INVALID_STEAMID": "Neplatný identifikátor Steamu pro zákaz přístupu."
+	"ERROR_INVALID_STEAMID": "Neplatný identifikátor Steamu pro zákaz přístupu.",
+	"CATEGORY": "Zakázané přístupy"
 }

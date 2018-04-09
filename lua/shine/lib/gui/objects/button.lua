@@ -69,6 +69,15 @@ SGUI.AddBoundProperty( Button, "Font", "Text:SetFontName" )
 SGUI.AddBoundProperty( Button, "TextColour", "Text:SetColor" )
 SGUI.AddBoundProperty( Button, "TextScale", "Text:SetScale" )
 
+function Button:GetTextWidth()
+	if not self.Text then return 0 end
+
+	local Scale = self.TextScale
+	Scale = Scale and Scale.x or 1
+
+	return self.Text:GetTextWidth( self.Text:GetText() ) * Scale
+end
+
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
 

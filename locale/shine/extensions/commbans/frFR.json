@@ -2,5 +2,6 @@
 	"Comm Bans": "Bans Comm",
 	"PLAYER_BANNED": "{TargetName} banni du commandement {Duration:NonZero:pour }{Duration:Duration:de façon permanente}.",
 	"BANNED_WARNING": "Vous êtes banni du commandement {Duration:NonZero:pour }{Duration:Duration:de façon permanente}.",
-	"NOTIFY_PREFIX": "[Bans Comm]"
+	"NOTIFY_PREFIX": "[Bans Comm]",
+	"CATEGORY": "Bans"
 }

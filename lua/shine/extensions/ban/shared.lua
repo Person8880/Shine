@@ -70,9 +70,12 @@ end
 
 function Plugin:SetupAdminMenu()
 	local Window
-	local function OpenAddBanWindow()
+	local function OpenAddBanWindow( SteamIDToBan )
 		if SGUI.IsValid( Window ) then
 			SGUI:SetWindowFocus( Window )
+			if SteamIDToBan then
+				Window.IDEntry:SetText( SteamIDToBan )
+			end
 
 			return
 		end
@@ -81,7 +84,8 @@ function Plugin:SetupAdminMenu()
 		Window:SetAnchor( "CentreMiddle" )
 		Window:SetSize( Vector( 400, 328, 0 ) )
 		Window:SetPos( Vector( -200, -164, 0 ) )
-		Window:AddTitleBar( self:GetPhrase( "ADD_BAN" ) )
+		Window:AddTitleBar( self:GetPhrase( "ADD_BAN_TITLE" ) )
+		Window:SetDraggable( true )
 
 		function Window.CloseButton.DoClick()
 			Shine.AdminMenu:DontDestroyOnClose( Window )
@@ -111,11 +115,15 @@ function Plugin:SetupAdminMenu()
 		IDEntry:SetPos( Vector( X, Y, 0 ) )
 		IDEntry:SetFont( Fonts.kAgencyFB_Small )
 		IDEntry:SetNumeric( true )
+		if SteamIDToBan then
+			IDEntry:SetText( SteamIDToBan )
+		end
 		function IDEntry:OnTab()
 			self:LoseFocus()
 
 			DurationEntry:RequestFocus()
 		end
+		Window.IDEntry = IDEntry
 
 		local GetEnts = Shared.GetEntitiesWithClassname
 		local IterateEntList = ientitylist
@@ -233,11 +241,22 @@ function Plugin:SetupAdminMenu()
 
 		local AddBan = SGUI:Create( "Button", Window )
 		AddBan:SetAnchor( "BottomMiddle" )
-		AddBan:SetSize( Vector( 128, 32, 0 ) )
-		AddBan:SetPos( Vector( -64, -44, 0 ) )
 		AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
 		AddBan:SetFont( Fonts.kAgencyFB_Small )
 		AddBan:SetStyleName( "SuccessButton" )
+
+		do
+			local Width = AddBan:GetTextWidth()
+			local Pos = Vector( -64, -44, 0 )
+			local Size = Vector( 128, 32, 0 )
+			if Width > Size.x then
+				Size.x = Width + 16
+				Pos.x = -Size.x * 0.5
+			end
+			AddBan:SetPos( Pos )
+			AddBan:SetSize( Size )
+		end
+
 		function AddBan.DoClick()
 			local ID = tonumber( IDEntry:GetText() )
 			if not ID then return end
@@ -257,6 +276,17 @@ function Plugin:SetupAdminMenu()
 			self:RequestBanData()
 		end
 	end
+
+	self:AddAdminMenuCommand(
+		self:GetPhrase( "CATEGORY" ),
+		self:GetPhrase( "BAN" ),
+		"sh_banid",
+		false,
+		function( Button, IDs )
+			OpenAddBanWindow( IDs[ 1 ] )
+		end,
+		self:GetPhrase( "BAN_TIP" )
+	)
 
 	self:AddAdminMenuTab( self:GetPhrase( self.AdminTab ), {
 		OnInit = function( Panel, Data )

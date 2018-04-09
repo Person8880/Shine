@@ -1,5 +1,6 @@
 {
 	"ADD_BAN": "添加封禁",
+	"ADD_BAN_TITLE": "添加封禁",
 	"SELECT_PLAYER": "选择一位玩家。",
 	"DURATION_LABEL": "持续时间（单位：分钟，0就是永久）：",
 	"DURATION_HINT": "请输入一个持续时间...",
@@ -17,5 +18,6 @@
 	"PLAYER_BANNED": "已封禁{TargetName}{Duration:NonZero:。}{Duration:Duration:，永久。}（{Reason}）",
 	"PLAYER_REQUEST_IN_PROGRESS": "请等待当前封禁{ID}的请求完成。",
 	"ERROR_NOT_BANNED": "{ID}并未被封禁。",
-	"ERROR_INVALID_STEAMID": "封禁了无效的SteamID。"
+	"ERROR_INVALID_STEAMID": "封禁了无效的SteamID。",
+	"CATEGORY": "封禁"
 }
