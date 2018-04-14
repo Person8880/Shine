@@ -15,11 +15,8 @@ local Skin = {
 			ActiveCol = ButtonHighlight,
 			InactiveCol = DarkButton,
 			TextColour = BrightText,
+			HighlightOnMouseOver = true,
 			States = {
-				Enabled = {
-					HighlightOnMouseOver = true,
-					InactiveCol = DarkButton
-				},
 				Disabled = {
 					HighlightOnMouseOver = false,
 					InactiveCol = SGUI.ColourWithAlpha( DarkButton, 0.8 )

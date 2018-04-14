@@ -666,7 +666,7 @@ end
 	Output: Existence and validity.
 ]]
 function SGUI.IsValid( Control )
-	return Control and Control.IsValid and Control:IsValid()
+	return Control and Control.IsValid and Control:IsValid() or false
 end
 
 do
