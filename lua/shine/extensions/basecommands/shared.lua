@@ -7,6 +7,7 @@ local Plugin = {}
 function Plugin:SetupDataTable()
 	self:AddDTVar( "integer (1 to 10)", "Gamestate", 1 )
 	self:AddDTVar( "boolean", "AllTalk", false )
+	self:AddDTVar( "boolean", "AllTalkPreGame", false )
 
 	self:AddNetworkMessage( "RequestMapData", {}, "Server" )
 	self:AddNetworkMessage( "MapData", { Name = "string (32)" }, "Client" )
@@ -94,31 +95,6 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "EnableLocalAllTalk", { Enabled = "boolean" }, "Server" )
 end
 
-function Plugin:NetworkUpdate( Key, Old, New )
-	if Server then return end
-
-	if Key == "Gamestate" then
-		if ( Old == kGameState.PreGame or Old == kGameState.WarmUp ) and New == kGameState.NotStarted then
-			-- The game state changes back to NotStarted, then to Countdown to start. This is VERY annoying...
-			self:SimpleTimer( 1, function()
-				if self.dt.Gamestate == kGameState.NotStarted then
-					self:UpdateAllTalk( self.dt.Gamestate )
-				end
-			end )
-
-			return
-		end
-
-		self:UpdateAllTalk( New )
-	elseif Key == "AllTalk" then
-		if not New then
-			self:RemoveAllTalkText()
-		else
-			self:UpdateAllTalk( self.dt.Gamestate )
-		end
-	end
-end
-
 Shine:RegisterExtension( "basecommands", Plugin )
 
 if Server then return end
@@ -152,7 +128,7 @@ local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
 
 function Plugin:Initialise()
-	if self.dt.AllTalk then
+	if self.dt.AllTalk or self.dt.AllTalkPreGame then
 		self:UpdateAllTalk( self.dt.Gamestate )
 	end
 
@@ -162,6 +138,35 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:NetworkUpdate( Key, Old, New )
+	if Key == "Gamestate" then
+		if ( Old == kGameState.PreGame or Old == kGameState.WarmUp ) and New == kGameState.NotStarted then
+			-- The game state changes back to NotStarted, then to Countdown to start. This is VERY annoying...
+			self:SimpleTimer( 1, function()
+				if self.dt.Gamestate == kGameState.NotStarted then
+					self:UpdateAllTalk( self.dt.Gamestate )
+				end
+			end )
+
+			return
+		end
+
+		self:UpdateAllTalk( New )
+	elseif Key == "AllTalk" then
+		if not New and not self.dt.AllTalkPreGame then
+			self:RemoveAllTalkText()
+		else
+			self:UpdateAllTalk( self.dt.Gamestate )
+		end
+	elseif Key == "AllTalkPreGame" then
+		if New or self.dt.AllTalk then
+			self:UpdateAllTalk( self.dt.Gamestate )
+		else
+			self:RemoveAllTalkText()
+		end
+	end
 end
 
 function Plugin:ReceiveClientKicked( Data )
@@ -557,17 +562,23 @@ local NOT_STARTED = kGameState and kGameState.WarmUp or 2
 local COUNTDOWN = kGameState and kGameState.Countdown or 4
 
 function Plugin:UpdateAllTalk( State )
-	if not self.dt.AllTalk then return end
+	if not self.dt.AllTalk and not self.dt.AllTalkPreGame then return end
 
-	if State >= COUNTDOWN then
+	if State >= COUNTDOWN and not self.dt.AllTalk then
 		self:RemoveAllTalkText()
 		return
 	end
 
-	local Phrase = State > NOT_STARTED and self:GetPhrase( "ALLTALK_DISABLED" ) or self:GetPhrase( "ALLTALK_ENABLED" )
+	local Phrase
+	local AllTalkIsDisabled = State > NOT_STARTED and not self.dt.AllTalk
+	if AllTalkIsDisabled then
+		Phrase = self:GetPhrase( "ALLTALK_DISABLED" )
+	else
+		Phrase = self:GetPhrase( "ALLTALK_ENABLED" )
+	end
 
 	if not self.TextObj then
-		local GB = State > NOT_STARTED and 0 or 255
+		local GB = AllTalkIsDisabled and 0 or 255
 
 		self.TextObj = Shine.ScreenText.Add( "AllTalkState", {
 			X = 0.5, Y = 0.95,
@@ -576,8 +587,56 @@ function Plugin:UpdateAllTalk( State )
 			Alignment = 1,
 			Size = 2,
 			FadeIn = 1,
-			IgnoreFormat = true
+			IgnoreFormat = true,
+			UpdateRate = 0.1
 		} )
+
+		-- Hide the text if the inventory HUD is visible (avoids the text overlapping it).
+		-- There's no easy way to determine its visibility, so this awkward polling will have to do.
+		function self.TextObj:Think()
+			local HUD = ClientUI.GetScript( "Hud/Marine/GUIMarineHUD" ) or ClientUI.GetScript( "GUIAlienHUD" )
+			local Inventory = HUD and HUD.inventoryDisplay
+			local InventoryIsVisible = Inventory and Inventory.background and Inventory.background:GetIsVisible()
+
+			if not ( InventoryIsVisible and Inventory.inventoryIcons ) then
+				self:SetIsVisible( true )
+				return
+			end
+
+			if Inventory.forceAnimationReset then
+				if not self.SetupForVisibleInventory then
+					-- Inventory is always visible, so move text down below it.
+					self.SetupForVisibleInventory = true
+					self:SetIsVisible( true )
+
+					self:SetScaledPos( self.x, 1 )
+					self:SetTextAlignmentY( GUIItem.Align_Max )
+				end
+
+				return
+			end
+
+			if self.SetupForVisibleInventory then
+				-- Inventory is only visible when in use, so we'll hide the text.
+				self.SetupForVisibleInventory = false
+
+				self:SetScaledPos( self.x, 0.95 )
+				self:SetTextAlignmentY( GUIItem.Align_Center )
+			end
+
+			local Items = Inventory.inventoryIcons
+			for i = 1, #Items do
+				local Item = Items[ i ]
+				if Item and Item.Graphic and Item.Graphic:GetColor().a > 0 then
+					-- Inventory is temporarily visible, hide the text.
+					self:SetIsVisible( false )
+					return
+				end
+			end
+
+			-- Inventory is not visible, show the text.
+			self:SetIsVisible( true )
+		end
 
 		return
 	end
@@ -585,7 +644,7 @@ function Plugin:UpdateAllTalk( State )
 	self.TextObj.Text = Phrase
 	self.TextObj:UpdateText()
 
-	local Col = State > NOT_STARTED and Color( 255, 0, 0 ) or Color( 255, 255, 255 )
+	local Col = AllTalkIsDisabled and Color( 255, 0, 0 ) or Color( 255, 255, 255 )
 
 	self.TextObj:SetColour( Col )
 end

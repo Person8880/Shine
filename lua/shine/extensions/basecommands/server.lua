@@ -297,7 +297,8 @@ function Plugin:Initialise()
 	self.Config.BWLimit = Max( self.Config.BWLimit, 5 )
 	self.Config.SendRate = Max( Floor( self.Config.SendRate ), 5 )
 
-	self.dt.AllTalk = self.Config.AllTalkPreGame
+	self.dt.AllTalk = self.Config.AllTalk
+	self.dt.AllTalkPreGame = self.Config.AllTalkPreGame
 
 	self:CheckRateValues()
 	self:AttemptToConfigureGamerules( GetGamerules and GetGamerules() )
@@ -456,10 +457,7 @@ do
 
 		Enabled = Enabled and true or false
 		self.Config[ Type ] = Enabled
-
-		if Type == "AllTalkPreGame" then
-			self.dt.AllTalk = Enabled
-		end
+		self.dt[ Type ] = Enabled
 
 		if not DontSave then
 			self:SaveConfig( true )
@@ -1118,7 +1116,7 @@ function Plugin:CreateAllTalkCommands()
 		Command:Help( StringFormat( "Enables or disables %s.", HelpName ) )
 	end
 
-	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "all talk" )
+	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "global all talk" )
 	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
 		"ALLTALK_PREGAME_TOGGLED", "all talk in the pregame" )
 	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal",

@@ -130,16 +130,7 @@ Hook.Add( "Think", "GetGUIChat", function()
 	end
 end )
 
-local Hooked
-
 function Plugin:Initialise()
-	if not Hooked then
-		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility",
-			"EvaluateUIVisibility", "PassivePost" )
-
-		Hooked = true
-	end
-
 	Shine.LoadPluginFile( "chatbox", "chatline.lua" )
 
 	self.Messages = self.Messages or {}

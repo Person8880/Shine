@@ -509,6 +509,9 @@ if Client then
 
 		SetupClassHook( "HelpScreen", "Display", "OnHelpScreenDisplay", "PassivePost" )
 		SetupClassHook( "HelpScreen", "Hide", "OnHelpScreenHide", "PassivePost" )
+
+		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility",
+			"EvaluateUIVisibility", "PassivePost" )
 	end, MAX_PRIORITY )
 
 	Add( "Think", "ClientOnFirstThink", function()
