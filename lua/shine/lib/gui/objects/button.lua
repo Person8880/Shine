@@ -43,6 +43,7 @@ function Button:SetText( Text )
 	Description:SetTextAlignmentY( GUIItem.Align_Center )
 	Description:SetText( Text )
 	Description:SetColor( self.TextColour )
+	Description:SetInheritsParentAlpha( true )
 
 	if self.Font then
 		Description:SetFontName( self.Font )
@@ -156,6 +157,8 @@ function Button:OnMouseDown( Key, DoubleClick )
 		return true, Child
 	end
 
+	if not self:IsEnabled() then return end
+
 	return self.Mixins.Clickable.OnMouseDown( self, Key, DoubleClick )
 end
 
@@ -184,4 +187,5 @@ function Button:PlayerType( Char )
 end
 
 SGUI:AddMixin( Button, "Clickable" )
+SGUI:AddMixin( Button, "EnableMixin" )
 SGUI:Register( "Button", Button )

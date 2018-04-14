@@ -2,6 +2,8 @@
 	Default Shine GUI skin.
 ]]
 
+local SGUI = Shine.GUI
+
 local WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
 local DarkButton = Colour( 0.2, 0.2, 0.2, 1 )
 local ButtonHighlight = Colour( 0.8, 0.5, 0.1, 1 )
@@ -12,7 +14,17 @@ local Skin = {
 		Default = {
 			ActiveCol = ButtonHighlight,
 			InactiveCol = DarkButton,
-			TextColour = BrightText
+			TextColour = BrightText,
+			States = {
+				Enabled = {
+					HighlightOnMouseOver = true,
+					InactiveCol = DarkButton
+				},
+				Disabled = {
+					HighlightOnMouseOver = false,
+					InactiveCol = SGUI.ColourWithAlpha( DarkButton, 0.8 )
+				}
+			}
 		},
 		CloseButton = {
 			ActiveCol = Colour( 0.7, 0.2, 0.2, 1 ),
@@ -159,4 +171,4 @@ local Skin = {
 	}
 }
 
-Shine.GUI.SkinManager:RegisterSkin( "Default", Skin )
+SGUI.SkinManager:RegisterSkin( "Default", Skin )

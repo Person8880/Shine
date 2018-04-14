@@ -344,15 +344,21 @@ do
 		end
 	end
 
-	local function GenerateButton( Text, DoClick, Tooltip )
+	local function GenerateButton( Data )
 		local Button = SGUI:Create( "Button" )
 		Button:SetSize( Vector( 192, 32, 0 ) )
-		Button:SetText( Text )
+		Button:SetText( Data.Name )
 		Button:SetFont( Fonts.kAgencyFB_Small )
 		Button.DoClick = function( Button )
-			DoClick( Button, PlayerList:GetSelectedRow() )
+			Data.DoClick( Button, PlayerList:GetSelectedRow() )
 		end
-		Button:SetTooltip( Tooltip )
+		Button:SetTooltip( Data.Tooltip )
+		Button.MultiPlayer = Data.MultiPlayer
+
+		local NumSelected = #PlayerList:GetSelectedRows()
+		if NumSelected == 0 or NumSelected > 1 and not Data.MultiPlayer then
+			Button:SetEnabled( false )
+		end
 
 		return Button
 	end
@@ -412,11 +418,9 @@ do
 
 				for j = 1, #CommandList do
 					local CommandData = CommandList[ j ]
-					local Command = CommandData.Name
-					local DoClick = CommandData.DoClick
-					local Tooltip = CommandData.Tooltip
 
-					Commands:AddObject( Name, GenerateButton( Command, DoClick, Tooltip ) )
+					local Button = GenerateButton( CommandData )
+					Commands:AddObject( Name, Button )
 				end
 			end
 
@@ -425,6 +429,16 @@ do
 					if not Expanded then
 						Commands:ContractCategory( Category )
 					end
+				end
+			end
+
+			function PlayerList:OnSelectionChanged( Rows )
+				local Buttons = Commands:GetAllObjects()
+				local NumRows = #Rows
+
+				for i = 1, #Buttons do
+					local Button = Buttons[ i ]
+					Button:SetEnabled( NumRows > 0 and ( NumRows == 1 or Button.MultiPlayer ) )
 				end
 			end
 		end,
@@ -610,15 +624,21 @@ do
 		end
 
 		local CommandsList = CategoryObj.Commands
+		local Data = {
+			Name = Name,
+			DoClick = DoClick,
+			Tooltip = Tooltip,
+			MultiPlayer = MultiPlayer
+		}
 
-		CommandsList[ #CommandsList + 1 ] = { Name = Name, DoClick = DoClick, Tooltip = Tooltip }
+		CommandsList[ #CommandsList + 1 ] = Data
 
 		if Commands then
 			if ShouldAdd then
 				Commands:AddCategory( Category )
 			end
 
-			Commands:AddObject( Category, GenerateButton( Name, DoClick, Tooltip ) )
+			Commands:AddObject( Category, GenerateButton( Data ) )
 		end
 	end
 

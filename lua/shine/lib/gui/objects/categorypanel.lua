@@ -189,13 +189,29 @@ function CategoryPanel:SetCategoryExpanded( Name, Expand )
 	end
 end
 
---Shortcut functions.
+-- Shortcut functions.
 function CategoryPanel:ExpandCategory( Name )
 	self:SetCategoryExpanded( Name, true )
 end
 
 function CategoryPanel:ContractCategory( Name )
 	self:SetCategoryExpanded( Name, false )
+end
+
+function CategoryPanel:GetAllObjects()
+	local AllObjects = {}
+	local Categories = self.Categories
+
+	for i = 1, self.NumCategories do
+		local Category = Categories[ i ]
+		local Objects = Category.Objects
+
+		for j = 1, #Objects do
+			AllObjects[ #AllObjects + 1 ] = Objects[ j ]
+		end
+	end
+
+	return AllObjects
 end
 
 function CategoryPanel:AddObject( CatName, Object )

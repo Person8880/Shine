@@ -325,6 +325,15 @@ function Plugin:SetupAdminMenuCommands()
 				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
 			end
 			ChangeMap:SetTooltip( self:GetPhrase( "CHANGE_MAP_TIP" ) )
+			ChangeMap:SetEnabled( List:HasSelectedRow() )
+
+			function List:OnRowSelected( Index, Row )
+				ChangeMap:SetEnabled( true )
+			end
+
+			function List:OnRowDeselected( Index, Row )
+				ChangeMap:SetEnabled( false )
+			end
 
 			if Shine:IsExtensionEnabled( "mapvote" ) then
 				local CallVote = SGUI:Create( "Button", Panel )
@@ -392,6 +401,7 @@ function Plugin:SetupAdminMenuCommands()
 			UnloadPlugin:SetText( self:GetPhrase( "UNLOAD_PLUGIN" ) )
 			UnloadPlugin:SetFont( Fonts.kAgencyFB_Small )
 			UnloadPlugin:SetStyleName( "DangerButton" )
+			UnloadPlugin:SetEnabled( List:HasSelectedRow() )
 			function UnloadPlugin.DoClick( Button )
 				local Plugin, Enabled = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -419,6 +429,7 @@ function Plugin:SetupAdminMenuCommands()
 			LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
 			LoadPlugin:SetFont( Fonts.kAgencyFB_Small )
 			LoadPlugin:SetStyleName( "SuccessButton" )
+			LoadPlugin:SetEnabled( List:HasSelectedRow() )
 			local function NormalLoadDoClick( Button )
 				local Plugin = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -450,6 +461,9 @@ function Plugin:SetupAdminMenuCommands()
 			function List.OnRowSelected( List, Index, Row )
 				local State = Row.PluginEnabled
 
+				LoadPlugin:SetEnabled( true )
+				UnloadPlugin:SetEnabled( true )
+
 				if State then
 					LoadPlugin:SetText( self:GetPhrase( "RELOAD_PLUGIN" ) )
 					LoadPlugin.DoClick = ReloadDoClick
@@ -457,6 +471,11 @@ function Plugin:SetupAdminMenuCommands()
 					LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
 					LoadPlugin.DoClick = NormalLoadDoClick
 				end
+			end
+
+			function List:OnRowDeselected( Index, Row )
+				LoadPlugin:SetEnabled( false )
+				UnloadPlugin:SetEnabled( false )
 			end
 
 			local function UpdateRow( Name, State )

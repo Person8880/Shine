@@ -336,6 +336,7 @@ function Plugin:SetupAdminMenu()
 
 				Shine.AdminMenu:RunCommand( self.UnbanCommand, ID )
 			end
+			Unban:SetEnabled( List:HasSelectedRow() )
 
 			local LoadMore = SGUI:Create( "Button", Panel )
 			LoadMore:SetAnchor( "BottomMiddle" )
@@ -356,6 +357,14 @@ function Plugin:SetupAdminMenu()
 			AddBan:SetFont( Fonts.kAgencyFB_Small )
 			function AddBan.DoClick()
 				OpenAddBanWindow()
+			end
+
+			function List:OnRowSelected( Index, Row )
+				Unban:SetEnabled( true )
+			end
+
+			function List:OnRowDeselected( Index, Row )
+				Unban:SetEnabled( false )
 			end
 		end,
 

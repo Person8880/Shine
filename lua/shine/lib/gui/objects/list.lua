@@ -537,6 +537,14 @@ function List:GetSelectedRow()
 	return self.SelectedRow
 end
 
+function List:HasSelectedRow()
+	if self.MultiSelect then
+		return #self:GetSelectedRows() > 0
+	end
+
+	return SGUI.IsValid( self.SelectedRow )
+end
+
 function List:OnRowMultiSelect( Index, Row, SelectFromLast )
 	if not SelectFromLast or not self.RootMultiSelectRow then
 		self.RootMultiSelectRow = Row
@@ -566,6 +574,8 @@ function List:OnRowMultiSelect( Index, Row, SelectFromLast )
 			Rows[ i ]:SetSelected( i >= MinIndex and i <= MaxIndex )
 		end
 	end
+
+	self:OnSelectionChanged( self:GetSelectedRows() )
 end
 
 function List:OnRowSelect( Index, Row, SelectFromLast )
@@ -608,12 +618,18 @@ function List:ResetSelection()
 			Rows[ i ]:SetSelected( false )
 		end
 
+		self:OnSelectionChanged( {} )
+
 		return
 	end
 
 	if self.SelectedRow then
 		self:OnRowDeselect( self.SelectedRow.Index, self.SelectedRow )
 	end
+end
+
+function List:OnSelectionChanged( Rows )
+
 end
 
 SGUI.AddProperty( List, "MultiSelect" )
