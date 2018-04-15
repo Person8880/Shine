@@ -275,11 +275,7 @@ do
 end
 
 function Shine:DoCommandNotify( Client, Message, Sender, ... )
-	if not self.Config.NotifyOnCommand then return end
-
-	local Clients = self.GameIDs
 	local IsConsole = not Client
-	local Immunity = self:GetUserImmunity( Client )
 	local Name
 
 	if IsConsole then
@@ -292,6 +288,20 @@ function Shine:DoCommandNotify( Client, Message, Sender, ... )
 			Name = self.Config.ChatName
 		end
 	end
+
+	if not self.Config.NotifyOnCommand then
+		-- Console can see the success already.
+		if IsConsole then return end
+
+		-- Always notify the client that performed the action to confirm
+		-- that their command was a success.
+		Sender( self, Client, Name, Message, ... )
+
+		return
+	end
+
+	local Clients = self.GameIDs
+	local Immunity = self:GetUserImmunity( Client )
 
 	local NotifyAnonymous = self.Config.NotifyAnonymous
 	local NotifyAdminAnonymous = self.Config.NotifyAdminAnonymous
