@@ -573,9 +573,15 @@ ParamTypes.steamid = {
 		if Arg.IgnoreCanTarget then return true end
 
 		if not Shine:CanTarget( Client, ParsedArg ) then
+			local Target = Shine.GetClientByNS2ID( ParsedArg )
+			local Name = ParsedArg
+			if Target then
+				Name = Target:GetControllingPlayer():GetName()
+			end
+
 			SendCommandError( Client, "ERROR_CANT_TARGET", {
-				PlayerName = ParsedArg
-			}, "You do not have permission to target %s.", true, ParsedArg )
+				PlayerName = Name
+			}, "You do not have permission to target %s.", true, Name )
 
 			return false
 		end
