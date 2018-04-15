@@ -610,6 +610,25 @@ function Plugin:UpdateAllTalk( State )
 			UpdateRate = 0.1
 		} )
 
+		function self.TextObj:UpdateForInventoryState( IsAlwaysVisible )
+			if IsAlwaysVisible and not self.SetupForVisibleInventory then
+				-- Inventory is always visible, so move text to the top of the screen
+				-- (some configurations have a giant inventory that extends to the bottom
+				-- of the screen, and the inventory position doesn't account for ammo text).
+				self.SetupForVisibleInventory = true
+				self:SetIsVisible( true )
+
+				self:SetScaledPos( self.x, 0 )
+				self:SetTextAlignmentY( GUIItem.Align_Min )
+			elseif not IsAlwaysVisible and self.SetupForVisibleInventory then
+				-- Inventory is only visible when in use, so we'll hide the text.
+				self.SetupForVisibleInventory = false
+
+				self:SetScaledPos( self.x, 0.95 )
+				self:SetTextAlignmentY( GUIItem.Align_Center )
+			end
+		end
+
 		-- Hide the text if the inventory HUD is visible (avoids the text overlapping it).
 		-- There's no easy way to determine its visibility, so this awkward polling will have to do.
 		function self.TextObj:Think()
@@ -619,29 +638,17 @@ function Plugin:UpdateAllTalk( State )
 
 			if not ( InventoryIsVisible and Inventory.inventoryIcons ) then
 				self:SetIsVisible( true )
+				self:UpdateForInventoryState( false )
 				return
 			end
 
 			if Inventory.forceAnimationReset then
-				if not self.SetupForVisibleInventory then
-					-- Inventory is always visible, so move text down below it.
-					self.SetupForVisibleInventory = true
-					self:SetIsVisible( true )
-
-					self:SetScaledPos( self.x, 1 )
-					self:SetTextAlignmentY( GUIItem.Align_Max )
-				end
+				self:UpdateForInventoryState( true )
 
 				return
 			end
 
-			if self.SetupForVisibleInventory then
-				-- Inventory is only visible when in use, so we'll hide the text.
-				self.SetupForVisibleInventory = false
-
-				self:SetScaledPos( self.x, 0.95 )
-				self:SetTextAlignmentY( GUIItem.Align_Center )
-			end
+			self:UpdateForInventoryState( false )
 
 			local Items = Inventory.inventoryIcons
 			for i = 1, #Items do
