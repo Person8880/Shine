@@ -67,7 +67,7 @@ function ListHeader:SetSorted( IsSorted, Descending )
 		SGUI.FontFamilies.Ionicons,
 		self:GetSize().y
 	)
-	self.SortIndicator:SetTextScale( Scale )
+	self.SortIndicator:SetFontScale( Font, Scale )
 
 	local IconName = Descending and "ChevronDown" or "ChevronUp"
 	self.SortIndicator:SetText( SGUI.Icons.Ionicons[ IconName ] )
