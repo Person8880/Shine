@@ -68,10 +68,6 @@ function ConfigMenu:Create()
 	self:PopulateTabs( self.Menu )
 
 	self.Menu:AddCloseButton()
-	if NeedsToScale() then
-		local Font, Scale = SGUI.FontManager.GetFont( "kArial", 20 )
-		self.Menu.CloseButton:SetFontScale( Font, Scale )
-	end
 	self.Menu.OnClose = function()
 		self:ForceHide()
 		return true

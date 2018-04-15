@@ -239,18 +239,7 @@ function TabPanel:Close()
 end
 
 function TabPanel:AddCloseButton()
-	local CloseButton = SGUI:Create( "Button", self )
-	CloseButton:SetSize( Vector( self.TitleBarHeight, self.TitleBarHeight, 0 ) )
-	CloseButton:SetText( "X" )
-	CloseButton:SetAnchor( "TopRight" )
-	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
-	CloseButton:SetStyleName( "CloseButton" )
-
-	function CloseButton.DoClick()
-		self:Close()
-	end
-
-	self.CloseButton = CloseButton
+	Controls.Panel.AddCloseButton( self, self )
 end
 
 SGUI:Register( "TabPanel", TabPanel, "Panel" )

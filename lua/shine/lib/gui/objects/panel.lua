@@ -46,18 +46,32 @@ function Panel:AddTitleBar( Title, Font, TextScale )
 
 	self.TitleLabel = TitleLabel
 
-	local CloseButton = SGUI:Create( "Button", TitlePanel )
+	self:AddCloseButton( TitlePanel )
+end
+
+function Panel:AddCloseButton( Parent )
+	local CloseButton = SGUI:Create( "Button", Parent )
 	CloseButton:SetSize( Vector( self.TitleBarHeight, self.TitleBarHeight, 0 ) )
-	CloseButton:SetText( "X" )
+	CloseButton:SetFontScale(
+		SGUI.FontManager.GetFontForAbsoluteSize(
+			SGUI.FontFamilies.Ionicons,
+			self.TitleBarHeight
+		)
+	)
+	CloseButton:SetText( SGUI.Icons.Ionicons.CloseRound )
 	CloseButton:SetAnchor( "TopRight" )
 	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
 	CloseButton:SetStyleName( "CloseButton" )
 
 	function CloseButton.DoClick()
-		self:SetIsVisible( false )
+		self:Close()
 	end
 
 	self.CloseButton = CloseButton
+end
+
+function Panel:Close()
+	self:SetIsVisible( false )
 end
 
 function Panel:SetTitle( Title )
