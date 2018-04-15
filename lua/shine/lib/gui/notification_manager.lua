@@ -39,6 +39,16 @@ local MARGIN = HighResScaled( 16 )
 local PADDING = HighResScaled( 16 )
 local FLAIR_WIDTH = HighResScaled( 48 )
 
+--[[
+	Adds a notification to the screen.
+
+	Inputs:
+		1. The type to use (one of Shine.NotificationType).
+		2. The notification's message.
+		3. The duration in seconds the notification should last for before fading out.
+	Output:
+		The created Notification SGUI object. Do not reposition or change its size.
+]]
 function NotificationManager.AddNotification( Type, Message, Duration )
 	Shine.AssertAtLevel( NotificationType[ Type ], 3, "No such notification type: %s", Type )
 	Shine.TypeCheck( Message, "string", 2, "AddNotification" )
@@ -58,6 +68,7 @@ function NotificationManager.AddNotification( Type, Message, Duration )
 	Notification:SizeToContents()
 	Notification:SetPos( Vector2( -OFFSETX:GetValue(), -OFFSETY:GetValue() - Notification:GetSize().y ) )
 
+	-- Slide the notification in from the right, and fade in.
 	local TargetPos = Notification:GetPos() - Vector2( Notification:GetSize().x, 0 )
 	Notification.TargetPos = TargetPos
 	Notification:MoveTo( nil, nil, TargetPos, 0, 0.3 )
@@ -67,15 +78,19 @@ function NotificationManager.AddNotification( Type, Message, Duration )
 			if Notifications[ i ] == Notification then
 				Notification:StopMoving()
 				TableRemove( Notifications, i )
+				-- Move any notifications above this one down to compensate for the gap.
 				OffsetAllNotifications( -Notification:GetSize().y - MARGIN:GetValue(), 1, i - 1 )
 				break
 			end
 		end
 	end )
 
+	-- Move all existing notifications up by the notification's size + margin.
 	OffsetAllNotifications( Notification:GetSize().y + MARGIN:GetValue(), 1, #Notifications )
 
 	Notifications[ #Notifications + 1 ] = Notification
+
+	return Notification
 end
 
 Shine.Hook.Add( "OnResolutionChanged", "SGUINotifications", function()
