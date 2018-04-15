@@ -22,7 +22,8 @@ ConfigMenu.Size = UnitVector( HighResScaled( 700 ), HighResScaled( 500 ) )
 ConfigMenu.EasingTime = 0.25
 
 local function NeedsToScale()
-	return SGUI.GetScreenSize() > 1920
+	local W, H = SGUI.GetScreenSize()
+	return H > 1080
 end
 
 local function GetSmallFont()
@@ -288,6 +289,7 @@ ConfigMenu:AddTab( "Plugins", {
 		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
 		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )
+		EnableButton:SetEnabled( false )
 
 		Layout:AddElement( EnableButton )
 
@@ -304,6 +306,7 @@ ConfigMenu:AddTab( "Plugins", {
 		function List:OnRowSelected( Index, Row )
 			local State = Row.PluginEnabled
 
+			EnableButton:SetEnabled( true )
 			if State then
 				EnableButton:SetText( Locale:GetPhrase( "Core", "DISABLE_PLUGIN" ) )
 				EnableButton:SetStyleName( "DangerButton" )
@@ -311,6 +314,10 @@ ConfigMenu:AddTab( "Plugins", {
 				EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 				EnableButton:SetStyleName( "SuccessButton" )
 			end
+		end
+
+		function List:OnRowDeselected( Index, Row )
+			EnableButton:SetEnabled( false )
 		end
 
 		local Rows = {}
