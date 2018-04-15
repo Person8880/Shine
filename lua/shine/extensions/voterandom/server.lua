@@ -1209,6 +1209,8 @@ function Plugin:CreateCommands()
 		Default = true }
 	ForceRandomCommand:Help( "Enables (and applies) or disables forcing shuffled teams." )
 
+	self:BindCommandAlias( "sh_enablerandom", "sh_forceshuffle" )
+
 	local function ViewTeamStats( Client )
 		if self.Config.BalanceMode ~= self.ShuffleMode.HIVE then
 			if not Client then
