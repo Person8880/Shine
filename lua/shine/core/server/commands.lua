@@ -661,12 +661,11 @@ end
 
 function Shine:TranslatedNotifyCommandError( Client, MessageKey, Source )
 	local FromChat = self:IsCommandFromChat()
-	if FromChat then
-		self:TranslatedNotifyError( Client, MessageKey, Source )
-		return
-	end
-
-	self:TranslatedConsolePrint( Client, MessageKey, Source )
+	self:ApplyNetworkMessage( Client, "Shine_TranslatedCommandError", {
+		MessageKey = MessageKey,
+		Source = Source or "",
+		IsConsole = not FromChat
+	}, true )
 end
 
 local function Notify( Client, FromChat, Message, Format, ... )

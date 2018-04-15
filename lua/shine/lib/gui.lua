@@ -259,6 +259,11 @@ function SGUI.TenEightyPScale( Value )
 	return math.scaledown( Value, 1080, 1280 ) * ( 2 - ( 1080 / 1280 ) )
 end
 
+function SGUI.LinearScaleByScreenHeight( Value )
+	local W, H = SGUI.GetScreenSize()
+	return H / 1080 * Value
+end
+
 do
 	local ScrW, ScrH
 
@@ -767,4 +772,5 @@ end )
 include( "lua/shine/lib/gui/base_control.lua" )
 include( "lua/shine/lib/gui/font_manager.lua" )
 include( "lua/shine/lib/gui/layout/layout.lua" )
+include( "lua/shine/lib/gui/notification_manager.lua" )
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/mixins" )

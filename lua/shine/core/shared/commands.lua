@@ -7,6 +7,11 @@ local Shine = Shine
 Shared.RegisterNetworkMessage( "Shine_Command", {
 	Command = "string (255)"
 } )
+Shared.RegisterNetworkMessage( "Shine_TranslatedCommandError", {
+	MessageKey = "string (32)",
+	Source = "string (20)",
+	IsConsole = "boolean"
+} )
 
 local IsType = Shine.IsType
 local MathClamp = math.ClampEx
@@ -20,6 +25,20 @@ do
 		return StringFormat( "Shine_CommandNotify_%s%s", Source or "", Name )
 	end
 
+	local function ApplyErrorMessage( Message, IsConsole )
+		if IsConsole then
+			if Shine.AdminMenu:GetIsVisible() then
+				-- The admin menu is counted as executing through the console, so we need to notify the
+				-- user.
+				Shine.GUI.NotificationManager.AddNotification( Shine.NotificationType.ERROR, Message, 5 )
+			end
+
+			Shared.Message( StringFormat( "%s %s", Shine.Locale:GetPhrase( "Core", "ERROR_TAG" ), Message ) )
+		else
+			Shine:NotifyError( Message )
+		end
+	end
+
 	function Shine.RegisterTranslatedCommandError( Name, Data, Source )
 		local MessageName = GetNetworkMessageName( Name, Source )
 		Data.IsConsole = "boolean"
@@ -29,11 +48,7 @@ do
 
 		Client.HookNetworkMessage( MessageName, function( Data )
 			local Message = Shine.Locale:GetInterpolatedPhrase( Source or "Core", Name, Data )
-			if Data.IsConsole then
-				Shared.Message( Message )
-			else
-				Shine:NotifyError( Message )
-			end
+			ApplyErrorMessage( Message, Data.IsConsole )
 		end )
 	end
 
@@ -46,6 +61,15 @@ do
 			end
 			self:ApplyNetworkMessage( Client, GetNetworkMessageName( Name, Source ), Data, true )
 		end
+	else
+		Client.HookNetworkMessage( "Shine_TranslatedCommandError", function( Data )
+			local Source = Data.Source
+			if Source == "" then
+				Source = "Core"
+			end
+			local Message = Shine.Locale:GetPhrase( Source, Data.MessageKey )
+			ApplyErrorMessage( Message, Data.IsConsole )
+		end )
 	end
 
 	local ErrorMessages = {

@@ -43,8 +43,15 @@ if Client then
 	end
 
 	function MessageModule:CommandNotify( AdminName, MessageKey, Data )
-		self:AddChatLine( 255, 255, 0, AdminName,
-			255, 255, 255, self:GetInterpolatedPhrase( MessageKey, Data ) )
+		local Message = self:GetInterpolatedPhrase( MessageKey, Data )
+		if Shine.AdminMenu:GetIsVisible() then
+			Message = StringFormat( "%s %s", AdminName, Message )
+			Shared.Message( Message )
+			Shine.GUI.NotificationManager.AddNotification( Shine.NotificationType.INFO, Message, 5 )
+		else
+			self:AddChatLine( 255, 255, 0, AdminName,
+				255, 255, 255, self:GetInterpolatedPhrase( MessageKey, Data ) )
+		end
 	end
 
 	function MessageModule:Notify( Message )

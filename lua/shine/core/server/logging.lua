@@ -429,6 +429,28 @@ function Shine:TranslatedConsolePrint( Client, MessageKey, Source )
 	}, true )
 end
 
+do
+	local DEFAULT_DURATION = 5
+	function Shine:SendNotification( Client, Type, Message, OnlyIfAdminMenuOpen, Duration )
+		self:ApplyNetworkMessage( Client, "Shine_Notification", {
+			Type = Type,
+			Message = Message,
+			Duration = Duration or DEFAULT_DURATION,
+			OnlyIfAdminMenuOpen = OnlyIfAdminMenuOpen or false
+		}, true )
+	end
+
+	function Shine:SendTranslatedNotification( Client, Type, MessageKey, Source, OnlyIfAdminMenuOpen, Duration )
+		self:ApplyNetworkMessage( Client, "Shine_TranslatedNotification", {
+			Type = Type,
+			MessageKey = MessageKey,
+			Source = Source or "",
+			Duration = Duration or DEFAULT_DURATION,
+			OnlyIfAdminMenuOpen = OnlyIfAdminMenuOpen or false
+		}, true )
+	end
+end
+
 function Shine:AdminPrint( Client, String, Format, ... )
 	self:Print( String, Format, ... )
 

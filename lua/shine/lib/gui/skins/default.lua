@@ -99,6 +99,25 @@ local Skin = {
 			Colour = Colour( 0.25, 0.25, 0.25, 1 )
 		}
 	},
+	Notification = {
+		Default = {
+			TextColour = BrightText,
+			FlairIconColour = BrightText,
+			Colour = DarkButton
+		},
+		Danger = {
+			FlairIconText = SGUI.Icons.Ionicons.AlertCircled,
+			FlairColour = Colour( 1, 0, 0 )
+		},
+		Warning = {
+			FlairIconText = SGUI.Icons.Ionicons.Alert,
+			FlairColour = Colour( 1, 0.6, 0 )
+		},
+		Info = {
+			FlairIconText = SGUI.Icons.Ionicons.InformationCircled,
+			FlairColour = Colour( 0, 0.5, 1 )
+		}
+	},
 	Panel = {
 		Default = {
 			Colour = WindowBackground

@@ -51,6 +51,19 @@ do
 		Source = "string (20)",
 		MessageKey = "string (32)"
 	} )
+	Shared.RegisterNetworkMessage( "Shine_Notification", {
+		Type = "integer (1 to 3)",
+		Message = StringMessage,
+		Duration = "integer (1 to 15)",
+		OnlyIfAdminMenuOpen = "boolean"
+	} )
+	Shared.RegisterNetworkMessage( "Shine_TranslatedNotification", {
+		Type = "integer (1 to 3)",
+		Source = "string (20)",
+		MessageKey = "string (32)",
+		Duration = "integer (1 to 15)",
+		OnlyIfAdminMenuOpen = "boolean"
+	} )
 end
 
 if Server then return end
@@ -63,6 +76,30 @@ Client.HookNetworkMessage( "Shine_TranslatedConsoleMessage", function( Data )
 
 	Shared.Message( Shine.Locale:GetPhrase( Source, Data.MessageKey ) )
 end )
+
+do
+	local function CanDisplayNotification( Data )
+		if not Data.OnlyIfAdminMenuOpen then return true end
+		return Shine.AdminMenu:GetIsVisible()
+	end
+
+	Client.HookNetworkMessage( "Shine_Notification", function( Data )
+		if not CanDisplayNotification( Data ) then return end
+
+		Shine.GUI.NotificationManager.AddNotification( Data.Type, Data.Message, Data.Duration )
+	end )
+	Client.HookNetworkMessage( "Shine_TranslatedNotification", function( Data )
+		if not CanDisplayNotification( Data ) then return end
+
+		local Source = Data.Source
+		if Source == "" then
+			Source = "Core"
+		end
+
+		local Message = Shine.Locale:GetPhrase( Source, Data.MessageKey )
+		Shine.GUI.NotificationManager.AddNotification( Data.Type, Message, Data.Duration )
+	end )
+end
 
 local BitLShift = bit.lshift
 local IsType = Shine.IsType

@@ -11,6 +11,7 @@ local Label = {}
 local ZeroCol = Colour( 0, 0, 0, 0 )
 
 SGUI.AddBoundProperty( Label, "Colour", "Label:SetColor" )
+SGUI.AddBoundProperty( Label, "InheritsParentAlpha", "Label" )
 SGUI.AddBoundProperty( Label, "Font", "Label:SetFontName", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "Text", "Label", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "TextAlignmentX", "Label" )
