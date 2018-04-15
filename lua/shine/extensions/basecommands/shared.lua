@@ -78,7 +78,7 @@ function Plugin:SetupDataTable()
 		}
 	} )
 
-	self:AddNetworkMessages( "AddTranslatedError", {
+	self:AddNetworkMessages( "AddTranslatedCommandError", {
 		[ MessageTypes.TargetName ] = {
 			"ERROR_NOT_COMMANDER", "ERROR_NOT_GAGGED"
 		},

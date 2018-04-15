@@ -473,7 +473,7 @@ local function NotifyError( Client, TranslationKey, Data, Message, Format, ... )
 		return
 	end
 
-	Plugin:SendTranslatedError( Client, TranslationKey, Data )
+	Plugin:SendTranslatedCommandError( Client, TranslationKey, Data )
 end
 
 local Histories = {}
@@ -946,7 +946,12 @@ function Plugin:CreateAdminCommands()
 
 	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
-			Shine.PrintToConsole( Client, "You cannot reload the basecommands plugin." )
+			local Message = "You cannot reload the basecommands plugin."
+			Shine.PrintToConsole( Client, Message )
+			if Client then
+				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+			end
+
 			return
 		end
 
@@ -956,13 +961,16 @@ function Plugin:CreateAdminCommands()
 		if not PluginTable then
 			Success, Err = Shine:LoadExtension( Name )
 		else
-			--If it's already enabled and we're saving, then just save the config option, don't reload.
+			-- If it's already enabled and we're saving, then just save the config option, don't reload.
 			if PluginTable.Enabled and Save then
 				Shine.Config.ActiveExtensions[ Name ] = true
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client,
-					StringFormat( "Plugin %s now set to enabled in config.", Name ) )
+				local Message = StringFormat( "Plugin '%s' now set to enabled in config.", Name )
+				Shine:AdminPrint( Client, Message )
+				if Client then
+					Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
+				end
 
 				return
 			end
@@ -971,9 +979,13 @@ function Plugin:CreateAdminCommands()
 		end
 
 		if Success then
-			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
+			local Message = StringFormat( "Plugin '%s' loaded successfully.", Name )
+			Shine:AdminPrint( Client, Message )
+			if Client then
+				Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
+			end
 
-			--Update all players with the plugins state.
+			-- Update all players with the plugins state.
 			Shine:SendPluginData( nil )
 
 			if Save then
@@ -981,7 +993,11 @@ function Plugin:CreateAdminCommands()
 				Shine:SaveConfig()
 			end
 		else
-			Shine:AdminPrint( Client, StringFormat( "Plugin %s failed to load. Error: %s", Name, Err ) )
+			local Message = StringFormat( "Plugin '%s' failed to load. Error: %s", Name, Err )
+			Shine:AdminPrint( Client, Message )
+			if Client then
+				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+			end
 		end
 	end
 	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
@@ -991,30 +1007,45 @@ function Plugin:CreateAdminCommands()
 
 	local function UnloadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
-			Shine.PrintToConsole( Client, "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config." )
+			local Message = "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config."
+			Shine.PrintToConsole( Client, Message )
+			if Client then
+				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+			end
 			return
 		end
 
 		if not Shine.Plugins[ Name ] or not Shine.Plugins[ Name ].Enabled then
-			--If it's already disabled and we want to save, just save.
+			-- If it's already disabled and we want to save, just save.
 			if Save and Shine.AllPlugins[ Name ] then
 				Shine.Config.ActiveExtensions[ Name ] = false
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client,
-					StringFormat( "Plugin %s now set to disabled in config.", Name ) )
+				local Message = StringFormat( "Plugin '%s' now set to disabled in config.", Name )
+				Shine:AdminPrint( Client, Message )
+				if Client then
+					Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
+				end
 
 				return
 			end
 
-			Shine:AdminPrint( Client, StringFormat( "Plugin %s is not loaded.", Name ) )
+			local Message = StringFormat( "Plugin '%s' is not loaded.", Name )
+			Shine:AdminPrint( Client, Message )
+			if Client then
+				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+			end
 
 			return
 		end
 
 		Shine:UnloadExtension( Name )
 
-		Shine:AdminPrint( Client, StringFormat( "Plugin %s unloaded successfully.", Name ) )
+		local Message = StringFormat( "Plugin '%s' unloaded successfully.", Name )
+		Shine:AdminPrint( Client, Message )
+		if Client then
+			Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
+		end
 
 		Shine:SendPluginData( nil )
 

@@ -53,6 +53,9 @@ function Plugin:CreateCommands()
 				Player:Kill( nil, nil, Player:GetOrigin() )
 			end
 		end
+		self:SendTranslatedMessage( Client, "SLAYED", {
+			TargetCount = #Targets
+		} )
 	end
 	local SlayCommand = self:BindCommand( "sh_slay", "slay", Slay )
 	SlayCommand:AddParam{ Type = "clients" }
@@ -105,6 +108,9 @@ function Plugin:CreateCommands()
 				Player:SetDarwinMode( Enable )
 			end
 		end
+		self:SendTranslatedMessage( Client, Enable and "GRANTED_DARWIN_MODE" or "REVOKED_DARWIN_MODE", {
+			TargetCount = #Targets
+		} )
 	end
 	local DarwinModeCommand = self:BindCommand( "sh_darwin", { "god", "darwin" }, DarwinMode )
 	DarwinModeCommand:AddParam{ Type = "clients" }
