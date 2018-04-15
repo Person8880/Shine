@@ -925,6 +925,7 @@ function ControlMeta:SetTooltip( Text )
 	self.OnLoseHover = self.HideTooltip
 end
 
+local DEFAULT_HOVER_TIME = 0.5
 function ControlMeta:HandleHovering( Time )
 	if not self.OnHover then return end
 
@@ -933,7 +934,7 @@ function ControlMeta:HandleHovering( Time )
 		if not self.MouseHoverStart then
 			self.MouseHoverStart = Time
 		else
-			if Time - self.MouseHoverStart > 1 and not self.MouseHovered then
+			if Time - self.MouseHoverStart > ( self.HoverTime or DEFAULT_HOVER_TIME ) and not self.MouseHovered then
 				self:OnHover( X, Y )
 
 				self.MouseHovered = true
