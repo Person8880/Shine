@@ -177,7 +177,12 @@ local Skin = {
 	Button = {
 		Default = {
 			ActiveCol = Colours.Highlight,
-			InactiveCol = Colours.Dark
+			InactiveCol = Colours.Dark,
+			States = {
+				Open = {
+					InactiveCol = Colours.Highlight
+				}
+			}
 		}
 	},
 	Panel = {
@@ -504,16 +509,14 @@ function Plugin:CreateChatbox()
 
 	local SettingsButton = SGUI:Create( "Button", Border )
 	SettingsButton:SetupFromTable{
-		Text = ">",
+		Text = SGUI.Icons.Ionicons.GearB,
 		Skin = Skin,
-		Font = Font,
+		Font = SGUI.Fonts.Ionicons,
 		AutoSize = UnitVector( Scaled( SettingsButtonSize, ScalarScale ),
 			Scaled( SettingsButtonSize, ScalarScale ) ),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 )
 	}
-	if self.TextScale ~= 1 then
-		SettingsButton:SetTextScale( self.TextScale )
-	end
+	SettingsButton:SetTextScale( SGUI.LinearScaleByScreenHeight( Vector2( 1, 1 ) ) )
 
 	function SettingsButton:DoClick()
 		return Plugin:OpenSettings( Border, UIScale, ScalarScale )
@@ -836,6 +839,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 		Expanded = true
 
 		SettingsPanel:SetIsVisible( true )
+		SettingsButton:SetStylingState( "Open" )
 	else
 		Start = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
 		End = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
@@ -845,7 +849,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.5, function( Panel )
 		SettingsButton.Expanded = Expanded
 
-		self.SettingsButton:SetText( Expanded and "<" or ">" )
+		SettingsButton:SetStylingState( Expanded and "Open" or nil )
 		if not Expanded then
 			SettingsPanel:SetIsVisible( false )
 		end
