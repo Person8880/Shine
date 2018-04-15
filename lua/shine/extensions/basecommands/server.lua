@@ -967,10 +967,7 @@ function Plugin:CreateAdminCommands()
 				Shine:SaveConfig()
 
 				local Message = StringFormat( "Plugin '%s' now set to enabled in config.", Name )
-				Shine:AdminPrint( Client, Message )
-				if Client then
-					Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
-				end
+				Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
 				return
 			end
@@ -980,10 +977,7 @@ function Plugin:CreateAdminCommands()
 
 		if Success then
 			local Message = StringFormat( "Plugin '%s' loaded successfully.", Name )
-			Shine:AdminPrint( Client, Message )
-			if Client then
-				Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
-			end
+			Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
 			-- Update all players with the plugins state.
 			Shine:SendPluginData( nil )
@@ -994,10 +988,7 @@ function Plugin:CreateAdminCommands()
 			end
 		else
 			local Message = StringFormat( "Plugin '%s' failed to load. Error: %s", Name, Err )
-			Shine:AdminPrint( Client, Message )
-			if Client then
-				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
-			end
+			Shine:SendAdminNotification( Client, Shine.NotificationType.ERROR, Message )
 		end
 	end
 	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
@@ -1022,19 +1013,13 @@ function Plugin:CreateAdminCommands()
 				Shine:SaveConfig()
 
 				local Message = StringFormat( "Plugin '%s' now set to disabled in config.", Name )
-				Shine:AdminPrint( Client, Message )
-				if Client then
-					Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
-				end
+				Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
 				return
 			end
 
 			local Message = StringFormat( "Plugin '%s' is not loaded.", Name )
-			Shine:AdminPrint( Client, Message )
-			if Client then
-				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
-			end
+			Shine:SendAdminNotification( Client, Shine.NotificationType.ERROR, Message )
 
 			return
 		end
@@ -1042,10 +1027,7 @@ function Plugin:CreateAdminCommands()
 		Shine:UnloadExtension( Name )
 
 		local Message = StringFormat( "Plugin '%s' unloaded successfully.", Name )
-		Shine:AdminPrint( Client, Message )
-		if Client then
-			Shine:SendNotification( Client, Shine.NotificationType.INFO, Message, true )
-		end
+		Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
 		Shine:SendPluginData( nil )
 

@@ -449,6 +449,17 @@ do
 			OnlyIfAdminMenuOpen = OnlyIfAdminMenuOpen or false
 		}, true )
 	end
+
+	--[[
+		Prints the given message to the console of all online admins, and also sends a notification
+		to the given client to display if they are currently in the admin menu.
+	]]
+	function Shine:SendAdminNotification( Client, Type, Message, Duration )
+		self:AdminPrint( Client, Message )
+		if Client then
+			self:SendNotification( Client, Type, Message, true, Duration )
+		end
+	end
 end
 
 function Shine:AdminPrint( Client, String, Format, ... )
