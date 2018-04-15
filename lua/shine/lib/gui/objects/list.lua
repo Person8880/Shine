@@ -381,13 +381,15 @@ local function UpdateHeaderHighlighting( self, Column, OldSortingColumn )
 
 	ColumnHeader.ForceHighlight = true
 	ColumnHeader:SetHighlighted( true, true )
+	ColumnHeader:SetSorted( true, self.Descending )
 
-	if OldSortingColumn then
+	if OldSortingColumn and OldSortingColumn ~= Column then
 		local OldHeader = self.Columns[ OldSortingColumn ]
 		if not OldHeader then return end
 
 		OldHeader.ForceHighlight = false
 		OldHeader:SetHighlighted( false )
+		OldHeader:SetSorted( false )
 	end
 end
 
@@ -430,13 +432,16 @@ function List:SortRows( Column, SortFunc, Desc )
 		self.Descending = Desc or false
 		self.SortingFunc = SortFunc
 
+		self:InvalidateLayout( true )
+		self.HeaderLayout:InvalidateLayout( true )
+
 		UpdateHeaderHighlighting( self, Column, OldSortingColumn )
 
 		return
 	end
 
 	if Desc == nil then
-		--Only flip the sort order if we're selecting the same column twice.
+		-- Only flip the sort order if we're selecting the same column twice.
 		if OldSortingColumn == Column then
 			self.Descending = not self.Descending
 		else
@@ -463,11 +468,10 @@ function List:SortRows( Column, SortFunc, Desc )
 	self.SortedColumn = Column
 	self.SortingFunc = SortFunc
 
-	if OldSortingColumn ~= Column then
-		UpdateHeaderHighlighting( self, Column, OldSortingColumn )
-	end
-
 	self:Reorder()
+	self.HeaderLayout:InvalidateLayout( true )
+
+	UpdateHeaderHighlighting( self, Column, OldSortingColumn )
 end
 
 --[[

@@ -14,6 +14,17 @@ function ListHeader:Initialise()
 	local Background = GetGUIManager():CreateGraphicItem()
 
 	self.Background = Background
+
+	local SortIndicator = SGUI:Create( "Label", self )
+	SortIndicator:SetFont( SGUI.Fonts.Ionicons )
+	SortIndicator:SetText( "" )
+	SortIndicator:SetAnchor( "CenterRight" )
+	SortIndicator:SetTextAlignmentY( GUIItem.Align_Center )
+	SortIndicator:SetTextAlignmentX( GUIItem.Align_Max )
+	SortIndicator:SetPos( Vector2( -8, 0 ) )
+
+	self.SortIndicator = SortIndicator
+
 	self:SetHighlightOnMouseOver( true )
 end
 
@@ -44,6 +55,24 @@ end
 SGUI.AddBoundProperty( ListHeader, "Font", "TextObj:SetFontName" )
 SGUI.AddBoundProperty( ListHeader, "TextColour", "TextObj:SetColor" )
 SGUI.AddBoundProperty( ListHeader, "TextScale", "TextObj:SetScale" )
+
+function ListHeader:SetSorted( IsSorted, Descending )
+	if not IsSorted then
+		self.SortIndicator:SetText( "" )
+		return
+	end
+
+	-- Update the sorting indicator to point in the sorting direction.
+	local Font, Scale = SGUI.FontManager.GetFontForAbsoluteSize(
+		SGUI.FontFamilies.Ionicons,
+		self:GetSize().y
+	)
+	self.SortIndicator:SetTextScale( Scale )
+
+	local IconName = Descending and "ChevronDown" or "ChevronUp"
+	self.SortIndicator:SetText( SGUI.Icons.Ionicons[ IconName ] )
+	self.SortIndicator:SetColour( self.TextColour )
+end
 
 function ListHeader:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
