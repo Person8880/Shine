@@ -19,7 +19,7 @@ local Skin = {
 			States = {
 				Disabled = {
 					HighlightOnMouseOver = false,
-					InactiveCol = SGUI.ColourWithAlpha( DarkButton, 0.8 )
+					InactiveCol = SGUI.ColourWithAlpha( DarkButton, 0.5 )
 				}
 			}
 		},
@@ -101,9 +101,9 @@ local Skin = {
 	},
 	Notification = {
 		Default = {
-			TextColour = BrightText,
-			FlairIconColour = BrightText,
-			Colour = DarkButton
+			TextColour = SGUI.ColourWithAlpha( BrightText, 2 ),
+			FlairIconColour = SGUI.ColourWithAlpha( BrightText, 2 ),
+			Colour = SGUI.ColourWithAlpha( DarkButton, 0.8 )
 		},
 		Danger = {
 			FlairIconText = SGUI.Icons.Ionicons.AlertCircled,
