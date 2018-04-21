@@ -144,32 +144,34 @@ function ControlMeta:SetParent( Control, Element )
 	if not Control then
 		self.Parent = nil
 		self.ParentElement = nil
+		self.TopLevelWindow = nil
 		return
 	end
 
 	-- Parent to a specific part of a control.
-	if Element then
-		self.Parent = Control
-		self.ParentElement = Element
-
-		Control.Children = Control.Children or Map()
-		Control.Children:Add( self, true )
-
-		if self.Background then
-			Element:AddChild( self.Background )
-		end
-
-		return
+	if not Element then
+		Element = Control.Background
 	end
 
 	self.Parent = Control
-	self.ParentElement = Control.Background
+	self.ParentElement = Element
+	self:SetTopLevelWindow( Control.IsAWindow and Control or Control.TopLevelWindow )
 
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
 
-	if Control.Background and self.Background then
-		Control.Background:AddChild( self.Background )
+	if Element and self.Background then
+		Element:AddChild( self.Background )
+	end
+end
+
+function ControlMeta:SetTopLevelWindow( Window )
+	self.TopLevelWindow = Window
+
+	if Window and self.Children then
+		for Child in self.Children:Iterate() do
+			Child:SetTopLevelWindow( Window )
+		end
 	end
 end
 
@@ -614,6 +616,26 @@ do
 
 		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
 	end
+
+	function ControlMeta:MouseInCached()
+		local LastCheck = self.__LastMouseInCheckFrame
+		local FrameNum = SGUI.FrameNumber()
+
+		if LastCheck ~= FrameNum then
+			self.__LastMouseInCheckFrame = FrameNum
+
+			local Pos = self:GetScreenPos()
+			local Size = self:GetSize()
+
+			local In, X, Y, Size, Pos = IsInBox( Pos, Size )
+			self.__LastMouseInCheck = { In, X, Y, Size, Pos }
+
+			return In, X, Y, Size, Pos
+		end
+
+		local Check = self.__LastMouseInCheck
+		return Check[ 1 ], Check[ 2 ], Check[ 3 ], Check[ 4 ], Check[ 5 ]
+	end
 end
 
 function ControlMeta:HasMouseFocus()
@@ -716,8 +738,12 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 	end
 end
 
+local function Easer( Table, Name )
+	return setmetatable( Table, { __tostring = function() return Name end } )
+end
+
 local Easers = {
-	Fade = {
+	Fade = Easer( {
 		Easer = function( self, Element, EasingData, Progress )
 			SGUI.ColourLerp( EasingData.CurValue, EasingData.Start, Progress, EasingData.Diff )
 		end,
@@ -727,8 +753,8 @@ local Easers = {
 		Getter = function( self, Element )
 			return Element:GetColor()
 		end
-	},
-	Alpha = {
+	}, "Fade" ),
+	Alpha = Easer( {
 		Easer = function( self, Element, EasingData, Progress )
 			EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
 			EasingData.Colour.a = EasingData.CurValue
@@ -739,8 +765,8 @@ local Easers = {
 		Getter = function( self, Element )
 			return Element:GetColor().a
 		end
-	},
-	Move = {
+	}, "Alpha" ),
+	Move = Easer( {
 		Easer = function( self, Element, EasingData, Progress )
 			local CurValue = EasingData.CurValue
 			local Start = EasingData.Start
@@ -756,8 +782,8 @@ local Easers = {
 		Getter = function( self, Element )
 			return Element:GetPosition()
 		end
-	},
-	Size = {
+	}, "Move" ),
+	Size = Easer( {
 		Setter = function( self, Element, Size )
 			if Element == self.Background then
 				self:SetSize( Size )
@@ -768,7 +794,7 @@ local Easers = {
 		Getter = function( self, Element )
 			return Element:GetSize()
 		end
-	}
+	}, "Size" )
 }
 Easers.Size.Easer = Easers.Move.Easer
 
@@ -902,6 +928,11 @@ function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
 	self.HighlightOnMouseOver = Bool and true or false
 	self.HighlightMult = Mult
 	self.TextureHighlight = TextureMode
+
+	if not Bool and not self.ForceHighlight then
+		self:SetHighlighted( false, true )
+		self:StopFade( self.Background )
+	end
 end
 
 --[[
@@ -931,7 +962,10 @@ function ControlMeta:HandleHovering( Time )
 	if not self.OnHover then return end
 
 	local MouseIn, X, Y = self:MouseIn( self.Background )
-	if MouseIn then
+
+	-- If the mouse is in this object, and our window is in focus (i.e. not obstructed by a higher window)
+	-- then consider the object hovered.
+	if MouseIn and ( not self.TopLevelWindow or SGUI:IsWindowInFocus( self.TopLevelWindow ) ) then
 		if not self.MouseHoverStart then
 			self.MouseHoverStart = Time
 		else
@@ -1028,6 +1062,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 
 		if not self.TextureHighlight then
 			if SkipAnim then
+				self:StopFade( self.Background )
 				self.Background:SetColor( self.ActiveCol )
 				return
 			end
@@ -1042,6 +1077,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 
 		if not self.TextureHighlight then
 			if SkipAnim then
+				self:StopFade( self.Background )
 				self.Background:SetColor( self.InactiveCol )
 				return
 			end
@@ -1055,7 +1091,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 end
 
 function ControlMeta:OnMouseMove( Down )
-	--Basic highlight on mouse over handling.
+	-- Basic highlight on mouse over handling.
 	if not self.HighlightOnMouseOver then
 		return
 	end

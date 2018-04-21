@@ -359,6 +359,24 @@ function SGUI:SetWindowFocus( Window, i )
 	self.FocusedWindow = Window
 end
 
+function SGUI:IsWindowInFocus( Window )
+	if Window == self.FocusedWindow then return true end
+
+	local Windows = self.Windows
+	for i = #Windows, 1, -1 do
+		local OtherWindow = Windows[ i ]
+		if Window == OtherWindow then
+			return Window:MouseInCached()
+		end
+
+		if OtherWindow:MouseInCached() then
+			return false
+		end
+	end
+
+	return false
+end
+
 local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
 function SGUI:PostCallEvent()
@@ -569,23 +587,22 @@ do
 		ID = ID + 1
 
 		local Table = {}
+		local IsAWindow = MetaTable.IsWindow and not Parent and true or false
 
 		local Control = setmetatable( Table, MetaTable )
 		Control.Class = Class
 		Control.ID = ID
+		Control.IsAWindow = IsAWindow
 		Control:Initialise()
 
 		self.ActiveControls:Add( Control, true )
 
-		--If it's a window then we give it focus.
-		if MetaTable.IsWindow and not Parent then
+		-- If it's a window then we give it focus.
+		if IsAWindow then
 			local Windows = self.Windows
-
 			Windows[ #Windows + 1 ] = Control
 
 			self:SetWindowFocus( Control )
-
-			Control.IsAWindow = true
 		end
 
 		self.SkinManager:ApplySkin( Control )
