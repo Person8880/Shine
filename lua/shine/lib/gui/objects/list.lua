@@ -29,6 +29,7 @@ local Percentage = Units.Percentage
 local UnitVector = Units.UnitVector
 
 SGUI.AddBoundProperty( List, "Colour", "Background:SetColor" )
+SGUI.AddProperty( List, "SortedExternally", false )
 
 function List:Initialise()
 	self.BaseClass.Initialise( self )
@@ -60,6 +61,7 @@ function List:Initialise()
 	self.RowCount = 0
 	self.HeaderSize = DefaultHeaderSize
 	self.LineSize = DefaultLineSize
+	self.ScrollbarWidth = 10
 
 	-- Sort ascending first.
 	self.Descending = false
@@ -128,6 +130,12 @@ function List:SetHeaderTextScale( Scale )
 	self:ForEach( "Columns", "SetTextScale", Scale )
 end
 
+function List:SetHeaderFontScale( Font, Scale )
+	self.HeaderFont = Font
+	self.HeaderTextScale = Scale
+	self:ForEach( "Columns", "SetFontScale", Font, Scale )
+end
+
 function List:SetHeaderTextColour( Col )
 	self.HeaderTextColour = Col
 	self:ForEach( "Columns", "SetTextColour", Col )
@@ -163,7 +171,6 @@ function List:SetColumns( ... )
 	for i = Start, Start + Number - 1 do
 		local Header = SGUI:Create( "ListHeader", self )
 		Header:SetText( select( i, ... ) )
-		Header:SetAnchor( GUIItem.Left, GUIItem.Top )
 		Header.Index = i
 
 		if self.HeaderFont then
@@ -221,7 +228,8 @@ function List:SetSize( Size )
 end
 
 function List:PerformLayout()
-	local Size = self.Size
+	local Size = self:GetSize()
+
 	self.ScrollPos = Vector( 0, self.HeaderSize, 0 )
 
 	self.MaxRows = Floor( ( Size.y - self.HeaderSize ) / self.LineSize )
@@ -240,10 +248,23 @@ function List:PerformLayout()
 		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 	end
 
+	local NeedsRowSizeRefresh = false
 	if not self.RowSize then
 		self.RowSize = Vector( Size.x, self.LineSize, 0 )
+		NeedsRowSizeRefresh = true
 	else
+		if Size.x ~= self.RowSize.x then
+			NeedsRowSizeRefresh = true
+		end
 		self.RowSize.x = Size.x
+	end
+
+	if NeedsRowSizeRefresh and self.Rows then
+		for i = 1, #self.Rows do
+			local Row = self.Rows[ i ]
+			Row:SetSize( self.RowSize )
+			self:SetSpacingForRow( Row )
+		end
 	end
 
 	self.BaseClass.PerformLayout( self )
@@ -257,6 +278,26 @@ end
 function List:SetRowTextScale( Scale )
 	self.RowTextScale = Scale
 	self:ForEach( "Rows", "SetTextScale", Scale )
+end
+
+function List:SetRowFontScale( Font, Scale )
+	self.RowFont = Font
+	self.RowTextScale = Scale
+	self:ForEach( "Rows", "SetFontScale", Font, Scale )
+end
+
+function List:SetSpacingForRow( Row )
+	local Spacing = {}
+	local X = self.RowSize.x
+
+	local HeaderSizes = self.HeaderSizes
+
+	for i = 1, self.ColumnCount do
+		local Size = HeaderSizes[ i ]
+		Spacing[ i ] = Size * X
+	end
+
+	Row:SetSpacing( Spacing )
 end
 
 --[[
@@ -277,7 +318,9 @@ function List:AddRow( ... )
 	Row:SetParent( self, self.ScrollParent )
 	Row.Background:SetInheritsParentStencilSettings( false )
 	Row.Background:SetStencilFunc( GUIItem.NotEqual )
-	Row:SetAnchor( GUIItem.Top, GUIItem.Left )
+
+	RowCount = RowCount + 1
+	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
 
 	if self.RowFont then
 		Row:SetFont( self.RowFont )
@@ -287,23 +330,8 @@ function List:AddRow( ... )
 		Row:SetTextScale( self.RowTextScale )
 	end
 
-	RowCount = RowCount + 1
-	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
-
 	self.Layout:AddElement( Row )
-
-	local Spacing = {}
-	local X = self.RowSize.x
-
-	local HeaderSizes = self.HeaderSizes
-
-	for i = 1, self.ColumnCount do
-		local Size = HeaderSizes[ i ]
-
-		Spacing[ i ] = Size * X
-	end
-
-	Row:SetSpacing( Spacing )
+	self:SetSpacingForRow( Row )
 
 	Rows[ RowCount ] = Row
 
@@ -317,13 +345,20 @@ function List:AddRow( ... )
 		end
 	end
 
-	if self.SortedColumn then
+	if self.SortedColumn and not self.SortedExternally then
 		self:RefreshSorting()
 	else
 		self:InvalidateLayout()
 	end
 
 	return Row
+end
+
+function List:SetScrollbarWidth( ScrollbarWidth )
+	self.ScrollbarWidth = ScrollbarWidth
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:SetSize( Vector2( ScrollbarWidth, self.Scrollbar:GetSize().y ) )
+	end
 end
 
 --[[
@@ -333,7 +368,7 @@ function List:AddScrollbar()
 	local Scrollbar = SGUI:Create( "Scrollbar", self )
 	Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 	Scrollbar:SetPos( self.ScrollPos or ScrollPos )
-	Scrollbar:SetSize( Vector( 10, self.Size.y - self.HeaderSize, 0 ) )
+	Scrollbar:SetSize( Vector( self.ScrollbarWidth, self:GetSize().y - self.HeaderSize, 0 ) )
 	Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	Scrollbar._CallEventsManually = true
 
@@ -419,6 +454,19 @@ function List:RefreshSorting( Now )
 	self.NeedsSortingRefresh = true
 end
 
+function List:HandleExternalSorting( Column, Descending )
+	return false
+end
+
+function List:MarkColumnAsSorted( Column, OldSortingColumn )
+	OldSortingColumn = OldSortingColumn or self.SortedColumn
+
+	self:InvalidateLayout( true )
+	self.HeaderLayout:InvalidateLayout( true )
+
+	UpdateHeaderHighlighting( self, Column, OldSortingColumn )
+end
+
 --[[
 	Sorts the rows, generally used to sort by column values.
 	Inputs: Column to sort by, optional sorting function.
@@ -426,19 +474,6 @@ end
 function List:SortRows( Column, SortFunc, Desc )
 	local OldSortingColumn = self.SortedColumn
 	local Rows = self.Rows
-
-	if not Rows then
-		self.SortedColumn = Column
-		self.Descending = Desc or false
-		self.SortingFunc = SortFunc
-
-		self:InvalidateLayout( true )
-		self.HeaderLayout:InvalidateLayout( true )
-
-		UpdateHeaderHighlighting( self, Column, OldSortingColumn )
-
-		return
-	end
 
 	if Desc == nil then
 		-- Only flip the sort order if we're selecting the same column twice.
@@ -449,6 +484,15 @@ function List:SortRows( Column, SortFunc, Desc )
 		end
 	else
 		self.Descending = Desc
+	end
+
+	if self:HandleExternalSorting( Column, self.Descending ) or not Rows then
+		self.SortedColumn = Column
+		self.SortingFunc = SortFunc
+
+		self:MarkColumnAsSorted( Column, OldSortingColumn )
+
+		return
 	end
 
 	local Comparator = SortFunc
@@ -475,6 +519,31 @@ function List:SortRows( Column, SortFunc, Desc )
 end
 
 --[[
+	Clears out every element in the list.
+]]
+function List:Clear()
+	local Rows = self.Rows
+	if not Rows then return end
+
+	for i = 1, #Rows do
+		Rows[ i ]:Destroy()
+		self.Layout:RemoveElement( Rows[ i ] )
+	end
+
+	self.Rows = nil
+	self.RowCount = 0
+
+	if self.Scrollbar then
+		self.Scrollbar:Destroy()
+		self.Scrollbar = nil
+	end
+
+	self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
+	self.SelectedRow = nil
+	self.RootMultiSelectRow = nil
+end
+
+--[[
 	Does exactly what it says it does, pass it the row index to remove.
 ]]
 function List:RemoveRow( Index )
@@ -497,7 +566,7 @@ function List:RemoveRow( Index )
 			self.Scrollbar = nil
 		end
 
-		--Make sure the scrolling is reset if there's no longer a scrollbar.
+		-- Make sure the scrolling is reset if there's no longer a scrollbar.
 		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 	else
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
@@ -516,6 +585,8 @@ end
 function List:GetSelectedRows()
 	local Rows = self.Rows
 	local Selected = {}
+	if not Rows then return Selected end
+
 	local Count = 0
 
 	for i = 1, #Rows do
