@@ -390,7 +390,8 @@ end
 ]]
 SGUI.LayoutAlignment = {
 	MIN = 1,
-	MAX = 2
+	MAX = 2,
+	CENTRE = 3
 }
 
 SGUI.AddProperty( ControlMeta, "Alignment", SGUI.LayoutAlignment.MIN )

@@ -8,7 +8,14 @@ local Horizontal = {}
 
 local LayoutAlignment = Shine.GUI.LayoutAlignment
 
-function Horizontal:GetStartPos( Pos, Size, Padding, Alignment )
+function Horizontal:GetStartPos( Pos, Size, Padding, Alignment, Context )
+	if Alignment == LayoutAlignment.CENTRE then
+		local X = Pos.x + Size.x * 0.5 - Context.CentreAlignedSize * 0.5
+		local Y = Pos.y + Padding[ 2 ]
+
+		return X, Y
+	end
+
 	local IsMin = Alignment == LayoutAlignment.MIN
 	local X = IsMin and ( Pos.x + Padding[ 1 ] ) or ( Pos.x + Size.x - Padding[ 3 ] )
 	local Y = Pos.y + Padding[ 2 ]
