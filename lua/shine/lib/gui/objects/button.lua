@@ -21,9 +21,9 @@ end
 function Button:SetupStencil()
 	self.BaseClass.SetupStencil( self )
 
-	if not self.Text then return end
+	if not self.Label then return end
 
-	self.Text:SetInheritsParentStencilSettings( true )
+	self.Label:SetInheritsParentStencilSettings( true )
 end
 
 function Button:SetCustomSound( Sound )
@@ -31,8 +31,10 @@ function Button:SetCustomSound( Sound )
 end
 
 function Button:SetText( Text )
-	if self.Text then
-		self.Text:SetText( Text )
+	self:InvalidateParent()
+
+	if self.Label then
+		self.Label:SetText( Text )
 
 		return
 	end
@@ -58,26 +60,17 @@ function Button:SetText( Text )
 	end
 
 	self.Background:AddChild( Description )
-	self.Text = Description
+	self.Label = Description
 end
 
 function Button:GetText()
-	if not self.Text then return "" end
-	return self.Text:GetText()
+	if not self.Label then return "" end
+	return self.Label:GetText()
 end
 
-SGUI.AddBoundProperty( Button, "Font", "Text:SetFontName" )
-SGUI.AddBoundProperty( Button, "TextColour", "Text:SetColor" )
-SGUI.AddBoundProperty( Button, "TextScale", "Text:SetScale" )
-
-function Button:GetTextWidth()
-	if not self.Text then return 0 end
-
-	local Scale = self.TextScale
-	Scale = Scale and Scale.x or 1
-
-	return self.Text:GetTextWidth( self.Text:GetText() ) * Scale
-end
+SGUI.AddBoundProperty( Button, "Font", "Label:SetFontName" )
+SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColor" )
+SGUI.AddBoundProperty( Button, "TextScale", "Label:SetScale" )
 
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
@@ -186,6 +179,7 @@ function Button:PlayerType( Char )
 	end
 end
 
+SGUI:AddMixin( Button, "AutoSizeText" )
 SGUI:AddMixin( Button, "Clickable" )
 SGUI:AddMixin( Button, "EnableMixin" )
 SGUI:Register( "Button", Button )

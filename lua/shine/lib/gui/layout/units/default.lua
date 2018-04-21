@@ -36,8 +36,11 @@ local function BuildOperator( Meta, Operator )
 		B = ToUnit( B )
 
 		return setmetatable( {
-			GetValue = function( self, ParentSize )
-				return Operator( A:GetValue( ParentSize ), B:GetValue( ParentSize ) )
+			GetValue = function( self, ParentSize, Element, Axis )
+				return Operator(
+					A:GetValue( ParentSize, Element, Axis ),
+					B:GetValue( ParentSize, Element, Axis )
+				)
 			end
 		}, Meta )
 	end
@@ -57,24 +60,24 @@ local function NewUnit( Name )
 
 	function Meta:__unm()
 		return setmetatable( {
-			GetValue = function( _, ParentSize )
-				return -self:GetValue( ParentSize )
+			GetValue = function( _, ParentSize, Element, Axis )
+				return -self:GetValue( ParentSize, Element, Axis )
 			end
 		}, Meta )
 	end
 
 	function Meta:__mod( Mod )
 		return setmetatable( {
-			GetValue = function( _, ParentSize )
-				return self:GetValue( ParentSize ) % Mod
+			GetValue = function( _, ParentSize, Element, Axis )
+				return self:GetValue( ParentSize, Element, Axis ) % Mod
 			end
 		}, Meta )
 	end
 
 	function Meta:__pow( Power )
 		return setmetatable( {
-			GetValue = function( _, ParentSize )
-				return self:GetValue( ParentSize ) ^ Power
+			GetValue = function( _, ParentSize, Element, Axis )
+				return self:GetValue( ParentSize, Element, Axis ) ^ Power
 			end
 		}, Meta )
 	end
@@ -202,5 +205,42 @@ do
 
 	function Percentage:GetValue( ParentSize )
 		return ParentSize * self.Value
+	end
+end
+
+do
+	local Auto = NewUnit( "Auto" )
+
+	function Auto:Init( Element )
+		self.Element = Element
+		return self
+	end
+
+	function Auto:GetValue( ParentSize, Element, Axis )
+		return ( self.Element or Element ):GetContentSizeForAxis( Axis )
+	end
+end
+
+do
+	local MathMax = math.max
+
+	local Max = NewUnit( "Max" )
+
+	function Max:Init( ... )
+		self.Values = { ... }
+		return self
+	end
+
+	function Max:AddValue( Value )
+		self.Values[ #self.Values + 1 ] = Value
+		return self
+	end
+
+	function Max:GetValue( ParentSize, Element, Axis )
+		local MaxValue = 0
+		for i = 1, #self.Values do
+			MaxValue = MathMax( MaxValue, self.Values[ i ]:GetValue( ParentSize, Element, Axis ) )
+		end
+		return MaxValue
 	end
 end

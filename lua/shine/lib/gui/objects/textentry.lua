@@ -114,6 +114,17 @@ function TextEntry:Initialise()
 	self.UndoStack = {}
 end
 
+function TextEntry:GetContentSizeForAxis( Axis )
+	if Axis == 1 then
+		return self:GetSize().x
+	end
+
+	local Scale = self.TextScale
+	Scale = Scale and Scale.y or 1
+
+	return self.TextObj:GetTextHeight( "!" ) * Scale
+end
+
 function TextEntry:SetSize( SizeVec )
 	self.Background:SetSize( SizeVec )
 

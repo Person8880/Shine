@@ -436,7 +436,7 @@ function ControlMeta:GetComputedSize( Index, ParentSize )
 	end
 
 	-- Auto-size means use our set auto-size units relative to the passed in size.
-	return Size[ Index ]:GetValue( ParentSize )
+	return Size[ Index ]:GetValue( ParentSize, self, Index )
 end
 
 function ControlMeta:ComputeSpacing( Spacing )
