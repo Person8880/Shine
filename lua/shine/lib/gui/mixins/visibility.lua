@@ -55,9 +55,9 @@ end
 --[[
 	Resets all visibility state and hides the element.
 ]]
-function Visibility:ForceHide()
+function Visibility:ForceHide( ... )
 	self:ClearVisibility()
-	return self:Hide()
+	return self:Hide( ... )
 end
 
 --[[
@@ -78,10 +78,10 @@ end
 
 	Returns true if the visibility state changed, false otherwise.
 ]]
-function Visibility:Hide()
+function Visibility:Hide( ... )
 	if GetVisibilityStackSize( self ) > 0 then return false end
 
-	return self:SetIsVisible( false )
+	return self:SetIsVisible( false, ... )
 end
 
 Shine.GUI:RegisterMixin( "Visibility", Visibility )

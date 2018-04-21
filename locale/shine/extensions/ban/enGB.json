@@ -21,5 +21,10 @@
 	"ERROR_INVALID_STEAMID": "Invalid Steam ID for banning.",
 	"BAN": "Ban from Server",
 	"CATEGORY": "Bans",
-	"BAN_TIP": "Ban the selected player."
+	"BAN_TIP": "Ban the selected player.",
+	"BAN_DURATION_TIP": "Duration: {Duration:Duration:Permanent}",
+	"ISSUED_DATE_TIP": "Issued on: {Date}",
+	"REASON_TIP": "Reason: {Reason}",
+	"SEARCH_HINT": "Search for a ban...",
+	"TOTAL_RESULTS_TIP": "{TotalResults} bans"
 }

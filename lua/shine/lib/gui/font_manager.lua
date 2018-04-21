@@ -59,6 +59,23 @@ function FontManager.GetFont( FontFamily, DesiredSize )
 end
 
 --[[
+	Gets a font name and scale value based on the given desired size.
+
+	Will automatically scale up the size if the screen height is larger than 1080.
+]]
+function FontManager.GetHighResFont( FontFamily, DesiredSize )
+	local Scale
+	local W, H = SGUI.GetScreenSize()
+	if H > 1080 then
+		Scale = GUIScale( 1 )
+	else
+		Scale = 1
+	end
+
+	return FindFontForSize( FontFamily, DesiredSize * Scale )
+end
+
+--[[
 	Gets a font name and scale based on the given absolute size.
 
 	Will find the font closest to the absolute size provided, ignoring

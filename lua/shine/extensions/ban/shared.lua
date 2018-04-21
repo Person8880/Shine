@@ -15,10 +15,25 @@ local BanData = {
 	Issued = "integer"
 }
 
+Plugin.SortColumn = table.AsEnum( {
+	"NAME", "BANNED_BY", "EXPIRY"
+}, function( Index ) return Index end )
+
 function Plugin:SetupDataTable()
-	self:AddNetworkMessage( "RequestBanData", {}, "Server" )
 	self:AddNetworkMessage( "BanData", BanData, "Client" )
-	self:AddNetworkMessage( "Unban", { ID = "string (32)" }, "Client" )
+	self:AddNetworkMessage( "RequestBanPage", {
+		Page = "integer",
+		MaxResults = "integer",
+		Filter = "string (128)",
+		SortColumn = "integer (1 to 3)",
+		SortAscending = "boolean"
+	}, "Server" )
+	self:AddNetworkMessage( "BanPage", {
+		Page = "integer",
+		NumPages = "integer",
+		MaxResults = "integer",
+		TotalNumResults = "integer"
+	}, "Client" )
 
 	self:AddTranslatedMessage( "PLAYER_BANNED", {
 		TargetName = self:GetNameNetworkField(),
@@ -53,6 +68,7 @@ local SGUI = Shine.GUI
 local Date = os.date
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
+local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
 
@@ -69,6 +85,13 @@ local function GetDurationLabel( self, Permanent, UnbanTime )
 end
 
 function Plugin:SetupAdminMenu()
+	local Units = SGUI.Layout.Units
+	local HighResScaled = Units.HighResScaled
+	local Percentage = Units.Percentage
+	local Spacing = Units.Spacing
+	local UnitVector = Units.UnitVector
+	local Auto = Units.Auto
+
 	local Window
 	local function OpenAddBanWindow( SteamIDToBan )
 		if SGUI.IsValid( Window ) then
@@ -80,11 +103,19 @@ function Plugin:SetupAdminMenu()
 			return
 		end
 
+		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+			Padding = Spacing( HighResScaled( 16 ), HighResScaled( 32 ),
+				HighResScaled( 16 ), HighResScaled( 16 ) )
+		} )
+
+		local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
 		Window = SGUI:Create( "Panel" )
 		Window:SetAnchor( "CentreMiddle" )
-		Window:SetSize( Vector( 400, 328, 0 ) )
-		Window:SetPos( Vector( -200, -164, 0 ) )
-		Window:AddTitleBar( self:GetPhrase( "ADD_BAN_TITLE" ) )
+		Window:SetSize( Vector2( HighResScaled( 400 ):GetValue(), HighResScaled( 328 ):GetValue() ) )
+		Window:SetPos( -Window:GetSize() * 0.5 )
+		Window.TitleBarHeight = HighResScaled( 24 ):GetValue()
+		Window:AddTitleBar( self:GetPhrase( "ADD_BAN_TITLE" ), Font, Scale )
 		Window:SetDraggable( true )
 
 		function Window.CloseButton.DoClick()
@@ -95,25 +126,26 @@ function Plugin:SetupAdminMenu()
 
 		Shine.AdminMenu:DestroyOnClose( Window )
 
-		local TextEntrySize = Vector( 368, 32, 0 )
+		Window:SetLayout( Layout )
 
 		local DurationEntry
 		local ReasonEntry
 
-		local X = 16
-		local Y = 32
-
 		local IDLabel = SGUI:Create( "Label", Window )
 		IDLabel:SetText( "NS2ID:" )
-		IDLabel:SetFont( Fonts.kAgencyFB_Small )
-		IDLabel:SetPos( Vector( X, Y, 0 ) )
+		IDLabel:SetFontScale( Font, Scale )
+		IDLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
+		Layout:AddElement( IDLabel )
 
-		Y = Y + 32
+		local SearchLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+			AutoSize = UnitVector( Percentage( 100 ), HighResScaled( 32 ) ),
+			Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) ),
+			Fill = false
+		} )
 
 		local IDEntry = SGUI:Create( "TextEntry", Window )
-		IDEntry:SetSize( TextEntrySize - Vector( 32, 0, 0 ) )
-		IDEntry:SetPos( Vector( X, Y, 0 ) )
-		IDEntry:SetFont( Fonts.kAgencyFB_Small )
+		IDEntry:SetFill( true )
+		IDEntry:SetFontScale( Font, Scale )
 		IDEntry:SetNumeric( true )
 		if SteamIDToBan then
 			IDEntry:SetText( SteamIDToBan )
@@ -125,16 +157,20 @@ function Plugin:SetupAdminMenu()
 		end
 		Window.IDEntry = IDEntry
 
+		SearchLayout:AddElement( IDEntry )
+
 		local GetEnts = Shared.GetEntitiesWithClassname
 		local IterateEntList = ientitylist
 
 		local MenuButton = SGUI:Create( "Button", Window )
-		MenuButton:SetAnchor( "TopRight" )
-		MenuButton:SetSize( Vector( 32, 32, 0 ) )
-		MenuButton:SetText( ">" )
-		MenuButton:SetFont( Fonts.kAgencyFB_Small )
-		MenuButton:SetPos( Vector( -48, Y, 0 ) )
+		MenuButton:SetAutoSize( UnitVector( HighResScaled( 32 ), HighResScaled( 32 ) ) )
+		MenuButton:SetText( SGUI.Icons.Ionicons.ArrowDownB )
+		MenuButton:SetFontScale( SGUI.FontManager.GetHighResFont( "Ionicons", 29 ) )
 		MenuButton:SetTooltip( self:GetPhrase( "SELECT_PLAYER" ) )
+
+		SearchLayout:AddElement( MenuButton )
+		Layout:AddElement( SearchLayout )
+
 		local Menu
 
 		function MenuButton.DoClick( Button )
@@ -146,12 +182,12 @@ function Plugin:SetupAdminMenu()
 			end
 
 			local Pos = Button:GetScreenPos()
-			Pos.x = Pos.x - TextEntrySize.x + 32
-			Pos.y = Pos.y + TextEntrySize.y
+			Pos.x = Pos.x - IDEntry:GetSize().x
+			Pos.y = Pos.y + Button:GetSize().y
 
 			Menu = SGUI:Create( "Menu" )
 			Menu:SetPos( Pos )
-			Menu:SetButtonSize( Vector( TextEntrySize.x, 24, 0 ) )
+			Menu:SetButtonSize( Vector2( IDEntry:GetSize().x + Button:GetSize().x, HighResScaled( 24 ):GetValue(), 0 ) )
 			Menu:CallOnRemove( function()
 				Menu = nil
 			end )
@@ -172,36 +208,34 @@ function Plugin:SetupAdminMenu()
 					Shine.AdminMenu:DontDestroyOnClose( Menu )
 					Menu:Destroy()
 					Menu = nil
-				end )
+				end ):SetFontScale( Font, Scale )
 			end
 		end
 
-		Y = Y + 40
-
 		local DurationLabel = SGUI:Create( "Label", Window )
 		DurationLabel:SetText( self:GetPhrase( "DURATION_LABEL" ) )
-		DurationLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationLabel:SetPos( Vector( X, Y, 0 ) )
+		DurationLabel:SetFontScale( Font, Scale )
+		DurationLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
 
-		Y = Y + 32
+		Layout:AddElement( DurationLabel )
 
 		DurationEntry = SGUI:Create( "TextEntry", Window )
-		DurationEntry:SetSize( TextEntrySize )
-		DurationEntry:SetPos( Vector( X, Y, 0 ) )
-		DurationEntry:SetFont( Fonts.kAgencyFB_Small )
+		DurationEntry:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+		DurationEntry:SetFontScale( Font, Scale )
 		DurationEntry:SetCharPattern( "[%w%.%-]" )
+		DurationEntry:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
 		function DurationEntry:OnTab()
 			self:LoseFocus()
 
 			ReasonEntry:RequestFocus()
 		end
 
-		Y = Y + 40
+		Layout:AddElement( DurationEntry )
 
 		local DurationValueLabel = SGUI:Create( "Label", Window )
 		DurationValueLabel:SetText( self:GetPhrase( "DURATION_HINT" )  )
-		DurationValueLabel:SetFont( Fonts.kAgencyFB_Small )
-		DurationValueLabel:SetPos( Vector( X, Y, 0 ) )
+		DurationValueLabel:SetFontScale( Font, Scale )
+		DurationValueLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
 		local DurationOptions = { Units = "minutes", Min = 0, Round = true }
 		function DurationEntry.OnTextChanged( TextEntry, OldValue, NewValue )
 			if NewValue == "" then
@@ -220,42 +254,41 @@ function Plugin:SetupAdminMenu()
 			} ) )
 		end
 
-		Y = Y + 32
+		Layout:AddElement( DurationValueLabel )
 
 		local ReasonLabel = SGUI:Create( "Label", Window )
 		ReasonLabel:SetText( self:GetPhrase( "REASON" ) )
-		ReasonLabel:SetFont( Fonts.kAgencyFB_Small )
-		ReasonLabel:SetPos( Vector( X, Y, 0 ) )
+		ReasonLabel:SetFontScale( Font, Scale )
+		ReasonLabel:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
 
-		Y = Y + 32
+		Layout:AddElement( ReasonLabel )
 
 		ReasonEntry = SGUI:Create( "TextEntry", Window )
-		ReasonEntry:SetSize( TextEntrySize )
-		ReasonEntry:SetPos( Vector( X, Y, 0 ) )
-		ReasonEntry:SetFont( Fonts.kAgencyFB_Small )
+		ReasonEntry:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+		ReasonEntry:SetFontScale( Font, Scale )
 		function ReasonEntry:OnTab()
 			self:LoseFocus()
 
 			IDEntry:RequestFocus()
 		end
 
-		local AddBan = SGUI:Create( "Button", Window )
-		AddBan:SetAnchor( "BottomMiddle" )
-		AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
-		AddBan:SetFont( Fonts.kAgencyFB_Small )
-		AddBan:SetStyleName( "SuccessButton" )
+		Layout:AddElement( ReasonEntry )
 
-		do
-			local Width = AddBan:GetTextWidth()
-			local Pos = Vector( -64, -44, 0 )
-			local Size = Vector( 128, 32, 0 )
-			if Width > Size.x then
-				Size.x = Width + 16
-				Pos.x = -Size.x * 0.5
-			end
-			AddBan:SetPos( Pos )
-			AddBan:SetSize( Size )
-		end
+		local AddBan = SGUI:Create( "Button", Window )
+		local ButtonLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+			Fill = false,
+			AutoSize = UnitVector( Percentage( 100 ), Auto( AddBan ) + HighResScaled( 8 ) ),
+			Alignment = SGUI.LayoutAlignment.MAX
+		} )
+
+		AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
+		AddBan:SetStyleName( "SuccessButton" )
+		AddBan:SetFontScale( Font, Scale )
+		AddBan:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+		AddBan:SetAutoSize( UnitVector( Units.Max( Auto( AddBan ), HighResScaled( 128 ) ), Percentage( 100 ) ) )
+
+		ButtonLayout:AddElement( AddBan )
+		Layout:AddElement( ButtonLayout )
 
 		function AddBan.DoClick()
 			local ID = tonumber( IDEntry:GetText() )
@@ -273,7 +306,7 @@ function Plugin:SetupAdminMenu()
 			Window:Destroy()
 			Window = nil
 
-			self:RequestBanData()
+			self:RequestBanPage( self.CurrentPage )
 		end
 	end
 
@@ -290,74 +323,171 @@ function Plugin:SetupAdminMenu()
 
 	self:AddAdminMenuTab( self:GetPhrase( self.AdminTab ), {
 		OnInit = function( Panel, Data )
+			self.BanMenuOpen = true
+
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 32 ),
+					HighResScaled( 16 ), HighResScaled( 16 ) )
+			} )
+
+			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
+			local SearchIcon = SGUI:Create( "Label", Panel )
+			SearchIcon:SetFontScale( SGUI.FontManager.GetHighResFont( "Ionicons", 29 ) )
+			SearchIcon:SetText( SGUI.Icons.Ionicons.Search )
+			SearchIcon:SetMargin( Spacing( 0, 0, HighResScaled( 8 ), 0 ) )
+
+			local SearchBox = SGUI:Create( "TextEntry", Panel )
+			SearchBox:SetFontScale( Font, Scale )
+			SearchBox:SetFill( true )
+			SearchBox:SetPlaceholderText( self:GetPhrase( "SEARCH_HINT" ) )
+
+			local SearchBar = SGUI.Layout:CreateLayout( "Horizontal", {
+				Margin = Spacing( 0, 0, 0, HighResScaled( 16 ) ),
+				AutoSize = UnitVector( Percentage( 100 ), Auto( SearchBox ) + 2 ),
+				Fill = false
+			} )
+
+			SearchBar:AddElement( SearchIcon )
+			SearchBar:AddElement( SearchBox )
+
+			Layout:AddElement( SearchBar )
+
 			local List = SGUI:Create( "List", Panel )
-			List:SetAnchor( GUIItem.Left, GUIItem.Top )
-			List:SetPos( Vector( 16, 28, 0 ) )
 			List:SetColumns( self:GetPhrase( "NAME" ), self:GetPhrase( "BANNED_BY" ),
 				self:GetPhrase( "EXPIRY" ) )
 			List:SetSpacing( 0.35, 0.35, 0.3 )
-			List:SetSize( Vector( 640, 512, 0 ) )
-			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetFill( true )
+
+			Shine.AdminMenu.SetupListWithScaling( List )
+
 			List:SetNumericColumn( 3 )
-			List:SetSecondarySortColumn( 3, 1 )
-			List:SetSecondarySortColumn( 2, 1 )
+			List:SetSortedExternally( true )
+
+			Layout:AddElement( List )
 
 			self.BanList = List
-			self.Rows = self.Rows or {}
 
-			local BanData = self.BanData
-			if BanData then
-				for i = 1, #BanData do
-					local Data = BanData[ i ]
-					self.Rows[ Data.ID ] = self:AddBanRow( Data )
-				end
-			else
-				self:RequestBanData()
+			Data = Data or {
+				Page = 1,
+				MaxResults = 15,
+				SortColumn = self.SortColumn.EXPIRY,
+				SortAscending = true,
+				Filter = ""
+			}
+			self.CurrentPage = Data
+
+			function SearchBox.OnTextChanged( SearchBox, OldText, NewText )
+				self.SearchTimer = self.SearchTimer or self:SimpleTimer( 0.3, function()
+					self.SearchTimer = nil
+
+					if not SGUI.IsValid( SearchBox ) then return end
+
+					Data.Filter = SearchBox:GetText()
+
+					self:RequestBanPage( Data )
+				end )
+				self.SearchTimer:Debounce()
 			end
 
-			if not Shine.AdminMenu.RestoreListState( List, Data ) then
-				List:SortRows( 3 )
+			function List.HandleExternalSorting( List, Column, Descending )
+				Data.SortColumn = Column
+				Data.SortAscending = not Descending
+
+				self:RequestBanPage( Data )
+
+				return true
 			end
+
+			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
+				Fill = false
+			} )
+
+			local PageButtonSize = UnitVector(
+				Units.Max( HighResScaled( 32 ), Auto() + HighResScaled( 8 ) ),
+				Percentage( 100 )
+			)
+
+			local PageBack = SGUI:Create( "Button", Panel )
+			PageBack:SetFontScale( SGUI.FontManager.GetHighResFont( "Ionicons", 32 ) )
+			PageBack:SetText( SGUI.Icons.Ionicons.ArrowLeftB )
+			PageBack:SetEnabled( Data.Page > 1 )
+			PageBack:SetAutoSize( PageButtonSize )
+			PageBack:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+			function PageBack.DoClick()
+				Data.Page = Data.Page - 1
+				self:RequestBanPage( Data )
+			end
+			self.PageBack = PageBack
+
+			ControlLayout:AddElement( PageBack )
+
+			local PageLabel = SGUI:Create( "Label", Panel )
+			PageLabel:SetFontScale( Font, Scale )
+			PageLabel:SetText( StringFormat( "%d / %d", Data.Page, Data.Page ) )
+			PageLabel:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+			PageLabel:SetTextAlignmentY( GUIItem.Align_Center )
+			self.PageLabel = PageLabel
+
+			ControlLayout:AddElement( PageLabel )
+
+			local PageForward = SGUI:Create( "Button", Panel )
+			PageForward:SetFontScale( SGUI.FontManager.GetHighResFont( "Ionicons", 32 ) )
+			PageForward:SetText( SGUI.Icons.Ionicons.ArrowRightB )
+			PageForward:SetEnabled( false )
+			PageForward:SetAutoSize( PageButtonSize )
+			PageForward:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+			function PageForward.DoClick()
+				Data.Page = Data.Page + 1
+				self:RequestBanPage( Data )
+			end
+			self.PageForward = PageForward
+
+			ControlLayout:AddElement( PageForward )
 
 			local Unban = SGUI:Create( "Button", Panel )
-			Unban:SetAnchor( "BottomLeft" )
-			Unban:SetSize( Vector( 128, 32, 0 ) )
-			Unban:SetPos( Vector( 16, -48, 0 ) )
 			Unban:SetText( self:GetPhrase( "UNBAN" ) )
-			Unban:SetFont( Fonts.kAgencyFB_Small )
+			Unban:SetFontScale( Font, Scale )
 			Unban:SetStyleName( "DangerButton" )
 			function Unban.DoClick()
 				local Row = List:GetSelectedRow()
 				if not Row then return end
 
-				local Data = Row.BanData
-				if not Data then return end
-				local ID = Data.ID
+				local BanData = Row.BanData
+				if not BanData then return end
 
-				Shine.AdminMenu:RunCommand( self.UnbanCommand, ID )
+				Shine.AdminMenu:RunCommand( self.UnbanCommand, BanData.ID )
+
+				self:RequestBanPage( Data )
 			end
 			Unban:SetEnabled( List:HasSelectedRow() )
 
-			local LoadMore = SGUI:Create( "Button", Panel )
-			LoadMore:SetAnchor( "BottomMiddle" )
-			LoadMore:SetSize( Vector( 128, 32, 0 ) )
-			LoadMore:SetPos( Vector( -64, -48, 0 ) )
-			LoadMore:SetText( self:GetPhrase( "LOAD_MORE" ) )
-			LoadMore:SetFont( Fonts.kAgencyFB_Small )
-			function LoadMore.DoClick()
-				self:RequestBanData()
-			end
-			LoadMore:SetTooltip( self:GetPhrase( "LOAD_MORE_TIP" ) )
+			ControlLayout:AddElement( Unban )
 
 			local AddBan = SGUI:Create( "Button", Panel )
-			AddBan:SetAnchor( "BottomRight" )
-			AddBan:SetSize( Vector( 128, 32, 0 ) )
-			AddBan:SetPos( Vector( -144, -48, 0 ) )
 			AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
-			AddBan:SetFont( Fonts.kAgencyFB_Small )
+			AddBan:SetFontScale( Font, Scale )
+			AddBan:SetAlignment( SGUI.LayoutAlignment.MAX )
 			function AddBan.DoClick()
 				OpenAddBanWindow()
 			end
+
+			ControlLayout:AddElement( AddBan )
+
+			local ButtonWidth = Units.Max(
+				HighResScaled( 128 ),
+				Auto( Unban ) + HighResScaled( 16 ),
+				Auto( AddBan ) + HighResScaled( 16 )
+			)
+			Unban:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+			AddBan:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+
+			local ButtonHeight = Units.Max( Auto( AddBan ), Auto( PageForward ) ) + HighResScaled( 8 )
+			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+			PageLabel:SetMargin( Spacing( HighResScaled( 16 ), ButtonHeight * 0.5, HighResScaled( 16 ), 0 ) )
+
+			Layout:AddElement( ControlLayout )
 
 			function List:OnRowSelected( Index, Row )
 				Unban:SetEnabled( true )
@@ -366,69 +496,59 @@ function Plugin:SetupAdminMenu()
 			function List:OnRowDeselected( Index, Row )
 				Unban:SetEnabled( false )
 			end
+
+			Panel:SetLayout( Layout )
+			Panel:InvalidateLayout( true )
+			List:SortRows( Data.SortColumn, nil, not Data.SortAscending )
 		end,
 
 		OnCleanup = function( Panel )
-			TableEmpty( self.Rows )
-
-			local BanList = self.BanList
 			self.BanList = nil
+			self.BanMenuOpen = false
 
-			return Shine.AdminMenu.GetListState( BanList )
+			return self.CurrentPage
 		end
 	} )
 end
 
-function Plugin:RequestBanData()
-	self:SendNetworkMessage( "RequestBanData", {}, true )
+function Plugin:RequestBanPage( PageRequest )
+	self:SendNetworkMessage( "RequestBanPage", PageRequest, true )
 end
 
-function Plugin:ReceiveUnban( Data )
-	local ID = Data.ID
+function Plugin:BuildTooltip( Data )
+	local Text = {}
 
-	if not self.BanData then return end
-
-	local BanData = self.BanData
-	local Rows = self.Rows
-	local List = self.BanList
-
-	for i = 1, #BanData do
-		local Data = BanData[ i ]
-
-		if Data.ID == ID then
-			TableRemove( BanData, i )
-
-			local Row = Rows[ ID ]
-			if SGUI.IsValid( Row ) then
-				List:RemoveRow( Row.Index )
-			end
-
-			break
-		end
+	if Data.Duration and ( Data.Duration ~= 0 or Data.UnbanTime == 0 ) then
+		Text[ #Text + 1 ] = self:GetInterpolatedPhrase( "BAN_DURATION_TIP", { Duration = Data.Duration } )
 	end
+
+	if Data.Issued and Data.Issued ~= 0 then
+		Text[ #Text + 1 ] = self:GetInterpolatedPhrase( "ISSUED_DATE_TIP", {
+			Date = GetDurationLabel( self, false, Data.Issued )
+		} )
+	end
+
+	if Data.Reason and Data.Reason ~= "" then
+		Text[ #Text + 1 ] = self:GetInterpolatedPhrase( "REASON_TIP", {
+			Reason = Data.Reason
+		} )
+	end
+
+	return TableConcat( Text, "\n" )
 end
 
 function Plugin:AddBanRow( Data )
+	if not SGUI.IsValid( self.BanList ) then return end
+
 	local UnbanTime = Data.UnbanTime
 	local Permanent = UnbanTime == 0
-
-	local Row = self.Rows[ Data.ID ]
 
 	local Name = StringFormat( "%s [%s]", Data.Name, Data.ID )
 	local BannedBy = StringFormat( "%s [%s]", Data.BannedBy, Data.BannerID or "?" )
 	local Expiry = GetDurationLabel( self, Permanent, UnbanTime )
-	if not Row then
-		Row = self.BanList:AddRow( Name, BannedBy, Expiry )
-		self.Rows[ Data.ID ] = Row
-	else
-		Row:SetColumnText( 1, Name )
-		Row:SetColumnText( 2, BannedBy )
-		Row:SetColumnText( 3, Expiry )
-	end
 
-	Row:SetData( 1, Data.Name )
-	Row:SetData( 2, Data.BannedBy )
-	Row:SetData( 3, Permanent and math.huge or UnbanTime )
+	local Row = self.BanList:AddRow( Name, BannedBy, Expiry )
+	Row:SetTooltip( self:BuildTooltip( Data ) )
 	Row.BanData = Data
 
 	return Row
@@ -449,25 +569,24 @@ function Plugin:ReceiveBanData( Data )
 		Issued = Data.Issued
 	}
 
-	for i = 1, #BanData do
-		local CurData = BanData[ i ]
-
-		if CurData.ID == Data.ID then
-			BanData[ i ] = RealData
-
-			local List = self.BanList
-			if not SGUI.IsValid( List ) then return end
-
-			self:AddBanRow( RealData )
-
-			return
-		end
-	end
-
 	BanData[ #BanData + 1 ] = RealData
+	self:AddBanRow( RealData )
+end
 
-	local List = self.BanList
-	if not SGUI.IsValid( List ) then return end
+function Plugin:ReceiveBanPage( PageData )
+	if not self.BanMenuOpen then return end
 
-	self.Rows[ Data.ID ] = self:AddBanRow( RealData )
+	self.BanList:Clear()
+
+	self.CurrentPage.Page = PageData.Page
+	self.CurrentPage.MaxResults = PageData.MaxResults
+
+	self.PageData = PageData
+
+	self.PageLabel:SetText( StringFormat( "%d / %d", PageData.Page, PageData.NumPages ) )
+	self.PageLabel:SetTooltip( self:GetInterpolatedPhrase( "TOTAL_RESULTS_TIP", {
+		TotalResults = PageData.TotalNumResults
+	} ) )
+	self.PageBack:SetEnabled( PageData.Page > 1 )
+	self.PageForward:SetEnabled( PageData.Page < PageData.NumPages )
 end

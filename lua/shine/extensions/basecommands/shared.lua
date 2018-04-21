@@ -285,36 +285,41 @@ function Plugin:SetupAdminMenuCommands()
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "SET_TEAM" ), "sh_setteam", true, Teams,
 		self:GetPhrase( "SET_TEAM_TIP" ) )
 
+	local Units = SGUI.Layout.Units
+	local HighResScaled = Units.HighResScaled
+	local Percentage = Units.Percentage
+	local Spacing = Units.Spacing
+	local UnitVector = Units.UnitVector
+	local Auto = Units.Auto
+
 	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
 		OnInit = function( Panel, Data )
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
+					HighResScaled( 16 ), HighResScaled( 16 ) )
+			} )
+
 			local List = SGUI:Create( "List", Panel )
-			List:SetAnchor( GUIItem.Left, GUIItem.Top )
-			List:SetPos( Vector( 16, 28, 0 ) )
 			List:SetColumns( self:GetPhrase( "MAP" ) )
 			List:SetSpacing( 1 )
-			List:SetSize( Vector( 640, 512, 0 ) )
-			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetFill( true )
+
+			Shine.AdminMenu.SetupListWithScaling( List )
+
+			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
+			Layout:AddElement( List )
 
 			self.MapList = List
 
-			if not self.MapData then
-				self:RequestMapData()
-			else
-				for Map in pairs( self.MapData ) do
-					List:AddRow( Map )
-				end
-			end
-
-			if not Shine.AdminMenu.RestoreListState( List, Data ) then
-				List:SortRows( 1 )
-			end
+			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
+				Fill = false
+			} )
 
 			local ChangeMap = SGUI:Create( "Button", Panel )
-			ChangeMap:SetAnchor( "BottomLeft" )
-			ChangeMap:SetSize( Vector( 128, 32, 0 ) )
-			ChangeMap:SetPos( Vector( 16, -48, 0 ) )
 			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
-			ChangeMap:SetFont( Fonts.kAgencyFB_Small )
+			ChangeMap:SetFontScale( Font, Scale )
 			ChangeMap:SetStyleName( "DangerButton" )
 			function ChangeMap.DoClick()
 				local Selected = List:GetSelectedRow()
@@ -327,6 +332,8 @@ function Plugin:SetupAdminMenuCommands()
 			ChangeMap:SetTooltip( self:GetPhrase( "CHANGE_MAP_TIP" ) )
 			ChangeMap:SetEnabled( List:HasSelectedRow() )
 
+			ControlLayout:AddElement( ChangeMap )
+
 			function List:OnRowSelected( Index, Row )
 				ChangeMap:SetEnabled( true )
 			end
@@ -335,17 +342,46 @@ function Plugin:SetupAdminMenuCommands()
 				ChangeMap:SetEnabled( false )
 			end
 
+			local ButtonWidth = Units.Max(
+				HighResScaled( 128 ),
+				Auto( ChangeMap ) + HighResScaled( 16 )
+			)
+
+			ChangeMap:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+
 			if Shine:IsExtensionEnabled( "mapvote" ) then
 				local CallVote = SGUI:Create( "Button", Panel )
-				CallVote:SetAnchor( "BottomRight" )
-				CallVote:SetSize( Vector( 128, 32, 0 ) )
-				CallVote:SetPos( Vector( -144, -48, 0 ) )
 				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
-				CallVote:SetFont( Fonts.kAgencyFB_Small )
+				CallVote:SetFontScale( Font, Scale )
+				CallVote:SetAlignment( SGUI.LayoutAlignment.MAX )
 				function CallVote.DoClick()
 					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 				end
 				CallVote:SetTooltip( self:GetPhrase( "CALL_VOTE_TIP" ) )
+				CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+
+				ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
+
+				ControlLayout:AddElement( CallVote )
+			end
+
+			local ButtonHeight = Auto( ChangeMap ) + HighResScaled( 8 )
+			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+
+			Layout:AddElement( ControlLayout )
+			Panel:SetLayout( Layout )
+			Panel:InvalidateLayout( true )
+
+			if not self.MapData then
+				self:RequestMapData()
+			else
+				for Map in pairs( self.MapData ) do
+					List:AddRow( Map )
+				end
+			end
+
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
+				List:SortRows( 1 )
 			end
 		end,
 
@@ -359,33 +395,36 @@ function Plugin:SetupAdminMenuCommands()
 
 	self:AddAdminMenuTab( self:GetPhrase( "PLUGINS" ), {
 		OnInit = function( Panel, Data )
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
+					HighResScaled( 16 ), HighResScaled( 16 ) )
+			} )
+
 			local List = SGUI:Create( "List", Panel )
-			List:SetAnchor( GUIItem.Left, GUIItem.Top )
-			List:SetPos( Vector( 16, 28, 0 ) )
 			List:SetColumns( self:GetPhrase( "PLUGIN" ), self:GetPhrase( "STATE" ) )
-			List:SetSpacing( 0.7, 0.3 )
-			List:SetSize( Vector( 640, 512, 0 ) )
-			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetSpacing( 0.8, 0.2 )
 			List:SetSecondarySortColumn( 2, 1 )
+			List:SetFill( true )
+
+			Shine.AdminMenu.SetupListWithScaling( List )
+
+			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
+			Layout:AddElement( List )
 
 			self.PluginList = List
 			self.PluginRows = self.PluginRows or {}
 
-			--We need information about the server side only plugins too.
+			-- We need information about the server side only plugins too.
 			if not self.PluginData then
 				self:RequestPluginData()
 				self.PluginData = {}
 			end
 
-			if self.PluginAuthed then
-				self:PopulatePluginList()
-			end
-
-			if not Shine.AdminMenu.RestoreListState( List, Data ) then
-				List:SortRows( 2, nil, true )
-			end
-
-			local ButtonSize = Vector( 128, 32, 0 )
+			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
+				Fill = false
+			} )
 
 			local function GetSelectedPlugin()
 				local Selected = List:GetSelectedRow()
@@ -395,11 +434,8 @@ function Plugin:SetupAdminMenuCommands()
 			end
 
 			local UnloadPlugin = SGUI:Create( "Button", Panel )
-			UnloadPlugin:SetAnchor( "BottomLeft" )
-			UnloadPlugin:SetSize( ButtonSize )
-			UnloadPlugin:SetPos( Vector( 16, -48, 0 ) )
 			UnloadPlugin:SetText( self:GetPhrase( "UNLOAD_PLUGIN" ) )
-			UnloadPlugin:SetFont( Fonts.kAgencyFB_Small )
+			UnloadPlugin:SetFontScale( Font, Scale )
 			UnloadPlugin:SetStyleName( "DangerButton" )
 			UnloadPlugin:SetEnabled( List:HasSelectedRow() )
 			function UnloadPlugin.DoClick( Button )
@@ -422,14 +458,14 @@ function Plugin:SetupAdminMenuCommands()
 				end, self:GetPhrase( "UNLOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "DangerButton" )
 			end
 
+			ControlLayout:AddElement( UnloadPlugin )
+
 			local LoadPlugin = SGUI:Create( "Button", Panel )
-			LoadPlugin:SetAnchor( "BottomRight" )
-			LoadPlugin:SetSize( ButtonSize )
-			LoadPlugin:SetPos( Vector( -144, -48, 0 ) )
 			LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
-			LoadPlugin:SetFont( Fonts.kAgencyFB_Small )
+			LoadPlugin:SetFontScale( Font, Scale )
 			LoadPlugin:SetStyleName( "SuccessButton" )
 			LoadPlugin:SetEnabled( List:HasSelectedRow() )
+			LoadPlugin:SetAlignment( SGUI.LayoutAlignment.MAX )
 			local function NormalLoadDoClick( Button )
 				local Plugin = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -448,6 +484,8 @@ function Plugin:SetupAdminMenuCommands()
 					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
 				end, self:GetPhrase( "LOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "SuccessButton" )
 			end
+
+			ControlLayout:AddElement( LoadPlugin )
 
 			local function ReloadDoClick()
 				local Plugin = GetSelectedPlugin()
@@ -482,8 +520,8 @@ function Plugin:SetupAdminMenuCommands()
 				local Row = self.PluginRows[ Name ]
 
 				if SGUI.IsValid( Row ) then
-					Row:SetColumnText( 2, State and self:GetPhrase( "ENABLED" ) or self:GetPhrase( "DISABLED" ) )
-					Row.PluginEnabled = State
+					self:SetPluginRowState( Row, State )
+
 					if Row == List:GetSelectedRow() then
 						List:OnRowSelected( nil, Row )
 					end
@@ -497,6 +535,29 @@ function Plugin:SetupAdminMenuCommands()
 			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Plugin, Shared )
 				UpdateRow( Name, false )
 			end )
+
+			local ButtonWidth = Units.Max(
+				HighResScaled( 128 ),
+				Auto( LoadPlugin ) + HighResScaled( 16 ),
+				Auto( UnloadPlugin ) + HighResScaled( 16 )
+			)
+			UnloadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+			LoadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+
+			local ButtonHeight = Auto( LoadPlugin ) + HighResScaled( 8 )
+			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+
+			Layout:AddElement( ControlLayout )
+			Panel:SetLayout( Layout )
+			Panel:InvalidateLayout( true )
+
+			if self.PluginAuthed then
+				self:PopulatePluginList()
+			end
+
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
+				List:SortRows( 2, nil, true )
+			end
 		end,
 
 		OnCleanup = function( Panel )
@@ -545,7 +606,7 @@ function Plugin:PopulatePluginList()
 	for Plugin in pairs( Shine.AllPlugins ) do
 		local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
 		local Skip
-		--Server side plugin.
+		-- Server side plugin.
 		if not PluginTable then
 			Enabled = self.PluginData and self.PluginData[ Plugin ]
 		elseif PluginTable.IsClient and not PluginTable.IsShared then
@@ -553,12 +614,24 @@ function Plugin:PopulatePluginList()
 		end
 
 		if not Skip then
-			local Row = List:AddRow( Plugin, Enabled and self:GetPhrase( "ENABLED" ) or self:GetPhrase( "DISABLED" ) )
-			Row.PluginEnabled = Enabled
+			local Row = List:AddRow( Plugin, "" )
+			self:SetPluginRowState( Row, Enabled )
 
 			self.PluginRows[ Plugin ] = Row
 		end
 	end
+end
+
+function Plugin:SetPluginRowState( Row, Enabled )
+	local Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 27 )
+	Row:SetColumnText( 2, SGUI.Icons.Ionicons[ Enabled and "CheckmarkCircled" or "MinusCircled" ] )
+	Row:SetTextOverride( 2, {
+		Font = Font,
+		TextScale = Scale,
+		Colour = Enabled and Colour( 0, 1, 0 ) or Colour( 1, 0.8, 0 )
+	} )
+	Row:SetData( 2, Enabled and "1" or "0" )
+	Row.PluginEnabled = Enabled
 end
 
 function Plugin:ReceivePluginData( Data )
@@ -568,8 +641,7 @@ function Plugin:ReceivePluginData( Data )
 	local Row = self.PluginRows[ Data.Name ]
 
 	if Row then
-		Row:SetColumnText( 2, Data.Enabled and self:GetPhrase( "ENABLED" ) or self:GetPhrase( "DISABLED" ) )
-		Row.PluginEnabled = Data.Enabled
+		self:SetPluginRowState( Row, Data.Enabled )
 
 		if Row == self.PluginList:GetSelectedRow() then
 			self.PluginList:OnRowSelected( nil, Row )

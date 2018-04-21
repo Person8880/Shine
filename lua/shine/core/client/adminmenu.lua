@@ -7,6 +7,12 @@ local SGUI = Shine.GUI
 local Hook = Shine.Hook
 local Locale = Shine.Locale
 
+local Units = SGUI.Layout.Units
+local Percentage = Units.Percentage
+local Spacing = Units.Spacing
+local UnitVector = Units.UnitVector
+local HighResScaled = Units.HighResScaled
+
 local IsType = Shine.IsType
 local StringFormat = string.format
 
@@ -26,16 +32,24 @@ end )
 AdminMenu.Commands = {}
 AdminMenu.Tabs = {}
 
-AdminMenu.Pos = Vector( -400, -300, 0 )
-AdminMenu.Size = Vector( 800, 600, 0 )
+AdminMenu.DefaultSize = Vector( 930, 700, 0 )
 
 function AdminMenu:Create()
 	self.Created = true
 
 	local Window = SGUI:Create( "TabPanel" )
 	Window:SetAnchor( "CentreMiddle" )
+
+	local Size = HighResScaled( self.DefaultSize ):GetValue()
+	self.Size = Size
+	self.Pos = -Size * 0.5
+
+	Window:SetSize( Size )
 	Window:SetPos( self.Pos )
-	Window:SetSize( self.Size )
+
+	Window:SetTabWidth( HighResScaled( 128 ):GetValue() )
+	Window:SetTabHeight( HighResScaled( 96 ):GetValue() )
+	Window:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 
 	self.Window = Window
 
@@ -49,6 +63,7 @@ function AdminMenu:Create()
 		self:OnTabCleanup( Window, Tab.Name )
 	end
 
+	Window.TitleBarHeight = HighResScaled( 24 ):GetValue()
 	self:PopulateTabs( Window )
 
 	Window:AddCloseButton()
@@ -58,10 +73,10 @@ function AdminMenu:Create()
 	end
 end
 
-function AdminMenu:Close()
+function AdminMenu:Close( Now )
 	if not self.Visible then return end
 
-	self:ForceHide()
+	self:ForceHide( Now )
 
 	if self.ToDestroyOnClose then
 		for Panel in pairs( self.ToDestroyOnClose ) do
@@ -75,6 +90,16 @@ function AdminMenu:Close()
 
 	Hook.Call( "OnAdminMenuClosed", self )
 end
+
+Shine.Hook.Add( "OnResolutionChanged", "AdminMenu_OnResolutionChanged", function()
+	if not AdminMenu.Created then return end
+
+	-- Close and destroy the menu, it'll be scaled correctly the next time it opens.
+	AdminMenu:Close( true )
+	AdminMenu.Window:Destroy()
+	AdminMenu.Window = nil
+	AdminMenu.Created = false
+end )
 
 function AdminMenu:DestroyOnClose( Object )
 	self.ToDestroyOnClose = self.ToDestroyOnClose or {}
@@ -298,7 +323,18 @@ function AdminMenu.RestoreListState( List, Data )
 	return Data.SortedColumn ~= nil
 end
 
---Setup the commands tab.
+function AdminMenu.SetupListWithScaling( List )
+	List:SetLineSize( HighResScaled( 32 ):GetValue() )
+	List:SetHeaderSize( List.LineSize )
+
+	local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+	List:SetHeaderFontScale( Font, Scale )
+	List:SetRowFontScale( Font, Scale )
+
+	List:SetScrollbarWidth( HighResScaled( 10 ):GetValue() )
+end
+
+-- Setup the commands tab.
 do
 	local GetEnts = Shared.GetEntitiesWithClassname
 	local IterateEntList = ientitylist
@@ -346,9 +382,7 @@ do
 
 	local function GenerateButton( Data )
 		local Button = SGUI:Create( "Button" )
-		Button:SetSize( Vector( 192, 32, 0 ) )
 		Button:SetText( Data.Name )
-		Button:SetFont( Fonts.kAgencyFB_Small )
 		Button.DoClick = function( Button )
 			Data.DoClick( Button, PlayerList:GetSelectedRow() )
 		end
@@ -365,22 +399,99 @@ do
 
 	AdminMenu:AddTab( "Commands", {
 		OnInit = function( Panel, Data )
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 24 ),
+					HighResScaled( 16 ), HighResScaled( 16 ) )
+			} )
+
+			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
 			Label = SGUI:Create( "Label", Panel )
-			Label:SetFont( Fonts.kAgencyFB_Small )
+			Label:SetFontScale( Font, Scale )
 			Label:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_PLAYERS_HELP" ) )
-			Label:SetPos( Vector( 16, 24, 0 ) )
+			Label:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+			Layout:AddElement( Label )
+
+			local CommandLayout = SGUI.Layout:CreateLayout( "Horizontal", {} )
 
 			PlayerList = SGUI:Create( "List", Panel )
-			PlayerList:SetAnchor( GUIItem.Left, GUIItem.Top )
-			PlayerList:SetPos( Vector( 16, 72, 0 ) )
 			PlayerList:SetColumns( Locale:GetPhrase( "Core", "NAME" ), "NS2ID",
 				Locale:GetPhrase( "Core", "TEAM" ) )
 			PlayerList:SetSpacing( 0.45, 0.3, 0.25 )
-			PlayerList:SetSize( Vector( 640 - 192 - 16, 512, 0 ) )
 			PlayerList:SetNumericColumn( 2 )
 			PlayerList:SetMultiSelect( true )
+			PlayerList:SetFill( true )
 			PlayerList:SetSecondarySortColumn( 3, 1 )
-			PlayerList.ScrollPos = Vector( 0, 32, 0 )
+
+			AdminMenu.SetupListWithScaling( PlayerList )
+
+			PlayerList:SetMargin( Spacing( 0, 0, HighResScaled( 16 ), 0 ) )
+
+			CommandLayout:AddElement( PlayerList )
+
+			local ButtonHeight = Units.Auto() + HighResScaled( 6 )
+
+			Commands = SGUI:Create( "CategoryPanel", Panel )
+			Commands:SetCategoryHeight( HighResScaled( 24 ) )
+			CommandLayout:AddElement( Commands )
+
+			local Width = Units.Max()
+			local Categories = AdminMenu.Commands
+
+			TableSort( Categories, function( A, B )
+				return A.Name < B.Name
+			end )
+
+			for i = 1, #Categories do
+				local Category = Categories[ i ]
+				local Name = Category.Name
+				local CommandList = Category.Commands
+
+				local CategoryButton = Commands:AddCategory( Name )
+				CategoryButton:SetFontScale( Font, Scale )
+
+				Width:AddValue( Units.Auto( CategoryButton ) + HighResScaled( 8 ) )
+
+				for j = 1, #CommandList do
+					local CommandData = CommandList[ j ]
+
+					local Button = GenerateButton( CommandData )
+					Button:SetFontScale( Font, Scale )
+					Button:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+
+					Width:AddValue( Units.Auto( Button ) + HighResScaled( 8 ) )
+					Commands:AddObject( Name, Button )
+				end
+			end
+
+			if Data and Data.CommandExpansions then
+				for Category, Expanded in pairs( Data.CommandExpansions ) do
+					if not Expanded then
+						Commands:ContractCategory( Category )
+					end
+				end
+			end
+
+			Commands:SetAutoSize( UnitVector( Width, Percentage( 100 ) ) )
+
+			function PlayerList:OnSelectionChanged( Rows )
+				local Buttons = Commands:GetAllObjects()
+				local NumRows = #Rows
+
+				for i = 1, #Buttons do
+					local Button = Buttons[ i ]
+					Button:SetEnabled( NumRows > 0 and ( NumRows == 1 or Button.MultiPlayer ) )
+				end
+			end
+
+			Layout:AddElement( CommandLayout )
+
+			Panel:SetLayout( Layout )
+			Panel:InvalidateLayout( true )
+
+			if not AdminMenu.RestoreListState( PlayerList, Data ) then
+				PlayerList:SortRows( 3 )
+			end
 
 			UpdatePlayers()
 
@@ -395,52 +506,6 @@ do
 				if not SGUI.IsValid( PlayerList ) then return end
 				PlayerList:ResetSelection()
 			end )
-
-			AdminMenu.RestoreListState( PlayerList, Data )
-
-			Commands = SGUI:Create( "CategoryPanel", Panel )
-			Commands:SetAnchor( "TopRight" )
-			Commands:SetPos( Vector( -192 -16, 72, 0 ) )
-			Commands:SetSize( Vector( 192, 512, 0 ) )
-
-			local Categories = AdminMenu.Commands
-
-			TableSort( Categories, function( A, B )
-				return A.Name < B.Name
-			end )
-
-			for i = 1, #Categories do
-				local Category = Categories[ i ]
-				local Name = Category.Name
-				local CommandList = Category.Commands
-
-				Commands:AddCategory( Name )
-
-				for j = 1, #CommandList do
-					local CommandData = CommandList[ j ]
-
-					local Button = GenerateButton( CommandData )
-					Commands:AddObject( Name, Button )
-				end
-			end
-
-			if Data and Data.CommandExpansions then
-				for Category, Expanded in pairs( Data.CommandExpansions ) do
-					if not Expanded then
-						Commands:ContractCategory( Category )
-					end
-				end
-			end
-
-			function PlayerList:OnSelectionChanged( Rows )
-				local Buttons = Commands:GetAllObjects()
-				local NumRows = #Rows
-
-				for i = 1, #Buttons do
-					local Button = Buttons[ i ]
-					Button:SetEnabled( NumRows > 0 and ( NumRows == 1 or Button.MultiPlayer ) )
-				end
-			end
 		end,
 
 		OnCleanup = function( Panel )
@@ -480,45 +545,10 @@ do
 		end
 	end
 
-	function AdminMenu:AskForSinglePlayer()
-		local Window = SGUI:Create( "Panel" )
-		Window:SetAnchor( "CentreMiddle" )
-		Window:SetSize( Vector( 400, 200, 0 ) )
-		Window:SetPos( Vector( -200, -100, 0 ) )
-
-		Window:AddTitleBar( Locale:GetPhrase( "Core", "ERROR" ) )
-
-		self:DestroyOnClose( Window )
-
-		function Window.CloseButton.DoClick()
-			self:DontDestroyOnClose( Window )
-			Window:Destroy()
-		end
-
-		local Label = SGUI:Create( "Label", Window )
-		Label:SetAnchor( "CentreMiddle" )
-		Label:SetFont( Fonts.kAgencyFB_Small )
-		Label:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_SELECT_SINGLE_PLAYER" ) )
-		Label:SetPos( Vector( 0, -40, 0 ) )
-		Label:SetTextAlignmentX( GUIItem.Align_Center )
-		Label:SetTextAlignmentY( GUIItem.Align_Center )
-
-		local OK = SGUI:Create( "Button", Window )
-		OK:SetAnchor( "CentreMiddle" )
-		OK:SetSize( Vector( 128, 32, 0 ) )
-		OK:SetPos( Vector( -64, 40, 0 ) )
-		OK:SetFont( Fonts.kAgencyFB_Small )
-		OK:SetText( Locale:GetPhrase( "Core", "OK" ) )
-
-		function OK.DoClick()
-			self:DontDestroyOnClose( Window )
-			Window:Destroy()
-		end
-	end
-
 	local function GetArgsFromRows( Rows, MultiPlayer )
 		if MultiPlayer then
 			return Shine.Stream( Rows ):Concat( ",", function( Row )
+
 				return Row:GetColumnText( 2 )
 			end )
 		end
@@ -532,7 +562,6 @@ do
 				if #Rows == 0 then return end
 
 				if not MultiPlayer and #Rows > 1 then
-					self:AskForSinglePlayer()
 					return
 				end
 
@@ -544,7 +573,6 @@ do
 				if #Rows == 0 then return end
 
 				if not MultiPlayer and #Rows > 1 then
-					self:AskForSinglePlayer()
 					return
 				end
 
@@ -570,7 +598,6 @@ do
 				end
 
 				if not MultiPlayer and #Rows > 1 then
-					self:AskForSinglePlayer()
 					return
 				end
 
@@ -690,21 +717,19 @@ below. If you want to get to it outside the game, visit:]],
 }
 }
 
-	local Units = SGUI.Layout.Units
-	local Percentage = Units.Percentage
-	local Spacing = Units.Spacing
-	local UnitVector = Units.UnitVector
-
 	AdminMenu:AddTab( "About", {
 		OnInit = function( Panel )
 			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Spacing( 16, 24, 16, 24 )
+				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 24 ),
+					HighResScaled( 16 ), HighResScaled( 24 ) )
 			} )
 			Panel:SetLayout( Layout )
 
+			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
 			for i = 1, #Text do
 				local Label = SGUI:Create( "Label", Panel )
-				Label:SetFont( Fonts.kAgencyFB_Small )
+				Label:SetFontScale( Font, Scale )
 
 				local LabelText = Text[ i ]
 				if IsType( LabelText, "string" ) then
@@ -718,9 +743,9 @@ below. If you want to get to it outside the game, visit:]],
 			end
 
 			local HomeButton = SGUI:Create( "Button", Panel )
-			HomeButton:SetAutoSize( UnitVector( Percentage( 100 ), 32 ) )
+			HomeButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + HighResScaled( 8 ) ) )
 			HomeButton:SetAlignment( SGUI.LayoutAlignment.MAX )
-			HomeButton:SetFont( Fonts.kAgencyFB_Small )
+			HomeButton:SetFontScale( Font, Scale )
 			HomeButton:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_OPEN_WIKI" ) )
 			function HomeButton:DoClick()
 				Shine:OpenWebpage( "https://github.com/Person8880/Shine/wiki", "Shine Wiki" )

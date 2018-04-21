@@ -31,7 +31,7 @@ Plugin.ListPermission = "sh_uncommban"
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
-	self:GenerateNetworkData()
+	self:BuildInitialNetworkData()
 
 	self:VerifyConfig()
 
