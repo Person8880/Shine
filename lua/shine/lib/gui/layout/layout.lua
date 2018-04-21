@@ -7,6 +7,7 @@ local SGUI = Shine.GUI
 local getmetatable = getmetatable
 local rawget = rawget
 local setmetatable = setmetatable
+local TableInsert = table.insert
 local TableRemoveByValue = table.RemoveByValue
 
 local Layout = {}
@@ -38,6 +39,7 @@ function BaseLayout:Init( Data )
 	self.Padding = Data.Padding or Spacing( 0, 0, 0, 0 )
 	self.Parent = Data.Parent
 	self.Anchor = Data.Anchor or SGUI.Anchors.TopLeft
+	self.Alignment = Data.Alignment or SGUI.LayoutAlignment.MIN
 	if Data.Fill ~= false then
 		self.Fill = true
 	end
@@ -59,6 +61,22 @@ end
 function BaseLayout:AddElement( Element )
 	local Elements = self.Elements
 	Elements[ #Elements + 1 ] = Element
+
+	if Element.IsLayout then
+		Element:SetParent( self )
+	end
+
+	self:InvalidateLayout()
+end
+
+function BaseLayout:InsertElementAfter( Element, AfterElement )
+	local Elements = self.Elements
+	for i = 1, #Elements do
+		if Elements[ i ] == Element then
+			TableInsert( Elements, i + 1, AfterElement )
+			break
+		end
+	end
 
 	if Element.IsLayout then
 		Element:SetParent( self )
