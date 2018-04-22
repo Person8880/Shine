@@ -51,6 +51,19 @@ function AdminMenu:Create()
 	Window:SetTabHeight( HighResScaled( 96 ):GetValue() )
 	Window:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 
+	Window:CallOnRemove( function()
+		if self.IgnoreRemove then return end
+
+		if self.Visible then
+			-- Make sure mouse is disabled in case of error.
+			SGUI:EnableMouse( false )
+			self.Visible = false
+		end
+
+		self.Created = false
+		self.Window = nil
+	end )
+
 	self.Window = Window
 
 	Window.OnPreTabChange = function( Window )
@@ -96,7 +109,9 @@ Shine.Hook.Add( "OnResolutionChanged", "AdminMenu_OnResolutionChanged", function
 
 	-- Close and destroy the menu, it'll be scaled correctly the next time it opens.
 	AdminMenu:Close( true )
+	AdminMenu.IgnoreRemove = true
 	AdminMenu.Window:Destroy()
+	AdminMenu.IgnoreRemove = false
 	AdminMenu.Window = nil
 	AdminMenu.Created = false
 end )
