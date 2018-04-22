@@ -63,7 +63,20 @@ Plugin.HandlesVoteConfig = true
 
 Shine.LoadPluginModule( "vote.lua" )
 
+function Plugin:UpdateVanillaConfig()
+	if not Server.SetConfigSetting then return end
+
+	if self.Config.AllTalkPreGame and Server.GetConfigSetting( "pregamealltalk" ) then
+		self:Print( "Disabling vanilla pregamealltalk, AllTalkPreGame is enabled." )
+		-- Disable vanilla pregame all-talk to avoid it broadcasting voice during the 'PreGame' state.
+		Server.SetConfigSetting( "pregamealltalk", false )
+		Server.SaveConfigSettings()
+	end
+end
+
 function Plugin:OnFirstThink()
+	self:UpdateVanillaConfig()
+
 	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 
@@ -81,7 +94,7 @@ function Plugin:OnFirstThink()
 	Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 end
 
---Override sv_say with sh_say.
+-- Override sv_say with sh_say.
 Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
 	if Name == "Console_sv_say" then
 		local function NewSay( Client, ... )
@@ -287,6 +300,7 @@ function Plugin:Initialise()
 	self.Gagged = self:LoadGaggedPlayers()
 
 	self:CreateCommands()
+	self:UpdateVanillaConfig()
 
 	self.SetEjectVotes = false
 
