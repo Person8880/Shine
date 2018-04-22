@@ -101,6 +101,10 @@ function ScreenText:GetIsVisible()
 	return self.Obj:GetIsVisible()
 end
 
+function ScreenText:SetTextAlignmentX( Alignment )
+	self.Obj:SetTextAlignmentX( Alignment )
+end
+
 function ScreenText:SetTextAlignmentY( Alignment )
 	self.Obj:SetTextAlignmentY( Alignment )
 end
