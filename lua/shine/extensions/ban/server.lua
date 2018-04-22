@@ -864,6 +864,9 @@ function Plugin:BuildInitialNetworkData()
 end
 
 function Plugin:AddBanToNetData( BanData )
+	-- First remove the old ban, if it exists.
+	self:RemoveBanFromNetData( BanData.ID )
+
 	for i = 1, #self.SortColumn do
 		local Data = self.SortedBans[ i ]
 		Data[ #Data + 1 ] = BanData
