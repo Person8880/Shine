@@ -961,7 +961,10 @@ local DEFAULT_HOVER_TIME = 0.5
 function ControlMeta:HandleHovering( Time )
 	if not self.OnHover then return end
 
-	local MouseIn, X, Y = self:MouseIn( self.Background )
+	local MouseIn, X, Y
+	if self:GetIsVisible() then
+		MouseIn, X, Y = self:MouseIn( self.Background )
+	end
 
 	-- If the mouse is in this object, and our window is in focus (i.e. not obstructed by a higher window)
 	-- then consider the object hovered.
