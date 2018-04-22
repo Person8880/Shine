@@ -12,7 +12,7 @@ end
 
 function Clickable:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 and Key ~= InputKey.MouseButton1 then return end
-	if not self:MouseInControl() then return end
+	if not self:GetIsVisible() or not self:MouseInControl() then return end
 	if not GetClickMethod( self, Key ) then return end
 
 	return true, self
