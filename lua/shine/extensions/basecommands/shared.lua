@@ -695,15 +695,11 @@ function Plugin:UpdateAllTalk( State )
 				-- of the screen, and the inventory position doesn't account for ammo text).
 				self.SetupForVisibleInventory = true
 				self:SetIsVisible( true )
-
-				self:SetScaledPos( self.x, 0 )
-				self:SetTextAlignmentY( GUIItem.Align_Min )
+				self:SetScaledPos( self.x, 0.05 )
 			elseif not IsAlwaysVisible and self.SetupForVisibleInventory then
 				-- Inventory is only visible when in use, so we'll hide the text.
 				self.SetupForVisibleInventory = false
-
 				self:SetScaledPos( self.x, 0.95 )
-				self:SetTextAlignmentY( GUIItem.Align_Center )
 			end
 		end
 
