@@ -47,7 +47,7 @@ function Plugin:SetupDataTable()
 		}
 	}
 
-	self:AddNetworkMessages( "AddTranslatedError", {
+	self:AddNetworkMessages( "AddTranslatedCommandError", {
 		[ ErrorTypes.ID ] = {
 			"PLAYER_REQUEST_IN_PROGRESS", "ERROR_NOT_BANNED"
 		}

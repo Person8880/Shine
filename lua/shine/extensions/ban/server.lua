@@ -476,10 +476,10 @@ function Plugin:CreateBanCommands()
 		Duration = Duration * 60
 		local ID = tostring( Target:GetUserId() )
 
-		--We're currently waiting for a response on this ban.
+		-- We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
 			if Client then
-				self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+				self:SendTranslatedCommandError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
 					ID = ID
 				} )
 			end
@@ -525,10 +525,10 @@ function Plugin:CreateBanCommands()
 		ID = tostring( ID )
 
 		if self.Config.Banned[ ID ] then
-			--We're currently waiting for a response on this ban.
+			-- We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
 				if Client then
-					self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+					self:SendTranslatedCommandError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
 						ID = ID
 					} )
 				end
@@ -550,7 +550,7 @@ function Plugin:CreateBanCommands()
 		local ErrorText = StringFormat( "%s is not banned%s.", ID, self.OperationSuffix )
 
 		if Client then
-			self:SendTranslatedError( Client, "ERROR_NOT_BANNED", {
+			self:SendTranslatedCommandError( Client, "ERROR_NOT_BANNED", {
 				ID = ID
 			} )
 		end
@@ -568,10 +568,10 @@ function Plugin:CreateBanCommands()
 
 		local IDString = tostring( ID )
 
-		--We're currently waiting for a response on this ban.
+		-- We're currently waiting for a response on this ban.
 		if self.Retries[ IDString ] then
 			if Client then
-				self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+				self:SendTranslatedCommandError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
 					ID = ID
 				} )
 			end
@@ -609,7 +609,7 @@ function Plugin:CreateBanCommands()
 		end
 
 		if Client then
-			self:NotifyTranslatedError( Client, "ERROR_INVALID_STEAMID" )
+			self:NotifyTranslatedCommandError( Client, "ERROR_INVALID_STEAMID" )
 		end
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
