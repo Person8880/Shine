@@ -338,6 +338,7 @@ end
 do
 	local GetEnts = Shared.GetEntitiesWithClassname
 	local IterateEntList = ientitylist
+	local StringGSub = string.gsub
 	local TableEmpty = table.Empty
 	local TableFindByField = table.FindByField
 	local TableRemove = table.remove
@@ -545,15 +546,21 @@ do
 		end
 	end
 
+	local function GetArgFromRow( Row )
+		local SteamID = Row:GetColumnText( 2 )
+		if SteamID == "0" then
+			-- It's a bot, so we need to use their name to target them.
+			return StringGSub( Row:GetColumnText( 1 ), "\"", "\\\"" )
+		end
+		return SteamID
+	end
+
 	local function GetArgsFromRows( Rows, MultiPlayer )
 		if MultiPlayer then
-			return Shine.Stream( Rows ):Concat( ",", function( Row )
-
-				return Row:GetColumnText( 2 )
-			end )
+			return StringFormat( "\"%s\"", Shine.Stream( Rows ):Concat( ",", GetArgFromRow ) )
 		end
 
-		return Rows[ 1 ]:GetColumnText( 2 )
+		return StringFormat( "\"%s\"", GetArgFromRow( Rows[ 1 ] ) )
 	end
 
 	function AdminMenu:AddCommand( Category, Name, Command, MultiPlayer, DoClick, Tooltip )
@@ -603,12 +610,16 @@ do
 
 				local Args = GetArgsFromRows( Rows, MultiPlayer )
 
-				Menu = Button:AddMenu( Vector( Data.Width or 144, Data.ButtonHeight or 32, 0 ) )
+				Menu = Button:AddMenu( Vector2(
+					HighResScaled( Data.Width or 144 ):GetValue(),
+					HighResScaled( Data.ButtonHeight or 32 ):GetValue()
+				) )
 				Menu:CallOnRemove( function()
 					Menu = nil
 				end )
 				self:DestroyOnClose( Menu )
 
+				local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
 				for i = 1, #Data, 2 do
 					local Option = Data[ i ]
 					local Arg = Data[ i + 1 ]
@@ -622,12 +633,12 @@ do
 							end
 
 							CleanupMenu()
-						end )
+						end ):SetFontScale( Font, Scale )
 					elseif IsType( Arg, "function" ) then
 						Menu:AddButton( Option, function()
 							Arg( Args )
 							CleanupMenu()
-						end )
+						end ):SetFontScale( Font, Scale )
 					elseif IsType( Arg, "table" ) and Arg.Setup then
 						Arg.Setup( Menu, Command, Args, CleanupMenu )
 					end

@@ -473,6 +473,11 @@ local function NotifyError( Client, TranslationKey, Data, Message, Format, ... )
 		return
 	end
 
+	if not Data then
+		Plugin:NotifyTranslatedCommandError( Client, TranslationKey )
+		return
+	end
+
 	Plugin:SendTranslatedCommandError( Client, TranslationKey, Data )
 end
 
@@ -1409,6 +1414,11 @@ function Plugin:CreateMessageCommands()
 	CSayCommand:Help( "Displays a message in the centre of all player's screens." )
 
 	local function GagPlayer( Client, Target, Duration )
+		if Target:GetIsVirtual() then
+			NotifyError( Client, "ERROR_GAG_BOT", nil, "Bots cannot be gagged" )
+			return
+		end
+
 		self.Gagged[ Target:GetUserId() ] = Duration == 0 and true or SharedTime() + Duration
 
 		local TargetPlayer = Target:GetControllingPlayer()

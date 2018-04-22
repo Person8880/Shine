@@ -76,5 +76,6 @@
 	"ERROR_NO_VOTE_IN_PROGRESS": "No stoppable vote is currently in progress.",
 	"MAPS": "Maps",
 	"PLUGINS": "Plugins",
-	"VOTE_STOPPED": "stopped the current vote."
+	"VOTE_STOPPED": "stopped the current vote.",
+	"ERROR_GAG_BOT": "Bots cannot be gagged."
 }

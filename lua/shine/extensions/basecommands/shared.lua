@@ -123,6 +123,7 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local StringMatch = string.match
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
@@ -226,7 +227,7 @@ function Plugin:SetupAdminMenuCommands()
 				local TextEntry = SGUI:Create( "TextEntry", Panel )
 				TextEntry:SetFill( true )
 				TextEntry:SetPlaceholderText( self:GetPhrase( "KICK_CUSTOM" ) )
-				TextEntry:SetFontScale( Fonts.kAgencyFB_Small, Vector2( 0.9, 0.9 ) )
+				TextEntry:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 25 ) )
 				function TextEntry:OnEnter()
 					local Text = self:GetText()
 					if #Text == 0 then return end
@@ -263,6 +264,11 @@ function Plugin:SetupAdminMenuCommands()
 	GagLabels[ #GagLabels + 1 ] = ""
 	GagLabels[ #GagLabels + 1 ] = self:GetPhrase( "PERMANENTLY" )
 	GagLabels[ #GagLabels + 1 ] = function( Args )
+		if not StringMatch( Args, "^%d+$" ) then
+			SGUI.NotificationManager.AddNotification( Shine.NotificationType.ERROR, self:GetPhrase( "ERROR_GAG_BOT" ), 5 )
+			return
+		end
+
 		Shine.AdminMenu:RunCommand( "sh_gagid", Args )
 	end
 
