@@ -109,6 +109,22 @@ do
 	function Spacing:__index( Key )
 		return Spacing[ Key ] or self[ KeyMap[ Key ] ]
 	end
+
+	function Spacing:WithLeft( Left )
+		return Spacing( Left, self[ 2 ], self[ 3 ], self[ 4 ] )
+	end
+
+	function Spacing:WithUp( Up )
+		return Spacing( self[ 1 ], Up, self[ 3 ], self[ 4 ] )
+	end
+
+	function Spacing:WithRight( Right )
+		return Spacing( self[ 1 ], self[ 2 ], Right, self[ 4 ] )
+	end
+
+	function Spacing:WithDown( Down )
+		return Spacing( self[ 1 ], self[ 2 ], self[ 3 ], Down )
+	end
 end
 
 --[[
@@ -212,7 +228,13 @@ do
 	local Auto = NewUnit( "Auto" )
 
 	function Auto:Init( Element )
+		if Element then
+			Shine.AssertAtLevel( Element.GetContentSizeForAxis,
+				"Element must implement GetContentSizeForAxis method!", 3 )
+		end
+
 		self.Element = Element
+
 		return self
 	end
 

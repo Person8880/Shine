@@ -66,11 +66,13 @@ Plugin.UnbanCommand = "sh_unban"
 local SGUI = Shine.GUI
 
 local Date = os.date
+local Min = math.min
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
+local tonumber = tonumber
 
 function Plugin:Initialise()
 	self:SetupAdminMenu()
@@ -428,6 +430,47 @@ function Plugin:SetupAdminMenu()
 			PageLabel:SetText( StringFormat( "%d / %d", Data.Page, Data.Page ) )
 			PageLabel:SetAlignment( SGUI.LayoutAlignment.CENTRE )
 			PageLabel:SetTextAlignmentY( GUIItem.Align_Center )
+
+			-- When clicking the page label, turn it into a text entry to allow specifying
+			-- a precise page to jump to.
+			function PageLabel.DoClick()
+				local TextEntry = SGUI:Create( "TextEntry", Panel )
+				TextEntry:SetFontScale( Font, Scale )
+				TextEntry:SetSize( PageLabel:GetSize() )
+
+				local Margin = PageLabel:GetMargin()
+				TextEntry:SetMargin( Margin:WithUp( Margin.Up - PageLabel:GetSize().y * 0.5 ) )
+
+				TextEntry:SetText( tostring( Data.Page ) )
+				TextEntry:SetNumeric( true )
+				TextEntry:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+				function TextEntry.OnEnter()
+					local MaxPages = self.PageData and self.PageData.NumPages or Data.Page
+
+					Data.Page = tonumber( TextEntry:GetText() )
+
+					local PredictedPage = Min( Data.Page, MaxPages )
+					PageLabel:SetText( StringFormat( "%d / %d", PredictedPage, MaxPages ) )
+
+					self:RequestBanPage( Data )
+
+					TextEntry:OnEscape()
+				end
+				function TextEntry.OnEscape()
+					TextEntry:Destroy()
+					PageLabel:SetIsVisible( true )
+					ControlLayout:RemoveElement( TextEntry )
+				end
+				TextEntry.OnLoseFocus = TextEntry.OnEscape
+
+				ControlLayout:InsertElementAfter( PageLabel, TextEntry )
+
+				PageLabel:SetIsVisible( false )
+
+				TextEntry:RequestFocus()
+				TextEntry:SelectAll()
+			end
+
 			self.PageLabel = PageLabel
 
 			ControlLayout:AddElement( PageLabel )
