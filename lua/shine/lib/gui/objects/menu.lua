@@ -101,9 +101,10 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	if Result ~= nil then return true, Child end
 
 	--Delay so we don't mess up the event calling.
-	SGUI:AddPostEventAction( function()
+	SGUI:AddPostEventAction( function( Result, Control )
 		if not self:IsValid() then return end
 
+		self.DestroyedBy = Control
 		self:Destroy()
 	end )
 end

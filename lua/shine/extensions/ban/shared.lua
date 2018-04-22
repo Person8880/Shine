@@ -178,8 +178,13 @@ function Plugin:SetupAdminMenu()
 		function MenuButton.DoClick( Button )
 			if Menu then
 				Shine.AdminMenu:DontDestroyOnClose( Menu )
-				Menu:Destroy()
+
+				if Menu:IsValid() then
+					Menu:Destroy()
+				end
+
 				Menu = nil
+
 				return
 			end
 
@@ -191,6 +196,10 @@ function Plugin:SetupAdminMenu()
 			Menu:SetPos( Pos )
 			Menu:SetButtonSize( Vector2( IDEntry:GetSize().x + Button:GetSize().x, HighResScaled( 24 ):GetValue(), 0 ) )
 			Menu:CallOnRemove( function()
+				-- Prevent clicking the menu button re-opening the menu instead of closing it.
+				if Menu.DestroyedBy == MenuButton then return end
+
+				Shine.AdminMenu:DontDestroyOnClose( Menu )
 				Menu = nil
 			end )
 			Menu:SetMaxVisibleButtons( 12 )

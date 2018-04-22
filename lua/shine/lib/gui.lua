@@ -379,12 +379,12 @@ end
 
 local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
-function SGUI:PostCallEvent()
+function SGUI:PostCallEvent( Result, Control )
 	local PostEventActions = self.PostEventActions
 	if not PostEventActions then return end
 
 	for i = 1, #PostEventActions do
-		xpcall( PostEventActions[ i ], OnError )
+		xpcall( PostEventActions[ i ], OnError, Result, Control )
 	end
 
 	self.PostEventActions = nil
@@ -423,7 +423,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 						self:SetWindowFocus( Window, i )
 					end
 
-					self:PostCallEvent()
+					self:PostCallEvent( Result, Control )
 
 					return Result, Control
 				end
