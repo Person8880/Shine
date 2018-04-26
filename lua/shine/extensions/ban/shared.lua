@@ -607,22 +607,7 @@ function Plugin:AddBanRow( Data )
 end
 
 function Plugin:ReceiveBanData( Data )
-	self.BanData = self.BanData or {}
-
-	local BanData = self.BanData
-	local RealData = {
-		ID = Data.ID,
-		Name = Data.Name,
-		Duration = Data.Duration,
-		UnbanTime = Data.UnbanTime,
-		BannedBy = Data.BannedBy,
-		BannerID = Data.BannerID,
-		Reason = Data.Reason,
-		Issued = Data.Issued
-	}
-
-	BanData[ #BanData + 1 ] = RealData
-	self:AddBanRow( RealData )
+	self:AddBanRow( Data )
 end
 
 function Plugin:ReceiveBanPage( PageData )
