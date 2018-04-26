@@ -57,34 +57,31 @@ function Directional:LayoutElements( Elements, Context )
 
 	for i = 1, #Elements do
 		local Element = Elements[ i ]
+		local Margin = Element:GetComputedMargin()
+		if Element:GetFill() then
+			-- Fixed size elements have already been resized, just need to resize fill elements.
+			Element:SetSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
+		end
 
-		if Element:GetIsVisible() then
-			local Margin = Element:GetComputedMargin()
-			if Element:GetFill() then
-				-- Fixed size elements have already been resized, just need to resize fill elements.
-				Element:SetSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
-			end
+		local CurrentSize = Element:GetSize()
+		local MinW, MinH = self:GetMinMargin( Margin )
+		local MaxW, MaxH = self:GetMaxMargin( Margin )
+		local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
 
-			local CurrentSize = Element:GetSize()
-			local MinW, MinH = self:GetMinMargin( Margin )
-			local MaxW, MaxH = self:GetMaxMargin( Margin )
-			local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
+		-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
+		if IsMin then
+			X, Y = X + MinW, Y + MinH
+		else
+			X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
+		end
 
-			-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
-			if IsMin then
-				X, Y = X + MinW, Y + MinH
-			else
-				X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
-			end
+		self:SetElementPos( Element, X, Y, Margin )
 
-			self:SetElementPos( Element, X, Y, Margin )
-
-			-- Reverse for after.
-			if IsMin then
-				X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
-			else
-				X, Y = X - MinW, Y - MinH
-			end
+		-- Reverse for after.
+		if IsMin then
+			X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
+		else
+			X, Y = X - MinW, Y - MinH
 		end
 	end
 end
