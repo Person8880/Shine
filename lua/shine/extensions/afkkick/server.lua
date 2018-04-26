@@ -408,7 +408,7 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 	if DataTable.LastMove > Time then return end
 
 	local Player = Client:GetControllingPlayer()
-	if self:IsPlayerFrozen( Player ) then
+	if Player and self:IsPlayerFrozen( Player ) then
 		-- Need to double check here, as first person spectate does not call OnProcessMove
 		-- for the player spectating. Ensure their last move time remains frozen.
 		DataTable.LastMove = DataTable.LastMove + ( Time - DataTable.LastMeasurement )
