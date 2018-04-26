@@ -132,9 +132,9 @@ function Button:AddMenu( Size )
 	Menu:SetPos( Pos )
 	Menu:SetButtonSize( Size or self:GetSize() )
 
-	self.ForceHighlight = true
+	self:SetForceHighlight( true )
 	Menu:CallOnRemove( function()
-		self.ForceHighlight = nil
+		self:SetForceHighlight( false )
 	end )
 
 	self.Menu = Menu

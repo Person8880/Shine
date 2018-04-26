@@ -178,6 +178,7 @@ function Plugin:SetupAdminMenu()
 		function MenuButton.DoClick( Button )
 			if Menu then
 				Shine.AdminMenu:DontDestroyOnClose( Menu )
+				MenuButton:SetForceHighlight( false )
 
 				if Menu:IsValid() then
 					Menu:Destroy()
@@ -200,10 +201,13 @@ function Plugin:SetupAdminMenu()
 				if Menu.DestroyedBy == MenuButton then return end
 
 				Shine.AdminMenu:DontDestroyOnClose( Menu )
+				MenuButton:SetForceHighlight( false )
 				Menu = nil
 			end )
 			Menu:SetMaxVisibleButtons( 12 )
 			Shine.AdminMenu:DestroyOnClose( Menu )
+
+			MenuButton:SetForceHighlight( true )
 
 			local PlayerEnts = GetEnts( "PlayerInfoEntity" )
 
@@ -240,6 +244,7 @@ function Plugin:SetupAdminMenu()
 
 			ReasonEntry:RequestFocus()
 		end
+		Window.DurationEntry = DurationEntry
 
 		Layout:AddElement( DurationEntry )
 
@@ -282,6 +287,7 @@ function Plugin:SetupAdminMenu()
 
 			IDEntry:RequestFocus()
 		end
+		Window.ReasonEntry = ReasonEntry
 
 		Layout:AddElement( ReasonEntry )
 
@@ -328,6 +334,7 @@ function Plugin:SetupAdminMenu()
 		false,
 		function( Button, IDs )
 			OpenAddBanWindow( IDs[ 1 ] )
+			Window.DurationEntry:RequestFocus()
 		end,
 		self:GetPhrase( "BAN_TIP" )
 	)
@@ -523,6 +530,7 @@ function Plugin:SetupAdminMenu()
 			AddBan:SetAlignment( SGUI.LayoutAlignment.MAX )
 			function AddBan.DoClick()
 				OpenAddBanWindow()
+				Window.IDEntry:RequestFocus()
 			end
 
 			ControlLayout:AddElement( AddBan )

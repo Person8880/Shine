@@ -1093,13 +1093,28 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 	end
 end
 
+function ControlMeta:ShouldHighlight()
+	return self:GetIsVisible() and self:MouseIn( self.Background, self.HighlightMult )
+end
+
+function ControlMeta:SetForceHighlight( ForceHighlight )
+	self.ForceHighlight = ForceHighlight
+
+	if ForceHighlight and not self.Highlighted and self:ShouldHighlight() then
+		self:SetHighlighted( true )
+	elseif not ForceHighlight and self.Highlighted and not self:ShouldHighlight() then
+		self:SetHighlighted( false )
+	end
+end
+
+
 function ControlMeta:OnMouseMove( Down )
 	-- Basic highlight on mouse over handling.
 	if not self.HighlightOnMouseOver then
 		return
 	end
 
-	if self:GetIsVisible() and self:MouseIn( self.Background, self.HighlightMult ) then
+	if self:ShouldHighlight() then
 		self:SetHighlighted( true )
 	else
 		if self.Highlighted and not self.ForceHighlight then
