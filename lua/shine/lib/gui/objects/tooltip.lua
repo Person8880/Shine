@@ -38,23 +38,28 @@ function Tooltip:SetTextColour( Col )
 end
 
 function Tooltip:SetText( Text, Font, Scale )
-	if self.Text then
-		self.Text:SetText( Text )
+	local TextObj = self.Text
+	if not TextObj then
+		TextObj = GetGUIManager():CreateTextItem()
+		-- Align center doesn't want to play nice...
+		TextObj:SetAnchor( GUIItem.Middle, GUIItem.Top )
+		TextObj:SetTextAlignmentX( GUIItem.Align_Center )
+		TextObj:SetFontName( Font or Fonts.kAgencyFB_Small )
+		TextObj:SetPosition( Padding )
+		TextObj:SetInheritsParentAlpha( true )
+		TextObj:SetColor( self.TextCol )
 
-		return
+		self.Background:AddChild( TextObj )
+		self.Text = TextObj
+	elseif Font then
+		TextObj:SetFontName( Font )
 	end
 
-	local TextObj = GetGUIManager():CreateTextItem()
-	-- Align center doesn't want to play nice...
-	TextObj:SetAnchor( GUIItem.Middle, GUIItem.Top )
-	TextObj:SetTextAlignmentX( GUIItem.Align_Center )
-	TextObj:SetText( Text )
-	TextObj:SetFontName( Font or Fonts.kAgencyFB_Small )
-	TextObj:SetPosition( Padding )
-	TextObj:SetInheritsParentAlpha( true )
 	if Scale then
 		TextObj:SetScale( Scale )
 	end
+
+	TextObj:SetText( Text )
 
 	local WidthScale = Scale and Scale.x or 1
 	local HeightScale = Scale and Scale.y or 1
@@ -62,13 +67,7 @@ function Tooltip:SetText( Text, Font, Scale )
 	local Width = TextObj:GetTextWidth( Text ) * WidthScale + 16
 	local Height = TextObj:GetTextHeight( Text ) * HeightScale + 16
 
-	self:SetSize( Vector( Width, Height, 0 ) )
-
-	TextObj:SetColor( self.TextCol )
-
-	self.Text = TextObj
-
-	self.Background:AddChild( TextObj )
+	self:SetSize( Vector2( Width, Height ) )
 end
 
 function Tooltip:Think( DeltaTime )
@@ -81,10 +80,10 @@ end
 
 function Tooltip:FadeIn()
 	local Start = self.Background:GetColor()
+	local End = SGUI.CopyColour( Start )
 	Start.a = 0
 
-	local End = Colour( Start.r, Start.g, Start.b, 1 )
-
+	self.Background:SetColor( Start )
 	self:FadeTo( self.Background, Start, End, 0, 0.2 )
 end
 
@@ -94,7 +93,7 @@ function Tooltip:FadeOut( Callback )
 	self.FadingOut = true
 
 	local Start = self.Background:GetColor()
-	local End = Colour( Start.r, Start.g, Start.b, 0 )
+	local End = SGUI.ColourWithAlpha( Start, 0 )
 
 	self:FadeTo( self.Background, Start, End, 0, 0.2, function()
 		if Callback then
