@@ -9,8 +9,6 @@ local SGUI = Shine.GUI
 local Tooltip = {}
 Tooltip.IsWindow = true
 
-local Padding = Vector( 0, 8, 0 )
-
 SGUI.AddBoundProperty( Tooltip, "Colour", "Background:SetColor" )
 SGUI.AddBoundProperty( Tooltip, "Texture", "Background:SetTexture" )
 SGUI.AddBoundProperty( Tooltip, "TexturePixelCoordinates", "Background:SetTexturePixelCoordinates" )
@@ -22,6 +20,7 @@ function Tooltip:Initialise()
 
 	local Background = Manager:CreateGraphicItem()
 	self.Background = Background
+	self.TextPadding = 16
 end
 
 function Tooltip:SetSize( Vec )
@@ -37,6 +36,15 @@ function Tooltip:SetTextColour( Col )
 	self.Text:SetColor( Col )
 end
 
+function Tooltip:SetTextPadding( TextPadding )
+	self.TextPadding = TextPadding
+
+	if not self.Text then return end
+
+	self.Text:SetPos( Vector2( 0, self.TextPadding * 0.5 ) )
+	self:ComputeAndSetSize( self.Text:GetText() )
+end
+
 function Tooltip:SetText( Text, Font, Scale )
 	local TextObj = self.Text
 	if not TextObj then
@@ -45,7 +53,7 @@ function Tooltip:SetText( Text, Font, Scale )
 		TextObj:SetAnchor( GUIItem.Middle, GUIItem.Top )
 		TextObj:SetTextAlignmentX( GUIItem.Align_Center )
 		TextObj:SetFontName( Font or Fonts.kAgencyFB_Small )
-		TextObj:SetPosition( Padding )
+		TextObj:SetPosition( Vector2( 0, self.TextPadding * 0.5 ) )
 		TextObj:SetInheritsParentAlpha( true )
 		TextObj:SetColor( self.TextCol )
 
@@ -59,13 +67,19 @@ function Tooltip:SetText( Text, Font, Scale )
 		TextObj:SetScale( Scale )
 	end
 
-	TextObj:SetText( Text )
+	self.TextScale = Scale
 
+	TextObj:SetText( Text )
+	self:ComputeAndSetSize( Text )
+end
+
+function Tooltip:ComputeAndSetSize( Text )
+	local Scale = self.TextScale
 	local WidthScale = Scale and Scale.x or 1
 	local HeightScale = Scale and Scale.y or 1
 
-	local Width = TextObj:GetTextWidth( Text ) * WidthScale + 16
-	local Height = TextObj:GetTextHeight( Text ) * HeightScale + 16
+	local Width = self.Text:GetTextWidth( Text ) * WidthScale + self.TextPadding
+	local Height = self.Text:GetTextHeight( Text ) * HeightScale + self.TextPadding
 
 	self:SetSize( Vector2( Width, Height ) )
 end

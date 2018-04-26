@@ -1039,6 +1039,7 @@ function ControlMeta:ShowTooltip( X, Y )
 		TextScale = Vector2( 0.5, 0.5 )
 	end
 
+	Tooltip:SetTextPadding( SGUI.Layout.Units.HighResScaled( 16 ):GetValue() )
 	Tooltip:SetText( self.TooltipText, Font, TextScale )
 
 	Y = Y - Tooltip:GetSize().y - 4
@@ -1106,7 +1107,6 @@ function ControlMeta:SetForceHighlight( ForceHighlight )
 		self:SetHighlighted( false )
 	end
 end
-
 
 function ControlMeta:OnMouseMove( Down )
 	-- Basic highlight on mouse over handling.
