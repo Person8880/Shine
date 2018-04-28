@@ -8,8 +8,17 @@ function Plugin:SetupDataTable()
 	local TeleportMessage = {
 		TargetName = self:GetNameNetworkField()
 	}
-	self:AddTranslatedMessage( "TELEPORTED_GOTO", TeleportMessage )
-	self:AddTranslatedMessage( "TELEPORTED_BRING", TeleportMessage )
+	local TargetCountMessage = {
+		TargetCount = "integer (0 to 127)"
+	}
+	self:AddNetworkMessages( "AddTranslatedMessage", {
+		[ TeleportMessage ] = {
+			"TELEPORTED_GOTO", "TELEPORTED_BRING"
+		},
+		[ TargetCountMessage ] = {
+			"SLAYED", "GRANTED_DARWIN_MODE", "REVOKED_DARWIN_MODE"
+		}
+	} )
 end
 
 Shine:RegisterExtension( "funcommands", Plugin )
@@ -35,7 +44,7 @@ function Plugin:SetupAdminMenuCommands()
 		self:GetPhrase( "GOTO_TIP" ) )
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "BRING" ), "sh_bring", false, nil,
 		self:GetPhrase( "BRING_TIP" ) )
-	self:AddAdminMenuCommand( Category, self:GetPhrase( "SLAY" ), "sh_slay", false, nil,
+	self:AddAdminMenuCommand( Category, self:GetPhrase( "SLAY" ), "sh_slay", true, nil,
 		self:GetPhrase( "SLAY_TIP" ) )
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "DARWIN_MODE" ), "sh_darwin", true, {
 		self:GetPhrase( "ENABLE" ), "true",

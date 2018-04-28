@@ -1,5 +1,6 @@
 {
 	"ADD_BAN": "Ajouter Ban",
+	"ADD_BAN_TITLE": "Ajouter Ban",
 	"SELECT_PLAYER": "Sélectionnez un joueur.",
 	"DURATION_LABEL": "Durée (en minutes, 0 pour permanent) :",
 	"DURATION_HINT": "Veuillez entrer une durée...",
@@ -17,5 +18,6 @@
 	"PLAYER_BANNED": "{TargetName} banni {Duration:NonZero:pour }{Duration:Duration:de façon permanente} ({Reason}).",
 	"PLAYER_REQUEST_IN_PROGRESS": "Veuillez attendre la fin de la requête de ban actuelle pour {ID}.",
 	"ERROR_NOT_BANNED": "{ID} n'est pas banni.",
-	"ERROR_INVALID_STEAMID": "Impossible de bannir en raison de l'ID Steam invalide."
+	"ERROR_INVALID_STEAMID": "Impossible de bannir en raison de l'ID Steam invalide.",
+	"CATEGORY": "Bans"
 }

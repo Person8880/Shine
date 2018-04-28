@@ -45,3 +45,18 @@ UnitTest:Test( "EqualiseTeamCounts", function( Assert )
 	Assert:ArrayEquals( { 1, 2, 3, 4, 11 }, TeamMembers[ 2 ] )
 	Assert:ArrayEquals( { 5, 6, 7, 8, 9, 10 }, TeamMembers[ 1 ] )
 end )
+
+UnitTest:Test( "NS2ToSteamID", function( Assert )
+	Assert:Equals( "STEAM_0:0:1000", Shine.NS2ToSteamID( 2000 ) )
+	Assert:Equals( "STEAM_0:1:1000", Shine.NS2ToSteamID( 2001 ) )
+end )
+
+UnitTest:Test( "NS2ToSteam3ID", function( Assert )
+	Assert:Equals( "[U:1:2000]", Shine.NS2ToSteam3ID( 2000 ) )
+end )
+
+UnitTest:Test( "SteamIDToNS2", function( Assert )
+	Assert:Equals( 2000, Shine.SteamIDToNS2( "STEAM_0:0:1000" ) )
+	Assert:Equals( 2001, Shine.SteamIDToNS2( "STEAM_0:1:1000" ) )
+	Assert:Equals( 2000, Shine.SteamIDToNS2( "[U:1:2000]" ) )
+end )

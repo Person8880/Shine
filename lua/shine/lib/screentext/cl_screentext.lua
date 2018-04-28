@@ -71,8 +71,8 @@ function ScreenText:UpdateText()
 end
 
 function ScreenText:End()
-	self.LastUpdate = SharedTime() - 1
-	self.Duration = 1
+	self.NextUpdate = SharedTime()
+	self.Duration = self.UpdateRate
 end
 
 function ScreenText:Remove()
@@ -91,6 +91,35 @@ end
 function ScreenText:SetText( Text )
 	self.Text = Text
 	self.Obj:SetText( Text )
+end
+
+function ScreenText:SetIsVisible( Visible )
+	self.Obj:SetIsVisible( Visible )
+end
+
+function ScreenText:GetIsVisible()
+	return self.Obj:GetIsVisible()
+end
+
+function ScreenText:SetTextAlignmentX( Alignment )
+	self.Obj:SetTextAlignmentX( Alignment )
+end
+
+function ScreenText:SetTextAlignmentY( Alignment )
+	self.Obj:SetTextAlignmentY( Alignment )
+end
+
+function ScreenText:SetScaledPos( X, Y )
+	local GUIObj = self.Obj
+	if not GUIObj then return end
+
+	self.x = X
+	self.y = Y
+
+	local ScrW = Client.GetScreenWidth()
+	local ScrH = Client.GetScreenHeight()
+
+	GUIObj:SetPosition( Vector( ScrW * self.x, ScrH * self.y, 0 ) )
 end
 
 local function GetFontAndScale( ScrW, ScrH, Size )
@@ -210,7 +239,8 @@ function Shine.ScreenText.Add( ID, Params )
 		MessageTable.Fading = false
 	end
 
-	MessageTable.LastUpdate = SharedTime()
+	MessageTable.UpdateRate = Params.UpdateRate or 1
+	MessageTable.NextUpdate = SharedTime() + MessageTable.UpdateRate
 
 	Messages:Add( ID, MessageTable )
 
@@ -250,17 +280,15 @@ function Shine.ScreenText.End( ID )
 end
 
 local function UpdateMessage( Index, Message, Time )
-	if not Message.LastUpdate then
-		Message.LastUpdate = Time
+	if Message.NextUpdate > Time then return end
+
+	local Duration = Message.Duration
+	if Duration then
+		Duration = Duration - Message.UpdateRate
+		Message.Duration = Duration
 	end
 
-	if Message.LastUpdate + 1 > Time then return end
-
-	if Message.Duration then
-		Message.Duration = Message.Duration - 1
-	end
-
-	Message.LastUpdate = Message.LastUpdate + 1
+	Message.NextUpdate = Time + Message.UpdateRate
 	if not Message.SuppressTextUpdates then
 		Message:UpdateText()
 
@@ -269,14 +297,14 @@ local function UpdateMessage( Index, Message, Time )
 		end
 	end
 
-	if Message.Duration == 0 and Message.Colour.a > 0 then
+	if Duration and Duration <= 0 and Message.Colour.a > 0 and not Message.Fading then
 		Message.FadingIn = false
 		Message.Fading = true
 		Message.FadeElapsed = 0
 		Message.FadeDuration = 1
 	end
 
-	if Message.Duration == -1 then
+	if Duration and Duration <= -1 then
 		Shine.ScreenText.Remove( Index )
 	end
 end
@@ -287,7 +315,7 @@ local function ProcessQueue( Time )
 	end
 end
 
---Not the lifeform...
+-- Not the lifeform...
 local function ProcessFades( DeltaTime )
 	for Index, Message in Messages:Iterate() do
 		if Message.Fading then

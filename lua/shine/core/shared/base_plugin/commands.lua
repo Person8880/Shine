@@ -22,6 +22,15 @@ if Server then
 		return Command
 	end
 
+	function CommandsModule:BindCommandAlias( ConCommand, Alias )
+		self.Commands = rawget( self, "Commands" ) or {}
+
+		local Command = Shine:RegisterCommandAlias( ConCommand, Alias )
+		self.Commands[ Alias ] = Command
+
+		return Command
+	end
+
 	function CommandsModule:Cleanup()
 		if rawget( self, "Commands" ) then
 			for Key, Command in pairs( self.Commands ) do

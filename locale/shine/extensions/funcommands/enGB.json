@@ -10,5 +10,8 @@
 	"TELEPORTED_GOTO": "teleported to {TargetName}.",
 	"TELEPORTED_BRING": "teleported {TargetName} to themself.",
 	"ERROR_CANT_GOTO": "Failed to find valid location near player.",
-	"ERROR_CANT_BRING": "Failed to find valid location near you."
+	"ERROR_CANT_BRING": "Failed to find valid location near you.",
+	"SLAYED": "slayed {TargetCount} {TargetCount:Pluralise:player|players}.",
+	"GRANTED_DARWIN_MODE": "granted darwin mode to {TargetCount} {TargetCount:Pluralise:player|players}.",
+	"REVOKED_DARWIN_MODE": "revoked darwin mode from {TargetCount} {TargetCount:Pluralise:player|players}."
 }

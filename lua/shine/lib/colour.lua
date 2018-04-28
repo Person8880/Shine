@@ -51,3 +51,10 @@ function SGUI.ColourLerp( self, Start, Progress, Diff )
 	self.b = Start.b + Progress * Diff.b
 	self.a = Start.a + Progress * Diff.a
 end
+
+--[[
+	Copies the given colour, applying the given alpha.
+]]
+function SGUI.ColourWithAlpha( ColourToCopy, Alpha )
+	return Colour( ColourToCopy.r, ColourToCopy.g, ColourToCopy.b, Alpha )
+end

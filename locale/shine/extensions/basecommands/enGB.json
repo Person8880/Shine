@@ -38,11 +38,11 @@
 	"ALLTALK_DISABLED": "All talk is disabled.",
 	"CHEATS_TOGGLED": "{Enabled:BoolToPhrase:enabled|disabled} cheats.",
 	"ALL_TALK_TAG": "[AllTalk]",
-	"ALLTALK_TOGGLED": "{Enabled:BoolToPhrase:enabled|disabled} all talk.",
+	"ALLTALK_TOGGLED": "{Enabled:BoolToPhrase:enabled|disabled} global all talk.",
 	"ALLTALK_PREGAME_TOGGLED": "{Enabled:BoolToPhrase:enabled|disabled} all talk pre-game.",
 	"ALLTALK_LOCAL_TOGGLED": "{Enabled:BoolToPhrase:enabled|disabled} local all talk",
-	"ALLTALK_NOTIFY_ENABLED": "All talk has been enabled.",
-	"ALLTALK_NOTIFY_DISABLED": "All talk has been disabled.",
+	"ALLTALK_NOTIFY_ENABLED": "Global all talk has been enabled.",
+	"ALLTALK_NOTIFY_DISABLED": "Global all talk has been disabled.",
 	"ALLTALK_PREGAME_NOTIFY_ENABLED": "All talk pre-game has been enabled.",
 	"ALLTALK_PREGAME_NOTIFY_DISABLED": "All talk pre-game has been disabled.",
 	"ALLTALK_LOCAL_NOTIFY_ENABLED": "Local all talk has been enabled.",
@@ -76,5 +76,6 @@
 	"ERROR_NO_VOTE_IN_PROGRESS": "No stoppable vote is currently in progress.",
 	"MAPS": "Maps",
 	"PLUGINS": "Plugins",
-	"VOTE_STOPPED": "stopped the current vote."
+	"VOTE_STOPPED": "stopped the current vote.",
+	"ERROR_GAG_BOT": "Bots cannot be gagged."
 }

@@ -275,11 +275,7 @@ do
 end
 
 function Shine:DoCommandNotify( Client, Message, Sender, ... )
-	if not self.Config.NotifyOnCommand then return end
-
-	local Clients = self.GameIDs
 	local IsConsole = not Client
-	local Immunity = self:GetUserImmunity( Client )
 	local Name
 
 	if IsConsole then
@@ -292,6 +288,20 @@ function Shine:DoCommandNotify( Client, Message, Sender, ... )
 			Name = self.Config.ChatName
 		end
 	end
+
+	if not self.Config.NotifyOnCommand then
+		-- Console can see the success already.
+		if IsConsole then return end
+
+		-- Always notify the client that performed the action to confirm
+		-- that their command was a success.
+		Sender( self, Client, Name, Message, ... )
+
+		return
+	end
+
+	local Clients = self.GameIDs
+	local Immunity = self:GetUserImmunity( Client )
 
 	local NotifyAnonymous = self.Config.NotifyAnonymous
 	local NotifyAdminAnonymous = self.Config.NotifyAdminAnonymous
@@ -417,6 +427,39 @@ function Shine:TranslatedConsolePrint( Client, MessageKey, Source )
 		Source = Source,
 		MessageKey = MessageKey
 	}, true )
+end
+
+do
+	local DEFAULT_DURATION = 5
+	function Shine:SendNotification( Client, Type, Message, OnlyIfAdminMenuOpen, Duration )
+		self:ApplyNetworkMessage( Client, "Shine_Notification", {
+			Type = Type,
+			Message = Message,
+			Duration = Duration or DEFAULT_DURATION,
+			OnlyIfAdminMenuOpen = OnlyIfAdminMenuOpen or false
+		}, true )
+	end
+
+	function Shine:SendTranslatedNotification( Client, Type, MessageKey, Source, OnlyIfAdminMenuOpen, Duration )
+		self:ApplyNetworkMessage( Client, "Shine_TranslatedNotification", {
+			Type = Type,
+			MessageKey = MessageKey,
+			Source = Source or "",
+			Duration = Duration or DEFAULT_DURATION,
+			OnlyIfAdminMenuOpen = OnlyIfAdminMenuOpen or false
+		}, true )
+	end
+
+	--[[
+		Prints the given message to the console of all online admins, and also sends a notification
+		to the given client to display if they are currently in the admin menu.
+	]]
+	function Shine:SendAdminNotification( Client, Type, Message, Duration )
+		self:AdminPrint( Client, Message )
+		if Client then
+			self:SendNotification( Client, Type, Message, true, Duration )
+		end
+	end
 end
 
 function Shine:AdminPrint( Client, String, Format, ... )

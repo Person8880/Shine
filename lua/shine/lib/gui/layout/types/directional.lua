@@ -40,8 +40,10 @@ end
 	This method handles laying out elements, including keeping track of margins between them.
 ]]
 function Directional:LayoutElements( Elements, Context )
+	if #Elements == 0 then return end
+
 	local Alignment = Context.Alignment
-	local IsMin = Alignment == LayoutAlignment.MIN
+	local IsMin = Alignment ~= LayoutAlignment.MAX
 
 	local Padding = Context.Padding
 	local Pos = Context.Pos
@@ -51,38 +53,35 @@ function Directional:LayoutElements( Elements, Context )
 
 	-- The start position depends on the direction and alignment.
 	-- Vertical will start either top left or bottom left, horizontal top left or top right.
-	local X, Y = self:GetStartPos( Pos, Size, Padding, Alignment )
+	local X, Y = self:GetStartPos( Pos, Size, Padding, Alignment, Context )
 
 	for i = 1, #Elements do
 		local Element = Elements[ i ]
+		local Margin = Element:GetComputedMargin()
+		if Element:GetFill() then
+			-- Fixed size elements have already been resized, just need to resize fill elements.
+			Element:SetSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
+		end
 
-		if Element:GetIsVisible() then
-			local Margin = Element:GetComputedMargin()
-			if Element:GetFill() then
-				-- Fixed size elements have already been resized, just need to resize fill elements.
-				Element:SetSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
-			end
+		local CurrentSize = Element:GetSize()
+		local MinW, MinH = self:GetMinMargin( Margin )
+		local MaxW, MaxH = self:GetMaxMargin( Margin )
+		local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
 
-			local CurrentSize = Element:GetSize()
-			local MinW, MinH = self:GetMinMargin( Margin )
-			local MaxW, MaxH = self:GetMaxMargin( Margin )
-			local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
+		-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
+		if IsMin then
+			X, Y = X + MinW, Y + MinH
+		else
+			X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
+		end
 
-			-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
-			if IsMin then
-				X, Y = X + MinW, Y + MinH
-			else
-				X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
-			end
+		self:SetElementPos( Element, X, Y, Margin )
 
-			self:SetElementPos( Element, X, Y, Margin )
-
-			-- Reverse for after.
-			if IsMin then
-				X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
-			else
-				X, Y = X - MinW, Y - MinH
-			end
+		-- Reverse for after.
+		if IsMin then
+			X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
+		else
+			X, Y = X - MinW, Y - MinH
 		end
 	end
 end
@@ -99,33 +98,55 @@ function Directional:PerformLayout()
 	local Pos = self:GetPos()
 
 	-- Keep track of min and max aligned elements separately, as they need different layout rules.
-	local MinAlignedElements = {}
-	local MaxAlignedElements = {}
+	local AlignedElements = {
+		[ LayoutAlignment.MIN ] = {},
+		[ LayoutAlignment.MAX ] = {},
+		[ LayoutAlignment.CENTRE ] = {}
+	}
+	local CentreAlignedSize = 0
 
 	-- Pre-compute the size of each fill element by setting the size of fixed-size elements upfront.
 	local FillSize = self:GetFillSize( RealSize )
 	local NumberOfFillElements = 0
+	local NumberOfCentreAlignedFillElements = 0
 
 	for i = 1, #Elements do
 		local Element = Elements[ i ]
 
-		if Element:GetAlignment() == LayoutAlignment.MAX then
-			MaxAlignedElements[ #MaxAlignedElements + 1 ] = Element
-		else
-			MinAlignedElements[ #MinAlignedElements + 1 ] = Element
-		end
+		if Element:GetIsVisible() then
+			local Alignment = Element:GetAlignment()
+			local ElementList = AlignedElements[ Alignment ]
 
-		local Margin = Element:GetComputedMargin()
-		if not Element:GetFill() then
-			local CurrentSize = self:SetElementSize( Element, RealSize, Margin )
-			-- If the element is not set to fill the space, then it will use up its margin + size.
-			FillSize = FillSize - self:GetFillSize( CurrentSize ) - self:GetMarginSize( Margin )
-		else
-			-- Otherwise, only the margin is used up.
-			FillSize = FillSize - self:GetMarginSize( Margin )
-			NumberOfFillElements = NumberOfFillElements + 1
+			ElementList[ #ElementList + 1 ] = Element
+
+			local Margin = Element:GetComputedMargin()
+			if not Element:GetFill() then
+				local CurrentSize = self:SetElementSize( Element, RealSize, Margin )
+				local SizeUsedUp = self:GetFillSize( CurrentSize ) + self:GetMarginSize( Margin )
+
+				-- If the element is not set to fill the space, then it will use up its margin + size.
+				FillSize = FillSize - SizeUsedUp
+
+				if Alignment == LayoutAlignment.CENTRE then
+					CentreAlignedSize = CentreAlignedSize + SizeUsedUp
+				end
+			else
+				local SizeUsedUp = self:GetMarginSize( Margin )
+
+				-- Otherwise, only the margin is used up.
+				FillSize = FillSize - SizeUsedUp
+				NumberOfFillElements = NumberOfFillElements + 1
+
+				if Alignment == LayoutAlignment.CENTRE then
+					CentreAlignedSize = CentreAlignedSize + SizeUsedUp
+					NumberOfCentreAlignedFillElements = NumberOfCentreAlignedFillElements + 1
+				end
+			end
 		end
 	end
+
+	local FillSizePerElement = NumberOfFillElements == 0 and 0 or FillSize / NumberOfFillElements
+	CentreAlignedSize = CentreAlignedSize + NumberOfCentreAlignedFillElements * FillSizePerElement
 
 	-- This table "context" just saves a lot of method parameters.
 	local Context = {
@@ -136,13 +157,18 @@ function Directional:PerformLayout()
 		Pos = Pos,
 		RealSize = RealSize,
 		Size = Size,
-		FillSizePerElement = FillSize / NumberOfFillElements
+		FillSizePerElement = FillSizePerElement
 	}
 
-	-- Layout min then max aligned, which will apply the fill size to all fill elements.
-	self:LayoutElements( MinAlignedElements, Context )
+	-- Layout each alignment in sequence, applying the fill size to elements set to fill.
+	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+
 	Context.Alignment = LayoutAlignment.MAX
-	self:LayoutElements( MaxAlignedElements, Context )
+	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+
+	Context.Alignment = LayoutAlignment.CENTRE
+	Context.CentreAlignedSize = CentreAlignedSize
+	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
 end
 
 Shine.GUI.Layout:RegisterType( "Directional", Directional )

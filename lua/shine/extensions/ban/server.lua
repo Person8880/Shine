@@ -10,15 +10,21 @@ local IsType = Shine.IsType
 local Plugin = Plugin
 Plugin.Version = "1.5"
 
-local Notify = Shared.Message
+local Ceil = math.ceil
 local Clamp = math.Clamp
 local Encode, Decode = json.encode, json.decode
 local Max = math.max
+local Notify = Shared.Message
 local pairs = pairs
 local StringFind = string.find
 local StringFormat = string.format
+local StringStartsWith = string.StartsWith
+local StringUTF8Lower = string.UTF8Lower
 local TableConcat = table.concat
 local TableCopy = table.Copy
+local TableFindByField = table.FindByField
+local TableMergeSort = table.MergeSort
+local TableQuickCopy = table.QuickCopy
 local TableRemove = table.remove
 local TableShallowMerge = table.ShallowMerge
 local TableSort = table.sort
@@ -28,20 +34,20 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "Bans.json"
 Plugin.PrintName = "Bans"
 
-Plugin.VanillaConfig = "config://BannedPlayers.json" --Auto-convert the old ban file if it's found.
+Plugin.VanillaConfig = "config://BannedPlayers.json" -- Auto-convert the old ban file if it's found.
 
---Max number of ban entries to network in one go.
-Plugin.MAX_BAN_PER_NETMESSAGE = 10
---Permission required to receive the ban list.
+-- Max number of ban entries to network in one go.
+Plugin.MAX_BAN_PER_NETMESSAGE = 15
+-- Permission required to receive the ban list.
 Plugin.ListPermission = "sh_unban"
 
 local Hooked
 
 Plugin.DefaultConfig = {
 	Banned = {},
-	DefaultBanTime = 60, --Default of 1 hour ban if a time is not given.
+	DefaultBanTime = 60, -- Default of 1 hour ban if a time is not given.
 	GetBansFromWeb = false,
-	GetBansWithPOST = false, --Should we use POST with extra keys to get bans?
+	GetBansWithPOST = false, -- Should we use POST with extra keys to get bans?
 	BansURL = "",
 	BansSubmitURL = "",
 	BansSubmitArguments = {},
@@ -148,7 +154,7 @@ function Plugin:LoadBansFromWeb()
 		if Edited and not self:CheckBans() then
 			self:SaveConfig()
 		end
-		self:GenerateNetworkData()
+		self:BuildInitialNetworkData()
 
 		self.Logger:Info( "Loaded bans from web successfully." )
 	end
@@ -246,7 +252,7 @@ function Plugin:MergeNS2IntoShine()
 		self:SaveConfig()
 	end
 
-	self:GenerateNetworkData()
+	self:BuildInitialNetworkData()
 end
 
 --[[
@@ -286,52 +292,6 @@ function Plugin:ShineToNS2()
 	end
 
 	Shine.SaveJSONFile( NS2Bans, self.VanillaConfig )
-end
-
-function Plugin:GenerateNetworkData()
-	local BanData = TableCopy( self.Config.Banned )
-
-	local NetData = self.BanNetworkData
-	local ShouldSort = NetData == nil
-
-	NetData = NetData or {}
-
-	--Remove all the bans we already know about.
-	for i = 1, #NetData do
-		local ID = NetData[ i ].ID
-
-		--Update ban data.
-		if BanData[ ID ] then
-			NetData[ i ] = BanData[ ID ]
-			NetData[ i ].ID = ID
-
-			BanData[ ID ] = nil
-		end
-	end
-
-	--Fill in the rest at the end of the network list.
-	for ID, Data in pairs( BanData ) do
-		NetData[ #NetData + 1 ] = Data
-		Data.ID = ID
-	end
-
-	-- On initial population, sort by expiry, starting at the soonest to expire.
-	if ShouldSort then
-		TableSort( NetData, function( A, B )
-			-- Push permanent bans back to the end of the list.
-			if not A.UnbanTime or A.UnbanTime == 0 then
-				return false
-			end
-
-			if not B.UnbanTime or B.UnbanTime == 0 then
-				return true
-			end
-
-			return A.UnbanTime < B.UnbanTime
-		end )
-	end
-
-	self.BanNetworkData = NetData
 end
 
 --[[
@@ -435,7 +395,7 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 		}, "ban", function()
 			-- The web request told us that they shouldn't be banned.
 			self.Config.Banned[ ID ] = nil
-			self:NetworkUnban( ID )
+			self:RemoveBanFromNetData( ID )
 		end )
 	end
 
@@ -465,7 +425,7 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	if not BanData then return end
 
 	self.Config.Banned[ ID ] = nil
-	self:NetworkUnban( ID )
+	self:RemoveBanFromNetData( ID )
 
 	if self.Config.BansSubmitURL ~= "" and not self.Retries[ ID ] then
 		self:SendHTTPRequest( ID, {
@@ -476,6 +436,7 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 			unban = 1
 		}, "unban", function()
 			-- The web request told us that they shouldn't be unbanned.
+			BanData.ID = ID
 			self.Config.Banned[ ID ] = BanData
 			self:AddBanToNetData( BanData )
 		end )
@@ -515,10 +476,10 @@ function Plugin:CreateBanCommands()
 		Duration = Duration * 60
 		local ID = tostring( Target:GetUserId() )
 
-		--We're currently waiting for a response on this ban.
+		-- We're currently waiting for a response on this ban.
 		if self.Retries[ ID ] then
 			if Client then
-				self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+				self:SendTranslatedCommandError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
 					ID = ID
 				} )
 			end
@@ -564,10 +525,10 @@ function Plugin:CreateBanCommands()
 		ID = tostring( ID )
 
 		if self.Config.Banned[ ID ] then
-			--We're currently waiting for a response on this ban.
+			-- We're currently waiting for a response on this ban.
 			if self.Retries[ ID ] then
 				if Client then
-					self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+					self:SendTranslatedCommandError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
 						ID = ID
 					} )
 				end
@@ -589,7 +550,7 @@ function Plugin:CreateBanCommands()
 		local ErrorText = StringFormat( "%s is not banned%s.", ID, self.OperationSuffix )
 
 		if Client then
-			self:SendTranslatedError( Client, "ERROR_NOT_BANNED", {
+			self:SendTranslatedCommandError( Client, "ERROR_NOT_BANNED", {
 				ID = ID
 			} )
 		end
@@ -607,10 +568,10 @@ function Plugin:CreateBanCommands()
 
 		local IDString = tostring( ID )
 
-		--We're currently waiting for a response on this ban.
+		-- We're currently waiting for a response on this ban.
 		if self.Retries[ IDString ] then
 			if Client then
-				self:SendTranslatedError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
+				self:SendTranslatedCommandError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
 					ID = ID
 				} )
 			end
@@ -648,7 +609,7 @@ function Plugin:CreateBanCommands()
 		end
 
 		if Client then
-			self:NotifyTranslatedError( Client, "ERROR_INVALID_STEAMID" )
+			self:NotifyTranslatedCommandError( Client, "ERROR_INVALID_STEAMID" )
 		end
 		Shine:AdminPrint( Client, "Invalid Steam ID for banning." )
 	end
@@ -828,14 +789,8 @@ function Plugin:CheckConnectionAllowed( ID )
 	if IsSharingAndSharerBanned then return false, "Family sharing with a banned account." end
 end
 
-function Plugin:ClientDisconnect( Client )
-	if not self.BanNetworkedClients then return end
-
-	self.BanNetworkedClients[ Client ] = nil
-end
-
 function Plugin:NetworkBan( BanData, Client )
-	if not Client and not self.BanNetworkedClients then return end
+	if not Client then return end
 
 	local NetData = {
 		ID = BanData.ID,
@@ -848,93 +803,163 @@ function Plugin:NetworkBan( BanData, Client )
 		Issued = BanData.Issued or 0
 	}
 
-	if Client then
-		self:SendNetworkMessage( Client, "BanData", NetData, true )
-	else
-		for Client in pairs( self.BanNetworkedClients ) do
-			self:SendNetworkMessage( Client, "BanData", NetData, true )
-		end
-	end
+	self:SendNetworkMessage( Client, "BanData", NetData, true )
 end
 
-function Plugin:NetworkUnban( ID )
-	local NetData = self.BanNetworkData
+local DEFAULT_NAME = "Unknown"
+Plugin.SortComparators = {
+	-- Sort by name.
+	Shine.Comparator( "Field", 1, "Name", DEFAULT_NAME ):CompileStable(),
 
-	if NetData then
-		for i = 1, #NetData do
-			local Data = NetData[ i ]
+	-- Sort by banned by, then name.
+	Shine.Comparator( "Composition",
+		Shine.Comparator( "Field", 1, "Name", DEFAULT_NAME ),
+		Shine.Comparator( "Field", 1, "BannerID", 0 )
+	):CompileStable(),
 
-			--Remove the ban from the network data.
-			if Data.ID == ID then
-				TableRemove( NetData, i )
+	-- Sort by expiry time (treating permanent as the highest), then name.
+	Shine.Comparator( "Composition", Shine.Comparator( "Field", 1, "Name", DEFAULT_NAME ), {
+		Compare = function( self, A, B )
+			local AIsPerma = not A.UnbanTime or A.UnbanTime == 0
+			local BIsPerma = not B.UnbanTime or B.UnbanTime == 0
 
-				--Anyone on an index bigger than this one needs to go down 1.
-				if self.BanNetworkedClients then
-					for Client, Index in pairs( self.BanNetworkedClients ) do
-						if Index > i then
-							self.BanNetworkedClients[ Client ] = Index - 1
-						end
-					end
-				end
-
-				break
+			if AIsPerma and BIsPerma then
+				return 0
 			end
+
+			if AIsPerma then
+				-- Push permanent bans back to the end of the list.
+				return 1
+			end
+
+			if BIsPerma then
+				return -1
+			end
+
+			if A.UnbanTime == B.UnbanTime then
+				return 0
+			end
+
+			return A.UnbanTime < B.UnbanTime and -1 or 1
 		end
+	} ):CompileStable()
+}
+
+function Plugin:BuildInitialNetworkData()
+	local Bans = {}
+
+	for ID, Data in pairs( TableCopy( self.Config.Banned ) ) do
+		Bans[ #Bans + 1 ] = Data
+		Data.ID = ID
 	end
 
-	if not self.BanNetworkedClients then return end
-
-	for Client in pairs( self.BanNetworkedClients ) do
-		self:SendNetworkMessage( Client, "Unban", { ID = ID }, true )
-	end
-end
-
-function Plugin:ReceiveRequestBanData( Client, Data )
-	if not Shine:GetPermission( Client, self.ListPermission ) then return end
-
-	self.BanNetworkedClients = self.BanNetworkedClients or {}
-
-	self.BanNetworkedClients[ Client ] = self.BanNetworkedClients[ Client ] or 1
-	local Index = self.BanNetworkedClients[ Client ]
-
-	local NetworkData = self.BanNetworkData
-
-	if not NetworkData then return end
-
-	for i = Index, Clamp( Index + self.MAX_BAN_PER_NETMESSAGE - 1, 0, #NetworkData ) do
-		if NetworkData[ i ] then
-			self:NetworkBan( NetworkData[ i ], Client )
-		end
+	local SortedBans = {}
+	for i = 1, #self.SortColumn do
+		local Sorted = TableQuickCopy( Bans )
+		TableMergeSort( Sorted, self.SortComparators[ i ] )
+		SortedBans[ i ] = Sorted
 	end
 
-	self.BanNetworkedClients[ Client ] = Clamp( Index + self.MAX_BAN_PER_NETMESSAGE,
-		0, #NetworkData + 1 )
+	self.SortedBans = SortedBans
 end
 
 function Plugin:AddBanToNetData( BanData )
-	self.BanNetworkData = self.BanNetworkData or {}
+	-- First remove the old ban, if it exists.
+	self:RemoveBanFromNetData( BanData.ID )
 
-	local NetData = self.BanNetworkData
+	for i = 1, #self.SortColumn do
+		local Data = self.SortedBans[ i ]
+		Data[ #Data + 1 ] = BanData
+		TableMergeSort( Data, self.SortComparators[ i ] )
+	end
+end
 
-	for i = 1, #NetData do
-		local Data = NetData[ i ]
+function Plugin:RemoveBanFromNetData( ID )
+	for i = 1, #self.SortColumn do
+		local Data = self.SortedBans[ i ]
+		local Ban, Index = TableFindByField( Data, "ID", ID )
+		if Index then
+			TableRemove( Data, Index )
+		end
+	end
+end
 
-		if Data.ID == BanData.ID then
-			NetData[ i ] = BanData
+function Plugin:FilterData( Data, Filter )
+	local Results = {}
 
-			if self.BanNetworkedClients then
-				for Client, Index in pairs( self.BanNetworkedClients ) do
-					if Index > i then
-						self:NetworkBan( BanData, Client )
-					end
-				end
-			end
-
-			return
+	for i = 1, #Data do
+		local Ban = Data[ i ]
+		if self:MatchesFilter( Ban, Filter ) then
+			Results[ #Results + 1 ] = Ban
 		end
 	end
 
-	NetData[ #NetData + 1 ] = BanData
+	return Results
+end
+
+function Plugin:MatchesFilter( Ban, Filter )
+	if Ban.ID == Filter then
+		return true
+	end
+
+	if Ban.BannerID and tostring( Ban.BannerID ) == Filter then
+		return true
+	end
+
+	if StringStartsWith( StringUTF8Lower( Ban.Name or DEFAULT_NAME ), Filter ) then
+		return true
+	end
+
+	if StringStartsWith( StringUTF8Lower( Ban.BannedBy or DEFAULT_NAME ), Filter ) then
+		return true
+	end
+
+	return false
+end
+
+function Plugin:ReceiveRequestBanPage( Client, PageRequest )
+	if not Shine:GetPermission( Client, self.ListPermission ) then return end
+
+	local Data = self.SortedBans[ PageRequest.SortColumn ]
+	if not Data then return end
+
+	if PageRequest.Filter ~= "" then
+		Data = self:FilterData( Data, StringUTF8Lower( PageRequest.Filter ) )
+	end
+
+	local StartIndex, EndIndex, Dir
+	local MaxResults = Clamp( PageRequest.MaxResults, 5, self.MAX_BAN_PER_NETMESSAGE )
+	local NumPages = Max( 1, Ceil( #Data / MaxResults ) )
+	local Page = Clamp( PageRequest.Page, 1, NumPages )
+
+	if PageRequest.SortAscending then
+		StartIndex = 1 + ( Page - 1 ) * MaxResults
+		EndIndex = StartIndex + MaxResults - 1
+		Dir = 1
+	else
+		EndIndex = #Data - Page * MaxResults + 1
+		StartIndex = EndIndex + MaxResults - 1
+		Dir = -1
+	end
+
+	local Results = {}
+	for i = StartIndex, EndIndex, Dir do
+		local Ban = Data[ i ]
+		if not Ban then break end
+
+		Results[ #Results + 1 ] = Ban
+	end
+
+	self:SendNetworkMessage( Client, "BanPage", {
+		Page = Page,
+		NumPages = NumPages,
+		MaxResults = MaxResults,
+		TotalNumResults = #Data
+	}, true )
+
+	for i = 1, #Results do
+		self:NetworkBan( Results[ i ], Client )
+	end
 end
 
 Shine.LoadPluginModule( "logger.lua" )

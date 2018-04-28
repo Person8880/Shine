@@ -21,9 +21,9 @@ end
 function Button:SetupStencil()
 	self.BaseClass.SetupStencil( self )
 
-	if not self.Text then return end
+	if not self.Label then return end
 
-	self.Text:SetInheritsParentStencilSettings( true )
+	self.Label:SetInheritsParentStencilSettings( true )
 end
 
 function Button:SetCustomSound( Sound )
@@ -31,8 +31,10 @@ function Button:SetCustomSound( Sound )
 end
 
 function Button:SetText( Text )
-	if self.Text then
-		self.Text:SetText( Text )
+	self:InvalidateParent()
+
+	if self.Label then
+		self.Label:SetText( Text )
 
 		return
 	end
@@ -43,6 +45,7 @@ function Button:SetText( Text )
 	Description:SetTextAlignmentY( GUIItem.Align_Center )
 	Description:SetText( Text )
 	Description:SetColor( self.TextColour )
+	Description:SetInheritsParentAlpha( true )
 
 	if self.Font then
 		Description:SetFontName( self.Font )
@@ -57,17 +60,17 @@ function Button:SetText( Text )
 	end
 
 	self.Background:AddChild( Description )
-	self.Text = Description
+	self.Label = Description
 end
 
 function Button:GetText()
-	if not self.Text then return "" end
-	return self.Text:GetText()
+	if not self.Label then return "" end
+	return self.Label:GetText()
 end
 
-SGUI.AddBoundProperty( Button, "Font", "Text:SetFontName" )
-SGUI.AddBoundProperty( Button, "TextColour", "Text:SetColor" )
-SGUI.AddBoundProperty( Button, "TextScale", "Text:SetScale" )
+SGUI.AddBoundProperty( Button, "Font", "Label:SetFontName" )
+SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColor" )
+SGUI.AddBoundProperty( Button, "TextScale", "Label:SetScale" )
 
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
@@ -129,9 +132,9 @@ function Button:AddMenu( Size )
 	Menu:SetPos( Pos )
 	Menu:SetButtonSize( Size or self:GetSize() )
 
-	self.ForceHighlight = true
+	self:SetForceHighlight( true )
 	Menu:CallOnRemove( function()
-		self.ForceHighlight = nil
+		self:SetForceHighlight( false )
 	end )
 
 	self.Menu = Menu
@@ -146,6 +149,8 @@ function Button:OnMouseDown( Key, DoubleClick )
 	if Result then
 		return true, Child
 	end
+
+	if not self:IsEnabled() then return end
 
 	return self.Mixins.Clickable.OnMouseDown( self, Key, DoubleClick )
 end
@@ -174,5 +179,7 @@ function Button:PlayerType( Char )
 	end
 end
 
+SGUI:AddMixin( Button, "AutoSizeText" )
 SGUI:AddMixin( Button, "Clickable" )
+SGUI:AddMixin( Button, "EnableMixin" )
 SGUI:Register( "Button", Button )

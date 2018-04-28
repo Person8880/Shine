@@ -7,6 +7,7 @@ local Plugin = {}
 function Plugin:SetupDataTable()
 	self:AddDTVar( "integer (1 to 10)", "Gamestate", 1 )
 	self:AddDTVar( "boolean", "AllTalk", false )
+	self:AddDTVar( "boolean", "AllTalkPreGame", false )
 
 	self:AddNetworkMessage( "RequestMapData", {}, "Server" )
 	self:AddNetworkMessage( "MapData", { Name = "string (32)" }, "Client" )
@@ -77,7 +78,7 @@ function Plugin:SetupDataTable()
 		}
 	} )
 
-	self:AddNetworkMessages( "AddTranslatedError", {
+	self:AddNetworkMessages( "AddTranslatedCommandError", {
 		[ MessageTypes.TargetName ] = {
 			"ERROR_NOT_COMMANDER", "ERROR_NOT_GAGGED"
 		},
@@ -92,31 +93,6 @@ function Plugin:SetupDataTable()
 	} )
 
 	self:AddNetworkMessage( "EnableLocalAllTalk", { Enabled = "boolean" }, "Server" )
-end
-
-function Plugin:NetworkUpdate( Key, Old, New )
-	if Server then return end
-
-	if Key == "Gamestate" then
-		if ( Old == kGameState.PreGame or Old == kGameState.WarmUp ) and New == kGameState.NotStarted then
-			-- The game state changes back to NotStarted, then to Countdown to start. This is VERY annoying...
-			self:SimpleTimer( 1, function()
-				if self.dt.Gamestate == kGameState.NotStarted then
-					self:UpdateAllTalk( self.dt.Gamestate )
-				end
-			end )
-
-			return
-		end
-
-		self:UpdateAllTalk( New )
-	elseif Key == "AllTalk" then
-		if not New then
-			self:RemoveAllTalkText()
-		else
-			self:UpdateAllTalk( self.dt.Gamestate )
-		end
-	end
 end
 
 Shine:RegisterExtension( "basecommands", Plugin )
@@ -147,12 +123,13 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local StringMatch = string.match
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
 
 function Plugin:Initialise()
-	if self.dt.AllTalk then
+	if self.dt.AllTalk or self.dt.AllTalkPreGame then
 		self:UpdateAllTalk( self.dt.Gamestate )
 	end
 
@@ -162,6 +139,35 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:NetworkUpdate( Key, Old, New )
+	if Key == "Gamestate" then
+		if ( Old == kGameState.PreGame or Old == kGameState.WarmUp ) and New == kGameState.NotStarted then
+			-- The game state changes back to NotStarted, then to Countdown to start. This is VERY annoying...
+			self:SimpleTimer( 1, function()
+				if self.dt.Gamestate == kGameState.NotStarted then
+					self:UpdateAllTalk( self.dt.Gamestate )
+				end
+			end )
+
+			return
+		end
+
+		self:UpdateAllTalk( New )
+	elseif Key == "AllTalk" then
+		if not New and not self.dt.AllTalkPreGame then
+			self:RemoveAllTalkText()
+		else
+			self:UpdateAllTalk( self.dt.Gamestate )
+		end
+	elseif Key == "AllTalkPreGame" then
+		if New or self.dt.AllTalk then
+			self:UpdateAllTalk( self.dt.Gamestate )
+		else
+			self:RemoveAllTalkText()
+		end
+	end
 end
 
 function Plugin:ReceiveClientKicked( Data )
@@ -221,7 +227,7 @@ function Plugin:SetupAdminMenuCommands()
 				local TextEntry = SGUI:Create( "TextEntry", Panel )
 				TextEntry:SetFill( true )
 				TextEntry:SetPlaceholderText( self:GetPhrase( "KICK_CUSTOM" ) )
-				TextEntry:SetFontScale( Fonts.kAgencyFB_Small, Vector2( 0.9, 0.9 ) )
+				TextEntry:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 25 ) )
 				function TextEntry:OnEnter()
 					local Text = self:GetText()
 					if #Text == 0 then return end
@@ -258,6 +264,11 @@ function Plugin:SetupAdminMenuCommands()
 	GagLabels[ #GagLabels + 1 ] = ""
 	GagLabels[ #GagLabels + 1 ] = self:GetPhrase( "PERMANENTLY" )
 	GagLabels[ #GagLabels + 1 ] = function( Args )
+		if not StringMatch( Args, "^%d+$" ) then
+			SGUI.NotificationManager.AddNotification( Shine.NotificationType.ERROR, self:GetPhrase( "ERROR_GAG_BOT" ), 5 )
+			return
+		end
+
 		Shine.AdminMenu:RunCommand( "sh_gagid", Args )
 	end
 
@@ -280,17 +291,92 @@ function Plugin:SetupAdminMenuCommands()
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "SET_TEAM" ), "sh_setteam", true, Teams,
 		self:GetPhrase( "SET_TEAM_TIP" ) )
 
+	local Units = SGUI.Layout.Units
+	local HighResScaled = Units.HighResScaled
+	local Percentage = Units.Percentage
+	local Spacing = Units.Spacing
+	local UnitVector = Units.UnitVector
+	local Auto = Units.Auto
+
 	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
 		OnInit = function( Panel, Data )
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
+					HighResScaled( 16 ), HighResScaled( 16 ) )
+			} )
+
 			local List = SGUI:Create( "List", Panel )
-			List:SetAnchor( GUIItem.Left, GUIItem.Top )
-			List:SetPos( Vector( 16, 28, 0 ) )
 			List:SetColumns( self:GetPhrase( "MAP" ) )
 			List:SetSpacing( 1 )
-			List:SetSize( Vector( 640, 512, 0 ) )
-			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetFill( true )
+
+			Shine.AdminMenu.SetupListWithScaling( List )
+
+			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
+			Layout:AddElement( List )
 
 			self.MapList = List
+
+			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
+				Fill = false
+			} )
+
+			local ChangeMap = SGUI:Create( "Button", Panel )
+			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
+			ChangeMap:SetFontScale( Font, Scale )
+			ChangeMap:SetStyleName( "DangerButton" )
+			function ChangeMap.DoClick()
+				local Selected = List:GetSelectedRow()
+				if not Selected then return end
+
+				local Map = Selected:GetColumnText( 1 )
+
+				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
+			end
+			ChangeMap:SetTooltip( self:GetPhrase( "CHANGE_MAP_TIP" ) )
+			ChangeMap:SetEnabled( List:HasSelectedRow() )
+
+			ControlLayout:AddElement( ChangeMap )
+
+			function List:OnRowSelected( Index, Row )
+				ChangeMap:SetEnabled( true )
+			end
+
+			function List:OnRowDeselected( Index, Row )
+				ChangeMap:SetEnabled( false )
+			end
+
+			local ButtonWidth = Units.Max(
+				HighResScaled( 128 ),
+				Auto( ChangeMap ) + HighResScaled( 16 )
+			)
+
+			ChangeMap:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+
+			if Shine:IsExtensionEnabled( "mapvote" ) then
+				local CallVote = SGUI:Create( "Button", Panel )
+				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
+				CallVote:SetFontScale( Font, Scale )
+				CallVote:SetAlignment( SGUI.LayoutAlignment.MAX )
+				function CallVote.DoClick()
+					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
+				end
+				CallVote:SetTooltip( self:GetPhrase( "CALL_VOTE_TIP" ) )
+				CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+
+				ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
+
+				ControlLayout:AddElement( CallVote )
+			end
+
+			local ButtonHeight = Auto( ChangeMap ) + HighResScaled( 8 )
+			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+
+			Layout:AddElement( ControlLayout )
+			Panel:SetLayout( Layout )
+			Panel:InvalidateLayout( true )
 
 			if not self.MapData then
 				self:RequestMapData()
@@ -302,36 +388,6 @@ function Plugin:SetupAdminMenuCommands()
 
 			if not Shine.AdminMenu.RestoreListState( List, Data ) then
 				List:SortRows( 1 )
-			end
-
-			local ChangeMap = SGUI:Create( "Button", Panel )
-			ChangeMap:SetAnchor( "BottomLeft" )
-			ChangeMap:SetSize( Vector( 128, 32, 0 ) )
-			ChangeMap:SetPos( Vector( 16, -48, 0 ) )
-			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
-			ChangeMap:SetFont( Fonts.kAgencyFB_Small )
-			ChangeMap:SetStyleName( "DangerButton" )
-			function ChangeMap.DoClick()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
-
-				local Map = Selected:GetColumnText( 1 )
-
-				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
-			end
-			ChangeMap:SetTooltip( self:GetPhrase( "CHANGE_MAP_TIP" ) )
-
-			if Shine:IsExtensionEnabled( "mapvote" ) then
-				local CallVote = SGUI:Create( "Button", Panel )
-				CallVote:SetAnchor( "BottomRight" )
-				CallVote:SetSize( Vector( 128, 32, 0 ) )
-				CallVote:SetPos( Vector( -144, -48, 0 ) )
-				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
-				CallVote:SetFont( Fonts.kAgencyFB_Small )
-				function CallVote.DoClick()
-					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
-				end
-				CallVote:SetTooltip( self:GetPhrase( "CALL_VOTE_TIP" ) )
 			end
 		end,
 
@@ -345,33 +401,36 @@ function Plugin:SetupAdminMenuCommands()
 
 	self:AddAdminMenuTab( self:GetPhrase( "PLUGINS" ), {
 		OnInit = function( Panel, Data )
+			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
+					HighResScaled( 16 ), HighResScaled( 16 ) )
+			} )
+
 			local List = SGUI:Create( "List", Panel )
-			List:SetAnchor( GUIItem.Left, GUIItem.Top )
-			List:SetPos( Vector( 16, 28, 0 ) )
 			List:SetColumns( self:GetPhrase( "PLUGIN" ), self:GetPhrase( "STATE" ) )
-			List:SetSpacing( 0.7, 0.3 )
-			List:SetSize( Vector( 640, 512, 0 ) )
-			List.ScrollPos = Vector( 0, 32, 0 )
+			List:SetSpacing( 0.8, 0.2 )
 			List:SetSecondarySortColumn( 2, 1 )
+			List:SetFill( true )
+
+			Shine.AdminMenu.SetupListWithScaling( List )
+
+			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+
+			Layout:AddElement( List )
 
 			self.PluginList = List
 			self.PluginRows = self.PluginRows or {}
 
-			--We need information about the server side only plugins too.
+			-- We need information about the server side only plugins too.
 			if not self.PluginData then
 				self:RequestPluginData()
 				self.PluginData = {}
 			end
 
-			if self.PluginAuthed then
-				self:PopulatePluginList()
-			end
-
-			if not Shine.AdminMenu.RestoreListState( List, Data ) then
-				List:SortRows( 2, nil, true )
-			end
-
-			local ButtonSize = Vector( 128, 32, 0 )
+			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
+				Fill = false
+			} )
 
 			local function GetSelectedPlugin()
 				local Selected = List:GetSelectedRow()
@@ -381,12 +440,10 @@ function Plugin:SetupAdminMenuCommands()
 			end
 
 			local UnloadPlugin = SGUI:Create( "Button", Panel )
-			UnloadPlugin:SetAnchor( "BottomLeft" )
-			UnloadPlugin:SetSize( ButtonSize )
-			UnloadPlugin:SetPos( Vector( 16, -48, 0 ) )
 			UnloadPlugin:SetText( self:GetPhrase( "UNLOAD_PLUGIN" ) )
-			UnloadPlugin:SetFont( Fonts.kAgencyFB_Small )
+			UnloadPlugin:SetFontScale( Font, Scale )
 			UnloadPlugin:SetStyleName( "DangerButton" )
+			UnloadPlugin:SetEnabled( List:HasSelectedRow() )
 			function UnloadPlugin.DoClick( Button )
 				local Plugin, Enabled = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -407,13 +464,14 @@ function Plugin:SetupAdminMenuCommands()
 				end, self:GetPhrase( "UNLOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "DangerButton" )
 			end
 
+			ControlLayout:AddElement( UnloadPlugin )
+
 			local LoadPlugin = SGUI:Create( "Button", Panel )
-			LoadPlugin:SetAnchor( "BottomRight" )
-			LoadPlugin:SetSize( ButtonSize )
-			LoadPlugin:SetPos( Vector( -144, -48, 0 ) )
 			LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
-			LoadPlugin:SetFont( Fonts.kAgencyFB_Small )
+			LoadPlugin:SetFontScale( Font, Scale )
 			LoadPlugin:SetStyleName( "SuccessButton" )
+			LoadPlugin:SetEnabled( List:HasSelectedRow() )
+			LoadPlugin:SetAlignment( SGUI.LayoutAlignment.MAX )
 			local function NormalLoadDoClick( Button )
 				local Plugin = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -433,6 +491,8 @@ function Plugin:SetupAdminMenuCommands()
 				end, self:GetPhrase( "LOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "SuccessButton" )
 			end
 
+			ControlLayout:AddElement( LoadPlugin )
+
 			local function ReloadDoClick()
 				local Plugin = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -445,6 +505,9 @@ function Plugin:SetupAdminMenuCommands()
 			function List.OnRowSelected( List, Index, Row )
 				local State = Row.PluginEnabled
 
+				LoadPlugin:SetEnabled( true )
+				UnloadPlugin:SetEnabled( true )
+
 				if State then
 					LoadPlugin:SetText( self:GetPhrase( "RELOAD_PLUGIN" ) )
 					LoadPlugin.DoClick = ReloadDoClick
@@ -454,12 +517,17 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			end
 
+			function List:OnRowDeselected( Index, Row )
+				LoadPlugin:SetEnabled( false )
+				UnloadPlugin:SetEnabled( false )
+			end
+
 			local function UpdateRow( Name, State )
 				local Row = self.PluginRows[ Name ]
 
 				if SGUI.IsValid( Row ) then
-					Row:SetColumnText( 2, State and self:GetPhrase( "ENABLED" ) or self:GetPhrase( "DISABLED" ) )
-					Row.PluginEnabled = State
+					self:SetPluginRowState( Row, State )
+
 					if Row == List:GetSelectedRow() then
 						List:OnRowSelected( nil, Row )
 					end
@@ -473,6 +541,29 @@ function Plugin:SetupAdminMenuCommands()
 			Hook.Add( "OnPluginUnload", "AdminMenu_OnPluginUnload", function( Name, Plugin, Shared )
 				UpdateRow( Name, false )
 			end )
+
+			local ButtonWidth = Units.Max(
+				HighResScaled( 128 ),
+				Auto( LoadPlugin ) + HighResScaled( 16 ),
+				Auto( UnloadPlugin ) + HighResScaled( 16 )
+			)
+			UnloadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+			LoadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+
+			local ButtonHeight = Auto( LoadPlugin ) + HighResScaled( 8 )
+			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+
+			Layout:AddElement( ControlLayout )
+			Panel:SetLayout( Layout )
+			Panel:InvalidateLayout( true )
+
+			if self.PluginAuthed then
+				self:PopulatePluginList()
+			end
+
+			if not Shine.AdminMenu.RestoreListState( List, Data ) then
+				List:SortRows( 2, nil, true )
+			end
 		end,
 
 		OnCleanup = function( Panel )
@@ -521,7 +612,7 @@ function Plugin:PopulatePluginList()
 	for Plugin in pairs( Shine.AllPlugins ) do
 		local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
 		local Skip
-		--Server side plugin.
+		-- Server side plugin.
 		if not PluginTable then
 			Enabled = self.PluginData and self.PluginData[ Plugin ]
 		elseif PluginTable.IsClient and not PluginTable.IsShared then
@@ -529,12 +620,24 @@ function Plugin:PopulatePluginList()
 		end
 
 		if not Skip then
-			local Row = List:AddRow( Plugin, Enabled and self:GetPhrase( "ENABLED" ) or self:GetPhrase( "DISABLED" ) )
-			Row.PluginEnabled = Enabled
+			local Row = List:AddRow( Plugin, "" )
+			self:SetPluginRowState( Row, Enabled )
 
 			self.PluginRows[ Plugin ] = Row
 		end
 	end
+end
+
+function Plugin:SetPluginRowState( Row, Enabled )
+	local Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 27 )
+	Row:SetColumnText( 2, SGUI.Icons.Ionicons[ Enabled and "CheckmarkCircled" or "MinusCircled" ] )
+	Row:SetTextOverride( 2, {
+		Font = Font,
+		TextScale = Scale,
+		Colour = Enabled and Colour( 0, 1, 0 ) or Colour( 1, 0.8, 0 )
+	} )
+	Row:SetData( 2, Enabled and "1" or "0" )
+	Row.PluginEnabled = Enabled
 end
 
 function Plugin:ReceivePluginData( Data )
@@ -544,8 +647,7 @@ function Plugin:ReceivePluginData( Data )
 	local Row = self.PluginRows[ Data.Name ]
 
 	if Row then
-		Row:SetColumnText( 2, Data.Enabled and self:GetPhrase( "ENABLED" ) or self:GetPhrase( "DISABLED" ) )
-		Row.PluginEnabled = Data.Enabled
+		self:SetPluginRowState( Row, Data.Enabled )
 
 		if Row == self.PluginList:GetSelectedRow() then
 			self.PluginList:OnRowSelected( nil, Row )
@@ -557,17 +659,23 @@ local NOT_STARTED = kGameState and kGameState.WarmUp or 2
 local COUNTDOWN = kGameState and kGameState.Countdown or 4
 
 function Plugin:UpdateAllTalk( State )
-	if not self.dt.AllTalk then return end
+	if not self.dt.AllTalk and not self.dt.AllTalkPreGame then return end
 
-	if State >= COUNTDOWN then
+	if State >= COUNTDOWN and not self.dt.AllTalk then
 		self:RemoveAllTalkText()
 		return
 	end
 
-	local Phrase = State > NOT_STARTED and self:GetPhrase( "ALLTALK_DISABLED" ) or self:GetPhrase( "ALLTALK_ENABLED" )
+	local Phrase
+	local AllTalkIsDisabled = State > NOT_STARTED and not self.dt.AllTalk
+	if AllTalkIsDisabled then
+		Phrase = self:GetPhrase( "ALLTALK_DISABLED" )
+	else
+		Phrase = self:GetPhrase( "ALLTALK_ENABLED" )
+	end
 
 	if not self.TextObj then
-		local GB = State > NOT_STARTED and 0 or 255
+		local GB = AllTalkIsDisabled and 0 or 255
 
 		self.TextObj = Shine.ScreenText.Add( "AllTalkState", {
 			X = 0.5, Y = 0.95,
@@ -576,8 +684,59 @@ function Plugin:UpdateAllTalk( State )
 			Alignment = 1,
 			Size = 2,
 			FadeIn = 1,
-			IgnoreFormat = true
+			IgnoreFormat = true,
+			UpdateRate = 0.1
 		} )
+
+		function self.TextObj:UpdateForInventoryState( IsAlwaysVisible )
+			if IsAlwaysVisible and not self.SetupForVisibleInventory then
+				-- Inventory is always visible, so move text to the top of the screen
+				-- (some configurations have a giant inventory that extends to the bottom
+				-- of the screen, and the inventory position doesn't account for ammo text).
+				self.SetupForVisibleInventory = true
+				self:SetIsVisible( true )
+				self:SetScaledPos( self.x, 0.05 )
+			elseif not IsAlwaysVisible and self.SetupForVisibleInventory then
+				-- Inventory is only visible when in use, so we'll hide the text.
+				self.SetupForVisibleInventory = false
+				self:SetScaledPos( self.x, 0.95 )
+			end
+		end
+
+		-- Hide the text if the inventory HUD is visible (avoids the text overlapping it).
+		-- There's no easy way to determine its visibility, so this awkward polling will have to do.
+		function self.TextObj:Think()
+			local HUD = ClientUI.GetScript( "Hud/Marine/GUIMarineHUD" ) or ClientUI.GetScript( "GUIAlienHUD" )
+			local Inventory = HUD and HUD.inventoryDisplay
+			local InventoryIsVisible = Inventory and Inventory.background and Inventory.background:GetIsVisible()
+
+			if not ( InventoryIsVisible and Inventory.inventoryIcons ) then
+				self:SetIsVisible( true )
+				self:UpdateForInventoryState( false )
+				return
+			end
+
+			if Inventory.forceAnimationReset then
+				self:UpdateForInventoryState( true )
+
+				return
+			end
+
+			self:UpdateForInventoryState( false )
+
+			local Items = Inventory.inventoryIcons
+			for i = 1, #Items do
+				local Item = Items[ i ]
+				if Item and Item.Graphic and Item.Graphic:GetColor().a > 0 then
+					-- Inventory is temporarily visible, hide the text.
+					self:SetIsVisible( false )
+					return
+				end
+			end
+
+			-- Inventory is not visible, show the text.
+			self:SetIsVisible( true )
+		end
 
 		return
 	end
@@ -585,7 +744,7 @@ function Plugin:UpdateAllTalk( State )
 	self.TextObj.Text = Phrase
 	self.TextObj:UpdateText()
 
-	local Col = State > NOT_STARTED and Color( 255, 0, 0 ) or Color( 255, 255, 255 )
+	local Col = AllTalkIsDisabled and Color( 255, 0, 0 ) or Color( 255, 255, 255 )
 
 	self.TextObj:SetColour( Col )
 end

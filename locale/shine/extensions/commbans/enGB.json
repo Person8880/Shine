@@ -2,5 +2,9 @@
 	"Comm Bans": "Comm Bans",
 	"PLAYER_BANNED": "banned {TargetName} from commanding {Duration:NonZero:for }{Duration:Duration:permanently}.",
 	"BANNED_WARNING": "You are banned from commanding {Duration:NonZero:for }{Duration:Duration:permanently}.",
-	"NOTIFY_PREFIX": "[Comm Bans]"
+	"NOTIFY_PREFIX": "[Comm Bans]",
+	"ADD_BAN_TITLE": "Add Commander Ban",
+	"BAN": "Ban from Commanding",
+	"CATEGORY": "Bans",
+	"BAN_TIP": "Ban the selected player from commanding."
 }

@@ -259,6 +259,11 @@ function SGUI.TenEightyPScale( Value )
 	return math.scaledown( Value, 1080, 1280 ) * ( 2 - ( 1080 / 1280 ) )
 end
 
+function SGUI.LinearScaleByScreenHeight( Value )
+	local W, H = SGUI.GetScreenSize()
+	return H / 1080 * Value
+end
+
 do
 	local ScrW, ScrH
 
@@ -354,14 +359,32 @@ function SGUI:SetWindowFocus( Window, i )
 	self.FocusedWindow = Window
 end
 
+function SGUI:IsWindowInFocus( Window )
+	if Window == self.FocusedWindow then return true end
+
+	local Windows = self.Windows
+	for i = #Windows, 1, -1 do
+		local OtherWindow = Windows[ i ]
+		if Window == OtherWindow then
+			return Window:MouseInCached()
+		end
+
+		if OtherWindow:MouseInCached() then
+			return false
+		end
+	end
+
+	return false
+end
+
 local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
-function SGUI:PostCallEvent()
+function SGUI:PostCallEvent( Result, Control )
 	local PostEventActions = self.PostEventActions
 	if not PostEventActions then return end
 
 	for i = 1, #PostEventActions do
-		xpcall( PostEventActions[ i ], OnError )
+		xpcall( PostEventActions[ i ], OnError, Result, Control )
 	end
 
 	self.PostEventActions = nil
@@ -400,7 +423,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 						self:SetWindowFocus( Window, i )
 					end
 
-					self:PostCallEvent()
+					self:PostCallEvent( Result, Control )
 
 					return Result, Control
 				end
@@ -564,23 +587,22 @@ do
 		ID = ID + 1
 
 		local Table = {}
+		local IsAWindow = MetaTable.IsWindow and not Parent and true or false
 
 		local Control = setmetatable( Table, MetaTable )
 		Control.Class = Class
 		Control.ID = ID
+		Control.IsAWindow = IsAWindow
 		Control:Initialise()
 
 		self.ActiveControls:Add( Control, true )
 
-		--If it's a window then we give it focus.
-		if MetaTable.IsWindow and not Parent then
+		-- If it's a window then we give it focus.
+		if IsAWindow then
 			local Windows = self.Windows
-
 			Windows[ #Windows + 1 ] = Control
 
 			self:SetWindowFocus( Control )
-
-			Control.IsAWindow = true
 		end
 
 		self.SkinManager:ApplySkin( Control )
@@ -666,7 +688,7 @@ end
 	Output: Existence and validity.
 ]]
 function SGUI.IsValid( Control )
-	return Control and Control.IsValid and Control:IsValid()
+	return Control and Control.IsValid and Control:IsValid() or false
 end
 
 do
@@ -767,4 +789,5 @@ end )
 include( "lua/shine/lib/gui/base_control.lua" )
 include( "lua/shine/lib/gui/font_manager.lua" )
 include( "lua/shine/lib/gui/layout/layout.lua" )
+include( "lua/shine/lib/gui/notification_manager.lua" )
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/mixins" )

@@ -11,6 +11,7 @@ local Label = {}
 local ZeroCol = Colour( 0, 0, 0, 0 )
 
 SGUI.AddBoundProperty( Label, "Colour", "Label:SetColor" )
+SGUI.AddBoundProperty( Label, "InheritsParentAlpha", "Label" )
 SGUI.AddBoundProperty( Label, "Font", "Label:SetFontName", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "Text", "Label", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "TextAlignmentX", "Label" )
@@ -25,6 +26,31 @@ function Label:Initialise()
 	self.TextScale = Vector( 1, 1, 0 )
 end
 
+function Label:MouseIn( Element, Mult, MaxX, MaxY )
+	return self:MouseInControl( Mult, MaxX, MaxY )
+end
+
+function Label:GetScreenPos()
+	local Pos = self.BaseClass.GetScreenPos( self )
+	local Size = self:GetSize()
+
+	local XAlign = self:GetTextAlignmentX()
+	if XAlign == GUIItem.Align_Center then
+		Pos.x = Pos.x - Size.x * 0.5
+	elseif XAlign == GUIItem.Align_Max then
+		Pos.x = Pos.x - Size.x
+	end
+
+	local YAlign = self:GetTextAlignmentY()
+	if YAlign == GUIItem.Align_Center then
+		Pos.y = Pos.y - Size.y * 0.5
+	elseif YAlign == GUIItem.Align_Max then
+		Pos.y = Pos.y - Size.y
+	end
+
+	return Pos
+end
+
 function Label:SetupStencil()
 	self.Label:SetInheritsParentStencilSettings( false )
 	self.Label:SetStencilFunc( GUIItem.NotEqual )
@@ -36,34 +62,10 @@ function Label:GetSize()
 	return Vector( self:GetTextWidth(), self:GetTextHeight(), 0 )
 end
 
-function Label:GetTextWidth( Text )
-	local Scale = self.TextScale
-	Scale = Scale and Scale.x or 1
-
-	return self.Label:GetTextWidth( Text or self.Label:GetText() ) * Scale
-end
-
-function Label:GetTextHeight( Text )
-	local Scale = self.TextScale
-	Scale = Scale and Scale.y or 1
-
-	if Text then
-		return self.Label:GetTextHeight( Text ) * Scale
-	end
-
-	local Lines = 1
-	Text = self.Label:GetText()
-
-	for Match in StringGMatch( Text, "\n" ) do
-		Lines = Lines + 1
-	end
-
-	return self.Label:GetTextHeight( "!" ) * Lines * Scale
-end
-
 function Label:SetBright( Bright )
 	-- Deprecated, does nothing.
 end
 
+SGUI:AddMixin( Label, "AutoSizeText" )
 SGUI:AddMixin( Label, "Clickable" )
 SGUI:Register( "Label", Label )

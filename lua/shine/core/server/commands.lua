@@ -17,6 +17,7 @@ local StringSub = string.sub
 local TableConcat = table.concat
 local TableInsert = table.insert
 local TableRemove = table.remove
+local TableShallowCopy = table.ShallowCopy
 local TableSort = table.sort
 local tostring = tostring
 local xpcall = xpcall
@@ -138,6 +139,13 @@ do
 	end
 end
 
+function CommandMeta:WithConCommand( ConCommand )
+	local Command = TableShallowCopy( self )
+	Command.ConCmd = ConCommand
+	Command.ChatCmd = nil
+	return setmetatable( Command, CommandMeta )
+end
+
 --[[
 	Creates a command object.
 	The object stores the console command, chat command, function to run,
@@ -160,6 +168,20 @@ Shine.ChatCommands = {}
 
 local HookedCommands = {}
 
+local function RegisterCommand( Commands, ConCommand, CmdObj )
+	Commands[ ConCommand ] = CmdObj
+
+	-- This prevents hooking again if a plugin is reloaded.
+	if not HookedCommands[ ConCommand ] then
+		Event.Hook( "Console_"..ConCommand, function( Client, ... )
+			return Shine:RunCommand( Client, ConCommand, false, ... )
+		end )
+		HookedCommands[ ConCommand ] = true
+	end
+
+	return CmdObj
+end
+
 --[[
 	Registers a Shine command.
 	Inputs:
@@ -177,9 +199,8 @@ function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silen
 	end
 	Shine.TypeCheck( Function, "function", 3, "RegisterCommand" )
 
-	local Commands = self.Commands
 	local CmdObj = Command( ConCommand, ChatCommand, Function, NoPerm, Silent )
-	Commands[ ConCommand ] = CmdObj
+	RegisterCommand( self.Commands, ConCommand, CmdObj )
 
 	if ChatCommand then
 		local ChatCommands = self.ChatCommands
@@ -194,15 +215,25 @@ function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silen
 		end
 	end
 
-	--This prevents hooking again if a plugin is reloaded.
-	if not HookedCommands[ ConCommand ] then
-		Event.Hook( "Console_"..ConCommand, function( Client, ... )
-			return Shine:RunCommand( Client, ConCommand, false, ... )
-		end )
-		HookedCommands[ ConCommand ] = true
-	end
-
 	return CmdObj
+end
+
+--[[
+	Registers an alias of an existing Shine command.
+	Inputs:
+		1. Original console command name.
+		2. The alias to register.
+	Output:
+		The newly registered command object.
+]]
+function Shine:RegisterCommandAlias( ConCommand, Alias )
+	Shine.TypeCheck( ConCommand, "string", 1, "RegisterCommandAlias" )
+	Shine.TypeCheck( Alias, "string", 2, "RegisterCommandAlias" )
+
+	local Command = self.Commands[ ConCommand ]
+	Shine.AssertAtLevel( Command, "'%s' is not a registered command!", 3, ConCommand )
+
+	return RegisterCommand( self.Commands, Alias, Command:WithConCommand( Alias ) )
 end
 
 function Shine:FindCommands( SearchText, Field )
@@ -542,9 +573,15 @@ ParamTypes.steamid = {
 		if Arg.IgnoreCanTarget then return true end
 
 		if not Shine:CanTarget( Client, ParsedArg ) then
+			local Target = Shine.GetClientByNS2ID( ParsedArg )
+			local Name = ParsedArg
+			if Target then
+				Name = Target:GetControllingPlayer():GetName()
+			end
+
 			SendCommandError( Client, "ERROR_CANT_TARGET", {
-				PlayerName = ParsedArg
-			}, "You do not have permission to target %s.", true, ParsedArg )
+				PlayerName = Name
+			}, "You do not have permission to target %s.", true, Name )
 
 			return false
 		end
@@ -624,12 +661,11 @@ end
 
 function Shine:TranslatedNotifyCommandError( Client, MessageKey, Source )
 	local FromChat = self:IsCommandFromChat()
-	if FromChat then
-		self:TranslatedNotifyError( Client, MessageKey, Source )
-		return
-	end
-
-	self:TranslatedConsolePrint( Client, MessageKey, Source )
+	self:ApplyNetworkMessage( Client, "Shine_TranslatedCommandError", {
+		MessageKey = MessageKey,
+		Source = Source or "",
+		IsConsole = not FromChat
+	}, true )
 end
 
 local function Notify( Client, FromChat, Message, Format, ... )

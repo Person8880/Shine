@@ -2,6 +2,8 @@
 	Misc. stuff...
 ]]
 
+Shine.NotificationType = table.AsEnum( { "INFO", "WARNING", "ERROR" }, function( Index ) return Index end )
+
 Shared.RegisterNetworkMessage( "Shine_ClientConfirmConnect", {} )
 
 do

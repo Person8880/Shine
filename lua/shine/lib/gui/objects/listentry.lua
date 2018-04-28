@@ -88,6 +88,33 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	end
 end
 
+function ListEntry:SetTextOverride( Column, Override )
+	self.TextOverrides = self.TextOverrides or {}
+	self.TextOverrides[ Column ] = Override
+
+	return self:ApplyTextOverride( Column, Override )
+end
+
+function ListEntry:ApplyTextOverride( Column, Override )
+	local TextObj = self.TextObjs[ Column ]
+	Shine.AssertAtLevel( TextObj, "Invalid column for text override!", 3 )
+
+	TextObj:SetFontName( Override.Font or Font )
+	TextObj:SetScale( Override.TextScale or TextScale )
+	TextObj:SetColor( Override.Colour or self.TextColour )
+end
+
+function ListEntry:RefreshOverrides()
+	if not self.TextOverrides then return end
+
+	for i = 1, self.Columns do
+		local Override = self.TextOverrides[ i ]
+		if Override then
+			self:ApplyTextOverride( i, Override )
+		end
+	end
+end
+
 function ListEntry:OnReorder()
 	local Font, TextScale = self.Font, self.TextScale
 	self:SetStyleName( IsEven( self.Index ) and "DefaultEven" or nil )
@@ -98,13 +125,15 @@ function ListEntry:OnReorder()
 		self:SetTextScale( TextScale )
 	end
 
+	self:RefreshOverrides()
+
 	if self.Selected then
 		self.Background:SetColor( self.ActiveCol )
 	end
 end
 
-function ListEntry:UpdateText( Obj, Size )
-	local Text = Obj:GetText()
+function ListEntry:UpdateText( Index, Obj, Size )
+	local Text = self.ColumnText[ Index ]
 	local Scale = Obj:GetScale().x
 	local Width = Obj:GetTextWidth( Text ) * Scale
 
@@ -120,9 +149,9 @@ function ListEntry:UpdateText( Obj, Size )
 		until Width < Size or End == 0
 
 		Text = TableConcat( Chars, "", 1, End - 4 ).."..."
-
-		Obj:SetText( Text )
 	end
+
+	Obj:SetText( Text )
 end
 
 function ListEntry:SetSpacing( SpacingTable )
@@ -142,7 +171,7 @@ function ListEntry:SetSpacing( SpacingTable )
 		local Size = SpacingTable[ i ]
 		Spacing[ i ] = Vector2( Size, 0 )
 
-		self:UpdateText( Obj, Size )
+		self:UpdateText( i, Obj, Size )
 	end
 end
 
@@ -165,7 +194,7 @@ function ListEntry:SetColumnText( Index, Text )
 	self.ColumnText[ Index ] = Text
 
 	TextObjs[ Index ]:SetText( Text )
-	self:UpdateText( TextObjs[ Index ], self.Spacing[ Index ].x )
+	self:UpdateText( Index, TextObjs[ Index ], self.Spacing[ Index ].x )
 
 	if self.Data[ Index ] == nil then
 		self.Parent:RefreshSorting()

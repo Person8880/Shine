@@ -55,7 +55,10 @@ local Floor = math.floor
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local pairs = pairs
+local StringFind = string.find
 local StringFormat = string.format
+local StringLower = string.lower
+local StringMatch = string.match
 local TableRemove = table.remove
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
@@ -307,28 +310,28 @@ end
 function Shine.GetClientByName( Name )
 	if not IsType( Name, "string" ) then return nil end
 
-	Name = Name:lower()
-
-	local Clients = Shine.GameIDs
+	local SearchName = StringLower( Name )
 	local SortTable = {}
 	local Count = 0
 
-	for Client in Clients:Iterate() do
+	for Client in Shine.GameIDs:Iterate() do
 		local Player = Client:GetControllingPlayer()
-
 		if Player then
-			local Find = Player:GetName():lower():find( Name, 1, true )
+			local PlayerName = StringLower( Player:GetName() )
+			-- Always favour an exact match.
+			if PlayerName == SearchName then return Client end
 
-			if Find then
+			local StartIndex = StringFind( PlayerName, SearchName, 1, true )
+			if StartIndex then
 				Count = Count + 1
-				SortTable[ Count ] = { Client = Client, Index = Find }
+				SortTable[ Count ] = { Client = Client, Index = StartIndex }
 			end
 		end
 	end
 
 	if Count == 0 then return nil end
 
-	--Get the match with the string furthest to the left in their name.
+	-- Get the match with the string furthest to the left in their name.
 	TableSort( SortTable, function( A, B )
 		return A.Index < B.Index
 	end )
@@ -340,28 +343,29 @@ function Shine.NS2ToSteamID( ID )
 	ID = tonumber( ID )
 	if not ID then return "" end
 
-	return StringFormat( "STEAM_0:%i:%i", ID % 2, Floor( ID * 0.5 ) )
+	return StringFormat( "STEAM_0:%d:%d", ID % 2, Floor( ID * 0.5 ) )
 end
 
 function Shine.NS2ToSteam3ID( ID )
 	ID = tonumber( ID )
 	if not ID then return "" end
 
-	return StringFormat( "[U:1:%i]", ID )
+	return StringFormat( "[U:1:%d]", ID )
 end
 
 function Shine.SteamIDToNS2( ID )
 	if not IsType( ID, "string" ) then return nil end
 
-	--STEAM_0:X:YYYYYYY
-	if ID:match( "^STEAM_%d:%d:%d+$" ) then
-		local Num = tonumber( ID:sub( 11 ) )
-		local Extra = tonumber( ID:sub( 9, 9 ) )
+	-- STEAM_0:X:YYYYYYY
+	local ID1, ID2 = StringMatch( ID, "^STEAM_%d:(%d):(%d+)$" )
+	if ID1 then
+		local Num = tonumber( ID2 )
+		local Extra = tonumber( ID1 )
 
 		return Num * 2 + Extra
 	else
-		--[U:1:YYYYYYY]
-		local NS2ID = ID:match( "^%[U:%d:(%d+)%]$" )
+		-- [U:1:YYYYYYY]
+		local NS2ID = StringMatch( ID, "^%[U:%d:(%d+)%]$" )
 		if not NS2ID then return nil end
 
 		return tonumber( NS2ID )
@@ -393,15 +397,12 @@ function Shine:GetClientBySteamID( ID )
 	if not IsType( ID, "string" ) then return nil end
 
 	local NS2ID = self.SteamIDToNS2( ID )
-
 	if not NS2ID then return nil end
 
 	return self.GetClientByNS2ID( NS2ID )
 end
 
 do
-	local StringMatch = string.match
-
 	-- Only accept positive base-10 integer values, no hex, no inf, no nan.
 	local function SafeToNumber( String )
 		if IsType( String, "number" ) then return String end

@@ -114,6 +114,17 @@ function TextEntry:Initialise()
 	self.UndoStack = {}
 end
 
+function TextEntry:GetContentSizeForAxis( Axis )
+	if Axis == 1 then
+		return self:GetSize().x
+	end
+
+	local Scale = self.TextScale
+	Scale = Scale and Scale.y or 1
+
+	return self.TextObj:GetTextHeight( "!" ) * Scale
+end
+
 function TextEntry:SetSize( SizeVec )
 	self.Background:SetSize( SizeVec )
 
@@ -977,6 +988,14 @@ function TextEntry:ResetAutoComplete()
 	self.AutoCompleteHandler:Reset()
 end
 
+function TextEntry:OnEnter()
+
+end
+
+function TextEntry:OnEscape()
+	return false
+end
+
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
@@ -1095,9 +1114,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	end
 
 	if Key == InputKey.Return then
-		if self.OnEnter then
-			self:OnEnter()
-		end
+		self:OnEnter()
 
 		return true
 	end
@@ -1109,7 +1126,9 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	end
 
 	if Key == InputKey.Escape then
-		self:LoseFocus()
+		if not self:OnEscape() then
+			self:LoseFocus()
+		end
 
 		return true
 	end

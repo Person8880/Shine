@@ -63,7 +63,20 @@ Plugin.HandlesVoteConfig = true
 
 Shine.LoadPluginModule( "vote.lua" )
 
+function Plugin:UpdateVanillaConfig()
+	if not Server.SetConfigSetting then return end
+
+	if self.Config.AllTalkPreGame and Server.GetConfigSetting( "pregamealltalk" ) then
+		self:Print( "Disabling vanilla pregamealltalk, AllTalkPreGame is enabled." )
+		-- Disable vanilla pregame all-talk to avoid it broadcasting voice during the 'PreGame' state.
+		Server.SetConfigSetting( "pregamealltalk", false )
+		Server.SaveConfigSettings()
+	end
+end
+
 function Plugin:OnFirstThink()
+	self:UpdateVanillaConfig()
+
 	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
 
@@ -81,7 +94,7 @@ function Plugin:OnFirstThink()
 	Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 end
 
---Override sv_say with sh_say.
+-- Override sv_say with sh_say.
 Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
 	if Name == "Console_sv_say" then
 		local function NewSay( Client, ... )
@@ -287,6 +300,7 @@ function Plugin:Initialise()
 	self.Gagged = self:LoadGaggedPlayers()
 
 	self:CreateCommands()
+	self:UpdateVanillaConfig()
 
 	self.SetEjectVotes = false
 
@@ -297,7 +311,8 @@ function Plugin:Initialise()
 	self.Config.BWLimit = Max( self.Config.BWLimit, 5 )
 	self.Config.SendRate = Max( Floor( self.Config.SendRate ), 5 )
 
-	self.dt.AllTalk = self.Config.AllTalkPreGame
+	self.dt.AllTalk = self.Config.AllTalk
+	self.dt.AllTalkPreGame = self.Config.AllTalkPreGame
 
 	self:CheckRateValues()
 	self:AttemptToConfigureGamerules( GetGamerules and GetGamerules() )
@@ -456,10 +471,7 @@ do
 
 		Enabled = Enabled and true or false
 		self.Config[ Type ] = Enabled
-
-		if Type == "AllTalkPreGame" then
-			self.dt.AllTalk = Enabled
-		end
+		self.dt[ Type ] = Enabled
 
 		if not DontSave then
 			self:SaveConfig( true )
@@ -475,7 +487,12 @@ local function NotifyError( Client, TranslationKey, Data, Message, Format, ... )
 		return
 	end
 
-	Plugin:SendTranslatedError( Client, TranslationKey, Data )
+	if not Data then
+		Plugin:NotifyTranslatedCommandError( Client, TranslationKey )
+		return
+	end
+
+	Plugin:SendTranslatedCommandError( Client, TranslationKey, Data )
 end
 
 local Histories = {}
@@ -948,7 +965,12 @@ function Plugin:CreateAdminCommands()
 
 	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
-			Shine.PrintToConsole( Client, "You cannot reload the basecommands plugin." )
+			local Message = "You cannot reload the basecommands plugin."
+			Shine.PrintToConsole( Client, Message )
+			if Client then
+				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+			end
+
 			return
 		end
 
@@ -958,13 +980,13 @@ function Plugin:CreateAdminCommands()
 		if not PluginTable then
 			Success, Err = Shine:LoadExtension( Name )
 		else
-			--If it's already enabled and we're saving, then just save the config option, don't reload.
+			-- If it's already enabled and we're saving, then just save the config option, don't reload.
 			if PluginTable.Enabled and Save then
 				Shine.Config.ActiveExtensions[ Name ] = true
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client,
-					StringFormat( "Plugin %s now set to enabled in config.", Name ) )
+				local Message = StringFormat( "Plugin '%s' now set to enabled in config.", Name )
+				Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
 				return
 			end
@@ -973,9 +995,10 @@ function Plugin:CreateAdminCommands()
 		end
 
 		if Success then
-			Shine:AdminPrint( Client, StringFormat( "Plugin %s loaded successfully.", Name ) )
+			local Message = StringFormat( "Plugin '%s' loaded successfully.", Name )
+			Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
-			--Update all players with the plugins state.
+			-- Update all players with the plugins state.
 			Shine:SendPluginData( nil )
 
 			if Save then
@@ -983,7 +1006,8 @@ function Plugin:CreateAdminCommands()
 				Shine:SaveConfig()
 			end
 		else
-			Shine:AdminPrint( Client, StringFormat( "Plugin %s failed to load. Error: %s", Name, Err ) )
+			local Message = StringFormat( "Plugin '%s' failed to load. Error: %s", Name, Err )
+			Shine:SendAdminNotification( Client, Shine.NotificationType.ERROR, Message )
 		end
 	end
 	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
@@ -993,30 +1017,36 @@ function Plugin:CreateAdminCommands()
 
 	local function UnloadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
-			Shine.PrintToConsole( Client, "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config." )
+			local Message = "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config."
+			Shine.PrintToConsole( Client, Message )
+			if Client then
+				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+			end
 			return
 		end
 
 		if not Shine.Plugins[ Name ] or not Shine.Plugins[ Name ].Enabled then
-			--If it's already disabled and we want to save, just save.
+			-- If it's already disabled and we want to save, just save.
 			if Save and Shine.AllPlugins[ Name ] then
 				Shine.Config.ActiveExtensions[ Name ] = false
 				Shine:SaveConfig()
 
-				Shine:AdminPrint( Client,
-					StringFormat( "Plugin %s now set to disabled in config.", Name ) )
+				local Message = StringFormat( "Plugin '%s' now set to disabled in config.", Name )
+				Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
 				return
 			end
 
-			Shine:AdminPrint( Client, StringFormat( "Plugin %s is not loaded.", Name ) )
+			local Message = StringFormat( "Plugin '%s' is not loaded.", Name )
+			Shine:SendAdminNotification( Client, Shine.NotificationType.ERROR, Message )
 
 			return
 		end
 
 		Shine:UnloadExtension( Name )
 
-		Shine:AdminPrint( Client, StringFormat( "Plugin %s unloaded successfully.", Name ) )
+		local Message = StringFormat( "Plugin '%s' unloaded successfully.", Name )
+		Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
 		Shine:SendPluginData( nil )
 
@@ -1118,7 +1148,7 @@ function Plugin:CreateAllTalkCommands()
 		Command:Help( StringFormat( "Enables or disables %s.", HelpName ) )
 	end
 
-	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "all talk" )
+	GenerateAllTalkCommand( "sh_alltalk", "alltalk", "AllTalk", "ALLTALK_TOGGLED", "global all talk" )
 	GenerateAllTalkCommand( "sh_alltalkpregame", "alltalkpregame", "AllTalkPreGame",
 		"ALLTALK_PREGAME_TOGGLED", "all talk in the pregame" )
 	GenerateAllTalkCommand( "sh_alltalklocal", "alltalklocal", "AllTalkLocal",
@@ -1398,6 +1428,11 @@ function Plugin:CreateMessageCommands()
 	CSayCommand:Help( "Displays a message in the centre of all player's screens." )
 
 	local function GagPlayer( Client, Target, Duration )
+		if Target:GetIsVirtual() then
+			NotifyError( Client, "ERROR_GAG_BOT", nil, "Bots cannot be gagged" )
+			return
+		end
+
 		self.Gagged[ Target:GetUserId() ] = Duration == 0 and true or SharedTime() + Duration
 
 		local TargetPlayer = Target:GetControllingPlayer()

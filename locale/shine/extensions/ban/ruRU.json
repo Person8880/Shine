@@ -1,5 +1,6 @@
 {
 	"ADD_BAN": "Добавить",
+	"ADD_BAN_TITLE": "Добавить",
 	"SELECT_PLAYER": "Выбрать игрока.",
 	"DURATION_LABEL": "Длительность в минутах (0 бессрочная):",
 	"DURATION_HINT": "Задайте длительность блокировки...",
@@ -17,5 +18,6 @@
 	"PLAYER_BANNED": "{TargetName} заблокирован(а) {Duration:NonZero:на }{Duration:Duration:навсегда} ({Reason}).",
 	"PLAYER_REQUEST_IN_PROGRESS": "Ожидайте завершения запроса блокировки для {ID}.",
 	"ERROR_NOT_BANNED": "{ID} не удалось заблокировать.",
-	"ERROR_INVALID_STEAMID": "Не правильный Steam ID для блокировки."
+	"ERROR_INVALID_STEAMID": "Не правильный Steam ID для блокировки.",
+	"CATEGORY": "Блокировки"
 }

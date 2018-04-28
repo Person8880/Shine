@@ -22,7 +22,8 @@ ConfigMenu.Size = UnitVector( HighResScaled( 700 ), HighResScaled( 500 ) )
 ConfigMenu.EasingTime = 0.25
 
 local function NeedsToScale()
-	return SGUI.GetScreenSize() > 1920
+	local W, H = SGUI.GetScreenSize()
+	return H > 1080
 end
 
 local function GetSmallFont()
@@ -68,10 +69,6 @@ function ConfigMenu:Create()
 	self:PopulateTabs( self.Menu )
 
 	self.Menu:AddCloseButton()
-	if NeedsToScale() then
-		local Font, Scale = SGUI.FontManager.GetFont( "kArial", 20 )
-		self.Menu.CloseButton:SetFontScale( Font, Scale )
-	end
 	self.Menu.OnClose = function()
 		self:ForceHide()
 		return true
@@ -271,7 +268,7 @@ ConfigMenu:AddTab( "Plugins", {
 		local List = SGUI:Create( "List", Panel )
 		List:SetColumns( Locale:GetPhrase( "Core", "PLUGIN" ),
 			Locale:GetPhrase( "Core", "STATE" ) )
-		List:SetSpacing( 0.7, 0.3 )
+		List:SetSpacing( 0.8, 0.2 )
 		List.ScrollPos = Vector2( 0, 32 )
 		List:SetFill( true )
 		List:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
@@ -292,6 +289,7 @@ ConfigMenu:AddTab( "Plugins", {
 		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
 		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )
+		EnableButton:SetEnabled( false )
 
 		Layout:AddElement( EnableButton )
 
@@ -308,6 +306,7 @@ ConfigMenu:AddTab( "Plugins", {
 		function List:OnRowSelected( Index, Row )
 			local State = Row.PluginEnabled
 
+			EnableButton:SetEnabled( true )
 			if State then
 				EnableButton:SetText( Locale:GetPhrase( "Core", "DISABLE_PLUGIN" ) )
 				EnableButton:SetStyleName( "DangerButton" )
@@ -317,15 +316,26 @@ ConfigMenu:AddTab( "Plugins", {
 			end
 		end
 
+		function List:OnRowDeselected( Index, Row )
+			EnableButton:SetEnabled( false )
+		end
+
 		local Rows = {}
 
 		local function UpdateRow( Name, State )
 			local Row = Rows[ Name ]
 			if not Row then return end
 
+			local Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 27 )
+			Row:SetColumnText( 2, SGUI.Icons.Ionicons[ State and "CheckmarkCircled" or "MinusCircled" ] )
+			Row:SetTextOverride( 2, {
+				Font = Font,
+				TextScale = Scale,
+				Colour = State and Colour( 0, 1, 0 ) or Colour( 1, 0.8, 0 )
+			} )
+			Row:SetData( 2, State and "1" or "0" )
 			Row.PluginEnabled = State
-			Row:SetColumnText( 2, State and Locale:GetPhrase( "Core", "ENABLED" )
-				or Locale:GetPhrase( "Core", "DISABLED" ) )
+
 			if Row == List:GetSelectedRow() then
 				List:OnRowSelected( nil, Row )
 			end
@@ -349,10 +359,9 @@ ConfigMenu:AddTab( "Plugins", {
 			local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
 
 			if PluginTable and PluginTable.IsClient and not PluginTable.IsShared then
-				local Row = List:AddRow( Plugin, Enabled and Locale:GetPhrase( "Core", "ENABLED" )
-					or Locale:GetPhrase( "Core", "DISABLED" ) )
-				Row.PluginEnabled = Enabled
+				local Row = List:AddRow( Plugin, "" )
 				Rows[ Plugin ] = Row
+				UpdateRow( Plugin, Enabled )
 			end
 		end
 

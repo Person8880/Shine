@@ -2,6 +2,8 @@
 	Default Shine GUI skin.
 ]]
 
+local SGUI = Shine.GUI
+
 local WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
 local DarkButton = Colour( 0.2, 0.2, 0.2, 1 )
 local ButtonHighlight = Colour( 0.8, 0.5, 0.1, 1 )
@@ -12,7 +14,14 @@ local Skin = {
 		Default = {
 			ActiveCol = ButtonHighlight,
 			InactiveCol = DarkButton,
-			TextColour = BrightText
+			TextColour = BrightText,
+			HighlightOnMouseOver = true,
+			States = {
+				Disabled = {
+					HighlightOnMouseOver = false,
+					InactiveCol = SGUI.ColourWithAlpha( DarkButton, 0.5 )
+				}
+			}
 		},
 		CloseButton = {
 			ActiveCol = Colour( 0.7, 0.2, 0.2, 1 ),
@@ -90,6 +99,25 @@ local Skin = {
 			Colour = Colour( 0.25, 0.25, 0.25, 1 )
 		}
 	},
+	Notification = {
+		Default = {
+			TextColour = SGUI.ColourWithAlpha( BrightText, 2 ),
+			FlairIconColour = SGUI.ColourWithAlpha( BrightText, 2 ),
+			Colour = SGUI.ColourWithAlpha( DarkButton, 0.8 )
+		},
+		Danger = {
+			FlairIconText = SGUI.Icons.Ionicons.AlertCircled,
+			FlairColour = Colour( 1, 0, 0 )
+		},
+		Warning = {
+			FlairIconText = SGUI.Icons.Ionicons.Alert,
+			FlairColour = Colour( 1, 0.6, 0 )
+		},
+		Info = {
+			FlairIconText = SGUI.Icons.Ionicons.InformationCircled,
+			FlairColour = Colour( 0, 0.5, 1 )
+		}
+	},
 	Panel = {
 		Default = {
 			Colour = WindowBackground
@@ -142,7 +170,7 @@ local Skin = {
 			DarkColour = Colour( 0.4, 0.4, 0.4, 1 ),
 			HighlightColour = Colour( 1, 0.4, 0, 0.5 ),
 			PlaceholderTextColour = Colour( 0.9, 0.9, 0.9, 1 ),
-			BorderColour = Colour( 0.1, 0.1, 0.1, 1 ),
+			BorderColour = Colour( 0.3, 0.3, 0.3, 1 ),
 			BorderSize = Vector2( 1, 1 ),
 			States = {
 				Focus = {
@@ -159,4 +187,4 @@ local Skin = {
 	}
 }
 
-Shine.GUI.SkinManager:RegisterSkin( "Default", Skin )
+SGUI.SkinManager:RegisterSkin( "Default", Skin )

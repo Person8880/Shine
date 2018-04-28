@@ -432,8 +432,8 @@ function Plugin:ForcePlayersIntoReadyRoom()
 		Gamerules:JoinTeam( Player, 0, nil, true )
 	end
 
-	Gamerules.team1:ForEachPlayer( MoveToReadyRoom )
-	Gamerules.team2:ForEachPlayer( MoveToReadyRoom )
+	Shine.Stream( Gamerules.team1:GetPlayers() ):ForEach( MoveToReadyRoom )
+	Shine.Stream( Gamerules.team2:GetPlayers() ):ForEach( MoveToReadyRoom )
 end
 
 function Plugin:EndGame()
