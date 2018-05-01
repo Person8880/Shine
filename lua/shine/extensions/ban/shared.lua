@@ -323,7 +323,9 @@ function Plugin:SetupAdminMenu()
 			Window:Destroy()
 			Window = nil
 
-			self:RequestBanPage( self.CurrentPage )
+			if self.BanMenuOpen then
+				self:RequestBanPage( self.CurrentPage )
+			end
 		end
 	end
 
