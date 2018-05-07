@@ -193,10 +193,18 @@ Plugin.ConfigMigrationSteps = {
 
 do
 	local Validator = Shine.Validator()
+
+	Validator:AddFieldRule( "VoteConstraints.MinPlayerFractionToConstrain",
+		Validator.IsType( "number", Plugin.DefaultConfig.VoteConstraints.MinPlayerFractionToConstrain ) )
+	Validator:AddFieldRules( {
+		"VoteConstraints.MinAverageDiffToAllowShuffle",
+		"VoteConstraints.MinStandardDeviationDiffToAllowShuffle"
+	}, Validator.IsType( "number", 0 ) )
+
 	Validator:AddFieldRule( "VotePassActions.PreGame", Validator.IsType( "table",
-		Plugin.DefaultConfig.PreGame ) )
+		Plugin.DefaultConfig.VotePassActions.PreGame ) )
 	Validator:AddFieldRule( "VotePassActions.InGame", Validator.IsType( "table",
-		Plugin.DefaultConfig.InGame ) )
+		Plugin.DefaultConfig.VotePassActions.InGame ) )
 	Validator:AddFieldRules( {
 		"VotePassActions.PreGame.ShufflePolicy",
 		"VotePassActions.InGame.ShufflePolicy"
