@@ -73,17 +73,17 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc, Comparator )
 
 	do
 		local RankCache = {}
-		self.RankFunc = function( Ply, TeamMember )
+		self.RankFunc = function( Ply, TeamNumber )
 			local Cached = RankCache[ Ply ]
-			if Cached and Cached[ TeamMember ] then
-				return Cached[ TeamMember ]
+			if Cached and Cached[ TeamNumber ] then
+				return Cached[ TeamNumber ]
 			end
 
-			local Value = RankFunc( Ply, TeamMember )
+			local Value = RankFunc( Ply, TeamNumber )
 			if not Cached then
 				Cached = {}
 			end
-			Cached[ TeamMember ] = Value
+			Cached[ TeamNumber ] = Value
 			RankCache[ Ply ] = Cached
 
 			return Value

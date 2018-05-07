@@ -740,21 +740,23 @@ do
 		return Sqrt( Sum / RealCount )
 	end
 
-	function BalanceModule:GetAverageSkill( Players, TeamNumber )
-		return GetAverageSkillFunc( Players, self.SkillGetters.GetHiveSkill, TeamNumber )
+	function BalanceModule:GetAverageSkill( Players, TeamNumber, RankFunc )
+		return GetAverageSkillFunc( Players, RankFunc or self.SkillGetters.GetHiveSkill, TeamNumber )
 	end
 
-	function BalanceModule:GetTeamStats()
+	function BalanceModule:GetTeamStats( RankFunc )
 		local Marines = GetEntitiesForTeam( "Player", 1 )
 		local Aliens = GetEntitiesForTeam( "Player", 2 )
 
+		RankFunc = RankFunc or self.SkillGetters.GetHiveSkill
+
 		local MarineSkill = self:GetAverageSkill( Marines, 1 )
 		MarineSkill.StandardDeviation = GetStandardDeviation( Marines, MarineSkill.Average,
-			self.SkillGetters.GetHiveSkill, 1 )
+			RankFunc, 1 )
 
 		local AlienSkill = self:GetAverageSkill( Aliens, 2 )
 		AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, AlienSkill.Average,
-			self.SkillGetters.GetHiveSkill, 2 )
+			RankFunc, 2 )
 
 		if self.LastShuffleTeamLookup then
 			local NumMatchingTeams = 0

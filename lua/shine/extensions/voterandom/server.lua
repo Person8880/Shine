@@ -22,7 +22,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "2.2"
+Plugin.Version = "2.3"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -107,6 +107,18 @@ Plugin.DefaultConfig = {
 	ReconnectLogTime = 0, --How long (in seconds) after a shuffle to log reconnecting players for?
 	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
 	DisplayStandardDeviations = false, -- Should the scoreboard show each team's standard deviation of skill?
+
+	VoteConstraints = {
+		-- When the number of players on playing teams is greater-equal this fraction
+		-- of the total players on the server, apply constraints.
+		MinPlayerFractionToConstrain = 0.9,
+		-- The minimum difference in average skill required to permit shuffling.
+		-- A value of 0 will permit all votes.
+		MinAverageDiffToAllowShuffle = 0,
+		-- The minimum difference in standard deviation of skill required to permit shuffling.
+		-- Must be greater than 0 to enable checking.
+		MinStandardDeviationDiffToAllowShuffle = 0
+	},
 
 	--	ShufflePolicy may be one of INSTANT, NEXT_ROUND, END_OF_PERIOD
 	--	- INSTANT immediately shuffles the teams
@@ -930,6 +942,47 @@ function Plugin:GetStartFailureMessage()
 	return "ERROR_CANNOT_START", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
 end
 
+function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
+	local NumOnTeam1 = #TeamStats[ 1 ].Skills
+	local NumOnTeam2 = #TeamStats[ 2 ].Skills
+	local NumPlayersOnPlayingTeams = NumOnTeam1 + NumOnTeam2
+	local FractionOfPlayersOnTeams = NumPlayersOnPlayingTeams / NumPlayers
+
+	if FractionOfPlayersOnTeams < self.Config.VoteConstraints.MinPlayerFractionToConstrain then
+		-- Not enough players on playing teams to apply constraints.
+		self.Logger:Debug( "Permitting vote as only %s of all players are on teams.", FractionOfPlayersOnTeams )
+		return true
+	end
+
+	if Abs( NumOnTeam1 - NumOnTeam2 ) > 1 then
+		-- Imbalanced number of players on teams, permit a shuffle.
+		self.Logger:Debug( "Permitting vote as team counts are uneven: %s vs. %s", NumOnTeam1, NumOnTeam2 )
+		return true
+	end
+
+	local AverageDiff = Abs( TeamStats[ 1 ].Average - TeamStats[ 2 ].Average )
+	if AverageDiff >= self.Config.VoteConstraints.MinAverageDiffToAllowShuffle then
+		-- Teams are far enough apart in average skill to allow the vote.
+		self.Logger:Debug( "Permitting vote as average difference is: %s", AverageDiff )
+		return true
+	end
+
+	local StdDiff = Abs( TeamStats[ 1 ].StandardDeviation - TeamStats[ 2 ].StandardDeviation )
+	local MinStdDiff = self.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle
+	if MinStdDiff > 0 and StdDiff >= MinStdDiff then
+		-- Teams are far enough apart in standard deviation of skill to allow the vote.
+		self.Logger:Debug( "Permitting vote as standard deviation difference is: %s", StdDiff )
+		return true
+	end
+
+	self.Logger:Debug( "Rejecting vote as teams are sufficiently balanced (%s of all players on teams, %s on team 1, %s on team 2, %s average diff, %s standard deviation diff)",
+		FractionOfPlayersOnTeams, NumOnTeam1, NumOnTeam2, AverageDiff, StdDiff )
+
+	-- Sufficient players on playing teams, not imbalanced and average and standard deviations
+	-- are close enough to be considered balanced so reject the vote.
+	return false
+end
+
 function Plugin:CanStartVote()
 	local PlayerCount = self:GetPlayerCountForVote()
 
@@ -943,6 +996,11 @@ function Plugin:CanStartVote()
 
 	if self.ShuffleOnNextRound or self.ShuffleAtEndOfRound then
 		return false, "ERROR_ALREADY_ENABLED", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
+	end
+
+	if self.Config.BalanceMode == self.ShuffleMode.HIVE
+	and not self:EvaluateConstraints( GetNumPlayers(), self:GetTeamStats() ) then
+		return false, "ERROR_CONSTRAINTS"
 	end
 
 	return true
