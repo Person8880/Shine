@@ -102,12 +102,14 @@ local DebugMode = false
 -- TeamNumber parameter currently unused, but ready for Hive 2.0
 BalanceModule.SkillGetters = {
 	GetHiveSkill = function( Ply, TeamNumber )
-		if DebugMode then
-			local Client = GetOwner( Ply )
-			if Client and Client:GetIsVirtual() then
+		local Client = GetOwner( Ply )
+		if Client and Client:GetIsVirtual() then
+			if DebugMode then
 				Client.Skill = Client.Skill or Random( 0, 2500 )
 				return Client.Skill
 			end
+			-- Bots are all equal so there's no reason to consider them.
+			return nil
 		end
 
 		if Ply.GetPlayerSkill then
