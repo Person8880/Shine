@@ -322,6 +322,67 @@ function( Assert )
 	Assert:True( VoteShuffle:ShouldOptimiseHappiness( TeamMembers ) )
 end )
 
+VoteShuffle.Config.VoteConstraints.MinPlayerFractionToConstrain = 0.9
+
+UnitTest:Test( "EvaluateConstraints - Number of players too low", function( Assert )
+	Assert.True( "Should allow voting as only 2/10 players are on teams",
+		VoteShuffle:EvaluateConstraints( 10, {
+			{ Skills = { 1000 } },
+			{ Skills = { 1000 } }
+		} )
+	)
+end )
+
+UnitTest:Test( "EvaluateConstraints - Teams imbalanced", function( Assert )
+	Assert.True( "Should allow voting as teams are imbalanced",
+		VoteShuffle:EvaluateConstraints( 4, {
+			{ Skills = { 1000, 2000, 2000 } },
+			{ Skills = { 1000 } }
+		} )
+	)
+end )
+
+VoteShuffle.Config.VoteConstraints.MinAverageDiffToAllowShuffle = 100
+VoteShuffle.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 0
+
+UnitTest:Test( "EvaluateConstraints - Average diff is high enough", function( Assert )
+	Assert.True( "Should allow voting as averages are too far apart",
+		VoteShuffle:EvaluateConstraints( 4, {
+			{ Skills = { 1000, 2000 }, Average = 1500 },
+			{ Skills = { 1000, 4000 }, Average = 2500 }
+		} )
+	)
+end )
+
+UnitTest:Test( "EvaluateConstraints - Min standard deviation difference = 0 is ignored", function( Assert )
+	Assert.False( "Should ignore standard deviation as min is 0",
+		VoteShuffle:EvaluateConstraints( 4, {
+			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
+			{ Skills = { 1000, 2000 }, Average = 1500, StandardDeviation = 500 }
+		} )
+	)
+end )
+
+VoteShuffle.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 200
+
+UnitTest:Test( "EvaluateConstraints - Standard deviation diff is high enough", function( Assert )
+	Assert.True( "Should allow voting as standard deviations are too far apart",
+		VoteShuffle:EvaluateConstraints( 4, {
+			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
+			{ Skills = { 1000, 2000 }, Average = 1500, StandardDeviation = 500 }
+		} )
+	)
+end )
+
+UnitTest:Test( "EvaluateConstraints - Teams are balanced", function( Assert )
+	Assert.False( "Should deny voting when teams are sufficiently balanced",
+		VoteShuffle:EvaluateConstraints( 4, {
+			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
+			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 }
+		} )
+	)
+end )
+
 VoteShuffle.Config.IgnoreCommanders = false
 
 VoteShuffle.SaveHappinessHistory = BalanceModule.SaveHappinessHistory

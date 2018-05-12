@@ -234,21 +234,7 @@ function Plugin:Initialise()
 	return true
 end
 
-local function IsVisibleTeam( OurTeam, TeamNumber )
-	return OurTeam == TeamNumber or OurTeam == kTeamReadyRoom or OurTeam == kSpectatorIndex
-end
-
-local ClientGetLocalPlayer = Client.GetLocalPlayer
-
-local function GetLocalPlayerTeam()
-	local Player = ClientGetLocalPlayer()
-	if not Player then return nil end
-
-	return Player:GetTeamNumber()
-end
-
 local Abs = math.abs
-local CopyColour = Shine.GUI.CopyColour
 local Cos = math.cos
 
 local FadeAlphaMin = 0.3
@@ -256,22 +242,21 @@ local FadeAlphaMult = 1 - FadeAlphaMin
 local HighlightDuration = 10
 local OscillationMultiplier = HighlightDuration * math.pi * 0.5
 
-local function FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
+local function FadeRowIn( Row, Entry, TimeSinceLastChange )
 	if not Entry then return end
 
-	local IsCommander = IsVisibleTeam( OurTeam, TeamNumber ) and Entry.IsCommander
-	local OriginalColour = IsCommander and GUIScoreboard.kCommanderFontColor or Team.Color
+	local OriginalColour = Row.Background:GetColor()
 
-	-- Fade the entry in for a short time after joining a team.
-	local Mult = FadeAlphaMin + Abs( Cos( TimeSinceLastChange / HighlightDuration * OscillationMultiplier ) ) * FadeAlphaMult
-	local HighlightColour = CopyColour( OriginalColour )
-	HighlightColour.a = Mult * OriginalColour.a
+	-- Oscillate the entry in for a short time after joining a team.
+	local Oscillation = Abs( Cos( TimeSinceLastChange / HighlightDuration * OscillationMultiplier ) )
+	local Mult = FadeAlphaMin + Oscillation * FadeAlphaMult
+	OriginalColour.a = Mult * OriginalColour.a
 
-	Row.Background:SetColor( HighlightColour )
+	Row.Background:SetColor( OriginalColour )
 end
 
-local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
-	local ClientIndex = Row.ClientIndex
+local function CheckRow( self, Row, TeamNumber, CurTime )
+	local ClientIndex = Row and Row.ClientIndex
 	if not ClientIndex then return end
 
 	local Entry = Scoreboard_GetPlayerRecord( ClientIndex )
@@ -283,7 +268,7 @@ local function CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
 	local TimeSinceLastChange = CurTime - MemoryEntry.LastChange
 	if TimeSinceLastChange >= HighlightDuration then return Entry end
 
-	FadeRowIn( Row, Entry, Team, OurTeam, TeamNumber, TimeSinceLastChange )
+	FadeRowIn( Row, Entry, TimeSinceLastChange )
 
 	return Entry
 end
@@ -297,12 +282,11 @@ function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	local ShouldTrackStdDev = self.dt.DisplayStandardDeviations and IsPlayingTeam( TeamNumber )
 	if not ShouldTrackStdDev and not self.dt.HighlightTeamSwaps then return end
 
-	local OurTeam = GetLocalPlayerTeam()
-
 	local SkillValues = ShouldTrackStdDev and {}
 	local CurTime = SharedGetTime()
-	for Index, Row in pairs( Team.PlayerList ) do
-		local Entry = CheckRow( self, Team, Row, OurTeam, TeamNumber, CurTime )
+	for i = 1, #Team.PlayerList do
+		local Row = Team.PlayerList[ i ]
+		local Entry = CheckRow( self, Row, TeamNumber, CurTime )
 		if ShouldTrackStdDev and Entry and Entry.SteamId > 0 then
 			SkillValues[ #SkillValues + 1 ] = Entry.Skill
 		end

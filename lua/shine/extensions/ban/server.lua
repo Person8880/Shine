@@ -70,10 +70,11 @@ function Plugin:Initialise()
 	self.Retries = {}
 
 	if self.Config.GetBansFromWeb then
-		--Load bans list after everything else.
+		-- Load bans list after everything else.
 		self:SimpleTimer( 1, function()
 			self:LoadBansFromWeb()
 		end )
+		self:BuildInitialNetworkData()
 	else
 		self:MergeNS2IntoShine()
 	end
@@ -82,7 +83,7 @@ function Plugin:Initialise()
 	self:CheckBans()
 
 	if not Hooked then
-		--Hook into the default banning commands.
+		-- Hook into the default banning commands.
 		Event.Hook( "Console_sv_ban", function( Client, ... )
 			Shine:RunCommand( Client, "sh_ban", false, ... )
 		end )
@@ -91,7 +92,7 @@ function Plugin:Initialise()
 			Shine:RunCommand( Client, "sh_unban", false, ... )
 		end )
 
-		--Override the bans list function (have to do it after everything's loaded).
+		-- Override the bans list function (have to do it after everything's loaded).
 		self:SimpleTimer( 1, function()
 			function GetBannedPlayersList()
 				local Bans = self.Config.Banned

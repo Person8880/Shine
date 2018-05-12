@@ -81,7 +81,7 @@ function Plugin:SetupMaps( Cycle )
 			end
 		end
 
-		if Cycle.maps then
+		if Cycle and Cycle.maps then
 			for i = 1, #Cycle.maps do
 				local Map = Cycle.maps[ i ]
 

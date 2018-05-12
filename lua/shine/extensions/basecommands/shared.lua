@@ -706,6 +706,17 @@ function Plugin:UpdateAllTalk( State )
 		-- Hide the text if the inventory HUD is visible (avoids the text overlapping it).
 		-- There's no easy way to determine its visibility, so this awkward polling will have to do.
 		function self.TextObj:Think()
+			-- Allow other mods to influence the position and visiblity of the text if they have
+			-- extra HUD elements. Should return whether the text is visible, and its new position.
+			local Visible, X, Y = Hook.Call( "OnUpdateAllTalkText", self:GetIsVisible(), self.x, self.y )
+			if Visible ~= nil then
+				self:SetIsVisible( Visible )
+				if X and self.x ~= X or Y and self.y ~= Y then
+					self:SetScaledPos( X or self.x, Y or self.y )
+				end
+				return
+			end
+
 			local HUD = ClientUI.GetScript( "Hud/Marine/GUIMarineHUD" ) or ClientUI.GetScript( "GUIAlienHUD" )
 			local Inventory = HUD and HUD.inventoryDisplay
 			local InventoryIsVisible = Inventory and Inventory.background and Inventory.background:GetIsVisible()
