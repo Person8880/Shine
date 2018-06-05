@@ -1,4 +1,5 @@
 {
 	"NOTIFY_PREFIX": "[AFKKick]",
-	"WARN_KICK_ON_CONNECT": "You have been AFK for over {AFKTime:Duration}. You may be kicked when new players attempt to connect."
+	"WARN_KICK_ON_CONNECT": "You have been AFK for over {AFKTime:Duration}. You may be kicked when new players attempt to connect.",
+	"WARN_NOTIFY": "You have been AFK for over {AFKTime:Duration}. You will be kicked if you are AFK for {KickTime:Duration} and the player count reaches {MinPlayers}."
 }

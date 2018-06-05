@@ -434,13 +434,24 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 			DataTable.Warn = true
 
 			if not IsPartiallyImmune then
+				local WillKickWhenTimeReached = NumPlayers >= self.Config.MinPlayers
 				if not self.Config.KickOnConnect then
 					local AFKTime = Time - DataTable.LastMove
-					Shine.SendNetworkMessage( Client, "AFKWarning", {
-						timeAFK = AFKTime,
-						maxAFKTime = KickTime
-					}, true )
-				elseif NumPlayers >= self.Config.MinPlayers then
+
+					if WillKickWhenTimeReached then
+						Shine.SendNetworkMessage( Client, "AFKWarning", {
+							timeAFK = AFKTime,
+							maxAFKTime = KickTime
+						}, true )
+					else
+						-- Not going to kick them yet, but tell them they may be kicked later.
+						self:SendTranslatedNotify( Client, "WARN_NOTIFY", {
+							AFKTime = Floor( WarnTime ),
+							KickTime = KickTime,
+							MinPlayers = self.Config.MinPlayers
+						} )
+					end
+				elseif WillKickWhenTimeReached then
 					-- Only warn players if there's actually a possibity they'll be kicked.
 					self:SendTranslatedNotify( Client, "WARN_KICK_ON_CONNECT", {
 						AFKTime = Floor( WarnTime )
@@ -663,14 +674,21 @@ function Plugin:GetLastMoveTime( Client )
 	return DataTable.LastMove
 end
 
+function Plugin:GetAFKTime( Client )
+	local LastMove = self:GetLastMoveTime( Client )
+	if not LastMove then return nil end
+
+	return SharedTime() - LastMove
+end
+
 --[[
 	Returns true if the given client has been AFK for greater than the given time.
 ]]
 function Plugin:IsAFKFor( Client, Time )
-	local LastMove = self:GetLastMoveTime( Client )
-	if not LastMove then return false end
+	local AFKTime = self:GetAFKTime( Client )
+	if not AFKTime then return false end
 
-	return SharedTime() - LastMove > Time
+	return AFKTime > Time
 end
 
 --[[
@@ -680,7 +698,24 @@ function Plugin:ClientDisconnect( Client )
 	self.Users:Remove( Client )
 end
 
+function Plugin:OverrideAFKMixin()
+	if not AFKMixin then
+		self.Logger:Warn( "AFKMixin not available, unable to override methods." )
+		return
+	end
+
+	-- Stop the AFKMixin doing anything as this plugin is handling it.
+	-- Restoring when the plugin is disabled is a little fiddly due to the way mixin
+	-- methods are dispatched, so the map will have to be changed/reloaded to remove this override.
+	Shine.ReplaceClassMethod( "AFKMixin", "OnProcessMove", function() end )
+	Shine.ReplaceClassMethod( "AFKMixin", "GetAFKTime", function( Player )
+		return self:GetAFKTime( Player:GetClient() ) or 0
+	end )
+end
+
 function Plugin:OnFirstThink()
+	self:OverrideAFKMixin()
+
 	do
 		local Call = Shine.Hook.Call
 		local GetEntity = Shared.GetEntity
