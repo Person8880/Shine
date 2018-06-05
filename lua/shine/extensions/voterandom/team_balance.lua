@@ -179,6 +179,7 @@ BalanceModule.HappinessHistoryFile = "config://shine/temp/shuffle_happiness.json
 
 function BalanceModule:Initialise()
 	self.HappinessHistory = self:LoadHappinessHistory()
+	self.TeamStatsCache = {}
 end
 
 function BalanceModule:LoadHappinessHistory()
@@ -718,6 +719,7 @@ BalanceModule.ShufflingModes = {
 
 do
 	local Sqrt = math.sqrt
+	local TableEmpty = table.Empty
 
 	local function GetStandardDeviation( Players, Average, RankFunc, TeamNumber )
 		local Sum = 0
@@ -746,11 +748,29 @@ do
 		return GetAverageSkillFunc( Players, RankFunc or self.SkillGetters.GetHiveSkill, TeamNumber )
 	end
 
+	function BalanceModule:ClearStatsCache()
+		TableEmpty( self.TeamStatsCache )
+	end
+
+	function BalanceModule:PostJoinTeam()
+		self:ClearStatsCache()
+	end
+
+	function BalanceModule:ClientDisconnect()
+		self:ClearStatsCache()
+	end
+
 	function BalanceModule:GetTeamStats( RankFunc )
+		RankFunc = RankFunc or self.SkillGetters.GetHiveSkill
+
+		if self.TeamStatsCache[ RankFunc ] then
+			-- Keep a cache of team stats as computing it can be expensive.
+			-- The cache is cleared whenever team composition changes.
+			return self.TeamStatsCache[ RankFunc ]
+		end
+
 		local Marines = GetEntitiesForTeam( "Player", 1 )
 		local Aliens = GetEntitiesForTeam( "Player", 2 )
-
-		RankFunc = RankFunc or self.SkillGetters.GetHiveSkill
 
 		local MarineSkill = self:GetAverageSkill( Marines, 1 )
 		MarineSkill.StandardDeviation = GetStandardDeviation( Marines, MarineSkill.Average,
@@ -760,6 +780,7 @@ do
 		AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, AlienSkill.Average,
 			RankFunc, 2 )
 
+		local TeamStats
 		if self.LastShuffleTeamLookup then
 			local NumMatchingTeams = 0
 			local NumTotal = 0
@@ -783,16 +804,20 @@ do
 
 			Shine.Stream( Shine.GetAllPlayers() ):ForEach( CountMatching )
 
-			return {
+			TeamStats = {
 				MarineSkill, AlienSkill,
 				TotalPlayers = NumTotal,
 				NumMatchingTeams = NumMatchingTeams
 			}
+		else
+			TeamStats = {
+				MarineSkill, AlienSkill
+			}
 		end
 
-		return {
-			MarineSkill, AlienSkill
-		}
+		self.TeamStatsCache[ RankFunc ] = TeamStats
+
+		return TeamStats
 	end
 end
 

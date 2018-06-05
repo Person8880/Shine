@@ -77,6 +77,7 @@ local DefaultConfig = {
 	NotifyAdminAnonymous = false, -- Should we hide to players with greater-equal immunity who performed it?
 	ChatName = "Admin", -- The name to use for anonymous output.
 	ConsoleName = "Admin", -- The name to use for console running a command.
+	MaxCommandsPerSecond = 3, -- The maximum number of (server-side) commands that can be executed in a second by a given client.
 
 	SilentChatCommands = true, -- Defines whether to silence all chat commands, or only those starting with "/".
 
