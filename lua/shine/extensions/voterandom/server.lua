@@ -698,6 +698,7 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 		end
 	end
 	self.LastShuffleTeamLookup = TeamLookup
+	self:ClearStatsCache()
 end
 
 function Plugin:GetOptimalTeamForPlayer( Player, Team1Players, Team2Players, SkillGetter )

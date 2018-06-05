@@ -383,6 +383,18 @@ UnitTest:Test( "EvaluateConstraints - Teams are balanced", function( Assert )
 	)
 end )
 
+UnitTest:Test( "GetTeamStats - Uses cached data if available", function( Assert )
+	local RankFunc = function() end
+	local Stats = {}
+
+	VoteShuffle.TeamStatsCache[ RankFunc ] = Stats
+	local ComputedStats = VoteShuffle:GetTeamStats( RankFunc )
+
+	Assert.Equals( "Expected GetTeamStats to return cached data when available",
+		Stats, ComputedStats )
+end )
+
+VoteShuffle:ClearStatsCache()
 VoteShuffle.Config.IgnoreCommanders = false
 
 VoteShuffle.SaveHappinessHistory = BalanceModule.SaveHappinessHistory
