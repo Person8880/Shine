@@ -796,46 +796,88 @@ function Shine.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command
 	return ParsedArgs
 end
 
-local OnError = Shine.BuildErrorHandler( "Command error" )
+do
+	local SystemTime = Shared.GetSystemTimeReal
 
---[[
-	Executes a Shine command. Should not be called directly.
-	Inputs: Client running the command, console command to run,
-	string arguments passed to the command.
-]]
-function Shine:RunCommand( Client, ConCommand, FromChat, ... )
-	local Command = self.Commands[ ConCommand ]
-	if not Command or Command.Disabled then return end
+	local OnError = Shine.BuildErrorHandler( "Command error" )
+	local CommandRateLimiters = {}
+	local RATE_LIMIT_RESET_INTERVAL = 1
 
-	local OriginalArgs = { ... }
-	--In case someone was calling Shine:RunCommand() directly (even though it says "Should not be called directly.")
-	if not IsType( FromChat, "boolean" ) then
-		TableInsert( OriginalArgs, 1, FromChat )
-		FromChat = false
+	Shine.Hook.Add( "ClientDisconnect", "CommandAntiSpam", function( Client )
+		CommandRateLimiters[ Client ] = nil
+	end )
+
+	local function CheckAndUpdateAntiSpam( self, Client )
+		local Limiter = CommandRateLimiters[ Client ]
+		if not Limiter then
+			Limiter = self.RateLimiter(
+				self.Config.MaxCommandsPerSecond,
+				RATE_LIMIT_RESET_INTERVAL,
+				SystemTime,
+				-- Backoff ensures that consistently abusing clients are not
+				-- a problem for long.
+				self.RateLimiter.LinearBackoff( RATE_LIMIT_RESET_INTERVAL )
+			)
+			function Limiter:OnReset()
+				self.HasWarnedPlayer = false
+			end
+			CommandRateLimiters[ Client ] = Limiter
+		end
+
+		local Permitted = Limiter:Consume( 1 )
+		-- Warn the player (once per interval) when they exceed the limit.
+		if not Permitted and not Limiter.HasWarnedPlayer then
+			Limiter.HasWarnedPlayer = true
+			self:NotifyCommandError( Client, "You are spamming commands too fast!" )
+		end
+
+		return Permitted
 	end
 
-	local Args = self.CommandUtil.AdjustArguments( OriginalArgs )
+	--[[
+		Executes a Shine command. Should not be called directly.
+		Inputs: Client running the command, console command to run,
+		string arguments passed to the command.
+	]]
+	function Shine:RunCommand( Client, ConCommand, FromChat, ... )
+		local Command = self.Commands[ ConCommand ]
+		if not Command or Command.Disabled then return end
 
-	self.CommandStack[ #self.CommandStack + 1 ] = FromChat
+		if Client and not CheckAndUpdateAntiSpam( self, Client ) then
+			-- Prevent executing too many commands per second.
+			return
+		end
 
-	local ParsedArgs = self.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )
-	if not ParsedArgs then
+		local OriginalArgs = { ... }
+		--In case someone was calling Shine:RunCommand() directly (even though it says "Should not be called directly.")
+		if not IsType( FromChat, "boolean" ) then
+			TableInsert( OriginalArgs, 1, FromChat )
+			FromChat = false
+		end
+
+		local Args = self.CommandUtil.AdjustArguments( OriginalArgs )
+
+		self.CommandStack[ #self.CommandStack + 1 ] = FromChat
+
+		local ParsedArgs = self.CommandUtil:GetCommandArgs( Client, ConCommand, FromChat, Command, Args )
+		if not ParsedArgs then
+			PopCommandStack( self )
+			return
+		end
+
+		local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs, 1, #Command.Arguments ) )
+
 		PopCommandStack( self )
-		return
-	end
 
-	local Success = xpcall( Command.Func, OnError, Client, unpack( ParsedArgs, 1, #Command.Arguments ) )
+		if not Success then
+			Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
+		else
+			local Arguments = TableConcat( OriginalArgs, " " )
 
-	PopCommandStack( self )
-
-	if not Success then
-		Shine:DebugPrint( "[Command Error] Console command %s failed.", true, ConCommand )
-	else
-		local Arguments = TableConcat( OriginalArgs, " " )
-
-		self:AdminPrint( nil, "%s ran command %s %s", true,
-			Shine.GetClientInfo( Client ), ConCommand,
-			Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
+			self:AdminPrint( nil, "%s ran command %s %s", true,
+				Shine.GetClientInfo( Client ), ConCommand,
+				Arguments ~= "" and "with arguments: "..Arguments or "with no arguments." )
+		end
 	end
 end
 
