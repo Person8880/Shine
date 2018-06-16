@@ -36,7 +36,7 @@ function Plugin:SetupDataTable()
 	}
 
 	self:AddNetworkMessages( "AddTranslatedMessage", {
-		[ table.Copy( MessageTypes.ShuffleType ) ] = {
+		[ MessageTypes.ShuffleType ] = {
 			"ENABLED_TEAMS"
 		}
 	}, "ShuffleType" )
