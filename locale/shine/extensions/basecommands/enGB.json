@@ -64,6 +64,7 @@
 	"FORCE_START": "forced the round to start.",
 	"PLAYER_EJECTED": "ejected {TargetName}.",
 	"PLAYER_GAGGED": "gagged {TargetName} for {Duration:Duration:REST_OF_MAP}.",
+	"PLAYER_GAGGED_PERMANENTLY": "gagged {TargetName} permanently.",
 	"PLAYER_UNGAGGED": "ungagged {TargetName}.",
 	"ERROR_NOT_COMMANDER": "{TargetName} is not a commander.",
 	"ERROR_NOT_GAGGED": "{TargetName} is not gagged.",
