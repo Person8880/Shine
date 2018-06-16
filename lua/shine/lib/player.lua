@@ -409,6 +409,7 @@ do
 		if not StringMatch( String, "^[0-9]+$" ) then return nil end
 		return tonumber( String )
 	end
+	Shine.CoerceToID = SafeToNumber
 
 	--[[
 		Returns a client matching the given Steam ID or name.
@@ -416,8 +417,9 @@ do
 	function Shine:GetClient( String )
 		local NumberValue = SafeToNumber( String )
 		if NumberValue then
-			-- Do not look up by name if provided a number, only game ID and NS2ID.
-			return self.GetClientByID( NumberValue ) or self.GetClientByNS2ID( NumberValue )
+			-- Do not look up by name if provided a number, only NS2ID and game ID.
+			-- Use NS2ID first as the admin menu uses it.
+			return self.GetClientByNS2ID( NumberValue ) or self.GetClientByID( NumberValue )
 		end
 
 		return self:GetClientBySteamID( String ) or self.GetClientByName( tostring( String ) )
