@@ -36,7 +36,7 @@ function Plugin:SetupDataTable()
 	}
 
 	self:AddNetworkMessages( "AddTranslatedMessage", {
-		[ table.Copy( MessageTypes.ShuffleType ) ] = {
+		[ MessageTypes.ShuffleType ] = {
 			"ENABLED_TEAMS"
 		}
 	}, "ShuffleType" )
@@ -299,4 +299,13 @@ function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 
 	TeamNameItem:SetText( StringFormat( "%s - Skill SD: %.2f",
 		TeamNameItem:GetText(), StandardDeviation ) )
+
+	-- Move the skill icon along otherwise it will overlap the added text.
+	local TeamSkillIcon = Team.GUIs.TeamSkill
+	if TeamSkillIcon and TeamSkillIcon:GetIsVisible() then
+		local ScaleFactor = Scoreboard.kScalingFactor or 1
+		local CurrentPosition = TeamSkillIcon:GetPosition()
+		CurrentPosition.x = ( TeamNameItem:GetTextWidth( TeamNameItem:GetText() ) + 20 ) * ScaleFactor
+		TeamSkillIcon:SetPosition( CurrentPosition )
+	end
 end

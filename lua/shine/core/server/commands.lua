@@ -451,7 +451,7 @@ do
 			[ "$" ] = {
 				-- Finds by NS2/Steam ID.
 				Parse = function( Client, Context )
-					local NS2ID = tonumber( Context.Value )
+					local NS2ID = Shine.CoerceToID( Context.Value )
 					local Target
 
 					if NS2ID then
@@ -488,6 +488,16 @@ do
 					return { Client }
 				end,
 				MustEqual = true,
+				SingleTarget = true
+			},
+			[ "#" ] = {
+				-- Finds by game ID.
+				Parse = function( Client, Context )
+					local GameID = Shine.CoerceToID( Context.Value )
+					if not GameID then return nil end
+
+					return { Shine.GetClientByID( GameID ) }
+				end,
 				SingleTarget = true
 			}
 		},

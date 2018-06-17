@@ -70,8 +70,8 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.RandomTeam ] = {
 			"RANDOM_TEAM"
 		},
-		[ table.Copy( MessageTypes.TargetName ) ] = {
-			"PLAYER_EJECTED", "PLAYER_UNGAGGED"
+		[ MessageTypes.TargetName ] = {
+			"PLAYER_EJECTED", "PLAYER_UNGAGGED", "PLAYER_GAGGED_PERMANENTLY"
 		},
 		[ MessageTypes.Gagged ] = {
 			"PLAYER_GAGGED"
@@ -264,7 +264,7 @@ function Plugin:SetupAdminMenuCommands()
 	GagLabels[ #GagLabels + 1 ] = ""
 	GagLabels[ #GagLabels + 1 ] = self:GetPhrase( "PERMANENTLY" )
 	GagLabels[ #GagLabels + 1 ] = function( Args )
-		if not StringMatch( Args, "^%d+$" ) then
+		if not StringMatch( Args, "^\"%d+\"$" ) then
 			SGUI.NotificationManager.AddNotification( Shine.NotificationType.ERROR, self:GetPhrase( "ERROR_GAG_BOT" ), 5 )
 			return
 		end

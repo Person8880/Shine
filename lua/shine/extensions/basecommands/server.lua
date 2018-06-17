@@ -1462,6 +1462,13 @@ function Plugin:CreateMessageCommands()
 
 		Shine:AdminPrint( nil, "%s gagged %s permanently.", true,
 			Shine.GetClientInfo( Client ), ID )
+
+		local Target = Shine.GetClientByNS2ID( ID )
+		if Target then
+			self:SendTranslatedMessage( Client, "PLAYER_GAGGED_PERMANENTLY", {
+				TargetName = Shine.GetClientName( Target )
+			} )
+		end
 	end
 	self:BindCommand( "sh_gagid", "gagid", GagID )
 		:AddParam{ Type = "steamid" }

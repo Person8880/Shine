@@ -59,6 +59,7 @@ do
 	end
 
 	local NetworkReceiveError = Shine.BuildErrorHandler( "Plugin network receiver error" )
+	local TableShallowCopy = table.ShallowCopy
 	local xpcall = xpcall
 
 	--[[
@@ -129,9 +130,10 @@ do
 	end
 
 	function NetworkingModule:AddTranslatedMessage( Name, Params, VariationKey )
-		Params.AdminName = self:GetNameNetworkField()
+		local MessageParams = TableShallowCopy( Params )
+		MessageParams.AdminName = self:GetNameNetworkField()
 
-		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+		self:AddNetworkMessageHandler( Name, MessageParams, function( self, Data )
 			self:CommandNotify( Data.AdminName, GetMessageTranslationKey( Name, VariationKey, Data ), Data )
 		end )
 	end
@@ -143,11 +145,12 @@ do
 	end
 
 	function NetworkingModule:AddTranslatedNotifyColour( Name, Params, VariationKey )
-		Params.R = "integer (0 to 255)"
-		Params.G = Params.R
-		Params.B = Params.R
+		local MessageParams = TableShallowCopy( Params )
+		MessageParams.R = "integer (0 to 255)"
+		MessageParams.G = MessageParams.R
+		MessageParams.B = MessageParams.R
 
-		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+		self:AddNetworkMessageHandler( Name, MessageParams, function( self, Data )
 			local Key = GetMessageTranslationKey( Name, VariationKey, Data )
 			self:NotifySingleColour( Data.R, Data.G, Data.B, self:GetInterpolatedPhrase( Key, Data ) )
 		end )

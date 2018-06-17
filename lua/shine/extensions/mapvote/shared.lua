@@ -85,10 +85,10 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "RequestVoteOptions", MessageTypes.Empty, "Server" )
 
 	self:AddNetworkMessages( "AddTranslatedMessage", {
-		[ table.Copy( MessageTypes.Empty ) ] = {
+		[ MessageTypes.Empty ] = {
 			"FORCED_VOTE"
 		},
-		[ table.Copy( MessageTypes.Duration ) ] = {
+		[ MessageTypes.Duration ] = {
 			"MAP_EXTENDED_TIME", "SET_MAP_TIME", "MAP_EXTENDED_ROUNDS",
 			"SET_MAP_ROUNDS"
 		}
