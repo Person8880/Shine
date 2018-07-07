@@ -194,6 +194,9 @@ do
 		if not DataTable.Warn then return end
 
 		local CurrentPlayer = Client:GetControllingPlayer()
+		-- If they don't have a player we can't move them (presumably disconnecting).
+		if not CurrentPlayer then return end
+
 		local CurrentTeam = CurrentPlayer:GetTeamNumber()
 
 		-- Sometimes this event receives one of the weird "ghost" players that can't switch teams.
