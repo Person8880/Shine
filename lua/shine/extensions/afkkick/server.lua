@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local Clamp = math.Clamp
 local Floor = math.floor
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetMaxPlayers = Server.GetMaxPlayers
@@ -561,6 +562,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	-- Track frozen player's input, but do not punish them if they are not providing any.
 	local IsPlayerFrozen = self:IsPlayerFrozen( Player )
+	local KickTime = self.Config.KickTime * 60
 
 	if not ( MovementIsEmpty and AnglesMatch ) then
 		DataTable.LastMove = Time
@@ -583,7 +585,9 @@ function Plugin:OnProcessMove( Player, Input )
 		end
 	else
 		if not IsPlayerFrozen then
-			DataTable.AFKAmount = Max( DataTable.AFKAmount + DeltaTime, 0 )
+			-- Accumulate their AFK time, but prevent it from exceeding the kick time to allow
+			-- any movement to prevent players being kicked.
+			DataTable.AFKAmount = Clamp( DataTable.AFKAmount + DeltaTime, 0, KickTime )
 		else
 			-- Effectively freeze their last move time without wiping it completely.
 			DataTable.LastMove = DataTable.LastMove + DeltaTime
@@ -592,7 +596,6 @@ function Plugin:OnProcessMove( Player, Input )
 
 	DataTable.IsPlayerFrozen = IsPlayerFrozen
 
-	local KickTime = self.Config.KickTime * 60
 	local TimeSinceLastMove = Time - DataTable.LastMove
 
 	-- Use time since last move rather than the total,
