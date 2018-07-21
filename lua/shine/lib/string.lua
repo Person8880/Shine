@@ -241,6 +241,57 @@ do
 end
 
 do
+	local OSDate = os.date
+	local OSTime = os.time
+	local StringMatch = string.match
+	local tonumber = tonumber
+
+	local LOCAL_DATE_TIME = "^(%d+)%-(%d+)%-(%d+)[T ](%d+):(%d+):?(%d*)$"
+	local LOCAL_TIME = "^T?(%d+):(%d+):?(%d*)$"
+
+	--[[
+		Parses the given string into a timestamp.
+
+		Format should be one of (where seconds are optional):
+		YYYY-MM-ddTHH:mm:ss
+		YYYY-MM-dd HH:mm:ss
+		THH:mm:ss
+		HH:mm:ss
+
+		If the string is a full date-time, the timestamp will use the given year/month/day,
+		otherwise, it will use the current local time's date.
+	]]
+	function string.ParseLocalDateTime( Time, FallbackDate )
+		FallbackDate = FallbackDate or OSDate( "*t" )
+
+		local IsDateTime = true
+		local Year, Month, Day, Hour, Minute, Second = StringMatch( Time, LOCAL_DATE_TIME )
+		if not Year then
+			IsDateTime = false
+
+			Year = FallbackDate.year
+			Month = FallbackDate.month
+			Day = FallbackDate.day
+
+			Hour, Minute, Second = StringMatch( Time, LOCAL_TIME )
+		end
+
+		if not Hour then
+			return nil, "invalid date/time format"
+		end
+
+		return OSTime( {
+			year = tonumber( Year ),
+			month = tonumber( Month ),
+			day = tonumber( Day ),
+			hour = tonumber( Hour ),
+			min = tonumber( Minute ),
+			sec = tonumber( Second ) or 0
+		} ), IsDateTime
+	end
+end
+
+do
 	local StringExplode = string.Explode
 	local StringGSub = string.gsub
 	local StringMatch = string.match
