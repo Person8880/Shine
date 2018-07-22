@@ -6,6 +6,8 @@ local Shine = Shine
 
 local SharedTime = Shared.GetTime
 local Timers = Shine.Map()
+local PausedTimers = {}
+
 local Timer = {}
 Shine.Timer = Timer
 
@@ -14,6 +16,7 @@ TimerMeta.__index = TimerMeta
 
 function TimerMeta:Destroy()
 	Timers:Remove( self.Name )
+	PausedTimers[ self.Name ] = nil
 end
 
 function TimerMeta:GetReps()
@@ -53,10 +56,16 @@ function TimerMeta:Pause()
 
 	self.Paused = true
 	self.TimeLeft = self:GetTimeUntilNextRun()
+
+	PausedTimers[ self.Name ] = self
+	Timers:Remove( self.Name )
 end
 
 function TimerMeta:Resume()
 	if not self.Paused then return end
+
+	PausedTimers[ self.Name ] = nil
+	Timers:Add( self.Name, self )
 
 	self.Paused = nil
 	self.NextRun = SharedTime() + self.TimeLeft
@@ -73,7 +82,7 @@ do
 	]]
 	local function Create( Name, Delay, Reps, Func )
 		-- Edit it so it's not destroyed if it's created again inside its old function.
-		local TimerObject = Timers:Get( Name )
+		local TimerObject = Timers:Get( Name ) or PausedTimers[ Name ]
 		if not TimerObject then
 			TimerObject = setmetatable( {}, TimerMeta )
 			Timers:Add( Name, TimerObject )
@@ -111,6 +120,7 @@ end
 ]]
 function Timer.Destroy( Name )
 	Timers:Remove( Name )
+	PausedTimers[ Name ] = nil
 end
 
 do
@@ -119,18 +129,22 @@ do
 		Input: Timer name to check.
 	]]
 	local function Exists( Name )
-		return Timers:Get( Name ) ~= nil
+		return Timers:Get( Name ) ~= nil or PausedTimers[ Name ] ~= nil
 	end
 	Timer.Exists = Exists
 
 	function Timer.Pause( Name )
-		if not Exists( Name ) then return end
-		Timers:Get( Name ):Pause()
+		local Instance = Timers:Get( Name )
+		if not Instance then return end
+
+		Instance:Pause()
 	end
 
 	function Timer.Resume( Name )
-		if not Exists( Name ) then return end
-		Timers:Get( Name ):Resume()
+		local Instance = PausedTimers[ Name ]
+		if not Instance then return end
+
+		Instance:Resume()
 	end
 end
 
@@ -146,21 +160,17 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 	local Time = SharedTime()
 
 	for Name, Timer in Timers:Iterate() do
-		if Timer.NextRun <= Time and not Timer.Paused then
+		if Timer.NextRun <= Time then
 			if Timer.Reps > 0 then
 				Timer.Reps = Timer.Reps - 1
 			end
 
 			local Success = xpcall( Timer.Func, OnError, Timer )
-			if not Success then
+			if not Success or Timer.Reps == 0 then
 				Timer:Destroy()
 			else
-				if Timer.Reps == 0 then
-					Timer:Destroy()
-				else
-					Timer.LastRun = Time
-					Timer.NextRun = Time + Timer.Delay
-				end
+				Timer.LastRun = Time
+				Timer.NextRun = Time + Timer.Delay
 			end
 		end
 	end

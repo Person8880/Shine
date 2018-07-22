@@ -899,7 +899,7 @@ Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
 	if not FirstWord then return end
 
 	-- They've done !, / or some other special character first.
-	if StringFind( StringSub( FirstWord, 1, 1 ), "[^%w]" ) then
+	if StringFind( StringSub( FirstWord, 1, 1 ), "[!/]" ) then
 		Directive = StringSub( FirstWord, 1, 1 )
 		Exploded[ 1 ] = StringSub( FirstWord, 2 )
 	end

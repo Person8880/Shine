@@ -5,16 +5,22 @@
 local Shine = Shine
 
 local IsType = Shine.IsType
+local Max = math.max
+local OSDate = os.date
+local OSTime = os.time
 local StringFormat = string.format
+local StringMatch = string.match
+local StringParseLocalDateTime = string.ParseLocalDateTime
 local StringUpper = string.upper
 local TableAdd = table.Add
 local TableAsSet = table.AsSet
+local TableRemove = table.remove
 local TableShallowCopy = table.ShallowCopy
 local TableShallowMerge = table.ShallowMerge
 local tonumber = tonumber
 
 local Plugin = {}
-Plugin.Version = "2.0"
+Plugin.Version = "2.1"
 Plugin.PrintName = "Adverts"
 
 Plugin.HasConfig = true
@@ -25,7 +31,7 @@ Plugin.ConfigName = "Adverts.json"
 Plugin.AdvertTrigger = table.AsEnum{
 	"COUNTDOWN", "START_OF_ROUND", "END_OF_ROUND",
 	"MARINE_VICTORY", "ALIEN_VICTORY", "DRAW",
-	"STARTUP"
+	"STARTUP", "SYSTEM_TIME"
 }
 Plugin.TeamType = table.AsEnum{
 	"MARINE", "ALIEN", "READY_ROOM", "SPECTATOR"
@@ -164,6 +170,100 @@ function Plugin:OnFirstThink()
 end
 
 local AdvertStream = require "shine/extensions/adverts/advert_stream"
+local ONE_DAY = 60 * 60 * 24
+local TRIGGER_CHECK_INTERVAL = 60
+
+function Plugin:SetupSystemTimeTriggerCheck()
+	local PendingTriggers = self.PendingTriggers
+	if PendingTriggers then return PendingTriggers end
+
+	local PendingTriggers = {}
+	self.PendingTriggers = PendingTriggers
+
+	self:CreateTimer( "PendingTriggerCheck", TRIGGER_CHECK_INTERVAL, -1, function()
+		local Now = OSTime()
+
+		for i = #PendingTriggers, 1, -1 do
+			local Trigger = PendingTriggers[ i ]
+			local TimeTillTrigger = Max( Trigger.Timestamp - Now, 0 )
+
+			if TimeTillTrigger <= TRIGGER_CHECK_INTERVAL then
+				self.Logger:Debug( "Setting up timer for %s with delay of %d seconds",
+					Trigger.Source, TimeTillTrigger )
+
+				self:SimpleTimer( TimeTillTrigger, function()
+					Trigger.Action()
+
+					if not Trigger.IsDateTime then
+						-- If it's supposed to trigger every day, queue it up again.
+						Trigger.Timestamp = Trigger.Timestamp + ONE_DAY
+						PendingTriggers[ #PendingTriggers + 1 ] = Trigger
+						self.Logger:Debug( "Queued %s to next trigger tomorrow.",
+							Trigger.Source )
+					end
+				end )
+
+				TableRemove( PendingTriggers, i )
+			end
+		end
+	end )
+
+	return PendingTriggers
+end
+
+Plugin.TriggerHandlers = {
+	[ Plugin.AdvertTrigger.SYSTEM_TIME ] = function( self, Source, Config, Action )
+		if not IsType( Config, "table" ) or not IsType( Config.TriggerTimes, "table" ) then
+			self:Print( "Misconfigured system time trigger for %s, expected TriggerTimes list.", true, Source )
+			return
+		end
+
+		local PendingTriggers = self:SetupSystemTimeTriggerCheck()
+		local Now = OSTime()
+
+		local function ParseTriggerTime( Time )
+			-- Expect dates formatted as 'YYYY-MM-ddTHH:mm:ss' and times as 'HH:mm:ss'
+			local Timestamp, IsDateTime = StringParseLocalDateTime( Time )
+			if not Timestamp then
+				self:Print( "'%s' is not a valid time expression.", true, Time )
+				return
+			end
+
+			if Timestamp < Now then
+				if IsDateTime then
+					self.Logger:Debug( "%s (%s) is in the past, skipping.", Time, Source )
+					return
+				end
+
+				-- Move forward by one day if we've missed today's execution.
+				Timestamp = Timestamp + ONE_DAY
+			end
+
+			local TimeTillTrigger = Timestamp - Now
+			self.Logger:Debug( "%s will trigger in %d seconds (%s)", Source, TimeTillTrigger, Time )
+
+			if TimeTillTrigger > TRIGGER_CHECK_INTERVAL then
+				self.Logger:Debug( "Adding %s to pending triggers list.", Source )
+				-- If the trigger time is too far away, don't add a timer yet.
+				PendingTriggers[ #PendingTriggers + 1 ] = {
+					Timestamp = Timestamp,
+					Action = Action,
+					Source = Source,
+					IsDateTime = IsDateTime
+				}
+			else
+				self.Logger:Debug( "Starting timer for %s with delay of %d seconds.",
+					Source, TimeTillTrigger )
+				-- Run the next time the given time is hit.
+				self:SimpleTimer( TimeTillTrigger, Action )
+			end
+		end
+
+		for i = 1, #Config.TriggerTimes do
+			ParseTriggerTime( Config.TriggerTimes[ i ] )
+		end
+	end
+}
 
 function Plugin:ParseAdverts()
 	local CurrentMapName = Shared.GetMapName()
@@ -266,10 +366,18 @@ function Plugin:ParseAdverts()
 	-- Collect streams that are triggered, and those that need game state filtering.
 	local TriggeredAdvertStreams = Shine.Multimap()
 	local GameStateFilteredStreams = {}
-	local function AddTriggeredStream( Triggers, Stream )
+	local function AddTriggeredStream( Triggers, Stream, Source, TriggerConfig, Action )
 		if not Triggers then return end
 		for i = 1, #Triggers do
-			TriggeredAdvertStreams:Add( Triggers[ i ], Stream )
+			local Trigger = Triggers[ i ]
+
+			-- Apply special trigger handling if necessary, otherwise just store it.
+			if self.TriggerHandlers[ Trigger ] then
+				self.TriggerHandlers[ Trigger ]( self, Source,
+					TriggerConfig and TriggerConfig[ Trigger ], Action )
+			else
+				TriggeredAdvertStreams:Add( Triggers[ i ], Stream )
+			end
 		end
 	end
 
@@ -418,8 +526,20 @@ function Plugin:ParseAdverts()
 			end
 
 			-- Setup the stream to be triggered to start/stop if necessary.
-			AddTriggeredStream( StartingTriggers, Stream )
-			AddTriggeredStream( StoppingTriggers, Stream )
+			if StartingTriggers then
+				local function Start()
+					Stream:Start()
+				end
+				AddTriggeredStream( StartingTriggers, Stream, AdvertListField,
+					StreamConfig.StartTriggerConfig, Start )
+			end
+			if StoppingTriggers then
+				local function Stop()
+					Stream:Stop()
+				end
+				AddTriggeredStream( StoppingTriggers, Stream, AdvertListField,
+					StreamConfig.StopTriggerConfig, Stop )
+			end
 
 			AdvertStreams[ #AdvertStreams + 1 ] = Stream
 		end
@@ -450,7 +570,14 @@ function Plugin:ParseAdverts()
 				:Filter( IsValidAdvert )
 				:Filter( IsValidForMap )
 				:ForEach( function( Advert, Index )
-					TriggeredAdvertsByTrigger:Add( TriggerName, Advert )
+					if self.TriggerHandlers[ TriggerName ] then
+						local Source = StringFormat( "%s[ %d ]", AdvertList, Index )
+						self.TriggerHandlers[ TriggerName ]( self, Source, Advert, function()
+							self:DisplayAdvert( Advert )
+						end )
+					else
+						TriggeredAdvertsByTrigger:Add( TriggerName, Advert )
+					end
 				end )
 		end
 	end

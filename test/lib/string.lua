@@ -20,6 +20,34 @@ UnitTest:Test( "PatternSafe", function( Assert )
 	Assert.True( "Should be able to search without error", pcall( string.find, ".*+-?()[]%^$", Pattern ) )
 end )
 
+UnitTest:Test( "ParseLocalDateTime - Date and time with seconds", function( Assert )
+	local Timestamp, IsDateTime = string.ParseLocalDateTime( "2018-01-01T00:00:05" )
+
+	Assert.True( "Should be parsed as a date-time", IsDateTime )
+	Assert.Equals( "Should match expected timestamp", 1514764805, Timestamp )
+end )
+
+UnitTest:Test( "ParseLocalDateTime - Date and time without seconds", function( Assert )
+	local Timestamp, IsDateTime = string.ParseLocalDateTime( "2018-01-01T00:00" )
+
+	Assert.True( "Should be parsed as a date-time", IsDateTime )
+	Assert.Equals( "Should match expected timestamp", 1514764800, Timestamp )
+end )
+
+UnitTest:Test( "ParseLocalDateTime - Time with seconds", function( Assert )
+	local Timestamp, IsDateTime = string.ParseLocalDateTime( "T00:00:05", { year = 2018, month = 1, day = 1 } )
+
+	Assert.False( "Should be parsed as a time", IsDateTime )
+	Assert.Equals( "Should match expected timestamp", 1514764805, Timestamp )
+end )
+
+UnitTest:Test( "ParseLocalDateTime - Time without seconds", function( Assert )
+	local Timestamp, IsDateTime = string.ParseLocalDateTime( "T00:00", { year = 2018, month = 1, day = 1 } )
+
+	Assert.False( "Should be parsed as a time", IsDateTime )
+	Assert.Equals( "Should match expected timestamp", 1514764800, Timestamp )
+end )
+
 do
 	local InterpolationTests = {
 		{
