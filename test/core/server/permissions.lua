@@ -185,6 +185,26 @@ UnitTest:Test( "GetGroupAccess", function( Assert )
 	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_help" ) )
 end )
 
+UnitTest:Test( "GetGroupAccess when allowed by default", function( Assert )
+	local GroupName = "Member"
+	local GroupTable = Shine:GetGroupData( GroupName )
+
+	-- Allowed in whitelist
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick", true ) )
+	-- Allowed by default (not denied in whitelist)
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_ns2_votereset", true ) )
+	-- Explicitly denied in a whitelist, so should not have access.
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_help", true ) )
+
+	GroupName = "SuperAdmin"
+	GroupTable = Shine:GetGroupData( GroupName )
+
+	-- Explicitly denied in a blacklist, so should not have access.
+	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune", true ) )
+	-- Not denied in blacklist.
+	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick", true ) )
+end )
+
 ---- USER PERMISSION TESTS ----
 UnitTest:Test( "Default group targeting", function( Assert )
 	Assert:Truthy( Shine:CanTarget( 999, 998 ) )
