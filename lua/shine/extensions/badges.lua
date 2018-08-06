@@ -11,11 +11,18 @@ local IsType = Shine.IsType
 local Notify = Shared.Message
 
 local Plugin = {}
-Plugin.Version = "2.1"
+Plugin.PrintName = "Badges"
+Plugin.HasConfig = true
+Plugin.ConfigName = "Badges.json"
+Plugin.CheckConfig = true
+Plugin.CheckConfigTypes = true
+
+Plugin.Version = "2.2"
 
 function Plugin:Initialise()
-	self.AssignedGuests = {}
+	self:BroadcastModuleEvent( "Initialise" )
 
+	self.AssignedGuests = {}
 	self.Enabled = true
 
 	return true
@@ -132,7 +139,7 @@ function Plugin:AssignBadgesToID( ID, Entry, MasterBadgeTable, OwnerName )
 		local Rows = MasterBadgeTable and MasterBadgeTable:Get( SingleBadge ) or { DefaultRow }
 		for i = 1, #Rows do
 			if not AssignBadge( ID, SingleBadge, Rows[ i ] ) then
-				Print( "%s has a non-existant or reserved badge: %s",
+				self.Logger:Warn( "%s has a non-existent or reserved badge: %s",
 					OwnerName or ID, SingleBadge )
 			end
 		end
@@ -158,7 +165,7 @@ function Plugin:AssignBadgesToID( ID, Entry, MasterBadgeTable, OwnerName )
 					local BadgeName = Badges[ j ]
 
 					if not AssignBadge( ID, BadgeName, i ) then
-						Print( "%s has a non-existant or reserved badge: %s",
+						self.Logger:Warn( "%s has a non-existent or reserved badge: %s",
 							OwnerName or ID, BadgeName )
 					end
 				end
@@ -196,7 +203,10 @@ end
 	regardless of the badge they have chosen.
 ]]
 function Plugin:ForceBadgeForID( ID, Badge, Column )
-	if not AssignBadge( ID, Badge, Column ) then return end
+	if not AssignBadge( ID, Badge, Column ) then
+		self.Logger:Warn( "%s cannot be forced to use badge '%s' as it is reserved or does not exist.", ID, Badge )
+		return
+	end
 
 	local ForcedBadges = self.ForcedBadges[ ID ] or {}
 	ForcedBadges[ Column ] = Badge
@@ -205,8 +215,8 @@ end
 
 function Plugin:Setup()
 	if not GiveBadge then
-		Notify( "[Shine] Unable to find the badge mod, badge plugin cannot load." )
-		Shine:UnloadExtension( "badges" )
+		self.Logger:Error( "Badge system unavailable, cannot load badges." )
+		Shine:UnloadExtension( self:GetName() )
 		return
 	end
 
@@ -251,19 +261,25 @@ function Plugin:AssignGuestBadge( Client, DefaultGroup )
 	local UserData = Shine:GetUserData( ID )
 	if UserData or self.AssignedGuests[ ID ] then return end
 
+	self.Logger:Debug( "Assigning guest badges for: %s", ID )
+
 	self.AssignedGuests[ ID ] = true
 	self:AssignGroupBadge( ID, nil, DefaultGroup, {},
 		self:GetMasterBadgeLookup( Shine.UserData.Badges ) )
 end
 
 function Plugin:AssignForcedBadges( Client )
-	local ForcedBadges = self.ForcedBadges[ Client:GetUserId() ]
+	local ID = Client:GetUserId()
+	local ForcedBadges = self.ForcedBadges[ ID ]
 	if not ForcedBadges then return end
 
 	for Column, BadgeName in pairs( ForcedBadges ) do
 		local BadgeID = rawget( gBadges, BadgeName )
 		if BadgeID then
-			Badges_SetBadge( Client:GetId(), BadgeID, Column )
+			self.Logger:Debug( "Forcing badge '%s' on column %s for user %s", BadgeName, Column, ID )
+			if not Badges_SetBadge( Client:GetId(), BadgeID, Column ) then
+				self.Logger:Warn( "Unable to set forced badge '%s' on column %s for user %s", BadgeName, Column, ID )
+			end
 		end
 	end
 end
@@ -286,3 +302,4 @@ function Plugin:OnClientBadgeRequest( ClientID, Message )
 end
 
 Shine:RegisterExtension( "badges", Plugin )
+Shine.LoadPluginModule( "logger.lua", Plugin )
