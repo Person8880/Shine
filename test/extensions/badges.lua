@@ -6,6 +6,8 @@ local UnitTest = Shine.UnitTest
 local Badges = UnitTest:LoadExtension( "badges" )
 if not Badges then return end
 
+Badges = UnitTest.MockOf( Badges )
+
 local TableInsertUnique = table.InsertUnique
 
 local Assigned = {}
@@ -121,9 +123,9 @@ UnitTest:Test( "AssignBadgesToID", function( Assert )
 	Assert:Contains( Assigned[ ID ][ 1 ], "ranoutofcake" )
 	Assert:NotNil( Assigned[ ID ][ 8 ] )
 	Assert:Contains( Assigned[ ID ][ 8 ], "ohwell" )
-end, function()
-	Assigned = {}
 end )
+
+Assigned = {}
 
 UnitTest:Test( "AssignGroupBadge", function( Assert )
 	local ID = 123456
@@ -138,6 +140,27 @@ UnitTest:Test( "AssignGroupBadge", function( Assert )
 	Assert:NotNil( Assigned[ ID ][ Badges.DefaultRow ] )
 	Assert:ArrayEquals( { "cake", "morecake", "somuchcake", "test" },
 		Assigned[ ID ][ Badges.DefaultRow ] )
+end )
+
+Assigned = {}
+
+UnitTest:Test( "Assign forced badges", function( Assert )
+	local ID = 123456
+	local Entry = {
+		ForcedBadges = { "cake", "morecake" }
+	}
+
+	Badges:AssignBadgesToID( ID, Entry )
+
+	Assert:NotNil( Assigned[ ID ] )
+	Assert:ArrayEquals( { "cake" }, Assigned[ ID ][ 1 ] )
+	Assert:ArrayEquals( { "morecake" }, Assigned[ ID ][ 2 ] )
+
+	Assert:DeepEquals( Badges.ForcedBadges, {
+		[ ID ] = {
+			"cake", "morecake"
+		}
+	} )
 end )
 
 GiveBadge = OldGiveBadge
