@@ -124,6 +124,15 @@ do
 	end
 end
 
+function Plugin:IsConditionalMap( Map )
+	if not IsType( Map, "table" ) or not IsType( Map.map, "string" ) then
+		return false
+	end
+
+	return IsType( Map.min, "number" ) or IsType( Map.max, "number" )
+		or ( self.TrackMapStats and IsType( Map.percent or Map.Percent, "number" ) )
+end
+
 --[[
 	Checks various restrictions to see if the map should be available.
 ]]
