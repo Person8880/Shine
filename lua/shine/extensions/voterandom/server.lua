@@ -280,7 +280,10 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 		return false
 	end
 
-	if not self.Policies[ Plugin.EnforcementPolicyType.ASSIGN_PLAYERS ] then return end
+	if not self.Policies[ Plugin.EnforcementPolicyType.ASSIGN_PLAYERS ] or ( NumTeam1 == 0 and NumTeam2 == 0 ) then
+		-- Skip if not auto-assigning or if both playing teams are empty.
+		return
+	end
 
 	if not Player.ShineRandomised then
 		-- They're going from the ready room/spectate to a team.
