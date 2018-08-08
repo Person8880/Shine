@@ -641,6 +641,7 @@ Add( "Think", "ReplaceMethods", function()
 		SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction",
 			"PassivePre" )
 		SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
+		SetupClassHook( "Commander", "Eject", "OnCommanderEjected", "PassivePre" )
 	end
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )

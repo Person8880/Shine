@@ -254,8 +254,8 @@ end )
 Adverts.GameStateFilteredStreams = {}
 
 local Displayed = {}
-function Adverts:DisplayAdvert( Advert )
-	Displayed[ Advert ] = true
+function Adverts:DisplayAdvert( Advert, EventData )
+	Displayed[ Advert ] = EventData or true
 end
 
 Adverts.TriggeredAdvertsByTrigger = Shine.Multimap( {
@@ -266,8 +266,59 @@ Adverts.TriggeredAdvertsByTrigger = Shine.Multimap( {
 		{
 			Message = "2"
 		}
+	},
+	[ Adverts.AdvertTrigger.COMMANDER_LOGGED_IN ] = {
+		{
+			Message = "Commander {CommanderName} logged in."
+		},
+		{
+			Message = "Another message."
+		}
+	},
+	[ Adverts.AdvertTrigger.COMMANDER_LOGGED_OUT ] = {
+		{
+			Message = "Commander {CommanderName} logged out."
+		}
+	},
+	[ Adverts.AdvertTrigger.COMMANDER_EJECTED ] = {
+		{
+			Message = "Commander {CommanderName} was ejected."
+		}
 	}
 } )
+
+UnitTest:Test( "TriggerAdverts - Displays adverts for given trigger", function( Assert )
+	local Data = {
+		CommanderName = "Test"
+	}
+	Adverts:TriggerAdverts( Adverts.AdvertTrigger.COMMANDER_LOGGED_IN, Data )
+
+	local AdvertsTriggered = Adverts.TriggeredAdvertsByTrigger:Get( Adverts.AdvertTrigger.COMMANDER_LOGGED_IN )
+	for i = 1, #AdvertsTriggered do
+		Assert.Equals( "Adverts should have been triggered with the given data",
+			Data, Displayed[ AdvertsTriggered[ i ] ] )
+	end
+end )
+
+Displayed = {}
+
+UnitTest:Test( "OnCommanderEjected - Does not trigger logged out messages", function( Assert )
+	local Commander = {
+		GetName = function() return "Test" end,
+		GetTeamNumber = function() return 1 end
+	}
+
+	Adverts:OnCommanderEjected( Commander )
+	Adverts:CommLogout( { GetCommander = function() return Commander end } )
+
+	Assert.DeepEquals( "Only the ejection adverts should have been triggered", {
+		[ Adverts.TriggeredAdvertsByTrigger:Get( Adverts.AdvertTrigger.COMMANDER_EJECTED )[ 1 ] ] = {
+			CommanderName = "Test"
+		}
+	}, Displayed )
+end )
+
+Displayed = {}
 
 UnitTest:Test( "SetGameState - Displays adverts for triggers", function( Assert )
 	Adverts:SetGameState( nil, kGameState.Started, kGameState.Countdown )

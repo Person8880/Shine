@@ -9,6 +9,7 @@ local Max = math.max
 local OSDate = os.date
 local OSTime = os.time
 local StringFormat = string.format
+local StringInterpolate = string.Interpolate
 local StringMatch = string.match
 local StringParseLocalDateTime = string.ParseLocalDateTime
 local StringUpper = string.upper
@@ -20,7 +21,7 @@ local TableShallowMerge = table.ShallowMerge
 local tonumber = tonumber
 
 local Plugin = {}
-Plugin.Version = "2.1"
+Plugin.Version = "2.2"
 Plugin.PrintName = "Adverts"
 
 Plugin.HasConfig = true
@@ -29,9 +30,28 @@ Plugin.CheckConfigTypes = true
 Plugin.ConfigName = "Adverts.json"
 
 Plugin.AdvertTrigger = table.AsEnum{
-	"COUNTDOWN", "START_OF_ROUND", "END_OF_ROUND",
-	"MARINE_VICTORY", "ALIEN_VICTORY", "DRAW",
-	"STARTUP", "SYSTEM_TIME"
+	-- Game state events
+	"COUNTDOWN",
+	"START_OF_ROUND",
+	"END_OF_ROUND",
+	"MARINE_VICTORY",
+	"ALIEN_VICTORY",
+	"DRAW",
+
+	-- Commander events
+	"COMMANDER_LOGGED_IN",
+	"MARINE_COMMANDER_LOGGED_IN",
+	"ALIEN_COMMANDER_LOGGED_IN",
+	"COMMANDER_LOGGED_OUT",
+	"MARINE_COMMANDER_LOGGED_OUT",
+	"ALIEN_COMMANDER_LOGGED_OUT",
+	"COMMANDER_EJECTED",
+	"MARINE_COMMANDER_EJECTED",
+	"ALIEN_COMMANDER_EJECTED",
+
+	-- Misc. events
+	"STARTUP",
+	"SYSTEM_TIME"
 }
 Plugin.TeamType = table.AsEnum{
 	"MARINE", "ALIEN", "READY_ROOM", "SPECTATOR"
@@ -623,13 +643,19 @@ function Plugin:GetClientsForAdvert( Advert )
 	return Targets
 end
 
-function Plugin:DisplayAdvert( Advert )
+local function WithInterpolation( Text, EventData )
+	if not EventData then return Text end
+
+	return StringInterpolate( Text, EventData )
+end
+
+function Plugin:DisplayAdvert( Advert, EventData )
 	if IsType( Advert, "string" ) then
-		Shine:NotifyColour( nil, 255, 255, 255, Advert )
+		Shine:NotifyColour( nil, 255, 255, 255, WithInterpolation( Advert, EventData ) )
 		return
 	end
 
-	local Message = Advert.Message
+	local Message = WithInterpolation( Advert.Message, EventData )
 	local R, G, B = UnpackColour( Advert.Colour )
 	local Type = Advert.Type
 
@@ -641,8 +667,9 @@ function Plugin:DisplayAdvert( Advert )
 		if IsType( Advert.Prefix, "string" ) then
 			-- Send the advert with a coloured prefix.
 			local PR, PG, PB = UnpackColour( Advert.PrefixColour or { 255, 255, 255 } )
+			local PrefixText = WithInterpolation( Advert.Prefix, EventData )
 
- 			Shine:NotifyDualColour( Targets, PR, PG, PB, Advert.Prefix, R, G, B, Message )
+ 			Shine:NotifyDualColour( Targets, PR, PG, PB, PrefixText, R, G, B, Message )
 
  			return
 		end
@@ -666,6 +693,87 @@ function Plugin:DisplayAdvert( Advert )
 			Alignment = Align,
 			Size = 2, FadeIn = 1
 		}, Targets )
+	end
+end
+
+--[[
+	Triggers all adverts for the given trigger name with the given data.
+]]
+function Plugin:TriggerAdverts( TriggerName, EventData )
+	local TriggeredStreams = self.TriggeredAdvertStreams:Get( TriggerName )
+	if TriggeredStreams then
+		-- Trigger streams to start/stop
+		for j = 1, #TriggeredStreams do
+			TriggeredStreams[ j ]:OnTrigger( TriggerName )
+		end
+	end
+
+	local Adverts = self.TriggeredAdvertsByTrigger:Get( TriggerName )
+	if Adverts then
+		-- Trigger individual adverts.
+		for j = 1, #Adverts do
+			self:DisplayAdvert( Adverts[ j ], EventData )
+		end
+	end
+end
+
+function Plugin:TriggerTeamAdvert( TeamTriggerNames, Team, EventData )
+	local TeamSpecificTrigger = TeamTriggerNames[ Team ]
+	if not TeamSpecificTrigger then return end
+
+	self:TriggerAdverts( TeamSpecificTrigger, EventData )
+end
+
+local function CommanderEvent( Commander )
+	return {
+		CommanderName = Commander:GetName()
+	}
+end
+
+do
+	local CommanderLoginTriggers = {
+		Plugin.AdvertTrigger.MARINE_COMMANDER_LOGGED_IN,
+		Plugin.AdvertTrigger.ALIEN_COMMANDER_LOGGED_IN
+	}
+
+	function Plugin:CommLoginPlayer( Chair, Commander )
+		local EventData = CommanderEvent( Commander )
+
+		self:TriggerAdverts( self.AdvertTrigger.COMMANDER_LOGGED_IN, EventData )
+		self:TriggerTeamAdvert( CommanderLoginTriggers, Commander:GetTeamNumber(), EventData )
+	end
+end
+
+do
+	local CommanderEjectTeamTriggers = {
+		Plugin.AdvertTrigger.MARINE_COMMANDER_EJECTED,
+		Plugin.AdvertTrigger.ALIEN_COMMANDER_EJECTED
+	}
+
+	function Plugin:OnCommanderEjected( Commander )
+		Commander.__IsEjected = true
+
+		local EventData = CommanderEvent( Commander )
+
+		self:TriggerAdverts( self.AdvertTrigger.COMMANDER_EJECTED, EventData )
+		self:TriggerTeamAdvert( CommanderEjectTeamTriggers, Commander:GetTeamNumber(), EventData )
+	end
+end
+
+do
+	local CommanderLogoutTriggers = {
+		Plugin.AdvertTrigger.MARINE_COMMANDER_LOGGED_OUT,
+		Plugin.AdvertTrigger.ALIEN_COMMANDER_LOGGED_OUT
+	}
+
+	function Plugin:CommLogout( Chair )
+		local Commander = Chair:GetCommander()
+		if not Commander or Commander.__IsEjected then return end
+
+		local EventData = CommanderEvent( Commander )
+
+		self:TriggerAdverts( self.AdvertTrigger.COMMANDER_LOGGED_OUT, EventData )
+		self:TriggerTeamAdvert( CommanderLogoutTriggers, Commander:GetTeamNumber(), EventData )
 	end
 end
 
@@ -707,22 +815,7 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	if not Triggers then return end
 
 	for i = 1, #Triggers do
-		local TriggerName = Triggers[ i ]
-		local TriggeredStreams = self.TriggeredAdvertStreams:Get( TriggerName )
-		if TriggeredStreams then
-			-- Trigger streams to start/stop
-			for j = 1, #TriggeredStreams do
-				TriggeredStreams[ j ]:OnTrigger( TriggerName )
-			end
-		end
-
-		local Adverts = self.TriggeredAdvertsByTrigger:Get( TriggerName )
-		if Adverts then
-			-- Trigger individual adverts.
-			for j = 1, #Adverts do
-				self:DisplayAdvert( Adverts[ j ] )
-			end
-		end
+		self:TriggerAdverts( Triggers[ i ] )
 	end
 end
 
