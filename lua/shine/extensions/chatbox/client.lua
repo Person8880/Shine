@@ -39,6 +39,7 @@ Plugin.DefaultConfig = {
 	AutoClose = true, -- Should the chatbox close after sending a message?
 	DeleteOnClose = true, -- Should whatever's entered be deleted if the chatbox is closed before sending?
 	MessageMemory = 50, -- How many messages should the chatbox store before removing old ones?
+	MoveVanillaChat = false, -- Whether to move the vanilla chat position.
 	SmoothScroll = true, -- Should the scrolling be smoothed?
 	ScrollToBottomOnOpen = false, -- Should the chatbox scroll to the bottom when re-opened?
 	Opacity = 0.4, -- How opaque should the chatbox be?
@@ -51,10 +52,39 @@ Plugin.SilentConfigSave = true
 
 function Plugin:HookChat( ChatElement )
 	local OldSendKey = ChatElement.SendKeyEvent
+	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset" )
+	local OriginalOffset = Vector( GetOffset() )
 
 	function ChatElement:SendKeyEvent( Key, Down )
 		if Plugin.Enabled then return end
 		return OldSendKey( self, Key, Down )
+	end
+
+	function ChatElement:ResetScreenOffset()
+		self:SetScreenOffset( OriginalOffset )
+	end
+
+	function ChatElement:SetScreenOffset( Offset )
+		-- Alter the offset value by reference directly to avoid having to
+		-- reposition elements constantly in the Update method.
+		local CurrentOffset = GetOffset()
+		local InverseScale = 1 / GUIScale( 1 )
+		CurrentOffset.x = Offset.x * InverseScale
+		CurrentOffset.y = Offset.y * InverseScale
+
+		-- Update existing message's x-position as it's not changed in the
+		-- Update() method.
+		local Messages = self.messages
+		for i = 1, #Messages do
+			local Message = Messages[ i ]
+			local Background = Message.Background
+
+			if Background then
+				local Pos = Background:GetPosition()
+				Pos.x = Offset.x
+				Background:SetPosition( Pos )
+			end
+		end
 	end
 
 	local OldAddMessage = ChatElement.AddMessage
@@ -97,12 +127,11 @@ function Plugin:HookChat( ChatElement )
 	end
 end
 
---We hook the class here for certain functions before we find the actual instance of it.
+-- We hook the class here for certain functions before we find the actual instance of it.
 Hook.Add( "Think", "ChatBoxHook", function()
 	if GUIChat then
-		Plugin:HookChat( GUIChat )
-
 		Hook.Remove( "Think", "ChatBoxHook" )
+		Plugin:HookChat( GUIChat )
 	end
 end )
 
@@ -139,7 +168,7 @@ function Plugin:Initialise()
 	return true
 end
 
---We need the default chat script so we can hide its messages.
+-- We need the default chat script so we can hide its messages.
 function Plugin:EvaluateUIVisibility()
 	local Manager = GetGUIManager()
 	local Scripts = Manager.scripts
@@ -219,8 +248,8 @@ local Skin = {
 local LayoutData = {
 	Sizes = {
 		ChatBox = Vector2( 800, 350 ),
-		SettingsClosed = Vector2( 0, 350 ),
-		Settings = Vector2( 350, 350 ),
+		SettingsClosed = Vector2( 0, 374 ),
+		Settings = Vector2( 360, 374 ),
 		SettingsButton = 36,
 		ChatBoxPadding = 5
 	},
@@ -234,7 +263,7 @@ local LayoutData = {
 local SliderTextPadding = 20
 local TextScale = Vector2( 1, 1 )
 
---Scales alpha value for elements that default to 0.8 rather than 0.4 alpha.
+-- Scales alpha value for elements that default to 0.8 rather than 0.4 alpha.
 local function AlphaScale( Alpha )
 	if Alpha <= 0.4 then
 		return Alpha * 2
@@ -243,7 +272,7 @@ local function AlphaScale( Alpha )
 	return 0.8 + ( ( Alpha - 0.4 ) / 3 )
 end
 
---UWE's vector type has no Hadamard product defined.
+-- UWE's vector type has no Hadamard product defined.
 local function VectorMultiply( Vec1, Vec2 )
 	return Vector2( Vec1.x * Vec2.x, Vec1.y * Vec2.y )
 end
@@ -281,6 +310,18 @@ local function UpdateOpacity( self, Opacity )
 			Control:SetStyleName( Control:GetStyleName() )
 		end
 	end
+end
+
+function Plugin:ResetVanillaChatPos()
+	self.GUIChat:ResetScreenOffset()
+end
+
+function Plugin:MoveVanillaChat()
+	if not self.UpdateVanillaChatHistoryPos or not SGUI.IsValid( self.MainPanel ) then
+		return
+	end
+
+	self.UpdateVanillaChatHistoryPos( self.MainPanel:GetPos() )
 end
 
 --[[
@@ -363,22 +404,14 @@ function Plugin:CreateChatbox()
 		Draggable = true
 	}
 
-	--Double click the title bar to return it to the default position.
+	-- Double click the title bar to return it to the default position.
 	function Border:ReturnToDefaultPos()
 		self:SetPos( ChatBoxPos )
 		self:OnDragFinished( ChatBoxPos )
 	end
 
-	--Update our saved position on drag finish.
-	function Border.OnDragFinished( Panel, Pos )
-		self.Config.Pos.x = Pos.x
-		self.Config.Pos.y = Pos.y
-
-		self:SaveConfig()
-	end
-
-	--If, for some reason, there's an error in a panel hook, then this is removed.
-	--We don't want to leave the mouse showing if that happens.
+	-- If, for some reason, there's an error in a panel hook, then this is removed.
+	-- We don't want to leave the mouse showing if that happens.
 	Border:CallOnRemove( function()
 		if self.IgnoreRemove then return end
 
@@ -399,6 +432,27 @@ function Plugin:CreateChatbox()
 	local ChatBoxLayout = SGUI.Layout:CreateLayout( "Vertical", {
 		Padding = Padding
 	} )
+
+	local function UpdateVanillaChatHistoryPos( Pos )
+		if not self.Config.MoveVanillaChat then return end
+
+		-- Update the external chat history position to match the chatbox.
+		local AbsolutePadding = PaddingUnit:GetValue()
+		self.GUIChat:SetScreenOffset( Pos + Vector2( AbsolutePadding * 2, AbsolutePadding * 2 ) )
+	end
+	self.UpdateVanillaChatHistoryPos = UpdateVanillaChatHistoryPos
+
+	UpdateVanillaChatHistoryPos( ChatBoxPos )
+
+	-- Update our saved position on drag finish.
+	function Border.OnDragFinished( Panel, Pos )
+		self.Config.Pos.x = Pos.x
+		self.Config.Pos.y = Pos.y
+
+		UpdateVanillaChatHistoryPos( Pos )
+
+		self:SaveConfig()
+	end
 
 	--Panel for messages.
 	local Box = SGUI:Create( "Panel", Border )
@@ -594,13 +648,15 @@ do
 
 	local ElementCreators = {
 		CheckBox = {
-			Create = function( self, SettingsPanel, Layout, Size, Checked, Label )
+			Create = function( self, SettingsPanel, Layout, IsLastElement, Size, Checked, Label )
 				local CheckBox = SettingsPanel:Add( "CheckBox" )
 				CheckBox:SetupFromTable{
 					AutoSize = Size,
-					Font = self:GetFont(),
-					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
+					Font = self:GetFont()
 				}
+				if not IsLastElement then
+					CheckBox:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
+				end
 				CheckBox:AddLabel( self:GetPhrase( Label ) )
 				CheckBox:SetChecked( Checked, true )
 
@@ -627,13 +683,15 @@ do
 			end
 		},
 		Label = {
-			Create = function( self, SettingsPanel, Layout, Text )
+			Create = function( self, SettingsPanel, Layout, IsLastElement, Text )
 				local Label = SettingsPanel:Add( "Label" )
 				Label:SetupFromTable{
 					Font = self:GetFont(),
-					Text = self:GetPhrase( Text ),
-					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
+					Text = self:GetPhrase( Text )
 				}
+				if not IsLastElement then
+					Label:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
+				end
 
 				if self.TextScale ~= 1 then
 					Label:SetTextScale( self.TextScale )
@@ -645,15 +703,17 @@ do
 			end
 		},
 		Slider = {
-			Create = function( self, SettingsPanel, Layout, Size, Value )
+			Create = function( self, SettingsPanel, Layout, IsLastElement, Size, Value )
 				local Slider = SettingsPanel:Add( "Slider" )
 				Slider:SetupFromTable{
 					AutoSize = Size,
 					Value = Value,
 					Font = self:GetFont(),
 					Padding = SliderTextPadding * self.ScalarScale,
-					Margin = Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) )
 				}
+				if not IsLastElement then
+					Slider:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
+				end
 
 				if self.TextScale ~= 1 then
 					Slider:SetTextScale( self.TextScale )
@@ -731,6 +791,22 @@ do
 			end
 		},
 		{
+			Type = "CheckBox",
+			ConfigValue = "MoveVanillaChat",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "MoveVanillaChat", Value ) then return end
+
+				if Value then
+					self:MoveVanillaChat()
+				else
+					self:ResetVanillaChatPos()
+				end
+			end,
+			Values = function( self )
+				return GetCheckBoxSize( self ), self.Config.MoveVanillaChat, "MOVE_VANILLA_CHAT"
+			end
+		},
+		{
 			Type = "Label",
 			Values = { "MESSAGE_MEMORY" }
 		},
@@ -783,8 +859,8 @@ do
 	}
 
 	function Plugin:CreateSettings( MainPanel, UIScale, ScalarScale )
-		local Padding = Spacing( Scaled( 30, UIScale.x ),
-			Scaled( 15, UIScale.y ), Scaled( 30, UIScale.x ), 0 )
+		local Padding = Spacing( Scaled( 5, UIScale.x ),
+			Scaled( 5, UIScale.y ), Scaled( 5, UIScale.x ), Scaled( 5, UIScale.y ) )
 
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 			Padding = Padding
@@ -809,14 +885,30 @@ do
 
 			local Creator = ElementCreators[ Data.Type ]
 
-			local Object = Creator.Create( self, SettingsPanel, Layout, unpack( Values ) )
+			local Object = Creator.Create( self, SettingsPanel, Layout, i == #Elements, unpack( Values ) )
 			if Creator.Setup then
 				Creator.Setup( self, Object, Data, unpack( Values ) )
 			end
 		end
 
+		-- Perform initial layout to set absolute sizes.
 		Layout:SetSize( VectorMultiply( LayoutData.Sizes.Settings, UIScale ) )
 		Layout:InvalidateLayout( true )
+
+		-- Sum the total height to set the settings panel's size accordingly.
+		local TotalHeight = 0
+		for i = 1, #Layout.Elements do
+			local Element = Layout.Elements[ i ]
+			local Margin = Element:GetComputedMargin()
+			TotalHeight = TotalHeight + Element:GetSize().y + Margin[ 2 ] + Margin[ 4 ]
+		end
+
+		local Size = SettingsPanel:GetSize()
+		local HeightWithPadding = TotalHeight + Padding.Up:GetValue() + Padding.Down:GetValue()
+		Size.y = Max( HeightWithPadding, self.MainPanel:GetSize().y )
+
+		SettingsPanel:SetSize( Size )
+		Layout.Size.y = Size.y
 	end
 end
 
@@ -833,16 +925,17 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 	local SettingsPanel = self.SettingsPanel
 	local Start, End, Expanded
 
+	local SettingsPanelSize = SettingsPanel:GetSize()
 	if not SettingsButton.Expanded then
-		Start = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
-		End = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
+		Start = Vector2( UIScale.x * LayoutData.Sizes.SettingsClosed.x, SettingsPanelSize.y )
+		End = Vector2( UIScale.x * LayoutData.Sizes.Settings.x, SettingsPanelSize.y )
 		Expanded = true
 
 		SettingsPanel:SetIsVisible( true )
 		SettingsButton:SetStylingState( "Open" )
 	else
-		Start = VectorMultiply( LayoutData.Sizes.Settings, UIScale )
-		End = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale )
+		Start = Vector2( UIScale.x * LayoutData.Sizes.Settings.x, SettingsPanelSize.y )
+		End = Vector2( UIScale.x * LayoutData.Sizes.SettingsClosed.x, SettingsPanelSize.y )
 		Expanded = false
 	end
 
