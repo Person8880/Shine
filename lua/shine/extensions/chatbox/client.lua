@@ -68,6 +68,8 @@ function Plugin:HookChat( ChatElement )
 		-- Alter the offset value by reference directly to avoid having to
 		-- reposition elements constantly in the Update method.
 		local CurrentOffset = GetOffset()
+		if not CurrentOffset then return end
+
 		local InverseScale = 1 / GUIScale( 1 )
 		CurrentOffset.x = Offset.x * InverseScale
 		CurrentOffset.y = Offset.y * InverseScale
@@ -121,7 +123,7 @@ function Plugin:HookChat( ChatElement )
 
 		Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
 
-		if Plugin.Visible and IsType( JustAdded, "table" ) then
+		if Plugin.Visible and JustAdded.Background then
 			JustAdded.Background:SetIsVisible( false )
 		end
 	end
