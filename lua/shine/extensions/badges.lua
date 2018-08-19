@@ -23,6 +23,7 @@ function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
 
 	self.AssignedGuests = {}
+	self.ForcedBadges = {}
 	self.Enabled = true
 
 	return true
@@ -214,6 +215,9 @@ function Plugin:ForceBadgeForID( ID, Badge, Column )
 end
 
 function Plugin:Setup()
+	self.AssignedGuests = {}
+	self.ForcedBadges = {}
+
 	if not GiveBadge then
 		self.Logger:Error( "Badge system unavailable, cannot load badges." )
 		Shine:UnloadExtension( self:GetName() )
@@ -221,13 +225,12 @@ function Plugin:Setup()
 	end
 
 	local UserData = Shine.UserData
-	if not UserData or not UserData.Groups or not UserData.Users then return end
+	if not UserData or not UserData.Groups or not UserData.Users then
+		self.Logger:Error( "User data is missing groups and/or users, unable to setup badges." )
+		return
+	end
 
 	local MasterBadgeTable = self:GetMasterBadgeLookup( UserData.Badges )
-
-	-- Remember badges that are forced per NS2ID.
-	self.ForcedBadges = {}
-
 	for ID, User in pairs( UserData.Users ) do
 		ID = tonumber( ID )
 
@@ -242,7 +245,6 @@ function Plugin:Setup()
 end
 
 function Plugin:OnUserReload()
-	self.AssignedGuests = {}
 	self:Setup()
 
 	-- Re-assign default group badges.
