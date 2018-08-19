@@ -623,6 +623,8 @@ function Plugin:CreateCommands()
 			return
 		end
 
+		local IsConditional = self:IsConditionalMap( self.MapOptions[ Map ] )
+
 		self.Vote.NominationTracker[ SteamID ] = NominationCount + 1
 
 		Nominated[ Count + 1 ] = Map
@@ -631,6 +633,16 @@ function Plugin:CreateCommands()
 			TargetName = PlayerName,
 			MapName = Map
 		} )
+		if IsConditional then
+			-- Make it clear that the map may not show up if there are any conditions on it.
+			if Client then
+				self:SendTranslatedNotify( Client, "NOMINATED_MAP_CONDITIONALLY", {
+					MapName = Map
+				} )
+			else
+				Notify( StringFormat( "%s has conditions that may prevent it from being an option when the map vote starts.", Map ) )
+			end
+		end
 	end
 	local NominateCommand = self:BindCommand( "sh_nominate", "nominate", Nominate, true )
 	NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate.", Help = "mapname" }

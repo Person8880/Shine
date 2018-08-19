@@ -13,6 +13,10 @@ Shine.BasePlugin = PluginMeta
 -- Modules are static mixins that are applied to the base plugin.
 PluginMeta.Modules = {}
 
+function PluginMeta:GetName()
+	return self.__Name
+end
+
 --[[
 	Base initialise, just enables the plugin, nothing more.
 	Override to add to it.

@@ -6,6 +6,7 @@
 	"AUTO_DELETE": "Auto delete on close.",
 	"SMOOTH_SCROLL": "Use smooth scrolling.",
 	"SCROLL_TO_BOTTOM": "Scroll to bottom on open.",
+	"MOVE_VANILLA_CHAT": "Move outer messages.",
 	"MESSAGE_MEMORY": "Message memory",
 	"OPACITY": "Opacity (%)",
 	"SCALE": "Scale (will re-open chatbox)",

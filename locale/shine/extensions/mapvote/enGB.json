@@ -44,6 +44,7 @@
 	"RECENTLY_PLAYED": "{MapName} was recently played and cannot be voted for yet.",
 	"NOMINATIONS_FULL": "Nominations are full.",
 	"NOMINATED_MAP": "{TargetName} nominated {MapName} for a map vote.",
+	"NOMINATED_MAP_CONDITIONALLY": "NOTE: {MapName} has conditions that may prevent it from being an option when the map vote starts.",
 	"RTV_DISABLED": "RTV has been disabled.",
 	"RTV_VOTED": "{TargetName} voted to change the map ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed).",
 	"PLAYER_VOTED": "{TargetName} {Revote:BoolToPhrase:revoted|voted} for {MapName} ({Votes} {Votes:Pluralise:vote|votes} for this, {TotalVotes} total)",

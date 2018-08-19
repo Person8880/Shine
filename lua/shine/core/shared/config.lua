@@ -269,6 +269,31 @@ do
 		end
 	end
 
+	function Validator.ValidateField( Name, Predicate, FixFunc, MessageFunc )
+		return function( Value )
+			if not IsType( Value, "table" ) then return true end
+			return Predicate( Value[ Name ] )
+		end,
+		function( Value )
+			if not IsType( Value, "table" ) then
+				local Fixed = FixFunc( nil )
+				if Fixed ~= nil then
+					return {
+						[ Name ] = Fixed
+					}
+				end
+				return nil
+			end
+
+			Value[ Name ] = FixFunc( Value[ Name ] )
+
+			return Value
+		end,
+		function()
+			return StringFormat( "Field %s on %s", Name, MessageFunc() )
+		end
+	end
+
 	function Validator.InEnum( PossibleValues, DefaultValue )
 		return function( Value )
 			return not IsType( Value, "string" ) or PossibleValues[ StringUpper( Value ) ] == nil, StringUpper( Value )

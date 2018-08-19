@@ -930,18 +930,22 @@ end
 
 --[[
 	Gets whether the given group has raw acccess to the given permission.
-	Inputs: Group name, group table, command.
+	Inputs: Group name, group table, command, allow by default flag.
 	Output: True/false permission.
 ]]
-function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand )
+function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand, AllowByDefault )
 	if not VerifyGroup( GroupName, GroupTable ) then return false end
 
+	-- If the access right is allowed by default, then abstaining from a decision
+	-- is enough to indicate access. Otherwise it must be explicitly allowed.
+	local MinimumLevel = AllowByDefault and AccessLevel.ABSTAIN or AccessLevel.ALLOWED
+
 	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
-		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand ) == AccessLevel.ALLOWED
+		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand ) >= MinimumLevel
 	end
 
 	local GroupPermissions = GetGroupPermissions( GroupName, GroupTable )
-	return GetAccess( GroupPermissions, ConCommand, GroupTable.IsBlacklist ) == AccessLevel.ALLOWED
+	return GetAccess( GroupPermissions, ConCommand, GroupTable.IsBlacklist ) >= MinimumLevel
 end
 
 --[[
@@ -949,10 +953,10 @@ end
 	Unlike get permission, this looks specifically for a user group with explicit permission.
 	It also does not require the command to exist.
 
-	Inputs: Client or Steam ID, command name (sh_*)
+	Inputs: Client or Steam ID, command name (sh_*), allow by default flag.
 	Output: True if explicitly allowed.
 ]]
-function Shine:HasAccess( Client, ConCommand )
+function Shine:HasAccess( Client, ConCommand, AllowByDefault )
 	if not Client then return true end
 
 	local User, ID = self:GetUserData( Client )
@@ -963,7 +967,7 @@ function Shine:HasAccess( Client, ConCommand )
 			return false
 		end
 
-		return self:GetGroupAccess( nil, DefaultGroup, ConCommand )
+		return self:GetGroupAccess( nil, DefaultGroup, ConCommand, AllowByDefault )
 	end
 
 	local UserGroup = User.Group
@@ -975,7 +979,7 @@ function Shine:HasAccess( Client, ConCommand )
 		return false
 	end
 
-	return self:GetGroupAccess( UserGroup, GroupTable, ConCommand )
+	return self:GetGroupAccess( UserGroup, GroupTable, ConCommand, AllowByDefault )
 end
 
 local function GetGroupAndImmunity( self, Groups, User, ID )
@@ -1110,6 +1114,21 @@ Shine.Hook.Add( "NS2StartVote", "ImmunityCheck", function( VoteName, Client, Dat
 		return false, false
 	end
 end )
+
+Shine.Hook.Add( "NS2StartVote", "AccessCheck", function( VoteName, Client, Data )
+	-- Derive access right from the vote name in the form sh_ns2_<votename>
+	local AccessRight = "sh_ns2_"..StringLower( VoteName )
+
+	-- Vote access is allowed by default, so the client must be explicitly denied
+	-- access to block the vote.
+	if not Shine:HasAccess( Client, AccessRight, true ) then
+		Shine:SendTranslatedCommandError( Client, "COMMAND_NO_PERMISSION", {
+			CommandName = VoteName
+		}, nil, false )
+
+		return false, false
+	end
+end, -10 )
 
 do
 	local StringFind = string.find

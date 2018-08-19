@@ -24,7 +24,8 @@ local TableSort = table.sort
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "1.3"
+Plugin.Version = "1.4"
+Plugin.PrintName = "Base Commands"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "BaseCommands.json"
@@ -34,7 +35,9 @@ Plugin.DefaultConfig = {
 	AllTalkPreGame = false,
 	AllTalkSpectator = false,
 	AllTalkLocal = false,
-	EjectVotesNeeded = 0.5,
+	EjectVotesNeeded = {
+		{ FractionOfTeamToPass = 0.5 }
+	},
 	CommanderBotVoteDelayInSeconds = 300,
 	DisableLuaRun = false,
 	Interp = 100,
@@ -61,7 +64,24 @@ Plugin.CheckConfigTypes = true
 -- Don't add anything to the config from the vote module below.
 Plugin.HandlesVoteConfig = true
 
-Shine.LoadPluginModule( "vote.lua" )
+Shine.LoadPluginModule( "vote.lua", Plugin )
+Shine.LoadPluginModule( "logger.lua", Plugin )
+Shine.LoadPluginFile( "basecommands", "gamerules.lua" )
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.4",
+		Apply = function( Config )
+			local EjectVotesNeeded = Config.EjectVotesNeeded
+			if not IsType( EjectVotesNeeded, "number" ) then return end
+
+			-- Update to a sequence with one entry that covers all commander durations.
+			Config.EjectVotesNeeded = {
+				{ FractionOfTeamToPass = EjectVotesNeeded }
+			}
+		end
+	}
+}
 
 function Plugin:UpdateVanillaConfig()
 	if not Server.SetConfigSetting then return end
@@ -244,6 +264,52 @@ do
 			return false
 		end
 	} )
+	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
+		Validator.ValidateField( "FractionOfTeamToPass", Validator.IsType( "number" ) )
+	) )
+	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
+		Validator.ValidateField( "FractionOfTeamToPass", Validator.Clamp( 0, 1 ) )
+	) )
+	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
+		Validator.ValidateField( "MaxSecondsAsCommander", Validator.IsAnyType( { "number", "nil" } ) )
+	) )
+	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
+		Validator.ValidateField( "MaxSecondsAsCommander", Validator.Min( 0 ) )
+	) )
+
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			local EjectVotesNeeded = Config.EjectVotesNeeded
+			-- Sort in ascending order of time.
+			TableSort( EjectVotesNeeded, function( A, B )
+				-- Push entry with no time limit to the end.
+				if not A.MaxSecondsAsCommander then
+					return false
+				end
+				if not B.MaxSecondsAsCommander then
+					return true
+				end
+
+				return A.MaxSecondsAsCommander < B.MaxSecondsAsCommander
+			end )
+
+			local LastEntry = EjectVotesNeeded[ #EjectVotesNeeded ]
+			if not LastEntry or LastEntry.MaxSecondsAsCommander then
+				-- No final entry or final entry has a time limit, so need to extend it to account
+				-- for all remaining time values.
+				EjectVotesNeeded[ #EjectVotesNeeded ] = {
+					FractionOfTeamToPass = LastEntry and LastEntry.FractionOfTeamToPass or 0.5
+				}
+				Notify( "Entries in EjectVotesNeeded do not cover all possible time values, correcting..." )
+
+				return true
+			end
+
+			return false
+		end
+	} )
+
+	Plugin.ConfigValidator = Validator
 
 	local Rates = {
 		{
@@ -272,11 +338,6 @@ do
 	end
 
 	function Plugin:CheckRateValues()
-		if Validator:Validate( self.Config ) then
-			Notify( "Fixed incorrect rate values, check your config." )
-			self:SaveConfig( true )
-		end
-
 		for i = 1, #Rates do
 			local Rate = Rates[ i ]
 			local ConfigValue = Transform( Rate, self.Config[ Rate.Key ] )
@@ -297,6 +358,8 @@ do
 end
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	self.Gagged = self:LoadGaggedPlayers()
 
 	self:CreateCommands()
@@ -304,7 +367,6 @@ function Plugin:Initialise()
 
 	self.SetEjectVotes = false
 
-	self.Config.EjectVotesNeeded = Clamp( self.Config.EjectVotesNeeded, 0, 1 )
 	self.Config.Interp = Max( self.Config.Interp, 0 )
 	self.Config.MoveRate = Max( Floor( self.Config.MoveRate ), 5 )
 	self.Config.TickRate = Max( Floor( self.Config.TickRate ), 5 )
@@ -373,23 +435,6 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 	HealthUsed = HealthUsed * Scale
 
 	return Damage, ArmourUsed, HealthUsed
-end
-
-function Plugin:SetGameState( Gamerules, NewState, OldState )
-	self.dt.Gamestate = NewState
-	self:AttemptToConfigureGamerules( Gamerules )
-end
-
-function Plugin:AttemptToConfigureGamerules( Gamerules )
-	if not Gamerules or self.ConfiguredGamerules then return end
-	if not Gamerules.team1 or not Gamerules.team2 then return end
-	if not Gamerules.team1.ejectCommVoteManager or not Gamerules.team2.ejectCommVoteManager then return end
-
-	Gamerules.team1.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
-	Gamerules.team2.ejectCommVoteManager:SetTeamPercentNeeded( self.Config.EjectVotesNeeded )
-	Gamerules.kStartGameVoteDelay = self.Config.CommanderBotVoteDelayInSeconds
-
-	self.ConfiguredGamerules = true
 end
 
 do
@@ -505,6 +550,13 @@ function Plugin:ClientDisconnect( Client )
 	end
 
 	self:RemoveAllTalkPreference( Client )
+	self:SimpleTimer( 0, function()
+		self:UpdateVotesOnDisconnect()
+	end )
+
+	if self.CommanderLogins then
+		self.CommanderLogins[ Client ] = nil
+	end
 end
 
 --[[

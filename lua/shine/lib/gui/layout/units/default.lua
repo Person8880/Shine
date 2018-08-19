@@ -89,6 +89,8 @@ end
 	Spacing type, handles padding and margins.
 ]]
 do
+	local rawget = rawget
+
 	local Spacing = NewType( "Spacing" )
 
 	function Spacing:Init( L, U, R, D )
@@ -107,7 +109,7 @@ do
 		Down = 4
 	}
 	function Spacing:__index( Key )
-		return Spacing[ Key ] or self[ KeyMap[ Key ] ]
+		return Spacing[ Key ] or rawget( self, KeyMap[ Key ] )
 	end
 
 	function Spacing:WithLeft( Left )

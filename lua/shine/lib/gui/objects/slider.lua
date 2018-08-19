@@ -11,14 +11,14 @@ local type = type
 
 local Slider = {}
 
-local DefaultHandleSize = Vector( 10, 32, 0 )
-local DefaultLineSize = Vector( 250, 5, 0 )
-local DefaultUnfilledLineSize = Vector( 0, 5, 0 )
-local DefaultSize = Vector( 250, 32, 0 )
-local Padding = Vector( 20, 0, 0 )
+local DefaultHandleSize = Vector2( 10, 32 )
+local DefaultLineSize = Vector2( 250, 5 )
+local DefaultUnfilledLineSize = Vector2( 0, 5 )
+local DefaultSize = Vector2( 250, 32 )
+local Padding = Vector2( 20, 0 )
 
-local LinePos = Vector( 0, -2.5, 0 )
-local UnfilledLinePos = Vector( 250, -2.5, 0 )
+local LinePos = Vector2( 0, -2.5 )
+local UnfilledLinePos = Vector2( 250, -2.5 )
 
 local Clear = Colour( 0, 0, 0, 0 )
 
@@ -75,12 +75,13 @@ function Slider:Initialise()
 	self.Range = 100
 	self.Value = 0
 	self.Decimals = 0
+	self.LineHeightMultiplier = 0.25
 
-	self.HandleSize = Vector( 10, 32, 0 )
-	self.HandlePos = Vector( 0, 0, 0 )
-	self.LineSize = Vector( 250, 5, 0 )
-	self.DarkLineSize = Vector( 0, 5, 0 )
-	self.DarkLinePos = Vector( 250, -2.5, 0 )
+	self.HandleSize = Vector2( 10, 32 )
+	self.HandlePos = Vector2( 0, 0 )
+	self.LineSize = Vector2( 250, 5 )
+	self.DarkLineSize = Vector2( 0, 5 )
+	self.DarkLinePos = Vector2( 250, -2.5 )
 end
 
 function Slider:SetupStencil()
@@ -97,15 +98,31 @@ function Slider:SizeLines()
 
 	local LineWidth = self.Width * self.Fraction
 	self.LineSize.x = LineWidth
+	self.LineSize.y = self.Height * self.LineHeightMultiplier
 	self.Line:SetSize( self.LineSize )
 
+	local CurrentLinePos = Vector2( 0, -self.LineSize.y * 0.5 )
+	self.Line:SetPosition( CurrentLinePos )
+
 	self.DarkLinePos.x = LineWidth
+	self.DarkLinePos.y = CurrentLinePos.y
 	self.DarkLine:SetPosition( self.DarkLinePos )
 
 	self.DarkLineSize.x = self.Width * ( 1 - self.Fraction )
+	self.DarkLineSize.y = self.LineSize.y
 	self.DarkLine:SetSize( self.DarkLineSize )
 
 	self.HandleSize.y = self.Height
+	self.Handle:SetSize( self.HandleSize )
+end
+
+function Slider:SetLineHeightMultiplier( Multiplier )
+	self.LineHeightMultiplier = Multiplier
+	self:SizeLines()
+end
+
+function Slider:SetHandleWidth( Width )
+	self.HandleSize.x = Width
 	self.Handle:SetSize( self.HandleSize )
 end
 
@@ -126,7 +143,7 @@ SGUI.AddBoundProperty( Slider, "LineColour", "Line:SetColor" )
 SGUI.AddBoundProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
 
 function Slider:SetPadding( Value )
-	self.Label:SetPos( Vector( Value, 0, 0 ) )
+	self.Label:SetPos( Vector2( Value, 0 ) )
 end
 
 --[[
@@ -205,7 +222,7 @@ function Slider:PlayerKeyPress( Key, Down )
 end
 
 local GetCursorPos
-local LineMult = Vector( 1, 0.5, 0 )
+local LineMult = Vector2( 1, 0.5 )
 
 function Slider:OnMouseDown( Key )
 	if Key ~= InputKey.MouseButton0 then return end
@@ -228,7 +245,7 @@ function Slider:OnMouseDown( Key )
 	self.DragStart = X
 	self.StartingPos = self.Handle:GetPosition()
 
-	self.CurPos = Vector( self.StartingPos.x, 0, 0 )
+	self.CurPos = Vector2( self.StartingPos.x, 0 )
 
 	return true, self
 end

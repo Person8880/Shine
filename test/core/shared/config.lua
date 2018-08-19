@@ -36,6 +36,13 @@ UnitTest:Test( "Validator", function( Assert )
 	Validator:AddFieldRules( { "SingleEnum", "AnotherEnum" }, Validator.InEnum( Enum, Enum.B ) )
 	Validator:AddFieldRule( "SingleEnum", Validator.IsType( "string", 1 ) )
 
+	Validator:AddFieldRule( "ListOfTables", Validator.Each(
+		Validator.ValidateField( "ShouldBeNumber", Validator.IsType( "number", 1 ) )
+	) )
+	Validator:AddFieldRule( "ListOfTables", Validator.Each(
+		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 0 ) )
+	) )
+
 	local Config = {
 		TooSmallNumber = 5,
 		BigEnoughNumber = 11,
@@ -44,7 +51,11 @@ UnitTest:Test( "Validator", function( Assert )
 		},
 		ListOfEnums = { "A", "C", "b" },
 		SingleEnum = "a",
-		AnotherEnum = "C"
+		AnotherEnum = "C",
+		ListOfTables = {
+			{ ShouldBeNumber = 0 },
+			{ ShouldBeNumber = "1", CanBeNilOrNumber = true }
+		}
 	}
 	Assert:True( Validator:Validate( Config ) )
 	Assert:True( Config.Fixed )
@@ -64,6 +75,11 @@ UnitTest:Test( "Validator", function( Assert )
 	Assert:Equals( "A", Config.SingleEnum )
 	-- Should replace the invalid enum.
 	Assert:Equals( "B", Config.AnotherEnum )
+
+	Assert:DeepEquals( {
+		{ ShouldBeNumber = 0 },
+		{ ShouldBeNumber = 1, CanBeNilOrNumber = 0 }
+	}, Config.ListOfTables )
 end )
 
 UnitTest:Test( "TypeCheckConfig", function( Assert )
