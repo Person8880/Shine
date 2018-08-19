@@ -242,6 +242,8 @@ function Plugin:Setup()
 				MasterBadgeTable )
 		end
 	end
+
+	self.Logger:Info( "Setup badges successfully." )
 end
 
 function Plugin:OnUserReload()

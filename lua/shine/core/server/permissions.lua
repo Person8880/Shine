@@ -120,47 +120,49 @@ local function ConvertData( Data, DontSave )
 end
 
 function Shine:RequestUsers( Reload )
-	local function UsersResponse( Response )
-		if not Response and not Reload then
-			self:LoadUsers()
+	local Callbacks = {
+		OnSuccess = function( Response )
+			if not Response then
+				self:Print( "Got no response from server when loading users. Using local file instead." )
+				return
+			end
 
-			return
-		end
+			local UserData, Pos, Err = Decode( Response )
+			if not IsType( UserData, "table" ) or not next( UserData ) then
+				if Reload then -- Don't replace with a blank table if request failed when reloading.
+					self:AdminPrint( nil,
+						"Reloading from the web failed. User data has not been changed. Error: %s", true, Err )
 
-		local UserData, Pos, Err = Decode( Response )
+					return
+				end
 
-		if not IsType( UserData, "table" ) or not next( UserData ) then
-			if Reload then --Don't replace with a blank table if request failed when reloading.
-				self:AdminPrint( nil,
-					"Reloading from the web failed. User data has not been changed. Error: %s", true, Err )
+				self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
 
 				return
 			end
 
-			self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
-			self:LoadUsers()
+			self.UserData = UserData
 
-			return
+			ConvertData( self.UserData, true )
+
+			-- Cache the current user data, so if we fail to load it on
+			-- a later map we still have something to load.
+			self:SaveUsers( true )
+			self:Print( Reload and "Shine reloaded users from the web."
+				or "Shine loaded users from web." )
+
+			self.Hook.Call( "OnUserReload" )
+		end,
+		OnFailure = function()
+			self:Print( "All attempts to load users from the web failed. Using local file instead." )
 		end
-
-		self.UserData = UserData
-
-		ConvertData( self.UserData, true )
-
-		--Cache the current user data, so if we fail to load it on
-		--a later map we still have something to load.
-		self:SaveUsers( true )
-		self:Print( Reload and "Shine reloaded users from the web."
-			or "Shine loaded users from web." )
-
-		self.Hook.Call( "OnUserReload" )
-	end
+	}
 
 	if self.Config.GetUsersWithPOST then
-		Shared.SendHTTPRequest( self.Config.UsersURL, "POST",
-			self.Config.UserRetrieveArguments, UsersResponse )
+		self.HTTPRequestWithRetry( self.Config.UsersURL, "POST",
+			self.Config.UserRetrieveArguments, Callbacks )
 	else
-		Shared.SendHTTPRequest( self.Config.UsersURL, "GET", UsersResponse )
+		self.HTTPRequestWithRetry( self.Config.UsersURL, "GET", Callbacks )
 	end
 end
 
@@ -174,23 +176,26 @@ function Shine:LoadUsers( Web, Reload )
 		if Reload then
 			self:RequestUsers( true )
 		else
+			-- Load the local data upfront.
+			self:LoadUsers()
+			-- Queue loading the up-to-date data.
 			self.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
-				self:RequestUsers()
 				self.Hook.Remove( "ClientConnect", "LoadUsers" )
+				self:RequestUsers()
 			end, self.Hook.MAX_PRIORITY )
 		end
 
 		return
 	end
 
-	--Check the default path.
+	-- Check the default path.
 	local UserFile, Pos, Err = self.LoadJSONFile( UserPath )
 
 	if UserFile == false then
-		UserFile, Pos, Err = self.LoadJSONFile( BackupPath ) --Check the secondary path.
+		UserFile, Pos, Err = self.LoadJSONFile( BackupPath ) -- Check the secondary path.
 
 		if UserFile == false then
-			UserFile, Pos, Err = self.LoadJSONFile( DefaultUsers ) --Check the default NS2 users file.
+			UserFile, Pos, Err = self.LoadJSONFile( DefaultUsers ) -- Check the default NS2 users file.
 
 			if not UserFile then
 				self:GenerateDefaultUsers( true )
@@ -206,7 +211,7 @@ function Shine:LoadUsers( Web, Reload )
 		Notify( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
 			Err ) )
 
-		--Dummy data to avoid errors.
+		-- Dummy data to avoid errors.
 		if not Reload then
 			self.UserData = { Groups = {}, Users = {} }
 		end
