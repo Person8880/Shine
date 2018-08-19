@@ -632,6 +632,7 @@ Add( "Think", "ReplaceMethods", function()
 
 	if not Shine.IsNS2Combat then
 		SetupClassHook( "CommandStructure", "LoginPlayer", "CommLoginPlayer", "PassivePre" )
+		SetupClassHook( "CommandStructure", "OnCommanderLogin", "OnCommanderLogin", "PassivePre" )
 		SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
 		SetupClassHook( "CommandStructure", "OnUse", "CheckCommLogin", "ActivePre" )
 
@@ -642,6 +643,9 @@ Add( "Think", "ReplaceMethods", function()
 			"PassivePre" )
 		SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
 		SetupClassHook( "Commander", "Eject", "OnCommanderEjected", "PassivePre" )
+
+		SetupClassHook( "PlayingTeam", "VoteToEjectCommander", "OnVoteToEjectCommander", "PassivePost" )
+		SetupClassHook( "PlayingTeam", "VoteToGiveUp", "OnVoteToConcede", "PassivePost" )
 	end
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
