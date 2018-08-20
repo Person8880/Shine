@@ -573,6 +573,16 @@ local function GetGroupPermissions( GroupName, GroupTable )
 	return Permissions
 end
 
+local Printed = {}
+local function PrintOnce( Message, Format, ... )
+	local MessageText = Format and StringFormat( Message, ... ) or Message
+	if Printed[ MessageText ] then return end
+
+	Printed[ MessageText ] = true
+
+	Shine:Print( MessageText )
+end
+
 --[[
 	Verifies the given group has a commands table.
 	Inputs: Group name, group table.
@@ -581,8 +591,10 @@ end
 local function VerifyGroup( GroupName, GroupTable )
 	if not IsType( GroupTable.Commands, "table" ) then
 		if GroupName then
-			Shine:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			PrintOnce( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
+		else
+			PrintOnce( "The default group has a missing/incorrect \"Commands\" list! It should be a list of commands." )
 		end
 
 		return false
@@ -628,7 +640,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		if IsType( TopLevelCommands, "table" ) then
 			AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
 		else
-			self:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			PrintOnce( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
 		end
 	end
@@ -638,7 +650,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		local DefaultGroup = self:GetDefaultGroup()
 
 		if not DefaultGroup then
-			self:Print( "Group with ID %s inherits from the default group, but no default group exists!", true, GroupName )
+			PrintOnce( "Group with ID %s inherits from the default group, but no default group exists!", true, GroupName )
 		else
 			if not Processed[ DefaultGroup ] then
 				Processed[ DefaultGroup ] = true
@@ -659,7 +671,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 			local InheritedGroup = self:GetGroupData( Name )
 
 			if not InheritedGroup then
-				self:Print( "Group with ID %s inherits from a non-existent group (%s)!",
+				PrintOnce( "Group with ID %s inherits from a non-existent group (%s)!",
 					true, GroupName, Name )
 			else
 				BuildPermissions( self, Name, InheritedGroup, Blacklist, Permissions, Processed )
@@ -838,7 +850,7 @@ local function GetPermissionInheritance( self, GroupName, GroupTable, Command )
 
 	if not InheritFromDefault then
 		if not IsType( InheritGroups, "table" ) then
-			self:Print( "Group with ID %s has a non-array entry for \"InheritsFrom\"!",
+			PrintOnce( "Group with ID %s has a non-array entry for \"InheritsFrom\"!",
 				true, GroupName )
 
 			return false
@@ -846,7 +858,7 @@ local function GetPermissionInheritance( self, GroupName, GroupTable, Command )
 
 		local NumInheritGroups = #InheritGroups
 		if NumInheritGroups == 0 then
-			self:Print( "Group with ID %s has an empty \"InheritsFrom\" entry!",
+			PrintOnce( "Group with ID %s has an empty \"InheritsFrom\" entry!",
 				true, GroupName )
 
 			return false
@@ -924,7 +936,7 @@ function Shine:GetPermission( Client, ConCommand )
 	local GroupTable = self:GetGroupData( UserGroup )
 
 	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+		PrintOnce( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, UserGroup )
 
 		return Command.NoPerm or false
@@ -969,7 +981,7 @@ function Shine:HasAccess( Client, ConCommand, AllowByDefault )
 	if not User then
 		local DefaultGroup = self:GetDefaultGroup()
 		if not DefaultGroup then
-			return false
+			return AllowByDefault or false
 		end
 
 		return self:GetGroupAccess( nil, DefaultGroup, ConCommand, AllowByDefault )
@@ -979,7 +991,7 @@ function Shine:HasAccess( Client, ConCommand, AllowByDefault )
 	local GroupTable = self:GetGroupData( UserGroup )
 
 	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+		PrintOnce( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, UserGroup )
 		return false
 	end
@@ -1000,15 +1012,15 @@ local function GetGroupAndImmunity( self, Groups, User, ID )
 
 	local Group = Groups[ User.Group or -1 ]
 	if not Group then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+		PrintOnce( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, tostring( User.Group ) )
 		return nil
 	end
 
-	--Read from the user's immunity first, then the groups.
+	-- Read from the user's immunity first, then the groups.
 	local Immunity = tonumber( User.Immunity or Group.Immunity )
 	if not Immunity then
-		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)",
+		PrintOnce( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)",
 			true, ID, tostring( User.Group ) )
 		return nil
 	end
