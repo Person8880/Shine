@@ -59,7 +59,6 @@ Plugin.HandlesVoteConfig = true
 Shine.LoadPluginModule( "vote.lua", Plugin )
 Shine.LoadPluginModule( "logger.lua", Plugin )
 Shine.LoadPluginFile( "basecommands", "gamerules.lua" )
-Shine.LoadPluginFile( "basecommands", "rates.lua" )
 
 Plugin.ConfigMigrationSteps = {
 	{
@@ -249,6 +248,9 @@ do
 		end
 	} )
 	Plugin.ConfigValidator = Validator
+
+	-- Load after default validator to ensure validators merge.
+	Shine.LoadPluginFile( "basecommands", "rates.lua" )
 end
 
 function Plugin:Initialise()
