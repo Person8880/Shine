@@ -6,11 +6,8 @@ local Shine = Shine
 local Hook = Shine.Hook
 local Call = Hook.Call
 
-local Clamp = math.Clamp
-local Floor = math.floor
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
-local Max = math.max
 local Min = math.min
 local Notify = Shared.Message
 local pairs = pairs
@@ -24,7 +21,7 @@ local TableSort = table.sort
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "1.4"
+Plugin.Version = "1.5"
 Plugin.PrintName = "Base Commands"
 
 Plugin.HasConfig = true
@@ -40,11 +37,6 @@ Plugin.DefaultConfig = {
 	},
 	CommanderBotVoteDelayInSeconds = 300,
 	DisableLuaRun = false,
-	Interp = 100,
-	MoveRate = 26,
-	TickRate = 30,
-	SendRate = 20,
-	BWLimit = Shine.IsNS2Combat and 35 or 50,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
 	FriendlyFirePreGame = true,
@@ -67,6 +59,7 @@ Plugin.HandlesVoteConfig = true
 Shine.LoadPluginModule( "vote.lua", Plugin )
 Shine.LoadPluginModule( "logger.lua", Plugin )
 Shine.LoadPluginFile( "basecommands", "gamerules.lua" )
+Shine.LoadPluginFile( "basecommands", "rates.lua" )
 
 Plugin.ConfigMigrationSteps = {
 	{
@@ -80,39 +73,27 @@ Plugin.ConfigMigrationSteps = {
 				{ FractionOfTeamToPass = EjectVotesNeeded }
 			}
 		end
+	},
+	{
+		VersionTo = "1.5",
+		Apply = function( Config )
+			local function GetAndRemoveRate( Key )
+				local Value = tonumber( Config[ Key ] ) or Plugin.DefaultConfig.Rates[ Key ]
+				Config[ Key ] = nil
+				return Value
+			end
+
+			Config.Rates = {
+				ApplyRates = true,
+				BWLimit = GetAndRemoveRate( "BWLimit" ),
+				Interp = GetAndRemoveRate( "Interp" ),
+				MoveRate = GetAndRemoveRate( "MoveRate" ),
+				SendRate = GetAndRemoveRate( "SendRate" ),
+				TickRate = GetAndRemoveRate( "TickRate" )
+			}
+		end
 	}
 }
-
-function Plugin:UpdateVanillaConfig()
-	if not Server.SetConfigSetting then return end
-
-	if self.Config.AllTalkPreGame and Server.GetConfigSetting( "pregamealltalk" ) then
-		self:Print( "Disabling vanilla pregamealltalk, AllTalkPreGame is enabled." )
-		-- Disable vanilla pregame all-talk to avoid it broadcasting voice during the 'PreGame' state.
-		Server.SetConfigSetting( "pregamealltalk", false )
-		Server.SaveConfigSettings()
-	end
-end
-
-function Plugin:OnFirstThink()
-	self:UpdateVanillaConfig()
-
-	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
-	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
-
-	local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
-		local NewDamage, NewArmour, NewHealth = Call( "TakeDamage", self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
-
-		if NewDamage ~= nil then
-			Damage = NewDamage
-			ArmourUsed = NewArmour or ArmourUsed
-			HealthUsed = NewHealth or HealthUsed
-		end
-
-		return OldFunc( self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
-	end
-	Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
-end
 
 -- Override sv_say with sh_say.
 Hook.Add( "NS2EventHook", "BaseCommandsOverrides", function( Name, OldFunc )
@@ -223,47 +204,6 @@ end
 
 do
 	local Validator = Shine.Validator()
-	Validator:AddRule( {
-		Matches = function( self, Config )
-			return Config.MoveRate > Config.TickRate
-		end,
-		Fix = function( self, Config )
-			Config.MoveRate = Config.TickRate
-			Notify( "Move rate cannot be more than tick rate. Clamping to tick rate." )
-		end
-	} )
-	Validator:AddRule( {
-		Matches = function( self, Config )
-			return Config.SendRate > Config.TickRate
-		end,
-		Fix = function( self, Config )
-			Config.SendRate = Config.TickRate
-			Notify( "Send rate cannot be more than tick rate. Clamping to tick rate." )
-		end
-	} )
-	Validator:AddRule( {
-		Matches = function( self, Config )
-			return Config.SendRate > Config.MoveRate
-		end,
-		Fix = function( self, Config )
-			Config.SendRate = Config.MoveRate
-			Notify( "Send rate cannot be more than move rate. Clamping to move rate." )
-		end
-	} )
-	Validator:AddRule( {
-		Matches = function( self, Config )
-			local MinInterp = 2 / Config.SendRate * 1000
-
-			if Config.Interp < MinInterp then
-				Config.Interp = MinInterp
-				Notify( StringFormat( "Interp cannot be less than %.2fms, clamping...",
-					MinInterp ) )
-				return true
-			end
-
-			return false
-		end
-	} )
 	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
 		Validator.ValidateField( "FractionOfTeamToPass", Validator.IsType( "number" ) )
 	) )
@@ -308,53 +248,7 @@ do
 			return false
 		end
 	} )
-
 	Plugin.ConfigValidator = Validator
-
-	local Rates = {
-		{
-			Key = "MoveRate", Default = 26, Command = "mr %s"
-		},
-		{
-			Key = "TickRate", Default = function() return Server.GetTickrate() end, Command = "tickrate %s"
-		},
-		{
-			Key = "SendRate", Default = function() return Server.GetSendrate() end, Command = "sendrate %s"
-		},
-		{
-			Key = "Interp", Default = 100, Command = function( Value ) return StringFormat( "interp %s", Value * 0.001 ) end
-		},
-		{
-			Key = "BWLimit",
-			Transformer = function( Value ) return Value * 1024 end,
-			Default = function() return Server.GetBwLimit() end,
-			Command = "bwlimit %s",
-			WarnIfBelow = 50
-		}
-	}
-
-	local function Transform( Rate, Value )
-		return Rate.Transformer and Rate.Transformer( Value ) or Value
-	end
-
-	function Plugin:CheckRateValues()
-		for i = 1, #Rates do
-			local Rate = Rates[ i ]
-			local ConfigValue = Transform( Rate, self.Config[ Rate.Key ] )
-			local Default = IsType( Rate.Default, "function" ) and Rate.Default() or Rate.Default
-
-			if ConfigValue ~= Default then
-				local Command = IsType( Rate.Command, "function" ) and Rate.Command( ConfigValue )
-					or StringFormat( Rate.Command, ConfigValue )
-
-				Shared.ConsoleCommand( Command )
-			end
-
-			if Rate.WarnIfBelow and ConfigValue < Transform( Rate, Rate.WarnIfBelow ) then
-				Notify( StringFormat( "WARNING: %s is below the default of %s", Rate.Key, Rate.WarnIfBelow ) )
-			end
-		end
-	end
 end
 
 function Plugin:Initialise()
@@ -366,13 +260,6 @@ function Plugin:Initialise()
 	self:UpdateVanillaConfig()
 
 	self.SetEjectVotes = false
-
-	self.Config.Interp = Max( self.Config.Interp, 0 )
-	self.Config.MoveRate = Max( Floor( self.Config.MoveRate ), 5 )
-	self.Config.TickRate = Max( Floor( self.Config.TickRate ), 5 )
-	self.Config.BWLimit = Max( self.Config.BWLimit, 5 )
-	self.Config.SendRate = Max( Floor( self.Config.SendRate ), 5 )
-
 	self.dt.AllTalk = self.Config.AllTalk
 	self.dt.AllTalkPreGame = self.Config.AllTalkPreGame
 
@@ -382,6 +269,37 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:UpdateVanillaConfig()
+	if not Server.SetConfigSetting then return end
+
+	if self.Config.AllTalkPreGame and Server.GetConfigSetting( "pregamealltalk" ) then
+		self:Print( "Disabling vanilla pregamealltalk, AllTalkPreGame is enabled." )
+		-- Disable vanilla pregame all-talk to avoid it broadcasting voice during the 'PreGame' state.
+		Server.SetConfigSetting( "pregamealltalk", false )
+		Server.SaveConfigSettings()
+	end
+end
+
+function Plugin:OnFirstThink()
+	self:UpdateVanillaConfig()
+
+	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+
+	local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+		local NewDamage, NewArmour, NewHealth = Call( "TakeDamage", self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+
+		if NewDamage ~= nil then
+			Damage = NewDamage
+			ArmourUsed = NewArmour or ArmourUsed
+			HealthUsed = NewHealth or HealthUsed
+		end
+
+		return OldFunc( self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
+	end
+	Hook.SetupClassHook( "LiveMixin", "TakeDamage", "TakeDamage", TakeDamage )
 end
 
 function Plugin:LoadGaggedPlayers()
