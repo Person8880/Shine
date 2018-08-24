@@ -593,7 +593,7 @@ function Plugin:ParseAdverts()
 					if self.TriggerHandlers[ TriggerName ] then
 						local Source = StringFormat( "%s[ %d ]", AdvertList, Index )
 						self.TriggerHandlers[ TriggerName ]( self, Source, Advert, function()
-							self:DisplayAdvert( Advert )
+							self:TriggerAdvert( Advert, nil, self:GetGameState() )
 						end )
 					else
 						TriggeredAdvertsByTrigger:Add( TriggerName, Advert )
@@ -603,6 +603,11 @@ function Plugin:ParseAdverts()
 	end
 
 	self.TriggeredAdvertsByTrigger = TriggeredAdvertsByTrigger
+end
+
+function Plugin:GetGameState()
+	local Gamerules = GetGamerules()
+	return Gamerules and Gamerules:GetGameState()
 end
 
 function Plugin:StartStreams()
@@ -696,6 +701,15 @@ function Plugin:DisplayAdvert( Advert, EventData )
 	end
 end
 
+function Plugin:TriggerAdvert( Advert, EventData, GameState )
+	if GameState and not AdvertStream.IsValidForGameState( Advert, GameState ) then
+		return
+	end
+
+	-- Only trigger adverts that are valid for the current gamestate.
+	self:DisplayAdvert( Advert, EventData )
+end
+
 --[[
 	Triggers all adverts for the given trigger name with the given data.
 ]]
@@ -710,9 +724,10 @@ function Plugin:TriggerAdverts( TriggerName, EventData )
 
 	local Adverts = self.TriggeredAdvertsByTrigger:Get( TriggerName )
 	if Adverts then
+		local GameState = self:GetGameState()
 		-- Trigger individual adverts.
 		for j = 1, #Adverts do
-			self:DisplayAdvert( Adverts[ j ], EventData )
+			self:TriggerAdvert( Adverts[ j ], EventData, GameState )
 		end
 	end
 end

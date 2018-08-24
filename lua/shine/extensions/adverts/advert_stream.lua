@@ -199,6 +199,25 @@ for i = 1, #kGameState do
 	SafeGameStateLookup[ kGameState[ i ] ] = i
 end
 
+local function IsGameState( GameStateName, GameState )
+	return SafeGameStateLookup[ GameStateName ] == GameState
+end
+
+function AdvertStream.IsValidForGameState( Advert, GameState )
+	if not Advert.GameState then return true end
+
+	if IsType( Advert.GameState, "table" ) then
+		for i = 1, #Advert.GameState do
+			if IsGameState( Advert.GameState[ i ], GameState ) then
+				return true
+			end
+		end
+	end
+
+	return IsGameState( Advert.GameState, GameState )
+end
+
+local IsValidForGameState = AdvertStream.IsValidForGameState
 --[[
 	Filters the current advert list to those that are valid for the given
 	game state.
@@ -207,28 +226,10 @@ end
 	out.
 ]]
 function AdvertStream.FilterAdvertListForState( Adverts, CurrentAdverts, GameState )
-	local function IsGameState( GameStateName )
-		return SafeGameStateLookup[ GameStateName ] == GameState
-	end
-
-	local function IsValidForGameState( Advert )
-		if not Advert.GameState then return true end
-
-		if IsType( Advert.GameState, "table" ) then
-			for i = 1, #Advert.GameState do
-				if IsGameState( Advert.GameState[ i ] ) then
-					return true
-				end
-			end
-		end
-
-		return IsGameState( Advert.GameState )
-	end
-
 	local OutputAdverts = {}
 	local HasChanged = false
 	for i = 1, #Adverts do
-		if IsValidForGameState( Adverts[ i ] ) then
+		if IsValidForGameState( Adverts[ i ], GameState ) then
 			local Index = #OutputAdverts + 1
 			OutputAdverts[ Index ] = Adverts[ i ]
 			if OutputAdverts[ Index ] ~= CurrentAdverts[ Index ] then
