@@ -9,10 +9,12 @@ local Notify = Shared.Message
 local Abs = math.abs
 local Ceil = math.ceil
 local Clamp = math.Clamp
+local DebugGetInfo = debug.getinfo
 local Floor = math.floor
 local GetAllPlayers = Shine.GetAllPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
 local GetOwner = Server.GetOwner
+local IsType = Shine.IsType
 local Max = math.max
 local Random = math.random
 local SharedTime = Shared.GetTime
@@ -533,6 +535,13 @@ do
 		local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
 		local IsEnforcingTeams = self.EnforcementPolicy:IsActive( self )
 
+		local function AddTeamPreference( Player, Client, Preference )
+			TeamMembers.TeamPreferences[ Player ] = Preference
+			-- Track against thier client too as their player object will be changed
+			-- if their team is changed.
+			TeamMembers.TeamPreferences[ Client ] = Preference
+		end
+
 		local function SortPlayer( Player, Client, Commander, Pass )
 			-- Do not shuffle clients that are in a spectator slot.
 			if Client:GetIsSpectator() then return end
@@ -565,7 +574,7 @@ do
 					-- Either they have a set preference, or they joined the team they want.
 					Preference = Preference or ( IsPlayingTeam and Team )
 					-- Even without a preference, don't move them around if it can be helped.
-					TeamMembers.TeamPreferences[ Player ] = Preference or true
+					AddTeamPreference( Player, Client, Preference or true )
 				end
 
 				return
@@ -581,15 +590,15 @@ do
 				if not IsEnforcingTeams then
 					-- If we're not enforcing teams, their preference is either the one they've set
 					-- or otherwise the team they decided to join.
-					TeamMembers.TeamPreferences[ Player ] = Preference or Team
+					AddTeamPreference( Player, Client, Preference or Team )
 				else
 					-- If we are enforcing teams, then the only assumption about preference we have
 					-- is their configured choice, as they've been locked to a team.
-					TeamMembers.TeamPreferences[ Player ] = Preference
+					AddTeamPreference( Player, Client, Preference )
 				end
 			else
 				Targets[ #Targets + 1 ] = Player
-				TeamMembers.TeamPreferences[ Player ] = Preference
+				AddTeamPreference( Player, Client, Preference )
 			end
 		end
 
@@ -682,7 +691,11 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	self.ReconnectingClients = {}
 
 	local Mode = ForceMode or self.Config.BalanceMode
-	self.ShufflingModes[ Mode ]( self, Gamerules, Targets, TeamMembers )
+	local ModeFunction = self.ShufflingModes[ Mode ]
+	ModeFunction( self, Gamerules, Targets, TeamMembers )
+
+	local FunctionSource = DebugGetInfo( ModeFunction, "S" ).source
+	local IsExpectedFunction = FunctionSource == "@lua/shine/extensions/voterandom/team_balance.lua"
 
 	self.OptimisingTeams = false
 	self.HasShuffledThisRound = true
@@ -690,6 +703,8 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 	-- Remember who was on what team at the point of shuffling, so we can work out
 	-- how close to the shuffled teams we are later.
 	local TeamLookup = {}
+	local NumPreferencesHeld = 0
+	local NumPreferencesTotal = 0
 	for i = 1, 2 do
 		for j = 1, #TeamMembers[ i ] do
 			local Player = TeamMembers[ i ][ j ]
@@ -697,9 +712,24 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 				local Client = Player:GetClient()
 				local SteamID = Client:GetUserId()
 				TeamLookup[ SteamID ] = i
+
+				-- Remember how many players got the team they wanted.
+				local Preference = TeamMembers.TeamPreferences[ Client ]
+				if IsType( Preference, "number" ) then
+					NumPreferencesTotal = NumPreferencesTotal + 1
+					if Preference == i then
+						NumPreferencesHeld = NumPreferencesHeld + 1
+					end
+				end
 			end
 		end
 	end
+
+	TeamLookup.NumPreferencesHeld = NumPreferencesHeld
+	TeamLookup.NumPreferencesTotal = NumPreferencesTotal
+	-- If another mod has overridden the balance algorithm, tell players.
+	TeamLookup.IsFunctionChanged = not IsExpectedFunction
+
 	self.LastShuffleTeamLookup = TeamLookup
 	self:ClearStatsCache()
 end
@@ -1317,10 +1347,19 @@ function Plugin:CreateCommands()
 			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
 		if self.LastShuffleTime then
 			Message[ #Message + 1 ] = StringFormat(
-				"Last shuffle was %s ago. %i/%i players match their team from the last shuffle.",
+				"Last shuffle was %s ago. %d/%d player(s) match their team from the last shuffle.",
 				string.TimeToString( SharedTime() - self.LastShuffleTime ),
 				TeamStats.NumMatchingTeams or 0,
 				TeamStats.TotalPlayers or 0 )
+			Message[ #Message + 1 ] = StringFormat( "%d/%d player(s) were placed on their preferred team.",
+				TeamStats.NumPreferencesHeld or 0,
+				TeamStats.NumPreferencesTotal or 0 )
+			if TeamStats.IsFunctionChanged then
+				-- If you're altering the algorithm, please don't try to suppress this.
+				-- It's important for players to know when the shuffle algorithm is different so
+				-- it's clear who to report problems to.
+				Message[ #Message + 1 ] = "Another mod has altered the shuffle algorithm, results may be different to other servers."
+			end
 		else
 			Message[ #Message + 1 ] = "Teams have not yet been shuffled."
 		end
