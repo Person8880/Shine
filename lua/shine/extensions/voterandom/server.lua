@@ -79,34 +79,33 @@ local ModeStrings = {
 Plugin.ModeStrings = ModeStrings
 
 Plugin.DefaultConfig = {
-	MinPlayers = 10, --Minimum number of players on the server to enable voting.
-	PercentNeeded = 0.75, --Percentage of the server population needing to vote for it to succeed.
+	MinPlayers = 10, -- Minimum number of players on the server to enable voting.
+	PercentNeeded = 0.75, -- Percentage of the server population needing to vote for it to succeed.
 
 	VoteCooldownInMinutes = 15, -- Cooldown time before another vote can be made.
-	BlockAfterTime = 0, --Time after round start to block the vote. 0 to disable blocking.
-	VoteTimeout = 60, --Time after the last vote before the vote resets.
-	NotifyOnVote = true, -- Should all players be told through the chat when a vote is cast?
-	ApplyToBots = false, -- Should bots be shuffled, or removed?
+	BlockAfterTime = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
+	VoteTimeout = 60, -- Time after the last vote before the vote resets.
+	NotifyOnVote = true, --  Should all players be told through the chat when a vote is cast?
+	ApplyToBots = false, --  Should bots be shuffled, or removed?
 
-	BalanceMode = Plugin.ShuffleMode.HIVE, --How should teams be balanced?
-	FallbackMode = Plugin.ShuffleMode.KDR, --Which method should be used if Elo/Hive fails?
-	--[[
-		How much of an increase in standard deviation should be allowed if the
-		average is being improved but the standard deviation can't be?
-	]]
+	BalanceMode = Plugin.ShuffleMode.HIVE, -- How should teams be balanced?
+	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Elo/Hive fails?
+
+	-- Deprecated parameter controlling how much the standard deviation can increase per swap
+	-- in a hard-rule based shuffle.
 	StandardDeviationTolerance = 40,
-	--[[
-		How much difference between team averages should be considered good enough?
-		The shuffle process will carry on until either it reaches at or below this level,
-		or it can't improve the difference anymore.
-	]]
+	-- How much difference between team averages should be considered good enough?
+	-- The shuffle process will carry on until either it reaches at or below this level,
+	-- or it can't improve the difference anymore.
+	-- This can terminate the shuffle before it has managed to optimise teams appropriately
+	-- and is not recommended.
 	AverageValueTolerance = 0,
 
-	IgnoreCommanders = true, --Should the plugin ignore commanders when switching?
-	IgnoreSpectators = false, --Should the plugin ignore spectators when switching?
-	AlwaysEnabled = false, --Should the plugin be always forcing each round?
+	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
+	IgnoreSpectators = false, -- Should the plugin ignore spectators in player slots when switching?
+	AlwaysEnabled = false, -- Should the plugin be always forcing each round?
 
-	ReconnectLogTime = 0, --How long (in seconds) after a shuffle to log reconnecting players for?
+	ReconnectLogTime = 0, -- How long (in seconds) after a shuffle to log reconnecting players for?
 	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
 	DisplayStandardDeviations = false, -- Should the scoreboard show each team's standard deviation of skill?
 
@@ -116,7 +115,7 @@ Plugin.DefaultConfig = {
 		MinPlayerFractionToConstrain = 0.9,
 		-- The minimum difference in average skill required to permit shuffling.
 		-- A value of 0 will permit all votes.
-		MinAverageDiffToAllowShuffle = 0,
+		MinAverageDiffToAllowShuffle = 75,
 		-- The minimum difference in standard deviation of skill required to permit shuffling.
 		-- Must be greater than 0 to enable checking.
 		MinStandardDeviationDiffToAllowShuffle = 0
