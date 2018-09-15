@@ -443,10 +443,10 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 					local AFKTime = Time - DataTable.LastMove
 
 					if WillKickWhenTimeReached then
-						Shine.SendNetworkMessage( Client, "AFKWarning", {
-							timeAFK = AFKTime,
-							maxAFKTime = KickTime
-						}, true )
+						self:SendTranslatedNotify( Client, "WARN_WILL_BE_KICKED", {
+							AFKTime = Floor( WarnTime ),
+							KickTime = KickTime
+						} )
 					else
 						-- Not going to kick them yet, but tell them they may be kicked later.
 						self:SendTranslatedNotify( Client, "WARN_NOTIFY", {

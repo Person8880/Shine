@@ -10,6 +10,10 @@ function Plugin:SetupDataTable()
 	self:AddTranslatedNotify( "WARN_KICK_ON_CONNECT", {
 		AFKTime = "integer"
 	} )
+	self:AddTranslatedNotify( "WARN_WILL_BE_KICKED", {
+		AFKTime = "integer",
+		KickTime = "integer"
+	} )
 	self:AddTranslatedNotify( "WARN_NOTIFY", {
 		AFKTime = "integer",
 		KickTime = "integer",
