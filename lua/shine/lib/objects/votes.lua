@@ -90,6 +90,8 @@ function VoteMeta:AddVote( Client )
 end
 
 function VoteMeta:CheckForSuccess()
+	if self.Votes <= 0 then return end
+
 	if self.Votes >= self.VotesNeeded() then
 		self.LastSuccessTime = SharedTime()
 		self.OnSuccess()

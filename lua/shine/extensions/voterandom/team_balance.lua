@@ -807,7 +807,10 @@ do
 			TeamStats = {
 				MarineSkill, AlienSkill,
 				TotalPlayers = NumTotal,
-				NumMatchingTeams = NumMatchingTeams
+				NumMatchingTeams = NumMatchingTeams,
+				NumPreferencesHeld = self.LastShuffleTeamLookup.NumPreferencesHeld,
+				NumPreferencesTotal = self.LastShuffleTeamLookup.NumPreferencesTotal,
+				IsFunctionChanged = self.LastShuffleTeamLookup.IsFunctionChanged
 			}
 		else
 			TeamStats = {

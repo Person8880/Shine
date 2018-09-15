@@ -28,6 +28,8 @@ Plugin.DefaultConfig = {
 
 Plugin.CheckConfig = true
 Plugin.ListPermission = "sh_uncommban"
+Plugin.OnBannedHookName = "OnCommanderBanned"
+Plugin.OnUnbannedHookName = "OnCommanderUnbanned"
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
@@ -48,22 +50,26 @@ end
 --[[
 	Deny commanding if they're banned.
 ]]
-function Plugin:CheckCommLogin( CommandStation, Player )
+function Plugin:ValidateCommanderLogin( Gamerules, CommandStation, Player )
 	local Client = GetOwner( Player )
-	if not Client then return end
+	if not Client then
+		self.Logger:Error( "Unable to get client for player %s! Cannot check for commander ban.", Player )
+		return
+	end
 
 	local ID = tostring( Client:GetUserId() )
 	local BanData = self.Config.Banned[ ID ]
-
-	if not BanData then return end
+	if not BanData then
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug( "No commander ban on record for %s, allowing to command.",
+				Shine.GetClientInfo( Client ) )
+		end
+		return
+	end
 
 	local CurTime = Time()
 
 	if BanData.UnbanTime == 0 or BanData.UnbanTime > CurTime then
-		if Player.TriggerInvalidSound then
-			Player:TriggerInvalidSound()
-		end
-
 		if Shine:CanNotify( Client ) then
 			local Duration = BanData.UnbanTime == 0 and 0
 				or ( BanData.UnbanTime - CurTime )
@@ -73,7 +79,17 @@ function Plugin:CheckCommLogin( CommandStation, Player )
 			} )
 		end
 
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug( "Preventing %s from commanding due to ban with expiry time: %s.",
+				Shine.GetClientInfo( Client ), BanData.UnbanTime == 0 and "never" or BanData.UnbanTime )
+		end
+
 		return false
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug( "Removing expired commander ban for %s (expired at %d)",
+			Shine.GetClientInfo( Client ), BanData.UnbanTime )
 	end
 
 	self:RemoveBan( ID, nil, 0 )

@@ -120,47 +120,49 @@ local function ConvertData( Data, DontSave )
 end
 
 function Shine:RequestUsers( Reload )
-	local function UsersResponse( Response )
-		if not Response and not Reload then
-			self:LoadUsers()
+	local Callbacks = {
+		OnSuccess = function( Response )
+			if not Response then
+				self:Print( "Got no response from server when loading users. Using local file instead." )
+				return
+			end
 
-			return
-		end
+			local UserData, Pos, Err = Decode( Response )
+			if not IsType( UserData, "table" ) or not next( UserData ) then
+				if Reload then -- Don't replace with a blank table if request failed when reloading.
+					self:AdminPrint( nil,
+						"Reloading from the web failed. User data has not been changed. Error: %s", true, Err )
 
-		local UserData, Pos, Err = Decode( Response )
+					return
+				end
 
-		if not IsType( UserData, "table" ) or not next( UserData ) then
-			if Reload then --Don't replace with a blank table if request failed when reloading.
-				self:AdminPrint( nil,
-					"Reloading from the web failed. User data has not been changed. Error: %s", true, Err )
+				self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
 
 				return
 			end
 
-			self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
-			self:LoadUsers()
+			self.UserData = UserData
 
-			return
+			ConvertData( self.UserData, true )
+
+			-- Cache the current user data, so if we fail to load it on
+			-- a later map we still have something to load.
+			self:SaveUsers( true )
+			self:Print( Reload and "Shine reloaded users from the web."
+				or "Shine loaded users from web." )
+
+			self.Hook.Call( "OnUserReload" )
+		end,
+		OnFailure = function()
+			self:Print( "All attempts to load users from the web failed. Using local file instead." )
 		end
-
-		self.UserData = UserData
-
-		ConvertData( self.UserData, true )
-
-		--Cache the current user data, so if we fail to load it on
-		--a later map we still have something to load.
-		self:SaveUsers( true )
-		self:Print( Reload and "Shine reloaded users from the web."
-			or "Shine loaded users from web." )
-
-		self.Hook.Call( "OnUserReload" )
-	end
+	}
 
 	if self.Config.GetUsersWithPOST then
-		Shared.SendHTTPRequest( self.Config.UsersURL, "POST",
-			self.Config.UserRetrieveArguments, UsersResponse )
+		self.HTTPRequestWithRetry( self.Config.UsersURL, "POST",
+			self.Config.UserRetrieveArguments, Callbacks )
 	else
-		Shared.SendHTTPRequest( self.Config.UsersURL, "GET", UsersResponse )
+		self.HTTPRequestWithRetry( self.Config.UsersURL, "GET", Callbacks )
 	end
 end
 
@@ -174,23 +176,26 @@ function Shine:LoadUsers( Web, Reload )
 		if Reload then
 			self:RequestUsers( true )
 		else
+			-- Load the local data upfront.
+			self:LoadUsers()
+			-- Queue loading the up-to-date data.
 			self.Hook.Add( "ClientConnect", "LoadUsers", function( Client )
-				self:RequestUsers()
 				self.Hook.Remove( "ClientConnect", "LoadUsers" )
+				self:RequestUsers()
 			end, self.Hook.MAX_PRIORITY )
 		end
 
 		return
 	end
 
-	--Check the default path.
+	-- Check the default path.
 	local UserFile, Pos, Err = self.LoadJSONFile( UserPath )
 
 	if UserFile == false then
-		UserFile, Pos, Err = self.LoadJSONFile( BackupPath ) --Check the secondary path.
+		UserFile, Pos, Err = self.LoadJSONFile( BackupPath ) -- Check the secondary path.
 
 		if UserFile == false then
-			UserFile, Pos, Err = self.LoadJSONFile( DefaultUsers ) --Check the default NS2 users file.
+			UserFile, Pos, Err = self.LoadJSONFile( DefaultUsers ) -- Check the default NS2 users file.
 
 			if not UserFile then
 				self:GenerateDefaultUsers( true )
@@ -206,7 +211,7 @@ function Shine:LoadUsers( Web, Reload )
 		Notify( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
 			Err ) )
 
-		--Dummy data to avoid errors.
+		-- Dummy data to avoid errors.
 		if not Reload then
 			self.UserData = { Groups = {}, Users = {} }
 		end
@@ -568,6 +573,16 @@ local function GetGroupPermissions( GroupName, GroupTable )
 	return Permissions
 end
 
+local Printed = {}
+local function PrintOnce( Message, Format, ... )
+	local MessageText = Format and StringFormat( Message, ... ) or Message
+	if Printed[ MessageText ] then return end
+
+	Printed[ MessageText ] = true
+
+	Shine:Print( MessageText )
+end
+
 --[[
 	Verifies the given group has a commands table.
 	Inputs: Group name, group table.
@@ -576,8 +591,10 @@ end
 local function VerifyGroup( GroupName, GroupTable )
 	if not IsType( GroupTable.Commands, "table" ) then
 		if GroupName then
-			Shine:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			PrintOnce( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
+		else
+			PrintOnce( "The default group has a missing/incorrect \"Commands\" list! It should be a list of commands." )
 		end
 
 		return false
@@ -623,7 +640,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		if IsType( TopLevelCommands, "table" ) then
 			AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
 		else
-			self:Print( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
+			PrintOnce( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
 		end
 	end
@@ -633,7 +650,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 		local DefaultGroup = self:GetDefaultGroup()
 
 		if not DefaultGroup then
-			self:Print( "Group with ID %s inherits from the default group, but no default group exists!", true, GroupName )
+			PrintOnce( "Group with ID %s inherits from the default group, but no default group exists!", true, GroupName )
 		else
 			if not Processed[ DefaultGroup ] then
 				Processed[ DefaultGroup ] = true
@@ -654,7 +671,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 			local InheritedGroup = self:GetGroupData( Name )
 
 			if not InheritedGroup then
-				self:Print( "Group with ID %s inherits from a non-existent group (%s)!",
+				PrintOnce( "Group with ID %s inherits from a non-existent group (%s)!",
 					true, GroupName, Name )
 			else
 				BuildPermissions( self, Name, InheritedGroup, Blacklist, Permissions, Processed )
@@ -833,7 +850,7 @@ local function GetPermissionInheritance( self, GroupName, GroupTable, Command )
 
 	if not InheritFromDefault then
 		if not IsType( InheritGroups, "table" ) then
-			self:Print( "Group with ID %s has a non-array entry for \"InheritsFrom\"!",
+			PrintOnce( "Group with ID %s has a non-array entry for \"InheritsFrom\"!",
 				true, GroupName )
 
 			return false
@@ -841,7 +858,7 @@ local function GetPermissionInheritance( self, GroupName, GroupTable, Command )
 
 		local NumInheritGroups = #InheritGroups
 		if NumInheritGroups == 0 then
-			self:Print( "Group with ID %s has an empty \"InheritsFrom\" entry!",
+			PrintOnce( "Group with ID %s has an empty \"InheritsFrom\" entry!",
 				true, GroupName )
 
 			return false
@@ -919,7 +936,7 @@ function Shine:GetPermission( Client, ConCommand )
 	local GroupTable = self:GetGroupData( UserGroup )
 
 	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+		PrintOnce( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, UserGroup )
 
 		return Command.NoPerm or false
@@ -964,7 +981,7 @@ function Shine:HasAccess( Client, ConCommand, AllowByDefault )
 	if not User then
 		local DefaultGroup = self:GetDefaultGroup()
 		if not DefaultGroup then
-			return false
+			return AllowByDefault or false
 		end
 
 		return self:GetGroupAccess( nil, DefaultGroup, ConCommand, AllowByDefault )
@@ -974,7 +991,7 @@ function Shine:HasAccess( Client, ConCommand, AllowByDefault )
 	local GroupTable = self:GetGroupData( UserGroup )
 
 	if not GroupTable then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+		PrintOnce( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, UserGroup )
 		return false
 	end
@@ -995,15 +1012,15 @@ local function GetGroupAndImmunity( self, Groups, User, ID )
 
 	local Group = Groups[ User.Group or -1 ]
 	if not Group then
-		self:Print( "User with ID %s belongs to a non-existent group (%s)!",
+		PrintOnce( "User with ID %s belongs to a non-existent group (%s)!",
 			true, ID, tostring( User.Group ) )
 		return nil
 	end
 
-	--Read from the user's immunity first, then the groups.
+	-- Read from the user's immunity first, then the groups.
 	local Immunity = tonumber( User.Immunity or Group.Immunity )
 	if not Immunity then
-		self:Print( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)",
+		PrintOnce( "User with ID %s belongs to a group with an empty or incorrect immunity value! (Group: %s)",
 			true, ID, tostring( User.Group ) )
 		return nil
 	end

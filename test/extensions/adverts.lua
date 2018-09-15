@@ -142,6 +142,10 @@ Adverts.Config = {
 			{
 				Message = "I can't be used on the current map",
 				ExcludedMaps = { [ Shared.GetMapName() ] = true }
+			},
+			{
+				Message = "I can't be used in the current gamestate.",
+				GameState = { "Started" }
 			}
 		},
 		INVALID = {
@@ -151,6 +155,10 @@ Adverts.Config = {
 		}
 	}
 }
+
+function Adverts:GetGameState()
+	return kGameState.NotStarted
+end
 
 UnitTest:Test( "ParseAdverts parses as expected", function( Assert )
 	Adverts:ParseAdverts()
@@ -205,6 +213,10 @@ UnitTest:Test( "ParseAdverts parses as expected", function( Assert )
 				Prefix = "[Hint]",
 				PrefixColour = { 0, 200, 255 },
 				GameState = "Started"
+			},
+			{
+				Message = "I can't be used in the current gamestate.",
+				GameState = { "Started" }
 			}
 		}
 	}, Adverts.TriggeredAdvertsByTrigger:AsTable() )
@@ -272,7 +284,12 @@ Adverts.TriggeredAdvertsByTrigger = Shine.Multimap( {
 			Message = "Commander {CommanderName} logged in."
 		},
 		{
-			Message = "Another message."
+			Message = "Another message.",
+			GameState = { "PreGame", "WarmUp", "NotStarted" }
+		},
+		{
+			Message = "Only show this when started",
+			GameState = "Started"
 		}
 	},
 	[ Adverts.AdvertTrigger.COMMANDER_LOGGED_OUT ] = {
@@ -294,10 +311,13 @@ UnitTest:Test( "TriggerAdverts - Displays adverts for given trigger", function( 
 	Adverts:TriggerAdverts( Adverts.AdvertTrigger.COMMANDER_LOGGED_IN, Data )
 
 	local AdvertsTriggered = Adverts.TriggeredAdvertsByTrigger:Get( Adverts.AdvertTrigger.COMMANDER_LOGGED_IN )
-	for i = 1, #AdvertsTriggered do
+	for i = 1, 2 do
 		Assert.Equals( "Adverts should have been triggered with the given data",
 			Data, Displayed[ AdvertsTriggered[ i ] ] )
 	end
+
+	Assert.Nil( "Third advert should not be displayed due to gamestate filter.",
+		Displayed[ AdvertsTriggered[ 3 ] ] )
 end )
 
 Displayed = {}

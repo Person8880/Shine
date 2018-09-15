@@ -233,6 +233,7 @@ end
 
 do
 	local Clamp = math.Clamp
+	local Floor = math.floor
 	local StringExplode = string.Explode
 	local StringUpper = string.upper
 	local TableBuild = table.Build
@@ -246,6 +247,20 @@ do
 
 	function Validator.Constant( Value )
 		return function() return Value end
+	end
+
+	function Validator.Integer( Rounder )
+		Rounder = Rounder or Floor
+
+		return function( Value )
+			return ( tonumber( Value ) or 0 ) % 1 ~= 0
+		end,
+		function( Value )
+			return Rounder( tonumber( Value ) )
+		end,
+		function()
+			return "%s must be an integer"
+		end
 	end
 
 	function Validator.Min( MinValue )

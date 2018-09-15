@@ -69,7 +69,10 @@ Shine.UserData = {
 			[ "3" ] = {
 				"defaultbadge"
 			}
-		}
+		},
+		IsBlacklist = false,
+		Commands = {},
+		Immunity = 0
 	}
 }
 
@@ -203,7 +206,23 @@ UnitTest:Test( "GetGroupAccess when allowed by default", function( Assert )
 	Assert:Falsy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_randomimmune", true ) )
 	-- Not denied in blacklist.
 	Assert:Truthy( Shine:GetGroupAccess( GroupName, GroupTable, "sh_kick", true ) )
+
+	GroupTable = Shine:GetDefaultGroup()
+	-- Allowed by default for default group.
+	Assert:Truthy( Shine:GetGroupAccess( nil, GroupTable, "sh_ns2_votereset", true ) )
 end )
+
+local OldDefaultGroup = Shine.UserData.DefaultGroup
+Shine.UserData.DefaultGroup = nil
+
+UnitTest:Test( "HasAccess when no default group", function( Assert )
+	-- Guest should have access by default.
+	Assert:Truthy( Shine:HasAccess( 123456, "sh_ns2_votereset", true ) )
+	-- But should not if access is not allowed by default.
+	Assert:Falsy( Shine:HasAccess( 123456, "sh_kick" ) )
+end )
+
+Shine.UserData.DefaultGroup = OldDefaultGroup
 
 ---- USER PERMISSION TESTS ----
 UnitTest:Test( "Default group targeting", function( Assert )

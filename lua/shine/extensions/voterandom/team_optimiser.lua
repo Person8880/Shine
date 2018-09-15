@@ -4,7 +4,10 @@
 
 	Skill is defined by whatever function is provided.
 
-	The method used is roughly the following:
+	The method used is either based on hard rules (legacy method, usually worse), or based on a cost
+	function to be minimised (usually produces better teams in less time).
+
+	The hard rule based method is roughly the following (assuming TakeSwapImmediately = false):
 
 	1. Start with two lists of players, one for each team. Make sure the average skill, total skill,
 	   and number of players is already known.
@@ -25,8 +28,13 @@
 
 	6. Go back to step 2 and repeat until the list of allowed swaps is empty.
 
-	This method produces a slow, but steady path towards an optimal solution. It keeps chipping away at the average
-	bit by bit, while never choosing a standard deviation that's too high.
+	The cost based method has the following key differences (assuming TakeSwapImmediately = true):
+
+	1. As soon as a swap that lowers the cost is found, it is chosen and applied. This avoids having to compute
+	   lots of potential swaps and helps avoid being overly greedy and getting stuck in a local minimum.
+
+	2. Instead of hard rules looking at average/standard deviation, a cost is derived from the difference
+	   in average/standard deviation between teams. The goal is then to lower the cost.
 ]]
 
 local Abs = math.abs

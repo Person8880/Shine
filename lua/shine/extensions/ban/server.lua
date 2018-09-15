@@ -41,6 +41,9 @@ Plugin.MAX_BAN_PER_NETMESSAGE = 15
 -- Permission required to receive the ban list.
 Plugin.ListPermission = "sh_unban"
 
+Plugin.OnBannedHookName = "OnPlayerBanned"
+Plugin.OnUnbannedHookName = "OnPlayerUnbanned"
+
 local Hooked
 
 Plugin.DefaultConfig = {
@@ -410,7 +413,9 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 		BanSharer( self:CheckFamilySharing( ID, false, BanSharer ) )
 	end
 
-	Hook.Call( "OnPlayerBanned", ID, Name, Duration, BannedBy, Reason )
+	if self.OnBannedHookName then
+		Hook.Call( self.OnBannedHookName, ID, Name, Duration, BannedBy, Reason )
+	end
 
 	return true
 end
@@ -443,7 +448,9 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 		end )
 	end
 
-	Hook.Call( "OnPlayerUnbanned", ID )
+	if self.OnUnbannedHookName then
+		Hook.Call( self.OnUnbannedHookName, ID )
+	end
 
 	if DontSave then return end
 
