@@ -475,19 +475,6 @@ function Plugin:ReceiveTeamPreference( Client, Data )
 end
 
 do
-	local function DebugLogTeamMembers( Logger, self, Targets, TeamMembers )
-		local TargetOutput = self:AsLogOutput( Targets )
-		local TeamMemberOutput = {
-			self:AsLogOutput( TeamMembers[ 1 ] ),
-			self:AsLogOutput( TeamMembers[ 2 ] ),
-			TeamPreferences = self:AsLogOutput( table.GetKeys( TeamMembers.TeamPreferences ) )
-		}
-
-		Logger:Debug( "Result of GetTargetsForSorting (IgnoreCommanders: %s):", self.Config.IgnoreCommanders )
-		Logger:Debug( "Unassigned targets:\n%s", table.ToString( TargetOutput ) )
-		Logger:Debug( "Assigned team members:\n%s", table.ToString( TeamMemberOutput ) )
-	end
-
 	local function PlayerToString( Player )
 		local Client = Player:GetClient()
 		local NS2ID = Client:GetUserId()
@@ -511,8 +498,31 @@ do
 		return TableConcat( Text )
 	end
 
+	local function IsPlayer( Player )
+		return Player.GetClient
+	end
+
 	function Plugin:AsLogOutput( Players )
-		return Shine.Stream.Of( Players ):Map( PlayerToString ):AsTable()
+		return Shine.Stream.Of( Players ):Filter( IsPlayer ):Map( PlayerToString ):AsTable()
+	end
+
+	local function DebugLogTeamMembers( Logger, self, Targets, TeamMembers )
+		local TargetOutput = self:AsLogOutput( Targets )
+		local TeamMemberOutput = {
+			self:AsLogOutput( TeamMembers[ 1 ] ),
+			self:AsLogOutput( TeamMembers[ 2 ] ),
+			TeamPreferences = Shine.Stream( table.GetKeys( TeamMembers.TeamPreferences ) )
+				:Filter( IsPlayer )
+				:Map( function( Player )
+					local PlayerAsString = PlayerToString( Player )
+					local Preference = TeamMembers.TeamPreferences[ Player ]
+					return StringFormat( "%s -> %s", PlayerAsString, Preference )
+				end ):AsTable()
+		}
+
+		Logger:Debug( "Result of GetTargetsForSorting (IgnoreCommanders: %s):", self.Config.IgnoreCommanders )
+		Logger:Debug( "Unassigned targets:\n%s", table.ToString( TargetOutput ) )
+		Logger:Debug( "Assigned team members:\n%s", table.ToString( TeamMemberOutput ) )
 	end
 
 	--[[
