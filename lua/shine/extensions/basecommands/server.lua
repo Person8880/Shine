@@ -1530,7 +1530,7 @@ end
 
 function Plugin:CreatePerformanceCommands()
 	local function Interp( Client, NewInterp )
-		local MinInterp = 2 / self.Config.SendRate * 1000
+		local MinInterp = 2 / self.Config.Rates.SendRate * 1000
 		if NewInterp < MinInterp then
 			NotifyError( Client, "ERROR_INTERP_CONSTRAINT", {
 				Rate = MinInterp
@@ -1538,7 +1538,7 @@ function Plugin:CreatePerformanceCommands()
 			return
 		end
 
-		self.Config.Interp = NewInterp
+		self.Config.Rates.Interp = NewInterp
 
 		Shared.ConsoleCommand( StringFormat( "interp %s", NewInterp * 0.001 ) )
 
@@ -1554,21 +1554,21 @@ function Plugin:CreatePerformanceCommands()
 
 	local function AddAdditionalInfo( Command, ConfigKey, Units )
 		Command.GetAdditionalInfo = function()
-			return StringFormat( " - Current value: %i%s", self.Config[ ConfigKey ], Units )
+			return StringFormat( " - Current value: %i%s", self.Config.Rates[ ConfigKey ], Units )
 		end
 	end
 
 	AddAdditionalInfo( InterpCommand, "Interp", "ms" )
 
 	local function TickRate( Client, NewRate )
-		if NewRate < self.Config.MoveRate then
+		if NewRate < self.Config.Rates.MoveRate then
 			NotifyError( Client, "ERROR_TICKRATE_CONSTRAINT", {
-				Rate = self.Config.MoveRate
-			}, "Tick rate cannot be less than move rate (%i).", true, self.Config.MoveRate )
+				Rate = self.Config.Rates.MoveRate
+			}, "Tick rate cannot be less than move rate (%i).", true, self.Config.Rates.MoveRate )
 			return
 		end
 
-		self.Config.TickRate = NewRate
+		self.Config.Rates.TickRate = NewRate
 
 		Shared.ConsoleCommand( StringFormat( "tickrate %s", NewRate ) )
 
@@ -1585,7 +1585,7 @@ function Plugin:CreatePerformanceCommands()
 	AddAdditionalInfo( TickRateCommand, "TickRate", "/s" )
 
 	local function BWLimit( Client, NewLimit )
-		self.Config.BWLimit = NewLimit
+		self.Config.Rates.BWLimit = NewLimit
 
 		Shared.ConsoleCommand( StringFormat( "bwlimit %s", NewLimit * 1024 ) )
 
@@ -1602,21 +1602,21 @@ function Plugin:CreatePerformanceCommands()
 	AddAdditionalInfo( BWLimitCommand, "BWLimit", "kb/s" )
 
 	local function SendRate( Client, NewRate )
-		if NewRate > self.Config.TickRate then
+		if NewRate > self.Config.Rates.TickRate then
 			NotifyError( Client, "ERROR_SENDRATE_CONSTRAINT", {
-				Rate = self.Config.TickRate
-			}, "Send rate cannot be greater than tick rate (%i).", true, self.Config.TickRate )
+				Rate = self.Config.Rates.TickRate
+			}, "Send rate cannot be greater than tick rate (%i).", true, self.Config.Rates.TickRate )
 			return
 		end
 
-		if NewRate > self.Config.MoveRate then
+		if NewRate > self.Config.Rates.MoveRate then
 			NotifyError( Client, "ERROR_SENDRATE_MOVE_CONSTRAINT", {
-				Rate = self.Config.MoveRate
-			}, "Send rate cannot be greater than move rate (%i).", true, self.Config.MoveRate )
+				Rate = self.Config.Rates.MoveRate
+			}, "Send rate cannot be greater than move rate (%i).", true, self.Config.Rates.MoveRate )
 			return
 		end
 
-		self.Config.SendRate = NewRate
+		self.Config.Rates.SendRate = NewRate
 
 		Shared.ConsoleCommand( StringFormat( "sendrate %s", NewRate ) )
 
@@ -1633,21 +1633,21 @@ function Plugin:CreatePerformanceCommands()
 	AddAdditionalInfo( SendRateCommand, "SendRate", "/s" )
 
 	local function MoveRate( Client, NewRate )
-		if NewRate > self.Config.TickRate then
+		if NewRate > self.Config.Rates.TickRate then
 			NotifyError( Client, "ERROR_MOVERATE_CONSTRAINT", {
-				Rate = self.Config.TickRate
-			}, "Move rate cannot be greater than tick rate (%i).", true, self.Config.TickRate )
+				Rate = self.Config.Rates.TickRate
+			}, "Move rate cannot be greater than tick rate (%i).", true, self.Config.Rates.TickRate )
 			return
 		end
 
-		if NewRate < self.Config.SendRate then
+		if NewRate < self.Config.Rates.SendRate then
 			NotifyError( Client, "ERROR_MOVERATE_SENDRATE_CONSTRAINT", {
-				Rate = self.Config.SendRate
-			}, "Move rate cannot be less than send rate (%i).", true, self.Config.SendRate )
+				Rate = self.Config.Rates.SendRate
+			}, "Move rate cannot be less than send rate (%i).", true, self.Config.Rates.SendRate )
 			return
 		end
 
-		self.Config.MoveRate = NewRate
+		self.Config.Rates.MoveRate = NewRate
 
 		Shared.ConsoleCommand( StringFormat( "mr %s", NewRate ) )
 
