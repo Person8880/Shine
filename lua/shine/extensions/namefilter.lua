@@ -6,7 +6,6 @@ local Shine = Shine
 
 local Clamp = math.Clamp
 local Floor = math.floor
-local GetOwner = Server.GetOwner
 local Max = math.max
 local pcall = pcall
 local Random = math.random
@@ -21,29 +20,44 @@ local tostring = tostring
 local Plugin = {}
 
 Plugin.PrintName = "Name Filter"
-Plugin.Version = "1.1"
+Plugin.Version = "1.2"
 
 Plugin.ConfigName = "NameFilter.json"
 Plugin.HasConfig = true
 
-Plugin.RENAME = 1
-Plugin.KICK = 2
-Plugin.BAN = 3
+Plugin.FilterActionType = table.AsEnum{
+	"RENAME", "KICK", "BAN"
+}
 
 Plugin.DefaultConfig = {
 	ForcedNames = {},
 	Filters = {},
-	FilterAction = Plugin.RENAME,
+	FilterAction = Plugin.FilterActionType.RENAME,
 	BanLength = 1440
 }
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-function Plugin:Initialise()
-	self.Config.BanLength = Max( 0, self.Config.BanLength )
-	self.Config.FilterAction = Clamp( Floor( self.Config.FilterAction ), 1, 3 )
+do
+	local Validator = Shine.Validator()
+	Validator:AddFieldRule( "BanLength", Validator.Min( 0 ) )
+	Validator:AddFieldRule(	"FilterAction",
+		Validator.InEnum( Plugin.FilterActionType, Plugin.FilterActionType.RENAME ) )
+	Plugin.ConfigValidator = Validator
+end
 
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.2",
+		Apply = function( Config )
+			local ExistingAction = Plugin.FilterActionType[ Config.FilterAction ]
+			Config.FilterAction = ExistingAction or Plugin.FilterActionType.RENAME
+		end
+	}
+}
+
+function Plugin:Initialise()
 	self:CreateCommands()
 	self.InvalidFilters = {}
 
@@ -105,20 +119,19 @@ function Plugin:CreateCommands()
 end
 
 Plugin.FilterActions = {
-	function( self, Player, OldName ) -- Rename them to NSPlayer<RandomLargeNumber>
+	[ Plugin.FilterActionType.RENAME ] = function( self, Player, OldName )
 		local UserName = "NSPlayer"..Random( 1e3, 1e5 )
-		Player:SetName( UserName )
-
-		local Client = GetOwner( Player )
-		if not Client then return end
+		local Client = Player:GetClient()
+		if not Client then return UserName end
 
 		self:Print( "Client %s[%s] was renamed from filtered name: %s", true,
 			UserName, Client:GetUserId(), OldName )
+
+		return UserName
 	end,
 
-	function( self, Player, OldName ) --Kick them out.
-		local Client = GetOwner( Player )
-
+	[ Plugin.FilterActionType.KICK ] = function( self, Player, OldName )
+		local Client = Player:GetClient()
 		if not Client then return end
 
 		self:Print( "Client %s[%s] was kicked for filtered name.", true,
@@ -127,8 +140,8 @@ Plugin.FilterActions = {
 		Server.DisconnectClient( Client, "Kicked for filtered name." )
 	end,
 
-	function( self, Player, OldName ) --Ban them.
-		local Client = GetOwner( Player )
+	[ Plugin.FilterActionType.BAN ] = function( self, Player, OldName )
+		local Client = Player:GetClient()
 		if not Client then return end
 
 		local ID = Client:GetUserId()
@@ -163,7 +176,7 @@ Plugin.FilterActions = {
 function Plugin:ProcessFilter( Player, Name, Filter )
 	if not Filter.Pattern then return end
 
-	local Client = GetOwner( Player )
+	local Client = Player:GetClient()
 	if Client and tostring( Client:GetUserId() ) == tostring( Filter.Excluded ) then return end
 
 	local LoweredName = StringLower( Name )
@@ -185,41 +198,35 @@ function Plugin:ProcessFilter( Player, Name, Filter )
 	end
 
 	if Start then
-		self.FilterActions[ self.Config.FilterAction ]( self, Player, Name )
+		local NewName = self.FilterActions[ self.Config.FilterAction ]( self, Player, Name )
 
-		return true
+		return true, NewName
 	end
 end
 
 --[[
 	Check for a forced name, and if the player has one, apply it.
 ]]
-function Plugin:EnforceName( Player, NewName )
-	local Client = GetOwner( Player )
+function Plugin:EnforceName( Client )
 	local ID = Client and Client:GetUserId()
-	local ForcedName = self.Config.ForcedNames[ tostring( ID ) ]
-
-	if ForcedName and ForcedName ~= NewName then
-		Player:SetName( ForcedName )
-		return true
-	end
-
-	return false
+	return self.Config.ForcedNames[ tostring( ID ) ]
 end
 
 
 --[[
 	When a player's name changes, we check all set filters on their new name.
 ]]
-function Plugin:PlayerNameChange( Player, Name, OldName )
-	if self:EnforceName( Player, Name ) then return end
+function Plugin:CheckPlayerName( Player, Name, OldName )
+	local ForcedName = self:EnforceName( Player:GetClient() )
+	if ForcedName then return ForcedName end
 
 	local Filters = self.Config.Filters
-
 	for i = 1, #Filters do
-		if not self.InvalidFilters[ Filters[ i ] ]
-		and self:ProcessFilter( Player, Name, Filters[ i ] ) then
-			break
+		if not self.InvalidFilters[ Filters[ i ] ] then
+			local Filtered, NewName = self:ProcessFilter( Player, Name, Filters[ i ] )
+			if Filtered then
+				return NewName or OldName
+			end
 		end
 	end
 end
