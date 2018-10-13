@@ -619,10 +619,11 @@ Add( "Think", "ReplaceMethods", function()
 	SetupClassHook( "Player", "OnProcessMove", "OnProcessMove", "PassivePre" )
 	SetupClassHook( "Player", "SetName", "PlayerNameChange", function( OldFunc, self, Name )
 		local OldName = self:GetName()
+		local NewName = Call( "CheckPlayerName", self, Name, OldName ) or Name
 
-		OldFunc( self, Name )
+		OldFunc( self, NewName )
 
-		Call( "PlayerNameChange", self, Name, OldName )
+		Call( "PlayerNameChange", self, NewName, OldName )
 	end )
 
 	SetupClassHook( "Spectator", "OnProcessMove", "OnProcessMove", "PassivePre" )
