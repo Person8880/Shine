@@ -366,7 +366,7 @@ function SGUI:IsWindowInFocus( Window )
 	for i = #Windows, 1, -1 do
 		local OtherWindow = Windows[ i ]
 		if Window == OtherWindow then
-			return Window:MouseInCached()
+			return Window.AlwaysInMouseFocus or Window:MouseInCached()
 		end
 
 		if not OtherWindow.IgnoreMouseFocus and OtherWindow:MouseInCached() then

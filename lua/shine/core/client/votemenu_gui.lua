@@ -156,6 +156,7 @@ function VoteMenu:Create()
 	Background:SetPos( -BackSize * 0.5 )
 	Background:SetTexture( MenuTexture[ self.TeamType ] )
 	Background:SetIsSchemed( false )
+	Background.AlwaysInMouseFocus = true
 
 	self.Background = Background
 
