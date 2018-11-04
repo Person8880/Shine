@@ -203,7 +203,11 @@ function ControlMeta:ForEach( TableKey, MethodName, ... )
 
 	for i = 1, #Objects do
 		local Object = Objects[ i ]
-		Object[ MethodName ]( Object, ... )
+		local Method = Object[ MethodName ]
+
+		if Method then
+			Method( Object, ... )
+		end
 	end
 end
 

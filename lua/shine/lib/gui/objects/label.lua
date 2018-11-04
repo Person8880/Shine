@@ -4,11 +4,7 @@
 
 local SGUI = Shine.GUI
 
-local StringGMatch = string.gmatch
-
 local Label = {}
-
-local ZeroCol = Colour( 0, 0, 0, 0 )
 
 SGUI.AddBoundProperty( Label, "Colour", "Label:SetColor" )
 SGUI.AddBoundProperty( Label, "InheritsParentAlpha", "Label" )

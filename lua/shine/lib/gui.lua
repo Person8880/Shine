@@ -108,8 +108,20 @@ do
 	local StringExplode = string.Explode
 	local unpack = unpack
 
-	local function GetBindingInfo( BoundObject )
-		return unpack( StringExplode( BoundObject, ":" ) )
+	local function GetBindingInfo( BoundObject, PropertyName )
+		if IsType( BoundObject, "string" ) then
+			BoundObject = { BoundObject }
+		end
+
+		local BoundFields = {}
+		for i = 1, #BoundObject do
+			local FieldName, Setter = unpack( StringExplode( BoundObject[ i ], ":" ) )
+			BoundFields[ i ] = {
+				FieldName = FieldName,
+				Setter = Setter or "Set"..PropertyName
+			}
+		end
+		return BoundFields
 	end
 
 	--[[
@@ -119,8 +131,7 @@ do
 		Used to perform actions on GUIItems without boilerplate code.
 	]]
 	function SGUI.AddBoundProperty( Table, Name, BoundObject, Modifiers )
-		local BoundField, Setter = GetBindingInfo( BoundObject )
-		Setter = Setter or "Set"..Name
+		local BoundFields = GetBindingInfo( BoundObject, Name )
 
 		Table[ "Get"..Name ] = function( self )
 			return self[ Name ]
@@ -130,10 +141,13 @@ do
 		Table[ TableSetter ] = function( self, Value )
 			self[ Name ] = Value
 
-			local Object = self[ BoundField ]
-			if not Object then return end
+			for i = 1, #BoundFields do
+				local Entry = BoundFields[ i ]
+				local Object = self[ Entry.FieldName ]
+				if not Object then return end
 
-			Object[ Setter ]( Object, Value )
+				Object[ Entry.Setter ]( Object, Value )
+			end
 		end
 
 		if not Modifiers then return end
