@@ -118,66 +118,80 @@ function Shine.EqualiseTeamCounts( TeamMembers )
 	return Diff
 end
 
-local function MoveToTeam( Gamerules, Players, TeamNumber )
-	for i = #Players, 1, -1 do
-		local Player = Players[ i ]
-		if Player:GetTeamNumber() ~= TeamNumber then
-			local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
-				OnJoinError, Gamerules, Player, TeamNumber,
-				true, true )
+do
+	local function MoveToTeam( Gamerules, Players, TeamNumber )
+		for i = #Players, 1, -1 do
+			local Player = Players[ i ]
+			if Player:GetTeamNumber() ~= TeamNumber then
+				local Success, JoinSuccess, NewPlayer = xpcall( Gamerules.JoinTeam,
+					OnJoinError, Gamerules, Player, TeamNumber,
+					true, true )
 
-			if Success then
-				Players[ i ] = NewPlayer
-			else
-				TableRemove( Players, i )
+				if Success then
+					Players[ i ] = NewPlayer
+				else
+					TableRemove( Players, i )
+				end
 			end
 		end
 	end
-end
 
---[[
-	Ensures no team has more than 1 extra player compared to the other.
-]]
-function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
-	Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
-
-	-- Yes, we repeat this, but the reporting needs it...
-	local Marine = TeamMembers[ 1 ]
-	local Alien = TeamMembers[ 2 ]
-
-	local NumMarine = #Marine
-	local NumAlien = #Alien
-	local Diff = Shine.EqualiseTeamCounts( TeamMembers )
-
-	local MarineTeam = Gamerules.team1
-	local AlienTeam = Gamerules.team2
-
-	MoveToTeam( Gamerules, Marine, 1 )
-	MoveToTeam( Gamerules, Alien, 2 )
-
-	local NewMarineCount = MarineTeam:GetNumPlayers()
-	local NewAlienCount = AlienTeam:GetNumPlayers()
-	local NewDiff = Abs( NewMarineCount - NewAlienCount )
-	-- If the number of players has changed, something else is interfering with teams and it's not our fault.
-	local IsSameAmountOfPlayers = NumMarine + NumAlien == NewMarineCount + NewAlienCount
-
-	if NewDiff > 1 and IsSameAmountOfPlayers then
-		local VoteRandom = Shine.Plugins.voterandom
-
-		if VoteRandom then
-			local BalanceMode = VoteRandom.Config.BalanceMode
-
-			local Marines = TableToString( Marine )
-			local Aliens = TableToString( Alien )
-
-			Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
-				"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\nActual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\nNew Teams:\nMarines:\n%s\nAliens:\n%s",
-				true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount,
-				NewAlienCount, NewDiff, Marines, Aliens )
+	local function ForceTeamSwap( Gamerules, Player, TeamNumber, Force, ShineForce )
+		if ShineForce then
+			return true, TeamNumber
 		end
 	end
 
-	Hook.Call( "PostEvenlySpreadTeams", Gamerules, TeamMembers )
+	--[[
+		Ensures no team has more than 1 extra player compared to the other.
+	]]
+	function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
+		Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
+
+		-- Yes, we repeat this, but the reporting needs it...
+		local Marine = TeamMembers[ 1 ]
+		local Alien = TeamMembers[ 2 ]
+
+		local NumMarine = #Marine
+		local NumAlien = #Alien
+		local Diff = Shine.EqualiseTeamCounts( TeamMembers )
+
+		local MarineTeam = Gamerules.team1
+		local AlienTeam = Gamerules.team2
+
+		-- Override all plugin hooks to prevent them interfering with the swapping process.
+		-- Some people implement JoinTeam hooks without respecting the ShineForce parameter...
+		Hook.Add( "JoinTeam", "StopPeopleBreakingShuffle", ForceTeamSwap, Hook.MAX_PRIORITY )
+
+		MoveToTeam( Gamerules, Marine, 1 )
+		MoveToTeam( Gamerules, Alien, 2 )
+
+		Hook.Remove( "JoinTeam", "StopPeopleBreakingShuffle" )
+
+		local NewMarineCount = MarineTeam:GetNumPlayers()
+		local NewAlienCount = AlienTeam:GetNumPlayers()
+		local NewDiff = Abs( NewMarineCount - NewAlienCount )
+		-- If the number of players has changed, something else is interfering with teams and it's not our fault.
+		local IsSameAmountOfPlayers = NumMarine + NumAlien == NewMarineCount + NewAlienCount
+
+		if NewDiff > 1 and IsSameAmountOfPlayers then
+			local VoteRandom = Shine.Plugins.voterandom
+
+			if VoteRandom then
+				local BalanceMode = VoteRandom.Config.BalanceMode
+
+				local Marines = TableToString( Marine )
+				local Aliens = TableToString( Alien )
+
+				Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
+					"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\nActual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\nNew Teams:\nMarines:\n%s\nAliens:\n%s",
+					true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount,
+					NewAlienCount, NewDiff, Marines, Aliens )
+			end
+		end
+
+		Hook.Call( "PostEvenlySpreadTeams", Gamerules, TeamMembers )
+	end
 end
 
 --[[
