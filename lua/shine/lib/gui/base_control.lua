@@ -1018,12 +1018,18 @@ function ControlMeta:Think( DeltaTime )
 	self:HandleLayout( DeltaTime )
 end
 
-function ControlMeta:ShowTooltip( X, Y )
+function ControlMeta:GetTooltipOffset( MouseX, MouseY, Tooltip )
 	local SelfPos = self:GetScreenPos()
 
-	X = SelfPos.x + X
-	Y = SelfPos.y + Y
+	local X = SelfPos.x + MouseX
+	local Y = SelfPos.y + MouseY
 
+	Y = Y - Tooltip:GetSize().y - 4
+
+	return X, Y
+end
+
+function ControlMeta:ShowTooltip( MouseX, MouseY )
 	local Tooltip = SGUI.IsValid( self.Tooltip ) and self.Tooltip or SGUI:Create( "Tooltip" )
 
 	local W, H = SGUI.GetScreenSize()
@@ -1042,8 +1048,7 @@ function ControlMeta:ShowTooltip( X, Y )
 	Tooltip:SetTextPadding( SGUI.Layout.Units.HighResScaled( 16 ):GetValue() )
 	Tooltip:SetText( self.TooltipText, Font, TextScale )
 
-	Y = Y - Tooltip:GetSize().y - 4
-
+	local X, Y = self:GetTooltipOffset( MouseX, MouseY, Tooltip )
 	Tooltip:SetPos( Vector2( X, Y ) )
 	Tooltip:FadeIn()
 
