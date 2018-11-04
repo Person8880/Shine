@@ -40,8 +40,7 @@ function Shine.UpdateClassNetVars( ClassName, FileName, NetVars )
 	if _G[ ClassName ] then
 		AddNetVars()
 	else
-		Shine.Hook.Add( "PostLoadScript", tostring( NetVars ), function( Script )
-			if Script ~= FileName then return end
+		Shine.Hook.Add( "PostLoadScript:"..FileName, tostring( NetVars ), function( Reload )
 			AddNetVars()
 		end )
 	end

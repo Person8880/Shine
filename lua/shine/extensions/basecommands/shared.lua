@@ -107,9 +107,7 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Shine.Hook.Add( "PostLoadScript", "SetupCustomVote", function( Script )
-	if Script ~= "lua/Voting.lua" then return end
-
+Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
 	RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
 
 	AddVoteSetupCallback( function( VoteMenu )

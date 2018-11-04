@@ -193,9 +193,7 @@ do
 	if RegisterVoteType then
 		HookVotes()
 	else
-		Shine.Hook.Add( "PostLoadScript", "SetupCustomVote", function( Script )
-			if Script ~= "lua/Voting.lua" then return end
-
+		Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
 			HookVotes()
 		end )
 	end
