@@ -71,4 +71,16 @@ function ShadowLabel:SetupStencil()
 	self.LabelShadow:SetStencilFunc( GUIItem.NotEqual )
 end
 
+function ShadowLabel:Cleanup()
+	if self.Parent then return end
+
+	if self.Background then
+		GUI.DestroyItem( self.Background )
+	end
+
+	if self.LabelShadow then
+		GUI.DestroyItem( self.LabelShadow )
+	end
+end
+
 SGUI:Register( "ShadowLabel", ShadowLabel, "Label" )
