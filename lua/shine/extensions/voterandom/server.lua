@@ -370,6 +370,37 @@ Setting FallbackMode to "KDR" mode.]]
 function Plugin:OnFirstThink()
 	self:BroadcastModuleEvent( "OnFirstThink" )
 
+	do
+		-- Watch when players try to join a team, and use it as their team preference.
+		local Commands = {
+			{ Event = "Console_j1", Team = 1 },
+			{ Event = "Console_jointeamone", Team = 1 },
+			{ Event = "Console_j2", Team = 2 },
+			{ Event = "Console_jointeamtwo", Team = 2 },
+			{ Event = "Console_rr" },
+			{ Event = "Console_readyroom" }
+		}
+		for i = 1, #Commands do
+			local Entry = Commands[ i ]
+			local Team = Entry.Team
+			Event.Hook( Entry.Event, function( Client )
+				local Gamerules = GetGamerules()
+				if not Gamerules or Gamerules:GetGameStarted() then return end
+
+				if self.Logger:IsDebugEnabled() then
+					self.Logger:Debug( "%s has chosen team %s (has persistent preference: %s)",
+						Shine.GetClientInfo( Client ), Team, self.TeamPreferences[ Client ] or "none" )
+				end
+
+				self.LastAttemptedTeamJoins[ Client ] = Team
+				self:SendNetworkMessage( Client, "TemporaryTeamPreference", {
+					PreferredTeam = Team or 0,
+					Silent = false
+				}, true )
+			end )
+		end
+	end
+
 	local select = select
 	local Hooks = {
 		"AddScore", "AddKill", "AddDeaths", "AddAssistKill"
@@ -454,6 +485,7 @@ function Plugin:Initialise()
 	self.dt.IsAutoShuffling = self.Config.AlwaysEnabled
 
 	self.TeamPreferences = {}
+	self.LastAttemptedTeamJoins = {}
 
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
@@ -567,7 +599,10 @@ do
 
 			local IsImmune = Shine:HasAccess( Client, "sh_randomimmune" ) or Commander
 			local IsPlayingTeam = Team == 1 or Team == 2
-			local Preference = self.TeamPreferences[ Client ]
+			-- Assume that if a player uses a team joining command (either walking into a TeamJoin entity or
+			-- using the console) then they definitely want that team. Their persisted preference
+			-- serves as a backup if they haven't yet chosen a team.
+			local Preference = self.LastAttemptedTeamJoins[ Client ] or self.TeamPreferences[ Client ]
 
 			-- Pass 1, put all immune players into team slots.
 			-- This ensures they're picked last if there's a team imbalance at the end of sorting.
@@ -575,15 +610,12 @@ do
 			if Pass == 1 then
 				if IsImmune then
 					local TeamTable = TeamMembers[ Team ]
-
 					if TeamTable then
 						TeamTable[ #TeamTable + 1 ] = Player
+						-- Either they have a set preference, or they joined the team they want.
+						Preference = Preference or Team
+						AddTeamPreference( Player, Client, Preference )
 					end
-
-					-- Either they have a set preference, or they joined the team they want.
-					Preference = Preference or ( IsPlayingTeam and Team )
-					-- Even without a preference, don't move them around if it can be helped.
-					AddTeamPreference( Player, Client, Preference or true )
 				end
 
 				return
@@ -595,20 +627,11 @@ do
 			if IsPlayingTeam then
 				local TeamTable = TeamMembers[ Team ]
 				TeamTable[ #TeamTable + 1 ] = Player
-
-				if not IsEnforcingTeams then
-					-- If we're not enforcing teams, their preference is either the one they've set
-					-- or otherwise the team they decided to join.
-					AddTeamPreference( Player, Client, Preference or Team )
-				else
-					-- If we are enforcing teams, then the only assumption about preference we have
-					-- is their configured choice, as they've been locked to a team.
-					AddTeamPreference( Player, Client, Preference )
-				end
 			else
 				Targets[ #Targets + 1 ] = Player
-				AddTeamPreference( Player, Client, Preference )
 			end
+
+			AddTeamPreference( Player, Client, Preference )
 		end
 
 		local function DisconnectBot( Client )
@@ -871,6 +894,12 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
+	self.LastAttemptedTeamJoins = {}
+	self:SendNetworkMessage( nil, "TemporaryTeamPreference", {
+		PreferredTeam = 0,
+		Silent = true
+	}, true )
+
 	local Players, Count = GetAllPlayers()
 	-- Reset the randomised state of all players.
 	for i = 1, Count do

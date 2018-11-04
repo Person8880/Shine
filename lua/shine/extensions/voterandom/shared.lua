@@ -70,12 +70,15 @@ function Plugin:SetupDataTable()
 	}, "ShuffleType" )
 
 	self:AddNetworkMessage( "TeamPreference", { PreferredTeam = "integer" }, "Server" )
+	self:AddNetworkMessage( "TemporaryTeamPreference", { PreferredTeam = "integer", Silent = "boolean" }, "Client" )
 end
 
 Shine:RegisterExtension( "voterandom", Plugin )
 Shine.LoadPluginModule( "sh_vote.lua", Plugin )
 
 if Server then return end
+
+local SGUI = Shine.GUI
 
 Plugin.VoteButtonName = "Shuffle"
 Plugin.VoteButtonCheckMarkXScale = 0.5
@@ -119,10 +122,17 @@ function Plugin:SetupClientConfig()
 		SendTeamPreference( PreferredTeam )
 	end
 
+	local HasWarnedAboutPref = false
 	self:BindCommand( "sh_shuffle_teampref", function( PreferredTeam )
-		self.Config.PreferredTeam = self.TeamType[ PreferredTeam ] or self.TeamType.NONE
+		local OldPref = self.Config.PreferredTeam
+		local NewPref = self.TeamType[ PreferredTeam ] or self.TeamType.NONE
+		if OldPref == NewPref then return end
+
+		self.Config.PreferredTeam = NewPref
 		self:SaveConfig( true )
 		SendTeamPreference( PreferredTeam )
+
+		self:OnTeamPreferenceChanged()
 
 		local ResetHint = ""
 		if self.Config.PreferredTeam ~= self.TeamType.NONE then
@@ -130,6 +140,13 @@ function Plugin:SetupClientConfig()
 		end
 
 		Print( "Team preference saved as: %s.%s", self.Config.PreferredTeam, ResetHint )
+
+		if not HasWarnedAboutPref then
+			-- Inform the player that this can be overridden by joining a team.
+			HasWarnedAboutPref = true
+			Shine.GUI.NotificationManager.AddNotification( Shine.NotificationType.INFO,
+				self:GetPhrase( "TEAM_PREFERENCE_CHANGE_HINT" ), 10 )
+		end
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
 
 	Shine:RegisterClientSetting( {
@@ -164,6 +181,69 @@ function Plugin:GetVoteButtonText()
 	end
 
 	return self:GetPhrase( "ENABLE_AUTO_SHUFFLE" )
+end
+
+function Plugin:GetTeamPreference()
+	return self.TemporaryTeamPreference or self.Config.PreferredTeam
+end
+
+function Plugin:ReceiveTemporaryTeamPreference( Data )
+	local OldPreference = self:GetTeamPreference()
+
+	self.TemporaryTeamPreference = self.TeamType[ Data.PreferredTeam ]
+
+	local NewPreference = self:GetTeamPreference()
+	if not Data.Silent and NewPreference ~= OldPreference then
+		self:Notify( self:GetPhrase( "TEAM_PREFERENCE_SET_"..NewPreference ) )
+	end
+
+	self:OnTeamPreferenceChanged()
+end
+
+function Plugin:OnTeamPreferenceChanged()
+	local Button = Shine.VoteMenu:GetButtonByPlugin( self.VoteButtonName )
+	if not Button then return end
+
+	self:OnVoteButtonCreated( Button, Shine.VoteMenu )
+end
+
+function Plugin:OnVoteButtonCreated( Button, VoteMenu )
+	local TeamPreference = self:GetTeamPreference() or self.TeamType.NONE
+
+	if TeamPreference ~= self.TeamType.NONE then
+		local IsMarines = TeamPreference == self.TeamType.MARINE
+		local PreferenceLabel = Button.PreferenceLabel or SGUI:Create( "ColourLabel", VoteMenu.Background )
+		PreferenceLabel:MakeVertical()
+		PreferenceLabel:SetAnchor( "CentreMiddle" )
+		PreferenceLabel:SetFontScale( Button:GetFont(), Button:GetTextScale() )
+		PreferenceLabel:SetText( {
+			Colour( 1, 1, 1 ),
+			{ Type = "ShadowLabel", Text = self:GetPhrase( "TEAM_PREFERENCE_HINT" ) },
+			IsMarines and Colour( 0.3, 0.69, 1 ) or Colour( 1, 0.79, 0.23 ),
+			{ Type = "ShadowLabel", Text = self:GetPhrase( TeamPreference ) }
+		} )
+		PreferenceLabel:SetTextAlignmentX( GUIItem.Align_Center )
+		PreferenceLabel:SetTextAlignmentY( GUIItem.Align_Max )
+		PreferenceLabel:SetShadow( {
+			Colour = Colour( 0, 0, 0, 200 ),
+			Offset = Vector2( 2, 2 )
+		} )
+
+		local Units = SGUI.Layout.Units
+
+		Button.PreferenceLabel = PreferenceLabel
+		Button.OnClear = function( Button )
+			if SGUI.IsValid( Button.PreferenceLabel ) then
+				Button.PreferenceLabel:Destroy()
+				Button.PreferenceLabel = nil
+			end
+		end
+	else
+		if SGUI.IsValid( Button.PreferenceLabel ) then
+			Button.PreferenceLabel:Destroy()
+			Button.PreferenceLabel = nil
+		end
+	end
 end
 
 function Plugin:OnFirstThink()

@@ -85,10 +85,16 @@
 	"TEAM_SWITCH_DENIED_KDR_BASED": "You cannot switch teams. KDR based teams are enabled.",
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "You cannot switch teams. Random teams are enabled.",
 	"TEAM_SWITCH_DENIED_SCORE_BASED": "You cannot switch teams. Score based teams are enabled.",
+
 	"TEAM_PREFERENCE": "Shuffle Team Preference:",
+	"TEAM_PREFERENCE_CHANGE_HINT": "Walking into a team door or using the console to join a team before a round starts will override your configured team preference for that round.",
 	"MARINE": "Marines",
 	"ALIEN": "Aliens",
 	"NONE": "No Preference",
+	"TEAM_PREFERENCE_HINT": "Team Preference:",
+	"TEAM_PREFERENCE_SET_MARINE": "Your team preference is now: Marines.",
+	"TEAM_PREFERENCE_SET_ALIEN": "Your team preference is now: Aliens.",
+	"TEAM_PREFERENCE_SET_NONE": "Your team preference has been reset.",
 
 	"DISABLE_AUTO_SHUFFLE": "Disable Shuffle",
 	"ENABLE_AUTO_SHUFFLE": "Enable Shuffle",
