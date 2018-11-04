@@ -369,7 +369,7 @@ function SGUI:IsWindowInFocus( Window )
 			return Window:MouseInCached()
 		end
 
-		if OtherWindow:MouseInCached() then
+		if not OtherWindow.IgnoreMouseFocus and OtherWindow:MouseInCached() then
 			return false
 		end
 	end
