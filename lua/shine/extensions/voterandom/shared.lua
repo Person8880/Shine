@@ -193,11 +193,13 @@ function Plugin:ReceiveTemporaryTeamPreference( Data )
 	self.TemporaryTeamPreference = self.TeamType[ Data.PreferredTeam ]
 
 	local NewPreference = self:GetTeamPreference()
-	if not Data.Silent and NewPreference ~= OldPreference then
-		self:Notify( self:GetPhrase( "TEAM_PREFERENCE_SET_"..NewPreference ) )
-	end
+	if NewPreference ~= OldPreference then
+		if not Data.Silent then
+			self:Notify( self:GetPhrase( "TEAM_PREFERENCE_SET_"..NewPreference ) )
+		end
 
-	self:OnTeamPreferenceChanged()
+		self:OnTeamPreferenceChanged()
+	end
 end
 
 function Plugin:OnTeamPreferenceChanged()
