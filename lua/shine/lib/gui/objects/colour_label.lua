@@ -22,6 +22,8 @@ function ColourLabel:Initialise()
 end
 
 function ColourLabel:MakeVertical()
+	if self.IsVertical then return end
+
 	self.Layout = SGUI.Layout:CreateLayout( "Vertical", {} )
 	self.IsVertical = true
 end
