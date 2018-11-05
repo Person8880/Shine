@@ -260,16 +260,22 @@ end
 function TeamOptimiser:TrySwaps( PlayerIndex, Pass )
 	local TeamMembers = self.TeamMembers
 
-	local Player = TeamMembers[ self.LargerTeam ][ PlayerIndex ]
-	if not Player or not self:IsValidForSwap( Player, Pass ) then return end
+	local LargerTeamNum = self.LargerTeam
+	local LesserTeamNum = self.LesserTeam
+
+	local LargerTeam = TeamMembers[ LargerTeamNum ]
+	local LesserTeam = TeamMembers[ LesserTeamNum ]
+
+	local Player = LargerTeam[ PlayerIndex ]
+	if not Player or not self:IsValidForSwap( Player, Pass, LargerTeamNum ) then return end
 
 	local TakeSwapImmediately = self.TakeSwapImmediately
 	-- Check every player on the other team against this player for a better swap.
-	for OtherPlayerIndex = 1, #TeamMembers[ self.LesserTeam ] do
-		local OtherPlayer = TeamMembers[ self.LesserTeam ][ OtherPlayerIndex ]
+	for OtherPlayerIndex = 1, #LesserTeam do
+		local OtherPlayer = LesserTeam[ OtherPlayerIndex ]
 
-		if OtherPlayer and self:IsValidForSwap( OtherPlayer, Pass ) then
-			if self.LargerTeam == 1 then
+		if OtherPlayer and self:IsValidForSwap( OtherPlayer, Pass, LesserTeamNum ) then
+			if LargerTeamNum == 1 then
 				self:SimulateSwap( PlayerIndex, OtherPlayerIndex )
 			else
 				self:SimulateSwap( OtherPlayerIndex, PlayerIndex )
@@ -285,10 +291,10 @@ function TeamOptimiser:TrySwaps( PlayerIndex, Pass )
 	if self.TeamsAreEqual then return end
 
 	-- Otherwise, try adding this player to the smaller team without a swap.
-	if self.LargerTeam == 1 then
-		self:SimulateSwap( PlayerIndex, #TeamMembers[ self.LesserTeam ] + 1 )
+	if LargerTeamNum == 1 then
+		self:SimulateSwap( PlayerIndex, #LesserTeam + 1 )
 	else
-		self:SimulateSwap( #TeamMembers[ self.LesserTeam ] + 1, PlayerIndex )
+		self:SimulateSwap( #LesserTeam + 1, PlayerIndex )
 	end
 end
 

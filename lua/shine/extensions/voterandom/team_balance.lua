@@ -415,14 +415,22 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
 
+	local TeamPreferences = TeamMembers.TeamPreferences
 	local function GetNumPasses( self )
-		return next( TeamMembers.TeamPreferences ) and 2 or 1
+		return next( TeamPreferences ) and 2 or 1
 	end
 
 	local IgnoreCommanders = self.Config.IgnoreCommanders
-	local function IsValidForSwap( self, Player, Pass )
-		return ( Pass == 2 or not TeamMembers.TeamPreferences[ Player ] )
-			and not ( IgnoreCommanders and Player:isa( "Commander" ) )
+	local function IsValidForSwap( self, Player, Pass, TeamNumber )
+		if IgnoreCommanders and Player:isa( "Commander" ) then
+			return false
+		end
+
+		if Pass == 1 and TeamPreferences[ Player ] == TeamNumber then
+			return false
+		end
+
+		return true
 	end
 
 	local Iterations = self.OptimisationIterations
