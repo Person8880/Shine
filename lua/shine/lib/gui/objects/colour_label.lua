@@ -10,6 +10,8 @@ local Vector2 = Vector2
 
 local ColourLabel = {}
 
+SGUI.AddProperty( ColourLabel, "DefaultLabelType", "Label" )
+
 function ColourLabel:Initialise()
 	self.Labels = {}
 	self.Layout = SGUI.Layout:CreateLayout( "Horizontal", {} )
@@ -80,20 +82,21 @@ function ColourLabel:SetText( TextContent )
 	end
 
 	local Count = 0
+	local DefaultLabelType = self:GetDefaultLabelType()
 	for i = 1, #TextContent, 2 do
 		local Colour = TextContent[ i ]
 		local Params = TextContent[ i + 1 ]
+		local Type = DefaultLabelType
+		local Text = Params
 
-		if IsType( Params, "string" ) then
-			Params = {
-				Type = "Label",
-				Text = Params
-			}
+		if IsType( Params, "table" ) then
+			Text = Params.Text
+			Type = Params.Type or DefaultLabelType
 		end
 
-		local Label = SGUI:Create( Params.Type, self )
+		local Label = SGUI:Create( Type, self )
 		Label:SetFontScale( self.Font, self.TextScale )
-		Label:SetText( Params.Text )
+		Label:SetText( Text )
 		Label:SetColour( SGUI.CopyColour( Colour ) )
 		self.Layout:AddElement( Label )
 

@@ -218,16 +218,17 @@ function Plugin:OnVoteButtonCreated( Button, VoteMenu )
 		PreferenceLabel:MakeVertical()
 		PreferenceLabel:SetAnchor( "CentreMiddle" )
 		PreferenceLabel:SetFontScale( Button:GetFont(), Button:GetTextScale() )
+		PreferenceLabel:SetDefaultLabelType( "ShadowLabel" )
 		PreferenceLabel:SetText( {
 			Colour( 1, 1, 1 ),
-			{ Type = "ShadowLabel", Text = self:GetPhrase( "TEAM_PREFERENCE_HINT" ) },
+			self:GetPhrase( "TEAM_PREFERENCE_HINT" ),
 			IsMarines and Colour( 0.3, 0.69, 1 ) or Colour( 1, 0.79, 0.23 ),
-			{ Type = "ShadowLabel", Text = self:GetPhrase( TeamPreference ) }
+			self:GetPhrase( TeamPreference )
 		} )
 		PreferenceLabel:SetTextAlignmentX( GUIItem.Align_Center )
 		PreferenceLabel:SetTextAlignmentY( GUIItem.Align_Max )
 		PreferenceLabel:SetShadow( {
-			Colour = Colour( 0, 0, 0, 200 ),
+			Colour = Colour( 0, 0, 0, 200 / 255 ),
 			Offset = Vector2( 2, 2 )
 		} )
 
