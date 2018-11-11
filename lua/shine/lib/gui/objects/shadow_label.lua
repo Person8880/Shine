@@ -52,8 +52,14 @@ end
 function ShadowLabel:AlphaTo( Element, Start, End, ... )
 	self.BaseClass.AlphaTo( self, Element, Start, End, ... )
 	if ( not Element or Element == self.Background ) and self.LabelShadow:GetIsVisible() then
-		local ShadowAlpha = self.LabelShadow:GetColor().a
-		self.BaseClass.AlphaTo( self, self.LabelShadow, ShadowAlpha * ( Start or 1 ), ShadowAlpha * End, ... )
+		local ShadowAlpha = self.ShadowColour.a
+		local ShadowStart = ShadowAlpha
+		if not Start then
+			ShadowStart = self.ShadowLabel:GetColor().a
+		else
+			ShadowStart = ShadowStart * Start
+		end
+		self.BaseClass.AlphaTo( self, self.LabelShadow, ShadowStart, ShadowAlpha * End, ... )
 	end
 end
 
@@ -62,11 +68,14 @@ function ShadowLabel:SetShadow( Params )
 
 	if not Params then
 		self.ShadowOffset = nil
+		self.ShadowColour = nil
 		self.LabelShadow:SetIsVisible( false )
 		return
 	end
 
 	self.ShadowOffset = Params.Offset or Vector2( 2, 2 )
+	self.ShadowColour = Params.Colour
+
 	self.LabelShadow:SetIsVisible( true )
 	self.Label:SetPosition( self:GetPos() + self.ShadowOffset )
 	self.LabelShadow:SetColor( Params.Colour )
