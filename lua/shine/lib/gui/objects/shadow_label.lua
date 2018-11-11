@@ -49,6 +49,14 @@ function ShadowLabel:SetParent( Control, Element )
 	self.BaseClass.SetParent( self, Control, Element )
 end
 
+function ShadowLabel:AlphaTo( Element, Start, End, ... )
+	self.BaseClass.AlphaTo( self, Element, Start, End, ... )
+	if ( not Element or Element == self.Background ) and self.LabelShadow:GetIsVisible() then
+		local ShadowAlpha = self.LabelShadow:GetColor().a
+		self.BaseClass.AlphaTo( self, self.LabelShadow, ShadowAlpha * ( Start or 1 ), ShadowAlpha * End, ... )
+	end
+end
+
 function ShadowLabel:SetShadow( Params )
 	self.Shadow = Params
 
