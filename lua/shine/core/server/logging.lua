@@ -503,6 +503,7 @@ do
 
 		for i = 1, #Columns do
 			local Column = Columns[ i ]
+			local FieldName = Column.Name
 
 			Column.OldName = Column.OldName or Column.Name
 			Column.Name = Column.OldName..StringRep( " ", 4 )
@@ -516,7 +517,7 @@ do
 			for j = 1, #Data do
 				local Entry = Data[ j ]
 
-				local String = Getter( Entry )
+				local String = Getter and Getter( Entry ) or Entry[ FieldName ]
 				local StringLength = #String + 4
 				if StringLength > Max then
 					Max = StringLength
@@ -529,7 +530,7 @@ do
 				local Entry = Rows[ j ]
 				local Diff = Max - #Entry
 				if Diff > 0 then
-					Rows[ j ] = Entry..StringRep( " ", Diff )
+					Rows[ j ] = Entry..StringRep( " ", Diff * SpaceMultiplier )
 				end
 			end
 

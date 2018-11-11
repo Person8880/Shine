@@ -1498,6 +1498,70 @@ function Plugin:CreateMessageCommands()
 	UngagCommand:AddParam{ Type = "client" }
 	UngagCommand:Help( "Stops silencing the given player's chat." )
 
+	local function ListGags( Client )
+		if not next( self.Gagged ) then
+			Shine.PrintToConsole( Client, "No players are currently gagged." )
+			return
+		end
+
+		local Now = SharedTime()
+
+		local ClientsByNS2ID = Shine.GetAllClientsByNS2ID()
+		local GaggedPlayers = self.Config.GaggedPlayers
+		local Columns = {
+			{
+				Name = "Name"
+			},
+			{
+				Name = "NS2ID"
+			},
+			{
+				Name = "Remaining Time",
+				Getter = function( Entry )
+					if Entry.Expiry == math.huge then
+						if GaggedPlayers[ Entry.NS2ID ] then
+							return "Permanent"
+						end
+						return "Until the end of the current map"
+					end
+					return string.TimeToString( Entry.Expiry - Now )
+				end
+			}
+		}
+
+		local Data = {}
+		for ID, Expiry in pairs( self.Gagged ) do
+			local IsTemporary = IsType( Expiry, "number" )
+			if not IsTemporary or Expiry > Now then
+				local Client = ClientsByNS2ID[ ID ]
+				local Player = Client and Client:GetControllingPlayer()
+
+				Data[ #Data + 1 ] = {
+					Name = Player and Player.GetName and Player:GetName() or "",
+					NS2ID = tostring( ID ),
+					Expiry = IsTemporary and Expiry or math.huge
+				}
+			end
+		end
+
+		TableSort( Data, function( A, B )
+			if A.Expiry == B.Expiry and A.Expiry == math.huge then
+				if GaggedPlayers[ A.NS2ID ] and not GaggedPlayers[ B.NS2ID ] then
+					return false
+				end
+				if GaggedPlayers[ B.NS2ID ] and not GaggedPlayers[ A.NS2ID ] then
+					return true
+				end
+				return A.NS2ID < B.NS2ID
+			end
+			return A.Expiry < B.Expiry
+		end )
+
+		Shine.PrintTableToConsole( Client, Columns, Data )
+	end
+	self:BindCommand( "sh_listgags", nil, ListGags )
+		:Help( "Lists all gagged players to the console." )
+
 	do
 		local StartVote
 

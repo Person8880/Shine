@@ -286,6 +286,16 @@ function Shine.GetAllClients()
 	return Clients, Count
 end
 
+do
+	local function AccumulateClientsByNS2ID( State, Client )
+		State[ Client:GetUserId() ] = Client
+		return State
+	end
+	function Shine.GetAllClientsByNS2ID()
+		return Shine.Stream( Shine.GetAllClients() ):Reduce( AccumulateClientsByNS2ID, {} )
+	end
+end
+
 --[[
 	Returns a client matching the given game ID.
 ]]
