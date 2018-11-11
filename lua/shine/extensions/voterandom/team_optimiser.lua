@@ -131,26 +131,44 @@ function TeamOptimiser:CycleTeams()
 	self.LesserTeam = Opposite( self.LargerTeam )
 end
 
+function TeamOptimiser:GetTeamPreferenceWeighting( Player, TeamNumber )
+	return 0
+end
+
 --[[
 	Gets the standard deviation of the given players, accounting for a potential swap.
 ]]
-function TeamOptimiser:GetStandardDeviation( Players, Average, TeamNumber, GainingPlayer, Index )
+function TeamOptimiser:GetPlayerStats( Players, Average, TeamNumber, GainingPlayer, Index )
 	local Count = #Players
-	if Count == 0 then return 0 end
+	if Count == 0 and not GainingPlayer then
+		return 0, 0
+	end
 
 	local Sum = 0
+	local PreferenceWeight = 0
 	-- + 1 because we might be adding a new player on the end.
 	local RealCount = Count + 1
 	for i = 1, RealCount do
-		local Player = i == Index and GainingPlayer or Players[ i ]
+		local Player
+		if i == Index then
+			Player = GainingPlayer
+		else
+			Player = Players[ i ]
+		end
+
 		if Player then
+			PreferenceWeight = PreferenceWeight + self:GetTeamPreferenceWeighting( Player, TeamNumber )
 			Sum = Sum + ( ( self.RankFunc( Player, TeamNumber ) or 0 ) - Average ) ^ 2
 		else
 			RealCount = RealCount - 1
 		end
 	end
 
-	return Sqrt( Sum / RealCount )
+	if RealCount == 0 then
+		return 0, 0
+	end
+
+	return Sqrt( Sum / RealCount ), PreferenceWeight
 end
 
 --[[
@@ -164,7 +182,12 @@ function TeamOptimiser:GetAverage( TeamNumber, TeamSkills, Losing, Gaining )
 	local GainingSkill = Gaining and self.RankFunc( Gaining, TeamNumber ) or 0
 
 	local NewSkill = TeamSkills[ TeamNumber ].Total - LosingSkill + GainingSkill
-	return NewSkill / ( TeamSkills[ TeamNumber ].Count + ( Gaining and 0 or -1 ) ), NewSkill
+	local TotalPlayers = TeamSkills[ TeamNumber ].Count + ( Gaining and 0 or -1 )
+	if TotalPlayers == 0 then
+		return 0, NewSkill
+	end
+
+	return NewSkill / TotalPlayers, NewSkill
 end
 
 --[[
@@ -180,8 +203,11 @@ function TeamOptimiser:SnapshotStats( TeamNumber, SwapContext )
 	local PostData = SwapContext.PostData[ TeamNumber ]
 	PostData.Average = Average
 	PostData.Total = Total
-	PostData.StandardDeviation = self:GetStandardDeviation( self.TeamMembers[ TeamNumber ],
-		PostData.Average, TeamNumber, GainingPlayer, SwapContext.Indices[ TeamNumber ] )
+
+	local StdDev, TeamPreferenceWeight = self:GetPlayerStats( self.TeamMembers[ TeamNumber ],
+		Average, TeamNumber, GainingPlayer, SwapContext.Indices[ TeamNumber ] )
+	PostData.StandardDeviation = StdDev
+	PostData.TeamPreferenceWeighting = TeamPreferenceWeight
 end
 
 local function Difference( SkillHolder, Stat )
@@ -208,23 +234,27 @@ end
 	If the swap passes our criteria for improving the difference in average/standard deviation,
 	then the swap is added to our potential swaps list.
 ]]
-function TeamOptimiser:SimulateSwap( ... )
+function TeamOptimiser:SimulateSwap( Team1Player, Team2Player )
 	local SwapContext = self.SwapContext
 	local Indices = SwapContext.Indices
 	local Players = SwapContext.Players
-	for i = 1, 2 do
-		Indices[ i ] = select( i, ... )
-		Players[ i ] = self.TeamMembers[ i ][ Indices[ i ] ]
-	end
+
+	Indices[ 1 ] = Team1Player
+	Indices[ 2 ] = Team2Player
+
+	Players[ 1 ] = self.TeamMembers[ 1 ][ Team1Player ]
+	Players[ 2 ] = self.TeamMembers[ 2 ][ Team2Player ]
 
 	-- Get the before and after stats for this swap.
-	for i = 1, 2 do
-		self:SnapshotStats( i, SwapContext )
-	end
+	self:SnapshotStats( 1, SwapContext )
+	self:SnapshotStats( 2, SwapContext )
 
-	local AverageDiffAfter = Difference( SwapContext.PostData, "Average" )
-	local StdDiff = Difference( SwapContext.PostData, "StandardDeviation" )
-	local Permitted, Cost = self:SwapPassesRequirements( AverageDiffAfter, StdDiff )
+	local PostData = SwapContext.PostData
+	local AverageDiffAfter = Difference( PostData, "Average" )
+	local StdDiff = Difference( PostData, "StandardDeviation" )
+	local TeamPreferenceWeight = PostData[ 1 ].TeamPreferenceWeighting + PostData[ 2 ].TeamPreferenceWeighting
+
+	local Permitted, Cost = self:SwapPassesRequirements( AverageDiffAfter, StdDiff, TeamPreferenceWeight )
 	if not Permitted then return end
 
 	self.SwapCount = self.SwapCount + 1
@@ -232,22 +262,29 @@ function TeamOptimiser:SimulateSwap( ... )
 	for i = 1, 2 do
 		Swap.Indices[ i ] = Indices[ i ]
 		Swap.Players[ i ] = Players[ i ]
-		Swap.Totals[ i ] = SwapContext.PostData[ i ].Total
+		Swap.Totals[ i ] = PostData[ i ].Total
 	end
 	Swap.AverageDiff = AverageDiffAfter
 	Swap.StdDiff = StdDiff
 	Swap.Cost = Cost
+	Swap.TeamPreferenceWeighting = TeamPreferenceWeight
 end
 
 --[[
 	Caches the initial standard deviation of both teams, if required.
 ]]
-function TeamOptimiser:CacheStandardDeviations()
+function TeamOptimiser:CacheStats()
 	self.StandardDeviationCache = self.StandardDeviationCache or {}
+
+	local PreferenceWeight = 0
 	for i = 1, 2 do
-		self.StandardDeviationCache[ i ] = self:GetStandardDeviation( self.TeamMembers[ i ],
+		local StdDev, TeamPref = self:GetPlayerStats( self.TeamMembers[ i ],
 			self.TeamSkills[ i ].Average, i )
+		self.StandardDeviationCache[ i ] = StdDev
+		PreferenceWeight = PreferenceWeight + TeamPref
 	end
+
+	self.InitialTeamPreferenceWeighting = PreferenceWeight
 end
 
 --[[
@@ -301,7 +338,7 @@ end
 TeamOptimiser.RESULT_TERMINATE = 1
 TeamOptimiser.RESULT_NEXTPASS = 2
 
-function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff )
+function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff, TeamPreferenceWeight )
 	local CurrentAverage = self.CurrentPotentialState.AverageDiffBefore
 	-- Average must be improved.
 	if AverageDiff > CurrentAverage then return false end
@@ -365,13 +402,20 @@ function TeamOptimiser:CommitSwap()
 		end
 
 		TeamSkills[ i ].Total = OptimalSwap.Totals[ i ]
-		TeamSkills[ i ].Average = TeamSkills[ i ].Total / TeamSkills[ i ].Count
+		if TeamSkills[ i ].Count == 0 then
+			TeamSkills[ i ].Average = 0
+		else
+			TeamSkills[ i ].Average = TeamSkills[ i ].Total / TeamSkills[ i ].Count
+		end
 	end
 
 	self.CurrentPotentialState.Cost = OptimalSwap.Cost
+	self.CurrentPotentialState.TeamPreferenceWeighting = OptimalSwap.TeamPreferenceWeighting
 
 	-- If an average tolerance is set, and we're now less-equal to it, stop completely.
 	if self.AverageValueTolerance > 0 and Difference( TeamSkills, "Average" ) <= self.AverageValueTolerance then
+		self.CurrentPotentialState.AverageDiffBefore = OptimalSwap.AverageDiff
+		self.CurrentPotentialState.StdDiffBefore = OptimalSwap.StdDiff
 		return self.RESULT_TERMINATE
 	end
 end
@@ -392,7 +436,7 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 	local TakeSwapImmediately = self.TakeSwapImmediately
 
 	while Iterations < 1000 do
-		self:CacheStandardDeviations()
+		self:CacheStats()
 		self.SwapCount = 0
 
 		-- Pre-populate the current pre-swap data.
@@ -404,6 +448,7 @@ function TeamOptimiser:PerformOptimisationPass( Pass )
 
 		self.CurrentPotentialState.AverageDiffBefore = Difference( SwapContext.PreData, "Average" )
 		self.CurrentPotentialState.StdDiffBefore = Difference( SwapContext.PreData, "StandardDeviation" )
+		self.CurrentPotentialState.TeamPreferenceWeighting = self.InitialTeamPreferenceWeighting
 
 		-- Try swapping every player on the larger team, with every player on the smaller team.
 		for i = 1, #TeamMembers[ self.LargerTeam ] do

@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "2.3"
+Plugin.Version = "2.4"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -48,6 +48,17 @@ Plugin.EnforcementPolicyType = table.AsEnum{
 }
 Plugin.ShuffleMode = table.AsEnum{
 	"RANDOM", "SCORE", "INVALID", "KDR", "HIVE"
+}
+Plugin.TeamPreferenceWeighting = table.AsEnum{
+	"NONE", "LOW", "MEDIUM", "HIGH"
+}
+
+Plugin.TeamPreferenceWeightingValues = {
+	[ Plugin.TeamPreferenceWeighting.NONE ] = 0,
+	-- These are derived from simulated optimisation results.
+	[ Plugin.TeamPreferenceWeighting.LOW ] = 2,
+	[ Plugin.TeamPreferenceWeighting.MEDIUM ] = 3,
+	[ Plugin.TeamPreferenceWeighting.HIGH ] = 5
 }
 
 Plugin.MODE_RANDOM = Plugin.ShuffleMode.RANDOM
@@ -100,6 +111,10 @@ Plugin.DefaultConfig = {
 	-- This can terminate the shuffle before it has managed to optimise teams appropriately
 	-- and is not recommended.
 	AverageValueTolerance = 0,
+	-- How much weighting to assign to team preferences when optimising teams.
+	-- Higher weighting will result in a stronger chance for team preference to be respected,
+	-- but also a stronger chance that teams will be more imbalanced.
+	TeamPreferenceWeighting = Plugin.TeamPreferenceWeighting.NONE,
 
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, -- Should the plugin ignore spectators in player slots when switching?
@@ -225,6 +240,8 @@ do
 
 	Validator:AddFieldRule( "BalanceMode", Validator.InEnum( Plugin.ShuffleMode, Plugin.ShuffleMode.HIVE ) )
 	Validator:AddFieldRule( "FallbackMode", Validator.InEnum( Plugin.ShuffleMode, Plugin.ShuffleMode.KDR ) )
+	Validator:AddFieldRule( "TeamPreferenceWeighting",
+		Validator.InEnum( Plugin.TeamPreferenceWeighting, Plugin.TeamPreferenceWeighting.NONE ) )
 
 	Plugin.ConfigValidator = Validator
 end
@@ -487,6 +504,8 @@ function Plugin:Initialise()
 
 	self.TeamPreferences = {}
 	self.LastAttemptedTeamJoins = {}
+
+	self.TeamPreferenceWeighting = self.TeamPreferenceWeightingValues[ self.Config.TeamPreferenceWeighting ]
 
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true

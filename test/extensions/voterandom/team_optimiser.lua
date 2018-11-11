@@ -172,7 +172,7 @@ UnitTest:Test( "GetAverage", function( Assert )
 	Assert:Equals( 1530, Total )
 end )
 
-UnitTest:Test( "GetStandardDeviation", function( Assert )
+UnitTest:Test( "GetPlayerStats", function( Assert )
 	local Players = {
 		1, 2, 3, 4, 5, 6
 	}
@@ -185,24 +185,42 @@ UnitTest:Test( "GetStandardDeviation", function( Assert )
 		return Skills[ TeamNumber ][ Player ] or 5000
 	end )
 
-	-- Should respect team number.
-	local StdDev = Optimiser:GetStandardDeviation( Players, table.Average( Skills[ 1 ] ), 1 )
-	Assert:Equals( math.StandardDeviation( Skills[ 1 ] ), StdDev )
+	local TeamPreferences = { 1, 1 }
+	Optimiser.GetTeamPreferenceWeighting = function( self, Player, Team )
+		if not TeamPreferences[ Player ] then return 0 end
 
-	StdDev = Optimiser:GetStandardDeviation( Players, table.Average( Skills[ 2 ] ), 2 )
+		return TeamPreferences[ Player ] == Team and -1 or 1
+	end
+
+	-- Should respect team number.
+	local StdDev, PreferenceWeight = Optimiser:GetPlayerStats( Players, table.Average( Skills[ 1 ] ), 1 )
+	Assert:Equals( math.StandardDeviation( Skills[ 1 ] ), StdDev )
+	Assert:Equals( -2, PreferenceWeight )
+
+	StdDev, PreferenceWeight = Optimiser:GetPlayerStats( Players, table.Average( Skills[ 2 ] ), 2 )
 	Assert:Equals( math.StandardDeviation( Skills[ 2 ] ), StdDev )
+	Assert:Equals( 2, PreferenceWeight )
 
 	-- If testing a swap, should replace the player being swapped in correctly.
 	local NewTeam = table.QuickCopy( Skills[ 1 ] )
 	NewTeam[ 6 ] = 5000
-	StdDev = Optimiser:GetStandardDeviation( Players, table.Average( NewTeam ), 1, 7, 6 )
+	StdDev, PreferenceWeight = Optimiser:GetPlayerStats( Players, table.Average( NewTeam ), 1, 7, 6 )
 	Assert:Equals( math.StandardDeviation( NewTeam ), StdDev )
+	Assert:Equals( -2, PreferenceWeight )
 
 	-- If adding a new player, should account for them.
 	NewTeam[ 6 ] = Skills[ 1 ][ 6 ]
 	NewTeam[ 7 ] = 5000
-	StdDev = Optimiser:GetStandardDeviation( Players, table.Average( NewTeam ), 1, 7, 7 )
+	StdDev, PreferenceWeight = Optimiser:GetPlayerStats( Players, table.Average( NewTeam ), 1, 7, 7 )
 	Assert:Equals( math.StandardDeviation( NewTeam ), StdDev )
+	Assert:Equals( -2, PreferenceWeight )
+
+	-- If losing a player, should ignore the lost player.
+	NewTeam = table.QuickCopy( Skills[ 1 ] )
+	table.remove( NewTeam, 2 )
+	StdDev, PreferenceWeight = Optimiser:GetPlayerStats( Players, table.Average( NewTeam ), 1, nil, 2 )
+	Assert:Equals( math.StandardDeviation( NewTeam ), StdDev )
+	Assert:Equals( -1, PreferenceWeight )
 end )
 
 UnitTest:Test( "SnapshotStats", function( Assert )
@@ -228,7 +246,7 @@ UnitTest:Test( "SnapshotStats", function( Assert )
 		return 1000, 10000
 	end
 
-	function Optimiser:GetStandardDeviation( Players, Average, TeamNumber, GainingPlayer, Index )
+	function Optimiser:GetPlayerStats( Players, Average, TeamNumber, GainingPlayer, Index )
 		GotStdDev = true
 		Assert:Equals( TeamMembers[ TeamNumber ], Players )
 		Assert:Equals( 1000, Average )
@@ -236,7 +254,7 @@ UnitTest:Test( "SnapshotStats", function( Assert )
 		Assert:Equals( CurrentGainingPlayer, 2 )
 		Assert:Equals( GainingIndex, Index )
 
-		return 0
+		return 0, 0
 	end
 
 	local SwapContext = {
@@ -293,20 +311,23 @@ UnitTest:Test( "SimulateSwap", function( Assert )
 		{
 			Average = 1000,
 			Total = 10000,
-			StandardDeviation = 0
+			StandardDeviation = 0,
+			TeamPreferenceWeighting = -25
 		},
 		{
 			Average = 2000,
 			Total = 20000,
-			StandardDeviation = 20
+			StandardDeviation = 20,
+			TeamPreferenceWeighting = 50
 		}
 	}
 
 	Optimiser.SwapCount = 0
 
-	function Optimiser:SwapPassesRequirements( AverageDiff, StdDiff )
+	function Optimiser:SwapPassesRequirements( AverageDiff, StdDiff, TeamPreferenceWeight )
 		Assert:Equals( 1000, AverageDiff )
 		Assert:Equals( 20, StdDiff )
+		Assert:Equals( 25, TeamPreferenceWeight )
 		return true
 	end
 
@@ -362,7 +383,7 @@ UnitTest:Test( "PerformOptimisationPass", function( Assert )
 	local Optimiser = VoteShuffle.TeamOptimiser( { { 2, 3 }, { 1, 4 } },
 		{ { Average = 1000 }, { Average = 2000 } }, function( Player, TeamNumber ) end )
 
-	function Optimiser:CacheStandardDeviations()
+	function Optimiser:CacheStats()
 		self.StandardDeviationCache = self.StandardDeviationCache or {}
 		for i = 1, 2 do
 			self.StandardDeviationCache[ i ] = i * 10
