@@ -395,7 +395,8 @@ function Plugin:OnFirstThink()
 				self.LastAttemptedTeamJoins[ Client ] = Team
 				self:SendNetworkMessage( Client, "TemporaryTeamPreference", {
 					PreferredTeam = Team or 0,
-					Silent = false
+					-- Don't display a message if voting is disabled (e.g. end of map vote).
+					Silent = not self:IsVoteAllowed()
 				}, true )
 			end )
 		end
@@ -1063,10 +1064,32 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 	return false
 end
 
-function Plugin:CanStartVote()
-	local PlayerCount = self:GetPlayerCountForVote()
+function Plugin:IsVoteAllowed()
+	local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
+	if Allow == false then
+		return false, TranslationKey, Args
+	end
+	return true
+end
 
-	if PlayerCount < self.Config.MinPlayers then
+function Plugin:CanStartVote()
+	if self:GetStage() == self.Stage.InGame and self.Config.AlwaysEnabled then
+		-- Disabling/enabling auto shuffle should only be possible before a round starts.
+		return false, self:GetStartFailureMessage()
+	end
+
+	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
+		return false, "ERROR_ROUND_TOO_FAR"
+	end
+
+	do
+		local Allowed, Err, Args = self:IsVoteAllowed()
+		if not Allowed then
+			return Allowed, Err, Args
+		end
+	end
+
+	if self:GetPlayerCountForVote() < self.Config.MinPlayers then
 		return false, "ERROR_NOT_ENOUGH_PLAYERS"
 	end
 
@@ -1090,23 +1113,7 @@ end
 	Adds a player's vote to the counter.
 ]]
 function Plugin:AddVote( Client )
-	if self:GetStage() == self.Stage.InGame and self.Config.AlwaysEnabled then
-		-- Disabling/enabling auto shuffle should only be possible before a round starts.
-		return false, "ERROR_CANNOT_START", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
-	end
-
-	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
-		return false, "ERROR_ROUND_TOO_FAR"
-	end
-
 	if not Client then Client = "Console" end
-
-	do
-		local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
-		if Allow == false then
-			return false, TranslationKey, Args
-		end
-	end
 
 	do
 		local Success, Err, Args = self:CanStartVote()
