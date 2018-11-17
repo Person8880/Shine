@@ -27,7 +27,11 @@ BalanceModule.DefaultConfig = {
 		-- How many rounds to remember who got to play their preferred team for.
 		MaxHistoryRounds = 5,
 		-- The minimum time a round must be played before team preferences are recorded.
-		MinRoundLengthToRecordInSeconds = 5 * 60
+		MinRoundLengthToRecordInSeconds = 5 * 60,
+		-- How much weighting to assign to team preferences when optimising teams.
+		-- Higher weighting will result in a stronger chance for team preference to be respected,
+		-- but also a stronger chance that teams will be more imbalanced.
+		CostWeighting = Plugin.TeamPreferenceWeighting.NONE
 	}
 }
 
@@ -41,6 +45,9 @@ do
 	Validator:AddFieldRule( "TeamPreferences.MinRoundLengthToRecordInSeconds",
 		Validator.IsType( "number", BalanceModule.DefaultConfig.TeamPreferences.MinRoundLengthToRecordInSeconds ) )
 	Validator:AddFieldRule( "TeamPreferences.MinRoundLengthToRecordInSeconds", Validator.Min( 0 ) )
+
+	Validator:AddFieldRule( "TeamPreferences.CostWeighting",
+		Validator.InEnum( Plugin.TeamPreferenceWeighting, Plugin.TeamPreferenceWeighting.NONE ) )
 
 	BalanceModule.ConfigValidator = Validator
 end
@@ -180,6 +187,7 @@ BalanceModule.HappinessHistoryFile = "config://shine/temp/shuffle_happiness.json
 function BalanceModule:Initialise()
 	self.HappinessHistory = self:LoadHappinessHistory()
 	self.TeamStatsCache = {}
+	self.TeamPreferenceWeighting = self.TeamPreferenceWeightingValues[ self.Config.TeamPreferences.CostWeighting ]
 end
 
 function BalanceModule:LoadHappinessHistory()
