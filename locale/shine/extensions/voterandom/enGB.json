@@ -86,7 +86,7 @@
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "You cannot switch teams. Random teams are enabled.",
 	"TEAM_SWITCH_DENIED_SCORE_BASED": "You cannot switch teams. Score based teams are enabled.",
 
-	"TEAM_PREFERENCE": "Shuffle Team Preference:",
+	"TEAM_PREFERENCE": "Default Shuffle Team Preference:",
 	"TEAM_PREFERENCE_CHANGE_HINT": "Walking into a team door or using the console to join a team before a round starts will override your configured team preference for that round.",
 	"MARINE": "Marines",
 	"ALIEN": "Aliens",
