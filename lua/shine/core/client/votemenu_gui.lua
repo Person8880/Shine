@@ -156,6 +156,7 @@ function VoteMenu:Create()
 	Background:SetPos( -BackSize * 0.5 )
 	Background:SetTexture( MenuTexture[ self.TeamType ] )
 	Background:SetIsSchemed( false )
+	Background.AlwaysInMouseFocus = true
 
 	self.Background = Background
 
@@ -174,6 +175,27 @@ function VoteMenu:Create()
 		self.Visible = true
 	end
 end
+
+Hook.Add( "PostLoadScript:lua/GUICrosshair.lua", "VoteMenu", function( Reload )
+	local GUICrosshair = _G.GUICrosshair
+	if not GUICrosshair then return end
+
+	local OldUpdate = GUICrosshair.Update
+	function GUICrosshair:Update( DeltaTime )
+		if VoteMenu.Visible then
+			-- Hide the crosshair when the vote menu is visible.
+			if self.crosshairs then
+				self.crosshairs:SetIsVisible( false )
+			end
+			if self.reloadDial then
+				self.reloadDial:SetIsVisible( false )
+			end
+			return
+		end
+
+		return OldUpdate( self, DeltaTime )
+	end
+end )
 
 function VoteMenu:SetIsVisible( Bool, IgnoreAnim )
 	if self.Visible == Bool then return false end
@@ -682,6 +704,10 @@ VoteMenu:AddPage( "Main", function( self )
 		local Button = self:AddSideButton( Text, ClickFuncs[ PluginButton ] )
 		Button.Plugin = PluginButton
 		Button.DefaultText = Text
+
+		if Enabled and Plugin and Plugin.OnVoteButtonCreated then
+			Plugin:OnVoteButtonCreated( Button, VoteMenu )
+		end
 	end
 
 	self:AddSideButton( Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" ), function()

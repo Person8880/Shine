@@ -311,7 +311,10 @@ do
 
 	function Validator.InEnum( PossibleValues, DefaultValue )
 		return function( Value )
-			return not IsType( Value, "string" ) or PossibleValues[ StringUpper( Value ) ] == nil, StringUpper( Value )
+			if not IsType( Value, "string" ) or PossibleValues[ StringUpper( Value ) ] == nil then
+				return true
+			end
+			return false, StringUpper( Value )
 		end,
 		Validator.Constant( DefaultValue ),
 		function()

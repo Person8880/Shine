@@ -27,7 +27,11 @@ BalanceModule.DefaultConfig = {
 		-- How many rounds to remember who got to play their preferred team for.
 		MaxHistoryRounds = 5,
 		-- The minimum time a round must be played before team preferences are recorded.
-		MinRoundLengthToRecordInSeconds = 5 * 60
+		MinRoundLengthToRecordInSeconds = 5 * 60,
+		-- How much weighting to assign to team preferences when optimising teams.
+		-- Higher weighting will result in a stronger chance for team preference to be respected,
+		-- but also a stronger chance that teams will be more imbalanced.
+		CostWeighting = Plugin.TeamPreferenceWeighting.NONE
 	}
 }
 
@@ -41,6 +45,9 @@ do
 	Validator:AddFieldRule( "TeamPreferences.MinRoundLengthToRecordInSeconds",
 		Validator.IsType( "number", BalanceModule.DefaultConfig.TeamPreferences.MinRoundLengthToRecordInSeconds ) )
 	Validator:AddFieldRule( "TeamPreferences.MinRoundLengthToRecordInSeconds", Validator.Min( 0 ) )
+
+	Validator:AddFieldRule( "TeamPreferences.CostWeighting",
+		Validator.InEnum( Plugin.TeamPreferenceWeighting, Plugin.TeamPreferenceWeighting.NONE ) )
 
 	BalanceModule.ConfigValidator = Validator
 end
@@ -180,6 +187,7 @@ BalanceModule.HappinessHistoryFile = "config://shine/temp/shuffle_happiness.json
 function BalanceModule:Initialise()
 	self.HappinessHistory = self:LoadHappinessHistory()
 	self.TeamStatsCache = {}
+	self.TeamPreferenceWeighting = self.TeamPreferenceWeightingValues[ self.Config.TeamPreferences.CostWeighting ]
 end
 
 function BalanceModule:LoadHappinessHistory()
@@ -372,42 +380,50 @@ do
 	local AVERAGE_BOUND = 75
 	local STDDEV_BOUND = 150
 
-	local function TeamCost( AverageDiff, StdDiff )
+	local function TeamCost( AverageDiff, StdDiff, TeamPreferenceWeight )
 		-- The idea here is that, if the average or standard deviation differences grow
 		-- beyond an acceptable level (defined by the bounds above), their exponentials
 		-- will start to grow and easily cancel out any minor improvements in the other
 		-- parameter.
 		return AverageDiff * Exp( Max( AverageDiff - AVERAGE_BOUND, 0 ) )
 			+ StdDiff * Exp( Max( StdDiff - STDDEV_BOUND, 0 ) )
+			-- Add the team preference weight directly. If skills are way out, this will be
+			-- meaningless. If not, it may swap players of near skill to let them play on
+			-- their preferred team.
+			+ TeamPreferenceWeight
 	end
 
 	BalanceModule.OptimisationIterations = {
 		{
 			-- Legacy method, uses hard rules to determine if a swap
 			-- is valid.
-			TakeSwapImmediately = false
+			TakeSwapImmediately = false,
+			NeedsMultiPass = true
 		},
 		{
 			-- New cost-based method, usually ends up with a more balanced team composition.
-			SwapPassesRequirements = function( self, AverageDiff, StdDiff )
-				local NewCost = TeamCost( AverageDiff, StdDiff )
+			SwapPassesRequirements = function( self, AverageDiff, StdDiff, TeamPreferenceWeight )
+				local NewCost = TeamCost( AverageDiff, StdDiff, TeamPreferenceWeight )
 				local CurrentCost = self.CurrentPotentialState.Cost
 				if not CurrentCost or CurrentCost > NewCost then
 					return true, NewCost
 				end
 				return false
 			end,
-			TakeSwapImmediately = true
+			TakeSwapImmediately = true,
+			NeedsMultiPass = false
 		}
 	}
 
 	function BalanceModule:GetCostForOptimiser( Optimiser )
 		local State = Optimiser.CurrentPotentialState
-		return TeamCost( State.AverageDiffBefore, State.StdDiffBefore )
+		return TeamCost( State.AverageDiffBefore, State.StdDiffBefore, State.TeamPreferenceWeighting )
 	end
 
 	function BalanceModule:GetCostFromDiff( AverageDiff, StdDiff )
-		return TeamCost( AverageDiff, StdDiff )
+		-- Ignore team preferences in this case as it's for choosing the team a player
+		-- should join when teams are already chosen.
+		return TeamCost( AverageDiff, StdDiff, 0 )
 	end
 end
 
@@ -415,14 +431,62 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
 
+	local TeamPreferences = TeamMembers.TeamPreferences
 	local function GetNumPasses( self )
-		return next( TeamMembers.TeamPreferences ) and 2 or 1
+		return next( TeamPreferences ) and 2 or 1
 	end
 
 	local IgnoreCommanders = self.Config.IgnoreCommanders
-	local function IsValidForSwap( self, Player, Pass )
-		return ( Pass == 2 or not TeamMembers.TeamPreferences[ Player ] )
-			and not ( IgnoreCommanders and Player:isa( "Commander" ) )
+	local function IsValidForSwapSinglePass( self, Player )
+		return not ( IgnoreCommanders and Player:isa( "Commander" ) )
+	end
+
+	local function IsValidForSwapMultiPass( self, Player, Pass, TeamNumber )
+		if not IsValidForSwapSinglePass( self, Player ) then
+			return false
+		end
+
+		if Pass == 1 and TeamPreferences[ Player ] == TeamNumber then
+			return false
+		end
+
+		return true
+	end
+
+	local TeamPreferenceWeighting = self.TeamPreferenceWeighting
+	local GetTeamPreferenceWeighting
+
+	if TeamPreferenceWeighting > 0 then
+		self.Logger:Debug( "Optimisation will apply team preference weighting of: %s", TeamPreferenceWeighting )
+
+		-- Configured to apply team preference weighting in cost.
+		local PreferenceCache = {}
+		GetTeamPreferenceWeighting = function( Optimiser, Player, TeamNumber )
+			local Cached = PreferenceCache[ Player ]
+			if Cached then
+				return Cached[ TeamNumber ]
+			end
+
+			local Weight
+			local Preference = TeamPreferences[ Player ]
+			if not IsType( Preference, "number" ) then
+				-- No preferred team, no effect on weighting.
+				Weight = 0
+			else
+				-- Has a preferred team, use their historic weight.
+				Weight = self:GetHistoricHappinessWeight( Player ) * TeamPreferenceWeighting
+			end
+
+			Cached = {}
+			for i = 1, 2 do
+				-- If they prefer the team, make their weight lower the cost.
+				-- If they don't prefer the team, make their weight increase the cost.
+				Cached[ i ] = ( Preference == i and -1 or 1 ) * Weight
+			end
+			PreferenceCache[ Player ] = Cached
+
+			return Cached[ TeamNumber ]
+		end
 	end
 
 	local Iterations = self.OptimisationIterations
@@ -435,8 +499,18 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		local IterationTeamSkills = TableCopy( TeamSkills )
 
 		local Optimiser = self.TeamOptimiser( IterationTeamMembers, IterationTeamSkills, RankFunc )
-		Optimiser.GetNumPasses = GetNumPasses
-		Optimiser.IsValidForSwap = IsValidForSwap
+		if Iteration.NeedsMultiPass or TeamPreferenceWeighting <= 0 then
+			-- 2 passes as team preferences are not accounted for in cost function.
+			Optimiser.GetNumPasses = GetNumPasses
+			Optimiser.IsValidForSwap = IsValidForSwapMultiPass
+		else
+			-- 1 pass as team preferences are accounted for in cost function.
+			Optimiser.IsValidForSwap = IsValidForSwapSinglePass
+		end
+
+		if GetTeamPreferenceWeighting then
+			Optimiser.GetTeamPreferenceWeighting = GetTeamPreferenceWeighting
+		end
 
 		TableShallowMerge( Iteration, Optimiser, true )
 		TableMixin( self.Config, Optimiser, {

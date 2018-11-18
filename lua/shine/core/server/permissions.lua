@@ -1158,9 +1158,7 @@ do
 		end
 	end
 
-	Shine.Hook.Add( "PostLoadScript", "OverrideSVCommandPermissions", function( Script )
-		if Script ~= "lua/ServerAdmin.lua" then return end
-
+	Shine.Hook.Add( "PostLoadScript:lua/ServerAdmin.lua", "OverrideSVCommandPermissions", function( Reload )
 		local OldGetClientCanRunCommand = GetClientCanRunCommand
 		if not OldGetClientCanRunCommand then return end
 

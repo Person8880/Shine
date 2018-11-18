@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin = Plugin
-Plugin.Version = "2.3"
+Plugin.Version = "2.4"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -48,6 +48,17 @@ Plugin.EnforcementPolicyType = table.AsEnum{
 }
 Plugin.ShuffleMode = table.AsEnum{
 	"RANDOM", "SCORE", "INVALID", "KDR", "HIVE"
+}
+Plugin.TeamPreferenceWeighting = table.AsEnum{
+	"NONE", "LOW", "MEDIUM", "HIGH"
+}
+
+Plugin.TeamPreferenceWeightingValues = {
+	[ Plugin.TeamPreferenceWeighting.NONE ] = 0,
+	-- These are derived from simulated optimisation results.
+	[ Plugin.TeamPreferenceWeighting.LOW ] = 2,
+	[ Plugin.TeamPreferenceWeighting.MEDIUM ] = 3,
+	[ Plugin.TeamPreferenceWeighting.HIGH ] = 5
 }
 
 Plugin.MODE_RANDOM = Plugin.ShuffleMode.RANDOM
@@ -188,6 +199,14 @@ Plugin.ConfigMigrationSteps = {
 			Config.Duration = nil
 			Config.RandomOnNextRound = nil
 			Config.BlockTeams = nil
+		end
+	},
+	{
+		VersionTo = "2.4",
+		Apply = function( Config )
+			if IsType( Config.TeamPreferences, "table" ) then
+				Config.TeamPreferences.CostWeighting = Plugin.TeamPreferenceWeighting.NONE
+			end
 		end
 	}
 }
@@ -370,6 +389,38 @@ Setting FallbackMode to "KDR" mode.]]
 function Plugin:OnFirstThink()
 	self:BroadcastModuleEvent( "OnFirstThink" )
 
+	do
+		-- Watch when players try to join a team, and use it as their team preference.
+		local Commands = {
+			{ Event = "Console_j1", Team = 1 },
+			{ Event = "Console_jointeamone", Team = 1 },
+			{ Event = "Console_j2", Team = 2 },
+			{ Event = "Console_jointeamtwo", Team = 2 },
+			{ Event = "Console_rr" },
+			{ Event = "Console_readyroom" }
+		}
+		for i = 1, #Commands do
+			local Entry = Commands[ i ]
+			local Team = Entry.Team
+			Event.Hook( Entry.Event, function( Client )
+				local Gamerules = GetGamerules()
+				if not Gamerules or Gamerules:GetGameStarted() then return end
+
+				if self.Logger:IsDebugEnabled() then
+					self.Logger:Debug( "%s has chosen team %s (has persistent preference: %s)",
+						Shine.GetClientInfo( Client ), Team, self.TeamPreferences[ Client ] or "none" )
+				end
+
+				self.LastAttemptedTeamJoins[ Client ] = Team
+				self:SendNetworkMessage( Client, "TemporaryTeamPreference", {
+					PreferredTeam = Team or 0,
+					-- Don't display a message if voting is disabled (e.g. end of map vote).
+					Silent = not self:IsVoteAllowed()
+				}, true )
+			end )
+		end
+	end
+
 	local select = select
 	local Hooks = {
 		"AddScore", "AddKill", "AddDeaths", "AddAssistKill"
@@ -454,6 +505,7 @@ function Plugin:Initialise()
 	self.dt.IsAutoShuffling = self.Config.AlwaysEnabled
 
 	self.TeamPreferences = {}
+	self.LastAttemptedTeamJoins = {}
 
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
@@ -567,7 +619,10 @@ do
 
 			local IsImmune = Shine:HasAccess( Client, "sh_randomimmune" ) or Commander
 			local IsPlayingTeam = Team == 1 or Team == 2
-			local Preference = self.TeamPreferences[ Client ]
+			-- Assume that if a player uses a team joining command (either walking into a TeamJoin entity or
+			-- using the console) then they definitely want that team. Their persisted preference
+			-- serves as a backup if they haven't yet chosen a team.
+			local Preference = self.LastAttemptedTeamJoins[ Client ] or self.TeamPreferences[ Client ]
 
 			-- Pass 1, put all immune players into team slots.
 			-- This ensures they're picked last if there's a team imbalance at the end of sorting.
@@ -575,15 +630,12 @@ do
 			if Pass == 1 then
 				if IsImmune then
 					local TeamTable = TeamMembers[ Team ]
-
 					if TeamTable then
 						TeamTable[ #TeamTable + 1 ] = Player
+						-- Either they have a set preference, or they joined the team they want.
+						Preference = Preference or Team
+						AddTeamPreference( Player, Client, Preference )
 					end
-
-					-- Either they have a set preference, or they joined the team they want.
-					Preference = Preference or ( IsPlayingTeam and Team )
-					-- Even without a preference, don't move them around if it can be helped.
-					AddTeamPreference( Player, Client, Preference or true )
 				end
 
 				return
@@ -595,20 +647,11 @@ do
 			if IsPlayingTeam then
 				local TeamTable = TeamMembers[ Team ]
 				TeamTable[ #TeamTable + 1 ] = Player
-
-				if not IsEnforcingTeams then
-					-- If we're not enforcing teams, their preference is either the one they've set
-					-- or otherwise the team they decided to join.
-					AddTeamPreference( Player, Client, Preference or Team )
-				else
-					-- If we are enforcing teams, then the only assumption about preference we have
-					-- is their configured choice, as they've been locked to a team.
-					AddTeamPreference( Player, Client, Preference )
-				end
 			else
 				Targets[ #Targets + 1 ] = Player
-				AddTeamPreference( Player, Client, Preference )
 			end
+
+			AddTeamPreference( Player, Client, Preference )
 		end
 
 		local function DisconnectBot( Client )
@@ -871,6 +914,12 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
+	self.LastAttemptedTeamJoins = {}
+	self:SendNetworkMessage( nil, "TemporaryTeamPreference", {
+		PreferredTeam = 0,
+		Silent = true
+	}, true )
+
 	local Players, Count = GetAllPlayers()
 	-- Reset the randomised state of all players.
 	for i = 1, Count do
@@ -1034,10 +1083,32 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 	return false
 end
 
-function Plugin:CanStartVote()
-	local PlayerCount = self:GetPlayerCountForVote()
+function Plugin:IsVoteAllowed()
+	local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
+	if Allow == false then
+		return false, TranslationKey, Args
+	end
+	return true
+end
 
-	if PlayerCount < self.Config.MinPlayers then
+function Plugin:CanStartVote()
+	if self:GetStage() == self.Stage.InGame and self.Config.AlwaysEnabled then
+		-- Disabling/enabling auto shuffle should only be possible before a round starts.
+		return false, self:GetStartFailureMessage()
+	end
+
+	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
+		return false, "ERROR_ROUND_TOO_FAR"
+	end
+
+	do
+		local Allowed, Err, Args = self:IsVoteAllowed()
+		if not Allowed then
+			return Allowed, Err, Args
+		end
+	end
+
+	if self:GetPlayerCountForVote() < self.Config.MinPlayers then
 		return false, "ERROR_NOT_ENOUGH_PLAYERS"
 	end
 
@@ -1061,23 +1132,7 @@ end
 	Adds a player's vote to the counter.
 ]]
 function Plugin:AddVote( Client )
-	if self:GetStage() == self.Stage.InGame and self.Config.AlwaysEnabled then
-		-- Disabling/enabling auto shuffle should only be possible before a round starts.
-		return false, "ERROR_CANNOT_START", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
-	end
-
-	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
-		return false, "ERROR_ROUND_TOO_FAR"
-	end
-
 	if not Client then Client = "Console" end
-
-	do
-		local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
-		if Allow == false then
-			return false, TranslationKey, Args
-		end
-	end
 
 	do
 		local Success, Err, Args = self:CanStartVote()

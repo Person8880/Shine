@@ -8,6 +8,8 @@ local SGUI = Shine.GUI
 
 local Tooltip = {}
 Tooltip.IsWindow = true
+-- Tooltips can't have hover focus.
+Tooltip.IgnoreMouseFocus = true
 
 SGUI.AddBoundProperty( Tooltip, "Colour", "Background:SetColor" )
 SGUI.AddBoundProperty( Tooltip, "Texture", "Background:SetTexture" )
@@ -41,7 +43,7 @@ function Tooltip:SetTextPadding( TextPadding )
 
 	if not self.Text then return end
 
-	self.Text:SetPos( Vector2( 0, self.TextPadding * 0.5 ) )
+	self.Text:SetPosition( Vector2( 0, self.TextPadding * 0.5 ) )
 	self:ComputeAndSetSize( self.Text:GetText() )
 end
 

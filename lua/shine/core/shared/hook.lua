@@ -411,32 +411,30 @@ end
 
 do
 	local OldScriptLoad = Script.Load
+	local SeenScripts = {}
 
-	-- Override Script.Load during the load process to allow finer entry point control.
+	-- Override Script.Load to allow finer entry point control.
 	local function ScriptLoad( Script, Reload )
-		Call( "PreLoadScript", Script, Reload )
+		if not SeenScripts[ Script ] or Reload then
+			-- Call only once per script to avoid extra overhead.
+			SeenScripts[ Script ] = true
 
-		local Ret = OldScriptLoad( Script, Reload )
+			Call( "PreLoadScript", Script, Reload )
+			Call( "PreLoadScript:"..Script, Reload )
 
-		Call( "PostLoadScript", Script, Reload )
+			local Ret = OldScriptLoad( Script, Reload )
 
-		return Ret
+			Call( "PostLoadScript", Script, Reload )
+			Call( "PostLoadScript:"..Script, Reload )
+
+			return Ret
+		end
+
+		return OldScriptLoad( Script, Reload )
 	end
 	Script.Load = ScriptLoad
 
 	local function MapPreLoad()
-		-- Restore Script.Load so we don't bog it down anymore.
-		if Script.Load == ScriptLoad then
-			Script.Load = OldScriptLoad
-		else
-			-- Find the point that overrode our override, and replace their upvalue of us, with the original.
-			Shine.SetUpValueByValue( Script.Load, ScriptLoad, OldScriptLoad, true )
-		end
-
-		-- Remove all listeners for the now removed events.
-		ClearHooks( "PreLoadScript" )
-		ClearHooks( "PostLoadScript" )
-
 		CallOnce "MapPreLoad"
 	end
 	Event.Hook( "MapPreLoad", MapPreLoad )
