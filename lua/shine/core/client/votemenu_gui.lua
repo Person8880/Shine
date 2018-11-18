@@ -176,13 +176,6 @@ function VoteMenu:Create()
 	end
 end
 
-local function StopDrawingCrosshair( self )
-	self.crosshairs:SetIsVisible( false )
-	if self.reloadDial then
-		self.reloadDial:SetIsVisible( false )
-	end
-end
-
 Hook.Add( "PostLoadScript:lua/GUICrosshair.lua", "VoteMenu", function( Reload )
 	local GUICrosshair = _G.GUICrosshair
 	if not GUICrosshair then return end
@@ -191,7 +184,9 @@ Hook.Add( "PostLoadScript:lua/GUICrosshair.lua", "VoteMenu", function( Reload )
 	function GUICrosshair:Update( DeltaTime )
 		if VoteMenu.Visible then
 			-- Hide the crosshair when the vote menu is visible.
-			self.crosshairs:SetIsVisible( false )
+			if self.crosshairs then
+				self.crosshairs:SetIsVisible( false )
+			end
 			if self.reloadDial then
 				self.reloadDial:SetIsVisible( false )
 			end
