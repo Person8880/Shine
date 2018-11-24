@@ -40,12 +40,6 @@ local Scripts = {
 	"core/shared/autocomplete.lua"
 }
 
-local OnLoadedFuncs = {
-	[ "lib/game.lua" ] = function()
-		Shine.IsNS2Combat = Shine.GetGamemode() == "combat"
-	end
-}
-
 local StartupMessages = {}
 Shine.StartupMessages = StartupMessages
 
@@ -57,6 +51,6 @@ function Shine.AddStartupMessage( Message, Format, ... )
 	StartupMessages[ #StartupMessages + 1 ] = Message
 end
 
-Shine.LoadScripts( Scripts, OnLoadedFuncs )
+Shine.LoadScripts( Scripts )
 Shine.Locale:RegisterSource( "Core", "locale/shine/core" )
 Shine.Locale:OnLoaded()

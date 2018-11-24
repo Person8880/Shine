@@ -7,8 +7,6 @@ Plugin.NotifyPrefixColour = {
 	100, 100, 255
 }
 
-Plugin.NS2Only = true
-
 function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "StartDelay", { StartTime = "integer" }, "Client" )
 

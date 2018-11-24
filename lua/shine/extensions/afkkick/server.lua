@@ -628,34 +628,34 @@ function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	end
 end
 
-if not Shine.IsNS2Combat then
-	function Plugin:OnConstructInit( Building )
-		local Team = Building:GetTeam()
-		if not Team or not Team.GetCommander then return end
+function Plugin:OnConstructInit( Building )
+	local Team = Building:GetTeam()
+	if not Team or not Team.GetCommander then return end
 
-		local Owner = Building:GetOwner()
-		Owner = Owner or Team:GetCommander()
-		if not Owner then return end
+	local Owner = Building:GetOwner()
+	Owner = Owner or Team:GetCommander()
+	if not Owner then return end
 
-		local Client = GetOwner( Owner )
-		if not Client then return end
+	local Client = GetOwner( Owner )
+	if not Client then return end
 
-		self:ResetAFKTime( Client )
-	end
+	self:ResetAFKTime( Client )
+end
 
-	function Plugin:OnRecycle( Building, ResearchID )
-		local Team = Building:GetTeam()
-		if not Team or not Team.GetCommander then return end
+function Plugin:OnRecycle( Building, ResearchID )
+	local Team = Building:GetTeam()
+	if not Team or not Team.GetCommander then return end
 
-		local Commander = Team:GetCommander()
-		if not Commander then return end
+	local Commander = Team:GetCommander()
+	if not Commander then return end
 
-		local Client = GetOwner( Commander )
-		if not Client then return end
+	local Client = GetOwner( Commander )
+	if not Client then return end
 
-		self:ResetAFKTime( Client )
-	end
+	self:ResetAFKTime( Client )
+end
 
+do
 	local function ResetForCommander()
 		return function( self, Commander )
 			local Client = GetOwner( Commander )
@@ -769,8 +769,6 @@ function Plugin:OnFirstThink()
 			Shine.Stream( ReadyRoomPlayers ):ForEach( Action )
 		end )
 	end
-
-	if Shine.IsNS2Combat then return end
 
 	local function FilterPlayers( Player )
 		local ShouldKeep = true

@@ -3,7 +3,6 @@
 	Loads stuff.
 ]]
 
---Load order.
 local Scripts = {
 	"lib/debug.lua",
 	"lib/string.lua",
@@ -38,13 +37,7 @@ local Scripts = {
 	"core/shared/autocomplete.lua"
 }
 
-local OnLoadedFuncs = {
-	[ "lib/game.lua" ] = function()
-		Shine.IsNS2Combat = Shine.GetGamemode() == "combat"
-		Shine.BaseGamemode = Shine.IsNS2Combat and "combat" or "ns2"
-	end
-}
-
-Shine.LoadScripts( Scripts, OnLoadedFuncs )
+Shine.BaseGamemode = "ns2"
+Shine.LoadScripts( Scripts )
 
 Shine:Print( "Shine started up successfully." )

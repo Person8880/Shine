@@ -4,8 +4,6 @@
 
 local Plugin = {}
 
-Plugin.NS2Only = true
-
 local StringFormat = string.format
 
 --[[

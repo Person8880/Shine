@@ -4,7 +4,6 @@
 
 local Plugin = {}
 
-Plugin.NS2Only = true
 Plugin.NotifyPrefixColour = {
 	255, 50, 0
 }
