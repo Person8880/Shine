@@ -674,6 +674,14 @@ do
 			end
 		end
 
+
+		local function IsClientAFK( Client )
+			-- Consider players that have either been stationary for the appropriate amount of time,
+			-- or have never been seen moving as AFK.
+			return AFKKick:IsAFKFor( Client, self.Config.VoteSettings.AFKTimeInSeconds )
+				or not AFKKick:HasClientMoved( Client )
+		end
+
 		local function AddPlayer( Player, Pass )
 			if not Player then return end
 
@@ -695,12 +703,13 @@ do
 
 			local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 
-			if AFKEnabled then -- Ignore AFK players in sorting.
-				if Commander or not AFKKick:IsAFKFor( Client, self.Config.VoteSettings.AFKTimeInSeconds ) then
+			if AFKEnabled then
+				if Commander or not IsClientAFK( Client ) then
+					-- Player is a commander or is not AFK, add them to the teams.
 					SortPlayer( Player, Client, Commander, Pass )
-				elseif Pass == 1 then -- Chuck AFK players into the ready room.
+				elseif Pass == 1 then
+					-- Player is AFK, chuck them into the ready room.
 					local Team = Player:GetTeamNumber()
-
 					-- Only move players on playing teams...
 					if Team == 1 or Team == 2 then
 						Gamerules:JoinTeam( Player, 0, nil, true )

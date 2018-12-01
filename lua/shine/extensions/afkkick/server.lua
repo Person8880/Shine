@@ -344,7 +344,8 @@ function Plugin:ClientConnect( Client )
 		AFKAmount = 0,
 		Pos = Player:GetOrigin(),
 		Ang = Player:GetViewAngles(),
-		IsAFK = false
+		IsAFK = false,
+		HasMoved = false
 	} )
 	Shine.Hook.Call( "AFKChanged", Client, false )
 end
@@ -359,6 +360,7 @@ function Plugin:ResetAFKTime( Client )
 	DataTable.LastMove = Time
 	DataTable.LastMeasurement = Time
 	DataTable.AFKAmount = 0
+	DataTable.HasMoved = true
 
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
@@ -374,6 +376,7 @@ function Plugin:SubtractAFKTime( Client, Time )
 	DataTable.LastMove = SharedTime()
 	DataTable.LastMeasurement = DataTable.LastMove
 	DataTable.AFKAmount = Max( DataTable.AFKAmount - Time, 0 )
+	DataTable.HasMoved = true
 
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
@@ -558,7 +561,13 @@ function Plugin:OnProcessMove( Player, Input )
 
 	local Move = Input.move
 	local MovementIsEmpty = Move.x == 0 and Move.y == 0 and Move.z == 0 and Input.commands == 0
-	local AnglesMatch = DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch
+	local AnglesMatch
+	if DataTable.LastYaw then
+		AnglesMatch = DataTable.LastYaw == Yaw and DataTable.LastPitch == Pitch
+	else
+		-- No data yet, don't count the initial move as activity.
+		AnglesMatch = true
+	end
 
 	DataTable.LastPitch = Pitch
 	DataTable.LastYaw = Yaw
@@ -569,6 +578,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	if not ( MovementIsEmpty and AnglesMatch ) then
 		DataTable.LastMove = Time
+		DataTable.HasMoved = true
 
 		local Leniency = self:GetLeniency( self:IsClientPartiallyImmune( Client ) )
 
@@ -695,6 +705,17 @@ function Plugin:IsAFKFor( Client, Time )
 	if not AFKTime then return false end
 
 	return AFKTime > Time
+end
+
+--[[
+	Returns whether the given client has been seen moving at least once since the
+	plugin activated (i.e. last map load).
+]]
+function Plugin:HasClientMoved( Client )
+	local DataTable = self.Users:Get( Client )
+	if not DataTable then return true end
+
+	return DataTable.HasMoved
 end
 
 --[[
