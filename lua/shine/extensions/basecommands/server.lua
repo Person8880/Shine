@@ -1258,15 +1258,13 @@ function Plugin:CreateGameplayCommands()
 	ReadyRoomCommand:AddParam{ Type = "clients" }
 	ReadyRoomCommand:Help( "<players> Sends the given player(s) to the ready room." )
 
-	if not Shine.IsNS2Combat then
-		local function HiveTeams( Client )
-			--Force even teams is such an overconfident term...
-			self:SendTranslatedMessage( Client, "HIVE_TEAMS", {} )
-			ForceEvenTeams()
-		end
-		local HiveShuffle = self:BindCommand( "sh_hiveteams", { "hiveteams" }, HiveTeams )
-		HiveShuffle:Help( "Runs NS2's Hive skill team shuffler." )
+	local function HiveTeams( Client )
+		--Force even teams is such an overconfident term...
+		self:SendTranslatedMessage( Client, "HIVE_TEAMS", {} )
+		ForceEvenTeams()
 	end
+	local HiveShuffle = self:BindCommand( "sh_hiveteams", { "hiveteams" }, HiveTeams )
+	HiveShuffle:Help( "Runs NS2's Hive skill team shuffler." )
 
 	local function ForceRoundStart( Client )
 		local Gamerules = GetGamerules()
@@ -1290,27 +1288,25 @@ function Plugin:CreateGameplayCommands()
 	local ForceRoundStartCommand = self:BindCommand( "sh_forceroundstart", "forceroundstart", ForceRoundStart )
 	ForceRoundStartCommand:Help( "Forces the round to start." )
 
-	if not Shine.IsNS2Combat then
-		local function Eject( Client, Target )
-			local Player = Target:GetControllingPlayer()
-			if not Player then return end
+	local function Eject( Client, Target )
+		local Player = Target:GetControllingPlayer()
+		if not Player then return end
 
-			if Player:isa( "Commander" ) then
-				Player:Eject()
+		if Player:isa( "Commander" ) then
+			Player:Eject()
 
-				self:SendTranslatedMessage( Client, "PLAYER_EJECTED", {
-					TargetName = Player:GetName() or "<unknown>"
-				} )
-			else
-				NotifyError( Client, "ERROR_NOT_COMMANDER", {
-					TargetName = Player:GetName()
-				}, "%s is not a commander.", true, Player:GetName() )
-			end
+			self:SendTranslatedMessage( Client, "PLAYER_EJECTED", {
+				TargetName = Player:GetName() or "<unknown>"
+			} )
+		else
+			NotifyError( Client, "ERROR_NOT_COMMANDER", {
+				TargetName = Player:GetName()
+			}, "%s is not a commander.", true, Player:GetName() )
 		end
-		local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
-		EjectCommand:AddParam{ Type = "client" }
-		EjectCommand:Help( "Ejects the given commander." )
 	end
+	local EjectCommand = self:BindCommand( "sh_eject", "eject", Eject )
+	EjectCommand:AddParam{ Type = "client" }
+	EjectCommand:Help( "Ejects the given commander." )
 end
 
 function Plugin:CreateMessageCommands()

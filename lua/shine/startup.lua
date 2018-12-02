@@ -17,7 +17,7 @@ function Shine.LoadScripts( Scripts, OnLoadedFuncs )
 	for i = 1, #Scripts do
 		include( "lua/shine/"..Scripts[ i ] )
 
-		if OnLoadedFuncs[ Scripts[ i ] ] then
+		if OnLoadedFuncs and OnLoadedFuncs[ Scripts[ i ] ] then
 			OnLoadedFuncs[ Scripts[ i ] ]()
 		end
 	end

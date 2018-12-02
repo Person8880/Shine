@@ -23,8 +23,8 @@ local function ReportErrors()
 	if not Shine.Config.ReportErrors then return end
 	if not next( ErrorQueue ) then return end
 
-	TableInsert( ErrorQueue, 1, StringFormat( "Operating system: %s. Game: %s.", OS,
-			Shine.IsNS2Combat and "NS2: Combat" or "Natural Selection 2" ) )
+	TableInsert( ErrorQueue, 1, StringFormat( "Operating system: %s. Gamemode: %s.", OS,
+			Shine.GetGamemode() ) )
 
 	if Server then
 		local ModCount = Server.GetNumActiveMods()

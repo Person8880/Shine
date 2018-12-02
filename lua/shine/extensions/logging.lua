@@ -204,57 +204,55 @@ function Plugin:CastVoteByPlayer( Gamerules, VoteTechID, Player )
 	end
 end
 
-if not Shine.IsNS2Combat then
-	function Plugin:CommLoginPlayer( Chair, Player )
-		if not self.Config.LogCommanderLogin then return end
-		if not Player then return end
+function Plugin:CommLoginPlayer( Chair, Player )
+	if not self.Config.LogCommanderLogin then return end
+	if not Player then return end
 
-		Shine:LogString( StringFormat( "%s became the commander of the %s.",
-			self:GetClientInfo( Server.GetOwner( Player ) ),
-			Shine:GetTeamName( Player:GetTeamNumber(), nil, true )
-		) )
-	end
+	Shine:LogString( StringFormat( "%s became the commander of the %s.",
+		self:GetClientInfo( Server.GetOwner( Player ) ),
+		Shine:GetTeamName( Player:GetTeamNumber(), nil, true )
+	) )
+end
 
-	function Plugin:CommLogout( Chair )
-		if not self.Config.LogCommanderLogin then return end
+function Plugin:CommLogout( Chair )
+	if not self.Config.LogCommanderLogin then return end
 
-		local Commander = Chair:GetCommander()
-		if not Commander then return end
+	local Commander = Chair:GetCommander()
+	if not Commander then return end
 
-		Shine:LogString( StringFormat( "%s stopped commanding the %s.",
-			self:GetClientInfo( Server.GetOwner( Commander ) ),
-			Shine:GetTeamName( Commander:GetTeamNumber(), nil, true )
-		) )
-	end
+	Shine:LogString( StringFormat( "%s stopped commanding the %s.",
+		self:GetClientInfo( Server.GetOwner( Commander ) ),
+		Shine:GetTeamName( Commander:GetTeamNumber(), nil, true )
+	) )
+end
 
-	function Plugin:OnBuildingRecycled( Building, ResearchID )
-		if not self.Config.LogRecycling then return end
+function Plugin:OnBuildingRecycled( Building, ResearchID )
+	if not self.Config.LogRecycling then return end
 
-		local ID = Building:GetId()
-		local Name = Building:GetClassName()
+	local ID = Building:GetId()
+	local Name = Building:GetClassName()
 
-		Shine:LogString( StringFormat( "%s[%s] was recycled.", Name, ID ) )
-	end
+	Shine:LogString( StringFormat( "%s[%s] was recycled.", Name, ID ) )
+end
 
-	function Plugin:OnRecycle( Building, ResearchID )
-		if not self.Config.LogRecycling then return end
+function Plugin:OnRecycle( Building, ResearchID )
+	if not self.Config.LogRecycling then return end
 
-		local ID = Building:GetId()
-		local Name = Building:GetClassName()
-		local Team = Building:GetTeam()
+	local ID = Building:GetId()
+	local Name = Building:GetClassName()
+	local Team = Building:GetTeam()
 
-		if not Team then return end
+	if not Team then return end
 
-		local Commander = Team:GetCommander()
-		if not Commander then return end
+	local Commander = Team:GetCommander()
+	if not Commander then return end
 
-		if ResearchID ~= kTechId.Recycle then return end
+	if ResearchID ~= kTechId.Recycle then return end
 
-		local Client = Server.GetOwner( Commander )
+	local Client = Server.GetOwner( Commander )
 
-		Shine:LogString( StringFormat( "%s began recycling %s[%s].",
-			self:GetClientInfo( Client ), Name, ID ) )
-	end
+	Shine:LogString( StringFormat( "%s began recycling %s[%s].",
+		self:GetClientInfo( Client ), Name, ID ) )
 end
 
 function Plugin:OnConstructInit( Building )

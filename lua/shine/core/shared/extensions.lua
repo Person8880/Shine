@@ -242,10 +242,6 @@ function Shine:LoadExtension( Name, DontEnable )
 end
 
 function Shine:CanPluginLoad( Plugin )
-	if self.IsNS2Combat and Plugin.NS2Only then
-		return false, "plugin not compatible with NS2:Combat"
-	end
-
 	local Gamemode = Shine.GetGamemode()
 
 	-- Allow external mods/gamemodes to decide whether the plugin can load if they know a plugin is compatible.

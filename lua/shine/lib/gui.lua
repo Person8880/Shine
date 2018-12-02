@@ -787,17 +787,7 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 
 	MouseTracker_ListenToMovement( Listener )
 	MouseTracker_ListenToButtons( Listener )
-
-	if Shine.IsNS2Combat then
-		--Combat has a userdata listener at the top which blocks SGUI scrolling.
-		--So we're going to put ourselves above it.
-		local Listeners = Shine.GetUpValue( MouseTracker_ListenToWheel,
-			"gMouseWheelMovementListeners" )
-
-		TableInsert( Listeners, 1, Listener )
-	else
-		MouseTracker_ListenToWheel( Listener )
-	end
+	MouseTracker_ListenToWheel( Listener )
 end )
 
 include( "lua/shine/lib/gui/base_control.lua" )

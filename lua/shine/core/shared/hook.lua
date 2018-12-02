@@ -629,23 +629,21 @@ Add( "Think", "ReplaceMethods", function()
 	SetupClassHook( Gamerules, "EndGame", "EndGame", "PassivePre" )
 	SetupClassHook( Gamerules, "OnEntityKilled", "OnEntityKilled", "PassivePre" )
 
-	if not Shine.IsNS2Combat then
-		SetupClassHook( "CommandStructure", "LoginPlayer", "CommLoginPlayer", "PassivePre" )
-		SetupClassHook( "CommandStructure", "OnCommanderLogin", "OnCommanderLogin", "PassivePre" )
-		SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
-		SetupClassHook( Gamerules, "OnCommanderLogin", "ValidateCommanderLogin", "ActivePre" )
+	SetupClassHook( "CommandStructure", "LoginPlayer", "CommLoginPlayer", "PassivePre" )
+	SetupClassHook( "CommandStructure", "OnCommanderLogin", "OnCommanderLogin", "PassivePre" )
+	SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
+	SetupClassHook( Gamerules, "OnCommanderLogin", "ValidateCommanderLogin", "ActivePre" )
 
-		SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
-		SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
+	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
+	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
 
-		SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction",
-			"PassivePre" )
-		SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
-		SetupClassHook( "Commander", "Eject", "OnCommanderEjected", "PassivePre" )
+	SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction",
+		"PassivePre" )
+	SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
+	SetupClassHook( "Commander", "Eject", "OnCommanderEjected", "PassivePre" )
 
-		SetupClassHook( "PlayingTeam", "VoteToEjectCommander", "OnVoteToEjectCommander", "PassivePost" )
-		SetupClassHook( "PlayingTeam", "VoteToGiveUp", "OnVoteToConcede", "PassivePost" )
-	end
+	SetupClassHook( "PlayingTeam", "VoteToEjectCommander", "OnVoteToEjectCommander", "PassivePost" )
+	SetupClassHook( "PlayingTeam", "VoteToGiveUp", "OnVoteToConcede", "PassivePost" )
 
 	SetupClassHook( "ConstructMixin", "OnInitialized", "OnConstructInit", "PassivePre" )
 

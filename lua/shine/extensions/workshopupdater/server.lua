@@ -34,16 +34,14 @@ local RemainingNotifications = Huge
 local ModChangeTimer = "CheckForModChange"
 
 function Plugin:Initialise()
-	if not Shine.IsNS2Combat then
-		--Have to load manually as Server.GetConfigSetting doesn't exist at the point this is run
-		local ServerConfig = Shine.LoadJSONFile( "config://ServerConfig.json" )
+	-- Have to load manually as Server.GetConfigSetting doesn't exist at the point this is run
+	local ServerConfig = Shine.LoadJSONFile( "config://ServerConfig.json" )
 
-		if ServerConfig then
-			local BackupServers = ServerConfig.settings and ServerConfig.settings.mod_backup_servers
+	if ServerConfig then
+		local BackupServers = ServerConfig.settings and ServerConfig.settings.mod_backup_servers
 
-			if BackupServers and #BackupServers > 0 then
-				return false, "backup server is configured, this plugin is not required"
-			end
+		if BackupServers and #BackupServers > 0 then
+			return false, "backup server is configured, this plugin is not required"
 		end
 	end
 
