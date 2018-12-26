@@ -286,7 +286,7 @@ function Plugin:OnFirstThink()
 	self:UpdateVanillaConfig()
 
 	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
-	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre", { OverrideWithoutWarning = true } )
 
 	local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
 		local NewDamage, NewArmour, NewHealth = Call( "TakeDamage", self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
