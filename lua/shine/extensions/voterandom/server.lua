@@ -658,27 +658,6 @@ do
 			AddTeamPreference( Player, Client, Preference )
 		end
 
-		local function DisconnectBot( Client )
-			local Bots = gServerBots
-			local Found = false
-
-			if Bots then
-				-- No reference back to the bot, so have to search the table...
-				for i = 1, #Bots do
-					if Bots[ i ] and Bots[ i ].client == Client then
-						Found = true
-						Bots[ i ]:Disconnect()
-						break
-					end
-				end
-			end
-
-			if not Found then
-				Server.DisconnectClient( Client )
-			end
-		end
-
-
 		local function IsClientAFK( Client )
 			-- Consider players that have either been stationary for the appropriate amount of time,
 			-- or have never been seen moving as AFK.
@@ -699,7 +678,7 @@ do
 			-- Bot and we don't want to deal with them, so kick them out.
 			if Client:GetIsVirtual() and not self.Config.ApplyToBots then
 				if Pass == 1 then
-					DisconnectBot( Client )
+					Server.DisconnectClient( Client )
 				end
 
 				return
