@@ -18,11 +18,11 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "PingTracker.json"
 
 Plugin.DefaultConfig = {
-	MaxPing = 200, --Maximum allowed average ping.
-	MaxJitter = 50, --Maximum allowed average jitter.
-	Warn = true, --Should players be warned first?
-	MeasureInterval = 1, --Time in seconds between measurements.
-	CheckInterval = 60, --Interval to check averages and warn/kick.
+	MaxPing = 200, -- Maximum allowed average ping.
+	MaxJitter = 50, -- Maximum allowed average jitter.
+	Warn = true, -- Should players be warned first?
+	MeasureInterval = 1, -- Time in seconds between measurements.
+	CheckInterval = 60 -- Interval to check averages and warn/kick.
 }
 
 Plugin.CheckConfig = true
@@ -35,7 +35,6 @@ function Plugin:Initialise()
 
 	if self.Enabled ~= nil then
 		local Clients, Count = Shine.GetAllClients()
-
 		for i = 1, Count do
 			local Client = Clients[ i ]
 			self:ClientConnect( Client )
@@ -48,8 +47,9 @@ function Plugin:Initialise()
 end
 
 function Plugin:ClientConnect( Client )
-	local Time = Shared.GetTime()
+	if not Client or Client:GetIsVirtual() then return end
 
+	local Time = SharedGetTime()
 	local FirstCheck = Time + 30
 	local NextAverage = FirstCheck + self.Config.CheckInterval
 
