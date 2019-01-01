@@ -232,6 +232,12 @@ function ChatLine:GetWrappedLabel()
 end
 
 function ChatLine:GetSize()
+	if not self.ComputedWrapping and self.MaxWidth then
+		-- Ensure wrapping is computed before returning the size, otherwise we may return an older
+		-- size value if we've been re-used.
+		self:InvalidateLayout( true )
+	end
+
 	local Width = self.PreLabel:GetTextWidth() + self.MessageLabel:GetTextWidth()
 	local Height = self.MessageLabel:GetTextHeight( "!" )
 

@@ -288,27 +288,23 @@ function Panel:SetScrollbarWidth( Width )
 	self:UpdateScrollbarSize()
 end
 
-function Panel:SetMaxHeight( Height, ForceInstantScroll )
+function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 	local OldMaxHeight = self.MaxHeight
 
-	self.MaxHeight = Height
+	self.MaxHeight = MaxHeight
 
 	if not self.ShowScrollbar then return end
 
-	local MaxHeight = self:GetSize().y
+	local ElementHeight = self:GetSize().y
 
 	-- Height has reduced below the max height, so remove the scrollbar.
-	if MaxHeight >= Height then
+	if ElementHeight >= MaxHeight then
 		if SGUI.IsValid( self.Scrollbar ) then
 			self.Scrollbar:Destroy()
 			self.Scrollbar = nil
 			self.MaxHeight = nil
-
-			if self.ScrollParentPos then
-				self.ScrollParentPos.y = 0
-			end
-
-			self.ScrollParent:SetPosition( self.ScrollParentPos or Vector( 0, 0, 0 ) )
+			self.ScrollParentPos = nil
+			self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
 		end
 
 		return
@@ -321,21 +317,18 @@ function Panel:SetMaxHeight( Height, ForceInstantScroll )
 		Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 		Scrollbar:SetPos( self.ScrollPos or ScrollPos )
 		self:UpdateScrollbarSize()
-		Scrollbar:SetScrollSize( MaxHeight / Height )
+		Scrollbar:SetScrollSize( ElementHeight / MaxHeight )
+
+		self.ScrollParentPos = Vector2( 0, 0 )
 
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )
 			local SetHeight = self:GetSize().y
 			local MaxHeight = self.MaxHeight
 
 			local Fraction = Pos / MaxPos
-
 			local Diff = MaxHeight - SetHeight
 
-			if self.ScrollParentPos then
-				self.ScrollParentPos.y = -Diff * Fraction
-			else
-				self.ScrollParentPos = Vector( 0, -Diff * Fraction, 0 )
-			end
+			self.ScrollParentPos.y = -Diff * Fraction
 
 			if Smoothed and self.AllowSmoothScroll then
 				self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, nil, math.EaseOut, 3 )
@@ -367,11 +360,11 @@ function Panel:SetMaxHeight( Height, ForceInstantScroll )
 	local OldSize = self.Scrollbar:GetDiffSize()
 
 	local OldScrollSize = self.Scrollbar.ScrollSize
-	local NewScrollSize = MaxHeight / Height
+	local NewScrollSize = ElementHeight / MaxHeight
 
 	self.Scrollbar:SetScrollSize( NewScrollSize )
 
-	if self.StickyScroll and OldPos >= OldSize and ( OldMaxHeight ~= Height or ForceInstantScroll ) then
+	if self.StickyScroll and OldPos >= OldSize and ( OldMaxHeight ~= MaxHeight or ForceInstantScroll ) then
 		local ShouldSmooth = NewScrollSize < OldScrollSize and self:ComputeVisibility()
 			and not ForceInstantScroll
 		if not ShouldSmooth then

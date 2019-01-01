@@ -54,7 +54,7 @@ end
 
 function Scrollbar:SetScrollSize( Size )
 	local OldPos = self.Pos or 0
-	local OldDiff = self.Size.y - self.ScrollSizeVec.y
+	local OldDiff = self:GetDiffSize()
 
 	self.ScrollSize = Size
 
@@ -66,8 +66,8 @@ function Scrollbar:SetScrollSize( Size )
 
 	self.Bar:SetSize( self.ScrollSizeVec )
 
-	local NewDiff = self.Size.y - self.ScrollSizeVec.y
-	--If the scrolling size has shrunk, we may need to move up.
+	local NewDiff = self:GetDiffSize()
+	-- If the scrolling size has shrunk, we may need to move up.
 	if NewDiff < OldDiff then
 		self:SetScroll( OldPos )
 	end
@@ -77,14 +77,12 @@ end
 	Sets how far down the scroll bar is.
 ]]
 function Scrollbar:SetScroll( Scroll, Smoothed )
-	local Diff = self.Size.y - self.ScrollSizeVec.y
+	local Diff = self:GetDiffSize()
 
 	Scroll = Clamp( Scroll, 0, Diff )
 
 	self.Pos = Scroll
-
 	self.BarPos.y = Scroll
-
 	self.Bar:SetPosition( self.BarPos )
 
 	if self.Parent and self.Parent.OnScrollChange then
@@ -97,15 +95,7 @@ function Scrollbar:GetDiffSize()
 end
 
 function Scrollbar:ScrollToBottom( Smoothed )
-	local Diff = self.Size.y - self.ScrollSizeVec.y
-
-	self.Pos = Diff
-	self.BarPos.y = Diff
-	self.Bar:SetPosition( self.BarPos )
-
-	if self.Parent and self.Parent.OnScrollChange then
-		self.Parent:OnScrollChange( Diff, Diff, Smoothed )
-	end
+	self:SetScroll( self:GetDiffSize() )
 end
 
 local GetCursorPos
