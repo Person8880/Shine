@@ -696,7 +696,8 @@ function Plugin:DisplayAdvert( Advert, EventData )
 			Duration = 7,
 			R = R, G = G, B = B,
 			Alignment = Align,
-			Size = 2, FadeIn = 1
+			Size = 2, FadeIn = 1,
+			IgnoreFormat = true
 		}, Targets )
 	end
 end
