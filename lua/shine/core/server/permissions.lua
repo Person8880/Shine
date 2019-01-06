@@ -898,7 +898,6 @@ local function GetPermissionInheritance( self, GroupName, GroupTable, Command )
 			if IsType( InheritGroups, "string" ) then
 				-- May have forgotten the brackets, so assume it's a single group name.
 				GroupTable.InheritsFrom = { InheritGroups }
-				InheritGroups = GroupTable.InheritGroups
 			else
 				-- Don't try to inherit again.
 				GroupTable.InheritsFrom = nil
