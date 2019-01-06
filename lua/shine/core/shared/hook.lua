@@ -330,9 +330,9 @@ local function CheckExistingHook( HookName, Target, Mode, Options )
 		end
 
 		if not IsType( Options, "table" ) or not Options.OverrideWithoutWarning then
-			Shine:Print(
-				"[Warn] Hook '%s' will be called for both %s (%s) and %s (%s).",
-				true, HookName, Target, Mode, ExistingHook.Target, ExistingHook.Mode
+			Print(
+				"[Shine] [Warn] Hook '%s' will be called for both %s (%s) and %s (%s).",
+				HookName, Target, Mode, ExistingHook.Target, ExistingHook.Mode
 			)
 		end
 
