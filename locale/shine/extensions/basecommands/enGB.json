@@ -78,5 +78,7 @@
 	"MAPS": "Maps",
 	"PLUGINS": "Plugins",
 	"VOTE_STOPPED": "stopped the current vote.",
-	"ERROR_GAG_BOT": "Bots cannot be gagged."
+	"ERROR_GAG_BOT": "Bots cannot be gagged.",
+	"UNCLEAR_MAP_NAME": "{MapName} matches multiple maps, a more precise name is required.",
+	"UNKNOWN_MAP_NAME": "{MapName} is not a known map name."
 }

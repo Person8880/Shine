@@ -220,11 +220,10 @@ local function AddGlobalHook( ReplacementFunc, FuncName )
 
 	repeat
 		Prev = Func
-
 		Func = Func[ Path[ i ] ]
 
-		--Doesn't exist!
-		if not Func then return end
+		-- Doesn't exist!
+		if not Func then return nil end
 
 		i = i + 1
 	until not Path[ i ]
@@ -259,19 +258,19 @@ end
 ]]
 local HookModes = {
 	Replace = function( Adder, HookName, ... )
-		Adder( function( OldFunc, ... )
+		return Adder( function( OldFunc, ... )
 			return Call( HookName, ... )
 		end, ... )
 	end,
 	PassivePre = function( Adder, HookName, ... )
-		Adder( function( OldFunc, ... )
+		return Adder( function( OldFunc, ... )
 			Call( HookName, ... )
 
 			return OldFunc( ... )
 		end, ... )
 	end,
 	PassivePost = function( Adder, HookName, ... )
-		Adder( function( OldFunc, ... )
+		return Adder( function( OldFunc, ... )
 			local a, b, c, d, e, f = OldFunc( ... )
 
 			Call( HookName, ... )
@@ -281,7 +280,7 @@ local HookModes = {
 	end,
 
 	ActivePre = function( Adder, HookName, ... )
-		Adder( function( OldFunc, ... )
+		return Adder( function( OldFunc, ... )
 			local a, b, c, d, e, f = Call( HookName, ... )
 
 			if a ~= nil then
@@ -293,7 +292,7 @@ local HookModes = {
 	end,
 
 	ActivePost = function( Adder, HookName, ... )
-		Adder( function( OldFunc, ... )
+		return Adder( function( OldFunc, ... )
 			local a, b, c, d, e, f = OldFunc( ... )
 
 			local g, h, i, j, k, l = Call( HookName, ... )
@@ -307,7 +306,7 @@ local HookModes = {
 	end,
 
 	Halt = function( Adder, HookName, ... )
-		Adder( function( OldFunc, ... )
+		return Adder( function( OldFunc, ... )
 			local Ret = Call( HookName, ... )
 
 			if Ret ~= nil then return end
@@ -316,6 +315,40 @@ local HookModes = {
 		end, ... )
 	end
 }
+
+-- Track which hooks have been setup, and what they're targeting.
+-- This allows for skipping duplicate setup calls, and also detecting cases where the same
+-- hook name is used in different places/modes.
+local SetupHooks = {}
+
+local function CheckExistingHook( HookName, Target, Mode, Options )
+	local ExistingHook = SetupHooks[ HookName ]
+	if ExistingHook then
+		if ExistingHook.Target == Target and ExistingHook.Mode == Mode then
+			-- No need to hook again if targeting the same function with the same mode.
+			return true, ExistingHook
+		end
+
+		if not IsType( Options, "table" ) or not Options.OverrideWithoutWarning then
+			Shine:Print(
+				"[Warn] Hook '%s' will be called for both %s (%s) and %s (%s).",
+				true, HookName, Target, Mode, ExistingHook.Target, ExistingHook.Mode
+			)
+		end
+
+		ExistingHook.Target = Target
+		ExistingHook.Mode = Mode
+		ExistingHook.OldFunc = nil
+	else
+		ExistingHook = {
+			Target = Target,
+			Mode = Mode
+		}
+		SetupHooks[ HookName ] = ExistingHook
+	end
+
+	return false, ExistingHook
+end
 
 --[[
 	Sets up a Shine hook for a class method.
@@ -333,15 +366,28 @@ local HookModes = {
 
 	The function will be passed the original function, then the arguments it was run with.
 ]]
-local function SetupClassHook( Class, Method, HookName, Mode )
-	if IsType( Mode, "function" ) then
-		return AddClassHook( Mode, Class, Method )
+local function SetupClassHook( Class, Method, HookName, Mode, Options )
+	local Target = StringFormat( "%s:%s", Class, Method )
+	local HookedAlready, ExistingHook = CheckExistingHook( HookName, Target, Mode, Options )
+	if HookedAlready then
+		return ExistingHook.OldFunc
 	end
 
-	local HookFunc = HookModes[ Mode ]
-	if not HookFunc then return nil end
+	local OldFunc
+	if IsType( Mode, "function" ) then
+		OldFunc = AddClassHook( Mode, Class, Method )
+	else
+		local HookFunc = HookModes[ Mode ]
+		if not HookFunc then
+			error( StringFormat( "Unknown hook mode: %s", Mode ), 2 )
+		end
 
-	return HookFunc( AddClassHook, HookName, Class, Method )
+		OldFunc = HookFunc( AddClassHook, HookName, Class, Method )
+	end
+
+	ExistingHook.OldFunc = OldFunc
+
+	return OldFunc
 end
 Hook.SetupClassHook = SetupClassHook
 
@@ -359,15 +405,28 @@ Hook.SetupClassHook = SetupClassHook
 
 	The function will be passed the original function, then the arguments it was run with.
 ]]
-local function SetupGlobalHook( FuncName, HookName, Mode )
-	if IsType( Mode, "function" ) then
-		return AddGlobalHook( Mode, FuncName )
+local function SetupGlobalHook( FuncName, HookName, Mode, Options )
+	local Target = StringFormat( "_G.%s", FuncName )
+	local HookedAlready, ExistingHook = CheckExistingHook( HookName, Target, Mode, Options )
+	if HookedAlready then
+		return ExistingHook.OldFunc
 	end
 
-	local HookFunc = HookModes[ Mode ]
-	if not HookFunc then return nil end
+	local OldFunc
+	if IsType( Mode, "function" ) then
+		OldFunc = AddGlobalHook( Mode, FuncName )
+	else
+		local HookFunc = HookModes[ Mode ]
+		if not HookFunc then
+			error( StringFormat( "Unknown hook mode: %s", Mode ), 2 )
+		end
 
-	return HookFunc( AddGlobalHook, HookName, FuncName )
+		OldFunc = HookFunc( AddGlobalHook, HookName, FuncName )
+	end
+
+	ExistingHook.OldFunc = OldFunc
+
+	return OldFunc
 end
 Hook.SetupGlobalHook = SetupGlobalHook
 
@@ -445,7 +504,7 @@ do
 	Event.Hook( "MapPostLoad", MapPostLoad )
 end
 
---Client specific hooks.
+-- Client specific hooks.
 if Client then
 	local function LoadComplete()
 		CallOnce "OnMapLoad"
@@ -457,7 +516,7 @@ if Client then
 	end
 	Event.Hook( "ClientDisconnected", OnClientDisconnected )
 
-	--Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
+	-- Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
 	Add( "OnMapLoad", "HookGUIEvents", function()
 		local GUIManager = GetGUIManager()
 		local OldSendKeyEvent = GUIManager.SendKeyEvent
@@ -594,7 +653,7 @@ do
 			Callback = OnChatReceived
 		end
 
-		OriginalHookNWMessage( Message, Callback )
+		return OriginalHookNWMessage( Message, Callback )
 	end
 end
 
@@ -609,11 +668,6 @@ Add( "Think", "ReplaceMethods", function()
 
 	local Gamerules = "NS2Gamerules"
 
-	--For the factions mod.
-	if FactionGamerules then
-		Gamerules = "FactionGamerules"
-	end
-
 	SetupClassHook( "Player", "OnProcessMove", "OnProcessMove", "PassivePre" )
 	SetupClassHook( "Player", "SetName", "PlayerNameChange", function( OldFunc, self, Name )
 		local OldName = self:GetName()
@@ -624,7 +678,7 @@ Add( "Think", "ReplaceMethods", function()
 		Call( "PlayerNameChange", self, NewName, OldName )
 	end )
 
-	SetupClassHook( "Spectator", "OnProcessMove", "OnProcessMove", "PassivePre" )
+	SetupClassHook( "Spectator", "OnProcessMove", "OnProcessMove", "PassivePre", { OverrideWithoutWarning = true } )
 
 	SetupClassHook( Gamerules, "EndGame", "EndGame", "PassivePre" )
 	SetupClassHook( Gamerules, "OnEntityKilled", "OnEntityKilled", "PassivePre" )

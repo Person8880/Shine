@@ -310,9 +310,13 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 		if ( Team == 0 or Team == 3 ) and Shine.IsPlayingTeam( NewTeam ) then
 			Player.ShineRandomised = true -- Prevent an infinite loop!
 
-			Plugin:NotifyTranslated( Player, Plugin.LastShuffleMode == Plugin.ShuffleMode.HIVE and "PLACED_ON_HIVE_TEAM"
-				or "PLACED_ON_RANDOM_TEAM" )
-			Plugin:JoinRandomTeam( Player )
+			local TeamJoined = Plugin:JoinRandomTeam( Gamerules, Player )
+			if TeamJoined ~= NewTeam then
+				-- Notify the player why they're not on their chosen team.
+				local Message = Plugin.LastShuffleMode == Plugin.ShuffleMode.HIVE and "PLACED_ON_HIVE_TEAM"
+					or "PLACED_ON_RANDOM_TEAM"
+				Plugin:NotifyTranslated( Client, Message )
+			end
 
 			return false
 		end
@@ -654,27 +658,6 @@ do
 			AddTeamPreference( Player, Client, Preference )
 		end
 
-		local function DisconnectBot( Client )
-			local Bots = gServerBots
-			local Found = false
-
-			if Bots then
-				-- No reference back to the bot, so have to search the table...
-				for i = 1, #Bots do
-					if Bots[ i ] and Bots[ i ].client == Client then
-						Found = true
-						Bots[ i ]:Disconnect()
-						break
-					end
-				end
-			end
-
-			if not Found then
-				Server.DisconnectClient( Client )
-			end
-		end
-
-
 		local function IsClientAFK( Client )
 			-- Consider players that have either been stationary for the appropriate amount of time,
 			-- or have never been seen moving as AFK.
@@ -695,7 +678,7 @@ do
 			-- Bot and we don't want to deal with them, so kick them out.
 			if Client:GetIsVirtual() and not self.Config.ApplyToBots then
 				if Pass == 1 then
-					DisconnectBot( Client )
+					Server.DisconnectClient( Client )
 				end
 
 				return
@@ -838,37 +821,37 @@ end
 --[[
 	Moves a single player onto a random team.
 ]]
-function Plugin:JoinRandomTeam( Player )
-	local Gamerules = GetGamerules()
-	if not Gamerules then return end
-
+function Plugin:JoinRandomTeam( Gamerules, Player )
 	local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
 
 	if Team1 < Team2 then
 		Gamerules:JoinTeam( Player, 1 )
-	elseif Team2 < Team1 then
+		return 1
+	end
+
+	if Team2 < Team1 then
 		Gamerules:JoinTeam( Player, 2 )
-	else
-		if self.LastShuffleMode == self.ShuffleMode.HIVE then
-			local Team1Players = Gamerules.team1:GetPlayers()
-			local Team2Players = Gamerules.team2:GetPlayers()
+		return 2
+	end
 
-			local TeamToJoin = self:GetOptimalTeamForPlayer( Player,
-				Team1Players, Team2Players, self.SkillGetters.GetHiveSkill )
+	if self.LastShuffleMode == self.ShuffleMode.HIVE then
+		local Team1Players = Gamerules.team1:GetPlayers()
+		local Team2Players = Gamerules.team2:GetPlayers()
 
-			if TeamToJoin then
-				Gamerules:JoinTeam( Player, TeamToJoin )
-				return
-			end
-		end
+		local TeamToJoin = self:GetOptimalTeamForPlayer( Player,
+			Team1Players, Team2Players, self.SkillGetters.GetHiveSkill )
 
-		if Random() < 0.5 then
-			Gamerules:JoinTeam( Player, 1 )
-		else
-			Gamerules:JoinTeam( Player, 2 )
+		if TeamToJoin then
+			Gamerules:JoinTeam( Player, TeamToJoin )
+			return TeamToJoin
 		end
 	end
+
+	local TeamNumber = Random() < 0.5 and 1 or 2
+	Gamerules:JoinTeam( Player, TeamNumber )
+
+	return TeamNumber
 end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )

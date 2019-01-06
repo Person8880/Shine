@@ -510,6 +510,11 @@ local function InitialPermissions()
 	}
 end
 
+local function ToBool( Flag )
+	-- Someone is bound to make this mistake...
+	return Flag == true or Flag == "true"
+end
+
 local function AddCommand( Entry, Permissions, Blacklist )
 	if IsType( Entry, "string" ) then
 		if Blacklist or not Permissions.Commands[ Entry ] then
@@ -564,7 +569,7 @@ local function GetGroupPermissions( GroupName, GroupTable )
 		Permissions = InitialPermissions()
 
 		for i = 1, #GroupTable.Commands do
-			AddCommand( GroupTable.Commands[ i ], Permissions, GroupTable.IsBlacklist )
+			AddCommand( GroupTable.Commands[ i ], Permissions, ToBool( GroupTable.IsBlacklist ) )
 		end
 
 		PermissionCache[ GroupName ] = Permissions
@@ -636,7 +641,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	local InheritFromDefault = GroupTable.InheritFromDefault
 	local TopLevelCommands = GroupTable.Commands
 
-	if GroupTable.IsBlacklist == Blacklist then
+	if ToBool( GroupTable.IsBlacklist ) == Blacklist then
 		if IsType( TopLevelCommands, "table" ) then
 			AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
 		else
@@ -655,7 +660,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 			if not Processed[ DefaultGroup ] then
 				Processed[ DefaultGroup ] = true
 
-				if VerifyGroup( nil, DefaultGroup ) and DefaultGroup.IsBlacklist == Blacklist then
+				if VerifyGroup( nil, DefaultGroup ) and ToBool( DefaultGroup.IsBlacklist ) == Blacklist then
 					AddPermissionsToTable( DefaultGroup.Commands, Permissions, Blacklist )
 				end
 			end
@@ -729,14 +734,15 @@ do
 
 	local function ForEachInheritingGroup( GroupName, Action )
 		for Name, Group in pairs( Shine.UserData.Groups ) do
-			if Group.InheritsFrom and TableHasValue( Group.InheritsFrom, GroupName ) then
-				Action( Name, Group )
+			if IsType( Group.InheritsFrom, "table" ) and TableHasValue( Group.InheritsFrom, GroupName ) then
+				Action( Name )
 			end
 		end
 	end
 
-	local function FlushPermissionsCache( Name )
-		PermissionCache[ Name ] = nil
+	local function IsEntryForRight( Entry, AccessRight )
+		return Entry == AccessRight or ( IsType( Entry, "table" )
+			and Entry.Command == AccessRight )
 	end
 
 	local function IsAllowedEntry( Entry, AccessRight )
@@ -744,28 +750,50 @@ do
 			and Entry.Command == AccessRight and not Entry.Denied )
 	end
 
+	local function FlushPermissionsCacheRecursively( GroupName )
+		if PermissionCache[ GroupName ] then
+			PermissionCache[ GroupName ] = nil
+			ForEachInheritingGroup( GroupName, FlushPermissionsCacheRecursively )
+		end
+	end
+
 	function Shine:AddGroupAccess( GroupName, AccessRight )
 		local Group = self:GetGroupData( GroupName )
 		if not Group then return false end
 
-		for i = #Group.Commands, 1, -1 do
-			local Entry = Group.Commands[ i ]
-			if IsAllowedEntry( Entry, AccessRight ) then
-				return false
+		Shine.TypeCheck( AccessRight, "string", 2, "AddGroupAccess" )
+
+		if ToBool( Group.IsBlacklist ) then
+			-- For a blacklist group, remove the access right from the commands list.
+			local Found
+			for i = #Group.Commands, 1, -1 do
+				local Entry = Group.Commands[ i ]
+				if IsEntryForRight( Entry, AccessRight ) then
+					Found = true
+					TableRemove( Group.Commands, i )
+				end
 			end
 
-			if IsType( Entry, "table" ) and Entry.Denied then
-				TableRemove( Group.Commands, i )
+			if not Found then return false end
+
+			FlushPermissionsCacheRecursively( GroupName )
+		else
+			-- For a whitelist, add the command if its not already present, and remove any
+			-- entries that deny it.
+			for i = #Group.Commands, 1, -1 do
+				local Entry = Group.Commands[ i ]
+				if IsAllowedEntry( Entry, AccessRight ) then
+					return false
+				end
+
+				if IsType( Entry, "table" ) and Entry.Denied then
+					TableRemove( Group.Commands, i )
+				end
 			end
-		end
 
-		Group.Commands[ #Group.Commands + 1 ] = AccessRight
+			Group.Commands[ #Group.Commands + 1 ] = AccessRight
 
-		local CachedPermissions = PermissionCache[ GroupName ]
-		if CachedPermissions and ( not CachedPermissions.Commands[ AccessRight ]
-		or CachedPermissions.Denied[ AccessRight ] ) then
-			PermissionCache[ GroupName ] = nil
-			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
+			FlushPermissionsCacheRecursively( GroupName )
 		end
 
 		self:SaveUsers( true )
@@ -779,20 +807,35 @@ do
 		local Group = self:GetGroupData( GroupName )
 		if not Group then return false end
 
-		local Found
-		for i = #Group.Commands, 1, -1 do
-			local Entry = Group.Commands[ i ]
-			if IsAllowedEntry( Entry, AccessRight ) then
-				Found = true
-				TableRemove( Group.Commands, i )
+		Shine.TypeCheck( AccessRight, "string", 2, "RevokeGroupAccess" )
+
+		if ToBool( Group.IsBlacklist ) then
+			-- For a blacklist, add the right to the commands list if it's not already there.
+			for i = 1, #Group.Commands do
+				local Entry = Group.Commands[ i ]
+				if IsEntryForRight( Entry, AccessRight ) then
+					-- Already blocked.
+					return false
+				end
 			end
-		end
 
-		if not Found then return false end
+			Group.Commands[ #Group.Commands + 1 ] = AccessRight
 
-		if PermissionCache[ GroupName ] then
-			PermissionCache[ GroupName ].Commands[ AccessRight ] = nil
-			ForEachInheritingGroup( GroupName, FlushPermissionsCache )
+			FlushPermissionsCacheRecursively( GroupName )
+		else
+			-- For a whitelist, remove all entries for the given right that allow it.
+			local Found
+			for i = #Group.Commands, 1, -1 do
+				local Entry = Group.Commands[ i ]
+				if IsAllowedEntry( Entry, AccessRight ) then
+					Found = true
+					TableRemove( Group.Commands, i )
+				end
+			end
+
+			if not Found then return false end
+
+			FlushPermissionsCacheRecursively( GroupName )
 		end
 
 		self:SaveUsers( true )
@@ -852,20 +895,22 @@ local function GetPermissionInheritance( self, GroupName, GroupTable, Command )
 		if not IsType( InheritGroups, "table" ) then
 			PrintOnce( "Group with ID %s has a non-array entry for \"InheritsFrom\"!",
 				true, GroupName )
-
-			return false
-		end
-
-		local NumInheritGroups = #InheritGroups
-		if NumInheritGroups == 0 then
-			PrintOnce( "Group with ID %s has an empty \"InheritsFrom\" entry!",
-				true, GroupName )
-
-			return false
+			if IsType( InheritGroups, "string" ) then
+				-- May have forgotten the brackets, so assume it's a single group name.
+				GroupTable.InheritsFrom = { InheritGroups }
+			else
+				-- Don't try to inherit again.
+				GroupTable.InheritsFrom = nil
+			end
+		else
+			if #InheritGroups == 0 then
+				PrintOnce( "Group with ID %s has an empty \"InheritsFrom\" entry!",
+					true, GroupName )
+			end
 		end
 	end
 
-	local Blacklist = GroupTable.IsBlacklist
+	local Blacklist = ToBool( GroupTable.IsBlacklist )
 	local Permissions = PermissionCache[ GroupName ]
 
 	if not Permissions then
@@ -905,7 +950,7 @@ function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
 	end
 
 	local GroupPermissions = GetGroupPermissions( GroupName, GroupTable )
-	local GrantedLevel, Restrictions = GetAccess( GroupPermissions, ConCommand, GroupTable.IsBlacklist )
+	local GrantedLevel, Restrictions = GetAccess( GroupPermissions, ConCommand, ToBool( GroupTable.IsBlacklist ) )
 
 	return IsCommandPermitted( Command, GrantedLevel, Restrictions )
 end
@@ -962,7 +1007,7 @@ function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand, AllowByDefault
 	end
 
 	local GroupPermissions = GetGroupPermissions( GroupName, GroupTable )
-	return GetAccess( GroupPermissions, ConCommand, GroupTable.IsBlacklist ) >= MinimumLevel
+	return GetAccess( GroupPermissions, ConCommand, ToBool( GroupTable.IsBlacklist ) ) >= MinimumLevel
 end
 
 --[[

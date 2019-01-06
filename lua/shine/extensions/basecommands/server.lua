@@ -13,7 +13,9 @@ local Notify = Shared.Message
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
+local StringFind = string.find
 local StringFormat = string.format
+local StringMatch = string.match
 local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableShuffle = table.Shuffle
@@ -286,7 +288,7 @@ function Plugin:OnFirstThink()
 	self:UpdateVanillaConfig()
 
 	Hook.SetupClassHook( "NS2Gamerules", "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
-	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre" )
+	Hook.SetupGlobalHook( "GetFriendlyFire", "GetFriendlyFire", "ActivePre", { OverrideWithoutWarning = true } )
 
 	local function TakeDamage( OldFunc, self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
 		local NewDamage, NewArmour, NewHealth = Call( "TakeDamage", self, Damage, Attacker, Inflictor, Point, Direction, ArmourUsed, HealthUsed, DamageType, PreventAlert )
@@ -919,7 +921,83 @@ function Plugin:CreateAdminCommands()
 	KickCommand:Help( "Kicks the given player." )
 
 	local function ChangeLevel( Client, MapName )
-		MapCycle_ChangeMap( MapName )
+		local Cycle = MapCycle_GetMapCycle()
+		local FoundMap
+		local KnownMaps = {}
+
+		-- Check the map cycle for the given map first to find maps in mods that are mounted
+		-- by the cycle.
+		if IsType( Cycle, "table" ) and IsType( Cycle.maps, "table" ) then
+			for i = 1, #Cycle.maps do
+				local Entry = Cycle.maps[ i ]
+				local EntryName = IsType( Entry, "table" ) and Entry.map or Entry
+				if EntryName == MapName then
+					FoundMap = MapName
+					break
+				end
+
+				KnownMaps[ EntryName ] = true
+			end
+		end
+
+		if not FoundMap then
+			-- Map was not in the cycle, so check the maps folder for all .level files starting with ns2_.
+			-- This will find vanilla maps, and any mounted mod maps.
+			local LevelFiles = {}
+			Shared.GetMatchingFileNames( "maps/*.level", false, LevelFiles )
+			for i = 1, #LevelFiles do
+				local Map = LevelFiles[ i ]
+				local LevelName = StringMatch( Map, "([^/]+)%.level$" )
+				-- Only check maps starting with ns2_ to avoid the menu level.
+				if StringMatch( LevelName, "^ns2_" ) then
+					if LevelName == MapName then
+						FoundMap = MapName
+						break
+					end
+					KnownMaps[ LevelName ] = true
+				end
+			end
+		end
+
+		if not FoundMap then
+			-- Still don't know what map it is, try adding ns2_ at the start.
+			local MapWithNS2 = "ns2_"..MapName
+			if KnownMaps[ MapWithNS2 ] then
+				FoundMap = MapWithNS2
+			else
+				-- Doesn't match a known map even with ns2_, so try to find a single matching
+				-- map that contains the given name.
+				local MatchingMapName
+				for KnownMap in pairs( KnownMaps ) do
+					if StringFind( KnownMap, MapName, 1, true ) then
+						if MatchingMapName then
+							-- More than one map matches, so ask for a more precise name.
+							NotifyError( Client, "UNCLEAR_MAP_NAME", {
+								MapName = MapName
+							}, "%s matches multiple maps, a more precise name is required.", true, MapName )
+							return
+						end
+
+						MatchingMapName = KnownMap
+					end
+				end
+
+				if MatchingMapName then
+					-- Exactly one map matched the given name, so use it.
+					FoundMap = MatchingMapName
+				end
+			end
+		end
+
+		if not FoundMap then
+			-- No maps match the given name, give up.
+			NotifyError( Client, "UNKNOWN_MAP_NAME", {
+				MapName = MapName
+			}, "%s is not a known map name.", true, MapName )
+			return
+		end
+
+		MapCycle_ChangeMap( FoundMap )
 	end
 	local ChangeLevelCommand = self:BindCommand( "sh_changelevel", "map", ChangeLevel )
 	ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true,

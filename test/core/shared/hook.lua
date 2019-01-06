@@ -68,3 +68,46 @@ UnitTest:Test( "Hook integration test", function( Assert )
 end )
 
 Hook.Clear( "Test" )
+
+local FunctionName = "TestFunction"..os.time()
+
+UnitTest:Test( "SetupGlobalHook replaces functions only once", function( Assert )
+	local TestFunction = function() end
+
+	_G[ FunctionName ] = TestFunction
+
+	local OldFunc = Hook.SetupGlobalHook( FunctionName, "Test", "PassivePost" )
+	Assert.Equals( "Function returned from SetupGlobalHook should be the global value", TestFunction, OldFunc )
+
+	local NewHookedFunction = _G[ FunctionName ]
+
+	-- Hooking the same function twice with the same hook name and mode should do nothing and return
+	-- the original function from the first setup call.
+	OldFunc = Hook.SetupGlobalHook( FunctionName, "Test", "PassivePost" )
+	Assert.Equals( "Function returned from SetupGlobalHook should still be the global value", TestFunction, OldFunc )
+	Assert.Equals( "Global function should be unchanged", NewHookedFunction, _G[ FunctionName ] )
+end )
+
+_G[ FunctionName ] = nil
+
+local ClassName = "HookTestClass"..os.time()
+
+UnitTest:Test( "SetupClassHook replaces functions only once", function( Assert )
+	class( ClassName )
+
+	local TestFunction = function() end
+	_G[ ClassName ].TestMethod = TestFunction
+
+	local OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", "PassivePost" )
+	Assert.Equals( "Function returned from SetupClassHook should be the original method", TestFunction, OldFunc )
+
+	local NewHookedFunction = _G[ ClassName ].TestMethod
+
+	-- Hooking the same function twice with the same hook name and mode should do nothing and return
+	-- the original function from the first setup call.
+	OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", "PassivePost" )
+	Assert.Equals( "Function returned from SetupClassHook should still be the original method", TestFunction, OldFunc )
+	Assert.Equals( "Class method should be unchanged", NewHookedFunction, _G[ ClassName ].TestMethod )
+end )
+
+_G[ ClassName ] = nil

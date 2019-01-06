@@ -119,13 +119,13 @@
 
 	"AUTO_SHUFFLE_DISABLED_HIVE_BASED": "Automatic Hive skill based teams have been disabled.",
 	"AUTO_SHUFFLE_DISABLED_KDR_BASED": "Automatic KDR based teams have been disabled.",
-	"AUTO_SHUFFLE_DISABLED_RANDOM_BASED": "Automatic score based teams have been disabled.",
-	"AUTO_SHUFFLE_DISABLED_SCORE_BASED": "Automatic random teams have been disabled.",
+	"AUTO_SHUFFLE_DISABLED_RANDOM_BASED": "Automatic random teams have been disabled.",
+	"AUTO_SHUFFLE_DISABLED_SCORE_BASED": "Automatic score based teams have been disabled.",
 
 	"AUTO_SHUFFLE_ENABLED_HIVE_BASED": "Automatic Hive skill based teams have been enabled.",
 	"AUTO_SHUFFLE_ENABLED_KDR_BASED": "Automatic KDR based teams have been enabled.",
-	"AUTO_SHUFFLE_ENABLED_RANDOM_BASED": "Automatic score based teams have been enabled.",
-	"AUTO_SHUFFLE_ENABLED_SCORE_BASED": "Automatic random teams have been enabled.",
+	"AUTO_SHUFFLE_ENABLED_RANDOM_BASED": "Automatic random teams have been enabled.",
+	"AUTO_SHUFFLE_ENABLED_SCORE_BASED": "Automatic score based teams have been enabled.",
 
 	"ERROR_CONSTRAINTS": "Teams are already sufficiently balanced."
 }

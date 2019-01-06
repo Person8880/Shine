@@ -477,7 +477,7 @@ function Plugin:CreateChatbox()
 		Fill = true,
 		Margin = Spacing( 0, 0, 0, PaddingUnit )
 	}
-	Box.BufferAmount = 5
+	Box.BufferAmount = PaddingUnit:GetValue()
 	ChatBoxLayout:AddElement( Box )
 
 	self.ChatBox = Box

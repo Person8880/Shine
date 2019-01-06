@@ -335,12 +335,13 @@ function Plugin:ClientConnect( Client )
 	local Player = Client:GetControllingPlayer()
 	if not Player then return end
 
-	local MeasureStartTime = SharedTime() + ( self.Config.Delay * 60 )
+	local Now = SharedTime()
+	local MeasureStartTime = Now + ( self.Config.Delay * 60 )
 
 	self.Users:Add( Client, {
 		LastMove = MeasureStartTime,
-		LastMeasurement = MeasureStartTime,
-		NextSample = MeasureStartTime,
+		LastMeasurement = Now,
+		NextSample = Now,
 		AFKAmount = 0,
 		Pos = Player:GetOrigin(),
 		Ang = Player:GetViewAngles(),
@@ -540,7 +541,7 @@ function Plugin:OnProcessMove( Player, Input )
 	if not DataTable then return end
 
 	local Time = SharedTime()
-	if DataTable.LastMove > Time or DataTable.NextSample > Time then return end
+	if DataTable.NextSample > Time then return end
 
 	-- Sample input in a fixed interval. We don't necessarily need to see every single
 	-- move command to know if they're AFK (and we work on delta-time between measurements
@@ -572,11 +573,21 @@ function Plugin:OnProcessMove( Player, Input )
 	DataTable.LastPitch = Pitch
 	DataTable.LastYaw = Yaw
 
+	local HasMoved = not ( MovementIsEmpty and AnglesMatch )
+	if DataTable.LastMove > Time then
+		if HasMoved then
+			-- Make sure players are still noted as moving during the initial delay time.
+			DataTable.HasMoved = true
+		end
+		-- Ignore players during the initial delay period.
+		return
+	end
+
 	-- Track frozen player's input, but do not punish them if they are not providing any.
 	local IsPlayerFrozen = self:IsPlayerFrozen( Player )
 	local KickTime = self.Config.KickTime * 60
 
-	if not ( MovementIsEmpty and AnglesMatch ) then
+	if HasMoved then
 		DataTable.LastMove = Time
 		DataTable.HasMoved = true
 

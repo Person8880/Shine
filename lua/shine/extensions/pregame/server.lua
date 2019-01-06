@@ -3,6 +3,7 @@
 ]]
 
 local Shine = Shine
+local IsType = Shine.IsType
 
 local Ceil = math.ceil
 local Clamp = math.Clamp
@@ -12,7 +13,7 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
 local Plugin = Plugin
-Plugin.Version = "1.6"
+Plugin.Version = "1.7"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
@@ -26,16 +27,24 @@ Plugin.Modes = table.AsEnum( {
 	"ONE_COMMANDER_COUNTDOWN",
 	"MAX_WAIT_TIME",
 	"MIN_PLAYER_COUNT"
-}, function( Index ) return Index end )
+} )
 
 Plugin.DefaultConfig = {
-	PreGameTime = 45,
-	CountdownTime = 15,
-	StartDelay = 0,
+	-- How long the pre-game should last (for TIME, ONE_COMMANDER_COUNTDOWN and MAX_WAIT_TIME).
+	PreGameTimeInSeconds = 45,
+	-- How long to countdown before starting the game once commander constraints are satisfied.
+	CountdownTimeInSeconds = 15,
+	-- How long to wait after the map has loaded before starting to check commanders/constraints.
+	StartDelayInSeconds = 30,
+	-- Whether to show a countdown when the game is about to start.
 	ShowCountdown = true,
+	-- The mode to use to control game start behaviour.
 	Mode = Plugin.Modes.ONE_COMMANDER_COUNTDOWN,
+	-- The minimum number of players required to start the game (when using MIN_PLAYER_COUNT).
 	MinPlayers = 0,
+	-- Whether to abort the game start if a commander drops out of the chair.
 	AbortIfNoCom = false,
+	-- Whether to allow players to attack during the pre-game time.
 	AllowAttackPreGame = true
 }
 
@@ -52,24 +61,41 @@ Plugin.EnabledGamemodes = {
 	[ "mvm" ] = true
 }
 
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.7",
+		Apply = Shine.Migrator()
+			:RenameField( "CountdownTime", "CountdownTimeInSeconds" )
+			:RenameField( "PreGameTime", "PreGameTimeInSeconds" )
+			:RenameField( "StartDelay", "StartDelayInSeconds" )
+			:ApplyAction( function( Config )
+				if not IsType( Config.RequireComs, "number" ) then return end
+
+				Config.Mode = Config.RequireComs + 1
+				Config.RequireComs = nil
+			end )
+			:UseEnum( "Mode", Plugin.Modes )
+	}
+}
+
+do
+	local Validator = Shine.Validator()
+	Validator:AddFieldRule( "CountdownTimeInSeconds", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "Mode", Validator.InEnum( Plugin.Modes, Plugin.Modes.ONE_COMMANDER_COUNTDOWN ) )
+	Validator:AddFieldRule( "MinPlayers", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "MinPlayers", Validator.Integer() )
+	Validator:AddFieldRule( "PreGameTimeInSeconds", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "StartDelayInSeconds", Validator.Min( 0 ) )
+
+	Plugin.ConfigValidator = Validator
+end
+
 function Plugin:OnFirstThink()
 	Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
 		"CheckPlayerCanAttack", "ActivePre" )
 end
 
-function Plugin:PreValidateConfig( Config )
-	if not Config.RequireComs then return end
-
-	Config.Mode = Config.RequireComs + 1
-	Config.RequireComs = nil
-
-	return true
-end
-
 function Plugin:Initialise()
-	self.Config.Mode = Clamp( Floor( self.Config.Mode ), 1, #self.Modes )
-	self.Config.MinPlayers = Max( Floor( self.Config.MinPlayers ), 0 )
-
 	self.CountStart = nil
 	self.CountEnd = nil
 	self.GameStarting = false
@@ -105,7 +131,7 @@ function Plugin:StartCountdown()
 end
 
 function Plugin:ClientConfirmConnect( Client )
-	local StartDelay = self.Config.StartDelay
+	local StartDelay = self.Config.StartDelayInSeconds
 
 	if StartDelay > 0 and SharedTime() < StartDelay then
 		self:SendNetworkMessage( Client, "StartDelay",
@@ -145,8 +171,8 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 	self.StartedGame = false
 	self.GameStarting = false
 
-	--Removes start delay text if game start was forced.
-	if self.Config.StartDelay > 0 then
+	-- Removes start delay text if game start was forced.
+	if self.Config.StartDelayInSeconds > 0 then
 		self:SendNetworkMessage( nil, "StartDelay", { StartTime = 0 }, true )
 	end
 end
@@ -197,7 +223,7 @@ function Plugin:QueueGameStart( Gamerules )
 
 	Gamerules:SetGameState( kGameState.PreGame )
 
-	local CountdownTime = self.Config.CountdownTime
+	local CountdownTime = self.Config.CountdownTimeInSeconds
 
 	if self.Config.ShowCountdown then
 		self:ShowGameStart( CountdownTime )
@@ -288,8 +314,8 @@ function Plugin:CheckTeamCounts( Gamerules, Team1Com, Team2Com, Team1Count, Team
 end
 
 Plugin.UpdateFuncs = {
-	--Legacy functionality, fixed time for pregame then start.
-	function( self, Gamerules )
+	-- Legacy functionality, fixed time for pregame then start.
+	[ Plugin.Modes.TIME ] = function( self, Gamerules )
 		local Team1 = Gamerules.team1
 		local Team2 = Gamerules.team2
 
@@ -313,7 +339,7 @@ Plugin.UpdateFuncs = {
 		end
 
 		if not self.CountStart then
-			local Duration = self.Config.PreGameTime
+			local Duration = self.Config.PreGameTimeInSeconds
 
 			self.CountStart = Time
 			self.CountEnd = Time + Duration
@@ -345,8 +371,8 @@ Plugin.UpdateFuncs = {
 		end
 	end,
 
-	--Once one team has a commander, start a long countdown.
-	function( self, Gamerules )
+	-- Once one team has a commander, start a long countdown.
+	[ Plugin.Modes.ONE_COMMANDER_COUNTDOWN ] = function( self, Gamerules )
 		local Team1 = Gamerules.team1
 		local Team2 = Gamerules.team2
 
@@ -363,16 +389,16 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		--Both teams have a commander, begin countdown,
-		--but only if the 1 commander countdown isn't past the 2
-		--commander countdown time length left.
+		-- Both teams have a commander, begin countdown,
+		-- but only if the 1 commander countdown isn't past the 2
+		-- commander countdown time length left.
 		if Team1Com and Team2Com and not self.GameStarting
-		and not ( self.CountEnd and self.CountEnd - Time <= self.Config.CountdownTime ) then
+		and not ( self.CountEnd and self.CountEnd - Time <= self.Config.CountdownTimeInSeconds ) then
 			self:QueueGameStart( Gamerules )
 			return
 		end
 
-		--A team no longer has players, abort the timer.
+		-- A team no longer has players, abort the timer.
 		if Team1Count == 0 or Team2Count == 0 then
 			if self.CountStart then
 				self.CountStart = nil
@@ -389,7 +415,7 @@ Plugin.UpdateFuncs = {
 
 		if Team1Com or Team2Com then
 			if not self.CountStart then
-				local Duration = self.Config.PreGameTime
+				local Duration = self.Config.PreGameTimeInSeconds
 
 				self.CountStart = Time
 				self.CountEnd = Time + Duration
@@ -444,12 +470,12 @@ Plugin.UpdateFuncs = {
 		end
 	end,
 
-	--After the set time, if one team has a commander, start the game.
-	function( self, Gamerules )
+	-- After the set time, if one team has a commander, start the game.
+	[ Plugin.Modes.MAX_WAIT_TIME ] = function( self, Gamerules )
 		local Time = SharedTime()
 
 		if not self.CountStart then
-			local Duration = self.Config.PreGameTime
+			local Duration = self.Config.PreGameTimeInSeconds
 
 			self.CountStart = Time
 			self.CountEnd = Time + Duration
@@ -471,7 +497,7 @@ Plugin.UpdateFuncs = {
 			return
 		end
 
-		--Both teams have a commander, begin countdown.
+		-- Both teams have a commander, begin countdown.
 		if Team1Com and Team2Com and not self.StartedGame then
 			self:QueueGameStart( Gamerules )
 
@@ -480,7 +506,7 @@ Plugin.UpdateFuncs = {
 
 		local TimeLeft = Ceil( self.CountEnd - Time )
 
-		--Time's up!
+		-- Time's up!
 		if TimeLeft <= 0 and ( Team1Com or Team2Com ) then
 			local Team1Count = Team1:GetNumPlayers()
 			local Team2Count = Team2:GetNumPlayers()
@@ -489,7 +515,7 @@ Plugin.UpdateFuncs = {
 			if self.StartedGame then return end
 
 			self:SendTranslatedNotify( nil, "EXCEEDED_TIME", {
-				Duration = self.Config.PreGameTime
+				Duration = self.Config.PreGameTimeInSeconds
 			} )
 
 			self.StartedGame = true
@@ -540,7 +566,7 @@ Plugin.UpdateFuncs = {
 	end,
 
 	-- Do not allow the game to start until the minimum player count is reached, and there are two commanders.
-	function( self, Gamerules )
+	[ Plugin.Modes.MIN_PLAYER_COUNT ] = function( self, Gamerules )
 		local Team1 = Gamerules.team1
 		local Team2 = Gamerules.team2
 
@@ -611,8 +637,8 @@ function Plugin:CheckGameStart( Gamerules )
 	local State = Gamerules:GetGameState()
 	if State > kGameState.PreGame then return end
 
-	--Do not allow starting too soon.
-	local StartDelay = self.Config.StartDelay
+	-- Do not allow starting too soon.
+	local StartDelay = self.Config.StartDelayInSeconds
 	if StartDelay > 0 and SharedTime() < StartDelay then
 		return false
 	end
