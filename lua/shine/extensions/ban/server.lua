@@ -199,61 +199,87 @@ function Plugin:OnWebConfigLoaded()
 end
 
 local function NS2EntryToShineEntry( Table )
-	local Duration = Table.duration
-		or ( Table.time > 0 and Table.time - Time() or 0 )
+	local Duration = tonumber( Table.duration )
+	local UnbanTime = tonumber( Table.time )
+	if not Duration and UnbanTime then
+		Duration = UnbanTime > 0 and UnbanTime - Time() or 0
+	end
 
 	return {
 		Name = Table.name,
-		UnbanTime = Table.time,
+		UnbanTime = UnbanTime or 0,
 		Reason = Table.reason,
 		BannedBy = Table.bannedby or "<unknown>",
 		BannerID = Table.bannerid or 0,
-		Duration = Duration
+		Duration = Duration or 0
 	}
+end
+
+local function IsValidSteamID( ID )
+	return StringFind( ID, "^%d+$" )
+end
+
+function Plugin:AddNS2BansIntoTable( VanillaBans, MergedTable )
+	local Edited
+	local VanillaIDs = {}
+
+	local function CheckAndUpdateBan( BanEntry )
+		if not BanEntry.id then return end
+
+		-- Make sure the ID is valid before adding it.
+		local ID = tostring( BanEntry.id )
+		if not IsValidSteamID( ID ) then return end
+
+		VanillaIDs[ ID ] = true
+
+		if MergedTable[ ID ] and MergedTable[ ID ].UnbanTime == BanEntry.time then
+			-- Ban is up to date, nothing to do.
+			return
+		end
+
+		self.Logger:Info(
+			"%s ban for ID %s from the vanilla bans as it is out of sync with the plugin's bans.",
+			not MergedTable[ ID ] and "Adding" or "Updating",
+			ID
+		)
+		MergedTable[ ID ] = NS2EntryToShineEntry( BanEntry )
+
+		Edited = true
+	end
+
+	for i = 1, #VanillaBans do
+		CheckAndUpdateBan( VanillaBans[ i ] )
+	end
+
+	return VanillaIDs, Edited
 end
 
 --[[
 	Merges the NS2/Dak config into the Shine config.
 ]]
 function Plugin:MergeNS2IntoShine()
-	local Edited
-
 	local VanillaBans = Shine.LoadJSONFile( self.VanillaConfig )
 	local MergedTable = self.Config.Banned
-	local VanillaIDs = {}
 
 	if IsType( VanillaBans, "table" ) then
-		for i = 1, #VanillaBans do
-			local Table = VanillaBans[ i ]
-			local ID = tostring( Table.id )
+		local VanillaIDs, Edited = self:AddNS2BansIntoTable( VanillaBans, MergedTable )
 
-			if ID then
-				VanillaIDs[ ID ] = true
-
-				if not MergedTable[ ID ] or ( MergedTable[ ID ]
-				and MergedTable[ ID ].UnbanTime ~= Table.time ) then
-					MergedTable[ ID ] = NS2EntryToShineEntry( Table )
-
+		if self.Config.VanillaConfigUpToDate then
+			for ID in pairs( MergedTable ) do
+				if not VanillaIDs[ ID ] then
+					self.Logger:Info( "Removing ban for ID %s as it is no longer present in the vanilla bans.", ID )
+					MergedTable[ ID ] = nil
 					Edited = true
 				end
 			end
+		else
+			Edited = true
+			self.Config.VanillaConfigUpToDate = true
 		end
-	end
 
-	if self.Config.VanillaConfigUpToDate then
-		for ID in pairs( MergedTable ) do
-			if not VanillaIDs[ ID ] then
-				MergedTable[ ID ] = nil
-				Edited = true
-			end
+		if Edited then
+			self:SaveConfig()
 		end
-	else
-		Edited = true
-		self.Config.VanillaConfigUpToDate = true
-	end
-
-	if Edited then
-		self:SaveConfig()
 	end
 
 	self:BuildInitialNetworkData()
@@ -267,7 +293,7 @@ function Plugin:NS2ToShine( Data )
 		local Table = Data[ i ]
 		local SteamID = Table.id and tostring( Table.id )
 
-		if SteamID then
+		if SteamID and IsValidSteamID( SteamID ) then
 			Data[ SteamID ] = NS2EntryToShineEntry( Table )
 		end
 
