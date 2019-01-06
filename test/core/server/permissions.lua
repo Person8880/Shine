@@ -25,6 +25,12 @@ Shine.UserData = {
 		},
 		[ "200" ] = {
 			Group = "Moderator"
+		},
+		[ "9999" ] = {
+			Group = "BadInheritsGroup"
+		},
+		[ "99999" ] = {
+			Group = "InheritsStringGroup"
 		}
 	},
 	Groups = {
@@ -62,6 +68,24 @@ Shine.UserData = {
 			IsBlacklist = false,
 			Commands = {},
 			Immunity = 5
+		},
+		-- A group with an incorrect value for InheritsFrom, should be treated as not inheriting.
+		BadInheritsGroup = {
+			IsBlacklist = false,
+			InheritsFrom = 1,
+			Commands = {
+				"sh_kick"
+			},
+			Immunity = 7
+		},
+		-- A group with a string value for InheritsFrom, should assume the intention is a single value list.
+		InheritsStringGroup = {
+			IsBlacklist = false,
+			InheritsFrom = "BadInheritsGroup",
+			Commands = {
+				"sh_slay"
+			},
+			Immunity = 7
 		}
 	},
 	DefaultGroup = {
@@ -151,6 +175,19 @@ UnitTest:Test( "GetGroupPermission", function( Assert )
 	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
 	-- Allowed by default, nothing explicitly denying it.
 	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_help" ) )
+
+	-- This group should correctly handle the invalid InheritsFrom value.
+	GroupName = "BadInheritsGroup"
+	GroupTable = Shine:GetGroupData( GroupName )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
+
+	-- This group should correctly infer the single-group inheritance from a string InheritsFrom value.
+	GroupName = "InheritsStringGroup"
+	GroupTable = Shine:GetGroupData( GroupName )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_slay" ) )
+	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
 end )
 
 UnitTest:Test( "GetGroupAccess", function( Assert )
@@ -374,39 +411,192 @@ UnitTest:Test( "AddGroupAccess", function( Assert )
 	}
 	Shine.UserData.Groups.Test = Group
 
+	-- Setup groups that inherit recursively from the group being altered, including a cycle.
+	local InheritingGroup = {
+		InheritsFrom = { "Test", "TestInherit2" },
+		Commands = { "sh_test3" }
+	}
+	Shine.UserData.Groups.TestInherit = InheritingGroup
+
+	local RecursivelyInheritingGroup = {
+		InheritsFrom = { "TestInherit" },
+		Commands = { "sh_test4" }
+	}
+	Shine.UserData.Groups.TestInherit2 = RecursivelyInheritingGroup
+
+	-- Should be unable to use anything to start with.
+	Assert:False( Shine:GetGroupAccess( "Test", Group, "sh_test" ) )
+
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test4" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test3" ) )
+	Assert:False( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test" ) )
+
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test4" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test3" ) )
+	Assert:False( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test" ) )
+
 	Assert:True( Shine:AddGroupAccess( "Test", "sh_test" ) )
 	Assert:ArrayEquals( { "sh_test" }, Group.Commands )
 
+	-- Should now be able to use sh_test.
+	Assert:True( Shine:GetGroupAccess( "Test", Group, "sh_test" ) )
+	-- Inheriting group should also now be able to use sh_test.
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test4" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test3" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test" ) )
+	-- As should the group inheriting from the inheriting group.
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test4" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test3" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test" ) )
+
 	Assert:True( Shine:AddGroupAccess( "Test", "sh_test2" ) )
 	Assert:ArrayEquals( { "sh_test", "sh_test2" }, Group.Commands )
+
+	-- Should now be able to use sh_test and sh_test2.
+	Assert:True( Shine:GetGroupAccess( "Test", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "Test", Group, "sh_test2" ) )
+
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test4" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test3" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test2" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test" ) )
+
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test4" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test3" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test2" ) )
+	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test" ) )
 end )
 
 UnitTest:Test( "Add group access with existing right", function( Assert )
-	Assert:False( Shine:AddGroupAccess( "Test", "sh_test2" ) )
-	Assert:ArrayEquals( { "sh_test", "sh_test2" }, Shine.UserData.Groups.Test.Commands )
+	local Group = {
+		Commands = { "sh_test", "sh_test2" }
+	}
+	Shine.UserData.Groups.Test2 = Group
+
+	-- Should change nothing.
+	Assert:False( Shine:AddGroupAccess( "Test2", "sh_test2" ) )
+	Assert:ArrayEquals( { "sh_test", "sh_test2" }, Group.Commands )
+
+	Assert:True( Shine:GetGroupAccess( "Test2", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "Test2", Group, "sh_test2" ) )
 end )
 
 UnitTest:Test( "Add group access with denied right", function( Assert )
-	local Commands = Shine.UserData.Groups.Test.Commands
-	Commands[ #Commands + 1 ] = { Command = "sh_test3", Denied = true }
+	local Group = {
+		Commands = { "sh_test", "sh_test2", { Command = "sh_test3", Denied = true } }
+	}
+	Shine.UserData.Groups.Test3 = Group
+
+	-- Should start with being able to use sh_test and sh_test2 only.
+	Assert:True( Shine:GetGroupAccess( "Test3", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "Test3", Group, "sh_test2" ) )
+	Assert:False( Shine:GetGroupAccess( "Test3", Group, "sh_test3" ) )
 
 	-- Should remove the denied entry as well as adding the new entry.
-	Assert:True( Shine:AddGroupAccess( "Test", "sh_test3" ) )
-	Assert:ArrayEquals( { "sh_test", "sh_test2", "sh_test3" }, Shine.UserData.Groups.Test.Commands )
+	Assert:True( Shine:AddGroupAccess( "Test3", "sh_test3" ) )
+	Assert:ArrayEquals( { "sh_test", "sh_test2", "sh_test3" }, Group.Commands )
+
+	-- Now should be able to use sh_test3 too.
+	Assert:True( Shine:GetGroupAccess( "Test3", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "Test3", Group, "sh_test2" ) )
+	Assert:True( Shine:GetGroupAccess( "Test3", Group, "sh_test3" ) )
 end )
 
-UnitTest:Test( "RevokeGroupAccess", function( Assert )
+UnitTest:Test( "Add group access on blacklist group", function( Assert )
+	local Group = {
+		Commands = { "sh_test", "sh_test2" },
+		IsBlacklist = true
+	}
+	Shine.UserData.Groups.BlacklistTest = Group
+
+	-- Should start with being unable to use the listed commands.
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test" ) )
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test2" ) )
+
+	Assert:True( Shine:AddGroupAccess( "BlacklistTest", "sh_test" ) )
+	Assert:ArrayEquals( { "sh_test2" }, Group.Commands )
+
+	-- Should now be able to use sh_test
+	Assert:True( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test" ) )
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test2" ) )
+
+	Assert:True( Shine:AddGroupAccess( "BlacklistTest", "sh_test2" ) )
+	Assert:ArrayEquals( {}, Group.Commands )
+
+	-- Should now be able to use both sh_test and sh_test2
+	Assert:True( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test2" ) )
+
+	-- Adding access again should do nothing.
+	Assert:False( Shine:AddGroupAccess( "BlacklistTest", "sh_test2" ) )
+	Assert:ArrayEquals( {}, Group.Commands )
+
+	-- Should still be able to use both sh_test and sh_test2
+	Assert:True( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "BlacklistTest", Group, "sh_test2" ) )
+end )
+
+UnitTest:Test( "RevokeGroupAccess - Whitelist group", function( Assert )
 	local Test2Right = { Command = "sh_test2" }
 	local Group = {
 		Commands = { "sh_test", Test2Right }
 	}
-	Shine.UserData.Groups.Test = Group
+	Shine.UserData.Groups.Test4 = Group
 
-	Assert:True( Shine:RevokeGroupAccess( "Test", "sh_test" ) )
+	-- Should start with access to sh_test and sh_test2.
+	Assert:True( Shine:GetGroupAccess( "Test4", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "Test4", Group, "sh_test2" ) )
+
+	Assert:True( Shine:RevokeGroupAccess( "Test4", "sh_test" ) )
 	Assert:ArrayEquals( { Test2Right }, Group.Commands )
 
-	Assert:True( Shine:RevokeGroupAccess( "Test", "sh_test2" ) )
+	-- Revoking sh_test should mean only sh_test2 is permitted.
+	Assert:False( Shine:GetGroupAccess( "Test4", Group, "sh_test" ) )
+	Assert:True( Shine:GetGroupAccess( "Test4", Group, "sh_test2" ) )
+
+	Assert:True( Shine:RevokeGroupAccess( "Test4", "sh_test2" ) )
 	Assert:ArrayEquals( {}, Group.Commands )
+
+	-- Revoking sh_test2 should mean nothing is permitted.
+	Assert:False( Shine:GetGroupAccess( "Test4", Group, "sh_test" ) )
+	Assert:False( Shine:GetGroupAccess( "Test4", Group, "sh_test2" ) )
+
+	-- Removing again should do nothing.
+	Assert:False( Shine:RevokeGroupAccess( "Test4", "sh_test2" ) )
+	Assert:ArrayEquals( {}, Group.Commands )
+
+	-- Should still have no access.
+	Assert:False( Shine:GetGroupAccess( "Test4", Group, "sh_test" ) )
+	Assert:False( Shine:GetGroupAccess( "Test4", Group, "sh_test2" ) )
+end )
+
+UnitTest:Test( "RevokeGroupAccess - Blacklist group", function( Assert )
+	local Test2Right = { Command = "sh_test2" }
+	local Group = {
+		Commands = { Test2Right },
+		IsBlacklist = true
+	}
+	Shine.UserData.Groups.BlacklistTest2 = Group
+
+	-- Should start with access to everything except sh_test2.
+	Assert:True( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test" ) )
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test2" ) )
+
+	-- Revoking access to sh_test should add it to the commands list.
+	Assert:True( Shine:RevokeGroupAccess( "BlacklistTest2", "sh_test" ) )
+	Assert:ArrayEquals( { Test2Right, "sh_test" }, Group.Commands )
+
+	-- Should now be unable to use sh_test.
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test" ) )
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test2" ) )
+
+	-- Revoking an already blacklisted right should do nothing.
+	Assert:False( Shine:RevokeGroupAccess( "BlacklistTest2", "sh_test2" ) )
+	Assert:ArrayEquals( { Test2Right, "sh_test" }, Group.Commands )
+
+	-- Should still be unable to use sh_test and sh_test2.
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test" ) )
+	Assert:False( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test2" ) )
 end )
 
 Shine.UserData = OldUserData
