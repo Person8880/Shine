@@ -461,3 +461,42 @@ do
 		return setmetatable( { Rules = {} }, Validator )
 	end
 end
+
+do
+	-- Small helper for common config migration tasks.
+	local Migrator = Shine.TypeDef()
+	Migrator.__call = function( self, Config )
+		for i = 1, #self.Actions do
+			self.Actions[ i ]( Config )
+		end
+		return Config
+	end
+
+	function Migrator:Init()
+		self.Actions = {}
+		return self
+	end
+
+	function Migrator:RenameField( FromName, ToName )
+		self.Actions[ #self.Actions + 1 ] = function( Config )
+			local OldValue = Config[ FromName ]
+			Config[ ToName ] = OldValue
+			Config[ FromName ] = nil
+		end
+		return self
+	end
+
+	function Migrator:UseEnum( FieldWithNumber, EnumValues )
+		self.Actions[ #self.Actions + 1 ] = function( Config )
+			Config[ FieldWithNumber ] = EnumValues[ Config[ FieldWithNumber ] ]
+		end
+		return self
+	end
+
+	function Migrator:ApplyAction( Action )
+		self.Actions[ #self.Actions + 1 ] = Action
+		return self
+	end
+
+	Shine.Migrator = Migrator
+end

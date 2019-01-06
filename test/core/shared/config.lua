@@ -178,3 +178,22 @@ UnitTest:Test( "VerifyConfig does nothing when config matches", function( Assert
 	Assert.False( "Config should not have been updated", Updated )
 	Assert.DeepEquals( "Config values should remain unchanged", ExpectedConfig, ProvidedConfig )
 end )
+
+UnitTest:Test( "Migrator", function( Assert )
+	local Migrator = Shine.Migrator()
+		:RenameField( "A", "B" )
+		:UseEnum( "Mode", { "Mode1", "Mode2", "Mode3" } )
+		:ApplyAction( function( Config )
+			Config.ActionApplied = true
+		end )
+
+	local Config = {
+		A = "Value for A",
+		Mode = 2
+	}
+	Assert.DeepEquals( "Migrator should apply actions as expected", {
+		B = "Value for A",
+		Mode = "Mode2",
+		ActionApplied = true
+	}, Migrator( Config ) )
+end )
