@@ -38,6 +38,9 @@ function Plugin:SetupDataTable()
 		TargetName = {
 			TargetName = self:GetNameNetworkField()
 		},
+		MapName = {
+			MapName = "string (64)"
+		},
 		Gagged = {
 			TargetName = self:GetNameNetworkField(),
 			Duration = "integer (0 to 1800)"
@@ -89,6 +92,9 @@ function Plugin:SetupDataTable()
 			"ERROR_TICKRATE_CONSTRAINT", "ERROR_SENDRATE_CONSTRAINT",
 			"ERROR_SENDRATE_MOVE_CONSTRAINT", "ERROR_MOVERATE_CONSTRAINT",
 			"ERROR_MOVERATE_SENDRATE_CONSTRAINT"
+		},
+		[ MessageTypes.MapName ] = {
+			"UNKNOWN_MAP_NAME", "UNCLEAR_MAP_NAME"
 		}
 	} )
 
