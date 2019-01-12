@@ -1011,6 +1011,12 @@ function Plugin:CreateAdminCommands()
 	local CycleMapCommand = self:BindCommand( "sh_cyclemap", "cyclemap", CycleMap )
 	CycleMapCommand:Help( "Cycles the map to the next one in the map cycle." )
 
+	local function ReloadMap( Client )
+		MapCycle_ChangeMap( Shared.GetMapName() )
+	end
+	local ReloadMapCommand = self:BindCommand( "sh_reloadmap", "reloadmap", ReloadMap )
+	ReloadMapCommand:Help( "Reloads the current map." )
+
 	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then
 			local Message = "You cannot reload the basecommands plugin."
