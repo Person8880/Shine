@@ -24,8 +24,14 @@ function Shine.LoadScripts( Scripts, OnLoadedFuncs )
 end
 
 function Shine.LoadScriptsByPath( Path, Recursive, Reload )
+	local PathWithWildcard = Path.."/*.lua"
+
+	if Server then
+		Server.AddRestrictedFileHashes( PathWithWildcard )
+	end
+
 	local Scripts = {}
-	Shared.GetMatchingFileNames( Path.."/*.lua", Recursive or false, Scripts )
+	Shared.GetMatchingFileNames( PathWithWildcard, Recursive or false, Scripts )
 
 	for i = 1, #Scripts do
 		include( Scripts[ i ], Reload )

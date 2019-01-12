@@ -36,6 +36,8 @@ local Scripts = {
 	"core/shared/autocomplete.lua"
 }
 
+Server.AddRestrictedFileHashes( "lua/shine/lib/gui/*.lua" )
+
 Shine.BaseGamemode = "ns2"
 Shine.LoadScripts( Scripts )
 
