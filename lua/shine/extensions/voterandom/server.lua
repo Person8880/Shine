@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.4"
+Plugin.Version = "2.5"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -79,12 +79,6 @@ local ModeStrings = {
 		[ Plugin.ShuffleMode.SCORE ] = "SCORE_BASED",
 		[ Plugin.ShuffleMode.KDR ] = "KDR_BASED",
 		[ Plugin.ShuffleMode.HIVE ] = "HIVE_BASED"
-	},
-	ModeLower = {
-		[ Plugin.ShuffleMode.RANDOM ] = "RANDOM_BASED",
-		[ Plugin.ShuffleMode.SCORE ] = "SCORE_BASED",
-		[ Plugin.ShuffleMode.KDR ] = "KDR_BASED",
-		[ Plugin.ShuffleMode.HIVE ] = "HIVE_BASED"
 	}
 }
 Plugin.ModeStrings = ModeStrings
@@ -93,30 +87,21 @@ Plugin.DefaultConfig = {
 	MinPlayers = 10, -- Minimum number of players on the server to enable voting.
 	PercentNeeded = 0.75, -- Percentage of the server population needing to vote for it to succeed.
 
+	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
+	BlockAfterRoundTimeInMinutes = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
 	VoteCooldownInMinutes = 15, -- Cooldown time before another vote can be made.
-	BlockAfterTime = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
-	VoteTimeout = 60, -- Time after the last vote before the vote resets.
+	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
 	NotifyOnVote = true, --  Should all players be told through the chat when a vote is cast?
 	ApplyToBots = false, --  Should bots be shuffled, or removed?
 
 	BalanceMode = Plugin.ShuffleMode.HIVE, -- How should teams be balanced?
 	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Elo/Hive fails?
 
-	-- Deprecated parameter controlling how much the standard deviation can increase per swap
-	-- in a hard-rule based shuffle.
-	StandardDeviationTolerance = 40,
-	-- How much difference between team averages should be considered good enough?
-	-- The shuffle process will carry on until either it reaches at or below this level,
-	-- or it can't improve the difference anymore.
-	-- This can terminate the shuffle before it has managed to optimise teams appropriately
-	-- and is not recommended.
-	AverageValueTolerance = 0,
-
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, -- Should the plugin ignore spectators in player slots when switching?
 	AlwaysEnabled = false, -- Should the plugin be always forcing each round?
 
-	ReconnectLogTime = 0, -- How long (in seconds) after a shuffle to log reconnecting players for?
+	ReconnectLogTimeInSeconds = 0, -- How long (in seconds) after a shuffle to log reconnecting players for?
 	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
 	DisplayStandardDeviations = false, -- Should the scoreboard show each team's standard deviation of skill?
 
@@ -208,6 +193,13 @@ Plugin.ConfigMigrationSteps = {
 				Config.TeamPreferences.CostWeighting = Plugin.TeamPreferenceWeighting.NONE
 			end
 		end
+	},
+	{
+		VersionTo = "2.5",
+		Apply = Shine.Migrator()
+			:RenameField( "BlockAfterTime", "BlockAfterRoundTimeInMinutes" )
+			:RenameField( "VoteTimeout", "VoteTimeoutInSeconds" )
+			:RenameField( "ReconnectLogTime", "ReconnectLogTimeInSeconds" )
 	}
 }
 
@@ -244,6 +236,7 @@ do
 
 	Validator:AddFieldRule( "BalanceMode", Validator.InEnum( Plugin.ShuffleMode, Plugin.ShuffleMode.HIVE ) )
 	Validator:AddFieldRule( "FallbackMode", Validator.InEnum( Plugin.ShuffleMode, Plugin.ShuffleMode.KDR ) )
+	Validator:AddFieldRule( "ReconnectLogTimeInSeconds", Validator.Min( 0 ) )
 
 	Plugin.ConfigValidator = Validator
 end
@@ -452,8 +445,6 @@ function Plugin:OnFirstThink()
 end
 
 function Plugin:Initialise()
-	self.Config.ReconnectLogTime = Max( self.Config.ReconnectLogTime, 0 )
-
 	local BalanceMode = self.Config.BalanceMode
 	local FallbackMode = self.Config.FallbackMode
 
@@ -473,7 +464,7 @@ function Plugin:Initialise()
 
 	self:CreateCommands()
 
-	self.NextVote = 0
+	self.NextVote = self.Config.BlockUntilSecondsIntoMap
 
 	local function GetVotesNeeded()
 		return self:GetVotesNeeded()
@@ -484,7 +475,7 @@ function Plugin:Initialise()
 	end
 
 	self.Vote = Shine:CreateVote( GetVotesNeeded, self:WrapCallback( OnVotePassed ) )
-	self:SetupVoteTimeout( self.Vote, self.Config.VoteTimeout )
+	self:SetupVoteTimeout( self.Vote, self.Config.VoteTimeoutInSeconds )
 	function self.Vote.OnReset()
 		self:ResetVoteCounters()
 	end
@@ -731,7 +722,7 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 
 	self.LastShuffleMode = ForceMode or self.Config.BalanceMode
 	self.LastShuffleTime = SharedTime()
-	self.ReconnectLogTimeout = SharedTime() + self.Config.ReconnectLogTime
+	self.ReconnectLogTimeout = SharedTime() + self.Config.ReconnectLogTimeInSeconds
 	self.ReconnectingClients = {}
 
 	local Mode = ForceMode or self.Config.BalanceMode
@@ -866,8 +857,8 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	self.EnforcementPolicy:OnStageChange( self.Stage.InGame )
 
 	-- Block the vote after the set time.
-	if self.Config.BlockAfterTime > 0 then
-		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterTime * 60
+	if self.Config.BlockAfterRoundTimeInMinutes > 0 then
+		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterRoundTimeInMinutes * 60
 	end
 
 	if not self.Config.AlwaysEnabled and not self.ShuffleOnNextRound then return end
@@ -1031,7 +1022,7 @@ function Plugin:GetVotesNeeded()
 end
 
 function Plugin:GetStartFailureMessage()
-	return "ERROR_CANNOT_START", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
+	return "ERROR_CANNOT_START", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
 end
 
 function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
@@ -1089,7 +1080,8 @@ function Plugin:CanStartVote()
 		return false, self:GetStartFailureMessage()
 	end
 
-	if self.VoteBlockTime and self.VoteBlockTime < SharedTime() then
+	local Time = SharedTime()
+	if self.VoteBlockTime and self.VoteBlockTime < Time then
 		return false, "ERROR_ROUND_TOO_FAR"
 	end
 
@@ -1100,16 +1092,20 @@ function Plugin:CanStartVote()
 		end
 	end
 
-	if self:GetPlayerCountForVote() < self.Config.MinPlayers then
-		return false, "ERROR_NOT_ENOUGH_PLAYERS"
-	end
-
-	if self.NextVote >= SharedTime() then
-		return false, self:GetStartFailureMessage()
+	if self.NextVote > Time then
+		local TimeTillNextVote = Ceil( self.NextVote - Time )
+		return false, "ERROR_MUST_WAIT", {
+			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ],
+			SecondsToWait = TimeTillNextVote
+		}
 	end
 
 	if self.ShuffleOnNextRound or self.ShuffleAtEndOfRound then
 		return false, "ERROR_ALREADY_ENABLED", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
+	end
+
+	if self:GetPlayerCountForVote() < self.Config.MinPlayers then
+		return false, "ERROR_NOT_ENOUGH_PLAYERS"
 	end
 
 	if self.Config.BalanceMode == self.ShuffleMode.HIVE
@@ -1134,7 +1130,7 @@ function Plugin:AddVote( Client )
 	end
 
 	if not self.Vote:AddVote( Client ) then
-		return false, "ERROR_ALREADY_VOTED", { ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ] }
+		return false, "ERROR_ALREADY_VOTED", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
 	end
 
 	return true
@@ -1186,7 +1182,7 @@ Plugin.ShufflePolicyActions = {
 	-- Queue a shuffle for the start of the next round.
 	[ Plugin.ShufflePolicy.NEXT_ROUND ] = function( self )
 		self:SendTranslatedNotify( nil, "TEAMS_FORCED_NEXT_ROUND", {
-			ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
 		} )
 		self.ShuffleOnNextRound = true
 		self.QueuedStage = self:GetStage()
@@ -1201,7 +1197,7 @@ Plugin.ShufflePolicyActions = {
 		self.ShuffleAtEndOfRound = true
 		self.QueuedStage = self:GetStage()
 		self:SendTranslatedNotify( nil, "TEAMS_FORCED_END_OF_ROUND", {
-			ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
 		} )
 		self.Logger:Debug( "Queued shuffle for the end of the current round." )
 	end
@@ -1267,7 +1263,7 @@ function Plugin:ApplyRandomSettings()
 
 		local Key = self.SuppressAutoShuffle and "AUTO_SHUFFLE_DISABLED" or "AUTO_SHUFFLE_ENABLED"
 		self:SendTranslatedNotify( nil, Key, {
-			ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
 		} )
 	else
 		local Settings = self:GetVoteActionSettings()
@@ -1298,7 +1294,7 @@ function Plugin:CreateCommands()
 					end
 
 					self:SendTranslatedNotify( nil, Key, {
-						ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
+						ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ],
 						VotesNeeded = VotesNeeded,
 						PlayerName = PlayerName
 					} )
@@ -1310,7 +1306,7 @@ function Plugin:CreateCommands()
 					end
 
 					self:SendTranslatedNotify( Client, Key, {
-						ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ],
+						ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ],
 						VotesNeeded = VotesNeeded
 					} )
 				end
@@ -1339,7 +1335,7 @@ function Plugin:CreateCommands()
 			self.ShufflePolicyActions[ self.ShufflePolicy.INSTANT ]( self )
 
 			self:SendTranslatedMessage( Client, "ENABLED_TEAMS", {
-				ShuffleType = ModeStrings.ModeLower[ self.Config.BalanceMode ]
+				ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
 			} )
 		else
 			self.Vote:Reset()
@@ -1399,8 +1395,6 @@ function Plugin:CreateCommands()
 				Stats.Average, Stats.StandardDeviation )
 		end
 
-		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av.",
-			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
 		Message[ #Message + 1 ] = StringFormat( "Team preference cost weighting: %s. History rounds: %d.",
 			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )
 		if self.LastShuffleTime then

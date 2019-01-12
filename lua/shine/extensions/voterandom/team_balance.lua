@@ -514,10 +514,6 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		end
 
 		TableShallowMerge( Iteration, Optimiser, true )
-		TableMixin( self.Config, Optimiser, {
-			"StandardDeviationTolerance",
-			"AverageValueTolerance"
-		} )
 
 		Optimiser:Optimise()
 

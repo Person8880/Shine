@@ -58,6 +58,9 @@ function Plugin:SetupDataTable()
 		},
 		TeamSwitchFail = {
 			IsEndVote = "boolean"
+		},
+		VoteWaitTime = {
+			SecondsToWait = "integer"
 		}
 	}
 
@@ -136,6 +139,9 @@ function Plugin:SetupDataTable()
 			"VOTE_FAIL_INVALID_MAP", "VOTE_FAIL_VOTED_MAP",
 			"MAP_NOT_ON_LIST", "ALREADY_NOMINATED",
 			"RECENTLY_PLAYED"
+		},
+		[ MessageTypes.VoteWaitTime ] = {
+			"VOTE_FAIL_MUST_WAIT"
 		}
 	} )
 end

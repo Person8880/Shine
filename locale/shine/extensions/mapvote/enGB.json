@@ -13,6 +13,7 @@
 	"VOTE_FAIL_MAP_CHANGE": "The map is now changing, unable to start a vote.",
 	"VOTE_FAIL_INSUFFICIENT_PLAYERS": "There are not enough players to start a vote.",
 	"VOTE_FAIL_TIME": "You cannot start a map vote at this time.",
+	"VOTE_FAIL_MUST_WAIT": "You must wait for {SecondsToWait:Duration} before voting to start a map vote.",
 	"VOTE_FAIL_IN_PROGRESS": "A vote is already in progress.",
 	"VOTE_FAIL_ALREADY_VOTED": "You have already voted to begin a map vote.",
 	"VOTE_FAIL_INVALID_MAP": "{MapName} is not a valid map choice.",

@@ -31,10 +31,12 @@ if Server then
 		local Ceil = math.ceil
 		local next = next
 		local SharedTime = Shared.GetTime
+		local TableShallowMerge = table.ShallowMerge
 
 		Shine.LoadPluginModule( "vote.lua", Plugin )
 
 		Module.DefaultConfig = {
+			BlockUntilSecondsIntoMap = 0,
 			VoteTimeoutInSeconds = 60,
 			PercentNeeded = 0.6,
 			NotifyOnVote = true
@@ -77,6 +79,13 @@ if Server then
 		end
 
 		function Module:CanStartVote()
+			local Time = SharedTime()
+			local TimeTillVoteAllowed = self.Config.BlockUntilSecondsIntoMap - Time
+			if TimeTillVoteAllowed > 0 then
+				return false, "ERROR_MUST_WAIT", TableShallowMerge( {
+					SecondsToWait = Ceil( TimeTillVoteAllowed )
+				}, self:GetVoteNotificationParams() )
+			end
 			return true
 		end
 

@@ -32,6 +32,10 @@ function Plugin:SetupDataTable()
 		PrivateVote = {
 			ShuffleType = "string (24)",
 			VotesNeeded = "integer"
+		},
+		VoteWaitTime = {
+			ShuffleType = "string (24)",
+			SecondsToWait = "integer"
 		}
 	}
 
@@ -66,6 +70,9 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.ShuffleType ] = {
 			"ERROR_CANNOT_START", "ERROR_ALREADY_ENABLED",
 			"ERROR_TEAMS_FORCED", "ERROR_ALREADY_VOTED"
+		},
+		[ MessageTypes.VoteWaitTime ] = {
+			"ERROR_MUST_WAIT"
 		}
 	}, "ShuffleType" )
 

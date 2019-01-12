@@ -23,6 +23,10 @@ function Plugin:SetupDataTable()
 		},
 		VoteType = {
 			VoteType = "string (8)"
+		},
+		VoteWaitTime = {
+			VoteType = "string (8)",
+			SecondsToWait = "integer"
 		}
 	}
 
@@ -37,6 +41,9 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessages( "AddTranslatedError", {
 		[ MessageTypes.VoteType ] = {
 			"ERROR_ALREADY_VOTED"
+		},
+		[ MessageTypes.VoteWaitTime ] = {
+			"ERROR_MUST_WAIT"
 		}
 	}, "VoteType" )
 end
