@@ -151,105 +151,170 @@ function Shine:RegisterExtension( Name, Plugin, Options )
 end
 
 local LoadingErrors = {}
-local OnLoadError = Shine.BuildErrorHandler( "Plugin loading error" )
 
-local function AutoRegisterExtension( self, Name, PluginTable, Options )
-	return xpcall( self.RegisterExtension, OnLoadError, self, Name, PluginTable, Options )
-end
+do
+	local OnLoadError = Shine.BuildErrorHandler( "Plugin loading error" )
 
-local function LoadPluginScript( PluginFilePath, ... )
-	local PluginScript, Err = loadfile( PluginFilePath )
-	if not PluginScript then
-		-- Syntax error, report it and fail here.
-		OnLoadError( Err )
-		return false, Err
+	local function AutoRegisterExtension( self, Name, PluginTable, Options )
+		return xpcall( self.RegisterExtension, OnLoadError, self, Name, PluginTable, Options )
 	end
 
-	return xpcall( PluginScript, OnLoadError, ... )
-end
-
-local function LoadWithGlobalPlugin( Name, PluginFilePath, PluginTable )
-	-- Maintain legacy behaviour of setting the global Plugin value.
-	local OldValue = _G.Plugin
-	_G.Plugin = PluginTable
-
-	-- Pass the plugin table directly into the script function to avoid needing the global.
-	local Success, PluginTable, Options = LoadPluginScript( PluginFilePath, PluginTable, Name )
-
-	_G.Plugin = OldValue -- Just in case someone else uses Plugin as a global...
-
-	return Success, PluginTable, Options
-end
-
-local function HandleAutoRegister( self, Name, Success, PluginTable, Options )
-	if not Success then
-		return false, "script error while loading plugin (see the log for details)"
-	end
-
-	local Plugin = self.Plugins[ Name ]
-	if not Plugin then
-		if IsType( PluginTable, "table" ) then
-			-- Plugin file returned the plugin table, so register it for them.
-			if not AutoRegisterExtension( self, Name, PluginTable, Options ) then
-				self.Plugins[ Name ] = nil
-				return false, "script error while loading plugin (see the log for details)"
-			end
-			Plugin = PluginTable
-		else
-			return false, "plugin did not register itself"
-		end
-	end
-
-	return true, Plugin
-end
-
-function Shine:LoadExtension( Name, DontEnable )
-	Name = Name:lower()
-
-	if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
-	if self.Plugins[ Name ] then return true end
-
-	local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
-	local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
-	local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
-
-	local IsShared = PluginFiles[ SharedFile ]
-		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
-	if PluginFiles[ SharedFile ] then
-		local IsLoaded, Plugin = HandleAutoRegister( self, Name, LoadPluginScript( SharedFile, Name ) )
-		if not IsLoaded then
-			return false, Plugin
+	local function LoadPluginScript( PluginFilePath, ... )
+		local PluginScript, Err = loadfile( PluginFilePath )
+		if not PluginScript then
+			-- Syntax error, report it and fail here.
+			OnLoadError( Err )
+			return false, Err
 		end
 
-		-- Don't load irrelevant plugins. Make sure we stop before network messages.
-		local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
-		if not CanLoad then
-			self.Plugins[ Name ] = nil
-			return false, FailureReason
-		end
-
-		Plugin.IsShared = true
+		return xpcall( PluginScript, OnLoadError, ... )
 	end
 
-	-- Client plugins load automatically, but enable themselves later when told to.
-	if Client then
-		if PluginFiles[ ClientFile ] then
-			local Success, PluginTable, Options
-			if IsShared and self.Plugins[ Name ] then
-				Success = LoadWithGlobalPlugin( Name, ClientFile, self.Plugins[ Name ] )
-			else
-				Success, PluginTable, Options = LoadPluginScript( ClientFile, Name )
-			end
+	local function LoadWithGlobalPlugin( Name, PluginFilePath, PluginTable )
+		-- Maintain legacy behaviour of setting the global Plugin value.
+		local OldValue = _G.Plugin
+		_G.Plugin = PluginTable
 
-			local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
-			if not IsLoaded then
-				return false, Plugin
-			end
+		-- Pass the plugin table directly into the script function to avoid needing the global.
+		local Success, PluginTable, Options = LoadPluginScript( PluginFilePath, PluginTable, Name )
+
+		_G.Plugin = OldValue -- Just in case someone else uses Plugin as a global...
+
+		return Success, PluginTable, Options
+	end
+
+	local function HandleAutoRegister( self, Name, Success, PluginTable, Options )
+		if not Success then
+			return false, "script error while loading plugin (see the log for details)"
 		end
 
 		local Plugin = self.Plugins[ Name ]
 		if not Plugin then
-			return false, "plugin did not register itself"
+			if IsType( PluginTable, "table" ) then
+				-- Plugin file returned the plugin table, so register it for them.
+				if not AutoRegisterExtension( self, Name, PluginTable, Options ) then
+					self.Plugins[ Name ] = nil
+					return false, "script error while loading plugin (see the log for details)"
+				end
+				Plugin = PluginTable
+			else
+				return false, "plugin did not register itself"
+			end
+		end
+
+		return true, Plugin
+	end
+
+	local function SetupNetworking( Name, Plugin )
+		if not Shine.IsCallable( Plugin.SetupDataTable ) then return true end
+
+		local Success, Err = xpcall( Plugin.SetupDataTable, OnLoadError, Plugin )
+		if not Success then
+			return false, "error during networking setup (see log), this may cause invalid data errors for clients!"
+		end
+
+		Plugin:InitDataTable( Name )
+
+		return true
+	end
+
+	function Shine:LoadExtension( Name, DontEnable )
+		Name = Name:lower()
+
+		if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
+		if self.Plugins[ Name ] then return true end
+
+		local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
+		local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
+		local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
+
+		local IsShared = PluginFiles[ SharedFile ]
+			or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
+		if PluginFiles[ SharedFile ] then
+			local IsLoaded, Plugin = HandleAutoRegister( self, Name, LoadPluginScript( SharedFile, Name ) )
+			if not IsLoaded then
+				return false, Plugin
+			end
+
+			-- Don't load irrelevant plugins. Make sure we stop before network messages.
+			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
+			if not CanLoad then
+				self.Plugins[ Name ] = nil
+				return false, FailureReason
+			end
+
+			Plugin.IsShared = true
+		end
+
+		-- Client plugins load automatically, but enable themselves later when told to.
+		if Client then
+			if PluginFiles[ ClientFile ] then
+				local Success, PluginTable, Options
+				if IsShared and self.Plugins[ Name ] then
+					Success = LoadWithGlobalPlugin( Name, ClientFile, self.Plugins[ Name ] )
+				else
+					Success, PluginTable, Options = LoadPluginScript( ClientFile, Name )
+				end
+
+				local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
+				if not IsLoaded then
+					return false, Plugin
+				end
+			end
+
+			local Plugin = self.Plugins[ Name ]
+			if not Plugin then
+				return false, "plugin did not register itself"
+			end
+
+			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
+			if not CanLoad then
+				self.Plugins[ Name ] = nil
+				return false, FailureReason
+			end
+
+			Plugin.IsClient = true
+
+			-- Setup networked variables after all files have executed.
+			return SetupNetworking( Name, Plugin )
+		end
+
+		if not PluginFiles[ ServerFile ] then
+			ServerFile = StringFormat( "%s%s.lua", ExtensionPath, Name )
+
+			if not PluginFiles[ ServerFile ] then
+				local Found
+
+				local SearchTerm = StringFormat( "/%s.lua", Name )
+
+				-- In case someone uses a different case file name to the plugin name...
+				for File in pairs( PluginFiles ) do
+					local LowerF = File:lower()
+
+					if LowerF:find( SearchTerm, 1, true ) then
+						Found = true
+						ServerFile = File
+
+						break
+					end
+				end
+
+				if not Found then
+					return false, "plugin does not exist."
+				end
+			end
+		end
+
+		local Success, PluginTable, Options
+		if IsShared and self.Plugins[ Name ] then
+			Success = LoadWithGlobalPlugin( Name, ServerFile, self.Plugins[ Name ] )
+		else
+			Success, PluginTable, Options = LoadPluginScript( ServerFile, Name )
+		end
+
+		local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
+		if not IsLoaded then
+			return false, Plugin
 		end
 
 		local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
@@ -258,72 +323,18 @@ function Shine:LoadExtension( Name, DontEnable )
 			return false, FailureReason
 		end
 
-		Plugin.IsClient = true
+		Plugin.IsShared = IsShared and true or nil
 
 		-- Setup networked variables after all files have executed.
-		if Plugin.SetupDataTable then
-			Plugin:SetupDataTable()
-			Plugin:InitDataTable( Name )
+		local Success, Err = SetupNetworking( Name, Plugin )
+		if not Success then
+			return false, Err
 		end
 
-		return true
+		if DontEnable then return true end
+
+		return self:EnableExtension( Name )
 	end
-
-	if not PluginFiles[ ServerFile ] then
-		ServerFile = StringFormat( "%s%s.lua", ExtensionPath, Name )
-
-		if not PluginFiles[ ServerFile ] then
-			local Found
-
-			local SearchTerm = StringFormat( "/%s.lua", Name )
-
-			-- In case someone uses a different case file name to the plugin name...
-			for File in pairs( PluginFiles ) do
-				local LowerF = File:lower()
-
-				if LowerF:find( SearchTerm, 1, true ) then
-					Found = true
-					ServerFile = File
-
-					break
-				end
-			end
-
-			if not Found then
-				return false, "plugin does not exist."
-			end
-		end
-	end
-
-	local Success, PluginTable, Options
-	if IsShared and self.Plugins[ Name ] then
-		Success = LoadWithGlobalPlugin( Name, ServerFile, self.Plugins[ Name ] )
-	else
-		Success, PluginTable, Options = LoadPluginScript( ServerFile, Name )
-	end
-
-	local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
-	if not IsLoaded then
-		return false, Plugin
-	end
-
-	local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
-	if not CanLoad then
-		self.Plugins[ Name ] = nil
-		return false, FailureReason
-	end
-
-	Plugin.IsShared = IsShared and true or nil
-
-	-- Setup networked variables after all files have executed.
-	if Plugin.SetupDataTable then
-		Plugin:SetupDataTable()
-		Plugin:InitDataTable( Name )
-	end
-
-	if DontEnable then return true end
-
-	return self:EnableExtension( Name )
 end
 
 function Shine:CanPluginLoad( Plugin )
