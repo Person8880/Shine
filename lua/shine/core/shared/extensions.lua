@@ -50,12 +50,12 @@ function Shine.LoadPluginModule( ModuleName, Plugin, ... )
 	return File( Plugin, ... )
 end
 
---Here we collect every extension file so we can be sure it exists before attempting to load it.
+-- Here we collect every extension file so we can be sure it exists before attempting to load it.
 local Files = {}
 Shared.GetMatchingFileNames( ExtensionPath.."*.lua", true, Files )
 local PluginFiles = {}
 
---Convert to faster table.
+-- Convert to faster table.
 for i = 1, #Files do
 	PluginFiles[ Files[ i ] ] = true
 end
@@ -95,24 +95,39 @@ function Shine:RegisterExtension( Name, Table, Options )
 
 	if not self.Plugins[ Base ] then
 		if not self:LoadExtension( Base, true ) then
-			SetupModules( PluginMeta )
-			return
+			error( StringFormat(
+				"[Shine] Unable to make plugin %s inherit from %s as %s could not be loaded.",
+				Name, Base, Base
+			), 2 )
 		end
 	end
 
 	local ParentPlugin = self.Plugins[ Base ]
-
 	if ParentPlugin.__Inherit == Table then
 		self.Plugins[ Name ] = nil
 
 		error( StringFormat(
 			"[Shine] Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
-			Name, Base, Base, Name ) )
+			Name, Base, Base, Name
+		), 2 )
 	end
 
+	local BlacklistKeys = Options.BlacklistKeys
+	local WhitelistKeys = Options.WhitelistKeys
+
+	-- Compile inheritance rules into a single predicate.
+	local KeyPredicate = function() return true end
+	if BlacklistKeys then
+		KeyPredicate = Predicates.And( KeyPredicate, function( Key ) return not BlacklistKeys[ Key ] end )
+	end
+	if WhitelistKeys then
+		KeyPredicate = Predicates.And( KeyPredicate, function( Key ) return WhitelistKeys[ Key ] end )
+	end
+
+	Table.__CanInherit = KeyPredicate
 	Table.__Inherit = ParentPlugin
-	Table.__InheritBlacklist = Options.BlacklistKeys
-	Table.__InheritWhitelist = Options.WhitelistKeys
+	Table.__InheritBlacklist = BlacklistKeys
+	Table.__InheritWhitelist = WhitelistKeys
 
 	SetupModules( ParentPlugin )
 end
@@ -189,9 +204,6 @@ function Shine:LoadExtension( Name, DontEnable )
 			if not Success then
 				return false, "script error while loading plugin (see the log for details)"
 			end
-		elseif not self.Plugins[ Name ] then
-			-- No client file, and no shared file, or shared did not register.
-			return false, "plugin did not register itself"
 		end
 
 		local Plugin = self.Plugins[ Name ]

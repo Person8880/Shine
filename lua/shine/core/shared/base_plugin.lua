@@ -171,23 +171,12 @@ local ReservedKeys = {
 function PluginMeta:__index( Key )
 	if ReservedKeys[ Key ] then return nil end
 
+	-- Inherit fields dynamically if they pass the inheritance predicate.
 	local Inherit = rawget( self, "__Inherit" )
-	if Inherit then
-		local InheritBlacklist = rawget( self, "__InheritBlacklist" )
-		local InheritWhitelist = rawget( self, "__InheritWhitelist" )
-		local InheritedValue = Inherit[ Key ]
-
-		if not InheritBlacklist and not InheritWhitelist then
-			if InheritedValue ~= nil then
-				return InheritedValue
-			end
-		else
-			if InheritBlacklist and InheritBlacklist[ Key ] then return PluginMeta[ Key ] end
-			if InheritWhitelist and not InheritWhitelist[ Key ] then return PluginMeta[ Key ] end
-
-			if InheritedValue ~= nil then
-				return InheritedValue
-			end
+	if Inherit and rawget( self, "__CanInherit" )( Key ) then
+		local Value = Inherit[ Key ]
+		if Value ~= nil then
+			return Value
 		end
 	end
 
