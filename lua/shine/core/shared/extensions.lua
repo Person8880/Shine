@@ -5,9 +5,10 @@
 ]]
 
 local Shine = Shine
-
-local include = Script.Load
 local IsType = Shine.IsType
+
+-- loadfile allows catching errors in the file being executed, Script.Load does not...
+local loadfile = loadfile
 local next = next
 local pairs = pairs
 local Notify = Shared.Message
@@ -59,8 +60,8 @@ for i = 1, #Files do
 	PluginFiles[ Files[ i ] ] = true
 end
 
---Include the base plugin.
-include "lua/shine/core/shared/base_plugin.lua"
+-- Include the base plugin.
+Script.Load "lua/shine/core/shared/base_plugin.lua"
 
 local PluginMeta = Shine.BasePlugin
 
@@ -117,6 +118,31 @@ function Shine:RegisterExtension( Name, Table, Options )
 end
 
 local LoadingErrors = {}
+local OnLoadError = Shine.BuildErrorHandler( "Plugin loading error" )
+
+local function LoadPluginScript( PluginFilePath, ... )
+	local PluginScript, Err = loadfile( PluginFilePath )
+	if not PluginScript then
+		-- Syntax error, report it and fail here.
+		OnLoadError( Err )
+		return false, Err
+	end
+
+	return xpcall( PluginScript, OnLoadError, ... )
+end
+
+local function LoadWithGlobalPlugin( PluginFilePath, PluginTable )
+	-- Maintain legacy behaviour of setting the global Plugin value.
+	local OldValue = _G.Plugin
+	_G.Plugin = PluginTable
+
+	-- Pass the plugin table directly into the script function to avoid needing the global.
+	local Success, Err = LoadPluginScript( PluginFilePath, PluginTable )
+
+	_G.Plugin = OldValue -- Just in case someone else uses Plugin as a global...
+
+	return Success, Err
+end
 
 function Shine:LoadExtension( Name, DontEnable )
 	Name = Name:lower()
@@ -131,7 +157,10 @@ function Shine:LoadExtension( Name, DontEnable )
 	local IsShared = PluginFiles[ SharedFile ]
 		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
 	if PluginFiles[ SharedFile ] then
-		include( SharedFile )
+		local Success, Err = LoadPluginScript( SharedFile )
+		if not Success then
+			return false, "script error while loading plugin (see the log for details)"
+		end
 
 		local Plugin = self.Plugins[ Name ]
 		if not Plugin then
@@ -155,17 +184,15 @@ function Shine:LoadExtension( Name, DontEnable )
 
 	-- Client plugins load automatically, but enable themselves later when told to.
 	if Client then
-		local OldValue = Plugin
-		Plugin = self.Plugins[ Name ]
-
 		if PluginFiles[ ClientFile ] then
-			include( ClientFile )
+			local Success, Err = LoadWithGlobalPlugin( ClientFile, self.Plugins[ Name ] )
+			if not Success then
+				return false, "script error while loading plugin (see the log for details)"
+			end
 		elseif not self.Plugins[ Name ] then
 			-- No client file, and no shared file, or shared did not register.
 			return false, "plugin did not register itself"
 		end
-
-		Plugin = OldValue -- Just in case someone else uses Plugin as a global...
 
 		local Plugin = self.Plugins[ Name ]
 		if not Plugin then
@@ -209,18 +236,15 @@ function Shine:LoadExtension( Name, DontEnable )
 		end
 	end
 
-	-- Global value so that the server file has access to the same table the shared one created.
-	local OldValue = Plugin
-
+	local Success, Err
 	if IsShared then
-		Plugin = self.Plugins[ Name ]
+		Success, Err = LoadWithGlobalPlugin( ServerFile, self.Plugins[ Name ] )
+	else
+		Success, Err = LoadPluginScript( ServerFile )
 	end
 
-	include( ServerFile )
-
-	-- Clean it up afterwards ready for the next extension.
-	if IsShared then
-		Plugin = OldValue
+	if not Success then
+		return false, "script error while loading plugin (see the log for details)"
 	end
 
 	local Plugin = self.Plugins[ Name ]
