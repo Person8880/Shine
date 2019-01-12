@@ -10,7 +10,7 @@ local tostring = tostring
 local IsType = Shine.IsType
 local Notify = Shared.Message
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.PrintName = "Badges"
 Plugin.HasConfig = true
 Plugin.ConfigName = "Badges.json"
@@ -305,5 +305,6 @@ function Plugin:OnClientBadgeRequest( ClientID, Message )
 	if ForcedBadges[ Message.column ] then return false end
 end
 
-Shine:RegisterExtension( "badges", Plugin )
 Shine.LoadPluginModule( "logger.lua", Plugin )
+
+return Plugin

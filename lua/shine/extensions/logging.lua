@@ -6,7 +6,7 @@ local StringFormat = string.format
 
 local IsType = Shine.IsType
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.Version = "1.0.3"
 
 Plugin.ConfigName = "Logging.json"
@@ -277,4 +277,4 @@ function Plugin:OnConstructInit( Building )
 		self:GetClientInfo( Client ), Name, ID ) )
 end
 
-Shine:RegisterExtension( "logging", Plugin )
+return Plugin

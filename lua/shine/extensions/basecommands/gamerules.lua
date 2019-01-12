@@ -8,7 +8,7 @@ local Round = math.Round
 local SharedTime = Shared.GetTime
 local TableEmpty = table.Empty
 
-local Plugin = Plugin
+local Plugin = ...
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )
 	self.dt.Gamestate = NewState

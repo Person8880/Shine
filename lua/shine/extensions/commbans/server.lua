@@ -2,7 +2,7 @@
 	Shine commander bans plugin.
 ]]
 
-local Plugin = Plugin
+local Plugin = ...
 
 local Shine = Shine
 

@@ -11,7 +11,7 @@ local StringFormat = string.format
 local TableCopy = table.Copy
 local TableEmpty = table.Empty
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true

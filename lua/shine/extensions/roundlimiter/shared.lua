@@ -2,7 +2,7 @@
 	Round limiter.
 ]]
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	100, 255, 100
 }
@@ -22,4 +22,4 @@ function Plugin:SetupDataTable()
 	} )
 end
 
-Shine:RegisterExtension( "roundlimiter", Plugin )
+return Plugin

@@ -16,7 +16,7 @@ local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
 local xpcall = xpcall
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.9"
 Plugin.PrintName = "AFKKick"
 
@@ -838,4 +838,4 @@ function Plugin:Cleanup()
 	self.BaseClass.Cleanup( self )
 end
 
-Shine.LoadPluginModule( "logger.lua" )
+Shine.LoadPluginModule( "logger.lua", Plugin )

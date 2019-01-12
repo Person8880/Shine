@@ -8,6 +8,7 @@ local Shine = Shine
 local IsType = Shine.IsType
 
 -- loadfile allows catching errors in the file being executed, Script.Load does not...
+local getmetatable = getmetatable
 local loadfile = loadfile
 local next = next
 local pairs = pairs
@@ -33,8 +34,16 @@ function Shine.GetPluginFile( Plugin, Path )
 	return StringFormat( "%s%s/%s", ExtensionPath, Plugin, Path )
 end
 
-function Shine.LoadPluginFile( Plugin, Path )
-	return Script.Load( Shine.GetPluginFile( Plugin, Path ) )
+local function DoFileWithArgs( FilePath, ... )
+	local File, Err = loadfile( FilePath )
+	if not File then
+		error( Err, 2 )
+	end
+	return File( ... )
+end
+
+function Shine.LoadPluginFile( PluginName, Path, ... )
+	return DoFileWithArgs( Shine.GetPluginFile( PluginName, Path ), ... )
 end
 
 function Shine.GetModuleFile( ModuleName )
@@ -46,8 +55,7 @@ function Shine.LoadPluginModule( ModuleName, Plugin, ... )
 	Shine.AssertAtLevel( Plugin and Plugin.AddModule,
 		"Called LoadPluginModule too early! Make sure the plugin has been registered first.", 3 )
 
-	local File = loadfile( Shine.GetModuleFile( ModuleName ) )
-	return File( Plugin, ... )
+	return DoFileWithArgs( Shine.GetModuleFile( ModuleName ), Plugin, ... )
 end
 
 -- Here we collect every extension file so we can be sure it exists before attempting to load it.
@@ -65,30 +73,40 @@ Script.Load "lua/shine/core/shared/base_plugin.lua"
 
 local PluginMeta = Shine.BasePlugin
 
-function Shine:RegisterExtension( Name, Table, Options )
-	self.Plugins[ Name ] = setmetatable( Table, PluginMeta )
+local function MakePlugin( Name, Table )
+	local Plugin = setmetatable( Table or {}, PluginMeta )
 
-	Table.BaseClass = PluginMeta
-	Table.__Name = Name
+	Plugin.BaseClass = PluginMeta
+	Plugin.__Name = Name
+
+	return Plugin
+end
+Shine.Plugin = MakePlugin
+
+function Shine:RegisterExtension( Name, Plugin, Options )
+	Shine.TypeCheck( Name, "string", 1, "RegisterExtension" )
+	Shine.TypeCheck( Plugin, "table", 2, "RegisterExtension" )
+	Shine.TypeCheck( Options, { "nil", "table" }, 3, "RegisterExtension" )
+
+	if getmetatable( Plugin ) ~= PluginMeta then
+		Plugin = MakePlugin( Name, Plugin )
+	end
+
+	self.Plugins[ Name ] = Plugin
 
 	if Client then
 		self.Locale:RegisterSource( Name, "locale/shine/extensions/"..Name )
 	end
 
-	-- Copy (by reference) all modules from the base of the plugin
+	-- Copy (by reference) all modules from the base of the plugin.
 	-- This allows plugins to add their own modules progressively.
 	local function SetupModules( Base )
-		Table.Modules = TableQuickCopy( Base.Modules )
-		Table:SetupDispatcher()
+		Plugin:AddBaseModules( Base.Modules )
+		Plugin:SetupDispatcher()
 	end
 
-	if not Options then
-		SetupModules( PluginMeta )
-		return
-	end
-
-	local Base = Options.Base
-	if not Base then
+	local Base = Options and Options.Base
+	if not IsType( Base, "string" ) then
 		SetupModules( PluginMeta )
 		return
 	end
@@ -96,18 +114,18 @@ function Shine:RegisterExtension( Name, Table, Options )
 	if not self.Plugins[ Base ] then
 		if not self:LoadExtension( Base, true ) then
 			error( StringFormat(
-				"[Shine] Unable to make plugin %s inherit from %s as %s could not be loaded.",
+				"Unable to make plugin %s inherit from %s as %s could not be loaded.",
 				Name, Base, Base
 			), 2 )
 		end
 	end
 
 	local ParentPlugin = self.Plugins[ Base ]
-	if ParentPlugin.__Inherit == Table then
+	if ParentPlugin.__Inherit == Plugin then
 		self.Plugins[ Name ] = nil
 
 		error( StringFormat(
-			"[Shine] Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
+			"Cyclic dependency detected. Plugin %s depends on %s while %s also depends on %s.",
 			Name, Base, Base, Name
 		), 2 )
 	end
@@ -124,16 +142,20 @@ function Shine:RegisterExtension( Name, Table, Options )
 		KeyPredicate = Predicates.And( KeyPredicate, function( Key ) return WhitelistKeys[ Key ] end )
 	end
 
-	Table.__CanInherit = KeyPredicate
-	Table.__Inherit = ParentPlugin
-	Table.__InheritBlacklist = BlacklistKeys
-	Table.__InheritWhitelist = WhitelistKeys
+	Plugin.__CanInherit = KeyPredicate
+	Plugin.__Inherit = ParentPlugin
+	Plugin.__InheritBlacklist = BlacklistKeys
+	Plugin.__InheritWhitelist = WhitelistKeys
 
 	SetupModules( ParentPlugin )
 end
 
 local LoadingErrors = {}
 local OnLoadError = Shine.BuildErrorHandler( "Plugin loading error" )
+
+local function AutoRegisterExtension( self, Name, PluginTable, Options )
+	return xpcall( self.RegisterExtension, OnLoadError, self, Name, PluginTable, Options )
+end
 
 local function LoadPluginScript( PluginFilePath, ... )
 	local PluginScript, Err = loadfile( PluginFilePath )
@@ -146,17 +168,39 @@ local function LoadPluginScript( PluginFilePath, ... )
 	return xpcall( PluginScript, OnLoadError, ... )
 end
 
-local function LoadWithGlobalPlugin( PluginFilePath, PluginTable )
+local function LoadWithGlobalPlugin( Name, PluginFilePath, PluginTable )
 	-- Maintain legacy behaviour of setting the global Plugin value.
 	local OldValue = _G.Plugin
 	_G.Plugin = PluginTable
 
 	-- Pass the plugin table directly into the script function to avoid needing the global.
-	local Success, Err = LoadPluginScript( PluginFilePath, PluginTable )
+	local Success, PluginTable, Options = LoadPluginScript( PluginFilePath, PluginTable, Name )
 
 	_G.Plugin = OldValue -- Just in case someone else uses Plugin as a global...
 
-	return Success, Err
+	return Success, PluginTable, Options
+end
+
+local function HandleAutoRegister( self, Name, Success, PluginTable, Options )
+	if not Success then
+		return false, "script error while loading plugin (see the log for details)"
+	end
+
+	local Plugin = self.Plugins[ Name ]
+	if not Plugin then
+		if IsType( PluginTable, "table" ) then
+			-- Plugin file returned the plugin table, so register it for them.
+			if not AutoRegisterExtension( self, Name, PluginTable, Options ) then
+				self.Plugins[ Name ] = nil
+				return false, "script error while loading plugin (see the log for details)"
+			end
+			Plugin = PluginTable
+		else
+			return false, "plugin did not register itself"
+		end
+	end
+
+	return true, Plugin
 end
 
 function Shine:LoadExtension( Name, DontEnable )
@@ -172,14 +216,9 @@ function Shine:LoadExtension( Name, DontEnable )
 	local IsShared = PluginFiles[ SharedFile ]
 		or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
 	if PluginFiles[ SharedFile ] then
-		local Success, Err = LoadPluginScript( SharedFile )
-		if not Success then
-			return false, "script error while loading plugin (see the log for details)"
-		end
-
-		local Plugin = self.Plugins[ Name ]
-		if not Plugin then
-			return false, "plugin did not register itself"
+		local IsLoaded, Plugin = HandleAutoRegister( self, Name, LoadPluginScript( SharedFile, Name ) )
+		if not IsLoaded then
+			return false, Plugin
 		end
 
 		-- Don't load irrelevant plugins. Make sure we stop before network messages.
@@ -190,19 +229,21 @@ function Shine:LoadExtension( Name, DontEnable )
 		end
 
 		Plugin.IsShared = true
-
-		if Plugin.SetupDataTable then -- Networked variables.
-			Plugin:SetupDataTable()
-			Plugin:InitDataTable( Name )
-		end
 	end
 
 	-- Client plugins load automatically, but enable themselves later when told to.
 	if Client then
 		if PluginFiles[ ClientFile ] then
-			local Success, Err = LoadWithGlobalPlugin( ClientFile, self.Plugins[ Name ] )
-			if not Success then
-				return false, "script error while loading plugin (see the log for details)"
+			local Success, PluginTable, Options
+			if IsShared and self.Plugins[ Name ] then
+				Success = LoadWithGlobalPlugin( Name, ClientFile, self.Plugins[ Name ] )
+			else
+				Success, PluginTable, Options = LoadPluginScript( ClientFile, Name )
+			end
+
+			local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
+			if not IsLoaded then
+				return false, Plugin
 			end
 		end
 
@@ -218,6 +259,12 @@ function Shine:LoadExtension( Name, DontEnable )
 		end
 
 		Plugin.IsClient = true
+
+		-- Setup networked variables after all files have executed.
+		if Plugin.SetupDataTable then
+			Plugin:SetupDataTable()
+			Plugin:InitDataTable( Name )
+		end
 
 		return true
 	end
@@ -248,20 +295,16 @@ function Shine:LoadExtension( Name, DontEnable )
 		end
 	end
 
-	local Success, Err
-	if IsShared then
-		Success, Err = LoadWithGlobalPlugin( ServerFile, self.Plugins[ Name ] )
+	local Success, PluginTable, Options
+	if IsShared and self.Plugins[ Name ] then
+		Success = LoadWithGlobalPlugin( Name, ServerFile, self.Plugins[ Name ] )
 	else
-		Success, Err = LoadPluginScript( ServerFile )
+		Success, PluginTable, Options = LoadPluginScript( ServerFile, Name )
 	end
 
-	if not Success then
-		return false, "script error while loading plugin (see the log for details)"
-	end
-
-	local Plugin = self.Plugins[ Name ]
-	if not Plugin then
-		return false, "plugin did not register itself."
+	local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
+	if not IsLoaded then
+		return false, Plugin
 	end
 
 	local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
@@ -271,6 +314,12 @@ function Shine:LoadExtension( Name, DontEnable )
 	end
 
 	Plugin.IsShared = IsShared and true or nil
+
+	-- Setup networked variables after all files have executed.
+	if Plugin.SetupDataTable then
+		Plugin:SetupDataTable()
+		Plugin:InitDataTable( Name )
+	end
 
 	if DontEnable then return true end
 

@@ -2,7 +2,7 @@
 	All talk voting.
 ]]
 
-local Plugin = Plugin
+local Plugin = ...
 
 Plugin.DependsOnPlugins = {
 	"basecommands"

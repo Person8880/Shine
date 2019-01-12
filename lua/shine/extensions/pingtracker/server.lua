@@ -2,7 +2,7 @@
 	Shine ping tracking plugin.
 ]]
 
-local Plugin = Plugin
+local Plugin = ...
 
 local Abs = math.abs
 local Ceil = math.ceil

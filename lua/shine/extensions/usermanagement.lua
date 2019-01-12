@@ -15,7 +15,7 @@ local TableShallowMerge = table.ShallowMerge
 local TableSort = table.sort
 local tostring = tostring
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 
 Plugin.PrintName = "User Management"
 Plugin.Version = "1.0"
@@ -491,4 +491,4 @@ function Plugin:CreateCommands()
 	end
 end
 
-Shine:RegisterExtension( "usermanagement", Plugin )
+return Plugin

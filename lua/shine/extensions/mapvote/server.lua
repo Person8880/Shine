@@ -16,7 +16,7 @@ local TableHasValue = table.HasValue
 local TableCount = table.Count
 local tonumber = tonumber
 
-local Plugin = Plugin
+local Plugin, PluginName = ...
 Plugin.Version = "1.10"
 
 Plugin.HasConfig = true
@@ -228,8 +228,8 @@ local function ConvertArrayToLookup( Table )
 	end
 end
 
-Shine.LoadPluginFile( "mapvote", "cycle.lua" )
-Shine.LoadPluginFile( "mapvote", "voting.lua" )
+Shine.LoadPluginFile( PluginName, "cycle.lua", Plugin )
+Shine.LoadPluginFile( PluginName, "voting.lua", Plugin )
 
 do
 	local StringUpper = string.upper

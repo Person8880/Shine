@@ -2,6 +2,8 @@
 	Server rates configuration.
 ]]
 
+local Plugin = ...
+
 local IsType = Shine.IsType
 local Notify = Shared.Message
 local StringFormat = string.format

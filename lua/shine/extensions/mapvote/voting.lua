@@ -19,10 +19,10 @@ local StringUpper = string.upper
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
 
-local Plugin = Plugin
+local Plugin = ...
 local IsType = Shine.IsType
 
-Shine.LoadPluginModule( "vote.lua" )
+Shine.LoadPluginModule( "vote.lua", Plugin )
 
 function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, ShowTime )
 	local MessageTable = {
@@ -92,6 +92,10 @@ function Plugin:SendVoteData( Client )
 
 	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
 		self:GetTimeRemaining(), not self.VoteOnEnd )
+end
+
+function Plugin:ReceiveRequestVoteOptions( Client, Message )
+	self:SendVoteData( Client )
 end
 
 function Plugin:OnVoteStart( ID )

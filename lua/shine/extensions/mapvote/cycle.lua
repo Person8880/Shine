@@ -15,7 +15,7 @@ local TableCopy = table.Copy
 local TableFindByField = table.FindByField
 local TableRemove = table.remove
 
-local Plugin = Plugin
+local Plugin = ...
 
 local IsType = Shine.IsType
 

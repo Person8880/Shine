@@ -7,7 +7,7 @@ local Shine = Shine
 local Notify = Shared.Message
 local StringFormat = string.format
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true

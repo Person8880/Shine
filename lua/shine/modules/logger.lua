@@ -2,7 +2,7 @@
 	Provides a configurable logger for a plugin.
 ]]
 
-local Plugin = _G.Plugin or ...
+local Plugin = ... or _G.Plugin
 
 local StringUpper = string.upper
 local TableConcat = table.concat

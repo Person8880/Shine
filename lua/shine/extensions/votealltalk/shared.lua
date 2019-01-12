@@ -2,12 +2,10 @@
 	All talk voting.
 ]]
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	0, 200, 255
 }
-
-Shine:RegisterExtension( "votealltalk", Plugin )
 
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )
@@ -44,3 +42,5 @@ function Plugin:SetupDataTable()
 end
 
 Shine.LoadPluginModule( "sh_vote.lua", Plugin, true )
+
+return Plugin

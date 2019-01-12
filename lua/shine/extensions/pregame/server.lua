@@ -12,7 +12,7 @@ local Max = math.max
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.7"
 
 Plugin.HasConfig = true

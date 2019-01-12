@@ -12,7 +12,7 @@ local Max = math.max
 local StringFormat = string.format
 local tonumber = tonumber
 
-local Plugin = Plugin
+local Plugin = ...
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "WorkshopUpdater.json"

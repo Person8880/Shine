@@ -23,7 +23,7 @@ local StringFormat = string.format
 local TableConcat = table.concat
 local tostring = tostring
 
-local Plugin = Plugin
+local Plugin, PluginName = ...
 Plugin.Version = "2.4"
 Plugin.PrintName = "Shuffle"
 
@@ -384,7 +384,7 @@ function NoOpEnforcement:Init()
 end
 function NoOpEnforcement:JoinTeam() end
 
-Shine.LoadPluginFile( "voterandom", "team_balance.lua" )
+Shine.LoadPluginFile( PluginName, "team_balance.lua", Plugin, PluginName )
 
 local ModeError = [[Error in voterandom config, FallbackMode is not set as a valid option.
 Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not "HIVE".
@@ -1432,6 +1432,6 @@ function Plugin:CreateCommands()
 	StatsCommand:Help( "View Hive skill based team statistics." )
 end
 
-Shine.LoadPluginFile( "voterandom", "local_stats.lua" )
-Shine.LoadPluginModule( "vote.lua" )
-Shine.LoadPluginModule( "logger.lua" )
+Shine.LoadPluginFile( PluginName, "local_stats.lua", Plugin )
+Shine.LoadPluginModule( "vote.lua", Plugin )
+Shine.LoadPluginModule( "logger.lua", Plugin )

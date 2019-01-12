@@ -5,6 +5,8 @@
 local Shine = Shine
 
 local rawget = rawget
+local TableEmpty = table.Empty
+local TableQuickCopy = table.QuickCopy
 local TableShallowMerge = table.ShallowMerge
 
 local PluginMeta = {}
@@ -36,6 +38,22 @@ function PluginMeta:IsFirstTimeLoaded()
 	return self.Enabled == nil
 end
 
+local function InitialiseModules( self )
+	local Modules = rawget( self, "Modules" )
+	if not Modules then
+		Modules = {}
+		self.Modules = Modules
+	end
+	return Modules
+end
+
+local function FlushEventDispatcher( self )
+	local Dispatcher = rawget( self, "EventDispatcher" )
+	if Dispatcher then
+		Dispatcher:FlushCache()
+	end
+end
+
 --[[
 	*STATIC* method to register a module against the plugin.
 
@@ -46,7 +64,8 @@ end
 	a copy of their parent's modules, which they can then add to.
 ]]
 function PluginMeta:AddModule( Module )
-	self.Modules[ #self.Modules + 1 ] = Module
+	local Modules = InitialiseModules( self )
+	Modules[ #Modules + 1 ] = Module
 	TableShallowMerge( Module, self )
 
 	-- Merge configuration values if provided.
@@ -59,6 +78,30 @@ function PluginMeta:AddModule( Module )
 	and self.ConfigValidator ~= Module.ConfigValidator then
 		self.ConfigValidator:Add( Module.ConfigValidator )
 	end
+
+	FlushEventDispatcher( self )
+end
+
+--[[
+	Internal function, do not call!
+
+	Adds the given modules beneath the current modules.
+	Used to inherit modules.
+]]
+function PluginMeta:AddBaseModules( BaseModules )
+	local Modules = InitialiseModules( self )
+	local ExistingModules = TableQuickCopy( Modules )
+
+	TableEmpty( Modules )
+
+	for i = 1, #BaseModules do
+		Modules[ i ] = BaseModules[ i ]
+	end
+	for i = 1, #ExistingModules do
+		Modules[ #Modules + 1 ] = ExistingModules[ i ]
+	end
+
+	FlushEventDispatcher( self )
 end
 
 --[[

@@ -10,7 +10,7 @@ local StringFormat = string.format
 local TableEmpty = table.Empty
 local tostring = tostring
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.3"
 
 Plugin.HasConfig = true

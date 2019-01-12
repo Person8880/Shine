@@ -22,7 +22,7 @@ local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local tostring = tostring
 
-local Plugin = Plugin
+local Plugin, PluginName = ...
 Plugin.Version = "1.5"
 Plugin.PrintName = "Base Commands"
 
@@ -60,7 +60,7 @@ Plugin.HandlesVoteConfig = true
 
 Shine.LoadPluginModule( "vote.lua", Plugin )
 Shine.LoadPluginModule( "logger.lua", Plugin )
-Shine.LoadPluginFile( "basecommands", "gamerules.lua" )
+Shine.LoadPluginFile( PluginName, "gamerules.lua", Plugin )
 
 Plugin.ConfigMigrationSteps = {
 	{
@@ -250,7 +250,7 @@ do
 	Plugin.ConfigValidator = Validator
 
 	-- Load after default validator to ensure validators merge.
-	Shine.LoadPluginFile( "basecommands", "rates.lua" )
+	Shine.LoadPluginFile( PluginName, "rates.lua", Plugin )
 end
 
 function Plugin:Initialise()

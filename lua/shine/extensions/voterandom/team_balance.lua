@@ -2,10 +2,11 @@
 	Handles team balancing related stuff.
 ]]
 
-Shine.LoadPluginFile( "voterandom", "team_optimiser.lua" )
+local Plugin, PluginName = ...
+
+Plugin.TeamOptimiser = Shine.LoadPluginFile( PluginName, "team_optimiser.lua" )
 
 local BalanceModule = {}
-local Plugin = Plugin
 
 local Abs = math.abs
 local Ceil = math.ceil

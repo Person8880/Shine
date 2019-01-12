@@ -488,4 +488,4 @@ function TeamOptimiser:Optimise()
 	end
 end
 
-Plugin.TeamOptimiser = TeamOptimiser
+return TeamOptimiser
