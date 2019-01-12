@@ -273,6 +273,9 @@ end
 function Shine:LoadExtensionConfigs()
 	self:LoadConfig()
 
+	-- Load extensions after the initial configuration load to ensure logging options are available.
+	Script.Load "lua/shine/core/shared/extensions.lua"
+
 	if self.Config.AddTag then -- Would be nice to know who's running it.
 		Server.AddTag( "shine" )
 	end
