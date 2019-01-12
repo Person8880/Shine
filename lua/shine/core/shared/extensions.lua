@@ -556,6 +556,10 @@ local function AddToPluginsLists( Name )
 	end
 end
 
+if Server then
+	Server.AddRestrictedFileHashes( "lua/shine/extensions/*.lua" )
+end
+
 --[[
 	Prepare shared plugins.
 
