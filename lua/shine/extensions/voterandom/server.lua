@@ -1395,12 +1395,14 @@ function Plugin:CreateCommands()
 				Message[ #Message + 1 ] = tostring( Skills[ j ] )
 			end
 
-			Message[ #Message + 1 ] = StringFormat( "Average: %.1f. Standard Deviation: %.1f",
+			Message[ #Message + 1 ] = StringFormat( "Average: %.1f. Standard Deviation: %.1f.",
 				Stats.Average, Stats.StandardDeviation )
 		end
 
-		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av",
+		Message[ #Message + 1 ] = StringFormat( "Tolerance values: %.1f SD / %.1f Av.",
 			self.Config.StandardDeviationTolerance, self.Config.AverageValueTolerance )
+		Message[ #Message + 1 ] = StringFormat( "Team preference cost weighting: %s. History rounds: %d.",
+			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )
 		if self.LastShuffleTime then
 			Message[ #Message + 1 ] = StringFormat(
 				"Last shuffle was %s ago. %d/%d player(s) match their team from the last shuffle.",
