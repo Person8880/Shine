@@ -191,7 +191,8 @@ local SharedGetTime = Shared.GetTime
 function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 	local MemoryEntry = self.TeamTracking[ ClientIndex ]
 	if not MemoryEntry then
-		MemoryEntry = {}
+		-- Start with the team they're currently on to avoid everyone flashing on first join.
+		MemoryEntry = { TeamNumber = TeamNumber }
 		self.TeamTracking[ ClientIndex ] = MemoryEntry
 	end
 
