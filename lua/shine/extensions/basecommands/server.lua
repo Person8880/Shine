@@ -378,6 +378,23 @@ do
 		return DisableLocalAllTalkClients[ Client ]
 	end
 
+	local function GetPlayerOrigin( Player )
+		if Player:isa( "Spectator" ) then
+			-- If the player is spectating a player, their origin is not updated, so we need to use
+			-- the origin of the player being followed instead.
+			local Client = Player:GetClient()
+			local FollowingPlayer = Client and Client:GetSpectatingPlayer()
+			if FollowingPlayer then
+				return FollowingPlayer:GetOrigin()
+			end
+		end
+		return Player:GetOrigin()
+	end
+
+	function Plugin:ArePlayersInLocalVoiceRange( Speaker, Listener )
+		return GetPlayerOrigin( Listener ):GetDistanceSquared( GetPlayerOrigin( Speaker ) ) < MaxWorldSoundDistance
+	end
+
 	function Plugin:CanPlayerHearLocalVoice( Gamerules, Listener, Speaker, SpeakerClient )
 		local ListenerClient = GetOwner( Listener )
 
@@ -390,7 +407,7 @@ do
 		-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
 		if self.Config.AllTalkLocal or self.Config.AllTalk or self:IsPregameAllTalk( Gamerules )
 		or self:IsSpectatorAllTalk( Listener ) then
-			return Listener:GetDistanceSquared( Speaker ) < MaxWorldSoundDistance
+			return self:ArePlayersInLocalVoiceRange( Speaker, Listener )
 		end
 	end
 
