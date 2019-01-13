@@ -2,13 +2,20 @@
 	Shine commander bans plugin.
 ]]
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 
 Plugin.NotifyPrefixColour = {
 	255, 50, 0
 }
 
-Shine:RegisterExtension( "commbans", Plugin, {
+function Plugin:SetupDataTable()
+	self.__Inherit.SetupDataTable( self )
+	self:AddTranslatedNotify( "BANNED_WARNING", {
+		Duration = "integer"
+	} )
+end
+
+local Options = {
 	Base = "ban",
 	BlacklistKeys = {
 		CheckConnectionAllowed = true,
@@ -21,26 +28,6 @@ Shine:RegisterExtension( "commbans", Plugin, {
 		BanData = true,
 		SaveConfig = true
 	}
-} )
+}
 
-function Plugin:SetupDataTable()
-	self.__Inherit.SetupDataTable( self )
-	self:AddTranslatedNotify( "BANNED_WARNING", {
-		Duration = "integer"
-	} )
-end
-
-if Server then return end
-
-Plugin.AdminTab = "Comm Bans"
-
-Plugin.BanCommand = "sh_commbanid"
-Plugin.UnbanCommand = "sh_uncommban"
-
-function Plugin:Initialise()
-	self:SetupAdminMenu()
-
-	self.Enabled = true
-
-	return true
-end
+return Plugin, Options

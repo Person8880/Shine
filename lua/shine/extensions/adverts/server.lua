@@ -20,7 +20,7 @@ local TableShallowCopy = table.ShallowCopy
 local TableShallowMerge = table.ShallowMerge
 local tonumber = tonumber
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.Version = "2.2"
 Plugin.PrintName = "Adverts"
 
@@ -835,5 +835,6 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	end
 end
 
-Shine:RegisterExtension( "adverts", Plugin )
 Shine.LoadPluginModule( "logger.lua", Plugin )
+
+return Plugin

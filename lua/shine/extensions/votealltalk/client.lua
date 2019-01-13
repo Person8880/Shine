@@ -2,7 +2,7 @@
 	All talk voting client-side.
 ]]
 
-local Plugin = Plugin
+local Plugin = ...
 
 Plugin.VoteButtonName = "VoteAllTalk"
 

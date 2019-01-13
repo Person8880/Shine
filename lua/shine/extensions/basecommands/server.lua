@@ -22,7 +22,7 @@ local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local tostring = tostring
 
-local Plugin = Plugin
+local Plugin, PluginName = ...
 Plugin.Version = "1.5"
 Plugin.PrintName = "Base Commands"
 
@@ -60,7 +60,7 @@ Plugin.HandlesVoteConfig = true
 
 Shine.LoadPluginModule( "vote.lua", Plugin )
 Shine.LoadPluginModule( "logger.lua", Plugin )
-Shine.LoadPluginFile( "basecommands", "gamerules.lua" )
+Shine.LoadPluginFile( PluginName, "gamerules.lua", Plugin )
 
 Plugin.ConfigMigrationSteps = {
 	{
@@ -250,7 +250,7 @@ do
 	Plugin.ConfigValidator = Validator
 
 	-- Load after default validator to ensure validators merge.
-	Shine.LoadPluginFile( "basecommands", "rates.lua" )
+	Shine.LoadPluginFile( PluginName, "rates.lua", Plugin )
 end
 
 function Plugin:Initialise()
@@ -358,11 +358,11 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 end
 
 do
-	local function IsPregameAllTalk( self, Gamerules )
+	function Plugin:IsPregameAllTalk( Gamerules )
 		return self.Config.AllTalkPreGame and Gamerules:GetGameState() < kGameState.PreGame
 	end
 
-	local function IsSpectatorAllTalk( self, Listener )
+	function Plugin:IsSpectatorAllTalk( Listener )
 		return self.Config.AllTalkSpectator and Listener:GetTeamNumber() == ( kSpectatorIndex or 3 )
 	end
 
@@ -372,6 +372,50 @@ do
 
 	function Plugin:RemoveAllTalkPreference( Client )
 		DisableLocalAllTalkClients[ Client ] = nil
+	end
+
+	function Plugin:IsLocalAllTalkDisabled( Client )
+		return DisableLocalAllTalkClients[ Client ]
+	end
+
+	local function GetPlayerOrigin( Player )
+		if Player:isa( "Spectator" ) then
+			-- If the player is spectating a player, their origin is not updated, so we need to use
+			-- the origin of the player being followed instead.
+			local Client = Player:GetClient()
+			local FollowingPlayer = Client and Client:GetSpectatingPlayer()
+			if FollowingPlayer then
+				return FollowingPlayer:GetOrigin()
+			end
+		end
+		return Player:GetOrigin()
+	end
+
+	function Plugin:ArePlayersInLocalVoiceRange( Speaker, Listener )
+		return GetPlayerOrigin( Listener ):GetDistanceSquared( GetPlayerOrigin( Speaker ) ) < MaxWorldSoundDistance
+	end
+
+	function Plugin:CanPlayerHearLocalVoice( Gamerules, Listener, Speaker, SpeakerClient )
+		local ListenerClient = GetOwner( Listener )
+
+		-- Default behaviour for those that have chosen to disable it.
+		if self:IsLocalAllTalkDisabled( ListenerClient )
+		or self:IsLocalAllTalkDisabled( SpeakerClient ) then
+			return
+		end
+
+		-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
+		if self.Config.AllTalkLocal or self.Config.AllTalk or self:IsPregameAllTalk( Gamerules )
+		or self:IsSpectatorAllTalk( Listener ) then
+			return self:ArePlayersInLocalVoiceRange( Speaker, Listener )
+		end
+	end
+
+	function Plugin:CanPlayerHearGlobalVoice( Gamerules, Listener, Speaker, SpeakerClient )
+		if self.Config.AllTalk or self:IsPregameAllTalk( Gamerules )
+		or self:IsSpectatorAllTalk( Listener ) then
+			return true
+		end
 	end
 
 	--[[
@@ -384,27 +428,10 @@ do
 		if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
 
 		if ChannelType and ChannelType ~= VoiceChannel.Global then
-			local ListenerClient = GetOwner( Listener )
-
-			-- Default behaviour for those that have chosen to disable it.
-			if ( ListenerClient and DisableLocalAllTalkClients[ ListenerClient ] )
-			or ( SpeakerClient and DisableLocalAllTalkClients[ SpeakerClient ] ) then
-				return
-			end
-
-			-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
-			if self.Config.AllTalkLocal or self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
-			or IsSpectatorAllTalk( self, Listener ) then
-				return Listener:GetDistanceSquared( Speaker ) < MaxWorldSoundDistance
-			end
-
-			return
+			return self:CanPlayerHearLocalVoice( Gamerules, Listener, Speaker, SpeakerClient )
 		end
 
-		if self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
-		or IsSpectatorAllTalk( self, Listener ) then
-			return true
-		end
+		return self:CanPlayerHearGlobalVoice( Gamerules, Listener, Speaker, SpeakerClient )
 	end
 
 	function Plugin:ReceiveEnableLocalAllTalk( Client, Data )
@@ -1010,6 +1037,12 @@ function Plugin:CreateAdminCommands()
 	end
 	local CycleMapCommand = self:BindCommand( "sh_cyclemap", "cyclemap", CycleMap )
 	CycleMapCommand:Help( "Cycles the map to the next one in the map cycle." )
+
+	local function ReloadMap( Client )
+		MapCycle_ChangeMap( Shared.GetMapName() )
+	end
+	local ReloadMapCommand = self:BindCommand( "sh_reloadmap", "reloadmap", ReloadMap )
+	ReloadMapCommand:Help( "Reloads the current map." )
 
 	local function LoadPlugin( Client, Name, Save )
 		if Name == "basecommands" then

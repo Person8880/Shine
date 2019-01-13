@@ -14,7 +14,7 @@ local Floor = math.floor
 local Max = math.max
 local Random = math.random
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.4"
 
 Plugin.HasConfig = true
@@ -47,7 +47,7 @@ Plugin.EnabledGamemodes = {
 	[ "mvm" ] = true
 }
 
-Shine.LoadPluginModule( "vote.lua" )
+Shine.LoadPluginModule( "vote.lua", Plugin )
 
 function Plugin:Initialise()
 	local function ClampConfigOption( Option, Min, Max )

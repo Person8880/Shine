@@ -2,7 +2,7 @@
 	Unstuck plugin.
 ]]
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	0, 255, 0
 }
@@ -22,4 +22,4 @@ function Plugin:SetupDataTable()
 	self:AddTranslatedNotify( "UNSTICKING", MessageTypes.TimeLeft )
 end
 
-Shine:RegisterExtension( "unstuck", Plugin )
+return Plugin

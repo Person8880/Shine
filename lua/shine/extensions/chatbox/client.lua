@@ -28,7 +28,7 @@ local TableEmpty = table.Empty
 local TableRemove = table.remove
 local type = type
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "ChatBox.json"
@@ -162,7 +162,7 @@ Hook.Add( "Think", "GetGUIChat", function()
 end )
 
 function Plugin:Initialise()
-	Shine.LoadPluginFile( "chatbox", "chatline.lua" )
+	Shine.LoadPluginFile( self:GetName(), "chatline.lua" )
 
 	self.Messages = self.Messages or {}
 	self.Enabled = true
@@ -1378,8 +1378,6 @@ function Plugin:Cleanup()
 	end
 end
 
-Shine:RegisterExtension( "chatbox", Plugin )
-
 --Enables this plugin and sets it to auto load.
 local EnableCommand = Shine:RegisterClientCommand( "sh_chatbox", function( Enable )
 	if Enable then
@@ -1400,3 +1398,5 @@ EnableCommand:AddParam{ Type = "boolean", Optional = true,
 Shine.Hook.Add( "OnMapLoad", "NotifyAboutChatBox", function()
 	Shine.AddStartupMessage( "Shine has a chatbox that you can enable/disable by entering \"sh_chatbox\" into the console." )
 end )
+
+return Plugin

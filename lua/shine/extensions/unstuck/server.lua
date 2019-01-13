@@ -6,7 +6,7 @@ local Shine = Shine
 
 local Ceil = math.ceil
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.1"
 
 Plugin.HasConfig = true

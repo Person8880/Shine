@@ -2,12 +2,10 @@
 	All talk voting.
 ]]
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	0, 200, 255
 }
-
-Shine:RegisterExtension( "votealltalk", Plugin )
 
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )
@@ -25,6 +23,10 @@ function Plugin:SetupDataTable()
 		},
 		VoteType = {
 			VoteType = "string (8)"
+		},
+		VoteWaitTime = {
+			VoteType = "string (8)",
+			SecondsToWait = "integer"
 		}
 	}
 
@@ -39,8 +41,13 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessages( "AddTranslatedError", {
 		[ MessageTypes.VoteType ] = {
 			"ERROR_ALREADY_VOTED"
+		},
+		[ MessageTypes.VoteWaitTime ] = {
+			"ERROR_MUST_WAIT"
 		}
 	}, "VoteType" )
 end
 
 Shine.LoadPluginModule( "sh_vote.lua", Plugin, true )
+
+return Plugin

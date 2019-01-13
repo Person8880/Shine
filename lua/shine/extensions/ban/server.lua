@@ -7,7 +7,7 @@ local Hook = Shine.Hook
 
 local IsType = Shine.IsType
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.5"
 
 local Ceil = math.ceil
@@ -996,4 +996,4 @@ function Plugin:ReceiveRequestBanPage( Client, PageRequest )
 	end
 end
 
-Shine.LoadPluginModule( "logger.lua" )
+Shine.LoadPluginModule( "logger.lua", Plugin )

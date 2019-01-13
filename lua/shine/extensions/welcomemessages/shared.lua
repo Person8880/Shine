@@ -2,7 +2,7 @@
 	Welcome messages plugin.
 ]]
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 
 function Plugin:SetupDataTable()
 	local MessageTypes = {
@@ -25,4 +25,4 @@ function Plugin:SetupDataTable()
 	} )
 end
 
-Shine:RegisterExtension( "welcomemessages", Plugin )
+return Plugin

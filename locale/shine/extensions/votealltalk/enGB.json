@@ -6,6 +6,8 @@
 	"PLAYER_VOTED_PRIVATE_DISABLE": "You voted to disable global all talk ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
 	"ERROR_ALREADY_VOTED_ENABLE": "You have already voted to enable global all talk.",
 	"ERROR_ALREADY_VOTED_DISABLE": "You have already voted to disable global all talk.",
+	"ERROR_MUST_WAIT_ENABLE": "You must wait for {SecondsToWait:Duration} before voting to enable global all talk.",
+	"ERROR_MUST_WAIT_DISABLE": "You must wait for {SecondsToWait:Duration} before voting to disable global all talk.",
 	"DISABLE_ALLTALK": "Disable All Talk",
 	"ENABLE_ALLTALK": "Enable All Talk"
 }

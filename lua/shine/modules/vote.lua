@@ -2,7 +2,7 @@
 	Provides a way to control who is considered in votes.
 ]]
 
-local Plugin = _G.Plugin or ...
+local Plugin = ... or _G.Plugin
 
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local Stream = Shine.Stream

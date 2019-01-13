@@ -15,7 +15,7 @@ local Max = math.max
 local Min = math.min
 local tonumber = tonumber
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.Version = "2.2"
 
 Plugin.HasConfig = true
@@ -235,4 +235,4 @@ function Plugin:CheckConnectionAllowed( ID )
 	return self.ConnectionHandlers[ self.Config.SlotType ]( self, tonumber( ID ) )
 end
 
-Shine:RegisterExtension( "reservedslots", Plugin )
+return Plugin

@@ -19,10 +19,10 @@ local StringUpper = string.upper
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
 
-local Plugin = Plugin
+local Plugin = ...
 local IsType = Shine.IsType
 
-Shine.LoadPluginModule( "vote.lua" )
+Shine.LoadPluginModule( "vote.lua", Plugin )
 
 function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, ShowTime )
 	local MessageTable = {
@@ -92,6 +92,10 @@ function Plugin:SendVoteData( Client )
 
 	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
 		self:GetTimeRemaining(), not self.VoteOnEnd )
+end
+
+function Plugin:ReceiveRequestVoteOptions( Client, Message )
+	self:SendVoteData( Client )
 end
 
 function Plugin:OnVoteStart( ID )
@@ -167,19 +171,25 @@ end
 	Returns whether a map vote can start.
 ]]
 function Plugin:CanStartVote()
-	local PlayerCount = self:GetPlayerCountForVote()
-
-	if PlayerCount < self:GetVoteConstraint( "StartVote", "MinPlayers", GetMaxPlayers() ) then
-		return false, "There are not enough players to start a vote.", "VOTE_FAIL_INSUFFICIENT_PLAYERS", {}
-	end
-
 	local Time = SharedTime()
-	if self.Vote.NextVote >= Time then
-		return false, "You cannot start a map vote at this time.", "VOTE_FAIL_TIME", {}
+	if self.Vote.NextVote > Time then
+		local TimeTillNextVote = Ceil( self.Vote.NextVote - Time )
+		return false,
+			StringFormat( "You must wait for %s before starting a map vote.", string.TimeToString( TimeTillNextVote ) ),
+			"VOTE_FAIL_MUST_WAIT",
+			{
+				SecondsToWait = TimeTillNextVote
+			}
 	end
 
 	if Time > self.VoteDisableTime then
 		return false, "It is too far into the current round to begin a map vote.", "VOTE_FAIL_TOO_LATE", {}
+	end
+
+	local PlayerCount = self:GetPlayerCountForVote()
+
+	if PlayerCount < self:GetVoteConstraint( "StartVote", "MinPlayers", GetMaxPlayers() ) then
+		return false, "There are not enough players to start a vote.", "VOTE_FAIL_INSUFFICIENT_PLAYERS", {}
 	end
 
 	return true

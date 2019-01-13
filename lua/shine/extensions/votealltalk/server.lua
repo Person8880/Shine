@@ -2,13 +2,13 @@
 	All talk voting.
 ]]
 
-local Plugin = Plugin
+local Plugin = ...
 
 Plugin.DependsOnPlugins = {
 	"basecommands"
 }
 
-Plugin.Version = "1.0"
+Plugin.Version = "1.1"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteAllTalk.json"

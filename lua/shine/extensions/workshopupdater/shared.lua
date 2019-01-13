@@ -2,7 +2,7 @@
 	Workshop update checker plugin.
 ]]
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	255, 160, 0
 }
@@ -27,4 +27,4 @@ function Plugin:SetupDataTable()
 	} )
 end
 
-Shine:RegisterExtension( "workshopupdater", Plugin )
+return Plugin

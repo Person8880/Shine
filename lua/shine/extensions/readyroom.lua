@@ -13,7 +13,7 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TableEmpty = table.Empty
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true
@@ -282,4 +282,4 @@ function Plugin:Cleanup()
 	self.BaseClass.Cleanup( self )
 end
 
-Shine:RegisterExtension( "readyroom", Plugin )
+return Plugin

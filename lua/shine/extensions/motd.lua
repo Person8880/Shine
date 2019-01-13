@@ -6,7 +6,7 @@ local Shine = Shine
 
 local tonumber = tonumber
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
@@ -125,4 +125,4 @@ function Plugin:CreateCommands()
 	ShowMotDCommand:Help( "Shows the message of the day to the given player." )
 end
 
-Shine:RegisterExtension( "motd", Plugin )
+return Plugin

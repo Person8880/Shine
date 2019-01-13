@@ -9,7 +9,7 @@ local Floor = math.floor
 local StringFormat = string.format
 local TimeToString = string.TimeToString
 
-local Plugin = Plugin
+local Plugin = ...
 Plugin.Version = "1.0"
 
 Plugin.WIN_SCORE = 1

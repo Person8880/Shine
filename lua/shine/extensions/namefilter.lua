@@ -17,7 +17,7 @@ local StringLower = string.lower
 local TableConcat = table.concat
 local tostring = tostring
 
-local Plugin = {}
+local Plugin = Shine.Plugin( ... )
 
 Plugin.PrintName = "Name Filter"
 Plugin.Version = "1.2"
@@ -231,4 +231,4 @@ function Plugin:CheckPlayerName( Player, Name, OldName )
 	end
 end
 
-Shine:RegisterExtension( "namefilter", Plugin )
+return Plugin
