@@ -520,7 +520,7 @@ do
 
 	function Shine:UnloadExtension( Name )
 		local Plugin = self.Plugins[ Name ]
-		if not Plugin or not Plugin.Enabled then return end
+		if not Plugin or not Plugin.Enabled then return false end
 
 		Plugin.Enabled = false
 
@@ -538,6 +538,8 @@ do
 		end
 
 		Hook.Call( "OnPluginUnload", Name, Plugin, Plugin.IsShared )
+
+		return true
 	end
 end
 
@@ -760,10 +762,9 @@ end )
 function Shine:SetPluginAutoLoad( Name, AutoLoad )
 	if not self.AutoLoadPlugins then return end
 
-	AutoLoad = AutoLoad or false
+	AutoLoad = AutoLoad or nil
 
 	self.AutoLoadPlugins[ Name ] = AutoLoad
-
 	self.SaveJSONFile( self.AutoLoadPlugins, AutoLoadPath )
 end
 
@@ -778,21 +779,34 @@ function Shine:CreateDefaultAutoLoad()
 end
 
 Shine:RegisterClientCommand( "sh_loadplugin_cl", function( Name )
-	Shine:SetPluginAutoLoad( Name, true )
-	local Success, Err = Shine:EnableExtension( Name )
+	local Plugin = Shine.Plugins[ Name ]
+	if Plugin and Plugin.IsShared then
+		Print( "[Shine] You cannot load the '%s' plugin.", Name )
+		return
+	end
 
+	local Success, Err = Shine:EnableExtension( Name )
 	if Success then
-		Print( "[Shine] Enabled the '%s' extension.", Name )
+		Shine:SetPluginAutoLoad( Name, true )
+		Print( "[Shine] Enabled the '%s' plugin.", Name )
 	else
-		Print( "[Shine] Could not load extension '%s': %s", Name, Err )
+		Print( "[Shine] Could not load plugin '%s': %s", Name, Err )
 	end
 end ):AddParam{ Type = "string", TakeRestOfLine = true }
 
 Shine:RegisterClientCommand( "sh_unloadplugin_cl", function( Name )
-	Shine:SetPluginAutoLoad( Name, false )
-	Shine:UnloadExtension( Name )
+	local Plugin = Shine.Plugins[ Name ]
+	if Plugin and Plugin.IsShared then
+		Print( "[Shine] You cannot unload the '%s' plugin.", Name )
+		return
+	end
 
-	Print( "[Shine] Disabled the '%s' extension.", Name )
+	Shine:SetPluginAutoLoad( Name, false )
+	if Shine:UnloadExtension( Name ) then
+		Print( "[Shine] Disabled the '%s' plugin.", Name )
+	else
+		Print( "[Shine] No plugin named '%s' is loaded.", Name )
+	end
 end ):AddParam{ Type = "string", TakeRestOfLine = true }
 
 Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
@@ -808,9 +822,12 @@ Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
 		Shine.SaveJSONFile( Shine.AutoLoadPlugins, AutoLoadPath )
 	end
 
-	for Plugin, Load in SortedPairs( Shine.AutoLoadPlugins ) do
+	for PluginName, Load in SortedPairs( Shine.AutoLoadPlugins ) do
 		if Load then
-			Shine:EnableExtension( Plugin )
+			local Plugin = Shine.Plugins[ PluginName ]
+			if not Plugin or not Plugin.IsShared then
+				Shine:EnableExtension( PluginName )
+			end
 		end
 	end
 end, Shine.Hook.MAX_PRIORITY )
