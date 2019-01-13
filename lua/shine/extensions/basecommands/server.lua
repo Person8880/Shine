@@ -358,11 +358,11 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 end
 
 do
-	local function IsPregameAllTalk( self, Gamerules )
+	function Plugin:IsPregameAllTalk( Gamerules )
 		return self.Config.AllTalkPreGame and Gamerules:GetGameState() < kGameState.PreGame
 	end
 
-	local function IsSpectatorAllTalk( self, Listener )
+	function Plugin:IsSpectatorAllTalk( Listener )
 		return self.Config.AllTalkSpectator and Listener:GetTeamNumber() == ( kSpectatorIndex or 3 )
 	end
 
@@ -372,6 +372,33 @@ do
 
 	function Plugin:RemoveAllTalkPreference( Client )
 		DisableLocalAllTalkClients[ Client ] = nil
+	end
+
+	function Plugin:IsLocalAllTalkDisabled( Client )
+		return DisableLocalAllTalkClients[ Client ]
+	end
+
+	function Plugin:CanPlayerHearLocalVoice( Gamerules, Listener, Speaker, SpeakerClient )
+		local ListenerClient = GetOwner( Listener )
+
+		-- Default behaviour for those that have chosen to disable it.
+		if self:IsLocalAllTalkDisabled( ListenerClient )
+		or self:IsLocalAllTalkDisabled( SpeakerClient ) then
+			return
+		end
+
+		-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
+		if self.Config.AllTalkLocal or self.Config.AllTalk or self:IsPregameAllTalk( Gamerules )
+		or self:IsSpectatorAllTalk( Listener ) then
+			return Listener:GetDistanceSquared( Speaker ) < MaxWorldSoundDistance
+		end
+	end
+
+	function Plugin:CanPlayerHearGlobalVoice( Gamerules, Listener, Speaker, SpeakerClient )
+		if self.Config.AllTalk or self:IsPregameAllTalk( Gamerules )
+		or self:IsSpectatorAllTalk( Listener ) then
+			return true
+		end
 	end
 
 	--[[
@@ -384,27 +411,10 @@ do
 		if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end
 
 		if ChannelType and ChannelType ~= VoiceChannel.Global then
-			local ListenerClient = GetOwner( Listener )
-
-			-- Default behaviour for those that have chosen to disable it.
-			if ( ListenerClient and DisableLocalAllTalkClients[ ListenerClient ] )
-			or ( SpeakerClient and DisableLocalAllTalkClients[ SpeakerClient ] ) then
-				return
-			end
-
-			-- Assume non-global means local chat, so "all-talk" means true if distance check passes.
-			if self.Config.AllTalkLocal or self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
-			or IsSpectatorAllTalk( self, Listener ) then
-				return Listener:GetDistanceSquared( Speaker ) < MaxWorldSoundDistance
-			end
-
-			return
+			return self:CanPlayerHearLocalVoice( Gamerules, Listener, Speaker, SpeakerClient )
 		end
 
-		if self.Config.AllTalk or IsPregameAllTalk( self, Gamerules )
-		or IsSpectatorAllTalk( self, Listener ) then
-			return true
-		end
+		return self:CanPlayerHearGlobalVoice( Gamerules, Listener, Speaker, SpeakerClient )
 	end
 
 	function Plugin:ReceiveEnableLocalAllTalk( Client, Data )
