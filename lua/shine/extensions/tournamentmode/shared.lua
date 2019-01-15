@@ -4,6 +4,10 @@
 
 local Plugin = Shine.Plugin( ... )
 
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true
+}
+
 local StringFormat = string.format
 
 --[[

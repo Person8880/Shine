@@ -6,6 +6,10 @@ local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	100, 255, 100
 }
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true,
+	[ "mvm" ] = true
+}
 
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )

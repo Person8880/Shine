@@ -17,6 +17,7 @@ local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local StringLower = string.lower
 local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
 local ToDebugString = table.ToDebugString
@@ -218,6 +219,18 @@ do
 		return true
 	end
 
+	local function WarnAboutInconsistentCanLoad( self, Name, Plugin, VMName, SharedPluginCanLoad )
+		if not Plugin.IsShared or not SharedPluginCanLoad then return end
+
+		Print(
+			"[Shine] [Warn] Plugin %s has been prevented from loading on the %s, "..
+			"but not in shared.lua. If the %s does not prevent loading the plugin "..
+			"then clients will be disconnected with invalid data. Use shared.lua "..
+			"to declare EnabledGamemodes/DisabledGamemodes (or a shared CanPluginLoad hook) to avoid this.",
+			Name, VMName, VMName == "client" and "server" or "client"
+		)
+	end
+
 	function Shine:LoadExtension( Name, DontEnable )
 		Name = Name:lower()
 
@@ -230,20 +243,16 @@ do
 
 		local IsShared = PluginFiles[ SharedFile ]
 			or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
+		local SharedPluginCanLoad
 		if PluginFiles[ SharedFile ] then
 			local IsLoaded, Plugin = HandleAutoRegister( self, Name, LoadPluginScript( SharedFile, Name ) )
 			if not IsLoaded then
 				return false, Plugin
 			end
 
-			-- Don't load irrelevant plugins. Make sure we stop before network messages.
-			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
-			if not CanLoad then
-				self.Plugins[ Name ] = nil
-				return false, FailureReason
-			end
-
 			Plugin.IsShared = true
+			-- Check if the plugin can load after loading shared.lua so we can check for consistency.
+			SharedPluginCanLoad = self:CanPluginLoad( Plugin )
 		end
 
 		-- Client plugins load automatically, but enable themselves later when told to.
@@ -269,6 +278,7 @@ do
 
 			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
 			if not CanLoad then
+				WarnAboutInconsistentCanLoad( self, Name, Plugin, "client", SharedPluginCanLoad )
 				self.Plugins[ Name ] = nil
 				return false, FailureReason
 			end
@@ -284,41 +294,43 @@ do
 
 			if not PluginFiles[ ServerFile ] then
 				local Found
+				local FilePathToFind = StringLower( ServerFile )
 
-				local SearchTerm = StringFormat( "/%s.lua", Name )
+				ServerFile = nil
 
 				-- In case someone uses a different case file name to the plugin name...
 				for File in pairs( PluginFiles ) do
-					local LowerF = File:lower()
-
-					if LowerF:find( SearchTerm, 1, true ) then
+					if StringLower( File ) == FilePathToFind then
 						Found = true
 						ServerFile = File
-
 						break
 					end
 				end
 
-				if not Found then
-					return false, "plugin does not exist."
+				if not Found and not self.Plugins[ Name ] then
+					return false, "unable to find server-side plugin file"
 				end
 			end
 		end
 
-		local Success, PluginTable, Options
-		if IsShared and self.Plugins[ Name ] then
-			Success = LoadWithGlobalPlugin( Name, ServerFile, self.Plugins[ Name ] )
-		else
-			Success, PluginTable, Options = LoadPluginScript( ServerFile, Name )
-		end
+		local Plugin = self.Plugins[ Name ]
+		if ServerFile then
+			local Success, PluginTable, Options
+			if IsShared and Plugin then
+				Success = LoadWithGlobalPlugin( Name, ServerFile, Plugin )
+			else
+				Success, PluginTable, Options = LoadPluginScript( ServerFile, Name )
+			end
 
-		local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
-		if not IsLoaded then
-			return false, Plugin
+			Success, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
+			if not Success then
+				return false, Plugin
+			end
 		end
 
 		local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
 		if not CanLoad then
+			WarnAboutInconsistentCanLoad( self, Name, Plugin, "server", SharedPluginCanLoad )
 			self.Plugins[ Name ] = nil
 			return false, FailureReason
 		end

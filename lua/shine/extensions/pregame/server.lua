@@ -56,11 +56,6 @@ Plugin.CountdownTimer = "PreGameCountdown"
 
 Plugin.StartNagInterval = 30
 
-Plugin.EnabledGamemodes = {
-	[ "ns2" ] = true,
-	[ "mvm" ] = true
-}
-
 Plugin.ConfigMigrationSteps = {
 	{
 		VersionTo = "1.7",

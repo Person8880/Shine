@@ -36,10 +36,6 @@ Plugin.Conflicts = {
 Plugin.CountdownTimer = "Countdown"
 Plugin.FiveSecondTimer = "5SecondCount"
 
-Plugin.EnabledGamemodes = {
-	[ "ns2" ] = true
-}
-
 function Plugin:GetServerConfigSettings()
 	return {
 		AutoBalance = Server.GetConfigSetting( "auto_team_balance" ),

@@ -32,11 +32,6 @@ Plugin.ConfigName = "VoteRandom.json"
 
 Plugin.RandomEndTimer = "VoteRandomTimer"
 
-Plugin.EnabledGamemodes = {
-	[ "ns2" ] = true,
-	[ "mvm" ] = true
-}
-
 Plugin.ShufflePolicy = table.AsEnum{
 	"INSTANT", "NEXT_ROUND", "END_OF_PERIOD"
 }
