@@ -6,6 +6,7 @@ local Encode, Decode = json.encode, json.decode
 local Notify = Shared.Message
 local pairs = pairs
 local StringFormat = string.format
+local StringLower = string.lower
 
 local IsType = Shine.IsType
 
@@ -132,6 +133,41 @@ do
 	Validator:AddRule( {
 		Matches = function( self, Config )
 			return Shine.TypeCheckConfig( "base", Config, DefaultConfig, true )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			local ActiveExtensions = Config.ActiveExtensions
+			local Modified = false
+
+			-- For every active extension name, make sure only the lower-case version exists.
+			-- If there's one with a different case, remove it.
+			local RenamedExtensionValues = {}
+			for Name, Enabled in pairs( ActiveExtensions ) do
+				local LowerCaseName = StringLower( Name )
+				if LowerCaseName ~= Name then
+					if ActiveExtensions[ LowerCaseName ] ~= nil then
+						Notify( StringFormat( "Removing duplicate extension '%s' from ActiveExtensions.", Name ) )
+					else
+						Notify( StringFormat(
+							"Renaming '%s' to '%s' in ActiveExtensions as extension names must be lower case.",
+							Name, LowerCaseName
+						) )
+						-- Modifying during iteration for a key other than the current key will
+						-- lead to undefined iteration behaviour.
+						RenamedExtensionValues[ LowerCaseName ] = Enabled
+					end
+
+					ActiveExtensions[ Name ] = nil
+					Modified = true
+				end
+			end
+
+			for Name, Value in pairs( RenamedExtensionValues ) do
+				ActiveExtensions[ Name ] = Value
+			end
+
+			return Modified
 		end
 	} )
 	Validator:AddRule( {

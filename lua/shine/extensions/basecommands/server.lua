@@ -15,6 +15,7 @@ local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
+local StringLower = string.lower
 local StringMatch = string.match
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -1045,6 +1046,8 @@ function Plugin:CreateAdminCommands()
 	ReloadMapCommand:Help( "Reloads the current map." )
 
 	local function LoadPlugin( Client, Name, Save )
+		Name = StringLower( Name )
+
 		if Name == "basecommands" then
 			local Message = "You cannot reload the basecommands plugin."
 			Shine.PrintToConsole( Client, Message )
@@ -1097,6 +1100,8 @@ function Plugin:CreateAdminCommands()
 	LoadPluginCommand:Help( "Loads or reloads a plugin." )
 
 	local function UnloadPlugin( Client, Name, Save )
+		Name = StringLower( Name )
+
 		if Name == "basecommands" then
 			local Message = "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config."
 			Shine.PrintToConsole( Client, Message )
@@ -1142,8 +1147,9 @@ function Plugin:CreateAdminCommands()
 	UnloadPluginCommand:Help( "Unloads a plugin." )
 
 	local function SuspendPlugin( Client, Name )
-		local Plugin = Shine.Plugins[ Name ]
+		Name = StringLower( Name )
 
+		local Plugin = Shine.Plugins[ Name ]
 		if not Plugin or not Plugin.Enabled then
 			Shine.PrintToConsole( Client, StringFormat( "The plugin %s is not loaded or already suspended.", Name ) )
 
@@ -1162,8 +1168,9 @@ function Plugin:CreateAdminCommands()
 	SuspendPluginCommand:Help( "Suspends a plugin." )
 
 	local function ResumePlugin( Client, Name )
-		local Plugin = Shine.Plugins[ Name ]
+		Name = StringLower( Name )
 
+		local Plugin = Shine.Plugins[ Name ]
 		if not Plugin or Plugin.Enabled or not Plugin.Suspended then
 			Shine.PrintToConsole( Client, StringFormat( "The plugin %s is already running or is not suspended or not loaded.", Name ) )
 
