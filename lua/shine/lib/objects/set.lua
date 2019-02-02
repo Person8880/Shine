@@ -8,6 +8,11 @@ local TableQuickCopy = table.QuickCopy
 local TableShallowCopy = table.ShallowCopy
 
 local Set = Shine.TypeDef()
+
+function Set.FromList( List )
+	return Set():AddAll( List )
+end
+
 function Set:Init( Lookup )
 	if getmetatable( Lookup ) == Set then
 		self.List = TableQuickCopy( Lookup.List )
@@ -79,6 +84,24 @@ function Set:Add( Value )
 		self.List[ #self.List + 1 ] = Value
 	end
 
+	return self
+end
+
+function Set:AddAll( Values )
+	for i = 1, #Values do
+		self:Add( Values[ i ] )
+	end
+	return self
+end
+
+function Set:ReplaceMatchingValue( ValueToAdd, Predicate )
+	for Value in self:Iterate() do
+		if Predicate( Value ) then
+			self:Remove( Value )
+			self:Add( ValueToAdd )
+			break
+		end
+	end
 	return self
 end
 
