@@ -455,7 +455,7 @@ do
 
 		do
 			-- Deal with inter-plugin conflicts.
-			local OK, Err = CheckPluginConflicts( self, Conflicts )
+			local OK, Err = CheckPluginConflicts( self, Plugin.Conflicts )
 			if not OK then
 				return OK, Err
 			end
