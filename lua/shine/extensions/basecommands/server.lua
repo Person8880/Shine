@@ -951,44 +951,15 @@ function Plugin:CreateAdminCommands()
 	local function ChangeLevel( Client, MapName )
 		local Cycle = MapCycle_GetMapCycle()
 		local FoundMap
-		local KnownMaps = {}
+		local KnownMaps = Shine.GetKnownMapNames()
 
-		-- Check the map cycle for the given map first to find maps in mods that are mounted
-		-- by the cycle.
-		if IsType( Cycle, "table" ) and IsType( Cycle.maps, "table" ) then
-			for i = 1, #Cycle.maps do
-				local Entry = Cycle.maps[ i ]
-				local EntryName = IsType( Entry, "table" ) and Entry.map or Entry
-				if EntryName == MapName then
-					FoundMap = MapName
-					break
-				end
-
-				KnownMaps[ EntryName ] = true
-			end
+		-- Provided an exact map name, use it.
+		if KnownMaps[ MapName ] then
+			FoundMap = MapName
 		end
 
 		if not FoundMap then
-			-- Map was not in the cycle, so check the maps folder for all .level files starting with ns2_.
-			-- This will find vanilla maps, and any mounted mod maps.
-			local LevelFiles = {}
-			Shared.GetMatchingFileNames( "maps/*.level", false, LevelFiles )
-			for i = 1, #LevelFiles do
-				local Map = LevelFiles[ i ]
-				local LevelName = StringMatch( Map, "([^/]+)%.level$" )
-				-- Only check maps starting with ns2_ to avoid the menu level.
-				if StringMatch( LevelName, "^ns2_" ) then
-					if LevelName == MapName then
-						FoundMap = MapName
-						break
-					end
-					KnownMaps[ LevelName ] = true
-				end
-			end
-		end
-
-		if not FoundMap then
-			-- Still don't know what map it is, try adding ns2_ at the start.
+			-- Don't know what map it is, try adding ns2_ at the start.
 			local MapWithNS2 = "ns2_"..MapName
 			if KnownMaps[ MapWithNS2 ] then
 				FoundMap = MapWithNS2
@@ -996,7 +967,8 @@ function Plugin:CreateAdminCommands()
 				-- Doesn't match a known map even with ns2_, so try to find a single matching
 				-- map that contains the given name.
 				local MatchingMapName
-				for KnownMap in pairs( KnownMaps ) do
+				for i = 1, #KnownMaps do
+					local KnownMap = KnownMaps[ i ]
 					if StringFind( KnownMap, MapName, 1, true ) then
 						if MatchingMapName then
 							-- More than one map matches, so ask for a more precise name.
