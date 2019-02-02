@@ -432,6 +432,12 @@ do
 		self.Rules[ #self.Rules + 1 ] = Rule
 	end
 
+	function Validator:CheckTypesAgainstDefault( Field, DefaultConfigSegment )
+		for Key, Value in pairs( DefaultConfigSegment ) do
+			self:AddFieldRule( StringFormat( "%s.%s", Field, Key ), self.IsType( type( Value ), Value ) )
+		end
+	end
+
 	function Validator:AddFieldRule( Field, ... )
 		local Checks = { ... }
 		if IsType( Checks[ 1 ], "function" ) then

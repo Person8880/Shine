@@ -43,6 +43,13 @@ UnitTest:Test( "Validator", function( Assert )
 		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 0 ) )
 	) )
 
+	Validator:CheckTypesAgainstDefault( "TypeCheckedChild", {
+		A = false,
+		B = "cake",
+		C = 123,
+		D = {}
+	} )
+
 	local Config = {
 		TooSmallNumber = 5,
 		BigEnoughNumber = 11,
@@ -55,31 +62,50 @@ UnitTest:Test( "Validator", function( Assert )
 		ListOfTables = {
 			{ ShouldBeNumber = 0 },
 			{ ShouldBeNumber = "1", CanBeNilOrNumber = true }
+		},
+		TypeCheckedChild = {
+			A = true,
+			B = "cake",
+			C = 123,
+			D = 456
 		}
 	}
 	Assert:True( Validator:Validate( Config ) )
-	Assert:True( Config.Fixed )
-	Assert:Nil( Config.Broken )
-	Assert:True( Config.ReallyFixed )
-	-- Should ensure minimum value of 10
-	Assert:Equals( 10, Config.TooSmallNumber )
-	-- Should ignore as already larger than minimum of 10
-	Assert:Equals( 11, Config.BigEnoughNumber )
-	-- Should clamp into [0, 1] range
-	Assert:Equals( 1, Config.Nested.Field )
-	-- Should create with the min value
-	Assert:Equals( 5, Config.Nested.NonExistent.Field )
-	-- Should remove the invalid enum, maintaining the array structure.
-	Assert:ArrayEquals( { "A", "B" }, Config.ListOfEnums )
-	-- Should upper-case the valid string enum.
-	Assert:Equals( "A", Config.SingleEnum )
-	-- Should replace the invalid enum.
-	Assert:Equals( "B", Config.AnotherEnum )
 
 	Assert:DeepEquals( {
-		{ ShouldBeNumber = 0 },
-		{ ShouldBeNumber = 1, CanBeNilOrNumber = 0 }
-	}, Config.ListOfTables )
+		Fixed = true,
+		ReallyFixed = true,
+		-- Should ensure minimum value of 10
+		TooSmallNumber = 10,
+		-- Should ignore as already larger than minimum of 10
+		BigEnoughNumber = 11,
+		Nested = {
+			-- Should clamp into [0, 1] range
+			Field = 1,
+			NonExistent = {
+				-- Should create with the min value
+				Field = 5
+			}
+		},
+		-- Should remove the invalid enum, maintaining the array structure.
+		ListOfEnums = { "A", "B" },
+		-- Should upper-case the valid string enum.
+		SingleEnum = "A",
+		-- Should replace the invalid enum.
+		AnotherEnum = "B",
+		ListOfTables = {
+			-- Should correct each entry in the list.
+			{ ShouldBeNumber = 0 },
+			{ ShouldBeNumber = 1, CanBeNilOrNumber = 0 }
+		},
+		TypeCheckedChild = {
+			-- Should ensure all fields have the same type as the default config.
+			A = true,
+			B = "cake",
+			C = 123,
+			D = {}
+		}
+	}, Config )
 end )
 
 UnitTest:Test( "TypeCheckConfig", function( Assert )
