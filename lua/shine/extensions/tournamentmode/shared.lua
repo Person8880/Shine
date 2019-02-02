@@ -8,8 +8,6 @@ Plugin.EnabledGamemodes = {
 	[ "ns2" ] = true
 }
 
-local StringFormat = string.format
-
 --[[
 	We network the team names and the scores, so spectators that join
 	get their spectator HUD instantly updated without needing to set it

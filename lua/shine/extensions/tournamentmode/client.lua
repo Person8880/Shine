@@ -4,6 +4,8 @@
 
 local Plugin = ...
 
+local StringFormat = string.format
+
 --[[
 	Set the insight values when we receive them.
 ]]
