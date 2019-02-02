@@ -4,13 +4,70 @@
 
 local UnitTest = Shine.UnitTest
 
-local MapVote = UnitTest:LoadExtension( "mapvote" )
-if not MapVote then return end
+local MapVotePlugin = UnitTest:LoadExtension( "mapvote" )
+if not MapVotePlugin then return end
 
-MapVote = UnitTest.MockOf( MapVote )
+local MapVote = UnitTest.MockOf( MapVotePlugin )
+MapVote.MaxNominations = 5
+MapVote.Config.Nominations.MaxTotalType = MapVote.MaxNominationsType.AUTO
+
+UnitTest:Test( "GetMaxNominations - AUTO should return computed max", function( Assert )
+	Assert:Equals( 5, MapVote:GetMaxNominations() )
+end )
+
+MapVote.Config.Nominations.MaxTotalType = MapVote.MaxNominationsType.ABSOLUTE
+MapVote.Config.Nominations.MaxTotalValue = 2
+
+UnitTest:Test( "GetMaxNominations - ABSOLUTE should return max value from config", function( Assert )
+	Assert:Equals( 2, MapVote:GetMaxNominations() )
+end )
+
+function MapVote:GetPlayerCountForVote() return 1 end
+
+MapVote.Config.Nominations.MaxTotalType = MapVote.MaxNominationsType.FRACTION_OF_PLAYERS
+MapVote.Config.Nominations.MaxTotalValue = 0.5
+MapVote.Config.Nominations.MinTotalValue = 3
+
+UnitTest:Test( "GetMaxNominations - FRACTION_OF_PLAYERS should return min value when player count is too low", function( Assert )
+	Assert:Equals( 3, MapVote:GetMaxNominations() )
+end )
+
+function MapVote:GetPlayerCountForVote() return 20 end
+
+UnitTest:Test( "GetMaxNominations - FRACTION_OF_PLAYERS should return fraction when player count is high enough", function( Assert )
+	Assert:Equals( 10, MapVote:GetMaxNominations() )
+end )
+
+MapVote.Config.Nominations.AllowExcludedMaps = false
+
+UnitTest:Test( "CanNominateWhenExcluded - Deny when AllowExcludedMaps = false and no map override", function( Assert )
+	Assert.False( "Should not allow nominating when excluded", MapVote:CanNominateWhenExcluded( "ns2_derelict" ) )
+end )
+
+MapVote.MapOptions[ "ns2_derelict" ] = {
+	AllowNominationWhenExcluded = true
+}
+
+UnitTest:Test( "CanNominateWhenExcluded - Allow when AllowExcludedMaps = false but map overrides with true", function( Assert )
+	Assert.True( "Should allow nominating when excluded", MapVote:CanNominateWhenExcluded( "ns2_derelict" ) )
+end )
+
+MapVote.Config.Nominations.AllowExcludedMaps = true
+
+UnitTest:Test( "CanNominateWhenExcluded - Allow when AllowExcludedMaps = true and no map override", function( Assert )
+	Assert.True( "Should allow nominating when excluded", MapVote:CanNominateWhenExcluded( "ns2_derelict" ) )
+end )
+
+MapVote.MapOptions[ "ns2_derelict" ] = {
+	AllowNominationWhenExcluded = false
+}
+
+UnitTest:Test( "CanNominateWhenExcluded - Deny when AllowExcludedMaps = true but map overrides with false", function( Assert )
+	Assert.False( "Should not allow nominating when excluded", MapVote:CanNominateWhenExcluded( "ns2_derelict" ) )
+end )
 
 MapVote.Config.Constraints.StartVote.MinVotesRequired = {
-	Type = "Absolute",
+	Type = MapVote.ConstraintType.ABSOLUTE,
 	Value = 10
 }
 
@@ -19,11 +76,11 @@ UnitTest:Test( "GetVoteConstraint - Absolute value", function( Assert )
 end )
 
 MapVote.Config.Constraints.StartVote.MinVotesRequired = {
-	Type = "Percent",
+	Type = MapVote.ConstraintType.FRACTION_OF_PLAYERS,
 	Value = 0.5
 }
 
-UnitTest:Test( "GetVoteConstraint - Percentage value", function( Assert )
+UnitTest:Test( "GetVoteConstraint - Fraction value", function( Assert )
 	Assert:Equals( 5, MapVote:GetVoteConstraint( "StartVote", "MinVotesRequired", 9 ) )
 end )
 
@@ -452,9 +509,55 @@ MapVote.Config.Maps = {
 	ns2_descent = true,
 	ns2_biodome = true
 }
+MapVote.Config.Nominations.MaxOptionsExceededAction = MapVote.MaxOptionsExceededAction.ADD_MAP
+
+UnitTest:Test( "AddNomination - Should add when number of choices is lower than max options size", function( Assert )
+	Assert.True( "Expected max options exceeded actions to exist", #MapVotePlugin.MaxOptionsExceededAction > 0 )
+	for i = 1, #MapVotePlugin.MaxOptionsExceededAction do
+		local Action = MapVotePlugin.MaxOptionsExceededAction[ i ]
+		local FinalChoices = Shine.Set()
+		local Added = MapVote:AddNomination( "ns2_derelict", FinalChoices, Action, Shine.Set() )
+		Assert.True( "Should have added nomination to choices set", Added )
+		Assert:Equals( 1, FinalChoices:GetCount() )
+		Assert.True( "Set should contain nominated map", FinalChoices:Contains( "ns2_derelict" ) )
+	end
+end )
+
+UnitTest:Test( "AddNomination - ADD_MAP should add map even when number of choices is >= max", function( Assert )
+	local FinalChoices = Shine.Set.FromList( { "ns2_tram", "ns2_summit", "ns2_biodome", "ns2_kodiak", "ns2_descent" } )
+	local Added = MapVote:AddNomination( "ns2_derelict", FinalChoices, MapVotePlugin.MaxOptionsExceededAction.ADD_MAP, Shine.Set() )
+	Assert.True( "Should have added nomination to choices set", Added )
+	Assert:Equals( 6, FinalChoices:GetCount() )
+	Assert.True( "Set should contain nominated map", FinalChoices:Contains( "ns2_derelict" ) )
+end )
+
+UnitTest:Test( "AddNomination - REPLACE_MAP should replace map when number of choices is >= max", function( Assert )
+	local FinalChoices = Shine.Set.FromList( { "ns2_tram", "ns2_summit", "ns2_biodome", "ns2_kodiak", "ns2_descent" } )
+	local Added = MapVote:AddNomination( "ns2_derelict", FinalChoices, MapVotePlugin.MaxOptionsExceededAction.REPLACE_MAP, Shine.Set() )
+	Assert.True( "Should have added nomination to choices set", Added )
+	Assert:Equals( 5, FinalChoices:GetCount() )
+	Assert.True( "Set should contain nominated map", FinalChoices:Contains( "ns2_derelict" ) )
+	Assert.False( "Set should not contain first replaceable map", FinalChoices:Contains( "ns2_tram" ) )
+end )
+
+UnitTest:Test( "AddNomination - REPLACE_MAP should not replace map when number of choices is >= max but all other maps are nominations", function( Assert )
+	local FinalChoices = Shine.Set.FromList( { "ns2_tram", "ns2_summit", "ns2_biodome", "ns2_kodiak", "ns2_descent" } )
+	local Added = MapVote:AddNomination( "ns2_derelict", FinalChoices, MapVotePlugin.MaxOptionsExceededAction.REPLACE_MAP, FinalChoices )
+	Assert.False( "Should not have added nomination to choices set", Added )
+	Assert:Equals( 5, FinalChoices:GetCount() )
+	Assert.False( "Set should not contain nominated map", FinalChoices:Contains( "ns2_derelict" ) )
+end )
+
+UnitTest:Test( "AddNomination - SKIP should not add map when number of choices is >= max", function( Assert )
+	local FinalChoices = Shine.Set.FromList( { "ns2_tram", "ns2_summit", "ns2_biodome", "ns2_kodiak", "ns2_descent" } )
+	local Added = MapVote:AddNomination( "ns2_derelict", FinalChoices, MapVotePlugin.MaxOptionsExceededAction.SKIP, Shine.Set() )
+	Assert.False( "Should not have added nomination to choices set", Added )
+	Assert.False( "Set should not contain nominated map", FinalChoices:Contains( "ns2_derelict" ) )
+end )
 
 function MapVote:GetMapGroup() return nil end
 function MapVote:IsValidMapChoice( Map, PlayerCount ) return true end
+function MapVote:GetMaxNominations() return 2 end
 
 MapVote.Vote.Nominated = {}
 
@@ -489,8 +592,24 @@ end )
 
 MapVote.Vote.Nominated = { "ns2_eclipse" }
 
-UnitTest:Test( "BuildPotentialMapChoices - Nominations", function( Assert )
+UnitTest:Test( "BuildPotentialMapChoices - Nominations below limit", function( Assert )
 	-- Should select everything except refinery and including eclipse.
+	Assert:Equals( Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict = true,
+		ns2_veil = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_descent = true,
+		ns2_biodome = true,
+		ns2_eclipse = true
+	} ), MapVote:BuildPotentialMapChoices() )
+end )
+
+MapVote.Vote.Nominated = { "ns2_eclipse", "ns2_kodiak", "ns2_caged" }
+
+UnitTest:Test( "BuildPotentialMapChoices - Nominations above limit", function( Assert )
+	-- Should select everything except refinery and including eclipse, but not caged as it's past the limit.
 	Assert:Equals( Shine.Set( {
 		ns2_tram = true,
 		ns2_derelict = true,
@@ -539,6 +658,7 @@ end )
 
 function MapVote:GetMapGroup() return nil end
 function MapVote:IsValidMapChoice( Map, PlayerCount ) return true end
+function MapVote:GetMaxNominations() return 5 end
 
 MapVote.Vote.Nominated = { "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome", "ns2_eclipse" }
 MapVote.Config.ExcludeLastMaps = {
@@ -553,6 +673,45 @@ UnitTest:Test( "BuildMapChoices - Respect nominations", function( Assert )
 	Assert:ArrayEquals( MapVote.Vote.Nominated, MapVote:BuildMapChoices() )
 end )
 
+MapVote.Vote.Nominated = { "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome", "ns2_eclipse", "ns2_kodiak" }
+UnitTest:Test( "BuildMapChoices - Respect nominations", function( Assert )
+	-- Nominated 6 maps, with 5 max nominations and 5 max options, so the first 5 nominations should be the choices.
+	Assert:ArrayEquals( {
+		"ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome", "ns2_eclipse"
+	}, MapVote:BuildMapChoices() )
+end )
+
+MapVote.Config.ForcedMaps = {
+	ns2_kodiak = true,
+	ns2_derelict = true
+}
+MapVote.ForcedMapCount = 2
+MapVote.Vote.Nominated = { "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome" }
+UnitTest:Test( "BuildMapChoices - ADD_MAP should allow max options to be exceeded", function( Assert )
+	-- Nominated 4 maps, with 5 max nominations and 5 max options, with exceed action ADD_MAP, so should just add the nominations.
+	Assert:ArrayEquals( {
+		"ns2_derelict", "ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome"
+	}, MapVote:BuildMapChoices() )
+end )
+
+MapVote.Config.Nominations.MaxOptionsExceededAction = MapVote.MaxOptionsExceededAction.REPLACE_MAP
+UnitTest:Test( "BuildMapChoices - REPLACE_MAP should ensure max options is not exceeded", function( Assert )
+	Assert:ArrayEquals( {
+		"ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome"
+	}, MapVote:BuildMapChoices() )
+end )
+
+MapVote.Config.Nominations.MaxOptionsExceededAction = MapVote.MaxOptionsExceededAction.SKIP
+UnitTest:Test( "BuildMapChoices - SKIP should ensure max options is not exceeded", function( Assert )
+	Assert:ArrayEquals( {
+		"ns2_derelict", "ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil"
+	}, MapVote:BuildMapChoices() )
+end )
+
+MapVote.ForcedMapCount = 0
+MapVote.Config.ForcedMaps = {}
+
+MapVote.Vote.Nominated = { "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome", "ns2_eclipse" }
 function MapVote:IsValidMapChoice( Map, PlayerCount ) return Map ~= "ns2_eclipse" end
 
 UnitTest:Test( "BuildMapChoices - Deny nominations", function( Assert )

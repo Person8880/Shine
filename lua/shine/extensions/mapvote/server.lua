@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetOwner = Server.GetOwner
@@ -17,14 +18,20 @@ local TableCount = table.Count
 local tonumber = tonumber
 
 local Plugin, PluginName = ...
-Plugin.Version = "1.10"
+Plugin.Version = "1.11"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
 Plugin.PrintName = "Map Vote"
 
 Plugin.ConstraintType = table.AsEnum{
-	"PERCENT", "ABSOLUTE"
+	"FRACTION_OF_PLAYERS", "ABSOLUTE"
+}
+Plugin.MaxNominationsType = table.AsEnum{
+	"AUTO", "FRACTION_OF_PLAYERS", "ABSOLUTE"
+}
+Plugin.MaxOptionsExceededAction = table.AsEnum{
+	"ADD_MAP", "REPLACE_MAP", "SKIP"
 }
 
 Plugin.DefaultConfig = {
@@ -48,13 +55,13 @@ Plugin.DefaultConfig = {
 	Constraints = {
 		StartVote = {
 			-- Constraint on the number of voters needed to pass a start vote.
-			-- Percentage applies to the current server player count.
+			-- Fraction applies to the current server player count.
 			MinVotesRequired = {
-				Type = Plugin.ConstraintType.PERCENT,
+				Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 				Value = 0.6
 			},
 			-- Constraint on the number of players needed to start a vote.
-			-- Percentage applies to the max player slot count.
+			-- Fraction applies to the max player slot count.
 			MinPlayers = {
 				Type = Plugin.ConstraintType.ABSOLUTE,
 				Value = 10
@@ -62,36 +69,65 @@ Plugin.DefaultConfig = {
 		},
 		MapVote = {
 			-- Constraint on the number of voters needed to pass a map vote.
-			-- Percentage applies to the current server player count.
+			-- Fraction applies to the current server player count.
 			MinVotesRequired = {
-				Type = Plugin.ConstraintType.PERCENT,
+				Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 				Value = 0.6
 			},
 			-- Constraint on the number of voters needed to end a map vote early.
-			-- Percentage applies to the current server player count.
+			-- Fraction applies to the current server player count.
 			MinVotesToFinish = {
-				Type = Plugin.ConstraintType.PERCENT,
+				Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 				Value = 0.8
 			}
 		},
 		NextMapVote = {
 			-- Constraint on the number of voters needed to pass a next map vote.
-			-- Percentage applies to the current server player count.
+			-- Fraction applies to the current server player count.
 			MinVotesRequired = {
 				Type = Plugin.ConstraintType.ABSOLUTE,
 				Value = 0
 			},
 			-- Constraint on the number of voters needed to end a next map vote early.
-			-- Percentage applies to the current server player count.
+			-- Fraction applies to the current server player count.
 			MinVotesToFinish = {
-				Type = Plugin.ConstraintType.PERCENT,
+				Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 				-- Never finish early by default.
 				Value = 2
 			}
 		}
 	},
 
-	MaxNominationsPerPlayer = 3, -- The maximum number of maps an individual player can nominate.
+	Nominations = {
+		-- Decides whether to allow nominating a known map that's not in the current map cycle.
+		AllowMapsOutsideOfCycle = false,
+
+		-- Whether to allow nominating maps that would normally be excluded from the vote.
+		AllowExcludedMaps = false,
+
+		-- The maximum number of maps an individual player can nominate.
+		MaxPerPlayer = 3,
+		-- The type of constraint to apply to max total nominations.
+		-- AUTO means take the max total options minus the number of forced maps.
+		-- FRACTION_OF_PLAYERS and ABSOLUTE use the values below.
+		MaxTotalType = Plugin.MaxNominationsType.AUTO,
+		-- The maximum total nominations allowed.
+		-- For AUTO, this is ignored.
+		-- For FRACTION_OF_PLAYERS, this is a fraction of the total players present.
+		-- For ABSOLUTE this is an absolute maximum value regardless of player count.
+		MaxTotalValue = 0,
+		-- The minimum total nominations allowed.
+		-- This applies only to FRACTION_OF_PLAYERS, providing an absolute lower limit to the maximum value
+		-- in the case where the player count is small enough.
+		MinTotalValue = 0,
+
+		-- The action to apply to nominations that would cause the number of options to
+		-- exceed the maximum.
+		-- ADD_MAP will add the map regardless.
+		-- REPLACE_MAP will remove a map from the current options that was not a nomination.
+		-- SKIP will stop adding nominations.
+		MaxOptionsExceededAction = Plugin.MaxOptionsExceededAction.ADD_MAP
+	},
 
 	VoteLengthInMinutes = 1, -- Time in minutes a vote should last before failing.
 	ChangeDelayInSeconds = 10, -- Time in seconds to wait before changing map after a vote (gives time for veto)
@@ -100,7 +136,7 @@ Plugin.DefaultConfig = {
 	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
 
 	ShowVoteChoices = true, -- Show who votes for what map.
-	MaxOptions = 4, -- Max number of options to provide.
+	MaxOptions = 8, -- Max number of options to provide.
 	ForceMenuOpenOnMapVote = false, -- Whether to force the map vote menu to show when a vote starts.
 
 	AllowExtend = true, -- Allow going to the same map to be an option.
@@ -156,7 +192,7 @@ Plugin.ConfigMigrationSteps = {
 			Config.Constraints = {
 				StartVote = {
 					MinVotesRequired = {
-						Type = Plugin.ConstraintType.PERCENT,
+						Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 						Value = tonumber( Config.PercentToStart ) or 0.6
 					},
 					MinPlayers = {
@@ -166,11 +202,11 @@ Plugin.ConfigMigrationSteps = {
 				},
 				MapVote = {
 					MinVotesRequired = {
-						Type = Plugin.ConstraintType.PERCENT,
+						Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 						Value = 0
 					},
 					MinVotesToFinish = {
-						Type = Plugin.ConstraintType.PERCENT,
+						Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 						Value = tonumber( Config.PercentToFinish ) or 0.8
 					}
 				},
@@ -180,7 +216,7 @@ Plugin.ConfigMigrationSteps = {
 						Value = 0
 					},
 					MinVotesToFinish = {
-						Type = Plugin.ConstraintType.PERCENT,
+						Type = Plugin.ConstraintType.FRACTION_OF_PLAYERS,
 						Value = 2
 					}
 				}
@@ -208,18 +244,39 @@ Plugin.ConfigMigrationSteps = {
 				Config.ExcludeLastMaps.UseStrictMatching = true
 			end
 		end
+	},
+	{
+		VersionTo = "1.11",
+		Apply = Shine.Migrator()
+			:RenameField( "MaxNominationsPerPlayer", { "Nominations", "MaxPerPlayer" } )
+			:RenameEnums( {
+				{ "Constraints", "StartVote", "MinVotesRequired", "Type" },
+				{ "Constraints", "StartVote", "MinPlayers", "Type" },
+
+				{ "Constraints", "MapVote", "MinVotesRequired", "Type" },
+				{ "Constraints", "MapVote", "MinVotesToFinish", "Type" },
+
+				{ "Constraints", "NextMapVote", "MinVotesRequired", "Type" },
+				{ "Constraints", "NextMapVote", "MinVotesToFinish", "Type" }
+			}, "PERCENT", Plugin.ConstraintType.FRACTION_OF_PLAYERS )
+			:AddField( { "Nominations", "AllowMapsOutsideOfCycle" }, Plugin.DefaultConfig.Nominations.AllowMapsOutsideOfCycle )
+			:AddField( { "Nominations", "AllowExcludedMaps" }, Plugin.DefaultConfig.Nominations.AllowExcludedMaps )
+			:AddField( { "Nominations", "MaxTotalType" }, Plugin.DefaultConfig.Nominations.MaxTotalType )
+			:AddField( { "Nominations", "MaxTotalValue" }, Plugin.DefaultConfig.Nominations.MaxTotalValue )
+			:AddField( { "Nominations", "MinTotalValue" }, Plugin.DefaultConfig.Nominations.MinTotalValue )
+			:AddField( { "Nominations", "MaxOptionsExceededAction" }, Plugin.DefaultConfig.Nominations.MaxOptionsExceededAction )
 	}
 }
 
 Plugin.VoteTimer = "MapVote"
 
-local function IsTableArray( Table )
+local function GetArraySize( Table )
 	local Count = #Table
 	return Count > 0 and Count or nil
 end
 
 local function ConvertArrayToLookup( Table )
-	local Count = IsTableArray( Table )
+	local Count = GetArraySize( Table )
 	if not Count then return end
 
 	for i = 1, Count do
@@ -238,11 +295,21 @@ do
 	Validator:AddFieldRule( "ForceChangeWhenSecondsLeft", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "RoundLimit", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "ChangeDelayInSeconds", Validator.Min( 0 ) )
-	Validator:AddFieldRule( "VoteLengthInMinutes", Validator.Min( 0.25 ) )
-	Validator:AddFieldRule( "VoteLengthInMinutes", Validator.Clamp( 0, 1 ) )
+	Validator:AddFieldRule( "VoteLengthInMinutes", Validator.Min( 0.25 ), Validator.Clamp( 0, 1 ) )
 	Validator:AddFieldRule( "NextMapVoteMapTimeFraction", Validator.Clamp( 0, 1 ) )
 	Validator:AddFieldRule( "ExcludeLastMaps.Min", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "ExcludeLastMaps.UseStrictMatching", Validator.IsType( "boolean", true ) )
+
+	Validator:CheckTypesAgainstDefault( "Nominations", Plugin.DefaultConfig.Nominations )
+
+	Validator:AddFieldRule( "Nominations.MaxPerPlayer", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "Nominations.MaxTotalType",
+		Validator.InEnum( Plugin.MaxNominationsType, Plugin.DefaultConfig.Nominations.MaxTotalType ) )
+	Validator:AddFieldRule( "Nominations.MaxTotalValue", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "Nominations.MinTotalValue", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "Nominations.MaxOptionsExceededAction",
+		Validator.InEnum( Plugin.MaxOptionsExceededAction, Plugin.DefaultConfig.Nominations.MaxOptionsExceededAction ) )
+
 	Validator:AddRule( {
 		Matches = function( self, Config )
 			local Constraints = Config.Constraints
@@ -266,7 +333,7 @@ do
 				if not IsType( CurrentValue.Type, "string" )
 				or not Plugin.ConstraintType[ StringUpper( CurrentValue.Type ) ] then
 					ChangesMade = true
-					CurrentValue.Type = CurrentValue.Value < 1 and Plugin.ConstraintType.PERCENT
+					CurrentValue.Type = CurrentValue.Value < 1 and Plugin.ConstraintType.FRACTION_OF_PLAYERS
 						or Plugin.ConstraintType.ABSOLUTE
 					Plugin:Print( "Invalid type for constraint %s.%s, inferring type as: %s", true,
 						Category, Type, CurrentValue.Type )
@@ -294,17 +361,10 @@ do
 		end
 	} )
 
-	function Plugin:ValidateConfig()
-		if Validator:Validate( self.Config ) then
-			self:Print( "Corrected invalid configuration values, check your config." )
-			self:SaveConfig( true )
-		end
-	end
+	Plugin.ConfigValidator = Validator
 end
 
 function Plugin:Initialise()
-	self:ValidateConfig()
-
 	self.Round = 0
 
 	self.Vote = self.Vote or {}
@@ -360,7 +420,7 @@ function Plugin:Initialise()
 
 	do
 		local ForcedMaps = self.Config.ForcedMaps
-		local Count = IsTableArray( ForcedMaps )
+		local Count = GetArraySize( ForcedMaps )
 		local MaxOptions = self.Config.MaxOptions
 
 		if Count then
@@ -392,6 +452,37 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:GetMaxNominations()
+	local Type = self.Config.Nominations.MaxTotalType
+	if Type == self.MaxNominationsType.AUTO then
+		-- Use the number of free map slots after forced maps are accounted for.
+		return self.MaxNominations
+	end
+
+	if Type == self.MaxNominationsType.ABSOLUTE then
+		-- Use the given value.
+		return self.Config.Nominations.MaxTotalValue
+	end
+
+	-- Use a fraction of the total players on the server with an optional lower bound.
+	local NumPlayers = self:GetPlayerCountForVote()
+	local NominationsAllowed = Ceil( NumPlayers * self.Config.Nominations.MaxTotalValue )
+	return Max( self.Config.Nominations.MinTotalValue, NominationsAllowed )
+end
+
+function Plugin:CanNominateOutsideOfCycle( Map )
+	return self.Config.Nominations.AllowMapsOutsideOfCycle and Shine.IsValidMapName( Map )
+end
+
+function Plugin:CanNominateWhenExcluded( Map )
+	local MapOptions = self.MapOptions[ Map ]
+	local MapOverride = MapOptions and ( MapOptions.allowNominationWhenExcluded or MapOptions.AllowNominationWhenExcluded )
+	if MapOverride ~= nil then
+		return MapOverride
+	end
+	return self.Config.Nominations.AllowExcludedMaps
 end
 
 function Plugin:SetupFromMapData( Data )
@@ -569,12 +660,12 @@ function Plugin:CreateCommands()
 
 		-- Verify the user hasn't nominated too many, and use their Steam ID to prevent rejoining resetting it.
 		local NominationCount = self.Vote.NominationTracker[ SteamID ] or 0
-		if NominationCount >= self.Config.MaxNominationsPerPlayer then
+		if NominationCount >= self.Config.Nominations.MaxPerPlayer then
 			NotifyError( Player, "NOMINATE_DENIED", nil, "You have reached the limit of nominations permitted." )
 			return
 		end
 
-		if not self.Config.Maps[ Map ] then
+		if not self.Config.Maps[ Map ] and not self:CanNominateOutsideOfCycle( Map ) then
 			NotifyError( Player, "MAP_NOT_ON_LIST", {
 				MapName = Map
 			}, "%s is not on the map list.", true, Map )
@@ -598,20 +689,21 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local Count = #Nominated
-
-		-- Approximate the maps that will be available by just taking the forced maps as chosen.
-		local TotalMapsAvailable = Shine.Set( self.Config.Maps ):GetCount()
-		local TotalForcedMaps = Shine.Set( self.Config.ForcedMaps ):GetCount()
-		local LastMaps = self:GetBlacklistedLastMaps( TotalMapsAvailable - TotalForcedMaps, TotalForcedMaps )
-		if TableHasValue( LastMaps, Map ) then
-			NotifyError( Player, "RECENTLY_PLAYED", {
-				MapName = Map
-			}, "%s was recently played and cannot be voted for yet.", true, Map )
-			return
+		if not self:CanNominateWhenExcluded( Map ) then
+			-- Approximate the maps that will be available by just taking the forced maps as chosen.
+			local TotalMapsAvailable = Shine.Set( self.Config.Maps ):GetCount()
+			local TotalForcedMaps = Shine.Set( self.Config.ForcedMaps ):GetCount()
+			local LastMaps = self:GetBlacklistedLastMaps( TotalMapsAvailable - TotalForcedMaps, TotalForcedMaps )
+			if TableHasValue( LastMaps, Map ) then
+				NotifyError( Player, "RECENTLY_PLAYED", {
+					MapName = Map
+				}, "%s was recently played and cannot be voted for yet.", true, Map )
+				return
+			end
 		end
 
-		if Count >= self.MaxNominations then
+		local Count = #Nominated
+		if Count >= self:GetMaxNominations() then
 			NotifyError( Player, "NOMINATIONS_FULL", nil, "Nominations are full." )
 
 			return
