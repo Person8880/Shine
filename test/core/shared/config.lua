@@ -24,8 +24,8 @@ UnitTest:Test( "Validator", function( Assert )
 			Config.ReallyFixed = true
 		end
 	} )
-	Validator:AddFieldRule( "TooSmallNumber", Validator.Min( 10 ) )
-	Validator:AddFieldRule( "BigEnoughNumber", Validator.Min( 10 ) )
+	Validator:AddFieldRule( "TooSmallNumber", Validator.IsType( "number", 10 ), Validator.Min( 10 ) )
+	Validator:AddFieldRule( "BigEnoughNumber", Validator.IsType( "number", 10 ), Validator.Min( 10 ) )
 	Validator:AddFieldRule( "Nested.Field", Validator.Clamp( 0, 1 ) )
 	Validator:AddFieldRule( "Nested.NonExistent.Field", Validator.Min( 5 ) )
 
@@ -181,19 +181,44 @@ end )
 
 UnitTest:Test( "Migrator", function( Assert )
 	local Migrator = Shine.Migrator()
+		:AddField( "D", "Value for D" )
+		:AddField( { "Child2", "Value" }, false )
 		:RenameField( "A", "B" )
+		:RenameField( "C", { "Child", "C" } )
+		:RenameField( { "Nested", "Value" }, { "Child", "Value" } )
+		:RemoveField( "Nested" )
 		:UseEnum( "Mode", { "Mode1", "Mode2", "Mode3" } )
+		:RenameEnums( {
+			"OldEnum1",
+			"OldEnum2"
+		}, "OLD_VALUE1", "NEW_VALUE1" )
 		:ApplyAction( function( Config )
 			Config.ActionApplied = true
 		end )
 
 	local Config = {
 		A = "Value for A",
-		Mode = 2
+		C = "Value for C",
+		Mode = 2,
+		Nested = {
+			Value = true
+		},
+		OldEnum1 = "OLD_VALUE1",
+		OldEnum2 = "OLD_VALUE2"
 	}
 	Assert.DeepEquals( "Migrator should apply actions as expected", {
 		B = "Value for A",
+		Child = {
+			C = "Value for C",
+			Value = true
+		},
+		Child2 = {
+			Value = false
+		},
+		D = "Value for D",
 		Mode = "Mode2",
+		OldEnum1 = "NEW_VALUE1",
+		OldEnum2 = "OLD_VALUE2",
 		ActionApplied = true
 	}, Migrator( Config ) )
 end )

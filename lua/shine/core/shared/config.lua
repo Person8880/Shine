@@ -9,6 +9,9 @@ local pairs = pairs
 local xpcall = xpcall
 local setmetatable = setmetatable
 local StringFormat = string.format
+local StringUpper = string.upper
+local TableGetField = table.GetField
+local TableSetField = table.SetField
 local TableToJSON = table.ToJSON
 local type = type
 
@@ -235,7 +238,6 @@ do
 	local Clamp = math.Clamp
 	local Floor = math.floor
 	local StringExplode = string.Explode
-	local StringUpper = string.upper
 	local TableBuild = table.Build
 	local TableConcat = table.concat
 	local TableRemove = table.remove
@@ -252,185 +254,231 @@ do
 	function Validator.Integer( Rounder )
 		Rounder = Rounder or Floor
 
-		return function( Value )
-			return ( tonumber( Value ) or 0 ) % 1 ~= 0
-		end,
-		function( Value )
-			return Rounder( tonumber( Value ) )
-		end,
-		function()
-			return "%s must be an integer"
-		end
+		return {
+			Check = function( Value )
+				return ( tonumber( Value ) or 0 ) % 1 ~= 0
+			end,
+			Fix = function( Value )
+				return Rounder( tonumber( Value ) )
+			end,
+			Message = function()
+				return "%s must be an integer"
+			end
+		}
 	end
 
 	function Validator.Min( MinValue )
-		return function( Value )
-			return ( tonumber( Value ) or 0 ) < MinValue
-		end,
-		Validator.Constant( MinValue ),
-		function()
-			return StringFormat( "%%s must be at least %s", MinValue )
-		end
+		return {
+			Check = function( Value )
+				return ( tonumber( Value ) or 0 ) < MinValue
+			end,
+			Fix = Validator.Constant( MinValue ),
+			Message = function()
+				return StringFormat( "%%s must be at least %s", MinValue )
+			end
+		}
 	end
 	function Validator.Clamp( Min, Max )
-		return function( Value )
-			return Clamp( Value, Min, Max ) ~= Value
-		end,
-		function( Value )
-			return Clamp( Value, Min, Max )
-		end,
-		function()
-			return StringFormat( "%%s must be between %s and %s", Min, Max )
-		end
+		return {
+			Check = function( Value )
+				return Clamp( Value, Min, Max ) ~= Value
+			end,
+			Fix = function( Value )
+				return Clamp( Value, Min, Max )
+			end,
+			Message = function()
+				return StringFormat( "%%s must be between %s and %s", Min, Max )
+			end
+		}
 	end
 
 	function Validator.ValidateField( Name, Predicate, FixFunc, MessageFunc )
-		return function( Value )
-			if not IsType( Value, "table" ) then return true end
-			return Predicate( Value[ Name ] )
-		end,
-		function( Value )
-			if not IsType( Value, "table" ) then
-				local Fixed = FixFunc( nil )
-				if Fixed ~= nil then
-					return {
-						[ Name ] = Fixed
-					}
-				end
-				return nil
-			end
-
-			Value[ Name ] = FixFunc( Value[ Name ] )
-
-			return Value
-		end,
-		function()
-			return StringFormat( "Field %s on %s", Name, MessageFunc() )
+		-- Preserve backwards compatibiity in case anyone passed in their own functions here.
+		if IsType( Predicate, "table" ) then
+			FixFunc = Predicate.Fix
+			MessageFunc = Predicate.Message
+			Predicate = Predicate.Check
 		end
+
+		return {
+			Check = function( Value )
+				if not IsType( Value, "table" ) then return true end
+				return Predicate( Value[ Name ] )
+			end,
+			Fix = function( Value )
+				if not IsType( Value, "table" ) then
+					local Fixed = FixFunc( nil )
+					if Fixed ~= nil then
+						return {
+							[ Name ] = Fixed
+						}
+					end
+					return nil
+				end
+
+				Value[ Name ] = FixFunc( Value[ Name ] )
+
+				return Value
+			end,
+			Message = function()
+				return StringFormat( "Field %s on %s", Name, MessageFunc() )
+			end
+		}
 	end
 
 	function Validator.InEnum( PossibleValues, DefaultValue )
-		return function( Value )
-			if not IsType( Value, "string" ) or PossibleValues[ StringUpper( Value ) ] == nil then
-				return true
+		return {
+			Check = function( Value )
+				if not IsType( Value, "string" ) or PossibleValues[ StringUpper( Value ) ] == nil then
+					return true
+				end
+				return false, StringUpper( Value )
+			end,
+			Fix = Validator.Constant( DefaultValue ),
+			Message = function()
+				return StringFormat( "%%s must be one of [%s]", Shine.Stream( PossibleValues ):Concat( ", " ) )
 			end
-			return false, StringUpper( Value )
-		end,
-		Validator.Constant( DefaultValue ),
-		function()
-			return StringFormat( "%%s must be one of [%s]", Shine.Stream( PossibleValues ):Concat( ", " ) )
-		end
+		}
 	end
 
 	function Validator.Each( Predicate, FixFunc, MessageFunc )
-		return function( Value )
-			local Passes = true
-			for i = 1, #Value do
-				local NeedsFix, CanonicalValue = Predicate( Value[ i ] )
-				if NeedsFix then
-					Passes = false
-				elseif CanonicalValue ~= nil then
-					Value[ i ] = CanonicalValue
-				end
-			end
-			return not Passes
-		end,
-		function( Value )
-			for i = #Value, 1, -1 do
-				if Predicate( Value[ i ] ) then
-					local Fixed = FixFunc( Value[ i ] )
-					if Fixed ~= nil then
-						Value[ i ] = Fixed
-					else
-						TableRemove( Value, i )
+		if IsType( Predicate, "table" ) then
+			FixFunc = Predicate.Fix
+			MessageFunc = Predicate.Message
+			Predicate = Predicate.Check
+		end
+
+		return {
+			Check = function( Value )
+				local Passes = true
+				for i = 1, #Value do
+					local NeedsFix, CanonicalValue = Predicate( Value[ i ] )
+					if NeedsFix then
+						Passes = false
+					elseif CanonicalValue ~= nil then
+						Value[ i ] = CanonicalValue
 					end
 				end
+				return not Passes
+			end,
+			Fix = function( Value )
+				for i = #Value, 1, -1 do
+					if Predicate( Value[ i ] ) then
+						local Fixed = FixFunc( Value[ i ] )
+						if Fixed ~= nil then
+							Value[ i ] = Fixed
+						else
+							TableRemove( Value, i )
+						end
+					end
+				end
+				return Value
+			end,
+			Message = function()
+				return "Elements of "..MessageFunc()
 			end
-			return Value
-		end,
-		function()
-			return "Elements of "..MessageFunc()
-		end
+		}
 	end
 
 	function Validator.IsType( Type, DefaultValue )
-		return function( Value )
-			return not IsType( Value, Type )
-		end,
-		Validator.Constant( DefaultValue ),
-		function()
-			return StringFormat( "%%s must be a %s", Type )
-		end
+		return {
+			Check = function( Value )
+				return not IsType( Value, Type )
+			end,
+			Fix = Validator.Constant( DefaultValue ),
+			Message = function()
+				return StringFormat( "%%s must be a %s", Type )
+			end
+		}
 	end
 
 	function Validator.IsAnyType( Types, DefaultValue )
-		return function( Value )
-			for i = 1, #Types do
-				if IsType( Value, Types[ i ] ) then
-					return false
+		return {
+			Check = function( Value )
+				for i = 1, #Types do
+					if IsType( Value, Types[ i ] ) then
+						return false
+					end
 				end
+				return true
+			end,
+			Fix = Validator.Constant( DefaultValue ),
+			Message = function()
+				return StringFormat( "%%s must have type %s", TableConcat( Types, " or " ) )
 			end
-			return true
-		end,
-		Validator.Constant( DefaultValue ),
-		function()
-			return StringFormat( "%%s must have type %s", TableConcat( Types, " or " ) )
-		end
+		}
 	end
 
 	-- If the value is of the given type, then it will be validated with the given predicate.
 	function Validator.IfType( Type, CheckPredicate, FixFunction, MessageSupplier )
-		return function( Value )
-			if not IsType( Value, Type ) then
-				return false
-			end
-			return CheckPredicate( Value )
-		end, FixFunction, MessageSupplier
+		if IsType( CheckPredicate, "table" ) then
+			FixFunction = CheckPredicate.Fix
+			MessageSupplier = CheckPredicate.Message
+			CheckPredicate = CheckPredicate.Check
+		end
+		return {
+			Check = function( Value )
+				if not IsType( Value, Type ) then
+					return false
+				end
+				return CheckPredicate( Value )
+			end,
+			Fix = FixFunction,
+			Message =  MessageSupplier
+		}
 	end
 
 	function Validator:AddRule( Rule )
 		self.Rules[ #self.Rules + 1 ] = Rule
 	end
 
-	local function SetField( Root, Path, Value )
-		local Table = TableBuild( Root, unpack( Path, 1, #Path - 1 ) )
-		Table[ Path[ #Path ] ] = Value
-	end
+	function Validator:AddFieldRule( Field, ... )
+		local Checks = { ... }
+		if IsType( Checks[ 1 ], "function" ) then
+			Checks = {
+				{
+					Check = Checks[ 1 ],
+					Fix = Checks[ 2 ],
+					Message = Checks[ 3 ]
+				}
+			}
+		end
 
-	function Validator:AddFieldRule( Field, CheckPredicate, FixFunction, MessageSupplier )
-		self:AddRule( {
-			Matches = function( self, Config )
-				local TableField = type( Field ) == "string" and Field or Field[ 1 ]
-				local PrintField = type( Field ) == "string" and Field or Field[ 2 ]
+		for i = 1, #Checks do
+			local CheckPredicate = Checks[ i ].Check
+			local FixFunction = Checks[ i ].Fix
+			local MessageSupplier = Checks[ i ].Message
+			self:AddRule( {
+				Matches = function( self, Config )
+					local TableField = type( Field ) == "string" and Field or Field[ 1 ]
+					local PrintField = type( Field ) == "string" and Field or Field[ 2 ]
 
-				local Path = StringExplode( TableField, "%." )
-				local Value = Config
-				for i = 1, #Path do
-					Value = Value[ Path[ i ] ]
-					if Value == nil then break end
-				end
+					local Path = StringExplode( TableField, "%." )
+					local Value = TableGetField( Config, Path )
+					local NeedsFix, CanonicalValue = CheckPredicate( Value )
+					if NeedsFix then
+						if MessageSupplier then
+							Print( MessageSupplier(), PrintField )
+						end
 
-				local NeedsFix, CanonicalValue = CheckPredicate( Value )
-				if NeedsFix then
-					if MessageSupplier then
-						Print( MessageSupplier(), PrintField )
+						TableSetField( Config, Path, FixFunction( Value, CanonicalValue ) )
+
+						return true
 					end
 
-					SetField( Config, Path, FixFunction( Value ) )
-					return true
-				end
+					if CanonicalValue ~= nil then
+						TableSetField( Config, Path, CanonicalValue )
+					end
 
-				if CanonicalValue ~= nil then
-					SetField( Config, Path, CanonicalValue )
+					return false
 				end
-
-				return false
-			end
-		} )
+			} )
+		end
 	end
-	function Validator:AddFieldRules( Fields, CheckPredicate, FixFunction, MessageSupplier )
+
+	function Validator:AddFieldRules( Fields, ... )
 		for i = 1, #Fields do
-			self:AddFieldRule( Fields[ i ], CheckPredicate, FixFunction, MessageSupplier )
+			self:AddFieldRule( Fields[ i ], ... )
 		end
 	end
 
@@ -477,11 +525,52 @@ do
 		return self
 	end
 
+	function Migrator:AddField( FieldName, Value )
+		self.Actions[ #self.Actions + 1 ] = function( Config )
+			TableSetField( Config, FieldName, Value )
+		end
+		return self
+	end
+
 	function Migrator:RenameField( FromName, ToName )
 		self.Actions[ #self.Actions + 1 ] = function( Config )
-			local OldValue = Config[ FromName ]
-			Config[ ToName ] = OldValue
-			Config[ FromName ] = nil
+			local OldValue = TableGetField( Config, FromName )
+			TableSetField( Config, ToName, OldValue )
+			TableSetField( Config, FromName, nil )
+		end
+		return self
+	end
+
+	function Migrator:RemoveField( FieldName )
+		self.Actions[ #self.Actions + 1 ] = function( Config )
+			TableSetField( Config, FieldName, nil )
+		end
+		return self
+	end
+
+	function Migrator:MapField( FieldName, Mapper )
+		Shine.AssertAtLevel( Shine.IsCallable( Mapper ), "Mapper must be callable!", 2 )
+
+		self.Actions[ #self.Actions + 1 ] = function( Config )
+			local Value = TableGetField( Config, FieldName )
+			TableSetField( Config, FieldName, Mapper( Value ) )
+		end
+
+		return self
+	end
+
+	function Migrator:RenameEnum( FieldName, From, To )
+		return self:MapField( FieldName, function( Value )
+			if IsType( Value, "string" ) and StringUpper( Value ) == From then
+				return To
+			end
+			return Value
+		end )
+	end
+
+	function Migrator:RenameEnums( FieldNames, From, To )
+		for i = 1, #FieldNames do
+			self:RenameEnum( FieldNames[ i ], From, To )
 		end
 		return self
 	end

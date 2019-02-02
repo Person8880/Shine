@@ -118,6 +118,65 @@ UnitTest:Test( "Build", function( Assert )
 	Assert:True( Base.Child.Cake )
 end )
 
+UnitTest:Test( "GetField - Non-table field", function( Assert )
+	Assert:Equals( "test", table.GetField( { Value = "test" }, "Value" ) )
+end )
+
+UnitTest:Test( "GetField - Returns nil if path is interrupted", function( Assert )
+	Assert:Nil( table.GetField( { A = {} } ), { "A", "B", "C" } )
+end )
+
+UnitTest:Test( "GetField - Returns the value at the given table path if not interrupted", function( Assert )
+	Assert:Equals( "test", table.GetField( {
+		A = {
+			B = {
+				C = "test"
+			}
+		}
+	}, { "A", "B", "C" } ) )
+end )
+
+UnitTest:Test( "SetField - Non-table field", function( Assert )
+	local Table = {}
+	table.SetField( Table, "Value", "test" )
+	Assert:DeepEquals( {
+		Value = "test"
+	}, Table )
+end )
+
+UnitTest:Test( "SetField - Table field with interrupted path adds tables", function( Assert )
+	local Table = {}
+	table.SetField( Table, { "A", "B", "C" }, "test" )
+	Assert:DeepEquals( {
+		A = {
+			B = {
+				C = "test"
+			}
+		}
+	}, Table )
+end )
+
+UnitTest:Test( "SetField - Table field with path adds value only when not interrupted", function( Assert )
+	local Table = {
+		A = {
+			B = {
+				E = true
+			},
+			D = {}
+		}
+	}
+	table.SetField( Table, { "A", "B", "C" }, "test" )
+	Assert:DeepEquals( {
+		A = {
+			B = {
+				C = "test",
+				E = true
+			},
+			D = {}
+		}
+	}, Table )
+end )
+
 UnitTest:Test( "QuickShuffle", function( Assert )
 	local Data = { 1, 2, 3, 4, 5, 6 }
 	table.QuickShuffle( Data )
