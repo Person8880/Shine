@@ -10,13 +10,17 @@ local BalanceModule = {}
 
 local Abs = math.abs
 local Ceil = math.ceil
+local Clamp = math.Clamp
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local Max = math.max
 local next = next
+local Remap = math.Remap
 local Random = math.random
+local Round = math.Round
 local TableCopy = table.Copy
 local TableMixin = table.Mixin
+local TableQuickShuffle = table.QuickShuffle
 local TableRemove = table.remove
 local TableShallowMerge = table.ShallowMerge
 local TableSort = table.sort
@@ -32,13 +36,20 @@ BalanceModule.DefaultConfig = {
 		-- How much weighting to assign to team preferences when optimising teams.
 		-- Higher weighting will result in a stronger chance for team preference to be respected,
 		-- but also a stronger chance that teams will be more imbalanced.
-		CostWeighting = Plugin.TeamPreferenceWeighting.NONE
+		CostWeighting = Plugin.TeamPreferenceWeighting.MEDIUM,
+		-- How much weighting to assign to players remaining in their designated friend groups.
+		-- Higher weighting will result in a stronger chance for friend groups to be placed on the same
+		-- team, but also a stronger chance that teams will be more imbalanced.
+		PlayWithFriendsWeighting = Plugin.TeamPreferenceWeighting.MEDIUM,
+		-- The maximum number of players that can form a friend group.
+		MaxFriendGroupSize = 4
 	}
 }
 
 do
 	local Validator = Shine.Validator()
 
+	Validator:CheckTypesAgainstDefault( "TeamPreferences", BalanceModule.DefaultConfig.TeamPreferences )
 	Validator:AddFieldRule( "TeamPreferences.MaxHistoryRounds",
 		Validator.IsType( "number", BalanceModule.DefaultConfig.TeamPreferences.MaxHistoryRounds ) )
 	Validator:AddFieldRule( "TeamPreferences.MaxHistoryRounds", Validator.Min( 0 ) )
@@ -48,7 +59,12 @@ do
 	Validator:AddFieldRule( "TeamPreferences.MinRoundLengthToRecordInSeconds", Validator.Min( 0 ) )
 
 	Validator:AddFieldRule( "TeamPreferences.CostWeighting",
-		Validator.InEnum( Plugin.TeamPreferenceWeighting, Plugin.TeamPreferenceWeighting.NONE ) )
+		Validator.InEnum( Plugin.TeamPreferenceWeighting, BalanceModule.DefaultConfig.TeamPreferences.CostWeighting ) )
+	Validator:AddFieldRule( "TeamPreferences.PlayWithFriendsWeighting",
+		Validator.InEnum( Plugin.TeamPreferenceWeighting, BalanceModule.DefaultConfig.TeamPreferences.PlayWithFriendsWeighting ) )
+
+	-- It makes no sense to have player groups less than 2 or larger than half the max players in size.
+	Validator:AddFieldRule( "TeamPreferences.MaxFriendGroupSize", Validator.Clamp( 2, Server.GetMaxPlayers() * 0.5 ) )
 
 	BalanceModule.ConfigValidator = Validator
 end
@@ -189,6 +205,9 @@ function BalanceModule:Initialise()
 	self.HappinessHistory = self:LoadHappinessHistory()
 	self.TeamStatsCache = {}
 	self.TeamPreferenceWeighting = self.TeamPreferenceWeightingValues[ self.Config.TeamPreferences.CostWeighting ]
+	self.PlayWithFriendsWeighting = self.PlayWithFriendsWeightingValues[ self.Config.TeamPreferences.PlayWithFriendsWeighting ]
+
+	self.dt.IsFriendGroupingEnabled = self.PlayWithFriendsWeighting > 0
 end
 
 function BalanceModule:LoadHappinessHistory()
@@ -373,7 +392,6 @@ end
 
 do
 	local Exp = math.exp
-	local Max = math.max
 
 	-- These are derived from many simulated team optimisations.
 	-- They produce a good balance between average and standard deviation
@@ -381,7 +399,7 @@ do
 	local AVERAGE_BOUND = 75
 	local STDDEV_BOUND = 150
 
-	local function TeamCost( AverageDiff, StdDiff, TeamPreferenceWeight )
+	local function TeamCost( AverageDiff, StdDiff, TeamPreferenceWeight, PlayWithFriendsWeight )
 		-- The idea here is that, if the average or standard deviation differences grow
 		-- beyond an acceptable level (defined by the bounds above), their exponentials
 		-- will start to grow and easily cancel out any minor improvements in the other
@@ -392,39 +410,33 @@ do
 			-- meaningless. If not, it may swap players of near skill to let them play on
 			-- their preferred team.
 			+ TeamPreferenceWeight
+			-- Add the play with friends weight directly too, with the same effect as team preferences.
+			+ PlayWithFriendsWeight
 	end
 
-	BalanceModule.OptimisationIterations = {
-		{
-			-- Legacy method, uses hard rules to determine if a swap
-			-- is valid.
-			TakeSwapImmediately = false,
-			NeedsMultiPass = true
-		},
-		{
-			-- New cost-based method, usually ends up with a more balanced team composition.
-			SwapPassesRequirements = function( self, AverageDiff, StdDiff, TeamPreferenceWeight )
-				local NewCost = TeamCost( AverageDiff, StdDiff, TeamPreferenceWeight )
-				local CurrentCost = self.CurrentPotentialState.Cost
-				if not CurrentCost or CurrentCost > NewCost then
-					return true, NewCost
-				end
-				return false
-			end,
-			TakeSwapImmediately = true,
-			NeedsMultiPass = false
-		}
+	BalanceModule.OptimisationParams = {
+		SwapPassesRequirements = function( self, AverageDiff, StdDiff, TeamPreferenceWeight, PlayWithFriendsWeight )
+			local NewCost = TeamCost( AverageDiff, StdDiff, TeamPreferenceWeight, PlayWithFriendsWeight )
+			local CurrentCost = self.CurrentPotentialState.Cost
+			if not CurrentCost or CurrentCost > NewCost then
+				return true, NewCost
+			end
+			return false
+		end,
+		TakeSwapImmediately = true,
+		NeedsMultiPass = false
 	}
 
 	function BalanceModule:GetCostForOptimiser( Optimiser )
 		local State = Optimiser.CurrentPotentialState
-		return TeamCost( State.AverageDiffBefore, State.StdDiffBefore, State.TeamPreferenceWeighting )
+		return TeamCost( State.AverageDiffBefore, State.StdDiffBefore, State.TeamPreferenceWeighting,
+			State.PlayWithFriendsWeighting )
 	end
 
 	function BalanceModule:GetCostFromDiff( AverageDiff, StdDiff )
 		-- Ignore team preferences in this case as it's for choosing the team a player
 		-- should join when teams are already chosen.
-		return TeamCost( AverageDiff, StdDiff, 0 )
+		return TeamCost( AverageDiff, StdDiff, 0, 0 )
 	end
 end
 
@@ -490,17 +502,63 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		end
 	end
 
-	local Iterations = self.OptimisationIterations
+	local ScaleGroupWeighting
+	local RecomputeGroupWeighting
+	local ComputeInitialGroupWeightings
+	local PlayWithFriendsWeighting = self.PlayWithFriendsWeighting
+	if PlayWithFriendsWeighting <= 0 then
+		-- Player groups not being considered, replace these to avoid wasted effort.
+		RecomputeGroupWeighting = function() return 0 end
+		ComputeInitialGroupWeightings = function() return 0 end
+	else
+		self.Logger:Debug( "Optimisation will apply a play with friends weighting of: %s", PlayWithFriendsWeighting )
+		ScaleGroupWeighting = function( self, Weight )
+			return Weight * PlayWithFriendsWeighting
+		end
+	end
+
+	local NumPlayers = #TeamMembers[ 1 ] + #TeamMembers[ 2 ]
+	local Params = self.OptimisationParams
+	-- Number of iterations depends on the number of players. For smaller player counts, it's much
+	-- harder to find an optimal solution in one attempt as the number of possible swaps quickly diminishes.
+	-- Thus, smaller player counts need more attempts.
+	local NumIterations = Round( Remap( Clamp( NumPlayers, 24, 50 ), 50, 24, 1, 5 ) )
 	local Results = {}
 
-	for i = 1, #Iterations do
-		local Iteration = Iterations[ i ]
+	local Players
+	if NumIterations > 1 then
+		Players = {}
+		for i = 1, 2 do
+			local Team = TeamMembers[ i ]
+			for j = 1, #Team do
+				Players[ #Players + 1 ] = Team[ j ]
+			end
+		end
+	end
 
-		local IterationTeamMembers = TableCopy( TeamMembers )
-		local IterationTeamSkills = TableCopy( TeamSkills )
+	self.Logger:Debug( "Performing %d iterations for %d players...", NumIterations, NumPlayers )
+
+	for i = 1, NumIterations do
+		local IterationTeamMembers
+		local IterationTeamSkills
+
+		if i > 1 then
+			-- After the first iteration, randomise the initial teams to allow more
+			-- solutions to be found.
+			TableQuickShuffle( Players )
+			IterationTeamMembers = { {}, {}, PlayerGroups = TeamMembers.PlayerGroups }
+			for i = 1, #Players do
+				local Team = IterationTeamMembers[ i % 2 + 1 ]
+				Team[ #Team + 1 ] = Players[ i ]
+			end
+			IterationTeamSkills = self:ComputeTeamSkills( IterationTeamMembers, RankFunc )
+		else
+			IterationTeamMembers = TableCopy( TeamMembers )
+			IterationTeamSkills = TableCopy( TeamSkills )
+		end
 
 		local Optimiser = self.TeamOptimiser( IterationTeamMembers, IterationTeamSkills, RankFunc )
-		if Iteration.NeedsMultiPass or TeamPreferenceWeighting <= 0 then
+		if Params.NeedsMultiPass or TeamPreferenceWeighting <= 0 then
 			-- 2 passes as team preferences are not accounted for in cost function.
 			Optimiser.GetNumPasses = GetNumPasses
 			Optimiser.IsValidForSwap = IsValidForSwapMultiPass
@@ -509,11 +567,20 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 			Optimiser.IsValidForSwap = IsValidForSwapSinglePass
 		end
 
+		if ScaleGroupWeighting then
+			Optimiser.ScaleGroupWeighting = ScaleGroupWeighting
+		end
+
+		if RecomputeGroupWeighting then
+			Optimiser.RecomputeGroupWeighting = RecomputeGroupWeighting
+			Optimiser.ComputeInitialGroupWeightings = ComputeInitialGroupWeightings
+		end
+
 		if GetTeamPreferenceWeighting then
 			Optimiser.GetTeamPreferenceWeighting = GetTeamPreferenceWeighting
 		end
 
-		TableShallowMerge( Iteration, Optimiser, true )
+		TableShallowMerge( Params, Optimiser, true )
 
 		Optimiser:Optimise()
 
@@ -597,12 +664,15 @@ function BalanceModule:OptimiseHappiness( TeamMembers )
 	return TotalHappiness
 end
 
-function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
-	local TeamSkills = {
+function BalanceModule:ComputeTeamSkills( TeamMembers, RankFunc )
+	return {
 		GetAverageSkillFunc( TeamMembers[ 1 ], RankFunc ),
 		GetAverageSkillFunc( TeamMembers[ 2 ], RankFunc )
 	}
+end
 
+function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTargets, RankFunc, NoSecondPass )
+	local TeamSkills = self:ComputeTeamSkills( TeamMembers, RankFunc )
 	local Sorted = self:AssignPlayers( TeamMembers, SortTable, Count, NumTargets, TeamSkills, RankFunc )
 
 	-- If you want/need to control number of players on teams, this is the best point to do it.

@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.5"
+Plugin.Version = "2.6"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -48,12 +48,18 @@ Plugin.TeamPreferenceWeighting = table.AsEnum{
 	"NONE", "LOW", "MEDIUM", "HIGH"
 }
 
+-- These are derived from simulated optimisation results.
 Plugin.TeamPreferenceWeightingValues = {
 	[ Plugin.TeamPreferenceWeighting.NONE ] = 0,
-	-- These are derived from simulated optimisation results.
 	[ Plugin.TeamPreferenceWeighting.LOW ] = 2,
 	[ Plugin.TeamPreferenceWeighting.MEDIUM ] = 3,
 	[ Plugin.TeamPreferenceWeighting.HIGH ] = 5
+}
+Plugin.PlayWithFriendsWeightingValues = {
+	[ Plugin.TeamPreferenceWeighting.NONE ] = 0,
+	[ Plugin.TeamPreferenceWeighting.LOW ] = 25,
+	[ Plugin.TeamPreferenceWeighting.MEDIUM ] = 50,
+	[ Plugin.TeamPreferenceWeighting.HIGH ] = 100
 }
 
 Plugin.MODE_RANDOM = Plugin.ShuffleMode.RANDOM
@@ -195,6 +201,12 @@ Plugin.ConfigMigrationSteps = {
 			:RenameField( "BlockAfterTime", "BlockAfterRoundTimeInMinutes" )
 			:RenameField( "VoteTimeout", "VoteTimeoutInSeconds" )
 			:RenameField( "ReconnectLogTime", "ReconnectLogTimeInSeconds" )
+	},
+	{
+		VersionTo = "2.6",
+		Apply = Shine.Migrator()
+			:AddField( { "TeamPreferences", "PlayWithFriendsWeighting" }, Plugin.TeamPreferenceWeighting.MEDIUM )
+			:AddField( { "TeamPreferences", "MaxFriendGroupSize" }, 4 )
 	}
 }
 
@@ -373,6 +385,7 @@ end
 function NoOpEnforcement:JoinTeam() end
 
 Shine.LoadPluginFile( PluginName, "team_balance.lua", Plugin, PluginName )
+Shine.LoadPluginFile( PluginName, "friend_groups.lua", Plugin, PluginName )
 
 local ModeError = [[Error in voterandom config, FallbackMode is not set as a valid option.
 Make sure BalanceMode and FallbackMode are not the same, and that FallbackMode is not "HIVE".
@@ -497,6 +510,9 @@ function Plugin:Initialise()
 	self.TeamPreferences = {}
 	self.LastAttemptedTeamJoins = {}
 
+	self.FriendGroups = {}
+	self.FriendGroupsBySteamID = {}
+
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
 
@@ -559,7 +575,14 @@ do
 					local PlayerAsString = PlayerToString( Player )
 					local Preference = TeamMembers.TeamPreferences[ Player ]
 					return StringFormat( "%s -> %s", PlayerAsString, Preference )
-				end ):AsTable()
+				end ):AsTable(),
+			PlayerGroups = Shine.Stream.Of( TeamMembers.PlayerGroups )
+				:Map( function( Group )
+					return {
+						Players = self:AsLogOutput( Group.Players )
+					}
+				end )
+				:AsTable()
 		}
 
 		Logger:Debug( "Result of GetTargetsForSorting (IgnoreCommanders: %s):", self.Config.IgnoreCommanders )
@@ -593,6 +616,8 @@ do
 			TeamMembers.TeamPreferences[ Client ] = Preference
 		end
 
+		local PlayersToBeShuffled = {}
+
 		local function SortPlayer( Player, Client, Commander, Pass )
 			-- Do not shuffle clients that are in a spectator slot.
 			if Client:GetIsSpectator() then return end
@@ -621,6 +646,7 @@ do
 				if IsImmune then
 					local TeamTable = TeamMembers[ Team ]
 					if TeamTable then
+						PlayersToBeShuffled[ Player ] = true
 						TeamTable[ #TeamTable + 1 ] = Player
 						-- Either they have a set preference, or they joined the team they want.
 						Preference = Preference or Team
@@ -640,6 +666,8 @@ do
 			else
 				Targets[ #Targets + 1 ] = Player
 			end
+
+			PlayersToBeShuffled[ Player ] = true
 
 			AddTeamPreference( Player, Client, Preference )
 		end
@@ -697,9 +725,64 @@ do
 			end
 		end
 
+		local function GetControllingPlayer( Client )
+			return Client:GetControllingPlayer()
+		end
+		local function IsBeingShuffled( Player )
+			return PlayersToBeShuffled[ Player ]
+		end
+		local function IsNotEmptyGroup( Group )
+			return #Group.Players > 1
+		end
+
+		-- Convert client-based groups into player-based groups for the optimiser to use.
+		local PlayerGroups = Shine.Stream.Of( self.FriendGroups ):Map( function( Group )
+			return {
+				Players = Shine.Stream.Of( Group.Clients )
+					:Map( GetControllingPlayer )
+					:Filter( IsBeingShuffled )
+					:AsTable()
+			}
+		end ):Filter( IsNotEmptyGroup ):AsTable()
+
+		-- Ensure that each group has consistent team preferences.
+		self:ConsolidateGroupTeamPreferences( TeamMembers, PlayerGroups, AddTeamPreference )
+
+		TeamMembers.PlayerGroups = PlayerGroups
+
 		self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, Targets, TeamMembers )
 
 		return Targets, TeamMembers
+	end
+end
+
+function Plugin:ConsolidateGroupTeamPreferences( TeamMembers, PlayerGroups, AddTeamPreference )
+	for i = 1, #PlayerGroups do
+		local Group = PlayerGroups[ i ]
+		local TeamPrefCounts = { 0, 0 }
+		for j = 1, #Group.Players do
+			local Player = Group.Players[ j ]
+			local TeamPreference = TeamMembers.TeamPreferences[ Player ]
+			if TeamPreference then
+				TeamPrefCounts[ TeamPreference ] = TeamPrefCounts[ TeamPreference ] + 1
+			end
+		end
+
+		if Max( TeamPrefCounts[ 1 ], TeamPrefCounts[ 2 ] ) ~= 0 then
+			-- Players in the group have team preferences, use the most common team or otherwise
+			-- pick one randomly.
+			local GroupPreference = 1
+			if TeamPrefCounts[ 1 ] == TeamPrefCounts[ 2 ] then
+				GroupPreference = Random( 1, 2 )
+			elseif TeamPrefCounts[ 2 ] > TeamPrefCounts[ 1 ] then
+				GroupPreference = 2
+			end
+
+			for j = 1, #Group.Players do
+				local Player = Group.Players[ j ]
+				AddTeamPreference( Player, Player:GetClient(), GroupPreference )
+			end
+		end
 	end
 end
 
@@ -987,6 +1070,11 @@ function Plugin:ClientDisconnect( Client )
 	self.Vote:ClientDisconnect( Client )
 	self:UpdateVoteCounters( self.Vote )
 	self.TeamPreferences[ Client ] = nil
+
+	local Group = self.FriendGroupsBySteamID[ Client:GetUserId() ]
+	if Group then
+		self:RemoveClientFromFriendGroup( Group, Client, true )
+	end
 
 	if not self.ReconnectLogTimeout then return end
 	if SharedTime() > self.ReconnectLogTimeout then return end
