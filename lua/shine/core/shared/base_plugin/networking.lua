@@ -144,6 +144,17 @@ do
 		end )
 	end
 
+	function NetworkingModule:AddTranslatedNotification( Name, Params, VariationKey )
+		local MessageParams = TableShallowCopy( Params )
+		MessageParams.Type = "integer (1 to 3)"
+		MessageParams.Duration = "integer (1 to 15)"
+
+		self:AddNetworkMessageHandler( Name, MessageParams, function( self, Data )
+			local Message = self:GetInterpolatedPhrase( GetMessageTranslationKey( Name, VariationKey, Data ), Data )
+			Shine.GUI.NotificationManager.AddNotification( Data.Type, Message, Data.Duration )
+		end )
+	end
+
 	function NetworkingModule:AddTranslatedNotifyColour( Name, Params, VariationKey )
 		local MessageParams = TableShallowCopy( Params )
 		MessageParams.R = "integer (0 to 255)"
@@ -210,6 +221,17 @@ if Server then
 
 	function NetworkingModule:SendTranslatedNotify( Target, Name, Params )
 		self:SendNetworkMessage( Target, Name, Params or {}, true )
+	end
+
+	function NetworkingModule:SendTranslatedNotification( Target, Type, Message, Params, Duration )
+		if not Params then
+			Shine:SendTranslatedNotification( Target, Type, Message, self:GetName(), false, Duration or 5 )
+			return
+		end
+
+		Params.Type = Type
+		Params.Duration = Duration or 5
+		self:SendNetworkMessage( Target, Message, Params, true )
 	end
 
 	NetworkingModule.SendTranslatedError = NetworkingModule.SendTranslatedNotify
