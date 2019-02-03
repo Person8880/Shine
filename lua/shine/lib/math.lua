@@ -142,3 +142,12 @@ do
 		return Sqrt( Sum / Count ), Average
 	end
 end
+
+--[[
+	Remaps the given value from [OldStart, OldEnd] into [NewStart, NewEnd], e.g.
+		math.Remap( 0.5, 0, 1, 10, 20 ) == 15
+]]
+function math.Remap( Value, OldStart, OldEnd, NewStart, NewEnd )
+	local FractionIntoRange = ( Value - OldStart ) / ( OldEnd - OldStart )
+	return NewStart + FractionIntoRange * ( NewEnd - NewStart )
+end
