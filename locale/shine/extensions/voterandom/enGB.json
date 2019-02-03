@@ -137,11 +137,14 @@
 	"ERROR_FRIEND_GROUP_FULL": "You cannot add {PlayerName} to your friend group as it is full.",
 	"ERROR_TARGET_FRIEND_GROUP_FULL": "You cannot group with {PlayerName} as their friend group is full.",
 	"ERROR_TARGET_IN_FRIEND_GROUP": "You cannot add {PlayerName} to your friend group as they are already in another group.",
+	"ERROR_TARGET_OPTED_OUT": "{PlayerName} has opted out of receiving friend group requests.",
+	"ERROR_BLOCKED_BY_SERVER": "You do not have permission to add players to a friend group.",
 
 	"LEAVE_FRIEND_GROUP": "Leave friend group",
 	"ADD_TO_FRIEND_GROUP": "Add to friend group",
 	"JOIN_FRIEND_GROUP": "Join friend group",
 
+	"FRIEND_GROUPS_OPT_OUT": "Block friend group requests",
 	"FRIEND_GROUP_HINT": "Want to play with friends? Use the scoreboard to group up with other players and shuffle will try to keep you on the same team.",
 
 	"ADDED_TO_FRIEND_GROUP": "{PlayerName} added you to their friend group."

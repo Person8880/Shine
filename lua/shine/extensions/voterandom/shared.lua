@@ -85,14 +85,17 @@ function Plugin:SetupDataTable()
 			"ERROR_MUST_WAIT"
 		}
 	}, "ShuffleType" )
-	self:AddNetworkMessages( "AddTranslatedError", {
+	self:AddNetworkMessages( "AddTranslatedNotification", {
 		[ MessageTypes.GroupWithPlayer ] = {
-			"ERROR_FRIEND_GROUP_FULL", "ERROR_TARGET_FRIEND_GROUP_FULL", "ERROR_TARGET_IN_FRIEND_GROUP"
+			"ERROR_FRIEND_GROUP_FULL", "ERROR_TARGET_FRIEND_GROUP_FULL", "ERROR_TARGET_IN_FRIEND_GROUP",
+			"ERROR_TARGET_OPTED_OUT"
 		}
 	} )
 
 	self:AddNetworkMessage( "TeamPreference", { PreferredTeam = "integer" }, "Server" )
 	self:AddNetworkMessage( "TemporaryTeamPreference", { PreferredTeam = "integer", Silent = "boolean" }, "Client" )
+
+	self:AddNetworkMessage( "FriendGroupOptOut", { OptOut = "boolean" }, "Server" )
 	self:AddNetworkMessage( "JoinFriendGroup", { SteamID = "integer" }, "Server" )
 	self:AddNetworkMessage( "LeaveFriendGroup", {}, "Server" )
 	self:AddNetworkMessage( "LeftFriendGroup", {}, "Client" )

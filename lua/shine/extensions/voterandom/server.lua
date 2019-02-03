@@ -512,6 +512,7 @@ function Plugin:Initialise()
 
 	self.FriendGroups = {}
 	self.FriendGroupsBySteamID = {}
+	self.BlockFriendGroupRequestsForSteamIDs = {}
 
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true

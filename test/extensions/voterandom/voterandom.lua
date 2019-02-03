@@ -501,6 +501,7 @@ do
 			SendNetworkMessage = function() end,
 			SendTranslatedError = function() end,
 			SendTranslatedNotify = function() end,
+			SendTranslatedNotification = function() end,
 			FriendGroupsBySteamID = {
 				[ 12345 ] = ExistingFriendGroup,
 				[ 54321 ] = ExistingFriendGroup,
@@ -517,12 +518,28 @@ do
 				TeamPreferences = {
 					MaxFriendGroupSize = 4
 				}
+			},
+			BlockFriendGroupRequestsForSteamIDs = {
+				[ 789 ] = true
 			}
 		}, { __index = VoteShuffle } )
 	end
 
 	UnitTest:Before( function()
 		MockPlugin = MakeMockPlugin()
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that's opted out is not added.", function( Assert )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 789 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 12345 ] )
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 54321 ] )
+		Assert.Nil( "Should not have added the target to a group", MockPlugin.FriendGroupsBySteamID[ 789 ] )
 	end )
 
 	UnitTest:Test( "HandleFriendGroupJoinRequest - No groups for either client", function( Assert )

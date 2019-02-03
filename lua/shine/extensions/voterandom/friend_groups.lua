@@ -6,11 +6,24 @@ local Plugin = ...
 
 local TableRemoveByValue = table.RemoveByValue
 
+function Plugin:ReceiveFriendGroupOptOut( Client, Data )
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug( "%s %s friend groups.", Shine.GetClientInfo( Client ),
+			Data.OptOut and "does not want to be added to" or "wants to be added to" )
+	end
+	self.BlockFriendGroupRequestsForSteamIDs[ Client:GetUserId() ] = Data.OptOut or nil
+end
+
 function Plugin:ReceiveJoinFriendGroup( Client, Data )
 	local TargetSteamID = Data.SteamID
 
 	local TargetClient = Shine.GetClientByNS2ID( TargetSteamID )
 	if not TargetClient then return end
+
+	if not Shine:HasAccess( Client, "sh_add_to_friendgroup", true ) then
+		self:SendTranslatedNotification( Client, Shine.NotificationType.ERROR, "ERROR_BLOCKED_BY_SERVER" )
+		return
+	end
 
 	self:HandleFriendGroupJoinRequest( Client, TargetClient )
 end
@@ -18,6 +31,13 @@ end
 function Plugin:HandleFriendGroupJoinRequest( Client, TargetClient )
 	local TargetSteamID = TargetClient:GetUserId()
 	local CallerSteamID = Client:GetUserId()
+
+	if self.BlockFriendGroupRequestsForSteamIDs[ TargetSteamID ] then
+		self:SendTranslatedNotification( Client, Shine.NotificationType.ERROR, "ERROR_TARGET_OPTED_OUT", {
+			PlayerName = TargetClient:GetControllingPlayer():GetName()
+		} )
+		return
+	end
 
 	local TargetGroup = self.FriendGroupsBySteamID[ TargetSteamID ]
 	local CallerGroup = self.FriendGroupsBySteamID[ CallerSteamID ]
@@ -59,7 +79,7 @@ function Plugin:HandleFriendGroupJoinRequest( Client, TargetClient )
 
 	if TargetGroup and CallerGroup then
 		-- Both clients are already in groups, cannot move the target player.
-		self:SendTranslatedError( Client, "ERROR_TARGET_IN_FRIEND_GROUP", {
+		self:SendTranslatedNotification( Client, Shine.NotificationType.ERROR, "ERROR_TARGET_IN_FRIEND_GROUP", {
 			PlayerName = TargetClient:GetControllingPlayer():GetName()
 		} )
 		return
@@ -69,7 +89,7 @@ function Plugin:HandleFriendGroupJoinRequest( Client, TargetClient )
 		-- Target is not in a group, but we are.
 		-- Make sure there's enough room for the new player.
 		if #CallerGroup.Clients >= self.Config.TeamPreferences.MaxFriendGroupSize then
-			self:SendTranslatedError( Client, "ERROR_FRIEND_GROUP_FULL", {
+			self:SendTranslatedNotification( Client, Shine.NotificationType.ERROR, "ERROR_FRIEND_GROUP_FULL", {
 				PlayerName = TargetClient:GetControllingPlayer():GetName()
 			} )
 			return
@@ -85,7 +105,7 @@ function Plugin:HandleFriendGroupJoinRequest( Client, TargetClient )
 
 	-- We're not in a group, but the target is.
 	if #TargetGroup.Clients >= self.Config.TeamPreferences.MaxFriendGroupSize then
-		self:SendTranslatedError( Client, "ERROR_TARGET_FRIEND_GROUP_FULL", {
+		self:SendTranslatedNotification( Client, Shine.NotificationType.ERROR, "ERROR_TARGET_FRIEND_GROUP_FULL", {
 			PlayerName = TargetClient:GetControllingPlayer():GetName()
 		} )
 		return

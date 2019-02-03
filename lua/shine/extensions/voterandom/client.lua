@@ -15,7 +15,8 @@ Plugin.TeamType = table.AsEnum{
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteShuffle.json"
 Plugin.DefaultConfig = {
-	PreferredTeam = Plugin.TeamType.NONE
+	PreferredTeam = Plugin.TeamType.NONE,
+	BlockFriendGroups = false
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -81,6 +82,32 @@ function Plugin:SetupClientConfig()
 		ConfigOption = function() return self.Config.PreferredTeam end,
 		Options = self.TeamType,
 		Description = "TEAM_PREFERENCE",
+		TranslationSource = self.__Name
+	} )
+
+	local function SendFriendGroupOptOut( OptOut )
+		self:SendNetworkMessage( "FriendGroupOptOut", { OptOut = OptOut }, true )
+	end
+
+	if self.Config.BlockFriendGroups then
+		SendFriendGroupOptOut( self.Config.BlockFriendGroups )
+	end
+
+	self:BindCommand( "sh_shuffle_block_friend_groups", function( OptOut )
+		if self.Config.BlockFriendGroups == OptOut then return end
+
+		self.Config.BlockFriendGroups = OptOut
+		self:SaveConfig( true )
+		SendFriendGroupOptOut( OptOut )
+
+		Print( "You are now %s friend groups.", OptOut and "blocking" or "allowing" )
+	end ):AddParam{ Type = "boolean", Option = true, Default = function() return not self.Config.BlockFriendGroups end }
+
+	Shine:RegisterClientSetting( {
+		Type = "Boolean",
+		Command = "sh_shuffle_block_friend_groups",
+		ConfigOption = function() return self.Config.BlockFriendGroups end,
+		Description = "FRIEND_GROUPS_OPT_OUT",
 		TranslationSource = self.__Name
 	} )
 end
