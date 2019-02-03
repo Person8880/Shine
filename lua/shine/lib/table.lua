@@ -518,16 +518,16 @@ do
 	local function CopyTable( Table, LookupTable )
 		if not Table then return nil end
 
+		LookupTable = LookupTable or {}
+
 		local Copy = {}
+		LookupTable[ Table ] = Copy
 		setmetatable( Copy, getmetatable( Table ) )
 
 		for Key, Value in pairs( Table ) do
 			if not IsType( Value, "table" ) then
 				Copy[ Key ] = Value
 			else
-				LookupTable = LookupTable or {}
-				LookupTable[ Table ] = Copy
-
 				if LookupTable[ Value ] then
 					Copy[ Key ] = LookupTable[ Value ]
 				else

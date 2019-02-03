@@ -186,6 +186,21 @@ UnitTest:Test( "QuickShuffle", function( Assert )
 	end
 end )
 
+UnitTest:Test( "Copy", function( Assert )
+	local TableValue = {}
+	local Table = {
+		TableValue,
+		Child = {
+			TableValue
+		}
+	}
+	Table.Self = Table
+
+	local Copy = table.Copy( Table )
+	Assert.Equals( "Should preserve references in the copy", Copy[ 1 ], Copy.Child[ 1 ] )
+	Assert.Equals( "Should properly handle cycles", Copy.Self, Copy )
+end )
+
 UnitTest:Test( "QuickCopy", function( Assert )
 	local Table = { 1, 2, {}, 4 }
 	local Copy = table.QuickCopy( Table )
