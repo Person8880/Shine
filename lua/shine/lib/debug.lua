@@ -296,12 +296,8 @@ end
 
 do
 	local TableConcat = table.concat
-
-	--[[
-		Checks a value's type, and throws an error if it doesn't match.
-	]]
-	function Shine.TypeCheck( Arg, Type, ArgNumber, FuncName, Level )
-		local ArgType = type( Arg )
+	local function MatchesType( Value, Type )
+		local ArgType = type( Value )
 		local MatchesType = false
 		local ExpectedType = Type
 
@@ -318,9 +314,28 @@ do
 			MatchesType = ArgType == Type
 		end
 
+		return MatchesType, ExpectedType, ArgType
+	end
+
+	--[[
+		Checks a value's type, and throws an error if it doesn't match.
+	]]
+	function Shine.TypeCheck( Arg, Type, ArgNumber, FuncName, Level )
+		local MatchesType, ExpectedType, ArgType = MatchesType( Arg, Type )
 		if not MatchesType then
 			error( StringFormat( "Bad argument #%i to '%s' (%s expected, got %s)",
 				ArgNumber, FuncName, ExpectedType, ArgType ), Level or 3 )
+		end
+	end
+
+	--[[
+		Checks a field's type, and throws an error if it doesn't match.
+	]]
+	function Shine.TypeCheckField( Table, FieldName, Type, ObjectName, Level )
+		local MatchesType, ExpectedType, ArgType = MatchesType( Table[ FieldName ], Type )
+		if not MatchesType then
+			error( StringFormat( "Bad value for field '%s' on %s (%s expected, got %s)",
+				FieldName, ObjectName, ExpectedType, ArgType ), Level or 3 )
 		end
 	end
 end
