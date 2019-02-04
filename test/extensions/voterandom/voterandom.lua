@@ -461,8 +461,8 @@ UnitTest:Test( "ConsolidateGroupTeamPreferences", function( Assert )
 		Assert.Equals( "Second group should prefer team 2", 2, TeamPrefs[ Players[ i ] ] )
 	end
 
-	Assert.Equals( "Third group should choose randomly, but always equal each other",
-		TeamPrefs[ Players[ 6 ] ], TeamPrefs[ Players[ 7 ] ] )
+	Assert.Nil( "Third group should remove preferences", TeamPrefs[ Players[ 6 ] ] )
+	Assert.Nil( "Third group should remove preferences", TeamPrefs[ Players[ 7 ] ] )
 
 	for i = 8, 10 do
 		Assert.Equals( "Fourth group should prefer team 2", 2, TeamPrefs[ Players[ i ] ] )

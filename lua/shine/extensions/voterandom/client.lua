@@ -30,6 +30,8 @@ do
 	Plugin.ConfigValidator = Validator
 end
 
+local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
+
 function Plugin:SetupClientConfig()
 	Shine.AddStartupMessage( "You can choose a preferred team for shuffling by entering sh_shuffle_teampref <team> into the console." )
 
@@ -71,7 +73,7 @@ function Plugin:SetupClientConfig()
 		if not HasWarnedAboutPref then
 			-- Inform the player that this can be overridden by joining a team.
 			HasWarnedAboutPref = true
-			Shine.GUI.NotificationManager.AddNotification( Shine.NotificationType.INFO,
+			SGUI.NotificationManager.AddNotification( Shine.NotificationType.INFO,
 				self:GetPhrase( "TEAM_PREFERENCE_CHANGE_HINT" ), 10 )
 		end
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
@@ -94,6 +96,8 @@ function Plugin:SetupClientConfig()
 	end
 
 	self:BindCommand( "sh_shuffle_block_friend_groups", function( OptOut )
+		SGUI.NotificationManager.DisableHint( FRIEND_GROUP_HINT_NAME )
+
 		if self.Config.BlockFriendGroups == OptOut then return end
 
 		self.Config.BlockFriendGroups = OptOut
@@ -205,7 +209,7 @@ function Plugin:OnVoteButtonCreated( Button, VoteMenu )
 		-- Show a hint about friend grouping when clicking the shuffle button.
 		local OldClick = Button.DoClick
 		function Button:DoClick()
-			SGUI.NotificationManager.DisplayHint( "ShuffleFriendGroupHint" )
+			SGUI.NotificationManager.DisplayHint( FRIEND_GROUP_HINT_NAME )
 			return OldClick( self )
 		end
 	end
@@ -214,7 +218,7 @@ end
 function Plugin:OnFirstThink()
 	self:CallModuleEvent( "OnFirstThink" )
 
-	SGUI.NotificationManager.RegisterHint( "ShuffleFriendGroupHint", {
+	SGUI.NotificationManager.RegisterHint( FRIEND_GROUP_HINT_NAME, {
 		MaxTimes = 3,
 		HintIntervalInSeconds = 60 * 60,
 		MessageSource = self:GetName(),
@@ -369,7 +373,7 @@ function Plugin:OnGUIScoreboardSendKeyEvent( Scoreboard, Key, Down )
 		HoverMenu:AddSeparator( "ShuffleFriendGroupActions" )
 		HoverMenu:AddButton( Text, BackgroundColour, HighlightColour, TextColour, function()
 			-- Disable the hint as they've used the feature.
-			SGUI.NotificationManager.DisableHint( "ShuffleFriendGroupHint" )
+			SGUI.NotificationManager.DisableHint( FRIEND_GROUP_HINT_NAME )
 
 			if HoveringSelf then
 				self:SendNetworkMessage( "LeaveFriendGroup", {}, true )

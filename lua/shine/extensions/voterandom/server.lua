@@ -771,10 +771,10 @@ function Plugin:ConsolidateGroupTeamPreferences( TeamMembers, PlayerGroups, AddT
 
 		if Max( TeamPrefCounts[ 1 ], TeamPrefCounts[ 2 ] ) ~= 0 then
 			-- Players in the group have team preferences, use the most common team or otherwise
-			-- pick one randomly.
+			-- remove the preferences to avoid unnecessary additional constraints.
 			local GroupPreference = 1
 			if TeamPrefCounts[ 1 ] == TeamPrefCounts[ 2 ] then
-				GroupPreference = Random( 1, 2 )
+				GroupPreference = nil
 			elseif TeamPrefCounts[ 2 ] > TeamPrefCounts[ 1 ] then
 				GroupPreference = 2
 			end
