@@ -15,6 +15,7 @@ local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
+local StringLower = string.lower
 local StringMatch = string.match
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -950,44 +951,15 @@ function Plugin:CreateAdminCommands()
 	local function ChangeLevel( Client, MapName )
 		local Cycle = MapCycle_GetMapCycle()
 		local FoundMap
-		local KnownMaps = {}
+		local KnownMaps = Shine.GetKnownMapNames()
 
-		-- Check the map cycle for the given map first to find maps in mods that are mounted
-		-- by the cycle.
-		if IsType( Cycle, "table" ) and IsType( Cycle.maps, "table" ) then
-			for i = 1, #Cycle.maps do
-				local Entry = Cycle.maps[ i ]
-				local EntryName = IsType( Entry, "table" ) and Entry.map or Entry
-				if EntryName == MapName then
-					FoundMap = MapName
-					break
-				end
-
-				KnownMaps[ EntryName ] = true
-			end
+		-- Provided an exact map name, use it.
+		if KnownMaps[ MapName ] then
+			FoundMap = MapName
 		end
 
 		if not FoundMap then
-			-- Map was not in the cycle, so check the maps folder for all .level files starting with ns2_.
-			-- This will find vanilla maps, and any mounted mod maps.
-			local LevelFiles = {}
-			Shared.GetMatchingFileNames( "maps/*.level", false, LevelFiles )
-			for i = 1, #LevelFiles do
-				local Map = LevelFiles[ i ]
-				local LevelName = StringMatch( Map, "([^/]+)%.level$" )
-				-- Only check maps starting with ns2_ to avoid the menu level.
-				if StringMatch( LevelName, "^ns2_" ) then
-					if LevelName == MapName then
-						FoundMap = MapName
-						break
-					end
-					KnownMaps[ LevelName ] = true
-				end
-			end
-		end
-
-		if not FoundMap then
-			-- Still don't know what map it is, try adding ns2_ at the start.
+			-- Don't know what map it is, try adding ns2_ at the start.
 			local MapWithNS2 = "ns2_"..MapName
 			if KnownMaps[ MapWithNS2 ] then
 				FoundMap = MapWithNS2
@@ -995,7 +967,8 @@ function Plugin:CreateAdminCommands()
 				-- Doesn't match a known map even with ns2_, so try to find a single matching
 				-- map that contains the given name.
 				local MatchingMapName
-				for KnownMap in pairs( KnownMaps ) do
+				for i = 1, #KnownMaps do
+					local KnownMap = KnownMaps[ i ]
 					if StringFind( KnownMap, MapName, 1, true ) then
 						if MatchingMapName then
 							-- More than one map matches, so ask for a more precise name.
@@ -1045,6 +1018,8 @@ function Plugin:CreateAdminCommands()
 	ReloadMapCommand:Help( "Reloads the current map." )
 
 	local function LoadPlugin( Client, Name, Save )
+		Name = StringLower( Name )
+
 		if Name == "basecommands" then
 			local Message = "You cannot reload the basecommands plugin."
 			Shine.PrintToConsole( Client, Message )
@@ -1097,6 +1072,8 @@ function Plugin:CreateAdminCommands()
 	LoadPluginCommand:Help( "Loads or reloads a plugin." )
 
 	local function UnloadPlugin( Client, Name, Save )
+		Name = StringLower( Name )
+
 		if Name == "basecommands" then
 			local Message = "Unloading the basecommands plugin is ill-advised. If you wish to do so, remove it from the active plugins list in your config."
 			Shine.PrintToConsole( Client, Message )
@@ -1142,8 +1119,9 @@ function Plugin:CreateAdminCommands()
 	UnloadPluginCommand:Help( "Unloads a plugin." )
 
 	local function SuspendPlugin( Client, Name )
-		local Plugin = Shine.Plugins[ Name ]
+		Name = StringLower( Name )
 
+		local Plugin = Shine.Plugins[ Name ]
 		if not Plugin or not Plugin.Enabled then
 			Shine.PrintToConsole( Client, StringFormat( "The plugin %s is not loaded or already suspended.", Name ) )
 
@@ -1162,8 +1140,9 @@ function Plugin:CreateAdminCommands()
 	SuspendPluginCommand:Help( "Suspends a plugin." )
 
 	local function ResumePlugin( Client, Name )
-		local Plugin = Shine.Plugins[ Name ]
+		Name = StringLower( Name )
 
+		local Plugin = Shine.Plugins[ Name ]
 		if not Plugin or Plugin.Enabled or not Plugin.Suspended then
 			Shine.PrintToConsole( Client, StringFormat( "The plugin %s is already running or is not suspended or not loaded.", Name ) )
 

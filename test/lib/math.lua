@@ -35,3 +35,10 @@ UnitTest:Test( "RoundTo", function( Assert )
 	Assert:Equals( 0, math.RoundTo( 1, 3 ) )
 	Assert:Equals( 90, math.RoundTo( 60, 90 ) )
 end )
+
+UnitTest:Test( "Remap", function( Assert )
+	Assert.Equals( "Should remap partway through", 15, math.Remap( 0.5, 0, 1, 10, 20 ) )
+
+	Assert.Equals( "Should remap to the start of the range", 1, math.Remap( 2, 2, 4, 1, 0 ) )
+	Assert.Equals( "Should remap to the end of the range", 0, math.Remap( 4, 2, 4, 1, 0 ) )
+end )

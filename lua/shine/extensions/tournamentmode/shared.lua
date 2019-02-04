@@ -4,7 +4,9 @@
 
 local Plugin = Shine.Plugin( ... )
 
-local StringFormat = string.format
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true
+}
 
 --[[
 	We network the team names and the scores, so spectators that join

@@ -46,6 +46,27 @@ UnitTest:Test( "TypeCheck", function( Assert )
 	Assert:Equals( "Bad argument #1 to 'Test' (string or table expected, got number)", Err )
 end )
 
+UnitTest:Test( "TypeCheckField", function( Assert )
+	local Table = {
+		Field = 1
+	}
+
+	local Success, Err = pcall( Shine.TypeCheckField, Table, "Field", "string", "Test", 0 )
+
+	Assert:False( Success )
+	Assert:Equals( "Bad value for field 'Field' on Test (string expected, got number)", Err )
+
+	Success, Err = pcall( Shine.TypeCheckField, Table, "Field", "number", "Test", 0 )
+	Assert:True( Success )
+
+	Success, Err = pcall( Shine.TypeCheckField, Table, "Field", { "number", "string" }, "Test", 0 )
+	Assert:True( Success )
+
+	Success, Err = pcall( Shine.TypeCheckField, Table, "Field", { "string", "table" }, "Test", 0 )
+	Assert:False( Success )
+	Assert:Equals( "Bad value for field 'Field' on Test (string or table expected, got number)", Err )
+end )
+
 UnitTest:Test( "GetUpValueAccessor", function( Assert )
 	local TargetUpValue = {}
 	local function FuncReferencingTarget()

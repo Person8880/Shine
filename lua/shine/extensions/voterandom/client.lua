@@ -15,7 +15,8 @@ Plugin.TeamType = table.AsEnum{
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteShuffle.json"
 Plugin.DefaultConfig = {
-	PreferredTeam = Plugin.TeamType.NONE
+	PreferredTeam = Plugin.TeamType.NONE,
+	BlockFriendGroups = false
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -28,6 +29,8 @@ do
 	Validator:AddFieldRule( "PreferredTeam", Validator.InEnum( Plugin.TeamType, Plugin.TeamType.NONE ) )
 	Plugin.ConfigValidator = Validator
 end
+
+local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
 
 function Plugin:SetupClientConfig()
 	Shine.AddStartupMessage( "You can choose a preferred team for shuffling by entering sh_shuffle_teampref <team> into the console." )
@@ -70,7 +73,7 @@ function Plugin:SetupClientConfig()
 		if not HasWarnedAboutPref then
 			-- Inform the player that this can be overridden by joining a team.
 			HasWarnedAboutPref = true
-			Shine.GUI.NotificationManager.AddNotification( Shine.NotificationType.INFO,
+			SGUI.NotificationManager.AddNotification( Shine.NotificationType.INFO,
 				self:GetPhrase( "TEAM_PREFERENCE_CHANGE_HINT" ), 10 )
 		end
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
@@ -81,6 +84,34 @@ function Plugin:SetupClientConfig()
 		ConfigOption = function() return self.Config.PreferredTeam end,
 		Options = self.TeamType,
 		Description = "TEAM_PREFERENCE",
+		TranslationSource = self.__Name
+	} )
+
+	local function SendFriendGroupOptOut( OptOut )
+		self:SendNetworkMessage( "FriendGroupOptOut", { OptOut = OptOut }, true )
+	end
+
+	if self.Config.BlockFriendGroups then
+		SendFriendGroupOptOut( self.Config.BlockFriendGroups )
+	end
+
+	self:BindCommand( "sh_shuffle_block_friend_groups", function( OptOut )
+		SGUI.NotificationManager.DisableHint( FRIEND_GROUP_HINT_NAME )
+
+		if self.Config.BlockFriendGroups == OptOut then return end
+
+		self.Config.BlockFriendGroups = OptOut
+		self:SaveConfig( true )
+		SendFriendGroupOptOut( OptOut )
+
+		Print( "You are now %s friend groups.", OptOut and "blocking" or "allowing" )
+	end ):AddParam{ Type = "boolean", Option = true, Default = function() return not self.Config.BlockFriendGroups end }
+
+	Shine:RegisterClientSetting( {
+		Type = "Boolean",
+		Command = "sh_shuffle_block_friend_groups",
+		ConfigOption = function() return self.Config.BlockFriendGroups end,
+		Description = "FRIEND_GROUPS_OPT_OUT",
 		TranslationSource = self.__Name
 	} )
 end
@@ -173,15 +204,51 @@ function Plugin:OnVoteButtonCreated( Button, VoteMenu )
 			Button.PreferenceLabel = nil
 		end
 	end
+
+	if self.dt.IsFriendGroupingEnabled then
+		-- Show a hint about friend grouping when clicking the shuffle button.
+		local OldClick = Button.DoClick
+		function Button:DoClick()
+			SGUI.NotificationManager.DisplayHint( FRIEND_GROUP_HINT_NAME )
+			return OldClick( self )
+		end
+	end
 end
 
 function Plugin:OnFirstThink()
 	self:CallModuleEvent( "OnFirstThink" )
 
+	SGUI.NotificationManager.RegisterHint( FRIEND_GROUP_HINT_NAME, {
+		MaxTimes = 3,
+		HintIntervalInSeconds = 60 * 60,
+		MessageSource = self:GetName(),
+		MessageKey = "FRIEND_GROUP_HINT",
+		HintDuration = 10
+	} )
+
 	-- Defensive check in case the scoreboard code changes.
 	if not Scoreboard_GetPlayerRecord or not GUIScoreboard or not GUIScoreboard.UpdateTeam then return end
 
 	Shine.Hook.SetupClassHook( "GUIScoreboard", "UpdateTeam", "OnGUIScoreboardUpdateTeam", "PassivePost" )
+	Shine.Hook.SetupClassHook( "GUIScoreboard", "SendKeyEvent", "OnGUIScoreboardSendKeyEvent", "PassivePost" )
+end
+
+function Plugin:ReceiveLeftFriendGroup( Data )
+	self.FriendGroup = {}
+	self.InFriendGroup = false
+end
+
+function Plugin:ReceiveFriendGroupUpdated( Data )
+	self.FriendGroup[ Data.SteamID ] = Data.Joined or nil
+
+	for SteamID in pairs( self.FriendGroup ) do
+		if SteamID ~= Client.GetSteamId() then
+			self.InFriendGroup = true
+			return
+		end
+	end
+
+	self.InFriendGroup = false
 end
 
 local IsPlayingTeam = Shine.IsPlayingTeam
@@ -210,6 +277,8 @@ end
 
 function Plugin:Initialise()
 	self.TeamTracking = {}
+	self.FriendGroup = {}
+	self.InFriendGroup = false
 
 	-- Track changes in a separate timer too as the scoreboard's team update
 	-- only runs when the scoreboard is visible.
@@ -244,6 +313,85 @@ function Plugin:Initialise()
 	return true
 end
 
+local function IsGameInProgress()
+	local GameInfo = GetGameInfoEntity()
+	if GameInfo and ( GameInfo:GetCountdownActive() or GameInfo:GetGameStarted() ) then
+		return true
+	end
+	return false
+end
+
+function Plugin:OnGUIScoreboardSendKeyEvent( Scoreboard, Key, Down )
+	if not self.dt.IsFriendGroupingEnabled or IsGameInProgress() then
+		return
+	end
+
+	local HoverMenu = Scoreboard.hoverMenu
+	if not Scoreboard.visible or not HoverMenu or not HoverMenu.background
+	or not HoverMenu.background:GetIsVisible() then
+		return
+	end
+
+	-- Hover menu is open, add a button to group with players.
+	local Buttons = HoverMenu.links
+	if not Buttons then return end
+
+	local SteamID = GetSteamIdForClientIndex( Scoreboard.hoverPlayerClientIndex ) or 0
+	local HoveringSelf = Client.GetSteamId() == SteamID
+
+	if ( HoveringSelf and not self.InFriendGroup ) or ( not HoveringSelf and self.FriendGroup[ SteamID ] ) then
+		return
+	end
+
+	local BackgroundColour, HighlightColour, TextColour
+	local FriendGroupButton
+	for i = #Buttons, 1, -1 do
+		local Button = Buttons[ i ]
+		if Button.IsShuffleFriendGroupButton then
+			FriendGroupButton = Button.link
+			break
+		end
+
+		if not BackgroundColour and not Button.isSeparator then
+			BackgroundColour = Button.bgColor
+			HighlightColour = Button.bgHighlightColor
+			TextColour = Button.link:GetColor()
+		end
+	end
+
+	local Text
+	if HoveringSelf then
+		Text = self:GetPhrase( "LEAVE_FRIEND_GROUP" )
+	elseif self.InFriendGroup then
+		Text = self:GetPhrase( "ADD_TO_FRIEND_GROUP" )
+	else
+		Text = self:GetPhrase( "JOIN_FRIEND_GROUP" )
+	end
+
+	if not FriendGroupButton then
+		-- Button not added yet, add it.
+		HoverMenu:AddSeparator( "ShuffleFriendGroupActions" )
+		HoverMenu:AddButton( Text, BackgroundColour, HighlightColour, TextColour, function()
+			-- Disable the hint as they've used the feature.
+			SGUI.NotificationManager.DisableHint( FRIEND_GROUP_HINT_NAME )
+
+			if HoveringSelf then
+				self:SendNetworkMessage( "LeaveFriendGroup", {}, true )
+			else
+				self:SendNetworkMessage( "JoinFriendGroup", { SteamID = SteamID }, true )
+			end
+		end )
+		FriendGroupButton = HoverMenu.links[ #HoverMenu.links ]
+		FriendGroupButton.IsShuffleFriendGroupButton = true
+
+		HoverMenu:AdjustMenuSize()
+	elseif FriendGroupButton:GetText() ~= Text then
+		FriendGroupButton:SetText( Text )
+
+		HoverMenu:AdjustMenuSize()
+	end
+end
+
 local Abs = math.abs
 local Cos = math.cos
 
@@ -251,6 +399,8 @@ local FadeAlphaMin = 0.3
 local FadeAlphaMult = 1 - FadeAlphaMin
 local HighlightDuration = 10
 local OscillationMultiplier = HighlightDuration * math.pi * 0.5
+
+local FriendColour = Colour( 0, 1, 0.2 )
 
 local function FadeRowIn( Row, Entry, TimeSinceLastChange )
 	if not Entry then return end
@@ -265,11 +415,15 @@ local function FadeRowIn( Row, Entry, TimeSinceLastChange )
 	Row.Background:SetColor( OriginalColour )
 end
 
-local function CheckRow( self, Row, TeamNumber, CurTime )
+local function CheckRow( self, Row, TeamNumber, CurTime, ShouldShowFriendGroup )
 	local ClientIndex = Row and Row.ClientIndex
 	if not ClientIndex then return end
 
 	local Entry = Scoreboard_GetPlayerRecord( ClientIndex )
+	if Entry and ShouldShowFriendGroup and self.FriendGroup[ Entry.SteamId ] then
+		Row.Background:SetColor( FriendColour )
+	end
+
 	if not self.dt.HighlightTeamSwaps then return Entry end
 
 	local MemoryEntry = self:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
@@ -290,13 +444,14 @@ function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	local TeamNumber = Team.TeamNumber
 
 	local ShouldTrackStdDev = self.dt.DisplayStandardDeviations and IsPlayingTeam( TeamNumber )
-	if not ShouldTrackStdDev and not self.dt.HighlightTeamSwaps then return end
+	if not ShouldTrackStdDev and not self.dt.HighlightTeamSwaps and not self.InFriendGroup then return end
 
 	local SkillValues = ShouldTrackStdDev and {}
 	local CurTime = SharedGetTime()
+	local ShouldShowFriendGroup = self.InFriendGroup and not IsGameInProgress()
 	for i = 1, #Team.PlayerList do
 		local Row = Team.PlayerList[ i ]
-		local Entry = CheckRow( self, Row, TeamNumber, CurTime )
+		local Entry = CheckRow( self, Row, TeamNumber, CurTime, ShouldShowFriendGroup )
 		if ShouldTrackStdDev and Entry and Entry.SteamId > 0 then
 			SkillValues[ #SkillValues + 1 ] = Entry.Skill
 		end

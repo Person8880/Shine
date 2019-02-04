@@ -24,8 +24,8 @@ UnitTest:Test( "Validator", function( Assert )
 			Config.ReallyFixed = true
 		end
 	} )
-	Validator:AddFieldRule( "TooSmallNumber", Validator.Min( 10 ) )
-	Validator:AddFieldRule( "BigEnoughNumber", Validator.Min( 10 ) )
+	Validator:AddFieldRule( "TooSmallNumber", Validator.IsType( "number", 10 ), Validator.Min( 10 ) )
+	Validator:AddFieldRule( "BigEnoughNumber", Validator.IsType( "number", 10 ), Validator.Min( 10 ) )
 	Validator:AddFieldRule( "Nested.Field", Validator.Clamp( 0, 1 ) )
 	Validator:AddFieldRule( "Nested.NonExistent.Field", Validator.Min( 5 ) )
 
@@ -43,6 +43,13 @@ UnitTest:Test( "Validator", function( Assert )
 		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 0 ) )
 	) )
 
+	Validator:CheckTypesAgainstDefault( "TypeCheckedChild", {
+		A = false,
+		B = "cake",
+		C = 123,
+		D = {}
+	} )
+
 	local Config = {
 		TooSmallNumber = 5,
 		BigEnoughNumber = 11,
@@ -55,31 +62,50 @@ UnitTest:Test( "Validator", function( Assert )
 		ListOfTables = {
 			{ ShouldBeNumber = 0 },
 			{ ShouldBeNumber = "1", CanBeNilOrNumber = true }
+		},
+		TypeCheckedChild = {
+			A = true,
+			B = "cake",
+			C = 123,
+			D = 456
 		}
 	}
 	Assert:True( Validator:Validate( Config ) )
-	Assert:True( Config.Fixed )
-	Assert:Nil( Config.Broken )
-	Assert:True( Config.ReallyFixed )
-	-- Should ensure minimum value of 10
-	Assert:Equals( 10, Config.TooSmallNumber )
-	-- Should ignore as already larger than minimum of 10
-	Assert:Equals( 11, Config.BigEnoughNumber )
-	-- Should clamp into [0, 1] range
-	Assert:Equals( 1, Config.Nested.Field )
-	-- Should create with the min value
-	Assert:Equals( 5, Config.Nested.NonExistent.Field )
-	-- Should remove the invalid enum, maintaining the array structure.
-	Assert:ArrayEquals( { "A", "B" }, Config.ListOfEnums )
-	-- Should upper-case the valid string enum.
-	Assert:Equals( "A", Config.SingleEnum )
-	-- Should replace the invalid enum.
-	Assert:Equals( "B", Config.AnotherEnum )
 
 	Assert:DeepEquals( {
-		{ ShouldBeNumber = 0 },
-		{ ShouldBeNumber = 1, CanBeNilOrNumber = 0 }
-	}, Config.ListOfTables )
+		Fixed = true,
+		ReallyFixed = true,
+		-- Should ensure minimum value of 10
+		TooSmallNumber = 10,
+		-- Should ignore as already larger than minimum of 10
+		BigEnoughNumber = 11,
+		Nested = {
+			-- Should clamp into [0, 1] range
+			Field = 1,
+			NonExistent = {
+				-- Should create with the min value
+				Field = 5
+			}
+		},
+		-- Should remove the invalid enum, maintaining the array structure.
+		ListOfEnums = { "A", "B" },
+		-- Should upper-case the valid string enum.
+		SingleEnum = "A",
+		-- Should replace the invalid enum.
+		AnotherEnum = "B",
+		ListOfTables = {
+			-- Should correct each entry in the list.
+			{ ShouldBeNumber = 0 },
+			{ ShouldBeNumber = 1, CanBeNilOrNumber = 0 }
+		},
+		TypeCheckedChild = {
+			-- Should ensure all fields have the same type as the default config.
+			A = true,
+			B = "cake",
+			C = 123,
+			D = {}
+		}
+	}, Config )
 end )
 
 UnitTest:Test( "TypeCheckConfig", function( Assert )
@@ -181,19 +207,44 @@ end )
 
 UnitTest:Test( "Migrator", function( Assert )
 	local Migrator = Shine.Migrator()
+		:AddField( "D", "Value for D" )
+		:AddField( { "Child2", "Value" }, false )
 		:RenameField( "A", "B" )
+		:RenameField( "C", { "Child", "C" } )
+		:RenameField( { "Nested", "Value" }, { "Child", "Value" } )
+		:RemoveField( "Nested" )
 		:UseEnum( "Mode", { "Mode1", "Mode2", "Mode3" } )
+		:RenameEnums( {
+			"OldEnum1",
+			"OldEnum2"
+		}, "OLD_VALUE1", "NEW_VALUE1" )
 		:ApplyAction( function( Config )
 			Config.ActionApplied = true
 		end )
 
 	local Config = {
 		A = "Value for A",
-		Mode = 2
+		C = "Value for C",
+		Mode = 2,
+		Nested = {
+			Value = true
+		},
+		OldEnum1 = "OLD_VALUE1",
+		OldEnum2 = "OLD_VALUE2"
 	}
 	Assert.DeepEquals( "Migrator should apply actions as expected", {
 		B = "Value for A",
+		Child = {
+			C = "Value for C",
+			Value = true
+		},
+		Child2 = {
+			Value = false
+		},
+		D = "Value for D",
 		Mode = "Mode2",
+		OldEnum1 = "NEW_VALUE1",
+		OldEnum2 = "OLD_VALUE2",
 		ActionApplied = true
 	}, Migrator( Config ) )
 end )

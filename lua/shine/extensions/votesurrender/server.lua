@@ -42,11 +42,6 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Plugin.EnabledGamemodes = {
-	[ "ns2" ] = true,
-	[ "mvm" ] = true
-}
-
 Shine.LoadPluginModule( "vote.lua", Plugin )
 
 function Plugin:Initialise()

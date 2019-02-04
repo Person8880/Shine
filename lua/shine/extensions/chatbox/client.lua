@@ -1158,14 +1158,20 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 			ResultPanel:SetAnchor( "BottomLeft" )
 
-			local Padding = self.MainPanel.Layout:GetComputedPadding()
-			ResultPanel:SetPos( Vector2( Padding[ 1 ], 0 ) )
-			ResultPanel:SetColour( Colour( 0, 0, 0, 0 ) )
-			ResultPanel:SetLayout( SGUI.Layout:CreateLayout( "Vertical", {} ) )
+			local Padding = self.MainPanel.Layout:GetPadding()
+			ResultPanel:SetColour( Colour( 0, 0, 0, 0.65 ) )
+			ResultPanel:SetLayout( SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Padding
+			} ) )
 		end
 
 		local Layout = ResultPanel.Layout
 		local Elements = Layout.Elements
+
+		local ResultPanelPadding = ResultPanel.Layout:GetComputedPadding()
+		local XPadding = ResultPanelPadding[ 1 ] + ResultPanelPadding[ 3 ]
+		local YPadding = ResultPanelPadding[ 2 ] + ResultPanelPadding[ 4 ]
+		local Size = Vector2( self.MainPanel:GetSize().x, YPadding )
 
 		for i = 1, Max( #Results, #Elements ) do
 			local Label = Elements[ i ]
@@ -1212,9 +1218,19 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				if ShouldFade then
 					Label:AlphaTo( nil, 0, 1, 0, 0.3, nil, math.EaseIn )
 				end
+
+				local LabelSize = Label:GetSize()
+				Size.x = Max( Size.x, LabelSize.x + XPadding )
+				Size.y = Size.y + LabelSize.y
 			end
 		end
 
+		if #Results == 0 then
+			Size.x = 0
+			Size.y = 0
+		end
+
+		ResultPanel:SetSize( Size )
 		ResultPanel:InvalidateLayout( true )
 	end )
 end

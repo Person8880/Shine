@@ -8,8 +8,6 @@ local VoteShuffle = UnitTest:LoadExtension( "voterandom" )
 if not VoteShuffle or not VoteShuffle.Config then return end
 
 VoteShuffle.Config.IgnoreCommanders = false
-VoteShuffle.Config.UseStandardDeviation = true
-VoteShuffle.Config.StandardDeviationTolerance = 40
 
 local TableSort = table.sort
 
@@ -400,6 +398,257 @@ VoteShuffle.Config.IgnoreCommanders = false
 VoteShuffle.SaveHappinessHistory = BalanceModule.SaveHappinessHistory
 VoteShuffle.GetHistoricHappinessWeight = BalanceModule.GetHistoricHappinessWeight
 
+UnitTest:Test( "ConsolidateGroupTeamPreferences", function( Assert )
+	local Players = {}
+	for i = 1, 10 do
+		Players[ i ] = FakePlayer()
+	end
+	local TeamMembers = {
+		TeamPreferences = {
+			1,
+			1,
+			2,
+
+			2,
+			2,
+
+			1,
+			2,
+
+			2,
+			2,
+			1
+		}
+	}
+	for i = 1, #TeamMembers.TeamPreferences do
+		TeamMembers.TeamPreferences[ Players[ i ] ] = TeamMembers.TeamPreferences[ i ]
+		TeamMembers.TeamPreferences[ i ] = nil
+	end
+
+	local PlayerGroups = {
+		{
+			Players = {
+				Players[ 1 ], Players[ 2 ], Players[ 3 ]
+			}
+		},
+		{
+			Players = {
+				Players[ 4 ], Players[ 5 ]
+			}
+		},
+		{
+			Players = {
+				Players[ 6 ], Players[ 7 ]
+			}
+		},
+		{
+			Players = {
+				Players[ 8 ], Players[ 9 ], Players[ 10 ]
+			}
+		}
+	}
+
+	local TeamPrefs = {}
+	VoteShuffle:ConsolidateGroupTeamPreferences( TeamMembers, PlayerGroups, function( Player, Client, Preference )
+		TeamPrefs[ Player ] = Preference
+	end )
+
+	for i = 1, 3 do
+		Assert.Equals( "First group should prefer team 1", 1, TeamPrefs[ Players[ i ] ] )
+	end
+
+	for i = 4, 5 do
+		Assert.Equals( "Second group should prefer team 2", 2, TeamPrefs[ Players[ i ] ] )
+	end
+
+	Assert.Nil( "Third group should remove preferences", TeamPrefs[ Players[ 6 ] ] )
+	Assert.Nil( "Third group should remove preferences", TeamPrefs[ Players[ 7 ] ] )
+
+	for i = 8, 10 do
+		Assert.Equals( "Fourth group should prefer team 2", 2, TeamPrefs[ Players[ i ] ] )
+	end
+end )
+
+do
+	local Clients = {}
+	local function MockClient( SteamID )
+		local Client = Clients[ SteamID ]
+		if not Client then
+			Client = {
+				SteamID = SteamID,
+				GetUserId = function() return SteamID end,
+				GetControllingPlayer = function()
+					return {
+						GetName = function() return "Test" end
+					}
+				end
+			}
+			Clients[ SteamID ] = Client
+		end
+		return Client
+	end
+
+	local MockPlugin
+	local function MakeMockPlugin()
+		local ExistingFriendGroup = {
+			Clients = {
+				MockClient( 12345 ),
+				MockClient( 54321 ),
+				MockClient( 67890 )
+			}
+		}
+		return setmetatable( {
+			SendNetworkMessage = function() end,
+			SendTranslatedError = function() end,
+			SendTranslatedNotify = function() end,
+			SendTranslatedNotification = function() end,
+			FriendGroupsBySteamID = {
+				[ 12345 ] = ExistingFriendGroup,
+				[ 54321 ] = ExistingFriendGroup,
+				[ 67890 ] = ExistingFriendGroup
+			},
+			FriendGroups = {
+				ExistingFriendGroup
+			},
+			Logger = {
+				IsDebugEnabled = function() return false end,
+				Debug = function() end
+			},
+			Config = {
+				TeamPreferences = {
+					MaxFriendGroupSize = 4
+				}
+			},
+			BlockFriendGroupRequestsForSteamIDs = {
+				[ 789 ] = true
+			}
+		}, { __index = VoteShuffle } )
+	end
+
+	UnitTest:Before( function()
+		MockPlugin = MakeMockPlugin()
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that's opted out is not added.", function( Assert )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 789 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 12345 ] )
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 54321 ] )
+		Assert.Nil( "Should not have added the target to a group", MockPlugin.FriendGroupsBySteamID[ 789 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - No groups for either client", function( Assert )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 456 ) )
+
+		Assert:Equals( 2, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly( { MockClient( 123 ), MockClient( 456 ) }, MockPlugin.FriendGroups[ 2 ].Clients )
+		Assert:Equals( MockPlugin.FriendGroups[ 2 ], MockPlugin.FriendGroupsBySteamID[ 123 ] )
+		Assert:Equals( MockPlugin.FriendGroups[ 2 ], MockPlugin.FriendGroupsBySteamID[ 456 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Both in same group does nothing", function( Assert )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 12345 ), MockClient( 54321 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 12345 ] )
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 54321 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Both in different groups does nothing", function( Assert )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 456 ) )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 12345 ), MockClient( 456 ) )
+
+		Assert:Equals( 2, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert:ArrayContainsExactly( { MockClient( 123 ), MockClient( 456 ) }, MockPlugin.FriendGroups[ 2 ].Clients )
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 12345 ] )
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 54321 ] )
+		Assert:Equals( MockPlugin.FriendGroups[ 2 ], MockPlugin.FriendGroupsBySteamID[ 123 ] )
+		Assert:Equals( MockPlugin.FriendGroups[ 2 ], MockPlugin.FriendGroupsBySteamID[ 456 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - No target group adds the target to the caller's group", function( Assert )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 12345 ), MockClient( 456 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ), MockClient( 456 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 456 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Adding to caller group fails if full", function( Assert )
+		MockPlugin.Config.TeamPreferences.MaxFriendGroupSize = 3
+
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 12345 ), MockClient( 456 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Target should not have been added to a group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - No caller group adds the caller to the target's group", function( Assert )
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 456 ), MockClient( 12345 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ), MockClient( 456 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 456 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Adding to target group fails if full", function( Assert )
+		MockPlugin.Config.TeamPreferences.MaxFriendGroupSize = 3
+
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 456 ), MockClient( 12345 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Caller should not have been added to a group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
+	end )
+
+	UnitTest:Test( "RemoveClientFromFriendGroup - Leaves group in place when enough members remain", function( Assert )
+		VoteShuffle.RemoveClientFromFriendGroup( MockPlugin, MockPlugin.FriendGroups[ 1 ], MockClient( 12345 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Removed client should no longer be mapped to the group", MockPlugin.FriendGroupsBySteamID[ 12345 ] )
+	end )
+
+	UnitTest:Test( "RemoveClientFromFriendGroup - Removes group when only 1 member remains", function( Assert )
+		VoteShuffle.RemoveClientFromFriendGroup( MockPlugin, MockPlugin.FriendGroups[ 1 ], MockClient( 12345 ) )
+		VoteShuffle.RemoveClientFromFriendGroup( MockPlugin, MockPlugin.FriendGroups[ 1 ], MockClient( 54321 ) )
+
+		Assert:Equals( 0, #MockPlugin.FriendGroups )
+		Assert.DeepEquals( "All clients should be removed from the group", {}, MockPlugin.FriendGroupsBySteamID )
+	end )
+
+	UnitTest:ResetState()
+end
+
 ----- Integration tests for team optimisation -----
 
 -- Turn off happiness optimisation for integration tests.
@@ -591,8 +840,8 @@ UnitTest:Test( "OptimiseTeams with preference", function( Assert )
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	-- It should always swap 2 and 6, as 4 and 5 have chosen team 2 specifically.
-	Assert:ArrayEquals( { 1, 6, 3 }, TeamMembers[ 1 ] )
-	Assert:ArrayEquals( { 4, 5, 2 }, TeamMembers[ 2 ] )
+	Assert:ArrayContainsExactly( { 1, 6, 3 }, TeamMembers[ 1 ] )
+	Assert:ArrayContainsExactly( { 4, 5, 2 }, TeamMembers[ 2 ] )
 end, nil, 5 )
 
 VoteShuffle.Config.IgnoreCommanders = true
@@ -647,8 +896,66 @@ UnitTest:Test( "OptimiseTeams with commanders", function( Assert )
 	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 
 	-- It should never swap the commanders.
-	Assert:DeepEquals( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
-	Assert:DeepEquals( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
+	Assert:ArrayContainsExactly( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
+	Assert:ArrayContainsExactly( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
 end, nil, 5 )
+
+UnitTest:Test( "OptimiseTeams with friend groups", function( Assert )
+	local Index = 0
+	local Players = {}
+	local function Player( Skill, Commander )
+		Index = Index + 1
+		Players[ Index ] = {
+			Index = Index,
+			Skill = Skill,
+			isa = function() return Commander end,
+			Commander = Commander
+		}
+		return Players[ Index ]
+	end
+
+	local Marines = {
+		Player( 2000, true ), Player( 1000 ), Player( 1000 )
+	}
+	local Aliens = {
+		Player( 2000, true ), Player( 1000 ), Player( 1000 )
+	}
+
+	local function RankFunc( Player )
+		return Player.Skill
+	end
+
+	local TeamMembers = {
+		Marines,
+		Aliens,
+		TeamPreferences = {},
+		PlayerGroups = {
+			{
+				Players = {
+					Marines[ 2 ], Aliens[ 3 ]
+				}
+			}
+		}
+	}
+
+	local TeamSkills = {
+		{
+			Average = 4000 / 3,
+			Total = 4000,
+			Count = 3
+		},
+		{
+			Average = 4000 / 3,
+			Total = 4000,
+			Count = 3
+		}
+	}
+
+	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+
+	-- It should swap the players that are grouped as it will not harm the balance.
+	Assert:ArrayContainsExactly( { Players[ 1 ], Players[ 2 ], Players[ 6 ] }, TeamMembers[ 1 ] )
+	Assert:ArrayContainsExactly( { Players[ 4 ], Players[ 5 ], Players[ 3 ] }, TeamMembers[ 2 ] )
+end )
 
 VoteShuffle.OptimiseHappiness = BalanceModule.OptimiseHappiness

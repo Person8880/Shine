@@ -137,10 +137,10 @@ function Plugin:GetVoteDelay()
 	return self.Config.VoteDelayInMinutes * 60
 end
 
-function Plugin:GetVoteConstraint( Category, Type, PercentageTotal )
+function Plugin:GetVoteConstraint( Category, Type, NumTotal )
 	local Constraint = self.Config.Constraints[ Category ][ Type ]
-	if StringUpper( Constraint.Type ) == self.ConstraintType.PERCENT then
-		return Ceil( Constraint.Value * PercentageTotal )
+	if StringUpper( Constraint.Type ) == self.ConstraintType.FRACTION_OF_PLAYERS then
+		return Ceil( Constraint.Value * NumTotal )
 	end
 	return Constraint.Value
 end
@@ -638,11 +638,15 @@ end
 
 function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
 	local MapsToRemove = self:GetBlacklistedLastMaps( PotentialMaps:GetCount(), FinalChoices:GetCount() )
+	local MaxOptions = self.Config.MaxOptions
 
 	if self.Config.ExcludeLastMaps.UseStrictMatching then
 		-- Remove precisely the previous maps, ignoring any that are similar.
 		for i = 1, #MapsToRemove do
 			PotentialMaps:Remove( MapsToRemove[ i ] )
+			if FinalChoices:GetCount() > MaxOptions then
+				FinalChoices:Remove( MapsToRemove[ i ] )
+			end
 		end
 	else
 		PotentialMaps:Filter( function( Map )
@@ -650,6 +654,9 @@ function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
 				-- If the map is similarly named to a previous map, exclude it.
 				-- For example: ns2_veil vs. ns2_veil_five.
 				if AreMapsSimilar( Map, MapsToRemove[ i ] ) then
+					if FinalChoices:GetCount() > MaxOptions then
+						FinalChoices:Remove( Map )
+					end
 					return false
 				end
 			end
@@ -674,9 +681,20 @@ function Plugin:BuildPotentialMapChoices()
 
 	-- We then look in the nominations, and enter those into the list.
 	local Nominations = self.Vote.Nominated
+	local MaxPermittedNominations = self:GetMaxNominations()
+	local NumNominationsAdded = 0
 	for i = 1, #Nominations do
 		local Nominee = Nominations[ i ]
-		PotentialMaps:Add( Nominee )
+
+		if self:IsValidMapChoice( self.MapOptions[ Nominee ] or Nominee, PlayerCount ) then
+			PotentialMaps:Add( Nominee )
+			NumNominationsAdded = NumNominationsAdded + 1
+
+			if NumNominationsAdded >= MaxPermittedNominations then
+				-- Stop if we hit the limit of nominations allowed.
+				break
+			end
+		end
 	end
 
 	-- Now filter out any maps that are invalid.
@@ -696,12 +714,47 @@ function Plugin:AddForcedMaps( PotentialMaps, FinalChoices )
 	end
 end
 
+function Plugin:AddNomination( Nominee, FinalChoices, MaxOptionsExceededAction, NominationsSet )
+	if FinalChoices:GetCount() < self.Config.MaxOptions then
+		-- Always add when there's still options remaining.
+		FinalChoices:Add( Nominee )
+		return true
+	end
+
+	if MaxOptionsExceededAction == self.MaxOptionsExceededAction.ADD_MAP then
+		-- Allow the number of options to exceed the maximum.
+		FinalChoices:Add( Nominee )
+		return true
+	end
+
+	if MaxOptionsExceededAction == self.MaxOptionsExceededAction.REPLACE_MAP then
+		-- Try to replace a map in the choices that was not nominated.
+		FinalChoices:ReplaceMatchingValue( Nominee, function( Map )
+			return not NominationsSet:Contains( Map )
+		end )
+		return FinalChoices:Contains( Nominee )
+	end
+
+	-- Skip nominations when full.
+	return false
+end
+
 function Plugin:AddNominations( PotentialMaps, FinalChoices, Nominations )
+	local MaxPermittedNominations = self:GetMaxNominations()
+	local MaxOptionsExceededAction = self.Config.Nominations.MaxOptionsExceededAction
+	local NominationsSet = Shine.Set()
+
 	for i = 1, #Nominations do
 		local Nominee = Nominations[ i ]
-		if PotentialMaps:Contains( Nominee ) then
-			FinalChoices:Add( Nominee )
+
+		if PotentialMaps:Contains( Nominee ) and not FinalChoices:Contains( Nominee )
+		and self:AddNomination( Nominee, FinalChoices, MaxOptionsExceededAction, NominationsSet ) then
+			NominationsSet:Add( Nominee )
 			PotentialMaps:Remove( Nominee )
+
+			if NominationsSet:GetCount() >= MaxPermittedNominations then
+				break
+			end
 		end
 	end
 end

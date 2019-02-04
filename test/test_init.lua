@@ -176,6 +176,25 @@ UnitTest.Assert = {
 
 	DeepEquals = DeepEquals,
 
+	ArrayContainsExactly = function( ExpectedValues, Actual )
+		if #Actual ~= #ExpectedValues then return false end
+
+		for i = 1, #ExpectedValues do
+			local Expected = ExpectedValues[ i ]
+			local FoundMatch = false
+			for j = 1, #Actual do
+				if DeepEquals( Actual[ j ], Expected ) then
+					FoundMatch = true
+					break
+				end
+			end
+
+			if not FoundMatch then return false end
+		end
+
+		return true
+	end,
+
 	True = function( A ) return A == true end,
 	Truthy = function( A ) return A end,
 	False = function( A ) return A == false end,

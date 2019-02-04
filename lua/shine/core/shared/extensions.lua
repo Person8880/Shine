@@ -17,6 +17,8 @@ local pcall = pcall
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local StringGSub = string.gsub
+local StringLower = string.lower
 local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
 local ToDebugString = table.ToDebugString
@@ -30,8 +32,19 @@ Shine.Plugins = {}
 local AutoLoadPath = "config://shine/AutoLoad.json"
 local ExtensionPath = "lua/shine/extensions/"
 
-function Shine.GetPluginFile( Plugin, Path )
-	return StringFormat( "%s%s/%s", ExtensionPath, Plugin, Path )
+-- Here we collect every extension file so we can be sure it exists before attempting to load it.
+local Files = {}
+Shared.GetMatchingFileNames( ExtensionPath.."*.lua", true, Files )
+local PluginFiles = {}
+
+-- Map case-insensitive path to real path for case-sensitive file systems.
+for i = 1, #Files do
+	PluginFiles[ StringLower( Files[ i ] ) ] = Files[ i ]
+end
+
+function Shine.GetPluginFile( PluginName, Path )
+	local FilePath = StringFormat( "%s%s/%s", ExtensionPath, PluginName, Path )
+	return PluginFiles[ StringLower( FilePath ) ] or FilePath
 end
 
 local function DoFileWithArgs( FilePath, ... )
@@ -56,16 +69,6 @@ function Shine.LoadPluginModule( ModuleName, Plugin, ... )
 		"Called LoadPluginModule too early! Make sure the plugin has been registered first.", 3 )
 
 	return DoFileWithArgs( Shine.GetModuleFile( ModuleName ), Plugin, ... )
-end
-
--- Here we collect every extension file so we can be sure it exists before attempting to load it.
-local Files = {}
-Shared.GetMatchingFileNames( ExtensionPath.."*.lua", true, Files )
-local PluginFiles = {}
-
--- Convert to faster table.
-for i = 1, #Files do
-	PluginFiles[ Files[ i ] ] = true
 end
 
 -- Include the base plugin.
@@ -160,7 +163,7 @@ do
 	end
 
 	local function LoadPluginScript( PluginFilePath, ... )
-		local PluginScript, Err = loadfile( PluginFilePath )
+		local PluginScript, Err = loadfile( PluginFiles[ PluginFilePath ] )
 		if not PluginScript then
 			-- Syntax error, report it and fail here.
 			OnLoadError( Err )
@@ -218,8 +221,22 @@ do
 		return true
 	end
 
+	local function WarnAboutInconsistentCanLoad( self, Name, Plugin, VMName, SharedPluginCanLoad )
+		if not Plugin.IsShared or not SharedPluginCanLoad then return end
+
+		Print(
+			"[Shine] [Warn] Plugin %s has been prevented from loading on the %s, "..
+			"but not in shared.lua. If the %s does not prevent loading the plugin "..
+			"then clients will be disconnected with invalid data. Use shared.lua "..
+			"to declare EnabledGamemodes/DisabledGamemodes (or a shared CanPluginLoad hook) to avoid this.",
+			Name, VMName, VMName == "client" and "server" or "client"
+		)
+	end
+
 	function Shine:LoadExtension( Name, DontEnable )
-		Name = Name:lower()
+		Shine.TypeCheck( Name, "string", 1, "LoadExtension" )
+
+		Name = StringLower( Name )
 
 		if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 		if self.Plugins[ Name ] then return true end
@@ -230,20 +247,16 @@ do
 
 		local IsShared = PluginFiles[ SharedFile ]
 			or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
+		local SharedPluginCanLoad
 		if PluginFiles[ SharedFile ] then
 			local IsLoaded, Plugin = HandleAutoRegister( self, Name, LoadPluginScript( SharedFile, Name ) )
 			if not IsLoaded then
 				return false, Plugin
 			end
 
-			-- Don't load irrelevant plugins. Make sure we stop before network messages.
-			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
-			if not CanLoad then
-				self.Plugins[ Name ] = nil
-				return false, FailureReason
-			end
-
 			Plugin.IsShared = true
+			-- Check if the plugin can load after loading shared.lua so we can check for consistency.
+			SharedPluginCanLoad = self:CanPluginLoad( Plugin )
 		end
 
 		-- Client plugins load automatically, but enable themselves later when told to.
@@ -269,6 +282,7 @@ do
 
 			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
 			if not CanLoad then
+				WarnAboutInconsistentCanLoad( self, Name, Plugin, "client", SharedPluginCanLoad )
 				self.Plugins[ Name ] = nil
 				return false, FailureReason
 			end
@@ -280,45 +294,32 @@ do
 		end
 
 		if not PluginFiles[ ServerFile ] then
+			-- No folder, look for a single file named after the plugin.
 			ServerFile = StringFormat( "%s%s.lua", ExtensionPath, Name )
 
-			if not PluginFiles[ ServerFile ] then
-				local Found
-
-				local SearchTerm = StringFormat( "/%s.lua", Name )
-
-				-- In case someone uses a different case file name to the plugin name...
-				for File in pairs( PluginFiles ) do
-					local LowerF = File:lower()
-
-					if LowerF:find( SearchTerm, 1, true ) then
-						Found = true
-						ServerFile = File
-
-						break
-					end
-				end
-
-				if not Found then
-					return false, "plugin does not exist."
-				end
+			if not PluginFiles[ ServerFile ] and not self.Plugins[ Name ] then
+				return false, "unable to find server-side plugin file"
 			end
 		end
 
-		local Success, PluginTable, Options
-		if IsShared and self.Plugins[ Name ] then
-			Success = LoadWithGlobalPlugin( Name, ServerFile, self.Plugins[ Name ] )
-		else
-			Success, PluginTable, Options = LoadPluginScript( ServerFile, Name )
-		end
+		local Plugin = self.Plugins[ Name ]
+		if PluginFiles[ ServerFile ] then
+			local Success, PluginTable, Options
+			if IsShared and Plugin then
+				Success = LoadWithGlobalPlugin( Name, ServerFile, Plugin )
+			else
+				Success, PluginTable, Options = LoadPluginScript( ServerFile, Name )
+			end
 
-		local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
-		if not IsLoaded then
-			return false, Plugin
+			Success, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
+			if not Success then
+				return false, Plugin
+			end
 		end
 
 		local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
 		if not CanLoad then
+			WarnAboutInconsistentCanLoad( self, Name, Plugin, "server", SharedPluginCanLoad )
 			self.Plugins[ Name ] = nil
 			return false, FailureReason
 		end
@@ -435,6 +436,10 @@ do
 
 	-- Shared extensions need to be enabled once the server tells it to.
 	function Shine:EnableExtension( Name, DontLoadConfig )
+		Shine.TypeCheck( Name, "string", 1, "EnableExtension" )
+
+		Name = StringLower( Name )
+
 		if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 
 		local Plugin = self.Plugins[ Name ]
@@ -450,7 +455,7 @@ do
 
 		do
 			-- Deal with inter-plugin conflicts.
-			local OK, Err = CheckPluginConflicts( self, Conflicts )
+			local OK, Err = CheckPluginConflicts( self, Plugin.Conflicts )
 			if not OK then
 				return OK, Err
 			end
@@ -519,6 +524,10 @@ do
 	local OnCleanupError = Shine.BuildErrorHandler( "Plugin cleanup error" )
 
 	function Shine:UnloadExtension( Name )
+		Shine.TypeCheck( Name, "string", 1, "UnloadExtension" )
+
+		Name = StringLower( Name )
+
 		local Plugin = self.Plugins[ Name ]
 		if not Plugin or not Plugin.Enabled then return false end
 
@@ -641,18 +650,17 @@ end
 	That is, it will only know about plugin files that were present when it started.
 ]]
 for Path in pairs( PluginFiles ) do
+	-- Path is the lower-case path to the file, not the real path.
 	local Folders = StringExplode( Path, "/" )
 	local Name = Folders[ 4 ]
 	local File = Folders[ 5 ]
 
 	if File then
 		if not ClientPlugins[ Name ] then
-			local LoweredFileName = File:lower()
-
-			if LoweredFileName == "shared.lua" then
+			if File == "shared.lua" then
 				ClientPlugins[ Name ] = "boolean" -- Generate the network message.
 				AddToPluginsLists( Name )
-			elseif LoweredFileName == "server.lua" or LoweredFileName == "client.lua" then
+			elseif File == "server.lua" or File == "client.lua" then
 				AddToPluginsLists( Name )
 			end
 
@@ -666,7 +674,7 @@ for Path in pairs( PluginFiles ) do
 		end
 	else
 		File = Name
-		Name = Name:gsub( "%.lua", "" )
+		Name = StringGSub( Name, "%.lua$", "" )
 
 		AddToPluginsLists( Name )
 	end
@@ -690,9 +698,7 @@ Shine.Stream( AllPluginsArray ):Filter( function( Name )
 	end
 
 	return true
-end ):Sort( function( A, B )
-	return A:lower() < B:lower()
-end )
+end ):Sort()
 
 Shared.RegisterNetworkMessage( "Shine_PluginSync", ClientPlugins )
 Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
@@ -779,6 +785,8 @@ function Shine:CreateDefaultAutoLoad()
 end
 
 Shine:RegisterClientCommand( "sh_loadplugin_cl", function( Name )
+	Name = StringLower( Name )
+
 	local Plugin = Shine.Plugins[ Name ]
 	if Plugin and Plugin.IsShared then
 		Print( "[Shine] You cannot load the '%s' plugin.", Name )
@@ -795,6 +803,8 @@ Shine:RegisterClientCommand( "sh_loadplugin_cl", function( Name )
 end ):AddParam{ Type = "string", TakeRestOfLine = true }
 
 Shine:RegisterClientCommand( "sh_unloadplugin_cl", function( Name )
+	Name = StringLower( Name )
+
 	local Plugin = Shine.Plugins[ Name ]
 	if Plugin and Plugin.IsShared then
 		Print( "[Shine] You cannot unload the '%s' plugin.", Name )

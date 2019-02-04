@@ -6,6 +6,10 @@ local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	100, 255, 100
 }
+Plugin.EnabledGamemodes = {
+	[ "ns2" ] = true,
+	[ "mvm" ] = true
+}
 
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )
@@ -15,6 +19,8 @@ function Plugin:SetupDataTable()
 
 	self:AddDTVar( "boolean", "IsAutoShuffling", false )
 	self:AddDTVar( "boolean", "IsVoteForAutoShuffle", false )
+
+	self:AddDTVar( "boolean", "IsFriendGroupingEnabled", false )
 
 	local MessageTypes = {
 		ShuffleType = {
@@ -36,6 +42,9 @@ function Plugin:SetupDataTable()
 		VoteWaitTime = {
 			ShuffleType = "string (24)",
 			SecondsToWait = "integer"
+		},
+		GroupWithPlayer = {
+			PlayerName = self:GetNameNetworkField()
 		}
 	}
 
@@ -66,6 +75,7 @@ function Plugin:SetupDataTable()
 			"PLAYER_VOTED_DISABLE_AUTO_PRIVATE"
 		}
 	}, "ShuffleType" )
+	self:AddTranslatedNotify( "ADDED_TO_FRIEND_GROUP", MessageTypes.GroupWithPlayer )
 	self:AddNetworkMessages( "AddTranslatedError", {
 		[ MessageTypes.ShuffleType ] = {
 			"ERROR_CANNOT_START", "ERROR_ALREADY_ENABLED",
@@ -75,9 +85,21 @@ function Plugin:SetupDataTable()
 			"ERROR_MUST_WAIT"
 		}
 	}, "ShuffleType" )
+	self:AddNetworkMessages( "AddTranslatedNotification", {
+		[ MessageTypes.GroupWithPlayer ] = {
+			"ERROR_FRIEND_GROUP_FULL", "ERROR_TARGET_FRIEND_GROUP_FULL", "ERROR_TARGET_IN_FRIEND_GROUP",
+			"ERROR_TARGET_OPTED_OUT"
+		}
+	} )
 
 	self:AddNetworkMessage( "TeamPreference", { PreferredTeam = "integer" }, "Server" )
 	self:AddNetworkMessage( "TemporaryTeamPreference", { PreferredTeam = "integer", Silent = "boolean" }, "Client" )
+
+	self:AddNetworkMessage( "FriendGroupOptOut", { OptOut = "boolean" }, "Server" )
+	self:AddNetworkMessage( "JoinFriendGroup", { SteamID = "integer" }, "Server" )
+	self:AddNetworkMessage( "LeaveFriendGroup", {}, "Server" )
+	self:AddNetworkMessage( "LeftFriendGroup", {}, "Client" )
+	self:AddNetworkMessage( "FriendGroupUpdated", { SteamID = "integer", Joined = "boolean" }, "Client" )
 end
 
 Shine.LoadPluginModule( "sh_vote.lua", Plugin )

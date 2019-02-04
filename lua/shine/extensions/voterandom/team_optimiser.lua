@@ -40,6 +40,7 @@
 local Abs = math.abs
 local Huge = math.huge
 local Max = math.max
+local Remap = math.Remap
 local select = select
 local Sqrt = math.sqrt
 local TableRemove = table.remove
@@ -76,6 +77,25 @@ function TeamOptimiser:Init( TeamMembers, TeamSkills, RankFunc, Comparator )
 	self.LargerTeam = Larger( #TeamMembers[ 1 ], #TeamMembers[ 2 ] )
 	self.LesserTeam = Opposite( self.LargerTeam )
 	self.TeamsAreEqual = #TeamMembers[ 1 ] == #TeamMembers[ 2 ]
+
+	self.PlayerGroups = TeamMembers.PlayerGroups or {}
+	self.GroupWeights = {}
+
+	self.GroupsByPlayer = {}
+	for i = 1, #self.PlayerGroups do
+		local Group = self.PlayerGroups[ i ]
+		for j = 1, #Group.Players do
+			self.GroupsByPlayer[ Group.Players[ j ] ] = Group
+		end
+	end
+
+	self.TeamLookup = {}
+	for i = 1, 2 do
+		local Players = TeamMembers[ i ]
+		for j = 1, #Players do
+			self.TeamLookup[ Players[ j ] ] = i
+		end
+	end
 
 	self.TakeSwapImmediately = false
 
@@ -228,6 +248,66 @@ function TeamOptimiser:GetSwap( Index )
 	return Swap
 end
 
+-- Override this to alter the factor by which groups are weighted.
+function TeamOptimiser:ScaleGroupWeighting( GroupWeight )
+	return GroupWeight
+end
+
+function TeamOptimiser:GetGroupWeighting( Group, ChangedPlayer, NewTeam )
+	local Players = Group.Players
+	local TeamLookup = self.TeamLookup
+	local NumOnTeam1 = 0
+	local NumOnTeam2 = 0
+	for i = 1, #Players do
+		local Player = Players[ i ]
+		local Team = TeamLookup[ Player ]
+		if Player == ChangedPlayer then
+			Team = NewTeam
+		end
+
+		NumOnTeam1 = NumOnTeam1 + Team % 2
+		NumOnTeam2 = NumOnTeam2 + ( Team - 1 )
+	end
+
+	-- Map from [0.5 * GroupSize, GroupSize] to [1, 0], meaning the strongest increase in cost
+	-- comes from the group being split evenly, and the smallest from them being all together.
+	local MajorityOnTeam = Max( NumOnTeam1, NumOnTeam2 )
+	local Weight = Remap( MajorityOnTeam, 0.5 * #Players, #Players, 1, 0 )
+	return self:ScaleGroupWeighting( Weight )
+end
+
+function TeamOptimiser:UpdateWeighting( CurrentWeight, Group, Player, NewTeam )
+	if not Group then return CurrentWeight end
+
+	-- Update the weighting by subtracting the old weight for this group and adding its new weight.
+	-- This is much cheaper than recomputing all group weights.
+	local NewWeight = self:GetGroupWeighting( Group, Player, NewTeam )
+	local NewTotalWeight = CurrentWeight - self.GroupWeights[ Group ] + NewWeight
+	return NewTotalWeight, NewWeight
+end
+
+function TeamOptimiser:RecomputeGroupWeighting( Team1Player, Team2Player )
+	local CurrentWeight = self.CurrentPotentialState.PlayWithFriendsWeighting
+	local Group1, Group1Weighting = self.GroupsByPlayer[ Team1Player ]
+	local Group2, Group2Weighting = self.GroupsByPlayer[ Team2Player ]
+
+	if Group1 == Group2 then
+		-- Same group, so swapping players around will have no effect on the weighting.
+		return CurrentWeight
+	end
+
+	-- Different groups, simulate them separately.
+	if Group1 then
+		CurrentWeight, Group1Weighting = self:UpdateWeighting( CurrentWeight, Group1, Team1Player, 2 )
+	end
+
+	if Group2 then
+		CurrentWeight, Group2Weighting = self:UpdateWeighting( CurrentWeight, Group2, Team2Player, 1 )
+	end
+
+	return CurrentWeight, Group1, Group1Weighting, Group2, Group2Weighting
+end
+
 --[[
 	Simulates a single swap (or move if index 2 is > team 2's size) of players.
 
@@ -249,12 +329,16 @@ function TeamOptimiser:SimulateSwap( Team1Player, Team2Player )
 	self:SnapshotStats( 1, SwapContext )
 	self:SnapshotStats( 2, SwapContext )
 
+	local PlayWithFriendsWeight, Group1, Group1Weighting, Group2, Group2Weighting =
+		self:RecomputeGroupWeighting( Players[ 1 ], Players[ 2 ] )
+
 	local PostData = SwapContext.PostData
 	local AverageDiffAfter = Difference( PostData, "Average" )
 	local StdDiff = Difference( PostData, "StandardDeviation" )
 	local TeamPreferenceWeight = PostData[ 1 ].TeamPreferenceWeighting + PostData[ 2 ].TeamPreferenceWeighting
 
-	local Permitted, Cost = self:SwapPassesRequirements( AverageDiffAfter, StdDiff, TeamPreferenceWeight )
+	local Permitted, Cost = self:SwapPassesRequirements( AverageDiffAfter, StdDiff,
+		TeamPreferenceWeight, PlayWithFriendsWeight )
 	if not Permitted then return end
 
 	self.SwapCount = self.SwapCount + 1
@@ -268,6 +352,11 @@ function TeamOptimiser:SimulateSwap( Team1Player, Team2Player )
 	Swap.StdDiff = StdDiff
 	Swap.Cost = Cost
 	Swap.TeamPreferenceWeighting = TeamPreferenceWeight
+	Swap.PlayWithFriendsWeighting = PlayWithFriendsWeight
+	Swap.Group1 = Group1
+	Swap.Group1Weighting = Group1Weighting
+	Swap.Group2 = Group2
+	Swap.Group2Weighting = Group2Weighting
 end
 
 --[[
@@ -338,7 +427,7 @@ end
 TeamOptimiser.RESULT_TERMINATE = 1
 TeamOptimiser.RESULT_NEXTPASS = 2
 
-function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff, TeamPreferenceWeight )
+function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff, TeamPreferenceWeight, PlayWithFriendsWeight )
 	local CurrentAverage = self.CurrentPotentialState.AverageDiffBefore
 	-- Average must be improved.
 	if AverageDiff > CurrentAverage then return false end
@@ -356,6 +445,12 @@ function TeamOptimiser:SwapPassesRequirements( AverageDiff, StdDiff, TeamPrefere
 	-- At this point, average is going to be better for sure, but standard deviation won't.
 	-- Thus, make sure it's below our tolerance.
 	return StdDiff - CurrentStdDiff < self.StandardDeviationTolerance
+end
+
+function TeamOptimiser:CommitGroupWeighting( Group, Weighting )
+	if Group then
+		self.GroupWeights[ Group ] = Weighting
+	end
 end
 
 --[[
@@ -399,6 +494,7 @@ function TeamOptimiser:CommitSwap()
 		else
 			-- Otherwise, add the player to our team.
 			TeamMembers[ i ][ OptimalSwap.Indices[ i ] ] = SwapPly
+			self.TeamLookup[ SwapPly ] = i
 		end
 
 		TeamSkills[ i ].Total = OptimalSwap.Totals[ i ]
@@ -411,6 +507,10 @@ function TeamOptimiser:CommitSwap()
 
 	self.CurrentPotentialState.Cost = OptimalSwap.Cost
 	self.CurrentPotentialState.TeamPreferenceWeighting = OptimalSwap.TeamPreferenceWeighting
+	self.CurrentPotentialState.PlayWithFriendsWeighting = OptimalSwap.PlayWithFriendsWeighting
+
+	self:CommitGroupWeighting( OptimalSwap.Group1, OptimalSwap.Group1Weighting )
+	self:CommitGroupWeighting( OptimalSwap.Group2, OptimalSwap.Group2Weighting )
 
 	-- If an average tolerance is set, and we're now less-equal to it, stop completely.
 	if self.AverageValueTolerance > 0 and Difference( TeamSkills, "Average" ) <= self.AverageValueTolerance then
@@ -418,6 +518,17 @@ function TeamOptimiser:CommitSwap()
 		self.CurrentPotentialState.StdDiffBefore = OptimalSwap.StdDiff
 		return self.RESULT_TERMINATE
 	end
+end
+
+function TeamOptimiser:ComputeInitialGroupWeightings()
+	local PlayerGroups = self.PlayerGroups
+	local TotalWeight = 0
+	for i = 1, #PlayerGroups do
+		local Weight = self:GetGroupWeighting( PlayerGroups[ i ] )
+		self.GroupWeights[ PlayerGroups[ i ] ] = Weight
+		TotalWeight = TotalWeight + Weight
+	end
+	return TotalWeight
 end
 
 --[[
@@ -483,6 +594,9 @@ end
 	This will edit the TeamMembers table directly.
 ]]
 function TeamOptimiser:Optimise()
+	-- Compute initial group weighting upfront. We only incrementally change it afterwards.
+	self.CurrentPotentialState.PlayWithFriendsWeighting = self:ComputeInitialGroupWeightings()
+
 	for Pass = 1, self:GetNumPasses() do
 		if self:PerformOptimisationPass( Pass ) then break end
 	end

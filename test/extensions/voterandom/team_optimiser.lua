@@ -223,6 +223,89 @@ UnitTest:Test( "GetPlayerStats", function( Assert )
 	Assert:Equals( -1, PreferenceWeight )
 end )
 
+UnitTest:Test( "RecomputeGroupWeighting", function( Assert )
+	local CurrentTeamSkills = {}
+	local TeamMembers = { {}, {} }
+
+	local Optimiser = VoteShuffle.TeamOptimiser( TeamMembers, CurrentTeamSkills, function( Player, TeamNumber ) end )
+
+	local Players = {
+		{}, {}, {}, {}
+	}
+
+	local Group1 = {
+		Players = {
+			Players[ 1 ],
+			Players[ 2 ]
+		}
+	}
+	local Group2 = {
+		Players = {
+			Players[ 3 ],
+			Players[ 4 ]
+		}
+	}
+
+	Optimiser.GroupWeights = {
+		[ Group1 ] = 1,
+		[ Group2 ] = 1
+	}
+
+	Optimiser.TeamLookup = {
+		[ Players[ 1 ] ] = 1,
+		[ Players[ 2 ] ] = 2,
+		[ Players[ 3 ] ] = 2,
+		[ Players[ 4 ] ] = 1
+	}
+
+	Optimiser.GroupsByPlayer = {
+		[ Players[ 1 ] ] = Group1,
+		[ Players[ 2 ] ] = Group1,
+		[ Players[ 3 ] ] = Group2,
+		[ Players[ 4 ] ] = Group2
+	}
+	Optimiser.CurrentPotentialState.PlayWithFriendsWeighting = 2
+
+	local NewWeight, Group1Found, Group1Weight, Group2Found, Group2Weight =
+		Optimiser:RecomputeGroupWeighting( Players[ 4 ], Players[ 2 ] )
+	-- Swapping players so that everyone in each group is on the same team, should result
+	-- in a weighting of 0.
+	Assert:Equals( 0, NewWeight )
+	Assert:Equals( Group2, Group1Found )
+	Assert:Equals( 0, Group1Weight )
+	Assert:Equals( Group1, Group2Found )
+	Assert:Equals( 0, Group2Weight )
+
+	local NewWeight, Group1Found, Group1Weight, Group2Found, Group2Weight =
+		Optimiser:RecomputeGroupWeighting( Players[ 1 ], Players[ 2 ] )
+	-- Swapping players in the same group should have no effect on the weighting.
+	Assert:Equals( 2, NewWeight )
+	Assert:Nil( Group1Found )
+	Assert:Nil( Group2Found )
+
+	Optimiser.GroupWeights = {
+		[ Group1 ] = 1,
+		[ Group2 ] = 0
+	}
+
+	Optimiser.TeamLookup = {
+		[ Players[ 1 ] ] = 1,
+		[ Players[ 2 ] ] = 2,
+		[ Players[ 3 ] ] = 2,
+		[ Players[ 4 ] ] = 2
+	}
+	Optimiser.CurrentPotentialState.PlayWithFriendsWeighting = 1
+
+	local NewWeight, Group1Found, Group1Weight, Group2Found, Group2Weight =
+		Optimiser:RecomputeGroupWeighting( Players[ 1 ], Players[ 4 ] )
+	-- Group 1 is now all on the same team, but group 2 is now not, should result in a weighting of 1.
+	Assert:Equals( 1, NewWeight )
+	Assert:Equals( Group1, Group1Found )
+	Assert:Equals( 0, Group1Weight )
+	Assert:Equals( Group2, Group2Found )
+	Assert:Equals( 1, Group2Weight )
+end )
+
 UnitTest:Test( "SnapshotStats", function( Assert )
 	local CurrentTeamSkills = {}
 	local TeamMembers = { {}, {} }
@@ -294,6 +377,11 @@ UnitTest:Test( "SimulateSwap", function( Assert )
 		CurrentTeam = CurrentTeam + 1
 	end
 
+	local Group1, Group2 = {}, {}
+	function Optimiser:RecomputeGroupWeighting( Team1Player, Team2Player )
+		return 50, Group1, 5, Group2, 10
+	end
+
 	local SwapContext = Optimiser.SwapContext
 	SwapContext.PreData = {
 		{
@@ -324,10 +412,11 @@ UnitTest:Test( "SimulateSwap", function( Assert )
 
 	Optimiser.SwapCount = 0
 
-	function Optimiser:SwapPassesRequirements( AverageDiff, StdDiff, TeamPreferenceWeight )
+	function Optimiser:SwapPassesRequirements( AverageDiff, StdDiff, TeamPreferenceWeight, PlayWithFriendsWeight )
 		Assert:Equals( 1000, AverageDiff )
 		Assert:Equals( 20, StdDiff )
 		Assert:Equals( 25, TeamPreferenceWeight )
+		Assert:Equals( 50, PlayWithFriendsWeight )
 		return true
 	end
 
@@ -343,6 +432,12 @@ UnitTest:Test( "SimulateSwap", function( Assert )
 	Assert:ArrayEquals( { 10000, 20000 }, Swap.Totals )
 	Assert:Equals( 1000, Swap.AverageDiff )
 	Assert:Equals( 20, Swap.StdDiff )
+	Assert:Equals( 25, Swap.TeamPreferenceWeighting )
+	Assert:Equals( 50, Swap.PlayWithFriendsWeighting )
+	Assert:Equals( Group1, Swap.Group1 )
+	Assert:Equals( 5, Swap.Group1Weighting )
+	Assert:Equals( Group2, Swap.Group2 )
+	Assert:Equals( 10, Swap.Group2Weighting )
 end )
 
 UnitTest:Test( "TrySwaps", function( Assert )

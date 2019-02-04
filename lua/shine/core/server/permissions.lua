@@ -588,6 +588,11 @@ local function PrintOnce( Message, Format, ... )
 	Shine:Print( MessageText )
 end
 
+local function IsGroupAllowedToHaveNoCommands( GroupTable )
+	-- A group that inherits is allowed to omit a list of commands.
+	return IsType( GroupTable.InheritsFrom, "table" ) or GroupTable.InheritFromDefault
+end
+
 --[[
 	Verifies the given group has a commands table.
 	Inputs: Group name, group table.
@@ -595,6 +600,11 @@ end
 ]]
 local function VerifyGroup( GroupName, GroupTable )
 	if not IsType( GroupTable.Commands, "table" ) then
+		if GroupName and IsGroupAllowedToHaveNoCommands( GroupTable ) then
+			GroupTable.Commands = {}
+			return true
+		end
+
 		if GroupName then
 			PrintOnce( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
@@ -644,7 +654,7 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	if ToBool( GroupTable.IsBlacklist ) == Blacklist then
 		if IsType( TopLevelCommands, "table" ) then
 			AddPermissionsToTable( TopLevelCommands, Permissions, Blacklist )
-		else
+		elseif not IsGroupAllowedToHaveNoCommands( GroupTable ) then
 			PrintOnce( "Group with ID %s has a missing/incorrect \"Commands\" list! It should be a list of commands.",
 				true, GroupName )
 		end

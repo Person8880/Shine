@@ -63,6 +63,58 @@ do
 
 		return Base
 	end
+
+	--[[
+		Gets the value under the given field on the given table.
+
+		If the field is a table, it is interpreted as a path to the desired value, e.g.
+			table.GetField( Table, { "A", "B", "C" } ) => Table.A.B.C
+		If the value at an intermediate field is not a table, nil is returned.
+	]]
+	function table.GetField( Table, FieldName )
+		if IsType( FieldName, "table" ) then
+			local Root = Table
+
+			for i = 1, #FieldName - 1 do
+				Root = Root[ FieldName[ i ] ]
+				if not IsType( Root, "table" ) then
+					return nil
+				end
+			end
+
+			return Root[ FieldName[ #FieldName ] ]
+		end
+
+		return Table[ FieldName ]
+	end
+
+	--[[
+		Sets the value under the given field to the given value on the given table.
+
+		Like GetField, this will follow a given path if the field is a table.
+			table.SetField( Table, { "A", "B", "C" }, true ) => Table.A.B.C = true
+		Any field along the path that is not a table will be replaced with an empty table.
+	]]
+	function table.SetField( Table, FieldName, Value )
+		if IsType( FieldName, "table" ) then
+			local Root = Table
+
+			for i = 1, #FieldName - 1 do
+				local Child = Root[ FieldName[ i ] ]
+				if not IsType( Child, "table" ) then
+					Child = {}
+					Root[ FieldName[ i ] ] = Child
+				end
+				Root = Child
+			end
+
+			Root[ FieldName[ #FieldName ] ] = Value
+
+			return
+		end
+
+		Table[ FieldName ] = Value
+	end
 end
 
 --[[
@@ -466,16 +518,16 @@ do
 	local function CopyTable( Table, LookupTable )
 		if not Table then return nil end
 
+		LookupTable = LookupTable or {}
+
 		local Copy = {}
+		LookupTable[ Table ] = Copy
 		setmetatable( Copy, getmetatable( Table ) )
 
 		for Key, Value in pairs( Table ) do
 			if not IsType( Value, "table" ) then
 				Copy[ Key ] = Value
 			else
-				LookupTable = LookupTable or {}
-				LookupTable[ Table ] = Copy
-
 				if LookupTable[ Value ] then
 					Copy[ Key ] = LookupTable[ Value ]
 				else
