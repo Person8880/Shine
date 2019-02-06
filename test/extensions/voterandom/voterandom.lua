@@ -422,6 +422,19 @@ UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 1 com
 	Assert.Equals( "Should keep commander for team 1 on team 1", Commanders[ 1 ], TeamMembers[ 1 ][ 1 ] )
 end )
 
+UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 1 commander and even number of non-commanders", function( Assert )
+	local Players = {}
+	for i = 1, 6 do
+		Players[ i ] = FakePlayer( i )
+	end
+	local Commanders = { FakePlayer( 6 ) }
+
+	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
+	Assert.Equals( "Should make team 1 have size 4", 4, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should make team 2 have size 3", 3, #TeamMembers[ 2 ] )
+	Assert.Equals( "Should keep commander for team 1 on team 1", Commanders[ 1 ], TeamMembers[ 1 ][ 1 ] )
+end )
+
 UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 2 commander", function( Assert )
 	local Players = {}
 	for i = 1, 5 do
@@ -435,7 +448,20 @@ UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 2 com
 	Assert.Equals( "Should keep commander for team 2 on team 2", Commanders[ 2 ], TeamMembers[ 2 ][ 1 ] )
 end )
 
-UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 2 commander", function( Assert )
+UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 2 commander and even number of non-commanders", function( Assert )
+	local Players = {}
+	for i = 1, 6 do
+		Players[ i ] = FakePlayer( i )
+	end
+	local Commanders = { nil, FakePlayer( 6 ) }
+
+	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
+	Assert.Equals( "Should make team 1 have size 3", 3, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should make team 2 have size 4", 4, #TeamMembers[ 2 ] )
+	Assert.Equals( "Should keep commander for team 2 on team 2", Commanders[ 2 ], TeamMembers[ 2 ][ 1 ] )
+end )
+
+UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with no commanders", function( Assert )
 	local Players = {}
 	for i = 1, 5 do
 		Players[ i ] = FakePlayer( i )
@@ -444,6 +470,18 @@ UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 2 com
 
 	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
 	Assert.Equals( "Should make team 1 have size 2", 2, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should make team 2 have size 3", 3, #TeamMembers[ 2 ] )
+end )
+
+UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with even number of non-commanders", function( Assert )
+	local Players = {}
+	for i = 1, 6 do
+		Players[ i ] = FakePlayer( i )
+	end
+	local Commanders = {}
+
+	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
+	Assert.Equals( "Should make team 1 have size 3", 3, #TeamMembers[ 1 ] )
 	Assert.Equals( "Should make team 2 have size 3", 3, #TeamMembers[ 2 ] )
 end )
 
