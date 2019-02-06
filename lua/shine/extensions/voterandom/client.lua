@@ -220,7 +220,7 @@ function Plugin:OnFirstThink()
 
 	SGUI.NotificationManager.RegisterHint( FRIEND_GROUP_HINT_NAME, {
 		MaxTimes = 3,
-		HintIntervalInSeconds = 60 * 60,
+		HintIntervalInSeconds = 24 * 60 * 60,
 		MessageSource = self:GetName(),
 		MessageKey = "FRIEND_GROUP_HINT",
 		HintDuration = 10
