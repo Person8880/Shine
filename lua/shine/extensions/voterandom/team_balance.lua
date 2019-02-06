@@ -440,6 +440,30 @@ do
 	end
 end
 
+function BalanceModule:RandomisePlayers( Players, Commanders )
+	TableQuickShuffle( Players )
+
+	local TeamMembers = { {}, {} }
+
+	-- Avoid randomising the commanders.
+	for i = 1, 2 do
+		if Commanders[ i ] then
+			local Team = TeamMembers[ i ]
+			Team[ #Team + 1 ] = Commanders[ i ]
+		end
+	end
+
+	-- Add all the other players to the teams, starting with the team with less players.
+	local TeamIndex = #TeamMembers[ 1 ] < #TeamMembers[ 2 ] and 1 or 2
+	for i = 1, #Players do
+		local Team = TeamMembers[ TeamIndex ]
+		Team[ #Team + 1 ] = Players[ i ]
+		TeamIndex = TeamIndex % 2 + 1
+	end
+
+	return TeamMembers
+end
+
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
@@ -526,12 +550,19 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	local Results = {}
 
 	local Players
+	local Commanders
 	if NumIterations > 1 then
 		Players = {}
+		Commanders = {}
 		for i = 1, 2 do
 			local Team = TeamMembers[ i ]
 			for j = 1, #Team do
-				Players[ #Players + 1 ] = Team[ j ]
+				local Player = Team[ j ]
+				if IgnoreCommanders and Player:isa( "Commander" ) then
+					Commanders[ i ] = Player
+				else
+					Players[ #Players + 1 ] = Player
+				end
 			end
 		end
 	end
@@ -545,12 +576,8 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		if i > 1 then
 			-- After the first iteration, randomise the initial teams to allow more
 			-- solutions to be found.
-			TableQuickShuffle( Players )
-			IterationTeamMembers = { {}, {}, PlayerGroups = TeamMembers.PlayerGroups }
-			for i = 1, #Players do
-				local Team = IterationTeamMembers[ i % 2 + 1 ]
-				Team[ #Team + 1 ] = Players[ i ]
-			end
+			IterationTeamMembers = self:RandomisePlayers( Players, Commanders )
+			IterationTeamMembers.PlayerGroups = TeamMembers.PlayerGroups
 			IterationTeamSkills = self:ComputeTeamSkills( IterationTeamMembers, RankFunc )
 		else
 			IterationTeamMembers = TableCopy( TeamMembers )

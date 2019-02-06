@@ -395,6 +395,58 @@ end )
 VoteShuffle:ClearStatsCache()
 VoteShuffle.Config.IgnoreCommanders = false
 
+UnitTest:Test( "RandomisePlayers - Keeps commanders on the same team", function( Assert )
+	local Players = {}
+	for i = 1, 5 do
+		Players[ i ] = FakePlayer( i )
+	end
+	local Commanders = { FakePlayer( 6 ), FakePlayer( 7 ) }
+
+	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
+	Assert.Equals( "Should make team 1 have size 3", 3, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should make team 2 have size 4", 4, #TeamMembers[ 2 ] )
+	Assert.Equals( "Should keep commander for team 1 on team 1", Commanders[ 1 ], TeamMembers[ 1 ][ 1 ] )
+	Assert.Equals( "Should keep commander for team 2 on team 2", Commanders[ 2 ], TeamMembers[ 2 ][ 1 ] )
+end )
+
+UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 1 commander", function( Assert )
+	local Players = {}
+	for i = 1, 5 do
+		Players[ i ] = FakePlayer( i )
+	end
+	local Commanders = { FakePlayer( 6 ) }
+
+	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
+	Assert.Equals( "Should make team 1 have size 3", 3, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should make team 2 have size 3", 3, #TeamMembers[ 2 ] )
+	Assert.Equals( "Should keep commander for team 1 on team 1", Commanders[ 1 ], TeamMembers[ 1 ][ 1 ] )
+end )
+
+UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 2 commander", function( Assert )
+	local Players = {}
+	for i = 1, 5 do
+		Players[ i ] = FakePlayer( i )
+	end
+	local Commanders = { nil, FakePlayer( 6 ) }
+
+	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
+	Assert.Equals( "Should make team 1 have size 3", 3, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should make team 2 have size 3", 3, #TeamMembers[ 2 ] )
+	Assert.Equals( "Should keep commander for team 2 on team 2", Commanders[ 2 ], TeamMembers[ 2 ][ 1 ] )
+end )
+
+UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with only team 2 commander", function( Assert )
+	local Players = {}
+	for i = 1, 5 do
+		Players[ i ] = FakePlayer( i )
+	end
+	local Commanders = {}
+
+	local TeamMembers = VoteShuffle:RandomisePlayers( Players, Commanders )
+	Assert.Equals( "Should make team 1 have size 2", 2, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should make team 2 have size 3", 3, #TeamMembers[ 2 ] )
+end )
+
 VoteShuffle.SaveHappinessHistory = BalanceModule.SaveHappinessHistory
 VoteShuffle.GetHistoricHappinessWeight = BalanceModule.GetHistoricHappinessWeight
 
