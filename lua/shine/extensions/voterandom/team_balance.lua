@@ -464,6 +464,32 @@ function BalanceModule:RandomisePlayers( Players, Commanders )
 	return TeamMembers
 end
 
+function BalanceModule:FilterPlayerGroupsToTeamMembers( PlayerGroups, TeamMembers )
+	local PlayersBeingOptimised = {}
+	for i = 1, 2 do
+		local Team = TeamMembers[ i ]
+		for j = 1, #Team do
+			PlayersBeingOptimised[ Team[ j ] ] = true
+		end
+	end
+
+	local function IsBeingOptimised( Player )
+		return PlayersBeingOptimised[ Player ]
+	end
+	local function IsNotEmptyGroup( Group )
+		return #Group.Players > 1
+	end
+
+	return Shine.Stream( PlayerGroups )
+		:Filter( function( Group )
+			return {
+				Players = Shine.Stream( Group.Players ):Filter( IsBeingOptimised ):AsTable()
+			}
+		end )
+		:Filter( IsNotEmptyGroup )
+		:AsTable()
+end
+
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
@@ -538,6 +564,13 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		self.Logger:Debug( "Optimisation will apply a play with friends weighting of: %s", PlayWithFriendsWeighting )
 		ScaleGroupWeighting = function( self, Weight )
 			return Weight * PlayWithFriendsWeighting
+		end
+
+		if TeamMembers.PlayerGroups then
+			-- Some of the player groups may contain players that ended up not in the team
+			-- members list due to lack of Hive data or team size restrictions. Thus, the
+			-- groups need to be cut down to only those players that are known.
+			TeamMembers.PlayerGroups = self:FilterPlayerGroupsToTeamMembers( TeamMembers.PlayerGroups, TeamMembers )
 		end
 	end
 

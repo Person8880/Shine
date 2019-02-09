@@ -485,6 +485,45 @@ UnitTest:Test( "RandomisePlayers - Keeps team sizes correct with even number of 
 	Assert.Equals( "Should make team 2 have size 3", 3, #TeamMembers[ 2 ] )
 end )
 
+UnitTest:Test( "FilterPlayerGroupsToTeamMembers - Removes players not in the team members only", function( Assert )
+	local TeamMembers = {
+		{
+			FakePlayer( 1 ),
+			FakePlayer( 2 )
+		},
+		{
+			FakePlayer( 3 ),
+			FakePlayer( 4 ),
+			FakePlayer( 5 )
+		}
+	}
+	local PlayerGroups = {
+		{
+			Players = {
+				TeamMembers[ 2 ][ 3 ],
+				FakePlayer( 6 )
+			}
+		},
+		{
+			Players = {
+				TeamMembers[ 1 ][ 1 ],
+				TeamMembers[ 1 ][ 2 ],
+				FakePlayer( 7 )
+			}
+		}
+	}
+
+	local FilteredGroups = VoteShuffle:FilterPlayerGroupsToTeamMembers( PlayerGroups, TeamMembers )
+	Assert.DeepEquals( "Should remove the first group and remove the 3rd player of the second group", {
+		{
+			Players = {
+				TeamMembers[ 1 ][ 1 ],
+				TeamMembers[ 1 ][ 2 ]
+			}
+		}
+	}, FilteredGroups )
+end )
+
 VoteShuffle.SaveHappinessHistory = BalanceModule.SaveHappinessHistory
 VoteShuffle.GetHistoricHappinessWeight = BalanceModule.GetHistoricHappinessWeight
 
