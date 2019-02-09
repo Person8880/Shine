@@ -58,65 +58,72 @@ end
 
 --[[
 	Converts the default/DAK style user file into one compatible with Shine.
-	Inputs: Userdata table, optional boolean to not save (for web loading).
 ]]
-local function ConvertData( Data, DontSave )
-	local Edited
-
+local function ConvertData( Data, Silent )
 	if Data.groups then
-		if not DontSave then
-			Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
+		if not Silent then
+			Notify( "Converting user groups from NS2/DAK format to Shine format..." )
 		end
 
-		Data.Groups = {}
+		Data.Groups = Data.Groups or {}
 
 		for Name, Vals in pairs( Data.groups ) do
-			if Vals.type or Vals.commands or Vals.level then
-				Data.Groups[ Name ] = {
-					IsBlacklist = Vals.type == "disallowed",
-					Commands = Vals.commands and ConvertCommands( Vals.commands ) or {},
-					Immunity = Vals.level or 10,
-					Badge = Vals.badge,
-					Badges = Vals.badges
-				}
-			--Someone's called it "groups" without knowing it's case sensitive...
-			elseif Vals.Commands and Vals.Immunity then
-				Data.Groups[ Name ] = Vals
+			if IsType( Vals, "table" ) then
+				if Vals.type or Vals.commands or Vals.level then
+					Data.Groups[ Name ] = {
+						IsBlacklist = Vals.type == "disallowed",
+						Commands = Vals.commands and ConvertCommands( Vals.commands ) or {},
+						Immunity = Vals.level or 10,
+						Badge = Vals.badge,
+						Badges = Vals.badges
+					}
+				-- Someone's called it "groups" without knowing it's case sensitive...
+				elseif Vals.Commands and Vals.Immunity then
+					Data.Groups[ Name ] = Vals
+				end
+			else
+				Notify( StringFormat(
+					"Malformed group entry at key \"%s\" in \"groups\" table (expected table, got %s)",
+					Name, type( Vals )
+				) )
 			end
 		end
 
-		Edited = true
 		Data.groups = nil
 	end
 
 	if Data.users then
-		if not DontSave then
-			Shared.Message( "Converting users from NS2/DAK format to Shine format..." )
+		if not Silent then
+			Notify( "Converting users from NS2/DAK format to Shine format..." )
 		end
 
-		Data.Users = {}
+		Data.Users = Data.Users or {}
 
 		for Name, Vals in pairs( Data.users ) do
-			if Vals.id then
-				Data.Users[ tostring( Vals.id ) ] = {
-					Group = Vals.groups and Vals.groups[ 1 ],
-					Immunity = Vals.level,
-					Badge = Vals.badge,
-					Badges = Vals.badges
-				}
-			--Someone's called it "users" without knowing it's case sensitive...
-			elseif Vals.Group or Vals.Immunity or Vals.Badge or Vals.Badges then
-				Data.Users[ Name ] = Vals
+			if IsType( Vals, "table" ) then
+				if Vals.id then
+					Data.Users[ tostring( Vals.id ) ] = {
+						Group = Vals.groups and Vals.groups[ 1 ],
+						Immunity = Vals.level,
+						Badge = Vals.badge,
+						Badges = Vals.badges
+					}
+				-- Someone's called it "users" without knowing it's case sensitive...
+				elseif Vals.Group or Vals.Immunity or Vals.Badge or Vals.Badges then
+					Data.Users[ Name ] = Vals
+				end
+			else
+				Notify( StringFormat(
+					"Malformed user entry at key \"%s\" in \"users\" table (expected table, got %s)",
+					Name, type( Vals )
+				) )
 			end
 		end
 
-		Edited = true
 		Data.users = nil
 	end
 
-	if Edited and not DontSave then
-		Shine:SaveUsers()
-	end
+	return Data
 end
 
 function Shine:RequestUsers( Reload )
@@ -141,9 +148,7 @@ function Shine:RequestUsers( Reload )
 				return
 			end
 
-			self.UserData = UserData
-
-			ConvertData( self.UserData, true )
+			self.UserData = ConvertData( UserData, true )
 
 			-- Cache the current user data, so if we fail to load it on
 			-- a later map we still have something to load.
@@ -188,8 +193,11 @@ function Shine:LoadUsers( Web, Reload )
 		return
 	end
 
+	Notify( "Loading Shine users..." )
+
 	-- Check the default path.
 	local UserFile, Pos, Err = self.LoadJSONFile( UserPath )
+	local NeedsSaving = false
 
 	if UserFile == false then
 		UserFile, Pos, Err = self.LoadJSONFile( BackupPath ) -- Check the secondary path.
@@ -202,10 +210,11 @@ function Shine:LoadUsers( Web, Reload )
 
 				return
 			end
+
+			UserFile = ConvertData( UserFile )
+			NeedsSaving = true
 		end
 	end
-
-	Notify( "Loading Shine users..." )
 
 	if not IsType( UserFile, "table" ) or not next( UserFile ) then
 		Notify( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
@@ -221,7 +230,9 @@ function Shine:LoadUsers( Web, Reload )
 
 	self.UserData = UserFile
 
-	ConvertData( self.UserData )
+	if NeedsSaving then
+		self:SaveUsers()
+	end
 
 	if Reload then
 		self.Hook.Call( "OnUserReload" )
