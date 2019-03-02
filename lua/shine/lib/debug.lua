@@ -3,6 +3,7 @@
 ]]
 
 local assert = assert
+local DebugGetInfo = debug.getinfo
 local DebugGetLocal = debug.getlocal
 local DebugGetMetaTable = debug.getmetatable
 local DebugGetUpValue = debug.getupvalue
@@ -348,22 +349,45 @@ end
 	Output:
 		Table of local values.
 ]]
-function Shine.GetLocals( Stacklevel )
-	Stacklevel = Stacklevel and ( Stacklevel + 1 ) or 2
+function Shine.GetLocals( StackLevel, NilValueMarker )
+	StackLevel = StackLevel and ( StackLevel + 1 ) or 2
 
 	local i = 1
 	local Values = {}
+	local function ToValue( Value )
+		if Value == nil then
+			return NilValueMarker
+		end
+		return Value
+	end
 
 	while true do
-		local Name, Value = DebugGetLocal( Stacklevel, i )
-
+		local Name, Value = DebugGetLocal( StackLevel, i )
 		if not Name then break end
 
 		if Name ~= "(*temporary)" then
-			Values[ Name ] = Value
+			Values[ Name ] = ToValue( Value )
 		end
 
 		i = i + 1
+	end
+
+	local Info = DebugGetInfo( StackLevel, "Su" )
+	if Info and Info.isvararg and Info.what ~= "C" then
+		-- Var-args occupy negative indexes, starting at -1 for the first value.
+		i = 1
+		while true do
+			local Name, Value = DebugGetLocal( StackLevel, -i )
+			if not Name then
+				break
+			end
+
+			Values[ StringFormat( "select( %d, ... )", i ) ] = ToValue( Value )
+
+			i = i + 1
+		end
+
+		Values[ "select( \"#\", ... )" ] = i - 1
 	end
 
 	return Values
@@ -384,7 +408,6 @@ do
 end
 
 do
-	local DebugGetInfo = debug.getinfo
 	local TableConcat = table.concat
 	local TypeNames = {
 		C = function( Info )
@@ -395,6 +418,11 @@ do
 		main = function() return "main chunk" end
 	}
 	TypeNames.Lua = TypeNames.C
+
+	local NilMarker = setmetatable( {}, {
+		__tostring = function() return "nil" end,
+		__PrintAsString = true
+	} )
 
 	local INFO_MASK = "Snl"
 	function Shine.StackDump( Level )
@@ -409,7 +437,7 @@ do
 			Output[ #Output + 1 ] = StringFormat( "    %s:%d in %s", Info.short_src,
 				Info.currentline or -1, TypePrinter and TypePrinter( Info ) or "?" )
 
-			local Locals = table.ToDebugString( Shine.GetLocals( CurrentLevel ), "        " )
+			local Locals = table.ToDebugString( Shine.GetLocals( CurrentLevel, NilMarker ), "        " )
 			if Locals ~= "" then
 				Output[ #Output + 1 ] = Locals
 			end

@@ -79,3 +79,68 @@ UnitTest:Test( "GetUpValueAccessor", function( Assert )
 	TargetUpValue = {}
 	Assert.Equals( "Accessor didn't return upvalue after re-assignment", Accessor(), TargetUpValue )
 end )
+
+UnitTest:Test( "GetLocals - omits var-args when none provided", function( Assert )
+	local NilMarker = "nil"
+
+	local function FunctionWithLocals()
+		local A = 1
+		local B = "test"
+		local C = {
+			Values = true
+		}
+		local D
+
+		local LocalValues = Shine.GetLocals( 1, NilMarker )
+		return LocalValues
+	end
+
+	local Values = FunctionWithLocals()
+	Assert:DeepEquals( {
+		A = 1,
+		B = "test",
+		C = {
+			Values = true
+		},
+		D = NilMarker
+	}, Values )
+end )
+
+UnitTest:Test( "GetLocals - includes var-args when provided", function( Assert )
+	local function FunctionWithLocals( ... )
+		local A = 1
+		local B = "test"
+		local C = {
+			Values = true
+		}
+
+		local LocalValues = Shine.GetLocals( 1 )
+		return LocalValues
+	end
+
+	local Values = FunctionWithLocals( "var", "args", "here", 1, 2, 3 )
+	Assert:DeepEquals( {
+		A = 1,
+		B = "test",
+		C = {
+			Values = true
+		},
+		[ "select( 1, ... )" ] = "var",
+		[ "select( 2, ... )" ] = "args",
+		[ "select( 3, ... )" ] = "here",
+		[ "select( 4, ... )" ] = 1,
+		[ "select( 5, ... )" ] = 2,
+		[ "select( 6, ... )" ] = 3,
+		[ "select( \"#\", ... )" ] = 6
+	}, Values )
+
+	Values = FunctionWithLocals()
+	Assert:DeepEquals( {
+		A = 1,
+		B = "test",
+		C = {
+			Values = true
+		},
+		[ "select( \"#\", ... )" ] = 0
+	}, Values )
+end )
