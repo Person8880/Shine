@@ -713,8 +713,9 @@ function List:OnMouseDown( Key, DoubleClick )
 		end
 	end
 
-	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	if not self:MouseIn( self.Background ) then return end
 
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then return true, Child end
 end
 
@@ -741,9 +742,8 @@ function List:Think( DeltaTime )
 end
 
 function List:OnMouseWheel( Down )
-	--Call children first, so they scroll before the main panel scroll.
+	-- Call children first, so they scroll before the main panel scroll.
 	local Result = self:CallOnChildren( "OnMouseWheel", Down )
-
 	if Result ~= nil then return true end
 
 	if not SGUI.IsValid( self.Scrollbar ) then
