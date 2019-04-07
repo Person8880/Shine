@@ -155,6 +155,14 @@ do
 		for i = 1, 2 do
 			self[ i ] = UnitVector[ i ]
 		end
+		return self
+	end
+
+	function UnitVector:GetValue( ParentSize, Element )
+		return Vector2(
+			self[ 1 ]:GetValue( ParentSize.x, Element, 1 ),
+			self[ 2 ]:GetValue( ParentSize.y, Element, 2 )
+		)
 	end
 
 	local KeyMap = {

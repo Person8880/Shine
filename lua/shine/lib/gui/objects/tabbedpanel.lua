@@ -7,6 +7,7 @@
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 
+local ToUnit = SGUI.Layout.ToUnit
 local Units = SGUI.Layout.Units
 
 local TableRemove = table.remove
@@ -29,6 +30,7 @@ end
 
 function TabPanelButton:DoClick()
 	self:SetSelected( true )
+	self.Parent:ScrollIntoView( self )
 	self.Parent.Parent:OnTabSelect( self )
 end
 
@@ -62,7 +64,7 @@ end
 
 function TabPanelButton:SetIcon( IconName, Font, Scale )
 	if not Font and not Scale then
-		Font, Scale = SGUI.FontManager.GetHighResFont( "Ionicons", 32 )
+		Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 32 )
 	else
 		Font = Font or SGUI.Fonts.Ionicons
 		Scale = Scale or 1
@@ -101,8 +103,11 @@ function TabPanel:Initialise()
 
 	-- This panel holds the tab buttons.
 	self.TabPanel = SGUI:Create( "Panel", self )
-	self.TabPanel.ScrollPos = Vector( 0, 0, 0 )
-	self.TabPanel.ScrollbarHeightOffset = 0
+	self.TabPanel:SetHideHorizontalScrollbar( true )
+	self.TabPanel:SetScrollable()
+	self.TabPanel:SetScrollbarWidth( Units.HighResScaled( 8 ):GetValue() )
+	self.TabPanel:SetScrollbarPos( Vector2( -Units.HighResScaled( 8 ):GetValue(), 0 ) )
+	self.TabPanel:SetScrollbarHeightOffset( 0 )
 	self.TabPanel.BufferAmount = 0
 	self.TabPanel.UseScheme = false
 
@@ -116,44 +121,108 @@ function TabPanel:Initialise()
 	self:SetHorizontal( false )
 end
 
-function TabPanel:SetHorizontal( Horizontal )
-	Horizontal = not not Horizontal
+do
+	local LayoutSetup = {
+		-- Setup horizontal layout (tabs on top horizontally, content below).
+		[ true ] = function( self, InternalLayout )
+			local TabsLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+				AutoSize = Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ),
+				Fill = false
+			} )
+			TabsLayout:AddElement( self.TabPanel )
 
-	if self.Horizontal == Horizontal then return end
+			self.TabPanel:SetFill( true )
+			self.TabPanel:SetAutoHideScrollbar( false )
 
-	self.Horizontal = Horizontal
-	self:SetStyleName( Horizontal and "Horizontal" or nil )
+			-- Add a button on the end of the tabs that provides a menu to select from
+			-- all available tabs. This makes navigating tabs when they overflow easier.
+			local AllTabsButton = SGUI:Create( "Button", self )
+			AllTabsButton:SetAutoSize( Units.UnitVector(
+				Units.Auto() + Units.HighResScaled( 8 ),
+				Units.Percentage( 100 )
+			) )
+			AllTabsButton:SetAutoFont( {
+				Family = SGUI.FontFamilies.Ionicons,
+				Size = ToUnit( self.TabHeight )
+			} )
+			AllTabsButton:SetText( SGUI.Icons.Ionicons.AndroidMoreVertical )
+			AllTabsButton:SetStyleName( "TabPanelTabListButton" )
+			AllTabsButton:SetOpenMenuOnClick( function( Button )
+				return {
+					Size = Units.UnitVector(
+						self.TabWidth,
+						self.TabHeight
+					):GetValue( self.TabPanel:GetSize(), Button ),
+					MenuPos = Button.MenuPos.BOTTOM,
+					Populate = function( Menu )
+						Menu:SetFontScale( self.Font, self.TextScale )
 
-	local InternalLayout = SGUI.Layout:CreateLayout( Horizontal and "Vertical" or "Horizontal" )
-	InternalLayout:AddElement( self.TabPanel )
-	InternalLayout:AddElement( self.ContentPanel )
+						for i = 1, self.NumTabs do
+							local Tab = self.Tabs[ i ]
+							Menu:AddButton( Tab.Name, function()
+								if SGUI.IsValid( Tab.TabButton ) then
+									Tab.TabButton:DoClick()
+								end
+								Menu:Destroy()
+							end )
+						end
+					end
+				}
+			end )
 
-	if Horizontal then
-		self.TabPanel:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ) )
-		self.TabPanel:RemoveScrollingBehaviour()
-	else
-		self.TabPanel:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
-		self.TabPanel:SetScrollable()
+			TabsLayout:AddElement( AllTabsButton )
+			self.TabsLayout = TabsLayout
+
+			InternalLayout:AddElement( TabsLayout )
+		end,
+		-- Setup vertical layout (tabs on the left vertically, content on the right).
+		[ false ] = function( self, InternalLayout )
+			self.TabsLayout = nil
+			self.TabPanel:SetFill( false )
+			self.TabPanel:SetAutoHideScrollbar( true )
+			self.TabPanel:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
+
+			if SGUI.IsValid( self.AllTabsButton ) then
+				self.AllTabsButton:Destroy()
+				self.AllTabsButton = nil
+			end
+			InternalLayout:AddElement( self.TabPanel )
+		end
+	}
+
+	function TabPanel:SetHorizontal( Horizontal )
+		Horizontal = not not Horizontal
+
+		if self.Horizontal == Horizontal then return end
+
+		self.Horizontal = Horizontal
+		self:SetStyleName( Horizontal and "Horizontal" or nil )
+
+		local InternalLayout = SGUI.Layout:CreateLayout( Horizontal and "Vertical" or "Horizontal" )
+		LayoutSetup[ Horizontal ]( self, InternalLayout )
+		InternalLayout:AddElement( self.ContentPanel )
+
+		self:SetLayout( InternalLayout, true )
+		self:InvalidateLayout( true )
+
+		local ButtonsLayout = SGUI.Layout:CreateLayout( Horizontal and "Horizontal" or "Vertical" )
+		for i = 1, self.NumTabs do
+			local Button = self.Tabs[ i ].TabButton
+			Button:SetStyleName( Horizontal and "Horizontal" or nil )
+			ButtonsLayout:AddElement( Button )
+		end
+
+		self.TabPanel:SetLayout( ButtonsLayout, true )
+		self.TabPanel:InvalidateLayout( true )
+
+		self.TabPanel:RecomputeMaxHeight()
+		self.TabPanel:RecomputeMaxWidth()
 	end
-
-	self:SetLayout( InternalLayout )
-	self:InvalidateLayout( true )
-
-	local ButtonsLayout = SGUI.Layout:CreateLayout( Horizontal and "Horizontal" or "Vertical" )
-	for i = 1, self.NumTabs do
-		local Button = self.Tabs[ i ].TabButton
-		Button:SetStyleName( Horizontal and "Horizontal" or nil )
-		Button:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )
-		ButtonsLayout:AddElement( Button )
-	end
-
-	self.TabPanel:SetLayout( ButtonsLayout )
-	self.TabPanel:InvalidateLayout( true )
 end
 
 function TabPanel:UpdateSizes()
 	if self.Horizontal then
-		self.TabPanel:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ) )
+		self.TabsLayout:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ) )
 	else
 		self.TabPanel:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
 	end
@@ -173,6 +242,14 @@ end
 
 function TabPanel:SetTabHeight( Height )
 	self.TabHeight = Height
+
+	if SGUI.IsValid( self.AllTabsButton ) then
+		self.AllTabsButton:SetAutoFont( {
+			Family = SGUI.FontFamilies.Ionicons,
+			Size = ToUnit( self.TabHeight )
+		} )
+	end
+
 	self:UpdateSizes()
 	self:InvalidateLayout()
 end

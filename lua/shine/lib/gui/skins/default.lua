@@ -46,6 +46,11 @@ local Skin = {
 		},
 		DangerButton = {
 			ActiveCol = Colour( 1, 0.2, 0.1, 1 )
+		},
+		TabPanelTabListButton = {
+			InactiveCol = Clear,
+			ActiveCol = Clear,
+			TextInheritsParentAlpha = false
 		}
 	},
 	CategoryPanel = {
