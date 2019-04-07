@@ -13,12 +13,10 @@ local CheckBox = {}
 function CheckBox:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-	local Background = Manager:CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
-	local Box = Manager:CreateGraphicItem()
+	local Box = self:MakeGUIItem()
 	Box:SetAnchor( GUIItem.Middle, GUIItem.Center )
 
 	Background:AddChild( Box )

@@ -3,6 +3,9 @@
 ]]
 
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
+
+local getmetatable = getmetatable
 
 local Label = {}
 
@@ -14,10 +17,13 @@ SGUI.AddBoundProperty( Label, "TextAlignmentX", "Label" )
 SGUI.AddBoundProperty( Label, "TextAlignmentY", "Label" )
 SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParent" } )
 
+-- Auto-wrapping allows labels to automatically word-wrap based on a given auto-width (or fill size).
+SGUI.AddProperty( Label, "AutoWrap", { "InvalidatesParent" } )
+
 function Label:Initialise()
 	self.BaseClass.Initialise( self )
 
-	self.Label = GetGUIManager():CreateTextItem()
+	self.Label = self:MakeGUITextItem()
 	self.Background = self.Label
 	self.TextScale = Vector( 1, 1, 0 )
 end
@@ -50,6 +56,41 @@ end
 function Label:SetupStencil()
 	self.Label:SetInheritsParentStencilSettings( false )
 	self.Label:SetStencilFunc( GUIItem.NotEqual )
+end
+
+-- Apply word wrapping before the height is computed (assuming height = Units.Auto()).
+function Label:PreComputeHeight( Width )
+	if not self.AutoWrap then return end
+
+	local CurrentText = self.Label:GetText()
+	-- Pass in a dummy to avoid mutating the actual text value assigned to this label,
+	-- and instead only update the displayed text on the GUIItem.
+	local WordWrapDummy = {
+		GetTextWidth = function( _, Text )
+			-- Need to account for scale here.
+			return self:GetTextWidth( Text )
+		end,
+		SetText = function( _, Text )
+			self.Label:SetText( Text )
+		end
+	}
+
+	SGUI.WordWrap( WordWrapDummy, self.Text, 0, Width )
+
+	if CurrentText ~= self.Label:GetText() then
+		-- Look for the first ancestor whose height is not determined automatically, and invalidate it.
+		-- This ensures any change in height from wrapping the text is accounted for.
+		local Parent = self.Parent
+		while SGUI.IsValid( Parent ) do
+			local AutoSize = Parent:GetAutoSize()
+			if not AutoSize or getmetatable( AutoSize[ 2 ] ) ~= Units.Auto then
+				Parent:InvalidateLayout()
+				break
+			end
+
+			Parent = Parent.Parent
+		end
+	end
 end
 
 function Label:SetSize() end

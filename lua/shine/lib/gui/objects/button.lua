@@ -14,16 +14,8 @@ Button.Sound = ClickSound
 
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
-	self.Background = GetGUIManager():CreateGraphicItem()
+	self.Background = self:MakeGUIItem()
 	self:SetHighlightOnMouseOver( true )
-end
-
-function Button:SetupStencil()
-	self.BaseClass.SetupStencil( self )
-
-	if not self.Label then return end
-
-	self.Label:SetInheritsParentStencilSettings( true )
 end
 
 function Button:SetCustomSound( Sound )
@@ -39,7 +31,7 @@ function Button:SetText( Text )
 		return
 	end
 
-	local Description = GetGUIManager():CreateTextItem()
+	local Description = self:MakeGUITextItem()
 	Description:SetAnchor( GUIItem.Middle, GUIItem.Center )
 	Description:SetTextAlignmentX( GUIItem.Align_Center )
 	Description:SetTextAlignmentY( GUIItem.Align_Center )
@@ -53,10 +45,6 @@ function Button:SetText( Text )
 
 	if self.TextScale then
 		Description:SetScale( self.TextScale )
-	end
-
-	if self.Stencilled then
-		Description:SetInheritsParentStencilSettings( true )
 	end
 
 	self.Background:AddChild( Description )

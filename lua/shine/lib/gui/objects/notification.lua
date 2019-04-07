@@ -19,17 +19,15 @@ SGUI.AddBoundProperty( Notification, "TextColour", "Text:SetColour" )
 function Notification:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-
-	local Background = Manager:CreateGraphicItem()
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
-	local Flair = Manager:CreateGraphicItem()
+	local Flair = self:MakeGUIItem()
 	Flair:SetInheritsParentAlpha( true )
 	Background:AddChild( Flair )
 	self.Flair = Flair
 
-	local FlairIcon = Manager:CreateTextItem()
+	local FlairIcon = self:MakeGUITextItem()
 	FlairIcon:SetInheritsParentAlpha( true )
 	FlairIcon:SetTextAlignmentX( GUIItem.Align_Center )
 	FlairIcon:SetTextAlignmentY( GUIItem.Align_Center )

@@ -34,14 +34,11 @@ SGUI.AddProperty( List, "SortedExternally", false )
 function List:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-
-	local Background = Manager:CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
 	--This element ensures the entries aren't visible past the bounds of the list.
-	local Stencil = Manager:CreateGraphicItem()
+	local Stencil = self:MakeGUIItem()
 	Stencil:SetIsStencil( true )
 	Stencil:SetInheritsParentStencilSettings( false )
 	Stencil:SetClearsStencilBuffer( true )
@@ -51,7 +48,7 @@ function List:Initialise()
 	self.Stencil = Stencil
 
 	--This dummy element will be moved when scrolling.
-	local ScrollParent = Manager:CreateGraphicItem()
+	local ScrollParent = self:MakeGUIItem()
 	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
@@ -314,8 +311,7 @@ function List:AddRow( ... )
 
 	local RowCount = self.RowCount
 
-	local Row = SGUI:Create( "ListEntry" )
-	Row:SetParent( self, self.ScrollParent )
+	local Row = SGUI:Create( "ListEntry", self, self.ScrollParent )
 	Row.Background:SetInheritsParentStencilSettings( false )
 	Row.Background:SetStencilFunc( GUIItem.NotEqual )
 

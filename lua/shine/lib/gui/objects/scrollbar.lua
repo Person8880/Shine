@@ -16,12 +16,10 @@ SGUI.AddProperty( Scrollbar, "ActiveCol" )
 function Scrollbar:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-	local Background = Manager:CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
-	local Bar = Manager:CreateGraphicItem()
+	local Bar = self:MakeGUIItem()
 	Bar:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Background:AddChild( Bar )
 

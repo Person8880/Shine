@@ -24,7 +24,7 @@ function ListEntry:Initialise()
 	-- Real data may be different to what's displayed (e.g. time values)
 	self.Data = {}
 
-	self.Background = GetGUIManager():CreateGraphicItem()
+	self.Background = self:MakeGUIItem()
 	self:SetHighlightOnMouseOver( true )
 end
 
@@ -58,7 +58,6 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	local Background = self.Background
 	Background:SetSize( Size )
 
-	local Manager = GetGUIManager()
 	local TextCol = self.TextColour
 
 	self.ColumnText = {}
@@ -68,7 +67,7 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 
 		self.ColumnText[ i ] = Text
 
-		local TextObj = Manager:CreateTextItem()
+		local TextObj = self:MakeGUITextItem()
 		TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
 		TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 		TextObj:SetText( Text )

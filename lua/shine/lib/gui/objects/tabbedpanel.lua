@@ -7,6 +7,8 @@
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 
+local Units = SGUI.Layout.Units
+
 local TableRemove = table.remove
 
 local TabPanelButton = {}
@@ -50,6 +52,38 @@ function TabPanelButton:OnMouseMove( Down )
 	end
 end
 
+function TabPanelButton:SetText( Text )
+	Controls.Button.SetText( self, Text )
+
+	if SGUI.IsValid( self.Icon ) then
+		self.Label:SetPosition( Vector2( 0, 0.5 * self.Icon:GetSize().y ) )
+	end
+end
+
+function TabPanelButton:SetIcon( IconName, Font, Scale )
+	if not Font and not Scale then
+		Font, Scale = SGUI.FontManager.GetHighResFont( "Ionicons", 32 )
+	else
+		Font = Font or SGUI.Fonts.Ionicons
+		Scale = Scale or 1
+	end
+
+	local Icon = SGUI:Create( "Label", self )
+	Icon:SetFontScale( Font, Scale )
+	Icon:SetColour( self:GetTextColour() )
+	Icon:SetAnchor( "CentreMiddle" )
+	Icon:SetTextAlignmentX( GUIItem.Align_Center )
+	Icon:SetTextAlignmentY( GUIItem.Align_Center )
+	Icon:SetText( IconName )
+	Icon:SetPos( Vector2( 0, -0.5 * Icon:GetSize().y ) )
+
+	self.Icon = Icon
+
+	if self.Label then
+		self.Label:SetPosition( Vector2( 0, 0.5 * Icon:GetSize().y ) )
+	end
+end
+
 SGUI:Register( "TabPanelButton", TabPanelButton, "Button" )
 
 local TabPanel = {}
@@ -65,54 +99,82 @@ SGUI.AddBoundProperty( TabPanel, "PanelColour", "ContentPanel:SetColour" )
 function TabPanel:Initialise()
 	Controls.Panel.Initialise( self )
 
-	--This panel holds the tab buttons.
+	-- This panel holds the tab buttons.
 	self.TabPanel = SGUI:Create( "Panel", self )
-	self.TabPanel:SetScrollable()
 	self.TabPanel.ScrollPos = Vector( 0, 0, 0 )
 	self.TabPanel.ScrollbarHeightOffset = 0
 	self.TabPanel.BufferAmount = 0
-
 	self.TabPanel.UseScheme = false
 
-	--This panel is populated with a tab's content.
+	-- This panel is populated with a tab's content.
 	self.ContentPanel = SGUI:Create( "Panel", self )
-	self.ContentPanel:SetPos( Vector( self.TabWidth, 0, 0 ) )
 	self.ContentPanel.UseScheme = false
+	self.ContentPanel:SetFill( true )
 
 	self.Tabs = {}
 	self.NumTabs = 0
+	self:SetHorizontal( false )
 end
 
---Setting the tab width or tab height means we should resize the panels too.
-function TabPanel:SetTabWidth( Width )
-	self.TabWidth = Width
-	self:SetSize( self:GetSize() )
+function TabPanel:SetHorizontal( Horizontal )
+	Horizontal = not not Horizontal
 
-	local Tabs = self.Tabs
+	if self.Horizontal == Horizontal then return end
+
+	self.Horizontal = Horizontal
+	self:SetStyleName( Horizontal and "Horizontal" or nil )
+
+	local InternalLayout = SGUI.Layout:CreateLayout( Horizontal and "Vertical" or "Horizontal" )
+	InternalLayout:AddElement( self.TabPanel )
+	InternalLayout:AddElement( self.ContentPanel )
+
+	if Horizontal then
+		self.TabPanel:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ) )
+		self.TabPanel:RemoveScrollingBehaviour()
+	else
+		self.TabPanel:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
+		self.TabPanel:SetScrollable()
+	end
+
+	self:SetLayout( InternalLayout )
+	self:InvalidateLayout( true )
+
+	local ButtonsLayout = SGUI.Layout:CreateLayout( Horizontal and "Horizontal" or "Vertical" )
+	for i = 1, self.NumTabs do
+		local Button = self.Tabs[ i ].TabButton
+		Button:SetStyleName( Horizontal and "Horizontal" or nil )
+		Button:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )
+		ButtonsLayout:AddElement( Button )
+	end
+
+	self.TabPanel:SetLayout( ButtonsLayout )
+	self.TabPanel:InvalidateLayout( true )
+end
+
+function TabPanel:UpdateSizes()
+	if self.Horizontal then
+		self.TabPanel:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ) )
+	else
+		self.TabPanel:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
+	end
 
 	for i = 1, self.NumTabs do
-		Tabs[ i ].TabButton:SetSize( Vector( Width, self.TabHeight, 0 ) )
+		local Button = self.Tabs[ i ].TabButton
+		Button:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )
 	end
+end
+
+-- Setting the tab width or tab height means we should resize the panels too.
+function TabPanel:SetTabWidth( Width )
+	self.TabWidth = Width
+	self:UpdateSizes()
+	self:InvalidateLayout()
 end
 
 function TabPanel:SetTabHeight( Height )
 	self.TabHeight = Height
-	self:SetSize( self:GetSize() )
-
-	local Tabs = self.Tabs
-	for i = 1, self.NumTabs do
-		local Button = Tabs[ i ].TabButton
-		Button:SetPos( Vector( 0, Height * ( i - 1 ), 0 ) )
-		Button:SetSize( Vector( self.TabWidth, Height, 0 ) )
-	end
-end
-
-function TabPanel:SetSize( Size )
-	Controls.Panel.SetSize( self, Size )
-
-	self.TabPanel:SetSize( Vector( self.TabWidth, Size.y, 0 ) )
-	self.ContentPanel:SetSize( Vector( Size.x - self.TabWidth, Size.y, 0 ) )
-	self.ContentPanel:SetPos( Vector( self.TabWidth, 0, 0 ) )
+	self:UpdateSizes()
+	self:InvalidateLayout()
 end
 
 function TabPanel:SetFont( Font )
@@ -134,8 +196,8 @@ function TabPanel:AddTab( Name, OnPopulate )
 
 	local TabButton = self.TabPanel:Add( "TabPanelButton" )
 	TabButton:SetTab( self.NumTabs + 1, Name )
-	TabButton:SetSize( Vector( self.TabWidth, self.TabHeight, 0 ) )
-	TabButton:SetPos( Vector( 0, self.NumTabs * self.TabHeight, 0 ) )
+	TabButton:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )
+	TabButton:SetStyleName( self.Horizontal and "Horizontal" or nil )
 
 	if self.Font then
 		TabButton:SetFont( self.Font )
@@ -148,7 +210,9 @@ function TabPanel:AddTab( Name, OnPopulate )
 
 	Tabs[ self.NumTabs ] = { Name = Name, TabButton = TabButton, OnPopulate = OnPopulate }
 
-	--We need to start off with the first tab showing.
+	self.TabPanel.Layout:AddElement( TabButton )
+
+	-- We need to start off with the first tab showing.
 	if self.NumTabs == 1 then
 		TabButton:SetSelected( true )
 		self:OnTabSelect( TabButton )
@@ -167,7 +231,7 @@ function TabPanel:OnTabSelect( Tab, SuppressPre )
 
 	local OnPopulate = Tabs[ Index ] and Tabs[ Index ].OnPopulate
 
-	--In case someone wants to save information about the tab state.
+	-- In case someone wants to save information about the tab state.
 	if not SuppressPre and self.OnPreTabChange and self.NumTabs > 1 then
 		self:OnPreTabChange()
 	end
@@ -180,7 +244,7 @@ function TabPanel:OnTabSelect( Tab, SuppressPre )
 
 	self.ActiveTab = Index
 
-	--In case someone wants to restore information about the tab state.
+	-- In case someone wants to restore information about the tab state.
 	if self.OnPostTabChange then
 		self:OnPostTabChange()
 	end
@@ -205,21 +269,21 @@ function TabPanel:RemoveTab( Index )
 
 	TableRemove( Tabs, Index )
 
+	self.TabPanel.Layout:RemoveElement( TabButton )
 	self.NumTabs = self.NumTabs - 1
 
 	for i = 1, self.NumTabs do
 		local Tab = Tabs[ i ].TabButton
 
-		--These are both in the old index range.
+		-- These are both in the old index range.
 		if Tab.Index == self.ActiveTab then
 			self.ActiveTab = i
 		end
-		--Correct the tab's index.
+		-- Correct the tab's index.
 		Tab.Index = i
-		Tab:SetPos( Vector( 0, self.TabHeight * ( i - 1 ), 0 ) )
 	end
 
-	--If we removed the active tab, switch to tab 1.
+	-- If we removed the active tab, switch to tab 1.
 	if Index == self.ActiveTab then
 		if Tabs[ 1 ] then
 			self:OnTabSelect( Tabs[ 1 ].TabButton, true )

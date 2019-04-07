@@ -22,6 +22,7 @@ local function ToUnit( Value )
 
 	return Value or Absolute( 0 )
 end
+Layout.ToUnit = ToUnit
 
 local Operators = {
 	__add = function( A, B ) return A + B end,
@@ -100,6 +101,14 @@ do
 		self[ 4 ] = ToUnit( D )
 
 		return self
+	end
+
+	function Spacing:GetWidth()
+		return self[ 1 ] + self[ 3 ]
+	end
+
+	function Spacing:GetHeight()
+		return self[ 2 ] + self[ 4 ]
 	end
 
 	local KeyMap = {

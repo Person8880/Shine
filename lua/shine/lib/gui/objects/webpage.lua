@@ -15,8 +15,7 @@ Webpage.UsesKeyboardFocus = true
 local Counter = 0
 
 function Webpage:Initialise()
-	local Background = GetGUIManager():CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 end
 

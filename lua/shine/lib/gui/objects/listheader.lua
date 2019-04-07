@@ -11,8 +11,7 @@ local Padding = Vector( 10, 0, 0 )
 function ListHeader:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Background = GetGUIManager():CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
 	local SortIndicator = SGUI:Create( "Label", self )
@@ -35,7 +34,7 @@ function ListHeader:SetText( Text )
 		return
 	end
 
-	local TextObj = GetGUIManager():CreateTextItem()
+	local TextObj = self:MakeGUITextItem()
 	TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
 	TextObj:SetText( Text )
 	TextObj:SetTextAlignmentY( GUIItem.Align_Center )

@@ -14,7 +14,7 @@ SGUI.AddBoundProperty( ShadowLabel, "TextAlignmentY", { "Label", "LabelShadow" }
 SGUI.AddBoundProperty( ShadowLabel, "TextScale", { "Label:SetScale", "LabelShadow:SetScale" }, { "InvalidatesParent" } )
 
 function ShadowLabel:Initialise()
-	self.LabelShadow = GetGUIManager():CreateTextItem()
+	self.LabelShadow = self:MakeGUITextItem()
 	self.LabelShadow:SetIsVisible( false )
 
 	Controls.Label.Initialise( self )

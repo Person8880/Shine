@@ -6,6 +6,8 @@
 
 local SGUI = Shine.GUI
 
+local Max = math.max
+
 local Panel = {}
 
 --We're a window object!
@@ -18,7 +20,7 @@ local ZeroColour = Colour( 0, 0, 0, 0 )
 function Panel:Initialise()
 	self.BaseClass.Initialise( self )
 
-	self.Background = GetGUIManager():CreateGraphicItem()
+	self.Background = self:MakeGUIItem()
 	self.TitleBarHeight = 24
 end
 
@@ -83,9 +85,7 @@ end
 function Panel:SetScrollable()
 	if self.Stencil then return end
 
-	local Manager = GetGUIManager()
-
-	local Stencil = Manager:CreateGraphicItem()
+	local Stencil = self:MakeGUIItem()
 	Stencil:SetIsStencil( true )
 	Stencil:SetInheritsParentStencilSettings( false )
 	Stencil:SetClearsStencilBuffer( true )
@@ -96,7 +96,7 @@ function Panel:SetScrollable()
 
 	self.Stencil = Stencil
 
-	local ScrollParent = Manager:CreateGraphicItem()
+	local ScrollParent = self:MakeGUIItem()
 	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
@@ -116,12 +116,45 @@ function Panel:SetAllowSmoothScroll( Bool )
 	self.AllowSmoothScroll = Bool and true or false
 end
 
+function Panel:RemoveScrollingBehaviour()
+	if not self.Stencil then return end
+
+	if self.Children then
+		for Child in self.Children:Iterate() do
+			Child:SetParent( self, self.Background )
+		end
+	end
+
+	GUI.DestroyItem( self.Stencil )
+	GUI.DestroyItem( self.ScrollParent )
+
+	self.Stencil = nil
+	self.ScrollParent = nil
+	self:SetShowScrollbar( false )
+end
+
+function Panel:RecomputeMaxHeight()
+	local MaxHeight = self:GetSize().y
+
+	if self.Children then
+		for Child in self.Children:Iterate() do
+			local MaxY = Child:GetPos().y + Child:GetSize().y
+			MaxHeight = Max( MaxHeight, MaxY )
+		end
+	end
+
+	self:SetMaxHeight( MaxHeight )
+end
+
 function Panel:Add( Class, Created )
-	local Element = Created or SGUI:Create( Class )
+	local Element = Created or SGUI:Create( Class, self, self.ScrollParent )
 	Element:SetParent( self, self.ScrollParent )
 
 	if self.Stencil and Element.SetupStencil then
 		Element:SetupStencil()
+	elseif self.Stencilled then
+		Element:SetInheritsParentStencilSettings( true )
+		Element:SetStencilled( true )
 	end
 
 	local Pan = self --CLANG!
@@ -197,9 +230,15 @@ function Panel:SetSize( Size )
 
 	self.BaseClass.SetSize( self, Size )
 
-	if not self.Stencil or Size == OldSize then return end
+	if self.Stencil then
+		self.Stencil:SetSize( Size )
+	end
 
-	self.Stencil:SetSize( Size )
+	if Size == OldSize then return end
+
+	if SGUI.IsValid( self.TitleBar ) then
+		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
+	end
 
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:Destroy()
@@ -213,10 +252,6 @@ function Panel:SetSize( Size )
 			self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
 			self.MaxHeight = nil
 		end
-	end
-
-	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
 	end
 end
 
@@ -255,6 +290,7 @@ function Panel:Clear()
 end
 
 SGUI.AddProperty( Panel, "StickyScroll" )
+SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
 
 function Panel:UpdateScrollbarSize()
 	if SGUI.IsValid( self.Scrollbar ) then
@@ -288,6 +324,21 @@ function Panel:SetScrollbarWidth( Width )
 	self:UpdateScrollbarSize()
 end
 
+function Panel:OnAddScrollbar()
+	if not self.Layout or not self.ResizeLayoutForScrollbar then return end
+
+	local Pos = self.Scrollbar:GetPos()
+	if Pos.x >= 0 then return end
+
+	self.Layout:SetMargin( SGUI.Layout.Units.Spacing( 0, 0, -Pos.x, 0 ) )
+end
+
+function Panel:OnRemoveScrollbar()
+	if not self.Layout or not self.ResizeLayoutForScrollbar then return end
+
+	self.Layout:SetMargin( nil )
+end
+
 function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 	local OldMaxHeight = self.MaxHeight
 
@@ -305,6 +356,8 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			self.MaxHeight = nil
 			self.ScrollParentPos = nil
 			self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
+
+			self:OnRemoveScrollbar()
 		end
 
 		return
@@ -352,6 +405,8 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			Scrollbar.Background:SetColor( BackCol )
 			Scrollbar.Bar:SetColor( BarCol )
 		end
+
+		self:OnAddScrollbar()
 
 		return
 	end
@@ -531,9 +586,8 @@ function Panel:Think( DeltaTime )
 end
 
 function Panel:OnMouseWheel( Down )
-	--Call children first, so they scroll before the main panel scroll.
+	-- Call children first, so they scroll before the main panel scroll.
 	local Result = self:CallOnChildren( "OnMouseWheel", Down )
-
 	if Result ~= nil then return true end
 
 	if not SGUI.IsValid( self.Scrollbar ) then
@@ -544,7 +598,7 @@ function Panel:OnMouseWheel( Down )
 
 	self.Scrollbar:OnMouseWheel( Down )
 
-	--We block the event, so that only the focused window can scroll.
+	-- We block the event, so that only the focused window can scroll.
 	if self.IsAWindow then
 		return false
 	end

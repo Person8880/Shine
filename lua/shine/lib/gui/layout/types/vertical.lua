@@ -36,6 +36,13 @@ function Vertical:GetMarginSize( Margin )
 end
 
 function Vertical:SetElementPos( Element, X, Y, Margin )
+	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
+	if CrossAxisAlignment == LayoutAlignment.CENTRE then
+		X = X + LayoutSize.x * 0.5 - Element:GetSize().x * 0.5
+	elseif CrossAxisAlignment == LayoutAlignment.MAX then
+		X = X + LayoutSize.x - Element:GetSize().x
+	end
+
 	Element:SetPos( Vector( X + Margin[ 1 ], Y, 0 ) )
 end
 
@@ -45,6 +52,14 @@ end
 
 function Vertical:GetElementSizeOffset( Size )
 	return 0, Size.y
+end
+
+function Vertical:GetFillElementWidth( Element, Width, FillSizePerElement )
+	return Width
+end
+
+function Vertical:GetFillElementHeight( Element, Height, FillSizePerElement )
+	return FillSizePerElement
 end
 
 function Vertical:GetFillElementSize( Element, Width, Height, FillSizePerElement )

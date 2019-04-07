@@ -20,7 +20,7 @@ local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
---Useful functions for colours.
+-- Useful functions for colours.
 include "lua/shine/lib/colour.lua"
 
 do
@@ -32,15 +32,20 @@ do
 	end
 end
 
+SGUI.GUIItemType = {
+	Text = "Text",
+	Graphic = "Graphic"
+}
+
 SGUI.Controls = {}
 
 SGUI.ActiveControls = Map()
 SGUI.Windows = {}
 
---Used to adjust the appearance of all elements at once.
+-- Used to adjust the appearance of all elements at once.
 SGUI.Skins = {}
 
---Base visual layer.
+-- Base visual layer.
 SGUI.BaseLayer = 20
 
 SGUI.ScreenHeight = {
@@ -49,7 +54,7 @@ SGUI.ScreenHeight = {
 	Large = 1600
 }
 
---Global control meta-table.
+-- Global control meta-table.
 local ControlMeta = {}
 SGUI.BaseControl = ControlMeta
 
@@ -593,7 +598,7 @@ do
 		Input: SGUI control class name, optional parent object.
 		Output: SGUI control object.
 	]]
-	function SGUI:Create( Class, Parent )
+	function SGUI:Create( Class, Parent, ParentElement )
 		local MetaTable = self.Controls[ Class ]
 
 		assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
@@ -623,7 +628,7 @@ do
 
 		if not Parent then return Control end
 
-		Control:SetParent( Parent )
+		Control:SetParent( Parent, ParentElement )
 
 		return Control
 	end

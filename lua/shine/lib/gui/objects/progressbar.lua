@@ -18,13 +18,11 @@ SGUI.AddBoundProperty( ProgressBar, "Colour", "InnerBack:SetColor" )
 function ProgressBar:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-
-	local Background = Manager:CreateGraphicItem()
-	local InnerBack = Manager:CreateGraphicItem()
+	local Background = self:MakeGUIItem()
+	local InnerBack = self:MakeGUIItem()
 	InnerBack:SetAnchor( GUIItem.Left, GUIItem.Top )
 
-	local Bar = Manager:CreateGraphicItem()
+	local Bar = self:MakeGUIItem()
 	Bar:SetAnchor( GUIItem.Left, GUIItem.Top )
 
 	Background:AddChild( InnerBack )

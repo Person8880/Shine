@@ -8,8 +8,11 @@ local ControlMeta = SGUI.BaseControl
 local assert = assert
 local Clock = os.clock
 local IsType = Shine.IsType
+local IsGUIItemValid = debug.isvalid
+local Max = math.max
 local pairs = pairs
 local StringFormat = string.format
+local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
 
 local Map = Shine.Map
@@ -29,6 +32,7 @@ end
 ]]
 function ControlMeta:Initialise()
 	self.UseScheme = true
+	self.Stencilled = false
 end
 
 --[[
@@ -39,6 +43,31 @@ end
 function ControlMeta:Cleanup()
 	if self.Parent then return end
 
+	if self.GUIItems then
+		local FoundBackground = false
+		local TopLevelElements = {}
+		for Item in self.GUIItems:Iterate() do
+			if Item == self.Background then
+				FoundBackground = true
+			end
+
+			-- Destroy all GUIItems that are not parented to another element
+			-- in this element's GUIItem children.
+			if IsGUIItemValid( Item ) and not self.GUIItems:Get( Item:GetParent() ) then
+				TopLevelElements[ #TopLevelElements + 1 ] = Item
+			end
+		end
+
+		for i = 1, #TopLevelElements do
+			GUI.DestroyItem( TopLevelElements[ i ] )
+		end
+
+		-- If the background element was removed above, then stop.
+		if FoundBackground then return end
+	end
+
+	-- This retains backwards compatibility, in case anyone made custom SGUI controls
+	-- before Control:MakeGUIItem() existed.
 	if self.Background then
 		GUI.DestroyItem( self.Background )
 	end
@@ -134,6 +163,10 @@ end
 function ControlMeta:SetParent( Control, Element )
 	assert( Control ~= self, "[SGUI] Cannot parent an object to itself!" )
 
+	if self.Parent == Control and self.ParentElement == Element then
+		return
+	end
+
 	if self.Parent then
 		self.Parent.Children:Remove( self )
 		if self.ParentElement and self.Background then
@@ -145,6 +178,7 @@ function ControlMeta:SetParent( Control, Element )
 		self.Parent = nil
 		self.ParentElement = nil
 		self.TopLevelWindow = nil
+		self:SetStencilled( false )
 		return
 	end
 
@@ -156,6 +190,11 @@ function ControlMeta:SetParent( Control, Element )
 	self.Parent = Control
 	self.ParentElement = Element
 	self:SetTopLevelWindow( Control.IsAWindow and Control or Control.TopLevelWindow )
+	self:SetStencilled( Control.Stencilled )
+	if Control.Stencilled then
+		self:SetInheritsParentStencilSettings( true )
+	end
+	self.IsAWindow = false
 
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
@@ -220,20 +259,124 @@ function ControlMeta:AddChild( GUIItem )
 	self.Background:AddChild( GUIItem )
 end
 
+local GUIItemTypes = {
+	[ SGUI.GUIItemType.Text ] = function( Manager ) return Manager:CreateTextItem() end,
+	[ SGUI.GUIItemType.Graphic ] = function( Manager ) return Manager:CreateGraphicItem() end
+}
+
+function ControlMeta:MakeGUIItem( Type )
+	local Manager = GetGUIManager()
+	local Factory = GUIItemTypes[ Type or SGUI.GUIItemType.Graphic ]
+	if not Factory then
+		error( "Unknown GUIItem type: "..Type, 2 )
+	end
+
+	local Item = Factory( Manager )
+	if self.Stencilled then
+		-- This element is currently under the effect of a stencil, so inherit
+		-- settings.
+		Item:SetInheritsParentStencilSettings( true )
+	end
+
+	self.GUIItems = self.GUIItems or Shine.Map()
+	self.GUIItems:Add( Item, true )
+
+	return Item
+end
+
+function ControlMeta:MakeGUITextItem()
+	return self:MakeGUIItem( SGUI.GUIItemType.Text )
+end
+
+function ControlMeta:DestroyGUIItem( Item )
+	GUI.DestroyItem( Item )
+
+	if self.GUIItems then
+		self.GUIItems:Remove( Item )
+	end
+end
+
 function ControlMeta:SetLayer( Layer )
 	if not self.Background then return end
 
 	self.Background:SetLayer( Layer )
 end
 
+local function IsDescendantOf( Child, Ancestor )
+	local Parent = Child:GetParent()
+	while Parent and Parent ~= Ancestor do
+		Parent = Parent:GetParent()
+	end
+	return Parent == Ancestor
+end
+
 --[[
-	Override to get child elements inheriting stencil settings from their background.
+	This is called when the element is added as a direct child of another element that
+	has a stencil component.
+
+	Direct children need to have a GUIItem.NotEqual stencil function set. Their descendants
+	can then inherit this.
 ]]
 function ControlMeta:SetupStencil()
-	self.Background:SetInheritsParentStencilSettings( false )
-	self.Background:SetStencilFunc( GUIItem.NotEqual )
+	local Background = self.Background
+	Background:SetInheritsParentStencilSettings( false )
+	Background:SetStencilFunc( GUIItem.NotEqual )
 
-	self.Stencilled = true
+	if self.GUIItems then
+		for Child in self.GUIItems:Iterate() do
+			if not IsDescendantOf( Child, Background ) then
+				Child:SetInheritsParentStencilSettings( false )
+				Child:SetStencilFunc( GUIItem.NotEqual )
+			else
+				Child:SetInheritsParentStencilSettings( true )
+			end
+		end
+	end
+
+	self:SetStencilled( true )
+end
+
+function ControlMeta:SetStencilled( Stencilled )
+	if Stencilled == self.Stencilled then return end
+
+	self.Stencilled = Stencilled
+	self:OnStencilChanged( Stencilled )
+	-- Notify all children of the new stencil state.
+	self:PropagateStencilSettings( Stencilled )
+end
+
+function ControlMeta:OnStencilChanged( Stencilled )
+	if not self.Stencil then return end
+
+	if Stencilled then
+		-- Stencils inside stencils currently don't work correctly. They obey only the top-level
+		-- stencil, any further restrictions are ignored (and appear to render as if GetIsStencil() == false).
+		Print(
+			"[SGUI] [Warn] [ %s ] has been placed under another stencil, this will not render correctly!",
+			self
+		)
+	end
+end
+
+function ControlMeta:SetInheritsParentStencilSettings( InheritsParentStencil )
+	if self.Background then
+		self.Background:SetInheritsParentStencilSettings( InheritsParentStencil )
+	end
+
+	if self.GUIItems then
+		for Item in self.GUIItems:Iterate() do
+			Item:SetInheritsParentStencilSettings( InheritsParentStencil )
+		end
+	end
+end
+
+function ControlMeta:PropagateStencilSettings( Stencilled )
+	if self.Children then
+		for Child in self.Children:Iterate() do
+			Child:SetInheritsParentStencilSettings( Stencilled )
+			Child:SetStencilled( Stencilled )
+		end
+	end
 end
 
 --[[
@@ -310,10 +453,10 @@ SGUI.AddProperty( ControlMeta, "Layout" )
 	Sets a layout handler for the element. This will be updated every time
 	a layout-changing property on the element is altered (such as size).
 ]]
-function ControlMeta:SetLayout( Layout )
+function ControlMeta:SetLayout( Layout, DeferInvalidation )
 	self.Layout = Layout
 	Layout:SetParent( self )
-	self:InvalidateLayout( true )
+	self:InvalidateLayout( not DeferInvalidation )
 end
 
 --[[
@@ -328,9 +471,11 @@ function ControlMeta:PerformLayout()
 	local Size = self:GetSize()
 
 	self.Layout:SetPos( Vector2( Margin[ 1 ], Margin[ 2 ] ) )
-	-- Setting its size will trigger the layout's PerformLayout event.
-	self.Layout:SetSize( Vector2( Size.x - Margin[ 1 ] - Margin[ 3 ],
-		Size.y - Margin[ 2 ] - Margin[ 4 ] ) )
+	self.Layout:SetSize( Vector2(
+		Max( Size.x - Margin[ 1 ] - Margin[ 3 ], 0 ),
+		Max( Size.y - Margin[ 2 ] - Margin[ 4 ], 0 )
+	) )
+	self.Layout:InvalidateLayout( true )
 end
 
 --[[
@@ -401,18 +546,62 @@ SGUI.LayoutAlignment = {
 }
 
 SGUI.AddProperty( ControlMeta, "Alignment", SGUI.LayoutAlignment.MIN )
+
+-- Cross-axis alignment controls how an element is aligned on the opposite axis to the layout direction.
+-- For example, an element in a horizontal layout uses the cross-axis alignment to align itself vertically.
+SGUI.AddProperty( ControlMeta, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN )
+
 -- AutoSize controls how to resize the control during layout. You should pass a UnitVector, with
 -- your dynamic units (e.g. GUIScaled, Percentage).
 SGUI.AddProperty( ControlMeta, "AutoSize" )
+
 -- Fill controls whether the element should have its size computed automatically during layout.
 SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
+
 -- Margin controls separation of elements in layouts.
 SGUI.AddProperty( ControlMeta, "Margin", nil, { "InvalidatesParent" } )
+
 -- Padding controls the space from the element borders to where the layout may place elements.
 SGUI.AddProperty( ControlMeta, "Padding", nil, { "InvalidatesLayout" } )
 
+function ControlMeta:IterateChildren()
+	return self.Children:Iterate()
+end
+
 function ControlMeta:GetParentSize()
+	if self.LayoutParent then
+		return self.LayoutParent:GetSize()
+	end
+
 	return self.Parent and self.Parent:GetSize() or Vector2( SGUI.GetScreenSize() )
+end
+
+function ControlMeta:GetContentSizeForAxis( Axis )
+	local Padding = self:GetComputedPadding()
+
+	local Total = 0
+	if Axis == 1 then
+		Total = Total + Padding[ 1 ] + Padding[ 3 ]
+	else
+		Total = Total + Padding[ 2 ] + Padding[ 4 ]
+	end
+
+	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
+
+	for Child in self:IterateChildren() do
+		-- This only works if the child's size does not depend on the parent's.
+		-- Otherwise it's a circular dependency and it won't be correct.
+		Total = Total + Child:GetComputedSize( Axis, ParentSize )
+
+		local Margin = Child:GetComputedMargin()
+		if Axis == 1 then
+			Total = Total + Margin[ 1 ] + Margin[ 3 ]
+		else
+			Total = Total + Margin[ 2 ] + Margin[ 4 ]
+		end
+	end
+
+	return Max( Total, 0 )
 end
 
 -- You can either use AutoSize as part of a layout, or on its own by passing true for UpdateNow.
@@ -424,6 +613,17 @@ function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
 
 	self:SetSize( Vector2( self:GetComputedSize( 1, ParentSize.x ),
 		self:GetComputedSize( 2, ParentSize.y ) ) )
+end
+
+-- Called before a layout computes the current width of the element.
+function ControlMeta:PreComputeWidth()
+
+end
+
+-- Called before a layout computes the current height of the element.
+-- Override to add wrapping logic.
+function ControlMeta:PreComputeHeight( Width )
+
 end
 
 --[[
@@ -442,17 +642,26 @@ function ControlMeta:GetComputedSize( Index, ParentSize )
 	end
 
 	-- Auto-size means use our set auto-size units relative to the passed in size.
-	return Size[ Index ]:GetValue( ParentSize, self, Index )
+	return Max( Size[ Index ]:GetValue( ParentSize, self, Index ), 0 )
 end
 
 function ControlMeta:ComputeSpacing( Spacing )
+	if not Spacing then
+		return { 0, 0, 0, 0 }
+	end
+
 	local Computed = {}
 
 	local Parent = self.Parent
 	local ParentSize = self:GetParentSize()
 
 	for i = 1, 4 do
-		Computed[ i ] = Spacing and Spacing[ i ]:GetValue( ParentSize[ i % 2 == 0 and "y" or "x" ] ) or 0
+		local IsYAxis = i % 2 == 0
+		Computed[ i ] = Spacing[ i ]:GetValue(
+			ParentSize[ IsYAxis and "y" or "x" ],
+			self,
+			IsYAxis and 2 or 1
+		)
 	end
 
 	return Computed
