@@ -16,6 +16,8 @@ local DefaultOffset = Vector( 0, 32, 0 )
 
 SGUI.AddProperty( Menu, "ButtonSpacing" )
 SGUI.AddProperty( Menu, "MaxVisibleButtons" )
+SGUI.AddProperty( Menu, "Font" )
+SGUI.AddProperty( Menu, "TextScale" )
 
 function Menu:Initialise()
 	Controls.Panel.Initialise( self )
@@ -53,6 +55,9 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	if self.Font then
 		Button:SetFont( self.Font )
 	end
+	if self.TextScale then
+		Button:SetTextScale( self.TextScale )
+	end
 	Button:SetStyleName( "MenuButton" )
 	if Tooltip then
 		Button:SetTooltip( Tooltip )
@@ -64,6 +69,16 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	self:Resize()
 
 	return Button
+end
+
+function Menu:SetFont( Font )
+	self.Font = Font
+	self:ForEach( "Buttons", "SetFont", Font )
+end
+
+function Menu:SetTextScale( TextScale )
+	self.TextScale = TextScale
+	self:ForEach( "Buttons", "TextScale", TextScale )
 end
 
 function Menu:AddPanel( Panel )
@@ -97,10 +112,9 @@ function Menu:OnMouseDown( Key, DoubleClick )
 	end
 
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
-
 	if Result ~= nil then return true, Child end
 
-	--Delay so we don't mess up the event calling.
+	-- Delay so we don't mess up the event calling.
 	SGUI:AddPostEventAction( function( Result, Control )
 		if not self:IsValid() then return end
 

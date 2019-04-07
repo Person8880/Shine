@@ -4,7 +4,7 @@
 
 local SGUI = Shine.GUI
 
-local Clock = os.clock
+local rawget = rawget
 
 local Button = {}
 
@@ -16,6 +16,7 @@ function Button:Initialise()
 	self.BaseClass.Initialise( self )
 	self.Background = self:MakeGUIItem()
 	self:SetHighlightOnMouseOver( true )
+	self:SetTextInheritsParentAlpha( true )
 end
 
 function Button:SetCustomSound( Sound )
@@ -37,7 +38,7 @@ function Button:SetText( Text )
 	Description:SetTextAlignmentY( GUIItem.Align_Center )
 	Description:SetText( Text )
 	Description:SetColor( self.TextColour )
-	Description:SetInheritsParentAlpha( true )
+	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 
 	if self.Font then
 		Description:SetFontName( self.Font )
@@ -59,6 +60,7 @@ end
 SGUI.AddBoundProperty( Button, "Font", "Label:SetFontName" )
 SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColor" )
 SGUI.AddBoundProperty( Button, "TextScale", "Label:SetScale" )
+SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", "Label:SetInheritsParentAlpha" )
 
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
@@ -108,13 +110,24 @@ function Button:SetHighlightTexture( Texture )
 	self.HighlightTexture = Texture
 end
 
-function Button:AddMenu( Size )
+Button.MenuPos = {
+	RIGHT = "RIGHT",
+	BOTTOM = "BOTTOM"
+}
+
+function Button:AddMenu( Size, MenuPos )
 	if SGUI.IsValid( self.Menu ) then
 		return self.Menu
 	end
 
+	MenuPos = MenuPos or self.MenuPos.RIGHT
+
 	local Pos = self:GetScreenPos()
-	Pos.x = Pos.x + self:GetSize().x
+	if MenuPos == self.MenuPos.RIGHT then
+		Pos.x = Pos.x + self:GetSize().x
+	else
+		Pos.y = Pos.y + self:GetSize().y
+	end
 
 	local Menu = SGUI:Create( "Menu" )
 	Menu:SetPos( Pos )
@@ -128,6 +141,22 @@ function Button:AddMenu( Size )
 	self.Menu = Menu
 
 	return Menu
+end
+
+-- Provides a helper that automatically handles menu opening on click, as well as closing the menu
+-- when clicked while the menu is open without re-opening it.
+function Button:SetOpenMenuOnClick( PopulateMenuFunc )
+	self:SetDoClick( function( self )
+		if self.Menu and rawget( self.Menu, "DestroyedBy" ) == self then
+			-- Clicked the button to close the menu.
+			self.Menu = nil
+			return
+		end
+
+		local MenuParams = PopulateMenuFunc( self )
+		local Menu = self:AddMenu( MenuParams.Size, MenuParams.MenuPos )
+		MenuParams.Populate( Menu )
+	end )
 end
 
 function Button:OnMouseDown( Key, DoubleClick )
