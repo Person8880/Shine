@@ -555,6 +555,9 @@ SGUI.AddProperty( ControlMeta, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN )
 -- your dynamic units (e.g. GUIScaled, Percentage).
 SGUI.AddProperty( ControlMeta, "AutoSize" )
 
+-- AutoFont provides a way to set the font size automatically at layout time.
+SGUI.AddProperty( ControlMeta, "AutoFont" )
+
 -- Fill controls whether the element should have its size computed automatically during layout.
 SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
 
@@ -617,7 +620,12 @@ end
 
 -- Called before a layout computes the current width of the element.
 function ControlMeta:PreComputeWidth()
+	if not self.AutoFont then return end
 
+	local FontFamily = self.AutoFont.Family
+	local Size = self.AutoFont.Size:GetValue()
+
+	self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size ) )
 end
 
 -- Called before a layout computes the current height of the element.
