@@ -51,6 +51,29 @@ function Directional:GetComputedFillSize( Element, RealSize, FillSizePerElement 
 	return self:GetFillElementSize( Element, Width, Height, FillSizePerElement )
 end
 
+local PositionUpdaters = {
+	Before = {
+		-- Before a MIN aligned element, move forward by the margin at the start.
+		[ true ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X + MinW, Y + MinH
+		end,
+		-- Before a MAX aligned element, move back by the size of the element plus the margin at the end.
+		[ false ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X - MaxW - SizeW, Y - MaxH - SizeH
+		end
+	},
+	After = {
+		-- After a MIN aligned element, move forward by its size and margin at the end.
+		[ true ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X + MaxW + SizeW, Y + MaxH + SizeH
+		end,
+		-- After a MAX aligned element, move backwards by the margin at the start.
+		[ false ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X - MinW, Y - MinH
+		end
+	}
+}
+
 --[[
 	This method handles laying out elements, including keeping track of margins between them.
 ]]
@@ -59,6 +82,8 @@ function Directional:LayoutElements( Elements, Context )
 
 	local Alignment = Context.Alignment
 	local IsMin = Alignment ~= LayoutAlignment.MAX
+	local UpdatePositionBefore = PositionUpdaters.Before[ IsMin ]
+	local UpdatePositionAfter = PositionUpdaters.After[ IsMin ]
 
 	local Padding = Context.Padding
 	local Pos = Context.Pos
@@ -83,26 +108,18 @@ function Directional:LayoutElements( Elements, Context )
 		local MaxW, MaxH = self:GetMaxMargin( Margin )
 		local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
 
-		-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
-		if IsMin then
-			X, Y = X + MinW, Y + MinH
-		else
-			X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
-		end
+		X, Y = UpdatePositionBefore( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 
 		self:SetElementPos( Element, X, Y, Margin, RealSize )
 
-		-- Reverse for after.
-		if IsMin then
-			X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
-		else
-			X, Y = X - MinW, Y - MinH
-		end
+		X, Y = UpdatePositionAfter( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 	end
 end
 
 function Directional:PerformLayout()
 	local Elements = self.Elements
+	if #Elements == 0 then return end
+
 	local Size = self.Size
 
 	-- Real size is size - padding.
