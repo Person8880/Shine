@@ -35,7 +35,9 @@ function Plugin:GetCommanderForTeam( TeamNumber )
 end
 
 local function EnsureVotesNeededLargeEnough( VotesNeeded, TotalPlayerCount )
-	return Min( Max( Round( VotesNeeded ), 2 ), Max( 1, TotalPlayerCount ) )
+	local ActualVotesNeeded = Max( Round( VotesNeeded ), 2 )
+	local PlayerCountWithMin = Max( TotalPlayerCount, 2 )
+	return Min( ActualVotesNeeded, PlayerCountWithMin )
 end
 
 local function GetEjectVotesNeededFromVoteInterval( VoteInterval, TotalPlayerCount )
