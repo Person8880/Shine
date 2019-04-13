@@ -205,7 +205,7 @@ function AdminMenu:AddTab( Name, Data )
 		local ActiveTab = self.Window:GetActiveTab()
 		local Tabs = self.Window.Tabs
 
-		--A bit brute force, but its the easiest way to preserve tab order.
+		-- A bit brute force, but its the easiest way to preserve tab order.
 		for i = 1, self.Window.NumTabs do
 			self.Window:RemoveTab( 1 )
 		end
@@ -243,9 +243,10 @@ function AdminMenu:PopulateTabs( Window )
 	local Tab = Window:AddTab( Locale:GetPhrase( "Core", "ADMIN_MENU_COMMANDS_TAB" ), function( Panel )
 		CommandsTab.OnInit( Panel, CommandsTab.Data )
 	end )
+	Tab.TabButton:SetIcon( SGUI.Icons.Ionicons.CodeWorking )
 	CommandsTab.TabObj = Tab
 
-	--Remove them here so they're not in the pairs loop.
+	-- Remove them here so they're not in the pairs loop.
 	self.Tabs.Commands = nil
 	self.Tabs.About = nil
 
@@ -254,9 +255,12 @@ function AdminMenu:PopulateTabs( Window )
 			Data.OnInit( Panel, Data.Data )
 		end )
 		Data.TabObj = Tab
+		if Data.Icon then
+			Tab.TabButton:SetIcon( Data.Icon )
+		end
 	end
 
-	--Add them back.
+	-- Add them back.
 	self.Tabs.Commands = CommandsTab
 	self.Tabs.About = AboutTab
 
@@ -264,6 +268,7 @@ function AdminMenu:PopulateTabs( Window )
 		AboutTab.OnInit( Panel )
 	end )
 	AboutTab.TabObj = Tab
+	Tab.TabButton:SetIcon( SGUI.Icons.Ionicons.HelpCircled )
 end
 
 function AdminMenu:OnTabCleanup( Window, Name )

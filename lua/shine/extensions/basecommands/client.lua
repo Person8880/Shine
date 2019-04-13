@@ -202,6 +202,7 @@ function Plugin:SetupAdminMenuCommands()
 	local Auto = Units.Auto
 
 	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
+		Icon = SGUI.Icons.Ionicons.Earth,
 		OnInit = function( Panel, Data )
 			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
@@ -229,6 +230,7 @@ function Plugin:SetupAdminMenuCommands()
 			local ChangeMap = SGUI:Create( "Button", Panel )
 			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
 			ChangeMap:SetFontScale( Font, Scale )
+			ChangeMap:SetIcon( SGUI.Icons.Ionicons.ArrowRightC )
 			ChangeMap:SetStyleName( "DangerButton" )
 			function ChangeMap.DoClick()
 				local Selected = List:GetSelectedRow()
@@ -263,6 +265,7 @@ function Plugin:SetupAdminMenuCommands()
 				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
 				CallVote:SetFontScale( Font, Scale )
 				CallVote:SetAlignment( SGUI.LayoutAlignment.MAX )
+				CallVote:SetIcon( SGUI.Icons.Ionicons.Speakerphone )
 				function CallVote.DoClick()
 					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 				end
@@ -303,6 +306,7 @@ function Plugin:SetupAdminMenuCommands()
 	} )
 
 	self:AddAdminMenuTab( self:GetPhrase( "PLUGINS" ), {
+		Icon = SGUI.Icons.Ionicons.Settings,
 		OnInit = function( Panel, Data )
 			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
@@ -347,6 +351,7 @@ function Plugin:SetupAdminMenuCommands()
 			UnloadPlugin:SetFontScale( Font, Scale )
 			UnloadPlugin:SetStyleName( "DangerButton" )
 			UnloadPlugin:SetEnabled( List:HasSelectedRow() )
+			UnloadPlugin:SetIcon( SGUI.Icons.Ionicons.Close )
 			function UnloadPlugin.DoClick( Button )
 				local Plugin, Enabled = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -375,6 +380,7 @@ function Plugin:SetupAdminMenuCommands()
 			LoadPlugin:SetStyleName( "SuccessButton" )
 			LoadPlugin:SetEnabled( List:HasSelectedRow() )
 			LoadPlugin:SetAlignment( SGUI.LayoutAlignment.MAX )
+			LoadPlugin:SetIcon( SGUI.Icons.Ionicons.Power )
 			local function NormalLoadDoClick( Button )
 				local Plugin = GetSelectedPlugin()
 				if not Plugin then return false end
