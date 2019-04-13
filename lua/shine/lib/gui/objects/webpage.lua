@@ -115,6 +115,7 @@ end
 
 function Webpage:OnMouseDown( Key, DoubleClick )
 	if not self.WebView then return end
+	if not self:GetIsVisible() then return end
 	if not self:MouseIn( self.Background ) then return end
 
 	local MouseButton0 = InputKey.MouseButton0
@@ -140,6 +141,7 @@ end
 
 function Webpage:OnMouseWheel( Down )
 	if not self.WebView then return end
+	if not self:GetIsVisible() then return end
 	if not self:MouseIn( self.Background ) then return end
 
 	self.WebView:OnMouseWheel( Down and 30 or -30, 0 )

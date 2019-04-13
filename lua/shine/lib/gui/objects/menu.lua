@@ -105,6 +105,8 @@ end
 
 ------------------- Event calling -------------------
 function Menu:OnMouseDown( Key, DoubleClick )
+	if not self:GetIsVisible() then return end
+
 	if SGUI.IsValid( self.Scrollbar ) then
 		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
 			return true, self.Scrollbar

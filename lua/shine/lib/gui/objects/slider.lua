@@ -206,6 +206,7 @@ function Slider:SetBounds( Min, Max )
 end
 
 function Slider:PlayerKeyPress( Key, Down )
+	if not self:GetIsVisible() then return end
 	if not self:MouseIn( self.Background ) then return end
 
 	if Key == InputKey.Left or Key == InputKey.Down then
@@ -223,6 +224,8 @@ local GetCursorPos
 local LineMult = Vector2( 1, 0.5 )
 
 function Slider:OnMouseDown( Key )
+	if not self:GetIsVisible() then return end
+
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Handle, 1.25 ) then
 		if self:MouseIn( self.Background, LineMult ) then

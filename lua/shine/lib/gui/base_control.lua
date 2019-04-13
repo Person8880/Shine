@@ -17,7 +17,9 @@ local Vector2 = Vector2
 
 local Map = Shine.Map
 
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
+
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
 
@@ -998,7 +1000,7 @@ local Easers = {
 		end,
 		Setter = function( self, Element, Pos )
 			Element:SetPosition( Pos )
-			self.BaseClass.OnMouseMove( self, false )
+			self:HandleHightlighting()
 		end,
 		Getter = function( self, Element )
 			return Element:GetPosition()
@@ -1334,8 +1336,39 @@ function ControlMeta:SetForceHighlight( ForceHighlight )
 	end
 end
 
-function ControlMeta:OnMouseMove( Down )
-	-- Basic highlight on mouse over handling.
+function ControlMeta:OnMouseDown( Key, DoubleClick )
+	if not self:GetIsVisible() then return end
+	if not self:MouseInCached() then return end
+
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	if Result ~= nil then return true, Child end
+end
+
+function ControlMeta:PlayerKeyPress( Key, Down )
+	if not self:GetIsVisible() then return end
+
+	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
+		return true
+	end
+end
+
+function ControlMeta:PlayerType( Char )
+	if not self:GetIsVisible() then return end
+
+	if self:CallOnChildren( "PlayerType", Char ) then
+		return true
+	end
+end
+
+function ControlMeta:OnMouseWheel( Down )
+	if not self:GetIsVisible() then return end
+
+	local Result = self:CallOnChildren( "OnMouseWheel", Down )
+	if Result ~= nil then return true end
+end
+
+-- Basic highlight on mouse over handling.
+function ControlMeta:HandleHightlighting()
 	if not self.HighlightOnMouseOver then
 		return
 	end
@@ -1347,6 +1380,11 @@ function ControlMeta:OnMouseMove( Down )
 			self:SetHighlighted( false )
 		end
 	end
+end
+
+function ControlMeta:OnMouseMove( Down )
+	self:CallOnChildren( "OnMouseMove", Down )
+	self:HandleHightlighting()
 end
 
 --[[

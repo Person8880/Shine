@@ -259,30 +259,6 @@ function Button:OnMouseDown( Key, DoubleClick )
 	return self.Mixins.Clickable.OnMouseDown( self, Key, DoubleClick )
 end
 
-function Button:OnMouseMove( Down )
-	self.BaseClass.OnMouseMove( self, Down )
-
-	self:CallOnChildren( "OnMouseMove", Down )
-end
-
-function Button:OnMouseWheel( Down )
-	local Result = self:CallOnChildren( "OnMouseWheel", Down )
-
-	if Result ~= nil then return true end
-end
-
-function Button:PlayerKeyPress( Key, Down )
-	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
-		return true
-	end
-end
-
-function Button:PlayerType( Char )
-	if self:CallOnChildren( "PlayerType", Char ) then
-		return true
-	end
-end
-
 SGUI:AddMixin( Button, "AutoSizeText" )
 
 -- Override GetContentSizeForAxis to account for both an icon and a label.

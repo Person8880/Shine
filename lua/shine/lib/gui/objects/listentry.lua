@@ -227,9 +227,11 @@ function ListEntry:Think( DeltaTime )
 end
 
 function ListEntry:OnMouseDown( Key, DoubleClick )
+	if not self:GetIsVisible() then return end
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:IsInView() then return end
+	-- No need to call IsInView() here as List checks if the mouse is inside itself before
+	-- passing mouse events down.
 	if not self:MouseIn( self.Background ) then return end
 
 	return true, self
@@ -238,7 +240,6 @@ end
 function ListEntry:OnMouseUp( Key )
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:IsInView() then return end
 	if not self:MouseIn( self.Background ) then return end
 
 	if SGUI:IsShiftDown() then

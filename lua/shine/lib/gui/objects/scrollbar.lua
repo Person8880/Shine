@@ -56,19 +56,13 @@ function Scrollbar:SetHidden( Hidden )
 end
 
 function Scrollbar:HideAndDisableInput()
-	local BackgroundColour = self.Background:GetColor()
-	self.Background:SetColor( SGUI.ColourWithAlpha( BackgroundColour, 0 ) )
-
-	local BarColour = self.Bar:GetColor()
-	self.Bar:SetColor( SGUI.ColourWithAlpha( BarColour, 0 ) )
-
+	self.Background:SetIsVisible( false )
 	self.Disabled = true
 end
 
 function Scrollbar:ShowAndEnableInput()
 	self.Disabled = false
-	self.Background:SetColor( self.BackgroundColour )
-	self.Bar:SetColor( self.InactiveCol )
+	self.Background:SetIsVisible( true )
 end
 
 function Scrollbar:GetNormalAlpha( Element )
@@ -139,6 +133,7 @@ local GetCursorPos
 
 function Scrollbar:OnMouseDown( Key, DoubleClick )
 	if self.Disabled then return end
+	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Bar ) then return end
 

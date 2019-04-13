@@ -690,6 +690,8 @@ end
 
 ------------------- Event calling -------------------
 function Panel:OnMouseDown( Key, DoubleClick )
+	if not self:GetIsVisible() then return end
+
 	if SGUI.IsValid( self.Scrollbar ) then
 		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
 			return true, self.Scrollbar
@@ -702,7 +704,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 		end
 	end
 
-	if not self.AlwaysInMouseFocus and not self:MouseInCached() then return end
+	if self.Stencil and not self:MouseInCached() then return end
 
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then return true, Child end
@@ -785,6 +787,8 @@ function Panel:Think( DeltaTime )
 end
 
 function Panel:OnMouseWheel( Down )
+	if not self:GetIsVisible() then return end
+
 	-- Call children first, so they scroll before the main panel scroll.
 	local Result = self:CallOnChildren( "OnMouseWheel", Down )
 	if Result ~= nil then return true end
@@ -805,6 +809,8 @@ function Panel:OnMouseWheel( Down )
 end
 
 function Panel:PlayerKeyPress( Key, Down )
+	if not self:GetIsVisible() then return end
+
 	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
 		return true
 	end
@@ -816,6 +822,8 @@ function Panel:PlayerKeyPress( Key, Down )
 end
 
 function Panel:PlayerType( Char )
+	if not self:GetIsVisible() then return end
+
 	if self:CallOnChildren( "PlayerType", Char ) then
 		return true
 	end
