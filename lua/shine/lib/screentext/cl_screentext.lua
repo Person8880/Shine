@@ -7,6 +7,9 @@ local IsType = Shine.IsType
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TimeToString = string.TimeToString
+local xpcall = xpcall
+
+local ScreenTextErrorHandler = Shine.BuildErrorHandler( "Screen text error" )
 
 local SGUI = Shine.GUI
 
@@ -290,10 +293,10 @@ local function UpdateMessage( Index, Message, Time )
 
 	Message.NextUpdate = Time + Message.UpdateRate
 	if not Message.SuppressTextUpdates then
-		Message:UpdateText()
+		xpcall( Message.UpdateText, ScreenTextErrorHandler, Message )
 
 		if Message.Think then
-			Message:Think()
+			xpcall( Message.Think, ScreenTextErrorHandler, Message )
 		end
 	end
 
