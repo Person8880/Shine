@@ -341,41 +341,62 @@ do
 	end
 end
 
---[[
-	Sets the current in-focus window.
-	Inputs: Window object, windows index.
-]]
-function SGUI:SetWindowFocus( Window, i )
-	local Windows = self.Windows
+do
+	local function RefreshFocusedWindow( self, Window )
+		local Windows = self.Windows
+		for i = 1, #Windows do
+			local Window = Windows[ i ]
+			Window:SetLayer( self.BaseLayer + i )
+		end
 
-	if Window ~= self.FocusedWindow and not i then
-		for j = 1, #Windows do
-			local CurWindow = Windows[ j ]
+		if Window ~= self.FocusedWindow and self.IsValid( self.FocusedWindow )
+		and self.FocusedWindow.OnLoseWindowFocus then
+			self.FocusedWindow:OnLoseWindowFocus( Window )
+		end
 
-			if CurWindow == Window then
-				i = j
+		self.FocusedWindow = Window
+	end
+
+	--[[
+		Sets the current in-focus window.
+		Inputs: Window object, windows index.
+	]]
+	function SGUI:SetWindowFocus( Window, i )
+		local Windows = self.Windows
+
+		if Window ~= self.FocusedWindow and not i then
+			for j = 1, #Windows do
+				local CurWindow = Windows[ j ]
+
+				if CurWindow == Window then
+					i = j
+					break
+				end
+			end
+		end
+
+		if i then
+			TableRemove( Windows, i )
+
+			Windows[ #Windows + 1 ] = Window
+		end
+
+		RefreshFocusedWindow( self, Window )
+	end
+
+	function SGUI:MoveWindowToBottom( Window )
+		local Windows = self.Windows
+		for i = 1, #Windows do
+			if Windows[ i ] == Window then
+				TableRemove( Windows, i )
 				break
 			end
 		end
+
+		TableInsert( Windows, 1, Window )
+
+		RefreshFocusedWindow( self, Windows[ #Windows ] )
 	end
-
-	if i then
-		TableRemove( Windows, i )
-
-		Windows[ #Windows + 1 ] = Window
-	end
-
-	for i = 1, #Windows do
-		local Window = Windows[ i ]
-
-		Window:SetLayer( self.BaseLayer + i )
-	end
-
-	if self.IsValid( self.FocusedWindow ) and self.FocusedWindow.OnLoseWindowFocus then
-		self.FocusedWindow:OnLoseWindowFocus( Window )
-	end
-
-	self.FocusedWindow = Window
 end
 
 function SGUI:IsWindowInFocus( Window )

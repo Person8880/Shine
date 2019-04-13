@@ -3,7 +3,9 @@
 ]]
 
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
+local Max = math.max
 local Min = math.min
 
 local Notification = {}
@@ -69,6 +71,9 @@ function Notification:SetText( Text, Font, Scale )
 		self.Text = Label
 	end
 
+	self.Font = Font
+	self.TextScale = Scale
+
 	Label:SetFont( Font or Fonts.kAgencyFB_Small )
 	Label:SetText( Text )
 	if Scale then
@@ -93,18 +98,75 @@ function Notification:SetPadding( Padding )
 	end
 end
 
+function Notification:SetOptions( Options )
+	if not Options then return end
+
+	local Buttons = Options.Buttons
+	if Buttons then
+		self:SetButtons( Buttons )
+	end
+end
+
+function Notification:SetButtons( Buttons )
+	if #Buttons == 0 then return end
+
+	local ButtonLayout = SGUI.Layout:CreateLayout( "Horizontal", {
+		Fill = false
+	} )
+
+	local Heights = {}
+	for i = 1, #Buttons do
+		local ButtonDef = Buttons[ i ]
+		local Button = SGUI:Create( "Button", self )
+		Button:SetText( ButtonDef.Text )
+		Button:SetFontScale( self.Font, self.TextScale )
+		Button:SetIcon( ButtonDef.Icon, ButtonDef.IconFont, ButtonDef.IconScale )
+		Button.DoClick = ButtonDef.DoClick
+		Button.DoRightClick = ButtonDef.DoRightClick
+		Button:SetStyleName( ButtonDef.StyleName )
+		if i > 1 then
+			Button:SetMargin( Units.Spacing( self.Padding, 0, 0, 0 ) )
+		end
+
+		local Height = Units.Auto( Button ) + Units.HighResScaled( 8 )
+		Button:SetAutoSize( Units.UnitVector( Units.Auto() + Units.HighResScaled( 16 ), Height ) )
+		Heights[ #Heights + 1 ] = Height
+
+		ButtonLayout:AddElement( Button )
+	end
+
+	ButtonLayout:SetAutoSize( Units.UnitVector( Units.Auto(), Units.Max( unpack( Heights ) ) ) )
+
+	self.ButtonLayout = ButtonLayout
+end
+
 function Notification:SizeToContents()
+	-- Compute the size of the buttons first.
+	if self.ButtonLayout then
+		self.ButtonLayout:InvalidateLayout( true )
+	end
+
+	local ButtonBarSize = self.ButtonLayout
+		and Vector2( self.ButtonLayout:GetComputedSize( 1 ), self.ButtonLayout:GetComputedSize( 2 ) )
+
 	local TextW = self.Text:GetTextWidth()
-	local DesiredWidth = TextW + self.Padding * 2 + self.FlairWidth
+	local DesiredWidth = Max( TextW, ButtonBarSize and ButtonBarSize.x or 0 ) + self.Padding * 2 + self.FlairWidth
 	local Width = Min( self.MaxWidth, DesiredWidth )
 
-	if Width ~= DesiredWidth then
+	if Width < DesiredWidth then
 		SGUI.WordWrap( self.Text, self.Text:GetText(), 0, Width - self.Padding * 2 - self.FlairWidth )
 	end
 
-	local H = self.Text:GetTextHeight() + self.Padding * 2
+	local H = self.Text:GetTextHeight() + self.Padding
 
-	self:SetSize( Vector2( Width, H ) )
+	if self.ButtonLayout then
+		H = H + self.Padding
+
+		self.ButtonLayout:SetPos( Vector2( self.FlairWidth + self.Padding, H ) )
+		self.ButtonLayout:InvalidateLayout( true )
+	end
+
+	self:SetSize( Vector2( Width, H + self.Padding + ( ButtonBarSize and ButtonBarSize.y or 0 ) ) )
 end
 
 function Notification:SetMaxWidth( Width )
@@ -150,16 +212,36 @@ function Notification:FadeIn()
 	end )
 end
 
+function Notification:FadeOut()
+	if self.FadingOut then return end
+
+	if self.FadeOutTimer then
+		self.FadeOutTimer:Destroy()
+		self.FadeOutTimer = nil
+	end
+
+	self.FadingOut = true
+	self:AlphaTo( self.Background, self.Background:GetColor().a, 0, 0, 0.3, function()
+		if self.FadeOutCallback then
+			self.FadeOutCallback( self )
+		end
+		self:Destroy()
+	end )
+end
+
 function Notification:FadeOutAfter( Duration, Callback )
-	Shine.Timer.Simple( Duration, function()
+	self.FadeOutCallback = Callback
+	self.FadeOutTimer = Shine.Timer.Simple( Duration, function()
 		if not SGUI.IsValid( self ) then return end
 
-		self.FadingOut = true
-		self:AlphaTo( self.Background, self.Background:GetColor().a, 0, 0, 0.3, function()
-			Callback( self )
-			self:Destroy()
-		end )
+		self.FadeOutTimer = nil
+		self:FadeOut()
 	end )
+end
+
+function Notification:Think( DeltaTime )
+	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 end
 
 SGUI:Register( "Notification", Notification )

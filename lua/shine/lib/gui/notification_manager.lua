@@ -57,10 +57,12 @@ local FLAIR_WIDTH = HighResScaled( 48 )
 	Output:
 		The created Notification SGUI object. Do not reposition or change its size.
 ]]
-function NotificationManager.AddNotification( Type, Message, Duration )
+function NotificationManager.AddNotification( Type, Message, Duration, Options )
 	Shine.AssertAtLevel( NotificationType[ Type ], "No such notification type: %s", 3, Type )
 	Shine.TypeCheck( Message, "string", 2, "AddNotification" )
 	Shine.TypeCheck( Duration, "number", 3, "AddNotification" )
+
+	if Duration <= 0 then return end
 
 	local W, H = SGUI.GetScreenSize()
 
@@ -73,6 +75,7 @@ function NotificationManager.AddNotification( Type, Message, Duration )
 	local Font, Scale = SGUI.FontManager.GetFont( SGUI.FontFamilies.Ionicons, 32 )
 	Notification:SetIconScale( Scale )
 	Notification:SetText( Message, SGUI.FontManager.GetFont( "kAgencyFB", 27 ) )
+	Notification:SetOptions( Options )
 	Notification:SizeToContents()
 	Notification:SetPos( Vector2( -OFFSETX:GetValue(), -OFFSETY:GetValue() - Notification:GetSize().y ) )
 
