@@ -3,13 +3,17 @@
 ]]
 
 local AutoSizeText = {}
+local AxisSizeHandlers = {
+	function( self )
+		return self:GetTextWidth()
+	end,
+	function( self )
+		return self:GetTextHeight()
+	end
+}
 
 function AutoSizeText:GetContentSizeForAxis( Axis )
-	if Axis == 1 then
-		return self:GetTextWidth()
-	end
-
-	return self:GetTextHeight()
+	return AxisSizeHandlers[ Axis ]( self )
 end
 
 function AutoSizeText:GetTextWidth( Text )

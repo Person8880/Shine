@@ -71,10 +71,7 @@ function BaseLayout:GetIsVisible()
 	return true
 end
 
-function BaseLayout:AddElement( Element )
-	local Elements = self.Elements
-	Elements[ #Elements + 1 ] = Element
-
+local function OnAddElement( self, Element )
 	if Element.IsLayout then
 		Element:SetParent( self )
 		self.LayoutChildren[ #self.LayoutChildren + 1 ] = Element
@@ -83,6 +80,18 @@ function BaseLayout:AddElement( Element )
 	end
 
 	self:InvalidateLayout()
+end
+
+function BaseLayout:AddElement( Element )
+	local Elements = self.Elements
+	Elements[ #Elements + 1 ] = Element
+
+	OnAddElement( self, Element )
+end
+
+function BaseLayout:InsertElement( Element, Index )
+	TableInsert( self.Elements, Index, Element )
+	OnAddElement( self, Element )
 end
 
 function BaseLayout:InsertElementAfter( Element, AfterElement )
@@ -94,14 +103,7 @@ function BaseLayout:InsertElementAfter( Element, AfterElement )
 		end
 	end
 
-	if Element.IsLayout then
-		Element:SetParent( self )
-		self.LayoutChildren[ #self.LayoutChildren + 1 ] = Element
-	else
-		Element.LayoutParent = self
-	end
-
-	self:InvalidateLayout()
+	OnAddElement( self, Element )
 end
 
 function BaseLayout:RemoveElement( Element )

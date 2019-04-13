@@ -54,38 +54,6 @@ function TabPanelButton:OnMouseMove( Down )
 	end
 end
 
-function TabPanelButton:SetText( Text )
-	Controls.Button.SetText( self, Text )
-
-	if SGUI.IsValid( self.Icon ) then
-		self.Label:SetPosition( Vector2( 0, 0.5 * self.Icon:GetSize().y ) )
-	end
-end
-
-function TabPanelButton:SetIcon( IconName, Font, Scale )
-	if not Font and not Scale then
-		Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 32 )
-	else
-		Font = Font or SGUI.Fonts.Ionicons
-		Scale = Scale or 1
-	end
-
-	local Icon = SGUI:Create( "Label", self )
-	Icon:SetFontScale( Font, Scale )
-	Icon:SetColour( self:GetTextColour() )
-	Icon:SetAnchor( "CentreMiddle" )
-	Icon:SetTextAlignmentX( GUIItem.Align_Center )
-	Icon:SetTextAlignmentY( GUIItem.Align_Center )
-	Icon:SetText( IconName )
-	Icon:SetPos( Vector2( 0, -0.5 * Icon:GetSize().y ) )
-
-	self.Icon = Icon
-
-	if self.Label then
-		self.Label:SetPosition( Vector2( 0, 0.5 * Icon:GetSize().y ) )
-	end
-end
-
 SGUI:Register( "TabPanelButton", TabPanelButton, "Button" )
 
 local TabPanel = {}
@@ -159,12 +127,14 @@ do
 
 						for i = 1, self.NumTabs do
 							local Tab = self.Tabs[ i ]
-							Menu:AddButton( Tab.Name, function()
+
+							local MenuButton = Menu:AddButton( Tab.Name, function()
 								if SGUI.IsValid( Tab.TabButton ) then
 									Tab.TabButton:DoClick()
 								end
 								Menu:Destroy()
 							end )
+							MenuButton:SetIcon( Tab.TabButton:GetIcon() )
 						end
 					end
 				}
@@ -272,6 +242,7 @@ function TabPanel:AddTab( Name, OnPopulate )
 	local Tabs = self.Tabs
 
 	local TabButton = self.TabPanel:Add( "TabPanelButton" )
+	TabButton:SetHorizontal( self.Horizontal )
 	TabButton:SetTab( self.NumTabs + 1, Name )
 	TabButton:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )
 	TabButton:SetStyleName( self.Horizontal and "Horizontal" or nil )

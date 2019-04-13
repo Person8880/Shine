@@ -3,7 +3,9 @@
 ]]
 
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
+local Max = math.max
 local rawget = rawget
 
 local Button = {}
@@ -17,10 +19,25 @@ function Button:Initialise()
 	self.Background = self:MakeGUIItem()
 	self:SetHighlightOnMouseOver( true )
 	self:SetTextInheritsParentAlpha( true )
+
+	self.Horizontal = true
+	self:SetLayout( SGUI.Layout:CreateLayout( "Horizontal" ) )
 end
 
 function Button:SetCustomSound( Sound )
 	self.Sound = Sound
+end
+
+local function UpdateIconMargin( self )
+	if not self.Icon then return end
+
+	if self.Label then
+		self.Icon:SetMargin(
+			self.IconMargin or ( self.Horizontal and Units.Spacing( 0, 0, Units.HighResScaled( 8 ), 0 ) or nil )
+		)
+	else
+		self.Icon:SetMargin( nil )
+	end
 end
 
 function Button:SetText( Text )
@@ -28,28 +45,29 @@ function Button:SetText( Text )
 
 	if self.Label then
 		self.Label:SetText( Text )
-
+		self:InvalidateLayout()
 		return
 	end
 
-	local Description = self:MakeGUITextItem()
-	Description:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Description:SetTextAlignmentX( GUIItem.Align_Center )
-	Description:SetTextAlignmentY( GUIItem.Align_Center )
+	local Description = SGUI:Create( "Label", self )
+	Description:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+	Description:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 	Description:SetText( Text )
-	Description:SetColor( self.TextColour )
+	Description:SetColour( self.TextColour )
 	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 
 	if self.Font then
-		Description:SetFontName( self.Font )
+		Description:SetFont( self.Font )
 	end
 
 	if self.TextScale then
-		Description:SetScale( self.TextScale )
+		Description:SetTextScale( self.TextScale )
 	end
 
-	self.Background:AddChild( Description )
+	self.Layout:AddElement( Description )
 	self.Label = Description
+
+	UpdateIconMargin( self )
 end
 
 function Button:GetText()
@@ -57,10 +75,79 @@ function Button:GetText()
 	return self.Label:GetText()
 end
 
-SGUI.AddBoundProperty( Button, "Font", "Label:SetFontName" )
-SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColor" )
-SGUI.AddBoundProperty( Button, "TextScale", "Label:SetScale" )
-SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", "Label:SetInheritsParentAlpha" )
+function Button:SetIcon( IconName, Font, Scale )
+	if not IconName then
+		if SGUI.IsValid( self.Icon ) then
+			self.Icon:Destroy()
+			self.Icon = nil
+		end
+
+		self.IconName = nil
+		self.IconFont = nil
+		self.IconTextScale = nil
+
+		return
+	end
+
+	if not Font and not Scale then
+		Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 32 )
+	else
+		Font = Font or SGUI.Fonts.Ionicons
+		Scale = Scale or 1
+	end
+
+	self.IconName = IconName
+	self.IconFont = Font
+	self.IconTextScale = Scale
+
+	if self.Icon then
+		self.Icon:SetText( IconName )
+		self.Icon:SetFontScale( Font, Scale )
+		return
+	end
+
+	local Icon = SGUI:Create( "Label", self )
+	Icon:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+	Icon:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
+	Icon:SetFontScale( Font, Scale )
+	Icon:SetColour( self:GetTextColour() )
+	Icon:SetText( IconName )
+	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+
+	self.Layout:InsertElement( Icon, 1 )
+	self.Icon = Icon
+
+	UpdateIconMargin( self )
+end
+
+function Button:GetIcon()
+	return self.IconName, self.IconFont, self.IconTextScale
+end
+
+function Button:SetHorizontal( Horizontal )
+	Horizontal = not not Horizontal
+
+	if Horizontal == self.Horizontal then return end
+
+	self.Horizontal = Horizontal
+
+	self:SetLayout( SGUI.Layout:CreateLayout( Horizontal and "Horizontal" or "Vertical" ), true )
+
+	if self.Icon then
+		self.Layout:AddElement( self.Icon )
+		UpdateIconMargin( self )
+	end
+
+	if self.Label then
+		self.Layout:AddElement( self.Label )
+	end
+end
+
+SGUI.AddBoundProperty( Button, "Font", "Label:SetFont" )
+SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( Button, "TextScale", "Label:SetTextScale" )
+SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", { "Label:SetInheritsParentAlpha", "Icon:SetInheritsParentAlpha" } )
+SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
 
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
@@ -197,6 +284,61 @@ function Button:PlayerType( Char )
 end
 
 SGUI:AddMixin( Button, "AutoSizeText" )
+
+-- Override GetContentSizeForAxis to account for both an icon and a label.
+do
+	local LabelSizeMethod = {
+		"GetTextWidth",
+		"GetTextHeight"
+	}
+	local MarginSizeMethod = {
+		"GetWidth",
+		"GetHeight"
+	}
+
+	local function GetTotalSize( self, Axis )
+		local Size = 0
+
+		if self.Label then
+			Size = Size + self.Label[ LabelSizeMethod[ Axis ] ]( self.Label )
+		end
+
+		if self.Icon then
+			Size = Size + self.Icon[ LabelSizeMethod[ Axis ] ]( self.Icon )
+				+ Units.Spacing[ MarginSizeMethod[ Axis ] ]( self.Icon:GetComputedMargin() )
+		end
+
+		return Size
+	end
+
+	local function GetSize( Label, Axis )
+		if not Label then return 0 end
+
+		return Label[ LabelSizeMethod[ Axis ] ]( Label )
+	end
+
+	local function GetMaxSize( self, Axis )
+		return Max( 0, GetSize( self.Label, Axis ), GetSize( self.Icon, Axis ) )
+	end
+
+	local ContentSizeHandlers = {
+		[ true ] = {
+			-- When horizontal, the width is the total but the height is just the max of the icon and label heights.
+			GetTotalSize,
+			GetMaxSize
+		},
+		[ false ] = {
+			-- When vertical, the width is the max of the icon and label widths, and the height is the total.
+			GetMaxSize,
+			GetTotalSize
+		}
+	}
+
+	function Button:GetContentSizeForAxis( Axis )
+		return ContentSizeHandlers[ self.Horizontal ][ Axis ]( self, Axis )
+	end
+end
+
 SGUI:AddMixin( Button, "Clickable" )
 SGUI:AddMixin( Button, "EnableMixin" )
 SGUI:Register( "Button", Button )
