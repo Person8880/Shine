@@ -340,7 +340,7 @@ function Plugin:ReceiveEndVote( Data )
 	Shine.ScreenText.End( "MapVote" )
 end
 
-local function GetMapVoteText( self, NextMap, VoteButton, Options, InitialText )
+local function GetMapVoteText( self, NextMap, VoteButton, Maps, InitialText, VoteButtonCandidates )
 	local Description
 	if InitialText then
 		Description = NextMap and self:GetPhrase( "NEXT_MAP_DESCRIPTION" )
@@ -357,10 +357,19 @@ local function GetMapVoteText( self, NextMap, VoteButton, Options, InitialText )
 		} )
 	end
 
-	return self:GetInterpolatedPhrase( "VOTE_UNBOUND_MESSAGE", {
+	local VoteMessage = self:GetInterpolatedPhrase( "VOTE_UNBOUND_MESSAGE", {
 		VoteDescription = Description,
-		MapList = Options
+		MapList = "\n* "..TableConcat( Maps, "\n* " )
 	} )
+
+	if VoteButtonCandidates then
+		-- Some menu binds are conflicting with the vote menu button.
+		VoteMessage = StringFormat( "%s\n%s", VoteMessage, self:GetInterpolatedPhrase( "VOTE_BUTTON_CONFLICT", {
+			Buttons = TableConcat( VoteButtonCandidates, ", " )
+		} ) )
+	end
+
+	return VoteMessage
 end
 
 function Plugin:ReceiveVoteOptions( Message )
@@ -388,8 +397,10 @@ function Plugin:ReceiveVoteOptions( Message )
 
 	local ButtonBound = Shine.VoteButtonBound
 	local VoteButton = Shine.VoteButton or "M"
+	local VoteButtonCandidates = Shine.VoteButtonCandidates
 
-	local VoteMessage = GetMapVoteText( self, NextMap, ButtonBound and VoteButton or nil, Options, true )
+	local VoteMessage = GetMapVoteText( self, NextMap, ButtonBound and VoteButton or nil,
+		Maps, true, VoteButtonCandidates )
 
 	if NextMap and TimeLeft > 0 and ShowTimeLeft then
 		VoteMessage = StringFormat( "%s\n%s", VoteMessage, self:GetPhrase( "TIME_LEFT" ) )
@@ -426,7 +437,8 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Colour = Color( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
-				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil, Options, false )
+				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
+					Maps, false, VoteButtonCandidates )
 
 				if self.TimeLeft > 0 then
 					self.Text = StringFormat( "%s\n%s", self.Text, Plugin:GetPhrase( "TIME_LEFT" ) )
@@ -462,7 +474,8 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Colour = Color( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
-				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil, Options, false )
+				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
+					Maps, false, VoteButtonCandidates )
 				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
 
 				return

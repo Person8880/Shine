@@ -2,6 +2,7 @@
 	"VOTE": "Vote",
 	"VOTE_BOUND_MESSAGE": "{VoteDescription}. Press {Button} to vote.\nTime left to vote: %s.",
 	"VOTE_UNBOUND_MESSAGE": "{VoteDescription}.\nMaps: {MapList}.\nType !vote <map> to vote.\nTime left to vote: %s.\nBind a key to sh_votemenu to make voting easier.",
+	"VOTE_BUTTON_CONFLICT": "Buttons bound to sh_votemenu and conflicting with other binds: {Buttons}",
 	"NEXT_MAP_DESCRIPTION": "Voting for the next map has begun",
 	"NEXT_MAP_DESCRIPTION2": "Vote for the next map in progress",
 	"RTV_DESCRIPTION": "Map vote has begun",
