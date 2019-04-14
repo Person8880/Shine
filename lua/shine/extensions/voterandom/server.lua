@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.6"
+Plugin.Version = "2.7"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -191,7 +191,7 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "2.4",
 		Apply = function( Config )
 			if IsType( Config.TeamPreferences, "table" ) then
-				Config.TeamPreferences.CostWeighting = Plugin.TeamPreferenceWeighting.NONE
+				Config.TeamPreferences.CostWeighting = Plugin.TeamPreferenceWeighting.MEDIUM
 			end
 		end
 	},
@@ -207,6 +207,12 @@ Plugin.ConfigMigrationSteps = {
 		Apply = Shine.Migrator()
 			:AddField( { "TeamPreferences", "PlayWithFriendsWeighting" }, Plugin.TeamPreferenceWeighting.MEDIUM )
 			:AddField( { "TeamPreferences", "MaxFriendGroupSize" }, 4 )
+	},
+	{
+		VersionTo = "2.7",
+		Apply = Shine.Migrator()
+			:AddField( { "TeamPreferences", "FriendGroupInviteDurationInSeconds" }, 15 )
+			:AddField( { "TeamPreferences", "FriendGroupInviteCooldownInSeconds" }, 15 )
 	}
 }
 
@@ -512,7 +518,9 @@ function Plugin:Initialise()
 
 	self.FriendGroups = {}
 	self.FriendGroupsBySteamID = {}
-	self.BlockFriendGroupRequestsForSteamIDs = {}
+	self.FriendGroupConfigBySteamID = {}
+	self.FriendGroupInvitesBySteamID = {}
+	self.FriendGroupInviteDelaysBySteamID = {}
 
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
@@ -930,6 +938,8 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 		self.VoteBlockTime = nil
 	end
 
+	self:HandleFriendGroupSetGameState( Gamerules, NewState, OldState )
+
 	if NewState ~= kGameState.Countdown then return end
 
 	self:BroadcastModuleEvent( "GameStarting", Gamerules )
@@ -1072,10 +1082,7 @@ function Plugin:ClientDisconnect( Client )
 	self:UpdateVoteCounters( self.Vote )
 	self.TeamPreferences[ Client ] = nil
 
-	local Group = self.FriendGroupsBySteamID[ Client:GetUserId() ]
-	if Group then
-		self:RemoveClientFromFriendGroup( Group, Client, true )
-	end
+	self:HandleFriendGroupClientDisconnect( Client )
 
 	if not self.ReconnectLogTimeout then return end
 	if SharedTime() > self.ReconnectLogTimeout then return end

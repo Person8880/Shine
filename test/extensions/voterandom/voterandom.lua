@@ -603,15 +603,7 @@ do
 	local function MockClient( SteamID )
 		local Client = Clients[ SteamID ]
 		if not Client then
-			Client = {
-				SteamID = SteamID,
-				GetUserId = function() return SteamID end,
-				GetControllingPlayer = function()
-					return {
-						GetName = function() return "Test" end
-					}
-				end
-			}
+			Client = UnitTest.MakeMockClient( SteamID )
 			Clients[ SteamID ] = Client
 		end
 		return Client
@@ -624,7 +616,8 @@ do
 				MockClient( 12345 ),
 				MockClient( 54321 ),
 				MockClient( 67890 )
-			}
+			},
+			Leader = MockClient( 12345 )
 		}
 		return setmetatable( {
 			SendNetworkMessage = function() end,
@@ -636,6 +629,21 @@ do
 				[ 54321 ] = ExistingFriendGroup,
 				[ 67890 ] = ExistingFriendGroup
 			},
+			FriendGroupInvitesBySteamID = {},
+			FriendGroupInviteDelaysBySteamID = {},
+			FriendGroupConfigBySteamID = setmetatable( {
+				[ 789 ] = {
+					LeaderType = VoteShuffle.FriendGroupLeaderType.ALLOW_ALL_TO_JOIN,
+					JoinType = VoteShuffle.FriendGroupJoinType.BLOCK
+				}
+			}, {
+				__index = function( self, Key )
+					return {
+						LeaderType = VoteShuffle.FriendGroupLeaderType.ALLOW_ALL_TO_JOIN,
+						JoinType = VoteShuffle.FriendGroupJoinType.ALLOW_ALL
+					}
+				end
+			} ),
 			FriendGroups = {
 				ExistingFriendGroup
 			},
@@ -645,11 +653,10 @@ do
 			},
 			Config = {
 				TeamPreferences = {
-					MaxFriendGroupSize = 4
+					MaxFriendGroupSize = 4,
+					FriendGroupInviteDurationInSeconds = 30,
+					FriendGroupInviteCooldownInSeconds = 30
 				}
-			},
-			BlockFriendGroupRequestsForSteamIDs = {
-				[ 789 ] = true
 			}
 		}, { __index = VoteShuffle } )
 	end
@@ -658,7 +665,7 @@ do
 		MockPlugin = MakeMockPlugin()
 	end )
 
-	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that's opted out is not added.", function( Assert )
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that's opted out is not added", function( Assert )
 		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 789 ) )
 
 		Assert:Equals( 1, #MockPlugin.FriendGroups )
@@ -671,7 +678,98 @@ do
 		Assert.Nil( "Should not have added the target to a group", MockPlugin.FriendGroupsBySteamID[ 789 ] )
 	end )
 
-	UnitTest:Test( "HandleFriendGroupJoinRequest - No groups for either client", function( Assert )
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that requires an invite is invited", function( Assert )
+		MockPlugin.FriendGroupConfigBySteamID[ 789 ] = {
+			LeaderType = VoteShuffle.FriendGroupLeaderType.ALLOW_ALL_TO_JOIN,
+			JoinType = VoteShuffle.FriendGroupJoinType.REQUIRE_INVITE
+		}
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 789 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Should not have added the target to a group", MockPlugin.FriendGroupsBySteamID[ 789 ] )
+
+		local Invite = MockPlugin.FriendGroupInvitesBySteamID[ 789 ]
+		Assert.NotNil( "Should have added an invite for the target player", Invite )
+		Assert.Equals( "Should be invited by the calling client", 123, Invite.InviterID )
+
+		local Delay = MockPlugin.FriendGroupInviteDelaysBySteamID[ 789 ]
+		Assert.NotNil( "Should have added a delay for the next invite from the calling player to the target",
+			Delay and Delay[ 123 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that requires an invite is rejected if already invited to another group", function( Assert )
+		MockPlugin.FriendGroupConfigBySteamID[ 789 ] = {
+			LeaderType = VoteShuffle.FriendGroupLeaderType.ALLOW_ALL_TO_JOIN,
+			JoinType = VoteShuffle.FriendGroupJoinType.REQUIRE_INVITE
+		}
+		MockPlugin.FriendGroupInvitesBySteamID[ 789 ] = {
+			InviterID = 12345,
+			ExpiryTime = math.huge
+		}
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 789 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Should not have added the target to a group", MockPlugin.FriendGroupsBySteamID[ 789 ] )
+
+		local Invite = MockPlugin.FriendGroupInvitesBySteamID[ 789 ]
+		Assert.Equals( "Should not have added an invite for the target player", 12345, Invite.InviterID )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that requires an invite is rejected if the caller's group is full", function( Assert )
+		MockPlugin.FriendGroupConfigBySteamID[ 789 ] = {
+			LeaderType = VoteShuffle.FriendGroupLeaderType.ALLOW_ALL_TO_JOIN,
+			JoinType = VoteShuffle.FriendGroupJoinType.REQUIRE_INVITE
+		}
+		MockPlugin.Config = {
+			TeamPreferences = {
+				MaxFriendGroupSize = 3
+			}
+		}
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 12345 ), MockClient( 789 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Should not have added the target to a group", MockPlugin.FriendGroupsBySteamID[ 789 ] )
+
+		local Invite = MockPlugin.FriendGroupInvitesBySteamID[ 789 ]
+		Assert.Nil( "Should not have added an invite for the target player", Invite )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Client that requires an invite is rejected if the caller has recently invited the target", function( Assert )
+		MockPlugin.FriendGroupConfigBySteamID[ 789 ] = {
+			LeaderType = VoteShuffle.FriendGroupLeaderType.ALLOW_ALL_TO_JOIN,
+			JoinType = VoteShuffle.FriendGroupJoinType.REQUIRE_INVITE
+		}
+		MockPlugin.FriendGroupInviteDelaysBySteamID = {
+			[ 789 ] = {
+				[ 123 ] = math.huge
+			}
+		}
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 789 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Should not have added the target to a group", MockPlugin.FriendGroupsBySteamID[ 789 ] )
+
+		local Invite = MockPlugin.FriendGroupInvitesBySteamID[ 789 ]
+		Assert.Nil( "Should not have added an invite for the target player", Invite )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - No groups for either client creates new group", function( Assert )
 		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 123 ), MockClient( 456 ) )
 
 		Assert:Equals( 2, #MockPlugin.FriendGroups )
@@ -719,6 +817,21 @@ do
 		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 456 ] )
 	end )
 
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Adding to caller group fails if only the group's leader can invite", function( Assert )
+		MockPlugin.FriendGroupConfigBySteamID[ 12345 ] = {
+			LeaderType = VoteShuffle.FriendGroupLeaderType.LEADER_ADD_ONLY,
+			JoinType = VoteShuffle.FriendGroupJoinType.ALLOW_ALL
+		}
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 54321 ), MockClient( 456 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Target should not have been added to the group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
+	end )
+
 	UnitTest:Test( "HandleFriendGroupJoinRequest - Adding to caller group fails if full", function( Assert )
 		MockPlugin.Config.TeamPreferences.MaxFriendGroupSize = 3
 
@@ -729,10 +842,16 @@ do
 			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
 			MockPlugin.FriendGroups[ 1 ].Clients
 		)
-		Assert.Nil( "Target should not have been added to a group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
+		Assert.Nil( "Target should not have been added to the group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
 	end )
 
 	UnitTest:Test( "HandleFriendGroupJoinRequest - No caller group adds the caller to the target's group", function( Assert )
+		-- Simulate invites sent from the player that's joining the group.
+		MockPlugin.FriendGroupInvitesBySteamID[ 789 ] = {
+			InviterID = 456,
+			ExpiryTime = math.huge
+		}
+
 		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 456 ), MockClient( 12345 ) )
 
 		Assert:Equals( 1, #MockPlugin.FriendGroups )
@@ -741,6 +860,61 @@ do
 			MockPlugin.FriendGroups[ 1 ].Clients
 		)
 		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 456 ] )
+
+		Assert.NotNil( "Should not cancel any pending invites as the group is open to all",
+			MockPlugin.FriendGroupInvitesBySteamID[ 789 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Adding to target group succeeds if only the group's leader can invite and the player is invited", function( Assert )
+		MockPlugin.FriendGroupConfigBySteamID[ 12345 ] = {
+			LeaderType = VoteShuffle.FriendGroupLeaderType.LEADER_ADD_ONLY,
+			JoinType = VoteShuffle.FriendGroupJoinType.ALLOW_ALL
+		}
+		MockPlugin.FriendGroupInvitesBySteamID[ 456 ] = {
+			InviterID = 12345,
+			ExpiryTime = math.huge
+		}
+
+		-- Simulate invites sent from the player that's joining the group.
+		MockPlugin.FriendGroupInvitesBySteamID[ 789 ] = {
+			InviterID = 456,
+			ExpiryTime = math.huge
+		}
+		MockPlugin.FriendGroupInvitesBySteamID[ 987 ] = {
+			InviterID = 456,
+			ExpiryTime = math.huge
+		}
+
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 456 ), MockClient( 12345 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ), MockClient( 456 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert:Equals( MockPlugin.FriendGroups[ 1 ], MockPlugin.FriendGroupsBySteamID[ 456 ] )
+
+		Assert.Nil( "Should remove the consumed invite for the caller",
+			MockPlugin.FriendGroupInvitesBySteamID[ 456 ] )
+		Assert.Nil( "Should cancel any pending invites as the group is leader invite only",
+			MockPlugin.FriendGroupInvitesBySteamID[ 789 ] )
+		Assert.Nil( "Should cancel any pending invites as the group is leader invite only",
+			MockPlugin.FriendGroupInvitesBySteamID[ 987 ] )
+	end )
+
+	UnitTest:Test( "HandleFriendGroupJoinRequest - Adding to target group fails if only the group's leader can invite", function( Assert )
+		MockPlugin.FriendGroupConfigBySteamID[ 12345 ] = {
+			LeaderType = VoteShuffle.FriendGroupLeaderType.LEADER_ADD_ONLY,
+			JoinType = VoteShuffle.FriendGroupJoinType.ALLOW_ALL
+		}
+		VoteShuffle.HandleFriendGroupJoinRequest( MockPlugin, MockClient( 456 ), MockClient( 12345 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Nil( "Target should not have been added to the group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
 	end )
 
 	UnitTest:Test( "HandleFriendGroupJoinRequest - Adding to target group fails if full", function( Assert )
@@ -753,10 +927,15 @@ do
 			{ MockClient( 12345 ), MockClient( 54321 ), MockClient( 67890 ) },
 			MockPlugin.FriendGroups[ 1 ].Clients
 		)
-		Assert.Nil( "Caller should not have been added to a group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
+		Assert.Nil( "Caller should not have been added to the group", MockPlugin.FriendGroupsBySteamID[ 456 ] )
 	end )
 
 	UnitTest:Test( "RemoveClientFromFriendGroup - Leaves group in place when enough members remain", function( Assert )
+		MockPlugin.FriendGroupInvitesBySteamID[ 456 ] = {
+			InviterID = 12345,
+			ExpiryTime = math.huge
+		}
+
 		VoteShuffle.RemoveClientFromFriendGroup( MockPlugin, MockPlugin.FriendGroups[ 1 ], MockClient( 12345 ) )
 
 		Assert:Equals( 1, #MockPlugin.FriendGroups )
@@ -764,7 +943,22 @@ do
 			{ MockClient( 54321 ), MockClient( 67890 ) },
 			MockPlugin.FriendGroups[ 1 ].Clients
 		)
+		Assert.Equals( "Should have updated the group leader", MockClient( 54321 ), MockPlugin.FriendGroups[ 1 ].Leader )
 		Assert.Nil( "Removed client should no longer be mapped to the group", MockPlugin.FriendGroupsBySteamID[ 12345 ] )
+		Assert.Nil( "Should have cancelled invites from the client being removed",
+			MockPlugin.FriendGroupInvitesBySteamID[ 456 ] )
+	end )
+
+	UnitTest:Test( "RemoveClientFromFriendGroup - Does not change leader when leader is still present", function( Assert )
+		VoteShuffle.RemoveClientFromFriendGroup( MockPlugin, MockPlugin.FriendGroups[ 1 ], MockClient( 54321 ) )
+
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+		Assert:ArrayContainsExactly(
+			{ MockClient( 12345 ), MockClient( 67890 ) },
+			MockPlugin.FriendGroups[ 1 ].Clients
+		)
+		Assert.Equals( "Should not have changed the group leader", MockClient( 12345 ), MockPlugin.FriendGroups[ 1 ].Leader )
+		Assert.Nil( "Removed client should no longer be mapped to the group", MockPlugin.FriendGroupsBySteamID[ 54321 ] )
 	end )
 
 	UnitTest:Test( "RemoveClientFromFriendGroup - Removes group when only 1 member remains", function( Assert )

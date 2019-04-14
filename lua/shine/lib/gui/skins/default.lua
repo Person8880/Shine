@@ -15,6 +15,10 @@ local Danger = Colour( 1, 0, 0 )
 local Warning = Colour( 1, 0.6, 0 )
 local Info = Colour( 0, 0.5, 1 )
 
+local SuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
+local DangerButton = Colour( 1, 0.2, 0.1, 1 )
+
+
 local Skin = {
 	Button = {
 		Default = {
@@ -42,10 +46,20 @@ local Skin = {
 			InactiveCol = Colour( 0.3, 0.3, 0.3, 1 )
 		},
 		SuccessButton = {
-			ActiveCol = Colour( 0.1, 0.6, 0.1, 1 )
+			ActiveCol = SuccessButton
 		},
 		DangerButton = {
-			ActiveCol = Colour( 1, 0.2, 0.1, 1 )
+			ActiveCol = DangerButton
+		},
+		AcceptButton = {
+			InactiveCol = SuccessButton,
+			ActiveCol = SGUI.ColourWithAlpha( SuccessButton, 2 ),
+			InheritsParentAlpha = true
+		},
+		DeclineButton = {
+			InactiveCol = DangerButton,
+			ActiveCol = SGUI.ColourWithAlpha( DangerButton, 2 ),
+			InheritsParentAlpha = true
 		},
 		TabPanelTabListButton = {
 			InactiveCol = Clear,

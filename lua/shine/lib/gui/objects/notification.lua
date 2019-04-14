@@ -114,6 +114,15 @@ function Notification:SetButtons( Buttons )
 		Fill = false
 	} )
 
+	local function BindClickFunction( ButtonDef, Button, Key )
+		local Func = ButtonDef[ Key ]
+		if not Func then return end
+
+		Button[ Key ] = function( Button )
+			return Func( Button, self )
+		end
+	end
+
 	local Heights = {}
 	for i = 1, #Buttons do
 		local ButtonDef = Buttons[ i ]
@@ -121,8 +130,8 @@ function Notification:SetButtons( Buttons )
 		Button:SetText( ButtonDef.Text )
 		Button:SetFontScale( self.Font, self.TextScale )
 		Button:SetIcon( ButtonDef.Icon, ButtonDef.IconFont, ButtonDef.IconScale )
-		Button.DoClick = ButtonDef.DoClick
-		Button.DoRightClick = ButtonDef.DoRightClick
+		BindClickFunction( ButtonDef, Button, "DoClick" )
+		BindClickFunction( ButtonDef, Button, "DoRightClick" )
 		Button:SetStyleName( ButtonDef.StyleName )
 		if i > 1 then
 			Button:SetMargin( Units.Spacing( self.Padding, 0, 0, 0 ) )

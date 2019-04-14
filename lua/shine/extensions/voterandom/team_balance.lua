@@ -42,7 +42,11 @@ BalanceModule.DefaultConfig = {
 		-- team, but also a stronger chance that teams will be more imbalanced.
 		PlayWithFriendsWeighting = Plugin.TeamPreferenceWeighting.MEDIUM,
 		-- The maximum number of players that can form a friend group.
-		MaxFriendGroupSize = 4
+		MaxFriendGroupSize = 4,
+		-- How long to wait for a response to a friend group invitation before revoking it.
+		FriendGroupInviteDurationInSeconds = 15,
+		-- How long after a friend group invite fails before a player can send another invite.
+		FriendGroupInviteCooldownInSeconds = 15
 	}
 }
 
@@ -65,6 +69,9 @@ do
 
 	-- It makes no sense to have player groups less than 2 or larger than half the max players in size.
 	Validator:AddFieldRule( "TeamPreferences.MaxFriendGroupSize", Validator.Clamp( 2, Server.GetMaxPlayers() * 0.5 ) )
+
+	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteDurationInSeconds", Validator.Min( 5 ) )
+	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteCooldownInSeconds", Validator.Min( 0 ) )
 
 	BalanceModule.ConfigValidator = Validator
 end

@@ -134,11 +134,15 @@ function NotificationManager.RegisterHint( Name, Params )
 	Shine.TypeCheck( Params, "table", 1, "RegisterHint" )
 
 	Shine.TypeCheckField( Params, "HintDuration", { "number", "nil" }, "Params" )
-	Shine.TypeCheckField( Params, "HintIntervalInSeconds", "number", "Params" )
 	Shine.TypeCheckField( Params, "MaxTimes", { "number", "nil" }, "Params" )
 	Shine.TypeCheckField( Params, "MessageKey", "string", "Params" )
 	Shine.TypeCheckField( Params, "MessageSource", "string", "Params" )
 	Shine.TypeCheckField( Params, "NotificationType", { "string", "nil" }, "Params" )
+	Shine.TypeCheckField( Params, "Options", { "table", "nil" }, "Params" )
+
+	if not Params.MaxTimes or Params.MaxTimes > 1 then
+		Shine.TypeCheckField( Params, "HintIntervalInSeconds", "number", "Params" )
+	end
 
 	if Params.NotificationType then
 		Shine.AssertAtLevel( NotificationType[ Params.NotificationType ],
@@ -185,7 +189,10 @@ function NotificationManager.DisplayHint( Name )
 		return
 	end
 
-	Data.NextHintTime = Now + Params.HintIntervalInSeconds
+	if not Params.MaxTimes or Params.MaxTimes > 1 then
+		Data.NextHintTime = Now + Params.HintIntervalInSeconds
+	end
+
 	Data.NumTimesDisplayed = ( Data.NumTimesDisplayed or 0 ) + 1
 	HintData[ Name ] = Data
 	UpdateHintData()
@@ -193,7 +200,8 @@ function NotificationManager.DisplayHint( Name )
 	NotificationManager.AddNotification(
 		Params.NotificationType or NotificationType.INFO,
 		Shine.Locale:GetPhrase( Params.MessageSource, Params.MessageKey ),
-		Params.HintDuration or 5
+		Params.HintDuration or 5,
+		Params.Options
 	)
 end
 
