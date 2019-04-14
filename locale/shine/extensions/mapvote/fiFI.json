@@ -61,5 +61,7 @@
 	"MAP_EXTENDED_ROUNDS": "{Duration:Sign:lyhensi|pidensi} jäljellä olevaa aikaa {Duration:Abs} erällä.",
 	"SET_MAP_ROUNDS": "asetti erien määräksi {Duration} {Duration:Pluralise:erän|erää}.",
 	"NOTIFY_PREFIX": "[Karttaäänestys]",
-	"PLUGIN_DISABLED": "Karttaäänestyksen lisätoiminto on pois päältä. Ehdotus on mitätöity."
+	"PLUGIN_DISABLED": "Karttaäänestyksen lisätoiminto on pois päältä. Ehdotus on mitätöity.",
+
+	"CLIENT_CONFIG_TAB": "Äänestä karttaa"
 }

@@ -68,5 +68,7 @@
 	"TEAM_SWITCH_DENIED_HIVE_BASED": "Vous ne pouvez pas changer d'équipe. Basé sur le Hive skill des équipes sont activés.",
 	"TEAM_SWITCH_DENIED_KDR_BASED": "Vous ne pouvez pas changer d'équipe. Basé sur le KDR des équipes sont activés.",
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "Vous ne pouvez pas changer d'équipe. Aléatoire des équipes sont activés.",
-	"TEAM_SWITCH_DENIED_SCORE_BASED": "Vous ne pouvez pas changer d'équipe. Basé sur le score des équipes sont activés."
+	"TEAM_SWITCH_DENIED_SCORE_BASED": "Vous ne pouvez pas changer d'équipe. Basé sur le score des équipes sont activés.",
+
+	"CLIENT_CONFIG_TAB": "Aléatoire"
 }

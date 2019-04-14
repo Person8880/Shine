@@ -89,5 +89,7 @@
 	"TEAM_SWITCH_DENIED_HIVE_BASED": "你无法切换队伍。系统已经强制分配队伍了（依据Hive排行榜战力值）。",
 	"TEAM_SWITCH_DENIED_KDR_BASED": "你无法切换队伍。系统已经强制分配队伍了（依据KD比率）。",
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "你无法切换队伍。系统已经强制随机分配队伍了。",
-	"TEAM_SWITCH_DENIED_SCORE_BASED": "你无法切换队伍。系统已经强制分配队伍了（依据每分钟得分能力）。"
+	"TEAM_SWITCH_DENIED_SCORE_BASED": "你无法切换队伍。系统已经强制分配队伍了（依据每分钟得分能力）。",
+
+	"CLIENT_CONFIG_TAB": "洗牌分队"
 }
