@@ -40,7 +40,7 @@ function Plugin:ReceiveTeamHasCommander( Data )
 		"MARINES_HAVE_COMMANDER",
 		"ALIENS_HAVE_COMMANDER"
 	}
-	Shine.ScreenText.Add( 2, {
+	Shine.ScreenText.Add( self.ScreenTextID, {
 		X = 0.5, Y = 0.7,
 		Text = self:GetInterpolatedPhrase( TeamKeys[ Data.Team ], Data ),
 		Duration = 5,
@@ -52,7 +52,7 @@ function Plugin:ReceiveTeamHasCommander( Data )
 end
 
 function Plugin:ReceiveGameStartsSoon( Data )
-	Shine.ScreenText.Add( 2, {
+	Shine.ScreenText.Add( self.ScreenTextID, {
 		X = 0.5, Y = 0.7,
 		Text = self:GetInterpolatedPhrase( "GAME_START_SOON", Data ),
 		Duration = 5,
@@ -64,7 +64,7 @@ function Plugin:ReceiveGameStartsSoon( Data )
 end
 
 function Plugin:ReceiveGameStarting( Data )
-	Shine.ScreenText.Add( 2, {
+	Shine.ScreenText.Add( self.ScreenTextID, {
 		X = 0.5, Y = 0.7,
 		Text = self:GetPhrase( "GAME_START" ),
 		Duration = Data.Duration,

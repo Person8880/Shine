@@ -12,5 +12,6 @@
 	"MARINES_HAVE_COMMANDER": "Marines have a commander. Aliens have {TimeLeft:Duration} to choose their commander.",
 	"EXCEEDED_TIME": "Pregame has exceeded {Duration:Duration} and there is one commander. Starting game...",
 	"NOTIFY_PREFIX": "[Pre Game]",
-	"WAITING_FOR_PLAYERS": "Game start waiting for players to load."
+	"WAITING_FOR_PLAYERS": "Game start waiting for players to load.",
+	"ROUND_START_ABORTED_MAP_VOTE_STARTED": "Game start aborted, a map vote has begun."
 }
