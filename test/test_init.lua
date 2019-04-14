@@ -58,6 +58,18 @@ function UnitTest.MockOf( Table )
 	} )
 end
 
+function UnitTest.MakeMockClient( SteamID )
+	return {
+		SteamID = SteamID,
+		GetUserId = function() return SteamID end,
+		GetControllingPlayer = function()
+			return {
+				GetName = function() return "Test" end
+			}
+		end
+	}
+end
+
 local AssertionError = setmetatable( {}, {
 	__call = function( self, Data )
 		return setmetatable( Data, self )
