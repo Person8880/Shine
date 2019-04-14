@@ -12,16 +12,6 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
-	RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
-
-	AddVoteSetupCallback( function( VoteMenu )
-		AddVoteStartListener( "ShineCustomVote", function( Data )
-			return Data.VoteQuestion
-		end )
-	end )
-end )
-
 local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
@@ -30,6 +20,18 @@ local StringMatch = string.match
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
+
+Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
+	RegisterVoteType( "ShineCustomVote", {
+		VoteQuestion = "string (128)"
+	} )
+
+	AddVoteSetupCallback( function( VoteMenu )
+		AddVoteStartListener( "ShineCustomVote", function( Data )
+			return Data.VoteQuestion
+		end )
+	end )
+end )
 
 function Plugin:Initialise()
 	if self.dt.AllTalk or self.dt.AllTalkPreGame then

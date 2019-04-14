@@ -24,7 +24,7 @@ local TableSort = table.sort
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "1.5"
+Plugin.Version = "1.6"
 Plugin.PrintName = "Base Commands"
 
 Plugin.HasConfig = true
@@ -39,6 +39,7 @@ Plugin.DefaultConfig = {
 		{ FractionOfTeamToPass = 0.5 }
 	},
 	CommanderBotVoteDelayInSeconds = 300,
+	CustomVotePrefix = "POLL: ",
 	DisableLuaRun = false,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
@@ -181,7 +182,9 @@ do
 	end
 
 	local function RegisterCustomVote()
-		RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
+		RegisterVoteType( "ShineCustomVote", {
+			VoteQuestion = "string (128)"
+		} )
 
 		SetVoteSuccessfulCallback( "ShineCustomVote", 4, function( Data )
 			Plugin:OnCustomVoteSuccess( Data )
@@ -877,7 +880,7 @@ function Plugin:CreateAdminCommands()
 			local Func, Err = loadstring( Code )
 
 			if Func then
-				local Success, Err = pcall( Func )
+				local Success, Err = pcall( Func, Client )
 				if Success then
 					Shine:Print( "%s ran: %s", true, Shine.GetClientInfo( Client ), Code )
 					if Client then
@@ -1657,7 +1660,9 @@ function Plugin:CreateMessageCommands()
 			StartVote = StartVote or Shine.StartNS2Vote
 			if not StartVote then return end
 
-			StartVote( "ShineCustomVote", Client, { VoteQuestion = VoteQuestion } )
+			StartVote( "ShineCustomVote", Client, {
+				VoteQuestion = self.Config.CustomVotePrefix..VoteQuestion
+			} )
 		end
 		local CustomVoteCommand = self:BindCommand( "sh_customvote", "customvote", CustomVote )
 		CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "question" }
