@@ -267,7 +267,7 @@ ConfigMenu:AddTab( "Settings", {
 
 		local Tabs = Panel:Add( "TabPanel" )
 		Tabs:SetFill( true )
-		Tabs:SetTabWidth( HighResScaled( 128 ):GetValue() )
+		Tabs:SetTabWidth( HighResScaled( 176 ):GetValue() )
 		Tabs:SetTabHeight( HighResScaled( 36 ):GetValue() )
 		Tabs:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 		Tabs:SetHorizontal( true )
