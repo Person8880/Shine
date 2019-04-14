@@ -126,9 +126,12 @@ function ConfigMenu:PopulateTabs( Menu )
 	local Tabs = self.Tabs
 	for i = 1, #Tabs do
 		local Tab = Tabs[ i ]
-		Menu:AddTab( Tab.Name, function( Panel )
+		local TabEntry = Menu:AddTab( Tab.Name, function( Panel )
 			Tab.OnInit( Panel )
 		end )
+		if Tab.Icon then
+			TabEntry.TabButton:SetIcon( Tab.Icon )
+		end
 	end
 end
 
@@ -171,11 +174,15 @@ local SettingsTypes = {
 	Radio = {
 		Create = function( Panel, Entry )
 			local RadioPanel = Panel:Add( "Panel" )
-			RadioPanel:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 56 ) ) )
+			RadioPanel:SetStyleName( "RadioBackground" )
+			RadioPanel:SetAutoSize( UnitVector(
+				Percentage( 100 ),
+				Units.Auto()
+			) )
 
 			local TranslationSource = Entry.TranslationSource or "Core"
+			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
 
-			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical", {} )
 			local Description = RadioPanel:Add( "Label" )
 			Description:SetFontScale( GetSmallFont() )
 			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
@@ -183,11 +190,8 @@ local SettingsTypes = {
 			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
 			VerticalLayout:AddElement( Description )
 
-			local RadioLayout = SGUI.Layout:CreateLayout( "Horizontal", {} )
-
 			local CheckBoxes = {}
 			local CurrentChoice = GetConfiguredValue( Entry )
-			local PercentPerCheckbox = 100 / #Entry.Options
 			for i = 1, #Entry.Options do
 				local Option = Entry.Options[ i ]
 
@@ -196,7 +200,7 @@ local SettingsTypes = {
 				CheckBox:AddLabel( Locale:GetPhrase( TranslationSource, Option ) )
 				CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 				if i > 1 then
-					CheckBox:SetMargin( Spacing( Percentage( PercentPerCheckbox ), 0, 0, 0 ) )
+					CheckBox:SetMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
 				end
 				CheckBox:SetRadio( true )
 
@@ -212,12 +216,26 @@ local SettingsTypes = {
 					end
 				end
 
-				RadioLayout:AddElement( CheckBox )
+				VerticalLayout:AddElement( CheckBox )
 				CheckBoxes[ #CheckBoxes + 1 ] = CheckBox
 			end
 
-			VerticalLayout:AddElement( RadioLayout )
-			RadioPanel:SetLayout( VerticalLayout )
+			if Entry.HelpText then
+				local Hint = RadioPanel:Add( "Hint" )
+				Hint:SetStyleName( Entry.HelpTextStyle or "Info" )
+				Hint:SetMargin( Spacing( 0, HighResScaled( 8 ), 0, 0 ) )
+				Hint:SetText( Locale:GetPhrase( TranslationSource, Entry.HelpText ) )
+				Hint:SetFontScale( GetSmallFont() )
+
+				Hint:SetAutoSize( UnitVector(
+					Percentage( 100 ),
+					Units.Auto()
+				) )
+
+				VerticalLayout:AddElement( Hint )
+			end
+
+			RadioPanel:SetLayout( VerticalLayout, true )
 
 			return RadioPanel
 		end
@@ -225,44 +243,98 @@ local SettingsTypes = {
 }
 
 ConfigMenu:AddTab( "Settings", {
+	Icon = SGUI.Icons.Ionicons.GearB,
 	OnInit = function( Panel )
-		Panel:SetScrollable()
-		Panel:SetScrollbarHeightOffset( HighResScaled( 40 ):GetValue() )
-		Panel:SetScrollbarWidth( HighResScaled( 8 ):GetValue() )
-		Panel:SetScrollbarPos( Vector2( -HighResScaled( 16 ):GetValue(), HighResScaled( 32 ):GetValue() ) )
-
 		local Settings = Shine.ClientSettings
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( HighResScaled( 24 ), HighResScaled( 32 ),
-				HighResScaled( 24 ), HighResScaled( 32 ) )
+			Padding = Spacing( HighResScaled( 8 ), HighResScaled( 8 ),
+				HighResScaled( 8 ), HighResScaled( 8 ) )
 		} )
 
 		local Title = Panel:Add( "Label" )
 		Title:SetFontScale( GetMediumFont() )
 		Title:SetText( Locale:GetPhrase( "Core", "CLIENT_SETTINGS" ) )
-		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 16 ) ) )
+		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
 		Layout:AddElement( Title )
+
+		local SettingsByGroup = Shine.Multimap()
+		local GeneralGroup = {
+			Key = "GENERAL_CLIENT_SETTINGS",
+			Source = "Core",
+			Icon = SGUI.Icons.Ionicons.GearA
+		}
+		local Groups = {}
+
+		local Tabs = Panel:Add( "TabPanel" )
+		Tabs:SetFill( true )
+		Tabs:SetTabWidth( HighResScaled( 128 ):GetValue() )
+		Tabs:SetTabHeight( HighResScaled( 36 ):GetValue() )
+		Tabs:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
+		Tabs:SetHorizontal( true )
 
 		for i = 1, #Settings do
 			local Setting = Settings[ i ]
 			local Creator = SettingsTypes[ Setting.Type ]
+			local Group = Setting.Group or GeneralGroup
 
 			if Creator then
-				local Object = Creator.Create( Panel, Setting )
-				Object:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
-				Layout:AddElement( Object )
+				local GroupName = Locale:GetPhrase( Group.Source, Group.Key )
+				Groups[ GroupName ] = Group
+
+				SettingsByGroup:Add( GroupName, Setting )
 			end
 		end
+
+		local function SetupTabPanel( TabPanel )
+			TabPanel:SetScrollable()
+			TabPanel:SetScrollbarWidth( HighResScaled( 8 ):GetValue() )
+			TabPanel:SetScrollbarPos( Vector2( -HighResScaled( 8 ):GetValue(), 0 ) )
+			TabPanel:SetScrollbarHeightOffset( 0 )
+			TabPanel:SetResizeLayoutForScrollbar( true )
+
+			return SGUI.Layout:CreateLayout( "Vertical", {
+				Padding = Spacing( HighResScaled( 8 ), HighResScaled( 8 ),
+					HighResScaled( 8 ), HighResScaled( 8 ) )
+			} )
+		end
+
+		for Group, Settings in SettingsByGroup:Iterate() do
+			local Tab = Tabs:AddTab( Group, function( TabPanel )
+				local TabLayout = SetupTabPanel( TabPanel )
+
+				for i = 1, #Settings do
+					local Setting = Settings[ i ]
+					local Creator = SettingsTypes[ Setting.Type ]
+
+					local Object = Creator.Create( TabPanel, Setting )
+					if i ~= #Settings then
+						Object:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+					end
+
+					TabLayout:AddElement( Object )
+				end
+
+				TabPanel:SetLayout( TabLayout, true )
+			end )
+
+			local GroupDef = Groups[ Group ]
+			if GroupDef and GroupDef.Icon then
+				Tab.TabButton:SetIcon( GroupDef.Icon )
+			end
+		end
+
+		Layout:AddElement( Tabs )
 
 		Panel:SetLayout( Layout )
 	end
 } )
 
 ConfigMenu:AddTab( "Plugins", {
+	Icon = SGUI.Icons.Ionicons.Settings,
 	OnInit = function( Panel )
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( HighResScaled( 16 ), HighResScaled( 32 ),
-				HighResScaled( 16 ), HighResScaled( 16 ) )
+			Padding = Spacing( HighResScaled( 8 ), HighResScaled( 32 ),
+				HighResScaled( 8 ), HighResScaled( 8 ) )
 		} )
 
 		local List = SGUI:Create( "List", Panel )
@@ -286,9 +358,10 @@ ConfigMenu:AddTab( "Plugins", {
 		Layout:AddElement( List )
 
 		local EnableButton = SGUI:Create( "Button", Panel )
-		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + HighResScaled( 8 ) ) )
 		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )
+		EnableButton:SetIcon( SGUI.Icons.Ionicons.Power )
 		EnableButton:SetEnabled( false )
 
 		Layout:AddElement( EnableButton )
@@ -310,9 +383,11 @@ ConfigMenu:AddTab( "Plugins", {
 			if State then
 				EnableButton:SetText( Locale:GetPhrase( "Core", "DISABLE_PLUGIN" ) )
 				EnableButton:SetStyleName( "DangerButton" )
+				EnableButton:SetIcon( SGUI.Icons.Ionicons.Close )
 			else
 				EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 				EnableButton:SetStyleName( "SuccessButton" )
+				EnableButton:SetIcon( SGUI.Icons.Ionicons.Power )
 			end
 		end
 

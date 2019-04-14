@@ -106,12 +106,9 @@ function Plugin:SetupClientConfig()
 		Print( "Local all talk is now %s.", Enable and "enabled" or "disabled" )
 	end ):AddParam{ Type = "boolean", Optional = true, Default = function() return self.Config.DisableLocalAllTalk end }
 
-	Shine:RegisterClientSetting( {
+	self:AddClientSetting( "DisableLocalAllTalk", "sh_alltalklocal_cl", {
 		Type = "Boolean",
-		Command = "sh_alltalklocal_cl",
-		ConfigOption = function() return not self.Config.DisableLocalAllTalk end,
-		Description = "ALL_TALK_LOCAL_DESCRIPTION",
-		TranslationSource = self.__Name
+		Description = "ALL_TALK_LOCAL_DESCRIPTION"
 	} )
 end
 

@@ -68,7 +68,9 @@
 	"NOTIFY_PREFIX": "[Map Vote]",
 	"PLUGIN_DISABLED": "Map vote plugin disabled. Current vote cancelled.",
 	"ON_VOTE_ACTION": "When a map vote starts:",
-	"USE_SERVER_SETTINGS": "Use Server Settings",
-	"OPEN_MENU": "Open Vote Menu",
-	"DO_NOT_OPEN_MENU": "Do Nothing"
+	"USE_SERVER_SETTINGS": "Use server settings to decide whether to open the menu",
+	"OPEN_MENU": "Open the vote menu automatically",
+	"DO_NOT_OPEN_MENU": "Do not open the menu automatically",
+
+	"CLIENT_CONFIG_TAB": "Map Vote"
 }

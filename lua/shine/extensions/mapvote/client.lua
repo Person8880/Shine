@@ -33,6 +33,10 @@ do
 	Plugin.ConfigValidator = Validator
 end
 
+Plugin.ConfigGroup = {
+	Icon = SGUI.Icons.Ionicons.Earth
+}
+
 Plugin.Maps = {}
 Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
@@ -72,13 +76,10 @@ function Plugin:SetupClientConfig()
 		Print( "The vote menu will %s when a map vote starts.", Explanations[ self.Config.OnVoteAction ] )
 	end ):AddParam{ Type = "string", Optional = true }
 
-	Shine:RegisterClientSetting( {
+	self:AddClientSetting( "OnVoteAction", "sh_mapvote_onvote", {
 		Type = "Radio",
-		Command = "sh_mapvote_onvote",
-		ConfigOption = function() return self.Config.OnVoteAction end,
 		Options = self.VoteAction,
-		Description = "ON_VOTE_ACTION",
-		TranslationSource = self.__Name
+		Description = "ON_VOTE_ACTION"
 	} )
 end
 

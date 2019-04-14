@@ -55,5 +55,7 @@
 	"ERROR_CANT_TARGET_MULTIPLE": "You do not have permission to target anyone you specified.",
 	"COMMAND_DEFAULT_ERROR": "Incorrect argument #{ArgNum} to {CommandName}, expected {ExpectedType}.",
 	"COMMAND_RESTRICTED_ARG": "Invalid argument #{ArgNum}, restricted in rank settings.",
-	"COMMAND_NO_PERMISSION": "You do not have permission to use {CommandName}."
+	"COMMAND_NO_PERMISSION": "You do not have permission to use {CommandName}.",
+
+	"GENERAL_CLIENT_SETTINGS": "General"
 }

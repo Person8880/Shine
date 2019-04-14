@@ -195,4 +195,24 @@ function ConfigModule:TypeCheckConfig( Config )
 	return Shine.TypeCheckConfig( self.__Name, Config, self.DefaultConfig )
 end
 
+if Client then
+	local TableShallowMerge = table.ShallowMerge
+
+	function ConfigModule:AddClientSetting( ConfigKey, Command, Options )
+		local Group = self.ConfigGroup
+		local MergedOptions = TableShallowMerge( Options, {
+			Command = Command,
+			ConfigOption = function() return self.Config[ ConfigKey ] end,
+			TranslationSource = self:GetName(),
+			Group = Group and {
+				Key = Group.Key or "CLIENT_CONFIG_TAB",
+				Source = self:GetName(),
+				Icon = Group.Icon
+			}
+		} )
+
+		Shine:RegisterClientSetting( MergedOptions )
+	end
+end
+
 Shine.BasePlugin:AddModule( ConfigModule )
