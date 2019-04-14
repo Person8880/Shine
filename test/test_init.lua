@@ -253,19 +253,28 @@ UnitTest.Assert.Fail = function( Failure )
 	error( Failure, 2 )
 end
 
+local WriteToConsole = Shared.OldMessage or Shared.Message
+local function PrintOutput( Message, ... )
+	WriteToConsole( StringFormat( Message, ... ) )
+end
+
 function UnitTest:Output( File )
 	local Passed = 0
 	local Failed = 0
 	local Duration = 0
 
+	PrintOutput( "Test results for %s", File )
+
 	for i = 1, #self.Results do
 		local Result = self.Results[ i ]
+
+		PrintOutput( "  - %s: %s (%.2fus)", Result.Description, Result.Passed and "PASS" or "FAIL", Result.Duration * 1e6 )
 
 		if Result.Passed then
 			Passed = Passed + 1
 		else
 			Failed = Failed + 1
-			Print( "Test failure: %s", Result.Description )
+			PrintOutput( "  Test failure: %s", Result.Description )
 
 			local Err = Result.Err
 			if IsAssertionFailure( Err ) then
@@ -278,23 +287,23 @@ function UnitTest:Output( File )
 				Err = StringFormat( "Args:\n%s", TableConcat( Err.Args, "\n------------\n" ) )
 			end
 
-			Print( "Error: %s\n%s", Err, Result.Traceback )
+			PrintOutput( "Error: %s\n%s", Err, Result.Traceback )
 		end
 
 		Duration = Duration + Result.Duration
 	end
 
-	Print( "Result summary for %s: %i/%i passed, %.2f%% success rate. Time taken: %.2fus.",
-		File, Passed, #self.Results, Passed / #self.Results * 100, Duration * 1e6 )
+	PrintOutput( "%d/%d passed, %.2f%% success rate. Time taken: %.2fus.",
+		Passed, #self.Results, Passed / #self.Results * 100, Duration * 1e6 )
 
-	return Passed, #self.Results
+	return Passed, #self.Results, Duration
 end
 
 local Files = {}
 Shared.GetMatchingFileNames( "test/*.lua", true, Files )
 
 local FinalResults = {
-	Passed = 0, Total = 0
+	Passed = 0, Total = 0, Duration = 0
 }
 for i = 1, #Files do
 	if Files[ i ] ~= "test/test_init.lua" then
@@ -302,12 +311,14 @@ for i = 1, #Files do
 
 		Script.Load( Files[ i ], true )
 
-		local Passed, Total = UnitTest:Output( Files[ i ] )
+		local Passed, Total, Duration = UnitTest:Output( Files[ i ] )
 		FinalResults.Passed = FinalResults.Passed + Passed
 		FinalResults.Total = FinalResults.Total + Total
+		FinalResults.Duration = FinalResults.Duration + Duration
 
 		UnitTest.Results = {}
 	end
 end
 
-Print( "Total tests run: %i. Pass rate: %.2f%%.", FinalResults.Total, FinalResults.Passed / FinalResults.Total * 100 )
+Print( "Total tests run: %i. Pass rate: %.2f%%. Total time: %.2fus.",
+	FinalResults.Total, FinalResults.Passed / FinalResults.Total * 100, FinalResults.Duration * 1e6 )
