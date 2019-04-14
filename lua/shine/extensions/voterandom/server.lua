@@ -98,6 +98,7 @@ Plugin.DefaultConfig = {
 	BalanceMode = Plugin.ShuffleMode.HIVE, -- How should teams be balanced?
 	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Elo/Hive fails?
 
+	RemoveAFKPlayersFromTeams = true, -- Should the plugin remove AFK players from teams when shuffling?
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, -- Should the plugin ignore spectators in player slots when switching?
 	AlwaysEnabled = false, -- Should the plugin be always forcing each round?
@@ -616,7 +617,6 @@ do
 
 		local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 		local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
-		local IsEnforcingTeams = self.EnforcementPolicy:IsActive( self )
 
 		local function AddTeamPreference( Player, Client, Preference )
 			TeamMembers.TeamPreferences[ Player ] = Preference
@@ -627,7 +627,7 @@ do
 
 		local PlayersToBeShuffled = {}
 
-		local function SortPlayer( Player, Client, Commander, Pass )
+		local function SortPlayer( Player, Client, IsCommander, Pass )
 			-- Do not shuffle clients that are in a spectator slot.
 			if Client:GetIsSpectator() then return end
 
@@ -641,7 +641,7 @@ do
 				return
 			end
 
-			local IsImmune = Shine:HasAccess( Client, "sh_randomimmune" ) or Commander
+			local IsImmune = IsCommander or Shine:HasAccess( Client, "sh_randomimmune" )
 			local IsPlayingTeam = Team == 1 or Team == 2
 			-- Assume that if a player uses a team joining command (either walking into a TeamJoin entity or
 			-- using the console) then they definitely want that team. Their persisted preference
@@ -703,16 +703,15 @@ do
 				if Pass == 1 then
 					Server.DisconnectClient( Client )
 				end
-
 				return
 			end
 
-			local Commander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
+			local IsCommander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 
-			if AFKEnabled then
-				if Commander or not IsClientAFK( Client ) then
+			if AFKEnabled and self.Config.RemoveAFKPlayersFromTeams then
+				if IsCommander or not IsClientAFK( Client ) then
 					-- Player is a commander or is not AFK, add them to the teams.
-					SortPlayer( Player, Client, Commander, Pass )
+					SortPlayer( Player, Client, IsCommander, Pass )
 				elseif Pass == 1 then
 					-- Player is AFK, chuck them into the ready room.
 					local Team = Player:GetTeamNumber()
@@ -721,11 +720,9 @@ do
 						Gamerules:JoinTeam( Player, 0, nil, true )
 					end
 				end
-
-				return
+			else
+				SortPlayer( Player, Client, IsCommander, Pass )
 			end
-
-			SortPlayer( Player, Client, Commander, Pass )
 		end
 
 		for Pass = 1, 2 do
