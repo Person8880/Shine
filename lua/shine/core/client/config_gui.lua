@@ -242,7 +242,7 @@ local SettingsTypes = {
 	}
 }
 
-ConfigMenu:AddTab( "Settings", {
+ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 	Icon = SGUI.Icons.Ionicons.GearB,
 	OnInit = function( Panel )
 		local Settings = Shine.ClientSettings
@@ -329,7 +329,7 @@ ConfigMenu:AddTab( "Settings", {
 	end
 } )
 
-ConfigMenu:AddTab( "Plugins", {
+ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 	Icon = SGUI.Icons.Ionicons.Settings,
 	OnInit = function( Panel )
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {

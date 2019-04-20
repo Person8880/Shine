@@ -207,6 +207,7 @@ UnitTest:Test( "Multimap:Add()/Get()/GetCount()", function( Assert )
 	Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
 
 	Assert:Equals( 6, Map:GetCount() )
+	Assert:Equals( 3, Map:GetKeyCount() )
 end )
 
 UnitTest:Test( "Multimap:RemoveKeyValue()", function( Assert )
@@ -217,10 +218,17 @@ UnitTest:Test( "Multimap:RemoveKeyValue()", function( Assert )
 
 	Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
 	Assert:Equals( 3, Map:GetCount() )
+	Assert:Equals( 1, Map:GetKeyCount() )
 
 	Map:RemoveKeyValue( 1, 2 )
 	Assert:ArrayEquals( { 1, 3 }, Map:Get( 1 ) )
 	Assert:Equals( 2, Map:GetCount() )
+	Assert:Equals( 1, Map:GetKeyCount() )
+
+	Map:RemoveKeyValue( 1, 1 )
+	Map:RemoveKeyValue( 1, 3 )
+	Assert:Equals( 0, Map:GetCount() )
+	Assert:Equals( 0, Map:GetKeyCount() )
 end )
 
 UnitTest:Test( "Multimap:Clear()", function( Assert )

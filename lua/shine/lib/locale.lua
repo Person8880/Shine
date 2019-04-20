@@ -206,19 +206,22 @@ function Locale:OnLoaded()
 		end
 
 		if Missing:GetCount() == 0 then
-			LuaPrint( "No missing keys." )
+			Print( "No missing keys." )
 			return
 		end
 
 		TableSort( Missing.Keys )
 
 		-- Ignore the array index when printing.
-		local function PrintValue( Value ) return LuaPrint( Value ) end
+		local function PrintValue( Value ) return Print( "* %s", Value ) end
 
 		for Folder, MissingKeys in Missing:Iterate() do
-			LuaPrint( "Missing keys in: "..Folder )
+			Print( "Missing keys in %s:", Folder )
 			Shine.Stream( MissingKeys ):ForEach( PrintValue )
+			Print( "" )
 		end
+
+		Print( "Missing %d messages in total across %d sources.", Missing:GetCount(), Missing:GetKeyCount() )
 	end ):AddParam{ Type = "string" }
 
 	Shine:RegisterClientCommand( "sh_testpluralform", function( LangCode, Value )

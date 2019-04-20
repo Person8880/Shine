@@ -342,6 +342,10 @@ function Multimap:GetCount()
 	return self.Count
 end
 
+function Multimap:GetKeyCount()
+	return #self.Keys
+end
+
 --[[
 	Adds a new value under the given key if the given key-value pair has not
 	been mapped already.
@@ -371,6 +375,10 @@ function Multimap:RemoveKeyValue( Key, Value )
 	local Removed = Entry:Remove( Value ) ~= nil
 	if Removed then
 		self.Count = self.Count - 1
+
+		if Entry:GetCount() == 0 then
+			Map.Remove( self, Key )
+		end
 	end
 
 	return Removed

@@ -51,6 +51,9 @@ function Shine.AddStartupMessage( Message, Format, ... )
 	StartupMessages[ #StartupMessages + 1 ] = Message
 end
 
-Shine.LoadScripts( Scripts )
-Shine.Locale:RegisterSource( "Core", "locale/shine/core" )
+Shine.LoadScripts( Scripts, {
+	[ "lib/locale.lua" ] = function()
+		Shine.Locale:RegisterSource( "Core", "locale/shine/core" )
+	end
+} )
 Shine.Locale:OnLoaded()
