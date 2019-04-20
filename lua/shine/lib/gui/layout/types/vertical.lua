@@ -69,4 +69,16 @@ function Vertical:GetFillElementSize( Element, Width, Height, FillSizePerElement
 	return Size
 end
 
+local ContentSizes = {
+	function( self )
+		return self:GetMaxSizeAlongAxis( 1 )
+	end,
+	function( self )
+		return self.BaseClass.GetContentSizeForAxis( self, 2 )
+	end
+}
+function Vertical:GetContentSizeForAxis( Axis )
+	return ContentSizes[ Axis ]( self )
+end
+
 Shine.GUI.Layout:RegisterType( "Vertical", Vertical, "Directional" )

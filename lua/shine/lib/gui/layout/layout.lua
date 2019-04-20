@@ -25,8 +25,9 @@ SGUI.AddProperty( BaseLayout, "Size", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "AutoSize", nil, { "InvalidatesParent" } )
 SGUI.AddProperty( BaseLayout, "Padding", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "Margin", nil, { "InvalidatesParent" } )
-SGUI.AddProperty( BaseLayout, "Alignment", SGUI.LayoutAlignment.MIN )
-SGUI.AddProperty( BaseLayout, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN )
+SGUI.AddProperty( BaseLayout, "Alignment", SGUI.LayoutAlignment.MIN, { "InvalidatesParent" } )
+SGUI.AddProperty( BaseLayout, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN, { "InvalidatesParent" } )
+SGUI.AddProperty( BaseLayout, "IsVisible", true, { "InvalidatesParent" } )
 SGUI.AddProperty( BaseLayout, "Elements" )
 
 function BaseLayout:Init( Data )
@@ -65,10 +66,6 @@ end
 
 function BaseLayout:IterateChildren()
 	return ChildIterator, { Elements = self.Elements, Index = 0 }
-end
-
-function BaseLayout:GetIsVisible()
-	return true
 end
 
 local function OnAddElement( self, Element )
@@ -125,6 +122,7 @@ end
 table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"ComputeSpacing",
 	"GetContentSizeForAxis",
+	"GetMaxSizeAlongAxis",
 	"GetComputedPadding",
 	"GetComputedMargin",
 	"GetComputedSize",
@@ -147,7 +145,12 @@ function BaseLayout:Think( DeltaTime )
 end
 
 function BaseLayout:PerformLayout()
-	-- This method is responsible for actually computing the layout.
+	-- When this layout is invalidated, invalidate all of its children too.
+	-- This ensures layout changes cascade downwards in a single frame, rather than
+	-- some children waiting for the next frame to invalidate and thus causing a slight jitter.
+	for i = 1, #self.LayoutChildren do
+		self.LayoutChildren[ i ]:InvalidateLayout( true )
+	end
 end
 
 Layout.Types = {}

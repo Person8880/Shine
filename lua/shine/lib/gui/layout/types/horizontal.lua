@@ -69,4 +69,18 @@ function Horizontal:GetFillElementSize( Element, Width, Height, FillSizePerEleme
 	return Size
 end
 
+local ContentSizes = {
+	function( self )
+		-- This only makes sense if all elements are using the same alignment.
+		-- Otherwise the size returned will be larger than the actual size consumed.
+		return self.BaseClass.GetContentSizeForAxis( self, 1 )
+	end,
+	function( self )
+		return self:GetMaxSizeAlongAxis( 2 )
+	end
+}
+function Horizontal:GetContentSizeForAxis( Axis )
+	return ContentSizes[ Axis ]( self )
+end
+
 Shine.GUI.Layout:RegisterType( "Horizontal", Horizontal, "Directional" )

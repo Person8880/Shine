@@ -298,17 +298,6 @@ function Panel:GetMaxHeight()
 	return self.MaxHeight or self:GetSize().y
 end
 
-function Panel:SetIsVisible( Visible )
-	self.BaseClass.SetIsVisible( self, Visible )
-
-	local Children = self.Children
-	if not Children then return end
-
-	for Child in Children:Iterate() do
-		Child:SetIsVisible( Visible )
-	end
-end
-
 --[[
 	Clears the panel of objects to be repopulated.
 ]]
@@ -711,7 +700,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 
 	if self:DragClick( Key, DoubleClick ) then return true, self end
 
-	if self.IsAWindow or self.BlockOnMouseDown then
+	if ( self.IsAWindow and self:MouseInCached() ) or self.BlockOnMouseDown then
 		return true, self
 	end
 end

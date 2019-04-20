@@ -17,6 +17,10 @@ function ChatLine:Initialise()
 	self.Pos = Vector2( 0, 0 )
 end
 
+function ChatLine:GetScreenPos()
+	return self.PreLabel:GetScreenPos()
+end
+
 function ChatLine:GetAnchor()
 	return self.PreLabel:GetAnchor()
 end

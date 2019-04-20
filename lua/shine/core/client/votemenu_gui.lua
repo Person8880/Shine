@@ -215,9 +215,6 @@ function VoteMenu:SetIsVisible( Bool, IgnoreAnim )
 
 		-- Set the page to ensure only the correct buttons show after making the panel visible.
 		self:SetPage( self.ActivePage or "Main", IgnoreAnim )
-
-		-- Avoid consuming all input from other windows.
-		SGUI:MoveWindowToBottom( self.Background )
 	else
 		SGUI:EnableMouse( false )
 

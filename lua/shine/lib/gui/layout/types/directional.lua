@@ -117,6 +117,7 @@ function Directional:LayoutElements( Elements, Context )
 end
 
 function Directional:PerformLayout()
+	-- If there are no elements, there's also no layout children so no need to call the base method.
 	local Elements = self.Elements
 	if #Elements == 0 then return end
 
@@ -204,6 +205,8 @@ function Directional:PerformLayout()
 	Context.Alignment = LayoutAlignment.CENTRE
 	Context.CentreAlignedSize = CentreAlignedSize
 	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+
+	self.BaseClass.PerformLayout( self )
 end
 
 Shine.GUI.Layout:RegisterType( "Directional", Directional )

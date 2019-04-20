@@ -34,33 +34,6 @@ function CategoryPanel:Initialise()
 	self:SetScrollable()
 end
 
-function CategoryPanel:SetIsVisible( Visible )
-	self.BaseClass.SetIsVisible( self, Visible )
-
-	if not Visible then
-		Controls.Panel.SetIsVisible( self, Visible )
-
-		return
-	end
-
-	-- Only set expanded categories to visible.
-	local Categories = self.Categories
-
-	for i = 1, self.NumCategories do
-		local Category = Categories[ i ]
-		local Objects = Category.Objects
-		local Header = Category.Header
-
-		Header:SetIsVisible( true )
-
-		if Category.Expanded then
-			for j = 1, #Objects do
-				Objects[ j ]:SetIsVisible( true )
-			end
-		end
-	end
-end
-
 function CategoryPanel:AddCategory( Name )
 	local Categories = self.Categories
 

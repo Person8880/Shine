@@ -14,6 +14,15 @@ local ClickSound = "sound/NS2.fev/common/button_enter"
 Client.PrecacheLocalSound( ClickSound )
 Button.Sound = ClickSound
 
+SGUI.AddBoundProperty( Button, "Font", "Label:SetFont" )
+SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", { "Label:SetInheritsParentAlpha", "Icon:SetInheritsParentAlpha" } )
+SGUI.AddBoundProperty( Button, "TextIsVisible", "Label:SetIsVisible" )
+SGUI.AddBoundProperty( Button, "TextScale", "Label:SetTextScale" )
+
+SGUI.AddBoundProperty( Button, "IconIsVisible", "Icon:SetIsVisible" )
+SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
+
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
 	self.Background = self:MakeGUIItem()
@@ -21,6 +30,9 @@ function Button:Initialise()
 	self:SetTextInheritsParentAlpha( true )
 
 	self.Horizontal = true
+	self.TextIsVisible = true
+	self.IconIsVisible = true
+
 	self:SetLayout( SGUI.Layout:CreateLayout( "Horizontal" ) )
 end
 
@@ -55,6 +67,7 @@ function Button:SetText( Text )
 	Description:SetText( Text )
 	Description:SetColour( self.TextColour )
 	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	Description:SetIsVisible( self.TextIsVisible )
 
 	if self.Font then
 		Description:SetFont( self.Font )
@@ -113,6 +126,7 @@ function Button:SetIcon( IconName, Font, Scale )
 	Icon:SetColour( self:GetTextColour() )
 	Icon:SetText( IconName )
 	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	Icon:SetIsVisible( self.IconIsVisible )
 
 	self.Layout:InsertElement( Icon, 1 )
 	self.Icon = Icon
@@ -143,12 +157,6 @@ function Button:SetHorizontal( Horizontal )
 	end
 end
 
-SGUI.AddBoundProperty( Button, "Font", "Label:SetFont" )
-SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColour" )
-SGUI.AddBoundProperty( Button, "TextScale", "Label:SetTextScale" )
-SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", { "Label:SetInheritsParentAlpha", "Icon:SetInheritsParentAlpha" } )
-SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
-
 function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
 
@@ -163,17 +171,6 @@ function Button:SetInactiveCol( Col )
 	if not self.Highlighted then
 		self.Background:SetColor( Col )
 	end
-end
-
-function Button:SetIsVisible( Bool )
-	if not self.Background then return end
-
-	Bool = Bool and true or false
-
-	local WasVisible = self.Background:GetIsVisible()
-	if WasVisible == Bool then return end
-
-	self.Background:SetIsVisible( Bool )
 end
 
 function Button:Think( DeltaTime )

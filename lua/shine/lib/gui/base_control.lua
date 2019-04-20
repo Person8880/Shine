@@ -396,7 +396,7 @@ function ControlMeta:SetIsVisible( Bool )
 	if self.Background.GetIsVisible and self.Background:GetIsVisible() == Bool then return end
 
 	self.Background:SetIsVisible( Bool )
-	self:InvalidateLayout()
+	self:InvalidateParent()
 
 	if self.IsAWindow then
 		if Bool then --Take focus on show.
@@ -547,18 +547,18 @@ SGUI.LayoutAlignment = {
 	CENTRE = 3
 }
 
-SGUI.AddProperty( ControlMeta, "Alignment", SGUI.LayoutAlignment.MIN )
+SGUI.AddProperty( ControlMeta, "Alignment", SGUI.LayoutAlignment.MIN, { "InvalidatesParent" } )
 
 -- Cross-axis alignment controls how an element is aligned on the opposite axis to the layout direction.
 -- For example, an element in a horizontal layout uses the cross-axis alignment to align itself vertically.
-SGUI.AddProperty( ControlMeta, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN )
+SGUI.AddProperty( ControlMeta, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN, { "InvalidatesParent" } )
 
 -- AutoSize controls how to resize the control during layout. You should pass a UnitVector, with
 -- your dynamic units (e.g. GUIScaled, Percentage).
-SGUI.AddProperty( ControlMeta, "AutoSize" )
+SGUI.AddProperty( ControlMeta, "AutoSize", { "InvalidatesParent" } )
 
 -- AutoFont provides a way to set the font size automatically at layout time.
-SGUI.AddProperty( ControlMeta, "AutoFont" )
+SGUI.AddProperty( ControlMeta, "AutoFont", { "InvalidatesParent" } )
 
 -- Fill controls whether the element should have its size computed automatically during layout.
 SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
@@ -579,6 +579,37 @@ function ControlMeta:GetParentSize()
 	end
 
 	return self.Parent and self.Parent:GetSize() or Vector2( SGUI.GetScreenSize() )
+end
+
+function ControlMeta:GetMaxSizeAlongAxis( Axis )
+	local Padding = self:GetComputedPadding()
+
+	local Total = 0
+	if Axis == 1 then
+		Total = Total + Padding[ 1 ] + Padding[ 3 ]
+	else
+		Total = Total + Padding[ 2 ] + Padding[ 4 ]
+	end
+
+	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
+	local MaxChildSize = 0
+
+	for Child in self:IterateChildren() do
+		-- This only works if the child's size does not depend on the parent's.
+		-- Otherwise it's a circular dependency and it won't be correct.
+		local ChildSize = Child:GetComputedSize( Axis, ParentSize )
+
+		local Margin = Child:GetComputedMargin()
+		if Axis == 1 then
+			ChildSize = ChildSize + Margin[ 1 ] + Margin[ 3 ]
+		else
+			ChildSize = ChildSize + Margin[ 2 ] + Margin[ 4 ]
+		end
+
+		MaxChildSize = Max( MaxChildSize, ChildSize )
+	end
+
+	return Max( Total + MaxChildSize, 0 )
 end
 
 function ControlMeta:GetContentSizeForAxis( Axis )
@@ -1167,10 +1198,9 @@ end
 function ControlMeta:SetTooltip( Text )
 	if Text == nil then
 		self.TooltipText = nil
-
 		self.OnHover = nil
 		self.OnLoseHover = nil
-
+		self:HideTooltip()
 		return
 	end
 
