@@ -16,6 +16,7 @@ local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
 
 local Map = Shine.Map
+local Source = require "shine/lib/gui/binding/source"
 
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
@@ -104,6 +105,78 @@ function ControlMeta:CallOnRemove( Func )
 	local Table = self.__CallOnRemove
 
 	Table[ #Table + 1 ] = Func
+end
+
+function ControlMeta:OnPropertyChanged( Name, Value )
+	-- By default, do nothing until a listener is added.
+end
+
+local function BroadcastPropertyChange( self, Name, Value )
+	local Listeners = self.PropertyChangeListeners:Get( Name )
+	if not Listeners then return end
+
+	for i = 1, #Listeners do
+		Listeners[ i ]( Value )
+	end
+end
+
+function ControlMeta:AddPropertyChangeListener( Name, Listener )
+	-- Now listening for changes, so need to broadcast them.
+	self.OnPropertyChanged = BroadcastPropertyChange
+
+	self.PropertyChangeListeners = self.PropertyChangeListeners or Shine.Multimap()
+	self.PropertyChangeListeners:Add( Name, Listener )
+end
+
+function ControlMeta:GetPropertySource( Name )
+	self.PropertySources = self.PropertySources or {}
+
+	local SourceInstance = self.PropertySources[ Name ]
+	if SourceInstance then
+		return SourceInstance
+	end
+
+	local Getter = self[ "Get"..Name ]
+	local Value = Getter and Getter( self ) or self[ Name ]
+
+	SourceInstance = Source( Value )
+	SourceInstance.Element = self
+
+	self.PropertySources[ Name ] = SourceInstance
+	self:AddPropertyChangeListener( Name, SourceInstance )
+
+	return SourceInstance
+end
+
+function ControlMeta:GetPropertyTarget( Name )
+	self.PropertyTargets = self.PropertyTargets or {}
+
+	local Target = self.PropertyTargets[ Name ]
+	if Target then
+		return Target
+	end
+
+	local SetterName = "Set"..Name
+	Target = function( Value )
+		self[ SetterName ]( self, Value )
+	end
+
+	self.PropertyTargets[ Name ] = Target
+
+	return Target
+end
+
+function ControlMeta:RemovePropertyChangeListener( Name, Listener )
+	local Listeners = self.PropertyChangeListeners
+	if not Listeners then return end
+
+	Listeners:Remove( Name, Listener )
+
+	if Listeners:GetCount() == 0 then
+		-- No more listeners, stop adding overhead.
+		self.PropertyChangeListeners = nil
+		self.OnPropertyChanged = ControlMeta.OnPropertyChanged
+	end
 end
 
 --[[

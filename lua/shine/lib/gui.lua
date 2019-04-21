@@ -88,13 +88,24 @@ do
 	]]
 	function SGUI.AddProperty( Table, Name, Default, Modifiers )
 		local TableSetter = "Set"..Name
+		local TableGetter = "Get"..Name
 
 		Table[ TableSetter ] = function( self, Value )
+			local OldValue = self[ TableGetter ]( self )
+
 			self[ Name ] = Value
+
+			if OldValue == Value then return end
+
+			self:OnPropertyChanged( Name, Value )
 		end
 
-		Table[ "Get"..Name ] = function( self )
-			return self[ Name ] or Default
+		Table[ TableGetter ] = function( self )
+			local Value = self[ Name ]
+			if Value == nil then
+				Value = Default
+			end
+			return Value
 		end
 
 		if not Modifiers then return end
@@ -144,15 +155,21 @@ do
 
 		local TableSetter = "Set"..Name
 		Table[ TableSetter ] = function( self, Value )
+			local OldValue = self[ Name ]
+
 			self[ Name ] = Value
 
 			for i = 1, #BoundFields do
 				local Entry = BoundFields[ i ]
 				local Object = self[ Entry.FieldName ]
-				if not Object then return end
-
-				Object[ Entry.Setter ]( Object, Value )
+				if Object then
+					Object[ Entry.Setter ]( Object, Value )
+				end
 			end
+
+			if OldValue == Value then return end
+
+			self:OnPropertyChanged( Name, Value )
 		end
 
 		if not Modifiers then return end

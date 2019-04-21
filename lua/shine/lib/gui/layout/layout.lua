@@ -131,7 +131,12 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"InvalidateLayout",
 	"HandleLayout",
 	"PreComputeWidth",
-	"PreComputeHeight"
+	"PreComputeHeight",
+	"OnPropertyChanged",
+	"AddPropertyChangeListener",
+	"GetPropertySource",
+	"GetPropertyTarget",
+	"RemovePropertyChangeListener"
 } )
 
 function BaseLayout:Think( DeltaTime )
