@@ -6,7 +6,7 @@ local UnitTest = Shine.UnitTest
 local Plugin = UnitTest:LoadExtension( "ban" )
 if not Plugin then return end
 
-Plugin = UnitTest.MockOf( Plugin )
+Plugin = UnitTest.MockPlugin( Plugin )
 
 UnitTest:Test( "AddNS2BansIntoTable - Adds missing bans and updates existing ones", function( Assert )
 	local VanillaBans = {

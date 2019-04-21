@@ -58,6 +58,13 @@ function UnitTest.MockOf( Table )
 	} )
 end
 
+function UnitTest.MockPlugin( Plugin )
+	local Mock = UnitTest.MockOf( Plugin )
+	-- Stop tests from triggering config writes.
+	Mock.SaveConfig = function() end
+	return Mock
+end
+
 function UnitTest.MakeMockClient( SteamID )
 	return {
 		SteamID = SteamID,
