@@ -77,13 +77,13 @@ function StandardAutoComplete:Init( CompletionSupplier, Matchers )
 end
 
 function StandardAutoComplete:AddMatcherToEnd( Matcher )
-	Shine.AssertAtLevel( Shine.IsCallable( Matcher ), "Matcher must be a function or callable object!", 2 )
+	Shine.AssertAtLevel( Shine.IsCallable( Matcher ), "Matcher must be a function or callable object!", 3 )
 	self.Matchers[ #self.Matchers + 1 ] = Matcher
 	return self
 end
 
 function StandardAutoComplete:AddMatcherToStart( Matcher )
-	Shine.AssertAtLevel( Shine.IsCallable( Matcher ), "Matcher must be a function or callable object!", 2 )
+	Shine.AssertAtLevel( Shine.IsCallable( Matcher ), "Matcher must be a function or callable object!", 3 )
 	TableInsert( self.Matchers, 1, Matcher )
 	return self
 end

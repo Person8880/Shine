@@ -449,7 +449,7 @@ do
 	}
 
 	function Plugin:NotifyAllTalkState( Type, Enable )
-		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 3, Type )
 
 		Shine:TranslatedNotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
 			"ALL_TALK_TAG", 255, 255, 255, ALLTALK_TYPES[ Type ]..( Enable and "ENABLED" or "DISABLED" ),
@@ -457,13 +457,13 @@ do
 	end
 
 	function Plugin:IsAllTalkEnabled( Type )
-		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 3, Type )
 
 		return self.Config[ Type ]
 	end
 
 	function Plugin:SetAllTalkEnabled( Type, Enabled, DontSave )
-		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 3, Type )
 
 		Enabled = Enabled and true or false
 		self.Config[ Type ] = Enabled
