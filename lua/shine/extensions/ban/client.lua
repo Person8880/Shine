@@ -393,7 +393,7 @@ function Plugin:SetupAdminMenu()
 			PageLabel:SetFontScale( Font, Scale )
 			PageLabel:SetText( StringFormat( "%d / %d", Data.Page, Data.Page ) )
 			PageLabel:SetAlignment( SGUI.LayoutAlignment.CENTRE )
-			PageLabel:SetTextAlignmentY( GUIItem.Align_Center )
+			PageLabel:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 
 			-- When clicking the page label, turn it into a text entry to allow specifying
 			-- a precise page to jump to.
@@ -494,7 +494,7 @@ function Plugin:SetupAdminMenu()
 
 			local ButtonHeight = Units.Max( Auto( AddBan ), Auto( PageForward ) ) + HighResScaled( 8 )
 			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
-			PageLabel:SetMargin( Spacing( HighResScaled( 16 ), ButtonHeight * 0.5, HighResScaled( 16 ), 0 ) )
+			PageLabel:SetMargin( Spacing( HighResScaled( 16 ), 0, HighResScaled( 16 ), 0 ) )
 
 			Layout:AddElement( ControlLayout )
 

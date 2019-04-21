@@ -2,6 +2,8 @@
 	Button control.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
@@ -68,6 +70,21 @@ function Button:SetText( Text )
 	Description:SetColour( self.TextColour )
 	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Description:SetIsVisible( self.TextIsVisible )
+
+	Binder():FromElement( self, "Horizontal" )
+		:ToElement( Description, "AutoWrap", {
+			Transformer = function( Horizontal )
+				return not Horizontal
+			end
+		} )
+		:ToElement( Description, "AutoSize", {
+			Transformer = function( Horizontal )
+				if Horizontal then
+					return nil
+				end
+				return Units.UnitVector( Units.Percentage( 100 ), Units.Auto() )
+			end
+		} ):BindProperty()
 
 	if self.Font then
 		Description:SetFont( self.Font )
@@ -155,6 +172,8 @@ function Button:SetHorizontal( Horizontal )
 	if self.Label then
 		self.Layout:AddElement( self.Label )
 	end
+
+	self:OnPropertyChanged( "Horizontal", Horizontal )
 end
 
 function Button:SetActiveCol( Col )
