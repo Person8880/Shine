@@ -12,7 +12,9 @@ local DefaultConfig = {
 	ShowWebInSteamBrowser = false,
 	ReportErrors = true,
 	AnimateUI = true,
-	DebugLogging = false
+	DebugLogging = false,
+	ExpandAdminMenuTabs = true,
+	ExpandConfigMenuTabs = true
 }
 
 function Shine:CreateClientBaseConfig()
@@ -22,10 +24,8 @@ end
 
 function Shine:LoadClientBaseConfig()
 	local Data, Err = self.LoadJSONFile( BaseConfig )
-
 	if not Data then
 		self:CreateClientBaseConfig()
-
 		return
 	end
 
@@ -38,6 +38,17 @@ end
 
 function Shine:SaveClientBaseConfig()
 	self.SaveJSONFile( self.Config, BaseConfig )
+end
+
+function Shine:SetClientSetting( Key, Value )
+	local CurrentValue = self.Config[ Key ]
+	Shine.AssertAtLevel( CurrentValue ~= nil, "Unknown config key: %s", 3, Key )
+	Shine.TypeCheck( Value, type( CurrentValue ), 2, "SetClientSetting" )
+
+	if CurrentValue == Value then return end
+
+	self.Config[ Key ] = Value
+	self:SaveClientBaseConfig()
 end
 
 Shine:LoadClientBaseConfig()

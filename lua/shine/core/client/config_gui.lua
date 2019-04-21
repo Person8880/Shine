@@ -65,6 +65,11 @@ function ConfigMenu:Create()
 		Tab.OnCleanup( Window.ContentPanel )
 	end
 
+	self.Menu:SetExpanded( Shine.Config.ExpandConfigMenuTabs )
+	self.Menu:AddPropertyChangeListener( "Expanded", function( Expanded )
+		Shine:SetClientSetting( "ExpandConfigMenuTabs", Expanded )
+	end )
+
 	self.Menu.TitleBarHeight = HighResScaled( 24 ):GetValue()
 	self:PopulateTabs( self.Menu )
 
@@ -128,10 +133,7 @@ function ConfigMenu:PopulateTabs( Menu )
 		local Tab = Tabs[ i ]
 		local TabEntry = Menu:AddTab( Tab.Name, function( Panel )
 			Tab.OnInit( Panel )
-		end )
-		if Tab.Icon then
-			TabEntry.TabButton:SetIcon( Tab.Icon )
-		end
+		end, Tab.Icon )
 	end
 end
 
@@ -254,7 +256,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 		local Title = Panel:Add( "Label" )
 		Title:SetFontScale( GetMediumFont() )
 		Title:SetText( Locale:GetPhrase( "Core", "CLIENT_SETTINGS" ) )
-		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+		Title:SetMargin( Spacing( 0, 0, 0, HighResScaled( 7 ) ) )
 		Layout:AddElement( Title )
 
 		local SettingsByGroup = Shine.Multimap()
@@ -299,7 +301,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 		end
 
 		for Group, Settings in SettingsByGroup:Iterate() do
-			local Tab = Tabs:AddTab( Group, function( TabPanel )
+			local GroupDef = Groups[ Group ]
+			Tabs:AddTab( Group, function( TabPanel )
 				local TabLayout = SetupTabPanel( TabPanel )
 
 				for i = 1, #Settings do
@@ -315,12 +318,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 				end
 
 				TabPanel:SetLayout( TabLayout, true )
-			end )
-
-			local GroupDef = Groups[ Group ]
-			if GroupDef and GroupDef.Icon then
-				Tab.TabButton:SetIcon( GroupDef.Icon )
-			end
+			end, GroupDef and GroupDef.Icon )
 		end
 
 		Layout:AddElement( Tabs )

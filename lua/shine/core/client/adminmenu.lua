@@ -64,6 +64,11 @@ function AdminMenu:Create()
 		self.Window = nil
 	end )
 
+	Window:SetExpanded( Shine.Config.ExpandAdminMenuTabs )
+	Window:AddPropertyChangeListener( "Expanded", function( Expanded )
+		Shine:SetClientSetting( "ExpandAdminMenuTabs", Expanded )
+	end )
+
 	self.Window = Window
 
 	Window.OnPreTabChange = function( Window )
@@ -242,8 +247,7 @@ function AdminMenu:PopulateTabs( Window )
 
 	local Tab = Window:AddTab( Locale:GetPhrase( "Core", "ADMIN_MENU_COMMANDS_TAB" ), function( Panel )
 		CommandsTab.OnInit( Panel, CommandsTab.Data )
-	end )
-	Tab.TabButton:SetIcon( SGUI.Icons.Ionicons.CodeWorking )
+	end, SGUI.Icons.Ionicons.CodeWorking )
 	CommandsTab.TabObj = Tab
 
 	-- Remove them here so they're not in the pairs loop.
@@ -253,11 +257,8 @@ function AdminMenu:PopulateTabs( Window )
 	for Name, Data in SortedPairs( self.Tabs ) do
 		local Tab = Window:AddTab( Name, function( Panel )
 			Data.OnInit( Panel, Data.Data )
-		end )
+		end, Data.Icon )
 		Data.TabObj = Tab
-		if Data.Icon then
-			Tab.TabButton:SetIcon( Data.Icon )
-		end
 	end
 
 	-- Add them back.
@@ -266,9 +267,8 @@ function AdminMenu:PopulateTabs( Window )
 
 	Tab = Window:AddTab( Locale:GetPhrase( "Core", "ADMIN_MENU_ABOUT_TAB" ), function( Panel )
 		AboutTab.OnInit( Panel )
-	end )
+	end, SGUI.Icons.Ionicons.HelpCircled )
 	AboutTab.TabObj = Tab
-	Tab.TabButton:SetIcon( SGUI.Icons.Ionicons.HelpCircled )
 end
 
 function AdminMenu:OnTabCleanup( Window, Name )
