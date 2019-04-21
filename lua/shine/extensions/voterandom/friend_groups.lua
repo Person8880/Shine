@@ -22,7 +22,7 @@ function Plugin:CanClientInviteOthersToGroup( Client, Group )
 	return Group.Leader == Client or self:GetGroupLeaderType( Group ) == self.FriendGroupLeaderType.ALLOW_ALL_TO_JOIN
 end
 
-function Plugin:GetGroupInviterID( Client )
+function Plugin:GetInviteTo( Client )
 	local SteamID = Client:GetUserId()
 	local Invite = self.FriendGroupInvitesBySteamID[ SteamID ]
 	if not Invite then return nil end
@@ -31,6 +31,13 @@ function Plugin:GetGroupInviterID( Client )
 		self.FriendGroupInvitesBySteamID[ SteamID ] = nil
 		return nil
 	end
+
+	return Invite
+end
+
+function Plugin:GetGroupInviterID( Client )
+	local Invite = self:GetInviteTo( Client )
+	if not Invite then return nil end
 
 	return Invite.InviterID
 end
@@ -117,10 +124,10 @@ function Plugin:ReceiveRemoveFromFriendGroup( Client, Data )
 end
 
 function Plugin:ReceiveFriendGroupInviteAnswer( Client, Data )
-	local SteamID = Client:GetUserId()
-	local Invite = self.FriendGroupInvitesBySteamID[ SteamID ]
+	local Invite = self:GetInviteTo( Client )
 	if not Invite then return end
 
+	local SteamID = Client:GetUserId()
 	self:CancelFriendGroupInviteTo( SteamID )
 
 	if HasGameStarted() then return end
