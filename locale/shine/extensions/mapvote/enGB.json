@@ -39,6 +39,7 @@
 	"CHOOSING_RANDOM_MAP": "Choosing random map. Map chosen: {MapName}.",
 	"RTV_STARTED": "Map vote started.",
 	"NEXT_MAP_STARTED": "Voting for the next map has started.",
+	"UNCLEAR_MAP_NAME": "{MapName} matches multiple maps, a more precise name is required.",
 	"MAP_NOT_ON_LIST": "{MapName} is not on the map list.",
 	"NOMINATE_FAIL": "You cannot nominate the current map.",
 	"NOMINATE_DENIED": "You have reached the limit of nominations permitted.",

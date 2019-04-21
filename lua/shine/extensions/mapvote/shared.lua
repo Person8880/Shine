@@ -138,7 +138,7 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.MapName ] = {
 			"VOTE_FAIL_INVALID_MAP", "VOTE_FAIL_VOTED_MAP",
 			"MAP_NOT_ON_LIST", "ALREADY_NOMINATED",
-			"RECENTLY_PLAYED"
+			"RECENTLY_PLAYED", "UNCLEAR_MAP_NAME"
 		},
 		[ MessageTypes.VoteWaitTime ] = {
 			"VOTE_FAIL_MUST_WAIT"
