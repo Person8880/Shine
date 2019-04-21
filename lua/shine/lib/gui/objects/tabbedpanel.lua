@@ -4,6 +4,8 @@
 	Tab buttons are left aligned.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 
@@ -66,6 +68,9 @@ TabPanel.TabHeight = 96
 SGUI.AddBoundProperty( TabPanel, "TabBackgroundColour", "TabPanel:SetColour" )
 SGUI.AddBoundProperty( TabPanel, "PanelColour", "ContentPanel:SetColour" )
 
+SGUI.AddProperty( TabPanel, "Expanded", true, { "InvalidatesLayout" } )
+SGUI.AddProperty( TabPanel, "CollapsedTabSize", Units.HighResScaled( 48 ) )
+
 function TabPanel:Initialise()
 	Controls.Panel.Initialise( self )
 
@@ -90,9 +95,30 @@ function TabPanel:Initialise()
 end
 
 do
+	local OldSetExpanded = TabPanel.SetExpanded
+	function TabPanel:SetExpanded( Expanded )
+		-- Ignore requests to collapse when in horizontal mode.
+		if not Expanded and self.Horizontal then return end
+
+		return OldSetExpanded( self, Expanded )
+	end
+end
+
+do
 	local LayoutSetup = {
 		-- Setup horizontal layout (tabs on top horizontally, content below).
 		[ true ] = function( self, InternalLayout )
+			self.ExpanderLayout = nil
+			if SGUI.IsValid( self.ExpanderButton ) then
+				self.ExpanderButton:Destroy()
+				self.ExpanderButton = nil
+			end
+			self.ExpanderVisibleBinding:Destroy()
+			self.ExpanderVisibleBinding = nil
+
+			-- Horizontal tabs can't be collapsed.
+			self:SetExpanded( true )
+
 			local TabsLayout = SGUI.Layout:CreateLayout( "Horizontal", {
 				AutoSize = Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ),
 				Fill = false
@@ -144,19 +170,96 @@ do
 			self.TabsLayout = TabsLayout
 
 			InternalLayout:AddElement( TabsLayout )
+
+			-- Only show the all tabs button if there's overflow.
+			Binder():FromElement( self.TabPanel, "OverflowX" )
+				:ToElement( AllTabsButton, "IsVisible" )
+				-- Invalidate immediately to avoid the button being positioned incorrectly for a frame.
+				:ToListener( function() TabsLayout:InvalidateLayout( true ) end )
+				:BindProperty()
 		end,
 		-- Setup vertical layout (tabs on the left vertically, content on the right).
 		[ false ] = function( self, InternalLayout )
-			self.TabsLayout = nil
-			self.TabPanel:SetFill( false )
-			self.TabPanel:SetAutoHideScrollbar( true )
-			self.TabPanel:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
-
 			if SGUI.IsValid( self.AllTabsButton ) then
 				self.AllTabsButton:Destroy()
 				self.AllTabsButton = nil
 			end
-			InternalLayout:AddElement( self.TabPanel )
+
+			local TabsLayout = SGUI.Layout:CreateLayout( "Vertical", {
+				AutoSize = Units.UnitVector(
+					self:GetExpanded() and self.TabWidth or self:GetCollapsedTabSize(),
+					Units.Percentage( 100 )
+				),
+				Fill = false
+			} )
+			self.TabsLayout = TabsLayout
+			TabsLayout:AddElement( self.TabPanel )
+
+			self.TabPanel:SetFill( true )
+			self.TabPanel:SetAutoHideScrollbar( true )
+
+			local ExpanderButton = SGUI:Create( "Button", self )
+			ExpanderButton:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self:GetCollapsedTabSize() ) )
+			function ExpanderButton.DoClick()
+				self:SetExpanded( not self:GetExpanded() )
+			end
+
+			self.ExpanderButton = ExpanderButton
+
+			TabsLayout:AddElement( ExpanderButton )
+			InternalLayout:AddElement( TabsLayout )
+
+			-- Update the size of the expander button and its container when CollapsedTabSize changes.
+			Binder():FromElement( self, "CollapsedTabSize" )
+				:ToElement( TabsLayout, "AutoSize", {
+					Filter = function() return not self.Expanded end,
+					Transformer = function( CollapsedTabSize )
+						return Units.UnitVector( CollapsedTabSize, Units.Percentage( 100 ) )
+					end
+				} )
+				:ToElement( ExpanderButton, "AutoSize", {
+					Transformer = function( CollapsedTabSize )
+						return Units.UnitVector( Units.Percentage( 100 ), CollapsedTabSize )
+					end
+				} ):BindProperty()
+
+			-- Alter the icon of the expander button depending on whether the tabs are expanded.
+			Binder():FromElement( self, "Expanded" )
+				:ToElement( TabsLayout, "AutoSize", {
+					Transformer = function( Expanded )
+						return Units.UnitVector(
+							Expanded and self.TabWidth or self:GetCollapsedTabSize(),
+							Units.Percentage( 100 )
+						)
+					end
+				} )
+				:ToElement( ExpanderButton, "Icon", {
+					Transformer = function( Expanded )
+						return SGUI.Icons.Ionicons[ Expanded and "ChevronLeft" or "ChevronRight" ]
+					end
+				} ):BindProperty()
+
+			-- Decide whether the expander layout/button is visible or not depending on whether every
+			-- tab button has an icon or not. If any tab does not have an icon, the tabs can't be collapsed.
+			self.ExpanderVisibleBinding = Binder()
+				:ToElement( ExpanderButton, "IsVisible" )
+				:ToElement( self, "Expanded", {
+					Filter = function( AllButtonsHaveIcons )
+						return not AllButtonsHaveIcons
+					end,
+					-- Force expand if any tab is missing an icon.
+					Transformer = function() return true end
+				} )
+				:WithReducer( function( State, Icon )
+					return State and Icon ~= nil
+				end )
+				:WithInitialState( true ):BindProperties()
+
+			for i = 1, self.NumTabs do
+				local Button = self.Tabs[ i ].TabButton
+				self.ExpanderVisibleBinding:AddSource( Button:GetPropertySource( "Icon" ) )
+			end
+			self.ExpanderVisibleBinding:Refresh()
 		end
 	}
 
@@ -238,7 +341,7 @@ function TabPanel:SetTextScale( Scale )
 	end
 end
 
-function TabPanel:AddTab( Name, OnPopulate )
+function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 	local Tabs = self.Tabs
 
 	local TabButton = self.TabPanel:Add( "TabPanelButton" )
@@ -252,6 +355,39 @@ function TabPanel:AddTab( Name, OnPopulate )
 	end
 	if self.TextScale then
 		TabButton:SetTextScale( self.TextScale )
+	end
+
+	TabButton:SetIcon( IconName, IconFont, IconFontScale )
+
+	-- Show/hide the button's text depending on the expanded state, and resize it accordingly.
+	Binder():FromElement( self, "Expanded" )
+		:ToElement( TabButton, "TextIsVisible" )
+		:ToElement( TabButton, "Tooltip", {
+			Transformer = function( Expanded )
+				return not Expanded and TabButton:GetText() or nil
+			end
+		} )
+		:ToElement( TabButton, "AutoSize", {
+			Transformer = function( Expanded )
+				if Expanded then
+					return Units.UnitVector( self.TabWidth, self.TabHeight )
+				end
+				local WidthHeight = self:GetCollapsedTabSize()
+				return Units.UnitVector( WidthHeight, WidthHeight )
+			end
+		} ):BindProperty()
+	-- Update the button's size when not expanded.
+	Binder():FromElement( self, "CollapsedTabSize" )
+		:ToElement( TabButton, "AutoSize", {
+			Filter = function() return not self:GetExpanded() end,
+			Transformer = function( Value )
+				return Units.UnitVector( Value, Value )
+			end
+		} ):BindProperty()
+
+	if self.ExpanderVisibleBinding then
+		-- Update the expander binding to depend on the button having an icon.
+		self.ExpanderVisibleBinding:AddSource( TabButton:GetPropertySource( "Icon" ) ):Refresh()
 	end
 
 	self.NumTabs = self.NumTabs + 1
@@ -302,7 +438,6 @@ function TabPanel:OnTabSelect( Tab, SuppressPre )
 	for i = 1, self.NumTabs do
 		if i ~= Index then
 			local Tab = Tabs[ i ].TabButton
-
 			Tab:SetSelected( false )
 		end
 	end
@@ -313,6 +448,10 @@ function TabPanel:RemoveTab( Index )
 	if not Tabs[ Index ] then return end
 
 	local TabButton = Tabs[ Index ].TabButton
+	if self.ExpanderVisibleBinding then
+		-- Sources are cached on elements, so this works.
+		self.ExpanderVisibleBinding:RemoveSource( TabButton:GetPropertySource( "Icon" ) ):Refresh()
+	end
 	TabButton:Destroy()
 
 	TableRemove( Tabs, Index )

@@ -196,7 +196,8 @@ local Skin = {
 	TabPanel = {
 		Default = {
 			TabBackgroundColour = DarkButton,
-			PanelColour = WindowBackground
+			PanelColour = WindowBackground,
+			Colour = DarkButton
 		},
 		Horizontal = {
 			TabBackgroundColour = Clear,

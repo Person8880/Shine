@@ -23,6 +23,8 @@ function Panel:Initialise()
 
 	self.Background = self:MakeGUIItem()
 	self.TitleBarHeight = 24
+	self.OverflowX = false
+	self.OverflowY = false
 end
 
 function Panel:SkinColour()
@@ -257,36 +259,11 @@ function Panel:SetSize( Size )
 		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
 	end
 
-	if SGUI.IsValid( self.Scrollbar ) then
-		self.Scrollbar:Destroy()
-		self.Scrollbar = nil
-
-		if Size.y < self.MaxHeight then
-			self:SetMaxHeight( self.MaxHeight )
-		else
-			-- Make sure the parent gets reset, and we clear the MaxHeight field
-			-- so auto-resize is calculated from the panel height which is now larger.
-			local ScrollPos = self.ScrollParent:GetPosition()
-			ScrollPos.y = 0
-
-			self.ScrollParent:SetPosition( ScrollPos )
-			self.MaxHeight = nil
-		end
+	if self.MaxWidth then
+		self:SetMaxWidth( self.MaxWidth )
 	end
-
-	if SGUI.IsValid( self.HorizontalScrollbar ) then
-		self.HorizontalScrollbar:Destroy()
-		self.HorizontalScrollbar = nil
-
-		if Size.x < self.MaxWidth then
-			self:SetMaxWidth( self.MaxWidth )
-		else
-			local ScrollPos = self.ScrollParent:GetPosition()
-			ScrollPos.x = 0
-
-			self.ScrollParent:SetPosition( ScrollPos )
-			self.MaxWidth = nil
-		end
+	if self.MaxHeight then
+		self:SetMaxHeight( self.MaxHeight )
 	end
 end
 
@@ -451,6 +428,12 @@ function Panel:SetMaxWidth( MaxWidth )
 			self.ScrollParent:SetPosition( Pos )
 		end
 
+		if self.OverflowX then
+			-- Not exposed as a setter as it's an internal state value.
+			self.OverflowX = false
+			self:OnPropertyChanged( "OverflowX", false )
+		end
+
 		return
 	end
 
@@ -496,6 +479,9 @@ function Panel:SetMaxWidth( MaxWidth )
 			Scrollbar.Bar:SetColor( BarCol )
 		end
 
+		self.OverflowX = true
+		self:OnPropertyChanged( "OverflowX", true )
+
 		return
 	end
 
@@ -523,6 +509,11 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			self.ScrollParent:SetPosition( Pos )
 
 			self:OnRemoveScrollbar()
+		end
+
+		if self.OverflowY then
+			self.OverflowY = false
+			self:OnPropertyChanged( "OverflowY", false )
 		end
 
 		return
@@ -572,6 +563,9 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		end
 
 		self:OnAddScrollbar()
+
+		self.OverflowY = true
+		self:OnPropertyChanged( "OverflowY", true )
 
 		return
 	end
