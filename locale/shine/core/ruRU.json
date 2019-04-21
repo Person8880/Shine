@@ -38,6 +38,8 @@
 	"HOUR": "{Value:Pluralise:час(а)|часов}",
 	"DAY": "{Value:Pluralise:день(дня)|дней}",
 	"WEEK": "{Value:Pluralise:неделя(и)|недель}",
+	"SETTINGS_TAB": "Настройки",
+	"PLUGINS_TAB": "Плагины",
 	"CLIENT_SETTINGS": "Настройки клиента",
 	"ENABLE_PLUGIN": "Включить плагин",
 	"DISABLE_PLUGIN": "Выключить плагин",

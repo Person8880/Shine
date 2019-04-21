@@ -38,6 +38,8 @@
 	"HOUR": "{Value:Pluralise:hodina|hodiny|hodin}",
 	"DAY": "{Value:Pluralise:den|dny|dní}",
 	"WEEK": "{Value:Pluralise:týden|týdny|týdnů}",
+	"SETTINGS_TAB": "Nastavení",
+	"PLUGINS_TAB": "Zásuvné moduly",
 	"CLIENT_SETTINGS": "Nastavení klienta",
 	"ENABLE_PLUGIN": "Zapnout zásuvný modul",
 	"DISABLE_PLUGIN": "Vypnout zásuvný modul",

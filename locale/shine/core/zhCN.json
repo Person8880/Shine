@@ -38,6 +38,8 @@
 	"HOUR": "{Value:Pluralise:小时|小时}",
 	"DAY": "{Value:Pluralise:天|days}",
 	"WEEK": "{Value:Pluralise:星期|星期}",
+	"SETTINGS_TAB": "设置",
+	"PLUGINS_TAB": "插件",
 	"CLIENT_SETTINGS": "客户端选项",
 	"ENABLE_PLUGIN": "启用插件",
 	"DISABLE_PLUGIN": "禁用插件",
