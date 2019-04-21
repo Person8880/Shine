@@ -261,8 +261,8 @@ SGUI:AddMixin( Button, "AutoSizeText" )
 -- Override GetContentSizeForAxis to account for both an icon and a label.
 do
 	local LabelSizeMethod = {
-		"GetTextWidth",
-		"GetTextHeight"
+		"GetCachedTextWidth",
+		"GetCachedTextHeight"
 	}
 	local MarginSizeMethod = {
 		"GetWidth",

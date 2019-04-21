@@ -25,30 +25,38 @@ function Label:Initialise()
 
 	self.Label = self:MakeGUITextItem()
 	self.Background = self.Label
-	self.TextScale = Vector( 1, 1, 0 )
+	self.TextScale = Vector2( 1, 1 )
+	self.TextAlignmentX = GUIItem.Align_Min
+	self.TextAlignmentY = GUIItem.Align_Min
+
+	local function MarkSizeDirty()
+		self.CachedTextWidth = nil
+		self.CachedTextHeight = nil
+	end
+	self:AddPropertyChangeListener( "Text", MarkSizeDirty )
+	self:AddPropertyChangeListener( "Font", MarkSizeDirty )
+	self:AddPropertyChangeListener( "TextScale", MarkSizeDirty )
 end
 
 function Label:MouseIn( Element, Mult, MaxX, MaxY )
 	return self:MouseInControl( Mult, MaxX, MaxY )
 end
 
+local AlignmentMultipliers = {
+	[ GUIItem.Align_Center ] = -0.5,
+	[ GUIItem.Align_Max ] = -1,
+	[ GUIItem.Align_Min ] = 0
+}
+
 function Label:GetScreenPos()
 	local Pos = self.BaseClass.GetScreenPos( self )
 	local Size = self:GetSize()
 
 	local XAlign = self:GetTextAlignmentX()
-	if XAlign == GUIItem.Align_Center then
-		Pos.x = Pos.x - Size.x * 0.5
-	elseif XAlign == GUIItem.Align_Max then
-		Pos.x = Pos.x - Size.x
-	end
+	Pos.x = Pos.x + Size.x * AlignmentMultipliers[ XAlign ]
 
 	local YAlign = self:GetTextAlignmentY()
-	if YAlign == GUIItem.Align_Center then
-		Pos.y = Pos.y - Size.y * 0.5
-	elseif YAlign == GUIItem.Align_Max then
-		Pos.y = Pos.y - Size.y
-	end
+	Pos.y = Pos.y + Size.y * AlignmentMultipliers[ YAlign ]
 
 	return Pos
 end
@@ -78,6 +86,9 @@ function Label:PreComputeHeight( Width )
 	SGUI.WordWrap( WordWrapDummy, self.Text, 0, Width )
 
 	if CurrentText ~= self.Label:GetText() then
+		self.CachedTextWidth = nil
+		self.CachedTextHeight = nil
+
 		-- Look for the first ancestor whose height is not determined automatically, and invalidate it.
 		-- This ensures any change in height from wrapping the text is accounted for.
 		local Parent = self.Parent
@@ -96,7 +107,7 @@ end
 function Label:SetSize() end
 
 function Label:GetSize()
-	return Vector( self:GetTextWidth(), self:GetTextHeight(), 0 )
+	return Vector2( self:GetCachedTextWidth(), self:GetCachedTextHeight() )
 end
 
 function Label:SetBright( Bright )
