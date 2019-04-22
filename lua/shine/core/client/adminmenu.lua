@@ -64,6 +64,11 @@ function AdminMenu:Create()
 		self.Window = nil
 	end )
 
+	Window:SetExpanded( Shine.Config.ExpandAdminMenuTabs )
+	Window:AddPropertyChangeListener( "Expanded", function( Expanded )
+		Shine:SetClientSetting( "ExpandAdminMenuTabs", Expanded )
+	end )
+
 	self.Window = Window
 
 	Window.OnPreTabChange = function( Window )
@@ -205,7 +210,7 @@ function AdminMenu:AddTab( Name, Data )
 		local ActiveTab = self.Window:GetActiveTab()
 		local Tabs = self.Window.Tabs
 
-		--A bit brute force, but its the easiest way to preserve tab order.
+		-- A bit brute force, but its the easiest way to preserve tab order.
 		for i = 1, self.Window.NumTabs do
 			self.Window:RemoveTab( 1 )
 		end
@@ -242,27 +247,27 @@ function AdminMenu:PopulateTabs( Window )
 
 	local Tab = Window:AddTab( Locale:GetPhrase( "Core", "ADMIN_MENU_COMMANDS_TAB" ), function( Panel )
 		CommandsTab.OnInit( Panel, CommandsTab.Data )
-	end )
+	end, SGUI.Icons.Ionicons.CodeWorking )
 	CommandsTab.TabObj = Tab
 
-	--Remove them here so they're not in the pairs loop.
+	-- Remove them here so they're not in the pairs loop.
 	self.Tabs.Commands = nil
 	self.Tabs.About = nil
 
 	for Name, Data in SortedPairs( self.Tabs ) do
 		local Tab = Window:AddTab( Name, function( Panel )
 			Data.OnInit( Panel, Data.Data )
-		end )
+		end, Data.Icon )
 		Data.TabObj = Tab
 	end
 
-	--Add them back.
+	-- Add them back.
 	self.Tabs.Commands = CommandsTab
 	self.Tabs.About = AboutTab
 
 	Tab = Window:AddTab( Locale:GetPhrase( "Core", "ADMIN_MENU_ABOUT_TAB" ), function( Panel )
 		AboutTab.OnInit( Panel )
-	end )
+	end, SGUI.Icons.Ionicons.HelpCircled )
 	AboutTab.TabObj = Tab
 end
 

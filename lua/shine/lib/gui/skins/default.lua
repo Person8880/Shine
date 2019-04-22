@@ -5,9 +5,20 @@
 local SGUI = Shine.GUI
 
 local WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
+local HorizontalTabBackground = Colour( 0.4, 0.4, 0.4, 1 )
 local DarkButton = Colour( 0.2, 0.2, 0.2, 1 )
 local ButtonHighlight = Colour( 0.8, 0.5, 0.1, 1 )
 local BrightText = Colour( 1, 1, 1, 1 )
+local Clear = Colour( 0, 0, 0, 0 )
+
+local Danger = Colour( 1, 0, 0 )
+local Warning = Colour( 1, 0.6, 0 )
+local Info = Colour( 0, 0.5, 1 )
+
+local SuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
+local DangerButton = Colour( 1, 0.2, 0.1, 1 )
+
+local OrangeButtonHighlight = Colour( 1, 0.4, 0, 1 )
 
 local Skin = {
 	Button = {
@@ -32,14 +43,29 @@ local Skin = {
 		},
 		CategoryPanelButton = {
 			Font = Fonts.kAgencyFB_Small,
-			ActiveCol = Colour( 1, 0.4, 0.1, 1 ),
+			ActiveCol = OrangeButtonHighlight,
 			InactiveCol = Colour( 0.3, 0.3, 0.3, 1 )
 		},
 		SuccessButton = {
-			ActiveCol = Colour( 0.1, 0.6, 0.1, 1 )
+			ActiveCol = SuccessButton
 		},
 		DangerButton = {
-			ActiveCol = Colour( 1, 0.2, 0.1, 1 )
+			ActiveCol = DangerButton
+		},
+		AcceptButton = {
+			InactiveCol = SuccessButton,
+			ActiveCol = SGUI.ColourWithAlpha( SuccessButton, 2 ),
+			InheritsParentAlpha = true
+		},
+		DeclineButton = {
+			InactiveCol = DangerButton,
+			ActiveCol = SGUI.ColourWithAlpha( DangerButton, 2 ),
+			InheritsParentAlpha = true
+		},
+		TabPanelTabListButton = {
+			InactiveCol = Clear,
+			ActiveCol = Clear,
+			TextInheritsParentAlpha = false
 		}
 	},
 	CategoryPanel = {
@@ -60,6 +86,21 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small
 		}
 	},
+	Hint = {
+		Default = {
+			Colour = SGUI.ColourWithAlpha( DarkButton, 0.8 ),
+			TextColour = BrightText
+		},
+		Danger = {
+			FlairColour = Danger
+		},
+		Warning = {
+			FlairColour = Warning
+		},
+		Info = {
+			FlairColour = Info
+		}
+	},
 	Label = {
 		Default = {
 			Colour = BrightText
@@ -78,7 +119,7 @@ local Skin = {
 	ListEntry = {
 		Default = {
 			InactiveCol = Colour( 0.4, 0.4, 0.4, 1 ),
-			ActiveCol = Colour( 1, 0.4, 0.1, 1 ),
+			ActiveCol = OrangeButtonHighlight,
 			TextColour = BrightText,
 			Font = Fonts.kAgencyFB_Small
 		},
@@ -107,15 +148,15 @@ local Skin = {
 		},
 		Danger = {
 			FlairIconText = SGUI.Icons.Ionicons.AlertCircled,
-			FlairColour = Colour( 1, 0, 0 )
+			FlairColour = Danger
 		},
 		Warning = {
 			FlairIconText = SGUI.Icons.Ionicons.Alert,
-			FlairColour = Colour( 1, 0.6, 0 )
+			FlairColour = Warning
 		},
 		Info = {
 			FlairIconText = SGUI.Icons.Ionicons.InformationCircled,
-			FlairColour = Colour( 0, 0.5, 1 )
+			FlairColour = Info
 		}
 	},
 	Panel = {
@@ -127,13 +168,17 @@ local Skin = {
 		},
 		MenuPanel = {
 			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+		},
+		RadioBackground = {
+			Colour = Clear
 		}
 	},
 	ProgressBar = {
 		Default = {
 			BorderColour = Colour( 0, 0, 0, 1 ),
 			Colour = Colour( 0.3, 0.3, 0.3, 1 ),
-			ProgressColour = Colour( 0.7, 0.7, 0, 1 )
+			ProgressColour = OrangeButtonHighlight,
+			BorderSize = Vector2( 0, 0 )
 		}
 	},
 	Scrollbar = {
@@ -146,14 +191,20 @@ local Skin = {
 	Slider = {
 		Default = {
 			DarkLineColour = Colour( 0.2, 0.2, 0.2, 1 ),
-			HandleColour = Colour( 0.8, 0.6, 0.1, 1 ),
+			HandleColour = ButtonHighlight,
 			LineColour = Colour( 1, 1, 1, 1 )
 		}
 	},
 	TabPanel = {
 		Default = {
 			TabBackgroundColour = DarkButton,
-			PanelColour = WindowBackground
+			PanelColour = WindowBackground,
+			Colour = DarkButton
+		},
+		Horizontal = {
+			TabBackgroundColour = Clear,
+			PanelColour = HorizontalTabBackground,
+			Colour = Clear
 		}
 	},
 	TabPanelButton = {
@@ -162,19 +213,26 @@ local Skin = {
 			ActiveCol = WindowBackground,
 			InactiveCol = DarkButton,
 			TextColour = BrightText
+		},
+		Horizontal = {
+			Font = Fonts.kAgencyFB_Small,
+			ActiveCol = HorizontalTabBackground,
+			InactiveCol = DarkButton,
+			TextColour = BrightText
 		}
 	},
 	TextEntry = {
 		Default = {
 			FocusColour = Colour( 0.35, 0.35, 0.35, 1 ),
 			DarkColour = Colour( 0.4, 0.4, 0.4, 1 ),
-			HighlightColour = Colour( 1, 0.4, 0, 0.5 ),
-			PlaceholderTextColour = Colour( 0.9, 0.9, 0.9, 1 ),
+			HighlightColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.5 ),
+			PlaceholderTextColour = SGUI.ColourWithAlpha( BrightText, 0.8 ),
+			TextColour = BrightText,
 			BorderColour = Colour( 0.3, 0.3, 0.3, 1 ),
 			BorderSize = Vector2( 1, 1 ),
 			States = {
 				Focus = {
-					BorderColour = Colour( 1, 0.3, 0, 1 )
+					BorderColour = OrangeButtonHighlight
 				}
 			}
 		}

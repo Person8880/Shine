@@ -61,5 +61,7 @@
 	"MAP_EXTENDED_ROUNDS": "{Duration:Sign:zkrátil|prodloužil} trvání mapy o {Duration:Abs} {Duration:Abs::Pluralise:kolo|kola|kol}.",
 	"SET_MAP_ROUNDS": "nastavil limit kol na {Duration} {Duration:Pluralise:kolo|kola|kol}.",
 	"NOTIFY_PREFIX": "[Hlasování o mapu]",
-	"PLUGIN_DISABLED": "Zásuvný modul pro hlasování o mapu vypnut. Aktuální hlasování zrušeno."
+	"PLUGIN_DISABLED": "Zásuvný modul pro hlasování o mapu vypnut. Aktuální hlasování zrušeno.",
+
+	"CLIENT_CONFIG_TAB": "Hlasování o mapu"
 }

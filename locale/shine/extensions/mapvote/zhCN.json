@@ -62,5 +62,7 @@
 	"MAP_EXTENDED_ROUNDS": "地图被{Duration:Sign:缩短|延长}了{Duration:Abs}{Duration:Abs::Pluralise:回合|回合}。",
 	"SET_MAP_ROUNDS": "设置地图持续回合上限为{Duration}{Duration:Pluralise:回合|回合}。",
 	"NOTIFY_PREFIX": "[换图投票]",
-	"PLUGIN_DISABLED": "换图投票插件已被禁用。当前投票已取消。"
+	"PLUGIN_DISABLED": "换图投票插件已被禁用。当前投票已取消。",
+
+	"CLIENT_CONFIG_TAB": "换图投票"
 }

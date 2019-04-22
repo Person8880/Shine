@@ -20,7 +20,7 @@ local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
---Useful functions for colours.
+-- Useful functions for colours.
 include "lua/shine/lib/colour.lua"
 
 do
@@ -32,15 +32,20 @@ do
 	end
 end
 
+SGUI.GUIItemType = {
+	Text = "Text",
+	Graphic = "Graphic"
+}
+
 SGUI.Controls = {}
 
 SGUI.ActiveControls = Map()
 SGUI.Windows = {}
 
---Used to adjust the appearance of all elements at once.
+-- Used to adjust the appearance of all elements at once.
 SGUI.Skins = {}
 
---Base visual layer.
+-- Base visual layer.
 SGUI.BaseLayer = 20
 
 SGUI.ScreenHeight = {
@@ -49,7 +54,7 @@ SGUI.ScreenHeight = {
 	Large = 1600
 }
 
---Global control meta-table.
+-- Global control meta-table.
 local ControlMeta = {}
 SGUI.BaseControl = ControlMeta
 
@@ -83,13 +88,24 @@ do
 	]]
 	function SGUI.AddProperty( Table, Name, Default, Modifiers )
 		local TableSetter = "Set"..Name
+		local TableGetter = "Get"..Name
 
 		Table[ TableSetter ] = function( self, Value )
+			local OldValue = self[ TableGetter ]( self )
+
 			self[ Name ] = Value
+
+			if OldValue == Value then return end
+
+			self:OnPropertyChanged( Name, Value )
 		end
 
-		Table[ "Get"..Name ] = function( self )
-			return self[ Name ] or Default
+		Table[ TableGetter ] = function( self )
+			local Value = self[ Name ]
+			if Value == nil then
+				Value = Default
+			end
+			return Value
 		end
 
 		if not Modifiers then return end
@@ -139,15 +155,21 @@ do
 
 		local TableSetter = "Set"..Name
 		Table[ TableSetter ] = function( self, Value )
+			local OldValue = self[ Name ]
+
 			self[ Name ] = Value
 
 			for i = 1, #BoundFields do
 				local Entry = BoundFields[ i ]
 				local Object = self[ Entry.FieldName ]
-				if not Object then return end
-
-				Object[ Entry.Setter ]( Object, Value )
+				if Object then
+					Object[ Entry.Setter ]( Object, Value )
+				end
 			end
+
+			if OldValue == Value then return end
+
+			self:OnPropertyChanged( Name, Value )
 		end
 
 		if not Modifiers then return end
@@ -336,41 +358,62 @@ do
 	end
 end
 
---[[
-	Sets the current in-focus window.
-	Inputs: Window object, windows index.
-]]
-function SGUI:SetWindowFocus( Window, i )
-	local Windows = self.Windows
+do
+	local function RefreshFocusedWindow( self, Window )
+		local Windows = self.Windows
+		for i = 1, #Windows do
+			local Window = Windows[ i ]
+			Window:SetLayer( self.BaseLayer + i )
+		end
 
-	if Window ~= self.FocusedWindow and not i then
-		for j = 1, #Windows do
-			local CurWindow = Windows[ j ]
+		if Window ~= self.FocusedWindow and self.IsValid( self.FocusedWindow )
+		and self.FocusedWindow.OnLoseWindowFocus then
+			self.FocusedWindow:OnLoseWindowFocus( Window )
+		end
 
-			if CurWindow == Window then
-				i = j
+		self.FocusedWindow = Window
+	end
+
+	--[[
+		Sets the current in-focus window.
+		Inputs: Window object, windows index.
+	]]
+	function SGUI:SetWindowFocus( Window, i )
+		local Windows = self.Windows
+
+		if Window ~= self.FocusedWindow and not i then
+			for j = 1, #Windows do
+				local CurWindow = Windows[ j ]
+
+				if CurWindow == Window then
+					i = j
+					break
+				end
+			end
+		end
+
+		if i then
+			TableRemove( Windows, i )
+
+			Windows[ #Windows + 1 ] = Window
+		end
+
+		RefreshFocusedWindow( self, Window )
+	end
+
+	function SGUI:MoveWindowToBottom( Window )
+		local Windows = self.Windows
+		for i = 1, #Windows do
+			if Windows[ i ] == Window then
+				TableRemove( Windows, i )
 				break
 			end
 		end
+
+		TableInsert( Windows, 1, Window )
+
+		RefreshFocusedWindow( self, Windows[ #Windows ] )
 	end
-
-	if i then
-		TableRemove( Windows, i )
-
-		Windows[ #Windows + 1 ] = Window
-	end
-
-	for i = 1, #Windows do
-		local Window = Windows[ i ]
-
-		Window:SetLayer( self.BaseLayer + i )
-	end
-
-	if self.IsValid( self.FocusedWindow ) and self.FocusedWindow.OnLoseWindowFocus then
-		self.FocusedWindow:OnLoseWindowFocus( Window )
-	end
-
-	self.FocusedWindow = Window
 end
 
 function SGUI:IsWindowInFocus( Window )
@@ -512,69 +555,74 @@ do
 	end
 end
 
---[[
-	Registers a control meta-table.
-	We'll use this to create instances of it (instead of loading a script
-	file every time like UWE).
+do
+	local ControlTypesWaitingForParent = Shine.Multimap()
+	local InheritFromBaseControl = {
+		__index = ControlMeta
+	}
 
-	Inputs:
-		1. Control name
-		2. Control meta-table.
-		3. Optional parent name. This will make the object inherit the parent's table keys.
-]]
-function SGUI:Register( Name, Table, Parent )
-	local rawget = rawget
-	local ValidityKey = "IsValid"
+	--[[
+		Registers a control meta-table.
+		We'll use this to create instances of it (instead of loading a script
+		file every time like UWE).
 
-	local function CheckDestroyed( self, Key )
-		local Destroyed = rawget( self, "__Destroyed" )
-		if Destroyed and Key ~= ValidityKey and Destroyed < SGUI.FrameNumber() then
-			error( "Attempted to use a destroyed SGUI object!", 3 )
+		Inputs:
+			1. Control name
+			2. Control meta-table.
+			3. Optional parent name. This will make the object inherit the parent's table keys.
+	]]
+	function SGUI:Register( Name, Table, Parent )
+		-- Read methods/fields from the given table.
+		Table.__index = Table
+		Table.__Name = Name
+
+		if Parent then
+			Table.ParentControl = Parent
+
+			local ParentTable = self.Controls[ Parent ]
+			if ParentTable and ParentTable.ParentControl == Name then
+				error( StringFormat( "[SGUI] Cyclic dependency detected. %s depends on %s while %s also depends on %s.",
+					Name, Parent, Parent, Name ) )
+			end
+
+			if not ParentTable then
+				-- Parent is not yet registered, queue the control table to have inheritance setup when it is.
+				ControlTypesWaitingForParent:Add( Parent, Table )
+				-- In case the parent is never registered, assign the base type now.
+				setmetatable( Table, InheritFromBaseControl )
+			else
+				-- Parent is available, inherit values now.
+				setmetatable( Table, {
+					__index = ParentTable
+				} )
+			end
+		else
+			-- No parent means only look in its meta-table and the base meta-table.
+			Table.__index = Table
+			setmetatable( Table, InheritFromBaseControl )
+		end
+
+		Table.__tostring = Table.__tostring or ControlMeta.__tostring
+
+		-- Used to call base class functions for things like :MoveTo()
+		Table.BaseClass = ControlMeta
+
+		self.Controls[ Name ] = Table
+
+		local ChildTypes = ControlTypesWaitingForParent:Get( Name )
+		if ChildTypes then
+			-- Some child types were waiting for this parent type, so assign their
+			-- parent now to this type.
+			local InheritFromParent = {
+				__index = Table
+			}
+			for i = 1, #ChildTypes do
+				setmetatable( ChildTypes[ i ], InheritFromParent )
+			end
+
+			ControlTypesWaitingForParent:Remove( Name )
 		end
 	end
-
-	--If we have set a parent, then we want to setup a slightly different __index function.
-	if Parent then
-		Table.ParentControl = Parent
-
-		--This may not be defined yet, so we get it when needed.
-		local ParentTable = self.Controls[ Parent ]
-
-		if ParentTable and ParentTable.ParentControl == Name then
-			error( StringFormat( "[SGUI] Cyclic dependency detected. %s depends on %s while %s also depends on %s.",
-				Name, Parent, Parent, Name ) )
-		end
-
-		function Table:__index( Key )
-			CheckDestroyed( self, Key )
-
-			ParentTable = ParentTable or SGUI.Controls[ Parent ]
-
-			if Table[ Key ] then return Table[ Key ] end
-			if ParentTable and ParentTable[ Key ] then return ParentTable[ Key ] end
-			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
-
-			return nil
-		end
-	else
-		--No parent means only look in its meta-table and the base meta-table.
-		function Table:__index( Key )
-			CheckDestroyed( self, Key )
-
-			if Table[ Key ] then return Table[ Key ] end
-
-			if ControlMeta[ Key ] then return ControlMeta[ Key ] end
-
-			return nil
-		end
-	end
-
-	Table.__tostring = Table.__tostring or ControlMeta.__tostring
-
-	--Used to call base class functions for things like :MoveTo()
-	Table.BaseClass = ControlMeta
-
-	self.Controls[ Name ] = Table
 end
 
 --[[
@@ -593,7 +641,7 @@ do
 		Input: SGUI control class name, optional parent object.
 		Output: SGUI control object.
 	]]
-	function SGUI:Create( Class, Parent )
+	function SGUI:Create( Class, Parent, ParentElement )
 		local MetaTable = self.Controls[ Class ]
 
 		assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
@@ -623,76 +671,98 @@ do
 
 		if not Parent then return Control end
 
-		Control:SetParent( Parent )
+		Control:SetParent( Parent, ParentElement )
 
 		return Control
 	end
 end
 
---[[
-	Destroys an SGUI control.
-
-	This runs the control's cleanup function. Do not attempt to use the object again.
-
-	Input: SGUI control object.
-]]
-function SGUI:Destroy( Control )
-	if Control.Parent then
-		Control:SetParent( nil )
-	end
-
-	self.ActiveControls:Remove( Control )
-
-	if self.IsValid( Control.Tooltip ) then
-		Control.Tooltip:Destroy()
-	end
-
-	-- SGUI children, not GUIItems.
-	if Control.Children then
-		for Control in Control.Children:Iterate() do
-			Control:Destroy()
+do
+	local rawget = rawget
+	local ValidityKey = "IsValid"
+	local function CheckDestroyed( self, Key )
+		local Destroyed = rawget( self, "__Destroyed" )
+		if Destroyed and Key ~= ValidityKey and Destroyed < SGUI.FrameNumber() then
+			error( "Attempted to use a destroyed SGUI object!", 3 )
 		end
+
+		return rawget( self, "__OriginalIndex" )[ Key ]
 	end
 
-	local DeleteOnRemove = Control.__DeleteOnRemove
+	--[[
+		Destroys an SGUI control.
 
-	if DeleteOnRemove then
-		for i = 1, #DeleteOnRemove do
-			local Control = DeleteOnRemove[ i ]
+		This runs the control's cleanup function. Do not attempt to use the object again.
 
-			if self.IsValid( Control ) then
+		Input: SGUI control object.
+	]]
+	function SGUI:Destroy( Control )
+		if Control.Parent then
+			Control:SetParent( nil )
+		end
+
+		self.ActiveControls:Remove( Control )
+
+		if self.IsValid( Control.Tooltip ) then
+			Control.Tooltip:Destroy()
+		end
+
+		-- SGUI children, not GUIItems.
+		if Control.Children then
+			for Control in Control.Children:Iterate() do
 				Control:Destroy()
 			end
 		end
-	end
 
-	Control:Cleanup()
+		local DeleteOnRemove = Control.__DeleteOnRemove
 
-	local CallOnRemove = Control.__CallOnRemove
+		if DeleteOnRemove then
+			for i = 1, #DeleteOnRemove do
+				local Control = DeleteOnRemove[ i ]
 
-	if CallOnRemove then
-		for i = 1, #CallOnRemove do
-			CallOnRemove[ i ]( Control )
-		end
-	end
-
-	-- If it's a window, then clean it up.
-	if Control.IsAWindow then
-		local Windows = self.Windows
-
-		for i = 1, #Windows do
-			local Window = Windows[ i ]
-
-			if Window == Control then
-				TableRemove( Windows, i )
-				break
+				if self.IsValid( Control ) then
+					Control:Destroy()
+				end
 			end
 		end
 
-		self:SetWindowFocus( Windows[ #Windows ] )
-	end
+		Control:Cleanup()
 
-	Control.__Destroyed = SGUI.FrameNumber()
+		local CallOnRemove = Control.__CallOnRemove
+
+		if CallOnRemove then
+			for i = 1, #CallOnRemove do
+				CallOnRemove[ i ]( Control )
+			end
+		end
+
+		-- If it's a window, then clean it up.
+		if Control.IsAWindow then
+			local Windows = self.Windows
+
+			for i = 1, #Windows do
+				local Window = Windows[ i ]
+
+				if Window == Control then
+					TableRemove( Windows, i )
+					break
+				end
+			end
+
+			self:SetWindowFocus( Windows[ #Windows ] )
+		end
+
+		-- Re-assign the metatable to ensure usage causes an error next frame.
+		-- This avoids needing to check for validity constantly on every field access
+		-- while a control is still valid.
+		local OldMetatable = getmetatable( Control )
+		Control.__OriginalIndex = OldMetatable.__index
+		Control.__Destroyed = SGUI.FrameNumber()
+		setmetatable( Control, {
+			__index = CheckDestroyed,
+			__tostring = OldMetatable.__tostring
+		} )
+	end
 end
 
 --[[

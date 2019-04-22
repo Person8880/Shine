@@ -288,6 +288,7 @@ function Plugin:SetupAdminMenu()
 	)
 
 	self:AddAdminMenuTab( self:GetPhrase( self.AdminTab ), {
+		Icon = self.AdminMenuIcon or SGUI.Icons.Ionicons.AlertCircled,
 		OnInit = function( Panel, Data )
 			self.BanMenuOpen = true
 
@@ -376,8 +377,7 @@ function Plugin:SetupAdminMenu()
 			)
 
 			local PageBack = SGUI:Create( "Button", Panel )
-			PageBack:SetFontScale( SGUI.FontManager.GetHighResFont( "Ionicons", 32 ) )
-			PageBack:SetText( SGUI.Icons.Ionicons.ArrowLeftB )
+			PageBack:SetIcon( SGUI.Icons.Ionicons.ArrowLeftB )
 			PageBack:SetEnabled( Data.Page > 1 )
 			PageBack:SetAutoSize( PageButtonSize )
 			PageBack:SetAlignment( SGUI.LayoutAlignment.CENTRE )
@@ -393,7 +393,7 @@ function Plugin:SetupAdminMenu()
 			PageLabel:SetFontScale( Font, Scale )
 			PageLabel:SetText( StringFormat( "%d / %d", Data.Page, Data.Page ) )
 			PageLabel:SetAlignment( SGUI.LayoutAlignment.CENTRE )
-			PageLabel:SetTextAlignmentY( GUIItem.Align_Center )
+			PageLabel:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 
 			-- When clicking the page label, turn it into a text entry to allow specifying
 			-- a precise page to jump to.
@@ -440,8 +440,7 @@ function Plugin:SetupAdminMenu()
 			ControlLayout:AddElement( PageLabel )
 
 			local PageForward = SGUI:Create( "Button", Panel )
-			PageForward:SetFontScale( SGUI.FontManager.GetHighResFont( "Ionicons", 32 ) )
-			PageForward:SetText( SGUI.Icons.Ionicons.ArrowRightB )
+			PageForward:SetIcon( SGUI.Icons.Ionicons.ArrowRightB )
 			PageForward:SetEnabled( false )
 			PageForward:SetAutoSize( PageButtonSize )
 			PageForward:SetAlignment( SGUI.LayoutAlignment.CENTRE )
@@ -457,6 +456,7 @@ function Plugin:SetupAdminMenu()
 			Unban:SetText( self:GetPhrase( "UNBAN" ) )
 			Unban:SetFontScale( Font, Scale )
 			Unban:SetStyleName( "DangerButton" )
+			Unban:SetIcon( SGUI.Icons.Ionicons.TrashB )
 			function Unban.DoClick()
 				local Row = List:GetSelectedRow()
 				if not Row then return end
@@ -476,6 +476,7 @@ function Plugin:SetupAdminMenu()
 			AddBan:SetText( self:GetPhrase( "ADD_BAN" ) )
 			AddBan:SetFontScale( Font, Scale )
 			AddBan:SetAlignment( SGUI.LayoutAlignment.MAX )
+			AddBan:SetIcon( SGUI.Icons.Ionicons.Plus )
 			function AddBan.DoClick()
 				OpenAddBanWindow()
 				Window.IDEntry:RequestFocus()
@@ -493,7 +494,7 @@ function Plugin:SetupAdminMenu()
 
 			local ButtonHeight = Units.Max( Auto( AddBan ), Auto( PageForward ) ) + HighResScaled( 8 )
 			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
-			PageLabel:SetMargin( Spacing( HighResScaled( 16 ), ButtonHeight * 0.5, HighResScaled( 16 ), 0 ) )
+			PageLabel:SetMargin( Spacing( HighResScaled( 16 ), 0, HighResScaled( 16 ), 0 ) )
 
 			Layout:AddElement( ControlLayout )
 

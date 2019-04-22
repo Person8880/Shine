@@ -11,6 +11,8 @@ Plugin.EnabledGamemodes = {
 	[ "mvm" ] = true
 }
 
+Plugin.ScreenTextID = 2
+
 function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "StartDelay", { StartTime = "integer" }, "Client" )
 
@@ -33,7 +35,7 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessages( "AddTranslatedNotify", {
 		[ MessageTypes.Empty ] = {
-			"WaitingForBoth"
+			"WaitingForBoth", "ROUND_START_ABORTED_MAP_VOTE_STARTED"
 		},
 		[ MessageTypes.Team ] = {
 			"EmptyTeamAbort", "WaitingForTeam"

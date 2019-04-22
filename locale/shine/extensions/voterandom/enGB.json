@@ -86,11 +86,12 @@
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "You cannot switch teams. Random teams are enabled.",
 	"TEAM_SWITCH_DENIED_SCORE_BASED": "You cannot switch teams. Score based teams are enabled.",
 
-	"TEAM_PREFERENCE": "Default Shuffle Team Preference:",
+	"TEAM_PREFERENCE": "Default team preference:",
+	"TEAM_PREFERENCE_HELP": "Team preferences are satisfied on a best effort basis. Server configuration and the number of other players with a preference can mean that you do not always get the team you want.",
 	"TEAM_PREFERENCE_CHANGE_HINT": "Walking into a team door or using the console to join a team before a round starts will override your configured team preference for that round.",
 	"MARINE": "Marines",
 	"ALIEN": "Aliens",
-	"NONE": "No Preference",
+	"NONE": "No preference",
 	"TEAM_PREFERENCE_HINT": "Team Preference:",
 	"TEAM_PREFERENCE_SET_MARINE": "Your team preference is now: Marines.",
 	"TEAM_PREFERENCE_SET_ALIEN": "Your team preference is now: Aliens.",
@@ -134,6 +135,8 @@
 	"ERROR_MUST_WAIT_RANDOM_BASED": "You must wait for {SecondsToWait:Duration} before voting for random teams.",
 	"ERROR_MUST_WAIT_SCORE_BASED": "You must wait for {SecondsToWait:Duration} before voting for score based teams.",
 
+	"CLIENT_CONFIG_TAB": "Shuffle",
+
 	"ERROR_FRIEND_GROUP_FULL": "You cannot add {PlayerName} to your friend group as it is full.",
 	"ERROR_TARGET_FRIEND_GROUP_FULL": "You cannot group with {PlayerName} as their friend group is full.",
 	"ERROR_TARGET_IN_FRIEND_GROUP": "You cannot add {PlayerName} to your friend group as they are already in another group.",
@@ -143,9 +146,34 @@
 	"LEAVE_FRIEND_GROUP": "Leave friend group",
 	"ADD_TO_FRIEND_GROUP": "Add to friend group",
 	"JOIN_FRIEND_GROUP": "Join friend group",
+	"REMOVE_FROM_FRIEND_GROUP": "Remove from friend group",
 
-	"FRIEND_GROUPS_OPT_OUT": "Block friend group requests",
+	"FRIEND_GROUP_JOIN_TYPE": "When a player attempts to add me to a friend group:",
+	"ALLOW_ALL": "Accept immediately",
+	"REQUIRE_INVITE": "Ask me whether to accept",
+	"BLOCK": "Never accept",
+
+	"FRIEND_GROUP_LEADER_TYPE": "When I am the leader of a friend group:",
+	"ALLOW_ALL_TO_JOIN": "Allow anyone to join",
+	"LEADER_ADD_ONLY": "Only allow players I add",
+
 	"FRIEND_GROUP_HINT": "Want to play with friends? Use the scoreboard to group up with other players and shuffle will try to keep you on the same team.",
+	"FRIEND_GROUP_INVITE_HINT": "Invites will appear here, with buttons to accept or decline as shown below. Use the scoreboard or any menu to show the mouse and click the buttons.",
 
-	"ADDED_TO_FRIEND_GROUP": "{PlayerName} added you to their friend group."
+	"ADDED_TO_FRIEND_GROUP": "{PlayerName} added you to their friend group.",
+	"SENT_INVITE_TO_FRIEND_GROUP": "{PlayerName} has been invited to join your friend group.",
+	"INVITED_TO_FRIEND_GROUP": "{PlayerName} has invited you to join their friend group.",
+	"INVITE_ACCEPTED": "{PlayerName} accepted your invitation to join your friend group.",
+	"INVITE_REJECTED": "{PlayerName} rejected your invitation to join your friend group.",
+	"SELF_INVITE_ACCEPTED": "You have joined {PlayerName}'s friend group.",
+	"REMOVED_FROM_GROUP": "{PlayerName} removed you from their friend group.",
+
+	"ERROR_CANNOT_INVITE_NOT_LEADER": "Only the group leader can invite other players.",
+	"ERROR_TARGET_ALREADY_INVITED": "{PlayerName} has already been invited to a friend group.",
+	"ERROR_MUST_BE_INVITED_TO_GROUP": "Joining {PlayerName} requires an invitation.",
+	"ERROR_INVITE_ON_COOLDOWN": "You cannot send another invite to {PlayerName} yet.",
+	"ERROR_CANNOT_REMOVE_NOT_LEADER": "You cannot remove {PlayerName} from the group as you are not the leader.",
+
+	"ACCEPT_FRIEND_GROUP_INVITE": "Accept",
+	"DECLINE_FRIEND_GROUP_INVITE": "Decline"
 }

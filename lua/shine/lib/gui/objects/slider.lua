@@ -27,15 +27,13 @@ local IsType = Shine.IsType
 function Slider:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-
-	local Background = Manager:CreateGraphicItem()
+	local Background = self:MakeGUIItem()
 	Background:SetSize( DefaultSize )
 	Background:SetColor( Clear )
 
 	self.Background = Background
 
-	local Line = Manager:CreateGraphicItem()
+	local Line = self:MakeGUIItem()
 	Line:SetAnchor( GUIItem.Left, GUIItem.Center )
 	Line:SetSize( DefaultLineSize )
 	Line:SetPosition( LinePos )
@@ -44,7 +42,7 @@ function Slider:Initialise()
 
 	self.Line = Line
 
-	local UnfilledLine = Manager:CreateGraphicItem()
+	local UnfilledLine = self:MakeGUIItem()
 	UnfilledLine:SetAnchor( GUIItem.Left, GUIItem.Center )
 	UnfilledLine:SetSize( DefaultUnfilledLineSize )
 	UnfilledLine:SetPosition( UnfilledLinePos )
@@ -53,7 +51,7 @@ function Slider:Initialise()
 
 	self.DarkLine = UnfilledLine
 
-	local Handle = Manager:CreateGraphicItem()
+	local Handle = self:MakeGUIItem()
 	Handle:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Handle:SetSize( DefaultHandleSize )
 
@@ -208,6 +206,7 @@ function Slider:SetBounds( Min, Max )
 end
 
 function Slider:PlayerKeyPress( Key, Down )
+	if not self:GetIsVisible() then return end
 	if not self:MouseIn( self.Background ) then return end
 
 	if Key == InputKey.Left or Key == InputKey.Down then
@@ -225,6 +224,8 @@ local GetCursorPos
 local LineMult = Vector2( 1, 0.5 )
 
 function Slider:OnMouseDown( Key )
+	if not self:GetIsVisible() then return end
+
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Handle, 1.25 ) then
 		if self:MouseIn( self.Background, LineMult ) then

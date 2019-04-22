@@ -38,6 +38,8 @@
 	"HOUR": "{Value:Pluralise:tunti|tuntia}",
 	"DAY": "{Value:Pluralise:päivä|päivää}",
 	"WEEK": "{Value:Pluralise:viikko|viikkoa}",
+	"SETTINGS_TAB": "Asetukset",
+	"PLUGINS_TAB": "Lisätoiminnot",
 	"CLIENT_SETTINGS": "Clientin asetukset",
 	"ENABLE_PLUGIN": "Lisätoiminto päälle",
 	"DISABLE_PLUGIN": "Lisätoiminto pois päältä",

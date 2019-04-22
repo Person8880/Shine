@@ -22,6 +22,7 @@ local function ToUnit( Value )
 
 	return Value or Absolute( 0 )
 end
+Layout.ToUnit = ToUnit
 
 local Operators = {
 	__add = function( A, B ) return A + B end,
@@ -102,6 +103,14 @@ do
 		return self
 	end
 
+	function Spacing:GetWidth()
+		return self[ 1 ] + self[ 3 ]
+	end
+
+	function Spacing:GetHeight()
+		return self[ 2 ] + self[ 4 ]
+	end
+
 	local KeyMap = {
 		Left = 1,
 		Up = 2,
@@ -146,6 +155,14 @@ do
 		for i = 1, 2 do
 			self[ i ] = UnitVector[ i ]
 		end
+		return self
+	end
+
+	function UnitVector:GetValue( ParentSize, Element )
+		return Vector2(
+			self[ 1 ]:GetValue( ParentSize.x, Element, 1 ),
+			self[ 2 ]:GetValue( ParentSize.y, Element, 2 )
+		)
 	end
 
 	local KeyMap = {

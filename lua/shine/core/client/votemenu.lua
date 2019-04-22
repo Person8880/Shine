@@ -36,37 +36,52 @@ end )
 do
 	local ConsoleBindingsFile = "config://ConsoleBindings.json"
 	local function FindBind( Binds, Command )
+		local MenuBinds = BindingsUI_GetBindingsTable()
+		local Candidates = {}
+
 		for Button, Data in pairs( Binds ) do
 			if IsType( Data, "table" ) and IsType( Data.command, "string" )
 			and Data.command:find( Command ) then
-				return Button
+				Candidates[ #Candidates + 1 ] = Button
+
+				-- Have to also make sure the button isn't bound in the menu's binds,
+				-- as console binds and menu binds don't check each other. Even worse,
+				-- it's completely arbitrary whether the menu bind will stop the input
+				-- reaching the console binds or not, so we just have to assume it will.
+				if not TableFindByField( MenuBinds, "current", Button ) then
+					return true, Button
+				end
 			end
 		end
 
-		return nil
+		return false, Candidates
 	end
 
 	--[[
-		Updates the binding data in case they changed it whilst connected.
+		Updates the binding data with the current key bound to sh_votemenu.
 	]]
 	function Shine.CheckVoteMenuBind()
 		local CustomBinds = Shine.LoadJSONFile( ConsoleBindingsFile )
 		if not IsType( CustomBinds, "table" ) then
 			Shine.VoteButtonBound = nil
 			Shine.VoteButton = nil
+			Shine.VoteButtonCandidates = nil
 
 			return false, CustomBinds
 		end
 
-		local Button = FindBind( CustomBinds, "sh_votemenu" )
-		if Button then
+		local CleanBinding, Button = FindBind( CustomBinds, "sh_votemenu" )
+		if CleanBinding then
 			Shine.VoteButtonBound = true
 			Shine.VoteButton = Button
+			Shine.VoteButtonCandidates = nil
+
 			return true, CustomBinds
 		end
 
 		Shine.VoteButtonBound = nil
 		Shine.VoteButton = nil
+		Shine.VoteButtonCandidates = #Button > 0 and Button or nil
 
 		return false, CustomBinds
 	end

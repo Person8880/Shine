@@ -16,12 +16,10 @@ SGUI.AddProperty( Scrollbar, "ActiveCol" )
 function Scrollbar:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-	local Background = Manager:CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
-	local Bar = Manager:CreateGraphicItem()
+	local Bar = self:MakeGUIItem()
 	Bar:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Background:AddChild( Bar )
 
@@ -29,6 +27,42 @@ function Scrollbar:Initialise()
 	self.BarPos = Vector( 0, 0, 0 )
 	self.Pos = 0
 	self.ScrollSize = 1
+
+	self.Horizontal = false
+	self.ScrollAxis = "y"
+end
+
+function Scrollbar:SetHorizontal( Horizontal )
+	self.Horizontal = Horizontal
+	self.ScrollAxis = Horizontal and "x" or "y"
+end
+
+function Scrollbar:FadeIn( Duration, Callback, EaseFunc )
+	self:AlphaTo( self.Background, nil, self:GetNormalAlpha( self.Background ), 0, Duration, Callback, EaseFunc )
+	self:AlphaTo( self.Bar, nil, self:GetNormalAlpha( self.Bar ), 0, Duration, nil, EaseFunc )
+end
+
+function Scrollbar:FadeOut( Duration, Callback, EaseFunc )
+	self:AlphaTo( self.Background, nil, 0, 0, Duration, Callback, EaseFunc )
+	self:AlphaTo( self.Bar, nil, 0, 0, Duration, nil, EaseFunc )
+end
+
+function Scrollbar:SetHidden( Hidden )
+	if Hidden then
+		self:HideAndDisableInput()
+	else
+		self:ShowAndEnableInput()
+	end
+end
+
+function Scrollbar:HideAndDisableInput()
+	self.Background:SetIsVisible( false )
+	self.Disabled = true
+end
+
+function Scrollbar:ShowAndEnableInput()
+	self.Disabled = false
+	self.Background:SetIsVisible( true )
 end
 
 function Scrollbar:GetNormalAlpha( Element )
@@ -41,14 +75,18 @@ end
 
 function Scrollbar:SetSize( Size )
 	self.Size = Size
+	self.Background:SetSize( Size )
 
-	if self.ScrollSizeVec then
-		self.ScrollSizeVec.y = Size.y * self.ScrollSize
-	else
-		self.ScrollSizeVec = Vector( Size.x, Size.y * self.ScrollSize, 0 )
+	self:UpdateScrollBarSize()
+end
+
+function Scrollbar:UpdateScrollBarSize()
+	local Size = self.Size
+	if not self.ScrollSizeVec then
+		self.ScrollSizeVec = Vector2( Size.x, Size.y )
 	end
 
-	self.Background:SetSize( Size )
+	self.ScrollSizeVec[ self.ScrollAxis ] = Size[ self.ScrollAxis ] * self.ScrollSize
 	self.Bar:SetSize( self.ScrollSizeVec )
 end
 
@@ -57,14 +95,7 @@ function Scrollbar:SetScrollSize( Size )
 	local OldDiff = self:GetDiffSize()
 
 	self.ScrollSize = Size
-
-	if self.ScrollSizeVec then
-		self.ScrollSizeVec.y = self.Size.y * Size
-	else
-		self.ScrollSizeVec = Vector( self.Size.x, self.Size.y * Size, 0 )
-	end
-
-	self.Bar:SetSize( self.ScrollSizeVec )
+	self:UpdateScrollBarSize()
 
 	local NewDiff = self:GetDiffSize()
 	-- If the scrolling size has shrunk, we may need to move up.
@@ -82,7 +113,7 @@ function Scrollbar:SetScroll( Scroll, Smoothed )
 	Scroll = Clamp( Scroll, 0, Diff )
 
 	self.Pos = Scroll
-	self.BarPos.y = Scroll
+	self.BarPos[ self.ScrollAxis ] = Scroll
 	self.Bar:SetPosition( self.BarPos )
 
 	if self.Parent and self.Parent.OnScrollChange then
@@ -91,7 +122,7 @@ function Scrollbar:SetScroll( Scroll, Smoothed )
 end
 
 function Scrollbar:GetDiffSize()
-	return self.Size.y - self.ScrollSizeVec.y
+	return self.Size[ self.ScrollAxis ] - self.ScrollSizeVec[ self.ScrollAxis ]
 end
 
 function Scrollbar:ScrollToBottom( Smoothed )
@@ -101,6 +132,8 @@ end
 local GetCursorPos
 
 function Scrollbar:OnMouseDown( Key, DoubleClick )
+	if self.Disabled then return end
+	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Bar ) then return end
 
@@ -113,6 +146,7 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	self.Scrolling = true
 
 	self.StartingPos = self.Pos
+	self.StartingX = X
 	self.StartingY = Y
 
 	self.Bar:SetColor( self.ActiveCol )
@@ -136,9 +170,9 @@ end
 
 function Scrollbar:OnMouseUp( Key )
 	if Key ~= InputKey.MouseButton0 then return end
+	if not self.Scrolling then return end
 
 	self.Scrolling = false
-
 	self.Bar:SetColor( self.InactiveCol )
 
 	return true
@@ -149,8 +183,7 @@ function Scrollbar:OnMouseMove( Down )
 	if not self.Scrolling then return end
 
 	local X, Y = GetCursorPos()
-
-	local Diff = Y - self.StartingY
+	local Diff = self.Horizontal and ( X - self.StartingX ) or ( Y - self.StartingY )
 
 	self:SetScroll( self.StartingPos + Diff, true )
 end

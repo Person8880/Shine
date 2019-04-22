@@ -10,7 +10,7 @@ SGUI.AddBoundProperty( Image, "Colour", "Background:SetColor" )
 
 function Image:Initialise()
 	self.BaseClass.Initialise( self )
-	self.Background = GetGUIManager():CreateGraphicItem()
+	self.Background = self:MakeGUIItem()
 end
 
 SGUI:Register( "Image", Image )

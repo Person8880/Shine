@@ -14,12 +14,28 @@ Plugin.TeamType = table.AsEnum{
 }
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteShuffle.json"
+Plugin.Version = "1.1"
 Plugin.DefaultConfig = {
 	PreferredTeam = Plugin.TeamType.NONE,
-	BlockFriendGroups = false
+	FriendGroupJoinType = Plugin.FriendGroupJoinTypeName.ALLOW_ALL,
+	FriendGroupLeaderType = Plugin.FriendGroupLeaderTypeName.ALLOW_ALL_TO_JOIN
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.1",
+		Apply = Shine.Migrator()
+			:RenameField( "BlockFriendGroups", "FriendGroupJoinType" )
+			:MapField(
+				"FriendGroupJoinType",
+				function( Blocked )
+					return Plugin.FriendGroupJoinTypeName[ Blocked and "BLOCK" or "ALLOW_ALL" ]
+				end
+			)
+	}
+}
 
 local StringFormat = string.format
 local StringUpper = string.upper
@@ -27,10 +43,27 @@ local StringUpper = string.upper
 do
 	local Validator = Shine.Validator()
 	Validator:AddFieldRule( "PreferredTeam", Validator.InEnum( Plugin.TeamType, Plugin.TeamType.NONE ) )
+	Validator:AddFieldRule(
+		"FriendGroupJoinType",
+		Validator.InEnum(
+			Plugin.FriendGroupJoinTypeName, Plugin.DefaultConfig.FriendGroupJoinType
+		)
+	)
+	Validator:AddFieldRule(
+		"FriendGroupLeaderType",
+		Validator.InEnum(
+			Plugin.FriendGroupLeaderTypeName, Plugin.DefaultConfig.FriendGroupLeaderType
+		)
+	)
 	Plugin.ConfigValidator = Validator
 end
 
+Plugin.ConfigGroup = {
+	Icon = SGUI.Icons.Ionicons.Shuffle
+}
+
 local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
+local FRIEND_GROUP_INVITE_HINT_NAME = "ShuffleFriendGroupInviteHint"
 
 function Plugin:SetupClientConfig()
 	Shine.AddStartupMessage( "You can choose a preferred team for shuffling by entering sh_shuffle_teampref <team> into the console." )
@@ -78,42 +111,56 @@ function Plugin:SetupClientConfig()
 		end
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
 
-	Shine:RegisterClientSetting( {
+	self:AddClientSetting( "PreferredTeam", "sh_shuffle_teampref", {
 		Type = "Radio",
-		Command = "sh_shuffle_teampref",
-		ConfigOption = function() return self.Config.PreferredTeam end,
 		Options = self.TeamType,
 		Description = "TEAM_PREFERENCE",
-		TranslationSource = self.__Name
+		HelpText = "TEAM_PREFERENCE_HELP"
 	} )
 
-	local function SendFriendGroupOptOut( OptOut )
-		self:SendNetworkMessage( "FriendGroupOptOut", { OptOut = OptOut }, true )
+	local function SendFriendGroupConfig( Config )
+		self:SendNetworkMessage( "ClientFriendGroupConfig", {
+			JoinType = self.FriendGroupJoinType[ Config.FriendGroupJoinType ],
+			LeaderType = self.FriendGroupLeaderType[ Config.FriendGroupLeaderType ]
+		}, true )
 	end
 
-	if self.Config.BlockFriendGroups then
-		SendFriendGroupOptOut( self.Config.BlockFriendGroups )
+	SendFriendGroupConfig( self.Config )
+
+	local function AddFriendGroupConfigCommand( CommandName, FieldName, EnumValues, Descriptions, ConfigDescriptionKey )
+		self:BindCommand( CommandName, function( Type )
+			SGUI.NotificationManager.DisableHint( FRIEND_GROUP_HINT_NAME )
+
+			if self.Config[ FieldName ] == Type then return end
+
+			if Type == self.FriendGroupJoinTypeName.REQUIRE_INVITE then
+				SGUI.NotificationManager.DisplayHint( FRIEND_GROUP_INVITE_HINT_NAME )
+			end
+
+			self.Config[ FieldName ] = Type
+			self:SaveConfig( true )
+			SendFriendGroupConfig( self.Config )
+
+			Print( Descriptions[ Type ] )
+		end ):AddParam{ Type = "enum", Values = EnumValues }
+
+		self:AddClientSetting( FieldName, CommandName, {
+			Type = "Radio",
+			Options = EnumValues,
+			Description = ConfigDescriptionKey
+		} )
 	end
 
-	self:BindCommand( "sh_shuffle_block_friend_groups", function( OptOut )
-		SGUI.NotificationManager.DisableHint( FRIEND_GROUP_HINT_NAME )
+	AddFriendGroupConfigCommand( "sh_shuffle_group_join_type", "FriendGroupJoinType", self.FriendGroupJoinTypeName, {
+		[ self.FriendGroupJoinTypeName.ALLOW_ALL ] = "You now allow anyone to add you to friend groups.",
+		[ self.FriendGroupJoinTypeName.REQUIRE_INVITE ] = "You now must accept invitations to join friend groups.",
+		[ self.FriendGroupJoinTypeName.BLOCK ] = "You now block others from adding you to friend groups."
+	}, "FRIEND_GROUP_JOIN_TYPE" )
 
-		if self.Config.BlockFriendGroups == OptOut then return end
-
-		self.Config.BlockFriendGroups = OptOut
-		self:SaveConfig( true )
-		SendFriendGroupOptOut( OptOut )
-
-		Print( "You are now %s friend groups.", OptOut and "blocking" or "allowing" )
-	end ):AddParam{ Type = "boolean", Option = true, Default = function() return not self.Config.BlockFriendGroups end }
-
-	Shine:RegisterClientSetting( {
-		Type = "Boolean",
-		Command = "sh_shuffle_block_friend_groups",
-		ConfigOption = function() return self.Config.BlockFriendGroups end,
-		Description = "FRIEND_GROUPS_OPT_OUT",
-		TranslationSource = self.__Name
-	} )
+	AddFriendGroupConfigCommand( "sh_shuffle_group_leader_type", "FriendGroupLeaderType", self.FriendGroupLeaderTypeName, {
+		[ self.FriendGroupLeaderTypeName.ALLOW_ALL_TO_JOIN ] = "You now allow anyone to join your friend groups.",
+		[ self.FriendGroupLeaderTypeName.LEADER_ADD_ONLY ] = "You now only allow yourself to add others to your friend groups."
+	}, "FRIEND_GROUP_LEADER_TYPE" )
 end
 
 function Plugin:NetworkUpdate( Key, Old, New )
@@ -220,10 +267,32 @@ function Plugin:OnFirstThink()
 
 	SGUI.NotificationManager.RegisterHint( FRIEND_GROUP_HINT_NAME, {
 		MaxTimes = 3,
-		HintIntervalInSeconds = 60 * 60,
+		HintIntervalInSeconds = 24 * 60 * 60,
 		MessageSource = self:GetName(),
 		MessageKey = "FRIEND_GROUP_HINT",
 		HintDuration = 10
+	} )
+	SGUI.NotificationManager.RegisterHint( FRIEND_GROUP_INVITE_HINT_NAME, {
+		MaxTimes = 1,
+		MessageSource = self:GetName(),
+		MessageKey = "FRIEND_GROUP_INVITE_HINT",
+		HintDuration = 10,
+		Options = {
+			Buttons = {
+				{
+					Text = self:GetPhrase( "ACCEPT_FRIEND_GROUP_INVITE" ),
+					Icon = SGUI.Icons.Ionicons.Checkmark,
+					StyleName = "AcceptButton",
+					DoClick = function( Button, Notification ) Notification:FadeOut() end
+				},
+				{
+					Text = self:GetPhrase( "DECLINE_FRIEND_GROUP_INVITE" ),
+					Icon = SGUI.Icons.Ionicons.Close,
+					StyleName = "DeclineButton",
+					DoClick = function( Button, Notification ) Notification:FadeOut() end
+				}
+			}
+		}
 	} )
 
 	-- Defensive check in case the scoreboard code changes.
@@ -233,9 +302,59 @@ function Plugin:OnFirstThink()
 	Shine.Hook.SetupClassHook( "GUIScoreboard", "SendKeyEvent", "OnGUIScoreboardSendKeyEvent", "PassivePost" )
 end
 
+local SharedGetTime = Shared.GetTime
+
+function Plugin:DismissFriendGroupInvite()
+	if SGUI.IsValid( self.FriendGroupInviteNotification ) then
+		self.FriendGroupInviteNotification:FadeOut()
+		self.FriendGroupInviteNotification = nil
+	end
+end
+
+function Plugin:ReceiveFriendGroupInvite( Data )
+	local function MakeClickFunc( Accept )
+		return function( Button, Notification )
+			Notification:FadeOut()
+			self.FriendGroupInviteNotification = nil
+			self:SendNetworkMessage( "FriendGroupInviteAnswer", { Accepted = Accept }, true )
+		end
+	end
+
+	self.FriendGroupInviteNotification = SGUI.NotificationManager.AddNotification(
+		Shine.NotificationType.INFO,
+		self:GetInterpolatedPhrase( "INVITED_TO_FRIEND_GROUP", Data ),
+		Data.ExpiryTime - SharedGetTime(),
+		{
+			Buttons = {
+				{
+					Text = self:GetPhrase( "ACCEPT_FRIEND_GROUP_INVITE" ),
+					Icon = SGUI.Icons.Ionicons.Checkmark,
+					StyleName = "AcceptButton",
+					DoClick = MakeClickFunc( true )
+				},
+				{
+					Text = self:GetPhrase( "DECLINE_FRIEND_GROUP_INVITE" ),
+					Icon = SGUI.Icons.Ionicons.Close,
+					StyleName = "DeclineButton",
+					DoClick = MakeClickFunc( false )
+				}
+			}
+		}
+	)
+end
+
+function Plugin:ReceiveFriendGroupInviteCancelled( Data )
+	self:DismissFriendGroupInvite()
+end
+
 function Plugin:ReceiveLeftFriendGroup( Data )
 	self.FriendGroup = {}
 	self.InFriendGroup = false
+end
+
+function Plugin:ReceiveFriendGroupConfig( Data )
+	self.FriendGroup.LeaderID = Data.LeaderID
+	self.FriendGroup.LeaderType = Data.LeaderType
 end
 
 function Plugin:ReceiveFriendGroupUpdated( Data )
@@ -253,7 +372,6 @@ end
 
 local IsPlayingTeam = Shine.IsPlayingTeam
 local pairs = pairs
-local SharedGetTime = Shared.GetTime
 
 function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 	local MemoryEntry = self.TeamTracking[ ClientIndex ]
@@ -336,10 +454,19 @@ function Plugin:OnGUIScoreboardSendKeyEvent( Scoreboard, Key, Down )
 	local Buttons = HoverMenu.links
 	if not Buttons then return end
 
+	local SelfSteamID = Client.GetSteamId()
 	local SteamID = GetSteamIdForClientIndex( Scoreboard.hoverPlayerClientIndex ) or 0
-	local HoveringSelf = Client.GetSteamId() == SteamID
+	local HoveringSelf = SelfSteamID == SteamID
 
-	if ( HoveringSelf and not self.InFriendGroup ) or ( not HoveringSelf and self.FriendGroup[ SteamID ] ) then
+	if ( HoveringSelf and not self.InFriendGroup )
+	or ( not HoveringSelf and self.FriendGroup[ SteamID ] and self.FriendGroup.LeaderID ~= SelfSteamID ) then
+		-- No action possible if hovering self when not in a group, or hovering a group member and not the group leader.
+		return
+	end
+
+	if not HoveringSelf and self.InFriendGroup and self.FriendGroup.LeaderID ~= SelfSteamID
+	and self.FriendGroup.LeaderType == self.FriendGroupLeaderType.LEADER_ADD_ONLY then
+		-- Only the group leader can add more players to the group.
 		return
 	end
 
@@ -359,11 +486,16 @@ function Plugin:OnGUIScoreboardSendKeyEvent( Scoreboard, Key, Down )
 		end
 	end
 
+	local IsTargetInGroup = self.FriendGroup[ SteamID ]
 	local Text
 	if HoveringSelf then
 		Text = self:GetPhrase( "LEAVE_FRIEND_GROUP" )
 	elseif self.InFriendGroup then
-		Text = self:GetPhrase( "ADD_TO_FRIEND_GROUP" )
+		if IsTargetInGroup then
+			Text = self:GetPhrase( "REMOVE_FROM_FRIEND_GROUP" )
+		else
+			Text = self:GetPhrase( "ADD_TO_FRIEND_GROUP" )
+		end
 	else
 		Text = self:GetPhrase( "JOIN_FRIEND_GROUP" )
 	end
@@ -378,7 +510,11 @@ function Plugin:OnGUIScoreboardSendKeyEvent( Scoreboard, Key, Down )
 			if HoveringSelf then
 				self:SendNetworkMessage( "LeaveFriendGroup", {}, true )
 			else
-				self:SendNetworkMessage( "JoinFriendGroup", { SteamID = SteamID }, true )
+				if IsTargetInGroup then
+					self:SendNetworkMessage( "RemoveFromFriendGroup", { SteamID = SteamID }, true )
+				else
+					self:SendNetworkMessage( "JoinFriendGroup", { SteamID = SteamID }, true )
+				end
 			end
 		end )
 		FriendGroupButton = HoverMenu.links[ #HoverMenu.links ]
@@ -400,7 +536,8 @@ local FadeAlphaMult = 1 - FadeAlphaMin
 local HighlightDuration = 10
 local OscillationMultiplier = HighlightDuration * math.pi * 0.5
 
-local FriendColour = Colour( 0, 1, 0.2 )
+local FriendColour = Colour( 0, 0.75, 0.15 )
+local FriendLeaderColour = Colour( 0, 1, 0.2 )
 
 local function FadeRowIn( Row, Entry, TimeSinceLastChange )
 	if not Entry then return end
@@ -421,7 +558,7 @@ local function CheckRow( self, Row, TeamNumber, CurTime, ShouldShowFriendGroup )
 
 	local Entry = Scoreboard_GetPlayerRecord( ClientIndex )
 	if Entry and ShouldShowFriendGroup and self.FriendGroup[ Entry.SteamId ] then
-		Row.Background:SetColor( FriendColour )
+		Row.Background:SetColor( Entry.SteamId == self.FriendGroup.LeaderID and FriendLeaderColour or FriendColour )
 	end
 
 	if not self.dt.HighlightTeamSwaps then return Entry end

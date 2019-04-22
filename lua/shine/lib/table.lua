@@ -481,16 +481,22 @@ do
 
 	local DebugPrinters = setmetatable( {
 		table = function( Value )
-			return StringFormat( "%s (%d array element(s), %s)", Value, #Value,
+			local Meta = getmetatable( Value )
+			if IsType( Meta, "table" ) and Meta.__tostring and Meta.__PrintAsString then
+				return tostring( Value )
+			end
+			return StringFormat( "%s (%d array element%s, %s)", Value, #Value, #Value == 1 and "" or "s",
 				next( Value ) ~= nil and "not empty" or "empty" )
-		end,
+		end
+	}, { __index = DefaultPrinters } )
+	local DebugKeyPrinters = setmetatable( {
 		string = function( Value )
 			if StringFind( Value, "\n", 1, true ) then
 				return StringFormat( "[==[%s]==]", Value )
 			end
 			return Value
 		end
-	}, { __index = DefaultPrinters } )
+	}, { __index = DebugPrinters } )
 
 	function table.ToDebugString( Table, Indent )
 		Indent = Indent or ""
@@ -503,7 +509,7 @@ do
 			local Key = Keys[ i ]
 			local Value = Table[ Key ]
 			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", Indent,
-				ToPrintString( Key, DebugPrinters ),
+				ToPrintString( Key, DebugKeyPrinters ),
 				ToPrintString( Value, DebugPrinters ) )
 		end
 

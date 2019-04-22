@@ -28,6 +28,7 @@ end
 
 do
 	local IsType = Shine.IsType
+	local StringFind = string.find
 	local StringMatch = string.match
 
 	local KnownMaps
@@ -70,6 +71,32 @@ do
 		return KnownMaps
 	end
 	Shine.GetKnownMapNames = GetKnownMaps
+
+	function Shine.FindMapNamesMatching( MapName )
+		local KnownMaps = GetKnownMaps()
+
+		-- Provided an exact map name, use it.
+		if KnownMaps[ MapName ] then
+			return { MapName }
+		end
+
+		-- Don't know what map it is, try adding ns2_ at the start.
+		local MapWithNS2 = "ns2_"..MapName
+		if KnownMaps[ MapWithNS2 ] then
+			return { MapWithNS2 }
+		end
+
+		-- Doesn't match a known map even with ns2_, so try to find maps that contain the given name.
+		local FoundMaps = {}
+		for i = 1, #KnownMaps do
+			local KnownMap = KnownMaps[ i ]
+			if StringFind( KnownMap, MapName, 1, true ) then
+				FoundMaps[ #FoundMaps + 1 ] = KnownMap
+			end
+		end
+
+		return FoundMaps
+	end
 
 	function Shine.IsValidMapName( MapName )
 		return GetKnownMaps()[ MapName ] or false

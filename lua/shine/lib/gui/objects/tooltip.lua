@@ -18,9 +18,7 @@ SGUI.AddBoundProperty( Tooltip, "TexturePixelCoordinates", "Background:SetTextur
 function Tooltip:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-
-	local Background = Manager:CreateGraphicItem()
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 	self.TextPadding = 16
 end
@@ -50,7 +48,7 @@ end
 function Tooltip:SetText( Text, Font, Scale )
 	local TextObj = self.Text
 	if not TextObj then
-		TextObj = GetGUIManager():CreateTextItem()
+		TextObj = self:MakeGUITextItem()
 		-- Align center doesn't want to play nice...
 		TextObj:SetAnchor( GUIItem.Middle, GUIItem.Top )
 		TextObj:SetTextAlignmentX( GUIItem.Align_Center )

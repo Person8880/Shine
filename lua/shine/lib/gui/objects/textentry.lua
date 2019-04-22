@@ -38,27 +38,25 @@ function TextEntry:Initialise()
 
 	if self.Background then GUI.DestroyItem( self.Background ) end
 
-	local Manager = GetGUIManager()
-
 	--Border.
-	local Background = Manager:CreateGraphicItem()
+	local Background = self:MakeGUIItem()
 
 	self.Background = Background
 
 	--Coloured entry field.
-	local InnerBox = Manager:CreateGraphicItem()
+	local InnerBox = self:MakeGUIItem()
 	InnerBox:SetAnchor( GUIItem.Left, GUIItem.Top )
 	InnerBox:SetPosition( BorderSize )
 
 	--Stencil to prevent text leaking.
-	local Stencil = Manager:CreateGraphicItem()
+	local Stencil = self:MakeGUIItem()
 	Stencil:SetIsStencil( true )
 	Stencil:SetInheritsParentStencilSettings( false )
 	Stencil:SetClearsStencilBuffer( true )
 
 	self.Stencil = Stencil
 
-	local SelectionBox = Manager:CreateGraphicItem()
+	local SelectionBox = self:MakeGUIItem()
 	SelectionBox:SetAnchor( GUIItem.Left, GUIItem.Top )
 	SelectionBox:SetInheritsParentStencilSettings( false )
 	SelectionBox:SetStencilFunc( GUIItem.NotEqual )
@@ -67,7 +65,7 @@ function TextEntry:Initialise()
 	self.SelectionBox = SelectionBox
 
 	--The actual text object.
-	local Text = Manager:CreateTextItem()
+	local Text = self:MakeGUITextItem()
 	Text:SetAnchor( GUIItem.Left, GUIItem.Center )
 	Text:SetTextAlignmentY( GUIItem.Align_Center )
 	Text:SetPosition( TextPos )
@@ -75,14 +73,14 @@ function TextEntry:Initialise()
 	Text:SetStencilFunc( GUIItem.NotEqual )
 
 	--The caret to edit from.
-	local Caret = Manager:CreateGraphicItem()
+	local Caret = self:MakeGUIItem()
 	Caret:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Caret:SetColor( Clear )
 
 	self.Caret = Caret
 
-	InnerBox:AddChild( Caret )
 	InnerBox:AddChild( Stencil )
+	InnerBox:AddChild( Caret )
 
 	Background:AddChild( InnerBox )
 
@@ -194,8 +192,7 @@ function TextEntry:SetPlaceholderText( Text )
 		return
 	end
 
-	local Manager = GetGUIManager()
-	local PlaceholderText = Manager:CreateTextItem()
+	local PlaceholderText = self:MakeGUITextItem()
 	PlaceholderText:SetAnchor( GUIItem.Left, GUIItem.Top )
 	PlaceholderText:SetTextAlignmentY( GUIItem.Align_Center )
 	PlaceholderText:SetInheritsParentStencilSettings( false )

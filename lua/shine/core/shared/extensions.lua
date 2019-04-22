@@ -725,7 +725,7 @@ if Server then
 end
 
 Client.HookNetworkMessage( "Shine_PluginSync", function( Data )
-	for Name, Enabled in pairs( Data ) do
+	for Name, Enabled in SortedPairs( Data ) do
 		if Enabled then
 			Shine:EnableExtension( Name )
 		end

@@ -6,7 +6,7 @@ local UnitTest = Shine.UnitTest
 local Plugin = UnitTest:LoadExtension( "ban" )
 if not Plugin then return end
 
-Plugin = UnitTest.MockOf( Plugin )
+Plugin = UnitTest.MockPlugin( Plugin )
 
 UnitTest:Test( "AddNS2BansIntoTable - Adds missing bans and updates existing ones", function( Assert )
 	local VanillaBans = {
@@ -150,3 +150,220 @@ UnitTest:Test( "AddNS2BansIntoTable - Does nothing if all bans match", function(
 	}, VanillaIDs )
 	Assert.DeepEquals( "Should have made no changes to the given table", OriginalBans, OutputTable )
 end )
+
+do
+	function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+		return false, 12345
+	end
+
+	local Kicked = {}
+	function Plugin:KickForFamilySharingWhenBanned( Client, Sharer )
+		Kicked[ Client ] = "Banned"
+	end
+
+	function Plugin:KickForFamilySharing( Client, Sharer )
+		Kicked[ Client ] = "NotBanned"
+	end
+
+	UnitTest:Before( function()
+		Kicked = {}
+	end )
+
+	UnitTest:Test( "ClientConnect - Does nothing if Config.CheckFamilySharing = false", function( Assert )
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return true, 12345
+		end
+
+		Plugin.Config.CheckFamilySharing = false
+
+		local MockClient = UnitTest.MakeMockClient( 123 )
+		Plugin:ClientConnect( MockClient )
+
+		Assert.Nil( "Should not have kicked the client", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "ClientConnect - Does nothing if Config.CheckFamilySharing = true and the client is not family sharing", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return false
+		end
+
+		local MockClient = UnitTest.MakeMockClient( 123 )
+		Plugin:ClientConnect( MockClient )
+
+		Assert.Nil( "Should not have kicked the client", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "ClientConnect - Kicks the client if Config.CheckFamilySharing = true and the client is family sharing with a banned account", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return true, 12345
+		end
+
+		local MockClient = UnitTest.MakeMockClient( 123 )
+		Plugin:ClientConnect( MockClient )
+
+		Assert.Equals( "Should have kicked the client due to the sharer being banned", "Banned", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "ClientConnect - Kicks the client if Config.AlwaysBlockFamilySharedPlayers = true and the client is family sharing", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.AlwaysBlockFamilySharedPlayers = true
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return false, 12345
+		end
+
+		local MockClient = UnitTest.MakeMockClient( 123 )
+		Plugin:ClientConnect( MockClient )
+
+		Assert.Equals( "Should have kicked the client due to sharing, even though the sharer is not banned",
+			"NotBanned", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Does nothing if the client is not banned and CheckFamilySharing = false", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = {}
+
+		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123 ) )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Rejects the client if they are banned", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = {
+			[ "123" ] = {
+				BannedBy = "Test",
+				Duration = 120,
+				UnbanTime = os.time() + 120,
+				Reason = "Testing."
+			}
+		}
+
+		local Allowed, Reason = Plugin:CheckConnectionAllowed( 123 )
+		Assert.False( "Client should be rejected", Allowed )
+		Assert:Equals( "Banned from server by Test for 2 minutes: Testing.", Reason )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Does nothing if the client's ban has expired", function( Assert )
+		Plugin.Config.CheckFamilySharing = false
+		Plugin.Config.Banned = {
+			[ "123" ] = {
+				BannedBy = "Test",
+				Duration = 120,
+				UnbanTime = 1,
+				Reason = "Testing."
+			}
+		}
+
+		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123 ) )
+		Assert.Nil( "Expired ban should be removed", Plugin.Config.Banned[ "123" ] )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Does nothing if the client is not banned and not family sharing", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.Banned = {}
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return false
+		end
+
+		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123 ) )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Rejects the client if they are family sharing with a banned account", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.Banned = {}
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return true, 12345
+		end
+
+		local Allowed, Reason = Plugin:CheckConnectionAllowed( 123 )
+		Assert.False( "Client should be rejected", Allowed )
+		Assert:Equals( "Family sharing with a banned account.", Reason )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Rejects the client if they are family sharing and AlwaysBlockFamilySharedPlayers = true", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.AlwaysBlockFamilySharedPlayers = true
+		Plugin.Config.Banned = {}
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return false, 12345
+		end
+
+		local Allowed, Reason = Plugin:CheckConnectionAllowed( 123 )
+		Assert.False( "Client should be rejected", Allowed )
+		Assert:Equals( "Family sharing is not permitted here.", Reason )
+	end )
+
+	local OldGetClientByNS2ID = Shine.GetClientByNS2ID
+	local MockClient
+	Shine.GetClientByNS2ID = function( ID )
+		if ID == MockClient:GetUserId() then
+			return MockClient
+		end
+	end
+
+	UnitTest:Test( "CheckConnectionAllowed - Does nothing if response is delayed but client is not family sharing", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.AlwaysBlockFamilySharedPlayers = false
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly, Callback )
+			return Callback( false )
+		end
+
+		MockClient = UnitTest.MakeMockClient( 123 )
+
+		Assert.Nil( "Should not make a decision when result is delayed", Plugin:CheckConnectionAllowed( 123 ) )
+		Assert.Nil( "Should not have kicked the client", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Does nothing if response is delayed and client is family sharing with an account that is not banned", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.AlwaysBlockFamilySharedPlayers = false
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly, Callback )
+			return Callback( false, 12345 )
+		end
+
+		MockClient = UnitTest.MakeMockClient( 123 )
+
+		Assert.Nil( "Should not make a decision when result is delayed", Plugin:CheckConnectionAllowed( 123 ) )
+		Assert.Nil( "Should not have kicked the client", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Kicks the client if response is delayed and client is family sharing with an account that is banned", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.AlwaysBlockFamilySharedPlayers = false
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly, Callback )
+			return Callback( true, 12345 )
+		end
+
+		MockClient = UnitTest.MakeMockClient( 123 )
+
+		Assert.Nil( "Should not make a decision when result is delayed", Plugin:CheckConnectionAllowed( 123 ) )
+		Assert.Equals( "Should have kicked the client", "Banned", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Kicks the client if response is delayed and client is family sharing when AlwaysBlockFamilySharedPlayers = true", function( Assert )
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.AlwaysBlockFamilySharedPlayers = true
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly, Callback )
+			return Callback( false, 12345 )
+		end
+
+		MockClient = UnitTest.MakeMockClient( 123 )
+
+		Assert.Nil( "Should not make a decision when result is delayed", Plugin:CheckConnectionAllowed( 123 ) )
+		Assert.Equals( "Should have kicked the client", "NotBanned", Kicked[ MockClient ] )
+	end )
+
+	Shine.GetClientByNS2ID = OldGetClientByNS2ID
+
+	UnitTest:ResetState()
+end

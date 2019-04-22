@@ -42,7 +42,11 @@ BalanceModule.DefaultConfig = {
 		-- team, but also a stronger chance that teams will be more imbalanced.
 		PlayWithFriendsWeighting = Plugin.TeamPreferenceWeighting.MEDIUM,
 		-- The maximum number of players that can form a friend group.
-		MaxFriendGroupSize = 4
+		MaxFriendGroupSize = 4,
+		-- How long to wait for a response to a friend group invitation before revoking it.
+		FriendGroupInviteDurationInSeconds = 15,
+		-- How long after a friend group invite fails before a player can send another invite.
+		FriendGroupInviteCooldownInSeconds = 15
 	}
 }
 
@@ -65,6 +69,9 @@ do
 
 	-- It makes no sense to have player groups less than 2 or larger than half the max players in size.
 	Validator:AddFieldRule( "TeamPreferences.MaxFriendGroupSize", Validator.Clamp( 2, Server.GetMaxPlayers() * 0.5 ) )
+
+	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteDurationInSeconds", Validator.Min( 5 ) )
+	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteCooldownInSeconds", Validator.Min( 0 ) )
 
 	BalanceModule.ConfigValidator = Validator
 end
@@ -440,6 +447,56 @@ do
 	end
 end
 
+function BalanceModule:RandomisePlayers( Players, Commanders )
+	TableQuickShuffle( Players )
+
+	local TeamMembers = { {}, {} }
+
+	-- Avoid randomising the commanders.
+	for i = 1, 2 do
+		if Commanders[ i ] then
+			local Team = TeamMembers[ i ]
+			Team[ #Team + 1 ] = Commanders[ i ]
+		end
+	end
+
+	-- Add all the other players to the teams, starting with the team with less players.
+	local TeamIndex = #TeamMembers[ 1 ] < #TeamMembers[ 2 ] and 1 or 2
+	for i = 1, #Players do
+		local Team = TeamMembers[ TeamIndex ]
+		Team[ #Team + 1 ] = Players[ i ]
+		TeamIndex = TeamIndex % 2 + 1
+	end
+
+	return TeamMembers
+end
+
+function BalanceModule:FilterPlayerGroupsToTeamMembers( PlayerGroups, TeamMembers )
+	local PlayersBeingOptimised = {}
+	for i = 1, 2 do
+		local Team = TeamMembers[ i ]
+		for j = 1, #Team do
+			PlayersBeingOptimised[ Team[ j ] ] = true
+		end
+	end
+
+	local function IsBeingOptimised( Player )
+		return PlayersBeingOptimised[ Player ]
+	end
+	local function IsNotEmptyGroup( Group )
+		return #Group.Players > 1
+	end
+
+	return Shine.Stream( PlayerGroups )
+		:Filter( function( Group )
+			return {
+				Players = Shine.Stream( Group.Players ):Filter( IsBeingOptimised ):AsTable()
+			}
+		end )
+		:Filter( IsNotEmptyGroup )
+		:AsTable()
+end
+
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	-- Sanity check, make sure both team tables have even counts.
 	Shine.EqualiseTeamCounts( TeamMembers )
@@ -515,6 +572,13 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		ScaleGroupWeighting = function( self, Weight )
 			return Weight * PlayWithFriendsWeighting
 		end
+
+		if TeamMembers.PlayerGroups then
+			-- Some of the player groups may contain players that ended up not in the team
+			-- members list due to lack of Hive data or team size restrictions. Thus, the
+			-- groups need to be cut down to only those players that are known.
+			TeamMembers.PlayerGroups = self:FilterPlayerGroupsToTeamMembers( TeamMembers.PlayerGroups, TeamMembers )
+		end
 	end
 
 	local NumPlayers = #TeamMembers[ 1 ] + #TeamMembers[ 2 ]
@@ -526,12 +590,19 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	local Results = {}
 
 	local Players
+	local Commanders
 	if NumIterations > 1 then
 		Players = {}
+		Commanders = {}
 		for i = 1, 2 do
 			local Team = TeamMembers[ i ]
 			for j = 1, #Team do
-				Players[ #Players + 1 ] = Team[ j ]
+				local Player = Team[ j ]
+				if IgnoreCommanders and Player:isa( "Commander" ) then
+					Commanders[ i ] = Player
+				else
+					Players[ #Players + 1 ] = Player
+				end
 			end
 		end
 	end
@@ -545,12 +616,8 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 		if i > 1 then
 			-- After the first iteration, randomise the initial teams to allow more
 			-- solutions to be found.
-			TableQuickShuffle( Players )
-			IterationTeamMembers = { {}, {}, PlayerGroups = TeamMembers.PlayerGroups }
-			for i = 1, #Players do
-				local Team = IterationTeamMembers[ i % 2 + 1 ]
-				Team[ #Team + 1 ] = Players[ i ]
-			end
+			IterationTeamMembers = self:RandomisePlayers( Players, Commanders )
+			IterationTeamMembers.PlayerGroups = TeamMembers.PlayerGroups
 			IterationTeamSkills = self:ComputeTeamSkills( IterationTeamMembers, RankFunc )
 		else
 			IterationTeamMembers = TableCopy( TeamMembers )

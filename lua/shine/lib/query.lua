@@ -4,7 +4,7 @@
 
 local HTTPRequest = Shared.SendHTTPRequest
 local IsType = Shine.IsType
-local Time = os.clock
+local Time = Shared.GetSystemTimeReal
 
 do
 	local Encode, Decode = json.encode, json.decode

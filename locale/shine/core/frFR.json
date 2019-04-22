@@ -38,6 +38,8 @@
 	"HOUR": "{Value:Pluralise:heure|heures}",
 	"DAY": "{Value:Pluralise:jour|jours}",
 	"WEEK": "{Value:Pluralise:semaine|semaines}",
+	"SETTINGS_TAB": "Paramètres",
+	"PLUGINS_TAB": "Plugins",
 	"CLIENT_SETTINGS": "Paramètres client",
 	"ENABLE_PLUGIN": "Activer Plugin",
 	"DISABLE_PLUGIN": "Désactiver Plugin",

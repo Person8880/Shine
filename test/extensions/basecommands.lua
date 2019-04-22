@@ -58,9 +58,9 @@ local VoteManager = {
 	numPlayers = 1
 }
 
-UnitTest:Test( "GetEjectVotesNeeded - Should have minimum value of 1", function( Assert )
+UnitTest:Test( "GetEjectVotesNeeded - Should have minimum value of 2", function( Assert )
 	local VotesNeeded = Plugin:GetEjectVotesNeeded( VoteManager, 1 )
-	Assert.Equals( "Should always return at least 1 for GetEjectVotesNeeded", 1, VotesNeeded )
+	Assert.Equals( "Should always return at least 2 for GetEjectVotesNeeded", 2, VotesNeeded )
 end )
 
 VoteManager.numPlayers = 2

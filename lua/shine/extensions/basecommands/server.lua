@@ -24,7 +24,7 @@ local TableSort = table.sort
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "1.5"
+Plugin.Version = "1.6"
 Plugin.PrintName = "Base Commands"
 
 Plugin.HasConfig = true
@@ -39,6 +39,7 @@ Plugin.DefaultConfig = {
 		{ FractionOfTeamToPass = 0.5 }
 	},
 	CommanderBotVoteDelayInSeconds = 300,
+	CustomVotePrefix = "POLL: ",
 	DisableLuaRun = false,
 	FriendlyFire = false,
 	FriendlyFireScale = 1,
@@ -181,7 +182,9 @@ do
 	end
 
 	local function RegisterCustomVote()
-		RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
+		RegisterVoteType( "ShineCustomVote", {
+			VoteQuestion = "string (128)"
+		} )
 
 		SetVoteSuccessfulCallback( "ShineCustomVote", 4, function( Data )
 			Plugin:OnCustomVoteSuccess( Data )
@@ -446,7 +449,7 @@ do
 	}
 
 	function Plugin:NotifyAllTalkState( Type, Enable )
-		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 3, Type )
 
 		Shine:TranslatedNotifyDualColour( nil, Enable and 0 or 255, Enable and 255 or 0, 0,
 			"ALL_TALK_TAG", 255, 255, 255, ALLTALK_TYPES[ Type ]..( Enable and "ENABLED" or "DISABLED" ),
@@ -454,13 +457,13 @@ do
 	end
 
 	function Plugin:IsAllTalkEnabled( Type )
-		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 3, Type )
 
 		return self.Config[ Type ]
 	end
 
 	function Plugin:SetAllTalkEnabled( Type, Enabled, DontSave )
-		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 2, Type )
+		Shine.AssertAtLevel( ALLTALK_TYPES[ Type ], "Invalid all talk type: %s", 3, Type )
 
 		Enabled = Enabled and true or false
 		self.Config[ Type ] = Enabled
@@ -877,7 +880,7 @@ function Plugin:CreateAdminCommands()
 			local Func, Err = loadstring( Code )
 
 			if Func then
-				local Success, Err = pcall( Func )
+				local Success, Err = pcall( Func, Client )
 				if Success then
 					Shine:Print( "%s ran: %s", true, Shine.GetClientInfo( Client ), Code )
 					if Client then
@@ -949,55 +952,23 @@ function Plugin:CreateAdminCommands()
 	KickCommand:Help( "Kicks the given player." )
 
 	local function ChangeLevel( Client, MapName )
-		local Cycle = MapCycle_GetMapCycle()
-		local FoundMap
-		local KnownMaps = Shine.GetKnownMapNames()
-
-		-- Provided an exact map name, use it.
-		if KnownMaps[ MapName ] then
-			FoundMap = MapName
-		end
-
-		if not FoundMap then
-			-- Don't know what map it is, try adding ns2_ at the start.
-			local MapWithNS2 = "ns2_"..MapName
-			if KnownMaps[ MapWithNS2 ] then
-				FoundMap = MapWithNS2
-			else
-				-- Doesn't match a known map even with ns2_, so try to find a single matching
-				-- map that contains the given name.
-				local MatchingMapName
-				for i = 1, #KnownMaps do
-					local KnownMap = KnownMaps[ i ]
-					if StringFind( KnownMap, MapName, 1, true ) then
-						if MatchingMapName then
-							-- More than one map matches, so ask for a more precise name.
-							NotifyError( Client, "UNCLEAR_MAP_NAME", {
-								MapName = MapName
-							}, "%s matches multiple maps, a more precise name is required.", true, MapName )
-							return
-						end
-
-						MatchingMapName = KnownMap
-					end
-				end
-
-				if MatchingMapName then
-					-- Exactly one map matched the given name, so use it.
-					FoundMap = MatchingMapName
-				end
-			end
-		end
-
-		if not FoundMap then
-			-- No maps match the given name, give up.
+		local MatchingMaps = Shine.FindMapNamesMatching( MapName )
+		if #MatchingMaps == 0 then
 			NotifyError( Client, "UNKNOWN_MAP_NAME", {
 				MapName = MapName
 			}, "%s is not a known map name.", true, MapName )
 			return
 		end
 
-		MapCycle_ChangeMap( FoundMap )
+		if #MatchingMaps > 1 then
+			-- More than one map matches, so ask for a more precise name.
+			NotifyError( Client, "UNCLEAR_MAP_NAME", {
+				MapName = MapName
+			}, "%s matches multiple maps, a more precise name is required.", true, MapName )
+			return
+		end
+
+		MapCycle_ChangeMap( MatchingMaps[ 1 ] )
 	end
 	local ChangeLevelCommand = self:BindCommand( "sh_changelevel", "map", ChangeLevel )
 	ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true,
@@ -1657,7 +1628,9 @@ function Plugin:CreateMessageCommands()
 			StartVote = StartVote or Shine.StartNS2Vote
 			if not StartVote then return end
 
-			StartVote( "ShineCustomVote", Client, { VoteQuestion = VoteQuestion } )
+			StartVote( "ShineCustomVote", Client, {
+				VoteQuestion = self.Config.CustomVotePrefix..VoteQuestion
+			} )
 		end
 		local CustomVoteCommand = self:BindCommand( "sh_customvote", "customvote", CustomVote )
 		CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "question" }

@@ -25,22 +25,26 @@ SGUI.AddProperty( BaseLayout, "Size", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "AutoSize", nil, { "InvalidatesParent" } )
 SGUI.AddProperty( BaseLayout, "Padding", nil, { "InvalidatesLayout" } )
 SGUI.AddProperty( BaseLayout, "Margin", nil, { "InvalidatesParent" } )
-SGUI.AddProperty( BaseLayout, "Alignment", SGUI.LayoutAlignment.MIN )
+SGUI.AddProperty( BaseLayout, "Alignment", SGUI.LayoutAlignment.MIN, { "InvalidatesParent" } )
+SGUI.AddProperty( BaseLayout, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN, { "InvalidatesParent" } )
+SGUI.AddProperty( BaseLayout, "IsVisible", true, { "InvalidatesParent" } )
 SGUI.AddProperty( BaseLayout, "Elements" )
 
 function BaseLayout:Init( Data )
 	local Spacing = Layout.Units.Spacing
 
-	self.Elements = Data.Elements or {}
-	self.Pos = Data.Pos or Vector2( 0, 0 )
-	self.AutoSize = Data.AutoSize
-	self.Size = Data.Size or Vector2( 0, 0 )
-	self.Margin = Data.Margin or Spacing( 0, 0, 0, 0 )
-	self.Padding = Data.Padding or Spacing( 0, 0, 0, 0 )
-	self.Parent = Data.Parent
-	self.Anchor = Data.Anchor or SGUI.Anchors.TopLeft
-	self.Alignment = Data.Alignment or SGUI.LayoutAlignment.MIN
-	if Data.Fill ~= false then
+	self.Elements = Data and Data.Elements or {}
+	self.LayoutChildren = {}
+	self.Pos = Data and Data.Pos or Vector2( 0, 0 )
+	self.AutoSize = Data and Data.AutoSize
+	self.Size = Data and Data.Size or Vector2( 0, 0 )
+	self.Margin = Data and Data.Margin or Spacing( 0, 0, 0, 0 )
+	self.Padding = Data and Data.Padding or Spacing( 0, 0, 0, 0 )
+	self.Parent = Data and Data.Parent
+	self.Anchor = Data and Data.Anchor or SGUI.Anchors.TopLeft
+	self.Alignment = Data and Data.Alignment or SGUI.LayoutAlignment.MIN
+
+	if not Data or Data.Fill ~= false then
 		self.Fill = true
 	end
 
@@ -48,25 +52,43 @@ function BaseLayout:Init( Data )
 		local Element = self.Elements[ i ]
 		if Element.IsLayout then
 			Element:SetParent( self )
+			self.LayoutChildren[ #self.LayoutChildren + 1 ] = Element
 		end
 	end
 
 	return self
 end
 
-function BaseLayout:GetIsVisible()
-	return true
+local function ChildIterator( State )
+	State.Index = State.Index + 1
+	return State.Elements[ State.Index ]
+end
+
+function BaseLayout:IterateChildren()
+	return ChildIterator, { Elements = self.Elements, Index = 0 }
+end
+
+local function OnAddElement( self, Element )
+	if Element.IsLayout then
+		Element:SetParent( self )
+		self.LayoutChildren[ #self.LayoutChildren + 1 ] = Element
+	else
+		Element.LayoutParent = self
+	end
+
+	self:InvalidateLayout()
 end
 
 function BaseLayout:AddElement( Element )
 	local Elements = self.Elements
 	Elements[ #Elements + 1 ] = Element
 
-	if Element.IsLayout then
-		Element:SetParent( self )
-	end
+	OnAddElement( self, Element )
+end
 
-	self:InvalidateLayout()
+function BaseLayout:InsertElement( Element, Index )
+	TableInsert( self.Elements, Index, Element )
+	OnAddElement( self, Element )
 end
 
 function BaseLayout:InsertElementAfter( Element, AfterElement )
@@ -78,18 +100,19 @@ function BaseLayout:InsertElementAfter( Element, AfterElement )
 		end
 	end
 
-	if Element.IsLayout then
-		Element:SetParent( self )
-	end
-
-	self:InvalidateLayout()
+	OnAddElement( self, Element )
 end
 
 function BaseLayout:RemoveElement( Element )
 	if not TableRemoveByValue( self.Elements, Element ) then return end
 
-	if Element.IsLayout and Element.Parent == self then
-		Element:SetParent( nil )
+	if Element.IsLayout then
+		TableRemoveByValue( self.LayoutChildren, Element )
+		if Element.Parent == self then
+			Element:SetParent( nil )
+		end
+	elseif Element.LayoutParent == self then
+		Element.LayoutParent = nil
 	end
 
 	self:InvalidateLayout()
@@ -98,29 +121,41 @@ end
 -- Layouts inherit some basic functionality from elements.
 table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"ComputeSpacing",
+	"GetContentSizeForAxis",
+	"GetMaxSizeAlongAxis",
 	"GetComputedPadding",
 	"GetComputedMargin",
 	"GetComputedSize",
 	"GetParentSize",
 	"InvalidateParent",
 	"InvalidateLayout",
-	"HandleLayout"
+	"HandleLayout",
+	"PreComputeWidth",
+	"PreComputeHeight",
+	"OnPropertyChanged",
+	"AddPropertyChangeListener",
+	"GetPropertySource",
+	"GetPropertyTarget",
+	"RemovePropertyChangeListener"
 } )
 
 function BaseLayout:Think( DeltaTime )
 	self:HandleLayout( DeltaTime )
 
 	-- Layouts must make sure child layouts also think (and thus handle layout invalidations)
-	for i = 1, #self.Elements do
-		local Element = self.Elements[ i ]
-		if Element.IsLayout then
-			Element:Think( DeltaTime )
-		end
+	for i = 1, #self.LayoutChildren do
+		local Element = self.LayoutChildren[ i ]
+		Element:Think( DeltaTime )
 	end
 end
 
 function BaseLayout:PerformLayout()
-	-- This method is responsible for actually computing the layout.
+	-- When this layout is invalidated, invalidate all of its children too.
+	-- This ensures layout changes cascade downwards in a single frame, rather than
+	-- some children waiting for the next frame to invalidate and thus causing a slight jitter.
+	for i = 1, #self.LayoutChildren do
+		self.LayoutChildren[ i ]:InvalidateLayout( true )
+	end
 end
 
 Layout.Types = {}

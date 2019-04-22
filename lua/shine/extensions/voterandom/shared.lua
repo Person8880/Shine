@@ -2,6 +2,8 @@
 	Shuffle plugin shared code.
 ]]
 
+local StringFormat = string.format
+
 local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	100, 255, 100
@@ -10,6 +12,18 @@ Plugin.EnabledGamemodes = {
 	[ "ns2" ] = true,
 	[ "mvm" ] = true
 }
+
+do
+	local Values = {
+		"ALLOW_ALL", "REQUIRE_INVITE", "BLOCK"
+	}
+	Plugin.FriendGroupJoinType = table.AsEnum( Values, function( Index ) return Index end )
+	Plugin.FriendGroupJoinTypeName = table.AsEnum( Values )
+
+	Values = { "ALLOW_ALL_TO_JOIN", "LEADER_ADD_ONLY" }
+	Plugin.FriendGroupLeaderType = table.AsEnum( Values, function( Index ) return Index end )
+	Plugin.FriendGroupLeaderTypeName = table.AsEnum( Values )
+end
 
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )
@@ -75,7 +89,6 @@ function Plugin:SetupDataTable()
 			"PLAYER_VOTED_DISABLE_AUTO_PRIVATE"
 		}
 	}, "ShuffleType" )
-	self:AddTranslatedNotify( "ADDED_TO_FRIEND_GROUP", MessageTypes.GroupWithPlayer )
 	self:AddNetworkMessages( "AddTranslatedError", {
 		[ MessageTypes.ShuffleType ] = {
 			"ERROR_CANNOT_START", "ERROR_ALREADY_ENABLED",
@@ -85,21 +98,54 @@ function Plugin:SetupDataTable()
 			"ERROR_MUST_WAIT"
 		}
 	}, "ShuffleType" )
+
+	self:AddNetworkMessages( "AddTranslatedNotify", {
+		[ MessageTypes.GroupWithPlayer ] = {
+			"ADDED_TO_FRIEND_GROUP", "INVITE_ACCEPTED", "INVITE_REJECTED",
+			"SELF_INVITE_ACCEPTED", "REMOVED_FROM_GROUP"
+		}
+	} )
 	self:AddNetworkMessages( "AddTranslatedNotification", {
 		[ MessageTypes.GroupWithPlayer ] = {
 			"ERROR_FRIEND_GROUP_FULL", "ERROR_TARGET_FRIEND_GROUP_FULL", "ERROR_TARGET_IN_FRIEND_GROUP",
-			"ERROR_TARGET_OPTED_OUT"
+			"ERROR_TARGET_OPTED_OUT", "ERROR_TARGET_ALREADY_INVITED", "ERROR_MUST_BE_INVITED_TO_GROUP",
+			"ERROR_INVITE_ON_COOLDOWN", "ERROR_CANNOT_REMOVE_NOT_LEADER", "SENT_INVITE_TO_FRIEND_GROUP"
 		}
 	} )
 
 	self:AddNetworkMessage( "TeamPreference", { PreferredTeam = "integer" }, "Server" )
 	self:AddNetworkMessage( "TemporaryTeamPreference", { PreferredTeam = "integer", Silent = "boolean" }, "Client" )
 
-	self:AddNetworkMessage( "FriendGroupOptOut", { OptOut = "boolean" }, "Server" )
+	local FriendGroupJoinTypeField = StringFormat( "integer (1 to %d)", #self.FriendGroupJoinType )
+	local FriendGroupLeaderTypeField = StringFormat( "integer (1 to %d)", #self.FriendGroupLeaderType )
+
+	self:AddNetworkMessage( "ClientFriendGroupConfig", {
+		JoinType = FriendGroupJoinTypeField,
+		LeaderType = FriendGroupLeaderTypeField
+	}, "Server" )
+
+	self:AddNetworkMessage( "FriendGroupInvite", {
+		PlayerName = self:GetNameNetworkField(),
+		ExpiryTime = "time"
+	}, "Client" )
+	self:AddNetworkMessage( "FriendGroupInviteCancelled", {}, "Client" )
+	self:AddNetworkMessage( "FriendGroupInviteAnswer", {
+		Accepted = "boolean"
+	}, "Server" )
+
 	self:AddNetworkMessage( "JoinFriendGroup", { SteamID = "integer" }, "Server" )
+	self:AddNetworkMessage( "RemoveFromFriendGroup", { SteamID = "integer" }, "Server" )
 	self:AddNetworkMessage( "LeaveFriendGroup", {}, "Server" )
+
 	self:AddNetworkMessage( "LeftFriendGroup", {}, "Client" )
-	self:AddNetworkMessage( "FriendGroupUpdated", { SteamID = "integer", Joined = "boolean" }, "Client" )
+	self:AddNetworkMessage( "FriendGroupUpdated", {
+		SteamID = "integer",
+		Joined = "boolean"
+	}, "Client" )
+	self:AddNetworkMessage( "FriendGroupConfig", {
+		LeaderType = FriendGroupLeaderTypeField,
+		LeaderID = "integer"
+	}, "Client" )
 end
 
 Shine.LoadPluginModule( "sh_vote.lua", Plugin )

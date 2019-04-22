@@ -2,6 +2,7 @@
 	"VOTE": "Vote",
 	"VOTE_BOUND_MESSAGE": "{VoteDescription}. Press {Button} to vote.\nTime left to vote: %s.",
 	"VOTE_UNBOUND_MESSAGE": "{VoteDescription}.\nMaps: {MapList}.\nType !vote <map> to vote.\nTime left to vote: %s.\nBind a key to sh_votemenu to make voting easier.",
+	"VOTE_BUTTON_CONFLICT": "Buttons bound to sh_votemenu and conflicting with other binds: {Buttons}",
 	"NEXT_MAP_DESCRIPTION": "Voting for the next map has begun",
 	"NEXT_MAP_DESCRIPTION2": "Vote for the next map in progress",
 	"RTV_DESCRIPTION": "Map vote has begun",
@@ -38,6 +39,7 @@
 	"CHOOSING_RANDOM_MAP": "Choosing random map. Map chosen: {MapName}.",
 	"RTV_STARTED": "Map vote started.",
 	"NEXT_MAP_STARTED": "Voting for the next map has started.",
+	"UNCLEAR_MAP_NAME": "{MapName} matches multiple maps, a more precise name is required.",
 	"MAP_NOT_ON_LIST": "{MapName} is not on the map list.",
 	"NOMINATE_FAIL": "You cannot nominate the current map.",
 	"NOMINATE_DENIED": "You have reached the limit of nominations permitted.",
@@ -67,7 +69,9 @@
 	"NOTIFY_PREFIX": "[Map Vote]",
 	"PLUGIN_DISABLED": "Map vote plugin disabled. Current vote cancelled.",
 	"ON_VOTE_ACTION": "When a map vote starts:",
-	"USE_SERVER_SETTINGS": "Use Server Settings",
-	"OPEN_MENU": "Open Vote Menu",
-	"DO_NOT_OPEN_MENU": "Do Nothing"
+	"USE_SERVER_SETTINGS": "Use server settings to decide whether to open the menu",
+	"OPEN_MENU": "Open the vote menu automatically",
+	"DO_NOT_OPEN_MENU": "Do not open the menu automatically",
+
+	"CLIENT_CONFIG_TAB": "Map Vote"
 }

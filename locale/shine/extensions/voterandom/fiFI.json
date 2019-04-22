@@ -69,4 +69,6 @@
 	"TEAM_SWITCH_DENIED_KDR_BASED": "Et voi vaihtaa joukkuetta. Joukkueet on sekoitettu Tapot-kuolemat-suhteen perusteella.",
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "Et voi vaihtaa joukkuetta. Joukkueet on sekoitettu Satunnaisesti.",
 	"TEAM_SWITCH_DENIED_SCORE_BASED": "Et voi vaihtaa joukkuetta. Joukkueet on sekoitettu Pistetehokkuuden perusteella.",
+
+	"CLIENT_CONFIG_TAB": "Sekoita"
 }

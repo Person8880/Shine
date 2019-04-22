@@ -24,7 +24,7 @@ function ListEntry:Initialise()
 	-- Real data may be different to what's displayed (e.g. time values)
 	self.Data = {}
 
-	self.Background = GetGUIManager():CreateGraphicItem()
+	self.Background = self:MakeGUIItem()
 	self:SetHighlightOnMouseOver( true )
 end
 
@@ -58,7 +58,6 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	local Background = self.Background
 	Background:SetSize( Size )
 
-	local Manager = GetGUIManager()
 	local TextCol = self.TextColour
 
 	self.ColumnText = {}
@@ -68,7 +67,7 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 
 		self.ColumnText[ i ] = Text
 
-		local TextObj = Manager:CreateTextItem()
+		local TextObj = self:MakeGUITextItem()
 		TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
 		TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 		TextObj:SetText( Text )
@@ -228,9 +227,11 @@ function ListEntry:Think( DeltaTime )
 end
 
 function ListEntry:OnMouseDown( Key, DoubleClick )
+	if not self:GetIsVisible() then return end
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:IsInView() then return end
+	-- No need to call IsInView() here as List checks if the mouse is inside itself before
+	-- passing mouse events down.
 	if not self:MouseIn( self.Background ) then return end
 
 	return true, self
@@ -239,7 +240,6 @@ end
 function ListEntry:OnMouseUp( Key )
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:IsInView() then return end
 	if not self:MouseIn( self.Background ) then return end
 
 	if SGUI:IsShiftDown() then

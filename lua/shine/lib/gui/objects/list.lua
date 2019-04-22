@@ -30,18 +30,17 @@ local UnitVector = Units.UnitVector
 
 SGUI.AddBoundProperty( List, "Colour", "Background:SetColor" )
 SGUI.AddProperty( List, "SortedExternally", false )
+SGUI.AddProperty( List, "MultiSelect", false )
+SGUI.AddProperty( List, "ScrollRate", 3 )
 
 function List:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-
-	local Background = Manager:CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
 	--This element ensures the entries aren't visible past the bounds of the list.
-	local Stencil = Manager:CreateGraphicItem()
+	local Stencil = self:MakeGUIItem()
 	Stencil:SetIsStencil( true )
 	Stencil:SetInheritsParentStencilSettings( false )
 	Stencil:SetClearsStencilBuffer( true )
@@ -51,7 +50,7 @@ function List:Initialise()
 	self.Stencil = Stencil
 
 	--This dummy element will be moved when scrolling.
-	local ScrollParent = Manager:CreateGraphicItem()
+	local ScrollParent = self:MakeGUIItem()
 	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
@@ -314,8 +313,7 @@ function List:AddRow( ... )
 
 	local RowCount = self.RowCount
 
-	local Row = SGUI:Create( "ListEntry" )
-	Row:SetParent( self, self.ScrollParent )
+	local Row = SGUI:Create( "ListEntry", self, self.ScrollParent )
 	Row.Background:SetInheritsParentStencilSettings( false )
 	Row.Background:SetStencilFunc( GUIItem.NotEqual )
 
@@ -707,18 +705,19 @@ function List:OnSelectionChanged( Rows )
 
 end
 
-SGUI.AddProperty( List, "MultiSelect" )
-
 ------------------- Event calling -------------------
 function List:OnMouseDown( Key, DoubleClick )
+	if not self:GetIsVisible() then return end
+
 	if SGUI.IsValid( self.Scrollbar ) then
 		if self.Scrollbar:OnMouseDown( Key, DoubleClick ) then
 			return true, self.Scrollbar
 		end
 	end
 
-	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	if not self:MouseIn( self.Background ) then return end
 
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then return true, Child end
 end
 
@@ -745,21 +744,24 @@ function List:Think( DeltaTime )
 end
 
 function List:OnMouseWheel( Down )
-	--Call children first, so they scroll before the main panel scroll.
-	local Result = self:CallOnChildren( "OnMouseWheel", Down )
+	if not self:GetIsVisible() then return end
 
+	-- Call children first, so they scroll before the main panel scroll.
+	local Result = self:CallOnChildren( "OnMouseWheel", Down )
 	if Result ~= nil then return true end
 
 	if not SGUI.IsValid( self.Scrollbar ) then
 		return
 	end
 
-	self.Scrollbar.MouseWheelScroll = ( self.LineSize or 32 ) * 3
+	self.Scrollbar.MouseWheelScroll = ( self.LineSize or 32 ) * self:GetScrollRate()
 
 	return self.Scrollbar:OnMouseWheel( Down )
 end
 
 function List:PlayerKeyPress( Key, Down )
+	if not self:GetIsVisible() then return end
+
 	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
 		return true
 	end
@@ -767,12 +769,6 @@ function List:PlayerKeyPress( Key, Down )
 	-- Block modifier keys used in multi-select from leaking out.
 	if self.MultiSelect and ( SGUI.IsShiftKey( Key ) or SGUI.IsControlKey( Key ) )
 	and self:MouseIn( self.Background ) then
-		return true
-	end
-end
-
-function List:PlayerType( Char )
-	if self:CallOnChildren( "PlayerType", Char ) then
 		return true
 	end
 end

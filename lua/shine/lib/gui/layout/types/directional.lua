@@ -10,13 +10,20 @@
 	them which I'm not willing to do.
 ]]
 
+local Max = math.max
+
 local Directional = {}
 Directional.IsAbstract = true
 
 local LayoutAlignment = Shine.GUI.LayoutAlignment
 
 function Directional:SetElementSize( Element, RealSize, Margin )
+	Element:PreComputeWidth()
+
 	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 1 ] - Margin[ 3 ] )
+
+	Element:PreComputeHeight( Width )
+
 	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 2 ] - Margin[ 4 ] )
 
 	local CurrentSize = Element:GetSize()
@@ -30,11 +37,42 @@ end
 
 function Directional:GetComputedFillSize( Element, RealSize, FillSizePerElement )
 	local Margin = Element:GetComputedMargin()
+
+	Element:PreComputeWidth()
+
 	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 1 ] - Margin[ 3 ] )
+	Width = self:GetFillElementWidth( Element, Width, FillSizePerElement )
+
+	Element:PreComputeHeight( Width )
+
 	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 2 ] - Margin[ 4 ] )
+	Height = self:GetFillElementHeight( Element, Height, FillSizePerElement )
 
 	return self:GetFillElementSize( Element, Width, Height, FillSizePerElement )
 end
+
+local PositionUpdaters = {
+	Before = {
+		-- Before a MIN aligned element, move forward by the margin at the start.
+		[ true ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X + MinW, Y + MinH
+		end,
+		-- Before a MAX aligned element, move back by the size of the element plus the margin at the end.
+		[ false ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X - MaxW - SizeW, Y - MaxH - SizeH
+		end
+	},
+	After = {
+		-- After a MIN aligned element, move forward by its size and margin at the end.
+		[ true ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X + MaxW + SizeW, Y + MaxH + SizeH
+		end,
+		-- After a MAX aligned element, move backwards by the margin at the start.
+		[ false ] = function( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
+			return X - MinW, Y - MinH
+		end
+	}
+}
 
 --[[
 	This method handles laying out elements, including keeping track of margins between them.
@@ -44,6 +82,8 @@ function Directional:LayoutElements( Elements, Context )
 
 	local Alignment = Context.Alignment
 	local IsMin = Alignment ~= LayoutAlignment.MAX
+	local UpdatePositionBefore = PositionUpdaters.Before[ IsMin ]
+	local UpdatePositionAfter = PositionUpdaters.After[ IsMin ]
 
 	local Padding = Context.Padding
 	local Pos = Context.Pos
@@ -68,31 +108,27 @@ function Directional:LayoutElements( Elements, Context )
 		local MaxW, MaxH = self:GetMaxMargin( Margin )
 		local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )
 
-		-- Margin before, if going from min to max, this is the left/top margin, otherwise the right/bottom.
-		if IsMin then
-			X, Y = X + MinW, Y + MinH
-		else
-			X, Y = X - MaxW - SizeW, Y - MaxH - SizeH
-		end
+		X, Y = UpdatePositionBefore( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 
-		self:SetElementPos( Element, X, Y, Margin )
+		self:SetElementPos( Element, X, Y, Margin, RealSize )
 
-		-- Reverse for after.
-		if IsMin then
-			X, Y = X + MaxW + SizeW, Y + MaxH + SizeH
-		else
-			X, Y = X - MinW, Y - MinH
-		end
+		X, Y = UpdatePositionAfter( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 	end
 end
 
 function Directional:PerformLayout()
+	-- If there are no elements, there's also no layout children so no need to call the base method.
 	local Elements = self.Elements
+	if #Elements == 0 then return end
+
 	local Size = self.Size
 
 	-- Real size is size - padding.
 	local Padding = self:GetComputedPadding()
-	local RealSize = Size - Vector2( Padding[ 1 ] + Padding[ 3 ], Padding[ 2 ] + Padding[ 4 ] )
+	local RealSize = Vector2(
+		Max( Size.x - Padding[ 1 ] - Padding[ 3 ], 0 ),
+		Max( Size.y - Padding[ 2 ] - Padding[ 4 ], 0 )
+	)
 	-- If we're attached to an element, this will return our margin, otherwise we're attached to another layout,
 	-- which means our position will be somewhere inside the element at the top of the layout tree.
 	local Pos = self:GetPos()
@@ -145,7 +181,7 @@ function Directional:PerformLayout()
 		end
 	end
 
-	local FillSizePerElement = NumberOfFillElements == 0 and 0 or FillSize / NumberOfFillElements
+	local FillSizePerElement = NumberOfFillElements == 0 and 0 or Max( FillSize, 0 ) / NumberOfFillElements
 	CentreAlignedSize = CentreAlignedSize + NumberOfCentreAlignedFillElements * FillSizePerElement
 
 	-- This table "context" just saves a lot of method parameters.
@@ -169,6 +205,8 @@ function Directional:PerformLayout()
 	Context.Alignment = LayoutAlignment.CENTRE
 	Context.CentreAlignedSize = CentreAlignedSize
 	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+
+	self.BaseClass.PerformLayout( self )
 end
 
 Shine.GUI.Layout:RegisterType( "Directional", Directional )

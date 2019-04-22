@@ -8,7 +8,7 @@ local Hook = Shine.Hook
 local IsType = Shine.IsType
 
 local Plugin = ...
-Plugin.Version = "1.5"
+Plugin.Version = "1.6"
 
 local Ceil = math.ceil
 local Clamp = math.Clamp
@@ -57,8 +57,15 @@ Plugin.DefaultConfig = {
 	MaxSubmitRetries = 3,
 	SubmitTimeout = 5,
 	VanillaConfigUpToDate = false,
+	-- Whether to check if players are using family sharing, and to enforce bans on the main
+	-- account to all accounts it is shared with.
 	CheckFamilySharing = false,
-	BanSharerOnSharedBan = false
+	-- Whether to ban the account sharing the game when any account playing through
+	-- family sharing is banned.
+	BanSharerOnSharedBan = false,
+	-- Whether to always block players that are playing through family sharing, even
+	-- if the sharer hasn't been banned.
+	AlwaysBlockFamilySharedPlayers = false
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -744,10 +751,16 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest, OnAsyncResponse )
 	return false
 end
 
-function Plugin:KickForFamilySharing( Client, Sharer )
+function Plugin:KickForFamilySharingWhenBanned( Client, Sharer )
 	self:Print( "Kicking %s for family sharing with a banned account. Sharer ID: %s.", true,
 			Shine.GetClientInfo( Client ), Sharer )
 	Server.DisconnectClient( Client, "Family sharing with a banned account." )
+end
+
+function Plugin:KickForFamilySharing( Client, Sharer )
+	self:Print( "Kicking %s for family sharing. Sharer ID: %s.", true,
+		Shine.GetClientInfo( Client ), Sharer )
+	Server.DisconnectClient( Client, "Family sharing is not permitted here." )
 end
 
 --[[
@@ -759,8 +772,10 @@ end
 function Plugin:ClientConnect( Client )
 	if not self.Config.CheckFamilySharing then return end
 
-	local IsSharing, Sharer = self:CheckFamilySharing( Client:GetUserId(), true )
-	if IsSharing then
+	local IsSharingFromBannedAccount, Sharer = self:CheckFamilySharing( Client:GetUserId(), true )
+	if IsSharingFromBannedAccount then
+		self:KickForFamilySharingWhenBanned( Client, Sharer )
+	elseif Sharer and self.Config.AlwaysBlockFamilySharedPlayers then
 		self:KickForFamilySharing( Client, Sharer )
 	end
 end
@@ -810,17 +825,36 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	if not self.Config.CheckFamilySharing then return end
 
-	local IsSharingAndSharerBanned = self:CheckFamilySharing( ID, false, function( IsSharerBanned, Sharer )
-		if not Sharer or not IsSharerBanned then return end
+	local function OnSharingChecked( IsSharerBanned, Sharer )
+		if not Sharer then return end
+
+		if not IsSharerBanned then
+			-- Player is playing through family sharing, but the sharer isn't banned.
+			if self.Config.AlwaysBlockFamilySharedPlayers then
+				local Target = Shine.GetClientByNS2ID( ID )
+				if Target then
+					self:KickForFamilySharing( Target, Sharer )
+				end
+			end
+
+			return
+		end
 
 		-- Unlikely, but possible that the client's already loaded before Steam responds.
 		local Target = Shine.GetClientByNS2ID( ID )
 		if Target then
-			self:KickForFamilySharing( Target, Sharer )
+			self:KickForFamilySharingWhenBanned( Target, Sharer )
 		end
-	end )
+	end
 
-	if IsSharingAndSharerBanned then return false, "Family sharing with a banned account." end
+	local IsSharingFromBannedAccount, Sharer = self:CheckFamilySharing( ID, false, OnSharingChecked )
+	if IsSharingFromBannedAccount then
+		return false, "Family sharing with a banned account."
+	end
+
+	if Sharer and self.Config.AlwaysBlockFamilySharedPlayers then
+		return false, "Family sharing is not permitted here."
+	end
 end
 
 function Plugin:NetworkBan( BanData, Client )

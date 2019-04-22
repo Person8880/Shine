@@ -12,16 +12,6 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
-	RegisterVoteType( "ShineCustomVote", { VoteQuestion = "string (64)" } )
-
-	AddVoteSetupCallback( function( VoteMenu )
-		AddVoteStartListener( "ShineCustomVote", function( Data )
-			return Data.VoteQuestion
-		end )
-	end )
-end )
-
 local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
@@ -30,6 +20,18 @@ local StringMatch = string.match
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
+
+Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
+	RegisterVoteType( "ShineCustomVote", {
+		VoteQuestion = "string (128)"
+	} )
+
+	AddVoteSetupCallback( function( VoteMenu )
+		AddVoteStartListener( "ShineCustomVote", function( Data )
+			return Data.VoteQuestion
+		end )
+	end )
+end )
 
 function Plugin:Initialise()
 	if self.dt.AllTalk or self.dt.AllTalkPreGame then
@@ -104,12 +106,9 @@ function Plugin:SetupClientConfig()
 		Print( "Local all talk is now %s.", Enable and "enabled" or "disabled" )
 	end ):AddParam{ Type = "boolean", Optional = true, Default = function() return self.Config.DisableLocalAllTalk end }
 
-	Shine:RegisterClientSetting( {
+	self:AddClientSetting( "DisableLocalAllTalk", "sh_alltalklocal_cl", {
 		Type = "Boolean",
-		Command = "sh_alltalklocal_cl",
-		ConfigOption = function() return not self.Config.DisableLocalAllTalk end,
-		Description = "ALL_TALK_LOCAL_DESCRIPTION",
-		TranslationSource = self.__Name
+		Description = "ALL_TALK_LOCAL_DESCRIPTION"
 	} )
 end
 
@@ -202,6 +201,7 @@ function Plugin:SetupAdminMenuCommands()
 	local Auto = Units.Auto
 
 	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
+		Icon = SGUI.Icons.Ionicons.Earth,
 		OnInit = function( Panel, Data )
 			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
@@ -229,6 +229,7 @@ function Plugin:SetupAdminMenuCommands()
 			local ChangeMap = SGUI:Create( "Button", Panel )
 			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
 			ChangeMap:SetFontScale( Font, Scale )
+			ChangeMap:SetIcon( SGUI.Icons.Ionicons.ArrowRightC )
 			ChangeMap:SetStyleName( "DangerButton" )
 			function ChangeMap.DoClick()
 				local Selected = List:GetSelectedRow()
@@ -263,6 +264,7 @@ function Plugin:SetupAdminMenuCommands()
 				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
 				CallVote:SetFontScale( Font, Scale )
 				CallVote:SetAlignment( SGUI.LayoutAlignment.MAX )
+				CallVote:SetIcon( SGUI.Icons.Ionicons.Speakerphone )
 				function CallVote.DoClick()
 					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 				end
@@ -303,6 +305,7 @@ function Plugin:SetupAdminMenuCommands()
 	} )
 
 	self:AddAdminMenuTab( self:GetPhrase( "PLUGINS" ), {
+		Icon = SGUI.Icons.Ionicons.Settings,
 		OnInit = function( Panel, Data )
 			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
@@ -347,6 +350,7 @@ function Plugin:SetupAdminMenuCommands()
 			UnloadPlugin:SetFontScale( Font, Scale )
 			UnloadPlugin:SetStyleName( "DangerButton" )
 			UnloadPlugin:SetEnabled( List:HasSelectedRow() )
+			UnloadPlugin:SetIcon( SGUI.Icons.Ionicons.Close )
 			function UnloadPlugin.DoClick( Button )
 				local Plugin, Enabled = GetSelectedPlugin()
 				if not Plugin then return false end
@@ -375,6 +379,7 @@ function Plugin:SetupAdminMenuCommands()
 			LoadPlugin:SetStyleName( "SuccessButton" )
 			LoadPlugin:SetEnabled( List:HasSelectedRow() )
 			LoadPlugin:SetAlignment( SGUI.LayoutAlignment.MAX )
+			LoadPlugin:SetIcon( SGUI.Icons.Ionicons.Power )
 			local function NormalLoadDoClick( Button )
 				local Plugin = GetSelectedPlugin()
 				if not Plugin then return false end

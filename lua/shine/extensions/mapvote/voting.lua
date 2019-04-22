@@ -80,6 +80,36 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 	end
 end
 
+function Plugin:CheckGameStartOutsideVote()
+	-- Do nothing normally to avoid constant overhead.
+end
+
+Plugin.CheckGameStart = Plugin.CheckGameStartOutsideVote
+Plugin.UpdatePregame = Plugin.CheckGameStartOutsideVote
+
+function Plugin:ShouldBlockGameStart()
+	-- Stop the game from starting during a player-initiated vote or after a vote has triggered a map change.
+	return self.CyclingMap or ( self:VoteStarted() and not self:IsNextMapVote() )
+end
+
+function Plugin:UpdatePregameDuringVote( Gamerules )
+	if self:ShouldBlockGameStart() then
+		if Gamerules:GetGameState() == kGameState.PreGame then
+			return false
+		end
+	else
+		self.UpdatePregame = self.CheckGameStartOutsideVote
+	end
+end
+
+function Plugin:CheckGameStartDuringVote( Gamerules )
+	if self:ShouldBlockGameStart() then
+		return false
+	else
+		self.CheckGameStart = self.CheckGameStartOutsideVote
+	end
+end
+
 --[[
 	Client's requesting the vote data.
 ]]
@@ -839,10 +869,7 @@ function Plugin:StartVote( NextMap, Force )
 	-- Store these values for new clients.
 	self.Vote.EndTime = EndTime
 	self.Vote.OptionsText = OptionsText
-
-	if NextMap then
-		self.NextMap.Voting = true
-	end
+	self.NextMap.Voting = NextMap
 
 	self:SimpleTimer( 0.1, function()
 		if not NextMap then
@@ -858,4 +885,12 @@ function Plugin:StartVote( NextMap, Force )
 	self:CreateTimer( self.VoteTimer, VoteLength, 1, function()
 		self:ProcessResults( NextMap )
 	end )
+
+	-- Stop the game from starting if the current vote is player-initiated.
+	self.CheckGameStart = self.CheckGameStartDuringVote
+	self.UpdatePregame = self.UpdatePregameDuringVote
+
+	-- Notify other plugins that a map vote has started to allow them to stop any game start
+	-- they may be controlling.
+	Shine.Hook.Call( "OnMapVoteStarted", self, NextMap, EndTime )
 end

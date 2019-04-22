@@ -13,12 +13,10 @@ local CheckBox = {}
 function CheckBox:Initialise()
 	self.BaseClass.Initialise( self )
 
-	local Manager = GetGUIManager()
-	local Background = Manager:CreateGraphicItem()
-
+	local Background = self:MakeGUIItem()
 	self.Background = Background
 
-	local Box = Manager:CreateGraphicItem()
+	local Box = self:MakeGUIItem()
 	Box:SetAnchor( GUIItem.Middle, GUIItem.Center )
 
 	Background:AddChild( Box )
@@ -104,8 +102,7 @@ function CheckBox:SetChecked( Value, DontFade )
 end
 
 function CheckBox:OnMouseDown( Key, DoubleClick )
-	if not self.Background then return end
-	if not self.Background:GetIsVisible() then return end
+	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Background ) then return end
 
@@ -113,8 +110,6 @@ function CheckBox:OnMouseDown( Key, DoubleClick )
 end
 
 function CheckBox:OnMouseUp( Key )
-	if not self.Background then return end
-	if not self.Background:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Background ) then return end
 

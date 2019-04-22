@@ -17,6 +17,7 @@ local IsType = Shine.IsType
 local MathClamp = math.ClampEx
 local StringFormat = string.format
 local StringToTime = string.ToTime
+local StringUpper = string.upper
 local StringUTF8Sub = string.UTF8Sub
 local TableConcat = table.concat
 
@@ -128,7 +129,7 @@ local function TimeToUnits( Seconds, Units )
 end
 
 Shine.CommandUtil.ParamTypes = {
-	--Strings return simply the string (clipped to max length if given).
+	-- Strings return simply the string (clipped to max length if given).
 	string = {
 		Parse = function( Client, String, Table )
 			if not String or String == "" then
@@ -139,8 +140,8 @@ Shine.CommandUtil.ParamTypes = {
 		end,
 		Help = "string"
 	},
-	--Number performs tonumber() on the string and clamps the result between
-	--the given min and max if set. Also rounds if asked.
+	-- Number performs tonumber() on the string and clamps the result between
+	-- the given min and max if set. Also rounds if asked.
 	number = {
 		Parse = function( Client, String, Table )
 			local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
@@ -153,8 +154,8 @@ Shine.CommandUtil.ParamTypes = {
 		end,
 		Help = "number"
 	},
-	--Time value, either a direct number or a "nice" string value.
-	--Units can be specified if seconds are not desired.
+	-- Time value, either a direct number or a "nice" string value.
+	-- Units can be specified if seconds are not desired.
 	time = {
 		Parse = function( Client, String, Table )
 			if not String or String == "" then
@@ -175,7 +176,7 @@ Shine.CommandUtil.ParamTypes = {
 		end,
 		Help = function( Arg ) return StringFormat( "duration in %s", Arg.Units or "seconds" ) end
 	},
-	--Boolean turns "false" and 0 into false and everything else into true.
+	-- Boolean turns "false" and 0 into false and everything else into true.
 	boolean = {
 		Parse = function( Client, String, Table )
 			if not String or String == "" then
@@ -191,6 +192,18 @@ Shine.CommandUtil.ParamTypes = {
 			return String ~= "false"
 		end,
 		Help = "boolean"
+	},
+	-- Returns a value from a lookup table, either as an upper case key, or a number.
+	enum = {
+		Parse = function( Client, String, Table )
+			local EnumValue = Table.Values[ StringUpper( String ) ] or Table.Values[ tonumber( String ) ]
+			if EnumValue then
+				return EnumValue
+			end
+
+			return GetDefault( Table )
+		end,
+		Help = function( Arg ) return StringFormat( "one of [ %s ]", TableConcat( Arg.Values, ", " ) ) end
 	}
 }
 

@@ -555,7 +555,7 @@ do
 	end
 
 	function Migrator:MapField( FieldName, Mapper )
-		Shine.AssertAtLevel( Shine.IsCallable( Mapper ), "Mapper must be callable!", 2 )
+		Shine.AssertAtLevel( Shine.IsCallable( Mapper ), "Mapper must be callable!", 3 )
 
 		self.Actions[ #self.Actions + 1 ] = function( Config )
 			local Value = TableGetField( Config, FieldName )

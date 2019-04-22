@@ -665,6 +665,16 @@ function Plugin:CreateCommands()
 			return
 		end
 
+		local MatchingMaps = Shine.FindMapNamesMatching( Map )
+		if #MatchingMaps > 1 then
+			NotifyError( Player, "UNCLEAR_MAP_NAME", {
+				MapName = Map
+			}, "%s matches multiple maps, a more precise name is required.", true, Map )
+			return
+		end
+
+		Map = MatchingMaps[ 1 ] or Map
+
 		if not self.Config.Maps[ Map ] and not self:CanNominateOutsideOfCycle( Map ) then
 			NotifyError( Player, "MAP_NOT_ON_LIST", {
 				MapName = Map

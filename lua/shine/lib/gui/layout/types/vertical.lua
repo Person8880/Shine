@@ -35,7 +35,14 @@ function Vertical:GetMarginSize( Margin )
 	return Margin[ 2 ] + Margin[ 4 ]
 end
 
-function Vertical:SetElementPos( Element, X, Y, Margin )
+function Vertical:SetElementPos( Element, X, Y, Margin, LayoutSize )
+	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
+	if CrossAxisAlignment == LayoutAlignment.CENTRE then
+		X = X + LayoutSize.x * 0.5 - Element:GetSize().x * 0.5
+	elseif CrossAxisAlignment == LayoutAlignment.MAX then
+		X = X + LayoutSize.x - Element:GetSize().x
+	end
+
 	Element:SetPos( Vector( X + Margin[ 1 ], Y, 0 ) )
 end
 
@@ -47,11 +54,31 @@ function Vertical:GetElementSizeOffset( Size )
 	return 0, Size.y
 end
 
+function Vertical:GetFillElementWidth( Element, Width, FillSizePerElement )
+	return Width
+end
+
+function Vertical:GetFillElementHeight( Element, Height, FillSizePerElement )
+	return FillSizePerElement
+end
+
 function Vertical:GetFillElementSize( Element, Width, Height, FillSizePerElement )
 	local Size = Element:GetSize()
 	Size.x = Width
 	Size.y = FillSizePerElement
 	return Size
+end
+
+local ContentSizes = {
+	function( self )
+		return self:GetMaxSizeAlongAxis( 1 )
+	end,
+	function( self )
+		return self.BaseClass.GetContentSizeForAxis( self, 2 )
+	end
+}
+function Vertical:GetContentSizeForAxis( Axis )
+	return ContentSizes[ Axis ]( self )
 end
 
 Shine.GUI.Layout:RegisterType( "Vertical", Vertical, "Directional" )

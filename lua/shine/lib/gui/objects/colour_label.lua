@@ -18,8 +18,7 @@ function ColourLabel:Initialise()
 	self.Font = Fonts.kAgencyFB_Small
 	self.IsVertical = false
 
-	local Manager = GetGUIManager()
-	self.Background = Manager:CreateGraphicItem()
+	self.Background = self:MakeGUIItem()
 	self.Background:SetColor( Colour( 0, 0, 0, 0 ) )
 end
 

@@ -4,6 +4,15 @@
 
 Print( "Beginning Shine unit testing..." )
 
+local Args = { ... }
+local OnlyOutputFailingTests = false
+
+for i = 1, #Args do
+	if Args[ i ] == "--failures-only" then
+		OnlyOutputFailingTests = true
+	end
+end
+
 Shine.UnitTest = {}
 
 local UnitTest = Shine.UnitTest
@@ -14,6 +23,7 @@ local DebugTraceback = debug.traceback
 local getmetatable = getmetatable
 local pairs = pairs
 local pcall = pcall
+local rawequal = rawequal
 local select = select
 local setmetatable = setmetatable
 local StringExplode = string.Explode
@@ -54,6 +64,38 @@ function UnitTest.MockOf( Table )
 			end
 
 			return Value
+		end
+	} )
+end
+
+function UnitTest.MockPlugin( Plugin )
+	local Mock = UnitTest.MockOf( Plugin )
+	-- Stop tests from triggering config writes.
+	Mock.SaveConfig = function() end
+	return Mock
+end
+
+function UnitTest.MakeMockClient( SteamID )
+	return {
+		SteamID = SteamID,
+		GetUserId = function() return SteamID end,
+		GetControllingPlayer = function()
+			return {
+				GetName = function() return "Test" end
+			}
+		end
+	}
+end
+
+function UnitTest.MockFunction( Impl )
+	return setmetatable( {
+		Invocations = {}
+	}, {
+		__call = function( self, ... )
+			self.Invocations[ #self.Invocations + 1 ] = { ArgCount = select( "#", ... ), ... }
+			if Impl then
+				return Impl( ... )
+			end
 		end
 	} )
 end
@@ -142,6 +184,7 @@ do
 end
 
 local function DeepEquals( Table1, Table2 )
+	if rawequal( Table1, Table2 ) then return true end
 	if type( Table1 ) ~= type( Table2 ) then return false end
 	if type( Table1 ) ~= "table" then return Table1 == Table2 end
 
@@ -241,19 +284,46 @@ UnitTest.Assert.Fail = function( Failure )
 	error( Failure, 2 )
 end
 
+local WriteToConsole = Shared.OldMessage or Shared.Message
+local function PrintOutput( Message, ... )
+	WriteToConsole( StringFormat( Message, ... ) )
+end
+
 function UnitTest:Output( File )
 	local Passed = 0
-	local Failed = 0
 	local Duration = 0
+
+	if OnlyOutputFailingTests then
+		local HasFailures = false
+		for i = 1, #self.Results do
+			local Result = self.Results[ i ]
+			if not Result.Passed then
+				HasFailures = true
+			else
+				Passed = Passed + 1
+			end
+			Duration = Duration + Result.Duration
+		end
+
+		if not HasFailures then return Passed, #self.Results, Duration end
+
+		Passed = 0
+		Duration = 0
+	end
+
+	PrintOutput( "Test results for %s", File )
 
 	for i = 1, #self.Results do
 		local Result = self.Results[ i ]
 
+		if not OnlyOutputFailingTests or not Result.Passed then
+			PrintOutput( "  - %s: %s (%.2fus)", Result.Description, Result.Passed and "PASS" or "FAIL", Result.Duration * 1e6 )
+		end
+
 		if Result.Passed then
 			Passed = Passed + 1
 		else
-			Failed = Failed + 1
-			Print( "Test failure: %s", Result.Description )
+			PrintOutput( "\n  Test failure: %s", Result.Description )
 
 			local Err = Result.Err
 			if IsAssertionFailure( Err ) then
@@ -266,36 +336,50 @@ function UnitTest:Output( File )
 				Err = StringFormat( "Args:\n%s", TableConcat( Err.Args, "\n------------\n" ) )
 			end
 
-			Print( "Error: %s\n%s", Err, Result.Traceback )
+			PrintOutput( "Error: %s\n%s\n\n", Err, Result.Traceback )
 		end
 
 		Duration = Duration + Result.Duration
 	end
 
-	Print( "Result summary for %s: %i/%i passed, %.2f%% success rate. Time taken: %.2fus.",
-		File, Passed, #self.Results, Passed / #self.Results * 100, Duration * 1e6 )
+	PrintOutput( "%d/%d passed, %.2f%% success rate. Time taken: %.2fus.",
+		Passed, #self.Results, Passed / #self.Results * 100, Duration * 1e6 )
 
-	return Passed, #self.Results
+	return Passed, #self.Results, Duration
 end
 
 local Files = {}
 Shared.GetMatchingFileNames( "test/*.lua", true, Files )
 
 local FinalResults = {
-	Passed = 0, Total = 0
+	Passed = 0, Total = 0, Duration = 0
 }
 for i = 1, #Files do
-	if Files[ i ] ~= "test/test_init.lua" then
+	local FilePath = Files[ i ]
+	if FilePath ~= "test/test_init.lua" then
 		UnitTest:ResetState()
 
-		Script.Load( Files[ i ], true )
+		local File, Err = loadfile( FilePath )
+		if not File then
+			PrintOutput( "Syntax error in test file %s: %s", FilePath, Err )
+		else
+			local Success, Err = xpcall( File, function( Err )
+				return StringFormat( "%s\n%s", Err, Shine.StackDump( 1 ) )
+			end )
+			if not Success then
+				PrintOutput( "Execution error in test file %s: %s", FilePath, Err )
+			end
 
-		local Passed, Total = UnitTest:Output( Files[ i ] )
-		FinalResults.Passed = FinalResults.Passed + Passed
-		FinalResults.Total = FinalResults.Total + Total
+			-- Some tests may have executed before an error, so output regardless.
+			local Passed, Total, Duration = UnitTest:Output( FilePath )
+			FinalResults.Passed = FinalResults.Passed + Passed
+			FinalResults.Total = FinalResults.Total + Total
+			FinalResults.Duration = FinalResults.Duration + Duration
 
-		UnitTest.Results = {}
+			UnitTest.Results = {}
+		end
 	end
 end
 
-Print( "Total tests run: %i. Pass rate: %.2f%%.", FinalResults.Total, FinalResults.Passed / FinalResults.Total * 100 )
+Print( "Total tests run: %d. Pass rate: %.2f%%. Total time: %.2fus.",
+	FinalResults.Total, FinalResults.Passed / FinalResults.Total * 100, FinalResults.Duration * 1e6 )

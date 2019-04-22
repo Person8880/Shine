@@ -69,4 +69,6 @@
 	"TEAM_SWITCH_DENIED_KDR_BASED": "Nemůžeš změnit tým. Týmy na základě KDR byly zapnuty.",
 	"TEAM_SWITCH_DENIED_RANDOM_BASED": "Nemůžeš změnit tým. Náhodné týmy byly zapnuty.",
 	"TEAM_SWITCH_DENIED_SCORE_BASED": "Nemůžeš změnit tým. Týmy na základě skóre byly zapnuty.",
+
+	"CLIENT_CONFIG_TAB": "Zamíchat"
 }
