@@ -56,6 +56,18 @@ function ConfigMenu:Create()
 	self.Pos = self.Menu:GetSize() * -0.5
 	self.Menu:SetPos( self.Pos )
 
+	self.Menu:CallOnRemove( function()
+		if self.IgnoreRemove then return end
+
+		if self.Visible then
+			-- Make sure mouse is disabled in case of error.
+			SGUI:EnableMouse( false )
+			self.Visible = false
+		end
+
+		self.Menu = nil
+	end )
+
 	self.Menu.OnPreTabChange = function( Window )
 		if not Window.ActiveTab then return end
 
@@ -89,7 +101,9 @@ end
 Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", function()
 	if not ConfigMenu.Menu then return end
 
+	ConfigMenu.IgnoreRemove = true
 	ConfigMenu.Menu:Destroy()
+	ConfigMenu.IgnoreRemove = false
 	ConfigMenu.Menu = nil
 
 	if ConfigMenu.Visible then
