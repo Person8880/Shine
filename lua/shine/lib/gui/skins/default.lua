@@ -18,6 +18,7 @@ local Info = Colour( 0, 0.5, 1 )
 local SuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
 local DangerButton = Colour( 1, 0.2, 0.1, 1 )
 
+local OrangeButtonHighlight = Colour( 1, 0.4, 0.1, 1 )
 
 local Skin = {
 	Button = {
@@ -118,7 +119,7 @@ local Skin = {
 	ListEntry = {
 		Default = {
 			InactiveCol = Colour( 0.4, 0.4, 0.4, 1 ),
-			ActiveCol = Colour( 1, 0.4, 0.1, 1 ),
+			ActiveCol = OrangeButtonHighlight,
 			TextColour = BrightText,
 			Font = Fonts.kAgencyFB_Small
 		},
@@ -176,7 +177,8 @@ local Skin = {
 		Default = {
 			BorderColour = Colour( 0, 0, 0, 1 ),
 			Colour = Colour( 0.3, 0.3, 0.3, 1 ),
-			ProgressColour = Colour( 0.7, 0.7, 0, 1 )
+			ProgressColour = OrangeButtonHighlight,
+			BorderSize = Vector2( 0, 0 )
 		}
 	},
 	Scrollbar = {
