@@ -11,7 +11,6 @@ local URL = "http://5.39.89.152/shine/errorreport.php"
 
 local OS = jit and jit.os or "Unknown"
 
-local next = next
 local StringFormat = string.format
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -21,7 +20,7 @@ local tostring = tostring
 
 local function ReportErrors()
 	if not Shine.Config.ReportErrors then return end
-	if not next( ErrorQueue ) then return end
+	if #ErrorQueue == 0 then return end
 
 	TableInsert( ErrorQueue, 1, StringFormat( "Operating system: %s. Gamemode: %s.", OS,
 			Shine.GetGamemode() ) )
@@ -45,10 +44,9 @@ end
 
 if Server then
 	Shine.Hook.Add( "EndGame", "ReportQueuedErrors", ReportErrors )
-	Shine.Hook.Add( "MapChange", "ReportQueuedErrors", ReportErrors )
-elseif Client then
-	Shine.Hook.Add( "ClientDisconnected", "ReportQueuedErrors", ReportErrors )
 end
+
+local ErrorReportTimer
 
 --[[
 	Adds an error to be reported.
@@ -77,6 +75,15 @@ function Shine:AddErrorReport( BaseError, Extra, Format, ... )
 	end
 
 	ErrorQueue[ #ErrorQueue + 1 ] = String
+
+	-- We cannot send error reports on disconnect/map change anymore due to HTTP requests being cancelled,
+	-- thus we need to send errors as soon as possible after they occur to avoid them being lost.
+	-- We debounce to ensure we catch a sequence of errors in a single request.
+	ErrorReportTimer = ErrorReportTimer or Shine.Timer.Simple( 1, function()
+		ErrorReportTimer = nil
+		ReportErrors()
+	end )
+	ErrorReportTimer:Debounce()
 end
 
 --[[
