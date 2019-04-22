@@ -18,7 +18,7 @@ local Info = Colour( 0, 0.5, 1 )
 local SuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
 local DangerButton = Colour( 1, 0.2, 0.1, 1 )
 
-local OrangeButtonHighlight = Colour( 1, 0.4, 0.1, 1 )
+local OrangeButtonHighlight = Colour( 1, 0.4, 0, 1 )
 
 local Skin = {
 	Button = {
@@ -43,7 +43,7 @@ local Skin = {
 		},
 		CategoryPanelButton = {
 			Font = Fonts.kAgencyFB_Small,
-			ActiveCol = Colour( 1, 0.4, 0.1, 1 ),
+			ActiveCol = OrangeButtonHighlight,
 			InactiveCol = Colour( 0.3, 0.3, 0.3, 1 )
 		},
 		SuccessButton = {
@@ -191,7 +191,7 @@ local Skin = {
 	Slider = {
 		Default = {
 			DarkLineColour = Colour( 0.2, 0.2, 0.2, 1 ),
-			HandleColour = Colour( 0.8, 0.6, 0.1, 1 ),
+			HandleColour = ButtonHighlight,
 			LineColour = Colour( 1, 1, 1, 1 )
 		}
 	},
@@ -225,14 +225,14 @@ local Skin = {
 		Default = {
 			FocusColour = Colour( 0.35, 0.35, 0.35, 1 ),
 			DarkColour = Colour( 0.4, 0.4, 0.4, 1 ),
-			HighlightColour = Colour( 1, 0.4, 0, 0.5 ),
+			HighlightColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.5 ),
 			PlaceholderTextColour = SGUI.ColourWithAlpha( BrightText, 0.8 ),
 			TextColour = BrightText,
 			BorderColour = Colour( 0.3, 0.3, 0.3, 1 ),
 			BorderSize = Vector2( 1, 1 ),
 			States = {
 				Focus = {
-					BorderColour = Colour( 1, 0.3, 0, 1 )
+					BorderColour = OrangeButtonHighlight
 				}
 			}
 		}
