@@ -29,6 +29,7 @@ local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
 local TableConcat = table.concat
+local TableCopy = table.Copy
 local type = type
 local xpcall = xpcall
 
@@ -57,9 +58,16 @@ function UnitTest.MockOf( Table )
 			local Value = Table[ Key ]
 
 			-- Allow for recursive mocking (e.g. Plugin.Config)
-			if type( Value ) == "table" and getmetatable( Value ) == nil then
-				local Mock = UnitTest.MockOf( Value )
+			if type( Value ) == "table" then
+				local Mock
+				if getmetatable( Value ) == nil then
+					Mock = UnitTest.MockOf( Value )
+				else
+					Mock = TableCopy( Value )
+				end
+
 				self[ Key ] = Mock
+
 				return Mock
 			end
 
@@ -189,38 +197,49 @@ local function DeepEquals( Table1, Table2 )
 	if type( Table1 ) ~= "table" then return Table1 == Table2 end
 
 	for Key, Value in pairs( Table1 ) do
-		local Table2Val = Table2[ Key ]
-		if not DeepEquals( Value, Table2Val ) then return false end
+		if not DeepEquals( Value, Table2[ Key ] ) then return false end
 	end
 
 	for Key, Value in pairs( Table2 ) do
-		local Table1Val = Table1[ Key ]
-		if not DeepEquals( Value, Table1Val ) then return false end
+		if not DeepEquals( Value, Table1[ Key ] ) then return false end
 	end
 
 	return true
 end
 
+local function ArrayToString( Array )
+	return StringFormat( "{ %s }", Shine.Stream( Array ):Concat( ", " ) )
+end
+
 UnitTest.Assert = {
-	Equals = function( A, B ) return A == B end,
-	NotEquals = function( A, B ) return A ~= B end,
+	Equals = function( A, B ) return A == B, StringFormat( "Expected %s to equal %s", B, A ) end,
+	NotEquals = function( A, B ) return A ~= B, StringFormat( "Expected %s to not equal %s", B, A ) end,
 
 	TableEquals = function( A, B )
 		for Key, Value in pairs( A ) do
-			if Value ~= B[ Key ] then return false end
+			if Value ~= B[ Key ] then
+				return false, StringFormat( "Expected %s to equal %s, but %s[ %s ] ~= %s[ %s ]", B, A, A, Key, B, Key )
+			end
 		end
 
 		for Key, Value in pairs( B ) do
-			if Value ~= A[ Key ] then return false end
+			if Value ~= A[ Key ] then
+				return false, StringFormat( "Expected %s to equal %s, but %s[ %s ] ~= %s[ %s ]", B, A, A, Key, B, Key )
+			end
 		end
 
 		return true
 	end,
 
-	DeepEquals = DeepEquals,
+	DeepEquals = function( A, B )
+		return DeepEquals( A, B ), StringFormat( "Expected %s to deep equal %s", B, A )
+	end,
 
 	ArrayContainsExactly = function( ExpectedValues, Actual )
-		if #Actual ~= #ExpectedValues then return false end
+		if #Actual ~= #ExpectedValues then
+			return false, StringFormat( "Expected %s to contain exactly %s",
+				ArrayToString( Actual ), ArrayToString( ExpectedValues ) )
+		end
 
 		for i = 1, #ExpectedValues do
 			local Expected = ExpectedValues[ i ]
@@ -232,49 +251,71 @@ UnitTest.Assert = {
 				end
 			end
 
-			if not FoundMatch then return false end
+			if not FoundMatch then
+				return false, StringFormat( "Expected %s to contain exactly %s",
+					ArrayToString( Actual ), ArrayToString( ExpectedValues ) )
+			end
 		end
 
 		return true
 	end,
 
-	True = function( A ) return A == true end,
-	Truthy = function( A ) return A end,
-	False = function( A ) return A == false end,
-	Falsy = function( A ) return not A end,
+	True = function( A ) return A == true, StringFormat( "Expected %s to be true", A ) end,
+	Truthy = function( A ) return A, StringFormat( "Expected %s to be truthy", A ) end,
+	False = function( A ) return A == false, StringFormat( "Expected %s to be false", A ) end,
+	Falsy = function( A ) return not A, StringFormat( "Expected %s to be falsy", A ) end,
 
-	Nil = function( A ) return A == nil end,
-	NotNil = function( A ) return A ~= nil end,
+	Nil = function( A ) return A == nil, StringFormat( "Expected %s to be nil", A ) end,
+	NotNil = function( A ) return A ~= nil, StringFormat( "Expected %s to not be nil", A ) end,
 
-	Exists = function( Table, Key ) return Table[ Key ] ~= nil end,
-	NotExists = function( Table, Key ) return Table[ Key ] == nil end,
+	Exists = function( Table, Key )
+		return Table[ Key ] ~= nil, StringFormat( "Expected %s[ %s ] to not be nil", Table, Key )
+	end,
+	NotExists = function( Table, Key )
+		return Table[ Key ] == nil, StringFormat( "Expected %s[ %s ] to be nil", Table, Key )
+	end,
 
 	Contains = function( Table, Value )
 		for i = 1, #Table do
 			if Table[ i ] == Value then return true end
 		end
 
-		return false
+		return false, StringFormat( "Expected %s to contain %s", Table, Value )
 	end,
 
-	ArrayEquals = table.ArraysEqual,
+	ArrayEquals = function( A, B )
+		return table.ArraysEqual( A, B ), StringFormat( "Expected %s to match array %s",
+			ArrayToString( B ), ArrayToString( A ) )
+	end,
 
-	IsType = IsType
+	IsType = function( Value, Type )
+		return IsType( Value, Type ), StringFormat( "Expected %s to have type %s (but was %s)",
+			Value, Type, type( Value ) )
+	end
 }
 
 for Name, Func in pairs( UnitTest.Assert ) do
 	UnitTest.Assert[ Name ] = function( Description, ... )
-		local Success = Func( ... )
+		local Success, ErrorMessage = Func( ... )
 
 		if not Success then
 			if IsType( Description, "table" ) then
 				Description = "Assertion failed!"
 			end
 
+			Description = StringFormat( "%s [%s]", Description, ErrorMessage )
+
+			local Args = {}
+			for i = 1, select( "#", ... ) do
+				local Arg = select( i, ... )
+				local AsString = IsType( Arg, "table" ) and table.ToString( Arg )
+					or tostring( Arg )
+				Args[ i ] = StringFormat( "%d. [%s] %s", i, type( Arg ), AsString )
+			end
+
 			error( AssertionError{
 				Message = Description,
-				Args = { ... },
-				NumArgs = select( "#", ... )
+				Args = Args
 			}, 2 )
 		end
 	end
@@ -317,26 +358,18 @@ function UnitTest:Output( File )
 		local Result = self.Results[ i ]
 
 		if not OnlyOutputFailingTests or not Result.Passed then
-			PrintOutput( "  - %s: %s (%.2fus)", Result.Description, Result.Passed and "PASS" or "FAIL", Result.Duration * 1e6 )
+			PrintOutput( "- %s: %s (%.2fus)", Result.Description, Result.Passed and "PASS" or "FAIL", Result.Duration * 1e6 )
 		end
 
 		if Result.Passed then
 			Passed = Passed + 1
 		else
-			PrintOutput( "\n  Test failure: %s", Result.Description )
-
 			local Err = Result.Err
 			if IsAssertionFailure( Err ) then
-				for i = 1, Err.NumArgs do
-					local AsString = IsType( Err.Args[ i ], "table" ) and table.ToString( Err.Args[ i ] )
-						or tostring( Err.Args[ i ] )
-					Err.Args[ i ] = StringFormat( "%i. [%s] %s", i, type( Err.Args[ i ] ), AsString )
-				end
-
 				Err = StringFormat( "Args:\n%s", TableConcat( Err.Args, "\n------------\n" ) )
 			end
 
-			PrintOutput( "Error: %s\n%s\n\n", Err, Result.Traceback )
+			PrintOutput( "%s\n%s\n\n", Err, Result.Traceback )
 		end
 
 		Duration = Duration + Result.Duration
