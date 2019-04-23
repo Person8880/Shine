@@ -176,6 +176,19 @@ function table.Add( Destination, Source )
 	return Destination
 end
 
+--[[
+	Returns a range of values from the given table.
+]]
+function table.Slice( Table, StartIndex, EndIndex )
+	EndIndex = EndIndex or #Table
+
+	local Ret = {}
+	for i = StartIndex, EndIndex do
+		Ret[ #Ret + 1 ] = Table[ i ]
+	end
+	return Ret
+end
+
 do
 	local TableRemove = table.remove
 

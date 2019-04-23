@@ -365,6 +365,8 @@ do
 end
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	self.Round = 0
 
 	self.Vote = self.Vote or {}
@@ -1027,11 +1029,12 @@ end
 
 function Plugin:Cleanup()
 	if self:VoteStarted() then
+		-- Remember to clean up client side vote text/menu entries...
 		self:NotifyTranslated( nil, "PLUGIN_DISABLED" )
-
-		--Remember to clean up client side vote text/menu entries...
 		self:EndVote()
 	end
 
 	self.BaseClass.Cleanup( self )
 end
+
+Shine.LoadPluginModule( "logger.lua", Plugin )
