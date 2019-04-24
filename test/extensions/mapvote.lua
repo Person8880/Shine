@@ -187,6 +187,30 @@ UnitTest:Test( "GetNextMap - Returns the first map not in IgnoreAutoCycle when n
 	)
 end )
 
+function MapVote:GetCurrentMap()
+	return "ns2_unearthed"
+end
+
+UnitTest:Test( "GetNextMap - Handles current map being outside the current cycle", function( Assert )
+	MapVote.MapChoices = {
+		"ns2_summit",
+		"ns2_tram",
+		{ map = "ns2_veil" },
+		{ map = "ns2_derelict", max = 0 },
+		"ns2_biodome"
+	}
+	MapVote.Config.IgnoreAutoCycle = {
+		ns2_biodome = true,
+		ns2_summit = true
+	}
+	-- When outside the cycle, the current map index is 0, so should start from the first map.
+	Assert.Equals(
+		"Should return the first valid map in the cycle",
+		"ns2_tram",
+		MapVote:GetNextMap()
+	)
+end )
+
 MapVote.MaxNominations = 5
 MapVote.Config.Nominations.MaxTotalType = MapVote.MaxNominationsType.AUTO
 
