@@ -4,13 +4,14 @@
 
 local Shine = Shine
 
+local IsType = Shine.IsType
 local OSTime = os.time
 local StringFormat = string.format
 local tostring = tostring
 
 local APIs = {
 	Steam = {
-		URL = "http://api.steampowered.com/",
+		URL = "https://api.steampowered.com/",
 		Params = {
 			key = tostring
 		},
@@ -32,9 +33,11 @@ local APIs = {
 				GetCacheKey = function( Params ) return tostring( Params.steamid ) end,
 				ResponseTransformer = function( Response )
 					-- Do not cache on invalid JSON.
-					if not Response then return nil end
+					if not IsType( Response, "table" ) or not IsType( Response.response, "table" ) then
+						return nil
+					end
 
-					local Lender = Response.lender_steamid
+					local Lender = Response.response.lender_steamid
 					if not Lender or Lender == "0" then return false end
 
 					return Shine.SteamID64ToNS2ID( Lender )
