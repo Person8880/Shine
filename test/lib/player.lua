@@ -61,6 +61,14 @@ UnitTest:Test( "SteamIDToNS2", function( Assert )
 	Assert:Equals( 2000, Shine.SteamIDToNS2( "[U:1:2000]" ) )
 end )
 
+UnitTest:Test( "NS2IDTo64", function( Assert )
+	Assert:Equals( "76561197960267728", Shine.NS2IDTo64( 2000 ) )
+end )
+
+UnitTest:Test( "SteamID64ToNS2ID", function( Assert )
+	Assert:Equals( 2000, Shine.SteamID64ToNS2ID( "76561197960267728" ) )
+end )
+
 UnitTest:Test( "CoerceToID", function( Assert )
 	Assert.Equals( "Should accept numbers", 2000, Shine.CoerceToID( 2000 ) )
 	Assert.Equals( "Should accept base-10 numbers as strings", 2000, Shine.CoerceToID( "2000" ) )
