@@ -464,35 +464,42 @@ end
 --[[
 	Sets visibility of the control.
 ]]
-function ControlMeta:SetIsVisible( Bool )
+function ControlMeta:SetIsVisible( IsVisible )
 	if not self.Background then return end
-	if self.Background.GetIsVisible and self.Background:GetIsVisible() == Bool then return end
+	if self.Background.GetIsVisible and self.Background:GetIsVisible() == IsVisible then return end
 
-	self.Background:SetIsVisible( Bool )
+	self.Background:SetIsVisible( IsVisible )
 	self:InvalidateParent()
 
-	if self.IsAWindow then
-		if Bool then --Take focus on show.
-			if SGUI.FocusedWindow == self then return end
-			local Windows = SGUI.Windows
+	if not self.IsAWindow then return end
 
-			for i = 1, #Windows do
-				local Window = Windows[ i ]
+	if IsVisible then
+		if SGUI.FocusedWindow == self then return end
 
-				if Window == self then
-					SGUI:SetWindowFocus( self, i )
-					break
-				end
+		-- Take focus on show.
+		local Windows = SGUI.Windows
+		for i = 1, #Windows do
+			local Window = Windows[ i ]
+			if Window == self then
+				SGUI:SetWindowFocus( self, i )
+				break
 			end
-		else --Give focus to the next window down on hide.
-			if SGUI.WindowFocus ~= self then return end
+		end
+	else
+		if SGUI.FocusedWindow ~= self then return end
 
-			local Windows = SGUI.Windows
-			local NextDown = #Windows - 1
-
-			if NextDown > 0 then
-				SGUI:SetWindowFocus( Windows[ NextDown ], NextDown )
+		-- Give focus to the next visible window down on hide.
+		local Windows = SGUI.Windows
+		local NextDownIndex = 0
+		for i = #Windows, 1, -1 do
+			if Windows[ i ] ~= self and Windows[ i ]:GetIsVisible() then
+				NextDownIndex = i
+				break
 			end
+		end
+
+		if NextDownIndex > 0 then
+			SGUI:SetWindowFocus( Windows[ NextDownIndex ], NextDownIndex )
 		end
 	end
 end
