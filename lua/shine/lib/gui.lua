@@ -678,12 +678,17 @@ do
 end
 
 do
+	local DebugGetInfo = debug.getinfo
 	local rawget = rawget
 	local ValidityKey = "IsValid"
 	local function CheckDestroyed( self, Key )
 		local Destroyed = rawget( self, "__Destroyed" )
 		if Destroyed and Key ~= ValidityKey and Destroyed < SGUI.FrameNumber() then
-			error( "Attempted to use a destroyed SGUI object!", 3 )
+			local Caller = DebugGetInfo( 2, "f" ).func
+			-- Allow access in __tostring(), otherwise the element can't be printed.
+			if Caller ~= getmetatable( self ).__tostring then
+				error( "Attempted to use a destroyed SGUI object!", 3 )
+			end
 		end
 
 		return rawget( self, "__OriginalIndex" )[ Key ]
