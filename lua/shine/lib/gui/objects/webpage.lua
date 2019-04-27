@@ -6,6 +6,7 @@ local SGUI = Shine.GUI
 
 local Clamp = math.Clamp
 local StringByte = string.byte
+local StringFormat = string.format
 local StringUTF8Encode = string.UTF8Encode
 
 local Webpage = {}
@@ -66,6 +67,17 @@ function Webpage:LoadURL( URL, W, H )
 	self.WebView:LoadUrl( URL )
 	self.IsLoading = true
 	self:OnPropertyChanged( "IsLoading", true )
+end
+
+--[[
+	Loads the given HTML string as a data-URL. Note that beyond a certain size
+	the WebView will reject the URL.
+
+	If you need to create large HTML pages, consider injecting small bootstrapping
+	HTML, then using ExecuteJS() to update the DOM as it has a larger limit.
+]]
+function Webpage:LoadHTML( HTML, W, H )
+	self:LoadURL( StringFormat( "data:text/html;%s", HTML ), W, H )
 end
 
 function Webpage:GetHasLoaded()

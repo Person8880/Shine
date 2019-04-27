@@ -31,12 +31,14 @@ SGUI.AddBoundProperty( Button, "TextColour", {
 SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", { "Label:SetInheritsParentAlpha", "Icon:SetInheritsParentAlpha" } )
 SGUI.AddBoundProperty( Button, "TextIsVisible", "Label:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "TextScale", "Label:SetTextScale" )
+SGUI.AddBoundProperty( Button, "TextShadow", "Label:SetShadow" )
 
 SGUI.AddBoundProperty( Button, "IconAlignment", "Icon:SetAlignment" )
 SGUI.AddBoundProperty( Button, "IconColour", "Icon:SetColour" )
 SGUI.AddBoundProperty( Button, "IconAutoFont", "Icon:SetAutoFont" )
 SGUI.AddBoundProperty( Button, "IconIsVisible", "Icon:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
+SGUI.AddBoundProperty( Button, "IconShadow", "Icon:SetShadow" )
 
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
@@ -67,6 +69,17 @@ local function UpdateIconMargin( self )
 	end
 end
 
+local OldSetTextShadow = Button.SetTextShadow
+function Button:SetTextShadow( ShadowParams )
+	OldSetTextShadow( self, ShadowParams )
+
+	if ShadowParams and self.Label and self.Label.Class ~= "ShadowLabel" then
+		local Text = self:GetText()
+		self:SetText( nil )
+		self:SetText( Text )
+	end
+end
+
 function Button:SetText( Text )
 	self:InvalidateParent()
 
@@ -76,7 +89,7 @@ function Button:SetText( Text )
 		return
 	end
 
-	local Description = SGUI:Create( "Label", self )
+	local Description = SGUI:Create( self.TextShadow and "ShadowLabel" or "Label", self )
 	Description:SetIsSchemed( false )
 	Description:SetAlignment( self.TextAlignment or SGUI.LayoutAlignment.CENTRE )
 	Description:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
@@ -88,6 +101,10 @@ function Button:SetText( Text )
 	Description:SetIsVisible( self.TextIsVisible )
 	-- Need to offset the text based on its internal alignment.
 	Description:SetUseAlignmentCompensation( true )
+
+	if self.TextShadow then
+		Description:SetShadow( self.TextShadow )
+	end
 
 	Binder():FromElement( self, "Horizontal" )
 		:ToElement( Description, "AutoWrap", {
@@ -128,6 +145,17 @@ function Button:GetText()
 	return self.Label:GetText()
 end
 
+local OldSetIconShadow = Button.SetIconShadow
+function Button:SetIconShadow( ShadowParams )
+	OldSetIconShadow( self, ShadowParams )
+
+	if ShadowParams and self.Icon and self.Icon.Class ~= "ShadowLabel" then
+		local Icon, Font, Scale = self:GetIcon()
+		self:SetIcon( nil )
+		self:SetIcon( Icon, Font, Scale )
+	end
+end
+
 function Button:SetIcon( IconName, Font, Scale )
 	if not IconName then
 		if SGUI.IsValid( self.Icon ) then
@@ -159,7 +187,7 @@ function Button:SetIcon( IconName, Font, Scale )
 		return
 	end
 
-	local Icon = SGUI:Create( "Label", self )
+	local Icon = SGUI:Create( self.IconShadow and "ShadowLabel" or "Label", self )
 	Icon:SetIsSchemed( false )
 	Icon:SetAlignment( self.IconAlignment or SGUI.LayoutAlignment.CENTRE )
 	Icon:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
@@ -173,6 +201,9 @@ function Button:SetIcon( IconName, Font, Scale )
 	Icon:SetText( IconName )
 	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Icon:SetIsVisible( self.IconIsVisible )
+	if self.IconShadow then
+		Icon:SetShadow( self.IconShadow )
+	end
 
 	self.Layout:InsertElement( Icon, 1 )
 	self.Icon = Icon

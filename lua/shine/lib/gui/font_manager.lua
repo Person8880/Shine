@@ -14,7 +14,8 @@ SGUI.FontFamilies = {
 	AgencyFBDistField = "AgencyFBDistField",
 	AgencyFBBoldDistField = "AgencyFBBoldDistField",
 	MicrogrammaDistField = "MicrogrammaDistField",
-	MicrogrammaBoldDistField = "MicrogrammaBoldDistField"
+	MicrogrammaBoldDistField = "MicrogrammaBoldDistField",
+	MicrogrammaDBolExt = "MicrogrammaDBolExt"
 }
 SGUI.Icons = {
 	Ionicons = require "shine/lib/gui/icons"
@@ -54,6 +55,12 @@ local FontFamilies = setmetatable( {
 	},
 	MicrogrammaBoldDistField = {
 		[ "fonts/MicrogrammaDBolExt_distfield.fnt" ] = 40
+	},
+	MicrogrammaDBolExt = {
+		[ PrecacheAsset "fonts/MicrogrammaDBolExt_16.fnt" ] = 29,
+		[ PrecacheAsset "fonts/MicrogrammaDBolExt_32.fnt" ] = 59,
+		[ _G.Fonts.kMicrogrammaDBolExt_Huge ] = 96,
+		[ PrecacheAsset "fonts/MicrogrammaDBolExt_64.fnt" ] = 120
 	}
 }, {
 	__index = function( self, Key )

@@ -18,18 +18,23 @@ local TableEmpty = table.Empty
 Plugin.VoteAction = table.AsEnum{
 	"USE_SERVER_SETTINGS", "OPEN_MENU", "DO_NOT_OPEN_MENU"
 }
+Plugin.VoteMenuType = table.AsEnum{
+	"FULL", "MINIMAL"
+}
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
 Plugin.DefaultConfig = {
-	OnVoteAction = Plugin.VoteAction.USE_SERVER_SETTINGS
+	OnVoteAction = Plugin.VoteAction.USE_SERVER_SETTINGS,
+	VoteMenuType = Plugin.VoteMenuType.FULL
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 do
 	local Validator = Shine.Validator()
-	Validator:AddFieldRule( "OnVoteAction", Validator.InEnum( Plugin.VoteAction, Plugin.VoteAction.USE_SERVER_SETTINGS ) )
+	Validator:AddFieldRule( "OnVoteAction", Validator.InEnum( Plugin.VoteAction, Plugin.DefaultConfig.OnVoteAction ) )
+	Validator:AddFieldRule( "VoteMenuType", Validator.InEnum( Plugin.VoteMenuType, Plugin.DefaultConfig.VoteMenuType ) )
 	Plugin.ConfigValidator = Validator
 end
 
@@ -204,13 +209,7 @@ end, function( self )
 end )
 
 local function SendMapVote( MapName )
-	if Shine.VoteMenu.GetCanSendVote() then
-		Shared.ConsoleCommand( "sh_vote "..MapName )
-
-		return true
-	end
-
-	return false
+	Shared.ConsoleCommand( "sh_vote "..MapName )
 end
 
 do
@@ -223,74 +222,147 @@ do
 		return false
 	end
 
-	local MapIcons = {}
-
-	do
-		local StringMatch = string.match
-		Shared.GetMatchingFileNames( "maps/overviews/*.tga", false, MapIcons )
-
-		for i = 1, #MapIcons do
-			local Path = MapIcons[ i ]
-			local Map = StringMatch( Path, "^maps/overviews/(.+)%.tga$" )
-
-			MapIcons[ i ] = nil
-			MapIcons[ Map ] = Path
-		end
-	end
-
 	local Units = SGUI.Layout.Units
 	local GUIScaled = Units.GUIScaled
 	local UnitVector = Units.UnitVector
 
-	local function SetupMapPreview( Button, Map )
-		local Texture = MapIcons[ Map ]
-		local PreviewSize = 256
+	local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
+	local TextureLoader = require "shine/lib/gui/texture_loader"
 
-		local PreviewPanel
+	local function SetupMapPreview( Button, Map, MapMod )
+		local Cleared = false
+
 		function Button:OnHover()
-			if not SGUI.IsValid( PreviewPanel ) then
-				local Anchor = self:GetAnchor()
-				local IsLeft = Anchor == GUIItem.Left
+			local ModID = MapMod and tostring( MapMod )
 
-				-- The only reason it's parented to the panel is so it shows above the buttons.
-				PreviewPanel = SGUI:Create( "Panel", self.Parent )
-				PreviewPanel:SetAutoSize( UnitVector( GUIScaled( PreviewSize ),
-					GUIScaled( PreviewSize ) ), true )
-				PreviewPanel:SetAnchor( self:GetAnchor() )
+			LuaPrint( "Attempting to load texture for", ModID, Map )
 
-				local Size = PreviewPanel:GetSize()
-				PreviewPanel:SetPos( self:GetPos() + Vector2( IsLeft and -Size.x or self:GetSize().x,
-					-Size.y * 0.5 + self:GetSize().y * 0.5 ) )
+			MapDataRepository.GetOverviewImage( ModID, Map, function( MapName, TextureName, Err )
+				if Cleared then
+					-- Loaded too late.
+					return
+				end
 
-				local Image = SGUI:Create( "Image", PreviewPanel )
-				Image:SetSize( Size )
-				Image:SetTexture( Texture )
-				PreviewPanel.Image = Image
+				if not TextureName then
+					LuaPrint( "Failed to load", ModID, Map, Err )
+					if not Cleared and SGUI.IsValid( Button ) then
+						Buton.OnHover = nil
+					end
+					return
+				end
 
-				Image:SetColour( Colour( 1, 1, 1, 0 ) )
-				PreviewPanel:SetColour( Colour( 0, 0, 0, 0 ) )
-			end
+				LuaPrint( "Loaded", ModID, Map, "into", TextureName )
 
-			PreviewPanel.Image:AlphaTo( nil, nil, 1, 0, 0.3 )
-			PreviewPanel:AlphaTo( nil, nil, 0.25, 0, 0.3 )
-		end
+				local PreviewPanel
+				local PreviewSize = 256
+				function Button:OnHover()
+					if not SGUI.IsValid( PreviewPanel ) then
+						local Anchor = self:GetAnchor()
+						local IsLeft = Anchor == GUIItem.Left
 
-		function Button:OnLoseHover()
-			if not SGUI.IsValid( PreviewPanel ) then return end
+						-- The only reason it's parented to the panel is so it shows above the buttons.
+						PreviewPanel = SGUI:Create( "Panel", self.Parent )
+						PreviewPanel:SetAutoSize( UnitVector( GUIScaled( PreviewSize ),
+							GUIScaled( PreviewSize ) ), true )
+						PreviewPanel:SetAnchor( self:GetAnchor() )
 
-			PreviewPanel.Image:AlphaTo( nil, nil, 0, 0, 0.3 )
-			PreviewPanel:AlphaTo( nil, nil, 0, 0, 0.3, function()
-				PreviewPanel.Image:StopAlpha()
-				PreviewPanel:Destroy()
-				PreviewPanel = nil
+						local Size = PreviewPanel:GetSize()
+						PreviewPanel:SetPos( self:GetPos() + Vector2( IsLeft and -Size.x or self:GetSize().x,
+							-Size.y * 0.5 + self:GetSize().y * 0.5 ) )
+
+						local Image = SGUI:Create( "Image", PreviewPanel )
+						Image:SetSize( Size )
+						Image:SetTexture( TextureName )
+						PreviewPanel.Image = Image
+
+						Image:SetColour( Colour( 1, 1, 1, 0 ) )
+						PreviewPanel:SetColour( Colour( 0, 0, 0, 0 ) )
+					end
+
+					PreviewPanel.Image:AlphaTo( nil, nil, 1, 0, 0.3 )
+					PreviewPanel:AlphaTo( nil, nil, 0.25, 0, 0.3 )
+				end
+
+				function Button:OnLoseHover()
+					if not SGUI.IsValid( PreviewPanel ) then return end
+
+					PreviewPanel.Image:AlphaTo( nil, nil, 0, 0, 0.3 )
+					PreviewPanel:AlphaTo( nil, nil, 0, 0, 0.3, function()
+						PreviewPanel.Image:StopAlpha()
+						PreviewPanel:Destroy()
+						PreviewPanel = nil
+					end )
+				end
+
+				function Button:OnClear()
+					if MapMod and TextureName then
+						TextureLoader.Free( TextureName )
+					end
+
+					if not SGUI.IsValid( PreviewPanel ) then return end
+
+					PreviewPanel.Image:StopAlpha()
+					PreviewPanel:Destroy()
+				end
+
+				if Button.MouseHovered then
+					-- If the button's still hovered, trigger the preview to show now it's ready.
+					Button:OnHover()
+				end
 			end )
 		end
 
 		function Button:OnClear()
-			if not SGUI.IsValid( PreviewPanel ) then return end
+			Cleared = true
+		end
+	end
 
-			PreviewPanel.Image:StopAlpha()
-			PreviewPanel:Destroy()
+	local MapVoteMenu = require "shine/extensions/mapvote/ui/map_vote_menu"
+	function Plugin:ShowFullVoteMenu()
+		if not SGUI.IsValid( self.FullVoteMenu ) then
+			local Maps = self.Maps
+			if not Maps then return end
+
+			local Offset = SGUI.Layout.Units.HighResScaled( 64 ):GetValue()
+			self.FullVoteMenu = SGUI:CreateFromDefinition( MapVoteMenu )
+
+			local W, H = SGUI.GetScreenSize()
+			self.FullVoteMenu:SetPos( Vector2( Offset, Offset ) )
+			self.FullVoteMenu:SetSize( Vector2( W - Offset * 2, H - Offset * 2 ) )
+
+			Maps = Shine.Stream.Of( Maps ):Map( function( MapName )
+				return {
+					MapName = MapName,
+					NiceName = self:GetNiceMapName( MapName ),
+					ModID = self.MapMods[ MapName ] and tostring( self.MapMods[ MapName ] ),
+					IsSelected = MapName == self.ChosenMap,
+					NumVotes = self.MapVoteCounts[ MapName ]
+				}
+			end ):AsTable()
+
+			self.FullVoteMenu:SetEndTime( self.EndTime )
+			self.FullVoteMenu:SetCurrentMapName( self:GetNiceMapName( Shared.GetMapName() ) )
+			self.FullVoteMenu:SetMaps( Maps )
+			self.FullVoteMenu:SetIsVisible( false )
+			self.FullVoteMenu:AddPropertyChangeListener( "SelectedMap", function( MapName )
+				SendMapVote( MapName )
+			end )
+
+			function self.FullVoteMenu.OnClose()
+				if self.ScreenText then
+					self.ScreenText:SetIsVisible( true )
+				end
+			end
+		end
+
+		if not self.FullVoteMenu:GetIsVisible() then
+			-- TODO: Make a nice fade-in if AnimateUI == true.
+			SGUI:EnableMouse( true )
+			self.FullVoteMenu:SetIsVisible( true )
+
+			if self.ScreenText then
+				self.ScreenText:SetIsVisible( false )
+			end
 		end
 	end
 
@@ -299,6 +371,17 @@ do
 
 		-- Clear any pending automatic opening if the menu is opened manually.
 		Plugin.WaitingForMenuClose = nil
+
+		if Plugin.Config.VoteMenuType == Plugin.VoteMenuType.FULL then
+			-- Using the new menu, hide the vote menu and show it.
+			-- TODO: Figure out why this is triggered again every time the vote menu is opened.
+			self:SetPage( "Main" )
+			self:ForceHide()
+
+			Plugin:ShowFullVoteMenu()
+
+			return
+		end
 
 		local Maps = Plugin.Maps
 		if not Maps then
@@ -310,22 +393,22 @@ do
 		for i = 1, NumMaps do
 			local Map = Maps[ i ]
 			local Votes = Plugin.MapVoteCounts[ Map ]
-			local Text = StringFormat( "%s (%i)", Map, Votes )
+			local NiceName = Plugin:GetNiceMapName( Map )
+			local Text = StringFormat( "%s (%d)", NiceName, Votes )
 			local Button = self:AddSideButton( Text, function()
-				if SendMapVote( Map ) then
-					self:SetIsVisible( false )
-				else
-					return false
-				end
+				SendMapVote( Map )
+				self:SetIsVisible( false )
 			end )
 
 			Shine.VoteMenu:MarkAsSelected( Button, Plugin.ChosenMap == Map )
 
-			if MapIcons[ Map ] then
-				SetupMapPreview( Button, Map )
-			end
+			local MapMod = Plugin.MapMods and Plugin.MapMods[ Map ]
+			SetupMapPreview( Button, Map, MapMod )
 
-			Plugin.MapButtons[ Map ] = Button
+			Plugin.MapButtons[ Map ] = {
+				Button = Button,
+				NiceName = NiceName
+			}
 		end
 
 		self:AddTopButton( Plugin:GetPhrase( "BACK" ), function()
@@ -334,16 +417,50 @@ do
 	end, ClosePageIfVoteFinished )
 end
 
+do
+	local StringCapitalise = string.Capitalise
+	local StringGSub = string.gsub
+
+	function Plugin:GetNiceMapName( MapName )
+		local NiceName = Shine.Hook.Call( "OnGetNiceMapName", MapName )
+		if NiceName ~= nil then
+			-- Allow gamemodes to format their map names appropriately.
+			return NiceName
+		end
+
+		-- Otherwise, infer the name using existing conventions.
+		local NiceName = StringGSub( MapName, "^ns2_", "" )
+		local Words = StringExplode( NiceName, "_" )
+
+		local KnownGamemodeWords = {
+			co = "Combat:",
+			sws = "SWS:",
+			sg = "Siege:",
+			gg = "Gun Game:"
+		}
+
+		return Shine.Stream( Words ):Map( function( Word )
+			return KnownGamemodeWords[ Word ] or StringCapitalise( Word )
+		end ):Concat( " " )
+	end
+end
+
 function Plugin:ReceiveVoteProgress( Data )
 	local MapName = Data.Map
 	local Votes = Data.Votes
 
 	self.MapVoteCounts[ MapName ] = Votes
 
-	local MapButton = self.MapButtons[ MapName ]
+	if SGUI.IsValid( self.FullVoteMenu ) then
+		self.FullVoteMenu:OnMapVoteCountChanged( MapName, Votes )
+	end
 
-	if SGUI.IsValid( MapButton ) and MapButton:GetText():find( MapName, 1, true ) then
-		MapButton:SetText( StringFormat( "%s (%i)", MapName, Votes ) )
+	local MapButton = self.MapButtons[ MapName ]
+	if not MapButton then return end
+
+	local Button = MapButton.Button
+	if SGUI.IsValid( Button ) then
+		Button:SetText( StringFormat( "%s (%d)", MapButton.NiceName, Votes ) )
 	end
 end
 
@@ -353,8 +470,8 @@ function Plugin:ReceiveChosenMap( Data )
 	if self.ChosenMap then
 		-- Unmark the old selected map button if it's present.
 		local OldButton = self.MapButtons[ self.ChosenMap ]
-		if SGUI.IsValid( OldButton ) then
-			Shine.VoteMenu:MarkAsSelected( OldButton, false )
+		if OldButton and SGUI.IsValid( OldButton.Button ) then
+			Shine.VoteMenu:MarkAsSelected( OldButton.Button, false )
 		end
 	end
 
@@ -362,18 +479,34 @@ function Plugin:ReceiveChosenMap( Data )
 
 	-- Mark the selected map button.
 	local MapButton = self.MapButtons[ MapName ]
-	if SGUI.IsValid( MapButton ) then
-		Shine.VoteMenu:MarkAsSelected( MapButton, true )
+	if MapButton and SGUI.IsValid( MapButton.Button ) then
+		Shine.VoteMenu:MarkAsSelected( MapButton.Button, true )
 	end
 end
 
 function Plugin:ReceiveEndVote( Data )
 	self.EndTime = 0
 	self.ChosenMap = nil
+	self.ScreenText = nil
 
 	TableEmpty( self.MapVoteCounts )
 	TableEmpty( self.MapButtons )
 	Shine.ScreenText.End( "MapVote" )
+
+	if SGUI.IsValid( self.FullVoteMenu ) then
+		self.FullVoteMenu:Close()
+		self.FullVoteMenu:Destroy()
+		self.FullVoteMenu = nil
+	end
+end
+
+function Plugin:ReceiveMapMod( Data )
+	-- Note, we assume the first mod in the list in the map cycle is the map.
+	-- If it's not, we won't get the right preview image.
+	self.MapMods = self.MapMods or {}
+	self.MapMods[ Data.MapName ] = Data.ModID
+
+	LuaPrint( "Received mod ID", Data.ModID, "for map", Data.MapName )
 end
 
 local function GetMapVoteText( self, NextMap, VoteButton, Maps, InitialText, VoteButtonCandidates )
@@ -496,6 +629,8 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Obj:SetColor( self.Colour )
 			end
 		end
+
+		self.ScreenText = ScreenText
 	else
 		local ScreenText = Shine.ScreenText.Add( "MapVote", {
 			X = 0.95, Y = 0.2,
@@ -527,6 +662,8 @@ function Plugin:ReceiveVoteOptions( Message )
 				self.Obj:SetColor( self.Colour )
 			end
 		end
+
+		self.ScreenText = ScreenText
 	end
 
 	self:AutoOpenVoteMenu( Message.ForceMenuOpen )

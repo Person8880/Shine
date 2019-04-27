@@ -18,6 +18,7 @@ local StringStartsWith = string.StartsWith
 local StringUpper = string.upper
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
+local tonumber = tonumber
 
 local Plugin = ...
 local IsType = Shine.IsType
@@ -894,6 +895,31 @@ function Plugin:StartVote( NextMap, Force )
 			self:NotifyTranslated( nil, "NEXT_MAP_STARTED" )
 		end
 	end )
+
+	-- For every map in the vote list that requires a mod, tell every client the mod ID
+	-- so they can load a preview for it if they hover the button.
+	Shine.Stream( MapList )
+		:Filter( function( Map ) return self.MapOptions[ Map ] end )
+		:ForEach( function( Map )
+			local Options = self.MapOptions[ Map ]
+			if not IsType( Options.mods, "table" ) then return end
+
+			local MapMods = Shine.Stream.Of( Options.mods ):Filter( function( ModID )
+				return self.KnownMapMods[ ModID ]
+			end ):AsTable()
+
+			-- If we know which mod is the map, use it. Otherwise assume it's the first mod.
+			local ModID = MapMods[ 1 ] or Options.mods[ 1 ]
+			ModID = tonumber( ModID, 16 )
+
+			if ModID then
+				self.Logger:Debug( "Map %s has mod ID: %s", Map, ModID )
+				self:SendNetworkMessage( nil, "MapMod", {
+					MapName = Map,
+					ModID = ModID
+				}, true )
+			end
+		end )
 
 	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(),
 		not self.VoteOnEnd )

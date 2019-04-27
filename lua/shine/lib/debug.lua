@@ -354,17 +354,22 @@ do
 			error( StringFormat( "Bad argument #%i to '%s' (%s expected, got %s)",
 				ArgNumber, FuncName, ExpectedType, ArgType ), Level or 3 )
 		end
+		return Arg
 	end
 
 	--[[
 		Checks a field's type, and throws an error if it doesn't match.
 	]]
 	function Shine.TypeCheckField( Table, FieldName, Type, ObjectName, Level )
-		local MatchesType, ExpectedType, ArgType = MatchesType( Table[ FieldName ], Type )
+		local Value = Table[ FieldName ]
+
+		local MatchesType, ExpectedType, ArgType = MatchesType( Value, Type )
 		if not MatchesType then
 			error( StringFormat( "Bad value for field '%s' on %s (%s expected, got %s)",
 				FieldName, ObjectName, ExpectedType, ArgType ), Level or 3 )
 		end
+
+		return Value
 	end
 end
 

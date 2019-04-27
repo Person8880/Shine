@@ -505,6 +505,8 @@ function Plugin:SetupFromMapData( Data )
 end
 
 function Plugin:OnFirstThink()
+	self:InferMapMods( self.MapChoices )
+
 	local CurMap = Shared.GetMapName()
 
 	local ConfigData = self.Config.Maps[ CurMap ]

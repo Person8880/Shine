@@ -289,3 +289,24 @@ do
 		end
 	end
 end
+
+UnitTest:Test( "ToBase64", function( Assert )
+	Assert:Equals( "dA==", string.ToBase64( "t" ) )
+	Assert:Equals( "dGU=", string.ToBase64( "te" ) )
+	Assert:Equals( "dGVz", string.ToBase64( "tes" ) )
+	Assert:Equals( "dGVzdA==", string.ToBase64( "test" ) )
+	Assert:Equals( "dGVzdGk=", string.ToBase64( "testi" ) )
+	Assert:Equals( "dGVzdGlu", string.ToBase64( "testin" ) )
+	Assert:Equals( "dGVzdGluZw==", string.ToBase64( "testing" ) )
+end )
+
+UnitTest:Test( "FromBase64", function( Assert )
+	Assert:Equals( "t", string.FromBase64( "dA==" ) )
+	Assert:Equals( "te", string.FromBase64( "dGU=" ) )
+	Assert:Equals( "tes", string.FromBase64( "dGVz" ) )
+	Assert:Equals( "test", string.FromBase64( "dGVzdA==" ) )
+	Assert:Equals( "test", string.FromBase64( "dGVzdA==" ) )
+	Assert:Equals( "testi", string.FromBase64( "dGVzdGk=" ) )
+	Assert:Equals( "testin", string.FromBase64( "dGVzdGlu" ) )
+	Assert:Equals( "testing", string.FromBase64( "dGVzdGluZw==" ) )
+end )

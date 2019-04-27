@@ -89,6 +89,10 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "EndVote", MessageTypes.Empty, "Client" )
 	self:AddNetworkMessage( "VoteProgress", MapVotesMessage, "Client" )
 	self:AddNetworkMessage( "ChosenMap", MessageTypes.MapName, "Client" )
+	self:AddNetworkMessage( "MapMod", {
+		MapName = MapNameField,
+		ModID = "integer"
+	}, "Client" )
 
 	self:AddNetworkMessage( "RequestVoteOptions", MessageTypes.Empty, "Server" )
 
