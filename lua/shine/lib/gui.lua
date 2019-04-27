@@ -701,6 +701,10 @@ do
 			Control:SetParent( nil )
 		end
 
+		if Control.LayoutParent then
+			Control.LayoutParent:RemoveElement( Control )
+		end
+
 		self.ActiveControls:Remove( Control )
 
 		if self.IsValid( Control.Tooltip ) then
