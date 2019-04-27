@@ -17,6 +17,19 @@ local Counter = 0
 function Webpage:Initialise()
 	local Background = self:MakeGUIItem()
 	self.Background = Background
+
+	self.JSQueue = {}
+	self.IsLoading = false
+
+	self:AddPropertyChangeListener( "IsLoading", function( IsLoading )
+		if IsLoading or #self.JSQueue == 0 then return end
+
+		-- When the page has finished loading, execute any queued JS.
+		for i = 1, #self.JSQueue do
+			self.WebView:ExecuteJS( self.JSQueue[ i ] )
+			self.JSQueue[ i ] = nil
+		end
+	end )
 end
 
 function Webpage:CleanupWebView()
@@ -41,12 +54,14 @@ function Webpage:LoadURL( URL, W, H )
 		self.Background:SetSize( Vector( W, H, 0 ) )
 		self.Background:SetTexture( TextureName )
 
-		self.WebView:HookJSAlert( function( ... )
-			self:OnJSAlert( ... )
+		self.WebView:HookJSAlert( function( WebView, AlertText )
+			self:OnJSAlert( WebView, AlertText )
 		end )
 	end
 
 	self.WebView:LoadUrl( URL )
+	self.IsLoading = true
+	self:OnPropertyChanged( "IsLoading", true )
 end
 
 function Webpage:GetHasLoaded()
@@ -55,16 +70,33 @@ function Webpage:GetHasLoaded()
 	return self.WebView:GetUrlLoaded()
 end
 
-function Webpage:OnJSAlert( ... )
+function Webpage:OnJSAlert( WebView, AlertText )
 	-- Override to see JavaScript alerts...
 end
 
 function Webpage:ExecuteJS( JavaScript )
-	if not self.WebView or not self:GetHasLoaded() then
+	if not self.WebView then
 		error( "Attempted to execute JavaScript before loading a page!", 2 )
 	end
 
+	if not self:GetHasLoaded() then
+		-- Can't execute yet, so wait until we can.
+		self.JSQueue[ #self.JSQueue + 1 ] = JavaScript
+		return false
+	end
+
 	self.WebView:ExecuteJS( JavaScript )
+
+	return true
+end
+
+function Webpage:Think( DeltaTime )
+	self.BaseClass.Think( self, DeltaTime )
+
+	if self.IsLoading and self:GetHasLoaded() then
+		self.IsLoading = false
+		self:OnPropertyChanged( "IsLoading", false )
+	end
 end
 
 function Webpage:PlayerKeyPress( Key, Down )
