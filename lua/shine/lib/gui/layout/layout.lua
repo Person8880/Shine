@@ -7,6 +7,7 @@ local SGUI = Shine.GUI
 local getmetatable = getmetatable
 local rawget = rawget
 local setmetatable = setmetatable
+local StringFormat = string.format
 local TableInsert = table.insert
 local TableRemoveByValue = table.RemoveByValue
 
@@ -43,6 +44,7 @@ function BaseLayout:Init( Data )
 	self.Parent = Data and Data.Parent
 	self.Anchor = Data and Data.Anchor or SGUI.Anchors.TopLeft
 	self.Alignment = Data and Data.Alignment or SGUI.LayoutAlignment.MIN
+	self.CrossAxisAlignment = Data and Data.CrossAxisAlignment or SGUI.LayoutAlignment.MIN
 
 	if not Data or Data.Fill ~= false then
 		self.Fill = true
@@ -57,6 +59,14 @@ function BaseLayout:Init( Data )
 	end
 
 	return self
+end
+
+function BaseLayout:GetParentControl()
+	local Parent = self.Parent
+	while Parent and Parent.IsLayout do
+		Parent = Parent.Parent
+	end
+	return Parent
 end
 
 local function ChildIterator( State )
@@ -103,9 +113,7 @@ function BaseLayout:InsertElementAfter( Element, AfterElement )
 	OnAddElement( self, Element )
 end
 
-function BaseLayout:RemoveElement( Element )
-	if not TableRemoveByValue( self.Elements, Element ) then return end
-
+local function OnRemoveElement( self, Element )
 	if Element.IsLayout then
 		TableRemoveByValue( self.LayoutChildren, Element )
 		if Element.Parent == self then
@@ -114,12 +122,29 @@ function BaseLayout:RemoveElement( Element )
 	elseif Element.LayoutParent == self then
 		Element.LayoutParent = nil
 	end
+end
+
+function BaseLayout:RemoveElement( Element )
+	if not TableRemoveByValue( self.Elements, Element ) then return end
+
+	OnRemoveElement( self, Element )
+
+	self:InvalidateLayout()
+end
+
+function BaseLayout:Clear()
+	for i = 1, #self.Elements do
+		local Element = self.Elements[ i ]
+		OnRemoveElement( self, Element )
+		self.Elements[ i ] = nil
+	end
 
 	self:InvalidateLayout()
 end
 
 -- Layouts inherit some basic functionality from elements.
 table.Mixin( SGUI.BaseControl, BaseLayout, {
+	"SetupFromTable",
 	"ComputeSpacing",
 	"GetContentSizeForAxis",
 	"GetMaxSizeAlongAxis",
@@ -159,6 +184,15 @@ function BaseLayout:PerformLayout()
 	end
 end
 
+function BaseLayout:__tostring()
+	return StringFormat(
+		"[SGUI] %s Layout | %d Children (%d Layout Children)",
+		self.Class,
+		#self.Elements,
+		#self.LayoutChildren
+	)
+end
+
 Layout.Types = {}
 Layout.Units = {}
 
@@ -166,6 +200,7 @@ function Layout:RegisterType( Name, MetaTable, Parent )
 	MetaTable.__index = MetaTable
 	MetaTable.__Base = Parent
 	MetaTable.BaseClass = BaseLayout
+	MetaTable.__tostring = MetaTable.__tostring or BaseLayout.__tostring
 	self.Types[ Name ] = MetaTable
 end
 
@@ -183,9 +218,12 @@ end
 
 function Layout:CreateLayout( Name, ... )
 	local MetaTable = self.Types[ Name ]
-	if not MetaTable or rawget( MetaTable, "IsAbstract" ) then return nil end
+	Shine.AssertAtLevel(
+		MetaTable and not rawget( MetaTable, "IsAbstract" ),
+		"Attempted to construct unregistered or abstract layout type: %s", 3, Name
+	)
 
-	return setmetatable( {}, self.Types[ Name ] ):Init( ... )
+	return setmetatable( { Class = Name }, self.Types[ Name ] ):Init( ... )
 end
 
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/layout/units" )

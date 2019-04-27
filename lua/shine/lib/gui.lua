@@ -595,24 +595,14 @@ do
 		Table.__tostring = Table.__tostring or ControlMeta.__tostring
 	end
 
-	--[[
-		Registers a control meta-table.
-		We'll use this to create instances of it (instead of loading a script
-		file every time like UWE).
-
-		Inputs:
-			1. Control name
-			2. Control meta-table.
-			3. Optional parent name. This will make the object inherit the parent's table keys.
-	]]
-	function SGUI:Register( Name, Table, Parent )
+	local function SetupControlType( self, Name, Table, Parent )
 		Table.__index = Table
 		Table.__Name = Name
 
 		if Parent then
 			Table.ParentControl = Parent
 
-			local ParentTable = self.Controls[ Parent ]
+			local ParentTable = IsType( Parent, "table" ) and Parent or self.Controls[ Parent ]
 			if ParentTable and ParentTable.ParentControl == Name then
 				error( StringFormat( "[SGUI] Cyclic dependency detected. %s depends on %s while %s also depends on %s.",
 					Name, Parent, Parent, Name ) )
@@ -638,6 +628,37 @@ do
 
 		-- Used to call base class functions for things like :MoveTo()
 		Table.BaseClass = ControlMeta
+	end
+
+	--[[
+		Defines a new control type but does not register it.
+
+		This can be useful for specific components that have little re-use value.
+
+		Inputs:
+			1. Control name (does not have to be unique as it is not registered).
+			2. The parent name (taken from registered controls) or table.
+		Output:
+			A new control definition that can be passed into SGUI:CreateFromDefinition().
+	]]
+	function SGUI:DefineControl( Name, Parent )
+		local Table = {}
+		SetupControlType( self, Name, Table, Parent )
+		return Table
+	end
+
+	--[[
+		Registers a control meta-table.
+		We'll use this to create instances of it (instead of loading a script
+		file every time like UWE).
+
+		Inputs:
+			1. Control name
+			2. Control meta-table.
+			3. Optional parent name. This will make the object inherit the parent's table keys.
+	]]
+	function SGUI:Register( Name, Table, Parent )
+		SetupControlType( self, Name, Table, Parent )
 
 		self.Controls[ Name ] = Table
 
@@ -686,15 +707,7 @@ end
 do
 	local ID = 0
 
-	--[[
-		Creates an SGUI control.
-		Input: SGUI control class name, optional parent object.
-		Output: SGUI control object.
-	]]
-	function SGUI:Create( Class, Parent, ParentElement )
-		local MetaTable = self.Controls[ Class ]
-		Shine.AssertAtLevel( MetaTable, "[SGUI] '%s' is not a registered SGUI class!", 3, Class )
-
+	local function MakeControl( self, MetaTable, Class, Parent, ParentElement )
 		ID = ID + 1
 
 		local Table = {}
@@ -728,6 +741,84 @@ do
 		end
 
 		return Control
+	end
+
+	--[[
+		Creates an SGUI control directly from a given definition table.
+		Inputs:
+			1. SGUI control definition table.
+			2. Optional parent object.
+			3. Optional parent GUIItem.
+		Output:
+			SGUI control object.
+	]]
+	function SGUI:CreateFromDefinition( Definition, Parent, ParentElement )
+		Shine.AssertAtLevel( Shine.IsAssignableTo( Definition, ControlMeta ), "Definition must be an SGUI control!", 3 )
+
+		return MakeControl( self, Definition, Definition.__Name, Parent, ParentElement )
+	end
+
+	--[[
+		Creates an SGUI control.
+		Input: SGUI control class name, optional parent object.
+		Output: SGUI control object.
+	]]
+	function SGUI:Create( Class, Parent, ParentElement )
+		local MetaTable = self.Controls[ Class ]
+		Shine.AssertAtLevel( MetaTable, "[SGUI] '%s' is not a registered SGUI class!", 3, Class )
+
+		return MakeControl( self, MetaTable, Class, Parent, ParentElement )
+	end
+
+	function SGUI:BuildTree( Parent, Tree )
+		local GlobalProps = Tree.GlobalProps
+		local Elements = {}
+
+		local function BuildChildren( Parent, Tree )
+			for i = 1, #Tree do
+				local ElementDef = Tree[ i ]
+				local Element
+				if ElementDef.Type == "Layout" then
+					Element = self.Layout:CreateLayout( ElementDef.Class )
+					if Parent.IsLayout then
+						Parent:AddElement( Element )
+					elseif Parent.Layout then
+						Parent.Layout:AddElement( Element )
+					else
+						Parent:SetLayout( Element, true )
+					end
+				else
+					if Parent.IsLayout then
+						Element = self:Create( ElementDef.Class, Parent:GetParentControl() )
+						Parent:AddElement( Element )
+					else
+						Element = Parent.Add and Parent:Add( ElementDef.Class ) or self:Create( ElementDef.Class, Parent )
+						if Parent.Layout then
+							Parent.Layout:AddElement( Element )
+						end
+					end
+				end
+
+				if GlobalProps then
+					Element:SetupFromTable( GlobalProps )
+				end
+
+				if ElementDef.Props then
+					Element:SetupFromTable( ElementDef.Props )
+				end
+
+				if ElementDef.ID then
+					Elements[ ElementDef.ID ] = Element
+				end
+
+				if ElementDef.Children then
+					BuildChildren( Element, ElementDef.Children )
+				end
+			end
+		end
+		BuildChildren( Parent, Tree )
+
+		return Elements
 	end
 end
 

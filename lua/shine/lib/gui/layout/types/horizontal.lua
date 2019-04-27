@@ -4,6 +4,8 @@
 	Positions elements one after the other, starting from the left.
 ]]
 
+local Vector2 = Vector2
+
 local Horizontal = {}
 
 local LayoutAlignment = Shine.GUI.LayoutAlignment
@@ -64,10 +66,7 @@ function Horizontal:GetFillElementHeight( Element, Height, FillSizePerElement )
 end
 
 function Horizontal:GetFillElementSize( Element, Width, Height, FillSizePerElement )
-	local Size = Element:GetSize()
-	Size.x = FillSizePerElement
-	Size.y = Height
-	return Size
+	return Vector2( FillSizePerElement, Height )
 end
 
 local ContentSizes = {

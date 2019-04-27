@@ -39,6 +39,7 @@ SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 SGUI.AddProperty( ControlMeta, "PropagateSkin" )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
+SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 
 function ControlMeta:__tostring()
 	return StringFormat( "[SGUI - %s] %s | %s | %i Children", self.ID, self.Class,
@@ -178,8 +179,8 @@ function ControlMeta:GetPropertyTarget( Name )
 	end
 
 	local SetterName = SetterKeys[ Name ]
-	Target = function( Value )
-		self[ SetterName ]( self, Value )
+	Target = function( ... )
+		return self[ SetterName ]( self, ... )
 	end
 
 	self.PropertyTargets[ Name ] = Target
@@ -851,6 +852,8 @@ function ControlMeta:GetMaxSizeAlongAxis( Axis )
 	local MaxChildSize = 0
 
 	for Child in self:IterateChildren() do
+		Child:PreComputeWidth()
+
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
 		local ChildSize = Child:GetComputedSize( Axis, ParentSize )
@@ -881,6 +884,8 @@ function ControlMeta:GetContentSizeForAxis( Axis )
 	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
 
 	for Child in self:IterateChildren() do
+		Child:PreComputeWidth()
+
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
 		Total = Total + Child:GetComputedSize( Axis, ParentSize )
@@ -1001,6 +1006,18 @@ end
 function ControlMeta:GetScreenPos()
 	if not self.Background then return end
 	return self.Background:GetScreenPosition( SGUI.GetScreenSize() )
+end
+
+function ControlMeta:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
+	if not self.Background then return end
+
+	self.Background:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
+end
+
+function ControlMeta:SetTextureCoordinates( X1, Y1, X2, Y2 )
+	if not self.Background then return end
+
+	self.Background:SetTextureCoordinates( X1, Y1, X2, Y2 )
 end
 
 do
@@ -1637,16 +1654,14 @@ function ControlMeta:HandleHovering( Time )
 			self.MouseHoverStart = Time
 		else
 			if Time - self.MouseHoverStart > ( self.HoverTime or DEFAULT_HOVER_TIME ) and not self.MouseHovered then
-				self:OnHover( X, Y )
-
 				self.MouseHovered = true
+				self:OnHover( X, Y )
 			end
 		end
 	else
 		self.MouseHoverStart = nil
 		if self.MouseHovered then
 			self.MouseHovered = nil
-
 			if self.OnLoseHover then
 				self:OnLoseHover()
 			end

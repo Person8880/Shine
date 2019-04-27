@@ -11,6 +11,7 @@
 ]]
 
 local Max = math.max
+local Vector2 = Vector2
 
 local Directional = {}
 Directional.IsAbstract = true
@@ -26,13 +27,10 @@ function Directional:SetElementSize( Element, RealSize, Margin )
 
 	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 2 ] - Margin[ 4 ] )
 
-	local CurrentSize = Element:GetSize()
-	CurrentSize.x = Width
-	CurrentSize.y = Height
+	local NewSize = Vector2( Width, Height )
+	Element:SetSize( NewSize )
 
-	Element:SetSize( CurrentSize )
-
-	return CurrentSize
+	return NewSize
 end
 
 function Directional:GetComputedFillSize( Element, RealSize, FillSizePerElement )
