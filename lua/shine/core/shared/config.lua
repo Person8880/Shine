@@ -61,15 +61,22 @@ end
 local JSONErrorHandler = Shine.BuildErrorHandler( "JSON serialisation error" )
 function Shine.SaveJSONFile( Table, Path, Settings )
 	Settings = Settings or JSONSettings
+
 	local FormattingOptions = {
 		PrettyPrint = Settings.indent or false,
 		IndentSize = 4 * ( Settings.level or 1 )
 	}
+	if not FormattingOptions.PrettyPrint then
+		-- No point having consistent order if not pretty printing.
+		FormattingOptions.TableIterator = pairs
+	end
+
 	local Success, JSON = xpcall( TableToJSON, JSONErrorHandler, Table, FormattingOptions )
 	if not Success then
 		-- Fallback to DKJSON if there's somehow a bug in our serialiser.
 		JSON = Encode( Table, Settings )
 	end
+
 	return WriteFile( Path, JSON )
 end
 
