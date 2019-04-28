@@ -178,6 +178,12 @@ function Panel:RecomputeMaxWidth()
 			local MaxX = ComputeMaxWidth( Child, PanelWidth )
 			MaxWidth = Max( MaxWidth, MaxX )
 		end
+
+		if self.Layout then
+			-- Account for how the layout has positioned its elements.
+			-- This only works *after* layout has completed.
+			MaxWidth = Max( MaxWidth, self.Layout.MaxPosX or 0 )
+		end
 	end
 
 	self:SetMaxWidth( MaxWidth )
@@ -192,6 +198,10 @@ function Panel:RecomputeMaxHeight()
 		for Child in self.Children:Iterate() do
 			local MaxY = ComputeMaxHeight( Child, PanelHeight )
 			MaxHeight = Max( MaxHeight, MaxY )
+		end
+
+		if self.Layout then
+			MaxHeight = Max( MaxHeight, self.Layout.MaxPosY or 0 )
 		end
 	end
 
@@ -767,6 +777,16 @@ function Panel:Think( DeltaTime )
 	end
 
 	self:CallOnChildren( "Think", DeltaTime )
+end
+
+function Panel:PerformLayout()
+	self.BaseClass.PerformLayout( self )
+
+	if self.Stencil then
+		-- Some elements may have moved to no longer be so far down/to the right.
+		self:RecomputeMaxHeight()
+		self:RecomputeMaxWidth()
+	end
 end
 
 function Panel:OnMouseWheel( Down )

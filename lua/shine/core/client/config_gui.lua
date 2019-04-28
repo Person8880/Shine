@@ -202,7 +202,7 @@ local SettingsTypes = {
 			local Description = RadioPanel:Add( "Label" )
 			Description:SetFontScale( GetSmallFont() )
 			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
-			Description:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 24 ) ) )
+			Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
 			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
 			VerticalLayout:AddElement( Description )
 
