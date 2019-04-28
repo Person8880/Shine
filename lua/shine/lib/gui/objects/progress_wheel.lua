@@ -6,6 +6,7 @@ local Clamp = math.Clamp
 local Max = math.max
 local Min = math.min
 local Pi = math.pi
+local StringEndsWith = string.EndsWith
 
 local SGUI = Shine.GUI
 
@@ -60,11 +61,23 @@ function ProgressWheel:SetWheelTexture( Params )
 	local H = Params.H
 	local Texture = Params.Texture
 
-	self.LeftHalf:SetTexture( Texture )
-	self.LeftHalf:SetTexturePixelCoordinates( X, Y, X + W * 0.5, Y + H )
+	local UsePixelCoords = StringEndsWith( Texture, ".dds" )
 
+	self.LeftHalf:SetTexture( Texture )
 	self.RightHalf:SetTexture( Texture )
-	self.RightHalf:SetTexturePixelCoordinates( X + W * 0.5, Y, X + W, Y + H )
+
+	if UsePixelCoords then
+		self.LeftHalf:SetTexturePixelCoordinates( X, Y, X + W * 0.5, Y + H )
+		self.RightHalf:SetTexturePixelCoordinates( X + W * 0.5, Y, X + W, Y + H )
+	else
+		local FullWidth = Params.FullWidth or W
+		local FullHeight = Params.FullHeight or H
+		-- Pixel co-ordinates seem to only work for DDS images...
+		self.LeftHalf:SetTextureCoordinates( X / FullWidth, Y / FullHeight, ( X + W * 0.5 ) / FullWidth,
+			( Y + H ) / FullHeight )
+		self.RightHalf:SetTextureCoordinates( ( X + W * 0.5 ) / FullWidth, Y / FullHeight, ( X + W ) / FullWidth,
+			( Y + H ) / FullHeight )
+	end
 end
 
 function ProgressWheel:SetSize( Size )
@@ -105,7 +118,7 @@ local Easer = {
 	end
 }
 
-function ProgressWheel:SetFraction( Fraction, Smooth )
+function ProgressWheel:SetFraction( Fraction, Smooth, Callback )
 	Fraction = Clamp( Fraction, 0, 1 )
 
 	self.Fraction = Fraction
@@ -116,7 +129,7 @@ function ProgressWheel:SetFraction( Fraction, Smooth )
 		return
 	end
 
-	self:EaseValue( self.Background, self.VisibleFraction, Fraction, 0, 0.3 )
+	self:EaseValue( self.Background, self.VisibleFraction, Fraction, 0, 0.3, Callback, Easer )
 end
 
 local function UpdateMaskRotations( self )

@@ -193,7 +193,7 @@ function MapTile:Think( DeltaTime )
 	Controls.Button.Think( self, DeltaTime )
 
 	if self.LoadingIndicator then
-		self.LoadingIndicator:SetAngle( self.LoadingIndicator:GetAngle() + DeltaTime * Pi * 2 )
+		self.LoadingIndicator:SetAngle( self.LoadingIndicator:GetAngle() - DeltaTime * Pi * 2 )
 	end
 end
 

@@ -76,7 +76,7 @@ local Skin = {
 	ProgressWheel = {
 		Default = {
 			WheelTexture = {
-				Texture = PrecacheAsset "ui/shine/wheel.dds",
+				Texture = "ui/shine/wheel.tga",
 				W = 128,
 				H = 128
 			},
