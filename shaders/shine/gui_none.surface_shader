@@ -1,0 +1,22 @@
+<shader>
+	<shader_factory>GUI</shader_factory>
+
+	<inputs>
+		<input name="baseTexture"  type="texture" address="wrap" />
+	</inputs>
+
+	<code>
+    <![CDATA[
+		void MaterialShader(bool textured, float2 texCoord, float4 color, inout Material material)
+		{
+			// Why does this shader exist? Because sometimes you want a GUIItem to provide layout and
+			// a global alpha multiplier, but no colour. Stencil objects only work if they're not beneath
+			// another stencil object, so this shader allows a GUIItem to draw nothing, but still contribute
+			// an alpha multiplier to its children.
+			const float4 clear = float4( 1, 1, 1, 0 );
+
+			material.resultColor = clear;
+		}
+	]]>
+	</code>
+</shader>

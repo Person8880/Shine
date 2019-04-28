@@ -118,6 +118,29 @@ function Plugin:SetupClientConfig()
 		Options = self.VoteAction,
 		Description = "ON_VOTE_ACTION"
 	} )
+
+	self:BindCommand( "sh_mapvote_menutype", function( VoteMenuType )
+		local Explanations = {
+			[ self.VoteMenuType.FULL ] = "in full screen",
+			[ self.VoteMenuType.MINIMAL ] = "in the vote menu",
+		}
+
+		if not VoteMenuType then
+			Print( "Map voting is currently set to open %s.", Explanations[ self.Config.VoteMenuType ] )
+			return
+		end
+
+		self.Config.VoteMenuType = VoteMenuType
+		self:SaveConfig( true )
+
+		Print( "Map voting will now open %s.", Explanations[ self.Config.VoteMenuType ] )
+	end ):AddParam{ Type = "enum", Values = self.VoteMenuType, Optional = true }
+
+	self:AddClientSetting( "VoteMenuType", "sh_mapvote_menutype", {
+		Type = "Radio",
+		Options = self.VoteMenuType,
+		Description = "VOTE_MENU_TYPE"
+	} )
 end
 
 function Plugin:TimeLeftNotify( Message )
@@ -246,7 +269,7 @@ do
 				if not TextureName then
 					LuaPrint( "Failed to load", ModID, Map, Err )
 					if not Cleared and SGUI.IsValid( Button ) then
-						Buton.OnHover = nil
+						Button.OnHover = nil
 					end
 					return
 				end
@@ -356,9 +379,8 @@ do
 		end
 
 		if not self.FullVoteMenu:GetIsVisible() then
-			-- TODO: Make a nice fade-in if AnimateUI == true.
 			SGUI:EnableMouse( true )
-			self.FullVoteMenu:SetIsVisible( true )
+			self.FullVoteMenu:FadeIn()
 
 			if self.ScreenText then
 				self.ScreenText:SetIsVisible( false )
@@ -374,7 +396,6 @@ do
 
 		if Plugin.Config.VoteMenuType == Plugin.VoteMenuType.FULL then
 			-- Using the new menu, hide the vote menu and show it.
-			-- TODO: Figure out why this is triggered again every time the vote menu is opened.
 			self:SetPage( "Main" )
 			self:ForceHide()
 
@@ -494,9 +515,10 @@ function Plugin:ReceiveEndVote( Data )
 	Shine.ScreenText.End( "MapVote" )
 
 	if SGUI.IsValid( self.FullVoteMenu ) then
-		self.FullVoteMenu:Close()
-		self.FullVoteMenu:Destroy()
-		self.FullVoteMenu = nil
+		self.FullVoteMenu:Close( function()
+			self.FullVoteMenu:Destroy()
+			self.FullVoteMenu = nil
+		end )
 	end
 end
 

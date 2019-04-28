@@ -25,18 +25,26 @@ local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
 local MapTile = require "shine/extensions/mapvote/ui/map_vote_menu_tile"
 local TextureLoader = require "shine/lib/gui/texture_loader"
 
+local HeaderAlpha = 0.25
+local MapTileHeaderAlpha = 0.5
 local Skin = {
 	Button = {
 		CloseButton = {
-			InactiveCol = Colour( 1, 1, 1, 0 ),
-			ActiveCol = Colour( 1, 1, 1, 0 ),
-			TextColour = Colour( 1, 1, 1, 1 ),
-			TextInheritsParentAlpha = false
+			InactiveCol = Colour( 1, 1, 1, 1 ),
+			ActiveCol = Colour( 1, 1, 1, 1 ),
+			TextColour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
+			TextInheritsParentAlpha = true,
+			InheritsParentAlpha = true,
+			Shader = "shaders/shine/gui_none.surface_shader"
 		}
 	},
 	Label = {
 		Default = {
 			Colour = Colour( 1, 1, 1, 1 )
+		},
+		MapTileLabel = {
+			Colour = Colour( 1, 1, 1, 1 / MapTileHeaderAlpha ),
+			InheritsParentAlpha = true
 		}
 	},
 	MapVoteMenu = {
@@ -46,10 +54,10 @@ local Skin = {
 	},
 	MapTile = {
 		Default = {
-			TextColour = Colour( 1, 1, 1, 1 ),
+			TextColour = Colour( 1, 1, 1, 1 / MapTileHeaderAlpha ),
 			IconColour = Colour( 0, 1, 0, 1 ),
-			InactiveCol = Colour( 0, 0, 0, 0 ),
-			TextInheritsParentAlpha = false,
+			InactiveCol = Colour( 0, 0, 0, 1 ),
+			TextInheritsParentAlpha = true,
 			MapNameAutoFont = {
 				Family = "kAgencyFB",
 				Size = Units.HighResScaled( 41 )
@@ -60,27 +68,49 @@ local Skin = {
 			},
 			IconShadow = {
 				Colour = Colour( 0, 0, 0, 0.75 )
-			}
+			},
+			InheritsParentAlpha = true,
+			Shader = "shaders/shine/gui_none.surface_shader"
+		}
+	},
+	ProgressWheel = {
+		Default = {
+			WheelTexture = {
+				Texture = PrecacheAsset "ui/shine/wheel.dds",
+				W = 128,
+				H = 128
+			},
+			Colour = Colour( 1, 0.75, 0, 1 / 0.25 ),
+			InheritsParentAlpha = true
 		}
 	},
 	Row = {
 		Header = {
-			Colour = Colour( 1, 0.75, 0, 0.25 )
+			Colour = Colour( 1, 0.75, 0, HeaderAlpha ),
+			InheritsParentAlpha = true
+		},
+		LoadingIndicatorContainer = {
+			Colour = Colour( 0, 0, 0, 0.25 ),
+			InheritsParentAlpha = true
 		},
 		MapTileHeader = {
-			Colour = Colour( 0, 0, 0, 0.5 )
+			Colour = Colour( 0, 0, 0, MapTileHeaderAlpha ),
+			InheritsParentAlpha = true
 		}
 	},
 	ShadowLabel = {
-		Default = {
+		HeaderLabel = {
+			Colour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
 			Shadow = {
-				Colour = Colour( 0, 0, 0, 0.75 )
-			}
+				Colour = Colour( 0, 0, 0, 0.75 / HeaderAlpha )
+			},
+			InheritsParentAlpha = true
 		}
 	},
 	Column = {
 		Header = {
-			Colour = Colour( 1, 0.75, 0, 0.25 )
+			Colour = Colour( 1, 0.75, 0, HeaderAlpha ),
+			InheritsParentAlpha = true
 		}
 	}
 }
@@ -95,8 +125,8 @@ function MapVoteMenu:Initialise()
 
 	self.TitleBarHeight = Units.HighResScaled( 32 ):GetValue()
 	self:AddCloseButton( self )
-	-- TODO: Propagate skins down to children automatically.
-	self.CloseButton:SetSkin( Skin )
+
+	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
 
 	self.MapTiles = {}
 
@@ -125,7 +155,8 @@ function MapVoteMenu:Initialise()
 									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
 									Size = Units.HighResScaled( 96 )
 								},
-								Text = Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_TITLE" )
+								Text = Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_TITLE" ),
+								StyleName = "HeaderLabel"
 							}
 						}
 					}
@@ -148,7 +179,8 @@ function MapVoteMenu:Initialise()
 								AutoFont = {
 									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
 									Size = Units.HighResScaled( 29 )
-								}
+								},
+								StyleName = "HeaderLabel"
 							}
 						},
 						{
@@ -160,7 +192,8 @@ function MapVoteMenu:Initialise()
 									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
 									Size = Units.HighResScaled( 29 )
 								},
-								Text = Shared.GetMapName()
+								Text = Shared.GetMapName(),
+								StyleName = "HeaderLabel"
 							}
 						}
 					}
@@ -193,15 +226,35 @@ function MapVoteMenu:PlayerKeyPress( Key, Down )
 	return Controls.Panel.PlayerKeyPress( self, Key, Down )
 end
 
+function MapVoteMenu:FadeIn()
+	self:SetIsVisible( true )
+	self:AlphaTo( nil, 0, 1, 0, 0.3 )
+end
+
+function MapVoteMenu:FadeOut( Callback )
+	self:AlphaTo( nil, nil, 0, 0, 0.3, function()
+		self:SetIsVisible( false )
+		self:OnClose()
+		if Callback then
+			-- Call after Think exits to avoid destroying GUIItems that are in use.
+			SGUI:AddPostEventAction( Callback )
+		end
+	end )
+end
+
 function MapVoteMenu:OnClose()
 
 end
 
-function MapVoteMenu:Close()
-	if not self:GetIsVisible() then return end
+function MapVoteMenu:Close( Callback )
+	if not self:GetIsVisible() then
+		if Callback then
+			Callback()
+		end
+		return
+	end
 
-	-- TODO: Add a nicer fade out animation when AnimateUI == true.
-	self:SetIsVisible( false )
+	self:FadeOut( Callback )
 	SGUI:EnableMouse( false )
 end
 
@@ -218,7 +271,7 @@ function MapVoteMenu:SetMaps( Maps )
 		Tile:SetText( Entry.NiceName )
 		Tile:SetSelected( Entry.IsSelected )
 		Tile:SetNumVotes( Entry.NumVotes )
-		Tile:SetFill( true )
+		Tile:SetInheritsParentAlpha( true )
 
 		self.MapTiles[ i ] = Tile
 		self.MapTiles[ Entry.MapName ] = Tile
@@ -228,6 +281,7 @@ function MapVoteMenu:SetMaps( Maps )
 	MapDataRepository.GetPreviewImages( Maps, function( MapName, TextureName, Err )
 		if Err then
 			LuaPrint( "Failed to load preview image for", MapName, Err )
+			Tile:OnPreviewTextureFailed( Err )
 			return
 		end
 
@@ -278,6 +332,7 @@ function MapVoteMenu:SetupTileGrid()
 			local Tile = self.MapTiles[ TileIndex ]
 			if not Tile then break end
 
+			Tile:SetSize( Vector2( TileSize, TileSize ) )
 			if j > 1 then
 				Tile:SetMargin( Units.Spacing( Margin, 0, 0, 0 ) )
 			end

@@ -25,8 +25,11 @@ SGUI.AddProperty( MapTile, "PreviewTexture" )
 SGUI.AddProperty( MapTile, "Selected", false )
 
 SGUI.AddBoundProperty( MapTile, "Text", "MapNameLabel:SetText" )
+SGUI.AddBoundProperty( MapTile, "TextColour", { "MapNameLabel:SetColour", "VoteCounterLabel:SetColour" } )
 SGUI.AddBoundProperty( MapTile, "MapNameAutoFont", "MapNameLabel:SetAutoFont" )
 SGUI.AddBoundProperty( MapTile, "VoteCounterAutoFont", "VoteCounterLabel:SetAutoFont" )
+
+SGUI.AddBoundProperty( MapTile, "Shader", "Background" )
 
 function MapTile:Initialise()
 	Controls.Button.Initialise( self )
@@ -55,7 +58,8 @@ function MapTile:Initialise()
 							Class = "Label",
 							Props = {
 								Alignment = SGUI.LayoutAlignment.CENTRE,
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								StyleName = "MapTileLabel"
 							}
 						}
 					}
@@ -66,7 +70,8 @@ function MapTile:Initialise()
 					Props = {
 						Fill = true,
 						IsVisible = false,
-						Colour = Colour( 1, 1, 1, 0 )
+						Colour = Colour( 1, 1, 1, 0 ),
+						InheritsParentAlpha = true
 					}
 				},
 				{
@@ -74,7 +79,7 @@ function MapTile:Initialise()
 					Class = "Row",
 					Props = {
 						Fill = true,
-						Colour = Colour( 0, 0, 0, 0.25 )
+						StyleName = "LoadingIndicatorContainer"
 					},
 					Children = {
 						{
@@ -102,7 +107,8 @@ function MapTile:Initialise()
 							Class = "Label",
 							Props = {
 								Alignment = SGUI.LayoutAlignment.CENTRE,
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								StyleName = "MapTileLabel"
 							}
 						}
 					}
@@ -156,8 +162,6 @@ function MapTile:Initialise()
 			self.LoadingIndicator = nil
 		end
 
-		LuaPrint( Texture )
-
 		self.PreviewImage:SetIsVisible( true )
 
 		if StringStartsWith( Texture, "screens/" ) then
@@ -179,6 +183,10 @@ end
 function MapTile:SetMap( ModID, MapName )
 	self.ModID = ModID
 	self.MapName = MapName
+end
+
+function MapTile:OnPreviewTextureFailed( Err )
+	self:SetPreviewTexture( "ui/shine/unknown_map.tga" )
 end
 
 function MapTile:Think( DeltaTime )

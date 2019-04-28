@@ -12,12 +12,14 @@ local SGUI = Shine.GUI
 local ProgressWheel = {}
 
 SGUI.AddBoundProperty( ProgressWheel, "Colour", { "LeftHalf:SetColor", "RightHalf:SetColor" } )
+SGUI.AddBoundProperty( ProgressWheel, "InheritsParentAlpha", { "Background", "LeftHalf", "RightHalf" } )
 
 function ProgressWheel:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Background = self:MakeGUIItem()
-	self.Background:SetColor( Colour( 1, 1, 1, 0 ) )
+	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
+	self.Background:SetColor( Colour( 1, 1, 1, 1 ) )
 	self.Background:SetClearsStencilBuffer( true )
 
 	self.LeftMask = self:MakeGUIItem()

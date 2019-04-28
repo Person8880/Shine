@@ -34,6 +34,7 @@ local SetterKeys = setmetatable( TableNew( 0, 100 ), {
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
 SGUI.AddProperty( ControlMeta, "PropagateSkin" )

@@ -20,6 +20,8 @@ local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
+PrecacheAsset "shaders/shine/gui_none.surface_shader"
+
 -- Useful functions for colours.
 include "lua/shine/lib/colour.lua"
 
