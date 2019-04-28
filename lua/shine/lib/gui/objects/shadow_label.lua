@@ -8,6 +8,7 @@ local Controls = SGUI.Controls
 local ShadowLabel = {}
 
 SGUI.AddBoundProperty( ShadowLabel, "Font", { "Label:SetFontName", "LabelShadow:SetFontName" }, { "InvalidatesParent" } )
+SGUI.AddBoundProperty( ShadowLabel, "InheritsParentAlpha", { "Label", "LabelShadow" } )
 SGUI.AddBoundProperty( ShadowLabel, "Text", { "Label", "LabelShadow" }, { "InvalidatesParent" } )
 SGUI.AddBoundProperty( ShadowLabel, "TextAlignmentX", { "Label", "LabelShadow" } )
 SGUI.AddBoundProperty( ShadowLabel, "TextAlignmentY", { "Label", "LabelShadow" } )
