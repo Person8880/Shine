@@ -223,7 +223,9 @@ end
 
 function ListEntry:Think( DeltaTime )
 	if not self:IsInView() then return end
+
 	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function ListEntry:OnMouseDown( Key, DoubleClick )

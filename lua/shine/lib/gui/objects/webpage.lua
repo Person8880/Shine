@@ -92,6 +92,7 @@ end
 
 function Webpage:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 
 	if self.IsLoading and self:GetHasLoaded() then
 		self.IsLoading = false

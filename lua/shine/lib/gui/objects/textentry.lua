@@ -762,6 +762,7 @@ function TextEntry:Think( DeltaTime )
 	end
 
 	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function TextEntry:OnMouseUp()

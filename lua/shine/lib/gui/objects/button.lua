@@ -192,19 +192,6 @@ function Button:SetInactiveCol( Col )
 	end
 end
 
-function Button:Think( DeltaTime )
-	if not self.Background then return end
-	if not self.Background:GetIsVisible() then return end
-
-	self.BaseClass.Think( self, DeltaTime )
-
-	if SGUI.IsValid( self.Tooltip ) then
-		self.Tooltip:Think( DeltaTime )
-	end
-
-	self:CallOnChildren( "Think", DeltaTime )
-end
-
 function Button:SetDoClick( Func )
 	self.DoClick = Func
 end

@@ -578,6 +578,16 @@ do
 		__index = ControlMeta
 	}
 
+	local function AfterParentSet( Table )
+		-- This exists for backwards compatibility reasons. The base control Think doesn't call Think on its children,
+		-- so changing that would end up calling Think twice on any control that had previously implemented it.
+		if Table.Think == ControlMeta.Think then
+			Table.Think = ControlMeta.ThinkWithChildren
+		end
+
+		Table.__tostring = Table.__tostring or ControlMeta.__tostring
+	end
+
 	--[[
 		Registers a control meta-table.
 		We'll use this to create instances of it (instead of loading a script
@@ -589,7 +599,6 @@ do
 			3. Optional parent name. This will make the object inherit the parent's table keys.
 	]]
 	function SGUI:Register( Name, Table, Parent )
-		-- Read methods/fields from the given table.
 		Table.__index = Table
 		Table.__Name = Name
 
@@ -612,14 +621,13 @@ do
 				setmetatable( Table, {
 					__index = ParentTable
 				} )
+				AfterParentSet( Table )
 			end
 		else
 			-- No parent means only look in its meta-table and the base meta-table.
-			Table.__index = Table
 			setmetatable( Table, InheritFromBaseControl )
+			AfterParentSet( Table )
 		end
-
-		Table.__tostring = Table.__tostring or ControlMeta.__tostring
 
 		-- Used to call base class functions for things like :MoveTo()
 		Table.BaseClass = ControlMeta
@@ -635,6 +643,7 @@ do
 			}
 			for i = 1, #ChildTypes do
 				setmetatable( ChildTypes[ i ], InheritFromParent )
+				AfterParentSet( ChildTypes[ i ] )
 			end
 
 			ControlTypesWaitingForParent:Remove( Name )

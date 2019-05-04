@@ -90,6 +90,7 @@ function Tooltip:Think( DeltaTime )
 	end
 
 	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function Tooltip:FadeIn()

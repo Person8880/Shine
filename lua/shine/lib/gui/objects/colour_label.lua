@@ -132,10 +132,5 @@ function ColourLabel:GetSize()
 	return Vector2( Width, Height )
 end
 
-function ColourLabel:Think( DeltaTime )
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
-end
-
 SGUI:AddMixin( ColourLabel, "Clickable" )
 SGUI:Register( "ColourLabel", ColourLabel )

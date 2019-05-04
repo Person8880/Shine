@@ -184,6 +184,7 @@ end
 
 function Notification:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 
 	if self.FadingIn or self.FadingOut then
 		return
@@ -246,11 +247,6 @@ function Notification:FadeOutAfter( Duration, Callback )
 		self.FadeOutTimer = nil
 		self:FadeOut()
 	end )
-end
-
-function Notification:Think( DeltaTime )
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
 end
 
 SGUI:Register( "Notification", Notification )

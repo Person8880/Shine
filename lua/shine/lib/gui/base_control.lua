@@ -518,8 +518,7 @@ end
 	Override this for stencilled stuff.
 ]]
 function ControlMeta:GetIsVisible()
-	if not self.Background.GetIsVisible then return false end
-
+	if not self.Background then return false end
 	return self.Background:GetIsVisible()
 end
 
@@ -531,7 +530,9 @@ SGUI.AddProperty( ControlMeta, "Layout" )
 ]]
 function ControlMeta:SetLayout( Layout, DeferInvalidation )
 	self.Layout = Layout
-	Layout:SetParent( self )
+	if Layout then
+		Layout:SetParent( self )
+	end
 	self:InvalidateLayout( not DeferInvalidation )
 end
 
@@ -1236,6 +1237,9 @@ function ControlMeta:StopResizing( Element )
 	self:StopEasing( Element, Easers.Size )
 end
 
+SGUI.AddProperty( ControlMeta, "ActiveCol" )
+SGUI.AddProperty( ControlMeta, "InactiveCol" )
+
 --[[
 	Sets an SGUI control to highlight on mouse over automatically.
 
@@ -1343,6 +1347,13 @@ function ControlMeta:Think( DeltaTime )
 	self:HandleEasing( Time, DeltaTime )
 	self:HandleHovering( Time )
 	self:HandleLayout( DeltaTime )
+end
+
+function ControlMeta:ThinkWithChildren( DeltaTime )
+	if not self:GetIsVisible() then return end
+
+	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function ControlMeta:GetTooltipOffset( MouseX, MouseY, Tooltip )

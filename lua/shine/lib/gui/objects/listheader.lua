@@ -92,10 +92,4 @@ function ListHeader:OnMouseUp( Key )
 	return true
 end
 
-function ListHeader:Think( DeltaTime )
-	if not self:GetIsVisible() then return end
-
-	self.BaseClass.Think( self, DeltaTime )
-end
-
 SGUI:Register( "ListHeader", ListHeader, "Button" )
