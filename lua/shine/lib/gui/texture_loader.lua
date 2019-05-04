@@ -86,11 +86,15 @@ local function FreeTexture( TextureName )
 		Entry.GUIView = nil
 	end
 
-	if Entry.URL then
+	if Entry.IsCaching and Entry.URL then
 		CacheByURL[ Entry.URL ] = nil
-		Entry.URL = nil
 	end
 
+	Entry.URL = nil
+	Entry.IsCaching = nil
+	Entry.SetupJS = nil
+	Entry.Width = nil
+	Entry.Height = nil
 	Entry.Free = true
 end
 
@@ -147,10 +151,15 @@ function WebViewImageLoader:ProcessNextEntry()
 		self.WebViewDestructionTimer = nil
 	end
 
-	local TextureName, PoolEntry = GetTextureName()
-	if Entry.IsCaching then
-		PoolEntry.URL = Entry.URL
+	local TextureName, PoolEntry
+	if Entry.TextureName then
+		TextureName, PoolEntry = Entry.TextureName, Entry.PoolEntry
+	else
+		TextureName, PoolEntry = GetTextureName()
 	end
+
+	PoolEntry.URL = Entry.URL
+	PoolEntry.IsCaching = Entry.IsCaching
 
 	Entry.TextureName = TextureName
 	Entry.PoolEntry = PoolEntry
@@ -280,13 +289,17 @@ local StateUpdaters = {
 
 		LuaPrint( Clock(), "Image loaded, now copying", Entry.URL, "into GUIView..." )
 
-		local View = Client.CreateGUIView( Entry.Width, Entry.Height )
-		View:Load( "lua/shine/lib/gui/views/copy.lua" )
-		View:SetGlobal( "SourceTexture", self.TextureName )
-		View:SetGlobal( "Width", Entry.Width )
-		View:SetGlobal( "Height", Entry.Height )
+		local View = Entry.GUIView
+		if not View then
+			View = Client.CreateGUIView( Entry.Width, Entry.Height )
+			View:Load( "lua/shine/lib/gui/views/copy.lua" )
+			View:SetGlobal( "SourceTexture", self.TextureName )
+			View:SetGlobal( "Width", Entry.Width )
+			View:SetGlobal( "Height", Entry.Height )
+			View:SetTargetTexture( Entry.TextureName )
+		end
+
 		View:SetRenderCondition( GUIView.RenderOnce )
-		View:SetTargetTexture( Entry.TextureName )
 
 		Entry.GUIView = View
 		Entry.State = STATE_COPYING_TEXTURE
@@ -304,10 +317,13 @@ local StateUpdaters = {
 
 		LuaPrint( "GUIView has completed copying", Entry.URL, "calling callbacks and advancing to next image..." )
 
-		-- GUIView has finished rendering, can now pass along the texture and render
-		-- the next image.
 		-- Need to keep the GUIView alive, otherwise its target texture is deleted.
-		Entry.PoolEntry.GUIView = View
+		local PoolEntry = Entry.PoolEntry
+		PoolEntry.GUIView = View
+		-- Remember the parameters to ensure the texture can be loaded again if the render device resets.
+		PoolEntry.SetupJS = Entry.SetupJS
+		PoolEntry.Width = Entry.Width
+		PoolEntry.Height = Entry.Height
 
 		local CacheEntry = CacheByURL[ Entry.URL ]
 		if CacheEntry then
@@ -329,8 +345,8 @@ function WebViewImageLoader:WaitForURLToLoad()
 	StateUpdaters[ Entry.State ]( self, Entry )
 end
 
--- Multiple loaders allows concurrent loading of data, at the cost of more resource usage
--- while doing so. Ideally image loading should not be done during gameplay.
+-- Ideally using multiple WebViews would help here. However they seem to randomly share the same texture data
+-- and thus only 1 works at the moment.
 local ImageLoaders = {}
 for i = 1, 1 do
 	ImageLoaders[ i ] = WebViewImageLoader( i )
@@ -354,6 +370,34 @@ local function GetImageLoader()
 
 	return ImageLoaders[ LastImageLoaderIndex ]
 end
+
+Hook.Add( "OnRenderDeviceReset", "TextureLoader", function()
+	-- For every texture allocated, trigger a re-render when the render device resets as the engine
+	-- helpfully wipes all texture data.
+	for i = 1, #TexturePool do
+		local Entry = TexturePool[ i ]
+		if not Entry.Free then
+			LuaPrint( "Render device reset forcing re-render of texture:", Entry.TextureName )
+
+			local ImageLoader = GetImageLoader()
+			ImageLoader:AddEntry( {
+				URL = Entry.URL,
+				SetupJS = Entry.SetupJS,
+				Width = Entry.Width,
+				Height = Entry.Height,
+				TimeoutInSeconds = DefaultTimeout,
+				State = STATE_LOADING_URL,
+				Callbacks = {},
+				IsCaching = Entry.IsCaching,
+
+				-- Provide the existing name and pool entry to avoid allocating a new one.
+				TextureName = Entry.TextureName,
+				PoolEntry = Entry,
+				GUIView = Entry.GUIView
+			} )
+		end
+	end
+end )
 
 local TextureLoader = {
 	ErrorCodes = ErrorCodes

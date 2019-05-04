@@ -962,6 +962,49 @@ function SGUI.GetScreenSize()
 	return ScrW(), ScrH()
 end
 
+local function SetupRenderDeviceResetCheck()
+	local GetLastPresentTime = Client.GetLastPresentTime
+	local GetLastRenderResetTime = Client.GetLastRenderResetTime
+
+	local LastSeenRenderResetTime = GetLastRenderResetTime()
+	local LastPresentTime
+
+	local STATE_RENDERING = 1
+	local STATE_RESETTING = 2
+
+	local State = STATE_RENDERING
+
+	local SharedTime = Shared.GetTime
+
+	local function HasRenderDeviceReset()
+		local ResetTime = GetLastRenderResetTime()
+		if ResetTime > LastSeenRenderResetTime then
+			LastSeenRenderResetTime = ResetTime
+			return true
+		end
+		return false
+	end
+
+	-- This should have really been done in the engine...
+	Hook.Add( "Think", "CheckRenderDevice", function()
+		if HasRenderDeviceReset() then
+			LastPresentTime = SharedTime()
+			State = STATE_RESETTING
+		end
+
+		if State == STATE_RENDERING then return end
+
+		local PresentingTime = GetLastPresentTime()
+		if PresentingTime > LastPresentTime then
+			LastPresentTime = PresentingTime
+			State = STATE_RENDERING
+
+			-- Notify anything that may need to re-render itself after a render device reset.
+			Hook.Call( "OnRenderDeviceReset" )
+		end
+	end )
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
@@ -974,6 +1017,8 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
 	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
+
+	SetupRenderDeviceResetCheck()
 end )
 
 Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
