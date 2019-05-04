@@ -818,6 +818,10 @@ SGUI.AddProperty( ControlMeta, "AutoSize", nil, { "InvalidatesParent" } )
 -- AutoFont provides a way to set the font size automatically at layout time.
 SGUI.AddProperty( ControlMeta, "AutoFont", nil, { "InvalidatesParent" } )
 
+-- AspectRatio provides a way to make a control's height depend on its width, computed at layout time.
+-- This only works if the control has an AutoSize set, and will ignore the height value of the AutoSize entirely.
+SGUI.AddProperty( ControlMeta, "AspectRatio", nil, { "InvalidatesParent" } )
+
 -- Fill controls whether the element should have its size computed automatically during layout.
 SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
 
@@ -926,7 +930,10 @@ end
 -- Called before a layout computes the current height of the element.
 -- Override to add wrapping logic.
 function ControlMeta:PreComputeHeight( Width )
+	if not self.AspectRatio or not self.AutoSize then return end
 
+	-- Make height always relative to width.
+	self.AutoSize[ 2 ] = SGUI.Layout.Units.Absolute( Width * self.AspectRatio )
 end
 
 --[[
