@@ -80,5 +80,6 @@
 	"VOTE_COUNTER": "{NumVotes} {NumVotes:Pluralise:vote|votes}",
 	"VOTE_MENU_TYPE": "Display the map vote:",
 	"FULL": "In a full screen grid",
-	"MINIMAL": "In the vote menu"
+	"MINIMAL": "In the vote menu",
+	"TOGGLE_MAP_OVERVIEW_TOOLTIP": "Toggle map overview"
 }

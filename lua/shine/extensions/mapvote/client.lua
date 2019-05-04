@@ -388,6 +388,19 @@ do
 		end
 	end
 
+	function Plugin:OnResolutionChanged()
+		if not SGUI.IsValid( self.FullVoteMenu ) then return end
+
+		local WasVisible = self.FullVoteMenu:GetIsVisible()
+
+		self.FullVoteMenu:Destroy()
+		self.FullVoteMenu = nil
+
+		if WasVisible then
+			self:ShowFullVoteMenu()
+		end
+	end
+
 	Shine.VoteMenu:AddPage( "MapVote", function( self )
 		if ClosePageIfVoteFinished( self ) then return end
 

@@ -15,6 +15,8 @@ local ProgressWheel = {}
 SGUI.AddBoundProperty( ProgressWheel, "Colour", { "LeftHalf:SetColor", "RightHalf:SetColor" } )
 SGUI.AddBoundProperty( ProgressWheel, "InheritsParentAlpha", { "Background", "LeftHalf", "RightHalf" } )
 
+SGUI.AddProperty( ProgressWheel, "SpinRate", 0 )
+
 function ProgressWheel:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -164,6 +166,18 @@ function ProgressWheel:SetAngle( Angle )
 	self.LeftHalf:SetRotation( self.Angle )
 	self.RightHalf:SetRotation( self.Angle )
 	self.Background:SetRotation( self.Angle )
+end
+
+function ProgressWheel:Think( DeltaTime )
+	if not self:GetIsVisible() then return end
+
+	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
+
+	local SpinRate = self:GetSpinRate()
+	if SpinRate and SpinRate ~= 0 then
+		self:SetAngle( self:GetAngle() + DeltaTime * SpinRate )
+	end
 end
 
 SGUI:Register( "ProgressWheel", ProgressWheel )

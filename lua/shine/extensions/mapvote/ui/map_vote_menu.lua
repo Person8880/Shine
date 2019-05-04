@@ -30,14 +30,23 @@ local MapTileHeaderAlpha = 1
 local MapTileImageColour = Colour( 0.5, 0.5, 0.5, 1 )
 
 local HeaderVariations = {
-	AlienHeader = {
+	Alien = {
 		Colour = Colour( 1, 0.75, 0, HeaderAlpha ),
 		InheritsParentAlpha = true
 	},
-	MarineHeader = {
+	Marine = {
 		Colour = Colour( 0, 0.75, 1, HeaderAlpha ),
 		InheritsParentAlpha = true
 	}
+}
+local ProgressWheelBaseParams = {
+	WheelTexture = {
+		Texture = "ui/shine/wheel.tga",
+		W = 128,
+		H = 128
+	},
+	SpinRate = -math.pi * 2,
+	InheritsParentAlpha = true
 }
 
 local Skin = {
@@ -49,14 +58,19 @@ local Skin = {
 			TextInheritsParentAlpha = true,
 			InheritsParentAlpha = true,
 			Shader = "shaders/shine/gui_none.surface_shader"
+		},
+		ShowOverviewButton = {
+			TextColour = Colour( 1, 1, 1, 1 ),
+			TextInheritsParentAlpha = true,
+			InheritsParentAlpha = true,
+			Shader = "shaders/shine/gui_none.surface_shader"
 		}
 	},
 	Image = {
 		PreviewImage = {
 			InactiveCol = MapTileImageColour,
 			ActiveCol = Colour( 1, 1, 1, 1 ),
-			Colour = MapTileImageColour,
-			HighlightOnMouseOver = true
+			Colour = MapTileImageColour
 		}
 	},
 	Label = {
@@ -81,11 +95,11 @@ local Skin = {
 			TextInheritsParentAlpha = true,
 			MapNameAutoFont = {
 				Family = "kAgencyFB",
-				Size = Units.HighResScaled( 41 )
+				Size = Units.HighResScaled( 27 )
 			},
 			VoteCounterAutoFont = {
 				Family = "kAgencyFB",
-				Size = Units.HighResScaled( 41 )
+				Size = Units.HighResScaled( 27 )
 			},
 			IconShadow = {
 				Colour = Colour( 0, 0, 0, 0.75 )
@@ -95,15 +109,12 @@ local Skin = {
 		}
 	},
 	ProgressWheel = {
-		Default = {
-			WheelTexture = {
-				Texture = "ui/shine/wheel.tga",
-				W = 128,
-				H = 128
-			},
-			Colour = Colour( 1, 0.75, 0, 1 / 0.25 ),
-			InheritsParentAlpha = true
-		}
+		Alien = table.ShallowMerge( ProgressWheelBaseParams, {
+			Colour = Colour( 1, 0.75, 0, 1 / 0.25 )
+		} ),
+		Marine = table.ShallowMerge( ProgressWheelBaseParams, {
+			Colour = Colour( 0, 0.75, 1, 1 / 0.25 )
+		} )
 	},
 	Row = table.ShallowMerge( HeaderVariations, {
 		LoadingIndicatorContainer = {
@@ -138,7 +149,7 @@ function MapVoteMenu:Initialise()
 	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
 	self.MapTiles = {}
 
-	local HeaderVariation = self:GetHeaderVariation()
+	local TeamVariation = self:GetTeamVariation()
 	local SmallPadding = Units.HighResScaled( 8 )
 
 	self.Elements = SGUI:BuildTree( self, {
@@ -154,7 +165,7 @@ function MapVoteMenu:Initialise()
 					Class = "Column",
 					Props = {
 						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + Units.HighResScaled( 16 ) ),
-						StyleName = HeaderVariation
+						StyleName = TeamVariation
 					},
 					Children = {
 						{
@@ -178,7 +189,7 @@ function MapVoteMenu:Initialise()
 						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + SmallPadding ),
 						Margin = Units.Spacing( 0, SmallPadding, 0, 0 ),
 						Padding = Units.Spacing( SmallPadding, 0, SmallPadding, 0 ),
-						StyleName = HeaderVariation
+						StyleName = TeamVariation
 					},
 					Children = {
 						{
@@ -229,9 +240,9 @@ function MapVoteMenu:Initialise()
 	self:AddCloseButton( self )
 end
 
-function MapVoteMenu:GetHeaderVariation()
+function MapVoteMenu:GetTeamVariation()
 	local Player = Client.GetLocalPlayer()
-	return Player and Player:isa( "Alien" ) and "AlienHeader" or "MarineHeader"
+	return Player and Player:isa( "Alien" ) and "Alien" or "Marine"
 end
 
 function MapVoteMenu:PlayerKeyPress( Key, Down )
@@ -249,9 +260,13 @@ function MapVoteMenu:FadeIn()
 	self:SetIsVisible( true )
 	self:AlphaTo( nil, 0, 1, 0, 0.3 )
 
-	local HeaderVariation = self:GetHeaderVariation()
-	self.Elements.TitleBox:SetStyleName( HeaderVariation )
-	self.Elements.InformationBox:SetStyleName( HeaderVariation )
+	local TeamVariation = self:GetTeamVariation()
+	self.Elements.TitleBox:SetStyleName( TeamVariation )
+	self.Elements.InformationBox:SetStyleName( TeamVariation )
+
+	for i = 1, #self.MapTiles do
+		self.MapTiles[ i ]:SetTeamVariation( TeamVariation )
+	end
 end
 
 function MapVoteMenu:FadeOut( Callback )
@@ -295,6 +310,7 @@ function MapVoteMenu:SetMaps( Maps )
 		Tile:SetSelected( Entry.IsSelected )
 		Tile:SetNumVotes( Entry.NumVotes )
 		Tile:SetInheritsParentAlpha( true )
+		Tile:SetTeamVariation( self:GetTeamVariation() )
 
 		self.MapTiles[ i ] = Tile
 		self.MapTiles[ Entry.MapName ] = Tile

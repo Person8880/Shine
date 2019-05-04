@@ -23,6 +23,7 @@ SGUI.AddProperty( MapTile, "NumVotes", 0 )
 SGUI.AddProperty( MapTile, "OverviewTexture" )
 SGUI.AddProperty( MapTile, "PreviewTexture" )
 SGUI.AddProperty( MapTile, "Selected", false )
+SGUI.AddProperty( MapTile, "TeamVariation", "Marine" )
 
 SGUI.AddBoundProperty( MapTile, "Text", "MapNameLabel:SetText" )
 SGUI.AddBoundProperty( MapTile, "TextColour", { "MapNameLabel:SetColour", "VoteCounterLabel:SetColour" } )
@@ -33,7 +34,7 @@ function MapTile:Initialise()
 	Controls.Button.Initialise( self )
 
 	self:SetHorizontal( false )
-	self:SetHighlightOnMouseOver( false )
+	self.Highlighted = false
 
 	TableShallowMerge( SGUI:BuildTree( self, {
 		{
@@ -57,7 +58,27 @@ function MapTile:Initialise()
 							Props = {
 								Alignment = SGUI.LayoutAlignment.CENTRE,
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								AutoWrap = true,
 								StyleName = "MapTileLabel"
+							}
+						},
+						{
+							ID = "ShowOverviewButton",
+							Class = "Button",
+							Props = {
+								Icon = SGUI.Icons.Ionicons.Earth,
+								Alignment = SGUI.LayoutAlignment.MAX,
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								StyleName = "ShowOverviewButton",
+								AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+								DoClick = function()
+									if SGUI.IsValid( self.OverviewImageContainer ) then
+										self:HideOverviewImage()
+									else
+										self:ShowOverviewImage()
+									end
+								end,
+								Tooltip = Locale:GetPhrase( "mapvote", "TOGGLE_MAP_OVERVIEW_TOOLTIP" )
 							}
 						}
 					}
@@ -87,8 +108,9 @@ function MapTile:Initialise()
 								Fraction = 0.75,
 								Alignment = SGUI.LayoutAlignment.CENTRE,
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								-- TODO: Add a way to make height == width as a unit
-								AutoSize = Units.UnitVector( Units.HighResScaled( 64 ), Units.HighResScaled( 64 ) )
+								AutoSize = Units.UnitVector( Units.Percentage( 25 ), 0 ),
+								AspectRatio = 1,
+								StyleName = self:GetTeamVariation()
 							}
 						}
 					}
@@ -115,6 +137,13 @@ function MapTile:Initialise()
 		}
 
 	} ), self )
+
+	self.MapNameLabel:SetAutoSize(
+		Units.UnitVector(
+			Units.Min( Units.Auto(), Units.Percentage( 100 ) - Units.Auto( self.ShowOverviewButton ) * 2 ),
+			Units.Auto()
+		)
+	)
 
 	Binder():FromElement( self, "NumVotes" )
 		:ToElement( self.VoteCounterLabel, "Text", {
@@ -151,6 +180,14 @@ function MapTile:Initialise()
 		} )
 		:BindProperty()
 
+	Binder():FromElement( self, "Highlighted" )
+		:ToElement( self.ShowOverviewButton, "IsVisible" )
+		:BindProperty()
+
+	Binder():FromElement( self, "TeamVariation" )
+		:ToElement( self.LoadingIndicator, "StyleName" )
+		:BindProperty()
+
 	self.PreviewImage:AddPropertyChangeListener( "Texture", function( Texture )
 		if not Texture then return end
 
@@ -172,53 +209,101 @@ function MapTile:Initialise()
 	end )
 end
 
-function MapTile:OnHover()
-	if self.OverviewTexture then
-		if not SGUI.IsValid( self.OverviewImage ) then
-			local Elements = SGUI:BuildTree( self.PreviewImage, {
-				{
-					Type = "Layout",
-					Class = "Vertical",
-					Children = {
-						{
-							ID = "OverviewImage",
-							Class = "Image",
-							Props = {
-								Colour = Colour( 1, 1, 1, 0 ),
-								Texture = self.OverviewTexture,
-								Fill = true
+function MapTile:SetHighlighted( Highlighted, SkipAnim )
+	self.Highlighted = Highlighted
+	self:OnPropertyChanged( "Highlighted", Highlighted )
+
+	local Colour = Highlighted and self.PreviewImage.ActiveCol or self.PreviewImage.InactiveCol
+	if SkipAnim then
+		self.PreviewImage:SetColour( Colour )
+		return
+	end
+
+	self.PreviewImage:FadeTo( self.PreviewImage.Background, nil, Colour, 0, 0.1 )
+end
+
+function MapTile:ShowOverviewImage()
+	if not SGUI.IsValid( self.OverviewImageContainer ) then
+		TableShallowMerge( SGUI:BuildTree( self.PreviewImage, {
+			{
+				Type = "Layout",
+				Class = "Vertical",
+				Children = {
+					{
+						ID = "OverviewImageContainer",
+						Class = "Column",
+						Props = {
+							Colour = Colour( 0, 0, 0, 0 ),
+							Fill = true,
+							InheritsParentAlpha = true
+						},
+						Children = {
+							{
+								ID = "OverviewImageLoadingIndicator",
+								Class = "ProgressWheel",
+								Props = {
+									Fraction = 0.75,
+									Alignment = SGUI.LayoutAlignment.CENTRE,
+									CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+									AutoSize = Units.UnitVector( Units.Percentage( 25 ), 0 ),
+									AspectRatio = 1,
+									StyleName = self:GetTeamVariation()
+								}
+							},
+							{
+								ID = "OverviewImage",
+								Class = "Image",
+								Props = {
+									IsVisible = false,
+									Colour = Colour( 1, 1, 1, 0 ),
+									Texture = self.OverviewTexture,
+									Alignment = SGUI.LayoutAlignment.CENTRE,
+									CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+									AspectRatio = 1,
+									AutoSize = Units.UnitVector( Units.Percentage( 75 ), 0 ),
+									InheritsParentAlpha = true
+								}
 							}
 						}
 					}
 				}
-			} )
-			self.OverviewImage = Elements.OverviewImage
-			self.PreviewImage:InvalidateLayout( true )
+			}
+		} ), self )
+		self.PreviewImage:InvalidateLayout( true )
+		self.OverviewImageContainer:AlphaTo( nil, nil, 0.5, 0, 0.3 )
+	end
+
+	if self.OverviewTexture then
+		if SGUI.IsValid( self.OverviewImageLoadingIndicator ) then
+			self.OverviewImageLoadingIndicator:Destroy()
+			self.OverviewImageLoadingIndicator = nil
 		end
 
-		self.OverviewImage:AlphaTo( nil, nil, 1, 0.3 )
-
+		self.OverviewImage:SetTexture( self.OverviewTexture )
+		self.OverviewImage:SetIsVisible( true )
+		self.OverviewImage:AlphaTo( nil, nil, 2, 0, 0.3 )
 		return
 	end
 
 	MapDataRepository.GetOverviewImage( self.ModID, self.MapName, function( MapName, TextureName, Err )
 		if Err then
+			self.OverviewTexture = "ui/shine/unknown_map.tga"
 			return
 		end
 
 		self:SetOverviewTexture( TextureName )
-
-		if not self.MouseHovered then return end
-
-		self:OnHover()
+		self:ShowOverviewImage()
 	end )
 end
 
-function MapTile:OnLoseHover()
-	if SGUI.IsValid( self.OverviewImage ) then
-		self.OverviewImage:AlphaTo( nil, nil, 0, 0.3, function()
+function MapTile:HideOverviewImage()
+	if SGUI.IsValid( self.OverviewImageContainer ) then
+		self.OverviewImageContainer:AlphaTo( nil, nil, 0, 0, 0.3, function()
 			self.PreviewImage:SetLayout( nil )
-			self.OverviewImage:Destroy()
+			self.OverviewImage:StopAlpha()
+
+			self.OverviewImageContainer:Destroy()
+			self.OverviewImageContainer = nil
 			self.OverviewImage = nil
 		end )
 	end
@@ -236,14 +321,6 @@ end
 
 function MapTile:OnPreviewTextureFailed( Err )
 	self:SetPreviewTexture( "ui/shine/unknown_map.tga" )
-end
-
-function MapTile:Think( DeltaTime )
-	Controls.Button.Think( self, DeltaTime )
-
-	if self.LoadingIndicator then
-		self.LoadingIndicator:SetAngle( self.LoadingIndicator:GetAngle() - DeltaTime * Pi * 2 )
-	end
 end
 
 return MapTile
