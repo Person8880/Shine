@@ -359,6 +359,8 @@ do
 end
 
 do
+	local TableRemoveByValue = table.RemoveByValue
+
 	local function RefreshFocusedWindow( self, Window )
 		local Windows = self.Windows
 		for i = 1, #Windows do
@@ -378,27 +380,38 @@ do
 		Sets the current in-focus window.
 		Inputs: Window object, windows index.
 	]]
-	function SGUI:SetWindowFocus( Window, i )
+	function SGUI:SetWindowFocus( Window )
+		if Window == self.FocusedWindow or not self.Windows[ Window ] then
+			return
+		end
+
 		local Windows = self.Windows
-
-		if Window ~= self.FocusedWindow and not i then
-			for j = 1, #Windows do
-				local CurWindow = Windows[ j ]
-
-				if CurWindow == Window then
-					i = j
-					break
-				end
+		for i = #Windows, 1, -1 do
+			local CurWindow = Windows[ i ]
+			if CurWindow == Window then
+				TableRemove( Windows, i )
+				Windows[ #Windows + 1 ] = Window
+				break
 			end
 		end
 
-		if i then
-			TableRemove( Windows, i )
-
-			Windows[ #Windows + 1 ] = Window
-		end
-
 		RefreshFocusedWindow( self, Window )
+	end
+
+	function SGUI:AddWindow( Window )
+		if self.Windows[ Window ] then return end
+
+		self.Windows[ #self.Windows + 1 ] = Window
+		self.Windows[ Window ] = true
+	end
+
+	function SGUI:RemoveWindow( Window )
+		if not self.Windows[ Window ] then return end
+
+		self.Windows[ Window ] = nil
+		TableRemoveByValue( self.Windows, Window )
+
+		RefreshFocusedWindow( self, self.Windows[ #self.Windows ] )
 	end
 
 	function SGUI:MoveWindowToBottom( Window )
@@ -414,6 +427,10 @@ do
 
 		RefreshFocusedWindow( self, Windows[ #Windows ] )
 	end
+end
+
+function SGUI:IsWindow( Window )
+	return self.Windows[ Window ]
 end
 
 function SGUI:IsWindowInFocus( Window )
@@ -477,7 +494,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 			if Success then
 				if Result ~= nil then
 					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-						self:SetWindowFocus( Window, i )
+						self:SetWindowFocus( Window )
 					end
 
 					self:PostCallEvent( Result, Control )
@@ -643,35 +660,35 @@ do
 	]]
 	function SGUI:Create( Class, Parent, ParentElement )
 		local MetaTable = self.Controls[ Class ]
-
 		assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
 
 		ID = ID + 1
 
 		local Table = {}
-		local IsAWindow = MetaTable.IsWindow and not Parent and true or false
+		local IsWindow = MetaTable.IsWindow and not Parent and true or false
 
 		local Control = setmetatable( Table, MetaTable )
 		Control.Class = Class
 		Control.ID = ID
-		Control.IsAWindow = IsAWindow
+		Control.IsAWindow = IsWindow
+		if IsWindow then
+			-- Add before initialise so the control is marked as a window, and thus any children
+			-- have their TopLevelWindow assigned.
+			self:AddWindow( Control )
+		end
+
 		Control:Initialise()
 
-		self.ActiveControls:Add( Control, true )
-
-		-- If it's a window then we give it focus.
-		if IsAWindow then
-			local Windows = self.Windows
-			Windows[ #Windows + 1 ] = Control
-
+		if IsWindow then
 			self:SetWindowFocus( Control )
 		end
 
+		self.ActiveControls:Add( Control, true )
 		self.SkinManager:ApplySkin( Control )
 
-		if not Parent then return Control end
-
-		Control:SetParent( Parent, ParentElement )
+		if Parent then
+			Control:SetParent( Parent, ParentElement )
+		end
 
 		return Control
 	end
@@ -693,6 +710,8 @@ do
 
 		return rawget( self, "__OriginalIndex" )[ Key ]
 	end
+
+	local OnCallOnRemoveError = Shine.BuildErrorHandler( "SGUI CallOnRemove callback error" )
 
 	--[[
 		Destroys an SGUI control.
@@ -716,7 +735,6 @@ do
 			Control.Tooltip:Destroy()
 		end
 
-		-- SGUI children, not GUIItems.
 		if Control.Children then
 			for Control in Control.Children:Iterate() do
 				Control:Destroy()
@@ -724,42 +742,26 @@ do
 		end
 
 		local DeleteOnRemove = Control.__DeleteOnRemove
-
 		if DeleteOnRemove then
 			for i = 1, #DeleteOnRemove do
-				local Control = DeleteOnRemove[ i ]
-
-				if self.IsValid( Control ) then
-					Control:Destroy()
+				if self.IsValid( DeleteOnRemove[ i ] ) then
+					DeleteOnRemove[ i ]:Destroy()
 				end
 			end
 		end
-
-		Control:Cleanup()
 
 		local CallOnRemove = Control.__CallOnRemove
-
 		if CallOnRemove then
 			for i = 1, #CallOnRemove do
-				CallOnRemove[ i ]( Control )
+				-- Important to avoid errors here, otherwise the control will be left
+				-- in an inconsistent state.
+				xpcall( CallOnRemove[ i ], OnCallOnRemoveError, Control )
 			end
 		end
 
-		-- If it's a window, then clean it up.
-		if Control.IsAWindow then
-			local Windows = self.Windows
+		self:RemoveWindow( Control )
 
-			for i = 1, #Windows do
-				local Window = Windows[ i ]
-
-				if Window == Control then
-					TableRemove( Windows, i )
-					break
-				end
-			end
-
-			self:SetWindowFocus( Windows[ #Windows ] )
-		end
+		Control:Cleanup()
 
 		-- Re-assign the metatable to ensure usage causes an error next frame.
 		-- This avoids needing to check for validity constantly on every field access

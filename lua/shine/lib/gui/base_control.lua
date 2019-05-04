@@ -264,12 +264,15 @@ function ControlMeta:SetParent( Control, Element )
 
 	self.Parent = Control
 	self.ParentElement = Element
-	self:SetTopLevelWindow( Control.IsAWindow and Control or Control.TopLevelWindow )
+	self:SetTopLevelWindow( SGUI:IsWindow( Control ) and Control or Control.TopLevelWindow )
 	self:SetStencilled( Control.Stencilled )
 	if Control.Stencilled then
 		self:SetInheritsParentStencilSettings( true )
 	end
+
+	-- If the control was a window, now it's not.
 	self.IsAWindow = false
+	SGUI:RemoveWindow( self )
 
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
@@ -471,20 +474,11 @@ function ControlMeta:SetIsVisible( IsVisible )
 	self.Background:SetIsVisible( IsVisible )
 	self:InvalidateParent()
 
-	if not self.IsAWindow then return end
+	if not SGUI:IsWindow( self ) then return end
 
 	if IsVisible then
-		if SGUI.FocusedWindow == self then return end
-
 		-- Take focus on show.
-		local Windows = SGUI.Windows
-		for i = 1, #Windows do
-			local Window = Windows[ i ]
-			if Window == self then
-				SGUI:SetWindowFocus( self, i )
-				break
-			end
-		end
+		SGUI:SetWindowFocus( self )
 	else
 		if SGUI.FocusedWindow ~= self then return end
 
