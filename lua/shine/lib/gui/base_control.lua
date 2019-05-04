@@ -474,6 +474,10 @@ function ControlMeta:SetIsVisible( IsVisible )
 	self.Background:SetIsVisible( IsVisible )
 	self:InvalidateParent()
 
+	if not IsVisible then
+		self:HideTooltip()
+	end
+
 	if not SGUI:IsWindow( self ) then return end
 
 	if IsVisible then
