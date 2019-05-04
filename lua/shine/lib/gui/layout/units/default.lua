@@ -299,3 +299,28 @@ do
 		return Ceil( self.Value:GetValue( ParentSize, Element, Axis ) )
 	end
 end
+
+do
+	local Huge = math.huge
+	local MathMin = math.min
+
+	local Min = NewUnit( "Min" )
+
+	function Min:Init( ... )
+		self.Values = { ... }
+		return self
+	end
+
+	function Min:AddValue( Value )
+		self.Values[ #self.Values + 1 ] = Value
+		return self
+	end
+
+	function Min:GetValue( ParentSize, Element, Axis )
+		local MinValue = Huge
+		for i = 1, #self.Values do
+			MinValue = MathMin( MinValue, self.Values[ i ]:GetValue( ParentSize, Element, Axis ) )
+		end
+		return MinValue
+	end
+end
