@@ -175,8 +175,10 @@ function Panel:RecomputeMaxWidth()
 		local PanelWidth = MaxWidth
 
 		for Child in self.Children:Iterate() do
-			local MaxX = ComputeMaxWidth( Child, PanelWidth )
-			MaxWidth = Max( MaxWidth, MaxX )
+			if Child:GetIsVisible() then
+				local MaxX = ComputeMaxWidth( Child, PanelWidth )
+				MaxWidth = Max( MaxWidth, MaxX )
+			end
 		end
 
 		if self.Layout then
@@ -196,8 +198,10 @@ function Panel:RecomputeMaxHeight()
 		local PanelHeight = MaxHeight
 
 		for Child in self.Children:Iterate() do
-			local MaxY = ComputeMaxHeight( Child, PanelHeight )
-			MaxHeight = Max( MaxHeight, MaxY )
+			if Child:GetIsVisible() then
+				local MaxY = ComputeMaxHeight( Child, PanelHeight )
+				MaxHeight = Max( MaxHeight, MaxY )
+			end
 		end
 
 		if self.Layout then
@@ -219,36 +223,31 @@ function Panel:Add( Class, Created )
 		Element:SetStencilled( true )
 	end
 
-	local Pan = self --CLANG!
+	local function UpdateMaxSize( Child )
+		if not self.ScrollParent or not Child:GetIsVisible() then return end
 
-	local function UpdateMaxSize( Child, PanSize )
-		local NewMaxWidth = ComputeMaxWidth( Child, PanSize.x )
-		if NewMaxWidth > Pan:GetMaxWidth() then
-			Pan:SetMaxWidth( NewMaxWidth )
+		local Size = self:GetSize()
+		local NewMaxWidth = ComputeMaxWidth( Child, Size.x )
+		if NewMaxWidth > self:GetMaxWidth() then
+			self:SetMaxWidth( NewMaxWidth )
 		end
 
-		local NewMaxHeight = ComputeMaxHeight( Child, PanSize.y )
-		if NewMaxHeight > Pan:GetMaxHeight() then
-			Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
+		local NewMaxHeight = ComputeMaxHeight( Child, Size.y )
+		if NewMaxHeight > self:GetMaxHeight() then
+			self:SetMaxHeight( NewMaxHeight + self.BufferAmount )
 		end
 	end
 
 	local OldSetPos = Element.SetPos
 	function Element:SetPos( Pos )
 		OldSetPos( self, Pos )
-
-		if not Pan.ScrollParent then return end
-
-		UpdateMaxSize( self, Pan:GetSize() )
+		UpdateMaxSize( self )
 	end
 
 	local OldSetSize = Element.SetSize
 	function Element:SetSize( OurSize )
 		OldSetSize( self, OurSize )
-
-		if not Pan.ScrollParent then return end
-
-		UpdateMaxSize( self, Pan:GetSize() )
+		UpdateMaxSize( self )
 	end
 
 	return Element
@@ -620,7 +619,7 @@ SGUI.AddProperty( Panel, "AutoHideScrollbar" )
 local GetCursorPos
 
 local LastInput = 0
-local Clock = os and os.clock or Shared.GetTime
+local Clock = Shared.GetSystemTimeReal
 
 function Panel:DragClick( Key, DoubleClick )
 	if not self.Draggable then return end
