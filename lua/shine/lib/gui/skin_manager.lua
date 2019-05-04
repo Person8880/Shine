@@ -30,7 +30,7 @@ function SkinManager:RegisterSkin( Name, SkinTable )
 end
 
 function SkinManager:RefreshSkin()
-	for Control in SGUI.ActiveControls:Iterate() do
+	for Element in SGUI.ActiveControls:Iterate() do
 		self:ApplySkin( Element )
 	end
 end
