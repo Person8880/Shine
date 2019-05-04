@@ -26,7 +26,20 @@ local MapTile = require "shine/extensions/mapvote/ui/map_vote_menu_tile"
 local TextureLoader = require "shine/lib/gui/texture_loader"
 
 local HeaderAlpha = 0.25
-local MapTileHeaderAlpha = 0.5
+local MapTileHeaderAlpha = 1
+local MapTileImageColour = Colour( 0.5, 0.5, 0.5, 1 )
+
+local HeaderVariations = {
+	AlienHeader = {
+		Colour = Colour( 1, 0.75, 0, HeaderAlpha ),
+		InheritsParentAlpha = true
+	},
+	MarineHeader = {
+		Colour = Colour( 0, 0.75, 1, HeaderAlpha ),
+		InheritsParentAlpha = true
+	}
+}
+
 local Skin = {
 	Button = {
 		CloseButton = {
@@ -36,6 +49,14 @@ local Skin = {
 			TextInheritsParentAlpha = true,
 			InheritsParentAlpha = true,
 			Shader = "shaders/shine/gui_none.surface_shader"
+		}
+	},
+	Image = {
+		PreviewImage = {
+			InactiveCol = MapTileImageColour,
+			ActiveCol = Colour( 1, 1, 1, 1 ),
+			Colour = MapTileImageColour,
+			HighlightOnMouseOver = true
 		}
 	},
 	Label = {
@@ -84,11 +105,7 @@ local Skin = {
 			InheritsParentAlpha = true
 		}
 	},
-	Row = {
-		Header = {
-			Colour = Colour( 1, 0.75, 0, HeaderAlpha ),
-			InheritsParentAlpha = true
-		},
+	Row = table.ShallowMerge( HeaderVariations, {
 		LoadingIndicatorContainer = {
 			Colour = Colour( 0, 0, 0, 0.25 ),
 			InheritsParentAlpha = true
@@ -97,7 +114,7 @@ local Skin = {
 			Colour = Colour( 0, 0, 0, MapTileHeaderAlpha ),
 			InheritsParentAlpha = true
 		}
-	},
+	} ),
 	ShadowLabel = {
 		HeaderLabel = {
 			Colour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
@@ -107,12 +124,7 @@ local Skin = {
 			InheritsParentAlpha = true
 		}
 	},
-	Column = {
-		Header = {
-			Colour = Colour( 1, 0.75, 0, HeaderAlpha ),
-			InheritsParentAlpha = true
-		}
-	}
+	Column = HeaderVariations
 }
 
 local MapVoteMenu = SGUI:DefineControl( "MapVoteMenu", "Panel" )
@@ -123,13 +135,10 @@ function MapVoteMenu:Initialise()
 	Controls.Panel.Initialise( self )
 	self:SetSkin( Skin )
 
-	self.TitleBarHeight = Units.HighResScaled( 32 ):GetValue()
-	self:AddCloseButton( self )
-
 	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
-
 	self.MapTiles = {}
 
+	local HeaderVariation = self:GetHeaderVariation()
 	local SmallPadding = Units.HighResScaled( 8 )
 
 	self.Elements = SGUI:BuildTree( self, {
@@ -141,10 +150,11 @@ function MapVoteMenu:Initialise()
 			Class = "Vertical",
 			Children = {
 				{
+					ID = "TitleBox",
 					Class = "Column",
 					Props = {
 						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + Units.HighResScaled( 16 ) ),
-						StyleName = "Header"
+						StyleName = HeaderVariation
 					},
 					Children = {
 						{
@@ -162,12 +172,13 @@ function MapVoteMenu:Initialise()
 					}
 				},
 				{
+					ID = "InformationBox",
 					Class = "Row",
 					Props = {
 						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + SmallPadding ),
 						Margin = Units.Spacing( 0, SmallPadding, 0, 0 ),
 						Padding = Units.Spacing( SmallPadding, 0, SmallPadding, 0 ),
-						StyleName = "Header"
+						StyleName = HeaderVariation
 					},
 					Children = {
 						{
@@ -213,6 +224,14 @@ function MapVoteMenu:Initialise()
 	self.Elements.MapTileGridLayout:AddPropertyChangeListener( "Size", function( Size )
 		self:SetupTileGrid()
 	end )
+
+	self.TitleBarHeight = Units.HighResScaled( 32 ):GetValue()
+	self:AddCloseButton( self )
+end
+
+function MapVoteMenu:GetHeaderVariation()
+	local Player = Client.GetLocalPlayer()
+	return Player and Player:isa( "Alien" ) and "AlienHeader" or "MarineHeader"
 end
 
 function MapVoteMenu:PlayerKeyPress( Key, Down )
@@ -229,6 +248,10 @@ end
 function MapVoteMenu:FadeIn()
 	self:SetIsVisible( true )
 	self:AlphaTo( nil, 0, 1, 0, 0.3 )
+
+	local HeaderVariation = self:GetHeaderVariation()
+	self.Elements.TitleBox:SetStyleName( HeaderVariation )
+	self.Elements.InformationBox:SetStyleName( HeaderVariation )
 end
 
 function MapVoteMenu:FadeOut( Callback )

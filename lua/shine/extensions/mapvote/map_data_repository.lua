@@ -100,10 +100,6 @@ do
 			ModMaps[ ModID ] = nil
 		end
 	end
-
-	PrintTable( MapPreviews )
-	PrintTable( MapOverviews )
-	PrintTable( ModMaps )
 end
 
 local FileNameFormats = {

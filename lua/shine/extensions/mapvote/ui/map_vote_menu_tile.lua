@@ -29,8 +29,6 @@ SGUI.AddBoundProperty( MapTile, "TextColour", { "MapNameLabel:SetColour", "VoteC
 SGUI.AddBoundProperty( MapTile, "MapNameAutoFont", "MapNameLabel:SetAutoFont" )
 SGUI.AddBoundProperty( MapTile, "VoteCounterAutoFont", "VoteCounterLabel:SetAutoFont" )
 
-SGUI.AddBoundProperty( MapTile, "Shader", "Background" )
-
 function MapTile:Initialise()
 	Controls.Button.Initialise( self )
 
@@ -70,8 +68,8 @@ function MapTile:Initialise()
 					Props = {
 						Fill = true,
 						IsVisible = false,
-						Colour = Colour( 1, 1, 1, 0 ),
-						InheritsParentAlpha = true
+						InheritsParentAlpha = true,
+						StyleName = "PreviewImage"
 					}
 				},
 				{
@@ -166,13 +164,64 @@ function MapTile:Initialise()
 
 		if StringStartsWith( Texture, "screens/" ) then
 			-- Image was already mounted (thus there was no delay), display immediately.
-			self.PreviewImage:SetColour( Colour( 1, 1, 1, 1 ) )
 			return
 		end
 
 		-- Fade the image in after loading.
 		self.PreviewImage:AlphaTo( nil, 0, 1, 0, 0.3 )
 	end )
+end
+
+function MapTile:OnHover()
+	if self.OverviewTexture then
+		if not SGUI.IsValid( self.OverviewImage ) then
+			local Elements = SGUI:BuildTree( self.PreviewImage, {
+				{
+					Type = "Layout",
+					Class = "Vertical",
+					Children = {
+						{
+							ID = "OverviewImage",
+							Class = "Image",
+							Props = {
+								Colour = Colour( 1, 1, 1, 0 ),
+								Texture = self.OverviewTexture,
+								Fill = true
+							}
+						}
+					}
+				}
+			} )
+			self.OverviewImage = Elements.OverviewImage
+			self.PreviewImage:InvalidateLayout( true )
+		end
+
+		self.OverviewImage:AlphaTo( nil, nil, 1, 0.3 )
+
+		return
+	end
+
+	MapDataRepository.GetOverviewImage( self.ModID, self.MapName, function( MapName, TextureName, Err )
+		if Err then
+			return
+		end
+
+		self:SetOverviewTexture( TextureName )
+
+		if not self.MouseHovered then return end
+
+		self:OnHover()
+	end )
+end
+
+function MapTile:OnLoseHover()
+	if SGUI.IsValid( self.OverviewImage ) then
+		self.OverviewImage:AlphaTo( nil, nil, 0, 0.3, function()
+			self.PreviewImage:SetLayout( nil )
+			self.OverviewImage:Destroy()
+			self.OverviewImage = nil
+		end )
+	end
 end
 
 function MapTile:DoClick()
