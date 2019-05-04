@@ -7,7 +7,8 @@ local TableSort = table.sort
 
 local SGUI = Shine.GUI
 SGUI.Fonts = {
-	Ionicons = PrecacheAsset "fonts/ionicons.fnt"
+	Ionicons = PrecacheAsset "fonts/ionicons.fnt",
+	Ionicons64 = PrecacheAsset "fonts/ionicons_64.fnt"
 }
 SGUI.FontFamilies = {
 	Ionicons = "Ionicons",
@@ -42,7 +43,8 @@ end
 
 local FontFamilies = setmetatable( {
 	Ionicons = {
-		[ SGUI.Fonts.Ionicons ] = 32
+		[ SGUI.Fonts.Ionicons ] = 32,
+		[ SGUI.Fonts.Ionicons64 ] = 64
 	},
 	AgencyFBDistField = {
 		[ "fonts/AgencyFB_distfield.fnt" ] = 70
