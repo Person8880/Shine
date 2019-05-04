@@ -119,59 +119,33 @@ function Plugin:SetupAdminMenu()
 		SearchLayout:AddElement( MenuButton )
 		Layout:AddElement( SearchLayout )
 
-		local Menu
+		MenuButton:SetOpenMenuOnClick( function( Button )
+			return {
+				MenuPos = Vector2( -IDEntry:GetSize().x, Button:GetSize().y ),
+				Size = Vector2( IDEntry:GetSize().x + Button:GetSize().x, HighResScaled( 24 ):GetValue() ),
+				Populate = function( Menu )
+					Menu:SetMaxVisibleButtons( 12 )
+					Shine.AdminMenu:DestroyOnClose( Menu )
 
-		function MenuButton.DoClick( Button )
-			if Menu then
-				Shine.AdminMenu:DontDestroyOnClose( Menu )
-				MenuButton:SetForceHighlight( false )
+					Menu:CallOnRemove( function()
+						Shine.AdminMenu:DontDestroyOnClose( Menu )
+					end )
 
-				if Menu:IsValid() then
-					Menu:Destroy()
-				end
+					local PlayerEnts = GetEnts( "PlayerInfoEntity" )
+					for _, Ent in IterateEntList( PlayerEnts ) do
+						local SteamID = tostring( Ent.steamId )
+						local Name = Ent.playerName
 
-				Menu = nil
-
-				return
-			end
-
-			local Pos = Button:GetScreenPos()
-			Pos.x = Pos.x - IDEntry:GetSize().x
-			Pos.y = Pos.y + Button:GetSize().y
-
-			Menu = SGUI:Create( "Menu" )
-			Menu:SetPos( Pos )
-			Menu:SetButtonSize( Vector2( IDEntry:GetSize().x + Button:GetSize().x, HighResScaled( 24 ):GetValue(), 0 ) )
-			Menu:CallOnRemove( function()
-				-- Prevent clicking the menu button re-opening the menu instead of closing it.
-				if Menu.DestroyedBy == MenuButton then return end
-
-				Shine.AdminMenu:DontDestroyOnClose( Menu )
-				MenuButton:SetForceHighlight( false )
-				Menu = nil
-			end )
-			Menu:SetMaxVisibleButtons( 12 )
-			Shine.AdminMenu:DestroyOnClose( Menu )
-
-			MenuButton:SetForceHighlight( true )
-
-			local PlayerEnts = GetEnts( "PlayerInfoEntity" )
-
-			for _, Ent in IterateEntList( PlayerEnts ) do
-				local SteamID = tostring( Ent.steamId )
-				local Name = Ent.playerName
-
-				Menu:AddButton( Name, function()
-					if SGUI.IsValid( IDEntry ) then
-						IDEntry:SetText( SteamID )
+						Menu:AddButton( Name, function()
+							if SGUI.IsValid( IDEntry ) then
+								IDEntry:SetText( SteamID )
+							end
+							Menu:Destroy()
+						end ):SetFontScale( Font, Scale )
 					end
-
-					Shine.AdminMenu:DontDestroyOnClose( Menu )
-					Menu:Destroy()
-					Menu = nil
-				end ):SetFontScale( Font, Scale )
-			end
-		end
+				end
+			}
+		end )
 
 		local DurationLabel = SGUI:Create( "Label", Window )
 		DurationLabel:SetText( self:GetPhrase( "DURATION_LABEL" ) )

@@ -228,8 +228,10 @@ function Button:AddMenu( Size, MenuPos )
 	local Pos = self:GetScreenPos()
 	if MenuPos == self.MenuPos.RIGHT then
 		Pos.x = Pos.x + self:GetSize().x
-	else
+	elseif MenuPos == self.MenuPos.BOTTOM then
 		Pos.y = Pos.y + self:GetSize().y
+	elseif MenuPos then
+		Pos = Pos + MenuPos
 	end
 
 	local Menu = SGUI:Create( "Menu" )
@@ -238,7 +240,9 @@ function Button:AddMenu( Size, MenuPos )
 
 	self:SetForceHighlight( true )
 	Menu:CallOnRemove( function()
-		self:SetForceHighlight( false )
+		if self:IsValid() then
+			self:SetForceHighlight( false )
+		end
 	end )
 
 	self.Menu = Menu
