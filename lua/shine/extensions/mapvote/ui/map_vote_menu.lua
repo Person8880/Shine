@@ -248,7 +248,7 @@ end
 function MapVoteMenu:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 
-	if Key == InputKey.Escape then
+	if Key == InputKey.Escape and Down then
 		self:Close()
 		return true
 	end
