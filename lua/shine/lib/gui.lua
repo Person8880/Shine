@@ -878,6 +878,8 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	MouseTracker_ListenToMovement( Listener )
 	MouseTracker_ListenToButtons( Listener )
 	MouseTracker_ListenToWheel( Listener )
+
+	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 end )
 
 include( "lua/shine/lib/gui/base_control.lua" )
