@@ -841,10 +841,17 @@ local function NotifyFocusChange( Element, ClickingOtherElement )
 end
 SGUI.NotifyFocusChange = NotifyFocusChange
 
+local GetCursorPosScreen = Client.GetCursorPosScreen
+function SGUI.GetCursorPos()
+	return GetCursorPosScreen()
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
+	GetCursorPosScreen = Client.GetCursorPosScreen
+
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 

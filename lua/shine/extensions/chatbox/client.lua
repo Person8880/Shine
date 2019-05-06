@@ -26,6 +26,7 @@ local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableEmpty = table.Empty
 local TableRemove = table.remove
+local TableShallowMerge = table.ShallowMerge
 local type = type
 
 local Plugin = Shine.Plugin( ... )
@@ -209,6 +210,7 @@ local Skin = {
 		Default = {
 			ActiveCol = Colours.Highlight,
 			InactiveCol = Colours.Dark,
+			TextColour = Colours.ModeText,
 			States = {
 				Open = {
 					InactiveCol = Colours.Highlight
@@ -243,9 +245,15 @@ local Skin = {
 			TextColour = Colour( 1, 1, 1, 1 ),
 			PlaceholderTextColour = Colour( 0.8, 0.8, 0.8, 0.5 )
 		}
-	},
-
+	}
 }
+
+function Plugin:OnFirstThink()
+	-- Copy over default skin values to ensure they are applied regardless of the chosen
+	-- default skin.
+	local DefaultSkin = SGUI.SkinManager:GetSkinsByName().Default
+	TableShallowMerge( DefaultSkin, Skin )
+end
 
 local LayoutData = {
 	Sizes = {
@@ -465,6 +473,7 @@ function Plugin:CreateChatbox()
 		ScrollbarWidth = Ceil( 8 * WidthMult ),
 		ScrollbarHeightOffset = 0,
 		Scrollable = true,
+		HorizontalScrollingEnabled = false,
 		AllowSmoothScroll = self.Config.SmoothScroll,
 		StickyScroll = true,
 		Skin = Skin,
@@ -1154,6 +1163,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 		local ResultPanel = self.AutoCompletePanel
 		if not ResultPanel then
 			ResultPanel = SGUI:Create( "Panel", self.MainPanel )
+			ResultPanel:SetIsSchemed( false )
 			self.AutoCompletePanel = ResultPanel
 
 			ResultPanel:SetAnchor( "BottomLeft" )
@@ -1190,6 +1200,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				if not Label then
 					ShouldFade = true
 					Label = SGUI:Create( "ColourLabel", ResultPanel )
+					Label:SetIsSchemed( false )
 					Label:SetMargin( Spacing( 0, 0, 0, Scaled( 2, self.ScalarScale ) ) )
 					Elements[ i ] = Label
 				end

@@ -138,6 +138,7 @@ function CheckBox:AddLabel( Text )
 	end
 
 	local Label = SGUI:Create( "Label", self )
+	Label:SetIsSchemed( false )
 	Label:SetAnchor( GUIItem.Left, GUIItem.Center )
 	Label:SetTextAlignmentY( GUIItem.Align_Center )
 	Label:SetText( Text )

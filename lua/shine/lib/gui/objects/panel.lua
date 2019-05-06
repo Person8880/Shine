@@ -11,12 +11,21 @@ local Min = math.min
 
 local Panel = {}
 
---We're a window object!
+-- We're a window object!
 Panel.IsWindow = true
 
 local DefaultBuffer = 20
 local ScrollPos = Vector( -20, 10, 0 )
 local ZeroColour = Colour( 0, 0, 0, 0 )
+
+SGUI.AddProperty( Panel, "AutoHideScrollbar" )
+SGUI.AddProperty( Panel, "Draggable" )
+SGUI.AddProperty( Panel, "HorizontalScrollingEnabled", true )
+SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
+SGUI.AddProperty( Panel, "StickyScroll" )
+
+SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( Panel, "HideHorizontalScrollbar", "HorizontalScrollbar:SetHidden" )
 
 function Panel:Initialise()
 	self.BaseClass.Initialise( self )
@@ -25,6 +34,7 @@ function Panel:Initialise()
 	self.TitleBarHeight = 24
 	self.OverflowX = false
 	self.OverflowY = false
+	self.HorizontalScrollingEnabled = true
 end
 
 function Panel:SkinColour()
@@ -309,10 +319,6 @@ function Panel:Clear()
 	self.Layout = nil
 end
 
-SGUI.AddProperty( Panel, "StickyScroll" )
-SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
-SGUI.AddBoundProperty( Panel, "HideHorizontalScrollbar", "HorizontalScrollbar:SetHidden" )
-
 function Panel:ScrollIntoView( Child, ForceInstantScroll )
 	if Child.Parent ~= self then return end
 	if not self.ScrollParent or not self.ScrollParentPos then return end
@@ -424,7 +430,7 @@ end
 function Panel:SetMaxWidth( MaxWidth )
 	self.MaxWidth = MaxWidth
 
-	if not self.ShowScrollbar then return end
+	if not self.ShowScrollbar or not self.HorizontalScrollingEnabled then return end
 
 	local ElementWidth = self:GetSize().x
 
@@ -614,11 +620,7 @@ function Panel:SetScrollbarPos( Pos )
 	end
 end
 
-SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
-SGUI.AddProperty( Panel, "Draggable" )
-SGUI.AddProperty( Panel, "AutoHideScrollbar" )
-
-local GetCursorPos
+local GetCursorPos = SGUI.GetCursorPos
 
 local LastInput = 0
 local Clock = Shared.GetSystemTimeReal
@@ -640,8 +642,6 @@ function Panel:DragClick( Key, DoubleClick )
 
 		return true
 	end
-
-	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
 	local X, Y = GetCursorPos()
 

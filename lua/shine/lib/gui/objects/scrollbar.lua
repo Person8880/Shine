@@ -69,10 +69,12 @@ end
 
 function Scrollbar:GetNormalAlpha( Element )
 	if Element == self.Background then
-		return self:GetStyleValue( "BackgroundColour" ).a
+		local Colour = self:GetStyleValue( "BackgroundColour" )
+		return Colour and Colour.a or 1
 	end
 
-	return self:GetStyleValue( "InactiveCol" ).a
+	local Colour = self:GetStyleValue( "InactiveCol" )
+	return Colour and Colour.a or 1
 end
 
 function Scrollbar:SetSize( Size )
@@ -131,7 +133,7 @@ function Scrollbar:ScrollToBottom( Smoothed )
 	self:SetScroll( self:GetDiffSize() )
 end
 
-local GetCursorPos
+local GetCursorPos = SGUI.GetCursorPos
 
 function Scrollbar:OnMouseDown( Key, DoubleClick )
 	if self.Disabled then return end
@@ -140,8 +142,6 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	if not self:MouseIn( self.Bar ) then return end
 
 	self.Scrolling = true
-
-	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
 	local X, Y = GetCursorPos()
 

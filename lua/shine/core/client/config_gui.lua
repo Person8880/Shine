@@ -187,6 +187,42 @@ local SettingsTypes = {
 			return CheckBox
 		end
 	},
+	Dropdown = {
+		Create = function( Panel, Entry )
+			local DropdownPanel = Panel:Add( "Panel" )
+			DropdownPanel:SetStyleName( "RadioBackground" )
+			DropdownPanel:SetAutoSize( UnitVector(
+				Percentage( 100 ),
+				Units.Auto()
+			) )
+
+			local TranslationSource = Entry.TranslationSource or "Core"
+			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
+
+			local Description = DropdownPanel:Add( "Label" )
+			Description:SetFontScale( GetSmallFont() )
+			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
+			Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
+			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+			VerticalLayout:AddElement( Description )
+
+			local Dropdown = DropdownPanel:Add( "Dropdown" )
+			Dropdown:SetFontScale( GetSmallFont() )
+			Dropdown:AddOptions( Shine.IsCallable( Entry.Options ) and Entry.Options() or Entry.Options )
+			Dropdown:AddPropertyChangeListener( "SelectedOption", function( Option )
+				Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
+			end )
+			Dropdown:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+			VerticalLayout:AddElement( Dropdown )
+
+			local CurrentValue = GetConfiguredValue( Entry )
+			Dropdown:SelectOption( CurrentValue )
+
+			DropdownPanel:SetLayout( VerticalLayout, true )
+
+			return DropdownPanel
+		end
+	},
 	Radio = {
 		Create = function( Panel, Entry )
 			local RadioPanel = Panel:Add( "Panel" )

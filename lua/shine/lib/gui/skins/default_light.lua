@@ -1,22 +1,25 @@
 --[[
-	Default Shine GUI skin.
+	Default light Shine GUI skin.
 ]]
 
 local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
-local WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
-local HorizontalTabBackground = Colour( 0.4, 0.4, 0.4, 1 )
-local DarkButton = Colour( 0.2, 0.2, 0.2, 1 )
-local ButtonHighlight = Colour( 0.8, 0.5, 0.1, 1 )
-local BrightText = Colour( 1, 1, 1, 1 )
+local White = Colour( 1, 1, 1, 1 )
+
+local WindowBackground = White
+local HorizontalTabBackground = Colour( 0.85, 0.85, 0.85, 1 )
+local DarkButton = Colour( 0.9, 0.9, 0.9, 1 )
+local ButtonHighlight = Colour( 1, 0.878, 0.666, 1 )
+local BrightText = Colour( 0.25, 0.25, 0.25, 1 )
 local Clear = Colour( 0, 0, 0, 0 )
 
 local Danger = Colour( 1, 0, 0 )
 local Warning = Colour( 1, 0.6, 0 )
 local Info = Colour( 0, 0.5, 1 )
 
-local SuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
+local SuccessButton = Colour( 0.1, 1, 0.1, 1 )
+local DarkerSuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
 local DangerButton = Colour( 1, 0.2, 0.1, 1 )
 
 local OrangeButtonHighlight = Colour( 1, 0.4, 0, 1 )
@@ -40,31 +43,49 @@ local Skin = {
 		Default = DefaultButton,
 		CloseButton = {
 			ActiveCol = Colour( 0.7, 0.2, 0.2, 1 ),
-			InactiveCol = Colour( 0.5, 0.2, 0.2, 1 )
+			InactiveCol = Colour( 0.5, 0.2, 0.2, 1 ),
+			TextColour = White
 		},
 		MenuButton = {
-			InactiveCol = Colour( 0.25, 0.25, 0.25, 1 )
+			InactiveCol = WindowBackground
 		},
 		CategoryPanelButton = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = OrangeButtonHighlight,
-			InactiveCol = Colour( 0.3, 0.3, 0.3, 1 )
+			InactiveCol = Colour( 0.8, 0.8, 0.8, 1 ),
+			States = {
+				Highlighted = {
+					TextColour = White
+				}
+			}
 		},
 		SuccessButton = {
-			ActiveCol = SuccessButton
+			ActiveCol = SuccessButton,
+			States = {
+				Highlighted = {
+					TextColour = White
+				}
+			}
 		},
 		DangerButton = {
-			ActiveCol = DangerButton
+			ActiveCol = DangerButton,
+			States = {
+				Highlighted = {
+					TextColour = White
+				}
+			}
 		},
 		AcceptButton = {
-			InactiveCol = SuccessButton,
-			ActiveCol = SGUI.ColourWithAlpha( SuccessButton, 2 ),
-			InheritsParentAlpha = true
+			InactiveCol = DarkerSuccessButton,
+			ActiveCol = SGUI.ColourWithAlpha( DarkerSuccessButton, 2 ),
+			InheritsParentAlpha = true,
+			TextColour = White
 		},
 		DeclineButton = {
 			InactiveCol = DangerButton,
 			ActiveCol = SGUI.ColourWithAlpha( DangerButton, 2 ),
-			InheritsParentAlpha = true
+			InheritsParentAlpha = true,
+			TextColour = White
 		},
 		TabPanelTabListButton = {
 			InactiveCol = Clear,
@@ -85,7 +106,7 @@ local Skin = {
 	CheckBox = {
 		Default = {
 			BackgroundColour = DarkButton,
-			CheckedColour = ButtonHighlight,
+			CheckedColour = OrangeButtonHighlight,
 			TextColour = BrightText,
 			Font = Fonts.kAgencyFB_Small
 		}
@@ -121,33 +142,43 @@ local Skin = {
 			Colour = BrightText
 		},
 		Link = {
-			Colour = Colour( 1, 0.8, 0 )
+			Colour = OrangeButtonHighlight
 		}
 	},
 	List = {
 		Default = {
-			Colour = Colour( 0.2, 0.2, 0.2, 1 ),
+			Colour = Colour( 0.85, 0.85, 0.85, 1 ),
 			HeaderSize = 32,
 			LineSize = 32
 		}
 	},
 	ListEntry = {
 		Default = {
-			InactiveCol = Colour( 0.4, 0.4, 0.4, 1 ),
+			InactiveCol = Colour( 0.9, 0.9, 0.9, 1 ),
 			ActiveCol = OrangeButtonHighlight,
 			TextColour = BrightText,
-			Font = Fonts.kAgencyFB_Small
+			Font = Fonts.kAgencyFB_Small,
+			States = {
+				Highlighted = {
+					TextColour = White
+				}
+			}
 		},
 		DefaultEven = {
-			InactiveCol = Colour( 0.3, 0.3, 0.3, 1 )
+			InactiveCol = Colour( 0.8, 0.8, 0.8, 1 )
 		}
 	},
 	ListHeader = {
 		Default = {
-			ActiveCol = Colour( 0.6, 0.3, 0.2, 1 ),
-			InactiveCol = Colour( 0.2, 0.2, 0.2, 1 ),
+			ActiveCol = SGUI.SaturateColour( OrangeButtonHighlight, 0.75 ),
+			InactiveCol = Colour( 0.8, 0.8, 0.8, 1 ),
 			TextColour = BrightText,
-			Font = Fonts.kAgencyFB_Small
+			Font = Fonts.kAgencyFB_Small,
+			States = {
+				Highlighted = {
+					TextColour = White
+				}
+			}
 		}
 	},
 	Menu = {
@@ -157,9 +188,10 @@ local Skin = {
 	},
 	Notification = {
 		Default = {
-			TextColour = SGUI.ColourWithAlpha( BrightText, 2 ),
-			FlairIconColour = SGUI.ColourWithAlpha( BrightText, 2 ),
-			Colour = SGUI.ColourWithAlpha( DarkButton, 0.8 )
+			-- Same as the dark skin, lighter notifications don't look very good.
+			TextColour = SGUI.ColourWithAlpha( White, 2 ),
+			FlairIconColour = SGUI.ColourWithAlpha( White, 2 ),
+			Colour = Colour( 0.2, 0.2, 0.2, 0.8 )
 		},
 		Danger = {
 			FlairIconText = SGUI.Icons.Ionicons.AlertCircled,
@@ -179,10 +211,10 @@ local Skin = {
 			Colour = WindowBackground
 		},
 		TitleBar = {
-			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+			Colour = Colour( 0.9, 0.9, 0.9, 1 )
 		},
 		MenuPanel = {
-			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+			Colour = WindowBackground
 		},
 		RadioBackground = {
 			Colour = Clear
@@ -198,8 +230,8 @@ local Skin = {
 	},
 	Scrollbar = {
 		Default = {
-			BackgroundColour = Colour( 0, 0, 0, 0.2 ),
-			InactiveCol = Colour( 0.7, 0.7, 0.7, 1 ),
+			BackgroundColour = Colour( 0, 0, 0, 0.1 ),
+			InactiveCol = Colour( 0.6, 0.6, 0.6, 1 ),
 			ActiveCol = Colour( 1, 0.6, 0, 1 )
 		}
 	},
@@ -240,12 +272,12 @@ local Skin = {
 	},
 	TextEntry = {
 		Default = {
-			FocusColour = Colour( 0.35, 0.35, 0.35, 1 ),
-			DarkColour = Colour( 0.4, 0.4, 0.4, 1 ),
+			FocusColour = Colour( 0.95, 0.95, 0.95, 1 ),
+			DarkColour = Colour( 0.9, 0.9, 0.9, 1 ),
 			HighlightColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.5 ),
 			PlaceholderTextColour = SGUI.ColourWithAlpha( BrightText, 0.8 ),
 			TextColour = BrightText,
-			BorderColour = Colour( 0.3, 0.3, 0.3, 1 ),
+			BorderColour = Colour( 0.8, 0.8, 0.8, 1 ),
 			BorderSize = Vector2( 1, 1 ),
 			States = {
 				Focus = {
@@ -262,4 +294,4 @@ local Skin = {
 	}
 }
 
-SGUI.SkinManager:RegisterSkin( "Default", Skin )
+SGUI.SkinManager:RegisterSkin( "Default - Light", Skin )

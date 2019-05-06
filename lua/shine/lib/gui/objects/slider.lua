@@ -24,6 +24,15 @@ local Clear = Colour( 0, 0, 0, 0 )
 
 local IsType = Shine.IsType
 
+SGUI.AddProperty( Slider, "Decimals" )
+
+SGUI.AddBoundProperty( Slider, "Font", "Label" )
+SGUI.AddBoundProperty( Slider, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( Slider, "TextScale", "Label" )
+SGUI.AddBoundProperty( Slider, "HandleColour", "Handle:SetColor" )
+SGUI.AddBoundProperty( Slider, "LineColour", "Line:SetColor" )
+SGUI.AddBoundProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
+
 function Slider:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -60,6 +69,7 @@ function Slider:Initialise()
 	self.Handle = Handle
 
 	local Label = SGUI:Create( "Label", self )
+	Label:SetIsSchemed( false )
 	Label:SetAnchor( GUIItem.Right, GUIItem.Center )
 	Label:SetTextAlignmentY( GUIItem.Align_Center )
 	Label:SetPos( Padding )
@@ -124,21 +134,23 @@ function Slider:SetHandleWidth( Width )
 	self.Handle:SetSize( self.HandleSize )
 end
 
+local function RefreshSizes( self )
+	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
+	self.HandlePos.x = self.Width * self.Fraction
+
+	self.Handle:SetPosition( self.HandlePos )
+	self.Label:SetText( tostring( self.Value ) )
+	self:SizeLines()
+end
+
 function Slider:SetSize( Size )
 	self.BaseClass.SetSize( self, Size )
 
 	self.Height = Size.y
 	self.Width = Size.x
 
-	self:SetValue( self.Value )
+	RefreshSizes( self )
 end
-
-SGUI.AddBoundProperty( Slider, "Font", "Label" )
-SGUI.AddBoundProperty( Slider, "TextColour", "Label:SetColour" )
-SGUI.AddBoundProperty( Slider, "TextScale", "Label" )
-SGUI.AddBoundProperty( Slider, "HandleColour", "Handle:SetColor" )
-SGUI.AddBoundProperty( Slider, "LineColour", "Line:SetColor" )
-SGUI.AddBoundProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
 
 function Slider:SetPadding( Value )
 	self.Label:SetPos( Vector2( Value, 0 ) )
@@ -147,50 +159,42 @@ end
 --[[
 	Sets the slider's position by value.
 ]]
-function Slider:SetValue( Value )
+function Slider:SetValue( Value, SuppressChangeEvent )
 	if not IsType( Value, "number" ) then return end
+
+	local OldValue = self.Value
 
 	self.Value = Clamp( Round( Value, self.Decimals ), self.Min, self.Max )
 
-	self.Fraction = Clamp( ( Value - self.Min ) / self.Range, 0, 1 )
-	self.HandlePos.x = self.Width * self.Fraction
+	-- Check after clamping/rounding in case the rules have changed.
+	if OldValue == self.Value then return end
 
-	self.Handle:SetPosition( self.HandlePos )
-	self.Label:SetText( tostring( self.Value ) )
-	self:SizeLines()
+	RefreshSizes( self )
+
+	if not SuppressChangeEvent then
+		self:OnValueChanged( self.Value )
+	end
+	self:OnPropertyChanged( "Value", Value )
+
+	return true
 end
 
 --[[
 	Sets the slider's position by fraction.
 ]]
-function Slider:SetFraction( Fraction )
-	self.Value = Clamp( Round( self.Min + ( Fraction * self.Range ), self.Decimals ),
-		self.Min, self.Max )
-	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
-
-	self.HandlePos.x = self.Width * self.Fraction
-	self.Handle:SetPosition( self.HandlePos )
-
-	self.Label:SetText( tostring( self.Value ) )
-	self:SizeLines()
+function Slider:SetFraction( Fraction, SuppressChangeEvent )
+	return self:SetValue( self.Min + ( Fraction * self.Range ), SuppressChangeEvent )
 end
 
 function Slider:ChangeValue( Value )
-	local OldValue = self.Value
-
-	self:SetValue( Value )
-
-	if OldValue ~= self.Value then
+	if self:SetValue( Value ) then
 		self:OnSlide( self.Value )
-		self:OnValueChanged( self.Value )
 	end
 end
 
 function Slider:GetValue()
 	return self.Value
 end
-
-SGUI.AddProperty( Slider, "Decimals" )
 
 --[[
 	Sets the bounds of the slider.
@@ -201,7 +205,7 @@ function Slider:SetBounds( Min, Max )
 
 	self.Range = Max - Min
 
-	--Update our slider value to clamp it inside the new bounds if needed.
+	-- Update our slider value to clamp it inside the new bounds if needed.
 	self:SetValue( self.Value )
 end
 
@@ -220,15 +224,14 @@ function Slider:PlayerKeyPress( Key, Down )
 	end
 end
 
-local GetCursorPos
-local LineMult = Vector2( 1, 0.5 )
+local GetCursorPos = SGUI.GetCursorPos
 
 function Slider:OnMouseDown( Key )
 	if not self:GetIsVisible() then return end
 
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Handle, 1.25 ) then
-		if self:MouseIn( self.Background, LineMult ) then
+		if self:MouseIn( self.Background ) then
 			self.ClickingLine = true
 
 			return true, self
@@ -236,8 +239,6 @@ function Slider:OnMouseDown( Key )
 
 		return
 	end
-
-	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
 	local X, Y = GetCursorPos()
 
@@ -257,11 +258,11 @@ function Slider:OnMouseUp( Key )
 	if self.ClickingLine then
 		self.ClickingLine = nil
 
-		local In, X, Y = self:MouseIn( self.Background, LineMult )
+		local In, X, Y = self:MouseIn( self.Background )
 		if not In then return end
 
 		local Fraction = X / self.Width
-		self:SetFraction( Fraction )
+		self:SetFraction( Fraction, true )
 	else
 		self.Dragging = false
 	end
@@ -281,10 +282,7 @@ function Slider:OnMouseMove( Down )
 
 	self.CurPos.x = Clamp( self.StartingPos.x + Diff, 0, self.Width )
 
-	local OldValue = self.Value
-	self:SetFraction( self.CurPos.x / self.Width )
-
-	if OldValue ~= self.Value then
+	if self:SetFraction( self.CurPos.x / self.Width, true ) then
 		self:OnSlide( self.Value )
 	end
 end

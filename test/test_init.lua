@@ -18,6 +18,7 @@ Shine.UnitTest = {}
 local UnitTest = Shine.UnitTest
 UnitTest.Results = {}
 
+local Abs = math.abs
 local assert = assert
 local DebugTraceback = debug.traceback
 local getmetatable = getmetatable
@@ -214,6 +215,18 @@ end
 UnitTest.Assert = {
 	Equals = function( A, B ) return A == B, StringFormat( "Expected %s to equal %s", B, A ) end,
 	NotEquals = function( A, B ) return A ~= B, StringFormat( "Expected %s to not equal %s", B, A ) end,
+
+	Same = function( A, B )
+		return rawequal( A, B ), StringFormat( "Expected %s to be raw-equal to %s", B, A )
+	end,
+	NotSame = function( A, B ) return
+		not rawequal( A, B ), StringFormat( "Expected %s to not be raw-equal to %s", B, A )
+	end,
+
+	EqualsWithTolerance = function( A, B, Tolerance )
+		Tolerance = Tolerance or 1e-5
+		return Abs( A - B ) < Tolerance, StringFormat( "Expected %s to equal %s within %s", B, A, Tolerance )
+	end,
 
 	TableEquals = function( A, B )
 		for Key, Value in pairs( A ) do

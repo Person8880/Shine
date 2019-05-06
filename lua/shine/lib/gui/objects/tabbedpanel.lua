@@ -19,7 +19,7 @@ local TabPanelButton = {}
 function TabPanelButton:Initialise()
 	Controls.Button.Initialise( self )
 
-	--We'll handle it ourselves.
+	-- We'll handle it ourselves.
 	self:SetHighlightOnMouseOver( false )
 end
 
@@ -34,6 +34,22 @@ function TabPanelButton:DoClick()
 	self:SetSelected( true )
 	self.Parent:ScrollIntoView( self )
 	self.Parent.Parent:OnTabSelect( self )
+end
+
+function TabPanelButton:SetActiveCol( Col )
+	self.ActiveCol = Col
+
+	if self.Highlighted or self.Selected then
+		self.Background:SetColor( Col )
+	end
+end
+
+function TabPanelButton:SetInactiveCol( Col )
+	self.InactiveCol = Col
+
+	if not self.Highlighted and not self.Selected then
+		self.Background:SetColor( Col )
+	end
 end
 
 function TabPanelButton:SetSelected( Selected )
@@ -82,11 +98,11 @@ function TabPanel:Initialise()
 	self.TabPanel:SetScrollbarPos( Vector2( -Units.HighResScaled( 8 ):GetValue(), 0 ) )
 	self.TabPanel:SetScrollbarHeightOffset( 0 )
 	self.TabPanel.BufferAmount = 0
-	self.TabPanel.UseScheme = false
+	self.TabPanel:SetIsSchemed( false )
 
 	-- This panel is populated with a tab's content.
 	self.ContentPanel = SGUI:Create( "Panel", self )
-	self.ContentPanel.UseScheme = false
+	self.ContentPanel:SetIsSchemed( false )
 	self.ContentPanel:SetFill( true )
 
 	self.Tabs = {}

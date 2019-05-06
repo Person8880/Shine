@@ -15,6 +15,7 @@ function ListHeader:Initialise()
 	self.Background = Background
 
 	local SortIndicator = SGUI:Create( "Label", self )
+	SortIndicator:SetIsSchemed( false )
 	SortIndicator:SetFont( SGUI.Fonts.Ionicons )
 	SortIndicator:SetText( "" )
 	SortIndicator:SetAnchor( "CenterRight" )

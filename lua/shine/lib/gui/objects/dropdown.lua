@@ -30,6 +30,7 @@ function Dropdown:Initialise()
 			MenuPos = self.MenuPos.BOTTOM,
 			Populate = function( Menu )
 				Menu:SetMaxVisibleButtons( Max( self:GetMaxVisibleOptions(), 1 ) )
+				Menu:SetFontScale( self:GetFont(), self:GetTextScale() )
 
 				for i = 1, #self.Options do
 					local Option = self.Options[ i ]

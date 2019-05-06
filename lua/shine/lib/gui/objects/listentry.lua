@@ -28,19 +28,23 @@ function ListEntry:Initialise()
 	self:SetHighlightOnMouseOver( true )
 end
 
+function ListEntry:IsDefaultStyle( TextObj, Index )
+	return not self.TextOverrides or not self.TextOverrides[ Index ]
+end
+
 function ListEntry:SetTextColour( Colour )
 	self.TextColour = Colour
-	self:ForEach( "TextObjs", "SetColor", Colour )
+	self:ForEachFiltered( "TextObjs", "SetColor", self.IsDefaultStyle, Colour )
 end
 
 function ListEntry:SetFont( Font )
 	self.Font = Font
-	self:ForEach( "TextObjs", "SetFontName", Font )
+	self:ForEachFiltered( "TextObjs", "SetFontName", self.IsDefaultStyle, Font )
 end
 
 function ListEntry:SetTextScale( Scale )
 	self.TextScale = Scale
-	self:ForEach( "TextObjs", "SetScale", Scale )
+	self:ForEachFiltered( "TextObjs", "SetScale", self.IsDefaultStyle, Scale )
 end
 
 function ListEntry:Setup( Index, Columns, Size, ... )

@@ -94,6 +94,7 @@ function ColourLabel:SetText( TextContent )
 		end
 
 		local Label = SGUI:Create( Type, self )
+		Label:SetIsSchemed( false )
 		Label:SetFontScale( self.Font, self.TextScale )
 		Label:SetText( Text )
 		Label:SetColour( SGUI.CopyColour( Colour ) )
