@@ -81,5 +81,6 @@
 	"VOTE_MENU_TYPE": "Display the map vote:",
 	"FULL": "In a full screen grid",
 	"MINIMAL": "In the vote menu",
-	"TOGGLE_MAP_OVERVIEW_TOOLTIP": "Toggle map overview"
+	"TOGGLE_MAP_OVERVIEW_TOOLTIP": "Toggle map overview",
+	"SHOW_MOD_TOOLTIP": "View mod in the Steam Workshop"
 }

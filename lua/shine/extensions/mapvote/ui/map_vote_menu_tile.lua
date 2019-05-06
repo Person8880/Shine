@@ -6,6 +6,7 @@
 ]]
 
 local Pi = math.pi
+local StringFormat = string.format
 local StringStartsWith = string.StartsWith
 local TableShallowMerge = table.ShallowMerge
 
@@ -52,6 +53,21 @@ function MapTile:Initialise()
 						StyleName = "MapTileHeader"
 					},
 					Children = {
+						{
+							ID = "ShowModButton",
+							Class = "Button",
+							Props = {
+								Icon = SGUI.Icons.Ionicons.Wrench,
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								StyleName = "ShowOverviewButton",
+								AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+								IsVisible = false,
+								DoClick = function()
+									Client.ShowWebpage( StringFormat( "https://steamcommunity.com/sharedfiles/filedetails/?id=%s", self.ModID ) )
+								end,
+								Tooltip = Locale:GetPhrase( "mapvote", "SHOW_MOD_TOOLTIP" )
+							}
+						},
 						{
 							ID = "MapNameLabel",
 							Class = "Label",
@@ -182,6 +198,9 @@ function MapTile:Initialise()
 
 	Binder():FromElement( self, "Highlighted" )
 		:ToElement( self.ShowOverviewButton, "IsVisible" )
+		:ToElement( self.ShowModButton, "IsVisible", {
+			Filter = function() return self.ModID ~= nil end
+		} )
 		:BindProperty()
 
 	Binder():FromElement( self, "TeamVariation" )
