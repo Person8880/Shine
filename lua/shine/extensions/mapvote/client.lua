@@ -473,7 +473,11 @@ do
 			gg = "Gun Game:"
 		}
 
-		return Shine.Stream( Words ):Map( function( Word )
+		return Shine.Stream( Words ):Map( function( Word, Index )
+			if Index > 1 then
+				-- Gamemode words should only be used on the first word.
+				return StringCapitalise( Word )
+			end
 			return KnownGamemodeWords[ Word ] or StringCapitalise( Word )
 		end ):Concat( " " )
 	end
