@@ -102,6 +102,10 @@ do
 	end
 end
 
+local function SaveCache()
+	Shine.SaveJSONFile( ModMaps, METADATA_FILE, { indent = false } )
+end
+
 local FileNameFormats = {
 	-- Currently all maps have the same preview image (derived from the workshop mod).
 	PreviewImage = "config://shine/cache/maps/%s/preview.png",
@@ -126,7 +130,7 @@ local function SaveImageToCache( ModID, MapName, CacheKey, ImageData, LastUpdate
 		ModMaps[ ModID ].LastUpdatedTime = LastUpdatedTime
 	end
 
-	Shine.SaveJSONFile( ModMaps, METADATA_FILE, { indent = false } )
+	SaveCache()
 end
 
 local function LoadFromURL( ModID, MapName, CacheKey, URL, Callback, LastUpdatedTime )
@@ -150,6 +154,8 @@ local function LoadFromURL( ModID, MapName, CacheKey, URL, Callback, LastUpdated
 
 			Callback( MapName, TextureName, Err )
 		end )
+	end, function()
+		Callback( MapName, nil, StringFormat( "Timed out attempting to acquire image from URL: %s", URL ) )
 	end )
 end
 
@@ -203,7 +209,7 @@ local ImageLoaders = {
 local function LoadImageFromCache( ModID, MapName, CacheKey, Callback )
 	local CacheEntry = ModMaps[ ModID ]
 	if MapName then
-		CacheEntry = CacheEntry and ModMaps[ ModID ].Maps[ MapName ]
+		CacheEntry = CacheEntry and CacheEntry.Maps[ MapName ]
 	end
 
 	local Now = Clock()
@@ -224,6 +230,44 @@ local function LoadImageFromCache( ModID, MapName, CacheKey, Callback )
 
 	-- Either the image is not cached, or the cache has expired.
 	return false
+end
+
+local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback )
+	return function( MapName, TextureName, Err )
+		if TextureName then
+			return Callback( MapName, TextureName, Err )
+		end
+
+		-- Couldn't load image from the remote source, so check to see if we have a stale cached image.
+		local CacheEntry = ModMaps[ ModID ]
+		if IsForMap then
+			CacheEntry = CacheEntry and CacheEntry.Maps[ MapName ]
+		end
+
+		if CacheEntry and CacheEntry[ CacheKey ] then
+			LuaPrint( "Loading ", CacheKey, " for ", ModID, MapName, " from remote source failed, using stale cached image." )
+			-- Have a stale cached image, wait a while for the API to be available again before trying to update it,
+			-- but not as long as if the image were loaded successfully.
+			CacheEntry.NextUpdateCheckTime = Clock() + 60 * 60
+			SaveCache()
+
+			TextureLoader.LoadFromFile( CacheEntry[ CacheKey ], function( TextureName, Err )
+				if Err then
+					-- Couldn't load from file, and the API is unavailable, so give up.
+					return Callback( MapName, nil, Err )
+				end
+
+				Callback( MapName, TextureName, Err )
+			end )
+
+			return
+		end
+
+		LuaPrint( "Loading", CacheKey, " for ", ModID, MapName, " from remote source failed, no cached image available." )
+
+		-- No cache entry and couldn't load from API, give up.
+		return Callback( MapName, nil, Err )
+	end
 end
 
 local MapDataRepository = {}
@@ -299,7 +343,9 @@ function MapDataRepository.GetPreviewImages( Maps, Callback )
 				local MapNames = MapModIDs:Get( ModID )
 				if MapNames then
 					MapModIDs:Remove( ModID )
-					ImageLoaders.PreviewImage( ModID, nil, WrapCallback( Callback, MapNames ),
+
+					local LoaderCallback = CallbackWithFallbackToCache( ModID, false, "PreviewImage", Callback )
+					ImageLoaders.PreviewImage( ModID, nil, WrapCallback( LoaderCallback, MapNames ),
 						File.preview_url, File.time_updated )
 				end
 			end
@@ -331,7 +377,8 @@ function MapDataRepository.GetOverviewImage( ModID, MapName, Callback )
 		return
 	end
 
-	return ImageLoaders.OverviewImage( ModID, MapName, Callback )
+	return ImageLoaders.OverviewImage( ModID, MapName,
+		CallbackWithFallbackToCache( ModID, true, "OverviewImage", Callback ) )
 end
 
 return MapDataRepository

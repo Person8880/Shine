@@ -287,8 +287,7 @@ function MapTile:ShowOverviewImage()
 
 	MapDataRepository.GetOverviewImage( self.ModID, self.MapName, function( MapName, TextureName, Err )
 		if Err then
-			self.OverviewTexture = "ui/shine/unknown_map.tga"
-			return
+			TextureName = "ui/shine/unknown_map.tga"
 		end
 
 		self:SetOverviewTexture( TextureName )
