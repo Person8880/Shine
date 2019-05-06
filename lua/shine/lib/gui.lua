@@ -130,13 +130,24 @@ do
 		end
 
 		local BoundFields = {}
+
 		for i = 1, #BoundObject do
-			local FieldName, Setter = unpack( StringExplode( BoundObject[ i ], ":" ) )
-			BoundFields[ i ] = {
-				FieldName = FieldName,
+			local Entry = BoundObject[ i ]
+			if IsType( Entry, "string" ) then
+				local FieldName, Setter = unpack( StringExplode( Entry, ":" ) )
 				Setter = Setter or "Set"..PropertyName
-			}
+
+				BoundFields[ i ] = function( self, Value )
+					local Object = self[ FieldName ]
+					if Object then
+						Object[ Setter ]( Object, Value )
+					end
+				end
+			else
+				BoundFields[ i ] = Entry
+			end
 		end
+
 		return BoundFields
 	end
 
@@ -160,11 +171,7 @@ do
 			self[ Name ] = Value
 
 			for i = 1, #BoundFields do
-				local Entry = BoundFields[ i ]
-				local Object = self[ Entry.FieldName ]
-				if Object then
-					Object[ Entry.Setter ]( Object, Value )
-				end
+				BoundFields[ i ]( self, Value )
 			end
 
 			if OldValue == Value then return end

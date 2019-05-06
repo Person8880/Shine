@@ -17,11 +17,21 @@ Client.PrecacheLocalSound( ClickSound )
 Button.Sound = ClickSound
 
 SGUI.AddBoundProperty( Button, "Font", "Label:SetFont" )
-SGUI.AddBoundProperty( Button, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( Button, "TextAlignment", "Label:SetAlignment" )
+SGUI.AddBoundProperty( Button, "TextColour", {
+	"Label:SetColour",
+	function( self, Colour )
+		if self.Icon and not self.IconColour then
+			self.Icon:SetColour( Colour )
+		end
+	end
+} )
 SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", { "Label:SetInheritsParentAlpha", "Icon:SetInheritsParentAlpha" } )
 SGUI.AddBoundProperty( Button, "TextIsVisible", "Label:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "TextScale", "Label:SetTextScale" )
 
+SGUI.AddBoundProperty( Button, "IconAlignment", "Icon:SetAlignment" )
+SGUI.AddBoundProperty( Button, "IconColour", "Icon:SetColour" )
 SGUI.AddBoundProperty( Button, "IconIsVisible", "Icon:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
 
@@ -64,10 +74,13 @@ function Button:SetText( Text )
 	end
 
 	local Description = SGUI:Create( "Label", self )
-	Description:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+	Description:SetIsSchemed( false )
+	Description:SetAlignment( self.TextAlignment or SGUI.LayoutAlignment.CENTRE )
 	Description:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 	Description:SetText( Text )
-	Description:SetColour( self.TextColour )
+	if self.TextColour then
+		Description:SetColour( self.TextColour )
+	end
 	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Description:SetIsVisible( self.TextIsVisible )
 
@@ -137,10 +150,13 @@ function Button:SetIcon( IconName, Font, Scale )
 	end
 
 	local Icon = SGUI:Create( "Label", self )
-	Icon:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+	Icon:SetIsSchemed( false )
+	Icon:SetAlignment( self.IconAlignment or SGUI.LayoutAlignment.CENTRE )
 	Icon:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 	Icon:SetFontScale( Font, Scale )
-	Icon:SetColour( self:GetTextColour() )
+	if self.IconColour or self.TextColour then
+		Icon:SetColour( self.IconColour or self.TextColour )
+	end
 	Icon:SetText( IconName )
 	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Icon:SetIsVisible( self.IconIsVisible )

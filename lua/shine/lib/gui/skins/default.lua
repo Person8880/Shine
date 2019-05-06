@@ -3,6 +3,7 @@
 ]]
 
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
 local WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
 local HorizontalTabBackground = Colour( 0.4, 0.4, 0.4, 1 )
@@ -20,20 +21,23 @@ local DangerButton = Colour( 1, 0.2, 0.1, 1 )
 
 local OrangeButtonHighlight = Colour( 1, 0.4, 0, 1 )
 
+local DefaultButton = {
+	ActiveCol = ButtonHighlight,
+	InactiveCol = DarkButton,
+	TextColour = BrightText,
+	HighlightOnMouseOver = true,
+	States = {
+		Disabled = {
+			HighlightOnMouseOver = false,
+			InactiveCol = SGUI.ColourWithAlpha( DarkButton, 0.5 )
+		}
+	}
+}
+local DropdownPadding = Units.Spacing( Units.HighResScaled( 4 ), 0, Units.HighResScaled( 4 ), 0 )
+
 local Skin = {
 	Button = {
-		Default = {
-			ActiveCol = ButtonHighlight,
-			InactiveCol = DarkButton,
-			TextColour = BrightText,
-			HighlightOnMouseOver = true,
-			States = {
-				Disabled = {
-					HighlightOnMouseOver = false,
-					InactiveCol = SGUI.ColourWithAlpha( DarkButton, 0.5 )
-				}
-			}
-		},
+		Default = DefaultButton,
 		CloseButton = {
 			ActiveCol = Colour( 0.7, 0.2, 0.2, 1 ),
 			InactiveCol = Colour( 0.5, 0.2, 0.2, 1 )
@@ -66,6 +70,11 @@ local Skin = {
 			InactiveCol = Clear,
 			ActiveCol = Clear,
 			TextInheritsParentAlpha = false
+		},
+		DropdownButton = {
+			Padding = DropdownPadding,
+			TextAlignment = SGUI.LayoutAlignment.MIN,
+			IconAlignment = SGUI.LayoutAlignment.MIN
 		}
 	},
 	CategoryPanel = {
@@ -85,6 +94,12 @@ local Skin = {
 		Default = {
 			Font = Fonts.kAgencyFB_Small
 		}
+	},
+	Dropdown = {
+		Default = table.ShallowMerge( DefaultButton, {
+			Padding = DropdownPadding,
+			Icon = SGUI.Icons.Ionicons.ArrowDownB
+		} )
 	},
 	Hint = {
 		Default = {
