@@ -30,11 +30,13 @@ function Scrollbar:Initialise()
 
 	self.Horizontal = false
 	self.ScrollAxis = "y"
+	self.ScrollEvent = "OnScrollChange"
 end
 
 function Scrollbar:SetHorizontal( Horizontal )
 	self.Horizontal = Horizontal
 	self.ScrollAxis = Horizontal and "x" or "y"
+	self.ScrollEvent = Horizontal and "OnScrollChangeX" or "OnScrollChange"
 end
 
 function Scrollbar:FadeIn( Duration, Callback, EaseFunc )
@@ -116,8 +118,8 @@ function Scrollbar:SetScroll( Scroll, Smoothed )
 	self.BarPos[ self.ScrollAxis ] = Scroll
 	self.Bar:SetPosition( self.BarPos )
 
-	if self.Parent and self.Parent.OnScrollChange then
-		self.Parent:OnScrollChange( Scroll, Diff, Smoothed )
+	if self.Parent and self.Parent[ self.ScrollEvent ] then
+		self.Parent[ self.ScrollEvent ]( self.Parent, Scroll, Diff, Smoothed )
 	end
 end
 

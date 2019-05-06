@@ -264,6 +264,8 @@ function Panel:SetSize( Size )
 
 	if Size == OldSize then return end
 
+	self:UpdateScrollbarSize()
+
 	if SGUI.IsValid( self.TitleBar ) then
 		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
 	end
@@ -458,10 +460,10 @@ function Panel:SetMaxWidth( MaxWidth )
 
 		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
-		function self:OnScrollChange( Pos, MaxPos, Smoothed )
+		function self:OnScrollChangeX( Pos, MaxPos, Smoothed )
 			local SetWidth = self:GetSize().x
 
-			local Fraction = Pos / MaxPos
+			local Fraction = MaxPos == 0 and 0 or Pos / MaxPos
 			local Diff = self.MaxWidth - SetWidth
 
 			self.ScrollParentPos.x = -Diff * Fraction
@@ -543,7 +545,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			local SetHeight = self:GetSize().y
 			local MaxHeight = self.MaxHeight
 
-			local Fraction = Pos / MaxPos
+			local Fraction = MaxPos == 0 and 0 or Pos / MaxPos
 			local Diff = MaxHeight - SetHeight
 
 			self.ScrollParentPos.y = -Diff * Fraction
