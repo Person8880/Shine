@@ -691,7 +691,7 @@ do
 
 		CommandsList[ #CommandsList + 1 ] = Data
 
-		if Commands then
+		if SGUI.IsValid( Commands ) then
 			if ShouldAdd then
 				Commands:AddCategory( Category )
 			end
