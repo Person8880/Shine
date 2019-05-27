@@ -202,7 +202,7 @@ local ImageLoaders = {
 			LoadFromURL( ModID, MapName, "OverviewImage", Data.OverviewURL, Callback )
 		end, function()
 			Callback( MapName, nil, "Timed out attempting to acquire overview." )
-		end )
+		end, 10 )
 	end
 }
 
