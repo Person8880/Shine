@@ -15,9 +15,6 @@ local TableSetField = table.SetField
 local TableToJSON = table.ToJSON
 local type = type
 
--- Make JSON encoding always have consistent order.
-Shine.SetUpValue( Encode, "pairs", SortedPairs, true )
-
 local JSONSettings = { indent = true, level = 1 }
 
 local IsType = Shine.IsType
