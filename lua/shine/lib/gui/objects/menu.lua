@@ -6,6 +6,7 @@
 
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
+local Units = SGUI.Layout.Units
 
 local Menu = {}
 
@@ -31,11 +32,13 @@ function Menu:Initialise()
 	self.Font = Fonts.kAgencyFB_Small
 end
 
-function Menu:SetMaxVisibleButtons( Max )
+function Menu:SetMaxVisibleButtons( Max, ScrollbarWidth )
+	local Width = ScrollbarWidth or Units.HighResScaled( 8 ):GetValue()
+
 	self.MaxVisibleButtons = Max
 	self:SetScrollable()
-	self:SetScrollbarPos( Vector( -8, 0, 0 ) )
-	self:SetScrollbarWidth( 8 )
+	self:SetScrollbarPos( Vector( -Width, 0, 0 ) )
+	self:SetScrollbarWidth( Width )
 	self:SetScrollbarHeightOffset( 0 )
 	self.BufferAmount = 0
 end

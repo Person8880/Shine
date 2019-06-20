@@ -25,10 +25,10 @@ local TextEntry = {}
 
 TextEntry.UsesKeyboardFocus = true
 
-local BorderSize = Vector( 2, 2, 0 )
-local CaretCol = Color( 1, 1, 1, 1 )
-local Clear = Color( 0, 0, 0, 0 )
-local TextPos = Vector( 2, 0, 0 )
+local BorderSize = Vector2( 2, 2 )
+local CaretCol = Colour( 1, 1, 1, 1 )
+local Clear = Colour( 0, 0, 0, 0 )
+local TextPos = Vector2( 2, 0 )
 
 SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
 SGUI.AddProperty( TextEntry, "AutoCompleteHandler" )
@@ -93,6 +93,7 @@ function TextEntry:Initialise()
 
 	--The actual text string.
 	self.Text = ""
+	self.TextColour = CaretCol
 
 	--Where's the caret?
 	self.Column = 0
@@ -160,6 +161,7 @@ function TextEntry:SetBorderColour( Col )
 end
 
 function TextEntry:SetTextColour( Col )
+	self.TextColour = Col
 	self.TextObj:SetColor( Col )
 end
 
@@ -757,11 +759,12 @@ function TextEntry:Think( DeltaTime )
 		if ( self.NextCaretChange or 0 ) < Time then
 			self.NextCaretChange = Time + 0.5
 			self.CaretVis = not self.CaretVis
-			self.Caret:SetColor( self.CaretVis and CaretCol or Clear )
+			self.Caret:SetColor( self.CaretVis and self.TextColour or Clear )
 		end
 	end
 
 	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function TextEntry:OnMouseUp()

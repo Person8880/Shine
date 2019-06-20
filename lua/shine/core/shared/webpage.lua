@@ -15,10 +15,13 @@ local Hook = Shine.Hook
 local Locale = Shine.Locale
 local SGUI = Shine.GUI
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local CloseButtonCol = Colour( 0.6, 0.3, 0.1, 1 )
 local CloseButtonHighlight = Colour( 0.8, 0.4, 0.1, 1 )
 local SteamButtonCol = Colour( 0.1, 0.6, 0.2, 1 )
 local SteamButtonHighlight = Colour( 0.15, 0.9, 0.3, 1 )
+local ButtonTextColour = Colour( 1, 1, 1, 1 )
 
 local LoadingFont = Fonts.kAgencyFB_Large
 local TitleFont = Fonts.kAgencyFB_Small
@@ -90,7 +93,8 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Text = Locale:GetPhrase( "Core", "NOW" ),
 		Font = Font,
 		ActiveCol = CloseButtonHighlight,
-		InactiveCol = CloseButtonCol
+		InactiveCol = CloseButtonCol,
+		TextColour = ButtonTextColour
 	}
 	if TextScale then
 		NowButton:SetTextScale( TextScale )
@@ -113,7 +117,8 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Text = Locale:GetPhrase( "Core", "ALWAYS" ),
 		Font = Font,
 		ActiveCol = SteamButtonHighlight,
-		InactiveCol = SteamButtonCol
+		InactiveCol = SteamButtonCol,
+		TextColour = ButtonTextColour
 	}
 	if TextScale then
 		AlwaysButton:SetTextScale( TextScale )
@@ -148,7 +153,7 @@ function Shine:OpenWebpage( URL, TitleText )
 	local WidthMult = Max( W / 1920, 1 )
 	local HeightMult = Max( H / 1080, 1 )
 
-	local TitleBarH = 24
+	local TitleBarH = 32
 	local Font = Fonts.kAgencyFB_Small
 	local TextScale
 	if H > SGUI.ScreenHeight.Normal and H <= SGUI.ScreenHeight.Large then
@@ -192,7 +197,8 @@ function Shine:OpenWebpage( URL, TitleText )
 		Font = Font,
 		TextScale = SteamButtonScale * ( TextScale or Vector( 1, 1, 0 ) ),
 		ActiveCol = SteamButtonHighlight,
-		InactiveCol = SteamButtonCol
+		InactiveCol = SteamButtonCol,
+		TextColour = ButtonTextColour
 	}
 
 	function OpenInSteam:DoClick()
@@ -218,7 +224,15 @@ function Shine:OpenWebpage( URL, TitleText )
 	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + TitleBarH * 0.5, 0 ) )
 	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
 
+	-- Hide/show the loading text depending on whether the page is actually loading.
+	-- Some pages may have transparency which would make the loading text visible behind them.
+	Binder():FromElement( Webpage, "IsLoading" )
+		:ToElement( LoadingText, "IsVisible" )
+		:BindProperty()
+
 	SGUI:EnableMouse( true )
+
+	return Webpage
 end
 
 function Shine:CloseWebPage()

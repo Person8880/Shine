@@ -11,12 +11,21 @@ local Min = math.min
 
 local Panel = {}
 
---We're a window object!
+-- We're a window object!
 Panel.IsWindow = true
 
 local DefaultBuffer = 20
 local ScrollPos = Vector( -20, 10, 0 )
 local ZeroColour = Colour( 0, 0, 0, 0 )
+
+SGUI.AddProperty( Panel, "AutoHideScrollbar" )
+SGUI.AddProperty( Panel, "Draggable" )
+SGUI.AddProperty( Panel, "HorizontalScrollingEnabled", true )
+SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
+SGUI.AddProperty( Panel, "StickyScroll" )
+
+SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( Panel, "HideHorizontalScrollbar", "HorizontalScrollbar:SetHidden" )
 
 function Panel:Initialise()
 	self.BaseClass.Initialise( self )
@@ -25,6 +34,7 @@ function Panel:Initialise()
 	self.TitleBarHeight = 24
 	self.OverflowX = false
 	self.OverflowY = false
+	self.HorizontalScrollingEnabled = true
 end
 
 function Panel:SkinColour()
@@ -175,8 +185,16 @@ function Panel:RecomputeMaxWidth()
 		local PanelWidth = MaxWidth
 
 		for Child in self.Children:Iterate() do
-			local MaxX = ComputeMaxWidth( Child, PanelWidth )
-			MaxWidth = Max( MaxWidth, MaxX )
+			if Child:GetIsVisible() then
+				local MaxX = ComputeMaxWidth( Child, PanelWidth )
+				MaxWidth = Max( MaxWidth, MaxX )
+			end
+		end
+
+		if self.Layout then
+			-- Account for how the layout has positioned its elements.
+			-- This only works *after* layout has completed.
+			MaxWidth = Max( MaxWidth, self.Layout.MaxPosX or 0 )
 		end
 	end
 
@@ -190,8 +208,14 @@ function Panel:RecomputeMaxHeight()
 		local PanelHeight = MaxHeight
 
 		for Child in self.Children:Iterate() do
-			local MaxY = ComputeMaxHeight( Child, PanelHeight )
-			MaxHeight = Max( MaxHeight, MaxY )
+			if Child:GetIsVisible() then
+				local MaxY = ComputeMaxHeight( Child, PanelHeight )
+				MaxHeight = Max( MaxHeight, MaxY )
+			end
+		end
+
+		if self.Layout then
+			MaxHeight = Max( MaxHeight, self.Layout.MaxPosY or 0 )
 		end
 	end
 
@@ -209,36 +233,31 @@ function Panel:Add( Class, Created )
 		Element:SetStencilled( true )
 	end
 
-	local Pan = self --CLANG!
+	local function UpdateMaxSize( Child )
+		if not self.ScrollParent or not Child:GetIsVisible() then return end
 
-	local function UpdateMaxSize( Child, PanSize )
-		local NewMaxWidth = ComputeMaxWidth( Child, PanSize.x )
-		if NewMaxWidth > Pan:GetMaxWidth() then
-			Pan:SetMaxWidth( NewMaxWidth )
+		local Size = self:GetSize()
+		local NewMaxWidth = ComputeMaxWidth( Child, Size.x )
+		if NewMaxWidth > self:GetMaxWidth() then
+			self:SetMaxWidth( NewMaxWidth )
 		end
 
-		local NewMaxHeight = ComputeMaxHeight( Child, PanSize.y )
-		if NewMaxHeight > Pan:GetMaxHeight() then
-			Pan:SetMaxHeight( NewMaxHeight + Pan.BufferAmount )
+		local NewMaxHeight = ComputeMaxHeight( Child, Size.y )
+		if NewMaxHeight > self:GetMaxHeight() then
+			self:SetMaxHeight( NewMaxHeight + self.BufferAmount )
 		end
 	end
 
 	local OldSetPos = Element.SetPos
 	function Element:SetPos( Pos )
 		OldSetPos( self, Pos )
-
-		if not Pan.ScrollParent then return end
-
-		UpdateMaxSize( self, Pan:GetSize() )
+		UpdateMaxSize( self )
 	end
 
 	local OldSetSize = Element.SetSize
 	function Element:SetSize( OurSize )
 		OldSetSize( self, OurSize )
-
-		if not Pan.ScrollParent then return end
-
-		UpdateMaxSize( self, Pan:GetSize() )
+		UpdateMaxSize( self )
 	end
 
 	return Element
@@ -254,6 +273,8 @@ function Panel:SetSize( Size )
 	end
 
 	if Size == OldSize then return end
+
+	self:UpdateScrollbarSize()
 
 	if SGUI.IsValid( self.TitleBar ) then
 		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
@@ -297,10 +318,6 @@ function Panel:Clear()
 
 	self.Layout = nil
 end
-
-SGUI.AddProperty( Panel, "StickyScroll" )
-SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
-SGUI.AddBoundProperty( Panel, "HideHorizontalScrollbar", "HorizontalScrollbar:SetHidden" )
 
 function Panel:ScrollIntoView( Child, ForceInstantScroll )
 	if Child.Parent ~= self then return end
@@ -413,7 +430,7 @@ end
 function Panel:SetMaxWidth( MaxWidth )
 	self.MaxWidth = MaxWidth
 
-	if not self.ShowScrollbar then return end
+	if not self.ShowScrollbar or not self.HorizontalScrollingEnabled then return end
 
 	local ElementWidth = self:GetSize().x
 
@@ -449,10 +466,10 @@ function Panel:SetMaxWidth( MaxWidth )
 
 		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
-		function self:OnScrollChange( Pos, MaxPos, Smoothed )
+		function self:OnScrollChangeX( Pos, MaxPos, Smoothed )
 			local SetWidth = self:GetSize().x
 
-			local Fraction = Pos / MaxPos
+			local Fraction = MaxPos == 0 and 0 or Pos / MaxPos
 			local Diff = self.MaxWidth - SetWidth
 
 			self.ScrollParentPos.x = -Diff * Fraction
@@ -534,7 +551,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			local SetHeight = self:GetSize().y
 			local MaxHeight = self.MaxHeight
 
-			local Fraction = Pos / MaxPos
+			local Fraction = MaxPos == 0 and 0 or Pos / MaxPos
 			local Diff = MaxHeight - SetHeight
 
 			self.ScrollParentPos.y = -Diff * Fraction
@@ -603,14 +620,10 @@ function Panel:SetScrollbarPos( Pos )
 	end
 end
 
-SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
-SGUI.AddProperty( Panel, "Draggable" )
-SGUI.AddProperty( Panel, "AutoHideScrollbar" )
-
-local GetCursorPos
+local GetCursorPos = SGUI.GetCursorPos
 
 local LastInput = 0
-local Clock = os and os.clock or Shared.GetTime
+local Clock = Shared.GetSystemTimeReal
 
 function Panel:DragClick( Key, DoubleClick )
 	if not self.Draggable then return end
@@ -629,8 +642,6 @@ function Panel:DragClick( Key, DoubleClick )
 
 		return true
 	end
-
-	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
 	local X, Y = GetCursorPos()
 
@@ -694,7 +705,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 
 	if self:DragClick( Key, DoubleClick ) then return true, self end
 
-	if ( self.IsAWindow and self:MouseInCached() ) or self.BlockOnMouseDown then
+	if ( SGUI:IsWindow( self ) and self:MouseInCached() ) or self.BlockOnMouseDown then
 		return true, self
 	end
 end
@@ -748,7 +759,7 @@ function Panel:OnMouseMove( Down )
 	end
 
 	-- Block mouse movement for lower windows.
-	if self.IsAWindow or self.BlockOnMouseDown then
+	if SGUI:IsWindow( self ) or self.BlockOnMouseDown then
 		if MouseIn == nil then
 			MouseIn = self:MouseIn( self.Background )
 		end
@@ -769,6 +780,16 @@ function Panel:Think( DeltaTime )
 	self:CallOnChildren( "Think", DeltaTime )
 end
 
+function Panel:PerformLayout()
+	self.BaseClass.PerformLayout( self )
+
+	if self.Stencil then
+		-- Some elements may have moved to no longer be so far down/to the right.
+		self:RecomputeMaxHeight()
+		self:RecomputeMaxWidth()
+	end
+end
+
 function Panel:OnMouseWheel( Down )
 	if not self:GetIsVisible() then return end
 
@@ -786,7 +807,7 @@ function Panel:OnMouseWheel( Down )
 	end
 
 	-- We block the event, so that only the focused window can scroll.
-	if self.IsAWindow then
+	if SGUI:IsWindow( self ) then
 		return false
 	end
 end
@@ -799,7 +820,7 @@ function Panel:PlayerKeyPress( Key, Down )
 	end
 
 	-- Block the event so only the focused window receives input.
-	if self.IsAWindow then
+	if SGUI:IsWindow( self ) then
 		return false
 	end
 end
@@ -811,7 +832,7 @@ function Panel:PlayerType( Char )
 		return true
 	end
 
-	if self.IsAWindow then
+	if SGUI:IsWindow( self ) then
 		return false
 	end
 end

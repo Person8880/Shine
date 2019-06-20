@@ -26,6 +26,7 @@ local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableEmpty = table.Empty
 local TableRemove = table.remove
+local TableShallowMerge = table.ShallowMerge
 local type = type
 
 local Plugin = Shine.Plugin( ... )
@@ -51,9 +52,25 @@ Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
 function Plugin:HookChat( ChatElement )
+	local OldInit = ChatElement.Initialize
+	local OldUninit = ChatElement.Uninitialize
 	local OldSendKey = ChatElement.SendKeyEvent
 	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset" )
 	local OriginalOffset = Vector( GetOffset() )
+
+	function ChatElement:Initialize()
+		Plugin.GUIChat = self
+
+		return OldInit( self )
+	end
+
+	function ChatElement:Uninitialize()
+		if Plugin.GUIChat == self then
+			Plugin.GUIChat = nil
+		end
+
+		return OldUninit( self )
+	end
 
 	function ChatElement:SendKeyEvent( Key, Down )
 		if Plugin.Enabled then return end
@@ -137,30 +154,6 @@ Hook.Add( "Think", "ChatBoxHook", function()
 	end
 end )
 
---[[
-	Suddenly, with no changes, EvaluateUIVisibility is no longer being called,
-	or is being called sooner than the plugin is enabled.
-	I don't even.
-]]
-Hook.Add( "Think", "GetGUIChat", function()
-	local Manager = GetGUIManager()
-	if not Manager then return end
-
-	local Scripts = Manager.scripts
-
-	if not Scripts then return end
-
-	for Index, Script in pairs( Scripts ) do
-		if Script._scriptName == "GUIChat" then
-			Plugin.GUIChat = Script
-
-			Hook.Remove( "Think", "GetGUIChat" )
-
-			return
-		end
-	end
-end )
-
 function Plugin:Initialise()
 	Shine.LoadPluginFile( self:GetName(), "chatline.lua" )
 
@@ -168,20 +161,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
--- We need the default chat script so we can hide its messages.
-function Plugin:EvaluateUIVisibility()
-	local Manager = GetGUIManager()
-	local Scripts = Manager.scripts
-
-	for Index, Script in pairs( Scripts ) do
-		if Script._scriptName == "GUIChat" then
-			self.GUIChat = Script
-
-			return
-		end
-	end
 end
 
 local Units = SGUI.Layout.Units
@@ -209,6 +188,7 @@ local Skin = {
 		Default = {
 			ActiveCol = Colours.Highlight,
 			InactiveCol = Colours.Dark,
+			TextColour = Colours.ModeText,
 			States = {
 				Open = {
 					InactiveCol = Colours.Highlight
@@ -243,9 +223,15 @@ local Skin = {
 			TextColour = Colour( 1, 1, 1, 1 ),
 			PlaceholderTextColour = Colour( 0.8, 0.8, 0.8, 0.5 )
 		}
-	},
-
+	}
 }
+
+function Plugin:OnFirstThink()
+	-- Copy over default skin values to ensure they are applied regardless of the chosen
+	-- default skin.
+	local DefaultSkin = SGUI.SkinManager:GetSkinsByName().Default
+	TableShallowMerge( DefaultSkin, Skin )
+end
 
 local LayoutData = {
 	Sizes = {
@@ -465,6 +451,7 @@ function Plugin:CreateChatbox()
 		ScrollbarWidth = Ceil( 8 * WidthMult ),
 		ScrollbarHeightOffset = 0,
 		Scrollable = true,
+		HorizontalScrollingEnabled = false,
 		AllowSmoothScroll = self.Config.SmoothScroll,
 		StickyScroll = true,
 		Skin = Skin,
@@ -1154,6 +1141,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 		local ResultPanel = self.AutoCompletePanel
 		if not ResultPanel then
 			ResultPanel = SGUI:Create( "Panel", self.MainPanel )
+			ResultPanel:SetIsSchemed( false )
 			self.AutoCompletePanel = ResultPanel
 
 			ResultPanel:SetAnchor( "BottomLeft" )
@@ -1190,6 +1178,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				if not Label then
 					ShouldFade = true
 					Label = SGUI:Create( "ColourLabel", ResultPanel )
+					Label:SetIsSchemed( false )
 					Label:SetMargin( Spacing( 0, 0, 0, Scaled( 2, self.ScalarScale ) ) )
 					Elements[ i ] = Label
 				end

@@ -25,6 +25,15 @@ UnitTest:Test( "Add", function( Assert )
 	Assert:ArrayEquals( { 1, 2, 3, 4, 5 , 6 }, Destination )
 end )
 
+UnitTest:Test( "Slice", function( Assert )
+	local Source = { 1, 2, 3, 4, 5, 6 }
+	local Slice = table.Slice( Source, 5 )
+	Assert:ArrayEquals( { 5, 6 }, Slice )
+
+	Slice = table.Slice( Source, 2, 4 )
+	Assert:ArrayEquals( { 2, 3, 4 }, Slice )
+end )
+
 UnitTest:Test( "Mixin", function( Assert )
 	local Source = {
 		Cake = true,

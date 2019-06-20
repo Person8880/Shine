@@ -21,6 +21,7 @@ local Source = require "shine/lib/gui/binding/source"
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
+SGUI.AddProperty( ControlMeta, "PropagateSkin" )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
 
@@ -35,6 +36,7 @@ end
 ]]
 function ControlMeta:Initialise()
 	self.UseScheme = true
+	self.PropagateSkin = true
 	self.Stencilled = false
 end
 
@@ -200,12 +202,27 @@ function ControlMeta:SetStyleName( Name )
 end
 
 function ControlMeta:SetSkin( Skin )
+	local OldSkin = self.Skin
+	if OldSkin == Skin then return end
+
 	self.Skin = Skin
 	SGUI.SkinManager:ApplySkin( self )
+
+	self:OnPropertyChanged( "Skin", Skin )
+
+	if self.PropagateSkin and self.Children then
+		for Child in self:IterateChildren() do
+			Child:SetSkin( Skin )
+		end
+	end
 end
 
 function ControlMeta:GetStyleValue( Key )
-	return SGUI.SkinManager:GetStyleForElement( self )[ Key ]
+	local Style = SGUI.SkinManager:GetStyleForElement( self )
+	if not Style then
+		return nil
+	end
+	return Style[ Key ]
 end
 
 --[[
@@ -264,12 +281,18 @@ function ControlMeta:SetParent( Control, Element )
 
 	self.Parent = Control
 	self.ParentElement = Element
-	self:SetTopLevelWindow( Control.IsAWindow and Control or Control.TopLevelWindow )
+	self:SetTopLevelWindow( SGUI:IsWindow( Control ) and Control or Control.TopLevelWindow )
 	self:SetStencilled( Control.Stencilled )
 	if Control.Stencilled then
 		self:SetInheritsParentStencilSettings( true )
 	end
+	if Control.PropagateSkin then
+		self:SetSkin( Control.Skin )
+	end
+
+	-- If the control was a window, now it's not.
 	self.IsAWindow = false
+	SGUI:RemoveWindow( self )
 
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
@@ -318,8 +341,20 @@ function ControlMeta:ForEach( TableKey, MethodName, ... )
 	for i = 1, #Objects do
 		local Object = Objects[ i ]
 		local Method = Object[ MethodName ]
-
 		if Method then
+			Method( Object, ... )
+		end
+	end
+end
+
+function ControlMeta:ForEachFiltered( TableKey, MethodName, Filter, ... )
+	local Objects = self[ TableKey ]
+	if not Objects then return end
+
+	for i = 1, #Objects do
+		local Object = Objects[ i ]
+		local Method = Object[ MethodName ]
+		if Method and Filter( self, Object, i ) then
 			Method( Object, ... )
 		end
 	end
@@ -458,41 +493,43 @@ end
 	Determines if the given control should use the global skin.
 ]]
 function ControlMeta:SetIsSchemed( Bool )
-	self.UseScheme = Bool and true or false
+	self.UseScheme = not not Bool
 end
 
 --[[
 	Sets visibility of the control.
 ]]
-function ControlMeta:SetIsVisible( Bool )
+function ControlMeta:SetIsVisible( IsVisible )
 	if not self.Background then return end
-	if self.Background.GetIsVisible and self.Background:GetIsVisible() == Bool then return end
+	if self.Background.GetIsVisible and self.Background:GetIsVisible() == IsVisible then return end
 
-	self.Background:SetIsVisible( Bool )
+	self.Background:SetIsVisible( IsVisible )
 	self:InvalidateParent()
 
-	if self.IsAWindow then
-		if Bool then --Take focus on show.
-			if SGUI.FocusedWindow == self then return end
-			local Windows = SGUI.Windows
+	if not IsVisible then
+		self:HideTooltip()
+	end
 
-			for i = 1, #Windows do
-				local Window = Windows[ i ]
+	if not SGUI:IsWindow( self ) then return end
 
-				if Window == self then
-					SGUI:SetWindowFocus( self, i )
-					break
-				end
+	if IsVisible then
+		-- Take focus on show.
+		SGUI:SetWindowFocus( self )
+	else
+		if SGUI.FocusedWindow ~= self then return end
+
+		-- Give focus to the next visible window down on hide.
+		local Windows = SGUI.Windows
+		local NextDownIndex = 0
+		for i = #Windows, 1, -1 do
+			if Windows[ i ] ~= self and Windows[ i ]:GetIsVisible() then
+				NextDownIndex = i
+				break
 			end
-		else --Give focus to the next window down on hide.
-			if SGUI.WindowFocus ~= self then return end
+		end
 
-			local Windows = SGUI.Windows
-			local NextDown = #Windows - 1
-
-			if NextDown > 0 then
-				SGUI:SetWindowFocus( Windows[ NextDown ], NextDown )
-			end
+		if NextDownIndex > 0 then
+			SGUI:SetWindowFocus( Windows[ NextDownIndex ], NextDownIndex )
 		end
 	end
 end
@@ -517,8 +554,7 @@ end
 	Override this for stencilled stuff.
 ]]
 function ControlMeta:GetIsVisible()
-	if not self.Background.GetIsVisible then return false end
-
+	if not self.Background then return false end
 	return self.Background:GetIsVisible()
 end
 
@@ -530,7 +566,9 @@ SGUI.AddProperty( ControlMeta, "Layout" )
 ]]
 function ControlMeta:SetLayout( Layout, DeferInvalidation )
 	self.Layout = Layout
-	Layout:SetParent( self )
+	if Layout then
+		Layout:SetParent( self )
+	end
 	self:InvalidateLayout( not DeferInvalidation )
 end
 
@@ -543,12 +581,13 @@ function ControlMeta:PerformLayout()
 	if not self.Layout then return end
 
 	local Margin = self.Layout:GetComputedMargin()
+	local Padding = self:GetComputedPadding()
 	local Size = self:GetSize()
 
-	self.Layout:SetPos( Vector2( Margin[ 1 ], Margin[ 2 ] ) )
+	self.Layout:SetPos( Vector2( Margin[ 1 ] + Padding[ 1 ], Margin[ 2 ] + Padding[ 2 ] ) )
 	self.Layout:SetSize( Vector2(
-		Max( Size.x - Margin[ 1 ] - Margin[ 3 ], 0 ),
-		Max( Size.y - Margin[ 2 ] - Margin[ 4 ], 0 )
+		Max( Size.x - Margin[ 1 ] - Margin[ 3 ] - Padding[ 1 ] - Padding[ 3 ], 0 ),
+		Max( Size.y - Margin[ 2 ] - Margin[ 4 ] - Padding[ 2 ] - Padding[ 4 ], 0 )
 	) )
 	self.Layout:InvalidateLayout( true )
 end
@@ -866,13 +905,8 @@ function ControlMeta:GetAnchor()
 end
 
 do
-	--We call this so many times it really needs to be local, not global.
-	local MousePos
-
-	local function GetMousePos()
-		MousePos = MousePos or Client.GetCursorPosScreen
-		return MousePos()
-	end
+	-- We call this so many times it really needs to be local, not global.
+	local GetCursorPos = SGUI.GetCursorPos
 
 	local function IsInBox( Pos, Size, Mult, MaxX, MaxY )
 		if Mult then
@@ -887,7 +921,7 @@ do
 		MaxX = MaxX or Size.x
 		MaxY = MaxY or Size.y
 
-		local X, Y = GetMousePos()
+		local X, Y = GetCursorPos()
 
 		local InX = X >= Pos.x and X < Pos.x + MaxX
 		local InY = Y >= Pos.y and Y < Pos.y + MaxY
@@ -1235,6 +1269,9 @@ function ControlMeta:StopResizing( Element )
 	self:StopEasing( Element, Easers.Size )
 end
 
+SGUI.AddProperty( ControlMeta, "ActiveCol" )
+SGUI.AddProperty( ControlMeta, "InactiveCol" )
+
 --[[
 	Sets an SGUI control to highlight on mouse over automatically.
 
@@ -1344,6 +1381,13 @@ function ControlMeta:Think( DeltaTime )
 	self:HandleLayout( DeltaTime )
 end
 
+function ControlMeta:ThinkWithChildren( DeltaTime )
+	if not self:GetIsVisible() then return end
+
+	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
+end
+
 function ControlMeta:GetTooltipOffset( MouseX, MouseY, Tooltip )
 	local SelfPos = self:GetScreenPos()
 
@@ -1395,6 +1439,10 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 	if Highlighted then
 		self.Highlighted = true
 
+		if not self:GetStylingState() then
+			self:SetStylingState( "Highlighted" )
+		end
+
 		if not self.TextureHighlight then
 			if SkipAnim then
 				self:StopFade( self.Background )
@@ -1409,6 +1457,9 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		end
 	else
 		self.Highlighted = false
+		if self:GetStylingState() == "Highlighted" then
+			self:SetStylingState( nil )
+		end
 
 		if not self.TextureHighlight then
 			if SkipAnim then

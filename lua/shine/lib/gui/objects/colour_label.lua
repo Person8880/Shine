@@ -94,6 +94,7 @@ function ColourLabel:SetText( TextContent )
 		end
 
 		local Label = SGUI:Create( Type, self )
+		Label:SetIsSchemed( false )
 		Label:SetFontScale( self.Font, self.TextScale )
 		Label:SetText( Text )
 		Label:SetColour( SGUI.CopyColour( Colour ) )
@@ -130,11 +131,6 @@ function ColourLabel:GetSize()
 	end
 
 	return Vector2( Width, Height )
-end
-
-function ColourLabel:Think( DeltaTime )
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
 end
 
 SGUI:AddMixin( ColourLabel, "Clickable" )

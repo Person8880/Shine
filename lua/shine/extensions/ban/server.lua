@@ -724,17 +724,25 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest, OnAsyncResponse )
 
 	local Sharer = Shine.ExternalAPIHandler:GetCachedValue( "Steam", "IsPlayingSharedGame", RequestParams )
 	if Sharer ~= nil then
+		self.Logger:Debug( "Have cached response for family sharing state of %s: %s", ID, Sharer )
+
 		if not Sharer then return false end
 
 		return self:IsIDBanned( Sharer ), Sharer
 	end
 
 	if NoAPIRequest then return false end
-	if not Shine.ExternalAPIHandler:HasAPIKey( "Steam" ) then return false end
+	if not Shine.ExternalAPIHandler:HasAPIKey( "Steam" ) then
+		self.Logger:Warn( "No Steam API key has been configured, thus family sharing cannot be queried." )
+		return false
+	end
+
+	self.Logger:Debug( "Querying Steam for family sharing state of %s...", ID )
 
 	Shine.ExternalAPIHandler:PerformRequest( "Steam", "IsPlayingSharedGame", RequestParams, {
 		OnSuccess = self:WrapCallback( function( Sharer )
 			if not Sharer then
+				self.Logger:Debug( "Steam responded with no sharer for %s.", ID )
 				return OnAsyncResponse( false )
 			end
 

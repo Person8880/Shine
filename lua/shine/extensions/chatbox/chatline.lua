@@ -11,8 +11,13 @@ SGUI.AddProperty( ChatLine, "LineSpacing" )
 SGUI.AddProperty( ChatLine, "PreMargin" )
 
 function ChatLine:Initialise()
+	self:SetIsSchemed( false )
 	self.PreLabel = SGUI:Create( "Label", self.Parent )
 	self.MessageLabel = SGUI:Create( "Label", self.Parent )
+
+	-- Avoid skin changes altering the text colour.
+	self.PreLabel:SetIsSchemed( false )
+	self.MessageLabel:SetIsSchemed( false )
 
 	self.Pos = Vector2( 0, 0 )
 end

@@ -15,6 +15,7 @@ function ListHeader:Initialise()
 	self.Background = Background
 
 	local SortIndicator = SGUI:Create( "Label", self )
+	SortIndicator:SetIsSchemed( false )
 	SortIndicator:SetFont( SGUI.Fonts.Ionicons )
 	SortIndicator:SetText( "" )
 	SortIndicator:SetAnchor( "CenterRight" )
@@ -90,12 +91,6 @@ function ListHeader:OnMouseUp( Key )
 	Shared.PlaySound( nil, SGUI.Controls.Button.Sound )
 
 	return true
-end
-
-function ListHeader:Think( DeltaTime )
-	if not self:GetIsVisible() then return end
-
-	self.BaseClass.Think( self, DeltaTime )
 end
 
 SGUI:Register( "ListHeader", ListHeader, "Button" )

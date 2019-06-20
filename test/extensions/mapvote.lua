@@ -7,7 +7,210 @@ local UnitTest = Shine.UnitTest
 local MapVotePlugin = UnitTest:LoadExtension( "mapvote" )
 if not MapVotePlugin then return end
 
-local MapVote = UnitTest.MockOf( MapVotePlugin )
+local MapVote = UnitTest.MockPlugin( MapVotePlugin )
+
+function MapVote:LoadMapStats() end
+
+UnitTest:Test( "SetupMaps - Adds all valid maps from the map cycle when GetMapsFromMapCycle = true", function( Assert )
+	MapVote.Config.GetMapsFromMapCycle = true
+
+	local Cycle = {
+		maps = {
+			"ns2_derelict",
+			"ns2_tram",
+			"ns2_veil",
+			12345,
+			{ map = "ns2_summit", chance = 0.5, percent = 10 },
+			{ map = "ns2_biodome" },
+			{}
+		},
+		groups = {}
+	}
+
+	MapVote:SetupMaps( Cycle )
+
+	Assert.Equals( "Should take the map groups from the cycle", Cycle.groups, MapVote.MapGroups )
+
+	Assert.DeepEquals( "Should have copied all valid maps into Config.Maps", {
+		ns2_derelict = true,
+		ns2_tram = true,
+		ns2_veil = true,
+		ns2_biodome = true,
+		ns2_summit = true
+	}, MapVote.Config.Maps )
+
+	Assert.DeepEquals( "Should read the chance value from maps, defaulting to 1", {
+		ns2_derelict = 1,
+		ns2_tram = 1,
+		ns2_veil = 1,
+		ns2_biodome = 1,
+		ns2_summit = 0.5
+	}, MapVote.MapProbabilities )
+
+	Assert.DeepEquals( "Should copy the valid maps into MapChoices", {
+		"ns2_derelict",
+		"ns2_tram",
+		"ns2_veil",
+		{ map = "ns2_summit", chance = 0.5, percent = 10 },
+		{ map = "ns2_biodome" },
+	}, MapVote.MapChoices )
+
+	Assert.DeepEquals( "Should store table maps in MapOptions", {
+		ns2_biodome = {
+			map = "ns2_biodome"
+		},
+		ns2_summit = {
+			map = "ns2_summit",
+			chance = 0.5,
+			percent = 10
+		}
+	}, MapVote.MapOptions )
+end )
+
+UnitTest:Test( "SetupMaps - Sets up maps from config and cycle when GetMapsFromMapCycle = false", function( Assert )
+	MapVote.Config.GetMapsFromMapCycle = false
+
+	local Cycle = {
+		maps = {
+			"ns2_derelict",
+			"ns2_tram",
+			"ns2_veil",
+			12345,
+			{ map = "ns2_summit", chance = 0.5, percent = 10 },
+			{ map = "ns2_biodome" },
+			{}
+		}
+	}
+	MapVote.Config.Maps = {
+		ns2_descent = true,
+		ns2_eclipse = {
+			chance = 0.2,
+			percent = 50
+		}
+	}
+
+	MapVote:SetupMaps( Cycle )
+
+	Assert.DeepEquals( "Config.Maps should be unchanged", {
+		ns2_descent = true,
+		ns2_eclipse = {
+			map = "ns2_eclipse",
+			chance = 0.2,
+			percent = 50
+		}
+	}, MapVote.Config.Maps )
+
+	Assert.DeepEquals( "Should read the chance value from maps, defaulting to 1", {
+		ns2_derelict = 1,
+		ns2_tram = 1,
+		ns2_veil = 1,
+		ns2_biodome = 1,
+		ns2_descent = 1,
+		ns2_summit = 0.5,
+		ns2_eclipse = 0.2
+	}, MapVote.MapProbabilities )
+
+	Assert.DeepEquals( "Should copy the valid maps from the cycle into MapChoices", {
+		"ns2_derelict",
+		"ns2_tram",
+		"ns2_veil",
+		{ map = "ns2_summit", chance = 0.5, percent = 10 },
+		{ map = "ns2_biodome" },
+	}, MapVote.MapChoices )
+
+	Assert.DeepEquals( "Should store table maps in MapOptions", {
+		ns2_biodome = {
+			map = "ns2_biodome"
+		},
+		ns2_summit = {
+			map = "ns2_summit",
+			chance = 0.5,
+			percent = 10
+		},
+		ns2_eclipse = {
+			map = "ns2_eclipse",
+			chance = 0.2,
+			percent = 50
+		}
+	}, MapVote.MapOptions )
+end )
+
+function MapVote:GetCurrentMap()
+	return "ns2_veil"
+end
+
+UnitTest:Test( "GetNextMap - Returns next map vote winner if present", function( Assert )
+	MapVote.NextMap.Winner = "ns2_tram"
+	Assert.Equals( "Should return the map vote winner", "ns2_tram", MapVote:GetNextMap() )
+end )
+
+MapVote.NextMap.Winner = nil
+
+UnitTest:Test( "GetNextMap - Returns the first valid map after the current map", function( Assert )
+	MapVote.MapChoices = {
+		"ns2_summit",
+		"ns2_tram",
+		{ map = "ns2_veil" },
+		{ map = "ns2_derelict", max = 0 },
+		"ns2_biodome"
+	}
+	MapVote.Config.IgnoreAutoCycle = {
+		ns2_biodome = true,
+		ns2_summit = true
+	}
+	-- Derelict is invalid due to player count, and biodome and summit are ignored, so tram must be next.
+	Assert.Equals(
+		"Should return the first valid map after ns2_veil",
+		"ns2_tram",
+		MapVote:GetNextMap()
+	)
+end )
+
+UnitTest:Test( "GetNextMap - Returns the first map not in IgnoreAutoCycle when no maps are valid", function( Assert )
+	MapVote.MapChoices = {
+		{ map = "ns2_summit", max = 0 },
+		{ map = "ns2_tram", max = 0 },
+		{ map = "ns2_veil" },
+		{ map = "ns2_derelict", max = 0 },
+		{ map = "ns2_biodome", max = 0 }
+	}
+	MapVote.Config.IgnoreAutoCycle = {
+		ns2_derelict = true,
+		ns2_biodome = true
+	}
+	-- All maps are invalid due to player count except the current map, but only derelict and biodome are
+	-- ignored, thus the next map should be summit.
+	Assert.Equals(
+		"Should return the first map after ns2_veil not in IgnoreAutoCycle",
+		"ns2_summit",
+		MapVote:GetNextMap()
+	)
+end )
+
+function MapVote:GetCurrentMap()
+	return "ns2_unearthed"
+end
+
+UnitTest:Test( "GetNextMap - Handles current map being outside the current cycle", function( Assert )
+	MapVote.MapChoices = {
+		"ns2_summit",
+		"ns2_tram",
+		{ map = "ns2_veil" },
+		{ map = "ns2_derelict", max = 0 },
+		"ns2_biodome"
+	}
+	MapVote.Config.IgnoreAutoCycle = {
+		ns2_biodome = true,
+		ns2_summit = true
+	}
+	-- When outside the cycle, the current map index is 0, so should start from the first map.
+	Assert.Equals(
+		"Should return the first valid map in the cycle",
+		"ns2_tram",
+		MapVote:GetNextMap()
+	)
+end )
+
 MapVote.MaxNominations = 5
 MapVote.Config.Nominations.MaxTotalType = MapVote.MaxNominationsType.AUTO
 
@@ -710,6 +913,7 @@ end )
 
 MapVote.ForcedMapCount = 0
 MapVote.Config.ForcedMaps = {}
+MapVote.MapOptions = {}
 
 MapVote.Vote.Nominated = { "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome", "ns2_eclipse" }
 function MapVote:IsValidMapChoice( Map, PlayerCount ) return Map ~= "ns2_eclipse" end

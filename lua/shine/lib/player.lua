@@ -64,7 +64,6 @@ local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local TableToString = table.ToString
 local tonumber = tonumber
-local Traceback = debug.traceback
 
 --[[
 	Returns whether the given client is valid.
@@ -72,16 +71,6 @@ local Traceback = debug.traceback
 function Shine:IsValidClient( Client )
 	return Client and self.GameIDs:Get( Client ) ~= nil
 end
-
-local function OnJoinError( Error )
-	local Trace = Traceback()
-
-	Shine:DebugLog( "Error: %s.\nEvenlySpreadTeams failed. %s", true, Error, Trace )
-	Shine:AddErrorReport( StringFormat(
-		"A player failed to join a team in EvenlySpreadTeams: %s.", Error ), Trace )
-end
-
-local Hook = Shine.Hook
 
 function Shine.EqualiseTeamCounts( TeamMembers )
 	local Marine = TeamMembers[ 1 ]
@@ -119,6 +108,9 @@ function Shine.EqualiseTeamCounts( TeamMembers )
 end
 
 do
+	local Hook = Shine.Hook
+	local OnJoinError = Shine.BuildErrorHandler( "EvenlySpreadTeams team join error" )
+
 	local function MoveToTeam( Gamerules, Players, TeamNumber )
 		for i = #Players, 1, -1 do
 			local Player = Players[ i ]

@@ -68,6 +68,7 @@ function Notification:SetText( Text, Font, Scale )
 	local Label = self.Text
 	if not SGUI.IsValid( Label ) then
 		Label = SGUI:Create( "Label", self )
+		Label:SetIsSchemed( false )
 		self.Text = Label
 	end
 
@@ -184,6 +185,7 @@ end
 
 function Notification:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
+	self:CallOnChildren( "Think", DeltaTime )
 
 	if self.FadingIn or self.FadingOut then
 		return
@@ -246,11 +248,6 @@ function Notification:FadeOutAfter( Duration, Callback )
 		self.FadeOutTimer = nil
 		self:FadeOut()
 	end )
-end
-
-function Notification:Think( DeltaTime )
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
 end
 
 SGUI:Register( "Notification", Notification )

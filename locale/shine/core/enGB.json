@@ -49,6 +49,7 @@
 	"VIEW_WEB_IN_STEAM_DESCRIPTION": "View web pages in the Steam overlay.",
 	"REPORT_ERRORS_DESCRIPTION": "Report script errors caused by Shine.",
 	"ANIMATE_UI_DESCRIPTION": "Use animations in the UI.",
+	"SKIN_DESCRIPTION": "GUI skin:",
 	"CLIENT_CONFIG_MENU": "Client Config",
 	"ERROR_CANT_TARGET_SELF": "You cannot target yourself with this command.",
 	"ERROR_NO_MATCHING_PLAYER": "No player matching '{PlayerName}' was found.",

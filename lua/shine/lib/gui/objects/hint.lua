@@ -42,6 +42,7 @@ function Hint:Initialise()
 	} )
 
 	local HelpText = SGUI:Create( "Label", self )
+	HelpText:SetIsSchemed( false )
 	HelpText:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 	HelpText:SetFill( true )
 	HelpText:SetAutoWrap( true )

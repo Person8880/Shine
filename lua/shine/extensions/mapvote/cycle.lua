@@ -11,9 +11,11 @@ local Max = math.max
 local Notify = Shared.Message
 local pairs = pairs
 local SharedTime = Shared.GetTime
+local TableAdd = table.Add
 local TableCopy = table.Copy
 local TableFindByField = table.FindByField
 local TableRemove = table.remove
+local TableSlice = table.Slice
 
 local Plugin = ...
 
@@ -44,9 +46,14 @@ function Plugin:AddMapFromCycle( ConfigMaps, Map )
 	elseif IsType( Map, "string" ) then
 		ConfigMaps[ Map ] = true
 		self.MapProbabilities[ Map ] = 1
+	else
+		-- Skip invalid map entries.
+		return false
 	end
 
 	self.MapChoices[ #self.MapChoices + 1 ] = Map
+
+	return true
 end
 
 function Plugin:SetupMaps( Cycle )
@@ -57,40 +64,71 @@ function Plugin:SetupMaps( Cycle )
 	if self.Config.GetMapsFromMapCycle then
 		local Maps = Cycle and Cycle.maps
 
-		if Maps then
+		if IsType( Maps, "table" ) then
 			self.Config.Maps = {}
-			local ConfigMaps = self.Config.Maps
 
-			if Cycle.groups then
+			local ConfigMaps = self.Config.Maps
+			if IsType( Cycle.groups, "table" ) then
 				self.MapGroups = Cycle.groups
 			end
 
 			for i = 1, #Maps do
 				local Map = Maps[ i ]
-				self:AddMapFromCycle( ConfigMaps, Map )
+				if not self:AddMapFromCycle( ConfigMaps, Map ) then
+					self.Logger:Warn(
+						"Entry %d in the map cycle \"maps\" list does not specify a map name and will be ignored.",
+						i
+					)
+				end
 			end
+		else
+			self.Logger:Error(
+				"The map cycle \"maps\" list is invalid (expected table, got %s). Check the MapCycle.json file.",
+				type( Maps )
+			)
 		end
 	else
 		for Map, Data in pairs( self.Config.Maps ) do
-			if not Data then
-				--No need to exist at all...
-				self.Config.Maps[ Map ] = nil
-			elseif IsType( Data, "table" ) then
-				Data.map = Map
-				SetupFromTable( self, Data )
+			if IsType( Map, "string" ) then
+				if not Data then
+					-- No need to exist at all...
+					self.Config.Maps[ Map ] = nil
+				elseif IsType( Data, "table" ) then
+					Data.map = Map
+					SetupFromTable( self, Data )
+				else
+					self.MapProbabilities[ Map ] = 1
+				end
 			end
 		end
 
-		if Cycle and Cycle.maps then
+		if Cycle and IsType( Cycle.maps, "table" ) then
 			for i = 1, #Cycle.maps do
 				local Map = Cycle.maps[ i ]
 
+				local IsValidMap = false
 				if IsType( Map, "table" ) and IsType( Map.map, "string" ) then
+					IsValidMap = true
 					SetupFromTable( self, Map )
+				elseif IsType( Map, "string" ) then
+					IsValidMap = true
+					self.MapProbabilities[ Map ] = 1
+				else
+					self.Logger:Warn(
+						"Entry %d in the map cycle \"maps\" list does not specify a map name and will be ignored.",
+						i
+					)
 				end
 
-				self.MapChoices[ #self.MapChoices + 1 ] = Map
+				if IsValidMap then
+					self.MapChoices[ #self.MapChoices + 1 ] = Map
+				end
 			end
+		else
+			self.Logger:Error(
+				"The map cycle \"maps\" list is invalid (expected table, got %s). Check the MapCycle.json file.",
+				type( Maps )
+			)
 		end
 	end
 
@@ -177,12 +215,12 @@ end
 ]]
 function Plugin:GetNextMap()
 	local CurMap = self:GetCurrentMap()
-
 	local Winner = self.NextMap.Winner
-	if Winner and Winner ~= CurMap then return Winner end --Winner decided.
 
-	local Cycle = self.MapCycle
-	if not Cycle then return "unknown" end --No map cycle?
+	if Winner and Winner ~= CurMap then
+		-- Vote has decided the next map.
+		return Winner
+	end
 
 	local Maps = self.MapChoices
 	local NumMaps = #Maps
@@ -195,49 +233,31 @@ function Plugin:GetNextMap()
 		end
 	end
 
-	Index = Index + 1
+	local CycleExcludingCurrentMap = Shine.Stream(
+		TableAdd(
+			TableSlice( Maps, Index + 1 ),
+			TableSlice( Maps, 1, Index - 1 )
+		)
+	):Filter( function( Map ) return not self.Config.IgnoreAutoCycle[ GetMapName( Map ) ] end )
 
-	if Index > NumMaps then
-		Index = 1
-	end
+	-- Start with the next map that's not ignored when cycling, in case every map is marked as invalid
+	-- for the current player count.
+	local NextMap = CycleExcludingCurrentMap:AsTable()[ 1 ]
 
-	local Map = Maps[ Index ]
-
-	local IgnoreList = TableCopy( self.Config.IgnoreAutoCycle )
 	local PlayerCount = GetNumPlayers()
+	local ValidMaps = CycleExcludingCurrentMap:Filter( function( Map )
+		return self:IsValidMapChoice( Map, PlayerCount )
+	end ):AsTable()
 
-	--Handle min/max player limits for maps.
-	for i = 1, #Maps do
-		local Map = Maps[ i ]
-
-		if not self:IsValidMapChoice( Map, PlayerCount ) then
-			IgnoreList[ Map.map ] = true
-		end
+	if #ValidMaps > 0 then
+		NextMap = ValidMaps[ 1 ]
 	end
 
-	if IsType( Map, "table" ) then
-		Map = Map.map
+	if IsType( NextMap, "table" ) then
+		NextMap = NextMap.map
 	end
 
-	local Iterations = 0
-
-	while IgnoreList[ Map ] and Iterations < NumMaps do
-		Index = Index + 1
-
-		if Index > NumMaps then
-			Index = 1
-		end
-
-		Map = Maps[ Index ]
-
-		if IsType( Map, "table" ) then
-			Map = Map.map
-		end
-
-		Iterations = Iterations + 1
-	end
-
-	return Map
+	return NextMap
 end
 
 function Plugin:SetupEmptyCheckTimer()
@@ -250,9 +270,19 @@ function Plugin:SetupEmptyCheckTimer()
 		if not self.Cycled then
 			self.Cycled = true
 
-			Shine:LogString( "Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..." )
+			self.Logger:Info(
+				"Server is at or below empty player count and map has exceeded its timelimit. Cycling to next map..."
+			)
 
-			MapCycle_ChangeMap( self:GetNextMap() )
+			local NextMap = self:GetNextMap()
+			if not NextMap then
+				self.Logger:Error(
+					"Unable to find a valid map to advance to! Verify the map cycle and IgnoreAutoCycle "..
+					"configuration do not exclude every possible map!"
+				)
+			else
+				MapCycle_ChangeMap( NextMap )
+			end
 		end
 	end )
 end

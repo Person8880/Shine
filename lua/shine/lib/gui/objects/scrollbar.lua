@@ -30,11 +30,13 @@ function Scrollbar:Initialise()
 
 	self.Horizontal = false
 	self.ScrollAxis = "y"
+	self.ScrollEvent = "OnScrollChange"
 end
 
 function Scrollbar:SetHorizontal( Horizontal )
 	self.Horizontal = Horizontal
 	self.ScrollAxis = Horizontal and "x" or "y"
+	self.ScrollEvent = Horizontal and "OnScrollChangeX" or "OnScrollChange"
 end
 
 function Scrollbar:FadeIn( Duration, Callback, EaseFunc )
@@ -67,10 +69,12 @@ end
 
 function Scrollbar:GetNormalAlpha( Element )
 	if Element == self.Background then
-		return self:GetStyleValue( "BackgroundColour" ).a
+		local Colour = self:GetStyleValue( "BackgroundColour" )
+		return Colour and Colour.a or 1
 	end
 
-	return self:GetStyleValue( "InactiveCol" ).a
+	local Colour = self:GetStyleValue( "InactiveCol" )
+	return Colour and Colour.a or 1
 end
 
 function Scrollbar:SetSize( Size )
@@ -116,8 +120,8 @@ function Scrollbar:SetScroll( Scroll, Smoothed )
 	self.BarPos[ self.ScrollAxis ] = Scroll
 	self.Bar:SetPosition( self.BarPos )
 
-	if self.Parent and self.Parent.OnScrollChange then
-		self.Parent:OnScrollChange( Scroll, Diff, Smoothed )
+	if self.Parent and self.Parent[ self.ScrollEvent ] then
+		self.Parent[ self.ScrollEvent ]( self.Parent, Scroll, Diff, Smoothed )
 	end
 end
 
@@ -129,7 +133,7 @@ function Scrollbar:ScrollToBottom( Smoothed )
 	self:SetScroll( self:GetDiffSize() )
 end
 
-local GetCursorPos
+local GetCursorPos = SGUI.GetCursorPos
 
 function Scrollbar:OnMouseDown( Key, DoubleClick )
 	if self.Disabled then return end
@@ -138,8 +142,6 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	if not self:MouseIn( self.Bar ) then return end
 
 	self.Scrolling = true
-
-	GetCursorPos = GetCursorPos or Client.GetCursorPosScreen
 
 	local X, Y = GetCursorPos()
 

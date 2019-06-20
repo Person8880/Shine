@@ -78,7 +78,7 @@ local PositionUpdaters = {
 	This method handles laying out elements, including keeping track of margins between them.
 ]]
 function Directional:LayoutElements( Elements, Context )
-	if #Elements == 0 then return end
+	if #Elements == 0 then return 0, 0 end
 
 	local Alignment = Context.Alignment
 	local IsMin = Alignment ~= LayoutAlignment.MAX
@@ -114,6 +114,8 @@ function Directional:LayoutElements( Elements, Context )
 
 		X, Y = UpdatePositionAfter( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 	end
+
+	return X, Y
 end
 
 function Directional:PerformLayout()
@@ -197,14 +199,20 @@ function Directional:PerformLayout()
 	}
 
 	-- Layout each alignment in sequence, applying the fill size to elements set to fill.
-	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+	local MinAlignX, MinAlignY = self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
 
 	Context.Alignment = LayoutAlignment.MAX
 	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
 
 	Context.Alignment = LayoutAlignment.CENTRE
 	Context.CentreAlignedSize = CentreAlignedSize
-	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+	local CentreX, CentreY = self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+
+	-- MIN and CENTRE aligned elements are both capable of exceeding the layout's size, and thus
+	-- the layout's furthest extents are defined by the max of the two. Including padding here avoids
+	-- surprises where a panel with a layout ends up ignoring the padding when adding scrolling.
+	self.MaxPosX = Max( MinAlignX, CentreX ) + Padding[ 3 ]
+	self.MaxPosY = Max( MinAlignY, CentreY ) + Padding[ 4 ]
 
 	self.BaseClass.PerformLayout( self )
 end

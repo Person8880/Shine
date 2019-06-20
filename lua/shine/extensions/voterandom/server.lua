@@ -893,40 +893,53 @@ function Plugin:GetOptimalTeamForPlayer( Player, Team1Players, Team2Players, Ski
 	return nil
 end
 
---[[
-	Moves a single player onto a random team.
-]]
-function Plugin:JoinRandomTeam( Gamerules, Player )
-	local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
-	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
+do
+	local function GetPlayersOnTeam( Team )
+		local Players = {}
 
-	if Team1 < Team2 then
-		Gamerules:JoinTeam( Player, 1 )
-		return 1
+		-- Team:GetPlayers() returns the same table every time, which is not helpful...
+		Team:ForEachPlayer( function( Player )
+			Players[ #Players + 1 ] = Player
+		end )
+
+		return Players
 	end
 
-	if Team2 < Team1 then
-		Gamerules:JoinTeam( Player, 2 )
-		return 2
-	end
+	--[[
+		Moves a single player onto a random team.
+	]]
+	function Plugin:JoinRandomTeam( Gamerules, Player )
+		local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
+		local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
 
-	if self.LastShuffleMode == self.ShuffleMode.HIVE then
-		local Team1Players = Gamerules.team1:GetPlayers()
-		local Team2Players = Gamerules.team2:GetPlayers()
-
-		local TeamToJoin = self:GetOptimalTeamForPlayer( Player,
-			Team1Players, Team2Players, self.SkillGetters.GetHiveSkill )
-
-		if TeamToJoin then
-			Gamerules:JoinTeam( Player, TeamToJoin )
-			return TeamToJoin
+		if Team1 < Team2 then
+			Gamerules:JoinTeam( Player, 1 )
+			return 1
 		end
+
+		if Team2 < Team1 then
+			Gamerules:JoinTeam( Player, 2 )
+			return 2
+		end
+
+		if self.LastShuffleMode == self.ShuffleMode.HIVE then
+			local Team1Players = GetPlayersOnTeam( Gamerules.team1 )
+			local Team2Players = GetPlayersOnTeam( Gamerules.team2 )
+
+			local TeamToJoin = self:GetOptimalTeamForPlayer( Player,
+				Team1Players, Team2Players, self.SkillGetters.GetHiveSkill )
+
+			if TeamToJoin then
+				Gamerules:JoinTeam( Player, TeamToJoin )
+				return TeamToJoin
+			end
+		end
+
+		local TeamNumber = Random() < 0.5 and 1 or 2
+		Gamerules:JoinTeam( Player, TeamNumber )
+
+		return TeamNumber
 	end
-
-	local TeamNumber = Random() < 0.5 and 1 or 2
-	Gamerules:JoinTeam( Player, TeamNumber )
-
-	return TeamNumber
 end
 
 function Plugin:SetGameState( Gamerules, NewState, OldState )

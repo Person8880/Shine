@@ -130,13 +130,24 @@ do
 		end
 
 		local BoundFields = {}
+
 		for i = 1, #BoundObject do
-			local FieldName, Setter = unpack( StringExplode( BoundObject[ i ], ":" ) )
-			BoundFields[ i ] = {
-				FieldName = FieldName,
+			local Entry = BoundObject[ i ]
+			if IsType( Entry, "string" ) then
+				local FieldName, Setter = unpack( StringExplode( Entry, ":" ) )
 				Setter = Setter or "Set"..PropertyName
-			}
+
+				BoundFields[ i ] = function( self, Value )
+					local Object = self[ FieldName ]
+					if Object then
+						Object[ Setter ]( Object, Value )
+					end
+				end
+			else
+				BoundFields[ i ] = Entry
+			end
 		end
+
 		return BoundFields
 	end
 
@@ -160,11 +171,7 @@ do
 			self[ Name ] = Value
 
 			for i = 1, #BoundFields do
-				local Entry = BoundFields[ i ]
-				local Object = self[ Entry.FieldName ]
-				if Object then
-					Object[ Entry.Setter ]( Object, Value )
-				end
+				BoundFields[ i ]( self, Value )
 			end
 
 			if OldValue == Value then return end
@@ -359,6 +366,8 @@ do
 end
 
 do
+	local TableRemoveByValue = table.RemoveByValue
+
 	local function RefreshFocusedWindow( self, Window )
 		local Windows = self.Windows
 		for i = 1, #Windows do
@@ -378,27 +387,38 @@ do
 		Sets the current in-focus window.
 		Inputs: Window object, windows index.
 	]]
-	function SGUI:SetWindowFocus( Window, i )
+	function SGUI:SetWindowFocus( Window )
+		if Window == self.FocusedWindow or not self.Windows[ Window ] then
+			return
+		end
+
 		local Windows = self.Windows
-
-		if Window ~= self.FocusedWindow and not i then
-			for j = 1, #Windows do
-				local CurWindow = Windows[ j ]
-
-				if CurWindow == Window then
-					i = j
-					break
-				end
+		for i = #Windows, 1, -1 do
+			local CurWindow = Windows[ i ]
+			if CurWindow == Window then
+				TableRemove( Windows, i )
+				Windows[ #Windows + 1 ] = Window
+				break
 			end
 		end
 
-		if i then
-			TableRemove( Windows, i )
-
-			Windows[ #Windows + 1 ] = Window
-		end
-
 		RefreshFocusedWindow( self, Window )
+	end
+
+	function SGUI:AddWindow( Window )
+		if self.Windows[ Window ] then return end
+
+		self.Windows[ #self.Windows + 1 ] = Window
+		self.Windows[ Window ] = true
+	end
+
+	function SGUI:RemoveWindow( Window )
+		if not self.Windows[ Window ] then return end
+
+		self.Windows[ Window ] = nil
+		TableRemoveByValue( self.Windows, Window )
+
+		RefreshFocusedWindow( self, self.Windows[ #self.Windows ] )
 	end
 
 	function SGUI:MoveWindowToBottom( Window )
@@ -416,6 +436,10 @@ do
 	end
 end
 
+function SGUI:IsWindow( Window )
+	return self.Windows[ Window ]
+end
+
 function SGUI:IsWindowInFocus( Window )
 	if Window == self.FocusedWindow then return true end
 
@@ -426,7 +450,7 @@ function SGUI:IsWindowInFocus( Window )
 			return Window.AlwaysInMouseFocus or Window:MouseInCached()
 		end
 
-		if not OtherWindow.IgnoreMouseFocus and OtherWindow:MouseInCached() then
+		if not OtherWindow.IgnoreMouseFocus and OtherWindow:GetIsVisible() and OtherWindow:MouseInCached() then
 			return false
 		end
 	end
@@ -477,7 +501,7 @@ function SGUI:CallEvent( FocusChange, Name, ... )
 			if Success then
 				if Result ~= nil then
 					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-						self:SetWindowFocus( Window, i )
+						self:SetWindowFocus( Window )
 					end
 
 					self:PostCallEvent( Result, Control )
@@ -561,6 +585,16 @@ do
 		__index = ControlMeta
 	}
 
+	local function AfterParentSet( Table )
+		-- This exists for backwards compatibility reasons. The base control Think doesn't call Think on its children,
+		-- so changing that would end up calling Think twice on any control that had previously implemented it.
+		if Table.Think == ControlMeta.Think then
+			Table.Think = ControlMeta.ThinkWithChildren
+		end
+
+		Table.__tostring = Table.__tostring or ControlMeta.__tostring
+	end
+
 	--[[
 		Registers a control meta-table.
 		We'll use this to create instances of it (instead of loading a script
@@ -572,7 +606,6 @@ do
 			3. Optional parent name. This will make the object inherit the parent's table keys.
 	]]
 	function SGUI:Register( Name, Table, Parent )
-		-- Read methods/fields from the given table.
 		Table.__index = Table
 		Table.__Name = Name
 
@@ -595,14 +628,13 @@ do
 				setmetatable( Table, {
 					__index = ParentTable
 				} )
+				AfterParentSet( Table )
 			end
 		else
 			-- No parent means only look in its meta-table and the base meta-table.
-			Table.__index = Table
 			setmetatable( Table, InheritFromBaseControl )
+			AfterParentSet( Table )
 		end
-
-		Table.__tostring = Table.__tostring or ControlMeta.__tostring
 
 		-- Used to call base class functions for things like :MoveTo()
 		Table.BaseClass = ControlMeta
@@ -618,6 +650,7 @@ do
 			}
 			for i = 1, #ChildTypes do
 				setmetatable( ChildTypes[ i ], InheritFromParent )
+				AfterParentSet( ChildTypes[ i ] )
 			end
 
 			ControlTypesWaitingForParent:Remove( Name )
@@ -643,51 +676,58 @@ do
 	]]
 	function SGUI:Create( Class, Parent, ParentElement )
 		local MetaTable = self.Controls[ Class ]
-
 		assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
 
 		ID = ID + 1
 
 		local Table = {}
-		local IsAWindow = MetaTable.IsWindow and not Parent and true or false
+		local IsWindow = MetaTable.IsWindow and not Parent and true or false
 
 		local Control = setmetatable( Table, MetaTable )
 		Control.Class = Class
 		Control.ID = ID
-		Control.IsAWindow = IsAWindow
+		Control.IsAWindow = IsWindow
+		if IsWindow then
+			-- Add before initialise so the control is marked as a window, and thus any children
+			-- have their TopLevelWindow assigned.
+			self:AddWindow( Control )
+		end
+
 		Control:Initialise()
 
-		self.ActiveControls:Add( Control, true )
-
-		-- If it's a window then we give it focus.
-		if IsAWindow then
-			local Windows = self.Windows
-			Windows[ #Windows + 1 ] = Control
-
+		if IsWindow then
 			self:SetWindowFocus( Control )
 		end
 
+		self.ActiveControls:Add( Control, true )
 		self.SkinManager:ApplySkin( Control )
 
-		if not Parent then return Control end
-
-		Control:SetParent( Parent, ParentElement )
+		if Parent then
+			Control:SetParent( Parent, ParentElement )
+		end
 
 		return Control
 	end
 end
 
 do
+	local DebugGetInfo = debug.getinfo
 	local rawget = rawget
 	local ValidityKey = "IsValid"
 	local function CheckDestroyed( self, Key )
 		local Destroyed = rawget( self, "__Destroyed" )
 		if Destroyed and Key ~= ValidityKey and Destroyed < SGUI.FrameNumber() then
-			error( "Attempted to use a destroyed SGUI object!", 3 )
+			local Caller = DebugGetInfo( 2, "f" ).func
+			-- Allow access in __tostring(), otherwise the element can't be printed.
+			if Caller ~= getmetatable( self ).__tostring then
+				error( "Attempted to use a destroyed SGUI object!", 3 )
+			end
 		end
 
 		return rawget( self, "__OriginalIndex" )[ Key ]
 	end
+
+	local OnCallOnRemoveError = Shine.BuildErrorHandler( "SGUI CallOnRemove callback error" )
 
 	--[[
 		Destroys an SGUI control.
@@ -701,13 +741,16 @@ do
 			Control:SetParent( nil )
 		end
 
+		if Control.LayoutParent then
+			Control.LayoutParent:RemoveElement( Control )
+		end
+
 		self.ActiveControls:Remove( Control )
 
 		if self.IsValid( Control.Tooltip ) then
 			Control.Tooltip:Destroy()
 		end
 
-		-- SGUI children, not GUIItems.
 		if Control.Children then
 			for Control in Control.Children:Iterate() do
 				Control:Destroy()
@@ -715,42 +758,26 @@ do
 		end
 
 		local DeleteOnRemove = Control.__DeleteOnRemove
-
 		if DeleteOnRemove then
 			for i = 1, #DeleteOnRemove do
-				local Control = DeleteOnRemove[ i ]
-
-				if self.IsValid( Control ) then
-					Control:Destroy()
+				if self.IsValid( DeleteOnRemove[ i ] ) then
+					DeleteOnRemove[ i ]:Destroy()
 				end
 			end
 		end
-
-		Control:Cleanup()
 
 		local CallOnRemove = Control.__CallOnRemove
-
 		if CallOnRemove then
 			for i = 1, #CallOnRemove do
-				CallOnRemove[ i ]( Control )
+				-- Important to avoid errors here, otherwise the control will be left
+				-- in an inconsistent state.
+				xpcall( CallOnRemove[ i ], OnCallOnRemoveError, Control )
 			end
 		end
 
-		-- If it's a window, then clean it up.
-		if Control.IsAWindow then
-			local Windows = self.Windows
+		self:RemoveWindow( Control )
 
-			for i = 1, #Windows do
-				local Window = Windows[ i ]
-
-				if Window == Control then
-					TableRemove( Windows, i )
-					break
-				end
-			end
-
-			self:SetWindowFocus( Windows[ #Windows ] )
-		end
+		Control:Cleanup()
 
 		-- Re-assign the metatable to ensure usage causes an error next frame.
 		-- This avoids needing to check for validity constantly on every field access
@@ -814,10 +841,17 @@ local function NotifyFocusChange( Element, ClickingOtherElement )
 end
 SGUI.NotifyFocusChange = NotifyFocusChange
 
+local GetCursorPosScreen = Client.GetCursorPosScreen
+function SGUI.GetCursorPos()
+	return GetCursorPosScreen()
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
+	GetCursorPosScreen = Client.GetCursorPosScreen
+
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
@@ -858,6 +892,8 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	MouseTracker_ListenToMovement( Listener )
 	MouseTracker_ListenToButtons( Listener )
 	MouseTracker_ListenToWheel( Listener )
+
+	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 end )
 
 include( "lua/shine/lib/gui/base_control.lua" )

@@ -4,13 +4,14 @@
 
 local Shine = Shine
 
+local IsType = Shine.IsType
 local OSTime = os.time
 local StringFormat = string.format
 local tostring = tostring
 
 local APIs = {
 	Steam = {
-		URL = "http://api.steampowered.com/",
+		URL = "https://api.steampowered.com/",
 		Params = {
 			key = tostring
 		},
@@ -32,9 +33,11 @@ local APIs = {
 				GetCacheKey = function( Params ) return tostring( Params.steamid ) end,
 				ResponseTransformer = function( Response )
 					-- Do not cache on invalid JSON.
-					if not Response then return nil end
+					if not IsType( Response, "table" ) or not IsType( Response.response, "table" ) then
+						return nil
+					end
 
-					local Lender = Response.lender_steamid
+					local Lender = Response.response.lender_steamid
 					if not Lender or Lender == "0" then return false end
 
 					return Shine.SteamID64ToNS2ID( Lender )
@@ -90,10 +93,7 @@ do
 		local URL = APIData.URL..Data.URL
 
 		-- Inherit the base API definition's parameters automatically.
-		if Data.DefaultRequestParams then
-			setmetatable( Data.DefaultRequestParams, { __index = APIData.GlobalRequestParams } )
-		end
-
+		local DefaultRequestParams = Data.DefaultRequestParams or {}
 		local Params = TableShallowMerge( Data.Params, {} )
 		TableShallowMerge( APIData.Params, Params )
 
@@ -102,17 +102,33 @@ do
 		APICallers[ APIName ][ EndPointName ] = function( RequestParams, Callbacks, Attempts )
 			Attempts = Attempts or 1
 
+			-- Build the default parameters (some of which may not be expected to be provided by the caller).
+			local DefaultParams = TableShallowMerge( DefaultRequestParams, {} )
+
 			-- Inherit the base API definition's global request parameters (e.g. for an API key).
-			setmetatable( RequestParams, { __index = Data.DefaultRequestParams or APIData.GlobalRequestParams } )
+			TableShallowMerge( APIData.GlobalRequestParams, DefaultParams )
 
 			-- Parse the request parameters using the set converters.
 			local FinalParams = {}
 			for Key, Transformer in pairs( Params ) do
-				if not RequestParams[ Key ] then
+				local Value = RequestParams[ Key ]
+				if Value == nil then
+					-- Fall back to the defaults only if the value is nil (to allow false values).
+					Value = DefaultParams[ Key ]
+				end
+
+				if Value == nil then
 					error( StringFormat( "Missing request parameter: '%s'", Key ), 2 )
 				end
 
-				FinalParams[ Key ] = Transformer( RequestParams[ Key ] )
+				FinalParams[ Key ] = Transformer( Value )
+			end
+
+			-- Add any missing default parameters.
+			for Key, Value in pairs( DefaultParams ) do
+				if FinalParams[ Key ] == nil then
+					FinalParams[ Key ] = Value
+				end
 			end
 
 			-- Pass the transformed JSON response through to the OnSuccess callback.

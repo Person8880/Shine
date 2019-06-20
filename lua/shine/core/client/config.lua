@@ -14,7 +14,8 @@ local DefaultConfig = {
 	AnimateUI = true,
 	DebugLogging = false,
 	ExpandAdminMenuTabs = true,
-	ExpandConfigMenuTabs = true
+	ExpandConfigMenuTabs = true,
+	Skin = "Default"
 }
 
 function Shine:CreateClientBaseConfig()
@@ -137,6 +138,48 @@ for i = 1, #Options do
 	if Shine.Config[ Option.Data[ 2 ] ] == Option.MessageState or Option.AlwaysShowMessage then
 		Shine.AddStartupMessage( Option.Message )
 	end
+end
+
+do
+	local SGUI = Shine.GUI
+	Shine:RegisterClientCommand( "sh_setskin", function( SkinName )
+		local Skins = SGUI.SkinManager:GetSkinsByName()
+		if not Skins[ SkinName ] then
+			Notify( StringFormat( "%s is not a valid skin name.", SkinName ) )
+			return
+		end
+
+		if Shine.Config.Skin == SkinName then return end
+
+		Shine.Config.Skin = SkinName
+		SGUI.SkinManager:SetSkin( SkinName )
+
+		Notify( StringFormat( "Default skin changed to: %s.", SkinName ) )
+
+		Shine:SaveClientBaseConfig()
+	end ):AddParam{
+		Type = "string", TakeRestOfLine = true
+	}
+
+	table.insert( Options, 1, {
+		Type = "Dropdown",
+		Command = "sh_setskin",
+		Description = "SKIN_DESCRIPTION",
+		ConfigOption = "Skin",
+		Options = function()
+			local Skins = SGUI.SkinManager:GetSkinsByName()
+			local Options = {}
+
+			for Skin in SortedPairs( Skins ) do
+				Options[ #Options + 1 ] = {
+					Text = Skin,
+					Value = Skin
+				}
+			end
+
+			return Options
+		end
+	} )
 end
 
 Script.Load( "lua/shine/core/client/config_gui.lua" )

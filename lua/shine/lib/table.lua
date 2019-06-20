@@ -176,6 +176,19 @@ function table.Add( Destination, Source )
 	return Destination
 end
 
+--[[
+	Returns a range of values from the given table.
+]]
+function table.Slice( Table, StartIndex, EndIndex )
+	EndIndex = EndIndex or #Table
+
+	local Ret = {}
+	for i = StartIndex, EndIndex do
+		Ret[ #Ret + 1 ] = Table[ i ]
+	end
+	return Ret
+end
+
 do
 	local TableRemove = table.remove
 
@@ -378,6 +391,15 @@ do
 		end
 	end
 
+	local function SafeToString( Value )
+		-- __tostring() metamethods can throw errors. Unfortunately there's no rawtostring().
+		local Success, String = pcall( tostring, Value )
+		if not Success then
+			return "error calling tostring()"
+		end
+		return String
+	end
+
 	local DefaultPrinters = {
 		string = function( Value )
 			if StringFind( Value, "\n", 1, true ) then
@@ -392,7 +414,7 @@ do
 		userdata = function( Value )
 			local Meta = getmetatable( Value )
 			if IsType( Meta, "table" ) and Meta.__towatch then
-				return tostring( Meta.__towatch( Value ) )
+				return SafeToString( Meta.__towatch( Value ) )
 			end
 
 			-- Some userdata may error for unknown keys.
@@ -401,16 +423,17 @@ do
 				return Name
 			end
 
-			return tostring( Value )
+			return SafeToString( Value )
 		end
 	}
 
 	local function ToPrintKey( Key, Printers )
 		local Type = type( Key )
-		return StringFormat( "[ %s ]", ( Printers[ Type ] or tostring )( Key ) )
+		return StringFormat( "[ %s ]", ( Printers[ Type ] or SafeToString )( Key ) )
 	end
+
 	local function ToPrintString( Value, Printers )
-		return ( Printers[ type( Value ) ] or tostring )( Value )
+		return ( Printers[ type( Value ) ] or SafeToString )( Value )
 	end
 
 	local function KeySorter( A, B )
@@ -428,7 +451,7 @@ do
 			return false
 		end
 
-		return StringLower( tostring( A ) ) < StringLower( tostring( B ) )
+		return StringLower( SafeToString( A ) ) < StringLower( SafeToString( B ) )
 	end
 
 	local function TableToString( Table, Indent, Done )
@@ -441,7 +464,7 @@ do
 		Done = Done or {}
 
 		local Strings = {}
-		Strings[ 1 ] = StringFormat( "%s {", tostring( Table ) )
+		Strings[ 1 ] = StringFormat( "%s {", SafeToString( Table ) )
 		if not next( Table ) then
 			return Strings[ 1 ].."}"
 		end
@@ -483,9 +506,9 @@ do
 		table = function( Value )
 			local Meta = getmetatable( Value )
 			if IsType( Meta, "table" ) and Meta.__tostring and Meta.__PrintAsString then
-				return tostring( Value )
+				return SafeToString( Value )
 			end
-			return StringFormat( "%s (%d array element%s, %s)", Value, #Value, #Value == 1 and "" or "s",
+			return StringFormat( "%s (%d array element%s, %s)", SafeToString( Value ), #Value, #Value == 1 and "" or "s",
 				next( Value ) ~= nil and "not empty" or "empty" )
 		end
 	}, { __index = DefaultPrinters } )

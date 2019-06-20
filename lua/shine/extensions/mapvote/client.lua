@@ -265,6 +265,9 @@ do
 	Shine.VoteMenu:AddPage( "MapVote", function( self )
 		if ClosePageIfVoteFinished( self ) then return end
 
+		-- Clear any pending automatic opening if the menu is opened manually.
+		Plugin.WaitingForMenuClose = nil
+
 		local Maps = Plugin.Maps
 		if not Maps then
 			return
@@ -489,6 +492,20 @@ function Plugin:ReceiveVoteOptions( Message )
 		end
 	end
 
+	self:AutoOpenVoteMenu( Message.ForceMenuOpen )
+end
+
+function Plugin:OnMouseVisibilityChange( Visible )
+	if Visible or not self.WaitingForMenuClose or not self:IsVoteInProgress() then
+		return
+	end
+
+	-- Mouse has been hidden by other UI elements, show the vote menu.
+	self.WaitingForMenuClose = nil
+	self:AutoOpenVoteMenu( true )
+end
+
+function Plugin:AutoOpenVoteMenu( ForceOpen )
 	-- Do not open the map vote menu if a game is in-progress.
 	local GameInfo = GetGameInfoEntity()
 	if GameInfo and ( GameInfo:GetCountdownActive() or GameInfo:GetGameStarted() ) then
@@ -498,12 +515,21 @@ function Plugin:ReceiveVoteOptions( Message )
 	-- Open the map vote menu if configured to do so.
 	local ConfiguredAction = self.Config.OnVoteAction
 
-	if ConfiguredAction == self.VoteAction.OPEN_MENU
-	or ( ConfiguredAction == self.VoteAction.USE_SERVER_SETTINGS and Message.ForceMenuOpen ) then
-		if not Shine.VoteMenu.Visible then
-			Shine.OpenVoteMenu()
-		end
-
-		Shine.VoteMenu:SetPage( "MapVote" )
+	if ConfiguredAction ~= self.VoteAction.OPEN_MENU
+	and not ( ConfiguredAction == self.VoteAction.USE_SERVER_SETTINGS and ForceOpen ) then
+		return
 	end
+
+	if Client.GetMouseVisible() and not Shine.VoteMenu.Visible then
+		-- Mouse is visible, and it's not for the vote menu. Assume some other UI elements are
+		-- visible and thus opening the vote menu now would be disruptive.
+		self.WaitingForMenuClose = true
+		return
+	end
+
+	if not Shine.VoteMenu.Visible then
+		Shine.OpenVoteMenu()
+	end
+
+	Shine.VoteMenu:SetPage( "MapVote" )
 end

@@ -153,8 +153,8 @@ function BaseLayout:PerformLayout()
 	-- When this layout is invalidated, invalidate all of its children too.
 	-- This ensures layout changes cascade downwards in a single frame, rather than
 	-- some children waiting for the next frame to invalidate and thus causing a slight jitter.
-	for i = 1, #self.LayoutChildren do
-		self.LayoutChildren[ i ]:InvalidateLayout( true )
+	for i = 1, #self.Elements do
+		self.Elements[ i ]:InvalidateLayout( true )
 	end
 end
 

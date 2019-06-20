@@ -21,7 +21,13 @@ function SkinManager:RegisterSkin( Name, SkinTable )
 
 		for StyleName, StyleData in pairs( Data ) do
 			if StyleName ~= "Default" then
+				-- Inherit default styling values
 				TableShallowMerge( Default, StyleData )
+
+				-- Also inherit any states from the default that are not overridden.
+				if Default.States and StyleData.States then
+					TableShallowMerge( Default.States, StyleData.States )
+				end
 			end
 		end
 	end
@@ -30,7 +36,7 @@ function SkinManager:RegisterSkin( Name, SkinTable )
 end
 
 function SkinManager:RefreshSkin()
-	for Control in SGUI.ActiveControls:Iterate() do
+	for Element in SGUI.ActiveControls:Iterate() do
 		self:ApplySkin( Element )
 	end
 end
@@ -45,6 +51,10 @@ end
 
 function SkinManager:GetSkin()
 	return self.Skin
+end
+
+function SkinManager:GetSkinsByName()
+	return self.Skins
 end
 
 function SkinManager:SetSkin( Name )
@@ -67,6 +77,29 @@ function SkinManager:GetStyleForElement( Element )
 	return Styles[ Style ] or Styles.Default
 end
 
+-- These are properties that should be applied only as defaults. They may be changed
+-- dynamically based on resolution and thus should not be reset if the skin changes.
+local PropertiesToApplyAsDefaults = {
+	Font = true,
+	TextScale = true,
+	HeaderSize = true,
+	LineSize = true
+}
+
+local function CopyValues( Element, Values, Destination )
+	for Key, Value in pairs( Values ) do
+		if not PropertiesToApplyAsDefaults[ Key ] or Element[ Key ] == nil then
+			if SGUI.IsColour( Value ) then
+				Destination[ Key ] = SGUI.CopyColour( Value )
+			else
+				Destination[ Key ] = Value
+			end
+		end
+	end
+
+	return Destination
+end
+
 function SkinManager:ApplySkin( Element )
 	if not Element.UseScheme then return end
 
@@ -74,22 +107,23 @@ function SkinManager:ApplySkin( Element )
 	if not StyleDef then return end
 
 	-- States can apply different scheme values, e.g. focus/hover etc.
-	local State = Element:GetStylingState()
-	if State and StyleDef.States then
-		StyleDef = StyleDef.States[ State ] or StyleDef
-	end
+	local StateValues = StyleDef.States and StyleDef.States[ Element:GetStylingState() ]
 
-	local StyleCopy = {}
-	for Key, Value in pairs( StyleDef ) do
-		if SGUI.IsColour( Value ) then
-			StyleCopy[ Key ] = SGUI.CopyColour( Value )
-		else
-			StyleCopy[ Key ] = Value
-		end
+	-- Combine the current styling with the state to get the final styling values.
+	-- If only the state values were applied, changing skins could lead to incorrect
+	-- values being left from a previous skin.
+	local StyleCopy = CopyValues( Element, StyleDef, {} )
+	if StateValues then
+		StyleCopy = CopyValues( Element, StateValues, StyleCopy )
 	end
 
 	Element:SetupFromTable( StyleCopy )
 end
 
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/skins" )
-SkinManager:SetSkin( "Default" )
+
+local ConfiguredSkin = Shine.Config.Skin
+if not SkinManager.Skins[ ConfiguredSkin ] then
+	ConfiguredSkin = "Default"
+end
+SkinManager:SetSkin( ConfiguredSkin )
