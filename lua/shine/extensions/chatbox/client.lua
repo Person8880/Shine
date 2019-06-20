@@ -59,15 +59,17 @@ function Plugin:HookChat( ChatElement )
 	local OriginalOffset = Vector( GetOffset() )
 
 	function ChatElement:Initialize()
-		OldInit(self)
-
 		Plugin.GUIChat = self
+
+		return OldInit( self )
 	end
 
 	function ChatElement:Uninitialize()
-		Plugin.GUIChat = nil
+		if Plugin.GUIChat == self then
+			Plugin.GUIChat = nil
+		end
 
-		OldUninit(self)
+		return OldUninit( self )
 	end
 
 	function ChatElement:SendKeyEvent( Key, Down )
