@@ -52,9 +52,23 @@ Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
 function Plugin:HookChat( ChatElement )
+	local OldInit = ChatElement.Initialize
+	local OldUninit = ChatElement.Uninitialize
 	local OldSendKey = ChatElement.SendKeyEvent
 	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset" )
 	local OriginalOffset = Vector( GetOffset() )
+
+	function ChatElement:Initialize()
+		OldInit(self)
+
+		Plugin.GUIChat = self
+	end
+
+	function ChatElement:Uninitialize()
+		Plugin.GUIChat = nil
+
+		OldUninit(self)
+	end
 
 	function ChatElement:SendKeyEvent( Key, Down )
 		if Plugin.Enabled then return end
@@ -138,30 +152,6 @@ Hook.Add( "Think", "ChatBoxHook", function()
 	end
 end )
 
---[[
-	Suddenly, with no changes, EvaluateUIVisibility is no longer being called,
-	or is being called sooner than the plugin is enabled.
-	I don't even.
-]]
-Hook.Add( "Think", "GetGUIChat", function()
-	local Manager = GetGUIManager()
-	if not Manager then return end
-
-	local Scripts = Manager.scripts
-
-	if not Scripts then return end
-
-	for Index, Script in pairs( Scripts ) do
-		if Script._scriptName == "GUIChat" then
-			Plugin.GUIChat = Script
-
-			Hook.Remove( "Think", "GetGUIChat" )
-
-			return
-		end
-	end
-end )
-
 function Plugin:Initialise()
 	Shine.LoadPluginFile( self:GetName(), "chatline.lua" )
 
@@ -169,20 +159,6 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
-end
-
--- We need the default chat script so we can hide its messages.
-function Plugin:EvaluateUIVisibility()
-	local Manager = GetGUIManager()
-	local Scripts = Manager.scripts
-
-	for Index, Script in pairs( Scripts ) do
-		if Script._scriptName == "GUIChat" then
-			self.GUIChat = Script
-
-			return
-		end
-	end
 end
 
 local Units = SGUI.Layout.Units
