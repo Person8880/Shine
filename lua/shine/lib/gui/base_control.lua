@@ -18,6 +18,7 @@ local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
 
 local Map = Shine.Map
+local Multimap = Shine.Multimap
 local Source = require "shine/lib/gui/binding/source"
 
 -- This exists to avoid constant concatenation every time properties are set dynamically.
@@ -362,6 +363,7 @@ function ControlMeta:SetParent( Control, Element )
 
 	if ParentControlChanged and self.Parent then
 		self.Parent.Children:Remove( self )
+		self.Parent.ChildrenByPositionType:RemoveKeyValue( self:GetPositionType(), self )
 	end
 
 	if ParentElementChanged and self.ParentElement and IsGUIItemValid( self.ParentElement ) and self.Background then
@@ -394,6 +396,9 @@ function ControlMeta:SetParent( Control, Element )
 
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
+
+	Control.ChildrenByPositionType = Control.ChildrenByPositionType or Multimap()
+	Control.ChildrenByPositionType:Add( self:GetPositionType(), self )
 
 	if ParentElementChanged and Element and self.Background then
 		Element:AddChild( self.Background )
@@ -694,6 +699,8 @@ end
 	By default, it updates the set layout handler.
 ]]
 function ControlMeta:PerformLayout()
+	self:UpdateAbsolutePositionChildren()
+
 	if not self.Layout then return end
 
 	local Margin = self.Layout:GetComputedMargin()
@@ -706,6 +713,24 @@ function ControlMeta:PerformLayout()
 		Max( Size.y - Margin[ 2 ] - Margin[ 4 ] - Padding[ 2 ] - Padding[ 4 ], 0 )
 	) )
 	self.Layout:InvalidateLayout( true )
+end
+
+function ControlMeta:UpdateAbsolutePositionChildren()
+	if not self.ChildrenByPositionType then return end
+
+	local Children = self.ChildrenByPositionType:Get( SGUI.PositionType.ABSOLUTE )
+	if not Children then return end
+
+	local Size = self:GetSize()
+	for i = 1, #Children do
+		local Child = Children[ i ]
+		local Pos = Child:ComputeAbsolutePosition( Size )
+		local ChildSize = Vector2( Child:GetComputedSize( 1, Size.x ), Child:GetComputedSize( 2, Size.y ) )
+
+		Child:SetPos( Pos )
+		Child:SetSize( ChildSize )
+		Child:InvalidateLayout( true )
+	end
 end
 
 --[[
@@ -830,6 +855,40 @@ SGUI.AddProperty( ControlMeta, "Margin", nil, { "InvalidatesParent" } )
 
 -- Padding controls the space from the element borders to where the layout may place elements.
 SGUI.AddProperty( ControlMeta, "Padding", nil, { "InvalidatesLayout" } )
+
+-- Offsets for absolutely positioned elements.
+SGUI.AddProperty( ControlMeta, "LeftOffset", nil, { "InvalidatesParent" } )
+SGUI.AddProperty( ControlMeta, "TopOffset", nil, { "InvalidatesParent" } )
+
+SGUI.PositionType = {
+	NONE = 1,
+	ABSOLUTE = 2
+}
+
+SGUI.AddProperty( ControlMeta, "PositionType", SGUI.PositionType.NONE, { "InvalidatesParent" } )
+
+function ControlMeta:SetPositionType( PositionType )
+	local OldPositionType = self:GetPositionType()
+	if OldPositionType == PositionType then return end
+
+	self.PositionType = PositionType
+
+	local Parent = self.Parent
+	if Parent then
+		Parent.ChildrenByPositionType:RemoveKeyValue( OldPositionType, self )
+		Parent.ChildrenByPositionType:Add( PositionType, self )
+	end
+end
+
+function ControlMeta:ComputeAbsolutePosition( ParentSize )
+	local LeftOffset = SGUI.Layout.ToUnit( self:GetLeftOffset() )
+	local TopOffset = SGUI.Layout.ToUnit( self:GetTopOffset() )
+
+	return Vector2(
+		LeftOffset:GetValue( ParentSize.x, self, 1 ),
+		TopOffset:GetValue( ParentSize.y, self, 2 )
+	)
+end
 
 function ControlMeta:IterateChildren()
 	return self.Children:Iterate()

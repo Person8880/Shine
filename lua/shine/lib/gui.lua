@@ -772,6 +772,10 @@ do
 		return MakeControl( self, MetaTable, Class, Parent, ParentElement )
 	end
 
+	local function ShouldAddToLayout( ElementDef )
+		return not ( ElementDef.Props and ElementDef.Props.PositionType == SGUI.PositionType.ABSOLUTE )
+	end
+
 	function SGUI:BuildTree( Parent, Tree )
 		local GlobalProps = Tree.GlobalProps
 		local Elements = {}
@@ -795,7 +799,7 @@ do
 						Parent:AddElement( Element )
 					else
 						Element = Parent.Add and Parent:Add( ElementDef.Class ) or self:Create( ElementDef.Class, Parent )
-						if Parent.Layout then
+						if Parent.Layout and ShouldAddToLayout( ElementDef ) then
 							Parent.Layout:AddElement( Element )
 						end
 					end
