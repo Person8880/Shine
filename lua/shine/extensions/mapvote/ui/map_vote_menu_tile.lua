@@ -17,6 +17,7 @@ local Units = SGUI.Layout.Units
 
 local Binder = require "shine/lib/gui/binding/binder"
 local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
+local TextureLoader = require "shine/lib/gui/texture_loader"
 
 local MapTile = SGUI:DefineControl( "MapTile", "Button" )
 
@@ -46,59 +47,6 @@ function MapTile:Initialise()
 				AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Percentage( 100 ) )
 			},
 			Children = {
-				{
-					Class = "Row",
-					Props = {
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
-						StyleName = "MapTileHeader"
-					},
-					Children = {
-						{
-							ID = "ShowModButton",
-							Class = "Button",
-							Props = {
-								Icon = SGUI.Icons.Ionicons.Wrench,
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								StyleName = "ShowOverviewButton",
-								AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
-								IsVisible = false,
-								DoClick = function()
-									Client.ShowWebpage( StringFormat( "https://steamcommunity.com/sharedfiles/filedetails/?id=%s", self.ModID ) )
-								end,
-								Tooltip = Locale:GetPhrase( "mapvote", "SHOW_MOD_TOOLTIP" )
-							}
-						},
-						{
-							ID = "MapNameLabel",
-							Class = "Label",
-							Props = {
-								Alignment = SGUI.LayoutAlignment.CENTRE,
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								AutoWrap = true,
-								StyleName = "MapTileLabel"
-							}
-						},
-						{
-							ID = "ShowOverviewButton",
-							Class = "Button",
-							Props = {
-								Icon = SGUI.Icons.Ionicons.Earth,
-								Alignment = SGUI.LayoutAlignment.MAX,
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								StyleName = "ShowOverviewButton",
-								AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
-								DoClick = function()
-									if SGUI.IsValid( self.OverviewImageContainer ) then
-										self:HideOverviewImage()
-									else
-										self:ShowOverviewImage()
-									end
-								end,
-								Tooltip = Locale:GetPhrase( "mapvote", "TOGGLE_MAP_OVERVIEW_TOOLTIP" )
-							}
-						}
-					}
-				},
 				{
 					ID = "PreviewImage",
 					Class = "Image",
@@ -130,28 +78,85 @@ function MapTile:Initialise()
 							}
 						}
 					}
+				}
+			}
+		},
+		{
+			Class = "Row",
+			Props = {
+				AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+				PositionType = SGUI.PositionType.ABSOLUTE,
+				Anchor = "TopLeft",
+				StyleName = "MapTileHeader"
+			},
+			Children = {
+				{
+					ID = "ShowModButton",
+					Class = "Button",
+					Props = {
+						Icon = SGUI.Icons.Ionicons.Wrench,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						StyleName = "ShowOverviewButton",
+						AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+						IsVisible = false,
+						DoClick = function()
+							Client.ShowWebpage( StringFormat( "https://steamcommunity.com/sharedfiles/filedetails/?id=%s", self.ModID ) )
+						end,
+						Tooltip = Locale:GetPhrase( "mapvote", "SHOW_MOD_TOOLTIP" )
+					}
 				},
 				{
-					Class = "Row",
+					ID = "MapNameLabel",
+					Class = "Label",
 					Props = {
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
-						StyleName = "MapTileHeader"
-					},
-					Children = {
-						{
-							ID = "VoteCounterLabel",
-							Class = "Label",
-							Props = {
-								Alignment = SGUI.LayoutAlignment.CENTRE,
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								StyleName = "MapTileLabel"
-							}
-						}
+						Alignment = SGUI.LayoutAlignment.CENTRE,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						AutoWrap = true,
+						StyleName = "MapTileLabel"
+					}
+				},
+				{
+					ID = "ShowOverviewButton",
+					Class = "Button",
+					Props = {
+						Icon = SGUI.Icons.Ionicons.Earth,
+						Alignment = SGUI.LayoutAlignment.MAX,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						StyleName = "ShowOverviewButton",
+						AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+						DoClick = function()
+							if SGUI.IsValid( self.OverviewImageContainer ) then
+								self:HideOverviewImage()
+							else
+								self:ShowOverviewImage()
+							end
+						end,
+						Tooltip = Locale:GetPhrase( "mapvote", "TOGGLE_MAP_OVERVIEW_TOOLTIP" )
+					}
+				}
+			}
+		},
+		{
+			Class = "Row",
+			Props = {
+				AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+				PositionType = SGUI.PositionType.ABSOLUTE,
+				TopOffset = Units.Percentage( 100 ) - Units.Auto(),
+				Anchor = "TopLeft",
+				StyleName = "MapTileHeader"
+			},
+			Children = {
+				{
+					ID = "VoteCounterLabel",
+					Class = "Label",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.CENTRE,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						StyleName = "MapTileLabel"
 					}
 				}
 			}
 		}
-
 	} ), self )
 
 	self.MapNameLabel:SetAutoSize(
@@ -191,7 +196,7 @@ function MapTile:Initialise()
 			Transformer = function( Texture )
 				-- Magic numbers that seem to work well. Thankfully each loading screen seems to follow a standard
 				-- template with the same position for the map name + minimap.
-				return 95 / 1920, 205 / 1200, ( 95 + 1024 ) / 1920, ( 205 + 768 ) / 1200
+				return 95 / 1920, 330 / 1200, ( 95 + 768 ) / 1920, ( 330 + 768 ) / 1200
 			end
 		} )
 		:BindProperty()
@@ -305,6 +310,13 @@ function MapTile:ShowOverviewImage()
 	end
 
 	MapDataRepository.GetOverviewImage( self.ModID, self.MapName, function( MapName, TextureName, Err )
+		if not SGUI.IsValid( self ) then
+			if not Err then
+				TextureLoader.Free( TextureName )
+			end
+			return
+		end
+
 		if Err then
 			TextureName = "ui/shine/unknown_map.tga"
 		end

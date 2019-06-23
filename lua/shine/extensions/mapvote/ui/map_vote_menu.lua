@@ -26,7 +26,7 @@ local MapTile = require "shine/extensions/mapvote/ui/map_vote_menu_tile"
 local TextureLoader = require "shine/lib/gui/texture_loader"
 
 local HeaderAlpha = 0.25
-local MapTileHeaderAlpha = 1
+local MapTileHeaderAlpha = 0.75
 local MapTileImageColour = Colour( 0.5, 0.5, 0.5, 1 )
 
 local HeaderVariations = {
@@ -193,19 +193,6 @@ function MapVoteMenu:Initialise()
 					},
 					Children = {
 						{
-							ID = "CountdownLabel",
-							Class = "ShadowLabel",
-							Props = {
-								Alignment = SGUI.LayoutAlignment.MAX,
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								AutoFont = {
-									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-									Size = Units.HighResScaled( 29 )
-								},
-								StyleName = "HeaderLabel"
-							}
-						},
-						{
 							ID = "CurrentMapLabel",
 							Class = "ShadowLabel",
 							Props = {
@@ -215,6 +202,19 @@ function MapVoteMenu:Initialise()
 									Size = Units.HighResScaled( 29 )
 								},
 								Text = Shared.GetMapName(),
+								StyleName = "HeaderLabel"
+							}
+						},
+						{
+							ID = "CountdownLabel",
+							Class = "ShadowLabel",
+							Props = {
+								Alignment = SGUI.LayoutAlignment.CENTRE,
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								AutoFont = {
+									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
+									Size = Units.HighResScaled( 29 )
+								},
 								StyleName = "HeaderLabel"
 							}
 						}
@@ -318,6 +318,13 @@ function MapVoteMenu:SetMaps( Maps )
 
 	-- Setup each tile with their preview image upfront, as they'll be visible immediately.
 	MapDataRepository.GetPreviewImages( Maps, function( MapName, TextureName, Err )
+		if not SGUI.IsValid( self ) then
+			if not Err then
+				TextureLoader.Free( TextureName )
+			end
+			return
+		end
+
 		if Err then
 			LuaPrint( "Failed to load preview image for", MapName, Err )
 			Tile:OnPreviewTextureFailed( Err )
