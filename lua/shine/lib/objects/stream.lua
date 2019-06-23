@@ -61,13 +61,13 @@ end
 
 	Any value for which the predicate returns false will be removed.
 ]]
-function Stream:Filter( Predicate )
+function Stream:Filter( Predicate, Context )
 	local Size = #self.Data
 	local Offset = 0
 
 	for i = 1, Size do
 		self.Data[ i - Offset ] = self.Data[ i ]
-		if not Predicate( self.Data[ i ], i ) then
+		if not Predicate( self.Data[ i ], i, Context ) then
 			self.Data[ i ] = nil
 			Offset = Offset + 1
 		end
@@ -83,9 +83,9 @@ end
 --[[
 	Performs an action on all values in the stream, without changing the stream.
 ]]
-function Stream:ForEach( Function )
+function Stream:ForEach( Function, Context )
 	for i = 1, #self.Data do
-		Function( self.Data[ i ], i )
+		Function( self.Data[ i ], i, Context )
 	end
 
 	return self
@@ -96,9 +96,9 @@ end
 
 	All values in the stream are replaced with what the mapper function returns for them.
 ]]
-function Stream:Map( Mapper )
+function Stream:Map( Mapper, Context )
 	for i = 1, #self.Data do
-		self.Data[ i ] = Mapper( self.Data[ i ], i )
+		self.Data[ i ] = Mapper( self.Data[ i ], i, Context )
 	end
 
 	return self
@@ -135,12 +135,12 @@ end
 	If no start value is provided, then the first step will be at index 2 in the stream,
 	with the current reducing value equal to the first value in the stream.
 ]]
-function Stream:Reduce( Consumer, StartValue )
+function Stream:Reduce( Consumer, StartValue, Context )
 	local ReducingValue = StartValue or self.Data[ 1 ]
 	local StartIndex = StartValue and 1 or 2
 
 	for i = StartIndex, #self.Data do
-		ReducingValue = Consumer( ReducingValue, self.Data[ i ], i )
+		ReducingValue = Consumer( ReducingValue, self.Data[ i ], i, Context )
 	end
 
 	return ReducingValue
@@ -168,8 +168,6 @@ end
 	Imposes a limit on the number of results.
 ]]
 function Stream:Limit( Limit )
-	if #self.Data <= Limit then return self end
-
 	for i = Limit + 1, #self.Data do
 		self.Data[ i ] = nil
 	end

@@ -4,6 +4,12 @@
 
 local UnitTest = Shine.UnitTest
 
+UnitTest:Test( "Clamp", function( Assert )
+	Assert:Equals( 10, math.Clamp( 10, 5, 15 ) )
+	Assert:Equals( 5, math.Clamp( 0, 5, 15 ) )
+	Assert:Equals( 15, math.Clamp( 20, 5, 15 ) )
+end )
+
 UnitTest:Test( "GenerateSequence", function( Assert )
 	local Sequence = math.GenerateSequence( 18, { 1, 2 } )
 

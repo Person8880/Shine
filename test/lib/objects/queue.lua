@@ -28,16 +28,18 @@ UnitTest:Test( "Pop", function( Assert )
 	end
 
 	for i = 1, 4 do
-		Queue:Pop()
+		Assert:Equals( i, Queue:Pop() )
 
 		local FirstValue = Queue:Peek()
 		Assert:Equals( i + 1, FirstValue )
 		Assert:Equals( 5 - i, Queue:GetCount() )
 	end
 
-	Queue:Pop()
+	Assert:Equals( 5, Queue:Pop() )
 	Assert:Nil( Queue:Peek() )
 	Assert:Equals( 0, Queue:GetCount() )
+
+	Assert:Nil( Queue:Pop() )
 end )
 
 UnitTest:Test( "Clear", function( Assert )
@@ -72,7 +74,7 @@ UnitTest:Test( "EmptyIterate", function( Assert )
 	local Queue = Shine.Queue()
 	local i = 0
 	for Value in Queue:Iterate() do
-
+		i = i + 1
 	end
 	Assert:Equals( 0, i )
 end )
@@ -85,11 +87,32 @@ UnitTest:Test( "Add, then pop, then add", function( Assert )
 	Assert:Equals( 1, Queue:GetCount() )
 	Assert:Equals( Data, Queue:Peek() )
 
-	Queue:Pop()
+	Assert:Equals( Data, Queue:Pop() )
 	Assert:Equals( 0, Queue:GetCount() )
 	Assert:Nil( Queue:Peek() )
 
-	Queue:Add( Data )
-	Assert:Equals( 1, Queue:GetCount() )
-	Assert:Equals( Data, Queue:Peek() )
+	for i = 1, 5 do
+		Queue:Add( Data )
+		Assert:Equals( i, Queue:GetCount() )
+		Assert:Equals( Data, Queue:Peek() )
+	end
+
+	for i = 1, 3 do
+		Assert:Equals( Data, Queue:Pop() )
+		Assert:Equals( 5 - i, Queue:GetCount() )
+	end
+
+	for i = 1, 3 do
+		Queue:Add( Data )
+		Assert:Equals( i + 2, Queue:GetCount() )
+		Assert:Equals( Data, Queue:Peek() )
+	end
+
+	for i = 1, 5 do
+		Assert:Equals( Data, Queue:Pop() )
+		Assert:Equals( 5 - i, Queue:GetCount() )
+	end
+
+	Assert:Nil( Queue:Peek() )
+	Assert:Nil( Queue:Pop() )
 end )

@@ -8,7 +8,6 @@ local getmetatable = getmetatable
 local IsType = Shine.IsType
 local pairs = pairs
 local TableEmpty = table.Empty
-local TableRemove = table.remove
 
 local Map = Shine.TypeDef()
 
@@ -128,7 +127,9 @@ function Map:RemoveAtPosition( Position )
 	local Value = self.MemberLookup[ Key ]
 
 	self.MemberLookup[ Key ] = nil
-	TableRemove( self.Keys, Position )
+	for i = Position, #self.Keys do
+		self.Keys[ i ] = self.Keys[ i + 1 ]
+	end
 
 	self.NumMembers = self.NumMembers - 1
 
@@ -141,23 +142,9 @@ end
 
 --[[
 	Returns true if the map still has more elements to iterate through.
-
-	Input:
-	A boolean value to determine whether to reset the iteration position
-	if there are no more values left.
 ]]
-function Map:HasNext( DontReset )
-	local Next = self.Keys[ self.Position + 1 ]
-
-	if Next == nil then
-		if not DontReset then
-			self.Position = 0
-		end
-
-		return false
-	end
-
-	return true
+function Map:HasNext()
+	return self.Keys[ self.Position + 1 ] ~= nil
 end
 
 --[[
@@ -251,11 +238,6 @@ do
 	local GetNext = Map.GetNext
 	local GetPrevious = Map.GetPrevious
 
-	--If the map's empty, we don't even need to iterate.
-	local function Nope()
-		return nil
-	end
-
 	--[[
 		Iterator for the generic for loop.
 
@@ -264,10 +246,6 @@ do
 	function Map:Iterate()
 		self.Position = 0
 
-		if self.NumMembers == 0 then
-			return Nope
-		end
-
 		return GetNext, self
 	end
 
@@ -275,10 +253,6 @@ do
 		Iterator for going backwards along the keys of the map.
 	]]
 	function Map:IterateBackwards()
-		if self.NumMembers == 0 then
-			return Nope
-		end
-
 		self.Position = self.NumMembers + 1
 
 		return GetPrevious, self

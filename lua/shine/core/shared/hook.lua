@@ -144,7 +144,8 @@ end
 local function Call( Event, ... )
 	local Callbacks = Hooks[ Event ]
 
-	for Entry in Callbacks:Iterate() do
+	for Node in Callbacks:IterateNodes() do
+		local Entry = Node.Value
 		local Success, a, b, c, d, e, f = xpcall( Entry.Callback, OnError, ... )
 		if not Success then
 			-- If the error came from calling extension events, don't remove the hook

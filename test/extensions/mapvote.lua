@@ -900,7 +900,7 @@ end )
 MapVote.Config.Nominations.MaxOptionsExceededAction = MapVote.MaxOptionsExceededAction.REPLACE_MAP
 UnitTest:Test( "BuildMapChoices - REPLACE_MAP should ensure max options is not exceeded", function( Assert )
 	Assert:ArrayEquals( {
-		"ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome"
+		"ns2_biodome", "ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil"
 	}, MapVote:BuildMapChoices() )
 end )
 

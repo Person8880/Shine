@@ -11,7 +11,7 @@ function Queue:Init()
 	self.Size = 0
 	self.Elements = {}
 	self.First = 1
-	self.Last = 1
+	self.Last = 0
 
 	return self
 end
@@ -21,13 +21,8 @@ function Queue:GetCount()
 end
 
 function Queue:Add( Value )
-	if self.Size == 0 then
-		self.Elements[ self.First ] = Value
-	else
-		self.Last = self.Last + 1
-		self.Elements[ self.Last ] = Value
-	end
-
+	self.Last = self.Last + 1
+	self.Elements[ self.Last ] = Value
 	self.Size = self.Size + 1
 end
 
@@ -46,7 +41,7 @@ function Queue:Pop()
 		-- Take the chance to reset the indices to avoid them growing
 		-- extremely large.
 		self.First = 1
-		self.Last = 1
+		self.Last = 0
 	end
 
 	return Value
@@ -59,7 +54,7 @@ end
 function Queue:Clear()
 	self.Size = 0
 	self.First = 1
-	self.Last = 1
+	self.Last = 0
 	TableEmpty( self.Elements )
 end
 
