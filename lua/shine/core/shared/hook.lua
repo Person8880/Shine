@@ -213,7 +213,7 @@ end
 	Output: Original function.
 ]]
 local function AddGlobalHook( ReplacementFunc, FuncName )
-	local Path = StringExplode( FuncName, "%." )
+	local Path = StringExplode( FuncName, ".", true )
 
 	local Func = _G
 	local i = 1

@@ -164,7 +164,7 @@ if Server then
 		for Key, Type in pairs( Values ) do
 			Shared.RegisterNetworkMessage( Name..Key, { [ Key ] = Type } )
 
-			local FirstWord = StringExplode( Type, " " )[ 1 ]
+			local FirstWord = StringExplode( Type, " ", true )[ 1 ]
 
 			Values[ Key ] = FirstWord
 		end

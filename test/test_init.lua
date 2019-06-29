@@ -120,7 +120,7 @@ local function IsAssertionFailure( Error )
 end
 
 local function CleanTraceback( Traceback )
-	local Lines = StringExplode( Traceback, "\n" )
+	local Lines = StringExplode( Traceback, "\n", true )
 
 	for i = 1, #Lines do
 		if Lines[ i ]:find( "^%s*test/test_init.lua:%d+: in function 'Test'" ) then

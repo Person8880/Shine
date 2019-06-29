@@ -58,32 +58,23 @@ end
 	Inputs:
 		1. String to split.
 		2. Pattern to split with.
+		3. Optional flag to indicate that the separator should not be interpreted as a pattern.
 	Output:
 		Table containing strings separated by the given pattern.
 ]]
-function string.Explode( String, Pattern )
+function string.Explode( String, Separator, NoPattern )
 	local Ret = {}
-	local FindPattern = "(.-)"..Pattern
+
 	local LastEnd = 1
+	for i = 1, #String do
+		local Start, End = StringFind( String, Separator, LastEnd, NoPattern )
+		if not Start then break end
 
-	local Count = 0
-
-	local Start, End, Found = StringFind( String, FindPattern )
-	while Start do
-		if Start ~= 1 or Found ~= "" then
-			Count = Count + 1
-			Ret[ Count ] = Found
-		end
-
+		Ret[ i ] = StringSub( String, LastEnd, Start - 1 )
 		LastEnd = End + 1
-		Start, End, Found = StringFind( String, FindPattern, LastEnd )
 	end
 
-	if LastEnd <= #String then
-		Found = StringSub( String, LastEnd )
-		Count = Count + 1
-		Ret[ Count ] = Found
-	end
+	Ret[ #Ret + 1 ] = StringSub( String, LastEnd )
 
 	return Ret
 end
@@ -318,7 +309,7 @@ do
 				( n == 1 and 1 ) or ( ( n >= 2 and n <= 4 ) and 2 ) or 3
 		]]
 		Transformers.Pluralise = function( FormatArg, TransformArg, LangDef )
-			local Args = StringExplode( TransformArg, "|" )
+			local Args = StringExplode( TransformArg, "|", true )
 			return Args[ LangDef.GetPluralForm( FormatArg ) ] or Args[ #Args ]
 		end
 	end
@@ -341,7 +332,7 @@ do
 	]]
 	function string.Interpolate( String, FormatArgs, LangDef )
 		return ( StringGSub( String, "{(.-)}", function( Match )
-			local Args = StringExplode( Match, ":" )
+			local Args = StringExplode( Match, ":", true )
 			local Transformation = Args[ 2 ]
 
 			if not Transformation then

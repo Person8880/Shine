@@ -1428,7 +1428,7 @@ function Plugin:CreateMessageCommands()
 	}
 
 	local function CSay( Client, Message )
-		local Words = StringExplode( Message, " " )
+		local Words = StringExplode( Message, " ", true )
 		local Colour = Colours[ Words[ 1 ] ]
 
 		if Colour then

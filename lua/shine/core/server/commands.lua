@@ -506,7 +506,7 @@ do
 				return GetDefault( Table )
 			end
 
-			local Values = StringExplode( String, "," )
+			local Values = StringExplode( String, ",", true )
 			local Targets = {}
 
 			local AllClients, NumClients = Shine.GetAllClients()
@@ -892,7 +892,7 @@ do
 end
 
 Shine.Hook.Add( "PlayerSay", "CommandExecute", function( Client, Message )
-	local Exploded = StringExplode( Message.message, " " )
+	local Exploded = StringExplode( Message.message, " ", true )
 
 	local Directive
 	local FirstWord = Exploded[ 1 ]

@@ -386,7 +386,7 @@ function Plugin:ReceiveVoteOptions( Message )
 
 	local Options = Message.Options
 
-	local Maps = StringExplode( Options, ", " )
+	local Maps = StringExplode( Options, ", ", true )
 
 	self.Maps = Maps
 	self.EndTime = SharedTime() + Duration

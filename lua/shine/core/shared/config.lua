@@ -463,7 +463,7 @@ do
 					local TableField = type( Field ) == "string" and Field or Field[ 1 ]
 					local PrintField = type( Field ) == "string" and Field or Field[ 2 ]
 
-					local Path = StringExplode( TableField, "%." )
+					local Path = StringExplode( TableField, ".", true )
 					local Value = TableGetField( Config, Path )
 					local NeedsFix, CanonicalValue = CheckPredicate( Value )
 					if NeedsFix then

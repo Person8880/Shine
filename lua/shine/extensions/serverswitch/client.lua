@@ -56,7 +56,7 @@ VoteMenu:AddPage( "ServerSwitch", function( self )
 			local Max = Data.maxPlayers
 			local Tags = Data.serverTags
 
-			local TagTable = StringExplode( Tags, "|" )
+			local TagTable = StringExplode( Tags, "|", true )
 
 			for i = 1, #TagTable do
 				local Tag = TagTable[ i ]

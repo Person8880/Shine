@@ -56,7 +56,7 @@ end
 
 function CompletionContext:GetSearchTextWords()
 	if not self.SearchTextWords then
-		self.SearchTextWords = StringExplode( self.SearchText, " " )
+		self.SearchTextWords = StringExplode( self.SearchText, " ", true )
 	end
 	return self.SearchTextWords
 end
