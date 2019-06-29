@@ -350,15 +350,95 @@ do
 	end
 end
 
-local OldServerAdminPrint = ServerAdminPrint
-
-local MaxPrintLength = 127
-
 Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime )
 	local StringExplode = string.Explode
-	local StringLen = string.len
-	local StringSub = string.sub
-	local TableInsert = table.insert
+	local StringUTF8Encode = string.UTF8Encode
+	local TableConcat = table.concat
+
+	local function WrapText( Lines, Chars, StartIndex, MaxLength )
+		local NumBytes = 0
+		local LastEndIndex = StartIndex
+
+		for i = StartIndex, #Chars do
+			local CharByteLength = #Chars[ i ]
+
+			NumBytes = NumBytes + CharByteLength
+
+			if NumBytes > MaxLength then
+				Lines[ #Lines + 1 ] = TableConcat( Chars, "", LastEndIndex, i - 1 )
+				LastEndIndex = i
+				NumBytes = CharByteLength
+			end
+		end
+
+		if LastEndIndex <= #Chars then
+			Lines[ #Lines + 1 ] = TableConcat( Chars, "", LastEndIndex )
+		end
+	end
+
+	local function WrapWords( Lines, Chars, MaxLength )
+		local StartIndex = 1
+		local CurrentLength = 0
+		local NumWordsInLine = 0
+		local LastWordIndex = 1
+
+		for i = 1, #Chars do
+			local Char = Chars[ i ]
+
+			if Char == " " then
+				NumWordsInLine = NumWordsInLine + 1
+
+				if CurrentLength > MaxLength then
+					-- If it's a single word, need to keep cutting it until the remainder is less than the max length.
+					while CurrentLength > MaxLength do
+						if NumWordsInLine == 1 then
+							-- Overflow comes from a single word, so cut it in half.
+							Lines[ #Lines + 1 ] = TableConcat( Chars, "", StartIndex, StartIndex + MaxLength - 1 )
+							StartIndex = StartIndex + MaxLength
+						else
+							-- Overflow comes from multiple words, take all of the words seen on this line except
+							-- the one that triggered the overflow.
+							Lines[ #Lines + 1 ] = TableConcat( Chars, "", StartIndex, LastWordIndex )
+							StartIndex = LastWordIndex + 2
+						end
+
+						CurrentLength = CurrentLength - MaxLength
+						NumWordsInLine = 1
+					end
+				else
+					-- Only count whitespace length in the middle of a line, not the end of it.
+					CurrentLength = CurrentLength + #Char
+				end
+
+				LastWordIndex = i - 1
+			else
+				CurrentLength = CurrentLength + #Char
+			end
+		end
+
+		-- Make sure any remaining text is included (can't be more than one word).
+		if StartIndex <= #Chars then
+			WrapText( Lines, Chars, StartIndex, MaxLength )
+		end
+	end
+
+	local function WrapTextOrWords( Lines, TextToWrap, MaxLength, WrapEntireTextOnly )
+		if #TextToWrap <= MaxLength then
+			Lines[ #Lines + 1 ] = TextToWrap
+			return
+		end
+
+		local Chars = StringUTF8Encode( TextToWrap )
+
+		if WrapEntireTextOnly then
+			return WrapText( Lines, Chars, 1, MaxLength )
+		end
+
+		return WrapWords( Lines, Chars, MaxLength )
+	end
+	Shine.WrapTextByLength = WrapTextOrWords
+
+	local MaxPrintLength = 127
 
 	--[[
 		Rewrite ServerAdminPrint to not print to the server console when used,
@@ -366,56 +446,46 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 
 		Also make it word-wrap overflowing text.
 	]]
-	function ServerAdminPrint( Client, Message, TextWrap )
+	function ServerAdminPrint( Client, Message, WrapEntireTextOnly )
 		if not Client then return end
 
-		local Len = StringLen( Message )
-		if Len <= MaxPrintLength then
+		if #Message <= MaxPrintLength then
 			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
 				{ message = Message }, true )
 			return
 		end
 
-		local Lines = {}
+		-- Preserve the lines of the original message, and only wrap based on those.
+		local ProvidedLines = StringExplode( Message, "\n", true )
+		local WrappedLines = {}
 
-		if TextWrap then
-			local Parts = Ceil( Len / MaxPrintLength )
-			for i = 1, Parts do
-				Lines[ i ] = StringSub( Message, ( i - 1 ) * MaxPrintLength + 1, i * MaxPrintLength )
-			end
-		else
-			local Words = StringExplode( Message, " " )
-			local i = 1
-			local Start = i
+		for i = 1, #ProvidedLines do
+			WrapTextOrWords( WrappedLines, ProvidedLines[ i ], MaxPrintLength, WrapEntireTextOnly )
+		end
 
-			while i <= #Words do
-				local Text = TableConcat( Words, " ", Start, i )
+		-- Then, consolidate each wrapped line into the smallest number of network messages (some
+		-- of the provided lines may be far smaller than the size limit).
+		local CurrentLength = 0
+		local StartIndex = 1
 
-				if StringLen( Text ) > MaxPrintLength then
-					if i == Start then
-						TableInsert( Words, i + 1, StringSub( Text, MaxPrintLength + 1 ) )
-						Text = StringSub( Text, 1, MaxPrintLength )
+		for i = 1, #WrappedLines do
+			local Line = WrappedLines[ i ]
+			local LineLength = #Line
+			CurrentLength = CurrentLength + LineLength
 
-						Start = i + 1
-					else
-						Text = TableConcat( Words, " ", Start, i - 1 )
-						Start = i
-						i = i - 1
-					end
+			if CurrentLength > MaxPrintLength then
+				Shine.SendNetworkMessage( Client, "ServerAdminPrint", {
+					message = TableConcat( WrappedLines, "\n", StartIndex, i - 1 )
+				}, true )
 
-					Lines[ #Lines + 1 ] = Text
-				elseif i == #Words then
-					Lines[ #Lines + 1 ] = Text
-				end
-
-				i = i + 1
+				StartIndex = i
+				CurrentLength = LineLength
 			end
 		end
 
-		for i = 1, #Lines do
-			Shine.SendNetworkMessage( Client, "ServerAdminPrint",
-				{ message = Lines[ i ] }, true )
-		end
+		Shine.SendNetworkMessage( Client, "ServerAdminPrint", {
+			message = TableConcat( WrappedLines, "\n", StartIndex )
+		}, true )
 	end
 end )
 
