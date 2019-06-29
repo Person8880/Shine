@@ -9,6 +9,7 @@ local Shine = Shine
 
 local Encode = json.encode
 local Decode = json.decode
+local IsType = Shine.IsType
 local StringFormat = string.format
 local TableConcat = table.concat
 local TableShallowMerge = table.ShallowMerge
@@ -409,12 +410,47 @@ function Plugin:CreateCommands()
 				if not CheckGroupExists( Client, GroupName ) then return end
 
 				local Group = Shine:GetGroupData( GroupName )
+
+				-- Commands can be either a string, or a table.
+				local CommandsAsString = Shine.Stream.Of( Group.Commands ):Map( function( Entry )
+					if IsType( Entry, "string" ) then
+						return Entry
+					end
+
+					if not Group.IsBlacklist and Entry.Denied then
+						return StringFormat( "%s (denied)", Entry.Command )
+					end
+
+					if Group.IsBlacklist and IsType( Entry.Allowed, "table" ) then
+						return StringFormat( "%s (allowed with restrictions)", Entry.Command )
+					end
+
+					return Entry.Command
+				end ):Concat( "\n  * " )
+
 				Shine.PrintToConsole( Client, StringFormat( "Displaying information for group '%s':", GroupName ) )
-				Shine.PrintToConsole( Client, StringFormat( "- Commands:\n%s", TableConcat( Group.Commands, ", " ) ) )
-				Shine.PrintToConsole( Client, StringFormat( "- Immunity: %i", Group.Immunity ) )
-				Shine.PrintToConsole( Client, StringFormat( "- Commands are a blacklist: %s", Group.IsBlacklist and "Yes" or "No" ) )
-				if Group.InheritsFrom then
-					Shine.PrintToConsole( Client, StringFormat( "- Inherits from: %s", TableConcat( Group.InheritsFrom, ", " ) ) )
+				Shine.PrintToConsole(
+					Client,
+					StringFormat(
+						"- Commands (%s unless stated otherwise):\n  * %s",
+						Group.IsBlacklist and "blacklist" or "whitelist",
+						CommandsAsString
+					)
+				)
+				Shine.PrintToConsole( Client, StringFormat( "- Immunity: %d.", Group.Immunity ) )
+
+				if Group.InheritsFromDefault then
+					Shine.PrintToConsole( Client, "- Inherits from the default group." )
+				end
+
+				if IsType( Group.InheritsFrom, "table" ) and #Group.InheritsFrom > 0 then
+					Shine.PrintToConsole(
+						Client,
+						StringFormat(
+							"- Inherits from: %s.",
+							TableConcat( Group.InheritsFrom, ", " )
+						)
+					)
 				else
 					Shine.PrintToConsole( Client, "- Group does not inherit from any other groups." )
 				end
