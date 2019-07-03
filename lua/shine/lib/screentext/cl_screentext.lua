@@ -4,6 +4,7 @@
 
 local DigitalTime = string.DigitalTime
 local IsType = Shine.IsType
+local RoundTo = math.RoundTo
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TimeToString = string.TimeToString
@@ -264,6 +265,7 @@ function Shine.ScreenText.Add( ID, Params )
 
 	MessageTable.UpdateRate = Params.UpdateRate or 1
 	MessageTable.NextUpdate = SharedTime() + MessageTable.UpdateRate
+	MessageTable.LastUpdate = SharedTime()
 
 	Messages:Add( ID, MessageTable )
 
@@ -316,11 +318,13 @@ local function UpdateMessage( Index, Message, Time )
 
 	local Duration = Message.Duration
 	if Duration then
-		Duration = Duration - Message.UpdateRate
-		Message.Duration = Duration
+		-- The time since the last update may be more than the update rate.
+		Message.Duration = RoundTo( Duration - ( Time - Message.LastUpdate ), Message.UpdateRate )
 	end
 
+	Message.LastUpdate = Time
 	Message.NextUpdate = Time + Message.UpdateRate
+
 	if not Message.SuppressTextUpdates then
 		xpcall( Message.UpdateText, ScreenTextErrorHandler, Message )
 

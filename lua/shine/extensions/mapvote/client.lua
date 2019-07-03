@@ -646,8 +646,9 @@ function Plugin:ReceiveVoteOptions( Message )
 		function ScreenText:Think()
 			self.TimeLeft = self.TimeLeft - 1
 
-			if self.Duration == Duration - 10 then
-				self.Colour = Color( 1, 1, 1 )
+			if self.Duration <= Duration - 10 and self.Stage < 2 then
+				self.Stage = 2
+				self.Colour = Colour( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
 				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
@@ -663,11 +664,14 @@ function Plugin:ReceiveVoteOptions( Message )
 				return
 			end
 
-			if self.Duration == 10 then
-				self.Colour = Color( 1, 0, 0 )
+			if self.Duration <= 10 and self.Stage < 3 then
+				self.Stage = 3
+				self.Colour = Colour( 1, 0, 0 )
 				self.Obj:SetColor( self.Colour )
 			end
 		end
+
+		ScreenText.Stage = 1
 
 		self.ScreenText = ScreenText
 	else
@@ -685,8 +689,9 @@ function Plugin:ReceiveVoteOptions( Message )
 			string.TimeToString( ScreenText.Duration ) ) )
 
 		function ScreenText:Think()
-			if self.Duration == Duration - 10 then
-				self.Colour = Color( 1, 1, 1 )
+			if self.Duration <= Duration - 10 and self.Stage < 2 then
+				self.Stage = 2
+				self.Colour = Colour( 1, 1, 1 )
 				self.Obj:SetColor( self.Colour )
 
 				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
@@ -696,11 +701,14 @@ function Plugin:ReceiveVoteOptions( Message )
 				return
 			end
 
-			if self.Duration == 10 then
-				self.Colour = Color( 1, 0, 0 )
+			if self.Duration <= 10 and self.Stage < 3 then
+				self.Stage = 3
+				self.Colour = Colour( 1, 0, 0 )
 				self.Obj:SetColor( self.Colour )
 			end
 		end
+
+		ScreenText.Stage = 1
 
 		self.ScreenText = ScreenText
 	end
