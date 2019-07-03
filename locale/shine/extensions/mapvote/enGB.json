@@ -77,6 +77,7 @@
 
 	"CLIENT_CONFIG_TAB": "Map Vote",
 	"MAP_VOTE_MENU_TITLE": "Map Vote",
+	"MAP_VOTE_MENU_CURRENT_MAP": "Current map: {MapName}",
 	"VOTE_COUNTER": "{NumVotes} {NumVotes:Pluralise:vote|votes}",
 	"VOTE_MENU_TYPE": "Display the map vote:",
 	"FULL": "In a full screen grid",

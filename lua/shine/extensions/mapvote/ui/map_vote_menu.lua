@@ -95,11 +95,11 @@ local Skin = {
 			TextInheritsParentAlpha = true,
 			MapNameAutoFont = {
 				Family = "kAgencyFB",
-				Size = Units.HighResScaled( 27 )
+				Size = Units.GUIScaled( 41 )
 			},
 			VoteCounterAutoFont = {
 				Family = "kAgencyFB",
-				Size = Units.HighResScaled( 27 )
+				Size = Units.GUIScaled( 41 )
 			},
 			IconShadow = {
 				Colour = Colour( 0, 0, 0, 0.75 )
@@ -150,7 +150,7 @@ function MapVoteMenu:Initialise()
 	self.MapTiles = {}
 
 	local TeamVariation = self:GetTeamVariation()
-	local SmallPadding = Units.HighResScaled( 8 )
+	local SmallPadding = Units.GUIScaled( 8 )
 
 	self.Elements = SGUI:BuildTree( self, {
 		GlobalProps = {
@@ -164,7 +164,7 @@ function MapVoteMenu:Initialise()
 					ID = "TitleBox",
 					Class = "Column",
 					Props = {
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + Units.HighResScaled( 16 ) ),
+						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + Units.GUIScaled( 16 ) ),
 						StyleName = TeamVariation
 					},
 					Children = {
@@ -174,7 +174,7 @@ function MapVoteMenu:Initialise()
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 								AutoFont = {
 									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-									Size = Units.HighResScaled( 96 )
+									Size = Units.GUIScaled( 96 )
 								},
 								Text = Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_TITLE" ),
 								StyleName = "HeaderLabel"
@@ -199,7 +199,7 @@ function MapVoteMenu:Initialise()
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 								AutoFont = {
 									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-									Size = Units.HighResScaled( 29 )
+									Size = Units.GUIScaled( 29 )
 								},
 								Text = Shared.GetMapName(),
 								StyleName = "HeaderLabel"
@@ -213,7 +213,7 @@ function MapVoteMenu:Initialise()
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 								AutoFont = {
 									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-									Size = Units.HighResScaled( 29 )
+									Size = Units.GUIScaled( 29 )
 								},
 								StyleName = "HeaderLabel"
 							}
@@ -236,7 +236,7 @@ function MapVoteMenu:Initialise()
 		self:SetupTileGrid()
 	end )
 
-	self.TitleBarHeight = Units.HighResScaled( 32 ):GetValue()
+	self.TitleBarHeight = Units.GUIScaled( 32 ):GetValue()
 	self:AddCloseButton( self )
 end
 
@@ -297,7 +297,9 @@ function MapVoteMenu:Close( Callback )
 end
 
 function MapVoteMenu:SetCurrentMapName( MapName )
-	self.Elements.CurrentMapLabel:SetText( MapName )
+	self.Elements.CurrentMapLabel:SetText(
+		Locale:GetInterpolatedPhrase( "mapvote", "MAP_VOTE_MENU_CURRENT_MAP", { MapName = MapName } )
+	)
 end
 
 function MapVoteMenu:SetMaps( Maps )
@@ -351,7 +353,7 @@ function MapVoteMenu:SetupTileGrid()
 	-- Bias the grid to being wider than it is tall, as basically every screen has more width than height.
 	local NumRows = Max( 1, UniformGridSize - 1 )
 	local NumColumns = Ceil( #self.MapTiles / NumRows )
-	local Margin = Units.HighResScaled( 8 ):GetValue()
+	local Margin = 0--Units.HighResScaled( 8 ):GetValue()
 
 	local TileSize = Min(
 		Floor( Size.y / NumRows - Margin * ( NumRows - 1 ) ),

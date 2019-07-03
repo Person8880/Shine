@@ -196,7 +196,7 @@ function MapTile:Initialise()
 			Transformer = function( Texture )
 				-- Magic numbers that seem to work well. Thankfully each loading screen seems to follow a standard
 				-- template with the same position for the map name + minimap.
-				return 95 / 1920, 330 / 1200, ( 95 + 768 ) / 1920, ( 330 + 768 ) / 1200
+				return 185 / 1920, 185 / 1200, ( 185 + 875 ) / 1920, ( 185 + 875 ) / 1200
 			end
 		} )
 		:BindProperty()
