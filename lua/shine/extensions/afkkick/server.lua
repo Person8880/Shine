@@ -795,10 +795,8 @@ function Plugin:OnFirstThink()
 
 		-- Override the built in randomise ready room vote to not move AFK players.
 		SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
-			local ReadyRoomPlayers = GetGamerules():GetTeam( kTeamReadyRoom ):GetPlayers()
 			local Action = self.Enabled and CheckPlayerIsAFK or JoinRandomTeam
-
-			Shine.Stream( ReadyRoomPlayers ):ForEach( Action )
+			GetGamerules():GetTeam( kTeamReadyRoom ):ForEachPlayer( Action )
 		end )
 	end
 
