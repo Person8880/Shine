@@ -9,6 +9,7 @@ local Reported = {}
 
 local URL = "http://5.39.89.152/shine/errorreport.php"
 
+local BuildNumber = Shared.GetBuildNumber()
 local OS = jit and jit.os or "Unknown"
 
 local StringFormat = string.format
@@ -22,8 +23,16 @@ local function ReportErrors()
 	if not Shine.Config.ReportErrors then return end
 	if #ErrorQueue == 0 then return end
 
-	TableInsert( ErrorQueue, 1, StringFormat( "Operating system: %s. Gamemode: %s.", OS,
-			Shine.GetGamemode() ) )
+	TableInsert(
+		ErrorQueue,
+		1,
+		StringFormat(
+			"Operating system: %s. Gamemode: %s. Build number: %s.",
+			OS,
+			Shine.GetGamemode(),
+			BuildNumber
+		)
+	)
 
 	if Server then
 		local ModCount = Server.GetNumActiveMods()
