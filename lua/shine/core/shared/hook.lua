@@ -786,10 +786,13 @@ Add( "Think", "ReplaceMethods", function()
 				return
 			end
 
+			-- StartVote doesn't return anything to indicate it started, so this check is required...
+			if GetStartVoteAllowed( VoteName, Client, Data ) == kVoteCannotStartReason.VoteAllowedToStart then
+				Call( "OnNS2VoteStarting", VoteName, Client, Data )
+			end
+
 			return OldStartVote( VoteName, Client, Data )
 		end
-
-		Shine.StartNS2Vote = OldStartVote
 	end
 
 	CallOnce( "OnFirstThink" )

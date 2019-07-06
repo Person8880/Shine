@@ -143,12 +143,14 @@ do
 
 			Server.SendNetworkMessage( "VoteComplete", { voteId = ActiveVoteID }, true )
 
+			local Name = ActiveVoteName
+
 			ActiveVoteName = nil
 			ActiveVoteData = nil
 			ActiveVoteResults = nil
 			ActiveVoteStartedAtTime = nil
 
-			return true
+			return true, Name
 		end
 
 		Shine.JoinUpValues( VoteUpdateFunc, Plugin.StopVote, {
@@ -1619,31 +1621,30 @@ function Plugin:CreateMessageCommands()
 	self:BindCommand( "sh_listgags", nil, ListGags )
 		:Help( "Lists all gagged players to the console." )
 
-	do
-		local StartVote
+	local function CustomVote( Client, VoteQuestion )
+		if not Client then return end
 
-		local function CustomVote( Client, VoteQuestion )
-			if not Client then return end
-
-			StartVote = StartVote or Shine.StartNS2Vote
-			if not StartVote then return end
-
-			StartVote( "ShineCustomVote", Client, {
-				VoteQuestion = self.Config.CustomVotePrefix..VoteQuestion
-			} )
-		end
-		local CustomVoteCommand = self:BindCommand( "sh_customvote", "customvote", CustomVote )
-		CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "question" }
-		CustomVoteCommand:Help( "Starts a vote with the given question." )
+		StartVote( "ShineCustomVote", Client, {
+			VoteQuestion = self.Config.CustomVotePrefix..VoteQuestion
+		} )
 	end
+	local CustomVoteCommand = self:BindCommand( "sh_customvote", "customvote", CustomVote )
+	CustomVoteCommand:AddParam{ Type = "string", TakeRestOfLine = true, Help = "question" }
+	CustomVoteCommand:Help( "Starts a vote with the given question." )
 
 	local function StopVote( Client )
-		if self.StopVote and self:StopVote() then
-			Shine:AdminPrint( nil, "%s stopped the current vote.", true, Shine.GetClientInfo( Client ) )
-			self:SendTranslatedMessage( Client, "VOTE_STOPPED", {} )
-		else
-			self:NotifyTranslatedCommandError( Client, "ERROR_NO_VOTE_IN_PROGRESS" )
+		if self.StopVote then
+			local Success, VoteName = self:StopVote()
+			if Success then
+				Shine:AdminPrint( nil, "%s stopped the current vote (%s).", true,
+					Shine.GetClientInfo( Client ), VoteName )
+
+				self:SendTranslatedMessage( Client, "VOTE_STOPPED", {} )
+				return
+			end
 		end
+
+		self:NotifyTranslatedCommandError( Client, "ERROR_NO_VOTE_IN_PROGRESS" )
 	end
 	local StopVoteCommand = self:BindCommand( "sh_stopvote", "stopvote", StopVote )
 	StopVoteCommand:Help( "Stops the current vanilla vote." )
