@@ -279,7 +279,7 @@ function Plugin:OnConstructInit( Building )
 		self:GetClientInfo( Client ), Name, ID ) )
 end
 
-Plugin.MessageBuilders = {
+Plugin.VoteStartingMessageBuilders = {
 	[ "ShineCustomVote" ] = function( Client, Data )
 		return StringFormat( "%s started a custom vote with question: %s", Plugin:GetClientInfo( Client ), Data.VoteQuestion )
 	end,
@@ -339,7 +339,7 @@ Plugin.MessageBuilders = {
 function Plugin:OnNS2VoteStarting( VoteName, Client, Data )
 	if not self.Config.LogGameVotes then return end
 
-	local MessageBuilder = self.MessageBuilders[ VoteName ]
+	local MessageBuilder = self.VoteStartingMessageBuilders[ VoteName ]
 	local Message
 	if MessageBuilder then
 		Message = MessageBuilder( Client, Data )
