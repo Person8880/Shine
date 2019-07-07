@@ -52,7 +52,8 @@ function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageTex
 		Contents[ #Contents + 1 ] = Prefix
 		Contents[ #Contents + 1 ] = {
 			Type = "Spacer",
-			AutoWidth = self.PreMargin
+			AutoWidth = self.PreMargin,
+			IgnoreOnNewLine = true
 		}
 		-- When a prefix is present, wrap the message text starting from after it, rather than
 		-- moving it to a new line if it exceeds the size limit with a single word.
@@ -388,13 +389,14 @@ do
 	local Spacer = DefineElementType( "Spacer" )
 	function Spacer:Init( Params )
 		self.AutoWidth = Params.AutoWidth
+		self.IgnoreOnNewLine = Params.IgnoreOnNewLine
 		return self
 	end
 
 	function Spacer:Split( TextSizeProvider, Segments, MaxWidth )
 		self.OriginalElement = self.Index
 		self.Width = self.AutoWidth:GetValue( MaxWidth, 1 )
-		self.WidthWithoutSpace = self.Width
+		self.WidthWithoutSpace = self.IgnoreOnNewLine and 0 or self.Width
 
 		Segments[ #Segments + 1 ] = self
 	end
@@ -502,15 +504,13 @@ end
 
 -- Merges word segments back into a single text segment (where they belong to the same original element),
 -- and produces a final line that can be displayed.
-local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex )
+local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, LastElementIndex )
 	local Line = {}
 	local CurrentElementIndex = Segments[ StartIndex ].OriginalElement
 	local LastElementChangeIndex = StartIndex
 
-	if StartIndex == 1 then
-		for i = 1, CurrentElementIndex - 1 do
-			Line[ #Line + 1 ] = Elements[ i ]
-		end
+	for i = LastElementIndex, CurrentElementIndex - 1 do
+		Line[ #Line + 1 ] = Elements[ i ]
 	end
 
 	for i = StartIndex, EndIndex do
@@ -545,7 +545,7 @@ local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex )
 		Line[ #Line + 1 ] = Elements[ CurrentElementIndex ]:Merge( Segments, LastElementChangeIndex, EndIndex )
 	end
 
-	return Line
+	return Line, CurrentElementIndex + 1
 end
 
 function ChatLine:WrapLine( WrappedLines, Line, Context )
@@ -559,6 +559,8 @@ function ChatLine:WrapLine( WrappedLines, Line, Context )
 	local PartitionStart = Start
 	local PartitionEnd = End
 	local Mid = GetMidPoint( PartitionStart, PartitionEnd )
+
+	local LastElementIndex = 1
 
 	-- Perform a binary search over the words to apply wrapping in O(log(n)) time.
 	-- At most the segments need splitting n times (as we guarantee that each segment is at most the max width
@@ -576,7 +578,9 @@ function ChatLine:WrapLine( WrappedLines, Line, Context )
 		if WidthAfter > MaxWidth and WidthBefore <= MaxWidth then
 			-- If the width is transitioning from less than to greater than the max,
 			-- this is a point at which the text must be wrapped.
-			WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, Start, Mid - 1 )
+			local Line, ElementIndex = ConsolidateSegments( Line, Segments, Start, Mid - 1, LastElementIndex )
+			WrappedLines[ #WrappedLines + 1 ] = Line
+			LastElementIndex = ElementIndex
 
 			-- Then start the binary search again, this time with the start at the mid-point.
 			Start = Mid
@@ -590,7 +594,7 @@ function ChatLine:WrapLine( WrappedLines, Line, Context )
 		else
 			if Mid == #Segments then
 				-- Can't go any further forwards, stop.
-				WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, Start, Mid )
+				WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, Start, Mid, LastElementIndex )
 				break
 			end
 			-- Current half is too far behind the wrapping point, go forwards.
