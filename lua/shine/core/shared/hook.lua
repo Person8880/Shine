@@ -555,6 +555,13 @@ do
 		return OriginalRegisterNetworkMessage( Name )
 	end
 end
+
+-- Note that it's important to override the initial registration, rather than re-register the message, as the
+-- network message hook callback only receives data for the values present at the time it was registered.
+Add( "RegisterNetworkMessage:Chat", "AddSteamIDToMessage", function( Name, Definition )
+	Definition.steamId = "integer"
+end )
+
 -- Client specific hooks.
 if Client then
 	local function LoadComplete()
@@ -566,6 +573,23 @@ if Client then
 		Call( "ClientDisconnected", Reason )
 	end
 	Event.Hook( "ClientDisconnected", OnClientDisconnected )
+
+	Add( "HookNetworkMessage:Chat", "SetupOnChatMessageReceived", function( Name, Callback )
+		return function( Data )
+			local Handled = Call( "OnChatMessageReceived", {
+				LocationID = Data.locationId,
+				Message = Data.message,
+				Name = Data.playerName,
+				SteamID = Data.steamId,
+				TeamNumber = Data.teamNumber,
+				TeamOnly = Data.teamOnly,
+				TeamType = Data.teamType
+			} )
+			if Handled then return end
+
+			return Callback( Data )
+		end
+	end )
 
 	-- Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
 	Add( "OnMapLoad", "HookGUIEvents", function()
@@ -686,18 +710,6 @@ do
 		return OldEventHook( Name, Func )
 	end
 end
-
-Add( "HookNetworkMessage:ChatClient", "AddChatCallback", function( Name, Callback )
-	return function( Client, Message )
-		local Result = Call( "PlayerSay", Client, Message )
-		if Result then
-			if Result == "" then return end
-			Message.message = Result
-		end
-
-		return Callback( Client, Message )
-	end
-end )
 
 --[[
 	Hook to run after everything has loaded.
