@@ -114,6 +114,8 @@ function Plugin:HookChat( ChatElement )
 		}
 	end
 
+	local OnAddMessageError = Shine.BuildErrorHandler( "ChatBox:AddMessage error" )
+
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 		Plugin.GUIChat = self
 
@@ -138,7 +140,7 @@ function Plugin:HookChat( ChatElement )
 			end
 		end
 
-		Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
+		xpcall( Plugin.AddMessage, OnAddMessageError, Plugin, PlayerColour, PlayerName, MessageColour, MessageName, Tags )
 
 		if Plugin.Visible and JustAdded.Background then
 			JustAdded.Background:SetIsVisible( false )
@@ -1077,15 +1079,12 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		PlayerColour = IntToColour( PlayerColour )
 	end
 
-	local Units = SGUI.Layout.Units
-
 	local ChatLine = ReUse or self.ChatBox:Add( "ChatLine" )
 	ChatLine:SetFont( self:GetFont() )
 	ChatLine:SetTextScale( self.MessageTextScale )
-	ChatLine:SetTags( TagData )
-	ChatLine:SetMessage( PlayerColour, PlayerName, MessageColour, MessageName )
 	ChatLine:SetPreMargin( PrefixMargin )
 	ChatLine:SetLineSpacing( LineMargin )
+	ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageName )
 
 	self.ChatBox.Layout:AddElement( ChatLine )
 
