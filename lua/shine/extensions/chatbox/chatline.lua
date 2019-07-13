@@ -199,6 +199,7 @@ do
 			local Segment = Text( WrappedParts[ j ] )
 			Segment.Width = Width
 			Segment.WidthWithoutSpace = Width
+			Segment.Height = TextSizeProvider.TextHeight
 			Segment.OriginalElement = Index
 
 			Segments[ #Segments + 1 ] = Segment
@@ -209,6 +210,7 @@ do
 		local Segment = Text( Word )
 		Segment.Width = Width + ( NoSpace and 0 or TextSizeProvider.SpaceSize )
 		Segment.WidthWithoutSpace = Width
+		Segment.Height = TextSizeProvider.TextHeight
 		Segment.OriginalElement = Index
 
 		Segments[ #Segments + 1 ] = Segment
@@ -285,11 +287,17 @@ do
 	function Text:Merge( Segments, StartIndex, EndIndex )
 		local Segment = TableCopy( self )
 
+		local Width = 0
+		local Height = Segments[ StartIndex ].Height
+
 		local Words = TableNew( EndIndex - StartIndex + 1, 0 )
 		for i = StartIndex, EndIndex do
+			Width = Width + ( i == StartIndex and Segments[ i ].WidthWithoutSpace or Segments[ i ].Width )
 			Words[ #Words + 1 ] = Segments[ i ].Value
 		end
 
+		Segment.Width = Width
+		Segment.Height = Height
 		Segment.Value = TableConcat( Words, " " )
 
 		return Segment
@@ -301,6 +309,9 @@ do
 		Label:SetFontScale( Context.CurrentFont, Context.CurrentScale )
 		Label:SetColour( Context.CurrentColour )
 		Label:SetText( self.Value )
+		-- We already computed the width/height values, so apply them now.
+		Label.CachedTextWidth = self.Width
+		Label.CachedTextHeight = self.Height
 		return Label
 	end
 
@@ -402,7 +413,11 @@ do
 	end
 
 	function Spacer:MakeElement( Context )
-		Context.NextMargin = self.Width
+		if Context.CurrentIndex == 1 and self.IgnoreOnNewLine then
+			return
+		end
+
+		Context.NextMargin = ( Context.NextMargin or 0 ) + self.Width
 	end
 
 	function Spacer:__tostring()
@@ -478,30 +493,6 @@ function ChatLine:SetContent( Contents )
 	self:InvalidateLayout()
 end
 
-local function SplitLineIntoSegments( TextSizeProvider, Line, MaxWidth )
-	local Segments = {}
-
-	for i = 1, #Line do
-		Line[ i ].Index = i
-		Line[ i ]:Split( TextSizeProvider, Segments, MaxWidth, Line, i )
-	end
-
-	return Segments
-end
-
-local function MergeTextSegments( Element, Segments, StartIndex, EndIndex )
-	local Segment = TableCopy( Element )
-
-	local Words = TableNew( EndIndex - StartIndex + 1, 0 )
-	for i = StartIndex, EndIndex do
-		Words[ #Words + 1 ] = Segments[ i ].Value
-	end
-
-	Segment.Value = TableConcat( Words, " " )
-
-	return Segment
-end
-
 -- Merges word segments back into a single text segment (where they belong to the same original element),
 -- and produces a final line that can be displayed.
 local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, LastElementIndex )
@@ -548,60 +539,41 @@ local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, La
 	return Line, CurrentElementIndex + 1
 end
 
+local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
+	local Segments = TableNew( #Line + 10, 0 )
+	local CurrentWidth = 0
+	local StartIndex = 1
+	local LastSegment = 0
+	local LastElementIndex = 1
+
+	for i = 1, #Line do
+		Line[ i ].Index = i
+		Line[ i ]:Split( TextSizeProvider, Segments, MaxWidth, Line, i )
+
+		for j = LastSegment + 1, #Segments do
+			CurrentWidth = CurrentWidth + ( j == StartIndex and Segments[ j ].WidthWithoutSpace or Segments[ j ].Width )
+			if CurrentWidth > MaxWidth then
+				local Line, ElementIndex = ConsolidateSegments( Line, Segments, StartIndex, j - 1, LastElementIndex )
+				WrappedLines[ #WrappedLines + 1 ] = Line
+				LastElementIndex = ElementIndex
+
+				StartIndex = j
+				CurrentWidth = Segments[ j ].WidthWithoutSpace
+			end
+		end
+
+		LastSegment = #Segments
+	end
+
+	WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, StartIndex, #Segments, LastElementIndex )
+
+	return WrappedLines
+end
+
 function ChatLine:WrapLine( WrappedLines, Line, Context )
 	local MaxWidth = Context.MaxWidth
 	local TextSizeProvider = Context.TextSizeProvider
-
-	local Segments = SplitLineIntoSegments( TextSizeProvider, Line, MaxWidth )
-	local Start = 1
-	local End = #Segments
-
-	local PartitionStart = Start
-	local PartitionEnd = End
-	local Mid = GetMidPoint( PartitionStart, PartitionEnd )
-
-	local LastElementIndex = 1
-
-	-- Perform a binary search over the words to apply wrapping in O(log(n)) time.
-	-- At most the segments need splitting n times (as we guarantee that each segment is at most the max width
-	-- or otherwise is not wrappable when splitting above).
-	for i = 1, End do
-		local SegmentBefore = Segments[ Mid - 1 ]
-		local SegmentAfter = Segments[ Mid ]
-
-		local WidthBefore = 0
-		for i = Start, Mid - 1 do
-			WidthBefore = WidthBefore + ( i == Start and Segments[ i ].WidthWithoutSpace or Segments[ i ].Width )
-		end
-
-		local WidthAfter = WidthBefore + SegmentAfter.Width
-		if WidthAfter > MaxWidth and WidthBefore <= MaxWidth then
-			-- If the width is transitioning from less than to greater than the max,
-			-- this is a point at which the text must be wrapped.
-			local Line, ElementIndex = ConsolidateSegments( Line, Segments, Start, Mid - 1, LastElementIndex )
-			WrappedLines[ #WrappedLines + 1 ] = Line
-			LastElementIndex = ElementIndex
-
-			-- Then start the binary search again, this time with the start at the mid-point.
-			Start = Mid
-			PartitionStart = Start
-			PartitionEnd = End
-			Mid = GetMidPoint( PartitionStart, PartitionEnd )
-		elseif WidthAfter > MaxWidth then
-			-- Current half is too far ahead of the wrapping point, go backwards.
-			PartitionEnd = Mid - 1
-			Mid = GetMidPoint( PartitionStart, PartitionEnd )
-		else
-			if Mid == #Segments then
-				-- Can't go any further forwards, stop.
-				WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, Start, Mid, LastElementIndex )
-				break
-			end
-			-- Current half is too far behind the wrapping point, go forwards.
-			PartitionStart = Mid + 1
-			Mid = GetMidPoint( PartitionStart, PartitionEnd )
-		end
-	end
+	return WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 end
 
 local TextSizeProvider = Shine.TypeDef()
@@ -646,6 +618,8 @@ function ChatLine:PerformWrapping()
 	local MaxWidth = self.MaxWidth
 	if not MaxWidth or not Lines then return end
 
+	local Start = Shared.GetSystemTimeReal()
+
 	local WrappedLines = TableNew( #Lines, 0 )
 
 	local TextSizeProvider = TextSizeProvider( self.Font, self.TextScale )
@@ -658,10 +632,16 @@ function ChatLine:PerformWrapping()
 		self:WrapLine( WrappedLines, Lines[ i ], Context )
 	end
 
+	LuaPrint( "Computed wrapping in", ( Shared.GetSystemTimeReal() - Start ) * 1e6 )
+
 	TextSizeProvider:Destroy()
+
+	Start = Shared.GetSystemTimeReal()
 
 	self:ApplyLines( WrappedLines )
 	self.ComputedWrapping = true
+
+	LuaPrint( "Applied wrapped lines in", ( Shared.GetSystemTimeReal() - Start ) * 1e6 )
 end
 
 function ChatLine:ApplyLines( Lines )
@@ -690,7 +670,10 @@ function ChatLine:ApplyLines( Lines )
 		local LineWidth = 0
 		local LineHeight = 0
 		for j = 1, #Line do
+			Context.CurrentIndex = j
+
 			local Element = Line[ j ]
+
 			local Control = Element:MakeElement( Context )
 			if Control then
 				Control:SetParent( self, Parent.Background )
