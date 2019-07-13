@@ -26,6 +26,7 @@ local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
 local TableEmpty = table.Empty
 local TableRemove = table.remove
+local TableRemoveByValue = table.RemoveByValue
 local TableShallowMerge = table.ShallowMerge
 local type = type
 
@@ -51,6 +52,8 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
+local USE_BETTER_CHAT = true
+
 function Plugin:HookChat( ChatElement )
 	local OldInit = ChatElement.Initialize
 	local OldUninit = ChatElement.Uninitialize
@@ -61,12 +64,28 @@ function Plugin:HookChat( ChatElement )
 	function ChatElement:Initialize()
 		Plugin.GUIChat = self
 
+		if USE_BETTER_CHAT then
+			self.ChatLines = {}
+			self.ChatLinePool = {}
+
+			self.Panel = SGUI:Create( "Panel" )
+			self.Panel:SetIsSchemed( false )
+			self.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
+			self.Panel:SetAnchor( "BottomLeft" )
+			self.Panel:SetPos( GUIScale( 1 ) * GetOffset() + Vector2( 0, 200 ) )
+		end
+
 		return OldInit( self )
 	end
 
 	function ChatElement:Uninitialize()
 		if Plugin.GUIChat == self then
 			Plugin.GUIChat = nil
+		end
+
+		if USE_BETTER_CHAT and SGUI.IsValid( self.Panel ) then
+			self.Panel:Destroy()
+			self.Panel = nil
 		end
 
 		return OldUninit( self )
@@ -90,6 +109,12 @@ function Plugin:HookChat( ChatElement )
 		local InverseScale = 1 / GUIScale( 1 )
 		CurrentOffset.x = Offset.x * InverseScale
 		CurrentOffset.y = Offset.y * InverseScale
+
+		if USE_BETTER_CHAT then
+			CurrentOffset.y = CurrentOffset.y + 200
+			self.Panel:SetPos( GUIScale( 1 ) * CurrentOffset )
+			return
+		end
 
 		-- Update existing message's x-position as it's not changed in the
 		-- Update() method.
@@ -116,8 +141,132 @@ function Plugin:HookChat( ChatElement )
 
 	local OnAddMessageError = Shine.BuildErrorHandler( "ChatBox:AddMessage error" )
 
+	-- TODO:
+	-- * Make message background alpha configurable.
+	-- * Make an option that limits the maximum visible chat messages before they start to be forcibly faded out.
+	-- * Build the rich text chat API, and make the chatbox participate in it.
+	--   * This means chat messages have a player attached to them (i.e. Steam ID).
+	--   * System messages would be taggable with their source (e.g. the plugin name).
+	--   * Potentially have some kind of filtering options to filter out unwanted messages client-side.
+	-- * Move the better chat stuff from here to ??? (an "improved chat" plugin, some core code?)
+	local ChatMessageLifeTime = Client.GetOptionInteger( "chat-time", 6 )
+	local MaxChatWidth = Client.GetOptionInteger( "chat-wrap", 25 ) * 0.01
+
+	local IntToColour = ColorIntToColor
+
+	function ChatElement:AddChatLine( PlayerColour, PlayerName, MessageColour, MessageText, TagData )
+		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.Panel )
+
+		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
+
+		local Scaled = SGUI.Layout.Units.GUIScaled
+
+		local PrefixMargin = Scaled( 5 )
+		local LineMargin = Scaled( 2 )
+		local PaddingAmount = Scaled( 8 ):GetValue()
+
+		-- Why did they use int for the first colour, then colour object for the second?
+		if IsType( PlayerColour, "number" ) then
+			PlayerColour = IntToColour( PlayerColour )
+		end
+
+		ChatLine:SetFont( Fonts.kAgencyFB_Small )
+		ChatLine:SetTextScale( GetScaledVector() )
+		ChatLine:SetPreMargin( PrefixMargin )
+		ChatLine:SetLineSpacing( LineMargin )
+		ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageText )
+		ChatLine:SetSize( Vector2( Client.GetScreenWidth() * MaxChatWidth, 0 ) )
+		ChatLine:AddBackground( Colour( 0, 0, 0, 0.75 ), "ui/chat_bg.tga", PaddingAmount )
+
+		local StartPos = Vector2( 0, 0 )
+		ChatLine:SetPos( StartPos )
+
+		ChatLine:InvalidateLayout( true )
+		ChatLine:SetIsVisible( true )
+
+		local OutExpo = Easing.outExpo
+		local function Ease( Progress )
+			return OutExpo( Progress, 0, 1, 1 )
+		end
+
+		local AnimDuration = 0.3
+		if not Plugin.Visible then
+			ChatLine:FadeIn( AnimDuration, Ease )
+		end
+
+		local NewLineHeight = ChatLine:GetSize().y
+		local YOffset = StartPos.y
+		local MaxHeight = -( Client.GetScreenHeight() + self.Panel:GetPos().y )
+
+		for i = #self.ChatLines, 1, -1 do
+			local Line = self.ChatLines[ i ]
+			local LineHeight = Line:GetSize().y
+
+			YOffset = YOffset - LineHeight - PaddingAmount
+
+			local NewPos = Vector2( 0, YOffset )
+
+			if NewPos.y + LineHeight < MaxHeight then
+				-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
+				TableRemove( self.ChatLines, i )
+				Line:SetIsVisible( false )
+				Line:Reset()
+
+				self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
+				LuaPrint( "Removed", Line, "that went off screen from the chat line list, now have", #self.ChatLines, "left and", #self.ChatLinePool, "pooled." )
+			else
+				if not Plugin.Visible then
+					Line:MoveTo( nil, nil, NewPos, 0, AnimDuration )
+				else
+					Line:SetPos( NewPos )
+				end
+			end
+		end
+
+		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, function()
+			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
+				LuaPrint( ChatLine, "finished fading out but wasn't in the ChatLines list!" )
+				return
+			end
+
+			ChatLine:SetIsVisible( false )
+			ChatLine:Reset()
+
+			self.ChatLinePool[ #self.ChatLinePool + 1 ] = ChatLine
+			LuaPrint( "Removed", ChatLine, "from the chat line list, now have", #self.ChatLines, "left and", #self.ChatLinePool, "pooled." )
+		end, Ease )
+
+		return ChatLine
+	end
+
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
-		Plugin.GUIChat = self
+		if USE_BETTER_CHAT then
+			local TagData
+			if IsCommander then
+				TagData = {
+					{
+						Colour = IntToColour( kCommanderColor ),
+						Text = "[C] "
+					}
+				}
+			end
+
+			if IsRookie then
+				TagData = TagData or {}
+				TagData[ #TagData + 1 ] = {
+					Colour = IntToColour( kNewPlayerColor ),
+					Text = Locale.ResolveString( "ROOKIE_CHAT" ).." "
+				}
+			end
+
+			xpcall( self.AddChatLine, OnAddMessageError, self,
+				PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+
+			xpcall( Plugin.AddMessage, OnAddMessageError, Plugin,
+				PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+
+			return
+		end
 
 		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 
@@ -162,6 +311,13 @@ function Plugin:HookChat( ChatElement )
 					Message.Background:SetIsVisible( Visible )
 				end
 			end
+		end
+	end
+
+	if USE_BETTER_CHAT then
+		function ChatElement:SetIsVisible( Visible )
+			self.visible = not not Visible
+			self.Panel:SetIsVisible( self.visible )
 		end
 	end
 end

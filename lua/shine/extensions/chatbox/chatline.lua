@@ -71,6 +71,13 @@ end
 function ChatLine:PerformLayout()
 	if not self.ComputedWrapping then
 		self:PerformWrapping()
+
+		if self.VisibleBackground and self.MaxWidth and self.WrappedHeight then
+			self.VisibleBackground:SetSize( Vector2(
+				self.MaxWidth + self.BackgroundPadding,
+				self.WrappedHeight + self.BackgroundPadding
+			) )
+		end
 	end
 end
 
@@ -690,6 +697,7 @@ function ChatLine:ApplyLines( Lines )
 	local YOffset = 0
 	local MaxWidth = 0
 	local Spacing = self.LineSpacing:GetValue()
+	local RootLineElements = {}
 
 	for i = 1, #Lines do
 		local Line = Lines[ i ]
@@ -715,6 +723,10 @@ function ChatLine:ApplyLines( Lines )
 						Context.NextMargin = nil
 					end
 				else
+					Control:SetAnchor( "TopLeft" )
+					Control:SetInheritsParentAlpha( false )
+
+					RootLineElements[ i ] = Control
 					Control:SetPos( Vector2( 0, YOffset ) )
 				end
 
@@ -735,6 +747,7 @@ function ChatLine:ApplyLines( Lines )
 
 	self.WrappedWidth = MaxWidth
 	self.WrappedHeight = YOffset - Spacing
+	self.RootLineElements = RootLineElements
 
 	-- Any unused elements left behind should be destroyed.
 	if ElementPool then
@@ -743,6 +756,90 @@ function ChatLine:ApplyLines( Lines )
 				Elements[ i ]:Destroy()
 			end
 		end
+	end
+end
+
+function ChatLine:AddBackground( Colour, Texture, Padding )
+	local BackgroundElement = self.VisibleBackground
+
+	if not BackgroundElement then
+		BackgroundElement = self:MakeGUIItem()
+		self.Background:AddChild( BackgroundElement )
+		self.VisibleBackground = BackgroundElement
+	end
+
+	self.BackgroundColour = Colour
+	self.BackgroundPadding = Padding
+
+	BackgroundElement:SetColor( Colour )
+	BackgroundElement:SetTexture( Texture )
+
+	BackgroundElement:SetPosition( Vector2( -Padding * 0.5, -Padding * 0.5 ) )
+	if self.MaxWidth and self.WrappedHeight then
+		BackgroundElement:SetSize( Vector2( self.MaxWidth + Padding, self.WrappedHeight + Padding ) )
+	end
+end
+
+function ChatLine:FadeIn( Duration, Easer )
+	Duration = Duration or 0.25
+	self:ForEach( "RootLineElements", "AlphaTo", nil, 0, 1, 0, Duration, nil, Easer )
+
+	if self.VisibleBackground then
+		self:AlphaTo( self.VisibleBackground, 0, self.BackgroundColour.a, 0, Duration, nil, Easer )
+	end
+end
+
+function ChatLine:FadeOutIn( Delay, Duration, OnComplete, Easer )
+	if self.FadeOutTimer then
+		self.FadeOutTimer:Destroy()
+	end
+
+	self.FadeOutTimer = Shine.Timer.Simple( Delay, function()
+		self.FadeOutTimer = nil
+
+		if not self.Parent:GetIsVisible() then
+			-- Skip fading if currently invisible.
+			return OnComplete()
+		end
+
+		self:FadeOut( Duration, OnComplete, Easer )
+	end )
+end
+
+function ChatLine:FadeOut( Duration, OnComplete, Easer )
+	if self.FadingOut then return end
+
+	self.FadingOut = true
+
+	if self.FadeOutTimer then
+		self.FadeOutTimer:Destroy()
+		self.FadeOutTimer = nil
+	end
+
+	local RootElements = self.RootLineElements
+	for i = 1, #RootElements do
+		local Element = RootElements[ i ]
+		Element:AlphaTo( nil, nil, 0, 0, Duration, i == 1 and OnComplete, Easer )
+	end
+
+	if self.VisibleBackground then
+		self:AlphaTo( self.VisibleBackground, nil, 0, 0, Duration, nil, Easer )
+	end
+end
+
+function ChatLine:Reset()
+	self.FadingOut = false
+	if self.FadeOutTimer then
+		self.FadeOutTimer:Destroy()
+		self.FadeOutTimer = nil
+	end
+end
+
+function ChatLine:Cleanup()
+	self.BaseClass.Cleanup( self )
+
+	if self.FadeOutTimer then
+		self.FadeOutTimer:Destroy()
 	end
 end
 
