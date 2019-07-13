@@ -100,6 +100,8 @@ function ChatLine:GetSize()
 	return Vector2( self.WrappedWidth, self.WrappedHeight )
 end
 
+local Multimap = Shine.Multimap
+
 local Max = math.max
 local StringExplode = string.Explode
 local StringFormat = string.format
@@ -109,6 +111,7 @@ local TableConcat = table.concat
 local TableCopy = table.Copy
 local TableEmpty = table.Empty
 local TableNew = require "table.new"
+local TableRemove = table.remove
 local type = type
 
 local function GetMidPoint( Start, End )
@@ -171,6 +174,11 @@ local function DefineElementType( Name )
 	return TypeDef
 end
 
+local SegmentWidthKeys = {
+	[ true ] = "WidthWithoutSpace",
+	[ false ] = "Width"
+}
+
 do
 	local Text = DefineElementType( "Text" )
 	function Text:Init( Text )
@@ -191,9 +199,13 @@ do
 		return ElementLines
 	end
 
+	local WrappedParts = TableNew( 3, 0 )
 	local function EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
+		TableEmpty( WrappedParts )
+
 		-- Eagerly text-wrap here to make things easier when word-wrapping.
-		local WrappedParts = TextWrap( TextSizeProvider, Word, MaxWidth, {} )
+		TextWrap( TextSizeProvider, Word, MaxWidth, WrappedParts )
+
 		for j = 1, #WrappedParts do
 			local Width = TextSizeProvider:GetWidth( WrappedParts[ j ] )
 			local Segment = Text( WrappedParts[ j ] )
@@ -204,6 +216,8 @@ do
 
 			Segments[ #Segments + 1 ] = Segment
 		end
+
+		TableEmpty( WrappedParts )
 	end
 
 	local function AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, NoSpace )
@@ -216,24 +230,15 @@ do
 		Segments[ #Segments + 1 ] = Segment
 	end
 
-	local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word )
-		-- Want to text wrap starting from the previous element's width, so work out
-		-- how much space we have left from it and wrap accordingly.
-		local WidthUsedSoFar = 0
-		for i = 1, #Segments do
-			WidthUsedSoFar = WidthUsedSoFar + ( i == 1 and Segments[ i ].WidthWithoutSpace or Segments[ i ].Width )
-		end
-
-		-- If the text before will go onto a new line already, find how far along it will be on whatever line
-		-- it ends up on.
-		WidthUsedSoFar = WidthUsedSoFar % MaxWidth
-
+	local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, WrappingAnchorXPos )
 		-- Only bother to wrap against the anchor if there's enough room left on the line after it.
-		local WidthRemaining = MaxWidth - WidthUsedSoFar
+		local WidthRemaining = MaxWidth - WrappingAnchorXPos
 		if WidthRemaining / MaxWidth <= 0.1 then return false end
 
+		TableEmpty( WrappedParts )
+
 		-- Wrap the first part of text to the remaining width and add it as a segment.
-		local Parts = TextWrap( TextSizeProvider, Word, WidthRemaining, {}, 1 )
+		local Parts = TextWrap( TextSizeProvider, Word, WidthRemaining, WrappedParts, 1 )
 		AddSegmentFromWord( Index, TextSizeProvider, Segments, Parts[ 1 ], TextSizeProvider:GetWidth( Parts[ 1 ] ), true )
 
 		-- Now take the text that's left, and wrap it based on the full max width (as it's no longer on the same
@@ -246,24 +251,12 @@ do
 			AddSegmentFromWord( Index, TextSizeProvider, Segments, RemainingText, Width )
 		end
 
+		TableEmpty( WrappedParts )
+
 		return true
 	end
 
-	function Text:Split( TextSizeProvider, Segments, MaxWidth, Elements, CurrentIndex )
-		local HasWrappingAnchor = false
-		for i = CurrentIndex - 1, 1, -1 do
-			local Element = Elements[ i ]
-			if Element.Type == "WrappingAnchor" then
-				HasWrappingAnchor = true
-				break
-			end
-
-			if Element.Type == "Text" then
-				-- More text behind us, that's already handled any anchor that's present.
-				break
-			end
-		end
-
+	function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, WrappingAnchorXPos )
 		local Words = StringExplode( self.Value, " ", true )
 		for i = 1, #Words do
 			local Word = Words[ i ]
@@ -273,13 +266,13 @@ do
 				-- Check if there's a wrapping anchor behind this element. If so, the desired behaviour is
 				-- to text wrap starting from the anchor's position, rather than to move the word onto a new line.
 				if not (
-					i == 1 and HasWrappingAnchor and
-					WrapUsingAnchor( self.Index, TextSizeProvider, Segments, MaxWidth, Word )
+					i == 1 and WrappingAnchorXPos and
+					WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, WrappingAnchorXPos )
 				) then
-					EagerlyWrapText( self.Index, TextSizeProvider, Segments, MaxWidth, Word )
+					EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
 				end
 			else
-				AddSegmentFromWord( self.Index, TextSizeProvider, Segments, Word, Width, i == 1 )
+				AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, i == 1 )
 			end
 		end
 	end
@@ -292,7 +285,7 @@ do
 
 		local Words = TableNew( EndIndex - StartIndex + 1, 0 )
 		for i = StartIndex, EndIndex do
-			Width = Width + ( i == StartIndex and Segments[ i ].WidthWithoutSpace or Segments[ i ].Width )
+			Width = Width + Segments[ i ][ SegmentWidthKeys[ i == StartIndex ] ]
 			Words[ #Words + 1 ] = Segments[ i ].Value
 		end
 
@@ -304,7 +297,7 @@ do
 	end
 
 	function Text:MakeElement( Context )
-		local Label = SGUI:Create( "Label" )
+		local Label = Context:MakeElement( "Label" )
 		Label:SetIsSchemed( false )
 		Label:SetFontScale( Context.CurrentFont, Context.CurrentScale )
 		Label:SetColour( Context.CurrentColour )
@@ -348,7 +341,7 @@ do
 		return self
 	end
 
-	function Font:Split( TextSizeProvider )
+	function Font:Split( Index, TextSizeProvider )
 		TextSizeProvider:SetFontScale( self.Font, self.Scale )
 	end
 
@@ -371,8 +364,8 @@ do
 		return self
 	end
 
-	function Image:Split( TextSizeProvider, Segments, MaxWidth )
-		self.OriginalElement = self.Index
+	function Image:Split( Index, TextSizeProvider, Segments, MaxWidth )
+		self.OriginalElement = Index
 		self.Size = self.AbsoluteSize or self.AutoSize:GetValue(
 			Vector2( MaxWidth, TextSizeProvider.TextHeight )
 		)
@@ -383,7 +376,7 @@ do
 	end
 
 	function Image:MakeElement( Context )
-		local Image = SGUI:Create( "Image" )
+		local Image = Context:MakeElement( "Image" )
 		Image:SetIsSchemed( false )
 		Image:SetTexture( self.Texture )
 		-- Size already computed from auto-size in wrapping step.
@@ -404,8 +397,8 @@ do
 		return self
 	end
 
-	function Spacer:Split( TextSizeProvider, Segments, MaxWidth )
-		self.OriginalElement = self.Index
+	function Spacer:Split( Index, TextSizeProvider, Segments, MaxWidth )
+		self.OriginalElement = Index
 		self.Width = self.AutoWidth:GetValue( MaxWidth, 1 )
 		self.WidthWithoutSpace = self.IgnoreOnNewLine and 0 or self.Width
 
@@ -496,7 +489,7 @@ end
 -- Merges word segments back into a single text segment (where they belong to the same original element),
 -- and produces a final line that can be displayed.
 local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, LastElementIndex )
-	local Line = {}
+	local Line = TableNew( EndIndex - StartIndex + 1, 0 )
 	local CurrentElementIndex = Segments[ StartIndex ].OriginalElement
 	local LastElementChangeIndex = StartIndex
 
@@ -539,24 +532,37 @@ local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, La
 	return Line, CurrentElementIndex + 1
 end
 
+local Segments = TableNew( 50, 0 )
 local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
-	local Segments = TableNew( #Line + 10, 0 )
+	TableEmpty( Segments )
+
 	local CurrentWidth = 0
 	local StartIndex = 1
 	local LastSegment = 0
 	local LastElementIndex = 1
+	local WrappingAnchorXPos
 
 	for i = 1, #Line do
-		Line[ i ].Index = i
-		Line[ i ]:Split( TextSizeProvider, Segments, MaxWidth, Line, i )
+		local Element = Line[ i ]
+
+		if Element.Type == "WrappingAnchor" then
+			WrappingAnchorXPos = CurrentWidth
+		end
+
+		Element:Split( i, TextSizeProvider, Segments, MaxWidth, WrappingAnchorXPos )
+
+		if Element.Type == "Text" then
+			WrappingAnchorXPos = nil
+		end
 
 		for j = LastSegment + 1, #Segments do
-			CurrentWidth = CurrentWidth + ( j == StartIndex and Segments[ j ].WidthWithoutSpace or Segments[ j ].Width )
+			CurrentWidth = CurrentWidth + Segments[ j ][ SegmentWidthKeys[ j == StartIndex ] ]
 			if CurrentWidth > MaxWidth then
 				local Line, ElementIndex = ConsolidateSegments( Line, Segments, StartIndex, j - 1, LastElementIndex )
 				WrappedLines[ #WrappedLines + 1 ] = Line
 				LastElementIndex = ElementIndex
 
+				WrappingAnchorXPos = nil
 				StartIndex = j
 				CurrentWidth = Segments[ j ].WidthWithoutSpace
 			end
@@ -567,6 +573,8 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 
 	WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, StartIndex, #Segments, LastElementIndex )
 
+	TableEmpty( Segments )
+
 	return WrappedLines
 end
 
@@ -576,11 +584,19 @@ function ChatLine:WrapLine( WrappedLines, Line, Context )
 	return WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 end
 
+local Label
+local function GetLabel()
+	if not Label then
+		Label = SGUI:Create( "Label" )
+		Label:SetIsSchemed( false )
+		Label:SetIsVisible( false )
+		GetLabel = function() return Label end
+	end
+	return Label
+end
+
 local TextSizeProvider = Shine.TypeDef()
 function TextSizeProvider:Init( Font, Scale )
-	self.Label = SGUI:Create( "Label" )
-	self.Label:SetIsSchemed( false )
-
 	self.WordSizeCache = TableNew( 0, 10 )
 	self:SetFontScale( Font, Scale )
 
@@ -590,27 +606,25 @@ end
 function TextSizeProvider:SetFontScale( Font, Scale )
 	if Font == self.Font and Scale == self.Scale then return end
 
+	local Label = GetLabel()
+
 	self.Font = Font
 	self.Scale = Scale
-	self.Label:SetFontScale( Font, Scale )
+	Label:SetFontScale( Font, Scale )
 
 	TableEmpty( self.WordSizeCache )
 
-	self.SpaceSize = self.Label:GetTextWidth( " " )
-	self.TextHeight = self.Label:GetTextHeight( "!" )
+	self.SpaceSize = Label:GetTextWidth( " " )
+	self.TextHeight = Label:GetTextHeight( "!" )
 end
 
 function TextSizeProvider:GetWidth( Text )
 	local Size = self.WordSizeCache[ Text ]
 	if not Size then
-		Size = self.Label:GetTextWidth( Text )
+		Size = GetLabel():GetTextWidth( Text )
 		self.WordSizeCache[ Text ] = Size
 	end
 	return Size
-end
-
-function TextSizeProvider:Destroy()
-	self.Label:Destroy()
 end
 
 function ChatLine:PerformWrapping()
@@ -634,8 +648,6 @@ function ChatLine:PerformWrapping()
 
 	LuaPrint( "Computed wrapping in", ( Shared.GetSystemTimeReal() - Start ) * 1e6 )
 
-	TextSizeProvider:Destroy()
-
 	Start = Shared.GetSystemTimeReal()
 
 	self:ApplyLines( WrappedLines )
@@ -644,18 +656,34 @@ function ChatLine:PerformWrapping()
 	LuaPrint( "Applied wrapped lines in", ( Shared.GetSystemTimeReal() - Start ) * 1e6 )
 end
 
+local function MakeElement( self, Class )
+	local Elements = self.ElementPool and self.ElementPool:Get( Class )
+
+	local Element
+	if Elements then
+		-- It's OK to do this here as we don't care about the multimap other than
+		-- to hold lists of elements.
+		Element = TableRemove( Elements )
+	end
+
+	return Element or SGUI:Create( Class )
+end
+
 function ChatLine:ApplyLines( Lines )
-	-- TODO: Possibly re-use children?
+	local ElementPool
 	if self.Children then
+		ElementPool = Multimap()
 		for Child in self.Children:IterateBackwards() do
-			Child:Destroy()
+			ElementPool:Add( Child.Class, Child )
 		end
 	end
 
 	local Context = {
 		CurrentFont = self.Font,
 		CurrentScale = self.TextScale,
-		CurrentColour = Colour( 1, 1, 1, 1 )
+		CurrentColour = Colour( 1, 1, 1, 1 ),
+		ElementPool = ElementPool,
+		MakeElement = MakeElement
 	}
 
 	local Parent = self
@@ -707,6 +735,15 @@ function ChatLine:ApplyLines( Lines )
 
 	self.WrappedWidth = MaxWidth
 	self.WrappedHeight = YOffset - Spacing
+
+	-- Any unused elements left behind should be destroyed.
+	if ElementPool then
+		for Class, Elements in ElementPool:Iterate() do
+			for i = 1, #Elements do
+				Elements[ i ]:Destroy()
+			end
+		end
+	end
 end
 
 SGUI:Register( "ChatLine", ChatLine )
