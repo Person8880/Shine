@@ -319,7 +319,7 @@ function ControlMeta:SetParent( Control, Element )
 
 	if self.Parent then
 		self.Parent.Children:Remove( self )
-		if self.ParentElement and self.Background then
+		if self.ParentElement and IsGUIItemValid( self.ParentElement ) and self.Background then
 			self.ParentElement:RemoveChild( self.Background )
 		end
 	end
