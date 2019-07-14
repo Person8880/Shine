@@ -144,7 +144,8 @@ end
 local function Call( Event, ... )
 	local Callbacks = Hooks[ Event ]
 
-	for Entry in Callbacks:Iterate() do
+	for Node in Callbacks:IterateNodes() do
+		local Entry = Node.Value
 		local Success, a, b, c, d, e, f = xpcall( Entry.Callback, OnError, ... )
 		if not Success then
 			-- If the error came from calling extension events, don't remove the hook
@@ -212,7 +213,7 @@ end
 	Output: Original function.
 ]]
 local function AddGlobalHook( ReplacementFunc, FuncName )
-	local Path = StringExplode( FuncName, "%." )
+	local Path = StringExplode( FuncName, ".", true )
 
 	local Func = _G
 	local i = 1
@@ -785,10 +786,13 @@ Add( "Think", "ReplaceMethods", function()
 				return
 			end
 
+			-- StartVote doesn't return anything to indicate it started, so this check is required...
+			if GetStartVoteAllowed( VoteName, Client, Data ) == kVoteCannotStartReason.VoteAllowedToStart then
+				Call( "OnNS2VoteStarting", VoteName, Client, Data )
+			end
+
 			return OldStartVote( VoteName, Client, Data )
 		end
-
-		Shine.StartNS2Vote = OldStartVote
 	end
 
 	CallOnce( "OnFirstThink" )

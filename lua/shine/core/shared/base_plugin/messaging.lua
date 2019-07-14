@@ -77,7 +77,7 @@ if Client then
 
 		-- Transforms a boolean into one of two strings.
 		Transformers.BoolToPhrase = function( FormatArg, TransformArg )
-			local Args = StringExplode( TransformArg, "|" )
+			local Args = StringExplode( TransformArg, "|", true )
 			return FormatArg and Args[ 1 ] or Args[ 2 ]
 		end
 
@@ -97,7 +97,7 @@ if Client then
 
 		-- Adds one of two values depending on if the value is negative or not.
 		Transformers.Sign = function( FormatArg, TransformArg )
-			local Args = StringExplode( TransformArg, "|" )
+			local Args = StringExplode( TransformArg, "|", true )
 			return FormatArg < 0 and Args[ 1 ] or Args[ 2 ]
 		end
 

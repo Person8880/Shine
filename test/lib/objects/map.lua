@@ -38,6 +38,7 @@ UnitTest:Test( "IterationOrder", function( Assert )
 
 		i = i + 1
 	end
+	Assert.Equals( "Didn't iterate through the expected number of keys", 31, i )
 end )
 
 UnitTest:Test( "RemovalOfFalse", function( Assert )
@@ -79,9 +80,11 @@ UnitTest:Test( "IterationRemoval", function( Assert )
 		i = i + 1
 
 		local Value = Map:GetNext()
+		Assert.Equals( "Unexpected iteration value", i, Value )
 
 		if i % 5 == 0 then
 			Map:RemoveAtPosition()
+			Assert.Nil( "Should have removed the value", Map:Get( i ) )
 		end
 	end
 
@@ -118,8 +121,11 @@ UnitTest:Test( "GenericForRemoval", function( Assert )
 		Assert.Falsy( "Generic for is iterating elements multiple times!", Done[ Key ] )
 
 		i = i + 1
+		Assert.Equals( "Generic for removal resulted in repeated values", i, Value )
+
 		if i % 5 == 0 then
 			Map:Remove( Key )
+			Assert.Nil( "Key was not removed as expected", Map:Get( Key ) )
 		end
 
 		Done[ Key ] = true

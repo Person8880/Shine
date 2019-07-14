@@ -20,6 +20,27 @@ UnitTest:Test( "PatternSafe", function( Assert )
 	Assert.True( "Should be able to search without error", pcall( string.find, ".*+-?()[]%^$", Pattern ) )
 end )
 
+UnitTest:Test( "Explode - Handles pattern-based separators", function( Assert )
+	local ExplodedText = string.Explode( "thisssssissssasssstesssst", "s+" )
+	Assert.ArrayEquals( "Should have applied the separator as a pattern", {
+		"thi", "i", "a", "te", "t"
+	}, ExplodedText )
+end )
+
+UnitTest:Test( "Explode - Handles non-pattern based separators", function( Assert )
+	local ExplodedText = string.Explode( "Test.Thing.More.Things", ".", true )
+	Assert.ArrayEquals( "Should have applied the separator as plain text", {
+		"Test", "Thing", "More", "Things"
+	}, ExplodedText )
+end )
+
+UnitTest:Test( "Explode - Handles edge case where separator is at start/end", function( Assert )
+	local ExplodedText = string.Explode( "/some/path/to/things/", "/", true )
+	Assert.ArrayEquals( "Should have applied the separator as plain text", {
+		"", "some", "path", "to", "things", ""
+	}, ExplodedText )
+end )
+
 UnitTest:Test( "ParseLocalDateTime - Date and time with seconds", function( Assert )
 	local Timestamp, IsDateTime = string.ParseLocalDateTime( "2018-01-01T00:00:05" )
 

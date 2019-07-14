@@ -251,3 +251,12 @@ UnitTest:Test( "IterateNodes", function( Assert )
 	end
 	Assert.Equals( "Iteration didn't iterate all values", 5, i )
 end )
+
+UnitTest:Test( "IterateNodes when empty", function( Assert )
+	local List = Shine.LinkedList()
+	local i = 0
+	for Node in List:IterateNodes() do
+		i = i + 1
+	end
+	Assert.Equals( "Should not have iterated over any nodes", 0, i )
+end )

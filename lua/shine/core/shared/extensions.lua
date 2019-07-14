@@ -651,7 +651,7 @@ end
 ]]
 for Path in pairs( PluginFiles ) do
 	-- Path is the lower-case path to the file, not the real path.
-	local Folders = StringExplode( Path, "/" )
+	local Folders = StringExplode( Path, "/", true )
 	local Name = Folders[ 4 ]
 	local File = Folders[ 5 ]
 

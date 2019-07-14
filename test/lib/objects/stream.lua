@@ -13,15 +13,25 @@ UnitTest:Test( "Filter", function( Assert )
 	Assert:ArrayEquals( { 4, 5, 6 }, Data )
 end )
 
+UnitTest:Test( "Filter with context", function( Assert )
+	local Data = { 1, 4, 3, 5, 2, 6 }
+
+	Stream( Data ):Filter( function( Value, Index, Context ) return Value > Context end, 3 )
+
+	Assert:ArrayEquals( { 4, 5, 6 }, Data )
+end )
+
 UnitTest:Test( "ForEach", function( Assert )
 	local Data = { "a", "b", "c", "d", "e", "f" }
 	local Visited = {}
 	local Count = 0
 
-	Stream( Data ):ForEach( function( Value )
+	Stream( Data ):ForEach( function( Value, Index, Context )
 		Count = Count + 1
 		Visited[ Value ] = true
-	end )
+
+		Assert:Equals( "test", Context )
+	end, "test" )
 
 	Assert:Equals( #Data, Count )
 	for i = 1, Count do
@@ -33,6 +43,14 @@ UnitTest:Test( "Map", function( Assert )
 	local Data = { 1, 2, 3, 4, 5, 6 }
 
 	Stream( Data ):Map( function( Value ) return -Value end )
+
+	Assert:ArrayEquals( { -1, -2, -3, -4, -5, -6 }, Data )
+end )
+
+UnitTest:Test( "Map with context", function( Assert )
+	local Data = { 1, 2, 3, 4, 5, 6 }
+
+	Stream( Data ):Map( function( Value, Index, Context ) return Value * Context end, -1 )
 
 	Assert:ArrayEquals( { -1, -2, -3, -4, -5, -6 }, Data )
 end )
@@ -73,16 +91,17 @@ UnitTest:Test( "Reduce", function( Assert )
 	local Index = 2
 	local ExpectedSum = 1
 
-	local StreamSum = Stream( { 1, 2, 3, 4, 5, 6 } ):Reduce( function( Sum, CurrentValue, StreamIndex )
+	local StreamSum = Stream( { 1, 2, 3, 4, 5, 6 } ):Reduce( function( Sum, CurrentValue, StreamIndex, Context )
 		Assert:Equals( Index, StreamIndex )
 		Assert:Equals( ExpectedSum, Sum )
 		Assert:Equals( Index, CurrentValue )
+		Assert:Equals( "test", Context )
 
 		ExpectedSum = ExpectedSum + CurrentValue
 		Index = Index + 1
 
 		return Sum + CurrentValue
-	end )
+	end, nil, "test" )
 
 	Assert:Equals( 1 + 2 + 3 + 4 + 5 + 6, StreamSum )
 end )
@@ -91,10 +110,11 @@ UnitTest:Test( "Reduce with start value", function( Assert )
 	local Index = 1
 	local ExpectedSum = 0
 
-	local StreamSum = Stream( { 1, 2, 3, 4, 5, 6 } ):Reduce( function( Sum, CurrentValue, StreamIndex )
+	local StreamSum = Stream( { 1, 2, 3, 4, 5, 6 } ):Reduce( function( Sum, CurrentValue, StreamIndex, Context )
 		Assert:Equals( Index, StreamIndex )
 		Assert:Equals( ExpectedSum, Sum )
 		Assert:Equals( Index, CurrentValue )
+		Assert.Nil( "Context value should be nil when not provided", Context )
 
 		ExpectedSum = ExpectedSum + CurrentValue
 		Index = Index + 1

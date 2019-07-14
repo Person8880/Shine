@@ -11,9 +11,7 @@ local Min = math.min
 local Random = math.random
 
 local function Clamp( Number, Lower, Upper )
-	if Number < Lower then return Lower end
-	if Number > Upper then return Upper end
-	return Number
+	return Max( Min( Number, Upper ), Lower )
 end
 math.Clamp = Clamp
 

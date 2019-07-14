@@ -144,6 +144,24 @@ function Plugin:HookChat( ChatElement )
 			JustAdded.Background:SetIsVisible( false )
 		end
 	end
+
+	if not ChatElement.SetIsVisible then
+		-- Some older mods rely on an older version of GUIChat that does not include
+		-- a visibility setter.
+		function ChatElement:SetIsVisible( Visible )
+			self.visible = not not Visible
+
+			local Messages = self.messages
+			if not Messages then return end
+
+			for i = 1, #Messages do
+				local Message = Messages[ i ]
+				if IsType( Message, "table" ) and Message.Background then
+					Message.Background:SetIsVisible( Visible )
+				end
+			end
+		end
+	end
 end
 
 -- We hook the class here for certain functions before we find the actual instance of it.

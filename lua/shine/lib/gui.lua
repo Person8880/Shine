@@ -134,7 +134,7 @@ do
 		for i = 1, #BoundObject do
 			local Entry = BoundObject[ i ]
 			if IsType( Entry, "string" ) then
-				local FieldName, Setter = unpack( StringExplode( Entry, ":" ) )
+				local FieldName, Setter = unpack( StringExplode( Entry, ":", true ) )
 				Setter = Setter or "Set"..PropertyName
 
 				BoundFields[ i ] = function( self, Value )
@@ -247,7 +247,7 @@ do
 		This time, it shouldn't freeze the game...
 	]]
 	function SGUI.WordWrap( Label, Text, XPos, MaxWidth, MaxLines )
-		local Words = StringExplode( Text, " " )
+		local Words = StringExplode( Text, " ", true )
 		local StartIndex = 1
 		local Lines = {}
 		local i = 1

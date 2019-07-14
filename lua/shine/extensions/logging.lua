@@ -2,12 +2,14 @@
 	Shine logging plugin.
 ]]
 
+local Floor = math.floor
 local StringFormat = string.format
+local StringSub = string.sub
 
 local IsType = Shine.IsType
 
 local Plugin = Shine.Plugin( ... )
-Plugin.Version = "1.0.3"
+Plugin.Version = "1.1"
 
 Plugin.ConfigName = "Logging.json"
 Plugin.HasConfig = true
@@ -22,7 +24,8 @@ Plugin.DefaultConfig = {
 	LogRoundStartEnd = true,
 	LogCommanderLogin = true,
 	LogTeamJoins = true,
-	LogEjectVotes = true
+	LogEjectVotes = true,
+	LogGameVotes = true
 }
 
 Plugin.CheckConfig = true
@@ -140,7 +143,6 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	local Team1Name = Shine:GetTeamName( 1, true )
 	local Team2Name = Shine:GetTeamName( 2, true )
 
-	--A draw
 	if not WinningTeam or WinningTeam == kNeutralTeamType then
 		Shine:LogString( StringFormat( "Rounded ended in a draw. Build: %s. Map: %s. Round length: %s. %s start: %s. %s start: %s.",
 			Build, Map, RoundLength, Team1Name, StartLoc1, Team2Name, StartLoc2 ) )
@@ -262,7 +264,7 @@ function Plugin:OnConstructInit( Building )
 	local Name = Building:GetClassName()
 	local Team = Building:GetTeam()
 
-	--We really don't need to know about cysts...
+	-- We really don't need to know about cysts...
 	if Name:lower() == "cyst" then return end
 
 	if not Team or not Team.GetCommander then return end
@@ -275,6 +277,77 @@ function Plugin:OnConstructInit( Building )
 	local Client = Server.GetOwner( Owner )
 	Shine:LogString( StringFormat( "%s began construction of %s[%s].",
 		self:GetClientInfo( Client ), Name, ID ) )
+end
+
+Plugin.VoteStartingMessageBuilders = {
+	[ "ShineCustomVote" ] = function( Client, Data )
+		return StringFormat( "%s started a custom vote with question: %s", Plugin:GetClientInfo( Client ), Data.VoteQuestion )
+	end,
+	[ "VoteAddCommanderBots" ] = function( Client, Data )
+		return StringFormat( "%s started a vote to add commander bots.", Plugin:GetClientInfo( Client ) )
+	end,
+	[ "VotingForceEvenTeams" ] = function( Client, Data )
+		return StringFormat( "%s started a \"force even teams\" vote.", Plugin:GetClientInfo( Client ) )
+	end,
+	[ "VoteChangeMap" ] = function( Client, Data )
+		local MapName
+		if Data.map_index <= Server.GetNumMaps() then
+			MapName = Server.GetMapName( Data.map_index )
+		else
+			-- This is a bit brittle...
+			local Prefixes = { "infest", "infect" }
+			local Index = Server.GetNumMaps() + 1
+
+			for i = 1, #Prefixes do
+				for j = 1, Server.GetNumMaps() do
+					local Map = Server.GetMapName( j )
+					if MapCycle_GetMapIsInCycle( Map ) then
+						if Index == Data.map_index then
+							MapName = StringFormat(
+								"%s_%s",
+								Prefixes[ i ],
+								StringSub( Map, 5 )
+							)
+							break
+						end
+						Index = Index + 1
+					end
+				end
+
+				if MapName then break end
+			end
+		end
+
+		return StringFormat( "%s started a vote to change map to %s.", Plugin:GetClientInfo( Client ),
+			MapName or "an unknown map" )
+	end,
+	[ "VoteKickPlayer" ] = function( Client, Data )
+		local Target = Server.GetClientById( Data.kick_client )
+		return StringFormat(
+			"%s started a vote to kick %s.",
+			Plugin:GetClientInfo( Client ),
+			Target and Plugin:GetClientInfo( Target ) or "<unknown>"
+		)
+	end,
+	[ "VoteRandomizeRR" ] = function( Client, Data )
+		return StringFormat( "%s started a vote to randomise the ready room.", Plugin:GetClientInfo( Client ) )
+	end,
+	[ "VoteResetGame" ] = function( Client, Data )
+		return StringFormat( "%s started a vote to reset the game.", Plugin:GetClientInfo( Client ) )
+	end
+}
+function Plugin:OnNS2VoteStarting( VoteName, Client, Data )
+	if not self.Config.LogGameVotes then return end
+
+	local MessageBuilder = self.VoteStartingMessageBuilders[ VoteName ]
+	local Message
+	if MessageBuilder then
+		Message = MessageBuilder( Client, Data )
+	else
+		Message = StringFormat( "%s started vote: %s", self:GetClientInfo( Client ), VoteName )
+	end
+
+	Shine:LogString( Message )
 end
 
 return Plugin

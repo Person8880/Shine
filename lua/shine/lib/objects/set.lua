@@ -38,22 +38,28 @@ do
 	end
 end
 
-function Set:ForEach( Consumer )
-	return self.Stream:ForEach( Consumer )
+function Set:ForEach( Consumer, Context )
+	return self.Stream:ForEach( Consumer, Context )
 end
 
---[[
-	Removes all elements not contained in the given lookup set.
-
-	This can either be a set instance, or a normal Lua table whose keys are the
-	values to be kept.
-]]
-function Set:Intersection( Lookup )
-	if getmetatable( Lookup ) == Set then
-		Lookup = Lookup.Lookup
+do
+	local function LookupContainsValue( Value, Lookup )
+		return Lookup[ Value ]
 	end
 
-	return self:Filter( Predicates.Has( Lookup ) )
+	--[[
+		Removes all elements not contained in the given lookup set.
+
+		This can either be a set instance, or a normal Lua table whose keys are the
+		values to be kept.
+	]]
+	function Set:Intersection( Lookup )
+		if getmetatable( Lookup ) == Set then
+			Lookup = Lookup.Lookup
+		end
+
+		return self:Filter( LookupContainsValue, Lookup )
+	end
 end
 
 --[[
@@ -67,15 +73,23 @@ function Set:Union( OtherSet )
 	return self
 end
 
-function Set:Filter( Predicate )
-	self.Stream:Filter( function( Value )
-		local IsAllowed = Predicate( Value )
+do
+	local function FilterValues( Value, Index, FilterOperation )
+		local IsAllowed = FilterOperation.Predicate( Value, FilterOperation.Context )
 		if not IsAllowed then
-			self.Lookup[ Value ] = nil
+			FilterOperation.Set.Lookup[ Value ] = nil
 		end
 		return IsAllowed
-	end )
-	return self
+	end
+
+	function Set:Filter( Predicate, Context )
+		self.Stream:Filter( FilterValues, {
+			Predicate = Predicate,
+			Context = Context,
+			Set = self
+		} )
+		return self
+	end
 end
 
 function Set:Add( Value )
@@ -94,11 +108,15 @@ function Set:AddAll( Values )
 	return self
 end
 
-function Set:ReplaceMatchingValue( ValueToAdd, Predicate )
-	for Value in self:Iterate() do
-		if Predicate( Value ) then
-			self:Remove( Value )
-			self:Add( ValueToAdd )
+function Set:ReplaceMatchingValue( ValueToAdd, Predicate, Context )
+	for i = 1, #self.List do
+		local Value = self.List[ i ]
+		if Predicate( Value, i, Context ) then
+			self.List[ i ] = ValueToAdd
+
+			self.Lookup[ Value ] = nil
+			self.Lookup[ ValueToAdd ] = true
+
 			break
 		end
 	end
@@ -106,11 +124,17 @@ function Set:ReplaceMatchingValue( ValueToAdd, Predicate )
 end
 
 function Set:Contains( Value )
-	return self.Lookup[ Value ] or false
+	return not not self.Lookup[ Value ]
 end
 
-function Set:Remove( Value )
-	return self:Filter( Predicates.Not( Predicates.Equals( Value ) ) )
+do
+	local function IsNotValue( Value, ValueToRemove )
+		return Value ~= ValueToRemove
+	end
+
+	function Set:Remove( Value )
+		return self:Filter( IsNotValue, Value )
+	end
 end
 
 function Set:GetCount()

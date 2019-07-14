@@ -9,7 +9,7 @@ local Version = Shine.TypeDef()
 local function ToNumberOrZero( Value ) return tonumber( Value ) or 0 end
 
 function Version:Init( Specifier )
-	self.Components = Shine.Stream( StringExplode( Specifier, "%." ) ):Map( ToNumberOrZero ):AsTable()
+	self.Components = Shine.Stream( StringExplode( Specifier, ".", true ) ):Map( ToNumberOrZero ):AsTable()
 	while #self.Components < 3 do
 		self.Components[ #self.Components + 1 ] = 0
 	end

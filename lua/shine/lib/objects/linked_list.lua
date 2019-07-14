@@ -126,27 +126,24 @@ function LinkedList:GetCount()
 end
 
 local function Iterate( State )
-	local Next = State.Next and State.Next.Next
+	local Next = State.Node and State.Node.Next
 	if not Next then return nil end
 
-	State.Next = Next
+	State.Node = Next
 
 	return Next.Value
 end
 
 -- Iterates the values in the linked list.
 function LinkedList:Iterate()
-	return Iterate, { Next = { Next = self.First } }
+	return Iterate, { Node = { Next = self.First } }
 end
 
 local function IterateNodes( List, PrevNode )
-	if not PrevNode then
-		return List.First
-	end
 	return PrevNode.Next
 end
 
 -- Iterates the nodes in the linked list.
 function LinkedList:IterateNodes()
-	return IterateNodes, self
+	return IterateNodes, self, { Next = self.First }
 end
