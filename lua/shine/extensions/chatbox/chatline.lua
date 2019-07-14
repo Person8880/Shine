@@ -151,6 +151,12 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 			Parts[ #Parts + 1 ] = TextBefore
 			return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid ), MaxWidth, Parts, StopAfter )
 		elseif WidthAfter > MaxWidth then
+			if Mid == 1 then
+				-- Even a single character is too wide, so we have to allow it to overflow,
+				-- otherwise there'll never be an answer.
+				Parts[ #Parts + 1 ] = TextAfter
+				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid + 1 ), MaxWidth, Parts, StopAfter )
+			end
 			-- Too far forward, look in the previous half.
 			End = Mid - 1
 			Mid = GetMidPoint( Start, End )
@@ -189,6 +195,8 @@ local SegmentWidthKeys = {
 do
 	local Text = DefineElementType( "Text" )
 	function Text:Init( Text )
+		-- TODO: Make text more configurable, e.g. Think/DoClick functions.
+		-- This would allow clickable links, rainbow text etc.
 		self.Value = Text
 		return self
 	end
@@ -284,6 +292,11 @@ do
 		end
 	end
 
+	function Text:GetWidth( TextSizeProvider )
+		local Width = TextSizeProvider:GetWidth( self.Value )
+		return Width, Width
+	end
+
 	function Text:Merge( Segments, StartIndex, EndIndex )
 		local Segment = TableCopy( self )
 
@@ -331,6 +344,10 @@ do
 		-- Element is not splittable.
 	end
 
+	function Colour:GetWidth()
+		return 0, 0
+	end
+
 	function Colour:MakeElement( Context )
 		Context.CurrentColour = self.Value
 	end
@@ -350,6 +367,10 @@ do
 
 	function Font:Split( Index, TextSizeProvider )
 		TextSizeProvider:SetFontScale( self.Font, self.Scale )
+	end
+
+	function Font:GetWidth()
+		return 0, 0
 	end
 
 	function Font:MakeElement( Context )
@@ -382,6 +403,13 @@ do
 		Segments[ #Segments + 1 ] = self
 	end
 
+	function Image:GetWidth( TextSizeProvider, MaxWidth )
+		self.Size = self.AbsoluteSize or self.AutoSize:GetValue(
+			Vector2( MaxWidth, TextSizeProvider.TextHeight )
+		)
+		return self.Size.x, self.Size.x
+	end
+
 	function Image:MakeElement( Context )
 		local Image = Context:MakeElement( "Image" )
 		Image:SetIsSchemed( false )
@@ -412,6 +440,11 @@ do
 		Segments[ #Segments + 1 ] = self
 	end
 
+	function Spacer:GetWidth( TextSizeProvider, MaxWidth )
+		local Width = self.AutoWidth:GetValue( MaxWidth, 1 )
+		return Width, self.IgnoreOnNewLine and 0 or Width
+	end
+
 	function Spacer:MakeElement( Context )
 		if Context.CurrentIndex == 1 and self.IgnoreOnNewLine then
 			return
@@ -433,6 +466,10 @@ do
 
 	function WrappingAnchor:Split()
 		-- Element is not splittable.
+	end
+
+	function WrappingAnchor:GetWidth()
+		return 0, 0
 	end
 
 	function WrappingAnchor:MakeElement()
@@ -556,7 +593,17 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 			WrappingAnchorXPos = CurrentWidth
 		end
 
-		Element:Split( i, TextSizeProvider, Segments, MaxWidth, WrappingAnchorXPos )
+		local Width, WidthWithoutSpace = Element:GetWidth( TextSizeProvider, MaxWidth )
+		local RelevantWidth = #Segments + 1 == StartIndex and WidthWithoutSpace or Width
+		if CurrentWidth + RelevantWidth < MaxWidth then
+			-- No need to split the element as it fits entirely on the current line.
+			Element.Width = Width
+			Element.WidthWithoutSpace = WidthWithoutSpace
+			Element.OriginalElement = i
+			Segments[ #Segments + 1 ] = Element
+		else
+			Element:Split( i, TextSizeProvider, Segments, MaxWidth, WrappingAnchorXPos )
+		end
 
 		if Element.Type == "Text" then
 			WrappingAnchorXPos = nil
@@ -565,7 +612,10 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 		for j = LastSegment + 1, #Segments do
 			CurrentWidth = CurrentWidth + Segments[ j ][ SegmentWidthKeys[ j == StartIndex ] ]
 			if CurrentWidth > MaxWidth then
-				local Line, ElementIndex = ConsolidateSegments( Line, Segments, StartIndex, j - 1, LastElementIndex )
+				-- If the first element is too big for a line, accept it anyway as any text
+				-- will have been wrapped in segments already. Not accepting it would result in an empty line.
+				local EndIndex = j == StartIndex and j or j - 1
+				local Line, ElementIndex = ConsolidateSegments( Line, Segments, StartIndex, EndIndex, LastElementIndex )
 				WrappedLines[ #WrappedLines + 1 ] = Line
 				LastElementIndex = ElementIndex
 
