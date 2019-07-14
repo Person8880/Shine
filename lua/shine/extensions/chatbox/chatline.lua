@@ -109,6 +109,7 @@ end
 
 local Multimap = Shine.Multimap
 
+local IsType = Shine.IsType
 local Max = math.max
 local StringExplode = string.Explode
 local StringFormat = string.format
@@ -192,12 +193,29 @@ local SegmentWidthKeys = {
 	[ false ] = "Width"
 }
 
+local function AddThinkFunction( Element, ExtraThink )
+	-- Remove any old override (so Think comes from the metatable).
+	Element.Think = nil
+
+	if not ExtraThink then return end
+
+	local OldThink = Element.Think
+	function Element:Think( DeltaTime )
+		ExtraThink( self, DeltaTime )
+		return OldThink( self, DeltaTime )
+	end
+end
+
 do
 	local Text = DefineElementType( "Text" )
 	function Text:Init( Text )
-		-- TODO: Make text more configurable, e.g. Think/DoClick functions.
-		-- This would allow clickable links, rainbow text etc.
-		self.Value = Text
+		if IsType( Text, "string" ) then
+			self.Value = Text
+		else
+			self.Value = Text.Value
+			self.Think = Text.Think
+		end
+
 		return self
 	end
 
@@ -322,14 +340,49 @@ do
 		Label:SetFontScale( Context.CurrentFont, Context.CurrentScale )
 		Label:SetColour( Context.CurrentColour )
 		Label:SetText( self.Value )
+
+		AddThinkFunction( Label, self.Think )
+
+		Label.DoClick = Context.DoClick
+		Label.DoRightClick = Context.DoRightClick
+
 		-- We already computed the width/height values, so apply them now.
 		Label.CachedTextWidth = self.Width
 		Label.CachedTextHeight = self.Height
+
 		return Label
 	end
 
 	function Text:__tostring()
 		return StringFormat( "Text \"%s\" (Width = %s)", self.Value, self.Width )
+	end
+end
+
+do
+	-- Sets what happens when elements following this element are clicked.
+	-- To reset, just provide an empty mouse input element.
+	local MouseInput = DefineElementType( "MouseInput" )
+	function MouseInput:Init( Params )
+		self.DoClick = Params.DoClick
+		self.DoRightClick = Params.DoRightClick
+		return self
+	end
+
+	function MouseInput:Split()
+		-- Element is not splittable.
+	end
+
+	function MouseInput:GetWidth()
+		return 0, 0
+	end
+
+	function MouseInput:MakeElement( Context )
+		Context.DoClick = self.DoClick
+		Context.DoRightClick = self.DoRightClick
+	end
+
+	function MouseInput:__tostring()
+		return StringFormat( "MouseInput (DoClick = %s, DoRightClick = %s)", self.DoClick, self.DoRightClick )
 	end
 end
 
@@ -389,6 +442,7 @@ do
 		self.Texture = Params.Texture
 		self.AbsoluteSize = Params.AbsoluteSize
 		self.AutoSize = Params.AutoSize
+		self.Think = Params.Think
 		return self
 	end
 
@@ -416,6 +470,12 @@ do
 		Image:SetTexture( self.Texture )
 		-- Size already computed from auto-size in wrapping step.
 		Image:SetSize( self.Size )
+
+		AddThinkFunction( Image, self.Think )
+
+		Image.DoClick = Context.DoClick
+		Image.DoRightClick = Context.DoRightClick
+
 		return Image
 	end
 
@@ -730,7 +790,7 @@ function ChatLine:ApplyLines( Lines )
 	local ElementPool
 	if self.Children then
 		ElementPool = Multimap()
-		for Child in self.Children:IterateBackwards() do
+		for Child in self.Children:Iterate() do
 			ElementPool:Add( Child.Class, Child )
 		end
 	end
@@ -768,10 +828,8 @@ function ChatLine:ApplyLines( Lines )
 					Control:SetAnchor( "TopRight" )
 					Control:SetInheritsParentAlpha( true )
 
-					if Context.NextMargin then
-						Control:SetPos( Vector2( Context.NextMargin, 0 ) )
-						Context.NextMargin = nil
-					end
+					Control:SetPos( Vector2( Context.NextMargin or 0, 0 ) )
+					Context.NextMargin = nil
 				else
 					Control:SetAnchor( "TopLeft" )
 					Control:SetInheritsParentAlpha( false )
