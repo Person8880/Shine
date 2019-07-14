@@ -52,291 +52,59 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
-local USE_BETTER_CHAT = true
-
 function Plugin:HookChat( ChatElement )
-	local OldInit = ChatElement.Initialize
-	local OldUninit = ChatElement.Uninitialize
 	local OldSendKey = ChatElement.SendKeyEvent
-	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset" )
-	local OriginalOffset = Vector( GetOffset() )
-
-	function ChatElement:Initialize()
-		Plugin.GUIChat = self
-
-		if USE_BETTER_CHAT then
-			self.ChatLines = {}
-			self.ChatLinePool = {}
-
-			self.Panel = SGUI:Create( "Panel" )
-			self.Panel:SetIsSchemed( false )
-			self.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
-			self.Panel:SetAnchor( "BottomLeft" )
-			self.Panel:SetPos( GUIScale( 1 ) * GetOffset() + Vector2( 0, 200 ) )
-		end
-
-		return OldInit( self )
-	end
-
-	function ChatElement:Uninitialize()
-		if Plugin.GUIChat == self then
-			Plugin.GUIChat = nil
-		end
-
-		if USE_BETTER_CHAT and SGUI.IsValid( self.Panel ) then
-			self.Panel:Destroy()
-			self.Panel = nil
-		end
-
-		return OldUninit( self )
-	end
 
 	function ChatElement:SendKeyEvent( Key, Down )
 		if Plugin.Enabled then return end
 		return OldSendKey( self, Key, Down )
 	end
 
-	function ChatElement:ResetScreenOffset()
-		self:SetScreenOffset( OriginalOffset )
-	end
-
-	function ChatElement:SetScreenOffset( Offset )
-		-- Alter the offset value by reference directly to avoid having to
-		-- reposition elements constantly in the Update method.
-		local CurrentOffset = GetOffset()
-		if not CurrentOffset then return end
-
-		local InverseScale = 1 / GUIScale( 1 )
-		CurrentOffset.x = Offset.x * InverseScale
-		CurrentOffset.y = Offset.y * InverseScale
-
-		if USE_BETTER_CHAT then
-			CurrentOffset.y = CurrentOffset.y + 200
-			self.Panel:SetPos( GUIScale( 1 ) * CurrentOffset )
-			return
-		end
-
-		-- Update existing message's x-position as it's not changed in the
-		-- Update() method.
-		local Messages = self.messages
-		for i = 1, #Messages do
-			local Message = Messages[ i ]
-			local Background = Message.Background
-
-			if Background then
-				local Pos = Background:GetPosition()
-				Pos.x = Offset.x
-				Background:SetPosition( Pos )
-			end
-		end
-	end
-
 	local OldAddMessage = ChatElement.AddMessage
-	local function GetTag( Element )
-		return {
-			Colour = Element:GetColor(),
-			Text = Element:GetText()
-		}
-	end
-
-	local OnAddMessageError = Shine.BuildErrorHandler( "ChatBox:AddMessage error" )
-
-	-- TODO:
-	-- * Make message background alpha configurable.
-	-- * Make an option that limits the maximum visible chat messages before they start to be forcibly faded out.
-	-- * Build the rich text chat API, and make the chatbox participate in it.
-	--   * This means chat messages have a player attached to them (i.e. Steam ID).
-	--   * System messages would be taggable with their source (e.g. the plugin name).
-	--   * Potentially have some kind of filtering options to filter out unwanted messages client-side.
-	-- * Move the better chat stuff from here to ??? (an "improved chat" plugin, some core code?)
-	local ChatMessageLifeTime = Client.GetOptionInteger( "chat-time", 6 )
-	local MaxChatWidth = Client.GetOptionInteger( "chat-wrap", 25 ) * 0.01
-
-	local IntToColour = ColorIntToColor
-
-	function ChatElement:AddChatLine( PlayerColour, PlayerName, MessageColour, MessageText, TagData )
-		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.Panel )
-
-		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
-
-		local Scaled = SGUI.Layout.Units.GUIScaled
-
-		local PrefixMargin = Scaled( 5 )
-		local LineMargin = Scaled( 2 )
-		local PaddingAmount = Scaled( 8 ):GetValue()
-
-		-- Why did they use int for the first colour, then colour object for the second?
-		if IsType( PlayerColour, "number" ) then
-			PlayerColour = IntToColour( PlayerColour )
-		end
-
-		ChatLine:SetFont( Fonts.kAgencyFB_Small )
-		ChatLine:SetTextScale( GetScaledVector() )
-		ChatLine:SetPreMargin( PrefixMargin )
-		ChatLine:SetLineSpacing( LineMargin )
-		ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageText )
-		ChatLine:SetSize( Vector2( Client.GetScreenWidth() * MaxChatWidth, 0 ) )
-		ChatLine:AddBackground( Colour( 0, 0, 0, 0.75 ), "ui/chat_bg.tga", PaddingAmount )
-
-		local StartPos = Vector2( 0, 0 )
-		ChatLine:SetPos( StartPos )
-
-		ChatLine:InvalidateLayout( true )
-		ChatLine:SetIsVisible( true )
-
-		local OutExpo = Easing.outExpo
-		local function Ease( Progress )
-			return OutExpo( Progress, 0, 1, 1 )
-		end
-
-		local AnimDuration = 0.3
-		if not Plugin.Visible then
-			ChatLine:FadeIn( AnimDuration, Ease )
-		end
-
-		local NewLineHeight = ChatLine:GetSize().y
-		local YOffset = StartPos.y
-		local MaxHeight = -( Client.GetScreenHeight() + self.Panel:GetPos().y )
-
-		for i = #self.ChatLines, 1, -1 do
-			local Line = self.ChatLines[ i ]
-			local LineHeight = Line:GetSize().y
-
-			YOffset = YOffset - LineHeight - PaddingAmount
-
-			local NewPos = Vector2( 0, YOffset )
-
-			if NewPos.y + LineHeight < MaxHeight then
-				-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
-				TableRemove( self.ChatLines, i )
-				Line:SetIsVisible( false )
-				Line:Reset()
-
-				self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
-				LuaPrint( "Removed", Line, "that went off screen from the chat line list, now have", #self.ChatLines, "left and", #self.ChatLinePool, "pooled." )
-			else
-				if not Plugin.Visible then
-					Line:MoveTo( nil, nil, NewPos, 0, AnimDuration )
-				else
-					Line:SetPos( NewPos )
-				end
-			end
-		end
-
-		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, function()
-			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
-				LuaPrint( ChatLine, "finished fading out but wasn't in the ChatLines list!" )
-				return
-			end
-
-			ChatLine:SetIsVisible( false )
-			ChatLine:Reset()
-
-			self.ChatLinePool[ #self.ChatLinePool + 1 ] = ChatLine
-			LuaPrint( "Removed", ChatLine, "from the chat line list, now have", #self.ChatLines, "left and", #self.ChatLinePool, "pooled." )
-		end, Ease )
-
-		return ChatLine
-	end
-
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
-		if USE_BETTER_CHAT then
-			local TagData
-			if IsCommander then
-				TagData = {
-					{
-						Colour = IntToColour( kCommanderColor ),
-						Text = "[C] "
-					}
-				}
-			end
-
-			if IsRookie then
-				TagData = TagData or {}
-				TagData[ #TagData + 1 ] = {
-					Colour = IntToColour( kNewPlayerColor ),
-					Text = Locale.ResolveString( "ROOKIE_CHAT" ).." "
-				}
-			end
-
-			xpcall( self.AddChatLine, OnAddMessageError, self,
-				PlayerColour, PlayerName, MessageColour, MessageName, TagData )
-
-			xpcall( Plugin.AddMessage, OnAddMessageError, Plugin,
-				PlayerColour, PlayerName, MessageColour, MessageName, TagData )
-
-			return
-		end
-
 		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 
 		if not Plugin.Enabled then return end
 
 		local JustAdded = self.messages[ #self.messages ]
-		local Tags
-		local Rookie = JustAdded.Rookie and JustAdded.Rookie:GetIsVisible()
-		local Commander = JustAdded.Commander and JustAdded.Commander:GetIsVisible()
-
-		if Rookie or Commander then
-			Tags = {}
-
-			if Commander then
-				Tags[ 1 ] = GetTag( JustAdded.Commander )
-			end
-
-			if Rookie then
-				Tags[ #Tags + 1 ] = GetTag( JustAdded.Rookie )
-			end
-		end
-
-		xpcall( Plugin.AddMessage, OnAddMessageError, Plugin, PlayerColour, PlayerName, MessageColour, MessageName, Tags )
+		if not JustAdded then return end
 
 		if Plugin.Visible and JustAdded.Background then
 			JustAdded.Background:SetIsVisible( false )
 		end
 	end
-
-	if not ChatElement.SetIsVisible then
-		-- Some older mods rely on an older version of GUIChat that does not include
-		-- a visibility setter.
-		function ChatElement:SetIsVisible( Visible )
-			self.visible = not not Visible
-
-			local Messages = self.messages
-			if not Messages then return end
-
-			for i = 1, #Messages do
-				local Message = Messages[ i ]
-				if IsType( Message, "table" ) and Message.Background then
-					Message.Background:SetIsVisible( Visible )
-				end
-			end
-		end
-	end
-
-	if USE_BETTER_CHAT then
-		function ChatElement:SetIsVisible( Visible )
-			self.visible = not not Visible
-			self.Panel:SetIsVisible( self.visible )
-		end
-	end
 end
 
 -- We hook the class here for certain functions before we find the actual instance of it.
-Hook.Add( "Think", "ChatBoxHook", function()
-	if GUIChat then
-		Hook.Remove( "Think", "ChatBoxHook" )
-		Plugin:HookChat( GUIChat )
+Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
+	Plugin:HookChat( GUIChat )
+end )
+
+Hook.Add( "OnGUIChatInitialised", Plugin, function( GUIChat )
+	Plugin.GUIChat = GUIChat
+end )
+Hook.Add( "OnGUIChatDestroyed", Plugin, function( GUIChat )
+	if Plugin.GUIChat == GUIChat then
+		Plugin.GUIChat = nil
 	end
 end )
 
 function Plugin:Initialise()
+	-- TODO: Move to main GUI objects folder.
 	Shine.LoadPluginFile( self:GetName(), "chatline.lua" )
 
 	self.Messages = self.Messages or {}
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:OnChatMessageDisplayed( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+	self:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
+end
+
+function Plugin:OnRichTextChatMessageDisplayed( MessageData )
+	self:AddMessageFromContents( MessageData.Message )
 end
 
 local Units = SGUI.Layout.Units
@@ -498,23 +266,17 @@ end
 		4. A settings button that opens up the chatbox settings.
 ]]
 function Plugin:CreateChatbox()
-	local UIScale = GUIScale( Vector( 1, 1, 1 ) )
-	local ScalarScale = GUIScale( 1 )
+	local UIScale = GUIScale( Vector( 1, 1, 1 ) ) * self.Config.Scale
+	local ScalarScale = GUIScale( 1 ) * self.Config.Scale
 
 	local ScreenWidth, ScreenHeight = SGUI.GetScreenSize()
 	ScreenWidth = ScreenWidth * self.Config.Scale
 	ScreenHeight = ScreenHeight * self.Config.Scale
 
-	local WidthMult = Max( ScreenWidth / 1920, 0.7 )
-	local HeightMult = Max( ScreenHeight / 1080, 0.7 )
-
-	if ScreenWidth > 1920 then
-		UIScale = SGUI.TenEightyPScale( Vector( 1, 1, 1 ) )
-		ScalarScale = SGUI.TenEightyPScale( 1 )
-	end
-
+	local WidthMult = 1
+	local HeightMult = 1
 	local FourToThreeHeight = ( ScreenWidth / 4 ) * 3
-	--Use a more boxy box for 4:3 monitors.
+	-- Use a more boxy box for 4:3 monitors.
 	if FourToThreeHeight == ScreenHeight then
 		WidthMult = WidthMult * 0.72
 	end
@@ -526,21 +288,18 @@ function Plugin:CreateChatbox()
 
 	self.UIScale = UIScale
 	self.ScalarScale = ScalarScale
-	self.TextScale = TextScale * ScalarScale
-	self.MessageTextScale = TextScale
 
 	if ScreenHeight <= SGUI.ScreenHeight.Small then
 		self.Font = Fonts.kAgencyFB_Tiny
 		self.TextScale = TextScale
+		self.MessageTextScale = self.TextScale
 	elseif ScreenHeight <= SGUI.ScreenHeight.Normal then
 		self.Font = Fonts.kAgencyFB_Small
-	elseif ScreenHeight <= SGUI.ScreenHeight.Large then
-		self.Font = Fonts.kAgencyFB_Medium
 		self.TextScale = TextScale
-	else --Assumming 4K here. "Large" font is too small, so we need huge at a scale.
-		self.Font = Fonts.kAgencyFB_Huge
-		self.TextScale = TextScale * 0.6
 		self.MessageTextScale = self.TextScale
+	else
+		self.Font, self.MessageTextScale = SGUI.FontManager.GetFont( "kAgencyFB", 27 )
+		self.TextScale = self.MessageTextScale
 	end
 
 	local Opacity = self.Config.Opacity
@@ -549,9 +308,10 @@ function Plugin:CreateChatbox()
 	local Pos = self.Config.Pos
 	local ChatBoxPos
 	local PanelSize = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale )
+	local DefaultPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * UIScale.y, 0 )
 
 	if not Pos.x or not Pos.y then
-		ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * ScalarScale, 0 )
+		ChatBoxPos = DefaultPos
 	else
 		ChatBoxPos = Vector( Pos.x, Pos.y, 0 )
 	end
@@ -570,8 +330,8 @@ function Plugin:CreateChatbox()
 
 	-- Double click the title bar to return it to the default position.
 	function Border:ReturnToDefaultPos()
-		self:SetPos( ChatBoxPos )
-		self:OnDragFinished( ChatBoxPos )
+		self:SetPos( DefaultPos )
+		self:OnDragFinished( DefaultPos )
 	end
 
 	-- If, for some reason, there's an error in a panel hook, then this is removed.
@@ -1136,34 +896,12 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	local Recreate = {}
 
 	for i = 1, #Messages do
-		local Message = Messages[ i ]
-		local PreText = Message.PreLabel:GetText()
-		local PreCol = Message.PreLabel:GetColour()
-
-		local MessageText = Message.MessageText
-		local MessageCol = Message.MessageLabel:GetColour()
-
-		local TagData
-		local Tags = Message.Tags
-		if Tags then
-			TagData = {}
-
-			for j = 1, #Tags do
-				TagData[ j ] = {
-					Colour = Tags[ j ]:GetColour(),
-					Text = Tags[ j ]:GetText()
-				}
-			end
-		end
-
 		Recreate[ i ] = {
-			TagData = TagData,
-			PreText = PreText, PreCol = PreCol,
-			MessageText = MessageText, MessageCol = MessageCol
+			Lines = Messages[ i ].Lines
 		}
 	end
 
-	--Recreate the entire chat box, it's easier than rescaling.
+	-- Recreate the entire chat box, it's easier than rescaling.
 	self.IgnoreRemove = true
 	self.MainPanel:Destroy()
 	self.IgnoreRemove = nil
@@ -1181,21 +919,11 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 
 	for i = 1, #Recreate do
 		local Message = Recreate[ i ]
-		self:AddMessage( Message.PreCol, Message.PreText,
-			Message.MessageCol, Message.MessageText, Message.TagData )
+		self:AddMessageFromLines( Message.Lines )
 	end
 end
 
-local IntToColour
-
---[[
-	Adds a message to the chatbox.
-
-	Inputs are derived from the GUIChat inputs as we want to maintain compatability.
-
-	Theoretically, we can make messages with any number of colours, but for now this will do.
-]]
-function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+function Plugin:AddMessageFromPopulator( Populator, ... )
 	if not SGUI.IsValid( self.MainPanel ) then
 		self:CreateChatbox()
 
@@ -1204,18 +932,8 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		end
 	end
 
-	--Don't add anything if one of the elements is the wrong type. Default chat will error instead.
-	if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
-	or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
-	or not IsType( MessageName, "string" ) then
-		return
-	end
-
-	IntToColour = IntToColour or ColorIntToColor
-
 	local Messages = self.Messages
 	local Scaled = SGUI.Layout.Units.Scaled
-
 	local PrefixMargin = Scaled( 5, self.ScalarScale )
 	local LineMargin = Scaled( 2, self.ScalarScale )
 
@@ -1230,23 +948,72 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		ReUse = FirstMessage
 	end
 
-	-- Why did they use int for the first colour, then colour object for the second?
-	if IsType( PlayerColour, "number" ) then
-		PlayerColour = IntToColour( PlayerColour )
-	end
-
 	local ChatLine = ReUse or self.ChatBox:Add( "ChatLine" )
 	ChatLine:SetFont( self:GetFont() )
 	ChatLine:SetTextScale( self.MessageTextScale )
 	ChatLine:SetPreMargin( PrefixMargin )
 	ChatLine:SetLineSpacing( LineMargin )
-	ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageName )
+
+	Populator( ChatLine, ... )
 
 	self.ChatBox.Layout:AddElement( ChatLine )
 
 	if not self.Visible then return end
 
 	self:RefreshLayout()
+end
+
+do
+	local function AddMessageFromContents( ChatLine, Contents )
+		ChatLine:SetContent( Contents )
+	end
+
+	function Plugin:AddMessageFromContents( Contents )
+		return self:AddMessageFromPopulator( AddMessageFromContents, Contents )
+	end
+end
+
+do
+	local function AddMessageFromLines( ChatLine, Lines )
+		ChatLine:RestoreFromLines( Lines )
+	end
+
+	function Plugin:AddMessageFromLines( Lines )
+		return self:AddMessageFromPopulator( AddMessageFromLines, Lines )
+	end
+end
+
+do
+	local IntToColour
+
+	local function AddSimpleChatMessage( ChatLine, TagData, PlayerColour, PlayerName, MessageColour, MessageName )
+		ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageName )
+	end
+
+	--[[
+		Adds a message to the chatbox.
+
+		Inputs are derived from the GUIChat inputs as we want to maintain compatability.
+
+		Theoretically, we can make messages with any number of colours, but for now this will do.
+	]]
+	function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+		--Don't add anything if one of the elements is the wrong type. Default chat will error instead.
+		if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
+		or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
+		or not IsType( MessageName, "string" ) then
+			return
+		end
+
+		IntToColour = IntToColour or ColorIntToColor
+
+		-- Why did they use int for the first colour, then colour object for the second?
+		if IsType( PlayerColour, "number" ) then
+			PlayerColour = IntToColour( PlayerColour )
+		end
+
+		self:AddMessageFromPopulator( AddSimpleChatMessage, TagData, PlayerColour, PlayerName, MessageColour, MessageName )
+	end
 end
 
 function Plugin:RefreshLayout( ForceInstantScroll )

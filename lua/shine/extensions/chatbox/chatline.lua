@@ -442,15 +442,23 @@ do
 		self.Texture = Params.Texture
 		self.AbsoluteSize = Params.AbsoluteSize
 		self.AutoSize = Params.AutoSize
+		self.AspectRatio = Params.AspectRatio
 		self.Think = Params.Think
 		return self
 	end
 
-	function Image:Split( Index, TextSizeProvider, Segments, MaxWidth )
-		self.OriginalElement = Index
+	function Image:ConfigureSize( TextSizeProvider, MaxWidth )
 		self.Size = self.AbsoluteSize or self.AutoSize:GetValue(
 			Vector2( MaxWidth, TextSizeProvider.TextHeight )
 		)
+		if self.AspectRatio then
+			self.Size.x = self.Size.y * self.AspectRatio
+		end
+	end
+
+	function Image:Split( Index, TextSizeProvider, Segments, MaxWidth )
+		self.OriginalElement = Index
+		self:ConfigureSize( TextSizeProvider, MaxWidth )
 		self.Width = self.Size.x
 		self.WidthWithoutSpace = self.Width
 
@@ -458,9 +466,7 @@ do
 	end
 
 	function Image:GetWidth( TextSizeProvider, MaxWidth )
-		self.Size = self.AbsoluteSize or self.AutoSize:GetValue(
-			Vector2( MaxWidth, TextSizeProvider.TextHeight )
-		)
+		self:ConfigureSize( TextSizeProvider, MaxWidth )
 		return self.Size.x, self.Size.x
 	end
 
@@ -586,6 +592,12 @@ end
 
 function ChatLine:SetContent( Contents )
 	self.Lines = self:ParseContents( Contents )
+	self.ComputedWrapping = false
+	self:InvalidateLayout()
+end
+
+function ChatLine:RestoreFromLines( Lines )
+	self.Lines = Lines
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
 end
@@ -825,20 +837,18 @@ function ChatLine:ApplyLines( Lines )
 				Control:SetParent( self, Parent.Background )
 				if Parent ~= self then
 					-- Make each element start from where the previous one ends.
-					Control:SetAnchor( "TopRight" )
 					Control:SetInheritsParentAlpha( true )
 
-					Control:SetPos( Vector2( Context.NextMargin or 0, 0 ) )
+					Control:SetPos( Vector2( LineWidth + ( Context.NextMargin or 0 ), 0 ) )
 					Context.NextMargin = nil
 				else
-					Control:SetAnchor( "TopLeft" )
 					Control:SetInheritsParentAlpha( false )
 
 					RootLineElements[ i ] = Control
 					Control:SetPos( Vector2( 0, YOffset ) )
-				end
 
-				Parent = Control
+					Parent = Control
+				end
 
 				local Size = Control:GetSize()
 				LineWidth = LineWidth + Size.x
@@ -897,6 +907,20 @@ function ChatLine:FadeIn( Duration, Easer )
 	end
 end
 
+function ChatLine:MakeVisible()
+	local RootLineElements = self.RootLineElements
+	for i = 1, #RootLineElements do
+		local Element = RootLineElements[ i ]
+		local Colour = Element.Background:GetColor()
+		Colour.a = 1
+		Element.Background:SetColor( Colour )
+	end
+
+	if self.VisibleBackground then
+		self.VisibleBackground:SetColor( self.BackgroundColour )
+	end
+end
+
 function ChatLine:FadeOutIn( Delay, Duration, OnComplete, Easer )
 	if self.FadeOutTimer then
 		self.FadeOutTimer:Destroy()
@@ -936,6 +960,16 @@ function ChatLine:FadeOut( Duration, OnComplete, Easer )
 end
 
 function ChatLine:Reset()
+	local RootElements = self.RootLineElements
+	for i = 1, #RootElements do
+		local Element = RootElements[ i ]
+		Element:StopAlpha()
+	end
+
+	if self.VisibleBackground then
+		self:StopAlpha( self.VisibleBackground )
+	end
+
 	self.FadingOut = false
 	if self.FadeOutTimer then
 		self.FadeOutTimer:Destroy()

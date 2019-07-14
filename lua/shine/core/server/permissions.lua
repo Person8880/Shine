@@ -748,6 +748,46 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 	end
 end
 
+do
+	local DEFAULT_GROUP_KEY = -1
+	local function IterateGroups( Name, Seen, Consumer, Context )
+		if Seen[ Name ] then
+			return
+		end
+
+		local Group = Shine:GetGroupData( Name )
+		if not Group then return end
+
+		Seen[ Name ] = true
+
+		if Consumer( Group, Name, Context ) then return true end
+
+		local InheritGroups = GroupTable.InheritsFrom
+		if InheritGroups then
+			for i = 1, #InheritGroups do
+				if IterateGroups( InheritGroups[ i ], Seen, Consumer, Context ) then
+					return true
+				end
+			end
+		end
+
+		if GroupTable.InheritFromDefault and not Seen[ DEFAULT_GROUP_KEY ] then
+			Seen[ DEFAULT_GROUP_KEY ] = true
+
+			local DefaultGroup = Shine:GetDefaultGroup()
+			if DefaultGroup then
+				if Consumer( DefaultGroup, nil, Context ) then
+					return true
+				end
+			end
+		end
+	end
+
+	function Shine:IterateGroupTree( StartingGroupName, Consumer, Context )
+		return IterateGroups( StartingGroupName, {}, Consumer, Context )
+	end
+end
+
 function Shine:AddGroupInheritance( GroupName, InheritGroup )
 	local Group = self:GetGroupData( GroupName )
 	if not Group then return false end
