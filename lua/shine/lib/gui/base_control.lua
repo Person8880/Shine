@@ -7,7 +7,7 @@ local ControlMeta = SGUI.BaseControl
 local Set = Shine.Set
 
 local assert = assert
-local Clock = os.clock
+local Clock = Shared.GetSystemTimeReal
 local IsType = Shine.IsType
 local IsGUIItemValid = debug.isvalid
 local Max = math.max
@@ -1135,7 +1135,7 @@ do
 
 		EasingData.StartTime = Clock() + Delay
 		EasingData.Duration = Duration
-		EasingData.Elapsed = Max( -Delay, 0 )
+		EasingData.EndTime = EasingData.StartTime + Duration
 
 		EasingData.Callback = Callback
 
@@ -1150,12 +1150,9 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 		for Element, EasingData in Easings:Iterate() do
 			local Start = EasingData.StartTime
 			if Start <= Time then
-				EasingData.Elapsed = EasingData.Elapsed + DeltaTime
-
 				local Duration = EasingData.Duration
-				local Elapsed = EasingData.Elapsed
-				if Elapsed <= Duration then
-					local Progress = Elapsed / Duration
+				local Progress = ( Time - Start ) / Duration
+				if Progress < 1 then
 					if EasingData.EaseFunc then
 						Progress = EasingData.EaseFunc( Progress, EasingData.Power )
 					end
