@@ -1135,7 +1135,8 @@ do
 
 		EasingData.StartTime = Clock() + Delay
 		EasingData.Duration = Duration
-		EasingData.EndTime = EasingData.StartTime + Duration
+		EasingData.Elapsed = Max( -Delay, 0 )
+		EasingData.LastUpdate = Clock()
 
 		EasingData.Callback = Callback
 
@@ -1149,10 +1150,14 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 	for EasingHandler, Easings in self.EasingProcesses:Iterate() do
 		for Element, EasingData in Easings:Iterate() do
 			local Start = EasingData.StartTime
+
 			if Start <= Time then
+				EasingData.Elapsed = EasingData.Elapsed + Max( DeltaTime, Time - EasingData.LastUpdate )
+
 				local Duration = EasingData.Duration
-				local Progress = ( Time - Start ) / Duration
-				if Progress < 1 then
+				local Elapsed = EasingData.Elapsed
+				if Elapsed <= Duration then
+					local Progress = Elapsed / Duration
 					if EasingData.EaseFunc then
 						Progress = EasingData.EaseFunc( Progress, EasingData.Power )
 					end
@@ -1168,6 +1173,8 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 					end
 				end
 			end
+
+			EasingData.LastUpdate = Time
 		end
 
 		if Easings:IsEmpty() then
