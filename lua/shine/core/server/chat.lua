@@ -14,10 +14,10 @@ local function CheckRateLimit( Client )
 	return Client.chatTokenBucket:RemoveTokens( 1 )
 end
 
-local function ReceiveChat( Client, Message )
+local function ReceiveChat( Client, Data )
 	if not CheckRateLimit( Client ) then return end
 
-	local Message = StringUTF8Sub( Message.message, 1, kMaxChatLength )
+	local Message = StringUTF8Sub( Data.message, 1, kMaxChatLength )
 	if #Message <= 0 then return end
 
 	local Player = Client:GetControllingPlayer()
@@ -29,12 +29,12 @@ local function ReceiveChat( Client, Message )
 	local TeamType = Player:GetTeamType()
 
 	local Targets
-	if Message.teamOnly then
+	if Data.teamOnly then
 		Targets = GetEntitiesForTeam( "Player", TeamNumber )
 	end
 
 	local MessageToSend = BuildChatMessage(
-		not not Message.teamOnly, Name, LocationID, TeamNumber, TeamType, Message, Client:GetUserId()
+		not not Data.teamOnly, Name, LocationID, TeamNumber, TeamType, Message, Client:GetUserId()
 	)
 	Shine:ApplyNetworkMessage( Targets, "Chat", MessageToSend, true )
 
