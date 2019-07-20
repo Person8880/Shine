@@ -2,11 +2,7 @@
 	Improved chat plugin client-side.
 ]]
 
--- TODO:
--- * Build the rich text chat API, and make the chatbox participate in it.
---   * This means chat messages have a player attached to them (i.e. Steam ID).
---   * System messages would be taggable with their source (e.g. the plugin name).
---   * Potentially have some kind of filtering options to filter out unwanted messages client-side.
+local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
@@ -14,6 +10,7 @@ local Units = SGUI.Layout.Units
 
 local IsType = Shine.IsType
 local StringFormat = string.format
+local StringFind = string.find
 local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
 
@@ -24,7 +21,12 @@ Plugin.ConfigName = "ImprovedChat.json"
 Plugin.Version = "1.0"
 
 Plugin.DefaultConfig = {
+	-- Controls whether to animate messages (when they appear, they will always fade out).
+	AnimateMessages = true,
+	-- The alpha multiplier to apply to the background on chat messages.
 	BackgroundOpacity = 0.75,
+	-- The maximum number of messages to display before forcing the oldest to fade out (to avoid messages
+	-- going off the screen).
 	MaxVisibleMessages = 10
 }
 
@@ -117,7 +119,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 
 		local AnimDuration = 0.3
-		if self.visible then
+		local ShouldAnimate = self.visible and Plugin.Config.AnimateMessages
+		if ShouldAnimate then
 			ChatLine:FadeIn( AnimDuration, Ease )
 		else
 			ChatLine:MakeVisible()
@@ -152,7 +155,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 					end
 				end
 
-				if self.visible then
+				if ShouldAnimate then
 					Line:MoveTo( nil, nil, NewPos, 0, AnimDuration )
 				else
 					Line:SetPos( NewPos )
@@ -206,10 +209,13 @@ end )
 function Plugin:Initialise()
 	self.ChatTagDefinitions = {}
 	self.ChatTags = {}
+	self.MessagesInTransit = {}
 
 	if self.GUIChat then
 		self:SetupGUIChat( self.GUIChat )
 	end
+
+	ChatAPI:SetProvider( self )
 
 	return true
 end
@@ -239,6 +245,10 @@ function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
 	ChatElement.Panel:SetAnchor( "BottomLeft" )
 
+	-- TODO: This needs to move depending on the player's UI state.
+	-- If they're a commander or spectator with the map visible, the chat should be further up.
+	-- This should only be done if the chat isn't manually positioned however (i.e. stop when SetScreenOffset
+	-- is called.)
 	local Pos = GUIScale( 1 ) * ( ChatElement:GetOffset() + Vector2( 0, 200 ) )
 	ChatElement.Panel:SetPos( Pos )
 end
@@ -293,6 +303,22 @@ local function IsVisibleToLocalPlayer( Player, TeamNumber )
 	return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex
 end
 
+local function GetTeamPrefix( Data )
+	if Data.LocationID > 0 then
+		local Location = Shared.GetString( Data.LocationID )
+		if StringFind( Location, "[^%s]" ) then
+			return StringFormat( "(Team, %s) ", Location )
+		end
+	end
+
+	return "(Team) "
+end
+
+local DEFAULT_IMAGE_SIZE = Units.UnitVector(
+	0,
+	Units.Percentage( 100 )
+)
+
 -- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.
 function Plugin:OnChatMessageReceived( Data )
 	local Player = Client.GetLocalPlayer()
@@ -332,10 +358,7 @@ function Plugin:OnChatMessageReceived( Data )
 			Contents[ #Contents + 1 ] = {
 				Type = "Image",
 				Texture = ChatTag.Image,
-				AutoSize = Units.UnitVector(
-					0,
-					Units.Percentage( 100 )
-				),
+				AutoSize = DEFAULT_IMAGE_SIZE,
 				AspectRatio = 1
 			}
 		end
@@ -355,11 +378,7 @@ function Plugin:OnChatMessageReceived( Data )
 
 	local Prefix = "(All) "
 	if Data.TeamOnly then
-		if Data.LocationID > 0 then
-			Prefix = StringFormat( "(Team, %s) ", Shared.GetString( Data.LocationID ) )
-		else
-			Prefix = "(Team) "
-		end
+		Prefix = GetTeamPrefix( Data )
 	end
 
 	Prefix = StringFormat( "%s%s: ", Prefix, Data.Name )
@@ -388,10 +407,6 @@ function Plugin:OnChatMessageReceived( Data )
 	return true
 end
 
-function Plugin:SupportsRichText()
-	return true
-end
-
 function Plugin:AddRichTextMessage( MessageData )
 	if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
 		local Player = Client.GetLocalPlayer()
@@ -403,10 +418,127 @@ function Plugin:AddRichTextMessage( MessageData )
 	end
 end
 
+do
+	local StringMatch = string.match
+	local TableAdd = table.Add
+	local tonumber = tonumber
+
+	local Keys = {
+		Colour = {},
+		Value = {}
+	}
+
+	local ValueParsers = {
+		t = function( Value )
+			return #Value > 0 and Value or nil
+		end,
+		i = function( Value )
+			return {
+				Type = "Image",
+				Texture = Value,
+				-- For now, restricted to match the text size.
+				-- Could possibly alter the format to include size data.
+				AutoSize = DEFAULT_IMAGE_SIZE,
+				AspectRatio = 1
+			}
+		end
+	}
+
+	local function ParseChunk( NumValues, Chunk )
+		local Contents = {}
+
+		for i = 1, NumValues do
+			local Colour = Chunk[ Keys.Colour[ i ] ]
+			local Value = Chunk[ Keys.Value[ i ] ]
+
+			if Colour > 0 then
+				Contents[ #Contents + 1 ] = IntToColour( Colour )
+			end
+
+			local Prefix, TextValue = StringMatch( Value, "^([^:]+):(.*)$" )
+			local Parser = ValueParsers[ Prefix ]
+			if Parser then
+				Contents[ #Contents + 1 ] = Parser( TextValue )
+			end
+		end
+
+		return Contents
+	end
+
+	local TypeIDParsers = {
+		[ ChatAPI.SourceTypeName.PLAYER ] = function( ID ) return tonumber( ID ) end
+	}
+
+	local function AddChunkToMessage( self, MessageID, Data, NumValues )
+		local MessageChunks
+
+		if Data.NumChunks > 1 then
+			MessageChunks = self.MessagesInTransit[ MessageID ]
+
+			if not MessageChunks then
+				MessageChunks = {}
+				self.MessagesInTransit[ MessageID ] = MessageChunks
+			end
+
+			MessageChunks[ Data.ChunkIndex ] = ParseChunk( NumValues, Data )
+		else
+			MessageChunks = { ParseChunk( NumValues, Data ) }
+		end
+
+		return MessageChunks
+	end
+
+	local function ParseMetadata( Holder, Data )
+		local TypeName = ChatAPI.SourceTypeName[ Data.SourceType ]
+		local Parser = TypeIDParsers[ TypeName ]
+
+		Holder.Source = {
+			Type = TypeName,
+			ID = Parser and Parser( Data.SourceID ) or Data.SourceID
+		}
+
+		Holder.SuppressSound = Data.SuppressSound
+	end
+
+	for i = 1, Plugin.MAX_CHUNKS_PER_MESSAGE do
+		Keys.Colour[ i ] = "Colour"..i
+		Keys.Value[ i ] = "Value"..i
+
+		Plugin[ "ReceiveRichTextChatMessage"..i ] = function( self, Data )
+			local MessageID = Data.MessageID
+			local MessageChunks = AddChunkToMessage( self, MessageID, Data, i )
+
+			if Data.ChunkIndex == 1 then
+				ParseMetadata( MessageChunks, Data )
+			end
+
+			if #MessageChunks ~= Data.NumChunks then return end
+
+			self.MessagesInTransit[ MessageID ] = nil
+
+			local FinalMessage = {}
+			for i = 1, #MessageChunks do
+				TableAdd( FinalMessage, MessageChunks[ i ] )
+			end
+
+			self:AddRichTextMessage( {
+				Source = MessageChunks.Source,
+				SuppressSound = MessageChunks.SuppressSound,
+				Message = FinalMessage
+			} )
+		end
+	end
+end
+
 function Plugin:Cleanup()
+	ChatAPI:ResetProvider( self )
+
 	if self.GUIChat then
 		self:ResetGUIChat( self.GUIChat )
 	end
+
+	self.ChatTagDefinitions = nil
+	self.ChatTags = nil
 
 	return self.BaseClass.Cleanup( self )
 end

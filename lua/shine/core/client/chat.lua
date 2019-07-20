@@ -4,157 +4,11 @@
 
 local Hook = Shine.Hook
 
+local BitBAnd = bit.band
+local BitLShift = bit.lshift
+local IsType = Shine.IsType
 local StringFormat = string.format
-local TableConcat = table.concat
-local type = type
-
--- TODO: Move this to a require-able file.
-local ChatAPI = {}
-
-ChatAPI.SourceType = table.AsEnum{
-	"PLAYER", "PLUGIN", "SYSTEM"
-}
-
--- and this too...
-local DefaultColour = Colour( 1, 1, 1 )
-local DefaultProvider = {}
-
-function DefaultProvider:SupportsRichText()
-	return false
-end
-
--- Converts a rich-text message into a 2-colour message.
--- Ideally clients of the API should use AddMessage instead when they know rich text is not supported.
-function DefaultProvider:AddRichTextMessage( MessageData )
-	local MessageParts = {}
-	local CurrentText = {}
-
-	local NumColours = 0
-	local Contents = MessageData.Message
-
-	for i = 1, #Contents do
-		local Entry = Contents[ i ]
-		local Type = type( Entry )
-
-		if Type == "table" then
-			if Entry.Type == "Text" then
-				Type = "string"
-				Entry = Entry.Value
-			elseif Entry.Type == "Colour" then
-				Type = "cdata"
-				Entry = Entry.Value
-			end
-		end
-
-		if Type == "string" then
-			if #MessageParts == 0 then
-				NumColours = NumColours + 1
-				MessageParts[ #MessageParts + 1 ] = DefaultColour
-			end
-			CurrentText[ #CurrentText + 1 ] = Entry
-		elseif Type == "cdata" then
-			if NumColours < 2 then
-				if #CurrentText > 0 then
-					MessageParts[ #MessageParts + 1 ] = TableConcat( CurrentText )
-					CurrentText = {}
-				end
-
-				if type( MessageParts[ #MessageParts ] ) == "cdata" then
-					MessageParts[ #MessageParts ] = Entry
-				else
-					NumColours = NumColours + 1
-					MessageParts[ #MessageParts + 1 ] = Entry
-				end
-			end
-		end
-	end
-
-	if #MessageParts == 0 then return end
-
-	MessageParts[ #MessageParts + 1 ] = TableConcat( CurrentText )
-
-	if #MessageParts == 2 then
-		-- Only a single colour, use the message component to display it.
-		return self:AddMessage( DefaultColour, "", MessageParts[ 1 ], MessageParts[ 2 ] )
-	end
-
-	return self:AddMessage( MessageParts[ 1 ], MessageParts[ 2 ], MessageParts[ 3 ], MessageParts[ 4 ] )
-end
-
-function DefaultProvider:AddMessage( PrefixColour, Prefix, MessageColour, Message )
-	Shine.AddChatText(
-		PrefixColour.r * 255,
-		PrefixColour.g * 255,
-		PrefixColour.b * 255,
-		Prefix,
-		MessageColour.r,
-		MessageColour.g,
-		MessageColour.b,
-		Message
-	)
-end
-
-ChatAPI.CurrentProvider = DefaultProvider
-
-function ChatAPI:SupportsRichText()
-	return self.CurrentProvider:SupportsRichText()
-end
-
-function ChatAPI:AddMessage( PrefixColour, Prefix, MessageColour, Message )
-	return self.CurrentProvider:AddMessage( PrefixColour, Prefix, MessageColour, Message )
-end
-
---[[
-	Adds a rich text message to the chat.
-
-	Rich text messages must conform to the following structure:
-	{
-		Source = {
-			-- Source allows filtering/extra information about the message to be known.
-			-- For example, player messages may provide a right click menu to view the player's Steam/Hive profiles.
-			Type = SourceType.PLAYER,
-			ID = SteamID
-		},
-		Message = {
-			-- Table of colours/text/textures.
-		},
-		-- Optionally, the chat sound may be suppressed.
-		SuppressSound = true
-	}
-
-	By default, rich text messages are converted into 2-colour messages, and the source data is unused.
-	However, a rich text aware provider may be able to make use of the extra data.
-]]
-function ChatAPI:AddRichTextMessage( Message )
-	return self.CurrentProvider:AddRichTextMessage( Message )
-end
-
-function ChatAPI:SetProvider( Provider )
-	Shine.TypeCheck( Provider, "table", 1, "SetProvider" )
-
-	Shine.AssertAtLevel(
-		Shine.IsCallable( Provider.AddMessage ),
-		"Provider must have an AddMessage method!", 3
-	)
-	Shine.AssertAtLevel(
-		Shine.IsCallable( Provider.AddRichTextMessage ),
-		"Provider must have an AddRichTextMessage method!", 3
-	)
-	Shine.AssertAtLevel(
-		Shine.IsCallable( Provider.SupportsRichText ),
-		"Provider must have a SupportsRichText method!", 3
-	)
-
-	self.CurrentProvider = Provider
-end
-
-function ChatAPI:ResetProvider( Provider )
-	if self.CurrentProvider == Provider then
-		self.CurrentProvider = DefaultProvider
-	end
-end
-
-Shine.Chat = ChatAPI
+local tostring = tostring
 
 Client.HookNetworkMessage( "Shine_TranslatedConsoleMessage", function( Data )
 	local Source = Data.Source
@@ -189,12 +43,8 @@ do
 	end )
 end
 
-local BitLShift = bit.lshift
-local IsType = Shine.IsType
-local tostring = tostring
-
 local function RGBToHex( R, G, B )
-	return BitLShift( R, 16 ) + BitLShift( G, 8 ) + B
+	return BitLShift( BitBAnd( R, 0xFF ), 16 ) + BitLShift( BitBAnd( G, 0xFF ), 8 ) + BitBAnd( B, 0xFF )
 end
 
 local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Message )
@@ -242,6 +92,8 @@ end
 
 --[[
 	Adds a message to the chat.
+
+	This should be considered an internal function. All chat interaction should use the Chat API.
 
 	Inputs:
 		RP, GP, BP - Colour of the prefix.

@@ -589,7 +589,7 @@ if Client then
 
 			return Callback( Data )
 		end
-	end )
+	end, MAX_PRIORITY )
 
 	-- Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
 	Add( "OnMapLoad", "HookGUIEvents", function()

@@ -2,12 +2,16 @@
 	Improved chat server side.
 ]]
 
+local ChatAPI = require "shine/core/shared/chat/chat_api"
 local Map = Shine.Map
 
 local BitBAnd = bit.band
 local BitLShift = bit.lshift
 local IsType = Shine.IsType
 local StringFind = string.find
+local StringFormat = string.format
+local TableConcat = table.concat
+local TableEmpty = table.Empty
 local tonumber = tonumber
 
 local Plugin = ...
@@ -24,6 +28,7 @@ Plugin.DefaultState = true
 local DEFAULT_GROUP_KEY = setmetatable( {}, {
 	__tostring = function() return "the default group" end
 } )
+local MAX_MESSAGE_ID = 2 ^ 31 - 1
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
@@ -37,14 +42,128 @@ function Plugin:Initialise()
 	end )
 
 	self.ChatTagIndex = 0
+	self.NextMessageID = 0
+
+	ChatAPI:SetProvider( self )
 
 	return true
 end
 
-local function ToInt( Colour )
-	return BitLShift( BitBAnd( tonumber( Colour[ 1 ] ) or 255, 0xFF ), 16 )
-		+ BitLShift( BitBAnd( tonumber( Colour[ 2 ] ) or 255, 0xFF ), 8 )
-		+ BitBAnd( tonumber( Colour[ 3 ] ) or 255, 0xFF )
+local function ToInt( R, G, B )
+	return BitLShift( BitBAnd( tonumber( R ) or 255, 0xFF ), 16 )
+		+ BitLShift( BitBAnd( tonumber( G ) or 255, 0xFF ), 8 )
+		+ BitBAnd( tonumber( B ) or 255, 0xFF )
+end
+
+local function EncodeContents( Contents )
+	local Messages = {}
+	local EncodedValues = { Count = 0 }
+	local CurrentText = {}
+	local Index = 0
+	local LastColour
+
+	local function AddToMessage( Colour, Value )
+		Index = Index + 1
+
+		if Index > Plugin.MAX_CHUNKS_PER_MESSAGE then
+			Messages[ #Messages + 1 ] = EncodedValues
+			EncodedValues = { Count = 0 }
+			Index = 1
+		end
+
+		EncodedValues[ "Colour"..Index ] = Colour and ToInt(
+			Colour.r * 255,
+			Colour.g * 255,
+			Colour.b * 255
+		) or -1
+		EncodedValues[ "Value"..Index ] = Value
+		EncodedValues.Count = Index
+
+		LastColour = nil
+		TableEmpty( CurrentText )
+	end
+
+	local function AddPendingText()
+		if #CurrentText > 0 then
+			AddToMessage( LastColour, StringFormat( "t:%s", TableConcat( CurrentText ) ) )
+		end
+	end
+
+	for i = 1, #Contents do
+		local Value = Contents[ i ]
+		local Type = type( Value )
+
+		if Type == "table" then
+			local TypeName = Value.Type
+			if TypeName == "Colour" then
+				Type = "cdata"
+				Value = Value.Value
+			elseif TypeName == "Text" then
+				Type = "string"
+				Value = Value.Value
+			elseif TypeName == "Image" then
+				Type = nil
+				AddPendingText()
+				-- For now, this assumes the image should match the font size and be a square.
+				AddToMessage( nil, StringFormat( "i:%s", Value.Texture ) )
+			end
+		end
+
+		if Type == "cdata" then
+			AddPendingText()
+			LastColour = Value
+		elseif Type == "string" then
+			CurrentText[ #CurrentText + 1 ] = Value
+		end
+	end
+
+	AddPendingText()
+
+	if EncodedValues.Count > 0 then
+		Messages[ #Messages + 1 ] = EncodedValues
+	end
+
+	return Messages
+end
+
+local DEFAULT_SOURCE = {
+	Type = ChatAPI.SourceTypeName.SYSTEM,
+	ID = ""
+}
+
+function Plugin:AddRichTextMessage( MessageData )
+	local Messages = EncodeContents( MessageData.Message )
+	local NumChunks = #Messages
+	local MessageID = self.NextMessageID
+	local Source = MessageData.Source or DEFAULT_SOURCE
+
+	for i = 1, NumChunks do
+		local Chunk = Messages[ i ]
+		local NumParts = Chunk.Count
+		Chunk.Count = nil
+
+		if i == 1 then
+			Chunk.SourceType = ChatAPI.SourceType[ Source.Type ] or ChatAPI.SourceType.SYSTEM
+			Chunk.SourceID = Source.ID or ""
+			Chunk.SuppressSound = not not MessageData.SuppressSound
+		else
+			-- Avoid repeating data to avoid some overhead.
+			Chunk.SourceType = 1
+			Chunk.SourceID = ""
+			Chunk.SuppressSound = false
+		end
+
+		Chunk.MessageID = MessageID
+		Chunk.ChunkIndex = i
+		Chunk.NumChunks = NumChunks
+
+		LuaPrint( "Sending chunk", i, "of", NumChunks )
+		PrintTable( Chunk )
+
+		self:SendNetworkMessage( MessageData.Targets, "RichTextChatMessage"..NumParts, Chunk, true )
+	end
+
+	self.NextMessageID = ( MessageID + 1 ) % MAX_MESSAGE_ID
 end
 
 local function RevokeChatTag( self, Client )
@@ -214,6 +333,8 @@ function Plugin:OnUserReload()
 end
 
 function Plugin:Cleanup()
+	ChatAPI:ResetProvider( self )
+
 	self.ChatTagDefinitions = nil
 	self.ClientsWithTags = nil
 
