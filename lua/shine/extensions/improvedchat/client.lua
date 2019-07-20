@@ -38,6 +38,11 @@ Plugin.SourceType = table.AsEnum{
 }
 
 local IntToColour = ColorIntToColor
+local DEFAULT_CHAT_OFFSET = Vector2( 0, 150 )
+local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, 50 )
+local function ComputeChatOffset( GUIChatPos, DesiredOffset )
+	return GUIScale( 1 ) * ( GUIChatPos + DesiredOffset )
+end
 
 Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	IntToColour = ColorIntToColor
@@ -53,10 +58,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		if SGUI.IsValid( self.Panel ) then
 			local CurrentOffset = self:GetOffset()
-
-			local W, H = SGUI.GetScreenSize()
-			local Pos = GUIScale( 1 ) * ( CurrentOffset + Vector2( 0, 200 ) )
-			self.Panel:SetPos( Pos )
+			self.Panel:SetPos( ComputeChatOffset( CurrentOffset, DEFAULT_CHAT_OFFSET ) )
 		end
 	end
 
@@ -220,6 +222,38 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:MoveChatAboveMinimap()
+	if not self.GUIChat or self.GUIChat.HasMoved then return end
+
+	local Panel = self.GUIChat.Panel
+	if not SGUI.IsValid( Panel ) then return end
+
+	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), ABOVE_MINIMAP_CHAT_OFFSET ) )
+end
+
+function Plugin:MoveChatDownFromAboveMinimap()
+	if not self.GUIChat or self.GUIChat.HasMoved then return end
+
+	local Panel = self.GUIChat.Panel
+	if not SGUI.IsValid( Panel ) then return end
+
+	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), DEFAULT_CHAT_OFFSET ) )
+end
+
+local function ShouldMoveChatUpFor( Player )
+	return Player and ( Player:isa( "Spectator" ) or Player:isa( "Commander" ) )
+end
+
+-- If the player's chat is using its default position, move it when they change to a class that
+-- has a minimap (i.e. spectating or commanding) so it doesn't overlap the minimap.
+function Plugin:OnLocalPlayerChanged( Player )
+	if ShouldMoveChatUpFor( Player ) then
+		return self:MoveChatAboveMinimap()
+	else
+		return self:MoveChatDownFromAboveMinimap()
+	end
+end
+
 function Plugin:ReceiveChatTag( Message )
 	self.ChatTagDefinitions[ Message.Index ] = {
 		Image = Message.Image ~= "" and Message.Image or nil,
@@ -245,12 +279,9 @@ function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
 	ChatElement.Panel:SetAnchor( "BottomLeft" )
 
-	-- TODO: This needs to move depending on the player's UI state.
-	-- If they're a commander or spectator with the map visible, the chat should be further up.
-	-- This should only be done if the chat isn't manually positioned however (i.e. stop when SetScreenOffset
-	-- is called.)
-	local Pos = GUIScale( 1 ) * ( ChatElement:GetOffset() + Vector2( 0, 200 ) )
-	ChatElement.Panel:SetPos( Pos )
+	local Player = Client.GetLocalPlayer and Client.GetLocalPlayer()
+	local Offset = ShouldMoveChatUpFor( Player ) and ABOVE_MINIMAP_CHAT_OFFSET or DEFAULT_CHAT_OFFSET
+	ChatElement.Panel:SetPos( ComputeChatOffset( ChatElement:GetOffset(), Offset ) )
 end
 
 function Plugin:ResetGUIChat( ChatElement )

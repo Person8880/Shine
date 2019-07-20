@@ -214,6 +214,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 	function ChatElement:ResetScreenOffset()
 		self:SetScreenOffset( GUIScale( OriginalOffset ) )
+		self.HasMoved = false
 	end
 
 	function ChatElement:SetScreenOffset( Offset )
@@ -225,6 +226,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		local InverseScale = 1 / GUIScale( 1 )
 		CurrentOffset.x = Offset.x * InverseScale
 		CurrentOffset.y = Offset.y * InverseScale
+
+		self.HasMoved = true
 
 		-- Update existing message's x-position as it's not changed in the
 		-- Update() method.

@@ -646,6 +646,13 @@ if Client then
 			"EvaluateUIVisibility", "PassivePost" )
 	end, MAX_PRIORITY )
 
+	Event.Hook( "LocalPlayerChanged", function()
+		local Player = Client.GetLocalPlayer()
+		if Player then
+			Call( "OnLocalPlayerChanged", Player )
+		end
+	end )
+
 	Add( "Think", "ClientOnFirstThink", function()
 		CallOnce( "OnFirstThink" )
 		Remove( "Think", "ClientOnFirstThink" )
