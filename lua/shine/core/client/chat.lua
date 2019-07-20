@@ -361,7 +361,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	end
 
 	function ChatElement:ResetScreenOffset()
-		self:SetScreenOffset( OriginalOffset )
+		self:SetScreenOffset( GUIScale( OriginalOffset ) )
 	end
 
 	function ChatElement:SetScreenOffset( Offset )
