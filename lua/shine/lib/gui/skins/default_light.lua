@@ -285,6 +285,17 @@ local Skin = {
 					BorderColour = OrangeButtonHighlight
 				}
 			}
+		},
+		SliderTextBox = {
+			FocusColour = Clear,
+			DarkColour = Clear,
+			BorderSize = Vector2( 0, 0 ),
+			BorderColour = Clear,
+			States = {
+				Focus = {
+					BorderColour = Clear
+				}
+			}
 		}
 	},
 	Tooltip = {

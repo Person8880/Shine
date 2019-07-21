@@ -532,7 +532,7 @@ end
 function ControlMeta:OnStencilChanged( Stencilled )
 	if not self.Stencil then return end
 
-	if Stencilled then
+	if Stencilled and not ( self.Parent and self.Parent.IgnoreStencilWarnings ) then
 		-- Stencils inside stencils currently don't work correctly. They obey only the top-level
 		-- stencil, any further restrictions are ignored (and appear to render as if GetIsStencil() == false).
 		Print(

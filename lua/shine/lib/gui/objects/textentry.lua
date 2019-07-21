@@ -207,8 +207,15 @@ function TextEntry:SetFont( Font )
 	end
 end
 
+function TextEntry:DisableStencil()
+	self.Stencil:SetIsVisible( false )
+	self.StencilDisabled = true
+end
+
 function TextEntry:PerformLayout()
+	local OldColumn = self.Column
 	self:SetupCaret()
+	self:SetCaretPos( OldColumn )
 end
 
 function TextEntry:SetupCaret()
@@ -226,7 +233,7 @@ function TextEntry:SetupCaret()
 	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
 	self.Column = StringUTF8Length( self.Text )
 
-	if Width > self.Width then
+	if Width > self.Width and not self.StencilDisabled then
 		local Diff = -( Width - self.Width )
 
 		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
@@ -272,22 +279,29 @@ function TextEntry:SetCaretPos( Column )
 	local UTF8W = TextObj:GetTextWidth( StringUTF8Sub( self.Text, 1, self.Column ) ) * self.WidthScale
 	local NewPos = UTF8W + self.TextOffset
 
-	-- We need to move the text along with the caret, otherwise it'll go out of vision!
-	if NewPos < 0 then
-		self.TextOffset = Min( self.TextOffset - NewPos, self.Padding )
+	if not self.StencilDisabled then
+		-- We need to move the text along with the caret, otherwise it'll go out of vision!
+		if NewPos < 0 then
+			self.TextOffset = Min( self.TextOffset - NewPos, self.Padding )
 
-		if self.Column == 0 then
-			self.TextOffset = self.Padding
+			if self.Column == 0 then
+				self.TextOffset = self.Padding
+			end
+
+			NewPos = Max( NewPos, self.TextOffset )
+		elseif NewPos > self.Width then
+			local Diff = NewPos - self.Width
+
+			self.TextOffset = self.TextOffset - Diff
 		end
 
-		NewPos = Max( NewPos, self.TextOffset )
-	elseif NewPos > self.Width then
-		local Diff = NewPos - self.Width
-
-		self.TextOffset = self.TextOffset - Diff
+		NewPos = Clamp( NewPos + self.CaretOffset, 0, self.Width )
+	else
+		-- Stencil is disabled (i.e. the text entry is in another stencil already), so keep the text stationary.
+		self.TextOffset = 0
+		NewPos = Max( NewPos + self.CaretOffset, 0 )
 	end
 
-	NewPos = Clamp( NewPos + self.CaretOffset, 0, self.Width )
 	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
 	TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 end
@@ -982,7 +996,6 @@ end
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
-	if not Down then return end
 
 	-- Reset the auto-completion list on any action other than pressing tab.
 	if Key ~= InputKey.Tab
@@ -992,20 +1005,20 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	end
 
 	if SGUI:IsControlDown() then
-		if Key == InputKey.A then
+		if Down and Key == InputKey.A then
 			self:SelectAll()
 
 			return true
 		end
 
 		if self:HasSelection() then
-			if Key == InputKey.C then
+			if Down and Key == InputKey.C then
 				SGUI.SetClipboardText( self:GetSelectedText() )
 
 				return true
 			end
 
-			if Key == InputKey.X then
+			if Down and Key == InputKey.X then
 				self:PushUndoState()
 				SGUI.SetClipboardText( self:GetSelectedText() )
 				self:RemoveSelectedText()
@@ -1014,7 +1027,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 			end
 		end
 
-		if Key == InputKey.V then
+		if Down and Key == InputKey.V then
 			self:PushUndoState()
 			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
 			for i = 1, #Chars do
@@ -1024,18 +1037,18 @@ function TextEntry:PlayerKeyPress( Key, Down )
 			return true
 		end
 
-		if Key == InputKey.Z then
+		if Down and Key == InputKey.Z then
 			self:Undo()
 			return true
 		end
 
-		if Key == InputKey.Y then
+		if Down and Key == InputKey.Y then
 			self:Redo()
 			return true
 		end
 	end
 
-	if Key == InputKey.Back or Key == InputKey.Delete then
+	if Down and ( Key == InputKey.Back or Key == InputKey.Delete ) then
 		self:RemoveCharacter( Key == InputKey.Delete )
 		if self.PlaceholderText and self.Text == "" then
 			self.PlaceholderText:SetIsVisible( true )
@@ -1044,7 +1057,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		return true
 	end
 
-	if Key == InputKey.Left then
+	if Down and Key == InputKey.Left then
 		if SGUI:IsShiftDown() then
 			if SGUI:IsControlDown() then
 				local PrevSpace = self:FindNextWordBoundInDir( self.Column, -1 )
@@ -1070,7 +1083,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		return true
 	end
 
-	if Key == InputKey.Right then
+	if Down and Key == InputKey.Right then
 		if SGUI:IsShiftDown() then
 			if SGUI:IsControlDown() then
 				local NextSpace = self:FindNextWordBoundInDir( self.Column, 1 )
@@ -1096,19 +1109,19 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		return true
 	end
 
-	if Key == InputKey.Return then
+	if Down and Key == InputKey.Return then
 		self:OnEnter()
 
 		return true
 	end
 
-	if Key == InputKey.Tab then
+	if Down and Key == InputKey.Tab then
 		self:OnTab()
 
 		return true
 	end
 
-	if Key == InputKey.Escape then
+	if Down and Key == InputKey.Escape then
 		if not self:OnEscape() then
 			self:LoseFocus()
 		end

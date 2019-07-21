@@ -6,6 +6,7 @@ local SGUI = Shine.GUI
 
 local Clamp = math.Clamp
 local Round = math.Round
+local Max = math.max
 local tostring = tostring
 local type = type
 
@@ -70,9 +71,87 @@ function Slider:Initialise()
 
 	local Label = SGUI:Create( "Label", self )
 	Label:SetIsSchemed( false )
-	Label:SetAnchor( GUIItem.Right, GUIItem.Center )
+	Label:SetAnchor( "CentreRight" )
 	Label:SetTextAlignmentY( GUIItem.Align_Center )
 	Label:SetPos( Padding )
+
+	function Label.DoClick()
+		Label:SetIsVisible( false )
+
+		self.IgnoreStencilWarnings = true
+
+		local TextEntry = SGUI:Create( "TextEntry", self )
+		self.TextEntry = TextEntry
+
+		local TextH = Label:GetTextHeight( "!" )
+
+		TextEntry:SetStyleName( "SliderTextBox" )
+		TextEntry.Padding = 0
+		TextEntry.TextOffset = 0
+		TextEntry:SetAnchor( "CentreRight" )
+		TextEntry:SetPos( Vector2( Label:GetPos().x, -TextH * 0.5 ) )
+		if self.Stencilled then
+			TextEntry:DisableStencil()
+		end
+
+		local MaxCharW = 0
+		for i = 0, 9 do
+			MaxCharW = Max( MaxCharW, Label:GetTextWidth( tostring( i ) ) )
+		end
+
+		local MaxNumChars = #tostring( self.Max )
+		if self.Decimals > 0 then
+			MaxNumChars = MaxNumChars + self.Decimals + 1
+		end
+
+		TextEntry:SetSize( Vector2( MaxCharW * MaxNumChars, TextH ) )
+		TextEntry:SetFontScale( Label:GetFont(), Label:GetTextScale() )
+		TextEntry:SetText( tostring( self.Value ) )
+
+		local Pattern = "^%d+$"
+		if self.Decimals > 0 then
+			Pattern = "^%d+%.?%d*$"
+		end
+
+		local StringMatch = string.match
+		local StringUTF8Sub = string.UTF8Sub
+		function TextEntry:ShouldAllowChar( Char )
+			local Text = self:GetText()
+			local Before = StringUTF8Sub( Text, 1, self.Column )
+			local After = StringUTF8Sub( Text, self.Column + 1 )
+
+			local NewText = Before..Char..After
+			if not StringMatch( NewText, Pattern ) then
+				return false
+			end
+
+			return true
+		end
+
+		function TextEntry.OnEnter()
+			local NewValue = tonumber( TextEntry:GetText() )
+			if NewValue then
+				self:SetValue( NewValue )
+			end
+			TextEntry:OnEscape()
+		end
+
+		function TextEntry.OnEscape()
+			TextEntry:Destroy()
+			self.TextEntry = nil
+
+			if SGUI.IsValid( Label ) then
+				Label:SetIsVisible( true )
+			end
+
+			return true
+		end
+		TextEntry.OnLoseFocus = TextEntry.OnEscape
+
+		-- Pass along the click to the text entry so it moves the caret.
+		TextEntry:OnMouseDown( InputKey.MouseButton0, false )
+		TextEntry:OnMouseUp( InputKey.MouseButton0 )
+	end
 
 	self.Label = Label
 	self.Width = DefaultSize.x
@@ -211,6 +290,11 @@ end
 
 function Slider:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
+
+	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
+		return true
+	end
+
 	if not self:MouseIn( self.Background ) then return end
 
 	if Key == InputKey.Left or Key == InputKey.Down then
@@ -226,8 +310,13 @@ end
 
 local GetCursorPos = SGUI.GetCursorPos
 
-function Slider:OnMouseDown( Key )
+function Slider:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
+
+	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
+	if Result ~= nil then
+		return Result, Child
+	end
 
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Handle, 1.25 ) then
@@ -273,6 +362,8 @@ function Slider:OnMouseUp( Key )
 end
 
 function Slider:OnMouseMove( Down )
+	self:CallOnChildren( "OnMouseMove", Down )
+
 	if not Down then return end
 	if not self.Dragging then return end
 

@@ -93,6 +93,14 @@ function Plugin:Initialise()
 	-- TODO: Move to main GUI objects folder.
 	Shine.LoadPluginFile( self:GetName(), "chatline.lua" )
 
+	-- Not using a plugin method as that is placed before SGUI, which we don't want to override.
+	Hook.Add( "PlayerKeyPress", self, function( Key, Down )
+		if Down and Key == InputKey.Escape and self.Visible then
+			self:CloseChat()
+			return true
+		end
+	end, Hook.DEFAULT_PRIORITY + 1 )
+
 	self.Messages = self.Messages or {}
 	self.Enabled = true
 
@@ -175,6 +183,7 @@ function Plugin:OnFirstThink()
 	-- default skin.
 	local DefaultSkin = SGUI.SkinManager:GetSkinsByName().Default
 	TableShallowMerge( DefaultSkin, Skin )
+	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
 end
 
 local LayoutData = {
@@ -456,6 +465,11 @@ function Plugin:CreateChatbox()
 		if Plugin.Config.AutoClose then
 			Plugin:CloseChat()
 		end
+	end
+
+	function TextEntry:OnEscape()
+		Plugin:CloseChat()
+		return true
 	end
 
 	--We don't want to allow characters after hitting the max length message.
@@ -880,15 +894,6 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 	return true
 end
 
---Close on pressing escape (it's not hardcoded, unlike Source!)
-function Plugin:PlayerKeyPress( Key, Down )
-	if Key == InputKey.Escape and self.Visible then
-		self:CloseChat()
-
-		return true
-	end
-end
-
 function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
@@ -1304,6 +1309,8 @@ end
 	and empty out the messages table.
 ]]
 function Plugin:Cleanup()
+	Hook.Remove( "PlayerKeyPress", self )
+
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
 	self.IgnoreRemove = true
