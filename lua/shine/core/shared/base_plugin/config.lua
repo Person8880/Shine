@@ -208,11 +208,55 @@ end
 if Client then
 	local TableShallowMerge = table.ShallowMerge
 
+	local ParameterTypes = {
+		Boolean = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "boolean",
+				Optional = true,
+				Default = function() return not self.Config[ ConfigKey ] end
+			}
+		end,
+		Radio = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "enum",
+				Values = Options.Options,
+				Optional = true,
+				Default = self.DefaultConfig[ ConfigKey ]
+			}
+		end,
+		Slider = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "number",
+				Min = Options.Min,
+				Max = Options.Max,
+				Optional = true,
+				Default = Options.IsPercentage and function()
+					return self.DefaultConfig[ ConfigKey ] * 100
+				end or self.DefaultConfig[ ConfigKey ]
+			}
+		end,
+		Dropdown = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "enum",
+				Values = Options.Options,
+				Optional = true,
+				Default = self.DefaultConfig[ ConfigKey ]
+			}
+		end
+	}
+
 	function ConfigModule:AddClientSetting( ConfigKey, Command, Options )
 		local Group = self.ConfigGroup
+		local ConfigOption = Options.ConfigOption or function() return self.Config[ ConfigKey ] end
+		if Options.IsPercentage then
+			ConfigOption = function()
+				return self.Config[ ConfigKey ] * 100
+			end
+		end
+
 		local MergedOptions = TableShallowMerge( Options, {
 			Command = Command,
-			ConfigOption = function() return self.Config[ ConfigKey ] end,
+			ConfigOption = ConfigOption,
 			TranslationSource = self:GetName(),
 			Group = Group and {
 				Key = Group.Key or "CLIENT_CONFIG_TAB",
@@ -222,6 +266,58 @@ if Client then
 		} )
 
 		Shine:RegisterClientSetting( MergedOptions )
+
+		if not self:HasRegisteredCommand( Command ) then
+			local CommandMessage = Options.CommandMessage
+			if CommandMessage and not IsType( CommandMessage, "function" ) then
+				local Message = CommandMessage
+				CommandMessage = function( Value )
+					return StringFormat( Message, Value )
+				end
+			end
+
+			local Transformer = Options.ValueTransformer
+			if Options.IsPercentage then
+				Transformer = function( Value ) return Value * 0.01 end
+			end
+
+			local OnChange = Options.OnChange
+
+			local Command = self:BindCommand( Command, function( Value )
+				if CommandMessage then
+					Notify( CommandMessage( Value ) )
+				else
+					Print( "%s set to: %s", ConfigKey, MaxVisibleMessages )
+				end
+
+				if Transformer then
+					Value = Transformer( Value )
+				end
+
+				self.Config[ ConfigKey ] = Value
+				self:SaveConfig()
+
+				if OnChange then
+					OnChange( self, Value )
+				end
+			end )
+
+			local ArgumentAdder = ParameterTypes[ Options.Type ]
+			if ArgumentAdder then
+				ArgumentAdder( self, ConfigKey, Command, Options )
+			else
+				Command:AddParam{
+					Type = "string", Default = self.DefaultConfig[ ConfigKey ], TakeRestOfLine = true
+				}
+			end
+		end
+	end
+
+	function ConfigModule:AddClientSettings( Settings )
+		for i = 1, #Settings do
+			local Setting = Settings[ i ]
+			self:AddClientSetting( Setting.ConfigKey, Setting.Command, Setting )
+		end
 	end
 end
 

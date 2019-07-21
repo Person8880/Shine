@@ -239,8 +239,8 @@ local Skin = {
 	Slider = {
 		Default = {
 			DarkLineColour = Colour( 0.2, 0.2, 0.2, 1 ),
-			HandleColour = ButtonHighlight,
-			LineColour = ButtonHighlight,
+			HandleColour = OrangeButtonHighlight,
+			LineColour = OrangeButtonHighlight,
 			TextColour = BrightText,
 			LineHeightMultiplier = 0.15
 		}

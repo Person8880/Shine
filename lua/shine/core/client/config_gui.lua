@@ -6,6 +6,7 @@ local SGUI = Shine.GUI
 local Locale = Shine.Locale
 
 local IsType = Shine.IsType
+local StringFormat = string.format
 
 local ConfigMenu = {}
 SGUI:AddMixin( ConfigMenu, "Visibility" )
@@ -169,6 +170,31 @@ local function GetConfiguredValue( Entry )
 	return Value
 end
 
+local function MakeElementWithDescription( Panel, Entry, Populator )
+	local Container = Panel:Add( "Panel" )
+	Container:SetStyleName( "RadioBackground" )
+	Container:SetAutoSize( UnitVector(
+		Percentage( 100 ),
+		Units.Auto()
+	) )
+
+	local TranslationSource = Entry.TranslationSource or "Core"
+	local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
+
+	local Description = Container:Add( "Label" )
+	Description:SetFontScale( GetSmallFont() )
+	Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
+	Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
+	Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+	VerticalLayout:AddElement( Description )
+
+	Populator( Entry, TranslationSource, Container, VerticalLayout )
+
+	Container:SetLayout( VerticalLayout, true )
+
+	return Container
+end
+
 local SettingsTypes = {
 	Boolean = {
 		Create = function( Panel, Entry )
@@ -190,109 +216,91 @@ local SettingsTypes = {
 			return CheckBox
 		end
 	},
+	Slider = {
+		Create = function( Panel, Entry )
+			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
+				local Slider = Container:Add( "Slider" )
+				Slider:SetFontScale( GetSmallFont() )
+				Slider:SetBounds( Entry.Min, Entry.Max )
+				Slider:SetDecimals( Entry.Decimals or 0 )
+
+				Slider:SetAutoSize( UnitVector( Percentage( 100 ) - HighResScaled( 64 ), HighResScaled( 32 ) ) )
+
+				function Slider:OnValueChanged( Value )
+					Shared.ConsoleCommand( StringFormat( "%s %s", Entry.Command, Value ) )
+				end
+				VerticalLayout:AddElement( Slider )
+
+				local CurrentValue = GetConfiguredValue( Entry )
+				Slider:SetValue( CurrentValue, true )
+			end )
+		end
+	},
 	Dropdown = {
 		Create = function( Panel, Entry )
-			local DropdownPanel = Panel:Add( "Panel" )
-			DropdownPanel:SetStyleName( "RadioBackground" )
-			DropdownPanel:SetAutoSize( UnitVector(
-				Percentage( 100 ),
-				Units.Auto()
-			) )
+			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
+				local Dropdown = Container:Add( "Dropdown" )
+				Dropdown:SetFontScale( GetSmallFont() )
+				Dropdown:AddOptions( Shine.IsCallable( Entry.Options ) and Entry.Options() or Entry.Options )
+				Dropdown:AddPropertyChangeListener( "SelectedOption", function( Option )
+					Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
+				end )
+				Dropdown:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+				VerticalLayout:AddElement( Dropdown )
 
-			local TranslationSource = Entry.TranslationSource or "Core"
-			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
-
-			local Description = DropdownPanel:Add( "Label" )
-			Description:SetFontScale( GetSmallFont() )
-			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
-			Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
-			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
-			VerticalLayout:AddElement( Description )
-
-			local Dropdown = DropdownPanel:Add( "Dropdown" )
-			Dropdown:SetFontScale( GetSmallFont() )
-			Dropdown:AddOptions( Shine.IsCallable( Entry.Options ) and Entry.Options() or Entry.Options )
-			Dropdown:AddPropertyChangeListener( "SelectedOption", function( Option )
-				Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
+				local CurrentValue = GetConfiguredValue( Entry )
+				Dropdown:SelectOption( CurrentValue )
 			end )
-			Dropdown:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
-			VerticalLayout:AddElement( Dropdown )
-
-			local CurrentValue = GetConfiguredValue( Entry )
-			Dropdown:SelectOption( CurrentValue )
-
-			DropdownPanel:SetLayout( VerticalLayout, true )
-
-			return DropdownPanel
 		end
 	},
 	Radio = {
 		Create = function( Panel, Entry )
-			local RadioPanel = Panel:Add( "Panel" )
-			RadioPanel:SetStyleName( "RadioBackground" )
-			RadioPanel:SetAutoSize( UnitVector(
-				Percentage( 100 ),
-				Units.Auto()
-			) )
+			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
+				local CheckBoxes = {}
+				local CurrentChoice = GetConfiguredValue( Entry )
+				for i = 1, #Entry.Options do
+					local Option = Entry.Options[ i ]
 
-			local TranslationSource = Entry.TranslationSource or "Core"
-			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
+					local CheckBox = Container:Add( "CheckBox" )
+					CheckBox:SetFontScale( GetSmallFont() )
+					CheckBox:AddLabel( Locale:GetPhrase( TranslationSource, Option ) )
+					CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
+					if i > 1 then
+						CheckBox:SetMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
+					end
+					CheckBox:SetRadio( true )
 
-			local Description = RadioPanel:Add( "Label" )
-			Description:SetFontScale( GetSmallFont() )
-			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
-			Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
-			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
-			VerticalLayout:AddElement( Description )
+					CheckBox:SetChecked( CurrentChoice == Option )
+					CheckBox.OnChecked = function( CheckBox, Value )
+						if not Value then return end
 
-			local CheckBoxes = {}
-			local CurrentChoice = GetConfiguredValue( Entry )
-			for i = 1, #Entry.Options do
-				local Option = Entry.Options[ i ]
-
-				local CheckBox = RadioPanel:Add( "CheckBox" )
-				CheckBox:SetFontScale( GetSmallFont() )
-				CheckBox:AddLabel( Locale:GetPhrase( TranslationSource, Option ) )
-				CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
-				if i > 1 then
-					CheckBox:SetMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
-				end
-				CheckBox:SetRadio( true )
-
-				CheckBox:SetChecked( CurrentChoice == Option )
-				CheckBox.OnChecked = function( CheckBox, Value )
-					if not Value then return end
-
-					Shared.ConsoleCommand( Entry.Command.." "..Option )
-					for j = 1, #CheckBoxes do
-						if CheckBoxes[ j ] ~= CheckBox then
-							CheckBoxes[ j ]:SetChecked( false )
+						Shared.ConsoleCommand( Entry.Command.." "..Option )
+						for j = 1, #CheckBoxes do
+							if CheckBoxes[ j ] ~= CheckBox then
+								CheckBoxes[ j ]:SetChecked( false )
+							end
 						end
 					end
+
+					VerticalLayout:AddElement( CheckBox )
+					CheckBoxes[ #CheckBoxes + 1 ] = CheckBox
 				end
 
-				VerticalLayout:AddElement( CheckBox )
-				CheckBoxes[ #CheckBoxes + 1 ] = CheckBox
-			end
+				if Entry.HelpText then
+					local Hint = Container:Add( "Hint" )
+					Hint:SetStyleName( Entry.HelpTextStyle or "Info" )
+					Hint:SetMargin( Spacing( 0, HighResScaled( 8 ), 0, 0 ) )
+					Hint:SetText( Locale:GetPhrase( TranslationSource, Entry.HelpText ) )
+					Hint:SetFontScale( GetSmallFont() )
 
-			if Entry.HelpText then
-				local Hint = RadioPanel:Add( "Hint" )
-				Hint:SetStyleName( Entry.HelpTextStyle or "Info" )
-				Hint:SetMargin( Spacing( 0, HighResScaled( 8 ), 0, 0 ) )
-				Hint:SetText( Locale:GetPhrase( TranslationSource, Entry.HelpText ) )
-				Hint:SetFontScale( GetSmallFont() )
+					Hint:SetAutoSize( UnitVector(
+						Percentage( 100 ),
+						Units.Auto()
+					) )
 
-				Hint:SetAutoSize( UnitVector(
-					Percentage( 100 ),
-					Units.Auto()
-				) )
-
-				VerticalLayout:AddElement( Hint )
-			end
-
-			RadioPanel:SetLayout( VerticalLayout, true )
-
-			return RadioPanel
+					VerticalLayout:AddElement( Hint )
+				end
+			end )
 		end
 	}
 }
@@ -320,9 +328,11 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 		}
 		local Groups = {}
 
+		local TabWidth = Units.Max()
+
 		local Tabs = Panel:Add( "TabPanel" )
 		Tabs:SetFill( true )
-		Tabs:SetTabWidth( HighResScaled( 176 ):GetValue() )
+		Tabs:SetTabWidth( TabWidth )
 		Tabs:SetTabHeight( HighResScaled( 36 ):GetValue() )
 		Tabs:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 		Tabs:SetHorizontal( true )
@@ -355,7 +365,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 
 		for Group, Settings in SettingsByGroup:Iterate() do
 			local GroupDef = Groups[ Group ]
-			Tabs:AddTab( Group, function( TabPanel )
+			local Tab = Tabs:AddTab( Group, function( TabPanel )
 				local TabLayout = SetupTabPanel( TabPanel )
 
 				for i = 1, #Settings do
@@ -372,6 +382,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 
 				TabPanel:SetLayout( TabLayout, true )
 			end, GroupDef and GroupDef.Icon )
+
+			TabWidth:AddValue( Units.Auto( Tab.TabButton ) + HighResScaled( 16 ) )
 		end
 
 		Layout:AddElement( Tabs )

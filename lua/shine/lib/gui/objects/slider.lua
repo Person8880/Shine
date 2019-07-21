@@ -94,17 +94,7 @@ function Slider:Initialise()
 			TextEntry:DisableStencil()
 		end
 
-		local MaxCharW = 0
-		for i = 0, 9 do
-			MaxCharW = Max( MaxCharW, Label:GetTextWidth( tostring( i ) ) )
-		end
-
-		local MaxNumChars = #tostring( self.Max )
-		if self.Decimals > 0 then
-			MaxNumChars = MaxNumChars + self.Decimals + 1
-		end
-
-		TextEntry:SetSize( Vector2( MaxCharW * MaxNumChars, TextH ) )
+		TextEntry:SetSize( self:GetLabelSize() )
 		TextEntry:SetFontScale( Label:GetFont(), Label:GetTextScale() )
 		TextEntry:SetText( tostring( self.Value ) )
 
@@ -233,6 +223,24 @@ end
 
 function Slider:SetPadding( Value )
 	self.Label:SetPos( Vector2( Value, 0 ) )
+end
+
+function Slider:GetLabelPadding()
+	return self.Label:GetPos().x
+end
+
+function Slider:GetLabelSize()
+	local MaxCharW = 0
+	for i = 0, 9 do
+		MaxCharW = Max( MaxCharW, self.Label:GetTextWidth( tostring( i ) ) )
+	end
+
+	local MaxNumChars = #tostring( self.Max )
+	if self.Decimals > 0 then
+		MaxNumChars = MaxNumChars + self.Decimals + 1
+	end
+
+	return Vector2( MaxCharW * MaxNumChars, self.Label:GetTextHeight( "1" ) )
 end
 
 --[[

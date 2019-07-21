@@ -75,4 +75,9 @@ function CommandsModule:Resume()
 	end
 end
 
+function CommandsModule:HasRegisteredCommand( Command )
+	local Commands = rawget( self, "Commands" )
+	return Commands and Commands[ Command ] ~= nil
+end
+
 Shine.BasePlugin:AddModule( CommandsModule )

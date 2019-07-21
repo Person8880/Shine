@@ -427,8 +427,9 @@ end
 
 function TabPanel:OnTabSelect( Tab, SuppressPre )
 	local Index = Tab.Index
-	local Tabs = self.Tabs
+	if self.ActiveTab == Index then return end
 
+	local Tabs = self.Tabs
 	local OnPopulate = Tabs[ Index ] and Tabs[ Index ].OnPopulate
 
 	-- In case someone wants to save information about the tab state.

@@ -196,7 +196,14 @@ Shine.CommandUtil.ParamTypes = {
 	-- Returns a value from a lookup table, either as an upper case key, or a number.
 	enum = {
 		Parse = function( Client, String, Table )
-			local EnumValue = Table.Values[ StringUpper( String ) ] or Table.Values[ tonumber( String ) ]
+			local PossibleValues
+			if IsType( Table.Values, "function" ) then
+				PossibleValues = Table.Values()
+			else
+				PossibleValues = Table.Values
+			end
+
+			local EnumValue = PossibleValues[ StringUpper( String ) ] or PossibleValues[ tonumber( String ) ]
 			if EnumValue then
 				return EnumValue
 			end
