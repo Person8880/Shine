@@ -208,6 +208,10 @@ Hook.Add( "OnGUIChatDestroyed", Plugin, function( GUIChat )
 	end
 end )
 
+Plugin.ConfigGroup = {
+	Icon = SGUI.Icons.Ionicons.Chatbox
+}
+
 function Plugin:Initialise()
 	self.ChatTagDefinitions = {}
 	self.ChatTags = {}
@@ -217,9 +221,56 @@ function Plugin:Initialise()
 		self:SetupGUIChat( self.GUIChat )
 	end
 
+	self:SetupClientConfig()
+
 	ChatAPI:SetProvider( self )
 
 	return true
+end
+
+function Plugin:SetupClientConfig()
+	self:AddClientSettings( {
+		{
+			ConfigKey = "AnimateMessages",
+			Command = "sh_chat_animatemessages",
+			Type = "Boolean",
+			Description = "ANIMATE_MESSAGES_DESCRIPTION",
+			CommandMessage = function( Value )
+				return StringFormat( "Chat messages %s.", Value and "will now animate" or "will no longer animate" )
+			end
+		},
+		{
+			ConfigKey = "BackgroundOpacity",
+			Command = "sh_chat_backgroundopacity",
+			Type = "Slider",
+			Min = 0,
+			Max = 100,
+			Decimals = 0,
+			Description = "BACKGROUND_OPACITY_DESCRIPTION",
+			IsPercentage = true,
+			CommandMessage = "Chat message background opacity set to: %s%%",
+			OnChange = self.SetBackgroundOpacity
+		},
+		{
+			ConfigKey = "MaxVisibleMessages",
+			Command = "sh_chat_maxvisiblemessages",
+			Type = "Slider",
+			Min = 5,
+			Max = 20,
+			Decimals = 0,
+			Description = "MAX_VISIBLE_MESSAGES_DESCRIPTION",
+			CommandMessage = "Now displaying up to %s messages before fading."
+		}
+	} )
+end
+
+function Plugin:SetBackgroundOpacity( Opacity )
+	if not self.GUIChat or not self.GUIChat.ChatLines then return end
+
+	local ChatLines = self.GUIChat.ChatLines
+	for i = 1, #ChatLines do
+		ChatLines[ i ]:SetAlpha( Opacity )
+	end
 end
 
 function Plugin:MoveChatAboveMinimap()

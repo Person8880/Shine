@@ -898,6 +898,16 @@ function ChatLine:AddBackground( Colour, Texture, Padding )
 	end
 end
 
+function ChatLine:SetAlpha( Alpha )
+	if self.FadingOut then return end
+
+	if self.BackgroundColour then
+		self.BackgroundColour.a = Alpha
+	end
+
+	self:MakeVisible()
+end
+
 function ChatLine:FadeIn( Duration, Easer )
 	Duration = Duration or 0.25
 	self:ForEach( "RootLineElements", "AlphaTo", nil, 0, 1, 0, Duration, nil, Easer )
@@ -911,12 +921,15 @@ function ChatLine:MakeVisible()
 	local RootLineElements = self.RootLineElements
 	for i = 1, #RootLineElements do
 		local Element = RootLineElements[ i ]
+		self:StopAlpha( Element )
+
 		local Colour = Element.Background:GetColor()
 		Colour.a = 1
 		Element.Background:SetColor( Colour )
 	end
 
 	if self.VisibleBackground then
+		self:StopAlpha( self.VisibleBackground )
 		self.VisibleBackground:SetColor( self.BackgroundColour )
 	end
 end
