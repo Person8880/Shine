@@ -9,6 +9,7 @@ local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
 local IsType = Shine.IsType
+local OSDate = os.date
 local StringFormat = string.format
 local StringFind = string.find
 local TableRemove = table.remove
@@ -412,7 +413,7 @@ function Plugin:OnChatMessageReceived( Data )
 			Prefix = StringFormat( "Chat Team %d", Data.TeamNumber )
 		end
 
-		Shared.Message( StringFormat( "%s - %s: %s", Prefix, Data.Name, Data.Message ) )
+		Shared.Message( StringFormat( "%s %s - %s: %s", OSDate( "[%H:%M:%S]" ), Prefix, Data.Name, Data.Message ) )
 	end
 
 	if Data.SteamID ~= 0 and ChatUI_GetSteamIdTextMuted( Data.SteamID ) then

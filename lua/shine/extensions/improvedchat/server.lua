@@ -157,9 +157,6 @@ function Plugin:AddRichTextMessage( MessageData )
 		Chunk.ChunkIndex = i
 		Chunk.NumChunks = NumChunks
 
-		LuaPrint( "Sending chunk", i, "of", NumChunks )
-		PrintTable( Chunk )
-
 		self:SendNetworkMessage( MessageData.Targets, "RichTextChatMessage"..NumParts, Chunk, true )
 	end
 

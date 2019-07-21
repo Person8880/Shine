@@ -4,8 +4,11 @@
 
 local SGUI = Shine.GUI
 
+local OSDate = os.date
+
 local ChatLine = {}
 local BackgroundColour = Colour( 0, 0, 0, 0 )
+local TimestampColour = Colour( 0.8, 0.8, 0.8 )
 
 SGUI.AddProperty( ChatLine, "LineSpacing" )
 SGUI.AddProperty( ChatLine, "PreMargin" )
@@ -38,7 +41,7 @@ function ChatLine:SetTextScale( Scale )
 	self:InvalidateLayout()
 end
 
-function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageText )
+function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageText, ShowTimestamp )
 	local Contents = {}
 	if Tags then
 		for i = 1, #Tags do
@@ -65,7 +68,7 @@ function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageTex
 	Contents[ #Contents + 1 ] = MessageColour
 	Contents[ #Contents + 1 ] = MessageText
 
-	self:SetContent( Contents )
+	self:SetContent( Contents, ShowTimestamp )
 end
 
 function ChatLine:PerformLayout()
@@ -563,9 +566,14 @@ local ContentFactories = {
 
 -- Parses a flat list of text/colours/elements into a list of lines, based on the line breaks
 -- in each text element. These lines will be wrapped individually when the layout is computed.
-function ChatLine:ParseContents( Contents )
+function ChatLine:ParseContents( Contents, ShowTimestamp )
 	local Lines = {}
 	local Elements = TableNew( #Contents, 0 )
+
+	if ShowTimestamp then
+		Elements[ #Elements + 1 ] = ElementTypes.Colour( TimestampColour )
+		Elements[ #Elements + 1 ] = ElementTypes.Text( OSDate( "%H:%M - " ) )
+	end
 
 	for i = 1, #Contents do
 		local Value = Contents[ i ]
@@ -590,8 +598,8 @@ function ChatLine:ParseContents( Contents )
 	return Lines
 end
 
-function ChatLine:SetContent( Contents )
-	self.Lines = self:ParseContents( Contents )
+function ChatLine:SetContent( Contents, ShowTimestamp )
+	self.Lines = self:ParseContents( Contents, ShowTimestamp )
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
 end

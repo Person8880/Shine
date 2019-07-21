@@ -44,6 +44,7 @@ Plugin.DefaultConfig = {
 	MoveVanillaChat = false, -- Whether to move the vanilla chat position.
 	SmoothScroll = true, -- Should the scrolling be smoothed?
 	ScrollToBottomOnOpen = false, -- Should the chatbox scroll to the bottom when re-opened?
+	ShowTimestamps = false, -- Should the chatbox should timestamps with messages?
 	Opacity = 0.4, -- How opaque should the chatbox be?
 	Pos = {}, -- Remembers the position of the chatbox when it's moved.
 	Scale = 1 -- Sets a scale multiplier, requires recreating the chatbox when changed.
@@ -112,7 +113,7 @@ function Plugin:OnChatMessageDisplayed( PlayerColour, PlayerName, MessageColour,
 end
 
 function Plugin:OnRichTextChatMessageDisplayed( MessageData )
-	self:AddMessageFromContents( MessageData.Message )
+	self:AddMessageFromRichText( MessageData )
 end
 
 local Units = SGUI.Layout.Units
@@ -731,7 +732,6 @@ do
 		},
 		{
 			Type = "CheckBox",
-			ConfigValue = "MoveVanillaChat",
 			ConfigValue = function( self, Value )
 				if not UpdateConfigValue( self, "MoveVanillaChat", Value ) then return end
 
@@ -743,6 +743,13 @@ do
 			end,
 			Values = function( self )
 				return GetCheckBoxSize( self ), self.Config.MoveVanillaChat, "MOVE_VANILLA_CHAT"
+			end
+		},
+		{
+			Type = "CheckBox",
+			ConfigValue = "ShowTimestamps",
+			Values = function( self )
+				return GetCheckBoxSize( self ), self.Config.ShowTimestamps, "SHOW_TIMESTAMPS"
 			end
 		},
 		{
@@ -878,7 +885,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 		Expanded = false
 	end
 
-	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.5, function( Panel )
+	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.25, function( Panel )
 		SettingsButton.Expanded = Expanded
 
 		if Expanded then
@@ -906,6 +913,8 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		}
 	end
 
+	local SettingsWasExpanded = self.SettingsButton.Expanded
+
 	-- Recreate the entire chat box, it's easier than rescaling.
 	self.IgnoreRemove = true
 	self.MainPanel:Destroy()
@@ -920,6 +929,10 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	else
 		self:CloseChat()
 		self:StartChat( self.TeamChat )
+
+		if SettingsWasExpanded then
+			self.SettingsButton:DoClick()
+		end
 	end
 
 	for i = 1, #Recreate do
@@ -969,12 +982,14 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 end
 
 do
-	local function AddMessageFromContents( ChatLine, Contents )
-		ChatLine:SetContent( Contents )
+	local function AddMessageFromRichText( ChatLine, Contents, ShowTimestamps )
+		ChatLine:SetContent( Contents, ShowTimestamps )
 	end
 
-	function Plugin:AddMessageFromContents( Contents )
-		return self:AddMessageFromPopulator( AddMessageFromContents, Contents )
+	function Plugin:AddMessageFromRichText( MessageData )
+		return self:AddMessageFromPopulator(
+			AddMessageFromRichText, MessageData.Message, self.Config.ShowTimestamps
+		)
 	end
 end
 
@@ -991,8 +1006,8 @@ end
 do
 	local IntToColour
 
-	local function AddSimpleChatMessage( ChatLine, TagData, PlayerColour, PlayerName, MessageColour, MessageName )
-		ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageName )
+	local function AddSimpleChatMessage( ChatLine, ... )
+		ChatLine:SetMessage( ... )
 	end
 
 	--[[
@@ -1017,7 +1032,10 @@ do
 			PlayerColour = IntToColour( PlayerColour )
 		end
 
-		self:AddMessageFromPopulator( AddSimpleChatMessage, TagData, PlayerColour, PlayerName, MessageColour, MessageName )
+		self:AddMessageFromPopulator(
+			AddSimpleChatMessage, TagData, PlayerColour, PlayerName, MessageColour, MessageName,
+			self.Config.ShowTimestamps
+		)
 	end
 end
 
