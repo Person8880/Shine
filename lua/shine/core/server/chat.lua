@@ -25,6 +25,7 @@ local function ReceiveChat( Client, Data )
 
 	local Name = Player:GetName()
 	local LocationID = Player.locationId
+	local SteamID = Client:GetUserId()
 	local TeamNumber = Player:GetTeamNumber()
 	local TeamType = Player:GetTeamType()
 
@@ -34,9 +35,12 @@ local function ReceiveChat( Client, Data )
 	end
 
 	local MessageToSend = BuildChatMessage(
-		not not Data.teamOnly, Name, LocationID, TeamNumber, TeamType, Message, Client:GetUserId()
+		not not Data.teamOnly, Name, LocationID, TeamNumber, TeamType, Message, SteamID
 	)
 	Shine:ApplyNetworkMessage( Targets, "Chat", MessageToSend, true )
+
+	Print( "Chat %s - %s: %s", Data.teamOnly and "Team" or "All", Name, Message )
+	Server.AddChatToHistory( Message, Name, SteamID, TeamNumber, Data.teamOnly )
 
 	-- Allow vanilla to process chat commands.
 	ProcessSayCommand( Player, Message )
