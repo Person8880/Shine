@@ -729,6 +729,10 @@ function ControlMeta:SetFontScale( Font, Scale )
 	end
 end
 
+function ControlMeta:SetTextureCoordinates( X1, Y1, X2, Y2 )
+	self.Background:SetTextureCoordinates( X1, Y1, X2, Y2 )
+end
+
 --[[
 	Alignment controls whether elements are placed at the start or end of a layout.
 

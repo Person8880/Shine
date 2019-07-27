@@ -4,6 +4,11 @@
 
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 
+local ColourElement = require "shine/lib/gui/richtext/elements/colour"
+local ImageElement = require "shine/lib/gui/richtext/elements/image"
+local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
+local TextElement = require "shine/lib/gui/richtext/elements/text"
+
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
@@ -429,25 +434,24 @@ function Plugin:OnChatMessageReceived( Data )
 	local ChatTag = self.ChatTags[ Data.SteamID ]
 	if ChatTag then
 		if ChatTag.Image then
-			Contents[ #Contents + 1 ] = {
-				Type = "Image",
+			Contents[ #Contents + 1 ] = ImageElement( {
 				Texture = ChatTag.Image,
 				AutoSize = DEFAULT_IMAGE_SIZE,
 				AspectRatio = 1
-			}
+			} )
 		end
-		Contents[ #Contents + 1 ] = ChatTag.Colour
-		Contents[ #Contents + 1 ] = ( ChatTag.Image and " " or "" )..ChatTag.Text.." "
+		Contents[ #Contents + 1 ] = ColourElement( ChatTag.Colour )
+		Contents[ #Contents + 1 ] = TextElement( ( ChatTag.Image and " " or "" )..ChatTag.Text.." " )
 	end
 
 	if IsCommander then
-		Contents[ #Contents + 1 ] = IntToColour( kCommanderColor )
-		Contents[ #Contents + 1 ] = "[C] "
+		Contents[ #Contents + 1 ] = ColourElement( IntToColour( kCommanderColor ) )
+		Contents[ #Contents + 1 ] = TextElement( "[C] " )
 	end
 
 	if IsRookie then
-		Contents[ #Contents + 1 ] = IntToColour( kNewPlayerColor )
-		Contents[ #Contents + 1 ] = Locale.ResolveString( "ROOKIE_CHAT" ).." "
+		Contents[ #Contents + 1 ] = ColourElement( IntToColour( kNewPlayerColor ) )
+		Contents[ #Contents + 1 ] = TextElement( Locale.ResolveString( "ROOKIE_CHAT" ).." " )
 	end
 
 	local Prefix = "(All) "
@@ -457,11 +461,11 @@ function Plugin:OnChatMessageReceived( Data )
 
 	Prefix = StringFormat( "%s%s: ", Prefix, Data.Name )
 
-	Contents[ #Contents + 1 ] = IntToColour( GetColorForTeamNumber( Data.TeamNumber ) )
-	Contents[ #Contents + 1 ] = Prefix
+	Contents[ #Contents + 1 ] = ColourElement( IntToColour( GetColorForTeamNumber( Data.TeamNumber ) ) )
+	Contents[ #Contents + 1 ] = TextElement( Prefix )
 
-	Contents[ #Contents + 1 ] = kChatTextColor[ Data.TeamType ]
-	Contents[ #Contents + 1 ] = Data.Message
+	Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
+	Contents[ #Contents + 1 ] = TextElement( Data.Message )
 
 	Hook.Call( "OnChatMessageParsed", Data, Contents )
 
@@ -500,17 +504,16 @@ do
 
 	local ValueParsers = {
 		t = function( Value )
-			return #Value > 0 and Value or nil
+			return #Value > 0 and TextElement( Value ) or nil
 		end,
 		i = function( Value )
-			return {
-				Type = "Image",
+			return ImageElement( {
 				Texture = Value,
 				-- For now, restricted to match the text size.
 				-- Could possibly alter the format to include size data.
 				AutoSize = DEFAULT_IMAGE_SIZE,
 				AspectRatio = 1
-			}
+			} )
 		end
 	}
 
@@ -522,7 +525,7 @@ do
 			local Value = Chunk[ Keys.Value[ i ] ]
 
 			if Colour > 0 then
-				Contents[ #Contents + 1 ] = IntToColour( Colour )
+				Contents[ #Contents + 1 ] = ColourElement( IntToColour( Colour ) )
 			end
 
 			local Prefix, TextValue = StringMatch( Value, "^([^:]+):(.*)$" )
