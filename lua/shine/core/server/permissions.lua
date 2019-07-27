@@ -346,6 +346,7 @@ do
 
 		GameID = GameID + 1
 		GameIDs:Add( Client, GameID )
+		Client.ShineGameID = GameID
 
 		HumanPlayerCount = HumanPlayerCount + ( Client:GetIsVirtual() and 0 or 1 )
 	end, Shine.Hook.MAX_PRIORITY )

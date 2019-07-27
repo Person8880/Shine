@@ -68,20 +68,6 @@ do
 	} )
 end
 
--- Add SteamID to chat network messages to allow the client to understand who the message originated from.
-Hook.CallAfterFileLoad( "lua/NetworkMessages.lua", function()
-	local OldBuildChatMessage = BuildChatMessage
-	function BuildChatMessage(
-		TeamOnly, PlayerName, PlayerLocationID, PlayerTeamNumber, PlayerTeamType, ChatMessage, SteamID
-	)
-		local Message = OldBuildChatMessage(
-			TeamOnly, PlayerName, PlayerLocationID, PlayerTeamNumber, PlayerTeamType, ChatMessage
-		)
-		Message.steamId = SteamID or 0
-		return Message
-	end
-end )
-
 if Client then
 	Script.Load( "lua/shine/core/client/chat.lua" )
 end

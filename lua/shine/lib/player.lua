@@ -50,6 +50,7 @@ end
 
 if Client then return end
 
+local Shine = Shine
 local Hook = Shine.Hook
 
 local Abs = math.abs
@@ -61,7 +62,9 @@ local StringFind = string.find
 local StringFormat = string.format
 local StringLower = string.lower
 local StringMatch = string.match
+local TableNew = require "table.new"
 local TableRemove = table.remove
+local TableShallowCopy = table.ShallowCopy
 local TableShuffle = table.Shuffle
 local TableSort = table.sort
 local TableToString = table.ToString
@@ -262,22 +265,51 @@ function Shine.GetAllClients()
 	return Clients, Count
 end
 
+local Indexes = {}
 do
-	local function AccumulateClientsByNS2ID( State, Client )
-		State[ Client:GetUserId() ] = Client
-		return State
+	local MaxClientsTotal = Server.GetMaxPlayers() + Server.GetMaxSpectators()
+	Indexes.ByName = setmetatable( TableNew( 0, MaxClientsTotal ), { __mode = "v" } )
+	Indexes.BySteamID = setmetatable( TableNew( 0, MaxClientsTotal ), { __mode = "v" } )
+	Indexes.ByGameID = setmetatable( TableNew( 0, MaxClientsTotal ), { __mode = "v" } )
+end
+
+Hook.Add( "PlayerNameChange", Indexes, function( Player, NewName, OldName )
+	-- Name uniqueness is enforced in a case-insensitive manner (at least as far as string.lower is concerned).
+	-- Thus it makes sense to index by lower-cased names.
+	Indexes.ByName[ StringLower( OldName ) ] = nil
+	Indexes.ByName[ StringLower( NewName ) ] = Player:GetClient()
+end, Hook.MAX_PRIORITY )
+
+Hook.Add( "ClientConnect", Indexes, function( Client )
+	Indexes.BySteamID[ Client:GetUserId() ] = Client
+	Indexes.ByGameID[ Client.ShineGameID ] = Client
+end, Hook.MAX_PRIORITY + 1 )
+
+Hook.Add( "ClientDisconnect", Indexes, function( Client )
+	Indexes.BySteamID[ Client:GetUserId() ] = nil
+	Indexes.ByGameID[ Client.ShineGameID ] = nil
+
+	for Name, StoredClient in pairs( Indexes.ByName ) do
+		if StoredClient == Client then
+			Indexes.ByName[ Name ] = nil
+		end
 	end
-	function Shine.GetAllClientsByNS2ID()
-		return Shine.Stream( Shine.GetAllClients() ):Reduce( AccumulateClientsByNS2ID, {} )
-	end
+end, Hook.MIN_PRIORITY )
+
+function Shine.GetAllClientsByNS2ID()
+	return TableShallowCopy( Indexes.BySteamID )
 end
 
 --[[
 	Returns a client matching the given game ID.
 ]]
 function Shine.GetClientByID( ID )
+	local IndexedClient = Indexes.ByGameID[ ID ]
+	if IndexedClient then return IndexedClient end
+
 	for Client, GameID in Shine.IterateClients() do
 		if ID == GameID then
+			Indexes.ByGameID[ ID ] = Client
 			return Client
 		end
 	end
@@ -291,8 +323,12 @@ end
 function Shine.GetClientByNS2ID( ID )
 	if not IsType( ID, "number" ) then return nil end
 
+	local IndexedClient = Indexes.BySteamID[ ID ]
+	if IndexedClient then return IndexedClient end
+
 	for Client in Shine.IterateClients() do
 		if Client:GetUserId() == ID then
+			Indexes.BySteamID[ ID ] = Client
 			return Client
 		end
 	end
@@ -300,39 +336,91 @@ function Shine.GetClientByNS2ID( ID )
 	return nil
 end
 
---[[
-	Returns the client closest matching the given name.
-]]
-function Shine.GetClientByName( Name )
-	if not IsType( Name, "string" ) then return nil end
+do
+	-- Unlike SteamID and game ID, names can change. While the hook above should capture these changes, it doesn't hurt
+	-- to be absolutely sure that the indexed client is correct and this is still less work than checking all players.
+	local function SanityCheckNameIndex( Client, Name )
+		if not Client then return nil end
 
-	local SearchName = StringLower( Name )
-	local SortTable = {}
-	local Count = 0
-
-	for Client in Shine.IterateClients() do
 		local Player = Client:GetControllingPlayer()
-		if Player then
-			local PlayerName = StringLower( Player:GetName() )
-			-- Always favour an exact match.
-			if PlayerName == SearchName then return Client end
-
-			local StartIndex = StringFind( PlayerName, SearchName, 1, true )
-			if StartIndex then
-				Count = Count + 1
-				SortTable[ Count ] = { Client = Client, Index = StartIndex }
-			end
+		local ActualName = StringLower( Player and Player:GetName() )
+		if Name == ActualName then
+			return Client
 		end
+
+		Indexes.ByName[ Name ] = nil
+		if ActualName ~= "" then
+			Indexes.ByName[ ActualName ] = Client
+		end
+
+		return nil
 	end
 
-	if Count == 0 then return nil end
-
-	-- Get the match with the string furthest to the left in their name.
-	TableSort( SortTable, function( A, B )
+	local function CompareResults( A, B )
 		return A.Index < B.Index
-	end )
+	end
 
-	return SortTable[ 1 ].Client
+	--[[
+		Returns the client closest matching the given name.
+	]]
+	function Shine.GetClientByName( Name )
+		if not IsType( Name, "string" ) or #Name == 0 then return nil end
+
+		local SearchName = StringLower( Name )
+		local IndexedClient = Indexes.ByName[ SearchName ]
+		if SanityCheckNameIndex( IndexedClient, SearchName ) then
+			return IndexedClient
+		end
+
+		local SortTable = {}
+		local Count = 0
+
+		for Client in Shine.IterateClients() do
+			local Player = Client:GetControllingPlayer()
+			if Player then
+				local PlayerName = StringLower( Player:GetName() )
+				-- Always favour an exact match.
+				if PlayerName == SearchName then return Client end
+
+				local StartIndex = StringFind( PlayerName, SearchName, 1, true )
+				if StartIndex then
+					Count = Count + 1
+					SortTable[ Count ] = { Client = Client, Index = StartIndex }
+				end
+			end
+		end
+
+		if Count == 0 then return nil end
+
+		-- Get the match with the string furthest to the left in their name.
+		TableSort( SortTable, CompareResults )
+
+		return SortTable[ 1 ].Client
+	end
+
+	--[[
+		Returns the client with the exact name given (ignoring case as it is not accounted for when determining
+		uniqueness of names).
+	]]
+	function Shine.GetClientByExactName( Name )
+		if not IsType( Name, "string" ) or #Name == 0 then return nil end
+
+		local SearchName = StringLower( Name )
+		local IndexedClient = Indexes.ByName[ SearchName ]
+		if SanityCheckNameIndex( IndexedClient, SearchName ) then
+			return IndexedClient
+		end
+
+		for Client in Shine.IterateClients() do
+			local Player = Client:GetControllingPlayer()
+			if Player and StringLower( Player:GetName() ) == Name then
+				Indexes.ByName[ SearchName ] = Client
+				return Client
+			end
+		end
+
+		return nil
+	end
 end
 
 function Shine.NS2ToSteamID( ID )
