@@ -93,9 +93,6 @@ Hook.Add( "OnGUIChatDestroyed", Plugin, function( GUIChat )
 end )
 
 function Plugin:Initialise()
-	-- TODO: Move to main GUI objects folder.
-	Shine.LoadPluginFile( self:GetName(), "chatline.lua" )
-
 	-- Not using a plugin method as that is placed before SGUI, which we don't want to override.
 	Hook.Add( "PlayerKeyPress", self, function( Key, Down )
 		if Down and Key == InputKey.Escape and self.Visible then
