@@ -10,7 +10,9 @@ local Image = Shine.TypeDef( BaseElement )
 
 function Image:Init( Params )
 	self.Texture = Params.Texture
+	-- Absolute size should be a vector.
 	self.AbsoluteSize = Params.AbsoluteSize
+	-- AutoSize should be a UnitVector.
 	self.AutoSize = Params.AutoSize
 	self.AspectRatio = Params.AspectRatio
 	self.Think = Params.Think

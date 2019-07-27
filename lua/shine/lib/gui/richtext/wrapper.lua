@@ -4,6 +4,7 @@
 
 local TextSizeProvider = require "shine/lib/gui/richtext/text_size_provider"
 
+local Max = math.max
 local StringUTF8Encode = string.UTF8Encode
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -27,6 +28,8 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 	local Start = 1
 	local End = #Chars
 
+	Parts.Count = Parts.Count or 0
+
 	if End == 0 or ( StopAfter and Parts.Count >= StopAfter ) then
 		return Parts
 	end
@@ -40,11 +43,11 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 		local WidthBefore = TextSizeProvider:GetWidth( TextBefore )
 		local WidthAfter = TextSizeProvider:GetWidth( TextAfter )
 
-		if WidthAfter > MaxWidth and WidthBefore <= MaxWidth then
+		if WidthAfter > MaxWidth and WidthBefore <= MaxWidth and #TextBefore > 0 then
 			-- Text must be wrapped here, wrap it then continue with the remaining text.
 			Parts.Count = Parts.Count + 1
 			Parts[ Parts.Count ] = TextBefore
-			return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid ), MaxWidth, Parts, StopAfter )
+			return TextWrap( TextSizeProvider, TableConcat( Chars, "", Max( Mid, 2 ) ), MaxWidth, Parts, StopAfter )
 		elseif WidthAfter > MaxWidth then
 			if Mid == 1 then
 				-- Even a single character is too wide, so we have to allow it to overflow,
@@ -74,7 +77,7 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 			Parts[ Parts.Count ] = TextAfter
 
 			if Mid ~= #Chars then
-				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid + 1 ), MaxWidth, Parts, StopAfter )
+				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Max( Mid + 1, 2 ) ), MaxWidth, Parts, StopAfter )
 			end
 
 			return Parts
@@ -146,7 +149,7 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 
 		local Width, WidthWithoutSpace = Element:GetWidth( TextSizeProvider, MaxWidth )
 		local RelevantWidth = #Segments + 1 == StartIndex and WidthWithoutSpace or Width
-		if CurrentWidth + RelevantWidth < MaxWidth then
+		if CurrentWidth + RelevantWidth <= MaxWidth then
 			-- No need to split the element as it fits entirely on the current line.
 			Element.Width = Width
 			Element.WidthWithoutSpace = WidthWithoutSpace
@@ -158,23 +161,26 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 
 		for j = LastSegment + 1, #Segments do
 			CurrentWidth = CurrentWidth + Segments[ j ][ SegmentWidthKeys[ j == StartIndex ] ]
-			if CurrentWidth > MaxWidth then
+			if CurrentWidth >= MaxWidth then
 				-- If the first element is too big for a line, accept it anyway as any text
 				-- will have been wrapped in segments already. Not accepting it would result in an empty line.
-				local EndIndex = j == StartIndex and j or j - 1
+				local IsEndingOnCurrentElement = j == StartIndex or CurrentWidth == MaxWidth
+				local EndIndex = IsEndingOnCurrentElement and j or j - 1
 				local Line, ElementIndex = ConsolidateSegments( Line, Segments, StartIndex, EndIndex, LastElementIndex )
 				WrappedLines[ #WrappedLines + 1 ] = Line
 				LastElementIndex = ElementIndex
 
-				StartIndex = j
-				CurrentWidth = Segments[ j ].WidthWithoutSpace
+				StartIndex = IsEndingOnCurrentElement and ( j + 1 ) or j
+				CurrentWidth = IsEndingOnCurrentElement and 0 or Segments[ j ].WidthWithoutSpace
 			end
 		end
 
 		LastSegment = #Segments
 	end
 
-	WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, StartIndex, #Segments, LastElementIndex )
+	if StartIndex <= #Segments then
+		WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, StartIndex, #Segments, LastElementIndex )
+	end
 
 	TableEmpty( Segments )
 
@@ -186,7 +192,7 @@ function Wrapper.WordWrapRichTextLines( Options )
 	local MaxWidth = Options.MaxWidth
 	local WrappedLines = TableNew( #Lines, 0 )
 
-	local TextSizeProvider = TextSizeProvider( Options.Font, Options.TextScale )
+	local TextSizeProvider = Options.TextSizeProvider or TextSizeProvider( Options.Font, Options.TextScale )
 	local Context = {
 		TextSizeProvider = TextSizeProvider,
 		MaxWidth = MaxWidth

@@ -74,7 +74,7 @@ local function AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Widt
 	Segments[ #Segments + 1 ] = Segment
 end
 
-local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos )
+local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos, NoSpace )
 	-- Only bother to wrap against the anchor if there's enough room left on the line after it.
 	local WidthRemaining = MaxWidth - XPos
 	if WidthRemaining / MaxWidth <= 0.1 then return false end
@@ -86,7 +86,7 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	TextWrap( TextSizeProvider, Word, WidthRemaining, WrappedParts, 1 )
 
 	AddSegmentFromWord(
-		Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), true
+		Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), NoSpace
 	)
 
 	-- Now take the text that's left, and wrap it based on the full max width (as it's no longer on the same
@@ -96,7 +96,7 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	if Width > MaxWidth then
 		EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, RemainingText )
 	else
-		AddSegmentFromWord( Index, TextSizeProvider, Segments, RemainingText, Width )
+		AddSegmentFromWord( Index, TextSizeProvider, Segments, RemainingText, Width, true )
 	end
 
 	TableEmpty( WrappedParts )
@@ -109,11 +109,12 @@ function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, XPos )
 	for i = 1, #Words do
 		local Word = Words[ i ]
 		local Width = TextSizeProvider:GetWidth( Word )
-		if Width > MaxWidth then
+		local WidthToCompareAgainst = i == 1 and ( MaxWidth - XPos ) or MaxWidth
+		if Width > WidthToCompareAgainst then
 			-- Word will need text wrapping.
 			-- First try to wrap starting at the last element's position.
 			-- If there's not enough space left, treat the text as a new line.
-			if not WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos ) then
+			if not WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos, i == 1 ) then
 				EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
 			end
 
