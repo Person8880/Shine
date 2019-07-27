@@ -119,6 +119,14 @@ function Shine:NotifyError( Message )
 	self.AddChatText( 255, 0, 0, self.Locale:GetPhrase( "Core", "ERROR_TAG" ), 1, 1, 1, Message )
 end
 
+Client.HookNetworkMessage( "Shine_ChatErrorMessage", function( Message )
+	local Text = Message.Message
+	if Message.Source ~= "" then
+		Text = Shine.Locale:GetPhrase( Message.Source, Text )
+	end
+	Shine:NotifyError( Text )
+end )
+
 --Displays a coloured message.
 Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
 	local R = Message.R / 255

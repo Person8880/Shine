@@ -11,7 +11,7 @@ do
 
 	local ChatMessage = {
 		Prefix = "string (25)",
-		Name = StringFormat( "string (%i)", kMaxNameLength ),
+		Name = StringFormat( "string (%i)", kMaxNameLength * 4 + 1 ),
 		TeamNumber = StringFormat( "integer (%i to %i)", kTeamInvalid, kSpectatorIndex ),
 		TeamType = StringFormat( "integer (%i to %i)", kNeutralTeamType, kAlienTeamType ),
 		Message = StringMessage
@@ -65,6 +65,10 @@ do
 		MessageKey = "string (32)",
 		Duration = "integer (1 to 15)",
 		OnlyIfAdminMenuOpen = "boolean"
+	} )
+	Shared.RegisterNetworkMessage( "Shine_ChatErrorMessage", {
+		Message = StringMessage,
+		Source = "string (20)"
 	} )
 end
 
