@@ -43,6 +43,14 @@ end
 		Message = {
 			-- Table of colours/text/textures.
 		},
+		-- Optional table that contains a single (no prefix keys specified) or dual colour message to use if rich text
+		-- is not supported. This is a convenient alternative to checking ChatAPI:SupportsRichText().
+		FallbackMessage = {
+			PrefixColour = Colour( 1, 1, 1 ),
+			Prefix = "[Some Prefix]",
+			MessageColour = Colour( 1, 1, 1 ),
+			Message = "Some message..."
+		},
 		-- Optionally, the chat sound may be suppressed.
 		SuppressSound = true,
 		-- On the server, an optional table of target players/clients to restrict the message to.
@@ -50,7 +58,9 @@ end
 		Targets = {}
 	}
 
-	By default, rich text messages are converted into 2-colour messages, and the source data is unused.
+	By default, rich text messages are converted into 2-colour messages (or the fallback is used), and the source data
+	is unused.
+
 	However, a rich text aware provider may be able to make use of the extra data.
 ]]
 function ChatAPI:AddRichTextMessage( Message )

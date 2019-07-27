@@ -15,6 +15,16 @@ end
 -- Converts a rich-text message into a 2-colour message.
 -- Ideally clients of the API should use AddMessage instead when they know rich text is not supported.
 function DefaultProvider:AddRichTextMessage( MessageData )
+	if MessageData.FallbackMessage then
+		local Message = MessageData.FallbackMessage
+		if Message.Prefix then
+			return self:AddDualColourMessage(
+				Message.PrefixColour, Message.Prefix, Message.MessageColour, Message.Message
+			)
+		end
+		return self:AddMessage( Message.MessageColour, Message.Message )
+	end
+
 	local MessageParts = {}
 	local CurrentText = {}
 
