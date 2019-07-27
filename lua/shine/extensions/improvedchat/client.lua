@@ -90,16 +90,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		local LineMargin = Scaled( 2 )
 		local PaddingAmount = Scaled( 8 ):GetValue()
 
-		local Font, Scale
-		local H = Client.GetScreenHeight()
-		if H <= SGUI.ScreenHeight.Small then
-			Font = Fonts.kAgencyFB_Tiny
-		elseif H <= SGUI.ScreenHeight.Normal then
-			Font = Fonts.kAgencyFB_Small
-		else
-			Font, Scale = SGUI.FontManager.GetFont( "kAgencyFB", 27 )
-		end
-
+		local Font, Scale = ChatAPI.GetOptimalFontScale()
 		ChatLine:SetFont( Font )
 		ChatLine:SetTextScale( Scale )
 		ChatLine:SetPreMargin( PrefixMargin )

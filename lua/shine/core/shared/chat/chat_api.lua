@@ -96,4 +96,23 @@ function ChatAPI:ResetProvider( Provider )
 	end
 end
 
+local NoScale = Vector( 1, 1, 0 )
+function ChatAPI.GetOptimalFontScale( ScreenHeight )
+	ScreenHeight = ScreenHeight or Client.GetScreenHeight()
+
+	local SGUI = Shine.GUI
+	local Font
+	local Scale = NoScale
+
+	if ScreenHeight <= SGUI.ScreenHeight.Small then
+		Font = Fonts.kAgencyFB_Tiny
+	elseif ScreenHeight <= SGUI.ScreenHeight.Normal then
+		Font = Fonts.kAgencyFB_Small
+	else
+		Font, Scale = SGUI.FontManager.GetFont( "kAgencyFB", 27 )
+	end
+
+	return Font, Scale
+end
+
 return ChatAPI

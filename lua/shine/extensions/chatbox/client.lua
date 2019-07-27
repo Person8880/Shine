@@ -4,6 +4,8 @@
 	I can't believe the game doesn't have one.
 ]]
 
+local ChatAPI = require "shine/core/shared/chat/chat_api"
+
 local Shine = Shine
 
 local Hook = Shine.Hook
@@ -299,18 +301,8 @@ function Plugin:CreateChatbox()
 	self.UIScale = UIScale
 	self.ScalarScale = ScalarScale
 
-	if ScreenHeight <= SGUI.ScreenHeight.Small then
-		self.Font = Fonts.kAgencyFB_Tiny
-		self.TextScale = TextScale
-		self.MessageTextScale = self.TextScale
-	elseif ScreenHeight <= SGUI.ScreenHeight.Normal then
-		self.Font = Fonts.kAgencyFB_Small
-		self.TextScale = TextScale
-		self.MessageTextScale = self.TextScale
-	else
-		self.Font, self.MessageTextScale = SGUI.FontManager.GetFont( "kAgencyFB", 27 )
-		self.TextScale = self.MessageTextScale
-	end
+	self.Font, self.MessageTextScale = ChatAPI.GetOptimalFontScale( ScreenHeight )
+	self.TextScale = self.MessageTextScale
 
 	local Opacity = self.Config.Opacity
 	UpdateOpacity( self, Opacity )
