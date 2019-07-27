@@ -427,23 +427,40 @@ end
 
 do
 	local Font = DefineElementType( "Font" )
-	function Font:Init( Font, Scale )
-		self.Font = Font
-		self.Scale = Scale
+	function Font:Init( Params )
+		self.Font = Params.Font
+		self.Scale = Params.Scale
+		if IsType( self.Font, "function" ) then
+			-- Some fonts may depend on resolution, this provides a way to compute the right font just-in-time.
+			self.GetFontScale = self.GetFontScaleComputed
+		end
 		return self
 	end
 
-	function Font:Split( Index, TextSizeProvider )
-		TextSizeProvider:SetFontScale( self.Font, self.Scale )
+	function Font:GetFontScale()
+		return self.Font, self.Scale
 	end
 
-	function Font:GetWidth()
+	function Font:GetFontScaleComputed()
+		return self:Font()
+	end
+
+	function Font:Split( Index, TextSizeProvider )
+		TextSizeProvider:SetFontScale( self:GetFontScale() )
+	end
+
+	function Font:GetWidth( TextSizeProvider )
+		TextSizeProvider:SetFontScale( self:GetFontScale() )
 		return 0, 0
 	end
 
 	function Font:MakeElement( Context )
-		Context.CurrentFont = self.Font
-		Context.CurrentScale = self.Scale
+		local Font, Scale = self:GetFontScale()
+		if not Font then
+			Font, Scale = Context.DefaultFont, Context.DefaultScale
+		end
+		Context.CurrentFont = Font
+		Context.CurrentScale = Scale
 	end
 
 	function Font:__tostring()
@@ -717,6 +734,9 @@ function TextSizeProvider:Init( Font, Scale )
 	self.WordSizeCache = TableNew( 0, 10 )
 	self:SetFontScale( Font, Scale )
 
+	self.DefaultFont = Font
+	self.DefaultScale = Scale
+
 	return self
 end
 
@@ -724,6 +744,10 @@ function TextSizeProvider:SetFontScale( Font, Scale )
 	if Font == self.Font and Scale == self.Scale then return end
 
 	local Label = GetLabel()
+	if not Font then
+		Font = self.DefaultFont
+		Scale = self.DefaultScale
+	end
 
 	self.Font = Font
 	self.Scale = Scale
@@ -786,6 +810,7 @@ local function MakeElement( self, Class )
 	return Element or SGUI:Create( Class )
 end
 
+local CreatedElements = TableNew( 30, 0 )
 function ChatLine:ApplyLines( Lines )
 	local ElementPool
 	if self.Children then
@@ -798,6 +823,8 @@ function ChatLine:ApplyLines( Lines )
 	local Context = {
 		CurrentFont = self.Font,
 		CurrentScale = self.TextScale,
+		DefaultFont = self.Font,
+		DefaultScale = self.TextScale,
 		CurrentColour = Colour( 1, 1, 1, 1 ),
 		ElementPool = ElementPool,
 		MakeElement = MakeElement
@@ -815,6 +842,9 @@ function ChatLine:ApplyLines( Lines )
 		local RootControl
 		local LineWidth = 0
 		local LineHeight = 0
+		local ElementCount = 0
+		local NeedsAlignment = false
+
 		for j = 1, #Line do
 			Context.CurrentIndex = j
 
@@ -822,6 +852,9 @@ function ChatLine:ApplyLines( Lines )
 
 			local Control = Element:MakeElement( Context )
 			if Control then
+				ElementCount = ElementCount + 1
+				CreatedElements[ ElementCount ] = Control
+
 				Control:SetParent( self, Parent.Background )
 				if Parent ~= self then
 					-- Make each element start from where the previous one ends.
@@ -840,7 +873,29 @@ function ChatLine:ApplyLines( Lines )
 
 				local Size = Control:GetSize()
 				LineWidth = LineWidth + Size.x
+				NeedsAlignment = NeedsAlignment or ( LineHeight ~= 0 and Size.y ~= LineHeight )
 				LineHeight = Max( LineHeight, Size.y )
+			end
+		end
+
+		-- Align all items in the line centrally to avoid one larger element looking out of place.
+		if NeedsAlignment then
+			local FirstOffset
+			for i = 1, ElementCount do
+				local Pos = CreatedElements[ i ]:GetPos()
+
+				local Offset = LineHeight * 0.5 - CreatedElements[ i ]:GetSize().y * 0.5
+				Pos.y = Pos.y + Offset
+
+				if i == 1 then
+					FirstOffset = Offset
+				else
+					-- As all elements in the line are parented to the first, if the first element was not the tallest then
+					-- all subsequent elements need to move up by the offset from it.
+					Pos.y = Pos.y - FirstOffset
+				end
+
+				CreatedElements[ i ]:SetPos( Pos )
 			end
 		end
 
@@ -850,6 +905,8 @@ function ChatLine:ApplyLines( Lines )
 		MaxWidth = Max( MaxWidth, LineWidth )
 		YOffset = YOffset + LineHeight + Spacing
 	end
+
+	TableEmpty( CreatedElements )
 
 	self.WrappedWidth = MaxWidth
 	self.WrappedHeight = YOffset - Spacing
