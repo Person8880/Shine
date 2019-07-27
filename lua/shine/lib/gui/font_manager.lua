@@ -83,4 +83,14 @@ end
 ]]
 FontManager.GetFontForAbsoluteSize = FindFontForSize
 
+--[[
+	Gets the actual height in pixels of the given font in the given family.
+]]
+function FontManager.GetFontSize( FontFamily, FontName )
+	local Fonts = FontFamilies[ FontFamily ]
+	if not Fonts then return nil end
+
+	return Fonts[ FontName ]
+end
+
 Shine.GUI.FontManager = FontManager
