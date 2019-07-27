@@ -58,11 +58,6 @@ function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageTex
 			AutoWidth = self.PreMargin,
 			IgnoreOnNewLine = true
 		}
-		-- When a prefix is present, wrap the message text starting from after it, rather than
-		-- moving it to a new line if it exceeds the size limit with a single word.
-		Contents[ #Contents + 1 ] = {
-			Type = "WrappingAnchor"
-		}
 	end
 
 	Contents[ #Contents + 1 ] = MessageColour
@@ -135,9 +130,7 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 	local Start = 1
 	local End = #Chars
 
-	if End == 0 then return Parts end
-
-	if StopAfter and #Parts >= StopAfter then
+	if End == 0 or ( StopAfter and Parts.Count >= StopAfter ) then
 		return Parts
 	end
 
@@ -152,13 +145,15 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 
 		if WidthAfter > MaxWidth and WidthBefore <= MaxWidth then
 			-- Text must be wrapped here, wrap it then continue with the remaining text.
-			Parts[ #Parts + 1 ] = TextBefore
+			Parts.Count = Parts.Count + 1
+			Parts[ Parts.Count ] = TextBefore
 			return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid ), MaxWidth, Parts, StopAfter )
 		elseif WidthAfter > MaxWidth then
 			if Mid == 1 then
 				-- Even a single character is too wide, so we have to allow it to overflow,
 				-- otherwise there'll never be an answer.
-				Parts[ #Parts + 1 ] = TextAfter
+				Parts.Count = Parts.Count + 1
+				Parts[ Parts.Count ] = TextAfter
 				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid + 1 ), MaxWidth, Parts, StopAfter )
 			end
 			-- Too far forward, look in the previous half.
@@ -167,13 +162,25 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 		elseif WidthAfter < MaxWidth then
 			if Mid == #Chars then
 				-- Text can't be advanced further, stop here.
-				Parts[ #Parts + 1 ] = TextAfter
+				Parts.Count = Parts.Count + 1
+				Parts[ Parts.Count ] = TextAfter
 				return Parts
 			end
 
 			-- Too far back, look in the next half.
 			Start = Mid + 1
 			Mid = GetMidPoint( Start, End )
+		elseif WidthAfter == MaxWidth then
+			-- We've found a point where the text is exactly the right size, add it and continue wrapping if there's
+			-- any left.
+			Parts.Count = Parts.Count + 1
+			Parts[ Parts.Count ] = TextAfter
+
+			if Mid ~= #Chars then
+				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid + 1 ), MaxWidth, Parts, StopAfter )
+			end
+
+			return Parts
 		end
 	end
 
@@ -240,9 +247,10 @@ do
 		TableEmpty( WrappedParts )
 
 		-- Eagerly text-wrap here to make things easier when word-wrapping.
+		WrappedParts.Count = 0
 		TextWrap( TextSizeProvider, Word, MaxWidth, WrappedParts )
 
-		for j = 1, #WrappedParts do
+		for j = 1, WrappedParts.Count do
 			local Width = TextSizeProvider:GetWidth( WrappedParts[ j ] )
 			local Segment = Text( WrappedParts[ j ] )
 			Segment.Width = Width
@@ -266,20 +274,24 @@ do
 		Segments[ #Segments + 1 ] = Segment
 	end
 
-	local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, WrappingAnchorXPos )
+	local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos )
 		-- Only bother to wrap against the anchor if there's enough room left on the line after it.
-		local WidthRemaining = MaxWidth - WrappingAnchorXPos
+		local WidthRemaining = MaxWidth - XPos
 		if WidthRemaining / MaxWidth <= 0.1 then return false end
 
 		TableEmpty( WrappedParts )
 
 		-- Wrap the first part of text to the remaining width and add it as a segment.
-		local Parts = TextWrap( TextSizeProvider, Word, WidthRemaining, WrappedParts, 1 )
-		AddSegmentFromWord( Index, TextSizeProvider, Segments, Parts[ 1 ], TextSizeProvider:GetWidth( Parts[ 1 ] ), true )
+		WrappedParts.Count = 0
+		TextWrap( TextSizeProvider, Word, WidthRemaining, WrappedParts, 1 )
+
+		AddSegmentFromWord(
+			Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), true
+		)
 
 		-- Now take the text that's left, and wrap it based on the full max width (as it's no longer on the same
 		-- line as the anchor).
-		local RemainingText = StringSub( Word, #Parts[ 1 ] + 1 )
+		local RemainingText = StringSub( Word, #WrappedParts[ 1 ] + 1 )
 		local Width = TextSizeProvider:GetWidth( RemainingText )
 		if Width > MaxWidth then
 			EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, RemainingText )
@@ -292,23 +304,23 @@ do
 		return true
 	end
 
-	function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, WrappingAnchorXPos )
+	function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, XPos )
 		local Words = StringExplode( self.Value, " ", true )
 		for i = 1, #Words do
 			local Word = Words[ i ]
 			local Width = TextSizeProvider:GetWidth( Word )
 			if Width > MaxWidth then
 				-- Word will need text wrapping.
-				-- Check if there's a wrapping anchor behind this element. If so, the desired behaviour is
-				-- to text wrap starting from the anchor's position, rather than to move the word onto a new line.
-				if not (
-					i == 1 and WrappingAnchorXPos and
-					WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, WrappingAnchorXPos )
-				) then
+				-- First try to wrap starting at the last element's position.
+				-- If there's not enough space left, treat the text as a new line.
+				if not WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos ) then
 					EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
 				end
+
+				XPos = Segments[ #Segments ].WidthWithoutSpace + TextSizeProvider.SpaceSize
 			else
 				AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, i == 1 )
+				XPos = XPos + Width + TextSizeProvider.SpaceSize
 			end
 		end
 	end
@@ -527,29 +539,6 @@ do
 	end
 end
 
-do
-	local WrappingAnchor = DefineElementType( "WrappingAnchor" )
-	function WrappingAnchor:Init()
-		return self
-	end
-
-	function WrappingAnchor:Split()
-		-- Element is not splittable.
-	end
-
-	function WrappingAnchor:GetWidth()
-		return 0, 0
-	end
-
-	function WrappingAnchor:MakeElement()
-		-- Nothing to do, purely a hint to the wrapping system.
-	end
-
-	function WrappingAnchor:__tostring()
-		return "WrappingAnchor"
-	end
-end
-
 local ContentFactories = {
 	string = ElementTypes.Text,
 	cdata = ElementTypes.Colour,
@@ -664,14 +653,10 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 	local StartIndex = 1
 	local LastSegment = 0
 	local LastElementIndex = 1
-	local WrappingAnchorXPos
+	local WrappingXPos
 
 	for i = 1, #Line do
 		local Element = Line[ i ]
-
-		if Element.Type == "WrappingAnchor" then
-			WrappingAnchorXPos = CurrentWidth
-		end
 
 		local Width, WidthWithoutSpace = Element:GetWidth( TextSizeProvider, MaxWidth )
 		local RelevantWidth = #Segments + 1 == StartIndex and WidthWithoutSpace or Width
@@ -682,11 +667,7 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 			Element.OriginalElement = i
 			Segments[ #Segments + 1 ] = Element
 		else
-			Element:Split( i, TextSizeProvider, Segments, MaxWidth, WrappingAnchorXPos )
-		end
-
-		if Element.Type == "Text" then
-			WrappingAnchorXPos = nil
+			Element:Split( i, TextSizeProvider, Segments, MaxWidth, CurrentWidth )
 		end
 
 		for j = LastSegment + 1, #Segments do
@@ -699,7 +680,6 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 				WrappedLines[ #WrappedLines + 1 ] = Line
 				LastElementIndex = ElementIndex
 
-				WrappingAnchorXPos = nil
 				StartIndex = j
 				CurrentWidth = Segments[ j ].WidthWithoutSpace
 			end

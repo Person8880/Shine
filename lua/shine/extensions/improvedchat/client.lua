@@ -469,10 +469,6 @@ function Plugin:OnChatMessageReceived( Data )
 	Contents[ #Contents + 1 ] = IntToColour( GetColorForTeamNumber( Data.TeamNumber ) )
 	Contents[ #Contents + 1 ] = Prefix
 
-	Contents[ #Contents + 1 ] = {
-		Type = "WrappingAnchor"
-	}
-
 	Contents[ #Contents + 1 ] = kChatTextColor[ Data.TeamType ]
 	Contents[ #Contents + 1 ] = Data.Message
 
