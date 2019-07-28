@@ -58,10 +58,19 @@ end )
 UnitTest:Test( "WordWrapRichTextLines - Wraps a line whose words split evenly", function( Assert )
 	local Line = {
 		{
-			GetWidth = function() return 50, 50 end
+			GetWidth = function() return 0, 0 end
 		},
 		{
 			GetWidth = function() return 50, 50 end
+		},
+		{
+			GetWidth = function() return 0, 0 end
+		},
+		{
+			GetWidth = function() return 50, 50 end
+		},
+		{
+			GetWidth = function() return 0, 0 end
 		},
 		{
 			GetWidth = function() return 10, 10 end
@@ -78,10 +87,14 @@ UnitTest:Test( "WordWrapRichTextLines - Wraps a line whose words split evenly", 
 	Assert.DeepEquals( "Should have split the elements evenly", {
 		{
 			Line[ 1 ],
-			Line[ 2 ]
+			Line[ 2 ],
+			Line[ 3 ],
+			-- Stops the line here as the width equals the max at this point.
+			Line[ 4 ]
 		},
 		{
-			Line[ 3 ]
+			Line[ 5 ],
+			Line[ 6 ]
 		}
 	}, WrappedLines )
 end )
@@ -119,6 +132,9 @@ UnitTest:Test( "WordWrapRichTextLines - Should split and consolidate an element 
 			end
 		},
 		{
+			GetWidth = function() return 0, 0 end
+		},
+		{
 			GetWidth = function() return 50, 50 end
 		},
 		{
@@ -152,7 +168,7 @@ UnitTest:Test( "WordWrapRichTextLines - Should split and consolidate an element 
 			}
 		},
 		{
-			-- Second line should be the final segment of the first element, then the second and third elements.
+			-- Second line should be the final segment of the first element, then the rest of the elements.
 			{
 				Width = 50,
 				-- This is the width that should be used as it's the first element on the line.
@@ -161,7 +177,8 @@ UnitTest:Test( "WordWrapRichTextLines - Should split and consolidate an element 
 				OriginalElement = 1
 			},
 			Line[ 2 ],
-			Line[ 3 ]
+			Line[ 3 ],
+			Line[ 4 ]
 		}
 	}, WrappedLines )
 end )
