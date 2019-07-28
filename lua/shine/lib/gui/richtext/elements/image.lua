@@ -18,6 +18,10 @@ function Image:Init( Params )
 	self.Think = Params.Think
 	self.TextureCoordinates = Params.TextureCoordinates
 
+	self.DoClick = Params.DoClick
+	self.DoRightClick = Params.DoRightClick
+	self.Setup = Params.Setup
+
 	return self
 end
 
@@ -59,8 +63,12 @@ function Image:MakeElement( Context )
 
 	self.AddThinkFunction( Image, self.Think )
 
-	Image.DoClick = Context.DoClick
-	Image.DoRightClick = Context.DoRightClick
+	Image.DoClick = self.DoClick
+	Image.DoRightClick = self.DoRightClick
+
+	if self.Setup then
+		self:Setup( Image )
+	end
 
 	return Image
 end

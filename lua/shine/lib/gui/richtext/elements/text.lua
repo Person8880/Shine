@@ -24,6 +24,10 @@ function Text:Init( Text )
 	else
 		self.Value = Text.Value
 		self.Think = Text.Think
+
+		self.DoClick = Text.DoClick
+		self.DoRightClick = Text.DoRightClick
+		self.Setup = Text.Setup
 	end
 
 	return self
@@ -156,12 +160,16 @@ function Text:MakeElement( Context )
 
 	self.AddThinkFunction( Label, self.Think )
 
-	Label.DoClick = Context.DoClick
-	Label.DoRightClick = Context.DoRightClick
+	Label.DoClick = self.DoClick
+	Label.DoRightClick = self.DoRightClick
 
 	-- We already computed the width/height values, so apply them now.
 	Label.CachedTextWidth = self.Width
 	Label.CachedTextHeight = self.Height
+
+	if self.Setup then
+		self:Setup( Label )
+	end
 
 	return Label
 end
