@@ -167,6 +167,8 @@ do
 					Populate = function( Menu )
 						Menu:SetFontScale( self.Font, self.TextScale )
 
+						local MaxOfIcons = Units.Max()
+
 						for i = 1, self.NumTabs do
 							local Tab = self.Tabs[ i ]
 
@@ -177,6 +179,14 @@ do
 								Menu:Destroy()
 							end )
 							MenuButton:SetIcon( Tab.TabButton:GetIcon() )
+							MaxOfIcons:AddValue( Units.Auto( MenuButton.Icon ) )
+
+							MenuButton:SetStyleName( "TabPanelOverflowMenuButton" )
+							MenuButton.Label:SetMargin(
+								Units.Spacing(
+									MaxOfIcons - Units.Auto( MenuButton.Icon ), 0, 0, 0
+								)
+							)
 						end
 					end
 				}

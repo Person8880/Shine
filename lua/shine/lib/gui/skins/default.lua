@@ -80,6 +80,11 @@ local Skin = {
 			Padding = DropdownPadding,
 			TextAlignment = SGUI.LayoutAlignment.MIN,
 			IconAlignment = SGUI.LayoutAlignment.MIN
+		},
+		TabPanelOverflowMenuButton = {
+			TextAlignment = SGUI.LayoutAlignment.MIN,
+			IconAlignment = SGUI.LayoutAlignment.MIN,
+			Padding = Units.Spacing( Units.HighResScaled( 8 ), 0, 0, 0 )
 		}
 	},
 	CategoryPanel = {
