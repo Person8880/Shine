@@ -99,7 +99,7 @@ UnitTest:Test( "Split - Should text wrap accounting for the current position", f
 	}, Segments )
 end )
 
-UnitTest:Test( "Split - Should text wrap accounting for the current position including previous words", function( Assert )
+UnitTest:Test( "Split - Should text wrap accounting for the current position not including previous words", function( Assert )
 	local Element = Text( "Some words "..string.rep( "a", 16 ) )
 
 	local Segments = {}
@@ -121,16 +121,16 @@ UnitTest:Test( "Split - Should text wrap accounting for the current position inc
 			OriginalElement = 1
 		},
 		{
-			Width = 5,
-			WidthWithoutSpace = 4,
-			Value = string.rep( "a", 4 ),
+			Width = 15,
+			WidthWithoutSpace = 15,
+			Value = string.rep( "a", 15 ),
 			Height = 10,
 			OriginalElement = 1
 		},
 		{
-			Width = 12,
-			WidthWithoutSpace = 12,
-			Value = string.rep( "a", 12 ),
+			Width = 1,
+			WidthWithoutSpace = 1,
+			Value = string.rep( "a", 1 ),
 			Height = 10,
 			OriginalElement = 1
 		}

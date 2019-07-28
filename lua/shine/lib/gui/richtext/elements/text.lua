@@ -74,7 +74,7 @@ local function AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Widt
 	Segments[ #Segments + 1 ] = Segment
 end
 
-local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos, NoSpace )
+local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos )
 	-- Only bother to wrap against the anchor if there's enough room left on the line after it.
 	local WidthRemaining = MaxWidth - XPos
 	if WidthRemaining / MaxWidth <= 0.1 then return false end
@@ -86,7 +86,7 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	TextWrap( TextSizeProvider, Word, WidthRemaining, WrappedParts, 1 )
 
 	AddSegmentFromWord(
-		Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), NoSpace
+		Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), true
 	)
 
 	-- Now take the text that's left, and wrap it based on the full max width (as it's no longer on the same
@@ -114,14 +114,11 @@ function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, XPos )
 			-- Word will need text wrapping.
 			-- First try to wrap starting at the last element's position.
 			-- If there's not enough space left, treat the text as a new line.
-			if not WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos, i == 1 ) then
+			if not ( i == 1 and WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos ) ) then
 				EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
 			end
-
-			XPos = Segments[ #Segments ].WidthWithoutSpace + TextSizeProvider.SpaceSize
 		else
 			AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, i == 1 )
-			XPos = XPos + Width + TextSizeProvider.SpaceSize
 		end
 	end
 end
