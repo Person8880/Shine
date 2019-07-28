@@ -21,6 +21,110 @@ UnitTest:Test( "Add", function( Assert )
 	Assert.Equals( "Size should be 2", 2, Queue:GetCount() )
 end )
 
+UnitTest:Test( "InsertAtIndex", function( Assert )
+	local Queue = Shine.Queue()
+	Queue:Add( 1 )
+	Queue:Add( 2 )
+	Queue:Add( 3 )
+
+	Queue:InsertAtIndex( 2, 4 )
+
+	Assert.ArrayEquals( "Should have inserted 4 at the 2nd position", {
+		1, 4, 2, 3
+	}, Queue.Elements )
+	Assert.Equals( "First index should be 1", 1, Queue.First )
+	Assert.Equals( "Last index should be 4", 4, Queue.Last )
+	Assert.Equals( "Size should be 4", 4, Queue:GetCount() )
+end )
+
+UnitTest:Test( "InsertByComparing - At front", function( Assert )
+	local Queue = Shine.Queue()
+	Queue:Add( 1 )
+	Queue:Add( 2 )
+	Queue:Add( 3 )
+
+	Queue:InsertByComparing( 0, function( A, B ) return A < B end )
+
+	Assert.ArrayEquals( "Should have inserted 0 at the 1st position", {
+		0, 1, 2, 3
+	}, Queue.Elements )
+	Assert.Equals( "First index should be 1", 1, Queue.First )
+	Assert.Equals( "Last index should be 4", 4, Queue.Last )
+	Assert.Equals( "Size should be 4", 4, Queue:GetCount() )
+end )
+
+UnitTest:Test( "InsertByComparing - At middle", function( Assert )
+	local Queue = Shine.Queue()
+	Queue:Add( 1 )
+	Queue:Add( 2 )
+	Queue:Add( 5 )
+
+	Queue:InsertByComparing( 4, function( A, B ) return A < B end )
+
+	Assert.ArrayEquals( "Should have inserted 4 at the last position", {
+		1, 2, 4, 5
+	}, Queue.Elements )
+	Assert.Equals( "First index should be 1", 1, Queue.First )
+	Assert.Equals( "Last index should be 4", 4, Queue.Last )
+	Assert.Equals( "Size should be 4", 4, Queue:GetCount() )
+end )
+
+UnitTest:Test( "InsertByComparing - At back", function( Assert )
+	local Queue = Shine.Queue()
+	Queue:Add( 1 )
+	Queue:Add( 2 )
+	Queue:Add( 3 )
+
+	Queue:InsertByComparing( 6, function( A, B ) return A < B end )
+
+	Assert.ArrayEquals( "Should have inserted 4 at the last position", {
+		1, 2, 3, 6
+	}, Queue.Elements )
+	Assert.Equals( "First index should be 1", 1, Queue.First )
+	Assert.Equals( "Last index should be 4", 4, Queue.Last )
+	Assert.Equals( "Size should be 4", 4, Queue:GetCount() )
+end )
+
+UnitTest:Test( "Remove", function( Assert )
+	local Queue = Shine.Queue()
+	Queue:Add( 1 )
+	Queue:Add( 2 )
+	Queue:Add( 2 )
+	Queue:Add( 3 )
+
+	Assert.Equals( "Should have 4 elements", 4, Queue:GetCount() )
+	Assert.ArrayEquals( "Elements should be as expected", {
+		1, 2, 2, 3
+	}, Queue.Elements )
+	Assert.Equals( "First index should be 1", 1, Queue.First )
+	Assert.Equals( "Last index should be 4", 4, Queue.Last )
+
+	Assert.True( "Should find and remove 2", Queue:Remove( 2 ) )
+
+	Assert.Equals( "Should have 2 elements", 2, Queue:GetCount() )
+	Assert.ArrayEquals( "Elements should be as expected", {
+		1, 3
+	}, Queue.Elements )
+	Assert.Equals( "First index should still be 1", 1, Queue.First )
+	Assert.Equals( "Last index should now be 2", 2, Queue.Last )
+
+	Assert.False( "Should not find 2 again", Queue:Remove( 2 ) )
+
+	Queue:Add( 2 )
+	Queue:Add( 2 )
+
+	Assert.Equals( "Should pop 1", 1, Queue:Pop() )
+	Assert.True( "Should remove 2 again", Queue:Remove( 2 ) )
+
+	Assert.Equals( "Should have 1 element", 1, Queue:GetCount() )
+	Assert.Equals( "First index should be 2", 2, Queue.First )
+	Assert.Equals( "Last index should be 2", 2, Queue.Last )
+	Assert.Equals( "3 should be at the front of the queue", 3, Queue:Peek() )
+	Assert.DeepEquals( "Should only be a single element left", {
+		[ 2 ] = 3
+	}, Queue.Elements )
+end )
+
 UnitTest:Test( "Pop", function( Assert )
 	local Queue = Shine.Queue()
 	for i = 1, 5 do
