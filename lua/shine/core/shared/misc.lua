@@ -18,6 +18,8 @@ end
 Script.Load( "lua/shine/core/shared/hotfix.lua" )
 
 if Server then
+	_G.Colour = Color
+
 	-- Called when the client first presses a button.
 	Server.HookNetworkMessage( "Shine_ClientConfirmConnect", function( Client, Data )
 		Shine.Hook.Call( "ClientConfirmConnect", Client )
