@@ -763,7 +763,7 @@ do
 
 		if Consumer( Group, Name, Context ) then return true end
 
-		local InheritGroups = GroupTable.InheritsFrom
+		local InheritGroups = Group.InheritsFrom
 		if InheritGroups then
 			for i = 1, #InheritGroups do
 				if IterateGroups( InheritGroups[ i ], Seen, Consumer, Context ) then
@@ -772,7 +772,7 @@ do
 			end
 		end
 
-		if GroupTable.InheritFromDefault and not Seen[ DEFAULT_GROUP_KEY ] then
+		if Group.InheritFromDefault and not Seen[ DEFAULT_GROUP_KEY ] then
 			Seen[ DEFAULT_GROUP_KEY ] = true
 
 			local DefaultGroup = Shine:GetDefaultGroup()
