@@ -600,8 +600,11 @@ function Plugin:AddRichTextMessage( MessageData )
 end
 
 do
+	local getmetatable = getmetatable
 	local StringMatch = string.match
 	local TableAdd = table.Add
+	local TableConcat = table.concat
+	local TableEmpty = table.Empty
 	local tonumber = tonumber
 
 	local Keys = {
@@ -696,9 +699,29 @@ do
 
 			self.MessagesInTransit[ MessageID ] = nil
 
+			-- Message from the server may have split text into multiple elements. To ensure proper wrapping
+			-- and lower overhead, merge them back together here.
 			local FinalMessage = {}
+			local CurrentText = {}
 			for i = 1, #MessageChunks do
-				TableAdd( FinalMessage, MessageChunks[ i ] )
+				local Chunk = MessageChunks[ i ]
+				for j = 1, #Chunk do
+					local Element = Chunk[ j ]
+					if getmetatable( Element ) == TextElement then
+						CurrentText[ #CurrentText + 1 ] = Element.Value
+					else
+						if #CurrentText > 0 then
+							FinalMessage[ #FinalMessage + 1 ] = TextElement( TableConcat( CurrentText ) )
+							TableEmpty( CurrentText )
+						end
+
+						FinalMessage[ #FinalMessage + 1 ] = Element
+					end
+				end
+			end
+
+			if #CurrentText > 0 then
+				FinalMessage[ #FinalMessage + 1 ] = TextElement( TableConcat( CurrentText ) )
 			end
 
 			self:AddRichTextMessage( {

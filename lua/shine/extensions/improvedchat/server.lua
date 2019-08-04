@@ -10,9 +10,11 @@ local BitLShift = bit.lshift
 local IsType = Shine.IsType
 local StringFind = string.find
 local StringFormat = string.format
+local StringUTF8Encode = string.UTF8Encode
 local TableConcat = table.concat
 local TableEmpty = table.Empty
 local tonumber = tonumber
+local tostring = tostring
 
 local Plugin = ...
 Plugin.PrintName = "Improved Chat"
@@ -55,10 +57,13 @@ local function ToInt( R, G, B )
 		+ BitBAnd( tonumber( B ) or 255, 0xFF )
 end
 
+-- string(255) = 254 bytes (+ null terminator) - 2 bytes for the "t:" prefix.
+local MAX_TEXT_BYTES = 254 - 2
 local function EncodeContents( Contents )
 	local Messages = {}
 	local EncodedValues = { Count = 0 }
 	local CurrentText = {}
+	local CurrentTextBytes = 0
 	local Index = 0
 	local LastColour
 
@@ -81,10 +86,11 @@ local function EncodeContents( Contents )
 
 		LastColour = nil
 		TableEmpty( CurrentText )
+		CurrentTextBytes = 0
 	end
 
 	local function AddPendingText()
-		if #CurrentText > 0 then
+		if CurrentTextBytes > 0 then
 			AddToMessage( LastColour, StringFormat( "t:%s", TableConcat( CurrentText ) ) )
 		end
 	end
@@ -113,7 +119,50 @@ local function EncodeContents( Contents )
 			AddPendingText()
 			LastColour = Value
 		elseif Type == "string" then
-			CurrentText[ #CurrentText + 1 ] = Value
+			local StringLength = #Value
+			local NewLength = CurrentTextBytes + StringLength
+
+			if NewLength > MAX_TEXT_BYTES then
+				local BytesFree = MAX_TEXT_BYTES - CurrentTextBytes
+				local Chars = StringUTF8Encode( Value )
+				local StartIndex = 1
+				local EndIndex
+				local RemainingText = Value
+
+				while #RemainingText > BytesFree do
+					EndIndex = #Chars
+
+					for i = StartIndex, #Chars do
+						BytesFree = BytesFree - #Chars[ i ]
+						if BytesFree < 0 then
+							EndIndex = i - 1
+							break
+						end
+					end
+
+					local Segment = TableConcat( Chars, "", StartIndex, EndIndex )
+					CurrentTextBytes = CurrentTextBytes + #Segment
+					CurrentText[ #CurrentText + 1 ] = Segment
+					AddPendingText()
+
+					StartIndex = EndIndex + 1
+					RemainingText = TableConcat( Chars, "", StartIndex )
+					BytesFree = MAX_TEXT_BYTES
+				end
+
+				CurrentTextBytes = #RemainingText
+
+				if CurrentTextBytes > 0 then
+					CurrentText[ #CurrentText + 1 ] = RemainingText
+				end
+			else
+				CurrentText[ #CurrentText + 1 ] = Value
+				CurrentTextBytes = NewLength
+
+				if CurrentTextBytes == MAX_TEXT_BYTES then
+					AddPendingText()
+				end
+			end
 		end
 	end
 
@@ -144,7 +193,7 @@ function Plugin:AddRichTextMessage( MessageData )
 
 		if i == 1 then
 			Chunk.SourceType = ChatAPI.SourceType[ Source.Type ] or ChatAPI.SourceType.SYSTEM
-			Chunk.SourceID = Source.ID or ""
+			Chunk.SourceID = tostring( Source.ID or "" )
 			Chunk.SuppressSound = not not MessageData.SuppressSound
 		else
 			-- Avoid repeating data to avoid some overhead.
@@ -194,12 +243,12 @@ local function RevokeChatTag( self, Client )
 end
 
 function Plugin:SetChatTag( Client, ChatTagConfig, Key )
-	local SteamID = Client:GetUserId()
 	if not ChatTagConfig then
 		RevokeChatTag( self, Client )
 		return
 	end
 
+	local SteamID = Client:GetUserId()
 	local ChatTag = self.ChatTagDefinitions:Get( Key )
 	if ChatTag then
 		ChatTag.ReferenceCount = ChatTag.ReferenceCount + 1
@@ -229,10 +278,11 @@ function Plugin:SetChatTag( Client, ChatTagConfig, Key )
 	if IsType( ChatTagConfig.Text, "string" ) then
 		ChatTag.Text = ChatTagConfig.Text
 
-		if IsType( ChatTagConfig.Colour, "table" ) then
-			ChatTag.Colour = ToInt( ChatTagConfig.Colour )
-		elseif IsType( ChatTagConfig.Colour, "number" ) then
-			ChatTag.Colour = ChatTagConfig.Colour
+		local Colour = ChatTagConfig.Colour
+		if IsType( Colour, "table" ) then
+			ChatTag.Colour = ToInt( Colour[ 1 ], Colour[ 2 ], Colour[ 3 ] )
+		elseif IsType( Colour, "number" ) then
+			ChatTag.Colour = Colour
 		else
 			ChatTag.Colour = 0xFFFFFF
 		end
