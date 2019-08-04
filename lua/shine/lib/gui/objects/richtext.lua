@@ -132,8 +132,6 @@ function RichText:PerformWrapping()
 	local MaxWidth = self.MaxWidth
 	if not MaxWidth or not Lines then return end
 
-	local Start = Shared.GetSystemTimeReal()
-
 	local WrappedLines = Wrapper.WordWrapRichTextLines( {
 		Lines = Lines,
 		MaxWidth = MaxWidth,
@@ -141,14 +139,8 @@ function RichText:PerformWrapping()
 		TextScale = self.TextScale
 	} )
 
-	LuaPrint( "Computed wrapping in", ( Shared.GetSystemTimeReal() - Start ) * 1e6 )
-
-	Start = Shared.GetSystemTimeReal()
-
 	self:ApplyLines( WrappedLines )
 	self.ComputedWrapping = true
-
-	LuaPrint( "Applied wrapped lines in", ( Shared.GetSystemTimeReal() - Start ) * 1e6 )
 end
 
 local function MakeElement( self, Class )
