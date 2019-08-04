@@ -371,7 +371,7 @@ do
 		local Windows = self.Windows
 		for i = 1, #Windows do
 			local Window = Windows[ i ]
-			Window:SetLayer( self.BaseLayer + i )
+			Window:SetLayer( Window.OverrideLayer or self.BaseLayer + i )
 		end
 
 		if Window ~= self.FocusedWindow and self.IsValid( self.FocusedWindow )

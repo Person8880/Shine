@@ -25,6 +25,9 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "ImprovedChat.json"
 
 Plugin.Version = "1.0"
+Plugin.MessageDisplayType = table.AsEnum{
+	"UPWARDS", "DOWNWARDS"
+}
 
 Plugin.DefaultConfig = {
 	-- Controls whether to animate messages (when they appear, they will always fade out).
@@ -33,19 +36,20 @@ Plugin.DefaultConfig = {
 	BackgroundOpacity = 0.75,
 	-- The maximum number of messages to display before forcing the oldest to fade out (to avoid messages
 	-- going off the screen).
-	MaxVisibleMessages = 10
+	MaxVisibleMessages = 10,
+	-- How to display messages:
+	-- UPWARDS - new messages at the bottom and move up as more messages appear.
+	-- DOWNWARDS - the vanilla method, new messages are added below older ones (in case anyone actually likes this).
+	MessageDisplayType = Plugin.MessageDisplayType.UPWARDS
 }
 
 Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
-Plugin.SourceType = table.AsEnum{
-	"PLAYER", "SYSTEM"
-}
-
 local IntToColour = ColorIntToColor
 local DEFAULT_CHAT_OFFSET = Vector2( 0, 150 )
 local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, 50 )
+local NO_OFFSET = Vector2( 0, 0 )
 local function ComputeChatOffset( GUIChatPos, DesiredOffset )
 	return GUIScale( 1 ) * ( GUIChatPos + DesiredOffset )
 end
@@ -64,14 +68,18 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		if SGUI.IsValid( self.Panel ) then
 			local CurrentOffset = self:GetOffset()
-			self.Panel:SetPos( ComputeChatOffset( CurrentOffset, DEFAULT_CHAT_OFFSET ) )
+			local PanelOffset = DEFAULT_CHAT_OFFSET
+			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
+				PanelOffset = NO_OFFSET
+			end
+			self.Panel:SetPos( ComputeChatOffset( CurrentOffset, PanelOffset ) )
 		end
 	end
 
 	local ChatMessageLifeTime = Client.GetOptionInteger( "chat-time", 6 )
 	local MaxChatWidth = Client.GetOptionInteger( "chat-wrap", 25 ) * 0.01
 
-	local function MakeFadeOutCallback( self, ChatLine )
+	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
 		return function()
 			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
 				return
@@ -80,7 +88,79 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 			ChatLine:SetIsVisible( false )
 			ChatLine:Reset()
 
+			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
+				-- Move remaining messages upwards to fill in the gap.
+				local YOffset = 0
+				for i = 1, #self.ChatLines do
+					local ChatLine = self.ChatLines[ i ]
+					local Pos = ChatLine:GetPos()
+					Pos.y = YOffset
+					ChatLine:SetPos( Pos )
+
+					YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
+				end
+			end
+
 			self.ChatLinePool[ #self.ChatLinePool + 1 ] = ChatLine
+		end
+	end
+
+	local function AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate, AnimDuration, Ease )
+		local NewLineHeight = ChatLine:GetSize().y
+		local YOffset = 0
+		local MaxHeight = -( Client.GetScreenHeight() + self.Panel:GetPos().y )
+		local NumLines = #self.ChatLines
+		local MaxVisibleMessages = NumLines - Plugin.Config.MaxVisibleMessages
+
+		for i = NumLines, 1, -1 do
+			local Line = self.ChatLines[ i ]
+			local LineHeight = Line:GetSize().y
+
+			YOffset = YOffset - LineHeight - PaddingAmount
+
+			local NewPos = Vector2( 0, YOffset )
+
+			if NewPos.y + LineHeight < MaxHeight then
+				-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
+				TableRemove( self.ChatLines, i )
+				Line:SetIsVisible( false )
+				Line:Reset()
+
+				self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
+			else
+				if i <= MaxVisibleMessages then
+					-- Avoid too many messages filling the screen.
+					if not Line.FadingOut then
+						Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ) )
+					end
+				end
+
+				if ShouldAnimate then
+					Line:MoveTo( nil, nil, NewPos, 0, AnimDuration, nil, Ease )
+				else
+					Line:SetPos( NewPos )
+				end
+			end
+		end
+	end
+
+	local function AddChatLineMovingDownwards( self, ChatLine, PaddingAmount )
+		local NumLines = #self.ChatLines
+		local MaxVisibleMessages = NumLines - Plugin.Config.MaxVisibleMessages
+		local YOffset = 0
+
+		for i = 1, NumLines do
+			local Line = self.ChatLines[ i ]
+			if i <= MaxVisibleMessages then
+				-- Avoid too many messages filling the screen.
+				if not Line.FadingOut then
+					Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ) )
+				end
+			end
+
+			Line:SetPos( Vector2( 0, YOffset ) )
+
+			YOffset = YOffset + Line:GetSize().y + PaddingAmount
 		end
 	end
 
@@ -105,12 +185,11 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		ChatLine:SetSize( Vector2( Client.GetScreenWidth() * MaxChatWidth, 0 ) )
 		ChatLine:AddBackground( Colour( 0, 0, 0, Plugin.Config.BackgroundOpacity ), "ui/chat_bg.tga", PaddingAmount )
-
-		local StartPos = Vector2( 0, 0 )
-		ChatLine:SetPos( StartPos )
-
+		ChatLine:SetPos( Vector2( 0, 0 ) )
 		ChatLine:InvalidateLayout( true )
 		ChatLine:SetIsVisible( true )
+
+		local IsUpward = Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.UPWARDS
 
 		local OutExpo = Easing.outExpo
 		local function Ease( Progress )
@@ -118,51 +197,20 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 
 		local AnimDuration = 0.3
-		local ShouldAnimate = self.visible and Plugin.Config.AnimateMessages
+		local ShouldAnimate = self.visible and Plugin.Config.AnimateMessages and IsUpward
 		if ShouldAnimate then
 			ChatLine:FadeIn( AnimDuration, Ease )
 		else
 			ChatLine:MakeVisible()
 		end
 
-		local NewLineHeight = ChatLine:GetSize().y
-		local YOffset = StartPos.y
-		local MaxHeight = -( Client.GetScreenHeight() + self.Panel:GetPos().y )
-		local NumLines = #self.ChatLines
-		local MaxVisibleMessages = NumLines - Plugin.Config.MaxVisibleMessages
-
-		for i = #self.ChatLines, 1, -1 do
-			local Line = self.ChatLines[ i ]
-			local LineHeight = Line:GetSize().y
-
-			YOffset = YOffset - LineHeight - PaddingAmount
-
-			local NewPos = Vector2( 0, YOffset )
-
-			if NewPos.y + LineHeight < MaxHeight then
-				-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
-				TableRemove( self.ChatLines, i )
-				Line:SetIsVisible( false )
-				Line:Reset()
-
-				self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
-			else
-				if i <= MaxVisibleMessages then
-					-- Avoid too many messages filling the screen.
-					if not Line.FadingOut then
-						Line:FadeOut( 1, MakeFadeOutCallback( self, Line ) )
-					end
-				end
-
-				if ShouldAnimate then
-					Line:MoveTo( nil, nil, NewPos, 0, AnimDuration )
-				else
-					Line:SetPos( NewPos )
-				end
-			end
+		if IsUpward then
+			AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate, AnimDuration, Ease )
+		else
+			AddChatLineMovingDownwards( self, ChatLine, PaddingAmount )
 		end
 
-		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, MakeFadeOutCallback( self, ChatLine ), Ease )
+		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, MakeFadeOutCallback( self, ChatLine, PaddingAmount ), Ease )
 
 		return ChatLine
 	end
@@ -257,6 +305,22 @@ function Plugin:SetupClientConfig()
 			Decimals = 0,
 			Description = "MAX_VISIBLE_MESSAGES_DESCRIPTION",
 			CommandMessage = "Now displaying up to %s messages before fading."
+		},
+		{
+			ConfigKey = "MessageDisplayType",
+			Command = "sh_chat_messagedisplaytype",
+			Type = "Radio",
+			Options = self.MessageDisplayType,
+			Description = "MESSAGE_DISPLAY_TYPE_DESCRIPTION",
+			CommandMessage = function( Value )
+				local Descriptions = {
+					[ self.MessageDisplayType.UPWARDS ] = "will now move older messages upwards",
+					[ self.MessageDisplayType.DOWNWARDS ] = "will now add new messages below older ones"
+				}
+
+				return StringFormat( "Chat messages %s.", Descriptions[ Value ] )
+			end,
+			OnChange = self.SetMessageDisplayType
 		}
 	} )
 end
@@ -270,8 +334,40 @@ function Plugin:SetBackgroundOpacity( Opacity )
 	end
 end
 
+local MessageDisplayTypeActions = {
+	[ Plugin.MessageDisplayType.UPWARDS ] = function( self )
+		local Panel = self.GUIChat and self.GUIChat.Panel
+		if not SGUI.IsValid( Panel ) then return end
+
+		Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), DEFAULT_CHAT_OFFSET ) )
+
+		local Player = Client.GetLocalPlayer()
+		if Player then
+			self:OnLocalPlayerChanged( Player )
+		end
+	end,
+	[ Plugin.MessageDisplayType.DOWNWARDS ] = function( self )
+		local Panel = self.GUIChat and self.GUIChat.Panel
+		if not SGUI.IsValid( Panel ) then return end
+
+		Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), NO_OFFSET ) )
+	end
+}
+
+function Plugin:SetMessageDisplayType( MessageDisplayType )
+	local Action = MessageDisplayTypeActions[ MessageDisplayType ]
+	if not Action then return end
+
+	return Action( self )
+end
+
+local function ShouldMoveChat( self )
+	return self.GUIChat and not self.GUIChat.HasMoved
+		and self.Config.MessageDisplayType ~= self.MessageDisplayType.DOWNWARDS
+end
+
 function Plugin:MoveChatAboveMinimap()
-	if not self.GUIChat or self.GUIChat.HasMoved then return end
+	if not ShouldMoveChat( self ) then return end
 
 	local Panel = self.GUIChat.Panel
 	if not SGUI.IsValid( Panel ) then return end
@@ -280,7 +376,7 @@ function Plugin:MoveChatAboveMinimap()
 end
 
 function Plugin:MoveChatDownFromAboveMinimap()
-	if not self.GUIChat or self.GUIChat.HasMoved then return end
+	if not ShouldMoveChat( self ) then return end
 
 	local Panel = self.GUIChat.Panel
 	if not SGUI.IsValid( Panel ) then return end
@@ -327,8 +423,19 @@ function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
 	ChatElement.Panel:SetAnchor( "BottomLeft" )
 
+	if kGUILayerChat then
+		-- Use the same layer vanilla chat does.
+		ChatElement.Panel:SetLayer( kGUILayerChat )
+		ChatElement.Panel.OverrideLayer = kGUILayerChat
+	end
+
 	local Player = Client.GetLocalPlayer and Client.GetLocalPlayer()
 	local Offset = ShouldMoveChatUpFor( Player ) and ABOVE_MINIMAP_CHAT_OFFSET or DEFAULT_CHAT_OFFSET
+
+	if self.Config.MessageDisplayType == self.MessageDisplayType.DOWNWARDS then
+		Offset = NO_OFFSET
+	end
+
 	ChatElement.Panel:SetPos( ComputeChatOffset( ChatElement:GetOffset(), Offset ) )
 end
 
@@ -471,7 +578,7 @@ function Plugin:OnChatMessageReceived( Data )
 
 	self:AddRichTextMessage( {
 		Source = {
-			Type = self.SourceType.PLAYER,
+			Type = ChatAPI.SourceTypeName.PLAYER,
 			ID = Data.SteamID,
 			Details = Data
 		},

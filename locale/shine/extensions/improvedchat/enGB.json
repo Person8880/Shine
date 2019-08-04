@@ -2,5 +2,8 @@
 	"CLIENT_CONFIG_TAB": "Chat",
 	"ANIMATE_MESSAGES_DESCRIPTION": "Animate messages.",
 	"BACKGROUND_OPACITY_DESCRIPTION": "Message background opacity (%):",
-	"MAX_VISIBLE_MESSAGES_DESCRIPTION": "Max messages before fading out:"
+	"MAX_VISIBLE_MESSAGES_DESCRIPTION": "Max messages before fading out:",
+	"MESSAGE_DISPLAY_TYPE_DESCRIPTION": "Message display behaviour:",
+	"UPWARDS": "Add messages upwards.",
+	"DOWNWARDS": "Add messages downwards (vanilla behaviour)."
 }
