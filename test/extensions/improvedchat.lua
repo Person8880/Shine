@@ -8,6 +8,10 @@ if not Plugin then return end
 
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 
+local ColourElement = require "shine/lib/gui/richtext/elements/colour"
+local ImageElement = require "shine/lib/gui/richtext/elements/image"
+local TextElement = require "shine/lib/gui/richtext/elements/text"
+
 Plugin = UnitTest.MockOf( Plugin )
 
 local SentNetworkMessages = {}
@@ -29,15 +33,18 @@ local RichTextMessages = {
 	{
 		Input = {
 			Message = {
-				Colour( 1, 1, 1 ),
-				"This text is smaller than the max size.",
-				Colour( 1, 0, 0 ),
-				" This text is red."
+				ColourElement( Colour( 1, 1, 1 ) ),
+				TextElement( "This text is smaller than the max size." ),
+				ColourElement( Colour( 1, 0, 0 ) ),
+				TextElement( " This text is red." ),
+				ImageElement( {
+					Texture = "ui/badges/wrench.dds"
+				} )
 			}
 		},
 		ExpectedMessages = {
 			{
-				Name = "RichTextChatMessage2",
+				Name = "RichTextChatMessage3",
 				Data = {
 					MessageID = 0,
 					ChunkIndex = 1,
@@ -50,7 +57,10 @@ local RichTextMessages = {
 					Value1 = "t:This text is smaller than the max size.",
 
 					Colour2 = 0xFF0000,
-					Value2 = "t: This text is red."
+					Value2 = "t: This text is red.",
+
+					Colour3 = -1,
+					Value3 = "i:ui/badges/wrench.dds"
 				}
 			}
 		}

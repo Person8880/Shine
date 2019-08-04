@@ -3,10 +3,15 @@
 ]]
 
 local ChatAPI = require "shine/core/shared/chat/chat_api"
+local ColourElement = require "shine/lib/gui/richtext/elements/colour"
+local ImageElement = require "shine/lib/gui/richtext/elements/image"
+local TextElement = require "shine/lib/gui/richtext/elements/text"
+
 local Map = Shine.Map
 
 local BitBAnd = bit.band
 local BitLShift = bit.lshift
+local getmetatable = getmetatable
 local IsType = Shine.IsType
 local StringFind = string.find
 local StringFormat = string.format
@@ -100,14 +105,14 @@ local function EncodeContents( Contents )
 		local Type = type( Value )
 
 		if Type == "table" then
-			local TypeName = Value.Type
-			if TypeName == "Colour" then
+			local MetaTable = getmetatable( Value )
+			if MetaTable == ColourElement then
 				Type = "cdata"
 				Value = Value.Value
-			elseif TypeName == "Text" then
+			elseif MetaTable == TextElement then
 				Type = "string"
 				Value = Value.Value
-			elseif TypeName == "Image" then
+			elseif MetaTable == ImageElement then
 				Type = nil
 				AddPendingText()
 				-- For now, this assumes the image should match the font size and be a square.

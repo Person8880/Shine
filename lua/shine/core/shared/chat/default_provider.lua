@@ -2,44 +2,35 @@
 	The default chat provider, providing 2-colour text using the vanilla chat system.
 ]]
 
+local ColourElement = require "shine/lib/gui/richtext/elements/colour"
+local TextElement = require "shine/lib/gui/richtext/elements/text"
+
+local getmetatable = getmetatable
 local TableConcat = table.concat
 local type = type
 
-local DefaultColour = Color( 1, 1, 1 )
+local DefaultColour = Colour( 1, 1, 1 )
 local DefaultProvider = {}
 
 function DefaultProvider:SupportsRichText()
 	return false
 end
 
--- Converts a rich-text message into a 2-colour message.
--- Ideally clients of the API should use AddMessage instead when they know rich text is not supported.
-function DefaultProvider:AddRichTextMessage( MessageData )
-	if MessageData.FallbackMessage then
-		local Message = MessageData.FallbackMessage
-		if Message.Prefix then
-			return self:AddDualColourMessage(
-				Message.PrefixColour, Message.Prefix, Message.MessageColour, Message.Message
-			)
-		end
-		return self:AddMessage( Message.MessageColour, Message.Message )
-	end
-
+function DefaultProvider.ConvertRichTextToDualColour( Contents )
 	local MessageParts = {}
 	local CurrentText = {}
-
 	local NumColours = 0
-	local Contents = MessageData.Message
 
 	for i = 1, #Contents do
 		local Entry = Contents[ i ]
 		local Type = type( Entry )
 
 		if Type == "table" then
-			if Entry.Type == "Text" then
+			local MetaTable = getmetatable( Entry )
+			if MetaTable == TextElement then
 				Type = "string"
 				Entry = Entry.Value
-			elseif Entry.Type == "Colour" then
+			elseif MetaTable == ColourElement then
 				Type = "cdata"
 				Entry = Entry.Value
 			end
@@ -68,9 +59,28 @@ function DefaultProvider:AddRichTextMessage( MessageData )
 		end
 	end
 
-	if #MessageParts == 0 then return end
+	if #MessageParts == 0 then return nil end
 
 	MessageParts[ #MessageParts + 1 ] = TableConcat( CurrentText )
+
+	return MessageParts
+end
+
+-- Converts a rich-text message into a 2-colour message.
+-- Ideally clients of the API should use AddMessage instead when they know rich text is not supported.
+function DefaultProvider:AddRichTextMessage( MessageData )
+	if MessageData.FallbackMessage then
+		local Message = MessageData.FallbackMessage
+		if Message.Prefix then
+			return self:AddDualColourMessage(
+				Message.PrefixColour, Message.Prefix, Message.MessageColour, Message.Message
+			)
+		end
+		return self:AddMessage( Message.MessageColour, Message.Message )
+	end
+
+	local MessageParts = self.ConvertRichTextToDualColour( MessageData.Message )
+	if not MessageParts then return end
 
 	if #MessageParts == 2 then
 		-- Only a single colour, use the message component to display it.
