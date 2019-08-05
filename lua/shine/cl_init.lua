@@ -6,17 +6,7 @@ local include = Script.Load
 local StringFormat = string.format
 
 local Scripts = {
-	"lib/debug.lua",
-	"lib/string.lua",
-	"lib/table.lua",
-	"lib/sorting.lua",
-	"lib/utf8.lua",
-	"lib/math.lua",
-	"lib/objects.lua",
-	"lib/class.lua",
-	"lib/game.lua",
 	"lib/locale.lua",
-	"core/shared/hook.lua",
 	"lib/timer.lua",
 	"core/shared/misc.lua",
 	"core/shared/logging.lua",
