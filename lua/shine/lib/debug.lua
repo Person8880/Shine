@@ -11,6 +11,7 @@ local DebugSetUpValue = debug.setupvalue
 local DebugUpValueJoin = debug.upvaluejoin
 local pairs = pairs
 local StringFormat = string.format
+local StringStartsWith = string.StartsWith
 local type = type
 
 local function ForEachUpValue( Func, Filter, Recursive, Done )
@@ -209,36 +210,62 @@ end
 
 	This avoids needing to constantly get up values.
 ]]
-function Shine.JoinUpValues( Func, TargetFunc, Mapping )
+function Shine.JoinUpValues( Func, TargetFunc, Mapping, Recursive )
 	local UpValueIndex = {}
 	local InverseMapping = {}
 
 	ForEachUpValue( Func, function( Function, Name, Value, i )
-		if Mapping[ Name ] then
-			UpValueIndex[ Name ] = i
-			InverseMapping[ Mapping[ Name ] ] = Name
+		local MappedName = Mapping[ Name ]
+		if not MappedName then return end
+
+		if type( MappedName ) == "table" then
+			if Shine.IsCallable( MappedName.Predicate ) and not MappedName.Predicate( Function, Name, Value ) then
+				return
+			end
+
+			MappedName = MappedName.Name
 		end
-	end )
+
+		UpValueIndex[ Name ] = {
+			Function = Function,
+			Index = i
+		}
+		InverseMapping[ MappedName ] = Name
+	end, Recursive )
 
 	ForEachUpValue( TargetFunc, function( Function, Name, Value, i )
 		if InverseMapping[ Name ] then
-			DebugUpValueJoin( TargetFunc, i, Func, UpValueIndex[ InverseMapping[ Name ] ] )
+			local UpValue = UpValueIndex[ InverseMapping[ Name ] ]
+			DebugUpValueJoin( TargetFunc, i, UpValue.Function, UpValue.Index )
 		end
 	end )
 end
+
+Shine.UpValuePredicates = {
+	DefinedInFile = function( FileName )
+		local SourcePrefix = "@"..FileName
+		return function( Func, Name, Value )
+			local Info = DebugGetInfo( Func, "S" )
+			return StringStartsWith( Info.source, SourcePrefix )
+		end
+	end
+}
 
 --[[
 	Returns a function that, when called, returns the current value stored in the
 	named upvalue of the given function.
 ]]
-function Shine.GetUpValueAccessor( Function, UpValue )
+function Shine.GetUpValueAccessor( Function, UpValue, Options )
 	local Value
 	local function GetValue()
 		return Value
 	end
 	Shine.JoinUpValues( Function, GetValue, {
-		[ UpValue ] = "Value"
-	} )
+		[ UpValue ] = {
+			Name = "Value",
+			Predicate = Options and Options.Predicate
+		}
+	}, Options and Options.Recursive )
 	return GetValue
 end
 
@@ -263,7 +290,7 @@ function Shine.IsCallable( Object )
 	if type( Object ) == "function" then return true end
 
 	local Meta = DebugGetMetaTable( Object )
-	return Meta and type( Meta.__call ) == "function" or false
+	return not not ( Meta and type( Meta.__call ) == "function" )
 end
 
 --[[

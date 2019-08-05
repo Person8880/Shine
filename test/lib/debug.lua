@@ -4,7 +4,7 @@
 
 local UnitTest = Shine.UnitTest
 
-UnitTest:Test( "JoinUpValues", function( Assert )
+UnitTest:Test( "JoinUpValues - Non recursive", function( Assert )
 	local Up1, Up2
 	local function OriginalFunc()
 		Up1 = 1
@@ -26,6 +26,53 @@ UnitTest:Test( "JoinUpValues", function( Assert )
 
 	Assert:Equals( 3, Up1 )
 	Assert:Equals( 4, Up2 )
+end )
+
+UnitTest:Test( "JoinUpValues - Recursive with predicate", function( Assert )
+	local Up1, Up2
+	local function OriginalFunc()
+		Up1 = 1
+		Up2 = 2
+	end
+
+	local function WrappedFunc()
+		return OriginalFunc()
+	end
+
+	local Up3, Up4
+	local function TargetFunc()
+		Up3 = 3
+		Up4 = 4
+	end
+
+	Shine.JoinUpValues( WrappedFunc, TargetFunc, {
+		Up1 = {
+			Name = "Up3",
+			Predicate = function( Func, Name, Value )
+				Assert.Equals( "Should pass the predicate the original function", OriginalFunc, Func )
+				Assert.Equals( "Should pass in the expected name", "Up1", Name )
+				Assert.Nil( "Should pass in the current value", Value )
+				return false
+			end
+		},
+		Up2 = "Up4"
+	}, true )
+
+	TargetFunc()
+
+	-- Up1 doesn't pass the predicate so should not be joined.
+	Assert.Nil( "First upvalue should not have been joined", Up1 )
+	Assert.Equals( "Second upvalue should have been joined", 4, Up2 )
+end )
+
+UnitTest:Test( "UpValuePredicates.DefinedInFile", function( Assert )
+	local function TestFunction() end
+	local Predicate = Shine.UpValuePredicates.DefinedInFile( "test/lib/debug.lua" )
+	Assert.True( "Should detect functions defined in the given file", Predicate( TestFunction ) )
+	Assert.False(
+		"Should detect functions not defined in the given file",
+		Predicate( Shine.UpValuePredicates.DefinedInFile )
+	)
 end )
 
 UnitTest:Test( "TypeCheck", function( Assert )
