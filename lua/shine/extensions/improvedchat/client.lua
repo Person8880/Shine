@@ -79,6 +79,13 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local ChatMessageLifeTime = Client.GetOptionInteger( "chat-time", 6 )
 	local MaxChatWidth = Client.GetOptionInteger( "chat-wrap", 25 ) * 0.01
 
+	Hook.Add( "OnClientOptionChanged:chat-time", Plugin, function( Value )
+		ChatMessageLifeTime = Value
+	end )
+	Hook.Add( "OnClientOptionChanged:chat-wrap", Plugin, function( Value )
+		MaxChatWidth = Value * 0.01
+	end )
+
 	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
 		return function()
 			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
@@ -437,6 +444,16 @@ function Plugin:SetupGUIChat( ChatElement )
 	end
 
 	ChatElement.Panel:SetPos( ComputeChatOffset( ChatElement:GetOffset(), Offset ) )
+
+	local Messages = ChatElement.messages
+	if not IsType( Messages, "table" ) then return end
+
+	-- Hide all existing messages immediately (it's not really possible to reconstruct them due to the split
+	-- into 2 text elements which could have been text wrapping or word wrapping).
+	for i = 1, #Messages do
+		local Message = Messages[ i ]
+		Message.Time = 1000
+	end
 end
 
 function Plugin:ResetGUIChat( ChatElement )

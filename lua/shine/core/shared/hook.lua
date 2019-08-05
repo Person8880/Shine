@@ -103,6 +103,13 @@ Hook.MIN_PRIORITY = MIN_PRIORITY
 ]]
 local function Add( Event, Index, Function, Priority )
 	Shine.AssertAtLevel( Event ~= nil, "Event identifier must not be nil!", 3 )
+
+	-- If no key is provided, use the given function as the key.
+	if ( Function == nil or IsType( Function, "number" ) ) and IsCallable( Index ) then
+		Priority = Function
+		Function = Index
+	end
+
 	Shine.AssertAtLevel( Index ~= nil, "Index must not be nil!", 3 )
 	Shine.AssertAtLevel( IsCallable( Function ), "Function must be callable!", 3 )
 	if Priority ~= nil then
@@ -644,6 +651,22 @@ if Client then
 
 		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility",
 			"EvaluateUIVisibility", "PassivePost" )
+
+		local OptionsFunctions = {
+			"Client.SetOptionInteger",
+			"Client.SetOptionFloat",
+			"Client.SetOptionString",
+			"Client.SetOptionBoolean"
+		}
+		for i = 1, #OptionsFunctions do
+			Shine.Hook.SetupGlobalHook( OptionsFunctions[ i ], "OnClientOptionChanged", "PassivePost", {
+				OverrideWithoutWarning = true
+			} )
+		end
+
+		Add( "OnClientOptionChanged", function( Name, Value )
+			return Call( "OnClientOptionChanged:"..Name, Value )
+		end, MAX_PRIORITY )
 	end, MAX_PRIORITY )
 
 	Event.Hook( "LocalPlayerChanged", function()
