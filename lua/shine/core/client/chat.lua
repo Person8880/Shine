@@ -65,22 +65,18 @@ local function AddChatMessage( Player, ChatMessages, PreHex, Prefix, Col, Messag
 	StartSoundEffect( Player:GetChatSound() )
 end
 
-local GUIChatMessages
 local function GetChatMessages()
-	return GUIChatMessages
+	return nil
 end
 
-local function SetupChatMessages()
-	if not GetChatMessages() then
-		Shine.JoinUpValues( ChatUI_GetMessages, GetChatMessages, {
-			chatMessages = "GUIChatMessages"
-		} )
-	end
-end
+Hook.CallAfterFileLoad( "lua/Chat.lua", function()
+	GetChatMessages = Shine.GetUpValueAccessor( ChatUI_GetMessages, "chatMessages", {
+		Recursive = true,
+		Predicate = Shine.UpValuePredicates.DefinedInFile( "lua/Chat.lua" )
+	} )
+end )
 
 local function SetupAndGetChatMessages()
-	SetupChatMessages()
-
 	local ChatMessages = GetChatMessages()
 	if not ChatMessages then
 		Shared.Message( "[Shine] Unable to retrieve message table!" )
@@ -127,7 +123,7 @@ Client.HookNetworkMessage( "Shine_ChatErrorMessage", function( Message )
 	Shine:NotifyError( Text )
 end )
 
---Displays a coloured message.
+-- Displays a coloured message.
 Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
 	local R = Message.R / 255
 	local G = Message.G / 255
@@ -159,7 +155,7 @@ Client.HookNetworkMessage( "Shine_TranslatedChatCol", function( Message )
 	Shine.AddChatText( Message.RP, Message.GP, Message.BP, Prefix, R, G, B, String )
 end )
 
---Deprecated chat message. Only useful for PMs/Admin say messages.
+-- Deprecated chat message. Only useful for PMs/Admin say messages.
 Client.HookNetworkMessage( "Shine_Chat", function( Message )
 	local ChatMessages = SetupAndGetChatMessages()
 	if not ChatMessages then return end
@@ -174,7 +170,7 @@ Client.HookNetworkMessage( "Shine_Chat", function( Message )
 	local String = Message.Message
 	local TeamCol = kChatTextColor[ Message.TeamType ] or Color( 1, 1, 1, 1 )
 
-	--This shows just the message, no name, no prefix (no longer used as it doesn't work).
+	-- This shows just the message, no name, no prefix (no longer used as it doesn't work).
 	if Prefix == "" and Name == "" then
 		Prefix = String
 		String = "                     "
@@ -201,8 +197,14 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local OldInit = ChatElement.Initialize
 	local OldUninit = ChatElement.Uninitialize
 
-	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset" )
-	local OriginalOffset = Vector( GetOffset() )
+	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset", {
+		Recursive = true,
+		Predicate = Shine.UpValuePredicates.DefinedInFile( "lua/GUIChat.lua" )
+	} )
+	local OriginalOffset = GetOffset()
+	if OriginalOffset then
+		OriginalOffset = Vector( OriginalOffset )
+	end
 
 	function ChatElement:GetOffset()
 		return GetOffset()
@@ -221,6 +223,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	end
 
 	function ChatElement:ResetScreenOffset()
+		if not OriginalOffset then return end
+
 		self:SetScreenOffset( GUIScale( OriginalOffset ) )
 		self.HasMoved = false
 	end
@@ -235,7 +239,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		CurrentOffset.x = Offset.x * InverseScale
 		CurrentOffset.y = Offset.y * InverseScale
 
-		self.HasMoved = true
+		self.HasMoved = CurrentOffset ~= OriginalOffset
 
 		-- Update existing message's x-position as it's not changed in the
 		-- Update() method.
