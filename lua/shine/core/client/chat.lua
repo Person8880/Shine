@@ -204,10 +204,12 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local OriginalOffset = GetOffset()
 	if OriginalOffset then
 		OriginalOffset = Vector( OriginalOffset )
+	else
+		OriginalOffset = Vector( 100, -430, 0 )
 	end
 
 	function ChatElement:GetOffset()
-		return GetOffset()
+		return GetOffset() or OriginalOffset
 	end
 
 	function ChatElement:Initialize()
