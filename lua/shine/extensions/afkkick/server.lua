@@ -777,25 +777,16 @@ function Plugin:OnFirstThink()
 	Shine.Hook.SetupClassHook( "Commander", "OrderEntities", "OnCommanderOrderEntities", "PassivePost" )
 
 	do
-		local function CheckPlayerIsAFK( Player )
-			if not Player then return end
+		local function MoveIfNotAFK( Player )
+			local Client = Player and GetOwner( Player )
+			if not Client or self:IsAFKFor( Client, 60 ) then return end
 
-			local Client = GetOwner( Player )
-			if not Client then return end
-
-			if not self:IsAFKFor( Client, 60 ) then
-				JoinRandomTeam( Player )
-				return
-			end
-
-			if Shine.IsPlayingTeam( Player:GetTeamNumber() ) then
-				AttemptToMovePlayerToTeam( GetGamerules(), Client, Player, kTeamReadyRoom )
-			end
+			JoinRandomTeam( Player )
 		end
 
 		-- Override the built in randomise ready room vote to not move AFK players.
 		SetVoteSuccessfulCallback( "VoteRandomizeRR", 2, function( Data )
-			local Action = self.Enabled and CheckPlayerIsAFK or JoinRandomTeam
+			local Action = self.Enabled and MoveIfNotAFK or JoinRandomTeam
 			GetGamerules():GetTeam( kTeamReadyRoom ):ForEachPlayer( Action )
 		end )
 	end
