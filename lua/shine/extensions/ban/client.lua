@@ -377,11 +377,12 @@ function Plugin:SetupAdminMenu()
 				TextEntry:SetSize( PageLabel:GetSize() )
 
 				local Margin = PageLabel:GetMargin()
-				TextEntry:SetMargin( Margin:WithUp( Margin.Up - PageLabel:GetSize().y * 0.5 ) )
+				TextEntry:SetMargin( Margin )
 
 				TextEntry:SetText( tostring( Data.Page ) )
 				TextEntry:SetNumeric( true )
 				TextEntry:SetAlignment( SGUI.LayoutAlignment.CENTRE )
+				TextEntry:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
 				function TextEntry.OnEnter()
 					local MaxPages = self.PageData and self.PageData.NumPages or Data.Page
 
