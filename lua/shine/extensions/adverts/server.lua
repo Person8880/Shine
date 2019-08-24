@@ -2,6 +2,8 @@
 	Shine adverts system.
 ]]
 
+local ChatAPI = require "shine/core/shared/chat/chat_api"
+
 local Shine = Shine
 
 local IsType = Shine.IsType
@@ -21,7 +23,7 @@ local TableShallowMerge = table.ShallowMerge
 local tonumber = tonumber
 
 local Plugin = Shine.Plugin( ... )
-Plugin.Version = "2.3"
+Plugin.Version = "2.4"
 Plugin.PrintName = "Adverts"
 
 Plugin.HasConfig = true
@@ -305,8 +307,35 @@ function Plugin:ParseAdverts()
 		end
 
 		if IsType( Advert, "table" ) then
-			if not IsType( Advert.Message, "string" ) then
-				self:Print( "%s[ %d ] has a missing or non-string message.", true, AdvertList, Index )
+			if IsType( Advert.Message, "table" ) then
+				if Advert.Type and Advert.Type ~= "chat" then
+					self:Print( "%s[ %d ] uses a rich text message which is only permitted for chat adverts.",
+						true, AdvertList, Index )
+					return false
+				end
+
+				local FoundText = false
+				for i = 1, #Advert.Message do
+					local Element = Advert.Message[ i ]
+					if IsType( Element, "string" ) then
+						FoundText = true
+						break
+					elseif not IsType( Element, "table" ) then
+						self:Print(
+							"%s[ %d ].Message must contain only strings or colours, but has a %s at index %d.",
+							true, AdvertList, Index, type( Element ), i
+						)
+						return false
+					end
+				end
+
+				if not FoundText then
+					self:Print( "%s[ %d ] has a rich text message with no text content.", true, AdvertList, Index )
+					return false
+				end
+			elseif not IsType( Advert.Message, "string" ) then
+				self:Print( "%s[ %d ] has a missing or non-string message and no rich text message.",
+					true, AdvertList, Index )
 				return false
 			end
 
@@ -383,6 +412,15 @@ function Plugin:ParseAdverts()
 			local Template = self.Config.Templates[ Templates[ i ] ]
 
 			if IsType( Template, "table" ) then
+				if IsType( TemplatedAdvert.Message, "table" )
+				and IsType( Template.Message, "table" ) then
+					-- Prepend the template's values to the advert's own values.
+					local RichTextMessage = {}
+					TableAdd( RichTextMessage, Template.Message )
+					TableAdd( RichTextMessage, TemplatedAdvert.Message )
+					TemplatedAdvert.Message = RichTextMessage
+				end
+
 				-- Inherit values from the template.
 				TableShallowMerge( Template, TemplatedAdvert )
 			end
@@ -746,21 +784,48 @@ local function WithInterpolation( Text, EventData )
 	return StringInterpolate( Text, EventData )
 end
 
+local function ToRichTextMessage( Contents, EventData )
+	local RichTextMessage = {}
+	for i = 1, #Contents do
+		local Element = Contents[ i ]
+		if IsType( Element, "string" ) then
+			RichTextMessage[ i ] = WithInterpolation( Element, EventData )
+		else
+			local R, G, B = UnpackColour( Element )
+			RichTextMessage[ i ] = Colour( R / 255, G / 255, B / 255 )
+		end
+	end
+	return RichTextMessage
+end
+
 function Plugin:DisplayAdvert( Advert, EventData )
 	if IsType( Advert, "string" ) then
 		Shine:NotifyColour( nil, 255, 255, 255, WithInterpolation( Advert, EventData ) )
 		return
 	end
 
-	local Message = WithInterpolation( Advert.Message, EventData )
-	local R, G, B = UnpackColour( Advert.Colour )
-	local Type = Advert.Type
-
 	local Targets = self:GetClientsForAdvert( Advert )
 	-- Don't send anything if there's no one to send to.
 	if Targets and #Targets == 0 then return end
 
+	local Type = Advert.Type
 	if not Type or Type == "chat" then
+		if IsType( Advert.Message, "table" ) then
+			ChatAPI:AddRichTextMessage( {
+				Source = {
+					Type = ChatAPI.SourceTypeName.PLUGIN,
+					ID = self:GetName()
+				},
+				Message = ToRichTextMessage( Advert.Message, EventData ),
+				Targets = Targets
+			} )
+
+			return
+		end
+
+		local Message = WithInterpolation( Advert.Message, EventData )
+		local R, G, B = UnpackColour( Advert.Colour )
+
 		if IsType( Advert.Prefix, "string" ) then
 			-- Send the advert with a coloured prefix.
 			local PR, PG, PB = UnpackColour( Advert.PrefixColour or { 255, 255, 255 } )
@@ -773,6 +838,8 @@ function Plugin:DisplayAdvert( Advert, EventData )
 
 		Shine:NotifyColour( Targets, R, G, B, Message )
 	else
+		local Message = WithInterpolation( Advert.Message, EventData )
+		local R, G, B = UnpackColour( Advert.Colour )
 		local Position = ( Advert.Position or "top" ):lower()
 
 		local X, Y = 0.5, 0.2

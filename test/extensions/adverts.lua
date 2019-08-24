@@ -18,6 +18,12 @@ Adverts.Config = {
 			Prefix = "[Info]",
 			PrefixColour = { 0, 200, 255 }
 		},
+		RichTextChatNotification = {
+			Type = "chat",
+			Message = {
+				{ 0, 200, 255 }, "[Info] "
+			}
+		},
 		RoundStarted = {
 			Type = "chat",
 			Colour = { 255, 255, 255 },
@@ -52,6 +58,12 @@ Adverts.Config = {
 					Team = { "MARINE", "ALIEN" }
 				},
 				"A string advert.",
+				{
+					Message = {
+						{ 255, 255, 255 }, "Hello ", { 255, 255, 0 }, "there!"
+					},
+					Template = "RichTextChatNotification"
+				},
 				{
 					-- This is invalid
 					Message = 1
@@ -95,7 +107,25 @@ Adverts.Config = {
 				{
 					Message = "Invalid max players value",
 					MaxPlayers = 0
-				}
+				},
+				{
+					-- Empty message should be rejected
+					Message = {}
+				},
+				{
+					-- Message with no text should be rejected.
+					Message = {
+						{ 255, 255, 255 }
+					}
+				},
+				{
+					Message = {
+						{ 255, 255, 255 }, "csay doesn't support rich text"
+					},
+					Type = "csay"
+				},
+				-- No message or rich text message is invalid.
+				{}
 			},
 			IntervalInSeconds = 60,
 			RandomiseOrder = false,
@@ -256,7 +286,7 @@ UnitTest:Test( "ParseAdverts parses as expected", function( Assert )
 	Assert.Nil( "Expected MinPlayers to not be set on first stream", Stream.MinPlayers )
 	Assert.Nil( "Expected MaxPlayers to not be set on first stream", Stream.MaxPlayers )
 
-	Assert.Equals( "Expected 4 adverts in first stream", 4, #Stream.AdvertsList )
+	Assert.Equals( "Expected 5 adverts in first stream", 5, #Stream.AdvertsList )
 	local function AssertMatchesTemplate( Advert, Template )
 		Assert.IsType( "Advert is not a table!", Advert, "table" )
 		for Key, Value in pairs( Template ) do
@@ -268,6 +298,15 @@ UnitTest:Test( "ParseAdverts parses as expected", function( Assert )
 		AssertMatchesTemplate( Advert, Adverts.Config.Templates[ Advert.Template ] )
 		Assert.Equals( "Advert does not have delay set", 60, Advert.DelayInSeconds )
 	end
+	local RichTextAdvert = Stream.AdvertsList[ 5 ]
+	Assert.DeepEquals( "Rich text advert was not merged with template as expected", {
+		Message = {
+			{ 0, 200, 255 }, "[Info] ", { 255, 255, 255 }, "Hello ", { 255, 255, 0 }, "there!"
+		},
+		Type = "chat",
+		Template = "RichTextChatNotification",
+		DelayInSeconds = 60
+	}, RichTextAdvert )
 
 	local InGameStream = Adverts.AdvertStreams[ 2 ]
 	Assert.True( "Expected second stream to be started by trigger",
