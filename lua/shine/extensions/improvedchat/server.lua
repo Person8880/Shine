@@ -188,6 +188,8 @@ local DEFAULT_SOURCE = {
 function Plugin:AddRichTextMessage( MessageData )
 	local Messages = EncodeContents( MessageData.Message )
 	local NumChunks = #Messages
+	if NumChunks == 0 then return end
+
 	local MessageID = self.NextMessageID
 	local Source = MessageData.Source or DEFAULT_SOURCE
 

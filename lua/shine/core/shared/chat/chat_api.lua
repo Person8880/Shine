@@ -96,23 +96,56 @@ function ChatAPI:ResetProvider( Provider )
 	end
 end
 
-local NoScale = Vector( 1, 1, 0 )
-function ChatAPI.GetOptimalFontScale( ScreenHeight )
-	ScreenHeight = ScreenHeight or Client.GetScreenHeight()
+if Client then
+	local NoScale = Vector( 1, 1, 0 )
+	function ChatAPI.GetOptimalFontScale( ScreenHeight )
+		ScreenHeight = ScreenHeight or Client.GetScreenHeight()
 
-	local SGUI = Shine.GUI
-	local Font
-	local Scale = NoScale
+		local SGUI = Shine.GUI
+		local Font
+		local Scale = NoScale
 
-	if ScreenHeight <= SGUI.ScreenHeight.Small then
-		Font = Fonts.kAgencyFB_Tiny
-	elseif ScreenHeight <= SGUI.ScreenHeight.Normal then
-		Font = Fonts.kAgencyFB_Small
-	else
-		Font, Scale = SGUI.FontManager.GetFont( "kAgencyFB", 27 )
+		if ScreenHeight <= SGUI.ScreenHeight.Small then
+			Font = Fonts.kAgencyFB_Tiny
+		elseif ScreenHeight <= SGUI.ScreenHeight.Normal then
+			Font = Fonts.kAgencyFB_Small
+		else
+			Font, Scale = SGUI.FontManager.GetFont( "kAgencyFB", 27 )
+		end
+
+		return Font, Scale
+	end
+else
+	local tonumber = tonumber
+	local type = type
+
+	local function ToColour( Element )
+		if not Element then
+			return Colour( 1, 1, 1 )
+		end
+
+		return Colour(
+			( tonumber( Element[ 1 ] ) or 255 ) / 255,
+			( tonumber( Element[ 2 ] ) or 255 ) / 255,
+			( tonumber( Element[ 3 ] ) or 255 ) / 255
+		)
 	end
 
-	return Font, Scale
+	--[[
+		Converts rich text from a configuration file into a table ready to be passed to ChatAPI:AddRichTextMessage().
+	]]
+	function ChatAPI.ToRichTextMessage( ConfiguredMessage, TextTransformer, Context )
+		local RichTextMessage = {}
+		for i = 1, #ConfiguredMessage do
+			local Element = ConfiguredMessage[ i ]
+			if type( Element ) == "string" then
+				RichTextMessage[ i ] = TextTransformer and TextTransformer( Element, Context ) or Element
+			else
+				RichTextMessage[ i ] = ToColour( Element )
+			end
+		end
+		return RichTextMessage
+	end
 end
 
 return ChatAPI

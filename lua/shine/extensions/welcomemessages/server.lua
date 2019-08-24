@@ -2,6 +2,8 @@
 	Shine welcome message plugin.
 ]]
 
+local ChatAPI = require "shine/core/shared/chat/chat_api"
+
 local Shine = Shine
 
 local GetOwner = Server.GetOwner
@@ -13,7 +15,7 @@ local tostring = tostring
 local type = type
 
 local Plugin = ...
-Plugin.Version = "1.3"
+Plugin.Version = "1.4"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "WelcomeMessages.json"
@@ -69,7 +71,13 @@ do
 		end
 
 		Validator:AddFieldRule( { Key..".Prefix", PrintKey..".Prefix" }, Validator.IsAnyType( { "string", "nil" } ) )
-		Validator:AddFieldRule( { Key..".Message", PrintKey..".Message" }, Validator.IsType( "string" ) )
+
+		local MessageKey = { Key..".Message", PrintKey..".Message" }
+		Validator:AddFieldRule( MessageKey, Validator.IsAnyType( { "string", "table" } ) )
+
+		if IsType( Message.Message, "table" ) then
+			Validator:AddFieldRule( MessageKey, Validator.Each( Validator.IsAnyType( { "string", "table" } ) ) )
+		end
 	end
 
 	local function ValidateUserEntry( ID, Entry )
@@ -158,6 +166,18 @@ end
 function Plugin:DisplayMessage( Message )
 	if IsType( Message, "string" ) then
 		Shine:NotifyColour( nil, 255, 255, 255, Message )
+		return
+	end
+
+	if IsType( Message.Message, "table" ) then
+		ChatAPI:AddRichTextMessage( {
+			Source = {
+				Type = ChatAPI.SourceTypeName.PLUGIN,
+				ID = self:GetName()
+			},
+			Message = ChatAPI.ToRichTextMessage( Message.Message )
+		} )
+
 		return
 	end
 

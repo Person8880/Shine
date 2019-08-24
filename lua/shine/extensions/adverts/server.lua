@@ -784,20 +784,6 @@ local function WithInterpolation( Text, EventData )
 	return StringInterpolate( Text, EventData )
 end
 
-local function ToRichTextMessage( Contents, EventData )
-	local RichTextMessage = {}
-	for i = 1, #Contents do
-		local Element = Contents[ i ]
-		if IsType( Element, "string" ) then
-			RichTextMessage[ i ] = WithInterpolation( Element, EventData )
-		else
-			local R, G, B = UnpackColour( Element )
-			RichTextMessage[ i ] = Colour( R / 255, G / 255, B / 255 )
-		end
-	end
-	return RichTextMessage
-end
-
 function Plugin:DisplayAdvert( Advert, EventData )
 	if IsType( Advert, "string" ) then
 		Shine:NotifyColour( nil, 255, 255, 255, WithInterpolation( Advert, EventData ) )
@@ -816,7 +802,7 @@ function Plugin:DisplayAdvert( Advert, EventData )
 					Type = ChatAPI.SourceTypeName.PLUGIN,
 					ID = self:GetName()
 				},
-				Message = ToRichTextMessage( Advert.Message, EventData ),
+				Message = ChatAPI.ToRichTextMessage( Advert.Message, WithInterpolation, EventData ),
 				Targets = Targets
 			} )
 
