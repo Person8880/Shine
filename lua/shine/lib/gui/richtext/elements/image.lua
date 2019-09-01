@@ -17,6 +17,7 @@ function Image:Init( Params )
 	self.AspectRatio = Params.AspectRatio
 	self.Think = Params.Think
 	self.TextureCoordinates = Params.TextureCoordinates
+	self.TexturePixelCoordinates = Params.TexturePixelCoordinates
 
 	self.DoClick = Params.DoClick
 	self.DoRightClick = Params.DoRightClick
@@ -57,6 +58,8 @@ function Image:MakeElement( Context )
 
 	if self.TextureCoordinates then
 		Image:SetTextureCoordinates( unpack( self.TextureCoordinates, 1, 4 ) )
+	elseif self.TexturePixelCoordinates then
+		Image:SetTexturePixelCoordinates( unpack( self.TexturePixelCoordinates, 1, 4 ) )
 	else
 		Image:SetTextureCoordinates( 0, 0, 1, 1 )
 	end
