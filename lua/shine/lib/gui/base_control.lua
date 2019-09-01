@@ -729,8 +729,20 @@ function ControlMeta:SetFontScale( Font, Scale )
 	end
 end
 
+function ControlMeta:GetTextureWidth()
+	return self.Background:GetTextureWidth()
+end
+
+function ControlMeta:GetTextureHeight()
+	return self.Background:GetTextureHeight()
+end
+
 function ControlMeta:SetTextureCoordinates( X1, Y1, X2, Y2 )
 	self.Background:SetTextureCoordinates( X1, Y1, X2, Y2 )
+end
+
+function ControlMeta:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
+	self.Background:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
 end
 
 --[[
