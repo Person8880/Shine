@@ -161,7 +161,7 @@ function RichText:ApplyLines( Lines )
 	local ElementPool
 	if self.Children then
 		ElementPool = Multimap()
-		for Child in self.Children:Iterate() do
+		for Child in self.Children:IterateBackwards() do
 			ElementPool:Add( Child.Class, Child )
 		end
 	end

@@ -102,7 +102,7 @@ function ChatLine:MakeVisible()
 	local RootLineElements = self.RootLineElements
 	for i = 1, #RootLineElements do
 		local Element = RootLineElements[ i ]
-		self:StopAlpha( Element )
+		Element:StopAlpha()
 
 		local Colour = Element.Background:GetColor()
 		Colour.a = 1
@@ -154,16 +154,7 @@ function ChatLine:FadeOut( Duration, OnComplete, Easer )
 end
 
 function ChatLine:Reset()
-	local RootElements = self.RootLineElements
-	for i = 1, #RootElements do
-		local Element = RootElements[ i ]
-		Element:StopAlpha()
-	end
-
-	if self.VisibleBackground then
-		self:StopAlpha( self.VisibleBackground )
-	end
-
+	self:MakeVisible()
 	self.FadingOut = false
 	if self.FadeOutTimer then
 		self.FadeOutTimer:Destroy()
