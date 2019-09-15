@@ -473,6 +473,27 @@ do
 	local OldScriptLoad = Script.Load
 	local SeenScripts = {}
 
+	local AllLoadedScripts = {}
+	if IsType( Script.includes, "table" ) then
+		-- Seemingly undocumented table tracking all loaded script files.
+		setmetatable( AllLoadedScripts, { __index = Script.includes } )
+	else
+		AllLoadedScripts = SeenScripts
+	end
+
+	--[[
+		Ensures the given callback is executed, either immediately if its pre-requisite file
+		is known to have loaded, or otherwise after the file loads.
+	]]
+	function Hook.CallAfterFileLoad( FileName, Callback, Priority )
+		if AllLoadedScripts[ FileName ] then
+			Callback()
+		end
+
+		-- Always add the hook in case the file is reloaded.
+		Add( "PostLoadScript:"..FileName, Callback, Callback, Priority )
+	end
+
 	-- Override Script.Load to allow finer entry point control.
 	local function ScriptLoad( Script, Reload )
 		if not SeenScripts[ Script ] or Reload then
@@ -505,6 +526,35 @@ do
 	Event.Hook( "MapPostLoad", MapPostLoad )
 end
 
+do
+	local Environment = Server or Client
+	local OriginalHookNWMessage = Environment.HookNetworkMessage
+
+	function Environment.HookNetworkMessage( Name, Callback )
+		local OverrideCallback = Call( "HookNetworkMessage:"..Name, Name, Callback )
+		if IsType( OverrideCallback, "function" ) then
+			Callback = OverrideCallback
+		end
+
+		return OriginalHookNWMessage( Name, Callback )
+	end
+
+	local OriginalRegisterNetworkMessage = Shared.RegisterNetworkMessage
+	function Shared.RegisterNetworkMessage( Name, MessageDefinition )
+		local OverrideDefinition = Call( "RegisterNetworkMessage:"..Name, Name, MessageDefinition )
+		if IsType( OverrideDefinition, "table" ) then
+			MessageDefinition = OverrideDefinition
+		end
+
+		-- The engine's argument checking thinks a nil value is an error, rather than treating it
+		-- as the case where it's given only one argument...
+		if MessageDefinition then
+			return OriginalRegisterNetworkMessage( Name, MessageDefinition )
+		end
+
+		return OriginalRegisterNetworkMessage( Name )
+	end
+end
 -- Client specific hooks.
 if Client then
 	local function LoadComplete()
@@ -633,30 +683,17 @@ do
 	end
 end
 
-do
-	local OldOnChatReceive
-
-	local function OnChatReceived( Client, Message )
+Add( "HookNetworkMessage:ChatClient", "AddChatCallback", function( Name, Callback )
+	return function( Client, Message )
 		local Result = Call( "PlayerSay", Client, Message )
 		if Result then
 			if Result == "" then return end
 			Message.message = Result
 		end
 
-		return OldOnChatReceive( Client, Message )
+		return Callback( Client, Message )
 	end
-
-	local OriginalHookNWMessage = Server.HookNetworkMessage
-
-	function Server.HookNetworkMessage( Message, Callback )
-		if Message == "ChatClient" then
-			OldOnChatReceive = Callback
-			Callback = OnChatReceived
-		end
-
-		return OriginalHookNWMessage( Message, Callback )
-	end
-end
+end )
 
 --[[
 	Hook to run after everything has loaded.

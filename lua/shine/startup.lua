@@ -48,5 +48,20 @@ elseif Client then
 	InitScript = "lua/shine/cl_init.lua"
 end
 
+-- Load core scripts upfront to allow hooking into network messages and other such
+-- elements before any are registered.
+Shine.LoadScripts( {
+	"lib/debug.lua",
+	"lib/string.lua",
+	"lib/table.lua",
+	"lib/sorting.lua",
+	"lib/utf8.lua",
+	"lib/math.lua",
+	"lib/objects.lua",
+	"lib/class.lua",
+	"lib/game.lua",
+	"core/shared/hook.lua"
+} )
+
 -- This function is totally not inspired by Shine's hook system :P
 ModLoader.SetupFileHook( "lua/ConfigFileUtility.lua", InitScript, "pre" )

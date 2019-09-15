@@ -520,13 +520,24 @@ end
 
 function Plugin:ForcePlayersIntoReadyRoom()
 	local Gamerules = GetGamerules()
+	local PlayersToMove = {}
 
-	local function MoveToReadyRoom( Player )
-		Gamerules:JoinTeam( Player, 0, nil, true )
+	local function CollectPlayer( Player )
+		local Client = Player:GetClient()
+		if not Client:GetIsVirtual() then
+			PlayersToMove[ #PlayersToMove + 1 ] = Player
+		end
 	end
 
-	Gamerules.team1:ForEachPlayer( MoveToReadyRoom )
-	Gamerules.team2:ForEachPlayer( MoveToReadyRoom )
+	-- Bots can end up removed from a team immediately when all players are removed, making
+	-- ForEachPlayer throw an error as the player list is modified during iteration.
+	-- Hence why ForEachPlayer is only used to collect players and not move them here.
+	Gamerules.team1:ForEachPlayer( CollectPlayer )
+	Gamerules.team2:ForEachPlayer( CollectPlayer )
+
+	for i = 1, #PlayersToMove do
+		Gamerules:JoinTeam( PlayersToMove[ i ], kTeamReadyRoom, nil, true )
+	end
 end
 
 function Plugin:EndGame()
