@@ -630,7 +630,8 @@ if Client then
 	return
 end
 
-do
+-- Need to ensure connection events fire after Gamerules sees them, otherwise no player is assigned to the client.
+local function HookConnectionEvents()
 	local function ClientConnect( Client )
 		Call( "ClientConnect", Client )
 	end
@@ -640,7 +641,10 @@ do
 		Call( "ClientDisconnect", Client )
 	end
 	Event.Hook( "ClientDisconnect", ClientDisconnect )
+end
+Add( "MapPostLoad", HookConnectionEvents, HookConnectionEvents, MAX_PRIORITY )
 
+do
 	local function MapLoadEntity( MapName, GroupName, Values )
 		Call( "MapLoadEntity", MapName, GroupName, Values )
 	end

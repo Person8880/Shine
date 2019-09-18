@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local assert = assert
 local Clamp = math.Clamp
 local Floor = math.floor
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
@@ -333,7 +334,7 @@ function Plugin:ClientConnect( Client )
 	if not Client or Client:GetIsVirtual() then return end
 
 	local Player = Client:GetControllingPlayer()
-	if not Player then return end
+	assert( Player, "No player assigned to non-virtual client in ClientConnect event!" )
 
 	local Now = SharedTime()
 	local MeasureStartTime = Now + ( self.Config.Delay * 60 )
