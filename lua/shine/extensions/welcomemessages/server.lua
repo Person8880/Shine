@@ -6,9 +6,11 @@ local Shine = Shine
 
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
+local IsValid = debug.isvalid
 local StringFormat = string.format
 local TableEmpty = table.Empty
 local tostring = tostring
+local type = type
 
 local Plugin = ...
 Plugin.Version = "1.3"
@@ -239,7 +241,7 @@ function Plugin:ClientDisconnect( Client )
 	local Team = Client.DisconnectTeam or 0
 	local Colour = TeamColours[ Team ] or TeamColours[ 0 ]
 
-	if not Client.DisconnectReason then
+	if not IsType( Client.DisconnectReason, "string" ) then
 		self:SendTranslatedNotifyColour( nil, "PLAYER_LEAVE_GENERIC", {
 			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
 			TargetName = Player:GetName()
@@ -279,4 +281,21 @@ function Plugin:Cleanup()
 	self.BaseClass.Cleanup( self )
 end
 
-Shine.Hook.SetupGlobalHook( "Server.DisconnectClient", "OnScriptDisconnect", "PassivePre" )
+Shine.Hook.SetupGlobalHook(
+	"Server.DisconnectClient",
+	"OnScriptDisconnect",
+	function( DisconnectClient, Client, ... )
+		if not IsType( Client, "userdata" ) or not IsValid( Client )
+		or not ( IsType( Client.isa, "function" ) and Client:isa( "ServerClient" ) ) then
+			Print(
+				"Invalid ServerClient object (%s) passed to Server.DisconnectClient!\n%s",
+				type( Client ),
+				Shine.StackDump( 2 )
+			)
+		else
+			Shine.Hook.Call( "OnScriptDisconnect", Client, ... )
+		end
+
+		return DisconnectClient( Client, ... )
+	end
+)
