@@ -36,50 +36,34 @@ SGUI.AddProperty( TextEntry, "AutoCompleteHandler" )
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
 
-	if self.Background then GUI.DestroyItem( self.Background ) end
-
-	--Border.
+	-- Border.
 	local Background = self:MakeGUIItem()
-
 	self.Background = Background
 
-	--Coloured entry field.
-	local InnerBox = self:MakeGUIItem()
+	-- Coloured entry field.
+	local InnerBox = self:MakeGUICroppingItem()
 	InnerBox:SetAnchor( GUIItem.Left, GUIItem.Top )
 	InnerBox:SetPosition( BorderSize )
 
-	--Stencil to prevent text leaking.
-	local Stencil = self:MakeGUIItem()
-	Stencil:SetIsStencil( true )
-	Stencil:SetInheritsParentStencilSettings( false )
-	Stencil:SetClearsStencilBuffer( true )
-
-	self.Stencil = Stencil
-
 	local SelectionBox = self:MakeGUIItem()
 	SelectionBox:SetAnchor( GUIItem.Left, GUIItem.Top )
-	SelectionBox:SetInheritsParentStencilSettings( false )
-	SelectionBox:SetStencilFunc( GUIItem.NotEqual )
 	SelectionBox:SetSize( Vector( 0, 0, 0 ) )
 
 	self.SelectionBox = SelectionBox
 
-	--The actual text object.
+	-- The actual text object.
 	local Text = self:MakeGUITextItem()
 	Text:SetAnchor( GUIItem.Left, GUIItem.Center )
 	Text:SetTextAlignmentY( GUIItem.Align_Center )
 	Text:SetPosition( TextPos )
-	Text:SetInheritsParentStencilSettings( false )
-	Text:SetStencilFunc( GUIItem.NotEqual )
 
-	--The caret to edit from.
+	-- The caret to edit from.
 	local Caret = self:MakeGUIItem()
 	Caret:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Caret:SetColor( Clear )
 
 	self.Caret = Caret
 
-	InnerBox:AddChild( Stencil )
 	InnerBox:AddChild( Caret )
 
 	Background:AddChild( InnerBox )
@@ -91,14 +75,14 @@ function TextEntry:Initialise()
 
 	self.TextObj = Text
 
-	--The actual text string.
+	-- The actual text string.
 	self.Text = ""
 	self.TextColour = CaretCol
 
-	--Where's the caret?
+	-- Where's the caret?
 	self.Column = 0
 
-	--How far along we are (this will be negative or self.Padding)
+	-- How far along we are (this will be negative or self.Padding)
 	self.TextOffset = 2
 
 	self.WidthScale = 1
@@ -128,8 +112,6 @@ function TextEntry:SetSize( SizeVec )
 	self.Background:SetSize( SizeVec )
 
 	local InnerBoxSize = SizeVec - self.BorderSize * 2
-
-	self.Stencil:SetSize( InnerBoxSize )
 	self.InnerBox:SetSize( InnerBoxSize )
 
 	self.Width = InnerBoxSize.x - 5
@@ -197,8 +179,6 @@ function TextEntry:SetPlaceholderText( Text )
 	local PlaceholderText = self:MakeGUITextItem()
 	PlaceholderText:SetAnchor( GUIItem.Left, GUIItem.Top )
 	PlaceholderText:SetTextAlignmentY( GUIItem.Align_Center )
-	PlaceholderText:SetInheritsParentStencilSettings( false )
-	PlaceholderText:SetStencilFunc( GUIItem.NotEqual )
 	PlaceholderText:SetText( Text )
 
 	if self.Font then

@@ -39,22 +39,20 @@ function List:Initialise()
 	local Background = self:MakeGUIItem()
 	self.Background = Background
 
-	--This element ensures the entries aren't visible past the bounds of the list.
-	local Stencil = self:MakeGUIItem()
-	Stencil:SetIsStencil( true )
-	Stencil:SetInheritsParentStencilSettings( false )
-	Stencil:SetClearsStencilBuffer( true )
+	-- This element ensures the entries aren't visible past the bounds of the list.
+	-- Note that self.Background is not used as it would crop the scrollbar.
+	local CroppingBox = self:MakeGUICroppingItem()
+	CroppingBox:SetColor( ZeroColour )
+	Background:AddChild( CroppingBox )
 
-	Background:AddChild( Stencil )
+	self.CroppingBox = CroppingBox
 
-	self.Stencil = Stencil
-
-	--This dummy element will be moved when scrolling.
+	-- This dummy element will be moved when scrolling.
 	local ScrollParent = self:MakeGUIItem()
 	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
-	Background:AddChild( ScrollParent )
+	CroppingBox:AddChild( ScrollParent )
 
 	self.ScrollParent = ScrollParent
 	self.RowCount = 0
@@ -221,7 +219,7 @@ end
 ]]
 function List:SetSize( Size )
 	self.Background:SetSize( Size )
-	self.Stencil:SetSize( Size )
+	self.CroppingBox:SetSize( Size )
 	self.Size = Size
 	self:InvalidateLayout()
 end
@@ -312,11 +310,7 @@ function List:AddRow( ... )
 	self.Rows = Rows
 
 	local RowCount = self.RowCount
-
 	local Row = SGUI:Create( "ListEntry", self, self.ScrollParent )
-	Row.Background:SetInheritsParentStencilSettings( false )
-	Row.Background:SetStencilFunc( GUIItem.NotEqual )
-
 	RowCount = RowCount + 1
 	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
 

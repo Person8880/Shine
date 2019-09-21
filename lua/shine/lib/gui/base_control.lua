@@ -398,6 +398,13 @@ function ControlMeta:MakeGUITextItem()
 	return self:MakeGUIItem( SGUI.GUIItemType.Text )
 end
 
+function ControlMeta:MakeGUICroppingItem()
+	local CroppingBox = self:MakeGUIItem()
+	CroppingBox:SetMinCrop( 0, 0 )
+	CroppingBox:SetMaxCrop( 1, 1 )
+	return CroppingBox
+end
+
 function ControlMeta:DestroyGUIItem( Item )
 	GUI.DestroyItem( Item )
 
@@ -418,6 +425,15 @@ local function IsDescendantOf( Child, Ancestor )
 		Parent = Parent:GetParent()
 	end
 	return Parent == Ancestor
+end
+
+function ControlMeta:SetCropToBounds( CropToBounds )
+	if CropToBounds then
+		self.Background:SetMinCrop( 0, 0 )
+		self.Background:SetMaxCrop( 1, 1 )
+	else
+		self.Background:ClearCropRectangle()
+	end
 end
 
 --[[
