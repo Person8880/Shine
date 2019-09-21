@@ -568,8 +568,8 @@ do
 		local CharSizes = {}
 		local RowData = {}
 		local TotalLength = 0
-		-- I really wish the console was a monospace font...
-		local SpaceMultiplier = 1.5
+		-- Yay the console is now a monospace font!
+		local SpaceMultiplier = 1
 
 		for i = 1, #Columns do
 			local Column = Columns[ i ]
