@@ -24,6 +24,7 @@ function Label:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Label = self:MakeGUITextItem()
+	self.Label:SetOptionFlag( GUIItem.PerLineTextAlignment )
 	self.Background = self.Label
 	self.TextScale = Vector2( 1, 1 )
 	self.TextAlignmentX = GUIItem.Align_Min
@@ -36,6 +37,32 @@ function Label:Initialise()
 	self:AddPropertyChangeListener( "Text", MarkSizeDirty )
 	self:AddPropertyChangeListener( "Font", MarkSizeDirty )
 	self:AddPropertyChangeListener( "TextScale", MarkSizeDirty )
+end
+
+-- Sets whether the label should offset itself during layout to ensure alignment does not affect position.
+-- For backwards compatibility, this is disabled by default.
+function Label:SetUseAlignmentCompensation( UseAlignmentCompensation )
+	if UseAlignmentCompensation then
+		self.GetLayoutOffset = self.GetTopLeftLayoutOffset
+	else
+		self.GetLayoutOffset = self.BaseClass.GetLayoutOffset
+	end
+end
+
+do
+	local AlignmentOffsets = {
+		[ GUIItem.Align_Center ] = 0.5,
+		[ GUIItem.Align_Max ] = 1,
+		[ GUIItem.Align_Min ] = 0
+	}
+
+	function Label:GetTopLeftLayoutOffset()
+		local Size = self:GetSize()
+		return Vector2(
+			Size.x * AlignmentOffsets[ self:GetTextAlignmentX() ],
+			Size.y * AlignmentOffsets[ self:GetTextAlignmentY() ]
+		)
+	end
 end
 
 function Label:MouseIn( Element, Mult, MaxX, MaxY )

@@ -43,7 +43,8 @@ function Vertical:SetElementPos( Element, X, Y, Margin, LayoutSize )
 		X = X + LayoutSize.x - Element:GetSize().x
 	end
 
-	Element:SetPos( Vector( X + Margin[ 1 ], Y, 0 ) )
+	local LayoutOffset = Element:GetLayoutOffset()
+	Element:SetPos( Vector2( X + Margin[ 1 ] + LayoutOffset.x, Y + LayoutOffset.y ) )
 end
 
 function Vertical:GetMaxMargin( Margin )

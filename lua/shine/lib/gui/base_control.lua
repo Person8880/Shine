@@ -626,6 +626,14 @@ function ControlMeta:InvalidateLayout( Now )
 	self.LayoutIsInvalid = true
 end
 
+do
+	-- By default, don't offset an element's position during layout.
+	local ZERO = Vector2( 0, 0 )
+	function ControlMeta:GetLayoutOffset()
+		return ZERO
+	end
+end
+
 --[[
 	Sets the size of the control (background), and invalidates the control's layout.
 ]]
