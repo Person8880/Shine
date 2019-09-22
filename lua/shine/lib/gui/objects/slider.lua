@@ -7,6 +7,7 @@ local SGUI = Shine.GUI
 local Clamp = math.Clamp
 local Round = math.Round
 local Max = math.max
+local Min = math.min
 local tostring = tostring
 local type = type
 
@@ -76,6 +77,8 @@ function Slider:Initialise()
 	Label:SetPos( Padding )
 
 	function Label.DoClick()
+		if not self:IsEnabled() then return end
+
 		Label:SetIsVisible( false )
 
 		self.IgnoreStencilWarnings = true
@@ -126,7 +129,16 @@ function Slider:Initialise()
 			TextEntry:OnEscape()
 		end
 
+		local Listener
+		Listener = self:AddPropertyChangeListener( "Enabled", function( Enabled )
+			if not Enabled then
+				TextEntry.OnEscape()
+			end
+		end )
+
 		function TextEntry.OnEscape()
+			self:RemovePropertyChangeListener( "Enabled", Listener )
+
 			TextEntry:Destroy()
 			self.TextEntry = nil
 
@@ -173,7 +185,7 @@ end
 function Slider:SizeLines()
 	if not self.Width or not self.Height then return end
 
-	local LineWidth = self.Width * self.Fraction
+	local LineWidth = ( self.Width - self.HandleSize.x ) * self.Fraction
 	self.LineSize.x = LineWidth
 	self.LineSize.y = self.Height * self.LineHeightMultiplier
 	self.Line:SetSize( self.LineSize )
@@ -181,11 +193,11 @@ function Slider:SizeLines()
 	local CurrentLinePos = Vector2( 0, -self.LineSize.y * 0.5 )
 	self.Line:SetPosition( CurrentLinePos )
 
-	self.DarkLinePos.x = LineWidth
+	self.DarkLinePos.x = Min( LineWidth + self.HandleSize.x, self.Width )
 	self.DarkLinePos.y = CurrentLinePos.y
 	self.DarkLine:SetPosition( self.DarkLinePos )
 
-	self.DarkLineSize.x = self.Width * ( 1 - self.Fraction )
+	self.DarkLineSize.x = self.Width - self.DarkLinePos.x
 	self.DarkLineSize.y = self.LineSize.y
 	self.DarkLine:SetSize( self.DarkLineSize )
 
@@ -205,7 +217,7 @@ end
 
 local function RefreshSizes( self )
 	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
-	self.HandlePos.x = self.Width * self.Fraction
+	self.HandlePos.x = ( self.Width - self.HandleSize.x ) * self.Fraction
 
 	self.Handle:SetPosition( self.HandlePos )
 	self.Label:SetText( tostring( self.Value ) )
@@ -298,6 +310,7 @@ end
 
 function Slider:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
+	if not self:IsEnabled() then return end
 
 	if self:CallOnChildren( "PlayerKeyPress", Key, Down ) then
 		return true
@@ -320,6 +333,7 @@ local GetCursorPos = SGUI.GetCursorPos
 
 function Slider:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
+	if not self:IsEnabled() then return end
 
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then
@@ -378,10 +392,11 @@ function Slider:OnMouseMove( Down )
 	local X, Y = GetCursorPos()
 
 	local Diff = X - self.DragStart
+	local WidthWithoutHandle = self.Width - self.HandleSize.x
 
-	self.CurPos.x = Clamp( self.StartingPos.x + Diff, 0, self.Width )
+	self.CurPos.x = Clamp( self.StartingPos.x + Diff, 0, WidthWithoutHandle )
 
-	if self:SetFraction( self.CurPos.x / self.Width, true ) then
+	if self:SetFraction( self.CurPos.x / WidthWithoutHandle, true ) then
 		self:OnSlide( self.Value )
 	end
 end
@@ -400,4 +415,5 @@ function Slider:OnSlide( Value )
 
 end
 
+SGUI:AddMixin( Slider, "EnableMixin" )
 SGUI:Register( "Slider", Slider )

@@ -13,6 +13,7 @@ local DarkButton = Colour( 0.9, 0.9, 0.9, 1 )
 local ButtonHighlight = Colour( 1, 0.878, 0.666, 1 )
 local BrightText = Colour( 0.25, 0.25, 0.25, 1 )
 local Clear = Colour( 0, 0, 0, 0 )
+local SliderDarkLineColour = Colour( 0.2, 0.2, 0.2, 1 )
 
 local Danger = Colour( 1, 0, 0 )
 local Warning = Colour( 1, 0.6, 0 )
@@ -243,11 +244,19 @@ local Skin = {
 	},
 	Slider = {
 		Default = {
-			DarkLineColour = Colour( 0.2, 0.2, 0.2, 1 ),
+			DarkLineColour = SliderDarkLineColour,
 			HandleColour = OrangeButtonHighlight,
 			LineColour = OrangeButtonHighlight,
 			TextColour = BrightText,
-			LineHeightMultiplier = 0.15
+			LineHeightMultiplier = 0.15,
+			States = {
+				Disabled = {
+					DarkLineColour = SGUI.ColourWithAlpha( SliderDarkLineColour, 0.5 ),
+					HandleColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.2 ),
+					LineColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.2 ),
+					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
+				}
+			}
 		}
 	},
 	TabPanel = {
