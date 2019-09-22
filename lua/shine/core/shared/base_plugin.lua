@@ -110,7 +110,7 @@ end
 	Sets up the event dispatcher for sending events to plugin modules.
 ]]
 function PluginMeta:SetupDispatcher()
-	self.EventDispatcher = Shine.EventDispatcher( self.Modules )
+	self.EventDispatcher = Shine.TrackingEventDispatcher( self.Modules )
 
 	local Plugin = self
 	-- Call module events with self being the plugin.
@@ -133,6 +133,20 @@ end
 ]]
 function PluginMeta:BroadcastModuleEvent( Event, ... )
 	self.EventDispatcher:BroadcastEvent( Event, ... )
+end
+
+--[[
+	Returns true if the given module event has been fired.
+]]
+function PluginMeta:HasFiredModuleEvent( Event )
+	return self.EventDispatcher:HasFiredEvent( Event )
+end
+
+--[[
+	Resets the history of module events.
+]]
+function PluginMeta:ResetModuleEventHistory()
+	self.EventDispatcher:ResetHistory()
 end
 
 --[[

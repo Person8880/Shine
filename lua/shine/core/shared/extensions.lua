@@ -469,6 +469,9 @@ do
 			end
 		end
 
+		-- Forget any previous module events before starting.
+		Plugin:ResetModuleEventHistory()
+
 		if Plugin.HasConfig and not DontLoadConfig then
 			local Success, Err = xpcall( Plugin.LoadConfig, OnInitError, Plugin )
 			if not Success then
@@ -492,6 +495,15 @@ do
 			MarkAsDisabled( Plugin, FirstEnable )
 
 			return false, Err
+		end
+
+		-- Plugin authors shouldn't need to explicitly call this, as they may forget.
+		if not Plugin:HasFiredModuleEvent( "Initialise" ) then
+			Success, Err = xpcall( Plugin.BroadcastModuleEvent, OnInitError, Plugin, "Initialise" )
+
+			if not Success then
+				return false, StringFormat( "Lua error: %s", Err )
+			end
 		end
 
 		Plugin.Enabled = true
@@ -539,8 +551,13 @@ do
 		-- Make sure cleanup doesn't break us by erroring.
 		local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
 		if not Success then
-			PluginMeta.Cleanup( Plugin )
+			xpcall( PluginMeta.Cleanup, OnCleanupError, Plugin )
+		-- Make sure the module "Cleanup" event is called (the base plugin's Cleanup method calls this).
+		elseif not Plugin:HasFiredModuleEvent( "Cleanup" ) then
+			xpcall( Plugin.BroadcastModuleEvent, OnCleanupError, Plugin, "Cleanup" )
 		end
+
+		Plugin:ResetModuleEventHistory()
 
 		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )

@@ -4,6 +4,7 @@
 ]]
 
 local IsType = Shine.IsType
+local TableEmpty = table.Empty
 
 local EventDispatcher = Shine.TypeDef()
 Shine.EventDispatcher = EventDispatcher
@@ -96,4 +97,33 @@ function EventDispatcher:BroadcastEvent( Event, ... )
 	for i = 1, Listeners.Count do
 		self:CallEvent( Listeners[ i ], Listeners[ i ][ Event ], ... )
 	end
+end
+
+--[[
+	A sub class of EventDispatcher that tracks events that have been called.
+]]
+local TrackingEventDispatcher = Shine.TypeDef( EventDispatcher )
+Shine.TrackingEventDispatcher = TrackingEventDispatcher
+
+function TrackingEventDispatcher:Init( EventListeners )
+	self.FiredEvents = {}
+	return EventDispatcher.Init( self, EventListeners )
+end
+
+function TrackingEventDispatcher:ResetHistory()
+	TableEmpty( self.FiredEvents )
+end
+
+function TrackingEventDispatcher:BroadcastEvent( Event, ... )
+	self.FiredEvents[ Event ] = true
+	return EventDispatcher.BroadcastEvent( self, Event, ... )
+end
+
+function TrackingEventDispatcher:DispatchEvent( Event, ... )
+	self.FiredEvents[ Event ] = true
+	return EventDispatcher.DispatchEvent( self, Event, ... )
+end
+
+function TrackingEventDispatcher:HasFiredEvent( Event )
+	return not not self.FiredEvents[ Event ]
 end
