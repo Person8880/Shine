@@ -5,8 +5,11 @@
 local Floor = math.floor
 local StringFind = string.find
 local StringFormat = string.format
+local StringGMatch = string.gmatch
 local StringGSub = string.gsub
 local StringLen = string.len
+local StringLower = string.lower
+local StringMatch = string.match
 local StringSub = string.sub
 local TableConcat = table.concat
 
@@ -196,8 +199,6 @@ function string.DigitalTime( Time )
 end
 
 do
-	local StringGMatch = string.gmatch
-	local StringLower = string.lower
 	local tonumber = tonumber
 
 	local Times = {
@@ -234,7 +235,6 @@ end
 do
 	local OSDate = os.date
 	local OSTime = os.time
-	local StringMatch = string.match
 	local tonumber = tonumber
 
 	local LOCAL_DATE_TIME = "^(%d+)%-(%d+)%-(%d+)[T ](%d+):(%d+):?(%d*)$"
@@ -285,7 +285,6 @@ end
 do
 	local StringExplode = string.Explode
 	local StringGSub = string.gsub
-	local StringMatch = string.match
 	local TableRemove = table.remove
 	local tostring = tostring
 
@@ -350,5 +349,107 @@ do
 
 			return tostring( Ret )
 		end ) )
+	end
+end
+
+do
+	local StringExplode = string.Explode
+	local StringUpper = string.upper
+
+	local function ParseCamelCase( Value, Segments )
+		for UpperCase, LowerCase in StringGMatch( Value, "(%u+)(%U*)" ) do
+			if #LowerCase == 0 then
+				-- Preserve the upper case nature of the value.
+				Segments[ #Segments + 1 ] = UpperCase
+			else
+				if #UpperCase > 1 then
+					-- Assume that acronyms always end 1 character before the end of an upper case sequence.
+					Segments[ #Segments + 1 ] = StringSub( UpperCase, 1, -2 )
+					UpperCase = StringSub( UpperCase, -1 )
+				end
+
+				Segments[ #Segments + 1 ] = StringLower( UpperCase..LowerCase )
+			end
+		end
+		return Segments
+	end
+
+	string.CaseFormatType = {
+		UPPER_CAMEL = {
+			Parse = function( Value )
+				return ParseCamelCase( Value, {} )
+			end,
+			Format = function( Segments )
+				for i = 1, #Segments do
+					Segments[ i ] = StringUpper( StringSub( Segments[ i ], 1, 1 ) )..StringSub( Segments[ i ], 2 )
+				end
+				return TableConcat( Segments )
+			end
+		},
+		LOWER_CAMEL = {
+			Parse = function( Value )
+				local Segments = {}
+				local FirstSegment = StringMatch( Value, "^(%U+)" )
+				if FirstSegment then
+					Segments[ 1 ] = FirstSegment
+					Value = StringSub( Value, #FirstSegment + 1 )
+				end
+				return ParseCamelCase( Value, Segments )
+			end,
+			Format = function( Segments )
+				Segments[ 1 ] = StringLower( Segments[ 1 ] )
+				for i = 2, #Segments do
+					Segments[ i ] = StringUpper( StringSub( Segments[ i ], 1, 1 ) )..StringSub( Segments[ i ], 2 )
+				end
+				return TableConcat( Segments )
+			end
+		},
+		UPPER_UNDERSCORE = {
+			Parse = function( Value )
+				return StringExplode( StringLower( Value ), "_", true )
+			end,
+			Format = function( Segments )
+				for i = 1, #Segments do
+					Segments[ i ] = StringUpper( Segments[ i ] )
+				end
+				return TableConcat( Segments, "_" )
+			end
+		},
+		LOWER_UNDERSCORE = {
+			Parse = function( Value )
+				return StringExplode( Value, "_", true )
+			end,
+			Format = function( Segments )
+				for i = 1, #Segments do
+					Segments[ i ] = StringLower( Segments[ i ] )
+				end
+				return TableConcat( Segments, "_" )
+			end
+		},
+		HYPHEN = {
+			Parse = function( Value )
+				return StringExplode( Value, "-", true )
+			end,
+			Format = function( Segments )
+				for i = 1, #Segments do
+					Segments[ i ] = StringLower( Segments[ i ] )
+				end
+				return TableConcat( Segments, "-" )
+			end
+		}
+	}
+
+	--[[
+		Transforms the case of the given value from one case format to another.
+
+		Example:
+		string.TransformCase(
+			"SomeConfigKey", string.CaseFormatType.UPPER_CAMEL, string.CaseFormatType.UPPER_UNDERSCORE
+		)
+		-> "SOME_CONFIG_KEY"
+	]]
+	function string.TransformCase( Value, FromCaseFormat, ToCaseFormat )
+		local Segments = FromCaseFormat.Parse( Value )
+		return ToCaseFormat.Format( Segments )
 	end
 end
