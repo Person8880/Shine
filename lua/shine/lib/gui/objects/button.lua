@@ -261,10 +261,12 @@ function Button:AddMenu( Size, MenuPos )
 	Menu:CallOnRemove( function()
 		if self:IsValid() then
 			self:SetForceHighlight( false )
+			self:OnPropertyChanged( "Menu", nil )
 		end
 	end )
 
 	self.Menu = Menu
+	self:OnPropertyChanged( "Menu", Menu )
 
 	return Menu
 end

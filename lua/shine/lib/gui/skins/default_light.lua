@@ -126,7 +126,8 @@ local Skin = {
 	Dropdown = {
 		Default = table.ShallowMerge( DefaultButton, {
 			Padding = DropdownPadding,
-			Icon = SGUI.Icons.Ionicons.ArrowDownB
+			MenuClosedIcon = SGUI.Icons.Ionicons.ArrowDownB,
+			MenuOpenIcon = SGUI.Icons.Ionicons.ArrowUpB
 		} )
 	},
 	Hint = {
