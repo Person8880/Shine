@@ -79,7 +79,7 @@ function ChatLine:AddBackground( Colour, Texture, Padding )
 	end
 end
 
-function ChatLine:SetAlpha( Alpha )
+function ChatLine:SetBackgroundAlpha( Alpha )
 	if self.FadingOut then return end
 
 	if self.BackgroundColour then
@@ -91,7 +91,7 @@ end
 
 function ChatLine:FadeIn( Duration, Easer )
 	Duration = Duration or 0.25
-	self:ForEach( "RootLineElements", "AlphaTo", nil, 0, 1, 0, Duration, nil, Easer )
+	self:AlphaTo( nil, 0, 1, 0, Duration, nil, Easer )
 
 	if self.VisibleBackground then
 		self:AlphaTo( self.VisibleBackground, 0, self.BackgroundColour.a, 0, Duration, nil, Easer )
@@ -99,15 +99,8 @@ function ChatLine:FadeIn( Duration, Easer )
 end
 
 function ChatLine:MakeVisible()
-	local RootLineElements = self.RootLineElements
-	for i = 1, #RootLineElements do
-		local Element = RootLineElements[ i ]
-		Element:StopAlpha()
-
-		local Colour = Element.Background:GetColor()
-		Colour.a = 1
-		Element.Background:SetColor( Colour )
-	end
+	self:StopAlpha()
+	self.RootElement:SetAlpha( 1 )
 
 	if self.VisibleBackground then
 		self:StopAlpha( self.VisibleBackground )
@@ -142,11 +135,7 @@ function ChatLine:FadeOut( Duration, OnComplete, Easer )
 		self.FadeOutTimer = nil
 	end
 
-	local RootElements = self.RootLineElements
-	for i = 1, #RootElements do
-		local Element = RootElements[ i ]
-		Element:AlphaTo( nil, nil, 0, 0, Duration, i == 1 and OnComplete, Easer )
-	end
+	self:AlphaTo( nil, nil, 0, 0, Duration, OnComplete, Easer )
 
 	if self.VisibleBackground then
 		self:AlphaTo( self.VisibleBackground, nil, 0, 0, Duration, nil, Easer )

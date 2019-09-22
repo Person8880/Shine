@@ -20,6 +20,7 @@ local Map = Shine.Map
 local Source = require "shine/lib/gui/binding/source"
 
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
 SGUI.AddProperty( ControlMeta, "PropagateSkin" )
@@ -82,8 +83,8 @@ end
 --[[
 	Destroys a control.
 ]]
-function ControlMeta:Destroy( RemoveFromParent )
-	return SGUI:Destroy( self, RemoveFromParent )
+function ControlMeta:Destroy()
+	return SGUI:Destroy( self )
 end
 
 --[[
@@ -129,6 +130,8 @@ function ControlMeta:AddPropertyChangeListener( Name, Listener )
 
 	self.PropertyChangeListeners = self.PropertyChangeListeners or Shine.Multimap()
 	self.PropertyChangeListeners:Add( Name, Listener )
+
+	return Listener
 end
 
 function ControlMeta:GetPropertySource( Name )
@@ -313,15 +316,23 @@ end
 function ControlMeta:SetParent( Control, Element )
 	assert( Control ~= self, "[SGUI] Cannot parent an object to itself!" )
 
-	if self.Parent == Control and self.ParentElement == Element then
+	if Control and not Element then
+		Element = Control.Background
+	end
+
+	local ParentControlChanged = self.Parent ~= Control
+	local ParentElementChanged = self.ParentElement ~= Element
+
+	if not ParentControlChanged and not ParentElementChanged then
 		return
 	end
 
-	if self.Parent then
+	if ParentControlChanged and self.Parent then
 		self.Parent.Children:Remove( self )
-		if self.ParentElement and IsGUIItemValid( self.ParentElement ) and self.Background then
-			self.ParentElement:RemoveChild( self.Background )
-		end
+	end
+
+	if ParentElementChanged and self.ParentElement and IsGUIItemValid( self.ParentElement ) and self.Background then
+		self.ParentElement:RemoveChild( self.Background )
 	end
 
 	if not Control then
@@ -333,10 +344,6 @@ function ControlMeta:SetParent( Control, Element )
 	end
 
 	-- Parent to a specific part of a control.
-	if not Element then
-		Element = Control.Background
-	end
-
 	self.Parent = Control
 	self.ParentElement = Element
 	self:SetTopLevelWindow( SGUI:IsWindow( Control ) and Control or Control.TopLevelWindow )
@@ -355,7 +362,7 @@ function ControlMeta:SetParent( Control, Element )
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
 
-	if Element and self.Background then
+	if ParentElementChanged and Element and self.Background then
 		Element:AddChild( self.Background )
 	end
 end
@@ -727,6 +734,12 @@ function ControlMeta:SetFontScale( Font, Scale )
 	if Scale then
 		self:SetTextScale( Scale )
 	end
+end
+
+function ControlMeta:SetAlpha( Alpha )
+	local Colour = self.Background:GetColor()
+	Colour.a = Alpha
+	self.Background:SetColor( Colour )
 end
 
 function ControlMeta:GetTextureWidth()

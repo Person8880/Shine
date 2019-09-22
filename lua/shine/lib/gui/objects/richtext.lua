@@ -22,6 +22,26 @@ function RichText:Initialise()
 	self.WrappedHeight = 0
 end
 
+function RichText:AlphaTo( Element, ... )
+	if Element == nil then
+		if not self.RootElement then return end
+
+		Element = self.RootElement.Background
+	end
+
+	return self.BaseClass.AlphaTo( self, Element, ... )
+end
+
+function RichText:StopAlpha( Element )
+	if Element == nil then
+		if not self.RootElement then return end
+
+		Element = self.RootElement.Background
+	end
+
+	return self.BaseClass.StopAlpha( self, Element )
+end
+
 function RichText:SetFont( Font )
 	if self.Font == Font then return end
 
@@ -158,10 +178,14 @@ end
 
 local CreatedElements = TableNew( 30, 0 )
 function RichText:ApplyLines( Lines )
+	-- Make an invisible root element that will be used for alpha-fading.
+	self.RootElement = self.RootElement or SGUI:Create( "Image", self )
+	self.RootElement:SetSize( Vector2( 0, 0 ) )
+
 	local ElementPool
-	if self.Children then
+	if self.RootElement.Children then
 		ElementPool = Multimap()
-		for Child in self.Children:IterateBackwards() do
+		for Child in self.RootElement.Children:IterateBackwards() do
 			ElementPool:Add( Child.Class, Child )
 		end
 	end
@@ -176,11 +200,10 @@ function RichText:ApplyLines( Lines )
 		MakeElement = MakeElement
 	}
 
-	local Parent = self
+	local Parent = self.RootElement
 	local YOffset = 0
 	local MaxWidth = 0
 	local Spacing = self.LineSpacing:GetValue()
-	local RootLineElements = {}
 
 	for i = 1, #Lines do
 		local Line = Lines[ i ]
@@ -201,21 +224,11 @@ function RichText:ApplyLines( Lines )
 				ElementCount = ElementCount + 1
 				CreatedElements[ ElementCount ] = Control
 
-				Control:SetParent( self, Parent.Background )
-				if Parent ~= self then
-					-- Make each element start from where the previous one ends.
-					Control:SetInheritsParentAlpha( true )
-
-					Control:SetPos( Vector2( LineWidth + ( Context.NextMargin or 0 ), 0 ) )
-					Context.NextMargin = nil
-				else
-					Control:SetInheritsParentAlpha( false )
-
-					RootLineElements[ i ] = Control
-					Control:SetPos( Vector2( 0, YOffset ) )
-
-					Parent = Control
-				end
+				Control:SetParent( Parent )
+				Control:SetInheritsParentAlpha( true )
+				-- Make each element start from where the previous one ends.
+				Control:SetPos( Vector2( LineWidth + ( Context.NextMargin or 0 ), YOffset ) )
+				Context.NextMargin = nil
 
 				local Size = Control:GetSize()
 				LineWidth = LineWidth + Size.x
@@ -233,21 +246,11 @@ function RichText:ApplyLines( Lines )
 				local Offset = LineHeight * 0.5 - CreatedElements[ i ]:GetSize().y * 0.5
 				Pos.y = Pos.y + Offset
 
-				if i == 1 then
-					FirstOffset = Offset
-				else
-					-- As all elements in the line are parented to the first, if the first element was not the tallest then
-					-- all subsequent elements need to move up by the offset from it.
-					Pos.y = Pos.y - FirstOffset
-				end
-
 				CreatedElements[ i ]:SetPos( Pos )
 			end
 		end
 
 		Context.NextMargin = nil
-
-		Parent = self
 		MaxWidth = Max( MaxWidth, LineWidth )
 		YOffset = YOffset + LineHeight + Spacing
 	end
@@ -256,7 +259,6 @@ function RichText:ApplyLines( Lines )
 
 	self.WrappedWidth = MaxWidth
 	self.WrappedHeight = YOffset - Spacing
-	self.RootLineElements = RootLineElements
 
 	-- Any unused elements left behind should be destroyed.
 	if ElementPool then
