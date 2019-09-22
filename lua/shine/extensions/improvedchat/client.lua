@@ -28,15 +28,29 @@ Plugin.Version = "1.0"
 Plugin.MessageDisplayType = table.AsEnum{
 	"UPWARDS", "DOWNWARDS"
 }
+Plugin.FontSizeMode = table.AsEnum{
+	"AUTO", "FIXED"
+}
 
 Plugin.DefaultConfig = {
 	-- Controls whether to animate messages (when they appear, they will always fade out).
 	AnimateMessages = true,
+
 	-- The alpha multiplier to apply to the background on chat messages.
 	BackgroundOpacity = 0.75,
+
+	-- The font sizing mode to use.
+	-- * AUTO resizes the text based on screen resolution.
+	-- * FIXED uses FontSizeInPixels to determine the size to use.
+	FontSizeMode = Plugin.FontSizeMode.AUTO,
+
+	-- The font size to use when FontSizeMode == FIXED.
+	FontSizeInPixels = 27,
+
 	-- The maximum number of messages to display before forcing the oldest to fade out (to avoid messages
 	-- going off the screen).
 	MaxVisibleMessages = 10,
+
 	-- How to display messages:
 	-- UPWARDS - new messages at the bottom and move up as more messages appear.
 	-- DOWNWARDS - the vanilla method, new messages are added below older ones (in case anyone actually likes this).
@@ -182,7 +196,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		local LineMargin = Scaled( 2 )
 		local PaddingAmount = Scaled( 8 ):GetValue()
 
-		local Font, Scale = ChatAPI.GetOptimalFontScale()
+		local Font, Scale = Plugin:GetFontSize()
 		ChatLine:SetFont( Font )
 		ChatLine:SetTextScale( Scale )
 		ChatLine:SetPreMargin( PrefixMargin )
@@ -273,63 +287,9 @@ function Plugin:Initialise()
 		self:SetupGUIChat( self.GUIChat )
 	end
 
-	self:SetupClientConfig()
-
 	ChatAPI:SetProvider( self )
 
 	return true
-end
-
-function Plugin:SetupClientConfig()
-	self:AddClientSettings( {
-		{
-			ConfigKey = "AnimateMessages",
-			Command = "sh_chat_animatemessages",
-			Type = "Boolean",
-			Description = "ANIMATE_MESSAGES_DESCRIPTION",
-			CommandMessage = function( Value )
-				return StringFormat( "Chat messages %s.", Value and "will now animate" or "will no longer animate" )
-			end
-		},
-		{
-			ConfigKey = "BackgroundOpacity",
-			Command = "sh_chat_backgroundopacity",
-			Type = "Slider",
-			Min = 0,
-			Max = 100,
-			Decimals = 0,
-			Description = "BACKGROUND_OPACITY_DESCRIPTION",
-			IsPercentage = true,
-			CommandMessage = "Chat message background opacity set to: %s%%",
-			OnChange = self.SetBackgroundOpacity
-		},
-		{
-			ConfigKey = "MaxVisibleMessages",
-			Command = "sh_chat_maxvisiblemessages",
-			Type = "Slider",
-			Min = 5,
-			Max = 20,
-			Decimals = 0,
-			Description = "MAX_VISIBLE_MESSAGES_DESCRIPTION",
-			CommandMessage = "Now displaying up to %s messages before fading."
-		},
-		{
-			ConfigKey = "MessageDisplayType",
-			Command = "sh_chat_messagedisplaytype",
-			Type = "Radio",
-			Options = self.MessageDisplayType,
-			Description = "MESSAGE_DISPLAY_TYPE_DESCRIPTION",
-			CommandMessage = function( Value )
-				local Descriptions = {
-					[ self.MessageDisplayType.UPWARDS ] = "will now move older messages upwards",
-					[ self.MessageDisplayType.DOWNWARDS ] = "will now add new messages below older ones"
-				}
-
-				return StringFormat( "Chat messages %s.", Descriptions[ Value ] )
-			end,
-			OnChange = self.SetMessageDisplayType
-		}
-	} )
 end
 
 function Plugin:SetBackgroundOpacity( Opacity )
@@ -337,35 +297,44 @@ function Plugin:SetBackgroundOpacity( Opacity )
 
 	local ChatLines = self.GUIChat.ChatLines
 	for i = 1, #ChatLines do
-		ChatLines[ i ]:SetAlpha( Opacity )
+		ChatLines[ i ]:SetBackgroundAlpha( Opacity )
 	end
 end
 
-local MessageDisplayTypeActions = {
-	[ Plugin.MessageDisplayType.UPWARDS ] = function( self )
-		local Panel = self.GUIChat and self.GUIChat.Panel
-		if not SGUI.IsValid( Panel ) then return end
+do
+	local MessageDisplayTypeActions = {
+		[ Plugin.MessageDisplayType.UPWARDS ] = function( self )
+			local Panel = self.GUIChat and self.GUIChat.Panel
+			if not SGUI.IsValid( Panel ) then return end
 
-		Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), DEFAULT_CHAT_OFFSET ) )
+			Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), DEFAULT_CHAT_OFFSET ) )
 
-		local Player = Client.GetLocalPlayer()
-		if Player then
-			self:OnLocalPlayerChanged( Player )
+			local Player = Client.GetLocalPlayer()
+			if Player then
+				self:OnLocalPlayerChanged( Player )
+			end
+		end,
+		[ Plugin.MessageDisplayType.DOWNWARDS ] = function( self )
+			local Panel = self.GUIChat and self.GUIChat.Panel
+			if not SGUI.IsValid( Panel ) then return end
+
+			Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), NO_OFFSET ) )
 		end
-	end,
-	[ Plugin.MessageDisplayType.DOWNWARDS ] = function( self )
-		local Panel = self.GUIChat and self.GUIChat.Panel
-		if not SGUI.IsValid( Panel ) then return end
+	}
 
-		Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), NO_OFFSET ) )
+	function Plugin:SetMessageDisplayType( MessageDisplayType )
+		local Action = MessageDisplayTypeActions[ MessageDisplayType ]
+		if not Action then return end
+
+		return Action( self )
 	end
-}
+end
 
-function Plugin:SetMessageDisplayType( MessageDisplayType )
-	local Action = MessageDisplayTypeActions[ MessageDisplayType ]
-	if not Action then return end
-
-	return Action( self )
+function Plugin:GetFontSize()
+	if self.Config.FontSizeMode == self.FontSizeMode.AUTO then
+		return ChatAPI.GetOptimalFontScale()
+	end
+	return SGUI.FontManager.GetFontForAbsoluteSize( "kAgencyFB", self.Config.FontSizeInPixels )
 end
 
 local function ShouldMoveChat( self )
@@ -762,3 +731,86 @@ function Plugin:Cleanup()
 
 	return self.BaseClass.Cleanup( self )
 end
+
+Plugin.ClientConfigSettings = {
+	{
+		ConfigKey = "AnimateMessages",
+		Command = "sh_chat_animatemessages",
+		Type = "Boolean",
+		CommandMessage = function( Value )
+			return StringFormat( "Chat messages %s.", Value and "will now animate" or "will no longer animate" )
+		end
+	},
+	{
+		ConfigKey = "BackgroundOpacity",
+		Command = "sh_chat_backgroundopacity",
+		Type = "Slider",
+		Min = 0,
+		Max = 100,
+		Decimals = 0,
+		IsPercentage = true,
+		CommandMessage = "Chat message background opacity set to: %s%%",
+		OnChange = Plugin.SetBackgroundOpacity
+	},
+	{
+		ConfigKey = "MaxVisibleMessages",
+		Command = "sh_chat_maxvisiblemessages",
+		Type = "Slider",
+		Min = 5,
+		Max = 20,
+		Decimals = 0,
+		CommandMessage = "Now displaying up to %s messages before fading."
+	},
+	{
+		ConfigKey = "MessageDisplayType",
+		Command = "sh_chat_messagedisplaytype",
+		Type = "Radio",
+		Options = Plugin.MessageDisplayType,
+		CommandMessage = function( Value )
+			local Descriptions = {
+				[ Plugin.MessageDisplayType.UPWARDS ] = "will now move older messages upwards",
+				[ Plugin.MessageDisplayType.DOWNWARDS ] = "will now add new messages below older ones"
+			}
+
+			return StringFormat( "Chat messages %s.", Descriptions[ Value ] )
+		end,
+		OnChange = Plugin.SetMessageDisplayType
+	},
+	{
+		ConfigKey = "FontSizeMode",
+		Command = "sh_chat_fontsizemode",
+		Type = "Dropdown",
+		Options = Plugin.FontSizeMode,
+		CommandMessage = function( Value )
+			local Descriptions = {
+				[ Plugin.FontSizeMode.AUTO ] = "will now automatically change based on screen resolution",
+				[ Plugin.FontSizeMode.FIXED ] = "will now use the configured size regardless of resolution."
+			}
+			return StringFormat( "Chat message font size %s.", Descriptions[ Value ] )
+		end
+	},
+	{
+		ConfigKey = "FontSizeInPixels",
+		Command = "sh_chat_fontsize",
+		Type = "Slider",
+		Min = 8,
+		Max = 64,
+		Decimals = 0,
+		CommandMessage = "Chat message font size set to %s pixels.",
+		Bindings = {
+			{
+				From = {
+					Element = "FontSizeMode",
+					Property = "SelectedOption"
+				},
+				To = {
+					Element = "Container",
+					Property = "IsVisible",
+					Transformer = function( Option )
+						return Option.Value == Plugin.FontSizeMode.FIXED
+					end
+				}
+			}
+		}
+	}
+}

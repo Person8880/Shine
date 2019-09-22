@@ -4,6 +4,10 @@
 	"BACKGROUND_OPACITY_DESCRIPTION": "Message background opacity (%):",
 	"MAX_VISIBLE_MESSAGES_DESCRIPTION": "Max messages before fading out:",
 	"MESSAGE_DISPLAY_TYPE_DESCRIPTION": "Message display behaviour:",
+	"FONT_SIZE_MODE_DESCRIPTION": "Font size behaviour:",
+	"FONT_SIZE_MODE_AUTO": "Automatically scale with resolution",
+	"FONT_SIZE_MODE_FIXED": "Use a fixed size",
+	"FONT_SIZE_IN_PIXELS_DESCRIPTION": "Font size (pixels):",
 	"UPWARDS": "Add messages upwards.",
 	"DOWNWARDS": "Add messages downwards (vanilla behaviour)."
 }
