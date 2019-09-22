@@ -61,6 +61,9 @@ UnitTest:Test( "Validator", function( Assert )
 		D = {}
 	} )
 
+	Assert.True( "HasFieldRule should return true for a field with a rule", Validator:HasFieldRule( "TooSmallNumber" ) )
+	Assert.Falsy( "HasFieldRule should return false for a field without a rule", Validator:HasFieldRule( "Nope" ) )
+
 	local Config = {
 		TooSmallNumber = 5,
 		BigEnoughNumber = 11,
@@ -94,7 +97,7 @@ UnitTest:Test( "Validator", function( Assert )
 			D = 456
 		}
 	}
-	Assert:True( Validator:Validate( Config ) )
+	Assert.True( "Validator should have detected problems and made changes", Validator:Validate( Config ) )
 
 	Assert:DeepEquals( {
 		Fixed = true,

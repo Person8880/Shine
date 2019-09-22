@@ -2,6 +2,8 @@
 	Clientside configuration menu.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local SGUI = Shine.GUI
 local Locale = Shine.Locale
 
@@ -19,7 +21,7 @@ local Percentage = Units.Percentage
 local Spacing = Units.Spacing
 local UnitVector = Units.UnitVector
 
-ConfigMenu.Size = UnitVector( HighResScaled( 700 ), HighResScaled( 500 ) )
+ConfigMenu.Size = UnitVector( HighResScaled( 800 ), HighResScaled( 600 ) )
 ConfigMenu.EasingTime = 0.25
 
 local function NeedsToScale()
@@ -188,11 +190,11 @@ local function MakeElementWithDescription( Panel, Entry, Populator )
 	Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
 	VerticalLayout:AddElement( Description )
 
-	Populator( Entry, TranslationSource, Container, VerticalLayout )
+	local ValueHolder = Populator( Entry, TranslationSource, Container, VerticalLayout )
 
 	Container:SetLayout( VerticalLayout, true )
 
-	return Container
+	return Container, ValueHolder
 end
 
 local SettingsTypes = {
@@ -213,7 +215,7 @@ local SettingsTypes = {
 				Shared.ConsoleCommand( Entry.Command.." "..tostring( Value ) )
 			end
 
-			return CheckBox
+			return CheckBox, CheckBox
 		end
 	},
 	Slider = {
@@ -233,6 +235,8 @@ local SettingsTypes = {
 
 				local CurrentValue = GetConfiguredValue( Entry )
 				Slider:SetValue( CurrentValue, true )
+
+				return Slider
 			end )
 		end
 	},
@@ -250,6 +254,8 @@ local SettingsTypes = {
 
 				local CurrentValue = GetConfiguredValue( Entry )
 				Dropdown:SelectOption( CurrentValue )
+
+				return Dropdown
 			end )
 		end
 	},
@@ -300,6 +306,8 @@ local SettingsTypes = {
 
 					VerticalLayout:AddElement( Hint )
 				end
+
+				-- TODO: Make a radio control and return that.
 			end )
 		end
 	}
@@ -367,17 +375,60 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 			local GroupDef = Groups[ Group ]
 			local Tab = Tabs:AddTab( Group, function( TabPanel )
 				local TabLayout = SetupTabPanel( TabPanel )
+				local ElementsByKey = {}
+				local SettingsWithBindings = {}
 
 				for i = 1, #Settings do
 					local Setting = Settings[ i ]
 					local Creator = SettingsTypes[ Setting.Type ]
 
-					local Object = Creator.Create( TabPanel, Setting )
+					local Object, ValueHolder = Creator.Create( TabPanel, Setting )
 					if i ~= #Settings then
 						Object:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
 					end
 
+					if Setting.ConfigKey then
+						ElementsByKey[ Setting.ConfigKey ] = {
+							ValueHolder = ValueHolder,
+							Container = Object
+						}
+					end
+
+					if Setting.Bindings then
+						SettingsWithBindings[ #SettingsWithBindings + 1 ] = Setting
+					end
+
 					TabLayout:AddElement( Object )
+				end
+
+				for i = 1, #SettingsWithBindings do
+					local Setting = SettingsWithBindings[ i ]
+					local Bindings = Setting.Bindings
+
+					for j = 1, #Bindings do
+						local Binding = Bindings[ j ]
+						local From = Binding.From
+						local To = Binding.To
+
+						local Builder = Binder()
+						Builder:WithReducer( Binding.Reducer )
+						Builder:WithInitialState( Binding.InitialState )
+						Builder:ToElement(
+							ElementsByKey[ Setting.ConfigKey ][ To.Element or "ValueHolder" ], To.Property, To
+						)
+
+						if #From == 0 then
+							Builder:FromElement( ElementsByKey[ From.Element ].ValueHolder, From.Property )
+							Builder:BindProperty()
+						else
+							for k = 1, #From do
+								Builder:FromElement(
+									ElementsByKey[ From[ k ].Element ].ValueHolder, From[ k ].Property
+								)
+							end
+							Builder:BindProperties()
+						end
+					end
 				end
 
 				TabPanel:SetLayout( TabLayout, true )

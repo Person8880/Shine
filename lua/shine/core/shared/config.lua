@@ -585,6 +585,9 @@ do
 	end
 
 	function Validator:AddFieldRule( Field, ... )
+		self.FieldRules = self.FieldRules or {}
+		self.FieldRules[ Field ] = true
+
 		local Checks = { ... }
 		if IsType( Checks[ 1 ], "function" ) then
 			Checks = {
@@ -638,6 +641,10 @@ do
 		for i = 1, #Fields do
 			self:AddFieldRule( Fields[ i ], ... )
 		end
+	end
+
+	function Validator:HasFieldRule( Field )
+		return self.FieldRules and self.FieldRules[ Field ]
 	end
 
 	function Validator:Add( OtherValidator )

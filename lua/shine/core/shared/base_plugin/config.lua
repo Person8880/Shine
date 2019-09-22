@@ -119,6 +119,45 @@ function ConfigModule:LoadConfig()
 	end
 end
 
+local AutoRegisterValidators
+if Client then
+	local ValidatorRules = {
+		Radio = function( self, ConfigKey, Options, Validator )
+			Validator:AddFieldRule( ConfigKey, Validator.InEnum( Options.Options, self.DefaultConfig[ ConfigKey ] ) )
+		end,
+		Slider = function( self, ConfigKey, Options, Validator )
+			local Min, Max = Options.Min, Options.Max
+			if Options.IsPercentage then
+				Min = Min * 0.01
+				Max = Max * 0.01
+			end
+			Validator:AddFieldRule( ConfigKey, Validator.Clamp( Min, Max ) )
+		end,
+		Dropdown = function( self, ConfigKey, Options, Validator )
+			Validator:AddFieldRule( ConfigKey, Validator.InEnum( Options.Options, self.DefaultConfig[ ConfigKey ] ) )
+		end
+	}
+
+	local function AddValidationRule( self, ConfigKey, Options )
+		local Rule = ValidatorRules[ Options.Type ]
+		if Rule and ( not self.ConfigValidator or not self.ConfigValidator:HasFieldRule( ConfigKey ) ) then
+			self.ConfigValidator = self.ConfigValidator or Shine.Validator()
+			Rule( self, ConfigKey, Options, self.ConfigValidator )
+		end
+	end
+
+	AutoRegisterValidators = function( self )
+		if not self.ClientConfigSettings then return end
+
+		for i = 1, #self.ClientConfigSettings do
+			local Setting = self.ClientConfigSettings[ i ]
+			AddValidationRule( self, Setting.ConfigKey, Setting )
+		end
+	end
+else
+	AutoRegisterValidators = function() end
+end
+
 --[[
 	Validates the plugin's configuration, returning true if changes
 	were made.
@@ -153,6 +192,9 @@ function ConfigModule:ValidateConfigAfterLoad()
 			return self.CheckConfigTypes and self:TypeCheckConfig( Config )
 		end
 	} )
+
+	AutoRegisterValidators( self )
+
 	if self.ConfigValidator then
 		Validator:Add( self.ConfigValidator )
 	end
@@ -206,7 +248,15 @@ function ConfigModule:TypeCheckConfig( Config )
 end
 
 if Client then
+	local CaseFormatType = string.CaseFormatType
+	local StringTransformCase = string.TransformCase
 	local TableShallowMerge = table.ShallowMerge
+
+	function ConfigModule:Initialise()
+		if IsType( self.ClientConfigSettings, "table" ) then
+			self:AddClientSettings( self.ClientConfigSettings )
+		end
+	end
 
 	local ParameterTypes = {
 		Boolean = function( self, ConfigKey, Command, Options )
@@ -245,6 +295,84 @@ if Client then
 		end
 	}
 
+	local PostProcessors = {
+		Dropdown = function( self, SettingOptions )
+			local Options = SettingOptions.Options
+
+			SettingOptions.Options = function()
+				local DropdownOptions = {}
+				local KeyPrefix = StringTransformCase(
+					SettingOptions.ConfigKey, CaseFormatType.UPPER_CAMEL, CaseFormatType.UPPER_UNDERSCORE
+				)
+
+				for i = 1, #Options do
+					local Value = Options[ i ]
+					DropdownOptions[ #DropdownOptions + 1 ] = {
+						Text = self:GetPhrase( StringFormat( "%s_%s", KeyPrefix, Value ) ),
+						Value = Value
+					}
+				end
+
+				return DropdownOptions
+			end
+
+			return SettingOptions
+		end
+	}
+
+	local function DeriveDescriptionKey( ConfigKey )
+		return StringTransformCase(
+			ConfigKey, CaseFormatType.UPPER_CAMEL, CaseFormatType.UPPER_UNDERSCORE
+		).."_DESCRIPTION"
+	end
+
+	local function RegisterCommandIfNecessary( self, ConfigKey, Command, Options )
+		if self:HasRegisteredCommand( Command ) then return end
+
+		local CommandMessage = Options.CommandMessage
+		if CommandMessage and not IsType( CommandMessage, "function" ) then
+			local Message = CommandMessage
+			CommandMessage = function( Value )
+				return StringFormat( Message, Value )
+			end
+		end
+
+		local Transformer = Options.ValueTransformer
+		if Options.IsPercentage then
+			Transformer = function( Value ) return Value * 0.01 end
+		end
+
+		local OnChange = Options.OnChange
+
+		local Command = self:BindCommand( Command, function( Value )
+			if CommandMessage then
+				Notify( CommandMessage( Value ) )
+			else
+				Print( "%s set to: %s", ConfigKey, MaxVisibleMessages )
+			end
+
+			if Transformer then
+				Value = Transformer( Value )
+			end
+
+			self.Config[ ConfigKey ] = Value
+			self:SaveConfig()
+
+			if OnChange then
+				OnChange( self, Value )
+			end
+		end )
+
+		local ArgumentAdder = ParameterTypes[ Options.Type ]
+		if ArgumentAdder then
+			ArgumentAdder( self, ConfigKey, Command, Options )
+		else
+			Command:AddParam{
+				Type = "string", Default = self.DefaultConfig[ ConfigKey ], TakeRestOfLine = true
+			}
+		end
+	end
+
 	function ConfigModule:AddClientSetting( ConfigKey, Command, Options )
 		local Group = self.ConfigGroup
 		local ConfigOption = Options.ConfigOption or function() return self.Config[ ConfigKey ] end
@@ -255,8 +383,10 @@ if Client then
 		end
 
 		local MergedOptions = TableShallowMerge( Options, {
+			ConfigKey = ConfigKey,
 			Command = Command,
 			ConfigOption = ConfigOption,
+			Description = Options.Description or DeriveDescriptionKey( ConfigKey ),
 			TranslationSource = self:GetName(),
 			Group = Group and {
 				Key = Group.Key or "CLIENT_CONFIG_TAB",
@@ -265,52 +395,14 @@ if Client then
 			}
 		} )
 
+		local PostProcessor = PostProcessors[ Options.Type ]
+		if PostProcessor then
+			MergedOptions = PostProcessor( self, MergedOptions )
+		end
+
 		Shine:RegisterClientSetting( MergedOptions )
 
-		if not self:HasRegisteredCommand( Command ) then
-			local CommandMessage = Options.CommandMessage
-			if CommandMessage and not IsType( CommandMessage, "function" ) then
-				local Message = CommandMessage
-				CommandMessage = function( Value )
-					return StringFormat( Message, Value )
-				end
-			end
-
-			local Transformer = Options.ValueTransformer
-			if Options.IsPercentage then
-				Transformer = function( Value ) return Value * 0.01 end
-			end
-
-			local OnChange = Options.OnChange
-
-			local Command = self:BindCommand( Command, function( Value )
-				if CommandMessage then
-					Notify( CommandMessage( Value ) )
-				else
-					Print( "%s set to: %s", ConfigKey, MaxVisibleMessages )
-				end
-
-				if Transformer then
-					Value = Transformer( Value )
-				end
-
-				self.Config[ ConfigKey ] = Value
-				self:SaveConfig()
-
-				if OnChange then
-					OnChange( self, Value )
-				end
-			end )
-
-			local ArgumentAdder = ParameterTypes[ Options.Type ]
-			if ArgumentAdder then
-				ArgumentAdder( self, ConfigKey, Command, Options )
-			else
-				Command:AddParam{
-					Type = "string", Default = self.DefaultConfig[ ConfigKey ], TakeRestOfLine = true
-				}
-			end
-		end
+		RegisterCommandIfNecessary( self, ConfigKey, Command, Options )
 	end
 
 	function ConfigModule:AddClientSettings( Settings )
