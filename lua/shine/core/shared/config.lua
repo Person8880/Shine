@@ -251,8 +251,9 @@ do
 	local unpack = unpack
 
 	local ValidationContext = Shine.TypeDef()
-	function ValidationContext:Init()
+	function ValidationContext:Init( MessagePrefix )
 		self.Path = {}
+		self.MessagePrefix = MessagePrefix
 		return self
 	end
 
@@ -422,7 +423,7 @@ do
 
 					local NeedsFix, CanonicalValue = Predicate( Value[ i ], Context )
 					if NeedsFix then
-						Print( MessageFunc(), Context:GetCurrentPath() )
+						Print( Context.MessagePrefix..MessageFunc(), Context:GetCurrentPath() )
 						Passes = false
 					elseif CanonicalValue ~= nil then
 						Value[ i ] = CanonicalValue
@@ -471,7 +472,7 @@ do
 
 					local NeedsFix, CanonicalValue = Predicate( Value, Context )
 					if NeedsFix then
-						Print( MessageFunc(), Context:GetCurrentPath() )
+						Print( Context.MessagePrefix..MessageFunc(), Context:GetCurrentPath() )
 						Passes = false
 					elseif CanonicalValue ~= nil then
 						TableValue[ Key ] = CanonicalValue
@@ -604,7 +605,7 @@ do
 			local FixFunction = Checks[ i ].Fix
 			local MessageSupplier = Checks[ i ].Message
 			self:AddRule( {
-				Matches = function( self, Config, Context )
+				Matches = function( Rule, Config, Context )
 					local TableField = type( Field ) == "string" and Field or Field[ 1 ]
 					local PrintField = type( Field ) == "string" and Field or Field[ 2 ]
 
@@ -615,7 +616,7 @@ do
 					local NeedsFix, CanonicalValue = CheckPredicate( Value, Context )
 					if NeedsFix then
 						if MessageSupplier then
-							Print( MessageSupplier(), PrintField )
+							Print( self.MessagePrefix..MessageSupplier(), PrintField )
 						end
 
 						TableSetField( Config, Path, FixFunction( Value, Context ) )
@@ -655,7 +656,7 @@ do
 
 	function Validator:Validate( Config )
 		local ChangesMade = false
-		local Context = ValidationContext()
+		local Context = ValidationContext( self.MessagePrefix )
 
 		for i = 1, #self.Rules do
 			local Rule = self.Rules[ i ]
@@ -671,8 +672,8 @@ do
 		return ChangesMade
 	end
 
-	function Shine.Validator()
-		return setmetatable( { Rules = {} }, Validator )
+	function Shine.Validator( MessagePrefix )
+		return setmetatable( { Rules = {}, MessagePrefix = MessagePrefix or "" }, Validator )
 	end
 end
 

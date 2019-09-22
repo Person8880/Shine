@@ -163,7 +163,12 @@ end
 	were made.
 ]]
 function ConfigModule:ValidateConfigAfterLoad()
-	local Validator = Shine.Validator()
+	local MessagePrefix
+	if Client then
+		MessagePrefix = StringFormat( "[Shine] %s config validation error: ", self:GetName() )
+	end
+
+	local Validator = Shine.Validator( MessagePrefix )
 	Validator:AddRule( {
 		Matches = function( _, Config )
 			return self.PreValidateConfig and self:PreValidateConfig( Config )
@@ -196,6 +201,9 @@ function ConfigModule:ValidateConfigAfterLoad()
 	AutoRegisterValidators( self )
 
 	if self.ConfigValidator then
+		if MessagePrefix and self.ConfigValidator.MessagePrefix == "" then
+			self.ConfigValidator.MessagePrefix = MessagePrefix
+		end
 		Validator:Add( self.ConfigValidator )
 	end
 
