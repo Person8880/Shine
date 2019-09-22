@@ -93,4 +93,82 @@ function FontManager.GetFontSize( FontFamily, FontName )
 	return Fonts[ FontName ]
 end
 
+local FontSizes = {
+	[ SGUI.Fonts.Ionicons ] = 32
+}
+
+--[[
+	Gets the actual height in pixels of the given font name.
+]]
+function FontManager.GetFontSizeForFontName( FontName )
+	return FontSizes[ FontName ]
+end
+
+Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
+	local Fonts = {}
+	Shared.GetMatchingFileNames( "fonts/*.fnt", false, Fonts )
+
+	-- Collect known font sizes upfront.
+	for i = 1, #_G.FontFamilies do
+		local FontFamily = _G.FontFamilies[ _G.FontFamilies[ i ] ]
+		if Shine.IsType( FontFamily, "table" ) then
+			for FontName, Size in pairs( FontFamily ) do
+				FontSizes[ FontName ] = Size
+			end
+		end
+	end
+
+	local StringChar = string.char
+	local Chars = { "!", "(", ")", "[", "]" }
+	-- 0 -> 9
+	for i = 48, 57 do
+		Chars[ #Chars + 1 ] = StringChar( i )
+	end
+	-- A -> Z (we assume lower case will always be shorter)
+	for i = 65, 90 do
+		Chars[ #Chars + 1 ] = StringChar( i )
+	end
+
+	local CalculateTextSize = GUI.CalculateTextSize
+	local GetCanFontRenderString = GUI.GetCanFontRenderString
+	local IOOpen = io.open
+	local Max = math.max
+	local StringMatch = string.match
+
+	Shine.Stream( Fonts )
+		:Filter( function( Font ) return not FontSizes[ Font ] end )
+		:ForEach( function( Font )
+			-- First try to use the engine functions to work it out.
+			local MaxHeight = 0
+			for j = 1, #Chars do
+				local Char = Chars[ j ]
+				if GetCanFontRenderString( Font, Char ) then
+					local Size = CalculateTextSize( Font, Char )
+					MaxHeight = Max( MaxHeight, Size.y )
+
+					if MaxHeight > 0 then
+						-- Height seems to be returned as the same value for all characters, so stop on the first
+						-- supported character.
+						FontSizes[ Font ] = MaxHeight
+						return
+					end
+				end
+			end
+
+			-- Font doesn't use any expected characters, try to determine it from the file itself.
+			local File, Err = IOOpen( Font, "r" )
+			if not File then return end
+
+			for Line in File:lines() do
+				local LineHeight = StringMatch( Line, "lineHeight=(%d+)" )
+				if LineHeight then
+					FontSizes[ Font ] = tonumber( LineHeight )
+					break
+				end
+			end
+
+			File:close()
+		end )
+end, Shine.Hook.MAX_PRIORITY )
+
 Shine.GUI.FontManager = FontManager
