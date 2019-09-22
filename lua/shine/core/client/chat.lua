@@ -265,6 +265,26 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		}
 	end
 
+	function ChatElement:ExtractTags( Message )
+		local Rookie = Message.Rookie and Message.Rookie:GetIsVisible()
+		local Commander = Message.Commander and Message.Commander:GetIsVisible()
+
+		local TagData
+		if Rookie or Commander then
+			TagData = {}
+
+			if Commander then
+				TagData[ 1 ] = GetTag( Message.Commander )
+			end
+
+			if Rookie then
+				TagData[ #TagData + 1 ] = GetTag( Message.Rookie )
+			end
+		end
+
+		return TagData
+	end
+
 	local OldAddMessage = ChatElement.AddMessage
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageText, IsCommander, IsRookie )
 		local Handled = Hook.Call(
@@ -277,21 +297,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		local JustAdded = self.messages[ #self.messages ]
 		if not JustAdded then return end
 
-		local Rookie = JustAdded.Rookie and JustAdded.Rookie:GetIsVisible()
-		local Commander = JustAdded.Commander and JustAdded.Commander:GetIsVisible()
-
-		local TagData
-		if Rookie or Commander then
-			TagData = {}
-
-			if Commander then
-				TagData[ 1 ] = GetTag( JustAdded.Commander )
-			end
-
-			if Rookie then
-				TagData[ #TagData + 1 ] = GetTag( JustAdded.Rookie )
-			end
-		end
+		local TagData = self:ExtractTags( JustAdded )
 
 		Hook.Call( "OnChatMessageDisplayed", PlayerColour, PlayerName, MessageColour, MessageText, TagData )
 	end

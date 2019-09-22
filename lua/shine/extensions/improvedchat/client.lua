@@ -390,6 +390,14 @@ function Plugin:ReceiveResetChatTag( Message )
 	self.ChatTags[ Message.SteamID ] = nil
 end
 
+local function PopulateFromBasicMessage( ChatLine, PlayerColour, PlayerName, MessageColour, MessageText, TagData )
+	if IsType( PlayerColour, "number" ) then
+		PlayerColour = IntToColour( PlayerColour )
+	end
+
+	ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageText )
+end
+
 function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.ChatLines = {}
 	ChatElement.ChatLinePool = {}
@@ -417,11 +425,28 @@ function Plugin:SetupGUIChat( ChatElement )
 	local Messages = ChatElement.messages
 	if not IsType( Messages, "table" ) then return end
 
-	-- Hide all existing messages immediately (it's not really possible to reconstruct them due to the split
-	-- into 2 text elements which could have been text wrapping or word wrapping).
+	-- Re-populate the chat element with the existing messages.
 	for i = 1, #Messages do
 		local Message = Messages[ i ]
+		-- Hide the existing message immediately.
 		Message.Time = 1000
+
+		-- Extract the text from the existing element. There's no way to tell whether the new line was for
+		-- a word or a text wrap, so just insert it as-is even though the text wrapping may be different.
+		local TagData = ChatElement:ExtractTags( Message )
+		local MessageText = Message.Message:GetText()
+		if Message.Message2 and Message.Message2:GetIsVisible() and Message.Message2:GetText() ~= "" then
+			MessageText = StringFormat( "%s\n%s", MessageText, Message.Message2:GetText() )
+		end
+
+		ChatElement:AddChatLine(
+			PopulateFromBasicMessage,
+			Message.Player:GetColor(),
+			Message.Player:GetText(),
+			Message.Message:GetColor(),
+			MessageText,
+			TagData
+		)
 	end
 end
 
@@ -432,14 +457,6 @@ function Plugin:ResetGUIChat( ChatElement )
 	end
 	ChatElement.ChatLines = nil
 	ChatElement.ChatLinePool = nil
-end
-
-local function PopulateFromBasicMessage( ChatLine, PlayerColour, PlayerName, MessageColour, MessageText, TagData )
-	if IsType( PlayerColour, "number" ) then
-		PlayerColour = IntToColour( PlayerColour )
-	end
-
-	ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageText )
 end
 
 -- Replace adding standard messages to use ChatLine elements and the altered display behaviour.
