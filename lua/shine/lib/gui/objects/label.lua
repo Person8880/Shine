@@ -141,6 +141,27 @@ function Label:SetBright( Bright )
 	-- Deprecated, does nothing.
 end
 
+function Label:SetShadow( Params )
+	self.Shadow = Params
+
+	if not Params then
+		self.ShadowOffset = nil
+		self.ShadowColour = nil
+		self.Label:SetDropShadowEnabled( false )
+		return
+	end
+
+	self.ShadowOffset = Params.Offset or Vector2( 2, 2 )
+	self.ShadowColour = Params.Colour
+
+	self.Label:SetDropShadowEnabled( true )
+	self.Label:SetDropShadowOffset( self.ShadowOffset )
+	self.Label:SetDropShadowColor( Params.Colour )
+end
+
 SGUI:AddMixin( Label, "AutoSizeText" )
 SGUI:AddMixin( Label, "Clickable" )
 SGUI:Register( "Label", Label )
+
+-- Maintain backwards compatibility with the old separate control type.
+SGUI:RegisterAlias( "Label", "ShadowLabel" )

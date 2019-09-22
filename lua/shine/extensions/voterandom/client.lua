@@ -222,7 +222,6 @@ function Plugin:OnVoteButtonCreated( Button, VoteMenu )
 		PreferenceLabel:MakeVertical()
 		PreferenceLabel:SetAnchor( "CentreMiddle" )
 		PreferenceLabel:SetFontScale( Button:GetFont(), Button:GetTextScale() )
-		PreferenceLabel:SetDefaultLabelType( "ShadowLabel" )
 		PreferenceLabel:SetText( {
 			Colour( 1, 1, 1 ),
 			self:GetPhrase( "TEAM_PREFERENCE_HINT" ),
