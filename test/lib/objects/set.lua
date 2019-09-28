@@ -114,6 +114,18 @@ UnitTest:Test( "Remove", function( Assert )
 	Assert:False( Set:Contains( "a" ) )
 end )
 
+UnitTest:Test( "RemoveAll", function( Assert )
+	local Set = Shine.Set( { a = true, b = true, c = true } )
+	Assert:Equals( 3, Set:GetCount() )
+
+	Set:RemoveAll( { "a", "b" } )
+
+	Assert:Equals( 1, Set:GetCount() )
+	Assert:False( Set:Contains( "a" ) )
+	Assert:False( Set:Contains( "b" ) )
+	Assert:True( Set:Contains( "c" ) )
+end )
+
 UnitTest:Test( "Iteration", function( Assert )
 	local Set = Shine.Set( { a = true, b = true, c = true } )
 	local Seen = Shine.Set()
@@ -123,6 +135,21 @@ UnitTest:Test( "Iteration", function( Assert )
 	end
 
 	Assert:Equals( Seen, Set )
+end )
+
+UnitTest:Test( "Clear", function( Assert )
+	local Set = Shine.Set( { a = true, b = true, c = true } )
+	Set:Clear()
+
+	Assert:Equals( 0, Set:GetCount() )
+	Assert:False( Set:Contains( "a" ) )
+	Assert:False( Set:Contains( "b" ) )
+	Assert:False( Set:Contains( "c" ) )
+end )
+
+UnitTest:Test( "Length meta-method", function( Assert )
+	local Set = Shine.Set( { a = true, b = true, c = true } )
+	Assert:Equals( 3, #Set )
 end )
 
 UnitTest:Test( "Equality", function( Assert )

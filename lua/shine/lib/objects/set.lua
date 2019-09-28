@@ -3,6 +3,8 @@
 ]]
 
 local getmetatable = getmetatable
+local TableAsSet = table.AsSet
+local TableEmpty = table.Empty
 local TableGetKeys = table.GetKeys
 local TableQuickCopy = table.QuickCopy
 local TableShallowCopy = table.ShallowCopy
@@ -77,7 +79,7 @@ do
 	local function FilterValues( Value, Index, FilterOperation )
 		local IsAllowed = FilterOperation.Predicate( Value, FilterOperation.Context )
 		if not IsAllowed then
-			FilterOperation.Set.Lookup[ Value ] = nil
+			FilterOperation.Lookup[ Value ] = nil
 		end
 		return IsAllowed
 	end
@@ -86,7 +88,7 @@ do
 		self.Stream:Filter( FilterValues, {
 			Predicate = Predicate,
 			Context = Context,
-			Set = self
+			Lookup = self.Lookup
 		} )
 		return self
 	end
@@ -137,12 +139,32 @@ do
 	end
 end
 
+do
+	local function NotInLookup( Value, Lookup )
+		return not Lookup[ Value ]
+	end
+
+	function Set:RemoveAll( Values )
+		return self:Filter( NotInLookup, TableAsSet( Values ) )
+	end
+end
+
+function Set:Clear()
+	TableEmpty( self.List )
+	TableEmpty( self.Lookup )
+	return self
+end
+
 function Set:GetCount()
 	return #self.List
 end
 
 function Set:AsList()
 	return self.List
+end
+
+function Set:__len()
+	return #self.List
 end
 
 function Set:__eq( OtherSet )
