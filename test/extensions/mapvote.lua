@@ -8,6 +8,192 @@ local MapVotePlugin = UnitTest:LoadExtension( "mapvote" )
 if not MapVotePlugin then return end
 
 local MapVote = UnitTest.MockPlugin( MapVotePlugin )
+do
+	local MockGamerules = {}
+	UnitTest.MockGlobal( "GetGamerules", function()
+		return MockGamerules
+	end )
+
+	MapVote.Config.ForceChangeWhenSecondsLeft = 60
+
+	UnitTest:Before( function()
+		MapVote.VoteOnEnd = true
+		MapVote.Round = 0
+		MapVote.SendTranslatedNotify = UnitTest.MockFunction()
+		MapVote.StartVote = UnitTest.MockFunction()
+		MapVote.ForcePlayersIntoReadyRoom = UnitTest.MockFunction()
+	end )
+
+	UnitTest:Test( "SetupFromMapData - Applies time and round limits from map (upper-camel)", function( Assert )
+		MapVote.VoteOnEnd = false
+		MapVote.MapCycle.time = 0
+		MapVote.RoundLimit = 0
+
+		MapVote:SetupFromMapData( {
+			Time = 60,
+			Rounds = 5
+		} )
+
+		Assert.Equals( "Should have set the map cycle time from the map", 60, MapVote.MapCycle.time )
+		Assert.Equals( "Should have applied the map's round limit", 5, MapVote.RoundLimit )
+		Assert.True( "Should have set VoteOnEnd = true as the round limit is > 0", MapVote.VoteOnEnd )
+	end )
+
+	UnitTest:Test( "SetupFromMapData - Applies time and round limits from map (lower-camel)", function( Assert )
+		MapVote.VoteOnEnd = false
+		MapVote.MapCycle.time = 0
+		MapVote.RoundLimit = 0
+
+		MapVote:SetupFromMapData( {
+			time = 60,
+			rounds = 5
+		} )
+
+		Assert.Equals( "Should have set the map cycle time from the map", 60, MapVote.MapCycle.time )
+		Assert.Equals( "Should have applied the map's round limit", 5, MapVote.RoundLimit )
+		Assert.True( "Should have set VoteOnEnd = true as the round limit is > 0", MapVote.VoteOnEnd )
+	end )
+
+	UnitTest:Test( "SetupFromMapData - Ignores invalid time/round limits from map", function( Assert )
+		MapVote.VoteOnEnd = false
+		MapVote.MapCycle.time = 0
+		MapVote.RoundLimit = 0
+
+		MapVote:SetupFromMapData( {
+			Time = "invalid time",
+			Rounds = "invalid rounds"
+		} )
+
+		Assert.Equals( "Should have kept the existing map cycle time", 0, MapVote.MapCycle.time )
+		Assert.Equals( "Should have kept the existing round limit", 0, MapVote.RoundLimit )
+		Assert.False( "Should not have set VoteOnEnd = true", MapVote.VoteOnEnd )
+	end )
+
+	UnitTest:Test(
+		"CheckMapLimitsAfterRoundEnd - Does nothing if map time limit not yet reached and time left is > 1 hour",
+		function( Assert )
+			MapVote.RoundLimit = 0
+			MapVote.MapCycle.time = Shared.GetTime() / 60 + 120
+
+			MapVote:CheckMapLimitsAfterRoundEnd()
+
+			Assert.CalledTimes( "Should not have sent a message", MapVote.SendTranslatedNotify, 0 )
+			Assert.CalledTimes( "Should not have started a vote", MapVote.StartVote, 0 )
+		end
+	)
+
+	UnitTest:Test(
+		"CheckMapLimitsAfterRoundEnd - Does nothing if map time limit and round limit not yet reached and rounds left > 10",
+		function( Assert )
+			MapVote.RoundLimit = 15
+			MapVote.MapCycle.time = Shared.GetTime() / 60 + 5
+
+			MapVote:CheckMapLimitsAfterRoundEnd()
+
+			Assert.CalledTimes( "Should not have sent a message", MapVote.SendTranslatedNotify, 0 )
+			Assert.CalledTimes( "Should not have started a vote", MapVote.StartVote, 0 )
+		end
+	)
+
+	UnitTest:Test(
+		"CheckMapLimitsAfterRoundEnd - Sends message if no round limit and map time limit not yet reached",
+		function( Assert )
+			MapVote.RoundLimit = 0
+			MapVote.MapCycle.time = Shared.GetTime() / 60 + 5.1
+
+			MapVote:CheckMapLimitsAfterRoundEnd()
+
+			Assert.Called(
+				"Should have notified that there is 5 minutes remaining on the map (rounded to 30 seconds)",
+				MapVote.SendTranslatedNotify,
+				MapVote,
+				nil,
+				"TimeLeftNotify",
+				{
+					Duration = 300
+				}
+			)
+			Assert.CalledTimes( "Should not have started a vote", MapVote.StartVote, 0 )
+		end
+	)
+
+	UnitTest:Test(
+		"CheckMapLimitsAfterRoundEnd - Sends message if round limit exists but has not been reached",
+		function( Assert )
+			MapVote.RoundLimit = 2
+			MapVote.MapCycle.time = Shared.GetTime() / 60 + 120
+
+			MapVote:CheckMapLimitsAfterRoundEnd()
+
+			Assert.Called(
+				"Should have notified that there is 1 round remaining on the map",
+				MapVote.SendTranslatedNotify,
+				MapVote,
+				nil,
+				"RoundLeftNotify",
+				{
+					Duration = 1
+				}
+			)
+			Assert.CalledTimes( "Should not have started a vote", MapVote.StartVote, 0 )
+		end
+	)
+
+	UnitTest:Test(
+		"CheckMapLimitsAfterRoundEnd - Starts a next map vote if time limit is reached with no round limit",
+		function( Assert )
+			MapVote.RoundLimit = 0
+			-- ForceChangeWhenSecondsLeft = 60 means at <= 1 minute left the next map vote should start.
+			MapVote.MapCycle.time = Shared.GetTime() / 60 + 1
+
+			MapVote:CheckMapLimitsAfterRoundEnd()
+
+			Assert.Called( "Should have called StartVote( true )", MapVote.StartVote, MapVote, true )
+			Assert.Called(
+				"Should have called ForcePlayersIntoReadyRoom()",
+				MapVote.ForcePlayersIntoReadyRoom,
+				MapVote
+			)
+		end
+	)
+
+	UnitTest:Test(
+		"CheckMapLimitsAfterRoundEnd - Starts a next map vote if time limit is reached with a round limit",
+		function( Assert )
+			MapVote.RoundLimit = 5
+			MapVote.MapCycle.time = Shared.GetTime() / 60
+
+			MapVote:CheckMapLimitsAfterRoundEnd()
+
+			Assert.Called( "Should have called StartVote( true )", MapVote.StartVote, MapVote, true )
+			Assert.Called(
+				"Should have called ForcePlayersIntoReadyRoom()",
+				MapVote.ForcePlayersIntoReadyRoom,
+				MapVote
+			)
+		end
+	)
+
+	UnitTest:Test(
+		"CheckMapLimitsAfterRoundEnd - Starts a next map vote if round limit is reached",
+		function( Assert )
+			MapVote.RoundLimit = 1
+			MapVote.MapCycle.time = Shared.GetTime() / 60 + 5
+
+			MapVote:CheckMapLimitsAfterRoundEnd()
+
+			Assert.Called( "Should have called StartVote( true )", MapVote.StartVote, MapVote, true )
+			Assert.Called(
+				"Should have called ForcePlayersIntoReadyRoom()",
+				MapVote.ForcePlayersIntoReadyRoom,
+				MapVote
+			)
+		end
+	)
+
+	UnitTest:ResetState()
+	MapVote = UnitTest.MockPlugin( MapVotePlugin )
+end
 
 function MapVote:LoadMapStats() end
 

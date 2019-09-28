@@ -362,7 +362,7 @@ function Plugin:ExtendMap( Time, NextMap )
 	local CycleTime = Cycle and ( Cycle.time * 60 ) or 0
 	local BaseTime = CycleTime > Time and CycleTime or Time
 
-	if self.Config.RoundLimit > 0 then
+	if self.RoundLimit > 0 then
 		self.Round = self.Round - 1
 		self:NotifyTranslated( nil, "EXTENDING_ROUND" )
 	else
@@ -374,24 +374,22 @@ function Plugin:ExtendMap( Time, NextMap )
 	self.NextMap.ExtendTime = BaseTime + ExtendTime
 	self.NextMap.Extends = self.NextMap.Extends + 1
 
+	if self.VoteOnEnd then return end
+
 	if NextMap then
-		if not self.VoteOnEnd then
-			self.NextMapVoteTime = Time + ExtendTime * self.Config.NextMapVoteMapTimeFraction
-		end
+		self.NextMapVoteTime = Time + ExtendTime * self.Config.NextMapVoteMapTimeFraction
 	else
 		if not self.Config.EnableNextMapVote then return end
 
-		--Start the next timer taking the extended time as the new cycle time.
+		-- Start the next timer taking the extended time as the new cycle time.
 		local NextVoteTime = ( BaseTime + ExtendTime ) * self.Config.NextMapVoteMapTimeFraction - Time
 
-		--Timer would start immediately for the next map vote...
+		-- Timer would start immediately for the next map vote...
 		if NextVoteTime <= Time then
 			NextVoteTime = ExtendTime * self.Config.NextMapVoteMapTimeFraction
 		end
 
-		if not self.VoteOnEnd then
-			self.NextMapVoteTime = Time + NextVoteTime
-		end
+		self.NextMapVoteTime = Time + NextVoteTime
 	end
 end
 

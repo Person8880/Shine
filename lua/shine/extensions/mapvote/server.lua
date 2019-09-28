@@ -368,6 +368,7 @@ function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
 
 	self.Round = 0
+	self.RoundLimit = self.Config.RoundLimit
 
 	self.Vote = self.Vote or {}
 	self.Vote.NextVote = self.Vote.NextVote or ( SharedTime() + self:GetVoteDelay() )
@@ -411,7 +412,7 @@ function Plugin:Initialise()
 	self.MapCycle.time = tonumber( self.MapCycle.time ) or 30
 
 	if self.Config.EnableNextMapVote and AllowVotes then
-		if self.Config.NextMapVoteMapTimeFraction >= 1 or self.Config.RoundLimit > 0 then
+		if self.Config.NextMapVoteMapTimeFraction >= 1 or self.RoundLimit > 0 then
 			self.VoteOnEnd = true
 		else
 			local Time = SharedTime()
@@ -488,12 +489,18 @@ function Plugin:CanNominateWhenExcluded( Map )
 end
 
 function Plugin:SetupFromMapData( Data )
-	if tonumber( Data.time or Data.Time ) then
-		self.MapCycle.time = tonumber( Data.time or Data.Time )
+	local MapTimeLimit = tonumber( Data.time or Data.Time )
+	if MapTimeLimit then
+		self.MapCycle.time = MapTimeLimit
 	end
 
-	if tonumber( Data.rounds or Data.Rounds ) then
-		self.Config.RoundLimit = Max( tonumber( Data.rounds or Data.Rounds ), 0 )
+	local MapRoundLimit = tonumber( Data.rounds or Data.Rounds )
+	if MapRoundLimit then
+		self.RoundLimit = Max( MapRoundLimit, 0 )
+
+		if self.RoundLimit > 0 then
+			self.VoteOnEnd = true
+		end
 	end
 end
 
@@ -540,86 +547,90 @@ function Plugin:ForcePlayersIntoReadyRoom()
 	end
 end
 
+function Plugin:CheckMapLimitsAfterRoundEnd()
+	local Time = SharedTime()
+
+	local Cycle = self.MapCycle
+	local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
+	local ExtendTime = self.NextMap.ExtendTime
+	local TimeLeft = CycleTime - Time
+
+	if ExtendTime then
+		TimeLeft = ExtendTime - Time
+	end
+
+	local Key = "TimeLeftNotify"
+	local Message = {}
+	local Gamerules = GetGamerules()
+
+	if self.RoundLimit > 0 then
+		self.Round = self.Round + 1
+
+		Key = "RoundLeftNotify"
+
+		-- Prevent time based cycling from passing.
+		if Gamerules then
+			Gamerules.timeToCycleMap = nil
+		end
+
+		if self.Round >= self.RoundLimit then
+			TimeLeft = 0
+			Message.Duration = 0
+		else
+			Message.Duration = self.RoundLimit - self.Round
+		end
+	end
+
+	if not self.VoteOnEnd and self.NextMapVoteTime and self.NextMapVoteTime <= Time then
+		self:StartVote( true )
+	end
+
+	if TimeLeft <= self.Config.ForceChangeWhenSecondsLeft then
+		if not self:VoteStarted() and not self.VoteOnEnd then
+			self:SendTranslatedNotify( nil, "MapCycling", {
+				MapName = self:GetNextMap()
+			} )
+
+			self:ForcePlayersIntoReadyRoom()
+			self.CyclingMap = true
+
+			Gamerules.timeToCycleMap = Time + 30
+
+			return
+		end
+
+		if self.VoteOnEnd then
+			self:StartVote( true )
+			self:ForcePlayersIntoReadyRoom()
+		end
+
+		return
+	end
+
+	-- Don't say anything if there's more than an hour left or more than 10 rounds left.
+	if self.RoundLimit > 0 then
+		if Message.Duration > 10 then
+			return
+		end
+	elseif TimeLeft > 3600 then
+		return
+	end
+
+	-- Round the time down to the nearest 30 seconds.
+	if TimeLeft > 30 then
+		TimeLeft = TimeLeft - ( TimeLeft % 30 )
+	end
+
+	if not Message.Duration then
+		Message.Duration = Floor( TimeLeft )
+	end
+
+	self:SendTranslatedNotify( nil, Key, Message )
+end
+
 function Plugin:EndGame()
 	self:SimpleTimer( 10, function()
-		local Time = SharedTime()
-
-		local Cycle = self.MapCycle
-		local CycleTime = Cycle and ( Cycle.time * 60 ) or 1800
-
-		if not CycleTime then return end
-
-		local ExtendTime = self.NextMap.ExtendTime
-		local TimeLeft = CycleTime - Time
-
-		if ExtendTime then
-			TimeLeft = ExtendTime - Time
-		end
-
-		local Key = "TimeLeftNotify"
-		local Message = {}
-		local Gamerules = GetGamerules()
-
-		if self.Config.RoundLimit > 0 then
-			self.Round = self.Round + 1
-
-			Key = "RoundLeftNotify"
-
-			-- Prevent time based cycling from passing.
-			if Gamerules then
-				Gamerules.timeToCycleMap = nil
-			end
-
-			if self.Round >= self.Config.RoundLimit then
-				TimeLeft = 0
-				Message.Duration = 0
-			else
-				local RoundsLeft = self.Config.RoundLimit - self.Round
-				Message.Duration = RoundsLeft
-			end
-		end
-
-		if not self.VoteOnEnd and self.NextMapVoteTime and self.NextMapVoteTime <= Time then
-			self:StartVote( true )
-		end
-
-		if TimeLeft <= self.Config.ForceChangeWhenSecondsLeft then
-			if not self:VoteStarted() and not self.VoteOnEnd then
-				self:SendTranslatedNotify( nil, "MapCycling", {
-					MapName = self:GetNextMap()
-				} )
-
-				self:ForcePlayersIntoReadyRoom()
-				self.CyclingMap = true
-
-				Gamerules.timeToCycleMap = Time + 30
-
-				return
-			end
-
-			if self.VoteOnEnd then
-				self:StartVote( true )
-				self:ForcePlayersIntoReadyRoom()
-			end
-
-			return
-		end
-
-		-- Don't say anything if there's more than an hour left.
-		if TimeLeft > 3600 then
-			return
-		end
-
-		-- Round the time down to the nearest 30 seconds.
-		if TimeLeft > 30 then
-			TimeLeft = TimeLeft - ( TimeLeft % 30 )
-		end
-
-		if not Message.Duration then
-			Message.Duration = Floor( TimeLeft )
-		end
-
-		self:SendTranslatedNotify( nil, Key, Message )
+		self:CheckMapLimitsAfterRoundEnd()
 	end )
 end
 
@@ -920,9 +931,9 @@ function Plugin:CreateCommands()
 
 		if Client then
 			local Message = {}
-			if self.Config.RoundLimit > 0 then
+			if self.RoundLimit > 0 then
 				Message.Rounds = true
-				Message.Duration = self.Config.RoundLimit - self.Round
+				Message.Duration = self.RoundLimit - self.Round
 			else
 				Message.Rounds = false
 				if not CycleTime then
@@ -937,8 +948,8 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		if self.Config.RoundLimit > 0 then
-			local RoundsLeft = self.Config.RoundLimit - self.Round
+		if self.RoundLimit > 0 then
+			local RoundsLeft = self.RoundLimit - self.Round
 
 			if RoundsLeft > 1 then
 				local RoundMessage = StringFormat( "are %i rounds", RoundsLeft )
@@ -1016,7 +1027,7 @@ function Plugin:CreateCommands()
 	local function AddRounds( Client, Rounds )
 		if Rounds == 0 then return end
 
-		self.Config.RoundLimit = self.Config.RoundLimit + Rounds
+		self.RoundLimit = self.RoundLimit + Rounds
 		self:SendTranslatedMessage( Client, "MAP_EXTENDED_ROUNDS", {
 			Duration = Rounds
 		} )
@@ -1027,7 +1038,7 @@ function Plugin:CreateCommands()
 	AddRoundsCommand:Help( "Adds the given number of rounds to the round limit." )
 
 	local function SetRounds( Client, Rounds )
-		self.Config.RoundLimit = Rounds
+		self.RoundLimit = Rounds
 		self:SendTranslatedMessage( Client, "SET_MAP_ROUNDS", {
 			Duration = Rounds
 		} )
