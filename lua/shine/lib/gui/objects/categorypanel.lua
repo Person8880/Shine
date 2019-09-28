@@ -107,14 +107,19 @@ function CategoryPanel:SetCategoryExpanded( Name, Expand, InvalidateNow )
 			if Expand and Category.Expanded then return end
 			if not Expand and not Category.Expanded then return end
 
-			--Here we get the amount to move all objects below by.
+			if not Expand then
+				Category.Header:AddStylingState( "Collapsed" )
+			else
+				Category.Header:RemoveStylingState( "Collapsed" )
+			end
+
 			Found = true
 			for j = 1, #Category.Objects do
 				local Object = Category.Objects[ j ]
-				Object:SetIsVisible( Expand and true or false )
+				Object:SetIsVisible( not not Expand )
 			end
 
-			Category.Expanded = Expand and true or false
+			Category.Expanded = not not Expand
 
 			break
 		end
