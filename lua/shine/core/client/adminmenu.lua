@@ -453,7 +453,9 @@ do
 			local ButtonHeight = Units.Auto() + HighResScaled( 6 )
 
 			Commands = SGUI:Create( "CategoryPanel", Panel )
-			Commands:SetCategoryHeight( HighResScaled( 24 ) )
+			-- Note that due to cropping, anything with a negative y-coordinate is not rendered at all.
+			-- Thus this value must be greater-equal the font size.
+			Commands:SetCategoryHeight( HighResScaled( 28 ) )
 			CommandLayout:AddElement( Commands )
 
 			local Width = Units.Max()
