@@ -363,6 +363,8 @@ if Client then
 				Value = Transformer( Value )
 			end
 
+			if Value == self.Config[ ConfigKey ] then return end
+
 			self.Config[ ConfigKey ] = Value
 			self:SaveConfig()
 
