@@ -246,14 +246,15 @@ local SettingsTypes = {
 				local Dropdown = Container:Add( "Dropdown" )
 				Dropdown:SetFontScale( GetSmallFont() )
 				Dropdown:AddOptions( Shine.IsCallable( Entry.Options ) and Entry.Options() or Entry.Options )
-				Dropdown:AddPropertyChangeListener( "SelectedOption", function( Option )
-					Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
-				end )
 				Dropdown:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
 				VerticalLayout:AddElement( Dropdown )
 
 				local CurrentValue = GetConfiguredValue( Entry )
 				Dropdown:SelectOption( CurrentValue )
+
+				Dropdown:AddPropertyChangeListener( "SelectedOption", function( Option )
+					Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
+				end )
 
 				return Dropdown
 			end )
@@ -262,35 +263,31 @@ local SettingsTypes = {
 	Radio = {
 		Create = function( Panel, Entry )
 			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
-				local CheckBoxes = {}
+				local Radio = Container:Add( "Radio" )
+				Radio:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
+				Radio:SetFontScale( GetSmallFont() )
+				Radio:SetCheckBoxAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
+				Radio:SetCheckBoxMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
+
 				local CurrentChoice = GetConfiguredValue( Entry )
 				for i = 1, #Entry.Options do
 					local Option = Entry.Options[ i ]
+					local RadioOption = {
+						Description = Locale:GetPhrase( TranslationSource, Option ),
+						Value = Option
+					}
+					Radio:AddOption( RadioOption )
 
-					local CheckBox = Container:Add( "CheckBox" )
-					CheckBox:SetFontScale( GetSmallFont() )
-					CheckBox:AddLabel( Locale:GetPhrase( TranslationSource, Option ) )
-					CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
-					if i > 1 then
-						CheckBox:SetMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
+					if CurrentChoice == Option then
+						Radio:SetSelectedOption( RadioOption )
 					end
-					CheckBox:SetRadio( true )
-
-					CheckBox:SetChecked( CurrentChoice == Option )
-					CheckBox.OnChecked = function( CheckBox, Value )
-						if not Value then return end
-
-						Shared.ConsoleCommand( Entry.Command.." "..Option )
-						for j = 1, #CheckBoxes do
-							if CheckBoxes[ j ] ~= CheckBox then
-								CheckBoxes[ j ]:SetChecked( false )
-							end
-						end
-					end
-
-					VerticalLayout:AddElement( CheckBox )
-					CheckBoxes[ #CheckBoxes + 1 ] = CheckBox
 				end
+
+				Radio:AddPropertyChangeListener( "SelectedOption", function( Option )
+					Shared.ConsoleCommand( Entry.Command.." "..Option.Value )
+				end )
+
+				VerticalLayout:AddElement( Radio )
 
 				if Entry.HelpText then
 					local Hint = Container:Add( "Hint" )
@@ -307,7 +304,7 @@ local SettingsTypes = {
 					VerticalLayout:AddElement( Hint )
 				end
 
-				-- TODO: Make a radio control and return that.
+				return Radio
 			end )
 		end
 	}
