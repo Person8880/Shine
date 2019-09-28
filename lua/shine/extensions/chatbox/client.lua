@@ -939,7 +939,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 		Expanded = true
 
 		SettingsPanel:SetIsVisible( true )
-		SettingsButton:SetStylingState( "Open" )
+		SettingsButton:AddStylingState( "Open" )
 	else
 		Start = Vector2( UIScale.x * LayoutData.Sizes.Settings.x, SettingsPanelSize.y )
 		End = Vector2( UIScale.x * LayoutData.Sizes.SettingsClosed.x, SettingsPanelSize.y )
@@ -949,8 +949,10 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.5, function( Panel )
 		SettingsButton.Expanded = Expanded
 
-		SettingsButton:SetStylingState( Expanded and "Open" or nil )
-		if not Expanded then
+		if Expanded then
+			SettingsButton:AddStylingState( "Open" )
+		else
+			SettingsButton:RemoveStylingState( "Open" )
 			SettingsPanel:SetIsVisible( false )
 		end
 

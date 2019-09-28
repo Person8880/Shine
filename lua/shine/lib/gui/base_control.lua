@@ -4,6 +4,7 @@
 
 local SGUI = Shine.GUI
 local ControlMeta = SGUI.BaseControl
+local Set = Shine.Set
 
 local assert = assert
 local Clock = os.clock
@@ -188,12 +189,72 @@ end
 	This can be used to easily define focus/hover behaviour.
 ]]
 function ControlMeta:SetStylingState( Name )
-	self.StylingState = Name
+	local States = self:GetStylingStates()
+	States:Clear()
+
+	if Name then
+		States:Add( Name )
+	end
+
 	SGUI.SkinManager:ApplySkin( self )
 end
 
+function ControlMeta:AddStylingState( Name )
+	local States = self:GetStylingStates()
+	if not States:Contains( Name ) then
+		States:Add( Name )
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+function ControlMeta:AddStylingStates( Names )
+	local States = self:GetStylingStates()
+	local PreviousCount = States:GetCount()
+
+	States:AddAll( Names )
+
+	if States:GetCount() > PreviousCount then
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+function ControlMeta:RemoveStylingState( Name )
+	local States = self:GetStylingStates()
+	if States:Contains( Name ) then
+		States:Remove( Name )
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+function ControlMeta:RemoveStylingStates( Names )
+	local States = self:GetStylingStates()
+	local PreviousCount = States:GetCount()
+
+	States:RemoveAll( Names )
+
+	if States:GetCount() < PreviousCount then
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+-- Deprecated single-style state accessor. Controls may have more than one active state.
 function ControlMeta:GetStylingState()
-	return self.StylingState
+	return self.StylingStates and self.StylingStates:AsList()[ 1 ]
+end
+
+do
+	local function GetStylingStatesUnsafe( self )
+		return self.StylingStates
+	end
+
+	function ControlMeta:GetStylingStates()
+		if not self.StylingStates then
+			self.StylingStates = Set()
+			self.GetStylingStates = GetStylingStatesUnsafe
+		end
+
+		return self.StylingStates
+	end
 end
 
 function ControlMeta:SetStyleName( Name )
@@ -1462,10 +1523,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 
 	if Highlighted then
 		self.Highlighted = true
-
-		if not self:GetStylingState() then
-			self:SetStylingState( "Highlighted" )
-		end
+		self:AddStylingState( "Highlighted" )
 
 		if not self.TextureHighlight then
 			if SkipAnim then
@@ -1481,9 +1539,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		end
 	else
 		self.Highlighted = false
-		if self:GetStylingState() == "Highlighted" then
-			self:SetStylingState( nil )
-		end
+		self:RemoveStylingState( "Highlighted" )
 
 		if not self.TextureHighlight then
 			if SkipAnim then

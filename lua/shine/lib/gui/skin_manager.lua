@@ -113,8 +113,16 @@ function SkinManager:ApplySkin( Element )
 	-- If only the state values were applied, changing skins could lead to incorrect
 	-- values being left from a previous skin.
 	local StyleCopy = CopyValues( Element, StyleDef, {} )
-	if StateValues then
-		StyleCopy = CopyValues( Element, StateValues, StyleCopy )
+
+	-- If the element has styling states (not using the getter to avoid initialising them), apply them.
+	local States = Element.StylingStates
+	if States and StyleDef.States then
+		for State in States:Iterate() do
+			local StateValues = StyleDef.States[ State ]
+			if StateValues then
+				StyleCopy = CopyValues( Element, StateValues, StyleCopy )
+			end
+		end
 	end
 
 	Element:SetupFromTable( StyleCopy )
