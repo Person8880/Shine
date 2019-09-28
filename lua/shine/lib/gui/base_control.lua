@@ -691,10 +691,10 @@ SGUI.AddProperty( ControlMeta, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN, {
 
 -- AutoSize controls how to resize the control during layout. You should pass a UnitVector, with
 -- your dynamic units (e.g. GUIScaled, Percentage).
-SGUI.AddProperty( ControlMeta, "AutoSize", { "InvalidatesParent" } )
+SGUI.AddProperty( ControlMeta, "AutoSize", nil, { "InvalidatesParent" } )
 
 -- AutoFont provides a way to set the font size automatically at layout time.
-SGUI.AddProperty( ControlMeta, "AutoFont", { "InvalidatesParent" } )
+SGUI.AddProperty( ControlMeta, "AutoFont", nil, { "InvalidatesParent" } )
 
 -- Fill controls whether the element should have its size computed automatically during layout.
 SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
