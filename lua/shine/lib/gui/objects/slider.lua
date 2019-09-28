@@ -93,10 +93,6 @@ function Slider:Initialise()
 		TextEntry.TextOffset = 0
 		TextEntry:SetAnchor( "CentreRight" )
 		TextEntry:SetPos( Vector2( Label:GetPos().x, -TextH * 0.5 ) )
-		if self.Stencilled then
-			TextEntry:DisableStencil()
-		end
-
 		TextEntry:SetSize( self:GetLabelSize() )
 		TextEntry:SetFontScale( Label:GetFont(), Label:GetTextScale() )
 		TextEntry:SetText( tostring( self.Value ) )

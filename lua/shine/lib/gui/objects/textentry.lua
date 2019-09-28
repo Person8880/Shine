@@ -207,11 +207,6 @@ function TextEntry:SetFont( Font )
 	end
 end
 
-function TextEntry:DisableStencil()
-	self.Stencil:SetIsVisible( false )
-	self.StencilDisabled = true
-end
-
 function TextEntry:PerformLayout()
 	local OldColumn = self.Column
 	self:SetupCaret()
@@ -233,7 +228,7 @@ function TextEntry:SetupCaret()
 	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
 	self.Column = StringUTF8Length( self.Text )
 
-	if Width > self.Width and not self.StencilDisabled then
+	if Width > self.Width then
 		local Diff = -( Width - self.Width )
 
 		TextObj:SetPosition( Vector( Diff, 0, 0 ) )
@@ -279,28 +274,22 @@ function TextEntry:SetCaretPos( Column )
 	local UTF8W = TextObj:GetTextWidth( StringUTF8Sub( self.Text, 1, self.Column ) ) * self.WidthScale
 	local NewPos = UTF8W + self.TextOffset
 
-	if not self.StencilDisabled then
-		-- We need to move the text along with the caret, otherwise it'll go out of vision!
-		if NewPos < 0 then
-			self.TextOffset = Min( self.TextOffset - NewPos, self.Padding )
+	-- We need to move the text along with the caret, otherwise it'll go out of vision!
+	if NewPos < 0 then
+		self.TextOffset = Min( self.TextOffset - NewPos, self.Padding )
 
-			if self.Column == 0 then
-				self.TextOffset = self.Padding
-			end
-
-			NewPos = Max( NewPos, self.TextOffset )
-		elseif NewPos > self.Width then
-			local Diff = NewPos - self.Width
-
-			self.TextOffset = self.TextOffset - Diff
+		if self.Column == 0 then
+			self.TextOffset = self.Padding
 		end
 
-		NewPos = Clamp( NewPos + self.CaretOffset, 0, self.Width )
-	else
-		-- Stencil is disabled (i.e. the text entry is in another stencil already), so keep the text stationary.
-		self.TextOffset = 0
-		NewPos = Max( NewPos + self.CaretOffset, 0 )
+		NewPos = Max( NewPos, self.TextOffset )
+	elseif NewPos > self.Width then
+		local Diff = NewPos - self.Width
+
+		self.TextOffset = self.TextOffset - Diff
 	end
+
+	NewPos = Clamp( NewPos + self.CaretOffset, 0, self.Width )
 
 	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
 	TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
