@@ -208,6 +208,11 @@ local Skin = {
 			BorderSize = Vector2( 0, 0 )
 		}
 	},
+	Radio = {
+		Default = {
+			BackgroundColour = Clear
+		}
+	},
 	Scrollbar = {
 		Default = {
 			BackgroundColour = Colour( 0, 0, 0, 0.2 ),

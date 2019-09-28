@@ -84,6 +84,7 @@ function CheckBox:SetChecked( Value, DontFade )
 		end
 
 		self:OnChecked( true )
+		self:OnPropertyChanged( "Checked", true )
 
 		return
 	end
@@ -99,6 +100,7 @@ function CheckBox:SetChecked( Value, DontFade )
 	end
 
 	self:OnChecked( false )
+	self:OnPropertyChanged( "Checked", false )
 end
 
 function CheckBox:OnMouseDown( Key, DoubleClick )
