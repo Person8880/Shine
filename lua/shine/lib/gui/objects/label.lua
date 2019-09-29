@@ -6,6 +6,7 @@ local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
 local getmetatable = getmetatable
+local StringFind = string.find
 
 local Label = {}
 
@@ -24,7 +25,6 @@ function Label:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Label = self:MakeGUITextItem()
-	self.Label:SetOptionFlag( GUIItem.PerLineTextAlignment )
 	self.Background = self.Label
 	self.TextScale = Vector2( 1, 1 )
 	self.TextAlignmentX = GUIItem.Align_Min
@@ -37,6 +37,19 @@ function Label:Initialise()
 	self:AddPropertyChangeListener( "Text", MarkSizeDirty )
 	self:AddPropertyChangeListener( "Font", MarkSizeDirty )
 	self:AddPropertyChangeListener( "TextScale", MarkSizeDirty )
+
+	self:AddPropertyChangeListener( "Text", function( Text )
+		self:EvaluateOptionFlags( Text )
+	end )
+end
+
+function Label:EvaluateOptionFlags( Text )
+	if StringFind( Text, "\n", 1, true ) then
+		-- This flag causes random blurring on text, so only set it if it's really needed.
+		self.Label:SetOptionFlag( GUIItem.PerLineTextAlignment )
+	else
+		self.Label:ClearOptionFlag( GUIItem.PerLineTextAlignment )
+	end
 end
 
 -- Sets whether the label should offset itself during layout to ensure alignment does not affect position.
@@ -107,6 +120,7 @@ function Label:PreComputeHeight( Width )
 		end,
 		SetText = function( _, Text )
 			self.Label:SetText( Text )
+			self:EvaluateOptionFlags( Text )
 		end
 	}
 
