@@ -19,8 +19,8 @@ local Binder = require "shine/lib/gui/binding/binder"
 
 local CloseButtonCol = Colour( 0.6, 0.3, 0.1, 1 )
 local CloseButtonHighlight = Colour( 0.8, 0.4, 0.1, 1 )
-local SteamButtonCol = Colour( 0.1, 0.6, 0.2, 1 )
-local SteamButtonHighlight = Colour( 0.15, 0.9, 0.3, 1 )
+local SteamButtonCol = Colour( 0.1, 0.5, 0.1, 1 )
+local SteamButtonHighlight = Colour( 0.1, 0.6, 0.1, 1 )
 local ButtonTextColour = Colour( 1, 1, 1, 1 )
 
 local LoadingFont = Fonts.kAgencyFB_Large
