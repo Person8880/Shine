@@ -431,8 +431,26 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 	return Tabs[ self.NumTabs ]
 end
 
+function TabPanel:SetSelectedTab( Tab )
+	local TabButton = Tab.TabButton
+
+	if SGUI.IsValid( TabButton ) then
+		TabButton:DoClick()
+		return true
+	end
+
+	return false
+end
+
 function TabPanel:GetActiveTab()
 	return self.Tabs[ self.ActiveTab ]
+end
+
+function TabPanel:ForceTabRefresh( Index )
+	if self.ActiveTab ~= Index or not self.Tabs[ Index ] then return end
+
+	self.ActiveTab = nil
+	self:OnTabSelect( self.Tabs[ Index ].TabButton )
 end
 
 function TabPanel:OnTabSelect( Tab, SuppressPre )

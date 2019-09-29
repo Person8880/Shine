@@ -77,7 +77,7 @@ function ConfigMenu:Create()
 		local Tab = self.Tabs[ Window.ActiveTab ]
 		if not Tab or not Tab.OnCleanup then return end
 
-		Tab.OnCleanup( Window.ContentPanel )
+		Tab.Data = Tab.OnCleanup( Window.ContentPanel )
 	end
 
 	self.Menu:SetExpanded( Shine.Config.ExpandConfigMenuTabs )
@@ -101,7 +101,7 @@ function ConfigMenu:Close()
 	self.Menu:Close()
 end
 
-Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", function()
+Shine.Hook.Add( "OnResolutionChanged", ConfigMenu, function()
 	if not ConfigMenu.Menu then return end
 
 	ConfigMenu.IgnoreRemove = true
@@ -114,16 +114,24 @@ Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", funct
 	end
 end )
 
-Shine.Hook.Add( "PlayerKeyPress", "ConfigMenu_KeyPress", function( Key, Down )
+Shine.Hook.Add( "PlayerKeyPress", ConfigMenu, function( Key, Down )
 	return Shine.AdminMenu.PlayerKeyPress( ConfigMenu, Key, Down )
 end, 1 )
 
 -- Close when logging in/out of a command structure to avoid mouse problems.
-Shine.Hook.Add( "OnCommanderLogout", "ConfigMenuLogout", function()
+Shine.Hook.Add( "OnCommanderLogout", ConfigMenu, function()
 	ConfigMenu:Close()
 end )
-Shine.Hook.Add( "OnCommanderLogin", "ConfigMenuLogin", function()
+Shine.Hook.Add( "OnCommanderLogin", ConfigMenu, function()
 	ConfigMenu:Close()
+end )
+
+-- Ensure the settings tab updates when settings are added/removed by plugins.
+Shine.Hook.Add( "OnClientSettingAdded", ConfigMenu, function( Entry )
+	ConfigMenu:RefreshSettings()
+end )
+Shine.Hook.Add( "OnClientSettingRemoved", ConfigMenu, function( Entry )
+	ConfigMenu:RefreshSettings()
 end )
 
 function ConfigMenu:SetIsVisible( Bool, IgnoreAnim )
@@ -149,7 +157,7 @@ function ConfigMenu:PopulateTabs( Menu )
 	for i = 1, #Tabs do
 		local Tab = Tabs[ i ]
 		local TabEntry = Menu:AddTab( Tab.Name, function( Panel )
-			Tab.OnInit( Panel )
+			Tab.OnInit( Panel, Tab.Data )
 		end, Tab.Icon )
 	end
 end
@@ -160,6 +168,20 @@ function ConfigMenu:AddTab( Name, Tab )
 	Tab.Name = Name
 	self.Tabs[ Name ] = Tab
 	self.Tabs[ #self.Tabs + 1 ] = Tab
+end
+
+function ConfigMenu:RefreshSettings()
+	if not SGUI.IsValid( self.Menu ) then return end
+
+	-- Delay by a frame to avoid bursts of new/removed settings when plugins are enabled/disabled.
+	self.RefreshTimer = self.RefreshTimer or Shine.Timer.Simple( 0, function()
+		self.RefreshTimer = nil
+
+		if not SGUI.IsValid( self.Menu ) then return end
+
+		self.Menu:ForceTabRefresh( 1 )
+	end )
+	self.RefreshTimer:Debounce()
 end
 
 local function GetConfiguredValue( Entry )
@@ -312,7 +334,7 @@ local SettingsTypes = {
 
 ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 	Icon = SGUI.Icons.Ionicons.GearB,
-	OnInit = function( Panel )
+	OnInit = function( Panel, Data )
 		local Settings = Shine.ClientSettings
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 			Padding = Spacing( HighResScaled( 8 ), HighResScaled( 8 ),
@@ -341,6 +363,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 		Tabs:SetTabHeight( HighResScaled( 36 ):GetValue() )
 		Tabs:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 		Tabs:SetHorizontal( true )
+
+		Panel.SettingsTabs = Tabs
 
 		for i = 1, #Settings do
 			local Setting = Settings[ i ]
@@ -432,11 +456,26 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 			end, GroupDef and GroupDef.Icon )
 
 			TabWidth:AddValue( Units.Auto( Tab.TabButton ) + HighResScaled( 16 ) )
+
+			if Data and Data.ActiveTabName == Group then
+				Tabs:SetSelectedTab( Tab )
+			end
 		end
 
 		Layout:AddElement( Tabs )
 
 		Panel:SetLayout( Layout )
+	end,
+
+	OnCleanup = function( Panel )
+		local Tabs = Panel.SettingsTabs
+		Panel.SettingsTabs = nil
+
+		if SGUI.IsValid( Tabs ) then
+			return {
+				ActiveTabName = Tabs:GetActiveTab().Name
+			}
+		end
 	end
 } )
 
@@ -527,13 +566,13 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 			end
 		end
 
-		Shine.Hook.Add( "OnPluginLoad", "ClientConfig_OnPluginLoad", function( Name, Plugin, Shared )
+		Shine.Hook.Add( "OnPluginLoad", ConfigMenu, function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
 			UpdateRow( Name, true )
 		end )
 
-		Shine.Hook.Add( "OnPluginUnload", "ClientConfig_OnPluginUnload", function( Name, Plugin, Shared )
+		Shine.Hook.Add( "OnPluginUnload", ConfigMenu, function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
 			UpdateRow( Name, false )
@@ -555,8 +594,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 	end,
 
 	OnCleanup = function( Panel )
-		Shine.Hook.Remove( "OnPluginLoad", "ClientConfig_OnPluginLoad" )
-		Shine.Hook.Remove( "OnPluginUnload", "ClientConfig_OnPluginUnload" )
+		Shine.Hook.Remove( "OnPluginLoad", ConfigMenu )
+		Shine.Hook.Remove( "OnPluginUnload", ConfigMenu )
 	end
 } )
 

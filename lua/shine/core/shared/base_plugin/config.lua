@@ -413,12 +413,24 @@ if Client then
 		Shine:RegisterClientSetting( MergedOptions )
 
 		RegisterCommandIfNecessary( self, ConfigKey, Command, Options )
+
+		self.RegisteredClientSettings = rawget( self, "RegisteredClientSettings" ) or {}
+		self.RegisteredClientSettings[ MergedOptions.Command ] = MergedOptions
 	end
 
 	function ConfigModule:AddClientSettings( Settings )
 		for i = 1, #Settings do
 			local Setting = Settings[ i ]
 			self:AddClientSetting( Setting.ConfigKey, Setting.Command, Setting )
+		end
+	end
+
+	function ConfigModule:Cleanup()
+		local RegisteredClientSettings = rawget( self, "RegisteredClientSettings" )
+		if not RegisteredClientSettings then return end
+
+		for ConfigKey, Option in pairs( RegisteredClientSettings ) do
+			Shine:RemoveClientSetting( Option )
 		end
 	end
 end

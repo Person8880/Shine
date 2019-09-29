@@ -2,6 +2,8 @@
 	Client side configuration.
 ]]
 
+local Hook = Shine.Hook
+
 local Notify = Shared.Message
 local StringFormat = string.format
 
@@ -118,6 +120,7 @@ Shine.ClientSettings = Options
 
 do
 	local TableFindByField = table.FindByField
+	local TableRemove = table.remove
 
 	function Shine:RegisterClientSetting( Entry )
 		local Existing, Index = TableFindByField( Options, "Command", Entry.Command )
@@ -126,6 +129,21 @@ do
 		else
 			Options[ #Options + 1 ] = Entry
 		end
+
+		Hook.Call( "OnClientSettingAdded", Entry )
+	end
+
+	function Shine:RemoveClientSetting( Entry )
+		local Existing, Index = TableFindByField( Options, "Command", Entry.Command )
+		if Existing then
+			TableRemove( Options, Index )
+
+			Hook.Call( "OnClientSettingRemoved", Entry )
+
+			return true
+		end
+
+		return false
 	end
 end
 
