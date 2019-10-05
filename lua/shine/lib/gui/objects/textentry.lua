@@ -271,13 +271,15 @@ function TextEntry:SetCaretPos( Column )
 	local UTF8W = TextObj:GetTextWidth( StringUTF8Sub( self.Text, 1, self.Column ) ) * self.WidthScale
 	local NewPos = UTF8W + self.TextOffset
 
-	--We need to move the text along with the caret, otherwise it'll go out of vision!
+	-- We need to move the text along with the caret, otherwise it'll go out of vision!
 	if NewPos < 0 then
 		self.TextOffset = Min( self.TextOffset - NewPos, self.Padding )
 
 		if self.Column == 0 then
 			self.TextOffset = self.Padding
 		end
+
+		NewPos = Max( NewPos, self.TextOffset )
 	elseif NewPos > self.Width then
 		local Diff = NewPos - self.Width
 
