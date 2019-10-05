@@ -18,6 +18,8 @@ Button.Sound = ClickSound
 
 SGUI.AddBoundProperty( Button, "Font", "Label:SetFont" )
 SGUI.AddBoundProperty( Button, "TextAlignment", "Label:SetAlignment" )
+SGUI.AddBoundProperty( Button, "TextAlignmentX", "Label:SetTextAlignmentX" )
+SGUI.AddBoundProperty( Button, "TextAlignmentY", "Label:SetTextAlignmentY" )
 SGUI.AddBoundProperty( Button, "TextColour", {
 	"Label:SetColour",
 	function( self, Colour )
@@ -83,6 +85,8 @@ function Button:SetText( Text )
 	end
 	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Description:SetIsVisible( self.TextIsVisible )
+	-- Need to offset the text based on its internal alignment.
+	Description:SetUseAlignmentCompensation( true )
 
 	Binder():FromElement( self, "Horizontal" )
 		:ToElement( Description, "AutoWrap", {
@@ -96,6 +100,11 @@ function Button:SetText( Text )
 					return nil
 				end
 				return Units.UnitVector( Units.Percentage( 100 ), Units.Auto() )
+			end
+		} )
+		:ToElement( Description, "TextAlignmentX", {
+			Transformer = function( Horizontal )
+				return Horizontal and GUIItem.Align_Min or GUIItem.Align_Center
 			end
 		} ):BindProperty()
 

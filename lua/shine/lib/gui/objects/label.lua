@@ -6,6 +6,7 @@ local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
 local getmetatable = getmetatable
+local StringFind = string.find
 
 local Label = {}
 
@@ -36,6 +37,45 @@ function Label:Initialise()
 	self:AddPropertyChangeListener( "Text", MarkSizeDirty )
 	self:AddPropertyChangeListener( "Font", MarkSizeDirty )
 	self:AddPropertyChangeListener( "TextScale", MarkSizeDirty )
+
+	self:AddPropertyChangeListener( "Text", function( Text )
+		self:EvaluateOptionFlags( Text )
+	end )
+end
+
+function Label:EvaluateOptionFlags( Text )
+	if StringFind( Text, "\n", 1, true ) then
+		-- This flag causes random blurring on text, so only set it if it's really needed.
+		self.Label:SetOptionFlag( GUIItem.PerLineTextAlignment )
+	else
+		self.Label:ClearOptionFlag( GUIItem.PerLineTextAlignment )
+	end
+end
+
+-- Sets whether the label should offset itself during layout to ensure alignment does not affect position.
+-- For backwards compatibility, this is disabled by default.
+function Label:SetUseAlignmentCompensation( UseAlignmentCompensation )
+	if UseAlignmentCompensation then
+		self.GetLayoutOffset = self.GetTopLeftLayoutOffset
+	else
+		self.GetLayoutOffset = self.BaseClass.GetLayoutOffset
+	end
+end
+
+do
+	local AlignmentOffsets = {
+		[ GUIItem.Align_Center ] = 0.5,
+		[ GUIItem.Align_Max ] = 1,
+		[ GUIItem.Align_Min ] = 0
+	}
+
+	function Label:GetTopLeftLayoutOffset()
+		local Size = self:GetSize()
+		return Vector2(
+			Size.x * AlignmentOffsets[ self:GetTextAlignmentX() ],
+			Size.y * AlignmentOffsets[ self:GetTextAlignmentY() ]
+		)
+	end
 end
 
 function Label:MouseIn( Element, Mult, MaxX, MaxY )
@@ -80,6 +120,7 @@ function Label:PreComputeHeight( Width )
 		end,
 		SetText = function( _, Text )
 			self.Label:SetText( Text )
+			self:EvaluateOptionFlags( Text )
 		end
 	}
 
@@ -114,6 +155,27 @@ function Label:SetBright( Bright )
 	-- Deprecated, does nothing.
 end
 
+function Label:SetShadow( Params )
+	self.Shadow = Params
+
+	if not Params then
+		self.ShadowOffset = nil
+		self.ShadowColour = nil
+		self.Label:SetDropShadowEnabled( false )
+		return
+	end
+
+	self.ShadowOffset = Params.Offset or Vector2( 2, 2 )
+	self.ShadowColour = Params.Colour
+
+	self.Label:SetDropShadowEnabled( true )
+	self.Label:SetDropShadowOffset( self.ShadowOffset )
+	self.Label:SetDropShadowColor( Params.Colour )
+end
+
 SGUI:AddMixin( Label, "AutoSizeText" )
 SGUI:AddMixin( Label, "Clickable" )
 SGUI:Register( "Label", Label )
+
+-- Maintain backwards compatibility with the old separate control type.
+SGUI:RegisterAlias( "Label", "ShadowLabel" )

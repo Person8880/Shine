@@ -8,7 +8,7 @@ local Args = { ... }
 local OnlyOutputFailingTests = false
 
 for i = 1, #Args do
-	if Args[ i ] == "--failures-only" then
+	if Args[ i ]:gsub( "%s", "" ) == "--failures-only" then
 		OnlyOutputFailingTests = true
 	end
 end
@@ -109,6 +109,19 @@ function UnitTest.MockFunction( Impl )
 	} )
 end
 
+local MockedGlobals = {}
+function UnitTest.MockGlobal( GlobalName, MockValue )
+	local OldValue = _G[ GlobalName ]
+
+	_G[ GlobalName ] = MockValue
+
+	if MockedGlobals[ GlobalName ] ~= nil then
+		return
+	end
+
+	MockedGlobals[ GlobalName ] = OldValue
+end
+
 local AssertionError = setmetatable( {}, {
 	__call = function( self, Data )
 		return setmetatable( Data, self )
@@ -142,6 +155,12 @@ end
 function UnitTest:ResetState()
 	self.Befores = {}
 	self.Afters = {}
+
+	-- Restore any global values that were mocked in the file.
+	for Key, Value in pairs( MockedGlobals ) do
+		_G[ Key ] = Value
+		MockedGlobals[ Key ] = nil
+	end
 end
 
 do
@@ -304,6 +323,37 @@ UnitTest.Assert = {
 	IsType = function( Value, Type )
 		return IsType( Value, Type ), StringFormat( "Expected %s to have type %s (but was %s)",
 			Value, Type, type( Value ) )
+	end,
+
+	Called = function( MockFunction, ... )
+		local Invocations = MockFunction.Invocations
+		local ExpectedInvocation = {
+			ArgCount = select( "#", ... ),
+			...
+		}
+
+		for i = 1, #Invocations do
+			if DeepEquals( Invocations[ i ], ExpectedInvocation ) then
+				return true
+			end
+		end
+
+		return false, StringFormat(
+			"Expected function to have been called with: %s\nActual invocations: %s",
+			ArrayToString( { ... } ),
+			table.ToString( Invocations )
+		)
+	end,
+
+	CalledTimes = function( MockFunction, ExpectedTimes )
+		local TimesCalled = #MockFunction.Invocations
+		return TimesCalled == ExpectedTimes, StringFormat(
+			"Expected function to have been called %s time%s (but was called %s time%s)",
+			ExpectedTimes,
+			ExpectedTimes == 1 and "" or "s",
+			TimesCalled,
+			TimesCalled == 1 and "" or "s"
+		)
 	end
 }
 

@@ -388,7 +388,7 @@ function Plugin:ShouldCycleMap()
 		return false
 	end
 
-	if self.Config.RoundLimit > 0 and self.Round < self.Config.RoundLimit then return false end
+	if self.RoundLimit > 0 and self.Round < self.RoundLimit then return false end
 end
 
 function Plugin:OnCycleMap()

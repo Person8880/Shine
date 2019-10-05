@@ -62,7 +62,7 @@ function Plugin:SetupAdminMenu()
 		Window:SetAnchor( "CentreMiddle" )
 		Window:SetSize( Vector2( HighResScaled( 400 ):GetValue(), HighResScaled( 328 ):GetValue() ) )
 		Window:SetPos( -Window:GetSize() * 0.5 )
-		Window.TitleBarHeight = HighResScaled( 24 ):GetValue()
+		Window.TitleBarHeight = HighResScaled( 28 ):GetValue()
 		Window:AddTitleBar( self:GetPhrase( "ADD_BAN_TITLE" ), Font, Scale )
 		Window:SetDraggable( true )
 
@@ -122,7 +122,7 @@ function Plugin:SetupAdminMenu()
 		MenuButton:SetOpenMenuOnClick( function( Button )
 			return {
 				MenuPos = Vector2( -IDEntry:GetSize().x, Button:GetSize().y ),
-				Size = Vector2( IDEntry:GetSize().x + Button:GetSize().x, HighResScaled( 24 ):GetValue() ),
+				Size = Vector2( IDEntry:GetSize().x + Button:GetSize().x, HighResScaled( 28 ):GetValue() ),
 				Populate = function( Menu )
 					Menu:SetMaxVisibleButtons( 12 )
 					Shine.AdminMenu:DestroyOnClose( Menu )

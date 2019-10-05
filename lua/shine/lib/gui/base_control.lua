@@ -4,6 +4,7 @@
 
 local SGUI = Shine.GUI
 local ControlMeta = SGUI.BaseControl
+local Set = Shine.Set
 
 local assert = assert
 local Clock = os.clock
@@ -181,19 +182,76 @@ function ControlMeta:RemovePropertyChangeListener( Name, Listener )
 	end
 end
 
---[[
-	Sets a new styling state, which will potentially apply different styling
-	values to the control.
-
-	This can be used to easily define focus/hover behaviour.
-]]
+-- Deprecated single state setter. Use AddStylingState(s)/RemoveStylingState(s) to allow for multiple states.
 function ControlMeta:SetStylingState( Name )
-	self.StylingState = Name
+	if Name then
+		self:GetStylingStates():Clear():Add( Name )
+	else
+		self.StylingStates = nil
+		self.GetStylingStates = ControlMeta.GetStylingStates
+	end
+
 	SGUI.SkinManager:ApplySkin( self )
 end
 
+function ControlMeta:AddStylingState( Name )
+	local States = self:GetStylingStates()
+	if not States:Contains( Name ) then
+		States:Add( Name )
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+function ControlMeta:AddStylingStates( Names )
+	local States = self:GetStylingStates()
+	local PreviousCount = States:GetCount()
+
+	States:AddAll( Names )
+
+	if States:GetCount() > PreviousCount then
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+function ControlMeta:RemoveStylingState( Name )
+	local States = self.StylingStates
+	if States and States:Contains( Name ) then
+		States:Remove( Name )
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+function ControlMeta:RemoveStylingStates( Names )
+	local States = self.StylingStates
+	if not States then return end
+
+	local PreviousCount = States:GetCount()
+
+	States:RemoveAll( Names )
+
+	if States:GetCount() < PreviousCount then
+		SGUI.SkinManager:ApplySkin( self )
+	end
+end
+
+-- Deprecated single-style state accessor. Controls may have more than one active state.
 function ControlMeta:GetStylingState()
-	return self.StylingState
+	return self.StylingStates and self.StylingStates:AsList()[ 1 ]
+end
+
+do
+	local function GetStylingStatesUnsafe( self )
+		return self.StylingStates
+	end
+
+	function ControlMeta:GetStylingStates()
+		if not self.StylingStates then
+			self.StylingStates = Set()
+			self.GetStylingStates = GetStylingStatesUnsafe
+		end
+
+		return self.StylingStates
+	end
 end
 
 function ControlMeta:SetStyleName( Name )
@@ -398,6 +456,13 @@ function ControlMeta:MakeGUITextItem()
 	return self:MakeGUIItem( SGUI.GUIItemType.Text )
 end
 
+function ControlMeta:MakeGUICroppingItem()
+	local CroppingBox = self:MakeGUIItem()
+	CroppingBox:SetMinCrop( 0, 0 )
+	CroppingBox:SetMaxCrop( 1, 1 )
+	return CroppingBox
+end
+
 function ControlMeta:DestroyGUIItem( Item )
 	GUI.DestroyItem( Item )
 
@@ -418,6 +483,15 @@ local function IsDescendantOf( Child, Ancestor )
 		Parent = Parent:GetParent()
 	end
 	return Parent == Ancestor
+end
+
+function ControlMeta:SetCropToBounds( CropToBounds )
+	if CropToBounds then
+		self.Background:SetMinCrop( 0, 0 )
+		self.Background:SetMaxCrop( 1, 1 )
+	else
+		self.Background:ClearCropRectangle()
+	end
 end
 
 --[[
@@ -626,6 +700,14 @@ function ControlMeta:InvalidateLayout( Now )
 	self.LayoutIsInvalid = true
 end
 
+do
+	-- By default, don't offset an element's position during layout.
+	local ZERO = Vector2( 0, 0 )
+	function ControlMeta:GetLayoutOffset()
+		return ZERO
+	end
+end
+
 --[[
 	Sets the size of the control (background), and invalidates the control's layout.
 ]]
@@ -667,10 +749,10 @@ SGUI.AddProperty( ControlMeta, "CrossAxisAlignment", SGUI.LayoutAlignment.MIN, {
 
 -- AutoSize controls how to resize the control during layout. You should pass a UnitVector, with
 -- your dynamic units (e.g. GUIScaled, Percentage).
-SGUI.AddProperty( ControlMeta, "AutoSize", { "InvalidatesParent" } )
+SGUI.AddProperty( ControlMeta, "AutoSize", nil, { "InvalidatesParent" } )
 
 -- AutoFont provides a way to set the font size automatically at layout time.
-SGUI.AddProperty( ControlMeta, "AutoFont", { "InvalidatesParent" } )
+SGUI.AddProperty( ControlMeta, "AutoFont", nil, { "InvalidatesParent" } )
 
 -- Fill controls whether the element should have its size computed automatically during layout.
 SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
@@ -1438,10 +1520,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 
 	if Highlighted then
 		self.Highlighted = true
-
-		if not self:GetStylingState() then
-			self:SetStylingState( "Highlighted" )
-		end
+		self:AddStylingState( "Highlighted" )
 
 		if not self.TextureHighlight then
 			if SkipAnim then
@@ -1457,9 +1536,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		end
 	else
 		self.Highlighted = false
-		if self:GetStylingState() == "Highlighted" then
-			self:SetStylingState( nil )
-		end
+		self:RemoveStylingState( "Highlighted" )
 
 		if not self.TextureHighlight then
 			if SkipAnim then

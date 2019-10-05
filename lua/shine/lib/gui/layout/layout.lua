@@ -130,6 +130,7 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"InvalidateParent",
 	"InvalidateLayout",
 	"HandleLayout",
+	"GetLayoutOffset",
 	"PreComputeWidth",
 	"PreComputeHeight",
 	"OnPropertyChanged",

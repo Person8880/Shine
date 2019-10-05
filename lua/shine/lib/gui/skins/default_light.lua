@@ -21,7 +21,7 @@ local Info = Colour( 0, 0.5, 1 )
 local SuccessButton = Colour( 0.1, 1, 0.1, 1 )
 local DarkerSuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
 local DangerButton = Colour( 1, 0.2, 0.1, 1 )
-
+local CategoryButton = Colour( 0.8, 0.8, 0.8, 1 )
 local OrangeButtonHighlight = Colour( 1, 0.4, 0, 1 )
 
 local DefaultButton = {
@@ -52,10 +52,13 @@ local Skin = {
 		CategoryPanelButton = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = OrangeButtonHighlight,
-			InactiveCol = Colour( 0.8, 0.8, 0.8, 1 ),
+			InactiveCol = CategoryButton,
 			States = {
 				Highlighted = {
 					TextColour = White
+				},
+				Collapsed = {
+					InactiveCol = SGUI.ColourWithAlpha( CategoryButton, 0.5 )
 				}
 			}
 		},

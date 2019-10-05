@@ -138,7 +138,7 @@ function Plugin:NotifyOrCycle( Recall )
 			MapVote:StartVote( nil, true )
 		elseif self.Config.ForceMapvoteAtRoundEnd then
 			MapVote.VoteOnEnd = true
-			MapVote.Round = MapVote.Config.RoundLimit
+			MapVote.Round = MapVote.RoundLimit
 			MapVote.MapCycle.time = Shared.GetTime() / 60
 		end
 	end

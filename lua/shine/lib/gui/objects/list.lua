@@ -16,9 +16,8 @@ local TableMergeSort = table.MergeSort
 local tonumber = tonumber
 local Vector = Vector
 
-local ScrollPos = Vector( 0, 32, 0 )
+local ScrollPos = Vector2( 0, 32 )
 local ZeroColour = Colour( 0, 0, 0, 0 )
-local ZeroVector = Vector( 0, 0, 0 )
 
 local DefaultHeaderSize = 32
 local DefaultLineSize = 32
@@ -39,22 +38,20 @@ function List:Initialise()
 	local Background = self:MakeGUIItem()
 	self.Background = Background
 
-	--This element ensures the entries aren't visible past the bounds of the list.
-	local Stencil = self:MakeGUIItem()
-	Stencil:SetIsStencil( true )
-	Stencil:SetInheritsParentStencilSettings( false )
-	Stencil:SetClearsStencilBuffer( true )
+	-- This element ensures the entries aren't visible past the bounds of the list.
+	-- Note that self.Background is not used as it would crop the scrollbar.
+	local CroppingBox = self:MakeGUICroppingItem()
+	CroppingBox:SetColor( ZeroColour )
+	Background:AddChild( CroppingBox )
 
-	Background:AddChild( Stencil )
+	self.CroppingBox = CroppingBox
 
-	self.Stencil = Stencil
-
-	--This dummy element will be moved when scrolling.
+	-- This dummy element will be moved when scrolling.
 	local ScrollParent = self:MakeGUIItem()
 	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
-	Background:AddChild( ScrollParent )
+	CroppingBox:AddChild( ScrollParent )
 
 	self.ScrollParent = ScrollParent
 	self.RowCount = 0
@@ -93,7 +90,7 @@ function List:SetLineSize( Size )
 
 	if self.Size then
 		if not self.RowSize then
-			self.RowSize = Vector( self.Size.x, Size, 0 )
+			self.RowSize = Vector2( self.Size.x, Size )
 		else
 			self.RowSize.y = Size
 		end
@@ -221,7 +218,7 @@ end
 ]]
 function List:SetSize( Size )
 	self.Background:SetSize( Size )
-	self.Stencil:SetSize( Size )
+	self.CroppingBox:SetSize( Size )
 	self.Size = Size
 	self:InvalidateLayout()
 end
@@ -229,7 +226,7 @@ end
 function List:PerformLayout()
 	local Size = self:GetSize()
 
-	self.ScrollPos = Vector( 0, self.HeaderSize, 0 )
+	self.ScrollPos = Vector2( 0, self.HeaderSize )
 
 	self.MaxRows = Floor( ( Size.y - self.HeaderSize ) / self.LineSize )
 
@@ -237,6 +234,7 @@ function List:PerformLayout()
 		if self.Scrollbar then
 			self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 			self.Scrollbar:SetPos( self.ScrollPos )
+			self.Scrollbar:SetSize( Vector2( self.ScrollbarWidth, Size.y - self.HeaderSize ) )
 		else
 			self:AddScrollbar()
 		end
@@ -244,12 +242,12 @@ function List:PerformLayout()
 		self.Scrollbar:Destroy()
 
 		self.Scrollbar = nil
-		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
+		self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
 	end
 
 	local NeedsRowSizeRefresh = false
 	if not self.RowSize then
-		self.RowSize = Vector( Size.x, self.LineSize, 0 )
+		self.RowSize = Vector2( Size.x, self.LineSize )
 		NeedsRowSizeRefresh = true
 	else
 		if Size.x ~= self.RowSize.x then
@@ -312,11 +310,7 @@ function List:AddRow( ... )
 	self.Rows = Rows
 
 	local RowCount = self.RowCount
-
 	local Row = SGUI:Create( "ListEntry", self, self.ScrollParent )
-	Row.Background:SetInheritsParentStencilSettings( false )
-	Row.Background:SetStencilFunc( GUIItem.NotEqual )
-
 	RowCount = RowCount + 1
 	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
 
@@ -366,7 +360,7 @@ function List:AddScrollbar()
 	local Scrollbar = SGUI:Create( "Scrollbar", self )
 	Scrollbar:SetAnchor( GUIItem.Right, GUIItem.Top )
 	Scrollbar:SetPos( self.ScrollPos or ScrollPos )
-	Scrollbar:SetSize( Vector( self.ScrollbarWidth, self:GetSize().y - self.HeaderSize, 0 ) )
+	Scrollbar:SetSize( Vector2( self.ScrollbarWidth, self:GetSize().y - self.HeaderSize ) )
 	Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	Scrollbar._CallEventsManually = true
 
@@ -380,7 +374,7 @@ function List:AddScrollbar()
 		if self.ScrollParentPos then
 			self.ScrollParentPos.y = -RowDiff * self.LineSize * Fraction
 		else
-			self.ScrollParentPos = Vector( 0, -RowDiff * self.LineSize * Fraction, 0 )
+			self.ScrollParentPos = Vector2( 0, -RowDiff * self.LineSize * Fraction )
 		end
 
 		if Smoothed then
@@ -565,7 +559,7 @@ function List:RemoveRow( Index )
 		end
 
 		-- Make sure the scrolling is reset if there's no longer a scrollbar.
-		self.ScrollParent:SetPosition( Vector( 0, 0, 0 ) )
+		self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
 	else
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	end

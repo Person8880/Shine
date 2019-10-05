@@ -11,7 +11,6 @@ local Hook = Shine.Hook
 local IsType = Shine.IsType
 local Map = Shine.Map
 
-local assert = assert
 local getmetatable = getmetatable
 local include = Script.Load
 local setmetatable = setmetatable
@@ -655,6 +654,23 @@ do
 
 			ControlTypesWaitingForParent:Remove( Name )
 		end
+
+		Hook.Call( "OnSGUIControlRegistered", Name, Table, Parent )
+	end
+
+	function SGUI:RegisterAlias( Name, AliasName )
+		if self.Controls[ Name ] then
+			self.Controls[ AliasName ] = self.Controls[ Name ]
+			return
+		end
+
+		local Key = StringFormat( "RegisterAlias: %s -> %s", Name, AliasName )
+		Hook.Add( "OnSGUIControlRegistered", Key, function( RegisteredName, Table )
+			if RegisteredName == Name then
+				Hook.Remove( "OnSGUIControlRegistered", Key )
+				self.Controls[ AliasName ] = Table
+			end
+		end )
 	end
 end
 
@@ -676,7 +692,7 @@ do
 	]]
 	function SGUI:Create( Class, Parent, ParentElement )
 		local MetaTable = self.Controls[ Class ]
-		assert( MetaTable, "[SGUI] Invalid SGUI class passed to SGUI:Create!" )
+		Shine.AssertAtLevel( MetaTable, "[SGUI] '%s' is not a registered SGUI class!", 3, Class )
 
 		ID = ID + 1
 

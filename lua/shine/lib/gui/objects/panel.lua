@@ -96,24 +96,22 @@ function Panel:SetTitle( Title )
 end
 
 function Panel:SetScrollable()
-	if self.Stencil then return end
+	if self.CroppingBox then return end
 
-	local Stencil = self:MakeGUIItem()
-	Stencil:SetIsStencil( true )
-	Stencil:SetInheritsParentStencilSettings( false )
-	Stencil:SetClearsStencilBuffer( true )
+	-- Establish a cropping box to keep elements from rendering outside the panel.
+	-- Note that self.Background is not used as it would crop the scrollbars.
+	local CroppingBox = self:MakeGUICroppingItem()
+	CroppingBox:SetColor( ZeroColour )
+	CroppingBox:SetSize( self.Background:GetSize() )
+	self.Background:AddChild( CroppingBox )
 
-	Stencil:SetSize( self.Background:GetSize() )
-
-	self.Background:AddChild( Stencil )
-
-	self.Stencil = Stencil
+	self.CroppingBox = CroppingBox
 
 	local ScrollParent = self:MakeGUIItem()
 	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
-	self.Background:AddChild( ScrollParent )
+	CroppingBox:AddChild( ScrollParent )
 
 	self.ScrollParent = ScrollParent
 
@@ -130,7 +128,7 @@ function Panel:SetAllowSmoothScroll( Bool )
 end
 
 function Panel:RemoveScrollingBehaviour()
-	if not self.Stencil then return end
+	if not self.CroppingBox then return end
 
 	if self.Children then
 		for Child in self.Children:Iterate() do
@@ -138,10 +136,9 @@ function Panel:RemoveScrollingBehaviour()
 		end
 	end
 
-	GUI.DestroyItem( self.Stencil )
-	GUI.DestroyItem( self.ScrollParent )
+	GUI.DestroyItem( self.CroppingBox )
 
-	self.Stencil = nil
+	self.CroppingBox = nil
 	self.ScrollParent = nil
 	self:SetShowScrollbar( false )
 end
@@ -226,9 +223,7 @@ function Panel:Add( Class, Created )
 	local Element = Created or SGUI:Create( Class, self, self.ScrollParent )
 	Element:SetParent( self, self.ScrollParent )
 
-	if self.Stencil and Element.SetupStencil then
-		Element:SetupStencil()
-	elseif self.Stencilled then
+	if self.Stencilled then
 		Element:SetInheritsParentStencilSettings( true )
 		Element:SetStencilled( true )
 	end
@@ -268,8 +263,8 @@ function Panel:SetSize( Size )
 
 	self.BaseClass.SetSize( self, Size )
 
-	if self.Stencil then
-		self.Stencil:SetSize( Size )
+	if self.CroppingBox then
+		self.CroppingBox:SetSize( Size )
 	end
 
 	if Size == OldSize then return end
@@ -698,7 +693,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 		end
 	end
 
-	if self.Stencil and not self:MouseInCached() then return end
+	if self.CroppingBox and not self:MouseInCached() then return end
 
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then return true, Child end
@@ -783,7 +778,7 @@ end
 function Panel:PerformLayout()
 	self.BaseClass.PerformLayout( self )
 
-	if self.Stencil then
+	if self.CroppingBox then
 		-- Some elements may have moved to no longer be so far down/to the right.
 		self:RecomputeMaxHeight()
 		self:RecomputeMaxWidth()
