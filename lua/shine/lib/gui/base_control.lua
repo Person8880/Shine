@@ -182,18 +182,13 @@ function ControlMeta:RemovePropertyChangeListener( Name, Listener )
 	end
 end
 
---[[
-	Sets a new styling state, which will potentially apply different styling
-	values to the control.
-
-	This can be used to easily define focus/hover behaviour.
-]]
+-- Deprecated single state setter. Use AddStylingState(s)/RemoveStylingState(s) to allow for multiple states.
 function ControlMeta:SetStylingState( Name )
-	local States = self:GetStylingStates()
-	States:Clear()
-
 	if Name then
-		States:Add( Name )
+		self:GetStylingStates():Clear():Add( Name )
+	else
+		self.StylingStates = nil
+		self.GetStylingStates = ControlMeta.GetStylingStates
 	end
 
 	SGUI.SkinManager:ApplySkin( self )
@@ -219,15 +214,17 @@ function ControlMeta:AddStylingStates( Names )
 end
 
 function ControlMeta:RemoveStylingState( Name )
-	local States = self:GetStylingStates()
-	if States:Contains( Name ) then
+	local States = self.StylingStates
+	if States and States:Contains( Name ) then
 		States:Remove( Name )
 		SGUI.SkinManager:ApplySkin( self )
 	end
 end
 
 function ControlMeta:RemoveStylingStates( Names )
-	local States = self:GetStylingStates()
+	local States = self.StylingStates
+	if not States then return end
+
 	local PreviousCount = States:GetCount()
 
 	States:RemoveAll( Names )

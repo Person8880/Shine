@@ -106,9 +106,6 @@ function SkinManager:ApplySkin( Element )
 	local StyleDef = self:GetStyleForElement( Element )
 	if not StyleDef then return end
 
-	-- States can apply different scheme values, e.g. focus/hover etc.
-	local StateValues = StyleDef.States and StyleDef.States[ Element:GetStylingState() ]
-
 	-- Combine the current styling with the state to get the final styling values.
 	-- If only the state values were applied, changing skins could lead to incorrect
 	-- values being left from a previous skin.
