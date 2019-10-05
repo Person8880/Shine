@@ -53,12 +53,22 @@ UnitTest:Test( "WrapTextByLength - Wraps UTF-8 words as expected", function( Ass
 	}, Lines )
 end )
 
-UnitTest:Test( "WrapTextByLength - Handles single long word when word wrapping", function( Assert )
+UnitTest:Test( "WrapTextByLength - Handles single long word followed by short words when word wrapping", function( Assert )
 	local Lines = {}
 	Shine.WrapTextByLength( Lines, string.rep( "a", 170 ).." test test test test test", 80 )
 	Assert:ArrayEquals( {
 		string.rep( "a", 80 ),
 		string.rep( "a", 80 ),
 		string.rep( "a", 10 ).." test test test test test"
+	}, Lines )
+end )
+
+UnitTest:Test( "WrapTextByLength - Handles single long word when word wrapping", function( Assert )
+	local Lines = {}
+	Shine.WrapTextByLength( Lines, string.rep( "a", 170 ), 80 )
+	Assert:ArrayEquals( {
+		string.rep( "a", 80 ),
+		string.rep( "a", 80 ),
+		string.rep( "a", 10 )
 	}, Lines )
 end )

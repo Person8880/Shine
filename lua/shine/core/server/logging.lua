@@ -351,6 +351,7 @@ do
 end
 
 Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime )
+	local Min = math.min
 	local StringExplode = string.Explode
 	local StringUTF8Encode = string.UTF8Encode
 	local TableConcat = table.concat
@@ -381,8 +382,9 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 		local CurrentLength = 0
 		local NumWordsInLine = 0
 		local LastWordIndex = 1
+		local NumChars = #Chars
 
-		for i = 1, #Chars do
+		for i = 1, NumChars do
 			local Char = Chars[ i ]
 
 			if Char == " " then
@@ -393,7 +395,9 @@ Shine.Hook.Add( "OnFirstThink", "OverrideServerAdminPrint", function( Deltatime 
 					while CurrentLength > MaxLength do
 						if NumWordsInLine == 1 then
 							-- Overflow comes from a single word, so cut it in half.
-							Lines[ #Lines + 1 ] = TableConcat( Chars, "", StartIndex, StartIndex + MaxLength - 1 )
+							Lines[ #Lines + 1 ] = TableConcat(
+								Chars, "", StartIndex, Min( StartIndex + MaxLength - 1, NumChars )
+							)
 							StartIndex = StartIndex + MaxLength
 						else
 							-- Overflow comes from multiple words, take all of the words seen on this line except
