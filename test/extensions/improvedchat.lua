@@ -329,7 +329,7 @@ UnitTest:Test( "SetChatTag", function( Assert )
 		Text = "[Test]",
 		Colour = { 255, 0, 0 },
 		Image = "ui/badges/wrench.dds"
-	}, "TestGroup" )
+	}, "Group:TestGroup" )
 
 	local ExpectedChatTag = {
 		Text = "[Test]",
@@ -340,12 +340,12 @@ UnitTest:Test( "SetChatTag", function( Assert )
 	}
 
 	Assert.DeepEquals( "Should have stored the chat tag definition",
-		ExpectedChatTag, Plugin.ChatTagDefinitions:Get( "TestGroup" ) )
+		ExpectedChatTag, Plugin.ChatTagDefinitions:Get( "Group:TestGroup" ) )
 
 	local ExpectedAssignment = {
 		SteamID = 1,
 		Index = 0,
-		Key = "TestGroup"
+		Key = "Group:TestGroup"
 	}
 	Assert.DeepEquals( "Should have assigned the chat tag to the client",
 		ExpectedAssignment, Plugin.ClientsWithTags:Get( Client1 ) )
@@ -367,17 +367,17 @@ UnitTest:Test( "SetChatTag", function( Assert )
 		Text = "[Test]",
 		Colour = { 255, 0, 0 },
 		Image = "ui/badges/wrench.dds"
-	}, "TestGroup" )
+	}, "Group:TestGroup" )
 
 	ExpectedChatTag.ReferenceCount = 2
 
 	Assert.DeepEquals( "Should have incremented the reference count on the chat tag definition",
-		ExpectedChatTag, Plugin.ChatTagDefinitions:Get( "TestGroup" ) )
+		ExpectedChatTag, Plugin.ChatTagDefinitions:Get( "Group:TestGroup" ) )
 
 	ExpectedAssignment = {
 		SteamID = 2,
 		Index = 0,
-		Key = "TestGroup"
+		Key = "Group:TestGroup"
 	}
 	Assert.DeepEquals( "Should have assigned the chat tag to the client",
 		ExpectedAssignment, Plugin.ClientsWithTags:Get( Client2 ) )
@@ -396,7 +396,7 @@ UnitTest:Test( "SetChatTag", function( Assert )
 
 	Assert.Nil( "Should have removed client 2's assignment", Plugin.ClientsWithTags:Get( Client2 ) )
 	Assert.DeepEquals( "Should have decremented the chat tag's reference count",
-		ExpectedChatTag, Plugin.ChatTagDefinitions:Get( "TestGroup" ) )
+		ExpectedChatTag, Plugin.ChatTagDefinitions:Get( "Group:TestGroup" ) )
 
 	Assert.DeepEquals( "Should have sent a reset message to all clients for client 2", {
 		{
@@ -411,7 +411,7 @@ UnitTest:Test( "SetChatTag", function( Assert )
 
 	Plugin:SetChatTag( Client1, nil )
 	Assert.Nil( "Should have removed client 1's assignment", Plugin.ClientsWithTags:Get( Client1 ) )
-	Assert.Nil( "Should have removed the chat tag definition", Plugin.ChatTagDefinitions:Get( "TestGroup" ) )
+	Assert.Nil( "Should have removed the chat tag definition", Plugin.ChatTagDefinitions:Get( "Group:TestGroup" ) )
 
 	Assert.DeepEquals( "Should have sent a reset message to all clients for client 1", {
 		{

@@ -336,7 +336,7 @@ end
 local function SetTagFromGroup( Group, Name, Client )
 	local ChatTagConfig = Group.ChatTag
 	if IsType( ChatTagConfig, "table" ) then
-		Plugin:SetChatTag( Client, ChatTagConfig, Name or DEFAULT_GROUP_KEY )
+		Plugin:SetChatTag( Client, ChatTagConfig, Name and StringFormat( "Group:%s", Name ) or DEFAULT_GROUP_KEY )
 		return true
 	end
 end
@@ -347,7 +347,7 @@ function Plugin:AssignChatTag( Client )
 	if UserData then
 		local ChatTagConfig = UserData.ChatTag
 		if IsType( ChatTagConfig, "table" ) then
-			self:SetChatTag( Client, ChatTagConfig, SteamID )
+			self:SetChatTag( Client, ChatTagConfig, StringFormat( "User:%s", SteamID ) )
 		-- For each group, find the first with a chat tag configured and use it.
 		elseif not Shine:IterateGroupTree( UserData.Group, SetTagFromGroup, Client ) then
 			self:SetChatTag( Client, nil )
