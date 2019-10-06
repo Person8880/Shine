@@ -117,6 +117,11 @@ function Dropdown:RemoveOption( Option )
 	return TableRemoveByValue( self.Options, Option )
 end
 
+function Dropdown:SetOptions( Options )
+	self:Clear()
+	self:AddOptions( Options )
+end
+
 function Dropdown:Clear()
 	TableEmpty( self.Options )
 end
