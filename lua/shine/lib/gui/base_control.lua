@@ -1482,7 +1482,15 @@ function ControlMeta:GetTooltipOffset( MouseX, MouseY, Tooltip )
 end
 
 function ControlMeta:ShowTooltip( MouseX, MouseY )
-	local Tooltip = SGUI.IsValid( self.Tooltip ) and self.Tooltip or SGUI:Create( "Tooltip" )
+	local Tooltip = self.Tooltip
+	if not SGUI.IsValid( Tooltip ) then
+		Tooltip = SGUI:Create( "Tooltip" )
+
+		-- As the Tooltip element is not a child of this element, the skin must be set manually.
+		if self.PropagateSkin then
+			Tooltip:SetSkin( self:GetSkin() )
+		end
+	end
 
 	local W, H = SGUI.GetScreenSize()
 	local Font
