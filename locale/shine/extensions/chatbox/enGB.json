@@ -11,5 +11,8 @@
 	"MESSAGE_MEMORY": "Message memory",
 	"OPACITY": "Opacity (%)",
 	"SCALE": "Scale (will re-open chatbox)",
+	"FONT_SIZE_MODE": "Font size:",
+	"FONT_SIZE_MODE_AUTO": "Automatic",
+	"FONT_SIZE_MODE_FIXED": "Fixed size",
 	"SETTINGS_TOOLTIP": "Opens/closes the chatbox settings."
 }

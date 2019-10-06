@@ -4,6 +4,7 @@
 	I can't believe the game doesn't have one.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local Shine = Shine
@@ -39,6 +40,10 @@ Plugin.ConfigName = "ChatBox.json"
 
 Plugin.Version = "1.1"
 
+Plugin.FontSizeMode = table.AsEnum{
+	"AUTO", "FIXED"
+}
+
 Plugin.DefaultConfig = {
 	AutoClose = true, -- Should the chatbox close after sending a message?
 	DeleteOnClose = true, -- Should whatever's entered be deleted if the chatbox is closed before sending?
@@ -49,7 +54,9 @@ Plugin.DefaultConfig = {
 	ShowTimestamps = false, -- Should the chatbox should timestamps with messages?
 	Opacity = 0.4, -- How opaque should the chatbox be?
 	Pos = {}, -- Remembers the position of the chatbox when it's moved.
-	Scale = 1 -- Sets a scale multiplier, requires recreating the chatbox when changed.
+	Scale = 1, -- Sets a scale multiplier, requires recreating the chatbox when changed.
+	FontSizeMode = Plugin.FontSizeMode.AUTO,
+	FontSizeInPixels = 27
 }
 
 Plugin.CheckConfig = true
@@ -189,8 +196,8 @@ end
 local LayoutData = {
 	Sizes = {
 		ChatBox = Vector2( 800, 350 ),
-		SettingsClosed = Vector2( 0, 374 ),
-		Settings = Vector2( 360, 374 ),
+		SettingsClosed = Vector2( 0, 350 ),
+		Settings = Vector2( 360, 350 ),
 		SettingsButton = 36,
 		ChatBoxPadding = 5
 	},
@@ -265,6 +272,35 @@ function Plugin:MoveVanillaChat()
 	self.UpdateVanillaChatHistoryPos( self.MainPanel:GetPos() )
 end
 
+function Plugin:SetFontSizeMode( FontSizeMode )
+	local NewFont, NewScale
+	if FontSizeMode == self.FontSizeMode.AUTO then
+		self:RefreshFontScale( self.Font, self.MessageTextScale )
+		return
+	end
+
+	self:SetFontSizeInPixels( self.Config.FontSizeInPixels )
+end
+
+function Plugin:SetFontSizeInPixels( FontSizeInPixels )
+	if self.Config.FontSizeMode == self.FontSizeMode.AUTO then return end
+
+	self.ManualFont, self.ManualFontScale = SGUI.FontManager.GetFontForAbsoluteSize(
+		"kAgencyFB", self.Config.FontSizeInPixels
+	)
+	self:RefreshFontScale( self.ManualFont, self.ManualFontScale )
+end
+
+function Plugin:RefreshFontScale( Font, Scale )
+	local Messages = self.Messages
+
+	for i = 1, #Messages do
+		Messages[ i ]:SetFontScale( Font, Scale )
+	end
+
+	self.ChatBox:InvalidateLayout( true )
+end
+
 --[[
 	Creates the chatbox UI elements.
 
@@ -300,6 +336,7 @@ function Plugin:CreateChatbox()
 
 	self.Font, self.MessageTextScale = ChatAPI.GetOptimalFontScale( ScreenHeight )
 	self.TextScale = self.MessageTextScale
+	self:SetFontSizeInPixels( self.Config.FontSizeInPixels )
 
 	local Opacity = self.Config.Opacity
 	UpdateOpacity( self, Opacity )
@@ -675,16 +712,58 @@ do
 					Data.ConfigValue( self, Value )
 				end
 			end
+		},
+		Dropdown = {
+			Create = function( self, SettingsPanel, Layout, IsLastElement, Size, Options, SelectedOption )
+				local Dropdown = SettingsPanel:Add( "Dropdown" )
+				Dropdown:SetupFromTable{
+					AutoSize = Size,
+					Options = Options,
+					Font = self:GetFont()
+				}
+				Dropdown:SetSelectedOption( SelectedOption )
+				if not IsLastElement then
+					Dropdown:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
+				end
+
+				if self.TextScale ~= 1 then
+					Dropdown:SetTextScale( self.TextScale )
+				end
+
+				Layout:AddElement( Dropdown )
+
+				return Dropdown
+			end,
+			Setup = function( self, Object, Data )
+				if IsType( Data.ConfigValue, "string" ) then
+					Object:AddPropertyChangeListener( "SelectedOption", function( Option )
+						UpdateConfigValue( self, Data.ConfigValue, Option.Value )
+					end )
+				else
+					Object:AddPropertyChangeListener( "SelectedOption", function( Option )
+						Data.ConfigValue( self, Option.Value )
+					end )
+				end
+			end
 		}
 	}
 
+	local SETTINGS_PADDING_AMOUNT = 5
+
 	local function GetCheckBoxSize( self )
-		return UnitVector( Scaled( 28, self.ScalarScale ),
-			Scaled( 28, self.ScalarScale ) )
+		return UnitVector( Scaled( 28, self.ScalarScale ), Scaled( 28, self.ScalarScale ) )
 	end
 
+	-- These use a fixed scaled size as Percentage units would end up resizing with the panel as it animates.
 	local function GetSliderSize( self )
-		return UnitVector( Percentage( 80 ), Scaled( 24, self.UIScale.y ) )
+		return UnitVector( Scaled( 0.8 * LayoutData.Sizes.Settings.x, self.UIScale.x ), Scaled( 24, self.UIScale.y ) )
+	end
+
+	local function GetDropdownSize( self )
+		return UnitVector(
+			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 3, self.UIScale.x ),
+			Scaled( 28, self.UIScale.y )
+		)
 	end
 
 	local Elements = {
@@ -790,12 +869,73 @@ do
 			Values = function( self )
 				return GetSliderSize( self ), self.Config.Scale
 			end
+		},
+		{
+			Type = "Label",
+			Values = { "FONT_SIZE_MODE" }
+		},
+		{
+			ID = "FontSizeMode",
+			Type = "Dropdown",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "FontSizeMode", Value ) then return end
+
+				self:SetFontSizeMode( Value )
+			end,
+			Values = function( self )
+				local Options = {}
+				local SelectedOption
+				for i = 1, #self.FontSizeMode do
+					Options[ i ] = {
+						Value = self.FontSizeMode[ i ],
+						Text = self:GetPhrase( "FONT_SIZE_MODE_"..self.FontSizeMode[ i ] )
+					}
+					if self.Config.FontSizeMode == Options[ i ].Value then
+						SelectedOption = Options[ i ]
+					end
+				end
+				return GetDropdownSize( self ), Options, SelectedOption
+			end
+		},
+		{
+			ID = "FontSizeInPixels",
+			Type = "Slider",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "FontSizeInPixels", Value ) then return end
+
+				self:SetFontSizeInPixels( Value )
+			end,
+			Bounds = { 8, 64 },
+			Decimals = 0,
+			Values = function( self )
+				return GetSliderSize( self ), self.Config.FontSizeInPixels
+			end,
+			Bindings = {
+				{
+					From = {
+						Element = "FontSizeMode",
+						Property = "SelectedOption"
+					},
+					To = {
+						Property = "Enabled",
+						Transformer = function( Option )
+							return Option.Value == Plugin.FontSizeMode.FIXED
+						end
+					}
+				}
+			}
 		}
 	}
 
 	function Plugin:CreateSettings( MainPanel, UIScale, ScalarScale )
-		local Padding = Spacing( Scaled( 5, UIScale.x ),
-			Scaled( 5, UIScale.y ), Scaled( 5, UIScale.x ), Scaled( 5, UIScale.y ) )
+		local PaddingAmountY = Scaled( SETTINGS_PADDING_AMOUNT, UIScale.y )
+		local Padding = Spacing(
+			Scaled( SETTINGS_PADDING_AMOUNT, UIScale.x ),
+			PaddingAmountY,
+			-- Right hand side needs double padding to mirror the padding correctly.
+			Scaled( SETTINGS_PADDING_AMOUNT * 2, UIScale.x ),
+			PaddingAmountY
+		)
 
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 			Padding = Padding
@@ -806,14 +946,19 @@ do
 			Anchor = "TopRight",
 			Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 			Scrollable = true,
+			ScrollbarHeightOffset = 0,
+			ScrollbarWidth = 8 * UIScale.x,
+			ScrollbarPos = Vector2( -8 * UIScale.x, 0 ),
+			HorizontalScrollingEnabled = false,
+			AutoHideScrollbar = true,
 			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
 			Skin = Skin,
-			ShowScrollbar = false,
 			StylingState = self.MainPanel:GetStylingState()
 		}
 
 		self.SettingsPanel = SettingsPanel
 
+		local ElementsByID = {}
 		for i = 1, #Elements do
 			local Data = Elements[ i ]
 			local Values = IsType( Data.Values, "table" ) and Data.Values or { Data.Values( self ) }
@@ -824,26 +969,29 @@ do
 			if Creator.Setup then
 				Creator.Setup( self, Object, Data, unpack( Values ) )
 			end
+
+			if Data.ID then
+				ElementsByID[ Data.ID ] = Object
+			end
 		end
 
-		-- Perform initial layout to set absolute sizes.
-		Layout:SetSize( VectorMultiply( LayoutData.Sizes.Settings, UIScale ) )
-		Layout:InvalidateLayout( true )
-
-		-- Sum the total height to set the settings panel's size accordingly.
-		local TotalHeight = 0
-		for i = 1, #Layout.Elements do
-			local Element = Layout.Elements[ i ]
-			local Margin = Element:GetComputedMargin()
-			TotalHeight = TotalHeight + Element:GetSize().y + Margin[ 2 ] + Margin[ 4 ]
+		for i = 1, #Elements do
+			local Data = Elements[ i ]
+			local Bindings = Data.Bindings
+			if Bindings then
+				for j = 1, #Bindings do
+					local Binding = Bindings[ j ]
+					local FromElement = ElementsByID[ Binding.From.Element ]
+					if FromElement then
+						Binder():FromElement( FromElement, Binding.From.Property )
+							:ToElement( ElementsByID[ Data.ID ], Binding.To.Property, Binding.To )
+							:BindProperty()
+					end
+				end
+			end
 		end
 
-		local Size = SettingsPanel:GetSize()
-		local HeightWithPadding = TotalHeight + Padding.Up:GetValue() + Padding.Down:GetValue()
-		Size.y = Max( HeightWithPadding, self.MainPanel:GetSize().y )
-
-		SettingsPanel:SetSize( Size )
-		Layout.Size.y = Size.y
+		SettingsPanel:SetLayout( Layout )
 	end
 end
 
@@ -955,9 +1103,15 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 		ReUse = FirstMessage
 	end
 
+	local Font, Scale
+	if self.Config.FontSizeMode == self.FontSizeMode.AUTO then
+		Font, Scale = self:GetFont(), self.MessageTextScale
+	else
+		Font, Scale = self.ManualFont, self.ManualFontScale
+	end
+
 	local ChatLine = ReUse or self.ChatBox:Add( "ChatLine" )
-	ChatLine:SetFont( self:GetFont() )
-	ChatLine:SetTextScale( self.MessageTextScale )
+	ChatLine:SetFontScale( Font, Scale )
 	ChatLine:SetPreMargin( PrefixMargin )
 	ChatLine:SetLineSpacing( LineMargin )
 
