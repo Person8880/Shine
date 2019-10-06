@@ -11,7 +11,11 @@ local ChatAPI = {}
 
 do
 	local SourceTypes = { "PLAYER", "PLUGIN", "SYSTEM" }
+
+	-- This is used for networking only.
 	ChatAPI.SourceType = table.AsEnum( SourceTypes, function( Index ) return Index end )
+
+	-- This is used in the rich text message table structure (for easier debugging).
 	ChatAPI.SourceTypeName = table.AsEnum( SourceTypes )
 end
 
@@ -37,7 +41,7 @@ end
 		Source = {
 			-- Source allows filtering/extra information about the message to be known.
 			-- For example, player messages may provide a right click menu to view the player's Steam/Hive profiles.
-			Type = SourceType.PLAYER,
+			Type = ChatAPI.SourceTypeName.PLAYER,
 			ID = SteamID
 		},
 		Message = {
