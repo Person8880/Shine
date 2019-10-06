@@ -379,8 +379,14 @@ function Plugin:ClientDisconnect( Client )
 	RevokeChatTag( self, Client )
 end
 
+-- Re-assign chat tags for all connected players when the user data is reloaded.
 function Plugin:OnUserReload()
-	-- Re-assign chat tags for all connected players when the user data is reloaded.
+	-- First forget every existing chat tag (as a group/user's chat tag definition may have changed).
+	for Client in Shine.GameIDs:Iterate() do
+		RevokeChatTag( self, Client )
+	end
+
+	-- Then load the newly configured chat tags.
 	for Client in Shine.GameIDs:Iterate() do
 		self:AssignChatTag( Client )
 	end
