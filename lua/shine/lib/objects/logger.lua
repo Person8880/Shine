@@ -27,11 +27,12 @@ function Logger:Init( Level, Writer )
 end
 
 function Logger:SetLevel( Level )
+	local ProvidedLevel = Level
 	if Shine.IsType( Level, "string" ) then
 		Level = Logger.LogLevel[ Level ]
 	end
 
-	Shine.Assert( Logger.LogLevel[ Level ], "Unrecognised log level" )
+	Shine.AssertAtLevel( Logger.LogLevel[ Level ], "Unrecognised log level: %s", 3, ProvidedLevel )
 
 	self.Level = Level
 

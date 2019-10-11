@@ -247,6 +247,11 @@ function Button:AddMenu( Size, MenuPos )
 	end
 
 	local Menu = SGUI:Create( "Menu" )
+	-- As the Menu element is not a child of the button, the skin must be set manually.
+	if self.PropagateSkin then
+		Menu:SetSkin( self:GetSkin() )
+	end
+
 	Menu:SetPos( Pos )
 	Menu:SetButtonSize( Size or self:GetSize() )
 

@@ -98,7 +98,6 @@ function ChatLine:SetupTag( Tag, TagData )
 	Tag:SetColour( TagData.Colour )
 	Tag:SetFont( self.Font )
 	Tag:SetTextScale( self.TextScale )
-	Tag:SetupStencil()
 end
 
 do
@@ -235,7 +234,6 @@ function ChatLine:GetWrappedLabel()
 	WrappedLabel:SetFont( self.Font )
 	WrappedLabel:SetTextScale( self.TextScale )
 	WrappedLabel:SetColour( self.MessageLabel:GetColour() )
-	WrappedLabel:SetupStencil()
 
 	return WrappedLabel
 end

@@ -10,8 +10,19 @@ local TableConcat = table.concat
 local Module = {}
 
 Module.DefaultConfig = {
-	LogLevel = "Info"
+	LogLevel = "INFO"
 }
+
+do
+	local Validator = Shine.Validator()
+
+	Validator:AddFieldRule(
+		"LogLevel",
+		Validator.InEnum( Shine.Objects.Logger.LogLevel, Module.DefaultConfig.LogLevel )
+	)
+
+	Module.ConfigValidator = Validator
+end
 
 function Module:Initialise()
 	self.Logger = Shine.Objects.Logger( StringUpper( self.Config.LogLevel ), function( Text )
