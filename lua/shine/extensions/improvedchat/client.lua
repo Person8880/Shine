@@ -157,7 +157,12 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 				end
 
 				if ShouldAnimate then
-					Line:MoveTo( nil, nil, NewPos, 0, AnimDuration, nil, Ease )
+					Line:ApplyTransition( {
+						Type = "Move",
+						EndValue = NewPos,
+						Duration = AnimDuration,
+						EasingFunction = Ease
+					} )
 				else
 					Line:SetPos( NewPos )
 				end

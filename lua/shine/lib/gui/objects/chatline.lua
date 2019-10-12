@@ -91,10 +91,24 @@ end
 
 function ChatLine:FadeIn( Duration, Easer )
 	Duration = Duration or 0.25
-	self:AlphaTo( nil, 0, 1, 0, Duration, nil, Easer )
+
+	self:ApplyTransition( {
+		Type = "Alpha",
+		StartValue = 0,
+		EndValue = 1,
+		Duration = Duration,
+		EasingFunction = Easer
+	} )
 
 	if self.VisibleBackground then
-		self:AlphaTo( self.VisibleBackground, 0, self.BackgroundColour.a, 0, Duration, nil, Easer )
+		self:ApplyTransition( {
+			Type = "Alpha",
+			Element = self.VisibleBackground,
+			StartValue = 0,
+			EndValue = self.BackgroundColour.a,
+			Duration = Duration,
+			EasingFunction = Easer
+		} )
 	end
 end
 
@@ -135,10 +149,22 @@ function ChatLine:FadeOut( Duration, OnComplete, Easer )
 		self.FadeOutTimer = nil
 	end
 
-	self:AlphaTo( nil, nil, 0, 0, Duration, OnComplete, Easer )
+	self:ApplyTransition( {
+		Type = "Alpha",
+		EndValue = 0,
+		Duration = Duration,
+		Callback = OnComplete,
+		EasingFunction = Easer
+	} )
 
 	if self.VisibleBackground then
-		self:AlphaTo( self.VisibleBackground, nil, 0, 0, Duration, nil, Easer )
+		self:ApplyTransition( {
+			Type = "Alpha",
+			Element = self.VisibleBackground,
+			EndValue = 0,
+			Duration = Duration,
+			EasingFunction = Easer
+		} )
 	end
 end
 

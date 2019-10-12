@@ -22,14 +22,14 @@ function RichText:Initialise()
 	self.WrappedHeight = 0
 end
 
-function RichText:AlphaTo( Element, ... )
-	if Element == nil then
+function RichText:ApplyTransition( Transition )
+	if Transition.Type == "Alpha" and not Transition.Element then
 		if not self.RootElement then return end
 
-		Element = self.RootElement.Background
+		Transition.Element = self.RootElement.Background
 	end
 
-	return self.BaseClass.AlphaTo( self, Element, ... )
+	return self.BaseClass.ApplyTransition( self, Transition )
 end
 
 function RichText:StopAlpha( Element )
