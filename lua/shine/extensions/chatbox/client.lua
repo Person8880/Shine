@@ -191,6 +191,7 @@ function Plugin:OnFirstThink()
 	local DefaultSkin = SGUI.SkinManager:GetSkinsByName().Default
 	TableShallowMerge( DefaultSkin, Skin )
 	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
+	TableShallowMerge( DefaultSkin.Button, Skin.Button )
 end
 
 local LayoutData = {
