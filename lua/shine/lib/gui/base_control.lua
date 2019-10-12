@@ -21,6 +21,7 @@ local Source = require "shine/lib/gui/binding/source"
 
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
 SGUI.AddProperty( ControlMeta, "PropagateSkin" )
@@ -447,6 +448,8 @@ function ControlMeta:MakeGUIItem( Type )
 	end
 
 	local Item = Factory( Manager )
+	Item:SetOptionFlag( GUIItem.CorrectScaling )
+	Item:SetOptionFlag( GUIItem.CorrectRotationOffset )
 	if self.Stencilled then
 		-- This element is currently under the effect of a stencil, so inherit
 		-- settings.
@@ -990,20 +993,94 @@ do
 	}
 	SGUI.Anchors = Anchors
 
+	local AnchorFractions = {
+		TopLeft = Vector2( 0, 0 ),
+		TopMiddle = Vector2( 0.5, 0 ),
+		TopRight = Vector2( 1, 0 ),
+
+		CentreLeft = Vector2( 0, 0.5 ),
+		CentreMiddle = Vector2( 0.5, 0.5 ),
+		CentreRight = Vector2( 1, 0.5 ),
+
+		CenterLeft = Vector2( 0, 0.5 ),
+		CenterMiddle = Vector2( 0.5, 0.5 ),
+		CenterRight = Vector2( 1, 0.5 ),
+
+		BottomLeft = Vector2( 0, 1 ),
+		BottomMiddle = Vector2( 0.5, 1 ),
+		BottomRight = Vector2( 1, 1 ),
+
+		[ GUIItem.Left ] = 0,
+		[ GUIItem.Middle ] = 0.5,
+		[ GUIItem.Right ] = 1,
+		[ GUIItem.Top ] = 0,
+		[ GUIItem.Center ] = 0.5,
+		[ GUIItem.Bottom ] = 1
+	}
+
+	local NewScalingFlag = GUIItem.CorrectScaling
+
 	--[[
 		Sets the origin anchors for the control.
 	]]
 	function ControlMeta:SetAnchor( X, Y )
 		if not self.Background then return end
 
+		local UsesNewScaling = self.Background:IsOptionFlagSet( NewScalingFlag )
 		if IsType( X, "string" ) then
-			local Anchor = Anchors[ X ]
-
-			if Anchor then
-				self.Background:SetAnchor( Anchor[ 1 ], Anchor[ 2 ] )
+			if UsesNewScaling then
+				local Anchor = Shine.AssertAtLevel( AnchorFractions[ X ], "Unknown anchor type: %s", 3, X )
+				self.Background:SetAnchor( Anchor )
+				return
 			end
+
+			local Anchor = Shine.AssertAtLevel( Anchors[ X ], "Unknown anchor type: %s", 3, X )
+			self.Background:SetAnchor( Anchor[ 1 ], Anchor[ 2 ] )
 		else
+			if UsesNewScaling then
+				self.Background:SetAnchor( Vector2( AnchorFractions[ X ], AnchorFractions[ Y ] ) )
+				return
+			end
+
 			self.Background:SetAnchor( X, Y )
+		end
+	end
+
+	--[[
+		Sets the origin anchors using a fractional value for the control.
+	]]
+	function ControlMeta:SetAnchorFraction( X, Y )
+		if not self.Background then return end
+
+		Shine.AssertAtLevel(
+			self.Background:IsOptionFlagSet( NewScalingFlag ),
+			"Background element must have GUIItem.CorrectScaling flag set to use SetAnchorFraction!",
+			3
+		)
+
+		self.Background:SetAnchor( Vector2( X, Y ) )
+	end
+
+	--[[
+		Sets the local origin of the given element (i.e. 0, 0 means position determines where the top-left corner is,
+		0.5, 0.5 means position determines where the centre of the element is).
+
+		This also affects the origin of scaling applied to the element.
+	]]
+	function ControlMeta:SetHotSpot( X, Y )
+		if not self.Background then return end
+
+		Shine.AssertAtLevel(
+			self.Background:IsOptionFlagSet( NewScalingFlag ),
+			"Background element must have GUIItem.CorrectScaling flag set to use SetHotSpot!",
+			3
+		)
+
+		if IsType( X, "string" ) then
+			local HotSpot = Shine.AssertAtLevel( AnchorFractions[ X ], "Unknown hotspot type: %s", 3, X )
+			self.Background:SetHotSpot( HotSpot )
+		else
+			self.Background:SetHotSpot( X, Y )
 		end
 	end
 end
@@ -1276,9 +1353,18 @@ local Easers = {
 		Getter = function( self, Element )
 			return Element:GetSize()
 		end
-	}, "Size" )
+	}, "Size" ),
+	Scale = Easer( {
+		Setter = function( self, Element, Scale )
+			Element:SetScale( Scale )
+		end,
+		Getter = function( self, Element )
+			return Element:GetScale()
+		end
+	}, "Scale" )
 }
 Easers.Size.Easer = Easers.Move.Easer
+Easers.Scale.Easer = Easers.Move.Easer
 
 function ControlMeta:GetEasing( Type, Element )
 	if not self.EasingProcesses then return end

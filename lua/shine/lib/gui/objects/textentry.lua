@@ -42,24 +42,21 @@ function TextEntry:Initialise()
 
 	-- Coloured entry field.
 	local InnerBox = self:MakeGUICroppingItem()
-	InnerBox:SetAnchor( GUIItem.Left, GUIItem.Top )
 	InnerBox:SetPosition( BorderSize )
 
 	local SelectionBox = self:MakeGUIItem()
-	SelectionBox:SetAnchor( GUIItem.Left, GUIItem.Top )
 	SelectionBox:SetSize( Vector( 0, 0, 0 ) )
 
 	self.SelectionBox = SelectionBox
 
 	-- The actual text object.
 	local Text = self:MakeGUITextItem()
-	Text:SetAnchor( GUIItem.Left, GUIItem.Center )
+	Text:SetAnchor( 0, 0.5 )
 	Text:SetTextAlignmentY( GUIItem.Align_Center )
 	Text:SetPosition( TextPos )
 
 	-- The caret to edit from.
 	local Caret = self:MakeGUIItem()
-	Caret:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Caret:SetColor( Clear )
 
 	self.Caret = Caret
@@ -177,7 +174,6 @@ function TextEntry:SetPlaceholderText( Text )
 	end
 
 	local PlaceholderText = self:MakeGUITextItem()
-	PlaceholderText:SetAnchor( GUIItem.Left, GUIItem.Top )
 	PlaceholderText:SetTextAlignmentY( GUIItem.Align_Center )
 	PlaceholderText:SetText( Text )
 	PlaceholderText:SetInheritsParentScaling( false )

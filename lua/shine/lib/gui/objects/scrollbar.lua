@@ -20,7 +20,6 @@ function Scrollbar:Initialise()
 	self.Background = Background
 
 	local Bar = self:MakeGUIItem()
-	Bar:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Background:AddChild( Bar )
 
 	self.Bar = Bar

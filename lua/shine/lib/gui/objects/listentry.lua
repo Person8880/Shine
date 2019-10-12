@@ -72,7 +72,7 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 		self.ColumnText[ i ] = Text
 
 		local TextObj = self:MakeGUITextItem()
-		TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
+		TextObj:SetAnchor( 0, 0.5 )
 		TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 		TextObj:SetText( Text )
 		TextObj:SetColor( TextCol )

@@ -108,7 +108,6 @@ function Panel:SetScrollable()
 	self.CroppingBox = CroppingBox
 
 	local ScrollParent = self:MakeGUIItem()
-	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
 	CroppingBox:AddChild( ScrollParent )

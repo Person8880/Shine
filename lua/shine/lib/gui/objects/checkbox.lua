@@ -17,7 +17,7 @@ function CheckBox:Initialise()
 	self.Background = Background
 
 	local Box = self:MakeGUIItem()
-	Box:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	Box:SetAnchor( 0.5, 0.5 )
 
 	Background:AddChild( Box )
 

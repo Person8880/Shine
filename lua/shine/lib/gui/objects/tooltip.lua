@@ -50,7 +50,7 @@ function Tooltip:SetText( Text, Font, Scale )
 	if not TextObj then
 		TextObj = self:MakeGUITextItem()
 		-- Align center doesn't want to play nice...
-		TextObj:SetAnchor( GUIItem.Middle, GUIItem.Top )
+		TextObj:SetAnchor( 0.5, 0 )
 		TextObj:SetTextAlignmentX( GUIItem.Align_Center )
 		TextObj:SetFontName( Font or Fonts.kAgencyFB_Small )
 		TextObj:SetPosition( Vector2( 0, self.TextPadding * 0.5 ) )

@@ -33,7 +33,7 @@ function Notification:Initialise()
 	FlairIcon:SetInheritsParentAlpha( true )
 	FlairIcon:SetTextAlignmentX( GUIItem.Align_Center )
 	FlairIcon:SetTextAlignmentY( GUIItem.Align_Center )
-	FlairIcon:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	FlairIcon:SetAnchor( 0.5, 0.5 )
 	FlairIcon:SetFontName( SGUI.Fonts.Ionicons )
 	Flair:AddChild( FlairIcon )
 

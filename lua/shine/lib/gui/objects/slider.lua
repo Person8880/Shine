@@ -45,7 +45,7 @@ function Slider:Initialise()
 	self.Background = Background
 
 	local Line = self:MakeGUIItem()
-	Line:SetAnchor( GUIItem.Left, GUIItem.Center )
+	Line:SetAnchor( 0, 0.5 )
 	Line:SetSize( DefaultLineSize )
 	Line:SetPosition( LinePos )
 
@@ -54,7 +54,7 @@ function Slider:Initialise()
 	self.Line = Line
 
 	local UnfilledLine = self:MakeGUIItem()
-	UnfilledLine:SetAnchor( GUIItem.Left, GUIItem.Center )
+	UnfilledLine:SetAnchor( 0, 0.5 )
 	UnfilledLine:SetSize( DefaultUnfilledLineSize )
 	UnfilledLine:SetPosition( UnfilledLinePos )
 
@@ -63,7 +63,6 @@ function Slider:Initialise()
 	self.DarkLine = UnfilledLine
 
 	local Handle = self:MakeGUIItem()
-	Handle:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Handle:SetSize( DefaultHandleSize )
 
 	Background:AddChild( Handle )

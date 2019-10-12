@@ -36,7 +36,7 @@ function ListHeader:SetText( Text )
 	end
 
 	local TextObj = self:MakeGUITextItem()
-	TextObj:SetAnchor( GUIItem.Left, GUIItem.Center )
+	TextObj:SetAnchor( 0, 0.5 )
 	TextObj:SetText( Text )
 	TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 	TextObj:SetPosition( Padding )
