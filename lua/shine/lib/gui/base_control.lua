@@ -1169,6 +1169,10 @@ do
 
 		EasingData.Callback = Callback
 
+		if EasingHandlers.Init then
+			EasingHandlers.Init( self, Element, EasingData )
+		end
+
 		return EasingData
 	end
 end
@@ -1229,6 +1233,9 @@ local Easers = {
 		end
 	}, "Fade" ),
 	Alpha = Easer( {
+		Init = function( self, Element, EasingData )
+			EasingData.Colour = Element:GetColor()
+		end,
 		Easer = function( self, Element, EasingData, Progress )
 			EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
 			EasingData.Colour.a = EasingData.CurValue
@@ -1291,6 +1298,73 @@ function ControlMeta:StopEasing( Element, EasingHandler )
 	Easers:Remove( Element or self.Background )
 end
 
+local function AddEaseFunc( EasingData, EaseFunc, Power )
+	EasingData.EaseFunc = EaseFunc or math.EaseOut
+	EasingData.Power = Power or 3
+end
+
+do
+	local function GetEaserForTransition( Transition )
+		return Easers[ Transition.Type ] or Transition.Easer
+	end
+
+	--[[
+		Adds a new easing transition to the control.
+
+		Transitions are a table like the following:
+		{
+			-- The element the easing should apply to (if omitted, self.Background is used).
+			Element = self.Background,
+
+			-- The starting value (if omitted, the current value for the specified type is used).
+			StartValue = self:GetPos(),
+
+			-- The end value to ease towards.
+			EndValue = self:GetPos() + Vector2( 100, 0 ),
+
+			-- The time to wait (in seconds) from now until the transition should start (if omitted, no delay is applied).
+			Delay = 0,
+
+			-- How long (in seconds) to take to ease between the start and end values.
+			Duration = 0.3,
+
+			-- An optional callback that is executed once the transition is complete. It will be passed the element
+			-- that was transitioned.
+			Callback = function( Element ) end,
+
+			-- The type of easer to use (if using a standard easer)
+			Type = "Move",
+
+			-- A custom easer to use if "Type" is not specified.
+			Easer = ...,
+
+			-- The easing function to use (if omitted, math.EaseOut is used).
+			EasingFunction = math.EaseOut,
+
+			-- The power value to pass to the easing function (if omitted, 3 is used).
+			EasingPower = 3
+		}
+	]]
+	function ControlMeta:ApplyTransition( Transition )
+		local EasingData = self:EaseValue(
+			Transition.Element,
+			Transition.StartValue,
+			Transition.EndValue,
+			Transition.Delay or 0,
+			Transition.Duration,
+			Transition.Callback,
+			GetEaserForTransition( Transition )
+		)
+		AddEaseFunc( EasingData, Transition.EasingFunction, Transition.EasingPower )
+
+		return EasingData
+	end
+
+	function ControlMeta:StopTransition( Transition )
+		self:StopEasing( Transition.Element, GetEaserForTransition( Transition ) )
+	end
+end
+
 --[[
 	Sets an SGUI control to move from its current position.
 
@@ -1307,19 +1381,13 @@ end
 function ControlMeta:MoveTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
 	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback,
 		Easers.Move )
-	EasingData.EaseFunc = EaseFunc or math.EaseOut
-	EasingData.Power = Power or 3
+	AddEaseFunc( EasingData, EaseFunc, Power )
 
 	return EasingData
 end
 
 function ControlMeta:StopMoving( Element )
 	self:StopEasing( Element, Easers.Move )
-end
-
-local function AddEaseFunc( EasingData, EaseFunc, Power )
-	EasingData.EaseFunc = EaseFunc or math.EaseOut
-	EasingData.Power = Power or 3
 end
 
 --[[
@@ -1348,7 +1416,6 @@ end
 
 function ControlMeta:AlphaTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
 	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback, Easers.Alpha )
-	EasingData.Colour = EasingData.Element:GetColor()
 	AddEaseFunc( EasingData, EaseFunc, Power )
 
 	return EasingData
