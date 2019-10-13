@@ -80,6 +80,20 @@ local Skin = {
 		MapTileLabel = {
 			Colour = Colour( 1, 1, 1, 1 / MapTileHeaderAlpha ),
 			InheritsParentAlpha = true
+		},
+		HeaderLabel = {
+			Colour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
+			Shadow = {
+				Colour = Colour( 0, 0, 0, 0.75 / HeaderAlpha )
+			},
+			InheritsParentAlpha = true
+		},
+		CountdownTimeRunningOut = {
+			Colour = Colour( 1, 0, 0, 1 / HeaderAlpha ),
+			Shadow = {
+				Colour = Colour( 0, 0, 0, 0.75 / HeaderAlpha )
+			},
+			InheritsParentAlpha = true
 		}
 	},
 	MapVoteMenu = {
@@ -126,15 +140,6 @@ local Skin = {
 			InheritsParentAlpha = true
 		}
 	} ),
-	ShadowLabel = {
-		HeaderLabel = {
-			Colour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
-			Shadow = {
-				Colour = Colour( 0, 0, 0, 0.75 / HeaderAlpha )
-			},
-			InheritsParentAlpha = true
-		}
-	},
 	Column = HeaderVariations
 }
 
@@ -169,7 +174,7 @@ function MapVoteMenu:Initialise()
 					},
 					Children = {
 						{
-							Class = "ShadowLabel",
+							Class = "Label",
 							Props = {
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 								AutoFont = {
@@ -177,6 +182,19 @@ function MapVoteMenu:Initialise()
 									Size = Units.GUIScaled( 96 )
 								},
 								Text = Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_TITLE" ),
+								StyleName = "HeaderLabel"
+							}
+						},
+						{
+							ID = "CurrentMapLabel",
+							Class = "Label",
+							Props = {
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								AutoFont = {
+									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
+									Size = Units.GUIScaled( 29 )
+								},
+								Text = Shared.GetMapName(),
 								StyleName = "HeaderLabel"
 							}
 						}
@@ -193,27 +211,14 @@ function MapVoteMenu:Initialise()
 					},
 					Children = {
 						{
-							ID = "CurrentMapLabel",
-							Class = "ShadowLabel",
-							Props = {
-								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								AutoFont = {
-									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-									Size = Units.GUIScaled( 29 )
-								},
-								Text = Shared.GetMapName(),
-								StyleName = "HeaderLabel"
-							}
-						},
-						{
 							ID = "CountdownLabel",
-							Class = "ShadowLabel",
+							Class = "Label",
 							Props = {
 								Alignment = SGUI.LayoutAlignment.CENTRE,
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 								AutoFont = {
 									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-									Size = Units.GUIScaled( 29 )
+									Size = Units.GUIScaled( 59 )
 								},
 								StyleName = "HeaderLabel"
 							}
@@ -394,8 +399,11 @@ end
 function MapVoteMenu:Think( DeltaTime )
 	Controls.Panel.Think( self, DeltaTime )
 
-	local TimeLeft = self.EndTime - SharedTime()
+	local TimeLeft = Ceil( self.EndTime - SharedTime() )
 	self.Elements.CountdownLabel:SetText( StringDigitalTime( TimeLeft ) )
+	if TimeLeft <= 10 and self.Elements.CountdownLabel:GetStyleName() ~= "CountdownTimeRunningOut" then
+		self.Elements.CountdownLabel:SetStyleName( "CountdownTimeRunningOut" )
+	end
 end
 
 function MapVoteMenu:OnMapVoteCountChanged( MapName, NumVotes )
