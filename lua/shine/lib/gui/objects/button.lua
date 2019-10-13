@@ -69,17 +69,6 @@ local function UpdateIconMargin( self )
 	end
 end
 
-local OldSetTextShadow = Button.SetTextShadow
-function Button:SetTextShadow( ShadowParams )
-	OldSetTextShadow( self, ShadowParams )
-
-	if ShadowParams and self.Label and self.Label.Class ~= "ShadowLabel" then
-		local Text = self:GetText()
-		self:SetText( nil )
-		self:SetText( Text )
-	end
-end
-
 function Button:SetText( Text )
 	self:InvalidateParent()
 
@@ -89,7 +78,7 @@ function Button:SetText( Text )
 		return
 	end
 
-	local Description = SGUI:Create( self.TextShadow and "ShadowLabel" or "Label", self )
+	local Description = SGUI:Create( "Label", self )
 	Description:SetIsSchemed( false )
 	Description:SetAlignment( self.TextAlignment or SGUI.LayoutAlignment.CENTRE )
 	Description:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
@@ -145,17 +134,6 @@ function Button:GetText()
 	return self.Label:GetText()
 end
 
-local OldSetIconShadow = Button.SetIconShadow
-function Button:SetIconShadow( ShadowParams )
-	OldSetIconShadow( self, ShadowParams )
-
-	if ShadowParams and self.Icon and self.Icon.Class ~= "ShadowLabel" then
-		local Icon, Font, Scale = self:GetIcon()
-		self:SetIcon( nil )
-		self:SetIcon( Icon, Font, Scale )
-	end
-end
-
 function Button:SetIcon( IconName, Font, Scale )
 	if not IconName then
 		if SGUI.IsValid( self.Icon ) then
@@ -187,7 +165,7 @@ function Button:SetIcon( IconName, Font, Scale )
 		return
 	end
 
-	local Icon = SGUI:Create( self.IconShadow and "ShadowLabel" or "Label", self )
+	local Icon = SGUI:Create( "Label", self )
 	Icon:SetIsSchemed( false )
 	Icon:SetAlignment( self.IconAlignment or SGUI.LayoutAlignment.CENTRE )
 	Icon:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
