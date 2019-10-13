@@ -5,8 +5,6 @@
 
 local SGUI = Shine.GUI
 
-local OSDate = os.date
-
 local RichText = {}
 local BackgroundColour = Colour( 0, 0, 0, 0 )
 
