@@ -43,6 +43,9 @@ function Label:Initialise()
 	self:AddPropertyChangeListener( "Text", function( Text )
 		self:EvaluateOptionFlags( Text )
 	end )
+	self:AddPropertyChangeListener( "Font", function( Font )
+		SGUI.FontManager.SetupElementForFontName( self.Label, Font )
+	end )
 end
 
 function Label:EvaluateOptionFlags( Text )

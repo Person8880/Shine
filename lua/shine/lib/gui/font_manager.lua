@@ -3,37 +3,89 @@
 ]]
 
 local Abs = math.abs
+local TableSort = table.sort
 
 local SGUI = Shine.GUI
 SGUI.Fonts = {
 	Ionicons = PrecacheAsset "fonts/ionicons.fnt"
 }
 SGUI.FontFamilies = {
-	Ionicons = "Ionicons"
+	Ionicons = "Ionicons",
+	AgencyFBDistField = "AgencyFBDistField",
+	AgencyFBBoldDistField = "AgencyFBBoldDistField",
+	MicrogrammaDistField = "MicrogrammaDistField",
+	MicrogrammaBoldDistField = "MicrogrammaBoldDistField"
 }
 SGUI.Icons = {
 	Ionicons = require "shine/lib/gui/icons"
 }
 
+local function MakeIterable( Lookup )
+	local Count = 0
+	local IterableCopy = {}
+
+	for FontName, Size in pairs( Lookup ) do
+		Count = Count + 1
+		IterableCopy[ Count ] = FontName
+		IterableCopy[ FontName ] = Size
+	end
+
+	TableSort( IterableCopy, function( A, B )
+		return Lookup[ A ] < Lookup[ B ]
+	end )
+
+	IterableCopy[ 0 ] = Count
+
+	return IterableCopy
+end
+
 local FontFamilies = setmetatable( {
 	Ionicons = {
 		[ SGUI.Fonts.Ionicons ] = 32
+	},
+	AgencyFBDistField = {
+		[ "fonts/AgencyFB_distfield.fnt" ] = 70
+	},
+	AgencyFBBoldDistField = {
+		[ "fonts/AgencyFBExtendedBold_distfield.fnt" ] = 70
+	},
+	MicrogrammaDistField = {
+		[ "fonts/MicrogrammaDMedExt_distfield.fnt" ] = 40
+	},
+	MicrogrammaBoldDistField = {
+		[ "fonts/MicrogrammaDBolExt_distfield.fnt" ] = 40
 	}
 }, {
 	__index = function( self, Key )
-		return _G.FontFamilies[ Key ]
+		local Family = _G.FontFamilies[ Key ]
+		if Family then
+			Family = MakeIterable( Family )
+
+			self[ Key ] = Family
+
+			return Family
+		end
+
+		return nil
 	end
 } )
+
+for Name, FontFamily in pairs( FontFamilies ) do
+	FontFamilies[ Name ] = MakeIterable( FontFamily )
+end
 
 local FontManager = {}
 
 local function FindFontForSize( FontFamily, AbsoluteSize )
 	local Fonts = FontFamilies[ FontFamily ]
-	if not Fonts then return end
+	Shine.AssertAtLevel( Fonts, "Unknown font family: %s", 3, FontFamily )
 
 	local Best
 	local BestDiff = math.huge
-	for Name, Size in pairs( Fonts ) do
+	for i = 1, Fonts[ 0 ] do
+		local Name = Fonts[ i ]
+		local Size = Fonts[ Name ]
+
 		local Diff = Abs( Size - AbsoluteSize )
 		if Diff < BestDiff then
 			Best = Name
@@ -93,6 +145,31 @@ function FontManager.GetFontSize( FontFamily, FontName )
 	return Fonts[ FontName ]
 end
 
+do
+	local DISTANCE_FIELD_SHADER = "shaders/DistanceFieldFont.surface_shader"
+	local NORMAL_SHADER = "shaders/GUIBasic.surface_shader"
+
+	--[[
+		Sets up the given GUIItem based on the given font name.
+
+		If the font is known to use a distance field, the appropriate shader and flag are set.
+		Otherwise, if the element was using a distance field font the shader and flag are reset.
+	]]
+	function FontManager.SetupElementForFontName( TextElement, FontName )
+		if GetFontFileUsesDistanceField( FontName ) then
+			if not TextElement:IsOptionFlagSet( GUIItem.DistanceFieldFont ) then
+				TextElement:SetOptionFlag( GUIItem.DistanceFieldFont )
+				TextElement:SetShader( DISTANCE_FIELD_SHADER )
+			end
+		else
+			if TextElement:IsOptionFlagSet( GUIItem.DistanceFieldFont ) then
+				TextElement:ClearOptionFlag( GUIItem.DistanceFieldFont )
+				TextElement:SetShader( NORMAL_SHADER )
+			end
+		end
+	end
+end
+
 local FontSizes = {
 	[ SGUI.Fonts.Ionicons ] = 32
 }
@@ -110,11 +187,16 @@ Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
 
 	-- Collect known font sizes upfront.
 	for i = 1, #_G.FontFamilies do
-		local FontFamily = _G.FontFamilies[ _G.FontFamilies[ i ] ]
+		local Name = _G.FontFamilies[ i ]
+		local FontFamily = _G.FontFamilies[ Name ]
+
 		if Shine.IsType( FontFamily, "table" ) then
 			for FontName, Size in pairs( FontFamily ) do
 				FontSizes[ FontName ] = Size
 			end
+
+			-- Eagerly copy the font data for use in font size calculations.
+			FontFamilies[ Name ] = MakeIterable( FontFamily )
 		end
 	end
 
@@ -169,6 +251,16 @@ Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
 
 			File:close()
 		end )
+
+	-- Make sure font sizes are up to date.
+	for Name, FontFamily in pairs( FontFamilies ) do
+		for i = 1, FontFamily[ 0 ] do
+			local FontName = FontFamily[ i ]
+			local Size = FontFamily[ FontName ]
+
+			FontFamily[ FontName ] = FontSizes[ FontName ] or Size
+		end
+	end
 end, Shine.Hook.MAX_PRIORITY )
 
 Shine.GUI.FontManager = FontManager

@@ -35,26 +35,26 @@ function ListHeader:SetText( Text )
 		return
 	end
 
-	local TextObj = self:MakeGUITextItem()
-	TextObj:SetAnchor( 0, 0.5 )
+	local TextObj = SGUI:Create( "Label", self )
+	TextObj:SetIsSchemed( false )
+	TextObj:SetAnchorFraction( 0, 0.5 )
 	TextObj:SetText( Text )
 	TextObj:SetTextAlignmentY( GUIItem.Align_Center )
-	TextObj:SetPosition( Padding )
-	TextObj:SetColor( self.TextColour )
+	TextObj:SetPos( Padding )
+	TextObj:SetColour( self.TextColour )
 	if self.Font then
-		TextObj:SetFontName( self.Font )
+		TextObj:SetFont( self.Font )
 	end
 	if self.TextScale then
-		TextObj:SetScale( self.TextScale )
+		TextObj:SetTextScale( self.TextScale )
 	end
 
-	self.Background:AddChild( TextObj )
 	self.TextObj = TextObj
 end
 
-SGUI.AddBoundProperty( ListHeader, "Font", "TextObj:SetFontName" )
-SGUI.AddBoundProperty( ListHeader, "TextColour", "TextObj:SetColor" )
-SGUI.AddBoundProperty( ListHeader, "TextScale", "TextObj:SetScale" )
+SGUI.AddBoundProperty( ListHeader, "Font", "TextObj" )
+SGUI.AddBoundProperty( ListHeader, "TextColour", "TextObj:SetColour" )
+SGUI.AddBoundProperty( ListHeader, "TextScale", "TextObj" )
 
 function ListHeader:SetSorted( IsSorted, Descending )
 	if not IsSorted then

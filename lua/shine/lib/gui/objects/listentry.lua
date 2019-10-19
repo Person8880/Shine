@@ -34,17 +34,17 @@ end
 
 function ListEntry:SetTextColour( Colour )
 	self.TextColour = Colour
-	self:ForEachFiltered( "TextObjs", "SetColor", self.IsDefaultStyle, Colour )
+	self:ForEachFiltered( "TextObjs", "SetColour", self.IsDefaultStyle, Colour )
 end
 
 function ListEntry:SetFont( Font )
 	self.Font = Font
-	self:ForEachFiltered( "TextObjs", "SetFontName", self.IsDefaultStyle, Font )
+	self:ForEachFiltered( "TextObjs", "SetFont", self.IsDefaultStyle, Font )
 end
 
 function ListEntry:SetTextScale( Scale )
 	self.TextScale = Scale
-	self:ForEachFiltered( "TextObjs", "SetScale", self.IsDefaultStyle, Scale )
+	self:ForEachFiltered( "TextObjs", "SetTextScale", self.IsDefaultStyle, Scale )
 end
 
 function ListEntry:Setup( Index, Columns, Size, ... )
@@ -71,22 +71,21 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 
 		self.ColumnText[ i ] = Text
 
-		local TextObj = self:MakeGUITextItem()
-		TextObj:SetAnchor( 0, 0.5 )
+		local TextObj = SGUI:Create( "Label", self )
+		TextObj:SetIsSchemed( false )
+		TextObj:SetAnchorFraction( 0, 0.5 )
 		TextObj:SetTextAlignmentY( GUIItem.Align_Center )
 		TextObj:SetText( Text )
-		TextObj:SetColor( TextCol )
+		TextObj:SetColour( TextCol )
 
 		if self.Font then
-			TextObj:SetFontName( self.Font )
+			TextObj:SetFont( self.Font )
 		end
 
 		if self.TextScale then
-			TextObj:SetScale( self.TextScale )
+			TextObj:SetTextScale( self.TextScale )
 		end
 
-		Background:AddChild( TextObj )
-		TextObj:SetInheritsParentStencilSettings( true )
 		TextObjs[ i ] = TextObj
 	end
 end
@@ -102,9 +101,9 @@ function ListEntry:ApplyTextOverride( Column, Override )
 	local TextObj = self.TextObjs[ Column ]
 	Shine.AssertAtLevel( TextObj, "Invalid column for text override!", 3 )
 
-	TextObj:SetFontName( Override.Font or Font )
-	TextObj:SetScale( Override.TextScale or TextScale )
-	TextObj:SetColor( Override.Colour or self.TextColour )
+	TextObj:SetFont( Override.Font or self.Font )
+	TextObj:SetTextScale( Override.TextScale or TextScale )
+	TextObj:SetColour( Override.Colour or self.TextColour )
 end
 
 function ListEntry:RefreshOverrides()
@@ -137,8 +136,7 @@ end
 
 function ListEntry:UpdateText( Index, Obj, Size )
 	local Text = self.ColumnText[ Index ]
-	local Scale = Obj:GetScale().x
-	local Width = Obj:GetTextWidth( Text ) * Scale
+	local Width = Obj:GetTextWidth( Text )
 
 	if Width > Size then
 		local Chars = StringUTF8Encode( Text )
@@ -148,7 +146,7 @@ function ListEntry:UpdateText( Index, Obj, Size )
 			End = End - 1
 			Text = TableConcat( Chars, "", 1, End )
 
-			Width = Obj:GetTextWidth( Text ) * Scale
+			Width = Obj:GetTextWidth( Text )
 		until Width < Size or End == 0
 
 		Text = TableConcat( Chars, "", 1, End - 4 ).."..."
@@ -166,10 +164,10 @@ function ListEntry:SetSpacing( SpacingTable )
 	for i = 1, self.Columns do
 		local Obj = TextObjs[ i ]
 		local LastObj = TextObjs[ i - 1 ]
-		local LastPos = LastObj and LastObj:GetPosition() or ZeroVector
+		local LastPos = LastObj and LastObj:GetPos() or ZeroVector
 		LastPos.y = 0
 
-		Obj:SetPosition( Padding + ( Spacing[ i - 1 ] or ZeroVector ) + LastPos )
+		Obj:SetPos( Padding + ( Spacing[ i - 1 ] or ZeroVector ) + LastPos )
 
 		local Size = SpacingTable[ i ]
 		Spacing[ i ] = Vector2( Size, 0 )

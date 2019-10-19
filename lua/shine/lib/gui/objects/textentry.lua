@@ -180,6 +180,7 @@ function TextEntry:SetPlaceholderText( Text )
 
 	if self.Font then
 		PlaceholderText:SetFontName( self.Font )
+		SGUI.FontManager.SetupElementForFontName( PlaceholderText, self.Font )
 	end
 
 	if self.TextScale then
@@ -196,10 +197,13 @@ end
 function TextEntry:SetFont( Font )
 	self.Font = Font
 	self.TextObj:SetFontName( Font )
+	SGUI.FontManager.SetupElementForFontName( self.TextObj, Font )
+
 	self:SetupCaret()
 
 	if self.PlaceholderText then
 		self.PlaceholderText:SetFontName( Font )
+		SGUI.FontManager.SetupElementForFontName( self.PlaceholderText, Font )
 	end
 end
 

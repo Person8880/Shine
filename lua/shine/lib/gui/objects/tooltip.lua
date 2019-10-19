@@ -48,11 +48,14 @@ end
 function Tooltip:SetText( Text, Font, Scale )
 	local TextObj = self.Text
 	if not TextObj then
+		Font = Font or Fonts.kAgencyFB_Small
+
 		TextObj = self:MakeGUITextItem()
 		-- Align center doesn't want to play nice...
 		TextObj:SetAnchor( 0.5, 0 )
 		TextObj:SetTextAlignmentX( GUIItem.Align_Center )
-		TextObj:SetFontName( Font or Fonts.kAgencyFB_Small )
+		TextObj:SetFontName( Font )
+		SGUI.FontManager.SetupElementForFontName( TextObj, Font )
 		TextObj:SetPosition( Vector2( 0, self.TextPadding * 0.5 ) )
 		TextObj:SetInheritsParentAlpha( true )
 		TextObj:SetColor( self.TextCol )
@@ -61,6 +64,7 @@ function Tooltip:SetText( Text, Font, Scale )
 		self.Text = TextObj
 	elseif Font then
 		TextObj:SetFontName( Font )
+		SGUI.FontManager.SetupElementForFontName( TextObj, Font )
 	end
 
 	if Scale then
