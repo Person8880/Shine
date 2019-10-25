@@ -36,6 +36,9 @@ if Server then
 			4. Reliable - Whether to send reliably.
 	]]
 	function Shine:ApplyNetworkMessage( Target, MessageName, MessageTable, Reliable )
+		-- Avoid silly argument type checking error as the engine treats nil and no value differently.
+		Reliable = not not Reliable
+
 		if not Target then
 			self.SendNetworkMessage( MessageName, MessageTable, Reliable )
 			return
