@@ -33,6 +33,8 @@ local function GetDurationLabel( self, Permanent, UnbanTime )
 end
 
 function Plugin:SetupAdminMenu()
+	self.BanMenuOpen = false
+
 	local Units = SGUI.Layout.Units
 	local HighResScaled = Units.HighResScaled
 	local Percentage = Units.Percentage
@@ -543,7 +545,7 @@ function Plugin:ReceiveBanData( Data )
 end
 
 function Plugin:ReceiveBanPage( PageData )
-	if not self.BanMenuOpen then return end
+	if not SGUI.IsValid( self.BanList ) then return end
 
 	self.BanList:Clear()
 
