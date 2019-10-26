@@ -68,6 +68,38 @@ local function ComputeChatOffset( GUIChatPos, DesiredOffset )
 	return GUIScale( 1 ) * ( GUIChatPos + DesiredOffset )
 end
 
+local function GetPaddingAmount()
+	return Units.GUIScaled( 8 ):GetValue()
+end
+
+local function UpdateUpwardsMessagePositions( self, PaddingAmount )
+	local YOffset = 0
+	for i = 1, #self.ChatLines do
+		local ChatLine = self.ChatLines[ i ]
+		local Pos = ChatLine:GetPos()
+		Pos.y = YOffset
+
+		ChatLine:SetPos( Pos )
+
+		YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
+	end
+
+	local NewYOffset = -YOffset + PaddingAmount
+	local Easing = self.MessagePanel:GetEasing( "Move" )
+	if Easing then
+		-- If easing, offset the start/end positions and current position to avoid a sudden jump.
+		local YDiff = NewYOffset - Easing.End.y
+
+		Easing.End.y = NewYOffset
+		Easing.Start.y = NewYOffset - Easing.Diff.y
+
+		self.MessagePanel:SetPos( Vector2( 0, self.MessagePanel:GetPos().y + YDiff ) )
+	else
+		-- Otherwise just move the panel instantly.
+		self.MessagePanel:SetPos( Vector2( 0, NewYOffset ) )
+	end
+end
+
 Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	IntToColour = ColorIntToColor
 
@@ -100,72 +132,131 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		MaxChatWidth = Value * 0.01
 	end )
 
+	-- Ensure easing functions are loaded.
+	Script.Load( "lua/tweener/Tweener.lua" )
+
+	-- Fade fast to avoid making text hard to read.
+	local OutExpo = Easing.outExpo
+	local function FadingEase( Progress )
+		return OutExpo( Progress, 0, 1, 1 )
+	end
+
+	-- Move more smoothly to avoid sudden jumps.
+	local OutSine = Easing.outSine
+	local function MovementEase( Progress )
+		return OutSine( Progress, 0, 1, 1 )
+	end
+
+	local AnimDuration = 0.25
+	local function IsAnimationEnabled( self )
+		return self.visible and Plugin.Config.AnimateMessages
+	end
+
 	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
 		return function()
 			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
 				return
 			end
 
+			ChatLine:StopMoving()
 			ChatLine:SetIsVisible( false )
 			ChatLine:Reset()
 
 			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
 				-- Move remaining messages upwards to fill in the gap.
 				local YOffset = 0
+				local ShouldAnimate = IsAnimationEnabled( self )
+
 				for i = 1, #self.ChatLines do
 					local ChatLine = self.ChatLines[ i ]
 					local Pos = ChatLine:GetPos()
 					Pos.y = YOffset
-					ChatLine:SetPos( Pos )
+
+					if ShouldAnimate then
+						ChatLine:ApplyTransition( {
+							Type = "Move",
+							EndValue = Pos,
+							Duration = AnimDuration,
+							EasingFunction = MovementEase
+						} )
+					else
+						ChatLine:SetPos( Pos )
+					end
 
 					YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
 				end
+			else
+				-- Update local message positions and re-position the container panel downward to account for the
+				-- lost message.
+				UpdateUpwardsMessagePositions( self, PaddingAmount )
 			end
 
 			self.ChatLinePool[ #self.ChatLinePool + 1 ] = ChatLine
 		end
 	end
 
-	local function AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate, AnimDuration, Ease )
-		local NewLineHeight = ChatLine:GetSize().y
-		local YOffset = 0
-		local MaxHeight = -( Client.GetScreenHeight() + self.Panel:GetPos().y )
-		local NumLines = #self.ChatLines
-		local MaxVisibleMessages = NumLines - Plugin.Config.MaxVisibleMessages
-
-		for i = NumLines, 1, -1 do
+	local function RemoveOffscreenLines( self )
+		local NeedsUpdate = false
+		for i = 1, #self.ChatLines do
 			local Line = self.ChatLines[ i ]
-			local LineHeight = Line:GetSize().y
-
-			YOffset = YOffset - LineHeight - PaddingAmount
-
-			local NewPos = Vector2( 0, YOffset )
-
-			if NewPos.y + LineHeight < MaxHeight then
+			if Line:GetScreenPos().y + Line:GetSize().y < 0 then
 				-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
 				TableRemove( self.ChatLines, i )
 				Line:SetIsVisible( false )
 				Line:Reset()
 
 				self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
-			else
-				if i <= MaxVisibleMessages then
-					-- Avoid too many messages filling the screen.
-					if not Line.FadingOut then
-						Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ) )
-					end
-				end
 
-				if ShouldAnimate then
-					Line:ApplyTransition( {
-						Type = "Move",
-						EndValue = NewPos,
-						Duration = AnimDuration,
-						EasingFunction = Ease
-					} )
-				else
-					Line:SetPos( NewPos )
+				NeedsUpdate = true
+			else
+				break
+			end
+		end
+
+		if NeedsUpdate then
+			UpdateUpwardsMessagePositions( self, GetPaddingAmount() )
+		end
+	end
+
+	local function AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate )
+		local NewLineHeight = ChatLine:GetSize().y
+		local YOffset = 0
+		local NumLines = #self.ChatLines
+		local MaxVisibleMessages = NumLines - Plugin.Config.MaxVisibleMessages
+
+		local LastLine = self.ChatLines[ NumLines - 1 ]
+		if LastLine then
+			YOffset = LastLine:GetPos().y + LastLine:GetSize().y + PaddingAmount
+		end
+
+		-- Add the new line below the previous line.
+		ChatLine:SetPos( Vector2( 0, YOffset ) )
+
+		-- Move the backing panel upwards to accomodate the new line.
+		-- This avoids messages overlapping if they appear together as they always remain a fixed distance apart.
+		local MessagePanelPos = Vector2( 0, -YOffset - NewLineHeight )
+		if ShouldAnimate then
+			self.MessagePanel:ApplyTransition( {
+				Type = "Move",
+				EndValue = MessagePanelPos,
+				Duration = AnimDuration,
+				EasingFunction = MovementEase,
+				Callback = function() RemoveOffscreenLines( self ) end
+			} )
+		else
+			self.MessagePanel:SetPos( MessagePanelPos )
+			RemoveOffscreenLines( self )
+		end
+
+		for i = 1, NumLines do
+			local Line = self.ChatLines[ i ]
+			if i <= MaxVisibleMessages then
+				-- Avoid too many messages filling the screen.
+				if not Line.FadingOut then
+					Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ), FadingEase )
 				end
+			else
+				break
 			end
 		end
 	end
@@ -180,26 +271,27 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 			if i <= MaxVisibleMessages then
 				-- Avoid too many messages filling the screen.
 				if not Line.FadingOut then
-					Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ) )
+					Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ), FadingEase )
 				end
 			end
 
-			Line:SetPos( Vector2( 0, YOffset ) )
+			-- If the line is easing, then it should already be moving to its correct position.
+			if not Line:GetEasing( "Move" ) then
+				Line:SetPos( Vector2( 0, YOffset ) )
+			end
 
 			YOffset = YOffset + Line:GetSize().y + PaddingAmount
 		end
 	end
 
 	function ChatElement:AddChatLine( Populator, ... )
-		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.Panel )
+		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.MessagePanel )
 
 		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
 
-		local Scaled = SGUI.Layout.Units.GUIScaled
-
-		local PrefixMargin = Scaled( 5 )
-		local LineMargin = Scaled( 2 )
-		local PaddingAmount = Scaled( 8 ):GetValue()
+		local PrefixMargin = Units.GUIScaled( 5 )
+		local LineMargin = Units.GUIScaled( 2 )
+		local PaddingAmount = GetPaddingAmount()
 
 		local Font, Scale = Plugin:GetFontSize()
 		ChatLine:SetFont( Font )
@@ -216,27 +308,20 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:SetIsVisible( true )
 
 		local IsUpward = Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.UPWARDS
-
-		local OutExpo = Easing.outExpo
-		local function Ease( Progress )
-			return OutExpo( Progress, 0, 1, 1 )
-		end
-
-		local AnimDuration = 0.3
-		local ShouldAnimate = self.visible and Plugin.Config.AnimateMessages and IsUpward
+		local ShouldAnimate = IsAnimationEnabled( self )
 		if ShouldAnimate then
-			ChatLine:FadeIn( AnimDuration, Ease )
+			ChatLine:FadeIn( AnimDuration, FadingEase )
 		else
 			ChatLine:MakeVisible()
 		end
 
 		if IsUpward then
-			AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate, AnimDuration, Ease )
+			AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate, AnimDuration )
 		else
 			AddChatLineMovingDownwards( self, ChatLine, PaddingAmount )
 		end
 
-		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, MakeFadeOutCallback( self, ChatLine, PaddingAmount ), Ease )
+		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, MakeFadeOutCallback( self, ChatLine, PaddingAmount ), FadingEase )
 
 		return ChatLine
 	end
@@ -313,6 +398,7 @@ do
 			if not SGUI.IsValid( Panel ) then return end
 
 			Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), DEFAULT_CHAT_OFFSET ) )
+			UpdateUpwardsMessagePositions( self.GUIChat, GetPaddingAmount() )
 
 			local Player = Client.GetLocalPlayer()
 			if Player then
@@ -324,6 +410,7 @@ do
 			if not SGUI.IsValid( Panel ) then return end
 
 			Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), NO_OFFSET ) )
+			self.GUIChat.MessagePanel:SetPos( Vector2( 0, 0 ) )
 		end
 	}
 
@@ -411,6 +498,10 @@ function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.Panel:SetIsSchemed( false )
 	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
 	ChatElement.Panel:SetAnchor( "BottomLeft" )
+
+	ChatElement.MessagePanel = SGUI:Create( "Panel", ChatElement.Panel )
+	ChatElement.MessagePanel:SetIsSchemed( false )
+	ChatElement.MessagePanel:SetColour( Colour( 1, 1, 1, 0 ) )
 
 	if kGUILayerChat then
 		-- Use the same layer vanilla chat does.
