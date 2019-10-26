@@ -178,6 +178,22 @@ do
 		Shine.RegisterTranslatedCommandError( Name, Params, self.__Name )
 	end
 
+	function NetworkingModule:AddTranslatedRichText( Name, Params, Options, VariationKey )
+		Options = Options or self.RichTextMessageOptions and self.RichTextMessageOptions[ Name ]
+
+		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+			local Key = GetMessageTranslationKey( Name, VariationKey, Data )
+			self:NotifyTranslatedRichTextWithFallback( {
+				Key = Key,
+				Values = Data,
+				Colours = Options.Colours,
+				DefaultColour = Options.DefaultColour,
+				LangDef = Shine.Locale:GetLanguageDefinition(),
+				MakeFallbackMessage = Options.MakeFallbackMessage
+			} )
+		end )
+	end
+
 	function NetworkingModule:AddNetworkMessages( Method, Messages, ... )
 		for Type, Names in pairs( Messages ) do
 			for i = 1, #Names do
@@ -236,6 +252,7 @@ if Server then
 
 	NetworkingModule.SendTranslatedError = NetworkingModule.SendTranslatedNotify
 	NetworkingModule.SendTranslatedNotifyColour = NetworkingModule.SendTranslatedNotify
+	NetworkingModule.SendTranslatedNotifyRichText = NetworkingModule.SendTranslatedNotify
 
 	function NetworkingModule:SendTranslatedCommandError( Target, Name, Params )
 		Shine:SendTranslatedCommandError( Target, Name, Params, self.__Name )

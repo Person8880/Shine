@@ -10,6 +10,9 @@ local StringFormat = string.format
 local MessageModule = {}
 
 if Client then
+	local ChatAPI = require "shine/core/shared/chat/chat_api"
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+
 	function MessageModule:GetPhrase( Key )
 		local Phrase = Shine.Locale:GetPhrase( self.__Name, Key )
 
@@ -36,6 +39,29 @@ if Client then
 		end
 
 		return Phrase
+	end
+
+	function MessageModule:GetInterpolatedRichText( Key, Options )
+		local Phrase = self:GetPhrase( Key )
+		return RichTextFormat.FromInterpolationString( Phrase, Options )
+	end
+
+	function MessageModule:NotifyTranslatedRichTextWithFallback( Options )
+		if ChatAPI:SupportsRichText() or not Options.MakeFallbackMessage then
+			self:NotifyRichText( self:GetInterpolatedRichText( Options.Key, Options ) )
+		else
+			Options.MakeFallbackMessage( self, Options )
+		end
+	end
+
+	function MessageModule:NotifyRichText( RichText )
+		ChatAPI:AddRichTextMessage( {
+			Source = {
+				Type = ChatAPI.SourceTypeName.PLUGIN,
+				ID = self:GetName()
+			},
+			Message = RichText
+		} )
 	end
 
 	function MessageModule:AddChatLine( RP, GP, BP, Prefix, R, G, B, Message )
