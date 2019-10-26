@@ -313,6 +313,28 @@ do
 		end
 	end
 
+	local function ApplyInterpolationTransformer( Parameter, FormatArgs, LangDef )
+		local Args = StringExplode( Parameter, ":", true )
+		local Transformation = Args[ 2 ]
+
+		if not Transformation then
+			return tostring( FormatArgs[ Parameter ] or Parameter ), Parameter
+		end
+
+		local ArgName = TableRemove( Args, 1 )
+		local Ret = FormatArgs[ ArgName ]
+
+		for i = 1, #Args, 2 do
+			local Transformer = Args[ i ]
+			local TransformerArgs = Args[ i + 1 ]
+
+			Ret = Transformers[ Transformer ]( Ret, TransformerArgs, LangDef )
+		end
+
+		return tostring( Ret ), ArgName
+	end
+	string.ApplyInterpolationTransformer = ApplyInterpolationTransformer
+
 	--[[
 		Provides a way to format strings by placing arguments at any point in the
 		string enclosed in {}.
@@ -331,23 +353,7 @@ do
 	]]
 	function string.Interpolate( String, FormatArgs, LangDef )
 		return ( StringGSub( String, "{(.-)}", function( Match )
-			local Args = StringExplode( Match, ":", true )
-			local Transformation = Args[ 2 ]
-
-			if not Transformation then
-				return tostring( FormatArgs[ Match ] or Match )
-			end
-
-			local Ret = FormatArgs[ TableRemove( Args, 1 ) ]
-
-			for i = 1, #Args, 2 do
-				local Transformer = Args[ i ]
-				local TransformerArgs = Args[ i + 1 ]
-
-				Ret = Transformers[ Transformer ]( Ret, TransformerArgs, LangDef )
-			end
-
-			return tostring( Ret )
+			return ( ApplyInterpolationTransformer( Match, FormatArgs, LangDef ) )
 		end ) )
 	end
 end
