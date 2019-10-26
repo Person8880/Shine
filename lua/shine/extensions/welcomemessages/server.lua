@@ -224,20 +224,6 @@ function Plugin:ClientConnect( Client )
 	end )
 end
 
-local Ceil = math.ceil
-
-local function ColourIntToTable( Int, Multiplier )
-	local Colour = ColorIntToColor( Int )
-	return { Ceil( Colour.r * 255 * Multiplier ), Ceil( Colour.g * 255 * Multiplier ),
-		Ceil( Colour.b * 255 * Multiplier ) }
-end
-
-local TeamColours = {
-	[ 0 ] = { 255, 255, 255 },
-	[ 1 ] = ColourIntToTable( kMarineTeamColor or 0x4DB1FF, 0.8 ),
-	[ 2 ] = ColourIntToTable( kAlienTeamColor or 0xFFCA3A, 0.8 )
-}
-
 function Plugin:ClientDisconnect( Client )
 	local ID = tostring( Client:GetUserId() )
 
@@ -259,16 +245,14 @@ function Plugin:ClientDisconnect( Client )
 	if not Player then return end
 
 	local Team = Client.DisconnectTeam or 0
-	local Colour = TeamColours[ Team ] or TeamColours[ 0 ]
-
 	if not IsType( Client.DisconnectReason, "string" ) then
-		self:SendTranslatedNotifyColour( nil, "PLAYER_LEAVE_GENERIC", {
-			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
+		self:SendTranslatedNotifyRichText( nil, "PLAYER_LEAVE_GENERIC", {
+			Team = Team,
 			TargetName = Player:GetName()
 		} )
 	else
-		self:SendTranslatedNotifyColour( nil, "PLAYER_LEAVE_REASON", {
-			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
+		self:SendTranslatedNotifyRichText( nil, "PLAYER_LEAVE_REASON", {
+			Team = Team,
 			TargetName = Player:GetName(),
 			Reason = Client.DisconnectReason
 		} )
