@@ -205,6 +205,7 @@ function Button:SetActiveCol( Col )
 	self.ActiveCol = Col
 
 	if self.Highlighted then
+		self:StopFade( self.Background )
 		self.Background:SetColor( Col )
 	end
 end
@@ -213,6 +214,7 @@ function Button:SetInactiveCol( Col )
 	self.InactiveCol = Col
 
 	if not self.Highlighted then
+		self:StopFade( self.Background )
 		self.Background:SetColor( Col )
 	end
 end
