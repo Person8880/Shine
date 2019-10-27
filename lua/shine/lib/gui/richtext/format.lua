@@ -15,6 +15,19 @@ local DEFAULT_COLOUR = Colour( 1, 1, 1 )
 
 local Format = {}
 
+local function AddText( RichText, Colour, Text )
+	local PreviousColour = RichText[ #RichText - 1 ]
+	local PreviousText = RichText[ #RichText ]
+	if PreviousText and ( PreviousColour.Value == Colour or not StringFind( Text, "[^%s]" ) ) then
+		-- Either just whitespace is being added, or the previous element's colour is the same as this one, so just
+		-- append the text to the previous text element.
+		PreviousText.Value = PreviousText.Value..Text
+	else
+		RichText[ #RichText + 1 ] = ColourElement( Colour )
+		RichText[ #RichText + 1 ] = TextElement( Text )
+	end
+end
+
 --[[
 	Takes the given interpolation string, and produces a rich text message with each argument having a specified colour.
 ]]
@@ -37,8 +50,7 @@ function Format.FromInterpolationString( String, Options )
 	local Start, End, Value = StringFind( String, "{(.-)}" )
 	while Start do
 		if Start > CurrentIndex then
-			RichText[ #RichText + 1 ] = ColourElement( DefaultColour )
-			RichText[ #RichText + 1 ] = TextElement( StringSub( String, CurrentIndex, Start - 1 ) )
+			AddText( RichText, DefaultColour, StringSub( String, CurrentIndex, Start - 1 ) )
 		end
 
 		local Result, ArgName = ApplyInterpolationTransformer( Value, Values, LangDef )
@@ -50,16 +62,14 @@ function Format.FromInterpolationString( String, Options )
 			Colour = ColourValue( Values )
 		end
 
-		RichText[ #RichText + 1 ] = ColourElement( Colour )
-		RichText[ #RichText + 1 ] = TextElement( Result )
+		AddText( RichText, Colour, Result )
 
 		CurrentIndex = End + 1
 		Start, End, Value = StringFind( String, "{(.-)}", CurrentIndex )
 	end
 
 	if CurrentIndex <= #String then
-		RichText[ #RichText + 1 ] = ColourElement( DefaultColour )
-		RichText[ #RichText + 1 ] = TextElement( StringSub( String, CurrentIndex ) )
+		AddText( RichText, DefaultColour, StringSub( String, CurrentIndex ) )
 	end
 
 	return RichText

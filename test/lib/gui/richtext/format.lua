@@ -28,9 +28,7 @@ UnitTest:Test( "FromInterpolationString - Produces expected output", function( A
 		ColourElement( Colour( 0.5, 0.5, 0.5 ) ),
 		TextElement( "This is a " ),
 		ColourElement( Colour( 1, 0, 0 ) ),
-		TextElement( "test" ),
-		ColourElement( Colour( 0.5, 0.5, 0.5 ) ),
-		TextElement( " " ),
+		TextElement( "test " ),
 		ColourElement( Colour( 1, 1, 0 ) ),
 		TextElement( "MESSAGE" ),
 		ColourElement( Colour( 0.5, 0.5, 0.5 ) ),
@@ -54,5 +52,27 @@ UnitTest:Test( "FromInterpolationString - Handles arguments next to each other",
 		TextElement( "test" ),
 		ColourElement( Colour( 1, 1, 1 ) ),
 		TextElement( "MESSAGE" )
+	}, Message )
+end )
+
+UnitTest:Test( "FromInterpolationString - Consolidates elements with the same colour", function( Assert )
+	local Message = RichTextFormat.FromInterpolationString( "This is a {Test} {Message}!", {
+		Values = {
+			Test = "test",
+			Message = "message"
+		},
+		Colours = {
+			Test = Colour( 1, 1, 1 ),
+			Message = Colour( 1, 0, 0 )
+		}
+	} )
+
+	Assert.DeepEquals( "Should have split the message into minimal colour and text pairs", {
+		ColourElement( Colour( 1, 1, 1 ) ),
+		TextElement( "This is a test " ),
+		ColourElement( Colour( 1, 0, 0 ) ),
+		TextElement( "message" ),
+		ColourElement( Colour( 1, 1, 1 ) ),
+		TextElement( "!" )
 	}, Message )
 end )
