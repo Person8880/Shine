@@ -800,7 +800,7 @@ function TextEntry:GetColumnFromMouse( X )
 
 		if Pos > X then
 			local Dist = Pos - X
-			local PrevWidth = TextObj:GetTextWidth( Chars[ i - 1 ] or "" ) * self.WidthScale
+			local PrevWidth = TextObj:GetTextWidth( Chars[ i ] or "" ) * self.WidthScale
 
 			if Dist < PrevWidth * 0.5 then
 				return i
