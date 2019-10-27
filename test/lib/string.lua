@@ -72,6 +72,54 @@ end )
 do
 	local InterpolationTests = {
 		{
+			Input = "{Value:Lower}",
+			Tests = {
+				{
+					Data = { Value = "TESTING" },
+					Expected = "testing"
+				},
+				{
+					Data = { Value = "testing" },
+					Expected = "testing"
+				}
+			}
+		},
+		{
+			Input = "{Value:Upper}",
+			Tests = {
+				{
+					Data = { Value = "TESTING" },
+					Expected = "TESTING"
+				},
+				{
+					Data = { Value = "testing" },
+					Expected = "TESTING"
+				}
+			}
+		},
+		{
+			Input = "{Value:Format:%.2f}",
+			Tests = {
+				{
+					Data = { Value = 0 },
+					Expected = "0.00"
+				}
+			}
+		},
+		{
+			Input = "{Value:Abs}",
+			Tests = {
+				{
+					Data = { Value = -5 },
+					Expected = "5"
+				},
+				{
+					Data = { Value = 5 },
+					Expected = "5"
+				}
+			}
+		},
+		{
 			Input = "{Value:Pluralise:singular|plural}",
 			LangDef = {
 				GetPluralForm = function( Value )
@@ -118,12 +166,53 @@ do
 					Expected = "two"
 				}
 			}
+		},
+		{
+			Input = "{Value:EnsureSentence}",
+			Tests = {
+				{
+					Data = { Value = "This is a sentence." },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence!" },
+					Expected = "This is a sentence!"
+				},
+				{
+					Data = { Value = "This is a sentence?" },
+					Expected = "This is a sentence?"
+				},
+				{
+					Data = { Value = "This is a sentence" },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence.   " },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence   " },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence:" },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence;" },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence," },
+					Expected = "This is a sentence."
+				}
+			}
 		}
 	}
 
 	for i = 1, #InterpolationTests do
 		local Test = InterpolationTests[ i ]
-		UnitTest:Test( Test.Input, function( Assert )
+		UnitTest:Test( "Interpolate - "..Test.Input, function( Assert )
 			local Tests = Test.Tests
 			for j = 1, #Tests do
 				Assert:Equals( Tests[ j ].Expected, string.Interpolate( Test.Input, Tests[ j ].Data,

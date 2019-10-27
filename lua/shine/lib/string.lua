@@ -294,7 +294,17 @@ do
 		Format = function( FormatArg, TransformArg )
 			return StringFormat( TransformArg, FormatArg )
 		end,
-		Abs = math.abs
+		Abs = math.abs,
+
+		-- Adds a full-stop at the end of the given value if it does not end with a sentence terminating character.
+		-- Also trims any whitespace from the end of the value.
+		EnsureSentence = function( FormatArg, TransformArg )
+			return StringGSub(
+				StringGSub( FormatArg, "[,:;]?%s*$", "" ),
+				"([^%.!%?])%s*$",
+				"%1."
+			)
+		end
 	}
 	string.InterpolateTransformers = Transformers
 
