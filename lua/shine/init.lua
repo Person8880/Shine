@@ -32,3 +32,4 @@ Shine.BaseGamemode = "ns2"
 Shine.LoadScripts( Scripts )
 
 Shine:Print( "Shine started up successfully." )
+Shine:SaveLog()

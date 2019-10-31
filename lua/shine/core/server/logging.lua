@@ -10,6 +10,7 @@ local Floor = math.floor
 local Notify = Shared.Message
 local StringFormat = string.format
 local TableConcat = table.concat
+local TableEmpty = table.Empty
 local type = type
 
 --Geez what was I thinking with that old method...
@@ -63,7 +64,7 @@ function Shine:SaveLog()
 	local String = TableConcat( LogMessages, "\n" )
 	local CurrentLogFile = GetCurrentLogFile()
 
-	--This is dumb, but append mode appears to be broken.
+	-- This is dumb, but append mode appears to be broken.
 	local OldLog, Err = io.open( CurrentLogFile, "r" )
 
 	local Data = ""
@@ -84,10 +85,7 @@ function Shine:SaveLog()
 	LogFile:write( Data, String, "\n" )
 	LogFile:close()
 
-	--Empty the logging table.
-	for i = 1, #LogMessages do
-		LogMessages[ i ] = nil
-	end
+	TableEmpty( LogMessages )
 
 	return true
 end

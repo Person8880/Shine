@@ -6,11 +6,19 @@ local Shine = Shine
 
 local IsType = Shine.IsType
 local Notify = Shared.Message
+local select = select
 local rawget = rawget
 local StringFormat = string.format
 
 local function Print( ... )
 	return Notify( StringFormat( ... ) )
+end
+local function PrintToLog( Message, ... )
+	if Server then
+		Shine:Print( Message, select( "#", ... ) > 0, ... )
+	else
+		Print( Message, ... )
+	end
 end
 
 local ConfigModule = {}
@@ -28,7 +36,7 @@ function ConfigModule:GenerateDefaultConfig( Save )
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 		if not Success then
-			Print( "Error writing %s config file: %s", self.__Name, Err )
+			PrintToLog( "[Error] Error writing %s config file: %s", self.__Name, Err )
 
 			return
 		end
@@ -44,8 +52,7 @@ function ConfigModule:SaveConfig( Silent )
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 	if not Success then
-		Print( "Error writing %s config file: %s", self.__Name, Err )
-
+		PrintToLog( "[Error] Error writing %s config file: %s", self.__Name, Err )
 		return
 	end
 
@@ -65,7 +72,7 @@ function ConfigModule:LoadConfig()
 	if Server then
 		local Gamemode = Shine.GetGamemode()
 
-		--Look for gamemode specific config file.
+		-- Look for gamemode specific config file.
 		if Gamemode ~= Shine.BaseGamemode then
 			local Paths = {
 				StringFormat( "%s%s/%s", Shine.Config.ExtensionDir, Gamemode, self.ConfigName ),
@@ -97,7 +104,7 @@ function ConfigModule:LoadConfig()
 		if IsType( Pos, "string" ) then
 			self:GenerateDefaultConfig( true )
 		else
-			Print( "Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
+			PrintToLog( "[Error] Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
 
 			self.Config = self.DefaultConfig
 		end
@@ -163,7 +170,10 @@ function ConfigModule:MigrateConfig( Config )
 		"Configuration on disk (%s) is a newer version than the loaded plugin (%s).", 0,
 		CurrentConfigVersion, OurVersion )
 
-	Print( "Updating %s config from version %s to %s...", self.__Name, CurrentConfigVersion, self.Version or "1.0" )
+	PrintToLog(
+		"Updating %s config from version %s to %s...",
+		self.__Name, CurrentConfigVersion, self.Version or "1.0"
+	)
 
 	Config.__Version = self.Version or "1.0"
 
