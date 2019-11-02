@@ -94,9 +94,11 @@ do
 
 			self[ Name ] = Value
 
-			if OldValue == Value then return end
+			if OldValue == Value then return false end
 
 			self:OnPropertyChanged( Name, Value )
+
+			return true
 		end
 
 		Table[ TableGetter ] = function( self )
@@ -113,9 +115,10 @@ do
 
 		local Old = Table[ TableSetter ]
 		Table[ TableSetter ] = function( self, Value )
-			Old( self, Value )
-			for i = 1, NumModifiers do
-				RealModifiers[ i ]( self, Value )
+			if Old( self, Value ) then
+				for i = 1, NumModifiers do
+					RealModifiers[ i ]( self, Value )
+				end
 			end
 		end
 	end
@@ -173,9 +176,11 @@ do
 				BoundFields[ i ]( self, Value )
 			end
 
-			if OldValue == Value then return end
+			if OldValue == Value then return false end
 
 			self:OnPropertyChanged( Name, Value )
+
+			return true
 		end
 
 		if not Modifiers then return end
@@ -184,9 +189,10 @@ do
 
 		local Old = Table[ TableSetter ]
 		Table[ TableSetter ] = function( self, Value )
-			Old( self, Value )
-			for i = 1, NumModifiers do
-				RealModifiers[ i ]( self, Value )
+			if Old( self, Value ) then
+				for i = 1, NumModifiers do
+					RealModifiers[ i ]( self, Value )
+				end
 			end
 		end
 	end
