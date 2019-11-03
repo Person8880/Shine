@@ -1203,6 +1203,7 @@ local Easers = {
 			EasingData.Colour.a = EasingData.CurValue
 		end,
 		Setter = function( self, Element, Alpha, EasingData )
+			EasingData.Colour.a = Alpha
 			Element:SetColor( EasingData.Colour )
 		end,
 		Getter = function( self, Element )
@@ -1247,7 +1248,7 @@ function ControlMeta:GetEasing( Type, Element )
 	local Easers = self.EasingProcesses:Get( Easers[ Type ] )
 	if not Easers then return end
 
-	return Easers:Get( Element or self )
+	return Easers:Get( Element or self.Background )
 end
 
 function ControlMeta:StopEasing( Element, EasingHandler )
@@ -1524,7 +1525,7 @@ function ControlMeta:HideTooltip()
 end
 
 function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
-	if ( Highlighted or false ) == ( self.Highlighted or false ) then return end
+	if not not Highlighted == not not self.Highlighted then return end
 
 	if Highlighted then
 		self.Highlighted = true

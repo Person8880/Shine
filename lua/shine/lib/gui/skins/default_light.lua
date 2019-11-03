@@ -46,9 +46,7 @@ local Skin = {
 			InactiveCol = Colour( 0.5, 0.2, 0.2, 1 ),
 			TextColour = White
 		},
-		MenuButton = {
-			InactiveCol = WindowBackground
-		},
+		MenuButton = {},
 		CategoryPanelButton = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = OrangeButtonHighlight,

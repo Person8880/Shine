@@ -33,9 +33,14 @@ if Server then
 			or nil to send to all.
 			2. MessageName - The name of the network message.
 			3. MessageTable - The data to send.
-			4. Reliable - Whether to send reliably.
+			4. Reliable - Whether to send reliably (default = true).
 	]]
 	function Shine:ApplyNetworkMessage( Target, MessageName, MessageTable, Reliable )
+		-- Default to reliable sending as it's usually the intention.
+		if Reliable == nil then
+			Reliable = true
+		end
+
 		if not Target then
 			self.SendNetworkMessage( MessageName, MessageTable, Reliable )
 			return

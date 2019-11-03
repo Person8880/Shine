@@ -19,7 +19,7 @@ SGUI.AddBoundProperty( Label, "TextAlignmentY", "Label" )
 SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParent" } )
 
 -- Auto-wrapping allows labels to automatically word-wrap based on a given auto-width (or fill size).
-SGUI.AddProperty( Label, "AutoWrap", { "InvalidatesParent" } )
+SGUI.AddProperty( Label, "AutoWrap", false, { "InvalidatesParent" } )
 
 function Label:Initialise()
 	self.BaseClass.Initialise( self )
@@ -29,10 +29,12 @@ function Label:Initialise()
 	self.TextScale = Vector2( 1, 1 )
 	self.TextAlignmentX = GUIItem.Align_Min
 	self.TextAlignmentY = GUIItem.Align_Min
+	self.NeedsTextSizeRefresh = true
 
 	local function MarkSizeDirty()
 		self.CachedTextWidth = nil
 		self.CachedTextHeight = nil
+		self.NeedsTextSizeRefresh = true
 	end
 	self:AddPropertyChangeListener( "Text", MarkSizeDirty )
 	self:AddPropertyChangeListener( "Font", MarkSizeDirty )
@@ -171,6 +173,16 @@ function Label:SetShadow( Params )
 	self.Label:SetDropShadowEnabled( true )
 	self.Label:SetDropShadowOffset( self.ShadowOffset )
 	self.Label:SetDropShadowColor( Params.Colour )
+end
+
+function Label:Think( DeltaTime )
+	if self.NeedsTextSizeRefresh then
+		self.NeedsTextSizeRefresh = false
+		-- When cropped, the label may be invisible due to the cropping logic not evaluating this...
+		self.Label:ForceUpdateTextSize()
+	end
+
+	return self.BaseClass.ThinkWithChildren( self, DeltaTime )
 end
 
 SGUI:AddMixin( Label, "AutoSizeText" )
