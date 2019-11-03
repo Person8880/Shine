@@ -19,7 +19,7 @@ SGUI.AddBoundProperty( Label, "TextAlignmentY", "Label" )
 SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParent" } )
 
 -- Auto-wrapping allows labels to automatically word-wrap based on a given auto-width (or fill size).
-SGUI.AddProperty( Label, "AutoWrap", { "InvalidatesParent" } )
+SGUI.AddProperty( Label, "AutoWrap", false, { "InvalidatesParent" } )
 
 function Label:Initialise()
 	self.BaseClass.Initialise( self )
