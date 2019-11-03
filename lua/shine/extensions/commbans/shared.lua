@@ -13,6 +13,9 @@ function Plugin:SetupDataTable()
 	self:AddTranslatedNotify( "BANNED_WARNING", {
 		Duration = "integer"
 	} )
+	self:AddTranslatedMessage( "PLAYER_UNBANNED", {
+		TargetName = self:GetNameNetworkField()
+	} )
 end
 
 local Options = {

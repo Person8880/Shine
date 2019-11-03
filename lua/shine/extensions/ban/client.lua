@@ -20,6 +20,22 @@ local TableEmpty = table.Empty
 local TableRemove = table.remove
 local tonumber = tonumber
 
+do
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+
+	Plugin.RichTextMessageOptions = {
+		PLAYER_BANNED = {
+			Colours = {
+				TargetName = function( Values )
+					return RichTextFormat.GetColourForPlayer( Values.TargetName )
+				end,
+				Duration = RichTextFormat.Colours.LightBlue,
+				Reason = RichTextFormat.Colours.LightRed
+			}
+		}
+	}
+end
+
 function Plugin:Initialise()
 	self:SetupAdminMenu()
 

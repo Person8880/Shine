@@ -15,6 +15,20 @@ local DEFAULT_COLOUR = Colour( 1, 1, 1 )
 
 local Format = {}
 
+do
+	local NeutralColour = Colour( 0.6, 0.6, 0.6 )
+	Format.Colours = {
+		Teams = {
+			[ 0 ] = NeutralColour,
+			ColorIntToColor( kMarineTeamColor or 0x4DB1FF ),
+			ColorIntToColor( kAlienTeamColor or 0xFFCA3A ),
+			NeutralColour
+		},
+		LightBlue = Colour( 0, 1, 1 ),
+		LightRed = Colour( 1, 0.3, 0.3 )
+	}
+end
+
 local function AddText( RichText, Colour, Text )
 	local PreviousColour = RichText[ #RichText - 1 ]
 	local PreviousText = RichText[ #RichText ]
@@ -73,6 +87,15 @@ function Format.FromInterpolationString( String, Options )
 	end
 
 	return RichText
+end
+
+function Format.GetColourForPlayer( PlayerName )
+	local PlayerRecord = Scoreboard_GetPlayerRecordByName and Scoreboard_GetPlayerRecordByName( PlayerName )
+	if not PlayerRecord then
+		return DEFAULT_COLOUR
+	end
+
+	return Format.Colours.Teams[ PlayerRecord.EntityTeamNumber ] or DEFAULT_COLOUR
 end
 
 return Format

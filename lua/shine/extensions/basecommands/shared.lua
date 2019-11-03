@@ -4,6 +4,18 @@
 
 local Plugin = Shine.Plugin( ... )
 
+Plugin.ToggleNotificationKeys = {
+	"CHEATS_TOGGLED",
+	"ALLTALK_TOGGLED",
+	"ALLTALK_PREGAME_TOGGLED",
+	"ALLTALK_LOCAL_TOGGLED"
+}
+Plugin.TargetNotificationKeys = {
+	"PLAYER_EJECTED",
+	"PLAYER_UNGAGGED",
+	"PLAYER_GAGGED_PERMANENTLY"
+}
+
 function Plugin:SetupDataTable()
 	self:AddDTVar( "integer (1 to 10)", "Gamestate", 1 )
 	self:AddDTVar( "boolean", "AllTalk", false )
@@ -57,10 +69,7 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.Empty ] = {
 			"RESET_GAME", "HIVE_TEAMS", "FORCE_START", "VOTE_STOPPED"
 		},
-		[ MessageTypes.Enabled ] = {
-			"CHEATS_TOGGLED", "ALLTALK_TOGGLED", "ALLTALK_PREGAME_TOGGLED",
-			"ALLTALK_LOCAL_TOGGLED"
-		},
+		[ MessageTypes.Enabled ] = self.ToggleNotificationKeys,
 		[ MessageTypes.Kick ] = {
 			"ClientKicked"
 		},
@@ -73,9 +82,7 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.RandomTeam ] = {
 			"RANDOM_TEAM"
 		},
-		[ MessageTypes.TargetName ] = {
-			"PLAYER_EJECTED", "PLAYER_UNGAGGED", "PLAYER_GAGGED_PERMANENTLY"
-		},
+		[ MessageTypes.TargetName ] = self.TargetNotificationKeys,
 		[ MessageTypes.Gagged ] = {
 			"PLAYER_GAGGED"
 		}

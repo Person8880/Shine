@@ -33,6 +33,79 @@ Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Re
 	end )
 end )
 
+local TeamChangeMessageKeys = {
+	[ 0 ] = "CHANGE_TEAM_READY_ROOM",
+	"CHANGE_TEAM_MARINE",
+	"CHANGE_TEAM_ALIEN",
+	"CHANGE_TEAM_SPECTATOR"
+}
+
+do
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+
+	local function GetColourForName( Values )
+		return RichTextFormat.GetColourForPlayer( Values.TargetName )
+	end
+
+	local TargetMessageOptions = {
+		Colours = {
+			TargetName = GetColourForName
+		}
+	}
+
+	local RichTextMessageOptions = {
+		CLIENT_KICKED = TargetMessageOptions,
+		CLIENT_KICKED_REASON = {
+			Colours = {
+				TargetName = GetColourForName,
+				Reason = RichTextFormat.Colours.LightRed
+			}
+		},
+		FRIENDLY_FIRE_SCALE = {
+			Colours = {
+				Scale = RichTextFormat.Colours.LightBlue
+			}
+		},
+		RANDOM_TEAM = {
+			Colours = {
+				TargetCount = RichTextFormat.Colours.LightBlue
+			}
+		},
+		PLAYER_GAGGED = {
+			Colours = {
+				TargetName = GetColourForName,
+				Duration = RichTextFormat.Colours.LightBlue
+			}
+		}
+	}
+
+	for i = 0, 3 do
+		RichTextMessageOptions[ TeamChangeMessageKeys[ i ] ] = {
+			Colours = {
+				TargetCount = RichTextFormat.Colours.LightBlue
+			}
+		}
+	end
+
+	local ToggleMessageOptions = {
+		Colours = {
+			Enabled = function( Values )
+				return Values.Enabled and Colour( 0, 1, 0 ) or Colour( 1, 0, 0 )
+			end
+		}
+	}
+
+	for i = 1, #Plugin.ToggleNotificationKeys do
+		RichTextMessageOptions[ Plugin.ToggleNotificationKeys[ i ] ] = ToggleMessageOptions
+	end
+
+	for i = 1, #Plugin.TargetNotificationKeys do
+		RichTextMessageOptions[ Plugin.TargetNotificationKeys[ i ] ] = TargetMessageOptions
+	end
+
+	Plugin.RichTextMessageOptions = RichTextMessageOptions
+end
+
 function Plugin:Initialise()
 	if self.dt.AllTalk or self.dt.AllTalkPreGame then
 		self:UpdateAllTalk( self.dt.Gamestate )
@@ -81,14 +154,7 @@ function Plugin:ReceiveClientKicked( Data )
 end
 
 function Plugin:ReceiveChangeTeam( Data )
-	local TeamKeys = {
-		[ 0 ] = "CHANGE_TEAM_READY_ROOM",
-		"CHANGE_TEAM_MARINE",
-		"CHANGE_TEAM_ALIEN",
-		"CHANGE_TEAM_SPECTATOR"
-	}
-
-	self:CommandNotify( Data.AdminName, TeamKeys[ Data.Team ], Data )
+	self:CommandNotify( Data.AdminName, TeamChangeMessageKeys[ Data.Team ], Data )
 end
 
 function Plugin:SetupClientConfig()

@@ -4,6 +4,8 @@
 
 local SGUI = Shine.GUI
 
+local RichTextFormat = require "shine/lib/gui/richtext/format"
+
 local Plugin = ...
 
 local Ceil = math.ceil
@@ -16,11 +18,7 @@ local DarkTeamColours = {
 	MakeColourFromInt( kMarineTeamColor or 0x4DB1FF, 0.8 ),
 	MakeColourFromInt( kAlienTeamColor or 0xFFCA3A, 0.8 )
 }
-local TeamColours = {
-	[ 0 ] = Colour( 0.6, 0.6, 0.6 ),
-	ColorIntToColor( kMarineTeamColor or 0x4DB1FF ),
-	ColorIntToColor( kAlienTeamColor or 0xFFCA3A )
-}
+local TeamColours = RichTextFormat.Colours.Teams
 
 local function FallbackTeamMessage( Plugin, Options )
 	local Colour = DarkTeamColours[ Options.Values.Team ] or DarkTeamColours[ 0 ]
@@ -45,7 +43,7 @@ Plugin.RichTextMessageOptions = {
 	PLAYER_LEAVE_REASON = {
 		Colours = {
 			TargetName = GetTeamColour,
-			Reason = Colour( 1, 0.3, 0.3 )
+			Reason = RichTextFormat.Colours.LightRed
 		},
 		MakeFallbackMessage = FallbackTeamMessage
 	}

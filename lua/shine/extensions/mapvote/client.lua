@@ -42,6 +42,23 @@ Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
 Plugin.EndTime = 0
 
+do
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+	local RichTextMessageOptions = {}
+
+	local DurationMessageOptions = {
+		Colours = {
+			Duration = RichTextFormat.Colours.LightBlue
+		}
+	}
+
+	for i = 1, #Plugin.DurationMessageKeys do
+		RichTextMessageOptions[ Plugin.DurationMessageKeys[ i ] ] = DurationMessageOptions
+	end
+
+	Plugin.RichTextMessageOptions = RichTextMessageOptions
+end
+
 function Plugin:Initialise()
 	self:SetupClientConfig()
 

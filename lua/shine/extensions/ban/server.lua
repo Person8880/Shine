@@ -563,36 +563,47 @@ function Plugin:CreateBanCommands()
 		Unban by Steam ID.
 	]]
 	local function Unban( Client, ID )
-		ID = tostring( ID )
+		local IDString = tostring( ID )
 
-		if self.Config.Banned[ ID ] then
+		if self.Config.Banned[ IDString ] then
 			-- We're currently waiting for a response on this ban.
-			if self.Retries[ ID ] then
+			if self.Retries[ IDString ] then
 				if Client then
 					self:SendTranslatedCommandError( Client, "PLAYER_REQUEST_IN_PROGRESS", {
-						ID = ID
+						ID = IDString
 					} )
 				end
 				Shine:AdminPrint( Client, "Please wait for the current ban request on %s to finish.",
-					true, ID )
+					true, IDString )
 
 				return
 			end
 
 			local Unbanner = ( Client and Client.GetUserId and Client:GetUserId() ) or 0
 
-			self:RemoveBan( ID, nil, Unbanner )
+			self:RemoveBan( IDString, nil, Unbanner )
+
 			Shine:AdminPrint( nil, "%s unbanned %s%s.", true, Shine.GetClientInfo( Client ),
-				ID, self.OperationSuffix )
+				IDString, self.OperationSuffix )
+
+			if self.CanUnbanPlayerInGame then
+				local Target = Shine.GetClientByNS2ID( ID )
+				if Target then
+					local TargetName = Target:GetControllingPlayer():GetName()
+					self:SendTranslatedMessage( Client, "PLAYER_UNBANNED", {
+						TargetName = TargetName
+					} )
+				end
+			end
 
 			return
 		end
 
-		local ErrorText = StringFormat( "%s is not banned%s.", ID, self.OperationSuffix )
+		local ErrorText = StringFormat( "%s is not banned%s.", IDString, self.OperationSuffix )
 
 		if Client then
 			self:SendTranslatedCommandError( Client, "ERROR_NOT_BANNED", {
-				ID = ID
+				ID = IDString
 			} )
 		end
 		Shine:AdminPrint( Client, ErrorText )
