@@ -15,6 +15,7 @@ local Max = math.max
 local Random = math.random
 local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
+local TableConcat = table.concat
 local xpcall = xpcall
 
 local Plugin = ...
@@ -50,7 +51,7 @@ Plugin.DefaultConfig = {
 	SampleIntervalInSeconds = 0.25,
 	WarnActions = {
 		-- Actions to perform to players when they are warned.
-		-- May be any of: MoveToSpectate, MoveToReadyRoom, Notify
+		-- May be any of: "MOVE_TO_SPECTATE", "MOVE_TO_READY_ROOM", "NOTIFY"
 		[ NO_IMMUNITY ] = {},
 		[ PARTIAL_IMMUNITY ] = {}
 	},
@@ -117,7 +118,7 @@ Plugin.ConfigMigrationSteps = {
 local TEAM_MOVE_ERROR_HANDLER = Shine.BuildErrorHandler( "AFK team move error" )
 local function AttemptToMovePlayerToTeam( Gamerules, Client, Player, Team )
 	local Success, Moved = xpcall( Gamerules.JoinTeam, TEAM_MOVE_ERROR_HANDLER,
-		Gamerules, Player, Team, nil, true )
+		Gamerules, Player, Team, true, true )
 	if not Success or not Moved then
 		Plugin.Logger:Warn( "Unable to move %s to team %s: %s",
 			Shine.GetClientInfo( Client ),
@@ -139,18 +140,17 @@ do
 			Config.WarnMinPlayers = Config.MinPlayers
 		end
 	} )
+	Validator:AddFieldRule(
+		"WarnActions.NoImmunity",
+		Validator.IsType( "table", Plugin.DefaultConfig.WarnActions.NoImmunity )
+	)
+	Validator:AddFieldRule(
+		"WarnActions.PartialImmunity",
+		Validator.IsType( "table", Plugin.DefaultConfig.WarnActions.PartialImmunity )
+	)
 	Validator:AddRule( {
 		Matches = function( self, Config )
 			local Changed
-			if not IsType( Config.WarnActions.NoImmunity, "table" ) then
-				Config.WarnActions.NoImmunity = {}
-				Changed = true
-			end
-			if not IsType( Config.WarnActions.PartialImmunity, "table" ) then
-				Config.WarnActions.PartialImmunity = {}
-				Changed = true
-			end
-
 			local NotAllowedTogether = {
 				[ Plugin.WarnAction.MOVE_TO_READY_ROOM ] = Plugin.WarnAction.MOVE_TO_SPECTATE,
 				[ Plugin.WarnAction.MOVE_TO_SPECTATE ] = Plugin.WarnAction.MOVE_TO_READY_ROOM
@@ -192,17 +192,48 @@ do
 	local function MovePlayer( Client, Gamerules, DataTable, TargetTeam )
 		-- Make sure the client still exists and is still AFK.
 		if not Shine:IsValidClient( Client ) then return end
-		if not DataTable.Warn then return end
+		if not DataTable.Warn then
+			if Plugin.Logger:IsDebugEnabled() then
+				Plugin.Logger:Debug(
+					"Skipping movement of %s to team %s as they are no longer AFK.",
+					Shine.GetClientInfo( Client ),
+					TargetTeam
+				)
+			end
+
+			return
+		end
 
 		local CurrentPlayer = Client:GetControllingPlayer()
 		-- If they don't have a player we can't move them (presumably disconnecting).
-		if not CurrentPlayer then return end
+		if not CurrentPlayer then
+			Plugin.Logger:Warn(
+				"Unable to move %s to team %s as they have no player object assigned.",
+				Shine.GetClientInfo( Client ),
+				TargetTeam
+			)
+			return
+		end
 
 		local CurrentTeam = CurrentPlayer:GetTeamNumber()
 
 		-- Sometimes this event receives one of the weird "ghost" players that can't switch teams.
 		if CurrentTeam ~= TargetTeam then
+			if Plugin.Logger:IsDebugEnabled() then
+				Plugin.Logger:Debug(
+					"Attempting to move %s to team %s...",
+					Shine.GetClientInfo( Client ),
+					TargetTeam
+				)
+			end
+
 			AttemptToMovePlayerToTeam( Gamerules, Client, CurrentPlayer, TargetTeam )
+		elseif Plugin.Logger:IsDebugEnabled() then
+			Plugin.Logger:Debug(
+				"Skipping movement of %s as they are already on team %s.",
+				Shine.GetClientInfo( Client ),
+				TargetTeam
+			)
 		end
 	end
 
@@ -471,10 +502,13 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 			local WarnActions = self:GetWarnActions( IsPartiallyImmune )
 
 			if self.Logger:IsDebugEnabled() then
-				self.Logger:Debug( "Applying %s warn actions to %s as their last move time was %.2f vs. %.2f (no movement for %.2f seconds).",
+				self.Logger:Debug(
+					"Applying %s warn actions (%s) to %s as their last move time was %.2f vs. %.2f (no movement for %.2f seconds).",
 					IsPartiallyImmune and "partial immunity" or "normal",
+					TableConcat( self.Config.WarnActions[ IsPartiallyImmune and PARTIAL_IMMUNITY or NO_IMMUNITY ], ", " ),
 					Shine.GetClientInfo( Client ),
-					DataTable.LastMove, Time, TimeSinceLastMove )
+					DataTable.LastMove, Time, TimeSinceLastMove
+				)
 			end
 
 			for i = 1, #WarnActions do
