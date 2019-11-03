@@ -15,6 +15,7 @@ local select = select
 local StringByte = string.byte
 local StringChar = string.char
 local StringFormat = string.format
+local StringGSub = string.gsub
 local StringSub = string.sub
 local TableClear = require "table.clear"
 local TableConcat = table.concat
@@ -2145,6 +2146,30 @@ local function UTF8Encode( String )
 end
 string.UTF8Encode = UTF8Encode
 
+local function UTF8Iterate( Context, CurByte )
+	if CurByte > Context.Length then return nil end
+
+	local String = Context.String
+	local CharBytes = GetNumUTF8Bytes( String, CurByte )
+	local Char
+
+	if not CharBytes then
+		CharBytes = 1
+		Char = REPLACEMENT_CHAR
+	else
+		Char = StringSub( String, CurByte, CurByte + CharBytes - 1 )
+	end
+
+	return CurByte + CharBytes, Char
+end
+--[[
+	Provides an iterator over the UTF8 characters in the given string.
+]]
+local function UTF8Chars( String )
+	return UTF8Iterate, { Length = #String, String = String }, 1
+end
+string.UTF8Chars = UTF8Chars
+
 --[[
 	Encodes a string into valid UTF-8, returning the string.
 ]]
@@ -2233,4 +2258,58 @@ function string.UTF8Reverse( String )
 
 	local Chars = UTF8Encode( String )
 	return TableConcat( TableReverse( Chars ), "" )
+end
+
+local WhitespaceChars = {
+	-- Control characters (tab, line feed, vertical tab, form feed, carriage return)
+	0x9, 0xA, 0xB, 0xC, 0xD,
+	-- Whitespace characters (all of these are invisible).
+	0x20, 0xA0, 0x180E, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x200B,
+	0x200C, 0x200D, 0x2028, 0x2029, 0x202F, 0x205F, 0x2060, 0x3000, 0xFEFF
+}
+local NumWhitespaceChars = #WhitespaceChars
+for i = 1, NumWhitespaceChars do
+	local Char = UTF8Char( WhitespaceChars[ i ] )
+	WhitespaceChars[ Char ] = true
+	WhitespaceChars[ i ] = Char
+end
+
+--[[
+	Replaces all whitespace characters in the given string with the given replacement value.
+	This includes many more characters than the standard %s pattern.
+
+	Inputs: String, replacement string value (defaults to an ASCII space).
+	Output: The string with all whitespace characters replaced with the given replacement value.
+]]
+function string.NormaliseUTF8Whitespace( String, Replacement )
+	Replacement = Replacement or " "
+
+	local Chars = {}
+	local Count = 0
+
+	for ByteIndex, Char in UTF8Chars( String ) do
+		Count = Count + 1
+		Chars[ Count ] = WhitespaceChars[ Char ] and Replacement or Char
+	end
+
+	return TableConcat( Chars )
+end
+
+--[[
+	Checks the given string to see if any of its UTF8 characters are not a whitespace character.
+	This includes many more characters than the standard %s pattern.
+
+	Input: String to check for non-whitespace characters.
+	Output: True if any of the UTF8 characters in the string are not a whitespace character, false otherwise.
+]]
+function string.ContainsNonUTF8Whitespace( String )
+	local Chars = UTF8Encode( String )
+
+	for i = 1, #Chars do
+		if not WhitespaceChars[ Chars[ i ] ] then
+			return true
+		end
+	end
+
+	return false
 end

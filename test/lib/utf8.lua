@@ -136,3 +136,13 @@ UnitTest:Test( "UTF8CodePoint", function( Assert )
 	Assert:Equals( 0x20AC, string.UTF8CodePoint( 0xE2, 0x82, 0xAC ) )
 	Assert:Equals( 0x10348, string.UTF8CodePoint( 0xF0, 0x90, 0x8D, 0x88 ) )
 end )
+
+UnitTest:Test( "NormaliseUTF8Whitespace", function( Assert )
+	Assert:Equals( string.rep( " ", 29 ).."hi", string.NormaliseUTF8Whitespace( "\t\n\v\f\r  ᠎           ​‌‍    ⁠　﻿hi" ) )
+	Assert:Equals( "hi", string.NormaliseUTF8Whitespace( "\t\n\v\f\r  ᠎           ​‌‍    ⁠　﻿hi", "" ) )
+end )
+
+UnitTest:Test( "ContainsNonUTF8Whitespace", function( Assert )
+	Assert:True( string.ContainsNonUTF8Whitespace( "  ᠎           ​‌‍    ⁠　﻿hi" ) )
+	Assert:False( string.ContainsNonUTF8Whitespace( "\t\n\v\f\r  ᠎           ​‌‍    ⁠　﻿" ) )
+end )
