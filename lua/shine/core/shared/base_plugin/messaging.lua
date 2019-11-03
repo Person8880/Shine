@@ -13,6 +13,11 @@ if Client then
 	local ChatAPI = require "shine/core/shared/chat/chat_api"
 	local RichTextFormat = require "shine/lib/gui/richtext/format"
 
+	local ColourElement = require "shine/lib/gui/richtext/elements/colour"
+	local TextElement = require "shine/lib/gui/richtext/elements/text"
+
+	local TableInsert = table.insert
+
 	function MessageModule:GetPhrase( Key )
 		local Phrase = Shine.Locale:GetPhrase( self.__Name, Key )
 
@@ -75,8 +80,24 @@ if Client then
 			Shared.Message( Message )
 			Shine.GUI.NotificationManager.AddNotification( Shine.NotificationType.INFO, Message, 5 )
 		else
-			self:AddChatLine( 255, 255, 0, AdminName,
-				255, 255, 255, self:GetInterpolatedPhrase( MessageKey, Data ) )
+			local Options = self.RichTextMessageOptions and self.RichTextMessageOptions[ MessageKey ]
+			if ChatAPI:SupportsRichText() and Options then
+				local RichTextMessage = self:GetInterpolatedRichText( MessageKey, {
+					Key = MessageKey,
+					Values = Data,
+					Colours = Options.Colours,
+					DefaultColour = Options.DefaultColour,
+					LangDef = Shine.Locale:GetLanguageDefinition()
+				} )
+
+				TableInsert( RichTextMessage, 1, TextElement( AdminName.." " ) )
+				TableInsert( RichTextMessage, 1, ColourElement( Colour( 1, 1, 0 ) ) )
+
+				self:NotifyRichText( RichTextMessage )
+			else
+				self:AddChatLine( 255, 255, 0, AdminName,
+					255, 255, 255, self:GetInterpolatedPhrase( MessageKey, Data ) )
+			end
 		end
 	end
 
