@@ -285,6 +285,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 	end
 
+	local BackgroundTexture = PrecacheAsset "ui/shine/chat_bg.dds"
+
 	function ChatElement:AddChatLine( Populator, ... )
 		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.MessagePanel )
 
@@ -303,7 +305,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		Populator( ChatLine, ... )
 
 		ChatLine:SetSize( Vector2( Client.GetScreenWidth() * MaxChatWidth, 0 ) )
-		ChatLine:AddBackground( Colour( 0, 0, 0, Plugin.Config.BackgroundOpacity ), "ui/chat_bg.tga", PaddingAmount )
+		ChatLine:AddBackground( Colour( 0, 0, 0, Plugin.Config.BackgroundOpacity ), BackgroundTexture, PaddingAmount )
 		ChatLine:SetPos( Vector2( 0, 0 ) )
 		ChatLine:InvalidateLayout( true )
 		ChatLine:SetIsVisible( true )
