@@ -897,7 +897,7 @@ Plugin.ClientConfigSettings = {
 		CommandMessage = function( Value )
 			local Descriptions = {
 				[ Plugin.FontSizeMode.AUTO ] = "will now automatically change based on screen resolution",
-				[ Plugin.FontSizeMode.FIXED ] = "will now use the configured size regardless of resolution."
+				[ Plugin.FontSizeMode.FIXED ] = "will now use the configured size regardless of resolution"
 			}
 			return StringFormat( "Chat message font size %s.", Descriptions[ Value ] )
 		end
