@@ -61,7 +61,7 @@ Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
 local IntToColour = ColorIntToColor
-local DEFAULT_CHAT_OFFSET = Vector2( 0, 150 )
+local DEFAULT_CHAT_OFFSET = Vector2( 0, 75 )
 local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, 50 )
 local NO_OFFSET = Vector2( 0, 0 )
 local function ComputeChatOffset( GUIChatPos, DesiredOffset )
