@@ -114,7 +114,7 @@ end
 
 function ChatLine:MakeVisible()
 	self:StopAlpha()
-	self.RootElement:SetAlpha( 1 )
+	self:SetAlpha( 1 )
 
 	if self.VisibleBackground then
 		self:StopAlpha( self.VisibleBackground )

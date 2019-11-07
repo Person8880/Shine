@@ -14,30 +14,10 @@ function RichText:Initialise()
 	self:SetIsSchemed( false )
 
 	self.Background = self:MakeGUIItem()
-	self.Background:SetColor( BackgroundColour )
+	self.Background:SetSize( Vector2( 0, 0 ) )
 
 	self.WrappedWidth = 0
 	self.WrappedHeight = 0
-end
-
-function RichText:ApplyTransition( Transition )
-	if Transition.Type == "Alpha" and not Transition.Element then
-		if not self.RootElement then return end
-
-		Transition.Element = self.RootElement.Background
-	end
-
-	return self.BaseClass.ApplyTransition( self, Transition )
-end
-
-function RichText:StopAlpha( Element )
-	if Element == nil then
-		if not self.RootElement then return end
-
-		Element = self.RootElement.Background
-	end
-
-	return self.BaseClass.StopAlpha( self, Element )
 end
 
 function RichText:SetFont( Font )
@@ -161,8 +141,8 @@ function RichText:PerformWrapping()
 	self.ComputedWrapping = true
 end
 
-local function MakeElement( self, Class )
-	local Elements = self.ElementPool and self.ElementPool:Get( Class )
+local function MakeElementFromPool( self, Class )
+	local Elements = self.ElementPool:Get( Class )
 
 	local Element
 	if Elements then
@@ -174,16 +154,18 @@ local function MakeElement( self, Class )
 	return Element or SGUI:Create( Class )
 end
 
+local function MakeElement( self, Class )
+	return SGUI:Create( Class )
+end
+
 local CreatedElements = TableNew( 30, 0 )
 function RichText:ApplyLines( Lines )
-	-- Make an invisible root element that will be used for alpha-fading.
-	self.RootElement = self.RootElement or SGUI:Create( "Image", self )
-	self.RootElement:SetSize( Vector2( 0, 0 ) )
-
 	local ElementPool
-	if self.RootElement.Children then
+	local ElementFactory = MakeElement
+	if self.Children then
 		ElementPool = Multimap()
-		for Child in self.RootElement.Children:IterateBackwards() do
+		ElementFactory = MakeElementFromPool
+		for Child in self.Children:IterateBackwards() do
 			ElementPool:Add( Child.Class, Child )
 		end
 	end
@@ -195,10 +177,9 @@ function RichText:ApplyLines( Lines )
 		DefaultScale = self.TextScale,
 		CurrentColour = Colour( 1, 1, 1, 1 ),
 		ElementPool = ElementPool,
-		MakeElement = MakeElement
+		MakeElement = ElementFactory
 	}
 
-	local Parent = self.RootElement
 	local YOffset = 0
 	local MaxWidth = 0
 	local Spacing = self.LineSpacing:GetValue()
@@ -222,7 +203,7 @@ function RichText:ApplyLines( Lines )
 				ElementCount = ElementCount + 1
 				CreatedElements[ ElementCount ] = Control
 
-				Control:SetParent( Parent )
+				Control:SetParent( self )
 				Control:SetInheritsParentAlpha( true )
 				-- Make each element start from where the previous one ends.
 				Control:SetPos( Vector2( LineWidth + ( Context.NextMargin or 0 ), YOffset ) )
