@@ -41,13 +41,6 @@ end
 function RichText:PerformLayout()
 	if not self.ComputedWrapping then
 		self:PerformWrapping()
-
-		if self.VisibleBackground and self.MaxWidth and self.WrappedHeight then
-			self.VisibleBackground:SetSize( Vector2(
-				self.MaxWidth + self.BackgroundPadding,
-				self.WrappedHeight + self.BackgroundPadding
-			) )
-		end
 	end
 end
 

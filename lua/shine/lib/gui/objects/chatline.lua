@@ -58,6 +58,15 @@ function ChatLine:SetContent( Contents, ShowTimestamp )
 	self:InvalidateLayout()
 end
 
+local function UpdateBackgroundSize( self )
+	if self.VisibleBackground and self.MaxWidth and self.WrappedHeight then
+		self.VisibleBackground:SetSize( Vector2(
+			self.MaxWidth * 1.25 + self.BackgroundPadding,
+			self.WrappedHeight + self.BackgroundPadding
+		) )
+	end
+end
+
 function ChatLine:AddBackground( Colour, Texture, Padding )
 	local BackgroundElement = self.VisibleBackground
 
@@ -72,10 +81,16 @@ function ChatLine:AddBackground( Colour, Texture, Padding )
 
 	BackgroundElement:SetColor( Colour )
 	BackgroundElement:SetTexture( Texture )
-
 	BackgroundElement:SetPosition( Vector2( -Padding * 0.5, -Padding * 0.5 ) )
-	if self.MaxWidth and self.WrappedHeight then
-		BackgroundElement:SetSize( Vector2( self.MaxWidth + Padding, self.WrappedHeight + Padding ) )
+
+	UpdateBackgroundSize( self )
+end
+
+function ChatLine:PerformLayout()
+	if not self.ComputedWrapping then
+		self:PerformWrapping()
+
+		UpdateBackgroundSize( self )
 	end
 end
 
