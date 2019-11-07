@@ -515,7 +515,7 @@ function Plugin:CreateChatbox()
 	end
 
 	function TextEntry.OnUnhandledKey( TextEntry, Key, Down )
-		if Key == InputKey.Down or Key == InputKey.Up then
+		if Down and ( Key == InputKey.Down or Key == InputKey.Up ) then
 			self:ScrollAutoComplete( Key == InputKey.Down and 1 or -1 )
 		end
 	end
