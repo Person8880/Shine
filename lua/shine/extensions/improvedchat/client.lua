@@ -195,25 +195,26 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 	end
 
-	local function RemoveOffscreenLines( self )
-		local NeedsUpdate = false
-		for i = 1, #self.ChatLines do
-			local Line = self.ChatLines[ i ]
-			if Line:GetScreenPos().y + Line:GetSize().y < 0 then
-				-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
-				TableRemove( self.ChatLines, i )
-				Line:SetIsVisible( false )
-				Line:Reset()
+	local function RemoveLineIfOffScreen( Line, Index, self )
+		if Line:GetScreenPos().y + Line:GetSize().y < 0 then
+			-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
+			Line:SetIsVisible( false )
+			Line:Reset()
 
-				self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
+			self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
 
-				NeedsUpdate = true
-			else
-				break
-			end
+			return false
 		end
 
-		if NeedsUpdate then
+		return true
+	end
+
+	local function RemoveOffscreenLines( self )
+		local NumLines = #self.ChatLines
+
+		self.ChatLinesStream:Filter( RemoveLineIfOffScreen, self )
+
+		if NumLines ~= #self.ChatLines then
 			UpdateUpwardsMessagePositions( self, GetPaddingAmount() )
 		end
 	end
@@ -493,6 +494,7 @@ end
 function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.ChatLines = {}
 	ChatElement.ChatLinePool = {}
+	ChatElement.ChatLinesStream = Shine.Stream( ChatElement.ChatLines )
 
 	ChatElement.Panel = SGUI:Create( "Panel" )
 	ChatElement.Panel:SetIsSchemed( false )
