@@ -14,42 +14,42 @@ local TextSizeProvider = {
 local TextToWrap = "Someshortword"
 
 UnitTest:Test( "TextWrap - Returns text as-is when shorter than the max width", function( Assert )
-	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 100, {} )
+	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 100, { Count = 0 } )
 	Assert.ArrayEquals( "Should have not split the word", {
 		TextToWrap
 	}, Parts )
 end )
 
 UnitTest:Test( "TextWrap - Should split text into the expected number of parts when it exceeds the max width", function( Assert )
-	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 5, {} )
+	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 5, { Count = 0 } )
 	Assert.ArrayEquals( "Should have split the word into 3 parts", {
 		"Somes", "hortw", "ord"
 	}, Parts )
 end )
 
 UnitTest:Test( "TextWrap - Should handle the case where text is exactly the max width", function( Assert )
-	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, #TextToWrap, {} )
+	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, #TextToWrap, { Count = 0 } )
 	Assert.ArrayEquals( "Should have not split the word", {
 		TextToWrap
 	}, Parts )
 end )
 
 UnitTest:Test( "TextWrap - Should handle the case where text is a multiple of the max width", function( Assert )
-	local Parts = Wrapper.TextWrap( TextSizeProvider, string.rep( TextToWrap, 2 ), #TextToWrap, {} )
+	local Parts = Wrapper.TextWrap( TextSizeProvider, string.rep( TextToWrap, 2 ), #TextToWrap, { Count = 0 } )
 	Assert.ArrayEquals( "Should have split the word evenly into 2 parts", {
 		TextToWrap, TextToWrap
 	}, Parts )
 end )
 
 UnitTest:Test( "TextWrap - Should be able to split down to 1 character", function( Assert )
-	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 1, {} )
+	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 1, { Count = 0 } )
 	Assert.ArrayEquals( "Should have split the word into characters", {
 		"S", "o", "m", "e", "s", "h", "o", "r", "t", "w", "o", "r", "d"
 	}, Parts )
 end )
 
 UnitTest:Test( "TextWrap - Should avoid an infinite loop if the max width constraint is too small", function( Assert )
-	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 0, {} )
+	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 0, { Count = 0 } )
 	Assert.ArrayEquals( "Should have split the word into characters to avoid an infinite loop", {
 		"S", "o", "m", "e", "s", "h", "o", "r", "t", "w", "o", "r", "d"
 	}, Parts )

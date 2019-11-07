@@ -27,8 +27,7 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 	local Chars = StringUTF8Encode( Word )
 	local Start = 1
 	local End = #Chars
-
-	Parts.Count = Parts.Count or 0
+	local NumChars = End
 
 	if End == 0 or ( StopAfter and Parts.Count >= StopAfter ) then
 		return Parts
@@ -60,7 +59,7 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 			End = Mid - 1
 			Mid = GetMidPoint( Start, End )
 		elseif WidthAfter < MaxWidth then
-			if Mid == #Chars then
+			if Mid == NumChars then
 				-- Text can't be advanced further, stop here.
 				Parts.Count = Parts.Count + 1
 				Parts[ Parts.Count ] = TextAfter
@@ -76,7 +75,7 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 			Parts.Count = Parts.Count + 1
 			Parts[ Parts.Count ] = TextAfter
 
-			if Mid ~= #Chars then
+			if Mid ~= NumChars then
 				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Max( Mid + 1, 2 ) ), MaxWidth, Parts, StopAfter )
 			end
 
@@ -92,11 +91,13 @@ Wrapper.TextWrap = TextWrap
 -- and produces a final line that can be displayed.
 local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, LastElementIndex )
 	local Line = TableNew( EndIndex - StartIndex + 1, 0 )
+	local Index = 0
 	local CurrentElementIndex = Segments[ StartIndex ].OriginalElement
 	local LastElementChangeIndex = StartIndex
 
 	for i = LastElementIndex, CurrentElementIndex - 1 do
-		Line[ #Line + 1 ] = Elements[ i ]
+		Index = Index + 1
+		Line[ Index ] = Elements[ i ]
 	end
 
 	for i = StartIndex, EndIndex do
@@ -105,17 +106,21 @@ local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, La
 
 		if Change > 0 then
 			local NumSegments = i - LastElementChangeIndex
+
+			Index = Index + 1
+
 			if NumSegments == 1 then
 				-- Single element (one word, or not text at all)
-				Line[ #Line + 1 ] = Segments[ i - 1 ]
+				Line[ Index ] = Segments[ i - 1 ]
 			else
 				-- Multiple words from the same element, need to be merged back together.
-				Line[ #Line + 1 ] = Elements[ CurrentElementIndex ]:Merge( Segments, LastElementChangeIndex, i - 1 )
+				Line[ Index ] = Elements[ CurrentElementIndex ]:Merge( Segments, LastElementChangeIndex, i - 1 )
 			end
 
 			-- Copy over anything in between the wrapped segments (i.e. font or colour changes).
 			for j = CurrentElementIndex + 1, Element.OriginalElement - 1 do
-				Line[ #Line + 1 ] = Elements[ j ]
+				Index = Index + 1
+				Line[ Index ] = Elements[ j ]
 			end
 
 			CurrentElementIndex = Element.OriginalElement
@@ -123,21 +128,24 @@ local function ConsolidateSegments( Elements, Segments, StartIndex, EndIndex, La
 		end
 	end
 
+	Index = Index + 1
+
 	-- Also add the final element.
 	local NumSegments = EndIndex - LastElementChangeIndex + 1
 	if NumSegments == 1 then
-		Line[ #Line + 1 ] = Segments[ EndIndex ]
+		Line[ Index ] = Segments[ EndIndex ]
 	else
-		Line[ #Line + 1 ] = Elements[ CurrentElementIndex ]:Merge( Segments, LastElementChangeIndex, EndIndex )
+		Line[ Index ] = Elements[ CurrentElementIndex ]:Merge( Segments, LastElementChangeIndex, EndIndex )
 	end
 
 	return Line, CurrentElementIndex + 1
 end
 
 local Segments = TableNew( 50, 0 )
-local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
+local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth, NumLines )
 	TableEmpty( Segments )
 
+	local SegmentIndex = 0
 	local CurrentWidth = 0
 	local StartIndex = 1
 	local LastSegment = 0
@@ -148,26 +156,33 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 		local Element = Line[ i ]
 
 		local Width, WidthWithoutSpace = Element:GetWidth( TextSizeProvider, MaxWidth )
-		local RelevantWidth = #Segments + 1 == StartIndex and WidthWithoutSpace or Width
+		local RelevantWidth = SegmentIndex + 1 == StartIndex and WidthWithoutSpace or Width
 		if CurrentWidth + RelevantWidth <= MaxWidth then
 			-- No need to split the element as it fits entirely on the current line.
 			Element.Width = Width
 			Element.WidthWithoutSpace = WidthWithoutSpace
 			Element.OriginalElement = i
-			Segments[ #Segments + 1 ] = Element
+
+			SegmentIndex = SegmentIndex + 1
+			Segments[ SegmentIndex ] = Element
 		else
 			Element:Split( i, TextSizeProvider, Segments, MaxWidth, CurrentWidth )
+			SegmentIndex = #Segments
 		end
 
-		for j = LastSegment + 1, #Segments do
+		for j = LastSegment + 1, SegmentIndex do
 			CurrentWidth = CurrentWidth + Segments[ j ][ SegmentWidthKeys[ j == StartIndex ] ]
 			if CurrentWidth >= MaxWidth then
 				-- If the first element is too big for a line, accept it anyway as any text
 				-- will have been wrapped in segments already. Not accepting it would result in an empty line.
 				local IsEndingOnCurrentElement = j == StartIndex or CurrentWidth == MaxWidth
 				local EndIndex = IsEndingOnCurrentElement and j or j - 1
-				local Line, ElementIndex = ConsolidateSegments( Line, Segments, StartIndex, EndIndex, LastElementIndex )
-				WrappedLines[ #WrappedLines + 1 ] = Line
+				local WrappedLine, ElementIndex = ConsolidateSegments(
+					Line, Segments, StartIndex, EndIndex, LastElementIndex
+				)
+
+				NumLines = NumLines + 1
+				WrappedLines[ NumLines ] = WrappedLine
 				LastElementIndex = ElementIndex
 
 				StartIndex = IsEndingOnCurrentElement and ( j + 1 ) or j
@@ -175,16 +190,17 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth )
 			end
 		end
 
-		LastSegment = #Segments
+		LastSegment = SegmentIndex
 	end
 
-	if StartIndex <= #Segments then
-		WrappedLines[ #WrappedLines + 1 ] = ConsolidateSegments( Line, Segments, StartIndex, #Segments, LastElementIndex )
+	if StartIndex <= SegmentIndex then
+		NumLines = NumLines + 1
+		WrappedLines[ NumLines ] = ConsolidateSegments( Line, Segments, StartIndex, SegmentIndex, LastElementIndex )
 	end
 
 	TableEmpty( Segments )
 
-	return WrappedLines
+	return NumLines
 end
 
 function Wrapper.WordWrapRichTextLines( Options )
@@ -198,8 +214,9 @@ function Wrapper.WordWrapRichTextLines( Options )
 		MaxWidth = MaxWidth
 	}
 
+	local NumLines = 0
 	for i = 1, #Lines do
-		WrapLine( WrappedLines, TextSizeProvider, Lines[ i ], MaxWidth )
+		NumLines = WrapLine( WrappedLines, TextSizeProvider, Lines[ i ], MaxWidth, NumLines )
 	end
 
 	return WrappedLines

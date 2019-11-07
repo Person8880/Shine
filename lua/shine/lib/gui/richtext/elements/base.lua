@@ -18,4 +18,8 @@ function Base.AddThinkFunction( Element, ExtraThink )
 	end
 end
 
+function Base:Setup( Element )
+	-- To be overridden.
+end
+
 return Base

@@ -7,7 +7,6 @@ local StringExplode = string.Explode
 local StringFormat = string.format
 local StringSub = string.sub
 local TableConcat = table.concat
-local TableCopy = table.Copy
 local TableEmpty = table.Empty
 local TableNew = require "table.new"
 
@@ -68,9 +67,9 @@ local function EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	TableEmpty( WrappedParts )
 end
 
-local function AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, NoSpace )
+local function AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, SpaceWidth )
 	local Segment = Text( Word )
-	Segment.Width = Width + ( NoSpace and 0 or TextSizeProvider.SpaceSize )
+	Segment.Width = Width + SpaceWidth
 	Segment.WidthWithoutSpace = Width
 	Segment.Height = TextSizeProvider.TextHeight
 	Segment.OriginalElement = Index
@@ -90,7 +89,7 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	TextWrap( TextSizeProvider, Word, WidthRemaining, WrappedParts, 1 )
 
 	AddSegmentFromWord(
-		Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), true
+		Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), 0
 	)
 
 	-- Now take the text that's left, and wrap it based on the full max width (as it's no longer on the same
@@ -100,7 +99,7 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	if Width > MaxWidth then
 		EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, RemainingText )
 	else
-		AddSegmentFromWord( Index, TextSizeProvider, Segments, RemainingText, Width, true )
+		AddSegmentFromWord( Index, TextSizeProvider, Segments, RemainingText, Width, 0 )
 	end
 
 	TableEmpty( WrappedParts )
@@ -108,21 +107,34 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	return true
 end
 
+-- First word is a special case. If it needs text wrapping, it needs to wrap based on the current x-offset.
+local function WrapFirstWord( Index, TextSizeProvider, Segments, MaxWidth, XPos, Word )
+	local Width = TextSizeProvider:GetWidth( Word )
+	local WidthToCompareAgainst = MaxWidth - XPos
+
+	if Width > WidthToCompareAgainst then
+		if not WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos ) then
+			EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
+		end
+	else
+		AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, 0 )
+	end
+end
+
 function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, XPos )
 	local Words = StringExplode( self.Value, " ", true )
-	for i = 1, #Words do
+
+	WrapFirstWord( Index, TextSizeProvider, Segments, MaxWidth, XPos, Words[ 1 ] )
+
+	local SpaceWidth = TextSizeProvider.SpaceSize
+	for i = 2, #Words do
 		local Word = Words[ i ]
 		local Width = TextSizeProvider:GetWidth( Word )
-		local WidthToCompareAgainst = i == 1 and ( MaxWidth - XPos ) or MaxWidth
-		if Width > WidthToCompareAgainst then
+		if Width > MaxWidth then
 			-- Word will need text wrapping.
-			-- First try to wrap starting at the last element's position.
-			-- If there's not enough space left, treat the text as a new line.
-			if not ( i == 1 and WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos ) ) then
-				EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
-			end
+			EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
 		else
-			AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, i == 1 )
+			AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, SpaceWidth )
 		end
 	end
 end
@@ -133,15 +145,17 @@ function Text:GetWidth( TextSizeProvider )
 end
 
 function Text:Merge( Segments, StartIndex, EndIndex )
-	local Segment = TableCopy( self )
+	local Segment = Text( self )
 
 	local Width = 0
 	local Height = Segments[ StartIndex ].Height
 
 	local Words = TableNew( EndIndex - StartIndex + 1, 0 )
+	local WordIndex = 0
 	for i = StartIndex, EndIndex do
 		Width = Width + Segments[ i ][ SegmentWidthKeys[ i == StartIndex ] ]
-		Words[ #Words + 1 ] = Segments[ i ].Value
+		WordIndex = WordIndex + 1
+		Words[ WordIndex ] = Segments[ i ].Value
 	end
 
 	Segment.Width = Width
@@ -167,9 +181,7 @@ function Text:MakeElement( Context )
 	Label.CachedTextWidth = self.Width
 	Label.CachedTextHeight = self.Height
 
-	if self.Setup then
-		self:Setup( Label )
-	end
+	self:Setup( Label )
 
 	return Label
 end

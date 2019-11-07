@@ -69,9 +69,7 @@ function Image:MakeElement( Context )
 	Image.DoClick = self.DoClick
 	Image.DoRightClick = self.DoRightClick
 
-	if self.Setup then
-		self:Setup( Image )
-	end
+	self:Setup( Image )
 
 	return Image
 end
