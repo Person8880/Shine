@@ -114,7 +114,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		if SGUI.IsValid( self.Panel ) then
 			local CurrentOffset = self:GetOffset()
-			local PanelOffset = DEFAULT_CHAT_OFFSET
+			local PanelOffset = self.HasMoved and Vector2( 0, 300 ) or DEFAULT_CHAT_OFFSET
 			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
 				PanelOffset = NO_OFFSET
 			end
