@@ -125,6 +125,18 @@ function ScreenText:SetScaledPos( X, Y )
 	GUIObj:SetPosition( Vector( ScrW * self.x, ScrH * self.y, 0 ) )
 end
 
+function ScreenText:SetShadowEnabled( ShadowEnabled )
+	self.Obj:SetDropShadowEnabled( ShadowEnabled )
+end
+
+function ScreenText:SetShadowOffset( ShadowOffset )
+	self.Obj:SetDropShadowOffset( ShadowOffset )
+end
+
+function ScreenText:SetShadowColour( ShadowColour )
+	self.Obj:SetDropShadowColor( ShadowColour )
+end
+
 local function GetFontAndScale( ScrW, ScrH, Size )
 	local Font = StandardFonts[ Size ]
 
@@ -233,6 +245,14 @@ function Shine.ScreenText.Add( ID, Params )
 	GUIObj:SetColor( MessageTable.Colour )
 	GUIObj:SetFontName( Font )
 
+	if Params.ShadowEnabled ~= false then
+		GUIObj:SetDropShadowEnabled( true )
+		GUIObj:SetDropShadowOffset( Params.ShadowOffset or Vector2( 2, 2 ) )
+		GUIObj:SetDropShadowColor( Params.ShadowColour or Colour( 0, 0, 0, 0.6 ) )
+	else
+		GUIObj:SetDropShadowEnabled( false )
+	end
+
 	if ShouldFade then
 		MessageTable.Fading = true
 		MessageTable.FadingIn = true
@@ -251,7 +271,14 @@ function Shine.ScreenText.Add( ID, Params )
 end
 
 --[[
-	Changes the text of a text label.
+	Gets the screen text instance with the given ID, if it exists.
+]]
+function Shine.ScreenText.Get( ID )
+	return Messages:Get( ID )
+end
+
+--[[
+	Changes the text of the screen text message with the given ID, if it exists.
 ]]
 function Shine.ScreenText.SetText( ID, Text )
 	local MessageTable = Messages:Get( ID )
@@ -261,7 +288,7 @@ function Shine.ScreenText.SetText( ID, Text )
 end
 
 --[[
-	Immediately removes a text label.
+	Immediately removes the screen text message with the given ID, if it exists.
 ]]
 function Shine.ScreenText.Remove( ID )
 	local Message = Messages:Get( ID )
@@ -272,7 +299,9 @@ function Shine.ScreenText.Remove( ID )
 end
 
 --[[
-	Sets a text label to fade out from now. Looks better than removing.
+	Sets the screen text message with the given ID to fade out, starting from now.
+
+	Looks better than removing, but takes time to complete.
 ]]
 function Shine.ScreenText.End( ID )
 	local MessageTable = Messages:Get( ID )
