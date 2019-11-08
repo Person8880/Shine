@@ -61,8 +61,8 @@ Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
 local IntToColour = ColorIntToColor
-local DEFAULT_CHAT_OFFSET = Vector2( 0, 75 )
-local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, 50 )
+local DEFAULT_CHAT_OFFSET = Vector2( 0, 150 )
+local MOVED_CHAT_OFFSET = Vector2( 0, 300 )
 local NO_OFFSET = Vector2( 0, 0 )
 local function ComputeChatOffset( GUIChatPos, DesiredOffset )
 	return GUIScale( 1 ) * ( GUIChatPos + DesiredOffset )
@@ -114,7 +114,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		if SGUI.IsValid( self.Panel ) then
 			local CurrentOffset = self:GetOffset()
-			local PanelOffset = self.HasMoved and Vector2( 0, 300 ) or DEFAULT_CHAT_OFFSET
+			local PanelOffset = self.HasMoved and MOVED_CHAT_OFFSET or DEFAULT_CHAT_OFFSET
 			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
 				PanelOffset = NO_OFFSET
 			end
@@ -432,40 +432,72 @@ function Plugin:GetFontSize()
 	return SGUI.FontManager.GetFontForAbsoluteSize( "kAgencyFB", self.Config.FontSizeInPixels )
 end
 
-local function ShouldMoveChat( self )
-	return self.GUIChat and not self.GUIChat.HasMoved
-		and self.Config.MessageDisplayType ~= self.MessageDisplayType.DOWNWARDS
-end
-
-function Plugin:MoveChatAboveMinimap()
-	if not ShouldMoveChat( self ) then return end
-
+function Plugin:SetChatOffset( Offset )
 	local Panel = self.GUIChat.Panel
 	if not SGUI.IsValid( Panel ) then return end
 
-	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), ABOVE_MINIMAP_CHAT_OFFSET ) )
+	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), Offset ) )
 end
 
-function Plugin:MoveChatDownFromAboveMinimap()
-	if not ShouldMoveChat( self ) then return end
+do
+	local ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, 75 )
+	local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, 50 )
 
-	local Panel = self.GUIChat.Panel
-	if not SGUI.IsValid( Panel ) then return end
+	local function ShouldMoveChat( self )
+		return self.GUIChat and not self.GUIChat.HasMoved
+			and self.Config.MessageDisplayType ~= self.MessageDisplayType.DOWNWARDS
+	end
 
-	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), DEFAULT_CHAT_OFFSET ) )
-end
+	local function MoveChatAboveMinimap( self )
+		if not ShouldMoveChat( self ) then return end
 
-local function ShouldMoveChatUpFor( Player )
-	return Player and ( Player:isa( "Spectator" ) or Player:isa( "Commander" ) )
-end
+		self:SetChatOffset( ABOVE_MINIMAP_CHAT_OFFSET )
+	end
 
--- If the player's chat is using its default position, move it when they change to a class that
--- has a minimap (i.e. spectating or commanding) so it doesn't overlap the minimap.
-function Plugin:OnLocalPlayerChanged( Player )
-	if ShouldMoveChatUpFor( Player ) then
-		return self:MoveChatAboveMinimap()
-	else
-		return self:MoveChatDownFromAboveMinimap()
+	local function MoveChatAboveAlienHealth( self )
+		if not ShouldMoveChat( self ) then return end
+
+		self:SetChatOffset( ABOVE_ALIEN_HEALTH_OFFSET )
+	end
+
+	local function MoveChatDownFromAboveMinimap( self )
+		if not ShouldMoveChat( self ) then return end
+
+		self:SetChatOffset( DEFAULT_CHAT_OFFSET )
+	end
+
+	local function ShouldMoveChatAboveMinimap( Player )
+		return Player and ( Player:isa( "Spectator" ) or Player:isa( "Commander" ) )
+	end
+
+	local function ShouldMoveChatAboveAlienHealth( Player )
+		return Player and Player:isa( "Alien" ) and Player.GetTeamNumber and Player:GetTeamNumber() == kTeam2Index
+	end
+
+	function Plugin:UpdateChatOffset( Player )
+		if ShouldMoveChatAboveMinimap( Player ) then
+			return MoveChatAboveMinimap( self )
+		end
+
+		if ShouldMoveChatAboveAlienHealth( Player ) then
+			return MoveChatAboveAlienHealth( self )
+		end
+
+		return MoveChatDownFromAboveMinimap( self )
+	end
+
+	-- If the player's chat is using its default position, move it when they change to a class whose HUD may obstruct
+	-- or be obstructed by the chat (e.g. spectator/commander minimap, alien health status icons).
+	function Plugin:OnLocalPlayerChanged( Player )
+		-- Allow gamemodes to influence the position if they have different HUD layouts.
+		local Offset = Hook.Call(
+			"OnCalculateShineChatOffset", self, Player, Vector2( DEFAULT_CHAT_OFFSET.x, DEFAULT_CHAT_OFFSET.y )
+		)
+		if Offset then
+			return self:SetChatOffset( Offset )
+		end
+
+		return self:UpdateChatOffset( Player )
 	end
 end
 
@@ -514,13 +546,18 @@ function Plugin:SetupGUIChat( ChatElement )
 	end
 
 	local Player = Client.GetLocalPlayer and Client.GetLocalPlayer()
-	local Offset = ShouldMoveChatUpFor( Player ) and ABOVE_MINIMAP_CHAT_OFFSET or DEFAULT_CHAT_OFFSET
-
-	if self.Config.MessageDisplayType == self.MessageDisplayType.DOWNWARDS then
-		Offset = NO_OFFSET
+	local Offset = Hook.Call(
+		"OnCalculateShineChatOffset", self, Player, Vector2( DEFAULT_CHAT_OFFSET.x, DEFAULT_CHAT_OFFSET.y )
+	)
+	if Offset then
+		self:SetChatOffset( Offset )
+	elseif ChatElement.HasMoved and self.Config.MessageDisplayType == self.MessageDisplayType.UPWARDS then
+		self:SetChatOffset( MOVED_CHAT_OFFSET )
+	elseif self.Config.MessageDisplayType == self.MessageDisplayType.DOWNWARDS then
+		self:SetChatOffset( NO_OFFSET )
+	else
+		self:UpdateChatOffset( Player )
 	end
-
-	ChatElement.Panel:SetPos( ComputeChatOffset( ChatElement:GetOffset(), Offset ) )
 
 	local Messages = ChatElement.messages
 	if not IsType( Messages, "table" ) then return end
