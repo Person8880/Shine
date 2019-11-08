@@ -135,10 +135,15 @@ function NotificationManager.RegisterHint( Name, Params )
 
 	Shine.TypeCheckField( Params, "HintDuration", { "number", "nil" }, "Params" )
 	Shine.TypeCheckField( Params, "MaxTimes", { "number", "nil" }, "Params" )
-	Shine.TypeCheckField( Params, "MessageKey", "string", "Params" )
-	Shine.TypeCheckField( Params, "MessageSource", "string", "Params" )
+	Shine.TypeCheckField( Params, "MessageKey", { "string", "nil" }, "Params" )
 	Shine.TypeCheckField( Params, "NotificationType", { "string", "nil" }, "Params" )
 	Shine.TypeCheckField( Params, "Options", { "table", "nil" }, "Params" )
+
+	if Params.MessageKey then
+		Shine.TypeCheckField( Params, "MessageSource", "string", "Params" )
+	else
+		Shine.TypeCheckField( Params, "MessageSupplier", "function", "Params" )
+	end
 
 	if not Params.MaxTimes or Params.MaxTimes > 1 then
 		Shine.TypeCheckField( Params, "HintIntervalInSeconds", "number", "Params" )
@@ -197,9 +202,12 @@ function NotificationManager.DisplayHint( Name )
 	HintData[ Name ] = Data
 	UpdateHintData()
 
+	local Message = Params.MessageSupplier and Params.MessageSupplier()
+		or Shine.Locale:GetPhrase( Params.MessageSource, Params.MessageKey )
+
 	NotificationManager.AddNotification(
 		Params.NotificationType or NotificationType.INFO,
-		Shine.Locale:GetPhrase( Params.MessageSource, Params.MessageKey ),
+		Message,
 		Params.HintDuration or 5,
 		Params.Options
 	)
