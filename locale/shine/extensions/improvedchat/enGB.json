@@ -9,5 +9,7 @@
 	"FONT_SIZE_MODE_FIXED": "Use a fixed size",
 	"FONT_SIZE_IN_PIXELS_DESCRIPTION": "Font size (pixels):",
 	"UPWARDS": "Add messages upwards.",
-	"DOWNWARDS": "Add messages downwards (vanilla behaviour)."
+	"DOWNWARDS": "Add messages downwards (vanilla behaviour).",
+	"CHAT_CONFIG_HINT_VOTEMENU": "To customise the behaviour of the chat, press {VoteMenuButton} > \"{ClientConfigButton}\" and go to the \"{ChatTabButton}\" tab.",
+	"CHAT_CONFIG_HINT_CONSOLE": "To customise the behaviour of the chat, open the vote menu and click \"{ClientConfigButton}\" (or use the sh_clientconfigmenu console command) and go to the \"{ChatTabButton}\" tab."
 }

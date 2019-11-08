@@ -60,6 +60,8 @@ Plugin.DefaultConfig = {
 Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
+local CHAT_CONFIG_HINT_NAME = "ImprovedChatConfigHint"
+
 local IntToColour = ColorIntToColor
 local DEFAULT_CHAT_OFFSET = Vector2( 0, 150 )
 local MOVED_CHAT_OFFSET = Vector2( 0, 300 )
@@ -326,6 +328,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, MakeFadeOutCallback( self, ChatLine, PaddingAmount ), FadingEase )
 
+		SGUI.NotificationManager.DisplayHint( CHAT_CONFIG_HINT_NAME )
+
 		return ChatLine
 	end
 
@@ -383,6 +387,30 @@ function Plugin:Initialise()
 	ChatAPI:SetProvider( self )
 
 	return true
+end
+
+function Plugin:OnFirstThink()
+	SGUI.NotificationManager.RegisterHint( CHAT_CONFIG_HINT_NAME, {
+		MaxTimes = 1,
+		MessageSupplier = function()
+			local ChatTabButton = self:GetPhrase( "CLIENT_CONFIG_TAB" )
+
+			local VoteMenuButton = Shine.VoteButton
+			if VoteMenuButton then
+				return self:GetInterpolatedPhrase( "CHAT_CONFIG_HINT_VOTEMENU", {
+					ChatTabButton = ChatTabButton,
+					ClientConfigButton = Shine.Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" ),
+					VoteMenuButton = VoteMenuButton
+				} )
+			end
+
+			return self:GetInterpolatedPhrase( "CHAT_CONFIG_HINT_CONSOLE", {
+				ChatTabButton = ChatTabButton,
+				ClientConfigButton = Shine.Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" )
+			} )
+		end,
+		HintDuration = 10
+	} )
 end
 
 function Plugin:SetBackgroundOpacity( Opacity )
