@@ -7,6 +7,7 @@ local Units = SGUI.Layout.Units
 local HighResScaled = Units.HighResScaled
 
 local OSTime = os.time
+local StringFormat = string.format
 local TableRemove = table.remove
 
 local NotificationType = Shine.NotificationType
@@ -204,13 +205,19 @@ function NotificationManager.DisplayHint( Name )
 
 	local Message = Params.MessageSupplier and Params.MessageSupplier()
 		or Shine.Locale:GetPhrase( Params.MessageSource, Params.MessageKey )
+	local Type = Params.NotificationType or NotificationType.INFO
 
 	NotificationManager.AddNotification(
-		Params.NotificationType or NotificationType.INFO,
+		Type,
 		Message,
 		Params.HintDuration or 5,
 		Params.Options
 	)
+
+	if not Params.SuppressConsoleMessage then
+		-- Print to console so it can be referred back to.
+		Shared.Message( StringFormat( "[%s] %s", Styles[ Type ], Message ) )
+	end
 end
 
 SGUI.NotificationManager = NotificationManager

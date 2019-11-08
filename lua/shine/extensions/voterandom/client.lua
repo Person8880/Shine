@@ -309,6 +309,7 @@ function Plugin:OnFirstThink()
 		MessageSource = self:GetName(),
 		MessageKey = "FRIEND_GROUP_INVITE_HINT",
 		HintDuration = 10,
+		SuppressConsoleMessage = true,
 		Options = {
 			Buttons = {
 				{
