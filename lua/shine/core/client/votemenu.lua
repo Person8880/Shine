@@ -42,15 +42,20 @@ do
 		for Button, Data in pairs( Binds ) do
 			if IsType( Data, "table" ) and IsType( Data.command, "string" )
 			and Data.command:find( Command ) then
-				Candidates[ #Candidates + 1 ] = Button
+				local Binding = TableFindByField( MenuBinds, "current", Button )
 
 				-- Have to also make sure the button isn't bound in the menu's binds,
 				-- as console binds and menu binds don't check each other. Even worse,
 				-- it's completely arbitrary whether the menu bind will stop the input
 				-- reaching the console binds or not, so we just have to assume it will.
-				if not TableFindByField( MenuBinds, "current", Button ) then
+				if not Binding then
 					return true, Button
 				end
+
+				Candidates[ #Candidates + 1 ] = {
+					Button = Button,
+					Bind = Binding.detail
+				}
 			end
 		end
 
