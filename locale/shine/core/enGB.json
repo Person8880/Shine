@@ -60,5 +60,7 @@
 	"COMMAND_RESTRICTED_ARG": "Invalid argument #{ArgNum}, restricted in rank settings.",
 	"COMMAND_NO_PERMISSION": "You do not have permission to use {CommandName}.",
 
-	"GENERAL_CLIENT_SETTINGS": "General"
+	"GENERAL_CLIENT_SETTINGS": "General",
+	"NS2_MENU_OPTIONS_TITLE": "SHINE OPTIONS",
+	"NS2_MENU_OPEN_CLIENT_CONFIG": "Open Client Config Menu"
 }

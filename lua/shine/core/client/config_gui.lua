@@ -602,3 +602,43 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 Shine:RegisterClientCommand( "sh_clientconfigmenu", function()
 	ConfigMenu:Show()
 end )
+
+-- Add a dummy entry into the game's mod options list with a button to open the config menu.
+Shine.Hook.CallAfterFileLoad( "lua/menu2/NavBar/Screens/Options/Mods/ModsMenuData.lua", function()
+	if not gModsCategories then return end
+
+	gModsCategories[ #gModsCategories + 1 ] = {
+		categoryName = "Shine",
+		entryConfig = {
+			name = "ShineModEntry",
+			class = GUIMenuCategoryDisplayBoxEntry,
+			params = {
+				label = Shine.Locale:GetPhrase( "Core", "NS2_MENU_OPTIONS_TITLE" )
+			}
+		},
+		contentsConfig = ModsMenuUtils.CreateBasicModsMenuContents( {
+			layoutName = "ShineOptions",
+			contents = {
+				{
+					name = "ShineOpenClientConfigMenu",
+					class = GUIMenuButton,
+					properties = {
+						{ "Label", Shine.Locale:GetPhrase( "Core", "NS2_MENU_OPEN_CLIENT_CONFIG" ) }
+					},
+					postInit = {
+						function( self )
+							self:HookEvent( self, "OnPressed", function()
+								local MainMenu = GetMainMenu and GetMainMenu()
+								if MainMenu and MainMenu.Close then
+									MainMenu:Close()
+								end
+
+								ConfigMenu:Show()
+							end )
+						end
+					}
+				}
+			}
+		} )
+	}
+end )
