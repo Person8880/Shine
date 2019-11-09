@@ -21,6 +21,7 @@ local Max = math.max
 local Min = math.min
 local pairs = pairs
 local select = select
+local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
 local StringFind = string.find
 local StringFormat = string.format
 local StringLen = string.len
@@ -415,7 +416,7 @@ function Plugin:CreateChatbox()
 		self:SaveConfig()
 	end
 
-	--Panel for messages.
+	-- Panel for messages.
 	local Box = SGUI:Create( "Panel", Border )
 	local ScrollbarPos = LayoutData.Positions.Scrollbar * WidthMult
 	ScrollbarPos.x = Ceil( ScrollbarPos.x )
@@ -451,7 +452,7 @@ function Plugin:CreateChatbox()
 
 	local Font = self:GetFont()
 
-	--Where messages are entered.
+	-- Where messages are entered.
 	local TextEntry = SGUI:Create( "TextEntry", Border )
 	TextEntry:SetupFromTable{
 		BorderSize = Vector2( 0, 0 ),
@@ -466,7 +467,7 @@ function Plugin:CreateChatbox()
 		TextEntry:SetTextScale( self.TextScale )
 	end
 	if Font == Fonts.kAgencyFB_Tiny then
-		--For some reason, the tiny font is always 1 behind where it should be...
+		-- For some reason, the tiny font is always 1 behind where it should be...
 		TextEntry.Padding = 3
 		TextEntry.CaretOffset = -1
 		TextEntry:SetupCaret()
@@ -474,15 +475,17 @@ function Plugin:CreateChatbox()
 
 	TextEntryLayout:AddElement( TextEntry )
 
-	--Send the message when the client presses enter.
+	-- Send the message when the client presses enter.
 	function TextEntry:OnEnter()
 		local Text = self:GetText()
 
-		--Don't go sending blank messages.
-		if #Text > 0 and Text:find( "[^%s]" ) then
-			Shine.SendNetworkMessage( "ChatClient",
-				BuildChatClientMessage( Plugin.TeamChat,
-					StringUTF8Sub( Text, 1, kMaxChatLength ) ), true )
+		-- Don't go sending blank messages.
+		if #Text > 0 and StringContainsNonUTF8Whitespace( Text ) then
+			Shine.SendNetworkMessage(
+				"ChatClient",
+				BuildChatClientMessage( Plugin.TeamChat, StringUTF8Sub( Text, 1, kMaxChatLength ) ),
+				true
+			)
 		end
 
 		self:SetText( "" )
@@ -500,7 +503,7 @@ function Plugin:CreateChatbox()
 		return true
 	end
 
-	--We don't want to allow characters after hitting the max length message.
+	-- We don't want to allow characters after hitting the max length message.
 	function TextEntry:ShouldAllowChar( Char )
 		local Text = self:GetText()
 
@@ -508,7 +511,7 @@ function Plugin:CreateChatbox()
 			return false
 		end
 
-		--We also don't want the player's chat button bind making it into the text entry.
+		-- We also don't want the player's chat button bind making it into the text entry.
 		if ( Plugin.OpenTime or 0 ) + 0.05 > Clock() then
 			return false
 		end
