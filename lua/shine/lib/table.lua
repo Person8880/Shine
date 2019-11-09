@@ -400,6 +400,9 @@ do
 		return String
 	end
 
+	local FFILoaded, FFI = pcall( require, "ffi" )
+	local FFIIsType = FFILoaded and FFI and FFI.istype or function() return false end
+
 	local DefaultPrinters = {
 		string = function( Value )
 			if StringFind( Value, "\n", 1, true ) then
@@ -424,6 +427,19 @@ do
 			end
 
 			return SafeToString( Value )
+		end,
+		cdata = function( Value )
+			local Success, IsType = pcall( FFIIsType, "Color", Value )
+			if Success and IsType then
+				return StringFormat( "Colour( %s, %s, %s, %s )", Value.r, Value.g, Value.b, Value.a )
+			end
+
+			Success, IsType = pcall( FFIIsType, "Vector", Value )
+			if Success and IsType then
+				return StringFormat( "Vector( %s, %s, %s )", Value.x, Value.y, Value.z )
+			end
+
+			return tostring( Value )
 		end
 	}
 
