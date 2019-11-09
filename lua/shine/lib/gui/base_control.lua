@@ -13,11 +13,23 @@ local IsGUIItemValid = debug.isvalid
 local Max = math.max
 local pairs = pairs
 local StringFormat = string.format
+local TableNew = require "table.new"
 local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
 
 local Map = Shine.Map
 local Source = require "shine/lib/gui/binding/source"
+
+-- This exists to avoid constant concatenation every time properties are set dynamically.
+local SetterKeys = setmetatable( TableNew( 0, 100 ), {
+	__index = function( self, Key )
+		local Setter = "Set"..Key
+
+		self[ Key ] = Setter
+
+		return Setter
+	end
+} )
 
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
@@ -163,7 +175,7 @@ function ControlMeta:GetPropertyTarget( Name )
 		return Target
 	end
 
-	local SetterName = "Set"..Name
+	local SetterName = SetterKeys[ Name ]
 	Target = function( Value )
 		self[ SetterName ]( self, Value )
 	end
@@ -267,6 +279,11 @@ function ControlMeta:SetSkin( Skin )
 	local OldSkin = self.Skin
 	if OldSkin == Skin then return end
 
+	if Skin then
+		-- Trigger skin compilation upfront to make later state changes faster.
+		SGUI.SkinManager:GetCompiledSkin( Skin )
+	end
+
 	self.Skin = Skin
 	SGUI.SkinManager:ApplySkin( self )
 
@@ -284,7 +301,7 @@ function ControlMeta:GetStyleValue( Key )
 	if not Style then
 		return nil
 	end
-	return Style[ Key ]
+	return Style.PropertiesByName[ Key ]
 end
 
 --[[
@@ -292,10 +309,21 @@ end
 ]]
 function ControlMeta:SetupFromTable( Table )
 	for Property, Value in pairs( Table ) do
-		local Method = "Set"..Property
+		local Method = self[ SetterKeys[ Property ] ]
+		if Method then
+			Method( self, Value )
+		end
+	end
+end
 
-		if self[ Method ] then
-			self[ Method ]( self, Value )
+--[[
+	Sets up a control's properties using a map.
+]]
+function ControlMeta:SetupFromMap( Map )
+	for Property, Value in Map:Iterate() do
+		local Method = self[ SetterKeys[ Property ] ]
+		if Method then
+			Method( self, Value )
 		end
 	end
 end
