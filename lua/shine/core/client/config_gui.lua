@@ -81,7 +81,7 @@ function ConfigMenu:Create()
 	end
 
 	self.Menu:SetExpanded( Shine.Config.ExpandConfigMenuTabs )
-	self.Menu:AddPropertyChangeListener( "Expanded", function( Expanded )
+	self.Menu:AddPropertyChangeListener( "Expanded", function( Menu, Expanded )
 		Shine:SetClientSetting( "ExpandConfigMenuTabs", Expanded )
 	end )
 
@@ -274,7 +274,7 @@ local SettingsTypes = {
 				local CurrentValue = GetConfiguredValue( Entry )
 				Dropdown:SelectOption( CurrentValue )
 
-				Dropdown:AddPropertyChangeListener( "SelectedOption", function( Option )
+				Dropdown:AddPropertyChangeListener( "SelectedOption", function( Dropdown, Option )
 					Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
 				end )
 
@@ -305,7 +305,7 @@ local SettingsTypes = {
 					end
 				end
 
-				Radio:AddPropertyChangeListener( "SelectedOption", function( Option )
+				Radio:AddPropertyChangeListener( "SelectedOption", function( Dropdown, Option )
 					Shared.ConsoleCommand( Entry.Command.." "..Option.Value )
 				end )
 

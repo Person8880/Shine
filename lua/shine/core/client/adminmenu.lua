@@ -65,7 +65,7 @@ function AdminMenu:Create()
 	end )
 
 	Window:SetExpanded( Shine.Config.ExpandAdminMenuTabs )
-	Window:AddPropertyChangeListener( "Expanded", function( Expanded )
+	Window:AddPropertyChangeListener( "Expanded", function( Window, Expanded )
 		Shine:SetClientSetting( "ExpandAdminMenuTabs", Expanded )
 	end )
 

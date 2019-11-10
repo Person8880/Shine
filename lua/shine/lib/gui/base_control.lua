@@ -133,7 +133,7 @@ local function BroadcastPropertyChange( self, Name, Value )
 	if not Listeners then return end
 
 	for i = 1, #Listeners do
-		Listeners[ i ]( Value )
+		Listeners[ i ]( self, Value )
 	end
 end
 
@@ -162,7 +162,9 @@ function ControlMeta:GetPropertySource( Name )
 	SourceInstance.Element = self
 
 	self.PropertySources[ Name ] = SourceInstance
-	self:AddPropertyChangeListener( Name, SourceInstance )
+	self:AddPropertyChangeListener( Name, function( self, Value )
+		return SourceInstance( Value )
+	end )
 
 	return SourceInstance
 end

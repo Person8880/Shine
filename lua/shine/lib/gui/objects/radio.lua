@@ -91,7 +91,7 @@ function Radio:AddOption( Option )
 		CheckBox:SetMargin( self.CheckBoxMargin )
 	end
 
-	CheckBox:AddPropertyChangeListener( "Checked", function( IsChecked )
+	CheckBox:AddPropertyChangeListener( "Checked", function( CheckBox, IsChecked )
 		if not self.MultipleChoice then
 			if not IsChecked then return end
 

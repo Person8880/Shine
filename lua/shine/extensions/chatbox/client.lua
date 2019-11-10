@@ -740,11 +740,11 @@ do
 			end,
 			Setup = function( self, Object, Data )
 				if IsType( Data.ConfigValue, "string" ) then
-					Object:AddPropertyChangeListener( "SelectedOption", function( Option )
+					Object:AddPropertyChangeListener( "SelectedOption", function( Object, Option )
 						UpdateConfigValue( self, Data.ConfigValue, Option.Value )
 					end )
 				else
-					Object:AddPropertyChangeListener( "SelectedOption", function( Option )
+					Object:AddPropertyChangeListener( "SelectedOption", function( Object, Option )
 						Data.ConfigValue( self, Option.Value )
 					end )
 				end

@@ -125,7 +125,7 @@ function Slider:Initialise()
 		end
 
 		local Listener
-		Listener = self:AddPropertyChangeListener( "Enabled", function( Enabled )
+		Listener = self:AddPropertyChangeListener( "Enabled", function( Slider, Enabled )
 			if not Enabled then
 				TextEntry.OnEscape()
 			end
