@@ -1421,7 +1421,8 @@ EnableCommand:AddParam{ Type = "boolean", Optional = true,
 	Default = function() return not Plugin.Enabled end }
 
 Shine.Hook.Add( "OnMapLoad", "NotifyAboutChatBox", function()
-	Shine.AddStartupMessage( "Shine has a chatbox that you can enable/disable by entering \"sh_chatbox\" into the console." )
+	Shine.AddStartupMessage( "Shine has a chatbox that you can enable/disable by entering \"sh_chatbox\" into the "..
+		"console or using the config menu." )
 end )
 
 return Plugin

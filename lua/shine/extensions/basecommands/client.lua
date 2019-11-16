@@ -92,8 +92,6 @@ function Plugin:ReceiveChangeTeam( Data )
 end
 
 function Plugin:SetupClientConfig()
-	Shine.AddStartupMessage( "You can choose to enable/disable local all talk for yourself by entering sh_alltalklocal_cl true/false." )
-
 	if self.Config.DisableLocalAllTalk then
 		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = false }, true )
 	end

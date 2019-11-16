@@ -49,9 +49,6 @@ function Plugin:Initialise()
 end
 
 function Plugin:SetupClientConfig()
-	Shine.AddStartupMessage( StringFormat( "You can choose whether to automatically open the map vote"
-		.." by entering sh_mapvote_onvote <%s> into the console.", TableConcat( self.VoteAction, "|" ) ) )
-
 	self:BindCommand( "sh_mapvote_onvote", function( Choice )
 		if not Choice then
 			local Explanations = {
