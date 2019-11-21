@@ -49,9 +49,6 @@ function Plugin:Initialise()
 end
 
 function Plugin:SetupClientConfig()
-	Shine.AddStartupMessage( StringFormat( "You can choose whether to automatically open the map vote"
-		.." by entering sh_mapvote_onvote <%s> into the console.", TableConcat( self.VoteAction, "|" ) ) )
-
 	self:BindCommand( "sh_mapvote_onvote", function( Choice )
 		if not Choice then
 			local Explanations = {
@@ -368,8 +365,13 @@ local function GetMapVoteText( self, NextMap, VoteButton, Maps, InitialText, Vot
 
 	if VoteButtonCandidates then
 		-- Some menu binds are conflicting with the vote menu button.
+		local Binds = {}
+		for i = 1, #VoteButtonCandidates do
+			local Binding = VoteButtonCandidates[ i ]
+			Binds[ i ] = StringFormat( "%s (%s)", Binding.Button, Binding.Bind or "UNKNOWN BIND" )
+		end
 		VoteMessage = StringFormat( "%s\n%s", VoteMessage, self:GetInterpolatedPhrase( "VOTE_BUTTON_CONFLICT", {
-			Buttons = TableConcat( VoteButtonCandidates, ", " )
+			Buttons = "\n* "..TableConcat( Binds, "\n* " )
 		} ) )
 	end
 

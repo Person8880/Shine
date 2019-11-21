@@ -92,8 +92,6 @@ function Plugin:ReceiveChangeTeam( Data )
 end
 
 function Plugin:SetupClientConfig()
-	Shine.AddStartupMessage( "You can choose to enable/disable local all talk for yourself by entering sh_alltalklocal_cl true/false." )
-
 	if self.Config.DisableLocalAllTalk then
 		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = false }, true )
 	end
@@ -603,7 +601,7 @@ function Plugin:UpdateAllTalk( State )
 				-- of the screen, and the inventory position doesn't account for ammo text).
 				self.SetupForVisibleInventory = true
 				self:SetIsVisible( true )
-				self:SetScaledPos( self.x, 0.05 )
+				self:SetScaledPos( self.x, 0.075 )
 			elseif not IsAlwaysVisible and self.SetupForVisibleInventory then
 				-- Inventory is only visible when in use, so we'll hide the text.
 				self.SetupForVisibleInventory = false

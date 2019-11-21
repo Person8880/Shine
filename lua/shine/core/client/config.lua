@@ -77,7 +77,7 @@ local Options = {
 			"Web page display has been", "disabled", "enabled"
 		},
 		MessageState = false,
-		Message = "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console."
+		Message = "Shine is set to display web pages from plugins. If you wish to globally disable web page display, then enter \"sh_disableweb 1\" into the console or use the config menu."
 	},
 	{
 		Type = "Boolean",
@@ -89,7 +89,7 @@ local Options = {
 			"Web page display set to", "Steam browser", "in game window"
 		},
 		MessageState = true,
-		Message = "Shine is set to display web pages in the Steam overlay. If you wish to show them using the in game browser, then enter \"sh_viewwebinsteam 0\" into the console."
+		Message = "Shine is set to display web pages in the Steam overlay. If you wish to show them using the in game browser, then enter \"sh_viewwebinsteam 0\" into the console or use the config menu."
 	},
 	{
 		Type = "Boolean",
@@ -101,7 +101,7 @@ local Options = {
 			"Error reporting has been", "enabled", "disabled"
 		},
 		MessageState = true,
-		Message = "Shine is set to report any errors it causes on your client when you disconnect. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console."
+		Message = "Shine is set to report any errors it causes on your client. If you do not wish it to do so, then enter \"sh_errorreport 0\" into the console or use the config menu."
 	},
 	{
 		Type = "Boolean",
@@ -111,9 +111,7 @@ local Options = {
 		Data = {
 			"sh_animateui", "AnimateUI",
 			"UI animations have been", "enabled", "disabled"
-		},
-		AlwaysShowMessage = true,
-		Message = "You can enable/disable UI animations by entering \"sh_animateui\" into the console."
+		}
 	}
 }
 Shine.ClientSettings = Options
@@ -130,6 +128,9 @@ do
 		end
 	end
 end
+
+Shine.AddStartupMessage( "You can configure various client-side options using the config menu. To access it, either "..
+	"use the sh_clientconfigmenu command in the console, or use the button in the vote menu." )
 
 for i = 1, #Options do
 	local Option = Options[ i ]

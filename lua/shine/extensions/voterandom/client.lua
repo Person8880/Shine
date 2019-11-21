@@ -66,8 +66,6 @@ local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
 local FRIEND_GROUP_INVITE_HINT_NAME = "ShuffleFriendGroupInviteHint"
 
 function Plugin:SetupClientConfig()
-	Shine.AddStartupMessage( "You can choose a preferred team for shuffling by entering sh_shuffle_teampref <team> into the console." )
-
 	local function SendTeamPreference( PreferredTeam )
 		self:SendNetworkMessage( "TeamPreference", { PreferredTeam = PreferredTeam }, true )
 	end

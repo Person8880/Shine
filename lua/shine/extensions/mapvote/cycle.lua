@@ -260,6 +260,13 @@ function Plugin:GetNextMap()
 	return NextMap
 end
 
+local function LogMissingNextMapError( self )
+	self.Logger:Error(
+		"Unable to find a valid map to advance to! Verify the map cycle and IgnoreAutoCycle "..
+		"configuration do not exclude every possible map!"
+	)
+end
+
 function Plugin:SetupEmptyCheckTimer()
 	if not self.Config.CycleOnEmpty then return end
 
@@ -276,10 +283,7 @@ function Plugin:SetupEmptyCheckTimer()
 
 			local NextMap = self:GetNextMap()
 			if not NextMap then
-				self.Logger:Error(
-					"Unable to find a valid map to advance to! Verify the map cycle and IgnoreAutoCycle "..
-					"configuration do not exclude every possible map!"
-				)
+				LogMissingNextMapError( self )
 			else
 				MapCycle_ChangeMap( NextMap )
 			end
@@ -392,7 +396,13 @@ function Plugin:ShouldCycleMap()
 end
 
 function Plugin:OnCycleMap()
-	MapCycle_ChangeMap( self:GetNextMap() )
+	local NextMap = self:GetNextMap()
+	if not NextMap then
+		LogMissingNextMapError( self )
+		return
+	end
+
+	MapCycle_ChangeMap( NextMap )
 
 	return false
 end
