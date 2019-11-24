@@ -7,8 +7,10 @@ local Plugin = ...
 Plugin.VoteButtonName = "Map Vote"
 
 local Shine = Shine
+local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local IsType = Shine.IsType
 local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
 local StringFormat = string.format
@@ -156,7 +158,9 @@ function Plugin:ReceiveRoundLeftNotify( Data )
 end
 
 function Plugin:ReceiveMapCycling( Data )
-	self:TimeLeftNotify( self:GetInterpolatedPhrase( "CYCLING_NOTIFY", Data ) )
+	self:TimeLeftNotify(
+		self:GetInterpolatedPhrase( "CYCLING_NOTIFY", self:PreProcessTranslatedMessage( "MapCycling", Data ) )
+	)
 end
 
 function Plugin:ReceiveTimeLeftCommand( Data )
@@ -175,7 +179,12 @@ function Plugin:ReceiveTimeLeftCommand( Data )
 end
 
 function Plugin:ReceiveNextMapCommand( Data )
-	self:AddChatLine( 0, 0, 0, "", 255, 255, 255, self:GetInterpolatedPhrase( "NEXT_MAP_SET_TO", Data ) )
+	self:AddChatLine(
+		0, 0, 0, "", 255, 255, 255,
+		self:GetInterpolatedPhrase(
+			"NEXT_MAP_SET_TO", self:PreProcessTranslatedMessage( "NextMapCommand", Data )
+		)
+	)
 end
 
 function Plugin:ReceiveTeamSwitchFail( Data )
@@ -456,8 +465,8 @@ do
 	local StringGSub = string.gsub
 
 	function Plugin:GetNiceMapName( MapName )
-		local NiceName = Shine.Hook.Call( "OnGetNiceMapName", MapName )
-		if NiceName ~= nil then
+		local NiceName = Hook.Call( "OnGetNiceMapName", MapName )
+		if IsType( NiceName, "string" ) then
 			-- Allow gamemodes to format their map names appropriately.
 			return NiceName
 		end
@@ -480,6 +489,13 @@ do
 			end
 			return KnownGamemodeWords[ Word ] or StringCapitalise( Word )
 		end ):Concat( " " )
+	end
+
+	function Plugin:PreProcessTranslatedMessage( Name, Data )
+		if Data.MapName then
+			Data.MapName = self:GetNiceMapName( Data.MapName )
+		end
+		return Data
 	end
 end
 
