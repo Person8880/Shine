@@ -15,6 +15,8 @@ local Plugin = Shine.Plugin( ... )
 Plugin.MAX_CHUNKS_PER_MESSAGE = 6
 
 function Plugin:SetupDataTable()
+	self:AddDTVar( "boolean", "DisplayChatTagsInTeamChat", false )
+
 	self:AddNetworkMessage( "ChatTag", {
 		Image = "string (255)",
 		Text = "string (255)",

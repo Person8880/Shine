@@ -707,7 +707,7 @@ function Plugin:OnChatMessageReceived( Data )
 	local Contents = {}
 
 	local ChatTag = self.ChatTags[ Data.SteamID ]
-	if ChatTag then
+	if ChatTag and ( not Data.TeamOnly or self.dt.DisplayChatTagsInTeamChat ) then
 		if ChatTag.Image then
 			Contents[ #Contents + 1 ] = ImageElement( {
 				Texture = ChatTag.Image,

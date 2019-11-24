@@ -30,6 +30,11 @@ Plugin.CheckConfigTypes = true
 
 Plugin.Version = "1.0"
 
+Plugin.DefaultConfig = {
+	-- Whether to display chat tags in team chat, as well as global chat.
+	DisplayChatTagsInTeamChat = false
+}
+
 Plugin.DefaultState = true
 
 local DEFAULT_GROUP_KEY = setmetatable( {}, {
@@ -50,6 +55,7 @@ function Plugin:Initialise()
 
 	self.ChatTagIndex = 0
 	self.NextMessageID = 0
+	self.dt.DisplayChatTagsInTeamChat = self.Config.DisplayChatTagsInTeamChat
 
 	ChatAPI:SetProvider( self )
 
