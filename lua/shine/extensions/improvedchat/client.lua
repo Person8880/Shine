@@ -256,7 +256,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 			if i <= MaxVisibleMessages then
 				-- Avoid too many messages filling the screen.
 				if not Line.FadingOut then
-					Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ), FadingEase )
+					Line:FadeOut( 0.25, MakeFadeOutCallback( self, Line, PaddingAmount ), FadingEase )
 				end
 			else
 				break
@@ -274,7 +274,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 			if i <= MaxVisibleMessages then
 				-- Avoid too many messages filling the screen.
 				if not Line.FadingOut then
-					Line:FadeOut( 1, MakeFadeOutCallback( self, Line, PaddingAmount ), FadingEase )
+					Line:FadeOut( 0.25, MakeFadeOutCallback( self, Line, PaddingAmount ), FadingEase )
 				end
 			end
 
