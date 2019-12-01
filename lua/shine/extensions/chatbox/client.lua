@@ -300,7 +300,9 @@ function Plugin:RefreshFontScale( Font, Scale )
 		Messages[ i ]:SetFontScale( Font, Scale )
 	end
 
-	self.ChatBox:InvalidateLayout( true )
+	if SGUI.IsValid( self.ChatBox ) then
+		self.ChatBox:InvalidateLayout( true )
+	end
 end
 
 --[[
