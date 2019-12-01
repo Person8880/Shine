@@ -13,8 +13,10 @@ local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
+local Ceil = math.ceil
 local IsType = Shine.IsType
 local OSDate = os.date
+local RoundTo = math.RoundTo
 local StringFormat = string.format
 local StringFind = string.find
 local TableRemove = table.remove
@@ -71,7 +73,7 @@ local function ComputeChatOffset( GUIChatPos, DesiredOffset )
 end
 
 local function GetPaddingAmount()
-	return Units.GUIScaled( 8 ):GetValue()
+	return RoundTo( Ceil( Units.GUIScaled( 8 ):GetValue() ), 2 )
 end
 
 local function UpdateUpwardsMessagePositions( self, PaddingAmount )
