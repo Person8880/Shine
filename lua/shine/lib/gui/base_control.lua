@@ -1280,6 +1280,10 @@ do
 			EasingHandlers.Init( self, Element, EasingData )
 		end
 
+		if Delay <= 0 then
+			EasingHandlers.Setter( self, Element, Start, EasingData )
+		end
+
 		return EasingData
 	end
 end
