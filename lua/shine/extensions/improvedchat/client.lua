@@ -471,6 +471,8 @@ end
 
 do
 	local ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, 75 )
+	-- Commander chat needs to be higher up due to possible control groups.
+	local ABOVE_MINIMAP_COMMANDER_CHAT_OFFSET = Vector2( 0, -5 )
 	local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, 50 )
 
 	local function ShouldMoveChat( self )
@@ -478,22 +480,10 @@ do
 			and self.Config.MessageDisplayType ~= self.MessageDisplayType.DOWNWARDS
 	end
 
-	local function MoveChatAboveMinimap( self )
+	local function SetChatOffsetIfApplicable( self, Offset )
 		if not ShouldMoveChat( self ) then return end
 
-		self:SetChatOffset( ABOVE_MINIMAP_CHAT_OFFSET )
-	end
-
-	local function MoveChatAboveAlienHealth( self )
-		if not ShouldMoveChat( self ) then return end
-
-		self:SetChatOffset( ABOVE_ALIEN_HEALTH_OFFSET )
-	end
-
-	local function MoveChatDownFromAboveMinimap( self )
-		if not ShouldMoveChat( self ) then return end
-
-		self:SetChatOffset( DEFAULT_CHAT_OFFSET )
+		self:SetChatOffset( Offset )
 	end
 
 	local function ShouldMoveChatAboveMinimap( Player )
@@ -506,14 +496,18 @@ do
 
 	function Plugin:UpdateChatOffset( Player )
 		if ShouldMoveChatAboveMinimap( Player ) then
-			return MoveChatAboveMinimap( self )
+			local Offset = ABOVE_MINIMAP_CHAT_OFFSET
+			if Player:isa( "Commander" ) then
+				Offset = ABOVE_MINIMAP_COMMANDER_CHAT_OFFSET
+			end
+			return SetChatOffsetIfApplicable( self, Offset )
 		end
 
 		if ShouldMoveChatAboveAlienHealth( Player ) then
-			return MoveChatAboveAlienHealth( self )
+			return SetChatOffsetIfApplicable( self, ABOVE_ALIEN_HEALTH_OFFSET )
 		end
 
-		return MoveChatDownFromAboveMinimap( self )
+		return SetChatOffsetIfApplicable( self, DEFAULT_CHAT_OFFSET )
 	end
 
 	-- If the player's chat is using its default position, move it when they change to a class whose HUD may obstruct
