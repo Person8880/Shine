@@ -145,6 +145,11 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		return OutExpo( Progress, 0, 1, 1 )
 	end
 
+	local InExpo = Easing.inExpo
+	local function FadingInEase( Progress )
+		return InExpo( Progress, 0, 1, 1 )
+	end
+
 	-- Move more smoothly to avoid sudden jumps.
 	local OutSine = Easing.outSine
 	local function MovementEase( Progress )
@@ -317,7 +322,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		local IsUpward = Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.UPWARDS
 		local ShouldAnimate = IsAnimationEnabled( self )
 		if ShouldAnimate then
-			ChatLine:FadeIn( AnimDuration, FadingEase )
+			ChatLine:FadeIn( AnimDuration, FadingInEase )
 		else
 			ChatLine:MakeVisible()
 		end
