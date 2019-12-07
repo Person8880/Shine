@@ -880,6 +880,10 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
+	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
+end )
+
+Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
 	local Listener = {
 		OnMouseMove = function( _, LMB )
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
@@ -917,8 +921,6 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	MouseTracker_ListenToMovement( Listener )
 	MouseTracker_ListenToButtons( Listener )
 	MouseTracker_ListenToWheel( Listener )
-
-	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 end )
 
 include( "lua/shine/lib/gui/base_control.lua" )
