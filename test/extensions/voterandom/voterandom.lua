@@ -972,6 +972,109 @@ do
 	UnitTest:ResetState()
 end
 
+UnitTest:Test( "BuildEnforcementPolicy - Returns NoOpEnforcement if no policies are specified", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {}
+	} )
+
+	Assert.Nil( "Should have no policies to enforce", Enforcement.Policies )
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns NoOpEnforcement if EnforcementDurationType == 'NONE'", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 0,
+				MaxPlayers = 0
+			}
+		},
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.NONE
+	} )
+
+	Assert.Nil( "Should have no policies to enforce", Enforcement.Policies )
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns NoOpEnforcement if duration is too small", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 0,
+				MaxPlayers = 0
+			}
+		},
+		DurationInMinutes = 0,
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.TIME
+	} )
+
+	Assert.Nil( "Should have no policies to enforce", Enforcement.Policies )
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns DurationBasedEnforcement if duration is large enough", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 10,
+				MaxPlayers = 15
+			}
+		},
+		DurationInMinutes = 10,
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.TIME
+	} )
+
+	Assert.DeepEquals( "Should have policies to enforce", {
+		[ VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS ] = {
+			Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+			MinPlayers = 10,
+			MaxPlayers = 15
+		}
+	}, Enforcement.Policies )
+
+	Assert.False(
+		"Should not enforce policy that is not specified",
+		Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.ASSIGN_PLAYERS, 10 )
+	)
+	Assert.False(
+		"Should not enforce policy when player count is too low",
+		Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS, 9 )
+	)
+	Assert.False(
+		"Should not enforce policy when player count is too high",
+		Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS, 16 )
+	)
+	for i = 10, 15 do
+		Assert.True(
+			"Should enforce policy when player count ("..i..") is within bounds",
+			Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS, i )
+		)
+	end
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns PeriodBasedEnforcement if configured to do so", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 0,
+				MaxPlayers = 0
+			}
+		},
+		DurationInMinutes = 10,
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.PERIOD
+	} )
+
+	Assert.DeepEquals( "Should have policies to enforce", {
+		[ VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS ] = {
+			Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+			MinPlayers = 0,
+			MaxPlayers = 0
+		}
+	}, Enforcement.Policies )
+	Assert.NotNil( "Should return period based enforcement", Enforcement.InitialStage )
+end )
+
 ----- Integration tests for team optimisation -----
 
 -- Turn off happiness optimisation for integration tests.

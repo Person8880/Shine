@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.7"
+Plugin.Version = "2.8"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -139,14 +139,38 @@ Plugin.DefaultConfig = {
 		PreGame = {
 			ShufflePolicy = Plugin.ShufflePolicy.INSTANT,
 			EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
-			EnforcementPolicy = { Plugin.EnforcementPolicyType.BLOCK_TEAMS, Plugin.EnforcementPolicyType.ASSIGN_PLAYERS },
+			EnforcementPolicy = {
+				{
+					Type = Plugin.EnforcementPolicyType.BLOCK_TEAMS,
+					-- If there are less than this many players, this policy will not be applied.
+					MinPlayers = 0,
+					-- If there are more than this many players (and this is not 0), this policy will not be applied.
+					MaxPlayers = 0
+				},
+				{
+					Type = Plugin.EnforcementPolicyType.ASSIGN_PLAYERS,
+					MinPlayers = 0,
+					MaxPlayers = 0
+				}
+			},
 			DurationInMinutes = 15
 		},
 		-- What to do when a vote passes during an active game.
 		InGame = {
 			ShufflePolicy = Plugin.ShufflePolicy.INSTANT,
 			EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
-			EnforcementPolicy = { Plugin.EnforcementPolicyType.BLOCK_TEAMS, Plugin.EnforcementPolicyType.ASSIGN_PLAYERS },
+			EnforcementPolicy = {
+				{
+					Type = Plugin.EnforcementPolicyType.BLOCK_TEAMS,
+					MinPlayers = 0,
+					MaxPlayers = 0
+				},
+				{
+					Type = Plugin.EnforcementPolicyType.ASSIGN_PLAYERS,
+					MinPlayers = 0,
+					MaxPlayers = 0
+				}
+			},
 			DurationInMinutes = 15
 		}
 	}
@@ -214,6 +238,31 @@ Plugin.ConfigMigrationSteps = {
 		Apply = Shine.Migrator()
 			:AddField( { "TeamPreferences", "FriendGroupInviteDurationInSeconds" }, 15 )
 			:AddField( { "TeamPreferences", "FriendGroupInviteCooldownInSeconds" }, 15 )
+	},
+	{
+		VersionTo = "2.8",
+		Apply = Shine.Migrator()
+			:ApplyAction( function( Config )
+				local function ConvertPolicy( Policy )
+					return {
+						Type = Policy,
+						MinPlayers = 0,
+						MaxPlayers = 0
+					}
+				end
+				local function ConvertPolicyList( List )
+					if not IsType( List, "table" ) then return List end
+
+					return Shine.Stream( List ):Distinct():Map( ConvertPolicy ):AsTable()
+				end
+
+				Config.VotePassActions.PreGame.EnforcementPolicy = ConvertPolicyList(
+					Config.VotePassActions.PreGame.EnforcementPolicy
+				)
+				Config.VotePassActions.InGame.EnforcementPolicy = ConvertPolicyList(
+					Config.VotePassActions.InGame.EnforcementPolicy
+				)
+			end )
 	}
 }
 
@@ -239,10 +288,17 @@ do
 		"VotePassActions.PreGame.EnforcementDurationType",
 		"VotePassActions.InGame.EnforcementDurationType"
 	}, Validator.InEnum( Plugin.EnforcementDurationType, Plugin.EnforcementDurationType.DURATION ) )
-	Validator:AddFieldRules( {
-		"VotePassActions.PreGame.EnforcementPolicy",
-		"VotePassActions.InGame.EnforcementPolicy"
-	}, Validator.Each( Validator.InEnum( Plugin.EnforcementPolicyType ) ) )
+	Validator:AddFieldRules(
+		{
+			"VotePassActions.PreGame.EnforcementPolicy",
+			"VotePassActions.InGame.EnforcementPolicy"
+		},
+		Validator.AllValuesSatisfy(
+			Validator.ValidateField( "Type", Validator.InEnum( Plugin.EnforcementPolicyType ) ),
+			Validator.ValidateField( "MinPlayers", Validator.IsType( "number", 0 ) ),
+			Validator.ValidateField( "MaxPlayers", Validator.IsType( "number", 0 ) )
+		)
+	)
 	Validator:AddFieldRules( {
 		"VotePassActions.PreGame.DurationInMinutes",
 		"VotePassActions.InGame.DurationInMinutes"
@@ -257,7 +313,14 @@ end
 
 local EnforcementPolicy = Shine.TypeDef()
 function EnforcementPolicy:Init( Policies )
-	self.Policies = table.AsSet( Policies )
+	local PoliciesByType = {}
+	for i = 1, #Policies do
+		local Policy = Policies[ i ]
+		PoliciesByType[ Policy.Type ] = Policy
+	end
+
+	self.Policies = PoliciesByType
+
 	return self
 end
 
@@ -273,6 +336,15 @@ function EnforcementPolicy:Announce( Plugin )
 
 end
 
+function EnforcementPolicy:IsPolicyEnforced( Policy, PlayerCount )
+	local Options = self.Policies[ Policy ]
+	if not Options then
+		return false
+	end
+
+	return PlayerCount >= Options.MinPlayers and ( Options.MaxPlayers == 0 or PlayerCount <= Options.MaxPlayers )
+end
+
 function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local Client = GetOwner( Player )
 	if not Client then return false end
@@ -280,6 +352,7 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
 	if Immune then return end
 
+	local PlayerCount = Shine.GetHumanPlayerCount()
 	local Team = Player:GetTeamNumber()
 	local OnPlayingTeam = Shine.IsPlayingTeam( Team )
 
@@ -289,7 +362,7 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local ImbalancedTeams = Abs( NumTeam1 - NumTeam2 ) >= 2
 
 	-- Do not allow cheating the system.
-	if OnPlayingTeam and self.Policies[ Plugin.EnforcementPolicyType.BLOCK_TEAMS ] then
+	if OnPlayingTeam and self:IsPolicyEnforced( Plugin.EnforcementPolicyType.BLOCK_TEAMS, PlayerCount ) then
 		-- Allow players to switch if teams are imbalanced.
 		if ImbalancedTeams then
 			local MorePlayersTeam = NumTeam1 > NumTeam2 and 1 or 2
@@ -307,7 +380,8 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 		return false
 	end
 
-	if not self.Policies[ Plugin.EnforcementPolicyType.ASSIGN_PLAYERS ] or ( NumTeam1 == 0 and NumTeam2 == 0 ) then
+	if ( NumTeam1 == 0 and NumTeam2 == 0 )
+	or not self:IsPolicyEnforced( Plugin.EnforcementPolicyType.ASSIGN_PLAYERS, PlayerCount ) then
 		-- Skip if not auto-assigning or if both playing teams are empty.
 		return
 	end
