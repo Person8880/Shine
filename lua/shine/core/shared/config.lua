@@ -245,6 +245,7 @@ do
 	local TableBuild = table.Build
 	local TableConcat = table.concat
 	local TableRemove = table.remove
+	local TableShallowCopy = table.ShallowCopy
 	local tonumber = tonumber
 	local unpack = unpack
 
@@ -266,7 +267,7 @@ do
 				return Rounder( tonumber( Value ) )
 			end,
 			Message = function()
-				return "%s must be an integer"
+				return "%s must have an integer value"
 			end
 		}
 	end
@@ -278,7 +279,7 @@ do
 			end,
 			Fix = Validator.Constant( MinValue ),
 			Message = function()
-				return StringFormat( "%%s must be at least %s", MinValue )
+				return StringFormat( "%%s must have a value of at least %s", MinValue )
 			end
 		}
 	end
@@ -291,7 +292,7 @@ do
 				return Clamp( Value, Min, Max )
 			end,
 			Message = function()
-				return StringFormat( "%%s must be between %s and %s", Min, Max )
+				return StringFormat( "%%s must have a value between %s and %s", Min, Max )
 			end
 		}
 	end
@@ -307,7 +308,15 @@ do
 		return {
 			Check = function( Value )
 				if not IsType( Value, "table" ) then return true end
-				return Predicate( Value[ Name ] )
+
+				local NeedsFix, CanonicalValue = Predicate( Value[ Name ] )
+				if not NeedsFix and CanonicalValue ~= nil then
+					local Copy = TableShallowCopy( Value )
+					Copy[ Name ] = CanonicalValue
+					CanonicalValue = Copy
+				end
+
+				return NeedsFix, CanonicalValue
 			end,
 			Fix = function( Value )
 				if not IsType( Value, "table" ) then
@@ -325,7 +334,7 @@ do
 				return Value
 			end,
 			Message = function()
-				return StringFormat( "Field %s on %s", Name, MessageFunc() )
+				return StringFormat( "%s on field %s", MessageFunc(), Name )
 			end
 		}
 	end
@@ -340,7 +349,9 @@ do
 			end,
 			Fix = Validator.Constant( DefaultValue ),
 			Message = function()
-				return StringFormat( "%%s must be one of [%s]", Shine.Stream( PossibleValues ):Concat( ", " ) )
+				return StringFormat(
+					"%%s must equal one of [\"%s\"]", Shine.Stream( PossibleValues ):Concat( "\", \"" )
+				)
 			end
 		}
 	end
@@ -384,6 +395,16 @@ do
 		}
 	end
 
+	function Validator.AllValuesSatisfy( ... )
+		local Rules = { ... }
+
+		for i = 1, #Rules do
+			Rules[ i ] = Validator.Each( Rules[ i ] )
+		end
+
+		return unpack( Rules )
+	end
+
 	function Validator.IsType( Type, DefaultValue )
 		return {
 			Check = function( Value )
@@ -391,7 +412,7 @@ do
 			end,
 			Fix = Validator.Constant( DefaultValue ),
 			Message = function()
-				return StringFormat( "%%s must be a %s", Type )
+				return StringFormat( "%%s must have type %s", Type )
 			end
 		}
 	end
