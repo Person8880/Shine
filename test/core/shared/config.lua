@@ -38,7 +38,8 @@ UnitTest:Test( "Validator", function( Assert )
 
 	Validator:AddFieldRule( "ListOfTables", Validator.AllValuesSatisfy(
 		Validator.ValidateField( "ShouldBeNumber", Validator.IsType( "number", 1 ) ),
-		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 0 ) ),
+		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 5 ) ),
+		Validator.ValidateField( "CanBeNilOrNumber", Validator.IfType( "number", Validator.Min( 5 ) ) ),
 		Validator.ValidateField( "Enum", Validator.InEnum( Enum, Enum.A ) )
 	) )
 
@@ -95,7 +96,7 @@ UnitTest:Test( "Validator", function( Assert )
 		ListOfTables = {
 			-- Should correct each entry in the list.
 			{ ShouldBeNumber = 0, Enum = "B" },
-			{ ShouldBeNumber = 1, CanBeNilOrNumber = 0, Enum = "A" }
+			{ ShouldBeNumber = 1, CanBeNilOrNumber = 5, Enum = "A" }
 		},
 		TypeCheckedChild = {
 			-- Should ensure all fields have the same type as the default config.
