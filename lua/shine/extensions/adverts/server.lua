@@ -21,7 +21,7 @@ local TableShallowMerge = table.ShallowMerge
 local tonumber = tonumber
 
 local Plugin = Shine.Plugin( ... )
-Plugin.Version = "2.2"
+Plugin.Version = "2.3"
 Plugin.PrintName = "Adverts"
 
 Plugin.HasConfig = true
@@ -173,6 +173,15 @@ function Plugin:Initialise()
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:GetPlayerCount()
+	-- This uses the GameIDs lookup, which is updated in ClientConnect/ClientDisconnect before plugin hooks run.
+	return Shine.GetHumanPlayerCount()
+end
+
+function Plugin:GetMaxPlayerCount()
+	return Server.GetMaxPlayers() + Server.GetMaxSpectators()
 end
 
 function Plugin:ParseAndStartAdverts()
@@ -333,11 +342,23 @@ function Plugin:ParseAdverts()
 					end
 				end
 			end
-		end
 
-		if Advert.DelayInSeconds ~= nil then
-			if not IsType( Advert.DelayInSeconds, "number" ) or Advert.DelayInSeconds < 0 then
-				self:Print( "%s[ %d ] has an invalid delay. Must be a non-negative number.",
+			if Advert.DelayInSeconds ~= nil and (
+				not IsType( Advert.DelayInSeconds, "number" ) or Advert.DelayInSeconds < 0
+			) then
+				self:Print( "%s[ %d ] has an invalid delay. Must be a number >= 0.",
+					true, AdvertList, Index )
+				return false
+			end
+
+			if Advert.MinPlayers ~= nil and not IsType( Advert.MinPlayers, "number" ) then
+				self:Print( "%s[ %d ] has an invalid minimum player count. Must be a number.",
+					true, AdvertList, Index )
+				return false
+			end
+
+			if Advert.MaxPlayers ~= nil and ( not IsType( Advert.MaxPlayers, "number" ) or Advert.MaxPlayers <= 0 ) then
+				self:Print( "%s[ %d ] has an invalid maximum player count. Must be a number > 0.",
 					true, AdvertList, Index )
 				return false
 			end
@@ -386,6 +407,8 @@ function Plugin:ParseAdverts()
 	-- Collect streams that are triggered, and those that need game state filtering.
 	local TriggeredAdvertStreams = Shine.Multimap()
 	local GameStateFilteredStreams = {}
+	local PlayerCountFilteredStreams = {}
+
 	local function AddTriggeredStream( Triggers, Stream, Source, TriggerConfig, Action )
 		if not Triggers then return end
 		for i = 1, #Triggers do
@@ -413,8 +436,41 @@ function Plugin:ParseAdverts()
 			if #Adverts > 0 then
 				local NumWithDelay = Shine.Stream( Adverts ):Filter( AdvertHasNonZeroDelay ):GetCount()
 				if NumWithDelay == 0 then
-					self:Print( "Game state %s in %s has no messages with a delay, which will cause an infinite loop. This stream has been disabled.",
-						true, kGameState[ i ], AdvertList )
+					self:Print(
+						"Game state %s in %s has no messages with a delay, which will cause an infinite loop. "..
+						"This stream has been disabled.",
+						true,
+						kGameState[ i ],
+						AdvertList
+					)
+					return true
+				end
+			end
+		end
+
+		return false
+	end
+
+	-- Checks the given advert list against every possible player count to see if any of them result in a list with
+	-- no delays.
+	local function HasPlayerCountRestrictionsWithNoDelay( StreamConfig, AdvertsList )
+		for i = 0, self:GetMaxPlayerCount() do
+			if
+				( not StreamConfig.MinPlayers or StreamConfig.MinPlayers <= i ) and
+				( not StreamConfig.MaxPlayers or StreamConfig.MaxPlayers >= i )
+			then
+				local NumWithDelay = Shine.Stream.Of( AdvertsList ):Filter( function( Advert )
+					return AdvertStream.IsValidForPlayerCount( Advert, i ) and AdvertHasNonZeroDelay( Advert )
+				end ):GetCount()
+
+				if NumWithDelay == 0 then
+					self:Print(
+						"When player count is %d, %s has no messages with a delay which will cause an infinite loop. "..
+						"This stream has been disabled.",
+						true,
+						i,
+						AdvertList
+					)
 					return true
 				end
 			end
@@ -452,6 +508,7 @@ function Plugin:ParseAdverts()
 			Validator:AddFieldRule( Field, Validator.IsType( "table", {} ) )
 			Validator:AddFieldRule( Field, Validator.Each( Validator.InEnum( Plugin.AdvertTrigger ) ) )
 		end
+
 		if StreamConfig.StoppedBy ~= nil then
 			if IsType( StreamConfig.StoppedBy, "string" ) then
 				StreamConfig.StoppedBy = { StreamConfig.StoppedBy }
@@ -460,13 +517,28 @@ function Plugin:ParseAdverts()
 			Validator:AddFieldRule( Field, Validator.IsType( "table", {} ) )
 			Validator:AddFieldRule( Field, Validator.Each( Validator.InEnum( Plugin.AdvertTrigger ) ) )
 		end
+
 		if StreamConfig.DefaultTemplate ~= nil then
 			Validator:AddFieldRule( {
 				"DefaultTemplate", AdvertListField..".DefaultTemplate"
 			}, Validator.IsType( "string", nil ) )
 		end
 
+		if StreamConfig.MinPlayers ~= nil then
+			Validator:AddFieldRule( {
+				"MinPlayers", AdvertListField..".MinPlayers"
+			}, Validator.IsType( "number", nil ) )
+		end
+
+		if StreamConfig.MaxPlayers ~= nil then
+			local Field = { "MaxPlayers", AdvertListField..".MaxPlayers" }
+			Validator:AddFieldRule( Field, Validator.IsType( "number", nil ) )
+			Validator:AddFieldRule( Field, Validator.Min( 1 ) )
+		end
+
 		Validator:Validate( StreamConfig )
+
+		local RequiresPlayerCountFiltering = StreamConfig.MinPlayers ~= nil or StreamConfig.MaxPlayers ~= nil
 
 		AdvertList = AdvertListField..".Messages"
 
@@ -510,6 +582,10 @@ function Plugin:ParseAdverts()
 					HasNonZeroDelay = true
 				end
 
+				if Advert.MinPlayers or Advert.MaxPlayers then
+					RequiresPlayerCountFiltering = true
+				end
+
 				return IsValidForMap( Advert )
 			end )
 			:AsTable()
@@ -523,6 +599,8 @@ function Plugin:ParseAdverts()
 				-- Otherwise ensure that there is at least one message with a delay.
 				self:Print( "None of the messages in %s have a delay, which will cause an infinite loop. This stream has been disabled.",
 					true, AdvertList )
+			elseif RequiresPlayerCountFiltering then
+				HasNonZeroDelay = not HasPlayerCountRestrictionsWithNoDelay( StreamConfig, AdvertsList )
 			end
 		end
 
@@ -538,11 +616,17 @@ function Plugin:ParseAdverts()
 				RandomiseOrder = StreamConfig.RandomiseOrder,
 				StartingTriggers = StartingTriggers and TableAsSet( StartingTriggers ),
 				StoppingTriggers = StoppingTriggers and TableAsSet( StoppingTriggers ),
-				Loop = WillLoop
+				Loop = WillLoop,
+				MinPlayers = StreamConfig.MinPlayers,
+				MaxPlayers = StreamConfig.MaxPlayers
 			} )
 
 			if RequiresGameStateFiltering then
 				GameStateFilteredStreams[ #GameStateFilteredStreams + 1 ] = Stream
+			end
+
+			if RequiresPlayerCountFiltering then
+				PlayerCountFilteredStreams[ #PlayerCountFilteredStreams + 1 ] = Stream
 			end
 
 			-- Setup the stream to be triggered to start/stop if necessary.
@@ -568,6 +652,12 @@ function Plugin:ParseAdverts()
 	self.AdvertStreams = AdvertStreams
 	self.TriggeredAdvertStreams = TriggeredAdvertStreams
 	self.GameStateFilteredStreams = GameStateFilteredStreams
+	self.PlayerCountFilteredStreams = PlayerCountFilteredStreams
+
+	local CurrentPlayerCount = self:GetPlayerCount()
+	for i = 1, #PlayerCountFilteredStreams do
+		PlayerCountFilteredStreams[ i ]:OnPlayerCountChanged( CurrentPlayerCount )
+	end
 
 	-- Collect all adverts set to run on a given trigger.
 	local TriggeredAdverts = self.Config.TriggeredAdverts
@@ -611,10 +701,12 @@ function Plugin:GetGameState()
 end
 
 function Plugin:StartStreams()
+	local PlayerCount = self:GetPlayerCount()
 	for i = 1, #self.AdvertStreams do
 		local Stream = self.AdvertStreams[ i ]
-		if not Stream:IsStartedByTrigger()
-		or Stream:WillStartOnTrigger( self.AdvertTrigger.STARTUP ) then
+		if (
+			not Stream:IsStartedByTrigger() or Stream:WillStartOnTrigger( self.AdvertTrigger.STARTUP )
+		) and Stream:CanStart( PlayerCount ) then
 			-- Force a restart, assume we've just parsed the config.
 			Stream:Restart()
 		end
@@ -702,12 +794,16 @@ function Plugin:DisplayAdvert( Advert, EventData )
 	end
 end
 
-function Plugin:TriggerAdvert( Advert, EventData, GameState )
+function Plugin:TriggerAdvert( Advert, EventData, GameState, PlayerCount )
 	if GameState and not AdvertStream.IsValidForGameState( Advert, GameState ) then
 		return
 	end
 
-	-- Only trigger adverts that are valid for the current gamestate.
+	if not AdvertStream.IsValidForPlayerCount( Advert, PlayerCount ) then
+		return
+	end
+
+	-- Only trigger adverts that are valid for the current gamestate and player count.
 	self:DisplayAdvert( Advert, EventData )
 end
 
@@ -726,9 +822,10 @@ function Plugin:TriggerAdverts( TriggerName, EventData )
 	local Adverts = self.TriggeredAdvertsByTrigger:Get( TriggerName )
 	if Adverts then
 		local GameState = self:GetGameState()
+		local PlayerCount = self:GetPlayerCount()
 		-- Trigger individual adverts.
 		for j = 1, #Adverts do
-			self:TriggerAdvert( Adverts[ j ], EventData, GameState )
+			self:TriggerAdvert( Adverts[ j ], EventData, GameState, PlayerCount )
 		end
 	end
 end
@@ -833,6 +930,22 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	for i = 1, #Triggers do
 		self:TriggerAdverts( Triggers[ i ] )
 	end
+end
+
+function Plugin:OnPlayerCountChanged()
+	local PlayerCount = self:GetPlayerCount()
+	for i = 1, #self.PlayerCountFilteredStreams do
+		local Stream = self.PlayerCountFilteredStreams[ i ]
+		Stream:OnPlayerCountChanged( PlayerCount )
+	end
+end
+
+function Plugin:ClientConnect( Client )
+	self:OnPlayerCountChanged()
+end
+
+function Plugin:ClientDisconnect( Client )
+	self:OnPlayerCountChanged()
 end
 
 Shine.LoadPluginModule( "logger.lua", Plugin )
