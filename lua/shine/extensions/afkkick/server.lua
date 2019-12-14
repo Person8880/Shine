@@ -16,10 +16,11 @@ local Random = math.random
 local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
 local TableConcat = table.concat
+local TableSort = table.sort
 local xpcall = xpcall
 
 local Plugin = ...
-Plugin.Version = "1.9"
+Plugin.Version = "1.10"
 Plugin.PrintName = "AFKKick"
 
 Plugin.HasConfig = true
@@ -36,8 +37,10 @@ Plugin.DefaultConfig = {
 	MinPlayers = 10,
 	WarnMinPlayers = 5,
 	Delay = 1,
-	WarnTime = 5,
-	KickTime = 15,
+	WarnTimeInMinutes = 5,
+	KickTimeInMinutes = 15,
+	-- Rules that determine the warn/kick time based on player count.
+	TimeRules = {},
 	IgnoreSpectators = false,
 	Warn = true,
 	MovementDelaySeconds = 0,
@@ -112,6 +115,13 @@ Plugin.ConfigMigrationSteps = {
 			}
 			Config.LenientModeForSpectators = nil
 		end
+	},
+	{
+		VersionTo = "1.10",
+		Apply = Shine.Migrator()
+			:RenameField( "WarnTime", "WarnTimeInMinutes" )
+			:RenameField( "KickTime", "KickTimeInMinutes" )
+			:AddField( "TimeRules", Plugin.DefaultConfig.TimeRules )
 	}
 }
 
@@ -187,6 +197,18 @@ do
 		Validator.InEnum( Plugin.Leniency, Plugin.Leniency.STRICT ) )
 	Validator:AddFieldRule( "Leniency.PartialImmunity",
 		Validator.InEnum( Plugin.Leniency, Plugin.Leniency.STRICT ) )
+
+	Validator:AddFieldRule( "TimeRules", Validator.AllValuesSatisfy(
+		Validator.ValidateField( "MaxPlayers", Validator.IsType( "number", 1 ) ),
+		Validator.ValidateField( "MaxPlayers", Validator.Min( 1 ) ),
+
+		Validator.ValidateField( "MinPlayers", Validator.IsAnyType( { "number", "nil" }, nil ) ),
+		Validator.ValidateField( "MinPlayers", Validator.IfType( "number", Validator.Min( 0 ) ) ),
+
+		Validator.ValidateField( "WarnTimeInMinutes", Validator.IsAnyType( { "number", "nil" }, nil ) ),
+		Validator.ValidateField( "KickTimeInMinutes", Validator.IsAnyType( { "number", "nil" }, nil ) )
+	) )
+
 	Plugin.ConfigValidator = Validator
 
 	local function MovePlayer( Client, Gamerules, DataTable, TargetTeam )
@@ -267,6 +289,10 @@ do
 		return ActionFunctions
 	end
 
+	local function SortByMaxPlayers( A, B )
+		return A.MaxPlayers < B.MaxPlayers
+	end
+
 	function Plugin:Initialise()
 		self:BroadcastModuleEvent( "Initialise" )
 
@@ -274,6 +300,12 @@ do
 			NoImmunity = self:BuildActions( self.Config.WarnActions.NoImmunity ),
 			PartialImmunity = self:BuildActions( self.Config.WarnActions.PartialImmunity )
 		}
+
+		-- Make sure time rules are in ascending max player order.
+		TableSort( self.Config.TimeRules, SortByMaxPlayers )
+
+		-- Only check rules if needed.
+		self.GetTimeValue = #self.Config.TimeRules > 0 and self.GetTimeValueWithRules or self.GetTimeValueFromConfig
 
 		if self.Enabled ~= nil then
 			for Client in self.Users:Iterate() do
@@ -309,6 +341,39 @@ do
 	end
 end
 
+function Plugin:GetPlayerCount()
+	return GetHumanPlayerCount()
+end
+
+function Plugin:GetTimeValueFromConfig( Key )
+	return self.Config[ Key ]
+end
+
+function Plugin:GetTimeValueWithRules( Key )
+	local Default = self.Config[ Key ]
+	local Rules = self.Config.TimeRules
+
+	local PlayerCount = self:GetPlayerCount()
+	for i = 1, #Rules do
+		local Rule = Rules[ i ]
+		if Rule.MaxPlayers >= PlayerCount and ( not Rule.MinPlayers or Rule.MinPlayers <= PlayerCount ) then
+			return Rule[ Key ] or Default
+		end
+	end
+
+	return Default
+end
+
+Plugin.GetTimeValue = Plugin.GetTimeValueWithRules
+
+function Plugin:GetWarnTimeInSeconds()
+	return self:GetTimeValue( "WarnTimeInMinutes" ) * 60
+end
+
+function Plugin:GetKickTimeInSeconds()
+	return self:GetTimeValue( "KickTimeInMinutes" ) * 60
+end
+
 function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
 	if not self.Config.MarkPlayersAFK then return end
 
@@ -338,7 +403,7 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	local AFKForLongest
 	local TimeAFK = 0
-	local KickTime = self.Config.KickTime * 60
+	local KickTime = self:GetKickTimeInSeconds()
 
 	for Client, Data in self.Users:Iterate() do
 		if not ( Shine:HasAccess( Client, "sh_afk" )
@@ -464,7 +529,7 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 	local IsPartiallyImmune = self:IsClientPartiallyImmune( Client )
 
 	if self.Config.Warn then
-		local WarnTime = self.Config.WarnTime * 60
+		local WarnTime = Params.WarnTime
 
 		-- Again, using time since last move so we don't end up warning players constantly
 		-- if they hover near the warn time barrier in total AFK time.
@@ -540,12 +605,13 @@ function Plugin:EvaluatePlayers()
 
 	if self.Config.OnlyCheckOnStarted and not Started then return end
 
-	local NumPlayers = GetHumanPlayerCount()
+	local NumPlayers = self:GetPlayerCount()
 	if NumPlayers < self.Config.WarnMinPlayers then return end
 
 	local Params = {
 		Time = SharedTime(),
-		KickTime = self.Config.KickTime * 60,
+		KickTime = self:GetKickTimeInSeconds(),
+		WarnTime = self.Config.Warn and self:GetWarnTimeInSeconds(),
 		NumPlayers = NumPlayers,
 		Gamerules = Gamerules
 	}
@@ -620,7 +686,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	-- Track frozen player's input, but do not punish them if they are not providing any.
 	local IsPlayerFrozen = self:IsPlayerFrozen( Player )
-	local KickTime = self.Config.KickTime * 60
+	local KickTime = self:GetKickTimeInSeconds()
 
 	if HasMoved then
 		DataTable.LastMove = Time
