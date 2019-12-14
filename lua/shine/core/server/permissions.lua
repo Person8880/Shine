@@ -303,7 +303,7 @@ do
 	local GameID = 0
 
 	Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
-		--I have a suspicion that this event is being called again for a client that never disconnected.
+		-- Make sure the same client isn't seen twice.
 		if GameIDs:Get( Client ) then return true end
 
 		GameID = GameID + 1
@@ -311,7 +311,7 @@ do
 	end, Shine.Hook.MAX_PRIORITY )
 
 	Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
-		GameIDs:Remove( Client )
+		if not GameIDs:Remove( Client ) then return true end
 	end, Shine.Hook.MAX_PRIORITY )
 end
 

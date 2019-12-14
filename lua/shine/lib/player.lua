@@ -50,6 +50,8 @@ end
 
 if Client then return end
 
+local Hook = Shine.Hook
+
 local Abs = math.abs
 local Floor = math.floor
 local GetOwner = Server.GetOwner
@@ -108,7 +110,6 @@ function Shine.EqualiseTeamCounts( TeamMembers )
 end
 
 do
-	local Hook = Shine.Hook
 	local OnJoinError = Shine.BuildErrorHandler( "EvenlySpreadTeams team join error" )
 
 	local function MoveToTeam( Gamerules, Players, TeamNumber )
@@ -186,21 +187,20 @@ do
 	end
 end
 
---[[
-	Returns the number of human players (clients).
-]]
-function Shine.GetHumanPlayerCount()
-	local Count = 0
-
-	local GameIDs = Shine.GameIDs
-
-	for Client, ID in GameIDs:Iterate() do
-		if Client.GetIsVirtual and not Client:GetIsVirtual() then
-			Count = Count + 1
-		end
+do
+	local HumanPlayerCount = 0
+	local function GetHumanPlayerCount()
+		return HumanPlayerCount
 	end
+	Shine.GetHumanPlayerCount = GetHumanPlayerCount
 
-	return Count
+	Hook.Add( "ClientConnect", GetHumanPlayerCount, function( Client )
+		HumanPlayerCount = HumanPlayerCount + ( Client:GetIsVirtual() and 0 or 1 )
+	end )
+
+	Hook.Add( "ClientDisconnect", GetHumanPlayerCount, function( Client )
+		HumanPlayerCount = HumanPlayerCount - ( Client:GetIsVirtual() and 0 or 1 )
+	end )
 end
 
 --[[
