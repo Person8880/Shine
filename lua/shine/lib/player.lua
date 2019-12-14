@@ -187,22 +187,6 @@ do
 	end
 end
 
-do
-	local HumanPlayerCount = 0
-	local function GetHumanPlayerCount()
-		return HumanPlayerCount
-	end
-	Shine.GetHumanPlayerCount = GetHumanPlayerCount
-
-	Hook.Add( "ClientConnect", GetHumanPlayerCount, function( Client )
-		HumanPlayerCount = HumanPlayerCount + ( Client:GetIsVirtual() and 0 or 1 )
-	end )
-
-	Hook.Add( "ClientDisconnect", GetHumanPlayerCount, function( Client )
-		HumanPlayerCount = HumanPlayerCount - ( Client:GetIsVirtual() and 0 or 1 )
-	end )
-end
-
 --[[
 	Returns a table of all players.
 ]]
