@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.8"
+Plugin.Version = "2.9"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -86,7 +86,9 @@ Plugin.ModeStrings = ModeStrings
 
 Plugin.DefaultConfig = {
 	MinPlayers = 10, -- Minimum number of players on the server to enable voting.
-	PercentNeeded = 0.75, -- Percentage of the server population needing to vote for it to succeed.
+	PercentNeededBefore = 0.6, -- Percentage of the server population needing to vote for it to succeed before timer.
+	PercentNeededAfter = 0.75, -- Percentage of the server population needing to vote for it to succeed after timer.
+	PercentAfterRoundTimeInSeconds = 0, -- Time in seconds after round start to increase vote percentage. 0 to disable feature.
 
 	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
 	BlockAfterRoundTimeInMinutes = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
@@ -263,7 +265,14 @@ Plugin.ConfigMigrationSteps = {
 					Config.VotePassActions.InGame.EnforcementPolicy
 				)
 			end )
-	}
+	},
+	{
+		VersionTo = "2.9",
+		Apply = Shine.Migrator()
+			:RenameField( "PercentNeeded", "PercentNeededBefore" )
+			:AddField( "PercentNeededAfter", 0.75 )
+			:AddField( "PercentAfterRoundTimeInSeconds", 0 )
+	},
 }
 
 do
@@ -1033,6 +1042,11 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 	if self.Config.BlockAfterRoundTimeInMinutes > 0 then
 		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterRoundTimeInMinutes * 60
 	end
+	
+	-- Increase vote percent required after seconds into map
+	if self.Config.PercentAfterRoundTimeInSeconds > 0 then
+		self.VoteIncreaseTime = SharedTime() + self.Config.PercentAfterRoundTimeInSeconds
+	end
 
 	if not self.Config.AlwaysEnabled and not self.ShuffleOnNextRound then return end
 
@@ -1092,6 +1106,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	self.DoneStartShuffle = false
 	self.HasShuffledThisRound = false
 	self.VoteBlockTime = nil
+	self.VoteIncreaseTime = nil
 
 	-- If we're always enabled, we'll shuffle on round start.
 	if self.Config.AlwaysEnabled then
@@ -1193,7 +1208,12 @@ end
 
 function Plugin:GetVotesNeeded()
 	local PlayerCount = self:GetPlayerCountForVote()
-	return Ceil( PlayerCount * self.Config.PercentNeeded )
+	
+	if self.VoteIncreaseTime and self.VoteIncreaseTime > SharedTime() then
+		return Ceil ( PlayerCount * self.Config.PercentNeededAfter )	
+	end
+	
+	return Ceil( PlayerCount * self.Config.PercentNeededBefore )
 end
 
 function Plugin:GetStartFailureMessage()
