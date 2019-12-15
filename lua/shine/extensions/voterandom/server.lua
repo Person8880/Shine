@@ -86,7 +86,7 @@ Plugin.ModeStrings = ModeStrings
 
 Plugin.DefaultConfig = {
 	MinPlayers = 10, -- Minimum number of players on the server to enable voting.
-	PercentNeededBefore = 0.6, -- Percentage of the server population needing to vote for it to succeed before timer.
+	PercentNeeded = 0.6, -- Percentage of the server population needing to vote for it to succeed before timer.
 	PercentNeededAfter = 0.75, -- Percentage of the server population needing to vote for it to succeed after timer.
 	PercentAfterRoundTimeInSeconds = 0, -- Time in seconds after round start to increase vote percentage. 0 to disable feature.
 
@@ -269,7 +269,6 @@ Plugin.ConfigMigrationSteps = {
 	{
 		VersionTo = "2.9",
 		Apply = Shine.Migrator()
-			:RenameField( "PercentNeeded", "PercentNeededBefore" )
 			:AddField( "PercentNeededAfter", 0.75 )
 			:AddField( "PercentAfterRoundTimeInSeconds", 0 )
 	},
@@ -1213,7 +1212,7 @@ function Plugin:GetVotesNeeded()
 		return Ceil ( PlayerCount * self.Config.PercentNeededAfter )	
 	end
 	
-	return Ceil( PlayerCount * self.Config.PercentNeededBefore )
+	return Ceil( PlayerCount * self.Config.PercentNeeded )
 end
 
 function Plugin:GetStartFailureMessage()
