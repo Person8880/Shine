@@ -1209,7 +1209,7 @@ end
 function Plugin:GetVotesNeeded()
 	local PlayerCount = self:GetPlayerCountForVote()
 	
-	if self.VoteIncreaseTime and self.VoteIncreaseTime > SharedTime() then
+	if self.VoteIncreaseTime and SharedTime() > self.VoteIncreaseTime then
 		return Ceil ( PlayerCount * self.Config.PercentNeededAfter )	
 	end
 	
