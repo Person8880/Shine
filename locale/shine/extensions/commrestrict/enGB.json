@@ -1,0 +1,10 @@
+{
+	"Comm Deprioritize": "Comm Deprioritize",
+	"PLAYER_BANNED": "deprioritized {TargetName} from commanding {Duration:NonZero:for }{Duration:Duration:permanently}.",
+	"DEPRIORITIZED_WARNING": "You are deprioritized from commanding {Duration:NonZero:for }{Duration:Duration:permanently}.",
+	"NOTIFY_PREFIX": "[Comm Bans]",
+	"ADD_BAN_TITLE": "Add Commander Deprioritize",
+	"BAN": "Deprioritize from Commanding",
+	"CATEGORY": "Bans",
+	"BAN_TIP": "Deprioritize the selected player from commanding."
+}
