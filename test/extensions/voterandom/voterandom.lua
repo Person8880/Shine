@@ -7,6 +7,8 @@ local UnitTest = Shine.UnitTest
 local VoteShuffle = UnitTest:LoadExtension( "voterandom" )
 if not VoteShuffle or not VoteShuffle.Config then return end
 
+local MockShuffle = UnitTest.MockOf( VoteShuffle )
+
 VoteShuffle.Config.IgnoreCommanders = false
 
 local TableSort = table.sort
@@ -320,11 +322,28 @@ function( Assert )
 	Assert:True( VoteShuffle:ShouldOptimiseHappiness( TeamMembers ) )
 end )
 
-VoteShuffle.Config.VoteConstraints.MinPlayerFractionToConstrain = 0.9
+local VoteConstraints = {
+	MinPlayers = 10,
+	FractionNeededToPass = 0.75,
+	MinPlayerFractionToConstrainSkillDiff = 0.9,
+	MinAverageDiffToAllowShuffle = 100,
+	MinStandardDeviationDiffToAllowShuffle = 0
+}
+function MockShuffle:GetCurrentVoteConstraints()
+	return VoteConstraints
+end
+
+function MockShuffle:GetPlayerCountForVote()
+	return 20
+end
+
+UnitTest:Test( "GetVotesNeeded - Returns current constraint fraction * number of players", function( Assert )
+	Assert.Equals( "Should return player count * fraction", 15, MockShuffle:GetVotesNeeded() )
+end )
 
 UnitTest:Test( "EvaluateConstraints - Number of players too low", function( Assert )
 	Assert.True( "Should allow voting as only 2/10 players are on teams",
-		VoteShuffle:EvaluateConstraints( 10, {
+		MockShuffle:EvaluateConstraints( 10, {
 			{ Skills = { 1000 } },
 			{ Skills = { 1000 } }
 		} )
@@ -333,19 +352,16 @@ end )
 
 UnitTest:Test( "EvaluateConstraints - Teams imbalanced", function( Assert )
 	Assert.True( "Should allow voting as teams are imbalanced",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1000, 2000, 2000 } },
 			{ Skills = { 1000 } }
 		} )
 	)
 end )
 
-VoteShuffle.Config.VoteConstraints.MinAverageDiffToAllowShuffle = 100
-VoteShuffle.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 0
-
 UnitTest:Test( "EvaluateConstraints - Average diff is high enough", function( Assert )
 	Assert.True( "Should allow voting as averages are too far apart",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1000, 2000 }, Average = 1500 },
 			{ Skills = { 1000, 4000 }, Average = 2500 }
 		} )
@@ -354,18 +370,18 @@ end )
 
 UnitTest:Test( "EvaluateConstraints - Min standard deviation difference = 0 is ignored", function( Assert )
 	Assert.False( "Should ignore standard deviation as min is 0",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
 			{ Skills = { 1000, 2000 }, Average = 1500, StandardDeviation = 500 }
 		} )
 	)
 end )
 
-VoteShuffle.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 200
-
 UnitTest:Test( "EvaluateConstraints - Standard deviation diff is high enough", function( Assert )
+	VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 200
+
 	Assert.True( "Should allow voting as standard deviations are too far apart",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
 			{ Skills = { 1000, 2000 }, Average = 1500, StandardDeviation = 500 }
 		} )
@@ -373,8 +389,10 @@ UnitTest:Test( "EvaluateConstraints - Standard deviation diff is high enough", f
 end )
 
 UnitTest:Test( "EvaluateConstraints - Teams are balanced", function( Assert )
+	VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 200
+
 	Assert.False( "Should deny voting when teams are sufficiently balanced",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 }
 		} )
@@ -385,14 +403,13 @@ UnitTest:Test( "GetTeamStats - Uses cached data if available", function( Assert 
 	local RankFunc = function() end
 	local Stats = {}
 
-	VoteShuffle.TeamStatsCache[ RankFunc ] = Stats
-	local ComputedStats = VoteShuffle:GetTeamStats( RankFunc )
+	MockShuffle.TeamStatsCache[ RankFunc ] = Stats
+	local ComputedStats = MockShuffle:GetTeamStats( RankFunc )
 
 	Assert.Equals( "Expected GetTeamStats to return cached data when available",
 		Stats, ComputedStats )
 end )
 
-VoteShuffle:ClearStatsCache()
 VoteShuffle.Config.IgnoreCommanders = false
 
 UnitTest:Test( "RandomisePlayers - Keeps commanders on the same team", function( Assert )

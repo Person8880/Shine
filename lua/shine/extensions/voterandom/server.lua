@@ -85,9 +85,6 @@ local ModeStrings = {
 Plugin.ModeStrings = ModeStrings
 
 Plugin.DefaultConfig = {
-	MinPlayers = 10, -- Minimum number of players on the server to enable voting.
-	PercentNeeded = 0.75, -- Percentage of the server population needing to vote for it to succeed.
-
 	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
 	BlockAfterRoundTimeInMinutes = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
 	VoteCooldownInMinutes = 15, -- Cooldown time before another vote can be made.
@@ -108,15 +105,32 @@ Plugin.DefaultConfig = {
 	DisplayStandardDeviations = false, -- Should the scoreboard show each team's standard deviation of skill?
 
 	VoteConstraints = {
-		-- When the number of players on playing teams is greater-equal this fraction
-		-- of the total players on the server, apply constraints.
-		MinPlayerFractionToConstrain = 0.9,
-		-- The minimum difference in average skill required to permit shuffling.
-		-- A value of 0 will permit all votes.
-		MinAverageDiffToAllowShuffle = 75,
-		-- The minimum difference in standard deviation of skill required to permit shuffling.
-		-- Must be greater than 0 to enable checking.
-		MinStandardDeviationDiffToAllowShuffle = 0
+		PreGame = {
+			-- Minimum number of players on the server to enable voting.
+			MinPlayers = 10,
+
+			-- Fraction of players that need to vote before a shuffle is performed.
+			FractionNeededToPass = 0.75,
+
+			-- When the number of players on playing teams is greater-equal this fraction
+			-- of the total players on the server, apply skill difference constraints.
+			MinPlayerFractionToConstrainSkillDiff = 0.9,
+
+			-- The minimum difference in average skill required to permit shuffling.
+			-- A value of 0 will permit all votes.
+			MinAverageDiffToAllowShuffle = 75,
+
+			-- The minimum difference in standard deviation of skill required to permit shuffling.
+			-- Must be greater than 0 to enable checking.
+			MinStandardDeviationDiffToAllowShuffle = 0
+		},
+		InGame = {
+			MinPlayers = 10,
+			FractionNeededToPass = 0.75,
+			MinPlayerFractionToConstrainSkillDiff = 0.9,
+			MinAverageDiffToAllowShuffle = 75,
+			MinStandardDeviationDiffToAllowShuffle = 0
+		}
 	},
 
 	--	ShufflePolicy may be one of INSTANT, NEXT_ROUND, END_OF_PERIOD
@@ -263,18 +277,30 @@ Plugin.ConfigMigrationSteps = {
 					Config.VotePassActions.InGame.EnforcementPolicy
 				)
 			end )
+			:RenameField(
+				{ "VoteConstraints", "MinPlayerFractionToConstrain" },
+				{ "VoteConstraints", "PreGame", "MinPlayerFractionToConstrainSkillDiff" }
+			)
+			:RenameField(
+				{ "VoteConstraints", "MinAverageDiffToAllowShuffle" },
+				{ "VoteConstraints", "PreGame", "MinAverageDiffToAllowShuffle" }
+			)
+			:RenameField(
+				{ "VoteConstraints", "MinStandardDeviationDiffToAllowShuffle" },
+				{ "VoteConstraints", "PreGame", "MinStandardDeviationDiffToAllowShuffle" }
+			)
+			:RenameField( "PercentNeeded", { "VoteConstraints", "PreGame", "FractionNeededToPass" } )
+			:RenameField( "MinPlayers", { "VoteConstraints", "PreGame", "MinPlayers" } )
+			:CopyField( { "VoteConstraints", "PreGame" }, { "VoteConstraints", "InGame" } )
 	}
 }
 
 do
 	local Validator = Shine.Validator()
 
-	Validator:AddFieldRule( "VoteConstraints.MinPlayerFractionToConstrain",
-		Validator.IsType( "number", Plugin.DefaultConfig.VoteConstraints.MinPlayerFractionToConstrain ) )
-	Validator:AddFieldRules( {
-		"VoteConstraints.MinAverageDiffToAllowShuffle",
-		"VoteConstraints.MinStandardDeviationDiffToAllowShuffle"
-	}, Validator.IsType( "number", 0 ) )
+	Validator:CheckTypesAgainstDefault( "VoteConstraints", Plugin.DefaultConfig.VoteConstraints )
+	Validator:CheckTypesAgainstDefault( "VoteConstraints.PreGame", Plugin.DefaultConfig.VoteConstraints.PreGame )
+	Validator:CheckTypesAgainstDefault( "VoteConstraints.InGame", Plugin.DefaultConfig.VoteConstraints.InGame )
 
 	Validator:AddFieldRule( "VotePassActions.PreGame", Validator.IsType( "table",
 		Plugin.DefaultConfig.VotePassActions.PreGame ) )
@@ -1046,7 +1072,7 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 
 	self.ShuffleOnNextRound = false
 
-	if GetNumPlayers() < self.Config.MinPlayers then
+	if GetNumPlayers() < self:GetCurrentVoteConstraints().MinPlayers then
 		return
 	end
 
@@ -1191,9 +1217,13 @@ function Plugin:ClientConnect( Client )
 		Shine.GetClientInfo( Client ) )
 end
 
+function Plugin:GetCurrentVoteConstraints()
+	return self.Config.VoteConstraints[ self:GetStage() ]
+end
+
 function Plugin:GetVotesNeeded()
 	local PlayerCount = self:GetPlayerCountForVote()
-	return Ceil( PlayerCount * self.Config.PercentNeeded )
+	return Ceil( PlayerCount * self:GetCurrentVoteConstraints().FractionNeededToPass )
 end
 
 function Plugin:GetStartFailureMessage()
@@ -1205,8 +1235,9 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 	local NumOnTeam2 = #TeamStats[ 2 ].Skills
 	local NumPlayersOnPlayingTeams = NumOnTeam1 + NumOnTeam2
 	local FractionOfPlayersOnTeams = NumPlayersOnPlayingTeams / NumPlayers
+	local Constraints = self:GetCurrentVoteConstraints()
 
-	if FractionOfPlayersOnTeams < self.Config.VoteConstraints.MinPlayerFractionToConstrain then
+	if FractionOfPlayersOnTeams < Constraints.MinPlayerFractionToConstrainSkillDiff then
 		-- Not enough players on playing teams to apply constraints.
 		self.Logger:Debug( "Permitting vote as only %s of all players are on teams.", FractionOfPlayersOnTeams )
 		return true
@@ -1219,14 +1250,14 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 	end
 
 	local AverageDiff = Abs( TeamStats[ 1 ].Average - TeamStats[ 2 ].Average )
-	if AverageDiff >= self.Config.VoteConstraints.MinAverageDiffToAllowShuffle then
+	if AverageDiff >= Constraints.MinAverageDiffToAllowShuffle then
 		-- Teams are far enough apart in average skill to allow the vote.
 		self.Logger:Debug( "Permitting vote as average difference is: %s", AverageDiff )
 		return true
 	end
 
 	local StdDiff = Abs( TeamStats[ 1 ].StandardDeviation - TeamStats[ 2 ].StandardDeviation )
-	local MinStdDiff = self.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle
+	local MinStdDiff = Constraints.MinStandardDeviationDiffToAllowShuffle
 	if MinStdDiff > 0 and StdDiff >= MinStdDiff then
 		-- Teams are far enough apart in standard deviation of skill to allow the vote.
 		self.Logger:Debug( "Permitting vote as standard deviation difference is: %s", StdDiff )
@@ -1279,7 +1310,7 @@ function Plugin:CanStartVote()
 		return false, "ERROR_ALREADY_ENABLED", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
 	end
 
-	if self:GetPlayerCountForVote() < self.Config.MinPlayers then
+	if self:GetPlayerCountForVote() < self:GetCurrentVoteConstraints().MinPlayers then
 		return false, "ERROR_NOT_ENOUGH_PLAYERS"
 	end
 
