@@ -212,6 +212,7 @@ UnitTest:Test( "Migrator", function( Assert )
 		:RenameField( "A", "B" )
 		:RenameField( "C", { "Child", "C" } )
 		:RenameField( { "Nested", "Value" }, { "Child", "Value" } )
+		:CopyField( "Child", "CopiedChild" )
 		:RemoveField( "Nested" )
 		:UseEnum( "Mode", { "Mode1", "Mode2", "Mode3" } )
 		:RenameEnums( {
@@ -235,6 +236,10 @@ UnitTest:Test( "Migrator", function( Assert )
 	Assert.DeepEquals( "Migrator should apply actions as expected", {
 		B = "Value for A",
 		Child = {
+			C = "Value for C",
+			Value = true
+		},
+		CopiedChild = {
 			C = "Value for C",
 			Value = true
 		},

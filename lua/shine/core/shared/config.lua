@@ -572,6 +572,14 @@ do
 		return self
 	end
 
+	function Migrator:CopyField( FromName, ToName )
+		self.Actions[ #self.Actions + 1 ] = function( Config )
+			local OldValue = TableGetField( Config, FromName )
+			TableSetField( Config, ToName, OldValue )
+		end
+		return self
+	end
+
 	function Migrator:RemoveField( FieldName )
 		self.Actions[ #self.Actions + 1 ] = function( Config )
 			TableSetField( Config, FieldName, nil )
