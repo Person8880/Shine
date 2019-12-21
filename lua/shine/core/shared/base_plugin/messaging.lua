@@ -101,6 +101,30 @@ if Client then
 		end
 	end
 
+	function MessageModule:NotifyTranslated( Key, Data )
+		local Options = self.RichTextMessageOptions and self.RichTextMessageOptions[ Key ]
+		if ChatAPI:SupportsRichText() and Options then
+			local RichTextMessage = self:GetInterpolatedRichText( Key, {
+				Key = Key,
+				Values = Data,
+				Colours = Options.Colours,
+				DefaultColour = Options.DefaultColour,
+				LangDef = Shine.Locale:GetLanguageDefinition()
+			} )
+
+			local PrefixCol = self.NotifyPrefixColour
+
+			TableInsert( RichTextMessage, 1, TextElement( self:GetPhrase( "NOTIFY_PREFIX" ).." " ) )
+			TableInsert( RichTextMessage, 1, ColourElement(
+				Colour( PrefixCol[ 1 ] / 255, PrefixCol[ 2 ] / 255, PrefixCol[ 3 ] / 255 )
+			) )
+
+			self:NotifyRichText( RichTextMessage )
+		else
+			self:Notify( self:GetInterpolatedPhrase( Key, Data ) )
+		end
+	end
+
 	function MessageModule:Notify( Message )
 		local PrefixCol = self.NotifyPrefixColour
 

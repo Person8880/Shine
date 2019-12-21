@@ -140,7 +140,7 @@ do
 
 	function NetworkingModule:AddTranslatedNotify( Name, Params, VariationKey )
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
-			self:Notify( self:GetInterpolatedPhrase( GetMessageTranslationKey( Name, VariationKey, Data ), Data ) )
+			self:NotifyTranslated( GetMessageTranslationKey( Name, VariationKey, Data ), Data )
 		end )
 	end
 
