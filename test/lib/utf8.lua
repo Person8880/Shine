@@ -5,9 +5,16 @@
 local UnitTest = Shine.UnitTest
 local StringByte = string.byte
 local StringChar = string.char
+local StringFormat = string.format
 
 UnitTest:Test( "GetUTF8Bytes", function( Assert )
-	Assert:ArrayEquals( { 0x24 }, { string.GetUTF8Bytes( "$" ) } )
+	for i = 0, 0x7F do
+		Assert.ArrayEquals(
+			StringFormat( "Expected 0x%x for ASCII byte value", i ),
+			{ i },
+			{ string.GetUTF8Bytes( StringChar( i ) ) }
+		)
+	end
 	Assert:ArrayEquals( { 0xC2, 0xA2 }, { string.GetUTF8Bytes( "¢" ) } )
 	Assert:ArrayEquals( { 0xE2, 0x82, 0xAC }, { string.GetUTF8Bytes( "€" ) } )
 	Assert:ArrayEquals( { 0xF0, 0x90, 0x8D, 0x88 }, { string.GetUTF8Bytes( "𐍈" ) } )
@@ -17,8 +24,12 @@ UnitTest:Test( "GetUTF8Bytes", function( Assert )
 	end
 
 	-- 1 byte sequence, invalid first byte
-	Assert:Nil( GetBytesForChar( 0x80 ) )
-	Assert:Nil( GetBytesForChar( 0xF5 ) )
+	for i = 0x80, 0xC1 do
+		Assert.Nil( StringFormat( "Expected invalid byte for 0x%x", i ), GetBytesForChar( i ) )
+	end
+	for i = 0xF5, 0xFF do
+		Assert.Nil( StringFormat( "Expected invalid byte for 0x%x", i ), GetBytesForChar( i ) )
+	end
 
 	-- 2 byte sequence, invalid second byte
 	Assert:Nil( GetBytesForChar( 0xC2, 0x1 ) )

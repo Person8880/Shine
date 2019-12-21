@@ -16,6 +16,7 @@ local StringByte = string.byte
 local StringChar = string.char
 local StringFormat = string.format
 local StringSub = string.sub
+local TableClear = require "table.clear"
 local TableConcat = table.concat
 local TableReverse = table.Reverse
 local type = type
@@ -1897,7 +1898,13 @@ local function IsValidContinuationByte( Byte )
 end
 
 local function GetNumContinuationBytes( FirstByte )
-	return FirstByte >= 0xF0 and 3 or FirstByte >= 0xE0 and 2 or 1
+	-- Number of continuation bytes is the number of 1-bits at the start - 1, e.g. 0b110xxxxx has 1 continuation byte,
+	-- 0b1110xxxx has 2 and 0b1111xxxx has 3.
+	local ThirdBit = BitRShift( BitBand( FirstByte, 0x20 ), 5 )
+	return BitRShift( BitBand( FirstByte, 0x40 ), 6 )
+		+ ThirdBit
+		-- Multiplying here accounts for the case of a byte like 0b1101xxxx.
+		+ ThirdBit * BitRShift( BitBand( FirstByte, 0x10 ), 4 )
 end
 
 local ValidityChecks = {}
@@ -1911,30 +1918,26 @@ ValidityChecks[ 0xF4 ] = function( Bytes ) return Bytes[ 2 ] <= 0x8F and Bytes o
 -- Check for UTF-16 surrogate halves (0xD800 - 0xDFFF).
 ValidityChecks[ 0xED ] = function( Bytes ) return Bytes[ 2 ] <= 0x9F and Bytes or nil end
 
---[[
-	Returns the bytes used by the UTF-8 character.
+-- Internal cache table to avoid creating tables for every character. Up to 4 bytes + the number of bytes total.
+local UTF8Bytes = require "table.new"( 5, 0 )
+local function BytesOf( FirstByte )
+	TableClear( UTF8Bytes )
+	UTF8Bytes[ 5 ] = 1
+	UTF8Bytes[ 1 ] = FirstByte
+	return UTF8Bytes
+end
 
-	Inputs: String to check, Index byte to start at.
-	Output: Table of bytes used by the UTF-8 character.
-]]
-local function GetUTF8Bytes( String, Index )
-	Index = Index or 1
+local function ASCII( String, Index, FirstByte )
+	return BytesOf( FirstByte )
+end
 
-	local FirstByte = StringByte( String, Index )
-	if not FirstByte then return nil end
+local function Invalid() return nil end
 
-	if FirstByte < 0x80 then
-		-- Trivial case, no continuation bytes.
-		return { FirstByte }
-	end
-
-	if FirstByte < 0xC2 or FirstByte > 0xF4 then
-		-- Byte is invalid, or a continuation byte.
-		return nil
-	end
-
+local function UTF8( String, Index, FirstByte )
 	local NumContinuationBytes = GetNumContinuationBytes( FirstByte )
-	local Bytes = { FirstByte }
+	local Bytes = BytesOf( FirstByte )
+	Bytes[ 5 ] = NumContinuationBytes + 1
+
 	for i = 1, NumContinuationBytes do
 		local Byte = StringByte( String, Index + i )
 		if not IsValidContinuationByte( Byte ) then
@@ -1948,6 +1951,41 @@ local function GetUTF8Bytes( String, Index )
 	return ValidityChecks[ FirstByte ]( Bytes )
 end
 
+local ByteHandlers = {}
+
+-- Trivial case, no continuation bytes.
+for i = 0, 0x7F do
+	ByteHandlers[ i ] = ASCII
+end
+
+-- Byte is invalid, or a continuation byte.
+for i = 0x80, 0xC1 do
+	ByteHandlers[ i ] = Invalid
+end
+
+-- Byte is start of UTF-8 character.
+for i = 0xC2, 0xF4 do
+	ByteHandlers[ i ] = UTF8
+end
+
+-- Byte is invalid, or a continuation byte.
+for i = 0xF5, 0xFF do
+	ByteHandlers[ i ] = Invalid
+end
+
+--[[
+	Returns the bytes used by the UTF-8 character.
+
+	Inputs: String to check, Index byte to start at.
+	Output: Table of bytes used by the UTF-8 character.
+]]
+local function GetUTF8Bytes( String, Index )
+	local FirstByte = StringByte( String, Index )
+	if not FirstByte then return nil end
+
+	return ByteHandlers[ FirstByte ]( String, Index, FirstByte )
+end
+
 --[[
 	Returns the number of bytes used by the UTF-8 character.
 
@@ -1957,7 +1995,7 @@ end
 local function GetNumUTF8Bytes( String, Index )
 	local Bytes = GetUTF8Bytes( String, Index )
 	if Bytes then
-		return #Bytes
+		return Bytes[ 5 ]
 	end
 
 	return nil
@@ -1975,7 +2013,7 @@ function string.IsValidUTF8( String, Index )
 		TypeCheck( Index, "number", 2, "IsValidUTF8" )
 	end
 
-	return GetUTF8Bytes( String, Index ) ~= nil
+	return GetUTF8Bytes( String, Index or 1 ) ~= nil
 end
 
 --[[
@@ -1990,9 +2028,9 @@ function string.GetUTF8Bytes( String, Index )
 		TypeCheck( Index, "number", 2, "GetUTF8Bytes" )
 	end
 
-	local Bytes = GetUTF8Bytes( String, Index )
+	local Bytes = GetUTF8Bytes( String, Index or 1 )
 	if Bytes then
-		return unpack( Bytes )
+		return unpack( Bytes, 1, Bytes[ 5 ] )
 	end
 end
 
@@ -2060,15 +2098,17 @@ do
 
 		for i = Bytes, 1, -1 do
 			local Byte = select( i, ... )
-			local ShiftAmount = ( Bytes - i ) * 6
+			if Byte ~= nil then
+				local ShiftAmount = ( Bytes - i ) * 6
 
-			if i == 1 then
-				Bits = 6 - Bytes
+				if i == 1 then
+					Bits = 6 - Bytes
+				end
+
+				local Mask = GetMask( Bits )
+				-- Cut out extra byte data, then shift.
+				CodePoint = CodePoint + BitLShift( BitBand( Byte, Mask ), ShiftAmount )
 			end
-
-			local Mask = GetMask( Bits )
-			-- Cut out extra byte data, then shift.
-			CodePoint = CodePoint + BitLShift( BitBand( Byte, Mask ), ShiftAmount )
 		end
 
 		return CodePoint
