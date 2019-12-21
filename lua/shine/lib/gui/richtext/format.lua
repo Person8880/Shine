@@ -90,7 +90,7 @@ function Format.FromInterpolationString( String, Options )
 end
 
 function Format.GetColourForPlayer( PlayerName )
-	local PlayerRecord = Scoreboard_GetPlayerRecordByName and Scoreboard_GetPlayerRecordByName( PlayerName )
+	local PlayerRecord = Shine.GetScoreboardEntryByName( PlayerName )
 	if not PlayerRecord then
 		return DEFAULT_COLOUR
 	end

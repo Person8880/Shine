@@ -2,6 +2,9 @@
 	Shine player functions.
 ]]
 
+local Shine = Shine
+local Hook = Shine.Hook
+
 local TeamNames = {
 	ns2 = {
 		{ "Marines", "marines", "marine team" },
@@ -48,10 +51,64 @@ do
 	end
 end
 
-if Client then return end
+if Client then
+	local EntriesByName = {}
 
-local Shine = Shine
-local Hook = Shine.Hook
+	--[[
+		Returns the scoreboard entry for the player with the given name.
+
+		This accounts for possible client-side name changes (such as an AFK prefix), returning the same entry for the
+		original player name and the altered name.
+	]]
+	function Shine.GetScoreboardEntryByName( Name )
+		local Entry = Scoreboard_GetPlayerRecordByName and Scoreboard_GetPlayerRecordByName( Name )
+		if Entry then
+			return Entry
+		end
+
+		return EntriesByName[ Name ]
+	end
+
+	Hook.CallAfterFileLoad( "lua/Scoreboard.lua", function()
+		local ErrorHandler = Shine.BuildErrorHandler( "Scoreboard update error" )
+		local TableEmpty = table.Empty
+		local xpcall = xpcall
+
+		Hook.SetupGlobalHook( "Scoreboard_ReloadPlayerData", "PostScoreboardReload", "PassivePost" )
+
+		local function UpdateScoreboardEntries()
+			TableEmpty( EntriesByName )
+
+			local EntityList = Shared.GetEntitiesWithClassname( "PlayerInfoEntity" )
+			for _, Entity in ientitylist( EntityList ) do
+				local Entry = Scoreboard_GetPlayerRecord( Entity.clientId )
+				if Entry and Entry.Name then
+					EntriesByName[ Entry.Name ] = Entry
+
+					Hook.Call( "OnScoreboardEntryReload", Entry, Entity )
+
+					-- Update in case the name was changed elsewhere (assume the change is unique).
+					EntriesByName[ Entry.Name ] = Entry
+				end
+			end
+		end
+
+		local CALLING = false
+		Hook.Add( "PostScoreboardReload", "IndexPlayerEntries", function()
+			if CALLING then return end
+
+			-- Just in case we somehow see a PlayerInfoEntity that has a client ID that is not
+			-- in the scoreboard player data yet, we don't want to trigger a stack overflow.
+			CALLING = true
+
+			xpcall( UpdateScoreboardEntries, ErrorHandler )
+
+			CALLING = false
+		end )
+	end )
+
+	return
+end
 
 local Abs = math.abs
 local Floor = math.floor

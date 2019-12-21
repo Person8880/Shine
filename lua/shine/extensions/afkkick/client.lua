@@ -4,6 +4,7 @@
 
 local Plugin = ...
 
+local GetScoreboardEntryByName = Shine.GetScoreboardEntryByName
 local setmetatable = setmetatable
 local StringFormat = string.format
 local xpcall = xpcall
@@ -15,62 +16,19 @@ function Plugin:ReceiveAFKNotify( Data )
 	StartSoundEffect( self.NotifySoundEffect )
 end
 
-function Plugin:SetupAFKScoreboardPrefix()
-	local GetPlayerDataByName = Shine.GetUpValueAccessor( Scoreboard_ReloadPlayerData, "playerDataByName", {
-		Recursive = true,
-		Predicate = Shine.UpValuePredicates.DefinedInFile( "lua/Scoreboard.lua" )
-	} )
+function Plugin:OnScoreboardEntryReload( Entry, Entity )
+	if not Entity.afk then return end
 
-	Shine.Hook.SetupGlobalHook( "Scoreboard_ReloadPlayerData",
-		"PostScoreboardReload", "PassivePost" )
+	local NewName = self.AFK_PREFIX..Entry.Name
 
-	local AFK_PREFIX = self.AFK_PREFIX
-	local CALLING = false
-
-	local function UpdateNamesWithAFKState()
-		local PlayerDataByName = GetPlayerDataByName()
-
-		local UniqueNames = setmetatable( {}, { __index = PlayerDataByName } )
-		local EntityList = Shared.GetEntitiesWithClassname( "PlayerInfoEntity" )
-		for _, Entity in ientitylist( EntityList ) do
-			local Entry = Scoreboard_GetPlayerRecord( Entity.clientId )
-			if Entry and Entry.Name then
-				if Entity.afk then
-					local NewName = AFK_PREFIX..Entry.Name
-
-					-- Make sure the new name is unique.
-					local Index = 2
-					while UniqueNames[ NewName ] and UniqueNames[ NewName ] ~= Entry do
-						NewName = StringFormat( "%s%s (%s)", AFK_PREFIX, Entry.Name, Index )
-						Index = Index + 1
-					end
-
-					Entry.Name = NewName
-
-					if PlayerDataByName then
-						PlayerDataByName[ NewName ] = Entry
-					end
-				end
-
-				UniqueNames[ Entry.Name ] = Entry
-			end
-		end
+	-- Make sure the new name is unique.
+	local Index = 2
+	local ExistingEntry = GetScoreboardEntryByName( NewName )
+	while ExistingEntry and ExistingEntry ~= Entry do
+		NewName = StringFormat( "%s%s (%s)", self.AFK_PREFIX, Entry.Name, Index )
+		Index = Index + 1
+		ExistingEntry = GetScoreboardEntryByName( NewName )
 	end
-	local ErrorHandler = Shine.BuildErrorHandler( "Scoreboard update error" )
 
-	self.PostScoreboardReload = function( self )
-		if CALLING then return end
-
-		-- Just in case we somehow see a PlayerInfoEntity that has a client ID that is not
-		-- in the scoreboard player data yet, we don't want to trigger a stack overflow.
-		CALLING = true
-
-		xpcall( UpdateNamesWithAFKState, ErrorHandler )
-
-		CALLING = false
-	end
-end
-
-function Plugin:OnFirstThink()
-	self:SetupAFKScoreboardPrefix()
+	Entry.Name = NewName
 end
