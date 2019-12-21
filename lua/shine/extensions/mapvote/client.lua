@@ -56,6 +56,22 @@ do
 		RichTextMessageOptions[ Plugin.DurationMessageKeys[ i ] ] = DurationMessageOptions
 	end
 
+	local function GetColourForName( Values )
+		return RichTextFormat.GetColourForPlayer( Values.TargetName )
+	end
+
+	local VoteMessageOptions = {
+		Colours = {
+			TargetName = GetColourForName,
+			MapName = RichTextFormat.Colours.LightBlue
+		}
+	}
+	RichTextMessageOptions[ "NOMINATED_MAP" ] = VoteMessageOptions
+	RichTextMessageOptions[ "PLAYER_VOTED" ] = VoteMessageOptions
+	RichTextMessageOptions[ "PLAYER_VOTED_PRIVATE" ] = VoteMessageOptions
+	RichTextMessageOptions[ "RTV_VOTED" ] = VoteMessageOptions
+	RichTextMessageOptions[ "VETO" ] = VoteMessageOptions
+
 	Plugin.RichTextMessageOptions = RichTextMessageOptions
 end
 

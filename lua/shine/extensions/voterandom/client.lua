@@ -63,6 +63,30 @@ Plugin.ConfigGroup = {
 	Icon = SGUI.Icons.Ionicons.Shuffle
 }
 
+do
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+	local RichTextMessageOptions = {}
+
+	local VoteMessageOptions = {
+		Colours = {
+			PlayerName = function( Values )
+				return RichTextFormat.GetColourForPlayer( Values.PlayerName )
+			end
+		}
+	}
+
+	for i = 1, #Plugin.VoteMessageKeys do
+		for Key, Value in pairs( Plugin.ModeStrings.Mode ) do
+			RichTextMessageOptions[ StringFormat( "%s_%s", Plugin.VoteMessageKeys[ i ], Value ) ] = VoteMessageOptions
+		end
+	end
+	for i = 1, #Plugin.FriendGroupMessageKeys do
+		RichTextMessageOptions[ Plugin.FriendGroupMessageKeys[ i ] ] = VoteMessageOptions
+	end
+
+	Plugin.RichTextMessageOptions = RichTextMessageOptions
+end
+
 local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
 local FRIEND_GROUP_INVITE_HINT_NAME = "ShuffleFriendGroupInviteHint"
 local TEAM_PREFERENCE_CHANGE_HINT_NAME = "ShuffleTeamPreferenceConfigHint"
@@ -614,7 +638,6 @@ local function CheckRow( self, Row, TeamNumber, CurTime, ShouldShowFriendGroup )
 end
 
 local MathStandardDeviation = math.StandardDeviation
-local StringFormat = string.format
 
 function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	local TeamNumber = Team.TeamNumber

@@ -42,9 +42,6 @@ Plugin.EnforcementDurationType = table.AsEnum{
 Plugin.EnforcementPolicyType = table.AsEnum{
 	"BLOCK_TEAMS", "ASSIGN_PLAYERS"
 }
-Plugin.ShuffleMode = table.AsEnum{
-	"RANDOM", "SCORE", "INVALID", "KDR", "HIVE"
-}
 Plugin.TeamPreferenceWeighting = table.AsEnum{
 	"NONE", "LOW", "MEDIUM", "HIGH"
 }
@@ -69,21 +66,7 @@ Plugin.MODE_ELO = Plugin.ShuffleMode.INVALID
 Plugin.MODE_KDR = Plugin.ShuffleMode.KDR
 Plugin.MODE_HIVE = Plugin.ShuffleMode.HIVE
 
-local ModeStrings = {
-	Action = {
-		[ Plugin.ShuffleMode.RANDOM ] = "SHUFFLE_RANDOM",
-		[ Plugin.ShuffleMode.SCORE ] = "SHUFFLE_SCORE",
-		[ Plugin.ShuffleMode.KDR ] = "SHUFFLE_KDR",
-		[ Plugin.ShuffleMode.HIVE ] = "SHUFFLE_HIVE"
-	},
-	Mode = {
-		[ Plugin.ShuffleMode.RANDOM ] = "RANDOM_BASED",
-		[ Plugin.ShuffleMode.SCORE ] = "SCORE_BASED",
-		[ Plugin.ShuffleMode.KDR ] = "KDR_BASED",
-		[ Plugin.ShuffleMode.HIVE ] = "HIVE_BASED"
-	}
-}
-Plugin.ModeStrings = ModeStrings
+local ModeStrings = Plugin.ModeStrings
 
 Plugin.DefaultConfig = {
 	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
