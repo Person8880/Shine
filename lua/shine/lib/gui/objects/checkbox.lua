@@ -162,7 +162,18 @@ function CheckBox:AddLabel( Text )
 		Label.Label:SetInheritsParentStencilSettings( true )
 	end
 
+	if self.TooltipText then
+		Label:SetTooltip( self.TooltipText )
+	end
+
 	self.Label = Label
+end
+
+function CheckBox:SetTooltip( Tooltip )
+	self.BaseClass.SetTooltip( self, Tooltip )
+	if SGUI.IsValid( self.Label ) then
+		self.Label:SetTooltip( Tooltip )
+	end
 end
 
 function CheckBox:OnChecked( Checked )

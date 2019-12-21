@@ -85,6 +85,7 @@ function Radio:AddOption( Option )
 	CheckBox:SetRadio( not self.MultipleChoice )
 	CheckBox:SetAutoSize( self.CheckBoxAutoSize )
 	CheckBox:SetStyleName( self.CheckBoxStyleName )
+	CheckBox:SetTooltip( Option.Tooltip )
 	CheckBox.RadioOption = Option
 
 	if Index > 1 then
