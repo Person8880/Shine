@@ -11,6 +11,7 @@ local MockShuffle = UnitTest.MockOf( VoteShuffle )
 
 VoteShuffle.Config.IgnoreCommanders = false
 
+local StringFormat = string.format
 local TableSort = table.sort
 
 UnitTest:Test( "AssignPlayers", function( Assert )
@@ -339,6 +340,52 @@ end
 
 UnitTest:Test( "GetVotesNeeded - Returns current constraint fraction * number of players", function( Assert )
 	Assert.Equals( "Should return player count * fraction", 15, MockShuffle:GetVotesNeeded() )
+end )
+
+UnitTest:Test( "IsRoundActive - Returns true if the game state is for an active round with no grace time", function( Assert )
+	MockShuffle.InGameStateChangeTime = false
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.True(
+			StringFormat( "Should return true for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
+end )
+
+UnitTest:Test( "IsRoundActive - Returns true if the game state is for an active round and grace time has expired", function( Assert )
+	MockShuffle.InGameStateChangeTime = Shared.GetTime() - 60
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.True(
+			StringFormat( "Should return true for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
+end )
+
+UnitTest:Test( "IsRoundActive - Returns false if the game state is for an active round but grace time has not expired", function( Assert )
+	MockShuffle.InGameStateChangeTime = Shared.GetTime() + 60
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.False(
+			StringFormat( "Should return false for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
+end )
+
+UnitTest:Test( "IsRoundActive - Returns false if the game state is for an inactive round", function( Assert )
+	local States = { "NotStarted", "PreGame", "WarmUp", "Team1Won", "Team2Won", "Draw" }
+	for i = 1, #States do
+		Assert.False(
+			StringFormat( "Should return false for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
 end )
 
 UnitTest:Test( "EvaluateConstraints - Number of players too low", function( Assert )

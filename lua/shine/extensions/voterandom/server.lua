@@ -129,7 +129,10 @@ Plugin.DefaultConfig = {
 			FractionNeededToPass = 0.75,
 			MinPlayerFractionToConstrainSkillDiff = 0.9,
 			MinAverageDiffToAllowShuffle = 75,
-			MinStandardDeviationDiffToAllowShuffle = 0
+			MinStandardDeviationDiffToAllowShuffle = 0,
+
+			-- How long to wait after the round starts before transitioning vote constraints/pass actions to "InGame".
+			StartOfRoundGraceTimeInSeconds = 0
 		}
 	},
 
@@ -292,6 +295,10 @@ Plugin.ConfigMigrationSteps = {
 			:RenameField( "PercentNeeded", { "VoteConstraints", "PreGame", "FractionNeededToPass" } )
 			:RenameField( "MinPlayers", { "VoteConstraints", "PreGame", "MinPlayers" } )
 			:CopyField( { "VoteConstraints", "PreGame" }, { "VoteConstraints", "InGame" } )
+			:AddField(
+				{ "VoteConstraints", "InGame", "StartOfRoundGraceTimeInSeconds" },
+				Plugin.DefaultConfig.VoteConstraints.InGame.StartOfRoundGraceTimeInSeconds
+			)
 	}
 }
 
@@ -1054,6 +1061,7 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 
 	self:BroadcastModuleEvent( "GameStarting", Gamerules )
 	self.EnforcementPolicy:OnStageChange( self.Stage.InGame )
+	self.InGameStateChangeTime = SharedTime() + self.Config.VoteConstraints.InGame.StartOfRoundGraceTimeInSeconds
 
 	-- Block the vote after the set time.
 	if self.Config.BlockAfterRoundTimeInMinutes > 0 then
@@ -1346,13 +1354,17 @@ Plugin.Stage = table.AsEnum{
 	"PreGame", "InGame"
 }
 
+function Plugin:IsRoundActive( GameState )
+	return GameState >= kGameState.Countdown and GameState <= kGameState.Started
+		and ( not self.InGameStateChangeTime or SharedTime() >= self.InGameStateChangeTime )
+end
+
 function Plugin:GetStage()
 	local Gamerules = GetGamerules()
 	if not Gamerules then return self.Stage.PreGame end
 
 	local GameState = Gamerules:GetGameState()
-	local IsInActiveRound = GameState >= kGameState.Countdown and GameState <= kGameState.Started
-	return IsInActiveRound and self.Stage.InGame or self.Stage.PreGame
+	return self:IsRoundActive( GameState ) and self.Stage.InGame or self.Stage.PreGame
 end
 
 function Plugin:GetVoteActionSettings( Stage )
