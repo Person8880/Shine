@@ -16,7 +16,7 @@ local DEFAULT_COLOUR = Colour( 1, 1, 1 )
 local Format = {}
 
 do
-	local NeutralColour = Colour( 0.6, 0.6, 0.6 )
+	local NeutralColour = Colour( 0.75, 0.75, 0.75 )
 	Format.Colours = {
 		Teams = {
 			[ 0 ] = NeutralColour,
