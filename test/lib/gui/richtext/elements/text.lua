@@ -161,6 +161,7 @@ UnitTest:Test( "Merge - Should merge segments as expected", function( Assert )
 		Value = "Test value",
 		Width = 10,
 		Height = 10,
-		Think = Element.Think
+		Think = Element.Think,
+		Setup = Element.Setup
 	}, Merged )
 end )
