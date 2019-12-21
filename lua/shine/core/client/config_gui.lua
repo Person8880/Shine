@@ -294,9 +294,17 @@ local SettingsTypes = {
 				local CurrentChoice = GetConfiguredValue( Entry )
 				for i = 1, #Entry.Options do
 					local Option = Entry.Options[ i ]
+
+					local Tooltip
+					if IsType( Entry.OptionTooltips, "table" )
+					and IsType( Entry.OptionTooltips[ Option ], "string" ) then
+						Tooltip = Locale:GetPhrase( TranslationSource, Entry.OptionTooltips[ Option ] )
+					end
+
 					local RadioOption = {
 						Description = Locale:GetPhrase( TranslationSource, Option ),
-						Value = Option
+						Value = Option,
+						Tooltip = Tooltip
 					}
 					Radio:AddOption( RadioOption )
 
@@ -406,6 +414,12 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 					local Object, ValueHolder = Creator.Create( TabPanel, Setting )
 					if i ~= #Settings then
 						Object:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+					end
+
+					if IsType( Setting.Tooltip, "string" ) then
+						ValueHolder:SetTooltip(
+							Locale:GetPhrase( Setting.TranslationSource or "Core", Setting.Tooltip )
+						)
 					end
 
 					if Setting.ConfigKey then

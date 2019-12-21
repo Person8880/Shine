@@ -306,6 +306,7 @@ if Client then
 	local PostProcessors = {
 		Dropdown = function( self, SettingOptions )
 			local Options = SettingOptions.Options
+			local OptionsTooltips = SettingOptions.OptionTooltips
 
 			SettingOptions.Options = function()
 				local DropdownOptions = {}
@@ -315,9 +316,16 @@ if Client then
 
 				for i = 1, #Options do
 					local Value = Options[ i ]
+
+					local Tooltip
+					if OptionsTooltips and OptionsTooltips[ Value ] then
+						Tooltip = self:GetPhrase( OptionsTooltips[ Value ] )
+					end
+
 					DropdownOptions[ #DropdownOptions + 1 ] = {
 						Text = self:GetPhrase( StringFormat( "%s_%s", KeyPrefix, Value ) ),
-						Value = Value
+						Value = Value,
+						Tooltip = Tooltip
 					}
 				end
 
@@ -328,10 +336,10 @@ if Client then
 		end
 	}
 
-	local function DeriveDescriptionKey( ConfigKey )
+	local function DeriveKey( ConfigKey, Suffix )
 		return StringTransformCase(
 			ConfigKey, CaseFormatType.UPPER_CAMEL, CaseFormatType.UPPER_UNDERSCORE
-		).."_DESCRIPTION"
+		)..Suffix
 	end
 
 	local function RegisterCommandIfNecessary( self, ConfigKey, Command, Options )
@@ -392,17 +400,37 @@ if Client then
 			end
 		end
 
+		local Tooltip
+		if Options.Tooltip == true then
+			Tooltip = DeriveKey( ConfigKey, "_TOOLTIP" )
+		elseif IsType( Options.Tooltip, "string" ) then
+			Tooltip = Options.Tooltip
+		end
+
+		local OptionTooltips
+		if Options.OptionTooltips == true then
+			OptionTooltips = {}
+			for i = 1, #Options.Options do
+				local Value = Options.Options[ i ]
+				OptionTooltips[ Value ] = DeriveKey( ConfigKey, StringFormat( "_%s_TOOLTIP", Value ) )
+			end
+		elseif IsType( Options.OptionTooltips, "table" ) then
+			OptionTooltips = Options.OptionTooltips
+		end
+
 		local MergedOptions = TableShallowMerge( Options, {
 			ConfigKey = ConfigKey,
 			Command = Command,
 			ConfigOption = ConfigOption,
-			Description = Options.Description or DeriveDescriptionKey( ConfigKey ),
+			Description = Options.Description or DeriveKey( ConfigKey, "_DESCRIPTION" ),
 			TranslationSource = self:GetName(),
 			Group = Group and {
 				Key = Group.Key or "CLIENT_CONFIG_TAB",
 				Source = self:GetName(),
 				Icon = Group.Icon
-			}
+			},
+			Tooltip = Tooltip,
+			OptionTooltips = OptionTooltips
 		} )
 
 		local PostProcessor = PostProcessors[ Options.Type ]
