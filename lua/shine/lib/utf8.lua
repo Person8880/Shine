@@ -2303,10 +2303,8 @@ end
 	Output: True if any of the UTF8 characters in the string are not a whitespace character, false otherwise.
 ]]
 function string.ContainsNonUTF8Whitespace( String )
-	local Chars = UTF8Encode( String )
-
-	for i = 1, #Chars do
-		if not WhitespaceChars[ Chars[ i ] ] then
+	for ByteIndex, Char in UTF8Chars( String ) do
+		if not WhitespaceChars[ Char ] then
 			return true
 		end
 	end
