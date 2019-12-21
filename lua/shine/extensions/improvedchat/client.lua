@@ -922,7 +922,8 @@ Plugin.ClientConfigSettings = {
 		Type = "Boolean",
 		CommandMessage = function( Value )
 			return StringFormat( "Chat messages %s.", Value and "will now animate" or "will no longer animate" )
-		end
+		end,
+		Tooltip = true
 	},
 	{
 		ConfigKey = "BackgroundOpacity",
@@ -942,7 +943,8 @@ Plugin.ClientConfigSettings = {
 		Min = 5,
 		Max = 20,
 		Decimals = 0,
-		CommandMessage = "Now displaying up to %s messages before fading."
+		CommandMessage = "Now displaying up to %s messages before fading.",
+		Tooltip = true
 	},
 	{
 		ConfigKey = "MessageDisplayType",
@@ -957,7 +959,8 @@ Plugin.ClientConfigSettings = {
 
 			return StringFormat( "Chat messages %s.", Descriptions[ Value ] )
 		end,
-		OnChange = Plugin.SetMessageDisplayType
+		OnChange = Plugin.SetMessageDisplayType,
+		OptionTooltips = true
 	},
 	{
 		ConfigKey = "FontSizeMode",
