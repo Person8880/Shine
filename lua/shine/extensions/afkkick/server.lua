@@ -304,8 +304,7 @@ do
 		-- Make sure time rules are in ascending max player order.
 		TableSort( self.Config.TimeRules, SortByMaxPlayers )
 
-		-- Only check rules if needed.
-		self.GetTimeValue = #self.Config.TimeRules > 0 and self.GetTimeValueWithRules or self.GetTimeValueFromConfig
+		self:OnPlayerCountChanged()
 
 		if self.Enabled ~= nil then
 			for Client in self.Users:Iterate() do
@@ -345,8 +344,9 @@ function Plugin:GetPlayerCount()
 	return GetHumanPlayerCount()
 end
 
-function Plugin:GetTimeValueFromConfig( Key )
-	return self.Config[ Key ]
+function Plugin:OnPlayerCountChanged()
+	self.CurrentWarnTimeInSeconds = self:GetTimeValueWithRules( "WarnTimeInMinutes" ) * 60
+	self.CurrentKickTimeInSeconds = self:GetTimeValueWithRules( "KickTimeInMinutes" ) * 60
 end
 
 function Plugin:GetTimeValueWithRules( Key )
@@ -362,16 +362,6 @@ function Plugin:GetTimeValueWithRules( Key )
 	end
 
 	return Default
-end
-
-Plugin.GetTimeValue = Plugin.GetTimeValueWithRules
-
-function Plugin:GetWarnTimeInSeconds()
-	return self:GetTimeValue( "WarnTimeInMinutes" ) * 60
-end
-
-function Plugin:GetKickTimeInSeconds()
-	return self:GetTimeValue( "KickTimeInMinutes" ) * 60
 end
 
 function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
@@ -403,7 +393,7 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	local AFKForLongest
 	local TimeAFK = 0
-	local KickTime = self:GetKickTimeInSeconds()
+	local KickTime = self.CurrentKickTimeInSeconds
 
 	for Client, Data in self.Users:Iterate() do
 		if not ( Shine:HasAccess( Client, "sh_afk" )
@@ -428,6 +418,8 @@ end
 ]]
 function Plugin:ClientConnect( Client )
 	if not Client or Client:GetIsVirtual() then return end
+
+	self:OnPlayerCountChanged()
 
 	local Player = Client:GetControllingPlayer()
 	assert( Player, "No player assigned to non-virtual client in ClientConnect event!" )
@@ -610,8 +602,8 @@ function Plugin:EvaluatePlayers()
 
 	local Params = {
 		Time = SharedTime(),
-		KickTime = self:GetKickTimeInSeconds(),
-		WarnTime = self.Config.Warn and self:GetWarnTimeInSeconds(),
+		KickTime = self.CurrentKickTimeInSeconds,
+		WarnTime = self.Config.Warn and self.CurrentWarnTimeInSeconds,
 		NumPlayers = NumPlayers,
 		Gamerules = Gamerules
 	}
@@ -686,7 +678,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	-- Track frozen player's input, but do not punish them if they are not providing any.
 	local IsPlayerFrozen = self:IsPlayerFrozen( Player )
-	local KickTime = self:GetKickTimeInSeconds()
+	local KickTime = self.CurrentKickTimeInSeconds
 
 	if HasMoved then
 		DataTable.LastMove = Time
@@ -835,6 +827,7 @@ end
 ]]
 function Plugin:ClientDisconnect( Client )
 	self.Users:Remove( Client )
+	self:OnPlayerCountChanged()
 end
 
 function Plugin:OverrideAFKMixin()

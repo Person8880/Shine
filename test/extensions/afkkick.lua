@@ -79,8 +79,10 @@ Shine.GetClientInfo = function() return "" end
 AFKKick.CanKickForConnectingClient = function() return true end
 
 UnitTest:Test( "KickOnConnect", function( Assert )
+	AFKKick.Config.TimeRules = {}
 	AFKKick.Config.KickOnConnect = true
 	AFKKick.Config.KickTimeInMinutes = 2
+	AFKKick:OnPlayerCountChanged()
 
 	AFKKick.Users = Shine.Map( {
 		[ 1 ] = {
@@ -101,15 +103,16 @@ UnitTest:Test( "KickOnConnect", function( Assert )
 		Kicked = true
 	end
 
-	Assert:Nil( AFKKick:CheckConnectionAllowed( 123456 ) )
-	Assert:True( Kicked )
+	Assert.Nil( "Should return nil from event", AFKKick:CheckConnectionAllowed( 123456 ) )
+	Assert.True( "Should kick AFK player to make room", Kicked )
 
 	-- Should now not kick anyone.
 	AFKKick.Config.KickTimeInMinutes = 10
+	AFKKick:OnPlayerCountChanged()
 	Kicked = false
 
-	Assert:Nil( AFKKick:CheckConnectionAllowed( 123456 ) )
-	Assert:False( Kicked )
+	Assert.Nil( "Should return nil from event", AFKKick:CheckConnectionAllowed( 123456 ) )
+	Assert.False( "Should not kick anyone as none are AFK longer than the kick time", Kicked )
 end, function()
 	AFKKick.Config.KickOnConnect = false
 end )
