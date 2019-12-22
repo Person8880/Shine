@@ -91,6 +91,7 @@ Plugin.DefaultConfig = {
 	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
 	NotifyOnVote = true, --  Should all players be told through the chat when a vote is cast?
 	ApplyToBots = false, --  Should bots be shuffled, or removed?
+	BlockBotsAfterShuffle = true, -- Whether filler bots should be blocked after a shuffle removes them.
 
 	BalanceMode = Plugin.ShuffleMode.HIVE, -- How should teams be balanced?
 	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Elo/Hive fails?
@@ -302,6 +303,7 @@ Plugin.ConfigMigrationSteps = {
 			)
 			:RenameField( "AlwaysEnabled", "AutoShuffleAtRoundStart" )
 			:AddField( "EndOfRoundShuffleDelayInSeconds", Plugin.DefaultConfig.EndOfRoundShuffleDelayInSeconds )
+			:AddField( "BlockBotsAfterShuffle", Plugin.DefaultConfig.BlockBotsAfterShuffle )
 	}
 }
 
