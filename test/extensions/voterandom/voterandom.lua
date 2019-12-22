@@ -366,6 +366,18 @@ UnitTest:Test( "IsRoundActive - Returns true if the game state is for an active 
 	end
 end )
 
+UnitTest:Test( "IsRoundActive - Returns true if the game state is for an active round and grace time has not expired but is ignored", function( Assert )
+	MockShuffle.InGameStateChangeTime = Shared.GetTime() + 60
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.True(
+			StringFormat( "Should return true for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ], true )
+		)
+	end
+end )
+
 UnitTest:Test( "IsRoundActive - Returns false if the game state is for an active round but grace time has not expired", function( Assert )
 	MockShuffle.InGameStateChangeTime = Shared.GetTime() + 60
 

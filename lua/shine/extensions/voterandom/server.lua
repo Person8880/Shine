@@ -98,7 +98,8 @@ Plugin.DefaultConfig = {
 	RemoveAFKPlayersFromTeams = true, -- Should the plugin remove AFK players from teams when shuffling?
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, -- Should the plugin ignore spectators in player slots when switching?
-	AlwaysEnabled = false, -- Should the plugin be always forcing each round?
+	AutoShuffleAtRoundStart = false, -- Should the plugin be always forcing each round?
+	EndOfRoundShuffleDelayInSeconds = 30, -- How long after a round end before auto-shuffling if enforcement is still active.
 
 	ReconnectLogTimeInSeconds = 0, -- How long (in seconds) after a shuffle to log reconnecting players for?
 	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
@@ -299,6 +300,8 @@ Plugin.ConfigMigrationSteps = {
 				{ "VoteConstraints", "InGame", "StartOfRoundGraceTimeInSeconds" },
 				Plugin.DefaultConfig.VoteConstraints.InGame.StartOfRoundGraceTimeInSeconds
 			)
+			:RenameField( "AlwaysEnabled", "AutoShuffleAtRoundStart" )
+			:AddField( "EndOfRoundShuffleDelayInSeconds", Plugin.DefaultConfig.EndOfRoundShuffleDelayInSeconds )
 	}
 }
 
@@ -450,8 +453,8 @@ function DurationBasedEnforcement:Init( Duration, Policies )
 	return EnforcementPolicy.Init( self, Policies )
 end
 
-function DurationBasedEnforcement:IsActive()
-	return SharedTime() < self.EndTime
+function DurationBasedEnforcement:IsActive( Plugin, TimeToCheck )
+	return ( TimeToCheck or SharedTime() ) < self.EndTime
 end
 
 function DurationBasedEnforcement:Announce( Plugin )
@@ -611,15 +614,15 @@ function Plugin:Initialise()
 	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
 		and BalanceMode == self.ShuffleMode.HIVE
 
-	if self.Config.AlwaysEnabled and self:GetStage() == self.Stage.InGame then
+	if self.Config.AutoShuffleAtRoundStart and self:GetStage() == self.Stage.InGame then
 		self.EnforcementPolicy = self:BuildEnforcementPolicy( self:GetVoteActionSettings() )
 	else
 		-- Nothing to enforce at startup.
 		self.EnforcementPolicy = NoOpEnforcement()
 	end
 
-	self.dt.IsVoteForAutoShuffle = self.Config.AlwaysEnabled
-	self.dt.IsAutoShuffling = self.Config.AlwaysEnabled
+	self.dt.IsVoteForAutoShuffle = self.Config.AutoShuffleAtRoundStart
+	self.dt.IsAutoShuffling = self.Config.AutoShuffleAtRoundStart
 
 	self.TeamPreferences = {}
 	self.LastAttemptedTeamJoins = {}
@@ -1049,6 +1052,53 @@ do
 	end
 end
 
+function Plugin:QueueShuffleOnNextRound( Reason )
+	self.ShuffleOnNextRound = true
+	self.ShuffleOnNextRoundReason = Reason
+end
+
+function Plugin:CancelQueuedNextRoundShuffleFor( Reason )
+	if self.ShuffleOnNextRoundReason ~= Reason then return end
+
+	self.ShuffleOnNextRound = false
+	self.ShuffleOnNextRoundReason = nil
+end
+
+function Plugin:ApplyAutoShuffle()
+	if self.Config.AutoShuffleAtRoundStart then
+		-- Reset any vote, as it cannot be used again until the round ends.
+		self.Vote:Reset()
+
+		-- If voted to disable auto-shuffle, do nothing.
+		if self.SuppressAutoShuffle then return end
+	end
+
+	local Reason = self.ShuffleOnNextRoundReason
+
+	self.ShuffleOnNextRound = false
+	self.ShuffleOnNextRoundReason = nil
+
+	if ( not Reason and GetNumPlayers() < self:GetCurrentVoteConstraints().MinPlayers ) or self.DoneStartShuffle then
+		return
+	end
+
+	self.DoneStartShuffle = true
+
+	local OldValue = self.Config.IgnoreCommanders
+
+	-- Force ignoring commanders.
+	self.Config.IgnoreCommanders = true
+
+	self:SendTranslatedNotify( nil, Reason or "AUTO_SHUFFLE", {
+		ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
+	} )
+	self:ShuffleTeams()
+	self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
+	self.QueuedStage = nil
+
+	self.Config.IgnoreCommanders = OldValue
+end
+
 function Plugin:SetGameState( Gamerules, NewState, OldState )
 	-- Reset the block time when the round stops.
 	if NewState == kGameState.NotStarted then
@@ -1068,39 +1118,16 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterRoundTimeInMinutes * 60
 	end
 
-	if not self.Config.AlwaysEnabled and not self.ShuffleOnNextRound then return end
+	if not self.Config.AutoShuffleAtRoundStart and not self.ShuffleOnNextRound then return end
 
-	if self.Config.AlwaysEnabled then
-		-- Reset any vote, as it cannot be used again until the round ends.
-		self.Vote:Reset()
+	self:ApplyAutoShuffle()
+end
 
-		-- If voted to disable auto-shuffle, do nothing.
-		if self.SuppressAutoShuffle then return end
-	end
+function Plugin:ResetGame( Gamerules )
+	self:BroadcastModuleEvent( "ResetGame", Gamerules )
 
-	self.ShuffleOnNextRound = false
-
-	if GetNumPlayers() < self:GetCurrentVoteConstraints().MinPlayers then
-		return
-	end
-
-	if self.DoneStartShuffle then return end
-
-	self.DoneStartShuffle = true
-
-	local OldValue = self.Config.IgnoreCommanders
-
-	-- Force ignoring commanders.
-	self.Config.IgnoreCommanders = true
-
-	self:SendTranslatedNotify( nil, "AUTO_SHUFFLE", {
-		ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
-	} )
-	self:ShuffleTeams()
-	self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
-	self.QueuedStage = nil
-
-	self.Config.IgnoreCommanders = OldValue
+	-- Make sure auto-shuffle is applied again the next time the round starts.
+	self.DoneStartShuffle = false
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
@@ -1128,7 +1155,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	self.VoteBlockTime = nil
 
 	-- If we're always enabled, we'll shuffle on round start.
-	if self.Config.AlwaysEnabled then
+	if self.Config.AutoShuffleAtRoundStart then
 		self.SuppressAutoShuffle = false
 		self.dt.IsAutoShuffling = true
 		self.dt.IsVoteForAutoShuffle = true
@@ -1142,9 +1169,24 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	if self.ShuffleAtEndOfRound then
 		self.ShuffleAtEndOfRound = false
 
-		self:SimpleTimer( 15, function()
+		-- Queue a shuffle for the next round (in case a round starts before the timer expires).
+		self:QueueShuffleOnNextRound( "PREVIOUS_VOTE_SHUFFLE" )
+
+		self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
+			-- If a round hasn't started yet, cancel the queued shuffle.
+			self:CancelQueuedNextRoundShuffleFor( "PREVIOUS_VOTE_SHUFFLE" )
+
+			-- Make sure the map hasn't ended, and no round has started yet (if a round starts, it will shuffle
+			-- automatically due to the flags set above).
 			local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-			if Enabled and MapVote:IsEndVote() then
+			local IsEndOfMapVote = Enabled and MapVote:IsEndVote()
+			local CurrentStage = self:GetStage( true )
+			if IsEndOfMapVote or CurrentStage == self.Stage.InGame then
+				self.Logger:Debug(
+					"Skipping end of round shuffle as it is not applicable to the current game state (%s - %s)",
+					CurrentStage,
+					IsEndOfMapVote and "end of map vote in progress" or "no map vote in progress"
+				)
 				return
 			end
 
@@ -1159,21 +1201,33 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		return
 	end
 
-	if not self.EnforcementPolicy:IsActive( self ) then
+	-- Make sure the enforcement policy will be active after the configured delay.
+	if not self.EnforcementPolicy:IsActive( self, SharedTime() + self.Config.EndOfRoundShuffleDelayInSeconds ) then
 		return
 	end
 
+	self:QueueShuffleOnNextRound( "PREVIOUS_VOTE_SHUFFLE" )
+
 	-- Continue the existing policy (must be time based).
-	self:SimpleTimer( 15, function()
-		if not self.EnforcementPolicy:IsActive( self ) then return end
+	self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
+		self:CancelQueuedNextRoundShuffleFor( "PREVIOUS_VOTE_SHUFFLE" )
 
 		local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-		if not ( Enabled and MapVote:IsEndVote() ) then
-			self:SendTranslatedNotify( nil, "PREVIOUS_VOTE_SHUFFLE", {
-				ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
-			} )
-			self:ShuffleTeams()
+		local IsEndOfMapVote = Enabled and MapVote:IsEndVote()
+		local CurrentStage = self:GetStage( true )
+		if IsEndOfMapVote or not self.EnforcementPolicy:IsActive( self ) or CurrentStage == self.Stage.InGame then
+			self.Logger:Debug(
+				"Skipping enforcement shuffle as it is not applicable to the current game state (%s - %s)",
+				CurrentStage,
+				IsEndOfMapVote and "end of map vote in progress" or "no map vote in progress"
+			)
+			return
 		end
+
+		self:SendTranslatedNotify( nil, "PREVIOUS_VOTE_SHUFFLE", {
+			ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
+		} )
+		self:ShuffleTeams()
 	end )
 end
 
@@ -1183,7 +1237,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	local Gamestate = Gamerules:GetGameState()
 
 	-- We'll do a mass balance, don't worry about them yet.
-	if self.Config.AlwaysEnabled and Gamestate < kGameState.PreGame then return end
+	if self.Config.AutoShuffleAtRoundStart and Gamestate < kGameState.PreGame then return end
 
 	-- Don't block them from going back to the ready room at the end of the round.
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won
@@ -1289,7 +1343,7 @@ function Plugin:IsVoteAllowed()
 end
 
 function Plugin:CanStartVote()
-	if self:GetStage() == self.Stage.InGame and self.Config.AlwaysEnabled then
+	if self:GetStage() == self.Stage.InGame and self.Config.AutoShuffleAtRoundStart then
 		-- Disabling/enabling auto shuffle should only be possible before a round starts.
 		return false, self:GetStartFailureMessage()
 	end
@@ -1354,17 +1408,17 @@ Plugin.Stage = table.AsEnum{
 	"PreGame", "InGame"
 }
 
-function Plugin:IsRoundActive( GameState )
+function Plugin:IsRoundActive( GameState, IgnoreGraceTime )
 	return GameState >= kGameState.Countdown and GameState <= kGameState.Started
-		and ( not self.InGameStateChangeTime or SharedTime() >= self.InGameStateChangeTime )
+		and ( IgnoreGraceTime or not self.InGameStateChangeTime or SharedTime() >= self.InGameStateChangeTime )
 end
 
-function Plugin:GetStage()
+function Plugin:GetStage( IgnoreGraceTime )
 	local Gamerules = GetGamerules()
 	if not Gamerules then return self.Stage.PreGame end
 
 	local GameState = Gamerules:GetGameState()
-	return self:IsRoundActive( GameState ) and self.Stage.InGame or self.Stage.PreGame
+	return self:IsRoundActive( GameState, IgnoreGraceTime ) and self.Stage.InGame or self.Stage.PreGame
 end
 
 function Plugin:GetVoteActionSettings( Stage )
@@ -1403,6 +1457,7 @@ Plugin.ShufflePolicyActions = {
 			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
 		} )
 		self.ShuffleOnNextRound = true
+		self.ShuffleOnNextRoundReason = nil
 		self.QueuedStage = self:GetStage()
 		self.Logger:Debug( "Queued shuffle for the start of the next round." )
 	end,
@@ -1475,7 +1530,7 @@ function Plugin:ApplyRandomSettings()
 		self.RandomApplied = false
 	end )
 
-	if self.Config.AlwaysEnabled then
+	if self.Config.AutoShuffleAtRoundStart then
 		self.SuppressAutoShuffle = not self.SuppressAutoShuffle
 		self.dt.IsAutoShuffling = not self.SuppressAutoShuffle
 
@@ -1506,7 +1561,7 @@ function Plugin:CreateCommands()
 			if not self.RandomApplied then
 				if self.Config.NotifyOnVote then
 					local Key = "PLAYER_VOTED"
-					if self.Config.AlwaysEnabled then
+					if self.Config.AutoShuffleAtRoundStart then
 						Key = self.SuppressAutoShuffle and "PLAYER_VOTED_ENABLE_AUTO"
 							or "PLAYER_VOTED_DISABLE_AUTO"
 					end
@@ -1518,7 +1573,7 @@ function Plugin:CreateCommands()
 					} )
 				else
 					local Key = "PLAYER_VOTED_PRIVATE"
-					if self.Config.AlwaysEnabled then
+					if self.Config.AutoShuffleAtRoundStart then
 						Key = self.SuppressAutoShuffle and "PLAYER_VOTED_ENABLE_AUTO_PRIVATE"
 							or "PLAYER_VOTED_DISABLE_AUTO_PRIVATE"
 					end
@@ -1558,12 +1613,13 @@ function Plugin:CreateCommands()
 		else
 			self.Vote:Reset()
 
-			if self.Config.AlwaysEnabled then
+			if self.Config.AutoShuffleAtRoundStart then
 				self.SuppressAutoShuffle = true
 				self.dt.IsAutoShuffling = false
 			end
 
 			self.ShuffleOnNextRound = false
+			self.ShuffleOnNextRoundReason = nil
 			self.ShuffleAtEndOfRound = false
 			self:DestroyTimer( self.RandomEndTimer )
 			self.EnforcementPolicy = NoOpEnforcement()
