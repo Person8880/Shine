@@ -323,7 +323,7 @@ do
 	Validator:AddFieldRules( {
 		"VotePassActions.PreGame.EnforcementDurationType",
 		"VotePassActions.InGame.EnforcementDurationType"
-	}, Validator.InEnum( Plugin.EnforcementDurationType, Plugin.EnforcementDurationType.DURATION ) )
+	}, Validator.InEnum( Plugin.EnforcementDurationType, Plugin.EnforcementDurationType.TIME ) )
 	Validator:AddFieldRules(
 		{
 			"VotePassActions.PreGame.EnforcementPolicy",
@@ -1052,16 +1052,29 @@ do
 	end
 end
 
-function Plugin:QueueShuffleOnNextRound( Reason )
+function Plugin:QueueShuffleOnNextRound( Reason, SkipEnforcement )
 	self.ShuffleOnNextRound = true
 	self.ShuffleOnNextRoundReason = Reason
+	self.ShuffleOnNextRoundSkipEnforcement = SkipEnforcement
+end
+
+function Plugin:ResetQueuedNextRoundShuffle()
+	self.ShuffleOnNextRound = false
+	self.ShuffleOnNextRoundReason = nil
+	self.ShuffleOnNextRoundSkipEnforcement = nil
 end
 
 function Plugin:CancelQueuedNextRoundShuffleFor( Reason )
 	if self.ShuffleOnNextRoundReason ~= Reason then return end
 
-	self.ShuffleOnNextRound = false
-	self.ShuffleOnNextRoundReason = nil
+	self:ResetQueuedNextRoundShuffle()
+end
+
+function Plugin:CancelEndOfRoundShuffle()
+	if not self.EndOfRoundShuffleTimer then return end
+
+	self.EndOfRoundShuffleTimer:Destroy()
+	self.EndOfRoundShuffleTimer = nil
 end
 
 function Plugin:ApplyAutoShuffle()
@@ -1074,9 +1087,9 @@ function Plugin:ApplyAutoShuffle()
 	end
 
 	local Reason = self.ShuffleOnNextRoundReason
+	local SkipEnforcement = self.ShuffleOnNextRoundSkipEnforcement
 
-	self.ShuffleOnNextRound = false
-	self.ShuffleOnNextRoundReason = nil
+	self:ResetQueuedNextRoundShuffle()
 
 	if ( not Reason and GetNumPlayers() < self:GetCurrentVoteConstraints().MinPlayers ) or self.DoneStartShuffle then
 		return
@@ -1093,8 +1106,11 @@ function Plugin:ApplyAutoShuffle()
 		ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
 	} )
 	self:ShuffleTeams()
-	self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
-	self.QueuedStage = nil
+
+	if not SkipEnforcement then
+		self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
+		self.QueuedStage = nil
+	end
 
 	self.Config.IgnoreCommanders = OldValue
 end
@@ -1109,6 +1125,7 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 
 	if NewState ~= kGameState.Countdown then return end
 
+	self:CancelEndOfRoundShuffle()
 	self:BroadcastModuleEvent( "GameStarting", Gamerules )
 	self.EnforcementPolicy:OnStageChange( self.Stage.InGame )
 	self.InGameStateChangeTime = SharedTime() + self.Config.VoteConstraints.InGame.StartOfRoundGraceTimeInSeconds
@@ -1171,8 +1188,9 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 
 		-- Queue a shuffle for the next round (in case a round starts before the timer expires).
 		self:QueueShuffleOnNextRound( "PREVIOUS_VOTE_SHUFFLE" )
+		self:CancelEndOfRoundShuffle()
 
-		self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
+		self.EndOfRoundShuffleTimer = self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
 			-- If a round hasn't started yet, cancel the queued shuffle.
 			self:CancelQueuedNextRoundShuffleFor( "PREVIOUS_VOTE_SHUFFLE" )
 
@@ -1206,10 +1224,11 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		return
 	end
 
-	self:QueueShuffleOnNextRound( "PREVIOUS_VOTE_SHUFFLE" )
+	self:QueueShuffleOnNextRound( "PREVIOUS_VOTE_SHUFFLE", true )
+	self:CancelEndOfRoundShuffle()
 
 	-- Continue the existing policy (must be time based).
-	self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
+	self.EndOfRoundShuffleTimer = self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
 		self:CancelQueuedNextRoundShuffleFor( "PREVIOUS_VOTE_SHUFFLE" )
 
 		local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
@@ -1456,8 +1475,8 @@ Plugin.ShufflePolicyActions = {
 		self:SendTranslatedNotify( nil, "TEAMS_FORCED_NEXT_ROUND", {
 			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
 		} )
+		self:ResetQueuedNextRoundShuffle()
 		self.ShuffleOnNextRound = true
-		self.ShuffleOnNextRoundReason = nil
 		self.QueuedStage = self:GetStage()
 		self.Logger:Debug( "Queued shuffle for the start of the next round." )
 	end,
@@ -1618,8 +1637,7 @@ function Plugin:CreateCommands()
 				self.dt.IsAutoShuffling = false
 			end
 
-			self.ShuffleOnNextRound = false
-			self.ShuffleOnNextRoundReason = nil
+			self:ResetQueuedNextRoundShuffle()
 			self.ShuffleAtEndOfRound = false
 			self:DestroyTimer( self.RandomEndTimer )
 			self.EnforcementPolicy = NoOpEnforcement()
