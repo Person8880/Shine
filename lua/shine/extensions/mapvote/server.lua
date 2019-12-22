@@ -531,7 +531,7 @@ function Plugin:ForcePlayersIntoReadyRoom()
 
 	local function CollectPlayer( Player )
 		local Client = Player:GetClient()
-		if not Client:GetIsVirtual() then
+		if Shine:IsValidClient( Client ) and not Client:GetIsVirtual() then
 			PlayersToMove[ #PlayersToMove + 1 ] = Player
 		end
 	end
