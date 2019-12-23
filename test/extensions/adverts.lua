@@ -598,6 +598,17 @@ UnitTest:Test( "AdvertStream:OnPlayerCountChanged - Starts stream is player coun
 	Assert.Equals( "The timer should have a 10 second delay", 10, Timers[ 1 ].Delay )
 end )
 
+UnitTest:Test( "AdvertStream:OnPlayerCountChanged - Does not start stream if no player count restrictions are set", function( Assert )
+	Assert.False( "Stream should not have started yet", Stream.Started )
+
+	Stream.MinPlayers = nil
+	Stream.MaxPlayers = nil
+	Stream:OnPlayerCountChanged( 8 )
+
+	Assert.False( "Stream should not start when not configured with player count restrictions", Stream.Started )
+	Assert.Equals( "Should not have queued the first advert", 0, #Timers )
+end )
+
 UnitTest:Test( "AdvertStream:OnPlayerCountChanged - Stops stream is player count is out of range", function( Assert )
 	Stream:Start()
 	Assert.True( "Stream should have started", Stream.Started )

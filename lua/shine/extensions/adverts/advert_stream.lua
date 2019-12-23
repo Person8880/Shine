@@ -175,7 +175,7 @@ function AdvertStream:OnPlayerCountChanged( PlayerCount )
 
 	if not self:CanStart( PlayerCount ) then
 		self:Stop()
-	elseif not self:IsStartedByTrigger() then
+	elseif not self:IsStartedByTrigger() and ( self.MinPlayers or self.MaxPlayers ) then
 		self:Start()
 	end
 end
