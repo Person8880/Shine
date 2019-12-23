@@ -39,8 +39,6 @@ Plugin.DefaultConfig = {
 	Delay = 1,
 	WarnTimeInMinutes = 5,
 	KickTimeInMinutes = 15,
-	-- Rules that determine the warn/kick time based on player count.
-	TimeRules = {},
 	IgnoreSpectators = false,
 	Warn = true,
 	MovementDelaySeconds = 0,
@@ -66,7 +64,9 @@ Plugin.DefaultConfig = {
 		-- LENIENT - all players reset their AFK time with activity.
 		[ NO_IMMUNITY ] = Plugin.Leniency.STRICT,
 		[ PARTIAL_IMMUNITY ] = Plugin.Leniency.STRICT
-	}
+	},
+	-- Rules that determine config options based on player count.
+	PlayerCountRules = {}
 }
 
 Plugin.CheckConfig = true
@@ -121,7 +121,7 @@ Plugin.ConfigMigrationSteps = {
 		Apply = Shine.Migrator()
 			:RenameField( "WarnTime", "WarnTimeInMinutes" )
 			:RenameField( "KickTime", "KickTimeInMinutes" )
-			:AddField( "TimeRules", Plugin.DefaultConfig.TimeRules )
+			:AddField( "PlayerCountRules", Plugin.DefaultConfig.PlayerCountRules )
 	}
 }
 
@@ -198,7 +198,7 @@ do
 	Validator:AddFieldRule( "Leniency.PartialImmunity",
 		Validator.InEnum( Plugin.Leniency, Plugin.Leniency.STRICT ) )
 
-	Validator:AddFieldRule( "TimeRules", Validator.AllValuesSatisfy(
+	Validator:AddFieldRule( "PlayerCountRules", Validator.AllValuesSatisfy(
 		Validator.ValidateField( "MaxPlayers", Validator.IsType( "number", 1 ) ),
 		Validator.ValidateField( "MaxPlayers", Validator.Min( 1 ) ),
 
@@ -206,7 +206,9 @@ do
 		Validator.ValidateField( "MinPlayers", Validator.IfType( "number", Validator.Min( 0 ) ) ),
 
 		Validator.ValidateField( "WarnTimeInMinutes", Validator.IsAnyType( { "number", "nil" }, nil ) ),
-		Validator.ValidateField( "KickTimeInMinutes", Validator.IsAnyType( { "number", "nil" }, nil ) )
+		Validator.ValidateField( "KickTimeInMinutes", Validator.IsAnyType( { "number", "nil" }, nil ) ),
+
+		Validator.ValidateField( "MarkPlayersAFK", Validator.IsAnyType( { "boolean", "nil" }, nil ) )
 	) )
 
 	Plugin.ConfigValidator = Validator
@@ -301,8 +303,8 @@ do
 			PartialImmunity = self:BuildActions( self.Config.WarnActions.PartialImmunity )
 		}
 
-		-- Make sure time rules are in ascending max player order.
-		TableSort( self.Config.TimeRules, SortByMaxPlayers )
+		-- Make sure rules are in ascending max player order.
+		TableSort( self.Config.PlayerCountRules, SortByMaxPlayers )
 
 		self:OnPlayerCountChanged()
 
@@ -345,19 +347,24 @@ function Plugin:GetPlayerCount()
 end
 
 function Plugin:OnPlayerCountChanged()
-	self.CurrentWarnTimeInSeconds = self:GetTimeValueWithRules( "WarnTimeInMinutes" ) * 60
-	self.CurrentKickTimeInSeconds = self:GetTimeValueWithRules( "KickTimeInMinutes" ) * 60
+	self.CurrentWarnTimeInSeconds = self:GetConfigValueWithRules( "WarnTimeInMinutes" ) * 60
+	self.CurrentKickTimeInSeconds = self:GetConfigValueWithRules( "KickTimeInMinutes" ) * 60
+	self.CurrentMarkPlayersAFK = self:GetConfigValueWithRules( "MarkPlayersAFK" )
 end
 
-function Plugin:GetTimeValueWithRules( Key )
+function Plugin:GetConfigValueWithRules( Key )
 	local Default = self.Config[ Key ]
-	local Rules = self.Config.TimeRules
+	local Rules = self.Config.PlayerCountRules
 
 	local PlayerCount = self:GetPlayerCount()
 	for i = 1, #Rules do
 		local Rule = Rules[ i ]
 		if Rule.MaxPlayers >= PlayerCount and ( not Rule.MinPlayers or Rule.MinPlayers <= PlayerCount ) then
-			return Rule[ Key ] or Default
+			local RuleValue = Rule[ Key ]
+			if RuleValue == nil then
+				RuleValue = Default
+			end
+			return RuleValue
 		end
 	end
 
@@ -365,7 +372,10 @@ function Plugin:GetTimeValueWithRules( Key )
 end
 
 function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
-	if not self.Config.MarkPlayersAFK then return end
+	if not self.CurrentMarkPlayersAFK then
+		PlayerInfo.afk = false
+		return
+	end
 
 	local Client = GetOwner( Player )
 	local Data = self.Users:Get( Client )

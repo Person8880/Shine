@@ -79,7 +79,7 @@ Shine.GetClientInfo = function() return "" end
 AFKKick.CanKickForConnectingClient = function() return true end
 
 UnitTest:Test( "KickOnConnect", function( Assert )
-	AFKKick.Config.TimeRules = {}
+	AFKKick.Config.PlayerCountRules = {}
 	AFKKick.Config.KickOnConnect = true
 	AFKKick.Config.KickTimeInMinutes = 2
 	AFKKick:OnPlayerCountChanged()
@@ -120,11 +120,13 @@ end )
 Shine.GetClientInfo = OldGetClientInfo
 
 AFKKick.Config.WarnTimeInMinutes = 1
-AFKKick.Config.TimeRules = {
+AFKKick.Config.MarkPlayersAFK = true
+AFKKick.Config.PlayerCountRules = {
 	{
 		MinPlayers = 4,
 		MaxPlayers = 8,
-		WarnTimeInMinutes = 2
+		WarnTimeInMinutes = 2,
+		MarkPlayersAFK = false
 	},
 	{
 		MinPlayers = 9,
@@ -138,14 +140,14 @@ function AFKKick:GetPlayerCount()
 	return PlayerCount
 end
 
-UnitTest:Test( "GetTimeValueWithRules - Returns default when no rule matches", function( Assert )
+UnitTest:Test( "GetConfigValueWithRules - Returns default when no rule matches", function( Assert )
 	for i = 1, 3 do
 		PlayerCount = i
 
 		Assert.Equals(
 			StringFormat( "Warn time should be the default when no time rule matches (with %d player(s))", i ),
 			1,
-			AFKKick:GetTimeValueWithRules( "WarnTimeInMinutes" )
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
 		)
 	end
 
@@ -155,19 +157,19 @@ UnitTest:Test( "GetTimeValueWithRules - Returns default when no rule matches", f
 		Assert.Equals(
 			StringFormat( "Warn time should be the default when no time rule matches (with %d player(s))", i ),
 			1,
-			AFKKick:GetTimeValueWithRules( "WarnTimeInMinutes" )
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
 		)
 	end
 end )
 
-UnitTest:Test( "GetTimeValueWithRules - Returns first matching rule value", function( Assert )
+UnitTest:Test( "GetConfigValueWithRules - Returns first matching rule value", function( Assert )
 	for i = 4, 8 do
 		PlayerCount = i
 
 		Assert.Equals(
 			StringFormat( "Warn time should be taken from the first matching rule (with %d player(s))", i ),
 			2,
-			AFKKick:GetTimeValueWithRules( "WarnTimeInMinutes" )
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
 		)
 	end
 
@@ -177,7 +179,18 @@ UnitTest:Test( "GetTimeValueWithRules - Returns first matching rule value", func
 		Assert.Equals(
 			StringFormat( "Warn time should be taken from the first matching rule (with %d player(s))", i ),
 			1.5,
-			AFKKick:GetTimeValueWithRules( "WarnTimeInMinutes" )
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
+		)
+	end
+end )
+
+UnitTest:Test( "GetConfigValueWithRules - Maintains false values from rules", function( Assert )
+	for i = 4, 8 do
+		PlayerCount = i
+
+		Assert.False(
+			StringFormat( "MarkPlayersAFK should be taken from the first matching rule (with %d player(s))", i ),
+			AFKKick:GetConfigValueWithRules( "MarkPlayersAFK" )
 		)
 	end
 end )
