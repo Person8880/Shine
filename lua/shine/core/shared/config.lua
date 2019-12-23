@@ -10,6 +10,7 @@ local xpcall = xpcall
 local setmetatable = setmetatable
 local StringFormat = string.format
 local StringUpper = string.upper
+local TableCopy = table.Copy
 local TableGetField = table.GetField
 local TableSetField = table.SetField
 local TableToJSON = table.ToJSON
@@ -575,6 +576,10 @@ do
 	function Migrator:CopyField( FromName, ToName )
 		self.Actions[ #self.Actions + 1 ] = function( Config )
 			local OldValue = TableGetField( Config, FromName )
+			if IsType( OldValue, "table" ) then
+				-- Avoid copying by reference so later actions don't mutate both the old and new field.
+				OldValue = TableCopy( OldValue )
+			end
 			TableSetField( Config, ToName, OldValue )
 		end
 		return self
