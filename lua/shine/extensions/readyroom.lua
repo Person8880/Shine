@@ -210,8 +210,8 @@ function Plugin:ProcessClient( Client, Time )
 		local Enabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
 
 		if Enabled then
-			--Ignore AFK players.
-			if AFKKick:IsAFKFor( Client, AFKKick.Config.WarnTime * 60 ) then
+			-- Ignore AFK players.
+			if AFKKick:IsAFKFor( Client, AFKKick:GetWarnTimeInSeconds() ) then
 				return
 			end
 		end

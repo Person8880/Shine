@@ -352,6 +352,10 @@ function Plugin:OnPlayerCountChanged()
 	self.CurrentMarkPlayersAFK = self:GetConfigValueWithRules( "MarkPlayersAFK" )
 end
 
+function Plugin:GetWarnTimeInSeconds()
+	return self.CurrentWarnTimeInSeconds
+end
+
 function Plugin:GetConfigValueWithRules( Key )
 	local Default = self.Config[ Key ]
 	local Rules = self.Config.PlayerCountRules
