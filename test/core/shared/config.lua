@@ -40,7 +40,9 @@ UnitTest:Test( "Validator", function( Assert )
 		Validator.ValidateField( "ShouldBeNumber", Validator.IsType( "number", 1 ) ),
 		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 5 ) ),
 		Validator.ValidateField( "CanBeNilOrNumber", Validator.IfType( "number", Validator.Min( 5 ) ) ),
-		Validator.ValidateField( "Enum", Validator.InEnum( Enum, Enum.A ) )
+		Validator.ValidateField( "Enum", Validator.InEnum( Enum, Enum.A ) ),
+		Validator.ValidateField( "SecondEnum", Validator.InEnum( Enum ), { DeleteIfFieldInvalid = true } ),
+		Validator.ValidateField( "ThirdEnum", Validator.InEnum( Enum ) )
 	) )
 
 	Validator:CheckTypesAgainstDefault( "TypeCheckedChild", {
@@ -60,8 +62,10 @@ UnitTest:Test( "Validator", function( Assert )
 		SingleEnum = "a",
 		AnotherEnum = "C",
 		ListOfTables = {
-			{ ShouldBeNumber = 0, Enum = "b" },
-			{ ShouldBeNumber = "1", CanBeNilOrNumber = true }
+			{ ShouldBeNumber = 0, Enum = "b", SecondEnum = "A", ThirdEnum = 123 },
+			{ ShouldBeNumber = "1", CanBeNilOrNumber = true, SecondEnum = "B", ThirdEnum = "a" },
+			-- This should be deleted due to the DeleteIfFieldInvalid flag.
+			{ SecondEnum = "C" }
 		},
 		TypeCheckedChild = {
 			A = true,
@@ -95,8 +99,8 @@ UnitTest:Test( "Validator", function( Assert )
 		AnotherEnum = "B",
 		ListOfTables = {
 			-- Should correct each entry in the list.
-			{ ShouldBeNumber = 0, Enum = "B" },
-			{ ShouldBeNumber = 1, CanBeNilOrNumber = 5, Enum = "A" }
+			{ ShouldBeNumber = 0, Enum = "B", SecondEnum = "A" },
+			{ ShouldBeNumber = 1, CanBeNilOrNumber = 5, Enum = "A", SecondEnum = "B", ThirdEnum = "A" }
 		},
 		TypeCheckedChild = {
 			-- Should ensure all fields have the same type as the default config.

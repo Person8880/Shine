@@ -332,7 +332,9 @@ do
 			"VotePassActions.InGame.EnforcementPolicy"
 		},
 		Validator.AllValuesSatisfy(
-			Validator.ValidateField( "Type", Validator.InEnum( Plugin.EnforcementPolicyType ) ),
+			Validator.ValidateField( "Type", Validator.InEnum( Plugin.EnforcementPolicyType ), {
+				DeleteIfFieldInvalid = true
+			} ),
 			Validator.ValidateField( "MinPlayers", Validator.IsType( "number", 0 ) ),
 			Validator.ValidateField( "MaxPlayers", Validator.IsType( "number", 0 ) )
 		)

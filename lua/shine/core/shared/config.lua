@@ -298,13 +298,14 @@ do
 		}
 	end
 
-	function Validator.ValidateField( Name, Predicate, FixFunc, MessageFunc )
-		-- Preserve backwards compatibiity in case anyone passed in their own functions here.
-		if IsType( Predicate, "table" ) then
-			FixFunc = Predicate.Fix
-			MessageFunc = Predicate.Message
-			Predicate = Predicate.Check
-		end
+	function Validator.ValidateField( Name, Rule, Options )
+		Shine.TypeCheck( Rule, "table", 2, "ValidateField" )
+		Shine.TypeCheck( Options, { "table", "nil" }, 3, "ValidateField" )
+
+		local FixFunc = Rule.Fix
+		local MessageFunc = Rule.Message
+		local Predicate = Rule.Check
+		local DeleteIfFieldInvalid = Options and Options.DeleteIfFieldInvalid
 
 		return {
 			Check = function( Value )
@@ -330,7 +331,12 @@ do
 					return nil
 				end
 
-				Value[ Name ] = FixFunc( Value[ Name ] )
+				local FixedValue = FixFunc( Value[ Name ] )
+				if FixedValue == nil and DeleteIfFieldInvalid then
+					return nil
+				end
+
+				Value[ Name ] = FixedValue
 
 				return Value
 			end,
