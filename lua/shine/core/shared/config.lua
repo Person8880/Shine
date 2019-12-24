@@ -10,6 +10,7 @@ local xpcall = xpcall
 local setmetatable = setmetatable
 local StringFormat = string.format
 local StringUpper = string.upper
+local TableCopy = table.Copy
 local TableGetField = table.GetField
 local TableSetField = table.SetField
 local TableToJSON = table.ToJSON
@@ -245,6 +246,7 @@ do
 	local TableBuild = table.Build
 	local TableConcat = table.concat
 	local TableRemove = table.remove
+	local TableShallowCopy = table.ShallowCopy
 	local tonumber = tonumber
 	local unpack = unpack
 
@@ -266,7 +268,7 @@ do
 				return Rounder( tonumber( Value ) )
 			end,
 			Message = function()
-				return "%s must be an integer"
+				return "%s must have an integer value"
 			end
 		}
 	end
@@ -278,7 +280,7 @@ do
 			end,
 			Fix = Validator.Constant( MinValue ),
 			Message = function()
-				return StringFormat( "%%s must be at least %s", MinValue )
+				return StringFormat( "%%s must have a value of at least %s", MinValue )
 			end
 		}
 	end
@@ -291,23 +293,32 @@ do
 				return Clamp( Value, Min, Max )
 			end,
 			Message = function()
-				return StringFormat( "%%s must be between %s and %s", Min, Max )
+				return StringFormat( "%%s must have a value between %s and %s", Min, Max )
 			end
 		}
 	end
 
-	function Validator.ValidateField( Name, Predicate, FixFunc, MessageFunc )
-		-- Preserve backwards compatibiity in case anyone passed in their own functions here.
-		if IsType( Predicate, "table" ) then
-			FixFunc = Predicate.Fix
-			MessageFunc = Predicate.Message
-			Predicate = Predicate.Check
-		end
+	function Validator.ValidateField( Name, Rule, Options )
+		Shine.TypeCheck( Rule, "table", 2, "ValidateField" )
+		Shine.TypeCheck( Options, { "table", "nil" }, 3, "ValidateField" )
+
+		local FixFunc = Rule.Fix
+		local MessageFunc = Rule.Message
+		local Predicate = Rule.Check
+		local DeleteIfFieldInvalid = Options and Options.DeleteIfFieldInvalid
 
 		return {
 			Check = function( Value )
 				if not IsType( Value, "table" ) then return true end
-				return Predicate( Value[ Name ] )
+
+				local NeedsFix, CanonicalValue = Predicate( Value[ Name ] )
+				if not NeedsFix and CanonicalValue ~= nil then
+					local Copy = TableShallowCopy( Value )
+					Copy[ Name ] = CanonicalValue
+					CanonicalValue = Copy
+				end
+
+				return NeedsFix, CanonicalValue
 			end,
 			Fix = function( Value )
 				if not IsType( Value, "table" ) then
@@ -320,12 +331,17 @@ do
 					return nil
 				end
 
-				Value[ Name ] = FixFunc( Value[ Name ] )
+				local FixedValue = FixFunc( Value[ Name ] )
+				if FixedValue == nil and DeleteIfFieldInvalid then
+					return nil
+				end
+
+				Value[ Name ] = FixedValue
 
 				return Value
 			end,
 			Message = function()
-				return StringFormat( "Field %s on %s", Name, MessageFunc() )
+				return StringFormat( "%s on field %s", MessageFunc(), Name )
 			end
 		}
 	end
@@ -340,7 +356,9 @@ do
 			end,
 			Fix = Validator.Constant( DefaultValue ),
 			Message = function()
-				return StringFormat( "%%s must be one of [%s]", Shine.Stream( PossibleValues ):Concat( ", " ) )
+				return StringFormat(
+					"%%s must equal one of [\"%s\"]", Shine.Stream( PossibleValues ):Concat( "\", \"" )
+				)
 			end
 		}
 	end
@@ -384,6 +402,16 @@ do
 		}
 	end
 
+	function Validator.AllValuesSatisfy( ... )
+		local Rules = { ... }
+
+		for i = 1, #Rules do
+			Rules[ i ] = Validator.Each( Rules[ i ] )
+		end
+
+		return unpack( Rules )
+	end
+
 	function Validator.IsType( Type, DefaultValue )
 		return {
 			Check = function( Value )
@@ -391,7 +419,7 @@ do
 			end,
 			Fix = Validator.Constant( DefaultValue ),
 			Message = function()
-				return StringFormat( "%%s must be a %s", Type )
+				return StringFormat( "%%s must have type %s", Type )
 			end
 		}
 	end
@@ -547,6 +575,18 @@ do
 			local OldValue = TableGetField( Config, FromName )
 			TableSetField( Config, ToName, OldValue )
 			TableSetField( Config, FromName, nil )
+		end
+		return self
+	end
+
+	function Migrator:CopyField( FromName, ToName )
+		self.Actions[ #self.Actions + 1 ] = function( Config )
+			local OldValue = TableGetField( Config, FromName )
+			if IsType( OldValue, "table" ) then
+				-- Avoid copying by reference so later actions don't mutate both the old and new field.
+				OldValue = TableCopy( OldValue )
+			end
+			TableSetField( Config, ToName, OldValue )
 		end
 		return self
 	end

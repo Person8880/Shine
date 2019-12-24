@@ -6,6 +6,8 @@ local UnitTest = Shine.UnitTest
 local AFKKick = UnitTest:LoadExtension( "afkkick" )
 if not AFKKick then return end
 
+local StringFormat = string.format
+
 local Validator = rawget( AFKKick, "ConfigValidator" )
 
 AFKKick = UnitTest.MockOf( AFKKick )
@@ -77,8 +79,10 @@ Shine.GetClientInfo = function() return "" end
 AFKKick.CanKickForConnectingClient = function() return true end
 
 UnitTest:Test( "KickOnConnect", function( Assert )
+	AFKKick.Config.PlayerCountRules = {}
 	AFKKick.Config.KickOnConnect = true
-	AFKKick.Config.KickTime = 2
+	AFKKick.Config.KickTimeInMinutes = 2
+	AFKKick:OnPlayerCountChanged()
 
 	AFKKick.Users = Shine.Map( {
 		[ 1 ] = {
@@ -99,17 +103,94 @@ UnitTest:Test( "KickOnConnect", function( Assert )
 		Kicked = true
 	end
 
-	Assert:Nil( AFKKick:CheckConnectionAllowed( 123456 ) )
-	Assert:True( Kicked )
+	Assert.Nil( "Should return nil from event", AFKKick:CheckConnectionAllowed( 123456 ) )
+	Assert.True( "Should kick AFK player to make room", Kicked )
 
 	-- Should now not kick anyone.
-	AFKKick.Config.KickTime = 10
+	AFKKick.Config.KickTimeInMinutes = 10
+	AFKKick:OnPlayerCountChanged()
 	Kicked = false
 
-	Assert:Nil( AFKKick:CheckConnectionAllowed( 123456 ) )
-	Assert:False( Kicked )
+	Assert.Nil( "Should return nil from event", AFKKick:CheckConnectionAllowed( 123456 ) )
+	Assert.False( "Should not kick anyone as none are AFK longer than the kick time", Kicked )
 end, function()
 	AFKKick.Config.KickOnConnect = false
 end )
 
 Shine.GetClientInfo = OldGetClientInfo
+
+AFKKick.Config.WarnTimeInMinutes = 1
+AFKKick.Config.MarkPlayersAFK = true
+AFKKick.Config.PlayerCountRules = {
+	{
+		MinPlayers = 4,
+		MaxPlayers = 8,
+		WarnTimeInMinutes = 2,
+		MarkPlayersAFK = false
+	},
+	{
+		MinPlayers = 9,
+		MaxPlayers = 15,
+		WarnTimeInMinutes = 1.5
+	}
+}
+
+local PlayerCount = 0
+function AFKKick:GetPlayerCount()
+	return PlayerCount
+end
+
+UnitTest:Test( "GetConfigValueWithRules - Returns default when no rule matches", function( Assert )
+	for i = 1, 3 do
+		PlayerCount = i
+
+		Assert.Equals(
+			StringFormat( "Warn time should be the default when no time rule matches (with %d player(s))", i ),
+			1,
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
+		)
+	end
+
+	for i = 16, 24 do
+		PlayerCount = i
+
+		Assert.Equals(
+			StringFormat( "Warn time should be the default when no time rule matches (with %d player(s))", i ),
+			1,
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
+		)
+	end
+end )
+
+UnitTest:Test( "GetConfigValueWithRules - Returns first matching rule value", function( Assert )
+	for i = 4, 8 do
+		PlayerCount = i
+
+		Assert.Equals(
+			StringFormat( "Warn time should be taken from the first matching rule (with %d player(s))", i ),
+			2,
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
+		)
+	end
+
+	for i = 9, 15 do
+		PlayerCount = i
+
+		Assert.Equals(
+			StringFormat( "Warn time should be taken from the first matching rule (with %d player(s))", i ),
+			1.5,
+			AFKKick:GetConfigValueWithRules( "WarnTimeInMinutes" )
+		)
+	end
+end )
+
+UnitTest:Test( "GetConfigValueWithRules - Maintains false values from rules", function( Assert )
+	for i = 4, 8 do
+		PlayerCount = i
+
+		Assert.False(
+			StringFormat( "MarkPlayersAFK should be taken from the first matching rule (with %d player(s))", i ),
+			AFKKick:GetConfigValueWithRules( "MarkPlayersAFK" )
+		)
+	end
+end )

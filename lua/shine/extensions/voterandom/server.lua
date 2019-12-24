@@ -24,7 +24,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.7"
+Plugin.Version = "2.8"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -85,15 +85,13 @@ local ModeStrings = {
 Plugin.ModeStrings = ModeStrings
 
 Plugin.DefaultConfig = {
-	MinPlayers = 10, -- Minimum number of players on the server to enable voting.
-	PercentNeeded = 0.75, -- Percentage of the server population needing to vote for it to succeed.
-
 	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
 	BlockAfterRoundTimeInMinutes = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
 	VoteCooldownInMinutes = 15, -- Cooldown time before another vote can be made.
 	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
 	NotifyOnVote = true, --  Should all players be told through the chat when a vote is cast?
 	ApplyToBots = false, --  Should bots be shuffled, or removed?
+	BlockBotsAfterShuffle = true, -- Whether filler bots should be blocked after a shuffle removes them.
 
 	BalanceMode = Plugin.ShuffleMode.HIVE, -- How should teams be balanced?
 	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Elo/Hive fails?
@@ -101,22 +99,43 @@ Plugin.DefaultConfig = {
 	RemoveAFKPlayersFromTeams = true, -- Should the plugin remove AFK players from teams when shuffling?
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
 	IgnoreSpectators = false, -- Should the plugin ignore spectators in player slots when switching?
-	AlwaysEnabled = false, -- Should the plugin be always forcing each round?
+	AutoShuffleAtRoundStart = false, -- Should the plugin be always forcing each round?
+	EndOfRoundShuffleDelayInSeconds = 30, -- How long after a round end before auto-shuffling if enforcement is still active.
 
 	ReconnectLogTimeInSeconds = 0, -- How long (in seconds) after a shuffle to log reconnecting players for?
 	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
 	DisplayStandardDeviations = false, -- Should the scoreboard show each team's standard deviation of skill?
 
 	VoteConstraints = {
-		-- When the number of players on playing teams is greater-equal this fraction
-		-- of the total players on the server, apply constraints.
-		MinPlayerFractionToConstrain = 0.9,
-		-- The minimum difference in average skill required to permit shuffling.
-		-- A value of 0 will permit all votes.
-		MinAverageDiffToAllowShuffle = 75,
-		-- The minimum difference in standard deviation of skill required to permit shuffling.
-		-- Must be greater than 0 to enable checking.
-		MinStandardDeviationDiffToAllowShuffle = 0
+		PreGame = {
+			-- Minimum number of players on the server to enable voting.
+			MinPlayers = 10,
+
+			-- Fraction of players that need to vote before a shuffle is performed.
+			FractionNeededToPass = 0.75,
+
+			-- When the number of players on playing teams is greater-equal this fraction
+			-- of the total players on the server, apply skill difference constraints.
+			MinPlayerFractionToConstrainSkillDiff = 0.9,
+
+			-- The minimum difference in average skill required to permit shuffling.
+			-- A value of 0 will permit all votes.
+			MinAverageDiffToAllowShuffle = 75,
+
+			-- The minimum difference in standard deviation of skill required to permit shuffling.
+			-- Must be greater than 0 to enable checking.
+			MinStandardDeviationDiffToAllowShuffle = 0
+		},
+		InGame = {
+			MinPlayers = 10,
+			FractionNeededToPass = 0.75,
+			MinPlayerFractionToConstrainSkillDiff = 0.9,
+			MinAverageDiffToAllowShuffle = 75,
+			MinStandardDeviationDiffToAllowShuffle = 0,
+
+			-- How long to wait after the round starts before transitioning vote constraints/pass actions to "InGame".
+			StartOfRoundGraceTimeInSeconds = 0
+		}
 	},
 
 	--	ShufflePolicy may be one of INSTANT, NEXT_ROUND, END_OF_PERIOD
@@ -139,14 +158,38 @@ Plugin.DefaultConfig = {
 		PreGame = {
 			ShufflePolicy = Plugin.ShufflePolicy.INSTANT,
 			EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
-			EnforcementPolicy = { Plugin.EnforcementPolicyType.BLOCK_TEAMS, Plugin.EnforcementPolicyType.ASSIGN_PLAYERS },
+			EnforcementPolicy = {
+				{
+					Type = Plugin.EnforcementPolicyType.BLOCK_TEAMS,
+					-- If there are less than this many players, this policy will not be applied.
+					MinPlayers = 0,
+					-- If there are more than this many players (and this is not 0), this policy will not be applied.
+					MaxPlayers = 0
+				},
+				{
+					Type = Plugin.EnforcementPolicyType.ASSIGN_PLAYERS,
+					MinPlayers = 0,
+					MaxPlayers = 0
+				}
+			},
 			DurationInMinutes = 15
 		},
 		-- What to do when a vote passes during an active game.
 		InGame = {
 			ShufflePolicy = Plugin.ShufflePolicy.INSTANT,
 			EnforcementDurationType = Plugin.EnforcementDurationType.TIME,
-			EnforcementPolicy = { Plugin.EnforcementPolicyType.BLOCK_TEAMS, Plugin.EnforcementPolicyType.ASSIGN_PLAYERS },
+			EnforcementPolicy = {
+				{
+					Type = Plugin.EnforcementPolicyType.BLOCK_TEAMS,
+					MinPlayers = 0,
+					MaxPlayers = 0
+				},
+				{
+					Type = Plugin.EnforcementPolicyType.ASSIGN_PLAYERS,
+					MinPlayers = 0,
+					MaxPlayers = 0
+				}
+			},
 			DurationInMinutes = 15
 		}
 	}
@@ -214,18 +257,62 @@ Plugin.ConfigMigrationSteps = {
 		Apply = Shine.Migrator()
 			:AddField( { "TeamPreferences", "FriendGroupInviteDurationInSeconds" }, 15 )
 			:AddField( { "TeamPreferences", "FriendGroupInviteCooldownInSeconds" }, 15 )
+	},
+	{
+		VersionTo = "2.8",
+		Apply = Shine.Migrator()
+			:ApplyAction( function( Config )
+				local function ConvertPolicy( Policy )
+					return {
+						Type = Policy,
+						MinPlayers = 0,
+						MaxPlayers = 0
+					}
+				end
+				local function ConvertPolicyList( List )
+					if not IsType( List, "table" ) then return List end
+
+					return Shine.Stream( List ):Distinct():Map( ConvertPolicy ):AsTable()
+				end
+
+				Config.VotePassActions.PreGame.EnforcementPolicy = ConvertPolicyList(
+					Config.VotePassActions.PreGame.EnforcementPolicy
+				)
+				Config.VotePassActions.InGame.EnforcementPolicy = ConvertPolicyList(
+					Config.VotePassActions.InGame.EnforcementPolicy
+				)
+			end )
+			:RenameField(
+				{ "VoteConstraints", "MinPlayerFractionToConstrain" },
+				{ "VoteConstraints", "PreGame", "MinPlayerFractionToConstrainSkillDiff" }
+			)
+			:RenameField(
+				{ "VoteConstraints", "MinAverageDiffToAllowShuffle" },
+				{ "VoteConstraints", "PreGame", "MinAverageDiffToAllowShuffle" }
+			)
+			:RenameField(
+				{ "VoteConstraints", "MinStandardDeviationDiffToAllowShuffle" },
+				{ "VoteConstraints", "PreGame", "MinStandardDeviationDiffToAllowShuffle" }
+			)
+			:RenameField( "PercentNeeded", { "VoteConstraints", "PreGame", "FractionNeededToPass" } )
+			:RenameField( "MinPlayers", { "VoteConstraints", "PreGame", "MinPlayers" } )
+			:CopyField( { "VoteConstraints", "PreGame" }, { "VoteConstraints", "InGame" } )
+			:AddField(
+				{ "VoteConstraints", "InGame", "StartOfRoundGraceTimeInSeconds" },
+				Plugin.DefaultConfig.VoteConstraints.InGame.StartOfRoundGraceTimeInSeconds
+			)
+			:RenameField( "AlwaysEnabled", "AutoShuffleAtRoundStart" )
+			:AddField( "EndOfRoundShuffleDelayInSeconds", Plugin.DefaultConfig.EndOfRoundShuffleDelayInSeconds )
+			:AddField( "BlockBotsAfterShuffle", Plugin.DefaultConfig.BlockBotsAfterShuffle )
 	}
 }
 
 do
 	local Validator = Shine.Validator()
 
-	Validator:AddFieldRule( "VoteConstraints.MinPlayerFractionToConstrain",
-		Validator.IsType( "number", Plugin.DefaultConfig.VoteConstraints.MinPlayerFractionToConstrain ) )
-	Validator:AddFieldRules( {
-		"VoteConstraints.MinAverageDiffToAllowShuffle",
-		"VoteConstraints.MinStandardDeviationDiffToAllowShuffle"
-	}, Validator.IsType( "number", 0 ) )
+	Validator:CheckTypesAgainstDefault( "VoteConstraints", Plugin.DefaultConfig.VoteConstraints )
+	Validator:CheckTypesAgainstDefault( "VoteConstraints.PreGame", Plugin.DefaultConfig.VoteConstraints.PreGame )
+	Validator:CheckTypesAgainstDefault( "VoteConstraints.InGame", Plugin.DefaultConfig.VoteConstraints.InGame )
 
 	Validator:AddFieldRule( "VotePassActions.PreGame", Validator.IsType( "table",
 		Plugin.DefaultConfig.VotePassActions.PreGame ) )
@@ -238,11 +325,20 @@ do
 	Validator:AddFieldRules( {
 		"VotePassActions.PreGame.EnforcementDurationType",
 		"VotePassActions.InGame.EnforcementDurationType"
-	}, Validator.InEnum( Plugin.EnforcementDurationType, Plugin.EnforcementDurationType.DURATION ) )
-	Validator:AddFieldRules( {
-		"VotePassActions.PreGame.EnforcementPolicy",
-		"VotePassActions.InGame.EnforcementPolicy"
-	}, Validator.Each( Validator.InEnum( Plugin.EnforcementPolicyType ) ) )
+	}, Validator.InEnum( Plugin.EnforcementDurationType, Plugin.EnforcementDurationType.TIME ) )
+	Validator:AddFieldRules(
+		{
+			"VotePassActions.PreGame.EnforcementPolicy",
+			"VotePassActions.InGame.EnforcementPolicy"
+		},
+		Validator.AllValuesSatisfy(
+			Validator.ValidateField( "Type", Validator.InEnum( Plugin.EnforcementPolicyType ), {
+				DeleteIfFieldInvalid = true
+			} ),
+			Validator.ValidateField( "MinPlayers", Validator.IsType( "number", 0 ) ),
+			Validator.ValidateField( "MaxPlayers", Validator.IsType( "number", 0 ) )
+		)
+	)
 	Validator:AddFieldRules( {
 		"VotePassActions.PreGame.DurationInMinutes",
 		"VotePassActions.InGame.DurationInMinutes"
@@ -257,7 +353,14 @@ end
 
 local EnforcementPolicy = Shine.TypeDef()
 function EnforcementPolicy:Init( Policies )
-	self.Policies = table.AsSet( Policies )
+	local PoliciesByType = {}
+	for i = 1, #Policies do
+		local Policy = Policies[ i ]
+		PoliciesByType[ Policy.Type ] = Policy
+	end
+
+	self.Policies = PoliciesByType
+
 	return self
 end
 
@@ -273,6 +376,15 @@ function EnforcementPolicy:Announce( Plugin )
 
 end
 
+function EnforcementPolicy:IsPolicyEnforced( Policy, PlayerCount )
+	local Options = self.Policies[ Policy ]
+	if not Options then
+		return false
+	end
+
+	return PlayerCount >= Options.MinPlayers and ( Options.MaxPlayers == 0 or PlayerCount <= Options.MaxPlayers )
+end
+
 function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local Client = GetOwner( Player )
 	if not Client then return false end
@@ -280,6 +392,7 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
 	if Immune then return end
 
+	local PlayerCount = Shine.GetHumanPlayerCount()
 	local Team = Player:GetTeamNumber()
 	local OnPlayingTeam = Shine.IsPlayingTeam( Team )
 
@@ -289,7 +402,7 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local ImbalancedTeams = Abs( NumTeam1 - NumTeam2 ) >= 2
 
 	-- Do not allow cheating the system.
-	if OnPlayingTeam and self.Policies[ Plugin.EnforcementPolicyType.BLOCK_TEAMS ] then
+	if OnPlayingTeam and self:IsPolicyEnforced( Plugin.EnforcementPolicyType.BLOCK_TEAMS, PlayerCount ) then
 		-- Allow players to switch if teams are imbalanced.
 		if ImbalancedTeams then
 			local MorePlayersTeam = NumTeam1 > NumTeam2 and 1 or 2
@@ -307,7 +420,8 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 		return false
 	end
 
-	if not self.Policies[ Plugin.EnforcementPolicyType.ASSIGN_PLAYERS ] or ( NumTeam1 == 0 and NumTeam2 == 0 ) then
+	if ( NumTeam1 == 0 and NumTeam2 == 0 )
+	or not self:IsPolicyEnforced( Plugin.EnforcementPolicyType.ASSIGN_PLAYERS, PlayerCount ) then
 		-- Skip if not auto-assigning or if both playing teams are empty.
 		return
 	end
@@ -343,8 +457,8 @@ function DurationBasedEnforcement:Init( Duration, Policies )
 	return EnforcementPolicy.Init( self, Policies )
 end
 
-function DurationBasedEnforcement:IsActive()
-	return SharedTime() < self.EndTime
+function DurationBasedEnforcement:IsActive( Plugin, TimeToCheck )
+	return ( TimeToCheck or SharedTime() ) < self.EndTime
 end
 
 function DurationBasedEnforcement:Announce( Plugin )
@@ -504,15 +618,15 @@ function Plugin:Initialise()
 	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
 		and BalanceMode == self.ShuffleMode.HIVE
 
-	if self.Config.AlwaysEnabled and self:GetStage() == self.Stage.InGame then
+	if self.Config.AutoShuffleAtRoundStart and self:GetStage() == self.Stage.InGame then
 		self.EnforcementPolicy = self:BuildEnforcementPolicy( self:GetVoteActionSettings() )
 	else
 		-- Nothing to enforce at startup.
 		self.EnforcementPolicy = NoOpEnforcement()
 	end
 
-	self.dt.IsVoteForAutoShuffle = self.Config.AlwaysEnabled
-	self.dt.IsAutoShuffling = self.Config.AlwaysEnabled
+	self.dt.IsVoteForAutoShuffle = self.Config.AutoShuffleAtRoundStart
+	self.dt.IsAutoShuffling = self.Config.AutoShuffleAtRoundStart
 
 	self.TeamPreferences = {}
 	self.LastAttemptedTeamJoins = {}
@@ -942,6 +1056,69 @@ do
 	end
 end
 
+function Plugin:QueueShuffleOnNextRound( Reason, SkipEnforcement )
+	self.ShuffleOnNextRound = true
+	self.ShuffleOnNextRoundReason = Reason
+	self.ShuffleOnNextRoundSkipEnforcement = SkipEnforcement
+end
+
+function Plugin:ResetQueuedNextRoundShuffle()
+	self.ShuffleOnNextRound = false
+	self.ShuffleOnNextRoundReason = nil
+	self.ShuffleOnNextRoundSkipEnforcement = nil
+end
+
+function Plugin:CancelQueuedNextRoundShuffleFor( Reason )
+	if self.ShuffleOnNextRoundReason ~= Reason then return end
+
+	self:ResetQueuedNextRoundShuffle()
+end
+
+function Plugin:CancelEndOfRoundShuffle()
+	if not self.EndOfRoundShuffleTimer then return end
+
+	self.EndOfRoundShuffleTimer:Destroy()
+	self.EndOfRoundShuffleTimer = nil
+end
+
+function Plugin:ApplyAutoShuffle()
+	if self.Config.AutoShuffleAtRoundStart then
+		-- Reset any vote, as it cannot be used again until the round ends.
+		self.Vote:Reset()
+
+		-- If voted to disable auto-shuffle, do nothing.
+		if self.SuppressAutoShuffle then return end
+	end
+
+	local Reason = self.ShuffleOnNextRoundReason
+	local SkipEnforcement = self.ShuffleOnNextRoundSkipEnforcement
+
+	self:ResetQueuedNextRoundShuffle()
+
+	if ( not Reason and GetNumPlayers() < self:GetCurrentVoteConstraints().MinPlayers ) or self.DoneStartShuffle then
+		return
+	end
+
+	self.DoneStartShuffle = true
+
+	local OldValue = self.Config.IgnoreCommanders
+
+	-- Force ignoring commanders.
+	self.Config.IgnoreCommanders = true
+
+	self:SendTranslatedNotify( nil, Reason or "AUTO_SHUFFLE", {
+		ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
+	} )
+	self:ShuffleTeams()
+
+	if not SkipEnforcement then
+		self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
+		self.QueuedStage = nil
+	end
+
+	self.Config.IgnoreCommanders = OldValue
+end
+
 function Plugin:SetGameState( Gamerules, NewState, OldState )
 	-- Reset the block time when the round stops.
 	if NewState == kGameState.NotStarted then
@@ -952,47 +1129,26 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 
 	if NewState ~= kGameState.Countdown then return end
 
+	self:CancelEndOfRoundShuffle()
 	self:BroadcastModuleEvent( "GameStarting", Gamerules )
 	self.EnforcementPolicy:OnStageChange( self.Stage.InGame )
+	self.InGameStateChangeTime = SharedTime() + self.Config.VoteConstraints.InGame.StartOfRoundGraceTimeInSeconds
 
 	-- Block the vote after the set time.
 	if self.Config.BlockAfterRoundTimeInMinutes > 0 then
 		self.VoteBlockTime = SharedTime() + self.Config.BlockAfterRoundTimeInMinutes * 60
 	end
 
-	if not self.Config.AlwaysEnabled and not self.ShuffleOnNextRound then return end
+	if not self.Config.AutoShuffleAtRoundStart and not self.ShuffleOnNextRound then return end
 
-	if self.Config.AlwaysEnabled then
-		-- Reset any vote, as it cannot be used again until the round ends.
-		self.Vote:Reset()
+	self:ApplyAutoShuffle()
+end
 
-		-- If voted to disable auto-shuffle, do nothing.
-		if self.SuppressAutoShuffle then return end
-	end
+function Plugin:ResetGame( Gamerules )
+	self:BroadcastModuleEvent( "ResetGame", Gamerules )
 
-	self.ShuffleOnNextRound = false
-
-	if GetNumPlayers() < self.Config.MinPlayers then
-		return
-	end
-
-	if self.DoneStartShuffle then return end
-
-	self.DoneStartShuffle = true
-
-	local OldValue = self.Config.IgnoreCommanders
-
-	-- Force ignoring commanders.
-	self.Config.IgnoreCommanders = true
-
-	self:SendTranslatedNotify( nil, "AUTO_SHUFFLE", {
-		ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
-	} )
-	self:ShuffleTeams()
-	self:InitEnforcementPolicy( self:GetVoteActionSettings( self.QueuedStage ) )
-	self.QueuedStage = nil
-
-	self.Config.IgnoreCommanders = OldValue
+	-- Make sure auto-shuffle is applied again the next time the round starts.
+	self.DoneStartShuffle = false
 end
 
 function Plugin:EndGame( Gamerules, WinningTeam )
@@ -1020,7 +1176,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	self.VoteBlockTime = nil
 
 	-- If we're always enabled, we'll shuffle on round start.
-	if self.Config.AlwaysEnabled then
+	if self.Config.AutoShuffleAtRoundStart then
 		self.SuppressAutoShuffle = false
 		self.dt.IsAutoShuffling = true
 		self.dt.IsVoteForAutoShuffle = true
@@ -1034,9 +1190,25 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 	if self.ShuffleAtEndOfRound then
 		self.ShuffleAtEndOfRound = false
 
-		self:SimpleTimer( 15, function()
+		-- Queue a shuffle for the next round (in case a round starts before the timer expires).
+		self:QueueShuffleOnNextRound( "PREVIOUS_VOTE_SHUFFLE" )
+		self:CancelEndOfRoundShuffle()
+
+		self.EndOfRoundShuffleTimer = self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
+			-- If a round hasn't started yet, cancel the queued shuffle.
+			self:CancelQueuedNextRoundShuffleFor( "PREVIOUS_VOTE_SHUFFLE" )
+
+			-- Make sure the map hasn't ended, and no round has started yet (if a round starts, it will shuffle
+			-- automatically due to the flags set above).
 			local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-			if Enabled and MapVote:IsEndVote() then
+			local IsEndOfMapVote = Enabled and MapVote:IsEndVote()
+			local CurrentStage = self:GetStage( true )
+			if IsEndOfMapVote or CurrentStage == self.Stage.InGame then
+				self.Logger:Debug(
+					"Skipping end of round shuffle as it is not applicable to the current game state (%s - %s)",
+					CurrentStage,
+					IsEndOfMapVote and "end of map vote in progress" or "no map vote in progress"
+				)
 				return
 			end
 
@@ -1051,21 +1223,34 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		return
 	end
 
-	if not self.EnforcementPolicy:IsActive( self ) then
+	-- Make sure the enforcement policy will be active after the configured delay.
+	if not self.EnforcementPolicy:IsActive( self, SharedTime() + self.Config.EndOfRoundShuffleDelayInSeconds ) then
 		return
 	end
 
+	self:QueueShuffleOnNextRound( "PREVIOUS_VOTE_SHUFFLE", true )
+	self:CancelEndOfRoundShuffle()
+
 	-- Continue the existing policy (must be time based).
-	self:SimpleTimer( 15, function()
-		if not self.EnforcementPolicy:IsActive( self ) then return end
+	self.EndOfRoundShuffleTimer = self:SimpleTimer( self.Config.EndOfRoundShuffleDelayInSeconds, function()
+		self:CancelQueuedNextRoundShuffleFor( "PREVIOUS_VOTE_SHUFFLE" )
 
 		local Enabled, MapVote = Shine:IsExtensionEnabled( "mapvote" )
-		if not ( Enabled and MapVote:IsEndVote() ) then
-			self:SendTranslatedNotify( nil, "PREVIOUS_VOTE_SHUFFLE", {
-				ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
-			} )
-			self:ShuffleTeams()
+		local IsEndOfMapVote = Enabled and MapVote:IsEndVote()
+		local CurrentStage = self:GetStage( true )
+		if IsEndOfMapVote or not self.EnforcementPolicy:IsActive( self ) or CurrentStage == self.Stage.InGame then
+			self.Logger:Debug(
+				"Skipping enforcement shuffle as it is not applicable to the current game state (%s - %s)",
+				CurrentStage,
+				IsEndOfMapVote and "end of map vote in progress" or "no map vote in progress"
+			)
+			return
 		end
+
+		self:SendTranslatedNotify( nil, "PREVIOUS_VOTE_SHUFFLE", {
+			ShuffleType = ModeStrings.Action[ self.Config.BalanceMode ]
+		} )
+		self:ShuffleTeams()
 	end )
 end
 
@@ -1075,7 +1260,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	local Gamestate = Gamerules:GetGameState()
 
 	-- We'll do a mass balance, don't worry about them yet.
-	if self.Config.AlwaysEnabled and Gamestate < kGameState.PreGame then return end
+	if self.Config.AutoShuffleAtRoundStart and Gamestate < kGameState.PreGame then return end
 
 	-- Don't block them from going back to the ready room at the end of the round.
 	if Gamestate == kGameState.Team1Won or Gamestate == kGameState.Team2Won
@@ -1117,9 +1302,13 @@ function Plugin:ClientConnect( Client )
 		Shine.GetClientInfo( Client ) )
 end
 
+function Plugin:GetCurrentVoteConstraints()
+	return self.Config.VoteConstraints[ self:GetStage() ]
+end
+
 function Plugin:GetVotesNeeded()
 	local PlayerCount = self:GetPlayerCountForVote()
-	return Ceil( PlayerCount * self.Config.PercentNeeded )
+	return Ceil( PlayerCount * self:GetCurrentVoteConstraints().FractionNeededToPass )
 end
 
 function Plugin:GetStartFailureMessage()
@@ -1131,8 +1320,9 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 	local NumOnTeam2 = #TeamStats[ 2 ].Skills
 	local NumPlayersOnPlayingTeams = NumOnTeam1 + NumOnTeam2
 	local FractionOfPlayersOnTeams = NumPlayersOnPlayingTeams / NumPlayers
+	local Constraints = self:GetCurrentVoteConstraints()
 
-	if FractionOfPlayersOnTeams < self.Config.VoteConstraints.MinPlayerFractionToConstrain then
+	if FractionOfPlayersOnTeams < Constraints.MinPlayerFractionToConstrainSkillDiff then
 		-- Not enough players on playing teams to apply constraints.
 		self.Logger:Debug( "Permitting vote as only %s of all players are on teams.", FractionOfPlayersOnTeams )
 		return true
@@ -1145,14 +1335,14 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 	end
 
 	local AverageDiff = Abs( TeamStats[ 1 ].Average - TeamStats[ 2 ].Average )
-	if AverageDiff >= self.Config.VoteConstraints.MinAverageDiffToAllowShuffle then
+	if AverageDiff >= Constraints.MinAverageDiffToAllowShuffle then
 		-- Teams are far enough apart in average skill to allow the vote.
 		self.Logger:Debug( "Permitting vote as average difference is: %s", AverageDiff )
 		return true
 	end
 
 	local StdDiff = Abs( TeamStats[ 1 ].StandardDeviation - TeamStats[ 2 ].StandardDeviation )
-	local MinStdDiff = self.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle
+	local MinStdDiff = Constraints.MinStandardDeviationDiffToAllowShuffle
 	if MinStdDiff > 0 and StdDiff >= MinStdDiff then
 		-- Teams are far enough apart in standard deviation of skill to allow the vote.
 		self.Logger:Debug( "Permitting vote as standard deviation difference is: %s", StdDiff )
@@ -1176,7 +1366,7 @@ function Plugin:IsVoteAllowed()
 end
 
 function Plugin:CanStartVote()
-	if self:GetStage() == self.Stage.InGame and self.Config.AlwaysEnabled then
+	if self:GetStage() == self.Stage.InGame and self.Config.AutoShuffleAtRoundStart then
 		-- Disabling/enabling auto shuffle should only be possible before a round starts.
 		return false, self:GetStartFailureMessage()
 	end
@@ -1205,7 +1395,7 @@ function Plugin:CanStartVote()
 		return false, "ERROR_ALREADY_ENABLED", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
 	end
 
-	if self:GetPlayerCountForVote() < self.Config.MinPlayers then
+	if self:GetPlayerCountForVote() < self:GetCurrentVoteConstraints().MinPlayers then
 		return false, "ERROR_NOT_ENOUGH_PLAYERS"
 	end
 
@@ -1241,13 +1431,17 @@ Plugin.Stage = table.AsEnum{
 	"PreGame", "InGame"
 }
 
-function Plugin:GetStage()
+function Plugin:IsRoundActive( GameState, IgnoreGraceTime )
+	return GameState >= kGameState.Countdown and GameState <= kGameState.Started
+		and ( IgnoreGraceTime or not self.InGameStateChangeTime or SharedTime() >= self.InGameStateChangeTime )
+end
+
+function Plugin:GetStage( IgnoreGraceTime )
 	local Gamerules = GetGamerules()
 	if not Gamerules then return self.Stage.PreGame end
 
 	local GameState = Gamerules:GetGameState()
-	local IsInActiveRound = GameState >= kGameState.Countdown and GameState <= kGameState.Started
-	return IsInActiveRound and self.Stage.InGame or self.Stage.PreGame
+	return self:IsRoundActive( GameState, IgnoreGraceTime ) and self.Stage.InGame or self.Stage.PreGame
 end
 
 function Plugin:GetVoteActionSettings( Stage )
@@ -1285,6 +1479,7 @@ Plugin.ShufflePolicyActions = {
 		self:SendTranslatedNotify( nil, "TEAMS_FORCED_NEXT_ROUND", {
 			ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ]
 		} )
+		self:ResetQueuedNextRoundShuffle()
 		self.ShuffleOnNextRound = true
 		self.QueuedStage = self:GetStage()
 		self.Logger:Debug( "Queued shuffle for the start of the next round." )
@@ -1358,7 +1553,7 @@ function Plugin:ApplyRandomSettings()
 		self.RandomApplied = false
 	end )
 
-	if self.Config.AlwaysEnabled then
+	if self.Config.AutoShuffleAtRoundStart then
 		self.SuppressAutoShuffle = not self.SuppressAutoShuffle
 		self.dt.IsAutoShuffling = not self.SuppressAutoShuffle
 
@@ -1389,7 +1584,7 @@ function Plugin:CreateCommands()
 			if not self.RandomApplied then
 				if self.Config.NotifyOnVote then
 					local Key = "PLAYER_VOTED"
-					if self.Config.AlwaysEnabled then
+					if self.Config.AutoShuffleAtRoundStart then
 						Key = self.SuppressAutoShuffle and "PLAYER_VOTED_ENABLE_AUTO"
 							or "PLAYER_VOTED_DISABLE_AUTO"
 					end
@@ -1401,7 +1596,7 @@ function Plugin:CreateCommands()
 					} )
 				else
 					local Key = "PLAYER_VOTED_PRIVATE"
-					if self.Config.AlwaysEnabled then
+					if self.Config.AutoShuffleAtRoundStart then
 						Key = self.SuppressAutoShuffle and "PLAYER_VOTED_ENABLE_AUTO_PRIVATE"
 							or "PLAYER_VOTED_DISABLE_AUTO_PRIVATE"
 					end
@@ -1441,12 +1636,12 @@ function Plugin:CreateCommands()
 		else
 			self.Vote:Reset()
 
-			if self.Config.AlwaysEnabled then
+			if self.Config.AutoShuffleAtRoundStart then
 				self.SuppressAutoShuffle = true
 				self.dt.IsAutoShuffling = false
 			end
 
-			self.ShuffleOnNextRound = false
+			self:ResetQueuedNextRoundShuffle()
 			self.ShuffleAtEndOfRound = false
 			self:DestroyTimer( self.RandomEndTimer )
 			self.EnforcementPolicy = NoOpEnforcement()

@@ -7,8 +7,11 @@ local UnitTest = Shine.UnitTest
 local VoteShuffle = UnitTest:LoadExtension( "voterandom" )
 if not VoteShuffle or not VoteShuffle.Config then return end
 
+local MockShuffle = UnitTest.MockOf( VoteShuffle )
+
 VoteShuffle.Config.IgnoreCommanders = false
 
+local StringFormat = string.format
 local TableSort = table.sort
 
 UnitTest:Test( "AssignPlayers", function( Assert )
@@ -320,11 +323,86 @@ function( Assert )
 	Assert:True( VoteShuffle:ShouldOptimiseHappiness( TeamMembers ) )
 end )
 
-VoteShuffle.Config.VoteConstraints.MinPlayerFractionToConstrain = 0.9
+local VoteConstraints = {
+	MinPlayers = 10,
+	FractionNeededToPass = 0.75,
+	MinPlayerFractionToConstrainSkillDiff = 0.9,
+	MinAverageDiffToAllowShuffle = 100,
+	MinStandardDeviationDiffToAllowShuffle = 0
+}
+function MockShuffle:GetCurrentVoteConstraints()
+	return VoteConstraints
+end
+
+function MockShuffle:GetPlayerCountForVote()
+	return 20
+end
+
+UnitTest:Test( "GetVotesNeeded - Returns current constraint fraction * number of players", function( Assert )
+	Assert.Equals( "Should return player count * fraction", 15, MockShuffle:GetVotesNeeded() )
+end )
+
+UnitTest:Test( "IsRoundActive - Returns true if the game state is for an active round with no grace time", function( Assert )
+	MockShuffle.InGameStateChangeTime = false
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.True(
+			StringFormat( "Should return true for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
+end )
+
+UnitTest:Test( "IsRoundActive - Returns true if the game state is for an active round and grace time has expired", function( Assert )
+	MockShuffle.InGameStateChangeTime = Shared.GetTime() - 60
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.True(
+			StringFormat( "Should return true for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
+end )
+
+UnitTest:Test( "IsRoundActive - Returns true if the game state is for an active round and grace time has not expired but is ignored", function( Assert )
+	MockShuffle.InGameStateChangeTime = Shared.GetTime() + 60
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.True(
+			StringFormat( "Should return true for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ], true )
+		)
+	end
+end )
+
+UnitTest:Test( "IsRoundActive - Returns false if the game state is for an active round but grace time has not expired", function( Assert )
+	MockShuffle.InGameStateChangeTime = Shared.GetTime() + 60
+
+	local States = { "Countdown", "Started" }
+	for i = 1, #States do
+		Assert.False(
+			StringFormat( "Should return false for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
+end )
+
+UnitTest:Test( "IsRoundActive - Returns false if the game state is for an inactive round", function( Assert )
+	local States = { "NotStarted", "PreGame", "WarmUp", "Team1Won", "Team2Won", "Draw" }
+	for i = 1, #States do
+		Assert.False(
+			StringFormat( "Should return false for the %s state", States[ i ] ),
+			MockShuffle:IsRoundActive( kGameState[ States[ i ] ] )
+		)
+	end
+end )
 
 UnitTest:Test( "EvaluateConstraints - Number of players too low", function( Assert )
 	Assert.True( "Should allow voting as only 2/10 players are on teams",
-		VoteShuffle:EvaluateConstraints( 10, {
+		MockShuffle:EvaluateConstraints( 10, {
 			{ Skills = { 1000 } },
 			{ Skills = { 1000 } }
 		} )
@@ -333,19 +411,16 @@ end )
 
 UnitTest:Test( "EvaluateConstraints - Teams imbalanced", function( Assert )
 	Assert.True( "Should allow voting as teams are imbalanced",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1000, 2000, 2000 } },
 			{ Skills = { 1000 } }
 		} )
 	)
 end )
 
-VoteShuffle.Config.VoteConstraints.MinAverageDiffToAllowShuffle = 100
-VoteShuffle.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 0
-
 UnitTest:Test( "EvaluateConstraints - Average diff is high enough", function( Assert )
 	Assert.True( "Should allow voting as averages are too far apart",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1000, 2000 }, Average = 1500 },
 			{ Skills = { 1000, 4000 }, Average = 2500 }
 		} )
@@ -354,18 +429,18 @@ end )
 
 UnitTest:Test( "EvaluateConstraints - Min standard deviation difference = 0 is ignored", function( Assert )
 	Assert.False( "Should ignore standard deviation as min is 0",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
 			{ Skills = { 1000, 2000 }, Average = 1500, StandardDeviation = 500 }
 		} )
 	)
 end )
 
-VoteShuffle.Config.VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 200
-
 UnitTest:Test( "EvaluateConstraints - Standard deviation diff is high enough", function( Assert )
+	VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 200
+
 	Assert.True( "Should allow voting as standard deviations are too far apart",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
 			{ Skills = { 1000, 2000 }, Average = 1500, StandardDeviation = 500 }
 		} )
@@ -373,8 +448,10 @@ UnitTest:Test( "EvaluateConstraints - Standard deviation diff is high enough", f
 end )
 
 UnitTest:Test( "EvaluateConstraints - Teams are balanced", function( Assert )
+	VoteConstraints.MinStandardDeviationDiffToAllowShuffle = 200
+
 	Assert.False( "Should deny voting when teams are sufficiently balanced",
-		VoteShuffle:EvaluateConstraints( 4, {
+		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 }
 		} )
@@ -385,14 +462,13 @@ UnitTest:Test( "GetTeamStats - Uses cached data if available", function( Assert 
 	local RankFunc = function() end
 	local Stats = {}
 
-	VoteShuffle.TeamStatsCache[ RankFunc ] = Stats
-	local ComputedStats = VoteShuffle:GetTeamStats( RankFunc )
+	MockShuffle.TeamStatsCache[ RankFunc ] = Stats
+	local ComputedStats = MockShuffle:GetTeamStats( RankFunc )
 
 	Assert.Equals( "Expected GetTeamStats to return cached data when available",
 		Stats, ComputedStats )
 end )
 
-VoteShuffle:ClearStatsCache()
 VoteShuffle.Config.IgnoreCommanders = false
 
 UnitTest:Test( "RandomisePlayers - Keeps commanders on the same team", function( Assert )
@@ -971,6 +1047,109 @@ do
 
 	UnitTest:ResetState()
 end
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns NoOpEnforcement if no policies are specified", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {}
+	} )
+
+	Assert.Nil( "Should have no policies to enforce", Enforcement.Policies )
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns NoOpEnforcement if EnforcementDurationType == 'NONE'", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 0,
+				MaxPlayers = 0
+			}
+		},
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.NONE
+	} )
+
+	Assert.Nil( "Should have no policies to enforce", Enforcement.Policies )
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns NoOpEnforcement if duration is too small", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 0,
+				MaxPlayers = 0
+			}
+		},
+		DurationInMinutes = 0,
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.TIME
+	} )
+
+	Assert.Nil( "Should have no policies to enforce", Enforcement.Policies )
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns DurationBasedEnforcement if duration is large enough", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 10,
+				MaxPlayers = 15
+			}
+		},
+		DurationInMinutes = 10,
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.TIME
+	} )
+
+	Assert.DeepEquals( "Should have policies to enforce", {
+		[ VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS ] = {
+			Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+			MinPlayers = 10,
+			MaxPlayers = 15
+		}
+	}, Enforcement.Policies )
+
+	Assert.False(
+		"Should not enforce policy that is not specified",
+		Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.ASSIGN_PLAYERS, 10 )
+	)
+	Assert.False(
+		"Should not enforce policy when player count is too low",
+		Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS, 9 )
+	)
+	Assert.False(
+		"Should not enforce policy when player count is too high",
+		Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS, 16 )
+	)
+	for i = 10, 15 do
+		Assert.True(
+			"Should enforce policy when player count ("..i..") is within bounds",
+			Enforcement:IsPolicyEnforced( VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS, i )
+		)
+	end
+end )
+
+UnitTest:Test( "BuildEnforcementPolicy - Returns PeriodBasedEnforcement if configured to do so", function( Assert )
+	local Enforcement = VoteShuffle:BuildEnforcementPolicy( {
+		EnforcementPolicy = {
+			{
+				Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+				MinPlayers = 0,
+				MaxPlayers = 0
+			}
+		},
+		DurationInMinutes = 10,
+		EnforcementDurationType = VoteShuffle.EnforcementDurationType.PERIOD
+	} )
+
+	Assert.DeepEquals( "Should have policies to enforce", {
+		[ VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS ] = {
+			Type = VoteShuffle.EnforcementPolicyType.BLOCK_TEAMS,
+			MinPlayers = 0,
+			MaxPlayers = 0
+		}
+	}, Enforcement.Policies )
+	Assert.NotNil( "Should return period based enforcement", Enforcement.InitialStage )
+end )
 
 ----- Integration tests for team optimisation -----
 

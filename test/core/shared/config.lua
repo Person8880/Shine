@@ -36,11 +36,13 @@ UnitTest:Test( "Validator", function( Assert )
 	Validator:AddFieldRules( { "SingleEnum", "AnotherEnum" }, Validator.InEnum( Enum, Enum.B ) )
 	Validator:AddFieldRule( "SingleEnum", Validator.IsType( "string", 1 ) )
 
-	Validator:AddFieldRule( "ListOfTables", Validator.Each(
-		Validator.ValidateField( "ShouldBeNumber", Validator.IsType( "number", 1 ) )
-	) )
-	Validator:AddFieldRule( "ListOfTables", Validator.Each(
-		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 0 ) )
+	Validator:AddFieldRule( "ListOfTables", Validator.AllValuesSatisfy(
+		Validator.ValidateField( "ShouldBeNumber", Validator.IsType( "number", 1 ) ),
+		Validator.ValidateField( "CanBeNilOrNumber", Validator.IsAnyType( { "number", "nil" }, 5 ) ),
+		Validator.ValidateField( "CanBeNilOrNumber", Validator.IfType( "number", Validator.Min( 5 ) ) ),
+		Validator.ValidateField( "Enum", Validator.InEnum( Enum, Enum.A ) ),
+		Validator.ValidateField( "SecondEnum", Validator.InEnum( Enum ), { DeleteIfFieldInvalid = true } ),
+		Validator.ValidateField( "ThirdEnum", Validator.InEnum( Enum ) )
 	) )
 
 	Validator:CheckTypesAgainstDefault( "TypeCheckedChild", {
@@ -60,8 +62,10 @@ UnitTest:Test( "Validator", function( Assert )
 		SingleEnum = "a",
 		AnotherEnum = "C",
 		ListOfTables = {
-			{ ShouldBeNumber = 0 },
-			{ ShouldBeNumber = "1", CanBeNilOrNumber = true }
+			{ ShouldBeNumber = 0, Enum = "b", SecondEnum = "A", ThirdEnum = 123 },
+			{ ShouldBeNumber = "1", CanBeNilOrNumber = true, SecondEnum = "B", ThirdEnum = "a" },
+			-- This should be deleted due to the DeleteIfFieldInvalid flag.
+			{ SecondEnum = "C" }
 		},
 		TypeCheckedChild = {
 			A = true,
@@ -95,8 +99,8 @@ UnitTest:Test( "Validator", function( Assert )
 		AnotherEnum = "B",
 		ListOfTables = {
 			-- Should correct each entry in the list.
-			{ ShouldBeNumber = 0 },
-			{ ShouldBeNumber = 1, CanBeNilOrNumber = 0 }
+			{ ShouldBeNumber = 0, Enum = "B", SecondEnum = "A" },
+			{ ShouldBeNumber = 1, CanBeNilOrNumber = 5, Enum = "A", SecondEnum = "B", ThirdEnum = "A" }
 		},
 		TypeCheckedChild = {
 			-- Should ensure all fields have the same type as the default config.
@@ -212,6 +216,7 @@ UnitTest:Test( "Migrator", function( Assert )
 		:RenameField( "A", "B" )
 		:RenameField( "C", { "Child", "C" } )
 		:RenameField( { "Nested", "Value" }, { "Child", "Value" } )
+		:CopyField( "Child", "CopiedChild" )
 		:RemoveField( "Nested" )
 		:UseEnum( "Mode", { "Mode1", "Mode2", "Mode3" } )
 		:RenameEnums( {
@@ -235,6 +240,10 @@ UnitTest:Test( "Migrator", function( Assert )
 	Assert.DeepEquals( "Migrator should apply actions as expected", {
 		B = "Value for A",
 		Child = {
+			C = "Value for C",
+			Value = true
+		},
+		CopiedChild = {
 			C = "Value for C",
 			Value = true
 		},

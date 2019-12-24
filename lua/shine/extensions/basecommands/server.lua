@@ -758,24 +758,23 @@ function Plugin:CreateInfoCommands()
 
 	local function ListMaps( Client )
 		local Cycle = MapCycle_GetMapCycle()
-
-		if not Cycle or not Cycle.maps then
+		if not IsType( Cycle, "table" ) or not IsType( Cycle.maps, "table" ) then
 			Shine.PrintToConsole( Client, "Unable to load map cycle list." )
-
 			return
 		end
 
-		local Maps = Cycle.maps
+		Shine.PrintToConsole( Client, "Available maps:" )
 
-		Shine.PrintToConsole( Client, "Installed maps:" )
+		local Maps = Cycle.maps
 		for i = 1, #Maps do
 			local Map = Maps[ i ]
 			local MapName = IsType( Map, "table" ) and Map.map or Map
-
-			Shine.PrintToConsole( Client, StringFormat( "- %s", MapName ) )
+			if IsType( MapName, "string" ) then
+				Shine.PrintToConsole( Client, StringFormat( "- %s", MapName ) )
+			end
 		end
 	end
-	local ListMapsCommand = self:BindCommand( "sh_listmaps", nil, ListMaps )
+	local ListMapsCommand = self:BindCommand( "sh_listmaps", nil, ListMaps, true )
 	ListMapsCommand:Help( "Lists all installed maps on the server." )
 
 	local function ListPlugins( Client )

@@ -144,7 +144,7 @@ do
 		function( Assert )
 			MapVote.RoundLimit = 0
 			-- ForceChangeWhenSecondsLeft = 60 means at <= 1 minute left the next map vote should start.
-			MapVote.MapCycle.time = Shared.GetTime() / 60 + 1
+			MapVote.MapCycle.time = math.floor( Shared.GetTime() / 60 ) + 1
 
 			MapVote:CheckMapLimitsAfterRoundEnd()
 

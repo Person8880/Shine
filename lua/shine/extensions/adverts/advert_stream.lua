@@ -41,6 +41,9 @@ function AdvertStream:Init( Plugin, AdvertsList, Options )
 	self.RequiresGameStateFiltering = Options.RequiresGameStateFiltering
 	self.RandomiseOrder = Options.RandomiseOrder
 	self.Loop = Options.Loop
+	self.MinPlayers = Options.MinPlayers
+	self.MaxPlayers = Options.MaxPlayers
+	self.PlayerCount = 0
 
 	self.StartingTriggers = Options.StartingTriggers or {}
 	self.StoppingTriggers = Options.StoppingTriggers or {}
@@ -133,7 +136,7 @@ function AdvertStream:WillStartOnTrigger( TriggerName )
 end
 
 function AdvertStream:OnTrigger( TriggerName )
-	if self.StartingTriggers[ TriggerName ] then
+	if self.StartingTriggers[ TriggerName ] and self:CanStart( self.PlayerCount ) then
 		self:Start()
 	end
 	if self.StoppingTriggers[ TriggerName ] then
@@ -155,6 +158,28 @@ function AdvertStream:OnGameStateChanged( NewState )
 	end
 end
 
+function AdvertStream:CanStart( PlayerCount )
+	if self.MinPlayers and PlayerCount < self.MinPlayers then
+		return false
+	end
+
+	if self.MaxPlayers and PlayerCount > self.MaxPlayers then
+		return false
+	end
+
+	return true
+end
+
+function AdvertStream:OnPlayerCountChanged( PlayerCount )
+	self.PlayerCount = PlayerCount
+
+	if not self:CanStart( PlayerCount ) then
+		self:Stop()
+	elseif not self:IsStartedByTrigger() and ( self.MinPlayers or self.MaxPlayers ) then
+		self:Start()
+	end
+end
+
 function AdvertStream:QueueNextAdvert( DelayOverride )
 	self:StopTimer()
 
@@ -172,16 +197,42 @@ function AdvertStream:QueueNextAdvert( DelayOverride )
 	end
 end
 
-function AdvertStream:DisplayAndAdvance()
-	local Message = self.CurrentMessageIndex
+local function GetNextMessageIndex( self, MessageIndex )
+	return ( MessageIndex % #self.CurrentAdvertsList ) + 1
+end
+
+function AdvertStream:GetNextAdvert()
+	local MessageIndex = self.CurrentMessageIndex
 	-- Back to the start, randomise the order again.
-	if Message == 1 and self.RandomiseOrder then
+	if MessageIndex == 1 and self.RandomiseOrder then
 		TableQuickShuffle( self.CurrentAdvertsList )
 	end
 
-	self.Plugin:DisplayAdvert( self.CurrentAdvertsList[ Message ] )
+	-- Infinite looping should be detected by the config validation, but just in case, make sure to stop checking
+	-- adverts if all of them fail the player count check.
+	local NumAdverts = #self.CurrentAdvertsList
+	local Attempts = 1
+	local Advert = self.CurrentAdvertsList[ MessageIndex ]
+	while not self.IsValidForPlayerCount( Advert, self.PlayerCount ) and Attempts < NumAdverts do
+		MessageIndex = GetNextMessageIndex( self, MessageIndex )
+		Advert = self.CurrentAdvertsList[ MessageIndex ]
+		Attempts = Attempts + 1
+	end
 
-	self.CurrentMessageIndex = ( Message % #self.CurrentAdvertsList ) + 1
+	if self.IsValidForPlayerCount( Advert, self.PlayerCount ) then
+		return Advert, MessageIndex
+	end
+
+	return nil, MessageIndex
+end
+
+function AdvertStream:DisplayAndAdvance()
+	local Advert, MessageIndex = self:GetNextAdvert()
+	if Advert then
+		self.Plugin:DisplayAdvert( Advert )
+	end
+
+	self.CurrentMessageIndex = GetNextMessageIndex( self, MessageIndex )
 
 	if self.CurrentMessageIndex == 1 and not self.Loop then
 		self.Logger:Debug( "%s is stopping due to completing a cycle.", self )
@@ -243,6 +294,18 @@ function AdvertStream.FilterAdvertListForState( Adverts, CurrentAdverts, GameSta
 	end
 
 	return OutputAdverts, HasChanged
+end
+
+function AdvertStream.IsValidForPlayerCount( Advert, PlayerCount )
+	if Advert.MinPlayers and PlayerCount < Advert.MinPlayers then
+		return false
+	end
+
+	if Advert.MaxPlayers and PlayerCount > Advert.MaxPlayers then
+		return false
+	end
+
+	return true
 end
 
 function AdvertStream:__tostring()
