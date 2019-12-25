@@ -5,6 +5,8 @@
 local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
+local Hook = Shine.Hook
+
 local ApplyInterpolationTransformer = string.ApplyInterpolationTransformer
 local IsCallable = Shine.IsCallable
 local IsType = Shine.IsType
@@ -89,13 +91,21 @@ function Format.FromInterpolationString( String, Options )
 	return RichText
 end
 
-function Format.GetColourForPlayer( PlayerName )
+function Format.GetColourForPlayer( PlayerName, TeamNumber )
 	local PlayerRecord = Shine.GetScoreboardEntryByName( PlayerName )
-	if not PlayerRecord then
+	local KnownTeamNumber = TeamNumber or ( PlayerRecord and PlayerRecord.EntityTeamNumber )
+
+	-- Let gamemodes decide their own colours if applicable.
+	local Colour = Hook.Call( "OnRichTextFormatGetColourForPlayer", PlayerName, PlayerRecord, KnownTeamNumber )
+	if IsType( Colour, "cdata" ) then
+		return Colour
+	end
+
+	if not KnownTeamNumber then
 		return DEFAULT_COLOUR
 	end
 
-	return Format.Colours.Teams[ PlayerRecord.EntityTeamNumber ] or DEFAULT_COLOUR
+	return Format.Colours.Teams[ KnownTeamNumber ] or DEFAULT_COLOUR
 end
 
 return Format

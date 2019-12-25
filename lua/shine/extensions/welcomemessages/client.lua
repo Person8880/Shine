@@ -18,8 +18,6 @@ local DarkTeamColours = {
 	MakeColourFromInt( kMarineTeamColor or 0x4DB1FF, 0.8 ),
 	MakeColourFromInt( kAlienTeamColor or 0xFFCA3A, 0.8 )
 }
-local TeamColours = RichTextFormat.Colours.Teams
-
 local function FallbackTeamMessage( Plugin, Options )
 	local Colour = DarkTeamColours[ Options.Values.Team ] or DarkTeamColours[ 0 ]
 
@@ -29,20 +27,20 @@ local function FallbackTeamMessage( Plugin, Options )
 	)
 end
 
-local function GetTeamColour( Values )
-	return TeamColours[ Values.Team ] or TeamColours[ 0 ]
+local function GetPlayerColour( Values )
+	return RichTextFormat.GetColourForPlayer( Values.TargetName, Values.Team )
 end
 
 Plugin.RichTextMessageOptions = {
 	PLAYER_LEAVE_GENERIC = {
 		Colours = {
-			TargetName = GetTeamColour
+			TargetName = GetPlayerColour
 		},
 		MakeFallbackMessage = FallbackTeamMessage
 	},
 	PLAYER_LEAVE_REASON = {
 		Colours = {
-			TargetName = GetTeamColour,
+			TargetName = GetPlayerColour,
 			Reason = RichTextFormat.Colours.LightRed
 		},
 		MakeFallbackMessage = FallbackTeamMessage
