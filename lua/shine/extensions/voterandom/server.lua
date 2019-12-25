@@ -112,7 +112,7 @@ Plugin.DefaultConfig = {
 			MinPlayers = 10,
 
 			-- Fraction of players that need to vote before a shuffle is performed.
-			FractionNeededToPass = 0.75,
+			FractionNeededToPass = 0.6,
 
 			-- When the number of players on playing teams is greater-equal this fraction
 			-- of the total players on the server, apply skill difference constraints.
@@ -130,7 +130,7 @@ Plugin.DefaultConfig = {
 			MinPlayers = 10,
 			FractionNeededToPass = 0.75,
 			MinPlayerFractionToConstrainSkillDiff = 0.9,
-			MinAverageDiffToAllowShuffle = 75,
+			MinAverageDiffToAllowShuffle = 125,
 			MinStandardDeviationDiffToAllowShuffle = 0,
 
 			-- How long to wait after the round starts before transitioning vote constraints/pass actions to "InGame".
