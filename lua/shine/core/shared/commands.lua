@@ -210,7 +210,10 @@ Shine.CommandUtil.ParamTypes = {
 
 			return GetDefault( Table )
 		end,
-		Help = function( Arg ) return StringFormat( "[ %s ]", TableConcat( Arg.Values, ", " ) ) end
+		Help = function( Arg ) return StringFormat( "[ %s ]", TableConcat( Arg.Values, ", " ) ) end,
+		GetAutoCompletions = function( Arg )
+			return Arg.Values
+		end
 	}
 }
 
@@ -230,6 +233,11 @@ do
 
 	local StringFind = string.find
 	local StringLower = string.lower
+
+	local TeamNames = {
+		"marine", "alien", "spectate", "rr", "ready room", "frontiersmen", "khara", "blue", "orange", "gold",
+		"0", "1", "2", "3"
+	}
 
 	-- Team takes either 0 - 3 directly or takes a string matching a team name
 	-- and turns it into the team number.
@@ -252,7 +260,10 @@ do
 
 			return nil
 		end,
-		Help = "team"
+		Help = "team",
+		GetAutoCompletions = function()
+			return TeamNames
+		end
 	}
 end
 local ParamTypes = Shine.CommandUtil.ParamTypes
@@ -340,6 +351,7 @@ end
 
 do
 	local StringEndsWith = string.EndsWith
+	local StringGMatch = string.gmatch
 	local StringGSub = string.gsub
 	local StringLen = string.len
 	local StringMatch = string.match
@@ -395,6 +407,28 @@ do
 		end
 
 		return RealArgs
+	end
+
+	local function ApplyQuotesIfNecessary( Text )
+		if StringMatch( Text, "%s+" ) then
+			return StringFormat( "\"%s\"", ( StringGSub( Text, "\"", "\\\"" ) ) )
+		end
+		return Text
+	end
+
+	function Shine.CommandUtil.SerialiseArguments( Args )
+		return Shine.Stream( Args ):Map( ApplyQuotesIfNecessary ):Concat( " " )
+	end
+
+	function Shine.CommandUtil.SplitParameterHelp( ParameterHelp )
+		local Arguments = {}
+
+		-- Each argument is surrounded with either () or <>
+		for Arg in StringGMatch( ParameterHelp, "([<(].-[)>])" ) do
+			Arguments[ #Arguments + 1 ] = Arg
+		end
+
+		return Arguments
 	end
 end
 

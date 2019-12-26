@@ -22,12 +22,13 @@ local Min = math.min
 local pairs = pairs
 local select = select
 local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
+local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
-local StringLen = string.len
 local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
+local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
@@ -140,7 +141,8 @@ local Colours = {
 	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 ),
 	ModeText = Colour( 1, 1, 1, 1 ),
 	AutoCompleteCommand = Colour( 1, 0.8, 0 ),
-	AutoCompleteParams = Colour( 1, 0.5, 0 )
+	AutoCompleteParams = Colour( 1, 0.5, 0 ),
+	AutoCompleteArg = Colour( 0, 0.75, 1 )
 }
 
 local Skin = {
@@ -1203,52 +1205,73 @@ function Plugin:RefreshLayout( ForceInstantScroll )
 	end
 end
 
-local MaxAutoCompleteResult = 3
-
---[[
-	Scrolls the auto-complete suggestion up/down, setting the text in the text entry to
-	the completed command. This does not trigger a new auto-complete request.
-]]
-function Plugin:ScrollAutoComplete( Amount )
-	if not self.AutoCompleteResults then return end
-
-	local Results = self.AutoCompleteResults
-	if #Results == 0 then return end
-
-	self.CurrentResult = ( self.CurrentResult or 0 ) + Amount
-	if self.CurrentResult > Min( MaxAutoCompleteResult, #Results ) then
-		self.CurrentResult = 1
-	elseif self.CurrentResult < 1 then
-		self.CurrentResult = #Results
+do
+	local MaxAutoCompleteResult = 3
+	local function GetChatCommand( Text )
+		local FirstSpace = StringFind( Text, " " )
+		return StringSub( Text, 2, FirstSpace and ( FirstSpace - 1 ) or #Text )
 	end
 
-	local Text = StringFormat( "%s%s ", self.AutoCompleteLetter,
-		Results[ self.CurrentResult ].ChatCommand )
-	self.TextEntry:SetText( Text )
-end
+	local function GetCommandAndArguments( Text )
+		local ChatCommand = GetChatCommand( Text )
+		local ArgumentsText = StringSub( Text, #ChatCommand + 3 )
+		local Arguments
+		if StringFind( ArgumentsText, "[^%s]" ) then
+			-- Completing a specific parameter, request completions for it.
+			Arguments = Shine.CommandUtil.AdjustArguments( StringExplode( ArgumentsText, " ", true ) )
+		end
 
---[[
-	Submits a request to the server for auto-completion of chat commands.
+		return ChatCommand, Arguments
+	end
 
-	If the current text is the same request as last time (i.e. typing past the first word),
-	no request is sent.
-]]
-function Plugin:SubmitAutoCompleteRequest( Text )
-	local FirstLetter = StringSub( Text, 1, 1 )
-	self.AutoCompleteLetter = FirstLetter
+	--[[
+		Scrolls the auto-complete suggestion up/down, setting the text in the text entry to
+		the completed command. This does not trigger a new auto-complete request.
+	]]
+	function Plugin:ScrollAutoComplete( Amount )
+		if not self.AutoCompleteResults then return end
 
-	-- Cut the text down to just the first word.
-	local FirstSpace = StringFind( Text, " " )
-	local SearchText = StringSub( Text, 2, FirstSpace and ( FirstSpace - 1 ) or StringLen( Text ) )
+		local Results = self.AutoCompleteResults
+		if #Results == 0 then return end
 
-	if self.LastSearch == SearchText then return end
+		self.CurrentResult = ( self.CurrentResult or 0 ) + Amount
+		if self.CurrentResult > Min( MaxAutoCompleteResult, #Results ) then
+			self.CurrentResult = 1
+		elseif self.CurrentResult < 1 then
+			self.CurrentResult = #Results
+		end
 
-	self.LastSearch = SearchText
+		local Result = Results[ self.CurrentResult ]
+		local Text
+		if Result.ParameterIndex then
+			local Command, Arguments = GetCommandAndArguments( self.TextEntry:GetText() )
+			if Command == Result.ChatCommand and Arguments and #Arguments >= Result.ParameterIndex then
+				Arguments[ Result.ParameterIndex ] = Result.Parameter
+				Text = StringFormat(
+					"%s%s %s",
+					self.AutoCompleteLetter,
+					Command,
+					Shine.CommandUtil.SerialiseArguments( Arguments )
+				)
+			end
+		end
 
-	-- On receiving the results, add labels beneath the chatbox showing the completed command(s).
-	Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
+		if not Text then
+			Text = StringFormat( "%s%s ", self.AutoCompleteLetter, Result.ChatCommand )
+		end
+
+		self.TextEntry:SetText( Text )
+	end
+
+	local function ApplyAutoCompletionResults( self, Results )
 		if not self.Visible then return end
-		if not self:ShouldAutoComplete( self.TextEntry:GetText() ) then return end
+
+		local Text = self.TextEntry:GetText()
+		if not self:ShouldAutoComplete( Text ) then return end
+
+		local ChatCommand, Arguments = GetCommandAndArguments( Text )
+		local ResultsAreForCorrectArgument = Results.Command == ChatCommand and Arguments
+			and Results.ParameterIndex == #Arguments
 
 		self.AutoCompleteResults = Results
 
@@ -1277,7 +1300,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 		for i = 1, Max( #Results, #Elements ) do
 			local Label = Elements[ i ]
-			if not Results[ i ] then
+			if not Results[ i ] or ( i > 1 and Results.ParameterIndex and not ResultsAreForCorrectArgument ) then
 				if Label then
 					Label:AlphaTo( nil, nil, 0, 0, 0.3, function()
 						if not Label then return end
@@ -1298,22 +1321,47 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				end
 
 				local Result = Results[ i ]
+				Result.ParameterIndex = Results.ParameterIndex
 
 				Label:SetFont( self:GetFont() )
 				Label:SetTextScale( self.MessageTextScale )
 
 				-- Completion of the form: !command <param> Help text.
 				local TextContent = {
-					Colours.ModeText, FirstLetter,
+					Colours.ModeText, self.AutoCompleteLetter,
 					Colours.AutoCompleteCommand, Result.ChatCommand.." "
 				}
 				if Result.Parameters ~= "" then
-					TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
-					TextContent[ #TextContent + 1 ] = Result.Parameters.." "
+					if ResultsAreForCorrectArgument and Result.Parameter and Result.Parameter ~= "" then
+						-- Results are for a specific parameter, show the help for the other parameters and use the
+						-- completion value for this parameter.
+						local Params = Shine.CommandUtil.SplitParameterHelp( Result.Parameters )
+						local ParamsBefore = TableConcat( Params, " ", 1, Results.ParameterIndex - 1 )
+						if #ParamsBefore > 0 then
+							TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+							TextContent[ #TextContent + 1 ] = ParamsBefore.." "
+						end
+
+						TextContent[ #TextContent + 1 ] = Colours.AutoCompleteArg
+						TextContent[ #TextContent + 1 ] = Result.Parameter.." "
+
+						if i == 1 then
+							local ParamsAfter = TableConcat( Params, " ", Results.ParameterIndex + 1 )
+							if #ParamsAfter > 0 then
+								TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+								TextContent[ #TextContent + 1 ] = ParamsAfter.." "
+							end
+						end
+					else
+						TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+						TextContent[ #TextContent + 1 ] = Result.Parameters.." "
+					end
 				end
 
-				TextContent[ #TextContent + 1 ] = Colours.ModeText
-				TextContent[ #TextContent + 1 ] = Result.Description
+				if i == 1 or not ResultsAreForCorrectArgument then
+					TextContent[ #TextContent + 1 ] = Colours.ModeText
+					TextContent[ #TextContent + 1 ] = Result.Description
+				end
 
 				Label:SetText( TextContent )
 				Label:InvalidateLayout( true )
@@ -1325,6 +1373,11 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				local LabelSize = Label:GetSize()
 				Size.x = Max( Size.x, LabelSize.x + XPadding )
 				Size.y = Size.y + LabelSize.y
+
+				-- Display only one line if the auto-completion was for a specific command that's no longer correct.
+				if Results.ParameterIndex and not ResultsAreForCorrectArgument then
+					break
+				end
 			end
 		end
 
@@ -1335,7 +1388,59 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 		ResultPanel:SetSize( Size )
 		ResultPanel:InvalidateLayout( true )
-	end )
+	end
+
+	function Plugin:SubmitParameterAutoCompleteRequest( ChatCommand, ParameterIndex, SearchText )
+		if self.LastSearchedChatCommand == ChatCommand and self.LastSearchedParameterIndex == ParameterIndex
+		and self.LastSearchedParameter == SearchText then
+			return
+		end
+
+		self.LastSearch = nil
+		self.LastSearchedChatCommand = ChatCommand
+		self.LastSearchedParameterIndex = ParameterIndex
+		self.LastSearchedParameter = SearchText
+
+		Shine.AutoComplete.RequestParameter(
+			ChatCommand,
+			ParameterIndex,
+			SearchText,
+			Shine.AutoComplete.CHAT_COMMAND,
+			MaxAutoCompleteResult,
+			function( Results ) ApplyAutoCompletionResults( self, Results ) end
+		)
+	end
+
+	--[[
+		Submits a request to the server for auto-completion of chat commands.
+
+		If the current text is the same request as last time (i.e. typing past the first word),
+		no request is sent.
+	]]
+	function Plugin:SubmitAutoCompleteRequest( Text )
+		local FirstLetter = StringSub( Text, 1, 1 )
+		self.AutoCompleteLetter = FirstLetter
+
+		-- Cut the text down to just the first word.
+		local SearchText, Arguments = GetCommandAndArguments( Text )
+		if Arguments and StringFind( Arguments[ #Arguments ], "[^%s]" ) then
+			-- Completing a specific parameter, request completions for it.
+			self:SubmitParameterAutoCompleteRequest( SearchText, #Arguments, Arguments[ #Arguments ] )
+			return
+		end
+
+		if self.LastSearch == SearchText then return end
+
+		self.LastSearch = SearchText
+		self.LastSearchedChatCommand = nil
+		self.LastSearchedParameterIndex = nil
+		self.LastSearchedParameter = nil
+
+		-- On receiving the results, add labels beneath the chatbox showing the completed command(s).
+		Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
+			ApplyAutoCompletionResults( self, Results )
+		end )
+	end
 end
 
 function Plugin:DestroyAutoCompletePanel()
@@ -1354,11 +1459,14 @@ function Plugin:DestroyAutoCompletePanel()
 	self.AutoCompleteResults = nil
 	self.AutoCompleteLetter = nil
 	self.LastSearch = nil
+	self.LastSearchedChatCommand = nil
+	self.LastSearchedParameterIndex = nil
+	self.LastSearchedParameter = nil
 	self.CurrentResult = nil
 end
 
 function Plugin:ShouldAutoComplete( Text )
-	return StringFind( Text, "^[!/]" ) and StringLen( Text ) > 1
+	return StringFind( Text, "^[!/]" ) and #Text > 1
 end
 
 function Plugin:AutoCompleteCommand( Text )

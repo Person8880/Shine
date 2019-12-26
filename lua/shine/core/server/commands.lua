@@ -45,6 +45,25 @@ function CommandMeta:AddParam( Table )
 	return self
 end
 
+function CommandMeta:GetParameterAutoCompletions( ParamIndex )
+	local Arg = self.Arguments[ ParamIndex ]
+	if not Arg then return nil end
+
+	local AutoCompletions
+	if Shine.IsCallable( Arg.AutoCompletions ) then
+		AutoCompletions = Arg:AutoCompletions()
+	elseif IsType( Arg.AutoCompletions, "table" ) then
+		AutoCompletions = Arg.AutoCompletions
+	else
+		local ParamType = ParamTypes[ Arg.Type ]
+		if ParamType and Shine.IsCallable( ParamType.GetAutoCompletions ) then
+			AutoCompletions = ParamType.GetAutoCompletions( Arg )
+		end
+	end
+
+	return AutoCompletions
+end
+
 function CommandMeta:Help( HelpString )
 	Shine.TypeCheck( HelpString, "string", 1, "Help" )
 
@@ -234,6 +253,14 @@ function Shine:RegisterCommandAlias( ConCommand, Alias )
 	Shine.AssertAtLevel( Command, "'%s' is not a registered command!", 3, ConCommand )
 
 	return RegisterCommand( self.Commands, Alias, Command:WithConCommand( Alias ) )
+end
+
+function Shine:GetCommandByChatCommand( ChatCommand )
+	return self.ChatCommands[ ChatCommand ]
+end
+
+function Shine:GetCommand( ConCommand )
+	return self.Commands[ ConCommand ]
 end
 
 function Shine:FindCommands( SearchText, Field )
