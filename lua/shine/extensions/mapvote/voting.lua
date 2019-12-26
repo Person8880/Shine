@@ -260,6 +260,10 @@ function Plugin:AddStartVote( Client )
 	return true
 end
 
+function Plugin:GetVoteChoices()
+	return Shine.Set( self.Vote.VoteList ):AsList()
+end
+
 --[[
 	Gets the corresponding map in the current vote matching a string.
 	Allows players to do !vote summit or !vote docking etc.

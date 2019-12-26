@@ -973,8 +973,14 @@ function Plugin:CreateAdminCommands()
 		MapCycle_ChangeMap( MatchingMaps[ 1 ] )
 	end
 	local ChangeLevelCommand = self:BindCommand( "sh_changelevel", "map", ChangeLevel )
-	ChangeLevelCommand:AddParam{ Type = "string", TakeRestOfLine = true,
-		Error = "Please specify a map to change to.", Help = "map" }
+	ChangeLevelCommand:AddParam{
+		Type = "string",
+		TakeRestOfLine = true,
+		Error = "Please specify a map to change to.", Help = "map",
+		AutoCompletions = function()
+			return Shine.GetKnownMapNames()
+		end
+	}
 	ChangeLevelCommand:Help( "Changes the map to the given level immediately." )
 
 	local function CycleMap( Client )

@@ -409,6 +409,14 @@ function Shine:GetUserData( Client )
 end
 
 --[[
+	Returns a list of all known group names.
+]]
+function Shine:GetGroupNames()
+	if not self.UserData or not self.UserData.Groups then return {} end
+	return Shine.Set( self.UserData.Groups ):AsList()
+end
+
+--[[
 	Gets the group data table for the given group name.
 	Input: Group name.
 	Output: Group data table if it exists, nil otherwise.

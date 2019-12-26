@@ -139,6 +139,10 @@ function Plugin:CreateCommands()
 		}
 	end
 
+	local function GetGroupNames()
+		return Shine:GetGroupNames()
+	end
+
 	local Commands = {
 		{
 			ConCommand = "sh_setusergroup",
@@ -166,7 +170,7 @@ function Plugin:CreateCommands()
 			Operation = self.Operation.EDIT_USER,
 			Params = {
 				{ Type = { "client", "steamid" }, Error = "Please provide a user to set the group of." },
-				{ Type = "string", Help = "group" }
+				{ Type = "string", Help = "group", AutoCompletions = GetGroupNames }
 			},
 			Help = "Sets the group for the given user."
 		},
@@ -256,7 +260,12 @@ function Plugin:CreateCommands()
 			end,
 			Operation = self.Operation.EDIT_GROUP,
 			Params = {
-				{ Type = "string", Error = "Please provide the name of the group to set immunity for.", Help = "groupname" },
+				{
+					Type = "string",
+					Error = "Please provide the name of the group to set immunity for.",
+					Help = "groupname",
+					AutoCompletions = GetGroupNames
+				},
 				{ Type = "number", Error = "Please provide an immunity value.", Help = "immunity" }
 			},
 			Help = "Sets the immunity value for the given group."
@@ -278,7 +287,12 @@ function Plugin:CreateCommands()
 			end,
 			Operation = self.Operation.EDIT_GROUP,
 			Params = {
-				{ Type = "string", Error = "Please provide the name of the group.", Help = "groupname" },
+				{
+					Type = "string",
+					Error = "Please provide the name of the group.",
+					Help = "groupname",
+					AutoCompletions = GetGroupNames
+				},
 				{ Type = "boolean", Error = "Please provide whether the group's commands are a blacklist.", Help = "blacklist?" }
 			},
 			Help = "Sets whether the given group's commands are a blacklist or a whitelist."
@@ -304,8 +318,18 @@ function Plugin:CreateCommands()
 			end,
 			Operation = self.Operation.EDIT_GROUP,
 			Params = {
-				{ Type = "string", Error = "Please provide the name of the group to edit.", Help = "groupname" },
-				{ Type = "string", Error = "Please provide the name of the group being inherited.", Help = "inheriting group" },
+				{
+					Type = "string",
+					Error = "Please provide the name of the group to edit.",
+					Help = "groupname",
+					AutoCompletions = GetGroupNames
+				},
+				{
+					Type = "string",
+					Error = "Please provide the name of the group being inherited.",
+					Help = "inheriting group",
+					AutoCompletions = GetGroupNames
+				},
 				{ Type = "boolean", Optional = true, Default = false, Help = "remove?" }
 			},
 			Help = "Sets whether the given group inherits from the given inheriting group or not."
@@ -329,7 +353,12 @@ function Plugin:CreateCommands()
 			end,
 			Operation = self.Operation.EDIT_GROUP,
 			Params = {
-				{ Type = "string", Error = "Please provide a group name.", Help = "groupname" },
+				{
+					Type = "string",
+					Error = "Please provide a group name.",
+					Help = "groupname",
+					AutoCompletions = GetGroupNames
+				},
 				{ Type = "string", Error = "Please provide an access string.", Help = "access string" },
 				{ Type = "boolean", Optional = true, Default = false, Help = "revoke?" }
 			},
@@ -351,7 +380,13 @@ function Plugin:CreateCommands()
 			end,
 			Operation = self.Operation.REMOVE_GROUP,
 			Params = {
-				{ Type = "string", Error = "Please provide a group name.", Help = "groupname", TakeRestOfLine = true },
+				{
+					Type = "string",
+					Error = "Please provide a group name.",
+					Help = "groupname",
+					TakeRestOfLine = true,
+					AutoCompletions = GetGroupNames
+				},
 			},
 			Help = "Deletes the given group."
 		},
