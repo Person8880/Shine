@@ -5,6 +5,7 @@
 local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
+local Floor = math.floor
 local getmetatable = getmetatable
 local TableConcat = table.concat
 local type = type
@@ -95,9 +96,9 @@ end
 if Client then
 	function DefaultProvider:AddDualColourMessage( PrefixColour, Prefix, MessageColour, Message )
 		Shine.AddChatText(
-			PrefixColour.r * 255,
-			PrefixColour.g * 255,
-			PrefixColour.b * 255,
+			Floor( PrefixColour.r * 255 ),
+			Floor( PrefixColour.g * 255 ),
+			Floor( PrefixColour.b * 255 ),
 			Prefix,
 			MessageColour.r,
 			MessageColour.g,
@@ -109,13 +110,13 @@ else
 	function DefaultProvider:AddDualColourMessage( PrefixColour, Prefix, MessageColour, Message, Targets )
 		Shine:NotifyDualColour(
 			Targets,
-			PrefixColour.r * 255,
-			PrefixColour.g * 255,
-			PrefixColour.b * 255,
+			Floor( PrefixColour.r * 255 ),
+			Floor( PrefixColour.g * 255 ),
+			Floor( PrefixColour.b * 255 ),
 			Prefix,
-			MessageColour.r * 255,
-			MessageColour.g * 255,
-			MessageColour.b * 255,
+			Floor( MessageColour.r * 255 ),
+			Floor( MessageColour.g * 255 ),
+			Floor( MessageColour.b * 255 ),
 			Message
 		)
 	end
