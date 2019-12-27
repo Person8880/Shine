@@ -13,6 +13,7 @@ local DebugGetInfo = debug.getinfo
 local Floor = math.floor
 local GetAllPlayers = Shine.GetAllPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
+local GetNumSpectators = Server.GetNumSpectators
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local Max = math.max
@@ -1400,7 +1401,7 @@ function Plugin:CanStartVote()
 	end
 
 	if self.Config.BalanceMode == self.ShuffleMode.HIVE
-	and not self:EvaluateConstraints( GetNumPlayers(), self:GetTeamStats() ) then
+	and not self:EvaluateConstraints( GetNumPlayers() - GetNumSpectators(), self:GetTeamStats() ) then
 		return false, "ERROR_CONSTRAINTS"
 	end
 
