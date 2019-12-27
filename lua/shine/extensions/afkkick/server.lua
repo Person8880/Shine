@@ -393,8 +393,12 @@ function Plugin:KickClient( Client )
 	Server.DisconnectClient( Client, "AFK for too long." )
 end
 
+function Plugin:CanCheckInCurrentGameState( Gamerules )
+	return not self.Config.OnlyCheckOnStarted or ( Gamerules and Gamerules:GetGameStarted() )
+end
+
 function Plugin:CanKickForConnectingClient()
-	return GetNumPlayersTotal() >= GetMaxPlayers()
+	return GetNumPlayersTotal() >= GetMaxPlayers() and self:CanCheckInCurrentGameState( GetGamerules() )
 end
 
 --[[
@@ -607,9 +611,7 @@ end
 
 function Plugin:EvaluatePlayers()
 	local Gamerules = GetGamerules()
-	local Started = Gamerules and Gamerules:GetGameStarted()
-
-	if self.Config.OnlyCheckOnStarted and not Started then return end
+	if not self:CanCheckInCurrentGameState( Gamerules ) then return end
 
 	local NumPlayers = self:GetPlayerCount()
 	if NumPlayers < self.Config.WarnMinPlayers then return end

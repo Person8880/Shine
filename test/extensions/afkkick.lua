@@ -194,3 +194,34 @@ UnitTest:Test( "GetConfigValueWithRules - Maintains false values from rules", fu
 		)
 	end
 end )
+
+UnitTest:Test( "CanCheckInCurrentGameState - Returns true if OnlyCheckOnStarted = false", function( Assert )
+	local GameStarted = false
+	local Gamerules = {
+		GetGameStarted = function() return GameStarted end
+	}
+
+	AFKKick.Config.OnlyCheckOnStarted = false
+	Assert.True( "Should check when round has not started", AFKKick:CanCheckInCurrentGameState( Gamerules ) )
+
+	GameStarted = true
+	Assert.True( "Should check when round has started", AFKKick:CanCheckInCurrentGameState( Gamerules ) )
+end )
+
+UnitTest:Test( "CanCheckInCurrentGameState - Returns false if OnlyCheckOnStarted = true and a round has not started", function( Assert )
+	local Gamerules = {
+		GetGameStarted = function() return false end
+	}
+
+	AFKKick.Config.OnlyCheckOnStarted = true
+	Assert.False( "Should not check when round has not started", AFKKick:CanCheckInCurrentGameState( Gamerules ) )
+end )
+
+UnitTest:Test( "CanCheckInCurrentGameState - Returns true if OnlyCheckOnStarted = true and a round has started", function( Assert )
+	local Gamerules = {
+		GetGameStarted = function() return true end
+	}
+
+	AFKKick.Config.OnlyCheckOnStarted = true
+	Assert.True( "Should check when round has started", AFKKick:CanCheckInCurrentGameState( Gamerules ) )
+end )
