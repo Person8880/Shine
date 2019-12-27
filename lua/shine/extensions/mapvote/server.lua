@@ -285,9 +285,6 @@ local function ConvertArrayToLookup( Table )
 	end
 end
 
-Shine.LoadPluginFile( PluginName, "cycle.lua", Plugin )
-Shine.LoadPluginFile( PluginName, "voting.lua", Plugin )
-
 do
 	local StringUpper = string.upper
 
@@ -363,6 +360,9 @@ do
 
 	Plugin.ConfigValidator = Validator
 end
+
+Shine.LoadPluginFile( PluginName, "cycle.lua", Plugin )
+Shine.LoadPluginFile( PluginName, "voting.lua", Plugin )
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )

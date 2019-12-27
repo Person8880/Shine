@@ -1412,10 +1412,13 @@ end
 	Adds a player's vote to the counter.
 ]]
 function Plugin:AddVote( Client )
-	if not Client then Client = "Console" end
-
 	do
-		local Success, Err, Args = self:CanStartVote()
+		local Success, Err, Args = self:CanClientVote( Client )
+		if not Success then
+			return false, Err, Args
+		end
+
+		Success, Err, Args = self:CanStartVote()
 		if not Success then
 			return false, Err, Args
 		end

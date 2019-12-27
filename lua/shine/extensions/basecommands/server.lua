@@ -172,7 +172,8 @@ do
 					return OldGetNumVotingPlayers()
 				end
 
-				return Plugin:GetNumNonAFKHumans( tonumber( Settings.AFKTimeInSeconds ) or 60 )
+				-- Never skip spectators as the game allows them to vote...
+				return Plugin:GetNumNonAFKHumans( tonumber( Settings.AFKTimeInSeconds ) or 60, false )
 			end
 		end
 		Shine.JoinUpValues( VoteUpdateFunc, OverrideVoteCount, {
@@ -208,17 +209,17 @@ end
 
 do
 	local Validator = Shine.Validator()
-	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
-		Validator.ValidateField( "FractionOfTeamToPass", Validator.IsType( "number" ) )
-	) )
-	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
-		Validator.ValidateField( "FractionOfTeamToPass", Validator.Clamp( 0, 1 ) )
-	) )
-	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
-		Validator.ValidateField( "MaxSecondsAsCommander", Validator.IsAnyType( { "number", "nil" } ) )
-	) )
-	Validator:AddFieldRule( "EjectVotesNeeded", Validator.Each(
+	Validator:AddFieldRule( "EjectVotesNeeded", Validator.AllValuesSatisfy(
+		Validator.ValidateField( "FractionOfTeamToPass", Validator.IsType( "number" ) ),
+		Validator.ValidateField( "FractionOfTeamToPass", Validator.Clamp( 0, 1 ) ),
+		Validator.ValidateField( "MaxSecondsAsCommander", Validator.IsAnyType( { "number", "nil" } ) ),
 		Validator.ValidateField( "MaxSecondsAsCommander", Validator.Min( 0 ) )
+	) )
+
+	Validator:AddFieldRule( "VoteSettings", Validator.AllKeyValuesSatisfy(
+		Validator.ValidateField( "ConsiderAFKPlayersInVotes", Validator.IsType( "boolean", true ) ),
+		Validator.ValidateField( "AFKTimeInSeconds", Validator.IsType( "number", 60 ) ),
+		Validator.ValidateField( "AFKTimeInSeconds", Validator.Min( 0 ) )
 	) )
 
 	Validator:AddRule( {
