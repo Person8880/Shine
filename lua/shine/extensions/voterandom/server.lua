@@ -1522,19 +1522,28 @@ Plugin.EnforcementPolicies = {
 	end
 }
 
-function Plugin:BuildEnforcementPolicy( Settings )
-	if #Settings.EnforcementPolicy == 0 then
-		self.Logger:Debug( "No enforcement policies configured, disabling enforcement." )
-		-- No policies configured, so nothing to enforce.
-		return self.EnforcementPolicies[ self.EnforcementDurationType.NONE ]( self, Settings )
+do
+	local function PolicyToString( Policy )
+		return StringFormat( "<%s [%s, %s]>", Policy.Type, Policy.MinPlayers, Policy.MaxPlayers )
 	end
 
-	if self.Logger:IsDebugEnabled() then
-		self.Logger:Debug( "Applying enforcement policies [ %s ] with duration type %s",
-			Shine.Stream( Settings.EnforcementPolicy ):Concat( ", " ), Settings.EnforcementDurationType )
-	end
+	function Plugin:BuildEnforcementPolicy( Settings )
+		if #Settings.EnforcementPolicy == 0 then
+			self.Logger:Debug( "No enforcement policies configured, disabling enforcement." )
+			-- No policies configured, so nothing to enforce.
+			return self.EnforcementPolicies[ self.EnforcementDurationType.NONE ]( self, Settings )
+		end
 
-	return self.EnforcementPolicies[ Settings.EnforcementDurationType ]( self, Settings )
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug(
+				"Applying enforcement policies [ %s ] with duration type %s",
+				Shine.Stream.Of( Settings.EnforcementPolicy ):Map( PolicyToString ):Concat( ", " ),
+				Settings.EnforcementDurationType
+			)
+		end
+
+		return self.EnforcementPolicies[ Settings.EnforcementDurationType ]( self, Settings )
+	end
 end
 
 function Plugin:InitEnforcementPolicy( Settings )
