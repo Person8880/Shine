@@ -567,6 +567,7 @@ end
 -- network message hook callback only receives data for the values present at the time it was registered.
 Add( "RegisterNetworkMessage:Chat", "AddSteamIDToMessage", function( Name, Definition )
 	Definition.steamId = "integer"
+	Definition.clientId = "integer"
 end )
 
 -- Client specific hooks.
@@ -587,6 +588,7 @@ if Client then
 				LocationID = Data.locationId,
 				Message = Data.message,
 				Name = Data.playerName,
+				ClientID = Data.clientId,
 				SteamID = Data.steamId,
 				TeamNumber = Data.teamNumber,
 				TeamOnly = Data.teamOnly,

@@ -655,7 +655,7 @@ end
 
 local function IsVisibleToLocalPlayer( Player, TeamNumber )
 	local PlayerTeam = Player:GetTeamNumber()
-	return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex
+	return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex or PlayerTeam == kTeamReadyRoom
 end
 
 local function GetTeamPrefix( Data )
@@ -692,18 +692,10 @@ function Plugin:OnChatMessageReceived( Data )
 		return true
 	end
 
-	local IsCommander
-	local IsRookie
-
-	local PlayerData = ScoreboardUI_GetAllScores()
-	for i = 1, #PlayerData do
-		local Entry = PlayerData[ i ]
-		if Entry.SteamId == Data.SteamID then
-			IsCommander = Entry.IsCommander and IsVisibleToLocalPlayer( Player, Entry.EntityTeamNumber )
-			IsRookie = Entry.IsRookie
-			break
-		end
-	end
+	-- Server sends -1 for ClientID if there is no client attached to the message.
+	local Entry = Data.ClientID ~= -1 and Shine.GetScoreboardEntryByClientID( Data.ClientID )
+	local IsCommander = Entry and Entry.IsCommander and IsVisibleToLocalPlayer( Player, Entry.EntityTeamNumber )
+	local IsRookie = Entry and Entry.IsRookie
 
 	local Contents = {}
 

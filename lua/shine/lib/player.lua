@@ -52,7 +52,10 @@ do
 end
 
 if Client then
-	local EntriesByName = {}
+	local Indexes = {
+		ByName = {},
+		ByClientID = {}
+	}
 
 	--[[
 		Returns the scoreboard entry for the player with the given name.
@@ -66,7 +69,16 @@ if Client then
 			return Entry
 		end
 
-		return EntriesByName[ Name ]
+		return Indexes.ByName[ Name ]
+	end
+
+	function Shine.GetScoreboardEntryByClientID( ClientID )
+		local Entry = Scoreboard_GetPlayerRecord and Scoreboard_GetPlayerRecord( ClientID )
+		if Entry then
+			return Entry
+		end
+
+		return Indexes.ByClientID[ ClientID ]
 	end
 
 	Hook.CallAfterFileLoad( "lua/Scoreboard.lua", function()
@@ -77,18 +89,23 @@ if Client then
 		Hook.SetupGlobalHook( "Scoreboard_ReloadPlayerData", "PostScoreboardReload", "PassivePost" )
 
 		local function UpdateScoreboardEntries()
-			TableEmpty( EntriesByName )
+			TableEmpty( Indexes.ByName )
+			TableEmpty( Indexes.ByClientID )
 
 			local EntityList = Shared.GetEntitiesWithClassname( "PlayerInfoEntity" )
 			for _, Entity in ientitylist( EntityList ) do
 				local Entry = Scoreboard_GetPlayerRecord( Entity.clientId )
 				if Entry and Entry.Name then
-					EntriesByName[ Entry.Name ] = Entry
+					Indexes.ByName[ Entry.Name ] = Entry
+
+					if Entry.ClientIndex then
+						Indexes.ByClientID[ Entry.ClientIndex ] = Entry
+					end
 
 					Hook.Call( "OnScoreboardEntryReload", Entry, Entity )
 
 					-- Update in case the name was changed elsewhere (assume the change is unique).
-					EntriesByName[ Entry.Name ] = Entry
+					Indexes.ByName[ Entry.Name ] = Entry
 				end
 			end
 		end
