@@ -26,11 +26,16 @@ SGUI.AddProperty( MapTile, "OverviewTexture" )
 SGUI.AddProperty( MapTile, "PreviewTexture" )
 SGUI.AddProperty( MapTile, "Selected", false )
 SGUI.AddProperty( MapTile, "TeamVariation", "Marine" )
+SGUI.AddProperty( MapTile, "WinnerType" )
 
 SGUI.AddBoundProperty( MapTile, "Text", "MapNameLabel:SetText" )
 SGUI.AddBoundProperty( MapTile, "TextColour", { "MapNameLabel:SetColour", "VoteCounterLabel:SetColour" } )
 SGUI.AddBoundProperty( MapTile, "MapNameAutoFont", "MapNameLabel:SetAutoFont" )
 SGUI.AddBoundProperty( MapTile, "VoteCounterAutoFont", "VoteCounterLabel:SetAutoFont" )
+
+MapTile.WinnerTypeName = table.AsEnum{
+	"WINNER", "TIED_WINNER"
+}
 
 function MapTile:Initialise()
 	Controls.Button.Initialise( self )
@@ -172,6 +177,20 @@ function MapTile:Initialise()
 				return Locale:GetInterpolatedPhrase( "mapvote", "VOTE_COUNTER", {
 					NumVotes = NumVotes
 				} )
+			end
+		} ):BindProperty()
+	Binder():FromElement( self, "WinnerType" )
+		:ToElement( self.VoteCounterLabel, "StyleName", {
+			Transformer = function( WinnerType )
+				if WinnerType == self.WinnerTypeName.WINNER then
+					return "MapTileVoteCountWinner"
+				end
+
+				if WinnerType == self.WinnerTypeName.TIED_WINNER then
+					return "MapTileVoteCountTied"
+				end
+
+				return "MapTileLabel"
 			end
 		} ):BindProperty()
 	Binder():FromElement( self, "Selected" )

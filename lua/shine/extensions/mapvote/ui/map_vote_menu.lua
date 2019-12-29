@@ -83,6 +83,18 @@ local Skin = {
 			TextAlignmentX = GUIItem.Align_Center,
 			UseAlignmentCompensation = true
 		},
+		MapTileVoteCountWinner = {
+			Colour = Colour( 0, 1, 0, 1 / MapTileHeaderAlpha ),
+			InheritsParentAlpha = true,
+			TextAlignmentX = GUIItem.Align_Center,
+			UseAlignmentCompensation = true
+		},
+		MapTileVoteCountTied = {
+			Colour = Colour( 1, 1, 0, 1 / MapTileHeaderAlpha ),
+			InheritsParentAlpha = true,
+			TextAlignmentX = GUIItem.Align_Center,
+			UseAlignmentCompensation = true
+		},
 		HeaderLabel = {
 			Colour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
 			Shadow = {
@@ -334,15 +346,17 @@ function MapVoteMenu:SetMaps( Maps )
 			return
 		end
 
+		local Tile = self.MapTiles[ MapName ]
 		if Err then
 			LuaPrint( "Failed to load preview image for", MapName, Err )
-			Tile:OnPreviewTextureFailed( Err )
+			if SGUI.IsValid( Tile ) then
+				Tile:OnPreviewTextureFailed( Err )
+			end
 			return
 		end
 
 		LuaPrint( "Loaded preview image for", MapName, "as", TextureName )
 
-		local Tile = self.MapTiles[ MapName ]
 		if SGUI.IsValid( Tile ) then
 			Tile:SetPreviewTexture( TextureName )
 		end
@@ -413,6 +427,29 @@ function MapVoteMenu:OnMapVoteCountChanged( MapName, NumVotes )
 	if not SGUI.IsValid( Tile ) then return end
 
 	Tile:SetNumVotes( NumVotes )
+
+	local Max = 0
+	local NumAtMax = 0
+	for i = 1, #self.MapTiles do
+		local Tile = self.MapTiles[ i ]
+		local VotesForTile = Tile:GetNumVotes()
+		if VotesForTile > Max then
+			Max = VotesForTile
+			NumAtMax = 1
+		elseif VotesForTile == Max then
+			NumAtMax = NumAtMax + 1
+		end
+	end
+
+	for i = 1, #self.MapTiles do
+		local Tile = self.MapTiles[ i ]
+		local VotesForTile = Tile:GetNumVotes()
+		if VotesForTile == Max and Max > 0 then
+			Tile:SetWinnerType( MapTile.WinnerTypeName[ NumAtMax > 1 and "TIED_WINNER" or "WINNER" ] )
+		else
+			Tile:SetWinnerType( nil )
+		end
+	end
 end
 
 function MapVoteMenu:SetSelectedMap( MapName )
