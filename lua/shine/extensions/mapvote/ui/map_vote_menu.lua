@@ -79,7 +79,9 @@ local Skin = {
 		},
 		MapTileLabel = {
 			Colour = Colour( 1, 1, 1, 1 / MapTileHeaderAlpha ),
-			InheritsParentAlpha = true
+			InheritsParentAlpha = true,
+			TextAlignmentX = GUIItem.Align_Center,
+			UseAlignmentCompensation = true
 		},
 		HeaderLabel = {
 			Colour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
