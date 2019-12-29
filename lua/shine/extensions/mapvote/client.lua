@@ -355,7 +355,7 @@ do
 			local Maps = self.Maps
 			if not Maps then return end
 
-			local Offset = SGUI.Layout.Units.HighResScaled( 64 ):GetValue()
+			local Offset = SGUI.Layout.Units.HighResScaled( 32 ):GetValue()
 			self.FullVoteMenu = SGUI:CreateFromDefinition( MapVoteMenu )
 
 			local W, H = SGUI.GetScreenSize()
