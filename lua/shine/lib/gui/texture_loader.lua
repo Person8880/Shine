@@ -270,8 +270,12 @@ local StateUpdaters = {
 			LuaPrint( Clock(), "JS confirms image has loaded, setting up GUIView", Alert )
 
 			Entry.State = STATE_SETUP_GUI_VIEW
-			-- Give the WebView time to refresh its texture (seems to update at a different rate to the game)
-			Entry.RenderTime = Clock() + 0.2
+
+			-- Force the WebView to refresh its texture now that it's finished loading (otherwise it may not refresh in
+			-- time to be copied).
+			self.WebView:RefreshTexture()
+			-- Give the WebView time to refresh its texture (it doesn't occur straight away).
+			Entry.RenderTime = Clock() + 0.1
 		end
 		self.WebView:ExecuteJS( StringFormat( IMAGE_CONFIRM_JS, Entry.URL ) )
 
