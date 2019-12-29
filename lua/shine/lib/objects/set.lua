@@ -135,6 +135,8 @@ do
 	end
 
 	function Set:Remove( Value )
+		if not self:Contains( Value ) then return self end
+
 		return self:Filter( IsNotValue, Value )
 	end
 end
@@ -145,6 +147,8 @@ do
 	end
 
 	function Set:RemoveAll( Values )
+		if #Values == 0 then return self end
+
 		return self:Filter( NotInLookup, TableAsSet( Values ) )
 	end
 end
