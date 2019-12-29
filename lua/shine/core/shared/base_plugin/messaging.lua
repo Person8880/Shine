@@ -2,6 +2,8 @@
 	Messaging module.
 ]]
 
+local ChatAPI = require "shine/core/shared/chat/chat_api"
+
 local Shine = Shine
 
 local rawget = rawget
@@ -10,7 +12,6 @@ local StringFormat = string.format
 local MessageModule = {}
 
 if Client then
-	local ChatAPI = require "shine/core/shared/chat/chat_api"
 	local RichTextFormat = require "shine/lib/gui/richtext/format"
 
 	local ColourElement = require "shine/lib/gui/richtext/elements/colour"
@@ -210,6 +211,17 @@ else
 
 	function MessageModule:NotifyTranslatedCommandError( Player, Message )
 		Shine:TranslatedNotifyCommandError( Player, Message, self.__Name )
+	end
+
+	function MessageModule:NotifyRichText( Player, RichText )
+		ChatAPI:AddRichTextMessage( {
+			Source = {
+				Type = ChatAPI.SourceTypeName.PLUGIN,
+				ID = self:GetName()
+			},
+			Message = RichText,
+			Targets = Player
+		} )
 	end
 end
 

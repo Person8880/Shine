@@ -170,14 +170,7 @@ function Plugin:DisplayMessage( Message )
 	end
 
 	if IsType( Message.Message, "table" ) then
-		ChatAPI:AddRichTextMessage( {
-			Source = {
-				Type = ChatAPI.SourceTypeName.PLUGIN,
-				ID = self:GetName()
-			},
-			Message = ChatAPI.ToRichTextMessage( Message.Message )
-		} )
-
+		self:NotifyRichText( nil, ChatAPI.ToRichTextMessage( Message.Message ) )
 		return
 	end
 

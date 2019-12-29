@@ -797,15 +797,7 @@ function Plugin:DisplayAdvert( Advert, EventData )
 	local Type = Advert.Type
 	if not Type or Type == "chat" then
 		if IsType( Advert.Message, "table" ) then
-			ChatAPI:AddRichTextMessage( {
-				Source = {
-					Type = ChatAPI.SourceTypeName.PLUGIN,
-					ID = self:GetName()
-				},
-				Message = ChatAPI.ToRichTextMessage( Advert.Message, WithInterpolation, EventData ),
-				Targets = Targets
-			} )
-
+			self:NotifyRichText( Targets, ChatAPI.ToRichTextMessage( Advert.Message, WithInterpolation, EventData ) )
 			return
 		end
 
