@@ -5,6 +5,8 @@
 
 local SGUI = Shine.GUI
 
+local Max = math.max
+
 local RichText = {}
 local BackgroundColour = Colour( 0, 0, 0, 0 )
 
@@ -45,9 +47,11 @@ function RichText:PerformLayout()
 end
 
 function RichText:SetSize( Size )
-	if self.MaxWidth == Size.x and self.ComputedWrapping then return end
+	local MaxWidth = Max( Size.x, 0 )
 
-	self.MaxWidth = Size.x
+	if self.MaxWidth == MaxWidth and self.ComputedWrapping then return end
+
+	self.MaxWidth = MaxWidth
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
 end
