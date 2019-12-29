@@ -366,7 +366,7 @@ do
 				return {
 					MapName = MapName,
 					NiceName = self:GetNiceMapName( MapName ),
-					ModID = self.MapMods[ MapName ] and tostring( self.MapMods[ MapName ] ),
+					ModID = self.MapMods and self.MapMods[ MapName ] and tostring( self.MapMods[ MapName ] ),
 					IsSelected = MapName == self.ChosenMap,
 					NumVotes = self.MapVoteCounts[ MapName ]
 				}
