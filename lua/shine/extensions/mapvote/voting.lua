@@ -42,6 +42,34 @@ function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, S
 	end
 end
 
+function Plugin:SendMapMods( Client )
+	local MapList = self.Vote.MapList
+	if not MapList then return end
+
+	Shine.Stream( MapList )
+		:Filter( function( Map ) return self.MapOptions[ Map ] end )
+		:ForEach( function( Map )
+			local Options = self.MapOptions[ Map ]
+			if not IsType( Options.mods, "table" ) then return end
+
+			local MapMods = Shine.Stream.Of( Options.mods ):Filter( function( ModID )
+				return self.KnownMapMods[ ModID ]
+			end ):AsTable()
+
+			-- If we know which mod is the map, use it. Otherwise assume it's the first mod.
+			local ModID = MapMods[ 1 ] or Options.mods[ 1 ]
+			ModID = tonumber( ModID, 16 )
+
+			if ModID then
+				self.Logger:Debug( "Map %s has mod ID: %s", Map, ModID )
+				self:SendNetworkMessage( Client, "MapMod", {
+					MapName = Map,
+					ModID = ModID
+				}, true )
+			end
+		end )
+end
+
 function Plugin:ClientConnect( Client )
 	self:UpdateVoteCounters( self.StartingVote )
 end
@@ -56,13 +84,15 @@ function Plugin:ClientConfirmConnect( Client )
 	local Duration = Floor( self.Vote.EndTime - Time )
 	if Duration < 5 then return end
 
-	local OptionsText = self.Vote.OptionsText
+	-- Send any mods for maps in the current vote (so the map vote menu shows the right preview image).
+	self:SendMapMods( Client )
 
-	--Send them the current vote progress and options.
+	local OptionsText = self.Vote.OptionsText
+	-- Send them the current vote progress and options.
 	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
 		self:GetTimeRemaining(), not self.VoteOnEnd )
 
-	--Update their radial menu vote counters.
+	-- Update their radial menu vote counters.
 	for Map, Votes in pairs( self.Vote.VoteList ) do
 		self:SendMapVoteCount( Client, Map, Votes )
 	end
@@ -872,6 +902,7 @@ function Plugin:StartVote( NextMap, Force )
 	self.Vote.NominationTracker = {}
 
 	local MapList = self:BuildMapChoices()
+	self.Vote.MapList = MapList
 
 	self.Vote.Nominated = {}
 	self.Vote.VoteList = {}
@@ -898,28 +929,7 @@ function Plugin:StartVote( NextMap, Force )
 
 	-- For every map in the vote list that requires a mod, tell every client the mod ID
 	-- so they can load a preview for it if they hover the button.
-	Shine.Stream( MapList )
-		:Filter( function( Map ) return self.MapOptions[ Map ] end )
-		:ForEach( function( Map )
-			local Options = self.MapOptions[ Map ]
-			if not IsType( Options.mods, "table" ) then return end
-
-			local MapMods = Shine.Stream.Of( Options.mods ):Filter( function( ModID )
-				return self.KnownMapMods[ ModID ]
-			end ):AsTable()
-
-			-- If we know which mod is the map, use it. Otherwise assume it's the first mod.
-			local ModID = MapMods[ 1 ] or Options.mods[ 1 ]
-			ModID = tonumber( ModID, 16 )
-
-			if ModID then
-				self.Logger:Debug( "Map %s has mod ID: %s", Map, ModID )
-				self:SendNetworkMessage( nil, "MapMod", {
-					MapName = Map,
-					ModID = ModID
-				}, true )
-			end
-		end )
+	self:SendMapMods( nil )
 
 	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(),
 		not self.VoteOnEnd )
