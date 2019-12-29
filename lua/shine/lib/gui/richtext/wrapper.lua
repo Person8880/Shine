@@ -4,6 +4,7 @@
 
 local TextSizeProvider = require "shine/lib/gui/richtext/text_size_provider"
 
+local Huge = math.huge
 local Max = math.max
 local StringUTF8Encode = string.UTF8Encode
 local TableConcat = table.concat
@@ -23,20 +24,17 @@ local function GetMidPoint( Start, End )
 	return Start + ( Mid + Mid % 2 ) * 0.5
 end
 
-local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
-	local Chars = StringUTF8Encode( Word )
-	local Start = 1
-	local End = #Chars
-	local NumChars = End
-
-	if End == 0 or ( StopAfter and Parts.Count >= StopAfter ) then
+local function TextWrapFromChars( TextSizeProvider, Chars, Start, End, MaxWidth, Parts, StopAfter )
+	if End == 0 or Start > End or Parts.Count >= StopAfter then
 		return Parts
 	end
 
+	local StartIndex = Start
+	local EndIndex = End
 	local Mid = GetMidPoint( Start, End )
 
 	for i = 1, End do
-		local TextBefore = TableConcat( Chars, "", 1, Mid - 1 )
+		local TextBefore = TableConcat( Chars, "", StartIndex, Mid - 1 )
 		local TextAfter = TextBefore..Chars[ Mid ]
 
 		local WidthBefore = TextSizeProvider:GetWidth( TextBefore )
@@ -46,20 +44,20 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 			-- Text must be wrapped here, wrap it then continue with the remaining text.
 			Parts.Count = Parts.Count + 1
 			Parts[ Parts.Count ] = TextBefore
-			return TextWrap( TextSizeProvider, TableConcat( Chars, "", Max( Mid, 2 ) ), MaxWidth, Parts, StopAfter )
+			return TextWrapFromChars( TextSizeProvider, Chars, Max( Mid, 2 ), EndIndex, MaxWidth, Parts, StopAfter )
 		elseif WidthAfter > MaxWidth then
-			if Mid == 1 then
+			if Mid == StartIndex then
 				-- Even a single character is too wide, so we have to allow it to overflow,
 				-- otherwise there'll never be an answer.
 				Parts.Count = Parts.Count + 1
 				Parts[ Parts.Count ] = TextAfter
-				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Mid + 1 ), MaxWidth, Parts, StopAfter )
+				return TextWrapFromChars( TextSizeProvider, Chars, Mid + 1, EndIndex, MaxWidth, Parts, StopAfter )
 			end
 			-- Too far forward, look in the previous half.
 			End = Mid - 1
 			Mid = GetMidPoint( Start, End )
 		elseif WidthAfter < MaxWidth then
-			if Mid == NumChars then
+			if Mid == EndIndex then
 				-- Text can't be advanced further, stop here.
 				Parts.Count = Parts.Count + 1
 				Parts[ Parts.Count ] = TextAfter
@@ -75,8 +73,8 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 			Parts.Count = Parts.Count + 1
 			Parts[ Parts.Count ] = TextAfter
 
-			if Mid ~= NumChars then
-				return TextWrap( TextSizeProvider, TableConcat( Chars, "", Max( Mid + 1, 2 ) ), MaxWidth, Parts, StopAfter )
+			if Mid ~= EndIndex then
+				return TextWrapFromChars( TextSizeProvider, Chars, Max( Mid + 1, 2 ), EndIndex, MaxWidth, Parts, StopAfter )
 			end
 
 			return Parts
@@ -84,6 +82,13 @@ local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
 	end
 
 	return Parts
+end
+
+local function TextWrap( TextSizeProvider, Word, MaxWidth, Parts, StopAfter )
+	local Chars = StringUTF8Encode( Word )
+	local Start = 1
+	local End = #Chars
+	return TextWrapFromChars( TextSizeProvider, Chars, Start, End, MaxWidth, Parts, StopAfter or Huge )
 end
 Wrapper.TextWrap = TextWrap
 
