@@ -352,7 +352,7 @@ UnitTest:Test( "SetChatTag", function( Assert )
 
 	Assert.DeepEquals( "Should have sent the new definition and assignment to all clients", {
 		{
-			Name = "ChatTag",
+			Name = "CreateChatTagDefinition",
 			Data = ExpectedChatTag
 		},
 		{
@@ -414,6 +414,12 @@ UnitTest:Test( "SetChatTag", function( Assert )
 	Assert.Nil( "Should have removed the chat tag definition", Plugin.ChatTagDefinitions:Get( "Group:TestGroup" ) )
 
 	Assert.DeepEquals( "Should have sent a reset message to all clients for client 1", {
+		{
+			Name = "DeleteChatTagDefinition",
+			Data = {
+				Index = 0
+			}
+		},
 		{
 			Name = "ResetChatTag",
 			Data = {

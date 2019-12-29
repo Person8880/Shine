@@ -245,6 +245,9 @@ local function RevokeChatTag( self, Client )
 		Definition.ReferenceCount = Definition.ReferenceCount - 1
 		if Definition.ReferenceCount <= 0 then
 			self.ChatTagDefinitions:Remove( Assignment.Key )
+			self:SendNetworkMessage( nil, "DeleteChatTagDefinition", {
+				Index = Definition.Index
+			}, true )
 		end
 
 		self.Logger:Debug( "Definition %s now has reference count %s.", Definition.Index, Definition.ReferenceCount )
@@ -327,7 +330,7 @@ function Plugin:SetChatTag( Client, ChatTagConfig, Key )
 
 	-- Remember the definition and broadcast it.
 	self.ChatTagDefinitions:Add( Key, ChatTag )
-	self:SendNetworkMessage( nil, "ChatTag", ChatTag, true )
+	self:SendNetworkMessage( nil, "CreateChatTagDefinition", ChatTag, true )
 
 	-- Remember the tag for this player and tell everyone about it.
 	local Assignment = {
@@ -367,7 +370,7 @@ function Plugin:ClientConfirmConnect( Client )
 	-- First send the client all known chat tag definitions (this ensures we send a chat tag only once
 	-- per group).
 	for Key, Definition in self.ChatTagDefinitions:Iterate() do
-		self:SendNetworkMessage( Client, "ChatTag", Definition, true )
+		self:SendNetworkMessage( Client, "CreateChatTagDefinition", Definition, true )
 	end
 
 	-- Now assign their chat tag, if they have one.

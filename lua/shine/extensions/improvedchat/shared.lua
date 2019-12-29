@@ -17,10 +17,13 @@ Plugin.MAX_CHUNKS_PER_MESSAGE = 6
 function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "DisplayChatTagsInTeamChat", false )
 
-	self:AddNetworkMessage( "ChatTag", {
+	self:AddNetworkMessage( "CreateChatTagDefinition", {
 		Image = "string (255)",
 		Text = "string (255)",
 		Colour = "integer",
+		Index = "integer"
+	}, "Client" )
+	self:AddNetworkMessage( "DeleteChatTagDefinition", {
 		Index = "integer"
 	}, "Client" )
 

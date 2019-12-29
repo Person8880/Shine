@@ -530,12 +530,16 @@ do
 	end
 end
 
-function Plugin:ReceiveChatTag( Message )
+function Plugin:ReceiveCreateChatTagDefinition( Message )
 	self.ChatTagDefinitions[ Message.Index ] = {
 		Image = Message.Image ~= "" and Message.Image or nil,
 		Text = Message.Text,
 		Colour = IntToColour( Message.Colour )
 	}
+end
+
+function Plugin:ReceiveDeleteChatTagDefinition( Message )
+	self.ChatTagDefinitions[ Message.Index ] = nil
 end
 
 function Plugin:ReceiveAssignChatTag( Message )
