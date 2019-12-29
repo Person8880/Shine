@@ -76,3 +76,15 @@ UnitTest:Test( "FromInterpolationString - Consolidates elements with the same co
 		TextElement( "!" )
 	}, Message )
 end )
+
+UnitTest:Test( "FromInterpolationString - Returns entire text if no format arguments are present", function( Assert )
+	local Message = RichTextFormat.FromInterpolationString( "This is a test message!", {
+		Values = {},
+		Colours = {}
+	} )
+
+	Assert.DeepEquals( "Should use the default colour for the entire message", {
+		ColourElement( Colour( 1, 1, 1 ) ),
+		TextElement( "This is a test message!" )
+	}, Message )
+end )
