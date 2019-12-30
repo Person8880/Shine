@@ -72,7 +72,10 @@ local Skin = {
 		MenuButton = {
 			TextColour = Colour( 1, 1, 1 ),
 			InactiveCol = Colour( 0.25, 0.25, 0.25, 1 ),
-			ActiveCol = Colour( 0.4, 0.4, 0.4, 1 )
+			ActiveCol = Colour( 0.4, 0.4, 0.4, 1 ),
+			TextAlignment = SGUI.LayoutAlignment.MIN,
+			IconAlignment = SGUI.LayoutAlignment.MIN,
+			Padding = Units.Spacing( Units.GUIScaled( 8 ), 0, Units.GUIScaled( 8 ), 0 )
 		},
 		ShowOverviewButton = {
 			TextColour = Colour( 1, 1, 1, 1 ),
@@ -185,6 +188,7 @@ local Skin = {
 local MapVoteMenu = SGUI:DefineControl( "MapVoteMenu", "Panel" )
 
 SGUI.AddProperty( MapVoteMenu, "EndTime" )
+SGUI.AddProperty( MapVoteMenu, "LoadModPreviews", true )
 SGUI.AddProperty( MapVoteMenu, "Logger" )
 
 function MapVoteMenu:Initialise()
@@ -302,19 +306,31 @@ function MapVoteMenu:Initialise()
 
 					return {
 						MenuPos = Vector2( 0, self.TitleBarHeight ),
-						Size = Units.UnitVector( Units.Auto() + ButtonPadding, self.TitleBarHeight + ButtonPadding ),
+						Size = Units.Absolute( self.TitleBarHeight + ButtonPadding ),
 						Populate = function( Menu )
 							Menu:SetFontScale( SGUI.FontManager.GetFont( "kAgencyFB", 27 ) )
+							Menu:SetButtonWidthPadding( ButtonPadding )
 
-							local Button = Menu:AddButton(
+							Menu:AddButton(
 								Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_USE_VOTE_MENU_BUTTON" ),
 								function()
 									self:OnPropertyChanged( "UseVoteMenu", true )
 									Menu:Destroy()
 								end
-							)
-							Button:SetIcon( SGUI.Icons.Ionicons.ArrowShrink )
+							):SetIcon( SGUI.Icons.Ionicons.ArrowShrink )
 
+							Menu:AddButton(
+								Locale:GetPhrase(
+									"mapvote",
+									self.LoadModPreviews and "MAP_VOTE_MENU_DISABLE_PREVIEWS" or "MAP_VOTE_MENU_ENABLE_PREVIEWS"
+								),
+								function()
+									self:SetLoadModPreviews( not self.LoadModPreviews )
+									Menu:Destroy()
+								end
+							):SetIcon( SGUI.Icons.Ionicons[ self.LoadModPreviews and "EyeDisabled" or "Eye" ] )
+
+							Menu:AutoSizeButtonIcons()
 							Menu:Resize()
 
 							local MenuOffset = Vector2( self.TitleBarHeight - Menu:GetSize().x, self.TitleBarHeight )
@@ -402,7 +418,71 @@ function MapVoteMenu:SetCurrentMapName( MapName )
 	)
 end
 
+local function OnPreviewImageLoaded( self, MapName, TextureName, Err )
+	if not SGUI.IsValid( self ) then
+		if not Err then
+			TextureLoader.Free( TextureName )
+		end
+		return
+	end
+
+	local Tile = self.MapTiles[ MapName ]
+	if Err then
+		self.Logger:Debug( "Failed to load preview image for %s: %s", MapName, Err )
+		if SGUI.IsValid( Tile ) then
+			Tile:OnPreviewTextureFailed( Err )
+		end
+		return
+	end
+
+	self.Logger:Debug( "Loaded preview image for %s as %s.", MapName, TextureName )
+
+	if SGUI.IsValid( Tile ) then
+		Tile:SetPreviewTexture( TextureName )
+	end
+end
+
+function MapVoteMenu:SetLoadModPreviews( LoadModPreviews )
+	local WasLoading = self:GetLoadModPreviews()
+
+	self.LoadModPreviews = not not LoadModPreviews
+
+	if not WasLoading and LoadModPreviews then
+		-- Load previews for any tile that's not already loaded it.
+		local Maps = {}
+
+		for i = 1, #self.MapTiles do
+			local Tile = self.MapTiles[ i ]
+			if Tile.ModID and Tile:GetPreviewTexture() == MapTile.UNKNOWN_MAP_PREVIEW_TEXTURE then
+				Tile:SetPreviewTexture( nil )
+				Maps[ #Maps + 1 ] = {
+					ModID = Tile.ModID,
+					MapName = Tile.MapName
+				}
+			end
+		end
+
+		if #Maps > 0 then
+			MapDataRepository.GetPreviewImages( Maps, function( MapName, TextureName, Err )
+				OnPreviewImageLoaded( self, MapName, TextureName, Err )
+			end )
+		end
+	elseif WasLoading and not LoadModPreviews then
+		for i = 1, #self.MapTiles do
+			local Tile = self.MapTiles[ i ]
+			if Tile.ModID and Tile:GetPreviewTexture() ~= MapTile.UNKNOWN_MAP_PREVIEW_TEXTURE then
+				Tile:SetPreviewTexture( MapTile.UNKNOWN_MAP_PREVIEW_TEXTURE )
+			end
+		end
+	end
+
+	if self.LoadModPreviews ~= WasLoading then
+		self:OnPropertyChanged( "LoadModPreviews", self.LoadModPreviews )
+	end
+end
+
 function MapVoteMenu:SetMaps( Maps )
+	local LoadModPreviews = self:GetLoadModPreviews()
 	for i = 1, #Maps do
 		local Entry = Maps[ i ]
 		local Tile = SGUI:CreateFromDefinition( MapTile, self.Elements.MapTileGrid )
@@ -414,34 +494,27 @@ function MapVoteMenu:SetMaps( Maps )
 		Tile:SetInheritsParentAlpha( true )
 		Tile:SetTeamVariation( self:GetTeamVariation() )
 
+		if not LoadModPreviews and Entry.ModID then
+			Tile:OnPreviewTextureFailed( "Mod previews are disabled." )
+		end
+
 		self.MapTiles[ i ] = Tile
 		self.MapTiles[ Entry.MapName ] = Tile
 	end
 
-	-- Setup each tile with their preview image upfront, as they'll be visible immediately.
-	MapDataRepository.GetPreviewImages( Maps, function( MapName, TextureName, Err )
-		if not SGUI.IsValid( self ) then
-			if not Err then
-				TextureLoader.Free( TextureName )
-			end
-			return
-		end
+	local MapsToLoad = Maps
+	if not LoadModPreviews then
+		MapsToLoad = Shine.Stream.Of( Maps ):Filter( function( Map )
+			return not Map.ModID
+		end ):AsTable()
+	end
 
-		local Tile = self.MapTiles[ MapName ]
-		if Err then
-			self.Logger:Debug( "Failed to load preview image for %s: %s", MapName, Err )
-			if SGUI.IsValid( Tile ) then
-				Tile:OnPreviewTextureFailed( Err )
-			end
-			return
-		end
-
-		self.Logger:Debug( "Loaded preview image for %s as %s.", MapName, TextureName )
-
-		if SGUI.IsValid( Tile ) then
-			Tile:SetPreviewTexture( TextureName )
-		end
-	end )
+	if #MapsToLoad > 0 then
+		-- Setup each tile with their preview image upfront, as they'll be visible immediately.
+		MapDataRepository.GetPreviewImages( MapsToLoad, function( MapName, TextureName, Err )
+			OnPreviewImageLoaded( self, MapName, TextureName, Err )
+		end )
+	end
 
 	self:InvalidateLayout( true )
 end

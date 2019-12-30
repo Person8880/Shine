@@ -37,6 +37,8 @@ MapTile.WinnerTypeName = table.AsEnum{
 	"WINNER", "TIED_WINNER"
 }
 
+MapTile.UNKNOWN_MAP_PREVIEW_TEXTURE = "ui/shine/unknown_map.tga"
+
 function MapTile:Initialise()
 	Controls.Button.Initialise( self )
 
@@ -204,7 +206,6 @@ function MapTile:Initialise()
 			end
 		} ):BindProperty()
 
-	-- TODO: Add OnPreviewTextureFailed method, and use it to set a placeholder texture.
 	Binder():FromElement( self, "PreviewTexture" )
 		:ToElement( self.PreviewImage, "Texture" )
 		:ToElement( self.PreviewImage, "TextureCoordinates", {
@@ -232,12 +233,16 @@ function MapTile:Initialise()
 		:BindProperty()
 
 	self.PreviewImage:AddPropertyChangeListener( "Texture", function( Texture )
-		if not Texture then return end
+		if not Texture then
+			if SGUI.IsValid( self.LoadingIndicatorContainer ) then
+				self.LoadingIndicatorContainer:SetIsVisible( true )
+				self.PreviewImage:SetIsVisible( false )
+			end
+			return
+		end
 
 		if SGUI.IsValid( self.LoadingIndicatorContainer ) then
-			self.LoadingIndicatorContainer:Destroy()
-			self.LoadingIndicatorContainer = nil
-			self.LoadingIndicator = nil
+			self.LoadingIndicatorContainer:SetIsVisible( false )
 		end
 
 		self.PreviewImage:SetIsVisible( true )
@@ -369,7 +374,7 @@ function MapTile:SetMap( ModID, MapName )
 end
 
 function MapTile:OnPreviewTextureFailed( Err )
-	self:SetPreviewTexture( "ui/shine/unknown_map.tga" )
+	self:SetPreviewTexture( self.UNKNOWN_MAP_PREVIEW_TEXTURE )
 end
 
 return MapTile

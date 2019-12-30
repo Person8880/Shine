@@ -79,6 +79,8 @@
 	"MAP_VOTE_MENU_TITLE": "Map Vote",
 	"MAP_VOTE_MENU_CURRENT_MAP": "Current map: {MapName}",
 	"MAP_VOTE_MENU_USE_VOTE_MENU_BUTTON": "Use Vote Menu",
+	"MAP_VOTE_MENU_DISABLE_PREVIEWS": "Hide Mod Previews",
+	"MAP_VOTE_MENU_ENABLE_PREVIEWS": "Show Mod Previews",
 	"VOTE_MENU_USE_MAP_VOTE_MENU": "Map Grid",
 	"VOTE_MENU_USE_MAP_VOTE_MENU_TOOLTIP": "Opens the map vote in the full screen grid menu.",
 	"VOTE_MENU_MAP_GRID_SWITCH_BACK_HINT": "To go back to using the vote menu, click the settings button at the top right of the map vote menu, or use the client config menu.",
@@ -86,6 +88,7 @@
 	"VOTE_MENU_TYPE": "Display the map vote:",
 	"FULL": "In a full screen grid",
 	"MINIMAL": "In the vote menu",
+	"LOAD_PREVIEWS_IN_MAP_GRID_DESCRIPTION": "Load preview images for maps that are mods.",
 	"TOGGLE_MAP_OVERVIEW_TOOLTIP": "Toggle map overview",
 	"SHOW_MOD_TOOLTIP": "View mod in the Steam Workshop"
 }

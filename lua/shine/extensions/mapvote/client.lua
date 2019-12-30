@@ -30,7 +30,8 @@ Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
 Plugin.DefaultConfig = {
 	OnVoteAction = Plugin.VoteAction.USE_SERVER_SETTINGS,
-	VoteMenuType = Plugin.VoteMenuType.FULL
+	VoteMenuType = Plugin.VoteMenuType.FULL,
+	LoadModPreviewsInMapGrid = true
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -105,6 +106,31 @@ function Plugin:OnFirstThink()
 end
 
 function Plugin:SetupClientConfig()
+	self:BindCommand( "sh_mapvote_loadmodpreviews", function( LoadModPreviewsInMapGrid )
+		self.Config.LoadModPreviewsInMapGrid = LoadModPreviewsInMapGrid
+		self:SaveConfig( true )
+
+		local Explanations = {
+			[ true ] = "now show previews for mods",
+			[ false ] = "no longer show previews for mods"
+		}
+
+		Print( "The map grid will %s.", Explanations[ LoadModPreviewsInMapGrid ] )
+
+		if SGUI.IsValid( self.FullVoteMenu ) then
+			self.FullVoteMenu:SetLoadModPreviews( LoadModPreviewsInMapGrid )
+		end
+	end ):AddParam{
+		Type = "boolean",
+		Optional = true,
+		Default = function() return not self.Config.LoadModPreviewsInMapGrid end
+	}
+
+	self:AddClientSetting( "LoadModPreviewsInMapGrid", "sh_mapvote_loadmodpreviews", {
+		Type = "Boolean",
+		Description = "LOAD_PREVIEWS_IN_MAP_GRID_DESCRIPTION"
+	} )
+
 	self:BindCommand( "sh_mapvote_onvote", function( Choice )
 		if not Choice then
 			local Explanations = {
@@ -373,6 +399,7 @@ do
 			local Offset = SGUI.Layout.Units.HighResScaled( 32 ):GetValue()
 			self.FullVoteMenu = SGUI:CreateFromDefinition( MapVoteMenu )
 			self.FullVoteMenu:SetLogger( self.Logger )
+			self.FullVoteMenu:SetLoadModPreviews( self.Config.LoadModPreviewsInMapGrid )
 
 			local W, H = SGUI.GetScreenSize()
 			self.FullVoteMenu:SetPos( Vector2( Offset, Offset ) )
@@ -410,6 +437,12 @@ do
 
 				Shine.VoteMenu:SetIsVisible( true )
 				Shine.VoteMenu:SetPage( "MapVote" )
+			end )
+			self.FullVoteMenu:AddPropertyChangeListener( "LoadModPreviews", function( LoadModPreviews )
+				if LoadModPreviews == nil then return end
+
+				self.Config.LoadModPreviewsInMapGrid = LoadModPreviews
+				self:SaveConfig( true )
 			end )
 
 			function self.FullVoteMenu.OnClose()
