@@ -324,3 +324,18 @@ do
 		return MinValue
 	end
 end
+
+do
+	local Ceil = math.ceil
+	local RoundTo = math.RoundTo
+
+	local MultipleOf2 = NewUnit( "MultipleOf2" )
+	function MultipleOf2:Init( Value )
+		self.Value = ToUnit( Value )
+		return self
+	end
+
+	function MultipleOf2:GetValue( ParentSize, Element, Axis )
+		return RoundTo( Ceil( self.Value:GetValue( ParentSize, Element, Axis ) ), 2 )
+	end
+end
