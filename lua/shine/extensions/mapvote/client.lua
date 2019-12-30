@@ -6,6 +6,8 @@ local Plugin = ...
 
 Plugin.VoteButtonName = "Map Vote"
 
+local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
+
 local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
@@ -83,7 +85,10 @@ do
 end
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
 	self:SetupClientConfig()
+
+	MapDataRepository.Logger = self.Logger
 
 	return true
 end
@@ -258,7 +263,6 @@ do
 	local GUIScaled = Units.GUIScaled
 	local UnitVector = Units.UnitVector
 
-	local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
 	local TextureLoader = require "shine/lib/gui/texture_loader"
 
 	local function SetupMapPreview( Button, Map, MapMod )
@@ -267,7 +271,7 @@ do
 		function Button:OnHover()
 			local ModID = MapMod and tostring( MapMod )
 
-			LuaPrint( "Attempting to load texture for", ModID, Map )
+			Plugin.Logger:Debug( "Attempting to load texture for %s/%s", ModID, Map )
 
 			MapDataRepository.GetOverviewImage( ModID, Map, function( MapName, TextureName, Err )
 				if Cleared then
@@ -276,14 +280,14 @@ do
 				end
 
 				if not TextureName then
-					LuaPrint( "Failed to load", ModID, Map, Err )
+					Plugin.Logger:Debug( "Failed to load %s/%s: %s", ModID, Map, Err )
 					if not Cleared and SGUI.IsValid( Button ) then
 						Button.OnHover = nil
 					end
 					return
 				end
 
-				LuaPrint( "Loaded", ModID, Map, "into", TextureName )
+				Plugin.Logger:Debug( "Loaded %s/%s into %s", ModID, Map, TextureName )
 
 				local PreviewPanel
 				local PreviewSize = 256
@@ -357,6 +361,7 @@ do
 
 			local Offset = SGUI.Layout.Units.HighResScaled( 32 ):GetValue()
 			self.FullVoteMenu = SGUI:CreateFromDefinition( MapVoteMenu )
+			self.FullVoteMenu:SetLogger( self.Logger )
 
 			local W, H = SGUI.GetScreenSize()
 			self.FullVoteMenu:SetPos( Vector2( Offset, Offset ) )
@@ -561,7 +566,7 @@ function Plugin:ReceiveMapMod( Data )
 	self.MapMods = self.MapMods or {}
 	self.MapMods[ Data.MapName ] = Data.ModID
 
-	LuaPrint( "Received mod ID", Data.ModID, "for map", Data.MapName )
+	self.Logger:Debug( "Received mod ID %s for map %s.", Data.ModID, Data.MapName )
 end
 
 local function GetMapVoteText( self, NextMap, VoteButton, Maps, InitialText, VoteButtonCandidates )
@@ -770,3 +775,5 @@ function Plugin:AutoOpenVoteMenu( ForceOpen )
 
 	Shine.VoteMenu:SetPage( "MapVote" )
 end
+
+Shine.LoadPluginModule( "logger.lua", Plugin )

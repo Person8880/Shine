@@ -160,6 +160,7 @@ local Skin = {
 local MapVoteMenu = SGUI:DefineControl( "MapVoteMenu", "Panel" )
 
 SGUI.AddProperty( MapVoteMenu, "EndTime" )
+SGUI.AddProperty( MapVoteMenu, "Logger" )
 
 function MapVoteMenu:Initialise()
 	Controls.Panel.Initialise( self )
@@ -167,6 +168,7 @@ function MapVoteMenu:Initialise()
 
 	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
 	self.MapTiles = {}
+	self.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Shared.Message )
 
 	local TeamVariation = self:GetTeamVariation()
 	local SmallPadding = Units.GUIScaled( 8 )
@@ -348,14 +350,14 @@ function MapVoteMenu:SetMaps( Maps )
 
 		local Tile = self.MapTiles[ MapName ]
 		if Err then
-			LuaPrint( "Failed to load preview image for", MapName, Err )
+			self.Logger:Debug( "Failed to load preview image for %s: %s", MapName, Err )
 			if SGUI.IsValid( Tile ) then
 				Tile:OnPreviewTextureFailed( Err )
 			end
 			return
 		end
 
-		LuaPrint( "Loaded preview image for", MapName, "as", TextureName )
+		self.Logger:Debug( "Loaded preview image for %s as %s.", MapName, TextureName )
 
 		if SGUI.IsValid( Tile ) then
 			Tile:SetPreviewTexture( TextureName )

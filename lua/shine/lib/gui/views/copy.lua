@@ -10,7 +10,6 @@ Height = 1024
 
 local Rect
 local function UpdateWithValues()
-	GUI.Message( string.format( "Updating copy view with: (%s, %s) %s", Width, Height, SourceTexture ) )
 	Rect:SetSize( Vector( Width, Height, 0 ) )
 	if SourceTexture then
 		Rect:SetTexture( SourceTexture )

@@ -6,6 +6,7 @@ local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	255, 255, 0
 }
+Plugin.PrintName = "Map Vote"
 
 Plugin.DurationMessageKeys = {
 	"MAP_EXTENDED_TIME",

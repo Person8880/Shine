@@ -24,6 +24,10 @@ local Shine = Shine
 
 local TextureLoader = require "shine/lib/gui/texture_loader"
 
+local MapDataRepository = {
+	Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Shared.Message )
+}
+
 local METADATA_FILE = "config://shine/cache/maps/index.json"
 local OVERVIEW_API_URL = "http://127.0.0.1:7994/ns2/api/overview/%s/%s"
 local UPDATE_CHECK_INTERVAL = 60 * 60 * 24
@@ -166,7 +170,9 @@ local ImageLoaders = {
 			local Params = {
 				publishedfileids = { ModID }
 			}
-			LuaPrint( "Requesting preview image for", ModID )
+
+			MapDataRepository.Logger:Debug( "Requesting preview image for %s", ModID )
+
 			Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
 				OnSuccess = function( PublishedFileDetails )
 					local FileDetails = PublishedFileDetails[ 1 ]
@@ -245,7 +251,11 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 		end
 
 		if CacheEntry and CacheEntry[ CacheKey ] then
-			LuaPrint( "Loading ", CacheKey, " for ", ModID, MapName, " from remote source failed, using stale cached image." )
+			MapDataRepository.Logger:Debug(
+				"Loading %s for %s/%s from remote source failed, using stale cached image.",
+				CacheKey, ModID, MapName
+			)
+
 			-- Have a stale cached image, wait a while for the API to be available again before trying to update it,
 			-- but not as long as if the image were loaded successfully.
 			CacheEntry.NextUpdateCheckTime = Clock() + 60 * 60
@@ -263,14 +273,15 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 			return
 		end
 
-		LuaPrint( "Loading", CacheKey, " for ", ModID, MapName, " from remote source failed, no cached image available." )
+		MapDataRepository.Logger:Debug(
+			"Loading %s for %s/%s from remote source failed, no cached image available.",
+			CacheKey, ModID, MapName
+		)
 
 		-- No cache entry and couldn't load from API, give up.
 		return Callback( MapName, nil, Err )
 	end
 end
-
-local MapDataRepository = {}
 
 -- Previews are currently stored per mod ID, and not specific to a map.
 -- Hence the callback is really for all maps with the mod ID at once.
@@ -301,12 +312,12 @@ function MapDataRepository.GetPreviewImages( Maps, Callback )
 		local MapName = Entry.MapName
 
 		if MapPreviews[ MapName ] then
-			LuaPrint( MapName, "is a known map, returning its mounted preview image..." )
+			MapDataRepository.Logger:Debug( "%s is a known map, returning its mounted preview image...", MapName )
 			Callback( MapName, MapPreviews[ MapName ] )
 		elseif Entry.ModID then
 			MapModIDs:Add( Entry.ModID, MapName )
 		else
-			LuaPrint( MapName, "has no mod ID or mounted preview!" )
+			MapDataRepository.Logger:Debug( "%s has no mod ID or mounted preview!", MapName )
 			Callback( MapName, nil, "Map is not mounted and has no mod ID" )
 		end
 	end
@@ -314,9 +325,9 @@ function MapDataRepository.GetPreviewImages( Maps, Callback )
 	for ModID, MapNames in MapModIDs:Iterate() do
 		if not LoadImageFromCache( ModID, nil, "PreviewImage", WrapCallback( Callback, MapNames ) ) then
 			ModsRequiringLookup[ #ModsRequiringLookup + 1 ] = ModID
-			LuaPrint( "Couldn't satisfy mod", ModID, "from cache, will be retrieved from Steam." )
+			MapDataRepository.Logger:Debug( "Couldn't satisfy mod %s from cache, will be retrieved from Steam.", ModID )
 		else
-			LuaPrint( ModID, "is already cached, skipping Steam check." )
+			MapDataRepository.Logger:Debug( "%s is already cached, skipping Steam check.", ModID )
 			MapModIDs:Remove( ModID )
 		end
 	end

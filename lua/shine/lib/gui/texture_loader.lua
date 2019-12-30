@@ -81,7 +81,7 @@ local function FreeTexture( TextureName )
 	if not Entry or Entry.Free then return end
 
 	if Entry.GUIView then
-		LuaPrint( "Destroying GUIView for", Entry.URL, Entry.GUIView )
+		Shine.Logger:Debug( "Destroying GUIView for %s: %s", Entry.URL, Entry.GUIView )
 		Client.DestroyGUIView( Entry.GUIView )
 		Entry.GUIView = nil
 	end
@@ -136,7 +136,10 @@ function WebViewImageLoader:ProcessNextEntry()
 		Hook.Remove( "Think", self )
 
 		self.WebViewDestructionTimer = Shine.Timer.Simple( IDLE_WEBVIEW_TIMEOUT, function()
-			LuaPrint( "Image loader has been idle for", IDLE_WEBVIEW_TIMEOUT, "seconds, destroying web view." )
+			Shine.Logger:Debug(
+				"Image loader has been idle for %s seconds, destroying web view.",
+				IDLE_WEBVIEW_TIMEOUT
+			)
 			if self.WebView then
 				Client.DestroyWebView( self.WebView )
 				self.WebView = nil
@@ -250,7 +253,7 @@ local StateUpdaters = {
 			return
 		end
 
-		LuaPrint( Clock(), "Completed loading", Entry.URL, ", now setting up confirmation..." )
+		Shine.Logger:Debug( "%s - Completed loading %s, now setting up confirmation...", Clock(), Entry.URL )
 
 		if Entry.SetupJS then
 			-- Execute any setup script required before confirming the image is loaded (e.g. for local data injection).
@@ -262,12 +265,15 @@ local StateUpdaters = {
 			self.OnAlert = nil
 
 			if Alert == "WRONG_URL" then
-				LuaPrint( Clock(), "WebView hasn't actually changed URL yet, go back to waiting for it to load..." )
+				Shine.Logger:Debug(
+					"%s - WebView hasn't actually changed URL yet, go back to waiting for it to load...",
+					Clock()
+				)
 				Entry.State = STATE_LOADING_URL
 				return
 			end
 
-			LuaPrint( Clock(), "JS confirms image has loaded, setting up GUIView", Alert )
+			Shine.Logger:Debug( "%s - JS confirms image has loaded, setting up GUIView: %s", Clock(), Alert )
 
 			Entry.State = STATE_SETUP_GUI_VIEW
 
@@ -291,7 +297,7 @@ local StateUpdaters = {
 			return
 		end
 
-		LuaPrint( Clock(), "Image loaded, now copying", Entry.URL, "into GUIView..." )
+		Shine.Logger:Debug( "%s - Image loaded, now copying %s into GUIView...", Clock(), Entry.URL )
 
 		local View = Entry.GUIView
 		if not View then
@@ -319,7 +325,9 @@ local StateUpdaters = {
 			return
 		end
 
-		LuaPrint( "GUIView has completed copying", Entry.URL, "calling callbacks and advancing to next image..." )
+		Shine.Logger:Debug(
+			"GUIView has completed copying %s, calling callbacks and advancing to next image...", Entry.URL
+		)
 
 		-- Need to keep the GUIView alive, otherwise its target texture is deleted.
 		local PoolEntry = Entry.PoolEntry
@@ -361,7 +369,7 @@ local function GetImageLoader()
 	-- First try to find an idle loader.
 	for i = 1, #ImageLoaders do
 		if ImageLoaders[ i ]:IsIdle() then
-			LuaPrint( "Assigning idle image loader:", i )
+			Shine.Logger:Debug( "Assigning idle image loader: %s", i )
 			LastImageLoaderIndex = i
 			return ImageLoaders[ i ]
 		end
@@ -370,7 +378,7 @@ local function GetImageLoader()
 	-- Round-robin assign if all are busy.
 	LastImageLoaderIndex = ( LastImageLoaderIndex % #ImageLoaders ) + 1
 
-	LuaPrint( "Round-robin assigning image loader", LastImageLoaderIndex )
+	Shine.Logger:Debug( "Round-robin assigning image loader: %s", LastImageLoaderIndex )
 
 	return ImageLoaders[ LastImageLoaderIndex ]
 end
@@ -381,7 +389,7 @@ Hook.Add( "OnRenderDeviceReset", "TextureLoader", function()
 	for i = 1, #TexturePool do
 		local Entry = TexturePool[ i ]
 		if not Entry.Free then
-			LuaPrint( "Render device reset forcing re-render of texture:", Entry.TextureName )
+			Shine.Logger:Debug( "Render device reset forcing re-render of texture: %s", Entry.TextureName )
 
 			local ImageLoader = GetImageLoader()
 			ImageLoader:AddEntry( {
