@@ -291,6 +291,7 @@ function Button:SetOpenMenuOnClick( PopulateMenuFunc )
 		if self.Menu and rawget( self.Menu, "DestroyedBy" ) == self then
 			-- Clicked the button to close the menu.
 			self.Menu = nil
+			self:OnPropertyChanged( "Menu", nil )
 			return
 		end
 
