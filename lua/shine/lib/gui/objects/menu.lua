@@ -19,6 +19,7 @@ Menu.IsWindow = true
 local DefaultSize = Vector( 200, 32, 0 )
 
 SGUI.AddProperty( Menu, "ButtonSpacing" )
+SGUI.AddProperty( Menu, "ButtonWidthPadding" )
 SGUI.AddProperty( Menu, "MaxVisibleButtons" )
 SGUI.AddProperty( Menu, "Font" )
 SGUI.AddProperty( Menu, "TextScale" )
@@ -30,6 +31,7 @@ function Menu:Initialise()
 	self.Buttons = {}
 	self.ButtonCount = 0
 	self.ButtonSpacing = Units.Absolute( 0 )
+	self.ButtonWidthPadding = Units.Absolute( 0 )
 
 	self.Font = Fonts.kAgencyFB_Small
 	self:SetLayout( SGUI.Layout:CreateLayout( "Vertical" ) )
@@ -48,7 +50,13 @@ end
 
 function Menu:SetButtonSize( Vec )
 	self.ButtonSize = Vec
-	self.UseAutoSize = Shine.Implements( Vec, Units.UnitVector )
+	self.UseAutoSize = not IsType( Vec, "cdata" )
+
+	if self.UseAutoSize then
+		self.ButtonWidth = Units.Max()
+	else
+		self.ButtonWidth = nil
+	end
 end
 
 function Menu:SetButtonSpacing( ButtonSpacing )
@@ -69,7 +77,8 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	Button:SetDoClick( DoClick )
 
 	if self.UseAutoSize then
-		Button:SetAutoSize( self.ButtonSize )
+		self.ButtonWidth:AddValue( Units.Auto( Button ) + self.ButtonWidthPadding )
+		Button:SetAutoSize( Units.UnitVector( self.ButtonWidth, self.ButtonSize ) )
 	else
 		Button:SetSize( self.ButtonSize )
 	end
@@ -96,6 +105,21 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	return Button
 end
 
+--[[
+	Ensures all icons use up the same amount of horizontal space.
+	This is useful when aligning button text/icons to the left as it aligns the text vertically across all buttons.
+]]
+function Menu:AutoSizeButtonIcons()
+	local Size = Units.Max()
+	for i = 1, self.ButtonCount do
+		local Button = self.Buttons[ i ]
+		if Button.Icon then
+			Size:AddValue( Units.Auto( Button.Icon ) )
+			Button:SetIconMargin( Units.Spacing( 0, 0, Size - Units.Auto() + Units.HighResScaled( 8 ), 0 ) )
+		end
+	end
+end
+
 function Menu:SetFont( Font )
 	self.Font = Font
 	self:ForEach( "Buttons", "SetFont", Font )
@@ -112,7 +136,8 @@ function Menu:AddPanel( Panel )
 	Panel:SetAnchor( GUIItem.Left, GUIItem.Top )
 
 	if self.UseAutoSize then
-		Panel:SetAutoSize( self.ButtonSize )
+		self.ButtonWidth:AddValue( Units.Auto( Panel ) + self.ButtonWidthPadding )
+		Panel:SetAutoSize( Units.UnitVector( self.ButtonWidth, self.ButtonSize ) )
 	else
 		Panel:SetSize( self.ButtonSize )
 	end

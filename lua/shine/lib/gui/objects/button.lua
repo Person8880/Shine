@@ -339,6 +339,10 @@ do
 				+ Units.Spacing[ MarginSizeMethod[ Axis ] ]( self.Icon:GetComputedMargin() )
 		end
 
+		if self.Padding then
+			Size = Size + Units.Spacing[ MarginSizeMethod[ Axis ] ]( self:GetComputedPadding() )
+		end
+
 		return Size
 	end
 
@@ -368,6 +372,13 @@ do
 	function Button:GetContentSizeForAxis( Axis )
 		return ContentSizeHandlers[ self.Horizontal ][ Axis ]( self, Axis )
 	end
+end
+
+function Button:Cleanup()
+	if SGUI.IsValid( self.Menu ) then
+		self.Menu:Destroy()
+	end
+	return self.BaseClass.Cleanup( self )
 end
 
 SGUI:AddMixin( Button, "Clickable" )
