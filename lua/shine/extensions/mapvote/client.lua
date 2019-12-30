@@ -446,9 +446,7 @@ do
 			end )
 
 			function self.FullVoteMenu.OnClose()
-				if self.ScreenText then
-					self.ScreenText:SetIsVisible( true )
-				end
+				Shine.ScreenText.SetIsVisible( true )
 			end
 		end
 
@@ -456,9 +454,7 @@ do
 			SGUI:EnableMouse( true )
 			self.FullVoteMenu:FadeIn()
 
-			if self.ScreenText then
-				self.ScreenText:SetIsVisible( false )
-			end
+			Shine.ScreenText.SetIsVisible( false )
 		end
 	end
 
