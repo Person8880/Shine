@@ -4,16 +4,19 @@
 	Think right clicking the desktop in Windows, that kind of menu.
 ]]
 
+local IsType = Shine.IsType
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 local Units = SGUI.Layout.Units
+
+local Max = math.max
+local Min = math.min
 
 local Menu = {}
 
 Menu.IsWindow = true
 
 local DefaultSize = Vector( 200, 32, 0 )
-local DefaultOffset = Vector( 0, 32, 0 )
 
 SGUI.AddProperty( Menu, "ButtonSpacing" )
 SGUI.AddProperty( Menu, "MaxVisibleButtons" )
@@ -24,12 +27,12 @@ function Menu:Initialise()
 	Controls.Panel.Initialise( self )
 
 	self.ButtonSize = DefaultSize
-	self.ButtonOffset = DefaultOffset
 	self.Buttons = {}
 	self.ButtonCount = 0
-	self.ButtonSpacing = Vector( 0, 0, 0 )
+	self.ButtonSpacing = Units.Absolute( 0 )
 
 	self.Font = Fonts.kAgencyFB_Small
+	self:SetLayout( SGUI.Layout:CreateLayout( "Vertical" ) )
 end
 
 function Menu:SetMaxVisibleButtons( Max, ScrollbarWidth )
@@ -45,15 +48,33 @@ end
 
 function Menu:SetButtonSize( Vec )
 	self.ButtonSize = Vec
-	self.ButtonOffset = Vector( 0, Vec.y, 0 )
+	self.UseAutoSize = Shine.Implements( Vec, Units.UnitVector )
+end
+
+function Menu:SetButtonSpacing( ButtonSpacing )
+	if IsType( Vec, "cdata" ) then
+		self.ButtonSpacing = SGUI.Layout.ToUnit( ButtonSpacing.y )
+	else
+		self.ButtonSpacing = ButtonSpacing
+	end
+
+	self.Layout:SetPadding( Units.Spacing( 0, 0, 0, self.ButtonSpacing ) )
+	for i = 1, self.ButtonCount do
+		self.Buttons[ i ]:SetMargin( Units.Spacing( 0, self.ButtonSpacing, 0, 0 ) )
+	end
 end
 
 function Menu:AddButton( Text, DoClick, Tooltip )
 	local Button = self.MaxVisibleButtons and self:Add( "Button" ) or SGUI:Create( "Button", self )
-	Button:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Button:SetPos( self.ButtonSpacing + self.ButtonCount * self.ButtonOffset )
 	Button:SetDoClick( DoClick )
-	Button:SetSize( self.ButtonSize )
+
+	if self.UseAutoSize then
+		Button:SetAutoSize( self.ButtonSize )
+	else
+		Button:SetSize( self.ButtonSize )
+	end
+	Button:SetMargin( Units.Spacing( 0, self.ButtonSpacing, 0, 0 ) )
+
 	Button:SetText( Text )
 	if self.Font then
 		Button:SetFont( self.Font )
@@ -69,6 +90,7 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 	self.ButtonCount = self.ButtonCount + 1
 	self.Buttons[ self.ButtonCount ] = Button
 
+	self.Layout:AddElement( Button )
 	self:Resize()
 
 	return Button
@@ -88,22 +110,53 @@ function Menu:AddPanel( Panel )
 	Panel:SetParent( self )
 	Panel:SetStyleName( "MenuPanel" )
 	Panel:SetAnchor( GUIItem.Left, GUIItem.Top )
-	Panel:SetPos( self.ButtonSpacing + self.ButtonCount * self.ButtonOffset )
-	Panel:SetSize( self.ButtonSize )
+
+	if self.UseAutoSize then
+		Panel:SetAutoSize( self.ButtonSize )
+	else
+		Panel:SetSize( self.ButtonSize )
+	end
+
+	Panel:SetMargin( Units.Spacing( 0, self.ButtonSpacing, 0, 0 ) )
 
 	self.ButtonCount = self.ButtonCount + 1
 	self.Buttons[ self.ButtonCount ] = Panel
 
+	self.Layout:AddElement( Panel )
 	self:Resize()
 
 	return Panel
 end
 
 function Menu:Resize()
-	if not ( self.MaxVisibleButtons and self.ButtonCount > self.MaxVisibleButtons ) then
-		self:SetSize( self.ButtonSpacing * 2 + self.ButtonSize
-			+ ( self.ButtonCount - 1 ) * self.ButtonOffset )
+	local MenuWidth = 0
+	local MenuHeight = 0
+
+	self.Layout:InvalidateLayout( true )
+
+	local LayoutPadding = self.Layout:GetComputedPadding()
+	local MaxHeightIndex = self.MaxVisibleButtons or self.ButtonCount
+	if self.UseAutoSize then
+		local MaxWidth = 0
+
+		for i = 1, self.ButtonCount do
+			local Button = self.Buttons[ i ]
+			local Size = Button:GetSize()
+			MaxWidth = Max( Size.x, MaxWidth )
+
+			if i <= MaxHeightIndex then
+				MenuHeight = Button:GetPos().y + Size.y + LayoutPadding[ 4 ]
+			end
+		end
+
+		MenuWidth = MaxWidth
+	else
+		local NumButtons = Min( MaxHeightIndex, self.ButtonCount )
+		MenuWidth = self.ButtonSize.x
+		MenuHeight = self.ButtonSize.y * NumButtons + LayoutPadding[ 4 ] * ( NumButtons + 1 )
 	end
+
+	self:SetSize( Vector2( MenuWidth, MenuHeight ) )
 end
 
 ------------------- Event calling -------------------
