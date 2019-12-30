@@ -11,6 +11,10 @@ local StringFormat = string.format
 
 local MessageModule = {}
 
+local function GetName( self )
+	return rawget( self, "PrintName" ) or self.__Name
+end
+
 if Client then
 	local RichTextFormat = require "shine/lib/gui/richtext/format"
 
@@ -141,6 +145,10 @@ if Client then
 		Shine:NotifyError( Message )
 	end
 
+	function MessageModule:Print( Message, Format, ... )
+		Print( "[%s] %s", GetName( self ), Format and StringFormat( Message, ... ) or Message )
+	end
+
 	do
 		local StringExplode = string.Explode
 		local StringFind = string.find
@@ -180,10 +188,6 @@ if Client then
 		end
 	end
 else
-	local function GetName( self )
-		return rawget( self, "PrintName" ) or self.__Name
-	end
-
 	function MessageModule:Print( Message, Format, ... )
 		Shine:Print( "[%s] %s", true, GetName( self ),
 			Format and StringFormat( Message, ... ) or Message )
