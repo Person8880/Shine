@@ -17,8 +17,14 @@ local DefaultConfig = {
 	DebugLogging = false,
 	ExpandAdminMenuTabs = true,
 	ExpandConfigMenuTabs = true,
-	Skin = "Default"
+	Skin = "Default",
+	LogLevel = "INFO"
 }
+
+local Validator = Shine.Validator()
+Validator:AddFieldRule( "LogLevel", Validator.InEnum(
+	Shine.Objects.Logger.LogLevel, Shine.Objects.Logger.LogLevel.INFO
+) )
 
 function Shine:CreateClientBaseConfig()
 	self.SaveJSONFile( DefaultConfig, BaseConfig )
@@ -34,7 +40,7 @@ function Shine:LoadClientBaseConfig()
 
 	self.Config = Data
 
-	if self.CheckConfig( self.Config, DefaultConfig ) then
+	if self.CheckConfig( self.Config, DefaultConfig ) or Validator:Validate( self.Config ) then
 		self:SaveClientBaseConfig()
 	end
 end
@@ -59,6 +65,7 @@ function Shine:SetClientSetting( Key, Value )
 end
 
 Shine:LoadClientBaseConfig()
+Shine.Logger:SetLevel( Shine.Config.LogLevel )
 
 local function MakeClientOption( Command, OptionKey, OptionString, Yes, No )
 	local ConCommand = Shine:RegisterClientCommand( Command, function( Bool )

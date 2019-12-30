@@ -19,6 +19,22 @@ local TableInsert = table.insert
 local tonumber = tonumber
 local tostring = tostring
 
+do
+	local Date = os.date
+	local Writer
+	if Client then
+		Writer = function( Text )
+			Print( "%s[Shine] %s", Date( "[%H:%M:%S]" ), Text )
+		end
+	else
+		Writer = function( Text )
+			Shine:Print( Text )
+		end
+	end
+
+	Shine.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Writer )
+end
+
 local function ReportErrors()
 	if not Shine.Config.ReportErrors then return end
 	if #ErrorQueue == 0 then return end
