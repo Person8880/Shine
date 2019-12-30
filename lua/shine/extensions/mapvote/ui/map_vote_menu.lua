@@ -309,7 +309,6 @@ function MapVoteMenu:Initialise()
 						Size = Units.Absolute( self.TitleBarHeight + ButtonPadding ),
 						Populate = function( Menu )
 							Menu:SetFontScale( SGUI.FontManager.GetFont( "kAgencyFB", 27 ) )
-							Menu:SetButtonWidthPadding( ButtonPadding )
 
 							Menu:AddButton(
 								Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_USE_VOTE_MENU_BUTTON" ),
