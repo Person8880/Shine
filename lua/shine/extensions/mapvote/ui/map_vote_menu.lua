@@ -29,6 +29,7 @@ local TextureLoader = require "shine/lib/gui/texture_loader"
 local HeaderAlpha = 0.25
 local MapTileHeaderAlpha = 0.75
 local MapTileImageColour = Colour( 0.5, 0.5, 0.5, 1 )
+local MapTileBackgroundAlpha = 0.15
 
 local HeaderVariations = {
 	Alien = {
@@ -133,7 +134,7 @@ local Skin = {
 		Default = {
 			TextColour = Colour( 1, 1, 1, 1 / MapTileHeaderAlpha ),
 			IconColour = Colour( 0, 1, 0, 1 ),
-			InactiveCol = Colour( 0, 0, 0, 1 ),
+			InactiveCol = Colour( 0, 0, 0, 1 / MapTileBackgroundAlpha ),
 			TextInheritsParentAlpha = true,
 			MapNameAutoFont = {
 				Family = "kAgencyFB",
@@ -173,7 +174,12 @@ local Skin = {
 			InheritsParentAlpha = true
 		}
 	} ),
-	Column = HeaderVariations
+	Column = table.ShallowMerge( HeaderVariations, {
+		MapTileGrid = {
+			Colour = Colour( 0.75, 0.75, 0.75, MapTileBackgroundAlpha ),
+			InheritsParentAlpha = true
+		}
+	} )
 }
 
 local MapVoteMenu = SGUI:DefineControl( "MapVoteMenu", "Panel" )
@@ -262,17 +268,20 @@ function MapVoteMenu:Initialise()
 					}
 				},
 				{
-					Type = "Layout",
-					ID = "MapTileGridLayout",
-					Class = "Vertical",
+					ID = "MapTileGrid",
+					Class = "Column",
 					Props = {
-						Margin = Units.Spacing( 0, SmallPadding, 0, 0 )
+						Fill = true,
+						Margin = Units.Spacing( 0, SmallPadding, 0, 0 ),
+						Padding = Units.Spacing( SmallPadding, SmallPadding, SmallPadding, SmallPadding ),
+						StyleName = "MapTileGrid"
 					}
 				}
 			}
 		}
 	} )
 
+	self.Elements.MapTileGridLayout = self.Elements.MapTileGrid.Layout
 	self.Elements.MapTileGridLayout:AddPropertyChangeListener( "Size", function( Size )
 		self:SetupTileGrid()
 	end )
@@ -396,7 +405,7 @@ end
 function MapVoteMenu:SetMaps( Maps )
 	for i = 1, #Maps do
 		local Entry = Maps[ i ]
-		local Tile = SGUI:CreateFromDefinition( MapTile, self )
+		local Tile = SGUI:CreateFromDefinition( MapTile, self.Elements.MapTileGrid )
 		Tile:SetSkin( Skin )
 		Tile:SetMap( Entry.ModID, Entry.MapName )
 		Tile:SetText( Entry.NiceName )
@@ -446,7 +455,7 @@ function MapVoteMenu:SetupTileGrid()
 	-- Bias the grid to being wider than it is tall, as basically every screen has more width than height.
 	local NumRows = Max( 1, UniformGridSize - 1 )
 	local NumColumns = Ceil( #self.MapTiles / NumRows )
-	local Margin = 0--Units.HighResScaled( 8 ):GetValue()
+	local Margin = Units.GUIScaled( 8 ):GetValue()
 
 	local TileSize = Min(
 		Floor( Size.y / NumRows - Margin * ( NumRows - 1 ) ),
