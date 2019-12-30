@@ -84,6 +84,8 @@ do
 	Plugin.RichTextMessageOptions = RichTextMessageOptions
 end
 
+local MAP_GRID_SWITCH_BACK_HINT = "MapVoteSwitchToVoteMenuHint"
+
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
 	self:SetupClientConfig()
@@ -91,6 +93,15 @@ function Plugin:Initialise()
 	MapDataRepository.Logger = self.Logger
 
 	return true
+end
+
+function Plugin:OnFirstThink()
+	SGUI.NotificationManager.RegisterHint( MAP_GRID_SWITCH_BACK_HINT, {
+		MaxTimes = 1,
+		MessageSource = self:GetName(),
+		MessageKey = "VOTE_MENU_MAP_GRID_SWITCH_BACK_HINT",
+		HintDuration = 10
+	} )
 end
 
 function Plugin:SetupClientConfig()
@@ -384,6 +395,22 @@ do
 			self.FullVoteMenu:AddPropertyChangeListener( "SelectedMap", function( MapName )
 				SendMapVote( MapName )
 			end )
+			self.FullVoteMenu:AddPropertyChangeListener( "UseVoteMenu", function( UseVoteMenu )
+				if not UseVoteMenu then return end
+
+				self.Config.VoteMenuType = self.VoteMenuType.MINIMAL
+				self:SaveConfig( true )
+
+				self.FullVoteMenu:Close( function()
+					if SGUI.IsValid( self.FullVoteMenu ) then
+						self.FullVoteMenu:Destroy()
+						self.FullVoteMenu = nil
+					end
+				end )
+
+				Shine.VoteMenu:SetIsVisible( true )
+				Shine.VoteMenu:SetPage( "MapVote" )
+			end )
 
 			function self.FullVoteMenu.OnClose()
 				if self.ScreenText then
@@ -461,7 +488,21 @@ do
 
 		self:AddTopButton( Plugin:GetPhrase( "BACK" ), function()
 			self:SetPage( "Main" )
+		end ):SetIcon( SGUI.Icons.Ionicons.ArrowLeftC )
+
+		local BottomButton = self:AddBottomButton( Plugin:GetPhrase( "VOTE_MENU_USE_MAP_VOTE_MENU" ), function()
+			Plugin.Config.VoteMenuType = Plugin.VoteMenuType.FULL
+			Plugin:SaveConfig( true )
+
+			self:SetPage( "Main" )
+			self:ForceHide()
+
+			Plugin:ShowFullVoteMenu()
+
+			SGUI.NotificationManager.DisplayHint( MAP_GRID_SWITCH_BACK_HINT )
 		end )
+		BottomButton:SetIcon( SGUI.Icons.Ionicons.ArrowExpand )
+		BottomButton:SetTooltip( Plugin:GetPhrase( "VOTE_MENU_USE_MAP_VOTE_MENU_TOOLTIP" ) )
 	end, ClosePageIfVoteFinished )
 end
 
@@ -554,8 +595,10 @@ function Plugin:ReceiveEndVote( Data )
 
 	if SGUI.IsValid( self.FullVoteMenu ) then
 		self.FullVoteMenu:Close( function()
-			self.FullVoteMenu:Destroy()
-			self.FullVoteMenu = nil
+			if SGUI.IsValid( self.FullVoteMenu ) then
+				self.FullVoteMenu:Destroy()
+				self.FullVoteMenu = nil
+			end
 		end )
 	end
 end

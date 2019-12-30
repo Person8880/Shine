@@ -21,6 +21,7 @@ local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 local Units = SGUI.Layout.Units
 
+local Binder = require "shine/lib/gui/binding/binder"
 local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
 local MapTile = require "shine/extensions/mapvote/ui/map_vote_menu_tile"
 local TextureLoader = require "shine/lib/gui/texture_loader"
@@ -58,6 +59,19 @@ local Skin = {
 			TextInheritsParentAlpha = true,
 			InheritsParentAlpha = true,
 			Shader = "shaders/shine/gui_none.surface_shader"
+		},
+		ConfigButton = {
+			InactiveCol = Colour( 0.4, 0.4, 0.4, 1 / HeaderAlpha ),
+			ActiveCol = Colour( 0.4, 0.4, 0.4, 1 / HeaderAlpha ),
+			TextColour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
+			TextInheritsParentAlpha = true,
+			InheritsParentAlpha = true,
+			Shader = "shaders/GUIBasic.surface_shader"
+		},
+		MenuButton = {
+			TextColour = Colour( 1, 1, 1 ),
+			InactiveCol = Colour( 0.25, 0.25, 0.25, 1 ),
+			ActiveCol = Colour( 0.4, 0.4, 0.4, 1 )
 		},
 		ShowOverviewButton = {
 			TextColour = Colour( 1, 1, 1, 1 ),
@@ -136,6 +150,11 @@ local Skin = {
 			Shader = "shaders/shine/gui_none.surface_shader"
 		}
 	},
+	Menu = {
+		Default = {
+			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+		}
+	},
 	ProgressWheel = {
 		Alien = table.ShallowMerge( ProgressWheelBaseParams, {
 			Colour = Colour( 1, 0.75, 0, 1 / 0.25 )
@@ -169,6 +188,7 @@ function MapVoteMenu:Initialise()
 	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
 	self.MapTiles = {}
 	self.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Shared.Message )
+	self.TitleBarHeight = Units.GUIScaled( 32 ):GetValue()
 
 	local TeamVariation = self:GetTeamVariation()
 	local SmallPadding = Units.GUIScaled( 8 )
@@ -257,8 +277,58 @@ function MapVoteMenu:Initialise()
 		self:SetupTileGrid()
 	end )
 
-	self.TitleBarHeight = Units.GUIScaled( 32 ):GetValue()
 	self:AddCloseButton( self )
+
+	local ConfigButton = SGUI:BuildTree( self.CloseButton, {
+		{
+			ID = "ConfigButton",
+			Class = "Button",
+			Props = {
+				AutoSize = Units.UnitVector( self.TitleBarHeight, self.TitleBarHeight ),
+				PositionType = SGUI.PositionType.ABSOLUTE,
+				LeftOffset = -self.TitleBarHeight,
+				Text = SGUI.Icons.Ionicons.GearB,
+				OpenMenuOnClick = function( ConfigButton )
+					local ButtonPadding = Units.MultipleOf2( SmallPadding ):GetValue()
+
+					return {
+						MenuPos = Vector2( 0, self.TitleBarHeight ),
+						Size = Units.UnitVector( Units.Auto() + ButtonPadding, self.TitleBarHeight + ButtonPadding ),
+						Populate = function( Menu )
+							Menu:SetFontScale( SGUI.FontManager.GetFont( "kAgencyFB", 27 ) )
+
+							local Button = Menu:AddButton(
+								Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_USE_VOTE_MENU_BUTTON" ),
+								function()
+									self:OnPropertyChanged( "UseVoteMenu", true )
+									Menu:Destroy()
+								end
+							)
+							Button:SetIcon( SGUI.Icons.Ionicons.ArrowShrink )
+
+							Menu:Resize()
+
+							local MenuOffset = Vector2( self.TitleBarHeight - Menu:GetSize().x, self.TitleBarHeight )
+							Menu:SetPos( ConfigButton:GetScreenPos() + MenuOffset )
+						end
+					}
+				end,
+				StyleName = "CloseButton"
+			}
+		}
+	} ).ConfigButton
+
+	Binder():FromElement( ConfigButton, "Menu" )
+		:ToElement( ConfigButton, "StyleName", {
+			Transformer = function( Menu )
+				return Menu and "ConfigButton" or "CloseButton"
+			end
+		} ):BindProperty()
+
+	ConfigButton:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize(
+		SGUI.FontFamilies.Ionicons,
+		self.TitleBarHeight
+	) )
 end
 
 function MapVoteMenu:GetTeamVariation()
