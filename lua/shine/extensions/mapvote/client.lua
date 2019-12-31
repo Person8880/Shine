@@ -86,6 +86,7 @@ do
 end
 
 local MAP_GRID_SWITCH_BACK_HINT = "MapVoteSwitchToVoteMenuHint"
+local MAP_GRID_AFTER_MIGRATION_HINT = "MapVoteAfterMapGridMigrationHint"
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
@@ -103,6 +104,17 @@ function Plugin:OnFirstThink()
 		MessageKey = "VOTE_MENU_MAP_GRID_SWITCH_BACK_HINT",
 		HintDuration = 10
 	} )
+
+	SGUI.NotificationManager.RegisterHint( MAP_GRID_AFTER_MIGRATION_HINT, {
+		MaxTimes = 1,
+		MessageSource = self:GetName(),
+		MessageKey = "MAP_VOTE_MENU_AFTER_MIGRATION_HINT",
+		HintDuration = 10
+	} )
+
+	if self:HasLoadedNewConfig() then
+		SGUI.NotificationManager.DisableHint( MAP_GRID_AFTER_MIGRATION_HINT )
+	end
 end
 
 function Plugin:SetupClientConfig()
@@ -455,6 +467,8 @@ do
 			self.FullVoteMenu:FadeIn()
 
 			Shine.ScreenText.SetIsVisible( false )
+
+			SGUI.NotificationManager.DisplayHint( MAP_GRID_AFTER_MIGRATION_HINT )
 		end
 	end
 
