@@ -385,6 +385,7 @@ local function ClearButton( self, Button )
 	Button:SetIsVisible( false )
 	Button:SetTooltip( nil )
 	Button:SetIcon( nil )
+	Button:SetTextColour( TextCol )
 	Button.DefaultText = nil
 	Button.Plugin = nil
 	Button.CheckMarkXScale = nil
