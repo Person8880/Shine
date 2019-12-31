@@ -511,9 +511,12 @@ do
 
 			Plugin.MapButtons[ Map ] = {
 				Button = Button,
-				NiceName = NiceName
+				NiceName = NiceName,
+				OriginalTextColour = Button:GetTextColour()
 			}
 		end
+
+		Plugin:RefreshVoteButtonColours()
 
 		self:AddTopButton( Plugin:GetPhrase( "BACK" ), function()
 			self:SetPage( "Main" )
@@ -574,6 +577,35 @@ do
 	end
 end
 
+do
+	local TiedTextColour = Colour( 1, 1, 0 )
+	local WinnerTextColour = Colour( 0, 1, 0 )
+
+	function Plugin:RefreshVoteButtonColours()
+		local Max = 0
+		local NumAtMax = 0
+
+		for MapName, MapButton in pairs( self.MapButtons ) do
+			local Votes = self.MapVoteCounts[ MapName ]
+			if Votes > Max then
+				Max = Votes
+				NumAtMax = 1
+			elseif Votes == Max then
+				NumAtMax = NumAtMax + 1
+			end
+		end
+
+		for MapName, MapButton in pairs( self.MapButtons ) do
+			local Votes = self.MapVoteCounts[ MapName ]
+			if Votes == Max and Max > 0 then
+				MapButton.Button:SetTextColour( NumAtMax > 1 and TiedTextColour or WinnerTextColour )
+			else
+				MapButton.Button:SetTextColour( MapButton.OriginalTextColour )
+			end
+		end
+	end
+end
+
 function Plugin:ReceiveVoteProgress( Data )
 	local MapName = Data.Map
 	local Votes = Data.Votes
@@ -591,6 +623,8 @@ function Plugin:ReceiveVoteProgress( Data )
 	if SGUI.IsValid( Button ) then
 		Button:SetText( StringFormat( "%s (%d)", MapButton.NiceName, Votes ) )
 	end
+
+	self:RefreshVoteButtonColours()
 end
 
 function Plugin:ReceiveChosenMap( Data )
