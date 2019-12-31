@@ -42,6 +42,7 @@ local HeaderVariations = {
 	}
 }
 local ProgressWheelBaseParams = {
+	AnimateLoading = true,
 	WheelTexture = {
 		Texture = "ui/shine/wheel.tga",
 		W = 128,

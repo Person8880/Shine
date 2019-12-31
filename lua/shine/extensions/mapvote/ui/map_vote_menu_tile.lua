@@ -76,7 +76,6 @@ function MapTile:Initialise()
 							ID = "LoadingIndicator",
 							Class = "ProgressWheel",
 							Props = {
-								Fraction = 0.75,
 								Alignment = SGUI.LayoutAlignment.CENTRE,
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 								AutoSize = Units.UnitVector( Units.Percentage( 25 ), 0 ),
