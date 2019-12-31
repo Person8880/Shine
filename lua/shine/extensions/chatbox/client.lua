@@ -6,6 +6,7 @@
 
 local Binder = require "shine/lib/gui/binding/binder"
 local ChatAPI = require "shine/core/shared/chat/chat_api"
+local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
 
 local Shine = Shine
 
@@ -158,6 +159,15 @@ local Skin = {
 			}
 		}
 	},
+	Dropdown = {
+		Default = {
+			IconAutoFont = {
+				Family = SGUI.FontFamilies.Ionicons,
+				Size = Units.GUIScaled( 32 )
+			},
+			Padding = Units.Spacing( Units.GUIScaled( 4 ), 0, Units.GUIScaled( 4 ), 0 )
+		}
+	},
 	Panel = {
 		Default = {
 			Colour = Colours.Background,
@@ -195,6 +205,7 @@ function Plugin:OnFirstThink()
 	TableShallowMerge( DefaultSkin, Skin )
 	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
 	TableShallowMerge( DefaultSkin.Button, Skin.Button )
+	TableShallowMerge( DefaultSkin.Dropdown.Default, Skin.Dropdown.Default )
 end
 
 local LayoutData = {
@@ -684,6 +695,7 @@ do
 					Value = Value,
 					Font = self:GetFont(),
 					Padding = SliderTextPadding * self.ScalarScale,
+					HandleWidth = 10 * self.ScalarScale
 				}
 				if not IsLastElement then
 					Slider:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
@@ -1080,8 +1092,19 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		end
 	end
 
+	local PrefixMargin = Scaled( 5, self.ScalarScale )
 	for i = 1, #Recreate do
 		local Message = Recreate[ i ]
+		local Lines = Message.Lines
+		for j = 1, #Lines do
+			local Line = Lines[ j ]
+			for k = 1, #Line do
+				if Shine.Implements( Line[ k ], SpacerElement ) then
+					-- Make sure the spacing is appropriate for the new resolution.
+					Line[ k ].AutoWidth = PrefixMargin
+				end
+			end
+		end
 		self:AddMessageFromLines( Message.Lines )
 	end
 end
