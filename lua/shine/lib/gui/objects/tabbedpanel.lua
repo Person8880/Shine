@@ -85,7 +85,7 @@ SGUI.AddBoundProperty( TabPanel, "TabBackgroundColour", "TabPanel:SetColour" )
 SGUI.AddBoundProperty( TabPanel, "PanelColour", "ContentPanel:SetColour" )
 
 SGUI.AddProperty( TabPanel, "Expanded", true, { "InvalidatesLayout" } )
-SGUI.AddProperty( TabPanel, "CollapsedTabSize", Units.HighResScaled( 48 ) )
+SGUI.AddProperty( TabPanel, "CollapsedTabSize", Units.Integer( Units.HighResScaled( 48 ) ) )
 
 function TabPanel:Initialise()
 	Controls.Panel.Initialise( self )

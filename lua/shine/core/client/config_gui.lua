@@ -21,7 +21,7 @@ local Percentage = Units.Percentage
 local Spacing = Units.Spacing
 local UnitVector = Units.UnitVector
 
-ConfigMenu.Size = UnitVector( HighResScaled( 800 ), HighResScaled( 600 ) )
+ConfigMenu.Size = UnitVector( Units.Integer( HighResScaled( 800 ) ), Units.Integer( HighResScaled( 600 ) ) )
 ConfigMenu.EasingTime = 0.25
 
 local function NeedsToScale()
@@ -52,8 +52,8 @@ function ConfigMenu:Create()
 	self.Menu:SetAnchor( "CentreMiddle" )
 	self.Menu:SetAutoSize( self.Size, true )
 
-	self.Menu:SetTabWidth( HighResScaled( 128 ):GetValue() )
-	self.Menu:SetTabHeight( HighResScaled( 96 ):GetValue() )
+	self.Menu:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
+	self.Menu:SetTabHeight( Units.Integer( HighResScaled( 96 ) ):GetValue() )
 	self.Menu:SetFontScale( GetSmallFont() )
 
 	self.Pos = self.Menu:GetSize() * -0.5
