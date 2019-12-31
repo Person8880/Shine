@@ -15,6 +15,8 @@ local ProgressWheel = {}
 SGUI.AddBoundProperty( ProgressWheel, "Colour", { "LeftHalf:SetColor", "RightHalf:SetColor" } )
 SGUI.AddBoundProperty( ProgressWheel, "InheritsParentAlpha", { "Background", "LeftHalf", "RightHalf" } )
 
+SGUI.AddProperty( ProgressWheel, "Angle", 0 )
+SGUI.AddProperty( ProgressWheel, "AngleOffset", 0 )
 SGUI.AddProperty( ProgressWheel, "SpinRate", 0 )
 
 function ProgressWheel:Initialise()
@@ -44,14 +46,19 @@ function ProgressWheel:Initialise()
 	self.Background:AddChild( self.RightMask )
 	self.Background:AddChild( self.RightHalf )
 
-	self.Angle = Vector( 0, 0, 0 )
+	self.Angle = 0
+	self.AngleOffset = 0
 	self.Fraction = 0
+	self.VisibleFraction = 0
 
 	self.LeftRotation = 0
 	self.RightRotation = 0
 
-	self.LeftAngle = Vector( 0, 0, 0 )
-	self.RightAngle = Vector( 0, 0, 0 )
+	self.LeftAngle = 0
+	self.RightAngle = 0
+
+	self.SpinRate = 0
+	self.SpinDirection = 1
 
 	self:SetVisibleFraction( 0 )
 end
@@ -108,7 +115,7 @@ function ProgressWheel:SetSize( Size )
 	self.RightMask:SetRotationOffset( Vector2( Size.x, 0 ) )
 end
 
-local Easer = {
+local FractionEaser = {
 	Easer = function( self, Element, EasingData, Progress )
 		EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
 	end,
@@ -131,18 +138,22 @@ function ProgressWheel:SetFraction( Fraction, Smooth, Callback )
 		return
 	end
 
-	self:EaseValue( self.Background, self.VisibleFraction, Fraction, 0, 0.3, Callback, Easer )
+	self:EaseValue( self.Background, self.VisibleFraction, Fraction, 0, 0.3, Callback, FractionEaser )
 end
 
 local function UpdateMaskRotations( self )
-	self.LeftAngle.z = self.LeftRotation + self.Angle.z
-	self.RightAngle.z = self.RightRotation + self.Angle.z
+	self.LeftAngle = self.LeftRotation + self.Angle + self.AngleOffset
+	self.RightAngle = self.RightRotation + self.Angle + self.AngleOffset
 
-	self.LeftMask:SetRotation( self.LeftAngle )
-	self.RightMask:SetRotation( self.RightAngle )
+	self.LeftMask:SetAngle( self.LeftAngle )
+	self.RightMask:SetAngle( self.RightAngle )
 end
 
+local TwoPi = Pi * 2
+
 function ProgressWheel:SetVisibleFraction( Fraction )
+	local Delta = Fraction - self.VisibleFraction
+
 	self.VisibleFraction = Fraction
 
 	local LeftFraction = Max( ( Fraction - 0.5 ) * 2, 0 )
@@ -151,21 +162,79 @@ function ProgressWheel:SetVisibleFraction( Fraction )
 	self.LeftRotation = Pi * ( 1 - LeftFraction )
 	self.RightRotation = Pi * ( 1 - RightFraction )
 
-	UpdateMaskRotations( self )
+	if self.ApplyAngleOffsetWithFraction then
+		self:SetAngleOffset( self.AngleOffset + TwoPi * Delta * -self.SpinDirection )
+	else
+		UpdateMaskRotations( self )
+	end
 end
 
-function ProgressWheel:GetAngle()
-	return self.Angle.z
+local function UpdateAngles( self )
+	UpdateMaskRotations( self )
+
+	self.LeftHalf:SetAngle( self.Angle + self.AngleOffset )
+	self.RightHalf:SetAngle( self.Angle + self.AngleOffset )
+	self.Background:SetAngle( self.Angle + self.AngleOffset )
 end
 
 function ProgressWheel:SetAngle( Angle )
-	self.Angle.z = Angle
+	self.Angle = Angle % TwoPi
 
-	UpdateMaskRotations( self )
+	UpdateAngles( self )
+end
 
-	self.LeftHalf:SetRotation( self.Angle )
-	self.RightHalf:SetRotation( self.Angle )
-	self.Background:SetRotation( self.Angle )
+local AngleOffsetEaser = {
+	Easer = function( self, Element, EasingData, Progress )
+		EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
+	end,
+	Setter = function( self, Element, AngleOffset )
+		self:SetAngleOffset( AngleOffset )
+	end,
+	Getter = function( self, Element )
+		return self.AngleOffset
+	end
+}
+
+function ProgressWheel:SetAngleOffset( AngleOffset )
+	self.AngleOffset = AngleOffset % TwoPi
+
+	UpdateAngles( self )
+end
+
+function ProgressWheel:SetSpinRate( SpinRate )
+	self.SpinRate = SpinRate
+	self.SpinDirection = SpinRate < 0 and -1 or 1
+end
+
+function ProgressWheel:SetAnimateLoading( AnimateLoading )
+	if not AnimateLoading then
+		self:StopEasing( self.Background, FractionEaser )
+		self:StopEasing( self.Background, AngleOffsetEaser )
+		return
+	end
+
+	local Collapse
+	local Expand
+	local ExpandedSize = 0.75
+	local CollapsedSize = 0.1
+	local SpinDuration = 0.5
+
+	Collapse = function()
+		self:EaseValue(
+			self.Background, self.VisibleFraction, CollapsedSize, 0.25, SpinDuration, Expand, FractionEaser
+		)
+		self.ApplyAngleOffsetWithFraction = true
+	end
+
+	Expand = function()
+		self.ApplyAngleOffsetWithFraction = false
+		self:EaseValue(
+			self.Background, self.VisibleFraction, ExpandedSize, 0.25, SpinDuration, Collapse, FractionEaser
+		)
+	end
+
+	self:SetFraction( CollapsedSize )
+	self:EaseValue( self.Background, self.VisibleFraction, ExpandedSize, 0, SpinDuration, Collapse, FractionEaser )
 end
 
 function ProgressWheel:Think( DeltaTime )
