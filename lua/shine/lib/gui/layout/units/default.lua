@@ -285,3 +285,17 @@ do
 		return MaxValue
 	end
 end
+
+do
+	local Ceil = math.ceil
+	local Integer = NewUnit( "Integer" )
+
+	function Integer:Init( Value )
+		self.Value = ToUnit( Value )
+		return self
+	end
+
+	function Integer:GetValue( ParentSize, Element, Axis )
+		return Ceil( self.Value:GetValue( ParentSize, Element, Axis ) )
+	end
+end
