@@ -402,11 +402,63 @@ do
 		}
 	end
 
+	function Validator.EachKeyValue( Rule )
+		Shine.TypeCheck( Rule, "table", 2, "EachKeyValue" )
+
+		local FixFunc = Rule.Fix
+		local MessageFunc = Rule.Message
+		local Predicate = Rule.Check
+
+		return {
+			Check = function( TableValue )
+				local Passes = true
+
+				for Key, Value in pairs( TableValue ) do
+					local NeedsFix, CanonicalValue = Predicate( Value )
+					if NeedsFix then
+						Passes = false
+					elseif CanonicalValue ~= nil then
+						TableValue[ Key ] = CanonicalValue
+					end
+				end
+
+				return not Passes
+			end,
+			Fix = function( TableValue )
+				for Key, Value in pairs( TableValue ) do
+					if Predicate( Value ) then
+						local Fixed = FixFunc( Value )
+						if Fixed ~= nil then
+							TableValue[ Key ] = Fixed
+						else
+							TableValue[ Key ] = nil
+						end
+					end
+				end
+
+				return TableValue
+			end,
+			Message = function()
+				return "Elements of "..MessageFunc()
+			end
+		}
+	end
+
 	function Validator.AllValuesSatisfy( ... )
 		local Rules = { ... }
 
 		for i = 1, #Rules do
 			Rules[ i ] = Validator.Each( Rules[ i ] )
+		end
+
+		return unpack( Rules )
+	end
+
+	function Validator.AllKeyValuesSatisfy( ... )
+		local Rules = { ... }
+
+		for i = 1, #Rules do
+			Rules[ i ] = Validator.EachKeyValue( Rules[ i ] )
 		end
 
 		return unpack( Rules )

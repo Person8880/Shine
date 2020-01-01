@@ -39,7 +39,7 @@ UnitTest:Test( "TypeDef inheritance", function( Assert )
 	Assert:True( InitCalled )
 end )
 
-UnitTest:Test( "Implements", function( Assert )
+UnitTest:Test( "Implements - Returns true when the value implements the given metatable", function( Assert )
 	local Base = Shine.TypeDef()
 	Base.Init = function( self ) return self end
 
@@ -48,4 +48,14 @@ UnitTest:Test( "Implements", function( Assert )
 
 	Assert.True( "Object should implement its metatable", Shine.Implements( Value, Child ) )
 	Assert.True( "Object should implement the parent metatable", Shine.Implements( Value, Base ) )
+end )
+
+UnitTest:Test( "Implements - Returns false when the value does not implement the given metatable", function( Assert )
+	local Type1 = Shine.TypeDef()
+	Type1.Init = function( self ) return self end
+
+	local Type2 = Shine.TypeDef()
+	local Value = Type1()
+
+	Assert.False( "Object should not implement the given metatable", Shine.Implements( Value, Type2 ) )
 end )

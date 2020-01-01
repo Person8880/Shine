@@ -31,7 +31,8 @@ end
 function Shine.Implements( Value, MetaTable )
 	local ValueMetaTable = getmetatable( Value )
 	while ValueMetaTable ~= nil and ValueMetaTable ~= MetaTable do
-		ValueMetaTable = getmetatable( ValueMetaTable ).__index
+		ValueMetaTable = getmetatable( ValueMetaTable )
+		ValueMetaTable = ValueMetaTable and ValueMetaTable.__index
 	end
 	return ValueMetaTable == MetaTable
 end

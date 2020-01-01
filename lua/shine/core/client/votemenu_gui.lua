@@ -715,24 +715,11 @@ VoteMenu:AddPage( "Main", function( self )
 		self:ForceHide()
 	end )
 
-	if self.RequestedAdminMenu == nil then
-		self.RequestedAdminMenu = true
-
-		Shine.SendNetworkMessage( "Shine_AuthAdminMenu", {}, true )
-
-		return
-	end
-
 	if not self.CanViewAdminMenu then return end
 
 	self:AddAdminMenuButton()
 end )
 
 Client.HookNetworkMessage( "Shine_AuthAdminMenu", function( Data )
-	VoteMenu.CanViewAdminMenu = true
-
-	if VoteMenu.Visible and VoteMenu.ActivePage == "Main" then
-		VoteMenu:AddAdminMenuButton()
-		VoteMenu:SortSideButtons( true )
-	end
+	VoteMenu.CanViewAdminMenu = Data.CanUseAdminMenu
 end )

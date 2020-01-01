@@ -234,7 +234,14 @@ end
 	Adds a vote to begin a map vote.
 ]]
 function Plugin:AddStartVote( Client )
-	if not Client then Client = "Console" end
+	if Client then
+		local Success, Err, Args = self:CanClientVote( Client )
+		if not Success then
+			return false, "Client is not eligible to vote.", Err, Args
+		end
+	else
+		Client = "Console"
+	end
 
 	local Allow, Error, Key, Data = Shine.Hook.Call( "OnVoteStart", "rtv" )
 	if Allow == false then
@@ -293,7 +300,14 @@ end
 	Adds a vote for a given map in the map vote.
 ]]
 function Plugin:AddVote( Client, Map, Revote )
-	if not Client then Client = "Console" end
+	if Client then
+		local Success, Err, Args = self:CanClientVote( Client )
+		if not Success then
+			return false, "Client is not eligible to vote.", Err, Args
+		end
+	else
+		Client = "Console"
+	end
 
 	if not self:VoteStarted() then return false, "no vote in progress" end
 	if self.Vote.Voted[ Client ] and not Revote then return false, "already voted" end

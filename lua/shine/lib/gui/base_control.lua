@@ -1149,13 +1149,11 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 	for EasingHandler, Easings in self.EasingProcesses:Iterate() do
 		for Element, EasingData in Easings:Iterate() do
 			local Start = EasingData.StartTime
-			local Duration = EasingData.Duration
-
-			EasingData.Elapsed = EasingData.Elapsed + DeltaTime
-
-			local Elapsed = EasingData.Elapsed
-
 			if Start <= Time then
+				EasingData.Elapsed = EasingData.Elapsed + DeltaTime
+
+				local Duration = EasingData.Duration
+				local Elapsed = EasingData.Elapsed
 				if Elapsed <= Duration then
 					local Progress = Elapsed / Duration
 					if EasingData.EaseFunc then

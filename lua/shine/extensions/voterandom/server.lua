@@ -13,6 +13,7 @@ local DebugGetInfo = debug.getinfo
 local Floor = math.floor
 local GetAllPlayers = Shine.GetAllPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
+local GetNumSpectators = Server.GetNumSpectators
 local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local Max = math.max
@@ -87,14 +88,14 @@ Plugin.ModeStrings = ModeStrings
 Plugin.DefaultConfig = {
 	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
 	BlockAfterRoundTimeInMinutes = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
-	VoteCooldownInMinutes = 15, -- Cooldown time before another vote can be made.
+	VoteCooldownInMinutes = 1, -- Cooldown time before another vote can be made.
 	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
-	NotifyOnVote = true, --  Should all players be told through the chat when a vote is cast?
-	ApplyToBots = false, --  Should bots be shuffled, or removed?
+	NotifyOnVote = true, -- Should all players be told through the chat when a vote is cast?
+	ApplyToBots = false, -- Should bots be shuffled, or removed?
 	BlockBotsAfterShuffle = true, -- Whether filler bots should be blocked after a shuffle removes them.
 
 	BalanceMode = Plugin.ShuffleMode.HIVE, -- How should teams be balanced?
-	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Elo/Hive fails?
+	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Hive fails?
 
 	RemoveAFKPlayersFromTeams = true, -- Should the plugin remove AFK players from teams when shuffling?
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
@@ -112,7 +113,7 @@ Plugin.DefaultConfig = {
 			MinPlayers = 10,
 
 			-- Fraction of players that need to vote before a shuffle is performed.
-			FractionNeededToPass = 0.75,
+			FractionNeededToPass = 0.6,
 
 			-- When the number of players on playing teams is greater-equal this fraction
 			-- of the total players on the server, apply skill difference constraints.
@@ -130,7 +131,7 @@ Plugin.DefaultConfig = {
 			MinPlayers = 10,
 			FractionNeededToPass = 0.75,
 			MinPlayerFractionToConstrainSkillDiff = 0.9,
-			MinAverageDiffToAllowShuffle = 75,
+			MinAverageDiffToAllowShuffle = 100,
 			MinStandardDeviationDiffToAllowShuffle = 0,
 
 			-- How long to wait after the round starts before transitioning vote constraints/pass actions to "InGame".
@@ -1400,7 +1401,7 @@ function Plugin:CanStartVote()
 	end
 
 	if self.Config.BalanceMode == self.ShuffleMode.HIVE
-	and not self:EvaluateConstraints( GetNumPlayers(), self:GetTeamStats() ) then
+	and not self:EvaluateConstraints( GetNumPlayers() - GetNumSpectators(), self:GetTeamStats() ) then
 		return false, "ERROR_CONSTRAINTS"
 	end
 
@@ -1411,10 +1412,13 @@ end
 	Adds a player's vote to the counter.
 ]]
 function Plugin:AddVote( Client )
-	if not Client then Client = "Console" end
-
 	do
-		local Success, Err, Args = self:CanStartVote()
+		local Success, Err, Args = self:CanClientVote( Client )
+		if not Success then
+			return false, Err, Args
+		end
+
+		Success, Err, Args = self:CanStartVote()
 		if not Success then
 			return false, Err, Args
 		end
@@ -1521,19 +1525,28 @@ Plugin.EnforcementPolicies = {
 	end
 }
 
-function Plugin:BuildEnforcementPolicy( Settings )
-	if #Settings.EnforcementPolicy == 0 then
-		self.Logger:Debug( "No enforcement policies configured, disabling enforcement." )
-		-- No policies configured, so nothing to enforce.
-		return self.EnforcementPolicies[ self.EnforcementDurationType.NONE ]( self, Settings )
+do
+	local function PolicyToString( Policy )
+		return StringFormat( "<%s [%s, %s]>", Policy.Type, Policy.MinPlayers, Policy.MaxPlayers )
 	end
 
-	if self.Logger:IsDebugEnabled() then
-		self.Logger:Debug( "Applying enforcement policies [ %s ] with duration type %s",
-			Shine.Stream( Settings.EnforcementPolicy ):Concat( ", " ), Settings.EnforcementDurationType )
-	end
+	function Plugin:BuildEnforcementPolicy( Settings )
+		if #Settings.EnforcementPolicy == 0 then
+			self.Logger:Debug( "No enforcement policies configured, disabling enforcement." )
+			-- No policies configured, so nothing to enforce.
+			return self.EnforcementPolicies[ self.EnforcementDurationType.NONE ]( self, Settings )
+		end
 
-	return self.EnforcementPolicies[ Settings.EnforcementDurationType ]( self, Settings )
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug(
+				"Applying enforcement policies [ %s ] with duration type %s",
+				Shine.Stream.Of( Settings.EnforcementPolicy ):Map( PolicyToString ):Concat( ", " ),
+				Settings.EnforcementDurationType
+			)
+		end
+
+		return self.EnforcementPolicies[ Settings.EnforcementDurationType ]( self, Settings )
+	end
 end
 
 function Plugin:InitEnforcementPolicy( Settings )

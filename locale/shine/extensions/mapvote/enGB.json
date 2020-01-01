@@ -68,6 +68,8 @@
 	"SET_MAP_ROUNDS": "set the round limit to {Duration} {Duration:Pluralise:round|rounds}.",
 	"NOTIFY_PREFIX": "[Map Vote]",
 	"PLUGIN_DISABLED": "Map vote plugin disabled. Current vote cancelled.",
+	"ERROR_CANNOT_VOTE_IN_SPECTATE": "Spectators are not allowed to vote to change the map.",
+
 	"ON_VOTE_ACTION": "When a map vote starts:",
 	"USE_SERVER_SETTINGS": "Use server settings to decide whether to open the menu",
 	"OPEN_MENU": "Open the vote menu automatically",

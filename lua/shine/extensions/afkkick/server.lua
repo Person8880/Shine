@@ -9,7 +9,8 @@ local Clamp = math.Clamp
 local Floor = math.floor
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetMaxPlayers = Server.GetMaxPlayers
-local GetNumPlayersTotal = Server.GetNumPlayersTotal
+local GetMaxSpectators = Server.GetMaxSpectators
+local GetNumClientsTotal = Server.GetNumClientsTotal
 local GetOwner = Server.GetOwner
 local Max = math.max
 local Random = math.random
@@ -335,6 +336,7 @@ do
 		end
 
 		self.SampleInterval = self.Config.SampleIntervalInSeconds
+		self.MinPlayersToKickOnConnect = self:GetMinPlayersToKickOnConnect( GetMaxPlayers(), GetMaxSpectators() )
 
 		self.Enabled = true
 
@@ -393,8 +395,16 @@ function Plugin:KickClient( Client )
 	Server.DisconnectClient( Client, "AFK for too long." )
 end
 
+function Plugin:CanCheckInCurrentGameState( Gamerules )
+	return not self.Config.OnlyCheckOnStarted or ( Gamerules and Gamerules:GetGameStarted() )
+end
+
+function Plugin:GetMinPlayersToKickOnConnect( MaxPlayers, MaxSpectators )
+	return Clamp( self.Config.MinPlayers, MaxPlayers, MaxPlayers + MaxSpectators )
+end
+
 function Plugin:CanKickForConnectingClient()
-	return GetNumPlayersTotal() >= GetMaxPlayers()
+	return GetNumClientsTotal() >= self.MinPlayersToKickOnConnect and self:CanCheckInCurrentGameState( GetGamerules() )
 end
 
 --[[
@@ -545,11 +555,10 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 			DataTable.Warn = true
 
 			if not IsPartiallyImmune then
-				local WillKickWhenTimeReached = NumPlayers >= self.Config.MinPlayers
 				if not self.Config.KickOnConnect then
 					local AFKTime = Time - DataTable.LastMove
 
-					if WillKickWhenTimeReached then
+					if NumPlayers >= self.Config.MinPlayers then
 						self:SendTranslatedNotify( Client, "WARN_WILL_BE_KICKED", {
 							AFKTime = Floor( WarnTime ),
 							KickTime = KickTime
@@ -562,7 +571,7 @@ function Plugin:EvaluatePlayer( Client, DataTable, Params )
 							MinPlayers = self.Config.MinPlayers
 						} )
 					end
-				elseif WillKickWhenTimeReached then
+				elseif Params.WillKickOnConnect then
 					-- Only warn players if there's actually a possibity they'll be kicked.
 					self:SendTranslatedNotify( Client, "WARN_KICK_ON_CONNECT", {
 						AFKTime = Floor( WarnTime )
@@ -607,9 +616,7 @@ end
 
 function Plugin:EvaluatePlayers()
 	local Gamerules = GetGamerules()
-	local Started = Gamerules and Gamerules:GetGameStarted()
-
-	if self.Config.OnlyCheckOnStarted and not Started then return end
+	if not self:CanCheckInCurrentGameState( Gamerules ) then return end
 
 	local NumPlayers = self:GetPlayerCount()
 	if NumPlayers < self.Config.WarnMinPlayers then return end
@@ -619,7 +626,8 @@ function Plugin:EvaluatePlayers()
 		KickTime = self.CurrentKickTimeInSeconds,
 		WarnTime = self.Config.Warn and self.CurrentWarnTimeInSeconds,
 		NumPlayers = NumPlayers,
-		Gamerules = Gamerules
+		Gamerules = Gamerules,
+		WillKickOnConnect = self.Config.KickOnConnect and self:CanKickForConnectingClient()
 	}
 
 	for Client, DataTable in self.Users:Iterate() do

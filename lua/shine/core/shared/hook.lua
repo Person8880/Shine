@@ -730,8 +730,48 @@ Add( "Think", "ReplaceMethods", function()
 	SetupClassHook( "CommandStructure", "Logout", "CommLogout", "PassivePre" )
 	SetupClassHook( Gamerules, "OnCommanderLogin", "ValidateCommanderLogin", "ActivePre" )
 
-	SetupClassHook( "RecycleMixin", "OnResearch", "OnRecycle", "PassivePre" )
-	SetupClassHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", "PassivePre" )
+	-- Need to double check for kTechId and the appropriate enums in case a different gamemode is running that doesn't
+	-- use the NS2 code that creates this enum.
+	if kTechId then
+		local function CallIfResearchIDMatches( HookName, TechID )
+			return function( OldFunc, Building, ResearchID, ... )
+				if ResearchID == TechID then
+					Call( HookName, Building, ResearchID, ... )
+				end
+				return OldFunc( Building, ResearchID, ... )
+			end
+		end
+
+		if rawget( kTechId, "Recycle" ) then
+			SetupClassHook(
+				"RecycleMixin", "OnResearch", "OnRecycle",
+				CallIfResearchIDMatches( "OnRecycle", kTechId.Recycle )
+			)
+			SetupClassHook(
+				"RecycleMixin", "OnResearchComplete", "OnBuildingRecycled",
+				CallIfResearchIDMatches( "OnBuildingRecycled", kTechId.Recycle )
+			)
+			SetupClassHook(
+				"RecycleMixin", "OnResearchCancel", "OnRecycleCancelled",
+				CallIfResearchIDMatches( "OnRecycleCancelled", kTechId.Recycle )
+			)
+		end
+
+		if rawget( kTechId, "Consume" ) then
+			SetupClassHook(
+				"ConsumeMixin", "OnResearch", "OnConsume",
+				CallIfResearchIDMatches( "OnConsume", kTechId.Consume )
+			)
+			SetupClassHook(
+				"ConsumeMixin", "OnResearchComplete", "OnBuildingConsumed",
+				CallIfResearchIDMatches( "OnBuildingConsumed", kTechId.Consume )
+			)
+			SetupClassHook(
+				"ConsumeMixin", "OnResearchCancel", "OnConsumeCancelled",
+				CallIfResearchIDMatches( "OnConsumeCancelled", kTechId.Consume )
+			)
+		end
+	end
 
 	SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction",
 		"PassivePre" )

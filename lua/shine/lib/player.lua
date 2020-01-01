@@ -187,6 +187,10 @@ do
 	end
 end
 
+function Shine.IterateClients()
+	return Shine.GameIDs:Iterate()
+end
+
 --[[
 	Returns a table of all players.
 ]]
@@ -194,9 +198,7 @@ function Shine.GetAllPlayers()
 	local Players = {}
 	local Count = 0
 
-	local GameIDs = Shine.GameIDs
-
-	for Client, ID in GameIDs:Iterate() do
+	for Client, ID in Shine.IterateClients() do
 		local Player = Client.GetControllingPlayer and Client:GetControllingPlayer()
 
 		if Player then
@@ -252,9 +254,7 @@ function Shine.GetAllClients()
 	local Clients = {}
 	local Count = 0
 
-	local GameIDs = Shine.GameIDs
-
-	for Client, ID in GameIDs:Iterate() do
+	for Client, ID in Shine.IterateClients() do
 		Count = Count + 1
 		Clients[ Count ] = Client
 	end
@@ -276,9 +276,7 @@ end
 	Returns a client matching the given game ID.
 ]]
 function Shine.GetClientByID( ID )
-	local GameIDs = Shine.GameIDs
-
-	for Client, GameID in GameIDs:Iterate() do
+	for Client, GameID in Shine.IterateClients() do
 		if ID == GameID then
 			return Client
 		end
@@ -293,9 +291,7 @@ end
 function Shine.GetClientByNS2ID( ID )
 	if not IsType( ID, "number" ) then return nil end
 
-	local Clients = Shine.GameIDs
-
-	for Client in Clients:Iterate() do
+	for Client in Shine.IterateClients() do
 		if Client:GetUserId() == ID then
 			return Client
 		end
@@ -314,7 +310,7 @@ function Shine.GetClientByName( Name )
 	local SortTable = {}
 	local Count = 0
 
-	for Client in Shine.GameIDs:Iterate() do
+	for Client in Shine.IterateClients() do
 		local Player = Client:GetControllingPlayer()
 		if Player then
 			local PlayerName = StringLower( Player:GetName() )
@@ -433,7 +429,7 @@ function Shine:GetClientsWithAccess( Access )
 	local Ret = {}
 	local Count = 0
 
-	for Client in self.GameIDs:Iterate() do
+	for Client in self.IterateClients() do
 		if self:HasAccess( Client, Access ) then
 			Count = Count + 1
 			Ret[ Count ] = Client
@@ -456,12 +452,10 @@ end
 function Shine:GetClientsByGroup( Group )
 	if Group ~= "guest" and not self.UserData.Groups[ Group ] then return {} end
 
-	local Clients = self.GameIDs
-
 	local Count = 0
 	local Ret = {}
 
-	for Client in Clients:Iterate() do
+	for Client in self.IterateClients() do
 		if self:IsInGroup( Client, Group ) then
 			Count = Count + 1
 			Ret[ Count ] = Client

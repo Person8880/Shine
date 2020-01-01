@@ -9,7 +9,7 @@ local StringSub = string.sub
 local IsType = Shine.IsType
 
 local Plugin = Shine.Plugin( ... )
-Plugin.Version = "1.1"
+Plugin.Version = "1.2"
 
 Plugin.ConfigName = "Logging.json"
 Plugin.HasConfig = true
@@ -20,6 +20,7 @@ Plugin.DefaultConfig = {
 	LogKills = true,
 	LogConstruction = true,
 	LogRecycling = true,
+	LogConsuming = true,
 	LogNameChanges = true,
 	LogRoundStartEnd = true,
 	LogCommanderLogin = true,
@@ -228,33 +229,65 @@ function Plugin:CommLogout( Chair )
 	) )
 end
 
-function Plugin:OnBuildingRecycled( Building, ResearchID )
-	if not self.Config.LogRecycling then return end
+do
+	local function LogRecyclingAction( self, Building, State, RecycleAction )
+		local ID = Building:GetId()
+		local Name = Building:GetClassName()
+		local Team = Building:GetTeam()
+		if not Team then return end
 
-	local ID = Building:GetId()
-	local Name = Building:GetClassName()
+		local Commander = Team:GetCommander()
+		if not Commander then return end
 
-	Shine:LogString( StringFormat( "%s[%s] was recycled.", Name, ID ) )
+		local Client = Server.GetOwner( Commander )
+		Shine:LogString( StringFormat( "%s %s %s %s[%s].",
+			self:GetClientInfo( Client ), State, RecycleAction, Name, ID ) )
+	end
+
+	function Plugin:OnRecycle( Building, ResearchID )
+		if not self.Config.LogRecycling then return end
+
+		LogRecyclingAction( self, Building, "began", "recycling" )
+	end
+
+	function Plugin:OnConsume( Building, ResearchID )
+		if not self.Config.LogConsuming then return end
+
+		LogRecyclingAction( self, Building, "began", "consuming" )
+	end
+
+	function Plugin:OnRecycleCancelled( Building, ResearchID )
+		if not self.Config.LogRecycling then return end
+
+		LogRecyclingAction( self, Building, "cancelled", "recycling" )
+	end
+
+	function Plugin:OnConsumeCancelled( Building, ResearchID )
+		if not self.Config.LogConsuming then return end
+
+		LogRecyclingAction( self, Building, "cancelled", "consuming" )
+	end
 end
 
-function Plugin:OnRecycle( Building, ResearchID )
-	if not self.Config.LogRecycling then return end
+do
+	local function LogBuildingRecycled( Building, RecycleAction )
+		local ID = Building:GetId()
+		local Name = Building:GetClassName()
 
-	local ID = Building:GetId()
-	local Name = Building:GetClassName()
-	local Team = Building:GetTeam()
+		Shine:LogString( StringFormat( "%s[%s] was %s.", Name, ID, RecycleAction ) )
+	end
 
-	if not Team then return end
+	function Plugin:OnBuildingRecycled( Building, ResearchID )
+		if not self.Config.LogRecycling then return end
 
-	local Commander = Team:GetCommander()
-	if not Commander then return end
+		LogBuildingRecycled( Building, "recycled" )
+	end
 
-	if ResearchID ~= kTechId.Recycle then return end
+	function Plugin:OnBuildingConsumed( Building, ResearchID )
+		if not self.Config.LogConsuming then return end
 
-	local Client = Server.GetOwner( Commander )
-
-	Shine:LogString( StringFormat( "%s began recycling %s[%s].",
-		self:GetClientInfo( Client ), Name, ID ) )
+		LogBuildingRecycled( Building, "consumed" )
+	end
 end
 
 function Plugin:OnConstructInit( Building )
