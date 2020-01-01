@@ -5,7 +5,6 @@
 local Plugin = ...
 
 local GetScoreboardEntryByName = Shine.GetScoreboardEntryByName
-local setmetatable = setmetatable
 local StringFormat = string.format
 local xpcall = xpcall
 

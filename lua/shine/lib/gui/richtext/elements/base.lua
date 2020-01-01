@@ -5,6 +5,10 @@ function Base:GetLines()
 	return nil
 end
 
+function Base:IsVisibleElement()
+	return false
+end
+
 function Base.AddThinkFunction( Element, ExtraThink )
 	-- Remove any old override (so Think comes from the metatable).
 	Element.Think = nil

@@ -161,15 +161,19 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		return self.visible and Plugin.Config.AnimateMessages
 	end
 
+	local function ResetChatLine( ChatLine )
+		ChatLine:StopMoving()
+		ChatLine:SetIsVisible( false )
+		ChatLine:Reset()
+	end
+
 	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
 		return function()
 			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
 				return
 			end
 
-			ChatLine:StopMoving()
-			ChatLine:SetIsVisible( false )
-			ChatLine:Reset()
+			ResetChatLine( ChatLine )
 
 			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
 				-- Move remaining messages upwards to fill in the gap.
@@ -312,6 +316,16 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:SetLineSpacing( LineMargin )
 
 		Populator( ChatLine, ... )
+
+		if not ChatLine:HasVisibleElements() then
+			-- Avoid displaying empty messages.
+			ResetChatLine( ChatLine )
+
+			TableRemoveByValue( self.ChatLines, ChatLine )
+			self.ChatLinePool[ #self.ChatLinePool + 1 ] = ChatLine
+
+			return nil
+		end
 
 		ChatLine:SetSize( Vector2( Client.GetScreenWidth() * MaxChatWidth, 0 ) )
 		ChatLine:AddBackground( Colour( 0, 0, 0, Plugin.Config.BackgroundOpacity ), BackgroundTexture, PaddingAmount )

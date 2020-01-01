@@ -26,6 +26,10 @@ function Image:Init( Params )
 	return self
 end
 
+function Image:IsVisibleElement()
+	return true
+end
+
 function Image:ConfigureSize( TextSizeProvider, MaxWidth )
 	self.Size = self.AbsoluteSize or self.AutoSize:GetValue(
 		Vector2( MaxWidth, TextSizeProvider.TextHeight )

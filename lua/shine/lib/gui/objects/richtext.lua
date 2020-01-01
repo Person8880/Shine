@@ -86,12 +86,16 @@ local TableRemove = table.remove
 function RichText:ParseContents( Contents )
 	local Lines = {}
 	local Elements = TableNew( #Contents, 0 )
+	local HasVisibleElements = false
 
 	for i = 1, #Contents do
 		Elements[ #Elements + 1 ] = Contents[ i ]
 
 		local CurrentElement = Elements[ #Elements ]
 		local ElementLines = CurrentElement:GetLines()
+
+		HasVisibleElements = HasVisibleElements or CurrentElement:IsVisibleElement()
+
 		if ElementLines then
 			Elements[ #Elements ] = ElementLines[ 1 ]
 			for j = 2, #ElementLines do
@@ -104,6 +108,8 @@ function RichText:ParseContents( Contents )
 	if #Elements > 0 then
 		Lines[ #Lines + 1 ] = Elements
 	end
+
+	Lines.HasVisibleElements = HasVisibleElements
 
 	return Lines
 end
@@ -118,6 +124,10 @@ function RichText:RestoreFromLines( Lines )
 	self.Lines = Lines
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
+end
+
+function RichText:HasVisibleElements()
+	return self.Lines ~= nil and self.Lines.HasVisibleElements
 end
 
 local Wrapper = require "shine/lib/gui/richtext/wrapper"
@@ -234,7 +244,7 @@ function RichText:ApplyLines( Lines )
 	TableEmpty( CreatedElements )
 
 	self.WrappedWidth = MaxWidth
-	self.WrappedHeight = YOffset - Spacing
+	self.WrappedHeight = Max( YOffset - Spacing, 0 )
 
 	-- Any unused elements left behind should be destroyed.
 	if ElementPool then

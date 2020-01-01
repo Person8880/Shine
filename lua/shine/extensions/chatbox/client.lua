@@ -1189,10 +1189,10 @@ do
 
 		Inputs are derived from the GUIChat inputs as we want to maintain compatability.
 
-		Theoretically, we can make messages with any number of colours, but for now this will do.
+		Messages with multiple colours can be added through the chat API.
 	]]
 	function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
-		--Don't add anything if one of the elements is the wrong type. Default chat will error instead.
+		-- Don't add anything if one of the elements is the wrong type. Default chat will error instead.
 		if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
 		or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
 		or not IsType( MessageName, "string" ) then

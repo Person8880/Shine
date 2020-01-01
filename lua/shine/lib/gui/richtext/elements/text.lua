@@ -45,6 +45,10 @@ function Text:GetLines()
 	return ElementLines
 end
 
+function Text:IsVisibleElement()
+	return self.Value ~= ""
+end
+
 local WrappedParts = TableNew( 3, 0 )
 local function EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
 	TableEmpty( WrappedParts )
