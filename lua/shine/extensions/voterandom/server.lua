@@ -88,14 +88,14 @@ Plugin.ModeStrings = ModeStrings
 Plugin.DefaultConfig = {
 	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
 	BlockAfterRoundTimeInMinutes = 2, -- Time in minutes after round start to block the vote. 0 to disable blocking.
-	VoteCooldownInMinutes = 15, -- Cooldown time before another vote can be made.
+	VoteCooldownInMinutes = 1, -- Cooldown time before another vote can be made.
 	VoteTimeoutInSeconds = 60, -- Time after the last vote before the vote resets.
-	NotifyOnVote = true, --  Should all players be told through the chat when a vote is cast?
-	ApplyToBots = false, --  Should bots be shuffled, or removed?
+	NotifyOnVote = true, -- Should all players be told through the chat when a vote is cast?
+	ApplyToBots = false, -- Should bots be shuffled, or removed?
 	BlockBotsAfterShuffle = true, -- Whether filler bots should be blocked after a shuffle removes them.
 
 	BalanceMode = Plugin.ShuffleMode.HIVE, -- How should teams be balanced?
-	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Elo/Hive fails?
+	FallbackMode = Plugin.ShuffleMode.KDR, -- Which method should be used if Hive fails?
 
 	RemoveAFKPlayersFromTeams = true, -- Should the plugin remove AFK players from teams when shuffling?
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
@@ -113,7 +113,7 @@ Plugin.DefaultConfig = {
 			MinPlayers = 10,
 
 			-- Fraction of players that need to vote before a shuffle is performed.
-			FractionNeededToPass = 0.75,
+			FractionNeededToPass = 0.6,
 
 			-- When the number of players on playing teams is greater-equal this fraction
 			-- of the total players on the server, apply skill difference constraints.
@@ -131,7 +131,7 @@ Plugin.DefaultConfig = {
 			MinPlayers = 10,
 			FractionNeededToPass = 0.75,
 			MinPlayerFractionToConstrainSkillDiff = 0.9,
-			MinAverageDiffToAllowShuffle = 75,
+			MinAverageDiffToAllowShuffle = 100,
 			MinStandardDeviationDiffToAllowShuffle = 0,
 
 			-- How long to wait after the round starts before transitioning vote constraints/pass actions to "InGame".
