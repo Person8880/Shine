@@ -743,6 +743,18 @@ do
 	end
 end
 
+Add( "HookNetworkMessage:ChatClient", "AddChatCallback", function( MessageName, Callback )
+	return function( Client, Message )
+		local Result = Call( "PlayerSay", Client, Message )
+		if Result then
+			if Result == "" then return end
+			Message.message = Result
+		end
+
+		return Callback( Client, Message )
+	end
+end, Hook.MAX_PRIORITY )
+
 --[[
 	Hook to run after everything has loaded.
 	Here we replace class methods in order to hook into certain important events.

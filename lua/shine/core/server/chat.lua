@@ -2,10 +2,8 @@
 	Server-side chat overrides.
 ]]
 
-local Hook = Shine.Hook
-
 -- Add SteamID and ClientID to chat network messages to allow the client to understand who the message originated from.
-Hook.CallAfterFileLoad( "lua/NetworkMessages.lua", function()
+Shine.Hook.CallAfterFileLoad( "lua/NetworkMessages.lua", function()
 	local OldBuildChatMessage = BuildChatMessage
 	function BuildChatMessage(
 		TeamOnly, PlayerName, PlayerLocationID, PlayerTeamNumber, PlayerTeamType, ChatMessage
@@ -31,15 +29,3 @@ Hook.CallAfterFileLoad( "lua/NetworkMessages.lua", function()
 		return Message
 	end
 end )
-
-Hook.Add( "HookNetworkMessage:ChatClient", "AddChatCallback", function( MessageName, Callback )
-	return function( Client, Message )
-		local Result = Hook.Call( "PlayerSay", Client, Message )
-		if Result then
-			if Result == "" then return end
-			Message.message = Result
-		end
-
-		return Callback( Client, Message )
-	end
-end, Hook.MAX_PRIORITY )
