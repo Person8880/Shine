@@ -26,4 +26,8 @@ function Base:Setup( Element )
 	-- To be overridden.
 end
 
+function Base:Copy()
+	error( "Copy() method has not been implemented" )
+end
+
 return Base

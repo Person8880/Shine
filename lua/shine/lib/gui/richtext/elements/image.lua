@@ -78,6 +78,10 @@ function Image:MakeElement( Context )
 	return Image
 end
 
+function Image:Copy()
+	return Image( self )
+end
+
 function Image:__tostring()
 	return StringFormat( "Image (Texture = %s, Size = %s)", self.Texture, self.Size )
 end

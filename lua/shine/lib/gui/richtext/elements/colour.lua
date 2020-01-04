@@ -24,6 +24,10 @@ function Colour:MakeElement( Context )
 	Context.CurrentColour = self.Value
 end
 
+function Colour:Copy()
+	return Colour( self.Value )
+end
+
 function Colour:__tostring()
 	return StringFormat( "Colour (%s, %s, %s, %s)", self.Value.r, self.Value.g, self.Value.b, self.Value.a )
 end

@@ -190,6 +190,10 @@ function Text:MakeElement( Context )
 	return Label
 end
 
+function Text:Copy()
+	return Text( self )
+end
+
 function Text:__tostring()
 	return StringFormat( "Text \"%s\" (Width = %s)", self.Value, self.Width )
 end

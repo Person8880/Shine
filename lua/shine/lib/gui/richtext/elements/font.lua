@@ -43,6 +43,10 @@ function Font:MakeElement( Context )
 	Context.CurrentScale = Scale
 end
 
+function Font:Copy()
+	return Font( self )
+end
+
 function Font:__tostring()
 	return StringFormat( "Font (%s with scale %s)", self.Font, self.Scale )
 end

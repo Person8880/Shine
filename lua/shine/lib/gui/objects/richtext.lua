@@ -89,10 +89,10 @@ function RichText:ParseContents( Contents )
 	local HasVisibleElements = false
 
 	for i = 1, #Contents do
-		Elements[ #Elements + 1 ] = Contents[ i ]
-
-		local CurrentElement = Elements[ #Elements ]
+		local CurrentElement = Contents[ i ]:Copy()
 		local ElementLines = CurrentElement:GetLines()
+
+		Elements[ #Elements + 1 ] = CurrentElement
 
 		HasVisibleElements = HasVisibleElements or CurrentElement:IsVisibleElement()
 

@@ -34,6 +34,10 @@ function Spacer:MakeElement( Context )
 	Context.NextMargin = ( Context.NextMargin or 0 ) + self.Width
 end
 
+function Spacer:Copy()
+	return Spacer( self )
+end
+
 function Spacer:__tostring()
 	return StringFormat( "Spacer (%s)", self.Width or self.AutoWidth )
 end
