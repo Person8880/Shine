@@ -366,7 +366,7 @@ function Plugin:AssignChatTag( Client )
 	end
 end
 
-function Plugin:ClientConfirmConnect( Client )
+function Plugin:ClientConnect( Client )
 	-- First send the client all known chat tag definitions (this ensures we send a chat tag only once
 	-- per group).
 	for Key, Definition in self.ChatTagDefinitions:Iterate() do
