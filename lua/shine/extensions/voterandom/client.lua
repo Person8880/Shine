@@ -64,6 +64,7 @@ Plugin.ConfigGroup = {
 
 local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
 local FRIEND_GROUP_INVITE_HINT_NAME = "ShuffleFriendGroupInviteHint"
+local TEAM_PREFERENCE_CHANGE_HINT_NAME = "ShuffleTeamPreferenceConfigHint"
 
 function Plugin:SetupClientConfig()
 	local function SendTeamPreference( PreferredTeam )
@@ -82,7 +83,6 @@ function Plugin:SetupClientConfig()
 		SendTeamPreference( PreferredTeam )
 	end
 
-	local HasWarnedAboutPref = false
 	self:BindCommand( "sh_shuffle_teampref", function( PreferredTeam )
 		local OldPref = self.Config.PreferredTeam
 		local NewPref = self.TeamType[ PreferredTeam ] or self.TeamType.NONE
@@ -101,12 +101,7 @@ function Plugin:SetupClientConfig()
 
 		Print( "Team preference saved as: %s.%s", self.Config.PreferredTeam, ResetHint )
 
-		if not HasWarnedAboutPref then
-			-- Inform the player that this can be overridden by joining a team.
-			HasWarnedAboutPref = true
-			SGUI.NotificationManager.AddNotification( Shine.NotificationType.INFO,
-				self:GetPhrase( "TEAM_PREFERENCE_CHANGE_HINT" ), 10 )
-		end
+		SGUI.NotificationManager.DisplayHint( TEAM_PREFERENCE_CHANGE_HINT_NAME )
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
 
 	self:AddClientSetting( "PreferredTeam", "sh_shuffle_teampref", {
@@ -290,6 +285,12 @@ function Plugin:OnFirstThink()
 				}
 			}
 		}
+	} )
+	SGUI.NotificationManager.RegisterHint( TEAM_PREFERENCE_CHANGE_HINT_NAME, {
+		MaxTimes = 1,
+		MessageSource = self:GetName(),
+		MessageKey = "TEAM_PREFERENCE_CHANGE_HINT",
+		HintDuration = 10
 	} )
 
 	-- Defensive check in case the scoreboard code changes.
