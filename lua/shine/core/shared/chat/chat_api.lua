@@ -45,7 +45,10 @@ end
 			ID = SteamID
 		},
 		Message = {
-			-- Table of colours/text/textures.
+			-- Table of colours/text/textures (on the client these must be elements from lib/gui/richtext/elements).
+			TextElement( "Hello " ),
+			ColourElement( Colour( 0, 1, 0 ) ),
+			TextElement( "world!" )
 		},
 		-- Optional table that contains a single (no prefix keys specified) or dual colour message to use if rich text
 		-- is not supported. This is a convenient alternative to checking ChatAPI:SupportsRichText().
@@ -67,8 +70,13 @@ end
 
 	However, a rich text aware provider may be able to make use of the extra data.
 ]]
-function ChatAPI:AddRichTextMessage( Message )
-	return self.CurrentProvider:AddRichTextMessage( Message )
+function ChatAPI:AddRichTextMessage( RichTextMessage )
+	Shine.TypeCheck( RichTextMessage, "table", 1, "AddRichTextMessage" )
+	Shine.TypeCheckField( RichTextMessage, "Message", "table", "RichTextMessage" )
+	Shine.TypeCheckField( RichTextMessage, "Source", "table", "RichTextMessage" )
+	Shine.TypeCheckField( RichTextMessage, "FallbackMessage", { "table", "nil" }, "RichTextMessage" )
+
+	return self.CurrentProvider:AddRichTextMessage( RichTextMessage )
 end
 
 function ChatAPI:SetProvider( Provider )
