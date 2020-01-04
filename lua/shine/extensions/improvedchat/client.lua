@@ -349,7 +349,9 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		ChatLine:FadeOutIn( ChatMessageLifeTime, 1, MakeFadeOutCallback( self, ChatLine, PaddingAmount ), FadingEase )
 
-		SGUI.NotificationManager.DisplayHint( CHAT_CONFIG_HINT_NAME )
+		if Shine.HasLocalPlayerActivityOccurred() then
+			SGUI.NotificationManager.DisplayHint( CHAT_CONFIG_HINT_NAME )
+		end
 
 		return ChatLine
 	end
