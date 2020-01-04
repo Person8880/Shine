@@ -724,7 +724,7 @@ Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
 } )
 
 if Server then
-	Shine.Hook.Add( "ClientConfirmConnect", "PluginSync", function( Client )
+	Shine.Hook.Add( "ClientConnect", "PluginSync", function( Client )
 		local Message = {}
 
 		for Name in pairs( ClientPlugins ) do
