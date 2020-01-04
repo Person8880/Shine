@@ -16,8 +16,6 @@ local TableNew = require "table.new"
 local ChatLine = {}
 local TimestampColour = Colour( 0.8, 0.8, 0.8 )
 
-SGUI.AddProperty( ChatLine, "PreMargin" )
-
 function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageText, ShowTimestamp )
 	local Contents = {}
 	if Tags then
@@ -29,11 +27,7 @@ function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageTex
 
 	if #Prefix > 0 then
 		Contents[ #Contents + 1 ] = ColourElement( PreColour )
-		Contents[ #Contents + 1 ] = TextElement( Prefix )
-		Contents[ #Contents + 1 ] = SpacerElement( {
-			AutoWidth = self.PreMargin,
-			IgnoreOnNewLine = true
-		} )
+		Contents[ #Contents + 1 ] = TextElement( Prefix.." " )
 	end
 
 	Contents[ #Contents + 1 ] = ColourElement( MessageColour )
@@ -44,7 +38,7 @@ end
 
 function ChatLine:SetContent( Contents, ShowTimestamp )
 	if ShowTimestamp then
-		local ContentsWithTimestamp = TableNew( 0, #Contents + 2 )
+		local ContentsWithTimestamp = TableNew( #Contents + 2, 0 )
 
 		ContentsWithTimestamp[ #ContentsWithTimestamp + 1 ] = ColourElement( TimestampColour )
 		ContentsWithTimestamp[ #ContentsWithTimestamp + 1 ] = TextElement( OSDate( "%H:%M - " ) )

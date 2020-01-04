@@ -305,14 +305,12 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
 
-		local PrefixMargin = Units.GUIScaled( 5 )
 		local LineMargin = Units.GUIScaled( 2 )
 		local PaddingAmount = GetPaddingAmount()
 
 		local Font, Scale = Plugin:GetFontSize()
 		ChatLine:SetFont( Font )
 		ChatLine:SetTextScale( Scale )
-		ChatLine:SetPreMargin( PrefixMargin )
 		ChatLine:SetLineSpacing( LineMargin )
 
 		Populator( ChatLine, ... )

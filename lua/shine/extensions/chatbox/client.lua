@@ -1092,19 +1092,8 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 		end
 	end
 
-	local PrefixMargin = Scaled( 5, self.ScalarScale )
 	for i = 1, #Recreate do
 		local Message = Recreate[ i ]
-		local Lines = Message.Lines
-		for j = 1, #Lines do
-			local Line = Lines[ j ]
-			for k = 1, #Line do
-				if Shine.Implements( Line[ k ], SpacerElement ) then
-					-- Make sure the spacing is appropriate for the new resolution.
-					Line[ k ].AutoWidth = PrefixMargin
-				end
-			end
-		end
 		self:AddMessageFromLines( Message.Lines )
 	end
 end
@@ -1120,7 +1109,6 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 
 	local Messages = self.Messages
 	local Scaled = SGUI.Layout.Units.Scaled
-	local PrefixMargin = Scaled( 5, self.ScalarScale )
 	local LineMargin = Scaled( 2, self.ScalarScale )
 
 	local NextIndex = #Messages + 1
@@ -1143,7 +1131,6 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 
 	local ChatLine = ReUse or self.ChatBox:Add( "ChatLine" )
 	ChatLine:SetFontScale( Font, Scale )
-	ChatLine:SetPreMargin( PrefixMargin )
 	ChatLine:SetLineSpacing( LineMargin )
 
 	Populator( ChatLine, ... )
