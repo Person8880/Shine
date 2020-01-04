@@ -27,7 +27,9 @@ function Queue:Add( Value )
 end
 
 function Queue:InsertAtFront( Value )
-	return self:InsertAtIndex( 1 )
+	self.First = self.First - 1
+	self.Elements[ self.First ] = Value
+	self.Size = self.Size + 1
 end
 
 function Queue:InsertAtIndex( Index, Value )
@@ -101,6 +103,34 @@ end
 
 function Queue:Peek()
 	return self.Elements[ self.First ]
+end
+
+function Queue:Get( Index )
+	return self.Elements[ self.First + Index - 1 ]
+end
+
+function Queue:IndexOf( Value )
+	local Elements = self.Elements
+
+	for i = self.First, self.Last do
+		if Value == Elements[ i ] then
+			return i - self.First + 1
+		end
+	end
+
+	return nil
+end
+
+function Queue:LastIndexOf( Value )
+	local Elements = self.Elements
+
+	for i = self.Last, self.First, -1 do
+		if Value == Elements[ i ] then
+			return i - self.First + 1
+		end
+	end
+
+	return nil
 end
 
 function Queue:Clear()

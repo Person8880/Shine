@@ -21,6 +21,22 @@ UnitTest:Test( "Add", function( Assert )
 	Assert.Equals( "Size should be 2", 2, Queue:GetCount() )
 end )
 
+UnitTest:Test( "InsertAtFront", function( Assert )
+	local Queue = Shine.Queue()
+	Queue:Add( 1 )
+	Queue:Add( 2 )
+	Queue:Add( 3 )
+
+	Queue:InsertAtFront( 4 )
+
+	Assert.DeepEquals( "Should have inserted 4 behind the first element", {
+		[ 0 ] = 4, 1, 2, 3
+	}, Queue.Elements )
+	Assert.Equals( "First index should be 0", 0, Queue.First )
+	Assert.Equals( "Last index should be 3", 3, Queue.Last )
+	Assert.Equals( "Size should be 4", 4, Queue:GetCount() )
+end )
+
 UnitTest:Test( "InsertAtIndex", function( Assert )
 	local Queue = Shine.Queue()
 	Queue:Add( 1 )
@@ -144,6 +160,34 @@ UnitTest:Test( "Pop", function( Assert )
 	Assert:Equals( 0, Queue:GetCount() )
 
 	Assert:Nil( Queue:Pop() )
+end )
+
+UnitTest:Test( "Get", function( Assert )
+	local Queue = Shine.Queue()
+	for i = 1, 5 do
+		Queue:Add( i + 5 )
+		Assert.Equals( "Should return element at index "..i, i + 5, Queue:Get( i ) )
+	end
+end )
+
+UnitTest:Test( "IndexOf", function( Assert )
+	local Queue = Shine.Queue()
+	for i = 1, 5 do
+		Queue:Add( i % 2 )
+	end
+
+	Assert.Equals( "Should find the first index for value 1", 1, Queue:IndexOf( 1 ) )
+	Assert.Equals( "Should find the first index for value 0", 2, Queue:IndexOf( 0 ) )
+end )
+
+UnitTest:Test( "LastIndexOf", function( Assert )
+	local Queue = Shine.Queue()
+	for i = 1, 5 do
+		Queue:Add( i % 2 )
+	end
+
+	Assert.Equals( "Should find the last index for value 1", 5, Queue:LastIndexOf( 1 ) )
+	Assert.Equals( "Should find the last index for value 0", 4, Queue:LastIndexOf( 0 ) )
 end )
 
 UnitTest:Test( "Clear", function( Assert )
