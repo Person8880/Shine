@@ -715,6 +715,17 @@ do
 		Logger:Debug( "Assigned team members:\n%s", table.ToString( TeamMemberOutput ) )
 	end
 
+	function Plugin:IsClientAFK( AFKKick, Client )
+		-- Consider players that have either been stationary for the appropriate amount of time,
+		-- or have never been seen moving as AFK.
+		return AFKKick:IsAFKFor( Client, self.Config.VoteSettings.AFKTimeInSeconds )
+			or not AFKKick:HasClientMoved( Client )
+	end
+
+	function Plugin:IsRookieModeEnabled( Gamerules )
+		return Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
+	end
+
 	--[[
 		Gets all valid targets for sorting.
 	]]
@@ -731,7 +742,7 @@ do
 		}
 
 		local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
-		local IsRookieMode = Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
+		local IsRookieMode = self:IsRookieModeEnabled( Gamerules )
 
 		local function AddTeamPreference( Player, Client, Preference )
 			TeamMembers.TeamPreferences[ Player ] = Preference
@@ -796,13 +807,6 @@ do
 			AddTeamPreference( Player, Client, Preference )
 		end
 
-		local function IsClientAFK( Client )
-			-- Consider players that have either been stationary for the appropriate amount of time,
-			-- or have never been seen moving as AFK.
-			return AFKKick:IsAFKFor( Client, self.Config.VoteSettings.AFKTimeInSeconds )
-				or not AFKKick:HasClientMoved( Client )
-		end
-
 		local function AddPlayer( Player, Pass )
 			if not Player then return end
 
@@ -824,7 +828,7 @@ do
 			local IsCommander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 
 			if AFKEnabled and self.Config.RemoveAFKPlayersFromTeams then
-				if IsCommander or not IsClientAFK( Client ) then
+				if IsCommander or not self:IsClientAFK( AFKKick, Client ) then
 					-- Player is a commander or is not AFK, add them to the teams.
 					SortPlayer( Player, Client, IsCommander, Pass )
 				elseif Pass == 1 then
@@ -1316,6 +1320,51 @@ function Plugin:GetStartFailureMessage()
 	return "ERROR_CANNOT_START", { ShuffleType = ModeStrings.Mode[ self.Config.BalanceMode ] }
 end
 
+function Plugin:IsPlayerEligibleForShuffle( AFKKick, Player, IsRookieMode )
+	local Client = Player:GetClient()
+	if not Shine:IsValidClient( Client ) then return false end
+
+	if Client:GetIsVirtual() then
+		return self.Config.ApplyToBots
+	end
+
+	if
+		( IsRookieMode and not Player:GetIsRookie() ) or
+		( AFKKick and self:IsClientAFK( AFKKick, Client ) ) or
+		Shine:HasAccess( Client, "sh_randomimmune" )
+	then
+		return false
+	end
+
+	return true
+end
+
+function Plugin:HasEligiblePlayersInReadyRoom()
+	local Gamerules = GetGamerules()
+	if not Gamerules then return false end
+
+	local ReadyRoomTeam = Gamerules:GetTeam( kTeamReadyRoom )
+	if not ReadyRoomTeam then return false end
+
+	local IsRookieMode = self:IsRookieModeEnabled( Gamerules )
+
+	local AFKEnabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
+	-- Apply AFK check only if available and configured to do so.
+	AFKKick = AFKEnabled and self.Config.RemoveAFKPlayersFromTeams and AFKKick
+
+	local HasEligiblePlayer = false
+	local function CheckPlayer( Player )
+		if self:IsPlayerEligibleForShuffle( AFKKick, Player, IsRookieMode ) then
+			HasEligiblePlayer = true
+			return false
+		end
+	end
+
+	ReadyRoomTeam:ForEachPlayer( CheckPlayer )
+
+	return HasEligiblePlayer
+end
+
 function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 	local NumOnTeam1 = #TeamStats[ 1 ].Skills
 	local NumOnTeam2 = #TeamStats[ 2 ].Skills
@@ -1329,7 +1378,14 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 		return true
 	end
 
-	if Abs( NumOnTeam1 - NumOnTeam2 ) > 1 then
+	local PlayerSizeDiff = Abs( NumOnTeam1 - NumOnTeam2 )
+	if PlayerSizeDiff == 1 and self:HasEligiblePlayersInReadyRoom() then
+		-- Teams are off by one, and there's at least 1 player that would be moved onto a team if a shuffle happens.
+		self.Logger:Debug( "Permitting vote as there is a player in the ready room that can make team counts even." )
+		return true
+	end
+
+	if PlayerSizeDiff > 1 then
 		-- Imbalanced number of players on teams, permit a shuffle.
 		self.Logger:Debug( "Permitting vote as team counts are uneven: %s vs. %s", NumOnTeam1, NumOnTeam2 )
 		return true
