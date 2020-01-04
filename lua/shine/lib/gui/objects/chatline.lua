@@ -9,9 +9,11 @@ local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
+local Max = math.max
 local OSDate = os.date
 local TableAdd = table.Add
 local TableNew = require "table.new"
+local tostring = tostring
 
 local ChatLine = {}
 local TimestampColour = Colour( 0.8, 0.8, 0.8 )
@@ -36,20 +38,35 @@ function ChatLine:SetMessage( Tags, PreColour, Prefix, MessageColour, MessageTex
 	self:SetContent( Contents, ShowTimestamp )
 end
 
-function ChatLine:SetContent( Contents, ShowTimestamp )
-	if ShowTimestamp then
-		local ContentsWithTimestamp = TableNew( #Contents + 2, 0 )
-
-		ContentsWithTimestamp[ #ContentsWithTimestamp + 1 ] = ColourElement( TimestampColour )
-		ContentsWithTimestamp[ #ContentsWithTimestamp + 1 ] = TextElement( OSDate( "%H:%M - " ) )
-		TableAdd( ContentsWithTimestamp, Contents )
-
-		Contents = ContentsWithTimestamp
+do
+	local function ComputeWidth( self, TextSizeProvider )
+		local MaxWidth = 0
+		for i = 0, 9 do
+			MaxWidth = Max( MaxWidth, TextSizeProvider:GetWidth( tostring( i ) ) )
+		end
+		-- Make sure all timestamps have the same width.
+		return MaxWidth * 4 + TextSizeProvider:GetWidth( ":" )
 	end
 
-	self.Lines = self:ParseContents( Contents )
-	self.ComputedWrapping = false
-	self:InvalidateLayout()
+	function ChatLine:SetContent( Contents, ShowTimestamp )
+		if ShowTimestamp then
+			local ContentsWithTimestamp = TableNew( #Contents + 4, 0 )
+
+			ContentsWithTimestamp[ #ContentsWithTimestamp + 1 ] = ColourElement( TimestampColour )
+			ContentsWithTimestamp[ #ContentsWithTimestamp + 1 ] = TextElement( {
+				Value = OSDate( "%H:%M" ),
+				ComputeWidth = ComputeWidth
+			} )
+			ContentsWithTimestamp[ #ContentsWithTimestamp + 1 ] = TextElement( " " )
+			TableAdd( ContentsWithTimestamp, Contents )
+
+			Contents = ContentsWithTimestamp
+		end
+
+		self.Lines = self:ParseContents( Contents )
+		self.ComputedWrapping = false
+		self:InvalidateLayout()
+	end
 end
 
 local function UpdateBackgroundSize( self )

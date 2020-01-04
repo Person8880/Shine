@@ -27,6 +27,12 @@ function Text:Init( Text )
 		self.DoClick = Text.DoClick
 		self.DoRightClick = Text.DoRightClick
 		self.Setup = Text.Setup
+
+		self.ComputeWidth = Text.ComputeWidth
+
+		if self.ComputeWidth then
+			self.GetWidth = self.ComputeWidth
+		end
 	end
 
 	return self
