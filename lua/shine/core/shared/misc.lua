@@ -65,4 +65,15 @@ end
 Shine.Hook.Add( "PlayerKeyPress", "ConfirmConnect", function()
 	Shine.Hook.Remove( "PlayerKeyPress", "ConfirmConnect" )
 	Shine.SendNetworkMessage( "Shine_ClientConfirmConnect", {}, true )
+
+	Shine.Hook.CallOnce( "OnFirstPlayerKeyPress" )
+end )
+
+local HasMoved = false
+function Shine.HasLocalPlayerActivityOccurred()
+	return HasMoved
+end
+
+Shine.Hook.Add( "OnFirstPlayerKeyPress", function()
+	HasMoved = true
 end )
