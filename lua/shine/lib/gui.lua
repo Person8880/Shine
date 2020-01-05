@@ -766,65 +766,234 @@ do
 		Output: SGUI control object.
 	]]
 	function SGUI:Create( Class, Parent, ParentElement )
+		if IsType( Class, "table" ) then
+			return self:CreateFromDefinition( Class, Parent, ParentElement )
+		end
+
 		local MetaTable = self.Controls[ Class ]
 		Shine.AssertAtLevel( MetaTable, "[SGUI] '%s' is not a registered SGUI class!", 3, Class )
 
 		return MakeControl( self, MetaTable, Class, Parent, ParentElement )
 	end
 
+	local Binder = require "shine/lib/gui/binding/binder"
+	local TableAdd = table.Add
+
 	local function ShouldAddToLayout( ElementDef )
 		return not ( ElementDef.Props and ElementDef.Props.PositionType == SGUI.PositionType.ABSOLUTE )
 	end
 
-	function SGUI:BuildTree( Parent, Tree )
-		local GlobalProps = Tree.GlobalProps
-		local Elements = {}
+	local function DeferBinding( Element, Binding, DeferredBindings )
+		DeferredBindings[ #DeferredBindings + 1 ] = {
+			Element = Element,
+			Binding = Binding
+		}
+	end
 
-		local function BuildChildren( Parent, Tree )
-			for i = 1, #Tree do
-				local ElementDef = Tree[ i ]
-				local Element
-				if ElementDef.Type == "Layout" then
-					Element = self.Layout:CreateLayout( ElementDef.Class )
-					if Parent.IsLayout then
-						Parent:AddElement( Element )
-					elseif Parent.Layout then
-						Parent.Layout:AddElement( Element )
-					else
-						Parent:SetLayout( Element, true )
-					end
+	local function SetupBinder( Element, Binding, From, To )
+		local Builder = Binder()
+		Builder:WithReducer( Binding.Reducer )
+		Builder:WithInitialState( Binding.InitialState )
+
+		if #To == 0 then
+			Builder:ToElement( Element, To.Property, To )
+		else
+			for j = 1, #To do
+				Builder:ToElement( Element, To[ j ].Property, To[ j ] )
+			end
+		end
+
+		return Builder
+	end
+
+	local function ProcessBindings( Element, Bindings, DeferredBindings )
+		for i = 1, #Bindings do
+			local Binding = Bindings[ i ]
+			local From = Binding.From
+			local To = Binding.To
+
+			local Builder = SetupBinder( Element, Binding, From, To )
+			if #From == 0 then
+				if IsType( From.Element, "string" ) then
+					-- Referring to another element in the tree, wait for the entire tree to be created before binding.
+					DeferBinding( Element, Binding, DeferredBindings )
 				else
-					if Parent.IsLayout then
-						Element = self:Create( ElementDef.Class, Parent:GetParentControl() )
-						Parent:AddElement( Element )
-					else
-						Element = Parent.Add and Parent:Add( ElementDef.Class ) or self:Create( ElementDef.Class, Parent )
-						if Parent.Layout and ShouldAddToLayout( ElementDef ) then
-							Parent.Layout:AddElement( Element )
-						end
+					Builder:FromElement( From.Element, From.Property )
+					Builder:BindProperty()
+				end
+			else
+				local Deferred = false
+				for j = 1, #From do
+					local Source = From[ j ]
+					if IsType( Source.Element, "string" ) then
+						Deferred = true
+						DeferBinding( Element, Binding, DeferredBindings )
+						break
 					end
+					Builder:FromElement( Source.Element, Source.Property )
 				end
 
-				if GlobalProps then
-					Element:SetupFromTable( GlobalProps )
-				end
-
-				if ElementDef.Props then
-					Element:SetupFromTable( ElementDef.Props )
-				end
-
-				if ElementDef.ID then
-					Elements[ ElementDef.ID ] = Element
-				end
-
-				if ElementDef.Children then
-					BuildChildren( Element, ElementDef.Children )
+				if not Deferred then
+					Builder:BindProperties()
 				end
 			end
 		end
-		BuildChildren( Parent, Tree )
+	end
 
-		return Elements
+	local function ProcessPropertyChangeListeners( Element, Listeners )
+		for i = 1, #Listeners do
+			Element:AddPropertyChangeListener( Listeners[ i ].Property, Listeners[ i ].Listener )
+		end
+	end
+
+	local ElementFactories = {
+		Layout = function( ElementDef, Parent )
+			local Element = SGUI.Layout:CreateLayout( ElementDef.Class )
+
+			if Parent.IsLayout then
+				Parent:AddElement( Element )
+			elseif Parent.Layout then
+				Parent.Layout:AddElement( Element )
+			else
+				Parent:SetLayout( Element, true )
+			end
+
+			return Element
+		end,
+
+		Control = function( ElementDef, Parent )
+			local Element
+
+			if Parent then
+				if Parent.IsLayout then
+					Element = SGUI:Create( ElementDef.Class, Parent:GetParentControl() )
+					Parent:AddElement( Element )
+				else
+					Element = Parent.Add and Parent:Add( ElementDef.Class ) or SGUI:Create( ElementDef.Class, Parent )
+					if Parent.Layout and ShouldAddToLayout( ElementDef ) then
+						Parent.Layout:AddElement( Element )
+					end
+				end
+			else
+				Element = SGUI:Create( ElementDef.Class )
+			end
+
+			return Element
+		end
+	}
+
+	local function BuildChildren( Context, Parent, Tree, GlobalProps, Level )
+		local DeferredBindings = Context.DeferredBindings
+		local Elements = Context.Elements
+
+		for i = 1, #Tree do
+			local ElementDef = Tree[ i ]
+			local FactoryFunc = ElementFactories[ ElementDef.Type or "Control" ]
+			Shine.AssertAtLevel( FactoryFunc, "Unknown element type in tree: %s", 4 + Level, ElementDef.Type )
+
+			local Element = FactoryFunc( ElementDef, Parent )
+
+			if GlobalProps then
+				Element:SetupFromTable( GlobalProps )
+			end
+
+			if ElementDef.Props then
+				Element:SetupFromTable( ElementDef.Props )
+			end
+
+			if ElementDef.ID then
+				Elements[ ElementDef.ID ] = Element
+			end
+
+			if ElementDef.Bindings then
+				ProcessBindings( Element, ElementDef.Bindings, DeferredBindings )
+			end
+
+			if ElementDef.PropertyChangeListeners then
+				ProcessPropertyChangeListeners( Element, ElementDef.PropertyChangeListeners )
+			end
+
+			if ElementDef.Children then
+				BuildChildren( Context, Element, ElementDef.Children, GlobalProps, Level + 1 )
+			end
+		end
+	end
+
+	local function ProcessDeferredBindings( Elements, DeferredBindings )
+		for i = 1, #DeferredBindings do
+			local Params = DeferredBindings[ i ]
+
+			local Element = Params.Element
+			local Binding = Params.Binding
+			local From = Binding.From
+			local To = Binding.To
+
+			local Builder = SetupBinder( Element, Binding, From, To )
+			if #From == 0 then
+				local FromElement = Elements[ From.Element ]
+				Shine.AssertAtLevel(
+					FromElement,
+					"Binding specified source element '%s' but it does not exist in the tree. Did you forget to assign an ID to it?",
+					4,
+					From.Element
+				)
+				Builder:FromElement( FromElement, From.Property )
+				Builder:BindProperty()
+			else
+				for j = 1, #From do
+					local Source = From[ j ]
+					local FromElement = Source.Element
+					if IsType( FromElement, "string" ) then
+						FromElement = Elements[ From.Element ]
+						Shine.AssertAtLevel(
+							FromElement,
+							"Binding specified source element '%s' but it does not exist in the tree. Did you forget to assign an ID to it?",
+							4,
+							Source.Element
+						)
+					end
+					Builder:FromElement( FromElement, Source.Property )
+				end
+				Builder:BindProperties()
+			end
+		end
+	end
+
+	local function CallOnBuiltCallbacks( Elements, Callbacks )
+		if IsType( Callbacks, "function" ) then
+			Callbacks( Elements )
+		else
+			for i = 1, #Callacks do
+				Callbacks[ i ]( Elements )
+			end
+		end
+	end
+
+	--[[
+		Takes a table that defines an element tree, and creates all elements.
+
+		Elements may be given an ID, in which case they will be present in the returned table under that ID.
+
+		Inputs:
+			1. A table containing element definitions.
+			2. The parent element to create the top level elements under.
+		Output:
+			A table with all elements that were assigned an ID.
+	]]
+	function SGUI:BuildTree( Tree, Parent )
+		local Context = {
+			Elements = {},
+			DeferredBindings = {}
+		}
+
+		BuildChildren( Context, Parent, Tree, Tree.GlobalProps, 0 )
+		ProcessDeferredBindings( Context.Elements, Context.DeferredBindings )
+
+		if Tree.OnBuilt then
+			CallOnBuiltCallbacks( Context.Elements, Tree.OnBuilt )
+		end
+
+		return Context.Elements
 	end
 end
 
