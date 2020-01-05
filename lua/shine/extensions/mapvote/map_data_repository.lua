@@ -31,6 +31,7 @@ local MapDataRepository = {
 local METADATA_FILE = "config://shine/cache/maps/index.json"
 local OVERVIEW_API_URL = "http://5.39.89.152:7990/ns2/api/overview/%s/%s"
 local UPDATE_CHECK_INTERVAL = 60 * 60 * 24
+local DEFAULT_OVERVIEW_API_CALL_TIMEOUT = 20
 
 local MapOverviews = {}
 local MapPreviews = {}
@@ -197,7 +198,7 @@ local ImageLoaders = {
 			LoadFromURL( ModID, MapName, "PreviewImage", ImageURL, Callback, LastUpdatedTime )
 		end
 	end,
-	OverviewImage = function( ModID, MapName, Callback )
+	OverviewImage = function( ModID, MapName, Callback, TimeoutInSeconds )
 		Shine.TimedHTTPRequest( StringFormat( OVERVIEW_API_URL, ModID, MapName ), "GET", function( Response )
 			local Data = JSONDecode( Response )
 			if not Data or not IsType( Data.OverviewURL, "string" ) then
@@ -208,17 +209,22 @@ local ImageLoaders = {
 			LoadFromURL( ModID, MapName, "OverviewImage", Data.OverviewURL, Callback )
 		end, function()
 			Callback( MapName, nil, "Timed out attempting to acquire overview." )
-		end, 10 )
+		end, TimeoutInSeconds or DEFAULT_OVERVIEW_API_CALL_TIMEOUT )
 	end
 }
 
-local function LoadImageFromCache( ModID, MapName, CacheKey, Callback )
+local function GetCacheEntry( ModID, MapName )
 	local CacheEntry = ModMaps[ ModID ]
 	if MapName then
-		CacheEntry = CacheEntry and CacheEntry.Maps[ MapName ]
+		CacheEntry = CacheEntry and CacheEntry.Maps and CacheEntry.Maps[ MapName ]
 	end
+	return CacheEntry
+end
 
+local function LoadImageFromCache( ModID, MapName, CacheKey, Callback )
+	local CacheEntry = GetCacheEntry( ModID, MapName )
 	local Now = Clock()
+
 	if CacheEntry and IsType( CacheEntry[ CacheKey ], "string" ) and ( CacheEntry.NextUpdateCheckTime or 0 ) > Now then
 		-- Cache entry exists, and has not yet expired, so load it from the file.
 		TextureLoader.LoadFromFile( CacheEntry[ CacheKey ], function( TextureName, Err )
@@ -245,11 +251,7 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 		end
 
 		-- Couldn't load image from the remote source, so check to see if we have a stale cached image.
-		local CacheEntry = ModMaps[ ModID ]
-		if IsForMap then
-			CacheEntry = CacheEntry and CacheEntry.Maps[ MapName ]
-		end
-
+		local CacheEntry = GetCacheEntry( ModID, IsForMap and MapName )
 		if CacheEntry and CacheEntry[ CacheKey ] then
 			MapDataRepository.Logger:Debug(
 				"Loading %s for %s/%s from remote source failed, using stale cached image.",
@@ -388,8 +390,19 @@ function MapDataRepository.GetOverviewImage( ModID, MapName, Callback )
 		return
 	end
 
-	return ImageLoaders.OverviewImage( ModID, MapName,
-		CallbackWithFallbackToCache( ModID, true, "OverviewImage", Callback ) )
+	local TimeoutInSeconds = DEFAULT_OVERVIEW_API_CALL_TIMEOUT
+	local CacheEntry = GetCacheEntry( ModID, MapName )
+	if CacheEntry and IsType( CacheEntry.OverviewImage, "string" ) then
+		-- Wait less time to get an updated image if it's already cached as a timeout will fallback to the cache.
+		TimeoutInSeconds = 5
+	end
+
+	return ImageLoaders.OverviewImage(
+		ModID,
+		MapName,
+		CallbackWithFallbackToCache( ModID, true, "OverviewImage", Callback ),
+		TimeoutInSeconds
+	)
 end
 
 return MapDataRepository

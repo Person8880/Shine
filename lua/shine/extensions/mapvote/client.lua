@@ -733,8 +733,6 @@ function Plugin:ReceiveEndVote( Data )
 end
 
 function Plugin:ReceiveMapMod( Data )
-	-- Note, we assume the first mod in the list in the map cycle is the map.
-	-- If it's not, we won't get the right preview image.
 	self.MapMods = self.MapMods or {}
 	self.MapMods[ Data.MapName ] = Data.ModID
 
