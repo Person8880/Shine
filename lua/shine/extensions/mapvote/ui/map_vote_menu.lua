@@ -534,7 +534,11 @@ end
 
 function MapVoteMenu:SetupTileGrid()
 	local Container = self.Elements.MapTileGridLayout
-	local Size = Container:GetSize()
+	local Padding = Container:GetComputedPadding()
+
+	local Size = Vector( Container:GetSize() )
+	Size.x = Size.x - Units.Spacing.GetWidth( Padding )
+	Size.y = Size.y - Units.Spacing.GetHeight( Padding )
 
 	local UniformGridSize = Ceil( Sqrt( #self.MapTiles ) )
 
