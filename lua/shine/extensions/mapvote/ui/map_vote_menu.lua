@@ -21,7 +21,6 @@ local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 local Units = SGUI.Layout.Units
 
-local Binder = require "shine/lib/gui/binding/binder"
 local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
 local MapTile = require "shine/extensions/mapvote/ui/map_vote_menu_tile"
 local TextureLoader = require "shine/lib/gui/texture_loader"
@@ -204,7 +203,7 @@ function MapVoteMenu:Initialise()
 	local TeamVariation = self:GetTeamVariation()
 	local SmallPadding = Units.GUIScaled( 8 )
 
-	self.Elements = SGUI:BuildTree( self, {
+	self.Elements = SGUI:BuildTree( {
 		GlobalProps = {
 			Skin = Skin
 		},
@@ -284,7 +283,7 @@ function MapVoteMenu:Initialise()
 				}
 			}
 		}
-	} )
+	}, self )
 
 	self.Elements.MapTileGridLayout = self.Elements.MapTileGrid.Layout
 	self.Elements.MapTileGridLayout:AddPropertyChangeListener( "Size", function( Size )
@@ -293,7 +292,7 @@ function MapVoteMenu:Initialise()
 
 	self:AddCloseButton( self )
 
-	local ConfigButton = SGUI:BuildTree( self.CloseButton, {
+	local ConfigButton = SGUI:BuildTree( {
 		{
 			ID = "ConfigButton",
 			Class = "Button",
@@ -339,16 +338,23 @@ function MapVoteMenu:Initialise()
 					}
 				end,
 				StyleName = "CloseButton"
+			},
+			Bindings = {
+				{
+					From = {
+						Element = "ConfigButton",
+						Property = "Menu"
+					},
+					To = {
+						Property = "StyleName",
+						Transformer = function( Menu )
+							return Menu and "ConfigButton" or "CloseButton"
+						end
+					}
+				}
 			}
 		}
-	} ).ConfigButton
-
-	Binder():FromElement( ConfigButton, "Menu" )
-		:ToElement( ConfigButton, "StyleName", {
-			Transformer = function( Menu )
-				return Menu and "ConfigButton" or "CloseButton"
-			end
-		} ):BindProperty()
+	}, self.CloseButton ).ConfigButton
 
 	ConfigButton:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize(
 		SGUI.FontFamilies.Ionicons,
@@ -493,6 +499,7 @@ function MapVoteMenu:SetMaps( Maps )
 		Tile:SetNumVotes( Entry.NumVotes )
 		Tile:SetInheritsParentAlpha( true )
 		Tile:SetTeamVariation( self:GetTeamVariation() )
+		Tile:SetMapVoteMenu( self )
 
 		if not LoadModPreviews and Entry.ModID then
 			Tile:OnPreviewTextureFailed( "Mod previews are disabled." )

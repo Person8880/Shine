@@ -21,6 +21,7 @@ local TextureLoader = require "shine/lib/gui/texture_loader"
 
 local MapTile = SGUI:DefineControl( "MapTile", "Button" )
 
+SGUI.AddProperty( MapTile, "MapVoteMenu" )
 SGUI.AddProperty( MapTile, "NumVotes", 0 )
 SGUI.AddProperty( MapTile, "OverviewTexture" )
 SGUI.AddProperty( MapTile, "PreviewTexture" )
@@ -45,7 +46,7 @@ function MapTile:Initialise()
 	self:SetHorizontal( false )
 	self.Highlighted = false
 
-	TableShallowMerge( SGUI:BuildTree( self, {
+	TableShallowMerge( SGUI:BuildTree( {
 		{
 			Type = "Layout",
 			Class = "Vertical",
@@ -62,6 +63,59 @@ function MapTile:Initialise()
 						IsVisible = false,
 						InheritsParentAlpha = true,
 						StyleName = "PreviewImage"
+					},
+					Bindings = {
+						{
+							From = {
+								Element = self,
+								Property = "PreviewTexture"
+							},
+							To = {
+								{
+									Property = "Texture"
+								},
+								{
+									Property = "TextureCoordinates",
+									Filter = function( Texture )
+										-- Apply only to mounted loading screens textures (assumed vanilla map).
+										return Texture ~= nil and StringStartsWith( Texture, "screens/" )
+									end,
+									Transformer = function( Texture )
+										-- Magic numbers that seem to work well. Thankfully each loading screen seems to
+										-- follow a standard template with the same position for the map name + minimap.
+										return 185 / 1920, 185 / 1200, ( 185 + 875 ) / 1920, ( 185 + 875 ) / 1200
+									end
+								}
+							}
+						}
+					},
+					PropertyChangeListeners = {
+						{
+							Property = "Texture",
+							Listener = function( Texture )
+								if not Texture then
+									if SGUI.IsValid( self.LoadingIndicatorContainer ) then
+										self.LoadingIndicatorContainer:SetIsVisible( true )
+										self.PreviewImage:SetIsVisible( false )
+									end
+									return
+								end
+
+								if SGUI.IsValid( self.LoadingIndicatorContainer ) then
+									self.LoadingIndicatorContainer:SetIsVisible( false )
+								end
+
+								self.PreviewImage:SetIsVisible( true )
+
+								if StringStartsWith( Texture, "screens/" ) then
+									-- Image was already mounted (thus there was no delay), display immediately.
+									return
+								end
+
+								-- Fade the image in after loading.
+								self.PreviewImage:AlphaTo( nil, 0, 1, 0, 0.3 )
+							end
+						}
 					}
 				},
 				{
@@ -81,6 +135,17 @@ function MapTile:Initialise()
 								AutoSize = Units.UnitVector( Units.Percentage( 25 ), 0 ),
 								AspectRatio = 1,
 								StyleName = self:GetTeamVariation()
+							},
+							Bindings = {
+								{
+									From = {
+										Element = self,
+										Property = "TeamVariation"
+									},
+									To = {
+										Property = "StyleName"
+									}
+								}
 							}
 						}
 					}
@@ -109,6 +174,18 @@ function MapTile:Initialise()
 							Client.ShowWebpage( StringFormat( "https://steamcommunity.com/sharedfiles/filedetails/?id=%s", self.ModID ) )
 						end,
 						Tooltip = Locale:GetPhrase( "mapvote", "SHOW_MOD_TOOLTIP" )
+					},
+					Bindings = {
+						{
+							From = {
+								Element = self,
+								Property = "Highlighted",
+							},
+							To = {
+								Property = "IsVisible",
+								Filter = function() return self.ModID ~= nil end
+							}
+						}
 					}
 				},
 				{
@@ -138,6 +215,17 @@ function MapTile:Initialise()
 							end
 						end,
 						Tooltip = Locale:GetPhrase( "mapvote", "TOGGLE_MAP_OVERVIEW_TOOLTIP" )
+					},
+					Bindings = {
+						{
+							From = {
+								Element = self,
+								Property = "Highlighted",
+							},
+							To = {
+								Property = "IsVisible"
+							}
+						}
 					}
 				}
 			}
@@ -159,41 +247,56 @@ function MapTile:Initialise()
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						StyleName = "MapTileLabel"
+					},
+					Bindings = {
+						{
+							From = {
+								Element = self,
+								Property = "NumVotes"
+							},
+							To = {
+								Property = "Text",
+								Transformer = function( NumVotes )
+									return Locale:GetInterpolatedPhrase( "mapvote", "VOTE_COUNTER", {
+										NumVotes = NumVotes
+									} )
+								end
+							}
+						},
+						{
+							From = {
+								Element = self,
+								Property = "WinnerType"
+							},
+							To = {
+								Property = "StyleName",
+								Transformer = function( WinnerType )
+									if WinnerType == self.WinnerTypeName.WINNER then
+										return "MapTileVoteCountWinner"
+									end
+
+									if WinnerType == self.WinnerTypeName.TIED_WINNER then
+										return "MapTileVoteCountTied"
+									end
+
+									return "MapTileLabel"
+								end
+							}
+						}
 					}
 				}
 			}
-		}
-	} ), self )
+		},
+		OnBuilt = function( Elements )
+			Elements.MapNameLabel:SetAutoSize(
+				Units.UnitVector(
+					Units.Min( Units.Auto(), Units.Percentage( 100 ) - Units.Auto( Elements.ShowOverviewButton ) * 2 ),
+					Units.Auto()
+				)
+			)
+		end
+	}, self ), self )
 
-	self.MapNameLabel:SetAutoSize(
-		Units.UnitVector(
-			Units.Min( Units.Auto(), Units.Percentage( 100 ) - Units.Auto( self.ShowOverviewButton ) * 2 ),
-			Units.Auto()
-		)
-	)
-
-	Binder():FromElement( self, "NumVotes" )
-		:ToElement( self.VoteCounterLabel, "Text", {
-			Transformer = function( NumVotes )
-				return Locale:GetInterpolatedPhrase( "mapvote", "VOTE_COUNTER", {
-					NumVotes = NumVotes
-				} )
-			end
-		} ):BindProperty()
-	Binder():FromElement( self, "WinnerType" )
-		:ToElement( self.VoteCounterLabel, "StyleName", {
-			Transformer = function( WinnerType )
-				if WinnerType == self.WinnerTypeName.WINNER then
-					return "MapTileVoteCountWinner"
-				end
-
-				if WinnerType == self.WinnerTypeName.TIED_WINNER then
-					return "MapTileVoteCountTied"
-				end
-
-				return "MapTileLabel"
-			end
-		} ):BindProperty()
 	Binder():FromElement( self, "Selected" )
 		:ToElement( self, "Icon", {
 			Transformer = function( Selected )
@@ -204,56 +307,6 @@ function MapTile:Initialise()
 				return nil
 			end
 		} ):BindProperty()
-
-	Binder():FromElement( self, "PreviewTexture" )
-		:ToElement( self.PreviewImage, "Texture" )
-		:ToElement( self.PreviewImage, "TextureCoordinates", {
-			Filter = function( Texture )
-				-- Apply only to mounted loading screens textures (assumed vanilla map).
-				return Texture ~= nil and StringStartsWith( Texture, "screens/" )
-			end,
-			Transformer = function( Texture )
-				-- Magic numbers that seem to work well. Thankfully each loading screen seems to follow a standard
-				-- template with the same position for the map name + minimap.
-				return 185 / 1920, 185 / 1200, ( 185 + 875 ) / 1920, ( 185 + 875 ) / 1200
-			end
-		} )
-		:BindProperty()
-
-	Binder():FromElement( self, "Highlighted" )
-		:ToElement( self.ShowOverviewButton, "IsVisible" )
-		:ToElement( self.ShowModButton, "IsVisible", {
-			Filter = function() return self.ModID ~= nil end
-		} )
-		:BindProperty()
-
-	Binder():FromElement( self, "TeamVariation" )
-		:ToElement( self.LoadingIndicator, "StyleName" )
-		:BindProperty()
-
-	self.PreviewImage:AddPropertyChangeListener( "Texture", function( Texture )
-		if not Texture then
-			if SGUI.IsValid( self.LoadingIndicatorContainer ) then
-				self.LoadingIndicatorContainer:SetIsVisible( true )
-				self.PreviewImage:SetIsVisible( false )
-			end
-			return
-		end
-
-		if SGUI.IsValid( self.LoadingIndicatorContainer ) then
-			self.LoadingIndicatorContainer:SetIsVisible( false )
-		end
-
-		self.PreviewImage:SetIsVisible( true )
-
-		if StringStartsWith( Texture, "screens/" ) then
-			-- Image was already mounted (thus there was no delay), display immediately.
-			return
-		end
-
-		-- Fade the image in after loading.
-		self.PreviewImage:AlphaTo( nil, 0, 1, 0, 0.3 )
-	end )
 end
 
 function MapTile:SetHighlighted( Highlighted, SkipAnim )
@@ -271,7 +324,7 @@ end
 
 function MapTile:ShowOverviewImage()
 	if not SGUI.IsValid( self.OverviewImageContainer ) then
-		TableShallowMerge( SGUI:BuildTree( self.PreviewImage, {
+		TableShallowMerge( SGUI:BuildTree( {
 			{
 				Type = "Layout",
 				Class = "Vertical",
@@ -315,7 +368,7 @@ function MapTile:ShowOverviewImage()
 					}
 				}
 			}
-		} ), self )
+		}, self.PreviewImage ), self )
 		self.PreviewImage:InvalidateLayout( true )
 		self.OverviewImageContainer:AlphaTo( nil, nil, 0.5, 0, 0.3 )
 	end
@@ -363,7 +416,7 @@ function MapTile:HideOverviewImage()
 end
 
 function MapTile:DoClick()
-	self.Parent:SetSelectedMap( self.MapName )
+	self.MapVoteMenu:SetSelectedMap( self.MapName )
 	return true
 end
 

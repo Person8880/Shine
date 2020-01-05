@@ -2,8 +2,6 @@
 	Defines the notification that appears on screen when a map vote is in-progress.
 ]]
 
-local Binder = require "shine/lib/gui/binding/binder"
-
 local Locale = Shine.Locale
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
@@ -84,77 +82,6 @@ function MapVoteNotification:Initialise()
 
 	self:SetSkin( Skin )
 
-	self.Elements = SGUI:BuildTree( self, {
-		{
-			ID = "KeybindBackground",
-			Class = "Row",
-			Props = {
-				Fill = false,
-				AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
-				Padding = Units.Spacing( LargePadding, LargePadding, LargePadding, LargePadding )
-			},
-			Children = {
-				{
-					ID = "KeybindImage",
-					Class = "Image",
-					Props = {
-						Texture = "ui/keyboard_key_small.dds",
-						BlendTechnique = GUIItem.Add,
-						AutoSize = Units.UnitVector( Units.GUIScaled( 84 ), Units.GUIScaled( 84 ) ),
-					},
-					Children = {
-						{
-							Type = "Layout",
-							Class = "Vertical",
-							Props = {
-								Fill = true
-							},
-							Children = {
-								{
-									ID = "KeybindLabel",
-									Class = "Label",
-									Props = {
-										Alignment = SGUI.LayoutAlignment.CENTRE,
-										CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-										Margin = Units.Spacing( 0, Units.GUIScaled( -16 ), 0, 0 ),
-										TextAlignmentX = GUIItem.Align_Center,
-										UseAlignmentCompensation = true
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		{
-			Class = "Column",
-			Props = {
-				Fill = false,
-				AutoSize = Units.UnitVector( Units.Auto(), Units.Percentage( 100 ) ),
-				Padding = Units.Spacing( LargePadding, LargePadding, LargePadding, LargePadding )
-			},
-			Children = {
-				{
-					Class = "Label",
-					Props = {
-						Text = Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_TITLE" ),
-						Margin = Units.Spacing( 0, 0, 0, SmallPadding ),
-						Alignment = SGUI.LayoutAlignment.CENTRE
-					}
-				},
-				{
-					ID = "CountdownLabel",
-					Class = "Label",
-					Props = {
-						Text = "00:00",
-						Alignment = SGUI.LayoutAlignment.CENTRE
-					}
-				}
-			}
-		}
-	} )
-
 	local NiceKeyNames = {
 		NumPadAdd = "NP +",
 		NumPadPeriod = "NP .",
@@ -191,38 +118,119 @@ function MapVoteNotification:Initialise()
 		return NiceKeyNames[ Keybind ] or SplitIntoWords( Keybind )
 	end
 
-	Binder():FromElement( self, "Keybind" )
-		:ToElement( self.Elements.KeybindLabel, "Text", {
-			Filter = function( Keybind )
-				return not not Keybind
-			end,
+	local function ComputeFontForKeybind( Keybind )
+		if not Keybind then
+			return DefaultLabelFont
+		end
 
-			Transformer = GetKeyBindDisplayText
-		} )
-		:BindProperty()
-	Binder():FromElement( self, "Keybind" )
-		:ToElement( self.Elements.KeybindLabel, "AutoFont", {
-			Transformer = function( Keybind )
-				if not Keybind then
-					return DefaultLabelFont
-				end
+		Keybind = GetKeyBindDisplayText( Keybind )
 
-				Keybind = GetKeyBindDisplayText( Keybind )
+		local Font, Scale = SGUI.FontManager.GetFont( SGUI.FontFamilies.MicrogrammaDBolExt, 32 )
+		local Width = CalculateTextSize( Font, Keybind ).x
 
-				local Font, Scale = SGUI.FontManager.GetFont( SGUI.FontFamilies.MicrogrammaDBolExt, 32 )
-				local Width = CalculateTextSize( Font, Keybind ).x
+		if Width > KeyTextureMaxTextWidth then
+			return {
+				Family = SGUI.FontFamilies.MicrogrammaDBolExt,
+				Size = Units.GUIScaled( 32 * ( KeyTextureMaxTextWidth / Width ) )
+			}
+		end
 
-				if Width > KeyTextureMaxTextWidth then
-					return {
-						Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-						Size = Units.GUIScaled( 32 * ( KeyTextureMaxTextWidth / Width ) )
+		return DefaultLabelFont
+	end
+
+	self.Elements = SGUI:BuildTree( {
+		{
+			ID = "KeybindBackground",
+			Class = "Row",
+			Props = {
+				Fill = false,
+				AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+				Padding = Units.Spacing( LargePadding, LargePadding, LargePadding, LargePadding )
+			},
+			Children = {
+				{
+					ID = "KeybindImage",
+					Class = "Image",
+					Props = {
+						Texture = "ui/keyboard_key_small.dds",
+						BlendTechnique = GUIItem.Add,
+						AutoSize = Units.UnitVector( Units.GUIScaled( 84 ), Units.GUIScaled( 84 ) ),
+					},
+					Children = {
+						{
+							Type = "Layout",
+							Class = "Vertical",
+							Props = {
+								Fill = true
+							},
+							Children = {
+								{
+									ID = "KeybindLabel",
+									Class = "Label",
+									Props = {
+										Alignment = SGUI.LayoutAlignment.CENTRE,
+										CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+										Margin = Units.Spacing( 0, Units.GUIScaled( -16 ), 0, 0 ),
+										TextAlignmentX = GUIItem.Align_Center,
+										UseAlignmentCompensation = true
+									},
+									Bindings = {
+										{
+											From = {
+												Element = self,
+												Property = "Keybind"
+											},
+											To = {
+												Property = "Text",
+												Filter = function( Keybind ) return not not Keybind end,
+												Transformer = GetKeyBindDisplayText
+											}
+										},
+										{
+											From = {
+												Element = self,
+												Property = "Keybind"
+											},
+											To = {
+												Property = "AutoFont",
+												Transformer = ComputeFontForKeybind
+											}
+										}
+									}
+								}
+							}
+						}
 					}
-				end
-
-				return DefaultLabelFont
-			end
-		} )
-		:BindProperty()
+				}
+			}
+		},
+		{
+			Class = "Column",
+			Props = {
+				Fill = false,
+				AutoSize = Units.UnitVector( Units.Auto(), Units.Percentage( 100 ) ),
+				Padding = Units.Spacing( LargePadding, LargePadding, LargePadding, LargePadding )
+			},
+			Children = {
+				{
+					Class = "Label",
+					Props = {
+						Text = Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_TITLE" ),
+						Margin = Units.Spacing( 0, 0, 0, SmallPadding ),
+						Alignment = SGUI.LayoutAlignment.CENTRE
+					}
+				},
+				{
+					ID = "CountdownLabel",
+					Class = "Label",
+					Props = {
+						Text = "00:00",
+						Alignment = SGUI.LayoutAlignment.CENTRE
+					}
+				}
+			}
+		}
+	}, self )
 end
 
 function MapVoteNotification:SetLayer( Layer )
