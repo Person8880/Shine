@@ -11,6 +11,7 @@ local MapDataRepository = require "shine/extensions/mapvote/map_data_repository"
 local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
 local IsType = Shine.IsType
 local SharedTime = Shared.GetTime
@@ -308,7 +309,6 @@ do
 		return false
 	end
 
-	local Units = SGUI.Layout.Units
 	local GUIScaled = Units.GUIScaled
 	local UnitVector = Units.UnitVector
 
@@ -459,12 +459,19 @@ do
 
 			function self.FullVoteMenu.OnClose()
 				Shine.ScreenText.SetIsVisible( true )
+				if SGUI.IsValid( self.MapVoteNotification ) then
+					self.MapVoteNotification:FadeIn()
+				end
 			end
 		end
 
 		if not self.FullVoteMenu:GetIsVisible() then
 			SGUI:EnableMouse( true )
 			self.FullVoteMenu:FadeIn()
+
+			if SGUI.IsValid( self.MapVoteNotification ) then
+				self.MapVoteNotification:Hide()
+			end
 
 			Shine.ScreenText.SetIsVisible( false )
 
@@ -473,15 +480,27 @@ do
 	end
 
 	function Plugin:OnResolutionChanged()
-		if not SGUI.IsValid( self.FullVoteMenu ) then return end
+		if SGUI.IsValid( self.FullVoteMenu ) then
+			local WasVisible = self.FullVoteMenu:GetIsVisible()
 
-		local WasVisible = self.FullVoteMenu:GetIsVisible()
+			self.FullVoteMenu:Destroy()
+			self.FullVoteMenu = nil
 
-		self.FullVoteMenu:Destroy()
-		self.FullVoteMenu = nil
+			if WasVisible then
+				self:ShowFullVoteMenu()
+			end
+		end
 
-		if WasVisible then
-			self:ShowFullVoteMenu()
+		if SGUI.IsValid( self.MapVoteNotification ) then
+			self.MapVoteNotification:Destroy()
+			self.MapVoteNotification = nil
+
+			local Notification = self:CreateMapVoteNotification( Shine.VoteButton or "M" )
+			Notification:UpdateTeamVariation()
+
+			if SGUI.IsValid( self.FullVoteMenu ) and self.FullVoteMenu:GetIsVisible() then
+				Notification:SetIsVisible( false )
+			end
 		end
 	end
 
@@ -678,6 +697,15 @@ function Plugin:ReceiveEndVote( Data )
 			end
 		end )
 	end
+
+	if SGUI.IsValid( self.MapVoteNotification ) then
+		self.MapVoteNotification:Hide( function()
+			if SGUI.IsValid( self.MapVoteNotification ) then
+				self.MapVoteNotification:Destroy()
+				self.MapVoteNotification = nil
+			end
+		end )
+	end
 end
 
 function Plugin:ReceiveMapMod( Data )
@@ -726,6 +754,31 @@ local function GetMapVoteText( self, NextMap, VoteButton, Maps, InitialText, Vot
 	return VoteMessage
 end
 
+local MapVoteNotification = require "shine/extensions/mapvote/ui/map_vote_notification"
+
+function Plugin:OnLocalPlayerChanged( Player )
+	if not SGUI.IsValid( self.MapVoteNotification ) then return end
+	self.MapVoteNotification:UpdateTeamVariation()
+end
+
+function Plugin:CreateMapVoteNotification( VoteButton )
+	self.MapVoteNotification = SGUI:CreateFromDefinition( MapVoteNotification )
+	self.MapVoteNotification:SetKeybind( VoteButton )
+	self.MapVoteNotification:SetEndTime( self.EndTime )
+	self.MapVoteNotification:InvalidateLayout( true )
+	self.MapVoteNotification:SetSize(
+		Vector2(
+			self.MapVoteNotification:GetContentSizeForAxis( 1 ),
+			self.MapVoteNotification:GetMaxSizeAlongAxis( 2 )
+		)
+	)
+	local W, H = SGUI.GetScreenSize()
+	self.MapVoteNotification:SetPos(
+		Vector2( W * 0.95 - self.MapVoteNotification:GetSize().x, H * 0.2 )
+	)
+	return self.MapVoteNotification
+end
+
 function Plugin:ReceiveVoteOptions( Message )
 	Shine.CheckVoteMenuBind()
 
@@ -753,105 +806,109 @@ function Plugin:ReceiveVoteOptions( Message )
 	local VoteButton = Shine.VoteButton or "M"
 	local VoteButtonCandidates = Shine.VoteButtonCandidates
 
-	local VoteMessage = GetMapVoteText( self, NextMap, ButtonBound and VoteButton or nil,
-		Maps, true, VoteButtonCandidates )
+	if ButtonBound then
+		self:CreateMapVoteNotification( VoteButton ):FadeIn()
+	else
+		local VoteMessage = GetMapVoteText( self, NextMap, ButtonBound and VoteButton or nil,
+			Maps, true, VoteButtonCandidates )
 
-	if NextMap and TimeLeft > 0 and ShowTimeLeft then
-		VoteMessage = StringFormat( "%s\n%s", VoteMessage, self:GetPhrase( "TIME_LEFT" ) )
-	end
-
-	if NextMap and ShowTimeLeft then
-		local ScreenText = Shine.ScreenText.Add( "MapVote", {
-			X = 0.95, Y = 0.2,
-			Text = VoteMessage,
-			Duration = Duration,
-			R = 255, G = 0, B = 0,
-			Alignment = 2,
-			Size = 1,
-			FadeIn = 0.5,
-			IgnoreFormat = true
-		} )
-
-		ScreenText.TimeLeft = TimeLeft
-
-		ScreenText.Obj:SetText( StringFormat( ScreenText.Text,
-			string.TimeToString( ScreenText.Duration ),
-			string.TimeToString( ScreenText.TimeLeft ) ) )
-
-		function ScreenText:UpdateText()
-			self.Obj:SetText( StringFormat( self.Text,
-				string.TimeToString( self.Duration ),
-				string.TimeToString( self.TimeLeft ) ) )
+		if NextMap and TimeLeft > 0 and ShowTimeLeft then
+			VoteMessage = StringFormat( "%s\n%s", VoteMessage, self:GetPhrase( "TIME_LEFT" ) )
 		end
 
-		function ScreenText:Think()
-			self.TimeLeft = self.TimeLeft - 1
+		if NextMap and ShowTimeLeft then
+			local ScreenText = Shine.ScreenText.Add( "MapVote", {
+				X = 0.95, Y = 0.2,
+				Text = VoteMessage,
+				Duration = Duration,
+				R = 255, G = 0, B = 0,
+				Alignment = 2,
+				Size = 1,
+				FadeIn = 0.5,
+				IgnoreFormat = true
+			} )
 
-			if self.Duration <= Duration - 10 and self.Stage < 2 then
-				self.Stage = 2
-				self.Colour = Colour( 1, 1, 1 )
-				self.Obj:SetColor( self.Colour )
+			ScreenText.TimeLeft = TimeLeft
 
-				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
-					Maps, false, VoteButtonCandidates )
+			ScreenText.Obj:SetText( StringFormat( ScreenText.Text,
+				string.TimeToString( ScreenText.Duration ),
+				string.TimeToString( ScreenText.TimeLeft ) ) )
 
-				if self.TimeLeft > 0 then
-					self.Text = StringFormat( "%s\n%s", self.Text, Plugin:GetPhrase( "TIME_LEFT" ) )
+			function ScreenText:UpdateText()
+				self.Obj:SetText( StringFormat( self.Text,
+					string.TimeToString( self.Duration ),
+					string.TimeToString( self.TimeLeft ) ) )
+			end
+
+			function ScreenText:Think()
+				self.TimeLeft = self.TimeLeft - 1
+
+				if self.Duration <= Duration - 10 and self.Stage < 2 then
+					self.Stage = 2
+					self.Colour = Colour( 1, 1, 1 )
+					self.Obj:SetColor( self.Colour )
+
+					self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
+						Maps, false, VoteButtonCandidates )
+
+					if self.TimeLeft > 0 then
+						self.Text = StringFormat( "%s\n%s", self.Text, Plugin:GetPhrase( "TIME_LEFT" ) )
+					end
+
+					self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ),
+						string.TimeToString( self.TimeLeft ) ) )
+
+					return
 				end
 
-				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ),
-					string.TimeToString( self.TimeLeft ) ) )
-
-				return
+				if self.Duration <= 10 and self.Stage < 3 then
+					self.Stage = 3
+					self.Colour = Colour( 1, 0, 0 )
+					self.Obj:SetColor( self.Colour )
+				end
 			end
 
-			if self.Duration <= 10 and self.Stage < 3 then
-				self.Stage = 3
-				self.Colour = Colour( 1, 0, 0 )
-				self.Obj:SetColor( self.Colour )
+			ScreenText.Stage = 1
+
+			self.ScreenText = ScreenText
+		else
+			local ScreenText = Shine.ScreenText.Add( "MapVote", {
+				X = 0.95, Y = 0.2,
+				Text = VoteMessage,
+				Duration = Duration,
+				R = 255, G = 0, B = 0,
+				Alignment = 2,
+				Size = 1,
+				FadeIn = 0.5
+			} )
+
+			ScreenText.Obj:SetText( StringFormat( ScreenText.Text,
+				string.TimeToString( ScreenText.Duration ) ) )
+
+			function ScreenText:Think()
+				if self.Duration <= Duration - 10 and self.Stage < 2 then
+					self.Stage = 2
+					self.Colour = Colour( 1, 1, 1 )
+					self.Obj:SetColor( self.Colour )
+
+					self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
+						Maps, false, VoteButtonCandidates )
+					self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
+
+					return
+				end
+
+				if self.Duration <= 10 and self.Stage < 3 then
+					self.Stage = 3
+					self.Colour = Colour( 1, 0, 0 )
+					self.Obj:SetColor( self.Colour )
+				end
 			end
+
+			ScreenText.Stage = 1
+
+			self.ScreenText = ScreenText
 		end
-
-		ScreenText.Stage = 1
-
-		self.ScreenText = ScreenText
-	else
-		local ScreenText = Shine.ScreenText.Add( "MapVote", {
-			X = 0.95, Y = 0.2,
-			Text = VoteMessage,
-			Duration = Duration,
-			R = 255, G = 0, B = 0,
-			Alignment = 2,
-			Size = 1,
-			FadeIn = 0.5
-		} )
-
-		ScreenText.Obj:SetText( StringFormat( ScreenText.Text,
-			string.TimeToString( ScreenText.Duration ) ) )
-
-		function ScreenText:Think()
-			if self.Duration <= Duration - 10 and self.Stage < 2 then
-				self.Stage = 2
-				self.Colour = Colour( 1, 1, 1 )
-				self.Obj:SetColor( self.Colour )
-
-				self.Text = GetMapVoteText( Plugin, NextMap, ButtonBound and VoteButton or nil,
-					Maps, false, VoteButtonCandidates )
-				self.Obj:SetText( StringFormat( self.Text, string.TimeToString( self.Duration ) ) )
-
-				return
-			end
-
-			if self.Duration <= 10 and self.Stage < 3 then
-				self.Stage = 3
-				self.Colour = Colour( 1, 0, 0 )
-				self.Obj:SetColor( self.Colour )
-			end
-		end
-
-		ScreenText.Stage = 1
-
-		self.ScreenText = ScreenText
 	end
 
 	self:AutoOpenVoteMenu( Message.ForceMenuOpen )
