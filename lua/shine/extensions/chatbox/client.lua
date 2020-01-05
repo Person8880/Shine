@@ -6,7 +6,6 @@
 
 local Binder = require "shine/lib/gui/binding/binder"
 local ChatAPI = require "shine/core/shared/chat/chat_api"
-local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
 
 local Shine = Shine
 
