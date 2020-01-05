@@ -403,6 +403,14 @@ do
 	end
 
 	local MapVoteMenu = require "shine/extensions/mapvote/ui/map_vote_menu"
+
+	function Plugin:SetScreenBlurred( Blurred )
+		if not self.ScreenBlur then
+			self.ScreenBlur = Client.CreateScreenEffect( "shaders/Blur.screenfx" )
+		end
+		self.ScreenBlur:SetActive( not not Blurred )
+	end
+
 	function Plugin:ShowFullVoteMenu()
 		if not SGUI.IsValid( self.FullVoteMenu ) then
 			local Maps = self.Maps
@@ -457,8 +465,13 @@ do
 				self:SaveConfig( true )
 			end )
 
+			function self.FullVoteMenu.PreClose()
+				self:SetScreenBlurred( false )
+			end
+
 			function self.FullVoteMenu.OnClose()
 				Shine.ScreenText.SetIsVisible( true )
+
 				if SGUI.IsValid( self.MapVoteNotification ) then
 					self.MapVoteNotification:FadeIn()
 				end
@@ -472,6 +485,8 @@ do
 			if SGUI.IsValid( self.MapVoteNotification ) then
 				self.MapVoteNotification:Hide()
 			end
+
+			self:SetScreenBlurred( true )
 
 			Shine.ScreenText.SetIsVisible( false )
 
@@ -680,7 +695,7 @@ function Plugin:ReceiveChosenMap( Data )
 	end
 end
 
-function Plugin:ReceiveEndVote( Data )
+function Plugin:EndVote()
 	self.EndTime = 0
 	self.ChosenMap = nil
 	self.ScreenText = nil
@@ -706,6 +721,15 @@ function Plugin:ReceiveEndVote( Data )
 			end
 		end )
 	end
+
+	if self.ScreenBlur then
+		Client.DestroyScreenEffect( self.ScreenBlur )
+		self.ScreenBlur = nil
+	end
+end
+
+function Plugin:ReceiveEndVote( Data )
+	self:EndVote()
 end
 
 function Plugin:ReceiveMapMod( Data )
@@ -951,6 +975,12 @@ function Plugin:AutoOpenVoteMenu( ForceOpen )
 	end
 
 	Shine.VoteMenu:SetPage( "MapVote" )
+end
+
+function Plugin:Cleanup()
+	self:EndVote()
+
+	return self.BaseClass.Cleanup( self )
 end
 
 Shine.LoadPluginModule( "logger.lua", Plugin )

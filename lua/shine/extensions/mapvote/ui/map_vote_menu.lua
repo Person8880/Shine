@@ -402,11 +402,17 @@ function MapVoteMenu:FadeOut( Callback )
 	end )
 end
 
+function MapVoteMenu:PreClose()
+
+end
+
 function MapVoteMenu:OnClose()
 
 end
 
 function MapVoteMenu:Close( Callback )
+	self:PreClose()
+
 	if not self:GetIsVisible() then
 		if Callback then
 			Callback()
