@@ -19,10 +19,11 @@ local KeyTextureSize = 84
 local KeyTextureMaxTextWidth = Ceil( ( 150 / 256 ) * KeyTextureSize )
 local LargePadding = Units.GUIScaled( 16 )
 local SmallPadding = Units.GUIScaled( 8 )
+local DefaultFontSize = 29
 
 local DefaultLabelFont = {
 	Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-	Size = Units.GUIScaled( 32 )
+	Size = Units.GUIScaled( DefaultFontSize )
 }
 
 local Skin = {
@@ -125,13 +126,13 @@ function MapVoteNotification:Initialise()
 
 		Keybind = GetKeyBindDisplayText( Keybind )
 
-		local Font, Scale = SGUI.FontManager.GetFont( SGUI.FontFamilies.MicrogrammaDBolExt, 32 )
+		local Font, Scale = SGUI.FontManager.GetFont( SGUI.FontFamilies.MicrogrammaDBolExt, DefaultFontSize )
 		local Width = CalculateTextSize( Font, Keybind ).x
 
 		if Width > KeyTextureMaxTextWidth then
 			return {
 				Family = SGUI.FontFamilies.MicrogrammaDBolExt,
-				Size = Units.GUIScaled( 32 * ( KeyTextureMaxTextWidth / Width ) )
+				Size = Units.GUIScaled( DefaultFontSize * ( KeyTextureMaxTextWidth / Width ) )
 			}
 		end
 
