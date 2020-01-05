@@ -277,6 +277,8 @@ do
 end
 
 function ControlMeta:SetStyleName( Name )
+	if self.StyleName == Name then return end
+
 	self.StyleName = Name
 	SGUI.SkinManager:ApplySkin( self )
 end
