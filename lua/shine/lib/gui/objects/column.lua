@@ -13,8 +13,16 @@ function Column:Initialise()
 	self:SetLayout( SGUI.Layout:CreateLayout( "Vertical" ), true )
 end
 
+function Column:SetPadding( Padding )
+	self.Layout:SetPadding( Padding )
+end
+
 function Column:GetContentSizeForAxis( Axis )
 	return self.Layout:GetContentSizeForAxis( Axis )
+end
+
+function Column:GetMaxSizeAlongAxis( Axis )
+	return self.Layout:GetMaxSizeAlongAxis( Axis )
 end
 
 SGUI:Register( "Column", Column, "Panel" )
