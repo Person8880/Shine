@@ -347,7 +347,8 @@ local function UpdateMessage( Index, Message, Time )
 	local Duration = Message.Duration
 	if Duration then
 		-- The time since the last update may be more than the update rate.
-		Message.Duration = RoundTo( Duration - ( Time - Message.LastUpdate ), Message.UpdateRate )
+		Duration = RoundTo( Duration - ( Time - Message.LastUpdate ), Message.UpdateRate )
+		Message.Duration = Duration
 	end
 
 	Message.LastUpdate = Time
@@ -361,14 +362,14 @@ local function UpdateMessage( Index, Message, Time )
 		end
 	end
 
-	if Duration and Duration <= 0 and Message.Colour.a > 0 and not Message.Fading then
+	if Duration and Duration <= 1 and Message.Colour.a > 0 and not Message.Fading then
 		Message.FadingIn = false
 		Message.Fading = true
 		Message.FadeElapsed = 0
 		Message.FadeDuration = 1
 	end
 
-	if Duration and Duration <= -1 then
+	if Duration and Duration <= 0 then
 		Shine.ScreenText.Remove( Index )
 	end
 end
