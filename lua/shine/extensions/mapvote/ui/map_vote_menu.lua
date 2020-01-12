@@ -204,6 +204,7 @@ function MapVoteMenu:Initialise()
 	local SmallPadding = Units.GUIScaled( 8 )
 
 	self.Elements = SGUI:BuildTree( {
+		Parent = self,
 		GlobalProps = {
 			Skin = Skin
 		},
@@ -283,7 +284,7 @@ function MapVoteMenu:Initialise()
 				}
 			}
 		}
-	}, self )
+	} )
 
 	self.Elements.MapTileGridLayout = self.Elements.MapTileGrid.Layout
 	self.Elements.MapTileGridLayout:AddPropertyChangeListener( "Size", function( Size )
@@ -293,6 +294,7 @@ function MapVoteMenu:Initialise()
 	self:AddCloseButton( self )
 
 	local ConfigButton = SGUI:BuildTree( {
+		Parent = self.CloseButton,
 		{
 			ID = "ConfigButton",
 			Class = "Button",
@@ -354,7 +356,7 @@ function MapVoteMenu:Initialise()
 				}
 			}
 		}
-	}, self.CloseButton ).ConfigButton
+	} ).ConfigButton
 
 	ConfigButton:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize(
 		SGUI.FontFamilies.Ionicons,

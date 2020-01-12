@@ -47,6 +47,7 @@ function MapTile:Initialise()
 	self.Highlighted = false
 
 	TableShallowMerge( SGUI:BuildTree( {
+		Parent = self,
 		{
 			Type = "Layout",
 			Class = "Vertical",
@@ -295,7 +296,7 @@ function MapTile:Initialise()
 				)
 			)
 		end
-	}, self ), self )
+	} ), self )
 
 	Binder():FromElement( self, "Selected" )
 		:ToElement( self, "Icon", {
@@ -325,6 +326,7 @@ end
 function MapTile:ShowOverviewImage()
 	if not SGUI.IsValid( self.OverviewImageContainer ) then
 		TableShallowMerge( SGUI:BuildTree( {
+			Parent = self.PreviewImage,
 			{
 				Type = "Layout",
 				Class = "Vertical",
@@ -368,7 +370,7 @@ function MapTile:ShowOverviewImage()
 					}
 				}
 			}
-		}, self.PreviewImage ), self )
+		} ), self )
 		self.PreviewImage:InvalidateLayout( true )
 		self.OverviewImageContainer:AlphaTo( nil, nil, 0.5, 0, 0.3 )
 	end

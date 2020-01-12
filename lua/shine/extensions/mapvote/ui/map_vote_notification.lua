@@ -140,6 +140,7 @@ function MapVoteNotification:Initialise()
 	end
 
 	self.Elements = SGUI:BuildTree( {
+		Parent = self,
 		{
 			ID = "KeybindBackground",
 			Class = "Row",
@@ -231,7 +232,7 @@ function MapVoteNotification:Initialise()
 				}
 			}
 		}
-	}, self )
+	} )
 end
 
 function MapVoteNotification:SetLayer( Layer )

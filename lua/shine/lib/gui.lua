@@ -974,19 +974,18 @@ do
 
 		Elements may be given an ID, in which case they will be present in the returned table under that ID.
 
-		Inputs:
-			1. A table containing element definitions.
-			2. The parent element to create the top level elements under.
+		Input:
+			A table containing element definitions.
 		Output:
 			A table with all elements that were assigned an ID.
 	]]
-	function SGUI:BuildTree( Tree, Parent )
+	function SGUI:BuildTree( Tree )
 		local Context = {
 			Elements = {},
 			DeferredBindings = {}
 		}
 
-		BuildChildren( Context, Parent, Tree, Tree.GlobalProps, 0 )
+		BuildChildren( Context, Tree.Parent, Tree, Tree.GlobalProps, 0 )
 		ProcessDeferredBindings( Context.Elements, Context.DeferredBindings )
 
 		if Tree.OnBuilt then
