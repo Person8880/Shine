@@ -250,7 +250,7 @@ function VoteMenu:PlayerKeyPress( Key, Down )
 	if Down and IsCloseKey then
 		self:ForceHide()
 
-		return
+		return Key == InputKey.Escape or nil
 	end
 end
 
