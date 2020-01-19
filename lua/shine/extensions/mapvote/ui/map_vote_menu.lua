@@ -370,7 +370,7 @@ function MapVoteMenu:GetTeamVariation()
 end
 
 function MapVoteMenu:PlayerKeyPress( Key, Down )
-	if not self:GetIsVisible() then return end
+	if not self:GetIsVisible() or self.FadingOut then return end
 
 	if Key == InputKey.Escape and Down then
 		self:Close()
@@ -381,6 +381,7 @@ function MapVoteMenu:PlayerKeyPress( Key, Down )
 end
 
 function MapVoteMenu:FadeIn()
+	self.FadingOut = false
 	self:SetIsVisible( true )
 	self:AlphaTo( nil, 0, 1, 0, 0.3 )
 
@@ -394,8 +395,10 @@ function MapVoteMenu:FadeIn()
 end
 
 function MapVoteMenu:FadeOut( Callback )
+	self.FadingOut = true
 	self:AlphaTo( nil, nil, 0, 0, 0.3, function()
 		self:SetIsVisible( false )
+		self.FadingOut = false
 		self:OnClose()
 		if Callback then
 			-- Call after Think exits to avoid destroying GUIItems that are in use.
