@@ -488,6 +488,7 @@ function MapVoteMenu:SetLoadModPreviews( LoadModPreviews )
 		for i = 1, #self.MapTiles do
 			local Tile = self.MapTiles[ i ]
 			if Tile.ModID and Tile:GetPreviewTexture() ~= MapTile.UNKNOWN_MAP_PREVIEW_TEXTURE then
+				TextureLoader.Free( Tile:GetPreviewTexture() )
 				Tile:SetPreviewTexture( MapTile.UNKNOWN_MAP_PREVIEW_TEXTURE )
 			end
 		end
