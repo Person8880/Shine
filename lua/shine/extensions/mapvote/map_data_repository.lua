@@ -176,7 +176,7 @@ local ImageLoaders = {
 
 			Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
 				OnSuccess = function( PublishedFileDetails )
-					local FileDetails = PublishedFileDetails[ 1 ]
+					local FileDetails = PublishedFileDetails and PublishedFileDetails[ 1 ]
 					if not IsType( FileDetails, "table" ) then
 						Callback( MapName, nil, StringFormat( "Steam did not return details for mod %s", ModID ) )
 						return
@@ -350,16 +350,18 @@ function MapDataRepository.GetPreviewImages( Maps, Callback )
 
 	Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
 		OnSuccess = function( PublishedFileDetails )
-			for i = 1, #PublishedFileDetails do
-				local File = PublishedFileDetails[ i ]
-				local ModID = tostring( File.publishedfileid )
-				local MapNames = MapModIDs:Get( ModID )
-				if MapNames then
-					MapModIDs:Remove( ModID )
+			if PublishedFileDetails then
+				for i = 1, #PublishedFileDetails do
+					local File = PublishedFileDetails[ i ]
+					local ModID = tostring( File.publishedfileid )
+					local MapNames = MapModIDs:Get( ModID )
+					if MapNames then
+						MapModIDs:Remove( ModID )
 
-					local LoaderCallback = CallbackWithFallbackToCache( ModID, false, "PreviewImage", Callback )
-					ImageLoaders.PreviewImage( ModID, nil, WrapCallback( LoaderCallback, MapNames ),
-						File.preview_url, File.time_updated )
+						local LoaderCallback = CallbackWithFallbackToCache( ModID, false, "PreviewImage", Callback )
+						ImageLoaders.PreviewImage( ModID, nil, WrapCallback( LoaderCallback, MapNames ),
+							File.preview_url, File.time_updated )
+					end
 				end
 			end
 

@@ -197,6 +197,13 @@ function Plugin:InferMapMods( Maps )
 	}
 	Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
 		OnSuccess = function( PublishedFileDetails )
+			if not PublishedFileDetails then
+				self.Logger:Warn(
+					"Steam failed to respond with mod information, map mods may not be detected correctly."
+				)
+				return
+			end
+
 			local function IsMapTag( Tag ) return Tag.tag == "Map" end
 
 			Shine.Stream( PublishedFileDetails ):ForEach( function( File )
