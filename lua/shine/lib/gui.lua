@@ -38,6 +38,7 @@ SGUI.GUIItemType = {
 }
 
 SGUI.Controls = {}
+SGUI.KeyboardFocusControls = Shine.Set()
 
 SGUI.ActiveControls = Map()
 SGUI.Windows = {}
@@ -718,6 +719,10 @@ do
 		self.ActiveControls:Add( Control, true )
 		self.SkinManager:ApplySkin( Control )
 
+		if Control.UsesKeyboardFocus and Control.OnFocusChange then
+			self.KeyboardFocusControls:Add( Control )
+		end
+
 		if Parent then
 			Control:SetParent( Parent, ParentElement )
 		end
@@ -762,6 +767,7 @@ do
 		end
 
 		self.ActiveControls:Remove( Control )
+		self.KeyboardFocusControls:Remove( Control )
 
 		if self.IsValid( Control.Tooltip ) then
 			Control.Tooltip:Destroy()
@@ -843,16 +849,10 @@ Hook.Add( "PlayerType", "UpdateSGUI", function( Char )
 end )
 
 local function NotifyFocusChange( Element, ClickingOtherElement )
-	if not Element then
-		SGUI.FocusedControl = nil
-	end
+	SGUI.FocusedControl = Element
 
-	for Control in SGUI.ActiveControls:Iterate() do
-		if Control.OnFocusChange then
-			if Control:OnFocusChange( Element, ClickingOtherElement ) then
-				break
-			end
-		end
+	for Control in SGUI.KeyboardFocusControls:Iterate() do
+		Control:OnFocusChange( Element, ClickingOtherElement )
 	end
 end
 SGUI.NotifyFocusChange = NotifyFocusChange

@@ -1851,7 +1851,6 @@ end
 function ControlMeta:RequestFocus()
 	if not self.UsesKeyboardFocus then return end
 
-	SGUI.FocusedControl = self
 	SGUI.NotifyFocusChange( self )
 end
 
