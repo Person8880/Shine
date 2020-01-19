@@ -813,7 +813,7 @@ do
 			local Colour = Chunk[ Keys.Colour[ i ] ]
 			local Value = Chunk[ Keys.Value[ i ] ]
 
-			if Colour > 0 then
+			if Colour >= 0 then
 				Contents[ #Contents + 1 ] = ColourElement( IntToColour( Colour ) )
 			end
 

@@ -8,6 +8,7 @@ local TextElement = require "shine/lib/gui/richtext/elements/text"
 local Floor = math.floor
 local getmetatable = getmetatable
 local TableConcat = table.concat
+local TableEmpty = table.Empty
 local type = type
 
 local DefaultColour = Colour( 1, 1, 1 )
@@ -47,7 +48,7 @@ function DefaultProvider.ConvertRichTextToDualColour( Contents )
 			if NumColours < 2 then
 				if #CurrentText > 0 then
 					MessageParts[ #MessageParts + 1 ] = TableConcat( CurrentText )
-					CurrentText = {}
+					TableEmpty( CurrentText )
 				end
 
 				if type( MessageParts[ #MessageParts ] ) == "cdata" then

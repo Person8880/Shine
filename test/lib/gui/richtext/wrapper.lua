@@ -21,9 +21,29 @@ UnitTest:Test( "TextWrap - Returns text as-is when shorter than the max width", 
 end )
 
 UnitTest:Test( "TextWrap - Should split text into the expected number of parts when it exceeds the max width", function( Assert )
+	-- Odd number size text.
 	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 5, { Count = 0 } )
 	Assert.ArrayEquals( "Should have split the word into 3 parts", {
 		"Somes", "hortw", "ord"
+	}, Parts )
+
+	-- Even number size text.
+	local EventNumberSizeText = "Somewordthatiseven"
+	Parts = Wrapper.TextWrap( TextSizeProvider, EventNumberSizeText, 5, { Count = 0 } )
+	Assert.ArrayEquals( "Should have split the word into 4 parts", {
+		"Somew", "ordth", "atise", "ven"
+	}, Parts )
+end )
+
+UnitTest:Test( "TextWrap - Should stop splitting after the given limit of segments", function( Assert )
+	local Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 5, { Count = 0 }, 1 )
+	Assert.ArrayEquals( "Should have split the word into 1 part", {
+		"Somes"
+	}, Parts )
+
+	Parts = Wrapper.TextWrap( TextSizeProvider, TextToWrap, 5, { Count = 0 }, 2 )
+	Assert.ArrayEquals( "Should have split the word into 2 parts", {
+		"Somes", "hortw"
 	}, Parts )
 end )
 
@@ -95,6 +115,72 @@ UnitTest:Test( "WordWrapRichTextLines - Wraps a line whose words split evenly", 
 		{
 			Line[ 5 ],
 			Line[ 6 ]
+		}
+	}, WrappedLines )
+end )
+
+UnitTest:Test( "WordWrapRichTextLines - Wraps a line using the width without space for the first element on a line", function( Assert )
+	local Line = {
+		{
+			GetWidth = function() return 50, 10 end
+		},
+		{
+			GetWidth = function() return 0, 0 end
+		},
+		{
+			GetWidth = function() return 50, 50 end
+		},
+		{
+			GetWidth = function() return 0, 0 end
+		},
+		{
+			GetWidth = function() return 10, 10 end
+		},
+		{
+			GetWidth = function() return 50, 10 end,
+			Split = function( self, Index, TextSizeProvider, Segments, MaxWidth, CurrentWidth )
+				self.OriginalElement = Index
+				self.Width = 50
+				self.WidthWithoutSpace = 10
+				Segments[ #Segments + 1 ] = self
+			end
+		},
+		{
+			GetWidth = function() return 90, 90 end
+		},
+		{
+			GetWidth = function() return 0, 0 end
+		},
+		{
+			GetWidth = function() return 10, 10 end
+		},
+	}
+	local WrappedLines = Wrapper.WordWrapRichTextLines( {
+		Lines = {
+			Line
+		},
+		MaxWidth = 100,
+		TextSizeProvider = TextSizeProvider
+	} )
+
+	Assert.DeepEquals( "Should have split the elements evenly", {
+		{
+			-- First element's width without the previous space is only 10, so the total is 70.
+			Line[ 1 ],
+			Line[ 2 ],
+			Line[ 3 ],
+			Line[ 4 ],
+			Line[ 5 ]
+		},
+		{
+			-- Should fit both onto the new line, as element 6 only takes up 10 width without the space.
+			Line[ 6 ],
+			Line[ 7 ]
+		},
+		{
+			-- Last line took up 100 width (10 without space + 90), should move next element to new line.
+			Line[ 8 ],
+			Line[ 9 ]
 		}
 	}, WrappedLines )
 end )

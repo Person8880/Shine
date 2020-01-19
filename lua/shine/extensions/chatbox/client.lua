@@ -117,7 +117,7 @@ function Plugin:Initialise()
 end
 
 function Plugin:OnChatMessageDisplayed( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
-	self:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
+	self:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
 end
 
 function Plugin:OnRichTextChatMessageDisplayed( MessageData )
