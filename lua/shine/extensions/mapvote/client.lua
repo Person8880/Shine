@@ -566,9 +566,10 @@ do
 
 		Plugin:RefreshVoteButtonColours()
 
+		local IconFont, IconScale = SGUI.FontManager.GetFont( SGUI.FontFamilies.Ionicons, 32 )
 		self:AddTopButton( Plugin:GetPhrase( "BACK" ), function()
 			self:SetPage( "Main" )
-		end ):SetIcon( SGUI.Icons.Ionicons.ArrowLeftC )
+		end ):SetIcon( SGUI.Icons.Ionicons.ArrowLeftC, IconFont, IconScale )
 
 		local BottomButton = self:AddBottomButton( Plugin:GetPhrase( "VOTE_MENU_USE_MAP_VOTE_MENU" ), function()
 			Plugin.Config.VoteMenuType = Plugin.VoteMenuType.FULL
@@ -581,7 +582,7 @@ do
 
 			SGUI.NotificationManager.DisplayHint( MAP_GRID_SWITCH_BACK_HINT )
 		end )
-		BottomButton:SetIcon( SGUI.Icons.Ionicons.ArrowExpand )
+		BottomButton:SetIcon( SGUI.Icons.Ionicons.ArrowExpand, IconFont, IconScale )
 		BottomButton:SetTooltip( Plugin:GetPhrase( "VOTE_MENU_USE_MAP_VOTE_MENU_TOOLTIP" ) )
 	end, ClosePageIfVoteFinished )
 end
