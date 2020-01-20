@@ -97,6 +97,10 @@
 	"TEAM_PREFERENCE_SET_MARINE": "Your team preference is now: Marines.",
 	"TEAM_PREFERENCE_SET_ALIEN": "Your team preference is now: Aliens.",
 	"TEAM_PREFERENCE_SET_NONE": "Your team preference has been reset.",
+	"GROUP_TEAM_PREFERENCE_HINT": "Group Team Preference:",
+	"GROUP_TEAM_PREFERENCE_SET_MARINE": "Your friend group's team preference is now: Marines.",
+	"GROUP_TEAM_PREFERENCE_SET_ALIEN": "Your friend group's team preference is now: Aliens.",
+	"GROUP_TEAM_PREFERENCE_SET_NONE": "Your friend group's team preference has been reset.",
 
 	"DISABLE_AUTO_SHUFFLE": "Disable Shuffle",
 	"ENABLE_AUTO_SHUFFLE": "Enable Shuffle",

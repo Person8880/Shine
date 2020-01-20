@@ -381,6 +381,8 @@ function Plugin:MakeNewFriendGroup( Leader, Members, Silent )
 		LeaderType = self:GetGroupLeaderType( NewGroup )
 	}, true )
 
+	self:UpdateFriendGroupTeamPreference( Leader )
+
 	if self.Logger:IsDebugEnabled() then
 		self.Logger:Debug( "Created new friend group: %s", GroupToString( NewGroup ) )
 	end
@@ -426,6 +428,8 @@ function Plugin:AddClientToFriendGroup( Group, Client )
 		LeaderID = Group.Leader:GetUserId(),
 		LeaderType = LeaderType
 	}, true )
+
+	self:UpdateFriendGroupTeamPreference( Client )
 end
 
 function Plugin:ReceiveLeaveFriendGroup( Client, Data )
@@ -479,6 +483,8 @@ function Plugin:RemoveClientFromFriendGroup( Group, Client, IsDisconnecting )
 			LeaderType = self:GetGroupLeaderType( Group )
 		}, true )
 	end
+
+	self:UpdateFriendGroupTeamPreference( Group.Clients[ 1 ] )
 end
 
 function Plugin:CancelFriendGroupInviteTo( InvitedID )
@@ -527,4 +533,46 @@ function Plugin:HandleFriendGroupClientDisconnect( Client )
 
 	-- For every player the disconnecting client invited, cancel the invite.
 	self:CancelFriendGroupInvitesFrom( Client )
+end
+
+function Plugin:GetFriendGroupTeamPreference( Group )
+	local Preferences = { 0, 0 }
+	for i = 1, #Group.Clients do
+		local GroupMember = Group.Clients[ i ]
+		local Preference = self:GetTeamPreference( GroupMember )
+		if Preference then
+			Preferences[ Preference ] = Preferences[ Preference ] + 1
+		end
+	end
+
+	if Preferences[ 1 ] == Preferences[ 2 ] then
+		return 0
+	end
+
+	return Preferences[ 1 ] > Preferences[ 2 ] and 1 or 2
+end
+
+local function UpdateGroupPreference( self, Group, SilentChange )
+	local GroupPreference = self:GetFriendGroupTeamPreference( Group )
+	self:SendNetworkMessage( Group.Clients, "GroupTeamPreference", {
+		PreferredTeam = GroupPreference,
+		Silent = SilentChange
+	}, true )
+end
+
+function Plugin:UpdateFriendGroupTeamPreference( Client, SilentChange )
+	local Group = self.FriendGroupsBySteamID[ Client:GetUserId() ]
+	if not Group then return end
+
+	if SilentChange == nil then
+		SilentChange = not self:IsVoteAllowed()
+	end
+
+	UpdateGroupPreference( self, Group, SilentChange )
+end
+
+function Plugin:UpdateAllFriendGroupTeamPreferences()
+	for i = 1, #self.FriendGroups do
+		UpdateGroupPreference( self, self.FriendGroups[ i ], true )
+	end
 end

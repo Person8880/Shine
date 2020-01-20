@@ -532,6 +532,7 @@ function Plugin:OnFirstThink()
 			Event.Hook( Entry.Event, function( Client )
 				local Gamerules = GetGamerules()
 				if not Gamerules or Gamerules:GetGameStarted() then return end
+				if self.LastAttemptedTeamJoins[ Client ] == Team then return end
 
 				if self.Logger:IsDebugEnabled() then
 					self.Logger:Debug( "%s has chosen team %s (has persistent preference: %s)",
@@ -539,11 +540,16 @@ function Plugin:OnFirstThink()
 				end
 
 				self.LastAttemptedTeamJoins[ Client ] = Team
+
+				-- Don't display a message if voting is disabled (e.g. end of map vote).
+				local Silent = not self:IsVoteAllowed()
+
 				self:SendNetworkMessage( Client, "TemporaryTeamPreference", {
 					PreferredTeam = Team or 0,
-					-- Don't display a message if voting is disabled (e.g. end of map vote).
-					Silent = not self:IsVoteAllowed()
+					Silent = Silent
 				}, true )
+
+				self:UpdateFriendGroupTeamPreference( Client, Silent )
 			end )
 		end
 	end
@@ -652,6 +658,8 @@ function Plugin:ReceiveTeamPreference( Client, Data )
 		self.TeamPreferences[ Client ] = nil
 	end
 
+	self:UpdateFriendGroupTeamPreference( Client )
+
 	if self.Logger:IsDebugEnabled() then
 		self.Logger:Debug( "%s prefers team %s", Shine.GetClientInfo( Client ), self.TeamPreferences[ Client ] or 0 )
 	end
@@ -726,6 +734,10 @@ do
 		return Gamerules.gameInfo and Gamerules.gameInfo:GetRookieMode()
 	end
 
+	function Plugin:GetTeamPreference( Client )
+		return self.LastAttemptedTeamJoins[ Client ] or self.TeamPreferences[ Client ]
+	end
+
 	--[[
 		Gets all valid targets for sorting.
 	]]
@@ -772,7 +784,7 @@ do
 			-- Assume that if a player uses a team joining command (either walking into a TeamJoin entity or
 			-- using the console) then they definitely want that team. Their persisted preference
 			-- serves as a backup if they haven't yet chosen a team.
-			local Preference = self.LastAttemptedTeamJoins[ Client ] or self.TeamPreferences[ Client ]
+			local Preference = self:GetTeamPreference( Client )
 
 			-- Pass 1, put all immune players into team slots.
 			-- This ensures they're picked last if there's a team imbalance at the end of sorting.
@@ -1162,6 +1174,7 @@ function Plugin:EndGame( Gamerules, WinningTeam )
 		PreferredTeam = 0,
 		Silent = true
 	}, true )
+	self:UpdateAllFriendGroupTeamPreferences()
 
 	local Players, Count = GetAllPlayers()
 	-- Reset the randomised state of all players.
