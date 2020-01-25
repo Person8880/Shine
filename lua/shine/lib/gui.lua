@@ -317,17 +317,6 @@ function SGUI.LinearScaleByScreenHeight( Value )
 	return H / 1080 * Value
 end
 
-do
-	local ScrW, ScrH
-
-	function SGUI.GetScreenSize()
-		ScrW = ScrW or Client.GetScreenWidth
-		ScrH = ScrH or Client.GetScreenHeight
-
-		return ScrW(), ScrH()
-	end
-end
-
 SGUI.SpecialKeyStates = {
 	Ctrl = false,
 	Alt = false,
@@ -873,11 +862,20 @@ function SGUI.GetCursorPos()
 	return GetCursorPosScreen()
 end
 
+local ScrW = Client.GetScreenWidth
+local ScrH = Client.GetScreenHeight
+
+function SGUI.GetScreenSize()
+	return ScrW(), ScrH()
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	GetCursorPosScreen = Client.GetCursorPosScreen
+	ScrW = Client.GetScreenWidth
+	ScrH = Client.GetScreenHeight
 
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
