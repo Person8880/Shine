@@ -250,6 +250,50 @@ do
 	local tonumber = tonumber
 	local unpack = unpack
 
+	local ValidationContext = Shine.TypeDef()
+	function ValidationContext:Init()
+		self.Path = {}
+		return self
+	end
+
+	function ValidationContext:PushField( FieldName )
+		self.Path[ #self.Path + 1 ] = FieldName
+	end
+
+	function ValidationContext:PopField()
+		self.Path[ #self.Path ] = nil
+	end
+
+	local function PopAfterCall( self, ... )
+		self:PopField()
+		return ...
+	end
+
+	function ValidationContext:WithField( FieldName, Func, ... )
+		self:PushField( FieldName )
+		return PopAfterCall( self, Func( ... ) )
+	end
+
+	function ValidationContext:GetCurrentPath()
+		local Output = {}
+		for i = 1, #self.Path do
+			local Field = self.Path[ i ]
+			if IsType( Field, "string" ) then
+				if tonumber( Field ) then
+					Output[ #Output + 1 ] = StringFormat( "[ %q ]", Field )
+				else
+					if i > 1 then
+						Output[ #Output + 1 ] = "."
+					end
+					Output[ #Output + 1 ] = Field
+				end
+			else
+				Output[ #Output + 1 ] = StringFormat( "[ %s ]", Field )
+			end
+		end
+		return TableConcat( Output )
+	end
+
 	local Validator = {}
 	Validator.__index = Validator
 
@@ -308,10 +352,10 @@ do
 		local DeleteIfFieldInvalid = Options and Options.DeleteIfFieldInvalid
 
 		return {
-			Check = function( Value )
+			Check = function( Value, Context )
 				if not IsType( Value, "table" ) then return true end
 
-				local NeedsFix, CanonicalValue = Predicate( Value[ Name ] )
+				local NeedsFix, CanonicalValue = Context:WithField( Name, Predicate, Value[ Name ], Context )
 				if not NeedsFix and CanonicalValue ~= nil then
 					local Copy = TableShallowCopy( Value )
 					Copy[ Name ] = CanonicalValue
@@ -320,9 +364,9 @@ do
 
 				return NeedsFix, CanonicalValue
 			end,
-			Fix = function( Value )
+			Fix = function( Value, Context )
 				if not IsType( Value, "table" ) then
-					local Fixed = FixFunc( nil )
+					local Fixed = Context:WithField( Name, FixFunc, nil, Context )
 					if Fixed ~= nil then
 						return {
 							[ Name ] = Fixed
@@ -331,7 +375,7 @@ do
 					return nil
 				end
 
-				local FixedValue = FixFunc( Value[ Name ] )
+				local FixedValue = Context:WithField( Name, FixFunc, Value[ Name ], Context )
 				if FixedValue == nil and DeleteIfFieldInvalid then
 					return nil
 				end
@@ -371,28 +415,37 @@ do
 		end
 
 		return {
-			Check = function( Value )
+			Check = function( Value, Context )
 				local Passes = true
 				for i = 1, #Value do
-					local NeedsFix, CanonicalValue = Predicate( Value[ i ] )
+					Context:PushField( i )
+
+					local NeedsFix, CanonicalValue = Predicate( Value[ i ], Context )
 					if NeedsFix then
+						Print( MessageFunc(), Context:GetCurrentPath() )
 						Passes = false
 					elseif CanonicalValue ~= nil then
 						Value[ i ] = CanonicalValue
 					end
+
+					Context:PopField()
 				end
 				return not Passes
 			end,
-			Fix = function( Value )
+			Fix = function( Value, Context )
 				for i = #Value, 1, -1 do
-					if Predicate( Value[ i ] ) then
-						local Fixed = FixFunc( Value[ i ] )
+					Context:PushField( i )
+
+					if Predicate( Value[ i ], Context ) then
+						local Fixed = FixFunc( Value[ i ], Context )
 						if Fixed ~= nil then
 							Value[ i ] = Fixed
 						else
 							TableRemove( Value, i )
 						end
 					end
+
+					Context:PopField()
 				end
 				return Value
 			end,
@@ -410,30 +463,39 @@ do
 		local Predicate = Rule.Check
 
 		return {
-			Check = function( TableValue )
+			Check = function( TableValue, Context )
 				local Passes = true
 
 				for Key, Value in pairs( TableValue ) do
-					local NeedsFix, CanonicalValue = Predicate( Value )
+					Context:PushField( Key )
+
+					local NeedsFix, CanonicalValue = Predicate( Value, Context )
 					if NeedsFix then
+						Print( MessageFunc(), Context:GetCurrentPath() )
 						Passes = false
 					elseif CanonicalValue ~= nil then
 						TableValue[ Key ] = CanonicalValue
 					end
+
+					Context:PopField()
 				end
 
 				return not Passes
 			end,
-			Fix = function( TableValue )
+			Fix = function( TableValue, Context )
 				for Key, Value in pairs( TableValue ) do
-					if Predicate( Value ) then
-						local Fixed = FixFunc( Value )
+					Context:PushField( Key )
+
+					if Predicate( Value, Context ) then
+						local Fixed = FixFunc( Value, Context )
 						if Fixed ~= nil then
 							TableValue[ Key ] = Fixed
 						else
 							TableValue[ Key ] = nil
 						end
 					end
+
+					Context:PopField()
 				end
 
 				return TableValue
@@ -501,11 +563,11 @@ do
 			CheckPredicate = CheckPredicate.Check
 		end
 		return {
-			Check = function( Value )
+			Check = function( Value, Context )
 				if not IsType( Value, Type ) then
 					return false
 				end
-				return CheckPredicate( Value )
+				return CheckPredicate( Value, Context )
 			end,
 			Fix = FixFunction,
 			Message =  MessageSupplier
@@ -539,22 +601,28 @@ do
 			local FixFunction = Checks[ i ].Fix
 			local MessageSupplier = Checks[ i ].Message
 			self:AddRule( {
-				Matches = function( self, Config )
+				Matches = function( self, Config, Context )
 					local TableField = type( Field ) == "string" and Field or Field[ 1 ]
 					local PrintField = type( Field ) == "string" and Field or Field[ 2 ]
 
+					Context:PushField( PrintField )
+
 					local Path = StringExplode( TableField, ".", true )
 					local Value = TableGetField( Config, Path )
-					local NeedsFix, CanonicalValue = CheckPredicate( Value )
+					local NeedsFix, CanonicalValue = CheckPredicate( Value, Context )
 					if NeedsFix then
 						if MessageSupplier then
 							Print( MessageSupplier(), PrintField )
 						end
 
-						TableSetField( Config, Path, FixFunction( Value, CanonicalValue ) )
+						TableSetField( Config, Path, FixFunction( Value, Context ) )
+
+						Context:PopField()
 
 						return true
 					end
+
+					Context:PopField()
 
 					if CanonicalValue ~= nil then
 						TableSetField( Config, Path, CanonicalValue )
@@ -580,14 +648,15 @@ do
 
 	function Validator:Validate( Config )
 		local ChangesMade = false
+		local Context = ValidationContext()
 
 		for i = 1, #self.Rules do
 			local Rule = self.Rules[ i ]
 
-			if Rule:Matches( Config ) then
+			if Rule:Matches( Config, Context ) then
 				ChangesMade = true
 				if Rule.Fix then
-					Rule:Fix( Config )
+					Rule:Fix( Config, Context )
 				end
 			end
 		end

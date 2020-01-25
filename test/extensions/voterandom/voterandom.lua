@@ -334,6 +334,11 @@ function MockShuffle:GetCurrentVoteConstraints()
 	return VoteConstraints
 end
 
+local HasEligiblePlayersInReadyRoom = true
+function MockShuffle:HasEligiblePlayersInReadyRoom()
+	return HasEligiblePlayersInReadyRoom
+end
+
 function MockShuffle:GetPlayerCountForVote()
 	return 20
 end
@@ -409,7 +414,7 @@ UnitTest:Test( "EvaluateConstraints - Number of players too low", function( Asse
 	)
 end )
 
-UnitTest:Test( "EvaluateConstraints - Teams imbalanced", function( Assert )
+UnitTest:Test( "EvaluateConstraints - Teams imbalanced by > 1 player", function( Assert )
 	Assert.True( "Should allow voting as teams are imbalanced",
 		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1000, 2000, 2000 } },
@@ -454,6 +459,30 @@ UnitTest:Test( "EvaluateConstraints - Teams are balanced", function( Assert )
 		MockShuffle:EvaluateConstraints( 4, {
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
 			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 }
+		} )
+	)
+end )
+
+VoteConstraints.MinPlayerFractionToConstrainSkillDiff = 0.5
+
+UnitTest:Test( "EvaluateConstraints - Teams imbalanced by 1 player and eligible players in ready room", function( Assert )
+	HasEligiblePlayersInReadyRoom = true
+
+	Assert.True( "Should allow voting as teams are imbalanced",
+		MockShuffle:EvaluateConstraints( 4, {
+			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
+			{ Skills = { 1500 }, Average = 1500, StandardDeviation = 0 }
+		} )
+	)
+end )
+
+UnitTest:Test( "EvaluateConstraints - Teams imbalanced by 1 player but no eligible players in ready room", function( Assert )
+	HasEligiblePlayersInReadyRoom = false
+
+	Assert.False( "Should deny voting when teams are sufficiently balanced",
+		MockShuffle:EvaluateConstraints( 4, {
+			{ Skills = { 1500, 1500 }, Average = 1500, StandardDeviation = 0 },
+			{ Skills = { 1500 }, Average = 1500, StandardDeviation = 0 }
 		} )
 	)
 end )

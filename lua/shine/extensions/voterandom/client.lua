@@ -39,6 +39,7 @@ Plugin.ConfigMigrationSteps = {
 
 local StringFormat = string.format
 local StringUpper = string.upper
+local TableAdd = table.Add
 
 do
 	local Validator = Shine.Validator()
@@ -64,6 +65,7 @@ Plugin.ConfigGroup = {
 
 local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
 local FRIEND_GROUP_INVITE_HINT_NAME = "ShuffleFriendGroupInviteHint"
+local TEAM_PREFERENCE_CHANGE_HINT_NAME = "ShuffleTeamPreferenceConfigHint"
 
 function Plugin:SetupClientConfig()
 	local function SendTeamPreference( PreferredTeam )
@@ -82,7 +84,6 @@ function Plugin:SetupClientConfig()
 		SendTeamPreference( PreferredTeam )
 	end
 
-	local HasWarnedAboutPref = false
 	self:BindCommand( "sh_shuffle_teampref", function( PreferredTeam )
 		local OldPref = self.Config.PreferredTeam
 		local NewPref = self.TeamType[ PreferredTeam ] or self.TeamType.NONE
@@ -101,12 +102,7 @@ function Plugin:SetupClientConfig()
 
 		Print( "Team preference saved as: %s.%s", self.Config.PreferredTeam, ResetHint )
 
-		if not HasWarnedAboutPref then
-			-- Inform the player that this can be overridden by joining a team.
-			HasWarnedAboutPref = true
-			SGUI.NotificationManager.AddNotification( Shine.NotificationType.INFO,
-				self:GetPhrase( "TEAM_PREFERENCE_CHANGE_HINT" ), 10 )
-		end
+		SGUI.NotificationManager.DisplayHint( TEAM_PREFERENCE_CHANGE_HINT_NAME )
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
 
 	self:AddClientSetting( "PreferredTeam", "sh_shuffle_teampref", {
@@ -204,6 +200,21 @@ function Plugin:ReceiveTemporaryTeamPreference( Data )
 	end
 end
 
+function Plugin:ReceiveGroupTeamPreference( Data )
+	local OldPreference = self.GroupTeamPreference
+	local NewPreference = self.TeamType[ Data.PreferredTeam ] or self.TeamType.NONE
+
+	self.GroupTeamPreference = NewPreference
+
+	if NewPreference ~= OldPreference then
+		if not Data.Silent and self.InFriendGroup and NewPreference ~= self:GetTeamPreference() then
+			self:Notify( self:GetPhrase( "GROUP_TEAM_PREFERENCE_SET_"..NewPreference ) )
+		end
+
+		self:OnTeamPreferenceChanged()
+	end
+end
+
 function Plugin:OnTeamPreferenceChanged()
 	local Button = Shine.VoteMenu:GetButtonByPlugin( self.VoteButtonName )
 	if not Button then return end
@@ -213,25 +224,49 @@ end
 
 function Plugin:OnVoteButtonCreated( Button, VoteMenu )
 	local TeamPreference = self:GetTeamPreference() or self.TeamType.NONE
+	local GroupPreference = self.InFriendGroup and self.GroupTeamPreference or self.TeamType.NONE
 
-	if TeamPreference ~= self.TeamType.NONE then
-		local IsMarines = TeamPreference == self.TeamType.MARINE
+	if TeamPreference ~= self.TeamType.NONE or self.InFriendGroup then
+		local Colours = {
+			[ self.TeamType.NONE ] = Colour( 0.85, 0.85, 0.85 ),
+			[ self.TeamType.MARINE ] = Colour( 0.3, 0.69, 1 ),
+			[ self.TeamType.ALIEN ] = Colour( 1, 0.79, 0.23 )
+		}
+
 		local PreferenceLabel = Button.PreferenceLabel or SGUI:Create( "ColourLabel", VoteMenu.Background )
 		PreferenceLabel:MakeVertical()
 		PreferenceLabel:SetAnchor( "CentreMiddle" )
 		PreferenceLabel:SetFontScale( Button:GetFont(), Button:GetTextScale() )
-		PreferenceLabel:SetText( {
-			Colour( 1, 1, 1 ),
-			self:GetPhrase( "TEAM_PREFERENCE_HINT" ),
-			IsMarines and Colour( 0.3, 0.69, 1 ) or Colour( 1, 0.79, 0.23 ),
-			self:GetPhrase( TeamPreference )
-		} )
+
+		local Text = {}
+		if TeamPreference ~= self.TeamType.NONE then
+			TableAdd( Text, {
+				Colour( 1, 1, 1 ),
+				self:GetPhrase( "TEAM_PREFERENCE_HINT" ),
+				Colours[ TeamPreference ],
+				self:GetPhrase( TeamPreference )
+			} )
+		end
+
+		if self.InFriendGroup then
+			-- Show group preference even if it's NONE to indicate if there's a disparity between a player's own
+			-- preference and their group's preference.
+			TableAdd( Text, {
+				Colour( 1, 1, 1 ),
+				self:GetPhrase( "GROUP_TEAM_PREFERENCE_HINT" ),
+				Colours[ GroupPreference ],
+				self:GetPhrase( GroupPreference )
+			} )
+		end
+
+		PreferenceLabel:SetText( Text )
 		PreferenceLabel:SetTextAlignmentX( GUIItem.Align_Center )
-		PreferenceLabel:SetTextAlignmentY( GUIItem.Align_Max )
 		PreferenceLabel:SetShadow( {
 			Colour = Colour( 0, 0, 0, 200 / 255 ),
 			Offset = Vector2( 2, 2 )
 		} )
+
+		PreferenceLabel:SetPos( -Vector2( 0, PreferenceLabel:GetSize().y * 0.5 ) )
 
 		local Units = SGUI.Layout.Units
 
@@ -290,6 +325,12 @@ function Plugin:OnFirstThink()
 				}
 			}
 		}
+	} )
+	SGUI.NotificationManager.RegisterHint( TEAM_PREFERENCE_CHANGE_HINT_NAME, {
+		MaxTimes = 1,
+		MessageSource = self:GetName(),
+		MessageKey = "TEAM_PREFERENCE_CHANGE_HINT",
+		HintDuration = 10
 	} )
 
 	-- Defensive check in case the scoreboard code changes.

@@ -115,6 +115,7 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessage( "TeamPreference", { PreferredTeam = "integer" }, "Server" )
 	self:AddNetworkMessage( "TemporaryTeamPreference", { PreferredTeam = "integer", Silent = "boolean" }, "Client" )
+	self:AddNetworkMessage( "GroupTeamPreference", { PreferredTeam = "integer", Silent = "boolean" }, "Client" )
 
 	local FriendGroupJoinTypeField = StringFormat( "integer (1 to %d)", #self.FriendGroupJoinType )
 	local FriendGroupLeaderTypeField = StringFormat( "integer (1 to %d)", #self.FriendGroupLeaderType )
