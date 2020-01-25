@@ -180,6 +180,7 @@ function TextEntry:SetPlaceholderText( Text )
 	PlaceholderText:SetAnchor( GUIItem.Left, GUIItem.Top )
 	PlaceholderText:SetTextAlignmentY( GUIItem.Align_Center )
 	PlaceholderText:SetText( Text )
+	PlaceholderText:SetInheritsParentScaling( false )
 
 	if self.Font then
 		PlaceholderText:SetFontName( self.Font )
