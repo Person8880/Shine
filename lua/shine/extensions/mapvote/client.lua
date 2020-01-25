@@ -32,7 +32,8 @@ Plugin.ConfigName = "MapVote.json"
 Plugin.DefaultConfig = {
 	OnVoteAction = Plugin.VoteAction.USE_SERVER_SETTINGS,
 	VoteMenuType = Plugin.VoteMenuType.FULL,
-	LoadModPreviewsInMapGrid = true
+	LoadModPreviewsInMapGrid = true,
+	CloseMenuAfterChoosingMap = true
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -142,6 +143,31 @@ function Plugin:SetupClientConfig()
 	self:AddClientSetting( "LoadModPreviewsInMapGrid", "sh_mapvote_loadmodpreviews", {
 		Type = "Boolean",
 		Description = "LOAD_PREVIEWS_IN_MAP_GRID_DESCRIPTION"
+	} )
+
+	self:BindCommand( "sh_mapvote_closeaftervote", function( CloseMenuAfterChoosingMap )
+		self.Config.CloseMenuAfterChoosingMap = CloseMenuAfterChoosingMap
+		self:SaveConfig( true )
+
+		local Explanations = {
+			[ true ] = "now close after casting a vote",
+			[ false ] = "no longer close after casting a vote"
+		}
+
+		Print( "The map grid will %s.", Explanations[ CloseMenuAfterChoosingMap ] )
+
+		if SGUI.IsValid( self.FullVoteMenu ) then
+			self.FullVoteMenu:SetCloseOnClick( CloseMenuAfterChoosingMap )
+		end
+	end ):AddParam{
+		Type = "boolean",
+		Optional = true,
+		Default = function() return not self.Config.CloseMenuAfterChoosingMap end
+	}
+
+	self:AddClientSetting( "CloseMenuAfterChoosingMap", "sh_mapvote_closeaftervote", {
+		Type = "Boolean",
+		Description = "CLOSE_MENU_AFTER_CHOOSING_MAP_DESCRIPTION"
 	} )
 
 	self:BindCommand( "sh_mapvote_onvote", function( Choice )
@@ -439,6 +465,13 @@ do
 			self.FullVoteMenu:SetCurrentMapName( self:GetNiceMapName( Shared.GetMapName() ) )
 			self.FullVoteMenu:SetMaps( Maps )
 			self.FullVoteMenu:SetIsVisible( false )
+			self.FullVoteMenu:SetCloseOnClick( self.Config.CloseMenuAfterChoosingMap )
+			self.FullVoteMenu:AddPropertyChangeListener( "CloseOnClick", function( CloseOnClick )
+				if CloseOnClick == nil then return end
+
+				self.Config.CloseMenuAfterChoosingMap = CloseOnClick
+				self:SaveConfig( true )
+			end )
 			self.FullVoteMenu:AddPropertyChangeListener( "SelectedMap", function( MapName )
 				SendMapVote( MapName )
 			end )

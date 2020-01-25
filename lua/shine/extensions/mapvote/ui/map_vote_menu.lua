@@ -187,6 +187,7 @@ local Skin = {
 
 local MapVoteMenu = SGUI:DefineControl( "MapVoteMenu", "Panel" )
 
+SGUI.AddProperty( MapVoteMenu, "CloseOnClick", true )
 SGUI.AddProperty( MapVoteMenu, "EndTime" )
 SGUI.AddProperty( MapVoteMenu, "LoadModPreviews", true )
 SGUI.AddProperty( MapVoteMenu, "Logger" )
@@ -323,13 +324,26 @@ function MapVoteMenu:Initialise()
 							Menu:AddButton(
 								Locale:GetPhrase(
 									"mapvote",
-									self.LoadModPreviews and "MAP_VOTE_MENU_DISABLE_PREVIEWS" or "MAP_VOTE_MENU_ENABLE_PREVIEWS"
+									self.LoadModPreviews and "MAP_VOTE_MENU_DISABLE_PREVIEWS"
+										or "MAP_VOTE_MENU_ENABLE_PREVIEWS"
 								),
 								function()
 									self:SetLoadModPreviews( not self.LoadModPreviews )
 									Menu:Destroy()
 								end
 							):SetIcon( SGUI.Icons.Ionicons[ self.LoadModPreviews and "EyeDisabled" or "Eye" ] )
+
+							Menu:AddButton(
+								Locale:GetPhrase(
+									"mapvote",
+									self.CloseOnClick and "MAP_VOTE_MENU_DISABLE_CLOSE_ON_CLICK"
+										or "MAP_VOTE_MENU_ENABLE_CLOSE_ON_CLICK"
+								),
+								function()
+									self:SetCloseOnClick( not self.CloseOnClick )
+									Menu:Destroy()
+								end
+							):SetIcon( SGUI.Icons.Ionicons[ self.CloseOnClick and "Pin" or "Close" ] )
 
 							Menu:AutoSizeButtonIcons()
 							Menu:Resize()
@@ -641,10 +655,14 @@ function MapVoteMenu:SetSelectedMap( MapName )
 	end
 
 	local Tile = self.MapTiles[ MapName ]
-	if not SGUI.IsValid( Tile ) then return end
+	if SGUI.IsValid( Tile ) then
+		Tile:SetSelected( true )
+		self.SelectedMapTile = Tile
+	end
 
-	Tile:SetSelected( true )
-	self.SelectedMapTile = Tile
+	if self:GetCloseOnClick() then
+		self:Close()
+	end
 end
 
 function MapVoteMenu:Cleanup()
