@@ -143,7 +143,7 @@ UserDataValidator:AddFieldRule(
 )
 UserDataValidator:AddFieldRule(
 	"DefaultGroup",
-	UserDataValidator.IsType( "table" )
+	UserDataValidator.IsAnyType( { "table", "nil" } )
 )
 
 local function ValidateUserData( UserData )
