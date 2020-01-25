@@ -10,7 +10,6 @@ local Decode = json.decode
 local GetClientById = Server.GetClientById
 local IsType = Shine.IsType
 local next = next
-local Notify = Shared.Message
 local pairs = pairs
 local StringLower = string.lower
 local StringFormat = string.format
@@ -62,7 +61,7 @@ end
 local function ConvertData( Data, Silent )
 	if Data.groups then
 		if not Silent then
-			Notify( "Converting user groups from NS2/DAK format to Shine format..." )
+			Shared.Message( "Converting user groups from NS2/DAK format to Shine format..." )
 		end
 
 		Data.Groups = Data.Groups or {}
@@ -82,7 +81,7 @@ local function ConvertData( Data, Silent )
 					Data.Groups[ Name ] = Vals
 				end
 			else
-				Notify( StringFormat(
+				Shared.Message( StringFormat(
 					"Malformed group entry at key \"%s\" in \"groups\" table (expected table, got %s)",
 					Name, type( Vals )
 				) )
@@ -94,7 +93,7 @@ local function ConvertData( Data, Silent )
 
 	if Data.users then
 		if not Silent then
-			Notify( "Converting users from NS2/DAK format to Shine format..." )
+			Shared.Message( "Converting users from NS2/DAK format to Shine format..." )
 		end
 
 		Data.Users = Data.Users or {}
@@ -113,7 +112,7 @@ local function ConvertData( Data, Silent )
 					Data.Users[ Name ] = Vals
 				end
 			else
-				Notify( StringFormat(
+				Shared.Message( StringFormat(
 					"Malformed user entry at key \"%s\" in \"users\" table (expected table, got %s)",
 					Name, type( Vals )
 				) )
@@ -124,6 +123,31 @@ local function ConvertData( Data, Silent )
 	end
 
 	return Data
+end
+
+-- Basic type-level validation. Other mistakes are handled more leniently.
+local UserDataValidator = Shine.Validator()
+UserDataValidator:AddFieldRule(
+	"Groups",
+	UserDataValidator.IsType( "table", {} ),
+	UserDataValidator.AllKeyValuesSatisfy(
+		UserDataValidator.IsType( "table" )
+	)
+)
+UserDataValidator:AddFieldRule(
+	"Users",
+	UserDataValidator.IsType( "table", {} ),
+	UserDataValidator.AllKeyValuesSatisfy(
+		UserDataValidator.IsType( "table" )
+	)
+)
+UserDataValidator:AddFieldRule(
+	"DefaultGroup",
+	UserDataValidator.IsType( "table" )
+)
+
+local function ValidateUserData( UserData )
+	return UserDataValidator:Validate( UserData )
 end
 
 function Shine:RequestUsers( Reload )
@@ -148,7 +172,11 @@ function Shine:RequestUsers( Reload )
 				return
 			end
 
+			self:Print( "Validating remote Shine user data..." )
+
 			self.UserData = ConvertData( UserData, true )
+
+			ValidateUserData( self.UserData )
 
 			-- Cache the current user data, so if we fail to load it on
 			-- a later map we still have something to load.
@@ -193,7 +221,7 @@ function Shine:LoadUsers( Web, Reload )
 		return
 	end
 
-	Notify( "Loading Shine users..." )
+	Shared.Message( "Loading Shine users..." )
 
 	-- Check the default path.
 	local UserFile, Pos, Err = self.LoadJSONFile( UserPath )
@@ -217,7 +245,7 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	if not IsType( UserFile, "table" ) or not next( UserFile ) then
-		Notify( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
+		Shared.Message( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
 			Err ) )
 
 		-- Dummy data to avoid errors.
@@ -226,6 +254,12 @@ function Shine:LoadUsers( Web, Reload )
 		end
 
 		return
+	end
+
+	Shared.Message( "Validating Shine user data..." )
+
+	if ValidateUserData( UserFile ) then
+		NeedsSaving = true
 	end
 
 	self.UserData = UserFile
@@ -246,13 +280,13 @@ function Shine:SaveUsers( Silent )
 	local Success, Err = self.SaveJSONFile( self.UserData, UserPath )
 
 	if not Success then
-		Notify( "Error writing user file: "..Err )
+		Shared.Message( "Error writing user file: "..Err )
 
 		return
 	end
 
 	if not Silent then
-		Notify( "Saving Shine users..." )
+		Shared.Message( "Saving Shine users..." )
 	end
 end
 
