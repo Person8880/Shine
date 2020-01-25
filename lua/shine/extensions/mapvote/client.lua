@@ -632,14 +632,16 @@ do
 		end
 
 		-- Otherwise, infer the name using existing conventions.
-		local NiceName = StringGSub( MapName, "^ns2_", "" )
+		local NiceName = StringGSub( MapName, "^ns[12]?_", "" )
 		local Words = StringExplode( NiceName, "_" )
 
-		local KnownGamemodeWords = {
+		local KnownPrefixWords = {
 			co = "Combat:",
 			sws = "SWS:",
 			sg = "Siege:",
-			gg = "Gun Game:"
+			gg = "Gun Game:",
+			ls = "Last Stand:",
+			dmd = "DMD"
 		}
 
 		return Shine.Stream( Words ):Map( function( Word, Index )
@@ -647,7 +649,7 @@ do
 				-- Gamemode words should only be used on the first word.
 				return StringCapitalise( Word )
 			end
-			return KnownGamemodeWords[ Word ] or StringCapitalise( Word )
+			return KnownPrefixWords[ Word ] or StringCapitalise( Word )
 		end ):Concat( " " )
 	end
 
