@@ -467,7 +467,9 @@ do
 			self.FullVoteMenu:SetIsVisible( false )
 			self.FullVoteMenu:SetCloseOnClick( self.Config.CloseMenuAfterChoosingMap )
 			self.FullVoteMenu:AddPropertyChangeListener( "CloseOnClick", function( CloseOnClick )
-				if CloseOnClick == nil then return end
+				if CloseOnClick == nil or CloseOnClick == self.Config.CloseMenuAfterChoosingMap then
+					return
+				end
 
 				self.Config.CloseMenuAfterChoosingMap = CloseOnClick
 				self:SaveConfig( true )
@@ -492,7 +494,9 @@ do
 				Shine.VoteMenu:SetPage( "MapVote" )
 			end )
 			self.FullVoteMenu:AddPropertyChangeListener( "LoadModPreviews", function( LoadModPreviews )
-				if LoadModPreviews == nil then return end
+				if LoadModPreviews == nil or LoadModPreviews == self.Config.LoadModPreviewsInMapGrid then
+					return
+				end
 
 				self.Config.LoadModPreviewsInMapGrid = LoadModPreviews
 				self:SaveConfig( true )
