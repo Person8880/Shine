@@ -2,7 +2,8 @@
 	Default set of SGUI units.
 ]]
 
-local Layout = Shine.GUI.Layout
+local SGUI = Shine.GUI
+local Layout = SGUI.Layout
 
 local Absolute
 local IsType = Shine.IsType
@@ -185,26 +186,25 @@ do
 end
 
 --[[
-	Scaled using GUIScale().
+	Scaled using SGUI.LinearScale().
 ]]
 do
 	local GUIScaled = NewUnit( "GUIScaled" )
 
 	function GUIScaled:GetValue()
-		return GUIScale( self.Value )
+		return SGUI.LinearScale( self.Value )
 	end
 end
 
 --[[
-	GUIScales the value only if the resolution is > 1080p.
+	Scales the value only if the resolution is > 1080p.
 ]]
 do
-	local SGUI = Shine.GUI
 	local HighResScaled = NewUnit( "HighResScaled" )
 	local HIGH_RES_WIDTH = 1920
 
 	function HighResScaled:GetValue()
-		return SGUI.GetScreenSize() > HIGH_RES_WIDTH and GUIScale( self.Value ) or self.Value
+		return SGUI.GetScreenSize() > HIGH_RES_WIDTH and SGUI.LinearScale( self.Value ) or self.Value
 	end
 end
 

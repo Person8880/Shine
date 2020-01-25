@@ -53,7 +53,7 @@ end
 	finding the font that best matches the scaled size.
 ]]
 function FontManager.GetFont( FontFamily, DesiredSize )
-	local Scale = GUIScale( 1 )
+	local Scale = SGUI.LinearScale( 1 )
 	local AbsoluteSize = Scale * DesiredSize
 	return FindFontForSize( FontFamily, AbsoluteSize )
 end
@@ -67,7 +67,7 @@ function FontManager.GetHighResFont( FontFamily, DesiredSize )
 	local Scale
 	local W, H = SGUI.GetScreenSize()
 	if H > 1080 then
-		Scale = GUIScale( 1 )
+		Scale = SGUI.LinearScale( 1 )
 	else
 		Scale = 1
 	end

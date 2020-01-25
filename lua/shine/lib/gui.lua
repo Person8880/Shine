@@ -13,6 +13,7 @@ local Map = Shine.Map
 
 local getmetatable = getmetatable
 local include = Script.Load
+local Min = math.min
 local setmetatable = setmetatable
 local StringFormat = string.format
 local TableInsert = table.insert
@@ -305,6 +306,10 @@ end
 
 function SGUI.TenEightyPScale( Value )
 	return math.scaledown( Value, 1080, 1280 ) * ( 2 - ( 1080 / 1280 ) )
+end
+
+function SGUI.LinearScale( Value )
+	return Min( SGUI.GetScreenSize() ) / 1080 * Value
 end
 
 function SGUI.LinearScaleByScreenHeight( Value )
