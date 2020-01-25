@@ -128,7 +128,9 @@ local Units = SGUI.Layout.Units
 
 local Percentage = Units.Percentage
 local UnitVector = Units.UnitVector
-local Scaled = Units.Scaled
+local function Scaled( Value, Scale )
+	return Units.Integer( Units.Scaled( Value, Scale ) )
+end
 local Spacing = Units.Spacing
 
 local Colours = {
@@ -327,8 +329,8 @@ end
 		4. A settings button that opens up the chatbox settings.
 ]]
 function Plugin:CreateChatbox()
-	local UIScale = GUIScale( Vector( 1, 1, 1 ) ) * self.Config.Scale
-	local ScalarScale = GUIScale( 1 ) * self.Config.Scale
+	local UIScale = SGUI.LinearScale( Vector( 1, 1, 1 ) ) * self.Config.Scale
+	local ScalarScale = SGUI.LinearScale( 1 ) * self.Config.Scale
 
 	local ScreenWidth, ScreenHeight = SGUI.GetScreenSize()
 	ScreenWidth = ScreenWidth * self.Config.Scale
@@ -1107,7 +1109,6 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 	end
 
 	local Messages = self.Messages
-	local Scaled = SGUI.Layout.Units.Scaled
 	local LineMargin = Scaled( 2, self.ScalarScale )
 
 	local NextIndex = #Messages + 1
