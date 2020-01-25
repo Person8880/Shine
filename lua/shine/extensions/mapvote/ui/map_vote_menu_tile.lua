@@ -157,6 +157,7 @@ function MapTile:Initialise()
 			Class = "Row",
 			Props = {
 				AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+				Padding = Units.Spacing( Units.GUIScaled( 4 ), 0, Units.GUIScaled( 4 ), 0 ),
 				PositionType = SGUI.PositionType.ABSOLUTE,
 				Anchor = "TopLeft",
 				StyleName = "MapTileHeader"

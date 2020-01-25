@@ -81,6 +81,10 @@ local Skin = {
 			TextColour = Colour( 1, 1, 1, 1 ),
 			TextInheritsParentAlpha = true,
 			InheritsParentAlpha = true,
+			IconAutoFont = {
+				Family = SGUI.FontFamilies.Ionicons,
+				Size = Units.GUIScaled( 32 )
+			},
 			Shader = "shaders/shine/gui_none.surface_shader"
 		}
 	},
