@@ -152,6 +152,16 @@ local Skin = {
 			},
 			InheritsParentAlpha = true,
 			Shader = "shaders/shine/gui_none.surface_shader"
+		},
+		SmallerFonts = {
+			MapNameAutoFont = {
+				Family = "kAgencyFB",
+				Size = Units.GUIScaled( 27 )
+			},
+			VoteCounterAutoFont = {
+				Family = "kAgencyFB",
+				Size = Units.GUIScaled( 27 )
+			},
 		}
 	},
 	Menu = {
@@ -313,13 +323,15 @@ function MapVoteMenu:Initialise()
 						Populate = function( Menu )
 							Menu:SetFontScale( SGUI.FontManager.GetFont( "kAgencyFB", 27 ) )
 
+							local IconFont, IconScale = SGUI.FontManager.GetFont( SGUI.FontFamilies.Ionicons, 32 )
+
 							Menu:AddButton(
 								Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_USE_VOTE_MENU_BUTTON" ),
 								function()
 									self:OnPropertyChanged( "UseVoteMenu", true )
 									Menu:Destroy()
 								end
-							):SetIcon( SGUI.Icons.Ionicons.ArrowShrink )
+							):SetIcon( SGUI.Icons.Ionicons.ArrowShrink, IconFont, IconScale )
 
 							Menu:AddButton(
 								Locale:GetPhrase(
@@ -331,7 +343,11 @@ function MapVoteMenu:Initialise()
 									self:SetLoadModPreviews( not self.LoadModPreviews )
 									Menu:Destroy()
 								end
-							):SetIcon( SGUI.Icons.Ionicons[ self.LoadModPreviews and "EyeDisabled" or "Eye" ] )
+							):SetIcon(
+								SGUI.Icons.Ionicons[ self.LoadModPreviews and "EyeDisabled" or "Eye" ],
+								IconFont,
+								IconScale
+							)
 
 							Menu:AddButton(
 								Locale:GetPhrase(
@@ -343,7 +359,11 @@ function MapVoteMenu:Initialise()
 									self:SetCloseOnClick( not self.CloseOnClick )
 									Menu:Destroy()
 								end
-							):SetIcon( SGUI.Icons.Ionicons[ self.CloseOnClick and "Pin" or "Close" ] )
+							):SetIcon(
+								SGUI.Icons.Ionicons[ self.CloseOnClick and "Pin" or "Close" ],
+								IconFont,
+								IconScale
+							)
 
 							Menu:AutoSizeButtonIcons()
 							Menu:Resize()
@@ -526,6 +546,10 @@ function MapVoteMenu:SetMaps( Maps )
 		Tile:SetInheritsParentAlpha( true )
 		Tile:SetTeamVariation( self:GetTeamVariation() )
 		Tile:SetMapVoteMenu( self )
+
+		if #Maps > 9 then
+			Tile:SetStyleName( "SmallerFonts" )
+		end
 
 		if not LoadModPreviews and Entry.ModID then
 			Tile:OnPreviewTextureFailed( "Mod previews are disabled." )
