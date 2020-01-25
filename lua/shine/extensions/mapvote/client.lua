@@ -442,7 +442,7 @@ do
 			local Maps = self.Maps
 			if not Maps then return end
 
-			local Offset = SGUI.Layout.Units.HighResScaled( 32 ):GetValue()
+			local Offset = SGUI.Layout.Units.GUIScaled( 32 ):GetValue()
 			self.FullVoteMenu = SGUI:CreateFromDefinition( MapVoteMenu )
 			self.FullVoteMenu:SetLogger( self.Logger )
 			self.FullVoteMenu:SetLoadModPreviews( self.Config.LoadModPreviewsInMapGrid )
