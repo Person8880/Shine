@@ -707,16 +707,15 @@ local function PopCommandStack( self )
 	self.CommandStack[ #self.CommandStack ] = nil
 end
 
-function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
-	local ExpectedType = CurArg.Type
-	if IsType( ExpectedType, "table" ) then
-		ExpectedType = TableConcat( ExpectedType, " or " )
-	end
-
+function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, Index )
 	if CurArg.Error or not Client then
-		Shine:NotifyCommandError( Client,
-			CurArg.Error or "Incorrect argument #%i to %s, expected %s.",
-			true, i, ConCommand, ExpectedType )
+		local ExpectedValue = self.GetExpectedValue( CurArg )
+		Shine:NotifyCommandError(
+			Client,
+			CurArg.Error or "Incorrect argument #%s to %s, expected %s.",
+			true,
+			Index, ConCommand, ExpectedValue
+		)
 		return
 	end
 
@@ -726,19 +725,24 @@ function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg,
 		return
 	end
 
+	local ExpectedType = CurArg.Type
+	if IsType( ExpectedType, "table" ) then
+		ExpectedType = TableConcat( ExpectedType, " or " )
+	end
+
 	Shine:SendTranslatedCommandError( Client, "COMMAND_DEFAULT_ERROR", {
-		ArgNum = i,
+		ArgNum = Index,
 		CommandName = ConCommand,
 		ExpectedType = ExpectedType
 	} )
 end
 
-function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, Index )
 	-- Yes, it's repeating it, but getting permissions is pretty much free once cached.
 	local Allowed, ArgRestrictions = Shine:GetPermission( Client, ConCommand )
 	if not ArgRestrictions then return true end
 
-	local RestrictionIndex = tostring( i )
+	local RestrictionIndex = tostring( Index )
 	if not ArgRestrictions[ RestrictionIndex ] then return true end
 
 	local Func = ArgValidators[ MatchedType ]
@@ -749,8 +753,8 @@ function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, Cu
 	--The restriction wiped the argument as it's not allowed.
 	if Result == nil then
 		SendCommandError( Client, "COMMAND_RESTRICTED_ARG", {
-			ArgNum = i
-		}, "Invalid argument #%i, restricted in rank settings.", true, i )
+			ArgNum = Index
+		}, "Invalid argument #%i, restricted in rank settings.", true, Index )
 
 		return false
 	end

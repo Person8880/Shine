@@ -203,7 +203,7 @@ Shine.CommandUtil.ParamTypes = {
 
 			return GetDefault( Table )
 		end,
-		Help = function( Arg ) return StringFormat( "one of [ %s ]", TableConcat( Arg.Values, ", " ) ) end
+		Help = function( Arg ) return StringFormat( "[ %s ]", TableConcat( Arg.Values, ", " ) ) end
 	}
 }
 
@@ -277,6 +277,24 @@ function Shine.CommandUtil.ParseParameter( Client, String, Table )
 
 	-- If none succeed, then use the first type as the failure point.
 	return nil, nil, Type[ 1 ]
+end
+
+function Shine.CommandUtil.GetExpectedValue( CurArg )
+	local ParamType = ParamTypes[ CurArg.Type ]
+	local ExpectedValue = CurArg.Type
+	if IsType( ExpectedValue, "table" ) then
+		ExpectedValue = TableConcat( ExpectedValue, " or " )
+	end
+
+	if ParamType and ParamType.Help then
+		if IsType( ParamType.Help, "function" ) then
+			ExpectedValue = ParamType.Help( CurArg )
+		else
+			ExpectedValue = ParamType.Help
+		end
+	end
+
+	return ExpectedValue
 end
 
 function Shine.CommandUtil:GetCommandArg( Client, ConCommand, ArgString, CurArg, i )
