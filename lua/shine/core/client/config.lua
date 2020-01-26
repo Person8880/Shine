@@ -48,24 +48,29 @@ function Shine:SetClientSetting( Key, Value )
 	Shine.AssertAtLevel( CurrentValue ~= nil, "Unknown config key: %s", 3, Key )
 	Shine.TypeCheck( Value, type( CurrentValue ), 2, "SetClientSetting" )
 
-	if CurrentValue == Value then return end
+	if CurrentValue == Value then return false end
 
 	self.Config[ Key ] = Value
 	self:SaveClientBaseConfig()
+
+	Hook.Call( "OnClientSettingChanged", Key, Value )
+
+	return true
 end
 
 Shine:LoadClientBaseConfig()
 
 local function MakeClientOption( Command, OptionKey, OptionString, Yes, No )
 	local ConCommand = Shine:RegisterClientCommand( Command, function( Bool )
-		Shine.Config[ OptionKey ] = Bool
-
-		Notify( StringFormat( "[Shine] %s %s.", OptionString, Bool and Yes or No ) )
-
-		Shine:SaveClientBaseConfig()
+		if Shine:SetClientSetting( OptionKey, Bool ) then
+			Notify( StringFormat( "[Shine] %s %s.", OptionString, Bool and Yes or No ) )
+		end
 	end )
-	ConCommand:AddParam{ Type = "boolean", Optional = true,
-		Default = function() return not Shine.Config[ OptionKey ] end }
+	ConCommand:AddParam{
+		Type = "boolean",
+		Optional = true,
+		Default = function() return not Shine.Config[ OptionKey ] end
+	}
 end
 
 local Options = {
@@ -168,14 +173,11 @@ do
 			return
 		end
 
-		if Shine.Config.Skin == SkinName then return end
+		if Shine:SetClientSetting( "Skin", SkinName ) then
+			SGUI.SkinManager:SetSkin( SkinName )
 
-		Shine.Config.Skin = SkinName
-		SGUI.SkinManager:SetSkin( SkinName )
-
-		Notify( StringFormat( "Default skin changed to: %s.", SkinName ) )
-
-		Shine:SaveClientBaseConfig()
+			Notify( StringFormat( "Default skin changed to: %s.", SkinName ) )
+		end
 	end ):AddParam{
 		Type = "string", TakeRestOfLine = true
 	}

@@ -113,8 +113,8 @@ function Plugin:SetupClientConfig()
 		local NewPref = self.TeamType[ PreferredTeam ] or self.TeamType.NONE
 		if OldPref == NewPref then return end
 
-		self.Config.PreferredTeam = NewPref
-		self:SaveConfig( true )
+		self:SetClientSetting( "PreferredTeam", NewPref )
+
 		SendTeamPreference( PreferredTeam )
 
 		self:OnTeamPreferenceChanged()
@@ -155,8 +155,7 @@ function Plugin:SetupClientConfig()
 				SGUI.NotificationManager.DisplayHint( FRIEND_GROUP_INVITE_HINT_NAME )
 			end
 
-			self.Config[ FieldName ] = Type
-			self:SaveConfig( true )
+			self:SetClientSetting( FieldName, Type )
 			SendFriendGroupConfig( self.Config )
 
 			Print( Descriptions[ Type ] )

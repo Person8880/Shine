@@ -361,23 +361,21 @@ if Client then
 		local OnChange = Options.OnChange
 
 		local Command = self:BindCommand( Command, function( Value )
-			if CommandMessage then
-				Notify( CommandMessage( Value ) )
-			else
-				Print( "%s set to: %s", ConfigKey, MaxVisibleMessages )
-			end
-
+			local OriginalValue = Value
 			if Transformer then
 				Value = Transformer( Value )
 			end
 
-			if Value == self.Config[ ConfigKey ] then return end
+			if self:SetClientSetting( ConfigKey, Value ) then
+				if CommandMessage then
+					Notify( CommandMessage( OriginalValue ) )
+				else
+					Print( "%s set to: %s", ConfigKey, MaxVisibleMessages )
+				end
 
-			self.Config[ ConfigKey ] = Value
-			self:SaveConfig()
-
-			if OnChange then
-				OnChange( self, Value )
+				if OnChange then
+					OnChange( self, Value )
+				end
 			end
 		end )
 
@@ -443,7 +441,7 @@ if Client then
 		RegisterCommandIfNecessary( self, ConfigKey, Command, Options )
 
 		self.RegisteredClientSettings = rawget( self, "RegisteredClientSettings" ) or {}
-		self.RegisteredClientSettings[ MergedOptions.Command ] = MergedOptions
+		self.RegisteredClientSettings[ MergedOptions.ConfigKey ] = MergedOptions
 	end
 
 	function ConfigModule:AddClientSettings( Settings )
@@ -451,6 +449,23 @@ if Client then
 			local Setting = Settings[ i ]
 			self:AddClientSetting( Setting.ConfigKey, Setting.Command, Setting )
 		end
+	end
+
+	function ConfigModule:SetClientSetting( ConfigKey, Value )
+		if Value == self.Config[ ConfigKey ] then return false end
+
+		self.Config[ ConfigKey ] = Value
+		self:SaveConfig( true )
+
+		local Setting = self.RegisteredClientSettings[ ConfigKey ]
+		if Setting then
+			if Setting.IsPercentage then
+				Value = Value * 100
+			end
+			Shine.Hook.Call( "OnPluginClientSettingChanged", self, Setting, Value )
+		end
+
+		return true
 	end
 
 	function ConfigModule:Cleanup()

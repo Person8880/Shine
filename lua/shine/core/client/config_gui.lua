@@ -232,12 +232,15 @@ local SettingsTypes = {
 				Enabled = not Enabled
 			end
 
-			CheckBox:SetChecked( Enabled or false, true )
+			CheckBox:SetChecked( not not Enabled, true )
 			CheckBox.OnChecked = function( CheckBox, Value )
 				Shared.ConsoleCommand( Entry.Command.." "..tostring( Value ) )
 			end
 
 			return CheckBox, CheckBox
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetChecked( not not NewValue )
 		end
 	},
 	Slider = {
@@ -260,6 +263,9 @@ local SettingsTypes = {
 
 				return Slider
 			end )
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetValue( NewValue, true )
 		end
 	},
 	Dropdown = {
@@ -280,6 +286,9 @@ local SettingsTypes = {
 
 				return Dropdown
 			end )
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SelectOption( NewValue )
 		end
 	},
 	Radio = {
@@ -292,6 +301,7 @@ local SettingsTypes = {
 				Radio:SetCheckBoxMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
 
 				local CurrentChoice = GetConfiguredValue( Entry )
+				local OptionsByValue = {}
 				for i = 1, #Entry.Options do
 					local Option = Entry.Options[ i ]
 
@@ -306,6 +316,7 @@ local SettingsTypes = {
 						Value = Option,
 						Tooltip = Tooltip
 					}
+					OptionsByValue[ Option ] = RadioOption
 					Radio:AddOption( RadioOption )
 
 					if CurrentChoice == Option then
@@ -313,6 +324,7 @@ local SettingsTypes = {
 					end
 				end
 
+				Radio.OptionsByValue = OptionsByValue
 				Radio:AddPropertyChangeListener( "SelectedOption", function( Dropdown, Option )
 					Shared.ConsoleCommand( Entry.Command.." "..Option.Value )
 				end )
@@ -336,6 +348,9 @@ local SettingsTypes = {
 
 				return Radio
 			end )
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetSelectedOption( ValueHolder.OptionsByValue[ NewValue ] )
 		end
 	}
 }
@@ -422,10 +437,13 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 						)
 					end
 
-					if Setting.ConfigKey then
-						ElementsByKey[ Setting.ConfigKey ] = {
+					if Setting.ConfigKey or IsType( Setting.ConfigOption, "string" ) then
+						ElementsByKey[ Setting.ConfigKey or Setting.ConfigOption ] = {
+							ConfigOption = Setting.ConfigOption,
+							Command = Setting.Command,
 							ValueHolder = ValueHolder,
-							Container = Object
+							Container = Object,
+							Update = Creator.Update
 						}
 					end
 
@@ -466,6 +484,33 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 					end
 				end
 
+				-- Update the UI elements if the setting is changed elsewhere (e.g. running a console command directly).
+				Shine.Hook.Add( "OnPluginClientSettingChanged", ConfigMenu, function( Plugin, Setting, NewValue )
+					local Element = ElementsByKey[ Setting.ConfigKey ]
+					if not Element or Element.Command ~= Setting.Command or not SGUI.IsValid( Element.ValueHolder ) then
+						return
+					end
+
+					if Setting.Inverted then
+						NewValue = not NewValue
+					end
+
+					Element.Update( Element.ValueHolder, NewValue )
+				end )
+
+				Shine.Hook.Add( "OnClientSettingChanged", ConfigMenu, function( ConfigOption, NewValue )
+					local Element = ElementsByKey[ ConfigOption ]
+					if
+						not Element
+						or Element.ConfigOption ~= ConfigOption
+						or not SGUI.IsValid( Element.ValueHolder )
+					then
+						return
+					end
+
+					Element.Update( Element.ValueHolder, NewValue )
+				end )
+
 				TabPanel:SetLayout( TabLayout, true )
 			end, GroupDef and GroupDef.Icon )
 
@@ -490,6 +535,9 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 				ActiveTabName = Tabs:GetActiveTab().Name
 			}
 		end
+
+		Shine.Hook.Remove( "OnPluginClientSettingChanged", ConfigMenu )
+		Shine.Hook.Remove( "OnClientSettingChanged", ConfigMenu )
 	end
 } )
 

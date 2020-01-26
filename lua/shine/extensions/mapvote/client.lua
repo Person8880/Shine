@@ -94,8 +94,10 @@ function Plugin:SetupClientConfig()
 			return
 		end
 
-		self.Config.OnVoteAction = self.VoteAction[ Choice ] or self.VoteAction.USE_SERVER_SETTINGS
-		self:SaveConfig( true )
+		local VoteAction = self.VoteAction[ Choice ] or self.VoteAction.USE_SERVER_SETTINGS
+		if not self:SetClientSetting( "OnVoteAction", VoteAction ) then
+			return
+		end
 
 		local Explanations = {
 			[ self.VoteAction.USE_SERVER_SETTINGS ] = "now respect server settings",

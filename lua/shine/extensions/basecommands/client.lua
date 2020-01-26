@@ -163,11 +163,11 @@ function Plugin:SetupClientConfig()
 	end
 
 	self:BindCommand( "sh_alltalklocal_cl", function( Enable )
-		self.Config.DisableLocalAllTalk = not Enable
-		self:SaveConfig( true )
-		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = Enable }, true )
+		if self:SetClientSetting( "DisableLocalAllTalk", not Enable ) then
+			Print( "Local all talk is now %s.", Enable and "enabled" or "disabled" )
+		end
 
-		Print( "Local all talk is now %s.", Enable and "enabled" or "disabled" )
+		self:SendNetworkMessage( "EnableLocalAllTalk", { Enabled = Enable }, true )
 	end ):AddParam{ Type = "boolean", Optional = true, Default = function() return self.Config.DisableLocalAllTalk end }
 
 	self:AddClientSetting( "DisableLocalAllTalk", "sh_alltalklocal_cl", {
