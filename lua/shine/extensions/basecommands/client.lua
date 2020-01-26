@@ -106,7 +106,8 @@ function Plugin:SetupClientConfig()
 
 	self:AddClientSetting( "DisableLocalAllTalk", "sh_alltalklocal_cl", {
 		Type = "Boolean",
-		Description = "ALL_TALK_LOCAL_DESCRIPTION"
+		Description = "ALL_TALK_LOCAL_DESCRIPTION",
+		Inverted = true
 	} )
 end
 

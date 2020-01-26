@@ -178,6 +178,9 @@ local SettingsTypes = {
 			CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 
 			local Enabled = GetConfiguredValue( Entry )
+			if Entry.Inverted then
+				Enabled = not Enabled
+			end
 
 			CheckBox:SetChecked( Enabled or false, true )
 			CheckBox.OnChecked = function( CheckBox, Value )
