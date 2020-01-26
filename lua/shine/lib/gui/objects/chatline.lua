@@ -97,6 +97,12 @@ function ChatLine:AddBackground( Colour, Texture, Padding )
 	UpdateBackgroundSize( self )
 end
 
+function ChatLine:SetBackgroundTextureCoordinates( X1, Y1, X2, Y2 )
+	if not self.VisibleBackground then return end
+
+	self.VisibleBackground:SetTextureCoordinates( X1, Y1, X2, Y2 )
+end
+
 function ChatLine:PerformLayout()
 	if not self.ComputedWrapping then
 		self:PerformWrapping()

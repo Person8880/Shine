@@ -327,6 +327,9 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 		ChatLine:SetSize( Vector2( Client.GetScreenWidth() * MaxChatWidth, 0 ) )
 		ChatLine:AddBackground( Colour( 0, 0, 0, Plugin.Config.BackgroundOpacity ), BackgroundTexture, PaddingAmount )
+		-- The gradient texture seems to wrap right at the end of the gradient, making an awkward black bar.
+		-- This hack prevents that from showing.
+		ChatLine:SetBackgroundTextureCoordinates( 0, 0, 0.99, 1 )
 		ChatLine:SetPos( Vector2( 0, 0 ) )
 		ChatLine:InvalidateLayout( true )
 		ChatLine:SetIsVisible( true )
