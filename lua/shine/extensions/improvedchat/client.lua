@@ -584,6 +584,7 @@ function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.Panel:SetIsSchemed( false )
 	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
 	ChatElement.Panel:SetAnchor( "BottomLeft" )
+	ChatElement.Panel:SetBlockEventsIfFocusedWindow( false )
 
 	ChatElement.MessagePanel = SGUI:Create( "Panel", ChatElement.Panel )
 	ChatElement.MessagePanel:SetIsSchemed( false )

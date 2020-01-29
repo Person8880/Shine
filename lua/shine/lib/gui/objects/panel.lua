@@ -19,6 +19,7 @@ local ScrollPos = Vector( -20, 10, 0 )
 local ZeroColour = Colour( 0, 0, 0, 0 )
 
 SGUI.AddProperty( Panel, "AutoHideScrollbar" )
+SGUI.AddProperty( Panel, "BlockEventsIfFocusedWindow", true )
 SGUI.AddProperty( Panel, "Draggable" )
 SGUI.AddProperty( Panel, "HorizontalScrollingEnabled", true )
 SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
@@ -35,6 +36,7 @@ function Panel:Initialise()
 	self.OverflowX = false
 	self.OverflowY = false
 	self.HorizontalScrollingEnabled = true
+	self.BlockEventsIfFocusedWindow = true
 end
 
 function Panel:SkinColour()
@@ -699,7 +701,10 @@ function Panel:OnMouseDown( Key, DoubleClick )
 
 	if self:DragClick( Key, DoubleClick ) then return true, self end
 
-	if ( SGUI:IsWindow( self ) and self:MouseInCached() ) or self.BlockOnMouseDown then
+	if
+		( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow and self:MouseInCached() )
+		or self.BlockOnMouseDown
+	then
 		return true, self
 	end
 end
@@ -753,7 +758,7 @@ function Panel:OnMouseMove( Down )
 	end
 
 	-- Block mouse movement for lower windows.
-	if SGUI:IsWindow( self ) or self.BlockOnMouseDown then
+	if ( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow ) or self.BlockOnMouseDown then
 		if MouseIn == nil then
 			MouseIn = self:MouseIn( self.Background )
 		end
@@ -801,7 +806,7 @@ function Panel:OnMouseWheel( Down )
 	end
 
 	-- We block the event, so that only the focused window can scroll.
-	if SGUI:IsWindow( self ) then
+	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
 		return false
 	end
 end
@@ -814,7 +819,7 @@ function Panel:PlayerKeyPress( Key, Down )
 	end
 
 	-- Block the event so only the focused window receives input.
-	if SGUI:IsWindow( self ) then
+	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
 		return false
 	end
 end
@@ -826,7 +831,7 @@ function Panel:PlayerType( Char )
 		return true
 	end
 
-	if SGUI:IsWindow( self ) then
+	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
 		return false
 	end
 end
