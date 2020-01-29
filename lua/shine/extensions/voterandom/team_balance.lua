@@ -338,12 +338,17 @@ local function DebugLogTeamMembers( Logger, self, TeamMembers )
 end
 
 function BalanceModule:GetHistoricHappinessWeight( Player )
-	local RoundHistory = self.HappinessHistory
 	local Client = Player:GetClient()
 	if not Client then return 1 end
 
+	return self:GetHistoricHappinessWeightForClient( Client )
+end
+
+function BalanceModule:GetHistoricHappinessWeightForClient( Client )
+	local RoundHistory = self.HappinessHistory
 	local Weight = 1
 	local SteamID = tostring( Client:GetUserId() )
+
 	for i = 1, #RoundHistory do
 		local Round = RoundHistory[ i ]
 		local WasHappy = Round[ SteamID ]
@@ -979,13 +984,16 @@ do
 			return self.TeamStatsCache[ RankFunc ]
 		end
 
-		local Marines = GetEntitiesForTeam( "Player", 1 )
-		local Aliens = GetEntitiesForTeam( "Player", 2 )
+		local Gamerules = GetGamerules()
+		Shine.Assert( Gamerules, "Gamerules unavailable, unable to compute team stats!" )
 
+		-- Need to do this one team at a time due to Team:GetPlayers() re-using the same table on every call.
+		local Marines = Gamerules.team1:GetPlayers()
 		local MarineSkill = self:GetAverageSkill( Marines, 1 )
 		MarineSkill.StandardDeviation = GetStandardDeviation( Marines, MarineSkill.Average,
 			RankFunc, 1 )
 
+		local Aliens = Gamerules.team2:GetPlayers()
 		local AlienSkill = self:GetAverageSkill( Aliens, 2 )
 		AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, AlienSkill.Average,
 			RankFunc, 2 )
@@ -999,6 +1007,8 @@ do
 				if not Player.GetClient or not Player:GetClient() or not Player.GetTeamNumber then return end
 
 				local Client = Player:GetClient()
+				if Client:GetIsSpectator() then return end
+
 				local SteamID = Client:GetUserId()
 				if Counted[ SteamID ] then return end
 

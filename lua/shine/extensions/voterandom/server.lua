@@ -1759,12 +1759,18 @@ function Plugin:CreateCommands()
 		Message[ 1 ] = "Team stats:"
 
 		for i = 1, 2 do
-			Message[ #Message + 1 ] = "========="
-			Message[ #Message + 1 ] = Shine:GetTeamName( i, true )
-			Message[ #Message + 1 ] = "========="
-
 			local Stats = TeamStats[ i ]
 			local Skills = Stats.Skills
+
+			Message[ #Message + 1 ] = "======================"
+			Message[ #Message + 1 ] = StringFormat(
+				"%s (%d player%s)",
+				Shine:GetTeamName( i, true ),
+				#Skills,
+				#Skills == 1 and "" or "s"
+			)
+			Message[ #Message + 1 ] = "======================"
+
 			for j = 1, #Skills do
 				Message[ #Message + 1 ] = tostring( Skills[ j ] )
 			end
@@ -1777,15 +1783,27 @@ function Plugin:CreateCommands()
 			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )
 		Message[ #Message + 1 ] = StringFormat( "Play with friends cost weighting: %s. Max group size: %d.",
 			self.Config.TeamPreferences.PlayWithFriendsWeighting, self.Config.TeamPreferences.MaxFriendGroupSize )
+
+		local CurrentHappinessWeight = self:GetHistoricHappinessWeightForClient( Client )
+		Message[ #Message + 1 ] = StringFormat(
+			"Your current team preference weighting multiplier: %s.",
+			CurrentHappinessWeight
+		)
+
 		if self.LastShuffleTime then
 			Message[ #Message + 1 ] = StringFormat(
 				"Last shuffle was %s ago. %d/%d player(s) match their team from the last shuffle.",
 				string.TimeToString( SharedTime() - self.LastShuffleTime ),
 				TeamStats.NumMatchingTeams or 0,
-				TeamStats.TotalPlayers or 0 )
-			Message[ #Message + 1 ] = StringFormat( "%d/%d player(s) were placed on their preferred team.",
+				TeamStats.TotalPlayers or 0
+			)
+
+			Message[ #Message + 1 ] = StringFormat(
+				"%d/%d player(s) were placed on their preferred team.",
 				TeamStats.NumPreferencesHeld or 0,
-				TeamStats.NumPreferencesTotal or 0 )
+				TeamStats.NumPreferencesTotal or 0
+			)
+
 			if TeamStats.IsFunctionChanged then
 				-- If you're altering the algorithm, please don't try to suppress this.
 				-- It's important for players to know when the shuffle algorithm is different so
