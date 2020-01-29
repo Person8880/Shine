@@ -35,6 +35,8 @@ Plugin.DefaultConfig = {
 	DisplayChatTagsInTeamChat = false
 }
 
+Plugin.IsBeta = true
+Plugin.BetaDescription = "Enables rich text messages and more customisation for the chat"
 Plugin.DefaultState = true
 
 local DEFAULT_GROUP_KEY = setmetatable( {}, {
