@@ -67,6 +67,11 @@ local DefaultConfig = {
 		workshopupdater = false
 	},
 
+	-- Defines extensions marked as beta that should be loaded.
+	-- This allows plugins to be omitted from ActiveExtensions until they're promoted from beta status, at which point
+	-- their DefaultState will be respected.
+	ActiveBetaExtensions = {},
+
 	APIKeys = {
 		Steam = ""
 	},
@@ -129,6 +134,41 @@ do
 		}
 	end
 
+	local function ValidateExtensionSet( Extensions, FieldName )
+		if not IsType( Extensions, "table" ) then return false end
+
+		local Modified = false
+
+		-- For every active extension name, make sure only the lower-case version exists.
+		-- If there's one with a different case, remove it.
+		local RenamedExtensionValues = {}
+		for Name, Enabled in pairs( Extensions ) do
+			local LowerCaseName = StringLower( Name )
+			if LowerCaseName ~= Name then
+				if Extensions[ LowerCaseName ] ~= nil then
+					Notify( StringFormat( "Removing duplicate extension '%s' from %s.", Name, FieldName ) )
+				else
+					Notify( StringFormat(
+						"Renaming '%s' to '%s' in %s as extension names must be lower case.",
+						Name, LowerCaseName, FieldName
+					) )
+					-- Modifying during iteration for a key other than the current key will
+					-- lead to undefined iteration behaviour.
+					RenamedExtensionValues[ LowerCaseName ] = Enabled
+				end
+
+				Extensions[ Name ] = nil
+				Modified = true
+			end
+		end
+
+		for Name, Value in pairs( RenamedExtensionValues ) do
+			Extensions[ Name ] = Value
+		end
+
+		return Modified
+	end
+
 	local Validator = Shine.Validator()
 	Validator:AddRule( {
 		Matches = function( self, Config )
@@ -137,37 +177,12 @@ do
 	} )
 	Validator:AddRule( {
 		Matches = function( self, Config )
-			local ActiveExtensions = Config.ActiveExtensions
-			local Modified = false
-
-			-- For every active extension name, make sure only the lower-case version exists.
-			-- If there's one with a different case, remove it.
-			local RenamedExtensionValues = {}
-			for Name, Enabled in pairs( ActiveExtensions ) do
-				local LowerCaseName = StringLower( Name )
-				if LowerCaseName ~= Name then
-					if ActiveExtensions[ LowerCaseName ] ~= nil then
-						Notify( StringFormat( "Removing duplicate extension '%s' from ActiveExtensions.", Name ) )
-					else
-						Notify( StringFormat(
-							"Renaming '%s' to '%s' in ActiveExtensions as extension names must be lower case.",
-							Name, LowerCaseName
-						) )
-						-- Modifying during iteration for a key other than the current key will
-						-- lead to undefined iteration behaviour.
-						RenamedExtensionValues[ LowerCaseName ] = Enabled
-					end
-
-					ActiveExtensions[ Name ] = nil
-					Modified = true
-				end
-			end
-
-			for Name, Value in pairs( RenamedExtensionValues ) do
-				ActiveExtensions[ Name ] = Value
-			end
-
-			return Modified
+			return ValidateExtensionSet( Config.ActiveExtensions, "ActiveExtensions" )
+		end
+	} )
+	Validator:AddRule( {
+		Matches = function( self, Config )
+			return ValidateExtensionSet( Config.ActiveBetaExtensions, "ActiveBetaExtensions" )
 		end
 	} )
 	Validator:AddRule( {
@@ -318,33 +333,78 @@ function Shine:LoadExtensionConfigs()
 
 	local AllPlugins = self.AllPluginsArray
 	local ActiveExtensions = self.Config.ActiveExtensions
+	local ActiveBetaExtensions = self.Config.ActiveBetaExtensions
 	local Modified = false
+
+	local ExtensionsToLoad = {}
+
+	local function GetPluginTable( Plugin )
+		local PluginTable = self.Plugins[ Plugin ]
+
+		if not PluginTable then
+			self:LoadExtension( Plugin, true )
+			PluginTable = self.Plugins[ Plugin ]
+		end
+
+		return PluginTable
+	end
 
 	-- Find any new plugins we don't have in our config, and add them.
 	for i = 1, #AllPlugins do
 		local Plugin = AllPlugins[ i ]
+
+		local WasEnabledAsBeta = false
+		if ActiveBetaExtensions[ Plugin ] ~= nil then
+			WasEnabledAsBeta = ActiveBetaExtensions[ Plugin ]
+
+			-- Clear out any plugins that are no longer in beta.
+			local PluginTable = GetPluginTable( Plugin )
+			if PluginTable and not PluginTable.IsBeta then
+				ActiveBetaExtensions[ Plugin ] = nil
+				Modified = true
+			end
+		end
+
 		if ActiveExtensions[ Plugin ] == nil then
-			local PluginTable = self.Plugins[ Plugin ]
-			local DefaultState = false
-
 			-- Load, but do not enable, the extension to determine its default state.
-			if not PluginTable then
-				self:LoadExtension( Plugin, true )
+			local PluginTable = GetPluginTable( Plugin )
 
-				PluginTable = self.Plugins[ Plugin ]
-
-				if PluginTable and PluginTable.DefaultState ~= nil then
-					DefaultState = PluginTable.DefaultState
-				end
-			else
-				if PluginTable.DefaultState ~= nil then
-					DefaultState = PluginTable.DefaultState
-				end
+			local DefaultState = false
+			if PluginTable and PluginTable.DefaultState ~= nil then
+				DefaultState = PluginTable.DefaultState
 			end
 
-			ActiveExtensions[ Plugin ] = DefaultState
+			if WasEnabledAsBeta then
+				DefaultState = true
+			end
+
+			if PluginTable.IsBeta then
+				if ActiveBetaExtensions[ Plugin ] == nil then
+					self:Print(
+						"A new beta plugin is available: %s%s. Enable it in ActiveBetaExtensions in the base config, "..
+						"using sh_loadplugin or using the admin menu.",
+						true,
+						Plugin,
+						PluginTable.BetaDescription and StringFormat( " - %s", PluginTable.BetaDescription ) or ""
+					)
+
+					-- Always start beta extensions in a disabled state.
+					ActiveBetaExtensions[ Plugin ] = false
+				end
+			else
+				ActiveExtensions[ Plugin ] = DefaultState
+			end
 
 			Modified = true
+		end
+
+		local EnabledState = ActiveExtensions[ Plugin ]
+		if EnabledState == nil then
+			EnabledState = ActiveBetaExtensions[ Plugin ]
+		end
+
+		if EnabledState then
+			ExtensionsToLoad[ #ExtensionsToLoad + 1 ] = Plugin
 		end
 	end
 
@@ -356,9 +416,10 @@ function Shine:LoadExtensionConfigs()
 
 	Notify( "Loading extensions..." )
 
-	for Name, Enabled in SortedPairs( ActiveExtensions ) do
-		if Enabled and not DontEnableNow[ Name ] then
-			LoadPlugin( self, Name )
+	for i = 1, #ExtensionsToLoad do
+		local Plugin = ExtensionsToLoad[ i ]
+		if not DontEnableNow[ Plugin ] then
+			LoadPlugin( self, Plugin )
 		end
 	end
 

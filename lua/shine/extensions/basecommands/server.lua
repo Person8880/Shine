@@ -996,59 +996,69 @@ function Plugin:CreateAdminCommands()
 	local ReloadMapCommand = self:BindCommand( "sh_reloadmap", "reloadmap", ReloadMap )
 	ReloadMapCommand:Help( "Reloads the current map." )
 
-	local function LoadPlugin( Client, Name, Save )
-		Name = StringLower( Name )
-
-		if Name == "basecommands" then
-			local Message = "You cannot reload the basecommands plugin."
-			Shine.PrintToConsole( Client, Message )
-			if Client then
-				Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+	do
+		local function SaveEnabledState( Name, PluginTable )
+			if PluginTable.IsBeta then
+				Shine.Config.ActiveExtensions[ Name ] = nil
+				Shine.Config.ActiveBetaExtensions[ Name ] = true
+			else
+				Shine.Config.ActiveExtensions[ Name ] = true
 			end
-
-			return
+			Shine:SaveConfig()
 		end
 
-		local PluginTable = Shine.Plugins[ Name ]
-		local Success, Err
+		local function LoadPlugin( Client, Name, Save )
+			Name = StringLower( Name )
 
-		if not PluginTable then
-			Success, Err = Shine:LoadExtension( Name )
-		else
-			-- If it's already enabled and we're saving, then just save the config option, don't reload.
-			if PluginTable.Enabled and Save then
-				Shine.Config.ActiveExtensions[ Name ] = true
-				Shine:SaveConfig()
-
-				local Message = StringFormat( "Plugin '%s' now set to enabled in config.", Name )
-				Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
+			if Name == "basecommands" then
+				local Message = "You cannot reload the basecommands plugin."
+				Shine.PrintToConsole( Client, Message )
+				if Client then
+					Shine:SendNotification( Client, Shine.NotificationType.ERROR, Message, true )
+				end
 
 				return
 			end
 
-			Success, Err = Shine:EnableExtension( Name )
-		end
+			local PluginTable = Shine.Plugins[ Name ]
+			local Success, Err
 
-		if Success then
-			local Message = StringFormat( "Plugin '%s' loaded successfully.", Name )
-			Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
+			if not PluginTable then
+				Success, Err = Shine:LoadExtension( Name )
+			else
+				-- If it's already enabled and we're saving, then just save the config option, don't reload.
+				if PluginTable.Enabled and Save then
+					SaveEnabledState( Name, PluginTable )
 
-			-- Update all players with the plugins state.
-			Shine:SendPluginData( nil )
+					local Message = StringFormat( "Plugin '%s' now set to enabled in config.", Name )
+					Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
-			if Save then
-				Shine.Config.ActiveExtensions[ Name ] = true
-				Shine:SaveConfig()
+					return
+				end
+
+				Success, Err = Shine:EnableExtension( Name )
 			end
-		else
-			local Message = StringFormat( "Plugin '%s' failed to load. Error: %s", Name, Err )
-			Shine:SendAdminNotification( Client, Shine.NotificationType.ERROR, Message )
+
+			if Success then
+				local Message = StringFormat( "Plugin '%s' loaded successfully.", Name )
+				Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
+
+				-- Update all players with the plugins state.
+				Shine:SendPluginData( nil )
+
+				if Save then
+					SaveEnabledState( Name, PluginTable )
+				end
+			else
+				local Message = StringFormat( "Plugin '%s' failed to load. Error: %s", Name, Err )
+				Shine:SendAdminNotification( Client, Shine.NotificationType.ERROR, Message )
+			end
 		end
+		local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
+		LoadPluginCommand:AddParam{ Type = "string", Error = "Please specify a plugin to load.", Help = "plugin" }
+		LoadPluginCommand:AddParam{ Type = "boolean", Optional = true, Default = false, Help = "save" }
+		LoadPluginCommand:Help( "Loads or reloads a plugin." )
 	end
-	local LoadPluginCommand = self:BindCommand( "sh_loadplugin", nil, LoadPlugin )
-	LoadPluginCommand:AddParam{ Type = "string", Error = "Please specify a plugin to load.", Help = "plugin" }
-	LoadPluginCommand:AddParam{ Type = "boolean", Optional = true, Default = false, Help = "save" }
-	LoadPluginCommand:Help( "Loads or reloads a plugin." )
 
 	local function UnloadPlugin( Client, Name, Save )
 		Name = StringLower( Name )
@@ -1062,7 +1072,8 @@ function Plugin:CreateAdminCommands()
 			return
 		end
 
-		if not Shine.Plugins[ Name ] or not Shine.Plugins[ Name ].Enabled then
+		local PluginTable = Shine.Plugins[ Name ]
+		if not PluginTable or not PluginTable.Enabled then
 			-- If it's already disabled and we want to save, just save.
 			if Save and Shine.AllPlugins[ Name ] then
 				Shine.Config.ActiveExtensions[ Name ] = false
