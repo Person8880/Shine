@@ -94,6 +94,34 @@ UnitTest:Test( "UTF8Encode", function( Assert )
 	Assert:ArrayEquals( { "$", "¢", "€", "𐍈" }, string.UTF8Encode( "$¢€𐍈" ) )
 end )
 
+UnitTest:Test( "UTF8Chars", function( Assert )
+	local ReplacementChar = string.UTF8Char( 0xFFFD )
+	local Expected = {
+		{ 2, ReplacementChar },
+		{ 3, ReplacementChar },
+		{ 4, "$" },
+		{ 5, ReplacementChar },
+		{ 6, "$" },
+		{ 8, "¢" },
+		{ 11, "€" },
+		{ 15, "𐍈" }
+	}
+	local Count = 0
+	for ByteIndex, Char in string.UTF8Chars( StringChar( 128, 245, 0x24, 128, 0x24 ).."¢€𐍈" ) do
+		Count = Count + 1
+		Assert.Equals(
+			StringFormat( "Char %d was not at the expected index", Count ),
+			Expected[ Count ][ 1 ], ByteIndex
+		)
+		Assert.Equals(
+			StringFormat( "Char %d was not the expected value", Count ),
+			Expected[ Count ][ 2 ], Char
+		)
+	end
+
+	Assert.Equals( "Did not iterate all characters in the given string", #Expected, Count )
+end )
+
 local FullUTF8String = "$¢€𐍈"
 
 UnitTest:Test( "UTF8Length", function( Assert )

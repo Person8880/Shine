@@ -119,6 +119,54 @@ end )
 
 Shine.GetClientInfo = OldGetClientInfo
 
+UnitTest:Test( "EnsurePlayerNameIsValid - Does nothing if MarkPlayersAFK = false", function( Assert )
+	AFKKick.Config.MarkPlayersAFK = false
+
+	Assert.Nil(
+		"Should return nil when MarkPlayersAFK = false",
+		AFKKick:EnsurePlayerNameIsValid( nil, AFKKick.AFK_PREFIX.."SomePlayer" )
+	)
+end )
+
+UnitTest:Test( "EnsurePlayerNameIsValid - Does nothing if the player's name is valid", function( Assert )
+	AFKKick.Config.MarkPlayersAFK = true
+
+	Assert.Nil(
+		"Should return nil when the player name is valid",
+		AFKKick:EnsurePlayerNameIsValid( nil, "SomePlayer" )
+	)
+end )
+
+UnitTest:Test( "EnsurePlayerNameIsValid - Removes the prefix when present in a name with non-whitespace after it", function( Assert )
+	AFKKick.Config.MarkPlayersAFK = true
+
+	Assert.Equals(
+		"Should return the name without the prefix",
+		"SomePlayer",
+		AFKKick:EnsurePlayerNameIsValid( nil, AFKKick.AFK_PREFIX.."SomePlayer" )
+	)
+end )
+
+UnitTest:Test( "EnsurePlayerNameIsValid - Renames the player to 'AFK' if their name is purely the prefix with whitespace after", function( Assert )
+	AFKKick.Config.MarkPlayersAFK = true
+
+	Assert.Equals(
+		"Should return 'AFK' for the name due to only having whitespace after the prefix",
+		"AFK",
+		AFKKick:EnsurePlayerNameIsValid( nil, AFKKick.AFK_PREFIX.."   " )
+	)
+end )
+
+UnitTest:Test( "EnsurePlayerNameIsValid - Renames the player to 'AFK' if their name is purely the prefix", function( Assert )
+	AFKKick.Config.MarkPlayersAFK = true
+
+	Assert.Equals(
+		"Should return 'AFK' for the name due to being the prefix only",
+		"AFK",
+		AFKKick:EnsurePlayerNameIsValid( nil, AFKKick.AFK_PREFIX )
+	)
+end )
+
 AFKKick.Config.WarnTimeInMinutes = 1
 AFKKick.Config.MarkPlayersAFK = true
 AFKKick.Config.PlayerCountRules = {
