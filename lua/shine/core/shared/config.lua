@@ -243,6 +243,8 @@ do
 	local Clamp = math.Clamp
 	local Floor = math.floor
 	local StringExplode = string.Explode
+	local StringGSub = string.gsub
+	local StringMatch = string.match
 	local TableBuild = table.Build
 	local TableConcat = table.concat
 	local TableRemove = table.remove
@@ -339,6 +341,20 @@ do
 			end,
 			Message = function()
 				return StringFormat( "%%s must have a value between %s and %s", Min, Max )
+			end
+		}
+	end
+
+	function Validator.MatchesPattern( Pattern, DefaultValue )
+		Shine.TypeCheck( Pattern, "string", 1, "MatchesPattern" )
+
+		return {
+			Check = function( Value )
+				return not IsType( Value, "string" ) or not StringMatch( Value, Pattern )
+			end,
+			Fix = Validator.Constant( DefaultValue ),
+			Message = function()
+				return StringFormat( "%%s must match pattern %s", ( StringGSub( Pattern, "%%", "%%%%" ) ) )
 			end
 		}
 	end
