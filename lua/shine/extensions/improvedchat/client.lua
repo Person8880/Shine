@@ -495,7 +495,8 @@ do
 	local ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, 75 )
 	-- Commander chat needs to be higher up due to possible control groups.
 	local ABOVE_MINIMAP_COMMANDER_CHAT_OFFSET = Vector2( 0, -5 )
-	local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, 50 )
+	-- Spectator chat needs to move to the right to avoid overlapping the marine team player elements.
+	local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 125, 50 )
 
 	local function ShouldMoveChat( self )
 		return self.GUIChat and not self.GUIChat.HasMoved

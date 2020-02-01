@@ -9,7 +9,7 @@ local TableEmpty = table.Empty
 local TableNew = require "table.new"
 
 local TextSizeProvider = Shine.TypeDef()
-function TextSizeProvider:Init( Font, Scale, Label )
+function TextSizeProvider:Init( Font, Scale )
 	self.WordSizeCache = TableNew( 0, 10 )
 	self:SetFontScale( Font, Scale )
 
