@@ -32,6 +32,7 @@ function Plugin:SetupDataTable()
 		MaxResults = "integer",
 		TotalNumResults = "integer"
 	}, "Client" )
+	self:AddNetworkMessage( "BanDataChanged", {}, "Client" )
 
 	self:AddTranslatedMessage( "PLAYER_BANNED", {
 		TargetName = self:GetNameNetworkField(),

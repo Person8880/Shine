@@ -577,3 +577,9 @@ function Plugin:ReceiveBanPage( PageData )
 	self.PageBack:SetEnabled( PageData.Page > 1 )
 	self.PageForward:SetEnabled( PageData.Page < PageData.NumPages )
 end
+
+function Plugin:ReceiveBanDataChanged( Data )
+	if not self.BanMenuOpen or not self.CurrentPage then return end
+
+	self:RequestBanPage( self.CurrentPage )
+end

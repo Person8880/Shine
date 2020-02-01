@@ -464,7 +464,10 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	if not BanData then return end
 
 	self.Config.Banned[ ID ] = nil
-	self:RemoveBanFromNetData( ID )
+
+	if self:RemoveBanFromNetData( ID ) then
+		self:NotifyClientsOfBanDataChange()
+	end
 
 	if self.Config.BansSubmitURL ~= "" and not self.Retries[ ID ] then
 		self:SendHTTPRequest( ID, {
@@ -950,6 +953,13 @@ function Plugin:BuildInitialNetworkData()
 	self.SortedBans = SortedBans
 end
 
+function Plugin:NotifyClientsOfBanDataChange()
+	local Clients = Shine:GetClientsWithAccess( self.ListPermission )
+	if #Clients > 0 then
+		self:SendNetworkMessage( Clients, "BanDataChanged", {}, true )
+	end
+end
+
 function Plugin:AddBanToNetData( BanData )
 	-- First remove the old ban, if it exists.
 	self:RemoveBanFromNetData( BanData.ID )
@@ -959,16 +969,21 @@ function Plugin:AddBanToNetData( BanData )
 		Data[ #Data + 1 ] = BanData
 		TableMergeSort( Data, self.SortComparators[ i ] )
 	end
+
+	self:NotifyClientsOfBanDataChange()
 end
 
 function Plugin:RemoveBanFromNetData( ID )
+	local Changed = false
 	for i = 1, #self.SortColumn do
 		local Data = self.SortedBans[ i ]
 		local Ban, Index = TableFindByField( Data, "ID", ID )
 		if Index then
+			Changed = true
 			TableRemove( Data, Index )
 		end
 	end
+	return Changed
 end
 
 function Plugin:FilterData( Data, Filter )
