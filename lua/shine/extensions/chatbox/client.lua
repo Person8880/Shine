@@ -434,11 +434,11 @@ function Plugin:CreateChatbox()
 
 	-- Panel for messages.
 	local Box = SGUI:Create( "Panel", Border )
-	local ScrollbarPos = LayoutData.Positions.Scrollbar * WidthMult
+	local ScrollbarPos = LayoutData.Positions.Scrollbar * UIScale.x
 	ScrollbarPos.x = Ceil( ScrollbarPos.x )
 	Box:SetupFromTable{
 		ScrollbarPos = ScrollbarPos,
-		ScrollbarWidth = Ceil( 8 * WidthMult ),
+		ScrollbarWidth = Ceil( 8 * UIScale.x ),
 		ScrollbarHeightOffset = 0,
 		Scrollable = true,
 		HorizontalScrollingEnabled = false,
