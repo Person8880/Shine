@@ -645,6 +645,8 @@ function Plugin:ResetGUIChat( ChatElement )
 	end
 	ChatElement.ChatLines = nil
 	ChatElement.ChatLinePool = nil
+	ChatElement.ChatLinesStream = nil
+	ChatElement.MessagePanel = nil
 end
 
 -- Replace adding standard messages to use ChatLine elements and the altered display behaviour.
