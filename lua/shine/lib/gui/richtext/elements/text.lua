@@ -45,7 +45,12 @@ function Text:GetLines()
 	end
 
 	for i = 1, #ElementLines do
-		ElementLines[ i ] = Text( ElementLines[ i ] )
+		local LineText = ElementLines[ i ]
+
+		local Line = self:Copy()
+		Line.Value = LineText
+
+		ElementLines[ i ] = Line
 	end
 
 	return ElementLines

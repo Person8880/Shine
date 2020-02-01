@@ -13,6 +13,33 @@ local TextSizeProvider = {
 	TextHeight = 10
 }
 
+UnitTest:Test( "GetLines - Should return self when only one line is present", function( Assert )
+	local Element = Text( "A single line of text." )
+	Assert.ArrayEquals( "Should return the element on its own", { Element }, Element:GetLines() )
+end )
+
+UnitTest:Test( "GetLines - Should copy all properties when multiple lines are present", function( Assert )
+	local Element = Text( {
+		Value = "Multiple lines\nof\r\ntext.",
+		DoClick = function() end
+	} )
+
+	Assert.DeepEquals( "Should return each line, preserving properties", {
+		Text( {
+			Value = "Multiple lines",
+			DoClick = Element.DoClick
+		} ),
+		Text( {
+			Value = "of",
+			DoClick = Element.DoClick
+		} ),
+		Text( {
+			Value = "text.",
+			DoClick = Element.DoClick
+		} )
+	}, Element:GetLines() )
+end )
+
 UnitTest:Test( "Split - Should split into words without text wrapping if unnecessary", function( Assert )
 	local Element = Text( "Some words that fit" )
 
