@@ -509,8 +509,12 @@ do
 		self:SetChatOffset( Offset )
 	end
 
+	local function IsSpectator( Player )
+		return Player.GetTeamNumber and Player:GetTeamNumber() == kSpectatorIndex
+	end
+
 	local function ShouldMoveChatAboveMinimap( Player )
-		return Player and ( Player:isa( "Spectator" ) or Player:isa( "Commander" ) )
+		return Player and ( IsSpectator( Player ) or Player:isa( "Commander" ) )
 	end
 
 	local function ShouldMoveChatAboveAlienHealth( Player )
