@@ -524,6 +524,14 @@ do
 		-- We need to inform clients to enable the client portion.
 		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
+
+			-- Sending network messages before this point will fail as they will arrive before the plugin has been
+			-- enabled on the client.
+			if IsType( Plugin.OnNetworkingReady, "function" ) then
+				if not xpcall( Plugin.OnNetworkingReady, OnInitError, Plugin ) then
+					Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+				end
+			end
 		end
 
 		Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
