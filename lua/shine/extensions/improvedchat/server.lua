@@ -50,11 +50,6 @@ function Plugin:Initialise()
 	self.ChatTagDefinitions = Map()
 	self.ClientsWithTags = Map()
 
-	-- Wait a tick to allow the enabled state to be sent to clients.
-	self:SimpleTimer( 0, function()
-		self:OnUserReload()
-	end )
-
 	self.ChatTagIndex = 0
 	self.NextMessageID = 0
 	self.dt.DisplayChatTagsInTeamChat = self.Config.DisplayChatTagsInTeamChat
@@ -62,6 +57,10 @@ function Plugin:Initialise()
 	ChatAPI:SetProvider( self )
 
 	return true
+end
+
+function Plugin:OnNetworkingReady()
+	self:OnUserReload()
 end
 
 local function ToInt( R, G, B )
