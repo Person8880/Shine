@@ -417,13 +417,13 @@ do
 		if not Client then return nil end
 
 		local Player = Client:GetControllingPlayer()
-		local ActualName = StringLower( Player and Player:GetName() )
+		local ActualName = Player and StringLower( Player:GetName() )
 		if Name == ActualName then
 			return Client
 		end
 
 		Indexes.ByName[ Name ] = nil
-		if ActualName ~= "" then
+		if ActualName and ActualName ~= "" then
 			Indexes.ByName[ ActualName ] = Client
 		end
 
@@ -487,7 +487,7 @@ do
 
 		for Client in Shine.IterateClients() do
 			local Player = Client:GetControllingPlayer()
-			if Player and StringLower( Player:GetName() ) == Name then
+			if Player and StringLower( Player:GetName() ) == SearchName then
 				Indexes.ByName[ SearchName ] = Client
 				return Client
 			end
