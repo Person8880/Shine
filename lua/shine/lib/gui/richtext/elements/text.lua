@@ -61,7 +61,7 @@ function Text:IsVisibleElement()
 end
 
 local WrappedParts = TableNew( 3, 0 )
-local function EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
+local function EagerlyWrapText( self, Index, TextSizeProvider, Segments, MaxWidth, Word )
 	TableEmpty( WrappedParts )
 
 	-- Eagerly text-wrap here to make things easier when word-wrapping.
@@ -69,8 +69,10 @@ local function EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	TextWrap( TextSizeProvider, Word, MaxWidth, WrappedParts )
 
 	for j = 1, WrappedParts.Count do
-		local Width = TextSizeProvider:GetWidth( WrappedParts[ j ] )
-		local Segment = Text( WrappedParts[ j ] )
+		local WrappedText = WrappedParts[ j ]
+		local Width = TextSizeProvider:GetWidth( WrappedText )
+		local Segment = Text( self )
+		Segment.Value = WrappedText
 		Segment.Width = Width
 		Segment.WidthWithoutSpace = Width
 		Segment.Height = TextSizeProvider.TextHeight
@@ -82,8 +84,9 @@ local function EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	TableEmpty( WrappedParts )
 end
 
-local function AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, SpaceWidth )
-	local Segment = Text( Word )
+local function AddSegmentFromWord( self, Index, TextSizeProvider, Segments, Word, Width, SpaceWidth )
+	local Segment = Text( self )
+	Segment.Value = Word
 	Segment.Width = Width + SpaceWidth
 	Segment.WidthWithoutSpace = Width
 	Segment.Height = TextSizeProvider.TextHeight
@@ -92,7 +95,7 @@ local function AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Widt
 	Segments[ #Segments + 1 ] = Segment
 end
 
-local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos )
+local function WrapUsingAnchor( self, Index, TextSizeProvider, Segments, MaxWidth, Word, XPos )
 	-- Only bother to wrap against the anchor if there's enough room left on the line after it.
 	local WidthRemaining = MaxWidth - XPos
 	if WidthRemaining / MaxWidth <= 0.1 then return false end
@@ -104,7 +107,7 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	TextWrap( TextSizeProvider, Word, WidthRemaining, WrappedParts, 1 )
 
 	AddSegmentFromWord(
-		Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), 0
+		self, Index, TextSizeProvider, Segments, WrappedParts[ 1 ], TextSizeProvider:GetWidth( WrappedParts[ 1 ] ), 0
 	)
 
 	-- Now take the text that's left, and wrap it based on the full max width (as it's no longer on the same
@@ -112,9 +115,9 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 	local RemainingText = StringSub( Word, #WrappedParts[ 1 ] + 1 )
 	local Width = TextSizeProvider:GetWidth( RemainingText )
 	if Width > MaxWidth then
-		EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, RemainingText )
+		EagerlyWrapText( self, Index, TextSizeProvider, Segments, MaxWidth, RemainingText )
 	else
-		AddSegmentFromWord( Index, TextSizeProvider, Segments, RemainingText, Width, 0 )
+		AddSegmentFromWord( self, Index, TextSizeProvider, Segments, RemainingText, Width, 0 )
 	end
 
 	TableEmpty( WrappedParts )
@@ -123,23 +126,23 @@ local function WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Wor
 end
 
 -- First word is a special case. If it needs text wrapping, it needs to wrap based on the current x-offset.
-local function WrapFirstWord( Index, TextSizeProvider, Segments, MaxWidth, XPos, Word )
+local function WrapFirstWord( self, Index, TextSizeProvider, Segments, MaxWidth, XPos, Word )
 	local Width = TextSizeProvider:GetWidth( Word )
 	local WidthToCompareAgainst = MaxWidth - XPos
 
 	if Width > WidthToCompareAgainst then
-		if not WrapUsingAnchor( Index, TextSizeProvider, Segments, MaxWidth, Word, XPos ) then
-			EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
+		if not WrapUsingAnchor( self, Index, TextSizeProvider, Segments, MaxWidth, Word, XPos ) then
+			EagerlyWrapText( self, Index, TextSizeProvider, Segments, MaxWidth, Word )
 		end
 	else
-		AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, 0 )
+		AddSegmentFromWord( self, Index, TextSizeProvider, Segments, Word, Width, 0 )
 	end
 end
 
 function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, XPos )
 	local Words = StringExplode( self.Value, " ", true )
 
-	WrapFirstWord( Index, TextSizeProvider, Segments, MaxWidth, XPos, Words[ 1 ] )
+	WrapFirstWord( self, Index, TextSizeProvider, Segments, MaxWidth, XPos, Words[ 1 ] )
 
 	local SpaceWidth = TextSizeProvider.SpaceSize
 	for i = 2, #Words do
@@ -147,9 +150,9 @@ function Text:Split( Index, TextSizeProvider, Segments, MaxWidth, XPos )
 		local Width = TextSizeProvider:GetWidth( Word )
 		if Width > MaxWidth then
 			-- Word will need text wrapping.
-			EagerlyWrapText( Index, TextSizeProvider, Segments, MaxWidth, Word )
+			EagerlyWrapText( self, Index, TextSizeProvider, Segments, MaxWidth, Word )
 		else
-			AddSegmentFromWord( Index, TextSizeProvider, Segments, Word, Width, SpaceWidth )
+			AddSegmentFromWord( self, Index, TextSizeProvider, Segments, Word, Width, SpaceWidth )
 		end
 	end
 end

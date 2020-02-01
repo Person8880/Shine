@@ -41,7 +41,10 @@ UnitTest:Test( "GetLines - Should copy all properties when multiple lines are pr
 end )
 
 UnitTest:Test( "Split - Should split into words without text wrapping if unnecessary", function( Assert )
-	local Element = Text( "Some words that fit" )
+	local Element = Text( {
+		Value = "Some words that fit",
+		DoClick = function() end
+	} )
 
 	local Segments = {}
 	Element:Split( 1, TextSizeProvider, Segments, 100, 0 )
@@ -52,34 +55,45 @@ UnitTest:Test( "Split - Should split into words without text wrapping if unneces
 			WidthWithoutSpace = 4,
 			Value = "Some",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 6,
 			WidthWithoutSpace = 5,
 			Value = "words",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 5,
 			WidthWithoutSpace = 4,
 			Value = "that",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 4,
 			WidthWithoutSpace = 3,
 			Value = "fit",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		}
 	}, Segments )
 end )
 
 UnitTest:Test( "Split - Should text wrap a long word if it doesn't fit on the line", function( Assert )
-	local Element = Text( string.rep( "a", 11 ) )
+	local Element = Text( {
+		Value = string.rep( "a", 11 ),
+		DoClick = function() end
+	} )
 
 	local Segments = {}
 	Element:Split( 1, TextSizeProvider, Segments, 10, 0 )
@@ -90,20 +104,27 @@ UnitTest:Test( "Split - Should text wrap a long word if it doesn't fit on the li
 			WidthWithoutSpace = 10,
 			Value = string.rep( "a", 10 ),
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 1,
 			WidthWithoutSpace = 1,
 			Value = "a",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		}
 	}, Segments )
 end )
 
 UnitTest:Test( "Split - Should text wrap accounting for the current position", function( Assert )
-	local Element = Text( string.rep( "a", 11 ) )
+	local Element = Text( {
+		Value = string.rep( "a", 11 ),
+		DoClick = function() end
+	} )
 
 	local Segments = {}
 	Element:Split( 1, TextSizeProvider, Segments, 15, 5 )
@@ -114,20 +135,27 @@ UnitTest:Test( "Split - Should text wrap accounting for the current position", f
 			WidthWithoutSpace = 10,
 			Value = string.rep( "a", 10 ),
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 1,
 			WidthWithoutSpace = 1,
 			Value = "a",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		}
 	}, Segments )
 end )
 
 UnitTest:Test( "Split - Should text wrap accounting for the current position not including previous words", function( Assert )
-	local Element = Text( "Some words "..string.rep( "a", 16 ) )
+	local Element = Text( {
+		Value = "Some words "..string.rep( "a", 16 ),
+		DoClick = function() end
+	} )
 
 	local Segments = {}
 	Element:Split( 1, TextSizeProvider, Segments, 15, 0 )
@@ -138,28 +166,36 @@ UnitTest:Test( "Split - Should text wrap accounting for the current position not
 			WidthWithoutSpace = 4,
 			Value = "Some",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 6,
 			WidthWithoutSpace = 5,
 			Value = "words",
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 15,
 			WidthWithoutSpace = 15,
 			Value = string.rep( "a", 15 ),
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		},
 		{
 			Width = 1,
 			WidthWithoutSpace = 1,
 			Value = string.rep( "a", 1 ),
 			Height = 10,
-			OriginalElement = 1
+			OriginalElement = 1,
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		}
 	}, Segments )
 end )
