@@ -190,7 +190,7 @@ local function WrapLine( WrappedLines, TextSizeProvider, Line, MaxWidth, NumLine
 				WrappedLines[ NumLines ] = WrappedLine
 				LastElementIndex = ElementIndex
 
-				StartIndex = IsEndingOnCurrentElement and ( j + 1 ) or j
+				StartIndex = EndIndex + 1
 				CurrentWidth = IsEndingOnCurrentElement and 0 or Segments[ j ].WidthWithoutSpace
 			end
 		end
