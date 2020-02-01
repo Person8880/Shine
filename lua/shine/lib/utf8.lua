@@ -2146,10 +2146,9 @@ local function UTF8Encode( String )
 end
 string.UTF8Encode = UTF8Encode
 
-local function UTF8Iterate( Context, CurByte )
-	if CurByte > Context.Length then return nil end
+local function UTF8Iterate( String, CurByte )
+	if CurByte > #String then return nil end
 
-	local String = Context.String
 	local CharBytes = GetNumUTF8Bytes( String, CurByte )
 	local Char
 
@@ -2166,7 +2165,7 @@ end
 	Provides an iterator over the UTF8 characters in the given string.
 ]]
 local function UTF8Chars( String )
-	return UTF8Iterate, { Length = #String, String = String }, 1
+	return UTF8Iterate, String, 1
 end
 string.UTF8Chars = UTF8Chars
 
