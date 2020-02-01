@@ -21,6 +21,8 @@ local Percentage = Units.Percentage
 local Spacing = Units.Spacing
 local UnitVector = Units.UnitVector
 
+local SMALL_PADDING = HighResScaled( 8 )
+
 ConfigMenu.Size = UnitVector( Units.Integer( HighResScaled( 800 ) ), Units.Integer( HighResScaled( 600 ) ) )
 ConfigMenu.EasingTime = 0.25
 
@@ -209,7 +211,7 @@ local function MakeElementWithDescription( Panel, Entry, Populator )
 	Description:SetFontScale( GetSmallFont() )
 	Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
 	Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
-	Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+	Description:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
 	VerticalLayout:AddElement( Description )
 
 	local ValueHolder = Populator( Entry, TranslationSource, Container, VerticalLayout )
@@ -331,21 +333,6 @@ local SettingsTypes = {
 
 				VerticalLayout:AddElement( Radio )
 
-				if Entry.HelpText then
-					local Hint = Container:Add( "Hint" )
-					Hint:SetStyleName( Entry.HelpTextStyle or "Info" )
-					Hint:SetMargin( Spacing( 0, HighResScaled( 8 ), 0, 0 ) )
-					Hint:SetText( Locale:GetPhrase( TranslationSource, Entry.HelpText ) )
-					Hint:SetFontScale( GetSmallFont() )
-
-					Hint:SetAutoSize( UnitVector(
-						Percentage( 100 ),
-						Units.Auto()
-					) )
-
-					VerticalLayout:AddElement( Hint )
-				end
-
 				return Radio
 			end )
 		end,
@@ -360,8 +347,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 	OnInit = function( Panel, Data )
 		local Settings = Shine.ClientSettings
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( HighResScaled( 8 ), HighResScaled( 8 ),
-				HighResScaled( 8 ), HighResScaled( 8 ) )
+			Padding = Spacing( SMALL_PADDING, SMALL_PADDING,
+				SMALL_PADDING, SMALL_PADDING )
 		} )
 
 		local Title = Panel:Add( "Label" )
@@ -402,16 +389,35 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 			end
 		end
 
+		-- Sort the tabs to keep the general tab at the front, then order the rest alphabetically.
+		-- This accounts for plugins loading/unloading after the menu is created, which can alter the order of
+		-- the settings list above.
+		local GeneralGroupName = Locale:GetPhrase( GeneralGroup.Source, GeneralGroup.Key )
+		SettingsByGroup:SortKeys( function( A, B )
+			if A == GeneralGroupName then
+				if B == GeneralGroupName then
+					return false
+				end
+				return true
+			end
+
+			if B == GeneralGroupName then
+				return false
+			end
+
+			return A < B
+		end )
+
 		local function SetupTabPanel( TabPanel )
 			TabPanel:SetScrollable()
-			TabPanel:SetScrollbarWidth( HighResScaled( 8 ):GetValue() )
-			TabPanel:SetScrollbarPos( Vector2( -HighResScaled( 8 ):GetValue(), 0 ) )
+			TabPanel:SetScrollbarWidth( SMALL_PADDING:GetValue() )
+			TabPanel:SetScrollbarPos( Vector2( -SMALL_PADDING:GetValue(), 0 ) )
 			TabPanel:SetScrollbarHeightOffset( 0 )
 			TabPanel:SetResizeLayoutForScrollbar( true )
 
 			return SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Spacing( HighResScaled( 8 ), HighResScaled( 8 ),
-					HighResScaled( 8 ), HighResScaled( 8 ) )
+				Padding = Spacing( SMALL_PADDING, SMALL_PADDING,
+					SMALL_PADDING, SMALL_PADDING )
 			} )
 		end
 
@@ -427,13 +433,10 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 					local Creator = SettingsTypes[ Setting.Type ]
 
 					local Object, ValueHolder = Creator.Create( TabPanel, Setting )
-					if i ~= #Settings then
-						Object:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
-					end
-
+					local TranslationSource = Setting.TranslationSource or "Core"
 					if IsType( Setting.Tooltip, "string" ) then
 						ValueHolder:SetTooltip(
-							Locale:GetPhrase( Setting.TranslationSource or "Core", Setting.Tooltip )
+							Locale:GetPhrase( TranslationSource, Setting.Tooltip )
 						)
 					end
 
@@ -452,6 +455,23 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 					end
 
 					TabLayout:AddElement( Object )
+
+					if Setting.HelpText then
+						local Hint = TabPanel:Add( "Hint" )
+						Hint:SetStyleName( Setting.HelpTextStyle or "Info" )
+						Hint:SetMargin( Spacing( 0, SMALL_PADDING, 0, i == #Settings and 0 or SMALL_PADDING ) )
+						Hint:SetText( Locale:GetPhrase( TranslationSource, Setting.HelpText ) )
+						Hint:SetFontScale( GetSmallFont() )
+
+						Hint:SetAutoSize( UnitVector(
+							Percentage( 100 ),
+							Units.Auto()
+						) )
+
+						TabLayout:AddElement( Hint )
+					elseif i ~= #Settings then
+						Object:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
+					end
 				end
 
 				for i = 1, #SettingsWithBindings do
@@ -545,8 +565,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 	Icon = SGUI.Icons.Ionicons.Settings,
 	OnInit = function( Panel )
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( HighResScaled( 8 ), HighResScaled( 32 ),
-				HighResScaled( 8 ), HighResScaled( 8 ) )
+			Padding = Spacing( SMALL_PADDING, HighResScaled( 32 ),
+				SMALL_PADDING, SMALL_PADDING )
 		} )
 
 		local List = SGUI:Create( "List", Panel )
@@ -555,7 +575,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 		List:SetSpacing( 0.8, 0.2 )
 		List.ScrollPos = Vector2( 0, 32 )
 		List:SetFill( true )
-		List:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+		List:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
 		List:SetLineSize( HighResScaled( 32 ):GetValue() )
 		List:SetHeaderSize( List.LineSize )
 
@@ -570,7 +590,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 		Layout:AddElement( List )
 
 		local EnableButton = SGUI:Create( "Button", Panel )
-		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + HighResScaled( 8 ) ) )
+		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + SMALL_PADDING ) )
 		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )
 		EnableButton:SetIcon( SGUI.Icons.Ionicons.Power )
