@@ -58,13 +58,23 @@ function Queue:InsertByComparing( Value, Comparator )
 end
 
 -- Treats the queue as an array and filters out the given value.
-function Queue:Remove( Value )
+do
+	local function RemoveValue( Value, Index, ValueBeingRemoved )
+		return Value ~= ValueBeingRemoved
+	end
+
+	function Queue:Remove( Value )
+		return self:Filter( RemoveValue, Value )
+	end
+end
+
+function Queue:Filter( Predicate, Context )
 	local Elements = self.Elements
 	local Offset = 0
 
 	for i = self.First, self.Last do
 		Elements[ i - Offset ] = Elements[ i ]
-		if Elements[ i ] == Value then
+		if not Predicate( Elements[ i ], i, Context ) then
 			Elements[ i ] = nil
 			Offset = Offset + 1
 			self.Size = self.Size - 1

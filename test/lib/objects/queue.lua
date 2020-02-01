@@ -141,6 +141,23 @@ UnitTest:Test( "Remove", function( Assert )
 	}, Queue.Elements )
 end )
 
+UnitTest:Test( "Filter", function( Assert )
+	local Queue = Shine.Queue()
+	Queue:Add( 1 )
+	Queue:Add( 2 )
+	Queue:Add( 3 )
+	Queue:Add( 4 )
+
+	local function Predicate( Value, Index, Context )
+		return Value < Context
+	end
+
+	Assert.True( "Should remove values when filter passes", Queue:Filter( Predicate, 3 ) )
+	Assert.Equals( "Should have 2 elements left", 2, Queue:GetCount() )
+	Assert.Equals( "Should have updated the end index", 2, Queue.Last )
+	Assert.ArrayEquals( "Should have kept only values < 3", { 1, 2 }, Queue.Elements )
+end )
+
 UnitTest:Test( "Pop", function( Assert )
 	local Queue = Shine.Queue()
 	for i = 1, 5 do
