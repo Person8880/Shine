@@ -336,6 +336,18 @@ function Shine:LoadExtensionConfigs()
 	local ActiveBetaExtensions = self.Config.ActiveBetaExtensions
 	local Modified = false
 
+	local RequestedExtensions = Shine.Set()
+	for Plugin, Enabled in pairs( ActiveExtensions ) do
+		if Enabled then
+			RequestedExtensions:Add( Plugin )
+		end
+	end
+	for Plugin, Enabled in pairs( ActiveBetaExtensions ) do
+		if Enabled then
+			RequestedExtensions:Add( Plugin )
+		end
+	end
+
 	local ExtensionsToLoad = {}
 
 	local function GetPluginTable( Plugin )
@@ -408,6 +420,8 @@ function Shine:LoadExtensionConfigs()
 		end
 	end
 
+	RequestedExtensions:RemoveAll( ExtensionsToLoad )
+
 	if Modified then
 		self:SaveConfig( true )
 	end
@@ -424,6 +438,16 @@ function Shine:LoadExtensionConfigs()
 	end
 
 	Notify( "Completed loading Shine extensions." )
+
+	if RequestedExtensions:GetCount() > 0 then
+		local MissingExtensions = Shine.Stream( RequestedExtensions:AsList() ):Sort():Concat( "\n- " )
+		Notify(
+			StringFormat(
+				"Some extensions could not be loaded as they have not been registered:\n- %s",
+				MissingExtensions
+			)
+		)
+	end
 
 	local WebConfig = self.Config.WebConfigs
 
