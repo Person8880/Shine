@@ -547,6 +547,9 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 	end,
 
 	OnCleanup = function( Panel )
+		Shine.Hook.Remove( "OnPluginClientSettingChanged", ConfigMenu )
+		Shine.Hook.Remove( "OnClientSettingChanged", ConfigMenu )
+
 		local Tabs = Panel.SettingsTabs
 		Panel.SettingsTabs = nil
 
@@ -555,9 +558,6 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 				ActiveTabName = Tabs:GetActiveTab().Name
 			}
 		end
-
-		Shine.Hook.Remove( "OnPluginClientSettingChanged", ConfigMenu )
-		Shine.Hook.Remove( "OnClientSettingChanged", ConfigMenu )
 	end
 } )
 
