@@ -236,6 +236,16 @@ local Skin = {
 			BorderSize = Vector2( 0, 0 )
 		}
 	},
+	ProgressWheel = {
+		Default = {
+			WheelTexture = {
+				Texture = "ui/shine/wheel.tga",
+				W = 128,
+				H = 128
+			},
+			Colour = OrangeButtonHighlight
+		}
+	},
 	Radio = {
 		Default = {
 			BackgroundColour = Clear
