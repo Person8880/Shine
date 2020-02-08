@@ -556,7 +556,7 @@ function Plugin:CreateChatbox()
 			Scaled( SettingsButtonSize, ScalarScale ) ),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 )
 	}
-	SettingsButton:SetTextScale( SGUI.LinearScaleByScreenHeight( Vector2( 1, 1 ) ) )
+	SettingsButton:SetTextScale( SGUI.LinearScaleByScreenHeight( Vector2( 1, 1 ) * self.Config.Scale ) )
 
 	function SettingsButton:DoClick()
 		return Plugin:OpenSettings( Border, UIScale, ScalarScale )
