@@ -4,6 +4,7 @@
 ]]
 
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
 local Max = math.max
 
@@ -20,6 +21,7 @@ function RichText:Initialise()
 
 	self.WrappedWidth = 0
 	self.WrappedHeight = 0
+	self.LineSpacing = Units.GUIScaled( 2 )
 end
 
 function RichText:SetFont( Font )
