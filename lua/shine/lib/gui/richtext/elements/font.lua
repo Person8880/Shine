@@ -2,6 +2,7 @@
 	Element to set the current font for rich text.
 ]]
 
+local IsType = Shine.IsType
 local StringFormat = string.format
 
 local BaseElement = require "shine/lib/gui/richtext/elements/base"
