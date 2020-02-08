@@ -11,6 +11,7 @@ local TextElement = require "shine/lib/gui/richtext/elements/text"
 
 local Max = math.max
 local OSDate = os.date
+local StringSub = string.sub
 local TableAdd = table.Add
 local TableNew = require "table.new"
 local tostring = tostring
@@ -40,12 +41,15 @@ end
 
 do
 	local function ComputeWidth( self, TextSizeProvider )
+		local Hours = StringSub( self.Value, 1, 2 )
+
 		local MaxWidth = 0
 		for i = 0, 9 do
 			MaxWidth = Max( MaxWidth, TextSizeProvider:GetWidth( tostring( i ) ) )
 		end
-		-- Make sure all timestamps have the same width.
-		return MaxWidth * 4 + TextSizeProvider:GetWidth( ":" )
+
+		-- Make sure all timestamps have the same width (for the current hour).
+		return MaxWidth * 2 + TextSizeProvider:GetWidth( ":" ) + TextSizeProvider:GetWidth( Hours )
 	end
 
 	function ChatLine:SetContent( Contents, ShowTimestamp )
