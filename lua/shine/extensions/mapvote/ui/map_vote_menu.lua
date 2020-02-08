@@ -302,7 +302,7 @@ function MapVoteMenu:Initialise()
 	} )
 
 	self.Elements.MapTileGridLayout = self.Elements.MapTileGrid.Layout
-	self.Elements.MapTileGridLayout:AddPropertyChangeListener( "Size", function( Size )
+	self.Elements.MapTileGridLayout:AddPropertyChangeListener( "Size", function( Layout, Size )
 		self:SetupTileGrid()
 	end )
 

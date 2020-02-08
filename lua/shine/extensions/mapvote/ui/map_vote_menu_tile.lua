@@ -93,7 +93,7 @@ function MapTile:Initialise()
 					PropertyChangeListeners = {
 						{
 							Property = "Texture",
-							Listener = function( Texture )
+							Listener = function( Image, Texture )
 								if not Texture then
 									if SGUI.IsValid( self.LoadingIndicatorContainer ) then
 										self.LoadingIndicatorContainer:SetIsVisible( true )

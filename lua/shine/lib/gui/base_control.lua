@@ -39,10 +39,9 @@ SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
-SGUI.AddProperty( ControlMeta, "PropagateSkin" )
+SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
-SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 
 function ControlMeta:__tostring()
 	return StringFormat( "[SGUI - %s] %s | %s | %i Children", self.ID, self.Class,
@@ -1076,18 +1075,6 @@ end
 function ControlMeta:GetScreenPos()
 	if not self.Background then return end
 	return self.Background:GetScreenPosition( SGUI.GetScreenSize() )
-end
-
-function ControlMeta:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
-	if not self.Background then return end
-
-	self.Background:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
-end
-
-function ControlMeta:SetTextureCoordinates( X1, Y1, X2, Y2 )
-	if not self.Background then return end
-
-	self.Background:SetTextureCoordinates( X1, Y1, X2, Y2 )
 end
 
 do

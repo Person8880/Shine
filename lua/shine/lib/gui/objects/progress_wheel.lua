@@ -23,22 +23,32 @@ function ProgressWheel:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Background = self:MakeGUIItem()
+	self.Background:ClearOptionFlag( GUIItem.CorrectRotationOffset )
+	self.Background:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
 	self.Background:SetColor( Colour( 1, 1, 1, 1 ) )
 	self.Background:SetClearsStencilBuffer( true )
 
 	self.LeftMask = self:MakeGUIItem()
+	self.LeftMask:ClearOptionFlag( GUIItem.CorrectRotationOffset )
+	self.LeftMask:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.LeftMask:SetIsStencil( true )
 	self.LeftMask:SetAnchor( GUIItem.Middle, GUIItem.Center )
 
 	self.LeftHalf = self:MakeGUIItem()
+	self.LeftHalf:ClearOptionFlag( GUIItem.CorrectRotationOffset )
+	self.LeftHalf:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.LeftHalf:SetStencilFunc( GUIItem.Equal )
 
 	self.RightMask = self:MakeGUIItem()
+	self.RightMask:ClearOptionFlag( GUIItem.CorrectRotationOffset )
+	self.RightMask:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.RightMask:SetIsStencil( true )
 	self.RightMask:SetAnchor( GUIItem.Middle, GUIItem.Center )
 
 	self.RightHalf = self:MakeGUIItem()
+	self.RightHalf:ClearOptionFlag( GUIItem.CorrectRotationOffset )
+	self.RightHalf:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.RightHalf:SetStencilFunc( GUIItem.Equal )
 
 	self.Background:AddChild( self.LeftMask )
