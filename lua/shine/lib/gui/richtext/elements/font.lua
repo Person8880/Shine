@@ -8,6 +8,13 @@ local StringFormat = string.format
 local BaseElement = require "shine/lib/gui/richtext/elements/base"
 local Font = Shine.TypeDef( BaseElement )
 
+function Font.FromFontScale( FontName, Scale )
+	return Font( {
+		Font = FontName,
+		Scale = Scale
+	} )
+end
+
 function Font:Init( Params )
 	self.Font = Params.Font
 	self.Scale = Params.Scale
