@@ -289,8 +289,12 @@ do
 	local tostring = tostring
 
 	local Transformers = {
-		Lower = string.UTF8Lower,
-		Upper = string.UTF8Upper,
+		Lower = function( FormatArg )
+			return string.UTF8Lower( FormatArg )
+		end,
+		Upper = function( FormatArg )
+			return string.UTF8Upper( FormatArg )
+		end,
 		Format = function( FormatArg, TransformArg )
 			return StringFormat( TransformArg, FormatArg )
 		end,
