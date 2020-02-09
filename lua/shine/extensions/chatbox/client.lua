@@ -4,6 +4,9 @@
 	I can't believe the game doesn't have one.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+local ChatAPI = require "shine/core/shared/chat/chat_api"
+
 local Shine = Shine
 
 local Hook = Shine.Hook
@@ -18,14 +21,17 @@ local Max = math.max
 local Min = math.min
 local pairs = pairs
 local select = select
+local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
+local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
-local StringLen = string.len
 local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
+local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemove = table.remove
+local TableRemoveByValue = table.RemoveByValue
 local TableShallowMerge = table.ShallowMerge
 local type = type
 
@@ -36,6 +42,10 @@ Plugin.ConfigName = "ChatBox.json"
 
 Plugin.Version = "1.1"
 
+Plugin.FontSizeMode = table.AsEnum{
+	"AUTO", "FIXED"
+}
+
 Plugin.DefaultConfig = {
 	AutoClose = true, -- Should the chatbox close after sending a message?
 	DeleteOnClose = true, -- Should whatever's entered be deleted if the chatbox is closed before sending?
@@ -43,137 +53,62 @@ Plugin.DefaultConfig = {
 	MoveVanillaChat = false, -- Whether to move the vanilla chat position.
 	SmoothScroll = true, -- Should the scrolling be smoothed?
 	ScrollToBottomOnOpen = false, -- Should the chatbox scroll to the bottom when re-opened?
+	ShowTimestamps = false, -- Should the chatbox should timestamps with messages?
 	Opacity = 0.4, -- How opaque should the chatbox be?
 	Pos = {}, -- Remembers the position of the chatbox when it's moved.
-	Scale = 1 -- Sets a scale multiplier, requires recreating the chatbox when changed.
+	Scale = 1, -- Sets a scale multiplier, requires recreating the chatbox when changed.
+	FontSizeMode = Plugin.FontSizeMode.AUTO,
+	FontSizeInPixels = 27
 }
 
 Plugin.CheckConfig = true
 Plugin.SilentConfigSave = true
 
 function Plugin:HookChat( ChatElement )
-	local OldInit = ChatElement.Initialize
-	local OldUninit = ChatElement.Uninitialize
 	local OldSendKey = ChatElement.SendKeyEvent
-	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset" )
-	local OriginalOffset = Vector( GetOffset() )
-
-	function ChatElement:Initialize()
-		Plugin.GUIChat = self
-
-		return OldInit( self )
-	end
-
-	function ChatElement:Uninitialize()
-		if Plugin.GUIChat == self then
-			Plugin.GUIChat = nil
-		end
-
-		return OldUninit( self )
-	end
 
 	function ChatElement:SendKeyEvent( Key, Down )
 		if Plugin.Enabled then return end
 		return OldSendKey( self, Key, Down )
 	end
 
-	function ChatElement:ResetScreenOffset()
-		self:SetScreenOffset( OriginalOffset )
-	end
-
-	function ChatElement:SetScreenOffset( Offset )
-		-- Alter the offset value by reference directly to avoid having to
-		-- reposition elements constantly in the Update method.
-		local CurrentOffset = GetOffset()
-		if not CurrentOffset then return end
-
-		local InverseScale = 1 / GUIScale( 1 )
-		CurrentOffset.x = Offset.x * InverseScale
-		CurrentOffset.y = Offset.y * InverseScale
-
-		-- Update existing message's x-position as it's not changed in the
-		-- Update() method.
-		local Messages = self.messages
-		for i = 1, #Messages do
-			local Message = Messages[ i ]
-			local Background = Message.Background
-
-			if Background then
-				local Pos = Background:GetPosition()
-				Pos.x = Offset.x
-				Background:SetPosition( Pos )
-			end
-		end
-	end
-
 	local OldAddMessage = ChatElement.AddMessage
-	local function GetTag( Element )
-		return {
-			Colour = Element:GetColor(),
-			Text = Element:GetText()
-		}
-	end
-
 	function ChatElement:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
-		Plugin.GUIChat = self
-
 		OldAddMessage( self, PlayerColour, PlayerName, MessageColour, MessageName, IsCommander, IsRookie )
 
 		if not Plugin.Enabled then return end
 
 		local JustAdded = self.messages[ #self.messages ]
-		local Tags
-		local Rookie = JustAdded.Rookie and JustAdded.Rookie:GetIsVisible()
-		local Commander = JustAdded.Commander and JustAdded.Commander:GetIsVisible()
-
-		if Rookie or Commander then
-			Tags = {}
-
-			if Commander then
-				Tags[ 1 ] = GetTag( JustAdded.Commander )
-			end
-
-			if Rookie then
-				Tags[ #Tags + 1 ] = GetTag( JustAdded.Rookie )
-			end
-		end
-
-		Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, Tags )
+		if not JustAdded then return end
 
 		if Plugin.Visible and JustAdded.Background then
 			JustAdded.Background:SetIsVisible( false )
 		end
 	end
-
-	if not ChatElement.SetIsVisible then
-		-- Some older mods rely on an older version of GUIChat that does not include
-		-- a visibility setter.
-		function ChatElement:SetIsVisible( Visible )
-			self.visible = not not Visible
-
-			local Messages = self.messages
-			if not Messages then return end
-
-			for i = 1, #Messages do
-				local Message = Messages[ i ]
-				if IsType( Message, "table" ) and Message.Background then
-					Message.Background:SetIsVisible( Visible )
-				end
-			end
-		end
-	end
 end
 
 -- We hook the class here for certain functions before we find the actual instance of it.
-Hook.Add( "Think", "ChatBoxHook", function()
-	if GUIChat then
-		Hook.Remove( "Think", "ChatBoxHook" )
-		Plugin:HookChat( GUIChat )
+Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
+	Plugin:HookChat( GUIChat )
+end )
+
+Hook.Add( "OnGUIChatInitialised", Plugin, function( GUIChat )
+	Plugin.GUIChat = GUIChat
+end )
+Hook.Add( "OnGUIChatDestroyed", Plugin, function( GUIChat )
+	if Plugin.GUIChat == GUIChat then
+		Plugin.GUIChat = nil
 	end
 end )
 
 function Plugin:Initialise()
-	Shine.LoadPluginFile( self:GetName(), "chatline.lua" )
+	-- Not using a plugin method as that is placed before SGUI, which we don't want to override.
+	Hook.Add( "PlayerKeyPress", self, function( Key, Down )
+		if Down and Key == InputKey.Escape and self.Visible then
+			self:CloseChat()
+			return true
+		end
+	end, Hook.DEFAULT_PRIORITY + 1 )
 
 	self.Messages = self.Messages or {}
 	self.Enabled = true
@@ -181,11 +116,21 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:OnChatMessageDisplayed( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+	self:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+end
+
+function Plugin:OnRichTextChatMessageDisplayed( MessageData )
+	self:AddMessageFromRichText( MessageData )
+end
+
 local Units = SGUI.Layout.Units
 
 local Percentage = Units.Percentage
 local UnitVector = Units.UnitVector
-local Scaled = Units.Scaled
+local function Scaled( Value, Scale )
+	return Units.Integer( Units.Scaled( Value, Scale ) )
+end
 local Spacing = Units.Spacing
 
 local Colours = {
@@ -198,7 +143,8 @@ local Colours = {
 	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 ),
 	ModeText = Colour( 1, 1, 1, 1 ),
 	AutoCompleteCommand = Colour( 1, 0.8, 0 ),
-	AutoCompleteParams = Colour( 1, 0.5, 0 )
+	AutoCompleteParams = Colour( 1, 0.5, 0 ),
+	AutoCompleteArg = Colour( 0, 0.75, 1 )
 }
 
 local Skin = {
@@ -212,6 +158,15 @@ local Skin = {
 					InactiveCol = Colours.Highlight
 				}
 			}
+		}
+	},
+	Dropdown = {
+		Default = {
+			IconAutoFont = {
+				Family = SGUI.FontFamilies.Ionicons,
+				Size = Units.GUIScaled( 32 )
+			},
+			Padding = Units.Spacing( Units.GUIScaled( 4 ), 0, Units.GUIScaled( 4 ), 0 )
 		}
 	},
 	Panel = {
@@ -249,13 +204,16 @@ function Plugin:OnFirstThink()
 	-- default skin.
 	local DefaultSkin = SGUI.SkinManager:GetSkinsByName().Default
 	TableShallowMerge( DefaultSkin, Skin )
+	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
+	TableShallowMerge( DefaultSkin.Button, Skin.Button )
+	TableShallowMerge( DefaultSkin.Dropdown.Default, Skin.Dropdown.Default )
 end
 
 local LayoutData = {
 	Sizes = {
 		ChatBox = Vector2( 800, 350 ),
-		SettingsClosed = Vector2( 0, 374 ),
-		Settings = Vector2( 360, 374 ),
+		SettingsClosed = Vector2( 0, 350 ),
+		Settings = Vector2( 360, 350 ),
 		SettingsButton = 36,
 		ChatBoxPadding = 5
 	},
@@ -330,6 +288,37 @@ function Plugin:MoveVanillaChat()
 	self.UpdateVanillaChatHistoryPos( self.MainPanel:GetPos() )
 end
 
+function Plugin:SetFontSizeMode( FontSizeMode )
+	local NewFont, NewScale
+	if FontSizeMode == self.FontSizeMode.AUTO then
+		self:RefreshFontScale( self.Font, self.MessageTextScale )
+		return
+	end
+
+	self:SetFontSizeInPixels( self.Config.FontSizeInPixels )
+end
+
+function Plugin:SetFontSizeInPixels( FontSizeInPixels )
+	if self.Config.FontSizeMode == self.FontSizeMode.AUTO then return end
+
+	self.ManualFont, self.ManualFontScale = SGUI.FontManager.GetFontForAbsoluteSize(
+		"kAgencyFB", self.Config.FontSizeInPixels
+	)
+	self:RefreshFontScale( self.ManualFont, self.ManualFontScale )
+end
+
+function Plugin:RefreshFontScale( Font, Scale )
+	local Messages = self.Messages
+
+	for i = 1, #Messages do
+		Messages[ i ]:SetFontScale( Font, Scale )
+	end
+
+	if SGUI.IsValid( self.ChatBox ) then
+		self.ChatBox:InvalidateLayout( true )
+	end
+end
+
 --[[
 	Creates the chatbox UI elements.
 
@@ -340,23 +329,17 @@ end
 		4. A settings button that opens up the chatbox settings.
 ]]
 function Plugin:CreateChatbox()
-	local UIScale = GUIScale( Vector( 1, 1, 1 ) )
-	local ScalarScale = GUIScale( 1 )
+	local UIScale = SGUI.LinearScale( Vector( 1, 1, 1 ) ) * self.Config.Scale
+	local ScalarScale = SGUI.LinearScale( 1 ) * self.Config.Scale
 
 	local ScreenWidth, ScreenHeight = SGUI.GetScreenSize()
 	ScreenWidth = ScreenWidth * self.Config.Scale
 	ScreenHeight = ScreenHeight * self.Config.Scale
 
-	local WidthMult = Max( ScreenWidth / 1920, 0.7 )
-	local HeightMult = Max( ScreenHeight / 1080, 0.7 )
-
-	if ScreenWidth > 1920 then
-		UIScale = SGUI.TenEightyPScale( Vector( 1, 1, 1 ) )
-		ScalarScale = SGUI.TenEightyPScale( 1 )
-	end
-
+	local WidthMult = 1
+	local HeightMult = 1
 	local FourToThreeHeight = ( ScreenWidth / 4 ) * 3
-	--Use a more boxy box for 4:3 monitors.
+	-- Use a more boxy box for 4:3 monitors.
 	if FourToThreeHeight == ScreenHeight then
 		WidthMult = WidthMult * 0.72
 	end
@@ -368,22 +351,10 @@ function Plugin:CreateChatbox()
 
 	self.UIScale = UIScale
 	self.ScalarScale = ScalarScale
-	self.TextScale = TextScale * ScalarScale
-	self.MessageTextScale = TextScale
 
-	if ScreenHeight <= SGUI.ScreenHeight.Small then
-		self.Font = Fonts.kAgencyFB_Tiny
-		self.TextScale = TextScale
-	elseif ScreenHeight <= SGUI.ScreenHeight.Normal then
-		self.Font = Fonts.kAgencyFB_Small
-	elseif ScreenHeight <= SGUI.ScreenHeight.Large then
-		self.Font = Fonts.kAgencyFB_Medium
-		self.TextScale = TextScale
-	else --Assumming 4K here. "Large" font is too small, so we need huge at a scale.
-		self.Font = Fonts.kAgencyFB_Huge
-		self.TextScale = TextScale * 0.6
-		self.MessageTextScale = self.TextScale
-	end
+	self.Font, self.MessageTextScale = ChatAPI.GetOptimalFontScale( ScreenHeight )
+	self.TextScale = self.MessageTextScale
+	self:SetFontSizeInPixels( self.Config.FontSizeInPixels )
 
 	local Opacity = self.Config.Opacity
 	UpdateOpacity( self, Opacity )
@@ -391,9 +362,10 @@ function Plugin:CreateChatbox()
 	local Pos = self.Config.Pos
 	local ChatBoxPos
 	local PanelSize = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale )
+	local DefaultPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * UIScale.y, 0 )
 
 	if not Pos.x or not Pos.y then
-		ChatBoxPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * ScalarScale, 0 )
+		ChatBoxPos = DefaultPos
 	else
 		ChatBoxPos = Vector( Pos.x, Pos.y, 0 )
 	end
@@ -412,8 +384,8 @@ function Plugin:CreateChatbox()
 
 	-- Double click the title bar to return it to the default position.
 	function Border:ReturnToDefaultPos()
-		self:SetPos( ChatBoxPos )
-		self:OnDragFinished( ChatBoxPos )
+		self:SetPos( DefaultPos )
+		self:OnDragFinished( DefaultPos )
 	end
 
 	-- If, for some reason, there's an error in a panel hook, then this is removed.
@@ -460,13 +432,13 @@ function Plugin:CreateChatbox()
 		self:SaveConfig()
 	end
 
-	--Panel for messages.
+	-- Panel for messages.
 	local Box = SGUI:Create( "Panel", Border )
-	local ScrollbarPos = LayoutData.Positions.Scrollbar * WidthMult
+	local ScrollbarPos = LayoutData.Positions.Scrollbar * UIScale.x
 	ScrollbarPos.x = Ceil( ScrollbarPos.x )
 	Box:SetupFromTable{
 		ScrollbarPos = ScrollbarPos,
-		ScrollbarWidth = Ceil( 8 * WidthMult ),
+		ScrollbarWidth = Ceil( 8 * UIScale.x ),
 		ScrollbarHeightOffset = 0,
 		Scrollable = true,
 		HorizontalScrollingEnabled = false,
@@ -496,7 +468,7 @@ function Plugin:CreateChatbox()
 
 	local Font = self:GetFont()
 
-	--Where messages are entered.
+	-- Where messages are entered.
 	local TextEntry = SGUI:Create( "TextEntry", Border )
 	TextEntry:SetupFromTable{
 		BorderSize = Vector2( 0, 0 ),
@@ -511,7 +483,7 @@ function Plugin:CreateChatbox()
 		TextEntry:SetTextScale( self.TextScale )
 	end
 	if Font == Fonts.kAgencyFB_Tiny then
-		--For some reason, the tiny font is always 1 behind where it should be...
+		-- For some reason, the tiny font is always 1 behind where it should be...
 		TextEntry.Padding = 3
 		TextEntry.CaretOffset = -1
 		TextEntry:SetupCaret()
@@ -519,15 +491,17 @@ function Plugin:CreateChatbox()
 
 	TextEntryLayout:AddElement( TextEntry )
 
-	--Send the message when the client presses enter.
+	-- Send the message when the client presses enter.
 	function TextEntry:OnEnter()
 		local Text = self:GetText()
 
-		--Don't go sending blank messages.
-		if #Text > 0 and Text:find( "[^%s]" ) then
-			Shine.SendNetworkMessage( "ChatClient",
-				BuildChatClientMessage( Plugin.TeamChat,
-					StringUTF8Sub( Text, 1, kMaxChatLength ) ), true )
+		-- Don't go sending blank messages.
+		if #Text > 0 and StringContainsNonUTF8Whitespace( Text ) then
+			Shine.SendNetworkMessage(
+				"ChatClient",
+				BuildChatClientMessage( Plugin.TeamChat, StringUTF8Sub( Text, 1, kMaxChatLength ) ),
+				true
+			)
 		end
 
 		self:SetText( "" )
@@ -540,7 +514,12 @@ function Plugin:CreateChatbox()
 		end
 	end
 
-	--We don't want to allow characters after hitting the max length message.
+	function TextEntry:OnEscape()
+		Plugin:CloseChat()
+		return true
+	end
+
+	-- We don't want to allow characters after hitting the max length message.
 	function TextEntry:ShouldAllowChar( Char )
 		local Text = self:GetText()
 
@@ -548,14 +527,14 @@ function Plugin:CreateChatbox()
 			return false
 		end
 
-		--We also don't want the player's chat button bind making it into the text entry.
+		-- We also don't want the player's chat button bind making it into the text entry.
 		if ( Plugin.OpenTime or 0 ) + 0.05 > Clock() then
 			return false
 		end
 	end
 
 	function TextEntry.OnUnhandledKey( TextEntry, Key, Down )
-		if Key == InputKey.Down or Key == InputKey.Up then
+		if Down and ( Key == InputKey.Down or Key == InputKey.Up ) then
 			self:ScrollAutoComplete( Key == InputKey.Down and 1 or -1 )
 		end
 	end
@@ -577,7 +556,7 @@ function Plugin:CreateChatbox()
 			Scaled( SettingsButtonSize, ScalarScale ) ),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 )
 	}
-	SettingsButton:SetTextScale( SGUI.LinearScaleByScreenHeight( Vector2( 1, 1 ) ) )
+	SettingsButton:SetTextScale( SGUI.LinearScaleByScreenHeight( Vector2( 1, 1 ) * self.Config.Scale ) )
 
 	function SettingsButton:DoClick()
 		return Plugin:OpenSettings( Border, UIScale, ScalarScale )
@@ -717,6 +696,7 @@ do
 					Value = Value,
 					Font = self:GetFont(),
 					Padding = SliderTextPadding * self.ScalarScale,
+					HandleWidth = 10 * self.ScalarScale
 				}
 				if not IsLastElement then
 					Slider:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
@@ -753,16 +733,58 @@ do
 					Data.ConfigValue( self, Value )
 				end
 			end
+		},
+		Dropdown = {
+			Create = function( self, SettingsPanel, Layout, IsLastElement, Size, Options, SelectedOption )
+				local Dropdown = SettingsPanel:Add( "Dropdown" )
+				Dropdown:SetupFromTable{
+					AutoSize = Size,
+					Options = Options,
+					Font = self:GetFont()
+				}
+				Dropdown:SetSelectedOption( SelectedOption )
+				if not IsLastElement then
+					Dropdown:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
+				end
+
+				if self.TextScale ~= 1 then
+					Dropdown:SetTextScale( self.TextScale )
+				end
+
+				Layout:AddElement( Dropdown )
+
+				return Dropdown
+			end,
+			Setup = function( self, Object, Data )
+				if IsType( Data.ConfigValue, "string" ) then
+					Object:AddPropertyChangeListener( "SelectedOption", function( Object, Option )
+						UpdateConfigValue( self, Data.ConfigValue, Option.Value )
+					end )
+				else
+					Object:AddPropertyChangeListener( "SelectedOption", function( Object, Option )
+						Data.ConfigValue( self, Option.Value )
+					end )
+				end
+			end
 		}
 	}
 
+	local SETTINGS_PADDING_AMOUNT = 5
+
 	local function GetCheckBoxSize( self )
-		return UnitVector( Scaled( 28, self.ScalarScale ),
-			Scaled( 28, self.ScalarScale ) )
+		return UnitVector( Scaled( 28, self.ScalarScale ), Scaled( 28, self.ScalarScale ) )
 	end
 
+	-- These use a fixed scaled size as Percentage units would end up resizing with the panel as it animates.
 	local function GetSliderSize( self )
-		return UnitVector( Percentage( 80 ), Scaled( 24, self.UIScale.y ) )
+		return UnitVector( Scaled( 0.8 * LayoutData.Sizes.Settings.x, self.UIScale.x ), Scaled( 24, self.UIScale.y ) )
+	end
+
+	local function GetDropdownSize( self )
+		return UnitVector(
+			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 3, self.UIScale.x ),
+			Scaled( 28, self.UIScale.y )
+		)
 	end
 
 	local Elements = {
@@ -799,7 +821,6 @@ do
 		},
 		{
 			Type = "CheckBox",
-			ConfigValue = "MoveVanillaChat",
 			ConfigValue = function( self, Value )
 				if not UpdateConfigValue( self, "MoveVanillaChat", Value ) then return end
 
@@ -811,6 +832,13 @@ do
 			end,
 			Values = function( self )
 				return GetCheckBoxSize( self ), self.Config.MoveVanillaChat, "MOVE_VANILLA_CHAT"
+			end
+		},
+		{
+			Type = "CheckBox",
+			ConfigValue = "ShowTimestamps",
+			Values = function( self )
+				return GetCheckBoxSize( self ), self.Config.ShowTimestamps, "SHOW_TIMESTAMPS"
 			end
 		},
 		{
@@ -862,12 +890,73 @@ do
 			Values = function( self )
 				return GetSliderSize( self ), self.Config.Scale
 			end
+		},
+		{
+			Type = "Label",
+			Values = { "FONT_SIZE_MODE" }
+		},
+		{
+			ID = "FontSizeMode",
+			Type = "Dropdown",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "FontSizeMode", Value ) then return end
+
+				self:SetFontSizeMode( Value )
+			end,
+			Values = function( self )
+				local Options = {}
+				local SelectedOption
+				for i = 1, #self.FontSizeMode do
+					Options[ i ] = {
+						Value = self.FontSizeMode[ i ],
+						Text = self:GetPhrase( "FONT_SIZE_MODE_"..self.FontSizeMode[ i ] )
+					}
+					if self.Config.FontSizeMode == Options[ i ].Value then
+						SelectedOption = Options[ i ]
+					end
+				end
+				return GetDropdownSize( self ), Options, SelectedOption
+			end
+		},
+		{
+			ID = "FontSizeInPixels",
+			Type = "Slider",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "FontSizeInPixels", Value ) then return end
+
+				self:SetFontSizeInPixels( Value )
+			end,
+			Bounds = { 8, 64 },
+			Decimals = 0,
+			Values = function( self )
+				return GetSliderSize( self ), self.Config.FontSizeInPixels
+			end,
+			Bindings = {
+				{
+					From = {
+						Element = "FontSizeMode",
+						Property = "SelectedOption"
+					},
+					To = {
+						Property = "Enabled",
+						Transformer = function( Option )
+							return Option.Value == Plugin.FontSizeMode.FIXED
+						end
+					}
+				}
+			}
 		}
 	}
 
 	function Plugin:CreateSettings( MainPanel, UIScale, ScalarScale )
-		local Padding = Spacing( Scaled( 5, UIScale.x ),
-			Scaled( 5, UIScale.y ), Scaled( 5, UIScale.x ), Scaled( 5, UIScale.y ) )
+		local PaddingAmountY = Scaled( SETTINGS_PADDING_AMOUNT, UIScale.y )
+		local Padding = Spacing(
+			Scaled( SETTINGS_PADDING_AMOUNT, UIScale.x ),
+			PaddingAmountY,
+			-- Right hand side needs double padding to mirror the padding correctly.
+			Scaled( SETTINGS_PADDING_AMOUNT * 2, UIScale.x ),
+			PaddingAmountY
+		)
 
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 			Padding = Padding
@@ -878,14 +967,19 @@ do
 			Anchor = "TopRight",
 			Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 			Scrollable = true,
+			ScrollbarHeightOffset = 0,
+			ScrollbarWidth = 8 * UIScale.x,
+			ScrollbarPos = Vector2( -8 * UIScale.x, 0 ),
+			HorizontalScrollingEnabled = false,
+			AutoHideScrollbar = true,
 			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
 			Skin = Skin,
-			ShowScrollbar = false,
 			StylingState = self.MainPanel:GetStylingState()
 		}
 
 		self.SettingsPanel = SettingsPanel
 
+		local ElementsByID = {}
 		for i = 1, #Elements do
 			local Data = Elements[ i ]
 			local Values = IsType( Data.Values, "table" ) and Data.Values or { Data.Values( self ) }
@@ -896,26 +990,29 @@ do
 			if Creator.Setup then
 				Creator.Setup( self, Object, Data, unpack( Values ) )
 			end
+
+			if Data.ID then
+				ElementsByID[ Data.ID ] = Object
+			end
 		end
 
-		-- Perform initial layout to set absolute sizes.
-		Layout:SetSize( VectorMultiply( LayoutData.Sizes.Settings, UIScale ) )
-		Layout:InvalidateLayout( true )
-
-		-- Sum the total height to set the settings panel's size accordingly.
-		local TotalHeight = 0
-		for i = 1, #Layout.Elements do
-			local Element = Layout.Elements[ i ]
-			local Margin = Element:GetComputedMargin()
-			TotalHeight = TotalHeight + Element:GetSize().y + Margin[ 2 ] + Margin[ 4 ]
+		for i = 1, #Elements do
+			local Data = Elements[ i ]
+			local Bindings = Data.Bindings
+			if Bindings then
+				for j = 1, #Bindings do
+					local Binding = Bindings[ j ]
+					local FromElement = ElementsByID[ Binding.From.Element ]
+					if FromElement then
+						Binder():FromElement( FromElement, Binding.From.Property )
+							:ToElement( ElementsByID[ Data.ID ], Binding.To.Property, Binding.To )
+							:BindProperty()
+					end
+				end
+			end
 		end
 
-		local Size = SettingsPanel:GetSize()
-		local HeightWithPadding = TotalHeight + Padding.Up:GetValue() + Padding.Down:GetValue()
-		Size.y = Max( HeightWithPadding, self.MainPanel:GetSize().y )
-
-		SettingsPanel:SetSize( Size )
-		Layout.Size.y = Size.y
+		SettingsPanel:SetLayout( Layout )
 	end
 end
 
@@ -946,7 +1043,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 		Expanded = false
 	end
 
-	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.5, function( Panel )
+	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.25, function( Panel )
 		SettingsButton.Expanded = Expanded
 
 		if Expanded then
@@ -962,15 +1059,6 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 	return true
 end
 
---Close on pressing escape (it's not hardcoded, unlike Source!)
-function Plugin:PlayerKeyPress( Key, Down )
-	if Key == InputKey.Escape and self.Visible then
-		self:CloseChat()
-
-		return true
-	end
-end
-
 function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
@@ -978,34 +1066,14 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	local Recreate = {}
 
 	for i = 1, #Messages do
-		local Message = Messages[ i ]
-		local PreText = Message.PreLabel:GetText()
-		local PreCol = Message.PreLabel:GetColour()
-
-		local MessageText = Message.MessageText
-		local MessageCol = Message.MessageLabel:GetColour()
-
-		local TagData
-		local Tags = Message.Tags
-		if Tags then
-			TagData = {}
-
-			for j = 1, #Tags do
-				TagData[ j ] = {
-					Colour = Tags[ j ]:GetColour(),
-					Text = Tags[ j ]:GetText()
-				}
-			end
-		end
-
 		Recreate[ i ] = {
-			TagData = TagData,
-			PreText = PreText, PreCol = PreCol,
-			MessageText = MessageText, MessageCol = MessageCol
+			Lines = Messages[ i ].Lines
 		}
 	end
 
-	--Recreate the entire chat box, it's easier than rescaling.
+	local SettingsWasExpanded = self.SettingsButton.Expanded
+
+	-- Recreate the entire chat box, it's easier than rescaling.
 	self.IgnoreRemove = true
 	self.MainPanel:Destroy()
 	self.IgnoreRemove = nil
@@ -1019,25 +1087,19 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	else
 		self:CloseChat()
 		self:StartChat( self.TeamChat )
+
+		if SettingsWasExpanded then
+			self.SettingsButton:DoClick()
+		end
 	end
 
 	for i = 1, #Recreate do
 		local Message = Recreate[ i ]
-		self:AddMessage( Message.PreCol, Message.PreText,
-			Message.MessageCol, Message.MessageText, Message.TagData )
+		self:AddMessageFromLines( Message.Lines )
 	end
 end
 
-local IntToColour
-
---[[
-	Adds a message to the chatbox.
-
-	Inputs are derived from the GUIChat inputs as we want to maintain compatability.
-
-	Theoretically, we can make messages with any number of colours, but for now this will do.
-]]
-function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+function Plugin:AddMessageFromPopulator( Populator, ... )
 	if not SGUI.IsValid( self.MainPanel ) then
 		self:CreateChatbox()
 
@@ -1046,19 +1108,7 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		end
 	end
 
-	--Don't add anything if one of the elements is the wrong type. Default chat will error instead.
-	if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
-	or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
-	or not IsType( MessageName, "string" ) then
-		return
-	end
-
-	IntToColour = IntToColour or ColorIntToColor
-
 	local Messages = self.Messages
-	local Scaled = SGUI.Layout.Units.Scaled
-
-	local PrefixMargin = Scaled( 5, self.ScalarScale )
 	local LineMargin = Scaled( 2, self.ScalarScale )
 
 	local NextIndex = #Messages + 1
@@ -1072,26 +1122,82 @@ function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName
 		ReUse = FirstMessage
 	end
 
-	-- Why did they use int for the first colour, then colour object for the second?
-	if IsType( PlayerColour, "number" ) then
-		PlayerColour = IntToColour( PlayerColour )
+	local Font, Scale
+	if self.Config.FontSizeMode == self.FontSizeMode.AUTO then
+		Font, Scale = self:GetFont(), self.MessageTextScale
+	else
+		Font, Scale = self.ManualFont, self.ManualFontScale
 	end
 
-	local Units = SGUI.Layout.Units
-
 	local ChatLine = ReUse or self.ChatBox:Add( "ChatLine" )
-	ChatLine:SetFont( self:GetFont() )
-	ChatLine:SetTextScale( self.MessageTextScale )
-	ChatLine:SetTags( TagData )
-	ChatLine:SetMessage( PlayerColour, PlayerName, MessageColour, MessageName )
-	ChatLine:SetPreMargin( PrefixMargin )
+	ChatLine:SetFontScale( Font, Scale )
 	ChatLine:SetLineSpacing( LineMargin )
+
+	Populator( ChatLine, ... )
 
 	self.ChatBox.Layout:AddElement( ChatLine )
 
 	if not self.Visible then return end
 
 	self:RefreshLayout()
+end
+
+do
+	local function AddMessageFromRichText( ChatLine, Contents, ShowTimestamps )
+		ChatLine:SetContent( Contents, ShowTimestamps )
+	end
+
+	function Plugin:AddMessageFromRichText( MessageData )
+		return self:AddMessageFromPopulator(
+			AddMessageFromRichText, MessageData.Message, self.Config.ShowTimestamps
+		)
+	end
+end
+
+do
+	local function AddMessageFromLines( ChatLine, Lines )
+		ChatLine:RestoreFromLines( Lines )
+	end
+
+	function Plugin:AddMessageFromLines( Lines )
+		return self:AddMessageFromPopulator( AddMessageFromLines, Lines )
+	end
+end
+
+do
+	local IntToColour
+
+	local function AddSimpleChatMessage( ChatLine, ... )
+		ChatLine:SetMessage( ... )
+	end
+
+	--[[
+		Adds a message to the chatbox.
+
+		Inputs are derived from the GUIChat inputs as we want to maintain compatability.
+
+		Messages with multiple colours can be added through the chat API.
+	]]
+	function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+		-- Don't add anything if one of the elements is the wrong type. Default chat will error instead.
+		if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
+		or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
+		or not IsType( MessageName, "string" ) then
+			return
+		end
+
+		IntToColour = IntToColour or ColorIntToColor
+
+		-- Why did they use int for the first colour, then colour object for the second?
+		if IsType( PlayerColour, "number" ) then
+			PlayerColour = IntToColour( PlayerColour )
+		end
+
+		self:AddMessageFromPopulator(
+			AddSimpleChatMessage, TagData, PlayerColour, PlayerName, MessageColour, MessageName,
+			self.Config.ShowTimestamps
+		)
+	end
 end
 
 function Plugin:RefreshLayout( ForceInstantScroll )
@@ -1109,52 +1215,73 @@ function Plugin:RefreshLayout( ForceInstantScroll )
 	end
 end
 
-local MaxAutoCompleteResult = 3
-
---[[
-	Scrolls the auto-complete suggestion up/down, setting the text in the text entry to
-	the completed command. This does not trigger a new auto-complete request.
-]]
-function Plugin:ScrollAutoComplete( Amount )
-	if not self.AutoCompleteResults then return end
-
-	local Results = self.AutoCompleteResults
-	if #Results == 0 then return end
-
-	self.CurrentResult = ( self.CurrentResult or 0 ) + Amount
-	if self.CurrentResult > Min( MaxAutoCompleteResult, #Results ) then
-		self.CurrentResult = 1
-	elseif self.CurrentResult < 1 then
-		self.CurrentResult = #Results
+do
+	local MaxAutoCompleteResult = 3
+	local function GetChatCommand( Text )
+		local FirstSpace = StringFind( Text, " " )
+		return StringSub( Text, 2, FirstSpace and ( FirstSpace - 1 ) or #Text )
 	end
 
-	local Text = StringFormat( "%s%s ", self.AutoCompleteLetter,
-		Results[ self.CurrentResult ].ChatCommand )
-	self.TextEntry:SetText( Text )
-end
+	local function GetCommandAndArguments( Text )
+		local ChatCommand = GetChatCommand( Text )
+		local ArgumentsText = StringSub( Text, #ChatCommand + 3 )
+		local Arguments
+		if StringFind( ArgumentsText, "[^%s]" ) then
+			-- Completing a specific parameter, request completions for it.
+			Arguments = Shine.CommandUtil.AdjustArguments( StringExplode( ArgumentsText, " ", true ) )
+		end
 
---[[
-	Submits a request to the server for auto-completion of chat commands.
+		return ChatCommand, Arguments
+	end
 
-	If the current text is the same request as last time (i.e. typing past the first word),
-	no request is sent.
-]]
-function Plugin:SubmitAutoCompleteRequest( Text )
-	local FirstLetter = StringSub( Text, 1, 1 )
-	self.AutoCompleteLetter = FirstLetter
+	--[[
+		Scrolls the auto-complete suggestion up/down, setting the text in the text entry to
+		the completed command. This does not trigger a new auto-complete request.
+	]]
+	function Plugin:ScrollAutoComplete( Amount )
+		if not self.AutoCompleteResults then return end
 
-	-- Cut the text down to just the first word.
-	local FirstSpace = StringFind( Text, " " )
-	local SearchText = StringSub( Text, 2, FirstSpace and ( FirstSpace - 1 ) or StringLen( Text ) )
+		local Results = self.AutoCompleteResults
+		if #Results == 0 then return end
 
-	if self.LastSearch == SearchText then return end
+		self.CurrentResult = ( self.CurrentResult or 0 ) + Amount
+		if self.CurrentResult > Min( MaxAutoCompleteResult, #Results ) then
+			self.CurrentResult = 1
+		elseif self.CurrentResult < 1 then
+			self.CurrentResult = #Results
+		end
 
-	self.LastSearch = SearchText
+		local Result = Results[ self.CurrentResult ]
+		local Text
+		if Result.ParameterIndex then
+			local Command, Arguments = GetCommandAndArguments( self.TextEntry:GetText() )
+			if Command == Result.ChatCommand and Arguments and #Arguments >= Result.ParameterIndex then
+				Arguments[ Result.ParameterIndex ] = Result.Parameter
+				Text = StringFormat(
+					"%s%s %s",
+					self.AutoCompleteLetter,
+					Command,
+					Shine.CommandUtil.SerialiseArguments( Arguments )
+				)
+			end
+		end
 
-	-- On receiving the results, add labels beneath the chatbox showing the completed command(s).
-	Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
+		if not Text then
+			Text = StringFormat( "%s%s ", self.AutoCompleteLetter, Result.ChatCommand )
+		end
+
+		self.TextEntry:SetText( Text )
+	end
+
+	local function ApplyAutoCompletionResults( self, Results )
 		if not self.Visible then return end
-		if not self:ShouldAutoComplete( self.TextEntry:GetText() ) then return end
+
+		local Text = self.TextEntry:GetText()
+		if not self:ShouldAutoComplete( Text ) then return end
+
+		local ChatCommand, Arguments = GetCommandAndArguments( Text )
+		local ResultsAreForCorrectArgument = Results.Command == ChatCommand and Arguments
+			and Results.ParameterIndex == #Arguments
 
 		self.AutoCompleteResults = Results
 
@@ -1183,7 +1310,7 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 		for i = 1, Max( #Results, #Elements ) do
 			local Label = Elements[ i ]
-			if not Results[ i ] then
+			if not Results[ i ] or ( i > 1 and Results.ParameterIndex and not ResultsAreForCorrectArgument ) then
 				if Label then
 					Label:AlphaTo( nil, nil, 0, 0, 0.3, function()
 						if not Label then return end
@@ -1204,22 +1331,47 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				end
 
 				local Result = Results[ i ]
+				Result.ParameterIndex = Results.ParameterIndex
 
 				Label:SetFont( self:GetFont() )
 				Label:SetTextScale( self.MessageTextScale )
 
 				-- Completion of the form: !command <param> Help text.
 				local TextContent = {
-					Colours.ModeText, FirstLetter,
+					Colours.ModeText, self.AutoCompleteLetter,
 					Colours.AutoCompleteCommand, Result.ChatCommand.." "
 				}
 				if Result.Parameters ~= "" then
-					TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
-					TextContent[ #TextContent + 1 ] = Result.Parameters.." "
+					if ResultsAreForCorrectArgument and Result.Parameter and Result.Parameter ~= "" then
+						-- Results are for a specific parameter, show the help for the other parameters and use the
+						-- completion value for this parameter.
+						local Params = Shine.CommandUtil.SplitParameterHelp( Result.Parameters )
+						local ParamsBefore = TableConcat( Params, " ", 1, Results.ParameterIndex - 1 )
+						if #ParamsBefore > 0 then
+							TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+							TextContent[ #TextContent + 1 ] = ParamsBefore.." "
+						end
+
+						TextContent[ #TextContent + 1 ] = Colours.AutoCompleteArg
+						TextContent[ #TextContent + 1 ] = Result.Parameter.." "
+
+						if i == 1 then
+							local ParamsAfter = TableConcat( Params, " ", Results.ParameterIndex + 1 )
+							if #ParamsAfter > 0 then
+								TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+								TextContent[ #TextContent + 1 ] = ParamsAfter.." "
+							end
+						end
+					else
+						TextContent[ #TextContent + 1 ] = Colours.AutoCompleteParams
+						TextContent[ #TextContent + 1 ] = Result.Parameters.." "
+					end
 				end
 
-				TextContent[ #TextContent + 1 ] = Colours.ModeText
-				TextContent[ #TextContent + 1 ] = Result.Description
+				if i == 1 or not ResultsAreForCorrectArgument then
+					TextContent[ #TextContent + 1 ] = Colours.ModeText
+					TextContent[ #TextContent + 1 ] = Result.Description
+				end
 
 				Label:SetText( TextContent )
 				Label:InvalidateLayout( true )
@@ -1231,6 +1383,11 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 				local LabelSize = Label:GetSize()
 				Size.x = Max( Size.x, LabelSize.x + XPadding )
 				Size.y = Size.y + LabelSize.y
+
+				-- Display only one line if the auto-completion was for a specific command that's no longer correct.
+				if Results.ParameterIndex and not ResultsAreForCorrectArgument then
+					break
+				end
 			end
 		end
 
@@ -1241,7 +1398,59 @@ function Plugin:SubmitAutoCompleteRequest( Text )
 
 		ResultPanel:SetSize( Size )
 		ResultPanel:InvalidateLayout( true )
-	end )
+	end
+
+	function Plugin:SubmitParameterAutoCompleteRequest( ChatCommand, ParameterIndex, SearchText )
+		if self.LastSearchedChatCommand == ChatCommand and self.LastSearchedParameterIndex == ParameterIndex
+		and self.LastSearchedParameter == SearchText then
+			return
+		end
+
+		self.LastSearch = nil
+		self.LastSearchedChatCommand = ChatCommand
+		self.LastSearchedParameterIndex = ParameterIndex
+		self.LastSearchedParameter = SearchText
+
+		Shine.AutoComplete.RequestParameter(
+			ChatCommand,
+			ParameterIndex,
+			SearchText,
+			Shine.AutoComplete.CHAT_COMMAND,
+			MaxAutoCompleteResult,
+			function( Results ) ApplyAutoCompletionResults( self, Results ) end
+		)
+	end
+
+	--[[
+		Submits a request to the server for auto-completion of chat commands.
+
+		If the current text is the same request as last time (i.e. typing past the first word),
+		no request is sent.
+	]]
+	function Plugin:SubmitAutoCompleteRequest( Text )
+		local FirstLetter = StringSub( Text, 1, 1 )
+		self.AutoCompleteLetter = FirstLetter
+
+		-- Cut the text down to just the first word.
+		local SearchText, Arguments = GetCommandAndArguments( Text )
+		if Arguments and StringFind( Arguments[ #Arguments ], "[^%s]" ) then
+			-- Completing a specific parameter, request completions for it.
+			self:SubmitParameterAutoCompleteRequest( SearchText, #Arguments, Arguments[ #Arguments ] )
+			return
+		end
+
+		if self.LastSearch == SearchText then return end
+
+		self.LastSearch = SearchText
+		self.LastSearchedChatCommand = nil
+		self.LastSearchedParameterIndex = nil
+		self.LastSearchedParameter = nil
+
+		-- On receiving the results, add labels beneath the chatbox showing the completed command(s).
+		Shine.AutoComplete.Request( SearchText, Shine.AutoComplete.CHAT_COMMAND, MaxAutoCompleteResult, function( Results )
+			ApplyAutoCompletionResults( self, Results )
+		end )
+	end
 end
 
 function Plugin:DestroyAutoCompletePanel()
@@ -1260,11 +1469,14 @@ function Plugin:DestroyAutoCompletePanel()
 	self.AutoCompleteResults = nil
 	self.AutoCompleteLetter = nil
 	self.LastSearch = nil
+	self.LastSearchedChatCommand = nil
+	self.LastSearchedParameterIndex = nil
+	self.LastSearchedParameter = nil
 	self.CurrentResult = nil
 end
 
 function Plugin:ShouldAutoComplete( Text )
-	return StringFind( Text, "^[!/]" ) and StringLen( Text ) > 1
+	return StringFind( Text, "^[!/]" ) and #Text > 1
 end
 
 function Plugin:AutoCompleteCommand( Text )
@@ -1382,6 +1594,8 @@ end
 	and empty out the messages table.
 ]]
 function Plugin:Cleanup()
+	Hook.Remove( "PlayerKeyPress", self )
+
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
 	self.IgnoreRemove = true

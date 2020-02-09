@@ -6,18 +6,24 @@ local Plugin = Shine.Plugin( ... )
 
 function Plugin:SetupDataTable()
 	local MessageTypes = {
-		Generic = {
-			TargetName = self:GetNameNetworkField()
+		GenericWithTeam = {
+			TargetName = self:GetNameNetworkField(),
+			Team = "integer (0 to 3)"
 		},
 		Reason = {
 			TargetName = self:GetNameNetworkField(),
-			Reason = "string (64)"
+			Reason = "string (64)",
+			Team = "integer (0 to 3)"
 		}
 	}
 
-	self:AddNetworkMessages( "AddTranslatedNotifyColour", {
-		[ MessageTypes.Generic ] = {
-			"PLAYER_JOINED_GENERIC", "PLAYER_LEAVE_GENERIC"
+	self:AddTranslatedNotifyColour( "PLAYER_JOINED_GENERIC", {
+		TargetName = self:GetNameNetworkField()
+	} )
+
+	self:AddNetworkMessages( "AddTranslatedRichText", {
+		[ MessageTypes.GenericWithTeam ] = {
+			"PLAYER_LEAVE_GENERIC"
 		},
 		[ MessageTypes.Reason ] = {
 			"PLAYER_LEAVE_REASON"

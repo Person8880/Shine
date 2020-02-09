@@ -72,6 +72,54 @@ end )
 do
 	local InterpolationTests = {
 		{
+			Input = "{Value:Lower}",
+			Tests = {
+				{
+					Data = { Value = "TESTING" },
+					Expected = "testing"
+				},
+				{
+					Data = { Value = "testing" },
+					Expected = "testing"
+				}
+			}
+		},
+		{
+			Input = "{Value:Upper}",
+			Tests = {
+				{
+					Data = { Value = "TESTING" },
+					Expected = "TESTING"
+				},
+				{
+					Data = { Value = "testing" },
+					Expected = "TESTING"
+				}
+			}
+		},
+		{
+			Input = "{Value:Format:%.2f}",
+			Tests = {
+				{
+					Data = { Value = 0 },
+					Expected = "0.00"
+				}
+			}
+		},
+		{
+			Input = "{Value:Abs}",
+			Tests = {
+				{
+					Data = { Value = -5 },
+					Expected = "5"
+				},
+				{
+					Data = { Value = 5 },
+					Expected = "5"
+				}
+			}
+		},
+		{
 			Input = "{Value:Pluralise:singular|plural}",
 			LangDef = {
 				GetPluralForm = function( Value )
@@ -118,17 +166,126 @@ do
 					Expected = "two"
 				}
 			}
+		},
+		{
+			Input = "{Value:EnsureSentence}",
+			Tests = {
+				{
+					Data = { Value = "This is a sentence." },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence!" },
+					Expected = "This is a sentence!"
+				},
+				{
+					Data = { Value = "This is a sentence?" },
+					Expected = "This is a sentence?"
+				},
+				{
+					Data = { Value = "This is a sentence" },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence.   " },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence   " },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence:" },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence;" },
+					Expected = "This is a sentence."
+				},
+				{
+					Data = { Value = "This is a sentence," },
+					Expected = "This is a sentence."
+				}
+			}
 		}
 	}
 
 	for i = 1, #InterpolationTests do
 		local Test = InterpolationTests[ i ]
-		UnitTest:Test( Test.Input, function( Assert )
+		UnitTest:Test( "Interpolate - "..Test.Input, function( Assert )
 			local Tests = Test.Tests
 			for j = 1, #Tests do
 				Assert:Equals( Tests[ j ].Expected, string.Interpolate( Test.Input, Tests[ j ].Data,
 					Test.LangDef ) )
 			end
 		end )
+	end
+end
+
+do
+	local StringFormat = string.format
+
+	local CaseFormatTestCases = {
+		UPPER_CAMEL = {
+			Value = "TestWithACRONYMValue",
+			Expected = {
+				LOWER_CAMEL = "testWithACRONYMValue",
+				UPPER_UNDERSCORE = "TEST_WITH_ACRONYM_VALUE",
+				LOWER_UNDERSCORE = "test_with_acronym_value",
+				HYPHEN = "test-with-acronym-value"
+			}
+		},
+		LOWER_CAMEL = {
+			Value = "testWithACRONYMValue",
+			Expected = {
+				UPPER_CAMEL = "TestWithACRONYMValue",
+				UPPER_UNDERSCORE = "TEST_WITH_ACRONYM_VALUE",
+				LOWER_UNDERSCORE = "test_with_acronym_value",
+				HYPHEN = "test-with-acronym-value"
+			}
+		},
+		UPPER_UNDERSCORE = {
+			Value = "TEST_WITH_ACRONYM_VALUE",
+			Expected = {
+				UPPER_CAMEL = "TestWithAcronymValue",
+				LOWER_CAMEL = "testWithAcronymValue",
+				LOWER_UNDERSCORE = "test_with_acronym_value",
+				HYPHEN = "test-with-acronym-value"
+			}
+		},
+		LOWER_UNDERSCORE = {
+			Value = "test_with_acronym_value",
+			Expected = {
+				UPPER_CAMEL = "TestWithAcronymValue",
+				LOWER_CAMEL = "testWithAcronymValue",
+				UPPER_UNDERSCORE = "TEST_WITH_ACRONYM_VALUE",
+				HYPHEN = "test-with-acronym-value"
+			}
+		},
+		HYPHEN = {
+			Value = "test-with-acronym-value",
+			Expected = {
+				UPPER_CAMEL = "TestWithAcronymValue",
+				LOWER_CAMEL = "testWithAcronymValue",
+				UPPER_UNDERSCORE = "TEST_WITH_ACRONYM_VALUE",
+				LOWER_UNDERSCORE = "test_with_acronym_value"
+			}
+		}
+	}
+
+	for Key, TestCase in pairs( CaseFormatTestCases ) do
+		for TargetFormat, ExpectedValue in pairs( TestCase.Expected ) do
+			if TargetFormat ~= Key then
+				UnitTest:Test( StringFormat( "TransformCase %s -> %s", Key, TargetFormat ), function( Assert )
+					Assert.Equals(
+						StringFormat( "Transformation from %s to %s did not match expected value", Key, TargetFormat ),
+						ExpectedValue,
+						string.TransformCase(
+							TestCase.Value, string.CaseFormatType[ Key ], string.CaseFormatType[ TargetFormat ]
+						)
+					)
+				end )
+			end
+		end
 	end
 end

@@ -7,8 +7,12 @@
 	"SMOOTH_SCROLL": "Use smooth scrolling.",
 	"SCROLL_TO_BOTTOM": "Scroll to bottom on open.",
 	"MOVE_VANILLA_CHAT": "Move outer messages.",
+	"SHOW_TIMESTAMPS": "Show timestamps.",
 	"MESSAGE_MEMORY": "Message memory",
 	"OPACITY": "Opacity (%)",
 	"SCALE": "Scale (will re-open chatbox)",
+	"FONT_SIZE_MODE": "Font size:",
+	"FONT_SIZE_MODE_AUTO": "Automatic",
+	"FONT_SIZE_MODE_FIXED": "Fixed size",
 	"SETTINGS_TOOLTIP": "Opens/closes the chatbox settings."
 }

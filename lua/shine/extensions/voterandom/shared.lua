@@ -25,6 +25,38 @@ do
 	Plugin.FriendGroupLeaderTypeName = table.AsEnum( Values )
 end
 
+Plugin.ShuffleMode = table.AsEnum{
+	"RANDOM", "SCORE", "INVALID", "KDR", "HIVE"
+}
+
+Plugin.ModeStrings = {
+	Action = {
+		[ Plugin.ShuffleMode.RANDOM ] = "SHUFFLE_RANDOM",
+		[ Plugin.ShuffleMode.SCORE ] = "SHUFFLE_SCORE",
+		[ Plugin.ShuffleMode.KDR ] = "SHUFFLE_KDR",
+		[ Plugin.ShuffleMode.HIVE ] = "SHUFFLE_HIVE"
+	},
+	Mode = {
+		[ Plugin.ShuffleMode.RANDOM ] = "RANDOM_BASED",
+		[ Plugin.ShuffleMode.SCORE ] = "SCORE_BASED",
+		[ Plugin.ShuffleMode.KDR ] = "KDR_BASED",
+		[ Plugin.ShuffleMode.HIVE ] = "HIVE_BASED"
+	}
+}
+
+Plugin.VoteMessageKeys = {
+	"PLAYER_VOTED",
+	"PLAYER_VOTED_ENABLE_AUTO",
+	"PLAYER_VOTED_DISABLE_AUTO"
+}
+Plugin.FriendGroupMessageKeys = {
+	"ADDED_TO_FRIEND_GROUP",
+	"INVITE_ACCEPTED",
+	"INVITE_REJECTED",
+	"SELF_INVITE_ACCEPTED",
+	"REMOVED_FROM_GROUP"
+}
+
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )
 
@@ -80,10 +112,7 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.ShuffleDuration ] = {
 			"TEAMS_SHUFFLED_FOR_DURATION"
 		},
-		[ MessageTypes.PlayerVote ] = {
-			"PLAYER_VOTED", "PLAYER_VOTED_ENABLE_AUTO",
-			"PLAYER_VOTED_DISABLE_AUTO"
-		},
+		[ MessageTypes.PlayerVote ] = self.VoteMessageKeys,
 		[ MessageTypes.PrivateVote ] = {
 			"PLAYER_VOTED_PRIVATE", "PLAYER_VOTED_ENABLE_AUTO_PRIVATE",
 			"PLAYER_VOTED_DISABLE_AUTO_PRIVATE"
@@ -100,10 +129,7 @@ function Plugin:SetupDataTable()
 	}, "ShuffleType" )
 
 	self:AddNetworkMessages( "AddTranslatedNotify", {
-		[ MessageTypes.GroupWithPlayer ] = {
-			"ADDED_TO_FRIEND_GROUP", "INVITE_ACCEPTED", "INVITE_REJECTED",
-			"SELF_INVITE_ACCEPTED", "REMOVED_FROM_GROUP"
-		}
+		[ MessageTypes.GroupWithPlayer ] = self.FriendGroupMessageKeys
 	} )
 	self:AddNetworkMessages( "AddTranslatedNotification", {
 		[ MessageTypes.GroupWithPlayer ] = {

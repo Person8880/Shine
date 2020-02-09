@@ -8,6 +8,8 @@ local getmetatable = getmetatable
 local IsType = Shine.IsType
 local pairs = pairs
 local TableEmpty = table.Empty
+local TableSort = table.sort
+local TableMergeSort = table.MergeSort
 
 local Map = Shine.TypeDef()
 
@@ -53,6 +55,16 @@ end
 
 function Map:GetKeys()
 	return self.Keys
+end
+
+function Map:SortKeys( Comparator )
+	Shine.TypeCheck( Comparator, "function", 1, "SortKeys" )
+	TableSort( self.Keys, Comparator )
+end
+
+function Map:StableSortKeys( Comparator )
+	Shine.TypeCheck( Comparator, "function", 1, "StableSortKeys" )
+	TableMergeSort( self.Keys, Comparator )
 end
 
 --[[

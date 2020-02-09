@@ -42,24 +42,21 @@ function TextEntry:Initialise()
 
 	-- Coloured entry field.
 	local InnerBox = self:MakeGUICroppingItem()
-	InnerBox:SetAnchor( GUIItem.Left, GUIItem.Top )
 	InnerBox:SetPosition( BorderSize )
 
 	local SelectionBox = self:MakeGUIItem()
-	SelectionBox:SetAnchor( GUIItem.Left, GUIItem.Top )
 	SelectionBox:SetSize( Vector( 0, 0, 0 ) )
 
 	self.SelectionBox = SelectionBox
 
 	-- The actual text object.
 	local Text = self:MakeGUITextItem()
-	Text:SetAnchor( GUIItem.Left, GUIItem.Center )
+	Text:SetAnchor( 0, 0.5 )
 	Text:SetTextAlignmentY( GUIItem.Align_Center )
 	Text:SetPosition( TextPos )
 
 	-- The caret to edit from.
 	local Caret = self:MakeGUIItem()
-	Caret:SetAnchor( GUIItem.Left, GUIItem.Top )
 	Caret:SetColor( Clear )
 
 	self.Caret = Caret
@@ -177,12 +174,13 @@ function TextEntry:SetPlaceholderText( Text )
 	end
 
 	local PlaceholderText = self:MakeGUITextItem()
-	PlaceholderText:SetAnchor( GUIItem.Left, GUIItem.Top )
 	PlaceholderText:SetTextAlignmentY( GUIItem.Align_Center )
 	PlaceholderText:SetText( Text )
+	PlaceholderText:SetInheritsParentScaling( false )
 
 	if self.Font then
 		PlaceholderText:SetFontName( self.Font )
+		SGUI.FontManager.SetupElementForFontName( PlaceholderText, self.Font )
 	end
 
 	if self.TextScale then
@@ -199,15 +197,20 @@ end
 function TextEntry:SetFont( Font )
 	self.Font = Font
 	self.TextObj:SetFontName( Font )
+	SGUI.FontManager.SetupElementForFontName( self.TextObj, Font )
+
 	self:SetupCaret()
 
 	if self.PlaceholderText then
 		self.PlaceholderText:SetFontName( Font )
+		SGUI.FontManager.SetupElementForFontName( self.PlaceholderText, Font )
 	end
 end
 
 function TextEntry:PerformLayout()
+	local OldColumn = self.Column
 	self:SetupCaret()
+	self:SetCaretPos( OldColumn )
 end
 
 function TextEntry:SetupCaret()
@@ -287,6 +290,7 @@ function TextEntry:SetCaretPos( Column )
 	end
 
 	NewPos = Clamp( NewPos + self.CaretOffset, 0, self.Width )
+
 	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
 	TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 end
@@ -981,7 +985,6 @@ end
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self.Enabled then return end
-	if not Down then return end
 
 	-- Reset the auto-completion list on any action other than pressing tab.
 	if Key ~= InputKey.Tab
@@ -991,20 +994,20 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	end
 
 	if SGUI:IsControlDown() then
-		if Key == InputKey.A then
+		if Down and Key == InputKey.A then
 			self:SelectAll()
 
 			return true
 		end
 
 		if self:HasSelection() then
-			if Key == InputKey.C then
+			if Down and Key == InputKey.C then
 				SGUI.SetClipboardText( self:GetSelectedText() )
 
 				return true
 			end
 
-			if Key == InputKey.X then
+			if Down and Key == InputKey.X then
 				self:PushUndoState()
 				SGUI.SetClipboardText( self:GetSelectedText() )
 				self:RemoveSelectedText()
@@ -1013,7 +1016,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 			end
 		end
 
-		if Key == InputKey.V then
+		if Down and Key == InputKey.V then
 			self:PushUndoState()
 			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
 			for i = 1, #Chars do
@@ -1023,18 +1026,18 @@ function TextEntry:PlayerKeyPress( Key, Down )
 			return true
 		end
 
-		if Key == InputKey.Z then
+		if Down and Key == InputKey.Z then
 			self:Undo()
 			return true
 		end
 
-		if Key == InputKey.Y then
+		if Down and Key == InputKey.Y then
 			self:Redo()
 			return true
 		end
 	end
 
-	if Key == InputKey.Back or Key == InputKey.Delete then
+	if Down and ( Key == InputKey.Back or Key == InputKey.Delete ) then
 		self:RemoveCharacter( Key == InputKey.Delete )
 		if self.PlaceholderText and self.Text == "" then
 			self.PlaceholderText:SetIsVisible( true )
@@ -1043,7 +1046,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		return true
 	end
 
-	if Key == InputKey.Left then
+	if Down and Key == InputKey.Left then
 		if SGUI:IsShiftDown() then
 			if SGUI:IsControlDown() then
 				local PrevSpace = self:FindNextWordBoundInDir( self.Column, -1 )
@@ -1069,7 +1072,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		return true
 	end
 
-	if Key == InputKey.Right then
+	if Down and Key == InputKey.Right then
 		if SGUI:IsShiftDown() then
 			if SGUI:IsControlDown() then
 				local NextSpace = self:FindNextWordBoundInDir( self.Column, 1 )
@@ -1095,19 +1098,19 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		return true
 	end
 
-	if Key == InputKey.Return then
+	if Down and Key == InputKey.Return then
 		self:OnEnter()
 
 		return true
 	end
 
-	if Key == InputKey.Tab then
+	if Down and Key == InputKey.Tab then
 		self:OnTab()
 
 		return true
 	end
 
-	if Key == InputKey.Escape then
+	if Down and Key == InputKey.Escape then
 		if not self:OnEscape() then
 			self:LoseFocus()
 		end

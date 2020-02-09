@@ -34,6 +34,7 @@ SGUI.AddBoundProperty( Button, "TextScale", "Label:SetTextScale" )
 
 SGUI.AddBoundProperty( Button, "IconAlignment", "Icon:SetAlignment" )
 SGUI.AddBoundProperty( Button, "IconColour", "Icon:SetColour" )
+SGUI.AddBoundProperty( Button, "IconAutoFont", "Icon:SetAutoFont" )
 SGUI.AddBoundProperty( Button, "IconIsVisible", "Icon:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
 
@@ -166,6 +167,9 @@ function Button:SetIcon( IconName, Font, Scale )
 	if self.IconColour or self.TextColour then
 		Icon:SetColour( self.IconColour or self.TextColour )
 	end
+	if self.IconAutoFont then
+		Icon:SetAutoFont( self.IconAutoFont )
+	end
 	Icon:SetText( IconName )
 	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Icon:SetIsVisible( self.IconIsVisible )
@@ -261,10 +265,12 @@ function Button:AddMenu( Size, MenuPos )
 	Menu:CallOnRemove( function()
 		if self:IsValid() then
 			self:SetForceHighlight( false )
+			self:OnPropertyChanged( "Menu", nil )
 		end
 	end )
 
 	self.Menu = Menu
+	self:OnPropertyChanged( "Menu", Menu )
 
 	return Menu
 end

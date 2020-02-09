@@ -63,9 +63,34 @@ Plugin.ConfigGroup = {
 	Icon = SGUI.Icons.Ionicons.Shuffle
 }
 
+do
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+	local RichTextMessageOptions = {}
+
+	local VoteMessageOptions = {
+		Colours = {
+			PlayerName = function( Values )
+				return RichTextFormat.GetColourForPlayer( Values.PlayerName )
+			end
+		}
+	}
+
+	for i = 1, #Plugin.VoteMessageKeys do
+		for Key, Value in pairs( Plugin.ModeStrings.Mode ) do
+			RichTextMessageOptions[ StringFormat( "%s_%s", Plugin.VoteMessageKeys[ i ], Value ) ] = VoteMessageOptions
+		end
+	end
+	for i = 1, #Plugin.FriendGroupMessageKeys do
+		RichTextMessageOptions[ Plugin.FriendGroupMessageKeys[ i ] ] = VoteMessageOptions
+	end
+
+	Plugin.RichTextMessageOptions = RichTextMessageOptions
+end
+
 local FRIEND_GROUP_HINT_NAME = "ShuffleFriendGroupHint"
 local FRIEND_GROUP_INVITE_HINT_NAME = "ShuffleFriendGroupInviteHint"
 local TEAM_PREFERENCE_CHANGE_HINT_NAME = "ShuffleTeamPreferenceConfigHint"
+local TEAM_PREFERENCE_DEFAULT_HINT_NAME = "ShuffleTeamPreferenceDefaultHint"
 
 function Plugin:SetupClientConfig()
 	local function SendTeamPreference( PreferredTeam )
@@ -89,8 +114,8 @@ function Plugin:SetupClientConfig()
 		local NewPref = self.TeamType[ PreferredTeam ] or self.TeamType.NONE
 		if OldPref == NewPref then return end
 
-		self.Config.PreferredTeam = NewPref
-		self:SaveConfig( true )
+		self:SetClientSetting( "PreferredTeam", NewPref )
+
 		SendTeamPreference( PreferredTeam )
 
 		self:OnTeamPreferenceChanged()
@@ -103,6 +128,7 @@ function Plugin:SetupClientConfig()
 		Print( "Team preference saved as: %s.%s", self.Config.PreferredTeam, ResetHint )
 
 		SGUI.NotificationManager.DisplayHint( TEAM_PREFERENCE_CHANGE_HINT_NAME )
+		SGUI.NotificationManager.DisableHint( TEAM_PREFERENCE_DEFAULT_HINT_NAME )
 	end ):AddParam{ Type = "team", Optional = true, Default = 3 }
 
 	self:AddClientSetting( "PreferredTeam", "sh_shuffle_teampref", {
@@ -131,8 +157,7 @@ function Plugin:SetupClientConfig()
 				SGUI.NotificationManager.DisplayHint( FRIEND_GROUP_INVITE_HINT_NAME )
 			end
 
-			self.Config[ FieldName ] = Type
-			self:SaveConfig( true )
+			self:SetClientSetting( FieldName, Type )
 			SendFriendGroupConfig( self.Config )
 
 			Print( Descriptions[ Type ] )
@@ -194,6 +219,7 @@ function Plugin:ReceiveTemporaryTeamPreference( Data )
 	if NewPreference ~= OldPreference then
 		if not Data.Silent then
 			self:Notify( self:GetPhrase( "TEAM_PREFERENCE_SET_"..NewPreference ) )
+			SGUI.NotificationManager.DisplayHint( TEAM_PREFERENCE_DEFAULT_HINT_NAME )
 		end
 
 		self:OnTeamPreferenceChanged()
@@ -309,6 +335,7 @@ function Plugin:OnFirstThink()
 		MessageSource = self:GetName(),
 		MessageKey = "FRIEND_GROUP_INVITE_HINT",
 		HintDuration = 10,
+		SuppressConsoleMessage = true,
 		Options = {
 			Buttons = {
 				{
@@ -332,6 +359,32 @@ function Plugin:OnFirstThink()
 		MessageKey = "TEAM_PREFERENCE_CHANGE_HINT",
 		HintDuration = 10
 	} )
+	SGUI.NotificationManager.RegisterHint( TEAM_PREFERENCE_DEFAULT_HINT_NAME, {
+		MaxTimes = 1,
+		HintDuration = 10,
+		MessageSupplier = function()
+			local ConfigTab = self:GetPhrase( "CLIENT_CONFIG_TAB" )
+
+			local VoteMenuButton = Shine.VoteButton
+			if VoteMenuButton then
+				return self:GetInterpolatedPhrase( "TEAM_PREFERENCE_DEFAULT_HINT_VOTEMENU", {
+					ConfigTab = ConfigTab,
+					ClientConfigButton = Shine.Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" ),
+					VoteMenuButton = VoteMenuButton
+				} )
+			end
+
+			return self:GetInterpolatedPhrase( "TEAM_PREFERENCE_DEFAULT_HINT_CONSOLE", {
+				ConfigTab = ConfigTab,
+				ClientConfigButton = Shine.Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" )
+			} )
+		end
+	} )
+
+	if self.Config.PreferredTeam ~= self.TeamType.NONE then
+		-- Already set a default team preference, no need to tell them about it.
+		SGUI.NotificationManager.DisableHint( TEAM_PREFERENCE_DEFAULT_HINT_NAME )
+	end
 
 	-- Defensive check in case the scoreboard code changes.
 	if not Scoreboard_GetPlayerRecord or not GUIScoreboard or not GUIScoreboard.UpdateTeam then return end
@@ -613,7 +666,6 @@ local function CheckRow( self, Row, TeamNumber, CurTime, ShouldShowFriendGroup )
 end
 
 local MathStandardDeviation = math.StandardDeviation
-local StringFormat = string.format
 
 function Plugin:OnGUIScoreboardUpdateTeam( Scoreboard, Team )
 	local TeamNumber = Team.TeamNumber

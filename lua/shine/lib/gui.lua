@@ -13,6 +13,7 @@ local Map = Shine.Map
 
 local getmetatable = getmetatable
 local include = Script.Load
+local Min = math.min
 local setmetatable = setmetatable
 local StringFormat = string.format
 local TableInsert = table.insert
@@ -37,6 +38,7 @@ SGUI.GUIItemType = {
 }
 
 SGUI.Controls = {}
+SGUI.KeyboardFocusControls = Shine.Set()
 
 SGUI.ActiveControls = Map()
 SGUI.Windows = {}
@@ -307,20 +309,13 @@ function SGUI.TenEightyPScale( Value )
 	return math.scaledown( Value, 1080, 1280 ) * ( 2 - ( 1080 / 1280 ) )
 end
 
+function SGUI.LinearScale( Value )
+	return Min( SGUI.GetScreenSize() ) / 1080 * Value
+end
+
 function SGUI.LinearScaleByScreenHeight( Value )
 	local W, H = SGUI.GetScreenSize()
 	return H / 1080 * Value
-end
-
-do
-	local ScrW, ScrH
-
-	function SGUI.GetScreenSize()
-		ScrW = ScrW or Client.GetScreenWidth
-		ScrH = ScrH or Client.GetScreenHeight
-
-		return ScrW(), ScrH()
-	end
 end
 
 SGUI.SpecialKeyStates = {
@@ -377,7 +372,7 @@ do
 		local Windows = self.Windows
 		for i = 1, #Windows do
 			local Window = Windows[ i ]
-			Window:SetLayer( self.BaseLayer + i )
+			Window:SetLayer( Window.OverrideLayer or self.BaseLayer + i )
 		end
 
 		if Window ~= self.FocusedWindow and self.IsValid( self.FocusedWindow )
@@ -724,6 +719,10 @@ do
 		self.ActiveControls:Add( Control, true )
 		self.SkinManager:ApplySkin( Control )
 
+		if Control.UsesKeyboardFocus and Control.OnFocusChange then
+			self.KeyboardFocusControls:Add( Control )
+		end
+
 		if Parent then
 			Control:SetParent( Parent, ParentElement )
 		end
@@ -768,6 +767,7 @@ do
 		end
 
 		self.ActiveControls:Remove( Control )
+		self.KeyboardFocusControls:Remove( Control )
 
 		if self.IsValid( Control.Tooltip ) then
 			Control.Tooltip:Destroy()
@@ -849,16 +849,10 @@ Hook.Add( "PlayerType", "UpdateSGUI", function( Char )
 end )
 
 local function NotifyFocusChange( Element, ClickingOtherElement )
-	if not Element then
-		SGUI.FocusedControl = nil
-	end
+	SGUI.FocusedControl = Element
 
-	for Control in SGUI.ActiveControls:Iterate() do
-		if Control.OnFocusChange then
-			if Control:OnFocusChange( Element, ClickingOtherElement ) then
-				break
-			end
-		end
+	for Control in SGUI.KeyboardFocusControls:Iterate() do
+		Control:OnFocusChange( Element, ClickingOtherElement )
 	end
 end
 SGUI.NotifyFocusChange = NotifyFocusChange
@@ -868,15 +862,28 @@ function SGUI.GetCursorPos()
 	return GetCursorPosScreen()
 end
 
+local ScrW = Client.GetScreenWidth
+local ScrH = Client.GetScreenHeight
+
+function SGUI.GetScreenSize()
+	return ScrW(), ScrH()
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	GetCursorPosScreen = Client.GetCursorPosScreen
+	ScrW = Client.GetScreenWidth
+	ScrH = Client.GetScreenHeight
 
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
+	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
+end )
+
+Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
 	local Listener = {
 		OnMouseMove = function( _, LMB )
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
@@ -914,8 +921,6 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	MouseTracker_ListenToMovement( Listener )
 	MouseTracker_ListenToButtons( Listener )
 	MouseTracker_ListenToWheel( Listener )
-
-	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 end )
 
 include( "lua/shine/lib/gui/base_control.lua" )

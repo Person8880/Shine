@@ -678,6 +678,46 @@ function Plugin:CreateCommands()
 		return Player, PlayerName
 	end
 
+	local function IsValidMapToNominate( Map )
+		if not self.Config.Maps[ Map ] and not self:CanNominateOutsideOfCycle( Map ) then
+			return false, "MAP_NOT_ON_LIST", {
+				MapName = Map
+			}, "%s is not on the map list.", true, Map
+		end
+
+		if not self:CanExtend() and Shared.GetMapName() == Map then
+			return false, "NOMINATE_FAIL", nil, "You cannot nominate the current map."
+		end
+
+		if self.Config.ForcedMaps[ Map ] or TableHasValue( self.Vote.Nominated, Map ) then
+			return false, "ALREADY_NOMINATED", {
+				MapName = Map
+			}, "%s has already been nominated.", true, Map
+		end
+
+		if not self:CanNominateWhenExcluded( Map ) then
+			-- Approximate the maps that will be available by just taking the forced maps as chosen.
+			local TotalMapsAvailable = Shine.Set( self.Config.Maps ):GetCount()
+			local TotalForcedMaps = Shine.Set( self.Config.ForcedMaps ):GetCount()
+			local LastMaps = self:GetBlacklistedLastMaps( TotalMapsAvailable - TotalForcedMaps, TotalForcedMaps )
+			if TableHasValue( LastMaps, Map ) then
+				return false, "RECENTLY_PLAYED", {
+					MapName = Map
+				}, "%s was recently played and cannot be voted for yet.", true, Map
+			end
+		end
+
+		return true
+	end
+
+	local function CheckMapForNomination( Player, Result, ... )
+		if not Result then
+			NotifyError( Player, ... )
+			return false
+		end
+		return true
+	end
+
 	local function Nominate( Client, Map )
 		local SteamID = Client and Client:GetUserId() or "Console"
 		local Player, PlayerName = GetPlayerData( Client )
@@ -699,43 +739,11 @@ function Plugin:CreateCommands()
 
 		Map = MatchingMaps[ 1 ] or Map
 
-		if not self.Config.Maps[ Map ] and not self:CanNominateOutsideOfCycle( Map ) then
-			NotifyError( Player, "MAP_NOT_ON_LIST", {
-				MapName = Map
-			}, "%s is not on the map list.", true, Map )
-
-			return
-		end
-
-		if not self:CanExtend() and Shared.GetMapName() == Map then
-			NotifyError( Player, "NOMINATE_FAIL", nil, "You cannot nominate the current map." )
-
+		if not CheckMapForNomination( Player, IsValidMapToNominate( Map ) ) then
 			return
 		end
 
 		local Nominated = self.Vote.Nominated
-
-		if self.Config.ForcedMaps[ Map ] or TableHasValue( Nominated, Map ) then
-			NotifyError( Player, "ALREADY_NOMINATED", {
-				MapName = Map
-			}, "%s has already been nominated.", true, Map )
-
-			return
-		end
-
-		if not self:CanNominateWhenExcluded( Map ) then
-			-- Approximate the maps that will be available by just taking the forced maps as chosen.
-			local TotalMapsAvailable = Shine.Set( self.Config.Maps ):GetCount()
-			local TotalForcedMaps = Shine.Set( self.Config.ForcedMaps ):GetCount()
-			local LastMaps = self:GetBlacklistedLastMaps( TotalMapsAvailable - TotalForcedMaps, TotalForcedMaps )
-			if TableHasValue( LastMaps, Map ) then
-				NotifyError( Player, "RECENTLY_PLAYED", {
-					MapName = Map
-				}, "%s was recently played and cannot be voted for yet.", true, Map )
-				return
-			end
-		end
-
 		local Count = #Nominated
 		if Count >= self:GetMaxNominations() then
 			NotifyError( Player, "NOMINATIONS_FULL", nil, "Nominations are full." )
@@ -771,7 +779,14 @@ function Plugin:CreateCommands()
 		end
 	end
 	local NominateCommand = self:BindCommand( "sh_nominate", "nominate", Nominate, true )
-	NominateCommand:AddParam{ Type = "string", Error = "Please specify a map name to nominate.", Help = "mapname" }
+	NominateCommand:AddParam{
+		Type = "string",
+		Error = "Please specify a map name to nominate.",
+		Help = "mapname",
+		AutoCompletions = function()
+			return Shine.Stream.Of( Shine.GetKnownMapNames() ):Filter( IsValidMapToNominate ):AsTable()
+		end
+	}
 	NominateCommand:Help( "Nominates a map for the next map vote." )
 
 	local function VoteToChange( Client )
@@ -883,7 +898,17 @@ function Plugin:CreateCommands()
 		NotifyError( Player, Key, Data, Err )
 	end
 	local VoteCommand = self:BindCommand( "sh_vote", "vote", Vote, true )
-	VoteCommand:AddParam{ Type = "string", Error = "Please specify a map to vote for.", Help = "mapname" }
+	VoteCommand:AddParam{
+		Type = "string",
+		Error = "Please specify a map to vote for.",
+		Help = "mapname",
+		AutoCompletions = function()
+			if not self:VoteStarted() then
+				return {}
+			end
+			return self:GetVoteChoices()
+		end
+	}
 	VoteCommand:Help( "Vote for a particular map in the active map vote." )
 
 	local function Veto( Client )

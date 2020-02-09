@@ -26,6 +26,70 @@ function Queue:Add( Value )
 	self.Size = self.Size + 1
 end
 
+function Queue:InsertAtFront( Value )
+	self.First = self.First - 1
+	self.Elements[ self.First ] = Value
+	self.Size = self.Size + 1
+end
+
+function Queue:InsertAtIndex( Index, Value )
+	local Elements = self.Elements
+	local TargetIndex = self.First + Index - 1
+	for i = self.Last, TargetIndex, -1 do
+		Elements[ i + 1 ] = Elements[ i ]
+	end
+
+	Elements[ TargetIndex ] = Value
+
+	self.Last = self.Last + 1
+	self.Size = self.Size + 1
+end
+
+function Queue:InsertByComparing( Value, Comparator )
+	local Elements = self.Elements
+
+	for i = self.First, self.Last do
+		if Comparator( Value, Elements[ i ] ) then
+			return self:InsertAtIndex( i - self.First + 1, Value )
+		end
+	end
+
+	return self:Add( Value )
+end
+
+-- Treats the queue as an array and filters out the given value.
+do
+	local function RemoveValue( Value, Index, ValueBeingRemoved )
+		return Value ~= ValueBeingRemoved
+	end
+
+	function Queue:Remove( Value )
+		return self:Filter( RemoveValue, Value )
+	end
+end
+
+function Queue:Filter( Predicate, Context )
+	local Elements = self.Elements
+	local Offset = 0
+
+	for i = self.First, self.Last do
+		Elements[ i - Offset ] = Elements[ i ]
+		if not Predicate( Elements[ i ], i, Context ) then
+			Elements[ i ] = nil
+			Offset = Offset + 1
+			self.Size = self.Size - 1
+		end
+	end
+
+	for i = self.Last, self.Last - Offset + 1, -1 do
+		Elements[ i ] = nil
+	end
+
+	self.Last = self.Last - Offset
+
+	return Offset ~= 0
+end
+
 function Queue:Pop()
 	if self.Size == 0 then
 		return nil
@@ -49,6 +113,34 @@ end
 
 function Queue:Peek()
 	return self.Elements[ self.First ]
+end
+
+function Queue:Get( Index )
+	return self.Elements[ self.First + Index - 1 ]
+end
+
+function Queue:IndexOf( Value )
+	local Elements = self.Elements
+
+	for i = self.First, self.Last do
+		if Value == Elements[ i ] then
+			return i - self.First + 1
+		end
+	end
+
+	return nil
+end
+
+function Queue:LastIndexOf( Value )
+	local Elements = self.Elements
+
+	for i = self.Last, self.First, -1 do
+		if Value == Elements[ i ] then
+			return i - self.First + 1
+		end
+	end
+
+	return nil
 end
 
 function Queue:Clear()

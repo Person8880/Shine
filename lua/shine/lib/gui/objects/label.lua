@@ -21,28 +21,34 @@ SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParen
 -- Auto-wrapping allows labels to automatically word-wrap based on a given auto-width (or fill size).
 SGUI.AddProperty( Label, "AutoWrap", false, { "InvalidatesParent" } )
 
-function Label:Initialise()
-	self.BaseClass.Initialise( self )
-
-	self.Label = self:MakeGUITextItem()
-	self.Background = self.Label
-	self.TextScale = Vector2( 1, 1 )
-	self.TextAlignmentX = GUIItem.Align_Min
-	self.TextAlignmentY = GUIItem.Align_Min
-	self.NeedsTextSizeRefresh = true
-
-	local function MarkSizeDirty()
+do
+	local function MarkSizeDirty( self )
 		self.CachedTextWidth = nil
 		self.CachedTextHeight = nil
 		self.NeedsTextSizeRefresh = true
 	end
-	self:AddPropertyChangeListener( "Text", MarkSizeDirty )
-	self:AddPropertyChangeListener( "Font", MarkSizeDirty )
-	self:AddPropertyChangeListener( "TextScale", MarkSizeDirty )
 
-	self:AddPropertyChangeListener( "Text", function( Text )
-		self:EvaluateOptionFlags( Text )
-	end )
+	local function SetupElementForFontName( self, Font )
+		SGUI.FontManager.SetupElementForFontName( self.Label, Font )
+	end
+
+	function Label:Initialise()
+		self.BaseClass.Initialise( self )
+
+		self.Label = self:MakeGUITextItem()
+		self.Background = self.Label
+		self.TextScale = Vector2( 1, 1 )
+		self.TextAlignmentX = GUIItem.Align_Min
+		self.TextAlignmentY = GUIItem.Align_Min
+		self.NeedsTextSizeRefresh = true
+
+		self:AddPropertyChangeListener( "Text", MarkSizeDirty )
+		self:AddPropertyChangeListener( "Font", MarkSizeDirty )
+		self:AddPropertyChangeListener( "TextScale", MarkSizeDirty )
+
+		self:AddPropertyChangeListener( "Text", self.EvaluateOptionFlags )
+		self:AddPropertyChangeListener( "Font", SetupElementForFontName )
+	end
 end
 
 function Label:EvaluateOptionFlags( Text )

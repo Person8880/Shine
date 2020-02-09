@@ -51,8 +51,8 @@ end
 -- Load core scripts upfront to allow hooking into network messages and other such
 -- elements before any are registered.
 Shine.LoadScripts( {
-	"lib/debug.lua",
 	"lib/string.lua",
+	"lib/debug.lua",
 	"lib/table.lua",
 	"lib/sorting.lua",
 	"lib/utf8.lua",

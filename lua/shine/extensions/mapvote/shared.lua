@@ -7,6 +7,13 @@ Plugin.NotifyPrefixColour = {
 	255, 255, 0
 }
 
+Plugin.DurationMessageKeys = {
+	"MAP_EXTENDED_TIME",
+	"SET_MAP_TIME",
+	"MAP_EXTENDED_ROUNDS",
+	"SET_MAP_ROUNDS"
+}
+
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )
 
@@ -89,10 +96,7 @@ function Plugin:SetupDataTable()
 		[ MessageTypes.Empty ] = {
 			"FORCED_VOTE"
 		},
-		[ MessageTypes.Duration ] = {
-			"MAP_EXTENDED_TIME", "SET_MAP_TIME", "MAP_EXTENDED_ROUNDS",
-			"SET_MAP_ROUNDS"
-		}
+		[ MessageTypes.Duration ] = self.DurationMessageKeys
 	} )
 
 	self:AddNetworkMessages( "AddTranslatedNotify", {

@@ -103,6 +103,13 @@ Hook.MIN_PRIORITY = MIN_PRIORITY
 ]]
 local function Add( Event, Index, Function, Priority )
 	Shine.AssertAtLevel( Event ~= nil, "Event identifier must not be nil!", 3 )
+
+	-- If no key is provided, use the given function as the key.
+	if ( Function == nil or IsType( Function, "number" ) ) and IsCallable( Index ) then
+		Priority = Function
+		Function = Index
+	end
+
 	Shine.AssertAtLevel( Index ~= nil, "Index must not be nil!", 3 )
 	Shine.AssertAtLevel( IsCallable( Function ), "Function must be callable!", 3 )
 	if Priority ~= nil then
@@ -555,6 +562,14 @@ do
 		return OriginalRegisterNetworkMessage( Name )
 	end
 end
+
+-- Note that it's important to override the initial registration, rather than re-register the message, as the
+-- network message hook callback only receives data for the values present at the time it was registered.
+Add( "RegisterNetworkMessage:Chat", "AddSteamIDToMessage", function( Name, Definition )
+	Definition.steamId = "integer"
+	Definition.clientId = "integer"
+end )
+
 -- Client specific hooks.
 if Client then
 	local function LoadComplete()
@@ -566,6 +581,24 @@ if Client then
 		Call( "ClientDisconnected", Reason )
 	end
 	Event.Hook( "ClientDisconnected", OnClientDisconnected )
+
+	Add( "HookNetworkMessage:Chat", "SetupOnChatMessageReceived", function( Name, Callback )
+		return function( Data )
+			local Handled = Call( "OnChatMessageReceived", {
+				LocationID = Data.locationId,
+				Message = Data.message,
+				Name = Data.playerName,
+				ClientID = Data.clientId,
+				SteamID = Data.steamId,
+				TeamNumber = Data.teamNumber,
+				TeamOnly = Data.teamOnly,
+				TeamType = Data.teamType
+			} )
+			if Handled then return end
+
+			return Callback( Data )
+		end
+	end, MAX_PRIORITY )
 
 	-- Need to hook the GUI manager, hooking the events directly blocks all input for some reason...
 	Add( "OnMapLoad", "HookGUIEvents", function()
@@ -620,7 +653,30 @@ if Client then
 
 		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility",
 			"EvaluateUIVisibility", "PassivePost" )
+
+		local OptionsFunctions = {
+			"Client.SetOptionInteger",
+			"Client.SetOptionFloat",
+			"Client.SetOptionString",
+			"Client.SetOptionBoolean"
+		}
+		for i = 1, #OptionsFunctions do
+			Shine.Hook.SetupGlobalHook( OptionsFunctions[ i ], "OnClientOptionChanged", "PassivePost", {
+				OverrideWithoutWarning = true
+			} )
+		end
+
+		Add( "OnClientOptionChanged", function( Name, Value )
+			return Call( "OnClientOptionChanged:"..Name, Value )
+		end, MAX_PRIORITY )
 	end, MAX_PRIORITY )
+
+	Event.Hook( "LocalPlayerChanged", function()
+		local Player = Client.GetLocalPlayer()
+		if Player then
+			Call( "OnLocalPlayerChanged", Player )
+		end
+	end )
 
 	Add( "Think", "ClientOnFirstThink", function()
 		CallOnce( "OnFirstThink" )
@@ -687,7 +743,7 @@ do
 	end
 end
 
-Add( "HookNetworkMessage:ChatClient", "AddChatCallback", function( Name, Callback )
+Add( "HookNetworkMessage:ChatClient", "AddChatCallback", function( MessageName, Callback )
 	return function( Client, Message )
 		local Result = Call( "PlayerSay", Client, Message )
 		if Result then
@@ -697,7 +753,7 @@ Add( "HookNetworkMessage:ChatClient", "AddChatCallback", function( Name, Callbac
 
 		return Callback( Client, Message )
 	end
-end )
+end, Hook.MAX_PRIORITY )
 
 --[[
 	Hook to run after everything has loaded.

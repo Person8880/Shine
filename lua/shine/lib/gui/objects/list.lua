@@ -48,7 +48,6 @@ function List:Initialise()
 
 	-- This dummy element will be moved when scrolling.
 	local ScrollParent = self:MakeGUIItem()
-	ScrollParent:SetAnchor( GUIItem.Left, GUIItem.Top )
 	ScrollParent:SetColor( ZeroColour )
 
 	CroppingBox:AddChild( ScrollParent )

@@ -2,6 +2,8 @@
 	Messaging module.
 ]]
 
+local ChatAPI = require "shine/core/shared/chat/chat_api"
+
 local Shine = Shine
 
 local rawget = rawget
@@ -10,6 +12,13 @@ local StringFormat = string.format
 local MessageModule = {}
 
 if Client then
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+
+	local ColourElement = require "shine/lib/gui/richtext/elements/colour"
+	local TextElement = require "shine/lib/gui/richtext/elements/text"
+
+	local TableInsert = table.insert
+
 	function MessageModule:GetPhrase( Key )
 		local Phrase = Shine.Locale:GetPhrase( self.__Name, Key )
 
@@ -38,6 +47,29 @@ if Client then
 		return Phrase
 	end
 
+	function MessageModule:GetInterpolatedRichText( Key, Options )
+		local Phrase = self:GetPhrase( Key )
+		return RichTextFormat.FromInterpolationString( Phrase, Options )
+	end
+
+	function MessageModule:NotifyTranslatedRichTextWithFallback( Options )
+		if ChatAPI:SupportsRichText() or not Options.MakeFallbackMessage then
+			self:NotifyRichText( self:GetInterpolatedRichText( Options.Key, Options ) )
+		else
+			Options.MakeFallbackMessage( self, Options )
+		end
+	end
+
+	function MessageModule:NotifyRichText( RichText )
+		ChatAPI:AddRichTextMessage( {
+			Source = {
+				Type = ChatAPI.SourceTypeName.PLUGIN,
+				ID = self:GetName()
+			},
+			Message = RichText
+		} )
+	end
+
 	function MessageModule:AddChatLine( RP, GP, BP, Prefix, R, G, B, Message )
 		Shine.AddChatText( RP, GP, BP, Prefix, R / 255, G / 255, B / 255, Message )
 	end
@@ -49,8 +81,48 @@ if Client then
 			Shared.Message( Message )
 			Shine.GUI.NotificationManager.AddNotification( Shine.NotificationType.INFO, Message, 5 )
 		else
-			self:AddChatLine( 255, 255, 0, AdminName,
-				255, 255, 255, self:GetInterpolatedPhrase( MessageKey, Data ) )
+			local Options = self.RichTextMessageOptions and self.RichTextMessageOptions[ MessageKey ]
+			if ChatAPI:SupportsRichText() and Options then
+				local RichTextMessage = self:GetInterpolatedRichText( MessageKey, {
+					Key = MessageKey,
+					Values = Data,
+					Colours = Options.Colours,
+					DefaultColour = Options.DefaultColour,
+					LangDef = Shine.Locale:GetLanguageDefinition()
+				} )
+
+				TableInsert( RichTextMessage, 1, TextElement( AdminName.." " ) )
+				TableInsert( RichTextMessage, 1, ColourElement( Colour( 1, 1, 0 ) ) )
+
+				self:NotifyRichText( RichTextMessage )
+			else
+				self:AddChatLine( 255, 255, 0, AdminName,
+					255, 255, 255, self:GetInterpolatedPhrase( MessageKey, Data ) )
+			end
+		end
+	end
+
+	function MessageModule:NotifyTranslated( Key, Data )
+		local Options = self.RichTextMessageOptions and self.RichTextMessageOptions[ Key ]
+		if ChatAPI:SupportsRichText() and Options then
+			local RichTextMessage = self:GetInterpolatedRichText( Key, {
+				Key = Key,
+				Values = Data,
+				Colours = Options.Colours,
+				DefaultColour = Options.DefaultColour,
+				LangDef = Shine.Locale:GetLanguageDefinition()
+			} )
+
+			local PrefixCol = self.NotifyPrefixColour
+
+			TableInsert( RichTextMessage, 1, TextElement( self:GetPhrase( "NOTIFY_PREFIX" ).." " ) )
+			TableInsert( RichTextMessage, 1, ColourElement(
+				Colour( PrefixCol[ 1 ] / 255, PrefixCol[ 2 ] / 255, PrefixCol[ 3 ] / 255 )
+			) )
+
+			self:NotifyRichText( RichTextMessage )
+		else
+			self:Notify( self:GetInterpolatedPhrase( Key, Data ) )
 		end
 	end
 
@@ -139,6 +211,17 @@ else
 
 	function MessageModule:NotifyTranslatedCommandError( Player, Message )
 		Shine:TranslatedNotifyCommandError( Player, Message, self.__Name )
+	end
+
+	function MessageModule:NotifyRichText( Player, RichText )
+		ChatAPI:AddRichTextMessage( {
+			Source = {
+				Type = ChatAPI.SourceTypeName.PLUGIN,
+				ID = self:GetName()
+			},
+			Message = RichText,
+			Targets = Player
+		} )
 	end
 end
 

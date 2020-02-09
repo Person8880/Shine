@@ -42,6 +42,39 @@ Plugin.MapButtons = {}
 Plugin.MapVoteCounts = {}
 Plugin.EndTime = 0
 
+do
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+	local RichTextMessageOptions = {}
+
+	local DurationMessageOptions = {
+		Colours = {
+			Duration = RichTextFormat.Colours.LightBlue
+		}
+	}
+
+	for i = 1, #Plugin.DurationMessageKeys do
+		RichTextMessageOptions[ Plugin.DurationMessageKeys[ i ] ] = DurationMessageOptions
+	end
+
+	local function GetColourForName( Values )
+		return RichTextFormat.GetColourForPlayer( Values.TargetName )
+	end
+
+	local VoteMessageOptions = {
+		Colours = {
+			TargetName = GetColourForName,
+			MapName = RichTextFormat.Colours.LightBlue
+		}
+	}
+	RichTextMessageOptions[ "NOMINATED_MAP" ] = VoteMessageOptions
+	RichTextMessageOptions[ "PLAYER_VOTED" ] = VoteMessageOptions
+	RichTextMessageOptions[ "PLAYER_VOTED_PRIVATE" ] = VoteMessageOptions
+	RichTextMessageOptions[ "RTV_VOTED" ] = VoteMessageOptions
+	RichTextMessageOptions[ "VETO" ] = VoteMessageOptions
+
+	Plugin.RichTextMessageOptions = RichTextMessageOptions
+end
+
 function Plugin:Initialise()
 	self:SetupClientConfig()
 
@@ -61,8 +94,10 @@ function Plugin:SetupClientConfig()
 			return
 		end
 
-		self.Config.OnVoteAction = self.VoteAction[ Choice ] or self.VoteAction.USE_SERVER_SETTINGS
-		self:SaveConfig( true )
+		local VoteAction = self.VoteAction[ Choice ] or self.VoteAction.USE_SERVER_SETTINGS
+		if not self:SetClientSetting( "OnVoteAction", VoteAction ) then
+			return
+		end
 
 		local Explanations = {
 			[ self.VoteAction.USE_SERVER_SETTINGS ] = "now respect server settings",

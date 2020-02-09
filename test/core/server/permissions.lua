@@ -405,7 +405,7 @@ UnitTest:Test( "RemoveGroupInheritance", function( Assert )
 	Assert:False( Shine:RemoveGroupInheritance( "Test", "Member" ) )
 end )
 
-UnitTest:Test( "AddGroupAccess", function( Assert )
+local function SetupInheritingGroups()
 	local Group = {
 		Commands = {}
 	}
@@ -423,6 +423,12 @@ UnitTest:Test( "AddGroupAccess", function( Assert )
 		Commands = { "sh_test4" }
 	}
 	Shine.UserData.Groups.TestInherit2 = RecursivelyInheritingGroup
+
+	return Group, InheritingGroup, RecursivelyInheritingGroup
+end
+
+UnitTest:Test( "AddGroupAccess", function( Assert )
+	local Group, InheritingGroup, RecursivelyInheritingGroup = SetupInheritingGroups()
 
 	-- Should be unable to use anything to start with.
 	Assert:False( Shine:GetGroupAccess( "Test", Group, "sh_test" ) )
@@ -597,6 +603,39 @@ UnitTest:Test( "RevokeGroupAccess - Blacklist group", function( Assert )
 	-- Should still be unable to use sh_test and sh_test2.
 	Assert:False( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test" ) )
 	Assert:False( Shine:GetGroupAccess( "BlacklistTest2", Group, "sh_test2" ) )
+end )
+
+UnitTest:Test( "IterateGroupTree", function( Assert )
+	local Group, InheritingGroup, RecursivelyInheritingGroup = SetupInheritingGroups()
+	Group.InheritFromDefault = true
+
+	local SeenGroups = {}
+	Shine:IterateGroupTree( "TestInherit2", function( Group, Name, Context )
+		Name = Name or -1
+
+		Assert.Equals( "Context argument should be present", SeenGroups, Context )
+		Assert.Nil( "Already seen group "..Name, SeenGroups[ Name ] )
+
+		SeenGroups[ Name ] = Group
+	end, SeenGroups )
+
+	Assert.DeepEquals( "Should have iterated through all groups once without looping", {
+		Test = Shine.UserData.Groups.Test,
+		TestInherit = Shine.UserData.Groups.TestInherit,
+		TestInherit2 = Shine.UserData.Groups.TestInherit2,
+		[ -1 ] = Shine.UserData.DefaultGroup
+	}, SeenGroups )
+
+	SeenGroups = {}
+
+	Shine:IterateGroupTree( "TestInherit2", function( Group, Name, Context )
+		SeenGroups[ Name ] = Group
+		return true
+	end, SeenGroups )
+
+	Assert.DeepEquals( "Should have iterated through only the first group", {
+		TestInherit2 = Shine.UserData.Groups.TestInherit2
+	}, SeenGroups )
 end )
 
 Shine.UserData = OldUserData

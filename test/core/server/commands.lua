@@ -8,6 +8,13 @@ local NotifyCommandError = Shine.NotifyCommandError
 
 Shine.NotifyCommandError = function() end
 
+local TestArgs = {
+	"sh_test", "this is a single argument", "this", "isn't",
+	"this is \"and this is escaped\" end",
+	"this came from the console",
+	"this is an unfinished quote at the end"
+}
+
 UnitTest:Test( "AdjustArguments", function( Assert )
 	local Args = {
 		"sh_test", "\"this", "is", "a", "single", "argument\"", "this", "isn't",
@@ -17,12 +24,25 @@ UnitTest:Test( "AdjustArguments", function( Assert )
 	}
 
 	local CommandArguments = Shine.CommandUtil.AdjustArguments( Args )
+	Assert:ArrayEquals( TestArgs, CommandArguments )
+end )
+
+UnitTest:Test( "SerialiseArguments", function( Assert )
+	Assert:Equals(
+		"sh_test "..
+		"\"this is a single argument\" "..
+		"this isn't "..
+		"\"this is \\\"and this is escaped\\\" end\" "..
+		"\"this came from the console\" "..
+		"\"this is an unfinished quote at the end\"",
+		Shine.CommandUtil.SerialiseArguments( TestArgs )
+	)
+end )
+
+UnitTest:Test( "SplitParameterHelp", function( Assert )
 	Assert:ArrayEquals( {
-		"sh_test", "this is a single argument", "this", "isn't",
-		"this is \"and this is escaped\" end",
-		"this came from the console",
-		"this is an unfinished quote at the end"
-	}, CommandArguments )
+		"<first parameter>", "<second>", "(optional last [default: 'something else'])"
+	}, Shine.CommandUtil.SplitParameterHelp( "<first parameter> <second> (optional last [default: 'something else'])" ) )
 end )
 
 UnitTest:Test( "GetCommandArg", function( Assert )

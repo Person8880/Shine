@@ -90,6 +90,8 @@
 	"TEAM_PREFERENCE": "Default team preference:",
 	"TEAM_PREFERENCE_HELP": "Team preferences are satisfied on a best effort basis. Server configuration and the number of other players with a preference can mean that you do not always get the team you want.",
 	"TEAM_PREFERENCE_CHANGE_HINT": "Walking into a team door or using the console to join a team before a round starts will override your configured team preference for that round.",
+	"TEAM_PREFERENCE_DEFAULT_HINT_VOTEMENU": "To set a default team preference, press {VoteMenuButton} > \"{ClientConfigButton}\" and go to the \"{ConfigTab}\" tab.",
+	"TEAM_PREFERENCE_DEFAULT_HINT_CONSOLE": "To set a default team preference, open the vote menu and click \"{ClientConfigButton}\" (or use the sh_clientconfigmenu console command) and go to the \"{ConfigTab}\" tab.",
 	"MARINE": "Marines",
 	"ALIEN": "Aliens",
 	"NONE": "No preference",

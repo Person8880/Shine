@@ -14,6 +14,9 @@ local GetNumClientsTotal = Server.GetNumClientsTotal
 local GetOwner = Server.GetOwner
 local Max = math.max
 local Random = math.random
+local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
+local StringStartsWith = string.StartsWith
+local StringSub = string.sub
 local SharedTime = Shared.GetTime
 local StringTimeToString = string.TimeToString
 local TableConcat = table.concat
@@ -335,6 +338,11 @@ do
 			self:CreateTimer( "AFKCheck", 1, -1, function() self:EvaluatePlayers() end )
 		end
 
+		-- Not using a method to ensure this runs after all other plugins/hooks.
+		Shine.Hook.Add( "CheckPlayerName", self, function( Player, Name )
+			return self:EnsurePlayerNameIsValid( Player, Name )
+		end, Shine.Hook.MIN_PRIORITY )
+
 		self.SampleInterval = self.Config.SampleIntervalInSeconds
 		self.MinPlayersToKickOnConnect = self:GetMinPlayersToKickOnConnect( GetMaxPlayers(), GetMaxSpectators() )
 
@@ -375,6 +383,22 @@ function Plugin:GetConfigValueWithRules( Key )
 	end
 
 	return Default
+end
+
+function Plugin:EnsurePlayerNameIsValid( Player, Name )
+	if not self.Config.MarkPlayersAFK then return end
+
+	-- Stop players using the prefix in their actual name to avoid double "AFK -" prefixes and other awkward behaviour.
+	if StringStartsWith( Name, self.AFK_PREFIX ) then
+		local NewName = StringSub( Name, #self.AFK_PREFIX + 1 )
+
+		if not StringContainsNonUTF8Whitespace( NewName ) then
+			-- Player:SetName() will make sure this is unique.
+			NewName = "AFK"
+		end
+
+		return NewName
+	end
 end
 
 function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
@@ -939,6 +963,8 @@ function Plugin:Cleanup()
 	for _, Entity in ientitylist( EntityList ) do
 		Entity.afk = false
 	end
+
+	Shine.Hook.Remove( "CheckPlayerName", self )
 
 	self.BaseClass.Cleanup( self )
 end

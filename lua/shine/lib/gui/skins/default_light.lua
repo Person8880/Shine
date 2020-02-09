@@ -13,6 +13,7 @@ local DarkButton = Colour( 0.9, 0.9, 0.9, 1 )
 local ButtonHighlight = Colour( 1, 0.878, 0.666, 1 )
 local BrightText = Colour( 0.25, 0.25, 0.25, 1 )
 local Clear = Colour( 0, 0, 0, 0 )
+local SliderDarkLineColour = Colour( 0.2, 0.2, 0.2, 1 )
 
 local Danger = Colour( 1, 0, 0 )
 local Warning = Colour( 1, 0.6, 0 )
@@ -42,8 +43,8 @@ local Skin = {
 	Button = {
 		Default = DefaultButton,
 		CloseButton = {
-			ActiveCol = Colour( 0.7, 0.2, 0.2, 1 ),
-			InactiveCol = Colour( 0.5, 0.2, 0.2, 1 ),
+			InactiveCol = Colour( 0.7, 0.2, 0.2, 1 ),
+			ActiveCol = Colour( 1, 0.2, 0.2, 1 ),
 			TextColour = White
 		},
 		MenuButton = {},
@@ -97,6 +98,11 @@ local Skin = {
 			Padding = DropdownPadding,
 			TextAlignment = SGUI.LayoutAlignment.MIN,
 			IconAlignment = SGUI.LayoutAlignment.MIN
+		},
+		TabPanelOverflowMenuButton = {
+			TextAlignment = SGUI.LayoutAlignment.MIN,
+			IconAlignment = SGUI.LayoutAlignment.MIN,
+			Padding = Units.Spacing( Units.HighResScaled( 8 ), 0, 0, 0 )
 		}
 	},
 	CategoryPanel = {
@@ -120,7 +126,8 @@ local Skin = {
 	Dropdown = {
 		Default = table.ShallowMerge( DefaultButton, {
 			Padding = DropdownPadding,
-			Icon = SGUI.Icons.Ionicons.ArrowDownB
+			MenuClosedIcon = SGUI.Icons.Ionicons.ArrowDownB,
+			MenuOpenIcon = SGUI.Icons.Ionicons.ArrowUpB
 		} )
 	},
 	Hint = {
@@ -229,6 +236,11 @@ local Skin = {
 			BorderSize = Vector2( 0, 0 )
 		}
 	},
+	Radio = {
+		Default = {
+			BackgroundColour = Clear
+		}
+	},
 	Scrollbar = {
 		Default = {
 			BackgroundColour = Colour( 0, 0, 0, 0.1 ),
@@ -238,11 +250,19 @@ local Skin = {
 	},
 	Slider = {
 		Default = {
-			DarkLineColour = Colour( 0.2, 0.2, 0.2, 1 ),
-			HandleColour = ButtonHighlight,
-			LineColour = ButtonHighlight,
+			DarkLineColour = SliderDarkLineColour,
+			HandleColour = OrangeButtonHighlight,
+			LineColour = OrangeButtonHighlight,
 			TextColour = BrightText,
-			LineHeightMultiplier = 0.15
+			LineHeightMultiplier = 0.15,
+			States = {
+				Disabled = {
+					DarkLineColour = SGUI.ColourWithAlpha( SliderDarkLineColour, 0.5 ),
+					HandleColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.2 ),
+					LineColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.2 ),
+					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
+				}
+			}
 		}
 	},
 	TabPanel = {
@@ -283,6 +303,17 @@ local Skin = {
 			States = {
 				Focus = {
 					BorderColour = OrangeButtonHighlight
+				}
+			}
+		},
+		SliderTextBox = {
+			FocusColour = Clear,
+			DarkColour = Clear,
+			BorderSize = Vector2( 0, 0 ),
+			BorderColour = Clear,
+			States = {
+				Focus = {
+					BorderColour = Clear
 				}
 			}
 		}

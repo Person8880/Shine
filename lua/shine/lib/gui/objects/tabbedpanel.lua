@@ -85,7 +85,7 @@ SGUI.AddBoundProperty( TabPanel, "TabBackgroundColour", "TabPanel:SetColour" )
 SGUI.AddBoundProperty( TabPanel, "PanelColour", "ContentPanel:SetColour" )
 
 SGUI.AddProperty( TabPanel, "Expanded", true, { "InvalidatesLayout" } )
-SGUI.AddProperty( TabPanel, "CollapsedTabSize", Units.HighResScaled( 48 ) )
+SGUI.AddProperty( TabPanel, "CollapsedTabSize", Units.Integer( Units.HighResScaled( 48 ) ) )
 
 function TabPanel:Initialise()
 	Controls.Panel.Initialise( self )
@@ -167,6 +167,8 @@ do
 					Populate = function( Menu )
 						Menu:SetFontScale( self.Font, self.TextScale )
 
+						local MaxOfIcons = Units.Max()
+
 						for i = 1, self.NumTabs do
 							local Tab = self.Tabs[ i ]
 
@@ -177,6 +179,14 @@ do
 								Menu:Destroy()
 							end )
 							MenuButton:SetIcon( Tab.TabButton:GetIcon() )
+							MaxOfIcons:AddValue( Units.Auto( MenuButton.Icon ) )
+
+							MenuButton:SetStyleName( "TabPanelOverflowMenuButton" )
+							MenuButton.Label:SetMargin(
+								Units.Spacing(
+									MaxOfIcons - Units.Auto( MenuButton.Icon ), 0, 0, 0
+								)
+							)
 						end
 					end
 				}
@@ -421,14 +431,33 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 	return Tabs[ self.NumTabs ]
 end
 
+function TabPanel:SetSelectedTab( Tab )
+	local TabButton = Tab.TabButton
+
+	if SGUI.IsValid( TabButton ) then
+		TabButton:DoClick()
+		return true
+	end
+
+	return false
+end
+
 function TabPanel:GetActiveTab()
 	return self.Tabs[ self.ActiveTab ]
 end
 
+function TabPanel:ForceTabRefresh( Index )
+	if self.ActiveTab ~= Index or not self.Tabs[ Index ] then return end
+
+	self.ActiveTab = nil
+	self:OnTabSelect( self.Tabs[ Index ].TabButton )
+end
+
 function TabPanel:OnTabSelect( Tab, SuppressPre )
 	local Index = Tab.Index
-	local Tabs = self.Tabs
+	if self.ActiveTab == Index then return end
 
+	local Tabs = self.Tabs
 	local OnPopulate = Tabs[ Index ] and Tabs[ Index ].OnPopulate
 
 	-- In case someone wants to save information about the tab state.

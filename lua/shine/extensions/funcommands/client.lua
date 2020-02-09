@@ -8,6 +8,38 @@ local SGUI = Shine.GUI
 
 local TableConcat = table.concat
 
+do
+	local RichTextFormat = require "shine/lib/gui/richtext/format"
+
+	local function GetColourForName( Values )
+		return RichTextFormat.GetColourForPlayer( Values.TargetName )
+	end
+
+	local TargetMessageOptions = {
+		Colours = {
+			TargetName = GetColourForName
+		}
+	}
+
+	local RichTextMessageOptions = {}
+
+	for i = 1, #Plugin.TeleportMessageKeys do
+		RichTextMessageOptions[ Plugin.TeleportMessageKeys[ i ] ] = TargetMessageOptions
+	end
+
+	local ActionMessageOptions = {
+		Colours = {
+			TargetCount = RichTextFormat.Colours.LightBlue
+		}
+	}
+
+	for i = 1, #Plugin.ActionMessageKeys do
+		RichTextMessageOptions[ Plugin.ActionMessageKeys[ i ] ] = ActionMessageOptions
+	end
+
+	Plugin.RichTextMessageOptions = RichTextMessageOptions
+end
+
 function Plugin:Initialise()
 	self:SetupAdminMenuCommands()
 

@@ -30,6 +30,7 @@ Plugin.CheckConfig = true
 Plugin.ListPermission = "sh_uncommban"
 Plugin.OnBannedHookName = "OnCommanderBanned"
 Plugin.OnUnbannedHookName = "OnCommanderUnbanned"
+Plugin.CanUnbanPlayerInGame = true
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )

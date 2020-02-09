@@ -2,10 +2,13 @@
 	Clientside configuration menu.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local SGUI = Shine.GUI
 local Locale = Shine.Locale
 
 local IsType = Shine.IsType
+local StringFormat = string.format
 
 local ConfigMenu = {}
 SGUI:AddMixin( ConfigMenu, "Visibility" )
@@ -18,7 +21,9 @@ local Percentage = Units.Percentage
 local Spacing = Units.Spacing
 local UnitVector = Units.UnitVector
 
-ConfigMenu.Size = UnitVector( HighResScaled( 700 ), HighResScaled( 500 ) )
+local SMALL_PADDING = HighResScaled( 8 )
+
+ConfigMenu.Size = UnitVector( Units.Integer( HighResScaled( 800 ) ), Units.Integer( HighResScaled( 600 ) ) )
 ConfigMenu.EasingTime = 0.25
 
 local function NeedsToScale()
@@ -49,8 +54,8 @@ function ConfigMenu:Create()
 	self.Menu:SetAnchor( "CentreMiddle" )
 	self.Menu:SetAutoSize( self.Size, true )
 
-	self.Menu:SetTabWidth( HighResScaled( 128 ):GetValue() )
-	self.Menu:SetTabHeight( HighResScaled( 96 ):GetValue() )
+	self.Menu:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
+	self.Menu:SetTabHeight( Units.Integer( HighResScaled( 96 ) ):GetValue() )
 	self.Menu:SetFontScale( GetSmallFont() )
 
 	self.Pos = self.Menu:GetSize() * -0.5
@@ -74,11 +79,11 @@ function ConfigMenu:Create()
 		local Tab = self.Tabs[ Window.ActiveTab ]
 		if not Tab or not Tab.OnCleanup then return end
 
-		Tab.OnCleanup( Window.ContentPanel )
+		Tab.Data = Tab.OnCleanup( Window.ContentPanel )
 	end
 
 	self.Menu:SetExpanded( Shine.Config.ExpandConfigMenuTabs )
-	self.Menu:AddPropertyChangeListener( "Expanded", function( Expanded )
+	self.Menu:AddPropertyChangeListener( "Expanded", function( Menu, Expanded )
 		Shine:SetClientSetting( "ExpandConfigMenuTabs", Expanded )
 	end )
 
@@ -98,7 +103,7 @@ function ConfigMenu:Close()
 	self.Menu:Close()
 end
 
-Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", function()
+Shine.Hook.Add( "OnResolutionChanged", ConfigMenu, function()
 	if not ConfigMenu.Menu then return end
 
 	ConfigMenu.IgnoreRemove = true
@@ -111,16 +116,24 @@ Shine.Hook.Add( "OnResolutionChanged", "ClientConfig_OnResolutionChanged", funct
 	end
 end )
 
-Shine.Hook.Add( "PlayerKeyPress", "ConfigMenu_KeyPress", function( Key, Down )
+Shine.Hook.Add( "PlayerKeyPress", ConfigMenu, function( Key, Down )
 	return Shine.AdminMenu.PlayerKeyPress( ConfigMenu, Key, Down )
 end, 1 )
 
 -- Close when logging in/out of a command structure to avoid mouse problems.
-Shine.Hook.Add( "OnCommanderLogout", "ConfigMenuLogout", function()
+Shine.Hook.Add( "OnCommanderLogout", ConfigMenu, function()
 	ConfigMenu:Close()
 end )
-Shine.Hook.Add( "OnCommanderLogin", "ConfigMenuLogin", function()
+Shine.Hook.Add( "OnCommanderLogin", ConfigMenu, function()
 	ConfigMenu:Close()
+end )
+
+-- Ensure the settings tab updates when settings are added/removed by plugins.
+Shine.Hook.Add( "OnClientSettingAdded", ConfigMenu, function( Entry )
+	ConfigMenu:RefreshSettings()
+end )
+Shine.Hook.Add( "OnClientSettingRemoved", ConfigMenu, function( Entry )
+	ConfigMenu:RefreshSettings()
 end )
 
 function ConfigMenu:SetIsVisible( Bool, IgnoreAnim )
@@ -146,7 +159,7 @@ function ConfigMenu:PopulateTabs( Menu )
 	for i = 1, #Tabs do
 		local Tab = Tabs[ i ]
 		local TabEntry = Menu:AddTab( Tab.Name, function( Panel )
-			Tab.OnInit( Panel )
+			Tab.OnInit( Panel, Tab.Data )
 		end, Tab.Icon )
 	end
 end
@@ -159,6 +172,20 @@ function ConfigMenu:AddTab( Name, Tab )
 	self.Tabs[ #self.Tabs + 1 ] = Tab
 end
 
+function ConfigMenu:RefreshSettings()
+	if not SGUI.IsValid( self.Menu ) then return end
+
+	-- Delay by a frame to avoid bursts of new/removed settings when plugins are enabled/disabled.
+	self.RefreshTimer = self.RefreshTimer or Shine.Timer.Simple( 0, function()
+		self.RefreshTimer = nil
+
+		if not SGUI.IsValid( self.Menu ) then return end
+
+		self.Menu:ForceTabRefresh( 1 )
+	end )
+	self.RefreshTimer:Debounce()
+end
+
 local function GetConfiguredValue( Entry )
 	local Value
 	if IsType( Entry.ConfigOption, "string" ) then
@@ -167,6 +194,31 @@ local function GetConfiguredValue( Entry )
 		Value = Entry.ConfigOption()
 	end
 	return Value
+end
+
+local function MakeElementWithDescription( Panel, Entry, Populator )
+	local Container = Panel:Add( "Panel" )
+	Container:SetStyleName( "RadioBackground" )
+	Container:SetAutoSize( UnitVector(
+		Percentage( 100 ),
+		Units.Auto()
+	) )
+
+	local TranslationSource = Entry.TranslationSource or "Core"
+	local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
+
+	local Description = Container:Add( "Label" )
+	Description:SetFontScale( GetSmallFont() )
+	Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
+	Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
+	Description:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
+	VerticalLayout:AddElement( Description )
+
+	local ValueHolder = Populator( Entry, TranslationSource, Container, VerticalLayout )
+
+	Container:SetLayout( VerticalLayout, true )
+
+	return Container, ValueHolder
 end
 
 local SettingsTypes = {
@@ -178,129 +230,125 @@ local SettingsTypes = {
 			CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 
 			local Enabled = GetConfiguredValue( Entry )
+			if Entry.Inverted then
+				Enabled = not Enabled
+			end
 
-			CheckBox:SetChecked( Enabled or false, true )
+			CheckBox:SetChecked( not not Enabled, true )
 			CheckBox.OnChecked = function( CheckBox, Value )
 				Shared.ConsoleCommand( Entry.Command.." "..tostring( Value ) )
 			end
 
-			return CheckBox
+			return CheckBox, CheckBox
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetChecked( not not NewValue )
+		end
+	},
+	Slider = {
+		Create = function( Panel, Entry )
+			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
+				local Slider = Container:Add( "Slider" )
+				Slider:SetFontScale( GetSmallFont() )
+				Slider:SetBounds( Entry.Min, Entry.Max )
+				Slider:SetDecimals( Entry.Decimals or 0 )
+
+				Slider:SetAutoSize( UnitVector( Percentage( 100 ) - HighResScaled( 64 ), HighResScaled( 32 ) ) )
+
+				function Slider:OnValueChanged( Value )
+					Shared.ConsoleCommand( StringFormat( "%s %s", Entry.Command, Value ) )
+				end
+				VerticalLayout:AddElement( Slider )
+
+				local CurrentValue = GetConfiguredValue( Entry )
+				Slider:SetValue( CurrentValue, true )
+
+				return Slider
+			end )
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetValue( NewValue, true )
 		end
 	},
 	Dropdown = {
 		Create = function( Panel, Entry )
-			local DropdownPanel = Panel:Add( "Panel" )
-			DropdownPanel:SetStyleName( "RadioBackground" )
-			DropdownPanel:SetAutoSize( UnitVector(
-				Percentage( 100 ),
-				Units.Auto()
-			) )
+			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
+				local Dropdown = Container:Add( "Dropdown" )
+				Dropdown:SetFontScale( GetSmallFont() )
+				Dropdown:AddOptions( Shine.IsCallable( Entry.Options ) and Entry.Options() or Entry.Options )
+				Dropdown:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+				VerticalLayout:AddElement( Dropdown )
 
-			local TranslationSource = Entry.TranslationSource or "Core"
-			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
+				local CurrentValue = GetConfiguredValue( Entry )
+				Dropdown:SelectOption( CurrentValue )
 
-			local Description = DropdownPanel:Add( "Label" )
-			Description:SetFontScale( GetSmallFont() )
-			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
-			Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
-			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
-			VerticalLayout:AddElement( Description )
+				Dropdown:AddPropertyChangeListener( "SelectedOption", function( Dropdown, Option )
+					Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
+				end )
 
-			local Dropdown = DropdownPanel:Add( "Dropdown" )
-			Dropdown:SetFontScale( GetSmallFont() )
-			Dropdown:AddOptions( Shine.IsCallable( Entry.Options ) and Entry.Options() or Entry.Options )
-			Dropdown:AddPropertyChangeListener( "SelectedOption", function( Option )
-				Shared.ConsoleCommand( Entry.Command.." "..( Option.Value or Option.Text ) )
+				return Dropdown
 			end )
-			Dropdown:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
-			VerticalLayout:AddElement( Dropdown )
-
-			local CurrentValue = GetConfiguredValue( Entry )
-			Dropdown:SelectOption( CurrentValue )
-
-			DropdownPanel:SetLayout( VerticalLayout, true )
-
-			return DropdownPanel
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SelectOption( NewValue )
 		end
 	},
 	Radio = {
 		Create = function( Panel, Entry )
-			local RadioPanel = Panel:Add( "Panel" )
-			RadioPanel:SetStyleName( "RadioBackground" )
-			RadioPanel:SetAutoSize( UnitVector(
-				Percentage( 100 ),
-				Units.Auto()
-			) )
+			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
+				local Radio = Container:Add( "Radio" )
+				Radio:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
+				Radio:SetFontScale( GetSmallFont() )
+				Radio:SetCheckBoxAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
+				Radio:SetCheckBoxMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
 
-			local TranslationSource = Entry.TranslationSource or "Core"
-			local VerticalLayout = SGUI.Layout:CreateLayout( "Vertical" )
+				local CurrentChoice = GetConfiguredValue( Entry )
+				local OptionsByValue = {}
+				for i = 1, #Entry.Options do
+					local Option = Entry.Options[ i ]
 
-			local Description = RadioPanel:Add( "Label" )
-			Description:SetFontScale( GetSmallFont() )
-			Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
-			Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
-			Description:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
-			VerticalLayout:AddElement( Description )
+					local Tooltip
+					if IsType( Entry.OptionTooltips, "table" )
+					and IsType( Entry.OptionTooltips[ Option ], "string" ) then
+						Tooltip = Locale:GetPhrase( TranslationSource, Entry.OptionTooltips[ Option ] )
+					end
 
-			local CheckBoxes = {}
-			local CurrentChoice = GetConfiguredValue( Entry )
-			for i = 1, #Entry.Options do
-				local Option = Entry.Options[ i ]
+					local RadioOption = {
+						Description = Locale:GetPhrase( TranslationSource, Option ),
+						Value = Option,
+						Tooltip = Tooltip
+					}
+					OptionsByValue[ Option ] = RadioOption
+					Radio:AddOption( RadioOption )
 
-				local CheckBox = RadioPanel:Add( "CheckBox" )
-				CheckBox:SetFontScale( GetSmallFont() )
-				CheckBox:AddLabel( Locale:GetPhrase( TranslationSource, Option ) )
-				CheckBox:SetAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
-				if i > 1 then
-					CheckBox:SetMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
-				end
-				CheckBox:SetRadio( true )
-
-				CheckBox:SetChecked( CurrentChoice == Option )
-				CheckBox.OnChecked = function( CheckBox, Value )
-					if not Value then return end
-
-					Shared.ConsoleCommand( Entry.Command.." "..Option )
-					for j = 1, #CheckBoxes do
-						if CheckBoxes[ j ] ~= CheckBox then
-							CheckBoxes[ j ]:SetChecked( false )
-						end
+					if CurrentChoice == Option then
+						Radio:SetSelectedOption( RadioOption )
 					end
 				end
 
-				VerticalLayout:AddElement( CheckBox )
-				CheckBoxes[ #CheckBoxes + 1 ] = CheckBox
-			end
+				Radio.OptionsByValue = OptionsByValue
+				Radio:AddPropertyChangeListener( "SelectedOption", function( Dropdown, Option )
+					Shared.ConsoleCommand( Entry.Command.." "..Option.Value )
+				end )
 
-			if Entry.HelpText then
-				local Hint = RadioPanel:Add( "Hint" )
-				Hint:SetStyleName( Entry.HelpTextStyle or "Info" )
-				Hint:SetMargin( Spacing( 0, HighResScaled( 8 ), 0, 0 ) )
-				Hint:SetText( Locale:GetPhrase( TranslationSource, Entry.HelpText ) )
-				Hint:SetFontScale( GetSmallFont() )
+				VerticalLayout:AddElement( Radio )
 
-				Hint:SetAutoSize( UnitVector(
-					Percentage( 100 ),
-					Units.Auto()
-				) )
-
-				VerticalLayout:AddElement( Hint )
-			end
-
-			RadioPanel:SetLayout( VerticalLayout, true )
-
-			return RadioPanel
+				return Radio
+			end )
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetSelectedOption( ValueHolder.OptionsByValue[ NewValue ] )
 		end
 	}
 }
 
 ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 	Icon = SGUI.Icons.Ionicons.GearB,
-	OnInit = function( Panel )
+	OnInit = function( Panel, Data )
 		local Settings = Shine.ClientSettings
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( HighResScaled( 8 ), HighResScaled( 8 ),
-				HighResScaled( 8 ), HighResScaled( 8 ) )
+			Padding = Spacing( SMALL_PADDING, SMALL_PADDING,
+				SMALL_PADDING, SMALL_PADDING )
 		} )
 
 		local Title = Panel:Add( "Label" )
@@ -317,12 +365,16 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 		}
 		local Groups = {}
 
+		local TabWidth = Units.Max()
+
 		local Tabs = Panel:Add( "TabPanel" )
 		Tabs:SetFill( true )
-		Tabs:SetTabWidth( HighResScaled( 176 ):GetValue() )
+		Tabs:SetTabWidth( TabWidth )
 		Tabs:SetTabHeight( HighResScaled( 36 ):GetValue() )
 		Tabs:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 		Tabs:SetHorizontal( true )
+
+		Panel.SettingsTabs = Tabs
 
 		for i = 1, #Settings do
 			local Setting = Settings[ i ]
@@ -337,43 +389,175 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 			end
 		end
 
+		-- Sort the tabs to keep the general tab at the front, then order the rest alphabetically.
+		-- This accounts for plugins loading/unloading after the menu is created, which can alter the order of
+		-- the settings list above.
+		local GeneralGroupName = Locale:GetPhrase( GeneralGroup.Source, GeneralGroup.Key )
+		SettingsByGroup:SortKeys( function( A, B )
+			if A == GeneralGroupName then
+				if B == GeneralGroupName then
+					return false
+				end
+				return true
+			end
+
+			if B == GeneralGroupName then
+				return false
+			end
+
+			return A < B
+		end )
+
 		local function SetupTabPanel( TabPanel )
 			TabPanel:SetScrollable()
-			TabPanel:SetScrollbarWidth( HighResScaled( 8 ):GetValue() )
-			TabPanel:SetScrollbarPos( Vector2( -HighResScaled( 8 ):GetValue(), 0 ) )
+			TabPanel:SetScrollbarWidth( SMALL_PADDING:GetValue() )
+			TabPanel:SetScrollbarPos( Vector2( -SMALL_PADDING:GetValue(), 0 ) )
 			TabPanel:SetScrollbarHeightOffset( 0 )
 			TabPanel:SetResizeLayoutForScrollbar( true )
 
 			return SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Spacing( HighResScaled( 8 ), HighResScaled( 8 ),
-					HighResScaled( 8 ), HighResScaled( 8 ) )
+				Padding = Spacing( SMALL_PADDING, SMALL_PADDING,
+					SMALL_PADDING, SMALL_PADDING )
 			} )
 		end
 
 		for Group, Settings in SettingsByGroup:Iterate() do
 			local GroupDef = Groups[ Group ]
-			Tabs:AddTab( Group, function( TabPanel )
+			local Tab = Tabs:AddTab( Group, function( TabPanel )
 				local TabLayout = SetupTabPanel( TabPanel )
+				local ElementsByKey = {}
+				local SettingsWithBindings = {}
 
 				for i = 1, #Settings do
 					local Setting = Settings[ i ]
 					local Creator = SettingsTypes[ Setting.Type ]
 
-					local Object = Creator.Create( TabPanel, Setting )
-					if i ~= #Settings then
-						Object:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+					local Object, ValueHolder = Creator.Create( TabPanel, Setting )
+					local TranslationSource = Setting.TranslationSource or "Core"
+					if IsType( Setting.Tooltip, "string" ) then
+						ValueHolder:SetTooltip(
+							Locale:GetPhrase( TranslationSource, Setting.Tooltip )
+						)
+					end
+
+					if Setting.ConfigKey or IsType( Setting.ConfigOption, "string" ) then
+						ElementsByKey[ Setting.ConfigKey or Setting.ConfigOption ] = {
+							ConfigOption = Setting.ConfigOption,
+							Command = Setting.Command,
+							ValueHolder = ValueHolder,
+							Container = Object,
+							Update = Creator.Update
+						}
+					end
+
+					if Setting.Bindings then
+						SettingsWithBindings[ #SettingsWithBindings + 1 ] = Setting
 					end
 
 					TabLayout:AddElement( Object )
+
+					if Setting.HelpText then
+						local Hint = TabPanel:Add( "Hint" )
+						Hint:SetStyleName( Setting.HelpTextStyle or "Info" )
+						Hint:SetMargin( Spacing( 0, SMALL_PADDING, 0, i == #Settings and 0 or SMALL_PADDING ) )
+						Hint:SetText( Locale:GetPhrase( TranslationSource, Setting.HelpText ) )
+						Hint:SetFontScale( GetSmallFont() )
+
+						Hint:SetAutoSize( UnitVector(
+							Percentage( 100 ),
+							Units.Auto()
+						) )
+
+						TabLayout:AddElement( Hint )
+					elseif i ~= #Settings then
+						Object:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
+					end
 				end
+
+				for i = 1, #SettingsWithBindings do
+					local Setting = SettingsWithBindings[ i ]
+					local Bindings = Setting.Bindings
+
+					for j = 1, #Bindings do
+						local Binding = Bindings[ j ]
+						local From = Binding.From
+						local To = Binding.To
+
+						local Builder = Binder()
+						Builder:WithReducer( Binding.Reducer )
+						Builder:WithInitialState( Binding.InitialState )
+						Builder:ToElement(
+							ElementsByKey[ Setting.ConfigKey ][ To.Element or "ValueHolder" ], To.Property, To
+						)
+
+						if #From == 0 then
+							Builder:FromElement( ElementsByKey[ From.Element ].ValueHolder, From.Property )
+							Builder:BindProperty()
+						else
+							for k = 1, #From do
+								Builder:FromElement(
+									ElementsByKey[ From[ k ].Element ].ValueHolder, From[ k ].Property
+								)
+							end
+							Builder:BindProperties()
+						end
+					end
+				end
+
+				-- Update the UI elements if the setting is changed elsewhere (e.g. running a console command directly).
+				Shine.Hook.Add( "OnPluginClientSettingChanged", ConfigMenu, function( Plugin, Setting, NewValue )
+					local Element = ElementsByKey[ Setting.ConfigKey ]
+					if not Element or Element.Command ~= Setting.Command or not SGUI.IsValid( Element.ValueHolder ) then
+						return
+					end
+
+					if Setting.Inverted then
+						NewValue = not NewValue
+					end
+
+					Element.Update( Element.ValueHolder, NewValue )
+				end )
+
+				Shine.Hook.Add( "OnClientSettingChanged", ConfigMenu, function( ConfigOption, NewValue )
+					local Element = ElementsByKey[ ConfigOption ]
+					if
+						not Element
+						or Element.ConfigOption ~= ConfigOption
+						or not SGUI.IsValid( Element.ValueHolder )
+					then
+						return
+					end
+
+					Element.Update( Element.ValueHolder, NewValue )
+				end )
 
 				TabPanel:SetLayout( TabLayout, true )
 			end, GroupDef and GroupDef.Icon )
+
+			TabWidth:AddValue( Units.Auto( Tab.TabButton ) + HighResScaled( 16 ) )
+
+			if Data and Data.ActiveTabName == Group then
+				Tabs:SetSelectedTab( Tab )
+			end
 		end
 
 		Layout:AddElement( Tabs )
 
 		Panel:SetLayout( Layout )
+	end,
+
+	OnCleanup = function( Panel )
+		Shine.Hook.Remove( "OnPluginClientSettingChanged", ConfigMenu )
+		Shine.Hook.Remove( "OnClientSettingChanged", ConfigMenu )
+
+		local Tabs = Panel.SettingsTabs
+		Panel.SettingsTabs = nil
+
+		if SGUI.IsValid( Tabs ) then
+			return {
+				ActiveTabName = Tabs:GetActiveTab().Name
+			}
+		end
 	end
 } )
 
@@ -381,8 +565,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 	Icon = SGUI.Icons.Ionicons.Settings,
 	OnInit = function( Panel )
 		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Spacing( HighResScaled( 8 ), HighResScaled( 32 ),
-				HighResScaled( 8 ), HighResScaled( 8 ) )
+			Padding = Spacing( SMALL_PADDING, HighResScaled( 32 ),
+				SMALL_PADDING, SMALL_PADDING )
 		} )
 
 		local List = SGUI:Create( "List", Panel )
@@ -391,7 +575,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 		List:SetSpacing( 0.8, 0.2 )
 		List.ScrollPos = Vector2( 0, 32 )
 		List:SetFill( true )
-		List:SetMargin( Spacing( 0, 0, 0, HighResScaled( 8 ) ) )
+		List:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
 		List:SetLineSize( HighResScaled( 32 ):GetValue() )
 		List:SetHeaderSize( List.LineSize )
 
@@ -406,7 +590,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 		Layout:AddElement( List )
 
 		local EnableButton = SGUI:Create( "Button", Panel )
-		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + HighResScaled( 8 ) ) )
+		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + SMALL_PADDING ) )
 		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )
 		EnableButton:SetIcon( SGUI.Icons.Ionicons.Power )
@@ -464,13 +648,13 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 			end
 		end
 
-		Shine.Hook.Add( "OnPluginLoad", "ClientConfig_OnPluginLoad", function( Name, Plugin, Shared )
+		Shine.Hook.Add( "OnPluginLoad", ConfigMenu, function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
 			UpdateRow( Name, true )
 		end )
 
-		Shine.Hook.Add( "OnPluginUnload", "ClientConfig_OnPluginUnload", function( Name, Plugin, Shared )
+		Shine.Hook.Add( "OnPluginUnload", ConfigMenu, function( Name, Plugin, Shared )
 			if not Plugin.IsClient then return end
 
 			UpdateRow( Name, false )
@@ -492,11 +676,51 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 	end,
 
 	OnCleanup = function( Panel )
-		Shine.Hook.Remove( "OnPluginLoad", "ClientConfig_OnPluginLoad" )
-		Shine.Hook.Remove( "OnPluginUnload", "ClientConfig_OnPluginUnload" )
+		Shine.Hook.Remove( "OnPluginLoad", ConfigMenu )
+		Shine.Hook.Remove( "OnPluginUnload", ConfigMenu )
 	end
 } )
 
 Shine:RegisterClientCommand( "sh_clientconfigmenu", function()
 	ConfigMenu:Show()
+end )
+
+-- Add a dummy entry into the game's mod options list with a button to open the config menu.
+Shine.Hook.CallAfterFileLoad( "lua/menu2/NavBar/Screens/Options/Mods/ModsMenuData.lua", function()
+	if not gModsCategories then return end
+
+	gModsCategories[ #gModsCategories + 1 ] = {
+		categoryName = "Shine",
+		entryConfig = {
+			name = "ShineModEntry",
+			class = GUIMenuCategoryDisplayBoxEntry,
+			params = {
+				label = Shine.Locale:GetPhrase( "Core", "NS2_MENU_OPTIONS_TITLE" )
+			}
+		},
+		contentsConfig = ModsMenuUtils.CreateBasicModsMenuContents( {
+			layoutName = "ShineOptions",
+			contents = {
+				{
+					name = "ShineOpenClientConfigMenu",
+					class = GUIMenuButton,
+					properties = {
+						{ "Label", Shine.Locale:GetPhrase( "Core", "NS2_MENU_OPEN_CLIENT_CONFIG" ) }
+					},
+					postInit = {
+						function( self )
+							self:HookEvent( self, "OnPressed", function()
+								local MainMenu = GetMainMenu and GetMainMenu()
+								if MainMenu and MainMenu.Close then
+									MainMenu:Close()
+								end
+
+								ConfigMenu:Show()
+							end )
+						end
+					}
+				}
+			}
+		} )
+	}
 end )

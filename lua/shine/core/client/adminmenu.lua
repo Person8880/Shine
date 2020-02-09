@@ -21,13 +21,17 @@ Shine.AdminMenu = {}
 local AdminMenu = Shine.AdminMenu
 SGUI:AddMixin( AdminMenu, "Visibility" )
 
-Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
-	local WasVisible = AdminMenu.Visible
-	AdminMenu:Show()
-	if not WasVisible and AdminMenu.Visible then
-		Hook.Call( "OnAdminMenuOpened", AdminMenu )
-	end
-end )
+do
+	local ErrorHandler = Shine.BuildErrorHandler( "Admin menu creation error" )
+	local xpcall = xpcall
+
+	Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
+		local WasVisible = AdminMenu.Visible
+		if xpcall( AdminMenu.Show, ErrorHandler, AdminMenu ) and not WasVisible and AdminMenu.Visible then
+			Hook.Call( "OnAdminMenuOpened", AdminMenu )
+		end
+	end )
+end
 
 AdminMenu.Commands = {}
 AdminMenu.Tabs = {}
@@ -40,15 +44,19 @@ function AdminMenu:Create()
 	local Window = SGUI:Create( "TabPanel" )
 	Window:SetAnchor( "CentreMiddle" )
 
-	local Size = HighResScaled( self.DefaultSize ):GetValue()
+	local Size = Vector2(
+		Units.Integer( HighResScaled( self.DefaultSize.x ) ):GetValue(),
+		Units.Integer( HighResScaled( self.DefaultSize.y ) ):GetValue()
+	)
+
 	self.Size = Size
 	self.Pos = -Size * 0.5
 
 	Window:SetSize( Size )
 	Window:SetPos( self.Pos )
 
-	Window:SetTabWidth( HighResScaled( 128 ):GetValue() )
-	Window:SetTabHeight( HighResScaled( 96 ):GetValue() )
+	Window:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
+	Window:SetTabHeight( Units.Integer( HighResScaled( 96 ) ):GetValue() )
 	Window:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 
 	Window:CallOnRemove( function()
@@ -65,7 +73,7 @@ function AdminMenu:Create()
 	end )
 
 	Window:SetExpanded( Shine.Config.ExpandAdminMenuTabs )
-	Window:AddPropertyChangeListener( "Expanded", function( Expanded )
+	Window:AddPropertyChangeListener( "Expanded", function( Window, Expanded )
 		Shine:SetClientSetting( "ExpandAdminMenuTabs", Expanded )
 	end )
 

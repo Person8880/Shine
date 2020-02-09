@@ -8,13 +8,19 @@ local EnableMixin = {}
 EnableMixin.Enabled = true
 
 function EnableMixin:SetEnabled( Enabled )
-	self.Enabled = not not Enabled
+	Enabled = not not Enabled
+
+	if self.Enabled == Enabled then return end
+
+	self.Enabled = Enabled
 
 	if not Enabled then
 		self:AddStylingState( "Disabled" )
 	else
 		self:RemoveStylingState( "Disabled" )
 	end
+
+	self:OnPropertyChanged( "Enabled", Enabled )
 end
 
 function EnableMixin:IsEnabled()

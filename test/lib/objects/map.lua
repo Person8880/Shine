@@ -196,6 +196,34 @@ UnitTest:Test( "Construct with table", function( Assert )
 	Assert:Equals( "AnotherValue", Copy:Get( "AnotherTest" ) )
 end )
 
+UnitTest:Test( "SortKeys", function( Assert )
+	local Map = Map()
+	Map:Add( "Z", 789 )
+	Map:Add( "B", 456 )
+	Map:Add( "A", 123 )
+
+	Assert.ArrayEquals( "Initial keys should follow insertion order", { "Z", "B", "A" }, Map.Keys )
+
+	Map:SortKeys( function( A, B ) return A < B end )
+
+	Assert.ArrayEquals( "Should have sorted keys in ascending order", { "A", "B", "Z" }, Map.Keys )
+end )
+
+UnitTest:Test( "StableSortKeys", function( Assert )
+	local Map = Map()
+	Map:Add( "Z", 789 )
+	Map:Add( "B", 456 )
+	Map:Add( "A", 123 )
+
+	Assert.ArrayEquals( "Initial keys should follow insertion order", { "Z", "B", "A" }, Map.Keys )
+
+	Map:StableSortKeys( function( A, B )
+		return A == B and 0 or ( A < B and -1 or 1 )
+	end )
+
+	Assert.ArrayEquals( "Should have sorted keys in ascending order", { "A", "B", "Z" }, Map.Keys )
+end )
+
 local Multimap = Shine.Multimap
 
 UnitTest:Test( "Multimap:Add()/Get()/GetCount()", function( Assert )

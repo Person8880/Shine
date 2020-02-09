@@ -11,6 +11,7 @@ local MockShuffle = UnitTest.MockOf( VoteShuffle )
 
 VoteShuffle.Config.IgnoreCommanders = false
 
+local MathRandom = math.random
 local StringFormat = string.format
 local TableSort = table.sort
 
@@ -54,6 +55,55 @@ UnitTest:Test( "AssignPlayers", function( Assert )
 	Assert:Equals( 4000, TeamSkills[ 1 ].Total )
 	Assert:Equals( 4, TeamSkills[ 1 ].Count )
 	Assert:Equals( 4000 / 4, TeamSkills[ 1 ].Average )
+end, nil, 100 )
+
+UnitTest:Test( "AssignPlayers - Keeps player counts even", function( Assert )
+	local TeamMembers = { {}, {} }
+	for i = 1, 17 do
+		local Team = TeamMembers[ ( i % 2 ) + 1 ]
+		Team[ #Team + 1 ] = i + 3
+	end
+
+	local Skills = {}
+	for i = 1, 20 do
+		Skills[ i ] = MathRandom( 500, 5000 )
+	end
+
+	local TeamSkills = {
+		{
+			Count = #TeamMembers[ 1 ]
+		},
+		{
+			Count = #TeamMembers[ 2 ]
+		}
+	}
+	for i = 1, 2 do
+		local Team = TeamMembers[ i ]
+		local Total = 0
+		for j = 1, #Team do
+			local Skill = Skills[ j ]
+			Total = Total + Skill
+		end
+		TeamSkills[ i ].Total = Total
+		TeamSkills[ i ].Average = Total / #Team
+	end
+
+	local SortTable = { 1, 2, 3 }
+	local Count, NumTargets = 3, 3
+
+	local Sorted = VoteShuffle:AssignPlayers(
+		TeamMembers,
+		SortTable,
+		Count,
+		NumTargets,
+		TeamSkills,
+		function( Player, TeamNumber )
+			return Skills[ Player ]
+		end
+	)
+	Assert.DeepEquals( "Should have sorted all players", { true, true, true }, Sorted )
+	Assert.Equals( "Should have 10 players on team 1", 10, #TeamMembers[ 1 ] )
+	Assert.Equals( "Should have 10 players on team 2", 10, #TeamMembers[ 2 ] )
 end, nil, 100 )
 
 UnitTest:Test( "NormaliseSkills", function( Assert )

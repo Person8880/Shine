@@ -94,6 +94,34 @@ UnitTest:Test( "UTF8Encode", function( Assert )
 	Assert:ArrayEquals( { "$", "¢", "€", "𐍈" }, string.UTF8Encode( "$¢€𐍈" ) )
 end )
 
+UnitTest:Test( "UTF8Chars", function( Assert )
+	local ReplacementChar = string.UTF8Char( 0xFFFD )
+	local Expected = {
+		{ 2, ReplacementChar },
+		{ 3, ReplacementChar },
+		{ 4, "$" },
+		{ 5, ReplacementChar },
+		{ 6, "$" },
+		{ 8, "¢" },
+		{ 11, "€" },
+		{ 15, "𐍈" }
+	}
+	local Count = 0
+	for ByteIndex, Char in string.UTF8Chars( StringChar( 128, 245, 0x24, 128, 0x24 ).."¢€𐍈" ) do
+		Count = Count + 1
+		Assert.Equals(
+			StringFormat( "Char %d was not at the expected index", Count ),
+			Expected[ Count ][ 1 ], ByteIndex
+		)
+		Assert.Equals(
+			StringFormat( "Char %d was not the expected value", Count ),
+			Expected[ Count ][ 2 ], Char
+		)
+	end
+
+	Assert.Equals( "Did not iterate all characters in the given string", #Expected, Count )
+end )
+
 local FullUTF8String = "$¢€𐍈"
 
 UnitTest:Test( "UTF8Length", function( Assert )
@@ -135,4 +163,14 @@ UnitTest:Test( "UTF8CodePoint", function( Assert )
 	Assert:Equals( 0xA2, string.UTF8CodePoint( 0xC2, 0xA2 ) )
 	Assert:Equals( 0x20AC, string.UTF8CodePoint( 0xE2, 0x82, 0xAC ) )
 	Assert:Equals( 0x10348, string.UTF8CodePoint( 0xF0, 0x90, 0x8D, 0x88 ) )
+end )
+
+UnitTest:Test( "NormaliseUTF8Whitespace", function( Assert )
+	Assert:Equals( string.rep( " ", 29 ).."hi", string.NormaliseUTF8Whitespace( "\t\n\v\f\r  ᠎           ​‌‍    ⁠　﻿hi" ) )
+	Assert:Equals( "hi", string.NormaliseUTF8Whitespace( "\t\n\v\f\r  ᠎           ​‌‍    ⁠　﻿hi", "" ) )
+end )
+
+UnitTest:Test( "ContainsNonUTF8Whitespace", function( Assert )
+	Assert:True( string.ContainsNonUTF8Whitespace( "  ᠎           ​‌‍    ⁠　﻿hi" ) )
+	Assert:False( string.ContainsNonUTF8Whitespace( "\t\n\v\f\r  ᠎           ​‌‍    ⁠　﻿" ) )
 end )

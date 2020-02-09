@@ -238,7 +238,10 @@ function Shine:NotifyError( Player, Message, Format, ... )
 		return
 	end
 
-	self:NotifyDualColour( Player, 255, 0, 0, "[Error]", 255, 255, 255, Message, Format, ... )
+	self:ApplyNetworkMessage( Player, "Shine_ChatErrorMessage", {
+		Message = Format and StringFormat( Message, ... ) or Message,
+		Source = ""
+	}, true )
 end
 
 --[[
@@ -247,7 +250,10 @@ end
 function Shine:TranslatedNotifyError( Player, Message, Source )
 	if Player == "Console" then return end
 
-	self:TranslatedNotifyDualColour( Player, 255, 0, 0, "ERROR_TAG", 255, 255, 255, Message, Source )
+	self:ApplyNetworkMessage( Player, "Shine_ChatErrorMessage", {
+		Message = Message,
+		Source = Source
+	}, true )
 end
 
 do

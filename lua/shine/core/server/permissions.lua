@@ -143,7 +143,7 @@ UserDataValidator:AddFieldRule(
 )
 UserDataValidator:AddFieldRule(
 	"DefaultGroup",
-	UserDataValidator.IsType( "table" )
+	UserDataValidator.IsAnyType( { "table", "nil" } )
 )
 
 local function ValidateUserData( UserData )
@@ -346,6 +346,7 @@ do
 
 		GameID = GameID + 1
 		GameIDs:Add( Client, GameID )
+		Client.ShineGameID = GameID
 
 		HumanPlayerCount = HumanPlayerCount + ( Client:GetIsVirtual() and 0 or 1 )
 	end, Shine.Hook.MAX_PRIORITY )
@@ -405,6 +406,14 @@ function Shine:GetUserData( Client )
 	end
 
 	return User, ID
+end
+
+--[[
+	Returns a list of all known group names.
+]]
+function Shine:GetGroupNames()
+	if not self.UserData or not self.UserData.Groups then return {} end
+	return Shine.Set( self.UserData.Groups ):AsList()
 end
 
 --[[
@@ -745,6 +754,46 @@ local function BuildPermissions( self, GroupName, GroupTable, Blacklist, Permiss
 				BuildPermissions( self, Name, InheritedGroup, Blacklist, Permissions, Processed )
 			end
 		end
+	end
+end
+
+do
+	local DEFAULT_GROUP_KEY = -1
+	local function IterateGroups( Name, Seen, Consumer, Context )
+		if Seen[ Name ] then
+			return
+		end
+
+		local Group = Shine:GetGroupData( Name )
+		if not Group then return end
+
+		Seen[ Name ] = true
+
+		if Consumer( Group, Name, Context ) then return true end
+
+		local InheritGroups = Group.InheritsFrom
+		if InheritGroups then
+			for i = 1, #InheritGroups do
+				if IterateGroups( InheritGroups[ i ], Seen, Consumer, Context ) then
+					return true
+				end
+			end
+		end
+
+		if Group.InheritFromDefault and not Seen[ DEFAULT_GROUP_KEY ] then
+			Seen[ DEFAULT_GROUP_KEY ] = true
+
+			local DefaultGroup = Shine:GetDefaultGroup()
+			if DefaultGroup then
+				if Consumer( DefaultGroup, nil, Context ) then
+					return true
+				end
+			end
+		end
+	end
+
+	function Shine:IterateGroupTree( StartingGroupName, Consumer, Context )
+		return IterateGroups( StartingGroupName, {}, Consumer, Context )
 	end
 end
 

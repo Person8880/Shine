@@ -14,14 +14,8 @@ Webpage.UsesKeyboardFocus = true
 
 local Counter = 0
 
-function Webpage:Initialise()
-	local Background = self:MakeGUIItem()
-	self.Background = Background
-
-	self.JSQueue = {}
-	self.IsLoading = false
-
-	self:AddPropertyChangeListener( "IsLoading", function( IsLoading )
+do
+	local function FlushJSQueue( self, IsLoading )
 		if IsLoading or #self.JSQueue == 0 then return end
 
 		-- When the page has finished loading, execute any queued JS.
@@ -29,7 +23,17 @@ function Webpage:Initialise()
 			self.WebView:ExecuteJS( self.JSQueue[ i ] )
 			self.JSQueue[ i ] = nil
 		end
-	end )
+	end
+
+	function Webpage:Initialise()
+		local Background = self:MakeGUIItem()
+		self.Background = Background
+
+		self.JSQueue = {}
+		self.IsLoading = false
+
+		self:AddPropertyChangeListener( "IsLoading", FlushJSQueue )
+	end
 end
 
 function Webpage:CleanupWebView()

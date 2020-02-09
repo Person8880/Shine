@@ -6,6 +6,7 @@ local Shine = Shine
 
 local Notify = Shared.Message
 local StringFormat = string.format
+local tonumber = tonumber
 
 local Plugin = ...
 Plugin.Version = "1.0"
@@ -21,25 +22,45 @@ Plugin.DefaultConfig = {
 
 Plugin.CheckConfigTypes = true
 
+do
+	local Validator = Shine.Validator()
+
+	Validator:AddFieldRule( "Servers", Validator.AllValuesSatisfy(
+		Validator.ValidateField( "Name", Validator.IsAnyType( { "string", "nil" } ) ),
+		Validator.ValidateField( "IP", Validator.IsType( "string" ), { DeleteIfFieldInvalid = true } ),
+		Validator.ValidateField( "IP", Validator.MatchesPattern( "^%d%d?%d?%.%d%d?%d?%.%d%d?%d?%.%d%d?%d?$" ), {
+			DeleteIfFieldInvalid = true
+		} ),
+		Validator.ValidateField( "Port", Validator.IsAnyType( { "string", "number" } ), {
+			DeleteIfFieldInvalid = true
+		} ),
+		Validator.ValidateField( "Port", Validator.IfType( "string", Validator.MatchesPattern( "^%d+$" ) ), {
+			DeleteIfFieldInvalid = true
+		} ),
+		Validator.ValidateField( "Password", Validator.IsAnyType( { "string", "nil" } ) )
+	) )
+
+	Plugin.ConfigValidator = Validator
+end
+
 function Plugin:Initialise()
 	self:CreateCommands()
-
-	if not Shine.GameIDs:IsEmpty() then
-		for Client in Shine.GameIDs:Iterate() do
-			self:ProcessClient( Client )
-		end
-	end
-
 	self.Enabled = true
 
 	return true
+end
+
+function Plugin:OnNetworkingReady()
+	for Client in Shine.IterateClients() do
+		self:ProcessClient( Client )
+	end
 end
 
 function Plugin:SendServerData( Client, ID, Data )
 	self:SendNetworkMessage( Client, "ServerList", {
 		Name = Data.Name and Data.Name:sub( 1, 15 ) or "No Name",
 		IP = Data.IP,
-		Port = Data.Port,
+		Port = tonumber( Data.Port ) or 27015,
 		ID = ID
 	}, true )
 end
@@ -61,16 +82,12 @@ function Plugin:ProcessClient( Client )
 	end
 end
 
-function Plugin:ClientConfirmConnect( Client )
-	if not Shine:IsValidClient( Client ) then return end
-
+function Plugin:ClientConnect( Client )
 	self:ProcessClient( Client )
 end
 
 function Plugin:OnUserReload()
-	local Clients = Shine.GameIDs
-
-	for Client in Clients:Iterate() do
+	for Client in Shine.IterateClients() do
 		self:ProcessClient( Client )
 	end
 end

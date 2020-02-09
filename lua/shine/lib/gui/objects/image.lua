@@ -13,4 +13,5 @@ function Image:Initialise()
 	self.Background = self:MakeGUIItem()
 end
 
+SGUI:AddMixin( Image, "Clickable" )
 SGUI:Register( "Image", Image )

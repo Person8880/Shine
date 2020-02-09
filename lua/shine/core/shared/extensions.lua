@@ -469,6 +469,9 @@ do
 			end
 		end
 
+		-- Forget any previous module events before starting.
+		Plugin:ResetModuleEventHistory()
+
 		if Plugin.HasConfig and not DontLoadConfig then
 			local Success, Err = xpcall( Plugin.LoadConfig, OnInitError, Plugin )
 			if not Success then
@@ -494,6 +497,15 @@ do
 			return false, Err
 		end
 
+		-- Plugin authors shouldn't need to explicitly call this, as they may forget.
+		if not Plugin:HasFiredModuleEvent( "Initialise" ) then
+			Success, Err = xpcall( Plugin.BroadcastModuleEvent, OnInitError, Plugin, "Initialise" )
+
+			if not Success then
+				return false, StringFormat( "Lua error: %s", Err )
+			end
+		end
+
 		Plugin.Enabled = true
 
 		if FirstEnable and HasFirstThinkOccurred and Plugin.OnFirstThink then
@@ -512,6 +524,14 @@ do
 		-- We need to inform clients to enable the client portion.
 		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = true }, true )
+
+			-- Sending network messages before this point will fail as they will arrive before the plugin has been
+			-- enabled on the client.
+			if IsType( Plugin.OnNetworkingReady, "function" ) then
+				if not xpcall( Plugin.OnNetworkingReady, OnInitError, Plugin ) then
+					Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+				end
+			end
 		end
 
 		Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
@@ -539,8 +559,13 @@ do
 		-- Make sure cleanup doesn't break us by erroring.
 		local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
 		if not Success then
-			PluginMeta.Cleanup( Plugin )
+			xpcall( PluginMeta.Cleanup, OnCleanupError, Plugin )
+		-- Make sure the module "Cleanup" event is called (the base plugin's Cleanup method calls this).
+		elseif not Plugin:HasFiredModuleEvent( "Cleanup" ) then
+			xpcall( Plugin.BroadcastModuleEvent, OnCleanupError, Plugin, "Cleanup" )
 		end
+
+		Plugin:ResetModuleEventHistory()
 
 		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
@@ -707,7 +732,7 @@ Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
 } )
 
 if Server then
-	Shine.Hook.Add( "ClientConfirmConnect", "PluginSync", function( Client )
+	Shine.Hook.Add( "ClientConnect", "PluginSync", function( Client )
 		local Message = {}
 
 		for Name in pairs( ClientPlugins ) do

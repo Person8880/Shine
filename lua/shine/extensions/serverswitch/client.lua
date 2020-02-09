@@ -15,12 +15,11 @@ local TableCount = table.Count
 local TableEmpty = table.Empty
 local Vector = Vector
 
-Plugin.ServerList = {}
-
 local ZeroVec = Vector( 0, 0, 0 )
 
 function Plugin:Initialise()
 	self.Enabled = true
+	self.ServerList = {}
 
 	return true
 end
@@ -83,7 +82,7 @@ VoteMenu:EditPage( "Main", function( self )
 end )
 
 function Plugin:ReceiveServerList( Data )
-	if self.ServerList[ Data.ID ] then --We're refreshing the data.
+	if self.ServerList[ Data.ID ] then -- We're refreshing the data.
 		TableEmpty( self.ServerList )
 	end
 
@@ -92,4 +91,9 @@ function Plugin:ReceiveServerList( Data )
 		Port = Data.Port,
 		Name = Data.Name
 	}
+end
+
+function Plugin:Cleanup()
+	self.ServerList = nil
+	return self.BaseClass.Cleanup( self )
 end

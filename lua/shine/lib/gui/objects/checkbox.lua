@@ -17,7 +17,7 @@ function CheckBox:Initialise()
 	self.Background = Background
 
 	local Box = self:MakeGUIItem()
-	Box:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	Box:SetAnchor( 0.5, 0.5 )
 
 	Background:AddChild( Box )
 
@@ -84,6 +84,7 @@ function CheckBox:SetChecked( Value, DontFade )
 		end
 
 		self:OnChecked( true )
+		self:OnPropertyChanged( "Checked", true )
 
 		return
 	end
@@ -99,6 +100,7 @@ function CheckBox:SetChecked( Value, DontFade )
 	end
 
 	self:OnChecked( false )
+	self:OnPropertyChanged( "Checked", false )
 end
 
 function CheckBox:OnMouseDown( Key, DoubleClick )
@@ -160,7 +162,18 @@ function CheckBox:AddLabel( Text )
 		Label.Label:SetInheritsParentStencilSettings( true )
 	end
 
+	if self.TooltipText then
+		Label:SetTooltip( self.TooltipText )
+	end
+
 	self.Label = Label
+end
+
+function CheckBox:SetTooltip( Tooltip )
+	self.BaseClass.SetTooltip( self, Tooltip )
+	if SGUI.IsValid( self.Label ) then
+		self.Label:SetTooltip( Tooltip )
+	end
 end
 
 function CheckBox:OnChecked( Checked )

@@ -4,6 +4,8 @@
 
 local Plugin = ...
 
+local GetScoreboardEntryByName = Shine.GetScoreboardEntryByName
+local StringFormat = string.format
 local xpcall = xpcall
 
 Plugin.NotifySoundEffect = "sound/NS2.fev/common/tooltip_on"
@@ -13,37 +15,19 @@ function Plugin:ReceiveAFKNotify( Data )
 	StartSoundEffect( self.NotifySoundEffect )
 end
 
-function Plugin:SetupAFKScoreboardPrefix()
-	Shine.Hook.SetupGlobalHook( "Scoreboard_ReloadPlayerData",
-		"PostScoreboardReload", "PassivePost" )
+function Plugin:OnScoreboardEntryReload( Entry, Entity )
+	if not Entity.afk then return end
 
-	local AFK_PREFIX = "AFK - "
-	local CALLING = false
+	local NewName = self.AFK_PREFIX..Entry.Name
 
-	local function UpdateNamesWithAFKState()
-		local EntityList = Shared.GetEntitiesWithClassname( "PlayerInfoEntity" )
-		for _, Entity in ientitylist( EntityList ) do
-			local Entry = Scoreboard_GetPlayerRecord( Entity.clientId )
-			if Entry and Entry.Name and Entity.afk then
-				Entry.Name = AFK_PREFIX..Entry.Name
-			end
-		end
+	-- Make sure the new name is unique.
+	local Index = 2
+	local ExistingEntry = GetScoreboardEntryByName( NewName )
+	while ExistingEntry and ExistingEntry ~= Entry do
+		NewName = StringFormat( "%s%s (%s)", self.AFK_PREFIX, Entry.Name, Index )
+		Index = Index + 1
+		ExistingEntry = GetScoreboardEntryByName( NewName )
 	end
-	local ErrorHandler = Shine.BuildErrorHandler( "Scoreboard update error" )
 
-	self.PostScoreboardReload = function( self )
-		if CALLING then return end
-
-		-- Just in case we somehow see a PlayerInfoEntity that has a client ID that is not
-		-- in the scoreboard player data yet, we don't want to trigger a stack overflow.
-		CALLING = true
-
-		xpcall( UpdateNamesWithAFKState, ErrorHandler )
-
-		CALLING = false
-	end
-end
-
-function Plugin:OnFirstThink()
-	self:SetupAFKScoreboardPrefix()
+	Entry.Name = NewName
 end

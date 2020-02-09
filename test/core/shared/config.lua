@@ -61,6 +61,13 @@ UnitTest:Test( "Validator", function( Assert )
 		D = {}
 	} )
 
+	Validator:AddFieldRule(
+		"ValuesWithPattern", Validator.Each( Validator.MatchesPattern( "^%d%d?%d?%.%d%d?%d?%.%d%d?%d?%.%d%d?%d?$" ) )
+	)
+
+	Assert.True( "HasFieldRule should return true for a field with a rule", Validator:HasFieldRule( "TooSmallNumber" ) )
+	Assert.Falsy( "HasFieldRule should return false for a field without a rule", Validator:HasFieldRule( "Nope" ) )
+
 	local Config = {
 		TooSmallNumber = 5,
 		BigEnoughNumber = 11,
@@ -92,9 +99,16 @@ UnitTest:Test( "Validator", function( Assert )
 			B = "cake",
 			C = 123,
 			D = 456
+		},
+		ValuesWithPattern = {
+			"127.0.0.1",
+			"1.1.1.1",
+			"255.255.255.255",
+			"Nope",
+			123
 		}
 	}
-	Assert:True( Validator:Validate( Config ) )
+	Assert.True( "Validator should have detected problems and made changes", Validator:Validate( Config ) )
 
 	Assert:DeepEquals( {
 		Fixed = true,
@@ -136,6 +150,11 @@ UnitTest:Test( "Validator", function( Assert )
 			B = "cake",
 			C = 123,
 			D = {}
+		},
+		ValuesWithPattern = {
+			"127.0.0.1",
+			"1.1.1.1",
+			"255.255.255.255"
 		}
 	}, Config )
 end )

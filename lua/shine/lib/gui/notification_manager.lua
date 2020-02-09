@@ -7,6 +7,7 @@ local Units = SGUI.Layout.Units
 local HighResScaled = Units.HighResScaled
 
 local OSTime = os.time
+local StringFormat = string.format
 local TableRemove = table.remove
 
 local NotificationType = Shine.NotificationType
@@ -72,9 +73,9 @@ function NotificationManager.AddNotification( Type, Message, Duration, Options )
 	Notification:SetPadding( PADDING:GetValue() )
 	Notification:SetMaxWidth( W * 0.25 )
 	Notification:SetFlairWidth( FLAIR_WIDTH:GetValue() )
-	local Font, Scale = SGUI.FontManager.GetFont( SGUI.FontFamilies.Ionicons, 32 )
+	local Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 32 )
 	Notification:SetIconScale( Scale )
-	Notification:SetText( Message, SGUI.FontManager.GetFont( "kAgencyFB", 27 ) )
+	Notification:SetText( Message, SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 	Notification:SetOptions( Options )
 	Notification:SizeToContents()
 	Notification:SetPos( Vector2( -OFFSETX:GetValue(), -OFFSETY:GetValue() - Notification:GetSize().y ) )
@@ -135,10 +136,15 @@ function NotificationManager.RegisterHint( Name, Params )
 
 	Shine.TypeCheckField( Params, "HintDuration", { "number", "nil" }, "Params" )
 	Shine.TypeCheckField( Params, "MaxTimes", { "number", "nil" }, "Params" )
-	Shine.TypeCheckField( Params, "MessageKey", "string", "Params" )
-	Shine.TypeCheckField( Params, "MessageSource", "string", "Params" )
+	Shine.TypeCheckField( Params, "MessageKey", { "string", "nil" }, "Params" )
 	Shine.TypeCheckField( Params, "NotificationType", { "string", "nil" }, "Params" )
 	Shine.TypeCheckField( Params, "Options", { "table", "nil" }, "Params" )
+
+	if Params.MessageKey then
+		Shine.TypeCheckField( Params, "MessageSource", "string", "Params" )
+	else
+		Shine.TypeCheckField( Params, "MessageSupplier", "function", "Params" )
+	end
 
 	if not Params.MaxTimes or Params.MaxTimes > 1 then
 		Shine.TypeCheckField( Params, "HintIntervalInSeconds", "number", "Params" )
@@ -197,12 +203,21 @@ function NotificationManager.DisplayHint( Name )
 	HintData[ Name ] = Data
 	UpdateHintData()
 
+	local Message = Params.MessageSupplier and Params.MessageSupplier()
+		or Shine.Locale:GetPhrase( Params.MessageSource, Params.MessageKey )
+	local Type = Params.NotificationType or NotificationType.INFO
+
 	NotificationManager.AddNotification(
-		Params.NotificationType or NotificationType.INFO,
-		Shine.Locale:GetPhrase( Params.MessageSource, Params.MessageKey ),
+		Type,
+		Message,
 		Params.HintDuration or 5,
 		Params.Options
 	)
+
+	if not Params.SuppressConsoleMessage then
+		-- Print to console so it can be referred back to.
+		Shared.Message( StringFormat( "[%s] %s", Styles[ Type ], Message ) )
+	end
 end
 
 SGUI.NotificationManager = NotificationManager

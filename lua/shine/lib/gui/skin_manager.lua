@@ -5,15 +5,72 @@
 	the actual setting of colours/fonts etc. at startup.
 ]]
 
+local Map = Shine.Map
 local SGUI = Shine.GUI
 
+local getmetatable = getmetatable
 local pairs = pairs
+local setmetatable = setmetatable
 local TableShallowMerge = table.ShallowMerge
 
 local SkinManager = {}
 SGUI.SkinManager = SkinManager
 
 SkinManager.Skins = {}
+
+--[[
+	Compiles the given skin into a format that avoids needing to use pairs() at runtime.
+]]
+function SkinManager.CompileSkin( Skin )
+	local CompiledSkin = {}
+
+	for Element, Data in pairs( Skin ) do
+		local ElementStyles = {}
+
+		for StyleName, StyleData in pairs( Data ) do
+			local Properties = {}
+			local States = {}
+
+			for Key, Value in pairs( StyleData ) do
+				if Key == "States" then
+					for StateName, StateData in pairs( Value ) do
+						local StateProperties = {}
+
+						for StateKey, StateValue in pairs( StateData ) do
+							StateProperties[ #StateProperties + 1 ] = { StateKey, StateValue }
+						end
+
+						States[ StateName ] = StateProperties
+					end
+				else
+					Properties[ #Properties + 1 ] = { Key, Value }
+				end
+			end
+
+			ElementStyles[ StyleName ] = {
+				Properties = Properties,
+				States = States,
+				PropertiesByName = StyleData
+			}
+		end
+
+		CompiledSkin[ Element ] = ElementStyles
+	end
+
+	return CompiledSkin
+end
+
+function SkinManager:GetCompiledSkin( Skin )
+	local MetaTable = getmetatable( Skin )
+	local CompiledSkin = MetaTable and MetaTable.CompiledSkin
+
+	if not CompiledSkin then
+		CompiledSkin = self.CompileSkin( Skin )
+		setmetatable( Skin, { CompiledSkin = CompiledSkin } )
+	end
+
+	return CompiledSkin
+end
 
 function SkinManager:RegisterSkin( Name, SkinTable )
 	for Element, Data in pairs( SkinTable ) do
@@ -33,6 +90,9 @@ function SkinManager:RegisterSkin( Name, SkinTable )
 	end
 
 	self.Skins[ Name ] = SkinTable
+
+	-- Compile and store the skin upfront.
+	SkinManager:GetCompiledSkin( SkinTable )
 end
 
 function SkinManager:RefreshSkin()
@@ -70,6 +130,8 @@ function SkinManager:GetStyleForElement( Element )
 	local Skin = Element:GetSkin() or self.Skin
 	if not Skin then return nil end
 
+	Skin = self:GetCompiledSkin( Skin )
+
 	local Styles = Skin[ Element.Class ]
 	if not Styles then return nil end
 
@@ -87,12 +149,16 @@ local PropertiesToApplyAsDefaults = {
 }
 
 local function CopyValues( Element, Values, Destination )
-	for Key, Value in pairs( Values ) do
+	for i = 1, #Values do
+		local Entry = Values[ i ]
+		local Key = Entry[ 1 ]
+
 		if not PropertiesToApplyAsDefaults[ Key ] or Element[ Key ] == nil then
+			local Value = Entry[ 2 ]
 			if SGUI.IsColour( Value ) then
-				Destination[ Key ] = SGUI.CopyColour( Value )
+				Destination:Add( Key, SGUI.CopyColour( Value ) )
 			else
-				Destination[ Key ] = Value
+				Destination:Add( Key, Value )
 			end
 		end
 	end
@@ -109,7 +175,7 @@ function SkinManager:ApplySkin( Element )
 	-- Combine the current styling with the state to get the final styling values.
 	-- If only the state values were applied, changing skins could lead to incorrect
 	-- values being left from a previous skin.
-	local StyleCopy = CopyValues( Element, StyleDef, {} )
+	local StyleCopy = CopyValues( Element, StyleDef.Properties, Map() )
 
 	-- If the element has styling states (not using the getter to avoid initialising them), apply them.
 	local States = Element.StylingStates
@@ -122,7 +188,7 @@ function SkinManager:ApplySkin( Element )
 		end
 	end
 
-	Element:SetupFromTable( StyleCopy )
+	Element:SetupFromMap( StyleCopy )
 end
 
 Shine.LoadScriptsByPath( "lua/shine/lib/gui/skins" )

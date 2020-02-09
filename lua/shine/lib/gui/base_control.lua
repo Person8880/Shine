@@ -7,19 +7,33 @@ local ControlMeta = SGUI.BaseControl
 local Set = Shine.Set
 
 local assert = assert
-local Clock = os.clock
+local Clock = Shared.GetSystemTimeReal
 local IsType = Shine.IsType
 local IsGUIItemValid = debug.isvalid
 local Max = math.max
 local pairs = pairs
 local StringFormat = string.format
+local TableNew = require "table.new"
 local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
 
 local Map = Shine.Map
 local Source = require "shine/lib/gui/binding/source"
 
+-- This exists to avoid constant concatenation every time properties are set dynamically.
+local SetterKeys = setmetatable( TableNew( 0, 100 ), {
+	__index = function( self, Key )
+		local Setter = "Set"..Key
+
+		self[ Key ] = Setter
+
+		return Setter
+	end
+} )
+
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
 SGUI.AddProperty( ControlMeta, "PropagateSkin" )
@@ -82,8 +96,8 @@ end
 --[[
 	Destroys a control.
 ]]
-function ControlMeta:Destroy( RemoveFromParent )
-	return SGUI:Destroy( self, RemoveFromParent )
+function ControlMeta:Destroy()
+	return SGUI:Destroy( self )
 end
 
 --[[
@@ -119,7 +133,7 @@ local function BroadcastPropertyChange( self, Name, Value )
 	if not Listeners then return end
 
 	for i = 1, #Listeners do
-		Listeners[ i ]( Value )
+		Listeners[ i ]( self, Value )
 	end
 end
 
@@ -129,6 +143,8 @@ function ControlMeta:AddPropertyChangeListener( Name, Listener )
 
 	self.PropertyChangeListeners = self.PropertyChangeListeners or Shine.Multimap()
 	self.PropertyChangeListeners:Add( Name, Listener )
+
+	return Listener
 end
 
 function ControlMeta:GetPropertySource( Name )
@@ -146,7 +162,9 @@ function ControlMeta:GetPropertySource( Name )
 	SourceInstance.Element = self
 
 	self.PropertySources[ Name ] = SourceInstance
-	self:AddPropertyChangeListener( Name, SourceInstance )
+	self:AddPropertyChangeListener( Name, function( self, Value )
+		return SourceInstance( Value )
+	end )
 
 	return SourceInstance
 end
@@ -159,7 +177,7 @@ function ControlMeta:GetPropertyTarget( Name )
 		return Target
 	end
 
-	local SetterName = "Set"..Name
+	local SetterName = SetterKeys[ Name ]
 	Target = function( Value )
 		self[ SetterName ]( self, Value )
 	end
@@ -263,6 +281,11 @@ function ControlMeta:SetSkin( Skin )
 	local OldSkin = self.Skin
 	if OldSkin == Skin then return end
 
+	if Skin then
+		-- Trigger skin compilation upfront to make later state changes faster.
+		SGUI.SkinManager:GetCompiledSkin( Skin )
+	end
+
 	self.Skin = Skin
 	SGUI.SkinManager:ApplySkin( self )
 
@@ -280,7 +303,7 @@ function ControlMeta:GetStyleValue( Key )
 	if not Style then
 		return nil
 	end
-	return Style[ Key ]
+	return Style.PropertiesByName[ Key ]
 end
 
 --[[
@@ -288,10 +311,21 @@ end
 ]]
 function ControlMeta:SetupFromTable( Table )
 	for Property, Value in pairs( Table ) do
-		local Method = "Set"..Property
+		local Method = self[ SetterKeys[ Property ] ]
+		if Method then
+			Method( self, Value )
+		end
+	end
+end
 
-		if self[ Method ] then
-			self[ Method ]( self, Value )
+--[[
+	Sets up a control's properties using a map.
+]]
+function ControlMeta:SetupFromMap( Map )
+	for Property, Value in Map:Iterate() do
+		local Method = self[ SetterKeys[ Property ] ]
+		if Method then
+			Method( self, Value )
 		end
 	end
 end
@@ -313,15 +347,23 @@ end
 function ControlMeta:SetParent( Control, Element )
 	assert( Control ~= self, "[SGUI] Cannot parent an object to itself!" )
 
-	if self.Parent == Control and self.ParentElement == Element then
+	if Control and not Element then
+		Element = Control.Background
+	end
+
+	local ParentControlChanged = self.Parent ~= Control
+	local ParentElementChanged = self.ParentElement ~= Element
+
+	if not ParentControlChanged and not ParentElementChanged then
 		return
 	end
 
-	if self.Parent then
+	if ParentControlChanged and self.Parent then
 		self.Parent.Children:Remove( self )
-		if self.ParentElement and self.Background then
-			self.ParentElement:RemoveChild( self.Background )
-		end
+	end
+
+	if ParentElementChanged and self.ParentElement and IsGUIItemValid( self.ParentElement ) and self.Background then
+		self.ParentElement:RemoveChild( self.Background )
 	end
 
 	if not Control then
@@ -333,10 +375,6 @@ function ControlMeta:SetParent( Control, Element )
 	end
 
 	-- Parent to a specific part of a control.
-	if not Element then
-		Element = Control.Background
-	end
-
 	self.Parent = Control
 	self.ParentElement = Element
 	self:SetTopLevelWindow( SGUI:IsWindow( Control ) and Control or Control.TopLevelWindow )
@@ -355,7 +393,7 @@ function ControlMeta:SetParent( Control, Element )
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
 
-	if Element and self.Background then
+	if ParentElementChanged and Element and self.Background then
 		Element:AddChild( self.Background )
 	end
 end
@@ -440,6 +478,8 @@ function ControlMeta:MakeGUIItem( Type )
 	end
 
 	local Item = Factory( Manager )
+	Item:SetOptionFlag( GUIItem.CorrectScaling )
+	Item:SetOptionFlag( GUIItem.CorrectRotationOffset )
 	if self.Stencilled then
 		-- This element is currently under the effect of a stencil, so inherit
 		-- settings.
@@ -532,7 +572,7 @@ end
 function ControlMeta:OnStencilChanged( Stencilled )
 	if not self.Stencil then return end
 
-	if Stencilled then
+	if Stencilled and not ( self.Parent and self.Parent.IgnoreStencilWarnings ) then
 		-- Stencils inside stencils currently don't work correctly. They obey only the top-level
 		-- stencil, any further restrictions are ignored (and appear to render as if GetIsStencil() == false).
 		Print(
@@ -727,6 +767,28 @@ function ControlMeta:SetFontScale( Font, Scale )
 	if Scale then
 		self:SetTextScale( Scale )
 	end
+end
+
+function ControlMeta:SetAlpha( Alpha )
+	local Colour = self.Background:GetColor()
+	Colour.a = Alpha
+	self.Background:SetColor( Colour )
+end
+
+function ControlMeta:GetTextureWidth()
+	return self.Background:GetTextureWidth()
+end
+
+function ControlMeta:GetTextureHeight()
+	return self.Background:GetTextureHeight()
+end
+
+function ControlMeta:SetTextureCoordinates( X1, Y1, X2, Y2 )
+	self.Background:SetTextureCoordinates( X1, Y1, X2, Y2 )
+end
+
+function ControlMeta:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
+	self.Background:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
 end
 
 --[[
@@ -961,20 +1023,94 @@ do
 	}
 	SGUI.Anchors = Anchors
 
+	local AnchorFractions = {
+		TopLeft = Vector2( 0, 0 ),
+		TopMiddle = Vector2( 0.5, 0 ),
+		TopRight = Vector2( 1, 0 ),
+
+		CentreLeft = Vector2( 0, 0.5 ),
+		CentreMiddle = Vector2( 0.5, 0.5 ),
+		CentreRight = Vector2( 1, 0.5 ),
+
+		CenterLeft = Vector2( 0, 0.5 ),
+		CenterMiddle = Vector2( 0.5, 0.5 ),
+		CenterRight = Vector2( 1, 0.5 ),
+
+		BottomLeft = Vector2( 0, 1 ),
+		BottomMiddle = Vector2( 0.5, 1 ),
+		BottomRight = Vector2( 1, 1 ),
+
+		[ GUIItem.Left ] = 0,
+		[ GUIItem.Middle ] = 0.5,
+		[ GUIItem.Right ] = 1,
+		[ GUIItem.Top ] = 0,
+		[ GUIItem.Center ] = 0.5,
+		[ GUIItem.Bottom ] = 1
+	}
+
+	local NewScalingFlag = GUIItem.CorrectScaling
+
 	--[[
 		Sets the origin anchors for the control.
 	]]
 	function ControlMeta:SetAnchor( X, Y )
 		if not self.Background then return end
 
+		local UsesNewScaling = self.Background:IsOptionFlagSet( NewScalingFlag )
 		if IsType( X, "string" ) then
-			local Anchor = Anchors[ X ]
-
-			if Anchor then
-				self.Background:SetAnchor( Anchor[ 1 ], Anchor[ 2 ] )
+			if UsesNewScaling then
+				local Anchor = Shine.AssertAtLevel( AnchorFractions[ X ], "Unknown anchor type: %s", 3, X )
+				self.Background:SetAnchor( Anchor )
+				return
 			end
+
+			local Anchor = Shine.AssertAtLevel( Anchors[ X ], "Unknown anchor type: %s", 3, X )
+			self.Background:SetAnchor( Anchor[ 1 ], Anchor[ 2 ] )
 		else
+			if UsesNewScaling then
+				self.Background:SetAnchor( Vector2( AnchorFractions[ X ], AnchorFractions[ Y ] ) )
+				return
+			end
+
 			self.Background:SetAnchor( X, Y )
+		end
+	end
+
+	--[[
+		Sets the origin anchors using a fractional value for the control.
+	]]
+	function ControlMeta:SetAnchorFraction( X, Y )
+		if not self.Background then return end
+
+		Shine.AssertAtLevel(
+			self.Background:IsOptionFlagSet( NewScalingFlag ),
+			"Background element must have GUIItem.CorrectScaling flag set to use SetAnchorFraction!",
+			3
+		)
+
+		self.Background:SetAnchor( Vector2( X, Y ) )
+	end
+
+	--[[
+		Sets the local origin of the given element (i.e. 0, 0 means position determines where the top-left corner is,
+		0.5, 0.5 means position determines where the centre of the element is).
+
+		This also affects the origin of scaling applied to the element.
+	]]
+	function ControlMeta:SetHotSpot( X, Y )
+		if not self.Background then return end
+
+		Shine.AssertAtLevel(
+			self.Background:IsOptionFlagSet( NewScalingFlag ),
+			"Background element must have GUIItem.CorrectScaling flag set to use SetHotSpot!",
+			3
+		)
+
+		if IsType( X, "string" ) then
+			local HotSpot = Shine.AssertAtLevel( AnchorFractions[ X ], "Unknown hotspot type: %s", 3, X )
+			self.Background:SetHotSpot( HotSpot )
+		else
+			self.Background:SetHotSpot( X, Y )
 		end
 	end
 end
@@ -1136,8 +1272,17 @@ do
 		EasingData.StartTime = Clock() + Delay
 		EasingData.Duration = Duration
 		EasingData.Elapsed = Max( -Delay, 0 )
+		EasingData.LastUpdate = Clock()
 
 		EasingData.Callback = Callback
+
+		if EasingHandlers.Init then
+			EasingHandlers.Init( self, Element, EasingData )
+		end
+
+		if Delay <= 0 then
+			EasingHandlers.Setter( self, Element, Start, EasingData )
+		end
 
 		return EasingData
 	end
@@ -1149,8 +1294,9 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 	for EasingHandler, Easings in self.EasingProcesses:Iterate() do
 		for Element, EasingData in Easings:Iterate() do
 			local Start = EasingData.StartTime
+
 			if Start <= Time then
-				EasingData.Elapsed = EasingData.Elapsed + DeltaTime
+				EasingData.Elapsed = EasingData.Elapsed + Max( DeltaTime, Time - EasingData.LastUpdate )
 
 				local Duration = EasingData.Duration
 				local Elapsed = EasingData.Elapsed
@@ -1171,6 +1317,8 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 					end
 				end
 			end
+
+			EasingData.LastUpdate = Time
 		end
 
 		if Easings:IsEmpty() then
@@ -1196,6 +1344,9 @@ local Easers = {
 		end
 	}, "Fade" ),
 	Alpha = Easer( {
+		Init = function( self, Element, EasingData )
+			EasingData.Colour = Element:GetColor()
+		end,
 		Easer = function( self, Element, EasingData, Progress )
 			EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
 			EasingData.Colour.a = EasingData.CurValue
@@ -1236,9 +1387,18 @@ local Easers = {
 		Getter = function( self, Element )
 			return Element:GetSize()
 		end
-	}, "Size" )
+	}, "Size" ),
+	Scale = Easer( {
+		Setter = function( self, Element, Scale )
+			Element:SetScale( Scale )
+		end,
+		Getter = function( self, Element )
+			return Element:GetScale()
+		end
+	}, "Scale" )
 }
 Easers.Size.Easer = Easers.Move.Easer
+Easers.Scale.Easer = Easers.Move.Easer
 
 function ControlMeta:GetEasing( Type, Element )
 	if not self.EasingProcesses then return end
@@ -1258,6 +1418,73 @@ function ControlMeta:StopEasing( Element, EasingHandler )
 	Easers:Remove( Element or self.Background )
 end
 
+local function AddEaseFunc( EasingData, EaseFunc, Power )
+	EasingData.EaseFunc = EaseFunc or math.EaseOut
+	EasingData.Power = Power or 3
+end
+
+do
+	local function GetEaserForTransition( Transition )
+		return Easers[ Transition.Type ] or Transition.Easer
+	end
+
+	--[[
+		Adds a new easing transition to the control.
+
+		Transitions are a table like the following:
+		{
+			-- The element the easing should apply to (if omitted, self.Background is used).
+			Element = self.Background,
+
+			-- The starting value (if omitted, the current value for the specified type is used).
+			StartValue = self:GetPos(),
+
+			-- The end value to ease towards.
+			EndValue = self:GetPos() + Vector2( 100, 0 ),
+
+			-- The time to wait (in seconds) from now until the transition should start (if omitted, no delay is applied).
+			Delay = 0,
+
+			-- How long (in seconds) to take to ease between the start and end values.
+			Duration = 0.3,
+
+			-- An optional callback that is executed once the transition is complete. It will be passed the element
+			-- that was transitioned.
+			Callback = function( Element ) end,
+
+			-- The type of easer to use (if using a standard easer)
+			Type = "Move",
+
+			-- A custom easer to use if "Type" is not specified.
+			Easer = ...,
+
+			-- The easing function to use (if omitted, math.EaseOut is used).
+			EasingFunction = math.EaseOut,
+
+			-- The power value to pass to the easing function (if omitted, 3 is used).
+			EasingPower = 3
+		}
+	]]
+	function ControlMeta:ApplyTransition( Transition )
+		local EasingData = self:EaseValue(
+			Transition.Element,
+			Transition.StartValue,
+			Transition.EndValue,
+			Transition.Delay or 0,
+			Transition.Duration,
+			Transition.Callback,
+			GetEaserForTransition( Transition )
+		)
+		AddEaseFunc( EasingData, Transition.EasingFunction, Transition.EasingPower )
+
+		return EasingData
+	end
+
+	function ControlMeta:StopTransition( Transition )
+		self:StopEasing( Transition.Element, GetEaserForTransition( Transition ) )
+	end
+end
+
 --[[
 	Sets an SGUI control to move from its current position.
 
@@ -1274,19 +1501,13 @@ end
 function ControlMeta:MoveTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
 	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback,
 		Easers.Move )
-	EasingData.EaseFunc = EaseFunc or math.EaseOut
-	EasingData.Power = Power or 3
+	AddEaseFunc( EasingData, EaseFunc, Power )
 
 	return EasingData
 end
 
 function ControlMeta:StopMoving( Element )
 	self:StopEasing( Element, Easers.Move )
-end
-
-local function AddEaseFunc( EasingData, EaseFunc, Power )
-	EasingData.EaseFunc = EaseFunc or math.EaseOut
-	EasingData.Power = Power or 3
 end
 
 --[[
@@ -1315,7 +1536,6 @@ end
 
 function ControlMeta:AlphaTo( Element, Start, End, Delay, Duration, Callback, EaseFunc, Power )
 	local EasingData = self:EaseValue( Element, Start, End, Delay, Duration, Callback, Easers.Alpha )
-	EasingData.Colour = EasingData.Element:GetColor()
 	AddEaseFunc( EasingData, EaseFunc, Power )
 
 	return EasingData
@@ -1631,7 +1851,6 @@ end
 function ControlMeta:RequestFocus()
 	if not self.UsesKeyboardFocus then return end
 
-	SGUI.FocusedControl = self
 	SGUI.NotifyFocusChange( self )
 end
 

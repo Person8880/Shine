@@ -119,12 +119,56 @@ function ConfigModule:LoadConfig()
 	end
 end
 
+local AutoRegisterValidators
+if Client then
+	local ValidatorRules = {
+		Radio = function( self, ConfigKey, Options, Validator )
+			Validator:AddFieldRule( ConfigKey, Validator.InEnum( Options.Options, self.DefaultConfig[ ConfigKey ] ) )
+		end,
+		Slider = function( self, ConfigKey, Options, Validator )
+			local Min, Max = Options.Min, Options.Max
+			if Options.IsPercentage then
+				Min = Min * 0.01
+				Max = Max * 0.01
+			end
+			Validator:AddFieldRule( ConfigKey, Validator.Clamp( Min, Max ) )
+		end,
+		Dropdown = function( self, ConfigKey, Options, Validator )
+			Validator:AddFieldRule( ConfigKey, Validator.InEnum( Options.Options, self.DefaultConfig[ ConfigKey ] ) )
+		end
+	}
+
+	local function AddValidationRule( self, ConfigKey, Options )
+		local Rule = ValidatorRules[ Options.Type ]
+		if Rule and ( not self.ConfigValidator or not self.ConfigValidator:HasFieldRule( ConfigKey ) ) then
+			self.ConfigValidator = self.ConfigValidator or Shine.Validator()
+			Rule( self, ConfigKey, Options, self.ConfigValidator )
+		end
+	end
+
+	AutoRegisterValidators = function( self )
+		if not self.ClientConfigSettings then return end
+
+		for i = 1, #self.ClientConfigSettings do
+			local Setting = self.ClientConfigSettings[ i ]
+			AddValidationRule( self, Setting.ConfigKey, Setting )
+		end
+	end
+else
+	AutoRegisterValidators = function() end
+end
+
 --[[
 	Validates the plugin's configuration, returning true if changes
 	were made.
 ]]
 function ConfigModule:ValidateConfigAfterLoad()
-	local Validator = Shine.Validator()
+	local MessagePrefix
+	if Client then
+		MessagePrefix = StringFormat( "[Shine] %s config validation error: ", self:GetName() )
+	end
+
+	local Validator = Shine.Validator( MessagePrefix )
 	Validator:AddRule( {
 		Matches = function( _, Config )
 			return self.PreValidateConfig and self:PreValidateConfig( Config )
@@ -153,7 +197,13 @@ function ConfigModule:ValidateConfigAfterLoad()
 			return self.CheckConfigTypes and self:TypeCheckConfig( Config )
 		end
 	} )
+
+	AutoRegisterValidators( self )
+
 	if self.ConfigValidator then
+		if MessagePrefix and self.ConfigValidator.MessagePrefix == "" then
+			self.ConfigValidator.MessagePrefix = MessagePrefix
+		end
 		Validator:Add( self.ConfigValidator )
 	end
 
@@ -206,22 +256,225 @@ function ConfigModule:TypeCheckConfig( Config )
 end
 
 if Client then
+	local CaseFormatType = string.CaseFormatType
+	local StringTransformCase = string.TransformCase
 	local TableShallowMerge = table.ShallowMerge
+
+	function ConfigModule:Initialise()
+		if IsType( self.ClientConfigSettings, "table" ) then
+			self:AddClientSettings( self.ClientConfigSettings )
+		end
+	end
+
+	local ParameterTypes = {
+		Boolean = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "boolean",
+				Optional = true,
+				Default = function() return not self.Config[ ConfigKey ] end
+			}
+		end,
+		Radio = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "enum",
+				Values = Options.Options,
+				Optional = true,
+				Default = self.DefaultConfig[ ConfigKey ]
+			}
+		end,
+		Slider = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "number",
+				Min = Options.Min,
+				Max = Options.Max,
+				Optional = true,
+				Default = Options.IsPercentage and function()
+					return self.DefaultConfig[ ConfigKey ] * 100
+				end or self.DefaultConfig[ ConfigKey ]
+			}
+		end,
+		Dropdown = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "enum",
+				Values = Options.Options,
+				Optional = true,
+				Default = self.DefaultConfig[ ConfigKey ]
+			}
+		end
+	}
+
+	local PostProcessors = {
+		Dropdown = function( self, SettingOptions )
+			local Options = SettingOptions.Options
+			local OptionsTooltips = SettingOptions.OptionTooltips
+
+			SettingOptions.Options = function()
+				local DropdownOptions = {}
+				local KeyPrefix = StringTransformCase(
+					SettingOptions.ConfigKey, CaseFormatType.UPPER_CAMEL, CaseFormatType.UPPER_UNDERSCORE
+				)
+
+				for i = 1, #Options do
+					local Value = Options[ i ]
+
+					local Tooltip
+					if OptionsTooltips and OptionsTooltips[ Value ] then
+						Tooltip = self:GetPhrase( OptionsTooltips[ Value ] )
+					end
+
+					DropdownOptions[ #DropdownOptions + 1 ] = {
+						Text = self:GetPhrase( StringFormat( "%s_%s", KeyPrefix, Value ) ),
+						Value = Value,
+						Tooltip = Tooltip
+					}
+				end
+
+				return DropdownOptions
+			end
+
+			return SettingOptions
+		end
+	}
+
+	local function DeriveKey( ConfigKey, Suffix )
+		return StringTransformCase(
+			ConfigKey, CaseFormatType.UPPER_CAMEL, CaseFormatType.UPPER_UNDERSCORE
+		)..Suffix
+	end
+
+	local function RegisterCommandIfNecessary( self, ConfigKey, Command, Options )
+		if self:HasRegisteredCommand( Command ) then return end
+
+		local CommandMessage = Options.CommandMessage
+		if CommandMessage and not IsType( CommandMessage, "function" ) then
+			local Message = CommandMessage
+			CommandMessage = function( Value )
+				return StringFormat( Message, Value )
+			end
+		end
+
+		local Transformer = Options.ValueTransformer
+		if Options.IsPercentage then
+			Transformer = function( Value ) return Value * 0.01 end
+		end
+
+		local OnChange = Options.OnChange
+
+		local Command = self:BindCommand( Command, function( Value )
+			local OriginalValue = Value
+			if Transformer then
+				Value = Transformer( Value )
+			end
+
+			if self:SetClientSetting( ConfigKey, Value ) then
+				if CommandMessage then
+					Notify( CommandMessage( OriginalValue ) )
+				else
+					Print( "%s set to: %s", ConfigKey, MaxVisibleMessages )
+				end
+
+				if OnChange then
+					OnChange( self, Value )
+				end
+			end
+		end )
+
+		local ArgumentAdder = ParameterTypes[ Options.Type ]
+		if ArgumentAdder then
+			ArgumentAdder( self, ConfigKey, Command, Options )
+		else
+			Command:AddParam{
+				Type = "string", Default = self.DefaultConfig[ ConfigKey ], TakeRestOfLine = true
+			}
+		end
+	end
 
 	function ConfigModule:AddClientSetting( ConfigKey, Command, Options )
 		local Group = self.ConfigGroup
+		local ConfigOption = Options.ConfigOption or function() return self.Config[ ConfigKey ] end
+		if Options.IsPercentage then
+			ConfigOption = function()
+				return self.Config[ ConfigKey ] * 100
+			end
+		end
+
+		local Tooltip
+		if Options.Tooltip == true then
+			Tooltip = DeriveKey( ConfigKey, "_TOOLTIP" )
+		elseif IsType( Options.Tooltip, "string" ) then
+			Tooltip = Options.Tooltip
+		end
+
+		local OptionTooltips
+		if Options.OptionTooltips == true then
+			OptionTooltips = {}
+			for i = 1, #Options.Options do
+				local Value = Options.Options[ i ]
+				OptionTooltips[ Value ] = DeriveKey( ConfigKey, StringFormat( "_%s_TOOLTIP", Value ) )
+			end
+		elseif IsType( Options.OptionTooltips, "table" ) then
+			OptionTooltips = Options.OptionTooltips
+		end
+
 		local MergedOptions = TableShallowMerge( Options, {
+			ConfigKey = ConfigKey,
 			Command = Command,
-			ConfigOption = function() return self.Config[ ConfigKey ] end,
+			ConfigOption = ConfigOption,
+			Description = Options.Description or DeriveKey( ConfigKey, "_DESCRIPTION" ),
 			TranslationSource = self:GetName(),
 			Group = Group and {
 				Key = Group.Key or "CLIENT_CONFIG_TAB",
 				Source = self:GetName(),
 				Icon = Group.Icon
-			}
+			},
+			Tooltip = Tooltip,
+			OptionTooltips = OptionTooltips
 		} )
 
+		local PostProcessor = PostProcessors[ Options.Type ]
+		if PostProcessor then
+			MergedOptions = PostProcessor( self, MergedOptions )
+		end
+
 		Shine:RegisterClientSetting( MergedOptions )
+
+		RegisterCommandIfNecessary( self, ConfigKey, Command, Options )
+
+		self.RegisteredClientSettings = rawget( self, "RegisteredClientSettings" ) or {}
+		self.RegisteredClientSettings[ MergedOptions.ConfigKey ] = MergedOptions
+	end
+
+	function ConfigModule:AddClientSettings( Settings )
+		for i = 1, #Settings do
+			local Setting = Settings[ i ]
+			self:AddClientSetting( Setting.ConfigKey, Setting.Command, Setting )
+		end
+	end
+
+	function ConfigModule:SetClientSetting( ConfigKey, Value )
+		if Value == self.Config[ ConfigKey ] then return false end
+
+		self.Config[ ConfigKey ] = Value
+		self:SaveConfig( true )
+
+		local Setting = self.RegisteredClientSettings[ ConfigKey ]
+		if Setting then
+			if Setting.IsPercentage then
+				Value = Value * 100
+			end
+			Shine.Hook.Call( "OnPluginClientSettingChanged", self, Setting, Value )
+		end
+
+		return true
+	end
+
+	function ConfigModule:Cleanup()
+		local RegisteredClientSettings = rawget( self, "RegisteredClientSettings" )
+		if not RegisteredClientSettings then return end
+
+		for ConfigKey, Option in pairs( RegisteredClientSettings ) do
+			Shine:RemoveClientSetting( Option )
+		end
 	end
 end
 

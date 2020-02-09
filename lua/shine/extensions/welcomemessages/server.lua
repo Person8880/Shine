@@ -2,6 +2,8 @@
 	Shine welcome message plugin.
 ]]
 
+local ChatAPI = require "shine/core/shared/chat/chat_api"
+
 local Shine = Shine
 
 local GetOwner = Server.GetOwner
@@ -13,7 +15,7 @@ local tostring = tostring
 local type = type
 
 local Plugin = ...
-Plugin.Version = "1.3"
+Plugin.Version = "1.4"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "WelcomeMessages.json"
@@ -69,7 +71,13 @@ do
 		end
 
 		Validator:AddFieldRule( { Key..".Prefix", PrintKey..".Prefix" }, Validator.IsAnyType( { "string", "nil" } ) )
-		Validator:AddFieldRule( { Key..".Message", PrintKey..".Message" }, Validator.IsType( "string" ) )
+
+		local MessageKey = { Key..".Message", PrintKey..".Message" }
+		Validator:AddFieldRule( MessageKey, Validator.IsAnyType( { "string", "table" } ) )
+
+		if IsType( Message.Message, "table" ) then
+			Validator:AddFieldRule( MessageKey, Validator.Each( Validator.IsAnyType( { "string", "table" } ) ) )
+		end
 	end
 
 	local function ValidateUserEntry( ID, Entry )
@@ -161,6 +169,11 @@ function Plugin:DisplayMessage( Message )
 		return
 	end
 
+	if IsType( Message.Message, "table" ) then
+		self:NotifyRichText( nil, ChatAPI.ToRichTextMessage( Message.Message ) )
+		return
+	end
+
 	local R, G, B = ToColour( Message.Colour )
 
 	if Message.Prefix then
@@ -204,20 +217,6 @@ function Plugin:ClientConnect( Client )
 	end )
 end
 
-local Ceil = math.ceil
-
-local function ColourIntToTable( Int, Multiplier )
-	local Colour = ColorIntToColor( Int )
-	return { Ceil( Colour.r * 255 * Multiplier ), Ceil( Colour.g * 255 * Multiplier ),
-		Ceil( Colour.b * 255 * Multiplier ) }
-end
-
-local TeamColours = {
-	[ 0 ] = { 255, 255, 255 },
-	[ 1 ] = ColourIntToTable( kMarineTeamColor or 0x4DB1FF, 0.8 ),
-	[ 2 ] = ColourIntToTable( kAlienTeamColor or 0xFFCA3A, 0.8 )
-}
-
 function Plugin:ClientDisconnect( Client )
 	local ID = tostring( Client:GetUserId() )
 
@@ -239,16 +238,14 @@ function Plugin:ClientDisconnect( Client )
 	if not Player then return end
 
 	local Team = Client.DisconnectTeam or 0
-	local Colour = TeamColours[ Team ] or TeamColours[ 0 ]
-
 	if not IsType( Client.DisconnectReason, "string" ) then
-		self:SendTranslatedNotifyColour( nil, "PLAYER_LEAVE_GENERIC", {
-			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
+		self:SendTranslatedNotifyRichText( nil, "PLAYER_LEAVE_GENERIC", {
+			Team = Team,
 			TargetName = Player:GetName()
 		} )
 	else
-		self:SendTranslatedNotifyColour( nil, "PLAYER_LEAVE_REASON", {
-			R = Colour[ 1 ], G = Colour[ 2 ], B = Colour[ 3 ],
+		self:SendTranslatedNotifyRichText( nil, "PLAYER_LEAVE_REASON", {
+			Team = Team,
 			TargetName = Player:GetName(),
 			Reason = Client.DisconnectReason
 		} )

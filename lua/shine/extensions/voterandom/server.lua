@@ -42,9 +42,6 @@ Plugin.EnforcementDurationType = table.AsEnum{
 Plugin.EnforcementPolicyType = table.AsEnum{
 	"BLOCK_TEAMS", "ASSIGN_PLAYERS"
 }
-Plugin.ShuffleMode = table.AsEnum{
-	"RANDOM", "SCORE", "INVALID", "KDR", "HIVE"
-}
 Plugin.TeamPreferenceWeighting = table.AsEnum{
 	"NONE", "LOW", "MEDIUM", "HIGH"
 }
@@ -69,21 +66,7 @@ Plugin.MODE_ELO = Plugin.ShuffleMode.INVALID
 Plugin.MODE_KDR = Plugin.ShuffleMode.KDR
 Plugin.MODE_HIVE = Plugin.ShuffleMode.HIVE
 
-local ModeStrings = {
-	Action = {
-		[ Plugin.ShuffleMode.RANDOM ] = "SHUFFLE_RANDOM",
-		[ Plugin.ShuffleMode.SCORE ] = "SHUFFLE_SCORE",
-		[ Plugin.ShuffleMode.KDR ] = "SHUFFLE_KDR",
-		[ Plugin.ShuffleMode.HIVE ] = "SHUFFLE_HIVE"
-	},
-	Mode = {
-		[ Plugin.ShuffleMode.RANDOM ] = "RANDOM_BASED",
-		[ Plugin.ShuffleMode.SCORE ] = "SCORE_BASED",
-		[ Plugin.ShuffleMode.KDR ] = "KDR_BASED",
-		[ Plugin.ShuffleMode.HIVE ] = "HIVE_BASED"
-	}
-}
-Plugin.ModeStrings = ModeStrings
+local ModeStrings = Plugin.ModeStrings
 
 Plugin.DefaultConfig = {
 	BlockUntilSecondsIntoMap = 0, -- Time in seconds to block votes for after a map change.
@@ -1759,12 +1742,18 @@ function Plugin:CreateCommands()
 		Message[ 1 ] = "Team stats:"
 
 		for i = 1, 2 do
-			Message[ #Message + 1 ] = "========="
-			Message[ #Message + 1 ] = Shine:GetTeamName( i, true )
-			Message[ #Message + 1 ] = "========="
-
 			local Stats = TeamStats[ i ]
 			local Skills = Stats.Skills
+
+			Message[ #Message + 1 ] = "======================"
+			Message[ #Message + 1 ] = StringFormat(
+				"%s (%d player%s)",
+				Shine:GetTeamName( i, true ),
+				#Skills,
+				#Skills == 1 and "" or "s"
+			)
+			Message[ #Message + 1 ] = "======================"
+
 			for j = 1, #Skills do
 				Message[ #Message + 1 ] = tostring( Skills[ j ] )
 			end
@@ -1777,15 +1766,27 @@ function Plugin:CreateCommands()
 			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )
 		Message[ #Message + 1 ] = StringFormat( "Play with friends cost weighting: %s. Max group size: %d.",
 			self.Config.TeamPreferences.PlayWithFriendsWeighting, self.Config.TeamPreferences.MaxFriendGroupSize )
+
+		local CurrentHappinessWeight = self:GetHistoricHappinessWeightForClient( Client )
+		Message[ #Message + 1 ] = StringFormat(
+			"Your current team preference weighting multiplier: %s.",
+			CurrentHappinessWeight
+		)
+
 		if self.LastShuffleTime then
 			Message[ #Message + 1 ] = StringFormat(
 				"Last shuffle was %s ago. %d/%d player(s) match their team from the last shuffle.",
 				string.TimeToString( SharedTime() - self.LastShuffleTime ),
 				TeamStats.NumMatchingTeams or 0,
-				TeamStats.TotalPlayers or 0 )
-			Message[ #Message + 1 ] = StringFormat( "%d/%d player(s) were placed on their preferred team.",
+				TeamStats.TotalPlayers or 0
+			)
+
+			Message[ #Message + 1 ] = StringFormat(
+				"%d/%d player(s) were placed on their preferred team.",
 				TeamStats.NumPreferencesHeld or 0,
-				TeamStats.NumPreferencesTotal or 0 )
+				TeamStats.NumPreferencesTotal or 0
+			)
+
 			if TeamStats.IsFunctionChanged then
 				-- If you're altering the algorithm, please don't try to suppress this.
 				-- It's important for players to know when the shuffle algorithm is different so

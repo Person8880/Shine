@@ -14,6 +14,8 @@ local TableRemoveByValue = table.RemoveByValue
 local Dropdown = {}
 
 SGUI.AddProperty( Dropdown, "MaxVisibleOptions", 16 )
+SGUI.AddProperty( Dropdown, "MenuOpenIcon" )
+SGUI.AddProperty( Dropdown, "MenuClosedIcon" )
 SGUI.AddProperty( Dropdown, "SelectedOption" )
 
 function Dropdown:Initialise()
@@ -63,6 +65,27 @@ function Dropdown:Initialise()
 			Transformer = function( Option ) return Option and Option.Text or "" end
 		} )
 		:BindProperty()
+	Binder():FromElement( self, "Menu" )
+		:ToElement( self, "Icon", {
+			Transformer = function( Menu )
+				return Menu and self.MenuOpenIcon or self.MenuClosedIcon
+			end
+		} )
+		:BindProperty()
+	Binder():FromElement( self, "MenuOpenIcon" )
+		:ToElement( self, "Icon", {
+			Filter = function()
+				return SGUI.IsValid( self.Menu )
+			end
+		} )
+		:BindProperty()
+	Binder():FromElement( self, "MenuClosedIcon" )
+		:ToElement( self, "Icon", {
+			Filter = function()
+				return not SGUI.IsValid( self.Menu )
+			end
+		} )
+		:BindProperty()
 end
 
 function Dropdown:SelectOption( Value )
@@ -92,6 +115,11 @@ end
 
 function Dropdown:RemoveOption( Option )
 	return TableRemoveByValue( self.Options, Option )
+end
+
+function Dropdown:SetOptions( Options )
+	self:Clear()
+	self:AddOptions( Options )
 end
 
 function Dropdown:Clear()

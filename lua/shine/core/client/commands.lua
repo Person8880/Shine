@@ -76,12 +76,18 @@ function Shine:RemoveClientCommand( ConCommand )
 	ClientCommands[ ConCommand ] = nil
 end
 
-function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, i )
-	Notify( StringFormat( CurArg.Error or "Incorrect argument #%s to %s, expected %s.",
-		i, ConCommand, CurArg.Type ) )
+function Shine.CommandUtil:OnFailedMatch( Client, ConCommand, ArgString, CurArg, Index )
+	local ExpectedValue = self.GetExpectedValue( CurArg )
+	Notify(
+		Shine.Locale:GetInterpolatedPhrase( "Core", "COMMAND_DEFAULT_ERROR", {
+			ArgNum = Index,
+			CommandName = ConCommand,
+			ExpectedType = ExpectedValue
+		} )
+	)
 end
 
-function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, i )
+function Shine.CommandUtil:Validate( Client, ConCommand, Result, MatchedType, CurArg, Index )
 	return true, Result
 end
 
