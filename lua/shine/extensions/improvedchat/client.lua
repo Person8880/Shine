@@ -553,11 +553,17 @@ do
 end
 
 function Plugin:ReceiveCreateChatTagDefinition( Message )
-	self.ChatTagDefinitions[ Message.Index ] = {
+	local ChatTag = {
 		Image = Message.Image ~= "" and Message.Image or nil,
 		Text = Message.Text,
 		Colour = IntToColour( Message.Colour )
 	}
+
+	if ChatTag.Image and not GetFileExists( ChatTag.Image ) then
+		ChatTag.Image = nil
+	end
+
+	self.ChatTagDefinitions[ Message.Index ] = ChatTag
 end
 
 function Plugin:ReceiveDeleteChatTagDefinition( Message )
