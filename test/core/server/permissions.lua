@@ -53,7 +53,7 @@ Shine.UserData = {
 			IsBlacklist = false,
 			InheritsFrom = { "Member" },
 			Commands = {
-				"sh_ban", "sh_slay", "sh_help"
+				"sh_ban", "sh_changelevel", "sh_help"
 			},
 			Immunity = 25
 		},
@@ -83,7 +83,7 @@ Shine.UserData = {
 			IsBlacklist = false,
 			InheritsFrom = "BadInheritsGroup",
 			Commands = {
-				"sh_slay"
+				"sh_changelevel"
 			},
 			Immunity = 7
 		}
@@ -186,7 +186,7 @@ UnitTest:Test( "GetGroupPermission", function( Assert )
 	GroupName = "InheritsStringGroup"
 	GroupTable = Shine:GetGroupData( GroupName )
 	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_kick" ) )
-	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_slay" ) )
+	Assert:Truthy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_changelevel" ) )
 	Assert:Falsy( Shine:GetGroupPermission( GroupName, GroupTable, "sh_loadplugin" ) )
 end )
 
@@ -330,7 +330,7 @@ end )
 UnitTest:Test( "Whitelist inheritance", function( Assert )
 	Assert:Truthy( Shine:GetPermission( 100, "sh_kick" ) )
 	Assert:Truthy( Shine:GetPermission( 100, "sh_ban" ) )
-	Assert:Truthy( Shine:GetPermission( 100, "sh_slay" ) )
+	Assert:Truthy( Shine:GetPermission( 100, "sh_changelevel" ) )
 end )
 
 UnitTest:Test( "CreateGroup", function( Assert )

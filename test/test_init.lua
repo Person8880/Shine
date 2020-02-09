@@ -42,6 +42,8 @@ function UnitTest:LoadExtension( Name )
 	if not Plugin then
 		Shine:LoadExtension( Name )
 		Plugin = Shine.Plugins[ Name ]
+	elseif not Plugin.Enabled then
+		Shine:EnableExtension( Name )
 	end
 
 	return Plugin
