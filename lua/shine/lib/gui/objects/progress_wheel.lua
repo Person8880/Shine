@@ -23,33 +23,27 @@ function ProgressWheel:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Background = self:MakeGUIItem()
-	self.Background:ClearOptionFlag( GUIItem.CorrectRotationOffset )
-	self.Background:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
 	self.Background:SetColor( Colour( 1, 1, 1, 1 ) )
 	self.Background:SetClearsStencilBuffer( true )
 
 	self.LeftMask = self:MakeGUIItem()
-	self.LeftMask:ClearOptionFlag( GUIItem.CorrectRotationOffset )
-	self.LeftMask:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.LeftMask:SetIsStencil( true )
-	self.LeftMask:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	self.LeftMask:SetAnchor( 0.5, 0.5 )
+	self.LeftMask:SetRotationOffsetNormalized( Vector2( 0, 0.5 ) )
 
 	self.LeftHalf = self:MakeGUIItem()
-	self.LeftHalf:ClearOptionFlag( GUIItem.CorrectRotationOffset )
-	self.LeftHalf:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.LeftHalf:SetStencilFunc( GUIItem.Equal )
+	self.LeftHalf:SetRotationOffsetNormalized( Vector2( 1, 0.5 ) )
 
 	self.RightMask = self:MakeGUIItem()
-	self.RightMask:ClearOptionFlag( GUIItem.CorrectRotationOffset )
-	self.RightMask:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.RightMask:SetIsStencil( true )
-	self.RightMask:SetAnchor( GUIItem.Middle, GUIItem.Center )
+	self.RightMask:SetAnchor( 0.5, 0.5 )
+	self.RightMask:SetRotationOffsetNormalized( Vector2( 1, 0.5 ) )
 
 	self.RightHalf = self:MakeGUIItem()
-	self.RightHalf:ClearOptionFlag( GUIItem.CorrectRotationOffset )
-	self.RightHalf:ClearOptionFlag( GUIItem.CorrectScaling )
 	self.RightHalf:SetStencilFunc( GUIItem.Equal )
+	self.RightHalf:SetRotationOffsetNormalized( Vector2( 0, 0.5 ) )
 
 	self.Background:AddChild( self.LeftMask )
 	self.Background:AddChild( self.LeftHalf )
@@ -108,21 +102,14 @@ function ProgressWheel:SetSize( Size )
 
 	local HalfSize = Vector2( Size.x * 0.5, Size.y )
 	self.LeftHalf:SetSize( HalfSize )
-	self.LeftHalf:SetRotationOffset( Vector2( Size.x * 0.5, 0 ) )
-
 	self.RightHalf:SetSize( HalfSize )
 	self.RightHalf:SetPosition( Vector2( Size.x * 0.5, 0 ) )
-	self.RightHalf:SetRotationOffset( Vector2( -Size.x * 0.5, 0 ) )
 
 	local MaskSize = Vector2( Size.x, Size.y * 2 )
 	self.LeftMask:SetSize( MaskSize )
 	self.RightMask:SetSize( MaskSize )
-
 	self.LeftMask:SetPosition( Vector2( 0, -Size.y ) )
-	self.LeftMask:SetRotationOffset( Vector2( -Size.x, 0 ) )
-
 	self.RightMask:SetPosition( Vector2( -Size.x, -Size.y ) )
-	self.RightMask:SetRotationOffset( Vector2( Size.x, 0 ) )
 end
 
 local FractionEaser = {
@@ -184,7 +171,6 @@ local function UpdateAngles( self )
 
 	self.LeftHalf:SetAngle( self.Angle + self.AngleOffset )
 	self.RightHalf:SetAngle( self.Angle + self.AngleOffset )
-	self.Background:SetAngle( self.Angle + self.AngleOffset )
 end
 
 function ProgressWheel:SetAngle( Angle )
