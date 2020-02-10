@@ -791,7 +791,7 @@ end
 function Plugin:AddRichTextMessage( MessageData )
 	if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
 		local Player = Client.GetLocalPlayer()
-		if Player and not MessageData.SuppressSound then
+		if Player and not MessageData.SuppressSound and Player.GetChatSound then
 			StartSoundEffect( Player:GetChatSound() )
 		end
 
