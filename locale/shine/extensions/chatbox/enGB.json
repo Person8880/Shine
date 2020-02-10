@@ -14,5 +14,6 @@
 	"FONT_SIZE_MODE": "Font size:",
 	"FONT_SIZE_MODE_AUTO": "Automatic",
 	"FONT_SIZE_MODE_FIXED": "Fixed size",
+	"OPEN_CHAT_SETTINGS": "Open Chat Settings",
 	"SETTINGS_TOOLTIP": "Opens/closes the chatbox settings."
 }
