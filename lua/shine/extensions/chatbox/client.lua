@@ -1279,6 +1279,8 @@ do
 		local Text = self.TextEntry:GetText()
 		if not self:ShouldAutoComplete( Text ) then return end
 
+		self.AutoCompleteLetter = StringSub( Text, 1, 1 )
+
 		local ChatCommand, Arguments = GetCommandAndArguments( Text )
 		local ResultsAreForCorrectArgument = Results.Command == ChatCommand and Arguments
 			and Results.ParameterIndex == #Arguments
