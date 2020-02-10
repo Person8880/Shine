@@ -845,6 +845,9 @@ do
 			end
 		end
 
+		local function IsValidClient( Client )
+			return Shine:IsValidClient( Client )
+		end
 		local function GetControllingPlayer( Client )
 			return Client:GetControllingPlayer()
 		end
@@ -859,6 +862,7 @@ do
 		local PlayerGroups = Shine.Stream.Of( self.FriendGroups ):Map( function( Group )
 			return {
 				Players = Shine.Stream.Of( Group.Clients )
+					:Filter( IsValidClient )
 					:Map( GetControllingPlayer )
 					:Filter( IsBeingShuffled )
 					:AsTable()

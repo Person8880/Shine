@@ -158,6 +158,11 @@ local Skin = {
 					InactiveCol = Colours.Highlight
 				}
 			}
+		},
+		SettingsButton = {
+			ActiveCol = SGUI.ColourWithAlpha( Colours.Highlight, 1 ),
+			InactiveCol = SGUI.ColourWithAlpha( Colours.Dark, 1 ),
+			TextColour = Colours.ModeText,
 		}
 	},
 	Dropdown = {
@@ -238,7 +243,7 @@ end
 
 -- UWE's vector type has no Hadamard product defined.
 local function VectorMultiply( Vec1, Vec2 )
-	return Vector2( Vec1.x * Vec2.x, Vec1.y * Vec2.y )
+	return Vector2( Ceil( Vec1.x * Vec2.x ), Ceil( Vec1.y * Vec2.y ) )
 end
 
 function Plugin:GetFont()
@@ -554,7 +559,8 @@ function Plugin:CreateChatbox()
 		Font = SGUI.Fonts.Ionicons,
 		AutoSize = UnitVector( Scaled( SettingsButtonSize, ScalarScale ),
 			Scaled( SettingsButtonSize, ScalarScale ) ),
-		Margin = Spacing( PaddingUnit, 0, 0, 0 )
+		Margin = Spacing( PaddingUnit, 0, 0, 0 ),
+		TextInheritsParentAlpha = false
 	}
 	SettingsButton:SetTextScale( SGUI.LinearScaleByScreenHeight( Vector2( 1, 1 ) * self.Config.Scale ) )
 
@@ -634,15 +640,12 @@ do
 
 	local ElementCreators = {
 		CheckBox = {
-			Create = function( self, SettingsPanel, Layout, IsLastElement, Size, Checked, Label )
+			Create = function( self, SettingsPanel, Layout, Size, Checked, Label )
 				local CheckBox = SettingsPanel:Add( "CheckBox" )
 				CheckBox:SetupFromTable{
 					AutoSize = Size,
 					Font = self:GetFont()
 				}
-				if not IsLastElement then
-					CheckBox:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
-				end
 				CheckBox:AddLabel( self:GetPhrase( Label ) )
 				CheckBox:SetChecked( Checked, true )
 
@@ -669,15 +672,12 @@ do
 			end
 		},
 		Label = {
-			Create = function( self, SettingsPanel, Layout, IsLastElement, Text )
+			Create = function( self, SettingsPanel, Layout, Text )
 				local Label = SettingsPanel:Add( "Label" )
 				Label:SetupFromTable{
 					Font = self:GetFont(),
 					Text = self:GetPhrase( Text )
 				}
-				if not IsLastElement then
-					Label:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
-				end
 
 				if self.TextScale ~= 1 then
 					Label:SetTextScale( self.TextScale )
@@ -689,7 +689,7 @@ do
 			end
 		},
 		Slider = {
-			Create = function( self, SettingsPanel, Layout, IsLastElement, Size, Value )
+			Create = function( self, SettingsPanel, Layout, Size, Value )
 				local Slider = SettingsPanel:Add( "Slider" )
 				Slider:SetupFromTable{
 					AutoSize = Size,
@@ -698,9 +698,6 @@ do
 					Padding = SliderTextPadding * self.ScalarScale,
 					HandleWidth = 10 * self.ScalarScale
 				}
-				if not IsLastElement then
-					Slider:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
-				end
 
 				if self.TextScale ~= 1 then
 					Slider:SetTextScale( self.TextScale )
@@ -735,7 +732,7 @@ do
 			end
 		},
 		Dropdown = {
-			Create = function( self, SettingsPanel, Layout, IsLastElement, Size, Options, SelectedOption )
+			Create = function( self, SettingsPanel, Layout, Size, Options, SelectedOption )
 				local Dropdown = SettingsPanel:Add( "Dropdown" )
 				Dropdown:SetupFromTable{
 					AutoSize = Size,
@@ -743,9 +740,6 @@ do
 					Font = self:GetFont()
 				}
 				Dropdown:SetSelectedOption( SelectedOption )
-				if not IsLastElement then
-					Dropdown:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
-				end
 
 				if self.TextScale ~= 1 then
 					Dropdown:SetTextScale( self.TextScale )
@@ -766,6 +760,38 @@ do
 					end )
 				end
 			end
+		},
+		Button = {
+			Create = function( self, SettingsPanel, Layout, Size, Text, IsVisible )
+				local Button = SettingsPanel:Add( "Button" )
+				Button:SetupFromTable{
+					AutoSize = Size,
+					Font = self:GetFont(),
+					Text = self:GetPhrase( Text ),
+					IsVisible = IsVisible,
+					TextInheritsParentAlpha = false,
+					StyleName = "SettingsButton"
+				}
+
+				if self.TextScale ~= 1 then
+					Button:SetTextScale( self.TextScale )
+				end
+
+				Layout:AddElement( Button )
+
+				return Button
+			end,
+			Setup = function( self, Object, Data )
+				Object.DoClick = Data.DoClick
+
+				if Data.Icon then
+					Object:SetIcon( Data.Icon )
+					Object:SetIconAutoFont( {
+						Family = SGUI.FontFamilies.Ionicons,
+						Size = Scaled( 32, self.UIScale.y )
+					} )
+				end
+			end
 		}
 	}
 
@@ -782,8 +808,15 @@ do
 
 	local function GetDropdownSize( self )
 		return UnitVector(
-			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 3, self.UIScale.x ),
+			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
 			Scaled( 28, self.UIScale.y )
+		)
+	end
+
+	local function GetButtonSize( self )
+		return UnitVector(
+			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
+			Scaled( 32, self.UIScale.y )
 		)
 	end
 
@@ -945,6 +978,18 @@ do
 					}
 				}
 			}
+		},
+		{
+			ID = "OpenChatSettingsButton",
+			Type = "Button",
+			Values = function( self )
+				return GetButtonSize( self ), "OPEN_CHAT_SETTINGS", Shine:IsExtensionEnabled( "improvedchat" )
+			end,
+			DoClick = function()
+				Shine.ConfigMenu:OpenOnSettingsTab( Shine.Locale:GetPhrase( "improvedchat", "CLIENT_CONFIG_TAB" ) )
+			end,
+			Icon = SGUI.Icons.Ionicons.GearA,
+			MarginTop = 4
 		}
 	}
 
@@ -954,7 +999,7 @@ do
 			Scaled( SETTINGS_PADDING_AMOUNT, UIScale.x ),
 			PaddingAmountY,
 			-- Right hand side needs double padding to mirror the padding correctly.
-			Scaled( SETTINGS_PADDING_AMOUNT * 2, UIScale.x ),
+			Scaled( SETTINGS_PADDING_AMOUNT * 4, UIScale.x ),
 			PaddingAmountY
 		)
 
@@ -968,10 +1013,9 @@ do
 			Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 			Scrollable = true,
 			ScrollbarHeightOffset = 0,
-			ScrollbarWidth = 8 * UIScale.x,
-			ScrollbarPos = Vector2( -8 * UIScale.x, 0 ),
+			ScrollbarWidth = SETTINGS_PADDING_AMOUNT * 2 * UIScale.x,
+			ScrollbarPos = Vector2( -SETTINGS_PADDING_AMOUNT * 2 * UIScale.x, 0 ),
 			HorizontalScrollingEnabled = false,
-			AutoHideScrollbar = true,
 			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
 			Skin = Skin,
 			StylingState = self.MainPanel:GetStylingState()
@@ -980,21 +1024,36 @@ do
 		self.SettingsPanel = SettingsPanel
 
 		local ElementsByID = {}
+		local CreatedElements = {}
+
 		for i = 1, #Elements do
 			local Data = Elements[ i ]
 			local Values = IsType( Data.Values, "table" ) and Data.Values or { Data.Values( self ) }
 
+			local PreviousElement = CreatedElements[ i - 1 ]
+			if PreviousElement then
+				PreviousElement:SetMargin( Spacing( 0, 0, 0, Scaled( 4, self.UIScale.y ) ) )
+			end
+
 			local Creator = ElementCreators[ Data.Type ]
 
-			local Object = Creator.Create( self, SettingsPanel, Layout, i == #Elements, unpack( Values ) )
+			local Object = Creator.Create( self, SettingsPanel, Layout, unpack( Values ) )
+			CreatedElements[ i ] = Object
+
 			if Creator.Setup then
 				Creator.Setup( self, Object, Data, unpack( Values ) )
+			end
+
+			if Data.MarginTop then
+				Object:SetMargin( Spacing( 0, Scaled( Data.MarginTop, self.UIScale.y ), 0, 0 ) )
 			end
 
 			if Data.ID then
 				ElementsByID[ Data.ID ] = Object
 			end
 		end
+
+		self.SettingsElements = ElementsByID
 
 		for i = 1, #Elements do
 			local Data = Elements[ i ]
@@ -1013,6 +1072,26 @@ do
 		end
 
 		SettingsPanel:SetLayout( Layout )
+	end
+
+	local function SetElementVisibility( self, ElementName, IsVisible )
+		if not self.SettingsElements or not SGUI.IsValid( self.SettingsElements[ ElementName ] ) then
+			return
+		end
+
+		self.SettingsElements[ ElementName ]:SetIsVisible( IsVisible )
+	end
+
+	function Plugin:OnPluginLoad( Name, Plugin, IsShared )
+		if Name ~= "improvedchat" then return end
+
+		SetElementVisibility( self, "OpenChatSettingsButton", true )
+	end
+
+	function Plugin:OnPluginUnload( Name, Plugin, IsShared )
+		if Name ~= "improvedchat" then return end
+
+		SetElementVisibility( self, "OpenChatSettingsButton", false )
 	end
 end
 
@@ -1053,8 +1132,18 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 			SettingsPanel:SetIsVisible( false )
 		end
 
+		SettingsPanel:SetAutoHideScrollbar( false )
+		if SGUI.IsValid( SettingsPanel.Scrollbar ) then
+			SettingsPanel.Scrollbar:SetIsVisible( true )
+		end
+
 		SettingsButton.Expanding = false
 	end )
+	SettingsPanel:SetAutoHideScrollbar( true )
+
+	if SGUI.IsValid( SettingsPanel.Scrollbar ) then
+		SettingsPanel.Scrollbar:SetIsVisible( false )
+	end
 
 	return true
 end
@@ -1278,6 +1367,8 @@ do
 
 		local Text = self.TextEntry:GetText()
 		if not self:ShouldAutoComplete( Text ) then return end
+
+		self.AutoCompleteLetter = StringSub( Text, 1, 1 )
 
 		local ChatCommand, Arguments = GetCommandAndArguments( Text )
 		local ResultsAreForCorrectArgument = Results.Command == ChatCommand and Arguments

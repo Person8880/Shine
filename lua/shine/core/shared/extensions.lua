@@ -534,7 +534,7 @@ do
 			end
 		end
 
-		Hook.Call( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
+		Hook.Broadcast( "OnPluginLoad", Name, Plugin, Plugin.IsShared )
 
 		return true
 	end
@@ -571,7 +571,7 @@ do
 			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
 		end
 
-		Hook.Call( "OnPluginUnload", Name, Plugin, Plugin.IsShared )
+		Hook.Broadcast( "OnPluginUnload", Name, Plugin, Plugin.IsShared )
 
 		return true
 	end
@@ -642,6 +642,14 @@ do
 	]]
 	function Shine:CallExtensionEvent( Event, OnError, ... )
 		return Dispatcher:DispatchEvent( Event, OnError, Event, ... )
+	end
+
+	--[[
+		Broadcasts an event to all active extensions.
+		Called by the hook system, should not be called directly.
+	]]
+	function Shine:BroadcastExtensionEvent( Event, OnError, ... )
+		return Dispatcher:BroadcastEvent( Event, OnError, Event, ... )
 	end
 end
 

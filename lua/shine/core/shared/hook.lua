@@ -40,6 +40,9 @@ local Hooks = setmetatable( {}, {
 			Callback = function( ... )
 				return Shine:CallExtensionEvent( Event, OnError, ... )
 			end,
+			BroadcastCallback = function( ... )
+				return Shine:BroadcastExtensionEvent( Event, OnError, ... )
+			end,
 			Index = ExtensionIndex
 		} )
 
@@ -130,7 +133,8 @@ local function Add( Event, Index, Function, Priority )
 	local Node = Callbacks:InsertByComparing( {
 		Priority = Priority,
 		Index = Index,
-		Callback = Function
+		Callback = Function,
+		BroadcastCallback = Function
 	}, NodeComparator )
 
 	-- Remember this node for later removal.
@@ -142,6 +146,10 @@ Hook.Add = Add
 -- Placeholder until the extensions file is loaded.
 if not Shine.CallExtensionEvent then
 	Shine.CallExtensionEvent = function() end
+end
+
+if not Shine.BroadcastExtensionEvent then
+	Shine.BroadcastExtensionEvent = function() end
 end
 
 --[[
@@ -171,6 +179,33 @@ end
 Hook.Call = Call
 
 --[[
+	Broadcasts an internal Shine hook, ignoring return values from callbacks.
+
+	This always calls every added callback.
+
+	Inputs: Event name, arguments to pass.
+]]
+local function Broadcast( Event, ... )
+	local Callbacks = Hooks[ Event ]
+
+	for Node in Callbacks:IterateNodes() do
+		local Entry = Node.Value
+		local Success = xpcall( Entry.BroadcastCallback, OnError, ... )
+		if not Success then
+			-- If the error came from calling extension events, don't remove the hook
+			-- (though it should never happen).
+			if Entry.Index ~= ExtensionIndex then
+				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
+					true, Event, Entry.Index )
+
+				Remove( Event, Entry.Index )
+			end
+		end
+	end
+end
+Hook.Broadcast = Broadcast
+
+--[[
 	Clears all hooks for the given event.
 	This is called by CallOnce once it has invoked all hooks.
 ]]
@@ -192,6 +227,12 @@ local function CallOnce( Event, ... )
 	return a, b, c, d, e, f
 end
 Hook.CallOnce = CallOnce
+
+local function BroadcastOnce( Event, ... )
+	Broadcast( Event, ... )
+	ClearHooks( Event )
+end
+Hook.BroadcastOnce = BroadcastOnce
 
 function Hook.GetTable()
 	return HooksByEventAndIndex
@@ -272,7 +313,7 @@ local HookModes = {
 	end,
 	PassivePre = function( Adder, HookName, ... )
 		return Adder( function( OldFunc, ... )
-			Call( HookName, ... )
+			Broadcast( HookName, ... )
 
 			return OldFunc( ... )
 		end, ... )
@@ -281,7 +322,7 @@ local HookModes = {
 		return Adder( function( OldFunc, ... )
 			local a, b, c, d, e, f = OldFunc( ... )
 
-			Call( HookName, ... )
+			Broadcast( HookName, ... )
 
 			return a, b, c, d, e, f
 		end, ... )
@@ -471,7 +512,7 @@ do
 		Event hooks.
 	]]
 	local function Think( DeltaTime )
-		Call( "Think", DeltaTime )
+		Broadcast( "Think", DeltaTime )
 	end
 	Event.Hook( Server and "UpdateServer" or "UpdateClient", Think )
 end
@@ -507,13 +548,13 @@ do
 			-- Call only once per script to avoid extra overhead.
 			SeenScripts[ Script ] = true
 
-			Call( "PreLoadScript", Script, Reload )
-			Call( "PreLoadScript:"..Script, Reload )
+			Broadcast( "PreLoadScript", Script, Reload )
+			Broadcast( "PreLoadScript:"..Script, Reload )
 
 			local Ret = OldScriptLoad( Script, Reload )
 
-			Call( "PostLoadScript", Script, Reload )
-			Call( "PostLoadScript:"..Script, Reload )
+			Broadcast( "PostLoadScript", Script, Reload )
+			Broadcast( "PostLoadScript:"..Script, Reload )
 
 			return Ret
 		end
@@ -523,12 +564,12 @@ do
 	Script.Load = ScriptLoad
 
 	local function MapPreLoad()
-		CallOnce "MapPreLoad"
+		BroadcastOnce "MapPreLoad"
 	end
 	Event.Hook( "MapPreLoad", MapPreLoad )
 
 	local function MapPostLoad()
-		CallOnce "MapPostLoad"
+		BroadcastOnce "MapPostLoad"
 	end
 	Event.Hook( "MapPostLoad", MapPostLoad )
 end
@@ -573,12 +614,12 @@ end )
 -- Client specific hooks.
 if Client then
 	local function LoadComplete()
-		CallOnce "OnMapLoad"
+		BroadcastOnce "OnMapLoad"
 	end
 	Event.Hook( "LoadComplete", LoadComplete )
 
 	local function OnClientDisconnected( Reason )
-		Call( "ClientDisconnected", Reason )
+		Broadcast( "ClientDisconnected", Reason )
 	end
 	Event.Hook( "ClientDisconnected", OnClientDisconnected )
 
@@ -626,11 +667,11 @@ if Client then
 		local OldResChange = GUIManager.OnResolutionChanged
 
 		function GUIManager:OnResolutionChanged( OldX, OldY, NewX, NewY )
-			Call( "PreOnResolutionChanged", OldX, OldY, NewX, NewY )
+			Broadcast( "PreOnResolutionChanged", OldX, OldY, NewX, NewY )
 
 			OldResChange( self, OldX, OldY, NewX, NewY )
 
-			Call( "OnResolutionChanged", OldX, OldY, NewX, NewY )
+			Broadcast( "OnResolutionChanged", OldX, OldY, NewX, NewY )
 		end
 
 		SetupGlobalHook( "ChatUI_EnterChatMessage", "StartChat", "ActivePre" )
@@ -644,7 +685,7 @@ if Client then
 
 			-- Call after the mouse has been disabled for the commander to allow SGUI elements
 			-- to properly close themselves and avoid getting stuck on screen.
-			Call( "OnCommanderLogout", Commander )
+			Broadcast( "OnCommanderLogout", Commander )
 		end )
 		SetupClassHook( "Commander", "OnInitLocalClient", "OnCommanderLogin", "PassivePre" )
 
@@ -674,12 +715,12 @@ if Client then
 	Event.Hook( "LocalPlayerChanged", function()
 		local Player = Client.GetLocalPlayer()
 		if Player then
-			Call( "OnLocalPlayerChanged", Player )
+			Broadcast( "OnLocalPlayerChanged", Player )
 		end
 	end )
 
 	Add( "Think", "ClientOnFirstThink", function()
-		CallOnce( "OnFirstThink" )
+		BroadcastOnce( "OnFirstThink" )
 		Remove( "Think", "ClientOnFirstThink" )
 	end )
 
@@ -689,12 +730,12 @@ end
 -- Need to ensure connection events fire after Gamerules sees them, otherwise no player is assigned to the client.
 local function HookConnectionEvents()
 	local function ClientConnect( Client )
-		Call( "ClientConnect", Client )
+		Broadcast( "ClientConnect", Client )
 	end
 	Event.Hook( "ClientConnect", ClientConnect )
 
 	local function ClientDisconnect( Client )
-		Call( "ClientDisconnect", Client )
+		Broadcast( "ClientDisconnect", Client )
 	end
 	Event.Hook( "ClientDisconnect", ClientDisconnect )
 end
@@ -702,7 +743,7 @@ Add( "MapPostLoad", HookConnectionEvents, HookConnectionEvents, MAX_PRIORITY )
 
 do
 	local function MapLoadEntity( MapName, GroupName, Values )
-		Call( "MapLoadEntity", MapName, GroupName, Values )
+		Broadcast( "MapLoadEntity", MapName, GroupName, Values )
 	end
 	Event.Hook( "MapLoadEntity", MapLoadEntity )
 end
@@ -773,7 +814,7 @@ Add( "Think", "ReplaceMethods", function()
 
 		OldFunc( self, NewName )
 
-		Call( "PlayerNameChange", self, NewName, OldName )
+		Broadcast( "PlayerNameChange", self, NewName, OldName )
 	end )
 
 	SetupClassHook( "Spectator", "OnProcessMove", "OnProcessMove", "PassivePre", { OverrideWithoutWarning = true } )
@@ -792,7 +833,7 @@ Add( "Think", "ReplaceMethods", function()
 		local function CallIfResearchIDMatches( HookName, TechID )
 			return function( OldFunc, Building, ResearchID, ... )
 				if ResearchID == TechID then
-					Call( HookName, Building, ResearchID, ... )
+					Broadcast( HookName, Building, ResearchID, ... )
 				end
 				return OldFunc( Building, ResearchID, ... )
 			end
@@ -848,7 +889,7 @@ Add( "Think", "ReplaceMethods", function()
 
 		OldFunc( self, State )
 
-		Call( "SetGameState", self, State, CurState )
+		Broadcast( "SetGameState", self, State, CurState )
 	end )
 	SetupClassHook( Gamerules, "ResetGame", "ResetGame", "PassivePost" )
 	SetupClassHook( Gamerules, "GetCanPlayerHearPlayer", "CanPlayerHearPlayer", "ActivePre" )
@@ -868,7 +909,7 @@ Add( "Think", "ReplaceMethods", function()
 		local Bool, NewPlayer = OldFunc( self, Player, NewTeam, Force )
 
 		if Bool then
-			Call( "PostJoinTeam", self, NewPlayer, OldTeam, NewTeam, Force, ShineForce )
+			Broadcast( "PostJoinTeam", self, NewPlayer, OldTeam, NewTeam, Force, ShineForce )
 		end
 
 		return Bool, NewPlayer or Player
@@ -884,7 +925,7 @@ Add( "Think", "ReplaceMethods", function()
 	end
 
 	function MapCycle_ChangeMap( MapName )
-		Call( "MapChange" )
+		Broadcast( "MapChange" )
 
 		return OldChangeMap( MapName )
 	end
@@ -894,7 +935,7 @@ Add( "Think", "ReplaceMethods", function()
 
 		if Result ~= nil then return end
 
-		Call( "MapChange" )
+		Broadcast( "MapChange" )
 
 		return OldCycleMap( CurrentMap )
 	end
@@ -925,12 +966,12 @@ Add( "Think", "ReplaceMethods", function()
 
 			-- StartVote doesn't return anything to indicate it started, so this check is required...
 			if GetStartVoteAllowed( VoteName, Client, Data ) == kVoteCannotStartReason.VoteAllowedToStart then
-				Call( "OnNS2VoteStarting", VoteName, Client, Data )
+				Broadcast( "OnNS2VoteStarting", VoteName, Client, Data )
 			end
 
 			return OldStartVote( VoteName, Client, Data )
 		end
 	end
 
-	CallOnce( "OnFirstThink" )
+	BroadcastOnce( "OnFirstThink" )
 end )

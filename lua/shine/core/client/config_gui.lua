@@ -13,6 +13,8 @@ local StringFormat = string.format
 local ConfigMenu = {}
 SGUI:AddMixin( ConfigMenu, "Visibility" )
 
+Shine.ConfigMenu = ConfigMenu
+
 ConfigMenu.Tabs = {}
 
 local Units = SGUI.Layout.Units
@@ -184,6 +186,25 @@ function ConfigMenu:RefreshSettings()
 		self.Menu:ForceTabRefresh( 1 )
 	end )
 	self.RefreshTimer:Debounce()
+end
+
+function ConfigMenu:OpenOnSettingsTab( TabName )
+	self:SetIsVisible( true )
+
+	if not SGUI.IsValid( self.Menu ) then return end
+
+	self.Menu:SetSelectedTab( self.Menu.Tabs[ 1 ] )
+
+	if not SGUI.IsValid( self.SettingsTabs ) then return end
+
+	local Tabs = self.SettingsTabs.Tabs
+	for i = 1, #Tabs do
+		local Tab = Tabs[ i ]
+		if Tab.TabButton:GetText() == TabName then
+			self.SettingsTabs:SetSelectedTab( Tab )
+			break
+		end
+	end
 end
 
 local function GetConfiguredValue( Entry )
@@ -375,6 +396,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 		Tabs:SetHorizontal( true )
 
 		Panel.SettingsTabs = Tabs
+		ConfigMenu.SettingsTabs = Tabs
 
 		for i = 1, #Settings do
 			local Setting = Settings[ i ]
@@ -552,6 +574,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 
 		local Tabs = Panel.SettingsTabs
 		Panel.SettingsTabs = nil
+		ConfigMenu.SettingsTabs = nil
 
 		if SGUI.IsValid( Tabs ) then
 			return {
