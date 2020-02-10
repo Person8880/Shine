@@ -971,7 +971,6 @@ do
 			ScrollbarWidth = 8 * UIScale.x,
 			ScrollbarPos = Vector2( -8 * UIScale.x, 0 ),
 			HorizontalScrollingEnabled = false,
-			AutoHideScrollbar = true,
 			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
 			Skin = Skin,
 			StylingState = self.MainPanel:GetStylingState()
@@ -1053,8 +1052,18 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 			SettingsPanel:SetIsVisible( false )
 		end
 
+		SettingsPanel:SetAutoHideScrollbar( false )
+		if SGUI.IsValid( SettingsPanel.Scrollbar ) then
+			SettingsPanel.Scrollbar:SetIsVisible( true )
+		end
+
 		SettingsButton.Expanding = false
 	end )
+	SettingsPanel:SetAutoHideScrollbar( true )
+
+	if SGUI.IsValid( SettingsPanel.Scrollbar ) then
+		SettingsPanel.Scrollbar:SetIsVisible( false )
+	end
 
 	return true
 end
