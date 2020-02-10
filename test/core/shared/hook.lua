@@ -5,7 +5,7 @@
 local UnitTest = Shine.UnitTest
 local Hook = Shine.Hook
 
-UnitTest:Test( "Hook integration test", function( Assert )
+local function TestHooks( Assert, MethodName )
 	local Called = {}
 	Hook.Add( "Test", "Normal1", function()
 		Called[ #Called + 1 ] = "Normal1"
@@ -30,9 +30,9 @@ UnitTest:Test( "Hook integration test", function( Assert )
 	end, Hook.DEFAULT_PRIORITY + 5 )
 
 	local function AssertCallOrder( Expected )
-		Hook.Call( "Test" )
+		Hook[ MethodName ]( "Test" )
 
-		Assert.ArrayEquals( "Unexpected hook calls", Expected, Called )
+		Assert.ArrayEquals( "Unexpected hook calls after Hook."..MethodName, Expected, Called )
 
 		Called = {}
 	end
@@ -65,6 +65,28 @@ UnitTest:Test( "Hook integration test", function( Assert )
 
 	-- Nothing should be called after clearing.
 	AssertCallOrder{}
+end
+
+UnitTest:Test( "Hook integration test", function( Assert )
+	TestHooks( Assert, "Call" )
+	TestHooks( Assert, "Broadcast" )
+end )
+
+Hook.Clear( "Test" )
+
+UnitTest:Test( "Broadcast - Ignores return values", function( Assert )
+	local Called = {}
+	Hook.Add( "Test", "ReturnsValue", function()
+		Called[ #Called + 1 ] = "ReturnsValue"
+		return true
+	end, Hook.MAX_PRIORITY )
+	Hook.Add( "Test", "DoesNotReturnValue", function()
+		Called[ #Called + 1 ] = "DoesNotReturnValue"
+	end )
+
+	Hook.Broadcast( "Test" )
+
+	Assert.ArrayEquals( "Should have called both listeners", { "ReturnsValue", "DoesNotReturnValue" }, Called )
 end )
 
 Hook.Clear( "Test" )
