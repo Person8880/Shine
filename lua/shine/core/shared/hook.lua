@@ -40,6 +40,9 @@ local Hooks = setmetatable( {}, {
 			Callback = function( ... )
 				return Shine:CallExtensionEvent( Event, OnError, ... )
 			end,
+			BroadcastCallback = function( ... )
+				return Shine:BroadcastExtensionEvent( Event, OnError, ... )
+			end,
 			Index = ExtensionIndex
 		} )
 
@@ -130,7 +133,8 @@ local function Add( Event, Index, Function, Priority )
 	local Node = Callbacks:InsertByComparing( {
 		Priority = Priority,
 		Index = Index,
-		Callback = Function
+		Callback = Function,
+		BroadcastCallback = Function
 	}, NodeComparator )
 
 	-- Remember this node for later removal.
@@ -142,6 +146,10 @@ Hook.Add = Add
 -- Placeholder until the extensions file is loaded.
 if not Shine.CallExtensionEvent then
 	Shine.CallExtensionEvent = function() end
+end
+
+if not Shine.BroadcastExtensionEvent then
+	Shine.BroadcastExtensionEvent = function() end
 end
 
 --[[
@@ -182,7 +190,7 @@ local function Broadcast( Event, ... )
 
 	for Node in Callbacks:IterateNodes() do
 		local Entry = Node.Value
-		local Success = xpcall( Entry.Callback, OnError, ... )
+		local Success = xpcall( Entry.BroadcastCallback, OnError, ... )
 		if not Success then
 			-- If the error came from calling extension events, don't remove the hook
 			-- (though it should never happen).

@@ -643,6 +643,14 @@ do
 	function Shine:CallExtensionEvent( Event, OnError, ... )
 		return Dispatcher:DispatchEvent( Event, OnError, Event, ... )
 	end
+
+	--[[
+		Broadcasts an event to all active extensions.
+		Called by the hook system, should not be called directly.
+	]]
+	function Shine:BroadcastExtensionEvent( Event, OnError, ... )
+		return Dispatcher:BroadcastEvent( Event, OnError, Event, ... )
+	end
 end
 
 local PluginFileMapping = {}
