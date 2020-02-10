@@ -621,6 +621,10 @@ function Plugin:SetupGUIChat( ChatElement )
 		self:UpdateChatOffset( Player )
 	end
 
+	if ChatElement.visible ~= nil then
+		ChatElement.Panel:SetIsVisible( not not ChatElement.visible )
+	end
+
 	local Messages = ChatElement.messages
 	if not IsType( Messages, "table" ) then return end
 
