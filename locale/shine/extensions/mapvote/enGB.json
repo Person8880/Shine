@@ -78,6 +78,7 @@
 	"CLIENT_CONFIG_TAB": "Map Vote",
 	"MAP_VOTE_MENU_TITLE": "Map Vote",
 	"MAP_VOTE_MENU_CURRENT_MAP": "Current map: {MapName}",
+	"MAP_VOTE_MENU_EXTEND_MAP": "Extend - {MapName}",
 	"MAP_VOTE_MENU_USE_VOTE_MENU_BUTTON": "Use Vote Menu",
 	"MAP_VOTE_MENU_DISABLE_PREVIEWS": "Hide Mod Previews",
 	"MAP_VOTE_MENU_ENABLE_PREVIEWS": "Show Mod Previews",

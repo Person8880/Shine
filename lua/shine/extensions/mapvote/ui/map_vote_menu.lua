@@ -544,7 +544,17 @@ function MapVoteMenu:SetMaps( Maps )
 		local Tile = SGUI:CreateFromDefinition( MapTile, self.Elements.MapTileGrid )
 		Tile:SetSkin( Skin )
 		Tile:SetMap( Entry.ModID, Entry.MapName )
-		Tile:SetText( Entry.NiceName )
+
+		if Entry.MapName == Shared.GetMapName() then
+			Tile:SetText(
+				Locale:GetInterpolatedPhrase( "mapvote", "MAP_VOTE_MENU_EXTEND_MAP", {
+					MapName = Entry.NiceName
+				} )
+			)
+		else
+			Tile:SetText( Entry.NiceName )
+		end
+
 		Tile:SetSelected( Entry.IsSelected )
 		Tile:SetNumVotes( Entry.NumVotes )
 		Tile:SetInheritsParentAlpha( true )
