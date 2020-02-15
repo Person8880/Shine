@@ -27,7 +27,9 @@ do
 			NeutralColour
 		},
 		LightBlue = Colour( 0, 1, 1 ),
-		LightRed = Colour( 1, 0.3, 0.3 )
+		LightRed = Colour( 1, 0.3, 0.3 ),
+		Green = Colour( 0, 1, 0 ),
+		Yellow = Colour( 1, 1, 0 )
 	}
 end
 

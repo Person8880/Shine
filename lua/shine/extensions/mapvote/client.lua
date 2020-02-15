@@ -84,6 +84,28 @@ do
 	RichTextMessageOptions[ "RTV_VOTED" ] = VoteMessageOptions
 	RichTextMessageOptions[ "VETO" ] = VoteMessageOptions
 
+	local WinningMapOptions = {
+		Colours = {
+			MapName = RichTextFormat.Colours.Green
+		}
+	}
+	RichTextMessageOptions[ "WINNER_VOTES" ] = WinningMapOptions
+	RichTextMessageOptions[ "WINNER_NEXT_MAP" ] = WinningMapOptions
+	RichTextMessageOptions[ "WINNER_CYCLING" ] = WinningMapOptions
+	RichTextMessageOptions[ "CHOOSING_RANDOM_MAP" ] = WinningMapOptions
+	RichTextMessageOptions[ "MAP_CYCLING" ] = WinningMapOptions
+	RichTextMessageOptions[ "EXTENDING_TIME" ] = {
+		Colours = {
+			Duration = RichTextFormat.Colours.Green
+		}
+	}
+
+	RichTextMessageOptions[ "VOTES_TIED" ] = {
+		Colours = {
+			MapNames = RichTextFormat.Colours.Yellow
+		}
+	}
+
 	Plugin.RichTextMessageOptions = RichTextMessageOptions
 end
 
@@ -661,6 +683,13 @@ do
 		if Data.MapName then
 			Data.MapName = self:GetNiceMapName( Data.MapName )
 		end
+
+		if Data.MapNames then
+			Data.MapNames = Shine.Stream( StringExplode( Data.MapNames, ",%s*" ) ):Map( function( MapName )
+				return self:GetNiceMapName( MapName )
+			end ):Concat( ", " )
+		end
+
 		return Data
 	end
 end
