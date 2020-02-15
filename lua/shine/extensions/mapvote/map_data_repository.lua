@@ -141,13 +141,13 @@ end
 local function LoadFromURL( ModID, MapName, CacheKey, URL, Callback, LastUpdatedTime )
 	Shine.TimedHTTPRequest( URL, "GET", function( ImageData )
 		if not ImageData then
-			Callback( nil, StringFormat( "Unable to acquire image from URL: %s", URL ) )
+			Callback( MapName, nil, StringFormat( "Unable to acquire image from URL: %s", URL ) )
 			return
 		end
 
 		local MediaType = TextureLoader.InferMediaType( ImageData )
 		if not MediaType then
-			Callback( nil, StringFormat( "Unknown image format returned from %s", URL ) )
+			Callback( MapName, nil, StringFormat( "Unknown image format returned from %s", URL ) )
 			return
 		end
 
@@ -355,7 +355,7 @@ function MapDataRepository.GetPreviewImages( Maps, Callback )
 					local File = PublishedFileDetails[ i ]
 					local ModID = tostring( File.publishedfileid )
 					local MapNames = MapModIDs:Get( ModID )
-					if MapNames then
+					if MapNames and IsType( File.preview_url, "string" ) then
 						MapModIDs:Remove( ModID )
 
 						local LoaderCallback = CallbackWithFallbackToCache( ModID, false, "PreviewImage", Callback )

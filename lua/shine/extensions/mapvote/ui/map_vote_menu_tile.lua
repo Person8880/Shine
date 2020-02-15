@@ -2,7 +2,8 @@
 	A simple tile button used to display a map, its number of votes, and whether
 	it has been chosen.
 
-	On hover, the overview of the map is loaded and displayed.
+	On hover, buttons to toggle display of the overview of the map and to open the map's mod workshop page (if a mod)
+	are displayed.
 ]]
 
 local Pi = math.pi
