@@ -1731,10 +1731,14 @@ function ControlMeta:HandleLayout( DeltaTime )
 		self.Layout:Think( DeltaTime )
 	end
 
-	if not self.LayoutIsInvalid then return end
+	-- Sometimes layout requires multiple passes to reach the final answer (e.g. if auto-wrapping text).
+	-- Allow up to 5 iterations before stopping and leaving it for the next frame.
+	for i = 1, 5 do
+		if not self.LayoutIsInvalid then break end
 
-	self.LayoutIsInvalid = false
-	self:PerformLayout()
+		self.LayoutIsInvalid = false
+		self:PerformLayout()
+	end
 end
 
 --[[
