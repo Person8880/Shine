@@ -989,7 +989,7 @@ function ControlMeta:PreComputeWidth()
 	local FontFamily = self.AutoFont.Family
 	local Size = self.AutoFont.Size:GetValue()
 
-	self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size ) )
+	self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size, self.GetText and self:GetText() ) )
 end
 
 -- Called before a layout computes the current height of the element.

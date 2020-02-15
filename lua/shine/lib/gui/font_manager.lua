@@ -3,6 +3,7 @@
 ]]
 
 local Abs = math.abs
+local GetCanFontRenderString = GUI.GetCanFontRenderString
 local TableSort = table.sort
 
 local SGUI = Shine.GUI
@@ -40,6 +41,11 @@ local function MakeIterable( Lookup )
 
 	return IterableCopy
 end
+
+local FallbackFamilies = {
+	MicrogrammaDBolExt = "kAgencyFBBold",
+	kAgencyFBBold = "kAgencyFB"
+}
 
 local FontFamilies = setmetatable( {
 	Ionicons = {
@@ -85,7 +91,7 @@ end
 
 local FontManager = {}
 
-local function FindFontForSize( FontFamily, AbsoluteSize )
+local function FindFontForSize( FontFamily, AbsoluteSize, TextToDisplay )
 	local Fonts = FontFamilies[ FontFamily ]
 	Shine.AssertAtLevel( Fonts, "Unknown font family: %s", 3, FontFamily )
 
@@ -102,6 +108,11 @@ local function FindFontForSize( FontFamily, AbsoluteSize )
 		end
 	end
 
+	-- If the chosen font can't render the string, fall back to a different font and try again.
+	if TextToDisplay and FallbackFamilies[ FontFamily ] and not GetCanFontRenderString( Best, TextToDisplay ) then
+		return FindFontForSize( FallbackFamilies[ FontFamily ], AbsoluteSize, TextToDisplay )
+	end
+
 	local Scale = AbsoluteSize / Fonts[ Best ]
 
 	return Best, Vector2( Scale, Scale )
@@ -113,10 +124,10 @@ end
 	Will automatically deal with GUIScale by scaling the desired size, then
 	finding the font that best matches the scaled size.
 ]]
-function FontManager.GetFont( FontFamily, DesiredSize )
+function FontManager.GetFont( FontFamily, DesiredSize, TextToDisplay )
 	local Scale = SGUI.LinearScale( 1 )
 	local AbsoluteSize = Scale * DesiredSize
-	return FindFontForSize( FontFamily, AbsoluteSize )
+	return FindFontForSize( FontFamily, AbsoluteSize, TextToDisplay )
 end
 
 --[[
@@ -124,7 +135,7 @@ end
 
 	Will automatically scale up the size if the screen height is larger than 1080.
 ]]
-function FontManager.GetHighResFont( FontFamily, DesiredSize )
+function FontManager.GetHighResFont( FontFamily, DesiredSize, TextToDisplay )
 	local Scale
 	local W, H = SGUI.GetScreenSize()
 	if H > 1080 then
@@ -133,7 +144,7 @@ function FontManager.GetHighResFont( FontFamily, DesiredSize )
 		Scale = 1
 	end
 
-	return FindFontForSize( FontFamily, DesiredSize * Scale )
+	return FindFontForSize( FontFamily, DesiredSize * Scale, TextToDisplay )
 end
 
 --[[
@@ -192,6 +203,8 @@ function FontManager.GetFontSizeForFontName( FontName )
 end
 
 Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
+	GetCanFontRenderString = GUI.GetCanFontRenderString
+
 	local Fonts = {}
 	Shared.GetMatchingFileNames( "fonts/*.fnt", false, Fonts )
 
@@ -222,7 +235,6 @@ Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
 	end
 
 	local CalculateTextSize = GUI.CalculateTextSize
-	local GetCanFontRenderString = GUI.GetCanFontRenderString
 	local IOOpen = io.open
 	local Max = math.max
 	local StringMatch = string.match
