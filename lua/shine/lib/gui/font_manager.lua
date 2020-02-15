@@ -180,7 +180,8 @@ do
 end
 
 local FontSizes = {
-	[ SGUI.Fonts.Ionicons ] = 32
+	[ SGUI.Fonts.Ionicons ] = 32,
+	[ SGUI.Fonts.Ionicons64 ] = 64
 }
 
 --[[
