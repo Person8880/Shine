@@ -114,7 +114,12 @@ function MapTile:Initialise()
 								end
 
 								-- Fade the image in after loading.
-								self.PreviewImage:AlphaTo( nil, 0, 1, 0, 0.3 )
+								self.PreviewImage:ApplyTransition( {
+									Type = "Alpha",
+									StartValue = 0,
+									EndValue = 1,
+									Duration = 0.3
+								} )
 							end
 						}
 					}
@@ -321,7 +326,11 @@ function MapTile:SetHighlighted( Highlighted, SkipAnim )
 		return
 	end
 
-	self.PreviewImage:FadeTo( self.PreviewImage.Background, nil, Colour, 0, 0.1 )
+	self.PreviewImage:ApplyTransition( {
+		Type = "Fade",
+		EndValue = Colour,
+		Duration = 0.1
+	} )
 end
 
 function MapTile:ShowOverviewImage()
@@ -373,7 +382,11 @@ function MapTile:ShowOverviewImage()
 			}
 		} ), self )
 		self.PreviewImage:InvalidateLayout( true )
-		self.OverviewImageContainer:AlphaTo( nil, nil, 0.5, 0, 0.3 )
+		self.OverviewImageContainer:ApplyTransition( {
+			Type = "Alpha",
+			EndValue = 0.5,
+			Duration = 0.3
+		} )
 	end
 
 	if self.OverviewTexture then
@@ -384,7 +397,11 @@ function MapTile:ShowOverviewImage()
 
 		self.OverviewImage:SetTexture( self.OverviewTexture )
 		self.OverviewImage:SetIsVisible( true )
-		self.OverviewImage:AlphaTo( nil, nil, 2, 0, 0.3 )
+		self.OverviewImage:ApplyTransition( {
+			Type = "Alpha",
+			EndValue = 2,
+			Duration = 0.3
+		} )
 		return
 	end
 
@@ -407,14 +424,19 @@ end
 
 function MapTile:HideOverviewImage()
 	if SGUI.IsValid( self.OverviewImageContainer ) then
-		self.OverviewImageContainer:AlphaTo( nil, nil, 0, 0, 0.3, function()
-			self.PreviewImage:SetLayout( nil )
-			self.OverviewImage:StopAlpha()
+		self.OverviewImageContainer:ApplyTransition( {
+			Type = "Alpha",
+			EndValue = 0,
+			Duration = 0.3,
+			Callback = function()
+				self.PreviewImage:SetLayout( nil )
+				self.OverviewImage:StopAlpha()
 
-			self.OverviewImageContainer:Destroy()
-			self.OverviewImageContainer = nil
-			self.OverviewImage = nil
-		end )
+				self.OverviewImageContainer:Destroy()
+				self.OverviewImageContainer = nil
+				self.OverviewImage = nil
+			end
+		} )
 	end
 end
 

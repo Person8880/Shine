@@ -271,21 +271,31 @@ end
 
 function MapVoteNotification:FadeIn()
 	self:SetIsVisible( true )
-	self:AlphaTo( nil, 0, 1, 0, 0.3 )
+	self:ApplyTransition( {
+		Type = "Alpha",
+		StartValue = 0,
+		EndValue = 1,
+		Duration = 0.3
+	} )
 	self:UpdateTeamVariation()
 end
 
 function MapVoteNotification:FadeOut( Callback )
 	self.FadingOut = true
 
-	self:AlphaTo( nil, nil, 0, 0, 0.3, function()
-		self:SetIsVisible( false )
-		self.FadingOut = false
-		if Callback then
-			-- Call after Think exits to avoid destroying GUIItems that are in use.
-			SGUI:AddPostEventAction( Callback )
+	self:ApplyTransition( {
+		Type = "Alpha",
+		EndValue = 0,
+		Duration = 0.3,
+		Callback = function()
+			self:SetIsVisible( false )
+			self.FadingOut = false
+			if Callback then
+				-- Call after Think exits to avoid destroying GUIItems that are in use.
+				SGUI:AddPostEventAction( Callback )
+			end
 		end
-	end )
+	} )
 end
 
 function MapVoteNotification:Hide( Callback )

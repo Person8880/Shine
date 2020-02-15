@@ -421,7 +421,12 @@ end
 function MapVoteMenu:FadeIn()
 	self.FadingOut = false
 	self:SetIsVisible( true )
-	self:AlphaTo( nil, 0, 1, 0, 0.3 )
+	self:ApplyTransition( {
+		Type = "Alpha",
+		StartValue = 0,
+		EndValue = 1,
+		Duration = 0.3
+	} )
 
 	local TeamVariation = self:GetTeamVariation()
 	self.Elements.TitleBox:SetStyleName( TeamVariation )
@@ -434,15 +439,21 @@ end
 
 function MapVoteMenu:FadeOut( Callback )
 	self.FadingOut = true
-	self:AlphaTo( nil, nil, 0, 0, 0.3, function()
-		self:SetIsVisible( false )
-		self.FadingOut = false
-		self:OnClose()
-		if Callback then
-			-- Call after Think exits to avoid destroying GUIItems that are in use.
-			SGUI:AddPostEventAction( Callback )
+
+	self:ApplyTransition( {
+		Type = "Alpha",
+		EndValue = 0,
+		Duration = 0.3,
+		Callback = function()
+			self:SetIsVisible( false )
+			self.FadingOut = false
+			self:OnClose()
+			if Callback then
+				-- Call after Think exits to avoid destroying GUIItems that are in use.
+				SGUI:AddPostEventAction( Callback )
+			end
 		end
-	end )
+	} )
 end
 
 function MapVoteMenu:PreClose()
