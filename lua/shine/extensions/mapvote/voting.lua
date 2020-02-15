@@ -944,5 +944,5 @@ function Plugin:StartVote( NextMap, Force )
 
 	-- Notify other plugins that a map vote has started to allow them to stop any game start
 	-- they may be controlling.
-	Shine.Hook.Call( "OnMapVoteStarted", self, NextMap, EndTime )
+	Shine.Hook.Broadcast( "OnMapVoteStarted", self, NextMap, EndTime )
 end

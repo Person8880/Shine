@@ -59,7 +59,7 @@ function Shine:SetClientSetting( Key, Value )
 	self.Config[ Key ] = Value
 	self:SaveClientBaseConfig()
 
-	Hook.Call( "OnClientSettingChanged", Key, Value )
+	Hook.Broadcast( "OnClientSettingChanged", Key, Value )
 
 	return true
 end
@@ -142,7 +142,7 @@ do
 			Options[ #Options + 1 ] = Entry
 		end
 
-		Hook.Call( "OnClientSettingAdded", Entry )
+		Hook.Broadcast( "OnClientSettingAdded", Entry )
 	end
 
 	function Shine:RemoveClientSetting( Entry )
@@ -150,7 +150,7 @@ do
 		if Existing then
 			TableRemove( Options, Index )
 
-			Hook.Call( "OnClientSettingRemoved", Entry )
+			Hook.Broadcast( "OnClientSettingRemoved", Entry )
 
 			return true
 		end

@@ -682,7 +682,7 @@ do
 			ControlTypesWaitingForParent:Remove( Name )
 		end
 
-		Hook.Call( "OnSGUIControlRegistered", Name, Table, Parent )
+		Hook.Broadcast( "OnSGUIControlRegistered", Name, Table, Parent )
 	end
 
 	function SGUI:RegisterAlias( Name, AliasName )
@@ -1175,7 +1175,7 @@ local function SetupRenderDeviceResetCheck()
 			State = STATE_RENDERING
 
 			-- Notify anything that may need to re-render itself after a render device reset.
-			Hook.Call( "OnRenderDeviceReset" )
+			Hook.Broadcast( "OnRenderDeviceReset" )
 		end
 	end )
 end

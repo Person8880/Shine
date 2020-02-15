@@ -471,7 +471,7 @@ if Client then
 			if Setting.IsPercentage then
 				Value = Value * 100
 			end
-			Shine.Hook.Call( "OnPluginClientSettingChanged", self, Setting, Value )
+			Shine.Hook.Broadcast( "OnPluginClientSettingChanged", self, Setting, Value )
 		end
 
 		return true

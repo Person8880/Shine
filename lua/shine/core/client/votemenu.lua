@@ -102,7 +102,7 @@ function Shine.OpenVoteMenu()
 
 	if VoteMenu:Show() then
 		Shine.SendNetworkMessage( "Shine_OpenedVoteMenu", {}, true )
-		Shine.Hook.Call( "OnVoteMenuOpen" )
+		Shine.Hook.Broadcast( "OnVoteMenuOpen" )
 	end
 end
 

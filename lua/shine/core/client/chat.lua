@@ -213,13 +213,13 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	end
 
 	function ChatElement:Initialize()
-		Hook.Call( "OnGUIChatInitialised", self )
+		Hook.Broadcast( "OnGUIChatInitialised", self )
 
 		return OldInit( self )
 	end
 
 	function ChatElement:Uninitialize()
-		Hook.Call( "OnGUIChatDestroyed", self )
+		Hook.Broadcast( "OnGUIChatDestroyed", self )
 
 		return OldUninit( self )
 	end

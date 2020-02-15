@@ -708,7 +708,7 @@ if Client then
 		end
 
 		Add( "OnClientOptionChanged", function( Name, Value )
-			return Call( "OnClientOptionChanged:"..Name, Value )
+			return Broadcast( "OnClientOptionChanged:"..Name, Value )
 		end, MAX_PRIORITY )
 	end, MAX_PRIORITY )
 

@@ -28,7 +28,7 @@ do
 	Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
 		local WasVisible = AdminMenu.Visible
 		if xpcall( AdminMenu.Show, ErrorHandler, AdminMenu ) and not WasVisible and AdminMenu.Visible then
-			Hook.Call( "OnAdminMenuOpened", AdminMenu )
+			Hook.Broadcast( "OnAdminMenuOpened", AdminMenu )
 		end
 	end )
 end
@@ -114,7 +114,7 @@ function AdminMenu:Close( Now )
 		end
 	end
 
-	Hook.Call( "OnAdminMenuClosed", self )
+	Hook.Broadcast( "OnAdminMenuClosed", self )
 end
 
 Shine.Hook.Add( "OnResolutionChanged", "AdminMenu_OnResolutionChanged", function()

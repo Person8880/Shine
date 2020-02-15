@@ -447,7 +447,7 @@ function Plugin:AddBan( ID, Name, Duration, BannedBy, BanningID, Reason )
 	end
 
 	if self.OnBannedHookName then
-		Hook.Call( self.OnBannedHookName, ID, Name, Duration, BannedBy, Reason )
+		Hook.Broadcast( self.OnBannedHookName, ID, Name, Duration, BannedBy, Reason )
 	end
 
 	return true
@@ -485,7 +485,7 @@ function Plugin:RemoveBan( ID, DontSave, UnbannerID )
 	end
 
 	if self.OnUnbannedHookName then
-		Hook.Call( self.OnUnbannedHookName, ID )
+		Hook.Broadcast( self.OnUnbannedHookName, ID )
 	end
 
 	if DontSave then return end

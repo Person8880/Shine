@@ -184,7 +184,7 @@ function Shine:RequestUsers( Reload )
 			self:Print( Reload and "Shine reloaded users from the web."
 				or "Shine loaded users from web." )
 
-			self.Hook.Call( "OnUserReload" )
+			self.Hook.Broadcast( "OnUserReload" )
 		end,
 		OnFailure = function()
 			self:Print( "All attempts to load users from the web failed. Using local file instead." )
@@ -269,7 +269,7 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	if Reload then
-		self.Hook.Call( "OnUserReload" )
+		self.Hook.Broadcast( "OnUserReload" )
 	end
 end
 
@@ -494,7 +494,7 @@ function Shine:CreateGroup( GroupName, Immunity, Blacklist )
 	self.UserData.Groups[ GroupName ] = Group
 	self:SaveUsers( true )
 
-	Shine.Hook.Call( "OnGroupCreated", GroupName, Group )
+	Shine.Hook.Broadcast( "OnGroupCreated", GroupName, Group )
 
 	return Group
 end
@@ -503,7 +503,7 @@ function Shine:ReinstateGroup( GroupName, Group )
 	self.UserData.Groups[ GroupName ] = Group
 	self:SaveUsers( true )
 
-	Shine.Hook.Call( "OnGroupCreated", GroupName, Group )
+	Shine.Hook.Broadcast( "OnGroupCreated", GroupName, Group )
 
 	return true
 end
@@ -517,7 +517,7 @@ function Shine:DeleteGroup( GroupName )
 
 	PermissionCache[ GroupName ] = nil
 
-	Shine.Hook.Call( "OnGroupDeleted", GroupName, DeletedGroup )
+	Shine.Hook.Broadcast( "OnGroupDeleted", GroupName, DeletedGroup )
 
 	return true
 end
@@ -533,7 +533,7 @@ function Shine:CreateUser( Client, GroupName )
 	self.UserData.Users[ tostring( ID ) ] = User
 	self:SaveUsers( true )
 
-	Shine.Hook.Call( "OnUserCreated", ID, User )
+	Shine.Hook.Broadcast( "OnUserCreated", ID, User )
 
 	return User
 end
@@ -545,7 +545,7 @@ function Shine:ReinstateUser( Client, User )
 	self.UserData.Users[ tostring( ID ) ] = User
 	self:SaveUsers( true )
 
-	Shine.Hook.Call( "OnUserCreated", ID, User )
+	Shine.Hook.Broadcast( "OnUserCreated", ID, User )
 
 	return true
 end
@@ -560,7 +560,7 @@ function Shine:DeleteUser( Client )
 	self.UserData.Users[ ID ] = nil
 	self:SaveUsers( true )
 
-	Shine.Hook.Call( "OnUserDeleted", ID, DeletedUser )
+	Shine.Hook.Broadcast( "OnUserDeleted", ID, DeletedUser )
 
 	return true
 end
@@ -815,7 +815,7 @@ function Shine:AddGroupInheritance( GroupName, InheritGroup )
 
 	PermissionCache[ GroupName ] = nil
 
-	Shine.Hook.Call( "OnGroupInheritanceAdded", GroupName, Group, InheritGroup )
+	Shine.Hook.Broadcast( "OnGroupInheritanceAdded", GroupName, Group, InheritGroup )
 
 	return true
 end
@@ -836,7 +836,7 @@ function Shine:RemoveGroupInheritance( GroupName, InheritGroup )
 	PermissionCache[ GroupName ] = nil
 	self:SaveUsers( true )
 
-	Shine.Hook.Call( "OnGroupInheritanceRemoved", GroupName, Group, InheritGroup )
+	Shine.Hook.Broadcast( "OnGroupInheritanceRemoved", GroupName, Group, InheritGroup )
 
 	return true
 end
@@ -910,7 +910,7 @@ do
 
 		self:SaveUsers( true )
 
-		Shine.Hook.Call( "OnGroupAccessGranted", GroupName, Group, AccessRight )
+		Shine.Hook.Broadcast( "OnGroupAccessGranted", GroupName, Group, AccessRight )
 
 		return true
 	end
@@ -952,7 +952,7 @@ do
 
 		self:SaveUsers( true )
 
-		Shine.Hook.Call( "OnGroupAccessRevoked", GroupName, Group, AccessRight )
+		Shine.Hook.Broadcast( "OnGroupAccessRevoked", GroupName, Group, AccessRight )
 
 		return true
 	end

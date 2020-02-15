@@ -485,7 +485,7 @@ function Plugin:ClientConnect( Client )
 		IsAFK = false,
 		HasMoved = false
 	} )
-	Shine.Hook.Call( "AFKChanged", Client, false )
+	Shine.Hook.Broadcast( "AFKChanged", Client, false )
 end
 
 function Plugin:ResetAFKTime( Client )
@@ -502,7 +502,7 @@ function Plugin:ResetAFKTime( Client )
 
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
-		Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
+		Shine.Hook.Broadcast( "AFKChanged", Client, DataTable.IsAFK )
 	end
 end
 
@@ -518,7 +518,7 @@ function Plugin:SubtractAFKTime( Client, Time )
 
 	if DataTable.IsAFK then
 		DataTable.IsAFK = false
-		Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
+		Shine.Hook.Broadcast( "AFKChanged", Client, DataTable.IsAFK )
 	end
 end
 
@@ -767,12 +767,12 @@ function Plugin:OnProcessMove( Player, Input )
 	if TimeSinceLastMove > KickTime * self.Config.KickTimeIsAFKThreshold then
 		if not DataTable.IsAFK then
 			DataTable.IsAFK = true
-			Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
+			Shine.Hook.Broadcast( "AFKChanged", Client, DataTable.IsAFK )
 		end
 	else
 		if DataTable.IsAFK then
 			DataTable.IsAFK = false
-			Shine.Hook.Call( "AFKChanged", Client, DataTable.IsAFK )
+			Shine.Hook.Broadcast( "AFKChanged", Client, DataTable.IsAFK )
 		end
 	end
 end

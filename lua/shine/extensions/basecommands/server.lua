@@ -476,7 +476,7 @@ do
 			self:SaveConfig( true )
 		end
 
-		Shine.Hook.Call( "OnAllTalkStateChange", Type, Enabled )
+		Shine.Hook.Broadcast( "OnAllTalkStateChange", Type, Enabled )
 	end
 end
 
