@@ -167,7 +167,7 @@ function WebViewImageLoader:ProcessNextEntry()
 	Entry.TextureName = TextureName
 	Entry.PoolEntry = PoolEntry
 
-	if Entry.Width ~= self.Width or Entry.Height ~= self.Height and self.WebView then
+	if ( Entry.Width ~= self.Width or Entry.Height ~= self.Height ) and self.WebView then
 		-- Need to re-initialise the web view with the new texture size, as it's determined when constructed.
 		Client.DestroyWebView( self.WebView )
 		self.WebView = nil
