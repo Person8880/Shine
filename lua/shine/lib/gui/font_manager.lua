@@ -44,7 +44,11 @@ end
 
 local FallbackFamilies = {
 	MicrogrammaDBolExt = "kAgencyFBBold",
-	kAgencyFBBold = "kAgencyFB"
+	kAgencyFBBold = "kAgencyFB",
+	MicrogrammaDistField = "AgencyFBDistField",
+	MicrogrammaBoldDistField = "AgencyFBBoldDistField",
+	AgencyFBBoldDistField = "kAgencyFB",
+	AgencyFBDistField = "kAgencyFB"
 }
 
 local FontFamilies = setmetatable( {
