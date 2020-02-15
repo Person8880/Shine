@@ -61,5 +61,8 @@
 	"MAP_EXTENDED_ROUNDS": "Karte um {Duration:Abs} {Duration:Abs::Pluralise:Runde|Runden} {Duration:Sign:verkürzt|verlängert}.",
 	"SET_MAP_ROUNDS": "Setze Rundenlimit auf {Duration} {Duration:Pluralise:Runde|Runden}.",
 	"NOTIFY_PREFIX": "[Kartenabstimmung]",
-	"PLUGIN_DISABLED": "Plugin für Kartenabstimmung wurde deaktiviert. Aktuelle Abstimmung wird abgebrochen."
+	"PLUGIN_DISABLED": "Plugin für Kartenabstimmung wurde deaktiviert. Aktuelle Abstimmung wird abgebrochen.",
+
+	"CLIENT_CONFIG_TAB": "Kartenabstimmung",
+	"MAP_VOTE_MENU_TITLE": "Kartenabstimmung"
 }

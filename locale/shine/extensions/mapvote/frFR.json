@@ -61,5 +61,8 @@
 	"MAP_EXTENDED_ROUNDS": "Carte {Duration:Sign:raccourcie|prolongée} de {Duration:Abs} {Duration:Abs::Pluralise:round|rounds}.",
 	"SET_MAP_ROUNDS": "a défini la limite du round à {Duration} {Duration:Pluralise:round|rounds}.",
 	"NOTIFY_PREFIX": "[Vote Map]",
-	"PLUGIN_DISABLED": "Vote Map plugin désactivé. Vote actuel annulé."
+	"PLUGIN_DISABLED": "Vote Map plugin désactivé. Vote actuel annulé.",
+
+	"CLIENT_CONFIG_TAB": "Vote Map",
+	"MAP_VOTE_MENU_TITLE": "Vote Map"
 }
