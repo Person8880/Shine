@@ -558,9 +558,9 @@ do
 		end
 
 		-- Otherwise, infer the name using existing conventions.
-		local NiceName = StringGSub( MapName, "^ns[12]?_", "" )
-		local Words = StringExplode( NiceName, "_" )
+		NiceName = StringGSub( MapName, "^ns[12]?_", "" )
 
+		local Words = StringExplode( NiceName, "_", true )
 		local KnownPrefixWords = {
 			co = "Combat:",
 			sws = "SWS:",
