@@ -393,12 +393,11 @@ do
 			self.FullVoteMenu:SetIsVisible( false )
 			self.FullVoteMenu:SetCloseOnClick( self.Config.CloseMenuAfterChoosingMap )
 			self.FullVoteMenu:AddPropertyChangeListener( "CloseOnClick", function( FullVoteMenu, CloseOnClick )
-				if CloseOnClick == nil or CloseOnClick == self.Config.CloseMenuAfterChoosingMap then
+				if CloseOnClick == nil then
 					return
 				end
 
-				self.Config.CloseMenuAfterChoosingMap = CloseOnClick
-				self:SaveConfig( true )
+				self:SetClientSetting( "CloseMenuAfterChoosingMap", CloseOnClick )
 			end )
 			self.FullVoteMenu:AddPropertyChangeListener( "SelectedMap", function( FullVoteMenu, MapName )
 				SendMapVote( MapName )
@@ -406,8 +405,7 @@ do
 			self.FullVoteMenu:AddPropertyChangeListener( "UseVoteMenu", function( FullVoteMenu, UseVoteMenu )
 				if not UseVoteMenu then return end
 
-				self.Config.VoteMenuType = self.VoteMenuType.MINIMAL
-				self:SaveConfig( true )
+				self:SetClientSetting( "VoteMenuType", self.VoteMenuType.MINIMAL )
 
 				self.FullVoteMenu:Close( function()
 					if SGUI.IsValid( self.FullVoteMenu ) then
@@ -420,12 +418,11 @@ do
 				Shine.VoteMenu:SetPage( "MapVote" )
 			end )
 			self.FullVoteMenu:AddPropertyChangeListener( "LoadModPreviews", function( FullVoteMenu, LoadModPreviews )
-				if LoadModPreviews == nil or LoadModPreviews == self.Config.LoadModPreviewsInMapGrid then
+				if LoadModPreviews == nil then
 					return
 				end
 
-				self.Config.LoadModPreviewsInMapGrid = LoadModPreviews
-				self:SaveConfig( true )
+				self:SetClientSetting( "LoadModPreviewsInMapGrid", LoadModPreviews )
 			end )
 
 			function self.FullVoteMenu.PreClose()
@@ -535,8 +532,7 @@ do
 		end ):SetIcon( SGUI.Icons.Ionicons.ArrowLeftC, IconFont, IconScale )
 
 		local BottomButton = self:AddBottomButton( Plugin:GetPhrase( "VOTE_MENU_USE_MAP_VOTE_MENU" ), function()
-			Plugin.Config.VoteMenuType = Plugin.VoteMenuType.FULL
-			Plugin:SaveConfig( true )
+			Plugin:SetClientSetting( "VoteMenuType", Plugin.VoteMenuType.FULL )
 
 			self:SetPage( "Main" )
 			self:ForceHide()
