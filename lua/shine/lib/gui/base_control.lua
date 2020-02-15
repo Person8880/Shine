@@ -212,14 +212,14 @@ function ControlMeta:SetStylingState( Name )
 		self.GetStylingStates = ControlMeta.GetStylingStates
 	end
 
-	SGUI.SkinManager:ApplySkin( self )
+	self:RefreshStyling()
 end
 
 function ControlMeta:AddStylingState( Name )
 	local States = self:GetStylingStates()
 	if not States:Contains( Name ) then
 		States:Add( Name )
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -230,7 +230,7 @@ function ControlMeta:AddStylingStates( Names )
 	States:AddAll( Names )
 
 	if States:GetCount() > PreviousCount then
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -238,7 +238,7 @@ function ControlMeta:RemoveStylingState( Name )
 	local States = self.StylingStates
 	if States and States:Contains( Name ) then
 		States:Remove( Name )
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -251,7 +251,7 @@ function ControlMeta:RemoveStylingStates( Names )
 	States:RemoveAll( Names )
 
 	if States:GetCount() < PreviousCount then
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -279,6 +279,10 @@ function ControlMeta:SetStyleName( Name )
 	if self.StyleName == Name then return end
 
 	self.StyleName = Name
+	self:RefreshStyling()
+end
+
+function ControlMeta:RefreshStyling()
 	SGUI.SkinManager:ApplySkin( self )
 end
 
@@ -292,7 +296,7 @@ function ControlMeta:SetSkin( Skin )
 	end
 
 	self.Skin = Skin
-	SGUI.SkinManager:ApplySkin( self )
+	self:RefreshStyling()
 
 	self:OnPropertyChanged( "Skin", Skin )
 
