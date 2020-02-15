@@ -149,9 +149,9 @@ end
 --[[
 	Returns true if any value in the stream matches the given predicate.
 ]]
-function Stream:AnyMatch( Predicate )
+function Stream:AnyMatch( Predicate, Context )
 	for i = 1, #self.Data do
-		if Predicate( self.Data[ i ], i ) then
+		if Predicate( self.Data[ i ], i, Context ) then
 			return true
 		end
 	end

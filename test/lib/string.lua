@@ -14,6 +14,11 @@ UnitTest:Test( "EndsWith", function( Assert )
 	Assert:False( string.EndsWith( "Test", "abc" ) )
 end )
 
+UnitTest:Test( "Capitalise", function( Assert )
+	Assert:Equals( "Test", string.Capitalise( "test" ) )
+	Assert:Equals( "Test", string.Capitalise( "Test" ) )
+end )
+
 UnitTest:Test( "PatternSafe", function( Assert )
 	local Pattern = string.PatternSafe( ".*+-?()[]%^$\0" )
 	Assert.Equals( "Pattern should be escaped", "%.%*%+%-%?%(%)%[%]%%%^%$%z", Pattern )

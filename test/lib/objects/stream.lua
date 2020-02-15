@@ -125,6 +125,18 @@ UnitTest:Test( "Reduce with start value", function( Assert )
 	Assert:Equals( 1 + 2 + 3 + 4 + 5 + 6, StreamSum )
 end )
 
+local function Equals( Value, Index, ExpectedValue )
+	return Value == ExpectedValue
+end
+
+UnitTest:Test( "AnyMatch - Returns true if match found", function( Assert )
+	Assert.True( "Should return true for a match", Stream( { 1, 2, 3, 4, 5, 6 } ):AnyMatch( Equals, 1 ) )
+end )
+
+UnitTest:Test( "AnyMatch - Returns false if no match found", function( Assert )
+	Assert.False( "Should return false for no match", Stream( { 1, 2, 3, 4, 5, 6 } ):AnyMatch( Equals, 10 ) )
+end )
+
 UnitTest:Test( "Distinct", function( Assert )
 	local StreamWithDuplicates = Stream( { 1, 1, 2, 2, 3, 4, 5 } )
 	Assert:ArrayEquals( { 1, 2, 3, 4, 5 }, StreamWithDuplicates:Distinct():AsTable() )
