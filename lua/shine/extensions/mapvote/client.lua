@@ -114,7 +114,6 @@ local MAP_GRID_AFTER_MIGRATION_HINT = "MapVoteAfterMapGridMigrationHint"
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
-	self:SetupClientConfig()
 
 	MapDataRepository.Logger = self.Logger
 
@@ -141,111 +140,16 @@ function Plugin:OnFirstThink()
 	end
 end
 
-function Plugin:SetupClientConfig()
-	self:BindCommand( "sh_mapvote_loadmodpreviews", function( LoadModPreviewsInMapGrid )
-		self.Config.LoadModPreviewsInMapGrid = LoadModPreviewsInMapGrid
-		self:SaveConfig( true )
+function Plugin:SetLoadModPreviewsInMapGrid( LoadModPreviewsInMapGrid )
+	if SGUI.IsValid( self.FullVoteMenu ) then
+		self.FullVoteMenu:SetLoadModPreviews( LoadModPreviewsInMapGrid )
+	end
+end
 
-		local Explanations = {
-			[ true ] = "now show previews for mods",
-			[ false ] = "no longer show previews for mods"
-		}
-
-		Print( "The map grid will %s.", Explanations[ LoadModPreviewsInMapGrid ] )
-
-		if SGUI.IsValid( self.FullVoteMenu ) then
-			self.FullVoteMenu:SetLoadModPreviews( LoadModPreviewsInMapGrid )
-		end
-	end ):AddParam{
-		Type = "boolean",
-		Optional = true,
-		Default = function() return not self.Config.LoadModPreviewsInMapGrid end
-	}
-
-	self:AddClientSetting( "LoadModPreviewsInMapGrid", "sh_mapvote_loadmodpreviews", {
-		Type = "Boolean",
-		Description = "LOAD_PREVIEWS_IN_MAP_GRID_DESCRIPTION"
-	} )
-
-	self:BindCommand( "sh_mapvote_closeaftervote", function( CloseMenuAfterChoosingMap )
-		self.Config.CloseMenuAfterChoosingMap = CloseMenuAfterChoosingMap
-		self:SaveConfig( true )
-
-		local Explanations = {
-			[ true ] = "now close after casting a vote",
-			[ false ] = "no longer close after casting a vote"
-		}
-
-		Print( "The map grid will %s.", Explanations[ CloseMenuAfterChoosingMap ] )
-
-		if SGUI.IsValid( self.FullVoteMenu ) then
-			self.FullVoteMenu:SetCloseOnClick( CloseMenuAfterChoosingMap )
-		end
-	end ):AddParam{
-		Type = "boolean",
-		Optional = true,
-		Default = function() return not self.Config.CloseMenuAfterChoosingMap end
-	}
-
-	self:AddClientSetting( "CloseMenuAfterChoosingMap", "sh_mapvote_closeaftervote", {
-		Type = "Boolean",
-		Description = "CLOSE_MENU_AFTER_CHOOSING_MAP_DESCRIPTION"
-	} )
-
-	self:BindCommand( "sh_mapvote_onvote", function( Choice )
-		if not Choice then
-			local Explanations = {
-				[ self.VoteAction.USE_SERVER_SETTINGS ] = "respect server settings",
-				[ self.VoteAction.OPEN_MENU ] = "open",
-				[ self.VoteAction.DO_NOT_OPEN_MENU ] = "do nothing"
-			}
-
-			Print( "The vote menu is currently set to %s when a map vote starts.", Explanations[ self.Config.OnVoteAction ] )
-			return
-		end
-
-		local VoteAction = self.VoteAction[ Choice ] or self.VoteAction.USE_SERVER_SETTINGS
-		if not self:SetClientSetting( "OnVoteAction", VoteAction ) then
-			return
-		end
-
-		local Explanations = {
-			[ self.VoteAction.USE_SERVER_SETTINGS ] = "now respect server settings",
-			[ self.VoteAction.OPEN_MENU ] = "now open",
-			[ self.VoteAction.DO_NOT_OPEN_MENU ] = "no longer open"
-		}
-
-		Print( "The vote menu will %s when a map vote starts.", Explanations[ self.Config.OnVoteAction ] )
-	end ):AddParam{ Type = "string", Optional = true }
-
-	self:AddClientSetting( "OnVoteAction", "sh_mapvote_onvote", {
-		Type = "Radio",
-		Options = self.VoteAction,
-		Description = "ON_VOTE_ACTION"
-	} )
-
-	self:BindCommand( "sh_mapvote_menutype", function( VoteMenuType )
-		local Explanations = {
-			[ self.VoteMenuType.FULL ] = "in full screen",
-			[ self.VoteMenuType.MINIMAL ] = "in the vote menu",
-		}
-
-		if not VoteMenuType then
-			Print( "Map voting is currently set to open %s.", Explanations[ self.Config.VoteMenuType ] )
-			return
-		end
-
-		self.Config.VoteMenuType = VoteMenuType
-		self:SaveConfig( true )
-
-		Print( "Map voting will now open %s.", Explanations[ self.Config.VoteMenuType ] )
-	end ):AddParam{ Type = "enum", Values = self.VoteMenuType, Optional = true }
-
-	self:AddClientSetting( "VoteMenuType", "sh_mapvote_menutype", {
-		Type = "Radio",
-		Options = self.VoteMenuType,
-		Description = "VOTE_MENU_TYPE"
-	} )
+function Plugin:SetCloseMenuAfterChoosingMap( CloseMenuAfterChoosingMap )
+	if SGUI.IsValid( self.FullVoteMenu ) then
+		self.FullVoteMenu:SetCloseOnClick( CloseMenuAfterChoosingMap )
+	end
 end
 
 function Plugin:TimeLeftNotify( Message )
@@ -1051,3 +955,60 @@ function Plugin:Cleanup()
 end
 
 Shine.LoadPluginModule( "logger.lua", Plugin )
+
+Plugin.ClientConfigSettings = {
+	{
+		ConfigKey = "LoadModPreviewsInMapGrid",
+		Command = "sh_mapvote_loadmodpreviews",
+		Type = "Boolean",
+		CommandMessage = function( Value )
+			local Explanations = {
+				[ true ] = "now show previews for mods",
+				[ false ] = "no longer show previews for mods"
+			}
+			return StringFormat( "The map grid will %s.", Explanations[ Value ] )
+		end,
+		OnChange = Plugin.SetLoadModPreviewsInMapGrid
+	},
+	{
+		ConfigKey = "CloseMenuAfterChoosingMap",
+		Command = "sh_mapvote_closeaftervote",
+		Type = "Boolean",
+		CommandMessage = function( Value )
+			local Explanations = {
+				[ true ] = "now close after casting a vote",
+				[ false ] = "no longer close after casting a vote"
+			}
+			return StringFormat( "The map grid will %s.", Explanations[ Value ] )
+		end,
+		OnChange = Plugin.SetCloseMenuAfterChoosingMap
+	},
+	{
+		ConfigKey = "OnVoteAction",
+		Command = "sh_mapvote_onvote",
+		Type = "Radio",
+		Options = Plugin.VoteAction,
+		CommandMessage = function( Value )
+			local Explanations = {
+				[ Plugin.VoteAction.USE_SERVER_SETTINGS ] = "respect server settings",
+				[ Plugin.VoteAction.OPEN_MENU ] = "open",
+				[ Plugin.VoteAction.DO_NOT_OPEN_MENU ] = "do nothing"
+			}
+			return StringFormat( "The vote menu will %s when a map vote starts.", Explanations[ Value ] )
+		end,
+		Description = "ON_VOTE_ACTION"
+	},
+	{
+		ConfigKey = "VoteMenuType",
+		Command = "sh_mapvote_menutype",
+		Type = "Radio",
+		Options = Plugin.VoteMenuType,
+		CommandMessage = function( Value )
+			local Explanations = {
+				[ Plugin.VoteMenuType.FULL ] = "in full screen",
+				[ Plugin.VoteMenuType.MINIMAL ] = "in the vote menu",
+			}
+			return StringFormat( "Map voting will now open %s.", Explanations[ Value ] )
+		end
+	}
+}
