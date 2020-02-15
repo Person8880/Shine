@@ -16,7 +16,7 @@
 	"VOTE_FAIL_IN_PROGRESS": "Toinen äänestys on jo käynnissä.",
 	"VOTE_FAIL_ALREADY_VOTED": "Olet aloittanut jo kertaalleen äänestyksen kartasta.",
 	"VOTE_FAIL_INVALID_MAP": "{MapName} ei ole hyväksyttävä valinta kartaksi.",
-	"VOTE_FAIL_VOTED_MAP": "Olet jo äänestänyt karttaa {MapName}",
+	"VOTE_FAIL_VOTED_MAP": "Olet jo äänestänyt karttaa {MapName}.",
 	"TEAM_CHANGE_FAIL_VOTE": "Et voi liittyä joukkueeseen silloin kun kartan äänestys on käynnissä.",
 	"TEAM_CHANGE_FAIL_MAP_CHANGE": "Kartta on vaihtumassa, minkä aikana et voi liittyä joukkueeseen.",
 	"EXTENDING_ROUND": "Jatketaan kartan kestoa yhdellä erällä.",

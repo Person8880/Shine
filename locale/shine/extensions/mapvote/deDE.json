@@ -16,7 +16,7 @@
 	"VOTE_FAIL_IN_PROGRESS": "Es läuft bereits eine Abstimmung.",
 	"VOTE_FAIL_ALREADY_VOTED": "Du hast bereits abgestimmmt eine Kartenabstimmung zu starten.",
 	"VOTE_FAIL_INVALID_MAP": "{MapName} ist keine gültige Kartenwahl.",
-	"VOTE_FAIL_VOTED_MAP": "Du hast bereits für {MapName} abgestimmt",
+	"VOTE_FAIL_VOTED_MAP": "Du hast bereits für {MapName} abgestimmt.",
 	"TEAM_CHANGE_FAIL_VOTE": "Du kannst keinem Team beitreten während eine Kartenabstimmung läuft.",
 	"TEAM_CHANGE_FAIL_MAP_CHANGE": "Die Karte wechselt jetzt. Du kannst keinem Team beitreten.",
 	"EXTENDING_ROUND": "Es wird eine weitere Runde auf dieser Karte gespielt.",
