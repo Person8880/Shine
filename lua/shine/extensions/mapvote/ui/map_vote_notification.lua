@@ -68,7 +68,7 @@ local Skin = {
 	},
 	MapVoteNotification = {
 		Default = {
-			Shader = "shaders/shine/gui_none.surface_shader"
+			Shader = SGUI.Shaders.Invisible
 		}
 	}
 }

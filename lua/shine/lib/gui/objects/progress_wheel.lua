@@ -23,7 +23,7 @@ function ProgressWheel:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Background = self:MakeGUIItem()
-	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
+	self.Background:SetShader( SGUI.Shaders.Invisible )
 	self.Background:SetColor( Colour( 1, 1, 1, 1 ) )
 	self.Background:SetClearsStencilBuffer( true )
 

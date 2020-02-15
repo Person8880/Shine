@@ -59,7 +59,7 @@ local Skin = {
 			TextColour = Colour( 1, 1, 1, 1 / HeaderAlpha ),
 			TextInheritsParentAlpha = true,
 			InheritsParentAlpha = true,
-			Shader = "shaders/shine/gui_none.surface_shader"
+			Shader = SGUI.Shaders.Invisible
 		},
 		ConfigButton = {
 			InactiveCol = Colour( 0.4, 0.4, 0.4, 1 / HeaderAlpha ),
@@ -85,7 +85,7 @@ local Skin = {
 				Family = SGUI.FontFamilies.Ionicons,
 				Size = Units.GUIScaled( 32 )
 			},
-			Shader = "shaders/shine/gui_none.surface_shader"
+			Shader = SGUI.Shaders.Invisible
 		}
 	},
 	Image = {
@@ -155,7 +155,7 @@ local Skin = {
 				Colour = Colour( 0, 0, 0, 0.75 )
 			},
 			InheritsParentAlpha = true,
-			Shader = "shaders/shine/gui_none.surface_shader"
+			Shader = SGUI.Shaders.Invisible
 		},
 		SmallerFonts = {
 			MapNameAutoFont = {
@@ -210,7 +210,7 @@ function MapVoteMenu:Initialise()
 	Controls.Panel.Initialise( self )
 	self:SetSkin( Skin )
 
-	self.Background:SetShader( "shaders/shine/gui_none.surface_shader" )
+	self.Background:SetShader( SGUI.Shaders.Invisible )
 	self.MapTiles = {}
 	self.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Shared.Message )
 	self.TitleBarHeight = Units.GUIScaled( 32 ):GetValue()

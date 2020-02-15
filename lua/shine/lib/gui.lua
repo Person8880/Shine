@@ -20,7 +20,10 @@ local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
-PrecacheAsset "shaders/shine/gui_none.surface_shader"
+SGUI.Shaders = {
+	-- A shader that causes a GUIItem to be invisible, but still be able to contribute an alpha multiplier.
+	Invisible = PrecacheAsset "shaders/shine/gui_none.surface_shader"
+}
 
 -- Useful functions for colours.
 include "lua/shine/lib/colour.lua"
