@@ -909,7 +909,13 @@ function Plugin:ReceiveVoteOptions( Message )
 		end
 	end
 
-	self:AutoOpenVoteMenu( Message.ForceMenuOpen )
+	local OpenedAutomatically = self:AutoOpenVoteMenu( Message.ForceMenuOpen )
+	if not OpenedAutomatically and self.Config.VoteMenuType == self.VoteMenuType.FULL then
+		-- If the full vote menu will be opened, precache all the mounted map previews to avoid pop-in when the menu
+		-- is opened for the first time.
+		self.Logger:Debug( "Attempting to precache map previews for: %s", Options )
+		MapDataRepository.PrecacheMapPreviews( Maps )
+	end
 end
 
 function Plugin:OnMouseVisibilityChange( Visible )
@@ -926,7 +932,7 @@ function Plugin:AutoOpenVoteMenu( ForceOpen )
 	-- Do not open the map vote menu if a game is in-progress.
 	local GameInfo = GetGameInfoEntity()
 	if GameInfo and ( GameInfo:GetCountdownActive() or GameInfo:GetGameStarted() ) then
-		return
+		return false
 	end
 
 	-- Open the map vote menu if configured to do so.
@@ -934,14 +940,14 @@ function Plugin:AutoOpenVoteMenu( ForceOpen )
 
 	if ConfiguredAction ~= self.VoteAction.OPEN_MENU
 	and not ( ConfiguredAction == self.VoteAction.USE_SERVER_SETTINGS and ForceOpen ) then
-		return
+		return false
 	end
 
 	if Client.GetMouseVisible() and not Shine.VoteMenu.Visible then
 		-- Mouse is visible, and it's not for the vote menu. Assume some other UI elements are
 		-- visible and thus opening the vote menu now would be disruptive.
 		self.WaitingForMenuClose = true
-		return
+		return false
 	end
 
 	if not Shine.VoteMenu.Visible then
@@ -949,6 +955,8 @@ function Plugin:AutoOpenVoteMenu( ForceOpen )
 	end
 
 	Shine.VoteMenu:SetPage( "MapVote" )
+
+	return true
 end
 
 function Plugin:Cleanup()

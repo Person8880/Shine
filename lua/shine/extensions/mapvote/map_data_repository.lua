@@ -59,6 +59,7 @@ do
 		if Map then
 			MapPreviews[ Map ] = Path
 		end
+
 		MapPreviews[ i ] = nil
 	end
 
@@ -129,6 +130,55 @@ do
 	end
 
 	SaveCache()
+end
+
+do
+	local SGUI = Shine.GUI
+
+	local function PreviewExists( MapName )
+		return MapPreviews[ MapName ] ~= nil
+	end
+
+	local function GetPreviewImage( MapName )
+		return MapPreviews[ MapName ]
+	end
+
+	--[[
+		Precaches the map preview textures to avoid awkward pop-in.
+		Shared.PrecacheTexture doesn't seem to work on the screen textures, hence this horrible hack.
+	]]
+	function MapDataRepository.PrecacheMapPreviews( MapNames )
+		local PreviewsToPrecache = Shine.Stream.Of( MapNames ):Filter( PreviewExists ):Map( GetPreviewImage ):AsTable()
+		if #PreviewsToPrecache == 0 then return end
+
+		local Index = 0
+		local Image
+
+		-- Textures seem to be cached only if visible for at least one frame (where visible means visible as far as the
+		-- GUI system can tell).
+		Shine.Hook.Add( "Think", PreviewsToPrecache, function()
+			if not Image then
+				Image = SGUI:Create( "Image" )
+				Image:SetSize( Vector2( 1, 1 ) )
+				-- This hides the image element from view, but still loads the texture.
+				Image:SetShader( SGUI.Shaders.Invisible )
+			end
+
+			Index = Index + 1
+			if Index > #PreviewsToPrecache then
+				Shine.Hook.Remove( "Think", PreviewsToPrecache )
+				if SGUI.IsValid( Image ) then
+					Image:Destroy()
+					Image = nil
+				end
+				return
+			end
+
+			local TextureName = PreviewsToPrecache[ Index ]
+			MapDataRepository.Logger:Debug( "Precaching map preview: %s", TextureName )
+			Image:SetTexture( TextureName )
+		end )
+	end
 end
 
 local FileNameFormats = {
