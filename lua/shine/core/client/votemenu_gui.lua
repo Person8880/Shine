@@ -371,11 +371,11 @@ function VoteMenu:SetPage( Name, IgnoreAnim )
 	if not Page or not Page.Populate then return end
 
 	self:Clear()
+	self.ActivePage = Name
 
 	Page.Populate( self )
 
 	self:SortSideButtons( IgnoreAnim )
-	self.ActivePage = Name
 end
 
 local function ClearButton( self, Button )
@@ -384,6 +384,8 @@ local function ClearButton( self, Button )
 	self:MarkAsSelected( Button, false )
 	Button:SetIsVisible( false )
 	Button:SetTooltip( nil )
+	Button:SetIcon( nil )
+	Button:SetTextColour( TextCol )
 	Button.DefaultText = nil
 	Button.Plugin = nil
 	Button.CheckMarkXScale = nil

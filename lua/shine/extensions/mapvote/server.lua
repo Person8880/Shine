@@ -22,7 +22,6 @@ Plugin.Version = "1.11"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
-Plugin.PrintName = "Map Vote"
 
 Plugin.ConstraintType = table.AsEnum{
 	"FRACTION_OF_PLAYERS", "ABSOLUTE"
@@ -505,6 +504,8 @@ function Plugin:SetupFromMapData( Data )
 end
 
 function Plugin:OnFirstThink()
+	self:InferMapMods( self.MapChoices )
+
 	local CurMap = Shared.GetMapName()
 
 	local ConfigData = self.Config.Maps[ CurMap ]

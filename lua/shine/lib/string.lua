@@ -11,6 +11,7 @@ local StringLen = string.len
 local StringLower = string.lower
 local StringMatch = string.match
 local StringSub = string.sub
+local StringUpper = string.upper
 local TableConcat = table.concat
 
 --[[
@@ -28,6 +29,15 @@ end
 ]]
 function string.StartsWith( String, Prefix )
 	return StringSub( String, 1, StringLen( Prefix ) ) == Prefix
+end
+
+--[[
+	Returns the given string with its first character in upper case.
+
+	Note that this is *not* UTF-8 aware.
+]]
+function string.Capitalise( String )
+	return StringUpper( StringSub( String, 1, 1 ) )..StringSub( String, 2 )
 end
 
 do
@@ -471,5 +481,105 @@ do
 	function string.TransformCase( Value, FromCaseFormat, ToCaseFormat )
 		local Segments = FromCaseFormat.Parse( Value )
 		return ToCaseFormat.Format( Segments )
+	end
+end
+
+do
+	local BAnd = bit.band
+	local BOr = bit.bor
+	local LShift = bit.lshift
+	local RShift = bit.rshift
+
+	local StringByte = string.byte
+	local StringChar = string.char
+
+	local Base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+	local EqualsByte = StringByte( "=" )
+
+	--[[
+		Encodes the given string into base 64 form with no line breaks.
+	]]
+	function string.ToBase64( String )
+		local Out = {}
+
+		local Count = 0
+		for i = 1, #String, 3 do
+			Count = Count + 1
+
+			local Byte1, Byte2, Byte3 = StringByte( String, i, i + 2 )
+			Out[ Count ] = StringChar(
+				-- First 6 bits of the first byte
+				StringByte( Base64Chars, RShift( Byte1, 2 ) + 1 ),
+				-- Last 2 bits of the first byte, and first 4 bits of the second byte
+				StringByte(
+					Base64Chars,
+					BOr(
+						LShift( BAnd( Byte1, 0x3 ), 4 ),
+						RShift( Byte2 or 0, 4 )
+					) + 1
+				),
+				-- Last 4 bits of the second byte, and first 2 bits of the 3rd byte
+				Byte2 and StringByte(
+					Base64Chars,
+					BOr(
+						LShift( BAnd( Byte2, 0xF ), 2 ),
+						RShift( Byte3 or 0, 6 )
+					) + 1
+				) or EqualsByte,
+				-- Last 6 bits of the third byte
+				Byte3 and StringByte(
+					Base64Chars,
+					BAnd( Byte3, 0x3F ) + 1
+				) or EqualsByte
+			)
+		end
+
+		return TableConcat( Out )
+	end
+
+	local InverseLookup = {}
+	for i = 1, #Base64Chars do
+		InverseLookup[ StringByte( Base64Chars, i ) ] = i - 1
+	end
+
+	--[[
+		Decodes the given string from base 64, assuming no line breaks.
+	]]
+	function string.FromBase64( String )
+		local Out = {}
+
+		local Count = 0
+		for i = 1, #String, 4 do
+			local Byte1, Byte2, Byte3, Byte4 = StringByte( String, i, i + 3 )
+			Byte1 = InverseLookup[ Byte1 ]
+			Byte2 = InverseLookup[ Byte2 ]
+			Byte3 = InverseLookup[ Byte3 ]
+			Byte4 = InverseLookup[ Byte4 ]
+
+			-- Take all 6 bits from byte 1, and the first 2 of byte 2
+			Out[ Count + 1 ] = StringChar(
+				BOr( LShift( Byte1, 2 ), RShift( Byte2, 4 ) )
+			)
+
+			-- If padded with ==, then only 1 byte can be extracted.
+			if Byte3 >= 63 then break end
+
+			-- Take the last 4 bits of byte 2, and the first 4 of byte 3.
+			Out[ Count + 2 ] = StringChar(
+				BOr( LShift( BAnd( Byte2, 0xF ), 4 ), RShift( Byte3, 2 ) )
+			)
+
+			-- If padded with =, then only 2 bytes can be extracted.
+			if Byte4 >= 63 then break end
+
+			-- Take the last 2 bits from byte 3, and the all 6 from byte 4.
+			Out[ Count + 3 ] = StringChar(
+				BOr( LShift( BAnd( Byte3, 0x3 ), 6 ), Byte4 )
+			)
+
+			Count = Count + 3
+		end
+
+		return TableConcat( Out )
 	end
 end

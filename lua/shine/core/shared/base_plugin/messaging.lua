@@ -11,12 +11,17 @@ local StringFormat = string.format
 
 local MessageModule = {}
 
+local function GetName( self )
+	return rawget( self, "PrintName" ) or self.__Name
+end
+
 if Client then
 	local RichTextFormat = require "shine/lib/gui/richtext/format"
 
 	local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 	local TextElement = require "shine/lib/gui/richtext/elements/text"
 
+	local OSDate = os.date
 	local TableInsert = table.insert
 
 	function MessageModule:GetPhrase( Key )
@@ -141,6 +146,11 @@ if Client then
 		Shine:NotifyError( Message )
 	end
 
+	function MessageModule:Print( Message, Format, ... )
+		local Timestamp = OSDate( "[%H:%M:%S]" )
+		Print( "%s[%s] %s", Timestamp, GetName( self ), Format and StringFormat( Message, ... ) or Message )
+	end
+
 	do
 		local StringExplode = string.Explode
 		local StringFind = string.find
@@ -180,10 +190,6 @@ if Client then
 		end
 	end
 else
-	local function GetName( self )
-		return rawget( self, "PrintName" ) or self.__Name
-	end
-
 	function MessageModule:Print( Message, Format, ... )
 		Shine:Print( "[%s] %s", true, GetName( self ),
 			Format and StringFormat( Message, ... ) or Message )

@@ -20,6 +20,11 @@ local TableInsert = table.insert
 local TableRemove = table.remove
 local xpcall = xpcall
 
+SGUI.Shaders = {
+	-- A shader that causes a GUIItem to be invisible, but still be able to contribute an alpha multiplier.
+	Invisible = PrecacheAsset "shaders/shine/gui_none.surface_shader"
+}
+
 -- Useful functions for colours.
 include "lua/shine/lib/colour.lua"
 
@@ -595,24 +600,14 @@ do
 		Table.__tostring = Table.__tostring or ControlMeta.__tostring
 	end
 
-	--[[
-		Registers a control meta-table.
-		We'll use this to create instances of it (instead of loading a script
-		file every time like UWE).
-
-		Inputs:
-			1. Control name
-			2. Control meta-table.
-			3. Optional parent name. This will make the object inherit the parent's table keys.
-	]]
-	function SGUI:Register( Name, Table, Parent )
+	local function SetupControlType( self, Name, Table, Parent )
 		Table.__index = Table
 		Table.__Name = Name
 
 		if Parent then
 			Table.ParentControl = Parent
 
-			local ParentTable = self.Controls[ Parent ]
+			local ParentTable = IsType( Parent, "table" ) and Parent or self.Controls[ Parent ]
 			if ParentTable and ParentTable.ParentControl == Name then
 				error( StringFormat( "[SGUI] Cyclic dependency detected. %s depends on %s while %s also depends on %s.",
 					Name, Parent, Parent, Name ) )
@@ -638,6 +633,37 @@ do
 
 		-- Used to call base class functions for things like :MoveTo()
 		Table.BaseClass = ControlMeta
+	end
+
+	--[[
+		Defines a new control type but does not register it.
+
+		This can be useful for specific components that have little re-use value.
+
+		Inputs:
+			1. Control name (does not have to be unique as it is not registered).
+			2. The parent name (taken from registered controls) or table.
+		Output:
+			A new control definition that can be passed into SGUI:CreateFromDefinition().
+	]]
+	function SGUI:DefineControl( Name, Parent )
+		local Table = {}
+		SetupControlType( self, Name, Table, Parent )
+		return Table
+	end
+
+	--[[
+		Registers a control meta-table.
+		We'll use this to create instances of it (instead of loading a script
+		file every time like UWE).
+
+		Inputs:
+			1. Control name
+			2. Control meta-table.
+			3. Optional parent name. This will make the object inherit the parent's table keys.
+	]]
+	function SGUI:Register( Name, Table, Parent )
+		SetupControlType( self, Name, Table, Parent )
 
 		self.Controls[ Name ] = Table
 
@@ -656,7 +682,7 @@ do
 			ControlTypesWaitingForParent:Remove( Name )
 		end
 
-		Hook.Call( "OnSGUIControlRegistered", Name, Table, Parent )
+		Hook.Broadcast( "OnSGUIControlRegistered", Name, Table, Parent )
 	end
 
 	function SGUI:RegisterAlias( Name, AliasName )
@@ -686,15 +712,7 @@ end
 do
 	local ID = 0
 
-	--[[
-		Creates an SGUI control.
-		Input: SGUI control class name, optional parent object.
-		Output: SGUI control object.
-	]]
-	function SGUI:Create( Class, Parent, ParentElement )
-		local MetaTable = self.Controls[ Class ]
-		Shine.AssertAtLevel( MetaTable, "[SGUI] '%s' is not a registered SGUI class!", 3, Class )
-
+	local function MakeControl( self, MetaTable, Class, Parent, ParentElement )
 		ID = ID + 1
 
 		local Table = {}
@@ -728,6 +746,256 @@ do
 		end
 
 		return Control
+	end
+
+	--[[
+		Creates an SGUI control directly from a given definition table.
+		Inputs:
+			1. SGUI control definition table.
+			2. Optional parent object.
+			3. Optional parent GUIItem.
+		Output:
+			SGUI control object.
+	]]
+	function SGUI:CreateFromDefinition( Definition, Parent, ParentElement )
+		Shine.AssertAtLevel( Shine.IsAssignableTo( Definition, ControlMeta ), "Definition must be an SGUI control!", 3 )
+
+		return MakeControl( self, Definition, Definition.__Name, Parent, ParentElement )
+	end
+
+	--[[
+		Creates an SGUI control.
+		Input: SGUI control class name, optional parent object.
+		Output: SGUI control object.
+	]]
+	function SGUI:Create( Class, Parent, ParentElement )
+		if IsType( Class, "table" ) then
+			return self:CreateFromDefinition( Class, Parent, ParentElement )
+		end
+
+		local MetaTable = self.Controls[ Class ]
+		Shine.AssertAtLevel( MetaTable, "[SGUI] '%s' is not a registered SGUI class!", 3, Class )
+
+		return MakeControl( self, MetaTable, Class, Parent, ParentElement )
+	end
+
+	local Binder = require "shine/lib/gui/binding/binder"
+	local TableAdd = table.Add
+
+	local function ShouldAddToLayout( ElementDef )
+		return not ( ElementDef.Props and ElementDef.Props.PositionType == SGUI.PositionType.ABSOLUTE )
+	end
+
+	local function DeferBinding( Element, Binding, DeferredBindings )
+		DeferredBindings[ #DeferredBindings + 1 ] = {
+			Element = Element,
+			Binding = Binding
+		}
+	end
+
+	local function SetupBinder( Element, Binding, From, To )
+		local Builder = Binder()
+		Builder:WithReducer( Binding.Reducer )
+		Builder:WithInitialState( Binding.InitialState )
+
+		if #To == 0 then
+			Builder:ToElement( Element, To.Property, To )
+		else
+			for j = 1, #To do
+				Builder:ToElement( Element, To[ j ].Property, To[ j ] )
+			end
+		end
+
+		return Builder
+	end
+
+	local function ProcessBindings( Element, Bindings, DeferredBindings )
+		for i = 1, #Bindings do
+			local Binding = Bindings[ i ]
+			local From = Binding.From
+			local To = Binding.To
+
+			local Builder = SetupBinder( Element, Binding, From, To )
+			if #From == 0 then
+				if IsType( From.Element, "string" ) then
+					-- Referring to another element in the tree, wait for the entire tree to be created before binding.
+					DeferBinding( Element, Binding, DeferredBindings )
+				else
+					Builder:FromElement( From.Element, From.Property )
+					Builder:BindProperty()
+				end
+			else
+				local Deferred = false
+				for j = 1, #From do
+					local Source = From[ j ]
+					if IsType( Source.Element, "string" ) then
+						Deferred = true
+						DeferBinding( Element, Binding, DeferredBindings )
+						break
+					end
+					Builder:FromElement( Source.Element, Source.Property )
+				end
+
+				if not Deferred then
+					Builder:BindProperties()
+				end
+			end
+		end
+	end
+
+	local function ProcessPropertyChangeListeners( Element, Listeners )
+		for i = 1, #Listeners do
+			Element:AddPropertyChangeListener( Listeners[ i ].Property, Listeners[ i ].Listener )
+		end
+	end
+
+	local ElementFactories = {
+		Layout = function( ElementDef, Parent )
+			local Element = SGUI.Layout:CreateLayout( ElementDef.Class )
+
+			if Parent.IsLayout then
+				Parent:AddElement( Element )
+			elseif Parent.Layout then
+				Parent.Layout:AddElement( Element )
+			else
+				Parent:SetLayout( Element, true )
+			end
+
+			return Element
+		end,
+
+		Control = function( ElementDef, Parent )
+			local Element
+
+			if Parent then
+				if Parent.IsLayout then
+					Element = SGUI:Create( ElementDef.Class, Parent:GetParentControl() )
+					Parent:AddElement( Element )
+				else
+					Element = Parent.Add and Parent:Add( ElementDef.Class ) or SGUI:Create( ElementDef.Class, Parent )
+					if Parent.Layout and ShouldAddToLayout( ElementDef ) then
+						Parent.Layout:AddElement( Element )
+					end
+				end
+			else
+				Element = SGUI:Create( ElementDef.Class )
+			end
+
+			return Element
+		end
+	}
+
+	local function BuildChildren( Context, Parent, Tree, GlobalProps, Level )
+		local DeferredBindings = Context.DeferredBindings
+		local Elements = Context.Elements
+
+		for i = 1, #Tree do
+			local ElementDef = Tree[ i ]
+			local FactoryFunc = ElementFactories[ ElementDef.Type or "Control" ]
+			Shine.AssertAtLevel( FactoryFunc, "Unknown element type in tree: %s", 4 + Level, ElementDef.Type )
+
+			local Element = FactoryFunc( ElementDef, Parent )
+
+			if GlobalProps then
+				Element:SetupFromTable( GlobalProps )
+			end
+
+			if ElementDef.Props then
+				Element:SetupFromTable( ElementDef.Props )
+			end
+
+			if ElementDef.ID then
+				Elements[ ElementDef.ID ] = Element
+			end
+
+			if ElementDef.Bindings then
+				ProcessBindings( Element, ElementDef.Bindings, DeferredBindings )
+			end
+
+			if ElementDef.PropertyChangeListeners then
+				ProcessPropertyChangeListeners( Element, ElementDef.PropertyChangeListeners )
+			end
+
+			if ElementDef.Children then
+				BuildChildren( Context, Element, ElementDef.Children, GlobalProps, Level + 1 )
+			end
+		end
+	end
+
+	local function ProcessDeferredBindings( Elements, DeferredBindings )
+		for i = 1, #DeferredBindings do
+			local Params = DeferredBindings[ i ]
+
+			local Element = Params.Element
+			local Binding = Params.Binding
+			local From = Binding.From
+			local To = Binding.To
+
+			local Builder = SetupBinder( Element, Binding, From, To )
+			if #From == 0 then
+				local FromElement = Elements[ From.Element ]
+				Shine.AssertAtLevel(
+					FromElement,
+					"Binding specified source element '%s' but it does not exist in the tree. Did you forget to assign an ID to it?",
+					4,
+					From.Element
+				)
+				Builder:FromElement( FromElement, From.Property )
+				Builder:BindProperty()
+			else
+				for j = 1, #From do
+					local Source = From[ j ]
+					local FromElement = Source.Element
+					if IsType( FromElement, "string" ) then
+						FromElement = Elements[ From.Element ]
+						Shine.AssertAtLevel(
+							FromElement,
+							"Binding specified source element '%s' but it does not exist in the tree. Did you forget to assign an ID to it?",
+							4,
+							Source.Element
+						)
+					end
+					Builder:FromElement( FromElement, Source.Property )
+				end
+				Builder:BindProperties()
+			end
+		end
+	end
+
+	local function CallOnBuiltCallbacks( Elements, Callbacks )
+		if IsType( Callbacks, "function" ) then
+			Callbacks( Elements )
+		else
+			for i = 1, #Callacks do
+				Callbacks[ i ]( Elements )
+			end
+		end
+	end
+
+	--[[
+		Takes a table that defines an element tree, and creates all elements.
+
+		Elements may be given an ID, in which case they will be present in the returned table under that ID.
+
+		Input:
+			A table containing element definitions.
+		Output:
+			A table with all elements that were assigned an ID.
+	]]
+	function SGUI:BuildTree( Tree )
+		local Context = {
+			Elements = {},
+			DeferredBindings = {}
+		}
+
+		BuildChildren( Context, Tree.Parent, Tree, Tree.GlobalProps, 0 )
+		ProcessDeferredBindings( Context.Elements, Context.DeferredBindings )
+
+		if Tree.OnBuilt then
+			CallOnBuiltCallbacks( Context.Elements, Tree.OnBuilt )
+		end
+
+		return Context.Elements
 	end
 end
 
@@ -869,6 +1137,49 @@ function SGUI.GetScreenSize()
 	return ScrW(), ScrH()
 end
 
+local function SetupRenderDeviceResetCheck()
+	local GetLastPresentTime = Client.GetLastPresentTime
+	local GetLastRenderResetTime = Client.GetLastRenderResetTime
+
+	local LastSeenRenderResetTime = GetLastRenderResetTime()
+	local LastPresentTime
+
+	local STATE_RENDERING = 1
+	local STATE_RESETTING = 2
+
+	local State = STATE_RENDERING
+
+	local SharedTime = Shared.GetTime
+
+	local function HasRenderDeviceReset()
+		local ResetTime = GetLastRenderResetTime()
+		if ResetTime > LastSeenRenderResetTime then
+			LastSeenRenderResetTime = ResetTime
+			return true
+		end
+		return false
+	end
+
+	-- This should have really been done in the engine...
+	Hook.Add( "Think", "CheckRenderDevice", function()
+		if HasRenderDeviceReset() then
+			LastPresentTime = SharedTime()
+			State = STATE_RESETTING
+		end
+
+		if State == STATE_RENDERING then return end
+
+		local PresentingTime = GetLastPresentTime()
+		if PresentingTime > LastPresentTime then
+			LastPresentTime = PresentingTime
+			State = STATE_RENDERING
+
+			-- Notify anything that may need to re-render itself after a render device reset.
+			Hook.Broadcast( "OnRenderDeviceReset" )
+		end
+	end )
+end
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
@@ -881,6 +1192,8 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
 	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
+
+	SetupRenderDeviceResetCheck()
 end )
 
 Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()

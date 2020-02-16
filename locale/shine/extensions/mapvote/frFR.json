@@ -16,7 +16,7 @@
 	"VOTE_FAIL_IN_PROGRESS": "Un vote est déjà en cours.",
 	"VOTE_FAIL_ALREADY_VOTED": "Vous avez déjà voté pour débuter un vote map.",
 	"VOTE_FAIL_INVALID_MAP": "{MapName} n'est pas un choix de carte valide.",
-	"VOTE_FAIL_VOTED_MAP": "Vous avez déjà voté pour {MapName}",
+	"VOTE_FAIL_VOTED_MAP": "Vous avez déjà voté pour {MapName}.",
 	"TEAM_CHANGE_FAIL_VOTE": "Vous ne pouvez pas rejoindre une équipe tant qu'un vote map est en cours.",
 	"TEAM_CHANGE_FAIL_MAP_CHANGE": "Une nouvelle carte va être jouée, vous ne pouvez pas rejoindre d'équipe.",
 	"EXTENDING_ROUND": "Carte actuelle prolongée pour un nouveau round.",
@@ -61,5 +61,8 @@
 	"MAP_EXTENDED_ROUNDS": "Carte {Duration:Sign:raccourcie|prolongée} de {Duration:Abs} {Duration:Abs::Pluralise:round|rounds}.",
 	"SET_MAP_ROUNDS": "a défini la limite du round à {Duration} {Duration:Pluralise:round|rounds}.",
 	"NOTIFY_PREFIX": "[Vote Map]",
-	"PLUGIN_DISABLED": "Vote Map plugin désactivé. Vote actuel annulé."
+	"PLUGIN_DISABLED": "Vote Map plugin désactivé. Vote actuel annulé.",
+
+	"CLIENT_CONFIG_TAB": "Vote Map",
+	"MAP_VOTE_MENU_TITLE": "Vote Map"
 }

@@ -81,5 +81,5 @@ Server.HookNetworkMessage( "Shine_RequestPluginData", function( Client, Message 
 end )
 
 Server.HookNetworkMessage( "Shine_OpenedVoteMenu", function( Client )
-	Shine.Hook.Call( "OnVoteMenuOpen", Client )
+	Shine.Hook.Broadcast( "OnVoteMenuOpen", Client )
 end )

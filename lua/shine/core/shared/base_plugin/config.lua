@@ -103,6 +103,7 @@ function ConfigModule:LoadConfig()
 	if not PluginConfig or not IsType( PluginConfig, "table" ) then
 		if IsType( Pos, "string" ) then
 			self:GenerateDefaultConfig( true )
+			self.__IsNewConfig = true
 		else
 			PrintToLog( "[Error] Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
 
@@ -156,6 +157,14 @@ if Client then
 	end
 else
 	AutoRegisterValidators = function() end
+end
+
+--[[
+	Indicates whether the plugin has loaded from a newly generated configuration (i.e. the first time the plugin has
+	ever been loaded) or not.
+]]
+function ConfigModule:HasLoadedNewConfig()
+	return not not rawget( self, "__IsNewConfig" )
 end
 
 --[[
@@ -462,7 +471,7 @@ if Client then
 			if Setting.IsPercentage then
 				Value = Value * 100
 			end
-			Shine.Hook.Call( "OnPluginClientSettingChanged", self, Setting, Value )
+			Shine.Hook.Broadcast( "OnPluginClientSettingChanged", self, Setting, Value )
 		end
 
 		return true

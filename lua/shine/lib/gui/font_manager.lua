@@ -3,18 +3,21 @@
 ]]
 
 local Abs = math.abs
+local GetCanFontRenderString = GUI.GetCanFontRenderString
 local TableSort = table.sort
 
 local SGUI = Shine.GUI
 SGUI.Fonts = {
-	Ionicons = PrecacheAsset "fonts/ionicons.fnt"
+	Ionicons = PrecacheAsset "fonts/ionicons.fnt",
+	Ionicons64 = PrecacheAsset "fonts/ionicons_64.fnt"
 }
 SGUI.FontFamilies = {
 	Ionicons = "Ionicons",
 	AgencyFBDistField = "AgencyFBDistField",
 	AgencyFBBoldDistField = "AgencyFBBoldDistField",
 	MicrogrammaDistField = "MicrogrammaDistField",
-	MicrogrammaBoldDistField = "MicrogrammaBoldDistField"
+	MicrogrammaBoldDistField = "MicrogrammaBoldDistField",
+	MicrogrammaDBolExt = "MicrogrammaDBolExt"
 }
 SGUI.Icons = {
 	Ionicons = require "shine/lib/gui/icons"
@@ -39,9 +42,19 @@ local function MakeIterable( Lookup )
 	return IterableCopy
 end
 
+local FallbackFamilies = {
+	MicrogrammaDBolExt = "kAgencyFBBold",
+	kAgencyFBBold = "kAgencyFB",
+	MicrogrammaDistField = "AgencyFBDistField",
+	MicrogrammaBoldDistField = "AgencyFBBoldDistField",
+	AgencyFBBoldDistField = "kAgencyFB",
+	AgencyFBDistField = "kAgencyFB"
+}
+
 local FontFamilies = setmetatable( {
 	Ionicons = {
-		[ SGUI.Fonts.Ionicons ] = 32
+		[ SGUI.Fonts.Ionicons ] = 32,
+		[ SGUI.Fonts.Ionicons64 ] = 64
 	},
 	AgencyFBDistField = {
 		[ "fonts/AgencyFB_distfield.fnt" ] = 70
@@ -54,6 +67,12 @@ local FontFamilies = setmetatable( {
 	},
 	MicrogrammaBoldDistField = {
 		[ "fonts/MicrogrammaDBolExt_distfield.fnt" ] = 40
+	},
+	MicrogrammaDBolExt = {
+		[ PrecacheAsset "fonts/MicrogrammaDBolExt_16.fnt" ] = 29,
+		[ PrecacheAsset "fonts/MicrogrammaDBolExt_32.fnt" ] = 59,
+		[ _G.Fonts.kMicrogrammaDBolExt_Huge ] = 96,
+		[ PrecacheAsset "fonts/MicrogrammaDBolExt_64.fnt" ] = 120
 	}
 }, {
 	__index = function( self, Key )
@@ -76,7 +95,7 @@ end
 
 local FontManager = {}
 
-local function FindFontForSize( FontFamily, AbsoluteSize )
+local function FindFontForSize( FontFamily, AbsoluteSize, TextToDisplay )
 	local Fonts = FontFamilies[ FontFamily ]
 	Shine.AssertAtLevel( Fonts, "Unknown font family: %s", 3, FontFamily )
 
@@ -93,6 +112,11 @@ local function FindFontForSize( FontFamily, AbsoluteSize )
 		end
 	end
 
+	-- If the chosen font can't render the string, fall back to a different font and try again.
+	if TextToDisplay and FallbackFamilies[ FontFamily ] and not GetCanFontRenderString( Best, TextToDisplay ) then
+		return FindFontForSize( FallbackFamilies[ FontFamily ], AbsoluteSize, TextToDisplay )
+	end
+
 	local Scale = AbsoluteSize / Fonts[ Best ]
 
 	return Best, Vector2( Scale, Scale )
@@ -104,10 +128,10 @@ end
 	Will automatically deal with GUIScale by scaling the desired size, then
 	finding the font that best matches the scaled size.
 ]]
-function FontManager.GetFont( FontFamily, DesiredSize )
+function FontManager.GetFont( FontFamily, DesiredSize, TextToDisplay )
 	local Scale = SGUI.LinearScale( 1 )
 	local AbsoluteSize = Scale * DesiredSize
-	return FindFontForSize( FontFamily, AbsoluteSize )
+	return FindFontForSize( FontFamily, AbsoluteSize, TextToDisplay )
 end
 
 --[[
@@ -115,7 +139,7 @@ end
 
 	Will automatically scale up the size if the screen height is larger than 1080.
 ]]
-function FontManager.GetHighResFont( FontFamily, DesiredSize )
+function FontManager.GetHighResFont( FontFamily, DesiredSize, TextToDisplay )
 	local Scale
 	local W, H = SGUI.GetScreenSize()
 	if H > 1080 then
@@ -124,7 +148,7 @@ function FontManager.GetHighResFont( FontFamily, DesiredSize )
 		Scale = 1
 	end
 
-	return FindFontForSize( FontFamily, DesiredSize * Scale )
+	return FindFontForSize( FontFamily, DesiredSize * Scale, TextToDisplay )
 end
 
 --[[
@@ -171,7 +195,8 @@ do
 end
 
 local FontSizes = {
-	[ SGUI.Fonts.Ionicons ] = 32
+	[ SGUI.Fonts.Ionicons ] = 32,
+	[ SGUI.Fonts.Ionicons64 ] = 64
 }
 
 --[[
@@ -182,6 +207,8 @@ function FontManager.GetFontSizeForFontName( FontName )
 end
 
 Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
+	GetCanFontRenderString = GUI.GetCanFontRenderString
+
 	local Fonts = {}
 	Shared.GetMatchingFileNames( "fonts/*.fnt", false, Fonts )
 
@@ -212,7 +239,6 @@ Shine.Hook.Add( "OnMapLoad", "CalculateFontSizes", function()
 	end
 
 	local CalculateTextSize = GUI.CalculateTextSize
-	local GetCanFontRenderString = GUI.GetCanFontRenderString
 	local IOOpen = io.open
 	local Max = math.max
 	local StringMatch = string.match

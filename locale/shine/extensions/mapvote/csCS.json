@@ -16,7 +16,7 @@
 	"VOTE_FAIL_IN_PROGRESS": "Hlasování již běží.",
 	"VOTE_FAIL_ALREADY_VOTED": "Již jsi zažádal o spuštění hlasování o mapu.",
 	"VOTE_FAIL_INVALID_MAP": "{MapName} není platná volba mapy.",
-	"VOTE_FAIL_VOTED_MAP": "Pro {MapName} jsi již hlasoval",
+	"VOTE_FAIL_VOTED_MAP": "Pro {MapName} jsi již hlasoval.",
 	"TEAM_CHANGE_FAIL_VOTE": "Nemůžeš se připojit k týmu zatímco probíhá hlasování o mapu.",
 	"TEAM_CHANGE_FAIL_MAP_CHANGE": "Probíhá změna mapu, nyní se nemůžeš připojit k týmu.",
 	"EXTENDING_ROUND": "Aktuální mapa prodloužena o další kolo.",
@@ -63,5 +63,6 @@
 	"NOTIFY_PREFIX": "[Hlasování o mapu]",
 	"PLUGIN_DISABLED": "Zásuvný modul pro hlasování o mapu vypnut. Aktuální hlasování zrušeno.",
 
-	"CLIENT_CONFIG_TAB": "Hlasování o mapu"
+	"CLIENT_CONFIG_TAB": "Hlasování o mapu",
+	"MAP_VOTE_MENU_TITLE": "Hlasování o mapu"
 }

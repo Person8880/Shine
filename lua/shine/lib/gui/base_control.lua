@@ -18,6 +18,7 @@ local TableRemoveByValue = table.RemoveByValue
 local Vector2 = Vector2
 
 local Map = Shine.Map
+local Multimap = Shine.Multimap
 local Source = require "shine/lib/gui/binding/source"
 
 -- This exists to avoid constant concatenation every time properties are set dynamically.
@@ -31,12 +32,14 @@ local SetterKeys = setmetatable( TableNew( 0, 100 ), {
 	end
 } )
 
+SGUI.AddBoundProperty( ControlMeta, "BlendTechnique", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
-SGUI.AddProperty( ControlMeta, "PropagateSkin" )
+SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
 
@@ -178,8 +181,8 @@ function ControlMeta:GetPropertyTarget( Name )
 	end
 
 	local SetterName = SetterKeys[ Name ]
-	Target = function( Value )
-		self[ SetterName ]( self, Value )
+	Target = function( ... )
+		return self[ SetterName ]( self, ... )
 	end
 
 	self.PropertyTargets[ Name ] = Target
@@ -209,14 +212,14 @@ function ControlMeta:SetStylingState( Name )
 		self.GetStylingStates = ControlMeta.GetStylingStates
 	end
 
-	SGUI.SkinManager:ApplySkin( self )
+	self:RefreshStyling()
 end
 
 function ControlMeta:AddStylingState( Name )
 	local States = self:GetStylingStates()
 	if not States:Contains( Name ) then
 		States:Add( Name )
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -227,7 +230,7 @@ function ControlMeta:AddStylingStates( Names )
 	States:AddAll( Names )
 
 	if States:GetCount() > PreviousCount then
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -235,7 +238,7 @@ function ControlMeta:RemoveStylingState( Name )
 	local States = self.StylingStates
 	if States and States:Contains( Name ) then
 		States:Remove( Name )
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -248,7 +251,7 @@ function ControlMeta:RemoveStylingStates( Names )
 	States:RemoveAll( Names )
 
 	if States:GetCount() < PreviousCount then
-		SGUI.SkinManager:ApplySkin( self )
+		self:RefreshStyling()
 	end
 end
 
@@ -273,7 +276,13 @@ do
 end
 
 function ControlMeta:SetStyleName( Name )
+	if self.StyleName == Name then return end
+
 	self.StyleName = Name
+	self:RefreshStyling()
+end
+
+function ControlMeta:RefreshStyling()
 	SGUI.SkinManager:ApplySkin( self )
 end
 
@@ -287,7 +296,7 @@ function ControlMeta:SetSkin( Skin )
 	end
 
 	self.Skin = Skin
-	SGUI.SkinManager:ApplySkin( self )
+	self:RefreshStyling()
 
 	self:OnPropertyChanged( "Skin", Skin )
 
@@ -360,6 +369,7 @@ function ControlMeta:SetParent( Control, Element )
 
 	if ParentControlChanged and self.Parent then
 		self.Parent.Children:Remove( self )
+		self.Parent.ChildrenByPositionType:RemoveKeyValue( self:GetPositionType(), self )
 	end
 
 	if ParentElementChanged and self.ParentElement and IsGUIItemValid( self.ParentElement ) and self.Background then
@@ -392,6 +402,9 @@ function ControlMeta:SetParent( Control, Element )
 
 	Control.Children = Control.Children or Map()
 	Control.Children:Add( self, true )
+
+	Control.ChildrenByPositionType = Control.ChildrenByPositionType or Multimap()
+	Control.ChildrenByPositionType:Add( self:GetPositionType(), self )
 
 	if ParentElementChanged and Element and self.Background then
 		Element:AddChild( self.Background )
@@ -692,6 +705,8 @@ end
 	By default, it updates the set layout handler.
 ]]
 function ControlMeta:PerformLayout()
+	self:UpdateAbsolutePositionChildren()
+
 	if not self.Layout then return end
 
 	local Margin = self.Layout:GetComputedMargin()
@@ -704,6 +719,24 @@ function ControlMeta:PerformLayout()
 		Max( Size.y - Margin[ 2 ] - Margin[ 4 ] - Padding[ 2 ] - Padding[ 4 ], 0 )
 	) )
 	self.Layout:InvalidateLayout( true )
+end
+
+function ControlMeta:UpdateAbsolutePositionChildren()
+	if not self.ChildrenByPositionType then return end
+
+	local Children = self.ChildrenByPositionType:Get( SGUI.PositionType.ABSOLUTE )
+	if not Children then return end
+
+	local Size = self:GetSize()
+	for i = 1, #Children do
+		local Child = Children[ i ]
+		local Pos = Child:ComputeAbsolutePosition( Size )
+		local ChildSize = Vector2( Child:GetComputedSize( 1, Size.x ), Child:GetComputedSize( 2, Size.y ) )
+
+		Child:SetPos( Pos )
+		Child:SetSize( ChildSize )
+		Child:InvalidateLayout( true )
+	end
 end
 
 --[[
@@ -816,6 +849,10 @@ SGUI.AddProperty( ControlMeta, "AutoSize", nil, { "InvalidatesParent" } )
 -- AutoFont provides a way to set the font size automatically at layout time.
 SGUI.AddProperty( ControlMeta, "AutoFont", nil, { "InvalidatesParent" } )
 
+-- AspectRatio provides a way to make a control's height depend on its width, computed at layout time.
+-- This only works if the control has an AutoSize set, and will ignore the height value of the AutoSize entirely.
+SGUI.AddProperty( ControlMeta, "AspectRatio", nil, { "InvalidatesParent" } )
+
 -- Fill controls whether the element should have its size computed automatically during layout.
 SGUI.AddProperty( ControlMeta, "Fill", nil, { "InvalidatesParent" } )
 
@@ -824,6 +861,40 @@ SGUI.AddProperty( ControlMeta, "Margin", nil, { "InvalidatesParent" } )
 
 -- Padding controls the space from the element borders to where the layout may place elements.
 SGUI.AddProperty( ControlMeta, "Padding", nil, { "InvalidatesLayout" } )
+
+-- Offsets for absolutely positioned elements.
+SGUI.AddProperty( ControlMeta, "LeftOffset", nil, { "InvalidatesParent" } )
+SGUI.AddProperty( ControlMeta, "TopOffset", nil, { "InvalidatesParent" } )
+
+SGUI.PositionType = {
+	NONE = 1,
+	ABSOLUTE = 2
+}
+
+SGUI.AddProperty( ControlMeta, "PositionType", SGUI.PositionType.NONE, { "InvalidatesParent" } )
+
+function ControlMeta:SetPositionType( PositionType )
+	local OldPositionType = self:GetPositionType()
+	if OldPositionType == PositionType then return end
+
+	self.PositionType = PositionType
+
+	local Parent = self.Parent
+	if Parent then
+		Parent.ChildrenByPositionType:RemoveKeyValue( OldPositionType, self )
+		Parent.ChildrenByPositionType:Add( PositionType, self )
+	end
+end
+
+function ControlMeta:ComputeAbsolutePosition( ParentSize )
+	local LeftOffset = SGUI.Layout.ToUnit( self:GetLeftOffset() )
+	local TopOffset = SGUI.Layout.ToUnit( self:GetTopOffset() )
+
+	return Vector2(
+		LeftOffset:GetValue( ParentSize.x, self, 1 ),
+		TopOffset:GetValue( ParentSize.y, self, 2 )
+	)
+end
 
 function ControlMeta:IterateChildren()
 	return self.Children:Iterate()
@@ -851,6 +922,8 @@ function ControlMeta:GetMaxSizeAlongAxis( Axis )
 	local MaxChildSize = 0
 
 	for Child in self:IterateChildren() do
+		Child:PreComputeWidth()
+
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
 		local ChildSize = Child:GetComputedSize( Axis, ParentSize )
@@ -881,6 +954,8 @@ function ControlMeta:GetContentSizeForAxis( Axis )
 	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
 
 	for Child in self:IterateChildren() do
+		Child:PreComputeWidth()
+
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
 		Total = Total + Child:GetComputedSize( Axis, ParentSize )
@@ -914,13 +989,16 @@ function ControlMeta:PreComputeWidth()
 	local FontFamily = self.AutoFont.Family
 	local Size = self.AutoFont.Size:GetValue()
 
-	self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size ) )
+	self:SetFontScale( SGUI.FontManager.GetFontForAbsoluteSize( FontFamily, Size, self.GetText and self:GetText() ) )
 end
 
 -- Called before a layout computes the current height of the element.
 -- Override to add wrapping logic.
 function ControlMeta:PreComputeHeight( Width )
+	if not self.AspectRatio or not self.AutoSize then return end
 
+	-- Make height always relative to width.
+	self.AutoSize[ 2 ] = SGUI.Layout.Units.Absolute( Width * self.AspectRatio )
 end
 
 --[[
@@ -1637,16 +1715,14 @@ function ControlMeta:HandleHovering( Time )
 			self.MouseHoverStart = Time
 		else
 			if Time - self.MouseHoverStart > ( self.HoverTime or DEFAULT_HOVER_TIME ) and not self.MouseHovered then
-				self:OnHover( X, Y )
-
 				self.MouseHovered = true
+				self:OnHover( X, Y )
 			end
 		end
 	else
 		self.MouseHoverStart = nil
 		if self.MouseHovered then
 			self.MouseHovered = nil
-
 			if self.OnLoseHover then
 				self:OnLoseHover()
 			end
@@ -1659,10 +1735,14 @@ function ControlMeta:HandleLayout( DeltaTime )
 		self.Layout:Think( DeltaTime )
 	end
 
-	if not self.LayoutIsInvalid then return end
+	-- Sometimes layout requires multiple passes to reach the final answer (e.g. if auto-wrapping text).
+	-- Allow up to 5 iterations before stopping and leaving it for the next frame.
+	for i = 1, 5 do
+		if not self.LayoutIsInvalid then break end
 
-	self.LayoutIsInvalid = false
-	self:PerformLayout()
+		self.LayoutIsInvalid = false
+		self:PerformLayout()
+	end
 end
 
 --[[

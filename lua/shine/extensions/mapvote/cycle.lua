@@ -11,7 +11,9 @@ local Max = math.max
 local Notify = Shared.Message
 local pairs = pairs
 local SharedTime = Shared.GetTime
+local StringFind = string.find
 local TableAdd = table.Add
+local TableConcat = table.concat
 local TableCopy = table.Copy
 local TableFindByField = table.FindByField
 local TableRemove = table.remove
@@ -135,6 +137,108 @@ function Plugin:SetupMaps( Cycle )
 	if self.TrackMapStats then
 		self:LoadMapStats()
 	end
+end
+
+do
+	local MapModsCacheFile = "config://shine/temp/mapmods.json"
+
+	function Plugin:LoadMapModsCache()
+		return Shine.LoadJSONFile( MapModsCacheFile )
+	end
+
+	function Plugin:SaveMapModsCache( MapMods )
+		Shine.SaveJSONFile( MapMods, MapModsCacheFile )
+	end
+end
+
+--[[
+	Reads the given map list, and for any that are tables with a "mods" entry,
+	retrieves the mod's details from Steam and attempts to determine if it is a map.
+
+	Those that are maps are then used when a vote contains a map with the mod to know
+	where the overview/map preview image should come from.
+]]
+function Plugin:InferMapMods( Maps )
+	self.KnownMapMods = self:LoadMapModsCache() or {}
+
+	local Mods = {}
+	local ModToMapName = {}
+	local function AddMod( ModID, MapName )
+		if self.KnownMapMods[ ModID ] ~= nil then return end
+
+		local ModIDBase10 = tonumber( ModID, 16 )
+		if not ModIDBase10 or Mods[ ModIDBase10 ] then return end
+
+		ModToMapName[ ModID ] = MapName
+		Mods[ ModIDBase10 ] = ModID
+		Mods[ #Mods + 1 ] = ModIDBase10
+	end
+
+	for i = 1, #Maps do
+		local Map = Maps[ i ]
+		if IsType( Map, "table" ) and IsType( Map.map, "string" ) and IsType( Map.mods, "table" ) then
+			Shine.Stream( Map.mods ):ForEach( function( ModID )
+				AddMod( ModID, Map.map )
+			end )
+		end
+	end
+
+	if #Mods == 0 then
+		self.Logger:Debug( "No new mods found in map list, skipping lookup." )
+		return
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug( "Looking up map mods: %s", TableConcat( Mods, ", " ) )
+	end
+
+	local Params = {
+		publishedfileids = Mods
+	}
+	Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
+		OnSuccess = function( PublishedFileDetails )
+			if not PublishedFileDetails then
+				self.Logger:Warn(
+					"Steam failed to respond with mod information, map mods may not be detected correctly."
+				)
+				return
+			end
+
+			local function IsMapTag( Tag ) return Tag.tag == "Map" end
+
+			Shine.Stream( PublishedFileDetails ):ForEach( function( File )
+				local FileID = tonumber( File.publishedfileid )
+				local ModIDHex = Mods[ FileID ]
+				if not ModIDHex then return end
+
+				if IsType( File.tags, "table" ) and Shine.Stream( File.tags ):AnyMatch( IsMapTag ) then
+					self.Logger:Debug( "Mod %s is tagged as a map and thus is assumed to be a map mod.", ModIDHex )
+					self.KnownMapMods[ ModIDHex ] = true
+					return
+				end
+
+				local MapName = ModToMapName[ ModIDHex ]
+				if IsType( File.title, "string" ) and StringFind( File.title, MapName, 1, true ) then
+					self.Logger:Debug( "Mod %s's title ('%s') contains %s and thus is assumed to be a map mod.",
+						ModIDHex, File.title, MapName )
+					self.KnownMapMods[ ModIDHex ] = true
+					return
+				end
+
+				self.Logger:Debug( "Mod %s does not appear to be a map mod.", ModIDHex )
+				self.KnownMapMods[ ModIDHex ] = false
+			end )
+
+			self:SaveMapModsCache( self.KnownMapMods )
+		end,
+		OnFailure = function()
+			self.Logger:Warn(
+				"Failed to retrieve mod details for mods specified in the map cycle. "..
+				"Map vote previews may fail to render. "..
+				"To mitigate, ensure the first mod in each map's list is the map itself."
+			)
+		end
+	} )
 end
 
 do

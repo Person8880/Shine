@@ -22,7 +22,7 @@ if Server then
 
 	-- Called when the client first presses a button.
 	Server.HookNetworkMessage( "Shine_ClientConfirmConnect", function( Client, Data )
-		Shine.Hook.Call( "ClientConfirmConnect", Client )
+		Shine.Hook.Broadcast( "ClientConfirmConnect", Client )
 	end )
 
 	local IsType = Shine.IsType

@@ -290,7 +290,7 @@ Shine.Hook.SetupGlobalHook(
 				Shine.StackDump( 2 )
 			)
 		else
-			Shine.Hook.Call( "OnScriptDisconnect", Client, ... )
+			Shine.Hook.Broadcast( "OnScriptDisconnect", Client, ... )
 		end
 
 		return DisconnectClient( Client, ... )

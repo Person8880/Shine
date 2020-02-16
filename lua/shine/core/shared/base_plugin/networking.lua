@@ -129,17 +129,29 @@ do
 		return Key
 	end
 
+	local function PreProcessMessageData( self, Name, Data )
+		local PreProcessor = self.PreProcessTranslatedMessage
+		if PreProcessor then
+			return PreProcessor( self, Name, Data )
+		end
+		return Data
+	end
+
 	function NetworkingModule:AddTranslatedMessage( Name, Params, VariationKey )
 		local MessageParams = TableShallowCopy( Params )
 		MessageParams.AdminName = self:GetNameNetworkField()
 
 		self:AddNetworkMessageHandler( Name, MessageParams, function( self, Data )
+			Data = PreProcessMessageData( self, Name, Data )
+
 			self:CommandNotify( Data.AdminName, GetMessageTranslationKey( Name, VariationKey, Data ), Data )
 		end )
 	end
 
 	function NetworkingModule:AddTranslatedNotify( Name, Params, VariationKey )
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+			Data = PreProcessMessageData( self, Name, Data )
+
 			self:NotifyTranslated( GetMessageTranslationKey( Name, VariationKey, Data ), Data )
 		end )
 	end
@@ -150,6 +162,8 @@ do
 		MessageParams.Duration = "integer (1 to 15)"
 
 		self:AddNetworkMessageHandler( Name, MessageParams, function( self, Data )
+			Data = PreProcessMessageData( self, Name, Data )
+
 			local Message = self:GetInterpolatedPhrase( GetMessageTranslationKey( Name, VariationKey, Data ), Data )
 			Shine.GUI.NotificationManager.AddNotification( Data.Type, Message, Data.Duration )
 		end )
@@ -162,6 +176,8 @@ do
 		MessageParams.B = MessageParams.R
 
 		self:AddNetworkMessageHandler( Name, MessageParams, function( self, Data )
+			Data = PreProcessMessageData( self, Name, Data )
+
 			local Key = GetMessageTranslationKey( Name, VariationKey, Data )
 			self:NotifySingleColour( Data.R, Data.G, Data.B, self:GetInterpolatedPhrase( Key, Data ) )
 		end )
@@ -169,6 +185,8 @@ do
 
 	function NetworkingModule:AddTranslatedError( Name, Params, VariationKey )
 		self:AddNetworkMessageHandler( Name, Params, function( self, Data )
+			Data = PreProcessMessageData( self, Name, Data )
+
 			local Key = GetMessageTranslationKey( Name, VariationKey, Data )
 			self:NotifyError( self:GetInterpolatedPhrase( Key, Data ) )
 		end )

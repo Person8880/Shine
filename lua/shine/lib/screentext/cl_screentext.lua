@@ -4,6 +4,7 @@
 
 local DigitalTime = string.DigitalTime
 local IsType = Shine.IsType
+local RoundTo = math.RoundTo
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local TimeToString = string.TimeToString
@@ -13,6 +14,7 @@ local ScreenTextErrorHandler = Shine.BuildErrorHandler( "Screen text error" )
 
 local SGUI = Shine.GUI
 
+local GlobalIsVisible = true
 local Messages = Shine.Map()
 Shine.TextMessages = Messages
 
@@ -97,6 +99,10 @@ function ScreenText:SetText( Text )
 end
 
 function ScreenText:SetIsVisible( Visible )
+	self.IsVisible = not not Visible
+
+	if not GlobalIsVisible then return end
+
 	self.Obj:SetIsVisible( Visible )
 end
 
@@ -208,7 +214,8 @@ function Shine.ScreenText.Add( ID, Params )
 
 	if not MessageTable then
 		MessageTable = setmetatable( {
-			Index = ID
+			Index = ID,
+			IsVisible = true
 		}, ScreenText )
 
 		MessageTable.IgnoreFormat = IgnoreFormat
@@ -219,7 +226,7 @@ function Shine.ScreenText.Add( ID, Params )
 		GUIObj = GUI.CreateItem()
 		GUIObj:SetOptionFlag( GUIItem.ManageRender )
 		GUIObj:SetTextAlignmentY( GUIItem.Align_Center )
-		GUIObj:SetIsVisible( true )
+		GUIObj:SetIsVisible( GlobalIsVisible )
 
 		MessageTable.Obj = GUIObj
 	else
@@ -244,6 +251,7 @@ function Shine.ScreenText.Add( ID, Params )
 	GUIObj:SetPosition( Vector( ScrW * X, ScrH * Y, 0 ) )
 	GUIObj:SetColor( MessageTable.Colour )
 	GUIObj:SetFontName( Font )
+	GUIObj:SetIsVisible( GlobalIsVisible )
 
 	if Params.ShadowEnabled ~= false then
 		GUIObj:SetDropShadowEnabled( true )
@@ -264,6 +272,7 @@ function Shine.ScreenText.Add( ID, Params )
 
 	MessageTable.UpdateRate = Params.UpdateRate or 1
 	MessageTable.NextUpdate = SharedTime() + MessageTable.UpdateRate
+	MessageTable.LastUpdate = SharedTime()
 
 	Messages:Add( ID, MessageTable )
 
@@ -311,16 +320,40 @@ function Shine.ScreenText.End( ID )
 	MessageTable:End()
 end
 
+--[[
+	Sets the visibility of all screen text elements in one go.
+
+	This is useful for full-screen menus with transparency to stop screen text elements conflicting/distracting.
+]]
+function Shine.ScreenText.SetIsVisible( IsVisible )
+	GlobalIsVisible = not not IsVisible
+
+	for ID, Message in Messages:Iterate() do
+		if GlobalIsVisible then
+			Message.Obj:SetIsVisible( Message.IsVisible )
+		else
+			Message.Obj:SetIsVisible( false )
+		end
+	end
+end
+
+function Shine.ScreenText.GetIsVisible()
+	return GlobalIsVisible
+end
+
 local function UpdateMessage( Index, Message, Time )
 	if Message.NextUpdate > Time then return end
 
 	local Duration = Message.Duration
 	if Duration then
-		Duration = Duration - Message.UpdateRate
+		-- The time since the last update may be more than the update rate.
+		Duration = RoundTo( Duration - ( Time - Message.LastUpdate ), Message.UpdateRate )
 		Message.Duration = Duration
 	end
 
+	Message.LastUpdate = Time
 	Message.NextUpdate = Time + Message.UpdateRate
+
 	if not Message.SuppressTextUpdates then
 		xpcall( Message.UpdateText, ScreenTextErrorHandler, Message )
 
@@ -329,14 +362,14 @@ local function UpdateMessage( Index, Message, Time )
 		end
 	end
 
-	if Duration and Duration <= 0 and Message.Colour.a > 0 and not Message.Fading then
+	if Duration and Duration <= 1 and Message.Colour.a > 0 and not Message.Fading then
 		Message.FadingIn = false
 		Message.Fading = true
 		Message.FadeElapsed = 0
 		Message.FadeDuration = 1
 	end
 
-	if Duration and Duration <= -1 then
+	if Duration and Duration <= 0 then
 		Shine.ScreenText.Remove( Index )
 	end
 end

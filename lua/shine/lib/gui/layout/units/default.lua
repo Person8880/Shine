@@ -299,3 +299,43 @@ do
 		return Ceil( self.Value:GetValue( ParentSize, Element, Axis ) )
 	end
 end
+
+do
+	local Huge = math.huge
+	local MathMin = math.min
+
+	local Min = NewUnit( "Min" )
+
+	function Min:Init( ... )
+		self.Values = { ... }
+		return self
+	end
+
+	function Min:AddValue( Value )
+		self.Values[ #self.Values + 1 ] = Value
+		return self
+	end
+
+	function Min:GetValue( ParentSize, Element, Axis )
+		local MinValue = Huge
+		for i = 1, #self.Values do
+			MinValue = MathMin( MinValue, self.Values[ i ]:GetValue( ParentSize, Element, Axis ) )
+		end
+		return MinValue
+	end
+end
+
+do
+	local Ceil = math.ceil
+	local RoundTo = math.RoundTo
+
+	local MultipleOf2 = NewUnit( "MultipleOf2" )
+	function MultipleOf2:Init( Value )
+		self.Value = ToUnit( Value )
+		return self
+	end
+
+	function MultipleOf2:GetValue( ParentSize, Element, Axis )
+		return RoundTo( Ceil( self.Value:GetValue( ParentSize, Element, Axis ) ), 2 )
+	end
+end

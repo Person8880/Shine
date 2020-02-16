@@ -29,12 +29,16 @@ end
 	This accounts for parents assigned in Shine.TypeDef().
 ]]
 function Shine.Implements( Value, MetaTable )
-	local ValueMetaTable = getmetatable( Value )
-	while ValueMetaTable ~= nil and ValueMetaTable ~= MetaTable do
-		ValueMetaTable = getmetatable( ValueMetaTable )
-		ValueMetaTable = ValueMetaTable and ValueMetaTable.__index
+	return Shine.IsAssignableTo( getmetatable( Value ), MetaTable )
+end
+
+function Shine.IsAssignableTo( MetaTable, Ancestor )
+	local Parent = MetaTable
+	while Parent and Parent ~= Ancestor do
+		Parent = getmetatable( Parent )
+		Parent = Parent and Parent.__index
 	end
-	return ValueMetaTable == MetaTable
+	return Parent == Ancestor
 end
 
 Shine.Objects = {}

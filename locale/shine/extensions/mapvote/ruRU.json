@@ -16,7 +16,7 @@
 	"VOTE_FAIL_IN_PROGRESS": "Голосование в процессе.",
 	"VOTE_FAIL_ALREADY_VOTED": "Вы уже проголосовали за смену карты.",
 	"VOTE_FAIL_INVALID_MAP": "{MapName} карту нельзя выбрать.",
-	"VOTE_FAIL_VOTED_MAP": "Вы уже проголосовали за {MapName}",
+	"VOTE_FAIL_VOTED_MAP": "Вы уже проголосовали за {MapName}.",
 	"TEAM_CHANGE_FAIL_VOTE": "Вы не можете присоединиться к команде, так как идёт голосование \"Смена карты\".",
 	"TEAM_CHANGE_FAIL_MAP_CHANGE": "Сейчас идёт смена карты, вы не можете присоединиться к команде.",
 	"EXTENDING_ROUND": "Время игры на текущей карте продлено для следующего раунда.",
@@ -63,5 +63,6 @@
 	"NOTIFY_PREFIX": "[Голосование \"Смена карты\"]",
 	"PLUGIN_DISABLED": "Плагин \"Смены карт\" отключён. Текущее голосование отменено.",
 
-	"CLIENT_CONFIG_TAB": "Смена карты"
-}r
+	"CLIENT_CONFIG_TAB": "Смена карты",
+	"MAP_VOTE_MENU_TITLE": "Смена карты"
+}

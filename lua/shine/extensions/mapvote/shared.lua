@@ -6,6 +6,7 @@ local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	255, 255, 0
 }
+Plugin.PrintName = "Map Vote"
 
 Plugin.DurationMessageKeys = {
 	"MAP_EXTENDED_TIME",
@@ -89,6 +90,10 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "EndVote", MessageTypes.Empty, "Client" )
 	self:AddNetworkMessage( "VoteProgress", MapVotesMessage, "Client" )
 	self:AddNetworkMessage( "ChosenMap", MessageTypes.MapName, "Client" )
+	self:AddNetworkMessage( "MapMod", {
+		MapName = MapNameField,
+		ModID = "string (12)"
+	}, "Client" )
 
 	self:AddNetworkMessage( "RequestVoteOptions", MessageTypes.Empty, "Server" )
 

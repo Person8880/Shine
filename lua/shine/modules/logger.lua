@@ -30,15 +30,34 @@ function Module:Initialise()
 	end )
 end
 
-Shine:RegisterCommand( "sh_setloglevel", nil, function( Client, PluginName, LogLevel )
+local NotifyError
+local AdminPrint
+
+if Server then
+	NotifyError = function( Client, Message, ... )
+		Shine:NotifyCommandError( Client, Message, true, ... )
+	end
+	AdminPrint = function( Client, Message, ... )
+		Shine:AdminPrint( Client, Message, true, ... )
+	end
+else
+	NotifyError = function( Client, Message, ... )
+		Print( Message, ... )
+	end
+	AdminPrint = function( Client, Message, ... )
+		Print( Message, ... )
+	end
+end
+
+local function SetLogLevel( Client, PluginName, LogLevel )
 	local Plugin = Shine.Plugins[ PluginName ]
 	if not Plugin then
-		Shine:NotifyCommandError( Client, "No plugin named '%s' exists.", true, PluginName )
+		NotifyError( Client, "No plugin named '%s' exists.", PluginName )
 		return
 	end
 
-	if not Plugin.Logger then
-		Shine:NotifyCommandError( Client, "Plugin '%s' has no logger to configure.", true, PluginName )
+	if not Plugin.Logger or not Shine.Implements( Plugin.Logger, Shine.Objects.Logger ) then
+		NotifyError( Client, "Plugin '%s' has no logger to configure.", PluginName )
 		return
 	end
 
@@ -46,7 +65,7 @@ Shine:RegisterCommand( "sh_setloglevel", nil, function( Client, PluginName, LogL
 	LogLevel = StringUpper( LogLevel )
 
 	if not ValidLevels[ LogLevel ] then
-		Shine:NotifyCommandError( Client, "Invalid log level: '%s'. Expected one of %s.", true,
+		NotifyError( Client, "Invalid log level: '%s'. Expected one of %s.",
 			LogLevel, TableConcat( ValidLevels, ", " ) )
 		return
 	end
@@ -55,14 +74,28 @@ Shine:RegisterCommand( "sh_setloglevel", nil, function( Client, PluginName, LogL
 	Plugin.Config.LogLevel = LogLevel
 	Plugin:SaveConfig()
 
-	Shine:AdminPrint( Client, "Log level of plugin '%s' set to '%s'.", true, PluginName, LogLevel )
-end )
-:Help( "Sets the log level for the given plugin." )
-:AddParam( {
-	Type = "string", Help = "Plugin Name"
-} )
-:AddParam( {
-	Type = "string", Help = "Log Level"
-} )
+	AdminPrint( Client, "Log level of plugin '%s' set to '%s'.", PluginName, LogLevel )
+end
+
+if Server then
+	Shine:RegisterCommand( "sh_setloglevel", nil, SetLogLevel )
+	:Help( "Sets the log level for the given plugin." )
+	:AddParam( {
+		Type = "string", Help = "Plugin Name"
+	} )
+	:AddParam( {
+		Type = "string", Help = "Log Level"
+	} )
+else
+	Shine:RegisterClientCommand( "sh_setloglevel_cl", function( PluginName, LogLevel )
+		SetLogLevel( nil, PluginName, LogLevel )
+	end )
+	:AddParam( {
+		Type = "string"
+	} )
+	:AddParam( {
+		Type = "string"
+	} )
+end
 
 Plugin:AddModule( Module )

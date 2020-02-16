@@ -18,6 +18,7 @@ local DefaultConfig = {
 	DebugLogging = false,
 	LogDir = "config://shine/logs/", -- Logging directory.
 	DateFormat = "dd-mm-yyyy", -- Format for logging dates.
+	LogLevel = "INFO", -- Log level for core Shine logger.
 
 	ExtensionDir = "config://shine/plugins/", -- Plugin configs directory.
 
@@ -194,6 +195,9 @@ do
 	Validator:AddRule( InConfigDirectoryRule( "LogDir" ) )
 	Validator:AddRule( AddTrailingSlashRule( "ExtensionDir" ) )
 	Validator:AddRule( InConfigDirectoryRule( "ExtensionDir" ) )
+	Validator:AddFieldRule( "LogLevel", Validator.InEnum(
+		Shine.Objects.Logger.LogLevel, Shine.Objects.Logger.LogLevel.INFO
+	) )
 
 	function Shine:LoadConfig()
 		local Paths = {
@@ -323,6 +327,8 @@ end
 
 function Shine:LoadExtensionConfigs()
 	self:LoadConfig()
+
+	self.Logger:SetLevel( self.Config.LogLevel )
 
 	-- Load extensions after the initial configuration load to ensure logging options are available.
 	Script.Load "lua/shine/core/shared/extensions.lua"

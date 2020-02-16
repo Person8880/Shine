@@ -31,12 +31,14 @@ SGUI.AddBoundProperty( Button, "TextColour", {
 SGUI.AddBoundProperty( Button, "TextInheritsParentAlpha", { "Label:SetInheritsParentAlpha", "Icon:SetInheritsParentAlpha" } )
 SGUI.AddBoundProperty( Button, "TextIsVisible", "Label:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "TextScale", "Label:SetTextScale" )
+SGUI.AddBoundProperty( Button, "TextShadow", "Label:SetShadow" )
 
 SGUI.AddBoundProperty( Button, "IconAlignment", "Icon:SetAlignment" )
 SGUI.AddBoundProperty( Button, "IconColour", "Icon:SetColour" )
 SGUI.AddBoundProperty( Button, "IconAutoFont", "Icon:SetAutoFont" )
 SGUI.AddBoundProperty( Button, "IconIsVisible", "Icon:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
+SGUI.AddBoundProperty( Button, "IconShadow", "Icon:SetShadow" )
 
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
@@ -88,6 +90,10 @@ function Button:SetText( Text )
 	Description:SetIsVisible( self.TextIsVisible )
 	-- Need to offset the text based on its internal alignment.
 	Description:SetUseAlignmentCompensation( true )
+
+	if self.TextShadow then
+		Description:SetShadow( self.TextShadow )
+	end
 
 	Binder():FromElement( self, "Horizontal" )
 		:ToElement( Description, "AutoWrap", {
@@ -173,6 +179,9 @@ function Button:SetIcon( IconName, Font, Scale )
 	Icon:SetText( IconName )
 	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Icon:SetIsVisible( self.IconIsVisible )
+	if self.IconShadow then
+		Icon:SetShadow( self.IconShadow )
+	end
 
 	self.Layout:InsertElement( Icon, 1 )
 	self.Icon = Icon
@@ -282,6 +291,7 @@ function Button:SetOpenMenuOnClick( PopulateMenuFunc )
 		if self.Menu and rawget( self.Menu, "DestroyedBy" ) == self then
 			-- Clicked the button to close the menu.
 			self.Menu = nil
+			self:OnPropertyChanged( "Menu", nil )
 			return
 		end
 
@@ -329,6 +339,10 @@ do
 				+ Units.Spacing[ MarginSizeMethod[ Axis ] ]( self.Icon:GetComputedMargin() )
 		end
 
+		if self.Padding then
+			Size = Size + Units.Spacing[ MarginSizeMethod[ Axis ] ]( self:GetComputedPadding() )
+		end
+
 		return Size
 	end
 
@@ -358,6 +372,13 @@ do
 	function Button:GetContentSizeForAxis( Axis )
 		return ContentSizeHandlers[ self.Horizontal ][ Axis ]( self, Axis )
 	end
+end
+
+function Button:Cleanup()
+	if SGUI.IsValid( self.Menu ) then
+		self.Menu:Destroy()
+	end
+	return self.BaseClass.Cleanup( self )
 end
 
 SGUI:AddMixin( Button, "Clickable" )

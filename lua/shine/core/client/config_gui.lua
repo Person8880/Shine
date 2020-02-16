@@ -343,7 +343,7 @@ local SettingsTypes = {
 					Radio:AddOption( RadioOption )
 
 					if CurrentChoice == Option then
-						Radio:SetSelectedOption( RadioOption )
+						Radio:SetSelectedOption( RadioOption, true )
 					end
 				end
 

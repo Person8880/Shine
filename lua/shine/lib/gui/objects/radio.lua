@@ -139,18 +139,18 @@ function Radio:RemoveOption( Option )
 	return true
 end
 
-function Radio:SetSelectedOption( Option )
+function Radio:SetSelectedOption( Option, DontFade )
 	local CheckBox = self.CheckBoxes[ Option ]
 	if not SGUI.IsValid( CheckBox ) then return end
 
-	CheckBox:SetChecked( true )
+	CheckBox:SetChecked( true, DontFade )
 end
 
-function Radio:SetSelectedOptions( Options )
+function Radio:SetSelectedOptions( Options, DontFade )
 	if not self.MultipleChoice then return end
 
 	for i = 1, #Options do
-		self:SetSelectedOption( Options[ i ] )
+		self:SetSelectedOption( Options[ i ], DontFade )
 	end
 end
 

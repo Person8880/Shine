@@ -17,8 +17,14 @@ local DefaultConfig = {
 	DebugLogging = false,
 	ExpandAdminMenuTabs = true,
 	ExpandConfigMenuTabs = true,
-	Skin = "Default"
+	Skin = "Default",
+	LogLevel = "INFO"
 }
+
+local Validator = Shine.Validator()
+Validator:AddFieldRule( "LogLevel", Validator.InEnum(
+	Shine.Objects.Logger.LogLevel, Shine.Objects.Logger.LogLevel.INFO
+) )
 
 function Shine:CreateClientBaseConfig()
 	self.SaveJSONFile( DefaultConfig, BaseConfig )
@@ -34,7 +40,7 @@ function Shine:LoadClientBaseConfig()
 
 	self.Config = Data
 
-	if self.CheckConfig( self.Config, DefaultConfig ) then
+	if self.CheckConfig( self.Config, DefaultConfig ) or Validator:Validate( self.Config ) then
 		self:SaveClientBaseConfig()
 	end
 end
@@ -53,12 +59,13 @@ function Shine:SetClientSetting( Key, Value )
 	self.Config[ Key ] = Value
 	self:SaveClientBaseConfig()
 
-	Hook.Call( "OnClientSettingChanged", Key, Value )
+	Hook.Broadcast( "OnClientSettingChanged", Key, Value )
 
 	return true
 end
 
 Shine:LoadClientBaseConfig()
+Shine.Logger:SetLevel( Shine.Config.LogLevel )
 
 local function MakeClientOption( Command, OptionKey, OptionString, Yes, No )
 	local ConCommand = Shine:RegisterClientCommand( Command, function( Bool )
@@ -135,7 +142,7 @@ do
 			Options[ #Options + 1 ] = Entry
 		end
 
-		Hook.Call( "OnClientSettingAdded", Entry )
+		Hook.Broadcast( "OnClientSettingAdded", Entry )
 	end
 
 	function Shine:RemoveClientSetting( Entry )
@@ -143,7 +150,7 @@ do
 		if Existing then
 			TableRemove( Options, Index )
 
-			Hook.Call( "OnClientSettingRemoved", Entry )
+			Hook.Broadcast( "OnClientSettingRemoved", Entry )
 
 			return true
 		end

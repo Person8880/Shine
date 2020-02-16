@@ -100,7 +100,7 @@ Shine.UserData = {
 	}
 }
 
-Shine.Hook.Call( "OnUserReload" )
+Shine.Hook.Broadcast( "OnUserReload" )
 
 ---- GETTER TESTS ----
 UnitTest:Test( "GetUserData", function ( Assert )
@@ -641,4 +641,4 @@ end )
 Shine.UserData = OldUserData
 Shine.SaveUsers = OldSaveUsers
 
-Shine.Hook.Call( "OnUserReload" )
+Shine.Hook.Broadcast( "OnUserReload" )

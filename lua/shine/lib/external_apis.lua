@@ -9,6 +9,19 @@ local OSTime = os.time
 local StringFormat = string.format
 local tostring = tostring
 
+local function SteamArrayParam( ValueParamName, CountParamName )
+	CountParamName = CountParamName or "itemcount"
+	return function( List )
+		local Params = Shine.Stream.Of( List ):Map( function( Param, Index )
+			return { StringFormat( "%s[%d]", ValueParamName, Index - 1 ), Param }
+		end ):AsTable()
+
+		Params[ #Params + 1 ] = { CountParamName, #List }
+
+		return Params
+	end
+end
+
 local APIs = {
 	Steam = {
 		URL = "https://api.steampowered.com/",
@@ -41,6 +54,30 @@ local APIs = {
 					if not Lender or Lender == "0" then return false end
 
 					return Shine.SteamID64ToNS2ID( Lender )
+				end
+			}
+		}
+	},
+	-- Public API endpoints that do not require an API key.
+	SteamPublic = {
+		URL = "https://api.steampowered.com/",
+		Params = {},
+		GlobalRequestParams = {},
+		EndPoints = {
+			GetPublishedFileDetails = {
+				Protocol = "POST",
+				URL = "ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+				Params = {
+					-- Provide an array of strings/numbers, will be converted internally to the right parameters.
+					publishedfileids = SteamArrayParam( "publishedfileids" )
+				},
+				ResponseTransformer = function( Response )
+					if not IsType( Response, "table" ) or not IsType( Response.response, "table" )
+					or not IsType( Response.response.publishedfiledetails, "table" ) then
+						return nil
+					end
+
+					return Response.response.publishedfiledetails
 				end
 			}
 		}
@@ -121,7 +158,16 @@ do
 					error( StringFormat( "Missing request parameter: '%s'", Key ), 2 )
 				end
 
-				FinalParams[ Key ] = Transformer( Value )
+				local TransformedParam = Transformer( Value )
+				if IsType( TransformedParam, "table" ) then
+					-- Transformer expanded parameter into multiple, add them all.
+					for i = 1, #TransformedParam do
+						local Param = TransformedParam[ i ]
+						FinalParams[ Param[ 1 ] ] = Param[ 2 ]
+					end
+				else
+					FinalParams[ Key ] = TransformedParam
+				end
 			end
 
 			-- Add any missing default parameters.
@@ -185,8 +231,7 @@ do
 end
 
 local ExternalAPIHandler = {
-	Cache = {},
-	Queue = Shine.Queue()
+	Cache = {}
 }
 Shine.ExternalAPIHandler = ExternalAPIHandler
 
@@ -340,6 +385,14 @@ do
 		}
 	end
 
+	local OnQueueError = Shine.BuildErrorHandler( "External API call error" )
+	local function WrapWithXPCall( Callback )
+		if not Callback then return nil end
+		return function( ... )
+			return xpcall( Callback, OnError, ... )
+		end
+	end
+
 	--[[
 		Performs a request to a registered external API URL.
 
@@ -353,54 +406,19 @@ do
 			5. Attempts - Optional maximum number of retry attempts, defaults to only 1 attempt.
 	]]
 	function ExternalAPIHandler:PerformRequest( APIName, EndPointName, Params, Callbacks, Attempts )
-		local EndPoint = self:VerifyEndPoint( APIName, EndPointName )
+		self:VerifyEndPoint( APIName, EndPointName )
+
 		local Caller = APICallers[ APIName ][ EndPointName ]
 
-		-- Cache the result and advance the queue on success.
 		local OldOnSuccess = Callbacks.OnSuccess
 		Callbacks.OnSuccess = function( Result )
 			self:AddToCache( APIName, EndPointName, Params, Result )
-
 			xpcall( OldOnSuccess, OnError, Result )
-
-			self:ProcessQueue()
 		end
 
-		-- Advance the queue on failure.
-		local OldOnFailure = Callbacks.OnFailure
-		Callbacks.OnFailure = function()
-			xpcall( OldOnFailure, OnError )
+		Callbacks.OnFailure = WrapWithXPCall( Callbacks.OnFailure )
+		Callbacks.OnTimeout = WrapWithXPCall( Callbacks.OnTimeout )
 
-			self:ProcessQueue()
-		end
-
-		self.Queue:Add( {
-			Caller = Caller,
-			Args = { Params, Callbacks, Attempts }
-		} )
-
-		-- Waiting on previous request(s) to finish.
-		if self.Queue:GetCount() > 1 then return end
-
-		self:ProcessQueue()
-	end
-
-	local OnQueueError = Shine.BuildErrorHandler( "External API call error" )
-
-	--[[
-		Internal function, do not call. This is called automatically as requests
-		are added and satisfied.
-
-		Advances the request queue, if there are still requests pending.
-	]]
-	function ExternalAPIHandler:ProcessQueue()
-		local Queued = self.Queue:Pop()
-		if not Queued then return end
-
-		-- If the function fails, skip it and go to the next entry.
-		local Success = xpcall( Queued.Caller, OnQueueError, unpack( Queued.Args ) )
-		if not Success then
-			self:ProcessQueue()
-		end
+		xpcall( Caller, OnQueueError, Params, Callbacks, Attempts )
 	end
 end
