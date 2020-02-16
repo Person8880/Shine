@@ -92,7 +92,7 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "ChosenMap", MessageTypes.MapName, "Client" )
 	self:AddNetworkMessage( "MapMod", {
 		MapName = MapNameField,
-		ModID = "integer"
+		ModID = "string (12)"
 	}, "Client" )
 
 	self:AddNetworkMessage( "RequestVoteOptions", MessageTypes.Empty, "Server" )

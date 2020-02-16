@@ -58,9 +58,7 @@ function Plugin:SendMapMods( Client )
 
 			-- If we know which mod is the map, use it. Otherwise assume it's the first mod.
 			local ModID = MapMods[ 1 ] or Options.mods[ 1 ]
-			ModID = tonumber( ModID, 16 )
-
-			if ModID then
+			if ModID and tonumber( ModID, 16 ) then
 				self.Logger:Debug( "Map %s has mod ID: %s", Map, ModID )
 				self:SendNetworkMessage( Client, "MapMod", {
 					MapName = Map,

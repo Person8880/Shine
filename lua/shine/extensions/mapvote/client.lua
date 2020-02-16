@@ -710,7 +710,7 @@ end
 
 function Plugin:ReceiveMapMod( Data )
 	self.MapMods = self.MapMods or {}
-	self.MapMods[ Data.MapName ] = Data.ModID
+	self.MapMods[ Data.MapName ] = tonumber( Data.ModID, 16 )
 
 	self.Logger:Debug( "Received mod ID %s for map %s.", Data.ModID, Data.MapName )
 end
