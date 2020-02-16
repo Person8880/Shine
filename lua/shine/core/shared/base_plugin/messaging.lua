@@ -21,6 +21,7 @@ if Client then
 	local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 	local TextElement = require "shine/lib/gui/richtext/elements/text"
 
+	local OSDate = os.date
 	local TableInsert = table.insert
 
 	function MessageModule:GetPhrase( Key )
@@ -146,7 +147,8 @@ if Client then
 	end
 
 	function MessageModule:Print( Message, Format, ... )
-		Print( "[%s] %s", GetName( self ), Format and StringFormat( Message, ... ) or Message )
+		local Timestamp = OSDate( "[%H:%M:%S]" )
+		Print( "%s[%s] %s", Timestamp, GetName( self ), Format and StringFormat( Message, ... ) or Message )
 	end
 
 	do
