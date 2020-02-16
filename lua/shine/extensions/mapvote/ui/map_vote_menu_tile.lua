@@ -310,7 +310,7 @@ function MapTile:Initialise()
 			Transformer = function( Selected )
 				if Selected then
 					return SGUI.Icons.Ionicons.Checkmark,
-						SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 64 )
+						SGUI.FontManager.GetFont( SGUI.FontFamilies.Ionicons, 64 )
 				end
 				return nil
 			end
