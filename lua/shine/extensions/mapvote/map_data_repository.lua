@@ -137,7 +137,7 @@ local FileNameFormats = {
 	-- Overviews however are unique to each map.
 	OverviewImage = "config://shine/cache/maps/%s/%s_overview.dat"
 }
-local function SaveImageToCache( ModID, MapName, CacheKey, ImageData, MediaType, LastUpdatedTime )
+local function SaveImageToCache( ModID, MapName, CacheKey, ImageData, LastUpdatedTime )
 	local FileName
 	if CacheKey == "PreviewImage" then
 		FileName = StringFormat( FileNameFormats[ CacheKey ], ModID )
@@ -192,7 +192,7 @@ local function LoadFromURL( ModID, MapName, CacheKey, URL, Callback, LastUpdated
 		TextureLoader.LoadFromMemory( MediaType, ImageData, function( TextureName, Err )
 			if not Err then
 				-- Image loaded successfully, so cache it.
-				SaveImageToCache( ModID, MapName, CacheKey, ImageData, MediaType, LastUpdatedTime )
+				SaveImageToCache( ModID, MapName, CacheKey, ImageData, LastUpdatedTime )
 			end
 
 			Callback( MapName, TextureName, Err )
@@ -310,7 +310,7 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 
 		-- Couldn't load image from the remote source, so check to see if we have a stale cached image.
 		local CacheEntry = GetCacheEntry( ModID, IsForMap and MapName )
-		if CacheEntry and CacheEntry[ CacheKey ] then
+		if CacheEntry and IsType( CacheEntry[ CacheKey ], "string" ) then
 			MapDataRepository.Logger:Debug(
 				"Loading %s for %s/%s from remote source failed, using stale cached image.",
 				CacheKey, ModID, MapName
@@ -416,9 +416,10 @@ function MapDataRepository.GetPreviewImages( Maps, Callback )
 					if MapNames and IsType( File.preview_url, "string" ) then
 						MapModIDs:Remove( ModID )
 
-						local LoaderCallback = CallbackWithFallbackToCache( ModID, false, "PreviewImage", Callback )
-						ImageLoaders.PreviewImage( ModID, nil, WrapCallback( LoaderCallback, MapNames ),
-							File.preview_url, File.time_updated )
+						local LoaderCallback = CallbackWithFallbackToCache(
+							ModID, false, "PreviewImage", WrapCallback( Callback, MapNames )
+						)
+						ImageLoaders.PreviewImage( ModID, nil, LoaderCallback, File.preview_url, File.time_updated )
 					end
 				end
 			end
