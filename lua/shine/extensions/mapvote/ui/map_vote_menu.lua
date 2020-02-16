@@ -134,7 +134,7 @@ local Skin = {
 	},
 	MapVoteMenu = {
 		Default = {
-			Colour = Colour( 1, 1, 1, 0 )
+			Colour = Colour( 1, 1, 1, 1 )
 		}
 	},
 	MapTile = {
@@ -210,6 +210,7 @@ function MapVoteMenu:Initialise()
 	Controls.Panel.Initialise( self )
 	self:SetSkin( Skin )
 
+	self:SetAlpha( 0 )
 	self.Background:SetShader( SGUI.Shaders.Invisible )
 	self.MapTiles = {}
 	self.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Shared.Message )
