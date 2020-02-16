@@ -195,7 +195,17 @@ local STATE_SETUP_GUI_VIEW = 3
 local STATE_COPYING_TEXTURE = 4
 
 local IMAGE_CONFIRM_JS = [[var Interval;
+function SetBodyStyle() {
+	var Body = document.querySelector( "body" );
+	if ( Body ) {
+		Body.style[ 'background-color' ] = 'rgba( 0, 0, 0, 0 )';
+	}
+}
+
 function IsImageReady() {
+	// Make sure the background is transparent to allow alpha in images to show.
+	SetBodyStyle();
+
 	var Image = document.querySelector( "img" );
 
 	// Make sure the image has actually loaded correctly before continuing.
@@ -213,9 +223,6 @@ if ( window.location.href.indexOf( %q ) < 0 ) {
 	// Sanity check, should never happen.
 	alert( "WRONG_URL" );
 } else {
-	// Make sure the background is transparent to allow alpha in images to show.
-	document.querySelector( "body" ).style[ 'background-color' ] = 'rgba( 0, 0, 0, 0 )';
-
 	if ( !IsImageReady() ) {
 		Interval = setInterval( IsImageReady, 10 );
 	}
