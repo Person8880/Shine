@@ -37,6 +37,10 @@ local MapOverviews = {}
 local MapPreviews = {}
 local ModMaps
 
+local function SaveCache()
+	Shine.SaveJSONFile( ModMaps, METADATA_FILE, { indent = false } )
+end
+
 do
 	local StringMatch = string.match
 
@@ -123,32 +127,22 @@ do
 			ModMaps[ ModID ] = nil
 		end
 	end
-end
 
-local function SaveCache()
-	Shine.SaveJSONFile( ModMaps, METADATA_FILE, { indent = false } )
+	SaveCache()
 end
-
-local MediaTypeFileExtensions = {
-	[ "image/png" ] = "png",
-	[ "image/jpeg" ] = "jpg",
-	[ "image/webp" ] = "webp",
-	[ "image/gif" ] = "gif"
-}
 
 local FileNameFormats = {
 	-- Currently all maps have the same preview image (derived from the workshop mod).
-	PreviewImage = "config://shine/cache/maps/%s/preview.%s",
+	PreviewImage = "config://shine/cache/maps/%s/preview.dat",
 	-- Overviews however are unique to each map.
-	OverviewImage = "config://shine/cache/maps/%s/%s_overview.%s"
+	OverviewImage = "config://shine/cache/maps/%s/%s_overview.dat"
 }
 local function SaveImageToCache( ModID, MapName, CacheKey, ImageData, MediaType, LastUpdatedTime )
 	local FileName
-	local FileExtension = MediaTypeFileExtensions[ MediaType ]
 	if CacheKey == "PreviewImage" then
-		FileName = StringFormat( FileNameFormats[ CacheKey ], ModID, FileExtension )
+		FileName = StringFormat( FileNameFormats[ CacheKey ], ModID )
 	else
-		FileName = StringFormat( FileNameFormats[ CacheKey ], ModID, MapName, FileExtension )
+		FileName = StringFormat( FileNameFormats[ CacheKey ], ModID, MapName )
 	end
 
 	do
