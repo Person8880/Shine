@@ -194,9 +194,10 @@ local STATE_WAITING_FOR_CONFIRMATION = 2
 local STATE_SETUP_GUI_VIEW = 3
 local STATE_COPYING_TEXTURE = 4
 
-local IMAGE_CONFIRM_JS = [[var Image = document.querySelector( "img" );
-var Interval;
+local IMAGE_CONFIRM_JS = [[var Interval;
 function IsImageReady() {
+	var Image = document.querySelector( "img" );
+
 	// Make sure the image has actually loaded correctly before continuing.
 	// If the image failed to load for some reason, the timeout will be hit.
 	if ( Image && Image.complete && Image.naturalWidth !== 0 ) {
