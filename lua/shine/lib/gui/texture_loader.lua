@@ -547,47 +547,34 @@ do
 	end
 end
 
-do
-	local StringMatch = string.match
+--[[
+	Loads an image into a texture from the given file.
 
-	local ExtensionToMediaType = {
-		png = "image/png",
-		jpg = "image/jpeg",
-		jpeg = "image/jpeg",
-		webp = "image/webp",
-		gif = "image/gif"
-	}
+	Essentially reads the file contents, infers the media type from the file contents, then
+	calls LoadFromMemory().
 
-	--[[
-		Loads an image into a texture from the given file.
+	Inputs:
+		1. The file path to load.
+		2. Callback to run when the image has completed loading, or failed.
+		3. Options to configure the width/height and timeout duration.
+]]
+function TextureLoader.LoadFromFile( FilePath, Callback, Options )
+	Shine.TypeCheck( FilePath, "string", 1, "LoadFromFile" )
 
-		Essentially reads the file contents, infers the media type from the file extension, then
-		calls LoadFromMemory().
-
-		Inputs:
-			1. The file path to load.
-			2. Callback to run when the image has completed loading, or failed.
-			3. Options to configure the width/height and timeout duration.
-	]]
-	function TextureLoader.LoadFromFile( FilePath, Callback, Options )
-		Shine.TypeCheck( FilePath, "string", 1, "LoadFromFile" )
-
-		local Extension = StringMatch( FilePath, ".+%.(%a+)$" )
-		local MediaType = ExtensionToMediaType[ Extension ]
-		if not Extension or not MediaType then
-			return Callback(
-				nil, StringFormat( "%s: Unknown file type for file: %s", ErrorCodes.IMAGE_DATA_ERROR, FilePath )
-			)
-		end
-
-		local Contents, Err = Shine.ReadFile( FilePath )
-		if not Contents then
-			return Callback( nil, StringFormat( "%s: Unable to open file %s: %s",
-				ErrorCodes.FILE_OPEN_ERROR, FilePath, Err ) )
-		end
-
-		return TextureLoader.LoadFromMemory( MediaType, Contents, Callback, Options )
+	local Contents, Err = Shine.ReadFile( FilePath )
+	if not Contents then
+		return Callback( nil, StringFormat( "%s: Unable to open file %s: %s",
+			ErrorCodes.FILE_OPEN_ERROR, FilePath, Err ) )
 	end
+
+	local MediaType = TextureLoader.InferMediaType( Contents )
+	if not MediaType then
+		return Callback(
+			nil, StringFormat( "%s: Unknown media type for file: %s", ErrorCodes.IMAGE_DATA_ERROR, FilePath )
+		)
+	end
+
+	return TextureLoader.LoadFromMemory( MediaType, Contents, Callback, Options )
 end
 
 --[[
