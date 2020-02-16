@@ -665,6 +665,10 @@ function Plugin:ReceiveChosenMap( Data )
 	if MapButton and SGUI.IsValid( MapButton.Button ) then
 		Shine.VoteMenu:MarkAsSelected( MapButton.Button, true )
 	end
+
+	if SGUI.IsValid( self.FullVoteMenu ) then
+		self.FullVoteMenu:ForceSelectedMap( MapName )
+	end
 end
 
 function Plugin:EndVote()

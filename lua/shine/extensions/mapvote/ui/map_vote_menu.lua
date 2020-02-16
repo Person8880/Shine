@@ -692,11 +692,10 @@ function MapVoteMenu:OnMapVoteCountChanged( MapName, NumVotes )
 	end
 end
 
-function MapVoteMenu:SetSelectedMap( MapName )
-	if MapName == self.SelectedMap then return end
+function MapVoteMenu:ForceSelectedMap( MapName )
+	if MapName == self.SelectedMap then return false end
 
 	self.SelectedMap = MapName
-	self:OnPropertyChanged( "SelectedMap", MapName )
 
 	local PreviouslySelected = self.SelectedMapTile
 	if SGUI.IsValid( PreviouslySelected ) then
@@ -708,6 +707,14 @@ function MapVoteMenu:SetSelectedMap( MapName )
 		Tile:SetSelected( true )
 		self.SelectedMapTile = Tile
 	end
+
+	return true
+end
+
+function MapVoteMenu:SetSelectedMap( MapName )
+	if not self:ForceSelectedMap( MapName ) then return end
+
+	self:OnPropertyChanged( "SelectedMap", MapName )
 
 	if self:GetCloseOnClick() then
 		self:Close()
