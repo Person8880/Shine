@@ -63,23 +63,27 @@ do
 
 	-- Make sure the metadata is in sync with the current files.
 	local CachedImages = {}
-	Shared.GetMatchingFileNames( "config://shine/cache/maps/*.png", true, CachedImages )
+	Shared.GetMatchingFileNames( "config://shine/cache/maps/*", true, CachedImages )
 
 	local FoundMods = {}
 	for i = 1, #CachedImages do
 		local Path = CachedImages[ i ]
-		local ModID, FileName = StringMatch( Path, "^shine/cache/maps/(%d+)/(.+)%.png$" )
+		local FullPath = StringFormat( "config://%s", Path )
+
+		CachedImages[ FullPath ] = true
+
+		local ModID, FileName = StringMatch( Path, "^shine/cache/maps/(%d+)/(.+)%.%a+$" )
 		if ModID then
 			FoundMods[ ModID ] = true
 
 			local ModData = TableBuild( ModMaps, ModID )
 
-			local MapName, Type = StringMatch( FileName, "^(.+)_([^_]+)%.png" )
+			local MapName, Type = StringMatch( FileName, "^(.+)_([^_]+)$" )
 			if Type == "overview" then
 				local MapMetadata = TableBuild( ModData, "Maps", MapName )
-				MapMetadata.OverviewImage = StringFormat( "config://%s", Path )
-			elseif FileName == "preview.png" then
-				ModData.PreviewImage = StringFormat( "config://%s", Path )
+				MapMetadata.OverviewImage = FullPath
+			elseif FileName == "preview" then
+				ModData.PreviewImage = FullPath
 			end
 
 			ModData.LastUpdatedTime = ModData.LastUpdatedTime or 0
@@ -88,11 +92,21 @@ do
 	end
 
 	local function IsMapDataValid( MapData )
+		if MapData == nil then
+			-- No overview has been loaded yet.
+			return true
+		end
+
 		if not IsType( MapData, "table" ) then return false end
 
 		for MapName, Data in pairs( MapData ) do
 			if not IsType( Data, "table" ) then
 				return false
+			end
+
+			if not CachedImages[ Data.OverviewImage ] then
+				-- If the overview image was deleted, forget this map.
+				MapData[ MapName ] = nil
 			end
 		end
 
@@ -101,6 +115,10 @@ do
 
 	-- Clear out any mods that are no longer in the cache folder, or have missing images.
 	for ModID, Data in pairs( ModMaps ) do
+		if not CachedImages[ Data.PreviewImage ] then
+			Data.PreviewImage = nil
+		end
+
 		if not FoundMods[ ModID ] or not IsMapDataValid( Data.Maps ) then
 			ModMaps[ ModID ] = nil
 		end
@@ -111,15 +129,37 @@ local function SaveCache()
 	Shine.SaveJSONFile( ModMaps, METADATA_FILE, { indent = false } )
 end
 
+local MediaTypeFileExtensions = {
+	[ "image/png" ] = "png",
+	[ "image/jpeg" ] = "jpg",
+	[ "image/webp" ] = "webp",
+	[ "image/gif" ] = "gif"
+}
+
 local FileNameFormats = {
 	-- Currently all maps have the same preview image (derived from the workshop mod).
-	PreviewImage = "config://shine/cache/maps/%s/preview.png",
+	PreviewImage = "config://shine/cache/maps/%s/preview.%s",
 	-- Overviews however are unique to each map.
-	OverviewImage = "config://shine/cache/maps/%s/%s_overview.png"
+	OverviewImage = "config://shine/cache/maps/%s/%s_overview.%s"
 }
-local function SaveImageToCache( ModID, MapName, CacheKey, ImageData, LastUpdatedTime )
-	local FileName = StringFormat( FileNameFormats[ CacheKey ], ModID, MapName )
-	if not Shine.WriteFile( FileName, ImageData ) then return end
+local function SaveImageToCache( ModID, MapName, CacheKey, ImageData, MediaType, LastUpdatedTime )
+	local FileName
+	local FileExtension = MediaTypeFileExtensions[ MediaType ]
+	if CacheKey == "PreviewImage" then
+		FileName = StringFormat( FileNameFormats[ CacheKey ], ModID, FileExtension )
+	else
+		FileName = StringFormat( FileNameFormats[ CacheKey ], ModID, MapName, FileExtension )
+	end
+
+	do
+		local Success, Err = Shine.WriteFile( FileName, ImageData )
+		if not Success then
+			MapDataRepository.Logger:Debug(
+				"Failed to save %s to %s for %s/%s: %s", CacheKey, FileName, ModID, MapName, Err
+			)
+			return
+		end
+	end
 
 	if MapName then
 		local MapEntry = TableBuild( ModMaps, ModID, "Maps", MapName )
@@ -136,9 +176,13 @@ local function SaveImageToCache( ModID, MapName, CacheKey, ImageData, LastUpdate
 	end
 
 	SaveCache()
+
+	MapDataRepository.Logger:Debug( "Updated cache with %s for %s/%s saved as: %s", CacheKey, ModID, MapName, FileName )
 end
 
 local function LoadFromURL( ModID, MapName, CacheKey, URL, Callback, LastUpdatedTime )
+	MapDataRepository.Logger:Debug( "Loading image for %s/%s from URL: %s", ModID, MapName, URL )
+
 	Shine.TimedHTTPRequest( URL, "GET", function( ImageData )
 		if not ImageData then
 			Callback( MapName, nil, StringFormat( "Unable to acquire image from URL: %s", URL ) )
@@ -154,7 +198,7 @@ local function LoadFromURL( ModID, MapName, CacheKey, URL, Callback, LastUpdated
 		TextureLoader.LoadFromMemory( MediaType, ImageData, function( TextureName, Err )
 			if not Err then
 				-- Image loaded successfully, so cache it.
-				SaveImageToCache( ModID, MapName, CacheKey, ImageData, LastUpdatedTime )
+				SaveImageToCache( ModID, MapName, CacheKey, ImageData, MediaType, LastUpdatedTime )
 			end
 
 			Callback( MapName, TextureName, Err )
@@ -226,18 +270,38 @@ local function LoadImageFromCache( ModID, MapName, CacheKey, Callback )
 	local Now = Clock()
 
 	if CacheEntry and IsType( CacheEntry[ CacheKey ], "string" ) and ( CacheEntry.NextUpdateCheckTime or 0 ) > Now then
+		local FileName = CacheEntry[ CacheKey ]
+
+		MapDataRepository.Logger:Debug( "%s/%s has cached %s: %s", ModID, MapName, CacheKey, FileName )
+
 		-- Cache entry exists, and has not yet expired, so load it from the file.
-		TextureLoader.LoadFromFile( CacheEntry[ CacheKey ], function( TextureName, Err )
+		TextureLoader.LoadFromFile( FileName, function( TextureName, Err )
 			if Err then
+				MapDataRepository.Logger:Debug(
+					"Failed to load %s for %s/%s from cache: %s", CacheKey, ModID, MapName, Err
+				)
+
 				-- Failed to load from local file, may be missing or corrupt. Try to get the latest version.
 				ImageLoaders[ CacheKey ]( ModID, MapName, Callback )
+
 				return
 			end
+
+			MapDataRepository.Logger:Debug(
+				"Successfully loaded %s for %s/%s from file: %s", CacheKey, ModID, MapName, FileName
+			)
 
 			Callback( MapName, TextureName, Err )
 		end )
 
 		return true
+	end
+
+	if MapDataRepository.Logger:IsDebugEnabled() then
+		MapDataRepository.Logger:Debug(
+			"%s/%s has expired or missing %s cache entry: %s",
+			ModID, MapName, CacheKey, CacheEntry and table.ToString( CacheEntry )
+		)
 	end
 
 	-- Either the image is not cached, or the cache has expired.

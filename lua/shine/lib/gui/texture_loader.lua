@@ -575,7 +575,9 @@ do
 		local Extension = StringMatch( FilePath, ".+%.(%a+)$" )
 		local MediaType = ExtensionToMediaType[ Extension ]
 		if not Extension or not MediaType then
-			error( StringFormat( "Unknown file type for file: %s", FilePath ), 2 )
+			return Callback(
+				nil, StringFormat( "%s: Unknown file type for file: %s", ErrorCodes.IMAGE_DATA_ERROR, FilePath )
+			)
 		end
 
 		local Contents, Err = Shine.ReadFile( FilePath )
