@@ -12,8 +12,6 @@ UnitTest:Test( "All locale files are valid JSON", function( Assert )
 	for i = 1, #Files do
 		local File = Files[ i ]
 		local Keys, Pos, Err = Shine.LoadJSONFile( File )
-		if not Keys then
-			Assert.Truthy( StringFormat( "Invalid JSON in locale file %s: %s %s", File, Pos, Err ), Keys )
-		end
+		Assert.Truthy( StringFormat( "Invalid JSON in locale file %s: %s %s", File, Pos, Err ), Keys )
 	end
 end )
