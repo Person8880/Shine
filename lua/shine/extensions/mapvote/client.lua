@@ -275,15 +275,18 @@ do
 			Plugin.Logger:Debug( "Attempting to load texture for %s/%s", ModID, Map )
 
 			MapDataRepository.GetOverviewImage( ModID, Map, function( MapName, TextureName, Err )
-				if Cleared then
-					-- Loaded too late.
-					return
-				end
-
 				if not TextureName then
 					Plugin.Logger:Debug( "Failed to load %s/%s: %s", ModID, Map, Err )
 					if not Cleared and SGUI.IsValid( Button ) then
 						Button.OnHover = nil
+					end
+					return
+				end
+
+				if Cleared then
+					-- Loaded too late.
+					if MapMod then
+						TextureLoader.Free( TextureName )
 					end
 					return
 				end
