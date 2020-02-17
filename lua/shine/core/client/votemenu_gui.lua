@@ -315,8 +315,7 @@ function VoteMenu:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	self:Create()
 
 	if not self.Visible then
-		self.Visible = true
-		self:SetIsVisible( false )
+		self.Background:SetIsVisible( false )
 	end
 end
 

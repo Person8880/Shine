@@ -420,6 +420,8 @@ function MapVoteMenu:PlayerKeyPress( Key, Down )
 end
 
 function MapVoteMenu:FadeIn()
+	SGUI:EnableMouse( true, self )
+
 	self.FadingOut = false
 	self:SetIsVisible( true )
 	self:ApplyTransition( {
@@ -466,6 +468,7 @@ function MapVoteMenu:OnClose()
 end
 
 function MapVoteMenu:Close( Callback )
+	SGUI:EnableMouse( false, self )
 	self:PreClose()
 
 	if not self:GetIsVisible() then
@@ -476,7 +479,6 @@ function MapVoteMenu:Close( Callback )
 	end
 
 	self:FadeOut( Callback )
-	SGUI:EnableMouse( false )
 end
 
 function MapVoteMenu:SetCurrentMapName( MapName )

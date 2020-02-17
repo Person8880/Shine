@@ -42,30 +42,86 @@ function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, S
 	end
 end
 
-function Plugin:SendMapMods( Client )
-	local MapList = self.Vote.MapList
-	if not MapList then return end
+do
+	local function FindBestMatchingModID( self, ModList )
+		local MapMods = Shine.Stream.Of( ModList ):Filter( function( ModID )
+			return self.KnownMapMods[ ModID ]
+		end ):AsTable()
 
-	Shine.Stream( MapList )
-		:Filter( function( Map ) return self.MapOptions[ Map ] end )
-		:ForEach( function( Map )
-			local Options = self.MapOptions[ Map ]
-			if not IsType( Options.mods, "table" ) then return end
-
-			local MapMods = Shine.Stream.Of( Options.mods ):Filter( function( ModID )
-				return self.KnownMapMods[ ModID ]
+		-- If we know which mod is the map, use it.
+		local ModID = MapMods[ 1 ]
+		if not ModID then
+			-- Otherwise assume it's the first mod with an unknown type.
+			MapMods = Shine.Stream.Of( ModList ):Filter( function( ModID )
+				return self.KnownMapMods[ ModID ] ~= false
 			end ):AsTable()
 
-			-- If we know which mod is the map, use it. Otherwise assume it's the first mod.
-			local ModID = MapMods[ 1 ] or Options.mods[ 1 ]
-			if ModID and tonumber( ModID, 16 ) then
-				self.Logger:Debug( "Map %s has mod ID: %s", Map, ModID )
-				self:SendNetworkMessage( Client, "MapMod", {
-					MapName = Map,
-					ModID = ModID
-				}, true )
+			ModID = MapMods[ 1 ]
+		end
+
+		return ModID
+	end
+
+	local function HasMod( ModList, ModID )
+		local ModIDBase10 = tonumber( ModID, 16 )
+		if not ModIDBase10 then return false end
+
+		for i = 1, #ModList do
+			if IsType( ModList[ i ], "string" ) and tonumber( ModList[ i ], 16 ) == ModIDBase10 then
+				return true
 			end
+		end
+
+		return false
+	end
+
+	local function IsModMap( MapName, Index, self )
+		local Options = self.MapOptions[ MapName ]
+		return Options and IsType( Options.mods, "table" ) and not self.KnownVanillaMaps[ MapName ]
+	end
+
+	local function GetModInfo( MapName, Index, self )
+		local Options = self.MapOptions[ MapName ]
+		local ModID = self.MapNameToModID[ MapName ]
+
+		if not ModID or not HasMod( Options.mods, ModID ) then
+			ModID = FindBestMatchingModID( self, Options.mods ) or ModID
+		end
+
+		if not IsType( ModID, "string" ) or not tonumber( ModID, 16 ) then
+			ModID = nil
+		end
+
+		return {
+			MapName = MapName,
+			ModID = ModID
+		}
+	end
+
+	local function HasModID( Value ) return Value.ModID ~= nil end
+
+	function Plugin:GetMapModsForMapList( MapList )
+		return Shine.Stream( MapList )
+			:Filter( IsModMap, self )
+			:Map( GetModInfo, self )
+			:Filter( HasModID )
+	end
+
+	function Plugin:SendMapMods( Client )
+		local MapList = self.Vote.MapList
+		if not MapList then return end
+
+		self:GetMapModsForMapList( MapList ):ForEach( function( MapInfo )
+			local MapName = MapInfo.MapName
+			local ModID = MapInfo.ModID
+
+			self.Logger:Debug( "Map %s has mod ID: %s", MapName, ModID )
+			self:SendNetworkMessage( Client, "MapMod", {
+				MapName = MapName,
+				ModID = ModID
+			}, true )
 		end )
+	end
 end
 
 function Plugin:ClientConnect( Client )

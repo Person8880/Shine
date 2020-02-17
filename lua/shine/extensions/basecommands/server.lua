@@ -1047,7 +1047,7 @@ function Plugin:CreateAdminCommands()
 				Shine:SendPluginData( nil )
 
 				if Save then
-					SaveEnabledState( Name, PluginTable )
+					SaveEnabledState( Name, Shine.Plugins[ Name ] )
 				end
 			else
 				local Message = StringFormat( "Plugin '%s' failed to load. Error: %s", Name, Err )

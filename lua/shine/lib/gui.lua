@@ -44,6 +44,7 @@ SGUI.GUIItemType = {
 
 SGUI.Controls = {}
 SGUI.KeyboardFocusControls = Shine.Set()
+SGUI.MouseEnabledControls = {}
 
 SGUI.ActiveControls = Map()
 SGUI.Windows = {}
@@ -533,13 +534,17 @@ do
 		Allow for multiple windows to "enable" the mouse, without
 		disabling it after one closes.
 	]]
-	function SGUI:EnableMouse( Enable )
+	function SGUI:EnableMouse( Enable, Control )
 		if not ShowMouse then
 			ShowMouse = MouseTracker_SetIsVisible
 			IsCommander = CommanderUI_IsLocalPlayerCommander
 		end
 
 		if Enable then
+			if Control and self.MouseEnabledControls[ Control ] then
+				return
+			end
+
 			self.MouseObjects = self.MouseObjects + 1
 
 			if self.MouseObjects == 1 then
@@ -549,7 +554,17 @@ do
 				end
 			end
 
+			if Control then
+				self.MouseEnabledControls[ Control ] = true
+			end
+
 			return
+		end
+
+		if Control then
+			if not self.MouseEnabledControls[ Control ] then return end
+
+			self.MouseEnabledControls[ Control ] = nil
 		end
 
 		if self.MouseObjects <= 0 then return end
@@ -1036,6 +1051,10 @@ do
 
 		self.ActiveControls:Remove( Control )
 		self.KeyboardFocusControls:Remove( Control )
+
+		if self.MouseEnabledControls[ Control ] then
+			SGUI:EnableMouse( false, Control )
+		end
 
 		if self.IsValid( Control.Tooltip ) then
 			Control.Tooltip:Destroy()
