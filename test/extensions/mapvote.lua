@@ -321,6 +321,62 @@ UnitTest:Test( "SetupMaps - Sets up maps from config and cycle when GetMapsFromM
 	}, MapVote.MapOptions )
 end )
 
+UnitTest:Test( "GetMapModsForMapList - Returns expected map entries", function( Assert )
+	MapVote.MapOptions = {
+		ns2_some_mod_map = {
+			-- "123" is a known mod ID for this map, and is in the map's mods list.
+			mods = { "123", "456" }
+		},
+		ns2_some_other_mod_map = {
+			-- "456" is a known mod ID, overriding the known ID "aaa" as it's not in the list.
+			mods = { "456", "789" }
+		},
+		ns2_another_mod_map = {
+			-- "abc" is a known mod ID and there's no known ID for this specific map.
+			mods = { "789", "abc" }
+		},
+		ns2_another_map_with_no_known_mods = {
+			-- Neither of these IDs are known map mods.
+			mods = { "bbb", "ccc" }
+		}
+	}
+
+	MapVote.MapNameToModID = {
+		ns2_some_mod_map = "123",
+		ns2_some_other_mod_map = "aaa"
+	}
+
+	MapVote.KnownMapMods = {
+		[ "456" ] = true,
+		[ "abc" ] = true,
+		[ "bbb" ] = false,
+		[ "ccc" ] = false
+	}
+
+	local Stream = MapVote:GetMapModsForMapList( {
+		"ns2_some_mod_map",
+		"ns2_some_other_mod_map",
+		"ns2_another_mod_map",
+		"ns2_another_map_with_no_known_mods",
+		"ns2_origin"
+	} )
+
+	Assert.DeepEquals( "Should have assigned mod IDs to all maps with known mods", {
+		{
+			ModID = "123",
+			MapName = "ns2_some_mod_map"
+		},
+		{
+			ModID = "456",
+			MapName = "ns2_some_other_mod_map"
+		},
+		{
+			ModID = "abc",
+			MapName = "ns2_another_mod_map"
+		}
+	}, Stream:AsTable() )
+end )
+
 function MapVote:GetCurrentMap()
 	return "ns2_veil"
 end
