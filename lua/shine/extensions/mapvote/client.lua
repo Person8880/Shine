@@ -442,7 +442,6 @@ do
 		end
 
 		if not self.FullVoteMenu:GetIsVisible() then
-			SGUI:EnableMouse( true )
 			self.FullVoteMenu:FadeIn()
 
 			if SGUI.IsValid( self.MapVoteNotification ) then
