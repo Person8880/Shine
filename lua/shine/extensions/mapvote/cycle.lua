@@ -160,6 +160,31 @@ end
 ]]
 function Plugin:InferMapMods( Maps )
 	self.KnownMapMods = self:LoadMapModsCache() or {}
+	self.KnownVanillaMaps = {}
+	self.MapNameToModID = {}
+
+	-- Check all locally installed maps to find any that are known to be from mods.
+	local Changed = false
+	for i = 1, Server.GetNumMaps() do
+		local ModID = Server.GetMapModId( i )
+		local MapName = Server.GetMapName( i )
+		if ModID and ModID ~= "0" and StringFind( MapName, "^ns[12]?_" ) then
+			if not self.KnownMapMods[ ModID ] then
+				Changed = true
+				self.KnownMapMods[ ModID ] = true
+			end
+
+			self.MapNameToModID[ MapName ] = ModID
+			self.Logger:Debug( "Map %s is installed locally under mod %s.", MapName, ModID )
+		elseif not ModID or ModID == "0" then
+			self.KnownVanillaMaps[ MapName ] = true
+			self.Logger:Debug( "Map %s has no mod associated with it.", MapName )
+		end
+	end
+
+	if Changed then
+		self:SaveMapModsCache( self.KnownMapMods )
+	end
 
 	local Mods = {}
 	local ModToMapName = {}

@@ -47,17 +47,29 @@ function Plugin:SendMapMods( Client )
 	if not MapList then return end
 
 	Shine.Stream( MapList )
-		:Filter( function( Map ) return self.MapOptions[ Map ] end )
+		:Filter( function( Map ) return self.MapOptions[ Map ] and not self.KnownVanillaMaps[ Map ] end )
 		:ForEach( function( Map )
 			local Options = self.MapOptions[ Map ]
 			if not IsType( Options.mods, "table" ) then return end
 
-			local MapMods = Shine.Stream.Of( Options.mods ):Filter( function( ModID )
-				return self.KnownMapMods[ ModID ]
-			end ):AsTable()
+			local ModID = self.MapNameToModID[ Map ]
+			if not ModID then
+				local MapMods = Shine.Stream.Of( Options.mods ):Filter( function( ModID )
+					return self.KnownMapMods[ ModID ]
+				end ):AsTable()
 
-			-- If we know which mod is the map, use it. Otherwise assume it's the first mod.
-			local ModID = MapMods[ 1 ] or Options.mods[ 1 ]
+				-- If we know which mod is the map, use it.
+				ModID = MapMods[ 1 ]
+
+				if not ModID then
+					-- Otherwise assume it's the first mod with an unknown type.
+					MapMods = Shine.Stream.Of( Options.mods ):Filter( function( ModID )
+						return self.KnownMapMods[ ModID ] ~= false
+					end ):AsTable()
+					ModID = MapMods[ 1 ]
+				end
+			end
+
 			if ModID and tonumber( ModID, 16 ) then
 				self.Logger:Debug( "Map %s has mod ID: %s", Map, ModID )
 				self:SendNetworkMessage( Client, "MapMod", {
