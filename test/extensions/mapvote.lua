@@ -335,9 +335,17 @@ UnitTest:Test( "GetMapModsForMapList - Returns expected map entries", function( 
 			-- "abc" is a known mod ID and there's no known ID for this specific map.
 			mods = { "789", "abc" }
 		},
+		ns2_another_mod_map_with_an_unknown_mod = {
+			-- "eee" is not known but also not confirmed to not be a map, so it's the only choice.
+			mods = { "eee" }
+		},
 		ns2_another_map_with_no_known_mods = {
 			-- Neither of these IDs are known map mods.
 			mods = { "bbb", "ccc" }
+		},
+		ns2_map_with_non_string_mod = {
+			-- Non-string mod, should be ignored.
+			mods = { 123 }
 		}
 	}
 
@@ -357,7 +365,9 @@ UnitTest:Test( "GetMapModsForMapList - Returns expected map entries", function( 
 		"ns2_some_mod_map",
 		"ns2_some_other_mod_map",
 		"ns2_another_mod_map",
+		"ns2_another_mod_map_with_an_unknown_mod",
 		"ns2_another_map_with_no_known_mods",
+		"ns2_map_with_non_string_mod",
 		"ns2_origin"
 	} )
 
@@ -373,6 +383,10 @@ UnitTest:Test( "GetMapModsForMapList - Returns expected map entries", function( 
 		{
 			ModID = "abc",
 			MapName = "ns2_another_mod_map"
+		},
+		{
+			ModID = "eee",
+			MapName = "ns2_another_mod_map_with_an_unknown_mod"
 		}
 	}, Stream:AsTable() )
 end )

@@ -55,6 +55,7 @@ do
 			MapMods = Shine.Stream.Of( ModList ):Filter( function( ModID )
 				return self.KnownMapMods[ ModID ] ~= false
 			end ):AsTable()
+
 			ModID = MapMods[ 1 ]
 		end
 
@@ -66,7 +67,7 @@ do
 		if not ModIDBase10 then return false end
 
 		for i = 1, #ModList do
-			if tonumber( ModList[ i ], 16 ) == ModIDBase10 then
+			if IsType( ModList[ i ], "string" ) and tonumber( ModList[ i ], 16 ) == ModIDBase10 then
 				return true
 			end
 		end
@@ -87,7 +88,7 @@ do
 			ModID = FindBestMatchingModID( self, Options.mods ) or ModID
 		end
 
-		if ModID and not tonumber( ModID, 16 ) then
+		if not IsType( ModID, "string" ) or not tonumber( ModID, 16 ) then
 			ModID = nil
 		end
 
