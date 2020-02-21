@@ -13,6 +13,7 @@ local BitBAnd = bit.band
 local BitLShift = bit.lshift
 local getmetatable = getmetatable
 local IsType = Shine.IsType
+local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
 local StringFind = string.find
 local StringFormat = string.format
 local StringUTF8Encode = string.UTF8Encode
@@ -292,7 +293,7 @@ function Plugin:SetChatTag( Client, ChatTagConfig, Key )
 	-- Never seen this chat tag before, need to create it.
 	local ChatTag = {}
 
-	if IsType( ChatTagConfig.Text, "string" ) then
+	if IsType( ChatTagConfig.Text, "string" ) and StringContainsNonUTF8Whitespace( ChatTagConfig.Text ) then
 		ChatTag.Text = ChatTagConfig.Text
 
 		local Colour = ChatTagConfig.Colour
@@ -305,7 +306,7 @@ function Plugin:SetChatTag( Client, ChatTagConfig, Key )
 		end
 	end
 
-	if IsType( ChatTagConfig.Image, "string" ) and StringFind( ChatTagConfig.Image, "[^%s]" ) then
+	if IsType( ChatTagConfig.Image, "string" ) and StringContainsNonUTF8Whitespace( ChatTagConfig.Image ) then
 		ChatTag.Image = ChatTagConfig.Image
 	end
 
