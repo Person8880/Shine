@@ -14,7 +14,6 @@ local BitLShift = bit.lshift
 local getmetatable = getmetatable
 local IsType = Shine.IsType
 local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
-local StringFind = string.find
 local StringFormat = string.format
 local StringUTF8Encode = string.UTF8Encode
 local TableConcat = table.concat
