@@ -188,6 +188,8 @@ function Webpage:OnMouseUp( Key )
 
 	local KeyCode = Key - MouseButton0
 	self.WebView:OnMouseUp( KeyCode )
+
+	return true
 end
 
 function Webpage:OnMouseWheel( Down )

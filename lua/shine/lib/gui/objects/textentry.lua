@@ -31,6 +31,12 @@ local TextPos = Vector2( 2, 0 )
 
 SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
 SGUI.AddProperty( TextEntry, "AutoCompleteHandler" )
+SGUI.AddProperty( TextEntry, "OnGainFocus" )
+SGUI.AddProperty( TextEntry, "OnEnter" )
+SGUI.AddProperty( TextEntry, "OnEscape" )
+SGUI.AddProperty( TextEntry, "OnLoseFocus" )
+SGUI.AddProperty( TextEntry, "OnTextChanged" )
+SGUI.AddProperty( TextEntry, "OnUnhandledKey" )
 
 local function GetInnerBoxColour( self, Col )
 	if self:ShouldAutoInheritAlpha() then
