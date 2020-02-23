@@ -1658,9 +1658,9 @@ SGUI.AddProperty( ControlMeta, "InactiveCol" )
 do
 	local function HandleHighlightOnVisibilityChange( self, IsVisible )
 		if not IsVisible then
-			self:SetHighlighted( false )
+			self:SetHighlighted( false, true )
 		else
-			self:SetHighlighted( self:ShouldHighlight() )
+			self:SetHighlighted( self:ShouldHighlight(), true )
 		end
 	end
 
