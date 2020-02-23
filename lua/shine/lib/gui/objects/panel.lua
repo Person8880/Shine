@@ -716,6 +716,8 @@ function Panel:OnMouseUp( Key )
 end
 
 function Panel:OnMouseMove( Down )
+	if not self:GetIsVisible() then return end
+
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:OnMouseMove( Down )
 	end

@@ -632,6 +632,7 @@ function ControlMeta:SetIsVisible( IsVisible )
 
 	self.Background:SetIsVisible( IsVisible )
 	self:InvalidateParent()
+	self:OnPropertyChanged( "IsVisible", IsVisible )
 
 	if not IsVisible then
 		self:HideTooltip()
@@ -1252,11 +1253,7 @@ do
 		if not Element then return end
 
 		local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
-		local Size = Element:GetSize()
-
-		if Element.GetIsScaling and Element:GetIsScaling() and Element.scale then
-			Size = Size * Element.scale
-		end
+		local Size = Element:GetScaledSize()
 
 		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
 	end
@@ -1281,11 +1278,18 @@ do
 		if LastCheck ~= FrameNum then
 			self.__LastMouseInCheckFrame = FrameNum
 
-			local Pos = self:GetScreenPos()
-			local Size = self:GetSize()
+			local In, X, Y, Size, Pos = self:MouseInControl()
+			local CachedResult = self.__LastMouseInCheck
+			if not CachedResult then
+				CachedResult = TableNew( 5, 0 )
+				self.__LastMouseInCheckFrame = CachedResult
+			end
 
-			local In, X, Y, Size, Pos = IsInBox( Pos, Size )
-			self.__LastMouseInCheck = { In, X, Y, Size, Pos }
+			CachedResult[ 1 ] = In
+			CachedResult[ 2 ] = X
+			CachedResult[ 3 ] = Y
+			CachedResult[ 4 ] = Size
+			CachedResult[ 5 ] = Pos
 
 			return In, X, Y, Size, Pos
 		end
@@ -1651,81 +1655,142 @@ end
 SGUI.AddProperty( ControlMeta, "ActiveCol" )
 SGUI.AddProperty( ControlMeta, "InactiveCol" )
 
---[[
-	Sets an SGUI control to highlight on mouse over automatically.
-
-	Requires the values:
-		self.ActiveCol - Colour when highlighted.
-		self.InactiveCol - Colour when not highlighted.
-
-	Will set the value:
-		self.Highlighted - Will be true when highlighted.
-
-	Only applies to the background.
-
-	Inputs:
-		1. Boolean should hightlight.
-		2. Muliplier to the element's size when determining if the mouse is in the element.
-]]
-function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
-	self.HighlightOnMouseOver = Bool and true or false
-	self.HighlightMult = Mult
-	self.TextureHighlight = TextureMode
-
-	if not Bool and not self.ForceHighlight then
-		self:SetHighlighted( false, true )
-		self:StopFade( self.Background )
-	end
-end
-
---[[
-	Sets up a tooltip for the given element.
-	This should work on any element without needing special code for it.
-
-	Input: Text value to display as a tooltip, pass in nil to remove the tooltip.
-]]
-function ControlMeta:SetTooltip( Text )
-	if Text == nil then
-		self.TooltipText = nil
-		self.OnHover = nil
-		self.OnLoseHover = nil
-		self:HideTooltip()
-		return
-	end
-
-	self.TooltipText = Text
-
-	self.OnHover = self.ShowTooltip
-	self.OnLoseHover = self.HideTooltip
-end
-
-local DEFAULT_HOVER_TIME = 0.5
-function ControlMeta:HandleHovering( Time )
-	if not self.OnHover then return end
-
-	local MouseIn, X, Y
-	if self:GetIsVisible() then
-		MouseIn, X, Y = self:MouseIn( self.Background )
-	end
-
-	-- If the mouse is in this object, and our window is in focus (i.e. not obstructed by a higher window)
-	-- then consider the object hovered.
-	if MouseIn and ( not self.TopLevelWindow or SGUI:IsWindowInFocus( self.TopLevelWindow ) ) then
-		if not self.MouseHoverStart then
-			self.MouseHoverStart = Time
+do
+	local function HandleHighlightOnVisibilityChange( self, IsVisible )
+		if not IsVisible then
+			self:SetHighlighted( false )
 		else
-			if Time - self.MouseHoverStart > ( self.HoverTime or DEFAULT_HOVER_TIME ) and not self.MouseHovered then
-				self.MouseHovered = true
-				self:OnHover( X, Y )
-			end
+			self:SetHighlighted( self:ShouldHighlight() )
 		end
-	else
+	end
+
+	-- Basic highlight on mouse over handling.
+	local function HandleHightlighting( self )
+		if self:ShouldHighlight() then
+			self:SetHighlighted( true )
+		elseif self.Highlighted and not self.ForceHighlight then
+			self:SetHighlighted( false )
+		end
+	end
+
+	local function NoOpHighlighting() end
+
+	ControlMeta.HandleHightlighting = NoOpHighlighting
+
+	--[[
+		Sets an SGUI control to highlight on mouse over automatically.
+
+		Requires the values:
+			self.ActiveCol - Colour when highlighted.
+			self.InactiveCol - Colour when not highlighted.
+
+		Will set the value:
+			self.Highlighted - Will be true when highlighted.
+
+		Only applies to the background.
+
+		Inputs:
+			1. Boolean should hightlight.
+			2. Muliplier to the element's size when determining if the mouse is in the element.
+	]]
+	function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
+		local WasHighlightOnMouseOver = self.HighlightOnMouseOver
+
+		self.HighlightOnMouseOver = not not Bool
+		self.HighlightMult = Mult
+		self.TextureHighlight = TextureMode
+
+		if not Bool and not self.ForceHighlight then
+			self:SetHighlighted( false, true )
+			self:StopFade( self.Background )
+		end
+
+		if not WasHighlightOnMouseOver and self.HighlightOnMouseOver then
+			self.HandleHightlighting = HandleHightlighting
+			self:AddPropertyChangeListener( "IsVisible", HandleHighlightOnVisibilityChange )
+		elseif WasHighlightOnMouseOver and not self.HighlightOnMouseOver then
+			self.HandleHightlighting = NoOpHighlighting
+			self:RemovePropertyChangeListener( "IsVisible", HandleHighlightOnVisibilityChange )
+		end
+	end
+end
+
+do
+	local function ResetHoveringState( self )
 		self.MouseHoverStart = nil
+
 		if self.MouseHovered then
 			self.MouseHovered = nil
+
 			if self.OnLoseHover then
 				self:OnLoseHover()
 			end
+		end
+	end
+
+	local function HandleVisibilityChange( self, IsVisible )
+		if not IsVisible then
+			ResetHoveringState( self )
+		end
+	end
+
+	function ControlMeta:ListenForHoverEvents( OnHover, OnLoseHover )
+		local OldOnHover = self.OnHover
+
+		self.OnHover = OnHover
+		self.OnLoseHover = OnLoseHover
+
+		if not OldOnHover then
+			self:AddPropertyChangeListener( "IsVisible", HandleVisibilityChange )
+		end
+	end
+
+	function ControlMeta:ResetHoverEvents()
+		self.OnHover = nil
+		self.OnLoseHover = nil
+		self:RemovePropertyChangeListener( "IsVisible", HandleVisibilityChange )
+	end
+
+	--[[
+		Sets up a tooltip for the given element.
+		This should work on any element without needing special code for it.
+
+		Input: Text value to display as a tooltip, pass in nil to remove the tooltip.
+	]]
+	function ControlMeta:SetTooltip( Text )
+		if Text == nil then
+			self.TooltipText = nil
+			self:ResetHoverEvents()
+			self:HideTooltip()
+			return
+		end
+
+		self.TooltipText = Text
+		self:ListenForHoverEvents( self.ShowTooltip, self.HideTooltip )
+	end
+
+	local DEFAULT_HOVER_TIME = 0.5
+	function ControlMeta:HandleHovering( Time )
+		if not self.OnHover then return end
+
+		local MouseIn, X, Y
+		if self:GetIsVisible() then
+			MouseIn, X, Y = self:MouseInCached()
+		end
+
+		-- If the mouse is in this object, and our window is in focus (i.e. not obstructed by a higher window)
+		-- then consider the object hovered.
+		if MouseIn and ( not self.TopLevelWindow or SGUI:IsWindowInFocus( self.TopLevelWindow ) ) then
+			if not self.MouseHoverStart then
+				self.MouseHoverStart = Time
+			else
+				if Time - self.MouseHoverStart > ( self.HoverTime or DEFAULT_HOVER_TIME ) and not self.MouseHovered then
+					self.MouseHovered = true
+					self:OnHover( X, Y )
+				end
+			end
+		else
+			ResetHoveringState( self )
 		end
 	end
 end
@@ -1864,13 +1929,13 @@ function ControlMeta:ShouldHighlight()
 	return self:GetIsVisible() and self:MouseIn( self.Background, self.HighlightMult )
 end
 
-function ControlMeta:SetForceHighlight( ForceHighlight )
+function ControlMeta:SetForceHighlight( ForceHighlight, SkipAnim )
 	self.ForceHighlight = ForceHighlight
 
-	if ForceHighlight and not self.Highlighted and self:ShouldHighlight() then
-		self:SetHighlighted( true )
+	if ForceHighlight and not self.Highlighted then
+		self:SetHighlighted( true, SkipAnim )
 	elseif not ForceHighlight and self.Highlighted and not self:ShouldHighlight() then
-		self:SetHighlighted( false )
+		self:SetHighlighted( false, SkipAnim )
 	end
 end
 
@@ -1905,22 +1970,9 @@ function ControlMeta:OnMouseWheel( Down )
 	if Result ~= nil then return true end
 end
 
--- Basic highlight on mouse over handling.
-function ControlMeta:HandleHightlighting()
-	if not self.HighlightOnMouseOver then
-		return
-	end
-
-	if self:ShouldHighlight() then
-		self:SetHighlighted( true )
-	else
-		if self.Highlighted and not self.ForceHighlight then
-			self:SetHighlighted( false )
-		end
-	end
-end
-
 function ControlMeta:OnMouseMove( Down )
+	if not self:GetIsVisible() then return end
+
 	self:CallOnChildren( "OnMouseMove", Down )
 	self:HandleHightlighting()
 end

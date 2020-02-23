@@ -153,6 +153,7 @@ end
 
 function Webpage:OnMouseMove( LMB )
 	if not self.WebView then return end
+	if not self:GetIsVisible() then return end
 
 	local In, X, Y = self:MouseIn( self.Background )
 

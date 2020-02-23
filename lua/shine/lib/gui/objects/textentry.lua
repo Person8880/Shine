@@ -33,6 +33,20 @@ local TextPos = Vector2( 2, 0 )
 SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
 SGUI.AddProperty( TextEntry, "AutoCompleteHandler" )
 
+local function OnVisibilityChange( self, IsVisible )
+	if not IsVisible then
+		self.Highlighted = false
+		self.InnerBox:SetColor( self.DarkCol )
+	else
+		local MouseIn = self:MouseIn( self.Background )
+		if MouseIn or self.Enabled then
+			self.InnerBox:SetColor( self.FocusColour )
+		end
+
+		self.Highlighted = MouseIn
+	end
+end
+
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -92,6 +106,8 @@ function TextEntry:Initialise()
 	self.SelectionBounds = { 0, 0 }
 	self.UndoPosition = 0
 	self.UndoStack = {}
+
+	self:AddPropertyChangeListener( "IsVisible", OnVisibilityChange )
 end
 
 function TextEntry:GetContentSizeForAxis( Axis )
@@ -122,7 +138,7 @@ SGUI.AddBoundProperty( TextEntry, "PlaceholderTextColour", "PlaceholderText:SetC
 function TextEntry:SetFocusColour( Col )
 	self.FocusColour = Col
 
-	if self.Enabled then
+	if self.Enabled or self.Highlighted then
 		self.InnerBox:SetColor( Col )
 	end
 end
@@ -130,7 +146,7 @@ end
 function TextEntry:SetDarkColour( Col )
 	self.DarkCol = Col
 
-	if not self.Enabled then
+	if not self.Enabled and not self.Highlighted then
 		self.InnerBox:SetColor( Col )
 	end
 end
@@ -764,6 +780,8 @@ function TextEntry:OnMouseUp()
 end
 
 function TextEntry:OnMouseMove( Down )
+	if not self:GetIsVisible() then return end
+
 	if self.SelectingText then
 		self:HandleSelectingText()
 
