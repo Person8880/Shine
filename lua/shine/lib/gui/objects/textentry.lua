@@ -110,6 +110,12 @@ function TextEntry:Initialise()
 	self:AddPropertyChangeListener( "IsVisible", OnVisibilityChange )
 end
 
+function TextEntry:SetTextPadding( Padding )
+	self.Padding = Padding
+	self.TextOffset = Min( self.TextOffset, Padding )
+	self:InvalidateLayout()
+end
+
 function TextEntry:GetContentSizeForAxis( Axis )
 	if Axis == 1 then
 		return self:GetSize().x
@@ -127,7 +133,7 @@ function TextEntry:SetSize( SizeVec )
 	local InnerBoxSize = SizeVec - self.BorderSize * 2
 	self.InnerBox:SetSize( InnerBoxSize )
 
-	self.Width = InnerBoxSize.x - 5
+	self.Width = InnerBoxSize.x - ( self.Padding * 2 )
 	self.Height = InnerBoxSize.y
 
 	self:InvalidateLayout()
@@ -545,6 +551,7 @@ function TextEntry:SetText( Text, IgnoreUndo )
 	self.Text = Text
 
 	self.TextObj:SetText( Text )
+	self.TextObj:ForceUpdateTextSize()
 
 	self:SetupCaret()
 

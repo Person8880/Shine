@@ -88,8 +88,7 @@ function Slider:Initialise()
 		local TextH = Label:GetTextHeight( "!" )
 
 		TextEntry:SetStyleName( "SliderTextBox" )
-		TextEntry.Padding = 0
-		TextEntry.TextOffset = 0
+		TextEntry:SetTextPadding( 0 )
 		TextEntry:SetAnchor( "CentreRight" )
 		TextEntry:SetPos( Vector2( Label:GetPos().x, -TextH * 0.5 ) )
 		TextEntry:SetSize( self:GetLabelSize() )
@@ -145,9 +144,13 @@ function Slider:Initialise()
 		end
 		TextEntry.OnLoseFocus = TextEntry.OnEscape
 
+		TextEntry:RequestFocus()
+
 		-- Pass along the click to the text entry so it moves the caret.
 		TextEntry:OnMouseDown( InputKey.MouseButton0, false )
 		TextEntry:OnMouseUp( InputKey.MouseButton0 )
+
+		TextEntry:InvalidateLayout( true )
 	end
 
 	self.Label = Label
