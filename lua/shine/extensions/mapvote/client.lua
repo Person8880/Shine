@@ -760,6 +760,7 @@ end
 
 function Plugin:CreateMapVoteNotification( VoteButton )
 	self.MapVoteNotification = SGUI:CreateFromDefinition( MapVoteNotification )
+	self.MapVoteNotification:SetBlockEventsIfFocusedWindow( false )
 	self.MapVoteNotification:SetKeybind( VoteButton )
 	self.MapVoteNotification:SetEndTime( self.EndTime )
 	self.MapVoteNotification:InvalidateLayout( true )

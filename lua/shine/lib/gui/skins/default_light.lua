@@ -118,6 +118,11 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small
 		}
 	},
+	Column = {
+		Default = {
+			Colour = WindowBackground
+		}
+	},
 	ColourLabel = {
 		Default = {
 			Font = Fonts.kAgencyFB_Small
@@ -249,6 +254,11 @@ local Skin = {
 	Radio = {
 		Default = {
 			BackgroundColour = Clear
+		}
+	},
+	Row = {
+		Default = {
+			Colour = WindowBackground
 		}
 	},
 	Scrollbar = {

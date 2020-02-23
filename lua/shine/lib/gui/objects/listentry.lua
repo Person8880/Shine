@@ -209,8 +209,8 @@ end
 SGUI.AddProperty( ListEntry, "Selected" )
 function ListEntry:SetSelected( Selected, SkipAnim )
 	self.Selected = Selected
-	self:SetHighlighted( Selected, SkipAnim )
-	self.HighlightOnMouseOver = not Selected
+	self:SetForceHighlight( Selected, SkipAnim )
+	self:SetHighlightOnMouseOver( not Selected )
 end
 
 -- Visibility checking should account for being outside the stencil box of the parent list.

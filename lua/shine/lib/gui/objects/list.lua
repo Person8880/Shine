@@ -715,6 +715,8 @@ function List:OnMouseDown( Key, DoubleClick )
 end
 
 function List:OnMouseMove( Down )
+	if not self:GetIsVisible() then return end
+
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:OnMouseMove( Down )
 	end

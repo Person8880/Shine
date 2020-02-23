@@ -1199,6 +1199,8 @@ local function SetupRenderDeviceResetCheck()
 	end )
 end
 
+local IsMainMenuOpen = MainMenu_GetIsOpened
+
 --[[
 	If we don't load after everything, things aren't registered properly.
 ]]
@@ -1206,6 +1208,7 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	GetCursorPosScreen = Client.GetCursorPosScreen
 	ScrW = Client.GetScreenWidth
 	ScrH = Client.GetScreenHeight
+	IsMainMenuOpen = MainMenu_GetIsOpened
 
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
@@ -1221,9 +1224,14 @@ Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
 		end,
 		OnMouseWheel = function( _, Down )
+			if IsMainMenuOpen() then return end
+
 			return SGUI:CallEvent( false, "OnMouseWheel", Down )
 		end,
 		OnMouseDown = function( _, Key, DoubleClick )
+			-- Main menu receives mouse events after mouse tracker, so need to manually check for it here.
+			if IsMainMenuOpen() then return end
+
 			local Result, Control = SGUI:CallEvent( true, "OnMouseDown", Key, DoubleClick )
 
 			if Result and Control then

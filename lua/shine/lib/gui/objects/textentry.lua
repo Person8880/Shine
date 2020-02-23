@@ -33,6 +33,20 @@ local TextPos = Vector2( 2, 0 )
 SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
 SGUI.AddProperty( TextEntry, "AutoCompleteHandler" )
 
+local function OnVisibilityChange( self, IsVisible )
+	if not IsVisible then
+		self.Highlighted = false
+		self.InnerBox:SetColor( self.DarkCol )
+	else
+		local MouseIn = self:MouseIn( self.Background )
+		if MouseIn or self.Enabled then
+			self.InnerBox:SetColor( self.FocusColour )
+		end
+
+		self.Highlighted = MouseIn
+	end
+end
+
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -92,6 +106,14 @@ function TextEntry:Initialise()
 	self.SelectionBounds = { 0, 0 }
 	self.UndoPosition = 0
 	self.UndoStack = {}
+
+	self:AddPropertyChangeListener( "IsVisible", OnVisibilityChange )
+end
+
+function TextEntry:SetTextPadding( Padding )
+	self.Padding = Padding
+	self.TextOffset = Min( self.TextOffset, Padding )
+	self:InvalidateLayout()
 end
 
 function TextEntry:GetContentSizeForAxis( Axis )
@@ -111,7 +133,7 @@ function TextEntry:SetSize( SizeVec )
 	local InnerBoxSize = SizeVec - self.BorderSize * 2
 	self.InnerBox:SetSize( InnerBoxSize )
 
-	self.Width = InnerBoxSize.x - 5
+	self.Width = InnerBoxSize.x - ( self.Padding * 2 )
 	self.Height = InnerBoxSize.y
 
 	self:InvalidateLayout()
@@ -122,7 +144,7 @@ SGUI.AddBoundProperty( TextEntry, "PlaceholderTextColour", "PlaceholderText:SetC
 function TextEntry:SetFocusColour( Col )
 	self.FocusColour = Col
 
-	if self.Enabled then
+	if self.Enabled or self.Highlighted then
 		self.InnerBox:SetColor( Col )
 	end
 end
@@ -130,7 +152,7 @@ end
 function TextEntry:SetDarkColour( Col )
 	self.DarkCol = Col
 
-	if not self.Enabled then
+	if not self.Enabled and not self.Highlighted then
 		self.InnerBox:SetColor( Col )
 	end
 end
@@ -529,6 +551,7 @@ function TextEntry:SetText( Text, IgnoreUndo )
 	self.Text = Text
 
 	self.TextObj:SetText( Text )
+	self.TextObj:ForceUpdateTextSize()
 
 	self:SetupCaret()
 
@@ -764,6 +787,8 @@ function TextEntry:OnMouseUp()
 end
 
 function TextEntry:OnMouseMove( Down )
+	if not self:GetIsVisible() then return end
+
 	if self.SelectingText then
 		self:HandleSelectingText()
 
@@ -1094,6 +1119,29 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		end
 
 		self:SetCaretPos( self.Column + 1 )
+
+		return true
+	end
+
+	if Down and Key == InputKey.Home then
+		if SGUI:IsShiftDown() then
+			self:OffsetSelection( -self.Column )
+			return true
+		end
+
+		self:SetCaretPos( 0 )
+
+		return true
+	end
+
+	if Down and Key == InputKey.End then
+		local MaxCaretPos = StringUTF8Length( self.Text )
+		if SGUI:IsShiftDown() then
+			self:OffsetSelection( MaxCaretPos - self.Column )
+			return true
+		end
+
+		self:SetCaretPos( MaxCaretPos )
 
 		return true
 	end

@@ -186,7 +186,8 @@ function RichText:ApplyLines( Lines )
 		DefaultScale = self.TextScale,
 		CurrentColour = Colour( 1, 1, 1, 1 ),
 		ElementPool = ElementPool,
-		MakeElement = ElementFactory
+		MakeElement = ElementFactory,
+		NextMargin = 0
 	}
 
 	local YOffset = 0
@@ -196,7 +197,6 @@ function RichText:ApplyLines( Lines )
 	for i = 1, #Lines do
 		local Line = Lines[ i ]
 
-		local RootControl
 		local LineWidth = 0
 		local LineHeight = 0
 		local ElementCount = 0
@@ -205,9 +205,7 @@ function RichText:ApplyLines( Lines )
 		for j = 1, #Line do
 			Context.CurrentIndex = j
 
-			local Element = Line[ j ]
-
-			local Control = Element:MakeElement( Context )
+			local Control = Line[ j ]:MakeElement( Context )
 			if Control then
 				ElementCount = ElementCount + 1
 				CreatedElements[ ElementCount ] = Control
@@ -215,8 +213,8 @@ function RichText:ApplyLines( Lines )
 				Control:SetParent( self )
 				Control:SetInheritsParentAlpha( true )
 				-- Make each element start from where the previous one ends.
-				Control:SetPos( Vector2( LineWidth + ( Context.NextMargin or 0 ), YOffset ) )
-				Context.NextMargin = nil
+				Control:SetPos( Vector2( LineWidth + Context.NextMargin, YOffset ) )
+				Context.NextMargin = 0
 
 				local Size = Control:GetSize()
 				LineWidth = LineWidth + Size.x
@@ -238,7 +236,7 @@ function RichText:ApplyLines( Lines )
 			end
 		end
 
-		Context.NextMargin = nil
+		Context.NextMargin = 0
 		MaxWidth = Max( MaxWidth, LineWidth )
 		YOffset = YOffset + LineHeight + Spacing
 	end
