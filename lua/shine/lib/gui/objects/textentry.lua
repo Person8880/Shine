@@ -1123,6 +1123,29 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		return true
 	end
 
+	if Down and Key == InputKey.Home then
+		if SGUI:IsShiftDown() then
+			self:OffsetSelection( -self.Column )
+			return true
+		end
+
+		self:SetCaretPos( 0 )
+
+		return true
+	end
+
+	if Down and Key == InputKey.End then
+		local MaxCaretPos = StringUTF8Length( self.Text )
+		if SGUI:IsShiftDown() then
+			self:OffsetSelection( MaxCaretPos - self.Column )
+			return true
+		end
+
+		self:SetCaretPos( MaxCaretPos )
+
+		return true
+	end
+
 	if Down and Key == InputKey.Return then
 		self:OnEnter()
 
