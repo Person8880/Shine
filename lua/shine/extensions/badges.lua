@@ -230,30 +230,30 @@ function Plugin:Setup()
 		return
 	end
 
-	local MasterBadgeTable = self:GetMasterBadgeLookup( UserData.Badges )
-	for ID, User in pairs( UserData.Users ) do
-		ID = tonumber( ID )
-
-		if ID then
-			local GroupName = User.Group
-
-			self:AssignBadgesToID( ID, User, MasterBadgeTable )
-			self:AssignGroupBadge( ID, GroupName, UserData.Groups[ GroupName ], {},
-				MasterBadgeTable )
-		end
-	end
-
-	self.Logger:Info( "Setup badges successfully." )
+	self.MasterBadgeTable = self:GetMasterBadgeLookup( UserData.Badges )
+	self.Logger:Debug( "Parsed master badges table successfully." )
 end
 
 function Plugin:OnUserReload()
 	self:Setup()
 
-	-- Re-assign default group badges.
+	-- Re-assign connected player's badges.
 	local DefaultGroup = Shine:GetDefaultGroup()
-	if not DefaultGroup then return end
-
 	for Client in Shine.GameIDs:Iterate() do
+		self:AssignBadgesToClient( Client, DefaultGroup )
+	end
+end
+
+function Plugin:AssignBadgesToClient( Client, DefaultGroup )
+	local ID = Client:GetUserId()
+	local User = Shine:GetUserData( ID )
+	if User then
+		local GroupName = User.Group
+
+		self:AssignBadgesToID( ID, User, self.MasterBadgeTable )
+		self:AssignGroupBadge( ID, GroupName, Shine:GetGroupData( GroupName ), {}, self.MasterBadgeTable )
+		self:AssignForcedBadges( Client )
+	else
 		self:AssignGuestBadge( Client, DefaultGroup )
 	end
 end
@@ -289,8 +289,7 @@ function Plugin:AssignForcedBadges( Client )
 end
 
 function Plugin:ClientConnect( Client )
-	self:AssignGuestBadge( Client, Shine:GetDefaultGroup() )
-	self:AssignForcedBadges( Client )
+	self:AssignBadgesToClient( Client, Shine:GetDefaultGroup() )
 end
 
 function Plugin:OnClientBadgeRequest( ClientID, Message )
