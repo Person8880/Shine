@@ -46,70 +46,118 @@ function Shared.Message( String )
 	return Notify( GetTimeString()..String )
 end
 
-local function GetCurrentLogFile()
-	return StringFormat( "%s%s.txt", Shine.Config.LogDir, GetDate() )
-end
+do
+	local CurrentLogFileHandle
+	local CurrentLogFileName
+	local LogMessages = {}
 
-local LogMessages = {}
+	-- Limit logs to 10MiB max to avoid reading too much data into memory in one go.
+	local MAX_LOG_SIZE = 1024 * 1024 * 10
 
-function Shine:LogString( String )
-	if not self.Config.EnableLogging then return end
-
-	LogMessages[ #LogMessages + 1 ] = GetTimeString()..String
-end
-
-function Shine:SaveLog()
-	if not self.Config.EnableLogging then return false end
-
-	local String = TableConcat( LogMessages, "\n" )
-	local CurrentLogFile = GetCurrentLogFile()
-
-	-- This is dumb, but append mode appears to be broken.
-	local OldLog, Err = io.open( CurrentLogFile, "r" )
-
-	local Data = ""
-
-	if OldLog then
-		Data = OldLog:read( "*all" )
-		OldLog:close()
+	local LogFileIndex
+	local function GetCurrentLogFile()
+		return StringFormat(
+			"%s%s%s.txt",
+			Shine.Config.LogDir,
+			GetDate(),
+			LogFileIndex and ( "-"..LogFileIndex ) or ""
+		)
 	end
 
-	local LogFile, Err = io.open( CurrentLogFile, "w+" )
+	function Shine:LogString( String )
+		if not self.Config.EnableLogging then return end
 
-	if not LogFile then
-		Shared.Message( StringFormat( "Error writing to log file: %s", Err  ) )
-
-		return false
+		LogMessages[ #LogMessages + 1 ] = GetTimeString()..String
 	end
 
-	LogFile:write( Data, String, "\n" )
-	LogFile:close()
+	function Shine:SaveLog( ForceFlush )
+		if not self.Config.EnableLogging then return false end
 
-	TableEmpty( LogMessages )
+		local LogFileName = GetCurrentLogFile()
+		if LogFileName ~= CurrentLogFileName then
+			if CurrentLogFileHandle then
+				CurrentLogFileHandle:flush()
+				CurrentLogFileHandle:close()
+				CurrentLogFileHandle = nil
+			end
 
-	return true
+			-- This is dumb, but append mode appears to be broken.
+			local File, Err = io.open( LogFileName, "r" )
+			local ExistingContents
+			while File do
+				local Size = File:seek( "end" )
+				if Size > MAX_LOG_SIZE then
+					-- File has grown too large, move on to another file to avoid massive logs.
+					LogFileIndex = ( LogFileIndex or 1 ) + 1
+					LogFileName = GetCurrentLogFile()
+					File, Err = io.open( LogFileName, "r" )
+				else
+					File:seek( "set", 0 )
+					ExistingContents = File:read( "*all" )
+					File:close()
+					break
+				end
+			end
+
+			Shared.Message( StringFormat( "[Shine] Opening new log file for writing: %s", LogFileName ) )
+
+			File, Err = io.open( LogFileName, "w+" )
+			if not File then
+				-- Assume that if it's failed now it's going to fail next time and thus clear the messages to avoid
+				-- forever increasing memory usage.
+				TableEmpty( LogMessages )
+				Shared.Message( StringFormat( "Error opening new log file: %s", Err  ) )
+				return false
+			end
+
+			if ExistingContents then
+				File:write( ExistingContents )
+				File:flush()
+			end
+
+			CurrentLogFileHandle = File
+			CurrentLogFileName = LogFileName
+		end
+
+		CurrentLogFileHandle:write( TableConcat( LogMessages, "\n" ), "\n" )
+
+		if ForceFlush then
+			CurrentLogFileHandle:flush()
+		end
+
+		TableEmpty( LogMessages )
+
+		return true
+	end
+
+	-- Periodically save the log file.
+	Shine.Hook.Add( "EndGame", "SaveLog", function()
+		Shine:SaveLog()
+	end, Shine.Hook.MAX_PRIORITY )
+
+	Shine.Hook.Add( "MapChange", "SaveLog", function()
+		Shine:SaveLog()
+
+		if CurrentLogFileHandle then
+			CurrentLogFileHandle:flush()
+			CurrentLogFileHandle:close()
+			CurrentLogFileHandle = nil
+			CurrentLogFileName = nil
+		end
+	end, Shine.Hook.MAX_PRIORITY )
+
+	Shine.Timer.Create( "LogSave", 300, -1, function()
+		Shine:SaveLog()
+	end )
+
+	Shine:RegisterCommand( "sh_flushlog", nil, function( Client )
+		if Shine:SaveLog( true ) then
+			Shine:AdminPrint( Client, "Log flushed successfully." )
+		else
+			Shine:AdminPrint( Client, "Failed to flush log. Either logging is disabled, or an error occurred." )
+		end
+	end ):Help( "Flushes Shine's current log file to disk." )
 end
-
---Periodically save the log file.
-Shine.Hook.Add( "EndGame", "SaveLog", function()
-	Shine:SaveLog()
-end, Shine.Hook.MAX_PRIORITY )
-
-Shine.Hook.Add( "MapChange", "SaveLog", function()
-	Shine:SaveLog()
-end, Shine.Hook.MAX_PRIORITY )
-
-Shine.Timer.Create( "LogSave", 300, -1, function()
-	Shine:SaveLog()
-end )
-
-Shine:RegisterCommand( "sh_flushlog", nil, function( Client )
-	if Shine:SaveLog() then
-		Shine:AdminPrint( Client, "Log flushed successfully." )
-	else
-		Shine:AdminPrint( Client, "Failed to flush log. Either logging is disabled, or an error occurred." )
-	end
-end ):Help( "Flushes Shine's current log file to disk." )
 
 function Shine:Print( String, Format, ... )
 	String = Format and StringFormat( String, ... ) or String
