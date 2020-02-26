@@ -35,6 +35,7 @@ function Plugin:OnFirstThink()
 end
 
 local DefaultRow = 5
+local DefaultRowList = { DefaultRow }
 local MaxBadgeRows = 10
 Plugin.DefaultRow = DefaultRow
 
@@ -61,7 +62,7 @@ function Plugin:AssignGroupBadge( ID, GroupName, Group, AssignedGroups, MasterBa
 	-- Assign the badge for the group's (lowercase) name.
 	if GroupName then
 		local GroupBadgeName = GroupName:lower()
-		local Rows = MasterBadgeTable and MasterBadgeTable:Get( GroupBadgeName ) or { DefaultRow }
+		local Rows = MasterBadgeTable and MasterBadgeTable:Get( GroupBadgeName ) or DefaultRowList
 		for i = 1, #Rows do
 			AssignBadge( ID, GroupBadgeName, Rows[ i ] )
 		end
@@ -116,7 +117,7 @@ function Plugin:MapBadgesToRows( BadgeList, MasterBadgeTable )
 
 	for i = 1, #BadgeList do
 		local Badge = BadgeList[ i ]
-		local Rows = MasterBadgeTable:Get( Badge ) or { DefaultRow }
+		local Rows = MasterBadgeTable:Get( Badge ) or DefaultRowList
 
 		for j = 1, #Rows do
 			BadgeRows:Add( Rows[ j ], Badge )
@@ -137,7 +138,7 @@ function Plugin:AssignBadgesToID( ID, Entry, MasterBadgeTable, OwnerName )
 	local BadgeList = Entry.Badges or Entry.badges
 
 	if IsType( SingleBadge, "string" ) then
-		local Rows = MasterBadgeTable and MasterBadgeTable:Get( SingleBadge ) or { DefaultRow }
+		local Rows = MasterBadgeTable and MasterBadgeTable:Get( SingleBadge ) or DefaultRowList
 		for i = 1, #Rows do
 			if not AssignBadge( ID, SingleBadge, Rows[ i ] ) then
 				self.Logger:Warn( "%s has a non-existent or reserved badge: %s",
