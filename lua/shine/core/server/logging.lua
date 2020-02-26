@@ -75,6 +75,10 @@ do
 
 		local LogFileName = GetCurrentLogFile()
 		if LogFileName ~= CurrentLogFileName then
+			-- Make sure the new log file name starts at the first file of the day.
+			LogFileIndex = nil
+			LogFileName = GetCurrentLogFile()
+
 			if CurrentLogFileHandle then
 				CurrentLogFileHandle:flush()
 				CurrentLogFileHandle:close()
@@ -144,7 +148,7 @@ do
 			CurrentLogFileHandle = nil
 			CurrentLogFileName = nil
 		end
-	end, Shine.Hook.MAX_PRIORITY )
+	end, Shine.Hook.MIN_PRIORITY )
 
 	Shine.Timer.Create( "LogSave", 300, -1, function()
 		Shine:SaveLog()
