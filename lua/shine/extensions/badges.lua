@@ -129,7 +129,7 @@ do
 				end
 			else
 				for i = 1, MaxBadgeRows do
-					local BadgesForRow = BadgeList[ tostring( i ) ]
+					local BadgesForRow = BadgeList[ i ] or BadgeList[ tostring( i ) ]
 					if IsType( BadgesForRow, "table" ) then
 						BadgesByRow:AddAll( i, BadgesForRow )
 					end
