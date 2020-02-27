@@ -28,6 +28,11 @@ function GiveBadge( ID, Badge, Row )
 	return true
 end
 
+UnitTest:Before( function()
+	Assigned = {}
+	Badges:ResetState()
+end )
+
 UnitTest:Test( "GetMasterBadgeLookup", function( Assert )
 	local MasterBadgeTable
 	Assert:Nil( Badges:GetMasterBadgeLookup( MasterBadgeTable ) )
@@ -59,108 +64,207 @@ UnitTest:Test( "MapBadgesToRows", function( Assert )
 	}
 
 	local Rows = Badges:MapBadgesToRows( BadgeList, Lookup )
-	Assert:NotNil( Rows )
-
-	Assert:NotNil( Rows[ 1 ] )
-	Assert:NotNil( Rows[ 2 ] )
-	Assert:NotNil( Rows[ 8 ] )
-
-	Assert:ArrayEquals( { "test1" }, Rows[ 1 ] )
-	Assert:ArrayEquals( { "test2", "test2b" }, Rows[ 2 ] )
-	Assert:ArrayEquals( { "test1", "test8" }, Rows[ 8 ] )
+	Assert:DeepEquals( Shine.Multimap{
+		[ 1 ] = { "test1" },
+		[ 2 ] = { "test2", "test2b" },
+		[ 8 ] = { "test1", "test8" }
+	}, Rows )
 end )
 
-UnitTest:Test( "AssignBadgesToID", function( Assert )
-	local ID = 123456
-
-	-- No master table, one entry.
-	Badges:AssignBadgesToID( ID, {
-		Badge = "cake"
-	} )
-
-	Assert:NotNil( Assigned[ ID ] )
-	Assert:NotNil( Assigned[ ID ][ Badges.DefaultRow ] )
-	Assert:Contains( Assigned[ ID ][ Badges.DefaultRow ], "cake" )
-
-	local MasterTable = Shine.Multimap{
-		test1 = { 1 },
-		test2 = { 2 },
-		test3 = { 3 }
-	}
-
-	-- Master table, one entry.
-	Badges:AssignBadgesToID( ID, {
-		Badge = "test1"
-	}, MasterTable )
-
-	Assert:NotNil( Assigned[ ID ][ 1 ] )
-	Assert:Contains( Assigned[ ID ][ 1 ], "test1" )
-
-	-- Master table, multiple entries.
-	Badges:AssignBadgesToID( ID, {
-		Badges = { "test2", "test3" }
-	}, MasterTable )
-
-	Assert:NotNil( Assigned[ ID ][ 2 ] )
-	Assert:NotNil( Assigned[ ID ][ 3 ] )
-	Assert:Contains( Assigned[ ID ][ 2 ], "test2" )
-	Assert:Contains( Assigned[ ID ][ 3 ], "test3" )
-
-	-- No master table, multiple entries.
-	Badges:AssignBadgesToID( ID, {
-		Badges = { "morecake", "somuchcake" }
-	} )
-	Assert:Contains( Assigned[ ID ][ Badges.DefaultRow ], "morecake" )
-	Assert:Contains( Assigned[ ID ][ Badges.DefaultRow ], "somuchcake" )
-
-	-- No master table, row based entry.
-	Badges:AssignBadgesToID( ID, {
+local MockGroups = {
+	TestGroupWithSingleBadge = {
+		Badge = "test1",
+		InheritFromDefault = true
+	},
+	TestGroupWithMultipleBadges = {
+		Badges = { "test1", "test2" },
+		ForcedBadges = {
+			[ "10" ] = "test11"
+		}
+	},
+	TestGroupThatInheritsBadges = {
+		InheritsFrom = {
+			"TestGroupWithSingleBadge",
+			"TestGroupWithMultipleBadges"
+		},
+		ForcedBadges = {
+			[ "3" ] = "test3",
+			[ "10" ] = "test10"
+		}
+	},
+	TestGroupWithCycle1 = {
+		InheritsFrom = {
+			"TestGroupWithCycle2"
+		}
+	},
+	TestGroupWithCycle2 = {
+		InheritsFrom = {
+			"TestGroupWithCycle1"
+		}
+	},
+	[ -1 ] = {
 		Badges = {
-			[ "1" ] = { "ranoutofcake" },
-			[ "8" ] = { "ohwell" }
+			[ "3" ] = { "test3", "test4" },
+			[ "10" ] = { "test10", "test11" }
 		}
-	} )
-	Assert:Contains( Assigned[ ID ][ 1 ], "ranoutofcake" )
-	Assert:NotNil( Assigned[ ID ][ 8 ] )
-	Assert:Contains( Assigned[ ID ][ 8 ], "ohwell" )
-end )
+	}
+}
 
-Assigned = {}
+function Badges:GetGroupData( GroupName )
+	return MockGroups[ GroupName ]
+end
 
-UnitTest:Test( "AssignGroupBadge", function( Assert )
-	local ID = 123456
-	local Group = {
-		Badges = { "cake", "morecake", "somuchcake" }
+local function GroupBadgesForComparison( GroupBadges )
+	return {
+		Assigned = GroupBadges.Assigned:AsTable(),
+		Forced = GroupBadges.Forced and GroupBadges.Forced:AsTable()
+	}
+end
+
+UnitTest:Test( "BuildGroupBadges - Builds with master badge lookup as expected", function( Assert )
+	Badges.MasterBadgeTable = Shine.Multimap{
+		test1 = { 5, 6, 7 }
 	}
 
-	Badges:AssignGroupBadge( ID, "Test", Group )
+	local GroupBadges = Badges:BuildGroupBadges( "TestGroupThatInheritsBadges" )
+	Assert.DeepEquals( "Should have built badges for TestGroupThatInheritsBadges as expected", {
+		Assigned = {
+			[ 3 ] = { "test3", "test4" },
+			[ 5 ] = { "test1", "test2" },
+			[ 6 ] = { "test1" },
+			[ 7 ] = { "test1" },
+			[ 10 ] = { "test10", "test11" }
+		},
+		Forced = {
+			[ 3 ] = "test3",
+			[ 10 ] = "test10"
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
 
-	-- Should assign all given badges, and the group name.
-	Assert:NotNil( Assigned[ ID ] )
-	Assert:NotNil( Assigned[ ID ][ Badges.DefaultRow ] )
-	Assert:ArrayEquals( { "cake", "morecake", "somuchcake", "test" },
-		Assigned[ ID ][ Badges.DefaultRow ] )
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithSingleBadge" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithSingleBadge as expected", {
+		Assigned = {
+			[ 3 ] = { "test3", "test4" },
+			[ 5 ] = { "test1" },
+			[ 6 ] = { "test1" },
+			[ 7 ] = { "test1" },
+			[ 10 ] = { "test10", "test11" }
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithMultipleBadges" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithMultipleBadges as expected", {
+		Assigned = {
+			[ 5 ] = { "test1", "test2" },
+			[ 6 ] = { "test1" },
+			[ 7 ] = { "test1" }
+		},
+		Forced = {
+			[ 10 ] = "test11"
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( -1 )
+	Assert.DeepEquals( "Should have built badges for the default group as expected", {
+		Assigned = {
+			[ 3 ] = { "test3", "test4" },
+			[ 10 ] = { "test10", "test11" }
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
 end )
 
-Assigned = {}
+UnitTest:Test( "BuildGroupBadges - Builds without master badge lookup as expected", function( Assert )
+	Badges.MasterBadgeTable = Shine.Multimap()
 
-UnitTest:Test( "Assign forced badges", function( Assert )
-	local ID = 123456
-	local Entry = {
-		ForcedBadges = { "cake", "morecake" }
-	}
-
-	Badges:AssignBadgesToID( ID, Entry )
-
-	Assert:NotNil( Assigned[ ID ] )
-	Assert:ArrayEquals( { "cake" }, Assigned[ ID ][ 1 ] )
-	Assert:ArrayEquals( { "morecake" }, Assigned[ ID ][ 2 ] )
-
-	Assert:DeepEquals( Badges.ForcedBadges, {
-		[ ID ] = {
-			"cake", "morecake"
+	local GroupBadges = Badges:BuildGroupBadges( "TestGroupThatInheritsBadges" )
+	Assert.DeepEquals( "Should have built badges for TestGroupThatInheritsBadges as expected", {
+		Assigned = {
+			[ 3 ] = { "test3", "test4" },
+			[ 5 ] = { "test1", "test2" },
+			[ 10 ] = { "test10", "test11" }
+		},
+		Forced = {
+			[ 3 ] = "test3",
+			[ 10 ] = "test10"
 		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithSingleBadge" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithSingleBadge as expected", {
+		Assigned = {
+			[ 3 ] = { "test3", "test4" },
+			[ 5 ] = { "test1" },
+			[ 10 ] = { "test10", "test11" }
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithMultipleBadges" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithMultipleBadges as expected", {
+		Assigned = {
+			[ 5 ] = { "test1", "test2" }
+		},
+		Forced = {
+			[ 10 ] = "test11"
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( -1 )
+	Assert.DeepEquals( "Should have built badges for the default group as expected", {
+		Assigned = {
+			[ 3 ] = { "test3", "test4" },
+			[ 10 ] = { "test10", "test11" }
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+end )
+
+UnitTest:Test( "BuildGroupBadges - Handles cyclic InheritsFrom list", function( Assert )
+	local GroupBadges = Badges:BuildGroupBadges( "TestGroupWithCycle1" )
+	Assert.DeepEquals( "Should handle cycle in InheritsFrom list", {
+		Assigned = {}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithCycle2" )
+	Assert.DeepEquals( "Should handle cycle in InheritsFrom list", {
+		Assigned = {}
+	}, GroupBadgesForComparison( GroupBadges ) )
+end )
+
+UnitTest:Test( "AssignBadgesToID - Assigns badges with no forced badges", function( Assert )
+	local ID = 12345
+
+	Badges:AssignBadgesToID( ID, Shine.Multimap{
+		{ "test1", "test2" },
+		{ "test3", "test4" }
 	} )
+
+	Assert.DeepEquals( "Should have assigned the given rows", {
+		{ "test1", "test2" },
+		{ "test3", "test4" }
+	}, Assigned[ ID ] )
+
+	Assert.DeepEquals( "Should not have forced any badges", {}, Badges.ForcedBadges )
+end )
+
+UnitTest:Test( "AssignBadgesToID - Assigns badges and forced badges", function( Assert )
+	local ID = 12345
+
+	Badges:AssignBadgesToID( ID, Shine.Multimap{
+		{ "test1", "test2" },
+		{ "test3", "test4" }
+	}, Shine.Map( {
+		"test1",
+		"test3"
+	} ) )
+
+	Assert.DeepEquals( "Should have assigned the given rows", {
+		{ "test1", "test2" },
+		{ "test3", "test4" }
+	}, Assigned[ ID ] )
+
+	Assert.DeepEquals( "Should have forced the given badges", {
+		"test1",
+		"test3"
+	}, Badges.ForcedBadges[ ID ] )
 end )
 
 GiveBadge = OldGiveBadge
