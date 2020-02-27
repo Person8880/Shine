@@ -224,6 +224,16 @@ UnitTest:Test( "StableSortKeys", function( Assert )
 	Assert.ArrayEquals( "Should have sorted keys in ascending order", { "A", "B", "Z" }, Map.Keys )
 end )
 
+UnitTest:Test( "AsTable", function( Assert )
+	local Map = Map{
+		A = 1, B = 2, C = 3
+	}
+
+	Assert.DeepEquals( "Should convert map to table as expected", {
+		A = 1, B = 2, C = 3
+	}, Map:AsTable() )
+end )
+
 local Multimap = Shine.Multimap
 
 UnitTest:Test( "Multimap:Add()/Get()/GetCount()", function( Assert )
@@ -332,4 +342,32 @@ UnitTest:Test( "Multimap:Iterate()/IterateBackwards()", function( Assert )
 		Assert:ArrayEquals( ExpectedValues[ Key ], Values )
 		Index = Index - 1
 	end
+end )
+
+UnitTest:Test( "Multimap:AddAll()", function( Assert )
+	local Map = Multimap()
+	Map:AddAll( "A", { 1, 2, 3, 4 } )
+
+	Assert.DeepEquals( "Should assign all values to the given key", {
+		A = { 1, 2, 3, 4 }
+	}, Map:AsTable() )
+end )
+
+UnitTest:Test( "Multimap:CopyFrom()", function( Assert )
+	local Map1 = Multimap{
+		A = { 1, 2, 3 },
+		B = { 4, 5, 6 }
+	}
+
+	Map1:CopyFrom( Multimap{
+		A = { 4, 5, 6 },
+		B = { 1, 2, 3 },
+		C = { 7, 8, 9 }
+	} )
+
+	Assert.DeepEquals( "Should have merged values as expected", {
+		A = { 1, 2, 3, 4, 5, 6 },
+		B = { 4, 5, 6, 1, 2, 3 },
+		C = { 7, 8, 9 }
+	}, Map1:AsTable() )
 end )

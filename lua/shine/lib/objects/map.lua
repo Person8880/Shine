@@ -10,6 +10,7 @@ local pairs = pairs
 local TableEmpty = table.Empty
 local TableSort = table.sort
 local TableMergeSort = table.MergeSort
+local TableShallowCopy = table.ShallowCopy
 
 local Map = Shine.TypeDef()
 
@@ -55,6 +56,10 @@ end
 
 function Map:GetKeys()
 	return self.Keys
+end
+
+function Map:AsTable()
+	return TableShallowCopy( self.MemberLookup )
 end
 
 function Map:SortKeys( Comparator )
@@ -348,6 +353,24 @@ function Multimap:Add( Key, Value )
 	end
 
 	Entry:Add( Value, Value )
+end
+
+--[[
+	Adds a list of values under the given key.
+]]
+function Multimap:AddAll( Key, Values )
+	for i = 1, #Values do
+		self:Add( Key, Values[ i ] )
+	end
+end
+
+--[[
+	Copies all values from the given multimap into this one.
+]]
+function Multimap:CopyFrom( OtherMultimap )
+	for Key, Values in OtherMultimap:Iterate() do
+		self:AddAll( Key, Values )
+	end
 end
 
 --[[
