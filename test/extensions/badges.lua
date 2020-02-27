@@ -229,6 +229,13 @@ UnitTest:Test( "BuildGroupBadges - Handles cyclic InheritsFrom list", function( 
 	}, GroupBadgesForComparison( GroupBadges ) )
 end )
 
+UnitTest:Test( "BuildGroupBadges - Builds empty table for a group that does not exist", function( Assert )
+	local GroupBadges = Badges:BuildGroupBadges( "InvalidGroupName" )
+	Assert.DeepEquals( "Should return an empty result for a group that does not exist", {
+		Assigned = {}
+	}, GroupBadgesForComparison( GroupBadges ) )
+end )
+
 UnitTest:Test( "AssignBadgesToID - Assigns badges with no forced badges", function( Assert )
 	local ID = 12345
 
