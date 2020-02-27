@@ -267,4 +267,17 @@ UnitTest:Test( "AssignBadgesToID - Assigns badges and forced badges", function( 
 	}, Badges.ForcedBadges[ ID ] )
 end )
 
+UnitTest:Test( "AssignGuestBadge - Assigns badges as expected", function( Assert )
+	local ID = 12345
+
+	Badges:AssignGuestBadge( UnitTest.MakeMockClient( ID ) )
+
+	Assert.DeepEquals( "Should have assigned badges from the default group", {
+		[ 3 ] = { "test3", "test4" },
+		[ 10 ] = { "test10", "test11" }
+	}, Assigned[ ID ] )
+
+	Assert.DeepEquals( "Should not have forced any badges", {}, Badges.ForcedBadges )
+end )
+
 GiveBadge = OldGiveBadge

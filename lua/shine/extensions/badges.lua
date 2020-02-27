@@ -39,8 +39,9 @@ function Plugin:OnFirstThink()
 	self:Setup()
 end
 
+local DefaultGroupKey = -1
+
 do
-	local DefaultGroupKey = -1
 	local DefaultRow = 5
 	local DefaultRowList = { DefaultRow }
 	local MaxBadgeRows = 10
@@ -288,7 +289,7 @@ function Plugin:AssignBadgesFromGroupToID( ID, GroupName )
 	self:AssignBadgesToID( ID, Badges.Assigned, Badges.Forced )
 end
 
-function Plugin:AssignBadgesToClient( Client, DefaultGroup )
+function Plugin:AssignBadgesToClient( Client )
 	local ID = Client:GetUserId()
 	if self.AssignedUserIDs[ ID ] then return end
 
@@ -300,17 +301,12 @@ function Plugin:AssignBadgesToClient( Client, DefaultGroup )
 		self:AssignBadgesFromGroupToID( ID, User.Group )
 		self:AssignForcedBadges( Client )
 	else
-		self:AssignGuestBadge( Client, DefaultGroup )
+		self:AssignGuestBadge( Client )
 	end
 end
 
-function Plugin:AssignGuestBadge( Client, DefaultGroup )
-	if not DefaultGroup then return end
-
+function Plugin:AssignGuestBadge( Client )
 	local ID = Client:GetUserId()
-	local UserData = Shine:GetUserData( ID )
-	if UserData then return end
-
 	self.Logger:Debug( "Assigning guest badges for: %s", ID )
 
 	local Badges = self:BuildGroupBadges( DefaultGroupKey )
@@ -337,14 +333,13 @@ function Plugin:OnUserReload()
 	self:Setup()
 
 	-- Re-assign connected player's badges.
-	local DefaultGroup = Shine:GetDefaultGroup()
 	for Client in Shine.GameIDs:Iterate() do
-		self:AssignBadgesToClient( Client, DefaultGroup )
+		self:AssignBadgesToClient( Client )
 	end
 end
 
 function Plugin:ClientConnect( Client )
-	self:AssignBadgesToClient( Client, Shine:GetDefaultGroup() )
+	self:AssignBadgesToClient( Client )
 end
 
 function Plugin:OnClientBadgeRequest( ClientID, Message )
