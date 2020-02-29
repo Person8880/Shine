@@ -601,6 +601,7 @@ function MapVoteMenu:SetMaps( Maps )
 		end )
 	end
 
+	self:RefreshMapVoteTileWinners()
 	self:InvalidateLayout( true )
 end
 
@@ -665,12 +666,7 @@ function MapVoteMenu:Think( DeltaTime )
 	end
 end
 
-function MapVoteMenu:OnMapVoteCountChanged( MapName, NumVotes )
-	local Tile = self.MapTiles[ MapName ]
-	if not SGUI.IsValid( Tile ) then return end
-
-	Tile:SetNumVotes( NumVotes )
-
+function MapVoteMenu:RefreshMapVoteTileWinners()
 	local Max = 0
 	local NumAtMax = 0
 	for i = 1, #self.MapTiles do
@@ -693,6 +689,15 @@ function MapVoteMenu:OnMapVoteCountChanged( MapName, NumVotes )
 			Tile:SetWinnerType( nil )
 		end
 	end
+end
+
+function MapVoteMenu:OnMapVoteCountChanged( MapName, NumVotes )
+	local Tile = self.MapTiles[ MapName ]
+	if not SGUI.IsValid( Tile ) then return end
+
+	Tile:SetNumVotes( NumVotes )
+
+	self:RefreshMapVoteTileWinners()
 end
 
 function MapVoteMenu:ForceSelectedMap( MapName )
