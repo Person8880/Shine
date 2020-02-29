@@ -151,17 +151,8 @@ function Shine:OpenWebpage( URL, TitleText )
 	local WidthMult = Max( W / 1920, 1 )
 	local HeightMult = Max( H / 1080, 1 )
 
-	local TitleBarH = 32
-	local Font = Fonts.kAgencyFB_Small
-	local TextScale
-	if H > SGUI.ScreenHeight.Normal and H <= SGUI.ScreenHeight.Large then
-		TitleBarH = TitleBarH * 1.5
-		Font = Fonts.kAgencyFB_Medium
-	elseif H > SGUI.ScreenHeight.Large then
-		TitleBarH = TitleBarH * 2.5
-		Font = Fonts.kAgencyFB_Huge
-		TextScale = Vector( 0.6, 0.6, 0 )
-	end
+	local TitleBarH = Units.HighResScaled( 32 ):GetValue()
+	local Font, TextScale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
 
 	local WindowWidth = W * 0.8
 	local WindowHeight = H * 0.8 + TitleBarH
@@ -289,13 +280,13 @@ function Shine:OpenWebpage( URL, TitleText )
 
 	local OldPlayerKeyPress = Webpage.PlayerKeyPress
 	function Webpage:PlayerKeyPress( Key, Down )
-		if not Down and ( Key == InputKey.MouseButton4 or Key == InputKey.MouseButton5 ) and self:MouseInCached() then
+		if not Down and ( Key == InputKey.MouseButton3 or Key == InputKey.MouseButton4 ) and self:MouseInCached() then
 			if Key == InputKey.MouseButton4 then
 				self:ExecuteJS( "history.forward();" )
 				return true
 			end
 
-			if Key == InputKey.MouseButton5 then
+			if Key == InputKey.MouseButton3 then
 				self:ExecuteJS( "history.back();" )
 				return true
 			end
@@ -325,18 +316,22 @@ function Shine:OpenWebpage( URL, TitleText )
 	end
 
 	local UpdateLocationScript = [[alert( "%s:LOCATION_CHANGE:" + location.href );]]
+	function Webpage:UpdateLocation()
+		self:ExecuteJS( StringFormat( UpdateLocationScript, AlertPrefix ) )
+	end
 
 	local OldOnMouseUp = Webpage.OnMouseUp
 	function Webpage:OnMouseUp( Key )
 		if OldOnMouseUp( self, Key ) then
-			self:ExecuteJS( StringFormat( UpdateLocationScript, AlertPrefix ) )
+			self:UpdateLocation()
 			return true
 		end
 	end
 
 	Webpage:AddPropertyChangeListener( "IsLoading", function( Webpage, IsLoading )
 		if not IsLoading then
-			Webpage:ExecuteJS( StringFormat( UpdateLocationScript, AlertPrefix ) )
+			Webpage:UpdateLocation()
+
 			-- Alerts never seem to be received by Lua when placed in callbacks at the JS level, so this polling
 			-- hack is the only way to update the current URL.
 			Shine.Timer.Create( "WebpageUpdate", 1, -1, function( Timer )
@@ -345,18 +340,18 @@ function Shine:OpenWebpage( URL, TitleText )
 					return
 				end
 
-				Webpage:ExecuteJS( StringFormat( UpdateLocationScript, AlertPrefix ) )
+				Webpage:UpdateLocation()
 			end )
 		end
 	end )
 
-	-- Hide/show the loading text depending on whether the page is actually loading.
-	-- Some pages may have transparency which would make the loading text visible behind them.
+	-- Hide/show the loading indicator depending on whether the page is actually loading.
+	-- Some pages may have transparency which would make the loading indicator visible behind them.
 	Binder():FromElement( Webpage, "IsLoading" )
 		:ToElement( LoadingIndicator, "IsVisible" )
 		:BindProperty()
 
-	SGUI:EnableMouse( true )
+	SGUI:EnableMouse( true, Window )
 
 	return Webpage
 end
@@ -364,7 +359,7 @@ end
 function Shine:CloseWebPage()
 	if not SGUI.IsValid( self.ActiveWebPage ) then return end
 
-	SGUI:EnableMouse( false )
+	SGUI:EnableMouse( false, self.ActiveWebPage )
 
 	self.ActiveWebPage:Destroy()
 	self.ActiveWebPage = nil
