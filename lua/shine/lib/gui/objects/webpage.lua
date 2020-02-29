@@ -7,6 +7,7 @@ local SGUI = Shine.GUI
 local Clamp = math.Clamp
 local StringByte = string.byte
 local StringFormat = string.format
+local StringUTF8CodePoint = string.UTF8CodePoint
 local StringUTF8Encode = string.UTF8Encode
 
 local Webpage = {}
@@ -119,15 +120,18 @@ function Webpage:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
 	if not self:HasFocus() then return end
 	if not self.WebView then return end
-	if not Down then return end
 
 	if Key == InputKey.Return then
 		self.WebView:OnEnter( Down )
 	elseif Key == InputKey.Back then
 		self.WebView:OnBackSpace( Down )
+	elseif Key == InputKey.Space then
+		self.WebView:OnSpace( Down )
+	elseif Key == InputKey.Escape then
+		self.WebView:OnEscape( Down )
 	end
 
-	if SGUI:IsControlDown() and Key == InputKey.V then
+	if Down and SGUI:IsControlDown() and Key == InputKey.V then
 		local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
 		for i = 1, #Chars do
 			self:PlayerType( Chars[ i ] )
@@ -142,10 +146,8 @@ function Webpage:PlayerType( Char )
 	if not self:HasFocus() then return end
 	if not self.WebView then return end
 
-	local Num = StringByte( Char )
-	if Num <= 255 then
-		self.WebView:OnSendCharacter( Num )
-	end
+	local CodePoint = StringUTF8CodePoint( StringByte( Char, 1, 4 ) )
+	self.WebView:OnSendCharacter( CodePoint )
 
 	return true
 end
