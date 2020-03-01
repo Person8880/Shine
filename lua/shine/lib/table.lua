@@ -708,13 +708,18 @@ do
 end
 
 do
+	local assert = assert
+	local Floor = math.floor
 	local GetMetaTable = debug.getmetatable
 	local Max = math.max
-	local StringByte = string.byte
+	local pairs = pairs
+	local setmetatable = setmetatable
 	local StringFormat = string.format
-	local StringGSub = string.gsub
 	local StringRep = string.rep
+	local StringSub = string.sub
 	local TableConcat = table.concat
+	local TableEmpty = table.Empty
+	local TableNew = require "table.new"
 	local tostring = tostring
 	local type = type
 
@@ -729,32 +734,27 @@ do
 		local MaxIndex = 0
 
 		for Key, Value in pairs( Table ) do
-			if type( Key ) ~= "number" then return false end
+			if type( Key ) ~= "number" or Key < 1 or Floor( Key ) ~= Key then
+				return false
+			end
+
 			MaxIndex = Max( Key, MaxIndex )
 			NumberOfElements = NumberOfElements + 1
 		end
 
 		if MaxIndex > 10 and MaxIndex > ProvidedSize and MaxIndex > NumberOfElements * 2 then
-			-- Keep consistent behaviour with DKJSON
+			-- Keep consistent behaviour with DKJSON (avoiding arrays with large gaps between keys)
 			return false
 		end
 
 		return true, MaxIndex
 	end
 
-	local function NewLineIfNecessary( Buffer, FormattingOptions, IndentLevel )
-		if not FormattingOptions.PrettyPrint then return end
-
-		Buffer[ #Buffer + 1 ] = FormattingOptions.NewLineChar
-		Buffer[ #Buffer + 1 ] = StringRep( FormattingOptions.IndentChar,
-			FormattingOptions.IndentSize * IndentLevel )
+	local function AddNewLine( Buffer, BufferCount, NewLineChar, IndentText )
+		Buffer[ BufferCount + 1 ] = NewLineChar
+		Buffer[ BufferCount + 2 ] = IndentText
+		return BufferCount + 2
 	end
-
-	local function GetLocaleSeparator()
-		return string.match( tostring( 1.5 ), "([^15+]+)" )
-	end
-	local DECIMAL_SEP = string.PatternSafe( GetLocaleSeparator() )
-	local NON_NUMBER_PATTERN = "[^0-9%-%+eE"..DECIMAL_SEP.."]"
 
 	local ToJSON
 	local ESCAPE_CHARS = {
@@ -762,48 +762,79 @@ do
 		[ "\f" ] = "\\f", [ "\n" ] = "\\n",  [ "\r" ] = "\\r",
 		[ "\t" ] = "\\t"
 	}
+
 	local function ToUnicodeEscape( Value )
-		return StringFormat( "\\u%.4x", StringByte( Value ) )
+		return StringFormat( "\\u%.4x", Value )
 	end
+
+	-- The JSON specification states that normal unicode characters do not need to be escaped.
+	-- Thus we just escape the control characters it states are needed, plus a few extra
+	-- such as the null byte.
+	local function AddEscapeChar( ByteValue, Encoder )
+		local Char = string.char( ByteValue )
+		if not ESCAPE_CHARS[ Char ] then
+			ESCAPE_CHARS[ Char ] = Encoder( ByteValue )
+		end
+	end
+
+	for i = 0, 31 do
+		AddEscapeChar( i, ToUnicodeEscape )
+	end
+	for i = 32, 126 do
+		AddEscapeChar( i, string.char )
+	end
+	for i = 127, 159 do
+		AddEscapeChar( i, ToUnicodeEscape )
+	end
+	for i = 160, 255 do
+		AddEscapeChar( i, string.char )
+	end
+
+	local StringBuff = TableNew( 100, 0 )
+	local function EscapeSpecialChars( String )
+		TableEmpty( StringBuff )
+
+		local Len = #String
+
+		StringBuff[ 1 ] = "\""
+		for i = 1, Len do
+			local Char = StringSub( String, i, i )
+			StringBuff[ i + 1 ] = ESCAPE_CHARS[ Char ]
+		end
+		StringBuff[ Len + 2 ] = "\""
+
+		return TableConcat( StringBuff )
+	end
+
 	local Writers = {
 		[ "nil" ] = function() return "null" end,
 		[ "boolean" ] = tostring,
-		[ "number" ] = function( Value )
-			return StringGSub( StringGSub( tostring( Value ), NON_NUMBER_PATTERN, "" ), DECIMAL_SEP, "." )
-		end,
+		[ "number" ] = tostring,
 		[ "table" ] = function( Value, FormattingOptions, State )
 			return ToJSON( Value, FormattingOptions, State )
 		end,
-		[ "string" ] = function( Value )
-			-- The JSON specification states that normal unicode characters do not need to be escaped.
-			-- Thus we just escape the control characters it states are needed, plus a few extra
-			-- such as the null byte.
-			return StringFormat( "\"%s\"", StringGSub(
-				StringGSub( Value, "[\r\n\b\f\t\"\\]", ESCAPE_CHARS ),
-				"[%z\1-\31\127-\159]",
-				ToUnicodeEscape
-			) )
+		[ "string" ] = function( Value, FormattingOptions, State )
+			return State.EscapedStrings[ Value ]
 		end
 	}
 	local LengthGetters = {
 		[ "nil" ] = function() return 4 end,
 		[ "boolean" ] = function( Value ) return #tostring( Value ) end,
-		[ "number" ] = function( Value ) return #Writers.number( Value ) end,
-		[ "string" ] = function( Value ) return #Writers.string( Value ) end
+		[ "number" ] = function( Value ) return #tostring( Value ) end,
+		[ "string" ] = function( Value ) return #Value + 2 end
 	}
 
 	local function WriteValue( Value, Buffer, FormattingOptions, State )
 		local ValueType = type( Value )
 
-		local Writer = Writers[ ValueType ]
-		if not Writer then
-			error( "Unsupported value type: "..ValueType )
-		end
-
+		local Writer = assert( Writers[ ValueType ], StringFormat( "Unsupported value type: %s", ValueType ) )
 		local Output = Writer( Value, FormattingOptions, State )
 		if Output then
-			Buffer[ #Buffer + 1 ] = Output
+			State.BufferCount = State.BufferCount + 1
+			Buffer[ State.BufferCount ] = Output
 		end
+
+		return State.BufferCount
 	end
 
 	local function DetermineIfArrayFitsOnLine( Table, MaxIndex, FormattingOptions, State )
@@ -811,6 +842,13 @@ do
 		-- enough approximation.
 		local Length = FormattingOptions.IndentSize * State.IndentLevel
 		local SEPARATOR_LENGTH = 2
+		local PrintMargin = FormattingOptions.PrintMargin
+
+		-- Avoid a costly loop if it looks like the array is too long upfront.
+		if Length + MaxIndex * 2 + ( MaxIndex - 1 ) * SEPARATOR_LENGTH > PrintMargin then
+			return false
+		end
+
 		for i = 1, MaxIndex do
 			local Value = Table[ i ]
 			local ValueType = type( Value )
@@ -823,26 +861,28 @@ do
 
 			Length = Length + LengthGetter( Value ) + SEPARATOR_LENGTH
 
-			if Length > FormattingOptions.PrintMargin then
+			if Length > PrintMargin then
 				return false
 			end
 		end
+
 		return true
 	end
 
 	ToJSON = function( Table, FormattingOptions, State )
-		if State.Seen[ Table ] then
-			error( "Cycle in input table" )
-		end
+		assert( not State.Seen[ Table ], "Cycle in input table" )
 
 		State.Seen[ Table ] = true
 
 		local Buffer = State.Buffer
+		local BufferCount = State.BufferCount
 		local IsArray, MaxIndex = IsTableArray( Table, GetMetaTable( Table ) )
 		local IsPrettyPrint = FormattingOptions.PrettyPrint
+		local NewLineChar = FormattingOptions.NewLineChar
 
 		if IsArray then
-			Buffer[ #Buffer + 1 ] = "["
+			BufferCount = BufferCount + 1
+			Buffer[ BufferCount ] = "["
 
 			State.IndentLevel = State.IndentLevel + 1
 
@@ -852,67 +892,89 @@ do
 			end
 
 			for i = 1, MaxIndex do
-				if ShouldSeparate then
-					NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
-				elseif IsPrettyPrint then
-					Buffer[ #Buffer + 1 ] = " "
+				if IsPrettyPrint then
+					if ShouldSeparate then
+						BufferCount = AddNewLine(
+							Buffer, BufferCount, NewLineChar, State.Indents[ State.IndentLevel ]
+						)
+					else
+						BufferCount = BufferCount + 1
+						Buffer[ BufferCount ] = " "
+					end
 				end
 
-				WriteValue( Table[ i ], Buffer, FormattingOptions, State )
+				State.BufferCount = BufferCount
+				BufferCount = WriteValue( Table[ i ], Buffer, FormattingOptions, State )
 
 				if i ~= MaxIndex then
-					Buffer[ #Buffer + 1 ] = ","
+					BufferCount = BufferCount + 1
+					Buffer[ BufferCount ] = ","
 				elseif not ShouldSeparate and IsPrettyPrint then
-					Buffer[ #Buffer + 1 ] = " "
+					BufferCount = BufferCount + 1
+					Buffer[ BufferCount ] = " "
 				end
 			end
 
 			State.IndentLevel = State.IndentLevel - 1
 
 			if MaxIndex >= 1 and ShouldSeparate then
-				NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
+				BufferCount = AddNewLine( Buffer, BufferCount, NewLineChar, State.Indents[ State.IndentLevel ] )
 			end
 
-			Buffer[ #Buffer + 1 ] = "]"
+			BufferCount = BufferCount + 1
+			Buffer[ BufferCount ] = "]"
 		else
-			Buffer[ #Buffer + 1 ] = "{"
+			BufferCount = BufferCount + 1
+			Buffer[ BufferCount ] = "{"
 			State.IndentLevel = State.IndentLevel + 1
 
 			local WroteValues = false
 			for Key, Value in FormattingOptions.TableIterator( Table ) do
 				if WroteValues then
-					Buffer[ #Buffer + 1 ] = ","
+					BufferCount = BufferCount + 1
+					Buffer[ BufferCount ] = ","
 				end
 
 				WroteValues = true
-				NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
+				if IsPrettyPrint then
+					BufferCount = AddNewLine( Buffer, BufferCount, NewLineChar, State.Indents[ State.IndentLevel ] )
+				end
 
 				local KeyType = type( Key )
 				if KeyType == "number" then
-					WriteValue( Key, Buffer, FormattingOptions, State )
-					Buffer[ #Buffer ] = StringFormat( "\"%s\"", Buffer[ #Buffer ] )
+					State.BufferCount = BufferCount
+					BufferCount = WriteValue( Key, Buffer, FormattingOptions, State )
+
+					Buffer[ BufferCount ] = StringFormat( "\"%s\"", Buffer[ BufferCount ] )
 				elseif KeyType == "string" then
-					WriteValue( Key, Buffer, FormattingOptions, State )
+					State.BufferCount = BufferCount
+					BufferCount = WriteValue( Key, Buffer, FormattingOptions, State )
 				else
 					error( "Unsupported table key type: "..KeyType )
 				end
 
-				Buffer[ #Buffer + 1 ] = ":"
-				if FormattingOptions.PrettyPrint then
-					Buffer[ #Buffer + 1 ] = " "
+				BufferCount = BufferCount + 1
+				Buffer[ BufferCount ] = ":"
+
+				if IsPrettyPrint then
+					BufferCount = BufferCount + 1
+					Buffer[ BufferCount ] = " "
 				end
 
-				WriteValue( Value, Buffer, FormattingOptions, State )
+				State.BufferCount = BufferCount
+				BufferCount = WriteValue( Value, Buffer, FormattingOptions, State )
 			end
 
 			State.IndentLevel = State.IndentLevel - 1
-			if WroteValues then
-				NewLineIfNecessary( Buffer, FormattingOptions, State.IndentLevel )
+			if WroteValues and IsPrettyPrint then
+				BufferCount = AddNewLine( Buffer, BufferCount, NewLineChar, State.Indents[ State.IndentLevel ] )
 			end
 
-			Buffer[ #Buffer + 1 ] = "}"
+			BufferCount = BufferCount + 1
+			Buffer[ BufferCount ] = "}"
 		end
 
+		State.BufferCount = BufferCount
 		State.Seen[ Table ] = false
 	end
 
@@ -932,6 +994,24 @@ do
 	}
 	local InheritFromDefault = { __index = DEFAULT_OPTIONS }
 
+	-- Cache indent strings to avoid costly repeated string.rep calls.
+	local StateIndentCache = {
+		__index = function( self, IndentLevel )
+			local Indent = StringRep( self.IndentChar, self.IndentSize * IndentLevel )
+			self[ IndentLevel ] = Indent
+			return Indent
+		end
+	}
+
+	-- Cache escaped string values to improve performance when the same string is repeated many times.
+	local StateEscapeCache = {
+		__index = function( self, String )
+			local EscapedString = EscapeSpecialChars( String )
+			self[ String ] = EscapedString
+			return EscapedString
+		end
+	}
+
 	--[[
 		Outputs a table in JSON form, providing better formatting options than
 		DKJSON.
@@ -945,13 +1025,22 @@ do
 			FormattingOptions = setmetatable( FormattingOptions, InheritFromDefault )
 		end
 
+		local Indents = setmetatable( TableNew( 5, 0 ), StateIndentCache )
+		Indents.IndentSize = FormattingOptions.IndentSize
+		Indents.IndentChar = FormattingOptions.IndentChar
+
 		local State = {
+			BufferCount = 0,
 			IndentLevel = 0,
-			Seen = {},
-			Buffer = {}
+			Seen = TableNew( 0, 20 ),
+			Buffer = TableNew( 100, 0 ),
+			Indents = Indents,
+			EscapedStrings = setmetatable( TableNew( 0, 20 ), StateEscapeCache )
 		}
 
 		ToJSON( Table, FormattingOptions, State )
+
+		TableEmpty( StringBuff )
 
 		return TableConcat( State.Buffer )
 	end

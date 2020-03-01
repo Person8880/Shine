@@ -291,18 +291,20 @@ end
 
 function Plugin:AssignBadgesToClient( Client )
 	local ID = Client:GetUserId()
-	if self.AssignedUserIDs[ ID ] then return end
+	if not self.AssignedUserIDs[ ID ] then
+		self.AssignedUserIDs[ ID ] = true
 
-	self.AssignedUserIDs[ ID ] = true
-
-	local User = Shine:GetUserData( ID )
-	if User then
-		self:AssignBadgesToID( ID, self:CollectBadgesFromEntry( User ) )
-		self:AssignBadgesFromGroupToID( ID, User.Group )
-		self:AssignForcedBadges( Client )
-	else
-		self:AssignGuestBadge( Client )
+		local User = Shine:GetUserData( ID )
+		if User then
+			self.Logger:Debug( "Assigning badges from user data for: %s", ID )
+			self:AssignBadgesToID( ID, self:CollectBadgesFromEntry( User ) )
+			self:AssignBadgesFromGroupToID( ID, User.Group )
+		else
+			self:AssignGuestBadge( Client )
+		end
 	end
+
+	self:AssignForcedBadges( Client )
 end
 
 function Plugin:AssignGuestBadge( Client )
