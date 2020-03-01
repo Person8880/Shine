@@ -791,6 +791,21 @@ do
 	end
 
 	local StringBuff = TableNew( 100, 0 )
+	local function EscapeSpecialChars( String )
+		TableEmpty( StringBuff )
+
+		local Len = #String
+
+		StringBuff[ 1 ] = "\""
+		for i = 1, Len do
+			local Char = StringSub( String, i, i )
+			StringBuff[ i + 1 ] = ESCAPE_CHARS[ Char ]
+		end
+		StringBuff[ Len + 2 ] = "\""
+
+		return TableConcat( StringBuff )
+	end
+
 	local Writers = {
 		[ "nil" ] = function() return "null" end,
 		[ "boolean" ] = tostring,
@@ -798,19 +813,8 @@ do
 		[ "table" ] = function( Value, FormattingOptions, State )
 			return ToJSON( Value, FormattingOptions, State )
 		end,
-		[ "string" ] = function( Value )
-			TableEmpty( StringBuff )
-
-			local Len = #Value
-
-			StringBuff[ 1 ] = "\""
-			for i = 1, Len do
-				local Char = StringSub( Value, i, i )
-				StringBuff[ i + 1 ] = ESCAPE_CHARS[ Char ]
-			end
-			StringBuff[ Len + 2 ] = "\""
-
-			return TableConcat( StringBuff )
+		[ "string" ] = function( Value, FormattingOptions, State )
+			return State.EscapedStrings[ Value ]
 		end
 	}
 	local LengthGetters = {
@@ -990,11 +994,21 @@ do
 	}
 	local InheritFromDefault = { __index = DEFAULT_OPTIONS }
 
+	-- Cache indent strings to avoid costly repeated string.rep calls.
 	local StateIndentCache = {
 		__index = function( self, IndentLevel )
 			local Indent = StringRep( self.IndentChar, self.IndentSize * IndentLevel )
 			self[ IndentLevel ] = Indent
 			return Indent
+		end
+	}
+
+	-- Cache escaped string values to improve performance when the same string is repeated many times.
+	local StateEscapeCache = {
+		__index = function( self, String )
+			local EscapedString = EscapeSpecialChars( String )
+			self[ String ] = EscapedString
+			return EscapedString
 		end
 	}
 
@@ -1020,10 +1034,13 @@ do
 			IndentLevel = 0,
 			Seen = TableNew( 0, 20 ),
 			Buffer = TableNew( 100, 0 ),
-			Indents = Indents
+			Indents = Indents,
+			EscapedStrings = setmetatable( TableNew( 0, 20 ), StateEscapeCache )
 		}
 
 		ToJSON( Table, FormattingOptions, State )
+
+		TableEmpty( StringBuff )
 
 		return TableConcat( State.Buffer )
 	end
