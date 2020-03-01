@@ -236,6 +236,19 @@ do
 				self.ConfigHasSyntaxError = true
 
 				Notify( StringFormat( "Config has invalid JSON. Error: %s. Loading default...", Err ) )
+
+				-- Notify admins that the base config is invalid.
+				Shine.SystemNotifications:AddNotification( {
+					Type = Shine.SystemNotifications.Type.ERROR,
+					Message = {
+						Source = "Core",
+						TranslationKey = "ERROR_INVALID_JSON_IN_BASE_CONFIG",
+						Context = Err
+					},
+					Source = {
+						Type = Shine.SystemNotifications.Source.CORE
+					}
+				} )
 			end
 
 			return
@@ -453,6 +466,18 @@ function Shine:LoadExtensionConfigs()
 				MissingExtensions
 			)
 		)
+
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.WARNING,
+			Message = {
+				Source = "Core",
+				TranslationKey = "WARNING_UNREGISTERED_PLUGINS",
+				Context = "\n- "..MissingExtensions
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.CORE
+			}
+		} )
 	end
 
 	local WebConfig = self.Config.WebConfigs

@@ -62,7 +62,7 @@ do
 	Shared.RegisterNetworkMessage( "Shine_TranslatedNotification", {
 		Type = "integer (1 to 3)",
 		Source = "string (20)",
-		MessageKey = "string (32)",
+		MessageKey = "string (64)",
 		Duration = "integer (1 to 15)",
 		OnlyIfAdminMenuOpen = "boolean"
 	} )
