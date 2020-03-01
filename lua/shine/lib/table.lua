@@ -709,11 +709,12 @@ end
 
 do
 	local assert = assert
+	local Floor = math.floor
 	local GetMetaTable = debug.getmetatable
 	local Max = math.max
-	local StringFind = string.find
+	local pairs = pairs
+	local setmetatable = setmetatable
 	local StringFormat = string.format
-	local StringGSub = string.gsub
 	local StringRep = string.rep
 	local StringSub = string.sub
 	local TableConcat = table.concat
@@ -733,13 +734,16 @@ do
 		local MaxIndex = 0
 
 		for Key, Value in pairs( Table ) do
-			if type( Key ) ~= "number" then return false end
+			if type( Key ) ~= "number" or Key < 1 or Floor( Key ) ~= Key then
+				return false
+			end
+
 			MaxIndex = Max( Key, MaxIndex )
 			NumberOfElements = NumberOfElements + 1
 		end
 
 		if MaxIndex > 10 and MaxIndex > ProvidedSize and MaxIndex > NumberOfElements * 2 then
-			-- Keep consistent behaviour with DKJSON
+			-- Keep consistent behaviour with DKJSON (avoiding arrays with large gaps between keys)
 			return false
 		end
 
@@ -857,6 +861,7 @@ do
 				return false
 			end
 		end
+
 		return true
 	end
 

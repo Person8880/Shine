@@ -339,6 +339,17 @@ local ExpectedJSON = string.gsub( [[{
 		"2": 1.5,
 		"Nested": {
 			"Array": [ 1, 2, 3 ],
+			"ArrayWithFloatIndex": {
+				"1": 1,
+				"2": 2,
+				"2.5": 3
+			},
+			"ArrayWithLowerIndex": {
+				"0": 0,
+				"1": 1,
+				"2": 2,
+				"3": 3
+			},
 			"More": {}
 		}
 	},
@@ -358,19 +369,23 @@ local Data = {
 	Object = {
 		Nested = {
 			Array = { 1, 2, 3 },
-			More = setmetatable( {}, { __jsontype = "object" } )
+			More = setmetatable( {}, { __jsontype = "object" } ),
+			ArrayWithLowerIndex = { [ 0 ] = 0, 1, 2, 3 },
+			ArrayWithFloatIndex = { 1, 2, [ 2.5 ] = 3 }
 		},
 		StringToEscape,
 		1.5
 	},
 	String = StringToEscape
 }
--- Will deserialised the array part of "Object" as string keys.
+-- Will deserialise the array parts of tables with non-array keys as string keys.
 local ExpectedData = table.Copy( Data )
 ExpectedData.Object[ "1" ] = ExpectedData.Object[ 1 ]
 ExpectedData.Object[ 1 ] = nil
 ExpectedData.Object[ "2" ] = ExpectedData.Object[ 2 ]
 ExpectedData.Object[ 2 ] = nil
+ExpectedData.Object.Nested.ArrayWithFloatIndex = { [ "1" ] = 1, [ "2" ] = 2, [ "2.5" ] = 3 }
+ExpectedData.Object.Nested.ArrayWithLowerIndex = { [ "0" ] = 0, [ "1" ] = 1, [ "2" ] = 2, [ "3" ] = 3 }
 
 UnitTest:Test( "ToJSON with pretty printing", function( Assert )
 	local JSON = table.ToJSON( Data )
@@ -382,7 +397,8 @@ end )
 ExpectedJSON = [[{"Array":[{"String":"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000"},null,]]
 ..[["This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000",1.5],"Boolean":true,"Number":1.5,]]
 ..[["Object":{"1":"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000","2":1.5,"Nested":{"Array":[1,2,3],]]
-..[["More":{}}},"String":"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000"}]]
+..[["ArrayWithFloatIndex":{"1":1,"2":2,"2.5":3},"ArrayWithLowerIndex":{"0":0,"1":1,"2":2,"3":3},"More":{}}},]]
+..[["String":"This is\n\r\f\b\t\\a \"string\" with áéíóú unicode.\u0000"}]]
 
 UnitTest:Test( "ToJSON without pretty printing", function( Assert )
 	local JSON = table.ToJSON( Data, { PrettyPrint = false } )
