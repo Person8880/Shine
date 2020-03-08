@@ -25,6 +25,8 @@ local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
 local StringExplode = string.Explode
 local StringFind = string.find
 local StringFormat = string.format
+local StringGSub = string.gsub
+local StringMatch = string.match
 local StringSub = string.sub
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
@@ -33,6 +35,7 @@ local TableEmpty = table.Empty
 local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
 local TableShallowMerge = table.ShallowMerge
+local TableSlice = table.Slice
 local type = type
 
 local Plugin = Shine.Plugin( ... )
@@ -224,6 +227,22 @@ local Skin = {
 					Colour = Colours.ModeText,
 					Text = SGUI.Icons.Ionicons.AndroidPeople
 				}
+			}
+		}
+	},
+	EmojiAutoComplete = {
+		Default = {
+			Colour = SGUI.ColourWithAlpha( Colours.Dark, 1 )
+		}
+	},
+	EmojiAutoCompleteEntry = {
+		Default = {
+			ActiveCol = SGUI.ColourWithAlpha( Colours.Highlight, 1 ),
+			InactiveCol = SGUI.ColourWithAlpha( Colours.Dark, 1 ),
+			TextColour = Colours.ModeText,
+			AutoFont = {
+				Family = "kAgencyFB",
+				Size = Units.GUIScaled( 27 )
 			}
 		}
 	},
@@ -445,6 +464,8 @@ function Plugin:RefreshFontScale( Font, Scale )
 	end
 end
 
+local EmojiAutoComplete = require "shine/extensions/chatbox/ui/emoji_autocomplete"
+
 --[[
 	Creates the chatbox UI elements.
 
@@ -591,6 +612,33 @@ function Plugin:CreateChatbox()
 	Box.BufferAmount = PaddingUnit:GetValue()
 	ChatBoxLayout:AddElement( Box )
 
+	local EmojiAutoCompletePattern = ":([^:%s]-)$"
+	local function ApplyEmojiFromAutoComplete( Text, EmojiName )
+		return StringGSub( Text, EmojiAutoCompletePattern, StringFormat( ":%s: ", EmojiName ) )
+	end
+
+	do
+		local AutoCompleteSize = Units.Integer( Units.GUIScaled( 40 ) )
+		local PaddingSize = Units.Integer( Units.GUIScaled( 4 ) )
+
+		local EmojiAutoCompletePanel = SGUI:Create( EmojiAutoComplete, Box )
+		EmojiAutoCompletePanel:SetupFromTable{
+			PositionType = SGUI.PositionType.ABSOLUTE,
+			TopOffset = Units.Percentage( 100 ) - AutoCompleteSize,
+			AutoSize = Units.UnitVector( Units.Percentage( 100 ), AutoCompleteSize ),
+			IsVisible = false,
+			Padding = Units.Spacing( PaddingSize, 0, PaddingSize, 0 )
+		}
+		EmojiAutoCompletePanel:AddPropertyChangeListener( "SelectedEmojiName", function( Panel, EmojiName )
+			if not EmojiName then return end
+
+			Panel:SetIsVisible( false )
+			self.TextEntry:SetText( ApplyEmojiFromAutoComplete( self.TextEntry:GetText(), EmojiName ) )
+		end )
+
+		self.EmojiAutoComplete = EmojiAutoCompletePanel
+	end
+
 	self.ChatBox = Box
 
 	local SettingsButtonSize = LayoutData.Sizes.SettingsButton
@@ -666,6 +714,16 @@ function Plugin:CreateChatbox()
 	-- Send the message when the client presses enter.
 	function TextEntry:OnEnter()
 		local Text = self:GetText()
+		if SGUI.IsValid( Plugin.EmojiAutoComplete ) and Plugin.EmojiAutoComplete:GetIsVisible() then
+			local EmojiName = Plugin.EmojiAutoComplete:ResolveSelectedEmojiName()
+			if EmojiName then
+				self:SetText( ApplyEmojiFromAutoComplete( Text, EmojiName ) )
+			end
+
+			Plugin.EmojiAutoComplete:SetIsVisible( false )
+
+			return
+		end
 
 		-- Don't go sending blank messages.
 		if #Text > 0 and StringContainsNonUTF8Whitespace( Text ) then
@@ -705,13 +763,46 @@ function Plugin:CreateChatbox()
 		end
 	end
 
+	local OldOnTab = TextEntry.OnTab
+	function TextEntry.OnTab( TextEntry )
+		if SGUI.IsValid( self.EmojiAutoComplete ) and self.EmojiAutoComplete:GetIsVisible() then
+			self.EmojiAutoComplete:MoveSelection( SGUI:IsShiftDown() and -1 or 1 )
+			return
+		end
+
+		return OldOnTab( TextEntry )
+	end
+
 	function TextEntry.OnUnhandledKey( TextEntry, Key, Down )
 		if Down and ( Key == InputKey.Down or Key == InputKey.Up ) then
 			self:ScrollAutoComplete( Key == InputKey.Down and 1 or -1 )
 		end
 	end
 
+	local function UpdateEmojiAutoComplete( NewText )
+		if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
+
+		local Emoji = StringMatch( NewText, EmojiAutoCompletePattern )
+		if not Emoji or #Emoji < 2 then
+			self.EmojiAutoComplete:SetIsVisible( false )
+			return
+		end
+
+		local Results = Hook.Call( "OnChatBoxEmojiAutoComplete", self, Emoji )
+		if not IsType( Results, "table" ) or #Results == 0 then
+			self.EmojiAutoComplete:SetIsVisible( false )
+			return
+		end
+
+		self.EmojiAutoComplete:SetIsVisible( true )
+		self.EmojiAutoComplete:SetEmoji( TableSlice( Results, 1, 5 ) )
+		self.EmojiAutoComplete:SetSelectedIndex( 1 )
+		self.EmojiAutoComplete:SetSelectedEmojiName( nil )
+	end
+
 	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
+		UpdateEmojiAutoComplete( NewText )
+
 		self:AutoCompleteCommand( NewText )
 	end
 

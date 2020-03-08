@@ -383,16 +383,7 @@ do
 	}
 
 	local function GetTotalSize( self, Axis )
-		local Size = 0
-
-		if self.Label then
-			Size = Size + self.Label[ LabelSizeMethod[ Axis ] ]( self.Label )
-		end
-
-		if self.Icon then
-			Size = Size + self.Icon[ LabelSizeMethod[ Axis ] ]( self.Icon )
-				+ self.Icon:GetComputedMargin()[ Axis + 4 ]
-		end
+		local Size = self.Layout:GetContentSizeForAxis( Axis )
 
 		if self.Padding then
 			Size = Size + self:GetComputedPadding()[ Axis + 4 ]

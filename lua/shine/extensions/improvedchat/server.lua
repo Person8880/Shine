@@ -28,11 +28,14 @@ Plugin.ConfigName = "ImprovedChat.json"
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Plugin.Version = "1.0"
+Plugin.Version = "1.1"
 
 Plugin.DefaultConfig = {
 	-- Whether to display chat tags in team chat, as well as global chat.
-	DisplayChatTagsInTeamChat = false
+	DisplayChatTagsInTeamChat = false,
+
+	-- Whether to parse emoji in chat messages (using emoji defined under ui/shine/emoji/*.json).
+	ParseEmojiInChat = true
 }
 
 Plugin.IsBeta = true
@@ -53,6 +56,7 @@ function Plugin:Initialise()
 	self.ChatTagIndex = 0
 	self.NextMessageID = 0
 	self.dt.DisplayChatTagsInTeamChat = self.Config.DisplayChatTagsInTeamChat
+	self.dt.ParseEmojiInChat = self.Config.ParseEmojiInChat
 
 	ChatAPI:SetProvider( self )
 

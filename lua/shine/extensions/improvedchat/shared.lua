@@ -16,6 +16,7 @@ Plugin.MAX_CHUNKS_PER_MESSAGE = 6
 
 function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "DisplayChatTagsInTeamChat", false )
+	self:AddDTVar( "boolean", "ParseEmojiInChat", true )
 
 	self:AddNetworkMessage( "CreateChatTagDefinition", {
 		Image = "string (255)",
