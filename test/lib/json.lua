@@ -188,8 +188,16 @@ local ErrorTestCases = {
 		Description = "a nested unterminated object"
 	},
 	{
+		JSON = "{\"test\":{\"child\":true}\"test2\":false}",
+		Description = "a missing comma between a child object and other fields"
+	},
+	{
 		JSON = "{\"test\"true}",
 		Description = "an object with a missing : between a key and value"
+	},
+	{
+		JSON = "{true: false}",
+		Description = "an object with an invalid key"
 	},
 	{
 		JSON = "[true\"fail\"]",
@@ -202,6 +210,10 @@ local ErrorTestCases = {
 	{
 		JSON = "{\"test\":[true,false}",
 		Description = "a nested unterminated array"
+	},
+	{
+		JSON = "[[\"child\"]\"test\"}",
+		Description = "a missing comma between a child array and other values"
 	},
 	{
 		JSON = "-1..",

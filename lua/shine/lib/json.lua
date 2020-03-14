@@ -21,17 +21,64 @@ local STATE_STRING = 4
 local STATE_LITERAL = 5
 local STATE_NUMBER = 6
 
--- As per the JSON spec, these are the only permitted whitespace characters.
-local WhitespaceChars = {
-	[ " " ] = true,
-	[ "\n" ] = true,
-	[ "\r" ] = true,
-	[ "\t" ] = true
+local StateByChar = {
+	[ "{" ] = STATE_OBJECT,
+	[ "[" ] = STATE_ARRAY,
+	[ "\"" ] = STATE_STRING,
+	[ "t" ] = STATE_LITERAL,
+	[ "f" ] = STATE_LITERAL,
+	[ "n" ] = STATE_LITERAL,
+	[ "-" ] = STATE_NUMBER,
 }
+for i = 0, 9 do
+	StateByChar[ tostring( i ) ] = STATE_NUMBER
+end
+
+local StateTerminators = {
+	[ STATE_OBJECT ] = "}",
+	[ STATE_ARRAY ] = "]"
+}
+
+local UNESCAPED_CHARS = {
+	b = "\b",
+	f = "\f",
+	n = "\n",
+	r = "\r",
+	t = "\t",
+	[ "\\" ] = "\\",
+	[ "\"" ] = "\""
+}
+for i = 0, 255 do
+	local Char = string.char( i )
+	if not UNESCAPED_CHARS[ Char ] then
+		UNESCAPED_CHARS[ Char ] = Char
+	end
+end
+
+local function GetLineColumn( JSONString, Pos )
+	local Index = 1
+	local LastLineIndex = 0
+	local NumLines = 1
+
+	for i = 1, #JSONString do
+		local Line = StringFind( JSONString, "\n", Index, true )
+		if not Line or Line >= Pos then
+			break
+		end
+
+		NumLines = NumLines + 1
+		LastLineIndex = Line
+		Index = Line + 1
+	end
+
+	return NumLines, Pos - LastLineIndex
+end
+
 local function SkipWhitespace( JSONString, Context )
 	local Pos = Context.Pos
 
 	for i = Pos, #JSONString do
+		-- As per the JSON spec, these are the only permitted whitespace characters.
 		Pos = StringFind( JSONString, "[^ \n\r\t]", Pos )
 		if not Pos then break end
 
@@ -53,59 +100,6 @@ local function SkipWhitespace( JSONString, Context )
 	end
 
 	return nil, #JSONString + 1, "no valid JSON value (reached the end)"
-end
-
-local StateByChar = {
-	[ "{" ] = STATE_OBJECT,
-	[ "[" ] = STATE_ARRAY,
-	[ "\"" ] = STATE_STRING,
-	[ "t" ] = STATE_LITERAL,
-	[ "f" ] = STATE_LITERAL,
-	[ "n" ] = STATE_LITERAL,
-	[ "-" ] = STATE_NUMBER,
-}
-for i = 0, 9 do
-	StateByChar[ tostring( i ) ] = STATE_NUMBER
-end
-
-local StateTerminators = {
-	[ STATE_OBJECT ] = "}",
-	[ STATE_ARRAY ] = "]"
-}
-
-local function GetLineColumn( JSONString, Pos )
-	local Index = 1
-	local LastLineIndex = 0
-	local NumLines = 1
-
-	for i = 1, #JSONString do
-		local Line = StringFind( JSONString, "\n", Index, true )
-		if not Line or Line >= Pos then
-			break
-		end
-
-		NumLines = NumLines + 1
-		LastLineIndex = Line
-		Index = Line + 1
-	end
-
-	return NumLines, Pos - LastLineIndex
-end
-
-local UNESCAPED_CHARS = {
-	b = "\b",
-	f = "\f",
-	n = "\n",
-	r = "\r",
-	t = "\t",
-	[ "\\" ] = "\\",
-	[ "\"" ] = "\""
-}
-for i = 0, 255 do
-	local Char = string.char( i )
-	if not UNESCAPED_CHARS[ Char ] then
-		UNESCAPED_CHARS[ Char ] = Char
-	end
 end
 
 local function ParseUTF16Pair( CodePoint, JSONString, Index )
@@ -299,7 +293,9 @@ local function PopTableState( JSONString, Context )
 		local ExpectedTerminator = StateTerminators[ State ]
 		if Char ~= ExpectedTerminator then
 			return nil, Pos, StringFormat(
-				"missing comma at line %d, column %d", GetLineColumn( JSONString, Pos )
+				"',' expected to continue %s at line %d, column %d",
+				State == STATE_ARRAY and "array" or "object",
+				GetLineColumn( JSONString, Pos )
 			)
 		end
 
@@ -362,7 +358,7 @@ Parsers = {
 
 		if Char ~= "\"" then
 			return nil, Pos, StringFormat(
-				"expected start of string key in object, got \"%s\" at line %d, column %d",
+				"'\"' expected to start key in object, got \"%s\" at line %d, column %d",
 				Char,
 				GetLineColumn( JSONString, Pos )
 			)
