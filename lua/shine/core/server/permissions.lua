@@ -158,33 +158,41 @@ function Shine:RequestUsers( Reload )
 				return
 			end
 
-			local UserData, Pos, Err = Decode( Response )
-			if not IsType( UserData, "table" ) or not next( UserData ) then
-				if Reload then -- Don't replace with a blank table if request failed when reloading.
-					self:AdminPrint( nil,
-						"Reloading from the web failed. User data has not been changed. Error: %s", true, Err )
+			-- Decode the JSON asynchronously to account for a possible large user data file. Decoding all at once
+			-- may cause a noticeable freeze which can interrupt gameplay.
+			Shine.DecodeJSONAsync( Response, function( UserData, Pos, Err )
+				if not IsType( UserData, "table" ) or not next( UserData ) then
+					-- Don't replace with a blank table if request failed when reloading.
+					Err = Err or "received empty response"
+
+					if Reload then
+						self:AdminPrint(
+							nil,
+							"Reloading user data from the web failed. User data has not been changed. Error: %s",
+							true,
+							Err
+						)
+
+						return
+					end
+
+					self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
 
 					return
 				end
 
-				self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
+				self:Print( "Validating remote Shine user data..." )
 
-				return
-			end
+				self.UserData = ConvertData( UserData, true )
 
-			self:Print( "Validating remote Shine user data..." )
+				ValidateUserData( self.UserData )
 
-			self.UserData = ConvertData( UserData, true )
+				-- Cache the current user data, so if we fail to load it on a later map we still have something to load.
+				self:SaveUsers( true )
+				self:Print( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 
-			ValidateUserData( self.UserData )
-
-			-- Cache the current user data, so if we fail to load it on
-			-- a later map we still have something to load.
-			self:SaveUsers( true )
-			self:Print( Reload and "Shine reloaded users from the web."
-				or "Shine loaded users from web." )
-
-			self.Hook.Broadcast( "OnUserReload" )
+				self.Hook.Broadcast( "OnUserReload" )
+			end )
 		end,
 		OnFailure = function()
 			self:Print( "All attempts to load users from the web failed. Using local file instead." )

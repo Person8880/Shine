@@ -56,6 +56,72 @@ function Shine.LoadJSONFile( Path )
 	return Decode( Data )
 end
 
+do
+	local JSON = require "shine/lib/json"
+	local JSONDecodeErrorHandler = Shine.BuildErrorHandler( "JSON deserialisation error" )
+	local CallbackErrorHandler = Shine.BuildErrorHandler( "DecodeJSONAsync callback error" )
+
+	--[[
+		Decodes a JSON string asynchronously.
+
+		Inputs:
+			1. JSONString - the JSON string to be decoded.
+			2. OnDecoded - a callback that will be called on completion with either:
+				* The decoded value, or
+				* nil, byte position deserialisation failed at, and a description of the error.
+			3. TimeLimitInSeconds - the maximum time in seconds per tick/frame to spend decoding. By default, this is
+			   10% of the tick rate on the server, and 10% of a 60FPS frame-time on the client.
+	]]
+	function Shine.DecodeJSONAsync( JSONString, OnDecoded, TimeLimitInSeconds )
+		if not TimeLimitInSeconds then
+			if Server then
+				TimeLimitInSeconds = 1 / Server.GetTickrate() * 0.1
+			else
+				TimeLimitInSeconds = 1 / 60 * 0.1
+			end
+		end
+
+		Shine.TypeCheck( JSONString, "string", 1, "DecodeJSONAsync" )
+		Shine.AssertAtLevel( Shine.IsCallable( OnDecoded ), "OnDecoded callback must be callable!", 3 )
+		Shine.TypeCheck( TimeLimitInSeconds, "number", 3, "DecodeJSONAsync" )
+
+		local Clock = Shared.GetSystemTimeReal
+		local Decoder = JSON.DecoderFromString( JSONString )
+		local Done, Value, Pos, Err
+		local Iterations = 0
+
+		Shine.Hook.Add( "Think", Decoder, function()
+			if Done then
+				-- Last tick finished decoding, now call the callback (ensures the callback's time doesn't add to
+				-- any time spent deserialising).
+				Shine.Hook.Remove( "Think", Decoder )
+
+				Shine.Logger:Debug(
+					"Finished parsing JSON after %d iteration(s) (time limit was %s)", Iterations, TimeLimitInSeconds
+				)
+
+				xpcall( OnDecoded, CallbackErrorHandler, Value, Pos, Err )
+
+				return
+			end
+
+			Iterations = Iterations + 1
+
+			local Start = Clock()
+			local Success
+			repeat
+				Success, Done, Value, Pos, Err = xpcall( Decoder, JSONDecodeErrorHandler )
+			until not Success or Done or Clock() - Start >= TimeLimitInSeconds
+
+			if not Success then
+				-- Unexpected error while decoding, fallback to DKJSON.
+				Shine.Hook.Remove( "Think", Decoder )
+				xpcall( OnDecoded, CallbackErrorHandler, Decode( JSONString ) )
+			end
+		end )
+	end
+end
+
 local JSONErrorHandler = Shine.BuildErrorHandler( "JSON serialisation error" )
 function Shine.SaveJSONFile( Table, Path, Settings )
 	Settings = Settings or JSONSettings
