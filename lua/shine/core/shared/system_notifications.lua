@@ -5,7 +5,7 @@
 
 	A system notification has the following structure:
 	{
-		-- The ID of the notification (needed if CanDismiss = true to remember the dismissed state).
+		-- The ID of the notification.
 		ID = "afkkick_CONFIG_JSON_INVALID",
 
 		-- The type of notification (one of ERROR, WARNING or INFO).
@@ -69,6 +69,9 @@ do
 
 		SourceType = StringFormat( "integer (1 to %d)", #SourceNames ),
 		SourceID = "string (20)"
+	} )
+	Shared.RegisterNetworkMessage( "Shine_SendSystemNotificationSummary", {
+		Type = StringFormat( "integer (1 to %d)", #TypeNames )
 	} )
 end
 

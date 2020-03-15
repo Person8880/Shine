@@ -6,6 +6,39 @@ local Locale = Shine.Locale
 local SGUI = Shine.GUI
 local SystemNotifications = Shine.SystemNotifications
 
+local CONFIG_FILE_PATH = "config://shine/SystemNotifications.json"
+local Config = Shine.LoadJSONFile( CONFIG_FILE_PATH ) or {
+	NotificationLevel = SystemNotifications.Type.WARNING
+}
+
+do
+	local Validator = Shine.Validator( "[Shine] System notifications config error: " )
+	Validator:AddFieldRule(
+		"NotificationLevel",
+		Validator.InEnum( SystemNotifications.Type, SystemNotifications.Type.WARNING )
+	)
+	Validator:Validate( Config )
+end
+
+Client.HookNetworkMessage( "Shine_SendSystemNotificationSummary", function( Message )
+	if
+		Message.Type <= SystemNotifications.TypeOrdinal.WARNING and
+		Config.NotificationLevel == SystemNotifications.Type.ERROR
+	then
+		return
+	end
+
+	local Messages = {
+		[ SystemNotifications.TypeOrdinal.WARNING ] = "SYSTEM_NOTIFICATIONS_WARNINGS_NOTIFICATION",
+		[ SystemNotifications.TypeOrdinal.ERROR ] = "SYSTEM_NOTIFICATIONS_ERRORS_NOTIFICATION"
+	}
+	SGUI.NotificationManager.AddNotification(
+		Shine.NotificationType[ Message.Type ],
+		Locale:GetPhrase( "Core", Messages[ Message.Type ] ),
+		10
+	)
+end )
+
 local RequestID = 0
 local function GetRequestID()
 	RequestID = ( RequestID % 255 ) + 1
@@ -107,6 +140,7 @@ local IoniconsLarge = {
 	Family = SGUI.FontFamilies.Ionicons,
 	Size = Units.HighResScaled( 64 )
 }
+local PanelPadding = Units.HighResScaled( 16 )
 
 local function PopulateTabWithLoadingIndicator( Panel )
 	Panel:Clear()
@@ -127,8 +161,7 @@ local function PopulateTabWithLoadingIndicator( Panel )
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						AnimateLoading = true,
 						SpinRate = -math.pi * 2,
-						AutoSize = Units.UnitVector( Units.Percentage( 10 ), 0 ),
-						AspectRatio = 1
+						AutoSize = Units.UnitVector( Units.HighResScaled( 64 ), Units.HighResScaled( 64 ) )
 					}
 				},
 				{
@@ -145,6 +178,32 @@ local function PopulateTabWithLoadingIndicator( Panel )
 	} )
 end
 
+local function SetConfigOption( Key, Value )
+	if Config[ Key ] == Value then return end
+
+	Config[ Key ] = Value
+	Shine.SaveJSONFile( Config, CONFIG_FILE_PATH )
+end
+
+local NotificationLevelOptions = {
+	{
+		Text = Locale:GetPhrase( "Core", "SYSTEM_NOTIFICATIONS_LEVEL_WARNING" ),
+		DoClick = function()
+			SetConfigOption( "NotificationLevel", SystemNotifications.Type.WARNING )
+		end
+	},
+	{
+		Text = Locale:GetPhrase( "Core", "SYSTEM_NOTIFICATIONS_LEVEL_ERROR" ),
+		DoClick = function()
+			SetConfigOption( "NotificationLevel", SystemNotifications.Type.ERROR )
+		end
+	}
+}
+local function GetSelectedNotificationLevel()
+	return Config.NotificationLevel == SystemNotifications.Type.WARNING and NotificationLevelOptions[ 1 ]
+		or NotificationLevelOptions[ 2 ]
+end
+
 local function PopulatePanelWithOKStatus( Panel )
 	Panel:Clear()
 
@@ -154,7 +213,8 @@ local function PopulatePanelWithOKStatus( Panel )
 			Class = "Vertical",
 			Type = "Layout",
 			Props = {
-				Fill = true
+				Fill = true,
+				Padding = Units.Spacing( PanelPadding, PanelPadding, PanelPadding, PanelPadding )
 			},
 			Children = {
 				{
@@ -164,8 +224,7 @@ local function PopulatePanelWithOKStatus( Panel )
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						Text = SGUI.Icons.Ionicons.Checkmark,
 						AutoFont = IoniconsLarge,
-						-- TODO: Should this be styled?
-						Colour = Colour( 0.1, 1, 0.1, 1 )
+						StyleName = "SuccessLabel"
 					}
 				},
 				{
@@ -175,6 +234,26 @@ local function PopulatePanelWithOKStatus( Panel )
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						AutoFont = AgencyFBLarge,
 						Text = Locale:GetPhrase( "Core", "SYSTEM_NOTIFICATIONS_OK" )
+					}
+				},
+				{
+					Class = "Dropdown",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.MAX,
+						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
+						AutoFont = AgencyFBNormal,
+						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+						Options = NotificationLevelOptions,
+						SelectedOption = GetSelectedNotificationLevel()
+					}
+				},
+				{
+					Class = "Label",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.MAX,
+						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
+						AutoFont = AgencyFBNormal,
+						Text = Locale:GetPhrase( "Core", "SYSTEM_NOTIFICATIONS_NOTIFICATION_LEVEL_DESCRIPTION" )
 					}
 				}
 			}
@@ -199,10 +278,9 @@ local function PopulatePanelWithError( Panel )
 					Props = {
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-						Text = SGUI.Icons.Ionicons.AlertCircled,
+						Text = SGUI.Icons.Ionicons.Close,
 						AutoFont = IoniconsLarge,
-						-- TODO: Should this be styled?
-						Colour = Colour( 1, 0.2, 0.1, 1 )
+						StyleName = "DangerLabel"
 					}
 				},
 				{
@@ -323,7 +401,6 @@ local function PopulatePanelWithNotifications( Panel )
 	end
 
 	local ListMargin = Units.HighResScaled( 4 )
-	local PanelPadding = Units.HighResScaled( 16 )
 
 	-- Show most severe notifications first.
 	for i = #SystemNotifications.Type, 1, -1 do
@@ -390,6 +467,27 @@ local function PopulatePanelWithNotifications( Panel )
 						ScrollbarHeightOffset = 0
 					},
 					Children = Children
+				},
+				{
+					Class = "Dropdown",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.MAX,
+						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
+						AutoFont = AgencyFBNormal,
+						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+						Options = NotificationLevelOptions,
+						SelectedOption = GetSelectedNotificationLevel()
+					}
+				},
+				{
+					Class = "Label",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.MAX,
+						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
+						AutoFont = AgencyFBNormal,
+						Text = Locale:GetPhrase( "Core", "SYSTEM_NOTIFICATIONS_NOTIFICATION_LEVEL_DESCRIPTION" ),
+						Margin = Units.Spacing( 0, PanelPadding, 0, 0 )
+					}
 				}
 			}
 		}

@@ -253,6 +253,8 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	if not IsType( UserFile, "table" ) or not next( UserFile ) then
+		Err = Err or "configuration is empty"
+
 		Shared.Message( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
 			Err ) )
 
@@ -268,6 +270,20 @@ function Shine:LoadUsers( Web, Reload )
 
 	if ValidateUserData( UserFile ) then
 		NeedsSaving = true
+
+		-- Warn about validation errors, but not about invalid JSON as if the user config can't be loaded, no one will
+		-- have access to see the error message.
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.WARNING,
+			Message = {
+				Source = "Core",
+				TranslationKey = "WARNING_USER_CONFIG_VALIDATION_ERRORS",
+				Context = ""
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.CORE
+			}
+		} )
 	end
 
 	self.UserData = UserFile

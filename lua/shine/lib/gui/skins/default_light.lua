@@ -156,6 +156,12 @@ local Skin = {
 		},
 		Link = {
 			Colour = OrangeButtonHighlight
+		},
+		SuccessLabel = {
+			Colour = Colour( 0.1, 1, 0.1, 1 )
+		},
+		DangerLabel = {
+			Colour = Colour( 1, 0.2, 0.1, 1 )
 		}
 	},
 	List = {

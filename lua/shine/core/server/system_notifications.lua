@@ -95,12 +95,7 @@ Shine.Hook.Add( "ClientConfirmConnect", SystemNotifications, function( Client )
 	if Severity < SystemNotifications.TypeOrdinal.WARNING then return end
 	if not CanClientSeeNotifications( Client ) then return end
 
-	local Messages = {
-		[ SystemNotifications.TypeOrdinal.WARNING ] = "SYSTEM_NOTIFICATIONS_WARNINGS_NOTIFICATION",
-		[ SystemNotifications.TypeOrdinal.ERROR ] = "SYSTEM_NOTIFICATIONS_ERRORS_NOTIFICATION"
-	}
-
-	Shine:SendTranslatedNotification(
-		Client, Severity, Messages[ Severity ], nil, false, 10
-	)
+	Shine.SendNetworkMessage( Client, "Shine_SendSystemNotificationSummary", {
+		Type = Severity
+	}, true )
 end )

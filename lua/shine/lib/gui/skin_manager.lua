@@ -92,7 +92,7 @@ function SkinManager:RegisterSkin( Name, SkinTable )
 	self.Skins[ Name ] = SkinTable
 
 	-- Compile and store the skin upfront.
-	SkinManager:GetCompiledSkin( SkinTable )
+	self:GetCompiledSkin( SkinTable )
 end
 
 function SkinManager:RefreshSkin()

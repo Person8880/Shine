@@ -68,7 +68,7 @@ function NotificationManager.AddNotification( Type, Message, Duration, Options )
 	local W, H = SGUI.GetScreenSize()
 
 	local Notification = SGUI:Create( "Notification" )
-	Notification:SetStyleName( Styles[ Type ] )
+	Notification:SetStyleName( Styles[ NotificationType[ Type ] ] )
 	Notification:SetAnchor( "BottomRight" )
 	Notification:SetPadding( PADDING:GetValue() )
 	Notification:SetMaxWidth( W * 0.25 )
