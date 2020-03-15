@@ -717,6 +717,7 @@ do
 	local StringFormat = string.format
 	local StringRep = string.rep
 	local StringSub = string.sub
+	local StringUTF8Chars = string.UTF8Chars
 	local TableConcat = table.concat
 	local TableEmpty = table.Empty
 	local TableNew = require "table.new"
@@ -757,11 +758,13 @@ do
 	end
 
 	local ToJSON
-	local ESCAPE_CHARS = {
+	local ESCAPE_CHARS = setmetatable( {
 		[ "\"" ] = "\\\"", [ "\\" ] = "\\\\", [ "\b" ] = "\\b",
 		[ "\f" ] = "\\f", [ "\n" ] = "\\n",  [ "\r" ] = "\\r",
 		[ "\t" ] = "\\t"
-	}
+	}, {
+		__index = function( self, Char ) return Char end
+	} )
 
 	local function ToUnicodeEscape( Value )
 		return StringFormat( "\\u%.4x", Value )
@@ -772,7 +775,7 @@ do
 	-- such as the null byte.
 	local function AddEscapeChar( ByteValue, Encoder )
 		local Char = string.char( ByteValue )
-		if not ESCAPE_CHARS[ Char ] then
+		if not rawget( ESCAPE_CHARS, Char ) then
 			ESCAPE_CHARS[ Char ] = Encoder( ByteValue )
 		end
 	end
@@ -794,14 +797,15 @@ do
 	local function EscapeSpecialChars( String )
 		TableEmpty( StringBuff )
 
-		local Len = #String
+		local Count = 1
 
 		StringBuff[ 1 ] = "\""
-		for i = 1, Len do
-			local Char = StringSub( String, i, i )
-			StringBuff[ i + 1 ] = ESCAPE_CHARS[ Char ]
+		for ByteIndex, Char in StringUTF8Chars( String ) do
+			Count = Count + 1
+			StringBuff[ Count ] = ESCAPE_CHARS[ Char ]
 		end
-		StringBuff[ Len + 2 ] = "\""
+		Count = Count + 1
+		StringBuff[ Count ] = "\""
 
 		return TableConcat( StringBuff )
 	end

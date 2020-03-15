@@ -66,6 +66,7 @@ local ExpectedData = {
 	},
 	String = StringToEscape
 }
+local MinifiedTestJSON = table.ToJSON( ExpectedData, { PrettyPrint = false } )
 
 local function Decode( JSONString )
 	local Decoder = JSON.DecoderFromString( JSONString )
@@ -90,6 +91,10 @@ end )
 
 UnitTest:Test( "DecoderFromString decodes JSON with trailing whitespace", function( Assert )
 	AssertDecode( Assert, "\r\n\t   "..TestJSON.."\r\n\t   ", ExpectedData )
+end )
+
+UnitTest:Test( "DecoderFromString decodes minified JSON", function( Assert )
+	AssertDecode( Assert, MinifiedTestJSON, ExpectedData )
 end )
 
 local ValidTestCases = {
