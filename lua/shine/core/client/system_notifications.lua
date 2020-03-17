@@ -316,10 +316,12 @@ function NotificationEntry:SetNotification( Notification )
 
 	local Title
 	if Notification.Source.Type == SystemNotifications.Source.PLUGIN then
-		Title = Notification.Source.ID
+		Title = Locale:GetInterpolatedPhrase( "Core", "SYSTEM_NOTIFICATIONS_PLUGIN_HEADER", Notification.Source )
 	else
 		Title = Locale:GetPhrase( "Core", "SYSTEM_NOTIFICATIONS_CORE_HEADER" )
 	end
+
+	local Message = Notification.Message
 
 	SGUI:BuildTree( {
 		Parent = self,
@@ -353,9 +355,10 @@ function NotificationEntry:SetNotification( Notification )
 			ID = "TextContainer",
 			Class = "Column",
 			Props = {
+				-- Fill the width of the parent, but make the height depend on the size of the message text.
 				Fill = true,
 				AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
-				Colour = Colour( 0, 0, 0, 0.25 ),
+				Colour = Colour( 0, 0, 0, 0.15 ),
 				Padding = Units.Spacing(
 					PaddingAmount, PaddingAmount, PaddingAmount, PaddingAmount
 				),
@@ -374,8 +377,8 @@ function NotificationEntry:SetNotification( Notification )
 					Class = "Label",
 					Props = {
 						AutoFont = AgencyFBNormal,
-						Text = Locale:GetInterpolatedPhrase( Notification.Message.Source, Notification.Message.TranslationKey, {
-							Context = Notification.Message.Context
+						Text = Locale:GetInterpolatedPhrase( Message.Source, Message.TranslationKey, {
+							Context = Message.Context
 						} ),
 						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
 						AutoWrap = true
