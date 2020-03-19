@@ -262,7 +262,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 			RemoveOffscreenLines( self )
 		end
 
-		for i = 1, NumLines do
+		for i = 1, #self.ChatLines do
 			local Line = self.ChatLines[ i ]
 			if i <= MaxVisibleMessages then
 				-- Avoid too many messages filling the screen.
