@@ -165,6 +165,19 @@ function Shine:RequestUsers( Reload )
 					-- Don't replace with a blank table if request failed when reloading.
 					Err = Err or "received empty response"
 
+					Shine.SystemNotifications:AddNotification( {
+						ID = "Core_RemoteUserConfig_SyntaxErrors",
+						Type = Shine.SystemNotifications.Type.WARNING,
+						Message = {
+							Source = "Core",
+							TranslationKey = "WARNING_INVALID_JSON_IN_REMOTE_USER_CONFIG",
+							Context = Err
+						},
+						Source = {
+							Type = Shine.SystemNotifications.Source.CORE
+						}
+					} )
+
 					if Reload then
 						self:AdminPrint(
 							nil,
@@ -185,7 +198,20 @@ function Shine:RequestUsers( Reload )
 
 				self.UserData = ConvertData( UserData, true )
 
-				ValidateUserData( self.UserData )
+				if ValidateUserData( self.UserData ) then
+					Shine.SystemNotifications:AddNotification( {
+						ID = "Core_RemoteUserConfig_ValidationErrors",
+						Type = Shine.SystemNotifications.Type.WARNING,
+						Message = {
+							Source = "Core",
+							TranslationKey = "WARNING_REMOTE_USER_CONFIG_VALIDATION_ERRORS",
+							Context = ""
+						},
+						Source = {
+							Type = Shine.SystemNotifications.Source.CORE
+						}
+					} )
+				end
 
 				-- Cache the current user data, so if we fail to load it on a later map we still have something to load.
 				self:SaveUsers( true )

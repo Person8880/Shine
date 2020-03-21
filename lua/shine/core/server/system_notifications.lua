@@ -6,6 +6,30 @@ local SystemNotifications = Shine.SystemNotifications
 SystemNotifications.Notifications = {}
 
 local ACCESS_RIGHT = "sh_view_system_notifications"
+local SentToClients = Shine.Set()
+
+local function MapNotificationToNetworkMessage( Notification )
+	return {
+		ID = Notification.ID or "",
+		Type = SystemNotifications.TypeOrdinal[ Notification.Type ],
+
+		MessageSource = Notification.Message.Source,
+		MessageKey = Notification.Message.TranslationKey,
+		MessageContext = Notification.Message.Context or "",
+
+		SourceType = SystemNotifications.SourceOrdinal[ Notification.Source.Type ],
+		SourceID = Notification.Source.ID or ""
+	}
+end
+
+local function PushNotification( Clients, Notification )
+	Shine:ApplyNetworkMessage(
+		Clients,
+		"Shine_PushSystemNotification",
+		MapNotificationToNetworkMessage( Notification ),
+		true
+	)
+end
 
 --[[
 	Adds a new notification to the system notifications list.
@@ -26,11 +50,26 @@ function SystemNotifications:AddNotification( Notification )
 	)
 	Shine.TypeCheckField( Notification.Source, "ID", { "string", "nil" }, "Notification.Source" )
 
-	self.Notifications[ #self.Notifications + 1 ] = Notification
+	if Notification.ID then
+		local Index = self.Notifications[ Notification.ID ]
+		if Index then
+			self.Notifications[ Index ] = Notification
+		else
+			Index = #self.Notifications + 1
+			self.Notifications[ Index ] = Notification
+			self.Notifications[ Notification.ID ] = Index
+		end
+	else
+		self.Notifications[ #self.Notifications + 1 ] = Notification
+	end
 
 	local Severity = self.TypeOrdinal[ Notification.Type ]
 	if Severity > ( self.CurrentSeverity or -1 ) then
 		self.CurrentSeverity = Severity
+	end
+
+	if SentToClients:GetCount() > 0 then
+		PushNotification( SentToClients:AsList(), Notification )
 	end
 end
 
@@ -42,19 +81,10 @@ function SystemNotifications:GetSeverity()
 end
 
 local function SendNotification( Client, Notification, RequestID )
-	Shine.SendNetworkMessage( Client, "Shine_SendSystemNotification", {
-		RequestID = RequestID,
+	local Message = MapNotificationToNetworkMessage( Notification )
+	Message.RequestID = RequestID
 
-		ID = Notification.ID or "",
-		Type = SystemNotifications.TypeOrdinal[ Notification.Type ],
-
-		MessageSource = Notification.Message.Source,
-		MessageKey = Notification.Message.TranslationKey,
-		MessageContext = Notification.Message.Context or "",
-
-		SourceType = SystemNotifications.SourceOrdinal[ Notification.Source.Type ],
-		SourceID = Notification.Source.ID or ""
-	}, true )
+	Shine.SendNetworkMessage( Client, "Shine_SendSystemNotification", Message, true )
 end
 
 local function CanClientSeeNotifications( Client )
@@ -71,6 +101,8 @@ local function ReceiveNotificationListRequest( Client, RequestID )
 		}, true )
 		return
 	end
+
+	SentToClients:Add( Client )
 
 	-- Send notifications to client.
 	Shine.SendNetworkMessage( Client, "Shine_StartSystemNotificationsResponse", {
@@ -98,4 +130,12 @@ Shine.Hook.Add( "ClientConfirmConnect", SystemNotifications, function( Client )
 	Shine.SendNetworkMessage( Client, "Shine_SendSystemNotificationSummary", {
 		Type = Severity
 	}, true )
+end )
+
+Shine.Hook.Add( "ClientDisconnect", SystemNotifications, function( Client )
+	SentToClients:Remove( Client )
+end )
+
+Shine.Hook.Add( "OnUserReload", SystemNotifications, function()
+	SentToClients:Filter( CanClientSeeNotifications )
 end )

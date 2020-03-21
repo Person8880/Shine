@@ -666,6 +666,19 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 				Response
 			)
 
+			Shine.SystemNotifications:AddNotification( {
+				ID = "Core_WebConfigs_SyntaxError",
+				Type = Shine.SystemNotifications.Type.WARNING,
+				Message = {
+					Source = "Core",
+					TranslationKey = "WARNING_INVALID_JSON_IN_WEB_CONFIG_RESPONSE",
+					Context = Err or "received empty response"
+				},
+				Source = {
+					Type = Shine.SystemNotifications.Source.CORE
+				}
+			} )
+
 			return
 		end
 

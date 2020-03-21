@@ -57,9 +57,8 @@ do
 		NumNotifications = "integer",
 		AllowedToViewNotifications = "boolean"
 	} )
-	Shared.RegisterNetworkMessage( "Shine_SendSystemNotification", {
-		RequestID = "integer (0 to 255)",
 
+	local NotificationMessage = {
 		ID = "string (128)",
 		Type = StringFormat( "integer (1 to %d)", #TypeNames ),
 
@@ -69,7 +68,12 @@ do
 
 		SourceType = StringFormat( "integer (1 to %d)", #SourceNames ),
 		SourceID = "string (20)"
-	} )
+	}
+
+	Shared.RegisterNetworkMessage( "Shine_PushSystemNotification", NotificationMessage )
+	Shared.RegisterNetworkMessage( "Shine_SendSystemNotification", table.ShallowMerge( NotificationMessage, {
+		RequestID = "integer (0 to 255)"
+	} ) )
 	Shared.RegisterNetworkMessage( "Shine_SendSystemNotificationSummary", {
 		Type = StringFormat( "integer (1 to %d)", #TypeNames )
 	} )

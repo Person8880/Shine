@@ -68,10 +68,7 @@ Client.HookNetworkMessage( "Shine_StartSystemNotificationsResponse", function( M
 	end
 end )
 
-Client.HookNetworkMessage( "Shine_SendSystemNotification", function( Message )
-	local Request = Requests[ Message.RequestID ]
-	if not Request then return end
-
+local function MapMessageToNotification( Message )
 	local ID = Message.ID
 	if ID == "" then
 		ID = nil
@@ -82,7 +79,7 @@ Client.HookNetworkMessage( "Shine_SendSystemNotification", function( Message )
 		SourceID = nil
 	end
 
-	Request.Notifications[ #Request.Notifications + 1 ] = {
+	return {
 		ID = ID,
 
 		Type = SystemNotifications.Type[ Message.Type ],
@@ -98,6 +95,13 @@ Client.HookNetworkMessage( "Shine_SendSystemNotification", function( Message )
 			ID = SourceID
 		}
 	}
+end
+
+Client.HookNetworkMessage( "Shine_SendSystemNotification", function( Message )
+	local Request = Requests[ Message.RequestID ]
+	if not Request then return end
+
+	Request.Notifications[ #Request.Notifications + 1 ] = MapMessageToNotification( Message )
 
 	if #Request.Notifications >= Request.ExpectedNotificationCount then
 		CallRequestCallback( Request, Request.Notifications )
@@ -123,6 +127,7 @@ local Units = SGUI.Layout.Units
 local CanViewNotifications = true
 local CachedNotifications
 local IsTabVisible = false
+local TabPanel
 
 local AgencyFBLarge = {
 	Family = "kAgencyFB",
@@ -497,12 +502,33 @@ local function PopulatePanelWithNotifications( Panel )
 	} )
 end
 
+Client.HookNetworkMessage( "Shine_PushSystemNotification", function( Message )
+	if not CachedNotifications then return end
+
+	local NewNotification = MapMessageToNotification( Message )
+	local Index = #CachedNotifications + 1
+	for i = 1, #CachedNotifications do
+		local Notification = CachedNotifications[ i ]
+		if Notification.ID and Notification.ID == NewNotification.ID then
+			Index = i
+			break
+		end
+	end
+
+	CachedNotifications[ Index ] = NewNotification
+
+	if IsTabVisible and SGUI.IsValid( TabPanel ) then
+		PopulatePanelWithNotifications( TabPanel )
+	end
+end )
+
 Shine.AdminMenu:AddSystemTab( "Status", {
 	TranslationKey = "ADMIN_MENU_STATUS_TAB",
 	Icon = SGUI.Icons.Ionicons.iOSPulseStrong,
 	Position = Shine.AdminMenu.SystemTabPosition.END,
 	OnInit = function( Panel, Data )
 		IsTabVisible = true
+		TabPanel = Panel
 
 		if not CanViewNotifications then
 			return PopulatePanelWithError( Panel )
@@ -547,5 +573,6 @@ Shine.AdminMenu:AddSystemTab( "Status", {
 
 	OnCleanup = function( Panel )
 		IsTabVisible = false
+		TabPanel = nil
 	end
 } )
