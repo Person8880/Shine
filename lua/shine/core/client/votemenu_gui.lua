@@ -326,18 +326,19 @@ end )
 --[[
 	Adds a page to the menu that can be switched to with VoteMenu:SetPage().
 ]]
-function VoteMenu:AddPage( Name, PopulateFunc, ThinkFunc )
-	self.Pages[ Name ] = { Populate = PopulateFunc, Think = ThinkFunc }
+function VoteMenu:AddPage( Name, PopulateFunc, ThinkFunc, OnCleanup )
+	self.Pages[ Name ] = { Populate = PopulateFunc, Think = ThinkFunc, OnCleanup = OnCleanup }
 end
 
 --[[
 	Allows you to extend a page that has already been created.
 	Whatever you add will be called after the old populate function.
 ]]
-function VoteMenu:EditPage( Name, ExtraFunc, ExtraThink )
+function VoteMenu:EditPage( Name, ExtraFunc, ExtraThink, ExtraCleanup )
 	local Page = self.Pages[ Name ]
-
-	if not Page then return self:AddPage( Name, ExtraFunc, ExtraThink ) end
+	if not Page then
+		return self:AddPage( Name, ExtraFunc, ExtraThink, ExtraCleanup )
+	end
 
 	if ExtraFunc then
 		local OldPopulate = Page.Populate
@@ -360,6 +361,18 @@ function VoteMenu:EditPage( Name, ExtraFunc, ExtraThink )
 			Page.Think = ExtraThink
 		end
 	end
+
+	if ExtraCleanup then
+		local OldOnCleanup = Page.OnCleanup
+		if OldOnCleanup then
+			Page.OnCleanup = function( self )
+				OldOnCleanup( self )
+				ExtraCleanup( self )
+			end
+		else
+			Page.OnCleanup = ExtraCleanup
+		end
+	end
 end
 
 --[[
@@ -368,6 +381,11 @@ end
 function VoteMenu:SetPage( Name, IgnoreAnim )
 	local Page = self.Pages[ Name ]
 	if not Page or not Page.Populate then return end
+
+	local OldPage = self.Pages[ self.ActivePage ]
+	if OldPage and OldPage.OnCleanup then
+		OldPage.OnCleanup( self )
+	end
 
 	self:Clear()
 	self.ActivePage = Name
