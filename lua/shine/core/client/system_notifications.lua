@@ -301,7 +301,7 @@ local NotificationEntry = SGUI:DefineControl( "NotificationEntry", "Row" )
 local ColoursByType = {
 	[ SystemNotifications.Type.ERROR ] = Colour( 0.8, 0.2, 0 ),
 	[ SystemNotifications.Type.WARNING ] = Colour( 1, 0.6, 0 ),
-	[ SystemNotifications.Type.INFO ] = Colour( 0, 0.5, 0.75 )
+	[ SystemNotifications.Type.INFO ] = Colour( 0, 0.5, 1 )
 }
 local IconsByType = {
 	[ SystemNotifications.Type.ERROR ] = SGUI.Icons.Ionicons.AlertCircled,
