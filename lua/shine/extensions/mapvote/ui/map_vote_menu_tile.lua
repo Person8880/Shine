@@ -442,7 +442,12 @@ function MapTile:HideOverviewImage()
 end
 
 function MapTile:DoClick()
-	self.MapVoteMenu:SetSelectedMap( self.MapName )
+	if self:GetSelected() then
+		self.MapVoteMenu:ResetSelectedMap( self.MapName )
+	else
+		self.MapVoteMenu:SetSelectedMap( self.MapName )
+	end
+
 	return true
 end
 

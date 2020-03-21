@@ -18,7 +18,7 @@ local TableCount = table.Count
 local tonumber = tonumber
 
 local Plugin, PluginName = ...
-Plugin.Version = "1.11"
+Plugin.Version = "1.12"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
@@ -137,6 +137,8 @@ Plugin.DefaultConfig = {
 	ShowVoteChoices = true, -- Show who votes for what map.
 	MaxOptions = 8, -- Max number of options to provide.
 	ForceMenuOpenOnMapVote = false, -- Whether to force the map vote menu to show when a vote starts.
+	VotingMode = Plugin.VotingMode.SINGLE_CHOICE, -- The voting mode to use.
+	MaxVoteChoicesPerPlayer = 4, -- Max number of choices a player can make in a multiple-choice vote.
 
 	AllowExtend = true, -- Allow going to the same map to be an option.
 	ExtendTimeInMinutes = 15, -- Time in minutes to extend the map.
@@ -264,6 +266,17 @@ Plugin.ConfigMigrationSteps = {
 			:AddField( { "Nominations", "MaxTotalValue" }, Plugin.DefaultConfig.Nominations.MaxTotalValue )
 			:AddField( { "Nominations", "MinTotalValue" }, Plugin.DefaultConfig.Nominations.MinTotalValue )
 			:AddField( { "Nominations", "MaxOptionsExceededAction" }, Plugin.DefaultConfig.Nominations.MaxOptionsExceededAction )
+	},
+	{
+		VersionTo = "1.12",
+		Apply = Shine.Migrator()
+			:AddField( "VotingMode", Plugin.VotingMode.SINGLE_CHOICE )
+			:AddField( "MaxVoteChoicesPerPlayer", function( Config )
+				if IsType( Config.MaxOptions, "number" ) then
+					return Max( Config.MaxOptions * 0.5, 2 )
+				end
+				return Plugin.DefaultConfig.MaxVoteChoicesPerPlayer
+			end )
 	}
 }
 
@@ -305,6 +318,15 @@ do
 	Validator:AddFieldRule( "Nominations.MinTotalValue", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "Nominations.MaxOptionsExceededAction",
 		Validator.InEnum( Plugin.MaxOptionsExceededAction, Plugin.DefaultConfig.Nominations.MaxOptionsExceededAction ) )
+
+	Validator:AddFieldRule( "VotingMode", Validator.InEnum( Plugin.VotingMode, Plugin.DefaultConfig.VotingMode ) )
+	Validator:AddFieldRule( "MaxVoteChoicesPerPlayer", Validator.Clamp( 1, 255 ) )
+	Validator:AddFieldRule( "MaxVoteChoicesPerPlayer", Validator.LessThanOrEqualToField(
+		"MaxOptions",
+		function( MaxVoteChoicesPerPlayer, MaxOptions )
+			return MaxOptions
+		end
+	) )
 
 	Validator:AddRule( {
 		Matches = function( self, Config )
@@ -366,6 +388,9 @@ Shine.LoadPluginFile( PluginName, "voting.lua", Plugin )
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
 
+	self.dt.VotingMode = self.VotingModeOrdinal[ self.Config.VotingMode ]
+	self.dt.MaxVoteChoicesPerPlayer = self.Config.MaxVoteChoicesPerPlayer
+
 	self.Round = 0
 	self.RoundLimit = self.Config.RoundLimit
 
@@ -374,7 +399,7 @@ function Plugin:Initialise()
 	self.Vote.Nominated = {} -- Table of nominated maps.
 	self.Vote.NominationTracker = {} -- Tracks the amount of times someone's nominated a map.
 	self.Vote.Votes = 0 -- Number of map votes that have taken place.
-	self.Vote.Voted = {} -- Table of players that have voted for a map.
+	self.Vote.Voted = Shine.Multimap() -- Multimap of clients to the maps they have voted for.
 	self.Vote.TotalVotes = 0 -- Number of votes in the current map vote.
 
 	self.VoteDisableTime = math.huge
@@ -838,7 +863,7 @@ function Plugin:CreateCommands()
 
 		self:SendTranslatedNotify( nil, "PLAYER_VOTED", {
 			TargetName = PlayerName,
-			Revote = Revote or false,
+			Revote = Revote,
 			MapName = Map,
 			Votes = NumForThis,
 			TotalVotes = NumTotal
@@ -846,18 +871,20 @@ function Plugin:CreateCommands()
 	end
 
 	local function ShowVoteToPlayer( Player, Map, Revote )
+		if not Player then return end
+
 		local NumForThis = self.Vote.VoteList[ Map ]
 		local NumTotal = self.Vote.TotalVotes
 
 		self:SendTranslatedNotify( Player, "PLAYER_VOTED_PRIVATE", {
-			Revote = Revote or false,
+			Revote = Revote,
 			MapName = Map,
 			Votes = NumForThis,
 			TotalVotes = NumTotal
 		} )
 	end
 
-	local function Vote( Client, Map )
+	local function Vote( Client, Map, Revoke )
 		local Player, PlayerName = GetPlayerData( Client )
 
 		if not self:VoteStarted() then
@@ -866,37 +893,48 @@ function Plugin:CreateCommands()
 			return
 		end
 
-		local Success, Err, Key, Data = self:AddVote( Client, Map )
+		if Revoke then
+			if self.Config.VotingMode ~= self.VotingMode.MULTIPLE_CHOICE then return end
 
-		if Success then
-			if self.Config.ShowVoteChoices then
-				ShowVoteChoice( PlayerName, Err )
-			else
-				ShowVoteToPlayer( Client, Map )
-			end
-
-			return
-		end
-
-		if Err == "already voted" then
-			local Success, Err, Key, Data = self:AddVote( Client, Map, true )
-
+			local Success, Err, Key, Data = self:RemoveVote( Client, Map )
 			if Success then
-				if self.Config.ShowVoteChoices then
-					ShowVoteChoice( PlayerName, Err, true )
-				else
-					ShowVoteToPlayer( Client, Map, true )
-				end
+				if not Client then return end
+
+				local Choice = Err
+				local NumForThis = self.Vote.VoteList[ Map ]
+				local NumTotal = self.Vote.TotalVotes
+
+				self:SendTranslatedNotify( Client, "PLAYER_REVOKED_VOTE_PRIVATE", {
+					MapName = Choice,
+					Votes = NumForThis,
+					TotalVotes = NumTotal
+				} )
 
 				return
 			end
 
-			NotifyError( Player, Key, Data, Err )
+			if Err then
+				NotifyError( Player, Key, Data, Err )
+			end
 
 			return
 		end
 
-		NotifyError( Player, Key, Data, Err )
+		local Success, Err, Key, Data = self:AddVote( Client, Map )
+		if Success then
+			local Choice, OldChoice = Err, Key
+			if self.Config.ShowVoteChoices then
+				ShowVoteChoice( PlayerName, Choice, OldChoice ~= nil )
+			else
+				ShowVoteToPlayer( Client, Choice, OldChoice ~= nil )
+			end
+
+			return
+		end
+
+		if Err then
+			NotifyError( Player, Key, Data, Err )
+		end
 	end
 	local VoteCommand = self:BindCommand( "sh_vote", "vote", Vote, true )
 	VoteCommand:AddParam{
@@ -909,6 +947,12 @@ function Plugin:CreateCommands()
 			end
 			return self:GetVoteChoices()
 		end
+	}
+	VoteCommand:AddParam{
+		Type = "boolean",
+		Help = "revoke",
+		Optional = true,
+		Default = false
 	}
 	VoteCommand:Help( "Vote for a particular map in the active map vote." )
 

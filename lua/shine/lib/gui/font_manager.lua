@@ -13,6 +13,8 @@ SGUI.Fonts = {
 }
 SGUI.FontFamilies = {
 	Ionicons = "Ionicons",
+	AgencyFB = "kAgencyFB",
+	AgencyFBBold = "kAgencyFBBold",
 	AgencyFBDistField = "AgencyFBDistField",
 	AgencyFBBoldDistField = "AgencyFBBoldDistField",
 	MicrogrammaDistField = "MicrogrammaDistField",
