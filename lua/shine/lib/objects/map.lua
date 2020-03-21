@@ -405,6 +405,16 @@ function Multimap:Get( Key )
 end
 
 --[[
+	Returns true if the given key-value is stored, false otherwise.
+]]
+function Multimap:HasKeyValue( Key, Value )
+	local Entry = Map.Get( self, Key )
+	if not Entry then return false end
+
+	return Entry:Get( Value ) ~= nil
+end
+
+--[[
 	Returns a table copy of the multimap as a standard Lua table of keys and
 	table of values. Note that each table is directly linked to the multimap, so
 	should not be edited.

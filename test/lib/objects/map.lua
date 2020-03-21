@@ -250,6 +250,18 @@ UnitTest:Test( "Multimap:Add()/Get()/GetCount()", function( Assert )
 	Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
 	Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
 
+	for i = 1, 3 do
+		Assert.True( "Should have expected key-values", Map:HasKeyValue( 1, i ) )
+	end
+
+	Assert.True( "Should have expected key-values", Map:HasKeyValue( 2, 1 ) )
+
+	for i = 1, 2 do
+		Assert.True( "Should have expected key-values", Map:HasKeyValue( 3, i ) )
+	end
+
+	Assert.False( "Should return false for a key-value that is not in the multimap", Map:HasKeyValue( 4, 1 ) )
+
 	Assert:Equals( 6, Map:GetCount() )
 	Assert:Equals( 3, Map:GetKeyCount() )
 end )
