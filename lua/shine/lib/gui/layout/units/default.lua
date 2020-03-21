@@ -4,10 +4,13 @@
 
 local SGUI = Shine.GUI
 local Layout = SGUI.Layout
+local Stream = Shine.Stream
 
 local Absolute
 local IsType = Shine.IsType
 local setmetatable = setmetatable
+local StringFormat = string.format
+local tostring = tostring
 
 local function NewType( Name )
 	local Meta = {}
@@ -137,6 +140,10 @@ do
 	function Spacing:WithDown( Down )
 		return Spacing( self[ 1 ], self[ 2 ], self[ 3 ], Down )
 	end
+
+	function Spacing:__tostring()
+		return StringFormat( "Spacing( %s, %s, %s, %s )", self[ 1 ], self[ 2 ], self[ 3 ], self[ 4 ] )
+	end
 end
 
 --[[
@@ -172,6 +179,10 @@ do
 	function UnitVector:__index( Key )
 		return UnitVector[ Key ] or self[ KeyMap[ Key ] ]
 	end
+
+	function UnitVector:__tostring()
+		return StringFormat( "UnitVector( %s, %s )", self[ 1 ], self[ 2 ] )
+	end
 end
 
 --[[
@@ -182,6 +193,10 @@ do
 
 	function Absolute:GetValue()
 		return self.Value
+	end
+
+	function Absolute:__tostring()
+		return tostring( self.Value )
 	end
 end
 
@@ -194,6 +209,10 @@ do
 	function GUIScaled:GetValue()
 		return SGUI.LinearScale( self.Value )
 	end
+
+	function GUIScaled:__tostring()
+		return StringFormat( "GUIScaled( %s )", self.Value )
+	end
 end
 
 --[[
@@ -205,6 +224,10 @@ do
 
 	function HighResScaled:GetValue()
 		return SGUI.GetScreenSize() > HIGH_RES_WIDTH and SGUI.LinearScale( self.Value ) or self.Value
+	end
+
+	function HighResScaled:__tostring()
+		return StringFormat( "HighResScaled( %s )", self.Value )
 	end
 end
 
@@ -225,6 +248,10 @@ do
 	function Scaled:GetValue()
 		return Round( self.Value * self.Scale )
 	end
+
+	function Scaled:__tostring()
+		return StringFormat( "Scaled( %s, %s )", self.Value, self.Scale )
+	end
 end
 
 --[[
@@ -240,6 +267,10 @@ do
 
 	function Percentage:GetValue( ParentSize )
 		return ParentSize * self.Value
+	end
+
+	function Percentage:__tostring()
+		return StringFormat( "Percentage( %s )", self.Value * 100 )
 	end
 end
 
@@ -259,6 +290,10 @@ do
 
 	function Auto:GetValue( ParentSize, Element, Axis )
 		return ( self.Element or Element ):GetContentSizeForAxis( Axis )
+	end
+
+	function Auto:__tostring()
+		return StringFormat( "Auto( %s )", self.Element )
 	end
 end
 
@@ -284,6 +319,10 @@ do
 		end
 		return MaxValue
 	end
+
+	function Max:__tostring()
+		return StringFormat( "Max( %s )", Stream.Of( self.Values ):Concat( ", " ) )
+	end
 end
 
 do
@@ -297,6 +336,10 @@ do
 
 	function Integer:GetValue( ParentSize, Element, Axis )
 		return Ceil( self.Value:GetValue( ParentSize, Element, Axis ) )
+	end
+
+	function Integer:__tostring()
+		return StringFormat( "Integer( %s )", self.Value )
 	end
 end
 
@@ -323,6 +366,10 @@ do
 		end
 		return MinValue
 	end
+
+	function Min:__tostring()
+		return StringFormat( "Min( %s )", Stream.Of( self.Values ):Concat( ", " ) )
+	end
 end
 
 do
@@ -337,5 +384,9 @@ do
 
 	function MultipleOf2:GetValue( ParentSize, Element, Axis )
 		return RoundTo( Ceil( self.Value:GetValue( ParentSize, Element, Axis ) ), 2 )
+	end
+
+	function MultipleOf2:__tostring()
+		return StringFormat( "MultipleOf2( %s )", self.Value )
 	end
 end
