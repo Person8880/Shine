@@ -732,7 +732,14 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 	for i = 1, #Children do
 		local Child = Children[ i ]
 		local Pos = Child:ComputeAbsolutePosition( Size )
-		local ChildSize = Vector2( Child:GetComputedSize( 1, Size.x ), Child:GetComputedSize( 2, Size.y ) )
+
+		Child:PreComputeWidth()
+
+		local Width = Child:GetComputedSize( 1, Size.x )
+
+		Child:PreComputeHeight( Width )
+
+		local ChildSize = Vector2( Width, Child:GetComputedSize( 2, Size.y ) )
 
 		Child:SetPos( Pos )
 		Child:SetSize( ChildSize )
