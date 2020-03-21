@@ -65,6 +65,61 @@ UnitTest:Test( "Validator", function( Assert )
 		"ValuesWithPattern", Validator.Each( Validator.MatchesPattern( "^%d%d?%d?%.%d%d?%d?%.%d%d?%d?%.%d%d?%d?$" ) )
 	)
 
+	Validator:AddFieldRule(
+		"Comparisons.GreaterThan",
+		Validator.GreaterThanField(
+			{ "Comparisons", "Reference" },
+			function( Left, Right )
+				return Right + 1
+			end
+		)
+	)
+	Validator:AddFieldRule(
+		"Comparisons.GreaterThanOrEqualTo",
+		Validator.GreaterThanOrEqualToField(
+			{ "Comparisons", "Reference" },
+			function( Left, Right )
+				return Right
+			end
+		)
+	)
+	Validator:AddFieldRule(
+		"Comparisons.LessThan",
+		Validator.LessThanField(
+			{ "Comparisons", "Reference" },
+			function( Left, Right )
+				return Right - 1
+			end
+		)
+	)
+	Validator:AddFieldRule(
+		"Comparisons.LessThanOrEqualTo",
+		Validator.LessThanOrEqualToField(
+			{ "Comparisons", "Reference" },
+			function( Left, Right )
+				return Right
+			end
+		)
+	)
+	Validator:AddFieldRule(
+		"Comparisons.EqualTo",
+		Validator.EqualToField(
+			{ "Comparisons", "Reference" },
+			function( Left, Right )
+				return Right
+			end
+		)
+	)
+	Validator:AddFieldRule(
+		"Comparisons.NotEqualTo",
+		Validator.NotEqualToField(
+			{ "Comparisons", "Reference" },
+			function( Left, Right )
+				return Right * 0.5
+			end
+		)
+	)
+
 	Assert.True( "HasFieldRule should return true for a field with a rule", Validator:HasFieldRule( "TooSmallNumber" ) )
 	Assert.Falsy( "HasFieldRule should return false for a field without a rule", Validator:HasFieldRule( "Nope" ) )
 
@@ -106,6 +161,15 @@ UnitTest:Test( "Validator", function( Assert )
 			"255.255.255.255",
 			"Nope",
 			123
+		},
+		Comparisons = {
+			Reference = 10,
+			GreaterThan = 9,
+			GreaterThanOrEqualTo = 10,
+			LessThan = 9,
+			LessThanOrEqualTo = 11,
+			EqualTo = 10,
+			NotEqualTo = 10
 		}
 	}
 	Assert.True( "Validator should have detected problems and made changes", Validator:Validate( Config ) )
@@ -155,6 +219,15 @@ UnitTest:Test( "Validator", function( Assert )
 			"127.0.0.1",
 			"1.1.1.1",
 			"255.255.255.255"
+		},
+		Comparisons = {
+			Reference = 10,
+			GreaterThan = 11,
+			GreaterThanOrEqualTo = 10,
+			LessThan = 9,
+			LessThanOrEqualTo = 10,
+			EqualTo = 10,
+			NotEqualTo = 5
 		}
 	}, Config )
 end )

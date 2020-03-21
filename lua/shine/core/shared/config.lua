@@ -319,9 +319,10 @@ do
 	local unpack = unpack
 
 	local ValidationContext = Shine.TypeDef()
-	function ValidationContext:Init( MessagePrefix )
+	function ValidationContext:Init( MessagePrefix, Config )
 		self.Path = {}
 		self.MessagePrefix = MessagePrefix
+		self.Config = Config
 		return self
 	end
 
@@ -409,6 +410,41 @@ do
 				return StringFormat( "%%s must have a value between %s and %s", Min, Max )
 			end
 		}
+	end
+
+	do
+		local Operators = {
+			GreaterThan = function( Left, Right ) return Left > Right end,
+			GreaterThanOrEqualTo = function( Left, Right ) return Left >= Right end,
+			LessThan = function( Left, Right ) return Left < Right end,
+			LessThanOrEqualTo = function( Left, Right ) return Left <= Right end,
+			EqualTo = function( Left, Right ) return Left == Right end,
+			NotEqualTo = function( Left, Right ) return Left ~= Right end
+		}
+		for Name, Operator in pairs( Operators ) do
+			local NiceName = {}
+			for Word in Name:gmatch( "%u%U+" ) do
+				NiceName[ #NiceName + 1 ] = Word:lower()
+			end
+
+			NiceName = TableConcat( NiceName, " " )
+
+			Validator[ Name.."Field" ] = function( FieldName, FixFunc )
+				local NiceFieldName = IsType( FieldName, "table" ) and TableConcat( FieldName, "." ) or FieldName
+				return {
+					Check = function( Value, Context )
+						local Right = TableGetField( Context.Config, FieldName )
+						return not Operator( Value, Right )
+					end,
+					Fix = function( Value, Context )
+						return FixFunc( Value, TableGetField( Context.Config, FieldName ) )
+					end,
+					Message = function()
+						return StringFormat( "%%s must have a value that is %s %s", NiceName, NiceFieldName )
+					end
+				}
+			end
+		end
 	end
 
 	function Validator.MatchesPattern( Pattern, DefaultValue )
@@ -738,7 +774,7 @@ do
 
 	function Validator:Validate( Config )
 		local ChangesMade = false
-		local Context = ValidationContext( self.MessagePrefix )
+		local Context = ValidationContext( self.MessagePrefix, Config )
 
 		for i = 1, #self.Rules do
 			local Rule = self.Rules[ i ]
