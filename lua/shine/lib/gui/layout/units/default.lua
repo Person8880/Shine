@@ -10,7 +10,6 @@ local Absolute
 local IsType = Shine.IsType
 local setmetatable = setmetatable
 local StringFormat = string.format
-local tostring = tostring
 
 local function NewType( Name )
 	local Meta = {}
@@ -196,7 +195,7 @@ do
 	end
 
 	function Absolute:__tostring()
-		return tostring( self.Value )
+		return StringFormat( "Absolute( %s )", self.Value )
 	end
 end
 
