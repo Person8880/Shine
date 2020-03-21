@@ -65,7 +65,7 @@ function AdminMenu:Create()
 	Window:SetPos( self.Pos )
 
 	Window:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
-	Window:SetTabHeight( Units.Integer( HighResScaled( 96 ) ):GetValue() )
+	Window:SetTabHeight( Units.Integer( HighResScaled( 88 ) ):GetValue() )
 	Window:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 
 	Window:CallOnRemove( function()
@@ -815,7 +815,7 @@ below. If you want to get to it outside the game, visit:]],
 		OnInit = function( Panel )
 			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
 				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 24 ),
-					HighResScaled( 16 ), HighResScaled( 24 ) )
+					HighResScaled( 16 ), HighResScaled( 16 ) )
 			} )
 			Panel:SetLayout( Layout )
 
