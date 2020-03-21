@@ -776,7 +776,13 @@ do
 
 	function Migrator:AddField( FieldName, Value )
 		self.Actions[ #self.Actions + 1 ] = function( Config )
-			TableSetField( Config, FieldName, Value )
+			local ValueToSet
+			if IsType( Value, "function" ) then
+				ValueToSet = Value( Config )
+			else
+				ValueToSet = Value
+			end
+			TableSetField( Config, FieldName, ValueToSet )
 		end
 		return self
 	end

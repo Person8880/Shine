@@ -258,7 +258,7 @@ end )
 
 UnitTest:Test( "Migrator", function( Assert )
 	local Migrator = Shine.Migrator()
-		:AddField( "D", "Value for D" )
+		:AddField( "D", function( Config ) return Config.A:gsub( "A$", "D" ) end )
 		:AddField( { "Child2", "Value" }, false )
 		:RenameField( "A", "B" )
 		:RenameField( "C", { "Child", "C" } )
