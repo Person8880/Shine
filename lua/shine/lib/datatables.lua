@@ -270,12 +270,12 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access )
 
 		Shared.RegisterNetworkMessage( ID, { [ Key ] = Type } )
 
-		Client.HookNetworkMessage( ID, function( Data )
+		Shine.HookNetworkMessage( ID, function( Data )
 			return DT:ProcessPartial( Key, Data )
 		end )
 	end
 
-	Client.HookNetworkMessage( Name, function( Data )
+	Shine.HookNetworkMessage( Name, function( Data )
 		return DT:ProcessComplete( Data )
 	end )
 

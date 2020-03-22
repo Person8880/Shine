@@ -757,7 +757,7 @@ if Server then
 	return
 end
 
-Client.HookNetworkMessage( "Shine_PluginSync", function( Data )
+Shine.HookNetworkMessage( "Shine_PluginSync", function( Data )
 	for Name, Enabled in SortedPairs( Data ) do
 		if Enabled then
 			Shine:EnableExtension( Name )
@@ -781,7 +781,7 @@ Client.HookNetworkMessage( "Shine_PluginSync", function( Data )
 	Shine.StartupMessages = nil
 end )
 
-Client.HookNetworkMessage( "Shine_PluginEnable", function( Data )
+Shine.HookNetworkMessage( "Shine_PluginEnable", function( Data )
 	local Name = Data.Plugin
 	local Enabled = Data.Enabled
 

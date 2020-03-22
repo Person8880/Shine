@@ -79,7 +79,7 @@ if Server then
 		return Description
 	end
 
-	Server.HookNetworkMessage( "Shine_AutoCompleteRequest", function( Client, Message )
+	Shine.HookNetworkMessage( "Shine_AutoCompleteRequest", function( Client, Message )
 		local Matches = Shine:FindCommands( Message.SearchText,
 			Message.Type == AutoComplete.CHAT_COMMAND and "ChatCmd" or "ConCmd" )
 
@@ -128,7 +128,7 @@ if Server then
 		end
 	end
 
-	Server.HookNetworkMessage( "Shine_AutoCompleteParametersRequest", function( Client, Message )
+	Shine.HookNetworkMessage( "Shine_AutoCompleteParametersRequest", function( Client, Message )
 		local Command
 		if Message.Type == AutoComplete.CONSOLE_COMMAND then
 			Command = Shine:GetCommand( Message.Command )
@@ -266,10 +266,10 @@ local function ReceiveResult( Message )
 	Requests[ Message.RequestID ] = nil
 end
 
-Client.HookNetworkMessage( "Shine_AutoCompleteResponse", ReceiveResult )
-Client.HookNetworkMessage( "Shine_AutoCompleteParametersResponse", ReceiveResult )
+Shine.HookNetworkMessage( "Shine_AutoCompleteResponse", ReceiveResult )
+Shine.HookNetworkMessage( "Shine_AutoCompleteParametersResponse", ReceiveResult )
 
-Client.HookNetworkMessage( "Shine_AutoCompleteFailed", function( Message )
+Shine.HookNetworkMessage( "Shine_AutoCompleteFailed", function( Message )
 	local Request = Requests[ Message.RequestID ]
 	if not Request then return end
 

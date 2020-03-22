@@ -22,7 +22,7 @@ do
 	Validator:Validate( Config )
 end
 
-Client.HookNetworkMessage( "Shine_SendSystemNotificationSummary", function( Message )
+Shine.HookNetworkMessage( "Shine_SendSystemNotificationSummary", function( Message )
 	if
 		Message.Type <= SystemNotifications.TypeOrdinal.WARNING and
 		Config.NotificationLevel == SystemNotifications.Type.ERROR
@@ -54,7 +54,7 @@ end
 
 local Requests = {}
 
-Client.HookNetworkMessage( "Shine_StartSystemNotificationsResponse", function( Message )
+Shine.HookNetworkMessage( "Shine_StartSystemNotificationsResponse", function( Message )
 	local Request = Requests[ Message.RequestID ]
 	if not Request then return end
 
@@ -101,7 +101,7 @@ local function MapMessageToNotification( Message )
 	}
 end
 
-Client.HookNetworkMessage( "Shine_SendSystemNotification", function( Message )
+Shine.HookNetworkMessage( "Shine_SendSystemNotification", function( Message )
 	local Request = Requests[ Message.RequestID ]
 	if not Request then return end
 
@@ -508,7 +508,7 @@ local function PopulatePanelWithNotifications( Panel )
 	} )
 end
 
-Client.HookNetworkMessage( "Shine_PushSystemNotification", function( Message )
+Shine.HookNetworkMessage( "Shine_PushSystemNotification", function( Message )
 	if not CachedNotifications then return end
 
 	local NewNotification = MapMessageToNotification( Message )

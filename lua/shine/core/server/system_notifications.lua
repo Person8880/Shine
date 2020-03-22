@@ -122,7 +122,7 @@ local function ReceiveNotificationListRequest( Client, RequestID )
 	end
 end
 
-Server.HookNetworkMessage( "Shine_GetSystemNotifications", function( Client, Message )
+Shine.HookNetworkMessage( "Shine_GetSystemNotifications", function( Client, Message )
 	ReceiveNotificationListRequest( Client, Message.RequestID )
 end )
 

@@ -411,15 +411,15 @@ Shine.Hook.Add( "Think", "ScreenText", function( DeltaTime )
 	ProcessFades( DeltaTime )
 end )
 
-Client.HookNetworkMessage( "Shine_ScreenText", function( Message )
+Shine.HookNetworkMessage( "Shine_ScreenText", function( Message )
 	Shine.ScreenText.Add( Message.ID, Message )
 end )
 
-Client.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
+Shine.HookNetworkMessage( "Shine_ScreenTextUpdate", function( Message )
 	Shine.ScreenText.SetText( Message.ID, Message.Text )
 end )
 
-Client.HookNetworkMessage( "Shine_ScreenTextRemove", function( Message )
+Shine.HookNetworkMessage( "Shine_ScreenTextRemove", function( Message )
 	Shine.ScreenText[ Message.Now and "Remove" or "End" ]( Message.ID )
 end )
 

@@ -47,7 +47,7 @@ do
 
 		if Server then return end
 
-		Client.HookNetworkMessage( MessageName, function( Data )
+		Shine.HookNetworkMessage( MessageName, function( Data )
 			local Message = Shine.Locale:GetInterpolatedPhrase( Source or "Core", Name, Data )
 			ApplyErrorMessage( Message, Data.IsConsole )
 		end )
@@ -63,7 +63,7 @@ do
 			self:ApplyNetworkMessage( Client, GetNetworkMessageName( Name, Source ), Data, true )
 		end
 	else
-		Client.HookNetworkMessage( "Shine_TranslatedCommandError", function( Data )
+		Shine.HookNetworkMessage( "Shine_TranslatedCommandError", function( Data )
 			local Source = Data.Source
 			if Source == "" then
 				Source = "Core"
@@ -434,6 +434,6 @@ end
 
 if Server then return end
 
-Client.HookNetworkMessage( "Shine_Command", function( Message )
+Shine.HookNetworkMessage( "Shine_Command", function( Message )
 	Shared.ConsoleCommand( Message.Command )
 end )

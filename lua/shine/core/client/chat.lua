@@ -10,7 +10,7 @@ local IsType = Shine.IsType
 local StringFormat = string.format
 local tostring = tostring
 
-Client.HookNetworkMessage( "Shine_TranslatedConsoleMessage", function( Data )
+Shine.HookNetworkMessage( "Shine_TranslatedConsoleMessage", function( Data )
 	local Source = Data.Source
 	if Source == "" then
 		Source = "Core"
@@ -25,12 +25,12 @@ do
 		return Shine.AdminMenu:GetIsVisible()
 	end
 
-	Client.HookNetworkMessage( "Shine_Notification", function( Data )
+	Shine.HookNetworkMessage( "Shine_Notification", function( Data )
 		if not CanDisplayNotification( Data ) then return end
 
 		Shine.GUI.NotificationManager.AddNotification( Data.Type, Data.Message, Data.Duration )
 	end )
-	Client.HookNetworkMessage( "Shine_TranslatedNotification", function( Data )
+	Shine.HookNetworkMessage( "Shine_TranslatedNotification", function( Data )
 		if not CanDisplayNotification( Data ) then return end
 
 		local Source = Data.Source
@@ -115,7 +115,7 @@ function Shine:NotifyError( Message )
 	self.AddChatText( 255, 0, 0, self.Locale:GetPhrase( "Core", "ERROR_TAG" ), 1, 1, 1, Message )
 end
 
-Client.HookNetworkMessage( "Shine_ChatErrorMessage", function( Message )
+Shine.HookNetworkMessage( "Shine_ChatErrorMessage", function( Message )
 	local Text = Message.Message
 	if Message.Source ~= "" then
 		Text = Shine.Locale:GetPhrase( Message.Source, Text )
@@ -124,7 +124,7 @@ Client.HookNetworkMessage( "Shine_ChatErrorMessage", function( Message )
 end )
 
 -- Displays a coloured message.
-Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
+Shine.HookNetworkMessage( "Shine_ChatCol", function( Message )
 	local R = Message.R / 255
 	local G = Message.G / 255
 	local B = Message.B / 255
@@ -135,7 +135,7 @@ Client.HookNetworkMessage( "Shine_ChatCol", function( Message )
 	Shine.AddChatText( Message.RP, Message.GP, Message.BP, Prefix, R, G, B, String )
 end )
 
-Client.HookNetworkMessage( "Shine_TranslatedChatCol", function( Message )
+Shine.HookNetworkMessage( "Shine_TranslatedChatCol", function( Message )
 	local R = Message.R / 255
 	local G = Message.G / 255
 	local B = Message.B / 255
@@ -156,7 +156,7 @@ Client.HookNetworkMessage( "Shine_TranslatedChatCol", function( Message )
 end )
 
 -- Deprecated chat message. Only useful for PMs/Admin say messages.
-Client.HookNetworkMessage( "Shine_Chat", function( Message )
+Shine.HookNetworkMessage( "Shine_Chat", function( Message )
 	local ChatMessages = SetupAndGetChatMessages()
 	if not ChatMessages then return end
 

@@ -739,6 +739,6 @@ VoteMenu:AddPage( "Main", function( self )
 	self:AddAdminMenuButton()
 end )
 
-Client.HookNetworkMessage( "Shine_AuthAdminMenu", function( Data )
+Shine.HookNetworkMessage( "Shine_AuthAdminMenu", function( Data )
 	VoteMenu.CanViewAdminMenu = Data.CanUseAdminMenu
 end )

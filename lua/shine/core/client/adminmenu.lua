@@ -26,7 +26,7 @@ do
 	local ErrorHandler = Shine.BuildErrorHandler( "Admin menu creation error" )
 	local xpcall = xpcall
 
-	Client.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
+	Shine.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
 		local WasVisible = AdminMenu.Visible
 		if xpcall( AdminMenu.Show, ErrorHandler, AdminMenu ) and not WasVisible and AdminMenu.Visible then
 			Hook.Broadcast( "OnAdminMenuOpened", AdminMenu )

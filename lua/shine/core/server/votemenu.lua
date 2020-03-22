@@ -75,8 +75,8 @@ Shine.Hook.Add( "OnPluginUnload", "SendPluginData", function( Name )
 	Shine:SendPluginData( nil )
 end )
 
---Client's requesting plugin data.
-Server.HookNetworkMessage( "Shine_RequestPluginData", function( Client, Message )
+-- Client's requesting plugin data.
+Shine.HookNetworkMessage( "Shine_RequestPluginData", function( Client, Message )
 	Shine:SendPluginData( Client )
 end )
 
