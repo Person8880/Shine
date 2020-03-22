@@ -326,32 +326,46 @@ end )
 --[[
 	Adds a page to the menu that can be switched to with VoteMenu:SetPage().
 ]]
-function VoteMenu:AddPage( Name, PopulateFunc, ThinkFunc, OnCleanup )
-	self.Pages[ Name ] = { Populate = PopulateFunc, Think = ThinkFunc, OnCleanup = OnCleanup }
+function VoteMenu:AddPage( Name, OnPopulate, OnThink, OnCleanup )
+	Shine.AssertAtLevel( Shine.IsCallable( OnPopulate ), "OnPopulate must be callable!", 3 )
+	if OnThink ~= nil then
+		Shine.AssertAtLevel( Shine.IsCallable( OnThink ), "OnThink must be callable!", 3 )
+	end
+	if OnCleanup ~= nil then
+		Shine.AssertAtLevel( Shine.IsCallable( OnCleanup ), "OnCleanup must be callable!", 3 )
+	end
+
+	self.Pages[ Name ] = {
+		Populate = OnPopulate,
+		Think = OnThink,
+		Cleanup = OnCleanup
+	}
 end
 
 --[[
 	Allows you to extend a page that has already been created.
 	Whatever you add will be called after the old populate function.
 ]]
-function VoteMenu:EditPage( Name, ExtraFunc, ExtraThink, ExtraCleanup )
+function VoteMenu:EditPage( Name, ExtraPopulate, ExtraThink, ExtraCleanup )
 	local Page = self.Pages[ Name ]
 	if not Page then
-		return self:AddPage( Name, ExtraFunc, ExtraThink, ExtraCleanup )
+		return self:AddPage( Name, ExtraPopulate, ExtraThink, ExtraCleanup )
 	end
 
-	if ExtraFunc then
-		local OldPopulate = Page.Populate
+	if ExtraPopulate then
+		Shine.AssertAtLevel( Shine.IsCallable( ExtraPopulate ), "ExtraPopulate must be callable!", 3 )
 
+		local OldPopulate = Page.Populate
 		Page.Populate = function( self )
 			OldPopulate( self )
-			ExtraFunc( self )
+			ExtraPopulate( self )
 		end
 	end
 
 	if ExtraThink then
-		local OldThink = Page.Think
+		Shine.AssertAtLevel( Shine.IsCallable( ExtraThink ), "ExtraThink must be callable!", 3 )
 
+		local OldThink = Page.Think
 		if OldThink then
 			Page.Think = function( self )
 				OldThink( self )
@@ -363,14 +377,16 @@ function VoteMenu:EditPage( Name, ExtraFunc, ExtraThink, ExtraCleanup )
 	end
 
 	if ExtraCleanup then
-		local OldOnCleanup = Page.OnCleanup
-		if OldOnCleanup then
-			Page.OnCleanup = function( self )
-				OldOnCleanup( self )
+		Shine.AssertAtLevel( Shine.IsCallable( ExtraCleanup ), "ExtraCleanup must be callable!", 3 )
+
+		local OldCleanup = Page.Cleanup
+		if OldCleanup then
+			Page.Cleanup = function( self )
+				OldCleanup( self )
 				ExtraCleanup( self )
 			end
 		else
-			Page.OnCleanup = ExtraCleanup
+			Page.Cleanup = ExtraCleanup
 		end
 	end
 end
@@ -383,8 +399,8 @@ function VoteMenu:SetPage( Name, IgnoreAnim )
 	if not Page or not Page.Populate then return end
 
 	local OldPage = self.Pages[ self.ActivePage ]
-	if OldPage and OldPage.OnCleanup then
-		OldPage.OnCleanup( self )
+	if OldPage and OldPage.Cleanup then
+		OldPage.Cleanup( self )
 	end
 
 	self:Clear()
