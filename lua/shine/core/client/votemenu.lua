@@ -14,7 +14,7 @@ Shine.ActivePlugins = ActivePlugins
 
 local WaitingForData = false
 
-Client.HookNetworkMessage( "Shine_PluginData", function( Message )
+Shine.HookNetworkMessage( "Shine_PluginData", function( Message )
 	for i = 1, #ActivePlugins do
 		ActivePlugins[ i ] = nil
 	end

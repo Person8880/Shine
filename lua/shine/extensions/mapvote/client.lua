@@ -81,6 +81,7 @@ do
 	RichTextMessageOptions[ "NOMINATED_MAP" ] = VoteMessageOptions
 	RichTextMessageOptions[ "PLAYER_VOTED" ] = VoteMessageOptions
 	RichTextMessageOptions[ "PLAYER_VOTED_PRIVATE" ] = VoteMessageOptions
+	RichTextMessageOptions[ "PLAYER_REVOKED_VOTE_PRIVATE" ] = VoteMessageOptions
 	RichTextMessageOptions[ "RTV_VOTED" ] = VoteMessageOptions
 	RichTextMessageOptions[ "VETO" ] = VoteMessageOptions
 
@@ -111,6 +112,7 @@ end
 
 local MAP_GRID_SWITCH_BACK_HINT = "MapVoteSwitchToVoteMenuHint"
 local MAP_GRID_AFTER_MIGRATION_HINT = "MapVoteAfterMapGridMigrationHint"
+local MULTIPLE_CHOICE_VOTE_HINT = "MapVoteMultipleChoiceVoteHint"
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
@@ -132,6 +134,13 @@ function Plugin:OnFirstThink()
 		MaxTimes = 1,
 		MessageSource = self:GetName(),
 		MessageKey = "MAP_VOTE_MENU_AFTER_MIGRATION_HINT",
+		HintDuration = 10
+	} )
+
+	SGUI.NotificationManager.RegisterHint( MULTIPLE_CHOICE_VOTE_HINT, {
+		MaxTimes = 1,
+		MessageSource = self:GetName(),
+		MessageKey = "MULTIPLE_CHOICE_VOTE_HINT",
 		HintDuration = 10
 	} )
 
@@ -247,8 +256,8 @@ end, function( self )
 	end
 end )
 
-local function SendMapVote( MapName )
-	Shared.ConsoleCommand( "sh_vote "..MapName )
+local function SendMapVote( MapName, Revoke )
+	Shared.ConsoleCommand( StringFormat( "sh_vote %s%s", MapName, Revoke and " 1" or "" ) )
 end
 
 do
@@ -366,6 +375,10 @@ do
 		self.ScreenBlur:SetActive( not not Blurred )
 	end
 
+	function Plugin:IsMultipleChoiceVote()
+		return self.dt.VotingMode == self.VotingModeOrdinal.MULTIPLE_CHOICE
+	end
+
 	function Plugin:ShowFullVoteMenu()
 		if not SGUI.IsValid( self.FullVoteMenu ) then
 			local Maps = self.Maps
@@ -375,6 +388,8 @@ do
 			self.FullVoteMenu = SGUI:CreateFromDefinition( MapVoteMenu )
 			self.FullVoteMenu:SetLogger( self.Logger )
 			self.FullVoteMenu:SetLoadModPreviews( self.Config.LoadModPreviewsInMapGrid )
+			self.FullVoteMenu:SetMultiSelect( self:IsMultipleChoiceVote() )
+			self.FullVoteMenu:SetMaxVoteChoices( self.dt.MaxVoteChoicesPerPlayer )
 
 			local W, H = SGUI.GetScreenSize()
 			self.FullVoteMenu:SetPos( Vector2( Offset, Offset ) )
@@ -402,9 +417,6 @@ do
 
 				self:SetClientSetting( "CloseMenuAfterChoosingMap", CloseOnClick )
 			end )
-			self.FullVoteMenu:AddPropertyChangeListener( "SelectedMap", function( FullVoteMenu, MapName )
-				SendMapVote( MapName )
-			end )
 			self.FullVoteMenu:AddPropertyChangeListener( "UseVoteMenu", function( FullVoteMenu, UseVoteMenu )
 				if not UseVoteMenu then return end
 
@@ -428,6 +440,14 @@ do
 				self:SetClientSetting( "LoadModPreviewsInMapGrid", LoadModPreviews )
 			end )
 
+			function self.FullVoteMenu:OnMapSelected( MapName )
+				SendMapVote( MapName )
+			end
+
+			function self.FullVoteMenu:OnMapDeselected( MapName )
+				SendMapVote( MapName, true )
+			end
+
 			function self.FullVoteMenu.PreClose()
 				self:SetScreenBlurred( false )
 			end
@@ -437,6 +457,14 @@ do
 
 				if SGUI.IsValid( self.MapVoteNotification ) then
 					self.MapVoteNotification:FadeIn()
+				end
+			end
+
+			if self.ChosenMap then
+				self.FullVoteMenu:ForceSelectedMap( self.ChosenMap )
+			elseif self.ChosenMaps then
+				for Map in pairs( self.ChosenMaps ) do
+					self.FullVoteMenu:ForceSelectedMap( Map )
 				end
 			end
 		end
@@ -453,6 +481,10 @@ do
 			Shine.ScreenText.SetIsVisible( false )
 
 			SGUI.NotificationManager.DisplayHint( MAP_GRID_AFTER_MIGRATION_HINT )
+
+			if self:IsMultipleChoiceVote() then
+				SGUI.NotificationManager.DisplayHint( MULTIPLE_CHOICE_VOTE_HINT )
+			end
 		end
 	end
 
@@ -479,6 +511,14 @@ do
 				Notification:SetIsVisible( false )
 			end
 		end
+	end
+
+	local function CleanupMapVotePage( VoteMenu )
+		local DescriptionLabel = Plugin.VoteMenuDescriptionLabel
+		if SGUI.IsValid( DescriptionLabel ) then
+			DescriptionLabel:Destroy()
+		end
+		Plugin.VoteMenuDescriptionLabel = nil
 	end
 
 	Shine.VoteMenu:AddPage( "MapVote", function( self )
@@ -510,11 +550,14 @@ do
 			local NiceName = Plugin:GetNiceMapName( Map )
 			local Text = StringFormat( "%s (%d)", NiceName, Votes )
 			local Button = self:AddSideButton( Text, function()
-				SendMapVote( Map )
-				self:SetIsVisible( false )
+				SendMapVote( Map, Plugin:IsMultipleChoiceVote() and Plugin:IsMapSelected( Map ) )
+
+				if not Plugin:IsMultipleChoiceVote() then
+					self:SetIsVisible( false )
+				end
 			end )
 
-			Shine.VoteMenu:MarkAsSelected( Button, Plugin.ChosenMap == Map )
+			Shine.VoteMenu:MarkAsSelected( Button, Plugin:IsMapSelected( Map ) )
 
 			local MapMod = Plugin.MapMods and Plugin.MapMods[ Map ]
 			SetupMapPreview( Button, Map, MapMod )
@@ -545,7 +588,45 @@ do
 		end )
 		BottomButton:SetIcon( SGUI.Icons.Ionicons.ArrowExpand, IconFont, IconScale )
 		BottomButton:SetTooltip( Plugin:GetPhrase( "VOTE_MENU_USE_MAP_VOTE_MENU_TOOLTIP" ) )
-	end, ClosePageIfVoteFinished )
+
+		local DescriptionText
+		if Plugin.dt.VotingMode == Plugin.VotingModeOrdinal.MULTIPLE_CHOICE then
+			DescriptionText = Plugin:GetInterpolatedPhrase( "MAP_VOTE_MENU_MULTIPLE_CHOICE_DESCRIPTION", {
+				MaxVoteChoices = Plugin.dt.MaxVoteChoicesPerPlayer
+			} )
+		else
+			DescriptionText = Plugin:GetPhrase( "MAP_VOTE_MENU_SINGLE_CHOICE_DESCRIPTION" )
+		end
+
+		Plugin.VoteMenuDescriptionLabel = SGUI:BuildTree( {
+			Parent = self.Background,
+			{
+				ID = "DescriptionLabel",
+				Class = "Label",
+				Props = {
+					Font = BottomButton:GetFont(),
+					TextScale = BottomButton:GetTextScale(),
+					Colour = Colour( 1, 1, 1 ),
+					IsSchemed = false,
+					PositionType = SGUI.PositionType.ABSOLUTE,
+					AutoWrap = true,
+					AutoSize = Units.UnitVector( Units.Percentage( 50 ), Units.Auto() ),
+					TopOffset = Units.Percentage( 50 ) - Units.Auto() * 0.5,
+					LeftOffset = Units.Percentage( 50 ),
+					Shadow = {
+						Colour = Colour( 0, 0, 0, 200 / 255 ),
+						Offset = Vector2( 2, 2 )
+					},
+					Text = DescriptionText,
+					TextAlignmentX = GUIItem.Align_Center
+				}
+			}
+		} ).DescriptionLabel
+
+		if Plugin:IsMultipleChoiceVote() then
+			SGUI.NotificationManager.DisplayHint( MULTIPLE_CHOICE_VOTE_HINT )
+		end
+	end, ClosePageIfVoteFinished, CleanupMapVotePage )
 end
 
 do
@@ -646,33 +727,53 @@ function Plugin:ReceiveVoteProgress( Data )
 	self:RefreshVoteButtonColours()
 end
 
+function Plugin:IsMapSelected( MapName )
+	return self.ChosenMap == MapName or ( self.ChosenMaps and self.ChosenMaps[ MapName ] )
+end
+
 function Plugin:ReceiveChosenMap( Data )
 	local MapName = Data.MapName
 
-	if self.ChosenMap then
-		-- Unmark the old selected map button if it's present.
-		local OldButton = self.MapButtons[ self.ChosenMap ]
-		if OldButton and SGUI.IsValid( OldButton.Button ) then
-			Shine.VoteMenu:MarkAsSelected( OldButton.Button, false )
+	if self.dt.VotingMode == self.VotingModeOrdinal.SINGLE_CHOICE then
+		if self.ChosenMap then
+			-- Unmark the old selected map button if it's present.
+			local OldButton = self.MapButtons[ self.ChosenMap ]
+			if OldButton and SGUI.IsValid( OldButton.Button ) then
+				Shine.VoteMenu:MarkAsSelected( OldButton.Button, false )
+			end
 		end
+
+		self.ChosenMap = MapName
+	else
+		self.ChosenMaps = self.ChosenMaps or {}
+		self.ChosenMaps[ MapName ] = Data.IsSelected or nil
 	end
 
-	self.ChosenMap = MapName
-
-	-- Mark the selected map button.
 	local MapButton = self.MapButtons[ MapName ]
-	if MapButton and SGUI.IsValid( MapButton.Button ) then
-		Shine.VoteMenu:MarkAsSelected( MapButton.Button, true )
-	end
+	if Data.IsSelected then
+		-- Mark the selected map button.
+		if MapButton and SGUI.IsValid( MapButton.Button ) then
+			Shine.VoteMenu:MarkAsSelected( MapButton.Button, true )
+		end
 
-	if SGUI.IsValid( self.FullVoteMenu ) then
-		self.FullVoteMenu:ForceSelectedMap( MapName )
+		if SGUI.IsValid( self.FullVoteMenu ) then
+			self.FullVoteMenu:ForceSelectedMap( MapName )
+		end
+	else
+		if MapButton and SGUI.IsValid( MapButton.Button ) then
+			Shine.VoteMenu:MarkAsSelected( MapButton.Button, false )
+		end
+
+		if SGUI.IsValid( self.FullVoteMenu ) then
+			self.FullVoteMenu:DeselectMap( MapName )
+		end
 	end
 end
 
 function Plugin:EndVote()
 	self.EndTime = 0
 	self.ChosenMap = nil
+	self.ChosenMaps = nil
 	self.ScreenText = nil
 
 	TableEmpty( self.MapVoteCounts )

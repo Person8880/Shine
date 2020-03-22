@@ -53,9 +53,9 @@ end
 Shine.LoadScripts( {
 	"lib/string.lua",
 	"lib/debug.lua",
+	"lib/utf8.lua",
 	"lib/table.lua",
 	"lib/sorting.lua",
-	"lib/utf8.lua",
 	"lib/math.lua",
 	"lib/objects.lua",
 	"lib/class.lua",

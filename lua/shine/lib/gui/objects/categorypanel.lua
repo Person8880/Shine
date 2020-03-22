@@ -153,19 +153,22 @@ function CategoryPanel:GetAllObjects()
 	return AllObjects
 end
 
-function CategoryPanel:AddObject( CatName, Object )
+function CategoryPanel:GetCategory( Name )
 	local Categories = self.Categories
-	local CategoryObj
 
 	for i = 1, self.NumCategories do
 		local Category = Categories[ i ]
 
-		if Category.Name == CatName then
-			CategoryObj = Category
-			break
+		if Category.Name == Name then
+			return Category
 		end
 	end
 
+	return nil
+end
+
+function CategoryPanel:AddObject( CatName, Object )
+	local CategoryObj = self:GetCategory( CatName )
 	if not CategoryObj then return end
 
 	local Objects = CategoryObj.Objects
@@ -190,6 +193,25 @@ function CategoryPanel:AddObject( CatName, Object )
 	end
 
 	return Object
+end
+
+function CategoryPanel:RemoveObject( CatName, ObjectToRemove )
+	local CategoryObj = self:GetCategory( CatName )
+	if not CategoryObj then return false end
+
+	local Objects = CategoryObj.Objects
+	for i = 1, #Objects do
+		local Object = Objects[ i ]
+		if Object == ObjectToRemove then
+			Object.Removing = true
+			Object:Destroy()
+			self.Layout:RemoveElement( Object )
+			TableRemove( Objects, i )
+			return true
+		end
+	end
+
+	return false
 end
 
 SGUI:Register( "CategoryPanel", CategoryPanel, "Panel" )

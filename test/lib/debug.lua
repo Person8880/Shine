@@ -84,9 +84,11 @@ UnitTest:Test( "TypeCheck", function( Assert )
 
 	Success, Err = pcall( Shine.TypeCheck, Value, "number", 1, "Test", 0 )
 	Assert:True( Success )
+	Assert.Equals( "Return value should be the passed in value", Value, Err )
 
 	Success, Err = pcall( Shine.TypeCheck, Value, { "number", "string" }, 1, "Test", 0 )
 	Assert:True( Success )
+	Assert.Equals( "Return value should be the passed in value", Value, Err )
 
 	Success, Err = pcall( Shine.TypeCheck, Value, { "string", "table" }, 1, "Test", 0 )
 	Assert:False( Success )
@@ -105,9 +107,11 @@ UnitTest:Test( "TypeCheckField", function( Assert )
 
 	Success, Err = pcall( Shine.TypeCheckField, Table, "Field", "number", "Test", 0 )
 	Assert:True( Success )
+	Assert.Equals( "Return value should be the passed in field value", Table.Field, Err )
 
 	Success, Err = pcall( Shine.TypeCheckField, Table, "Field", { "number", "string" }, "Test", 0 )
 	Assert:True( Success )
+	Assert.Equals( "Return value should be the passed in field value", Table.Field, Err )
 
 	Success, Err = pcall( Shine.TypeCheckField, Table, "Field", { "string", "table" }, "Test", 0 )
 	Assert:False( Success )

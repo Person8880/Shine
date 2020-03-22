@@ -15,6 +15,20 @@ do
 	end
 end
 
+do
+	local HookNetworkMessage = Server and Server.HookNetworkMessage or Client.HookNetworkMessage
+	local NetworkMessageErrorHandler = Shine.BuildErrorHandler( "Network message callback error" )
+
+	--[[
+		Hooks a network message and catches any errors thrown by the callback, allowing them to be reported.
+	]]
+	function Shine.HookNetworkMessage( Name, Callback )
+		return HookNetworkMessage( Name, function( ... )
+			xpcall( Callback, NetworkMessageErrorHandler, ... )
+		end )
+	end
+end
+
 Script.Load( "lua/shine/core/shared/hotfix.lua" )
 
 if Server then

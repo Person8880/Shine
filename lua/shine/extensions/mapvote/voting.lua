@@ -319,13 +319,11 @@ end
 	Adds a vote to begin a map vote.
 ]]
 function Plugin:AddStartVote( Client )
-	if Client then
-		local Success, Err, Args = self:CanClientVote( Client )
-		if not Success then
-			return false, "Client is not eligible to vote.", Err, Args
-		end
-	else
-		Client = "Console"
+	if not Client then return false, "Console cannot vote." end
+
+	local Success, Err, Args = self:CanClientVote( Client )
+	if not Success then
+		return false, "Client is not eligible to vote.", Err, Args
 	end
 
 	local Allow, Error, Key, Data = Shine.Hook.Call( "OnVoteStart", "rtv" )
@@ -381,61 +379,140 @@ end
 --[[
 	Sends a client's vote choice so their menu knows which map they have selected.
 ]]
-function Plugin:SendVoteChoice( Client, Map )
-	self:SendNetworkMessage( Client, "ChosenMap", { MapName = Map }, true )
+function Plugin:SendVoteChoice( Client, Map, IsSelected )
+	self:SendNetworkMessage( Client, "ChosenMap", { MapName = Map, IsSelected = IsSelected }, true )
 end
 
---[[
-	Adds a vote for a given map in the map vote.
-]]
-function Plugin:AddVote( Client, Map, Revote )
-	if Client then
-		local Success, Err, Args = self:CanClientVote( Client )
-		if not Success then
-			return false, "Client is not eligible to vote.", Err, Args
-		end
-	else
-		Client = "Console"
-	end
+local function SetVoteCount( self, MapName, Count )
+	self.Vote.VoteList[ MapName ] = Count
+	-- Update all client's vote counters.
+	self:SendMapVoteCount( nil, MapName, Count )
+end
 
-	if not self:VoteStarted() then return false, "no vote in progress" end
-	if self.Vote.Voted[ Client ] and not Revote then return false, "already voted" end
+function Plugin:RemoveVote( Client, Map )
+	if not Client then return false, "Console cannot vote." end
 
 	local Choice = self:GetVoteChoice( Map )
 	if not Choice then
 		return false, StringFormat( "%s is not a valid map choice.", Map ), "VOTE_FAIL_INVALID_MAP", { MapName = Map }
 	end
 
-	if Revote then
-		local OldVote = self.Vote.Voted[ Client ]
+	if self.Vote.Voted:HasKeyValue( Client, Choice ) then
+		self.Vote.Voted:RemoveKeyValue( Client, Choice )
+		self.Vote.TotalVotes = self.Vote.TotalVotes - 1
+
+		SetVoteCount( self, Choice, self.Vote.VoteList[ Choice ] - 1 )
+
+		self:SendVoteChoice( Client, Choice, false )
+
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug(
+				"Client %s revoked their vote for %s (now at %s/%s votes).",
+				Shine.GetClientInfo( Client ),
+				Choice,
+				self.Vote.VoteList[ Choice ],
+				self.Vote.TotalVotes
+			)
+		end
+
+		return true, Choice
+	end
+
+	return false
+end
+
+--[[
+	Adds a vote for a given map in the map vote.
+]]
+function Plugin:AddVote( Client, Map )
+	if not Client then return false, "Console cannot vote." end
+
+	local Success, Err, Args = self:CanClientVote( Client )
+	if not Success then
+		return false, "Client is not eligible to vote.", Err, Args
+	end
+
+	if not self:VoteStarted() then return false, "no vote in progress" end
+
+	local Choice = self:GetVoteChoice( Map )
+	if not Choice then
+		return false, StringFormat( "%s is not a valid map choice.", Map ), "VOTE_FAIL_INVALID_MAP", { MapName = Map }
+	end
+
+	local OldVote
+	local IsSingleChoice = self.Config.VotingMode == Plugin.VotingMode.SINGLE_CHOICE
+	if IsSingleChoice then
+		local OldVotes = self.Vote.Voted:Get( Client )
+		OldVote = OldVotes and OldVotes[ 1 ]
+
 		if OldVote == Choice then
-			return false, StringFormat( "You have already voted for %s.", Choice ), "VOTE_FAIL_VOTED_MAP", { MapName = Choice }
+			return false, StringFormat( "You have already voted for %s.", Choice ),
+				"VOTE_FAIL_VOTED_MAP", { MapName = Choice }
 		end
 
 		if OldVote then
-			self.Vote.VoteList[ OldVote ] = self.Vote.VoteList[ OldVote ] - 1
+			self.Vote.Voted:RemoveKeyValue( Client, OldVote )
+			SetVoteCount( self, OldVote, self.Vote.VoteList[ OldVote ] - 1 )
+
+			if self.Logger:IsDebugEnabled() then
+				self.Logger:Debug(
+					"Client %s revoked their vote for %s (now at %s/%s votes).",
+					Shine.GetClientInfo( Client ),
+					OldVote,
+					self.Vote.VoteList[ OldVote ],
+					self.Vote.TotalVotes
+				)
+			end
+		end
+	else
+		if self.Vote.Voted:HasKeyValue( Client, Choice ) then
+			return false, StringFormat( "You have already voted for %s.", Choice ),
+				"VOTE_FAIL_VOTED_MAP", { MapName = Choice }
 		end
 
-		-- Update all client's vote counters.
-		self:SendMapVoteCount( nil, OldVote, self.Vote.VoteList[ OldVote ] )
+		local Choices = self.Vote.Voted:Get( Client )
+		local MaxMapChoices = self.Config.MaxVoteChoicesPerPlayer
+		if Choices and #Choices >= MaxMapChoices then
+			return false, StringFormat( "You cannot vote for more than %d maps.", MaxMapChoices ),
+				"VOTE_FAIL_CHOICE_LIMIT_REACHED", { MaxMapChoices = MaxMapChoices }
+		end
 	end
 
-	local CurVotes = self.Vote.VoteList[ Choice ]
-	self.Vote.VoteList[ Choice ] = CurVotes + 1
+	SetVoteCount( self, Choice, self.Vote.VoteList[ Choice ] + 1 )
 
-	-- Update all client's vote counters.
-	self:SendMapVoteCount( nil, Choice, self.Vote.VoteList[ Choice ] )
 	if Client ~= "Console" then
-		self:SendVoteChoice( Client, Choice )
+		self:SendVoteChoice( Client, Choice, true )
 	end
 
-	if not Revote then
+	if not OldVote then
 		self.Vote.TotalVotes = self.Vote.TotalVotes + 1
 	end
 
-	self.Vote.Voted[ Client ] = Choice
+	self.Vote.Voted:Add( Client, Choice )
 
-	if self.Vote.TotalVotes >= self:GetVoteEnd( self:GetVoteCategory( self:IsNextMapVote() ) ) then
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug(
+			"Client %s voted for %s (now at %s/%s votes).",
+			Shine.GetClientInfo( Client ),
+			Choice,
+			self.Vote.VoteList[ Choice ],
+			self.Vote.TotalVotes
+		)
+	end
+
+	local TotalVotes
+	if IsSingleChoice then
+		TotalVotes = self.Vote.TotalVotes
+	else
+		-- It doesn't make sense to use the total number of votes when multiple choices are allowed as it will be
+		-- a multiple of the player count. Instead, end early if any map receives the fraction to finish amount.
+		TotalVotes = self.Vote.VoteList[ Choice ]
+	end
+
+	local VotesToEnd = self:GetVoteEnd( self:GetVoteCategory( self:IsNextMapVote() ) )
+	if TotalVotes >= VotesToEnd then
+		self.Logger:Debug( "Ending vote early due to %s/%s votes being cast.", TotalVotes, VotesToEnd )
+
 		self:SimpleTimer( 0, function()
 			self:ProcessResults()
 		end )
@@ -443,7 +520,7 @@ function Plugin:AddVote( Client, Map, Revote )
 		self:DestroyTimer( self.VoteTimer )
 	end
 
-	return true, Choice
+	return true, Choice, OldVote
 end
 
 function Plugin:GetVoteCategory( NextMap )
@@ -952,7 +1029,7 @@ function Plugin:StartVote( NextMap, Force )
 	self.StartingVote:Reset()
 
 	self.Vote.TotalVotes = 0
-	self.Vote.Voted = {}
+	self.Vote.Voted = Shine.Multimap()
 	self.Vote.NominationTracker = {}
 
 	local MapList = self:BuildMapChoices()

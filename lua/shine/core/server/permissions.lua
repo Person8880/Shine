@@ -158,33 +158,67 @@ function Shine:RequestUsers( Reload )
 				return
 			end
 
-			local UserData, Pos, Err = Decode( Response )
-			if not IsType( UserData, "table" ) or not next( UserData ) then
-				if Reload then -- Don't replace with a blank table if request failed when reloading.
-					self:AdminPrint( nil,
-						"Reloading from the web failed. User data has not been changed. Error: %s", true, Err )
+			-- Decode the JSON asynchronously to account for a possible large user data file. Decoding all at once
+			-- may cause a noticeable freeze which can interrupt gameplay.
+			Shine.DecodeJSONAsync( Response, function( UserData, Pos, Err )
+				if not IsType( UserData, "table" ) or not next( UserData ) then
+					-- Don't replace with a blank table if request failed when reloading.
+					Err = Err or "received empty response"
+
+					Shine.SystemNotifications:AddNotification( {
+						ID = "Core_RemoteUserConfig_SyntaxErrors",
+						Type = Shine.SystemNotifications.Type.WARNING,
+						Message = {
+							Source = "Core",
+							TranslationKey = "WARNING_INVALID_JSON_IN_REMOTE_USER_CONFIG",
+							Context = Err
+						},
+						Source = {
+							Type = Shine.SystemNotifications.Source.CORE
+						}
+					} )
+
+					if Reload then
+						self:AdminPrint(
+							nil,
+							"Reloading user data from the web failed. User data has not been changed. Error: %s",
+							true,
+							Err
+						)
+
+						return
+					end
+
+					self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
 
 					return
 				end
 
-				self:Print( "Loading from the web failed. Using local file instead. Error: %s", true, Err )
+				self:Print( "Validating remote Shine user data..." )
 
-				return
-			end
+				self.UserData = ConvertData( UserData, true )
 
-			self:Print( "Validating remote Shine user data..." )
+				if ValidateUserData( self.UserData ) then
+					Shine.SystemNotifications:AddNotification( {
+						ID = "Core_RemoteUserConfig_ValidationErrors",
+						Type = Shine.SystemNotifications.Type.WARNING,
+						Message = {
+							Source = "Core",
+							TranslationKey = "WARNING_REMOTE_USER_CONFIG_VALIDATION_ERRORS",
+							Context = ""
+						},
+						Source = {
+							Type = Shine.SystemNotifications.Source.CORE
+						}
+					} )
+				end
 
-			self.UserData = ConvertData( UserData, true )
+				-- Cache the current user data, so if we fail to load it on a later map we still have something to load.
+				self:SaveUsers( true )
+				self:Print( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
 
-			ValidateUserData( self.UserData )
-
-			-- Cache the current user data, so if we fail to load it on
-			-- a later map we still have something to load.
-			self:SaveUsers( true )
-			self:Print( Reload and "Shine reloaded users from the web."
-				or "Shine loaded users from web." )
-
-			self.Hook.Broadcast( "OnUserReload" )
+				self.Hook.Broadcast( "OnUserReload" )
+			end )
 		end,
 		OnFailure = function()
 			self:Print( "All attempts to load users from the web failed. Using local file instead." )
@@ -245,6 +279,8 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	if not IsType( UserFile, "table" ) or not next( UserFile ) then
+		Err = Err or "configuration is empty"
+
 		Shared.Message( StringFormat( "The user data file is not valid JSON, unable to load user data. Error: %s",
 			Err ) )
 
@@ -260,6 +296,20 @@ function Shine:LoadUsers( Web, Reload )
 
 	if ValidateUserData( UserFile ) then
 		NeedsSaving = true
+
+		-- Warn about validation errors, but not about invalid JSON as if the user config can't be loaded, no one will
+		-- have access to see the error message.
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.WARNING,
+			Message = {
+				Source = "Core",
+				TranslationKey = "WARNING_USER_CONFIG_VALIDATION_ERRORS",
+				Context = ""
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.CORE
+			}
+		} )
 	end
 
 	self.UserData = UserFile

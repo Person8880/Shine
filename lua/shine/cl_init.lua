@@ -22,6 +22,7 @@ local Scripts = {
 	"core/client/votemenu.lua",
 	"core/shared/adminmenu.lua",
 	"core/client/adminmenu.lua",
+	"core/shared/system_notifications.lua",
 	"core/shared/extensions.lua",
 	"core/shared/chat.lua",
 	"core/shared/webpage.lua",

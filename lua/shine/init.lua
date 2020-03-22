@@ -15,6 +15,7 @@ local Scripts = {
 	"core/shared/commands.lua",
 	"core/server/commands.lua",
 	"core/server/logging.lua",
+	"core/shared/system_notifications.lua",
 	"core/server/config.lua",
 	"core/shared/chat.lua",
 	"core/server/chat.lua",

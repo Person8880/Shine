@@ -183,7 +183,7 @@ function Panel:RecomputeMaxWidth()
 		local PanelWidth = MaxWidth
 
 		for Child in self.Children:Iterate() do
-			if Child:GetIsVisible() then
+			if Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar then
 				local MaxX = ComputeMaxWidth( Child, PanelWidth )
 				MaxWidth = Max( MaxWidth, MaxX )
 			end
@@ -206,7 +206,7 @@ function Panel:RecomputeMaxHeight()
 		local PanelHeight = MaxHeight
 
 		for Child in self.Children:Iterate() do
-			if Child:GetIsVisible() then
+			if Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar then
 				local MaxY = ComputeMaxHeight( Child, PanelHeight )
 				MaxHeight = Max( MaxHeight, MaxY )
 			end

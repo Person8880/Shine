@@ -323,7 +323,7 @@ function TabPanel:UpdateSizes()
 	if self.Horizontal then
 		self.TabsLayout:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ) )
 	else
-		self.TabPanel:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
+		self.TabsLayout:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
 	end
 
 	for i = 1, self.NumTabs do

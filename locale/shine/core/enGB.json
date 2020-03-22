@@ -62,5 +62,33 @@
 
 	"GENERAL_CLIENT_SETTINGS": "General",
 	"NS2_MENU_OPTIONS_TITLE": "SHINE OPTIONS",
-	"NS2_MENU_OPEN_CLIENT_CONFIG": "Open Client Config Menu"
+	"NS2_MENU_OPEN_CLIENT_CONFIG": "Open Client Config Menu",
+
+	"SYSTEM_NOTIFICATIONS_LOADING": "Loading notifications...",
+	"SYSTEM_NOTIFICATIONS_OK": "No errors or warnings to report.",
+	"SYSTEM_NOTIFICATIONS_ACCESS_DENIED": "You do not have access to view system notifications.",
+	"SYSTEM_NOTIFICATIONS_WARNINGS_NOTIFICATION": "Warnings occurred during Shine startup. Check the admin menu status tab for details.",
+	"SYSTEM_NOTIFICATIONS_ERRORS_NOTIFICATION": "Errors occurred during Shine startup. Check the admin menu status tab for details.",
+
+	"SYSTEM_NOTIFICATIONS_TAB_HEADER": "Status",
+	"SYSTEM_NOTIFICATIONS_CORE_HEADER": "Core",
+	"SYSTEM_NOTIFICATIONS_PLUGIN_HEADER": "Plugin - {ID}",
+	"SYSTEM_NOTIFICATIONS_HEADER_INFO": "Notifications",
+	"SYSTEM_NOTIFICATIONS_HEADER_WARNING": "Warnings",
+	"SYSTEM_NOTIFICATIONS_HEADER_ERROR": "Errors",
+	"SYSTEM_NOTIFICATIONS_NOTIFICATION_LEVEL_DESCRIPTION": "Notify me:",
+	"SYSTEM_NOTIFICATIONS_LEVEL_WARNING": "When warnings or errors occur during startup.",
+	"SYSTEM_NOTIFICATIONS_LEVEL_ERROR": "Only if errors occur during startup.",
+
+	"ERROR_INVALID_JSON_IN_BASE_CONFIG": "The base configuration file has invalid JSON: {Context}",
+	"ERROR_INVALID_JSON_IN_PLUGIN_CONFIG": "Configuration file has invalid JSON: {Context}",
+	"WARNING_USER_CONFIG_VALIDATION_ERRORS": "Provided user configuration had validation errors which have been corrected.",
+	"WARNING_REMOTE_USER_CONFIG_VALIDATION_ERRORS": "Remote user configuration had validation errors which have been corrected. Check the local UserConfig.json file for the corrected data.",
+	"WARNING_INVALID_JSON_IN_REMOTE_USER_CONFIG": "Remote user configuration has invalid JSON: {Context}. User data has been loaded from locally cached data instead.",
+	"WARNING_INVALID_JSON_IN_WEB_CONFIG_RESPONSE": "Web configuration data has invalid JSON: {Context}. Plugin configuration has been loaded from locally cached data instead.",
+	"WARNING_PLUGIN_CONFIG_VALIDATION_ERRORS": "Provided configuration had validation errors which have been corrected.",
+	"WARNING_UNREGISTERED_PLUGINS": "Some plugins failed to load as they have not been registered: {Context}",
+	"INFO_PLUGIN_VERSION_UPDATE": "Plugin version updated to {Context}.",
+
+	"ADMIN_MENU_STATUS_TAB": "Status"
 }

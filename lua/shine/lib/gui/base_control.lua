@@ -732,7 +732,14 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 	for i = 1, #Children do
 		local Child = Children[ i ]
 		local Pos = Child:ComputeAbsolutePosition( Size )
-		local ChildSize = Vector2( Child:GetComputedSize( 1, Size.x ), Child:GetComputedSize( 2, Size.y ) )
+
+		Child:PreComputeWidth()
+
+		local Width = Child:GetComputedSize( 1, Size.x )
+
+		Child:PreComputeHeight( Width )
+
+		local ChildSize = Vector2( Width, Child:GetComputedSize( 2, Size.y ) )
 
 		Child:SetPos( Pos )
 		Child:SetSize( ChildSize )
@@ -1006,19 +1013,19 @@ end
 	Computes the size of the control based on the units provided.
 ]]
 function ControlMeta:GetComputedSize( Index, ParentSize )
+	local Size = self.AutoSize
+	if Size then
+		-- Auto-size means use our set auto-size units relative to the passed in size.
+		return Max( Size[ Index ]:GetValue( ParentSize, self, Index ), 0 )
+	end
+
 	-- Fill means take the size given.
 	if self:GetFill() then
 		return ParentSize
 	end
 
 	-- No auto-size means the element has a fixed size.
-	local Size = self.AutoSize
-	if not Size then
-		return self:GetSize()[ Index == 1 and "x" or "y" ]
-	end
-
-	-- Auto-size means use our set auto-size units relative to the passed in size.
-	return Max( Size[ Index ]:GetValue( ParentSize, self, Index ), 0 )
+	return self:GetSize()[ Index == 1 and "x" or "y" ]
 end
 
 function ControlMeta:ComputeSpacing( Spacing )

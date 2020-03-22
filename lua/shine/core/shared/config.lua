@@ -56,6 +56,72 @@ function Shine.LoadJSONFile( Path )
 	return Decode( Data )
 end
 
+do
+	local JSON = require "shine/lib/json"
+	local JSONDecodeErrorHandler = Shine.BuildErrorHandler( "JSON deserialisation error" )
+	local CallbackErrorHandler = Shine.BuildErrorHandler( "DecodeJSONAsync callback error" )
+
+	--[[
+		Decodes a JSON string asynchronously.
+
+		Inputs:
+			1. JSONString - the JSON string to be decoded.
+			2. OnDecoded - a callback that will be called on completion with either:
+				* The decoded value, or
+				* nil, byte position deserialisation failed at, and a description of the error.
+			3. TimeLimitInSeconds - the maximum time in seconds per tick/frame to spend decoding. By default, this is
+			   10% of the tick rate on the server, and 10% of a 60FPS frame-time on the client.
+	]]
+	function Shine.DecodeJSONAsync( JSONString, OnDecoded, TimeLimitInSeconds )
+		if not TimeLimitInSeconds then
+			if Server then
+				TimeLimitInSeconds = 1 / Server.GetTickrate() * 0.1
+			else
+				TimeLimitInSeconds = 1 / 60 * 0.1
+			end
+		end
+
+		Shine.TypeCheck( JSONString, "string", 1, "DecodeJSONAsync" )
+		Shine.AssertAtLevel( Shine.IsCallable( OnDecoded ), "OnDecoded callback must be callable!", 3 )
+		Shine.TypeCheck( TimeLimitInSeconds, "number", 3, "DecodeJSONAsync" )
+
+		local Clock = Shared.GetSystemTimeReal
+		local Decoder = JSON.DecoderFromString( JSONString )
+		local Done, Value, Pos, Err
+		local Iterations = 0
+
+		Shine.Hook.Add( "Think", Decoder, function()
+			if Done then
+				-- Last tick finished decoding, now call the callback (ensures the callback's time doesn't add to
+				-- any time spent deserialising).
+				Shine.Hook.Remove( "Think", Decoder )
+
+				Shine.Logger:Debug(
+					"Finished parsing JSON after %d iteration(s) (time limit was %s)", Iterations, TimeLimitInSeconds
+				)
+
+				xpcall( OnDecoded, CallbackErrorHandler, Value, Pos, Err )
+
+				return
+			end
+
+			Iterations = Iterations + 1
+
+			local Start = Clock()
+			local Success
+			repeat
+				Success, Done, Value, Pos, Err = xpcall( Decoder, JSONDecodeErrorHandler )
+			until not Success or Done or Clock() - Start >= TimeLimitInSeconds
+
+			if not Success then
+				-- Unexpected error while decoding, fallback to DKJSON.
+				Shine.Hook.Remove( "Think", Decoder )
+				xpcall( OnDecoded, CallbackErrorHandler, Decode( JSONString ) )
+			end
+		end )
+	end
+end
+
 local JSONErrorHandler = Shine.BuildErrorHandler( "JSON serialisation error" )
 function Shine.SaveJSONFile( Table, Path, Settings )
 	Settings = Settings or JSONSettings
@@ -253,9 +319,10 @@ do
 	local unpack = unpack
 
 	local ValidationContext = Shine.TypeDef()
-	function ValidationContext:Init( MessagePrefix )
+	function ValidationContext:Init( MessagePrefix, Config )
 		self.Path = {}
 		self.MessagePrefix = MessagePrefix
+		self.Config = Config
 		return self
 	end
 
@@ -343,6 +410,41 @@ do
 				return StringFormat( "%%s must have a value between %s and %s", Min, Max )
 			end
 		}
+	end
+
+	do
+		local Operators = {
+			GreaterThan = function( Left, Right ) return Left > Right end,
+			GreaterThanOrEqualTo = function( Left, Right ) return Left >= Right end,
+			LessThan = function( Left, Right ) return Left < Right end,
+			LessThanOrEqualTo = function( Left, Right ) return Left <= Right end,
+			EqualTo = function( Left, Right ) return Left == Right end,
+			NotEqualTo = function( Left, Right ) return Left ~= Right end
+		}
+		for Name, Operator in pairs( Operators ) do
+			local NiceName = {}
+			for Word in Name:gmatch( "%u%U+" ) do
+				NiceName[ #NiceName + 1 ] = Word:lower()
+			end
+
+			NiceName = TableConcat( NiceName, " " )
+
+			Validator[ Name.."Field" ] = function( FieldName, FixFunc )
+				local NiceFieldName = IsType( FieldName, "table" ) and TableConcat( FieldName, "." ) or FieldName
+				return {
+					Check = function( Value, Context )
+						local Right = TableGetField( Context.Config, FieldName )
+						return not Operator( Value, Right )
+					end,
+					Fix = function( Value, Context )
+						return FixFunc( Value, TableGetField( Context.Config, FieldName ) )
+					end,
+					Message = function()
+						return StringFormat( "%%s must have a value that is %s %s", NiceName, NiceFieldName )
+					end
+				}
+			end
+		end
 	end
 
 	function Validator.MatchesPattern( Pattern, DefaultValue )
@@ -672,7 +774,7 @@ do
 
 	function Validator:Validate( Config )
 		local ChangesMade = false
-		local Context = ValidationContext( self.MessagePrefix )
+		local Context = ValidationContext( self.MessagePrefix, Config )
 
 		for i = 1, #self.Rules do
 			local Rule = self.Rules[ i ]
@@ -710,7 +812,13 @@ do
 
 	function Migrator:AddField( FieldName, Value )
 		self.Actions[ #self.Actions + 1 ] = function( Config )
-			TableSetField( Config, FieldName, Value )
+			local ValueToSet
+			if IsType( Value, "function" ) then
+				ValueToSet = Value( Config )
+			else
+				ValueToSet = Value
+			end
+			TableSetField( Config, FieldName, ValueToSet )
 		end
 		return self
 	end

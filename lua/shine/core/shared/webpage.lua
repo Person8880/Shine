@@ -258,6 +258,6 @@ Hook.Add( "OnCommanderUILogout", "WebpageClose", function()
 	Shine:CloseWebPage()
 end )
 
-Client.HookNetworkMessage( "Shine_Web", function( Message )
+Shine.HookNetworkMessage( "Shine_Web", function( Message )
 	Shine:OpenWebpage( Message.URL, Message.Title )
 end )

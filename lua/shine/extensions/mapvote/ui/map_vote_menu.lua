@@ -205,6 +205,8 @@ SGUI.AddProperty( MapVoteMenu, "CloseOnClick", true )
 SGUI.AddProperty( MapVoteMenu, "EndTime" )
 SGUI.AddProperty( MapVoteMenu, "LoadModPreviews", true )
 SGUI.AddProperty( MapVoteMenu, "Logger" )
+SGUI.AddProperty( MapVoteMenu, "MaxVoteChoices", 8 )
+SGUI.AddProperty( MapVoteMenu, "MultiSelect", false )
 
 function MapVoteMenu:Initialise()
 	Controls.Panel.Initialise( self )
@@ -218,6 +220,16 @@ function MapVoteMenu:Initialise()
 
 	local TeamVariation = self:GetTeamVariation()
 	local SmallPadding = Units.GUIScaled( 8 )
+
+	local function GetSubTitle()
+		if self:GetMultiSelect() then
+			return Locale:GetInterpolatedPhrase( "mapvote", "MAP_VOTE_MENU_MULTIPLE_CHOICE_DESCRIPTION", {
+				MaxVoteChoices = self:GetMaxVoteChoices()
+			} )
+		end
+
+		return Locale:GetPhrase( "mapvote", "MAP_VOTE_MENU_SINGLE_CHOICE_DESCRIPTION" )
+	end
 
 	self.Elements = SGUI:BuildTree( {
 		Parent = self,
@@ -259,6 +271,39 @@ function MapVoteMenu:Initialise()
 								},
 								Text = Shared.GetMapName(),
 								StyleName = "HeaderLabel"
+							}
+						},
+						{
+							Class = "Label",
+							Props = {
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								AutoFont = {
+									Family = SGUI.FontFamilies.MicrogrammaDBolExt,
+									Size = Units.GUIScaled( 29 )
+								},
+								StyleName = "HeaderLabel",
+							},
+							Bindings = {
+								{
+									From = {
+										Element = self,
+										Property = "MultiSelect"
+									},
+									To = {
+										Property = "Text",
+										Transformer = GetSubTitle
+									}
+								},
+								{
+									From = {
+										Element = self,
+										Property = "MaxVoteChoices"
+									},
+									To = {
+										Property = "Text",
+										Transformer = GetSubTitle
+									}
+								}
 							}
 						}
 					}
@@ -354,21 +399,23 @@ function MapVoteMenu:Initialise()
 								IconScale
 							)
 
-							Menu:AddButton(
-								Locale:GetPhrase(
-									"mapvote",
-									self.CloseOnClick and "MAP_VOTE_MENU_DISABLE_CLOSE_ON_CLICK"
-										or "MAP_VOTE_MENU_ENABLE_CLOSE_ON_CLICK"
-								),
-								function()
-									self:SetCloseOnClick( not self.CloseOnClick )
-									Menu:Destroy()
-								end
-							):SetIcon(
-								SGUI.Icons.Ionicons[ self.CloseOnClick and "Pin" or "Close" ],
-								IconFont,
-								IconScale
-							)
+							if not self:GetMultiSelect() then
+								Menu:AddButton(
+									Locale:GetPhrase(
+										"mapvote",
+										self.CloseOnClick and "MAP_VOTE_MENU_DISABLE_CLOSE_ON_CLICK"
+											or "MAP_VOTE_MENU_ENABLE_CLOSE_ON_CLICK"
+									),
+									function()
+										self:SetCloseOnClick( not self.CloseOnClick )
+										Menu:Destroy()
+									end
+								):SetIcon(
+									SGUI.Icons.Ionicons[ self.CloseOnClick and "Pin" or "Close" ],
+									IconFont,
+									IconScale
+								)
+							end
 
 							Menu:AutoSizeButtonIcons()
 							Menu:Resize()
@@ -700,7 +747,43 @@ function MapVoteMenu:OnMapVoteCountChanged( MapName, NumVotes )
 	self:RefreshMapVoteTileWinners()
 end
 
+function MapVoteMenu:OnMapSelected( MapName )
+
+end
+
+function MapVoteMenu:OnMapDeselected( MapName )
+
+end
+
+function MapVoteMenu:GetNumSelectedMaps()
+	local Count = 0
+	for i = 1, #self.MapTiles do
+		local Tile = self.MapTiles[ i ]
+		if SGUI.IsValid( Tile ) and Tile:GetSelected() then
+			Count = Count + 1
+		end
+	end
+	return Count
+end
+
+function MapVoteMenu:DeselectMap( MapName )
+	local Tile = self.MapTiles[ MapName ]
+	if SGUI.IsValid( Tile ) then
+		Tile:SetSelected( false )
+	end
+end
+
 function MapVoteMenu:ForceSelectedMap( MapName )
+	if self:GetMultiSelect() then
+		local Tile = self.MapTiles[ MapName ]
+		if SGUI.IsValid( Tile ) and not Tile:GetSelected() then
+			Tile:SetSelected( true )
+			return true
+		end
+
+		return false
+	end
+
 	if MapName == self.SelectedMap then return false end
 
 	self.SelectedMap = MapName
@@ -720,13 +803,34 @@ function MapVoteMenu:ForceSelectedMap( MapName )
 end
 
 function MapVoteMenu:SetSelectedMap( MapName )
+	if self:GetMultiSelect() and self:GetNumSelectedMaps() >= self:GetMaxVoteChoices() then
+		SGUI.NotificationManager.AddNotification(
+			Shine.NotificationType.ERROR,
+			Locale:GetInterpolatedPhrase( "mapvote", "VOTE_FAIL_CHOICE_LIMIT_REACHED", {
+				MaxMapChoices = self:GetMaxVoteChoices()
+			} ),
+			3
+		)
+		return
+	end
+
 	if not self:ForceSelectedMap( MapName ) then return end
 
-	self:OnPropertyChanged( "SelectedMap", MapName )
+	self:OnMapSelected( MapName )
 
-	if self:GetCloseOnClick() then
-		self:Close()
+	if not self:GetMultiSelect() then
+		self:OnPropertyChanged( "SelectedMap", MapName )
+		if self:GetCloseOnClick() then
+			self:Close()
+		end
 	end
+end
+
+function MapVoteMenu:ResetSelectedMap( MapName )
+	if not self:GetMultiSelect() then return end
+
+	self:DeselectMap( MapName )
+	self:OnMapDeselected( MapName )
 end
 
 function MapVoteMenu:Cleanup()

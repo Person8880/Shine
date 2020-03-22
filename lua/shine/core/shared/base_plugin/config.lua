@@ -9,6 +9,7 @@ local Notify = Shared.Message
 local select = select
 local rawget = rawget
 local StringFormat = string.format
+local tostring = tostring
 
 local function Print( ... )
 	return Notify( StringFormat( ... ) )
@@ -108,6 +109,21 @@ function ConfigModule:LoadConfig()
 			PrintToLog( "[Error] Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
 
 			self.Config = self.DefaultConfig
+
+			if Server then
+				Shine.SystemNotifications:AddNotification( {
+					Type = Shine.SystemNotifications.Type.ERROR,
+					Message = {
+						Source = "Core",
+						TranslationKey = "ERROR_INVALID_JSON_IN_PLUGIN_CONFIG",
+						Context = Err
+					},
+					Source = {
+						Type = Shine.SystemNotifications.Source.PLUGIN,
+						ID = self.__Name
+					}
+				} )
+			end
 		end
 
 		return
@@ -180,16 +196,6 @@ function ConfigModule:ValidateConfigAfterLoad()
 	local Validator = Shine.Validator( MessagePrefix )
 	Validator:AddRule( {
 		Matches = function( _, Config )
-			return self.PreValidateConfig and self:PreValidateConfig( Config )
-		end
-	} )
-	Validator:AddRule( {
-		Matches = function( _, Config )
-			return self:MigrateConfig( Config )
-		end
-	} )
-	Validator:AddRule( {
-		Matches = function( _, Config )
 			if self.CheckConfig then
 				local ReservedKeys = { __Version = true }
 
@@ -216,7 +222,26 @@ function ConfigModule:ValidateConfigAfterLoad()
 		Validator:Add( self.ConfigValidator )
 	end
 
-	return Validator:Validate( self.Config )
+	local Changed = self.PreValidateConfig and self:PreValidateConfig( self.Config )
+	local Migrated = self:MigrateConfig( self.Config )
+	local ValidationFixedErrors = Validator:Validate( self.Config ) or Changed
+
+	if ValidationFixedErrors and Server then
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.WARNING,
+			Message = {
+				Source = "Core",
+				TranslationKey = "WARNING_PLUGIN_CONFIG_VALIDATION_ERRORS",
+				Context = ""
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.PLUGIN,
+				ID = self:GetName()
+			}
+		} )
+	end
+
+	return not not ( Migrated or ValidationFixedErrors )
 end
 
 function ConfigModule:MigrateConfig( Config )
@@ -233,6 +258,19 @@ function ConfigModule:MigrateConfig( Config )
 		"Updating %s config from version %s to %s...",
 		self.__Name, CurrentConfigVersion, self.Version or "1.0"
 	)
+
+	Shine.SystemNotifications:AddNotification( {
+		Type = Shine.SystemNotifications.Type.INFO,
+		Message = {
+			Source = "Core",
+			TranslationKey = "INFO_PLUGIN_VERSION_UPDATE",
+			Context = tostring( OurVersion )
+		},
+		Source = {
+			Type = Shine.SystemNotifications.Source.PLUGIN,
+			ID = self.__Name
+		}
+	} )
 
 	Config.__Version = self.Version or "1.0"
 

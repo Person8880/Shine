@@ -2,6 +2,8 @@
 	Shared stuff.
 ]]
 
+local StringFormat = string.format
+
 local Plugin = Shine.Plugin( ... )
 Plugin.NotifyPrefixColour = {
 	255, 255, 0
@@ -15,8 +17,16 @@ Plugin.DurationMessageKeys = {
 	"SET_MAP_ROUNDS"
 }
 
+Plugin.VotingMode = table.AsEnum{
+	"SINGLE_CHOICE", "MULTIPLE_CHOICE"
+}
+Plugin.VotingModeOrdinal = table.AsEnum( Plugin.VotingMode, function( Index ) return Index end )
+
 function Plugin:SetupDataTable()
 	self:CallModuleEvent( "SetupDataTable" )
+
+	self:AddDTVar( StringFormat( "integer (1 to %d)", #self.VotingModeOrdinal ), "VotingMode", 1 )
+	self:AddDTVar( "integer (1 to 255)", "MaxVoteChoicesPerPlayer", 4 )
 
 	local MapNameField = "string (24)"
 
@@ -35,6 +45,9 @@ function Plugin:SetupDataTable()
 		},
 		MapNames = {
 			MapNames = "string (255)"
+		},
+		MaxMapChoices = {
+			MaxMapChoices = "integer (1 to 255)"
 		},
 		Nomination = {
 			TargetName = self:GetNameNetworkField(),
@@ -89,7 +102,10 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "VoteOptions", VoteOptionsMessage, "Client" )
 	self:AddNetworkMessage( "EndVote", MessageTypes.Empty, "Client" )
 	self:AddNetworkMessage( "VoteProgress", MapVotesMessage, "Client" )
-	self:AddNetworkMessage( "ChosenMap", MessageTypes.MapName, "Client" )
+	self:AddNetworkMessage( "ChosenMap", {
+		MapName = MapNameField,
+		IsSelected = "boolean"
+	}, "Client" )
 	self:AddNetworkMessage( "MapMod", {
 		MapName = MapNameField,
 		ModID = "string (12)"
@@ -115,7 +131,7 @@ function Plugin:SetupDataTable()
 			"MAP_CYCLING", "NOMINATED_MAP_CONDITIONALLY"
 		},
 		[ MessageTypes.MapVotes ] = {
-			"WINNER_VOTES"
+			"WINNER_VOTES", "PLAYER_REVOKED_VOTE_PRIVATE"
 		},
 		[ MessageTypes.MapNames ] = {
 			"VOTES_TIED"
@@ -148,6 +164,9 @@ function Plugin:SetupDataTable()
 			"VOTE_FAIL_INVALID_MAP", "VOTE_FAIL_VOTED_MAP",
 			"MAP_NOT_ON_LIST", "ALREADY_NOMINATED",
 			"RECENTLY_PLAYED", "UNCLEAR_MAP_NAME"
+		},
+		[ MessageTypes.MaxMapChoices ] = {
+			"VOTE_FAIL_CHOICE_LIMIT_REACHED"
 		},
 		[ MessageTypes.VoteWaitTime ] = {
 			"VOTE_FAIL_MUST_WAIT"

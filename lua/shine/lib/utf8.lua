@@ -19,7 +19,7 @@ local StringGSub = string.gsub
 local StringSub = string.sub
 local TableClear = require "table.clear"
 local TableConcat = table.concat
-local TableReverse = table.Reverse
+local TableNew = require "table.new"
 local type = type
 local unpack = unpack
 
@@ -1920,7 +1920,7 @@ ValidityChecks[ 0xF4 ] = function( Bytes ) return Bytes[ 2 ] <= 0x8F and Bytes o
 ValidityChecks[ 0xED ] = function( Bytes ) return Bytes[ 2 ] <= 0x9F and Bytes or nil end
 
 -- Internal cache table to avoid creating tables for every character. Up to 4 bytes + the number of bytes total.
-local UTF8Bytes = require "table.new"( 5, 0 )
+local UTF8Bytes = TableNew( 5, 0 )
 local function BytesOf( FirstByte )
 	TableClear( UTF8Bytes )
 	UTF8Bytes[ 5 ] = 1
@@ -2117,34 +2117,6 @@ do
 end
 
 local REPLACEMENT_CHAR = UTF8Char( 0xFFFD )
---[[
-	Encodes a string into valid UTF-8, returning a table of UTF-8 characters.
-]]
-local function UTF8Encode( String )
-	local CurByte = 1
-	local Bytes = #String
-	local Count = 0
-	local Chars = {}
-
-	while CurByte <= Bytes do
-		local CharBytes = GetNumUTF8Bytes( String, CurByte )
-		local Char
-
-		if not CharBytes then
-			CharBytes = 1
-			Char = REPLACEMENT_CHAR
-		else
-			Char = StringSub( String, CurByte, CurByte + CharBytes - 1 )
-		end
-
-		Count = Count + 1
-		Chars[ Count ] = Char
-		CurByte = CurByte + CharBytes
-	end
-
-	return Chars
-end
-string.UTF8Encode = UTF8Encode
 
 local function UTF8Iterate( String, CurByte )
 	if CurByte > #String then return nil end
@@ -2169,6 +2141,23 @@ local function UTF8Chars( String )
 end
 string.UTF8Chars = UTF8Chars
 
+
+--[[
+	Encodes a string into valid UTF-8, returning a table of UTF-8 characters.
+]]
+local function UTF8Encode( String )
+	local Count = 0
+	local Chars = TableNew( #String, 0 )
+
+	for ByteIndex, Char in UTF8Chars( String ) do
+		Count = Count + 1
+		Chars[ Count ] = Char
+	end
+
+	return Chars
+end
+string.UTF8Encode = UTF8Encode
+
 --[[
 	Encodes a string into valid UTF-8, returning the string.
 ]]
@@ -2185,7 +2174,13 @@ end
 function string.UTF8Length( String )
 	TypeCheck( String, "string", 1, "UTF8Length" )
 
-	return #UTF8Encode( String )
+	local Count = 0
+
+	for ByteIndex, Char in UTF8Chars( String ) do
+		Count = Count + 1
+	end
+
+	return Count
 end
 
 --[[
@@ -2226,12 +2221,12 @@ local function UTF8Replace( String, MapTable )
 	TypeCheck( String, "string", 1, "UTF8Replace" )
 	TypeCheck( MapTable, "table", 2, "UTF8Replace" )
 
-	local Chars = UTF8Encode( String )
-	for i = 1, #Chars do
-		local Mapping = MapTable[ Chars[ i ] ]
-		if Mapping then
-			Chars[ i ] = Mapping
-		end
+	local Chars = TableNew( #String, 0 )
+	local Count = 0
+
+	for ByteIndex, Char in UTF8Chars( String ) do
+		Count = Count + 1
+		Chars[ Count ] = MapTable[ Char ] or Char
 	end
 
 	return TableConcat( Chars, "" )
@@ -2256,7 +2251,16 @@ function string.UTF8Reverse( String )
 	TypeCheck( String, "string", 1, "UTF8Reverse" )
 
 	local Chars = UTF8Encode( String )
-	return TableConcat( TableReverse( Chars ), "" )
+	local NumChars = #Chars
+
+	for i = 1, NumChars * 0.5 do
+		local Char = Chars[ i ]
+		local OppositeIndex = NumChars - i + 1
+		Chars[ i ] = Chars[ OppositeIndex ]
+		Chars[ OppositeIndex ] = Char
+	end
+
+	return TableConcat( Chars, "" )
 end
 
 local WhitespaceChars = {

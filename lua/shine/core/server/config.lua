@@ -236,6 +236,19 @@ do
 				self.ConfigHasSyntaxError = true
 
 				Notify( StringFormat( "Config has invalid JSON. Error: %s. Loading default...", Err ) )
+
+				-- Notify admins that the base config is invalid.
+				Shine.SystemNotifications:AddNotification( {
+					Type = Shine.SystemNotifications.Type.ERROR,
+					Message = {
+						Source = "Core",
+						TranslationKey = "ERROR_INVALID_JSON_IN_BASE_CONFIG",
+						Context = Err
+					},
+					Source = {
+						Type = Shine.SystemNotifications.Source.CORE
+					}
+				} )
 			end
 
 			return
@@ -453,6 +466,18 @@ function Shine:LoadExtensionConfigs()
 				MissingExtensions
 			)
 		)
+
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.WARNING,
+			Message = {
+				Source = "Core",
+				TranslationKey = "WARNING_UNREGISTERED_PLUGINS",
+				Context = "\n- "..MissingExtensions
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.CORE
+			}
+		} )
 	end
 
 	local WebConfig = self.Config.WebConfigs
@@ -517,30 +542,15 @@ local function LoadPluginWithConfig( self, Name, PluginTable, ConfigData, Gamemo
 		or StringFormat( "- Error loading %s: %s", Name, Err ) )
 end
 
-local function OnWebPluginSuccess( self, Response, List, Reload )
-	if not Response then
-		OnFail( self, List, "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
-
-		return
-	end
-
-	local Decoded, Pos, Err = Decode( Response )
-
-	if not Decoded or not IsType( Decoded, "table" ) then
-		OnFail( self, List, "[WebConfigs] Web request for plugin configs received invalid JSON. Error: %s.\nResponse:\n%s\nLoading default/cache files...",
-			true, Err, Response )
-
-		return
-	end
-
-	if not Decoded.success and not Decoded.Success then
+local function OnWebConfigDeserialised( self, DecodedResponse, List, Reload )
+	if not DecodedResponse.success and not DecodedResponse.Success then
 		OnFail( self, List, "[WebConfigs] Web request for plugin configs received error: %s.",
-			true, Decoded.msg or Decoded.Msg or "unknown error" )
+			true, DecodedResponse.msg or DecodedResponse.Msg or "unknown error" )
 
 		return
 	end
 
-	local PluginData = Decoded.plugins or Decoded.Plugins
+	local PluginData = DecodedResponse.plugins or DecodedResponse.Plugins
 	if not PluginData then
 		OnFail( self, List, "[WebConfigs] Web request for plugin configs received incorrect response. Missing plugins table." )
 
@@ -634,6 +644,46 @@ local function OnWebPluginSuccess( self, Response, List, Reload )
 	if not Reload then
 		Notify( "[Shine] Finished parsing web config response." )
 	end
+end
+
+local function OnWebPluginSuccess( self, Response, List, Reload )
+	if not Response then
+		OnFail( self, List, "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
+
+		return
+	end
+
+	-- This can be reloaded during a round, so make sure to not block for too long if the response is large.
+	Shine.DecodeJSONAsync( Response, function( DecodedResponse, Pos, Err )
+		if not DecodedResponse or not IsType( DecodedResponse, "table" ) then
+			OnFail(
+				self,
+				List,
+				"[WebConfigs] Web request for plugin configs received invalid JSON. "..
+				"Error: %s.\nResponse:\n%s\nLoading default/cache files...",
+				true,
+				Err,
+				Response
+			)
+
+			Shine.SystemNotifications:AddNotification( {
+				ID = "Core_WebConfigs_SyntaxError",
+				Type = Shine.SystemNotifications.Type.WARNING,
+				Message = {
+					Source = "Core",
+					TranslationKey = "WARNING_INVALID_JSON_IN_WEB_CONFIG_RESPONSE",
+					Context = Err or "received empty response"
+				},
+				Source = {
+					Type = Shine.SystemNotifications.Source.CORE
+				}
+			} )
+
+			return
+		end
+
+		OnWebConfigDeserialised( self, DecodedResponse, List, Reload )
+	end )
 end
 
 local function OnWebPluginFailure( self, Plugins, Reload )

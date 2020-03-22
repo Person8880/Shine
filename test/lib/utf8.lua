@@ -156,6 +156,7 @@ end )
 
 UnitTest:Test( "UTF8Reverse", function( Assert )
 	Assert:Equals( "𐍈€¢$", string.UTF8Reverse( FullUTF8String ) )
+	Assert:Equals( "𐍈€¢$A", string.UTF8Reverse( "A"..FullUTF8String ) )
 end )
 
 UnitTest:Test( "UTF8CodePoint", function( Assert )
