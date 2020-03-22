@@ -10,6 +10,7 @@ local Absolute
 local IsType = Shine.IsType
 local setmetatable = setmetatable
 local StringFormat = string.format
+local TableRemoveByValue = table.RemoveByValue
 
 local function NewType( Name )
 	local Meta = {}
@@ -311,6 +312,11 @@ do
 		return self
 	end
 
+	function Max:RemoveValue( Value )
+		TableRemoveByValue( self.Values, Value )
+		return self
+	end
+
 	function Max:GetValue( ParentSize, Element, Axis )
 		local MaxValue = 0
 		for i = 1, #self.Values do
@@ -355,6 +361,11 @@ do
 
 	function Min:AddValue( Value )
 		self.Values[ #self.Values + 1 ] = Value
+		return self
+	end
+
+	function Min:RemoveValue( Value )
+		TableRemoveByValue( self.Values, Value )
 		return self
 	end
 

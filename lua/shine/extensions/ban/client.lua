@@ -270,7 +270,7 @@ function Plugin:SetupAdminMenu()
 	self:AddAdminMenuCommand(
 		self:GetPhrase( "CATEGORY" ),
 		self:GetPhrase( "BAN" ),
-		"sh_banid",
+		self.BanCommand,
 		false,
 		function( Button, IDs )
 			OpenAddBanWindow( IDs[ 1 ] )

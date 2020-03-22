@@ -295,6 +295,7 @@ local function AddTab( Window, Name, TabDefinition )
 
 	local Tab = Window:AddTab( Name, function( Panel )
 		TabDefinition.OnInit( Panel, TabDefinition.Data )
+		TabDefinition.Initialised = true
 	end, TabDefinition.Icon )
 
 	TabDefinition.TabObj = Tab
@@ -324,7 +325,7 @@ end
 
 function AdminMenu:OnTabCleanup( Window, Tab )
 	local TabDefinition = Tab.TabDefinition
-	if not TabDefinition then return end
+	if not TabDefinition or not TabDefinition.Initialised then return end
 
 	local OnCleanup = TabDefinition.OnCleanup
 	if not OnCleanup then return end
@@ -333,6 +334,7 @@ function AdminMenu:OnTabCleanup( Window, Tab )
 	if Ret then
 		TabDefinition.Data = Ret
 	end
+	TabDefinition.Initialised = false
 end
 
 function AdminMenu.GetListState( List )
@@ -418,6 +420,7 @@ do
 	local Label
 	local PlayerList
 	local Commands
+	local CommandsListWidth
 	local Rows = {}
 
 	local function AddPlayerToList( Ent )
@@ -452,6 +455,7 @@ do
 		end
 	end
 
+	local ButtonHeight = Units.Auto() + HighResScaled( 6 )
 	local function GenerateButton( Data )
 		local Button = SGUI:Create( "Button" )
 		Button:SetText( Data.Name )
@@ -469,6 +473,29 @@ do
 		return Button
 	end
 
+	local function GetFontScale()
+		return SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+	end
+
+	local function AddCommandButton( Category, CommandData, Font, Scale )
+		local Button = GenerateButton( CommandData )
+		Button:SetFontScale( Font, Scale )
+		Button:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+
+		local Width = Units.Auto( Button ) + HighResScaled( 8 )
+		CommandsListWidth:AddValue( Width )
+
+		Button:CallOnRemove( function()
+			if not CommandsListWidth then return end
+
+			-- If the commands tab is visible (i.e. a plugin has been disabled while it's open), remove this unit from
+			-- the max width to avoid referencing the destroyed button at layout time.
+			CommandsListWidth:RemoveValue( Width )
+		end )
+
+		return Commands:AddObject( Category, Button )
+	end
+
 	AdminMenu:AddSystemTab( "Commands", {
 		TranslationKey = "ADMIN_MENU_COMMANDS_TAB",
 		Icon = SGUI.Icons.Ionicons.CodeWorking,
@@ -481,7 +508,7 @@ do
 					HighResScaled( 16 ), HighResScaled( 16 ) )
 			} )
 
-			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
+			local Font, Scale = GetFontScale()
 
 			Label = SGUI:Create( "Label", Panel )
 			Label:SetFontScale( Font, Scale )
@@ -506,15 +533,13 @@ do
 
 			CommandLayout:AddElement( PlayerList )
 
-			local ButtonHeight = Units.Auto() + HighResScaled( 6 )
-
 			Commands = SGUI:Create( "CategoryPanel", Panel )
 			-- Note that due to cropping, anything with a negative y-coordinate is not rendered at all.
 			-- Thus this value must be greater-equal the font size.
 			Commands:SetCategoryHeight( HighResScaled( 28 ) )
 			CommandLayout:AddElement( Commands )
 
-			local Width = Units.Max()
+			CommandsListWidth = Units.Max( HighResScaled( 192 ) )
 			local Categories = AdminMenu.Commands
 
 			TableSort( Categories, function( A, B )
@@ -529,17 +554,17 @@ do
 				local CategoryButton = Commands:AddCategory( Name )
 				CategoryButton:SetFontScale( Font, Scale )
 
-				Width:AddValue( Units.Auto( CategoryButton ) + HighResScaled( 8 ) )
+				local Width = Units.Auto( CategoryButton ) + HighResScaled( 8 )
+				CommandsListWidth:AddValue( Width )
+				CategoryButton:CallOnRemove( function()
+					if not CommandsListWidth then return end
+
+					CommandsListWidth:RemoveValue( Width )
+				end )
 
 				for j = 1, #CommandList do
 					local CommandData = CommandList[ j ]
-
-					local Button = GenerateButton( CommandData )
-					Button:SetFontScale( Font, Scale )
-					Button:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
-
-					Width:AddValue( Units.Auto( Button ) + HighResScaled( 8 ) )
-					Commands:AddObject( Name, Button )
+					CommandData.Button = AddCommandButton( Name, CommandData, Font, Scale )
 				end
 			end
 
@@ -551,7 +576,7 @@ do
 				end
 			end
 
-			Commands:SetAutoSize( UnitVector( Width, Percentage( 100 ) ) )
+			Commands:SetAutoSize( UnitVector( CommandsListWidth, Percentage( 100 ) ) )
 
 			function PlayerList:OnSelectionChanged( Rows )
 				local Buttons = Commands:GetAllObjects()
@@ -605,6 +630,7 @@ do
 			Label = nil
 			PlayerList = nil
 			Commands = nil
+			CommandsListWidth = nil
 
 			TableEmpty( Rows )
 
@@ -741,6 +767,7 @@ do
 
 		local CommandsList = CategoryObj.Commands
 		local Data = {
+			Command = Command,
 			Name = Name,
 			DoClick = DoClick,
 			Tooltip = Tooltip,
@@ -754,20 +781,45 @@ do
 				Commands:AddCategory( Category )
 			end
 
-			Commands:AddObject( Category, GenerateButton( Data ) )
+			Data.Button = AddCommandButton( Category, Data, GetFontScale() )
+			Commands.Parent:InvalidateLayout()
 		end
+	end
+
+	function AdminMenu:RemoveCommand( Category, Command )
+		local Categories = self.Commands
+		local CategoryObj = TableFindByField( Categories, "Name", Category )
+		if not CategoryObj then return false end
+
+		local CommandEntry, Index = TableFindByField( CategoryObj.Commands, "Command", Command )
+		if not Index then return false end
+
+		TableRemove( CategoryObj.Commands, Index )
+
+		if #CategoryObj.Commands == 0 then
+			return self:RemoveCommandCategory( Category )
+		end
+
+		if SGUI.IsValid( Commands ) then
+			Commands:RemoveObject( Category, CommandEntry.Button )
+			Commands.Parent:InvalidateLayout()
+		end
+
+		return true
 	end
 
 	function AdminMenu:RemoveCommandCategory( Category )
 		local Categories = self.Commands
 		local Obj, Index = TableFindByField( Categories, "Name", Category )
-		if not Index then return end
+		if not Index then return false end
 
 		TableRemove( Categories, Index )
 
 		if SGUI.IsValid( Commands ) then
 			Commands:RemoveCategory( Category )
 		end
+
+		return true
 	end
 end
 
