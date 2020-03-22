@@ -2,6 +2,8 @@
 	System notifications client-side.
 ]]
 
+local OSDate = os.date
+
 local Locale = Shine.Locale
 local SGUI = Shine.GUI
 local SystemNotifications = Shine.SystemNotifications
@@ -93,7 +95,9 @@ local function MapMessageToNotification( Message )
 		Source = {
 			Type = SystemNotifications.Source[ Message.SourceType ],
 			ID = SourceID
-		}
+		},
+
+		Timestamp = Message.Timestamp
 	}
 end
 
@@ -320,6 +324,7 @@ function NotificationEntry:SetNotification( Notification )
 
 	self:SetShader( SGUI.Shaders.Invisible )
 
+	local TimePrefix = OSDate( "%H:%M:%S - ", Notification.Timestamp )
 	local Title
 	if Notification.Source.Type == SystemNotifications.Source.PLUGIN then
 		Title = Locale:GetInterpolatedPhrase( "Core", "SYSTEM_NOTIFICATIONS_PLUGIN_HEADER", Notification.Source )
@@ -375,7 +380,7 @@ function NotificationEntry:SetNotification( Notification )
 					Class = "Label",
 					Props = {
 						AutoFont = AgencyFBNormal,
-						Text = Title,
+						Text = TimePrefix..Title,
 						Margin = Units.Spacing( 0, 0, 0, PaddingAmount )
 					}
 				},

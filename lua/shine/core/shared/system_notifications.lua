@@ -67,7 +67,9 @@ do
 		MessageContext = "string (128)",
 
 		SourceType = StringFormat( "integer (1 to %d)", #SourceNames ),
-		SourceID = "string (20)"
+		SourceID = "string (20)",
+
+		Timestamp = "integer"
 	}
 
 	Shared.RegisterNetworkMessage( "Shine_PushSystemNotification", NotificationMessage )

@@ -2,6 +2,8 @@
 	System notifications server-side.
 ]]
 
+local OSTime = os.time
+
 local SystemNotifications = Shine.SystemNotifications
 SystemNotifications.Notifications = {}
 
@@ -18,7 +20,9 @@ local function MapNotificationToNetworkMessage( Notification )
 		MessageContext = Notification.Message.Context or "",
 
 		SourceType = SystemNotifications.SourceOrdinal[ Notification.Source.Type ],
-		SourceID = Notification.Source.ID or ""
+		SourceID = Notification.Source.ID or "",
+
+		Timestamp = Notification.Timestamp
 	}
 end
 
@@ -49,6 +53,8 @@ function SystemNotifications:AddNotification( Notification )
 		self.Source[ Notification.Source.Type ], "Invalid source type: %s", 3, Notification.Source.Type
 	)
 	Shine.TypeCheckField( Notification.Source, "ID", { "string", "nil" }, "Notification.Source" )
+
+	Notification.Timestamp = OSTime()
 
 	if Notification.ID then
 		local Index = self.Notifications[ Notification.ID ]
