@@ -126,6 +126,7 @@ local Units = SGUI.Layout.Units
 
 local CanViewNotifications = true
 local CachedNotifications
+local IsLoadingNotifications = false
 local IsTabVisible = false
 local TabPanel
 
@@ -537,12 +538,18 @@ Shine.AdminMenu:AddSystemTab( "Status", {
 		if not CachedNotifications then
 			PopulateTabWithLoadingIndicator( Panel )
 
+			if IsLoadingNotifications then return end
+
+			IsLoadingNotifications = true
+
 			SystemNotifications.GetNotifications( function( Notifications )
+				IsLoadingNotifications = false
+
 				if not Notifications then
 					CanViewNotifications = false
 
-					if IsTabVisible then
-						PopulatePanelWithError( Panel )
+					if IsTabVisible and SGUI.IsValid( TabPanel ) then
+						PopulatePanelWithError( TabPanel )
 					end
 
 					return
@@ -551,12 +558,12 @@ Shine.AdminMenu:AddSystemTab( "Status", {
 				CachedNotifications = Notifications
 
 				if #Notifications == 0 then
-					if IsTabVisible then
-						PopulatePanelWithOKStatus( Panel )
+					if IsTabVisible and SGUI.IsValid( TabPanel ) then
+						PopulatePanelWithOKStatus( TabPanel )
 					end
 				else
-					if IsTabVisible then
-						PopulatePanelWithNotifications( Panel )
+					if IsTabVisible and SGUI.IsValid( TabPanel ) then
+						PopulatePanelWithNotifications( TabPanel )
 					end
 				end
 			end )
