@@ -22,6 +22,7 @@ local StringLower = string.lower
 local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
 local ToDebugString = table.ToDebugString
+local tostring = tostring
 local Traceback = debug.traceback
 local xpcall = xpcall
 
@@ -434,6 +435,23 @@ do
 		end
 	end
 
+	local function NotifyInitError( Name, Err )
+		if not Server then return end
+
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.ERROR,
+			Message = {
+				Source = "Core",
+				TranslationKey = "ERROR_PLUGIN_INIT_ERROR",
+				Context = tostring( Err )
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.PLUGIN,
+				ID = Name
+			}
+		} )
+	end
+
 	-- Shared extensions need to be enabled once the server tells it to.
 	function Shine:EnableExtension( Name, DontLoadConfig )
 		Shine.TypeCheck( Name, "string", 1, "EnableExtension" )
@@ -475,6 +493,7 @@ do
 		if Plugin.HasConfig and not DontLoadConfig then
 			local Success, Err = xpcall( Plugin.LoadConfig, OnInitError, Plugin )
 			if not Success then
+				NotifyInitError( Name, Err )
 				return false, StringFormat( "Error while loading config: %s", Err )
 			end
 		end
@@ -486,6 +505,8 @@ do
 			PluginMeta.Cleanup( Plugin )
 
 			MarkAsDisabled( Plugin, FirstEnable )
+
+			NotifyInitError( Name, Loaded )
 
 			return false, StringFormat( "Lua error: %s", Loaded )
 		end
@@ -502,6 +523,7 @@ do
 			Success, Err = xpcall( Plugin.BroadcastModuleEvent, OnInitError, Plugin, "Initialise" )
 
 			if not Success then
+				NotifyInitError( Name, Err )
 				return false, StringFormat( "Lua error: %s", Err )
 			end
 		end
