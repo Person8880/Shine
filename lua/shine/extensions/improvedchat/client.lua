@@ -400,6 +400,8 @@ Plugin.ConfigGroup = {
 }
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	self.ChatTagDefinitions = {}
 	self.ChatTags = {}
 	self.MessagesInTransit = {}
@@ -485,7 +487,7 @@ function Plugin:GetFontSize()
 end
 
 function Plugin:SetChatOffset( Offset )
-	local Panel = self.GUIChat.Panel
+	local Panel = self.GUIChat and self.GUIChat.Panel
 	if not SGUI.IsValid( Panel ) then return end
 
 	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), Offset ) )
@@ -666,7 +668,7 @@ end
 
 -- Replace adding standard messages to use ChatLine elements and the altered display behaviour.
 function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColour, MessageText, IsCommander, IsRookie )
-	if not GUIChat.AddChatLine then return end
+	if not GUIChat.AddChatLine or self.GUIChat ~= GUIChat then return end
 
 	if IsCommander then
 		TagData = {
@@ -693,7 +695,7 @@ function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColo
 end
 
 local function IsVisibleToLocalPlayer( Player, TeamNumber )
-	local PlayerTeam = Player:GetTeamNumber()
+	local PlayerTeam = Player.GetTeamNumber and Player:GetTeamNumber()
 	return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex or PlayerTeam == kTeamReadyRoom
 end
 
@@ -776,7 +778,7 @@ function Plugin:OnChatMessageReceived( Data )
 
 	Hook.Call( "OnChatMessageParsed", Data, Contents )
 
-	self:AddRichTextMessage( {
+	return self:AddRichTextMessage( {
 		Source = {
 			Type = ChatAPI.SourceTypeName.PLAYER,
 			ID = Data.SteamID,
@@ -784,11 +786,15 @@ function Plugin:OnChatMessageReceived( Data )
 		},
 		Message = Contents
 	} )
-
-	return true
 end
 
 function Plugin:AddRichTextMessage( MessageData )
+	if not self.GUIChat then
+		-- This shouldn't happen, but fail gracefully if it does.
+		self.Logger:Warn( "GUIChat not available, unable to display chat message." )
+		return
+	end
+
 	if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
 		local Player = Client.GetLocalPlayer()
 		if Player and not MessageData.SuppressSound and Player.GetChatSound then
@@ -797,6 +803,8 @@ function Plugin:AddRichTextMessage( MessageData )
 
 		Hook.Call( "OnRichTextChatMessageDisplayed", MessageData )
 	end
+
+	return true
 end
 
 do
@@ -945,6 +953,8 @@ function Plugin:Cleanup()
 
 	return self.BaseClass.Cleanup( self )
 end
+
+Shine.LoadPluginModule( "logger.lua", Plugin )
 
 Plugin.ClientConfigSettings = {
 	{
