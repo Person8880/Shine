@@ -124,6 +124,7 @@ UnitTest:Test( "SetupClassHook replaces functions only once", function( Assert )
 	Assert.Equals( "Function returned from SetupClassHook should be the original method", TestFunction, OldFunc )
 
 	local NewHookedFunction = _G[ ClassName ].TestMethod
+	Assert.NotEquals( "Should have replaced the class method", NewHookedFunction, OldFunc )
 
 	-- Hooking the same function twice with the same hook name and mode should do nothing and return
 	-- the original function from the first setup call.

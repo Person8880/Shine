@@ -2,17 +2,24 @@
 	Shine internal hook system.
 ]]
 
+local CodeGen = require "shine/lib/codegen"
+
 local Shine = Shine
 
 local Clamp = math.Clamp
+local DebugGetInfo = debug.getinfo
+local DebugGetMetaTable = debug.getmetatable
 local DebugSetUpValue = debug.setupvalue
 local Floor = math.floor
+local Huge = math.huge
 local IsCallable = Shine.IsCallable
 local IsType = Shine.IsType
-local xpcall = xpcall
+local Max = math.max
 local ReplaceMethod = Shine.ReplaceClassMethod
+local select = select
 local StringExplode = string.Explode
 local StringFormat = string.format
+local xpcall = xpcall
 
 local LinkedList = Shine.LinkedList
 
@@ -28,37 +35,54 @@ local HookNodes = {}
 local HooksByEventAndIndex = {}
 
 local OnError = Shine.BuildErrorHandler( "Hook error" )
+local Hooks
+do
+	-- Use callable tables to avoid creating closures during hook calls.
+	-- This helps to avoid LuaJIT blacklisting the hook call/broadcast functions.
+	local PluginCaller = {
+		__call = function( self, ... )
+			return Shine:CallExtensionEvent( self[ 1 ], OnError, ... )
+		end,
+		__tostring = function( self )
+			return StringFormat( "CallExtensionEvent - %s", self[ 1 ] )
+		end
+	}
+	local PluginBroadcaster = {
+		__call = function( self, ... )
+			return Shine:BroadcastExtensionEvent( self[ 1 ], OnError, ... )
+		end,
+		__tostring = function( self )
+			return StringFormat( "BroadcastExtensionEvent - %s", self[ 1 ] )
+		end
+	}
 
-local Hooks = setmetatable( {}, {
-	-- On first call/addition of an event, setup a default hook to call the event on extensions.
-	__index = function( self, Event )
-		local HooksByIndex = LinkedList()
-		local Node = HooksByIndex:Add( {
-			-- This emulates the old behaviour, placing the event between -20 and -19.
-			-- No client of the public API can set non-integer priorities.
-			Priority = -19.5,
-			Callback = function( ... )
-				return Shine:CallExtensionEvent( Event, OnError, ... )
-			end,
-			BroadcastCallback = function( ... )
-				return Shine:BroadcastExtensionEvent( Event, OnError, ... )
-			end,
-			Index = ExtensionIndex
-		} )
+	Hooks = setmetatable( {}, {
+		-- On first call/addition of an event, setup a default hook to call the event on extensions.
+		__index = function( self, Event )
+			local HooksByIndex = LinkedList()
+			local Node = HooksByIndex:Add( {
+				-- This emulates the old behaviour, placing the event between -20 and -19.
+				-- No client of the public API can set non-integer priorities.
+				Priority = -19.5,
+				Callback = setmetatable( { Event }, PluginCaller ),
+				BroadcastCallback = setmetatable( { Event }, PluginBroadcaster ),
+				Index = ExtensionIndex
+			} )
 
-		HookNodes[ Event ] = {
-			[ ExtensionIndex ] = Node
-		}
-		HooksByEventAndIndex[ Event ] = {
-			[ ExtensionIndex ] = Node.Value.Callback
-		}
+			HookNodes[ Event ] = {
+				[ ExtensionIndex ] = Node
+			}
+			HooksByEventAndIndex[ Event ] = {
+				[ ExtensionIndex ] = Node.Value.Callback
+			}
 
-		-- Save the list on the table to avoid invoking this again.
-		self[ Event ] = HooksByIndex
+			-- Save the list on the table to avoid invoking this again.
+			self[ Event ] = HooksByIndex
 
-		return HooksByIndex
-	end
-} )
+			return HooksByIndex
+		end
+	} )
+end
 
 -- Sort nodes by priority. Equal priority nodes will be placed in insertion order
 -- as the linked list will insert before the first node that is strictly after the
@@ -152,55 +176,94 @@ if not Shine.BroadcastExtensionEvent then
 	Shine.BroadcastExtensionEvent = function() end
 end
 
---[[
-	Calls an internal Shine hook.
-	Inputs: Event name, arguments to pass.
-]]
-local function Call( Event, ... )
-	local Callbacks = Hooks[ Event ]
+local Call
+do
+	-- See the comment in codegen.lua for the reasoning of this seemingly bizarre way of calling hooks.
+	-- In a nutshell, it's to avoid LuaJIT traces aborting with NYI when handling varargs.
+	local Callers = CodeGen.MakeFunctionGenerator( {
+		Template = [[local Shine, Hooks, OnError, Remove = ...
+		return function( Event{Arguments} )
+			local Callbacks = Hooks[ Event ]
 
-	for Node in Callbacks:IterateNodes() do
-		local Entry = Node.Value
-		local Success, a, b, c, d, e, f = xpcall( Entry.Callback, OnError, ... )
-		if not Success then
-			-- If the error came from calling extension events, don't remove the hook
-			-- (though it should never happen).
-			if Entry.Index ~= ExtensionIndex then
-				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-					true, Event, Entry.Index )
+			for Node in Callbacks:IterateNodes() do
+				local Entry = Node.Value
+				local Success, a, b, c, d, e, f = xpcall( Entry.Callback, OnError{Arguments} )
+				if not Success then
+					-- If the error came from calling extension events, don't remove the hook
+					-- (though it should never happen).
+					if Entry.Index ~= ExtensionIndex then
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
+							true, Event, Entry.Index )
 
-				Remove( Event, Entry.Index )
+						Remove( Event, Entry.Index )
+					end
+				elseif a ~= nil then
+					return a, b, c, d, e, f
+				end
 			end
-		elseif a ~= nil then
-			return a, b, c, d, e, f
+		end]],
+		ChunkName = "@lua/shine/core/shared/hook.lua/Call",
+		-- This should equal the largest number of arguments seen by a hook to avoid lazy-generation which can impact
+		-- compilation results.
+		InitialSize = 10,
+		Args = { Shine, Hooks, OnError, Remove },
+		OnFunctionGenerated = function( NumArguments, Caller )
+			Hook[ StringFormat( "CallWith%dArg%s", NumArguments, NumArguments == 1 and "" or "s" ) ] = Caller
 		end
+	} )
+
+	--[[
+		Calls an internal Shine hook.
+		Inputs: Event name, arguments to pass.
+	]]
+	Call = function( Event, ... )
+		-- LuaJIT happily compiles this despite it passing down a vararg, which lets us avoid having to go crazy with
+		-- special case CallWithXArgs everywhere. The performance difference between this and using the specific
+		-- variation is negligible.
+		return Callers[ select( "#", ... ) ]( Event, ... )
 	end
 end
 Hook.Call = Call
 
---[[
-	Broadcasts an internal Shine hook, ignoring return values from callbacks.
+local Broadcast
+do
+	local Broadcasters = CodeGen.MakeFunctionGenerator( {
+		Template = [[local Shine, Hooks, OnError, Remove = ...
+		return function( Event{Arguments} )
+			local Callbacks = Hooks[ Event ]
 
-	This always calls every added callback.
+			for Node in Callbacks:IterateNodes() do
+				local Entry = Node.Value
+				local Success = xpcall( Entry.BroadcastCallback, OnError{Arguments} )
+				if not Success then
+					-- If the error came from calling extension events, don't remove the hook
+					-- (though it should never happen).
+					if Entry.Index ~= ExtensionIndex then
+						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
+							true, Event, Entry.Index )
 
-	Inputs: Event name, arguments to pass.
-]]
-local function Broadcast( Event, ... )
-	local Callbacks = Hooks[ Event ]
-
-	for Node in Callbacks:IterateNodes() do
-		local Entry = Node.Value
-		local Success = xpcall( Entry.BroadcastCallback, OnError, ... )
-		if not Success then
-			-- If the error came from calling extension events, don't remove the hook
-			-- (though it should never happen).
-			if Entry.Index ~= ExtensionIndex then
-				Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-					true, Event, Entry.Index )
-
-				Remove( Event, Entry.Index )
+						Remove( Event, Entry.Index )
+					end
+				end
 			end
+		end]],
+		ChunkName = "@lua/shine/core/shared/hook.lua/Broadcast",
+		InitialSize = 10,
+		Args = { Shine, Hooks, OnError, Remove },
+		OnFunctionGenerated = function( NumArguments, Caller )
+			Hook[ StringFormat( "BroadcastWith%dArg%s", NumArguments, NumArguments == 1 and "" or "s" ) ] = Caller
 		end
+	} )
+
+	--[[
+		Broadcasts an internal Shine hook, ignoring return values from callbacks.
+
+		This always calls every added callback.
+
+		Inputs: Event name, arguments to pass.
+	]]
+	Broadcast = function( Event, ... )
+		return Broadcasters[ select( "#", ... ) ]( Event, ... )
 	end
 end
 Hook.Broadcast = Broadcast
@@ -238,20 +301,61 @@ function Hook.GetTable()
 	return HooksByEventAndIndex
 end
 
+local function GetNumArguments( Func )
+	local Offset = 0
+	if IsType( Func, "table" ) then
+		-- Handle callable tables here too.
+		local Meta = DebugGetMetaTable( Func )
+		if Meta and IsType( Meta.__call, "function" ) then
+			Func = Meta.__call
+			-- __call has a self argument which isn't seen by the caller.
+			Offset = 1
+		else
+			return Huge
+		end
+	end
+
+	Shine.AssertAtLevel( IsType( Func, "function" ), "Attempted to hook a non-function value!", 5 )
+
+	local Info = DebugGetInfo( Func )
+	if not Info or Info.isvararg then
+		return Huge
+	end
+
+	return Max( ( Info.nparams or Huge ) - Offset, 0 )
+end
+
 --[[
 	Replaces the given method in the given class with ReplacementFunc.
 
 	Inputs: Class name, method name, replacement function.
 	Output: Original function.
 ]]
-local function AddClassHook( ReplacementFunc, Class, Method )
-	local OldFunc
+local function AddClassHook( ReplacementFuncTemplate, HookName, Caller, Class, Method )
+	local OldFunc = Shine.GetClassMethod( Class, Method )
+	Shine.AssertAtLevel( OldFunc, "Unknown class/method: %s:%s()", 4, Class, Method )
 
-	OldFunc = ReplaceMethod( Class, Method, function( ... )
-		return ReplacementFunc( OldFunc, ... )
-	end )
+	local NumArguments = GetNumArguments( OldFunc )
+	local ReplacementFunc
+	if not IsType( ReplacementFuncTemplate, "string" ) then
+		ReplacementFunc = CodeGen.GenerateFunctionWithArguments(
+			[[local OldFunc, ReplacementFunc = ...
+			return function( {FunctionArguments} )
+				return ReplacementFunc( OldFunc{Arguments} )
+			end]],
+			NumArguments,
+			"@lua/shine/core/shared/hook.lua/CustomClassHook",
+			OldFunc,
+			ReplacementFuncTemplate
+		)
+	else
+		ReplacementFunc = CodeGen.GenerateFunctionWithArguments(
+			ReplacementFuncTemplate, NumArguments, "@lua/shine/core/shared/hook.lua/ClassHook",
+			HookName, Caller, OldFunc
+		)
+	end
 
-	return OldFunc
+	return ReplaceMethod( Class, Method, ReplacementFunc )
 end
 
 --[[
@@ -260,7 +364,7 @@ end
 	Inputs: Global function name, replacement function.
 	Output: Original function.
 ]]
-local function AddGlobalHook( ReplacementFunc, FuncName )
+local function AddGlobalHook( ReplacementFunc, HookName, Caller, FuncName )
 	local Path = StringExplode( FuncName, ".", true )
 
 	local Func = _G
@@ -277,8 +381,24 @@ local function AddGlobalHook( ReplacementFunc, FuncName )
 		i = i + 1
 	until not Path[ i ]
 
-	Prev[ Path[ i - 1 ] ] = function( ... )
-		return ReplacementFunc( Func, ... )
+	local NumArguments = GetNumArguments( Func )
+	if not IsType( ReplacementFunc, "string" ) then
+		-- Maintain backwards compatibility with custom hook handlers while still helping to remove var-args.
+		Prev[ Path[ i - 1 ] ] = CodeGen.GenerateFunctionWithArguments(
+			[[local OldFunc, ReplacementFunc = ...
+			return function( {FunctionArguments} )
+				return ReplacementFunc( OldFunc{Arguments} )
+			end]],
+			NumArguments,
+			"@lua/shine/core/shared/hook.lua/CustomGlobalHook",
+			Func,
+			ReplacementFunc
+		)
+	else
+		Prev[ Path[ i - 1 ] ] = CodeGen.GenerateFunctionWithArguments(
+			ReplacementFunc, NumArguments, "@lua/shine/core/shared/hook.lua/GlobalHook",
+			HookName, Caller, Func
+		)
 	end
 
 	return Func
@@ -307,61 +427,65 @@ end
 ]]
 local HookModes = {
 	Replace = function( Adder, HookName, ... )
-		return Adder( function( OldFunc, ... )
-			return Call( HookName, ... )
-		end, ... )
+		return Adder( [[local HookName, Call = ...
+			return function( {FunctionArguments} )
+				return Call( HookName{Arguments} )
+			end]], HookName, Call, ... )
 	end,
 	PassivePre = function( Adder, HookName, ... )
-		return Adder( function( OldFunc, ... )
-			Broadcast( HookName, ... )
+		return Adder( [[local HookName, Broadcast, OldFunc = ...
+			return function( {FunctionArguments} )
+				Broadcast( HookName{Arguments} )
 
-			return OldFunc( ... )
-		end, ... )
+				return OldFunc( {FunctionArguments} )
+			end]], HookName, Broadcast, ... )
 	end,
 	PassivePost = function( Adder, HookName, ... )
-		return Adder( function( OldFunc, ... )
-			local a, b, c, d, e, f = OldFunc( ... )
+		return Adder( [[local HookName, Broadcast, OldFunc = ...
+			return function( {FunctionArguments} )
+				local a, b, c, d, e, f = OldFunc( {FunctionArguments} )
 
-			Broadcast( HookName, ... )
+				Broadcast( HookName{Arguments} )
 
-			return a, b, c, d, e, f
-		end, ... )
+				return a, b, c, d, e, f
+			end]], HookName, Broadcast, ... )
 	end,
 
 	ActivePre = function( Adder, HookName, ... )
-		return Adder( function( OldFunc, ... )
-			local a, b, c, d, e, f = Call( HookName, ... )
+		return Adder( [[local HookName, Call, OldFunc = ...
+			return function( {FunctionArguments} )
+				local a, b, c, d, e, f = Call( HookName{Arguments} )
 
-			if a ~= nil then
-				return a, b, c, d, e, f
-			end
+				if a ~= nil then
+					return a, b, c, d, e, f
+				end
 
-			return OldFunc( ... )
-		end, ... )
+				return OldFunc( {FunctionArguments} )
+			end]], HookName, Call, ... )
 	end,
 
 	ActivePost = function( Adder, HookName, ... )
-		return Adder( function( OldFunc, ... )
-			local a, b, c, d, e, f = OldFunc( ... )
+		return Adder( [[local HookName, Call, OldFunc = ...
+			return function( {FunctionArguments} )
+				local a, b, c, d, e, f = OldFunc( {FunctionArguments} )
+				local g, h, i, j, k, l = Call( HookName{Arguments} )
 
-			local g, h, i, j, k, l = Call( HookName, ... )
+				if g ~= nil then
+					return g, h, i, j, k, l
+				end
 
-			if g ~= nil then
-				return g, h, i, j, k, l
-			end
-
-			return a, b, c, d, e, f
-		end, ... )
+				return a, b, c, d, e, f
+			end]], HookName, Call, ... )
 	end,
 
 	Halt = function( Adder, HookName, ... )
-		return Adder( function( OldFunc, ... )
-			local Ret = Call( HookName, ... )
+		return Adder( [[local HookName, Call, OldFunc = ...
+			return function( {FunctionArguments} )
+				local Ret = Call( HookName{Arguments} )
+				if Ret ~= nil then return end
 
-			if Ret ~= nil then return end
-
-			return OldFunc( ... )
-		end, ... )
+				return OldFunc( {FunctionArguments} )
+			end]], HookName, Call, ... )
 	end
 }
 
@@ -424,7 +548,7 @@ local function SetupClassHook( Class, Method, HookName, Mode, Options )
 
 	local OldFunc
 	if IsType( Mode, "function" ) then
-		OldFunc = AddClassHook( Mode, Class, Method )
+		OldFunc = AddClassHook( Mode, HookName, nil, Class, Method )
 	else
 		local HookFunc = HookModes[ Mode ]
 		if not HookFunc then
@@ -463,7 +587,7 @@ local function SetupGlobalHook( FuncName, HookName, Mode, Options )
 
 	local OldFunc
 	if IsType( Mode, "function" ) then
-		OldFunc = AddGlobalHook( Mode, FuncName )
+		OldFunc = AddGlobalHook( Mode, HookName, nil, FuncName )
 	else
 		local HookFunc = HookModes[ Mode ]
 		if not HookFunc then

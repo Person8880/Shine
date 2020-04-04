@@ -485,44 +485,59 @@ function SGUI:AddPostEventAction( Action )
 	self.PostEventActions[ #self.PostEventActions + 1 ] = Action
 end
 
---[[
-	Passes an event to all active SGUI windows.
+do
+	local CodeGen = require "shine/lib/codegen"
+	local select = select
 
-	If an SGUI object is classed as a window, it MUST call all events on its children.
-	Then its children must call their events on their children and so on.
+	local Callers = CodeGen.MakeFunctionGenerator( {
+		Template = [[local OnError, xpcall = ...
+			return function( self, FocusChange, Name{Arguments} )
+				local Windows = self.Windows
+				local WindowCount = #Windows
 
-	Inputs: Event name, arguments.
-]]
-function SGUI:CallEvent( FocusChange, Name, ... )
-	local Windows = SGUI.Windows
-	local WindowCount = #Windows
+				-- The focused window is the last in the list, so we call backwards.
+				for i = WindowCount, 1, -1 do
+					local Window = Windows[ i ]
 
-	--The focused window is the last in the list, so we call backwards.
-	for i = WindowCount, 1, - 1 do
-		local Window = Windows[ i ]
+					if Window and Window[ Name ] and Window:GetIsVisible() then
+						local Success, Result, Control = xpcall( Window[ Name ], OnError, Window{Arguments} )
 
-		if Window and Window[ Name ] and Window:GetIsVisible() then
-			local Success, Result, Control = xpcall( Window[ Name ], OnError, Window, ... )
+						if Success then
+							if Result ~= nil then
+								if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
+									self:SetWindowFocus( Window )
+								end
 
-			if Success then
-				if Result ~= nil then
-					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-						self:SetWindowFocus( Window )
+								self:PostCallEvent( Result, Control )
+
+								return Result, Control
+							end
+						else
+							Window:Destroy()
+						end
 					end
-
-					self:PostCallEvent( Result, Control )
-
-					return Result, Control
 				end
-			else
-				Window:Destroy()
+
+				self:PostCallEvent()
 			end
-		end
+		]],
+		ChunkName = "@lua/shine/lib/gui.lua/SGUI:CallEvent",
+		InitialSize = 2,
+		Args = { OnError, xpcall }
+	} )
+
+	--[[
+		Passes an event to all active SGUI windows.
+
+		If an SGUI object is classed as a window, it MUST call all events on its children.
+		Then its children must call their events on their children and so on.
+
+		Inputs: Event name, arguments.
+	]]
+	function SGUI:CallEvent( FocusChange, Name, ... )
+		return Callers[ select( "#", ... ) ]( self, FocusChange, Name, ... )
 	end
-
-	self:PostCallEvent()
 end
-
 
 do
 	SGUI.MouseObjects = 0

@@ -9,6 +9,18 @@ local SGUI = Shine.GUI
 
 Script.Load( "lua/shine/lib/colour.lua" )
 
+UnitTest:Test( "IsColour - Returns true for a colour object", function( Assert )
+	Assert.True( "Should return true for a colour object", SGUI.IsColour( Colour( 1, 1, 1 ) ) )
+end )
+
+UnitTest:Test( "IsColour - Returns false for a different cdata type", function( Assert )
+	Assert.False( "Should return false for a vector object", SGUI.IsColour( Vector( 1, 1, 1 ) ) )
+end )
+
+UnitTest:Test( "IsColour - Returns false for a non-cdata type", function( Assert )
+	Assert.False( "Should return false for a non-cdata object", SGUI.IsColour( "not a colour" ) )
+end )
+
 local function AssertColoursEqual( Assert, A, B )
 	Assert.Equals( "Red values must match", A.r, B.r )
 	Assert.Equals( "Green values must match", A.g, B.g )

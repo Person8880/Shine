@@ -8,18 +8,32 @@ Colour = Color --I'm British, I can't stand writing Color.
 local Colour = Colour
 
 local Floor = math.floor
-local getmetatable = getmetatable
 local Max = math.max
 local Min = math.min
+local type = type
 
-local ColourMetatable = getmetatable( Colour( 0, 0, 0 ) )
+local IsColour
+do
+	local FFILoaded, FFI = pcall( require, "ffi" )
+	if FFILoaded and FFI and FFI.istype then
+		local Success, PassedCheck = pcall( FFI.istype, "Color", Colour( 1, 1, 1 ) )
+		if Success and PassedCheck then
+			local IsType = FFI.istype
+			IsColour = function( Colour ) return IsType( "Color", Colour ) end
+		end
+	end
+
+	if not IsColour then
+		-- This is more risky as cdata can be anything.
+		IsColour = function( Colour ) return Colour:isa( "Color" ) end
+	end
+end
 
 --[[
 	Determines if the passed in object is a colour.
 ]]
 function SGUI.IsColour( Object )
-	-- Apparently vectors and colours share the same metatable...
-	return getmetatable( Object ) == ColourMetatable and Object.r
+	return type( Object ) == "cdata" and IsColour( Object )
 end
 
 --[[

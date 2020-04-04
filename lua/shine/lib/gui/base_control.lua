@@ -2,6 +2,8 @@
 	Base SGUI control. All controls inherit from this.
 ]]
 
+local CodeGen = require "shine/lib/codegen"
+
 local SGUI = Shine.GUI
 local ControlMeta = SGUI.BaseControl
 local Set = Shine.Set
@@ -12,6 +14,7 @@ local IsType = Shine.IsType
 local IsGUIItemValid = debug.isvalid
 local Max = math.max
 local pairs = pairs
+local select = select
 local StringFormat = string.format
 local TableNew = require "table.new"
 local TableRemoveByValue = table.RemoveByValue
@@ -421,26 +424,37 @@ function ControlMeta:SetTopLevelWindow( Window )
 	end
 end
 
---[[
-	Calls an SGUI event on every child of the object.
+do
+	local Callers = CodeGen.MakeFunctionGenerator( {
+		Template = [[return function( self, Name{Arguments} )
+				if not self.Children then return nil end
 
-	Ignores children with the _CallEventsManually flag.
-]]
-function ControlMeta:CallOnChildren( Name, ... )
-	if not self.Children then return nil end
+				-- Call the event on every child of this object in the order they were added.
+				for Child in self.Children:Iterate() do
+					if Child[ Name ] and not Child._CallEventsManually then
+						local Result, Control = Child[ Name ]( Child{Arguments} )
 
-	--Call the event on every child of this object in the order they were added.
-	for Child in self.Children:Iterate() do
-		if Child[ Name ] and not Child._CallEventsManually then
-			local Result, Control = Child[ Name ]( Child, ... )
+						if Result ~= nil then
+							return Result, Control
+						end
+					end
+				end
 
-			if Result ~= nil then
-				return Result, Control
+				return nil
 			end
-		end
-	end
+		]],
+		ChunkName = "@lua/shine/lib/gui/base_control.lua/ControlMeta:CallOnChildren",
+		InitialSize = 2
+	} )
 
-	return nil
+	--[[
+		Calls an SGUI event on every child of the object.
+
+		Ignores children with the _CallEventsManually flag.
+	]]
+	function ControlMeta:CallOnChildren( Name, ... )
+		return Callers[ select( "#", ... ) ]( self, Name, ... )
+	end
 end
 
 function ControlMeta:ForEach( TableKey, MethodName, ... )

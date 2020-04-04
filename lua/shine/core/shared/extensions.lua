@@ -625,6 +625,9 @@ local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
 
 do
+	local CodeGen = require "shine/lib/codegen"
+	local select = select
+
 	Dispatcher = Shine.EventDispatcher( AllPluginsArray )
 
 	function Dispatcher:GetListener( PluginName )
@@ -635,27 +638,39 @@ do
 		return Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" )
 	end
 
-	function Dispatcher:CallEvent( Plugin, Method, OnError, Event, ... )
-		local Success, a, b, c, d, e, f = xpcall( Method, OnError, Plugin, ... )
+	local Callers = CodeGen.MakeFunctionGenerator( {
+		Template = [[local Shine, xpcall = ...
+			return function( Plugin, Method, OnError, Event{Arguments} )
+				local Success, a, b, c, d, e, f = xpcall( Method, OnError, Plugin{Arguments} )
 
-		if not Success then
-			Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
-			Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
-				true, Event, Plugin.__Name, Plugin.__HookErrors )
+				if not Success then
+					Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+					Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
+						true, Event, Plugin.__Name, Plugin.__HookErrors )
 
-			if Plugin.__HookErrors >= 10 then
-				Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
-					true, Plugin.__Name, Plugin.__HookErrors )
+					if Plugin.__HookErrors >= 10 then
+						Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
+							true, Plugin.__Name, Plugin.__HookErrors )
 
-				Plugin.__HookErrors = 0
+						Plugin.__HookErrors = 0
 
-				Shine:UnloadExtension( Plugin.__Name )
+						Shine:UnloadExtension( Plugin.__Name )
+					end
+
+					return nil
+				end
+
+				return a, b, c, d, e, f
 			end
+		]],
+		ChunkName = "lua/shine/core/shared/extensions.lua/Dispatcher:CallEvent",
+		-- This should match the value used in the hook system.
+		InitialSize = 10,
+		Args = { Shine, xpcall }
+	} )
 
-			return nil
-		end
-
-		return a, b, c, d, e, f
+	function Dispatcher:CallEvent( Plugin, Method, OnError, Event, ... )
+		return Callers[ select( "#", ... ) ]( Plugin, Method, OnError, Event, ... )
 	end
 
 	--[[

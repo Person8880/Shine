@@ -3,7 +3,10 @@
 	on a list of tables which may or may not have a callback for it.
 ]]
 
+local CodeGen = require "shine/lib/codegen"
+
 local IsType = Shine.IsType
+local select = select
 local TableEmpty = table.Empty
 
 local EventDispatcher = Shine.TypeDef()
@@ -70,6 +73,21 @@ function EventDispatcher:GetListenersForEvent( Event )
 	return Listeners
 end
 
+local Dispatchers = CodeGen.MakeFunctionGenerator( {
+	Template = [[return function( self, Event{Arguments} )
+			local Listeners = self:GetListenersForEvent( Event )
+			for i = 1, Listeners.Count do
+				local a, b, c, d, e, f = self:CallEvent( Listeners[ i ], Listeners[ i ][ Event ]{Arguments} )
+				if a ~= nil then
+					return a, b, c, d, e, f
+				end
+			end
+		end
+	]],
+	ChunkName = "@lua/shine/lib/objects/event_dispatcher.lua/DispatchEvent",
+	InitialSize = 12
+} )
+
 --[[
 	Dispatches an event to all listeners that are listening for it.
 
@@ -77,14 +95,20 @@ end
 	Subsequent calls use the cached list until the cache is flushed.
 ]]
 function EventDispatcher:DispatchEvent( Event, ... )
-	local Listeners = self:GetListenersForEvent( Event )
-	for i = 1, Listeners.Count do
-		local a, b, c, d, e, f = self:CallEvent( Listeners[ i ], Listeners[ i ][ Event ], ... )
-		if a ~= nil then
-			return a, b, c, d, e, f
-		end
-	end
+	return Dispatchers[ select( "#", ... ) ]( self, Event, ... )
 end
+
+local Broadcasters = CodeGen.MakeFunctionGenerator( {
+	Template = [[return function( self, Event{Arguments} )
+			local Listeners = self:GetListenersForEvent( Event )
+			for i = 1, Listeners.Count do
+				self:CallEvent( Listeners[ i ], Listeners[ i ][ Event ]{Arguments} )
+			end
+		end
+	]],
+	ChunkName = "@lua/shine/lib/objects/event_dispatcher.lua/BroadcastEvent",
+	InitialSize = 12
+} )
 
 --[[
 	Broadcasts an event to all listeners that are listening for it.
@@ -93,10 +117,7 @@ end
 	from continuing. All listeners are guaranteed to receive the event.
 ]]
 function EventDispatcher:BroadcastEvent( Event, ... )
-	local Listeners = self:GetListenersForEvent( Event )
-	for i = 1, Listeners.Count do
-		self:CallEvent( Listeners[ i ], Listeners[ i ][ Event ], ... )
-	end
+	return Broadcasters[ select( "#", ... ) ]( self, Event, ... )
 end
 
 --[[
