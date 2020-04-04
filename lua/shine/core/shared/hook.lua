@@ -340,6 +340,9 @@ local function AddClassHook( ReplacementFuncTemplate, HookName, Caller, Class, M
 	local NumArguments = GetNumArguments( OldFunc )
 	local ReplacementFunc
 	if not IsType( ReplacementFuncTemplate, "string" ) then
+		-- Allow custom handlers to add extra arguments (taking 1 less as the first argument is OldFunc).
+		NumArguments = Max( NumArguments, GetNumArguments( ReplacementFuncTemplate ) - 1 )
+
 		ReplacementFunc = CodeGen.GenerateFunctionWithArguments(
 			[[local OldFunc, ReplacementFunc = ...
 			return function( {FunctionArguments} )
@@ -394,6 +397,9 @@ local function AddGlobalHook( ReplacementFunc, HookName, Caller, FuncName )
 
 	local NumArguments = GetNumArguments( Func )
 	if not IsType( ReplacementFunc, "string" ) then
+		-- Allow custom handlers to add extra arguments (taking 1 less as the first argument is OldFunc).
+		NumArguments = Max( NumArguments, GetNumArguments( ReplacementFunc ) - 1 )
+
 		-- Maintain backwards compatibility with custom hook handlers while still helping to remove var-args.
 		Prev[ Path[ NumSegments ] ] = CodeGen.GenerateFunctionWithArguments(
 			[[local OldFunc, ReplacementFunc = ...

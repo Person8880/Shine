@@ -131,7 +131,11 @@ UnitTest:Test( "SetupGlobalHook - Handles nested global values", function( Asser
 		[ FunctionName ] = TestFunction
 	}
 
-	local OldFunc = Hook.SetupGlobalHook( NestedName.."."..FunctionName, "Test", "PassivePost" )
+	-- Having more arguments in the replacement should mean the hooked function has 4 parameters.
+	local OldFunc = Hook.SetupGlobalHook( NestedName.."."..FunctionName, "Test", function( OldFunc, Arg1, Arg2, Arg3, Arg4 )
+		OldFunc( Arg1, Arg2, Arg3, Arg4 )
+		Hook.Broadcast( "Test", Arg1, Arg2, Arg3, Arg4 )
+	end )
 	Assert.Equals( "Function returned from SetupGlobalHook should be the nested global value", TestFunction, OldFunc )
 
 	local NewHookedFunction = _G[ NestedName ][ FunctionName ]
@@ -141,11 +145,11 @@ UnitTest:Test( "SetupGlobalHook - Handles nested global values", function( Asser
 	local Callback = UnitTest.MockFunction()
 	Hook.Add( "Test", Callback )
 
-	-- Ignores the 4th argument as the original function had only 3.
-	NewHookedFunction( 1, 2, 3, 4 )
+	-- Ignores the 5th argument as the number of arguments is the max of the original and replacement.
+	NewHookedFunction( 1, 2, 3, 4, 5 )
 
 	Assert.DeepEquals( "Calling the replaced function should run the hook", {
-		{ ArgCount = 3, 1, 2, 3 }
+		{ ArgCount = 4, 1, 2, 3, 4 }
 	}, Callback.Invocations )
 end )
 
@@ -162,7 +166,11 @@ UnitTest:Test( "SetupClassHook - Replaces functions only once", function( Assert
 	local TestFunction = function( self ) end
 	_G[ ClassName ].TestMethod = TestFunction
 
-	local OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", "PassivePost" )
+	local function Handler( OldFunc, self, Arg1 )
+		OldFunc( self )
+		Hook.Broadcast( "TestClassTestMethod", self, Arg1 )
+	end
+	local OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", Handler )
 	Assert.Equals( "Function returned from SetupClassHook should be the original method", TestFunction, OldFunc )
 
 	local NewHookedFunction = _G[ ClassName ].TestMethod
@@ -171,18 +179,19 @@ UnitTest:Test( "SetupClassHook - Replaces functions only once", function( Assert
 
 	-- Hooking the same function twice with the same hook name and mode should do nothing and return
 	-- the original function from the first setup call.
-	OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", "PassivePost" )
+	OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", Handler )
 	Assert.Equals( "Function returned from SetupClassHook should still be the original method", TestFunction, OldFunc )
 	Assert.Equals( "Class method should be unchanged", NewHookedFunction, _G[ ClassName ].TestMethod )
 
 	local Callback = UnitTest.MockFunction()
 	Hook.Add( "TestClassTestMethod", Callback )
 
+	-- Should pass through 2 arguments, as that's the max of the original and replacement functions.
 	local Arg = {}
-	NewHookedFunction( Arg )
+	NewHookedFunction( Arg, 1, 2 )
 
 	Assert.DeepEquals( "Calling the replaced function should run the hook", {
-		{ ArgCount = 1, Arg }
+		{ ArgCount = 2, Arg, 1 }
 	}, Callback.Invocations )
 end )
 
