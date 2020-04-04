@@ -315,9 +315,7 @@ local function GetNumArguments( Func )
 		end
 	end
 
-	Shine.AssertAtLevel( IsType( Func, "function" ), "Attempted to hook a non-function value!", 5 )
-
-	local Info = DebugGetInfo( Func )
+	local Info = IsType( Func, "function" ) and DebugGetInfo( Func )
 	if not Info or Info.isvararg then
 		return Huge
 	end
@@ -333,7 +331,11 @@ end
 ]]
 local function AddClassHook( ReplacementFuncTemplate, HookName, Caller, Class, Method )
 	local OldFunc = Shine.GetClassMethod( Class, Method )
-	Shine.AssertAtLevel( OldFunc, "Unknown class/method: %s:%s()", 4, Class, Method )
+	if not OldFunc then
+		-- For backwards compatibility's sake, just print a warning here and do nothing.
+		Print( "[Shine] [Warn] Attempted to hook class/method %s:%s() which does not exist!", Class, Method )
+		return nil
+	end
 
 	local NumArguments = GetNumArguments( OldFunc )
 	local ReplacementFunc
@@ -368,23 +370,32 @@ local function AddGlobalHook( ReplacementFunc, HookName, Caller, FuncName )
 	local Path = StringExplode( FuncName, ".", true )
 
 	local Func = _G
-	local i = 1
+	local NumSegments = #Path
 	local Prev
 
-	repeat
+	for i = 1, NumSegments do
 		Prev = Func
 		Func = Func[ Path[ i ] ]
 
 		-- Doesn't exist!
-		if not Func then return nil end
+		if not Func then
+			Print( "[Shine] [Warn] Attempted to hook global value %s which does not exist!", FuncName )
+			return nil
+		end
+	end
 
-		i = i + 1
-	until not Path[ i ]
+	if not Shine.IsCallable( Func ) then
+		-- Ideally this should throw an error, but there may be cases where old code hooks a non-callable global
+		-- value and throwing here would break it.
+		Print(
+			"[Shine] [Warn] Hooking global value %s which is not callable (type: %s)!", FuncName, type( Func )
+		)
+	end
 
 	local NumArguments = GetNumArguments( Func )
 	if not IsType( ReplacementFunc, "string" ) then
 		-- Maintain backwards compatibility with custom hook handlers while still helping to remove var-args.
-		Prev[ Path[ i - 1 ] ] = CodeGen.GenerateFunctionWithArguments(
+		Prev[ Path[ NumSegments ] ] = CodeGen.GenerateFunctionWithArguments(
 			[[local OldFunc, ReplacementFunc = ...
 			return function( {FunctionArguments} )
 				return ReplacementFunc( OldFunc{Arguments} )
@@ -395,7 +406,7 @@ local function AddGlobalHook( ReplacementFunc, HookName, Caller, FuncName )
 			ReplacementFunc
 		)
 	else
-		Prev[ Path[ i - 1 ] ] = CodeGen.GenerateFunctionWithArguments(
+		Prev[ Path[ NumSegments ] ] = CodeGen.GenerateFunctionWithArguments(
 			ReplacementFunc, NumArguments, "@lua/shine/core/shared/hook.lua/GlobalHook",
 			HookName, Caller, Func
 		)

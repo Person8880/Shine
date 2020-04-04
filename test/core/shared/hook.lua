@@ -93,7 +93,7 @@ Hook.Clear( "Test" )
 
 local FunctionName = "TestFunction"..os.time()
 
-UnitTest:Test( "SetupGlobalHook replaces functions only once", function( Assert )
+UnitTest:Test( "SetupGlobalHook - Replaces functions only once", function( Assert )
 	local TestFunction = function() end
 
 	_G[ FunctionName ] = TestFunction
@@ -102,22 +102,64 @@ UnitTest:Test( "SetupGlobalHook replaces functions only once", function( Assert 
 	Assert.Equals( "Function returned from SetupGlobalHook should be the global value", TestFunction, OldFunc )
 
 	local NewHookedFunction = _G[ FunctionName ]
+	Assert.NotEquals( "Should have replaced the global value", NewHookedFunction, OldFunc )
+	Assert.IsType( "Should have replaced the global value with a function", NewHookedFunction, "function" )
 
 	-- Hooking the same function twice with the same hook name and mode should do nothing and return
 	-- the original function from the first setup call.
 	OldFunc = Hook.SetupGlobalHook( FunctionName, "Test", "PassivePost" )
 	Assert.Equals( "Function returned from SetupGlobalHook should still be the global value", TestFunction, OldFunc )
 	Assert.Equals( "Global function should be unchanged", NewHookedFunction, _G[ FunctionName ] )
+
+	local Callback = UnitTest.MockFunction()
+	Hook.Add( "Test", Callback )
+
+	NewHookedFunction()
+
+	Assert.DeepEquals( "Calling the replaced function should run the hook", {
+		{ ArgCount = 0 }
+	}, Callback.Invocations )
 end )
 
+Hook.Clear( "Test" )
+
+local NestedName = "TestHolder"..os.time()
+
+UnitTest:Test( "SetupGlobalHook - Handles nested global values", function( Assert )
+	local TestFunction = function( Arg1, Arg2, Arg3 ) end
+	_G[ NestedName ] = {
+		[ FunctionName ] = TestFunction
+	}
+
+	local OldFunc = Hook.SetupGlobalHook( NestedName.."."..FunctionName, "Test", "PassivePost" )
+	Assert.Equals( "Function returned from SetupGlobalHook should be the nested global value", TestFunction, OldFunc )
+
+	local NewHookedFunction = _G[ NestedName ][ FunctionName ]
+	Assert.NotEquals( "Should have replaced the nested global value", NewHookedFunction, OldFunc )
+	Assert.IsType( "Should have replaced the nested global value with a function", NewHookedFunction, "function" )
+
+	local Callback = UnitTest.MockFunction()
+	Hook.Add( "Test", Callback )
+
+	-- Ignores the 4th argument as the original function had only 3.
+	NewHookedFunction( 1, 2, 3, 4 )
+
+	Assert.DeepEquals( "Calling the replaced function should run the hook", {
+		{ ArgCount = 3, 1, 2, 3 }
+	}, Callback.Invocations )
+end )
+
+Hook.Clear( "Test" )
+
+_G[ NestedName ] = nil
 _G[ FunctionName ] = nil
 
 local ClassName = "HookTestClass"..os.time()
 
-UnitTest:Test( "SetupClassHook replaces functions only once", function( Assert )
+UnitTest:Test( "SetupClassHook - Replaces functions only once", function( Assert )
 	class( ClassName )
 
-	local TestFunction = function() end
+	local TestFunction = function( self ) end
 	_G[ ClassName ].TestMethod = TestFunction
 
 	local OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", "PassivePost" )
@@ -125,12 +167,25 @@ UnitTest:Test( "SetupClassHook replaces functions only once", function( Assert )
 
 	local NewHookedFunction = _G[ ClassName ].TestMethod
 	Assert.NotEquals( "Should have replaced the class method", NewHookedFunction, OldFunc )
+	Assert.IsType( "Should have replaced the class method with a function", NewHookedFunction, "function" )
 
 	-- Hooking the same function twice with the same hook name and mode should do nothing and return
 	-- the original function from the first setup call.
 	OldFunc = Hook.SetupClassHook( ClassName, "TestMethod", "TestClassTestMethod", "PassivePost" )
 	Assert.Equals( "Function returned from SetupClassHook should still be the original method", TestFunction, OldFunc )
 	Assert.Equals( "Class method should be unchanged", NewHookedFunction, _G[ ClassName ].TestMethod )
+
+	local Callback = UnitTest.MockFunction()
+	Hook.Add( "TestClassTestMethod", Callback )
+
+	local Arg = {}
+	NewHookedFunction( Arg )
+
+	Assert.DeepEquals( "Calling the replaced function should run the hook", {
+		{ ArgCount = 1, Arg }
+	}, Callback.Invocations )
 end )
+
+Hook.Clear( "TestClassTestMethod" )
 
 _G[ ClassName ] = nil
