@@ -181,7 +181,7 @@ do
 	-- See the comment in codegen.lua for the reasoning of this seemingly bizarre way of calling hooks.
 	-- In a nutshell, it's to avoid LuaJIT traces aborting with NYI when handling varargs.
 	local Callers = CodeGen.MakeFunctionGenerator( {
-		Template = [[local Shine, Hooks, OnError, Remove = ...
+		Template = [[local Shine, Hooks, OnError, Remove, ExtensionIndex = ...
 		return function( Event{Arguments} )
 			local Callbacks = Hooks[ Event ]
 
@@ -206,7 +206,7 @@ do
 		-- This should equal the largest number of arguments seen by a hook to avoid lazy-generation which can impact
 		-- compilation results.
 		InitialSize = 10,
-		Args = { Shine, Hooks, OnError, Remove },
+		Args = { Shine, Hooks, OnError, Remove, ExtensionIndex },
 		OnFunctionGenerated = function( NumArguments, Caller )
 			Hook[ StringFormat( "CallWith%dArg%s", NumArguments, NumArguments == 1 and "" or "s" ) ] = Caller
 		end
@@ -228,7 +228,7 @@ Hook.Call = Call
 local Broadcast
 do
 	local Broadcasters = CodeGen.MakeFunctionGenerator( {
-		Template = [[local Shine, Hooks, OnError, Remove = ...
+		Template = [[local Shine, Hooks, OnError, Remove, ExtensionIndex = ...
 		return function( Event{Arguments} )
 			local Callbacks = Hooks[ Event ]
 
@@ -249,7 +249,7 @@ do
 		end]],
 		ChunkName = "@lua/shine/core/shared/hook.lua/Broadcast",
 		InitialSize = 10,
-		Args = { Shine, Hooks, OnError, Remove },
+		Args = { Shine, Hooks, OnError, Remove, ExtensionIndex },
 		OnFunctionGenerated = function( NumArguments, Caller )
 			Hook[ StringFormat( "BroadcastWith%dArg%s", NumArguments, NumArguments == 1 and "" or "s" ) ] = Caller
 		end
