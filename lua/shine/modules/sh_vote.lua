@@ -15,7 +15,7 @@ if Server then
 	function Module:ResetVoteCounters()
 		self.dt.CurrentVotes = 0
 		self.dt.RequiredVotes = 0
-		self:SendNetworkMessage( nil, "HasVoted", { HasVoted = false }, true )
+		self:NotifyVoteReset( nil )
 	end
 
 	function Module:UpdateVoteCounters( VoteObject )
@@ -27,6 +27,10 @@ if Server then
 		self:SendNetworkMessage( Client, "HasVoted", { HasVoted = true }, true )
 	end
 
+	function Module:NotifyVoteReset( Client )
+		self:SendNetworkMessage( Client, "HasVoted", { HasVoted = false }, true )
+	end
+
 	if UseStandardBehaviour then
 		local Ceil = math.ceil
 		local next = next
@@ -35,12 +39,16 @@ if Server then
 
 		Shine.LoadPluginModule( "vote.lua", Plugin )
 
+		local FractionKey = Plugin.FractionConfigKey or "PercentNeeded"
+
 		Module.DefaultConfig = {
-			BlockUntilSecondsIntoMap = 0,
 			VoteTimeoutInSeconds = 60,
-			PercentNeeded = 0.6,
+			[ FractionKey ] = 0.6,
 			NotifyOnVote = true
 		}
+		if not Plugin.UseCustomVoteTiming then
+			Module.DefaultConfig.BlockUntilSecondsIntoMap = 0
+		end
 
 		function Module:Initialise()
 			assert( Shine.IsCallable( self.OnVotePassed ), "Plugin has not provided OnVotePassed method" )
@@ -66,7 +74,7 @@ if Server then
 
 		function Module:GetVotesNeeded()
 			local PlayerCount = self:GetPlayerCountForVote()
-			return Ceil( PlayerCount * self.Config.PercentNeeded )
+			return Ceil( PlayerCount * self.Config[ FractionKey ] )
 		end
 
 		function Module:ClientConnect( Client )
@@ -128,10 +136,11 @@ if Server then
 					return
 				end
 
-				if self.Vote:HasSucceededOnLastVote() then return end
+				local Succeeded = self.Vote:HasSucceededOnLastVote()
+				if Succeeded and not self.ShowLastVote then return end
 
 				local MessageParams = self:GetVoteNotificationParams()
-				MessageParams.VotesNeeded = self.Vote:GetVotesNeeded()
+				MessageParams.VotesNeeded = Succeeded and 0 or self.Vote:GetVotesNeeded()
 
 				if self.Config.NotifyOnVote then
 					MessageParams.PlayerName = PlayerName
@@ -140,8 +149,10 @@ if Server then
 					self:SendTranslatedNotify( Client, "PLAYER_VOTED_PRIVATE", MessageParams )
 				end
 
-				self:UpdateVoteCounters( self.Vote )
-				self:NotifyVoted( Client )
+				if not Succeeded then
+					self:UpdateVoteCounters( self.Vote )
+					self:NotifyVoted( Client )
+				end
 			end, true ):Help( self.VoteCommand.Help )
 		end
 	end

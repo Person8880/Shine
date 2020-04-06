@@ -43,7 +43,7 @@ UnitTest:Test( "Removing votes", function( Assert )
 	Assert.Equals( "Expected one more vote required to pass", 1, Vote:GetVotesNeeded() )
 	Assert.False( "Vote should not have passed yet", Success )
 
-	Vote:RemoveVote( 1 )
+	Assert.True( "Should have removed client 1's vote", Vote:RemoveVote( 1 ) )
 
 	Assert.False( "Client 1 should not have voted", Vote:GetHasClientVoted( 1 ) )
 	Assert.Equals( "Expected vote count to be reset", 0, Vote:GetVotes() )
@@ -51,7 +51,7 @@ UnitTest:Test( "Removing votes", function( Assert )
 	Assert.False( "Vote should not have passed yet", Success )
 
 	-- Removing the vote again should do nothing.
-	Vote:RemoveVote( 1 )
+	Assert.False( "Should not have removed a non-existent vote", Vote:RemoveVote( 1 ) )
 
 	Assert.Equals( "Expected vote count to be reset", 0, Vote:GetVotes() )
 	Assert.Equals( "Expected two more vote required to pass", 2, Vote:GetVotesNeeded() )
