@@ -35,6 +35,18 @@ Plugin.DefaultConfig = {
 	}
 }
 
+do
+	local Validator = Shine.Validator()
+
+	Validator:AddFieldRule( "FractionNeededToPass", Validator.Clamp( 0, 1 ) )
+	Validator:AddFieldRule( "EnableAfterRoundStartMinutes", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "VoteTimeoutInSeconds", Validator.Min( 0 ) )
+	Validator:CheckTypesAgainstDefault( "VoteSettings", Plugin.DefaultConfig.VoteSettings )
+	Validator:AddFieldRule( "VoteSettings.AFKTimeInSeconds", Validator.Min( 0 ) )
+
+	Plugin.ConfigValidator = Validator
+end
+
 -- Show all votes to draw the game, even the last that triggers it.
 Plugin.ShowLastVote = true
 Plugin.VoteCommand = {
