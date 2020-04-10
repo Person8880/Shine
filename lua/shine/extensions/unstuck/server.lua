@@ -7,7 +7,7 @@ local Shine = Shine
 local Ceil = math.ceil
 
 local Plugin = ...
-Plugin.Version = "1.1"
+Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "Unstuck.json"
@@ -15,10 +15,12 @@ Plugin.ConfigName = "Unstuck.json"
 Plugin.DefaultConfig = {
 	-- The distance around the player to check for a valid location.
 	DistanceToCheck = 6,
+	-- The maximum distance from the original position a player is allowed to be when unsticking occurs.
+	MovementToleranceDistance = 0.5,
 	-- The time between successful unstick requests (in seconds).
-	TimeBetweenUse = 30,
+	TimeBetweenUseInSeconds = 30,
 	-- The minimum time to wait between unstick requests (in seconds).
-	MinTime = 5,
+	MinTimeInSeconds = 5,
 	-- How long to wait before moving a player (forces them to be stationary for this time).
 	DelayBeforeMovingInSeconds = 0
 }
@@ -27,6 +29,16 @@ Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
 Plugin.PrintName = "Unstuck"
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.2",
+		Apply = Shine.Migrator()
+			:RenameField( "TimeBetweenUse", "TimeBetweenUseInSeconds" )
+			:RenameField( "MinTime", "MinTimeInSeconds" )
+			:AddField( "MovementToleranceDistance", Plugin.DefaultConfig.MovementToleranceDistance )
+	}
+}
 
 function Plugin:Initialise()
 	self.NextUsageTimes = {}
@@ -105,23 +117,18 @@ function Plugin:UnstickPlayer( Player, Pos )
 		return false
 	end
 
+	local Filter = EntityFilterAll()
 	local Height, Radius = GetTraceCapsuleFromExtents( Bounds )
-
-	local SpawnPoint
-	local ResourceNear
-	local i = 1
-
 	local Range = self.Config.DistanceToCheck
+	local SpawnPoint
 
-	repeat
-		SpawnPoint = GetRandomSpawnForCapsule( Height, Radius, Pos, 2, Range, EntityFilterAll() )
+	for i = 1, 10 do
+		SpawnPoint = GetRandomSpawnForCapsule( Height, Radius, Pos, 2, Range, Filter )
 
-		if SpawnPoint then
-			ResourceNear = #GetEntitiesWithinRange( "ResourcePoint", SpawnPoint, 2 ) > 0
+		if SpawnPoint and #GetEntitiesWithinRange( "ResourcePoint", SpawnPoint, 2 ) == 0 then
+			break
 		end
-
-		i = i + 1
-	until not ResourceNear or i > 100
+	end
 
 	if SpawnPoint then
 		Player:SetOrigin( SpawnPoint )
@@ -177,23 +184,30 @@ function Plugin:CreateCommands()
 			end
 
 			local CurrentOrigin = Player:GetOrigin()
-			if CurrentOrigin ~= InitialOrigin then
+			local Distance = CurrentOrigin:GetDistance( InitialOrigin )
+			if Distance > self.Config.MovementToleranceDistance then
 				self:NotifyTranslatedError( Client, "ERROR_MOVED" )
 				return
 			end
 
-			local Success = self:UnstickPlayer( Player, CurrentOrigin )
+			-- Use an origin that's not at the player's feet to avoid the search for a spawnpoint thinking small objects
+			-- on the ground are walls between the player and a valid location.
+			local SpawnPointOrigin = CurrentOrigin + Player:GetCoords().yAxis * Player:GetViewOffset().y
+			local TraceResult = Shared.TraceRay(
+				CurrentOrigin, SpawnPointOrigin, CollisionRep.Move, PhysicsMask.AllButPCs, EntityFilterAll()
+			)
 
+			local Success = self:UnstickPlayer( Player, TraceResult.endPoint )
 			if Success then
 				self:NotifyTranslated( Client, "SUCCESS" )
 
-				self.NextUsageTimes[ Client ] = Time + self.Config.TimeBetweenUse
+				self.NextUsageTimes[ Client ] = Time + self.Config.TimeBetweenUseInSeconds
 			else
 				self:SendTranslatedError( Client, "ERROR_FAIL", {
-					TimeLeft = Ceil( self.Config.MinTime )
+					TimeLeft = Ceil( self.Config.MinTimeInSeconds )
 				} )
 
-				self.NextUsageTimes[ Client ] = Time + self.Config.MinTime
+				self.NextUsageTimes[ Client ] = Time + self.Config.MinTimeInSeconds
 			end
 		end
 
