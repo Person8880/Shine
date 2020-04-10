@@ -136,25 +136,14 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		MaxChatWidth = Value * 0.01
 	end )
 
-	-- Ensure easing functions are loaded.
-	Script.Load( "lua/tweener/Tweener.lua" )
+	local Easing = require "shine/lib/gui/util/easing"
 
 	-- Fade fast to avoid making text hard to read.
-	local OutExpo = Easing.outExpo
-	local function FadingEase( Progress )
-		return OutExpo( Progress, 0, 1, 1 )
-	end
-
-	local InExpo = Easing.inExpo
-	local function FadingInEase( Progress )
-		return InExpo( Progress, 0, 1, 1 )
-	end
+	local FadingEase = Easing.GetEaser( "OutExpo" )
+	local FadingInEase = Easing.GetEaser( "InExpo" )
 
 	-- Move more smoothly to avoid sudden jumps.
-	local OutSine = Easing.outSine
-	local function MovementEase( Progress )
-		return OutSine( Progress, 0, 1, 1 )
-	end
+	local MovementEase = Easing.GetEaser( "OutSine" )
 
 	local AnimDuration = 0.25
 	local function IsAnimationEnabled( self )
