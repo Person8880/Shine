@@ -19,7 +19,8 @@ function ColourLabel:Initialise()
 	self.IsVertical = false
 
 	self.Background = self:MakeGUIItem()
-	self.Background:SetColor( Colour( 0, 0, 0, 0 ) )
+	self.Background:SetShader( SGUI.Shaders.Invisible )
+	self.Background:SetColor( Colour( 1, 1, 1, 1 ) )
 end
 
 function ColourLabel:MakeVertical()
@@ -60,22 +61,12 @@ function ColourLabel:SetShadow( Params )
 	self:ForEach( "Labels", "SetShadow", Params )
 end
 
-function ColourLabel:AlphaTo( ... )
-	self:ForEach( "Labels", "AlphaTo", ... )
-end
-
 function ColourLabel:SetText( TextContent )
 	local Easing
 	if #self.Labels > 0 then
 		for i = 1, #self.Labels do
 			local Label = self.Labels[ i ]
-			local LabelAlphaEase = Label:GetEasing( "Alpha" )
-			if LabelAlphaEase and not Easing then
-				Easing = LabelAlphaEase
-			end
 			Label:Destroy()
-
-			self.Layout.Elements[ i ] = nil
 			self.Labels[ i ] = nil
 		end
 	end
@@ -98,15 +89,11 @@ function ColourLabel:SetText( TextContent )
 		Label:SetFontScale( self.Font, self.TextScale )
 		Label:SetText( Text )
 		Label:SetColour( SGUI.CopyColour( Colour ) )
+		Label:SetInheritsParentAlpha( true )
 		self.Layout:AddElement( Label )
 
 		Count = Count + 1
 		self.Labels[ Count ] = Label
-	end
-
-	if Easing and Easing.Elapsed < Easing.Duration then
-		self:AlphaTo( nil, Easing.Start, Easing.End, -Easing.Elapsed, Easing.Duration, Easing.Callback,
-			Easing.EaseFunc, Easing.Power )
 	end
 end
 
