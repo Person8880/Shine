@@ -830,6 +830,10 @@ function ControlMeta:SetAlpha( Alpha )
 	self.Background:SetColor( Colour )
 end
 
+function ControlMeta:GetAlpha()
+	return self.Background:GetColor().a
+end
+
 function ControlMeta:GetTextureWidth()
 	return self.Background:GetTextureWidth()
 end
