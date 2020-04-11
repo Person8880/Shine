@@ -1458,7 +1458,7 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 					Easings:Remove( Element )
 
 					if EasingData.Callback then
-						EasingData.Callback( Element )
+						EasingData.Callback( self, Element )
 					end
 				end
 			end
@@ -1961,12 +1961,16 @@ function ControlMeta:ShowTooltip( MouseX, MouseY )
 	self.Tooltip = Tooltip
 end
 
-function ControlMeta:HideTooltip()
-	if not SGUI.IsValid( self.Tooltip ) then return end
-
-	self.Tooltip:FadeOut( function()
+do
+	local function OnTooltipHidden( self )
 		self.Tooltip = nil
-	end )
+	end
+
+	function ControlMeta:HideTooltip()
+		if not SGUI.IsValid( self.Tooltip ) then return end
+
+		self.Tooltip:FadeOut( OnTooltipHidden, self )
+	end
 end
 
 function ControlMeta:SetHighlighted( Highlighted, SkipAnim )

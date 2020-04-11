@@ -32,8 +32,9 @@ do
 	local Vector = Vector
 
 	-- A little easier than having to always include that 0 z value.
+	-- The return is wrapped to avoid a tail-call which doesn't compile.
 	function Vector2( X, Y )
-		return Vector( X, Y, 0 )
+		return ( Vector( X, Y, 0 ) )
 	end
 end
 
@@ -1189,12 +1190,13 @@ SGUI.NotifyFocusChange = NotifyFocusChange
 
 local GetCursorPosScreen = Client.GetCursorPosScreen
 function SGUI.GetCursorPos()
-	return GetCursorPosScreen()
+	local X, Y = GetCursorPosScreen()
+	return X, Y
 end
 
 local GetMouseVisible = Client.GetMouseVisible
 function SGUI.IsMouseVisible()
-	return GetMouseVisible()
+	return ( GetMouseVisible() )
 end
 
 local ScrW = Client.GetScreenWidth

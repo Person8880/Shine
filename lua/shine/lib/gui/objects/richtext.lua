@@ -151,8 +151,14 @@ function RichText:PerformWrapping()
 		TextScale = self.TextScale
 	} )
 
+	local OldW, OldH = self.WrappedWidth, self.WrappedHeight
+
 	self:ApplyLines( WrappedLines )
 	self.ComputedWrapping = true
+
+	if OldW ~= self.WrappedWidth or OldH ~= self.WrappedHeight then
+		self:OnPropertyChanged( "Size", Vector2( self.WrappedWidth, self.WrappedHeight ) )
+	end
 end
 
 local function MakeElementFromPool( self, Class )

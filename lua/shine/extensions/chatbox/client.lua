@@ -1122,7 +1122,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 		Expanded = false
 	end
 
-	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.25, function( Panel )
+	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.25, function()
 		SettingsButton.Expanded = Expanded
 
 		if Expanded then
@@ -1188,7 +1188,7 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	end
 end
 
-function Plugin:AddMessageFromPopulator( Populator, ... )
+function Plugin:AddMessageFromPopulator( Populator, Context )
 	if not SGUI.IsValid( self.MainPanel ) then
 		self:CreateChatbox()
 
@@ -1222,7 +1222,7 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 	ChatLine:SetFontScale( Font, Scale )
 	ChatLine:SetLineSpacing( LineMargin )
 
-	Populator( ChatLine, ... )
+	Populator( ChatLine, Context )
 
 	self.ChatBox.Layout:AddElement( ChatLine )
 
@@ -1232,14 +1232,12 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 end
 
 do
-	local function AddMessageFromRichText( ChatLine, Contents, ShowTimestamps )
-		ChatLine:SetContent( Contents, ShowTimestamps )
+	local function AddMessageFromRichText( ChatLine, Contents )
+		ChatLine:SetContent( Contents, Plugin.Config.ShowTimestamps )
 	end
 
 	function Plugin:AddMessageFromRichText( MessageData )
-		return self:AddMessageFromPopulator(
-			AddMessageFromRichText, MessageData.Message, self.Config.ShowTimestamps
-		)
+		return self:AddMessageFromPopulator( AddMessageFromRichText, MessageData.Message )
 	end
 end
 
@@ -1255,9 +1253,16 @@ end
 
 do
 	local IntToColour
-
-	local function AddSimpleChatMessage( ChatLine, ... )
-		ChatLine:SetMessage( ... )
+	local BasicMessageContext = {}
+	local function AddSimpleChatMessage( ChatLine, Context )
+		ChatLine:SetMessage(
+			Context.TagData,
+			Context.PlayerColour,
+			Context.PlayerName,
+			Context.MessageColour,
+			Context.MessageText,
+			Plugin.Config.ShowTimestamps
+		)
 	end
 
 	--[[
@@ -1267,11 +1272,11 @@ do
 
 		Messages with multiple colours can be added through the chat API.
 	]]
-	function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+	function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageText, TagData )
 		-- Don't add anything if one of the elements is the wrong type. Default chat will error instead.
 		if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
 		or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
-		or not IsType( MessageName, "string" ) then
+		or not IsType( MessageText, "string" ) then
 			return
 		end
 
@@ -1282,10 +1287,13 @@ do
 			PlayerColour = IntToColour( PlayerColour )
 		end
 
-		self:AddMessageFromPopulator(
-			AddSimpleChatMessage, TagData, PlayerColour, PlayerName, MessageColour, MessageName,
-			self.Config.ShowTimestamps
-		)
+		BasicMessageContext.PlayerColour = PlayerColour
+		BasicMessageContext.PlayerName = PlayerName
+		BasicMessageContext.MessageColour = MessageColour
+		BasicMessageContext.MessageText = MessageText
+		BasicMessageContext.TagData = TagData
+
+		self:AddMessageFromPopulator( AddSimpleChatMessage, BasicMessageContext )
 	end
 end
 
@@ -1415,12 +1423,7 @@ do
 			local LabelRow = Elements[ i ]
 			if not Results[ i ] or ( i > 1 and Results.ParameterIndex and not ResultsAreForCorrectArgument ) then
 				if LabelRow then
-					FadeOutTransition.Callback = function()
-						if not LabelRow then return end
-
-						LabelRow:Destroy()
-						LabelRow = nil
-					end
+					FadeOutTransition.Callback = LabelRow.Destroy
 					LabelRow:ApplyTransition( FadeOutTransition )
 				end
 			else

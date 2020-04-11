@@ -158,21 +158,33 @@ function ChatLine:MakeVisible()
 	end
 end
 
+local function OnFadeOutDelayPassed( Timer )
+	local Data = Timer.Data
+
+	local ChatLineInstance = Data.ChatLine
+	if not SGUI.IsValid( ChatLineInstance ) then return end
+
+	ChatLineInstance.FadeOutTimer = nil
+
+	if not ChatLineInstance.Parent:GetIsVisible() then
+		-- Skip fading if currently invisible.
+		return Data.OnComplete()
+	end
+
+	ChatLineInstance:FadeOut( Data.Duration, Data.OnComplete, Data.Easer )
+end
+
 function ChatLine:FadeOutIn( Delay, Duration, OnComplete, Easer )
 	if self.FadeOutTimer then
 		self.FadeOutTimer:Destroy()
 	end
 
-	self.FadeOutTimer = Shine.Timer.Simple( Delay, function()
-		self.FadeOutTimer = nil
-
-		if not self.Parent:GetIsVisible() then
-			-- Skip fading if currently invisible.
-			return OnComplete()
-		end
-
-		self:FadeOut( Duration, OnComplete, Easer )
-	end )
+	self.FadeOutTimer = Shine.Timer.Simple( Delay, OnFadeOutDelayPassed, {
+		ChatLine = self,
+		Duration = Duration,
+		OnComplete = OnComplete,
+		Easer = Easer
+	} )
 end
 
 function ChatLine:FadeOut( Duration, OnComplete, Easer )

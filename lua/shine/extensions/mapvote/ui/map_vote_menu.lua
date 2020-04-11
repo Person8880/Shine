@@ -487,22 +487,25 @@ function MapVoteMenu:FadeIn()
 	end
 end
 
+local function OnFadeOutComplete( self )
+	self:SetIsVisible( false )
+	self.FadingOut = false
+	self:OnClose()
+	if self.FadeOutCallback then
+		-- Call after Think exits to avoid destroying GUIItems that are in use.
+		SGUI:AddPostEventAction( self.FadeOutCallback )
+	end
+end
+
 function MapVoteMenu:FadeOut( Callback )
 	self.FadingOut = true
+	self.FadeOutCallback = Callback
 
 	self:ApplyTransition( {
 		Type = "Alpha",
 		EndValue = 0,
 		Duration = 0.3,
-		Callback = function()
-			self:SetIsVisible( false )
-			self.FadingOut = false
-			self:OnClose()
-			if Callback then
-				-- Call after Think exits to avoid destroying GUIItems that are in use.
-				SGUI:AddPostEventAction( Callback )
-			end
-		end
+		Callback = OnFadeOutComplete
 	} )
 end
 

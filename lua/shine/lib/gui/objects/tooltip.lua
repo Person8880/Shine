@@ -101,20 +101,24 @@ function Tooltip:FadeIn()
 	self:FadeTo( self.Background, Start, End, 0, 0.2 )
 end
 
-function Tooltip:FadeOut( Callback )
+local function OnFadeOutComplete( self )
+	if self.FadeOutCallback then
+		self.FadeOutCallback( self.FadeOutCallbackContext )
+	end
+	self:Destroy()
+end
+
+function Tooltip:FadeOut( Callback, Context )
 	if self.FadingOut then return end
 
 	self.FadingOut = true
+	self.FadeOutCallback = Callback
+	self.FadeOutCallbackContext = Context
 
 	local Start = self.Background:GetColor()
 	local End = SGUI.ColourWithAlpha( Start, 0 )
 
-	self:FadeTo( self.Background, Start, End, 0, 0.2, function()
-		if Callback then
-			Callback()
-		end
-		self:Destroy()
-	end )
+	self:FadeTo( self.Background, Start, End, 0, 0.2, OnFadeOutComplete )
 end
 
 function Tooltip:OnLoseWindowFocus()

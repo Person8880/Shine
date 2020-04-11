@@ -156,45 +156,59 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:Reset()
 	end
 
-	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
-		return function()
-			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
-				return
-			end
+	local FadeOutCallback = Shine.TypeDef()
+	function FadeOutCallback:Init( GUIChat, ChatLine, PaddingAmount )
+		self.GUIChat = GUIChat
+		self.ChatLine = ChatLine
+		self.PaddingAmount = PaddingAmount
+		return self
+	end
 
-			ResetChatLine( ChatLine )
+	function FadeOutCallback:__call()
+		local ChatLine = self.ChatLine
+		local GUIChat = self.GUIChat
+		local PaddingAmount = self.PaddingAmount
 
-			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
-				-- Move remaining messages upwards to fill in the gap.
-				local YOffset = 0
-				local ShouldAnimate = IsAnimationEnabled( self )
-
-				for i = 1, #self.ChatLines do
-					local ChatLine = self.ChatLines[ i ]
-					local Pos = ChatLine:GetPos()
-					Pos.y = YOffset
-
-					if ShouldAnimate then
-						ChatLine:ApplyTransition( {
-							Type = "Move",
-							EndValue = Pos,
-							Duration = AnimDuration,
-							EasingFunction = MovementEase
-						} )
-					else
-						ChatLine:SetPos( Pos )
-					end
-
-					YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
-				end
-			else
-				-- Update local message positions and re-position the container panel downward to account for the
-				-- lost message.
-				UpdateUpwardsMessagePositions( self, PaddingAmount )
-			end
-
-			self.ChatLinePool[ #self.ChatLinePool + 1 ] = ChatLine
+		if not TableRemoveByValue( GUIChat.ChatLines, ChatLine ) then
+			return
 		end
+
+		ResetChatLine( ChatLine )
+
+		if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
+			-- Move remaining messages upwards to fill in the gap.
+			local YOffset = 0
+			local ShouldAnimate = IsAnimationEnabled( GUIChat )
+
+			for i = 1, #GUIChat.ChatLines do
+				local ChatLine = GUIChat.ChatLines[ i ]
+				local Pos = ChatLine:GetPos()
+				Pos.y = YOffset
+
+				if ShouldAnimate then
+					ChatLine:ApplyTransition( {
+						Type = "Move",
+						EndValue = Pos,
+						Duration = AnimDuration,
+						EasingFunction = MovementEase
+					} )
+				else
+					ChatLine:SetPos( Pos )
+				end
+
+				YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
+			end
+		else
+			-- Update local message positions and re-position the container panel downward to account for the
+			-- lost message.
+			UpdateUpwardsMessagePositions( GUIChat, PaddingAmount )
+		end
+
+		GUIChat.ChatLinePool[ #GUIChat.ChatLinePool + 1 ] = ChatLine
+	end
+
+	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
+		return FadeOutCallback( self, ChatLine, PaddingAmount )
 	end
 
 	local function RemoveLineIfOffScreen( Line, Index, self )
@@ -221,6 +235,15 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 	end
 
+	local RemoveOffscreenLinesCallback = Shine.TypeDef()
+	function RemoveOffscreenLinesCallback:Init( GUIChat )
+		self.GUIChat = GUIChat
+		return self
+	end
+	function RemoveOffscreenLinesCallback:__call()
+		RemoveOffscreenLines( self.GUIChat )
+	end
+
 	local function AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate )
 		local NewLineHeight = ChatLine:GetSize().y
 		local YOffset = 0
@@ -244,7 +267,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 				EndValue = MessagePanelPos,
 				Duration = AnimDuration,
 				EasingFunction = MovementEase,
-				Callback = function() RemoveOffscreenLines( self ) end
+				Callback = RemoveOffscreenLinesCallback( self )
 			} )
 		else
 			self.MessagePanel:SetPos( MessagePanelPos )
@@ -289,7 +312,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 	local BackgroundTexture = PrecacheAsset "ui/shine/chat_bg.dds"
 
-	function ChatElement:AddChatLine( Populator, ... )
+	function ChatElement:AddChatLine( Populator, Context )
 		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.MessagePanel )
 
 		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
@@ -302,7 +325,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:SetTextScale( Scale )
 		ChatLine:SetLineSpacing( LineMargin )
 
-		Populator( ChatLine, ... )
+		Populator( ChatLine, Context )
 
 		if not ChatLine:HasVisibleElements() then
 			-- Avoid displaying empty messages.
@@ -569,12 +592,14 @@ function Plugin:ReceiveResetChatTag( Message )
 	self.ChatTags[ Message.SteamID ] = nil
 end
 
-local function PopulateFromBasicMessage( ChatLine, PlayerColour, PlayerName, MessageColour, MessageText, TagData )
+local BasicMessageContext = {}
+local function PopulateFromBasicMessage( ChatLine, Context )
+	local PlayerColour = Context.PlayerColour
 	if IsType( PlayerColour, "number" ) then
 		PlayerColour = IntToColour( PlayerColour )
 	end
 
-	ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageText )
+	ChatLine:SetMessage( Context.TagData, PlayerColour, Context.PlayerName, Context.MessageColour, Context.MessageText )
 end
 
 function Plugin:SetupGUIChat( ChatElement )
@@ -633,14 +658,13 @@ function Plugin:SetupGUIChat( ChatElement )
 			MessageText = StringFormat( "%s\n%s", MessageText, Message.Message2:GetText() )
 		end
 
-		ChatElement:AddChatLine(
-			PopulateFromBasicMessage,
-			Message.Player:GetColor(),
-			Message.Player:GetText(),
-			Message.Message:GetColor(),
-			MessageText,
-			TagData
-		)
+		BasicMessageContext.PlayerColour = Message.Player:GetColor()
+		BasicMessageContext.PlayerName = Message.Player:GetText()
+		BasicMessageContext.MessageColour = Message.Message:GetColor()
+		BasicMessageContext.MessageText = MessageText
+		BasicMessageContext.TagData = TagData
+
+		ChatElement:AddChatLine( PopulateFromBasicMessage, BasicMessageContext )
 	end
 end
 
@@ -676,7 +700,13 @@ function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColo
 		}
 	end
 
-	GUIChat:AddChatLine( PopulateFromBasicMessage, PlayerColour, PlayerName, MessageColour, MessageText, TagData )
+	BasicMessageContext.PlayerColour = PlayerColour
+	BasicMessageContext.PlayerName = PlayerName
+	BasicMessageContext.MessageColour = MessageColour
+	BasicMessageContext.MessageText = MessageText
+	BasicMessageContext.TagData = TagData
+
+	GUIChat:AddChatLine( PopulateFromBasicMessage, BasicMessageContext )
 
 	Hook.Call( "OnChatMessageDisplayed", PlayerColour, PlayerName, MessageColour, MessageText, TagData )
 

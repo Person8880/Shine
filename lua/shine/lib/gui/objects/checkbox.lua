@@ -78,9 +78,7 @@ function CheckBox:SetChecked( Value, DontFade )
 		if DontFade then
 			self.Box:SetColor( self.BoxCol )
 		else
-			self:FadeTo( self.Box, self.BoxHideCol, self.BoxCol, 0, 0.1, function( Box )
-				Box:SetColor( self.BoxCol )
-			end )
+			self:FadeTo( self.Box, self.BoxHideCol, self.BoxCol, 0, 0.1 )
 		end
 
 		self:OnChecked( true )
@@ -94,9 +92,7 @@ function CheckBox:SetChecked( Value, DontFade )
 	if DontFade then
 		self.Box:SetColor( self.BoxHideCol )
 	else
-		self:FadeTo( self.Box, self.BoxCol, self.BoxHideCol, 0, 0.1, function( Box )
-			Box:SetColor( self.BoxHideCol )
-		end )
+		self:FadeTo( self.Box, self.BoxCol, self.BoxHideCol, 0, 0.1 )
 	end
 
 	self:OnChecked( false )
