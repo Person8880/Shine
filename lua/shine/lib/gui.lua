@@ -477,22 +477,19 @@ end
 
 local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
-function SGUI:PostCallEvent( Result, Control )
-	local PostEventActions = self.PostEventActions
-	if not PostEventActions then return end
+SGUI.PostEventActions = {}
 
+function SGUI:PostCallEvent( Result, Control )
+	self.CallingEvent = nil
+
+	local PostEventActions = self.PostEventActions
 	for i = 1, #PostEventActions do
 		xpcall( PostEventActions[ i ], OnError, Result, Control )
+		PostEventActions[ i ] = nil
 	end
-
-	self.PostEventActions = nil
 end
 
 function SGUI:AddPostEventAction( Action )
-	if not self.PostEventActions then
-		self.PostEventActions = {}
-	end
-
 	self.PostEventActions[ #self.PostEventActions + 1 ] = Action
 end
 
@@ -505,6 +502,8 @@ do
 			return function( self, FocusChange, Name{Arguments} )
 				local Windows = self.Windows
 				local WindowCount = #Windows
+
+				self.CallingEvent = Name
 
 				-- The focused window is the last in the list, so we call backwards.
 				for i = WindowCount, 1, -1 do
@@ -1058,6 +1057,17 @@ do
 	end
 
 	local OnCallOnRemoveError = Shine.BuildErrorHandler( "SGUI CallOnRemove callback error" )
+	local DestructionAction = Shine.TypeDef()
+	function DestructionAction:Init( Control )
+		self.Control = Control
+		return self
+	end
+
+	function DestructionAction:__call()
+		if SGUI.IsValid( self.Control ) then
+			self.Control:Destroy()
+		end
+	end
 
 	--[[
 		Destroys an SGUI control.
@@ -1067,6 +1077,13 @@ do
 		Input: SGUI control object.
 	]]
 	function SGUI:Destroy( Control )
+		if self.CallingEvent then
+			-- Wait until after the running event to destroy the control. This avoids needing loads of validity checks
+			-- in event code paths.
+			self:AddPostEventAction( DestructionAction( Control ) )
+			return
+		end
+
 		if Control.Parent then
 			Control:SetParent( nil )
 		end
