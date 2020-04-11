@@ -78,7 +78,7 @@ end
 
 function Scrollbar:SetSize( Size )
 	self.Size = Size
-	self.Background:SetSize( Size )
+	self.BaseClass.SetSize( self, Size )
 
 	self:UpdateScrollBarSize()
 end

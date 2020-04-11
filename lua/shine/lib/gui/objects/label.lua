@@ -26,6 +26,7 @@ do
 		self.CachedTextWidth = nil
 		self.CachedTextHeight = nil
 		self.NeedsTextSizeRefresh = true
+		self:InvalidateMouseState()
 	end
 
 	local function SetupElementForFontName( self, Font )
@@ -86,8 +87,8 @@ do
 	end
 end
 
-function Label:MouseIn( Element, Mult, MaxX, MaxY )
-	return self:MouseInControl( Mult, MaxX, MaxY )
+function Label:MouseIn( Element, Mult )
+	return self:MouseInControl( Mult )
 end
 
 local AlignmentMultipliers = {

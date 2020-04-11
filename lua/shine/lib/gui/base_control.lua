@@ -59,6 +59,9 @@ function ControlMeta:Initialise()
 	self.UseScheme = true
 	self.PropagateSkin = true
 	self.Stencilled = false
+
+	self.MouseHasEntered = false
+	self.MouseStateIsInvalid = false
 end
 
 --[[
@@ -809,8 +812,13 @@ end
 function ControlMeta:SetSize( SizeVec )
 	if not self.Background then return end
 
+	local OldSize = self.Background:GetSize()
+	if OldSize == SizeVec then return end
+
 	self.Background:SetSize( SizeVec )
 	self:InvalidateLayout()
+	self:InvalidateMouseState()
+	self:OnPropertyChanged( "Size", SizeVec )
 end
 
 --[[
@@ -1087,10 +1095,15 @@ end
 
 	Controls may override this.
 ]]
-function ControlMeta:SetPos( Vec )
+function ControlMeta:SetPos( Pos )
 	if not self.Background then return end
 
-	self.Background:SetPosition( Vec )
+	local OldPos = self.Background:GetPosition()
+	if Pos == OldPos then return end
+
+	self.Background:SetPosition( Pos )
+	self:InvalidateMouseState()
+	self:OnPropertyChanged( "Pos", Pos )
 end
 
 function ControlMeta:GetPos()
@@ -1230,7 +1243,18 @@ do
 	-- We call this so many times it really needs to be local, not global.
 	local GetCursorPos = SGUI.GetCursorPos
 
-	local function IsInBox( Pos, Size, Mult, MaxX, MaxY )
+	local function IsInBox( BoxW, BoxH, X, Y )
+		return X >= 0 and X < BoxW and Y >= 0 and Y < BoxH
+	end
+
+	local function IsInElementBox( ElementPos, ElementSize )
+		local X, Y = GetCursorPos()
+		X = X - ElementPos.x
+		Y = Y - ElementPos.y
+		return IsInBox( ElementSize.x, ElementSize.y, X, Y ), X, Y, ElementSize, ElementPos
+	end
+
+	local function ApplyMultiplier( Size, Mult )
 		if Mult then
 			if IsType( Mult, "number" ) then
 				Size = Size * Mult
@@ -1239,23 +1263,26 @@ do
 				Size.y = Size.y * Mult.y
 			end
 		end
+		return Size
+	end
 
-		MaxX = MaxX or Size.x
-		MaxY = MaxY or Size.y
+	--[[
+		Gets whether the mouse cursor is inside the given bounds, relative to the given GUIItem.
 
-		local X, Y = GetCursorPos()
-
-		local InX = X >= Pos.x and X < Pos.x + MaxX
-		local InY = Y >= Pos.y and Y < Pos.y + MaxY
-
-		local PosX = X - Pos.x
-		local PosY = Y - Pos.y
-
-		if InX and InY then
-			return true, PosX, PosY, Size, Pos
-		end
-
-		return false, PosX, PosY
+		Inputs:
+			1. Element to check.
+			2. Width of the bounding box.
+			3. Height of the bounding box.
+		Outputs:
+			1. Boolean value to indicate whether the mouse is inside.
+			2. X position of the mouse relative to the element.
+			3. Y position of the mouse relative to the element.
+			4. The size of the bounding box used.
+			5. The element's absolute screen position.
+	]]
+	function ControlMeta:MouseInBounds( Element, BoundsW, BoundsH )
+		local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
+		return IsInElementBox( Pos, Vector2( BoundsW, BoundsH ) )
 	end
 
 	--[[
@@ -1265,35 +1292,42 @@ do
 		Inputs:
 			1. Element to check.
 			2. Multiplier value to increase/reduce the size of the bounding box.
-			3. X value to override the width of the bounding box.
-			4. Y value to override the height of the bounding box.
 		Outputs:
 			1. Boolean value to indicate whether the mouse is inside.
 			2. X position of the mouse relative to the element.
 			3. Y position of the mouse relative to the element.
-			4. If the mouse is inside, the size of the bounding box used.
-			5. If the mouse is inside, the element's absolute screen position.
+			4. The size of the bounding box used.
+			5. The element's absolute screen position.
 	]]
-	function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
+	function ControlMeta:MouseIn( Element, Mult )
 		if not Element then return end
 
 		local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
 		local Size = Element:GetScaledSize()
 
-		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
+		return IsInElementBox( Pos, ApplyMultiplier( Size, Mult ) )
 	end
 
 	--[[
-		Similar to MouseIn, but uses the control's native GetScreenPos and GetSize instead
+		Gets the bounds to use when checking whether the mouse is in a control.
+
+		Override this to change how mouse enter/leave detection works.
+	]]
+	function ControlMeta:GetMouseBounds()
+		return self:GetSize()
+	end
+
+	--[[
+		Similar to MouseIn, but uses the control's native GetScreenPos and GetMouseBounds instead
 		of a GUIItem's.
 
 		Useful for controls whose size/position does not match a GUIItem directly.
 	]]
-	function ControlMeta:MouseInControl( Mult, MaxX, MaxY )
+	function ControlMeta:MouseInControl( Mult )
 		local Pos = self:GetScreenPos()
-		local Size = self:GetSize()
+		local Size = self:GetMouseBounds()
 
-		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
+		return IsInElementBox( Pos, ApplyMultiplier( Size, Mult ) )
 	end
 
 	function ControlMeta:MouseInCached()
@@ -1307,7 +1341,7 @@ do
 			local CachedResult = self.__LastMouseInCheck
 			if not CachedResult then
 				CachedResult = TableNew( 5, 0 )
-				self.__LastMouseInCheckFrame = CachedResult
+				self.__LastMouseInCheck = CachedResult
 			end
 
 			CachedResult[ 1 ] = In
@@ -1417,6 +1451,10 @@ function ControlMeta:HandleEasing( Time, DeltaTime )
 					EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
 				else
 					EasingHandler.Setter( self, Element, EasingData.End, EasingData )
+					if EasingHandler.OnComplete then
+						EasingHandler.OnComplete( self, Element, EasingData )
+					end
+
 					Easings:Remove( Element )
 
 					if EasingData.Callback then
@@ -1477,10 +1515,12 @@ local Easers = {
 		end,
 		Setter = function( self, Element, Pos )
 			Element:SetPosition( Pos )
-			self:HandleHightlighting()
 		end,
 		Getter = function( self, Element )
 			return Element:GetPosition()
+		end,
+		OnComplete = function( self, Element, EasingData )
+			self:InvalidateMouseState()
 		end
 	}, "Move" ),
 	Size = Easer( {
@@ -1493,6 +1533,11 @@ local Easers = {
 		end,
 		Getter = function( self, Element )
 			return Element:GetSize()
+		end,
+		OnComplete = function( self, Element, EasingData )
+			if Element == self.Background then
+				self:InvalidateMouseState()
+			end
 		end
 	}, "Size" ),
 	Scale = Easer( {
@@ -1522,7 +1567,14 @@ function ControlMeta:StopEasing( Element, EasingHandler )
 	local Easers = self.EasingProcesses:Get( EasingHandler )
 	if not Easers then return end
 
-	Easers:Remove( Element or self.Background )
+	Element = Element or self.Background
+
+	local EasingData = Easers:Get( Element )
+	if EasingData and EasingHandler.OnComplete then
+		EasingHandler.OnComplete( self, Element, EasingData )
+	end
+
+	Easers:Remove( Element )
 end
 
 local function AddEaseFunc( EasingData, EaseFunc, Power )
@@ -1718,17 +1770,10 @@ do
 			1. Boolean should hightlight.
 			2. Muliplier to the element's size when determining if the mouse is in the element.
 	]]
-	function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
+	function ControlMeta:SetHighlightOnMouseOver( HighlightOnMouseOver, TextureMode )
 		local WasHighlightOnMouseOver = self.HighlightOnMouseOver
 
-		self.HighlightOnMouseOver = not not Bool
-		self.HighlightMult = Mult
-		self.TextureHighlight = TextureMode
-
-		if not Bool and not self.ForceHighlight then
-			self:SetHighlighted( false, true )
-			self:StopFade( self.Background )
-		end
+		self.HighlightOnMouseOver = not not HighlightOnMouseOver
 
 		if not WasHighlightOnMouseOver and self.HighlightOnMouseOver then
 			self.HandleHightlighting = HandleHightlighting
@@ -1736,6 +1781,18 @@ do
 		elseif WasHighlightOnMouseOver and not self.HighlightOnMouseOver then
 			self.HandleHightlighting = NoOpHighlighting
 			self:RemovePropertyChangeListener( "IsVisible", HandleHighlightOnVisibilityChange )
+		end
+
+		if not HighlightOnMouseOver then
+			if not self.ForceHighlight then
+				self:SetHighlighted( false, true )
+				self:StopFade( self.Background )
+			end
+
+			self.TextureHighlight = TextureMode
+		else
+			self.TextureHighlight = TextureMode
+			self:HandleHightlighting()
 		end
 	end
 end
@@ -1798,10 +1855,7 @@ do
 	function ControlMeta:HandleHovering( Time )
 		if not self.OnHover then return end
 
-		local MouseIn, X, Y
-		if self:GetIsVisible() then
-			MouseIn, X, Y = self:MouseInCached()
-		end
+		local MouseIn = self:HasMouseEntered() and self:GetIsVisible()
 
 		-- If the mouse is in this object, and our window is in focus (i.e. not obstructed by a higher window)
 		-- then consider the object hovered.
@@ -1811,6 +1865,8 @@ do
 			else
 				if Time - self.MouseHoverStart > ( self.HoverTime or DEFAULT_HOVER_TIME ) and not self.MouseHovered then
 					self.MouseHovered = true
+
+					local _, X, Y = self:MouseInCached()
 					self:OnHover( X, Y )
 				end
 			end
@@ -1850,6 +1906,7 @@ function ControlMeta:Think( DeltaTime )
 	self:HandleEasing( Time, DeltaTime )
 	self:HandleHovering( Time )
 	self:HandleLayout( DeltaTime )
+	self:HandleMouseState()
 end
 
 function ControlMeta:ThinkWithChildren( DeltaTime )
@@ -1951,7 +2008,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 end
 
 function ControlMeta:ShouldHighlight()
-	return self:GetIsVisible() and self:MouseIn( self.Background, self.HighlightMult )
+	return self:GetIsVisible() and self:MouseInCached()
 end
 
 function ControlMeta:SetForceHighlight( ForceHighlight, SkipAnim )
@@ -1995,11 +2052,75 @@ function ControlMeta:OnMouseWheel( Down )
 	if Result ~= nil then return true end
 end
 
+function ControlMeta:HasMouseEntered()
+	return self.MouseHasEntered
+end
+
+--[[
+	Called when the mouse cursor has entered the control.
+
+	The result of the MouseInControl method determines when this occurs.
+]]
+function ControlMeta:OnMouseEnter()
+
+end
+
+--[[
+	Called when the mouse cursor has left the control.
+
+	The result of the MouseInControl method determines when this occurs.
+]]
+function ControlMeta:OnMouseLeave()
+
+end
+
+function ControlMeta:InvalidateMouseState( Now )
+	self.MouseStateIsInvalid = true
+	if Now then
+		self:HandleMouseState()
+	end
+end
+
+function ControlMeta:HandleMouseState()
+	if not self.MouseStateIsInvalid or not SGUI.IsMouseVisible() then return end
+
+	self:EvaluateMouseState()
+	self:CallOnChildren( "OnMouseMove", false )
+end
+
+function ControlMeta:EvaluateMouseState()
+	local IsMouseIn = self:MouseInCached()
+	local StateChanged = false
+
+	if IsMouseIn and not self.MouseHasEntered then
+		StateChanged = true
+
+		self.MouseHasEntered = true
+		self:HandleHightlighting()
+		self:OnMouseEnter()
+	elseif not IsMouseIn and self.MouseHasEntered then
+		-- Need to let children see the mouse exit themselves too.
+		StateChanged = true
+
+		self.MouseHasEntered = false
+		self:HandleHightlighting()
+		self:OnMouseLeave()
+	end
+
+	self.MouseStateIsInvalid = false
+
+	return IsMouseIn, StateChanged
+end
+
 function ControlMeta:OnMouseMove( Down )
 	if not self:GetIsVisible() then return end
 
-	self:CallOnChildren( "OnMouseMove", Down )
-	self:HandleHightlighting()
+	self.__LastMouseMove = SGUI.FrameNumber()
+
+	local IsMouseIn, StateChanged = self:EvaluateMouseState()
+	if IsMouseIn or StateChanged then
+		self:CallOnChildren( "OnMouseMove", Down )
+	end
 end
 
 --[[

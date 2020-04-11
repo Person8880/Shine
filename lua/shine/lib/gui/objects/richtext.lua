@@ -31,6 +31,7 @@ function RichText:SetFont( Font )
 
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
+	self:InvalidateMouseState()
 end
 
 function RichText:SetTextScale( Scale )
@@ -40,6 +41,7 @@ function RichText:SetTextScale( Scale )
 
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
+	self:InvalidateMouseState()
 end
 
 function RichText:PerformLayout()
@@ -56,6 +58,7 @@ function RichText:SetSize( Size )
 	self.MaxWidth = MaxWidth
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
+	self:InvalidateMouseState()
 end
 
 function RichText:GetComputedSize( Index, ParentSize )
@@ -120,12 +123,14 @@ function RichText:SetContent( Contents )
 	self.Lines = self:ParseContents( Contents )
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
+	self:InvalidateMouseState()
 end
 
 function RichText:RestoreFromLines( Lines )
 	self.Lines = Lines
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
+	self:InvalidateMouseState()
 end
 
 function RichText:HasVisibleElements()

@@ -128,7 +128,7 @@ function TextEntry:GetContentSizeForAxis( Axis )
 end
 
 function TextEntry:SetSize( SizeVec )
-	self.Background:SetSize( SizeVec )
+	self.BaseClass.SetSize( self, SizeVec )
 
 	local InnerBoxSize = SizeVec - self.BorderSize * 2
 	self.InnerBox:SetSize( InnerBoxSize )
@@ -786,6 +786,24 @@ function TextEntry:OnMouseUp()
 	return true
 end
 
+function TextEntry:OnMouseEnter()
+	self.BaseClass.OnMouseEnter( self )
+
+	if self.Enabled or self.Highlighted then return end
+
+	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.1 )
+	self.Highlighted = true
+end
+
+function TextEntry:OnMouseLeave()
+	self.BaseClass.OnMouseLeave( self )
+
+	if self.Enabled or not self.Highlighted then return end
+
+	self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+	self.Highlighted = false
+end
+
 function TextEntry:OnMouseMove( Down )
 	if not self:GetIsVisible() then return end
 
@@ -795,19 +813,7 @@ function TextEntry:OnMouseMove( Down )
 		return
 	end
 
-	if not self:MouseIn( self.Background ) then
-		if not self.Enabled and self.Highlighted then
-			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
-			self.Highlighted = false
-		end
-
-		return
-	end
-
-	if self.Highlighted or self.Enabled then return end
-
-	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.1 )
-	self.Highlighted = true
+	self.BaseClass.OnMouseMove( self, Down )
 end
 
 function TextEntry:GetColumnFromMouse( X )
@@ -1181,8 +1187,12 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 
 		if self.Enabled then
 			self.Enabled = false
-			self.Highlighted = false
-			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+
+			if not self:HasMouseEntered() then
+				self.Highlighted = false
+				self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+			end
+
 			self:RemoveStylingState( "Focus" )
 		end
 

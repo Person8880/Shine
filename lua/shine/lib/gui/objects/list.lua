@@ -216,10 +216,9 @@ end
 	Sets the list's size, just a simple vector input.
 ]]
 function List:SetSize( Size )
-	self.Background:SetSize( Size )
+	self.BaseClass.SetSize( self, Size )
 	self.CroppingBox:SetSize( Size )
 	self.Size = Size
-	self:InvalidateLayout()
 end
 
 function List:PerformLayout()
@@ -721,7 +720,7 @@ function List:OnMouseMove( Down )
 		self.Scrollbar:OnMouseMove( Down )
 	end
 
-	self:CallOnChildren( "OnMouseMove", Down )
+	self.BaseClass.OnMouseMove( self, Down )
 end
 
 function List:Think( DeltaTime )

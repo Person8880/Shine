@@ -37,6 +37,7 @@ function Panel:Initialise()
 	self.OverflowY = false
 	self.HorizontalScrollingEnabled = true
 	self.BlockEventsIfFocusedWindow = true
+	self.AlwaysInMouseFocus = false
 end
 
 function Panel:SkinColour()
@@ -462,6 +463,10 @@ function Panel:SetMaxWidth( MaxWidth )
 
 		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
+		local function OnScrollChanged()
+			self:OnMouseMove( false )
+		end
+
 		function self:OnScrollChangeX( Pos, MaxPos, Smoothed )
 			local SetWidth = self:GetSize().x
 
@@ -471,9 +476,10 @@ function Panel:SetMaxWidth( MaxWidth )
 			self.ScrollParentPos.x = -Diff * Fraction
 
 			if Smoothed and self.AllowSmoothScroll then
-				self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, nil, math.EaseOut, 3 )
+				self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, OnScrollChanged, math.EaseOut, 3 )
 			else
 				self.ScrollParent:SetPosition( self.ScrollParentPos )
+				OnScrollChanged()
 			end
 		end
 
@@ -543,6 +549,10 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 
 		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
+		local function OnScrollChanged()
+			self:OnMouseMove( false )
+		end
+
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )
 			local SetHeight = self:GetSize().y
 			local MaxHeight = self.MaxHeight
@@ -553,9 +563,10 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			self.ScrollParentPos.y = -Diff * Fraction
 
 			if Smoothed and self.AllowSmoothScroll then
-				self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, nil, math.EaseOut, 3 )
+				self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, OnScrollChanged, math.EaseOut, 3 )
 			else
 				self.ScrollParent:SetPosition( self.ScrollParentPos )
+				OnScrollChanged()
 			end
 		end
 
@@ -625,7 +636,9 @@ function Panel:DragClick( Key, DoubleClick )
 	if not self.Draggable then return end
 
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:MouseIn( self.Background, nil, nil, self:GetSize().y * 0.05 ) then return end
+
+	local Size = self:GetSize()
+	if not self:MouseInBounds( self.Background, Size.x, Size.y * 0.05 ) then return end
 
 	if Clock() - LastInput < 0.2 then
 		DoubleClick = true
@@ -718,6 +731,8 @@ end
 function Panel:OnMouseMove( Down )
 	if not self:GetIsVisible() then return end
 
+	self.__LastMouseMove = SGUI.FrameNumber()
+
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:OnMouseMove( Down )
 	end
@@ -726,13 +741,14 @@ function Panel:OnMouseMove( Down )
 		self.HorizontalScrollbar:OnMouseMove( Down )
 	end
 
-	self:CallOnChildren( "OnMouseMove", Down )
+	local MouseIn, StateChanged = self:EvaluateMouseState()
+	if MouseIn or StateChanged or self.AlwaysInMouseFocus or SGUI:IsWindow( self ) then
+		self:CallOnChildren( "OnMouseMove", Down )
+	end
+
 	self:DragMove( Down )
 
-	local MouseIn
 	if self.AutoHideScrollbar and ( SGUI.IsValid( self.Scrollbar ) or SGUI.IsValid( self.HorizontalScrollbar ) ) then
-		MouseIn = self:MouseIn( self.Background )
-
 		if not MouseIn and self.ScrollbarIsVisible then
 			local ScrollbarHasFocus = self.Scrollbar and self.Scrollbar:HasMouseFocus()
 			local HorizontalScrollbarHasFocus = self.HorizontalScrollbar and self.HorizontalScrollbar:HasMouseFocus()
@@ -761,14 +777,17 @@ function Panel:OnMouseMove( Down )
 
 	-- Block mouse movement for lower windows.
 	if ( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow ) or self.BlockOnMouseDown then
-		if MouseIn == nil then
-			MouseIn = self:MouseIn( self.Background )
-		end
 		if MouseIn then return true end
 	end
 end
 
+function Panel:OnGainWindowFocus()
+	self:InvalidateMouseState( true )
+end
+
 function Panel:Think( DeltaTime )
+	if not self:GetIsVisible() then return end
+
 	self.BaseClass.Think( self, DeltaTime )
 
 	if SGUI.IsValid( self.Scrollbar ) then

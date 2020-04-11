@@ -56,7 +56,7 @@ function Webpage:LoadURL( URL, W, H )
 		self.WebView = Client.CreateWebView( W, H )
 		self.WebView:SetTargetTexture( TextureName )
 
-		self.Background:SetSize( Vector( W, H, 0 ) )
+		self.BaseClass.SetSize( self, Vector2( W, H ) )
 		self.Background:SetTexture( TextureName )
 
 		self.WebView:HookJSAlert( function( WebView, AlertText )

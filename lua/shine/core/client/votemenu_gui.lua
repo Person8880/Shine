@@ -505,7 +505,9 @@ local function AddButton( self, Pos, Anchor, Text, DoClick )
 		DoClick = DoClick,
 		IsSchemed = false
 	}
-	Button:SetHighlightOnMouseOver( true, 1, true )
+	-- Highlighting buttons is disabled until they are in the correct position. This avoids multiple buttons flashing
+	-- highlighted when the menu is opened or the page is changed.
+	Button.OnAnimationComplete = function() Button:SetHighlightOnMouseOver( true, true ) end
 	Button.ClickDelay = 0
 
 	return Button
@@ -520,9 +522,12 @@ local function HandleButton( Button, Text, DoClick, StartPos, EndPos )
 
 	if Shine.Config.AnimateUI then
 		Button:SetPos( StartPos )
-		Button:MoveTo( nil, nil, EndPos, 0, EasingTime )
+		Button:SetHighlightOnMouseOver( false )
+		Button:MoveTo( nil, nil, EndPos, 0, EasingTime, Button.OnAnimationComplete )
 	else
 		Button:SetPos( EndPos )
+		Button:StopMoving()
+		Button.OnAnimationComplete()
 	end
 end
 
@@ -549,7 +554,9 @@ function VoteMenu:AddTopButton( Text, DoClick )
 	Buttons.Top = TopButton
 
 	if Shine.Config.AnimateUI then
-		TopButton:MoveTo( nil, nil, EndPos, 0, EasingTime )
+		TopButton:MoveTo( nil, nil, EndPos, 0, EasingTime, TopButton.OnAnimationComplete )
+	else
+		TopButton.OnAnimationComplete()
 	end
 
 	return TopButton
@@ -578,7 +585,9 @@ function VoteMenu:AddBottomButton( Text, DoClick )
 	Buttons.Bottom = BottomButton
 
 	if Shine.Config.AnimateUI then
-		BottomButton:MoveTo( nil, nil, EndPos, 0, EasingTime )
+		BottomButton:MoveTo( nil, nil, EndPos, 0, EasingTime, BottomButton.OnAnimationComplete )
+	else
+		BottomButton.OnAnimationComplete()
 	end
 
 	return BottomButton
@@ -669,12 +678,14 @@ function VoteMenu:PositionButton( Button, Index, MaxIndex, Align, IgnoreAnim )
 
 	if not IgnoreAnim and Shine.Config.AnimateUI then
 		local Size = self.Background:GetSize()
+		Button:SetHighlightOnMouseOver( false )
 		Button:SetPos( Vector( Align == GUIItem.Right and -Size.x * 0.5 or 0,
 			Size.y * 0.5, 0 ) )
-		Button:MoveTo( nil, nil, Pos, 0, EasingTime )
+		Button:MoveTo( nil, nil, Pos, 0, EasingTime, Button.OnAnimationComplete )
 	else
 		Button:SetPos( Pos )
 		Button:StopMoving()
+		Button.OnAnimationComplete()
 	end
 end
 

@@ -23,11 +23,6 @@ function Tooltip:Initialise()
 	self.TextPadding = 16
 end
 
-function Tooltip:SetSize( Vec )
-	self.Size = Vec
-	self.Background:SetSize( Vec )
-end
-
 function Tooltip:SetTextColour( Col )
 	self.TextCol = Col
 

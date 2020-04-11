@@ -95,6 +95,8 @@ function ColourLabel:SetText( TextContent )
 		Count = Count + 1
 		self.Labels[ Count ] = Label
 	end
+
+	self:InvalidateMouseState()
 end
 
 function ColourLabel:GetSize()

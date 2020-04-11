@@ -10,6 +10,8 @@ local RoundTo = math.RoundTo
 
 local CheckBox = {}
 
+SGUI.AddProperty( CheckBox, "LabelPadding", 10, { "InvalidatesLayout" } )
+
 function CheckBox:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -53,7 +55,7 @@ function CheckBox:SetSize( Vec )
 	Vec.x = RoundTo( Vec.x, 2 )
 	Vec.y = RoundTo( Vec.y, 2 )
 
-	self.Background:SetSize( Vec )
+	self.BaseClass.SetSize( self, Vec )
 
 	local BoxSize = Vec * 0.75
 	BoxSize.x = RoundTo( BoxSize.x, 2 )
@@ -61,8 +63,6 @@ function CheckBox:SetSize( Vec )
 
 	self.Box:SetSize( BoxSize )
 	self.Box:SetPosition( -BoxSize * 0.5 )
-
-	self:InvalidateLayout()
 end
 
 function CheckBox:GetChecked()
@@ -103,6 +103,15 @@ function CheckBox:SetChecked( Value, DontFade )
 	self:OnPropertyChanged( "Checked", false )
 end
 
+-- Include the attached label when checking for mouse entry.
+function CheckBox:GetMouseBounds()
+	local Size = self:GetSize()
+	if SGUI.IsValid( self.Label ) then
+		Size = Size + Vector2( Size.x + self:GetLabelPadding() + self.Label:GetSize().x, 0 )
+	end
+	return Size
+end
+
 function CheckBox:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
@@ -127,7 +136,7 @@ end
 function CheckBox:PerformLayout()
 	if self.Label then
 		local Size = self:GetSize().x
-		self.Label:SetPos( Vector( Size + 10, 0, 0 ) )
+		self.Label:SetPos( Vector( Size + self:GetLabelPadding(), 0, 0 ) )
 	end
 end
 
@@ -144,7 +153,7 @@ function CheckBox:AddLabel( Text )
 	Label:SetAnchor( GUIItem.Left, GUIItem.Center )
 	Label:SetTextAlignmentY( GUIItem.Align_Center )
 	Label:SetText( Text )
-	Label:SetPos( Vector( self:GetSize().x + 10, 0, 0 ) )
+	Label:SetPos( Vector( self:GetSize().x + self:GetLabelPadding(), 0, 0 ) )
 
 	if self.Font then
 		Label:SetFont( self.Font )
@@ -162,18 +171,7 @@ function CheckBox:AddLabel( Text )
 		Label.Label:SetInheritsParentStencilSettings( true )
 	end
 
-	if self.TooltipText then
-		Label:SetTooltip( self.TooltipText )
-	end
-
 	self.Label = Label
-end
-
-function CheckBox:SetTooltip( Tooltip )
-	self.BaseClass.SetTooltip( self, Tooltip )
-	if SGUI.IsValid( self.Label ) then
-		self.Label:SetTooltip( Tooltip )
-	end
 end
 
 function CheckBox:OnChecked( Checked )

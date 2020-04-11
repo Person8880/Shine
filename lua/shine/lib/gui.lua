@@ -66,17 +66,23 @@ local ControlMeta = {}
 SGUI.BaseControl = ControlMeta
 
 SGUI.PropertyModifiers = {
-	InvalidatesLayout = function( self, Value )
+	InvalidatesLayout = function( self )
 		self:InvalidateLayout()
 	end,
-	InvalidatesLayoutNow = function( self, Value )
+	InvalidatesLayoutNow = function( self )
 		self:InvalidateLayout( true )
 	end,
-	InvalidatesParent = function( self, Value )
+	InvalidatesParent = function( self )
 		self:InvalidateParent()
 	end,
-	InvalidatesParentNow = function( self, Value )
+	InvalidatesParentNow = function( self )
 		self:InvalidateParent( true )
+	end,
+	InvalidatesMouseState = function( self )
+		self:InvalidateMouseState()
+	end,
+	InvalidatesMouseStateNow = function( self )
+		self:InvalidateMouseState( true )
 	end
 }
 do
@@ -381,9 +387,14 @@ do
 			Window:SetLayer( Window.OverrideLayer or self.BaseLayer + i )
 		end
 
-		if Window ~= self.FocusedWindow and self.IsValid( self.FocusedWindow )
-		and self.FocusedWindow.OnLoseWindowFocus then
-			self.FocusedWindow:OnLoseWindowFocus( Window )
+		if Window ~= self.FocusedWindow then
+			if self.IsValid( self.FocusedWindow ) and self.FocusedWindow.OnLoseWindowFocus then
+				self.FocusedWindow:OnLoseWindowFocus( Window )
+			end
+
+			if self.IsValid( Window ) and Window.OnGainWindowFocus then
+				Window:OnGainWindowFocus()
+			end
 		end
 
 		self.FocusedWindow = Window
@@ -1164,6 +1175,11 @@ function SGUI.GetCursorPos()
 	return GetCursorPosScreen()
 end
 
+local GetMouseVisible = Client.GetMouseVisible
+function SGUI.IsMouseVisible()
+	return GetMouseVisible()
+end
+
 local ScrW = Client.GetScreenWidth
 local ScrH = Client.GetScreenHeight
 
@@ -1221,6 +1237,7 @@ local IsMainMenuOpen = MainMenu_GetIsOpened
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	GetCursorPosScreen = Client.GetCursorPosScreen
+	GetMouseVisible = Client.GetMouseVisible
 	ScrW = Client.GetScreenWidth
 	ScrH = Client.GetScreenHeight
 	IsMainMenuOpen = MainMenu_GetIsOpened
@@ -1237,6 +1254,14 @@ Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
 	local Listener = {
 		OnMouseMove = function( _, LMB )
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
+
+			if
+				SGUI.IsValid( SGUI.MouseDownControl ) and
+				SGUI.MouseDownControl.__LastMouseMove ~= SGUI.FrameNumber()
+			then
+				-- Make sure the focused control still sees mouse movements until releasing the mouse button.
+				SGUI.MouseDownControl:OnMouseMove( LMB )
+			end
 		end,
 		OnMouseWheel = function( _, Down )
 			if IsMainMenuOpen() then return end
