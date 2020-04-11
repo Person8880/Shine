@@ -464,7 +464,7 @@ function Panel:SetMaxWidth( MaxWidth )
 		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
 		local function OnScrollChanged()
-			self:OnMouseMove( false )
+			self:InvalidateMouseState( true )
 		end
 
 		function self:OnScrollChangeX( Pos, MaxPos, Smoothed )
@@ -550,7 +550,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
 		local function OnScrollChanged()
-			self:OnMouseMove( false )
+			self:InvalidateMouseState( true )
 		end
 
 		function self:OnScrollChange( Pos, MaxPos, Smoothed )
