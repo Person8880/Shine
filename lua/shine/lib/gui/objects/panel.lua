@@ -225,16 +225,7 @@ local function UpdateMaxSize( Child )
 	local Parent = Child.Parent
 	if not Parent.ScrollParent or not Child:GetIsVisible() then return end
 
-	local Size = Parent:GetSize()
-	local NewMaxWidth = ComputeMaxWidth( Child, Size.x )
-	if NewMaxWidth > Parent:GetMaxWidth() then
-		Parent:SetMaxWidth( NewMaxWidth )
-	end
-
-	local NewMaxHeight = ComputeMaxHeight( Child, Size.y )
-	if NewMaxHeight > Parent:GetMaxHeight() then
-		Parent:SetMaxHeight( NewMaxHeight + Parent.BufferAmount )
-	end
+	Parent:InvalidateLayout()
 end
 
 function Panel:Add( Class, Created )
