@@ -27,38 +27,7 @@ function Dropdown:Initialise()
 
 	self.Options = {}
 
-	self:SetOpenMenuOnClick( function( self )
-		return {
-			MenuPos = self.MenuPos.BOTTOM,
-			Populate = function( Menu )
-				Menu:SetMaxVisibleButtons( Max( self:GetMaxVisibleOptions(), 1 ) )
-				Menu:SetFontScale( self:GetFont(), self:GetTextScale() )
-
-				for i = 1, #self.Options do
-					local Option = self.Options[ i ]
-
-					local function DoClick( Button )
-						local Result = true
-						if Option.DoClick then
-							Result = Option.DoClick( Button )
-						end
-
-						self:SetSelectedOption( Option )
-
-						Menu:Destroy()
-
-						return Result
-					end
-
-					local Button = Menu:AddButton( Option.Text, DoClick, Option.Tooltip )
-					if Option.Icon then
-						Button:SetIcon( Option.Icon, Option.IconFont, Option.IconScale )
-					end
-					Button:SetStyleName( "DropdownButton" )
-				end
-			end
-		}
-	end )
+	self:SetOpenMenuOnClick( self.BuildMenu )
 
 	Binder():FromElement( self, "SelectedOption" )
 		:ToElement( self, "Text", {
@@ -86,6 +55,39 @@ function Dropdown:Initialise()
 			end
 		} )
 		:BindProperty()
+end
+
+function Dropdown:BuildMenu()
+	return {
+		MenuPos = self.MenuPos.BOTTOM,
+		Populate = function( Menu )
+			Menu:SetMaxVisibleButtons( Max( self:GetMaxVisibleOptions(), 1 ) )
+			Menu:SetFontScale( self:GetFont(), self:GetTextScale() )
+
+			for i = 1, #self.Options do
+				local Option = self.Options[ i ]
+
+				local function DoClick( Button )
+					local Result = true
+					if Option.DoClick then
+						Result = Option.DoClick( Button )
+					end
+
+					self:SetSelectedOption( Option )
+
+					Menu:Destroy()
+
+					return Result
+				end
+
+				local Button = Menu:AddButton( Option.Text, DoClick, Option.Tooltip )
+				if Option.Icon then
+					Button:SetIcon( Option.Icon, Option.IconFont, Option.IconScale )
+				end
+				Button:SetStyleName( "DropdownButton" )
+			end
+		end
+	}
 end
 
 function Dropdown:SelectOption( Value )

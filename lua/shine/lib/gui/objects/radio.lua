@@ -73,55 +73,60 @@ function Radio:SetOptions( Options )
 	end
 end
 
-function Radio:AddOption( Option )
-	TypeCheck( Option, "table", 1, "AddOption" )
-	TypeCheckField( Option, "Description", "string", "Option" )
-
-	local Index = #self.CheckBoxes + 1
-
-	local CheckBox = SGUI:Create( "CheckBox", self )
-	CheckBox:SetFontScale( self.Font, self.TextScale )
-	CheckBox:AddLabel( Option.Description )
-	CheckBox:SetRadio( not self.MultipleChoice )
-	CheckBox:SetAutoSize( self.CheckBoxAutoSize )
-	CheckBox:SetStyleName( self.CheckBoxStyleName )
-	CheckBox:SetTooltip( Option.Tooltip )
-	CheckBox.RadioOption = Option
-
-	if Index > 1 then
-		CheckBox:SetMargin( self.CheckBoxMargin )
-	end
-
-	CheckBox:AddPropertyChangeListener( "Checked", function( CheckBox, IsChecked )
-		if not self.MultipleChoice then
+do
+	local function OnCheckBoxStateChanged( CheckBox, IsChecked )
+		local Parent = CheckBox.Parent
+		if not Parent.MultipleChoice then
 			if not IsChecked then return end
 
-			for i = 1, #self.CheckBoxes do
-				local Box = self.CheckBoxes[ i ]
+			for i = 1, #Parent.CheckBoxes do
+				local Box = Parent.CheckBoxes[ i ]
 				if Box ~= CheckBox then
 					Box:SetChecked( false )
 				end
 			end
 
-			self:OnPropertyChanged( "SelectedOption", Option )
+			Parent:OnPropertyChanged( "SelectedOption", CheckBox.RadioOption )
 		else
 			local Options = {}
 
-			for i = 1, #self.CheckBoxes do
-				local Box = self.CheckBoxes[ i ]
+			for i = 1, #Parent.CheckBoxes do
+				local Box = Parent.CheckBoxes[ i ]
 				if Box:GetChecked() then
 					Options[ #Options + 1 ] = Box.RadioOption
 				end
 			end
 
-			self:OnPropertyChanged( "SelectedOptions", Options )
+			Parent:OnPropertyChanged( "SelectedOptions", Options )
 		end
-	end )
+	end
 
-	self.CheckBoxes[ Index ] = CheckBox
-	self.CheckBoxes[ Option ] = CheckBox
+	function Radio:AddOption( Option )
+		TypeCheck( Option, "table", 1, "AddOption" )
+		TypeCheckField( Option, "Description", "string", "Option" )
 
-	self.Layout:AddElement( CheckBox )
+		local Index = #self.CheckBoxes + 1
+
+		local CheckBox = SGUI:Create( "CheckBox", self )
+		CheckBox:SetFontScale( self.Font, self.TextScale )
+		CheckBox:AddLabel( Option.Description )
+		CheckBox:SetRadio( not self.MultipleChoice )
+		CheckBox:SetAutoSize( self.CheckBoxAutoSize )
+		CheckBox:SetStyleName( self.CheckBoxStyleName )
+		CheckBox:SetTooltip( Option.Tooltip )
+		CheckBox.RadioOption = Option
+
+		if Index > 1 then
+			CheckBox:SetMargin( self.CheckBoxMargin )
+		end
+
+		CheckBox:AddPropertyChangeListener( "Checked", OnCheckBoxStateChanged )
+
+		self.CheckBoxes[ Index ] = CheckBox
+		self.CheckBoxes[ Option ] = CheckBox
+
+		self.Layout:AddElement( CheckBox )
+	end
 end
 
 function Radio:RemoveOption( Option )
