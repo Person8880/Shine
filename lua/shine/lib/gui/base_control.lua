@@ -162,9 +162,7 @@ function ControlMeta:GetPropertySource( Name )
 	SourceInstance.Element = self
 
 	self.PropertySources[ Name ] = SourceInstance
-	self:AddPropertyChangeListener( Name, function( self, Value )
-		return SourceInstance( Value )
-	end )
+	self:AddPropertyChangeListener( Name, SourceInstance )
 
 	return SourceInstance
 end

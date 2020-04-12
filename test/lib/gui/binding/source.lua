@@ -11,15 +11,16 @@ UnitTest:Test( "It should add/remove/call listeners as expected", function( Asse
 	end )
 	local Listener2 = UnitTest.MockFunction()
 
+	local Host = {}
 	local SourceInstance = Source()
 	SourceInstance:AddListener( Listener1 )
 	SourceInstance:AddListener( Listener2 )
 
-	SourceInstance( "test" )
+	SourceInstance( Host, "test" )
 
 	SourceInstance:RemoveListener( Listener2 )
 
-	SourceInstance( "test2" )
+	SourceInstance( Host, "test2" )
 
 	Assert.DeepEquals( "Should have called the first listener twice", {
 		{
