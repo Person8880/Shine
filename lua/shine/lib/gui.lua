@@ -1188,15 +1188,15 @@ local function NotifyFocusChange( Element, ClickingOtherElement )
 end
 SGUI.NotifyFocusChange = NotifyFocusChange
 
-local GetCursorPosScreen = Client.GetCursorPosScreen
+local GetCursorPos = MouseTracker_GetCursorPos
 function SGUI.GetCursorPos()
-	local X, Y = GetCursorPosScreen()
-	return X, Y
+	local Pos = GetCursorPos()
+	return Pos.x, Pos.y
 end
 
-local GetMouseVisible = Client.GetMouseVisible
+local GetMouseVisible = MouseTracker_GetIsVisible
 function SGUI.IsMouseVisible()
-	return ( GetMouseVisible() )
+	return GetMouseVisible()
 end
 
 local ScrW = Client.GetScreenWidth
@@ -1255,8 +1255,6 @@ local IsMainMenuOpen = MainMenu_GetIsOpened
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
-	GetCursorPosScreen = Client.GetCursorPosScreen
-	GetMouseVisible = Client.GetMouseVisible
 	ScrW = Client.GetScreenWidth
 	ScrH = Client.GetScreenHeight
 	IsMainMenuOpen = MainMenu_GetIsOpened
@@ -1270,6 +1268,9 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 end )
 
 Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
+	GetCursorPos = MouseTracker_GetCursorPos
+	GetMouseVisible = MouseTracker_GetIsVisible
+
 	local Listener = {
 		OnMouseMove = function( _, LMB )
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
