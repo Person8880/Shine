@@ -6,12 +6,11 @@ local SGUI = Shine.GUI
 local Timer = Shine.Timer
 
 local Clamp = math.Clamp
-local Clock = os.clock
+local Clock = Shared.GetSystemTimeReal
 local Max = math.max
 local Min = math.min
 local StringFind = string.find
 local StringFormat = string.format
-local StringLength = string.len
 local StringLower = string.lower
 local StringSub = string.sub
 local StringUTF8Encode = string.UTF8Encode
@@ -488,10 +487,10 @@ function TextEntry:SelectAll()
 end
 
 local function FindFurthestSpace( Text )
-	local PreviousSpace = StringFind( Text, " " )
-	--Find the furthest along space before the caret.
+	local PreviousSpace = StringFind( Text, " ", 1, true )
+	-- Find the furthest along space before the caret.
 	while PreviousSpace do
-		local NextSpace = StringFind( Text, " ", PreviousSpace + 1 )
+		local NextSpace = StringFind( Text, " ", PreviousSpace + 1, true )
 
 		if NextSpace then
 			PreviousSpace = NextSpace
@@ -520,7 +519,7 @@ function TextEntry:FindWordBounds( CharPos )
 	end
 
 	local After = StringUTF8Sub( Text, CharPos )
-	local NextSpace = StringFind( After, " " ) or ( #After + 1 )
+	local NextSpace = StringFind( After, " ", 1, true ) or ( #After + 1 )
 	NextSpace = StringUTF8Length( Before ) + StringUTF8Length( StringSub( After, 1, NextSpace - 1 ) )
 
 	return PreSpace, NextSpace
@@ -666,9 +665,9 @@ function TextEntry:RemoveWord( Forward )
 
 		After = StringUTF8Sub( self.Text, self.Column + 1 )
 
-		local NextSpace = StringFind( After, " " )
+		local NextSpace = StringFind( After, " ", 1, true )
 		if not NextSpace then
-			NextSpace = StringLength( self.Text )
+			NextSpace = #self.Text
 		end
 
 		Before = StringUTF8Sub( self.Text, 1, self.Column )

@@ -1372,6 +1372,10 @@ do
 		return Vector2( Value.x, Value.y )
 	end
 
+	local function LinearEase( Progress )
+		return Progress
+	end
+
 	local Max = math.max
 
 	function ControlMeta:EaseValue( Element, Start, End, Delay, Duration, Callback, EasingHandlers )
@@ -1398,6 +1402,7 @@ do
 		EasingData.Diff = SubtractValues( End, Start )
 		EasingData.CurValue = CopyValue( Start )
 		EasingData.Easer = EasingHandlers.Easer
+		EasingData.EaseFunc = LinearEase
 
 		EasingData.StartTime = Clock() + Delay
 		EasingData.Duration = Duration
@@ -1418,45 +1423,47 @@ do
 	end
 end
 
-function ControlMeta:HandleEasing( Time, DeltaTime )
-	if not self.EasingProcesses or self.EasingProcesses:IsEmpty() then return end
+do
+	local function UpdateEasing( self, Time, DeltaTime, EasingHandler, Easings, Element, EasingData )
+		EasingData.Elapsed = EasingData.Elapsed + Max( DeltaTime, Time - EasingData.LastUpdate )
 
-	for EasingHandler, Easings in self.EasingProcesses:Iterate() do
-		for Element, EasingData in Easings:Iterate() do
-			local Start = EasingData.StartTime
-
-			if Start <= Time then
-				EasingData.Elapsed = EasingData.Elapsed + Max( DeltaTime, Time - EasingData.LastUpdate )
-
-				local Duration = EasingData.Duration
-				local Elapsed = EasingData.Elapsed
-				if Elapsed <= Duration then
-					local Progress = Elapsed / Duration
-					if EasingData.EaseFunc then
-						Progress = EasingData.EaseFunc( Progress, EasingData.Power )
-					end
-
-					EasingData.Easer( self, Element, EasingData, Progress )
-					EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
-				else
-					EasingHandler.Setter( self, Element, EasingData.End, EasingData )
-					if EasingHandler.OnComplete then
-						EasingHandler.OnComplete( self, Element, EasingData )
-					end
-
-					Easings:Remove( Element )
-
-					if EasingData.Callback then
-						EasingData.Callback( self, Element )
-					end
-				end
+		local Duration = EasingData.Duration
+		local Elapsed = EasingData.Elapsed
+		if Elapsed <= Duration then
+			local Progress = EasingData.EaseFunc( Elapsed / Duration, EasingData.Power )
+			EasingData.Easer( self, Element, EasingData, Progress )
+			EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
+		else
+			EasingHandler.Setter( self, Element, EasingData.End, EasingData )
+			if EasingHandler.OnComplete then
+				EasingHandler.OnComplete( self, Element, EasingData )
 			end
 
-			EasingData.LastUpdate = Time
-		end
+			Easings:Remove( Element )
 
-		if Easings:IsEmpty() then
-			self.EasingProcesses:Remove( EasingHandler )
+			if EasingData.Callback then
+				EasingData.Callback( self, Element )
+			end
+		end
+	end
+
+	function ControlMeta:HandleEasing( Time, DeltaTime )
+		if not self.EasingProcesses or self.EasingProcesses:IsEmpty() then return end
+
+		for EasingHandler, Easings in self.EasingProcesses:Iterate() do
+			for Element, EasingData in Easings:Iterate() do
+				local Start = EasingData.StartTime
+
+				if Start <= Time then
+					UpdateEasing( self, Time, DeltaTime, EasingHandler, Easings, Element, EasingData )
+				end
+
+				EasingData.LastUpdate = Time
+			end
+
+			if Easings:IsEmpty() then
+				self.EasingProcesses:Remove( EasingHandler )
+			end
 		end
 	end
 end
