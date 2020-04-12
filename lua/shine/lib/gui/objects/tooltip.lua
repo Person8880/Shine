@@ -13,7 +13,6 @@ Tooltip.IgnoreMouseFocus = true
 
 SGUI.AddBoundProperty( Tooltip, "Colour", "Background:SetColor" )
 SGUI.AddBoundProperty( Tooltip, "Texture", "Background:SetTexture" )
-SGUI.AddBoundProperty( Tooltip, "TexturePixelCoordinates", "Background:SetTexturePixelCoordinates" )
 
 function Tooltip:Initialise()
 	self.BaseClass.Initialise( self )

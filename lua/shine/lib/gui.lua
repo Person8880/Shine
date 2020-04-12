@@ -6,6 +6,8 @@
 
 Shine.GUI = Shine.GUI or {}
 
+local CodeGen = require "shine/lib/codegen"
+
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
 local IsType = Shine.IsType
@@ -67,26 +69,18 @@ local ControlMeta = {}
 SGUI.BaseControl = ControlMeta
 
 SGUI.PropertyModifiers = {
-	InvalidatesLayout = function( self )
-		self:InvalidateLayout()
-	end,
-	InvalidatesLayoutNow = function( self )
-		self:InvalidateLayout( true )
-	end,
-	InvalidatesParent = function( self )
-		self:InvalidateParent()
-	end,
-	InvalidatesParentNow = function( self )
-		self:InvalidateParent( true )
-	end,
-	InvalidatesMouseState = function( self )
-		self:InvalidateMouseState()
-	end,
-	InvalidatesMouseStateNow = function( self )
-		self:InvalidateMouseState( true )
-	end
+	InvalidatesLayout = [[self:InvalidateLayout()]],
+	InvalidatesLayoutNow = [[self:InvalidateLayout( true )]],
+	InvalidatesParent = [[self:InvalidateParent()]],
+	InvalidatesParentNow = [[self:InvalidateParent( true )]],
+	InvalidatesMouseState = [[self:InvalidateMouseState()]],
+	InvalidatesMouseStateNow = [[self:InvalidateMouseState( true )]]
 }
 do
+	local DebugGetInfo = debug.getinfo
+	local StringMatch = string.match
+	local TableConcat = table.concat
+
 	-- This exists to avoid constant concatenation every time properties are set dynamically.
 	local SetterKeys = setmetatable( require "table.new"( 0, 100 ), {
 		__index = function( self, Key )
@@ -106,7 +100,46 @@ do
 			RealModifiers[ #RealModifiers + 1 ] = SGUI.PropertyModifiers[ Modifiers[ i ] ]
 		end
 
-		return RealModifiers, #RealModifiers
+		return TableConcat( RealModifiers, "\n" )
+	end
+
+	local SetterTemplate = [[return function( self, Value )
+		local OldValue = self:Get{Name}()
+
+		self.{Name} = Value
+
+		if OldValue == Value then return false end
+
+		self:OnPropertyChanged( "{Name}", Value )
+		{Modifiers}
+
+		return true
+	end]]
+
+	local GetterWithoutDefaultTemplate = [[return function( self )
+		return self.{Name}
+	end]]
+
+	local GetterWithDefaultTemplate = [[local Default = ...
+	return function( self )
+		local Value = self.{Name}
+		if Value == nil then
+			Value = Default
+		end
+		return Value
+	end]]
+
+	local BaseSource = "@lua/shine/lib/gui.lua"
+	local function GetCallerName()
+		local Caller = DebugGetInfo( 4, "S" ).source
+		return Caller and StringMatch( Caller, "/([^/]+)%.lua$" ) or "?"
+	end
+
+	local function GetSetterSource( Name )
+		return StringFormat( "%s/Property/%s/Set%s", BaseSource, GetCallerName(), Name )
+	end
+	local function GetGetterSource( Name )
+		return StringFormat( "%s/Property/%s/Get%s", BaseSource, GetCallerName(), Name )
 	end
 
 	--[[
@@ -116,39 +149,29 @@ do
 		local TableSetter = SetterKeys[ Name ]
 		local TableGetter = "Get"..Name
 
-		Table[ TableSetter ] = function( self, Value )
-			local OldValue = self[ TableGetter ]( self )
+		local ModifierLines = Modifiers and GetModifiers( Modifiers ) or ""
+		local SetterSource = GetSetterSource( Name )
+		Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( SetterTemplate, SetterSource, {
+			Name = Name,
+			Modifiers = ModifierLines
+		} )
 
-			self[ Name ] = Value
-
-			if OldValue == Value then return false end
-
-			self:OnPropertyChanged( Name, Value )
-
-			return true
-		end
-
-		Table[ TableGetter ] = function( self )
-			local Value = self[ Name ]
-			if Value == nil then
-				Value = Default
-			end
-			return Value
-		end
-
-		if not Modifiers then return end
-
-		local RealModifiers, NumModifiers = GetModifiers( Modifiers )
-
-		local Old = Table[ TableSetter ]
-		Table[ TableSetter ] = function( self, Value )
-			if Old( self, Value ) then
-				for i = 1, NumModifiers do
-					RealModifiers[ i ]( self, Value )
-				end
-			end
+		local GetterSource = GetGetterSource( Name )
+		if Default ~= nil then
+			Table[ TableGetter ] = CodeGen.GenerateTemplatedFunction( GetterWithDefaultTemplate, GetterSource, {
+				Name = Name
+			}, Default )
+		else
+			Table[ TableGetter ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
+				Name = Name
+			} )
 		end
 	end
+
+	local BoundCallTemplate = [[do
+		local Object = self.{FieldName}
+		if Object then Object:{Setter}( Value ) end
+	end]]
 
 	local StringExplode = string.Explode
 	local unpack = unpack
@@ -159,6 +182,7 @@ do
 		end
 
 		local BoundFields = {}
+		local Callbacks = {}
 
 		for i = 1, #BoundObject do
 			local Entry = BoundObject[ i ]
@@ -166,19 +190,52 @@ do
 				local FieldName, Setter = unpack( StringExplode( Entry, ":", true ) )
 				Setter = Setter or "Set"..PropertyName
 
-				BoundFields[ i ] = function( self, Value )
-					local Object = self[ FieldName ]
-					if Object then
-						Object[ Setter ]( Object, Value )
-					end
-				end
+				BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( BoundCallTemplate, {
+					Setter = Setter,
+					FieldName = FieldName
+				} )
 			else
-				BoundFields[ i ] = Entry
+				Callbacks[ #Callbacks + 1 ] = Entry
 			end
 		end
 
-		return BoundFields
+		return TableConcat( BoundFields, "\n" ), Callbacks
 	end
+
+	local BoundWithoutCallbacksTemplate = [[return function( self, Value )
+		local OldValue = self:Get{Name}()
+
+		self.{Name} = Value
+
+		{BoundFields}
+
+		if OldValue == Value then return false end
+
+		self:OnPropertyChanged( "{Name}", Value )
+		{Modifiers}
+
+		return true
+	end]]
+
+	local CallbacksCallTemplate = [[Callback%d( self, Value )]]
+
+	local BoundWithCallbacksTemplate = [[local {CallbackVariables} = ...
+	return function( self, Value )
+		local OldValue = self:Get{Name}()
+
+		self.{Name} = Value
+
+		{BoundFields}
+
+		{Callbacks}
+
+		if OldValue == Value then return false end
+
+		self:OnPropertyChanged( "{Name}", Value )
+		{Modifiers}
+
+		return true
+	end]]
 
 	--[[
 		Adds Get/Set property methods that pass through the value to a field
@@ -187,40 +244,39 @@ do
 		Used to perform actions on GUIItems without boilerplate code.
 	]]
 	function SGUI.AddBoundProperty( Table, Name, BoundObject, Modifiers )
-		local BoundFields = GetBindingInfo( BoundObject, Name )
+		local BoundFields, Callbacks = GetBindingInfo( BoundObject, Name )
 
-		Table[ "Get"..Name ] = function( self )
-			return self[ Name ]
-		end
+		local GetterSource = GetGetterSource( Name )
+		Table[ "Get"..Name ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
+			Name = Name
+		} )
 
+		local SetterSource = GetSetterSource( Name )
 		local TableSetter = SetterKeys[ Name ]
-		Table[ TableSetter ] = function( self, Value )
-			local OldValue = self[ Name ]
+		local ModifierLines = Modifiers and GetModifiers( Modifiers ) or ""
 
-			self[ Name ] = Value
-
-			for i = 1, #BoundFields do
-				BoundFields[ i ]( self, Value )
+		if #Callbacks > 0 then
+			-- Unroll the loop upfront.
+			local CallbackVariables = {}
+			local CallbackLines = {}
+			for i = 1, #Callbacks do
+				CallbackVariables[ i ] = StringFormat( "Callback%d", i )
+				CallbackLines[ i ] = StringFormat( CallbacksCallTemplate, i )
 			end
 
-			if OldValue == Value then return false end
-
-			self:OnPropertyChanged( Name, Value )
-
-			return true
-		end
-
-		if not Modifiers then return end
-
-		local RealModifiers, NumModifiers = GetModifiers( Modifiers )
-
-		local Old = Table[ TableSetter ]
-		Table[ TableSetter ] = function( self, Value )
-			if Old( self, Value ) then
-				for i = 1, NumModifiers do
-					RealModifiers[ i ]( self, Value )
-				end
-			end
+			Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( BoundWithCallbacksTemplate, SetterSource, {
+				Name = Name,
+				BoundFields = BoundFields,
+				Modifiers = ModifierLines,
+				CallbackVariables = TableConcat( CallbackVariables, ", " ),
+				Callbacks = TableConcat( CallbackLines, "\n" )
+			}, unpack( Callbacks ) )
+		else
+			Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( BoundWithoutCallbacksTemplate, SetterSource, {
+				Name = Name,
+				BoundFields = BoundFields,
+				Modifiers = ModifierLines
+			} )
 		end
 	end
 end
@@ -507,7 +563,6 @@ function SGUI:AddPostEventAction( Action )
 end
 
 do
-	local CodeGen = require "shine/lib/codegen"
 	local select = select
 
 	local Callers = CodeGen.MakeFunctionGenerator( {

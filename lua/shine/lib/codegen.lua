@@ -14,6 +14,39 @@ local unpack = unpack
 local CodeGen = {}
 
 --[[
+	Applies template values to the given string.
+	Inputs:
+		1. The function code to be used as a template. This should be a valid Lua string with placeholders expressed
+		   as {Placeholder}. Each placeholder will have the corresponding value in the template values substituted.
+		2. The template values to replace placeholders with.
+	Output:
+		The generated string with all variables substituted.
+]]
+local function ApplyTemplateValues( FunctionCode, TemplateValues )
+	return ( StringGSub( FunctionCode, "{([^%s]+)}", TemplateValues ) )
+end
+CodeGen.ApplyTemplateValues = ApplyTemplateValues
+
+--[[
+	Generates a function from a template, where template values are replaced with the values in the given template
+	values table.
+
+	Inputs:
+		1. The function code to be used as a template. This should be a valid Lua string with placeholders expressed
+		   as {Placeholder}. Each placeholder will have the corresponding value in the template values substituted.
+		2. The source to give the loaded function (shown in error tracebacks).
+		3. The template values to replace placeholders with.
+		... Any values to pass to the chunk (e.g. to provide upvalues).
+	Output:
+		The generated function.
+]]
+local function GenerateTemplatedFunction( FunctionCode, ChunkName, TemplateValues, ... )
+	local GeneratedFunctionCode = ApplyTemplateValues( FunctionCode, TemplateValues )
+	return load( GeneratedFunctionCode, ChunkName )( ... )
+end
+CodeGen.GenerateTemplatedFunction = GenerateTemplatedFunction
+
+--[[
 	Generates a function from a template with the given number of arguments.
 
 	This is useful to use the same function template to handle varying number of arguments without needing a vararg
@@ -49,12 +82,11 @@ local function GenerateFunctionWithArguments( FunctionCode, NumArguments, ChunkN
 
 	local ArgumentsList = TableConcat( Arguments, ", " )
 	local ArgumentsWithoutPrefix = TableConcat( Arguments, ", ", 2 )
-	local GeneratedFunctionCode = StringGSub( FunctionCode, "{([^}]+)}", {
+
+	return GenerateTemplatedFunction( FunctionCode, ChunkName, {
 		Arguments = ArgumentsList,
 		FunctionArguments = ArgumentsWithoutPrefix
-	} )
-
-	return load( GeneratedFunctionCode, ChunkName )( ... )
+	}, ... )
 end
 CodeGen.GenerateFunctionWithArguments = GenerateFunctionWithArguments
 
