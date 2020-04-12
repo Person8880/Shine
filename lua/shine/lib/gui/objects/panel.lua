@@ -28,6 +28,21 @@ SGUI.AddProperty( Panel, "StickyScroll" )
 SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
 SGUI.AddBoundProperty( Panel, "HideHorizontalScrollbar", "HorizontalScrollbar:SetHidden" )
 
+local function OnAutoHideScrollbarChanged( self, AutoHideScrollbar )
+	if AutoHideScrollbar then return end
+
+	-- When the scrollbar is set to no longer auto-hide, make sure it's visible.
+	if SGUI.IsValid( self.Scrollbar ) then
+		self.Scrollbar:SetIsVisible( true )
+		self.Scrollbar:StopFading()
+	end
+
+	if SGUI.IsValid( self.HorizontalScrollbar ) then
+		self.HorizontalScrollbar:SetIsVisible( true )
+		self.HorizontalScrollbar:StopFading()
+	end
+end
+
 function Panel:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -38,6 +53,8 @@ function Panel:Initialise()
 	self.HorizontalScrollingEnabled = true
 	self.BlockEventsIfFocusedWindow = true
 	self.AlwaysInMouseFocus = false
+
+	self:AddPropertyChangeListener( "AutoHideScrollbar", OnAutoHideScrollbarChanged )
 end
 
 function Panel:SkinColour()
