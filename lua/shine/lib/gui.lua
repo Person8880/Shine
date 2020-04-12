@@ -1078,19 +1078,21 @@ do
 		Input: SGUI control object.
 	]]
 	function SGUI:Destroy( Control )
-		if self.CallingEvent then
-			-- Wait until after the running event to destroy the control. This avoids needing loads of validity checks
-			-- in event code paths.
-			self:AddPostEventAction( DestructionAction( Control ) )
-			return
-		end
-
+		-- Remove the control from its parent immediately regardless of the running event. This avoids it showing
+		-- up in child iterations.
 		if Control.Parent then
 			Control:SetParent( nil )
 		end
 
 		if Control.LayoutParent then
 			Control.LayoutParent:RemoveElement( Control )
+		end
+
+		if self.CallingEvent then
+			-- Wait until after the running event to destroy the control. This avoids needing loads of validity checks
+			-- in event code paths.
+			self:AddPostEventAction( DestructionAction( Control ) )
+			return
 		end
 
 		self.ActiveControls:Remove( Control )
