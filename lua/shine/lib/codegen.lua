@@ -23,6 +23,9 @@ local CodeGen = {}
 		The generated string with all variables substituted.
 ]]
 local function ApplyTemplateValues( FunctionCode, TemplateValues )
+	Shine.TypeCheck( FunctionCode, "string", 1, "ApplyTemplateValues" )
+	Shine.TypeCheck( TemplateValues, "table", 2, "ApplyTemplateValues" )
+
 	return ( StringGSub( FunctionCode, "{([^%s]+)}", TemplateValues ) )
 end
 CodeGen.ApplyTemplateValues = ApplyTemplateValues
@@ -41,6 +44,10 @@ CodeGen.ApplyTemplateValues = ApplyTemplateValues
 		The generated function.
 ]]
 local function GenerateTemplatedFunction( FunctionCode, ChunkName, TemplateValues, ... )
+	Shine.TypeCheck( FunctionCode, "string", 1, "GenerateTemplatedFunction" )
+	Shine.TypeCheck( ChunkName, { "string", "nil" }, 2, "GenerateTemplatedFunction" )
+	Shine.TypeCheck( TemplateValues, "table", 3, "GenerateTemplatedFunction" )
+
 	local GeneratedFunctionCode = ApplyTemplateValues( FunctionCode, TemplateValues )
 	return load( GeneratedFunctionCode, ChunkName )( ... )
 end
