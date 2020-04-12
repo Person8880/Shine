@@ -2100,17 +2100,16 @@ function ControlMeta:EvaluateMouseState()
 		StateChanged = true
 
 		self.MouseHasEntered = true
-		self:HandleHightlighting()
 		self:OnMouseEnter()
 	elseif not IsMouseIn and self.MouseHasEntered then
 		-- Need to let children see the mouse exit themselves too.
 		StateChanged = true
 
 		self.MouseHasEntered = false
-		self:HandleHightlighting()
 		self:OnMouseLeave()
 	end
 
+	self:HandleHightlighting()
 	self.MouseStateIsInvalid = false
 
 	return IsMouseIn, StateChanged
