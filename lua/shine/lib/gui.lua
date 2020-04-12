@@ -87,6 +87,18 @@ SGUI.PropertyModifiers = {
 	end
 }
 do
+	-- This exists to avoid constant concatenation every time properties are set dynamically.
+	local SetterKeys = setmetatable( require "table.new"( 0, 100 ), {
+		__index = function( self, Key )
+			local Setter = "Set"..Key
+
+			self[ Key ] = Setter
+
+			return Setter
+		end
+	} )
+	SGUI.SetterKeys = SetterKeys
+
 	local function GetModifiers( Modifiers )
 		local RealModifiers = {}
 
@@ -101,7 +113,7 @@ do
 		Adds Get and Set functions for a property name, with an optional default value.
 	]]
 	function SGUI.AddProperty( Table, Name, Default, Modifiers )
-		local TableSetter = "Set"..Name
+		local TableSetter = SetterKeys[ Name ]
 		local TableGetter = "Get"..Name
 
 		Table[ TableSetter ] = function( self, Value )
@@ -181,7 +193,7 @@ do
 			return self[ Name ]
 		end
 
-		local TableSetter = "Set"..Name
+		local TableSetter = SetterKeys[ Name ]
 		Table[ TableSetter ] = function( self, Value )
 			local OldValue = self[ Name ]
 

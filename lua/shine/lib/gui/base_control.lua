@@ -24,16 +24,7 @@ local Map = Shine.Map
 local Multimap = Shine.Multimap
 local Source = require "shine/lib/gui/binding/source"
 
--- This exists to avoid constant concatenation every time properties are set dynamically.
-local SetterKeys = setmetatable( TableNew( 0, 100 ), {
-	__index = function( self, Key )
-		local Setter = "Set"..Key
-
-		self[ Key ] = Setter
-
-		return Setter
-	end
-} )
+local SetterKeys = SGUI.SetterKeys
 
 SGUI.AddBoundProperty( ControlMeta, "BlendTechnique", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
