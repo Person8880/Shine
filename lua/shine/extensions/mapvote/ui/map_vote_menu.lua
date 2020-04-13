@@ -606,24 +606,24 @@ function MapVoteMenu:SetMaps( Maps )
 	for i = 1, #Maps do
 		local Entry = Maps[ i ]
 		local Tile = SGUI:CreateFromDefinition( MapTile, self.Elements.MapTileGrid )
+		Tile:SetMapVoteMenu( self )
 		Tile:SetSkin( Skin )
 		Tile:SetMap( Entry.ModID, Entry.MapName )
 
 		if Entry.MapName == Shared.GetMapName() then
-			Tile:SetText(
+			Tile:SetMapNameText(
 				Locale:GetInterpolatedPhrase( "mapvote", "MAP_VOTE_MENU_EXTEND_MAP", {
 					MapName = Entry.NiceName
 				} )
 			)
 		else
-			Tile:SetText( Entry.NiceName )
+			Tile:SetMapNameText( Entry.NiceName )
 		end
 
 		Tile:SetSelected( Entry.IsSelected )
 		Tile:SetNumVotes( Entry.NumVotes )
 		Tile:SetInheritsParentAlpha( true )
 		Tile:SetTeamVariation( self:GetTeamVariation() )
-		Tile:SetMapVoteMenu( self )
 
 		if #Maps > 9 then
 			Tile:SetStyleName( "SmallerFonts" )

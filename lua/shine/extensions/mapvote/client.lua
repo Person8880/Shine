@@ -400,7 +400,7 @@ do
 					MapName = MapName,
 					NiceName = self:GetNiceMapName( MapName ),
 					ModID = self.MapMods and self.MapMods[ MapName ] and tostring( self.MapMods[ MapName ] ),
-					IsSelected = MapName == self.ChosenMap,
+					IsSelected = self:IsMapSelected( MapName ),
 					NumVotes = self.MapVoteCounts[ MapName ]
 				}
 			end ):AsTable()
