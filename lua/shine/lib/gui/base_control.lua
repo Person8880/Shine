@@ -371,6 +371,8 @@ function ControlMeta:SetParent( Control, Element )
 		self.ParentElement:RemoveChild( self.Background )
 	end
 
+	self:InvalidateMouseState()
+
 	if not Control then
 		self.Parent = nil
 		self.ParentElement = nil
@@ -642,6 +644,8 @@ function ControlMeta:SetIsVisible( IsVisible )
 
 	if not IsVisible then
 		self:HideTooltip()
+	else
+		self:InvalidateMouseState()
 	end
 
 	if not SGUI:IsWindow( self ) then return end
