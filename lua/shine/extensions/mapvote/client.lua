@@ -780,19 +780,27 @@ function Plugin:EndVote()
 	TableEmpty( self.MapButtons )
 	Shine.ScreenText.End( "MapVote" )
 
-	if SGUI.IsValid( self.FullVoteMenu ) then
-		self.FullVoteMenu:Close( function()
-			if SGUI.IsValid( self.FullVoteMenu ) then
-				self.FullVoteMenu:Destroy()
+	local FullVoteMenu = self.FullVoteMenu
+	if SGUI.IsValid( FullVoteMenu ) then
+		FullVoteMenu:Close( function()
+			if not SGUI.IsValid( FullVoteMenu ) then return end
+
+			FullVoteMenu:Destroy()
+
+			if FullVoteMenu == self.FullVoteMenu then
 				self.FullVoteMenu = nil
 			end
 		end )
 	end
 
-	if SGUI.IsValid( self.MapVoteNotification ) then
-		self.MapVoteNotification:Hide( function()
-			if SGUI.IsValid( self.MapVoteNotification ) then
-				self.MapVoteNotification:Destroy()
+	local MapVoteNotification = self.MapVoteNotification
+	if SGUI.IsValid( MapVoteNotification ) then
+		MapVoteNotification:Hide( function()
+			if not SGUI.IsValid( MapVoteNotification ) then return end
+
+			MapVoteNotification:Destroy()
+
+			if MapVoteNotification == self.MapVoteNotification then
 				self.MapVoteNotification = nil
 			end
 		end )
