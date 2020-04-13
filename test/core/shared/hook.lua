@@ -5,6 +5,13 @@
 local UnitTest = Shine.UnitTest
 local Hook = Shine.Hook
 
+local StringFormat = string.format
+
+UnitTest:After( function()
+	Hook.Clear( "Test" )
+	Hook.Clear( "TestClassTestMethod" )
+end )
+
 local function TestHooks( Assert, MethodName )
 	local Called = {}
 	Hook.Add( "Test", "Normal1", function()
@@ -72,8 +79,6 @@ UnitTest:Test( "Hook integration test", function( Assert )
 	TestHooks( Assert, "Broadcast" )
 end )
 
-Hook.Clear( "Test" )
-
 UnitTest:Test( "Broadcast - Ignores return values", function( Assert )
 	local Called = {}
 	Hook.Add( "Test", "ReturnsValue", function()
@@ -88,8 +93,6 @@ UnitTest:Test( "Broadcast - Ignores return values", function( Assert )
 
 	Assert.ArrayEquals( "Should have called both listeners", { "ReturnsValue", "DoesNotReturnValue" }, Called )
 end )
-
-Hook.Clear( "Test" )
 
 local FunctionName = "TestFunction"..os.time()
 
@@ -121,8 +124,6 @@ UnitTest:Test( "SetupGlobalHook - Replaces functions only once", function( Asser
 	}, Callback.Invocations )
 end )
 
-Hook.Clear( "Test" )
-
 local NestedName = "TestHolder"..os.time()
 
 UnitTest:Test( "SetupGlobalHook - Handles nested global values", function( Assert )
@@ -153,16 +154,13 @@ UnitTest:Test( "SetupGlobalHook - Handles nested global values", function( Asser
 	}, Callback.Invocations )
 end )
 
-Hook.Clear( "Test" )
-
 _G[ NestedName ] = nil
 _G[ FunctionName ] = nil
 
 local ClassName = "HookTestClass"..os.time()
+class( ClassName )
 
 UnitTest:Test( "SetupClassHook - Replaces functions only once", function( Assert )
-	class( ClassName )
-
 	local TestFunction = function( self ) end
 	_G[ ClassName ].TestMethod = TestFunction
 
@@ -195,6 +193,184 @@ UnitTest:Test( "SetupClassHook - Replaces functions only once", function( Assert
 	}, Callback.Invocations )
 end )
 
-Hook.Clear( "TestClassTestMethod" )
+local HOOK_RETURN_VALUE = "HOOK_RETURN_VALUE"
+local ORIGINAL_RETURN_VALUE = "ORIGINAL_RETURN_VALUE"
+
+local HookModeTests = {
+	{
+		Mode = "Replace",
+
+		ShouldCallOriginalOnHookReturn = false,
+		ExpectedOnHookReturn = HOOK_RETURN_VALUE,
+
+		ShouldCallOriginalOnHookNil = false,
+		ExpectedOnHookNil = nil
+	},
+	{
+		Mode = "PassivePre",
+
+		ShouldCallOriginalOnHookReturn = true,
+		ExpectedOnHookReturn = ORIGINAL_RETURN_VALUE,
+
+		ShouldCallOriginalOnHookNil = true,
+		ExpectedOnHookNil = ORIGINAL_RETURN_VALUE
+	},
+	{
+		Mode = "PassivePost",
+
+		ShouldCallOriginalOnHookReturn = true,
+		ExpectedOnHookReturn = ORIGINAL_RETURN_VALUE,
+
+		ShouldCallOriginalOnHookNil = true,
+		ExpectedOnHookNil = ORIGINAL_RETURN_VALUE
+	},
+	{
+		Mode = "ActivePre",
+
+		ShouldCallOriginalOnHookReturn = false,
+		ExpectedOnHookReturn = HOOK_RETURN_VALUE,
+
+		ShouldCallOriginalOnHookNil = true,
+		ExpectedOnHookNil = ORIGINAL_RETURN_VALUE
+	},
+	{
+		Mode = "ActivePost",
+
+		ShouldCallOriginalOnHookReturn = true,
+		ExpectedOnHookReturn = HOOK_RETURN_VALUE,
+
+		ShouldCallOriginalOnHookNil = true,
+		ExpectedOnHookNil = ORIGINAL_RETURN_VALUE
+	},
+	{
+		Mode = "Halt",
+
+		ShouldCallOriginalOnHookReturn = false,
+		ExpectedOnHookReturn = nil,
+
+		ShouldCallOriginalOnHookNil = true,
+		ExpectedOnHookNil = ORIGINAL_RETURN_VALUE
+	}
+}
+
+local OriginalFunction = UnitTest.MockFunction( function() return ORIGINAL_RETURN_VALUE end )
+UnitTest:Before( function()
+	OriginalFunction:Reset()
+end )
+
+for i = 1, #HookModeTests do
+	local TestCase = HookModeTests[ i ]
+	local GlobalKey = FunctionName..TestCase.Mode
+	local GlobalHookName = "TestGlobalHook"..TestCase.Mode
+
+	_G[ GlobalKey ] = OriginalFunction
+	Hook.SetupGlobalHook( GlobalKey, GlobalHookName, TestCase.Mode )
+
+	UnitTest:Test(
+		StringFormat(
+			"SetupGlobalHook - Applies a %s hook mode as expected when the hook returns a value",
+			TestCase.Mode
+		),
+		function( Assert )
+			Assert.NotEquals( "Should have replaced the global value", OriginalFunction, _G[ GlobalKey ] )
+
+			Hook.Add( GlobalHookName, "TestCase", function() return HOOK_RETURN_VALUE end )
+			Assert.Equals(
+				"Should return the expected value when the hook returns a value",
+				TestCase.ExpectedOnHookReturn,
+				_G[ GlobalKey ]()
+			)
+
+			if TestCase.ShouldCallOriginalOnHookReturn then
+				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+			else
+				Assert.Equals(
+					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				)
+			end
+		end
+	)
+
+	UnitTest:Test(
+		StringFormat(
+			"SetupGlobalHook - Applies a %s hook mode as expected when the hook returns nil",
+			TestCase.Mode
+		),
+		function( Assert )
+			Hook.Add( GlobalHookName, "TestCase", function() return nil end )
+			Assert.Equals(
+				"Should return the expected value when the hook returns nil",
+				TestCase.ExpectedOnHookNil,
+				_G[ GlobalKey ]()
+			)
+			if TestCase.ShouldCallOriginalOnHookNil then
+				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+			else
+				Assert.Equals(
+					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				)
+			end
+		end
+	)
+
+	Hook.Clear( GlobalHookName )
+
+	_G[ GlobalKey ] = nil
+
+	local ClassKey = TestCase.Mode
+	local ClassHookName = "TestClassHook"..TestCase.Mode
+
+	_G[ ClassName ][ ClassKey ] = OriginalFunction
+	Hook.SetupClassHook( ClassName, ClassKey, ClassHookName, TestCase.Mode )
+
+	UnitTest:Test(
+		StringFormat(
+			"SetupClassHook - Applies a %s hook mode as expected when the hook returns a value",
+			TestCase.Mode
+		),
+		function( Assert )
+			Assert.NotEquals( "Should have replaced the class method", OriginalFunction, _G[ ClassName ][ ClassKey ] )
+
+			Hook.Add( ClassHookName, "TestCase", function() return HOOK_RETURN_VALUE end )
+			Assert.Equals(
+				"Should return the expected value when the hook returns a value",
+				TestCase.ExpectedOnHookReturn,
+				_G[ ClassName ][ ClassKey ]()
+			)
+
+			if TestCase.ShouldCallOriginalOnHookReturn then
+				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+			else
+				Assert.Equals(
+					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				)
+			end
+		end
+	)
+
+	UnitTest:Test(
+		StringFormat(
+			"SetupClassHook - Applies a %s hook mode as expected when the hook returns nil",
+			TestCase.Mode
+		),
+		function( Assert )
+			Hook.Add( ClassHookName, "TestCase", function() return nil end )
+			Assert.Equals(
+				"Should return the expected value when the hook returns nil",
+				TestCase.ExpectedOnHookNil,
+				_G[ ClassName ][ ClassKey ]()
+			)
+			if TestCase.ShouldCallOriginalOnHookNil then
+				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+			else
+				Assert.Equals(
+					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				)
+			end
+		end
+	)
+
+	Hook.Clear( ClassHookName )
+end
 
 _G[ ClassName ] = nil

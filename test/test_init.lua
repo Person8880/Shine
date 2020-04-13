@@ -29,6 +29,7 @@ local select = select
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local TableClear = require "table.clear"
 local TableConcat = table.concat
 local TableCopy = table.Copy
 local type = type
@@ -98,17 +99,31 @@ function UnitTest.MakeMockClient( SteamID )
 	}
 end
 
-function UnitTest.MockFunction( Impl )
-	return setmetatable( {
-		Invocations = {}
-	}, {
-		__call = function( self, ... )
-			self.Invocations[ #self.Invocations + 1 ] = { ArgCount = select( "#", ... ), ... }
-			if Impl then
-				return Impl( ... )
-			end
+do
+	local MockFunction = {}
+	MockFunction.__index = MockFunction
+
+	function MockFunction:Reset()
+		TableClear( self.Invocations )
+	end
+
+	function MockFunction:GetInvocationCount()
+		return #self.Invocations
+	end
+
+	function MockFunction:__call( ... )
+		self.Invocations[ #self.Invocations + 1 ] = { ArgCount = select( "#", ... ), ... }
+		if self.Impl then
+			return self.Impl( ... )
 		end
-	} )
+	end
+
+	function UnitTest.MockFunction( Impl )
+		return setmetatable( {
+			Invocations = {},
+			Impl = Impl
+		}, MockFunction )
+	end
 end
 
 local MockedGlobals = {}
