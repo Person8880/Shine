@@ -132,11 +132,31 @@ end
 	Send the map vote text and map options when a new player connects and a map vote is in progress.
 ]]
 function Plugin:ClientConfirmConnect( Client )
-	if not self:VoteStarted() then return end
+	if not self:VoteStarted() or ( self.Vote.NotifiedClients and self.Vote.NotifiedClients[ Client ] ) then
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug(
+				"%s does not need to be notified of an ongoing map vote.",
+				Shine.GetClientInfo( Client )
+			)
+		end
+		return
+	end
 
 	local Time = SharedTime()
 	local Duration = Floor( self.Vote.EndTime - Time )
-	if Duration < 5 then return end
+	if Duration < 5 then
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug(
+				"Skipping sending map vote to %s as the vote will end soon.",
+				Shine.GetClientInfo( Client )
+			)
+		end
+		return
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug( "Sending map vote to %s who has just connected.", Shine.GetClientInfo( Client ) )
+	end
 
 	-- Send any mods for maps in the current vote (so the map vote menu shows the right preview image).
 	self:SendMapMods( Client )
@@ -150,11 +170,17 @@ function Plugin:ClientConfirmConnect( Client )
 	for Map, Votes in pairs( self.Vote.VoteList ) do
 		self:SendMapVoteCount( Client, Map, Votes )
 	end
+
+	self.Vote.NotifiedClients[ Client ] = true
 end
 
 function Plugin:ClientDisconnect( Client )
 	self.StartingVote:ClientDisconnect( Client )
 	self:UpdateVoteCounters( self.StartingVote )
+
+	if self.Vote.NotifiedClients then
+		self.Vote.NotifiedClients[ Client ] = nil
+	end
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
@@ -654,6 +680,7 @@ local TableRandom = table.ChooseRandom
 
 function Plugin:ProcessResults( NextMap )
 	self:EndVote()
+	self.Vote.NotifiedClients = nil
 
 	local Cycle = self.MapCycle
 
@@ -1031,6 +1058,7 @@ function Plugin:StartVote( NextMap, Force )
 	self.Vote.TotalVotes = 0
 	self.Vote.Voted = Shine.Multimap()
 	self.Vote.NominationTracker = {}
+	self.Vote.NotifiedClients = {}
 
 	local MapList = self:BuildMapChoices()
 	self.Vote.MapList = MapList
@@ -1068,6 +1096,10 @@ function Plugin:StartVote( NextMap, Force )
 	self:CreateTimer( self.VoteTimer, VoteLength, 1, function()
 		self:ProcessResults( NextMap )
 	end )
+
+	for Client in Shine.IterateClients() do
+		self.Vote.NotifiedClients[ Client ] = true
+	end
 
 	-- Stop the game from starting if the current vote is player-initiated.
 	self.CheckGameStart = self.CheckGameStartDuringVote

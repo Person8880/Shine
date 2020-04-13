@@ -879,6 +879,9 @@ function Plugin:CreateMapVoteNotification( VoteButton )
 end
 
 function Plugin:ReceiveVoteOptions( Message )
+	-- Clear out any previous vote.
+	self:EndVote()
+
 	Shine.CheckVoteMenuBind()
 
 	local Duration = Message.Duration
