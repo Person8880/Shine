@@ -482,6 +482,10 @@ do
 		return Callers[ select( "#", ... ) ]( self.Plugin, self.Plugin[ self.Event ], self.Event, ... )
 	end
 
+	function EventCaller:__tostring()
+		return StringFormat( "Shine.Plugins.%s:%s()", self.Plugin:GetName(), self.Event )
+	end
+
 	local PluginEventKeys = {}
 	local PluginEvents = setmetatable( {}, {
 		__index = function( self, Key )
@@ -504,7 +508,7 @@ do
 
 		PluginEvents[ Plugin ]:Add( Event )
 
-		Hook.Add( Event, Key, EventCaller( Plugin, Event ), Hook.MAX_PRIORITY + 1 )
+		Hook.Add( Event, Key, EventCaller( Plugin, Event ), Hook.MAX_PRIORITY + 0.5 )
 	end
 
 	RemovePluginHook = function( Plugin, Event )

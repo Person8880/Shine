@@ -10,7 +10,6 @@ local Clamp = math.Clamp
 local DebugGetInfo = debug.getinfo
 local DebugGetMetaTable = debug.getmetatable
 local DebugSetUpValue = debug.setupvalue
-local Floor = math.floor
 local Huge = math.huge
 local IsCallable = Shine.IsCallable
 local IsType = Shine.IsType
@@ -123,7 +122,7 @@ local function Add( Event, Index, Function, Priority )
 		Shine.TypeCheck( Priority, "number", 4, "Add" )
 	end
 
-	Priority = Clamp( Floor( Priority or DEFAULT_PRIORITY ), MAX_PRIORITY, MIN_PRIORITY )
+	Priority = Clamp( Priority or DEFAULT_PRIORITY, MAX_PRIORITY, MIN_PRIORITY )
 
 	-- If this index has already been used, replace it.
 	local Nodes = HookNodes[ Event ]
