@@ -500,11 +500,8 @@ do
 	AddPluginHook = function( Plugin, Event )
 		if not IsType( Plugin[ Event ], "function" ) then return end
 
-		local Keys = PluginEventKeys[ Event ] or {}
-		PluginEventKeys[ Event ] = Keys
-
-		local Key = Keys[ Plugin ] or EventKey( Plugin )
-		Keys[ Plugin ] = Key
+		local Key = PluginEventKeys[ Plugin ] or EventKey( Plugin )
+		PluginEventKeys[ Plugin ] = Key
 
 		PluginEvents[ Plugin ]:Add( Event )
 
@@ -512,11 +509,7 @@ do
 	end
 
 	RemovePluginHook = function( Plugin, Event )
-		local Key = PluginEventKeys[ Event ] and PluginEventKeys[ Event ][ Plugin ]
-		if Key then
-			Hook.Remove( Event, Key )
-			PluginEventKeys[ Event ][ Plugin ] = nil
-		end
+		Hook.Remove( Event, PluginEventKeys[ Plugin ] )
 	end
 
 	RemoveAllPluginHooks = function( Plugin )
@@ -526,6 +519,7 @@ do
 			RemovePluginHook( Plugin, Event )
 		end
 
+		PluginEventKeys[ Plugin ] = nil
 		PluginEvents[ Plugin ] = nil
 	end
 end

@@ -36,32 +36,30 @@ local HooksByEventAndIndex = {}
 -- Known event names.
 local KnownEvents = Shine.Set()
 
-local OnError = Shine.BuildErrorHandler( "Hook error" )
-local Hooks
-do
-	if not Shine.SetupExtensionEvents then
-		Shine.SetupExtensionEvents = function() end
-	end
-
-	Hooks = setmetatable( {}, {
-		-- On first call/addition of an event, setup the necessary data structures.
-		__index = function( self, Event )
-			KnownEvents:Add( Event )
-
-			local HooksByIndex = LinkedList()
-			HookNodes[ Event ] = {}
-			HooksByEventAndIndex[ Event ] = {}
-
-			-- Save the list on the table to avoid invoking this again.
-			self[ Event ] = HooksByIndex
-
-			-- Allow extensions to setup their own events.
-			Shine:SetupExtensionEvents( Event )
-
-			return HooksByIndex
-		end
-	} )
+-- Placeholder until the extensions file is loaded.
+if not Shine.SetupExtensionEvents then
+	Shine.SetupExtensionEvents = function() end
 end
+
+local OnError = Shine.BuildErrorHandler( "Hook error" )
+local Hooks = setmetatable( {}, {
+	-- On first call/addition of an event, setup the necessary data structures.
+	__index = function( self, Event )
+		KnownEvents:Add( Event )
+
+		local HooksByIndex = LinkedList()
+		HookNodes[ Event ] = {}
+		HooksByEventAndIndex[ Event ] = {}
+
+		-- Save the list on the table to avoid invoking this again.
+		self[ Event ] = HooksByIndex
+
+		-- Allow extensions to setup their own events.
+		Shine:SetupExtensionEvents( Event )
+
+		return HooksByIndex
+	end
+} )
 
 -- Sort nodes by priority. Equal priority nodes will be placed in insertion order
 -- as the linked list will insert before the first node that is strictly after the
