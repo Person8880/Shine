@@ -833,8 +833,7 @@ if Client then
 		SetupClassHook( "HelpScreen", "Display", "OnHelpScreenDisplay", "PassivePost" )
 		SetupClassHook( "HelpScreen", "Hide", "OnHelpScreenHide", "PassivePost" )
 
-		Shine.Hook.SetupGlobalHook( "ClientUI.EvaluateUIVisibility",
-			"EvaluateUIVisibility", "PassivePost" )
+		SetupGlobalHook( "ClientUI.EvaluateUIVisibility", "EvaluateUIVisibility", "PassivePost" )
 
 		local OptionsFunctions = {
 			"Client.SetOptionInteger",
@@ -843,7 +842,7 @@ if Client then
 			"Client.SetOptionBoolean"
 		}
 		for i = 1, #OptionsFunctions do
-			Shine.Hook.SetupGlobalHook( OptionsFunctions[ i ], "OnClientOptionChanged", "PassivePost", {
+			SetupGlobalHook( OptionsFunctions[ i ], "OnClientOptionChanged", "PassivePost", {
 				OverrideWithoutWarning = true
 			} )
 		end
@@ -971,43 +970,36 @@ Add( "Think", "ReplaceMethods", function()
 	-- Need to double check for kTechId and the appropriate enums in case a different gamemode is running that doesn't
 	-- use the NS2 code that creates this enum.
 	if kTechId then
-		local function CallIfResearchIDMatches( HookName, TechID )
-			return function( OldFunc, Building, ResearchID, ... )
-				if ResearchID == TechID then
-					Broadcast( HookName, Building, ResearchID, ... )
-				end
-				return OldFunc( Building, ResearchID, ... )
-			end
+		local function SetupResearchHook( ClassName, MethodName, HookName, TechID )
+			local Method = Shine.GetClassMethod( ClassName, MethodName )
+			local NumArguments = GetNumArguments( Method )
+
+			SetupClassHook( ClassName, MethodName, HookName, CodeGen.GenerateFunctionWithArguments(
+				[[local Broadcast, HookName, TechID = ...
+				return function( OldFunc, Building, ResearchID{Arguments} )
+					if ResearchID == TechID then
+						Broadcast( HookName, Building, ResearchID{Arguments} )
+					end
+					return OldFunc( Building, ResearchID{Arguments} )
+				end]],
+				NumArguments - 2,
+				StringFormat( "@lua/shine/core/shared/hook.lua/%s:%s", ClassName, MethodName ),
+				Broadcast,
+				HookName,
+				TechID
+			) )
 		end
 
 		if rawget( kTechId, "Recycle" ) then
-			SetupClassHook(
-				"RecycleMixin", "OnResearch", "OnRecycle",
-				CallIfResearchIDMatches( "OnRecycle", kTechId.Recycle )
-			)
-			SetupClassHook(
-				"RecycleMixin", "OnResearchComplete", "OnBuildingRecycled",
-				CallIfResearchIDMatches( "OnBuildingRecycled", kTechId.Recycle )
-			)
-			SetupClassHook(
-				"RecycleMixin", "OnResearchCancel", "OnRecycleCancelled",
-				CallIfResearchIDMatches( "OnRecycleCancelled", kTechId.Recycle )
-			)
+			SetupResearchHook( "RecycleMixin", "OnResearch", "OnRecycle", kTechId.Recycle )
+			SetupResearchHook( "RecycleMixin", "OnResearchComplete", "OnBuildingRecycled", kTechId.Recycle )
+			SetupResearchHook( "RecycleMixin", "OnResearchCancel", "OnRecycleCancelled", kTechId.Recycle )
 		end
 
 		if rawget( kTechId, "Consume" ) then
-			SetupClassHook(
-				"ConsumeMixin", "OnResearch", "OnConsume",
-				CallIfResearchIDMatches( "OnConsume", kTechId.Consume )
-			)
-			SetupClassHook(
-				"ConsumeMixin", "OnResearchComplete", "OnBuildingConsumed",
-				CallIfResearchIDMatches( "OnBuildingConsumed", kTechId.Consume )
-			)
-			SetupClassHook(
-				"ConsumeMixin", "OnResearchCancel", "OnConsumeCancelled",
-				CallIfResearchIDMatches( "OnConsumeCancelled", kTechId.Consume )
-			)
+			SetupResearchHook( "ConsumeMixin", "OnResearch", "OnConsume", kTechId.Consume )
+			SetupResearchHook( "ConsumeMixin", "OnResearchComplete", "OnBuildingConsumed", kTechId.Consume )
+			SetupResearchHook( "ConsumeMixin", "OnResearchCancel", "OnConsumeCancelled", kTechId.Consume )
 		end
 	end
 
