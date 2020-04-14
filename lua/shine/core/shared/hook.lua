@@ -349,13 +349,14 @@ local function AddClassHook( ReplacementFuncTemplate, HookName, Caller, Class, M
 				return ReplacementFunc( OldFunc{Arguments} )
 			end]],
 			NumArguments,
-			"@lua/shine/core/shared/hook.lua/CustomClassHook",
+			StringFormat( "@lua/shine/core/shared/hook.lua/CustomClassHook/%s:%s", Class, Method ),
 			OldFunc,
 			ReplacementFuncTemplate
 		)
 	else
 		ReplacementFunc = CodeGen.GenerateFunctionWithArguments(
-			ReplacementFuncTemplate, NumArguments, "@lua/shine/core/shared/hook.lua/ClassHook",
+			ReplacementFuncTemplate, NumArguments,
+			StringFormat( "@lua/shine/core/shared/hook.lua/ClassHook/%s:%s", Class, Method ),
 			HookName, Caller, OldFunc
 		)
 	end
@@ -407,13 +408,13 @@ local function AddGlobalHook( ReplacementFunc, HookName, Caller, FuncName )
 				return ReplacementFunc( OldFunc{Arguments} )
 			end]],
 			NumArguments,
-			"@lua/shine/core/shared/hook.lua/CustomGlobalHook",
+			StringFormat( "@lua/shine/core/shared/hook.lua/CustomGlobalHook/%s", FuncName ),
 			Func,
 			ReplacementFunc
 		)
 	else
 		Prev[ Path[ NumSegments ] ] = CodeGen.GenerateFunctionWithArguments(
-			ReplacementFunc, NumArguments, "@lua/shine/core/shared/hook.lua/GlobalHook",
+			ReplacementFunc, NumArguments, StringFormat( "@lua/shine/core/shared/hook.lua/GlobalHook/%s", FuncName ),
 			HookName, Caller, Func
 		)
 	end
