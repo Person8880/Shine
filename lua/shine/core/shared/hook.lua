@@ -19,6 +19,7 @@ local ReplaceMethod = Shine.ReplaceClassMethod
 local select = select
 local StringExplode = string.Explode
 local StringFormat = string.format
+local TableQuickCopy = table.QuickCopy
 local xpcall = xpcall
 
 local LinkedList = Shine.LinkedList
@@ -33,51 +34,30 @@ local ExtensionIndex = setmetatable( {}, { __tostring = function() return "CallE
 local HookNodes = {}
 -- A mapping of event -> hook index -> hook callback (for external use).
 local HooksByEventAndIndex = {}
+-- Known event names.
+local KnownEvents = Shine.Set()
 
 local OnError = Shine.BuildErrorHandler( "Hook error" )
 local Hooks
 do
-	-- Use callable tables to avoid creating closures during hook calls.
-	-- This helps to avoid LuaJIT blacklisting the hook call/broadcast functions.
-	local PluginCaller = {
-		__call = function( self, ... )
-			return Shine:CallExtensionEvent( self[ 1 ], OnError, ... )
-		end,
-		__tostring = function( self )
-			return StringFormat( "CallExtensionEvent - %s", self[ 1 ] )
-		end
-	}
-	local PluginBroadcaster = {
-		__call = function( self, ... )
-			return Shine:BroadcastExtensionEvent( self[ 1 ], OnError, ... )
-		end,
-		__tostring = function( self )
-			return StringFormat( "BroadcastExtensionEvent - %s", self[ 1 ] )
-		end
-	}
+	if not Shine.SetupExtensionEvents then
+		Shine.SetupExtensionEvents = function() end
+	end
 
 	Hooks = setmetatable( {}, {
-		-- On first call/addition of an event, setup a default hook to call the event on extensions.
+		-- On first call/addition of an event, setup the necessary data structures.
 		__index = function( self, Event )
-			local HooksByIndex = LinkedList()
-			local Node = HooksByIndex:Add( {
-				-- This emulates the old behaviour, placing the event between -20 and -19.
-				-- No client of the public API can set non-integer priorities.
-				Priority = -19.5,
-				Callback = setmetatable( { Event }, PluginCaller ),
-				BroadcastCallback = setmetatable( { Event }, PluginBroadcaster ),
-				Index = ExtensionIndex
-			} )
+			KnownEvents:Add( Event )
 
-			HookNodes[ Event ] = {
-				[ ExtensionIndex ] = Node
-			}
-			HooksByEventAndIndex[ Event ] = {
-				[ ExtensionIndex ] = Node.Value.Callback
-			}
+			local HooksByIndex = LinkedList()
+			HookNodes[ Event ] = {}
+			HooksByEventAndIndex[ Event ] = {}
 
 			-- Save the list on the table to avoid invoking this again.
 			self[ Event ] = HooksByIndex
+
+			-- Allow extensions to setup their own events.
+			Shine:SetupExtensionEvents( Event )
 
 			return HooksByIndex
 		end
@@ -167,15 +147,6 @@ local function Add( Event, Index, Function, Priority )
 end
 Hook.Add = Add
 
--- Placeholder until the extensions file is loaded.
-if not Shine.CallExtensionEvent then
-	Shine.CallExtensionEvent = function() end
-end
-
-if not Shine.BroadcastExtensionEvent then
-	Shine.BroadcastExtensionEvent = function() end
-end
-
 local Call
 do
 	-- See the comment in codegen.lua for the reasoning of this seemingly bizarre way of calling hooks.
@@ -202,7 +173,13 @@ do
 				end
 			end
 		end]],
-		ChunkName = "@lua/shine/core/shared/hook.lua/Call",
+		ChunkName = function( NumArguments )
+			return StringFormat(
+				"@lua/shine/core/shared/hook.lua/CallWith%sArg%s",
+				NumArguments,
+				NumArguments == 1 and "" or "s"
+			)
+		end,
 		-- This should equal the largest number of arguments seen by a hook to avoid lazy-generation which can impact
 		-- compilation results.
 		InitialSize = 10,
@@ -247,7 +224,13 @@ do
 				end
 			end
 		end]],
-		ChunkName = "@lua/shine/core/shared/hook.lua/Broadcast",
+		ChunkName = function( NumArguments )
+			return StringFormat(
+				"@lua/shine/core/shared/hook.lua/BroadcastWith%sArg%s",
+				NumArguments,
+				NumArguments == 1 and "" or "s"
+			)
+		end,
 		InitialSize = 10,
 		Args = { Shine, Hooks, OnError, Remove, ExtensionIndex },
 		OnFunctionGenerated = function( NumArguments, Caller )
@@ -276,6 +259,7 @@ local function ClearHooks( Event )
 	Hooks[ Event ] = nil
 	HooksByEventAndIndex[ Event ] = nil
 	HookNodes[ Event ] = nil
+	KnownEvents:Remove( Event )
 end
 Hook.Clear = ClearHooks
 
@@ -299,6 +283,13 @@ Hook.BroadcastOnce = BroadcastOnce
 
 function Hook.GetTable()
 	return HooksByEventAndIndex
+end
+
+--[[
+	Provides a list of all known event names that have been fired at least once and not cleared.
+]]
+function Hook.GetKnownEvents()
+	return TableQuickCopy( KnownEvents:AsList() )
 end
 
 local function GetNumArguments( Func )

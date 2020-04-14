@@ -76,7 +76,7 @@ CodeGen.GenerateTemplatedFunction = GenerateTemplatedFunction
 local function GenerateFunctionWithArguments( FunctionCode, NumArguments, ChunkName, ... )
 	Shine.TypeCheck( FunctionCode, "string", 1, "GenerateFunctionWithArguments" )
 	Shine.TypeCheck( NumArguments, "number", 2, "GenerateFunctionWithArguments" )
-	Shine.TypeCheck( ChunkName, { "string", "nil" }, 3, "GenerateFunctionWithArguments" )
+	Shine.TypeCheck( ChunkName, { "function", "string", "nil" }, 3, "GenerateFunctionWithArguments" )
 
 	local Arguments = { "" }
 	if NumArguments < Huge then
@@ -89,8 +89,14 @@ local function GenerateFunctionWithArguments( FunctionCode, NumArguments, ChunkN
 
 	local ArgumentsList = TableConcat( Arguments, ", " )
 	local ArgumentsWithoutPrefix = TableConcat( Arguments, ", ", 2 )
+	local FinalChunkName
+	if type( ChunkName ) == "function" then
+		FinalChunkName = ChunkName( NumArguments )
+	else
+		FinalChunkName = ChunkName
+	end
 
-	return GenerateTemplatedFunction( FunctionCode, ChunkName, {
+	return GenerateTemplatedFunction( FunctionCode, FinalChunkName, {
 		Arguments = ArgumentsList,
 		FunctionArguments = ArgumentsWithoutPrefix
 	}, ... )
@@ -140,7 +146,7 @@ local NO_ARGS = {}
 ]]
 function CodeGen.MakeFunctionGenerator( Options )
 	local Args = Shine.TypeCheckField( Options, "Args", { "table", "nil" }, "Options" ) or NO_ARGS
-	local ChunkName = Shine.TypeCheckField( Options, "ChunkName", { "string", "nil" }, "Options" )
+	local ChunkName = Shine.TypeCheckField( Options, "ChunkName", { "function", "string", "nil" }, "Options" )
 	local NumArgs = Shine.TypeCheckField( Options, "NumArgs", { "number", "nil" }, "Options" ) or #Args
 	local Template = Shine.TypeCheckField( Options, "Template", "string", "Options" )
 
