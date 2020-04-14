@@ -134,8 +134,7 @@ local function Add( Event, Index, Function, Priority )
 	local Node = Callbacks:InsertByComparing( {
 		Priority = Priority,
 		Index = Index,
-		Callback = Function,
-		BroadcastCallback = Function
+		Callback = Function
 	}, NodeComparator )
 
 	-- Remember this node for later removal.
@@ -208,7 +207,7 @@ do
 
 			for Node in Callbacks:IterateNodes() do
 				local Entry = Node.Value
-				local Success = xpcall( Entry.BroadcastCallback, OnError{Arguments} )
+				local Success = xpcall( Entry.Callback, OnError{Arguments} )
 				if not Success then
 					-- If the error came from calling extension events, don't remove the hook
 					-- (though it should never happen).
