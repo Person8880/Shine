@@ -11,7 +11,7 @@ local BalanceModule = {}
 local Abs = math.abs
 local Ceil = math.ceil
 local Clamp = math.Clamp
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local IsType = Shine.IsType
 local Max = math.max
 local next = next
@@ -133,12 +133,8 @@ local DebugMode = false
 -- TeamNumber parameter currently unused, but ready for Hive 2.0
 BalanceModule.SkillGetters = {
 	GetHiveSkill = function( Ply, TeamNumber )
-		local Client = GetOwner( Ply )
+		local Client = GetClientForPlayer( Ply )
 		if Client and Client:GetIsVirtual() then
-			if DebugMode then
-				Client.Skill = Client.Skill or Random( 0, 2500 )
-				return Client.Skill
-			end
 			-- Bots are all equal so there's no reason to consider them.
 			return nil
 		end
@@ -152,14 +148,6 @@ BalanceModule.SkillGetters = {
 
 	-- KA/D Ratio.
 	GetKDR = function( Ply, TeamNumber )
-		if DebugMode then
-			local Client = GetOwner( Ply )
-			if Client and Client:GetIsVirtual() then
-				Client.Skill = Client.Skill or Random() * 3
-				return Client.Skill
-			end
-		end
-
 		do
 			local KDR = Plugin:CallModuleEvent( "GetPlayerKDR", Ply, TeamNumber )
 			if KDR then return KDR end
@@ -180,14 +168,6 @@ BalanceModule.SkillGetters = {
 
 	-- Score per minute played.
 	GetScore = function( Ply, TeamNumber )
-		if DebugMode then
-			local Client = GetOwner( Ply )
-			if Client and Client:GetIsVirtual() then
-				Client.Skill = Client.Skill or Random() * 10
-				return Client.Skill
-			end
-		end
-
 		do
 			local ScorePerMinute = Plugin:CallModuleEvent( "GetPlayerScorePerMinute", Ply, TeamNumber )
 			if ScorePerMinute then return ScorePerMinute end
@@ -205,6 +185,38 @@ BalanceModule.SkillGetters = {
 		return Ply.totalScore / ( PlayTime / 60 )
 	end
 }
+
+if DebugMode then
+	local OldGetHiveSkill = BalanceModule.SkillGetters.GetHiveSkill
+	BalanceModule.SkillGetters.GetHiveSkill = function( Ply, TeamNumber )
+		local Client = GetClientForPlayer( Ply )
+		if Client and Client:GetIsVirtual() then
+			Client.Skill = Client.Skill or Random( 0, 2500 )
+			return Client.Skill
+		end
+		return OldGetHiveSkill( Ply, TeamNumber )
+	end
+
+	local OldGetKDR = BalanceModule.SkillGetters.GetKDR
+	BalanceModule.SkillGetters.GetKDR = function( Ply, TeamNumber )
+		local Client = GetClientForPlayer( Ply )
+		if Client and Client:GetIsVirtual() then
+			Client.Skill = Client.Skill or Random() * 3
+			return Client.Skill
+		end
+		return OldGetKDR( Ply, TeamNumber )
+	end
+
+	local OldGetScore = BalanceModule.SkillGetters.GetScore
+	BalanceModule.SkillGetters.GetScore = function( Ply, TeamNumber )
+		local Client = GetClientForPlayer( Ply )
+		if Client and Client:GetIsVirtual() then
+			Client.Skill = Client.Skill or Random() * 10
+			return Client.Skill
+		end
+		return OldGetScore( Ply, TeamNumber )
+	end
+end
 
 BalanceModule.HappinessHistoryFile = "config://shine/temp/shuffle_happiness.json"
 

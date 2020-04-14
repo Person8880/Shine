@@ -92,7 +92,7 @@ function Plugin:PlayerNameChange( Player, Name, OldName )
 	if Name == kDefaultPlayerName then return end
 	if OldName == kDefaultPlayerName then return end
 
-	local Client = Server.GetOwner( Player )
+	local Client = Shine.GetClientForPlayer( Player )
 	if Client and Client:GetIsVirtual() then return end
 
 	Shine:LogString( StringFormat( "%s changed their name from '%s' to '%s'.",
@@ -103,7 +103,7 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if not self.Config.LogTeamJoins then return end
 	if not Player then return end
 
-	local Client = Server.GetOwner( Player )
+	local Client = Shine.GetClientForPlayer( Player )
 	if not Client then return end
 
 	Shine:LogString( StringFormat( "Player %s joined team %s.",
@@ -176,8 +176,8 @@ function Plugin:OnEntityKilled( Gamerules, Victim, Attacker, Inflictor, Point, D
 	local AttackerPos = Attacker:GetOrigin()
 	local VictimPos = Victim:GetOrigin()
 
-	local AttackerClient = Server.GetOwner( Attacker )
-	local VictimClient = Server.GetOwner( Victim )
+	local AttackerClient = Shine.GetClientForPlayer( Attacker )
+	local VictimClient = Shine.GetClientForPlayer( Victim )
 
 	Shine:LogString( StringFormat( "%s killed %s with %s. Attacker location: %s. Victim location: %s.",
 		AttackerClient and self:GetClientInfo( AttackerClient ) or Attacker:GetClassName(),
@@ -198,8 +198,8 @@ function Plugin:CastVoteByPlayer( Gamerules, VoteTechID, Player )
 
 	if not CommPlayer then return end
 
-	local Target = Server.GetOwner( CommPlayer )
-	local Client = Server.GetOwner( Player )
+	local Target = Shine.GetClientForPlayer( CommPlayer )
+	local Client = Shine.GetClientForPlayer( Player )
 
 	if Target and Client then
 		Shine:LogString( StringFormat( "%s voted to eject %s.",
@@ -212,7 +212,7 @@ function Plugin:CommLoginPlayer( Chair, Player )
 	if not Player then return end
 
 	Shine:LogString( StringFormat( "%s became the commander of the %s.",
-		self:GetClientInfo( Server.GetOwner( Player ) ),
+		self:GetClientInfo( Shine.GetClientForPlayer( Player ) ),
 		Shine:GetTeamName( Player:GetTeamNumber(), nil, true )
 	) )
 end
@@ -224,7 +224,7 @@ function Plugin:CommLogout( Chair )
 	if not Commander then return end
 
 	Shine:LogString( StringFormat( "%s stopped commanding the %s.",
-		self:GetClientInfo( Server.GetOwner( Commander ) ),
+		self:GetClientInfo( Shine.GetClientForPlayer( Commander ) ),
 		Shine:GetTeamName( Commander:GetTeamNumber(), nil, true )
 	) )
 end
@@ -239,7 +239,7 @@ do
 		local Commander = Team:GetCommander()
 		if not Commander then return end
 
-		local Client = Server.GetOwner( Commander )
+		local Client = Shine.GetClientForPlayer( Commander )
 		Shine:LogString( StringFormat( "%s %s %s %s[%s].",
 			self:GetClientInfo( Client ), State, RecycleAction, Name, ID ) )
 	end
@@ -307,7 +307,7 @@ function Plugin:OnConstructInit( Building )
 
 	if not Owner then return end
 
-	local Client = Server.GetOwner( Owner )
+	local Client = Shine.GetClientForPlayer( Owner )
 	Shine:LogString( StringFormat( "%s began construction of %s[%s].",
 		self:GetClientInfo( Client ), Name, ID ) )
 end

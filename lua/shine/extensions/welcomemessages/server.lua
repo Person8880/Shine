@@ -6,7 +6,7 @@ local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local Shine = Shine
 
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local IsType = Shine.IsType
 local IsValid = debug.isvalid
 local StringFormat = string.format
@@ -267,7 +267,7 @@ function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineF
 	if NewTeam < 0 then return end
 	if not Player then return end
 
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	if Client then
 		Client.DisconnectTeam = NewTeam
 	end

@@ -4,7 +4,7 @@
 
 local Shine = Shine
 
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
@@ -96,7 +96,7 @@ function Plugin:GetTeamPlayerCount( Team )
 
 	local Count = 0
 	local function CountPlayers( Player )
-		local Client = GetOwner( Player )
+		local Client = GetClientForPlayer( Player )
 		if Shine:IsValidClient( Client ) and self:IsValidVoter( Client ) then
 			Count = Count + 1
 		end
@@ -182,12 +182,11 @@ end
 ]]
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force, ShineForce )
 	if not Player then return end
-	local Client = GetOwner( Player )
 
+	local Client = GetClientForPlayer( Player )
 	if not Client then return end
 
 	local Vote = self.Votes[ OldTeam ]
-
 	if Vote then
 		Vote:RemoveVote( Client )
 	end

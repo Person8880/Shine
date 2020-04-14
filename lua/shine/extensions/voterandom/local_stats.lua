@@ -4,7 +4,7 @@
 
 local Shine = Shine
 
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local Min = math.min
 local setmetatable = setmetatable
 local tostring = tostring
@@ -64,7 +64,7 @@ do
 			if not self.Config.UseLocalFileStats then return end
 			if not self.StatsStorage:IsInTransaction() then return end
 
-			local Client = GetOwner( Player )
+			local Client = GetClientForPlayer( Player )
 			if not Client or Client:GetIsVirtual() then return end
 
 			self:IncrementStatValue( GetClientUID( Client ), Player, StatValue, Value or 1 )
@@ -127,7 +127,7 @@ function StatsModule:IsRookie( ClientID, Player )
 end
 
 function StatsModule:IsPlayerRookie( Player )
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	if not Client then return false end
 
 	return self:IsRookie( GetClientUID( Client ), Player )
@@ -162,7 +162,7 @@ end
 function StatsModule:GetPlayerKDR( Player )
 	if not self.Config.UseLocalFileStats then return end
 
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	if not Client then return 0 end
 
 	return self:GetKDRStat( GetClientUID( Client ), Player )
@@ -178,7 +178,7 @@ end
 function StatsModule:GetPlayerScorePerMinute( Player )
 	if not self.Config.UseLocalFileStats then return end
 
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	if not Client then return 0 end
 
 	return self:GetScorePerMinuteStat( GetClientUID( Client ), Player )
@@ -222,8 +222,8 @@ function StatsModule:EndGame( Gamerules, WinningTeam, Players )
 
 	for i = 1, #Players do
 		local Player = Players[ i ]
-		local Client = GetOwner( Player )
-		if not Client:GetIsVirtual() and Player.client and Player.GetMarinePlayTime then
+		local Client = GetClientForPlayer( Player )
+		if Client and not Client:GetIsVirtual() and Player.client and Player.GetMarinePlayTime then
 			self:StoreRoundEndData( GetClientUID( Client ), Player, WinningTeamNumber, RoundLength )
 		end
 	end

@@ -6,7 +6,7 @@
 
 local Shine = Shine
 
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local pairs = pairs
 local Random = math.random
 local SharedTime = Shared.GetTime
@@ -65,7 +65,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		return
 	end
 
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 
 	if not Client then return end
 	if Client.JoinTeamRRPlugin then return end
@@ -124,7 +124,7 @@ function Plugin:EndGame()
 		local Player = Players[ i ]
 
 		if Player then
-			local Client = GetOwner( Player )
+			local Client = GetClientForPlayer( Player )
 
 			if Client then
 				self.TeamMemory[ Client ] = Player:GetTeamNumber()
@@ -150,7 +150,7 @@ function Plugin:JoinRandomTeam( Player )
 	local Team1 = Gamerules:GetTeam( kTeam1Index ):GetNumPlayers()
 	local Team2 = Gamerules:GetTeam( kTeam2Index ):GetNumPlayers()
 
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 
 	if not Client then return end
 

@@ -281,8 +281,7 @@ end
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam, Force )
 	if NewTeam == 0 or NewTeam == 3 then return end
 
-	local Client = Server.GetOwner( Player )
-
+	local Client = Shine.GetClientForPlayer( Player )
 	if not Client then return end
 
 	local ID = Client:GetUserId()
