@@ -7,6 +7,7 @@ local SGUI = Shine.GUI
 local Scrollbar = {}
 
 local Clamp = math.Clamp
+local Max = math.max
 local Vector = Vector
 
 SGUI.AddBoundProperty( Scrollbar, "BackgroundColour", "Background:SetColor" )
@@ -138,7 +139,7 @@ function Scrollbar:SetScroll( Scroll, Smoothed )
 end
 
 function Scrollbar:GetDiffSize()
-	return self.Size[ self.ScrollAxis ] - self.ScrollSizeVec[ self.ScrollAxis ]
+	return Max( self.Size[ self.ScrollAxis ] - self.ScrollSizeVec[ self.ScrollAxis ], 0 )
 end
 
 function Scrollbar:ScrollToBottom( Smoothed )

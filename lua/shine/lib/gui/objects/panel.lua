@@ -367,7 +367,7 @@ function Panel:UpdateScrollbarSize()
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:SetSize( Vector2(
 			( self.ScrollbarWidth or 10 ) * ( self.ScrollbarWidthMult or 1 ),
-			self:GetSize().y - ( self.ScrollbarHeightOffset or 20 )
+			Max( self:GetSize().y - ( self.ScrollbarHeightOffset or 0 ), 0 )
 		) )
 	end
 
