@@ -26,9 +26,6 @@ local LinkedList = Shine.LinkedList
 local Hook = {}
 Shine.Hook = Hook
 
--- A unique identifier for the callback that calls plugin hooks.
-local ExtensionIndex = setmetatable( {}, { __tostring = function() return "CallExtensionEvent" end } )
-
 -- A mapping of event -> hook index -> hook node.
 local HookNodes = {}
 -- A mapping of event -> hook index -> hook callback (for external use).
@@ -148,7 +145,7 @@ do
 	-- See the comment in codegen.lua for the reasoning of this seemingly bizarre way of calling hooks.
 	-- In a nutshell, it's to avoid LuaJIT traces aborting with NYI when handling varargs.
 	local Callers = CodeGen.MakeFunctionGenerator( {
-		Template = [[local Shine, Hooks, OnError, Remove, ExtensionIndex = ...
+		Template = [[local Shine, Hooks, OnError, Remove = ...
 		return function( Event{Arguments} )
 			local Callbacks = Hooks[ Event ]
 
@@ -156,14 +153,9 @@ do
 				local Entry = Node.Value
 				local Success, a, b, c, d, e, f = xpcall( Entry.Callback, OnError{Arguments} )
 				if not Success then
-					-- If the error came from calling extension events, don't remove the hook
-					-- (though it should never happen).
-					if Entry.Index ~= ExtensionIndex then
-						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-							true, Event, Entry.Index )
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Entry.Index )
 
-						Remove( Event, Entry.Index )
-					end
+					Remove( Event, Entry.Index )
 				elseif a ~= nil then
 					return a, b, c, d, e, f
 				end
@@ -179,7 +171,7 @@ do
 		-- This should equal the largest number of arguments seen by a hook to avoid lazy-generation which can impact
 		-- compilation results.
 		InitialSize = 10,
-		Args = { Shine, Hooks, OnError, Remove, ExtensionIndex },
+		Args = { Shine, Hooks, OnError, Remove },
 		OnFunctionGenerated = function( NumArguments, Caller )
 			Hook[ StringFormat( "CallWith%dArg%s", NumArguments, NumArguments == 1 and "" or "s" ) ] = Caller
 		end
@@ -201,7 +193,7 @@ Hook.Call = Call
 local Broadcast
 do
 	local Broadcasters = CodeGen.MakeFunctionGenerator( {
-		Template = [[local Shine, Hooks, OnError, Remove, ExtensionIndex = ...
+		Template = [[local Shine, Hooks, OnError, Remove = ...
 		return function( Event{Arguments} )
 			local Callbacks = Hooks[ Event ]
 
@@ -209,14 +201,9 @@ do
 				local Entry = Node.Value
 				local Success = xpcall( Entry.Callback, OnError{Arguments} )
 				if not Success then
-					-- If the error came from calling extension events, don't remove the hook
-					-- (though it should never happen).
-					if Entry.Index ~= ExtensionIndex then
-						Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.",
-							true, Event, Entry.Index )
+					Shine:DebugPrint( "[Hook Error] %s hook '%s' failed, removing.", true, Event, Entry.Index )
 
-						Remove( Event, Entry.Index )
-					end
+					Remove( Event, Entry.Index )
 				end
 			end
 		end]],
@@ -228,7 +215,7 @@ do
 			)
 		end,
 		InitialSize = 10,
-		Args = { Shine, Hooks, OnError, Remove, ExtensionIndex },
+		Args = { Shine, Hooks, OnError, Remove },
 		OnFunctionGenerated = function( NumArguments, Caller )
 			Hook[ StringFormat( "BroadcastWith%dArg%s", NumArguments, NumArguments == 1 and "" or "s" ) ] = Caller
 		end

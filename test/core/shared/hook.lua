@@ -119,9 +119,7 @@ UnitTest:Test( "SetupGlobalHook - Replaces functions only once", function( Asser
 
 	NewHookedFunction()
 
-	Assert.DeepEquals( "Calling the replaced function should run the hook", {
-		{ ArgCount = 0 }
-	}, Callback.Invocations )
+	Assert.Called( "Calling the replaced function should run the hook", Callback )
 end )
 
 local NestedName = "TestHolder"..os.time()
@@ -149,9 +147,7 @@ UnitTest:Test( "SetupGlobalHook - Handles nested global values", function( Asser
 	-- Ignores the 5th argument as the number of arguments is the max of the original and replacement.
 	NewHookedFunction( 1, 2, 3, 4, 5 )
 
-	Assert.DeepEquals( "Calling the replaced function should run the hook", {
-		{ ArgCount = 4, 1, 2, 3, 4 }
-	}, Callback.Invocations )
+	Assert.Called( "Calling the replaced function should run the hook", Callback, 1, 2, 3, 4 )
 end )
 
 _G[ NestedName ] = nil
@@ -188,9 +184,7 @@ UnitTest:Test( "SetupClassHook - Replaces functions only once", function( Assert
 	local Arg = {}
 	NewHookedFunction( Arg, 1, 2 )
 
-	Assert.DeepEquals( "Calling the replaced function should run the hook", {
-		{ ArgCount = 2, Arg, 1 }
-	}, Callback.Invocations )
+	Assert.Called( "Calling the replaced function should run the hook", Callback, Arg, 1 )
 end )
 
 local HOOK_RETURN_VALUE = "HOOK_RETURN_VALUE"
@@ -282,10 +276,10 @@ for i = 1, #HookModeTests do
 			)
 
 			if TestCase.ShouldCallOriginalOnHookReturn then
-				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+				Assert.CalledTimes( "Should have called the original function", OriginalFunction, 1 )
 			else
-				Assert.Equals(
-					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				Assert.CalledTimes(
+					"Should not have called the original function", OriginalFunction, 0
 				)
 			end
 		end
@@ -304,10 +298,10 @@ for i = 1, #HookModeTests do
 				_G[ GlobalKey ]()
 			)
 			if TestCase.ShouldCallOriginalOnHookNil then
-				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+				Assert.CalledTimes( "Should have called the original function", OriginalFunction, 1 )
 			else
-				Assert.Equals(
-					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				Assert.CalledTimes(
+					"Should not have called the original function", OriginalFunction, 0
 				)
 			end
 		end
@@ -339,10 +333,10 @@ for i = 1, #HookModeTests do
 			)
 
 			if TestCase.ShouldCallOriginalOnHookReturn then
-				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+				Assert.CalledTimes( "Should have called the original function", OriginalFunction, 1 )
 			else
-				Assert.Equals(
-					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				Assert.CalledTimes(
+					"Should not have called the original function", OriginalFunction, 0
 				)
 			end
 		end
@@ -361,10 +355,10 @@ for i = 1, #HookModeTests do
 				_G[ ClassName ][ ClassKey ]()
 			)
 			if TestCase.ShouldCallOriginalOnHookNil then
-				Assert.Equals( "Should have called the original function", 1, OriginalFunction:GetInvocationCount() )
+				Assert.CalledTimes( "Should have called the original function", OriginalFunction, 1 )
 			else
-				Assert.Equals(
-					"Should not have called the original function", 0, OriginalFunction:GetInvocationCount()
+				Assert.CalledTimes(
+					"Should not have called the original function", OriginalFunction, 0
 				)
 			end
 		end
