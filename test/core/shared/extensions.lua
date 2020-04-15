@@ -29,8 +29,25 @@ function TestPlugin:OnTestEvent( Arg1, Arg2, Arg3 )
 	return OnTestEvent( self, Arg1, Arg2, Arg3 )
 end
 
+function TestPlugin:OnErrorEvent()
+	error( "failed", 0 )
+end
+
 function TestPlugin:ClientConnect( Client )
 
+end
+
+local function HasPluginHook( Hooks )
+	local Found
+	for Key, Callback in pairs( Hooks ) do
+		if
+			IsType( Key, "table" ) and Key.Plugin == TestPlugin and
+			IsType( Callback, "table" ) and Callback.Plugin == TestPlugin
+		then
+			return true
+		end
+	end
+	return false
 end
 
 UnitTest:Before( function()
@@ -101,18 +118,27 @@ UnitTest:Test( "EnableExtension - Fails if Initialise returns false", function( 
 	Assert.Nil( "Should not be marked as enabled", TestPlugin.Enabled )
 end )
 
-local function HasPluginHook( Hooks )
-	local Found
-	for Key, Callback in pairs( Hooks ) do
-		if
-			IsType( Key, "table" ) and Key.Plugin == TestPlugin and
-			IsType( Callback, "table" ) and Callback.Plugin == TestPlugin
-		then
-			return true
+UnitTest:Test( "Errors in hooks should disable the extension automatically", function( Assert )
+	local Loaded, Err = Shine:EnableExtension( "test" )
+	Assert.True( Err, Loaded )
+	Assert.True( "Plugin should be marked as enabled", TestPlugin.Enabled )
+
+	for i = 1, 10 do
+		Hook.Broadcast( "OnErrorEvent" )
+		if i < 10 then
+			Assert.Equals( "Should have incremented the plugin's hook errors", i, TestPlugin.__HookErrors )
 		end
 	end
-	return false
-end
+
+	Assert.False( "Should have disabled the plugin due to errors", TestPlugin.Enabled )
+	Assert.Equals( "Should have reset the hook error counter", 0, TestPlugin.__HookErrors )
+
+	local Hooks = Hook.GetTable()
+	Assert.IsType( "Should have OnErrorEvent hooks", Hooks.OnErrorEvent, "table" )
+	Assert.False( "Expected OnErrorEvent hook callback to be removed", HasPluginHook( Hooks.OnErrorEvent ) )
+end )
+
+Hook.Clear( "OnErrorEvent" )
 
 UnitTest:Test( "EnableExtension - Adds hooks as expected", function( Assert )
 	local Loaded, Err = Shine:EnableExtension( "test" )
