@@ -457,7 +457,7 @@ do
 				return a, b, c, d, e, f
 			end
 		]],
-		ChunkName = "lua/shine/core/shared/extensions.lua/CallEvent",
+		ChunkName = "@lua/shine/core/shared/extensions.lua/CallEvent",
 		-- This should match the value used in the hook system.
 		InitialSize = 10,
 		Args = { OnError, Shine, xpcall }

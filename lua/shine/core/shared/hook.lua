@@ -297,6 +297,22 @@ local function GetNumArguments( Func )
 	return Max( ( Info.nparams or Huge ) - Offset, 0 )
 end
 
+-- For backwards compatibility's sake, try to infer the expected number of arguments for a hook by looking at plugin
+-- methods. Any plugin method that declares more arguments will cause the hook to take that many too.
+local function InferExpectedArguments( HookName, NumArguments )
+	local Plugins = Shine.AllPluginsArray
+	if not Plugins then return NumArguments end
+
+	for i = 1, #Plugins do
+		local PluginInstance = Shine.Plugins[ Plugins[ i ] ]
+		if PluginInstance and IsType( PluginInstance[ HookName ], "function" ) then
+			NumArguments = Max( NumArguments, GetNumArguments( PluginInstance[ HookName ] ) - 1 )
+		end
+	end
+
+	return NumArguments
+end
+
 --[[
 	Replaces the given method in the given class with ReplacementFunc.
 
@@ -328,6 +344,8 @@ local function AddClassHook( ReplacementFuncTemplate, HookName, Caller, Class, M
 			ReplacementFuncTemplate
 		)
 	else
+		NumArguments = InferExpectedArguments( HookName, NumArguments )
+
 		ReplacementFunc = CodeGen.GenerateFunctionWithArguments(
 			ReplacementFuncTemplate, NumArguments,
 			StringFormat( "@lua/shine/core/shared/hook.lua/ClassHook/%s:%s", Class, Method ),
@@ -387,8 +405,11 @@ local function AddGlobalHook( ReplacementFunc, HookName, Caller, FuncName )
 			ReplacementFunc
 		)
 	else
+		NumArguments = InferExpectedArguments( HookName, NumArguments )
+
 		Prev[ Path[ NumSegments ] ] = CodeGen.GenerateFunctionWithArguments(
-			ReplacementFunc, NumArguments, StringFormat( "@lua/shine/core/shared/hook.lua/GlobalHook/%s", FuncName ),
+			ReplacementFunc, NumArguments,
+			StringFormat( "@lua/shine/core/shared/hook.lua/GlobalHook/%s", FuncName ),
 			HookName, Caller, Func
 		)
 	end
