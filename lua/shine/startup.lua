@@ -8,6 +8,28 @@ local Trace = debug.traceback()
 
 if Trace:find( "Main.lua" ) or Trace:find( "Loading.lua" ) then return end
 
+do
+	local loadfile = loadfile
+	local pcall = pcall
+	local StringFormat = string.format
+	local StringGSub = string.gsub
+
+	-- Allow use of require to load mounted Lua files and indicate errors in loading them.
+	package.loaders[ #package.loaders + 1 ] = function( Name )
+		local FilePath = StringFormat( "lua/%s.lua", ( StringGSub( Name, "%.", "/" ) ) )
+		local Success, Func, Err = pcall( loadfile, FilePath )
+		if Success then
+			if Func then
+				return Func
+			end
+
+			return StringFormat( "\n\tfailed to load '%s' from mounted filesystem: %s", FilePath, Err )
+		end
+
+		return StringFormat( "\n\terror attempting to load file '%s' from mounted filesystem: %s", FilePath, Func )
+	end
+end
+
 -- I have no idea why it's called this.
 Shine = {}
 

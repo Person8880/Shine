@@ -129,7 +129,6 @@ end
 
 local Abs = math.abs
 local Floor = math.floor
-local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local pairs = pairs
 local StringFind = string.find
@@ -149,6 +148,13 @@ local tonumber = tonumber
 ]]
 function Shine:IsValidClient( Client )
 	return Client and self.GameIDs:Get( Client ) ~= nil
+end
+
+--[[
+	Returns the client associated with the given player.
+]]
+function Shine.GetClientForPlayer( Player )
+	return Player.GetClient and Player:GetClient()
 end
 
 function Shine.EqualiseTeamCounts( TeamMembers )
@@ -312,8 +318,7 @@ function Shine.GetTeamClients( Team )
 		local Ply = Players[ i ]
 
 		if Ply then
-			local Client = GetOwner( Ply )
-
+			local Client = Shine.GetClientForPlayer( Ply )
 			if Client then
 				Clients[ Count ] = Client
 				Count = Count + 1

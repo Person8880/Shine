@@ -9,17 +9,22 @@ function Base:IsVisibleElement()
 	return false
 end
 
+local function ThinkWithExtra( self, DeltaTime )
+	self:__ExtraThink( DeltaTime )
+	return self:__OldThink( DeltaTime )
+end
+
 function Base.AddThinkFunction( Element, ExtraThink )
 	-- Remove any old override (so Think comes from the metatable).
 	Element.Think = nil
+	Element.__ExtraThink = nil
+	Element.__OldThink = nil
 
 	if not ExtraThink then return end
 
-	local OldThink = Element.Think
-	function Element:Think( DeltaTime )
-		ExtraThink( self, DeltaTime )
-		return OldThink( self, DeltaTime )
-	end
+	Element.__OldThink = Element.Think
+	Element.__ExtraThink = ExtraThink
+	Element.Think = ThinkWithExtra
 end
 
 function Base:Setup( Element )

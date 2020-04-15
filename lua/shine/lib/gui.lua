@@ -6,6 +6,8 @@
 
 Shine.GUI = Shine.GUI or {}
 
+local CodeGen = require "shine/lib/codegen"
+
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
 local IsType = Shine.IsType
@@ -32,8 +34,9 @@ do
 	local Vector = Vector
 
 	-- A little easier than having to always include that 0 z value.
+	-- The return is wrapped to avoid a tail-call which doesn't compile.
 	function Vector2( X, Y )
-		return Vector( X, Y, 0 )
+		return ( Vector( X, Y, 0 ) )
 	end
 end
 
@@ -66,20 +69,30 @@ local ControlMeta = {}
 SGUI.BaseControl = ControlMeta
 
 SGUI.PropertyModifiers = {
-	InvalidatesLayout = function( self, Value )
-		self:InvalidateLayout()
-	end,
-	InvalidatesLayoutNow = function( self, Value )
-		self:InvalidateLayout( true )
-	end,
-	InvalidatesParent = function( self, Value )
-		self:InvalidateParent()
-	end,
-	InvalidatesParentNow = function( self, Value )
-		self:InvalidateParent( true )
-	end
+	InvalidatesLayout = [[self:InvalidateLayout()]],
+	InvalidatesLayoutNow = [[self:InvalidateLayout( true )]],
+	InvalidatesParent = [[self:InvalidateParent()]],
+	InvalidatesParentNow = [[self:InvalidateParent( true )]],
+	InvalidatesMouseState = [[self:InvalidateMouseState()]],
+	InvalidatesMouseStateNow = [[self:InvalidateMouseState( true )]]
 }
 do
+	local DebugGetInfo = debug.getinfo
+	local StringMatch = string.match
+	local TableConcat = table.concat
+
+	-- This exists to avoid constant concatenation every time properties are set dynamically.
+	local SetterKeys = setmetatable( require "table.new"( 0, 100 ), {
+		__index = function( self, Key )
+			local Setter = "Set"..Key
+
+			self[ Key ] = Setter
+
+			return Setter
+		end
+	} )
+	SGUI.SetterKeys = SetterKeys
+
 	local function GetModifiers( Modifiers )
 		local RealModifiers = {}
 
@@ -87,49 +100,78 @@ do
 			RealModifiers[ #RealModifiers + 1 ] = SGUI.PropertyModifiers[ Modifiers[ i ] ]
 		end
 
-		return RealModifiers, #RealModifiers
+		return TableConcat( RealModifiers, "\n" )
+	end
+
+	local SetterTemplate = [[return function( self, Value )
+		local OldValue = self:Get{Name}()
+
+		self.{Name} = Value
+
+		if OldValue == Value then return false end
+
+		self:OnPropertyChanged( "{Name}", Value )
+		{Modifiers}
+
+		return true
+	end]]
+
+	local GetterWithoutDefaultTemplate = [[return function( self )
+		return self.{Name}
+	end]]
+
+	local GetterWithDefaultTemplate = [[local Default = ...
+	return function( self )
+		local Value = self.{Name}
+		if Value == nil then
+			Value = Default
+		end
+		return Value
+	end]]
+
+	local BaseSource = "@lua/shine/lib/gui.lua"
+	local function GetCallerName()
+		local Caller = DebugGetInfo( 4, "S" ).source
+		return Caller and StringMatch( Caller, "/([^/]+)%.lua$" ) or "?"
+	end
+
+	local function GetSetterSource( Name )
+		return StringFormat( "%s/Property/%s/Set%s", BaseSource, GetCallerName(), Name )
+	end
+	local function GetGetterSource( Name )
+		return StringFormat( "%s/Property/%s/Get%s", BaseSource, GetCallerName(), Name )
 	end
 
 	--[[
 		Adds Get and Set functions for a property name, with an optional default value.
 	]]
 	function SGUI.AddProperty( Table, Name, Default, Modifiers )
-		local TableSetter = "Set"..Name
+		local TableSetter = SetterKeys[ Name ]
 		local TableGetter = "Get"..Name
 
-		Table[ TableSetter ] = function( self, Value )
-			local OldValue = self[ TableGetter ]( self )
+		local ModifierLines = Modifiers and GetModifiers( Modifiers ) or ""
+		local SetterSource = GetSetterSource( Name )
+		Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( SetterTemplate, SetterSource, {
+			Name = Name,
+			Modifiers = ModifierLines
+		} )
 
-			self[ Name ] = Value
-
-			if OldValue == Value then return false end
-
-			self:OnPropertyChanged( Name, Value )
-
-			return true
-		end
-
-		Table[ TableGetter ] = function( self )
-			local Value = self[ Name ]
-			if Value == nil then
-				Value = Default
-			end
-			return Value
-		end
-
-		if not Modifiers then return end
-
-		local RealModifiers, NumModifiers = GetModifiers( Modifiers )
-
-		local Old = Table[ TableSetter ]
-		Table[ TableSetter ] = function( self, Value )
-			if Old( self, Value ) then
-				for i = 1, NumModifiers do
-					RealModifiers[ i ]( self, Value )
-				end
-			end
+		local GetterSource = GetGetterSource( Name )
+		if Default ~= nil then
+			Table[ TableGetter ] = CodeGen.GenerateTemplatedFunction( GetterWithDefaultTemplate, GetterSource, {
+				Name = Name
+			}, Default )
+		else
+			Table[ TableGetter ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
+				Name = Name
+			} )
 		end
 	end
+
+	local BoundCallTemplate = [[do
+		local Object = self.{FieldName}
+		if Object then Object:{Setter}( Value ) end
+	end]]
 
 	local StringExplode = string.Explode
 	local unpack = unpack
@@ -140,6 +182,7 @@ do
 		end
 
 		local BoundFields = {}
+		local Callbacks = {}
 
 		for i = 1, #BoundObject do
 			local Entry = BoundObject[ i ]
@@ -147,19 +190,52 @@ do
 				local FieldName, Setter = unpack( StringExplode( Entry, ":", true ) )
 				Setter = Setter or "Set"..PropertyName
 
-				BoundFields[ i ] = function( self, Value )
-					local Object = self[ FieldName ]
-					if Object then
-						Object[ Setter ]( Object, Value )
-					end
-				end
+				BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( BoundCallTemplate, {
+					Setter = Setter,
+					FieldName = FieldName
+				} )
 			else
-				BoundFields[ i ] = Entry
+				Callbacks[ #Callbacks + 1 ] = Entry
 			end
 		end
 
-		return BoundFields
+		return TableConcat( BoundFields, "\n" ), Callbacks
 	end
+
+	local BoundWithoutCallbacksTemplate = [[return function( self, Value )
+		local OldValue = self:Get{Name}()
+
+		self.{Name} = Value
+
+		{BoundFields}
+
+		if OldValue == Value then return false end
+
+		self:OnPropertyChanged( "{Name}", Value )
+		{Modifiers}
+
+		return true
+	end]]
+
+	local CallbacksCallTemplate = [[Callback%d( self, Value )]]
+
+	local BoundWithCallbacksTemplate = [[local {CallbackVariables} = ...
+	return function( self, Value )
+		local OldValue = self:Get{Name}()
+
+		self.{Name} = Value
+
+		{BoundFields}
+
+		{Callbacks}
+
+		if OldValue == Value then return false end
+
+		self:OnPropertyChanged( "{Name}", Value )
+		{Modifiers}
+
+		return true
+	end]]
 
 	--[[
 		Adds Get/Set property methods that pass through the value to a field
@@ -168,40 +244,39 @@ do
 		Used to perform actions on GUIItems without boilerplate code.
 	]]
 	function SGUI.AddBoundProperty( Table, Name, BoundObject, Modifiers )
-		local BoundFields = GetBindingInfo( BoundObject, Name )
+		local BoundFields, Callbacks = GetBindingInfo( BoundObject, Name )
 
-		Table[ "Get"..Name ] = function( self )
-			return self[ Name ]
-		end
+		local GetterSource = GetGetterSource( Name )
+		Table[ "Get"..Name ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
+			Name = Name
+		} )
 
-		local TableSetter = "Set"..Name
-		Table[ TableSetter ] = function( self, Value )
-			local OldValue = self[ Name ]
+		local SetterSource = GetSetterSource( Name )
+		local TableSetter = SetterKeys[ Name ]
+		local ModifierLines = Modifiers and GetModifiers( Modifiers ) or ""
 
-			self[ Name ] = Value
-
-			for i = 1, #BoundFields do
-				BoundFields[ i ]( self, Value )
+		if #Callbacks > 0 then
+			-- Unroll the loop upfront.
+			local CallbackVariables = {}
+			local CallbackLines = {}
+			for i = 1, #Callbacks do
+				CallbackVariables[ i ] = StringFormat( "Callback%d", i )
+				CallbackLines[ i ] = StringFormat( CallbacksCallTemplate, i )
 			end
 
-			if OldValue == Value then return false end
-
-			self:OnPropertyChanged( Name, Value )
-
-			return true
-		end
-
-		if not Modifiers then return end
-
-		local RealModifiers, NumModifiers = GetModifiers( Modifiers )
-
-		local Old = Table[ TableSetter ]
-		Table[ TableSetter ] = function( self, Value )
-			if Old( self, Value ) then
-				for i = 1, NumModifiers do
-					RealModifiers[ i ]( self, Value )
-				end
-			end
+			Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( BoundWithCallbacksTemplate, SetterSource, {
+				Name = Name,
+				BoundFields = BoundFields,
+				Modifiers = ModifierLines,
+				CallbackVariables = TableConcat( CallbackVariables, ", " ),
+				Callbacks = TableConcat( CallbackLines, "\n" )
+			}, unpack( Callbacks ) )
+		else
+			Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( BoundWithoutCallbacksTemplate, SetterSource, {
+				Name = Name,
+				BoundFields = BoundFields,
+				Modifiers = ModifierLines
+			} )
 		end
 	end
 end
@@ -381,9 +456,14 @@ do
 			Window:SetLayer( Window.OverrideLayer or self.BaseLayer + i )
 		end
 
-		if Window ~= self.FocusedWindow and self.IsValid( self.FocusedWindow )
-		and self.FocusedWindow.OnLoseWindowFocus then
-			self.FocusedWindow:OnLoseWindowFocus( Window )
+		if Window ~= self.FocusedWindow then
+			if self.IsValid( self.FocusedWindow ) and self.FocusedWindow.OnLoseWindowFocus then
+				self.FocusedWindow:OnLoseWindowFocus( Window )
+			end
+
+			if self.IsValid( Window ) and Window.OnGainWindowFocus then
+				Window:OnGainWindowFocus()
+			end
 		end
 
 		self.FocusedWindow = Window
@@ -466,63 +546,76 @@ end
 
 local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
-function SGUI:PostCallEvent( Result, Control )
-	local PostEventActions = self.PostEventActions
-	if not PostEventActions then return end
+SGUI.PostEventActions = {}
 
+function SGUI:PostCallEvent( Result, Control )
+	self.CallingEvent = nil
+
+	local PostEventActions = self.PostEventActions
 	for i = 1, #PostEventActions do
 		xpcall( PostEventActions[ i ], OnError, Result, Control )
+		PostEventActions[ i ] = nil
 	end
-
-	self.PostEventActions = nil
 end
 
 function SGUI:AddPostEventAction( Action )
-	if not self.PostEventActions then
-		self.PostEventActions = {}
-	end
-
 	self.PostEventActions[ #self.PostEventActions + 1 ] = Action
 end
 
---[[
-	Passes an event to all active SGUI windows.
+do
+	local select = select
 
-	If an SGUI object is classed as a window, it MUST call all events on its children.
-	Then its children must call their events on their children and so on.
+	local Callers = CodeGen.MakeFunctionGenerator( {
+		Template = [[local OnError, xpcall = ...
+			return function( self, FocusChange, Name{Arguments} )
+				local Windows = self.Windows
+				local WindowCount = #Windows
 
-	Inputs: Event name, arguments.
-]]
-function SGUI:CallEvent( FocusChange, Name, ... )
-	local Windows = SGUI.Windows
-	local WindowCount = #Windows
+				self.CallingEvent = Name
 
-	--The focused window is the last in the list, so we call backwards.
-	for i = WindowCount, 1, - 1 do
-		local Window = Windows[ i ]
+				-- The focused window is the last in the list, so we call backwards.
+				for i = WindowCount, 1, -1 do
+					local Window = Windows[ i ]
 
-		if Window and Window[ Name ] and Window:GetIsVisible() then
-			local Success, Result, Control = xpcall( Window[ Name ], OnError, Window, ... )
+					if Window and Window[ Name ] and Window:GetIsVisible() then
+						local Success, Result, Control = xpcall( Window[ Name ], OnError, Window{Arguments} )
 
-			if Success then
-				if Result ~= nil then
-					if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
-						self:SetWindowFocus( Window )
+						if Success then
+							if Result ~= nil then
+								if i ~= WindowCount and FocusChange and self.IsValid( Window ) then
+									self:SetWindowFocus( Window )
+								end
+
+								self:PostCallEvent( Result, Control )
+
+								return Result, Control
+							end
+						else
+							Window:Destroy()
+						end
 					end
-
-					self:PostCallEvent( Result, Control )
-
-					return Result, Control
 				end
-			else
-				Window:Destroy()
+
+				self:PostCallEvent()
 			end
-		end
+		]],
+		ChunkName = "@lua/shine/lib/gui.lua/SGUI:CallEvent",
+		InitialSize = 2,
+		Args = { OnError, xpcall }
+	} )
+
+	--[[
+		Passes an event to all active SGUI windows.
+
+		If an SGUI object is classed as a window, it MUST call all events on its children.
+		Then its children must call their events on their children and so on.
+
+		Inputs: Event name, arguments.
+	]]
+	function SGUI:CallEvent( FocusChange, Name, ... )
+		return Callers[ select( "#", ... ) ]( self, FocusChange, Name, ... )
 	end
-
-	self:PostCallEvent()
 end
-
 
 do
 	SGUI.MouseObjects = 0
@@ -1032,6 +1125,17 @@ do
 	end
 
 	local OnCallOnRemoveError = Shine.BuildErrorHandler( "SGUI CallOnRemove callback error" )
+	local DestructionAction = Shine.TypeDef()
+	function DestructionAction:Init( Control )
+		self.Control = Control
+		return self
+	end
+
+	function DestructionAction:__call()
+		if SGUI.IsValid( self.Control ) then
+			self.Control:Destroy()
+		end
+	end
 
 	--[[
 		Destroys an SGUI control.
@@ -1041,12 +1145,21 @@ do
 		Input: SGUI control object.
 	]]
 	function SGUI:Destroy( Control )
+		-- Remove the control from its parent immediately regardless of the running event. This avoids it showing
+		-- up in child iterations.
 		if Control.Parent then
 			Control:SetParent( nil )
 		end
 
 		if Control.LayoutParent then
 			Control.LayoutParent:RemoveElement( Control )
+		end
+
+		if self.CallingEvent then
+			-- Wait until after the running event to destroy the control. This avoids needing loads of validity checks
+			-- in event code paths.
+			self:AddPostEventAction( DestructionAction( Control ) )
+			return
 		end
 
 		self.ActiveControls:Remove( Control )
@@ -1144,9 +1257,15 @@ local function NotifyFocusChange( Element, ClickingOtherElement )
 end
 SGUI.NotifyFocusChange = NotifyFocusChange
 
-local GetCursorPosScreen = Client.GetCursorPosScreen
+local GetCursorPos = MouseTracker_GetCursorPos
 function SGUI.GetCursorPos()
-	return GetCursorPosScreen()
+	local Pos = GetCursorPos()
+	return Pos.x, Pos.y
+end
+
+local GetMouseVisible = MouseTracker_GetIsVisible
+function SGUI.IsMouseVisible()
+	return GetMouseVisible()
 end
 
 local ScrW = Client.GetScreenWidth
@@ -1205,7 +1324,6 @@ local IsMainMenuOpen = MainMenu_GetIsOpened
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
-	GetCursorPosScreen = Client.GetCursorPosScreen
 	ScrW = Client.GetScreenWidth
 	ScrH = Client.GetScreenHeight
 	IsMainMenuOpen = MainMenu_GetIsOpened
@@ -1219,9 +1337,20 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 end )
 
 Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
+	GetCursorPos = MouseTracker_GetCursorPos
+	GetMouseVisible = MouseTracker_GetIsVisible
+
 	local Listener = {
 		OnMouseMove = function( _, LMB )
 			SGUI:CallEvent( false, "OnMouseMove", LMB )
+
+			if
+				SGUI.IsValid( SGUI.MouseDownControl ) and
+				SGUI.MouseDownControl.__LastMouseMove ~= SGUI.FrameNumber()
+			then
+				-- Make sure the focused control still sees mouse movements until releasing the mouse button.
+				SGUI.MouseDownControl:OnMouseMove( LMB )
+			end
 		end,
 		OnMouseWheel = function( _, Down )
 			if IsMainMenuOpen() then return end

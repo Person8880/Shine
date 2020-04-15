@@ -2,6 +2,8 @@
 	Base SGUI control. All controls inherit from this.
 ]]
 
+local CodeGen = require "shine/lib/codegen"
+
 local SGUI = Shine.GUI
 local ControlMeta = SGUI.BaseControl
 local Set = Shine.Set
@@ -12,6 +14,7 @@ local IsType = Shine.IsType
 local IsGUIItemValid = debug.isvalid
 local Max = math.max
 local pairs = pairs
+local select = select
 local StringFormat = string.format
 local TableNew = require "table.new"
 local TableRemoveByValue = table.RemoveByValue
@@ -21,16 +24,7 @@ local Map = Shine.Map
 local Multimap = Shine.Multimap
 local Source = require "shine/lib/gui/binding/source"
 
--- This exists to avoid constant concatenation every time properties are set dynamically.
-local SetterKeys = setmetatable( TableNew( 0, 100 ), {
-	__index = function( self, Key )
-		local Setter = "Set"..Key
-
-		self[ Key ] = Setter
-
-		return Setter
-	end
-} )
+local SetterKeys = SGUI.SetterKeys
 
 SGUI.AddBoundProperty( ControlMeta, "BlendTechnique", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
@@ -56,6 +50,9 @@ function ControlMeta:Initialise()
 	self.UseScheme = true
 	self.PropagateSkin = true
 	self.Stencilled = false
+
+	self.MouseHasEntered = false
+	self.MouseStateIsInvalid = false
 end
 
 --[[
@@ -165,9 +162,7 @@ function ControlMeta:GetPropertySource( Name )
 	SourceInstance.Element = self
 
 	self.PropertySources[ Name ] = SourceInstance
-	self:AddPropertyChangeListener( Name, function( self, Value )
-		return SourceInstance( Value )
-	end )
+	self:AddPropertyChangeListener( Name, SourceInstance )
 
 	return SourceInstance
 end
@@ -376,6 +371,8 @@ function ControlMeta:SetParent( Control, Element )
 		self.ParentElement:RemoveChild( self.Background )
 	end
 
+	self:InvalidateMouseState()
+
 	if not Control then
 		self.Parent = nil
 		self.ParentElement = nil
@@ -421,26 +418,37 @@ function ControlMeta:SetTopLevelWindow( Window )
 	end
 end
 
---[[
-	Calls an SGUI event on every child of the object.
+do
+	local Callers = CodeGen.MakeFunctionGenerator( {
+		Template = [[return function( self, Name{Arguments} )
+				if not self.Children then return nil end
 
-	Ignores children with the _CallEventsManually flag.
-]]
-function ControlMeta:CallOnChildren( Name, ... )
-	if not self.Children then return nil end
+				-- Call the event on every child of this object in the order they were added.
+				for Child in self.Children:Iterate() do
+					if Child[ Name ] and not Child._CallEventsManually then
+						local Result, Control = Child[ Name ]( Child{Arguments} )
 
-	--Call the event on every child of this object in the order they were added.
-	for Child in self.Children:Iterate() do
-		if Child[ Name ] and not Child._CallEventsManually then
-			local Result, Control = Child[ Name ]( Child, ... )
+						if Result ~= nil then
+							return Result, Control
+						end
+					end
+				end
 
-			if Result ~= nil then
-				return Result, Control
+				return nil
 			end
-		end
-	end
+		]],
+		ChunkName = "@lua/shine/lib/gui/base_control.lua/ControlMeta:CallOnChildren",
+		InitialSize = 2
+	} )
 
-	return nil
+	--[[
+		Calls an SGUI event on every child of the object.
+
+		Ignores children with the _CallEventsManually flag.
+	]]
+	function ControlMeta:CallOnChildren( Name, ... )
+		return Callers[ select( "#", ... ) ]( self, Name, ... )
+	end
 end
 
 function ControlMeta:ForEach( TableKey, MethodName, ... )
@@ -636,6 +644,8 @@ function ControlMeta:SetIsVisible( IsVisible )
 
 	if not IsVisible then
 		self:HideTooltip()
+	else
+		self:InvalidateMouseState()
 	end
 
 	if not SGUI:IsWindow( self ) then return end
@@ -795,8 +805,13 @@ end
 function ControlMeta:SetSize( SizeVec )
 	if not self.Background then return end
 
+	local OldSize = self.Background:GetSize()
+	if OldSize == SizeVec then return end
+
 	self.Background:SetSize( SizeVec )
 	self:InvalidateLayout()
+	self:InvalidateMouseState()
+	self:OnPropertyChanged( "Size", SizeVec )
 end
 
 --[[
@@ -814,6 +829,10 @@ function ControlMeta:SetAlpha( Alpha )
 	local Colour = self.Background:GetColor()
 	Colour.a = Alpha
 	self.Background:SetColor( Colour )
+end
+
+function ControlMeta:GetAlpha()
+	return self.Background:GetColor().a
 end
 
 function ControlMeta:GetTextureWidth()
@@ -1069,10 +1088,15 @@ end
 
 	Controls may override this.
 ]]
-function ControlMeta:SetPos( Vec )
+function ControlMeta:SetPos( Pos )
 	if not self.Background then return end
 
-	self.Background:SetPosition( Vec )
+	local OldPos = self.Background:GetPosition()
+	if Pos == OldPos then return end
+
+	self.Background:SetPosition( Pos )
+	self:InvalidateMouseState()
+	self:OnPropertyChanged( "Pos", Pos )
 end
 
 function ControlMeta:GetPos()
@@ -1212,7 +1236,18 @@ do
 	-- We call this so many times it really needs to be local, not global.
 	local GetCursorPos = SGUI.GetCursorPos
 
-	local function IsInBox( Pos, Size, Mult, MaxX, MaxY )
+	local function IsInBox( BoxW, BoxH, X, Y )
+		return X >= 0 and X < BoxW and Y >= 0 and Y < BoxH
+	end
+
+	local function IsInElementBox( ElementPos, ElementSize )
+		local X, Y = GetCursorPos()
+		X = X - ElementPos.x
+		Y = Y - ElementPos.y
+		return IsInBox( ElementSize.x, ElementSize.y, X, Y ), X, Y, ElementSize, ElementPos
+	end
+
+	local function ApplyMultiplier( Size, Mult )
 		if Mult then
 			if IsType( Mult, "number" ) then
 				Size = Size * Mult
@@ -1221,23 +1256,26 @@ do
 				Size.y = Size.y * Mult.y
 			end
 		end
+		return Size
+	end
 
-		MaxX = MaxX or Size.x
-		MaxY = MaxY or Size.y
+	--[[
+		Gets whether the mouse cursor is inside the given bounds, relative to the given GUIItem.
 
-		local X, Y = GetCursorPos()
-
-		local InX = X >= Pos.x and X < Pos.x + MaxX
-		local InY = Y >= Pos.y and Y < Pos.y + MaxY
-
-		local PosX = X - Pos.x
-		local PosY = Y - Pos.y
-
-		if InX and InY then
-			return true, PosX, PosY, Size, Pos
-		end
-
-		return false, PosX, PosY
+		Inputs:
+			1. Element to check.
+			2. Width of the bounding box.
+			3. Height of the bounding box.
+		Outputs:
+			1. Boolean value to indicate whether the mouse is inside.
+			2. X position of the mouse relative to the element.
+			3. Y position of the mouse relative to the element.
+			4. The size of the bounding box used.
+			5. The element's absolute screen position.
+	]]
+	function ControlMeta:MouseInBounds( Element, BoundsW, BoundsH )
+		local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
+		return IsInElementBox( Pos, Vector2( BoundsW, BoundsH ) )
 	end
 
 	--[[
@@ -1247,35 +1285,42 @@ do
 		Inputs:
 			1. Element to check.
 			2. Multiplier value to increase/reduce the size of the bounding box.
-			3. X value to override the width of the bounding box.
-			4. Y value to override the height of the bounding box.
 		Outputs:
 			1. Boolean value to indicate whether the mouse is inside.
 			2. X position of the mouse relative to the element.
 			3. Y position of the mouse relative to the element.
-			4. If the mouse is inside, the size of the bounding box used.
-			5. If the mouse is inside, the element's absolute screen position.
+			4. The size of the bounding box used.
+			5. The element's absolute screen position.
 	]]
-	function ControlMeta:MouseIn( Element, Mult, MaxX, MaxY )
+	function ControlMeta:MouseIn( Element, Mult )
 		if not Element then return end
 
 		local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
 		local Size = Element:GetScaledSize()
 
-		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
+		return IsInElementBox( Pos, ApplyMultiplier( Size, Mult ) )
 	end
 
 	--[[
-		Similar to MouseIn, but uses the control's native GetScreenPos and GetSize instead
+		Gets the bounds to use when checking whether the mouse is in a control.
+
+		Override this to change how mouse enter/leave detection works.
+	]]
+	function ControlMeta:GetMouseBounds()
+		return self:GetSize()
+	end
+
+	--[[
+		Similar to MouseIn, but uses the control's native GetScreenPos and GetMouseBounds instead
 		of a GUIItem's.
 
 		Useful for controls whose size/position does not match a GUIItem directly.
 	]]
-	function ControlMeta:MouseInControl( Mult, MaxX, MaxY )
+	function ControlMeta:MouseInControl( Mult )
 		local Pos = self:GetScreenPos()
-		local Size = self:GetSize()
+		local Size = self:GetMouseBounds()
 
-		return IsInBox( Pos, Size, Mult, MaxX, MaxY )
+		return IsInElementBox( Pos, ApplyMultiplier( Size, Mult ) )
 	end
 
 	function ControlMeta:MouseInCached()
@@ -1289,7 +1334,7 @@ do
 			local CachedResult = self.__LastMouseInCheck
 			if not CachedResult then
 				CachedResult = TableNew( 5, 0 )
-				self.__LastMouseInCheckFrame = CachedResult
+				self.__LastMouseInCheck = CachedResult
 			end
 
 			CachedResult[ 1 ] = In
@@ -1331,6 +1376,10 @@ do
 		return Vector2( Value.x, Value.y )
 	end
 
+	local function LinearEase( Progress )
+		return Progress
+	end
+
 	local Max = math.max
 
 	function ControlMeta:EaseValue( Element, Start, End, Delay, Duration, Callback, EasingHandlers )
@@ -1357,6 +1406,7 @@ do
 		EasingData.Diff = SubtractValues( End, Start )
 		EasingData.CurValue = CopyValue( Start )
 		EasingData.Easer = EasingHandlers.Easer
+		EasingData.EaseFunc = LinearEase
 
 		EasingData.StartTime = Clock() + Delay
 		EasingData.Duration = Duration
@@ -1377,41 +1427,47 @@ do
 	end
 end
 
-function ControlMeta:HandleEasing( Time, DeltaTime )
-	if not self.EasingProcesses or self.EasingProcesses:IsEmpty() then return end
+do
+	local function UpdateEasing( self, Time, DeltaTime, EasingHandler, Easings, Element, EasingData )
+		EasingData.Elapsed = EasingData.Elapsed + Max( DeltaTime, Time - EasingData.LastUpdate )
 
-	for EasingHandler, Easings in self.EasingProcesses:Iterate() do
-		for Element, EasingData in Easings:Iterate() do
-			local Start = EasingData.StartTime
-
-			if Start <= Time then
-				EasingData.Elapsed = EasingData.Elapsed + Max( DeltaTime, Time - EasingData.LastUpdate )
-
-				local Duration = EasingData.Duration
-				local Elapsed = EasingData.Elapsed
-				if Elapsed <= Duration then
-					local Progress = Elapsed / Duration
-					if EasingData.EaseFunc then
-						Progress = EasingData.EaseFunc( Progress, EasingData.Power )
-					end
-
-					EasingData.Easer( self, Element, EasingData, Progress )
-					EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
-				else
-					EasingHandler.Setter( self, Element, EasingData.End, EasingData )
-					Easings:Remove( Element )
-
-					if EasingData.Callback then
-						EasingData.Callback( Element )
-					end
-				end
+		local Duration = EasingData.Duration
+		local Elapsed = EasingData.Elapsed
+		if Elapsed <= Duration then
+			local Progress = EasingData.EaseFunc( Elapsed / Duration, EasingData.Power )
+			EasingData.Easer( self, Element, EasingData, Progress )
+			EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
+		else
+			EasingHandler.Setter( self, Element, EasingData.End, EasingData )
+			if EasingHandler.OnComplete then
+				EasingHandler.OnComplete( self, Element, EasingData )
 			end
 
-			EasingData.LastUpdate = Time
-		end
+			Easings:Remove( Element )
 
-		if Easings:IsEmpty() then
-			self.EasingProcesses:Remove( EasingHandler )
+			if EasingData.Callback then
+				EasingData.Callback( self, Element )
+			end
+		end
+	end
+
+	function ControlMeta:HandleEasing( Time, DeltaTime )
+		if not self.EasingProcesses or self.EasingProcesses:IsEmpty() then return end
+
+		for EasingHandler, Easings in self.EasingProcesses:Iterate() do
+			for Element, EasingData in Easings:Iterate() do
+				local Start = EasingData.StartTime
+
+				if Start <= Time then
+					UpdateEasing( self, Time, DeltaTime, EasingHandler, Easings, Element, EasingData )
+				end
+
+				EasingData.LastUpdate = Time
+			end
+
+			if Easings:IsEmpty() then
+				self.EasingProcesses:Remove( EasingHandler )
+			end
 		end
 	end
 end
@@ -1459,10 +1515,12 @@ local Easers = {
 		end,
 		Setter = function( self, Element, Pos )
 			Element:SetPosition( Pos )
-			self:HandleHightlighting()
 		end,
 		Getter = function( self, Element )
 			return Element:GetPosition()
+		end,
+		OnComplete = function( self, Element, EasingData )
+			self:InvalidateMouseState()
 		end
 	}, "Move" ),
 	Size = Easer( {
@@ -1475,6 +1533,11 @@ local Easers = {
 		end,
 		Getter = function( self, Element )
 			return Element:GetSize()
+		end,
+		OnComplete = function( self, Element, EasingData )
+			if Element == self.Background then
+				self:InvalidateMouseState()
+			end
 		end
 	}, "Size" ),
 	Scale = Easer( {
@@ -1504,7 +1567,14 @@ function ControlMeta:StopEasing( Element, EasingHandler )
 	local Easers = self.EasingProcesses:Get( EasingHandler )
 	if not Easers then return end
 
-	Easers:Remove( Element or self.Background )
+	Element = Element or self.Background
+
+	local EasingData = Easers:Get( Element )
+	if EasingData and EasingHandler.OnComplete then
+		EasingHandler.OnComplete( self, Element, EasingData )
+	end
+
+	Easers:Remove( Element )
 end
 
 local function AddEaseFunc( EasingData, EaseFunc, Power )
@@ -1700,17 +1770,10 @@ do
 			1. Boolean should hightlight.
 			2. Muliplier to the element's size when determining if the mouse is in the element.
 	]]
-	function ControlMeta:SetHighlightOnMouseOver( Bool, Mult, TextureMode )
+	function ControlMeta:SetHighlightOnMouseOver( HighlightOnMouseOver, TextureMode )
 		local WasHighlightOnMouseOver = self.HighlightOnMouseOver
 
-		self.HighlightOnMouseOver = not not Bool
-		self.HighlightMult = Mult
-		self.TextureHighlight = TextureMode
-
-		if not Bool and not self.ForceHighlight then
-			self:SetHighlighted( false, true )
-			self:StopFade( self.Background )
-		end
+		self.HighlightOnMouseOver = not not HighlightOnMouseOver
 
 		if not WasHighlightOnMouseOver and self.HighlightOnMouseOver then
 			self.HandleHightlighting = HandleHightlighting
@@ -1718,6 +1781,18 @@ do
 		elseif WasHighlightOnMouseOver and not self.HighlightOnMouseOver then
 			self.HandleHightlighting = NoOpHighlighting
 			self:RemovePropertyChangeListener( "IsVisible", HandleHighlightOnVisibilityChange )
+		end
+
+		if not HighlightOnMouseOver then
+			if not self.ForceHighlight then
+				self:SetHighlighted( false, true )
+				self:StopFade( self.Background )
+			end
+
+			self.TextureHighlight = TextureMode
+		else
+			self.TextureHighlight = TextureMode
+			self:HandleHightlighting()
 		end
 	end
 end
@@ -1780,10 +1855,7 @@ do
 	function ControlMeta:HandleHovering( Time )
 		if not self.OnHover then return end
 
-		local MouseIn, X, Y
-		if self:GetIsVisible() then
-			MouseIn, X, Y = self:MouseInCached()
-		end
+		local MouseIn = self:HasMouseEntered() and self:GetIsVisible()
 
 		-- If the mouse is in this object, and our window is in focus (i.e. not obstructed by a higher window)
 		-- then consider the object hovered.
@@ -1793,6 +1865,8 @@ do
 			else
 				if Time - self.MouseHoverStart > ( self.HoverTime or DEFAULT_HOVER_TIME ) and not self.MouseHovered then
 					self.MouseHovered = true
+
+					local _, X, Y = self:MouseInCached()
 					self:OnHover( X, Y )
 				end
 			end
@@ -1832,6 +1906,7 @@ function ControlMeta:Think( DeltaTime )
 	self:HandleEasing( Time, DeltaTime )
 	self:HandleHovering( Time )
 	self:HandleLayout( DeltaTime )
+	self:HandleMouseState()
 end
 
 function ControlMeta:ThinkWithChildren( DeltaTime )
@@ -1886,12 +1961,16 @@ function ControlMeta:ShowTooltip( MouseX, MouseY )
 	self.Tooltip = Tooltip
 end
 
-function ControlMeta:HideTooltip()
-	if not SGUI.IsValid( self.Tooltip ) then return end
-
-	self.Tooltip:FadeOut( function()
+do
+	local function OnTooltipHidden( self )
 		self.Tooltip = nil
-	end )
+	end
+
+	function ControlMeta:HideTooltip()
+		if not SGUI.IsValid( self.Tooltip ) then return end
+
+		self.Tooltip:FadeOut( OnTooltipHidden, self )
+	end
 end
 
 function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
@@ -1933,7 +2012,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 end
 
 function ControlMeta:ShouldHighlight()
-	return self:GetIsVisible() and self:MouseIn( self.Background, self.HighlightMult )
+	return self:GetIsVisible() and self:MouseInCached()
 end
 
 function ControlMeta:SetForceHighlight( ForceHighlight, SkipAnim )
@@ -1977,11 +2056,74 @@ function ControlMeta:OnMouseWheel( Down )
 	if Result ~= nil then return true end
 end
 
+function ControlMeta:HasMouseEntered()
+	return self.MouseHasEntered
+end
+
+--[[
+	Called when the mouse cursor has entered the control.
+
+	The result of the MouseInControl method determines when this occurs.
+]]
+function ControlMeta:OnMouseEnter()
+
+end
+
+--[[
+	Called when the mouse cursor has left the control.
+
+	The result of the MouseInControl method determines when this occurs.
+]]
+function ControlMeta:OnMouseLeave()
+
+end
+
+function ControlMeta:InvalidateMouseState( Now )
+	self.MouseStateIsInvalid = true
+	if Now then
+		self:HandleMouseState()
+	end
+end
+
+function ControlMeta:HandleMouseState()
+	if not self.MouseStateIsInvalid or not SGUI.IsMouseVisible() then return end
+
+	self:EvaluateMouseState()
+	self:CallOnChildren( "OnMouseMove", false )
+end
+
+function ControlMeta:EvaluateMouseState()
+	local IsMouseIn = self:MouseInCached()
+	local StateChanged = false
+
+	if IsMouseIn and not self.MouseHasEntered then
+		StateChanged = true
+
+		self.MouseHasEntered = true
+		self:OnMouseEnter()
+	elseif not IsMouseIn and self.MouseHasEntered then
+		-- Need to let children see the mouse exit themselves too.
+		StateChanged = true
+
+		self.MouseHasEntered = false
+		self:OnMouseLeave()
+	end
+
+	self:HandleHightlighting()
+	self.MouseStateIsInvalid = false
+
+	return IsMouseIn, StateChanged
+end
+
 function ControlMeta:OnMouseMove( Down )
 	if not self:GetIsVisible() then return end
 
-	self:CallOnChildren( "OnMouseMove", Down )
-	self:HandleHightlighting()
+	self.__LastMouseMove = SGUI.FrameNumber()
+
+	local IsMouseIn, StateChanged = self:EvaluateMouseState()
+	if IsMouseIn or StateChanged then
+		self:CallOnChildren( "OnMouseMove", Down )
+	end
 end
 
 --[[

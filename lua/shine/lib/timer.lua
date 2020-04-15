@@ -77,10 +77,10 @@ do
 
 	--[[
 		Creates a timer.
-		Inputs: Name, delay in seconds, number of times to repeat, function to run.
+		Inputs: Name, delay in seconds, number of times to repeat, function to run, optional data to attach.
 		Pass a negative number to reps to have it repeat indefinitely.
 	]]
-	local function Create( Name, Delay, Reps, Func )
+	local function Create( Name, Delay, Reps, Func, Data )
 		-- Edit it so it's not destroyed if it's created again inside its old function.
 		local TimerObject = Timers:Get( Name ) or PausedTimers[ Name ]
 		if not TimerObject then
@@ -94,6 +94,7 @@ do
 		TimerObject.Func = Func
 		TimerObject.LastRun = 0
 		TimerObject.NextRun = SharedTime() + Delay
+		TimerObject.Data = Data
 
 		return TimerObject
 	end
@@ -103,14 +104,14 @@ do
 
 	--[[
 		Creates a simple timer.
-		Inputs: Delay in seconds, function to run.
+		Inputs: Delay in seconds, function to run, optional data to attach.
 		Unlike a standard timer, this will only run once.
 	]]
-	function Timer.Simple( Delay, Func )
+	function Timer.Simple( Delay, Func, Data )
 		local Index = "Simple"..SimpleCount
 		SimpleCount = SimpleCount + 1
 
-		return Create( Index, Delay, 1, Func )
+		return Create( Index, Delay, 1, Func, Data )
 	end
 end
 

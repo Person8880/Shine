@@ -6,7 +6,7 @@ local Plugin = ...
 
 local Shine = Shine
 
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local Max = math.max
 local StringFormat = string.format
 local Time = os.time
@@ -52,7 +52,7 @@ end
 	Deny commanding if they're banned.
 ]]
 function Plugin:ValidateCommanderLogin( Gamerules, CommandStation, Player )
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	if not Client then
 		self.Logger:Error( "Unable to get client for player %s! Cannot check for commander ban.", Player )
 		return

@@ -6,12 +6,11 @@ local SGUI = Shine.GUI
 local Timer = Shine.Timer
 
 local Clamp = math.Clamp
-local Clock = os.clock
+local Clock = Shared.GetSystemTimeReal
 local Max = math.max
 local Min = math.min
 local StringFind = string.find
 local StringFormat = string.format
-local StringLength = string.len
 local StringLower = string.lower
 local StringSub = string.sub
 local StringUTF8Encode = string.UTF8Encode
@@ -128,7 +127,7 @@ function TextEntry:GetContentSizeForAxis( Axis )
 end
 
 function TextEntry:SetSize( SizeVec )
-	self.Background:SetSize( SizeVec )
+	self.BaseClass.SetSize( self, SizeVec )
 
 	local InnerBoxSize = SizeVec - self.BorderSize * 2
 	self.InnerBox:SetSize( InnerBoxSize )
@@ -488,10 +487,10 @@ function TextEntry:SelectAll()
 end
 
 local function FindFurthestSpace( Text )
-	local PreviousSpace = StringFind( Text, " " )
-	--Find the furthest along space before the caret.
+	local PreviousSpace = StringFind( Text, " ", 1, true )
+	-- Find the furthest along space before the caret.
 	while PreviousSpace do
-		local NextSpace = StringFind( Text, " ", PreviousSpace + 1 )
+		local NextSpace = StringFind( Text, " ", PreviousSpace + 1, true )
 
 		if NextSpace then
 			PreviousSpace = NextSpace
@@ -520,7 +519,7 @@ function TextEntry:FindWordBounds( CharPos )
 	end
 
 	local After = StringUTF8Sub( Text, CharPos )
-	local NextSpace = StringFind( After, " " ) or ( #After + 1 )
+	local NextSpace = StringFind( After, " ", 1, true ) or ( #After + 1 )
 	NextSpace = StringUTF8Length( Before ) + StringUTF8Length( StringSub( After, 1, NextSpace - 1 ) )
 
 	return PreSpace, NextSpace
@@ -666,9 +665,9 @@ function TextEntry:RemoveWord( Forward )
 
 		After = StringUTF8Sub( self.Text, self.Column + 1 )
 
-		local NextSpace = StringFind( After, " " )
+		local NextSpace = StringFind( After, " ", 1, true )
 		if not NextSpace then
-			NextSpace = StringLength( self.Text )
+			NextSpace = #self.Text
 		end
 
 		Before = StringUTF8Sub( self.Text, 1, self.Column )
@@ -786,6 +785,24 @@ function TextEntry:OnMouseUp()
 	return true
 end
 
+function TextEntry:OnMouseEnter()
+	self.BaseClass.OnMouseEnter( self )
+
+	if self.Enabled or self.Highlighted then return end
+
+	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.1 )
+	self.Highlighted = true
+end
+
+function TextEntry:OnMouseLeave()
+	self.BaseClass.OnMouseLeave( self )
+
+	if self.Enabled or not self.Highlighted then return end
+
+	self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+	self.Highlighted = false
+end
+
 function TextEntry:OnMouseMove( Down )
 	if not self:GetIsVisible() then return end
 
@@ -795,19 +812,7 @@ function TextEntry:OnMouseMove( Down )
 		return
 	end
 
-	if not self:MouseIn( self.Background ) then
-		if not self.Enabled and self.Highlighted then
-			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
-			self.Highlighted = false
-		end
-
-		return
-	end
-
-	if self.Highlighted or self.Enabled then return end
-
-	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.1 )
-	self.Highlighted = true
+	self.BaseClass.OnMouseMove( self, Down )
 end
 
 function TextEntry:GetColumnFromMouse( X )
@@ -1181,8 +1186,12 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 
 		if self.Enabled then
 			self.Enabled = false
-			self.Highlighted = false
-			self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+
+			if not self:HasMouseEntered() then
+				self.Highlighted = false
+				self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+			end
+
 			self:RemoveStylingState( "Focus" )
 		end
 

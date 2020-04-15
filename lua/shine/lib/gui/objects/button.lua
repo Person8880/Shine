@@ -70,13 +70,26 @@ local function UpdateIconMargin( self )
 end
 
 function Button:SetText( Text )
-	self:InvalidateParent()
+	if SGUI.IsValid( self.Label ) then
+		if not Text then
+			self.Label:Destroy()
+			self.Label = nil
+			self:InvalidateParent()
+			self:OnPropertyChanged( "Text", nil )
+			return
+		end
 
-	if self.Label then
+		if self.Label:GetText() == Text then return end
+
 		self.Label:SetText( Text )
+		self:InvalidateParent()
 		self:InvalidateLayout()
+		self:OnPropertyChanged( "Text", Text )
+
 		return
 	end
+
+	if not Text then return end
 
 	local Description = SGUI:Create( "Label", self )
 	Description:SetIsSchemed( false )
@@ -125,8 +138,11 @@ function Button:SetText( Text )
 
 	self.Layout:AddElement( Description )
 	self.Label = Description
+	self:InvalidateParent()
 
 	UpdateIconMargin( self )
+
+	self:OnPropertyChanged( "Text", Text )
 end
 
 function Button:GetText()

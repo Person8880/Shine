@@ -1122,7 +1122,7 @@ function Plugin:OpenSettings( MainPanel, UIScale, ScalarScale )
 		Expanded = false
 	end
 
-	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.25, function( Panel )
+	SettingsPanel:SizeTo( SettingsPanel.Background, Start, End, 0, 0.25, function()
 		SettingsButton.Expanded = Expanded
 
 		if Expanded then
@@ -1188,7 +1188,7 @@ function Plugin:OnResolutionChanged( OldX, OldY, NewX, NewY )
 	end
 end
 
-function Plugin:AddMessageFromPopulator( Populator, ... )
+function Plugin:AddMessageFromPopulator( Populator, Context )
 	if not SGUI.IsValid( self.MainPanel ) then
 		self:CreateChatbox()
 
@@ -1222,7 +1222,7 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 	ChatLine:SetFontScale( Font, Scale )
 	ChatLine:SetLineSpacing( LineMargin )
 
-	Populator( ChatLine, ... )
+	Populator( ChatLine, Context )
 
 	self.ChatBox.Layout:AddElement( ChatLine )
 
@@ -1232,14 +1232,12 @@ function Plugin:AddMessageFromPopulator( Populator, ... )
 end
 
 do
-	local function AddMessageFromRichText( ChatLine, Contents, ShowTimestamps )
-		ChatLine:SetContent( Contents, ShowTimestamps )
+	local function AddMessageFromRichText( ChatLine, Contents )
+		ChatLine:SetContent( Contents, Plugin.Config.ShowTimestamps )
 	end
 
 	function Plugin:AddMessageFromRichText( MessageData )
-		return self:AddMessageFromPopulator(
-			AddMessageFromRichText, MessageData.Message, self.Config.ShowTimestamps
-		)
+		return self:AddMessageFromPopulator( AddMessageFromRichText, MessageData.Message )
 	end
 end
 
@@ -1255,9 +1253,16 @@ end
 
 do
 	local IntToColour
-
-	local function AddSimpleChatMessage( ChatLine, ... )
-		ChatLine:SetMessage( ... )
+	local BasicMessageContext = {}
+	local function AddSimpleChatMessage( ChatLine, Context )
+		ChatLine:SetMessage(
+			Context.TagData,
+			Context.PlayerColour,
+			Context.PlayerName,
+			Context.MessageColour,
+			Context.MessageText,
+			Plugin.Config.ShowTimestamps
+		)
 	end
 
 	--[[
@@ -1267,11 +1272,11 @@ do
 
 		Messages with multiple colours can be added through the chat API.
 	]]
-	function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
+	function Plugin:AddMessage( PlayerColour, PlayerName, MessageColour, MessageText, TagData )
 		-- Don't add anything if one of the elements is the wrong type. Default chat will error instead.
 		if not ( IsType( PlayerColour, "number" ) or IsType( PlayerColour, "cdata" ) )
 		or not IsType( PlayerName, "string" ) or not IsType( MessageColour, "cdata" )
-		or not IsType( MessageName, "string" ) then
+		or not IsType( MessageText, "string" ) then
 			return
 		end
 
@@ -1282,10 +1287,13 @@ do
 			PlayerColour = IntToColour( PlayerColour )
 		end
 
-		self:AddMessageFromPopulator(
-			AddSimpleChatMessage, TagData, PlayerColour, PlayerName, MessageColour, MessageName,
-			self.Config.ShowTimestamps
-		)
+		BasicMessageContext.PlayerColour = PlayerColour
+		BasicMessageContext.PlayerName = PlayerName
+		BasicMessageContext.MessageColour = MessageColour
+		BasicMessageContext.MessageText = MessageText
+		BasicMessageContext.TagData = TagData
+
+		self:AddMessageFromPopulator( AddSimpleChatMessage, BasicMessageContext )
 	end
 end
 
@@ -1362,6 +1370,22 @@ do
 		self.TextEntry:SetText( Text )
 	end
 
+	local BackgroundAlpha = 0.65
+	local Easing = require "shine/lib/gui/util/easing"
+	local FadeOutTransition = {
+		Type = "Alpha",
+		EndValue = 0,
+		Duration = 0.2,
+		EasingFunction = Easing.GetEaser( "OutExpo" )
+	}
+	local FadeInTransition = {
+		Type = "Alpha",
+		StartValue = 0,
+		EndValue = BackgroundAlpha,
+		Duration = 0.2,
+		EasingFunction = Easing.GetEaser( "InSine" )
+	}
+
 	local function ApplyAutoCompletionResults( self, Results )
 		if not self.Visible then return end
 
@@ -1378,49 +1402,72 @@ do
 
 		local ResultPanel = self.AutoCompletePanel
 		if not ResultPanel then
-			ResultPanel = SGUI:Create( "Panel", self.MainPanel )
+			ResultPanel = SGUI:Create( "Column", self.MainPanel )
 			ResultPanel:SetIsSchemed( false )
+			ResultPanel:SetShader( SGUI.Shaders.Invisible )
 			self.AutoCompletePanel = ResultPanel
 
 			ResultPanel:SetAnchor( "BottomLeft" )
-
-			local Padding = self.MainPanel.Layout:GetPadding()
-			ResultPanel:SetColour( Colour( 0, 0, 0, 0.65 ) )
-			ResultPanel:SetLayout( SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Padding
-			} ) )
+			ResultPanel:SetColour( Colour( 0, 0, 0, 1 ) )
 		end
 
 		local Layout = ResultPanel.Layout
 		local Elements = Layout.Elements
 
-		local ResultPanelPadding = ResultPanel.Layout:GetComputedPadding()
+		local ResultPanelPadding = self.MainPanel.Layout:GetComputedPadding()
 		local XPadding = ResultPanelPadding[ 1 ] + ResultPanelPadding[ 3 ]
 		local YPadding = ResultPanelPadding[ 2 ] + ResultPanelPadding[ 4 ]
 		local Size = Vector2( self.MainPanel:GetSize().x, YPadding )
 
 		for i = 1, Max( #Results, #Elements ) do
-			local Label = Elements[ i ]
+			local LabelRow = Elements[ i ]
 			if not Results[ i ] or ( i > 1 and Results.ParameterIndex and not ResultsAreForCorrectArgument ) then
-				if Label then
-					Label:AlphaTo( nil, nil, 0, 0, 0.3, function()
-						if not Label then return end
-
-						Label:Destroy()
-						Label = nil
-						Elements[ i ] = nil
-					end )
+				if LabelRow then
+					FadeOutTransition.Callback = LabelRow.Destroy
+					LabelRow:ApplyTransition( FadeOutTransition )
 				end
 			else
 				local ShouldFade
-				if not Label then
+				if not LabelRow then
 					ShouldFade = true
-					Label = SGUI:Create( "ColourLabel", ResultPanel )
-					Label:SetIsSchemed( false )
-					Label:SetMargin( Spacing( 0, 0, 0, Scaled( 2, self.ScalarScale ) ) )
-					Elements[ i ] = Label
+
+					local Tree = SGUI:BuildTree( {
+						Parent = ResultPanel,
+						{
+							ID = "Container",
+							Class = "Row",
+							Props = {
+								IsSchemed = false,
+								Padding = Spacing(
+									ResultPanelPadding[ 1 ],
+									i == 1 and ResultPanelPadding[ 2 ] or 0,
+									ResultPanelPadding[ 3 ],
+									ResultPanelPadding[ 4 ]
+								),
+								Colour = Colour( 0, 0, 0, BackgroundAlpha ),
+								AutoSize = UnitVector( Percentage( 100 ), Units.Auto() )
+							},
+							Children = {
+								{
+									ID = "Label",
+									Class = "ColourLabel",
+									Props = {
+										IsSchemed = false,
+										Alpha = 1 / BackgroundAlpha,
+										InheritsParentAlpha = true
+									}
+								}
+							}
+						}
+					} )
+
+					LabelRow = Tree.Container
+					LabelRow.Label = Tree.Label
+				elseif LabelRow:GetAlpha() + 0.001 < BackgroundAlpha then
+					ShouldFade = true
 				end
 
+				local Label = LabelRow.Label
 				local Result = Results[ i ]
 				Result.ParameterIndex = Results.ParameterIndex
 
@@ -1465,10 +1512,12 @@ do
 				end
 
 				Label:SetText( TextContent )
-				Label:InvalidateLayout( true )
+				LabelRow:InvalidateLayout( true )
 
 				if ShouldFade then
-					Label:AlphaTo( nil, 0, 1, 0, 0.3, nil, math.EaseIn )
+					LabelRow:ApplyTransition( FadeInTransition )
+				else
+					LabelRow:StopAlpha()
 				end
 
 				local LabelSize = Label:GetSize()

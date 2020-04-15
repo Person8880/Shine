@@ -1,0 +1,10 @@
+{
+	"NOTIFY_PREFIX": "[Draw Vote]",
+	"VOTEMENU_BUTTON": "Vote to Draw",
+	"PLAYER_VOTED": "{PlayerName} voted to end the round as a draw ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"PLAYER_VOTED_PRIVATE": "You voted to end the round as a draw ({VotesNeeded} more {VotesNeeded:Pluralise:vote|votes} needed)",
+	"ERROR_ALREADY_VOTED": "You have already voted to end the round as a draw.",
+	"ERROR_MUST_WAIT": "You must wait for {SecondsToWait:Duration} before voting to end the round as a draw.",
+	"ERROR_CANNOT_VOTE_ON_CURRENT_TEAM": "You cannot vote to end the round as a draw on your current team.",
+	"ERROR_ROUND_NOT_STARTED": "A round must be started to vote to end it as a draw."
+}

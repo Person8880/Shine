@@ -216,11 +216,20 @@ function Notification:Think( DeltaTime )
 	end
 end
 
+local function OnFadeInComplete( self )
+	self.FadingIn = false
+end
+
 function Notification:FadeIn()
 	self.FadingIn = true
-	self:AlphaTo( self.Background, 0, self:GetColour().a, 0, 0.3, function()
-		self.FadingIn = false
-	end )
+	self:AlphaTo( self.Background, 0, self:GetColour().a, 0, 0.3, OnFadeInComplete )
+end
+
+local function OnFadeOutComplete( self )
+	if self.FadeOutCallback then
+		self.FadeOutCallback( self )
+	end
+	self:Destroy()
 end
 
 function Notification:FadeOut()
@@ -232,22 +241,20 @@ function Notification:FadeOut()
 	end
 
 	self.FadingOut = true
-	self:AlphaTo( self.Background, self.Background:GetColor().a, 0, 0, 0.3, function()
-		if self.FadeOutCallback then
-			self.FadeOutCallback( self )
-		end
-		self:Destroy()
-	end )
+	self:AlphaTo( self.Background, self.Background:GetColor().a, 0, 0, 0.3, OnFadeOutComplete )
+end
+
+local function OnFadeOutStart( Timer )
+	local NotificationInstance = Timer.Data
+	if not SGUI.IsValid( NotificationInstance ) then return end
+
+	NotificationInstance.FadeOutTimer = nil
+	NotificationInstance:FadeOut()
 end
 
 function Notification:FadeOutAfter( Duration, Callback )
 	self.FadeOutCallback = Callback
-	self.FadeOutTimer = Shine.Timer.Simple( Duration, function()
-		if not SGUI.IsValid( self ) then return end
-
-		self.FadeOutTimer = nil
-		self:FadeOut()
-	end )
+	self.FadeOutTimer = Shine.Timer.Simple( Duration, OnFadeOutStart, self )
 end
 
 SGUI:Register( "Notification", Notification )

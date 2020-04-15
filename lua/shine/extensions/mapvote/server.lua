@@ -7,7 +7,7 @@ local Shine = Shine
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local IsType = Shine.IsType
 local Max = math.max
 local Notify = Shared.Message
@@ -668,7 +668,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if ShineForce then return end
 	if NewTeam == 0 then return end
 
-	if Shine:CanNotify( GetOwner( Player ) ) then
+	if Shine:CanNotify( GetClientForPlayer( Player ) ) then
 		self:SendTranslatedNotify( Player, "TeamSwitchFail", {
 			IsEndVote = IsEndVote or false
 		} )

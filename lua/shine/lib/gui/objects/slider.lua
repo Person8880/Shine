@@ -382,7 +382,11 @@ function Slider:OnMouseUp( Key )
 end
 
 function Slider:OnMouseMove( Down )
-	self:CallOnChildren( "OnMouseMove", Down )
+	self.BaseClass.OnMouseMove( self, Down )
+
+	if SGUI.IsValid( self.TextEntry ) then
+		self.TextEntry:OnMouseMove( Down )
+	end
 
 	if not Down then return end
 	if not self.Dragging then return end

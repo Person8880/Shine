@@ -189,7 +189,7 @@ if Server then
 	end
 
 	-- Obey permissions...
-	Shine.Hook.Add( "ClientConfirmConnect", "DataTablesUpdate", function( Client )
+	Shine.Hook.Add( "ClientConnect", "DataTablesUpdate", function( Client )
 		for Table, Data in pairs( RealData ) do
 			if not Table.__Access then
 				Shine.SendNetworkMessage( Client, Table.__Name, Data, true )

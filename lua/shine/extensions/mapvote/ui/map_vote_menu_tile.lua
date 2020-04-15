@@ -30,9 +30,11 @@ SGUI.AddProperty( MapTile, "Selected", false )
 SGUI.AddProperty( MapTile, "TeamVariation", "Marine" )
 SGUI.AddProperty( MapTile, "WinnerType" )
 
-SGUI.AddBoundProperty( MapTile, "Text", "MapNameLabel:SetText" )
-SGUI.AddBoundProperty( MapTile, "TextColour", { "MapNameLabel:SetColour", "VoteCounterLabel:SetColour" } )
+SGUI.AddBoundProperty( MapTile, "MapNameText", "MapNameLabel:SetText" )
 SGUI.AddBoundProperty( MapTile, "MapNameAutoFont", "MapNameLabel:SetAutoFont" )
+SGUI.AddBoundProperty( MapTile, "TextColour", {
+	"Label:SetColour", "MapNameLabel:SetColour", "VoteCounterLabel:SetColour"
+} )
 SGUI.AddBoundProperty( MapTile, "VoteCounterAutoFont", "VoteCounterLabel:SetAutoFont" )
 
 MapTile.WinnerTypeName = table.AsEnum{
@@ -320,6 +322,8 @@ end
 function MapTile:SetHighlighted( Highlighted, SkipAnim )
 	self.Highlighted = Highlighted
 	self:OnPropertyChanged( "Highlighted", Highlighted )
+
+	if not SGUI.IsValid( self.PreviewImage ) then return end
 
 	local Colour = Highlighted and self.PreviewImage.ActiveCol or self.PreviewImage.InactiveCol
 	if SkipAnim then

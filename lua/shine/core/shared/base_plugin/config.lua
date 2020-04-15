@@ -259,18 +259,20 @@ function ConfigModule:MigrateConfig( Config )
 		self.__Name, CurrentConfigVersion, self.Version or "1.0"
 	)
 
-	Shine.SystemNotifications:AddNotification( {
-		Type = Shine.SystemNotifications.Type.INFO,
-		Message = {
-			Source = "Core",
-			TranslationKey = "INFO_PLUGIN_VERSION_UPDATE",
-			Context = tostring( OurVersion )
-		},
-		Source = {
-			Type = Shine.SystemNotifications.Source.PLUGIN,
-			ID = self.__Name
-		}
-	} )
+	if Server then
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.INFO,
+			Message = {
+				Source = "Core",
+				TranslationKey = "INFO_PLUGIN_VERSION_UPDATE",
+				Context = tostring( OurVersion )
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.PLUGIN,
+				ID = self.__Name
+			}
+		} )
+	end
 
 	Config.__Version = self.Version or "1.0"
 

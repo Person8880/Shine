@@ -136,25 +136,14 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		MaxChatWidth = Value * 0.01
 	end )
 
-	-- Ensure easing functions are loaded.
-	Script.Load( "lua/tweener/Tweener.lua" )
+	local Easing = require "shine/lib/gui/util/easing"
 
 	-- Fade fast to avoid making text hard to read.
-	local OutExpo = Easing.outExpo
-	local function FadingEase( Progress )
-		return OutExpo( Progress, 0, 1, 1 )
-	end
-
-	local InExpo = Easing.inExpo
-	local function FadingInEase( Progress )
-		return InExpo( Progress, 0, 1, 1 )
-	end
+	local FadingEase = Easing.GetEaser( "OutExpo" )
+	local FadingInEase = Easing.GetEaser( "InExpo" )
 
 	-- Move more smoothly to avoid sudden jumps.
-	local OutSine = Easing.outSine
-	local function MovementEase( Progress )
-		return OutSine( Progress, 0, 1, 1 )
-	end
+	local MovementEase = Easing.GetEaser( "OutSine" )
 
 	local AnimDuration = 0.25
 	local function IsAnimationEnabled( self )
@@ -167,45 +156,59 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:Reset()
 	end
 
-	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
-		return function()
-			if not TableRemoveByValue( self.ChatLines, ChatLine ) then
-				return
-			end
+	local FadeOutCallback = Shine.TypeDef()
+	function FadeOutCallback:Init( GUIChat, ChatLine, PaddingAmount )
+		self.GUIChat = GUIChat
+		self.ChatLine = ChatLine
+		self.PaddingAmount = PaddingAmount
+		return self
+	end
 
-			ResetChatLine( ChatLine )
+	function FadeOutCallback:__call()
+		local ChatLine = self.ChatLine
+		local GUIChat = self.GUIChat
+		local PaddingAmount = self.PaddingAmount
 
-			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
-				-- Move remaining messages upwards to fill in the gap.
-				local YOffset = 0
-				local ShouldAnimate = IsAnimationEnabled( self )
-
-				for i = 1, #self.ChatLines do
-					local ChatLine = self.ChatLines[ i ]
-					local Pos = ChatLine:GetPos()
-					Pos.y = YOffset
-
-					if ShouldAnimate then
-						ChatLine:ApplyTransition( {
-							Type = "Move",
-							EndValue = Pos,
-							Duration = AnimDuration,
-							EasingFunction = MovementEase
-						} )
-					else
-						ChatLine:SetPos( Pos )
-					end
-
-					YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
-				end
-			else
-				-- Update local message positions and re-position the container panel downward to account for the
-				-- lost message.
-				UpdateUpwardsMessagePositions( self, PaddingAmount )
-			end
-
-			self.ChatLinePool[ #self.ChatLinePool + 1 ] = ChatLine
+		if not TableRemoveByValue( GUIChat.ChatLines, ChatLine ) then
+			return
 		end
+
+		ResetChatLine( ChatLine )
+
+		if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
+			-- Move remaining messages upwards to fill in the gap.
+			local YOffset = 0
+			local ShouldAnimate = IsAnimationEnabled( GUIChat )
+
+			for i = 1, #GUIChat.ChatLines do
+				local ChatLine = GUIChat.ChatLines[ i ]
+				local Pos = ChatLine:GetPos()
+				Pos.y = YOffset
+
+				if ShouldAnimate then
+					ChatLine:ApplyTransition( {
+						Type = "Move",
+						EndValue = Pos,
+						Duration = AnimDuration,
+						EasingFunction = MovementEase
+					} )
+				else
+					ChatLine:SetPos( Pos )
+				end
+
+				YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
+			end
+		else
+			-- Update local message positions and re-position the container panel downward to account for the
+			-- lost message.
+			UpdateUpwardsMessagePositions( GUIChat, PaddingAmount )
+		end
+
+		GUIChat.ChatLinePool[ #GUIChat.ChatLinePool + 1 ] = ChatLine
+	end
+
+	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
+		return FadeOutCallback( self, ChatLine, PaddingAmount )
 	end
 
 	local function RemoveLineIfOffScreen( Line, Index, self )
@@ -232,6 +235,15 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 	end
 
+	local RemoveOffscreenLinesCallback = Shine.TypeDef()
+	function RemoveOffscreenLinesCallback:Init( GUIChat )
+		self.GUIChat = GUIChat
+		return self
+	end
+	function RemoveOffscreenLinesCallback:__call()
+		RemoveOffscreenLines( self.GUIChat )
+	end
+
 	local function AddChatLineMovingUpwards( self, ChatLine, PaddingAmount, ShouldAnimate )
 		local NewLineHeight = ChatLine:GetSize().y
 		local YOffset = 0
@@ -255,7 +267,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 				EndValue = MessagePanelPos,
 				Duration = AnimDuration,
 				EasingFunction = MovementEase,
-				Callback = function() RemoveOffscreenLines( self ) end
+				Callback = RemoveOffscreenLinesCallback( self )
 			} )
 		else
 			self.MessagePanel:SetPos( MessagePanelPos )
@@ -300,7 +312,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 
 	local BackgroundTexture = PrecacheAsset "ui/shine/chat_bg.dds"
 
-	function ChatElement:AddChatLine( Populator, ... )
+	function ChatElement:AddChatLine( Populator, Context )
 		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.MessagePanel )
 
 		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
@@ -313,7 +325,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:SetTextScale( Scale )
 		ChatLine:SetLineSpacing( LineMargin )
 
-		Populator( ChatLine, ... )
+		Populator( ChatLine, Context )
 
 		if not ChatLine:HasVisibleElements() then
 			-- Avoid displaying empty messages.
@@ -400,6 +412,8 @@ Plugin.ConfigGroup = {
 }
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	self.ChatTagDefinitions = {}
 	self.ChatTags = {}
 	self.MessagesInTransit = {}
@@ -485,7 +499,7 @@ function Plugin:GetFontSize()
 end
 
 function Plugin:SetChatOffset( Offset )
-	local Panel = self.GUIChat.Panel
+	local Panel = self.GUIChat and self.GUIChat.Panel
 	if not SGUI.IsValid( Panel ) then return end
 
 	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), Offset ) )
@@ -578,12 +592,14 @@ function Plugin:ReceiveResetChatTag( Message )
 	self.ChatTags[ Message.SteamID ] = nil
 end
 
-local function PopulateFromBasicMessage( ChatLine, PlayerColour, PlayerName, MessageColour, MessageText, TagData )
+local BasicMessageContext = {}
+local function PopulateFromBasicMessage( ChatLine, Context )
+	local PlayerColour = Context.PlayerColour
 	if IsType( PlayerColour, "number" ) then
 		PlayerColour = IntToColour( PlayerColour )
 	end
 
-	ChatLine:SetMessage( TagData, PlayerColour, PlayerName, MessageColour, MessageText )
+	ChatLine:SetMessage( Context.TagData, PlayerColour, Context.PlayerName, Context.MessageColour, Context.MessageText )
 end
 
 function Plugin:SetupGUIChat( ChatElement )
@@ -642,14 +658,13 @@ function Plugin:SetupGUIChat( ChatElement )
 			MessageText = StringFormat( "%s\n%s", MessageText, Message.Message2:GetText() )
 		end
 
-		ChatElement:AddChatLine(
-			PopulateFromBasicMessage,
-			Message.Player:GetColor(),
-			Message.Player:GetText(),
-			Message.Message:GetColor(),
-			MessageText,
-			TagData
-		)
+		BasicMessageContext.PlayerColour = Message.Player:GetColor()
+		BasicMessageContext.PlayerName = Message.Player:GetText()
+		BasicMessageContext.MessageColour = Message.Message:GetColor()
+		BasicMessageContext.MessageText = MessageText
+		BasicMessageContext.TagData = TagData
+
+		ChatElement:AddChatLine( PopulateFromBasicMessage, BasicMessageContext )
 	end
 end
 
@@ -666,7 +681,7 @@ end
 
 -- Replace adding standard messages to use ChatLine elements and the altered display behaviour.
 function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColour, MessageText, IsCommander, IsRookie )
-	if not GUIChat.AddChatLine then return end
+	if not GUIChat.AddChatLine or self.GUIChat ~= GUIChat then return end
 
 	if IsCommander then
 		TagData = {
@@ -685,7 +700,13 @@ function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColo
 		}
 	end
 
-	GUIChat:AddChatLine( PopulateFromBasicMessage, PlayerColour, PlayerName, MessageColour, MessageText, TagData )
+	BasicMessageContext.PlayerColour = PlayerColour
+	BasicMessageContext.PlayerName = PlayerName
+	BasicMessageContext.MessageColour = MessageColour
+	BasicMessageContext.MessageText = MessageText
+	BasicMessageContext.TagData = TagData
+
+	GUIChat:AddChatLine( PopulateFromBasicMessage, BasicMessageContext )
 
 	Hook.Call( "OnChatMessageDisplayed", PlayerColour, PlayerName, MessageColour, MessageText, TagData )
 
@@ -693,7 +714,7 @@ function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColo
 end
 
 local function IsVisibleToLocalPlayer( Player, TeamNumber )
-	local PlayerTeam = Player:GetTeamNumber()
+	local PlayerTeam = Player.GetTeamNumber and Player:GetTeamNumber()
 	return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex or PlayerTeam == kTeamReadyRoom
 end
 
@@ -776,7 +797,7 @@ function Plugin:OnChatMessageReceived( Data )
 
 	Hook.Call( "OnChatMessageParsed", Data, Contents )
 
-	self:AddRichTextMessage( {
+	return self:AddRichTextMessage( {
 		Source = {
 			Type = ChatAPI.SourceTypeName.PLAYER,
 			ID = Data.SteamID,
@@ -784,11 +805,15 @@ function Plugin:OnChatMessageReceived( Data )
 		},
 		Message = Contents
 	} )
-
-	return true
 end
 
 function Plugin:AddRichTextMessage( MessageData )
+	if not self.GUIChat then
+		-- This shouldn't happen, but fail gracefully if it does.
+		self.Logger:Warn( "GUIChat not available, unable to display chat message." )
+		return
+	end
+
 	if self.GUIChat:AddRichTextMessage( MessageData.Message ) then
 		local Player = Client.GetLocalPlayer()
 		if Player and not MessageData.SuppressSound and Player.GetChatSound then
@@ -797,6 +822,8 @@ function Plugin:AddRichTextMessage( MessageData )
 
 		Hook.Call( "OnRichTextChatMessageDisplayed", MessageData )
 	end
+
+	return true
 end
 
 do
@@ -945,6 +972,8 @@ function Plugin:Cleanup()
 
 	return self.BaseClass.Cleanup( self )
 end
+
+Shine.LoadPluginModule( "logger.lua", Plugin )
 
 Plugin.ClientConfigSettings = {
 	{

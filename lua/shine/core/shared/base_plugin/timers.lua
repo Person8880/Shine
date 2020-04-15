@@ -15,7 +15,7 @@ local TimerModule = {}
 
 	Inputs: Same as Shine.Timer.Create.
 ]]
-function TimerModule:CreateTimer( Name, Delay, Reps, Func )
+function TimerModule:CreateTimer( Name, Delay, Reps, Func, Data )
 	Shine.TypeCheck( Delay, "number", 2, "CreateTimer" )
 	Shine.TypeCheck( Reps, "number", 3, "CreateTimer" )
 	Shine.TypeCheck( Func, "function", 4, "CreateTimer" )
@@ -23,7 +23,7 @@ function TimerModule:CreateTimer( Name, Delay, Reps, Func )
 	self.Timers = rawget( self, "Timers" ) or setmetatable( {}, { __mode = "v" } )
 
 	local RealName = StringFormat( "%s_%s", self.__Name, Name )
-	local Timer = Shine.Timer.Create( RealName, Delay, Reps, Func )
+	local Timer = Shine.Timer.Create( RealName, Delay, Reps, Func, Data )
 
 	self.Timers[ Name ] = Timer
 
@@ -34,13 +34,13 @@ end
 	Creates a simple timer and adds it to the list of timers associated to the plugin.
 	Inputs: Same as Shine.Timer.Simple.
 ]]
-function TimerModule:SimpleTimer( Delay, Func )
+function TimerModule:SimpleTimer( Delay, Func, Data )
 	Shine.TypeCheck( Delay, "number", 1, "SimpleTimer" )
 	Shine.TypeCheck( Func, "function", 2, "SimpleTimer" )
 
 	self.Timers = rawget( self, "Timers" ) or setmetatable( {}, { __mode = "v" } )
 
-	local Timer = Shine.Timer.Simple( Delay, Func )
+	local Timer = Shine.Timer.Simple( Delay, Func, Data )
 
 	self.Timers[ Timer.Name ] = Timer
 

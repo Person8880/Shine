@@ -6,7 +6,6 @@ local Shine = Shine
 local Hook = Shine.Hook
 local Call = Hook.Call
 
-local GetOwner = Server.GetOwner
 local IsType = Shine.IsType
 local Min = math.min
 local Notify = Shared.Message
@@ -365,6 +364,8 @@ function Plugin:TakeDamage( Ent, Damage, Attacker, Inflictor, Point, Direction, 
 end
 
 do
+	local GetClientForPlayer = Shine.GetClientForPlayer
+
 	function Plugin:IsPregameAllTalk( Gamerules )
 		return self.Config.AllTalkPreGame and Gamerules:GetGameState() < kGameState.PreGame
 	end
@@ -403,7 +404,7 @@ do
 	end
 
 	function Plugin:CanPlayerHearLocalVoice( Gamerules, Listener, Speaker, SpeakerClient )
-		local ListenerClient = GetOwner( Listener )
+		local ListenerClient = GetClientForPlayer( Listener )
 
 		-- Default behaviour for those that have chosen to disable it.
 		if self:IsLocalAllTalkDisabled( ListenerClient )
@@ -429,7 +430,7 @@ do
 		Override voice chat to allow everyone to hear each other with alltalk on.
 	]]
 	function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker, ChannelType )
-		local SpeakerClient = GetOwner( Speaker )
+		local SpeakerClient = GetClientForPlayer( Speaker )
 
 		if SpeakerClient and self:IsClientGagged( SpeakerClient ) then return false end
 		if Listener:GetClientMuted( Speaker:GetClientIndex() ) then return false end

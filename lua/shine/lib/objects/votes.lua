@@ -61,7 +61,10 @@ function VoteMeta:RemoveVote( Client )
 	if self.Voted[ Client ] then
 		self.Voted[ Client ] = nil
 		self.Votes = Max( self.Votes - 1, 0 )
+		return true
 	end
+
+	return false
 end
 
 function VoteMeta:ClientDisconnect( Client )
@@ -90,13 +93,17 @@ function VoteMeta:AddVote( Client )
 end
 
 function VoteMeta:CheckForSuccess()
-	if self.Votes <= 0 then return end
+	if self.Votes <= 0 then return false end
 
 	if self.Votes >= self.VotesNeeded() then
 		self.LastSuccessTime = SharedTime()
 		self.OnSuccess()
 		self:Reset()
+
+		return true
 	end
+
+	return false
 end
 
 function VoteMeta:HasSucceededOnLastVote()

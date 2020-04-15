@@ -26,6 +26,7 @@ do
 		self.CachedTextWidth = nil
 		self.CachedTextHeight = nil
 		self.NeedsTextSizeRefresh = true
+		self:InvalidateMouseState()
 	end
 
 	local function SetupElementForFontName( self, Font )
@@ -86,8 +87,8 @@ do
 	end
 end
 
-function Label:MouseIn( Element, Mult, MaxX, MaxY )
-	return self:MouseInControl( Mult, MaxX, MaxY )
+function Label:MouseIn( Element, Mult )
+	return self:MouseInControl( Mult )
 end
 
 local AlignmentMultipliers = {
@@ -114,24 +115,26 @@ function Label:SetupStencil()
 	self.Label:SetStencilFunc( GUIItem.NotEqual )
 end
 
+local WordWrapDummy = {
+	GetTextWidth = function( self, Text )
+		-- Need to account for scale here.
+		return self.Element:GetTextWidth( Text )
+	end,
+	SetText = function( self, Text )
+		self.Element.Label:SetText( Text )
+		self.Element:EvaluateOptionFlags( Text )
+	end
+}
+
 -- Apply word wrapping before the height is computed (assuming height = Units.Auto()).
 function Label:PreComputeHeight( Width )
 	if not self.AutoWrap then return end
 
 	local CurrentText = self.Label:GetText()
+
 	-- Pass in a dummy to avoid mutating the actual text value assigned to this label,
 	-- and instead only update the displayed text on the GUIItem.
-	local WordWrapDummy = {
-		GetTextWidth = function( _, Text )
-			-- Need to account for scale here.
-			return self:GetTextWidth( Text )
-		end,
-		SetText = function( _, Text )
-			self.Label:SetText( Text )
-			self:EvaluateOptionFlags( Text )
-		end
-	}
-
+	WordWrapDummy.Element = self
 	SGUI.WordWrap( WordWrapDummy, self.Text, 0, Width )
 
 	if CurrentText ~= self.Label:GetText() then

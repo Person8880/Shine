@@ -48,6 +48,18 @@ local MARGIN = HighResScaled( 16 )
 local PADDING = HighResScaled( 16 )
 local FLAIR_WIDTH = HighResScaled( 48 )
 
+local function OnNotificationFadeOut( Notification )
+	for i = #Notifications, 1, -1 do
+		if Notifications[ i ] == Notification then
+			Notification:StopMoving()
+			TableRemove( Notifications, i )
+			-- Move any notifications above this one down to compensate for the gap.
+			OffsetAllNotifications( -Notification:GetSize().y - MARGIN:GetValue(), 1, i - 1 )
+			break
+		end
+	end
+end
+
 --[[
 	Adds a notification to the screen.
 
@@ -85,17 +97,7 @@ function NotificationManager.AddNotification( Type, Message, Duration, Options )
 	Notification.TargetPos = TargetPos
 	Notification:MoveTo( nil, nil, TargetPos, 0, 0.3 )
 	Notification:FadeIn()
-	Notification:FadeOutAfter( Duration, function()
-		for i = #Notifications, 1, -1 do
-			if Notifications[ i ] == Notification then
-				Notification:StopMoving()
-				TableRemove( Notifications, i )
-				-- Move any notifications above this one down to compensate for the gap.
-				OffsetAllNotifications( -Notification:GetSize().y - MARGIN:GetValue(), 1, i - 1 )
-				break
-			end
-		end
-	end )
+	Notification:FadeOutAfter( Duration, OnNotificationFadeOut )
 
 	-- Move all existing notifications up by the notification's size + margin.
 	OffsetAllNotifications( Notification:GetSize().y + MARGIN:GetValue(), 1, #Notifications )

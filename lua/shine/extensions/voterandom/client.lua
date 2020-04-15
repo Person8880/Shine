@@ -465,11 +465,11 @@ local IsPlayingTeam = Shine.IsPlayingTeam
 local pairs = pairs
 
 function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
-	local MemoryEntry = self.TeamTracking[ ClientIndex ]
+	local MemoryEntry = self.TeamTracking:Get( ClientIndex )
 	if not MemoryEntry then
 		-- Start with the team they're currently on to avoid everyone flashing on first join.
 		MemoryEntry = { TeamNumber = TeamNumber }
-		self.TeamTracking[ ClientIndex ] = MemoryEntry
+		self.TeamTracking:Add( ClientIndex, MemoryEntry )
 	end
 
 	-- For some reason, spectators are constantly swapped between team 0 and 3.
@@ -485,7 +485,7 @@ function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 end
 
 function Plugin:Initialise()
-	self.TeamTracking = {}
+	self.TeamTracking = Shine.Map()
 	self.FriendGroup = {}
 	self.InFriendGroup = false
 
@@ -508,9 +508,9 @@ function Plugin:Initialise()
 			self:UpdateTeamMemoryEntry( ClientIndex, Entry.EntityTeamNumber, CurTime )
 		end
 
-		for ClientIndex in pairs( self.TeamTracking ) do
+		for ClientIndex in self.TeamTracking:Iterate() do
 			if not Clients[ ClientIndex ] then
-				self.TeamTracking[ ClientIndex ] = nil
+				self.TeamTracking:Remove( ClientIndex )
 			end
 		end
 	end )

@@ -7,11 +7,11 @@ local Shine = Shine
 local assert = assert
 local Clamp = math.Clamp
 local Floor = math.floor
+local GetClientForPlayer = Shine.GetClientForPlayer
 local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetMaxPlayers = Server.GetMaxPlayers
 local GetMaxSpectators = Server.GetMaxSpectators
 local GetNumClientsTotal = Server.GetNumClientsTotal
-local GetOwner = Server.GetOwner
 local Max = math.max
 local Random = math.random
 local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
@@ -407,7 +407,7 @@ function Plugin:PrePlayerInfoUpdate( PlayerInfo, Player )
 		return
 	end
 
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	local Data = self.Users:Get( Client )
 
 	-- Network the AFK state of the player.
@@ -673,7 +673,7 @@ end
 	and means that as soon as actions should be applied, they will be.
 ]]
 function Plugin:OnProcessMove( Player, Input )
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	if not Client or Client:GetIsVirtual() then return end
 
 	local DataTable = self.Users:Get( Client )
@@ -782,7 +782,7 @@ function Plugin:PlayerSay( Client, MessageTable )
 end
 
 function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
-	local Client = GetOwner( Speaker )
+	local Client = GetClientForPlayer( Speaker )
 	if Client then
 		self:SubtractAFKTime( Client, 0.1 )
 	end
@@ -796,7 +796,7 @@ function Plugin:OnConstructInit( Building )
 	Owner = Owner or Team:GetCommander()
 	if not Owner then return end
 
-	local Client = GetOwner( Owner )
+	local Client = GetClientForPlayer( Owner )
 	if not Client then return end
 
 	self:ResetAFKTime( Client )
@@ -809,7 +809,7 @@ function Plugin:OnRecycle( Building, ResearchID )
 	local Commander = Team:GetCommander()
 	if not Commander then return end
 
-	local Client = GetOwner( Commander )
+	local Client = GetClientForPlayer( Commander )
 	if not Client then return end
 
 	self:ResetAFKTime( Client )
@@ -818,7 +818,7 @@ end
 do
 	local function ResetForCommander()
 		return function( self, Commander )
-			local Client = GetOwner( Commander )
+			local Client = GetClientForPlayer( Commander )
 			if not Client then return end
 
 			self:ResetAFKTime( Client )
@@ -918,7 +918,7 @@ function Plugin:OnFirstThink()
 
 	do
 		local function MoveIfNotAFK( Player )
-			local Client = Player and GetOwner( Player )
+			local Client = Player and GetClientForPlayer( Player )
 			if not Client or self:IsAFKFor( Client, 60 ) then return end
 
 			JoinRandomTeam( Player )
@@ -933,7 +933,7 @@ function Plugin:OnFirstThink()
 
 	local function FilterPlayers( Player )
 		local ShouldKeep = true
-		local Client = GetOwner( Player )
+		local Client = GetClientForPlayer( Player )
 
 		if not Client or self:IsAFKFor( Client, 60 ) then
 			ShouldKeep = false

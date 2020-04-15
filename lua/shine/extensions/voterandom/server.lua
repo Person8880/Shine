@@ -14,7 +14,7 @@ local Floor = math.floor
 local GetAllPlayers = Shine.GetAllPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
 local GetNumSpectators = Server.GetNumSpectators
-local GetOwner = Server.GetOwner
+local GetClientForPlayer = Shine.GetClientForPlayer
 local IsType = Shine.IsType
 local Max = math.max
 local Random = math.random
@@ -370,7 +370,7 @@ function EnforcementPolicy:IsPolicyEnforced( Policy, PlayerCount )
 end
 
 function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
-	local Client = GetOwner( Player )
+	local Client = GetClientForPlayer( Player )
 	if not Client then return false end
 
 	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )

@@ -49,7 +49,7 @@ function ProgressBar:SetBorderSize( BorderSize )
 end
 
 function ProgressBar:SetSize( Size )
-	self.Background:SetSize( Size )
+	self.BaseClass.SetSize( self, Size )
 
 	local BoxSize = Size - self.BorderSize * 2
 	RefreshInnerSizes( self, BoxSize )

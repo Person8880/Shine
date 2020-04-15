@@ -48,6 +48,19 @@ function Scrollbar:FadeOut( Duration, Callback, EaseFunc )
 	self:AlphaTo( self.Bar, nil, 0, 0, Duration, nil, EaseFunc )
 end
 
+function Scrollbar:StopFading()
+	if not self:GetEasing( "Alpha", self.Bar ) then return end
+
+	self:StopAlpha( self.Background )
+	self:StopAlpha( self.Bar )
+
+	self:SetAlpha( self:GetNormalAlpha( self.Background ) )
+
+	local BarColour = self.Bar:GetColor()
+	BarColour.a = self:GetNormalAlpha( self.Bar )
+	self.Bar:SetColor( BarColour )
+end
+
 function Scrollbar:SetHidden( Hidden )
 	if Hidden then
 		self:HideAndDisableInput()
@@ -78,7 +91,7 @@ end
 
 function Scrollbar:SetSize( Size )
 	self.Size = Size
-	self.Background:SetSize( Size )
+	self.BaseClass.SetSize( self, Size )
 
 	self:UpdateScrollBarSize()
 end
@@ -150,6 +163,7 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	self.StartingX = X
 	self.StartingY = Y
 
+	self:StopFading()
 	self.Bar:SetColor( self.ActiveCol )
 
 	return true, self

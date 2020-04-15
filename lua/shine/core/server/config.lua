@@ -62,6 +62,7 @@ local DefaultConfig = {
 		unstuck = true,
 		usermanagement = true,
 		votealltalk = false,
+		votedraw = false,
 		voterandom = false,
 		votesurrender = true,
 		welcomemessages = false,

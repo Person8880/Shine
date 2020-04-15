@@ -18,9 +18,12 @@ local function RecursivelyReplaceMethod( Class, Method, Func, Original )
 	end
 end
 
-function Shine.ReplaceClassMethod( Class, Method, Func )
-	local Original = _G[ Class ] and _G[ Class ][ Method ]
+function Shine.GetClassMethod( Class, Method )
+	return _G[ Class ] and _G[ Class ][ Method ]
+end
 
+function Shine.ReplaceClassMethod( Class, Method, Func )
+	local Original = Shine.GetClassMethod( Class, Method )
 	if not Original then return nil, "class method does not exist." end
 
 	RecursivelyReplaceMethod( Class, Method, Func, Original )

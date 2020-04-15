@@ -29,7 +29,7 @@ end
 
 -- Called when a change occurs, internally tracks whether a value has changed
 -- and then calls downstream listeners if it has.
-function Source:__call( Value )
+function Source:__call( _, Value )
 	if self.Value == Value then return end
 
 	-- Update the value before calling listeners to allow them to iterate over

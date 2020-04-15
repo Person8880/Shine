@@ -22,6 +22,7 @@ local StringLower = string.lower
 local TableQuickCopy = table.QuickCopy
 local TableSort = table.sort
 local ToDebugString = table.ToDebugString
+local tostring = tostring
 local Traceback = debug.traceback
 local xpcall = xpcall
 
@@ -368,9 +369,6 @@ Hook.Add( "OnFirstThink", "ExtensionFirstThink", function()
 	HasFirstThinkOccurred = true
 end )
 
--- Handles dispatching plugin events efficiently.
-local Dispatcher
-
 local function CheckPluginConflicts( self, Conflicts )
 	if not Conflicts or not Server then return true end
 
@@ -424,6 +422,116 @@ local function CheckDependencies( self, Dependencies )
 	return true
 end
 
+local AddPluginHook
+local HasPluginHook
+local RemovePluginHook
+local RemoveAllPluginHooks
+do
+	local CodeGen = require "shine/lib/codegen"
+	local select = select
+
+	local OnError = Shine.BuildErrorHandler( "Plugin hook error" )
+
+	local Callers = CodeGen.MakeFunctionGenerator( {
+		Template = [[local OnError, Shine, xpcall = ...
+			return function( Plugin, Method, Event{Arguments} )
+				local Success, a, b, c, d, e, f = xpcall( Method, OnError, Plugin{Arguments} )
+
+				if not Success then
+					Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
+					Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
+						true, Event, Plugin.__Name, Plugin.__HookErrors )
+
+					if Plugin.__HookErrors >= 10 then
+						Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
+							true, Plugin.__Name, Plugin.__HookErrors )
+
+						Plugin.__HookErrors = 0
+
+						Shine:UnloadExtension( Plugin.__Name )
+					end
+
+					return nil
+				end
+
+				return a, b, c, d, e, f
+			end
+		]],
+		ChunkName = "lua/shine/core/shared/extensions.lua/CallEvent",
+		-- This should match the value used in the hook system.
+		InitialSize = 10,
+		Args = { OnError, Shine, xpcall }
+	} )
+
+	local EventKey = Shine.TypeDef()
+	function EventKey:Init( Plugin )
+		self.Plugin = Plugin
+		return self
+	end
+	function EventKey:__tostring()
+		return StringFormat( "Plugin - %s", self.Plugin:GetName() )
+	end
+
+	local EventCaller = Shine.TypeDef()
+	function EventCaller:Init( Plugin, Event )
+		self.Plugin = Plugin
+		self.Event = Event
+		return self
+	end
+
+	function EventCaller:__call( ... )
+		return Callers[ select( "#", ... ) ]( self.Plugin, self.Plugin[ self.Event ], self.Event, ... )
+	end
+
+	function EventCaller:__tostring()
+		return StringFormat( "Shine.Plugins.%s:%s()", self.Plugin:GetName(), self.Event )
+	end
+
+	local PluginEventKeys = {}
+	local PluginEvents = setmetatable( {}, {
+		__index = function( self, Key )
+			local Events = Shine.Set()
+
+			self[ Key ] = Events
+
+			return Events
+		end
+	} )
+	local EventsWithPlugins = Shine.Multimap()
+
+	AddPluginHook = function( Plugin, Event )
+		if not IsType( Plugin[ Event ], "function" ) then return end
+
+		local Key = PluginEventKeys[ Plugin ] or EventKey( Plugin )
+		PluginEventKeys[ Plugin ] = Key
+
+		PluginEvents[ Plugin ]:Add( Event )
+		EventsWithPlugins:Add( Event, Plugin )
+
+		Hook.Add( Event, Key, EventCaller( Plugin, Event ), Hook.MAX_PRIORITY + 0.5 )
+	end
+
+	HasPluginHook = function( Event )
+		return EventsWithPlugins:Get( Event ) ~= nil
+	end
+
+	RemovePluginHook = function( Plugin, Event )
+		Hook.Remove( Event, PluginEventKeys[ Plugin ] )
+		EventsWithPlugins:RemoveKeyValue( Event, Plugin )
+	end
+
+	RemoveAllPluginHooks = function( Plugin )
+		local Events = PluginEvents[ Plugin ]
+
+		for Event in Events:Iterate() do
+			RemovePluginHook( Plugin, Event )
+		end
+
+		PluginEventKeys[ Plugin ] = nil
+		PluginEvents[ Plugin ] = nil
+	end
+end
+
 do
 	local OnInitError = Shine.BuildErrorHandler( "Plugin initialisation error" )
 	local function MarkAsDisabled( Plugin, FirstEnable )
@@ -431,6 +539,38 @@ do
 			Plugin.Enabled = nil
 		else
 			Plugin.Enabled = false
+		end
+	end
+
+	local function NotifyInitError( Name, Err )
+		if not Server then return end
+
+		Shine.SystemNotifications:AddNotification( {
+			Type = Shine.SystemNotifications.Type.ERROR,
+			Message = {
+				Source = "Core",
+				TranslationKey = "ERROR_PLUGIN_INIT_ERROR",
+				Context = tostring( Err )
+			},
+			Source = {
+				Type = Shine.SystemNotifications.Source.PLUGIN,
+				ID = Name
+			}
+		} )
+	end
+
+	local function ResetPluginHooks( PluginBeingLoaded )
+		local Events = Hook.GetKnownEvents()
+		for i = 1, #Events do
+			if IsType( PluginBeingLoaded[ Events[ i ] ], "function" ) then
+				if HasPluginHook( Events[ i ] ) then
+					-- If there's at least one plugin hooked to this event, re-add all plugins in the correct order.
+					Shine:SetupExtensionEvents( Events[ i ] )
+				else
+					-- Otherwise just add the new plugin.
+					AddPluginHook( PluginBeingLoaded, Events[ i ] )
+				end
+			end
 		end
 	end
 
@@ -475,6 +615,7 @@ do
 		if Plugin.HasConfig and not DontLoadConfig then
 			local Success, Err = xpcall( Plugin.LoadConfig, OnInitError, Plugin )
 			if not Success then
+				NotifyInitError( Name, Err )
 				return false, StringFormat( "Error while loading config: %s", Err )
 			end
 		end
@@ -486,6 +627,8 @@ do
 			PluginMeta.Cleanup( Plugin )
 
 			MarkAsDisabled( Plugin, FirstEnable )
+
+			NotifyInitError( Name, Loaded )
 
 			return false, StringFormat( "Lua error: %s", Loaded )
 		end
@@ -502,6 +645,7 @@ do
 			Success, Err = xpcall( Plugin.BroadcastModuleEvent, OnInitError, Plugin, "Initialise" )
 
 			if not Success then
+				NotifyInitError( Name, Err )
 				return false, StringFormat( "Lua error: %s", Err )
 			end
 		end
@@ -516,10 +660,9 @@ do
 			end
 		end
 
-		-- Flush event cache. We can't be smarter than this, because it could be loading mid-event call.
-		-- If we edited the specific event table at that point, it would potentially cause double event calls
-		-- or missed event calls. Plugin load/unload should be a rare occurence anyway.
-		Dispatcher:FlushCache()
+		-- Reset all hooks to maintain a consistent calling order.
+		-- Loading an extension is a rare event, so the cost of this is acceptable.
+		ResetPluginHooks( Plugin )
 
 		-- We need to inform clients to enable the client portion.
 		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
@@ -553,9 +696,6 @@ do
 
 		Plugin.Enabled = false
 
-		-- Flush event cache.
-		Dispatcher:FlushCache()
-
 		-- Make sure cleanup doesn't break us by erroring.
 		local Success = xpcall( Plugin.Cleanup, OnCleanupError, Plugin )
 		if not Success then
@@ -566,6 +706,8 @@ do
 		end
 
 		Plugin:ResetModuleEventHistory()
+
+		RemoveAllPluginHooks( Plugin )
 
 		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
 			Shine.SendNetworkMessage( "Shine_PluginEnable", { Plugin = Name, Enabled = false }, true )
@@ -602,54 +744,18 @@ Shine.AllPlugins = AllPlugins
 local AllPluginsArray = {}
 Shine.AllPluginsArray = AllPluginsArray
 
-do
-	Dispatcher = Shine.EventDispatcher( AllPluginsArray )
+function Shine:SetupExtensionEvents( Event )
+	for i = 1, #AllPluginsArray do
+		local PluginName = AllPluginsArray[ i ]
+		local Plugin = Shine.Plugins[ PluginName ]
 
-	function Dispatcher:GetListener( PluginName )
-		return Shine.Plugins[ PluginName ]
-	end
+		if Plugin then
+			RemovePluginHook( Plugin, Event )
 
-	function Dispatcher:IsListenerValidForEvent( Plugin, Event )
-		return Plugin and Plugin.Enabled and IsType( Plugin[ Event ], "function" )
-	end
-
-	function Dispatcher:CallEvent( Plugin, Method, OnError, Event, ... )
-		local Success, a, b, c, d, e, f = xpcall( Method, OnError, Plugin, ... )
-
-		if not Success then
-			Plugin.__HookErrors = ( Plugin.__HookErrors or 0 ) + 1
-			Shine:DebugPrint( "[Hook Error] %s hook failed from plugin '%s'. Error count: %i.",
-				true, Event, Plugin.__Name, Plugin.__HookErrors )
-
-			if Plugin.__HookErrors >= 10 then
-				Shine:DebugPrint( "Unloading plugin '%s' for too many hook errors (%i).",
-					true, Plugin.__Name, Plugin.__HookErrors )
-
-				Plugin.__HookErrors = 0
-
-				Shine:UnloadExtension( Plugin.__Name )
+			if Plugin.Enabled then
+				AddPluginHook( Plugin, Event )
 			end
-
-			return nil
 		end
-
-		return a, b, c, d, e, f
-	end
-
-	--[[
-		Calls an event on all active extensions.
-		Called by the hook system, should not be called directly.
-	]]
-	function Shine:CallExtensionEvent( Event, OnError, ... )
-		return Dispatcher:DispatchEvent( Event, OnError, Event, ... )
-	end
-
-	--[[
-		Broadcasts an event to all active extensions.
-		Called by the hook system, should not be called directly.
-	]]
-	function Shine:BroadcastExtensionEvent( Event, OnError, ... )
-		return Dispatcher:BroadcastEvent( Event, OnError, Event, ... )
 	end
 end
 
