@@ -423,6 +423,7 @@ local function CheckDependencies( self, Dependencies )
 end
 
 local AddPluginHook
+local HasPluginHook
 local RemovePluginHook
 local RemoveAllPluginHooks
 do
@@ -496,6 +497,7 @@ do
 			return Events
 		end
 	} )
+	local EventsWithPlugins = Shine.Multimap()
 
 	AddPluginHook = function( Plugin, Event )
 		if not IsType( Plugin[ Event ], "function" ) then return end
@@ -504,12 +506,18 @@ do
 		PluginEventKeys[ Plugin ] = Key
 
 		PluginEvents[ Plugin ]:Add( Event )
+		EventsWithPlugins:Add( Event, Plugin )
 
 		Hook.Add( Event, Key, EventCaller( Plugin, Event ), Hook.MAX_PRIORITY + 0.5 )
 	end
 
+	HasPluginHook = function( Event )
+		return EventsWithPlugins:Get( Event ) ~= nil
+	end
+
 	RemovePluginHook = function( Plugin, Event )
 		Hook.Remove( Event, PluginEventKeys[ Plugin ] )
+		EventsWithPlugins:RemoveKeyValue( Event, Plugin )
 	end
 
 	RemoveAllPluginHooks = function( Plugin )
@@ -551,10 +559,18 @@ do
 		} )
 	end
 
-	local function ResetPluginHooks()
+	local function ResetPluginHooks( PluginBeingLoaded )
 		local Events = Hook.GetKnownEvents()
 		for i = 1, #Events do
-			Shine:SetupExtensionEvents( Events[ i ] )
+			if IsType( PluginBeingLoaded[ Events[ i ] ], "function" ) then
+				if HasPluginHook( Events[ i ] ) then
+					-- If there's at least one plugin hooked to this event, re-add all plugins in the correct order.
+					Shine:SetupExtensionEvents( Events[ i ] )
+				else
+					-- Otherwise just add the new plugin.
+					AddPluginHook( PluginBeingLoaded, Events[ i ] )
+				end
+			end
 		end
 	end
 
@@ -646,7 +662,7 @@ do
 
 		-- Reset all hooks to maintain a consistent calling order.
 		-- Loading an extension is a rare event, so the cost of this is acceptable.
-		ResetPluginHooks()
+		ResetPluginHooks( Plugin )
 
 		-- We need to inform clients to enable the client portion.
 		if Server and Plugin.IsShared and not self.GameIDs:IsEmpty() then
