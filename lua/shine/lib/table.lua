@@ -380,6 +380,7 @@ do
 	local StringFormat = string.format
 	local StringLower = string.lower
 	local StringRep = string.rep
+	local StringStartsWith = string.StartsWith
 	local TableConcat = table.concat
 	local tonumber = tonumber
 	local tostring = tostring
@@ -429,17 +430,20 @@ do
 			return SafeToString( Value )
 		end,
 		cdata = function( Value )
-			local Success, IsType = pcall( FFIIsType, "Color", Value )
-			if Success and IsType then
-				return StringFormat( "Colour( %s, %s, %s, %s )", Value.r, Value.g, Value.b, Value.a )
+			-- Hack to detect ctypes, which pass the istype call...
+			if not StringStartsWith( SafeToString( Value ), "ctype<" ) then
+				local Success, IsType = pcall( FFIIsType, "Color", Value )
+				if Success and IsType then
+					return StringFormat( "Colour( %s, %s, %s, %s )", Value.r, Value.g, Value.b, Value.a )
+				end
+
+				Success, IsType = pcall( FFIIsType, "Vector", Value )
+				if Success and IsType then
+					return StringFormat( "Vector( %s, %s, %s )", Value.x, Value.y, Value.z )
+				end
 			end
 
-			Success, IsType = pcall( FFIIsType, "Vector", Value )
-			if Success and IsType then
-				return StringFormat( "Vector( %s, %s, %s )", Value.x, Value.y, Value.z )
-			end
-
-			return tostring( Value )
+			return SafeToString( Value )
 		end
 	}
 
