@@ -111,6 +111,10 @@ do
 		return #self.Invocations
 	end
 
+	function MockFunction:SetImplementation( Impl )
+		self.Impl = Impl
+	end
+
 	function MockFunction:__call( ... )
 		self.Invocations[ #self.Invocations + 1 ] = { ArgCount = select( "#", ... ), ... }
 		if self.Impl then
