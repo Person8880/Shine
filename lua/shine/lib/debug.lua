@@ -404,7 +404,7 @@ function Shine.GetLocals( StackLevel, NilValueMarker )
 		i = i + 1
 	end
 
-	local Info = DebugGetInfo( StackLevel, "Su" )
+	local Info = DebugGetInfo( StackLevel )
 	if Info and Info.isvararg and Info.what ~= "C" then
 		-- Var-args occupy negative indexes, starting at -1 for the first value.
 		i = 1
@@ -420,6 +420,24 @@ function Shine.GetLocals( StackLevel, NilValueMarker )
 		end
 
 		Values[ "select( \"#\", ... )" ] = i - 1
+	end
+
+	if Info and Info.func and Info.what ~= "C" then
+		-- Extract upvalues if possible.
+		i = 1
+		while true do
+			local Name, Value = DebugGetUpValue( Info.func, i )
+			if not Name then
+				break
+			end
+
+			-- Locals may be named the same as upvalues, in which case the upvalue is irrelevant here.
+			if Values[ Name ] == nil then
+				Values[ Name ] = ToValue( Value )
+			end
+
+			i = i + 1
+		end
 	end
 
 	return Values

@@ -153,7 +153,8 @@ UnitTest:Test( "GetLocals - omits var-args when none provided", function( Assert
 		C = {
 			Values = true
 		},
-		D = NilMarker
+		D = NilMarker,
+		NilMarker = NilMarker
 	}, Values )
 end )
 
