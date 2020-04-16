@@ -13,6 +13,7 @@ local Hook = Shine.Hook
 local IsType = Shine.IsType
 local Map = Shine.Map
 
+local assert = assert
 local getmetatable = getmetatable
 local include = Script.Load
 local Min = math.min
@@ -1275,6 +1276,20 @@ function SGUI.GetScreenSize()
 	return ScrW(), ScrH()
 end
 
+local CreateItem = GUI.CreateItem
+local function CreateGUIItem()
+	local Item = CreateItem()
+	assert( Item and Item.isa and Item:isa( "GUIItem" ), "Failed to create new GUIItem!" )
+	return Item
+end
+SGUI.CreateGUIItem = CreateGUIItem
+
+function SGUI.CreateTextGUIItem()
+	local Item = CreateGUIItem()
+	Item:SetOptionFlag( GUIItem.ManageRender )
+	return Item
+end
+
 local function SetupRenderDeviceResetCheck()
 	local GetLastPresentTime = Client.GetLastPresentTime
 	local GetLastRenderResetTime = Client.GetLastRenderResetTime
@@ -1324,6 +1339,7 @@ local IsMainMenuOpen = MainMenu_GetIsOpened
 	If we don't load after everything, things aren't registered properly.
 ]]
 Hook.Add( "OnMapLoad", "LoadGUIElements", function()
+	CreateItem = GUI.CreateItem
 	ScrW = Client.GetScreenWidth
 	ScrH = Client.GetScreenHeight
 	IsMainMenuOpen = MainMenu_GetIsOpened

@@ -487,18 +487,17 @@ function ControlMeta:AddChild( GUIItem )
 end
 
 local GUIItemTypes = {
-	[ SGUI.GUIItemType.Text ] = function( Manager ) return Manager:CreateTextItem() end,
-	[ SGUI.GUIItemType.Graphic ] = function( Manager ) return Manager:CreateGraphicItem() end
+	[ SGUI.GUIItemType.Text ] = SGUI.CreateTextGUIItem,
+	[ SGUI.GUIItemType.Graphic ] = SGUI.CreateGUIItem
 }
 
 function ControlMeta:MakeGUIItem( Type )
-	local Manager = GetGUIManager()
 	local Factory = GUIItemTypes[ Type or SGUI.GUIItemType.Graphic ]
 	if not Factory then
 		error( "Unknown GUIItem type: "..Type, 2 )
 	end
 
-	local Item = Factory( Manager )
+	local Item = Factory()
 	Item:SetOptionFlag( GUIItem.CorrectScaling )
 	Item:SetOptionFlag( GUIItem.CorrectRotationOffset )
 	if self.Stencilled then
