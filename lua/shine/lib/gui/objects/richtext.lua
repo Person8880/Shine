@@ -79,9 +79,6 @@ function RichText:GetSize()
 	return Vector2( self.WrappedWidth, self.WrappedHeight )
 end
 
-local Multimap = Shine.Multimap
-
-local Max = math.max
 local TableEmpty = table.Empty
 local TableNew = require "table.new"
 local TableRemove = table.remove
@@ -161,34 +158,52 @@ function RichText:PerformWrapping()
 	end
 end
 
-local function MakeElementFromPool( self, Class )
-	local Elements = self.ElementPool:Get( Class )
+local function NewElementList( InitialCapacity )
+	local List = TableNew( InitialCapacity, 0 )
+	List[ 0 ] = 0
+	return List
+end
+
+local ElementPool = {
+	Label = NewElementList( 30 ),
+	Image = NewElementList( 5 )
+}
+
+local function MakeElementFromPool( Class )
+	local Elements = ElementPool[ Class ]
 
 	local Element
 	if Elements then
-		-- It's OK to do this here as we don't care about the multimap other than
-		-- to hold lists of elements.
+		Elements[ 0 ] = Max( Elements[ 0 ] - 1, 0 )
 		Element = TableRemove( Elements )
 	end
 
 	return Element or SGUI:Create( Class )
 end
 
-local function MakeElement( self, Class )
-	return SGUI:Create( Class )
+function RichText:ReleaseElements()
+	if not self.Children then return end
+
+	-- Release children back into the shared pool to allow for re-use.
+	-- Different lines may have a different number of elements, sharing the pool avoids cases where the number
+	-- of elements in a previous line is not enough to create all elements in this line.
+	for Child in self.Children:IterateBackwards() do
+		local Elements = ElementPool[ Child.Class ]
+		if not Elements then
+			Elements = NewElementList( 5 )
+			ElementPool[ Child.Class ] = Elements
+		end
+		Elements[ 0 ] = Elements[ 0 ] + 1
+		Elements[ Elements[ 0 ] ] = Child
+
+		Child:SetIsVisible( false )
+		Child:SetParent( nil )
+	end
 end
 
 local CreatedElements = TableNew( 30, 0 )
 function RichText:ApplyLines( Lines )
-	local ElementPool
-	local ElementFactory = MakeElement
-	if self.Children then
-		ElementPool = Multimap()
-		ElementFactory = MakeElementFromPool
-		for Child in self.Children:IterateBackwards() do
-			ElementPool:Add( Child.Class, Child )
-		end
-	end
+	self:ReleaseElements()
 
 	local Context = {
 		CurrentFont = self.Font,
@@ -196,8 +211,7 @@ function RichText:ApplyLines( Lines )
 		DefaultFont = self.Font,
 		DefaultScale = self.TextScale,
 		CurrentColour = Colour( 1, 1, 1, 1 ),
-		ElementPool = ElementPool,
-		MakeElement = ElementFactory,
+		MakeElement = MakeElementFromPool,
 		NextMargin = 0
 	}
 
@@ -222,6 +236,7 @@ function RichText:ApplyLines( Lines )
 				CreatedElements[ ElementCount ] = Control
 
 				Control:SetParent( self )
+				Control:SetIsVisible( true )
 				Control:SetInheritsParentAlpha( true )
 				-- Make each element start from where the previous one ends.
 				Control:SetPos( Vector2( LineWidth + Context.NextMargin, YOffset ) )
@@ -256,15 +271,6 @@ function RichText:ApplyLines( Lines )
 
 	self.WrappedWidth = MaxWidth
 	self.WrappedHeight = Max( YOffset - Spacing, 0 )
-
-	-- Any unused elements left behind should be destroyed.
-	if ElementPool then
-		for Class, Elements in ElementPool:Iterate() do
-			for i = 1, #Elements do
-				Elements[ i ]:Destroy()
-			end
-		end
-	end
 end
 
 SGUI:Register( "RichText", RichText )

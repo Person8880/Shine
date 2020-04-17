@@ -184,7 +184,7 @@ function Text:Merge( Segments, StartIndex, EndIndex )
 end
 
 function Text:MakeElement( Context )
-	local Label = Context:MakeElement( "Label" )
+	local Label = Context.MakeElement( "Label" )
 	Label:SetIsSchemed( false )
 	Label:SetFontScale( Context.CurrentFont, Context.CurrentScale )
 	Label:SetColour( Context.CurrentColour )

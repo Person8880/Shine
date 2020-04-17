@@ -154,6 +154,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:StopMoving()
 		ChatLine:SetIsVisible( false )
 		ChatLine:Reset()
+		-- Release upfront to avoid the re-usability depending on the number of elements in the re-used message.
+		ChatLine:ReleaseElements()
 	end
 
 	local FadeOutCallback = Shine.TypeDef()
@@ -214,8 +216,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local function RemoveLineIfOffScreen( Line, Index, self )
 		if Line:GetScreenPos().y + Line:GetSize().y < 0 then
 			-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
-			Line:SetIsVisible( false )
-			Line:Reset()
+			ResetChatLine( Line )
 
 			self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
 
