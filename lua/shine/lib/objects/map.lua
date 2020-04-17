@@ -23,6 +23,7 @@ function Map:Init( InitialValues )
 
 	self.Position = 0
 	self.NumMembers = 0
+	self.IterationDir = 1
 
 	if IsType( InitialValues, "table" ) then
 		if getmetatable( InitialValues ) == Map then
@@ -149,7 +150,10 @@ function Map:RemoveAtPosition( Position )
 
 	self.NumMembers = self.NumMembers - 1
 
-	if self.Position >= Position then
+	if
+		( self.Position >= Position and self.IterationDir == 1 ) or
+		( self.Position > Position and self.IterationDir == -1 )
+	then
 		self.Position = self.Position - 1
 	end
 
@@ -261,6 +265,7 @@ do
 	]]
 	function Map:Iterate()
 		self.Position = 0
+		self.IterationDir = 1
 
 		return GetNext, self
 	end
@@ -270,6 +275,7 @@ do
 	]]
 	function Map:IterateBackwards()
 		self.Position = self.NumMembers + 1
+		self.IterationDir = -1
 
 		return GetPrevious, self
 	end
