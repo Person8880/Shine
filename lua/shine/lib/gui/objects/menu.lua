@@ -127,7 +127,7 @@ end
 
 function Menu:SetTextScale( TextScale )
 	self.TextScale = TextScale
-	self:ForEach( "Buttons", "TextScale", TextScale )
+	self:ForEach( "Buttons", "SetTextScale", TextScale )
 end
 
 function Menu:AddPanel( Panel )
