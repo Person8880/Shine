@@ -53,6 +53,7 @@ function ConfigMenu:Create()
 	if self.Menu then return end
 
 	self.Menu = SGUI:Create( "TabPanel" )
+	self.Menu:SetDebugName( "ClientConfigMenuWindow" )
 	self.Menu:SetAnchor( "CentreMiddle" )
 	self.Menu:SetAutoSize( self.Size, true )
 
@@ -463,13 +464,16 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 					end
 
 					if Setting.ConfigKey or IsType( Setting.ConfigOption, "string" ) then
-						ElementsByKey[ Setting.ConfigKey or Setting.ConfigOption ] = {
+						local Key = Setting.ConfigKey or Setting.ConfigOption
+						ElementsByKey[ Key ] = {
 							ConfigOption = Setting.ConfigOption,
 							Command = Setting.Command,
 							ValueHolder = ValueHolder,
 							Container = Object,
 							Update = Creator.Update
 						}
+						Object:SetDebugName( StringFormat( "ClientConfigMenu%s%sContainer", Key, Setting.Type ) )
+						ValueHolder:SetDebugName( StringFormat( "ClientConfigMenu%s%s", Key, Setting.Type ) )
 					end
 
 					if Setting.Bindings then
@@ -593,6 +597,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 		} )
 
 		local List = SGUI:Create( "List", Panel )
+		List:SetDebugName( "ClientConfigMenuPluginsList" )
 		List:SetColumns( Locale:GetPhrase( "Core", "PLUGIN" ),
 			Locale:GetPhrase( "Core", "STATE" ) )
 		List:SetSpacing( 0.8, 0.2 )
@@ -613,6 +618,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 		Layout:AddElement( List )
 
 		local EnableButton = SGUI:Create( "Button", Panel )
+		EnableButton:SetDebugName( "ClientConfigMenuEnablePluginButton" )
 		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + SMALL_PADDING ) )
 		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )

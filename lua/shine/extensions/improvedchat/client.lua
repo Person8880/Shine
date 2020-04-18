@@ -609,12 +609,14 @@ function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.ChatLinesStream = Shine.Stream( ChatElement.ChatLines )
 
 	ChatElement.Panel = SGUI:Create( "Panel" )
+	ChatElement.Panel:SetDebugName( "ImprovedChatContainer" )
 	ChatElement.Panel:SetIsSchemed( false )
 	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
 	ChatElement.Panel:SetAnchor( "BottomLeft" )
 	ChatElement.Panel:SetBlockEventsIfFocusedWindow( false )
 
 	ChatElement.MessagePanel = SGUI:Create( "Panel", ChatElement.Panel )
+	ChatElement.MessagePanel:SetDebugName( "ImprovedChatMessagePanel" )
 	ChatElement.MessagePanel:SetIsSchemed( false )
 	ChatElement.MessagePanel:SetColour( Colour( 1, 1, 1, 0 ) )
 

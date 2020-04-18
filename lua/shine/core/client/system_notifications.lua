@@ -3,6 +3,7 @@
 ]]
 
 local OSDate = os.date
+local StringFormat = string.format
 
 local Locale = Shine.Locale
 local SGUI = Shine.GUI
@@ -167,6 +168,7 @@ local function PopulateTabWithLoadingIndicator( Panel )
 				{
 					Class = "ProgressWheel",
 					Props = {
+						DebugName = "SystemNotificationsLoadingIndicator",
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						AnimateLoading = true,
@@ -177,6 +179,7 @@ local function PopulateTabWithLoadingIndicator( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsLoadingLabel",
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						AutoFont = AgencyFBLarge,
@@ -230,6 +233,7 @@ local function PopulatePanelWithOKStatus( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsCheckmark",
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						Text = SGUI.Icons.Ionicons.Checkmark,
@@ -240,6 +244,7 @@ local function PopulatePanelWithOKStatus( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsOKLabel",
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						AutoFont = AgencyFBLarge,
@@ -249,6 +254,7 @@ local function PopulatePanelWithOKStatus( Panel )
 				{
 					Class = "Dropdown",
 					Props = {
+						DebugName = "SystemNotificationsNotificationLevelDropdown",
 						Alignment = SGUI.LayoutAlignment.MAX,
 						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
 						AutoFont = AgencyFBNormal,
@@ -260,6 +266,7 @@ local function PopulatePanelWithOKStatus( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsNotificationLevelLabel",
 						Alignment = SGUI.LayoutAlignment.MAX,
 						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
 						AutoFont = AgencyFBNormal,
@@ -286,6 +293,7 @@ local function PopulatePanelWithError( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsErrorIcon",
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						Text = SGUI.Icons.Ionicons.Close,
@@ -296,6 +304,7 @@ local function PopulatePanelWithError( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsAccessDeniedLabel",
 						Alignment = SGUI.LayoutAlignment.CENTRE,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						AutoFont = AgencyFBLarge,
@@ -340,6 +349,7 @@ function NotificationEntry:SetNotification( Notification )
 			ID = "IconContainer",
 			Class = "Row",
 			Props = {
+				DebugName = "SystemNotificationIconContainer",
 				Fill = false,
 				AutoSize = Units.UnitVector( Units.HighResScaled( 40 ), 0 ),
 				Colour = ColoursByType[ Notification.Type ],
@@ -352,6 +362,7 @@ function NotificationEntry:SetNotification( Notification )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationIcon",
 						AutoFont = Ionicons,
 						Text = IconsByType[ Notification.Type ],
 						Alignment = SGUI.LayoutAlignment.CENTRE,
@@ -366,6 +377,7 @@ function NotificationEntry:SetNotification( Notification )
 			ID = "TextContainer",
 			Class = "Column",
 			Props = {
+				DebugName = "SystemNotificationTextContainer",
 				-- Fill the width of the parent, but make the height depend on the size of the message text.
 				Fill = true,
 				AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
@@ -379,6 +391,7 @@ function NotificationEntry:SetNotification( Notification )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationTitle",
 						AutoFont = AgencyFBNormal,
 						Text = TimePrefix..Title,
 						Margin = Units.Spacing( 0, 0, 0, PaddingAmount )
@@ -387,6 +400,7 @@ function NotificationEntry:SetNotification( Notification )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationText",
 						AutoFont = AgencyFBNormal,
 						Text = Locale:GetInterpolatedPhrase( Message.Source, Message.TranslationKey, {
 							Context = Message.Context
@@ -424,6 +438,7 @@ local function PopulatePanelWithNotifications( Panel )
 			Children[ #Children + 1 ] = {
 				Class = "Label",
 				Props = {
+					DebugName = StringFormat( "SystemNotifications%sHeader", Type ),
 					AutoFont = {
 						Family = "kAgencyFB",
 						Size = Units.HighResScaled( 33 )
@@ -465,6 +480,7 @@ local function PopulatePanelWithNotifications( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsTabHeader",
 						AutoFont = AgencyFBLarge,
 						Text = Locale:GetPhrase( "Core", "SYSTEM_NOTIFICATIONS_TAB_HEADER" ),
 						Margin = Units.Spacing( 0, 0, 0, PanelPadding )
@@ -473,6 +489,7 @@ local function PopulatePanelWithNotifications( Panel )
 				{
 					Class = "Column",
 					Props = {
+						DebugName = "SystemNotificationsContainer",
 						Scrollable = true,
 						Fill = true,
 						Colour = Colour( 0, 0, 0, 0 ),
@@ -485,6 +502,7 @@ local function PopulatePanelWithNotifications( Panel )
 				{
 					Class = "Dropdown",
 					Props = {
+						DebugName = "SystemNotificationsNotificationLevelDropdown",
 						Alignment = SGUI.LayoutAlignment.MAX,
 						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
 						AutoFont = AgencyFBNormal,
@@ -496,6 +514,7 @@ local function PopulatePanelWithNotifications( Panel )
 				{
 					Class = "Label",
 					Props = {
+						DebugName = "SystemNotificationsNotificationLevelLabel",
 						Alignment = SGUI.LayoutAlignment.MAX,
 						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
 						AutoFont = AgencyFBNormal,
