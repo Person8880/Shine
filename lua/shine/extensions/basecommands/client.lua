@@ -191,7 +191,10 @@ function Plugin:SetupAdminMenuCommands()
 		"Custom", {
 			Setup = function( Menu, Command, Player, CleanupMenu )
 				local Panel = SGUI:Create( "Panel", Menu )
+				Panel:SetDebugName( "AdminMenuKickPlayerCustomReasonContainer" )
+
 				local TextEntry = SGUI:Create( "TextEntry", Panel )
+				TextEntry:SetDebugName( "AdminMenuKickPlayerCustomReasonTextEntry" )
 				TextEntry:SetFill( true )
 				TextEntry:SetPlaceholderText( self:GetPhrase( "KICK_CUSTOM" ) )
 				TextEntry:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 25 ) )
@@ -274,6 +277,7 @@ function Plugin:SetupAdminMenuCommands()
 			} )
 
 			local List = SGUI:Create( "List", Panel )
+			List:SetDebugName( "AdminMenuMapsList" )
 			List:SetColumns( self:GetPhrase( "MAP" ) )
 			List:SetSpacing( 1 )
 			List:SetFill( true )
@@ -292,6 +296,7 @@ function Plugin:SetupAdminMenuCommands()
 			} )
 
 			local ChangeMap = SGUI:Create( "Button", Panel )
+			ChangeMap:SetDebugName( "AdminMenuChangeMapButton" )
 			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
 			ChangeMap:SetFontScale( Font, Scale )
 			ChangeMap:SetIcon( SGUI.Icons.Ionicons.ArrowRightC )
@@ -326,6 +331,7 @@ function Plugin:SetupAdminMenuCommands()
 
 			if Shine:IsExtensionEnabled( "mapvote" ) then
 				local CallVote = SGUI:Create( "Button", Panel )
+				CallVote:SetDebugName( "AdminMenuCallMapVoteButton" )
 				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
 				CallVote:SetFontScale( Font, Scale )
 				CallVote:SetAlignment( SGUI.LayoutAlignment.MAX )
@@ -378,6 +384,7 @@ function Plugin:SetupAdminMenuCommands()
 			} )
 
 			local List = SGUI:Create( "List", Panel )
+			List:SetDebugName( "AdminMenuPluginsList" )
 			List:SetColumns( self:GetPhrase( "PLUGIN" ), self:GetPhrase( "STATE" ) )
 			List:SetSpacing( 0.8, 0.2 )
 			List:SetSecondarySortColumn( 2, 1 )
@@ -411,6 +418,7 @@ function Plugin:SetupAdminMenuCommands()
 			end
 
 			local UnloadPlugin = SGUI:Create( "Button", Panel )
+			UnloadPlugin:SetDebugName( "AdminMenuUnloadPluginButton" )
 			UnloadPlugin:SetText( self:GetPhrase( "UNLOAD_PLUGIN" ) )
 			UnloadPlugin:SetFontScale( Font, Scale )
 			UnloadPlugin:SetStyleName( "DangerButton" )
@@ -439,6 +447,7 @@ function Plugin:SetupAdminMenuCommands()
 			ControlLayout:AddElement( UnloadPlugin )
 
 			local LoadPlugin = SGUI:Create( "Button", Panel )
+			LoadPlugin:SetDebugName( "AdminMenuLoadPluginButton" )
 			LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
 			LoadPlugin:SetFontScale( Font, Scale )
 			LoadPlugin:SetStyleName( "SuccessButton" )
@@ -594,6 +603,7 @@ function Plugin:PopulatePluginList()
 
 		if not Skip then
 			local Row = List:AddRow( Plugin, "" )
+			Row:SetDebugName( StringFormat( "AdminMenu%sPluginRow", Plugin ) )
 			self:SetPluginRowState( Row, Enabled )
 
 			self.PluginRows[ Plugin ] = Row
