@@ -311,6 +311,13 @@ function Button:SetOpenMenuOnClick( PopulateMenuFunc )
 			return
 		end
 
+		if SGUI.IsValid( self.Menu ) then
+			self.Menu:Destroy()
+			self.Menu = nil
+			self:OnPropertyChanged( "Menu", nil )
+			return
+		end
+
 		local MenuParams = PopulateMenuFunc( self )
 		local Menu = self:AddMenu( MenuParams.Size, MenuParams.MenuPos )
 		MenuParams.Populate( Menu )
