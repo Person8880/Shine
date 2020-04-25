@@ -150,6 +150,8 @@ end
 	Unit vector, handles holding a pair of units.
 ]]
 do
+	local rawget = rawget
+
 	local UnitVector = NewType( "UnitVector" )
 
 	function UnitVector:Init( X, Y )
@@ -177,7 +179,7 @@ do
 		x = 1, y = 2
 	}
 	function UnitVector:__index( Key )
-		return UnitVector[ Key ] or self[ KeyMap[ Key ] ]
+		return UnitVector[ Key ] or rawget( self, KeyMap[ Key ] )
 	end
 
 	function UnitVector:__tostring()
