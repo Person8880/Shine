@@ -156,6 +156,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:Reset()
 		-- Release upfront to avoid the re-usability depending on the number of elements in the re-used message.
 		ChatLine:ReleaseElements()
+		ChatLine:SetParent( nil )
 	end
 
 	local FadeOutCallback = Shine.TypeDef()
@@ -176,6 +177,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 
 		ResetChatLine( ChatLine )
+		GUIChat.ChatLinePool[ #GUIChat.ChatLinePool + 1 ] = ChatLine
 
 		if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
 			-- Move remaining messages upwards to fill in the gap.
@@ -183,30 +185,28 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 			local ShouldAnimate = IsAnimationEnabled( GUIChat )
 
 			for i = 1, #GUIChat.ChatLines do
-				local ChatLine = GUIChat.ChatLines[ i ]
-				local Pos = ChatLine:GetPos()
+				local ActiveChatLine = GUIChat.ChatLines[ i ]
+				local Pos = ActiveChatLine:GetPos()
 				Pos.y = YOffset
 
 				if ShouldAnimate then
-					ChatLine:ApplyTransition( {
+					ActiveChatLine:ApplyTransition( {
 						Type = "Move",
 						EndValue = Pos,
 						Duration = AnimDuration,
 						EasingFunction = MovementEase
 					} )
 				else
-					ChatLine:SetPos( Pos )
+					ActiveChatLine:SetPos( Pos )
 				end
 
-				YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
+				YOffset = YOffset + ActiveChatLine:GetSize().y + PaddingAmount
 			end
 		else
 			-- Update local message positions and re-position the container panel downward to account for the
 			-- lost message.
 			UpdateUpwardsMessagePositions( GUIChat, PaddingAmount )
 		end
-
-		GUIChat.ChatLinePool[ #GUIChat.ChatLinePool + 1 ] = ChatLine
 	end
 
 	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
@@ -314,7 +314,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local BackgroundTexture = PrecacheAsset "ui/shine/chat_bg.dds"
 
 	function ChatElement:AddChatLine( Populator, Context )
-		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.MessagePanel )
+		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine" )
+		ChatLine:SetParent( self.MessagePanel )
 
 		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
 
