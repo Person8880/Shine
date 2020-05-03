@@ -14,6 +14,7 @@ local Ceil = math.ceil
 local Cos = math.cos
 local Max = math.max
 local Pi = math.pi
+local StringFormat = string.format
 
 local VoteMenu = {}
 Shine.VoteMenu = VoteMenu
@@ -151,6 +152,7 @@ function VoteMenu:Create()
 	end
 
 	local Background = SGUI:Create( "Panel" )
+	Background:SetDebugName( "VoteMenuBackground" )
 	Background:SetAnchor( GUIItem.Middle, GUIItem.Center )
 	Background:SetSize( BackSize )
 	Background:SetPos( -BackSize * 0.5 )
@@ -422,6 +424,7 @@ local function ClearButton( self, Button )
 	Button.DefaultText = nil
 	Button.Plugin = nil
 	Button.CheckMarkXScale = nil
+	Button:SetDebugName( nil )
 
 	if Button.OnClear then
 		Button:OnClear()
@@ -708,7 +711,7 @@ function VoteMenu:AddAdminMenuButton()
 	self:AddSideButton( Locale:GetPhrase( "Core", "ADMIN_MENU" ), function()
 		Shared.ConsoleCommand( "sh_adminmenu" )
 		self:ForceHide()
-	end )
+	end ):SetDebugName( "VoteMenuAdminMenuButton" )
 end
 
 function VoteMenu:GetButtonByPlugin( PluginName )
@@ -750,6 +753,7 @@ VoteMenu:AddPage( "Main", function( self )
 		local Button = self:AddSideButton( Text, ClickFuncs[ PluginButton ] )
 		Button.Plugin = PluginButton
 		Button.DefaultText = Text
+		Button:SetDebugName( StringFormat( "VoteMenu%sButton", PluginButton ) )
 
 		if Enabled and Plugin and Plugin.OnVoteButtonCreated then
 			Plugin:OnVoteButtonCreated( Button, VoteMenu )
@@ -759,7 +763,7 @@ VoteMenu:AddPage( "Main", function( self )
 	self:AddSideButton( Locale:GetPhrase( "Core", "CLIENT_CONFIG_MENU" ), function()
 		Shared.ConsoleCommand( "sh_clientconfigmenu" )
 		self:ForceHide()
-	end )
+	end ):SetDebugName( "VoteMenuClientConfigButton" )
 
 	if not self.CanViewAdminMenu then return end
 

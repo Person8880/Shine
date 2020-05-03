@@ -8,6 +8,7 @@ local getmetatable = getmetatable
 local IsType = Shine.IsType
 local pairs = pairs
 local TableEmpty = table.Empty
+local TableRemove = table.remove
 local TableSort = table.sort
 local TableMergeSort = table.MergeSort
 local TableShallowCopy = table.ShallowCopy
@@ -22,6 +23,7 @@ function Map:Init( InitialValues )
 
 	self.Position = 0
 	self.NumMembers = 0
+	self.IterationDir = 1
 
 	if IsType( InitialValues, "table" ) then
 		if getmetatable( InitialValues ) == Map then
@@ -144,13 +146,14 @@ function Map:RemoveAtPosition( Position )
 	local Value = self.MemberLookup[ Key ]
 
 	self.MemberLookup[ Key ] = nil
-	for i = Position, #self.Keys do
-		self.Keys[ i ] = self.Keys[ i + 1 ]
-	end
+	TableRemove( self.Keys, Position )
 
 	self.NumMembers = self.NumMembers - 1
 
-	if self.Position >= Position then
+	if
+		( self.Position >= Position and self.IterationDir == 1 ) or
+		( self.Position > Position and self.IterationDir == -1 )
+	then
 		self.Position = self.Position - 1
 	end
 
@@ -262,6 +265,7 @@ do
 	]]
 	function Map:Iterate()
 		self.Position = 0
+		self.IterationDir = 1
 
 		return GetNext, self
 	end
@@ -271,6 +275,7 @@ do
 	]]
 	function Map:IterateBackwards()
 		self.Position = self.NumMembers + 1
+		self.IterationDir = -1
 
 		return GetPrevious, self
 	end

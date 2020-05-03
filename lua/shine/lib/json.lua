@@ -310,6 +310,12 @@ local MetaTables = {
 	[ STATE_OBJECT ] = { __jsontype = "object" },
 	[ STATE_ARRAY ] = { __jsontype = "array" }
 }
+--[[
+	Returns a table that, when serialised, will be represented as an object in JSON, rather than an array.
+]]
+function JSON.Object()
+	return setmetatable( {}, MetaTables[ STATE_OBJECT ] )
+end
 
 local Parsers
 Parsers = {

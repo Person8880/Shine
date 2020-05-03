@@ -15,6 +15,7 @@ local Min = math.min
 local SharedTime = Shared.GetTime
 local Sqrt = math.sqrt
 local StringDigitalTime = string.DigitalTime
+local StringFormat = string.format
 
 local Locale = Shine.Locale
 local SGUI = Shine.GUI
@@ -606,6 +607,7 @@ function MapVoteMenu:SetMaps( Maps )
 	for i = 1, #Maps do
 		local Entry = Maps[ i ]
 		local Tile = SGUI:CreateFromDefinition( MapTile, self.Elements.MapTileGrid )
+		Tile:SetDebugName( "MapVoteTile:%s/%s", Entry.ModID, Entry.MapName )
 		Tile:SetMapVoteMenu( self )
 		Tile:SetSkin( Skin )
 		Tile:SetMap( Entry.ModID, Entry.MapName )

@@ -154,6 +154,9 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:StopMoving()
 		ChatLine:SetIsVisible( false )
 		ChatLine:Reset()
+		-- Release upfront to avoid the re-usability depending on the number of elements in the re-used message.
+		ChatLine:ReleaseElements()
+		ChatLine:SetParent( nil )
 	end
 
 	local FadeOutCallback = Shine.TypeDef()
@@ -174,6 +177,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		end
 
 		ResetChatLine( ChatLine )
+		GUIChat.ChatLinePool[ #GUIChat.ChatLinePool + 1 ] = ChatLine
 
 		if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
 			-- Move remaining messages upwards to fill in the gap.
@@ -181,30 +185,28 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 			local ShouldAnimate = IsAnimationEnabled( GUIChat )
 
 			for i = 1, #GUIChat.ChatLines do
-				local ChatLine = GUIChat.ChatLines[ i ]
-				local Pos = ChatLine:GetPos()
+				local ActiveChatLine = GUIChat.ChatLines[ i ]
+				local Pos = ActiveChatLine:GetPos()
 				Pos.y = YOffset
 
 				if ShouldAnimate then
-					ChatLine:ApplyTransition( {
+					ActiveChatLine:ApplyTransition( {
 						Type = "Move",
 						EndValue = Pos,
 						Duration = AnimDuration,
 						EasingFunction = MovementEase
 					} )
 				else
-					ChatLine:SetPos( Pos )
+					ActiveChatLine:SetPos( Pos )
 				end
 
-				YOffset = YOffset + ChatLine:GetSize().y + PaddingAmount
+				YOffset = YOffset + ActiveChatLine:GetSize().y + PaddingAmount
 			end
 		else
 			-- Update local message positions and re-position the container panel downward to account for the
 			-- lost message.
 			UpdateUpwardsMessagePositions( GUIChat, PaddingAmount )
 		end
-
-		GUIChat.ChatLinePool[ #GUIChat.ChatLinePool + 1 ] = ChatLine
 	end
 
 	local function MakeFadeOutCallback( self, ChatLine, PaddingAmount )
@@ -214,8 +216,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local function RemoveLineIfOffScreen( Line, Index, self )
 		if Line:GetScreenPos().y + Line:GetSize().y < 0 then
 			-- Line has gone off the screen, remove it from the active list now to avoid wasted processing.
-			Line:SetIsVisible( false )
-			Line:Reset()
+			ResetChatLine( Line )
 
 			self.ChatLinePool[ #self.ChatLinePool + 1 ] = Line
 
@@ -313,7 +314,8 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local BackgroundTexture = PrecacheAsset "ui/shine/chat_bg.dds"
 
 	function ChatElement:AddChatLine( Populator, Context )
-		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine", self.MessagePanel )
+		local ChatLine = TableRemove( self.ChatLinePool ) or SGUI:Create( "ChatLine" )
+		ChatLine:SetParent( self.MessagePanel )
 
 		self.ChatLines[ #self.ChatLines + 1 ] = ChatLine
 
@@ -608,12 +610,14 @@ function Plugin:SetupGUIChat( ChatElement )
 	ChatElement.ChatLinesStream = Shine.Stream( ChatElement.ChatLines )
 
 	ChatElement.Panel = SGUI:Create( "Panel" )
+	ChatElement.Panel:SetDebugName( "ImprovedChatContainer" )
 	ChatElement.Panel:SetIsSchemed( false )
 	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
 	ChatElement.Panel:SetAnchor( "BottomLeft" )
 	ChatElement.Panel:SetBlockEventsIfFocusedWindow( false )
 
 	ChatElement.MessagePanel = SGUI:Create( "Panel", ChatElement.Panel )
+	ChatElement.MessagePanel:SetDebugName( "ImprovedChatMessagePanel" )
 	ChatElement.MessagePanel:SetIsSchemed( false )
 	ChatElement.MessagePanel:SetColour( Colour( 1, 1, 1, 0 ) )
 

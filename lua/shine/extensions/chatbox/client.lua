@@ -380,6 +380,7 @@ function Plugin:CreateChatbox()
 
 	local Border = SGUI:Create( "Panel" )
 	Border:SetupFromTable{
+		DebugName = "ChatBoxWindow",
 		Anchor = "BottomLeft",
 		Size = PanelSize,
 		Pos = ChatBoxPos,
@@ -442,6 +443,7 @@ function Plugin:CreateChatbox()
 	local ScrollbarPos = LayoutData.Positions.Scrollbar * UIScale.x
 	ScrollbarPos.x = Ceil( ScrollbarPos.x )
 	Box:SetupFromTable{
+		DebugName = "ChatBoxContainer",
 		ScrollbarPos = ScrollbarPos,
 		ScrollbarWidth = Ceil( 8 * UIScale.x ),
 		ScrollbarHeightOffset = 0,
@@ -476,6 +478,7 @@ function Plugin:CreateChatbox()
 	-- Where messages are entered.
 	local TextEntry = SGUI:Create( "TextEntry", Border )
 	TextEntry:SetupFromTable{
+		DebugName = "ChatBoxTextEntry",
 		BorderSize = Vector2( 0, 0 ),
 		Text = "",
 		StickyFocus = true,
@@ -554,6 +557,7 @@ function Plugin:CreateChatbox()
 
 	local SettingsButton = SGUI:Create( "Button", Border )
 	SettingsButton:SetupFromTable{
+		DebugName = "ChatBoxSettingsButton",
 		Text = SGUI.Icons.Ionicons.GearB,
 		Skin = Skin,
 		Font = SGUI.Fonts.Ionicons,
@@ -822,6 +826,7 @@ do
 
 	local Elements = {
 		{
+			ID = "AutoCloseCheckBox",
 			Type = "CheckBox",
 			ConfigValue = "AutoClose",
 			Values = function( self )
@@ -829,6 +834,7 @@ do
 			end
 		},
 		{
+			ID = "DeleteOnCloseCheckBox",
 			Type = "CheckBox",
 			ConfigValue = "DeleteOnClose",
 			Values = function( self )
@@ -836,6 +842,7 @@ do
 			end
 		},
 		{
+			ID = "SmoothScrollCheckBox",
 			Type = "CheckBox",
 			ConfigValue = function( self, Value )
 				if not UpdateConfigValue( self, "SmoothScroll", Value ) then return end
@@ -846,6 +853,7 @@ do
 			end
 		},
 		{
+			ID = "ScrollToBottomOnOpenCheckBox",
 			Type = "CheckBox",
 			ConfigValue = "ScrollToBottomOnOpen",
 			Values = function( self )
@@ -853,6 +861,7 @@ do
 			end
 		},
 		{
+			ID = "MoveVanillaChatCheckBox",
 			Type = "CheckBox",
 			ConfigValue = function( self, Value )
 				if not UpdateConfigValue( self, "MoveVanillaChat", Value ) then return end
@@ -868,6 +877,7 @@ do
 			end
 		},
 		{
+			ID = "ShowTimestampsCheckBox",
 			Type = "CheckBox",
 			ConfigValue = "ShowTimestamps",
 			Values = function( self )
@@ -875,10 +885,12 @@ do
 			end
 		},
 		{
+			ID = "MessageMemoryLabel",
 			Type = "Label",
 			Values = { "MESSAGE_MEMORY" }
 		},
 		{
+			ID = "MessageMemorySlider",
 			Type = "Slider",
 			ConfigValue = "MessageMemory",
 			Bounds = { 10, 100 },
@@ -887,10 +899,12 @@ do
 			end
 		},
 		{
+			ID = "OpacityLabel",
 			Type = "Label",
 			Values = { "OPACITY" }
 		},
 		{
+			ID = "OpacitySlider",
 			Type = "Slider",
 			ConfigValue = function( self, Value )
 				Value = Value * 0.01
@@ -908,10 +922,12 @@ do
 			end
 		},
 		{
+			ID = "ScaleLabel",
 			Type = "Label",
 			Values = { "SCALE" }
 		},
 		{
+			ID = "ScaleSlider",
 			Type = "Slider",
 			ConfigValue = function( self, Value )
 				if not UpdateConfigValue( self, "Scale", Value ) then return end
@@ -925,11 +941,12 @@ do
 			end
 		},
 		{
+			ID = "FontSizeModeLabel",
 			Type = "Label",
 			Values = { "FONT_SIZE_MODE" }
 		},
 		{
-			ID = "FontSizeMode",
+			ID = "FontSizeModeDropdown",
 			Type = "Dropdown",
 			ConfigValue = function( self, Value )
 				if not UpdateConfigValue( self, "FontSizeMode", Value ) then return end
@@ -952,7 +969,7 @@ do
 			end
 		},
 		{
-			ID = "FontSizeInPixels",
+			ID = "FontSizeInPixelsSlider",
 			Type = "Slider",
 			ConfigValue = function( self, Value )
 				if not UpdateConfigValue( self, "FontSizeInPixels", Value ) then return end
@@ -967,7 +984,7 @@ do
 			Bindings = {
 				{
 					From = {
-						Element = "FontSizeMode",
+						Element = "FontSizeModeDropdown",
 						Property = "SelectedOption"
 					},
 					To = {
@@ -1009,6 +1026,7 @@ do
 
 		local SettingsPanel = SGUI:Create( "Panel", MainPanel )
 		SettingsPanel:SetupFromTable{
+			DebugName = "ChatBoxSettingsPanel",
 			Anchor = "TopRight",
 			Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
 			Scrollable = true,
@@ -1038,6 +1056,8 @@ do
 			local Creator = ElementCreators[ Data.Type ]
 
 			local Object = Creator.Create( self, SettingsPanel, Layout, unpack( Values ) )
+			Object:SetDebugName( "ChatBox"..Data.ID )
+
 			CreatedElements[ i ] = Object
 
 			if Creator.Setup then
@@ -1048,9 +1068,7 @@ do
 				Object:SetMargin( Spacing( 0, Scaled( Data.MarginTop, self.UIScale.y ), 0, 0 ) )
 			end
 
-			if Data.ID then
-				ElementsByID[ Data.ID ] = Object
-			end
+			ElementsByID[ Data.ID ] = Object
 		end
 
 		self.SettingsElements = ElementsByID
@@ -1403,6 +1421,7 @@ do
 		local ResultPanel = self.AutoCompletePanel
 		if not ResultPanel then
 			ResultPanel = SGUI:Create( "Column", self.MainPanel )
+			ResultPanel:SetDebugName( "ChatBoxChatCommandCompletionContainer" )
 			ResultPanel:SetIsSchemed( false )
 			ResultPanel:SetShader( SGUI.Shaders.Invisible )
 			self.AutoCompletePanel = ResultPanel
@@ -1437,6 +1456,7 @@ do
 							ID = "Container",
 							Class = "Row",
 							Props = {
+								DebugName = "ChatBoxChatCommandCompletionRow"..i,
 								IsSchemed = false,
 								Padding = Spacing(
 									ResultPanelPadding[ 1 ],
@@ -1452,6 +1472,7 @@ do
 									ID = "Label",
 									Class = "ColourLabel",
 									Props = {
+										DebugName = "ChatBoxChatCommandCompletionLabel"..i,
 										IsSchemed = false,
 										Alpha = 1 / BackgroundAlpha,
 										InheritsParentAlpha = true

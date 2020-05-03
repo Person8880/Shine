@@ -2,6 +2,8 @@
 	Override the badge mod's stuff to read from Shine's user data.
 ]]
 
+local JSON = require "shine/lib/json"
+
 local Shine = Shine
 
 local pairs = pairs
@@ -14,13 +16,34 @@ local Notify = Shared.Message
 local TableEmpty = table.Empty
 
 local Plugin = Shine.Plugin( ... )
+Plugin.Version = "2.3"
 Plugin.PrintName = "Badges"
 Plugin.HasConfig = true
 Plugin.ConfigName = "Badges.json"
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
 
-Plugin.Version = "2.2"
+Plugin.DefaultConfig = {
+	-- A mapping of badge name to a human-readable name to show when hovering over the badge in the scoreboard.
+	BadgeNames = JSON.Object()
+}
+
+do
+	local Validator = Shine.Validator()
+
+	Validator:AddFieldRule( "BadgeNames", Validator.AllKeyValuesSatisfy(
+		Validator.IsType( "string" )
+	) )
+
+	Plugin.ConfigValidator = Validator
+end
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "2.3",
+		Apply = Shine.Migrator():AddField( "BadgeNames", Plugin.DefaultConfig.BadgeNames )
+	}
+}
 
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
@@ -28,6 +51,20 @@ function Plugin:Initialise()
 	self.AssignedUserIDs = {}
 	self.ForcedBadges = {}
 	self.BadgesByGroup = {}
+
+	if SetFormalBadgeName then
+		for BadgeName, NiceName in pairs( self.Config.BadgeNames ) do
+			local BadgeID = rawget( gBadges, BadgeName )
+			if BadgeID then
+				self.Logger:Debug( "Setting name of badge '%s' to: %s", BadgeName, NiceName )
+				if not SetFormalBadgeName( BadgeName, NiceName ) then
+					self.Logger:Warn( "Failed to set badge '%s' to have name '%s'.", BadgeName, NiceName )
+				end
+			else
+				self.Logger:Warn( "Badge '%s' configured in BadgeNames is not a valid badge.", BadgeName )
+			end
+		end
+	end
 
 	self.Enabled = true
 

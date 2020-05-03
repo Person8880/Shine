@@ -54,7 +54,7 @@ function Image:GetWidth( TextSizeProvider, MaxWidth )
 end
 
 function Image:MakeElement( Context )
-	local Image = Context:MakeElement( "Image" )
+	local Image = Context.MakeElement( "Image" )
 	Image:SetIsSchemed( false )
 	Image:SetTexture( self.Texture )
 	-- Size already computed from auto-size in wrapping step.

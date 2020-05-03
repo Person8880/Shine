@@ -371,6 +371,7 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 	local Tabs = self.Tabs
 
 	local TabButton = self.TabPanel:Add( "TabPanelButton" )
+	TabButton:SetDebugName( Name.."Tab" )
 	TabButton:SetHorizontal( self.Horizontal )
 	TabButton:SetTab( self.NumTabs + 1, Name )
 	TabButton:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )

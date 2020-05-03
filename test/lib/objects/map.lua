@@ -146,10 +146,19 @@ UnitTest:Test( "GenericForBackwards", function( Assert )
 	local IterCount = 0
 
 	for Key, Value in Map:IterateBackwards() do
+		Assert.Falsy( "Generic for backwards is iterating elements multiple times!", Done[ Key ] )
+
 		i = i - 1
 		IterCount = IterCount + 1
 		Assert.Equals( "Generic for backwards doesn't iterate in order!", i, Key )
 		Assert.Equals( "Generic for backwards doesn't iterate in order!", i, Value )
+
+		if i % 5 == 0 then
+			Map:Remove( Key )
+			Assert.Nil( "Key was not removed as expected", Map:Get( Key ) )
+		end
+
+		Done[ Key ] = true
 	end
 
 	Assert.Equals( "Didn't iterate enough times!", 30, IterCount )

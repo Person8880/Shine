@@ -33,14 +33,22 @@ SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
+SGUI.AddProperty( ControlMeta, "DebugName", "Unnamed" )
 SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
 
 function ControlMeta:__tostring()
-	return StringFormat( "[SGUI - %s] %s | %s | %i Children", self.ID, self.Class,
+	local NumChildren = self.Children and self.Children:GetCount() or 0
+	return StringFormat(
+		"[SGUI - %s: %s] %s | %s | %i Child%s",
+		self.ID,
+		self:GetDebugName(),
+		self.Class,
 		self:IsValid() and "ACTIVE" or "DESTROYED",
-		self.Children and self.Children:GetCount() or 0 )
+		NumChildren,
+		NumChildren == 1 and "" or "ren"
+	)
 end
 
 --[[
@@ -487,18 +495,17 @@ function ControlMeta:AddChild( GUIItem )
 end
 
 local GUIItemTypes = {
-	[ SGUI.GUIItemType.Text ] = function( Manager ) return Manager:CreateTextItem() end,
-	[ SGUI.GUIItemType.Graphic ] = function( Manager ) return Manager:CreateGraphicItem() end
+	[ SGUI.GUIItemType.Text ] = SGUI.CreateTextGUIItem,
+	[ SGUI.GUIItemType.Graphic ] = SGUI.CreateGUIItem
 }
 
 function ControlMeta:MakeGUIItem( Type )
-	local Manager = GetGUIManager()
 	local Factory = GUIItemTypes[ Type or SGUI.GUIItemType.Graphic ]
 	if not Factory then
 		error( "Unknown GUIItem type: "..Type, 2 )
 	end
 
-	local Item = Factory( Manager )
+	local Item = Factory()
 	Item:SetOptionFlag( GUIItem.CorrectScaling )
 	Item:SetOptionFlag( GUIItem.CorrectRotationOffset )
 	if self.Stencilled then

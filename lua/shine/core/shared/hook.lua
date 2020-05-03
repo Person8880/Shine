@@ -15,6 +15,7 @@ local IsCallable = Shine.IsCallable
 local IsType = Shine.IsType
 local Max = math.max
 local ReplaceMethod = Shine.ReplaceClassMethod
+local rawget = rawget
 local select = select
 local StringExplode = string.Explode
 local StringFormat = string.format
@@ -297,6 +298,22 @@ local function GetNumArguments( Func )
 	return Max( ( Info.nparams or Huge ) - Offset, 0 )
 end
 
+-- For backwards compatibility's sake, try to infer the expected number of arguments for a hook by looking at plugin
+-- methods. Any plugin method that declares more arguments will cause the hook to take that many too.
+local function InferExpectedArguments( HookName, NumArguments )
+	local Plugins = Shine.AllPluginsArray
+	if not Plugins then return NumArguments end
+
+	for i = 1, #Plugins do
+		local PluginInstance = Shine.Plugins[ Plugins[ i ] ]
+		if PluginInstance and IsType( PluginInstance[ HookName ], "function" ) then
+			NumArguments = Max( NumArguments, GetNumArguments( PluginInstance[ HookName ] ) - 1 )
+		end
+	end
+
+	return NumArguments
+end
+
 --[[
 	Replaces the given method in the given class with ReplacementFunc.
 
@@ -328,6 +345,8 @@ local function AddClassHook( ReplacementFuncTemplate, HookName, Caller, Class, M
 			ReplacementFuncTemplate
 		)
 	else
+		NumArguments = InferExpectedArguments( HookName, NumArguments )
+
 		ReplacementFunc = CodeGen.GenerateFunctionWithArguments(
 			ReplacementFuncTemplate, NumArguments,
 			StringFormat( "@lua/shine/core/shared/hook.lua/ClassHook/%s:%s", Class, Method ),
@@ -387,8 +406,11 @@ local function AddGlobalHook( ReplacementFunc, HookName, Caller, FuncName )
 			ReplacementFunc
 		)
 	else
+		NumArguments = InferExpectedArguments( HookName, NumArguments )
+
 		Prev[ Path[ NumSegments ] ] = CodeGen.GenerateFunctionWithArguments(
-			ReplacementFunc, NumArguments, StringFormat( "@lua/shine/core/shared/hook.lua/GlobalHook/%s", FuncName ),
+			ReplacementFunc, NumArguments,
+			StringFormat( "@lua/shine/core/shared/hook.lua/GlobalHook/%s", FuncName ),
 			HookName, Caller, Func
 		)
 	end
@@ -658,6 +680,13 @@ do
 		Add( "PostLoadScript:"..FileName, Callback, Callback, Priority )
 	end
 
+	local function BroadcastScriptEventIfHooked( Event, Reload )
+		-- Avoid creating lots of hook lists for scripts that are never hooked.
+		-- Plugins load too late to see these events so there's no reason to setup the event if nothing's listening.
+		if not rawget( Hooks, Event ) then return end
+		Broadcast( Event, Reload )
+	end
+
 	-- Override Script.Load to allow finer entry point control.
 	local function ScriptLoad( Script, Reload )
 		if not SeenScripts[ Script ] or Reload then
@@ -665,12 +694,12 @@ do
 			SeenScripts[ Script ] = true
 
 			Broadcast( "PreLoadScript", Script, Reload )
-			Broadcast( "PreLoadScript:"..Script, Reload )
+			BroadcastScriptEventIfHooked( "PreLoadScript:"..Script, Reload )
 
 			local Ret = OldScriptLoad( Script, Reload )
 
 			Broadcast( "PostLoadScript", Script, Reload )
-			Broadcast( "PostLoadScript:"..Script, Reload )
+			BroadcastScriptEventIfHooked( "PostLoadScript:"..Script, Reload )
 
 			return Ret
 		end
@@ -694,8 +723,14 @@ do
 	local Environment = Server or Client
 	local OriginalHookNWMessage = Environment.HookNetworkMessage
 
+	local function CallEventIfHooked( Event, Name, Arg )
+		-- As with script loading, only call if hooks exist.
+		if not rawget( Hooks, Event ) then return end
+		return Call( Event, Name, Arg )
+	end
+
 	function Environment.HookNetworkMessage( Name, Callback )
-		local OverrideCallback = Call( "HookNetworkMessage:"..Name, Name, Callback )
+		local OverrideCallback = CallEventIfHooked( "HookNetworkMessage:"..Name, Name, Callback )
 		if IsType( OverrideCallback, "function" ) then
 			Callback = OverrideCallback
 		end
@@ -705,7 +740,7 @@ do
 
 	local OriginalRegisterNetworkMessage = Shared.RegisterNetworkMessage
 	function Shared.RegisterNetworkMessage( Name, MessageDefinition )
-		local OverrideDefinition = Call( "RegisterNetworkMessage:"..Name, Name, MessageDefinition )
+		local OverrideDefinition = CallEventIfHooked( "RegisterNetworkMessage:"..Name, Name, MessageDefinition )
 		if IsType( OverrideDefinition, "table" ) then
 			MessageDefinition = OverrideDefinition
 		end

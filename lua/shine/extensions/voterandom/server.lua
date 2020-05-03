@@ -831,6 +831,12 @@ do
 					local Team = Player:GetTeamNumber()
 					-- Only move players on playing teams...
 					if Team == 1 or Team == 2 then
+						if self.Logger:IsDebugEnabled() then
+							self.Logger:Debug(
+								"Moving %s to the ready room as they are AFK.",
+								Shine.GetClientInfo( Client )
+							)
+						end
 						Gamerules:JoinTeam( Player, 0, nil, true )
 					end
 				end

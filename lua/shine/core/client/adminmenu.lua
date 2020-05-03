@@ -51,6 +51,7 @@ function AdminMenu:Create()
 	self.Created = true
 
 	local Window = SGUI:Create( "TabPanel" )
+	Window:SetDebugName( "AdminMenuWindow" )
 	Window:SetAnchor( "CentreMiddle" )
 
 	local Size = Vector2(
@@ -289,14 +290,17 @@ function AdminMenu:RemoveTab( Name )
 end
 
 local function AddTab( Window, Name, TabDefinition )
+	local DisplayName = Name
 	if TabDefinition.TranslationKey then
-		Name = Locale:GetPhrase( TabDefinition.TranslationSource or "Core", TabDefinition.TranslationKey )
+		DisplayName = Locale:GetPhrase( TabDefinition.TranslationSource or "Core", TabDefinition.TranslationKey )
 	end
 
-	local Tab = Window:AddTab( Name, function( Panel )
+	local Tab = Window:AddTab( DisplayName, function( Panel )
 		TabDefinition.OnInit( Panel, TabDefinition.Data )
 		TabDefinition.Initialised = true
 	end, TabDefinition.Icon )
+
+	Tab.TabButton:SetDebugName( StringFormat( "AdminMenu%sTab", Name ) )
 
 	TabDefinition.TabObj = Tab
 	Tab.TabDefinition = TabDefinition
@@ -519,6 +523,7 @@ do
 			local CommandLayout = SGUI.Layout:CreateLayout( "Horizontal", {} )
 
 			PlayerList = SGUI:Create( "List", Panel )
+			PlayerList:SetDebugName( "AdminMenuCommandsTabPlayerList" )
 			PlayerList:SetColumns( Locale:GetPhrase( "Core", "NAME" ), "NS2ID",
 				Locale:GetPhrase( "Core", "TEAM" ) )
 			PlayerList:SetSpacing( 0.45, 0.3, 0.25 )
@@ -534,6 +539,7 @@ do
 			CommandLayout:AddElement( PlayerList )
 
 			Commands = SGUI:Create( "CategoryPanel", Panel )
+			Commands:SetDebugName( "AdminMenuCommandsTabCommandPanel" )
 			-- Note that due to cropping, anything with a negative y-coordinate is not rendered at all.
 			-- Thus this value must be greater-equal the font size.
 			Commands:SetCategoryHeight( HighResScaled( 28 ) )

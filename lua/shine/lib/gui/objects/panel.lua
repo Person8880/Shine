@@ -367,7 +367,7 @@ function Panel:UpdateScrollbarSize()
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:SetSize( Vector2(
 			( self.ScrollbarWidth or 10 ) * ( self.ScrollbarWidthMult or 1 ),
-			self:GetSize().y - ( self.ScrollbarHeightOffset or 20 )
+			Max( self:GetSize().y - ( self.ScrollbarHeightOffset or 0 ), 0 )
 		) )
 	end
 
@@ -470,6 +470,8 @@ function Panel:SetMaxWidth( MaxWidth )
 	end
 
 	if not SGUI.IsValid( self.HorizontalScrollbar ) then
+		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
+
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
 		self.HorizontalScrollbar = Scrollbar
 
@@ -478,8 +480,6 @@ function Panel:SetMaxWidth( MaxWidth )
 		Scrollbar:SetPos( Vector2( 0, -Scrollbar:GetSize().y ) )
 		Scrollbar:SetHorizontal( true )
 		Scrollbar:SetScrollSize( ElementWidth / MaxWidth )
-
-		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
 		Scrollbar._CallEventsManually = true
 
@@ -551,6 +551,8 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 	end
 
 	if not SGUI.IsValid( self.Scrollbar ) then
+		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
+
 		local Scrollbar = SGUI:Create( "Scrollbar", self )
 		self.Scrollbar = Scrollbar
 
@@ -558,8 +560,6 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		Scrollbar:SetPos( self.ScrollPos or ScrollPos )
 		self:UpdateScrollbarSize()
 		Scrollbar:SetScrollSize( ElementHeight / MaxHeight )
-
-		self.ScrollParentPos = self.ScrollParentPos or Vector2( 0, 0 )
 
 		Scrollbar._CallEventsManually = true
 
