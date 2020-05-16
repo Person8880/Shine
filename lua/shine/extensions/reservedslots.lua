@@ -214,13 +214,14 @@ Plugin.ConnectionHandlers = {
 		end
 
 		-- Allow if they have reserved access and we're not full.
-		if NumClients < MaxClients and self:HasReservedSlotAccess( ID ) then
+		local HasSlots = NumClients < MaxClients
+		if HasSlots and self:HasReservedSlotAccess( ID ) then
 			return ALLOWED
 		end
 
 		-- Deny entirely if the server is completely full or they have no
 		-- reserved slot access and only reserved slots are left.
-		return false, "Server is currently full."
+		return false, HasSlots and "Slot is reserved." or "Server is currently full."
 	end
 }
 
