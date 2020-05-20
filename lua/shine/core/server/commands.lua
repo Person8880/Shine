@@ -36,11 +36,12 @@ CommandMeta.__index = CommandMeta
 	For instance, a paramter of type "client" will be parsed into a client
 	from their name or Steam ID.
 ]]
-function CommandMeta:AddParam( Table )
-	Shine.TypeCheck( Table, "table", 1, "AddParam" )
+function CommandMeta:AddParam( Param )
+	Shine.TypeCheck( Param, "table", 1, "AddParam" )
+	Shine.TypeCheckField( Param, "Type", { "string", "table" }, "Param" )
 
 	local Args = self.Arguments
-	Args[ #Args + 1 ] = Table
+	Args[ #Args + 1 ] = Param
 
 	return self
 end
@@ -136,11 +137,13 @@ do
 		for i = 1, #Args do
 			local Arg = Args[ i ]
 			local Type = Arg.Type
+			local Help = GetArgHelp( Arg, Type )
 
-			local ParamType = ParamTypes[ Arg.Type ]
-			Message[ i ] = StringFormat( Arg.Optional and "(%s%s)" or "<%s>",
-				GetArgHelp( Arg, Type ),
-				GetArgDefaultMessage( Arg, Type ) )
+			if Arg.Optional then
+				Message[ i ] = StringFormat( "(%s%s)", Help, GetArgDefaultMessage( Arg, Type ) )
+			else
+				Message[ i ] = StringFormat( "<%s>", Help )
+			end
 		end
 
 		return TableConcat( Message, " " )
@@ -212,11 +215,11 @@ end
 	Output: Command object.
 ]]
 function Shine:RegisterCommand( ConCommand, ChatCommand, Function, NoPerm, Silent )
-	Shine.TypeCheck( ConCommand, "string", 1, "RegisterCommand" )
+	self.TypeCheck( ConCommand, "string", 1, "RegisterCommand" )
 	if ChatCommand then
-		Shine.TypeCheck( ChatCommand, { "string", "table" }, 2, "RegisterCommand" )
+		self.TypeCheck( ChatCommand, { "string", "table" }, 2, "RegisterCommand" )
 	end
-	Shine.TypeCheck( Function, "function", 3, "RegisterCommand" )
+	self.TypeCheck( Function, "function", 3, "RegisterCommand" )
 
 	local CmdObj = Command( ConCommand, ChatCommand, Function, NoPerm, Silent )
 	RegisterCommand( self.Commands, ConCommand, CmdObj )

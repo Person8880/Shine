@@ -19,12 +19,12 @@ CommandMeta.__index = CommandMeta
 --[[
 	Adds a parameter to a command. This defines what an argument should be parsed into.
 ]]
-function CommandMeta:AddParam( Table )
-	Shine.Assert( type( Table ) == "table",
-		"Bad argument #1 to AddParam, table expected, got %s", type( Table ) )
+function CommandMeta:AddParam( Param )
+	Shine.TypeCheck( Param, "table", 1, "AddParam" )
+	Shine.TypeCheckField( Param, "Type", { "string", "table" }, "Param" )
 
 	local Args = self.Arguments
-	Args[ #Args + 1 ] = Table
+	Args[ #Args + 1 ] = Param
 
 	return self
 end
@@ -52,10 +52,8 @@ Shine.ClientCommands = ClientCommands
 	Inputs: Console command to assign, function to run.
 ]]
 function Shine:RegisterClientCommand( ConCommand, Function )
-	self.Assert( type( ConCommand ) == "string",
-		"Bad argument #1 to RegisterClientCommand, string expected, got %s", type( ConCommand ) )
-	self.Assert( type( Function ) == "function",
-		"Bad argument #2 to RegisterClientCommand, function expected, got %s", type( Function ) )
+	self.TypeCheck( ConCommand, "string", 1, "RegisterClientCommand" )
+	self.TypeCheck( Function, "function", 2, "RegisterClientCommand" )
 
 	local CmdObj = Command( ConCommand, Function )
 
