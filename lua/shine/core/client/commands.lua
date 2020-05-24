@@ -13,21 +13,7 @@ local xpcall = xpcall
 	Command object.
 	Stores the console command and the function to run when these commands are used.
 ]]
-local CommandMeta = {}
-CommandMeta.__index = CommandMeta
-
---[[
-	Adds a parameter to a command. This defines what an argument should be parsed into.
-]]
-function CommandMeta:AddParam( Param )
-	Shine.TypeCheck( Param, "table", 1, "AddParam" )
-	Shine.TypeCheckField( Param, "Type", { "string", "table" }, "Param" )
-
-	local Args = self.Arguments
-	Args[ #Args + 1 ] = Param
-
-	return self
-end
+local CommandMeta = Shine.Command
 
 --[[
 	Creates a command object.

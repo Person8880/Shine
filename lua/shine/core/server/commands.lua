@@ -28,23 +28,7 @@ local ParamTypes = Shine.CommandUtil.ParamTypes
 	Command object.
 	Stores the console command, chat command and the function to run when these commands are used.
 ]]
-local CommandMeta = {}
-CommandMeta.__index = CommandMeta
-
---[[
-	Adds a parameter to a command. This defines what an argument should be parsed into.
-	For instance, a paramter of type "client" will be parsed into a client
-	from their name or Steam ID.
-]]
-function CommandMeta:AddParam( Param )
-	Shine.TypeCheck( Param, "table", 1, "AddParam" )
-	Shine.TypeCheckField( Param, "Type", { "string", "table" }, "Param" )
-
-	local Args = self.Arguments
-	Args[ #Args + 1 ] = Param
-
-	return self
-end
+local CommandMeta = Shine.Command
 
 function CommandMeta:GetParameterAutoCompletions( ParamIndex )
 	local Arg = self.Arguments[ ParamIndex ]
