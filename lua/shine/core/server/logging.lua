@@ -611,7 +611,11 @@ function Shine:AdminPrint( Client, String, Format, ... )
 end
 
 do
+	local Max = math.max
 	local StringRep = string.rep
+	local StringUTF8Length = string.UTF8Length
+	local TableEmpty = table.Empty
+	local TableNew = require "table.new"
 
 	local function PrintToConsole( Client, Message )
 		if not Client then
@@ -624,69 +628,92 @@ do
 
 	Shine.PrintToConsole = PrintToConsole
 
-	function Shine.PrintTableToConsole( Client, Columns, Data )
-		local CharSizes = {}
-		local RowData = {}
-		local TotalLength = 0
-		-- Yay the console is now a monospace font!
-		local SpaceMultiplier = 1
+	--[[
+		Prints a formatted table to the given client's console.
 
-		for i = 1, #Columns do
+		This assumes the console is using a monospace font (which, unless modded, it does).
+
+		Inputs:
+			1. Client to print the table to. If nil, will be printed to the server console.
+			2. A list of column definitions of the form:
+			{
+				-- The name to print for the column.
+				Name = "Name of Column",
+
+				-- Optional getter. If omitted, Row[ Name ] will be used for the column value.
+				Getter = function( Row ) return Row.Field end
+			}
+			3. The data to be printed. Should be an array of values that will be printed based on the columns.
+	]]
+	function Shine.PrintTableToConsole( Client, Columns, Data )
+		local NumRows = #Data
+		local NumColumns = #Columns
+
+		local RowDataByColumn = TableNew( NumColumns, 0 )
+		local TotalLength = 0
+		local ColumnSpacing = StringRep( " ", 4 )
+		local CellLengths = TableNew( NumRows, 0 )
+
+		for i = 1, NumColumns do
 			local Column = Columns[ i ]
 			local FieldName = Column.Name
 
-			Column.OldName = Column.OldName or Column.Name
-			Column.Name = Column.OldName..StringRep( " ", 4 )
-
-			local Name = Column.Name
+			local Name = Column.Name..ColumnSpacing
 			local Getter = Column.Getter
+			local NameLength = StringUTF8Length( Name )
+			local MaxLength = NameLength
+			local CellsByRowIndex = TableNew( NumRows + 1, 0 )
 
-			local Rows = {}
+			TableEmpty( CellLengths )
 
-			local Max = #Name
-			for j = 1, #Data do
+			-- First build the cell values and find the maximum length.
+			for j = 1, NumRows do
 				local Entry = Data[ j ]
 
-				local String = Getter and Getter( Entry ) or Entry[ FieldName ]
-				local StringLength = #String + 4
-				if StringLength > Max then
-					Max = StringLength
-				end
+				local String = ( Getter and Getter( Entry ) or Entry[ FieldName ] )..ColumnSpacing
+				local Length = StringUTF8Length( String )
 
-				Rows[ j ] = String
+				CellLengths[ j ] = Length
+				CellsByRowIndex[ j ] = String
+				MaxLength = Max( MaxLength, Length )
 			end
 
-			for j = 1, #Rows do
-				local Entry = Rows[ j ]
-				local Diff = Max - #Entry
+			-- For each cell, add whitespace if the cell's length is less than the maximum.
+			for j = 1, NumRows do
+				local Entry = CellsByRowIndex[ j ]
+				local Diff = MaxLength - CellLengths[ j ]
 				if Diff > 0 then
-					Rows[ j ] = Entry..StringRep( " ", Diff * SpaceMultiplier )
+					CellsByRowIndex[ j ] = Entry..StringRep( " ", Diff )
 				end
 			end
 
-			TotalLength = TotalLength + Max
+			TotalLength = TotalLength + MaxLength
 
-			local NameDiff = Max - #Name
+			-- Make sure the header lines up with the content width.
+			local NameDiff = MaxLength - NameLength
 			if NameDiff > 0 then
-				Column.Name = Name..StringRep( " ", Floor( NameDiff * SpaceMultiplier ) )
+				Name = Name..StringRep( " ", Floor( NameDiff ) )
 			end
 
-			RowData[ i ] = Rows
+			CellsByRowIndex[ 0 ] = Name
+
+			RowDataByColumn[ i ] = CellsByRowIndex
 		end
 
-		local TopRow = {}
-		for i = 1, #Columns do
-			TopRow[ i ] = Columns[ i ].Name
+		-- Finally, print all rows, starting with the header.
+		local Row = TableNew( NumColumns, 0 )
+		for i = 1, NumColumns do
+			Row[ i ] = RowDataByColumn[ i ][ 0 ]
 		end
 
-		PrintToConsole( Client, TableConcat( TopRow, "" ) )
+		PrintToConsole( Client, TableConcat( Row, "" ) )
 		PrintToConsole( Client, StringRep( "=", TotalLength ) )
 
-		for i = 1, #Data do
-			local Row = {}
+		for i = 1, NumRows do
+			TableEmpty( Row )
 
-			for j = 1, #RowData do
-				Row[ j ] = RowData[ j ][ i ]
+			for j = 1, NumColumns do
+				Row[ j ] = RowDataByColumn[ j ][ i ]
 			end
 
 			PrintToConsole( Client, TableConcat( Row, "" ) )
