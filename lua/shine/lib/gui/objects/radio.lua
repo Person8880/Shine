@@ -4,6 +4,7 @@
 	Combines multiple checkboxes into a single-choice or multi-choice radio control.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
 local SGUI = Shine.GUI
 
 local TableEmpty = table.Empty
@@ -86,6 +87,7 @@ do
 				end
 			end
 
+			Parent.SelectedOption = CheckBox.RadioOption
 			Parent:OnPropertyChanged( "SelectedOption", CheckBox.RadioOption )
 		else
 			local Options = {}
@@ -97,6 +99,7 @@ do
 				end
 			end
 
+			Parent.SelectedOptions = Options
 			Parent:OnPropertyChanged( "SelectedOptions", Options )
 		end
 	end
@@ -121,6 +124,8 @@ do
 		end
 
 		CheckBox:AddPropertyChangeListener( "Checked", OnCheckBoxStateChanged )
+
+		Binder():FromElement( self, "Enabled" ):ToElement( CheckBox, "Enabled" ):BindProperty()
 
 		self.CheckBoxes[ Index ] = CheckBox
 		self.CheckBoxes[ Option ] = CheckBox
@@ -159,4 +164,5 @@ function Radio:SetSelectedOptions( Options, DontFade )
 	end
 end
 
+SGUI:AddMixin( Radio, "EnableMixin" )
 SGUI:Register( "Radio", Radio )

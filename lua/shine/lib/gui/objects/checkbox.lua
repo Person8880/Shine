@@ -109,7 +109,7 @@ function CheckBox:GetMouseBounds()
 end
 
 function CheckBox:OnMouseDown( Key, DoubleClick )
-	if not self:GetIsVisible() then return end
+	if not self:GetIsVisible() or not self:IsEnabled() then return end
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Background ) then return end
 
@@ -179,4 +179,5 @@ SGUI.AddBoundProperty( CheckBox, "Font", "Label" )
 SGUI.AddBoundProperty( CheckBox, "TextColour", "Label:SetColour" )
 SGUI.AddBoundProperty( CheckBox, "TextScale", "Label" )
 
+SGUI:AddMixin( CheckBox, "EnableMixin" )
 SGUI:Register( "CheckBox", CheckBox )
