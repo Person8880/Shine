@@ -498,6 +498,16 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 					elseif i ~= #Settings then
 						Object:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
 					end
+
+					if IsType( Setting.Margin, "table" ) then
+						local Margin = Object:GetMargin() or Spacing( 0, 0, 0, 0 )
+						for i = 1, 4 do
+							if Setting.Margin[ i ] then
+								Margin[ i ] = Setting.Margin[ i ]
+							end
+						end
+						Object:SetMargin( Margin )
+					end
 				end
 
 				for i = 1, #SettingsWithBindings do
