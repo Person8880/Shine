@@ -338,6 +338,7 @@ function Plugin:SendInviteToFriendGroup( Inviter, TargetClient )
 	-- Tell the target they've been invited.
 	self:SendNetworkMessage( TargetClient, "FriendGroupInvite", {
 		PlayerName = Inviter:GetControllingPlayer():GetName(),
+		InviterID = CallerSteamID,
 		ExpiryTime = ExpiryTime
 	}, true )
 end

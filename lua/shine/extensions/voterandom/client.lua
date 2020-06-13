@@ -18,7 +18,8 @@ Plugin.Version = "1.1"
 Plugin.DefaultConfig = {
 	PreferredTeam = Plugin.TeamType.NONE,
 	FriendGroupJoinType = Plugin.FriendGroupJoinTypeName.ALLOW_ALL,
-	FriendGroupLeaderType = Plugin.FriendGroupLeaderTypeName.ALLOW_ALL_TO_JOIN
+	FriendGroupLeaderType = Plugin.FriendGroupLeaderTypeName.ALLOW_ALL_TO_JOIN,
+	AutoAcceptSteamFriendGroupInvites = true
 }
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
@@ -175,6 +176,37 @@ function Plugin:SetupClientConfig()
 		[ self.FriendGroupJoinTypeName.REQUIRE_INVITE ] = "You now must accept invitations to join friend groups.",
 		[ self.FriendGroupJoinTypeName.BLOCK ] = "You now block others from adding you to friend groups."
 	}, "FRIEND_GROUP_JOIN_TYPE" )
+
+	self:AddClientSetting( "AutoAcceptSteamFriendGroupInvites", "sh_shuffle_auto_accept_steam_friend_invites", {
+		Type = "Boolean",
+		CommandMessage = function( Value )
+			return StringFormat(
+				"Friend group invites from Steam friends will %s.",
+				Value and "now be automatically accepted" or "no longer be automatically accepted"
+			)
+		end,
+		Margin = {
+			nil,
+			SGUI.Layout.Units.HighResScaled( 8 ),
+			nil,
+			SGUI.Layout.Units.HighResScaled( 16 )
+		},
+		Bindings = {
+			{
+				From = {
+					Element = "FriendGroupJoinType",
+					Property = "SelectedOption"
+				},
+				To = {
+					Element = "Container",
+					Property = "Enabled",
+					Transformer = function( Option )
+						return Option ~= nil and Option.Value == self.FriendGroupJoinTypeName.REQUIRE_INVITE
+					end
+				}
+			}
+		}
+	} )
 
 	AddFriendGroupConfigCommand( "sh_shuffle_group_leader_type", "FriendGroupLeaderType", self.FriendGroupLeaderTypeName, {
 		[ self.FriendGroupLeaderTypeName.ALLOW_ALL_TO_JOIN ] = "You now allow anyone to join your friend groups.",
@@ -403,6 +435,16 @@ function Plugin:DismissFriendGroupInvite()
 end
 
 function Plugin:ReceiveFriendGroupInvite( Data )
+	if SGUI.IsValid( self.FriendGroupInviteNotification ) then
+		self.FriendGroupInviteNotification:FadeOut()
+		self.FriendGroupInviteNotification = nil
+	end
+
+	if self.Config.AutoAcceptSteamFriendGroupInvites and Client.GetIsSteamFriend( Data.InviterID ) then
+		self:SendNetworkMessage( "FriendGroupInviteAnswer", { Accepted = true }, true )
+		return
+	end
+
 	local function MakeClickFunc( Accept )
 		return function( Button, Notification )
 			Notification:FadeOut()

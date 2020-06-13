@@ -153,6 +153,7 @@ function Plugin:SetupDataTable()
 
 	self:AddNetworkMessage( "FriendGroupInvite", {
 		PlayerName = self:GetNameNetworkField(),
+		InviterID = "integer",
 		ExpiryTime = "time"
 	}, "Client" )
 	self:AddNetworkMessage( "FriendGroupInviteCancelled", {}, "Client" )

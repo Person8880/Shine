@@ -160,6 +160,8 @@
 	"REQUIRE_INVITE": "Ask me whether to accept",
 	"BLOCK": "Never accept",
 
+	"AUTO_ACCEPT_STEAM_FRIEND_GROUP_INVITES_DESCRIPTION": "Auto-accept invites from Steam friends.",
+
 	"FRIEND_GROUP_LEADER_TYPE": "When I am the leader of a friend group:",
 	"ALLOW_ALL_TO_JOIN": "Allow anyone to join",
 	"LEADER_ADD_ONLY": "Only allow players I add",
