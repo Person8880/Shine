@@ -432,6 +432,49 @@ do
 	end
 end
 
+do
+	local StringLower = string.lower
+
+	--[[
+		Command object.
+	]]
+	local CommandMeta = {}
+	CommandMeta.__index = CommandMeta
+
+	--[[
+		Adds a parameter to a command. This defines what an argument should be parsed into.
+		For instance, a paramter of type "client" will be parsed into a client
+		from their name or Steam ID.
+	]]
+	function CommandMeta:AddParam( Param )
+		Shine.TypeCheck( Param, "table", 1, "AddParam" )
+		Shine.TypeCheckField( Param, "Type", { "string", "table" }, "Param" )
+
+		if IsType( Param.Type, "string" ) then
+			Param.Type = StringLower( Param.Type )
+			Shine.AssertAtLevel( ParamTypes[ Param.Type ], "Unknown parameter type: %s", 3, Param.Type )
+		else
+			Shine.AssertAtLevel( #Param.Type > 0, "Must provide at least 1 parameter type.", 3 )
+			for i = 1, #Param.Type do
+				local Type = Param.Type[ i ]
+				Shine.AssertAtLevel( IsType( Type, "string" ), "Parameter types must be strings", 3 )
+
+				Type = StringLower( Type )
+				Param.Type[ i ] = Type
+
+				Shine.AssertAtLevel( ParamTypes[ Type ], "Unknown parameter type: %s", 3, Type )
+			end
+		end
+
+		local Args = self.Arguments
+		Args[ #Args + 1 ] = Param
+
+		return self
+	end
+
+	Shine.Command = CommandMeta
+end
+
 if Server then return end
 
 Shine.HookNetworkMessage( "Shine_Command", function( Message )

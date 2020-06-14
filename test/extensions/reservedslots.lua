@@ -98,7 +98,9 @@ CLIENT_COUNT = 18
 UnitTest:Test( "CheckConnectionAllowed - ALL: No free unreserved spectator slots denies", function( Assert )
 	-- 10/10 players, 8/10 spectators, only reserved slots remaining.
 	-- Should deny as no public slots are left.
-	Assert:False( MockPlugin:CheckConnectionAllowed( 1 ) )
+	local Allowed, Err = MockPlugin:CheckConnectionAllowed( 1 )
+	Assert.False( "Should deny access", Allowed )
+	Assert.Equals( "Should reject due to reserved slot", "Slot is reserved.", Err )
 	Assert:Equals( 0, REAL_SLOT_COUNT )
 end )
 
@@ -114,7 +116,9 @@ CLIENT_COUNT = 20
 UnitTest:Test( "CheckConnectionAllowed - ALL: No free slots at all denies", function( Assert )
 	-- 10/10 players, 10/10 spectators, no slots remaining.
 	-- Should deny as no slots are left.
-	Assert:False( MockPlugin:CheckConnectionAllowed( 1 ) )
+	local Allowed, Err = MockPlugin:CheckConnectionAllowed( 1 )
+	Assert.False( "Should deny access", Allowed )
+	Assert.Equals( "Should reject due to server being full", "Server is currently full.", Err )
 	Assert:Equals( 0, REAL_SLOT_COUNT )
 end )
 

@@ -98,7 +98,14 @@ local Skin = {
 			BackgroundColour = DarkButton,
 			CheckedColour = ButtonHighlight,
 			TextColour = BrightText,
-			Font = Fonts.kAgencyFB_Small
+			Font = Fonts.kAgencyFB_Small,
+			States = {
+				Disabled = {
+					BackgroundColour = SGUI.ColourWithAlpha( DarkButton, 0.5 ),
+					CheckedColour = SGUI.ColourWithAlpha( ButtonHighlight, 0.5 ),
+					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
+				}
+			}
 		}
 	},
 	Column = {
