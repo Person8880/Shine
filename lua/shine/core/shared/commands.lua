@@ -433,6 +433,8 @@ do
 end
 
 do
+	local StringLower = string.lower
+
 	--[[
 		Command object.
 	]]
@@ -449,11 +451,17 @@ do
 		Shine.TypeCheckField( Param, "Type", { "string", "table" }, "Param" )
 
 		if IsType( Param.Type, "string" ) then
+			Param.Type = StringLower( Param.Type )
 			Shine.AssertAtLevel( ParamTypes[ Param.Type ], "Unknown parameter type: %s", 3, Param.Type )
 		else
 			Shine.AssertAtLevel( #Param.Type > 0, "Must provide at least 1 parameter type.", 3 )
 			for i = 1, #Param.Type do
 				local Type = Param.Type[ i ]
+				Shine.AssertAtLevel( IsType( Type, "string" ), "Parameter types must be strings", 3 )
+
+				Type = StringLower( Type )
+				Param.Type[ i ] = Type
+
 				Shine.AssertAtLevel( ParamTypes[ Type ], "Unknown parameter type: %s", 3, Type )
 			end
 		end
