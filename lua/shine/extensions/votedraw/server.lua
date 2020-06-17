@@ -58,6 +58,7 @@ Plugin.VoteCommand = {
 function Plugin:OnVotePassed()
 	local Gamerules = GetGamerules()
 	assert( Gamerules, "Couldn't find the gamerules!" )
+	assert( Gamerules:GetGameStarted(), "Game not started when attempting to draw the game!" )
 
 	Gamerules:DrawGame()
 end
@@ -79,6 +80,10 @@ function Plugin:CanStartVote()
 	return true
 end
 
+function Plugin:ResetGame()
+	self.Vote:Reset()
+end
+
 local function GetNumPlayersOnTeam( Team, AFKTime, AFKKick )
 	local Count = 0
 
@@ -96,6 +101,7 @@ end
 
 function Plugin:PostJoinTeam( Gamerules, Player, OldTeam, NewTeam )
 	if not Shine.IsPlayingTeam( OldTeam ) or Shine.IsPlayingTeam( NewTeam ) then return end
+	if not Gamerules:GetGameStarted() then return end
 
 	-- If a player goes to the ready room or spectate, remove their vote.
 	local Client = Player:GetClient()
