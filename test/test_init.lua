@@ -335,6 +335,14 @@ UnitTest.Assert = {
 
 		return false, StringFormat( "Expected %s to contain %s", Table, Value )
 	end,
+	Missing = function( Table, Value )
+		for i = 1, #Table do
+			if Table[ i ] == Value then
+				return false, StringFormat( "Expected %s to not contain %s", Table, Value )
+			end
+		end
+		return true
+	end,
 
 	ArrayEquals = function( A, B )
 		return table.ArraysEqual( A, B ), StringFormat( "Expected %s to match array %s",

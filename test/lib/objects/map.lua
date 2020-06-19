@@ -4,391 +4,436 @@
 
 local UnitTest = Shine.UnitTest
 
-local Map = Shine.Map
+local function RunMapTests( TypeName, MapType )
+	UnitTest:Test( TypeName.." - Size", function( Assert )
+		local Map = MapType()
 
-UnitTest:Test( "Size", function( Assert )
-	local Map = Map()
-
-	for i = 1, 30 do
-		Map:Add( i, i )
-	end
-
-	Assert.Equals( "Map has incorrect size after adding!", 30, Map:GetCount() )
-
-	for i = 1, 5 do
-		Map:RemoveAtPosition( 1 )
-	end
-
-	Assert.Equals( "Map has incorrect size after removing!", 25, Map:GetCount() )
-end )
-
-UnitTest:Test( "IterationOrder", function( Assert )
-	local Map = Map()
-
-	for i = 1, 30 do
-		Map:Add( i, i )
-	end
-
-	local i = 1
-	while Map:HasNext() do
-		local Key, Value = Map:GetNext()
-
-		Assert.Equals( "Not iterating up the Map in order!", i, Key )
-		Assert.Equals( "Not iterating up the Map in order!", i, Value )
-
-		i = i + 1
-	end
-	Assert.Equals( "Didn't iterate through the expected number of keys", 31, i )
-end )
-
-UnitTest:Test( "RemovalOfFalse", function( Assert )
-	local Map = Map()
-	Map:Add( 1, false )
-
-	Assert.False( "Map didn't store false!", Map:Get( 1 ) )
-	Map:Remove( 1 )
-	Assert.Nil( "Map didn't remove false!", Map:Get( 1 ) )
-end )
-
-UnitTest:Test( "Clear", function( Assert )
-	local Map = Map()
-	for i = 1, 30 do
-		Map:Add( i, i )
-	end
-
-	Assert:Equals( 30, Map:GetCount() )
-
-	Map:Clear()
-
-	for i = 1, 30 do
-		Assert:Nil( Map:Get( i ) )
-	end
-
-	Assert.True( "Map was not empty after clearing", Map:IsEmpty() )
-	Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
-end )
-
-UnitTest:Test( "IterationRemoval", function( Assert )
-	local Map = Map()
-
-	for i = 1, 30 do
-		Map:Add( i, i )
-	end
-
-	local i = 0
-	while Map:HasNext() do
-		i = i + 1
-
-		local Value = Map:GetNext()
-		Assert.Equals( "Unexpected iteration value", i, Value )
-
-		if i % 5 == 0 then
-			Map:RemoveAtPosition()
-			Assert.Nil( "Should have removed the value", Map:Get( i ) )
-		end
-	end
-
-	Assert.Equals( "Didn't iterate enough times!", 30, i )
-end )
-
-UnitTest:Test( "GenericFor", function( Assert )
-	local Map = Map()
-
-	for i = 1, 30 do
-		Map:Add( i, i )
-	end
-
-	local i = 0
-	for Key, Value in Map:Iterate() do
-		i = i + 1
-		Assert.Equals( "Generic for doesn't iterate in order!", i, Key )
-		Assert.Equals( "Generic for doesn't iterate in order!", i, Value )
-	end
-
-	Assert.Equals( "Didn't iterate enough times!", 30, i )
-end )
-
-UnitTest:Test( "GenericForRemoval", function( Assert )
-	local Map = Map()
-
-	for i = 1, 30 do
-		Map:Add( i, i )
-	end
-
-	local Done = {}
-	local i = 0
-	for Key, Value in Map:Iterate() do
-		Assert.Falsy( "Generic for is iterating elements multiple times!", Done[ Key ] )
-
-		i = i + 1
-		Assert.Equals( "Generic for removal resulted in repeated values", i, Value )
-
-		if i % 5 == 0 then
-			Map:Remove( Key )
-			Assert.Nil( "Key was not removed as expected", Map:Get( Key ) )
+		for i = 1, 30 do
+			Map:Add( i, i )
 		end
 
-		Done[ Key ] = true
-	end
+		Assert.Equals( "Map has incorrect size after adding!", 30, Map:GetCount() )
 
-	Assert.Equals( "Didn't iterate enough times!", 30, i )
-end )
-
-UnitTest:Test( "GenericForBackwards", function( Assert )
-	local Map = Map()
-
-	for i = 1, 30 do
-		Map:Add( i, i )
-	end
-
-	local Done = {}
-	local i = 31
-	local IterCount = 0
-
-	for Key, Value in Map:IterateBackwards() do
-		Assert.Falsy( "Generic for backwards is iterating elements multiple times!", Done[ Key ] )
-
-		i = i - 1
-		IterCount = IterCount + 1
-		Assert.Equals( "Generic for backwards doesn't iterate in order!", i, Key )
-		Assert.Equals( "Generic for backwards doesn't iterate in order!", i, Value )
-
-		if i % 5 == 0 then
-			Map:Remove( Key )
-			Assert.Nil( "Key was not removed as expected", Map:Get( Key ) )
+		for i = 1, 5 do
+			Map:RemoveAtPosition( 1 )
 		end
 
-		Done[ Key ] = true
-	end
-
-	Assert.Equals( "Didn't iterate enough times!", 30, IterCount )
-end )
-
-UnitTest:Test( "EmptyMapIterators", function( Assert )
-	local Map = Map()
-
-	local i = 0
-
-	for Key, Value in Map:Iterate() do
-		i = i + 1
-	end
-
-	Assert.Equals( "Generic for on an empty map iterated > 0 times!", 0, i )
-
-	for Key, Value in Map:IterateBackwards() do
-		i = i + 1
-	end
-
-	Assert.Equals( "Generic for backwards on an empty map iterated > 0 times!", 0, i )
-end )
-
-UnitTest:Test( "Construct with map", function( Assert )
-	local InitialMap = Map()
-	InitialMap:Add( "Test", "Value" )
-	InitialMap:Add( "AnotherTest", "AnotherValue" )
-
-	local Copy = Map( InitialMap )
-	Assert:Equals( 2, Copy:GetCount() )
-	Assert:Equals( "Value", Copy:Get( "Test" ) )
-	Assert:Equals( "AnotherValue", Copy:Get( "AnotherTest" ) )
-end )
-
-UnitTest:Test( "Construct with table", function( Assert )
-	local InitialValues = {
-		Test = "Value",
-		AnotherTest = "AnotherValue"
-	}
-
-	local Copy = Map( InitialValues )
-	Assert:Equals( 2, Copy:GetCount() )
-	Assert:Equals( "Value", Copy:Get( "Test" ) )
-	Assert:Equals( "AnotherValue", Copy:Get( "AnotherTest" ) )
-end )
-
-UnitTest:Test( "SortKeys", function( Assert )
-	local Map = Map()
-	Map:Add( "Z", 789 )
-	Map:Add( "B", 456 )
-	Map:Add( "A", 123 )
-
-	Assert.ArrayEquals( "Initial keys should follow insertion order", { "Z", "B", "A" }, Map.Keys )
-
-	Map:SortKeys( function( A, B ) return A < B end )
-
-	Assert.ArrayEquals( "Should have sorted keys in ascending order", { "A", "B", "Z" }, Map.Keys )
-end )
-
-UnitTest:Test( "StableSortKeys", function( Assert )
-	local Map = Map()
-	Map:Add( "Z", 789 )
-	Map:Add( "B", 456 )
-	Map:Add( "A", 123 )
-
-	Assert.ArrayEquals( "Initial keys should follow insertion order", { "Z", "B", "A" }, Map.Keys )
-
-	Map:StableSortKeys( function( A, B )
-		return A == B and 0 or ( A < B and -1 or 1 )
+		Assert.Equals( "Map has incorrect size after removing!", 25, Map:GetCount() )
 	end )
 
-	Assert.ArrayEquals( "Should have sorted keys in ascending order", { "A", "B", "Z" }, Map.Keys )
-end )
+	UnitTest:Test( TypeName.." - IterationOrder", function( Assert )
+		local Map = MapType()
 
-UnitTest:Test( "AsTable", function( Assert )
-	local Map = Map{
-		A = 1, B = 2, C = 3
-	}
+		for i = 1, 30 do
+			Map:Add( i, i )
+		end
 
-	Assert.DeepEquals( "Should convert map to table as expected", {
-		A = 1, B = 2, C = 3
-	}, Map:AsTable() )
-end )
+		local i = 1
+		while Map:HasNext() do
+			local Key, Value = Map:GetNext()
 
-local Multimap = Shine.Multimap
+			Assert.Equals( "Not iterating up the Map in order!", i, Key )
+			Assert.Equals( "Not iterating up the Map in order!", i, Value )
 
-UnitTest:Test( "Multimap:Add()/Get()/GetCount()", function( Assert )
-	local Map = Multimap()
+			i = i + 1
+		end
+		Assert.Equals( "Didn't iterate through the expected number of keys", 31, i )
+	end )
 
-	Map:Add( 1, 1 )
-	Map:Add( 1, 2 )
-	Map:Add( 1, 3 )
-	Map:Add( 2, 1 )
-	Map:Add( 3, 1 )
-	Map:Add( 3, 2 )
+	UnitTest:Test( TypeName.." - RemovalOfFalse", function( Assert )
+		local Map = MapType()
+		Map:Add( 1, false )
 
-	Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
-	Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
-	Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
+		Assert.False( "Map didn't store false!", Map:Get( 1 ) )
+		Map:Remove( 1 )
+		Assert.Nil( "Map didn't remove false!", Map:Get( 1 ) )
+	end )
 
-	for i = 1, 3 do
-		Assert.True( "Should have expected key-values", Map:HasKeyValue( 1, i ) )
+	UnitTest:Test( TypeName.." - Clear", function( Assert )
+		local Map = MapType()
+		for i = 1, 30 do
+			Map:Add( i, i )
+		end
+
+		Assert:Equals( 30, Map:GetCount() )
+
+		Map:Clear()
+
+		for i = 1, 30 do
+			Assert:Nil( Map:Get( i ) )
+		end
+
+		Assert.True( "Map was not empty after clearing", Map:IsEmpty() )
+		Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
+	end )
+
+	if TypeName == "Map" then
+		UnitTest:Test( TypeName.." - IterationRemoval", function( Assert )
+			local Map = MapType()
+
+			for i = 1, 30 do
+				Map:Add( i, i )
+			end
+
+			local i = 0
+			while Map:HasNext() do
+				i = i + 1
+
+				local Value = Map:GetNext()
+				Assert.Equals( "Unexpected iteration value", i, Value )
+
+				if i % 5 == 0 then
+					Map:RemoveAtPosition()
+					Assert.Nil( "Should have removed the value", Map:Get( i ) )
+				end
+			end
+
+			Assert.Equals( "Didn't iterate enough times!", 30, i )
+		end )
+	else
+		UnitTest:Test( TypeName.." - IterationRemoval", function( Assert )
+			local Map = MapType()
+
+			for i = 1, 30 do
+				Map:Add( i, i )
+			end
+
+			local SeenValues = {}
+			local i = 0
+			while Map:HasNext() do
+				i = i + 1
+
+				local Value = Map:GetNext()
+				SeenValues[ Value ] = true
+
+				if i % 5 == 0 then
+					Map:RemoveAtPosition()
+					Assert.Nil( "Should have removed the value", Map:Get( Value ) )
+				end
+			end
+
+			Assert.Equals( "Didn't iterate enough times!", 30, i )
+			for i = 1, 30 do
+				Assert.True( i.." should have been seen during iteration", SeenValues[ i ] )
+			end
+		end )
 	end
 
-	Assert.True( "Should have expected key-values", Map:HasKeyValue( 2, 1 ) )
+	UnitTest:Test( TypeName.." - GenericFor", function( Assert )
+		local Map = MapType()
 
-	for i = 1, 2 do
-		Assert.True( "Should have expected key-values", Map:HasKeyValue( 3, i ) )
-	end
+		for i = 1, 30 do
+			Map:Add( i, i )
+		end
 
-	Assert.False( "Should return false for a key-value that is not in the multimap", Map:HasKeyValue( 4, 1 ) )
+		local i = 0
+		for Key, Value in Map:Iterate() do
+			i = i + 1
+			Assert.Equals( "Generic for doesn't iterate in order!", i, Key )
+			Assert.Equals( "Generic for doesn't iterate in order!", i, Value )
+		end
 
-	Assert:Equals( 6, Map:GetCount() )
-	Assert:Equals( 3, Map:GetKeyCount() )
-end )
+		Assert.Equals( "Didn't iterate enough times!", 30, i )
+	end )
 
-UnitTest:Test( "Multimap:RemoveKeyValue()", function( Assert )
-	local Map = Multimap()
-	Map:Add( 1, 1 )
-	Map:Add( 1, 2 )
-	Map:Add( 1, 3 )
+	UnitTest:Test( TypeName.." - GenericForRemoval", function( Assert )
+		local Map = MapType()
 
-	Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
-	Assert:Equals( 3, Map:GetCount() )
-	Assert:Equals( 1, Map:GetKeyCount() )
+		for i = 1, 30 do
+			Map:Add( i, i )
+		end
 
-	Map:RemoveKeyValue( 1, 2 )
-	Assert:ArrayEquals( { 1, 3 }, Map:Get( 1 ) )
-	Assert:Equals( 2, Map:GetCount() )
-	Assert:Equals( 1, Map:GetKeyCount() )
+		local Done = {}
+		local i = 0
+		for Key, Value in Map:Iterate() do
+			Assert.Falsy( "Generic for is iterating elements multiple times!", Done[ Key ] )
 
-	Map:RemoveKeyValue( 1, 1 )
-	Map:RemoveKeyValue( 1, 3 )
-	Assert:Equals( 0, Map:GetCount() )
-	Assert:Equals( 0, Map:GetKeyCount() )
-end )
+			i = i + 1
 
-UnitTest:Test( "Multimap:Clear()", function( Assert )
-	local Map = Multimap()
-	for i = 1, 30 do
-		Map:Add( i % 2, i )
-	end
+			if TypeName == "Map" then
+				Assert.Equals( "Generic for removal resulted in repeated values", i, Value )
+			end
 
-	Assert:Equals( 30, Map:GetCount() )
+			if i % 5 == 0 then
+				Map:Remove( Key )
+				Assert.Nil( "Key was not removed as expected", Map:Get( Key ) )
+			end
 
-	Map:Clear()
+			Done[ Key ] = true
+		end
 
-	Assert:Nil( Map:Get( 0 ) )
-	Assert:Nil( Map:Get( 1 ) )
+		Assert.Equals( "Didn't iterate enough times!", 30, i )
+		for i = 1, 30 do
+			Assert.True( i.." should have been seen during iteration", Done[ i ] )
+		end
+	end )
 
-	Assert.True( "Map was not empty after clearing", Map:IsEmpty() )
-	Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
-end )
+	UnitTest:Test( TypeName.." - GenericForBackwards", function( Assert )
+		local Map = MapType()
 
-UnitTest:Test( "Multimap from table", function( Assert )
-	local Map = Multimap{
-		{ 1, 2, 3 }, { 1 }, { 1, 2 }
-	}
+		for i = 1, 30 do
+			Map:Add( i, i )
+		end
 
-	Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
-	Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
-	Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
+		local Done = {}
+		local i = 31
+		local IterCount = 0
 
-	Assert:Equals( 6, Map:GetCount() )
-end )
+		for Key, Value in Map:IterateBackwards() do
+			Assert.Falsy( "Generic for backwards is iterating elements multiple times!", Done[ Key ] )
 
-UnitTest:Test( "Multimap from multimap", function( Assert )
-	local Map = Multimap()
-	Map:Add( 1, 1 )
-	Map:Add( 1, 2 )
-	Map:Add( 1, 3 )
+			i = i - 1
+			IterCount = IterCount + 1
 
-	local Map2 = Multimap( Map )
-	Assert:ArrayEquals( { 1, 2, 3 }, Map2:Get( 1 ) )
-	Assert:Equals( 3, Map2:GetCount() )
-end )
+			if TypeName == "Map" then
+				Assert.Equals( "Generic for backwards doesn't iterate in order!", i, Key )
+				Assert.Equals( "Generic for backwards doesn't iterate in order!", i, Value )
+			end
 
-UnitTest:Test( "Multimap:Iterate()/IterateBackwards()", function( Assert )
-	local Map = Multimap()
-	Map:Add( 1, 1 )
-	Map:Add( 1, 2 )
-	Map:Add( 1, 3 )
-	Map:Add( 2, 1 )
-	Map:Add( 2, 2 )
-	Map:Add( 3, 1 )
+			if i % 5 == 0 then
+				Map:Remove( Key )
+				Assert.Nil( "Key was not removed as expected", Map:Get( Key ) )
+			end
 
-	local ExpectedValues = {
-		{ 1, 2, 3 },
-		{ 1, 2 },
-		{ 1 }
-	}
+			Done[ Key ] = true
+		end
 
-	local Index = 0
-	for Key, Values in Map:Iterate() do
-		Index = Index + 1
-		Assert:Equals( Index, Key )
-		Assert:ArrayEquals( ExpectedValues[ Key ], Values )
-	end
+		Assert.Equals( "Didn't iterate enough times!", 30, IterCount )
+		for i = 1, 30 do
+			Assert.True( i.." should have been seen during iteration", Done[ i ] )
+		end
+	end )
 
-	for Key, Values in Map:IterateBackwards() do
-		Assert:Equals( Index, Key )
-		Assert:ArrayEquals( ExpectedValues[ Key ], Values )
-		Index = Index - 1
-	end
-end )
+	UnitTest:Test( TypeName.." - EmptyMapIterators", function( Assert )
+		local Map = MapType()
 
-UnitTest:Test( "Multimap:AddAll()", function( Assert )
-	local Map = Multimap()
-	Map:AddAll( "A", { 1, 2, 3, 4 } )
+		local i = 0
 
-	Assert.DeepEquals( "Should assign all values to the given key", {
-		A = { 1, 2, 3, 4 }
-	}, Map:AsTable() )
-end )
+		for Key, Value in Map:Iterate() do
+			i = i + 1
+		end
 
-UnitTest:Test( "Multimap:CopyFrom()", function( Assert )
-	local Map1 = Multimap{
-		A = { 1, 2, 3 },
-		B = { 4, 5, 6 }
-	}
+		Assert.Equals( "Generic for on an empty map iterated > 0 times!", 0, i )
 
-	Map1:CopyFrom( Multimap{
-		A = { 4, 5, 6 },
-		B = { 1, 2, 3 },
-		C = { 7, 8, 9 }
-	} )
+		for Key, Value in Map:IterateBackwards() do
+			i = i + 1
+		end
 
-	Assert.DeepEquals( "Should have merged values as expected", {
-		A = { 1, 2, 3, 4, 5, 6 },
-		B = { 4, 5, 6, 1, 2, 3 },
-		C = { 7, 8, 9 }
-	}, Map1:AsTable() )
-end )
+		Assert.Equals( "Generic for backwards on an empty map iterated > 0 times!", 0, i )
+	end )
+
+	UnitTest:Test( TypeName.." - Construct with map", function( Assert )
+		local InitialMap = MapType()
+		InitialMap:Add( "Test", "Value" )
+		InitialMap:Add( "AnotherTest", "AnotherValue" )
+
+		local Copy = MapType( InitialMap )
+		Assert:Equals( 2, Copy:GetCount() )
+		Assert:Equals( "Value", Copy:Get( "Test" ) )
+		Assert:Equals( "AnotherValue", Copy:Get( "AnotherTest" ) )
+	end )
+
+	UnitTest:Test( TypeName.." - Construct with table", function( Assert )
+		local InitialValues = {
+			Test = "Value",
+			AnotherTest = "AnotherValue"
+		}
+
+		local Copy = MapType( InitialValues )
+		Assert:Equals( 2, Copy:GetCount() )
+		Assert:Equals( "Value", Copy:Get( "Test" ) )
+		Assert:Equals( "AnotherValue", Copy:Get( "AnotherTest" ) )
+	end )
+
+	UnitTest:Test( TypeName.." - SortKeys", function( Assert )
+		local Map = MapType()
+		Map:Add( "Z", 789 )
+		Map:Add( "B", 456 )
+		Map:Add( "A", 123 )
+
+		Assert.ArrayEquals( "Initial keys should follow insertion order", { "Z", "B", "A" }, Map.Keys )
+
+		Map:SortKeys( function( A, B ) return A < B end )
+
+		Assert.ArrayEquals( "Should have sorted keys in ascending order", { "A", "B", "Z" }, Map.Keys )
+	end )
+
+	UnitTest:Test( TypeName.." - StableSortKeys", function( Assert )
+		local Map = MapType()
+		Map:Add( "Z", 789 )
+		Map:Add( "B", 456 )
+		Map:Add( "A", 123 )
+
+		Assert.ArrayEquals( "Initial keys should follow insertion order", { "Z", "B", "A" }, Map.Keys )
+
+		Map:StableSortKeys( function( A, B )
+			return A == B and 0 or ( A < B and -1 or 1 )
+		end )
+
+		Assert.ArrayEquals( "Should have sorted keys in ascending order", { "A", "B", "Z" }, Map.Keys )
+	end )
+
+	UnitTest:Test( TypeName.." - AsTable", function( Assert )
+		local Map = MapType{
+			A = 1, B = 2, C = 3
+		}
+
+		Assert.DeepEquals( "Should convert map to table as expected", {
+			A = 1, B = 2, C = 3
+		}, Map:AsTable() )
+	end )
+end
+RunMapTests( "Map", Shine.Map )
+RunMapTests( "UnorderedMap", Shine.UnorderedMap )
+
+local function RunMultimapTests( TypeName, MultimapType )
+	UnitTest:Test( TypeName.." - Multimap:Add()/Get()/GetCount()", function( Assert )
+		local Map = MultimapType()
+
+		Map:Add( 1, 1 )
+		Map:Add( 1, 2 )
+		Map:Add( 1, 3 )
+		Map:Add( 2, 1 )
+		Map:Add( 3, 1 )
+		Map:Add( 3, 2 )
+
+		Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+		Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
+		Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
+
+		for i = 1, 3 do
+			Assert.True( "Should have expected key-values", Map:HasKeyValue( 1, i ) )
+		end
+
+		Assert.True( "Should have expected key-values", Map:HasKeyValue( 2, 1 ) )
+
+		for i = 1, 2 do
+			Assert.True( "Should have expected key-values", Map:HasKeyValue( 3, i ) )
+		end
+
+		Assert.False( "Should return false for a key-value that is not in the multimap", Map:HasKeyValue( 4, 1 ) )
+
+		Assert:Equals( 6, Map:GetCount() )
+		Assert:Equals( 3, Map:GetKeyCount() )
+	end )
+
+	UnitTest:Test( TypeName.." - Multimap:RemoveKeyValue()", function( Assert )
+		local Map = MultimapType()
+		Map:Add( 1, 1 )
+		Map:Add( 1, 2 )
+		Map:Add( 1, 3 )
+
+		Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+		Assert:Equals( 3, Map:GetCount() )
+		Assert:Equals( 1, Map:GetKeyCount() )
+
+		Map:RemoveKeyValue( 1, 1 )
+		Assert:ArrayEquals( TypeName == "Multimap" and { 2, 3 } or { 3, 2 }, Map:Get( 1 ) )
+		Assert:Equals( 2, Map:GetCount() )
+		Assert:Equals( 1, Map:GetKeyCount() )
+
+		Map:RemoveKeyValue( 1, 2 )
+		Map:RemoveKeyValue( 1, 3 )
+		Assert:Equals( 0, Map:GetCount() )
+		Assert:Equals( 0, Map:GetKeyCount() )
+	end )
+
+	UnitTest:Test( TypeName.." - Multimap:Clear()", function( Assert )
+		local Map = MultimapType()
+		for i = 1, 30 do
+			Map:Add( i % 2, i )
+		end
+
+		Assert:Equals( 30, Map:GetCount() )
+
+		Map:Clear()
+
+		Assert:Nil( Map:Get( 0 ) )
+		Assert:Nil( Map:Get( 1 ) )
+
+		Assert.True( "Map was not empty after clearing", Map:IsEmpty() )
+		Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
+	end )
+
+	UnitTest:Test( TypeName.." - Multimap from table", function( Assert )
+		local Map = MultimapType{
+			{ 1, 2, 3 }, { 1 }, { 1, 2 }
+		}
+
+		Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+		Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
+		Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
+
+		Assert:Equals( 6, Map:GetCount() )
+	end )
+
+	UnitTest:Test( TypeName.." - Multimap from multimap", function( Assert )
+		local Map = MultimapType()
+		Map:Add( 1, 1 )
+		Map:Add( 1, 2 )
+		Map:Add( 1, 3 )
+
+		local Map2 = MultimapType( Map )
+		Assert:ArrayEquals( { 1, 2, 3 }, Map2:Get( 1 ) )
+		Assert:Equals( 3, Map2:GetCount() )
+	end )
+
+	UnitTest:Test( TypeName.." - Multimap:Iterate()/IterateBackwards()", function( Assert )
+		local Map = MultimapType()
+		Map:Add( 1, 1 )
+		Map:Add( 1, 2 )
+		Map:Add( 1, 3 )
+		Map:Add( 2, 1 )
+		Map:Add( 2, 2 )
+		Map:Add( 3, 1 )
+
+		local ExpectedValues = {
+			{ 1, 2, 3 },
+			{ 1, 2 },
+			{ 1 }
+		}
+
+		local Index = 0
+		for Key, Values in Map:Iterate() do
+			Index = Index + 1
+			Assert:Equals( Index, Key )
+			Assert:ArrayEquals( ExpectedValues[ Key ], Values )
+		end
+
+		for Key, Values in Map:IterateBackwards() do
+			Assert:Equals( Index, Key )
+			Assert:ArrayEquals( ExpectedValues[ Key ], Values )
+			Index = Index - 1
+		end
+	end )
+
+	UnitTest:Test( TypeName.." - Multimap:AddAll()", function( Assert )
+		local Map = MultimapType()
+		Map:AddAll( "A", { 1, 2, 3, 4 } )
+
+		Assert.DeepEquals( "Should assign all values to the given key", {
+			A = { 1, 2, 3, 4 }
+		}, Map:AsTable() )
+	end )
+
+	UnitTest:Test( TypeName.." - Multimap:CopyFrom()", function( Assert )
+		local Map1 = MultimapType{
+			A = { 1, 2, 3 },
+			B = { 4, 5, 6 }
+		}
+
+		Map1:CopyFrom( MultimapType{
+			A = { 4, 5, 6 },
+			B = { 1, 2, 3 },
+			C = { 7, 8, 9 }
+		} )
+
+		Assert.DeepEquals( "Should have merged values as expected", {
+			A = { 1, 2, 3, 4, 5, 6 },
+			B = { 4, 5, 6, 1, 2, 3 },
+			C = { 7, 8, 9 }
+		}, Map1:AsTable() )
+	end )
+end
+RunMultimapTests( "Multimap", Shine.Multimap )
+RunMultimapTests( "UnorderedMultimap", Shine.UnorderedMultimap )

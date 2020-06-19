@@ -5,12 +5,14 @@
 
 local Clamp = math.Clamp
 local getmetatable = getmetatable
+local Implements = Shine.Implements
 local IsType = Shine.IsType
 local pairs = pairs
 local TableEmpty = table.Empty
 local TableRemove = table.remove
 local TableSort = table.sort
 local TableMergeSort = table.MergeSort
+local TableQuickRemove = table.QuickRemove
 local TableShallowCopy = table.ShallowCopy
 
 local Map = Shine.TypeDef()
@@ -26,7 +28,7 @@ function Map:Init( InitialValues )
 	self.IterationDir = 1
 
 	if IsType( InitialValues, "table" ) then
-		if getmetatable( InitialValues ) == Map then
+		if Implements( InitialValues, Map ) then
 			for Key, Value in InitialValues:Iterate() do
 				self:Add( Key, Value )
 			end
@@ -282,6 +284,69 @@ do
 end
 
 --[[
+	An unordered variant of Map that does not retain insertion order, but has constant time element removal.
+]]
+local UnorderedMap = Shine.TypeDef( Map )
+Shine.UnorderedMap = UnorderedMap
+
+function UnorderedMap:Init( InitialValues )
+	self.IndexByKey = {}
+	return Map.Init( self, InitialValues )
+end
+
+function UnorderedMap:Add( Key, Value )
+	if Key == nil then return end
+
+	if self.MemberLookup[ Key ] ~= nil then
+		self.MemberLookup[ Key ] = Value
+		return
+	end
+
+	local NumMembers = self.NumMembers + 1
+
+	self.NumMembers = NumMembers
+	self.Keys[ NumMembers ] = Key
+	self.MemberLookup[ Key ] = Value
+	self.IndexByKey[ Key ] = NumMembers
+end
+
+function UnorderedMap:Remove( Key )
+	local Index = self.IndexByKey[ Key ]
+	if not Index then return nil end
+
+	local Size = self.NumMembers
+	local Value = self.MemberLookup[ Key ]
+	local KeyBeingMoved = self.Keys[ Size ]
+
+	TableQuickRemove( self.Keys, Index, Size )
+
+	self.NumMembers = Size - 1
+	self.IndexByKey[ KeyBeingMoved ] = Index
+	self.IndexByKey[ Key ] = nil
+	self.MemberLookup[ Key ] = nil
+
+	if Index == self.Position and self.IterationDir == 1 then
+		self.Position = self.Position - 1
+	end
+
+	return Key, Value
+end
+
+function UnorderedMap:RemoveAtPosition( Position )
+	Position = Position or self.Position
+
+	local Key = self.Keys[ Position ]
+	if Key == nil then return nil end
+
+	return self:Remove( Key )
+end
+
+function UnorderedMap:Clear()
+	TableEmpty( self.IndexByKey )
+	return Map.Clear( self )
+end
+
+--[[
 	A multimap is a map that can map multiple values per key. It abstracts away the idiom of
 	storing lists in a map structure.
 
@@ -290,6 +355,20 @@ end
 ]]
 local Multimap = Shine.TypeDef( Map )
 Shine.Multimap = Multimap
+
+local function InitMultimapFromValues( self, Values )
+	if not Values then return self end
+
+	if Implements( Values, Multimap ) then
+		self:CopyFrom( Values )
+	else
+		for Key, List in pairs( Values ) do
+			self:AddAll( Key, List )
+		end
+	end
+
+	return self
+end
 
 --[[
 	Initialises the multimap.
@@ -304,25 +383,7 @@ function Multimap:Init( Values )
 
 	self.Count = 0
 
-	if not Values then return self end
-
-	if getmetatable( Values ) == Multimap then
-		for Key, List in Values:Iterate() do
-			for i = 1, #List do
-				self:Add( Key, List[ i ] )
-			end
-		end
-
-		return self
-	end
-
-	for Key, List in pairs( Values ) do
-		for i = 1, #List do
-			self:Add( Key, List[ i ] )
-		end
-	end
-
-	return self
+	return InitMultimapFromValues( self, Values )
 end
 
 function Multimap:Clear()
@@ -339,7 +400,7 @@ function Multimap:GetCount()
 end
 
 function Multimap:GetKeyCount()
-	return #self.Keys
+	return self.NumMembers
 end
 
 --[[
@@ -475,4 +536,53 @@ do
 
 		return GetPrevious, self
 	end
+end
+
+--[[
+	An unordered variant of Multimap that does not retain insertion order, but has constant time element removal.
+]]
+local UnorderedMultimap = Shine.TypeDef( Multimap )
+Shine.UnorderedMultimap = UnorderedMultimap
+
+function UnorderedMultimap:Init( Values )
+	UnorderedMap.Init( self )
+
+	self.Count = 0
+
+	return InitMultimapFromValues( self, Values )
+end
+
+function UnorderedMultimap:Clear()
+	UnorderedMap.Clear( self )
+	self.Count = 0
+end
+
+function UnorderedMultimap:Add( Key, Value )
+	local Entry = Map.Get( self, Key )
+	if not Entry then
+		Entry = UnorderedMap()
+		UnorderedMap.Add( self, Key, Entry )
+
+		self.Count = self.Count + 1
+	elseif Entry:Get( Value ) == nil then
+		self.Count = self.Count + 1
+	end
+
+	Entry:Add( Value, Value )
+end
+
+function UnorderedMultimap:RemoveKeyValue( Key, Value )
+	local Entry = Map.Get( self, Key )
+	if not Entry then return end
+
+	local Removed = Entry:Remove( Value ) ~= nil
+	if Removed then
+		self.Count = self.Count - 1
+
+		if Entry:GetCount() == 0 then
+			UnorderedMap.Remove( self, Key )
+		end
+	end
+
+	return Removed
 end

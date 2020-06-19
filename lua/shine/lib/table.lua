@@ -208,6 +208,14 @@ do
 end
 
 --[[
+	Removes the value at the given index without preserving order in constant time.
+]]
+function table.QuickRemove( Table, Index, Length )
+	Table[ Index ] = Table[ Length ]
+	Table[ Length ] = nil
+end
+
+--[[
 	Copies all values under the given keys from the source to the destination table.
 ]]
 function table.Mixin( Source, Destination, Keys )

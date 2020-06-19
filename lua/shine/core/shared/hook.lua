@@ -32,7 +32,7 @@ local HookNodes = {}
 -- A mapping of event -> hook index -> hook callback (for external use).
 local HooksByEventAndIndex = {}
 -- Known event names.
-local KnownEvents = Shine.Set()
+local KnownEvents = Shine.UnorderedSet()
 
 -- Placeholder until the extensions file is loaded.
 if not Shine.SetupExtensionEvents then

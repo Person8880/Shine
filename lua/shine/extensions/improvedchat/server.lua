@@ -7,7 +7,7 @@ local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 local ImageElement = require "shine/lib/gui/richtext/elements/image"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
-local Map = Shine.Map
+local UnorderedMap = Shine.UnorderedMap
 
 local BitBAnd = bit.band
 local BitLShift = bit.lshift
@@ -47,8 +47,8 @@ local MAX_MESSAGE_ID = 2 ^ 31 - 1
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
 
-	self.ChatTagDefinitions = Map()
-	self.ClientsWithTags = Map()
+	self.ChatTagDefinitions = UnorderedMap()
+	self.ClientsWithTags = UnorderedMap()
 
 	self.ChatTagIndex = 0
 	self.NextMessageID = 0

@@ -16,6 +16,20 @@ UnitTest:Test( "RemoveByValue", function( Assert )
 	Assert:ArrayEquals( { 1, 2, 4, 5, 6 }, Input )
 end )
 
+UnitTest:Test( "QuickRemove - Index < length", function( Assert )
+	local Input = { 1, 2, 3, 4, 5, 6 }
+	table.QuickRemove( Input, 3, 6 )
+
+	Assert:ArrayEquals( { 1, 2, 6, 4, 5 }, Input )
+end )
+
+UnitTest:Test( "QuickRemove - Index == length", function( Assert )
+	local Input = { 1, 2, 3, 4, 5, 6 }
+	table.QuickRemove( Input, 6, 6 )
+
+	Assert:ArrayEquals( { 1, 2, 3, 4, 5 }, Input )
+end )
+
 UnitTest:Test( "Add", function( Assert )
 	local Source = { 4, 5, 6 }
 	local Destination = { 1, 2, 3 }

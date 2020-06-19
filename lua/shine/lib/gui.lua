@@ -11,7 +11,7 @@ local CodeGen = require "shine/lib/codegen"
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
 local IsType = Shine.IsType
-local Map = Shine.Map
+local UnorderedMap = Shine.UnorderedMap
 
 local assert = assert
 local getmetatable = getmetatable
@@ -50,7 +50,7 @@ SGUI.Controls = {}
 SGUI.KeyboardFocusControls = Shine.Set()
 SGUI.MouseEnabledControls = {}
 
-SGUI.ActiveControls = Map()
+SGUI.ActiveControls = UnorderedMap()
 SGUI.Windows = {}
 
 -- Used to adjust the appearance of all elements at once.

@@ -329,7 +329,7 @@ do
 				end
 			end
 		else
-			self.Users = Shine.Map()
+			self.Users = Shine.UnorderedMap()
 		end
 
 		if self.Config.Warn or not self.Config.KickOnConnect then

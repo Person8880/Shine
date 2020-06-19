@@ -1056,7 +1056,7 @@ function Plugin:StartVote( NextMap, Force )
 	self.StartingVote:Reset()
 
 	self.Vote.TotalVotes = 0
-	self.Vote.Voted = Shine.Multimap()
+	self.Vote.Voted = Shine.UnorderedMultimap()
 	self.Vote.NominationTracker = {}
 	self.Vote.NotifiedClients = {}
 
