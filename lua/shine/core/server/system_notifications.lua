@@ -8,7 +8,7 @@ local SystemNotifications = Shine.SystemNotifications
 SystemNotifications.Notifications = {}
 
 local ACCESS_RIGHT = "sh_view_system_notifications"
-local SentToClients = Shine.Set()
+local SentToClients = Shine.UnorderedSet()
 
 local function MapNotificationToNetworkMessage( Notification )
 	return {

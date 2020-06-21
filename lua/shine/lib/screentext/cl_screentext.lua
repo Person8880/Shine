@@ -15,7 +15,7 @@ local ScreenTextErrorHandler = Shine.BuildErrorHandler( "Screen text error" )
 local SGUI = Shine.GUI
 
 local GlobalIsVisible = true
-local Messages = Shine.Map()
+local Messages = Shine.UnorderedMap()
 Shine.TextMessages = Messages
 
 local StandardFonts = {

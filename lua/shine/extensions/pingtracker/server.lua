@@ -11,7 +11,7 @@ local SharedGetTime = Shared.GetTime
 local StringFormat = string.format
 local TableAverage = table.Average
 
-local Map = Shine.Map
+local UnorderedMap = Shine.UnorderedMap
 Plugin.Version = "1.0"
 
 Plugin.HasConfig = true
@@ -31,7 +31,7 @@ Plugin.CheckConfigTypes = true
 function Plugin:Initialise()
 	self.Config.CheckInterval = Floor( self.Config.CheckInterval )
 
-	self.Players = Map()
+	self.Players = UnorderedMap()
 
 	if self.Enabled ~= nil then
 		local Clients, Count = Shine.GetAllClients()

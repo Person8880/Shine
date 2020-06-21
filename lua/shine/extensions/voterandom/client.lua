@@ -527,7 +527,7 @@ function Plugin:UpdateTeamMemoryEntry( ClientIndex, TeamNumber, CurTime )
 end
 
 function Plugin:Initialise()
-	self.TeamTracking = Shine.Map()
+	self.TeamTracking = Shine.UnorderedMap()
 	self.FriendGroup = {}
 	self.InFriendGroup = false
 

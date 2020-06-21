@@ -19,7 +19,7 @@ function Shine:SendPluginData( Player )
 end
 
 do
-	local AuthedWithAdminMenu = Shine.Set()
+	local AuthedWithAdminMenu = Shine.UnorderedSet()
 	local function SendClientAdminMenuAccess( Client, CanUseAdminMenu )
 		Shine.SendNetworkMessage( Client, "Shine_AuthAdminMenu", {
 			CanUseAdminMenu = CanUseAdminMenu

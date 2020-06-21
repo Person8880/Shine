@@ -497,7 +497,7 @@ do
 			return Events
 		end
 	} )
-	local EventsWithPlugins = Shine.Multimap()
+	local EventsWithPlugins = Shine.UnorderedMultimap()
 
 	AddPluginHook = function( Plugin, Event )
 		if not IsType( Plugin[ Event ], "function" ) then return end

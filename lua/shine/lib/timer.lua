@@ -5,7 +5,7 @@
 local Shine = Shine
 
 local SharedTime = Shared.GetTime
-local Timers = Shine.Map()
+local Timers = Shine.UnorderedMap()
 local PausedTimers = {}
 
 local Timer = {}

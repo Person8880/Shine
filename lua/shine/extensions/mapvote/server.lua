@@ -399,7 +399,7 @@ function Plugin:Initialise()
 	self.Vote.Nominated = {} -- Table of nominated maps.
 	self.Vote.NominationTracker = {} -- Tracks the amount of times someone's nominated a map.
 	self.Vote.Votes = 0 -- Number of map votes that have taken place.
-	self.Vote.Voted = Shine.Multimap() -- Multimap of clients to the maps they have voted for.
+	self.Vote.Voted = Shine.UnorderedMultimap() -- Multimap of clients to the maps they have voted for.
 	self.Vote.TotalVotes = 0 -- Number of votes in the current map vote.
 
 	self.VoteDisableTime = math.huge

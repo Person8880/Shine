@@ -23,6 +23,7 @@ local Vector2 = Vector2
 local Map = Shine.Map
 local Multimap = Shine.Multimap
 local Source = require "shine/lib/gui/binding/source"
+local UnorderedMap = Shine.UnorderedMap
 
 local SetterKeys = SGUI.SetterKeys
 
@@ -149,7 +150,7 @@ function ControlMeta:AddPropertyChangeListener( Name, Listener )
 	-- Now listening for changes, so need to broadcast them.
 	self.OnPropertyChanged = BroadcastPropertyChange
 
-	self.PropertyChangeListeners = self.PropertyChangeListeners or Shine.Multimap()
+	self.PropertyChangeListeners = self.PropertyChangeListeners or Multimap()
 	self.PropertyChangeListeners:Add( Name, Listener )
 
 	return Listener
@@ -1390,11 +1391,11 @@ do
 	local Max = math.max
 
 	function ControlMeta:EaseValue( Element, Start, End, Delay, Duration, Callback, EasingHandlers )
-		self.EasingProcesses = self.EasingProcesses or Map()
+		self.EasingProcesses = self.EasingProcesses or UnorderedMap()
 
 		local Easers = self.EasingProcesses:Get( EasingHandlers )
 		if not Easers then
-			Easers = Map()
+			Easers = UnorderedMap()
 			self.EasingProcesses:Add( EasingHandlers, Easers )
 		end
 
