@@ -218,6 +218,23 @@ do
 		end
 	end
 
+	local Inspect = require "shine/lib/inspect"
+
+	local function PlayerToOutput( Player )
+		local Client = Shine.GetClientForPlayer( Player )
+		local ClientID = "?"
+		local IsVirtual = false
+		if Shine:IsValidClient( Client ) then
+			ClientID = Client:GetId()
+			IsVirtual = Client:GetIsVirtual()
+		end
+		return StringFormat( "%s (%s[%s])", Inspect.ToString( Player ), IsVirtual and "Bot" or "Player", ClientID )
+	end
+
+	local function PlayersToString( Players )
+		return TableToString( Shine.Stream.Of( Players ):Map( PlayerToOutput ):AsTable() )
+	end
+
 	--[[
 		Ensures no team has more than 1 extra player compared to the other.
 	]]
@@ -256,13 +273,21 @@ do
 			if VoteRandom then
 				local BalanceMode = VoteRandom.Config.BalanceMode
 
-				local Marines = TableToString( Marine )
-				local Aliens = TableToString( Alien )
+				local Marines = PlayersToString( Marine )
+				local Aliens = PlayersToString( Alien )
+				local NewMarines = PlayersToString( MarineTeam:GetPlayers() )
+				local NewAliens = PlayersToString( AlienTeam:GetPlayers() )
 
-				Shine:AddErrorReport( "Team sorting resulted in imbalanced teams after applying.",
-					"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\nActual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\nNew Teams:\nMarines:\n%s\nAliens:\n%s",
-					true, BalanceMode, NumMarine, NumAlien, Diff, NewMarineCount,
-					NewAlienCount, NewDiff, Marines, Aliens )
+				Shine:AddErrorReport(
+					"Team sorting resulted in imbalanced teams after applying.",
+					"Balance Mode: %s. Table Marine Size: %s. Table Alien Size: %s. Table Diff: %s.\n"..
+					"Actual Marine Size: %s. Actual Alien Size: %s. Actual Diff: %s.\n"..
+					"New Teams:\nMarines:\n%s\nActual Marines:\n%s\nAliens:\n%s\nActual Aliens:\n%s",
+					true,
+					BalanceMode, NumMarine, NumAlien, Diff,
+					NewMarineCount, NewAlienCount, NewDiff,
+					Marines, NewMarines, Aliens, NewAliens
+				)
 			end
 		end
 
