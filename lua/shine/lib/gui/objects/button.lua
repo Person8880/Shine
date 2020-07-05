@@ -104,7 +104,7 @@ function Button:SetText( Text )
 	-- Need to offset the text based on its internal alignment.
 	Description:SetUseAlignmentCompensation( true )
 
-	if self.TextShadow then
+	if self.TextShadow ~= nil then
 		Description:SetShadow( self.TextShadow )
 	end
 
@@ -195,7 +195,7 @@ function Button:SetIcon( IconName, Font, Scale )
 	Icon:SetText( IconName )
 	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
 	Icon:SetIsVisible( self.IconIsVisible )
-	if self.IconShadow then
+	if self.IconShadow ~= nil then
 		Icon:SetShadow( self.IconShadow )
 	end
 

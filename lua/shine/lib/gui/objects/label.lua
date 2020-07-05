@@ -166,6 +166,10 @@ function Label:SetBright( Bright )
 	-- Deprecated, does nothing.
 end
 
+function Label:GetShadow()
+	return self.Shadow
+end
+
 function Label:SetShadow( Params )
 	self.Shadow = Params
 

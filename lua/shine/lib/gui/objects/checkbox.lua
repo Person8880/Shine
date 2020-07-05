@@ -178,6 +178,7 @@ SGUI.AddProperty( CheckBox, "Radio" )
 SGUI.AddBoundProperty( CheckBox, "Font", "Label" )
 SGUI.AddBoundProperty( CheckBox, "TextColour", "Label:SetColour" )
 SGUI.AddBoundProperty( CheckBox, "TextScale", "Label" )
+SGUI.AddBoundProperty( CheckBox, "TextShadow", "Label:SetShadow" )
 
 SGUI:AddMixin( CheckBox, "EnableMixin" )
 SGUI:Register( "CheckBox", CheckBox )
