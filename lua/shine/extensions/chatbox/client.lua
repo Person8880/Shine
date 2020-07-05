@@ -1237,6 +1237,15 @@ do
 			end
 			Tabs:SetHorizontal( true )
 
+			-- Make sure opacity updates on all tab buttons.
+			local OldRefreshStyling = Tabs.RefreshStyling
+			function Tabs:RefreshStyling()
+				OldRefreshStyling( self )
+				for i = 1, #self.Tabs do
+					self.Tabs[ i ].TabButton:RefreshStyling()
+				end
+			end
+
 			self.SettingsPanelTabs = Tabs
 
 			local function SetupTabPanel( TabPanel )
