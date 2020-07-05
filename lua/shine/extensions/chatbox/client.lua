@@ -142,9 +142,12 @@ local Colours = {
 	Dark = Colour( 0.2, 0.2, 0.2, 0.8 ),
 	Highlight = Colour( 0.5, 0.5, 0.5, 0.8 ),
 	ModeText = Colour( 1, 1, 1, 1 ),
+	TextShadow = Colour( 0, 0, 0, 0.8 ),
 	AutoCompleteCommand = Colour( 1, 0.8, 0 ),
 	AutoCompleteParams = Colour( 1, 0.5, 0 ),
-	AutoCompleteArg = Colour( 0, 0.75, 1 )
+	AutoCompleteArg = Colour( 0, 0.75, 1 ),
+
+	Clear = Colour( 0, 0, 0, 0 )
 }
 
 local Skin = {
@@ -153,6 +156,8 @@ local Skin = {
 			ActiveCol = Colours.Highlight,
 			InactiveCol = Colours.Dark,
 			TextColour = Colours.ModeText,
+			IconShadow = false,
+			TextShadow = false,
 			States = {
 				Open = {
 					InactiveCol = Colours.Highlight
@@ -163,6 +168,15 @@ local Skin = {
 			ActiveCol = SGUI.ColourWithAlpha( Colours.Highlight, 1 ),
 			InactiveCol = SGUI.ColourWithAlpha( Colours.Dark, 1 ),
 			TextColour = Colours.ModeText,
+			IconShadow = false,
+			TextShadow = false
+		}
+	},
+	CheckBox = {
+		Default = {
+			TextShadow = {
+				Colour = Colours.TextShadow
+			}
 		}
 	},
 	Dropdown = {
@@ -172,6 +186,13 @@ local Skin = {
 				Size = Units.GUIScaled( 32 )
 			},
 			Padding = Units.Spacing( Units.GUIScaled( 4 ), 0, Units.GUIScaled( 4 ), 0 )
+		}
+	},
+	Label = {
+		Default = {
+			Shadow = {
+				Colour = Colours.TextShadow
+			}
 		}
 	},
 	Panel = {
@@ -193,6 +214,49 @@ local Skin = {
 			Colour = Colours.Dark
 		}
 	},
+	Slider = {
+		Default = {
+			TextShadow = {
+				Colour = Colours.TextShadow
+			}
+		}
+	},
+	TabPanel = {
+		Default = {
+			TabBackgroundColour = Colours.Clear,
+			PanelColour = Colours.Clear,
+			Colour = Colours.Clear
+		},
+		Horizontal = {
+			TabBackgroundColour = Colours.Clear,
+			PanelColour = Colours.Clear,
+			Colour = Colours.Clear
+		}
+	},
+	TabPanelButton = {
+		Default = {
+			ActiveCol = Colours.Clear,
+			InactiveCol = Colours.Dark,
+			TextColour = SGUI.ColourWithAlpha( Colours.ModeText, 0.75 ),
+			TextInheritsParentAlpha = false,
+			States = {
+				Selected = {
+					TextColour = Colours.ModeText,
+				}
+			}
+		},
+		Horizontal = {
+			ActiveCol = Colours.Clear,
+			InactiveCol = Colours.Dark,
+			TextColour = SGUI.ColourWithAlpha( Colours.ModeText, 0.75 ),
+			TextInheritsParentAlpha = false,
+			States = {
+				Selected = {
+					TextColour = Colours.ModeText,
+				}
+			}
+		}
+	},
 	TextEntry = {
 		Default = {
 			FocusColour = Colours.Dark,
@@ -211,7 +275,17 @@ function Plugin:OnFirstThink()
 	TableShallowMerge( DefaultSkin, Skin )
 	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
 	TableShallowMerge( DefaultSkin.Button, Skin.Button )
+
+	TableShallowMerge( DefaultSkin.CheckBox, Skin.CheckBox )
+	TableShallowMerge( DefaultSkin.CheckBox.Default, Skin.CheckBox.Default )
+
 	TableShallowMerge( DefaultSkin.Dropdown.Default, Skin.Dropdown.Default )
+
+	TableShallowMerge( DefaultSkin.Label, Skin.Label )
+	TableShallowMerge( DefaultSkin.Label.Default, Skin.Label.Default )
+
+	TableShallowMerge( DefaultSkin.Slider, Skin.Slider )
+	TableShallowMerge( DefaultSkin.Slider.Default, Skin.Slider.Default )
 end
 
 local LayoutData = {
@@ -259,7 +333,8 @@ local OpacityVariantControls = {
 	"ChatBox",
 	"TextEntry",
 	"SettingsButton",
-	"SettingsPanel"
+	"SettingsPanel",
+	"SettingsPanelTabs"
 }
 
 local function UpdateOpacity( self, Opacity )
@@ -392,6 +467,16 @@ function Plugin:CreateChatbox()
 	function Border:ReturnToDefaultPos()
 		self:SetPos( DefaultPos )
 		self:OnDragFinished( DefaultPos )
+	end
+
+	function Border.GetMouseBounds( Border )
+		local Size = Border:GetSize()
+		if SGUI.IsValid( self.SettingsPanel ) and self.SettingsPanel:GetIsVisible() then
+			-- If the settings is visible, the mouse bounds need to include it (as it's outside the window bounds).
+			Size.x = Size.x + self.SettingsPanel:GetSize().x
+			return Size
+		end
+		return Size
 	end
 
 	-- If, for some reason, there's an error in a panel hook, then this is removed.
@@ -642,12 +727,37 @@ do
 		return true
 	end
 
+	local SETTINGS_PADDING_AMOUNT = 5
+
+	local function GetCheckBoxSize( self )
+		return UnitVector( Scaled( 28, self.ScalarScale ), Scaled( 28, self.ScalarScale ) )
+	end
+
+	-- These use a fixed scaled size as Percentage units would end up resizing with the panel as it animates.
+	local function GetSliderSize( self )
+		return UnitVector( Scaled( 0.8 * LayoutData.Sizes.Settings.x, self.UIScale.x ), Scaled( 24, self.UIScale.y ) )
+	end
+
+	local function GetDropdownSize( self )
+		return UnitVector(
+			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
+			Scaled( 28, self.UIScale.y )
+		)
+	end
+
+	local function GetButtonSize( self )
+		return UnitVector(
+			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
+			Scaled( 32, self.UIScale.y )
+		)
+	end
+
 	local ElementCreators = {
 		CheckBox = {
-			Create = function( self, SettingsPanel, Layout, Size, Checked, Label )
+			Create = function( self, SettingsPanel, Layout, Checked, Label )
 				local CheckBox = SettingsPanel:Add( "CheckBox" )
 				CheckBox:SetupFromTable{
-					AutoSize = Size,
+					AutoSize = GetCheckBoxSize( self ),
 					Font = self:GetFont()
 				}
 				CheckBox:AddLabel( self:GetPhrase( Label ) )
@@ -673,6 +783,9 @@ do
 				Object.OnChecked = function( Object, Value )
 					Data.ConfigValue( self, Value )
 				end
+			end,
+			Update = function( Object, Value )
+				Object:SetChecked( not not Value )
 			end
 		},
 		Label = {
@@ -693,10 +806,10 @@ do
 			end
 		},
 		Slider = {
-			Create = function( self, SettingsPanel, Layout, Size, Value )
+			Create = function( self, SettingsPanel, Layout, Value )
 				local Slider = SettingsPanel:Add( "Slider" )
 				Slider:SetupFromTable{
-					AutoSize = Size,
+					AutoSize = GetSliderSize( self ),
 					Value = Value,
 					Font = self:GetFont(),
 					Padding = SliderTextPadding * self.ScalarScale,
@@ -711,7 +824,7 @@ do
 
 				return Slider
 			end,
-			Setup = function( self, Object, Data, Size, Value )
+			Setup = function( self, Object, Data, Value )
 				Object:SetBounds( unpack( Data.Bounds ) )
 				if Data.Decimals then
 					Object:SetDecimals( Data.Decimals )
@@ -733,13 +846,16 @@ do
 				Object.OnValueChanged = function( Object, Value )
 					Data.ConfigValue( self, Value )
 				end
+			end,
+			Update = function( Object, Value )
+				Object:SetValue( Value, true )
 			end
 		},
 		Dropdown = {
-			Create = function( self, SettingsPanel, Layout, Size, Options, SelectedOption )
+			Create = function( self, SettingsPanel, Layout, Options, SelectedOption )
 				local Dropdown = SettingsPanel:Add( "Dropdown" )
 				Dropdown:SetupFromTable{
-					AutoSize = Size,
+					AutoSize = GetDropdownSize( self ),
 					Options = Options,
 					Font = self:GetFont()
 				}
@@ -763,13 +879,16 @@ do
 						Data.ConfigValue( self, Option.Value )
 					end )
 				end
+			end,
+			Update = function( Object, Value )
+				Object:SelectOption( Value )
 			end
 		},
 		Button = {
-			Create = function( self, SettingsPanel, Layout, Size, Text, IsVisible )
+			Create = function( self, SettingsPanel, Layout, Text, IsVisible )
 				local Button = SettingsPanel:Add( "Button" )
 				Button:SetupFromTable{
-					AutoSize = Size,
+					AutoSize = GetButtonSize( self ),
 					Font = self:GetFont(),
 					Text = self:GetPhrase( Text ),
 					IsVisible = IsVisible,
@@ -799,38 +918,13 @@ do
 		}
 	}
 
-	local SETTINGS_PADDING_AMOUNT = 5
-
-	local function GetCheckBoxSize( self )
-		return UnitVector( Scaled( 28, self.ScalarScale ), Scaled( 28, self.ScalarScale ) )
-	end
-
-	-- These use a fixed scaled size as Percentage units would end up resizing with the panel as it animates.
-	local function GetSliderSize( self )
-		return UnitVector( Scaled( 0.8 * LayoutData.Sizes.Settings.x, self.UIScale.x ), Scaled( 24, self.UIScale.y ) )
-	end
-
-	local function GetDropdownSize( self )
-		return UnitVector(
-			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
-			Scaled( 28, self.UIScale.y )
-		)
-	end
-
-	local function GetButtonSize( self )
-		return UnitVector(
-			Scaled( LayoutData.Sizes.Settings.x - SETTINGS_PADDING_AMOUNT * 5, self.UIScale.x ),
-			Scaled( 32, self.UIScale.y )
-		)
-	end
-
-	local Elements = {
+	local ChatBoxElements = {
 		{
 			ID = "AutoCloseCheckBox",
 			Type = "CheckBox",
 			ConfigValue = "AutoClose",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.AutoClose, "AUTO_CLOSE"
+				return self.Config.AutoClose, "AUTO_CLOSE"
 			end
 		},
 		{
@@ -838,7 +932,7 @@ do
 			Type = "CheckBox",
 			ConfigValue = "DeleteOnClose",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.DeleteOnClose, "AUTO_DELETE"
+				return self.Config.DeleteOnClose, "AUTO_DELETE"
 			end
 		},
 		{
@@ -849,7 +943,7 @@ do
 				Plugin.ChatBox:SetAllowSmoothScroll( Value )
 			end,
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.SmoothScroll, "SMOOTH_SCROLL"
+				return self.Config.SmoothScroll, "SMOOTH_SCROLL"
 			end
 		},
 		{
@@ -857,7 +951,7 @@ do
 			Type = "CheckBox",
 			ConfigValue = "ScrollToBottomOnOpen",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.ScrollToBottomOnOpen, "SCROLL_TO_BOTTOM"
+				return self.Config.ScrollToBottomOnOpen, "SCROLL_TO_BOTTOM"
 			end
 		},
 		{
@@ -873,7 +967,7 @@ do
 				end
 			end,
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.MoveVanillaChat, "MOVE_VANILLA_CHAT"
+				return self.Config.MoveVanillaChat, "MOVE_VANILLA_CHAT"
 			end
 		},
 		{
@@ -881,7 +975,7 @@ do
 			Type = "CheckBox",
 			ConfigValue = "ShowTimestamps",
 			Values = function( self )
-				return GetCheckBoxSize( self ), self.Config.ShowTimestamps, "SHOW_TIMESTAMPS"
+				return self.Config.ShowTimestamps, "SHOW_TIMESTAMPS"
 			end
 		},
 		{
@@ -895,7 +989,7 @@ do
 			ConfigValue = "MessageMemory",
 			Bounds = { 10, 100 },
 			Values = function( self )
-				return GetSliderSize( self ), self.Config.MessageMemory
+				return self.Config.MessageMemory
 			end
 		},
 		{
@@ -918,7 +1012,7 @@ do
 			end,
 			Bounds = { 0, 100 },
 			Values = function( self )
-				return GetSliderSize( self ), self.Config.Opacity * 100
+				return self.Config.Opacity * 100
 			end
 		},
 		{
@@ -937,7 +1031,7 @@ do
 			Bounds = { 0.75, 1.25 },
 			Decimals = 2,
 			Values = function( self )
-				return GetSliderSize( self ), self.Config.Scale
+				return self.Config.Scale
 			end
 		},
 		{
@@ -965,7 +1059,7 @@ do
 						SelectedOption = Options[ i ]
 					end
 				end
-				return GetDropdownSize( self ), Options, SelectedOption
+				return Options, SelectedOption
 			end
 		},
 		{
@@ -979,7 +1073,7 @@ do
 			Bounds = { 8, 64 },
 			Decimals = 0,
 			Values = function( self )
-				return GetSliderSize( self ), self.Config.FontSizeInPixels
+				return self.Config.FontSizeInPixels
 			end,
 			Bindings = {
 				{
@@ -995,54 +1089,14 @@ do
 					}
 				}
 			}
-		},
-		{
-			ID = "OpenChatSettingsButton",
-			Type = "Button",
-			Values = function( self )
-				return GetButtonSize( self ), "OPEN_CHAT_SETTINGS", Shine:IsExtensionEnabled( "improvedchat" )
-			end,
-			DoClick = function()
-				Shine.ConfigMenu:OpenOnSettingsTab( Shine.Locale:GetPhrase( "improvedchat", "CLIENT_CONFIG_TAB" ) )
-			end,
-			Icon = SGUI.Icons.Ionicons.GearA,
-			MarginTop = 4
 		}
 	}
 
-	function Plugin:CreateSettings( MainPanel, UIScale, ScalarScale )
-		local PaddingAmountY = Scaled( SETTINGS_PADDING_AMOUNT, UIScale.y )
-		local Padding = Spacing(
-			Scaled( SETTINGS_PADDING_AMOUNT, UIScale.x ),
-			PaddingAmountY,
-			-- Right hand side needs double padding to mirror the padding correctly.
-			Scaled( SETTINGS_PADDING_AMOUNT * 4, UIScale.x ),
-			PaddingAmountY
-		)
-
-		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-			Padding = Padding
-		} )
-
-		local SettingsPanel = SGUI:Create( "Panel", MainPanel )
-		SettingsPanel:SetupFromTable{
-			DebugName = "ChatBoxSettingsPanel",
-			Anchor = "TopRight",
-			Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
-			Scrollable = true,
-			ScrollbarHeightOffset = 0,
-			ScrollbarWidth = SETTINGS_PADDING_AMOUNT * 2 * UIScale.x,
-			ScrollbarPos = Vector2( -SETTINGS_PADDING_AMOUNT * 2 * UIScale.x, 0 ),
-			HorizontalScrollingEnabled = false,
-			Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
-			Skin = Skin,
-			StylingState = self.MainPanel:GetStylingState()
-		}
-
-		self.SettingsPanel = SettingsPanel
-
+	local function PopulateSettings( self, ParentPanel, Layout, Elements )
 		local ElementsByID = {}
 		local CreatedElements = {}
+		local ElementsByCommand = {}
+		local HasCommands = false
 
 		for i = 1, #Elements do
 			local Data = Elements[ i ]
@@ -1055,7 +1109,7 @@ do
 
 			local Creator = ElementCreators[ Data.Type ]
 
-			local Object = Creator.Create( self, SettingsPanel, Layout, unpack( Values ) )
+			local Object = Creator.Create( self, ParentPanel, Layout, unpack( Values ) )
 			Object:SetDebugName( "ChatBox"..Data.ID )
 
 			CreatedElements[ i ] = Object
@@ -1064,14 +1118,27 @@ do
 				Creator.Setup( self, Object, Data, unpack( Values ) )
 			end
 
+			if Data.Tooltip then
+				if IsType( Data.Tooltip, "function" ) then
+					Object:SetTooltip( Data.Tooltip() )
+				else
+					Object:SetTooltip( Data.Tooltip )
+				end
+			end
+
 			if Data.MarginTop then
 				Object:SetMargin( Spacing( 0, Scaled( Data.MarginTop, self.UIScale.y ), 0, 0 ) )
 			end
 
 			ElementsByID[ Data.ID ] = Object
+			if Data.Command and Creator.Update then
+				HasCommands = true
+				ElementsByCommand[ Data.Command ] = {
+					Update = Creator.Update,
+					Object = Object
+				}
+			end
 		end
-
-		self.SettingsElements = ElementsByID
 
 		for i = 1, #Elements do
 			local Data = Elements[ i ]
@@ -1089,27 +1156,148 @@ do
 			end
 		end
 
+		if HasCommands then
+			Hook.Add( "OnPluginClientSettingChanged", self, function( Plugin, Setting, NewValue )
+				local Element = ElementsByCommand[ Setting.Command ]
+				if not Element or not SGUI.IsValid( Element.Object ) then
+					return
+				end
+
+				if Setting.Inverted then
+					NewValue = not NewValue
+				end
+
+				Element.Update( Element.Object, NewValue )
+			end )
+		else
+			Hook.Remove( "OnPluginClientSettingChanged", self )
+		end
+	end
+
+	function Plugin:CreateSettings( MainPanel, UIScale, ScalarScale )
+		local PaddingAmountY = Scaled( SETTINGS_PADDING_AMOUNT, UIScale.y )
+		local Padding = Spacing(
+			Scaled( SETTINGS_PADDING_AMOUNT, UIScale.x ),
+			PaddingAmountY,
+			-- Right hand side needs double padding to mirror the padding correctly.
+			Scaled( SETTINGS_PADDING_AMOUNT * 4, UIScale.x ),
+			PaddingAmountY
+		)
+
+		local Layout = SGUI.Layout:CreateLayout( "Vertical", {
+			Padding = Padding
+		} )
+
+		local SettingsPanel = self.SettingsPanel
+		local ScrollbarWidth = SETTINGS_PADDING_AMOUNT * 2 * UIScale.x
+
+		if not SGUI.IsValid( SettingsPanel ) then
+			SettingsPanel = SGUI:Create( "Panel", MainPanel )
+			SettingsPanel:SetupFromTable{
+				DebugName = "ChatBoxSettingsPanel",
+				Anchor = "TopRight",
+				Pos = VectorMultiply( LayoutData.Positions.Settings, UIScale ),
+				Scrollable = true,
+				ScrollbarHeightOffset = 0,
+				ScrollbarWidth = ScrollbarWidth,
+				ScrollbarPos = Vector2( -ScrollbarWidth, 0 ),
+				HorizontalScrollingEnabled = false,
+				Size = VectorMultiply( LayoutData.Sizes.SettingsClosed, UIScale ),
+				Skin = Skin,
+				StylingState = MainPanel:GetStylingState()
+			}
+
+			self.SettingsPanel = SettingsPanel
+		end
+
+		local SettingsTabs = Shine.Multimap()
+		SettingsTabs:AddAll( {
+			Label = self:GetPhrase( "SETTINGS_TAB_LABEL" ),
+			Icon = SGUI.Icons.Ionicons.Chatbox
+		}, ChatBoxElements )
+
+		Hook.Call( "PopulateChatBoxSettings", self, SettingsTabs )
+
+		if SettingsTabs:GetKeyCount() == 1 then
+			PopulateSettings( self, SettingsPanel, Layout, ChatBoxElements )
+		else
+			Layout:SetPadding( nil )
+
+			local TabWidth = Units.Max()
+
+			local Tabs = SettingsPanel:Add( "TabPanel" )
+			Tabs:SetFill( false )
+			-- Use a fixed size to ensure no horizontal scrolling shows during expansion.
+			Tabs:SetAutoSize( UnitVector( Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ), Percentage( 100 ) ) )
+			Tabs:SetTabWidth( TabWidth )
+			Tabs:SetTabHeight( Scaled( 32, UIScale.y ):GetValue() )
+			Tabs:SetFont( self:GetFont() )
+			if self.TextScale ~= 1 then
+				Tabs:SetTextScale( self.TextScale )
+			end
+			Tabs:SetHorizontal( true )
+
+			self.SettingsPanelTabs = Tabs
+
+			local function SetupTabPanel( TabPanel )
+				TabPanel:SetScrollable()
+				TabPanel:SetScrollbarWidth( ScrollbarWidth )
+				TabPanel:SetScrollbarPos( Vector2( -ScrollbarWidth, 0 ) )
+				TabPanel:SetScrollbarHeightOffset( 0 )
+				TabPanel:SetResizeLayoutForScrollbar( true )
+
+				return SGUI.Layout:CreateLayout( "Vertical", {
+					Padding = Padding
+				} )
+			end
+
+			local IconFont, IconFontScale = SGUI.FontManager.GetFontForAbsoluteSize(
+				SGUI.FontFamilies.Ionicons,
+				Scaled( 32, self.UIScale.y ):GetValue()
+			)
+			for TabDef, Elements in SettingsTabs:Iterate() do
+				local Tab = Tabs:AddTab( TabDef.Label, function( TabPanel )
+					local TabLayout = SetupTabPanel( TabPanel )
+
+					PopulateSettings( self, TabPanel, TabLayout, Elements )
+
+					TabPanel:SetLayout( TabLayout, true )
+				end, TabDef.Icon, IconFont, IconFontScale )
+
+				TabWidth:AddValue( Units.Auto( Tab.TabButton ) + Scaled( 16, UIScale.x ) )
+			end
+
+			-- Add a dummy tab to fill the rest of the tab bar background, otherwise it looks odd.
+			local BackgroundTab = Tabs:AddTab( "" )
+			BackgroundTab.TabButton.DoClick = function() return false end
+			BackgroundTab.TabButton:SetFill( true )
+			BackgroundTab.TabButton:SetAutoSize( nil )
+
+			Layout:AddElement( Tabs )
+		end
+
 		SettingsPanel:SetLayout( Layout )
 	end
 
-	local function SetElementVisibility( self, ElementName, IsVisible )
-		if not self.SettingsElements or not SGUI.IsValid( self.SettingsElements[ ElementName ] ) then
-			return
-		end
+	local function RefreshSettings( self )
+		if not SGUI.IsValid( self.SettingsPanel ) then return end
 
-		self.SettingsElements[ ElementName ]:SetIsVisible( IsVisible )
+		local SettingsButton = self.SettingsButton
+		if SettingsButton.Expanding or SettingsButton.Expanded then
+			self.SettingsPanel:Clear()
+			self:CreateSettings( self.MainPanel, self.UIScale, self.ScalarScale )
+		else
+			self.SettingsPanel:Destroy()
+			self.SettingsPanel = nil
+		end
 	end
 
 	function Plugin:OnPluginLoad( Name, Plugin, IsShared )
-		if Name ~= "improvedchat" then return end
-
-		SetElementVisibility( self, "OpenChatSettingsButton", true )
+		RefreshSettings( self )
 	end
 
 	function Plugin:OnPluginUnload( Name, Plugin, IsShared )
-		if Name ~= "improvedchat" then return end
-
-		SetElementVisibility( self, "OpenChatSettingsButton", false )
+		RefreshSettings( self )
 	end
 end
 

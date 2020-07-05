@@ -57,8 +57,10 @@ function TabPanelButton:SetSelected( Selected )
 
 	if not self.Selected then
 		self.Background:SetColor( self.InactiveCol )
+		self:RemoveStylingState( "Selected" )
 	else
 		self.Background:SetColor( self.ActiveCol )
+		self:AddStylingState( "Selected" )
 	end
 end
 
