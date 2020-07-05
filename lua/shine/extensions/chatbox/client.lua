@@ -1953,6 +1953,7 @@ end
 ]]
 function Plugin:Cleanup()
 	Hook.Remove( "PlayerKeyPress", self )
+	Hook.Remove( "OnPluginClientSettingChanged", self )
 
 	if not SGUI.IsValid( self.MainPanel ) then return end
 
