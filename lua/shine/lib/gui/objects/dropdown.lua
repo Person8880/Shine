@@ -8,6 +8,8 @@ local Controls = SGUI.Controls
 local Binder = require "shine/lib/gui/binding/binder"
 
 local Max = math.max
+local StringUTF8Encode = string.UTF8Encode
+local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemoveByValue = table.RemoveByValue
 
@@ -24,6 +26,10 @@ function Dropdown:Initialise()
 	self:SetHorizontal( true )
 	self:SetTextAlignment( SGUI.LayoutAlignment.MIN )
 	self:SetIconAlignment( SGUI.LayoutAlignment.MAX )
+
+	-- Prevent option text leaking out.
+	self.Background:SetMinCrop( 0, 0 )
+	self.Background:SetMaxCrop( 1, 1 )
 
 	self.Options = {}
 
@@ -126,6 +132,32 @@ end
 
 function Dropdown:Clear()
 	TableEmpty( self.Options )
+end
+
+function Dropdown:PerformLayout()
+	Controls.Button.PerformLayout( self )
+
+	if not self.SelectedOption then return end
+
+	local Label = self.Label
+	if not SGUI.IsValid( Label ) then return end
+
+	local LabelX = Label:GetPos().x
+	local LabelW = Label:GetSize().x
+	local IconPos = self.Icon:GetPos().x
+
+	if LabelW + LabelX >= IconPos then
+		local Text = self.SelectedOption.Text
+		-- Cutoff the text if it overflows the dropdown.
+		local Chars = StringUTF8Encode( Text )
+		for i = #Chars, 1, -3 do
+			local TextWithEllipsis = TableConcat( Chars, "", 1, i - 3 ).."..."
+			if LabelX + Label:GetTextWidth( TextWithEllipsis ) < IconPos then
+				Label:SetText( TextWithEllipsis )
+				break
+			end
+		end
+	end
 end
 
 SGUI:Register( "Dropdown", Dropdown, "Button" )
