@@ -63,6 +63,15 @@ function Dropdown:Initialise()
 		:BindProperty()
 end
 
+function Dropdown:SetText( Text )
+	Controls.Button.SetText( self, Text )
+
+	if SGUI.IsValid( self.Label ) then
+		self.Label:SetFill( true )
+		self.Label:SetAutoEllipsis( true )
+	end
+end
+
 function Dropdown:BuildMenu()
 	return {
 		MenuPos = self.MenuPos.BOTTOM,
@@ -132,32 +141,6 @@ end
 
 function Dropdown:Clear()
 	TableEmpty( self.Options )
-end
-
-function Dropdown:PerformLayout()
-	Controls.Button.PerformLayout( self )
-
-	if not self.SelectedOption then return end
-
-	local Label = self.Label
-	if not SGUI.IsValid( Label ) then return end
-
-	local LabelX = Label:GetPos().x
-	local LabelW = Label:GetSize().x
-	local IconPos = self.Icon:GetPos().x
-
-	if LabelW + LabelX >= IconPos then
-		local Text = self.SelectedOption.Text
-		-- Cutoff the text if it overflows the dropdown.
-		local Chars = StringUTF8Encode( Text )
-		for i = #Chars, 1, -3 do
-			local TextWithEllipsis = TableConcat( Chars, "", 1, i - 3 ).."..."
-			if LabelX + Label:GetTextWidth( TextWithEllipsis ) < IconPos then
-				Label:SetText( TextWithEllipsis )
-				break
-			end
-		end
-	end
 end
 
 SGUI:Register( "Dropdown", Dropdown, "Button" )

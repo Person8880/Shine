@@ -7,6 +7,8 @@ local Units = SGUI.Layout.Units
 
 local getmetatable = getmetatable
 local StringFind = string.find
+local StringUTF8Encode = string.UTF8Encode
+local TableConcat = table.concat
 
 local Label = {}
 
@@ -20,6 +22,8 @@ SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParen
 
 -- Auto-wrapping allows labels to automatically word-wrap based on a given auto-width (or fill size).
 SGUI.AddProperty( Label, "AutoWrap", false, { "InvalidatesParent" } )
+-- Auto-ellipsis shortens text if it extends beyond the given auto-width (or fill size).
+SGUI.AddProperty( Label, "AutoEllipsis", false )
 
 do
 	local function MarkSizeDirty( self )
@@ -115,6 +119,9 @@ function Label:SetupStencil()
 	self.Label:SetStencilFunc( GUIItem.NotEqual )
 end
 
+-- Do nothing by default.
+function Label:PreComputeHeight() end
+
 local WordWrapDummy = {
 	GetTextWidth = function( self, Text )
 		-- Need to account for scale here.
@@ -126,10 +133,21 @@ local WordWrapDummy = {
 	end
 }
 
--- Apply word wrapping before the height is computed (assuming height = Units.Auto()).
-function Label:PreComputeHeight( Width )
-	if not self.AutoWrap then return end
+local SetAutoWrap = Label.SetAutoWrap
+function Label:SetAutoWrap( AutoWrap )
+	if not SetAutoWrap( self, AutoWrap ) then return false end
 
+	if AutoWrap and self.PreComputeHeight ~= self.ApplyAutoWrapping then
+		self.PreComputeHeight = self.ApplyAutoWrapping
+	elseif not AutoWrap and self.PreComputeHeight == self.ApplyAutoWrapping then
+		self.PreComputeHeight = nil
+	end
+
+	return true
+end
+
+-- Apply word wrapping before the height is computed (assuming height = Units.Auto()).
+function Label:ApplyAutoWrapping( Width )
 	local CurrentText = self.Label:GetText()
 
 	-- Pass in a dummy to avoid mutating the actual text value assigned to this label,
@@ -152,6 +170,34 @@ function Label:PreComputeHeight( Width )
 			end
 
 			Parent = Parent.Parent
+		end
+	end
+end
+
+local SetAutoEllipsis = Label.SetAutoEllipsis
+function Label:SetAutoEllipsis( AutoEllipsis )
+	if not SetAutoEllipsis( self, AutoEllipsis ) then return false end
+
+	if AutoEllipsis and self.PreComputeHeight ~= self.ApplyAutoEllipsis then
+		self.PreComputeHeight = self.ApplyAutoEllipsis
+	elseif not AutoEllipsis and self.PreComputeHeight == self.ApplyAutoEllipsis then
+		self.PreComputeHeight = nil
+	end
+
+	return true
+end
+
+function Label:ApplyAutoEllipsis( Width )
+	local Text = self.Text
+	if self:GetCachedTextWidth() <= Width then return end
+
+	local Chars = StringUTF8Encode( Text )
+	for i = #Chars, 1, -3 do
+		local TextWithEllipsis = TableConcat( Chars, "", 1, i - 3 ).."..."
+		if self:GetTextWidth( TextWithEllipsis ) <= Width then
+			self.Label:SetText( TextWithEllipsis )
+			self:EvaluateOptionFlags( TextWithEllipsis )
+			break
 		end
 	end
 end
