@@ -8,6 +8,7 @@ local TableSort = table.sort
 
 local SGUI = Shine.GUI
 SGUI.Fonts = {
+	Ionicons21 = PrecacheAsset "fonts/ionicons_21.fnt",
 	Ionicons = PrecacheAsset "fonts/ionicons.fnt",
 	Ionicons64 = PrecacheAsset "fonts/ionicons_64.fnt"
 }
@@ -55,6 +56,7 @@ local FallbackFamilies = {
 
 local FontFamilies = setmetatable( {
 	Ionicons = {
+		[ SGUI.Fonts.Ionicons21 ] = 21,
 		[ SGUI.Fonts.Ionicons ] = 32,
 		[ SGUI.Fonts.Ionicons64 ] = 64
 	},
@@ -197,6 +199,7 @@ do
 end
 
 local FontSizes = {
+	[ SGUI.Fonts.Ionicons21 ] = 21,
 	[ SGUI.Fonts.Ionicons ] = 32,
 	[ SGUI.Fonts.Ionicons64 ] = 64
 }
