@@ -192,6 +192,24 @@ local Skin = {
 		Default = {
 			Shadow = {
 				Colour = Colours.TextShadow
+			},
+			States = {
+				AllChat = {
+					Colour = Colours.ModeText,
+					Text = SGUI.Icons.Ionicons.Chatbubble
+				},
+				Team1 = {
+					Colour = SGUI.ColourWithAlpha( Colours.Team1Background, 1 ),
+					Text = SGUI.Icons.Ionicons.AndroidPeople
+				},
+				Team2 = {
+					Colour = SGUI.ColourWithAlpha( Colours.Team2Background, 1 ),
+					Text = SGUI.Icons.Ionicons.AndroidPeople
+				},
+				NeutralTeam = {
+					Colour = Colours.ModeText,
+					Text = SGUI.Icons.Ionicons.AndroidPeople
+				}
 			}
 		}
 	},
@@ -211,6 +229,11 @@ local Skin = {
 			}
 		},
 		MessageList = {
+			Colour = Colours.Dark
+		}
+	},
+	Row = {
+		TextEntryIconBackground = {
 			Colour = Colours.Dark
 		}
 	},
@@ -263,7 +286,7 @@ local Skin = {
 			DarkColour = Colours.Dark,
 			BorderColour = Colour( 0, 0, 0, 0 ),
 			TextColour = Colour( 1, 1, 1, 1 ),
-			PlaceholderTextColour = Colour( 0.8, 0.8, 0.8, 0.5 )
+			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 )
 		}
 	}
 }
@@ -332,6 +355,7 @@ local OpacityVariantControls = {
 	"MainPanel",
 	"ChatBox",
 	"TextEntry",
+	"TextEntryIconBackground",
 	"SettingsButton",
 	"SettingsPanel",
 	"SettingsPanelTabs"
@@ -559,6 +583,47 @@ function Plugin:CreateChatbox()
 	ChatBoxLayout:AddElement( TextEntryLayout )
 
 	local Font = self:GetFont()
+	local IconFont, IconScale = SGUI.FontManager.GetFontForAbsoluteSize(
+		SGUI.FontFamilies.Ionicons,
+		Scaled( 32, self.UIScale.y ):GetValue()
+	)
+
+	do
+		local Elements = SGUI:BuildTree( {
+			Parent = Border,
+			{
+				ID = "TextEntryIconBackground",
+				Class = "Row",
+				Props = {
+					AutoSize = UnitVector(
+						Scaled( SettingsButtonSize, ScalarScale ) + PaddingUnit,
+						Scaled( SettingsButtonSize, ScalarScale )
+					),
+					Padding = Spacing( 0, 0, PaddingUnit, 0 ),
+					StyleName = "TextEntryIconBackground"
+				},
+				Children = {
+					{
+						ID = "TextEntryIcon",
+						Class = "Label",
+						Props = {
+							Text = SGUI.Icons.Ionicons.Speakerphone,
+							Font = IconFont,
+							TextScale = IconScale,
+							TextInheritsParentAlpha = false,
+							Alignment = SGUI.LayoutAlignment.CENTRE,
+							CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE
+						}
+					}
+				}
+			}
+		} )
+
+		TextEntryLayout:AddElement( Elements.TextEntryIconBackground )
+
+		self.TextEntryIconBackground = Elements.TextEntryIconBackground
+		self.TextEntryIcon = Elements.TextEntryIcon
+	end
 
 	-- Where messages are entered.
 	local TextEntry = SGUI:Create( "TextEntry", Border )
@@ -645,13 +710,13 @@ function Plugin:CreateChatbox()
 		DebugName = "ChatBoxSettingsButton",
 		Text = SGUI.Icons.Ionicons.GearB,
 		Skin = Skin,
-		Font = SGUI.Fonts.Ionicons,
+		Font = IconFont,
 		AutoSize = UnitVector( Scaled( SettingsButtonSize, ScalarScale ),
 			Scaled( SettingsButtonSize, ScalarScale ) ),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 ),
 		TextInheritsParentAlpha = false
 	}
-	SettingsButton:SetTextScale( SGUI.LinearScaleByScreenHeight( Vector2( 1, 1 ) * self.Config.Scale ) )
+	SettingsButton:SetTextScale( IconScale )
 
 	function SettingsButton:DoClick()
 		return Plugin:OpenSettings( Border, UIScale, ScalarScale )
@@ -1922,6 +1987,7 @@ do
 		if SGUI.IsValid( self.SettingsPanel ) then
 			self.SettingsPanel:SetStylingState( StyleState )
 		end
+		self.TextEntryIcon:SetStylingState( StyleState or "AllChat" )
 
 		self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
 
