@@ -8,8 +8,6 @@ local Controls = SGUI.Controls
 local Binder = require "shine/lib/gui/binding/binder"
 
 local Max = math.max
-local StringUTF8Encode = string.UTF8Encode
-local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableRemoveByValue = table.RemoveByValue
 
