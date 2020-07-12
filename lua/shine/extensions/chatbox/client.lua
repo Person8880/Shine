@@ -595,6 +595,7 @@ function Plugin:CreateChatbox()
 				ID = "TextEntryIconBackground",
 				Class = "Row",
 				Props = {
+					DebugName = "ChatBoxTextEntryIconBackground",
 					AutoSize = UnitVector(
 						Scaled( SettingsButtonSize, ScalarScale ) + PaddingUnit,
 						Scaled( SettingsButtonSize, ScalarScale )
@@ -607,6 +608,7 @@ function Plugin:CreateChatbox()
 						ID = "TextEntryIcon",
 						Class = "Label",
 						Props = {
+							DebugName = "ChatBoxTextEntryIcon",
 							Text = SGUI.Icons.Ionicons.Speakerphone,
 							Font = IconFont,
 							TextScale = IconScale,
@@ -1291,6 +1293,7 @@ do
 			local TabWidth = Units.Max()
 
 			local Tabs = SettingsPanel:Add( "TabPanel" )
+			Tabs:SetDebugName( "ChatBoxSettingsTabs" )
 			Tabs:SetFill( false )
 			-- Use a fixed size to ensure no horizontal scrolling shows during expansion.
 			Tabs:SetAutoSize( UnitVector( Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ), Percentage( 100 ) ) )
