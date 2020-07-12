@@ -25,6 +25,10 @@ function Dropdown:Initialise()
 	self:SetTextAlignment( SGUI.LayoutAlignment.MIN )
 	self:SetIconAlignment( SGUI.LayoutAlignment.MAX )
 
+	-- Prevent option text leaking out.
+	self.Background:SetMinCrop( 0, 0 )
+	self.Background:SetMaxCrop( 1, 1 )
+
 	self.Options = {}
 
 	self:SetOpenMenuOnClick( self.BuildMenu )
@@ -55,6 +59,15 @@ function Dropdown:Initialise()
 			end
 		} )
 		:BindProperty()
+end
+
+function Dropdown:SetText( Text )
+	Controls.Button.SetText( self, Text )
+
+	if SGUI.IsValid( self.Label ) then
+		self.Label:SetFill( true )
+		self.Label:SetAutoEllipsis( true )
+	end
 end
 
 function Dropdown:BuildMenu()

@@ -1064,3 +1064,129 @@ Plugin.ClientConfigSettings = {
 		}
 	}
 }
+
+do
+	local CaseFormatType = string.CaseFormatType
+	local StringTransformCase = string.TransformCase
+
+	local function GetLabel( Setting, Suffix )
+		return Plugin:GetPhrase(
+			StringTransformCase(
+				Setting.ConfigKey, CaseFormatType.UPPER_CAMEL, CaseFormatType.UPPER_UNDERSCORE
+			)..Suffix
+		)
+	end
+
+	local ChatBoxSettings = {}
+	local TypeMap = {
+		Boolean = "CheckBox",
+		Radio = "Dropdown"
+	}
+
+	local TypeConverters = {
+		Slider = function( Setting, ChatBoxSetting )
+			ChatBoxSetting.Bounds = { Setting.Min, Setting.Max }
+			ChatBoxSetting.Decimals = Setting.Decimals
+
+			if Setting.IsPercentage then
+				ChatBoxSetting.Values = function()
+					return Plugin.Config[ Setting.ConfigKey ] * 100
+				end
+			end
+		end,
+		Dropdown = function( Setting, ChatBoxSetting )
+			ChatBoxSetting.Values = function()
+				local Options = {}
+				local SelectedOption
+
+				for i = 1, #Setting.Options do
+					local KeyPrefix = StringTransformCase(
+						Setting.ConfigKey, CaseFormatType.UPPER_CAMEL, CaseFormatType.UPPER_UNDERSCORE
+					)
+
+					local Text
+					if Setting.Type == "Radio" then
+						Text = Setting.Options[ i ]
+					else
+						Text = StringFormat( "%s_%s", KeyPrefix, Setting.Options[ i ] )
+					end
+
+					local Tooltip
+					if Setting.OptionTooltips then
+						Tooltip = Plugin:GetPhrase( StringFormat( "%s_%s_TOOLTIP", KeyPrefix, Setting.Options[ i ] ) )
+					end
+
+					Options[ i ] = {
+						Value = Setting.Options[ i ],
+						Text = Plugin:GetPhrase( Text ),
+						Tooltip = Tooltip
+					}
+
+					if Plugin.Config[ Setting.ConfigKey ] == Options[ i ].Value then
+						SelectedOption = Options[ i ]
+					end
+				end
+
+				return Options, SelectedOption
+			end
+		end
+	}
+
+	for i = 1, #Plugin.ClientConfigSettings do
+		local Setting = Plugin.ClientConfigSettings[ i ]
+		local ChatBoxSetting = {
+			ID = "ImprovedChat"..Setting.ConfigKey,
+			Type = TypeMap[ Setting.Type ] or Setting.Type,
+			ConfigValue = function( ChatBox, Value )
+				Shared.ConsoleCommand( StringFormat( "%s %s", Setting.Command, Value ) )
+			end,
+			Values = function()
+				return Plugin.Config[ Setting.ConfigKey ], GetLabel( Setting, "_DESCRIPTION" )
+			end,
+			Command = Setting.Command,
+			Tooltip = Setting.Tooltip and function() return GetLabel( Setting, "_TOOLTIP" ) end or nil
+		}
+
+		if TypeConverters[ ChatBoxSetting.Type ] then
+			TypeConverters[ ChatBoxSetting.Type ]( Setting, ChatBoxSetting )
+		end
+
+		if Setting.Bindings then
+			local Bindings = {}
+			for i = 1, #Setting.Bindings do
+				local Binding = Setting.Bindings[ i ]
+				Bindings[ i ] = {
+					From = {
+						Element = "ImprovedChat"..Binding.From.Element,
+						Property = Binding.From.Property
+					},
+					To = {
+						Property = Binding.To.Property == "IsVisible" and "Enabled" or Binding.To.Property,
+						Transformer = Binding.To.Transformer,
+						Filter = Binding.To.Filter
+					}
+				}
+			end
+			ChatBoxSetting.Bindings = Bindings
+		end
+
+		if ChatBoxSetting.Type == "Slider" or ChatBoxSetting.Type == "Dropdown" then
+			ChatBoxSettings[ #ChatBoxSettings + 1 ] = {
+				ID = StringFormat( "ImprovedChat%sLabel", Setting.ConfigKey ),
+				Type = "Label",
+				Values = function()
+					return GetLabel( Setting, "_DESCRIPTION" )
+				end
+			}
+		end
+
+		ChatBoxSettings[ #ChatBoxSettings + 1 ] = ChatBoxSetting
+	end
+
+	function Plugin:PopulateChatBoxSettings( ChatBox, SettingsTabs )
+		SettingsTabs:AddAll( {
+			Label = self:GetPhrase( "CHATBOX_SETTINGS_TAB_LABEL" ),
+			Icon = SGUI.Icons.Ionicons.Chatbubbles
+		}, ChatBoxSettings )
+	end
+end

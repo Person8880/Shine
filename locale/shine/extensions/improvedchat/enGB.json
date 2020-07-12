@@ -10,10 +10,11 @@
 	"FONT_SIZE_MODE_AUTO": "Automatically scale with resolution",
 	"FONT_SIZE_MODE_FIXED": "Use a fixed size",
 	"FONT_SIZE_IN_PIXELS_DESCRIPTION": "Font size (pixels):",
-	"UPWARDS": "Add messages upwards.",
-	"DOWNWARDS": "Add messages downwards (vanilla behaviour).",
+	"UPWARDS": "Add messages upwards",
+	"DOWNWARDS": "Add messages downwards (vanilla)",
 	"MESSAGE_DISPLAY_TYPE_UPWARDS_TOOLTIP": "As new messages are added, old messages move upwards to make room.",
 	"MESSAGE_DISPLAY_TYPE_DOWNWARDS_TOOLTIP": "Old messages do not move until those that are older have faded out.",
 	"CHAT_CONFIG_HINT_VOTEMENU": "To customise the behaviour of the chat, press {VoteMenuButton} > \"{ClientConfigButton}\" and go to the \"{ChatTabButton}\" tab.",
-	"CHAT_CONFIG_HINT_CONSOLE": "To customise the behaviour of the chat, open the vote menu and click \"{ClientConfigButton}\" (or use the sh_clientconfigmenu console command) and go to the \"{ChatTabButton}\" tab."
+	"CHAT_CONFIG_HINT_CONSOLE": "To customise the behaviour of the chat, open the vote menu and click \"{ClientConfigButton}\" (or use the sh_clientconfigmenu console command) and go to the \"{ChatTabButton}\" tab.",
+	"CHATBOX_SETTINGS_TAB_LABEL": "Chat HUD"
 }

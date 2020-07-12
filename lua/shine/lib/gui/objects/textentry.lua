@@ -165,6 +165,24 @@ function TextEntry:SetTextColour( Col )
 	self.TextObj:SetColor( Col )
 end
 
+function TextEntry:SetTextShadow( Params )
+	self.Shadow = Params
+
+	if not Params then
+		self.ShadowOffset = nil
+		self.ShadowColour = nil
+		self.TextObj:SetDropShadowEnabled( false )
+		return
+	end
+
+	self.ShadowOffset = Params.Offset or Vector2( 2, 2 )
+	self.ShadowColour = Params.Colour
+
+	self.TextObj:SetDropShadowEnabled( true )
+	self.TextObj:SetDropShadowOffset( self.ShadowOffset )
+	self.TextObj:SetDropShadowColor( Params.Colour )
+end
+
 function TextEntry:SetHighlightColour( Col )
 	self.SelectionBox:SetColor( Col )
 end

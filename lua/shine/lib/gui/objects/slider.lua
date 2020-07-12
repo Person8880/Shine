@@ -31,6 +31,7 @@ SGUI.AddProperty( Slider, "Decimals" )
 SGUI.AddBoundProperty( Slider, "Font", "Label" )
 SGUI.AddBoundProperty( Slider, "TextColour", "Label:SetColour" )
 SGUI.AddBoundProperty( Slider, "TextScale", "Label" )
+SGUI.AddBoundProperty( Slider, "TextShadow", "Label:SetShadow" )
 SGUI.AddBoundProperty( Slider, "HandleColour", "Handle:SetColor" )
 SGUI.AddBoundProperty( Slider, "LineColour", "Line:SetColor" )
 SGUI.AddBoundProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
@@ -94,6 +95,7 @@ function Slider:Initialise()
 		TextEntry:SetSize( self:GetLabelSize() )
 		TextEntry:SetFontScale( Label:GetFont(), Label:GetTextScale() )
 		TextEntry:SetText( tostring( self.Value ) )
+		TextEntry:SetTextShadow( Label:GetShadow() )
 
 		local Pattern = "^%d+$"
 		if self.Decimals > 0 then

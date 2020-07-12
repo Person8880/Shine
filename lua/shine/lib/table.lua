@@ -380,88 +380,21 @@ end
 table.GetKeys = GetKeys
 
 do
-	local DebugGetInfo = debug.getinfo
-	local getmetatable = getmetatable
 	local Notify = Shared.Message
-	local pcall = pcall
-	local StringFind = string.find
 	local StringFormat = string.format
 	local StringLower = string.lower
 	local StringRep = string.rep
-	local StringStartsWith = string.StartsWith
 	local TableConcat = table.concat
-	local tonumber = tonumber
-	local tostring = tostring
 	local type = type
 
-	local function GetClassName( Value )
-		if Value.GetClassName then
-			return StringFormat( "%s (%s)", Value, Value:GetClassName() )
-		end
-	end
+	local Inspect = require "shine/lib/inspect"
+	local SafeToString = Inspect.SafeToString
+	local ToString = Inspect.ToString
+	local ToShortString = Inspect.ToShortString
+	local ToShortStringKey = Inspect.ToShortStringKey
 
-	local function SafeToString( Value )
-		-- __tostring() metamethods can throw errors. Unfortunately there's no rawtostring().
-		local Success, String = pcall( tostring, Value )
-		if not Success then
-			return "error calling tostring()"
-		end
-		return String
-	end
-
-	local FFILoaded, FFI = pcall( require, "ffi" )
-	local FFIIsType = FFILoaded and FFI and FFI.istype or function() return false end
-
-	local DefaultPrinters = {
-		string = function( Value )
-			if StringFind( Value, "\n", 1, true ) then
-				return StringFormat( "[==[%s]==]", Value )
-			end
-			return StringFormat( "%q", Value )
-		end,
-		[ "function" ] = function( Value )
-			local Source = DebugGetInfo( Value, "S" )
-			return StringFormat( "%s (%s:%d)", Value, Source.short_src, Source.linedefined )
-		end,
-		userdata = function( Value )
-			local Meta = getmetatable( Value )
-			if IsType( Meta, "table" ) and Meta.__towatch then
-				return SafeToString( Meta.__towatch( Value ) )
-			end
-
-			-- Some userdata may error for unknown keys.
-			local Success, Name = pcall( GetClassName, Value )
-			if Success and Name then
-				return Name
-			end
-
-			return SafeToString( Value )
-		end,
-		cdata = function( Value )
-			-- Hack to detect ctypes, which pass the istype call...
-			if not StringStartsWith( SafeToString( Value ), "ctype<" ) then
-				local Success, IsType = pcall( FFIIsType, "Color", Value )
-				if Success and IsType then
-					return StringFormat( "Colour( %s, %s, %s, %s )", Value.r, Value.g, Value.b, Value.a )
-				end
-
-				Success, IsType = pcall( FFIIsType, "Vector", Value )
-				if Success and IsType then
-					return StringFormat( "Vector( %s, %s, %s )", Value.x, Value.y, Value.z )
-				end
-			end
-
-			return SafeToString( Value )
-		end
-	}
-
-	local function ToPrintKey( Key, Printers )
-		local Type = type( Key )
-		return StringFormat( "[ %s ]", ( Printers[ Type ] or SafeToString )( Key ) )
-	end
-
-	local function ToPrintString( Value, Printers )
-		return ( Printers[ type( Value ) ] or SafeToString )( Value )
+	local function ToPrintKey( Key )
+		return StringFormat( "[ %s ]", ToString( Key ) )
 	end
 
 	local function KeySorter( A, B )
@@ -510,10 +443,10 @@ do
 				Done[ Value ] = true
 				local TableAsString = TableToString( Value, Indent + 1, Done )
 				Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
-					ToPrintKey( Key, DefaultPrinters ), TableAsString )
+					ToPrintKey( Key ), TableAsString )
 			else
 				Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", IndentString,
-					ToPrintKey( Key, DefaultPrinters ), ToPrintString( Value, DefaultPrinters ) )
+					ToPrintKey( Key ), ToString( Value ) )
 			end
 		end
 
@@ -530,25 +463,6 @@ do
 		Notify( TableToString( Table ) )
 	end
 
-	local DebugPrinters = setmetatable( {
-		table = function( Value )
-			local Meta = getmetatable( Value )
-			if IsType( Meta, "table" ) and Meta.__tostring and Meta.__PrintAsString then
-				return SafeToString( Value )
-			end
-			return StringFormat( "%s (%d array element%s, %s)", SafeToString( Value ), #Value, #Value == 1 and "" or "s",
-				next( Value ) ~= nil and "not empty" or "empty" )
-		end
-	}, { __index = DefaultPrinters } )
-	local DebugKeyPrinters = setmetatable( {
-		string = function( Value )
-			if StringFind( Value, "\n", 1, true ) then
-				return StringFormat( "[==[%s]==]", Value )
-			end
-			return Value
-		end
-	}, { __index = DebugPrinters } )
-
 	function table.ToDebugString( Table, Indent )
 		Indent = Indent or ""
 
@@ -559,9 +473,12 @@ do
 		for i = 1, #Keys do
 			local Key = Keys[ i ]
 			local Value = Table[ Key ]
-			Strings[ #Strings + 1 ] = StringFormat( "%s%s = %s", Indent,
-				ToPrintString( Key, DebugKeyPrinters ),
-				ToPrintString( Value, DebugPrinters ) )
+			Strings[ #Strings + 1 ] = StringFormat(
+				"%s%s = %s",
+				Indent,
+				ToShortStringKey( Key ),
+				ToShortString( Value )
+			)
 		end
 
 		return TableConcat( Strings, "\n" )
