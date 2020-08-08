@@ -334,7 +334,7 @@ function Shine:OpenWebpage( URL, TitleText )
 
 			-- Alerts never seem to be received by Lua when placed in callbacks at the JS level, so this polling
 			-- hack is the only way to update the current URL.
-			Shine.Timer.Create( "WebpageUpdate", 1, -1, function( Timer )
+			Shine.Timer.Create( "WebpageUpdate", 0.1, -1, function( Timer )
 				if not SGUI.IsValid( Webpage ) then
 					Timer:Destroy()
 					return
@@ -363,6 +363,8 @@ function Shine:CloseWebPage()
 
 	self.ActiveWebPage:Destroy()
 	self.ActiveWebPage = nil
+
+	Shine.Timer.Destroy( "WebpageUpdate" )
 end
 
 Hook.Add( "PlayerKeyPress", "WebpageClose", function( Key, Down, Amount )
