@@ -181,12 +181,14 @@ do
 								Menu:Destroy()
 							end )
 							MenuButton:SetIcon( Tab.TabButton:GetIcon() )
-							MaxOfIcons:AddValue( Units.Auto( MenuButton.Icon ) )
+
+							local IconSize = MenuButton.Icon and Units.Auto( MenuButton.Icon ) or Units.Absolute( 0 )
+							MaxOfIcons:AddValue( IconSize )
 
 							MenuButton:SetStyleName( "TabPanelOverflowMenuButton" )
 							MenuButton.Label:SetMargin(
 								Units.Spacing(
-									MaxOfIcons - Units.Auto( MenuButton.Icon ), 0, 0, 0
+									MaxOfIcons - IconSize, 0, 0, 0
 								)
 							)
 						end
