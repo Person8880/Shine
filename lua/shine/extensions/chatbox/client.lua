@@ -576,8 +576,9 @@ function Plugin:CreateChatbox()
 	self.ChatBox = Box
 
 	local SettingsButtonSize = LayoutData.Sizes.SettingsButton
+	local TextEntryRowHeight = Scaled( SettingsButtonSize, ScalarScale )
 	local TextEntryLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-		AutoSize = UnitVector( Percentage( 100 ), Scaled( SettingsButtonSize, ScalarScale ) ),
+		AutoSize = UnitVector( Percentage( 100 ), TextEntryRowHeight ),
 		Fill = false
 	} )
 	ChatBoxLayout:AddElement( TextEntryLayout )
@@ -597,8 +598,8 @@ function Plugin:CreateChatbox()
 				Props = {
 					DebugName = "ChatBoxTextEntryIconBackground",
 					AutoSize = UnitVector(
-						Scaled( SettingsButtonSize, ScalarScale ) + PaddingUnit,
-						Scaled( SettingsButtonSize, ScalarScale )
+						TextEntryRowHeight + PaddingUnit,
+						Percentage( 100 )
 					),
 					Padding = Spacing( 0, 0, PaddingUnit, 0 ),
 					StyleName = "TextEntryIconBackground"
@@ -641,12 +642,6 @@ function Plugin:CreateChatbox()
 	}
 	if self.TextScale ~= 1 then
 		TextEntry:SetTextScale( self.TextScale )
-	end
-	if Font == Fonts.kAgencyFB_Tiny then
-		-- For some reason, the tiny font is always 1 behind where it should be...
-		TextEntry.Padding = 3
-		TextEntry.CaretOffset = -1
-		TextEntry:SetupCaret()
 	end
 
 	TextEntryLayout:AddElement( TextEntry )
@@ -713,8 +708,10 @@ function Plugin:CreateChatbox()
 		Text = SGUI.Icons.Ionicons.GearB,
 		Skin = Skin,
 		Font = IconFont,
-		AutoSize = UnitVector( Scaled( SettingsButtonSize, ScalarScale ),
-			Scaled( SettingsButtonSize, ScalarScale ) ),
+		AutoSize = UnitVector(
+			TextEntryRowHeight,
+			Percentage( 100 )
+		),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 ),
 		TextInheritsParentAlpha = false
 	}
