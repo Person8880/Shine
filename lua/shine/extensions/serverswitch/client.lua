@@ -25,11 +25,15 @@ function Plugin:Initialise()
 end
 
 VoteMenu:AddPage( "ServerSwitch", function( self )
+	local Servers = Plugin.ServerList
+	if not Plugin.Enabled or not Servers then
+		self:SetPage( "Main" )
+		return
+	end
+
 	self:AddBottomButton( Plugin:GetPhrase( "BACK" ), function()
 		self:SetPage( "Main" )
 	end )
-
-	local Servers = Plugin.ServerList
 
 	local function ClickServer( ID )
 		if self.GetCanSendVote() then
