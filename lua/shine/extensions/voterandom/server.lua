@@ -512,7 +512,7 @@ function Plugin:OnFirstThink()
 		for i = 1, #Commands do
 			local Entry = Commands[ i ]
 			local Team = Entry.Team
-			Event.Hook( Entry.Event, function( Client )
+			Event.Hook( Entry.Event, self:WrapCallback( function( Client )
 				local Gamerules = GetGamerules()
 				if not Gamerules or Gamerules:GetGameStarted() then return end
 				if self.LastAttemptedTeamJoins[ Client ] == Team then return end
@@ -533,7 +533,7 @@ function Plugin:OnFirstThink()
 				}, true )
 
 				self:UpdateFriendGroupTeamPreference( Client, Silent )
-			end )
+			end ) )
 		end
 	end
 

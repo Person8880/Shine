@@ -204,7 +204,7 @@ do
 
 	local function UnwrapResults( Success, ... )
 		if not Success then
-			return nil
+			return
 		end
 		return ...
 	end
