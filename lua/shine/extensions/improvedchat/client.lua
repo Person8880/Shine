@@ -433,6 +433,13 @@ function Plugin:OnFirstThink()
 	SGUI.NotificationManager.RegisterHint( CHAT_CONFIG_HINT_NAME, {
 		MaxTimes = 1,
 		MessageSupplier = function()
+			if Shine:IsExtensionEnabled( "chatbox" ) then
+				local ChatBoxSettingsTab = self:GetPhrase( "CHATBOX_SETTINGS_TAB_LABEL" )
+				return self:GetInterpolatedPhrase( "CHAT_CONFIG_HINT_CHATBOX", {
+					ChatBoxSettingsTab = ChatBoxSettingsTab
+				} )
+			end
+
 			local ChatTabButton = self:GetPhrase( "CLIENT_CONFIG_TAB" )
 
 			local VoteMenuButton = Shine.VoteButton

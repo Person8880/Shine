@@ -956,6 +956,20 @@ function Plugin:OnFirstThink()
 			:Filter( FilterPlayers )
 			:AsTable()
 	end
+
+	do
+		-- Treat attempting to join a team as activity.
+		local Commands = {
+			"j1", "jointeamone", "j2", "jointeamtwo", "j3", "jointeamthree", "rr", "readyroom", "spectate"
+		}
+		local OnAttemptToJoinTeam = self:WrapCallback( function( Client )
+			self:SubtractAFKTime( Client, 0.1 )
+		end )
+
+		for i = 1, #Commands do
+			Event.Hook( "Console_"..Commands[ i ], OnAttemptToJoinTeam )
+		end
+	end
 end
 
 function Plugin:Cleanup()
