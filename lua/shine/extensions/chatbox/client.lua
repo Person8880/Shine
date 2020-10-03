@@ -285,6 +285,7 @@ local Skin = {
 			FocusColour = Colours.Dark,
 			DarkColour = Colours.Dark,
 			BorderColour = Colour( 0, 0, 0, 0 ),
+			BorderSize = Vector2( 0, 0 ),
 			TextColour = Colour( 1, 1, 1, 1 ),
 			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 )
 		}
@@ -632,7 +633,6 @@ function Plugin:CreateChatbox()
 	local TextEntry = SGUI:Create( "TextEntry", Border )
 	TextEntry:SetupFromTable{
 		DebugName = "ChatBoxTextEntry",
-		BorderSize = Vector2( 0, 0 ),
 		Text = "",
 		StickyFocus = true,
 		Skin = Skin,
