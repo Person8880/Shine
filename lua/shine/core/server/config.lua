@@ -422,12 +422,12 @@ function Shine:LoadExtensionConfigs()
 
 					-- Always start beta extensions in a disabled state.
 					ActiveBetaExtensions[ Plugin ] = false
+					Modified = true
 				end
 			else
 				ActiveExtensions[ Plugin ] = DefaultState
+				Modified = true
 			end
-
-			Modified = true
 		end
 
 		local EnabledState = ActiveExtensions[ Plugin ]
