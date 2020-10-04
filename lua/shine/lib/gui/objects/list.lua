@@ -63,7 +63,7 @@ function List:Initialise()
 
 	self.HeaderLayout = SGUI.Layout:CreateLayout( "Horizontal", {
 		Fill = false,
-		AutoSize = UnitVector( Percentage( 100 ), self.HeaderSize )
+		AutoSize = UnitVector( Percentage.ONE_HUNDRED, self.HeaderSize )
 	} )
 	self.Layout = SGUI.Layout:CreateLayout( "Vertical", {
 		Elements = {
@@ -206,7 +206,7 @@ function List:SetSpacing( ... )
 		local Size = select( i, ... )
 
 		HeaderSizes[ i ] = Size
-		self.Columns[ i ]:SetAutoSize( UnitVector( Percentage( Size * 100 ), Percentage( 100 ) ) )
+		self.Columns[ i ]:SetAutoSize( UnitVector( Percentage( Size * 100 ), Percentage.ONE_HUNDRED ) )
 	end
 
 	self:InvalidateLayout()

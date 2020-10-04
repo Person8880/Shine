@@ -258,7 +258,7 @@ local function PopulatePanelWithOKStatus( Panel )
 						Alignment = SGUI.LayoutAlignment.MAX,
 						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
 						AutoFont = AgencyFBNormal,
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+						AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
 						Options = NotificationLevelOptions,
 						SelectedOption = GetSelectedNotificationLevel()
 					}
@@ -380,7 +380,7 @@ function NotificationEntry:SetNotification( Notification )
 				DebugName = "SystemNotificationTextContainer",
 				-- Fill the width of the parent, but make the height depend on the size of the message text.
 				Fill = true,
-				AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+				AutoSize = Units.UnitVector( Units.Auto.INSTANCE, Units.Auto.INSTANCE ),
 				Colour = Colour( 0, 0, 0, 0.15 ),
 				Padding = Units.Spacing(
 					PaddingAmount, PaddingAmount, PaddingAmount, PaddingAmount
@@ -405,7 +405,7 @@ function NotificationEntry:SetNotification( Notification )
 						Text = Locale:GetInterpolatedPhrase( Message.Source, Message.TranslationKey, {
 							Context = Message.Context
 						} ),
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+						AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
 						AutoWrap = true
 					}
 				}
@@ -453,7 +453,7 @@ local function PopulatePanelWithNotifications( Panel )
 					Props = {
 						Notification = Notifications[ j ],
 						Margin = Units.Spacing( 0, ListMargin, 0, j == #Notifications and PanelPadding or 0 ),
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() )
+						AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE )
 					}
 				}
 			end
@@ -506,7 +506,7 @@ local function PopulatePanelWithNotifications( Panel )
 						Alignment = SGUI.LayoutAlignment.MAX,
 						CrossAxisAlignment = SGUI.LayoutAlignment.MIN,
 						AutoFont = AgencyFBNormal,
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+						AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
 						Options = NotificationLevelOptions,
 						SelectedOption = GetSelectedNotificationLevel()
 					}

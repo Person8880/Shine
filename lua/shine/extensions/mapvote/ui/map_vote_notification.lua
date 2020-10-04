@@ -146,7 +146,7 @@ function MapVoteNotification:Initialise()
 			Class = "Row",
 			Props = {
 				Fill = false,
-				AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+				AutoSize = Units.UnitVector( Units.Auto.INSTANCE, Units.Auto.INSTANCE ),
 				Padding = Units.Spacing( LargePadding, LargePadding, LargePadding, LargePadding )
 			},
 			Children = {
@@ -210,7 +210,7 @@ function MapVoteNotification:Initialise()
 			Class = "Column",
 			Props = {
 				Fill = false,
-				AutoSize = Units.UnitVector( Units.Auto(), Units.Percentage( 100 ) ),
+				AutoSize = Units.UnitVector( Units.Auto.INSTANCE, Units.Percentage.ONE_HUNDRED ),
 				Padding = Units.Spacing( LargePadding, LargePadding, LargePadding, LargePadding )
 			},
 			Children = {

@@ -146,7 +146,7 @@ function Label:SetAutoWrap( AutoWrap )
 	return true
 end
 
--- Apply word wrapping before the height is computed (assuming height = Units.Auto()).
+-- Apply word wrapping before the height is computed (assuming height = Units.Auto.INSTANCE).
 function Label:ApplyAutoWrapping( Width )
 	local CurrentText = self.Label:GetText()
 

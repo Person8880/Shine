@@ -115,7 +115,7 @@ function Menu:AutoSizeButtonIcons()
 		local Button = self.Buttons[ i ]
 		if Button.Icon then
 			Size:AddValue( Units.Auto( Button.Icon ) )
-			Button:SetIconMargin( Units.Spacing( 0, 0, Size - Units.Auto() + Units.HighResScaled( 8 ), 0 ) )
+			Button:SetIconMargin( Units.Spacing( 0, 0, Size - Units.Auto.INSTANCE + Units.HighResScaled( 8 ), 0 ) )
 		end
 	end
 end

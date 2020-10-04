@@ -56,7 +56,7 @@ function MapTile:Initialise()
 			Class = "Vertical",
 			Props = {
 				Fill = false,
-				AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Percentage( 100 ) )
+				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Percentage.ONE_HUNDRED )
 			},
 			Children = {
 				{
@@ -141,7 +141,7 @@ function MapTile:Initialise()
 							Props = {
 								Alignment = SGUI.LayoutAlignment.CENTRE,
 								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-								AutoSize = Units.UnitVector( Units.Percentage( 25 ), 0 ),
+								AutoSize = Units.UnitVector( Units.Percentage.TWENTY_FIVE, 0 ),
 								AspectRatio = 1,
 								StyleName = self:GetTeamVariation()
 							},
@@ -164,7 +164,7 @@ function MapTile:Initialise()
 		{
 			Class = "Row",
 			Props = {
-				AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
 				Padding = Units.Spacing( Units.GUIScaled( 4 ), 0, Units.GUIScaled( 4 ), 0 ),
 				PositionType = SGUI.PositionType.ABSOLUTE,
 				Anchor = "TopLeft",
@@ -178,7 +178,7 @@ function MapTile:Initialise()
 						Icon = SGUI.Icons.Ionicons.Wrench,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						StyleName = "ShowOverviewButton",
-						AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+						AutoSize = Units.UnitVector( Units.Auto.INSTANCE, Units.Auto.INSTANCE ),
 						IsVisible = false,
 						DoClick = function()
 							Client.ShowWebpage( StringFormat( "https://steamcommunity.com/sharedfiles/filedetails/?id=%s", self.ModID ) )
@@ -216,7 +216,7 @@ function MapTile:Initialise()
 						Alignment = SGUI.LayoutAlignment.MAX,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						StyleName = "ShowOverviewButton",
-						AutoSize = Units.UnitVector( Units.Auto(), Units.Auto() ),
+						AutoSize = Units.UnitVector( Units.Auto.INSTANCE, Units.Auto.INSTANCE ),
 						DoClick = function()
 							if SGUI.IsValid( self.OverviewImageContainer ) then
 								self:HideOverviewImage()
@@ -243,9 +243,9 @@ function MapTile:Initialise()
 		{
 			Class = "Row",
 			Props = {
-				AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() ),
+				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
 				PositionType = SGUI.PositionType.ABSOLUTE,
-				TopOffset = Units.Percentage( 100 ) - Units.Auto(),
+				TopOffset = Units.Percentage.ONE_HUNDRED - Units.Auto.INSTANCE,
 				Anchor = "TopLeft",
 				StyleName = "MapTileHeader"
 			},
@@ -300,8 +300,8 @@ function MapTile:Initialise()
 		OnBuilt = function( Elements )
 			Elements.MapNameLabel:SetAutoSize(
 				Units.UnitVector(
-					Units.Min( Units.Auto(), Units.Percentage( 100 ) - Units.Auto( Elements.ShowOverviewButton ) * 2 ),
-					Units.Auto()
+					Units.Min( Units.Auto.INSTANCE, Units.Percentage.ONE_HUNDRED - Units.Auto( Elements.ShowOverviewButton ) * 2 ),
+					Units.Auto.INSTANCE
 				)
 			)
 		end
@@ -362,7 +362,7 @@ function MapTile:ShowOverviewImage()
 									Fraction = 0.75,
 									Alignment = SGUI.LayoutAlignment.CENTRE,
 									CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
-									AutoSize = Units.UnitVector( Units.Percentage( 25 ), 0 ),
+									AutoSize = Units.UnitVector( Units.Percentage.TWENTY_FIVE, 0 ),
 									AspectRatio = 1,
 									StyleName = self:GetTeamVariation()
 								}
@@ -377,7 +377,7 @@ function MapTile:ShowOverviewImage()
 									Alignment = SGUI.LayoutAlignment.CENTRE,
 									CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 									AspectRatio = 1,
-									AutoSize = Units.UnitVector( Units.Percentage( 75 ), 0 ),
+									AutoSize = Units.UnitVector( Units.Percentage.SEVENTY_FIVE, 0 ),
 									InheritsParentAlpha = true
 								}
 							}

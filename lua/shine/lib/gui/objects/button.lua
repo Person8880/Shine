@@ -119,7 +119,7 @@ function Button:SetText( Text )
 				if Horizontal then
 					return nil
 				end
-				return Units.UnitVector( Units.Percentage( 100 ), Units.Auto() )
+				return Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE )
 			end
 		} )
 		:ToElement( Description, "TextAlignmentX", {

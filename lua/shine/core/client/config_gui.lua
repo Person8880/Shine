@@ -222,8 +222,8 @@ local function MakeElementWithDescription( Panel, Entry, Populator )
 	local Container = Panel:Add( "Panel" )
 	Container:SetStyleName( "RadioBackground" )
 	Container:SetAutoSize( UnitVector(
-		Percentage( 100 ),
-		Units.Auto()
+		Percentage.ONE_HUNDRED,
+		Units.Auto.INSTANCE
 	) )
 
 	local TranslationSource = Entry.TranslationSource or "Core"
@@ -232,7 +232,7 @@ local function MakeElementWithDescription( Panel, Entry, Populator )
 	local Description = Container:Add( "Label" )
 	Description:SetFontScale( GetSmallFont() )
 	Description:SetText( Locale:GetPhrase( TranslationSource, Entry.Description ) )
-	Description:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
+	Description:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ) )
 	Description:SetMargin( Spacing( 0, 0, 0, SMALL_PADDING ) )
 	VerticalLayout:AddElement( Description )
 
@@ -275,7 +275,7 @@ local SettingsTypes = {
 				Slider:SetBounds( Entry.Min, Entry.Max )
 				Slider:SetDecimals( Entry.Decimals or 0 )
 
-				Slider:SetAutoSize( UnitVector( Percentage( 100 ) - HighResScaled( 64 ), HighResScaled( 32 ) ) )
+				Slider:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED - HighResScaled( 64 ), HighResScaled( 32 ) ) )
 
 				function Slider:OnValueChanged( Value )
 					Shared.ConsoleCommand( StringFormat( "%s %s", Entry.Command, Value ) )
@@ -298,7 +298,7 @@ local SettingsTypes = {
 				local Dropdown = Container:Add( "Dropdown" )
 				Dropdown:SetFontScale( GetSmallFont() )
 				Dropdown:AddOptions( Shine.IsCallable( Entry.Options ) and Entry.Options() or Entry.Options )
-				Dropdown:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+				Dropdown:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ) )
 				VerticalLayout:AddElement( Dropdown )
 
 				local CurrentValue = GetConfiguredValue( Entry )
@@ -319,7 +319,7 @@ local SettingsTypes = {
 		Create = function( Panel, Entry )
 			return MakeElementWithDescription( Panel, Entry, function( Entry, TranslationSource, Container, VerticalLayout )
 				local Radio = Container:Add( "Radio" )
-				Radio:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() ) )
+				Radio:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ) )
 				Radio:SetFontScale( GetSmallFont() )
 				Radio:SetCheckBoxAutoSize( UnitVector( HighResScaled( 24 ), HighResScaled( 24 ) ) )
 				Radio:SetCheckBoxMargin( Spacing( 0, HighResScaled( 4 ), 0, 0 ) )
@@ -490,8 +490,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 						Hint:SetFontScale( GetSmallFont() )
 
 						Hint:SetAutoSize( UnitVector(
-							Percentage( 100 ),
-							Units.Auto()
+							Percentage.ONE_HUNDRED,
+							Units.Auto.INSTANCE
 						) )
 
 						TabLayout:AddElement( Hint )
@@ -629,7 +629,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "PLUGINS_TAB" ), {
 
 		local EnableButton = SGUI:Create( "Button", Panel )
 		EnableButton:SetDebugName( "ClientConfigMenuEnablePluginButton" )
-		EnableButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + SMALL_PADDING ) )
+		EnableButton:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE + SMALL_PADDING ) )
 		EnableButton:SetText( Locale:GetPhrase( "Core", "ENABLE_PLUGIN" ) )
 		EnableButton:SetFontScale( Font, Scale )
 		EnableButton:SetIcon( SGUI.Icons.Ionicons.Power )
