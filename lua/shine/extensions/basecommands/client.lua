@@ -327,7 +327,7 @@ function Plugin:SetupAdminMenuCommands()
 				Auto( ChangeMap ) + HighResScaled( 16 )
 			)
 
-			ChangeMap:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+			ChangeMap:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
 			if Shine:IsExtensionEnabled( "mapvote" ) then
 				local CallVote = SGUI:Create( "Button", Panel )
@@ -340,7 +340,7 @@ function Plugin:SetupAdminMenuCommands()
 					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 				end
 				CallVote:SetTooltip( self:GetPhrase( "CALL_VOTE_TIP" ) )
-				CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+				CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
 				ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
 
@@ -348,7 +348,7 @@ function Plugin:SetupAdminMenuCommands()
 			end
 
 			local ButtonHeight = Auto( ChangeMap ) + HighResScaled( 8 )
-			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+			ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
 
 			Layout:AddElement( ControlLayout )
 			Panel:SetLayout( Layout )
@@ -529,11 +529,11 @@ function Plugin:SetupAdminMenuCommands()
 				Auto( LoadPlugin ) + HighResScaled( 16 ),
 				Auto( UnloadPlugin ) + HighResScaled( 16 )
 			)
-			UnloadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
-			LoadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+			UnloadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
+			LoadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
 			local ButtonHeight = Auto( LoadPlugin ) + HighResScaled( 8 )
-			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+			ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
 
 			Layout:AddElement( ControlLayout )
 			Panel:SetLayout( Layout )

@@ -138,7 +138,7 @@ do
 			self:SetExpanded( true )
 
 			local TabsLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-				AutoSize = Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ),
+				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, self.TabHeight ),
 				Fill = false
 			} )
 			TabsLayout:AddElement( self.TabPanel )
@@ -150,8 +150,8 @@ do
 			-- all available tabs. This makes navigating tabs when they overflow easier.
 			local AllTabsButton = SGUI:Create( "Button", self )
 			AllTabsButton:SetAutoSize( Units.UnitVector(
-				Units.Auto() + Units.HighResScaled( 8 ),
-				Units.Percentage( 100 )
+				Units.Auto.INSTANCE + Units.HighResScaled( 8 ),
+				Units.Percentage.ONE_HUNDRED
 			) )
 			AllTabsButton:SetAutoFont( {
 				Family = SGUI.FontFamilies.Ionicons,
@@ -218,7 +218,7 @@ do
 			local TabsLayout = SGUI.Layout:CreateLayout( "Vertical", {
 				AutoSize = Units.UnitVector(
 					self:GetExpanded() and self.TabWidth or self:GetCollapsedTabSize(),
-					Units.Percentage( 100 )
+					Units.Percentage.ONE_HUNDRED
 				),
 				Fill = false
 			} )
@@ -229,7 +229,7 @@ do
 			self.TabPanel:SetAutoHideScrollbar( true )
 
 			local ExpanderButton = SGUI:Create( "Button", self )
-			ExpanderButton:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self:GetCollapsedTabSize() ) )
+			ExpanderButton:SetAutoSize( Units.UnitVector( Units.Percentage.ONE_HUNDRED, self:GetCollapsedTabSize() ) )
 			function ExpanderButton.DoClick()
 				self:SetExpanded( not self:GetExpanded() )
 			end
@@ -244,12 +244,12 @@ do
 				:ToElement( TabsLayout, "AutoSize", {
 					Filter = function() return not self.Expanded end,
 					Transformer = function( CollapsedTabSize )
-						return Units.UnitVector( CollapsedTabSize, Units.Percentage( 100 ) )
+						return Units.UnitVector( CollapsedTabSize, Units.Percentage.ONE_HUNDRED )
 					end
 				} )
 				:ToElement( ExpanderButton, "AutoSize", {
 					Transformer = function( CollapsedTabSize )
-						return Units.UnitVector( Units.Percentage( 100 ), CollapsedTabSize )
+						return Units.UnitVector( Units.Percentage.ONE_HUNDRED, CollapsedTabSize )
 					end
 				} ):BindProperty()
 
@@ -259,7 +259,7 @@ do
 					Transformer = function( Expanded )
 						return Units.UnitVector(
 							Expanded and self.TabWidth or self:GetCollapsedTabSize(),
-							Units.Percentage( 100 )
+							Units.Percentage.ONE_HUNDRED
 						)
 					end
 				} )
@@ -325,9 +325,9 @@ end
 
 function TabPanel:UpdateSizes()
 	if self.Horizontal then
-		self.TabsLayout:SetAutoSize( Units.UnitVector( Units.Percentage( 100 ), self.TabHeight ) )
+		self.TabsLayout:SetAutoSize( Units.UnitVector( Units.Percentage.ONE_HUNDRED, self.TabHeight ) )
 	else
-		self.TabsLayout:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage( 100 ) ) )
+		self.TabsLayout:SetAutoSize( Units.UnitVector( self.TabWidth, Units.Percentage.ONE_HUNDRED ) )
 	end
 
 	for i = 1, self.NumTabs do

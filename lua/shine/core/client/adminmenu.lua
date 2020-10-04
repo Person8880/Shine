@@ -459,7 +459,7 @@ do
 		end
 	end
 
-	local ButtonHeight = Units.Auto() + HighResScaled( 6 )
+	local ButtonHeight = Units.Auto.INSTANCE + HighResScaled( 6 )
 	local function GenerateButton( Data )
 		local Button = SGUI:Create( "Button" )
 		Button:SetText( Data.Name )
@@ -484,7 +484,7 @@ do
 	local function AddCommandButton( Category, CommandData, Font, Scale )
 		local Button = GenerateButton( CommandData )
 		Button:SetFontScale( Font, Scale )
-		Button:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+		Button:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
 
 		local Width = Units.Auto( Button ) + HighResScaled( 8 )
 		CommandsListWidth:AddValue( Width )
@@ -582,7 +582,7 @@ do
 				end
 			end
 
-			Commands:SetAutoSize( UnitVector( CommandsListWidth, Percentage( 100 ) ) )
+			Commands:SetAutoSize( UnitVector( CommandsListWidth, Percentage.ONE_HUNDRED ) )
 
 			function PlayerList:OnSelectionChanged( Rows )
 				local Buttons = Commands:GetAllObjects()
@@ -895,7 +895,7 @@ below. If you want to get to it outside the game, visit:]],
 			end
 
 			local HomeButton = SGUI:Create( "Button", Panel )
-			HomeButton:SetAutoSize( UnitVector( Percentage( 100 ), Units.Auto() + HighResScaled( 8 ) ) )
+			HomeButton:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE + HighResScaled( 8 ) ) )
 			HomeButton:SetAlignment( SGUI.LayoutAlignment.MAX )
 			HomeButton:SetFontScale( Font, Scale )
 			HomeButton:SetText( Locale:GetPhrase( "Core", "ADMIN_MENU_OPEN_WIKI" ) )

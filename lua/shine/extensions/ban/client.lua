@@ -106,7 +106,7 @@ function Plugin:SetupAdminMenu()
 		Layout:AddElement( IDLabel )
 
 		local SearchLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-			AutoSize = UnitVector( Percentage( 100 ), HighResScaled( 32 ) ),
+			AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
 			Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) ),
 			Fill = false
 		} )
@@ -179,7 +179,7 @@ function Plugin:SetupAdminMenu()
 
 		DurationEntry = SGUI:Create( "TextEntry", Window )
 		DurationEntry:SetDebugName( "AdminMenuAddBanDurationEntry" )
-		DurationEntry:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+		DurationEntry:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ) )
 		DurationEntry:SetFontScale( Font, Scale )
 		DurationEntry:SetCharPattern( "[%w%.%-]" )
 		DurationEntry:SetMargin( Spacing( 0, 0, 0, HighResScaled( 5 ) ) )
@@ -227,7 +227,7 @@ function Plugin:SetupAdminMenu()
 
 		ReasonEntry = SGUI:Create( "TextEntry", Window )
 		ReasonEntry:SetDebugName( "AdminMenuAddBanReasonEntry" )
-		ReasonEntry:SetAutoSize( UnitVector( Percentage( 100 ), HighResScaled( 32 ) ) )
+		ReasonEntry:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ) )
 		ReasonEntry:SetFontScale( Font, Scale )
 		function ReasonEntry:OnTab()
 			self:LoseFocus()
@@ -242,7 +242,7 @@ function Plugin:SetupAdminMenu()
 		AddBan:SetDebugName( "AdminMenuAddBanConfirmButton" )
 		local ButtonLayout = SGUI.Layout:CreateLayout( "Horizontal", {
 			Fill = false,
-			AutoSize = UnitVector( Percentage( 100 ), Auto( AddBan ) + HighResScaled( 8 ) ),
+			AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto( AddBan ) + HighResScaled( 8 ) ),
 			Alignment = SGUI.LayoutAlignment.MAX
 		} )
 
@@ -250,7 +250,7 @@ function Plugin:SetupAdminMenu()
 		AddBan:SetStyleName( "SuccessButton" )
 		AddBan:SetFontScale( Font, Scale )
 		AddBan:SetAlignment( SGUI.LayoutAlignment.CENTRE )
-		AddBan:SetAutoSize( UnitVector( Units.Max( Auto( AddBan ), HighResScaled( 128 ) ), Percentage( 100 ) ) )
+		AddBan:SetAutoSize( UnitVector( Units.Max( Auto( AddBan ), HighResScaled( 128 ) ), Percentage.ONE_HUNDRED ) )
 
 		ButtonLayout:AddElement( AddBan )
 		Layout:AddElement( ButtonLayout )
@@ -315,7 +315,7 @@ function Plugin:SetupAdminMenu()
 
 			local SearchBar = SGUI.Layout:CreateLayout( "Horizontal", {
 				Margin = Spacing( 0, 0, 0, HighResScaled( 16 ) ),
-				AutoSize = UnitVector( Percentage( 100 ), Auto( SearchBox ) + 2 ),
+				AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto( SearchBox ) + 2 ),
 				Fill = false
 			} )
 
@@ -377,8 +377,8 @@ function Plugin:SetupAdminMenu()
 			} )
 
 			local PageButtonSize = UnitVector(
-				Units.Max( HighResScaled( 32 ), Auto() + HighResScaled( 8 ) ),
-				Percentage( 100 )
+				Units.Max( HighResScaled( 32 ), Auto.INSTANCE + HighResScaled( 8 ) ),
+				Percentage.ONE_HUNDRED
 			)
 
 			local PageBack = SGUI:Create( "Button", Panel )
@@ -501,11 +501,11 @@ function Plugin:SetupAdminMenu()
 				Auto( Unban ) + HighResScaled( 16 ),
 				Auto( AddBan ) + HighResScaled( 16 )
 			)
-			Unban:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
-			AddBan:SetAutoSize( UnitVector( ButtonWidth, Percentage( 100 ) ) )
+			Unban:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
+			AddBan:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
 			local ButtonHeight = Units.Max( Auto( AddBan ), Auto( PageForward ) ) + HighResScaled( 8 )
-			ControlLayout:SetAutoSize( UnitVector( Percentage( 100 ), ButtonHeight ) )
+			ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
 			PageLabel:SetMargin( Spacing( HighResScaled( 16 ), 0, HighResScaled( 16 ), 0 ) )
 
 			Layout:AddElement( ControlLayout )

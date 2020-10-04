@@ -742,7 +742,7 @@ end
 
 local DEFAULT_IMAGE_SIZE = Units.UnitVector(
 	0,
-	Units.Percentage( 100 )
+	Units.Percentage.ONE_HUNDRED
 )
 
 -- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.

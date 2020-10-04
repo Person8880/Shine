@@ -285,6 +285,7 @@ local Skin = {
 			FocusColour = Colours.Dark,
 			DarkColour = Colours.Dark,
 			BorderColour = Colour( 0, 0, 0, 0 ),
+			BorderSize = Vector2( 0, 0 ),
 			TextColour = Colour( 1, 1, 1, 1 ),
 			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 )
 		}
@@ -578,7 +579,7 @@ function Plugin:CreateChatbox()
 	local SettingsButtonSize = LayoutData.Sizes.SettingsButton
 	local TextEntryRowHeight = Scaled( SettingsButtonSize, ScalarScale )
 	local TextEntryLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-		AutoSize = UnitVector( Percentage( 100 ), TextEntryRowHeight ),
+		AutoSize = UnitVector( Percentage.ONE_HUNDRED, TextEntryRowHeight ),
 		Fill = false
 	} )
 	ChatBoxLayout:AddElement( TextEntryLayout )
@@ -599,7 +600,7 @@ function Plugin:CreateChatbox()
 					DebugName = "ChatBoxTextEntryIconBackground",
 					AutoSize = UnitVector(
 						TextEntryRowHeight + PaddingUnit,
-						Percentage( 100 )
+						Percentage.ONE_HUNDRED
 					),
 					Padding = Spacing( 0, 0, PaddingUnit, 0 ),
 					StyleName = "TextEntryIconBackground"
@@ -632,7 +633,6 @@ function Plugin:CreateChatbox()
 	local TextEntry = SGUI:Create( "TextEntry", Border )
 	TextEntry:SetupFromTable{
 		DebugName = "ChatBoxTextEntry",
-		BorderSize = Vector2( 0, 0 ),
 		Text = "",
 		StickyFocus = true,
 		Skin = Skin,
@@ -710,7 +710,7 @@ function Plugin:CreateChatbox()
 		Font = IconFont,
 		AutoSize = UnitVector(
 			TextEntryRowHeight,
-			Percentage( 100 )
+			Percentage.ONE_HUNDRED
 		),
 		Margin = Spacing( PaddingUnit, 0, 0, 0 ),
 		TextInheritsParentAlpha = false
@@ -1293,7 +1293,12 @@ do
 			Tabs:SetDebugName( "ChatBoxSettingsTabs" )
 			Tabs:SetFill( false )
 			-- Use a fixed size to ensure no horizontal scrolling shows during expansion.
-			Tabs:SetAutoSize( UnitVector( Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ), Percentage( 100 ) ) )
+			Tabs:SetAutoSize(
+				UnitVector(
+					Scaled( LayoutData.Sizes.Settings.x, self.UIScale.x ),
+					Percentage.ONE_HUNDRED
+				)
+			)
 			Tabs:SetTabWidth( TabWidth )
 			Tabs:SetTabHeight( Scaled( 32, UIScale.y ):GetValue() )
 			Tabs:SetFont( self:GetFont() )
@@ -1727,7 +1732,7 @@ do
 									ResultPanelPadding[ 4 ]
 								),
 								Colour = Colour( 0, 0, 0, BackgroundAlpha ),
-								AutoSize = UnitVector( Percentage( 100 ), Units.Auto() )
+								AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE )
 							},
 							Children = {
 								{

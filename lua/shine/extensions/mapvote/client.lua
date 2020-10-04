@@ -610,9 +610,9 @@ do
 					IsSchemed = false,
 					PositionType = SGUI.PositionType.ABSOLUTE,
 					AutoWrap = true,
-					AutoSize = Units.UnitVector( Units.Percentage( 50 ), Units.Auto() ),
-					TopOffset = Units.Percentage( 50 ) - Units.Auto() * 0.5,
-					LeftOffset = Units.Percentage( 50 ),
+					AutoSize = Units.UnitVector( Units.Percentage.FIFTY, Units.Auto.INSTANCE ),
+					TopOffset = Units.Percentage.FIFTY - Units.Auto.INSTANCE * 0.5,
+					LeftOffset = Units.Percentage.FIFTY,
 					Shadow = {
 						Colour = Colour( 0, 0, 0, 200 / 255 ),
 						Offset = Vector2( 2, 2 )

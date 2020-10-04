@@ -274,6 +274,18 @@ do
 	function Percentage:__tostring()
 		return StringFormat( "Percentage( %s )", self.Value * 100 )
 	end
+
+	local OneHundred = Percentage( 100 )
+	-- Optimise out the redundant multiplier.
+	function OneHundred:GetValue( ParentSize )
+		return ParentSize
+	end
+
+	-- Avoid creating lots of repeated units.
+	Percentage.ONE_HUNDRED = OneHundred
+	Percentage.SEVENTY_FIVE = Percentage( 75 )
+	Percentage.FIFTY = Percentage( 50 )
+	Percentage.TWENTY_FIVE = Percentage( 25 )
 end
 
 do
@@ -297,6 +309,15 @@ do
 	function Auto:__tostring()
 		return StringFormat( "Auto( %s )", self.Element )
 	end
+
+	local DefaultAuto = Auto()
+
+	-- Skip checking self.Element.
+	function DefaultAuto:GetValue( ParentSize, Element, Axis )
+		return Element:GetContentSizeForAxis( Axis )
+	end
+
+	Auto.INSTANCE = DefaultAuto
 end
 
 do

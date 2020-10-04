@@ -38,7 +38,7 @@ function CategoryPanel:AddCategory( Name )
 	local Categories = self.Categories
 
 	local Button = self:Add( "Button" )
-	Button:SetAutoSize( UnitVector( Percentage( 100 ), self.CategoryHeight ) )
+	Button:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, self.CategoryHeight ) )
 	Button:SetText( Name )
 	Button:SetStyleName( "CategoryPanelButton" )
 	Button.InvalidateImmediately = true

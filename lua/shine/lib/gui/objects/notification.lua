@@ -139,13 +139,13 @@ function Notification:SetButtons( Buttons )
 		end
 
 		local Height = Units.Auto( Button ) + Units.HighResScaled( 8 )
-		Button:SetAutoSize( Units.UnitVector( Units.Auto() + Units.HighResScaled( 16 ), Height ) )
+		Button:SetAutoSize( Units.UnitVector( Units.Auto.INSTANCE + Units.HighResScaled( 16 ), Height ) )
 		Heights[ #Heights + 1 ] = Height
 
 		ButtonLayout:AddElement( Button )
 	end
 
-	ButtonLayout:SetAutoSize( Units.UnitVector( Units.Auto(), Units.Max( unpack( Heights ) ) ) )
+	ButtonLayout:SetAutoSize( Units.UnitVector( Units.Auto.INSTANCE, Units.Max( unpack( Heights ) ) ) )
 
 	self.ButtonLayout = ButtonLayout
 end

@@ -245,7 +245,7 @@ function MapVoteMenu:Initialise()
 					ID = "TitleBox",
 					Class = "Column",
 					Props = {
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + Units.GUIScaled( 16 ) ),
+						AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE + Units.GUIScaled( 16 ) ),
 						StyleName = TeamVariation
 					},
 					Children = {
@@ -313,7 +313,7 @@ function MapVoteMenu:Initialise()
 					ID = "InformationBox",
 					Class = "Row",
 					Props = {
-						AutoSize = Units.UnitVector( Units.Percentage( 100 ), Units.Auto() + SmallPadding ),
+						AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE + SmallPadding ),
 						Margin = Units.Spacing( 0, SmallPadding, 0, 0 ),
 						Padding = Units.Spacing( SmallPadding, 0, SmallPadding, 0 ),
 						StyleName = TeamVariation
