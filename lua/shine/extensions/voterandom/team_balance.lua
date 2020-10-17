@@ -153,16 +153,17 @@ do
 				CommanderSkillEnabled and Ply.GetCommanderSkill and Ply:isa( "Commander" ) and
 				Ply:GetTeamNumber() == TeamNumber
 			then
-				local CommanderSkill = Ply:GetCommanderSkill()
-				local Offset = Ply:GetCommanderSkillOffset()
-
-				return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, CommanderSkill, Offset )
+				local CommanderSkill = Ply:GetCommanderSkill() or -1
+				if CommanderSkill >= 0 then
+					local Offset = Ply:GetCommanderSkillOffset() or 0
+					return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, CommanderSkill, Offset )
+				end
 			end
 
 			-- If not a commander or not able to use commander skill, use the player skill and apply the team offset if
 			-- available and enabled.
 			if Ply.GetPlayerSkill then
-				local Skill = Ply:GetPlayerSkill()
+				local Skill = Ply:GetPlayerSkill() or 0
 				local Offset = Ply.GetPlayerSkillOffset and Ply:GetPlayerSkillOffset() or 0
 
 				return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, Skill, Offset )
