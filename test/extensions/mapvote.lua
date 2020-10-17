@@ -1146,9 +1146,12 @@ MapVote.Config.ForcedMaps = {
 }
 MapVote.ForcedMapCount = 2
 MapVote.Vote.Nominated = { "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome" }
+
+local ForcedMapsList = table.GetKeys( MapVote.Config.ForcedMaps )
+
 UnitTest:Test( "BuildMapChoices - ADD_MAP should allow max options to be exceeded", function( Assert )
 	-- Nominated 4 maps, with 5 max nominations and 5 max options, with exceed action ADD_MAP, so should just add the nominations.
-	Assert:ArrayEquals( {
+	Assert:ArrayContainsExactly( {
 		"ns2_derelict", "ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil", "ns2_biodome"
 	}, MapVote:BuildMapChoices() )
 end )
@@ -1156,13 +1159,13 @@ end )
 MapVote.Config.Nominations.MaxOptionsExceededAction = MapVote.MaxOptionsExceededAction.REPLACE_MAP
 UnitTest:Test( "BuildMapChoices - REPLACE_MAP should ensure max options is not exceeded", function( Assert )
 	Assert:ArrayEquals( {
-		"ns2_biodome", "ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil"
+		"ns2_biodome", ForcedMapsList[ 2 ], "ns2_tram", "ns2_summit", "ns2_veil"
 	}, MapVote:BuildMapChoices() )
 end )
 
 MapVote.Config.Nominations.MaxOptionsExceededAction = MapVote.MaxOptionsExceededAction.SKIP
 UnitTest:Test( "BuildMapChoices - SKIP should ensure max options is not exceeded", function( Assert )
-	Assert:ArrayEquals( {
+	Assert:ArrayContainsExactly( {
 		"ns2_derelict", "ns2_kodiak", "ns2_tram", "ns2_summit", "ns2_veil"
 	}, MapVote:BuildMapChoices() )
 end )
