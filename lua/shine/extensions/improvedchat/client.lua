@@ -536,12 +536,16 @@ do
 		return Player.GetTeamNumber and Player:GetTeamNumber() == kSpectatorIndex
 	end
 
+	local BuildNumber = Shared.GetBuildNumber()
 	local function ShouldMoveChatAboveMinimap( Player )
-		return Player and ( IsSpectator( Player ) or Player:isa( "Commander" ) )
+		-- Build 335 moves the commander chat to the right of the minimap, so it no longer needs to move up.
+		return BuildNumber < 335 and Player and ( IsSpectator( Player ) or Player:isa( "Commander" ) )
 	end
 
 	local function ShouldMoveChatAboveAlienHealth( Player )
-		return Player and Player:isa( "Alien" ) and Player.GetTeamNumber and Player:GetTeamNumber() == kTeam2Index
+		-- Build 335 moves the alien chat to the right, so it no longer needs to move up.
+		return BuildNumber < 335 and Player and Player:isa( "Alien" ) and Player.GetTeamNumber
+			and Player:GetTeamNumber() == kTeam2Index
 	end
 
 	function Plugin:UpdateChatOffset( Player )
