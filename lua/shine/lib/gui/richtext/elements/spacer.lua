@@ -15,14 +15,14 @@ end
 
 function Spacer:Split( Index, TextSizeProvider, Segments, MaxWidth )
 	self.OriginalElement = Index
-	self.Width = self.AutoWidth:GetValue( MaxWidth, 1 )
+	self.Width = self.AutoWidth:GetValue( MaxWidth, nil, 1 )
 	self.WidthWithoutSpace = self.IgnoreOnNewLine and 0 or self.Width
 
 	Segments[ #Segments + 1 ] = self
 end
 
 function Spacer:GetWidth( TextSizeProvider, MaxWidth )
-	local Width = self.AutoWidth:GetValue( MaxWidth, 1 )
+	local Width = self.AutoWidth:GetValue( MaxWidth, nil, 1 )
 	return Width, self.IgnoreOnNewLine and 0 or Width
 end
 
