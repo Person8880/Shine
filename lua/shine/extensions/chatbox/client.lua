@@ -116,6 +116,20 @@ function Plugin:Initialise()
 	return true
 end
 
+function Plugin:PostGUIChatInitialised( GUIChat )
+	self.GUIChat = GUIChat
+
+	if self.Config.MoveVanillaChat then
+		self:MoveVanillaChat()
+	end
+end
+
+function Plugin:OnGUIChatOffsetChanged( GUIChat )
+	if self.GUIChat ~= GUIChat or not self.Config.MoveVanillaChat then return end
+
+	self:MoveVanillaChat()
+end
+
 function Plugin:OnChatMessageDisplayed( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
 	self:AddMessage( PlayerColour, PlayerName, MessageColour, MessageName, TagData )
 end
@@ -2044,6 +2058,10 @@ function Plugin:Cleanup()
 		SGUI:EnableMouse( false )
 		self.Visible = false
 		self.GUIChat:SetIsVisible( true )
+	end
+
+	if self.Config.MoveVanillaChat then
+		self:ResetVanillaChatPos()
 	end
 end
 

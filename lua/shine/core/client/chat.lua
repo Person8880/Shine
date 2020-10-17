@@ -197,15 +197,17 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	local OldInit = ChatElement.Initialize
 	local OldUninit = ChatElement.Uninitialize
 
-	local GetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset", {
+	local GetOffset, SetOffset = Shine.GetUpValueAccessor( ChatElement.Update, "kOffset", {
 		Recursive = true,
 		Predicate = Shine.UpValuePredicates.DefinedInFile( "lua/GUIChat.lua" )
 	} )
+
+	local DefaultOffset = Vector( 100, -430, 0 )
 	local OriginalOffset = GetOffset()
 	if OriginalOffset then
 		OriginalOffset = Vector( OriginalOffset )
 	else
-		OriginalOffset = Vector( 100, -430, 0 )
+		OriginalOffset = DefaultOffset
 	end
 
 	function ChatElement:GetOffset()
@@ -215,7 +217,14 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 	function ChatElement:Initialize()
 		Hook.Broadcast( "OnGUIChatInitialised", self )
 
-		return OldInit( self )
+		OldInit( self )
+
+		-- Reset the original offset so it accounts for any team-based changes.
+		-- On older builds, this would only be called once the first time the element is created so this won't pick
+		-- up changes made later.
+		OriginalOffset = GetOffset() or OriginalOffset
+
+		Hook.Broadcast( "PostGUIChatInitialised", self )
 	end
 
 	function ChatElement:Uninitialize()
@@ -224,28 +233,50 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		return OldUninit( self )
 	end
 
+	local OldOnLocalPlayerChanged = ChatElement.OnLocalPlayerChanged
+	if OldOnLocalPlayerChanged then
+		function ChatElement:OnLocalPlayerChanged( Player )
+			OriginalOffset = nil
+
+			OldOnLocalPlayerChanged( self, Player )
+			self.HasMoved = false
+
+			if not OriginalOffset then
+				-- Ensure the offset is updated after a player-dependent position change.
+				OriginalOffset = GetOffset() or DefaultOffset
+			end
+
+			Hook.Broadcast( "OnGUIChatOffsetChanged", self )
+		end
+	end
+
 	function ChatElement:ResetScreenOffset()
 		if not OriginalOffset then return end
 
-		self:SetScreenOffset( GUIScale( OriginalOffset ) )
-		self.HasMoved = false
+		if self.OnLocalPlayerChanged then
+			self.HasMoved = false
+			-- Newer versions have per-team offsets.
+			self:OnLocalPlayerChanged( Client.GetLocalPlayer() )
+		else
+			self:SetScreenOffset( GUIScale( OriginalOffset ) )
+			self.HasMoved = false
+		end
 	end
 
 	function ChatElement:SetScreenOffset( Offset )
-		-- Alter the offset value by reference directly to avoid having to
-		-- reposition elements constantly in the Update method.
-		local CurrentOffset = GetOffset()
-		if not CurrentOffset then return end
+		if not GetOffset() then return end
 
 		local InverseScale = 1 / GUIScale( 1 )
-		CurrentOffset.x = Offset.x * InverseScale
-		CurrentOffset.y = Offset.y * InverseScale
+		local NewOffset = Vector2( Offset.x * InverseScale, Offset.y * InverseScale )
+		SetOffset( NewOffset )
 
-		self.HasMoved = CurrentOffset ~= OriginalOffset
+		self.HasMoved = NewOffset ~= OriginalOffset
 
 		-- Update existing message's x-position as it's not changed in the
 		-- Update() method.
 		local Messages = self.messages
+		if not Messages then return end
+
 		for i = 1, #Messages do
 			local Message = Messages[ i ]
 			local Background = Message.Background
