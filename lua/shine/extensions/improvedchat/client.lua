@@ -515,11 +515,18 @@ function Plugin:SetChatOffset( Offset )
 end
 
 do
+	local BuildNumber = Shared.GetBuildNumber()
 	local ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, 75 )
 	-- Commander chat needs to be higher up due to possible control groups.
 	local ABOVE_MINIMAP_COMMANDER_CHAT_OFFSET = Vector2( 0, -5 )
 	-- Spectator chat needs to move to the right to avoid overlapping the marine team player elements.
 	local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 125, 50 )
+
+	if BuildNumber >= 335 then
+		-- In 335 onwards, chat for specators/commanders is to the right of the minimap.
+		-- This just moves it down a bit more than normal so most messages avoid going too high.
+		ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 100 )
+	end
 
 	local function ShouldMoveChat( self )
 		return self.GUIChat and not self.GUIChat.HasMoved
@@ -536,10 +543,8 @@ do
 		return Player.GetTeamNumber and Player:GetTeamNumber() == kSpectatorIndex
 	end
 
-	local BuildNumber = Shared.GetBuildNumber()
 	local function ShouldMoveChatAboveMinimap( Player )
-		-- Build 335 moves the commander chat to the right of the minimap, so it no longer needs to move up.
-		return BuildNumber < 335 and Player and ( IsSpectator( Player ) or Player:isa( "Commander" ) )
+		return Player and ( IsSpectator( Player ) or Player:isa( "Commander" ) )
 	end
 
 	local function ShouldMoveChatAboveAlienHealth( Player )
@@ -551,7 +556,7 @@ do
 	function Plugin:UpdateChatOffset( Player )
 		if ShouldMoveChatAboveMinimap( Player ) then
 			local Offset = ABOVE_MINIMAP_CHAT_OFFSET
-			if Player:isa( "Commander" ) then
+			if BuildNumber < 335 and Player:isa( "Commander" ) then
 				Offset = ABOVE_MINIMAP_COMMANDER_CHAT_OFFSET
 			end
 			return SetChatOffsetIfApplicable( self, Offset )
