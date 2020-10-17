@@ -25,7 +25,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.8"
+Plugin.Version = "2.9"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -89,6 +89,13 @@ Plugin.DefaultConfig = {
 	ReconnectLogTimeInSeconds = 0, -- How long (in seconds) after a shuffle to log reconnecting players for?
 	HighlightTeamSwaps = false, -- Should players swapping teams be highlighted on the scoreboard?
 	DisplayStandardDeviations = false, -- Should the scoreboard show each team's standard deviation of skill?
+
+	BalanceModeConfig = {
+		[ Plugin.ShuffleMode.HIVE ] = {
+			UseTeamSkill = true,
+			UseCommanderSkill = true
+		}
+	},
 
 	VoteConstraints = {
 		PreGame = {
@@ -288,11 +295,25 @@ Plugin.ConfigMigrationSteps = {
 			:RenameField( "AlwaysEnabled", "AutoShuffleAtRoundStart" )
 			:AddField( "EndOfRoundShuffleDelayInSeconds", Plugin.DefaultConfig.EndOfRoundShuffleDelayInSeconds )
 			:AddField( "BlockBotsAfterShuffle", Plugin.DefaultConfig.BlockBotsAfterShuffle )
+	},
+	{
+		VersionTo = "2.9",
+		Apply = Shine.Migrator()
+			:AddField( "BalanceModeConfig", Plugin.DefaultConfig.BalanceModeConfig )
 	}
 }
 
 do
 	local Validator = Shine.Validator()
+
+	Validator:CheckTypesAgainstDefault( "BalanceModeConfig", Plugin.DefaultConfig.BalanceModeConfig )
+	for i = 1, #Plugin.ShuffleMode do
+		local Mode = Plugin.ShuffleMode[ i ]
+		local DefaultConfigForMode = Plugin.DefaultConfig.BalanceModeConfig[ Mode ]
+		if DefaultConfigForMode then
+			Validator:CheckTypesAgainstDefault( "BalanceModeConfig."..Mode, DefaultConfigForMode )
+		end
+	end
 
 	Validator:CheckTypesAgainstDefault( "VoteConstraints", Plugin.DefaultConfig.VoteConstraints )
 	Validator:CheckTypesAgainstDefault( "VoteConstraints.PreGame", Plugin.DefaultConfig.VoteConstraints.PreGame )
@@ -606,7 +627,8 @@ function Plugin:Initialise()
 
 	self.dt.HighlightTeamSwaps = self.Config.HighlightTeamSwaps
 	self.dt.DisplayStandardDeviations = self.Config.DisplayStandardDeviations
-		and BalanceMode == self.ShuffleMode.HIVE
+		and BalanceMode == self.ShuffleMode.HIVE and not self:IsPerTeamSkillEnabled()
+		and not self:IsCommanderSkillEnabled()
 
 	if self.Config.AutoShuffleAtRoundStart and self:GetStage() == self.Stage.InGame then
 		self.EnforcementPolicy = self:BuildEnforcementPolicy( self:GetVoteActionSettings() )
@@ -978,19 +1000,22 @@ function Plugin:ShuffleTeams( ResetScores, ForceMode )
 end
 
 function Plugin:GetOptimalTeamForPlayer( Player, Team1Players, Team2Players, SkillGetter )
+	local TeamSkillEnabled = self:IsPerTeamSkillEnabled()
+	local CommanderSkillEnabled = self:IsCommanderSkillEnabled()
+
 	local Team1Skills = Shine.Stream( Team1Players ):Map( function( Player )
-		return SkillGetter( Player, 1 ) or 0
+		return SkillGetter( Player, 1, TeamSkillEnabled, CommanderSkillEnabled ) or 0
 	end ):AsTable()
 
 	local Team2Skills = Shine.Stream( Team2Players ):Map( function( Player )
-		return SkillGetter( Player, 2 ) or 0
+		return SkillGetter( Player, 2, TeamSkillEnabled, CommanderSkillEnabled ) or 0
 	end ):AsTable()
 
 	local StdDev1, Average1 = StandardDeviation( Team1Skills )
 	local StdDev2, Average2 = StandardDeviation( Team2Skills )
 
 	local function GetCostWithPlayerOnTeam( Skills, TeamNumber, AverageOther, StdDevOther )
-		Skills[ #Skills + 1 ] = SkillGetter( Player, TeamNumber ) or 0
+		Skills[ #Skills + 1 ] = SkillGetter( Player, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled ) or 0
 
 		local StdDev, Average = StandardDeviation( Skills )
 		local AverageDiff = Abs( Average - AverageOther )
