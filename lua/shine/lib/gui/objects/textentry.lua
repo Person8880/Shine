@@ -129,10 +129,13 @@ end
 function TextEntry:SetSize( SizeVec )
 	self.BaseClass.SetSize( self, SizeVec )
 
-	local InnerBoxSize = SizeVec - self.BorderSize * 2
+	local InnerBoxSize = Vector2(
+		Max( SizeVec.x - self.BorderSize.x * 2, 0 ),
+		Max( SizeVec.y - self.BorderSize.y * 2, 0 )
+	)
 	self.InnerBox:SetSize( InnerBoxSize )
 
-	self.Width = InnerBoxSize.x - ( self.Padding * 2 )
+	self.Width = Max( InnerBoxSize.x - ( self.Padding * 2 ), 0 )
 	self.Height = InnerBoxSize.y
 
 	self:InvalidateLayout()
