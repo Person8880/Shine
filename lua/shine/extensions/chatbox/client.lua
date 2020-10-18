@@ -481,7 +481,8 @@ function Plugin:CreateChatbox()
 	local Pos = self.Config.Pos
 	local ChatBoxPos
 	local PanelSize = VectorMultiply( LayoutData.Sizes.ChatBox, UIScale )
-	local DefaultPos = self.GUIChat.inputItem:GetPosition() - Vector( 0, 100 * UIScale.y, 0 )
+	-- Keep the default position fixed as the GUIChat position can move depending on the team.
+	local DefaultPos = SGUI.LinearScale( Vector2( 100, -430 ) ) - Vector2( 0, 100 * UIScale.y )
 
 	if not Pos.x or not Pos.y then
 		ChatBoxPos = DefaultPos

@@ -404,7 +404,10 @@ Hook.Add( "OnGUIChatInitialised", Plugin, function( GUIChat )
 end )
 Hook.Add( "OnGUIChatDestroyed", Plugin, function( GUIChat )
 	if Plugin.GUIChat == GUIChat then
-		Plugin:ResetGUIChat( GUIChat )
+		-- Wait a frame before destroying everything in case the element is just being re-created in the same frame.
+		Plugin.GUIChatDestroyTimer = Shine.Timer.Simple( 0, function()
+			Plugin:ResetGUIChat( GUIChat )
+		end, GUIChat )
 		Plugin.GUIChat = nil
 	end
 end )
@@ -517,6 +520,7 @@ end
 do
 	local BuildNumber = Shared.GetBuildNumber()
 	local ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, 75 )
+	local ABOVE_MARINE_HEALTH_OFFSET
 	-- Commander chat needs to be higher up due to possible control groups.
 	local ABOVE_MINIMAP_COMMANDER_CHAT_OFFSET = Vector2( 0, -5 )
 	-- Spectator chat needs to move to the right to avoid overlapping the marine team player elements.
@@ -526,6 +530,10 @@ do
 		-- In 335 onwards, chat for specators/commanders is to the right of the minimap.
 		-- This just moves it down a bit more than normal so most messages avoid going too high.
 		ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 100 )
+		-- Alien and marine chat end up moved significantly to the right as well, this stops upwards messages going too
+		-- much into the centre of the screen in most cases.
+		ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 100 )
+		ABOVE_MARINE_HEALTH_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 32 )
 	end
 
 	local function ShouldMoveChat( self )
@@ -548,9 +556,11 @@ do
 	end
 
 	local function ShouldMoveChatAboveAlienHealth( Player )
-		-- Build 335 moves the alien chat to the right, so it no longer needs to move up.
-		return BuildNumber < 335 and Player and Player:isa( "Alien" ) and Player.GetTeamNumber
-			and Player:GetTeamNumber() == kTeam2Index
+		return Player and Player:isa( "Alien" ) and Player.GetTeamNumber and Player:GetTeamNumber() == kTeam2Index
+	end
+
+	local function ShouldMoveChatAboveMarineHealth( Player )
+		return BuildNumber >= 335 and Player and Player.GetTeamNumber and Player:GetTeamNumber() == kTeam1Index
 	end
 
 	function Plugin:UpdateChatOffset( Player )
@@ -564,6 +574,10 @@ do
 
 		if ShouldMoveChatAboveAlienHealth( Player ) then
 			return SetChatOffsetIfApplicable( self, ABOVE_ALIEN_HEALTH_OFFSET )
+		end
+
+		if ShouldMoveChatAboveMarineHealth( Player ) then
+			return SetChatOffsetIfApplicable( self, ABOVE_MARINE_HEALTH_OFFSET )
 		end
 
 		return SetChatOffsetIfApplicable( self, DEFAULT_CHAT_OFFSET )
@@ -621,21 +635,30 @@ local function PopulateFromBasicMessage( ChatLine, Context )
 end
 
 function Plugin:SetupGUIChat( ChatElement )
-	ChatElement.ChatLines = {}
-	ChatElement.ChatLinePool = {}
+	if self.GUIChatDestroyTimer and self.GUIChatDestroyTimer.Data == ChatElement then
+		self.GUIChatDestroyTimer:Destroy()
+		self.GUIChatDestroyTimer = nil
+	end
+
+	ChatElement.ChatLines = ChatElement.ChatLines or {}
+	ChatElement.ChatLinePool = ChatElement.ChatLinePool or {}
 	ChatElement.ChatLinesStream = Shine.Stream( ChatElement.ChatLines )
 
-	ChatElement.Panel = SGUI:Create( "Panel" )
-	ChatElement.Panel:SetDebugName( "ImprovedChatContainer" )
-	ChatElement.Panel:SetIsSchemed( false )
-	ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
-	ChatElement.Panel:SetAnchor( "BottomLeft" )
-	ChatElement.Panel:SetBlockEventsIfFocusedWindow( false )
+	if not SGUI.IsValid( ChatElement.Panel ) then
+		ChatElement.Panel = SGUI:Create( "Panel" )
+		ChatElement.Panel:SetDebugName( "ImprovedChatContainer" )
+		ChatElement.Panel:SetIsSchemed( false )
+		ChatElement.Panel:SetColour( Colour( 1, 1, 1, 0 ) )
+		ChatElement.Panel:SetAnchor( "BottomLeft" )
+		ChatElement.Panel:SetBlockEventsIfFocusedWindow( false )
+	end
 
-	ChatElement.MessagePanel = SGUI:Create( "Panel", ChatElement.Panel )
-	ChatElement.MessagePanel:SetDebugName( "ImprovedChatMessagePanel" )
-	ChatElement.MessagePanel:SetIsSchemed( false )
-	ChatElement.MessagePanel:SetColour( Colour( 1, 1, 1, 0 ) )
+	if not SGUI.IsValid( ChatElement.MessagePanel ) then
+		ChatElement.MessagePanel = SGUI:Create( "Panel", ChatElement.Panel )
+		ChatElement.MessagePanel:SetDebugName( "ImprovedChatMessagePanel" )
+		ChatElement.MessagePanel:SetIsSchemed( false )
+		ChatElement.MessagePanel:SetColour( Colour( 1, 1, 1, 0 ) )
+	end
 
 	if kGUILayerChat then
 		-- Use the same layer vanilla chat does.
