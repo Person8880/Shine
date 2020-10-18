@@ -124,11 +124,15 @@ UnitTest:Test( "GetUpValueAccessor", function( Assert )
 		return TargetUpValue
 	end
 
-	local Accessor = Shine.GetUpValueAccessor( FuncReferencingTarget, "TargetUpValue" )
-	Assert.Equals( "Accessor didn't return upvalue", Accessor(), TargetUpValue )
+	local Getter, Setter = Shine.GetUpValueAccessor( FuncReferencingTarget, "TargetUpValue" )
+	Assert.Equals( "Getter didn't return upvalue", Getter(), TargetUpValue )
 
 	TargetUpValue = {}
-	Assert.Equals( "Accessor didn't return upvalue after re-assignment", Accessor(), TargetUpValue )
+	Assert.Equals( "Getter didn't return upvalue after re-assignment", Getter(), TargetUpValue )
+
+	Setter( 123 )
+	Assert.Equals( "Setter didn't update the upvalue", 123, TargetUpValue )
+	Assert.Equals( "Getter doesn't reflect state after calling setter", 123, Getter() )
 end )
 
 UnitTest:Test( "GetLocals - omits var-args when none provided", function( Assert )

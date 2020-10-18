@@ -260,13 +260,21 @@ function Shine.GetUpValueAccessor( Function, UpValue, Options )
 	local function GetValue()
 		return Value
 	end
-	Shine.JoinUpValues( Function, GetValue, {
+	local function SetValue( NewValue )
+		Value = NewValue
+	end
+
+	local UpValueParams = {
 		[ UpValue ] = {
 			Name = "Value",
 			Predicate = Options and Options.Predicate
 		}
-	}, Options and Options.Recursive )
-	return GetValue
+	}
+	local IsRecursive = Options and Options.Recursive
+	Shine.JoinUpValues( Function, GetValue, UpValueParams, IsRecursive )
+	Shine.JoinUpValues( Function, SetValue, UpValueParams, IsRecursive )
+
+	return GetValue, SetValue
 end
 
 --[[

@@ -10,6 +10,8 @@ if not VoteShuffle or not VoteShuffle.Config then return end
 local MockShuffle = UnitTest.MockOf( VoteShuffle )
 
 VoteShuffle.Config.IgnoreCommanders = false
+VoteShuffle.Config.BalanceModeConfig[ VoteShuffle.ShuffleMode.HIVE ].UseTeamSkill = false
+VoteShuffle.Config.BalanceModeConfig[ VoteShuffle.ShuffleMode.HIVE ].UseCommanderSkill = false
 
 local MathRandom = math.random
 local StringFormat = string.format
@@ -1537,6 +1539,69 @@ UnitTest:Test( "OptimiseTeams with friend groups", function( Assert )
 	-- It should swap the players that are grouped as it will not harm the balance.
 	Assert:ArrayContainsExactly( { Players[ 1 ], Players[ 2 ], Players[ 6 ] }, TeamMembers[ 1 ] )
 	Assert:ArrayContainsExactly( { Players[ 4 ], Players[ 5 ], Players[ 3 ] }, TeamMembers[ 2 ] )
+end )
+
+UnitTest:Test( "OptimiseTeams with per-team and role skill values", function( Assert )
+	local Index = 0
+	local Players = {}
+	local function Player( Skill, Commander )
+		Index = Index + 1
+		Players[ Index ] = {
+			Index = Index,
+			Skill = Skill,
+			isa = function() return Commander end,
+			Commander = Commander
+		}
+		return Players[ Index ]
+	end
+
+	-- The middle players here can be swapped to make the teams even based on team skill.
+	local Marines = {
+		Player( { Commander = { 2000, 1000 } }, true ), Player( { 2000, 2000 } ), Player( { 1000, 1000 } )
+	}
+	local Aliens = {
+		Player( { Commander = { 1000, 2000 } }, true ), Player( { 2000, 1000 } ), Player( { 1000, 1000 } )
+	}
+
+	local function RankFunc( Player, TeamNumber )
+		if Player.Commander then
+			return Player.Skill.Commander[ TeamNumber ]
+		end
+		return Player.Skill[ TeamNumber ]
+	end
+
+	local TeamMembers = {
+		Marines,
+		Aliens,
+		TeamPreferences = {},
+		PlayerGroups = {}
+	}
+
+	local TeamSkills = {
+		{
+			Average = 5000 / 3,
+			Total = 5000,
+			Count = 3
+		},
+		{
+			Average = 4000 / 3,
+			Total = 4000,
+			Count = 3
+		}
+	}
+
+	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+
+	local TeamSkill = { 0, 0 }
+	for i = 1, 3 do
+		for j = 1, 2 do
+			local Player = TeamMembers[ j ][ i ]
+			local Skill = RankFunc( Player, j )
+			TeamSkill[ j ] = TeamSkill[ j ] + Skill
+		end
+	end
+
+	Assert.Equals( "Team skills should be equal after balancing", TeamSkill[ 1 ], TeamSkill[ 2 ] )
 end )
 
 VoteShuffle.OptimiseHappiness = BalanceModule.OptimiseHappiness

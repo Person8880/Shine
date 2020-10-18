@@ -1013,9 +1013,15 @@ Add( "Think", "ReplaceMethods", function()
 		end
 	end
 
-	SetupClassHook( "Commander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction",
-		"PassivePre" )
-	SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
+	SetupClassHook( "MarineCommander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction", "PassivePre" )
+	SetupClassHook( "AlienCommander", "ProcessTechTreeActionForEntity", "OnCommanderTechTreeAction", "PassivePre", {
+		OverrideWithoutWarning = true
+	} )
+
+	if Commander and Commander.TriggerNotification then
+		SetupClassHook( "Commander", "TriggerNotification", "OnCommanderNotify", "PassivePre" )
+	end
+
 	SetupClassHook( "Commander", "Eject", "OnCommanderEjected", "PassivePre" )
 
 	SetupClassHook( "PlayingTeam", "VoteToEjectCommander", "OnVoteToEjectCommander", "PassivePost" )

@@ -128,93 +128,120 @@ local function GetAverageSkillFunc( Players, Func, TeamNumber )
 	}
 end
 
-local DebugMode = false
-
--- TeamNumber parameter currently unused, but ready for Hive 2.0
-BalanceModule.SkillGetters = {
-	GetHiveSkill = function( Ply, TeamNumber )
-		local Client = GetClientForPlayer( Ply )
-		if Client and Client:GetIsVirtual() then
-			-- Bots are all equal so there's no reason to consider them.
-			return nil
+do
+	local DebugMode = false
+	local function GetPlayerTeamSkill( TeamNumber, Skill, Offset )
+		if TeamNumber == 1 or TeamNumber == 2 then
+			-- Skill offset provides the actual per-team skill.
+			return TeamNumber == 1 and ( Skill + Offset ) or ( Skill - Offset )
 		end
-
-		if Ply.GetPlayerSkill then
-			return Ply:GetPlayerSkill()
-		end
-
-		return nil
-	end,
-
-	-- KA/D Ratio.
-	GetKDR = function( Ply, TeamNumber )
-		do
-			local KDR = Plugin:CallModuleEvent( "GetPlayerKDR", Ply, TeamNumber )
-			if KDR then return KDR end
-		end
-
-		local Kills = Ply.totalKills
-		local Deaths = Ply.totalDeaths
-		local Assists = Ply.totalAssists or 0
-
-		if Kills and Deaths then
-			if Deaths == 0 then Deaths = 1 end
-
-			return ( Kills + Assists * 0.1 ) / Deaths
-		end
-
-		return nil
-	end,
-
-	-- Score per minute played.
-	GetScore = function( Ply, TeamNumber )
-		do
-			local ScorePerMinute = Plugin:CallModuleEvent( "GetPlayerScorePerMinute", Ply, TeamNumber )
-			if ScorePerMinute then return ScorePerMinute end
-		end
-
-		if not Ply.totalScore or not Ply.totalPlayTime then
-			return nil
-		end
-
-		local PlayTime = Ply.totalPlayTime + ( Ply.playTime or 0 )
-		if PlayTime <= 0 then
-			return nil
-		end
-
-		return Ply.totalScore / ( PlayTime / 60 )
-	end
-}
-
-if DebugMode then
-	local OldGetHiveSkill = BalanceModule.SkillGetters.GetHiveSkill
-	BalanceModule.SkillGetters.GetHiveSkill = function( Ply, TeamNumber )
-		local Client = GetClientForPlayer( Ply )
-		if Client and Client:GetIsVirtual() then
-			Client.Skill = Client.Skill or Random( 0, 2500 )
-			return Client.Skill
-		end
-		return OldGetHiveSkill( Ply, TeamNumber )
+		return Skill
 	end
 
-	local OldGetKDR = BalanceModule.SkillGetters.GetKDR
-	BalanceModule.SkillGetters.GetKDR = function( Ply, TeamNumber )
-		local Client = GetClientForPlayer( Ply )
-		if Client and Client:GetIsVirtual() then
-			Client.Skill = Client.Skill or Random() * 3
-			return Client.Skill
-		end
-		return OldGetKDR( Ply, TeamNumber )
-	end
+	BalanceModule.SkillGetters = {
+		GetHiveSkill = function( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+			local Client = GetClientForPlayer( Ply )
+			if Client and Client:GetIsVirtual() then
+				-- Bots are all equal so there's no reason to consider them.
+				return nil
+			end
 
-	local OldGetScore = BalanceModule.SkillGetters.GetScore
-	BalanceModule.SkillGetters.GetScore = function( Ply, TeamNumber )
-		local Client = GetClientForPlayer( Ply )
-		if Client and Client:GetIsVirtual() then
-			Client.Skill = Client.Skill or Random() * 10
-			return Client.Skill
+			-- First try to use the commander skill value, as long as they are a commander and are being evaluated against
+			-- their current team. If they're being evaluated against the oppposite team, then they would be swapped and
+			-- no longer be the commander.
+			if
+				CommanderSkillEnabled and Ply.GetCommanderSkill and Ply:isa( "Commander" ) and
+				Ply:GetTeamNumber() == TeamNumber
+			then
+				local CommanderSkill = Ply:GetCommanderSkill() or -1
+				if CommanderSkill >= 0 then
+					local Offset = Ply:GetCommanderSkillOffset() or 0
+					return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, CommanderSkill, Offset )
+				end
+			end
+
+			-- If not a commander or not able to use commander skill, use the player skill and apply the team offset if
+			-- available and enabled.
+			if Ply.GetPlayerSkill then
+				local Skill = Ply:GetPlayerSkill() or 0
+				local Offset = Ply.GetPlayerSkillOffset and Ply:GetPlayerSkillOffset() or 0
+
+				return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, Skill, Offset )
+			end
+
+			return nil
+		end,
+
+		-- KA/D Ratio.
+		GetKDR = function( Ply, TeamNumber )
+			do
+				local KDR = Plugin:CallModuleEvent( "GetPlayerKDR", Ply, TeamNumber )
+				if KDR then return KDR end
+			end
+
+			local Kills = Ply.totalKills
+			local Deaths = Ply.totalDeaths
+			local Assists = Ply.totalAssists or 0
+
+			if Kills and Deaths then
+				if Deaths == 0 then Deaths = 1 end
+
+				return ( Kills + Assists * 0.1 ) / Deaths
+			end
+
+			return nil
+		end,
+
+		-- Score per minute played.
+		GetScore = function( Ply, TeamNumber )
+			do
+				local ScorePerMinute = Plugin:CallModuleEvent( "GetPlayerScorePerMinute", Ply, TeamNumber )
+				if ScorePerMinute then return ScorePerMinute end
+			end
+
+			if not Ply.totalScore or not Ply.totalPlayTime then
+				return nil
+			end
+
+			local PlayTime = Ply.totalPlayTime + ( Ply.playTime or 0 )
+			if PlayTime <= 0 then
+				return nil
+			end
+
+			return Ply.totalScore / ( PlayTime / 60 )
 		end
-		return OldGetScore( Ply, TeamNumber )
+	}
+
+	if DebugMode then
+		local OldGetHiveSkill = BalanceModule.SkillGetters.GetHiveSkill
+		BalanceModule.SkillGetters.GetHiveSkill = function( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+			local Client = GetClientForPlayer( Ply )
+			if Client and Client:GetIsVirtual() then
+				Client.Skill = Client.Skill or Random( 0, 2500 )
+				return Client.Skill
+			end
+			return OldGetHiveSkill( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+		end
+
+		local OldGetKDR = BalanceModule.SkillGetters.GetKDR
+		BalanceModule.SkillGetters.GetKDR = function( Ply, TeamNumber )
+			local Client = GetClientForPlayer( Ply )
+			if Client and Client:GetIsVirtual() then
+				Client.Skill = Client.Skill or Random() * 3
+				return Client.Skill
+			end
+			return OldGetKDR( Ply, TeamNumber )
+		end
+
+		local OldGetScore = BalanceModule.SkillGetters.GetScore
+		BalanceModule.SkillGetters.GetScore = function( Ply, TeamNumber )
+			local Client = GetClientForPlayer( Ply )
+			if Client and Client:GetIsVirtual() then
+				Client.Skill = Client.Skill or Random() * 10
+				return Client.Skill
+			end
+			return OldGetScore( Ply, TeamNumber )
+		end
 	end
 end
 
@@ -227,6 +254,31 @@ function BalanceModule:Initialise()
 	self.PlayWithFriendsWeighting = self.PlayWithFriendsWeightingValues[ self.Config.TeamPreferences.PlayWithFriendsWeighting ]
 
 	self.dt.IsFriendGroupingEnabled = self.PlayWithFriendsWeighting > 0
+end
+
+function BalanceModule:GetBalanceModeConfig()
+	return self.Config.BalanceModeConfig[ self.Config.BalanceMode ]
+end
+
+function BalanceModule:IsPerTeamSkillEnabled()
+	local Config = self:GetBalanceModeConfig()
+	return Config and Config.UseTeamSkill
+end
+
+function BalanceModule:IsCommanderSkillEnabled()
+	local Config = self:GetBalanceModeConfig()
+	return Config and Config.UseCommanderSkill
+end
+
+--[[
+	Wraps the given ranking function, passing through the configured team/commnader skill flags.
+]]
+function BalanceModule:ApplyConfigToRankingFunction( RankFunc )
+	local TeamSkillEnabled = self:IsPerTeamSkillEnabled()
+	local CommanderSkillEnabled = self:IsCommanderSkillEnabled()
+	return function( Ply, TeamNumber )
+		return RankFunc( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+	end
 end
 
 function BalanceModule:LoadHappinessHistory()
@@ -405,15 +457,17 @@ end
 
 --[[
 	Can only apply this optimisation if we are using a single skill value.
-	If a player has a different skill depending on which team they are on,
-	swapping will have dire consequences.
+	If a player has a different skill depending on which team they are on/if they are a commander, swapping will have
+	dire consequences.
 
-	Also, commanders must not be swapped if configured to ignore them, so
-	there also must be no commanders present in the teams if ignoring is enabled.
+	Also, commanders must not be swapped if configured to ignore them, so there also must be no commanders present in
+	the teams if ignoring is enabled.
 ]]
 function BalanceModule:ShouldOptimiseHappiness( TeamMembers )
-	return not self.Config.UseTeamSkills
-		and not ( self.Config.IgnoreCommanders and TeamMembersContainCommander( TeamMembers ) )
+	return not self:IsPerTeamSkillEnabled() and not (
+		( self.Config.IgnoreCommanders or self:IsCommanderSkillEnabled() ) and
+		TeamMembersContainCommander( TeamMembers )
+	)
 end
 
 do
@@ -752,8 +806,8 @@ end
 
 function BalanceModule:ComputeTeamSkills( TeamMembers, RankFunc )
 	return {
-		GetAverageSkillFunc( TeamMembers[ 1 ], RankFunc ),
-		GetAverageSkillFunc( TeamMembers[ 2 ], RankFunc )
+		GetAverageSkillFunc( TeamMembers[ 1 ], RankFunc, 1 ),
+		GetAverageSkillFunc( TeamMembers[ 2 ], RankFunc, 2 )
 	}
 end
 
@@ -770,7 +824,7 @@ function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTarg
 
 	-- Update the team skill values in case the team members table was modified by the event.
 	for i = 1, 2 do
-		TeamSkills[ i ] = GetAverageSkillFunc( TeamMembers[ i ], RankFunc )
+		TeamSkills[ i ] = GetAverageSkillFunc( TeamMembers[ i ], RankFunc, i )
 	end
 
 	self:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
@@ -914,28 +968,27 @@ BalanceModule.ShufflingModes = {
 		local Count = 0
 		local Sorted = {}
 
-		local RankFunc = self.SkillGetters.GetHiveSkill
+		local RankFunc = self:ApplyConfigToRankingFunction( self.SkillGetters.GetHiveSkill )
 		local TargetCount = #Targets
 
 		for i = 1, TargetCount do
 			local Player = Targets[ i ]
-			local Skill = Max( RankFunc( Player, 1 ) or 0, RankFunc( Player, 2 ) or 0 )
-			if Skill > 0 then
+			-- A value of -1 indicates missing data. A skill value of 0 is valid.
+			local Skill = Max( RankFunc( Player, 1 ) or -1, RankFunc( Player, 2 ) or -1 )
+			if Skill >= 0 then
 				Count = Count + 1
 				SortTable[ Count ] = Player
 			end
 		end
 
-		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count,
-			TargetCount, self.SkillGetters.GetHiveSkill )
+		local Sorted = self:SortPlayersByRank( TeamMembers, SortTable, Count, TargetCount, RankFunc )
 
 		self:Print( "Teams were sorted based on Hive skill ranking." )
 
 		-- If some players have rank 0 or no rank data, sort them with the fallback instead.
 		local FallbackTargets = GetFallbackTargets( Targets, Sorted )
 		if #FallbackTargets > 0 then
-			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules,
-				FallbackTargets, TeamMembers, true )
+			self.ShufflingModes[ self.Config.FallbackMode ]( self, Gamerules, FallbackTargets, TeamMembers, true )
 
 			return
 		end
@@ -972,7 +1025,9 @@ do
 	end
 
 	function BalanceModule:GetAverageSkill( Players, TeamNumber, RankFunc )
-		return GetAverageSkillFunc( Players, RankFunc or self.SkillGetters.GetHiveSkill, TeamNumber )
+		return GetAverageSkillFunc(
+			Players, RankFunc or self.SkillGetters.GetHiveSkill, TeamNumber
+		)
 	end
 
 	function BalanceModule:ClearStatsCache()
@@ -996,17 +1051,20 @@ do
 			return self.TeamStatsCache[ RankFunc ]
 		end
 
+		-- Apply configured skill options to the ranking function to apply team/commnader skills if enabled.
+		RankFunc = self:ApplyConfigToRankingFunction( RankFunc )
+
 		local Gamerules = GetGamerules()
 		Shine.Assert( Gamerules, "Gamerules unavailable, unable to compute team stats!" )
 
 		-- Need to do this one team at a time due to Team:GetPlayers() re-using the same table on every call.
 		local Marines = Gamerules.team1:GetPlayers()
-		local MarineSkill = self:GetAverageSkill( Marines, 1 )
+		local MarineSkill = self:GetAverageSkill( Marines, 1, RankFunc )
 		MarineSkill.StandardDeviation = GetStandardDeviation( Marines, MarineSkill.Average,
 			RankFunc, 1 )
 
 		local Aliens = Gamerules.team2:GetPlayers()
-		local AlienSkill = self:GetAverageSkill( Aliens, 2 )
+		local AlienSkill = self:GetAverageSkill( Aliens, 2, RankFunc )
 		AlienSkill.StandardDeviation = GetStandardDeviation( Aliens, AlienSkill.Average,
 			RankFunc, 2 )
 
