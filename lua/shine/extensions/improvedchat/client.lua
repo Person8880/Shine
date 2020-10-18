@@ -117,12 +117,16 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		OldSetScreenOffset( self, Offset )
 
 		if SGUI.IsValid( self.Panel ) then
-			local CurrentOffset = self:GetOffset()
-			local PanelOffset = self.HasMoved and MOVED_CHAT_OFFSET or DEFAULT_CHAT_OFFSET
-			if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
-				PanelOffset = NO_OFFSET
+			if self.HasMoved or Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
+				local CurrentOffset = self:GetOffset()
+				local PanelOffset = MOVED_CHAT_OFFSET
+				if Plugin.Config.MessageDisplayType == Plugin.MessageDisplayType.DOWNWARDS then
+					PanelOffset = NO_OFFSET
+				end
+				self.Panel:SetPos( ComputeChatOffset( CurrentOffset, PanelOffset ) )
+			else
+				Plugin:OnLocalPlayerChanged( Client.GetLocalPlayer() )
 			end
-			self.Panel:SetPos( ComputeChatOffset( CurrentOffset, PanelOffset ) )
 		end
 	end
 
