@@ -521,6 +521,19 @@ function Plugin:SetChatOffset( Offset )
 	Panel:SetPos( ComputeChatOffset( self.GUIChat:GetOffset(), Offset ) )
 end
 
+function Plugin:ResetChatOffset()
+	local Offset
+	if self.Config.MessageDisplayType == self.MessageDisplayType.DOWNWARDS then
+		Offset = NO_OFFSET
+	elseif self.GUIChat and self.GUIChat.HasMoved then
+		Offset = MOVED_CHAT_OFFSET
+	else
+		Offset = DEFAULT_CHAT_OFFSET
+	end
+
+	self:SetChatOffset( Offset )
+end
+
 do
 	local BuildNumber = Shared.GetBuildNumber()
 	local ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, 75 )
@@ -533,7 +546,7 @@ do
 	if BuildNumber >= 335 then
 		-- In 335 onwards, chat for specators/commanders is to the right of the minimap.
 		-- This just moves it down a bit more than normal so most messages avoid going too high.
-		ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 100 )
+		ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 32 )
 		-- Alien and marine chat end up moved significantly to the right as well, this stops upwards messages going too
 		-- much into the centre of the screen in most cases.
 		ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 100 )
@@ -546,7 +559,10 @@ do
 	end
 
 	local function SetChatOffsetIfApplicable( self, Offset )
-		if not ShouldMoveChat( self ) then return end
+		if not ShouldMoveChat( self ) then
+			self:ResetChatOffset()
+			return
+		end
 
 		self:SetChatOffset( Offset )
 	end
@@ -599,6 +615,13 @@ do
 		end
 
 		return self:UpdateChatOffset( Player )
+	end
+
+	function Plugin:OnGUIChatOffsetChanged( GUIChat )
+		if self.GUIChat ~= GUIChat then return end
+
+		-- Update the offset based on the new position.
+		self:OnLocalPlayerChanged( Client.GetLocalPlayer() )
 	end
 end
 
