@@ -24,7 +24,6 @@ local TextEntry = {}
 
 TextEntry.UsesKeyboardFocus = true
 
-local BorderSize = Vector2( 2, 2 )
 local CaretCol = Colour( 1, 1, 1, 1 )
 local Clear = Colour( 0, 0, 0, 0 )
 local TextPos = Vector2( 2, 0 )
@@ -55,10 +54,9 @@ function TextEntry:Initialise()
 
 	-- Coloured entry field.
 	local InnerBox = self:MakeGUICroppingItem()
-	InnerBox:SetPosition( BorderSize )
 
 	local SelectionBox = self:MakeGUIItem()
-	SelectionBox:SetSize( Vector( 0, 0, 0 ) )
+	SelectionBox:SetSize( Vector2( 0, 0 ) )
 
 	self.SelectionBox = SelectionBox
 
@@ -100,7 +98,7 @@ function TextEntry:Initialise()
 
 	self.Padding = 2
 	self.CaretOffset = 0
-	self.BorderSize = BorderSize
+	self.BorderSize = Vector2( 0, 0 )
 
 	self.SelectionBounds = { 0, 0 }
 	self.UndoPosition = 0
