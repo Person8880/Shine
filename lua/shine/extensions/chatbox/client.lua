@@ -296,9 +296,9 @@ local Skin = {
 	},
 	TextEntry = {
 		Default = {
-			FocusColour = Colours.Dark,
-			DarkColour = Colours.Dark,
-			BorderColour = Colour( 0, 0, 0, 0 ),
+			FocusColour = Colours.Clear,
+			DarkColour = Colours.Clear,
+			BorderColour = Colours.Dark,
 			BorderSize = Vector2( 0, 0 ),
 			TextColour = Colour( 1, 1, 1, 1 ),
 			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 )
@@ -455,18 +455,13 @@ function Plugin:CreateChatbox()
 	ScreenWidth = ScreenWidth * self.Config.Scale
 	ScreenHeight = ScreenHeight * self.Config.Scale
 
-	local WidthMult = 1
-	local HeightMult = 1
 	local FourToThreeHeight = ( ScreenWidth / 4 ) * 3
 	-- Use a more boxy box for 4:3 monitors.
 	if FourToThreeHeight == ScreenHeight then
-		WidthMult = WidthMult * 0.72
+		local WidthMult = 0.72
+		UIScale.x = UIScale.x * WidthMult
+		ScalarScale = ScalarScale * ( WidthMult + 1 ) * 0.5
 	end
-
-	UIScale.x = UIScale.x * WidthMult
-	UIScale.y = UIScale.y * HeightMult
-
-	ScalarScale = ScalarScale * ( WidthMult + HeightMult ) * 0.5
 
 	self.UIScale = UIScale
 	self.ScalarScale = ScalarScale

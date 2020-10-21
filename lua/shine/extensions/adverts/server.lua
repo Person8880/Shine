@@ -978,6 +978,9 @@ function Plugin:SetGameState( Gamerules, NewState, OldState )
 end
 
 function Plugin:OnPlayerCountChanged()
+	-- Make sure the config has loaded (as it loads on first think, this may be called before).
+	if not self.PlayerCountFilteredStreams then return end
+
 	local PlayerCount = self:GetPlayerCount()
 	for i = 1, #self.PlayerCountFilteredStreams do
 		local Stream = self.PlayerCountFilteredStreams[ i ]
