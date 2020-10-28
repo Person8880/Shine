@@ -1797,6 +1797,11 @@ function Plugin:CreateCommands()
 				Stats.Average, Stats.StandardDeviation )
 		end
 
+		Message[ #Message + 1 ] = StringFormat(
+			"Team skills are %s. Commander skills are %s.",
+			self:IsPerTeamSkillEnabled() and "enabled" or "disabled",
+			self:IsCommanderSkillEnabled() and "enabled" or "disabled"
+		)
 		Message[ #Message + 1 ] = StringFormat( "Team preference cost weighting: %s. History rounds: %d.",
 			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )
 		Message[ #Message + 1 ] = StringFormat( "Play with friends cost weighting: %s. Max group size: %d.",
