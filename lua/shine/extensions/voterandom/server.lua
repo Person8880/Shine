@@ -82,8 +82,8 @@ Plugin.DefaultConfig = {
 
 	RemoveAFKPlayersFromTeams = true, -- Should the plugin remove AFK players from teams when shuffling?
 	IgnoreCommanders = true, -- Should the plugin ignore commanders when switching?
-	IgnoreSpectators = false, -- Should the plugin ignore spectators in player slots when switching?
-	AutoShuffleAtRoundStart = false, -- Should the plugin be always forcing each round?
+	IgnoreSpectators = true, -- Should the plugin ignore spectators in player slots when switching?
+	AutoShuffleAtRoundStart = true, -- Should the plugin be always forcing each round?
 	EndOfRoundShuffleDelayInSeconds = 30, -- How long after a round end before auto-shuffling if enforcement is still active.
 
 	ReconnectLogTimeInSeconds = 0, -- How long (in seconds) after a shuffle to log reconnecting players for?
@@ -824,6 +824,23 @@ do
 			AddTeamPreference( Player, Client, Preference )
 		end
 
+		local function IsCommanderBot( Client, Player )
+			if Client.bot and Client.bot.isa and Client.bot:isa( "CommanderBot" ) then
+				return true
+			end
+
+			if gCommanderBots then
+				for i = 1, #gCommanderBots do
+					local Bot = gCommanderBots[ i ]
+					if Bot and ( ( Bot.GetPlayer and Bot:GetPlayer() == Player ) or Bot.client == Client ) then
+						return true
+					end
+				end
+			end
+
+			return false
+		end
+
 		local function AddPlayer( Player, Pass )
 			if not Player then return end
 
@@ -834,15 +851,17 @@ do
 			local Client = Player:GetClient()
 			if not Shine:IsValidClient( Client ) then return end
 
+			local IsBot = Client:GetIsVirtual()
+			local IsCommander = ( Player:isa( "Commander" ) or ( IsBot and IsCommanderBot( Client, Player ) ) )
+				and self.Config.IgnoreCommanders
+
 			-- Bot and we don't want to deal with them, so kick them out.
-			if Client:GetIsVirtual() and not self.Config.ApplyToBots then
+			if IsBot and not IsCommander and not self.Config.ApplyToBots then
 				if Pass == 1 then
 					Server.DisconnectClient( Client )
 				end
 				return
 			end
-
-			local IsCommander = Player:isa( "Commander" ) and self.Config.IgnoreCommanders
 
 			if AFKEnabled and self.Config.RemoveAFKPlayersFromTeams then
 				if IsCommander or not self:IsClientAFK( AFKKick, Client ) then
