@@ -139,6 +139,11 @@ function Plugin:AddCommanderBots( Gamerules )
 		return
 	end
 
+	if not OnConsoleAddBots then
+		self.Logger:Warn( "Unable to add commander bots, OnConsoleAddBots does not exist." )
+		return
+	end
+
 	self:AddCommanderBotIfNeeded( Gamerules, BotController, kTeam1Index )
 	self:AddCommanderBotIfNeeded( Gamerules, BotController, kTeam2Index )
 end
