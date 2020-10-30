@@ -13,7 +13,7 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
 local Plugin = ...
-Plugin.Version = "1.7"
+Plugin.Version = "1.8"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
@@ -45,7 +45,9 @@ Plugin.DefaultConfig = {
 	-- Whether to abort the game start if a commander drops out of the chair.
 	AbortIfNoCom = false,
 	-- Whether to allow players to attack during the pre-game time.
-	AllowAttackPreGame = true
+	AllowAttackPreGame = true,
+	-- Whether to automatically add commander bots for any team without a commander at game start.
+	AutoAddCommanderBots = true
 }
 
 Plugin.CheckConfig = true
@@ -70,6 +72,12 @@ Plugin.ConfigMigrationSteps = {
 				Config.RequireComs = nil
 			end )
 			:UseEnum( "Mode", Plugin.Modes )
+	},
+	{
+		VersionTo = "1.8",
+		Apply = Shine.Migrator()
+			:AddField( "AutoAddCommanderBots", true )
+			:AddField( "LogLevel", "INFO" )
 	}
 }
 
@@ -86,11 +94,12 @@ do
 end
 
 function Plugin:OnFirstThink()
-	Shine.Hook.SetupClassHook( "Player", "GetCanAttack",
-		"CheckPlayerCanAttack", "ActivePre" )
+	Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "ActivePre" )
 end
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	self.CountStart = nil
 	self.CountEnd = nil
 	self.GameStarting = false
@@ -113,9 +122,34 @@ function Plugin:OnMapVoteStarted( MapVotePlugin, IsNextMapVote, EndTime )
 	end
 end
 
+function Plugin:AddCommanderBotIfNeeded( Gamerules, BotController, TeamNumber )
+	if not BotController:GetTeamHasCommander( TeamNumber ) then
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug( "Adding commander bot to team %s...", TeamNumber )
+		end
+		OnConsoleAddBots( nil, 1, TeamNumber, "com" )
+		Gamerules.removeCommanderBots = true
+	end
+end
+
+function Plugin:AddCommanderBots( Gamerules )
+	local BotController = Gamerules.botTeamController
+	if not BotController or not BotController.GetTeamHasCommander then
+		self.Logger:Warn( "Unable to add commander bots as the gamerules has no valid BotTeamController instance." )
+		return
+	end
+
+	self:AddCommanderBotIfNeeded( Gamerules, BotController, kTeam1Index )
+	self:AddCommanderBotIfNeeded( Gamerules, BotController, kTeam2Index )
+end
+
 function Plugin:StartCountdown()
 	local Gamerules = GetGamerules()
 	if not Gamerules then return end
+
+	if self.Config.AutoAddCommanderBots then
+		self:AddCommanderBots( Gamerules )
+	end
 
 	Gamerules:ResetGame()
 	Gamerules:SetGameState( kGameState.Countdown )
@@ -650,3 +684,5 @@ function Plugin:CheckGameStart( Gamerules )
 
 	return false
 end
+
+Shine.LoadPluginModule( "logger.lua", Plugin )
