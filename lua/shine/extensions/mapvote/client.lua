@@ -123,6 +123,8 @@ function Plugin:Initialise()
 end
 
 function Plugin:OnFirstThink()
+	self:BroadcastModuleEvent( "OnFirstThink" )
+
 	SGUI.NotificationManager.RegisterHint( MAP_GRID_SWITCH_BACK_HINT, {
 		MaxTimes = 1,
 		MessageSource = self:GetName(),

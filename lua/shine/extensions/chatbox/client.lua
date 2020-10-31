@@ -278,7 +278,10 @@ local Skin = {
 			TextInheritsParentAlpha = false,
 			States = {
 				Selected = {
-					TextColour = Colours.ModeText,
+					TextColour = Colours.ModeText
+				},
+				Highlighted = {
+					TextColour = Colours.ModeText
 				}
 			}
 		},
@@ -289,7 +292,10 @@ local Skin = {
 			TextInheritsParentAlpha = false,
 			States = {
 				Selected = {
-					TextColour = Colours.ModeText,
+					TextColour = Colours.ModeText
+				},
+				Highlighted = {
+					TextColour = Colours.ModeText
 				}
 			}
 		}

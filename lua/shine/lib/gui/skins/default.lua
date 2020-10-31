@@ -287,13 +287,23 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = WindowBackground,
 			InactiveCol = DarkButton,
-			TextColour = BrightText
+			TextColour = BrightText,
+			States = {
+				Highlighted = {
+					InactiveCol = CategoryButton
+				}
+			}
 		},
 		Horizontal = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = HorizontalTabBackground,
 			InactiveCol = DarkButton,
-			TextColour = BrightText
+			TextColour = BrightText,
+			States = {
+				Highlighted = {
+					InactiveCol = CategoryButton
+				}
+			}
 		}
 	},
 	TextEntry = {

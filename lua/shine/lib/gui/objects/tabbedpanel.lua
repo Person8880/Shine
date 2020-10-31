@@ -39,7 +39,7 @@ end
 function TabPanelButton:SetActiveCol( Col )
 	self.ActiveCol = Col
 
-	if self.Highlighted or self.Selected then
+	if self.Selected then
 		self.Background:SetColor( Col )
 	end
 end
@@ -47,7 +47,7 @@ end
 function TabPanelButton:SetInactiveCol( Col )
 	self.InactiveCol = Col
 
-	if not self.Highlighted and not self.Selected then
+	if not self.Selected then
 		self.Background:SetColor( Col )
 	end
 end
@@ -69,8 +69,10 @@ function TabPanelButton:OnMouseMove( Down )
 
 	if self:MouseIn( self.Background, 0.9 ) then
 		self.Highlighted = true
+		self:AddStylingState( "Highlighted" )
 	else
 		self.Highlighted = false
+		self:RemoveStylingState( "Highlighted" )
 	end
 end
 
