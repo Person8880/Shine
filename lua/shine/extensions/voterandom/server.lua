@@ -824,23 +824,6 @@ do
 			AddTeamPreference( Player, Client, Preference )
 		end
 
-		local function IsCommanderBot( Client, Player )
-			if Client.bot and Client.bot.isa and Client.bot:isa( "CommanderBot" ) then
-				return true
-			end
-
-			if gCommanderBots then
-				for i = 1, #gCommanderBots do
-					local Bot = gCommanderBots[ i ]
-					if Bot and ( ( Bot.GetPlayer and Bot:GetPlayer() == Player ) or Bot.client == Client ) then
-						return true
-					end
-				end
-			end
-
-			return false
-		end
-
 		local function AddPlayer( Player, Pass )
 			if not Player then return end
 
