@@ -1857,6 +1857,10 @@ do
 
 		self.TooltipText = Text
 		self:ListenForHoverEvents( self.ShowTooltip, self.HideTooltip )
+
+		if SGUI.IsValid( self.Tooltip ) then
+			self.Tooltip:UpdateText( Text )
+		end
 	end
 
 	local DEFAULT_HOVER_TIME = 0.5

@@ -71,6 +71,14 @@ function Tooltip:SetText( Text, Font, Scale )
 	self:ComputeAndSetSize( Text )
 end
 
+function Tooltip:UpdateText( Text )
+	local TextObj = self.Text
+	if not TextObj then return end
+
+	TextObj:SetText( Text )
+	self:ComputeAndSetSize( Text )
+end
+
 function Tooltip:ComputeAndSetSize( Text )
 	local Scale = self.TextScale
 	local WidthScale = Scale and Scale.x or 1
