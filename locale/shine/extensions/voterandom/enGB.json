@@ -135,6 +135,9 @@
 	"AUTO_SHUFFLE_ENABLED_RANDOM_BASED": "Automatic random teams have been enabled.",
 	"AUTO_SHUFFLE_ENABLED_SCORE_BASED": "Automatic score based teams have been enabled.",
 
+	"AUTO_SHUFFLE_DISABLE_TOOLTIP": "Vote to disable automatic shuffling for the next round.",
+	"AUTO_SHUFFLE_ENABLE_TOOLTIP": "Vote to enable automatic shuffling for the next round.",
+
 	"ERROR_CONSTRAINTS": "Teams are already sufficiently balanced.",
 
 	"ERROR_MUST_WAIT_HIVE_BASED": "You must wait for {SecondsToWait:Duration} before voting for Hive skill based teams.",

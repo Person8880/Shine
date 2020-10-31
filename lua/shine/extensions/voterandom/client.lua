@@ -225,6 +225,7 @@ function Plugin:NetworkUpdate( Key, Old, New )
 
 		Button.DefaultText = self:GetVoteButtonText()
 		Button:SetText( Button.DefaultText )
+		Button:SetTooltip( self:GetVoteButtonTooltip() )
 	end
 end
 
@@ -236,6 +237,12 @@ function Plugin:GetVoteButtonText()
 	end
 
 	return self:GetPhrase( "ENABLE_AUTO_SHUFFLE" )
+end
+
+function Plugin:GetVoteButtonTooltip()
+	if not self.dt.IsVoteForAutoShuffle then return nil end
+
+	return self:GetPhrase( self.dt.IsAutoShuffling and "AUTO_SHUFFLE_DISABLE_TOOLTIP" or "AUTO_SHUFFLE_ENABLE_TOOLTIP" )
 end
 
 function Plugin:GetTeamPreference()
@@ -349,6 +356,10 @@ function Plugin:OnVoteButtonCreated( Button, VoteMenu )
 			SGUI.NotificationManager.DisplayHint( FRIEND_GROUP_HINT_NAME )
 			return OldClick( self )
 		end
+	end
+
+	if self.dt.IsVoteForAutoShuffle then
+		Button:SetTooltip( self:GetVoteButtonTooltip() )
 	end
 end
 
