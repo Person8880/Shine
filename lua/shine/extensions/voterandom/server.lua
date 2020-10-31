@@ -851,12 +851,10 @@ do
 			local Client = Player:GetClient()
 			if not Shine:IsValidClient( Client ) then return end
 
-			local IsBot = Client:GetIsVirtual()
-			local IsCommander = ( Player:isa( "Commander" ) or ( IsBot and IsCommanderBot( Client, Player ) ) )
-				and self.Config.IgnoreCommanders
+			local IsCommander = self.IsPlayerCommander( Player, Client ) and self.Config.IgnoreCommanders
 
 			-- Bot and we don't want to deal with them, so kick them out.
-			if IsBot and not IsCommander and not self.Config.ApplyToBots then
+			if Client:GetIsVirtual() and not IsCommander and not self.Config.ApplyToBots then
 				if Pass == 1 then
 					Server.DisconnectClient( Client )
 				end

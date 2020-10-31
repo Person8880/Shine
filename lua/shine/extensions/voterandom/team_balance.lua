@@ -78,6 +78,9 @@ end
 
 Shine.Hook.SetupClassHook( "BotTeamController", "UpdateBots", "UpdateBots", "ActivePre" )
 
+local function SortDescending( A, B )
+	return A > B
+end
 local function GetAverageSkillFunc( Players, Func, TeamNumber )
 	local PlayerCount = #Players
 	if PlayerCount == 0 then
@@ -116,9 +119,7 @@ local function GetAverageSkillFunc( Players, Func, TeamNumber )
 		}
 	end
 
-	TableSort( Skills, function( A, B )
-		return A > B
-	end )
+	TableSort( Skills, SortDescending )
 
 	return {
 		Average = PlayerSkillSum / Count,
@@ -447,6 +448,7 @@ local function TeamMembersContainCommander( TeamMembers )
 		local Team = TeamMembers[ i ]
 		for j = 1, #Team do
 			local Player = Team[ j ]
+			-- Only care about human commanders.
 			if Player and Player:isa( "Commander" ) then
 				return true
 			end
@@ -561,13 +563,44 @@ function BalanceModule:FilterPlayerGroupsToTeamMembers( PlayerGroups, TeamMember
 	end
 
 	return Shine.Stream( PlayerGroups )
-		:Filter( function( Group )
+		:Map( function( Group )
 			return {
 				Players = Shine.Stream( Group.Players ):Filter( IsBeingOptimised ):AsTable()
 			}
 		end )
 		:Filter( IsNotEmptyGroup )
 		:AsTable()
+end
+
+local function IsCommanderBot( Client, Player )
+	if Client.bot and Client.bot.isa and Client.bot:isa( "CommanderBot" ) then
+		return true
+	end
+
+	if gCommanderBots then
+		for i = 1, #gCommanderBots do
+			local Bot = gCommanderBots[ i ]
+			if Bot and ( Bot.client == Client or ( Bot.GetPlayer and Bot:GetPlayer() == Player ) ) then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+function BalanceModule.IsPlayerCommander( Player, Client )
+	if Player:isa( "Commander" ) then
+		return true
+	end
+
+	Client = Client or GetClientForPlayer( Player )
+
+	if Client and Client:GetIsVirtual() then
+		return IsCommanderBot( Client, Player )
+	end
+
+	return false
 end
 
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
@@ -580,8 +613,8 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	end
 
 	local IgnoreCommanders = self.Config.IgnoreCommanders
-	local function IsValidForSwapSinglePass( self, Player )
-		return not ( IgnoreCommanders and Player:isa( "Commander" ) )
+	local function IsValidForSwapSinglePass( _, Player )
+		return not ( IgnoreCommanders and self.IsPlayerCommander( Player ) )
 	end
 
 	local function IsValidForSwapMultiPass( self, Player, Pass, TeamNumber )
@@ -671,7 +704,7 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 			local Team = TeamMembers[ i ]
 			for j = 1, #Team do
 				local Player = Team[ j ]
-				if IgnoreCommanders and Player:isa( "Commander" ) then
+				if IgnoreCommanders and self.IsPlayerCommander( Player ) then
 					Commanders[ i ] = Player
 				else
 					Players[ #Players + 1 ] = Player
