@@ -545,6 +545,17 @@ function SGUI:IsWindowInFocus( Window )
 	return false
 end
 
+function SGUI:IsMouseInVisibleWindow()
+	local Windows = self.Windows
+	for i = #Windows, 1, -1 do
+		local Window = Windows[ i ]
+		if Window:GetIsVisible() and ( Window.AlwaysInMouseFocus or Window:HasMouseEntered() ) then
+			return true
+		end
+	end
+	return false
+end
+
 local OnError = Shine.BuildErrorHandler( "SGUI Error" )
 
 SGUI.PostEventActions = {}
@@ -1350,6 +1361,18 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 
 	SetupRenderDeviceResetCheck()
+end )
+
+Hook.CallAfterFileLoad( "lua/Commander_Client.lua", function()
+	local GetMouseIsOverUI = CommanderUI_GetMouseIsOverUI
+	if GetMouseIsOverUI then
+		function CommanderUI_GetMouseIsOverUI()
+			if SGUI:IsMouseInVisibleWindow() then
+				return true
+			end
+			return GetMouseIsOverUI()
+		end
+	end
 end )
 
 Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
