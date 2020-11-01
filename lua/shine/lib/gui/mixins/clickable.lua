@@ -37,7 +37,7 @@ function Clickable:OnMouseUp( Key )
 
 	self.NextClick = Time + ( self.ClickDelay or 0.1 )
 
-	CallClickMethod( self, GetClickMethod( self, Key ) )
+	return CallClickMethod( self, GetClickMethod( self, Key ) )
 end
 
 Shine.GUI:RegisterMixin( "Clickable", Clickable )
