@@ -1943,6 +1943,7 @@ function ControlMeta:ShowTooltip( MouseX, MouseY )
 	local Tooltip = self.Tooltip
 	if not SGUI.IsValid( Tooltip ) then
 		Tooltip = SGUI:Create( "Tooltip" )
+		Tooltip:SetAssociatedControl( self )
 
 		-- As the Tooltip element is not a child of this element, the skin must be set manually.
 		if self.PropagateSkin then
