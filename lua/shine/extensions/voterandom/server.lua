@@ -394,7 +394,7 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local Client = GetClientForPlayer( Player )
 	if not Client then return false end
 
-	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
+	local Immune = Client:GetIsVirtual() or Shine:HasAccess( Client, "sh_randomimmune" )
 	if Immune then return end
 
 	local PlayerCount = Shine.GetHumanPlayerCount()
