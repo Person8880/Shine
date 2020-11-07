@@ -573,8 +573,8 @@ function BalanceModule:FilterPlayerGroupsToTeamMembers( PlayerGroups, TeamMember
 end
 
 local function IsCommanderBot( Client, Player )
-	if Client.bot and Client.bot.isa and Client.bot:isa( "CommanderBot" ) then
-		return true
+	if Client.bot and Client.bot.isa then
+		return Client.bot:isa( "CommanderBot" )
 	end
 
 	if gCommanderBots then
