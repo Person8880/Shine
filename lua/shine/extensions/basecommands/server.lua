@@ -1335,7 +1335,7 @@ function Plugin:CreateGameplayCommands()
 			NotifyError( Client, "ERROR_SET_TEAM_FAILED", {
 				TargetCount = NumFailed,
 				Team = Team
-			}, "Failed to move %s players to team %s.", true, NumFailed, Team )
+			}, "Failed to move %s player%s to team %s.", true, NumFailed, NumFailed == 1 and "" or "s", Team )
 		end
 	end
 	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
