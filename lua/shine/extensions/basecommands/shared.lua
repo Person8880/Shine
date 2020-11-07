@@ -104,6 +104,9 @@ function Plugin:SetupDataTable()
 			"UNKNOWN_MAP_NAME", "UNCLEAR_MAP_NAME"
 		}
 	} )
+	self:AddTranslatedCommandError( "ERROR_SET_TEAM_FAILED", MessageTypes.TeamChange, {
+		VariationKey = "Team"
+	} )
 
 	self:AddNetworkMessage( "EnableLocalAllTalk", { Enabled = "boolean" }, "Server" )
 end
