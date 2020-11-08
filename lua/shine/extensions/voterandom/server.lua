@@ -394,7 +394,7 @@ function EnforcementPolicy:JoinTeam( Plugin, Gamerules, Player, NewTeam, Force )
 	local Client = GetClientForPlayer( Player )
 	if not Client then return false end
 
-	local Immune = Shine:HasAccess( Client, "sh_randomimmune" )
+	local Immune = Client:GetIsVirtual() or Shine:HasAccess( Client, "sh_randomimmune" )
 	if Immune then return end
 
 	local PlayerCount = Shine.GetHumanPlayerCount()
@@ -824,23 +824,6 @@ do
 			AddTeamPreference( Player, Client, Preference )
 		end
 
-		local function IsCommanderBot( Client, Player )
-			if Client.bot and Client.bot.isa and Client.bot:isa( "CommanderBot" ) then
-				return true
-			end
-
-			if gCommanderBots then
-				for i = 1, #gCommanderBots do
-					local Bot = gCommanderBots[ i ]
-					if Bot and ( ( Bot.GetPlayer and Bot:GetPlayer() == Player ) or Bot.client == Client ) then
-						return true
-					end
-				end
-			end
-
-			return false
-		end
-
 		local function AddPlayer( Player, Pass )
 			if not Player then return end
 
@@ -851,12 +834,10 @@ do
 			local Client = Player:GetClient()
 			if not Shine:IsValidClient( Client ) then return end
 
-			local IsBot = Client:GetIsVirtual()
-			local IsCommander = ( Player:isa( "Commander" ) or ( IsBot and IsCommanderBot( Client, Player ) ) )
-				and self.Config.IgnoreCommanders
+			local IsCommander = self.IsPlayerCommander( Player, Client ) and self.Config.IgnoreCommanders
 
 			-- Bot and we don't want to deal with them, so kick them out.
-			if IsBot and not IsCommander and not self.Config.ApplyToBots then
+			if Client:GetIsVirtual() and not IsCommander and not self.Config.ApplyToBots then
 				if Pass == 1 then
 					Server.DisconnectClient( Client )
 				end

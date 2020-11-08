@@ -242,8 +242,8 @@ end
 
 function MapVoteNotification:GetTeamVariation()
 	local Player = Client.GetLocalPlayer()
-	local TeamVariation = Player and Player:isa( "Alien" ) and "Alien" or "Marine"
 	local TeamNumber = Player and Player.GetTeamNumber and Player:GetTeamNumber() or 0
+	local TeamVariation = Player and ( Player:isa( "Alien" ) or TeamNumber == kTeam2Index ) and "Alien" or "Marine"
 
 	return TeamVariation, TeamNumber
 end

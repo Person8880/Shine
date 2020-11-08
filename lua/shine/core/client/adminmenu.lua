@@ -469,6 +469,11 @@ do
 		Button:SetTooltip( Data.Tooltip )
 		Button.MultiPlayer = Data.MultiPlayer
 
+		if Data.Icon then
+			Button:SetIcon( Data.Icon, SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 21 ) )
+			Button:SetIconAlignment( Data.IconAlignment )
+		end
+
 		local NumSelected = #PlayerList:GetSelectedRows()
 		if NumSelected == 0 or NumSelected > 1 and not Data.MultiPlayer then
 			Button:SetEnabled( false )
@@ -674,6 +679,7 @@ do
 	end
 
 	function AdminMenu:AddCommand( Category, Name, Command, MultiPlayer, DoClick, Tooltip )
+		local Icon, IconAlignment
 		if not DoClick then
 			DoClick = function( Button, Rows )
 				if #Rows == 0 then return end
@@ -706,6 +712,9 @@ do
 				Menu:Destroy()
 				Menu = nil
 			end
+
+			Icon = SGUI.Icons.Ionicons.ChevronRight
+			IconAlignment = SGUI.LayoutAlignment.MAX
 			DoClick = function( Button, Rows )
 				if #Rows == 0 then return end
 
@@ -777,7 +786,9 @@ do
 			Name = Name,
 			DoClick = DoClick,
 			Tooltip = Tooltip,
-			MultiPlayer = MultiPlayer
+			MultiPlayer = MultiPlayer,
+			Icon = Icon,
+			IconAlignment = IconAlignment
 		}
 
 		CommandsList[ #CommandsList + 1 ] = Data

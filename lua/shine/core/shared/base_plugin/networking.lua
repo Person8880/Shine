@@ -192,8 +192,8 @@ do
 		end )
 	end
 
-	function NetworkingModule:AddTranslatedCommandError( Name, Params )
-		Shine.RegisterTranslatedCommandError( Name, Params, self.__Name )
+	function NetworkingModule:AddTranslatedCommandError( Name, Params, Options )
+		Shine.RegisterTranslatedCommandError( Name, Params, self.__Name, Options )
 	end
 
 	function NetworkingModule:AddTranslatedRichText( Name, Params, Options, VariationKey )

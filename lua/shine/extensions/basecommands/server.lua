@@ -1307,29 +1307,41 @@ function Plugin:CreateGameplayCommands()
 	ForceRandomCommand:AddParam{ Type = "clients" }
 	ForceRandomCommand:Help( "Forces the given player(s) onto a random team." )
 
-	local function ChangeTeam( Client, Targets, Team )
+	local function ChangeTeam( Client, Targets, Team, ForceChange )
 		local Gamerules = GetGamerules()
 		if not Gamerules then return end
 
 		local TargetCount = #Targets
 		if TargetCount == 0 then return end
 
+		local SuccessfulMoves = 0
 		for i = 1, TargetCount do
 			local Player = Targets[ i ]:GetControllingPlayer()
 
-			if Player then
-				Gamerules:JoinTeam( Player, Team, nil, true )
+			if Player and Gamerules:JoinTeam( Player, Team, ForceChange, true ) then
+				SuccessfulMoves = SuccessfulMoves + 1
 			end
 		end
 
-		self:SendTranslatedMessage( Client, "ChangeTeam", {
-			TargetCount = TargetCount,
-			Team = Team
-		} )
+		if SuccessfulMoves > 0 then
+			self:SendTranslatedMessage( Client, "ChangeTeam", {
+				TargetCount = SuccessfulMoves,
+				Team = Team
+			} )
+		end
+
+		if TargetCount > SuccessfulMoves then
+			local NumFailed = TargetCount - SuccessfulMoves
+			NotifyError( Client, "ERROR_SET_TEAM_FAILED", {
+				TargetCount = NumFailed,
+				Team = Team
+			}, "Failed to move %s player%s to team %s.", true, NumFailed, NumFailed == 1 and "" or "s", Team )
+		end
 	end
 	local ChangeTeamCommand = self:BindCommand( "sh_setteam", { "team", "setteam" }, ChangeTeam )
 	ChangeTeamCommand:AddParam{ Type = "clients" }
 	ChangeTeamCommand:AddParam{ Type = "team", Error = "Please specify a team to move to." }
+	ChangeTeamCommand:AddParam{ Type = "boolean", Optional = true, Default = false, Help = "force" }
 	ChangeTeamCommand:Help( "Sets the given player(s) onto the given team." )
 
 	local function ReadyRoom( Client, Targets )

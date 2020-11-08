@@ -40,15 +40,18 @@ do
 		end
 	end
 
-	function Shine.RegisterTranslatedCommandError( Name, Data, Source )
+	function Shine.RegisterTranslatedCommandError( Name, Data, Source, Options )
 		local MessageName = GetNetworkMessageName( Name, Source )
 		Data.IsConsole = "boolean"
 		Shared.RegisterNetworkMessage( MessageName, Data )
 
 		if Server then return end
 
+		local VariationKey = Options and Options.VariationKey
+
 		Shine.HookNetworkMessage( MessageName, function( Data )
-			local Message = Shine.Locale:GetInterpolatedPhrase( Source or "Core", Name, Data )
+			local MessageKey = VariationKey and StringFormat( "%s_%s", Name, Data[ VariationKey ] ) or Name
+			local Message = Shine.Locale:GetInterpolatedPhrase( Source or "Core", MessageKey, Data )
 			ApplyErrorMessage( Message, Data.IsConsole )
 		end )
 	end

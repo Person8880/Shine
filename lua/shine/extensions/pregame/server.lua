@@ -205,7 +205,7 @@ function Plugin:CheckPlayerCanAttack()
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )
-	if State <= kGameState.PreGame then return end
+	if State < kGameState.Countdown then return end
 
 	if self.CountStart then
 		self.CountStart = nil
@@ -215,6 +215,8 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 
 	self.StartedGame = false
 	self.GameStarting = false
+	self:DestroyTimers()
+	Shine.ScreenText.End( self.ScreenTextID )
 
 	-- Removes start delay text if game start was forced.
 	if self.Config.StartDelayInSeconds > 0 then

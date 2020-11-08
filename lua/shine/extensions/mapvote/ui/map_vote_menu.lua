@@ -451,9 +451,13 @@ function MapVoteMenu:Initialise()
 	) )
 end
 
+local function IsAlien( Player )
+	return Player:isa( "Alien" ) or ( Player.GetTeamNumber and Player:GetTeamNumber() == kTeam2Index )
+end
+
 function MapVoteMenu:GetTeamVariation()
 	local Player = Client.GetLocalPlayer()
-	return Player and Player:isa( "Alien" ) and "Alien" or "Marine"
+	return Player and IsAlien( Player ) and "Alien" or "Marine"
 end
 
 function MapVoteMenu:PlayerKeyPress( Key, Down )

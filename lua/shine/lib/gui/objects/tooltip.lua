@@ -13,6 +13,7 @@ Tooltip.IgnoreMouseFocus = true
 
 SGUI.AddBoundProperty( Tooltip, "Colour", "Background:SetColor" )
 SGUI.AddBoundProperty( Tooltip, "Texture", "Background:SetTexture" )
+SGUI.AddProperty( Tooltip, "AssociatedControl" )
 
 function Tooltip:Initialise()
 	self.BaseClass.Initialise( self )
@@ -90,8 +91,14 @@ function Tooltip:ComputeAndSetSize( Text )
 	self:SetSize( Vector2( Width, Height ) )
 end
 
+function Tooltip:ShouldBeVisible()
+	-- Hide the tooltip if the mouse is not visible or the associated control is not visible (or its window isn't).
+	return SGUI.IsMouseVisible()
+		and not ( SGUI.IsValid( self.AssociatedControl ) and not self.AssociatedControl:ComputeVisibility() )
+end
+
 function Tooltip:Think( DeltaTime )
-	if not SGUI.EnabledMouse then
+	if not self:ShouldBeVisible() then
 		self:FadeOut()
 	end
 

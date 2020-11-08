@@ -250,14 +250,18 @@ function Plugin:SetupAdminMenuCommands()
 		self:GetPhrase( "FORCE_RANDOM_TIP" ) )
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "READY_ROOM" ), "sh_rr", true, nil,
 		self:GetPhrase( "READY_ROOM_TIP" ) )
-	local Teams = {}
-	for i = 0, 3 do
-		local TeamName = Shine:GetTeamName( i, true )
-		i = i + 1
-
-		Teams[ i * 2 - 1 ] = TeamName
-		Teams[ i * 2 ] = tostring( i - 1 )
-	end
+	local Teams = {
+		-- Ready room
+		Shine:GetTeamName( 0, true ), "0",
+		-- Marines
+		Shine:GetTeamName( 1, true ), "1",
+		self:GetInterpolatedPhrase( "FORCE_SET_TEAM", { TeamName = Shine:GetTeamName( 1, true ) } ), "1 true",
+		-- Aliens
+		Shine:GetTeamName( 2, true ), "2",
+		self:GetInterpolatedPhrase( "FORCE_SET_TEAM", { TeamName = Shine:GetTeamName( 2, true ) } ), "2 true",
+		-- Spectators
+		Shine:GetTeamName( 3, true ), "3"
+	}
 	self:AddAdminMenuCommand( Category, self:GetPhrase( "SET_TEAM" ), "sh_setteam", true, Teams,
 		self:GetPhrase( "SET_TEAM_TIP" ) )
 

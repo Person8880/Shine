@@ -1237,22 +1237,24 @@ end )
 -- Turn off happiness optimisation for integration tests.
 VoteShuffle.OptimiseHappiness = function() end
 
-UnitTest:Test( "OptimiseTeams", function( Assert )
-	local Skills = {
-		2000, 2000, 1000,
-		1000, 1000, 1000
+local function PlayerWithSkill( Skill, Commander )
+	return {
+		Skill = Skill,
+		isa = function() return Commander end,
+		Commander = Commander
 	}
+end
+local function RankPlayerWithSkill( Player )
+	return Player.Skill
+end
 
-	local function RankFunc( Player )
-		return Skills[ Player ]
-	end
-
+UnitTest:Test( "OptimiseTeams", function( Assert )
 	local TeamMembers = {
 		{
-			1, 2, 3
+			PlayerWithSkill( 2000 ), PlayerWithSkill( 2000 ), PlayerWithSkill( 1000 )
 		},
 		{
-			4, 5, 6
+			PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 )
 		},
 		TeamPreferences = {}
 	}
@@ -1270,7 +1272,7 @@ UnitTest:Test( "OptimiseTeams", function( Assert )
 		}
 	}
 
-	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	VoteShuffle:OptimiseTeams( TeamMembers, RankPlayerWithSkill, TeamSkills )
 
 	-- Final team layout should be:
 	-- 2000, 1000, 1000
@@ -1280,45 +1282,37 @@ UnitTest:Test( "OptimiseTeams", function( Assert )
 end, nil, 5 )
 
 UnitTest:Test( "OptimiseLargeTeams", function( Assert )
-	local Skills = {
-		2000, 2000, 2000, 1800, 1700, 1500, 1200, 1000,
-		1000, 1000, 1000, 700, 600, 500, 0, 0
-	}
-
-	local function RankFunc( Player )
-		return Skills[ Player ]
-	end
-
 	local TeamMembers = {
 		{
-			1, 2, 3, 4, 5, 6, 7, 8
+			PlayerWithSkill( 2000 ), PlayerWithSkill( 2000 ), PlayerWithSkill( 2000 ), PlayerWithSkill( 1800 ),
+			PlayerWithSkill( 1700 ), PlayerWithSkill( 1500 ), PlayerWithSkill( 1200 ), PlayerWithSkill( 1000 )
 		},
 		{
-			9, 10, 11, 12, 13, 14, 15, 16
+			PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 ), PlayerWithSkill( 700 ),
+			PlayerWithSkill( 600 ), PlayerWithSkill( 500 ), PlayerWithSkill( 0 ), PlayerWithSkill( 0 )
 		},
 		TeamPreferences = {}
 	}
 
 	local TeamSkills = {}
 	local Team = 1
-	local PerTeam = #Skills * 0.5
-	for i = 1, #Skills, PerTeam do
+	for i = 1, 2 do
 		local Data = {}
 		local Sum = 0
 
-		for j = i, i + PerTeam - 1 do
-			Sum = Sum + Skills[ j ]
+		for j = 1, #TeamMembers[ i ] do
+			Sum = Sum + RankPlayerWithSkill( TeamMembers[ i ][ j ] )
 		end
 
 		Data.Total = Sum
-		Data.Average = Sum / PerTeam
-		Data.Count = PerTeam
+		Data.Average = Sum / #TeamMembers[ i ]
+		Data.Count = #TeamMembers[ i ]
 
 		TeamSkills[ Team ] = Data
 		Team = Team + 1
 	end
 
-	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	VoteShuffle:OptimiseTeams( TeamMembers, RankPlayerWithSkill, TeamSkills )
 
 	local FinalTeams = {
 		{ 2000, 1800, 1700, 1200, 1000, 700, 600, 0 },
@@ -1328,12 +1322,12 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 	for i = 1, 2 do
 		local TeamTable = TeamMembers[ i ]
 		TableSort( TeamTable, function( A, B )
-			return Skills[ A ] > Skills[ B ]
+			return RankPlayerWithSkill( A ) > RankPlayerWithSkill( B )
 		end )
 
 		local AsSkillArray = {}
 		for j = 1, #TeamTable do
-			AsSkillArray[ j ] = Skills[ TeamTable[ j ] ]
+			AsSkillArray[ j ] = RankPlayerWithSkill( TeamTable[ j ] )
 		end
 
 		Assert:ArrayEquals( FinalTeams[ i ], AsSkillArray )
@@ -1341,21 +1335,12 @@ UnitTest:Test( "OptimiseLargeTeams", function( Assert )
 end, nil, 5 )
 
 UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
-	local Skills = {
-		2000, 2000, 1000,
-		1000, 1000
-	}
-
-	local function RankFunc( Player )
-		return Skills[ Player ]
-	end
-
 	local TeamMembers = {
 		{
-			1, 2, 3
+			PlayerWithSkill( 2000 ), PlayerWithSkill( 2000 ), PlayerWithSkill( 1000 )
 		},
 		{
-			4, 5
+			PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 )
 		},
 		TeamPreferences = {}
 	}
@@ -1373,7 +1358,7 @@ UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
 		}
 	}
 
-	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	VoteShuffle:OptimiseTeams( TeamMembers, RankPlayerWithSkill, TeamSkills )
 
 	-- Final team layout should be:
 	-- 2000, 1000
@@ -1385,21 +1370,16 @@ UnitTest:Test( "OptimiseTeams with uneven teams", function( Assert )
 end, nil, 5 )
 
 UnitTest:Test( "OptimiseTeams with preference", function( Assert )
-	local Skills = {
-		2000, 2000, 1000,
-		1000, 1000, 1000
+	local Players = {
+		PlayerWithSkill( 2000 ), PlayerWithSkill( 2000 ), PlayerWithSkill( 1000 ),
+		PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 )
 	}
-
-	local function RankFunc( Player )
-		return Skills[ Player ]
-	end
-
 	local TeamMembers = {
 		{
-			1, 2, 3
+			Players[ 1 ], Players[ 2 ], Players[ 3 ]
 		},
 		{
-			4, 5, 6
+			Players[ 4 ], Players[ 5 ], Players[ 6 ]
 		},
 		TeamPreferences = {
 			[ 4 ] = true,
@@ -1420,39 +1400,28 @@ UnitTest:Test( "OptimiseTeams with preference", function( Assert )
 		}
 	}
 
-	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	VoteShuffle:OptimiseTeams( TeamMembers, RankPlayerWithSkill, TeamSkills )
 
 	-- It should always swap 2 and 6, as 4 and 5 have chosen team 2 specifically.
-	Assert:ArrayContainsExactly( { 1, 6, 3 }, TeamMembers[ 1 ] )
-	Assert:ArrayContainsExactly( { 4, 5, 2 }, TeamMembers[ 2 ] )
+	Assert:ArrayContainsExactly( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
+	Assert:ArrayContainsExactly( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
 end, nil, 5 )
 
 VoteShuffle.Config.IgnoreCommanders = true
 
 UnitTest:Test( "OptimiseTeams with commanders", function( Assert )
 	local Index = 0
-	local Players = {}
-	local function Player( Skill, Commander )
-		Index = Index + 1
-		Players[ Index ] = {
-			Index = Index,
-			Skill = Skill,
-			isa = function() return Commander end,
-			Commander = Commander
-		}
-		return Players[ Index ]
-	end
+	local Players = {
+		PlayerWithSkill( 2000, true ), PlayerWithSkill( 2000 ), PlayerWithSkill( 1000 ),
+		PlayerWithSkill( 1000, true ), PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 )
+	}
 
 	local Marines = {
-		Player( 2000, true ), Player( 2000 ), Player( 1000 )
+		Players[ 1 ], Players[ 2 ], Players[ 3 ]
 	}
 	local Aliens = {
-		Player( 1000, true ), Player( 1000 ), Player( 1000 )
+		Players[ 4 ], Players[ 5 ], Players[ 6 ]
 	}
-
-	local function RankFunc( Player )
-		return Player.Skill
-	end
 
 	local TeamMembers = {
 		Marines,
@@ -1476,7 +1445,7 @@ UnitTest:Test( "OptimiseTeams with commanders", function( Assert )
 		}
 	}
 
-	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	VoteShuffle:OptimiseTeams( TeamMembers, RankPlayerWithSkill, TeamSkills )
 
 	-- It should never swap the commanders.
 	Assert:ArrayContainsExactly( { Players[ 1 ], Players[ 6 ], Players[ 3 ] }, TeamMembers[ 1 ] )
@@ -1485,28 +1454,17 @@ end, nil, 5 )
 
 UnitTest:Test( "OptimiseTeams with friend groups", function( Assert )
 	local Index = 0
-	local Players = {}
-	local function Player( Skill, Commander )
-		Index = Index + 1
-		Players[ Index ] = {
-			Index = Index,
-			Skill = Skill,
-			isa = function() return Commander end,
-			Commander = Commander
-		}
-		return Players[ Index ]
-	end
+	local Players = {
+		PlayerWithSkill( 2000, true ), PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 ),
+		PlayerWithSkill( 2000, true ), PlayerWithSkill( 1000 ), PlayerWithSkill( 1000 )
+	}
 
 	local Marines = {
-		Player( 2000, true ), Player( 1000 ), Player( 1000 )
+		Players[ 1 ], Players[ 2 ], Players[ 3 ]
 	}
 	local Aliens = {
-		Player( 2000, true ), Player( 1000 ), Player( 1000 )
+		Players[ 4 ], Players[ 5 ], Players[ 6 ]
 	}
-
-	local function RankFunc( Player )
-		return Player.Skill
-	end
 
 	local TeamMembers = {
 		Marines,
@@ -1534,7 +1492,7 @@ UnitTest:Test( "OptimiseTeams with friend groups", function( Assert )
 		}
 	}
 
-	VoteShuffle:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
+	VoteShuffle:OptimiseTeams( TeamMembers, RankPlayerWithSkill, TeamSkills )
 
 	-- It should swap the players that are grouped as it will not harm the balance.
 	Assert:ArrayContainsExactly( { Players[ 1 ], Players[ 2 ], Players[ 6 ] }, TeamMembers[ 1 ] )
@@ -1543,24 +1501,22 @@ end )
 
 UnitTest:Test( "OptimiseTeams with per-team and role skill values", function( Assert )
 	local Index = 0
-	local Players = {}
-	local function Player( Skill, Commander )
-		Index = Index + 1
-		Players[ Index ] = {
-			Index = Index,
-			Skill = Skill,
-			isa = function() return Commander end,
-			Commander = Commander
-		}
-		return Players[ Index ]
-	end
+	local Players = {
+		PlayerWithSkill( { Commander = { 2000, 1000 } }, true ),
+		PlayerWithSkill( { 2000, 2000 } ),
+		PlayerWithSkill( { 1000, 1000 } ),
+
+		PlayerWithSkill( { Commander = { 1000, 2000 } }, true ),
+		PlayerWithSkill( { 2000, 1000 } ),
+		PlayerWithSkill( { 1000, 1000 } )
+	}
 
 	-- The middle players here can be swapped to make the teams even based on team skill.
 	local Marines = {
-		Player( { Commander = { 2000, 1000 } }, true ), Player( { 2000, 2000 } ), Player( { 1000, 1000 } )
+		Players[ 1 ], Players[ 2 ], Players[ 3 ]
 	}
 	local Aliens = {
-		Player( { Commander = { 1000, 2000 } }, true ), Player( { 2000, 1000 } ), Player( { 1000, 1000 } )
+		Players[ 4 ], Players[ 5 ], Players[ 6 ]
 	}
 
 	local function RankFunc( Player, TeamNumber )
