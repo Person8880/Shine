@@ -604,9 +604,6 @@ function BalanceModule.IsPlayerCommander( Player, Client )
 end
 
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
-	-- Sanity check, make sure both team tables have even counts.
-	Shine.EqualiseTeamCounts( TeamMembers )
-
 	local TeamPreferences = TeamMembers.TeamPreferences
 	local function GetNumPasses( self )
 		return next( TeamPreferences ) and 2 or 1
@@ -850,6 +847,9 @@ function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTarg
 
 	-- If you want/need to control number of players on teams, this is the best point to do it.
 	Shine.Hook.Call( "PreShuffleOptimiseTeams", TeamMembers )
+
+	-- Sanity check, make sure both team tables have even counts.
+	Shine.EqualiseTeamCounts( TeamMembers )
 
 	if NoSecondPass then
 		return Sorted
