@@ -839,7 +839,11 @@ do
 			-- Bot and we don't want to deal with them, so kick them out.
 			if Client:GetIsVirtual() and not IsCommander and not self.Config.ApplyToBots then
 				if Pass == 1 then
-					Server.DisconnectClient( Client )
+					if Client.bot and Client.bot.Disconnect then
+						Client.bot:Disconnect()
+					else
+						Server.DisconnectClient( Client )
+					end
 				end
 				return
 			end
