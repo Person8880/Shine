@@ -46,7 +46,9 @@ BalanceModule.DefaultConfig = {
 		-- How long to wait for a response to a friend group invitation before revoking it.
 		FriendGroupInviteDurationInSeconds = 15,
 		-- How long after a friend group invite fails before a player can send another invite.
-		FriendGroupInviteCooldownInSeconds = 15
+		FriendGroupInviteCooldownInSeconds = 15,
+		-- How long after map change to restore friend groups for (a value of 0 disables restoring groups).
+		FriendGroupRestoreTimeoutSeconds = 300
 	}
 }
 
@@ -72,6 +74,7 @@ do
 
 	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteDurationInSeconds", Validator.Min( 5 ) )
 	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteCooldownInSeconds", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "TeamPreferences.FriendGroupRestoreTimeoutSeconds", Validator.Min( 0 ) )
 
 	BalanceModule.ConfigValidator = Validator
 end
@@ -604,9 +607,6 @@ function BalanceModule.IsPlayerCommander( Player, Client )
 end
 
 function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
-	-- Sanity check, make sure both team tables have even counts.
-	Shine.EqualiseTeamCounts( TeamMembers )
-
 	local TeamPreferences = TeamMembers.TeamPreferences
 	local function GetNumPasses( self )
 		return next( TeamPreferences ) and 2 or 1
@@ -850,6 +850,9 @@ function BalanceModule:SortPlayersByRank( TeamMembers, SortTable, Count, NumTarg
 
 	-- If you want/need to control number of players on teams, this is the best point to do it.
 	Shine.Hook.Call( "PreShuffleOptimiseTeams", TeamMembers )
+
+	-- Sanity check, make sure both team tables have even counts.
+	Shine.EqualiseTeamCounts( TeamMembers )
 
 	if NoSecondPass then
 		return Sorted

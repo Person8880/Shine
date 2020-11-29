@@ -792,7 +792,7 @@ end
 	the client's connected.
 ]]
 function Plugin:ClientConnect( Client )
-	if not self.Config.CheckFamilySharing then return end
+	if not self.Config.CheckFamilySharing or Client:GetIsVirtual() then return end
 
 	local IsSharingFromBannedAccount, Sharer = self:CheckFamilySharing( Client:GetUserId(), true )
 	if IsSharingFromBannedAccount then

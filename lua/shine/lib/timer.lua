@@ -124,42 +124,47 @@ function Timer.Destroy( Name )
 	PausedTimers[ Name ] = nil
 end
 
-do
-	--[[
-		Returns whether the given timer exists.
-		Input: Timer name to check.
-	]]
-	local function Exists( Name )
-		return Timers:Get( Name ) ~= nil or PausedTimers[ Name ] ~= nil
+--[[
+	Returns whether the given timer exists.
+	Input: Timer name to check.
+]]
+function Timer.Exists( Name )
+	return Timers:Get( Name ) ~= nil or PausedTimers[ Name ] ~= nil
+end
+
+--[[
+	Returns the timer instance for the given name, if it exists.
+]]
+function Timer.Get( Name )
+	return Timers:Get( Name ) or PausedTimers[ Name ]
+end
+
+function Timer.GetTable()
+	local TimersByName = {}
+	for Name, Timer in Timers:Iterate() do
+		TimersByName[ Name ] = Timer
 	end
-	Timer.Exists = Exists
+	return TimersByName
+end
 
-	function Timer.Pause( Name )
-		local Instance = Timers:Get( Name )
-		if not Instance then return end
+function Timer.Pause( Name )
+	local Instance = Timers:Get( Name )
+	if not Instance then return end
 
-		Instance:Pause()
-	end
+	Instance:Pause()
+end
 
-	function Timer.Resume( Name )
-		local Instance = PausedTimers[ Name ]
-		if not Instance then return end
+function Timer.Resume( Name )
+	local Instance = PausedTimers[ Name ]
+	if not Instance then return end
 
-		Instance:Resume()
-	end
+	Instance:Resume()
 end
 
 local OnError = Shine.BuildErrorHandler( "Timer error" )
-
-local StringFormat = string.format
 local xpcall = xpcall
 
---[[
-	Checks and executes timers on server update.
-]]
-Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
-	local Time = SharedTime()
-
+local function ProcessTimers( Time )
 	for Name, Timer in Timers:Iterate() do
 		if Timer.NextRun <= Time then
 			if Timer.Reps > 0 then
@@ -175,4 +180,13 @@ Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
 			end
 		end
 	end
+end
+-- For testing only, do not call directly.
+Timer.__ProcessTimers = ProcessTimers
+
+--[[
+	Checks and executes timers on server/client update.
+]]
+Shine.Hook.Add( "Think", "Timers", function( DeltaTime )
+	ProcessTimers( SharedTime() )
 end )
