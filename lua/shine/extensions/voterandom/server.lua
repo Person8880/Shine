@@ -25,7 +25,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.9"
+Plugin.Version = "2.10"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -300,6 +300,11 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "2.9",
 		Apply = Shine.Migrator()
 			:AddField( "BalanceModeConfig", Plugin.DefaultConfig.BalanceModeConfig )
+	},
+	{
+		VersionTo = "2.10",
+		Apply = Shine.Migrator()
+			:AddField( { "TeamPreferences", "FriendGroupRestoreTimeoutSeconds" }, 300 )
 	}
 }
 
@@ -648,6 +653,7 @@ function Plugin:Initialise()
 	self.FriendGroupConfigBySteamID = {}
 	self.FriendGroupInvitesBySteamID = {}
 	self.FriendGroupInviteDelaysBySteamID = {}
+	self:LoadFriendGroups()
 
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
@@ -1327,6 +1333,7 @@ end
 
 function Plugin:ClientConnect( Client )
 	self:UpdateVoteCounters( self.Vote )
+	self:HandleFriendGroupClientConnect( Client )
 
 	if not self.ReconnectingClients or not self.ReconnectLogTimeout then return end
 
@@ -1340,6 +1347,10 @@ function Plugin:ClientConnect( Client )
 
 	self:Print( "Client %s reconnected after a shuffle vote.", true,
 		Shine.GetClientInfo( Client ) )
+end
+
+function Plugin:MapChange()
+	self:SaveFriendGroups()
 end
 
 function Plugin:GetCurrentVoteConstraints()

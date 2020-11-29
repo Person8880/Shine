@@ -5,6 +5,7 @@
 local Plugin = ...
 
 local SharedTime = Shared.GetTime
+local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
 
 local function HasGameStarted()
@@ -345,6 +346,7 @@ end
 
 local function GroupToString( Group )
 	return table.ToString( {
+		Leader = Shine.GetClientInfo( Group.Leader ),
 		Clients = Shine.Stream.Of( Group.Clients ):Map( Shine.GetClientInfo ):AsTable()
 	} )
 end
@@ -440,6 +442,21 @@ function Plugin:ReceiveLeaveFriendGroup( Client, Data )
 	self:RemoveClientFromFriendGroup( Group, Client )
 end
 
+function Plugin:SetFriendGroupLeader( Group, Leader )
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug(
+			"Setting %s as the leader of group: %s", Shine.GetClientInfo( Leader ), GroupToString( Group )
+		)
+	end
+
+	Group.Leader = Leader
+
+	self:SendNetworkMessage( Group.Clients, "FriendGroupConfig", {
+		LeaderID = Group.Leader:GetUserId(),
+		LeaderType = self:GetGroupLeaderType( Group )
+	}, true )
+end
+
 function Plugin:RemoveClientFromFriendGroup( Group, Client, IsDisconnecting )
 	if self.Logger:IsDebugEnabled() then
 		self.Logger:Debug( "Removing %s from group: %s", Shine.GetClientInfo( Client ), GroupToString( Group ) )
@@ -477,12 +494,7 @@ function Plugin:RemoveClientFromFriendGroup( Group, Client, IsDisconnecting )
 
 	if Client == Group.Leader then
 		-- Pick the next client in the list to be the new leader.
-		Group.Leader = Group.Clients[ 1 ]
-
-		self:SendNetworkMessage( Group.Clients, "FriendGroupConfig", {
-			LeaderID = Group.Leader:GetUserId(),
-			LeaderType = self:GetGroupLeaderType( Group )
-		}, true )
+		self:SetFriendGroupLeader( Group, Group.Clients[ 1 ] )
 	end
 
 	self:UpdateFriendGroupTeamPreference( Group.Clients[ 1 ] )
@@ -520,6 +532,113 @@ function Plugin:HandleFriendGroupSetGameState( Gamerules, NewState, OldState )
 	if NewState >= kGameState.Countdown then
 		self:CancelAllFriendGroupInvites()
 	end
+end
+
+function Plugin:AttemptToRestoreFriendGroup( Client, LeaderSteamID, ConnectedMembers )
+	local ExistingGroup
+	for i = #ConnectedMembers, 1, -1 do
+		local Member = ConnectedMembers[ i ]
+		local Group = self.FriendGroupsBySteamID[ Member:GetUserId() ]
+
+		if Group then
+			if #Group.Clients < self.Config.TeamPreferences.MaxFriendGroupSize then
+				-- Member is in an existing group which has room, add the client to it.
+				ExistingGroup = Group
+				break
+			end
+
+			-- In this case, the previous member grouped with other players before this player managed to connect.
+			self.Logger:Warn(
+				"Unable to restore %s into friend group with %s as it is full.",
+				Shine.GetClientInfo( Client ), Shine.GetClientInfo( Member )
+			)
+
+			TableRemove( ConnectedMembers, i )
+		end
+	end
+
+	if ExistingGroup then
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug(
+				"Restoring %s into existing friend group with %s.",
+				Shine.GetClientInfo( Client ), Shine.GetClientInfo( Member )
+			)
+		end
+
+		self:AddClientToFriendGroup( ExistingGroup, Client )
+
+		-- Restore the original leader if they joined late.
+		if LeaderSteamID == Client:GetUserId() then
+			self:SetFriendGroupLeader( ExistingGroup, Client )
+		end
+
+		return true
+	end
+
+	if #ConnectedMembers == 0 then
+		-- Every connected member is in a different, full friend group.
+		return false
+	end
+
+	local Leader = Client
+	for i = 1, #ConnectedMembers do
+		if ConnectedMembers[ i ]:GetUserId() == LeaderSteamID then
+			Leader = ConnectedMembers[ i ]
+			break
+		end
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		local Members = Shine.Stream.Of( ConnectedMembers ):Map( Shine.GetClientInfo ):Concat( ", " )
+		self.Logger:Debug(
+			"Restoring %s into new friend group with [ %s ] (%s will be the leader, %s was originally).",
+			Shine.GetClientInfo( Client ), Members, Shine.GetClientInfo( Leader ), LeaderSteamID
+		)
+	end
+
+	ConnectedMembers[ #ConnectedMembers + 1 ] = Client
+
+	self:MakeNewFriendGroup( Leader, ConnectedMembers, true )
+
+	return true
+end
+
+function Plugin:RestoreClientToFriendGroup( Client, PersistedFriendGroups )
+	local SteamID = Client:GetUserId()
+	local Group = PersistedFriendGroups[ SteamID ]
+	if not Group then return false end
+
+	-- Search for the connected members of the original group and join them together.
+	local ConnectedMembers = {}
+	for i = 1, #Group.Members do
+		local MemberSteamID = Group.Members[ i ]
+		if MemberSteamID ~= SteamID then
+			local Member = Shine.GetClientByNS2ID( MemberSteamID )
+			if Member then
+				ConnectedMembers[ #ConnectedMembers + 1 ] = Member
+			end
+		end
+	end
+
+	if #ConnectedMembers > 0 then
+		return self:AttemptToRestoreFriendGroup( Client, Group.Leader, ConnectedMembers )
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug(
+			"%s belonged to a previous friend group, but none of its other members have connected yet.",
+			Shine.GetClientInfo( Client )
+		)
+	end
+
+	return false
+end
+
+function Plugin:HandleFriendGroupClientConnect( Client )
+	if not self.PersistedFriendGroups then return end
+	if SharedTime() > self.Config.TeamPreferences.FriendGroupRestoreTimeoutSeconds then return end
+
+	self:RestoreClientToFriendGroup( Client, self.PersistedFriendGroups )
 end
 
 function Plugin:HandleFriendGroupClientDisconnect( Client )
@@ -575,5 +694,68 @@ end
 function Plugin:UpdateAllFriendGroupTeamPreferences()
 	for i = 1, #self.FriendGroups do
 		UpdateGroupPreference( self, self.FriendGroups[ i ], true )
+	end
+end
+
+do
+	local function GetUserID( Client )
+		return Client:GetUserId()
+	end
+
+	local function SerialiseGroup( Group )
+		return {
+			Leader = Group.Leader:GetUserId(),
+			Members = Shine.Stream.Of( Group.Clients ):Map( GetUserID ):AsTable()
+		}
+	end
+
+	local FRIEND_GROUP_FILE = "config://shine/temp/shuffle_friend_groups.json"
+	local MAX_RESTORE_AGE = 60 * 60
+
+	local IsType = Shine.IsType
+	local OSTime = os.time
+
+	function Plugin:SaveFriendGroups()
+		local PersistedGroups = Shine.Stream.Of( self.FriendGroups ):Map( SerialiseGroup ):AsTable()
+
+		Shine.SaveJSONFile( {
+			Groups = PersistedGroups,
+			Time = OSTime()
+		}, FRIEND_GROUP_FILE )
+	end
+
+	function Plugin:LoadFriendGroups()
+		local GroupData, Pos, Err = Shine.LoadJSONFile( FRIEND_GROUP_FILE )
+		if not IsType( GroupData, "table" ) then
+			if IsType( Pos, "number" ) then
+				self.Logger:Error( "Failed to restore friend group data due to invalid JSON: %s", Err )
+			end
+			return
+		end
+
+		if not IsType( GroupData.Time, "number" ) or OSTime() - GroupData.Time > MAX_RESTORE_AGE then
+			if self.Logger:IsDebugEnabled() then
+				self.Logger:Debug(
+					"Skipping restore of friend group data as it is too old (%s vs %s)", OSTime(), GroupData.Time
+				)
+			end
+			return
+		end
+
+		local Groups = GroupData.Groups
+		if not IsType( Groups, "table" ) then
+			self.Logger:Error( "Unexpected data in persisted friend groups file (expected Groups table)." )
+			return
+		end
+
+		local GroupsByMemberID = {}
+		for i = 1, #Groups do
+			local Group = Groups[ i ]
+			for j = 1, #Group.Members do
+				GroupsByMemberID[ Group.Members[ j ] ] = Group
+			end
+		end
+
+		self.PersistedFriendGroups = GroupsByMemberID
 	end
 end

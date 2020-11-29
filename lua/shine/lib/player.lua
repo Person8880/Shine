@@ -387,7 +387,7 @@ end, Hook.MAX_PRIORITY )
 Hook.Add( "ClientConnect", Indexes, function( Client )
 	Indexes.BySteamID[ Client:GetUserId() ] = Client
 	Indexes.ByGameID[ Client.ShineGameID ] = Client
-end, Hook.MAX_PRIORITY + 1 )
+end, Hook.MAX_PRIORITY + 0.1 )
 
 Hook.Add( "ClientDisconnect", Indexes, function( Client )
 	Indexes.BySteamID[ Client:GetUserId() ] = nil

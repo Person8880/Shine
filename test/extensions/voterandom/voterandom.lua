@@ -806,7 +806,8 @@ do
 			},
 			Logger = {
 				IsDebugEnabled = function() return false end,
-				Debug = function() end
+				Debug = function() end,
+				Warn = function() end
 			},
 			Config = {
 				TeamPreferences = {
@@ -819,6 +820,7 @@ do
 	end
 
 	UnitTest:Before( function()
+		Clients = {}
 		MockPlugin = MakeMockPlugin()
 	end )
 
@@ -1125,6 +1127,135 @@ do
 		Assert:Equals( 0, #MockPlugin.FriendGroups )
 		Assert.DeepEquals( "All clients should be removed from the group", {}, MockPlugin.FriendGroupsBySteamID )
 	end )
+
+	local OldGetClientByNS2ID = Shine.GetClientByNS2ID
+
+	function Shine.GetClientByNS2ID( ID )
+		return Clients[ ID ]
+	end
+
+	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if no persisted group exists for the client", function( Assert )
+		local Client = MockClient( 123 )
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {} )
+		Assert.False( "Should not have restored the client", Restored )
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+	end )
+
+	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if no other members are connected", function( Assert )
+		local Client = MockClient( 123 )
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 123,
+				Members = { 123, 456 }
+			}
+		} )
+		Assert.False( "Should not have restored the client", Restored )
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+	end )
+
+	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if all other members are in a full group", function( Assert )
+		local Client = MockClient( 123 )
+
+		local ExistingGroup = {
+			Leader = MockClient( 456 ),
+			Clients = { MockClient( 456 ), MockClient( 789 ), MockClient( 100 ), MockClient( 101 ) }
+		}
+		MockPlugin.FriendGroupsBySteamID[ 456 ] = ExistingGroup
+		MockPlugin.FriendGroupsBySteamID[ 789 ] = ExistingGroup
+		MockPlugin.FriendGroupsBySteamID[ 100 ] = ExistingGroup
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 123,
+				Members = { 123, 456, 789, 100 }
+			}
+		} )
+		Assert.False( "Should not have restored the client", Restored )
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+	end )
+
+	UnitTest:Test( "RestoreClientToFriendGroup - Adds the client to an existing group if it's not full", function( Assert )
+		local Client = MockClient( 123 )
+
+		MockPlugin.FriendGroupsBySteamID[ 456 ] = {
+			Leader = MockClient( 456 ),
+			Clients = { MockClient( 456 ), MockClient( 789 ), MockClient( 100 ) }
+		}
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 123,
+				Members = { 123, 456, 789, 100 }
+			}
+		} )
+		Assert.True( "Should have restored the client", Restored )
+		Assert.Equals(
+			"Should have assigned the group to the client",
+			MockPlugin.FriendGroupsBySteamID[ 456 ], MockPlugin.FriendGroupsBySteamID[ 123 ]
+		)
+		Assert.DeepEquals(
+			"Should have added the client to the group and changed the leader",
+			{
+				Leader = MockClient( 123 ),
+				Clients = { MockClient( 456 ), MockClient( 789 ), MockClient( 100 ), MockClient( 123 ) }
+			},
+			MockPlugin.FriendGroupsBySteamID[ 456 ]
+		)
+	end )
+
+	UnitTest:Test( "RestoreClientToFriendGroup - Adds the client to an existing group without altering the leader if they were not the original leader", function( Assert )
+		local Client = MockClient( 123 )
+
+		MockPlugin.FriendGroupsBySteamID[ 456 ] = {
+			Leader = MockClient( 456 ),
+			Clients = { MockClient( 456 ), MockClient( 789 ), MockClient( 100 ) }
+		}
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 456,
+				Members = { 123, 456, 789, 100 }
+			}
+		} )
+		Assert.True( "Should have restored the client", Restored )
+		Assert.Equals(
+			"Should have assigned the group to the client",
+			MockPlugin.FriendGroupsBySteamID[ 456 ], MockPlugin.FriendGroupsBySteamID[ 123 ]
+		)
+		Assert.DeepEquals(
+			"Should have added the client to the group without changing the leader",
+			{
+				Leader = MockClient( 456 ),
+				Clients = { MockClient( 456 ), MockClient( 789 ), MockClient( 100 ), MockClient( 123 ) }
+			},
+			MockPlugin.FriendGroupsBySteamID[ 456 ]
+		)
+	end )
+
+	UnitTest:Test( "RestoreClientToFriendGroup - Adds the client and members to a new group if none are in a group", function( Assert )
+		local Client = MockClient( 123 )
+		local Members = { MockClient( 456 ), MockClient( 789 ), MockClient( 100 ) }
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 456,
+				Members = { 123, 456, 789, 100 }
+			}
+		} )
+		Assert.True( "Should have restored the client", Restored )
+		Assert.DeepEquals(
+			"Should have restored the group with all members and its original leader",
+			{
+				Leader = MockClient( 456 ),
+				Clients = { MockClient( 456 ), MockClient( 789 ), MockClient( 100 ), MockClient( 123 ) }
+			},
+			MockPlugin.FriendGroupsBySteamID[ 456 ]
+		)
+	end )
+
+	Shine.GetClientByNS2ID = OldGetClientByNS2ID
 
 	UnitTest:ResetState()
 end

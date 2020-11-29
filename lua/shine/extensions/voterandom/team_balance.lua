@@ -46,7 +46,9 @@ BalanceModule.DefaultConfig = {
 		-- How long to wait for a response to a friend group invitation before revoking it.
 		FriendGroupInviteDurationInSeconds = 15,
 		-- How long after a friend group invite fails before a player can send another invite.
-		FriendGroupInviteCooldownInSeconds = 15
+		FriendGroupInviteCooldownInSeconds = 15,
+		-- How long after map change to restore friend groups for (a value of 0 disables restoring groups).
+		FriendGroupRestoreTimeoutSeconds = 300
 	}
 }
 
@@ -72,6 +74,7 @@ do
 
 	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteDurationInSeconds", Validator.Min( 5 ) )
 	Validator:AddFieldRule( "TeamPreferences.FriendGroupInviteCooldownInSeconds", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "TeamPreferences.FriendGroupRestoreTimeoutSeconds", Validator.Min( 0 ) )
 
 	BalanceModule.ConfigValidator = Validator
 end
