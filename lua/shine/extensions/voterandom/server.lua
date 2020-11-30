@@ -653,9 +653,10 @@ function Plugin:Initialise()
 	self.FriendGroupConfigBySteamID = {}
 	self.FriendGroupInvitesBySteamID = {}
 	self.FriendGroupInviteDelaysBySteamID = {}
-	self:LoadFriendGroups()
 
 	self:BroadcastModuleEvent( "Initialise" )
+	self:LoadFriendGroups()
+
 	self.Enabled = true
 
 	return true
