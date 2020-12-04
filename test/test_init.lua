@@ -95,7 +95,8 @@ function UnitTest.MakeMockClient( SteamID )
 			return {
 				GetName = function() return "Test" end
 			}
-		end
+		end,
+		GetIsVirtual = function() return SteamID == 0 end
 	}
 end
 
