@@ -590,6 +590,8 @@ function Plugin:OnFirstThink()
 end
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	local BalanceMode = self.Config.BalanceMode
 	local FallbackMode = self.Config.FallbackMode
 
@@ -654,7 +656,6 @@ function Plugin:Initialise()
 	self.FriendGroupInvitesBySteamID = {}
 	self.FriendGroupInviteDelaysBySteamID = {}
 
-	self:BroadcastModuleEvent( "Initialise" )
 	self:LoadFriendGroups()
 
 	self.Enabled = true
