@@ -18,7 +18,7 @@ local TableCount = table.Count
 local tonumber = tonumber
 
 local Plugin, PluginName = ...
-Plugin.Version = "1.12"
+Plugin.Version = "1.13"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
@@ -277,6 +277,11 @@ Plugin.ConfigMigrationSteps = {
 				end
 				return Plugin.DefaultConfig.MaxVoteChoicesPerPlayer
 			end )
+	},
+	{
+		VersionTo = "1.13",
+		Apply = Shine.Migrator()
+			:AddField( { "VoteSettings", "ConsiderSpectatorsDuringActiveRound" }, true )
 	}
 }
 

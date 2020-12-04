@@ -11,12 +11,18 @@ local Stream = Shine.Stream
 local Module = {}
 
 if not Plugin.HandlesVoteConfig then
+	local VoteSettings = {
+		ConsiderAFKPlayersInVotes = true,
+		AFKTimeInSeconds = 60
+	}
+
+	if Plugin.VoteApplicableToSpectators ~= false then
+		VoteSettings.ConsiderSpectatorsInVotes = true
+		VoteSettings.ConsiderSpectatorsDuringActiveRound = true
+	end
+
 	Module.DefaultConfig = {
-		VoteSettings = {
-			ConsiderAFKPlayersInVotes = true,
-			ConsiderSpectatorsInVotes = true,
-			AFKTimeInSeconds = 60
-		}
+		VoteSettings = VoteSettings
 	}
 
 	local Validator = Shine.Validator()
@@ -42,17 +48,28 @@ local function GetPlayerCount( SkipSpectators )
 	return PlayerCount
 end
 
+function Module:CanSpectatorsVote()
+	if not self.Config.VoteSettings.ConsiderSpectatorsInVotes then return false end
+
+	if not self.Config.VoteSettings.ConsiderSpectatorsDuringActiveRound then
+		local Gamerules = GetGamerules()
+		return not ( Gamerules and Gamerules:GetGameStarted() )
+	end
+
+	return true
+end
+
 --[[
 	Returns the number of humans players, minus any that are AFK for the configured time.
 ]]
 function Module:GetPlayerCountForVote()
 	if self.Config.VoteSettings.ConsiderAFKPlayersInVotes then
-		return GetPlayerCount( not self.Config.VoteSettings.ConsiderSpectatorsInVotes )
+		return GetPlayerCount( not self:CanSpectatorsVote() )
 	end
 
 	return self:GetNumNonAFKHumans(
 		self.Config.VoteSettings.AFKTimeInSeconds,
-		not self.Config.VoteSettings.ConsiderSpectatorsInVotes
+		not self:CanSpectatorsVote()
 	)
 end
 
@@ -75,7 +92,7 @@ function Module:CanClientVote( Client )
 		return false, "ERROR_BOT_CANNOT_VOTE"
 	end
 
-	if Client:GetIsSpectator() and not self.Config.VoteSettings.ConsiderSpectatorsInVotes then
+	if Client:GetIsSpectator() and not self:CanSpectatorsVote() then
 		return false, "ERROR_CANNOT_VOTE_IN_SPECTATE"
 	end
 
