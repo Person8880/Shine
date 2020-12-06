@@ -15,7 +15,7 @@ local Max = math.max
 local Random = math.random
 
 local Plugin = ...
-Plugin.Version = "1.4"
+Plugin.Version = "1.5"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteSurrender.json"
@@ -41,8 +41,17 @@ Plugin.DefaultConfig = {
 
 Plugin.CheckConfig = true
 Plugin.CheckConfigTypes = true
+Plugin.VoteApplicableToSpectators = false
 
 Shine.LoadPluginModule( "vote.lua", Plugin )
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.5",
+		Apply = Shine.Migrator()
+			:RemoveField( { "VoteSettings", "ConsiderSpectatorsInVotes" } )
+	}
+}
 
 function Plugin:Initialise()
 	local function ClampConfigOption( Option, Min, Max )

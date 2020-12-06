@@ -25,7 +25,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.10"
+Plugin.Version = "2.11"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -305,6 +305,11 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "2.10",
 		Apply = Shine.Migrator()
 			:AddField( { "TeamPreferences", "FriendGroupRestoreTimeoutSeconds" }, 300 )
+	},
+	{
+		VersionTo = "2.11",
+		Apply = Shine.Migrator()
+			:AddField( { "VoteSettings", "ConsiderSpectatorsDuringActiveRound" }, true )
 	}
 }
 
@@ -590,6 +595,8 @@ function Plugin:OnFirstThink()
 end
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	local BalanceMode = self.Config.BalanceMode
 	local FallbackMode = self.Config.FallbackMode
 
@@ -653,9 +660,9 @@ function Plugin:Initialise()
 	self.FriendGroupConfigBySteamID = {}
 	self.FriendGroupInvitesBySteamID = {}
 	self.FriendGroupInviteDelaysBySteamID = {}
+
 	self:LoadFriendGroups()
 
-	self:BroadcastModuleEvent( "Initialise" )
 	self.Enabled = true
 
 	return true

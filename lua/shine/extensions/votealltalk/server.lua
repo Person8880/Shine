@@ -8,7 +8,7 @@ Plugin.DependsOnPlugins = {
 	"basecommands"
 }
 
-Plugin.Version = "1.1"
+Plugin.Version = "1.2"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteAllTalk.json"
@@ -19,6 +19,14 @@ Plugin.VoteCommand = {
 	ConCommand = "sh_votealltalk",
 	ChatCommand = "votealltalk",
 	Help = "Votes to enable or disable all talk."
+}
+
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.2",
+		Apply = Shine.Migrator()
+			:AddField( { "VoteSettings", "ConsiderSpectatorsDuringActiveRound" }, true )
+	}
 }
 
 local ALLTALK_TYPE = "AllTalk"
