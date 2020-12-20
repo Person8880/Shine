@@ -15,28 +15,28 @@ local Max = math.max
 local Random = math.random
 
 local Plugin = ...
-Plugin.Version = "1.5"
+Plugin.Version = "1.6"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "VoteSurrender.json"
 
 Plugin.DefaultConfig = {
-	-- Percentage of the team needing to vote in order to surrender.
-	PercentNeeded = 0.75,
-	-- Percentage of the team needing to vote in the early game to surrender (during VoteDelay time).
-	PercentNeededInEarlyGame = 0,
+	-- Fraction of the team needing to vote in order to surrender.
+	FractionOfPlayersNeeded = 0.75,
+	-- Fraction of the team needing to vote in the early game to surrender (during VoteDelayInMinutes time).
+	FractionOfPlayersNeededInEarlyGame = 0,
 	-- Time after round start before surrender vote is available/uses normal percentage (in minutes)
-	VoteDelay = 10,
+	VoteDelayInMinutes = 10,
 	-- Min players needed for voting to be enabled.
 	MinPlayers = 6,
 	-- How long after no votes before the vote should reset?
-	VoteTimeout = 120,
+	VoteTimeoutInSeconds = 120,
 	-- Is a team allowed to surrender with multiple bases
 	AllowVoteWithMultipleBases = true,
 	-- Skip the in-game surrender sequence?
 	SkipSequence = false,
 	-- How much health [0, 1] the final command structure must have greater-equal to allow a vote.
-	LastCommandStructureMinHealthPercent = 0
+	LastCommandStructureMinHealthFraction = 0
 }
 
 Plugin.CheckConfig = true
@@ -50,17 +50,29 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "1.5",
 		Apply = Shine.Migrator()
 			:RemoveField( { "VoteSettings", "ConsiderSpectatorsInVotes" } )
+	},
+	{
+		VersionTo = "1.6",
+		Apply = Shine.Migrator()
+			:RenameField( "PercentNeeded", "FractionOfPlayersNeeded" )
+			:RenameField( "PercentNeededInEarlyGame", "FractionOfPlayersNeededInEarlyGame" )
+			:RenameField( "VoteDelay", "VoteDelayInMinutes" )
+			:RenameField( "VoteTimeout", "VoteTimeoutInSeconds" )
+			:RenameField( "LastCommandStructureMinHealthPercent", "LastCommandStructureMinHealthFraction" )
 	}
 }
 
-function Plugin:Initialise()
-	local function ClampConfigOption( Option, Min, Max )
-		self.Config[ Option ] = Clamp( self.Config[ Option ], Min, Max )
-	end
-	ClampConfigOption( "PercentNeeded", 0, 1 )
-	ClampConfigOption( "PercentNeededInEarlyGame", 0, 1 )
-	ClampConfigOption( "LastCommandStructureMinHealthPercent", 0, 1 )
+do
+	local Validator = Shine.Validator()
 
+	Validator:AddFieldRule( "FractionOfPlayersNeeded", Validator.Clamp( 0, 1 ) )
+	Validator:AddFieldRule( "FractionOfPlayersNeededInEarlyGame", Validator.Clamp( 0, 1 ) )
+	Validator:AddFieldRule( "LastCommandStructureMinHealthFraction", Validator.Clamp( 0, 1 ) )
+
+	Plugin.ConfigValidator = Validator
+end
+
+function Plugin:Initialise()
 	self.Votes = {
 		Shine:CreateVote( function() return self:GetVotesNeeded( 1 ) end,
 			self:WrapCallback( function() self:Surrender( 1 ) end ) ),
@@ -69,11 +81,11 @@ function Plugin:Initialise()
 			self:WrapCallback( function() self:Surrender( 2 ) end ) )
 	}
 	for i = 1, 2 do
-		self:SetupVoteTimeout( self.Votes[ i ], self.Config.VoteTimeout, "VoteTimeout"..i )
+		self:SetupVoteTimeout( self.Votes[ i ], self.Config.VoteTimeoutInSeconds, "VoteTimeout"..i )
 	end
 
 	self.NextVote = 0
-	self.dt.ConcedeTime = self.Config.VoteDelay
+	self.dt.ConcedeTime = self.Config.VoteDelayInMinutes
 
 	self:CreateCommands()
 
@@ -95,7 +107,7 @@ function Plugin:SetGameState( Gamerules, State, OldState )
 	end
 
 	if State == kGameState.Started then
-		self.NextVote = SharedTime() + ( self.Config.VoteDelay * 60 )
+		self.NextVote = SharedTime() + ( self.Config.VoteDelayInMinutes * 60 )
 	end
 end
 
@@ -118,9 +130,10 @@ end
 function Plugin:GetVotesNeeded( Team )
 	local TeamCount = self:GetTeamPlayerCount( Team )
 	local IsEarlyGame = self.NextVote > SharedTime()
-	local PercentNeeded = IsEarlyGame and self.Config.PercentNeededInEarlyGame or self.Config.PercentNeeded
+	local FractionOfPlayersNeeded = IsEarlyGame and self.Config.FractionOfPlayersNeededInEarlyGame
+		or self.Config.FractionOfPlayersNeeded
 
-	return Max( 1, Ceil( TeamCount * PercentNeeded ) )
+	return Max( 1, Ceil( TeamCount * FractionOfPlayersNeeded ) )
 end
 
 --[[
@@ -139,7 +152,7 @@ function Plugin:HasCommandStructureAtTooLowHP( Team )
 	local CommandStructures = GetEntitiesForTeam( "CommandStructure", Team )
 	if #CommandStructures ~= 1 then return false end
 
-	local MinFraction = self.Config.LastCommandStructureMinHealthPercent
+	local MinFraction = self.Config.LastCommandStructureMinHealthFraction
 	local CommandStructure = CommandStructures[ 1 ]
 
 	return CommandStructure:GetHealthFraction() < MinFraction
@@ -160,7 +173,7 @@ function Plugin:CanStartVote( Team )
 	if self:HasCommandStructureAtTooLowHP( Team ) then return false end
 
 	return self:GetTeamPlayerCount( Team ) >= self.Config.MinPlayers
-		and ( self.NextVote <= SharedTime() or self.Config.PercentNeededInEarlyGame > 0 )
+		and ( self.NextVote <= SharedTime() or self.Config.FractionOfPlayersNeededInEarlyGame > 0 )
 end
 
 function Plugin:AddVote( Client, Team )
