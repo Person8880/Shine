@@ -233,12 +233,14 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		return OldUninit( self )
 	end
 
+	local OldUpdatePosition = ChatElement.UpdatePosition
 	local OldOnLocalPlayerChanged = ChatElement.OnLocalPlayerChanged
-	if OldOnLocalPlayerChanged then
-		function ChatElement:OnLocalPlayerChanged( Player )
+	if OldUpdatePosition or OldOnLocalPlayerChanged then
+		local OldMethod = OldUpdatePosition or OldOnLocalPlayerChanged
+		local function HandleUpdate( self, Player, ... )
 			OriginalOffset = nil
 
-			OldOnLocalPlayerChanged( self, Player )
+			OldMethod( self, Player, ... )
 			self.HasMoved = false
 
 			if not OriginalOffset then
@@ -246,8 +248,10 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 				OriginalOffset = GetOffset() or DefaultOffset
 			end
 
-			Hook.Broadcast( "OnGUIChatOffsetChanged", self )
+			Hook.Broadcast( "OnGUIChatOffsetChanged", self, Player )
 		end
+
+		ChatElement[ OldUpdatePosition and "UpdatePosition" or "OnLocalPlayerChanged" ] = HandleUpdate
 	end
 
 	function ChatElement:ResetScreenOffset()
