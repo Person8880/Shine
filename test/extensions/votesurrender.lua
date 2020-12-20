@@ -10,21 +10,21 @@ if not VoteSurrender then return end
 local OldConfig = VoteSurrender.Config
 VoteSurrender.Config = table.Copy( OldConfig )
 
-UnitTest:Test( "GetVotesNeeded in early game uses PercentNeededInEarlyGame", function( Assert )
+UnitTest:Test( "GetVotesNeeded in early game uses FractionOfPlayersNeededInEarlyGame", function( Assert )
 	VoteSurrender.NextVote = Shared.GetTime() + 1
-	VoteSurrender.Config.PercentNeededInEarlyGame = 0.9
+	VoteSurrender.Config.FractionOfPlayersNeededInEarlyGame = 0.9
 	VoteSurrender.GetTeamPlayerCount = function() return 10 end
 
-	-- Next vote is in the future, so should use PercentNeededInEarlyGame
+	-- Next vote is in the future, so should use FractionOfPlayersNeededInEarlyGame
 	Assert:Equals( 9, VoteSurrender:GetVotesNeeded( 1 ) )
 end )
 
-UnitTest:Test( "GetVotesNeeded in later game uses PercentNeeded", function( Assert )
+UnitTest:Test( "GetVotesNeeded in later game uses FractionOfPlayersNeeded", function( Assert )
 	VoteSurrender.NextVote = Shared.GetTime() - 1
-	VoteSurrender.Config.PercentNeeded = 0.5
+	VoteSurrender.Config.FractionOfPlayersNeeded = 0.5
 	VoteSurrender.GetTeamPlayerCount = function() return 10 end
 
-	-- Next vote is in the past, so should use PercentNeeded.
+	-- Next vote is in the past, so should use FractionOfPlayersNeeded.
 	Assert:Equals( 5, VoteSurrender:GetVotesNeeded( 1 ) )
 end )
 
@@ -55,7 +55,7 @@ function GetEntitiesForTeam( Type, Team )
 end
 
 UnitTest:Test( "HasCommandStructureAtTooLowHP denies when HP too low", function( Assert )
-	VoteSurrender.Config.LastCommandStructureMinHealthPercent = 0.75
+	VoteSurrender.Config.LastCommandStructureMinHealthFraction = 0.75
 
 	-- Team 1 has 1 command structure at too low health
 	Assert:True( VoteSurrender:HasCommandStructureAtTooLowHP( 1 ) )

@@ -536,21 +536,32 @@ end
 
 do
 	local BuildNumber = Shared.GetBuildNumber()
-	local ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, 75 )
-	local ABOVE_MARINE_HEALTH_OFFSET
 	-- Commander chat needs to be higher up due to possible control groups.
 	local ABOVE_MINIMAP_COMMANDER_CHAT_OFFSET = Vector2( 0, -5 )
 	-- Spectator chat needs to move to the right to avoid overlapping the marine team player elements.
 	local ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 125, 50 )
 
+	local function AreResearchNotificationsVisible()
+		return BuildNumber >= 335 and not ( GetAdvancedOption and not GetAdvancedOption( "unlocks" ) )
+	end
+
+	-- Alien and marine chat end up moved significantly to the right when research notifications are enabled, this
+	-- stops upwards messages going too much into the centre of the screen in most cases.
+	local PlayerOffsets = {
+		Alien = {
+			-- When research is visible, move the chat down significantly.
+			[ true ] = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 100 ),
+			-- When research is not visible, move the chat up so it's above the status icons.
+			[ false ] = Vector2( 0, 75 )
+		},
+		-- Marine chat only needs to move when research is visible, at which point it needs to move down slightly.
+		Marine = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 32 )
+	}
+
 	if BuildNumber >= 335 then
 		-- In 335 onwards, chat for specators/commanders is to the right of the minimap.
 		-- This just moves it down a bit more than normal so most messages avoid going too high.
 		ABOVE_MINIMAP_CHAT_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 32 )
-		-- Alien and marine chat end up moved significantly to the right as well, this stops upwards messages going too
-		-- much into the centre of the screen in most cases.
-		ABOVE_ALIEN_HEALTH_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 100 )
-		ABOVE_MARINE_HEALTH_OFFSET = Vector2( 0, DEFAULT_CHAT_OFFSET.y + 32 )
 	end
 
 	local function ShouldMoveChat( self )
@@ -579,8 +590,9 @@ do
 		return Player and Player:isa( "Alien" ) and Player.GetTeamNumber and Player:GetTeamNumber() == kTeam2Index
 	end
 
-	local function ShouldMoveChatAboveMarineHealth( Player )
-		return BuildNumber >= 335 and Player and Player.GetTeamNumber and Player:GetTeamNumber() == kTeam1Index
+	local function ShouldMoveChatAboveMarineHealth( Player, ResearchNotificationsVisible )
+		return ResearchNotificationsVisible and Player and Player.GetTeamNumber
+			and Player:GetTeamNumber() == kTeam1Index
 	end
 
 	function Plugin:UpdateChatOffset( Player )
@@ -592,12 +604,14 @@ do
 			return SetChatOffsetIfApplicable( self, Offset )
 		end
 
+		local ResearchNotificationsVisible = AreResearchNotificationsVisible()
+
 		if ShouldMoveChatAboveAlienHealth( Player ) then
-			return SetChatOffsetIfApplicable( self, ABOVE_ALIEN_HEALTH_OFFSET )
+			return SetChatOffsetIfApplicable( self, PlayerOffsets.Alien[ ResearchNotificationsVisible ] )
 		end
 
-		if ShouldMoveChatAboveMarineHealth( Player ) then
-			return SetChatOffsetIfApplicable( self, ABOVE_MARINE_HEALTH_OFFSET )
+		if ShouldMoveChatAboveMarineHealth( Player, ResearchNotificationsVisible ) then
+			return SetChatOffsetIfApplicable( self, PlayerOffsets.Marine )
 		end
 
 		return SetChatOffsetIfApplicable( self, DEFAULT_CHAT_OFFSET )
@@ -617,11 +631,11 @@ do
 		return self:UpdateChatOffset( Player )
 	end
 
-	function Plugin:OnGUIChatOffsetChanged( GUIChat )
+	function Plugin:OnGUIChatOffsetChanged( GUIChat, Player )
 		if self.GUIChat ~= GUIChat then return end
 
 		-- Update the offset based on the new position.
-		self:OnLocalPlayerChanged( Client.GetLocalPlayer() )
+		self:OnLocalPlayerChanged( Player or Client.GetLocalPlayer() )
 	end
 end
 

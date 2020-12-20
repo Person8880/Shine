@@ -550,7 +550,8 @@ function SGUI:IsMouseInVisibleWindow()
 	for i = #Windows, 1, -1 do
 		local Window = Windows[ i ]
 		if
-			Window:GetIsVisible() and not Window.IgnoreMouseFocus and Window:GetBlockEventsIfFocusedWindow() and
+			Window:GetIsVisible() and not Window.IgnoreMouseFocus and
+			( Window.GetBlockEventsIfFocusedWindow and Window:GetBlockEventsIfFocusedWindow() ) and
 			( Window.AlwaysInMouseFocus or Window:HasMouseEntered() )
 		then
 			return true
