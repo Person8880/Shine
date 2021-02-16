@@ -80,8 +80,11 @@ function Plugin:CanStartVote()
 	return true
 end
 
-function Plugin:ResetGame()
-	self.Vote:Reset()
+function Plugin:SetGameState( Gamerules, State, OldState )
+	if not Gamerules:GetGameStarted() then
+		-- Reset the vote as soon as a round ends, don't wait for the round to reset.
+		self.Vote:Reset()
+	end
 end
 
 local function GetNumPlayersOnTeam( Team, AFKTime, AFKKick )
