@@ -67,8 +67,8 @@ function ConfigModule:LoadConfig()
 	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
 		or ClientConfigPath..self.ConfigName
 
-	local Err
-	local Pos
+	local ErrorMessage
+	local ErrorPosition
 
 	if Server then
 		local Gamemode = Shine.GetGamemode()
@@ -81,32 +81,72 @@ function ConfigModule:LoadConfig()
 			}
 
 			for i = 1, #Paths do
-				local File, ErrPos, ErrString = Shine.LoadJSONFile( Paths[ i ] )
+				local FilePath = Paths[ i ]
+				if Shine.FileExists( FilePath ) then
+					local File, ErrPos, ErrString = Shine.LoadJSONFile( FilePath )
+					if File then
+						PluginConfig = File
 
-				if File then
-					PluginConfig = File
+						self.__ConfigPath = FilePath
 
-					self.__ConfigPath = Paths[ i ]
+						break
+					end
 
-					break
-				elseif IsType( ErrPos, "number" ) then
-					Err = ErrString
-					Pos = ErrPos
+					if IsType( ErrPos, "number" ) then
+						-- JSON syntax error.
+						ErrorMessage = ErrString
+						ErrorPosition = ErrPos
+					else
+						-- File reading error.
+						ErrorMessage = ErrPos
+						ErrorPosition = nil
+					end
 				end
 			end
-		else
-			PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
+		elseif Shine.FileExists( Path ) then
+			PluginConfig, ErrorPosition, ErrorMessage = Shine.LoadJSONFile( Path )
 		end
-	else
-		PluginConfig, Pos, Err = Shine.LoadJSONFile( Path )
+	elseif Shine.FileExists( Path ) then
+		PluginConfig, ErrorPosition, ErrorMessage = Shine.LoadJSONFile( Path )
 	end
 
 	if not PluginConfig or not IsType( PluginConfig, "table" ) then
-		if IsType( Pos, "string" ) then
+		if not PluginConfig and not ErrorPosition and not ErrorMessage then
+			-- No file found, generate the default config and save it.
 			self:GenerateDefaultConfig( true )
 			self.__IsNewConfig = true
 		else
-			PrintToLog( "[Error] Invalid JSON for %s plugin config. Error: %s. Loading default...", self.__Name, Err )
+			if PluginConfig ~= nil and not IsType( PluginConfig, "table" ) then
+				-- Was valid JSON, but not an object. Treat it as invalid JSON.
+				ErrorPosition = 0
+				ErrorMessage = StringFormat(
+					"expected JSON object, got %s (check the file starts with '{' and ends with '}')",
+					type( PluginConfig )
+				)
+			else
+				-- Was not valid JSON.
+				ErrorMessage = ErrorMessage or ( IsType( ErrorPosition, "string" ) and ErrorPosition )
+					or "unknown error reading file"
+			end
+
+			-- Either the file exists but has invalid JSON (and so there's an error position), or the file couldn't be
+			-- read.
+			local ErrorKey
+			if IsType( ErrorPosition, "number" ) then
+				ErrorKey = "ERROR_INVALID_JSON_IN_PLUGIN_CONFIG"
+				PrintToLog(
+					"[Error] Invalid JSON for %s plugin config. Error: %s. Loading default...",
+					self.__Name,
+					ErrorMessage
+				)
+			else
+				ErrorKey = "ERROR_FAILED_TO_READ_PLUGIN_CONFIG"
+				PrintToLog(
+					"[Error] Failed to read %s plugin config file. Error: %s. Loading default...",
+					self.__Name,
+					ErrorMessage
+				)
+			end
 
 			self.Config = self.DefaultConfig
 
@@ -115,8 +155,8 @@ function ConfigModule:LoadConfig()
 					Type = Shine.SystemNotifications.Type.ERROR,
 					Message = {
 						Source = "Core",
-						TranslationKey = "ERROR_INVALID_JSON_IN_PLUGIN_CONFIG",
-						Context = Err
+						TranslationKey = ErrorKey,
+						Context = ErrorMessage
 					},
 					Source = {
 						Type = Shine.SystemNotifications.Source.PLUGIN,

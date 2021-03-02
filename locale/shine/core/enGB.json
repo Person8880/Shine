@@ -82,6 +82,7 @@
 
 	"ERROR_INVALID_JSON_IN_BASE_CONFIG": "The base configuration file has invalid JSON: {Context}",
 	"ERROR_INVALID_JSON_IN_PLUGIN_CONFIG": "Configuration file has invalid JSON: {Context}",
+	"ERROR_FAILED_TO_READ_PLUGIN_CONFIG": "Configuration file could not be read: {Context}",
 	"ERROR_PLUGIN_INIT_ERROR": "An error occurred while attempting to enable the plugin:\n{Context}",
 	"WARNING_USER_CONFIG_VALIDATION_ERRORS": "Provided user configuration had validation errors which have been corrected.",
 	"WARNING_REMOTE_USER_CONFIG_VALIDATION_ERRORS": "Remote user configuration had validation errors which have been corrected. Check the local UserConfig.json file for the corrected data.",

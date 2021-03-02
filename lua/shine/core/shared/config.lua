@@ -56,6 +56,12 @@ function Shine.LoadJSONFile( Path )
 	return Decode( Data )
 end
 
+function Shine.FileExists( Path )
+	local Contents = {}
+	Shared.GetMatchingFileNames( Path, false, Contents )
+	return Contents[ 1 ] ~= nil
+end
+
 do
 	local JSON = require "shine/lib/json"
 	local JSONDecodeErrorHandler = Shine.BuildErrorHandler( "JSON deserialisation error" )
