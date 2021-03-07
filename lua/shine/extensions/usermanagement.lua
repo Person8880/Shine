@@ -509,7 +509,7 @@ function Plugin:CreateCommands()
 					{
 						Name = "Group",
 						Getter = function( Entry )
-							return StringFormat( "'%s'", Entry.Group )
+							return Entry.Group and StringFormat( "'%s'", Entry.Group ) or "None"
 						end
 					},
 					{
@@ -529,7 +529,7 @@ function Plugin:CreateCommands()
 					}
 				end
 
-				local GroupComparator = Shine.Comparator( "Field", 1, "Group" )
+				local GroupComparator = Shine.Comparator( "Field", 1, "Group", "None" )
 				local ImmunityComparator = Shine.Comparator( "Field", -1, "Immunity", 0 )
 				local Comparator = Shine.Comparator( "Composition", ImmunityComparator, GroupComparator )
 

@@ -659,11 +659,16 @@ function Plugin:ApplyNextMapWinner( Time, Choice, MentionMap )
 	self.NextMap.Voting = false
 end
 
-function Plugin:OnNextMapVoteFail()
+function Plugin:OnNextMapVoteFail( Time )
 	self.NextMap.Voting = false
 
 	if self.VoteOnEnd then
 		local Map = self:GetNextMap()
+		if not Map then
+			self.Logger:Warn( "Unable to find valid next map to advance to! Current map will be extended." )
+			self:ExtendMap( Time, true )
+			return
+		end
 
 		self:SendTranslatedNotify( nil, "MAP_CYCLING", {
 			MapName = Map
@@ -697,7 +702,7 @@ function Plugin:ProcessResults( NextMap )
 		self:NotifyTranslated( nil, "NOT_ENOUGH_VOTES" )
 
 		if self.VoteOnEnd and NextMap then
-			self:OnNextMapVoteFail()
+			self:OnNextMapVoteFail( Time )
 
 			return
 		end
@@ -754,7 +759,7 @@ function Plugin:ProcessResults( NextMap )
 		self.Vote.NextVote = Time + self:GetVoteDelay()
 
 		if NextMap then
-			self:OnNextMapVoteFail()
+			self:OnNextMapVoteFail( Time )
 		end
 
 		return
@@ -799,7 +804,7 @@ function Plugin:ProcessResults( NextMap )
 		self:NotifyTranslated( nil, "VOTES_TIED_LIMIT" )
 
 		if NextMap then
-			self:OnNextMapVoteFail()
+			self:OnNextMapVoteFail( Time )
 		else
 			self.Vote.NextVote = Time + self:GetVoteDelay()
 		end

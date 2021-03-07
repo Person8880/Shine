@@ -16,6 +16,7 @@ local StringFormat = string.format
 local TableHasValue = table.HasValue
 local TableCount = table.Count
 local tonumber = tonumber
+local xpcall = xpcall
 
 local Plugin, PluginName = ...
 Plugin.Version = "1.13"
@@ -556,25 +557,29 @@ function Plugin:OnFirstThink()
 	end
 end
 
-function Plugin:ForcePlayersIntoReadyRoom()
-	local Gamerules = GetGamerules()
-	local PlayersToMove = {}
+do
+	local OnTeamMoveError = Shine.BuildErrorHandler( "Move to ready room error" )
 
-	local function CollectPlayer( Player )
-		local Client = Player:GetClient()
-		if Shine:IsValidClient( Client ) and not Client:GetIsVirtual() then
-			PlayersToMove[ #PlayersToMove + 1 ] = Player
+	function Plugin:ForcePlayersIntoReadyRoom()
+		local Gamerules = GetGamerules()
+		local PlayersToMove = {}
+
+		local function CollectPlayer( Player )
+			local Client = Player:GetClient()
+			if Shine:IsValidClient( Client ) and not Client:GetIsVirtual() then
+				PlayersToMove[ #PlayersToMove + 1 ] = Player
+			end
 		end
-	end
 
-	-- Bots can end up removed from a team immediately when all players are removed, making
-	-- ForEachPlayer throw an error as the player list is modified during iteration.
-	-- Hence why ForEachPlayer is only used to collect players and not move them here.
-	Gamerules.team1:ForEachPlayer( CollectPlayer )
-	Gamerules.team2:ForEachPlayer( CollectPlayer )
+		-- Bots can end up removed from a team immediately when all players are removed, making
+		-- ForEachPlayer throw an error as the player list is modified during iteration.
+		-- Hence why ForEachPlayer is only used to collect players and not move them here.
+		Gamerules.team1:ForEachPlayer( CollectPlayer )
+		Gamerules.team2:ForEachPlayer( CollectPlayer )
 
-	for i = 1, #PlayersToMove do
-		Gamerules:JoinTeam( PlayersToMove[ i ], kTeamReadyRoom, nil, true )
+		for i = 1, #PlayersToMove do
+			xpcall( Gamerules.JoinTeam, OnTeamMoveError, Gamerules, PlayersToMove[ i ], kTeamReadyRoom, true, true )
+		end
 	end
 end
 
@@ -622,10 +627,10 @@ function Plugin:CheckMapLimitsAfterRoundEnd()
 				MapName = self:GetNextMap()
 			} )
 
-			self:ForcePlayersIntoReadyRoom()
 			self.CyclingMap = true
-
 			Gamerules.timeToCycleMap = Time + 30
+
+			self:ForcePlayersIntoReadyRoom()
 
 			return
 		end
