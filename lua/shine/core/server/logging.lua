@@ -651,7 +651,7 @@ do
 
 		local RowDataByColumn = TableNew( NumColumns, 0 )
 		local TotalLength = 0
-		local ColumnSpacing = StringRep( " ", 4 )
+		local ColumnSpacing = StringRep( " ", Columns.SpacingAmount or 4 )
 		local CellLengths = TableNew( NumRows, 0 )
 
 		for i = 1, NumColumns do
