@@ -644,8 +644,7 @@ function Plugin:IsPlayerFrozen( Player )
 		or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
 		or ( Player.GetIsRespawning and Player:GetIsRespawning() )
 		or ( Player.GetCountdownActive and Player:GetCountdownActive() )
-		or Player.concedeSequenceActive
-		or Player.frozen
+		or ( ConcedeSequence and ConcedeSequence.GetIsPlayerObserving and ConcedeSequence.GetIsPlayerObserving( Player ) )
 end
 
 function Plugin:EvaluatePlayer( Client, DataTable, Params )
