@@ -4,6 +4,7 @@
 
 local Shine = Shine
 
+local Abs = math.abs
 local assert = assert
 local Clamp = math.Clamp
 local Floor = math.floor
@@ -15,6 +16,7 @@ local GetNumClientsTotal = Server.GetNumClientsTotal
 local Max = math.max
 local Random = math.random
 local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
+local StringFormat = string.format
 local StringStartsWith = string.StartsWith
 local StringSub = string.sub
 local SharedTime = Shared.GetTime
@@ -315,7 +317,7 @@ do
 		if self.Enabled ~= nil then
 			for Client in self.Users:Iterate() do
 				if Shine:IsValidClient( Client ) then
-					self:ResetAFKTime( Client )
+					self:ResetAFKTime( Client, "Plugin reload" )
 				else
 					self.Users:Remove( Client )
 				end
@@ -346,10 +348,110 @@ do
 		self.SampleInterval = self.Config.SampleIntervalInSeconds
 		self.MinPlayersToKickOnConnect = self:GetMinPlayersToKickOnConnect( GetMaxPlayers(), GetMaxSpectators() )
 
+		self:CreateCommands()
+
 		self.Enabled = true
 
 		return true
 	end
+end
+
+function Plugin:CreateCommands()
+	local function PrintAFKInfo( Client, Target )
+		local Rows
+		if Target then
+			local Data = self.Users:Get( Target )
+			if not Data then
+				Shine.PrintToConsole( Client, StringFormat( "%s has no AFK state.", Shine.GetClientInfo( Target ) ) )
+				return
+			end
+
+			Rows = {
+				{
+					Client = Target,
+					Data = Data
+				}
+			}
+		else
+			Rows = {}
+			for TrackedClient, Data in self.Users:Iterate() do
+				Rows[ #Rows + 1 ] = {
+					Client = TrackedClient,
+					Data = Data
+				}
+			end
+		end
+
+		local function Plural( Value, Word )
+			return StringFormat( "%s%s", Word, Value == 1 and "" or "s" )
+		end
+
+		local Now = SharedTime()
+		local Columns = {
+			SpacingAmount = 2,
+			{
+				Name = "Player",
+				Getter = function( Entry ) return Shine.GetClientInfo( Entry.Client ) end
+			},
+			{
+				Name = "AFK",
+				Getter = function( Entry ) return Entry.Data.IsAFK and "Yes" or "No" end
+			},
+			{
+				Name = "Warned",
+				Getter = function( Entry ) return Entry.Data.Warn and "Yes" or "No" end
+			},
+			{
+				Name = "Moved",
+				Getter = function( Entry ) return Entry.Data.HasMoved and "Yes" or "No" end
+			},
+			{
+				Name = "Frozen",
+				Getter = function( Entry )
+					local Player = Entry.Client:GetControllingPlayer()
+					return Player and self:IsPlayerFrozen( Player ) and "Yes" or "No"
+				end
+			},
+			{
+				Name = "Last Move Time",
+				Getter = function( Entry )
+					local LastMove = Entry.Data.LastMove or 0
+					local TimeSinceLastMove = Now - LastMove
+					if TimeSinceLastMove < 0 then
+						local DelayTimeRemaining = Abs( TimeSinceLastMove )
+						return StringFormat(
+							"N/A (%.3f %s delay)",
+							DelayTimeRemaining,
+							Plural( DelayTimeRemaining, "second" )
+						)
+					end
+					return StringFormat(
+						"%.3f (%.3f %s ago)", LastMove, TimeSinceLastMove, Plural( TimeSinceLastMove, "second" )
+					)
+				end
+			},
+			{
+				Name = "Last Move Reason",
+				Getter = function( Entry ) return Entry.Data.LastMoveReason or "Unknown" end
+			},
+			{
+				Name = "AFK Time",
+				Getter = function( Entry )
+					local AFKAmount = Entry.Data.AFKAmount or 0
+					return StringFormat( "%.3f %s", AFKAmount, Plural( AFKAmount, "second" ) )
+				end
+			}
+		}
+
+		Shine.PrintToConsole(
+			Client,
+			StringFormat( "Showing %d tracked %s at time %.3f", #Rows, Plural( #Rows, "client" ), Now )
+		)
+		Shine.PrintTableToConsole( Client, Columns, Rows )
+	end
+	local AFKInfoCommand = self:BindCommand( "sh_afk_status", nil, PrintAFKInfo )
+	AFKInfoCommand:AddParam{ Type = "client", Optional = true, Default = false, IgnoreCanTarget = true }
+	AFKInfoCommand:Help( "Displays information about the given player or all player's AFK state." )
 end
 
 function Plugin:GetPlayerCount()
@@ -477,6 +579,7 @@ function Plugin:ClientConnect( Client )
 
 	self.Users:Add( Client, {
 		LastMove = MeasureStartTime,
+		LastMoveReason = "Connected to server",
 		LastMeasurement = Now,
 		NextSample = Now,
 		AFKAmount = 0,
@@ -488,7 +591,7 @@ function Plugin:ClientConnect( Client )
 	Shine.Hook.Broadcast( "AFKChanged", Client, false )
 end
 
-function Plugin:ResetAFKTime( Client )
+function Plugin:ResetAFKTime( Client, Reason )
 	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
 
@@ -496,6 +599,7 @@ function Plugin:ResetAFKTime( Client )
 
 	DataTable.Warn = false
 	DataTable.LastMove = Time
+	DataTable.LastMoveReason = Reason or "AFK time reset"
 	DataTable.LastMeasurement = Time
 	DataTable.AFKAmount = 0
 	DataTable.HasMoved = true
@@ -506,12 +610,13 @@ function Plugin:ResetAFKTime( Client )
 	end
 end
 
-function Plugin:SubtractAFKTime( Client, Time )
+function Plugin:SubtractAFKTime( Client, Time, Reason )
 	local DataTable = self.Users:Get( Client )
 	if not DataTable then return end
 
 	DataTable.Warn = false
 	DataTable.LastMove = SharedTime()
+	DataTable.LastMoveReason = Reason or "Activity"
 	DataTable.LastMeasurement = DataTable.LastMove
 	DataTable.AFKAmount = Max( DataTable.AFKAmount - Time, 0 )
 	DataTable.HasMoved = true
@@ -539,8 +644,7 @@ function Plugin:IsPlayerFrozen( Player )
 		or ( Player.GetIsWaitingForTeamBalance and Player:GetIsWaitingForTeamBalance() )
 		or ( Player.GetIsRespawning and Player:GetIsRespawning() )
 		or ( Player.GetCountdownActive and Player:GetCountdownActive() )
-		or Player.concedeSequenceActive
-		or Player.frozen
+		or ( ConcedeSequence and ConcedeSequence.GetIsPlayerObserving and ConcedeSequence.GetIsPlayerObserving( Player ) )
 end
 
 function Plugin:EvaluatePlayer( Client, DataTable, Params )
@@ -690,7 +794,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	local IsSpectator = Player:GetTeamNumber() == kSpectatorIndex
 	if IsSpectator and self.Config.IgnoreSpectators then
-		self:ResetAFKTime( Client )
+		self:ResetAFKTime( Client, "Ignored spectator" )
 		return
 	end
 
@@ -728,6 +832,7 @@ function Plugin:OnProcessMove( Player, Input )
 
 	if HasMoved then
 		DataTable.LastMove = Time
+		DataTable.LastMoveReason = "Sampled input"
 		DataTable.HasMoved = true
 
 		local Leniency = self:GetLeniency( self:IsClientPartiallyImmune( Client ) )
@@ -778,13 +883,13 @@ function Plugin:OnProcessMove( Player, Input )
 end
 
 function Plugin:PlayerSay( Client, MessageTable )
-	self:ResetAFKTime( Client )
+	self:ResetAFKTime( Client, "Text chat" )
 end
 
 function Plugin:CanPlayerHearPlayer( Gamerules, Listener, Speaker )
 	local Client = GetClientForPlayer( Speaker )
 	if Client then
-		self:SubtractAFKTime( Client, 0.1 )
+		self:SubtractAFKTime( Client, 0.1, "Voice chat" )
 	end
 end
 
@@ -799,7 +904,7 @@ function Plugin:OnConstructInit( Building )
 	local Client = GetClientForPlayer( Owner )
 	if not Client then return end
 
-	self:ResetAFKTime( Client )
+	self:ResetAFKTime( Client, "Building structure" )
 end
 
 function Plugin:OnRecycle( Building, ResearchID )
@@ -812,7 +917,7 @@ function Plugin:OnRecycle( Building, ResearchID )
 	local Client = GetClientForPlayer( Commander )
 	if not Client then return end
 
-	self:ResetAFKTime( Client )
+	self:ResetAFKTime( Client, "Recycling structure" )
 end
 
 do
@@ -821,7 +926,7 @@ do
 			local Client = GetClientForPlayer( Commander )
 			if not Client then return end
 
-			self:ResetAFKTime( Client )
+			self:ResetAFKTime( Client, "Commander action" )
 		end
 	end
 
@@ -963,7 +1068,7 @@ function Plugin:OnFirstThink()
 			"j1", "jointeamone", "j2", "jointeamtwo", "j3", "jointeamthree", "rr", "readyroom", "spectate"
 		}
 		local OnAttemptToJoinTeam = self:WrapCallback( function( Client )
-			self:SubtractAFKTime( Client, 0.1 )
+			self:SubtractAFKTime( Client, 0.1, "Team join attempt" )
 		end )
 
 		for i = 1, #Commands do
