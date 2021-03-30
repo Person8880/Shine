@@ -142,8 +142,19 @@ do
 		return Skill
 	end
 
+	local function GetFieldPlayerSkill( Ply, TeamNumber, TeamSkillEnabled )
+		if Ply.GetPlayerSkill then
+			local Skill = Ply:GetPlayerSkill() or 0
+			local Offset = Ply.GetPlayerSkillOffset and Ply:GetPlayerSkillOffset() or 0
+
+			return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, Skill, Offset )
+		end
+
+		return nil
+	end
+
 	BalanceModule.SkillGetters = {
-		GetHiveSkill = function( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+		GetHiveSkill = function( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled, Options )
 			local Client = GetClientForPlayer( Ply )
 			if Client and Client:GetIsVirtual() then
 				-- Bots are all equal so there's no reason to consider them.
@@ -160,20 +171,28 @@ do
 				local CommanderSkill = Ply:GetCommanderSkill() or -1
 				if CommanderSkill >= 0 then
 					local Offset = Ply:GetCommanderSkillOffset() or 0
-					return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, CommanderSkill, Offset )
+					local ResolvedCommanderSkill = GetPlayerTeamSkill(
+						TeamSkillEnabled and TeamNumber or 0,
+						CommanderSkill,
+						Offset
+					)
+
+					-- If blending is enabled for aliens, take the average of the commander and field skills to account
+					-- for players that leave the hive to fight.
+					if TeamNumber == 2 and Options and Options.BlendAlienCommanderAndFieldSkills then
+						local FieldSkill = GetFieldPlayerSkill( Ply, TeamNumber, TeamSkillEnabled )
+						if FieldSkill then
+							return ( FieldSkill + ResolvedCommanderSkill ) * 0.5
+						end
+					end
+
+					return ResolvedCommanderSkill
 				end
 			end
 
 			-- If not a commander or not able to use commander skill, use the player skill and apply the team offset if
 			-- available and enabled.
-			if Ply.GetPlayerSkill then
-				local Skill = Ply:GetPlayerSkill() or 0
-				local Offset = Ply.GetPlayerSkillOffset and Ply:GetPlayerSkillOffset() or 0
-
-				return GetPlayerTeamSkill( TeamSkillEnabled and TeamNumber or 0, Skill, Offset )
-			end
-
-			return nil
+			return GetFieldPlayerSkill( Ply, TeamNumber, TeamSkillEnabled )
 		end,
 
 		-- KA/D Ratio.
@@ -218,13 +237,13 @@ do
 
 	if DebugMode then
 		local OldGetHiveSkill = BalanceModule.SkillGetters.GetHiveSkill
-		BalanceModule.SkillGetters.GetHiveSkill = function( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+		BalanceModule.SkillGetters.GetHiveSkill = function( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled, Options )
 			local Client = GetClientForPlayer( Ply )
 			if Client and Client:GetIsVirtual() then
 				Client.Skill = Client.Skill or Random( 0, 2500 )
 				return Client.Skill
 			end
-			return OldGetHiveSkill( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+			return OldGetHiveSkill( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled, Options )
 		end
 
 		local OldGetKDR = BalanceModule.SkillGetters.GetKDR
@@ -280,8 +299,9 @@ end
 function BalanceModule:ApplyConfigToRankingFunction( RankFunc )
 	local TeamSkillEnabled = self:IsPerTeamSkillEnabled()
 	local CommanderSkillEnabled = self:IsCommanderSkillEnabled()
+	local ExtraParams = self:GetBalanceModeConfig()
 	return function( Ply, TeamNumber )
-		return RankFunc( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled )
+		return RankFunc( Ply, TeamNumber, TeamSkillEnabled, CommanderSkillEnabled, ExtraParams )
 	end
 end
 
