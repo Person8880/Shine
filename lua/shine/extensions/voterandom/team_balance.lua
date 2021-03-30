@@ -294,7 +294,7 @@ function BalanceModule:IsCommanderSkillEnabled()
 end
 
 --[[
-	Wraps the given ranking function, passing through the configured team/commnader skill flags.
+	Wraps the given ranking function, passing through the configured team/commander skill flags.
 ]]
 function BalanceModule:ApplyConfigToRankingFunction( RankFunc )
 	local TeamSkillEnabled = self:IsPerTeamSkillEnabled()
@@ -1107,7 +1107,7 @@ do
 			return self.TeamStatsCache[ RankFunc ]
 		end
 
-		-- Apply configured skill options to the ranking function to apply team/commnader skills if enabled.
+		-- Apply configured skill options to the ranking function to apply team/commander skills if enabled.
 		RankFunc = self:ApplyConfigToRankingFunction( RankFunc )
 
 		local Gamerules = GetGamerules()
