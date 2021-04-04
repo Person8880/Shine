@@ -25,7 +25,7 @@ local TableConcat = table.concat
 local tostring = tostring
 
 local Plugin, PluginName = ...
-Plugin.Version = "2.11"
+Plugin.Version = "2.12"
 Plugin.PrintName = "Shuffle"
 
 Plugin.HasConfig = true
@@ -93,7 +93,10 @@ Plugin.DefaultConfig = {
 	BalanceModeConfig = {
 		[ Plugin.ShuffleMode.HIVE ] = {
 			UseTeamSkill = true,
-			UseCommanderSkill = true
+			UseCommanderSkill = true,
+			-- Whether to blend the commander and field skill values for an alien commander to account for them being
+			-- out of the hive for a significant amount of time during a round.
+			BlendAlienCommanderAndFieldSkills = false
 		}
 	},
 
@@ -310,6 +313,11 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "2.11",
 		Apply = Shine.Migrator()
 			:AddField( { "VoteSettings", "ConsiderSpectatorsDuringActiveRound" }, true )
+	},
+	{
+		VersionTo = "2.12",
+		Apply = Shine.Migrator()
+			:AddField( { "BalanceModeConfig", Plugin.ShuffleMode.HIVE, "BlendAlienCommanderAndFieldSkills" }, false )
 	}
 }
 
@@ -1819,10 +1827,13 @@ function Plugin:CreateCommands()
 				Stats.Average, Stats.StandardDeviation )
 		end
 
+		local BalanceModeConfig = self:GetBalanceModeConfig()
+
 		Message[ #Message + 1 ] = StringFormat(
-			"Team skills are %s. Commander skills are %s.",
+			"Team skills are %s. Commander skills are %s. Alien commander skill blending is %s.",
 			self:IsPerTeamSkillEnabled() and "enabled" or "disabled",
-			self:IsCommanderSkillEnabled() and "enabled" or "disabled"
+			self:IsCommanderSkillEnabled() and "enabled" or "disabled",
+			BalanceModeConfig and BalanceModeConfig.BlendAlienCommanderAndFieldSkills and "enabled" or "disabled"
 		)
 		Message[ #Message + 1 ] = StringFormat( "Team preference cost weighting: %s. History rounds: %d.",
 			self.Config.TeamPreferences.CostWeighting, self.Config.TeamPreferences.MaxHistoryRounds )
