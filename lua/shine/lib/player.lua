@@ -238,7 +238,7 @@ do
 	--[[
 		Ensures no team has more than 1 extra player compared to the other.
 	]]
-	function Shine.EvenlySpreadTeams( Gamerules, TeamMembers )
+	function Shine.EvenlySpreadTeams( Gamerules, TeamMembers, BalanceMode )
 		Hook.Call( "PreEvenlySpreadTeams", Gamerules, TeamMembers )
 
 		-- Yes, we repeat this, but the reporting needs it...
@@ -261,18 +261,14 @@ do
 
 		Hook.Remove( "JoinTeam", "StopPeopleBreakingShuffle" )
 
-		local NewMarineCount = MarineTeam:GetNumPlayers()
-		local NewAlienCount = AlienTeam:GetNumPlayers()
-		local NewDiff = Abs( NewMarineCount - NewAlienCount )
-		-- If the number of players has changed, something else is interfering with teams and it's not our fault.
-		local IsSameAmountOfPlayers = NumMarine + NumAlien == NewMarineCount + NewAlienCount
+		if BalanceMode then
+			local NewMarineCount = MarineTeam:GetNumPlayers()
+			local NewAlienCount = AlienTeam:GetNumPlayers()
+			local NewDiff = Abs( NewMarineCount - NewAlienCount )
+			-- If the number of players has changed, something else is interfering with teams and it's not our fault.
+			local IsSameAmountOfPlayers = NumMarine + NumAlien == NewMarineCount + NewAlienCount
 
-		if NewDiff > 1 and IsSameAmountOfPlayers then
-			local VoteRandom = Shine.Plugins.voterandom
-
-			if VoteRandom then
-				local BalanceMode = VoteRandom.Config.BalanceMode
-
+			if NewDiff > 1 and IsSameAmountOfPlayers then
 				local Marines = PlayersToString( Marine )
 				local Aliens = PlayersToString( Alien )
 				local NewMarines = PlayersToString( MarineTeam:GetPlayers() )
