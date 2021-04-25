@@ -773,16 +773,24 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest, OnAsyncResponse )
 	return false
 end
 
+local FAMILY_SHARING_BAN_MESSAGE = "Family sharing with a banned account."
+local FAMILY_SHARING_BLOCKED_MESSAGE = "Family sharing is not permitted here."
+local FAMILY_SHARE_IMMUNITY_PERMISSION = "sh_ban_family_share_immune"
+
 function Plugin:KickForFamilySharingWhenBanned( Client, Sharer )
 	self:Print( "Kicking %s for family sharing with a banned account. Sharer ID: %s.", true,
 			Shine.GetClientInfo( Client ), Sharer )
-	Server.DisconnectClient( Client, "Family sharing with a banned account." )
+	Server.DisconnectClient( Client, FAMILY_SHARING_BAN_MESSAGE )
 end
 
 function Plugin:KickForFamilySharing( Client, Sharer )
 	self:Print( "Kicking %s for family sharing. Sharer ID: %s.", true,
 		Shine.GetClientInfo( Client ), Sharer )
-	Server.DisconnectClient( Client, "Family sharing is not permitted here." )
+	Server.DisconnectClient( Client, FAMILY_SHARING_BLOCKED_MESSAGE )
+end
+
+function Plugin:IsClientImmuneToFamilySharingChecks( Client )
+	return Shine:HasAccess( Client, FAMILY_SHARE_IMMUNITY_PERMISSION )
 end
 
 --[[
@@ -793,6 +801,7 @@ end
 ]]
 function Plugin:ClientConnect( Client )
 	if not self.Config.CheckFamilySharing or Client:GetIsVirtual() then return end
+	if self:IsClientImmuneToFamilySharingChecks( Client ) then return end
 
 	local IsSharingFromBannedAccount, Sharer = self:CheckFamilySharing( Client:GetUserId(), true )
 	if IsSharingFromBannedAccount then
@@ -846,6 +855,7 @@ function Plugin:CheckConnectionAllowed( ID )
 	self:RemoveBan( ID )
 
 	if not self.Config.CheckFamilySharing then return end
+	if self:IsClientImmuneToFamilySharingChecks( ID ) then return end
 
 	local function OnSharingChecked( IsSharerBanned, Sharer )
 		if not Sharer then return end
@@ -871,11 +881,11 @@ function Plugin:CheckConnectionAllowed( ID )
 
 	local IsSharingFromBannedAccount, Sharer = self:CheckFamilySharing( ID, false, OnSharingChecked )
 	if IsSharingFromBannedAccount then
-		return false, "Family sharing with a banned account."
+		return false, FAMILY_SHARING_BAN_MESSAGE
 	end
 
 	if Sharer and self.Config.AlwaysBlockFamilySharedPlayers then
-		return false, "Family sharing is not permitted here."
+		return false, FAMILY_SHARING_BLOCKED_MESSAGE
 	end
 end
 
