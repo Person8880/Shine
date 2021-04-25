@@ -983,7 +983,7 @@ function BalanceModule:SortByScore( Gamerules, Targets, TeamMembers, Silent, Ran
 	self.Logger:Debug( "After SortByScore:" )
 	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
 
-	EvenlySpreadTeams( Gamerules, TeamMembers )
+	EvenlySpreadTeams( Gamerules, TeamMembers, self.Config.BalanceMode )
 end
 
 BalanceModule.ShufflingModes = {
@@ -994,7 +994,7 @@ BalanceModule.ShufflingModes = {
 		self.Logger:Debug( "After AddPlayersRandomly:" )
 		self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
 
-		EvenlySpreadTeams( Gamerules, TeamMembers )
+		EvenlySpreadTeams( Gamerules, TeamMembers, self.Config.BalanceMode )
 
 		if not Silent then
 			self:Print( "Teams were sorted randomly." )
@@ -1049,7 +1049,7 @@ BalanceModule.ShufflingModes = {
 			return
 		end
 
-		EvenlySpreadTeams( Gamerules, TeamMembers )
+		EvenlySpreadTeams( Gamerules, TeamMembers, self.Config.BalanceMode )
 	end
 }
 

@@ -167,6 +167,7 @@ do
 
 	UnitTest:Before( function()
 		Kicked = {}
+		Plugin.IsClientImmuneToFamilySharingChecks = function() return false end
 	end )
 
 	UnitTest:Test( "ClientConnect - Does nothing if Config.CheckFamilySharing = false", function( Assert )
@@ -175,6 +176,20 @@ do
 		end
 
 		Plugin.Config.CheckFamilySharing = false
+
+		local MockClient = UnitTest.MakeMockClient( 123 )
+		Plugin:ClientConnect( MockClient )
+
+		Assert.Nil( "Should not have kicked the client", Kicked[ MockClient ] )
+	end )
+
+	UnitTest:Test( "ClientConnect - Does nothing if the connecting client is immune to checks", function( Assert )
+		Plugin.IsClientImmuneToFamilySharingChecks = function() return true end
+		Plugin.Config.CheckFamilySharing = true
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return true, 12345
+		end
 
 		local MockClient = UnitTest.MakeMockClient( 123 )
 		Plugin:ClientConnect( MockClient )
@@ -267,6 +282,18 @@ do
 
 		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
 			return false
+		end
+
+		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123 ) )
+	end )
+
+	UnitTest:Test( "CheckConnectionAllowed - Does nothing if the client is not banned and is immune to family sharing checks", function( Assert )
+		Plugin.IsClientImmuneToFamilySharingChecks = function() return true end
+		Plugin.Config.CheckFamilySharing = true
+		Plugin.Config.Banned = {}
+
+		function Plugin:CheckFamilySharing( SteamID, CacheOnly )
+			return true, 12345
 		end
 
 		Assert.Nil( "Client should not be rejected", Plugin:CheckConnectionAllowed( 123 ) )
