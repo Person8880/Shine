@@ -679,7 +679,7 @@ end
 function List:ResetSelection()
 	if self.MultiSelect then
 		local Rows = self.Rows
-		for i = 1, #Rows do
+		for i = 1, self.RowCount do
 			Rows[ i ]:SetSelected( false )
 		end
 
