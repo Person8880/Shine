@@ -213,11 +213,11 @@ local function NS2EntryToShineEntry( Table )
 	end
 
 	return {
-		Name = Table.name,
+		Name = Table.name and tostring( Table.name ) or nil,
 		UnbanTime = UnbanTime or 0,
-		Reason = Table.reason,
-		BannedBy = Table.bannedby or "<unknown>",
-		BannerID = Table.bannerid or 0,
+		Reason = Table.reason and tostring( Table.reason ) or nil,
+		BannedBy = Table.bannedby and tostring( Table.bannedby ) or "<unknown>",
+		BannerID = tonumber( Table.bannerid ) or 0,
 		Duration = Duration or 0
 	}
 end
