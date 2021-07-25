@@ -222,7 +222,12 @@ function Plugin:InferMapMods( Maps )
 		publishedfileids = Mods
 	}
 	Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
-		OnSuccess = function( PublishedFileDetails )
+		OnSuccess = function( PublishedFileDetails, RequestError )
+			if RequestError then
+				self.Logger:Error( "Failed to retrieve mod information from Steam: %s", RequestError )
+				return
+			end
+
 			if not PublishedFileDetails then
 				self.Logger:Warn(
 					"Steam failed to respond with mod information, map mods may not be detected correctly."

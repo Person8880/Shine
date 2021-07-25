@@ -138,16 +138,18 @@ function Plugin:VerifyConfig()
 end
 
 function Plugin:LoadBansFromWeb()
-	local function BansResponse( Response )
-		if not Response then
-			self.Logger:Error( "Loading bans from the web failed. Check the config to make sure the URL is correct." )
+	local function BansResponse( Response, RequestError )
+		if not Response or RequestError then
+			self.Logger:Error(
+				"Loading bans from the web failed: %s. Check the config to make sure the URL is correct.",
+				RequestError or "no response received"
+			)
 			return
 		end
 
 		local BansData, Pos, Err = Decode( Response )
 		if not IsType( BansData, "table" ) then
-			self.Logger:Error( "Loading bans from the web received invalid JSON. Error: %s.",
-				Err )
+			self.Logger:Error( "Loading bans from the web received invalid JSON. Error: %s.", Err )
 			self.Logger:Debug( "Response content:\n%s", Response )
 			return
 		end
@@ -356,13 +358,18 @@ function Plugin:SendHTTPRequest( ID, PostParams, Operation, Revert )
 	TableShallowMerge( self.Config.BansSubmitArguments, PostParams )
 
 	local Callbacks = {
-		OnSuccess = function( Data )
+		OnSuccess = function( Data, RequestError )
 			self.Logger:Debug( "Received response from server for %s of %s", Operation, ID )
 
 			self.Retries[ ID ] = nil
 
-			if not Data then
-				self.Logger:Error( "Received no repsonse for %s of %s.", Operation, ID )
+			if not Data or RequestError then
+				self.Logger:Error(
+					"Error performing %s of %s: %s",
+					Operation,
+					ID,
+					RequestError or "no response received."
+				)
 				return
 			end
 
@@ -754,7 +761,12 @@ function Plugin:CheckFamilySharing( ID, NoAPIRequest, OnAsyncResponse )
 	self.Logger:Debug( "Querying Steam for family sharing state of %s...", ID )
 
 	Shine.ExternalAPIHandler:PerformRequest( "Steam", "IsPlayingSharedGame", RequestParams, {
-		OnSuccess = self:WrapCallback( function( Sharer )
+		OnSuccess = self:WrapCallback( function( Sharer, RequestError )
+			if RequestError then
+				self.Logger:Error( "Failed to query Steam for family sharing state: %s", RequestError )
+				return OnAsyncResponse( false )
+			end
+
 			if not Sharer then
 				self.Logger:Debug( "Steam responded with no sharer for %s.", ID )
 				return OnAsyncResponse( false )

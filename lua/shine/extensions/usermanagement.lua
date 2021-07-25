@@ -74,9 +74,9 @@ function Plugin:SubmitOperation( OperationID, KeyValues, Revert )
 	} )
 
 	local Callbacks = {
-		OnSuccess = function( Data )
-			if not Data then
-				self:Print( "Received no response for operation %s.", true, OperationID )
+		OnSuccess = function( Data, RequestError )
+			if not Data or RequestError then
+				self:Print( "Operation %s failed: %s", true, OperationID, RequestError or "no response received." )
 				return
 			end
 

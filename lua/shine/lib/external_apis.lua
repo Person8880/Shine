@@ -179,8 +179,8 @@ do
 
 			-- Pass the transformed JSON response through to the OnSuccess callback.
 			local OldOnSuccess = Callbacks.OnSuccess
-			Callbacks.OnSuccess = function( Response )
-				OldOnSuccess( Data.ResponseTransformer( Decode( Response ) ) )
+			Callbacks.OnSuccess = function( Response, ... )
+				OldOnSuccess( Data.ResponseTransformer( Decode( Response ) ), ... )
 			end
 
 			if next( FinalParams ) then
@@ -411,9 +411,9 @@ do
 		local Caller = APICallers[ APIName ][ EndPointName ]
 
 		local OldOnSuccess = Callbacks.OnSuccess
-		Callbacks.OnSuccess = function( Result )
+		Callbacks.OnSuccess = function( Result, ... )
 			self:AddToCache( APIName, EndPointName, Params, Result )
-			xpcall( OldOnSuccess, OnError, Result )
+			xpcall( OldOnSuccess, OnError, Result, ... )
 		end
 
 		Callbacks.OnFailure = WrapWithXPCall( Callbacks.OnFailure )

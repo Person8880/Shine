@@ -152,9 +152,13 @@ end
 
 function Shine:RequestUsers( Reload )
 	local Callbacks = {
-		OnSuccess = function( Response )
-			if not Response then
-				self:Print( "Got no response from server when loading users. Using local file instead." )
+		OnSuccess = function( Response, RequestError )
+			if not Response or RequestError then
+				self:Print(
+					"Failed to retrieve users from server: %s. Using local file instead.",
+					true,
+					RequestError or "no response received"
+				)
 				return
 			end
 
