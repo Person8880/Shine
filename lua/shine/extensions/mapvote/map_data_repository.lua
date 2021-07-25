@@ -392,8 +392,8 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 		local CacheEntry = GetCacheEntry( ModID, IsForMap and MapName )
 		if CacheEntry and IsType( CacheEntry[ CacheKey ], "string" ) then
 			MapDataRepository.Logger:Debug(
-				"Loading %s for %s/%s from remote source failed, using stale cached image.",
-				CacheKey, ModID, MapName
+				"Loading %s for %s/%s from remote source failed, using stale cached image. Error: %s",
+				CacheKey, ModID, MapName, Err
 			)
 
 			-- Have a stale cached image, wait a while for the API to be available again before trying to update it,
@@ -401,21 +401,21 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 			CacheEntry.NextUpdateCheckTime = Clock() + 60 * 60
 			SaveCache()
 
-			TextureLoader.LoadFromFile( CacheEntry[ CacheKey ], function( TextureName, Err )
-				if Err then
+			TextureLoader.LoadFromFile( CacheEntry[ CacheKey ], function( TextureName, FileLoadError )
+				if FileLoadError then
 					-- Couldn't load from file, and the API is unavailable, so give up.
-					return Callback( MapName, nil, Err )
+					return Callback( MapName, nil, FileLoadError )
 				end
 
-				Callback( MapName, TextureName, Err )
+				Callback( MapName, TextureName, FileLoadError )
 			end )
 
 			return
 		end
 
 		MapDataRepository.Logger:Debug(
-			"Loading %s for %s/%s from remote source failed, no cached image available.",
-			CacheKey, ModID, MapName
+			"Loading %s for %s/%s from remote source failed, no cached image available. Error: %s",
+			CacheKey, ModID, MapName, Err
 		)
 
 		-- No cache entry and couldn't load from API, give up.
