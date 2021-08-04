@@ -141,7 +141,7 @@ local function BroadcastPropertyChange( self, Name, Value )
 	local Listeners = self.PropertyChangeListeners:Get( Name )
 	if not Listeners then return end
 
-	for i = 1, #Listeners do
+	for i = #Listeners, 1, -1 do
 		Listeners[ i ]( self, Value )
 	end
 end
@@ -418,6 +418,8 @@ function ControlMeta:SetParent( Control, Element )
 end
 
 function ControlMeta:SetTopLevelWindow( Window )
+	if Window == self.TopLevelWindow then return end
+
 	self.TopLevelWindow = Window
 
 	if Window and self.Children then
@@ -425,6 +427,8 @@ function ControlMeta:SetTopLevelWindow( Window )
 			Child:SetTopLevelWindow( Window )
 		end
 	end
+
+	self:OnPropertyChanged( "TopLevelWindow", Window )
 end
 
 do
