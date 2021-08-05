@@ -99,40 +99,8 @@ function Dropdown:BuildMenu()
 				end
 				Button:SetStyleName( "DropdownButton" )
 			end
-
-			Menu:CallOnRemove( function( Menu )
-				if SGUI.IsValid( Menu.LinkedWindow ) then
-					Menu.LinkedWindow:RemovePropertyChangeListener( "IsVisible", Menu.OnLinkedWindowVisibilityChanged )
-					Menu.LinkedWindow = nil
-				end
-			end )
-
-			function Menu.OnLinkedWindowVisibilityChanged( Window, IsVisible )
-				if not IsVisible and SGUI.IsValid( Menu ) then
-					-- Dropdown's parent window has gone invisible, destroy the menu to avoid it being left on screen.
-					Menu:Destroy()
-				end
-			end
-
-			self:AddPropertyChangeListener( "TopLevelWindow", self.UpdateMenuWindowTracking )
-			self:UpdateMenuWindowTracking( self.TopLevelWindow )
 		end
 	}
-end
-
-function Dropdown:UpdateMenuWindowTracking( Window )
-	local Menu = self.Menu
-	if not SGUI.IsValid( Menu ) or Menu.LinkedWindow == Window then return end
-
-	if SGUI.IsValid( Menu.LinkedWindow ) then
-		Menu.LinkedWindow:RemovePropertyChangeListener( "IsVisible", Menu.OnLinkedWindowVisibilityChanged )
-	end
-
-	Menu.LinkedWindow = Window
-
-	if SGUI.IsValid( Window ) then
-		Window:AddPropertyChangeListener( "IsVisible", Menu.OnLinkedWindowVisibilityChanged )
-	end
 end
 
 function Dropdown:SelectOption( Value )

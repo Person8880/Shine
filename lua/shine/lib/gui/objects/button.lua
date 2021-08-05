@@ -9,6 +9,7 @@ local Units = SGUI.Layout.Units
 
 local Max = math.max
 local rawget = rawget
+local StringFormat = string.format
 
 local Button = {}
 
@@ -283,6 +284,7 @@ function Button:AddMenu( Size, MenuPos )
 		Menu:SetSkin( self:GetSkin() )
 	end
 
+	Menu:SetDebugName( StringFormat( "%s.Menu", self:GetDebugName() ) )
 	Menu:SetPos( Pos )
 	Menu:SetButtonSize( Size or self:GetSize() )
 
@@ -322,6 +324,15 @@ function Button:SetOpenMenuOnClick( PopulateMenuFunc )
 		local Menu = self:AddMenu( MenuParams.Size, MenuParams.MenuPos )
 		MenuParams.Populate( Menu )
 	end )
+end
+
+function Button:OnEffectiveVisibilityChanged( IsEffectivelyVisible, UpdatedControl )
+	-- If the button becomes invisible for any reason, destroy any open menu.
+	if not IsEffectivelyVisible and SGUI.IsValid( self.Menu ) then
+		self.Menu:Destroy()
+		self.Menu = nil
+		self:OnPropertyChanged( "Menu", nil )
+	end
 end
 
 function Button:OnMouseDown( Key, DoubleClick )
