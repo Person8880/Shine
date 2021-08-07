@@ -149,6 +149,8 @@ function ConfigMenu:SetIsVisible( Bool, IgnoreAnim )
 	Shine.AdminMenu.AnimateVisibility( self.Menu, Bool, self.Visible, self.EasingTime, self.Pos, IgnoreAnim )
 
 	self.Visible = Bool
+
+	Shine.Hook.Broadcast( "OnConfigMenuVisibilityChanged", self, Bool )
 end
 
 function ConfigMenu:GetIsVisible()
@@ -450,12 +452,18 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 				local TabLayout = SetupTabPanel( TabPanel )
 				local ElementsByKey = {}
 				local SettingsWithBindings = {}
+				local Dropdowns = {}
 
 				for i = 1, #Settings do
 					local Setting = Settings[ i ]
 					local Creator = SettingsTypes[ Setting.Type ]
 
 					local Object, ValueHolder = Creator.Create( TabPanel, Setting )
+
+					if Setting.Type == "Dropdown" then
+						Dropdowns[ #Dropdowns + 1 ] = ValueHolder
+					end
+
 					local TranslationSource = Setting.TranslationSource or "Core"
 					if IsType( Setting.Tooltip, "string" ) then
 						ValueHolder:SetTooltip(
@@ -567,6 +575,19 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 					Element.Update( Element.ValueHolder, NewValue )
 				end )
 
+				Shine.Hook.Add( "OnConfigMenuVisibilityChanged", ConfigMenu, function( ConfigMenu, Visible )
+					if Visible then return end
+
+					-- Immediately close any dropdown menus that are open to avoid them being left on screen briefly
+					-- during the close animation.
+					for i = 1, #Dropdowns do
+						local Dropdown = Dropdowns[ i ]
+						if SGUI.IsValid( Dropdown ) then
+							Dropdown:DestroyMenu()
+						end
+					end
+				end )
+
 				TabPanel:SetLayout( TabLayout, true )
 			end, GroupDef and GroupDef.Icon )
 
@@ -585,6 +606,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 	OnCleanup = function( Panel )
 		Shine.Hook.Remove( "OnPluginClientSettingChanged", ConfigMenu )
 		Shine.Hook.Remove( "OnClientSettingChanged", ConfigMenu )
+		Shine.Hook.Remove( "OnConfigMenuVisibilityChanged", ConfigMenu )
 
 		local Tabs = Panel.SettingsTabs
 		Panel.SettingsTabs = nil
