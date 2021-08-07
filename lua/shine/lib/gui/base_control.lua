@@ -141,7 +141,7 @@ local function BroadcastPropertyChange( self, Name, Value )
 	local Listeners = self.PropertyChangeListeners:Get( Name )
 	if not Listeners then return end
 
-	for i = 1, #Listeners do
+	for i = #Listeners, 1, -1 do
 		Listeners[ i ]( self, Value )
 	end
 end
@@ -418,6 +418,8 @@ function ControlMeta:SetParent( Control, Element )
 end
 
 function ControlMeta:SetTopLevelWindow( Window )
+	if Window == self.TopLevelWindow then return end
+
 	self.TopLevelWindow = Window
 
 	if Window and self.Children then
@@ -425,6 +427,8 @@ function ControlMeta:SetTopLevelWindow( Window )
 			Child:SetTopLevelWindow( Window )
 		end
 	end
+
+	self:OnPropertyChanged( "TopLevelWindow", Window )
 end
 
 do
@@ -640,42 +644,80 @@ function ControlMeta:SetIsSchemed( Bool )
 end
 
 --[[
-	Sets visibility of the control.
+	Called when the control becomes visible/invisible due to either its own visibility state, or an ancestor's
+	visibility state.
+
+	Inputs:
+		1. Whether the control is now considered visible.
+		2. The control whose visibility change caused this update.
 ]]
-function ControlMeta:SetIsVisible( IsVisible )
-	if not self.Background then return end
-	if self.Background.GetIsVisible and self.Background:GetIsVisible() == IsVisible then return end
+function ControlMeta:OnEffectiveVisibilityChanged( IsEffectivelyVisible, UpdatedControl )
+	-- To be overridden by controls as required.
+end
 
-	self.Background:SetIsVisible( IsVisible )
-	self:InvalidateParent()
-	self:OnPropertyChanged( "IsVisible", IsVisible )
+do
+	local function BroadcastVisibilityChange( self, IsEffectivelyVisible, UpdatedControl )
+		self:OnEffectiveVisibilityChanged( IsEffectivelyVisible, UpdatedControl )
 
-	if not IsVisible then
-		self:HideTooltip()
-	else
-		self:InvalidateMouseState()
-	end
-
-	if not SGUI:IsWindow( self ) then return end
-
-	if IsVisible then
-		-- Take focus on show.
-		SGUI:SetWindowFocus( self )
-	else
-		if SGUI.FocusedWindow ~= self then return end
-
-		-- Give focus to the next visible window down on hide.
-		local Windows = SGUI.Windows
-		local NextDownIndex = 0
-		for i = #Windows, 1, -1 do
-			if Windows[ i ] ~= self and Windows[ i ]:GetIsVisible() then
-				NextDownIndex = i
-				break
+		if self.Children then
+			for Child in self.Children:Iterate() do
+				-- Only notify children that are visible, as those that are hidden are not affected by their parent's
+				-- visibility.
+				if Child:GetIsVisible() then
+					BroadcastVisibilityChange( Child, IsEffectivelyVisible, UpdatedControl )
+				end
 			end
 		end
+	end
 
-		if NextDownIndex > 0 then
-			SGUI:SetWindowFocus( Windows[ NextDownIndex ], NextDownIndex )
+	--[[
+		Sets visibility of the control.
+	]]
+	function ControlMeta:SetIsVisible( IsVisible )
+		if not self.Background then return end
+		if self.Background.GetIsVisible and self.Background:GetIsVisible() == IsVisible then return end
+
+		local WasEffectivelyVisible = true
+		if SGUI.IsValid( self.Parent ) then
+			WasEffectivelyVisible = self.Parent:ComputeVisibility()
+		end
+
+		self.Background:SetIsVisible( IsVisible )
+		self:InvalidateParent()
+		self:OnPropertyChanged( "IsVisible", IsVisible )
+
+		if not IsVisible then
+			self:HideTooltip()
+		else
+			self:InvalidateMouseState()
+		end
+
+		if WasEffectivelyVisible then
+			-- Notify all children that they are now visible/invisible.
+			BroadcastVisibilityChange( self, IsVisible, self )
+		end
+
+		if not SGUI:IsWindow( self ) then return end
+
+		if IsVisible then
+			-- Take focus on show.
+			SGUI:SetWindowFocus( self )
+		else
+			if SGUI.FocusedWindow ~= self then return end
+
+			-- Give focus to the next visible window down on hide.
+			local Windows = SGUI.Windows
+			local NextDownIndex = 0
+			for i = #Windows, 1, -1 do
+				if Windows[ i ] ~= self and Windows[ i ]:GetIsVisible() then
+					NextDownIndex = i
+					break
+				end
+			end
+
+			if NextDownIndex > 0 then
+				SGUI:SetWindowFocus( Windows[ NextDownIndex ], NextDownIndex )
+			end
 		end
 	end
 end

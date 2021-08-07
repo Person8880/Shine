@@ -227,9 +227,15 @@ end
 local function LoadFromURL( ModID, MapName, CacheKey, URL, Callback, LastUpdatedTime )
 	MapDataRepository.Logger:Debug( "Loading image for %s/%s from URL: %s", ModID, MapName, URL )
 
-	Shine.TimedHTTPRequest( URL, "GET", function( ImageData )
-		if not ImageData then
-			Callback( MapName, nil, StringFormat( "Unable to acquire image from URL: %s", URL ) )
+	Shine.TimedHTTPRequest( URL, "GET", function( ImageData, RequestError )
+		if not ImageData or RequestError then
+			Callback(
+				MapName,
+				nil,
+				StringFormat(
+					"Unable to acquire image from URL '%s': %s", URL, RequestError or "no response received."
+				)
+			)
 			return
 		end
 
@@ -263,7 +269,16 @@ local ImageLoaders = {
 			MapDataRepository.Logger:Debug( "Requesting preview image for %s", ModID )
 
 			Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
-				OnSuccess = function( PublishedFileDetails )
+				OnSuccess = function( PublishedFileDetails, RequestError )
+					if RequestError then
+						Callback(
+							MapName,
+							nil,
+							StringFormat( "Failed to retrieve details for mod %s: %s", ModID, RequestError )
+						)
+						return
+					end
+
 					local FileDetails = PublishedFileDetails and PublishedFileDetails[ 1 ]
 					if not IsType( FileDetails, "table" ) then
 						Callback( MapName, nil, StringFormat( "Steam did not return details for mod %s", ModID ) )
@@ -287,7 +302,22 @@ local ImageLoaders = {
 		end
 	end,
 	OverviewImage = function( ModID, MapName, Callback, TimeoutInSeconds )
-		Shine.TimedHTTPRequest( StringFormat( OVERVIEW_API_URL, ModID, MapName ), "GET", function( Response )
+		local URL = StringFormat( OVERVIEW_API_URL, ModID, MapName )
+		Shine.TimedHTTPRequest( URL, "GET", function( Response, RequestError )
+			if not Response or RequestError then
+				Callback(
+					MapName,
+					nil,
+					StringFormat(
+						"Failed to retrieve overview for %s/%s: %s",
+						ModID,
+						MapName,
+						RequestError or "no response received."
+					)
+				)
+				return
+			end
+
 			local Data = JSONDecode( Response )
 			if not Data or not IsType( Data.OverviewURL, "string" ) then
 				Callback( MapName, nil, StringFormat( "No overview available for %s/%s", ModID, MapName ) )
@@ -362,8 +392,8 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 		local CacheEntry = GetCacheEntry( ModID, IsForMap and MapName )
 		if CacheEntry and IsType( CacheEntry[ CacheKey ], "string" ) then
 			MapDataRepository.Logger:Debug(
-				"Loading %s for %s/%s from remote source failed, using stale cached image.",
-				CacheKey, ModID, MapName
+				"Loading %s for %s/%s from remote source failed, using stale cached image. Error: %s",
+				CacheKey, ModID, MapName, Err
 			)
 
 			-- Have a stale cached image, wait a while for the API to be available again before trying to update it,
@@ -371,21 +401,21 @@ local function CallbackWithFallbackToCache( ModID, IsForMap, CacheKey, Callback 
 			CacheEntry.NextUpdateCheckTime = Clock() + 60 * 60
 			SaveCache()
 
-			TextureLoader.LoadFromFile( CacheEntry[ CacheKey ], function( TextureName, Err )
-				if Err then
+			TextureLoader.LoadFromFile( CacheEntry[ CacheKey ], function( TextureName, FileLoadError )
+				if FileLoadError then
 					-- Couldn't load from file, and the API is unavailable, so give up.
-					return Callback( MapName, nil, Err )
+					return Callback( MapName, nil, FileLoadError )
 				end
 
-				Callback( MapName, TextureName, Err )
+				Callback( MapName, TextureName, FileLoadError )
 			end )
 
 			return
 		end
 
 		MapDataRepository.Logger:Debug(
-			"Loading %s for %s/%s from remote source failed, no cached image available.",
-			CacheKey, ModID, MapName
+			"Loading %s for %s/%s from remote source failed, no cached image available. Error: %s",
+			CacheKey, ModID, MapName, Err
 		)
 
 		-- No cache entry and couldn't load from API, give up.

@@ -648,12 +648,6 @@ local function OnWebConfigDeserialised( self, DecodedResponse, List, Reload )
 end
 
 local function OnWebPluginSuccess( self, Response, List, Reload )
-	if not Response then
-		OnFail( self, List, "[WebConfigs] Web request for plugin configs got a blank response. Loading default/cache files..." )
-
-		return
-	end
-
 	-- This can be reloaded during a round, so make sure to not block for too long if the response is large.
 	Shine.DecodeJSONAsync( Response, function( DecodedResponse, Pos, Err )
 		if not DecodedResponse or not IsType( DecodedResponse, "table" ) then
@@ -730,7 +724,18 @@ function Shine:LoadWebPlugins( Plugins, Reload )
 	end
 
 	self.HTTPRequestWithRetry( WebConfig.RequestURL, "POST", Args, {
-		OnSuccess = function( Response )
+		OnSuccess = function( Response, RequestError )
+			if not Response or RequestError then
+				OnFail(
+					self,
+					List,
+					"[WebConfigs] Web request for plugin configs failed: %s. Loading default/cache files...",
+					true,
+					RequestError or "no response received"
+				)
+				return
+			end
+
 			OnWebPluginSuccess( self, Response, List, Reload )
 		end,
 		OnFailure = function()

@@ -9,6 +9,7 @@ local Units = SGUI.Layout.Units
 
 local Max = math.max
 local rawget = rawget
+local StringFormat = string.format
 
 local Button = {}
 
@@ -283,13 +284,18 @@ function Button:AddMenu( Size, MenuPos )
 		Menu:SetSkin( self:GetSkin() )
 	end
 
+	Menu:SetDebugName( StringFormat( "%s.Menu", self:GetDebugName() ) )
 	Menu:SetPos( Pos )
 	Menu:SetButtonSize( Size or self:GetSize() )
 
 	self:SetForceHighlight( true )
+
 	Menu:CallOnRemove( function()
 		if self:IsValid() then
 			self:SetForceHighlight( false )
+			-- This is called regardless of the menu field to ensure destroying the menu immediately notifies any
+			-- listeners. The menu field itself is used below in SetOpenMenuOnClick to detect when it was closed due to
+			-- clicking the button, thus it's not cleared here.
 			self:OnPropertyChanged( "Menu", nil )
 		end
 	end )
@@ -298,6 +304,16 @@ function Button:AddMenu( Size, MenuPos )
 	self:OnPropertyChanged( "Menu", Menu )
 
 	return Menu
+end
+
+function Button:DestroyMenu()
+	local Menu = self.Menu
+	if not SGUI.IsValid( Menu ) then return end
+
+	Menu:Destroy()
+
+	self.Menu = nil
+	self:OnPropertyChanged( "Menu", nil )
 end
 
 -- Provides a helper that automatically handles menu opening on click, as well as closing the menu
@@ -312,9 +328,7 @@ function Button:SetOpenMenuOnClick( PopulateMenuFunc )
 		end
 
 		if SGUI.IsValid( self.Menu ) then
-			self.Menu:Destroy()
-			self.Menu = nil
-			self:OnPropertyChanged( "Menu", nil )
+			self:DestroyMenu()
 			return
 		end
 
@@ -322,6 +336,13 @@ function Button:SetOpenMenuOnClick( PopulateMenuFunc )
 		local Menu = self:AddMenu( MenuParams.Size, MenuParams.MenuPos )
 		MenuParams.Populate( Menu )
 	end )
+end
+
+function Button:OnEffectiveVisibilityChanged( IsEffectivelyVisible, UpdatedControl )
+	-- If the button becomes invisible for any reason, destroy any open menu.
+	if not IsEffectivelyVisible then
+		self:DestroyMenu()
+	end
 end
 
 function Button:OnMouseDown( Key, DoubleClick )

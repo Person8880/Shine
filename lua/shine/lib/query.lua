@@ -123,14 +123,14 @@ function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Ti
 	local TimeoutTime = Time() + Timeout
 	local Succeeded
 
-	local function Callback( Data )
+	local function Callback( Data, ... )
 		if Time() > TimeoutTime then
 			return
 		end
 
 		Succeeded = true
 
-		OnSuccess( Data )
+		OnSuccess( Data, ... )
 	end
 
 	if NeedParams then

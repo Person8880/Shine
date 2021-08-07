@@ -187,15 +187,16 @@ function Plugin:InferMapMods( Maps )
 	end
 
 	local Mods = {}
+	local Base10ToModID = {}
 	local ModToMapName = {}
 	local function AddMod( ModID, MapName )
 		if self.KnownMapMods[ ModID ] ~= nil then return end
 
 		local ModIDBase10 = tonumber( ModID, 16 )
-		if not ModIDBase10 or Mods[ ModIDBase10 ] then return end
+		if not ModIDBase10 or Base10ToModID[ ModIDBase10 ] then return end
 
 		ModToMapName[ ModID ] = MapName
-		Mods[ ModIDBase10 ] = ModID
+		Base10ToModID[ ModIDBase10 ] = ModID
 		Mods[ #Mods + 1 ] = ModIDBase10
 	end
 
@@ -221,7 +222,12 @@ function Plugin:InferMapMods( Maps )
 		publishedfileids = Mods
 	}
 	Shine.ExternalAPIHandler:PerformRequest( "SteamPublic", "GetPublishedFileDetails", Params, {
-		OnSuccess = function( PublishedFileDetails )
+		OnSuccess = function( PublishedFileDetails, RequestError )
+			if RequestError then
+				self.Logger:Error( "Failed to retrieve mod information from Steam: %s", RequestError )
+				return
+			end
+
 			if not PublishedFileDetails then
 				self.Logger:Warn(
 					"Steam failed to respond with mod information, map mods may not be detected correctly."
@@ -233,7 +239,7 @@ function Plugin:InferMapMods( Maps )
 
 			Shine.Stream( PublishedFileDetails ):ForEach( function( File )
 				local FileID = tonumber( File.publishedfileid )
-				local ModIDHex = Mods[ FileID ]
+				local ModIDHex = Base10ToModID[ FileID ]
 				if not ModIDHex then return end
 
 				if IsType( File.tags, "table" ) and Shine.Stream( File.tags ):AnyMatch( IsMapTag ) then
