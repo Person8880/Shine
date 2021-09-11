@@ -760,7 +760,11 @@ do
 	local function WriteValue( Value, Buffer, FormattingOptions, State )
 		local ValueType = type( Value )
 
-		local Writer = assert( Writers[ ValueType ], StringFormat( "Unsupported value type: %s", ValueType ) )
+		local Writer = Writers[ ValueType ]
+		if not Writer then
+			error( StringFormat( "Unsupported value type: %s", ValueType ) )
+		end
+
 		local Output = Writer( Value, FormattingOptions, State )
 		if Output then
 			State.BufferCount = State.BufferCount + 1
