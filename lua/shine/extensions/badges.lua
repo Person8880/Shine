@@ -73,7 +73,9 @@ end
 
 function Plugin:OnFirstThink()
 	Shine.Hook.SetupGlobalHook( "Badges_OnClientBadgeRequest", "OnClientBadgeRequest", "ActivePre" )
-	self:Setup()
+
+	-- Load badges upfront at startup to avoid needing to send lots of network messages at connection time.
+	self:SetupAndLoadUserBadges()
 end
 
 local DefaultGroupKey = -1
@@ -306,17 +308,19 @@ function Plugin:Setup()
 	if not GiveBadge then
 		self.Logger:Error( "Badge system unavailable, cannot load badges." )
 		Shine:UnloadExtension( self:GetName() )
-		return
+		return false
 	end
 
 	local UserData = Shine.UserData
 	if not UserData or not UserData.Groups or not UserData.Users then
 		self.Logger:Error( "User data is missing groups and/or users, unable to setup badges." )
-		return
+		return false
 	end
 
 	self.MasterBadgeTable = self:GetMasterBadgeLookup( UserData.Badges )
 	self.Logger:Debug( "Parsed master badges table successfully." )
+
+	return true
 end
 
 function Plugin:AssignBadgesFromGroupToID( ID, GroupName )
@@ -326,6 +330,25 @@ function Plugin:AssignBadgesFromGroupToID( ID, GroupName )
 	self:AssignBadgesToID( ID, Badges.Assigned, Badges.Forced )
 end
 
+function Plugin:AssignBadgesForUser( ID, User )
+	self.Logger:Debug( "Assigning badges from user data for: %s", ID )
+
+	self:AssignBadgesToID( ID, self:CollectBadgesFromEntry( User ) )
+	self:AssignBadgesFromGroupToID( ID, User.Group )
+end
+
+function Plugin:SetupAndLoadUserBadges()
+	if not self:Setup() then return end
+
+	for UserID, User in pairs( Shine.UserData.Users ) do
+		local ID = Shine.CoerceToID( UserID ) or Shine.SteamIDToNS2( UserID )
+		if ID then
+			self.AssignedUserIDs[ ID ] = true
+			self:AssignBadgesForUser( ID, User )
+		end
+	end
+end
+
 function Plugin:AssignBadgesToClient( Client )
 	local ID = Client:GetUserId()
 	if not self.AssignedUserIDs[ ID ] then
@@ -333,9 +356,7 @@ function Plugin:AssignBadgesToClient( Client )
 
 		local User = Shine:GetUserData( ID )
 		if User then
-			self.Logger:Debug( "Assigning badges from user data for: %s", ID )
-			self:AssignBadgesToID( ID, self:CollectBadgesFromEntry( User ) )
-			self:AssignBadgesFromGroupToID( ID, User.Group )
+			self:AssignBadgesForUser( ID, User )
 		else
 			self:AssignGuestBadge( Client )
 		end
