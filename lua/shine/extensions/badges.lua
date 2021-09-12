@@ -128,15 +128,20 @@ do
 		Takes a badge list, and produces a table of badge rows, where each badge has been
 		placed in the row they're mapped to by the MasterBadgeTable, or otherwise the default row.
 	]]
-	function Plugin:MapBadgesToRows( BadgeList, MasterBadgeTable, NamedBadgeLists )
+	function Plugin:MapBadgesToRows( BadgeList, MasterBadgeTable, NamedBadgeLists, SeenLists )
+		SeenLists = SeenLists or {}
+
 		local BadgeRows = Shine.Multimap()
 
 		for i = 1, #BadgeList do
 			local Badge = BadgeList[ i ]
 			local List = GetBadgeList( Badge, NamedBadgeLists )
 			if List then
-				-- Referencing a badge list, map the list recursively to resolve nested lists and copy the results.
-				BadgeRows:CopyFrom( self:MapBadgesToRows( List, MasterBadgeTable, NamedBadgeLists ) )
+				if not SeenLists[ List ] then
+					SeenLists[ List ] = true
+					-- Referencing a badge list, map the list recursively to resolve nested lists and copy the results.
+					BadgeRows:CopyFrom( self:MapBadgesToRows( List, MasterBadgeTable, NamedBadgeLists, SeenLists ) )
+				end
 			elseif IsType( Badge, "string" ) then
 				-- A single badge, add it to every relevant row.
 				local Rows = MasterBadgeTable:Get( Badge ) or DefaultRowList
@@ -166,12 +171,17 @@ do
 		end
 	end
 
-	local function AddBadgeListToRow( BadgesByRow, Row, BadgeList, NamedBadgeLists )
+	local function AddBadgeListToRow( BadgesByRow, Row, BadgeList, NamedBadgeLists, SeenLists )
+		SeenLists = SeenLists or {}
+
 		for i = 1, #BadgeList do
 			local Badge = BadgeList[ i ]
 			local List = GetBadgeList( Badge, NamedBadgeLists )
 			if List then
-				AddBadgeListToRow( BadgesByRow, Row, List, NamedBadgeLists )
+				if not SeenLists[ List ] then
+					SeenLists[ List ] = true
+					AddBadgeListToRow( BadgesByRow, Row, List, NamedBadgeLists, SeenLists )
+				end
 			elseif IsType( Badge, "string" ) then
 				BadgesByRow:Add( Row, Badge )
 			end

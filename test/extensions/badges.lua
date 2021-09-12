@@ -148,7 +148,8 @@ end
 Badges.NamedBadgeLists = {
 	-- Badge lists should support recursive references, this will expand to include test3 and test4.
 	TestList1 = { "test1", "test2", { BadgeList = "TestList2" } },
-	TestList2 = { "test3", "test4" }
+	-- Cycles in lists should be handled.
+	TestList2 = { "test3", "test4", { BadgeList = "TestList1" } }
 }
 
 UnitTest:Test( "BuildGroupBadges - Builds with master badge lookup as expected", function( Assert )
@@ -198,7 +199,7 @@ UnitTest:Test( "BuildGroupBadges - Builds with master badge lookup as expected",
 	Assert.DeepEquals( "Should have built badges for TestGroupWithNamedList as expected", {
 		Assigned = {
 			[ 1 ] = { "test1", "test2", "test3", "test4" },
-			[ 2 ] = { "test3", "test4" }
+			[ 2 ] = { "test3", "test4", "test1", "test2" }
 		}
 	}, GroupBadgesForComparison( GroupBadges ) )
 
@@ -260,7 +261,7 @@ UnitTest:Test( "BuildGroupBadges - Builds without master badge lookup as expecte
 	Assert.DeepEquals( "Should have built badges for TestGroupWithNamedList as expected", {
 		Assigned = {
 			[ 1 ] = { "test1", "test2", "test3", "test4" },
-			[ 2 ] = { "test3", "test4" }
+			[ 2 ] = { "test3", "test4", "test1", "test2" }
 		}
 	}, GroupBadgesForComparison( GroupBadges ) )
 
