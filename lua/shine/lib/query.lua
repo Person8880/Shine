@@ -5,11 +5,14 @@
 local HTTPRequest = Shared.SendHTTPRequest
 local IsType = Shine.IsType
 local Time = Shared.GetSystemTimeReal
+local xpcall = xpcall
 
 do
 	local Encode, Decode = json.encode, json.decode
 	local StringFormat = string.format
 	local tostring = tostring
+
+	local OnError = Shine.BuildErrorHandler( "Server query callback error" )
 
 	local BaseURL = "http://5.39.89.152/shine/serverquery.php"
 
@@ -17,7 +20,7 @@ do
 	local function CallbackFailed( CacheKey, Callback )
 		QueryCache[ CacheKey ] = { Data = {}, ExpireTime = Time() + 10 }
 
-		Callback()
+		xpcall( Callback, OnError )
 	end
 
 	local function CacheResult( CacheKey, Data )
@@ -25,11 +28,11 @@ do
 	end
 
 	local function PopulationWrapper( Data, Callback )
-		Callback( Data[ 1 ].numberOfPlayers, Data[ 1 ].maxPlayers )
+		xpcall( Callback, OnError, Data[ 1 ].numberOfPlayers, Data[ 1 ].maxPlayers )
 	end
 
 	local function FullDataWrapper( Data, Callback )
-		Callback( Data[ 1 ] )
+		xpcall( Callback, OnError, Data[ 1 ] )
 	end
 
 	local function QueryServer( IP, Port, Callback, Wrapper )
@@ -92,6 +95,7 @@ do
 	end
 end
 
+local OnError = Shine.BuildErrorHandler( "HTTP request callback error" )
 local Timer = Shine.Timer
 
 local DefaultTimeout = 5
@@ -130,7 +134,7 @@ function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Ti
 
 		Succeeded = true
 
-		OnSuccess( Data, ... )
+		xpcall( OnSuccess, OnError, Data, ... )
 	end
 
 	if NeedParams then
@@ -141,7 +145,7 @@ function Shine.TimedHTTPRequest( URL, Protocol, Params, OnSuccess, OnTimeout, Ti
 
 	Timer.Simple( Timeout, function()
 		if not Succeeded then
-			OnTimeout()
+			xpcall( OnTimeout, OnError )
 		end
 	end )
 end
