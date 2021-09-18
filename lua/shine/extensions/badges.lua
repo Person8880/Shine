@@ -436,12 +436,17 @@ function Plugin:AssignForcedBadges( Client )
 	end
 end
 
-function Plugin:OnUserReload()
-	self:Setup()
+function Plugin:OnUserReload( TriggerType )
+	if TriggerType == Shine.UserDataReloadTriggerType.INITIAL_WEB_LOAD then
+		-- Treat the first load from web data the same as startup as it's likely to occur before most players load in.
+		self:SetupAndLoadUserBadges()
+	else
+		-- Otherwise, only reload the currently connected player's badges, leave the rest to be loaded later.
+		self:Setup()
 
-	-- Re-assign connected player's badges.
-	for Client in Shine.GameIDs:Iterate() do
-		self:AssignBadgesToClient( Client )
+		for Client in Shine.IterateClients() do
+			self:AssignBadgesToClient( Client )
+		end
 	end
 end
 

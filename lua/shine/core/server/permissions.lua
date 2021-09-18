@@ -13,6 +13,7 @@ local next = next
 local pairs = pairs
 local StringLower = string.lower
 local StringFormat = string.format
+local TableDeepEquals = table.DeepEquals
 local TableEmpty = table.Empty
 local TableInsertUnique = table.InsertUnique
 local TableRemove = table.remove
@@ -150,6 +151,13 @@ local function ValidateUserData( UserData )
 	return UserDataValidator:Validate( UserData )
 end
 
+Shine.UserDataReloadTriggerType = table.AsEnum( {
+	-- Indicates the reload occurred due to the initial loading of remote user data.
+	"INITIAL_WEB_LOAD",
+	-- Indicates a standard reload.
+	"RELOAD"
+} )
+
 function Shine:RequestUsers( Reload )
 	local Callbacks = {
 		OnSuccess = function( Response, RequestError )
@@ -200,9 +208,9 @@ function Shine:RequestUsers( Reload )
 
 				self:Print( "Validating remote Shine user data..." )
 
-				self.UserData = ConvertData( UserData, true )
+				UserData = ConvertData( UserData, true )
 
-				if ValidateUserData( self.UserData ) then
+				if ValidateUserData( UserData ) then
 					Shine.SystemNotifications:AddNotification( {
 						ID = "Core_RemoteUserConfig_ValidationErrors",
 						Type = Shine.SystemNotifications.Type.WARNING,
@@ -217,11 +225,22 @@ function Shine:RequestUsers( Reload )
 					} )
 				end
 
-				-- Cache the current user data, so if we fail to load it on a later map we still have something to load.
-				self:SaveUsers( true )
-				self:Print( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
+				if not TableDeepEquals( UserData, self.UserData ) then
+					self.UserData = UserData
 
-				self.Hook.Broadcast( "OnUserReload" )
+					-- Cache the current user data, so if we fail to load it on a later map we still have something to
+					-- load.
+					self:SaveUsers( true )
+					self:Print( Reload and "Shine reloaded users from the web." or "Shine loaded users from web." )
+
+					local TriggerType = self.UserDataReloadTriggerType[ Reload and "RELOAD" or "INITIAL_WEB_LOAD" ]
+
+					self.Hook.Broadcast( "OnUserReload", TriggerType )
+				else
+					-- If the data hasn't changed, avoid calling the reload hook and saving the file to avoid
+					-- unnecessary work.
+					self:Print( "No changes in remote user data, continuing to use existing cached user data." )
+				end
 			end )
 		end,
 		OnFailure = function()
@@ -323,7 +342,7 @@ function Shine:LoadUsers( Web, Reload )
 	end
 
 	if Reload then
-		self.Hook.Broadcast( "OnUserReload" )
+		self.Hook.Broadcast( "OnUserReload", self.UserDataReloadTriggerType.RELOAD )
 	end
 end
 
