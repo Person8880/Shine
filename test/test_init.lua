@@ -29,7 +29,6 @@ local getmetatable = getmetatable
 local pairs = pairs
 local pcall = pcall
 local rawequal = rawequal
-local rawget = rawget
 local select = select
 local setmetatable = setmetatable
 local StringExplode = string.Explode
