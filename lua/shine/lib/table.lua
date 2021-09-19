@@ -5,6 +5,7 @@
 local IsType = Shine.IsType
 local pairs = pairs
 local Random = math.random
+local rawget = rawget
 local TableSort = table.sort
 
 --[[
@@ -21,6 +22,57 @@ function table.ArraysEqual( Left, Right )
 	end
 
 	return true
+end
+
+do
+	local rawequal = rawequal
+	local type = type
+
+	local function DeepEquals( Table1, Table2, Comparing )
+		if rawequal( Table1, Table2 ) then return true end
+		if type( Table1 ) ~= type( Table2 ) then return false end
+		if type( Table1 ) ~= "table" then return Table1 == Table2 end
+
+		local CurrentComparison = Comparing[ Table1 ]
+		if CurrentComparison then
+			-- Cycle, only equal if the other table cycles in the same way (i.e. to its equivalent table). If so, no
+			-- need to go further as the equality is already being checked.
+			return rawequal( CurrentComparison, Table2 )
+		end
+
+		-- Remember the comparison to detect cycles further down.
+		Comparing[ Table1 ] = Table2
+
+		-- Table2 must have all keys that Table1 does, holding deep-equal values.
+		for Key, Value in pairs( Table1 ) do
+			if not DeepEquals( Value, rawget( Table2, Key ), Comparing ) then return false end
+		end
+
+		-- Table2 must not contain any keys that Table1 does not (no need to check equality again here, a table can't
+		-- hold nil).
+		for Key, Value in pairs( Table2 ) do
+			if rawget( Table1, Key ) == nil then return false end
+		end
+
+		Comparing[ Table1 ] = nil
+
+		return true
+	end
+
+	--[[
+		Returns true if the given values are deep-equal, ignoring any metatable __index metamethods.
+
+		Two values are deep-equal if:
+		* They are both the same value by reference (e.g. the same userdata/cdata/table instance), or
+		* They are both the same scalar value (e.g. two equal numbers), or
+		* They are both tables with the exact same keys, each holding deep-equal values.
+
+		In the case of cycles, equality is determined by the cycles in both tables pointing to the same table instance
+		that the cycle's root is being compared against.
+	]]
+	function table.DeepEquals( Table1, Table2 )
+		return DeepEquals( Table1, Table2, {} )
+	end
 end
 
 do
@@ -225,7 +277,6 @@ function table.Mixin( Source, Destination, Keys )
 end
 
 do
-	local rawget = rawget
 	local function Get( Table, Key )
 		return Table[ Key ]
 	end
@@ -760,7 +811,11 @@ do
 	local function WriteValue( Value, Buffer, FormattingOptions, State )
 		local ValueType = type( Value )
 
-		local Writer = assert( Writers[ ValueType ], StringFormat( "Unsupported value type: %s", ValueType ) )
+		local Writer = Writers[ ValueType ]
+		if not Writer then
+			error( StringFormat( "Unsupported value type: %s", ValueType ) )
+		end
+
 		local Output = Writer( Value, FormattingOptions, State )
 		if Output then
 			State.BufferCount = State.BufferCount + 1

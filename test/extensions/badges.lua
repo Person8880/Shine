@@ -46,15 +46,24 @@ UnitTest:Test( "GetMasterBadgeLookup", function( Assert )
 		},
 		[ "8" ] = {
 			"test8", "test1"
-		}
+		},
+		TestList1 = { "test1", "test2" },
+		IgnoreNonTableFields = true
 	}
 
-	local Lookup = Badges:GetMasterBadgeLookup( MasterBadgeTable )
+	local Lookup, NamedBadgeLists = Badges:GetMasterBadgeLookup( MasterBadgeTable )
 	Assert:NotNil( Lookup )
 	Assert:ArrayEquals( { 1, 8 }, Lookup:Get( "test1" ) )
 	Assert:ArrayEquals( { 2 }, Lookup:Get( "test2" ) )
 	Assert:ArrayEquals( { 2 }, Lookup:Get( "test2b" ) )
 	Assert:ArrayEquals( { 8 }, Lookup:Get( "test8" ) )
+
+	MasterBadgeTable.IgnoreNonTableFields = nil
+	Assert.DeepEquals(
+		"Named lookup should include all table fields from the master table",
+		MasterBadgeTable,
+		NamedBadgeLists
+	)
 end )
 
 UnitTest:Test( "MapBadgesToRows", function( Assert )
@@ -102,6 +111,21 @@ local MockGroups = {
 			"TestGroupWithCycle1"
 		}
 	},
+	TestGroupWithNamedList = {
+		Badges = {
+			[ "1" ] = {
+				{ BadgeList = "TestList1" }
+			},
+			[ "2" ] = {
+				{ BadgeList = "TestList2" }
+			}
+		}
+	},
+	TestGroupWithNamedListDefaultRow = {
+		Badges = {
+			{ BadgeList = "TestList1" }
+		}
+	},
 	[ -1 ] = {
 		Badges = {
 			[ "3" ] = { "test3", "test4" },
@@ -120,6 +144,13 @@ local function GroupBadgesForComparison( GroupBadges )
 		Forced = GroupBadges.Forced and GroupBadges.Forced:AsTable()
 	}
 end
+
+Badges.NamedBadgeLists = {
+	-- Badge lists should support recursive references, this will expand to include test3 and test4.
+	TestList1 = { "test1", "test2", { BadgeList = "TestList2" } },
+	-- Cycles in lists should be handled.
+	TestList2 = { "test3", "test4", { BadgeList = "TestList1" } }
+}
 
 UnitTest:Test( "BuildGroupBadges - Builds with master badge lookup as expected", function( Assert )
 	Badges.MasterBadgeTable = Shine.Multimap{
@@ -164,6 +195,24 @@ UnitTest:Test( "BuildGroupBadges - Builds with master badge lookup as expected",
 		}
 	}, GroupBadgesForComparison( GroupBadges ) )
 
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithNamedList" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithNamedList as expected", {
+		Assigned = {
+			[ 1 ] = { "test1", "test2", "test3", "test4" },
+			[ 2 ] = { "test3", "test4", "test1", "test2" }
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithNamedListDefaultRow" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithNamedListDefaultRow as expected", {
+		Assigned = {
+			[ 5 ] = { "test1", "test2", "test3", "test4" },
+			-- test1 is mapped to these by the master table.
+			[ 6 ] = { "test1" },
+			[ 7 ] = { "test1" }
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
 	GroupBadges = Badges:BuildGroupBadges( -1 )
 	Assert.DeepEquals( "Should have built badges for the default group as expected", {
 		Assigned = {
@@ -174,7 +223,7 @@ UnitTest:Test( "BuildGroupBadges - Builds with master badge lookup as expected",
 end )
 
 UnitTest:Test( "BuildGroupBadges - Builds without master badge lookup as expected", function( Assert )
-	Badges.MasterBadgeTable = Shine.Multimap()
+	Badges.MasterBadgeTable = nil
 
 	local GroupBadges = Badges:BuildGroupBadges( "TestGroupThatInheritsBadges" )
 	Assert.DeepEquals( "Should have built badges for TestGroupThatInheritsBadges as expected", {
@@ -205,6 +254,21 @@ UnitTest:Test( "BuildGroupBadges - Builds without master badge lookup as expecte
 		},
 		Forced = {
 			[ 10 ] = "test11"
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithNamedList" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithNamedList as expected", {
+		Assigned = {
+			[ 1 ] = { "test1", "test2", "test3", "test4" },
+			[ 2 ] = { "test3", "test4", "test1", "test2" }
+		}
+	}, GroupBadgesForComparison( GroupBadges ) )
+
+	GroupBadges = Badges:BuildGroupBadges( "TestGroupWithNamedListDefaultRow" )
+	Assert.DeepEquals( "Should have built badges for TestGroupWithNamedListDefaultRow as expected", {
+		Assigned = {
+			[ 5 ] = { "test1", "test2", "test3", "test4" }
 		}
 	}, GroupBadgesForComparison( GroupBadges ) )
 

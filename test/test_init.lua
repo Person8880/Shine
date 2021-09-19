@@ -6,10 +6,14 @@ Print( "Beginning Shine unit testing..." )
 
 local Args = { ... }
 local OnlyOutputFailingTests = false
+local Files = {}
 
 for i = 1, #Args do
-	if Args[ i ]:gsub( "%s", "" ) == "--failures-only" then
+	local Arg = Args[ i ]:gsub( "%s", "" )
+	if Arg == "--failures-only" then
 		OnlyOutputFailingTests = true
+	elseif Arg == "--test-file" then
+		Files[ #Files + 1 ] = Args[ i + 1 ]
 	end
 end
 
@@ -29,9 +33,11 @@ local select = select
 local setmetatable = setmetatable
 local StringExplode = string.Explode
 local StringFormat = string.format
+local TableArraysEqual = table.ArraysEqual
 local TableClear = require "table.clear"
 local TableConcat = table.concat
 local TableCopy = table.Copy
+local TableDeepEquals = table.DeepEquals
 local type = type
 local xpcall = xpcall
 
@@ -233,22 +239,6 @@ do
 	end
 end
 
-local function DeepEquals( Table1, Table2 )
-	if rawequal( Table1, Table2 ) then return true end
-	if type( Table1 ) ~= type( Table2 ) then return false end
-	if type( Table1 ) ~= "table" then return Table1 == Table2 end
-
-	for Key, Value in pairs( Table1 ) do
-		if not DeepEquals( Value, Table2[ Key ] ) then return false end
-	end
-
-	for Key, Value in pairs( Table2 ) do
-		if not DeepEquals( Value, Table1[ Key ] ) then return false end
-	end
-
-	return true
-end
-
 local function ArrayToString( Array )
 	return StringFormat( "{ %s }", Shine.Stream( Array ):Concat( ", " ) )
 end
@@ -286,7 +276,7 @@ UnitTest.Assert = {
 	end,
 
 	DeepEquals = function( A, B )
-		return DeepEquals( A, B ), StringFormat( "Expected %s to deep equal %s", B, A )
+		return TableDeepEquals( A, B ), StringFormat( "Expected %s to deep equal %s", B, A )
 	end,
 
 	ArrayContainsExactly = function( ExpectedValues, Actual )
@@ -299,7 +289,7 @@ UnitTest.Assert = {
 			local Expected = ExpectedValues[ i ]
 			local FoundMatch = false
 			for j = 1, #Actual do
-				if DeepEquals( Actual[ j ], Expected ) then
+				if TableDeepEquals( Actual[ j ], Expected ) then
 					FoundMatch = true
 					break
 				end
@@ -346,7 +336,7 @@ UnitTest.Assert = {
 	end,
 
 	ArrayEquals = function( A, B )
-		return table.ArraysEqual( A, B ), StringFormat( "Expected %s to match array %s",
+		return TableArraysEqual( A, B ), StringFormat( "Expected %s to match array %s",
 			ArrayToString( B ), ArrayToString( A ) )
 	end,
 
@@ -363,7 +353,7 @@ UnitTest.Assert = {
 		}
 
 		for i = 1, #Invocations do
-			if DeepEquals( Invocations[ i ], ExpectedInvocation ) then
+			if TableDeepEquals( Invocations[ i ], ExpectedInvocation ) then
 				return true
 			end
 		end
@@ -474,8 +464,9 @@ function UnitTest:Output( File )
 	return Passed, #self.Results, Duration
 end
 
-local Files = {}
-Shared.GetMatchingFileNames( "test/*.lua", true, Files )
+if #Files == 0 then
+	Shared.GetMatchingFileNames( "test/*.lua", true, Files )
+end
 
 local FinalResults = {
 	Passed = 0, Total = 0, Duration = 0

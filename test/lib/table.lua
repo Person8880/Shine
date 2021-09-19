@@ -314,6 +314,198 @@ UnitTest:Test( "ArraysEqual", function( Assert )
 	Assert:False( table.ArraysEqual( Left, Right ) )
 end )
 
+UnitTest:Test( "DeepEquals - Returns true for tables that are reference-equal", function( Assert )
+	local Table = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+	Assert:True( table.DeepEquals( Table, Table ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns true for non-table values that are equal", function( Assert )
+	Assert:True( table.DeepEquals( true, true ) )
+	Assert:True( table.DeepEquals( 1, 1 ) )
+	Assert:True( table.DeepEquals( "test", "test" ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns true if tables are deep-equal accounting for cycles", function( Assert )
+	local Left = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+	Left.TestTable.Cycle = Left
+
+	local Right = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+	Right.TestTable.Cycle = Right
+
+	Assert:True( table.DeepEquals( Left, Right ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns false if tables are not deep-equal due to a different cycle", function( Assert )
+	local Left = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+	Left.TestTable.Cycle = Left
+
+	local Right = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+	Right.TestTable.Cycle = table.Copy( Right )
+
+	Assert:False( table.DeepEquals( Left, Right ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns false if tables are not deep-equal due to the left table having more keys", function( Assert )
+	local Left = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+
+	local Right = {
+		TestTable = {
+			Child = {
+				1, 2, Test = true
+			},
+			Value = "123"
+		}
+	}
+
+	Assert:False( table.DeepEquals( Left, Right ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns false if tables are not deep-equal due to the right table having more keys", function( Assert )
+	local Left = {
+		TestTable = {
+			Child = {
+				1, 2, 3
+			},
+			Value = "123"
+		}
+	}
+
+	local Right = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+
+	Assert:False( table.DeepEquals( Left, Right ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns false if tables are not deep-equal despite inherited keys", function( Assert )
+	local Left = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+
+	local Right = {
+		TestTable = {
+			Child = setmetatable( {
+				1, 2, 3
+			}, { __index = { Test = true } } ),
+			Value = "123"
+		}
+	}
+
+	Assert:False( table.DeepEquals( Left, Right ) )
+
+	Left = {
+		TestTable = {
+			Child = setmetatable( {
+				1, 2, 3
+			}, { __index = { Test = true } } ),
+			Value = "123"
+		}
+	}
+
+	Right = {
+		TestTable = {
+			Child = {
+				1, 2, 3, Test = true
+			},
+			Value = "123"
+		}
+	}
+
+	Assert:False( table.DeepEquals( Left, Right ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns false if tables are not deep-equal due differing values at the same keys", function( Assert )
+	local Left = {
+		TestTable = {
+			Child = {
+				1, 2, 3
+			},
+			Value = "123"
+		}
+	}
+
+	local Right = {
+		TestTable = {
+			Child = {
+				1, 2, 4
+			},
+			Value = "123"
+		}
+	}
+
+	Assert:False( table.DeepEquals( Left, Right ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns false for values of differing types", function( Assert )
+	Assert:False( table.DeepEquals( {}, true ) )
+	Assert:False( table.DeepEquals( {}, 1 ) )
+	Assert:False( table.DeepEquals( {}, "test" ) )
+	Assert:False( table.DeepEquals( true, {} ) )
+	Assert:False( table.DeepEquals( 1, {} ) )
+	Assert:False( table.DeepEquals( "test", {} ) )
+end )
+
+UnitTest:Test( "DeepEquals - Returns false for non-table values that are not equal", function( Assert )
+	Assert:False( table.DeepEquals( false, true ) )
+	Assert:False( table.DeepEquals( 2, 1 ) )
+	Assert:False( table.DeepEquals( "test", "test2" ) )
+	Assert:False( table.DeepEquals( true, false ) )
+	Assert:False( table.DeepEquals( 1, 2 ) )
+	Assert:False( table.DeepEquals( "test2", "test" ) )
+end )
+
 UnitTest:Test( "AsEnum", function( Assert )
 	local Values = {
 		"This", "Is", "An", "Enum"

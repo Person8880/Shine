@@ -73,7 +73,9 @@ end
 
 function Plugin:OnFirstThink()
 	Shine.Hook.SetupGlobalHook( "Badges_OnClientBadgeRequest", "OnClientBadgeRequest", "ActivePre" )
-	self:Setup()
+
+	-- Load badges upfront at startup to avoid needing to send lots of network messages at connection time.
+	self:SetupAndLoadUserBadges()
 end
 
 local DefaultGroupKey = -1
@@ -101,28 +103,56 @@ do
 			end
 		end
 
-		return Lookup
+		local NamedBadgeLists = {}
+		for Key, List in pairs( MasterBadgeTable ) do
+			if IsType( List, "table" ) then
+				NamedBadgeLists[ Key ] = List
+			end
+		end
+
+		return Lookup, NamedBadgeLists
+	end
+
+	local function IsBadgeListReference( Badge )
+		return IsType( Badge, "table" ) and IsType( Badge.BadgeList, "string" )
+	end
+
+	local function GetBadgeList( Badge, NamedBadgeLists )
+		if IsBadgeListReference( Badge ) then
+			return NamedBadgeLists and NamedBadgeLists[ Badge.BadgeList ]
+		end
+		return nil
 	end
 
 	--[[
 		Takes a badge list, and produces a table of badge rows, where each badge has been
 		placed in the row they're mapped to by the MasterBadgeTable, or otherwise the default row.
 	]]
-	function Plugin:MapBadgesToRows( BadgeList, MasterBadgeTable )
+	function Plugin:MapBadgesToRows( BadgeList, MasterBadgeTable, NamedBadgeLists, SeenLists )
+		SeenLists = SeenLists or {}
+
 		local BadgeRows = Shine.Multimap()
 
 		for i = 1, #BadgeList do
 			local Badge = BadgeList[ i ]
-			local Rows = MasterBadgeTable:Get( Badge ) or DefaultRowList
-
-			for j = 1, #Rows do
-				BadgeRows:Add( Rows[ j ], Badge )
+			local List = GetBadgeList( Badge, NamedBadgeLists )
+			if List then
+				if not SeenLists[ List ] then
+					SeenLists[ List ] = true
+					-- Referencing a badge list, map the list recursively to resolve nested lists and copy the results.
+					BadgeRows:CopyFrom( self:MapBadgesToRows( List, MasterBadgeTable, NamedBadgeLists, SeenLists ) )
+				end
+			elseif IsType( Badge, "string" ) then
+				-- A single badge, add it to every relevant row.
+				local Rows = MasterBadgeTable:Get( Badge ) or DefaultRowList
+				for j = 1, #Rows do
+					BadgeRows:Add( Rows[ j ], Badge )
+				end
 			end
 		end
 
 		return BadgeRows
 	end
-
 
 	local EMPTY_BADGES = Shine.Multimap()
 	local function MergeBadges( Badges, ParentBadges )
@@ -141,8 +171,26 @@ do
 		end
 	end
 
+	local function AddBadgeListToRow( BadgesByRow, Row, BadgeList, NamedBadgeLists, SeenLists )
+		SeenLists = SeenLists or {}
+
+		for i = 1, #BadgeList do
+			local Badge = BadgeList[ i ]
+			local List = GetBadgeList( Badge, NamedBadgeLists )
+			if List then
+				if not SeenLists[ List ] then
+					SeenLists[ List ] = true
+					AddBadgeListToRow( BadgesByRow, Row, List, NamedBadgeLists, SeenLists )
+				end
+			elseif IsType( Badge, "string" ) then
+				BadgesByRow:Add( Row, Badge )
+			end
+		end
+	end
+
 	function Plugin:CollectBadgesFromEntry( Entry )
 		local MasterBadgeTable = self.MasterBadgeTable
+		local NamedBadgeLists = self.NamedBadgeLists
 		local BadgesByRow = Shine.Multimap()
 		local ForcedBadgesByRow
 
@@ -157,19 +205,20 @@ do
 		end
 
 		if IsType( BadgeList, "table" ) then
-			if BadgeList[ 1 ] and IsType( BadgeList[ 1 ], "string" ) then
+			if BadgeList[ 1 ] and ( IsType( BadgeList[ 1 ], "string" ) or IsBadgeListReference( BadgeList[ 1 ] ) ) then
 				-- If it's an array and we have a master badge list, map the badges.
 				if MasterBadgeTable then
-					BadgesByRow:CopyFrom( self:MapBadgesToRows( BadgeList, MasterBadgeTable ) )
+					BadgesByRow:CopyFrom( self:MapBadgesToRows( BadgeList, MasterBadgeTable, NamedBadgeLists ) )
 				else
 					-- Otherwise take the array to be the default row.
-					BadgesByRow:AddAll( DefaultRow, BadgeList )
+					AddBadgeListToRow( BadgesByRow, DefaultRow, BadgeList, NamedBadgeLists )
 				end
 			else
+				-- Otherwise assume it's specifying multiple rows and add each one.
 				for i = 1, MaxBadgeRows do
 					local BadgesForRow = BadgeList[ i ] or BadgeList[ tostring( i ) ]
 					if IsType( BadgesForRow, "table" ) then
-						BadgesByRow:AddAll( i, BadgesForRow )
+						AddBadgeListToRow( BadgesByRow, i, BadgesForRow, NamedBadgeLists )
 					end
 				end
 			end
@@ -306,17 +355,19 @@ function Plugin:Setup()
 	if not GiveBadge then
 		self.Logger:Error( "Badge system unavailable, cannot load badges." )
 		Shine:UnloadExtension( self:GetName() )
-		return
+		return false
 	end
 
 	local UserData = Shine.UserData
 	if not UserData or not UserData.Groups or not UserData.Users then
 		self.Logger:Error( "User data is missing groups and/or users, unable to setup badges." )
-		return
+		return false
 	end
 
-	self.MasterBadgeTable = self:GetMasterBadgeLookup( UserData.Badges )
+	self.MasterBadgeTable, self.NamedBadgeLists = self:GetMasterBadgeLookup( UserData.Badges )
 	self.Logger:Debug( "Parsed master badges table successfully." )
+
+	return true
 end
 
 function Plugin:AssignBadgesFromGroupToID( ID, GroupName )
@@ -326,6 +377,25 @@ function Plugin:AssignBadgesFromGroupToID( ID, GroupName )
 	self:AssignBadgesToID( ID, Badges.Assigned, Badges.Forced )
 end
 
+function Plugin:AssignBadgesForUser( ID, User )
+	self.Logger:Debug( "Assigning badges from user data for: %s", ID )
+
+	self:AssignBadgesToID( ID, self:CollectBadgesFromEntry( User ) )
+	self:AssignBadgesFromGroupToID( ID, User.Group )
+end
+
+function Plugin:SetupAndLoadUserBadges()
+	if not self:Setup() then return end
+
+	for UserID, User in pairs( Shine.UserData.Users ) do
+		local ID = Shine.CoerceToID( UserID ) or Shine.SteamIDToNS2( UserID )
+		if ID then
+			self.AssignedUserIDs[ ID ] = true
+			self:AssignBadgesForUser( ID, User )
+		end
+	end
+end
+
 function Plugin:AssignBadgesToClient( Client )
 	local ID = Client:GetUserId()
 	if not self.AssignedUserIDs[ ID ] then
@@ -333,9 +403,7 @@ function Plugin:AssignBadgesToClient( Client )
 
 		local User = Shine:GetUserData( ID )
 		if User then
-			self.Logger:Debug( "Assigning badges from user data for: %s", ID )
-			self:AssignBadgesToID( ID, self:CollectBadgesFromEntry( User ) )
-			self:AssignBadgesFromGroupToID( ID, User.Group )
+			self:AssignBadgesForUser( ID, User )
 		else
 			self:AssignGuestBadge( Client )
 		end
@@ -368,12 +436,17 @@ function Plugin:AssignForcedBadges( Client )
 	end
 end
 
-function Plugin:OnUserReload()
-	self:Setup()
+function Plugin:OnUserReload( TriggerType )
+	if TriggerType == Shine.UserDataReloadTriggerType.INITIAL_WEB_LOAD then
+		-- Treat the first load from web data the same as startup as it's likely to occur before most players load in.
+		self:SetupAndLoadUserBadges()
+	else
+		-- Otherwise, only reload the currently connected player's badges, leave the rest to be loaded later.
+		self:Setup()
 
-	-- Re-assign connected player's badges.
-	for Client in Shine.GameIDs:Iterate() do
-		self:AssignBadgesToClient( Client )
+		for Client in Shine.IterateClients() do
+			self:AssignBadgesToClient( Client )
+		end
 	end
 end
 

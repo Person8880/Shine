@@ -27,15 +27,18 @@ UnitTest:Test( "GetLines - Should copy all properties when multiple lines are pr
 	Assert.DeepEquals( "Should return each line, preserving properties", {
 		Text( {
 			Value = "Multiple lines",
-			DoClick = Element.DoClick
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		} ),
 		Text( {
 			Value = "of",
-			DoClick = Element.DoClick
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		} ),
 		Text( {
 			Value = "text.",
-			DoClick = Element.DoClick
+			DoClick = Element.DoClick,
+			Setup = Element.Setup
 		} )
 	}, Element:GetLines() )
 end )
