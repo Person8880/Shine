@@ -17,7 +17,10 @@
 local Clock = os.time
 local IsType = Shine.IsType
 local JSONDecode = json.decode
+local StringExplode = string.Explode
+local StringFind = string.find
 local StringFormat = string.format
+local StringSub = string.sub
 local TableBuild = table.Build
 
 local Shine = Shine
@@ -35,6 +38,7 @@ local DEFAULT_OVERVIEW_API_CALL_TIMEOUT = 20
 
 local MapOverviews = {}
 local MapPreviews = {}
+local MapPreviewOverlays = {}
 local ModMaps
 
 local function SaveCache()
@@ -62,6 +66,22 @@ do
 
 		MapPreviews[ i ] = nil
 	end
+
+	local SupportedOverlayExtensions = {
+		png = true,
+		tga = true,
+		dds = true
+	}
+	Shared.GetMatchingFileNames( "ui/shine/map_overlays/*", false, MapPreviewOverlays )
+	for i = 1, #MapPreviewOverlays do
+		local Path = MapPreviewOverlays[ i ]
+		local Prefix, Extension = StringMatch( Path, "^ui/shine/map_overlays/(.+)%.([^%.]+)$" )
+		if Prefix and SupportedOverlayExtensions[ Extension ] then
+			MapPreviewOverlays[ Prefix ] = Path
+		end
+		MapPreviewOverlays[ i ] = nil
+	end
+	MapPreviewOverlays.infect = MapPreviewOverlays.infest
 
 	-- Load previously stored metadata.
 	ModMaps = Shine.LoadJSONFile( METADATA_FILE ) or {}
@@ -132,15 +152,23 @@ do
 	SaveCache()
 end
 
+local function GetMapPrefix( MapName )
+	local Start = StringFind( MapName, "_", 1, true )
+	if not Start then return MapName end
+
+	return StringSub( MapName, 1, Start - 1 )
+end
+
 do
 	local SGUI = Shine.GUI
 
 	local function PreviewExists( MapName )
-		return MapPreviews[ MapName ] ~= nil
+		-- Look for either a preview image, or an overlay (maps shouldn't have both).
+		return MapPreviews[ MapName ] ~= nil or MapPreviewOverlays[ GetMapPrefix( MapName ) ] ~= nil
 	end
 
 	local function GetPreviewImage( MapName )
-		return MapPreviews[ MapName ]
+		return MapPreviews[ MapName ] or MapPreviewOverlays[ GetMapPrefix( MapName ) ]
 	end
 
 	--[[
@@ -450,10 +478,11 @@ function MapDataRepository.GetPreviewImages( Maps, Callback )
 	for i = 1, #Maps do
 		local Entry = Maps[ i ]
 		local MapName = Entry.MapName
+		local PreviewName = Entry.PreviewName or MapName
 
-		if MapPreviews[ MapName ] then
+		if MapPreviews[ PreviewName ] then
 			MapDataRepository.Logger:Debug( "%s is a known map, returning its mounted preview image...", MapName )
-			Callback( MapName, MapPreviews[ MapName ] )
+			Callback( MapName, MapPreviews[ PreviewName ] )
 		elseif Entry.ModID then
 			MapModIDs:Add( Entry.ModID, MapName )
 		else
@@ -544,6 +573,11 @@ function MapDataRepository.GetOverviewImage( ModID, MapName, Callback )
 		CallbackWithFallbackToCache( ModID, true, "OverviewImage", Callback ),
 		TimeoutInSeconds
 	)
+end
+
+function MapDataRepository.GetPreviewOverlay( MapName )
+	local Prefix = GetMapPrefix( MapName )
+	return MapPreviewOverlays[ Prefix ]
 end
 
 return MapDataRepository

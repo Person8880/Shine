@@ -341,8 +341,72 @@ function Plugin:IsValidMapChoice( Map, PlayerCount )
 	return true
 end
 
-function Plugin:GetCurrentMap()
-	return Shared.GetMapName()
+do
+	local StringExplode = string.Explode
+
+	local InfestedModID = "2e813610"
+	local FallbackModPrefixes = {
+		infest = InfestedModID,
+		infect = InfestedModID
+	}
+
+	local function GetMapNameWithoutPrefix( MapName )
+		local Segments = StringExplode( MapName, "_" )
+		return TableConcat( Segments, "_", 2 ), Segments[ 1 ]
+	end
+
+	local function GetInstalledMods()
+		local ModsByID = {}
+		for i = 1, Server.GetNumActiveMods() do
+			ModsByID[ Server.GetActiveModId( i ) ] = true
+		end
+		return ModsByID
+	end
+
+	local function ResolvePrefixedMapEntry( MapChoices, Prefixes, CurrentMapWithoutPrefix )
+		local Mods = GetInstalledMods()
+
+		for i = 1, #MapChoices do
+			local Choice = MapChoices[ i ]
+			local MapName = GetMapName( Choice )
+			local NameWithoutPrefix, Prefix = GetMapNameWithoutPrefix( MapName )
+			local PrefixMod = Prefixes[ Prefix ]
+
+			if PrefixMod and NameWithoutPrefix == CurrentMapWithoutPrefix and Mods[ PrefixMod ] then
+				-- Prefix mod is currently loaded and the map names match up, assume that the current map was loaded
+				-- using this prefix.
+				return MapName
+			end
+		end
+
+		return nil
+	end
+
+	function Plugin:GetMapModPrefixes()
+		return self.GetSpecialMapPrefixes and self.GetSpecialMapPrefixes() or FallbackModPrefixes
+	end
+
+	function Plugin:GetCurrentMap()
+		if self.KnownCurrentMap then
+			return self.KnownCurrentMap
+		end
+
+		local Prefixes = self:GetMapModPrefixes()
+		local CurrentMap = Shared.GetMapName()
+
+		local CurrentMapWithoutPrefix, CurrentPrefix = GetMapNameWithoutPrefix( CurrentMap )
+		if CurrentPrefix == "ns2" then
+			-- If the current map uses the standard ns2 prefix, check for the game's special prefixes to determine
+			-- the current map, as the actual map name will always be the ns2_ prefixed name.
+			CurrentMap = ResolvePrefixedMapEntry( self.MapChoices, Prefixes, CurrentMapWithoutPrefix ) or CurrentMap
+		end
+
+		self.Logger:Debug( "Detected current map as: %s", CurrentMap )
+
+		self.KnownCurrentMap = CurrentMap
+
+		return CurrentMap
+	end
 end
 
 --[[

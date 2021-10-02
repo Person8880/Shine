@@ -537,8 +537,23 @@ end
 function Plugin:OnFirstThink()
 	self:InferMapMods( self.MapChoices )
 
-	local CurMap = Shared.GetMapName()
+	if IsType( MapCycle_ChangeMap, "function" ) then
+		-- This isn't exposed outside of the map cycle system...
+		self.GetSpecialMapPrefixes = Shine.GetUpValueAccessor( MapCycle_ChangeMap, "prefixToModId", {
+			Recursive = true
+		} )
+		if self.Logger:IsDebugEnabled() then
+			local Prefixes = self.GetSpecialMapPrefixes()
+			self.Logger:Debug(
+				"Retrieved map mod prefixes: %s",
+				IsType( Prefixes, "table" ) and table.ToString( Prefixes ) or Prefixes
+			)
+		end
+	else
+		self.Logger:Warn( "Failed to auto-detect map mod prefixes, using defaults." )
+	end
 
+	local CurMap = self:GetCurrentMap()
 	local ConfigData = self.Config.Maps[ CurMap ]
 	if IsType( ConfigData, "table" ) then
 		self:SetupFromMapData( ConfigData )

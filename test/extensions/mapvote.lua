@@ -391,6 +391,88 @@ UnitTest:Test( "GetMapModsForMapList - Returns expected map entries", function( 
 	}, Stream:AsTable() )
 end )
 
+do
+	local OldGetMapName = Shared.GetMapName
+
+	local MapName = "ns2_veil"
+	function Shared.GetMapName()
+		return MapName
+	end
+
+	local OldGetNumActiveMods = Server.GetNumActiveMods
+	local NumActiveMods
+	function Server.GetNumActiveMods()
+		return NumActiveMods
+	end
+
+	local OldGetActiveModId = Server.GetActiveModId
+	function Server.GetActiveModId()
+		return "2e813610"
+	end
+
+	MapVote.GetSpecialMapPrefixes = function()
+		return {
+			infest = "2e813610"
+		}
+	end
+
+	UnitTest:Test( "GetCurrentMap - Returns the map name as-is if no prefix mods are loaded", function( Assert )
+		MapVote.KnownCurrentMap = false
+		NumActiveMods = 0
+		Assert:Equals( "ns2_veil", MapVote:GetCurrentMap() )
+		Assert.Equals( "Should have cached the map", "ns2_veil", MapVote.KnownCurrentMap )
+	end )
+
+	UnitTest:Test( "GetCurrentMap - Returns a matching prefixed name if the current map matches and the prefix mod is loaded", function( Assert )
+		MapVote.KnownCurrentMap = false
+		NumActiveMods = 1
+		MapVote.MapChoices = {
+			"ns2_veil",
+			"infest_veil"
+		}
+		Assert:Equals( "infest_veil", MapVote:GetCurrentMap() )
+		Assert.Equals( "Should have cached the map", "infest_veil", MapVote.KnownCurrentMap )
+	end )
+
+	UnitTest:Test( "GetCurrentMap - Returns the map name as-is if no prefixed map exists in the map choice list", function( Assert )
+		MapVote.KnownCurrentMap = false
+		NumActiveMods = 1
+		MapVote.MapChoices = {
+			"ns2_veil"
+		}
+		Assert:Equals( "ns2_veil", MapVote:GetCurrentMap() )
+		Assert.Equals( "Should have cached the map", "ns2_veil", MapVote.KnownCurrentMap )
+	end )
+
+	UnitTest:Test( "GetCurrentMap - Returns the map name as-is if prefixed maps exist but they do not match the loaded map", function( Assert )
+		MapVote.KnownCurrentMap = false
+		NumActiveMods = 1
+		MapVote.MapChoices = {
+			"ns2_veil",
+			"infest_veil2",
+			"infest_something_else"
+		}
+		Assert:Equals( "ns2_veil", MapVote:GetCurrentMap() )
+		Assert.Equals( "Should have cached the map", "ns2_veil", MapVote.KnownCurrentMap )
+	end )
+
+	UnitTest:Test( "GetCurrentMap - Returns the map name as-is if it does not start with ns2_", function( Assert )
+		MapVote.KnownCurrentMap = false
+		MapName = "co_veil"
+		NumActiveMods = 1
+		MapVote.MapChoices = {
+			"ns2_veil",
+			"infest_veil"
+		}
+		Assert:Equals( "co_veil", MapVote:GetCurrentMap() )
+		Assert.Equals( "Should have cached the map", "co_veil", MapVote.KnownCurrentMap )
+	end )
+
+	Server.GetActiveModId = OldGetActiveModId
+	Server.GetNumActiveMods = OldGetNumActiveMods
+	Shared.GetMapName = OldGetMapName
+end
+
 function MapVote:GetCurrentMap()
 	return "ns2_veil"
 end
