@@ -478,7 +478,7 @@ function Plugin:RemoveClientFromFriendGroup( Group, Client, IsDisconnecting )
 		TableRemoveByValue( self.FriendGroups, Group )
 
 		local RemainingClient = Group.Clients[ 1 ]
-		if RemainingClient then
+		if Shine:IsValidClient( RemainingClient ) then
 			self.FriendGroupsBySteamID[ RemainingClient:GetUserId() ] = nil
 			self:SendNetworkMessage( RemainingClient, "LeftFriendGroup", {}, true )
 		end
