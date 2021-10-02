@@ -1120,6 +1120,9 @@ do
 		Assert.Nil( "Removed client should no longer be mapped to the group", MockPlugin.FriendGroupsBySteamID[ 54321 ] )
 	end )
 
+	local OldIsValidClient = Shine.IsValidClient
+	function Shine:IsValidClient() return true end
+
 	UnitTest:Test( "RemoveClientFromFriendGroup - Removes group when only 1 member remains", function( Assert )
 		VoteShuffle.RemoveClientFromFriendGroup( MockPlugin, MockPlugin.FriendGroups[ 1 ], MockClient( 12345 ) )
 		VoteShuffle.RemoveClientFromFriendGroup( MockPlugin, MockPlugin.FriendGroups[ 1 ], MockClient( 54321 ) )
@@ -1127,6 +1130,8 @@ do
 		Assert:Equals( 0, #MockPlugin.FriendGroups )
 		Assert.DeepEquals( "All clients should be removed from the group", {}, MockPlugin.FriendGroupsBySteamID )
 	end )
+
+	Shine.IsValidClient = OldIsValidClient
 
 	local OldGetClientByNS2ID = Shine.GetClientByNS2ID
 
