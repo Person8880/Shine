@@ -676,7 +676,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 	if not ( self.CyclingMap or IsEndVote ) then return end
 	if not Player then return end
 	if ShineForce then return end
-	if NewTeam == 0 then return end
+	if not Shine.IsPlayingTeam( NewTeam ) then return end
 
 	if Shine:CanNotify( GetClientForPlayer( Player ) ) then
 		self:SendTranslatedNotify( Player, "TeamSwitchFail", {
