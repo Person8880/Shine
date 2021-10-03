@@ -203,6 +203,7 @@ local Skin = {
 local MapVoteMenu = SGUI:DefineControl( "MapVoteMenu", "Panel" )
 
 SGUI.AddProperty( MapVoteMenu, "CloseOnClick", true )
+SGUI.AddProperty( MapVoteMenu, "CurrentMap" )
 SGUI.AddProperty( MapVoteMenu, "EndTime" )
 SGUI.AddProperty( MapVoteMenu, "LoadModPreviews", true )
 SGUI.AddProperty( MapVoteMenu, "Logger" )
@@ -563,6 +564,9 @@ local function OnPreviewImageLoaded( self, MapName, TextureName, Err )
 
 	if SGUI.IsValid( Tile ) then
 		Tile:SetPreviewTexture( TextureName )
+
+		local Overlay = MapDataRepository.GetPreviewOverlay( MapName )
+		Tile:SetPreviewOverlayTexture( Overlay )
 	end
 end
 
@@ -614,9 +618,9 @@ function MapVoteMenu:SetMaps( Maps )
 		Tile:SetDebugName( "MapVoteTile:%s/%s", Entry.ModID, Entry.MapName )
 		Tile:SetMapVoteMenu( self )
 		Tile:SetSkin( Skin )
-		Tile:SetMap( Entry.ModID, Entry.MapName )
+		Tile:SetMap( Entry.ModID, Entry.MapName, Entry.PreviewName )
 
-		if Entry.MapName == Shared.GetMapName() then
+		if Entry.MapName == self:GetCurrentMap() then
 			Tile:SetMapNameText(
 				Locale:GetInterpolatedPhrase( "mapvote", "MAP_VOTE_MENU_EXTEND_MAP", {
 					MapName = Entry.NiceName

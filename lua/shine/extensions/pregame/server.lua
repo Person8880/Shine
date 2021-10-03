@@ -13,7 +13,7 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
 local Plugin = ...
-Plugin.Version = "1.8"
+Plugin.Version = "1.9"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
@@ -44,6 +44,9 @@ Plugin.DefaultConfig = {
 	MinPlayers = 0,
 	-- Whether to abort the game start if a commander drops out of the chair.
 	AbortIfNoCom = false,
+	-- The team numbers that should cause the game start to abort if they are empty (only 1 and 2 are supported).
+	-- This is mainly to allow for mods that use only one team to start a round to work with the plugin.
+	AbortIfTeamsEmpty = { 1, 2 },
 	-- Whether to allow players to attack during the pre-game time.
 	AllowAttackPreGame = true,
 	-- Whether to automatically add commander bots for any team without a commander at game start.
@@ -78,6 +81,11 @@ Plugin.ConfigMigrationSteps = {
 		Apply = Shine.Migrator()
 			:AddField( "AutoAddCommanderBots", true )
 			:AddField( "LogLevel", "INFO" )
+	},
+	{
+		VersionTo = "1.9",
+		Apply = Shine.Migrator()
+			:AddField( "AbortIfTeamsEmpty", { 1, 2 } )
 	}
 }
 
@@ -89,6 +97,10 @@ do
 	Validator:AddFieldRule( "MinPlayers", Validator.Integer() )
 	Validator:AddFieldRule( "PreGameTimeInSeconds", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "StartDelayInSeconds", Validator.Min( 0 ) )
+	Validator:AddFieldRule(
+		"AbortIfTeamsEmpty",
+		Validator.AllValuesSatisfy( Validator.IsType( "number" ), Validator.Integer(), Validator.Clamp( 1, 2 ) )
+	)
 
 	Plugin.ConfigValidator = Validator
 end
@@ -104,6 +116,11 @@ function Plugin:Initialise()
 	self.CountEnd = nil
 	self.GameStarting = false
 	self.StartedGame = false
+
+	self.TeamsToEmptyCheck = {}
+	for i = 1, #self.Config.AbortIfTeamsEmpty do
+		self.TeamsToEmptyCheck[ self.Config.AbortIfTeamsEmpty[ i ] ] = true
+	end
 
 	self.Enabled = true
 
@@ -282,6 +299,25 @@ function Plugin:NagForBoth()
 	self:SendTranslatedNotify( nil, "WaitingForBoth" )
 end
 
+function Plugin:CheckEmptyTeams( Team1Count, Team2Count )
+	if self.TeamsToEmptyCheck[ 1 ] and Team1Count == 0 then
+		return 1
+	end
+
+	if self.TeamsToEmptyCheck[ 2 ] and Team2Count == 0 then
+		return 2
+	end
+
+	return nil
+end
+
+function Plugin:AbortDueToEmptyTeam( Gamerules, EmptyTeam )
+	self.Logger:Debug( "Aborting game start as team %s is empty.", EmptyTeam )
+	self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
+		Team = EmptyTeam
+	} )
+end
+
 function Plugin:QueueGameStart( Gamerules )
 	self.GameStarting = true
 
@@ -308,7 +344,8 @@ function Plugin:QueueGameStart( Gamerules )
 		local Team1Count = Team1:GetNumPlayers()
 		local Team2Count = Team2:GetNumPlayers()
 
-		if Team1Count == 0 or Team2Count == 0 then
+		local EmptyTeam = self:CheckEmptyTeams( Team1Count, Team2Count )
+		if EmptyTeam then
 			return
 		end
 
@@ -331,10 +368,9 @@ function Plugin:QueueGameStart( Gamerules )
 		local Team1Count = Team1:GetNumPlayers()
 		local Team2Count = Team2:GetNumPlayers()
 
-		if Team1Count == 0 or Team2Count == 0 then
-			self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-				Team = Team1Count == 0 and 1 or 2
-			} )
+		local EmptyTeam = self:CheckEmptyTeams( Team1Count, Team2Count )
+		if EmptyTeam then
+			self:AbortDueToEmptyTeam( Gamerules, EmptyTeam )
 			return
 		end
 
@@ -348,10 +384,9 @@ function Plugin:CheckTeamCounts( Gamerules, Team1Com, Team2Com, Team1Count, Team
 		return
 	end
 
-	if Team1Count == 0 or Team2Count == 0 then
-		self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-			Team = Team1Count == 0 and 1 or 2
-		} )
+	local EmptyTeam = self:CheckEmptyTeams( Team1Count, Team2Count )
+	if EmptyTeam then
+		self:AbortDueToEmptyTeam( Gamerules, EmptyTeam )
 		return
 	end
 end
@@ -386,11 +421,10 @@ Plugin.UpdateFuncs = {
 
 		local Time = SharedTime()
 
-		if Team1Count == 0 or Team2Count == 0 then
+		local EmptyTeam = self:CheckEmptyTeams( Team1Count, Team2Count )
+		if EmptyTeam then
 			if self.CountStart then
-				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-					Team = Team1Count == 0 and 1 or 2
-				} )
+				self:AbortDueToEmptyTeam( Gamerules, EmptyTeam )
 			end
 
 			return
@@ -457,11 +491,10 @@ Plugin.UpdateFuncs = {
 		end
 
 		-- A team no longer has players, abort the timer.
-		if Team1Count == 0 or Team2Count == 0 then
+		local EmptyTeam = self:CheckEmptyTeams( Team1Count, Team2Count )
+		if EmptyTeam then
 			if self.CountStart then
-				self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-					Team = Team1Count == 0 and 1 or 2
-				} )
+				self:AbortDueToEmptyTeam( Gamerules, EmptyTeam )
 			end
 
 			return
@@ -586,10 +619,9 @@ Plugin.UpdateFuncs = {
 				local Team1Count = Team1:GetNumPlayers()
 				local Team2Count = Team2:GetNumPlayers()
 
-				if Team1Count == 0 or Team2Count == 0 then
-					self:AbortGameStart( Gamerules, "EmptyTeamAbort", {
-						Team = Team1Count == 0 and 1 or 2
-					} )
+				local EmptyTeam = self:CheckEmptyTeams( Team1Count, Team2Count )
+				if EmptyTeam then
+					self:AbortDueToEmptyTeam( Gamerules, EmptyTeam )
 					return
 				end
 

@@ -28,7 +28,7 @@ function Plugin:SetupDataTable()
 	self:AddDTVar( StringFormat( "integer (1 to %d)", #self.VotingModeOrdinal ), "VotingMode", 1 )
 	self:AddDTVar( "integer (1 to 255)", "MaxVoteChoicesPerPlayer", 4 )
 
-	local MapNameField = "string (24)"
+	local MapNameField = "string (32)"
 
 	local MessageTypes = {
 		Duration = {
@@ -87,6 +87,7 @@ function Plugin:SetupDataTable()
 
 	local VoteOptionsMessage = {
 		Options = "string (255)",
+		CurrentMap = MapNameField,
 		Duration = "integer (0 to 1800)",
 		NextMap = "boolean",
 		ShowTime = "boolean",
@@ -109,6 +110,9 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "MapMod", {
 		MapName = MapNameField,
 		ModID = "string (12)"
+	}, "Client" )
+	self:AddNetworkMessage( "MapModPrefix", {
+		Prefix = MapNameField
 	}, "Client" )
 
 	self:AddNetworkMessage( "RequestVoteOptions", MessageTypes.Empty, "Server" )

@@ -4,6 +4,7 @@
 
 local Plugin = ...
 
+local assert = assert
 local SharedTime = Shared.GetTime
 local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
@@ -153,6 +154,11 @@ function Plugin:ReceiveFriendGroupInviteAnswer( Client, Data )
 		self.Logger:Debug( "%s accepted a friend group invite from %s.", Shine.GetClientInfo( Client ),
 			Shine.GetClientInfo( Inviter ) )
 	end
+
+	assert(
+		not self.FriendGroupsBySteamID[ SteamID ],
+		"Player accepted valid invite when they are already in a group!"
+	)
 
 	local InviteDelays = self.FriendGroupInviteDelaysBySteamID[ SteamID ]
 	if InviteDelays then
@@ -363,6 +369,11 @@ function Plugin:MakeNewFriendGroup( Leader, Members, Silent )
 		local Member = Members[ i ]
 		local MemberSteamID = Member:GetUserId()
 
+		assert(
+			not self.FriendGroupsBySteamID[ MemberSteamID ],
+			"Attempted to add member to new group when they are already in a group!"
+		)
+
 		self.FriendGroupsBySteamID[ MemberSteamID ] = NewGroup
 		self:SendNetworkMessage( NewGroup.Clients, "FriendGroupUpdated", {
 			SteamID = MemberSteamID,
@@ -399,6 +410,11 @@ function Plugin:AddClientToFriendGroup( Group, Client )
 	end
 
 	local SteamID = Client:GetUserId()
+
+	assert(
+		not self.FriendGroupsBySteamID[ SteamID ],
+		"Attempted to add a client to a group when they are already in a group!"
+	)
 
 	Group.Clients[ #Group.Clients + 1 ] = Client
 	self.FriendGroupsBySteamID[ SteamID ] = Group
@@ -457,6 +473,10 @@ function Plugin:SetFriendGroupLeader( Group, Leader )
 	}, true )
 end
 
+local function IsValidClient( Client )
+	return Shine:IsValidClient( Client )
+end
+
 function Plugin:RemoveClientFromFriendGroup( Group, Client, IsDisconnecting )
 	if self.Logger:IsDebugEnabled() then
 		self.Logger:Debug( "Removing %s from group: %s", Shine.GetClientInfo( Client ), GroupToString( Group ) )
@@ -472,6 +492,9 @@ function Plugin:RemoveClientFromFriendGroup( Group, Client, IsDisconnecting )
 		-- Cancel any invites they sent while in the group.
 		self:CancelFriendGroupInvitesFrom( Client )
 	end
+
+	-- Sanity check the remaining clients.
+	Shine.Stream( Group.Clients ):Filter( IsValidClient )
 
 	if #Group.Clients <= 1 then
 		-- Clean up empty groups.

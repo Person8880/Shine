@@ -403,12 +403,15 @@ do
 					NiceName = self:GetNiceMapName( MapName ),
 					ModID = self.MapMods and self.MapMods[ MapName ] and tostring( self.MapMods[ MapName ] ),
 					IsSelected = self:IsMapSelected( MapName ),
-					NumVotes = self.MapVoteCounts[ MapName ]
+					NumVotes = self.MapVoteCounts[ MapName ],
+					-- Account for special prefixes when looking for mounted map previews.
+					PreviewName = self:GetRealMapName( MapName )
 				}
 			end ):AsTable()
 
 			self.FullVoteMenu:SetEndTime( self.EndTime )
-			self.FullVoteMenu:SetCurrentMapName( self:GetNiceMapName( Shared.GetMapName() ) )
+			self.FullVoteMenu:SetCurrentMap( self.CurrentMap )
+			self.FullVoteMenu:SetCurrentMapName( self:GetNiceMapName( self.CurrentMap ) )
 			self.FullVoteMenu:SetMaps( Maps )
 			self.FullVoteMenu:SetIsVisible( false )
 			self.FullVoteMenu:SetCloseOnClick( self.Config.CloseMenuAfterChoosingMap )
@@ -457,7 +460,7 @@ do
 			function self.FullVoteMenu.OnClose()
 				Shine.ScreenText.SetIsVisible( true )
 
-				if SGUI.IsValid( self.MapVoteNotification ) then
+				if SGUI.IsValid( self.MapVoteNotification ) and self:IsVoteInProgress() then
 					self.MapVoteNotification:FadeIn()
 				end
 			end
@@ -562,7 +565,7 @@ do
 			Shine.VoteMenu:MarkAsSelected( Button, Plugin:IsMapSelected( Map ) )
 
 			local MapMod = Plugin.MapMods and Plugin.MapMods[ Map ]
-			SetupMapPreview( Button, Map, MapMod )
+			SetupMapPreview( Button, Plugin:GetRealMapName( Map ), MapMod )
 
 			Plugin.MapButtons[ Map ] = {
 				Button = Button,
@@ -652,8 +655,10 @@ do
 			sg = "Siege:",
 			gg = "Gun Game:",
 			ls = "Last Stand:",
-			dmd = "DMD"
+			dmd = "DMD",
+			infest = "Infested:"
 		}
+		KnownPrefixWords.infect = KnownPrefixWords.infest
 
 		return Shine.Stream( Words ):Map( function( Word, Index )
 			if Index > 1 then
@@ -676,6 +681,25 @@ do
 		end
 
 		return Data
+	end
+end
+
+do
+	local StringStartsWith = string.StartsWith
+	local StringSub = string.sub
+
+	-- Gets the actual map name, accounting for any known special prefixes.
+	function Plugin:GetRealMapName( MapName )
+		if not self.MapModPrefixes then return MapName end
+
+		for i = 1, #self.MapModPrefixes do
+			local Prefix = self.MapModPrefixes[ i ]
+			if StringStartsWith( MapName, Prefix.."_" ) then
+				return StringFormat( "ns2_%s", StringSub( MapName, #Prefix + 2 ) )
+			end
+		end
+
+		return MapName
 	end
 end
 
@@ -825,6 +849,18 @@ function Plugin:ReceiveMapMod( Data )
 	self.Logger:Debug( "Received mod ID %s for map %s.", Data.ModID, Data.MapName )
 end
 
+function Plugin:ReceiveMapModPrefix( Data )
+	self.MapModPrefixes = self.MapModPrefixes or {}
+
+	-- Prefixes may be sent more than once if multiple map votes occur.
+	if self.MapModPrefixes[ Data.Prefix ] then return end
+
+	self.MapModPrefixes[ Data.Prefix ] = true
+	self.MapModPrefixes[ #self.MapModPrefixes + 1 ] = Data.Prefix
+
+	self.Logger:Debug( "Received map mod prefix %s.", Data.Prefix )
+end
+
 local function GetMapVoteText( self, NextMap, VoteButton, Maps, InitialText, VoteButtonCandidates )
 	local Description
 	if InitialText then
@@ -904,6 +940,8 @@ function Plugin:ReceiveVoteOptions( Message )
 	local Maps = StringExplode( Options, ", ", true )
 
 	self.Maps = Maps
+	-- Let the server control the current map to account for mod prefixes.
+	self.CurrentMap = Message.CurrentMap
 	self.EndTime = SharedTime() + Duration
 
 	for i = 1, #Maps do
@@ -1027,8 +1065,30 @@ function Plugin:ReceiveVoteOptions( Message )
 	if not OpenedAutomatically and self.Config.VoteMenuType == self.VoteMenuType.FULL then
 		-- If the full vote menu will be opened, precache all the mounted map previews to avoid pop-in when the menu
 		-- is opened for the first time.
-		self.Logger:Debug( "Attempting to precache map previews for: %s", Options )
-		MapDataRepository.PrecacheMapPreviews( Maps )
+		local SeenMaps = {}
+		local MapsToPrecache = {}
+
+		-- Collect both the maps in the vote, and their real map name if they use a special prefix. This allows
+		-- precaching both the actual map preview, and any overlay for the prefix.
+		for i = 1, #Maps do
+			local Map = Maps[ i ]
+			if not SeenMaps[ Map ] then
+				SeenMaps[ Map ] = true
+				MapsToPrecache[ #MapsToPrecache + 1 ] = Map
+
+				local RealMapName = self:GetRealMapName( Map )
+				if not SeenMaps[ RealMapName ] then
+					SeenMaps[ RealMapName ] = true
+					MapsToPrecache[ #MapsToPrecache + 1 ] = RealMapName
+				end
+			end
+		end
+
+		if self.Logger:IsDebugEnabled() then
+			self.Logger:Debug( "Attempting to precache map previews for: %s", TableConcat( MapsToPrecache, ", " ) )
+		end
+
+		MapDataRepository.PrecacheMapPreviews( MapsToPrecache )
 	end
 end
 

@@ -25,9 +25,10 @@ local IsType = Shine.IsType
 
 Shine.LoadPluginModule( "vote.lua", Plugin )
 
-function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, ShowTime )
+function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, ShowTime, CurrentMap )
 	local MessageTable = {
 		Options = Options,
+		CurrentMap = CurrentMap,
 		Duration = Duration,
 		NextMap = NextMap,
 		TimeLeft = TimeLeft,
@@ -124,8 +125,42 @@ do
 	end
 end
 
+function Plugin:SendMapPrefixes( Client )
+	local Prefixes = self:GetMapModPrefixes()
+	for Prefix in pairs( Prefixes ) do
+		self:SendNetworkMessage( Client, "MapModPrefix", {
+			Prefix = Prefix
+		}, true )
+	end
+end
+
 function Plugin:ClientConnect( Client )
 	self:UpdateVoteCounters( self.StartingVote )
+end
+
+function Plugin:NetworkVoteData( Client, Duration )
+	-- Send any mods for maps in the current vote (so the map vote menu shows the right preview image).
+	self:SendMapMods( Client )
+	-- Send all known map prefixes (so the map vote menu can derive the actual map names to load a preview for).
+	self:SendMapPrefixes( Client )
+
+	-- Send them the current vote progress and options (after the above so the menu has everything it needs).
+	self:SendVoteOptions(
+		Client,
+		self.Vote.OptionsText,
+		Duration,
+		self.NextMap.Voting,
+		self:GetTimeRemaining(),
+		not self.VoteOnEnd,
+		self:GetCurrentMap()
+	)
+
+	-- Send the current vote counters so they're reflected in the UI.
+	for Map, Votes in pairs( self.Vote.VoteList ) do
+		self:SendMapVoteCount( Client, Map, Votes )
+	end
+
+	self.Vote.NotifiedClients[ Client ] = true
 end
 
 --[[
@@ -158,20 +193,7 @@ function Plugin:ClientConfirmConnect( Client )
 		self.Logger:Debug( "Sending map vote to %s who has just connected.", Shine.GetClientInfo( Client ) )
 	end
 
-	-- Send any mods for maps in the current vote (so the map vote menu shows the right preview image).
-	self:SendMapMods( Client )
-
-	local OptionsText = self.Vote.OptionsText
-	-- Send them the current vote progress and options.
-	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
-		self:GetTimeRemaining(), not self.VoteOnEnd )
-
-	-- Update their radial menu vote counters.
-	for Map, Votes in pairs( self.Vote.VoteList ) do
-		self:SendMapVoteCount( Client, Map, Votes )
-	end
-
-	self.Vote.NotifiedClients[ Client ] = true
+	self:NetworkVoteData( Client, Duration )
 end
 
 function Plugin:ClientDisconnect( Client )
@@ -229,10 +251,8 @@ function Plugin:SendVoteData( Client )
 
 	local Time = SharedTime()
 	local Duration = Floor( self.Vote.EndTime - Time )
-	local OptionsText = self.Vote.OptionsText
 
-	self:SendVoteOptions( Client, OptionsText, Duration, self.NextMap.Voting,
-		self:GetTimeRemaining(), not self.VoteOnEnd )
+	self:NetworkVoteData( Client, Duration )
 end
 
 function Plugin:ReceiveRequestVoteOptions( Client, Message )
@@ -1094,9 +1114,17 @@ function Plugin:StartVote( NextMap, Force )
 	-- For every map in the vote list that requires a mod, tell every client the mod ID
 	-- so they can load a preview for it if they hover the button.
 	self:SendMapMods( nil )
+	self:SendMapPrefixes( nil )
 
-	self:SendVoteOptions( nil, OptionsText, VoteLength, NextMap, self:GetTimeRemaining(),
-		not self.VoteOnEnd )
+	self:SendVoteOptions(
+		nil,
+		OptionsText,
+		VoteLength,
+		NextMap,
+		self:GetTimeRemaining(),
+		not self.VoteOnEnd,
+		self:GetCurrentMap()
+	)
 
 	self:CreateTimer( self.VoteTimer, VoteLength, 1, function()
 		self:ProcessResults( NextMap )

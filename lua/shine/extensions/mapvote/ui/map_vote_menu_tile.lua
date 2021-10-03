@@ -338,6 +338,27 @@ function MapTile:SetHighlighted( Highlighted, SkipAnim )
 	} )
 end
 
+function MapTile:SetPreviewOverlayTexture( Overlay )
+	if not Overlay then
+		if SGUI.IsValid( self.PreviewImageOverlay ) then
+			self.PreviewImageOverlay:Destroy()
+			self.PreviewImageOverlay = nil
+		end
+		return
+	end
+
+	local OverlayElement = self.PreviewImageOverlay
+	if not SGUI.IsValid( OverlayElement ) then
+		OverlayElement = SGUI:Create( "Image", self.PreviewImage )
+		OverlayElement:SetPositionType( SGUI.PositionType.ABSOLUTE )
+		OverlayElement:SetFill( true )
+		OverlayElement:SetInheritsParentAlpha( true )
+		self.PreviewImageOverlay = OverlayElement
+	end
+
+	OverlayElement:SetTexture( Overlay )
+end
+
 function MapTile:ShowOverviewImage()
 	if not SGUI.IsValid( self.OverviewImageContainer ) then
 		TableShallowMerge( SGUI:BuildTree( {
@@ -410,7 +431,8 @@ function MapTile:ShowOverviewImage()
 		return
 	end
 
-	MapDataRepository.GetOverviewImage( self.ModID, self.MapName, function( MapName, TextureName, Err )
+	local MapNameToLoad = self.PreviewName or self.MapName
+	MapDataRepository.GetOverviewImage( self.ModID, MapNameToLoad, function( MapName, TextureName, Err )
 		if not SGUI.IsValid( self ) then
 			if not Err then
 				TextureLoader.Free( TextureName )
@@ -455,9 +477,10 @@ function MapTile:DoClick()
 	return true
 end
 
-function MapTile:SetMap( ModID, MapName )
+function MapTile:SetMap( ModID, MapName, PreviewName )
 	self.ModID = ModID
 	self.MapName = MapName
+	self.PreviewName = PreviewName
 end
 
 function MapTile:OnPreviewTextureFailed( Err )
