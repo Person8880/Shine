@@ -449,8 +449,10 @@ do
 		NumActiveMods = 1
 		MapVote.MapChoices = {
 			"ns2_veil",
+			-- Doesn't match a different name.
 			"infest_veil2",
-			"infest_something_else"
+			-- Doesn't match a longer name.
+			"infest_veil_something_else"
 		}
 		Assert:Equals( "ns2_veil", MapVote:GetCurrentMap() )
 		Assert.Equals( "Should have cached the map", "ns2_veil", MapVote.KnownCurrentMap )
