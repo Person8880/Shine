@@ -1242,6 +1242,20 @@ do
 		Assert:Equals( 1, #MockPlugin.FriendGroups )
 	end )
 
+	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if the other member is a bot", function( Assert )
+		local Client = MockClient( 123 )
+		local Bot = MockClient( 0 )
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 123,
+				Members = { 123, 0 }
+			}
+		} )
+		Assert.False( "Should not have restored the client", Restored )
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+	end )
+
 	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if all other members are in a full group", function( Assert )
 		local Client = MockClient( 123 )
 

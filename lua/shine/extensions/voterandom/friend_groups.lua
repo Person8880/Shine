@@ -635,7 +635,7 @@ function Plugin:RestoreClientToFriendGroup( Client, PersistedFriendGroups )
 	local ConnectedMembers = {}
 	for i = 1, #Group.Members do
 		local MemberSteamID = Group.Members[ i ]
-		if MemberSteamID ~= SteamID then
+		if MemberSteamID ~= SteamID and MemberSteamID ~= 0 then
 			local Member = Shine.GetClientByNS2ID( MemberSteamID )
 			if Member then
 				ConnectedMembers[ #ConnectedMembers + 1 ] = Member
