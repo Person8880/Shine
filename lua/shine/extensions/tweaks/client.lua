@@ -32,6 +32,12 @@ function Plugin:OnGUIMinimapInit( Minimap )
 end
 
 function Plugin:OnGUIMinimapDestroy( Minimap )
+	if Minimap.HighlightView then
+		-- Clean up the GUI view as it's not part of the minimap item hierarchy.
+		Client.DestroyGUIView( Minimap.HighlightView )
+		Minimap.HighlightView = nil
+	end
+
 	self.Minimaps:Remove( Minimap )
 end
 
@@ -58,53 +64,50 @@ function Plugin:GetLocationsForName( Name )
 	return self.LocationIndex:Get( Name )
 end
 
-function Plugin:SetupMinimap( Minimap )
-	if not Minimap.MapStencil then
-		Minimap.MapStencil = GUIManager:CreateGraphicItem()
-		Minimap.MapStencil:SetAnchor( GUIItem.Left, GUIItem.Top )
-		Minimap.MapStencil:SetPosition( Vector2( 0, 0 ) )
-		Minimap.MapStencil:SetSize( Minimap.minimap:GetSize() )
-		Minimap.MapStencil:SetTexture( Minimap.minimap:GetTexture() )
-		Minimap.MapStencil:SetIsStencil( true )
-		Minimap.MapStencil:SetClearsStencilBuffer( true )
+local TARGET_TEXTURE_NAME = "*shine_tweaks_minimap_highlights"
+local TextureCount = 0
+local function GetMinimapTexture()
+	TextureCount = TextureCount + 1
+	return TARGET_TEXTURE_NAME..TextureCount
+end
 
-		Minimap.minimap:AddChild( Minimap.MapStencil )
+function Plugin:SetupMinimap( Minimap )
+	local MinimapItem = Minimap.minimap
+	if not Minimap.HighlightView then
+		local Width, Height = 1024, 1024
+
+		local TextureName = GetMinimapTexture()
+		Minimap.HighlightViewTexture = TextureName
+
+		Minimap.HighlightView = Client.CreateGUIView( Width, Height )
+		Minimap.HighlightView:Load( Shine.GetPluginFile( self:GetName(), "minimap_view.lua" ) )
+		Minimap.HighlightView:SetGlobal( "MinimapTexture", MinimapItem:GetTexture() )
+		Minimap.HighlightView:SetGlobal( "Width", Width )
+		Minimap.HighlightView:SetGlobal( "Height", Height )
+		Minimap.HighlightView:SetGlobal( "NeedsRefresh", 1 )
+		Minimap.HighlightView:SetTargetTexture( TextureName )
+		Minimap.HighlightView:SetRenderCondition( GUIView.RenderOnce )
 	end
 
-	if not Minimap.CurrentLocationBoxes then
-		Minimap.CurrentLocationBoxes = {}
+	if not Minimap.HighlightItem then
+		Minimap.HighlightItem = GUIManager:CreateGraphicItem()
+		Minimap.HighlightItem:SetSize( MinimapItem:GetSize() )
+		Minimap.HighlightItem:SetTexture( Minimap.HighlightViewTexture )
+		Minimap.HighlightItem:SetIsVisible( false )
+		MinimapItem:AddChild( Minimap.HighlightItem )
 	end
 
 	self.Minimaps:Add( Minimap )
 end
 
-local function GetLocationBox( Minimap, Index )
-	local Box = Minimap.CurrentLocationBoxes[ Index ]
-	if not Box then
-		Box = GUIManager:CreateGraphicItem()
-		Box:SetAnchor( GUIItem.Middle, GUIItem.Center )
-		Box:SetIsVisible( false )
-		Box:SetInheritsParentStencilSettings( false )
-		Box:SetStencilFunc( GUIItem.NotEqual )
-		Minimap.minimap:AddChild( Box )
-
-		Minimap.CurrentLocationBoxes[ Index ] = Box
-	end
-
-	return Box
-end
-
 local function HideLocationBoxes( Minimap )
-	Minimap.LastLocationEntity = nil
-	for i = 1, #Minimap.CurrentLocationBoxes do
-		Minimap.CurrentLocationBoxes[ i ]:SetIsVisible( false )
-	end
+	Minimap.HighlightItem:SetIsVisible( false )
 end
 
 local UnpoweredColour = Colour( 1, 0, 0 )
 
 function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
-	if not Minimap.CurrentLocationBoxes then return end
+	if not Minimap.HighlightItem then return end
 
 	if Minimap.comMode ~= GUIMinimapFrame.kModeBig or PlayerUI_IsOverhead() then
 		HideLocationBoxes( Minimap )
@@ -118,19 +121,32 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 		return
 	end
 
-	Minimap.MapStencil:SetSize( Minimap.minimap:GetSize() )
+	Minimap.HighlightItem:SetSize( Minimap.minimap:GetSize() )
+	Minimap.HighlightItem:SetIsVisible( true )
 
 	local IsMarine = PlayerUI_IsOnMarineTeam()
 
 	-- Avoid doing the same thing over and over when the location hasn't changed...
-	if not IsMarine and Minimap.LastLocationEntity == LocationEntity then return end
+	local NeedsUpdate = false
+	if Minimap.LastLocationEntity ~= LocationEntity then
+		NeedsUpdate = true
+		Minimap.LastLocationEntity = LocationEntity
+	elseif IsMarine then
+		local PowerNode = GetPowerPointForLocation( LocationEntity:GetName() )
+		local IsPowered = not not ( PowerNode and PowerNode:GetIsPowering() )
+		if IsPowered ~= Minimap.LastPowered then
+			NeedsUpdate = true
+			Minimap.LastPowered = IsPowered
+		end
+	else
+		Minimap.LastPowered = nil
+	end
 
-	Minimap.LastLocationEntity = LocationEntity
+	if not NeedsUpdate then return end
 
 	local BackgroundColour
 	if IsMarine then
-		local PowerNode = GetPowerPointForLocation( LocationEntity:GetName() )
-		if not PowerNode or not PowerNode:GetIsPowering() then
+		if not Minimap.LastPowered then
 			BackgroundColour = UnpoweredColour
 		else
 			BackgroundColour = Colour( kMarineTeamColorFloat )
@@ -145,9 +161,15 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 
 	-- Locations are composed of multiple trigger entities, so draw a box for each one.
 	local Locations = self:GetLocationsForName( LocationEntity:GetName() )
-	for i = 1, #Locations do
+	local NumLocations = #Locations
+	local HighlightView = Minimap.HighlightView
+	local Size = Minimap.HighlightItem:GetSize()
+
+	HighlightView:SetGlobal( "NumBoxes", NumLocations )
+	HighlightView:SetGlobal( "HighlightColour", BackgroundColour )
+
+	for i = 1, NumLocations do
 		local Location = Locations[ i ]
-		local Box = GetLocationBox( Minimap, i )
 
 		local Extents = Location.scale * 0.2395
 		local Coords = Location:GetCoords()
@@ -160,30 +182,31 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 		local Width = BottomRightX - TopLeftX
 		local Height = BottomRightY - TopLeftY
 
-		Box:SetIsVisible( true )
-		Box:SetPosition( Vector2( TopLeftX, TopLeftY ) )
-		Box:SetSize( Vector2( Width, Height ) )
-		Box:SetColor( BackgroundColour )
+		HighlightView:SetGlobal( "X"..i, TopLeftX / Size.x * 1024 )
+		HighlightView:SetGlobal( "Y"..i, TopLeftY / Size.y * 1024 )
+		HighlightView:SetGlobal( "W"..i, Width / Size.x * 1024 )
+		HighlightView:SetGlobal( "H"..i, Height / Size.y * 1024 )
 	end
 
-	for i = #Locations + 1, #Minimap.CurrentLocationBoxes do
-		Minimap.CurrentLocationBoxes[ i ]:SetIsVisible( false )
-	end
+	HighlightView:SetGlobal( "NeedsRefresh", 1 )
+	HighlightView:SetRenderCondition( GUIView.RenderOnce )
 end
 
 function Plugin:Cleanup()
 	for Minimap in self.Minimaps:Iterate() do
-		if Minimap.MapStencil then
-			GUI.DestroyItem( Minimap.MapStencil )
-			Minimap.MapStencil = nil
+		if Minimap.HighlightItem then
+			GUI.DestroyItem( Minimap.HighlightItem )
+			Minimap.HighlightItem = nil
 		end
 
-		if Minimap.CurrentLocationBoxes then
-			for i = 1, #Minimap.CurrentLocationBoxes do
-				GUI.DestroyItem( Minimap.CurrentLocationBoxes[ i ] )
-			end
-			Minimap.CurrentLocationBoxes = nil
+		if Minimap.HighlightView then
+			Client.DestroyGUIView( Minimap.HighlightView )
+			Minimap.HighlightView = nil
 		end
+
+		Minimap.LastLocationEntity = nil
+		Minimap.LastPowered = nil
+		Minimap.HighlightViewTexture = nil
 	end
 
 	self.Minimaps = nil
