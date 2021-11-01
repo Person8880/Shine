@@ -201,8 +201,11 @@ function Plugin:ClientConnect( Client )
 		local Player = Client:GetControllingPlayer()
 		if not Player then return end
 
-		if not self:IsPlayerIDRemembered( ID ) then
-			self:RememberPlayerID( ID )
+		local IsBot = Client:GetIsVirtual()
+		if IsBot or not self:IsPlayerIDRemembered( ID ) then
+			if not IsBot then
+				self:RememberPlayerID( ID )
+			end
 			self:SendTranslatedNotifyColour( nil, "PLAYER_JOINED_GENERIC", {
 				R = 255, G = 255, B = 255,
 				TargetName = Player:GetName()
