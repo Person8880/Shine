@@ -12,7 +12,7 @@ Plugin.Version = "1.3"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MotD.json"
-Plugin.MessageDisplayHistoryFile = "config://shine/temp/motd_history.json"
+Plugin.PlayerMemoryFilePath = "config://shine/temp/motd_history.json"
 
 Plugin.MessageDisplayMode = table.AsEnum{
 	"TEXT_ONLY", "WEBPAGE_ONLY", "TEXT_ON_CONNECT"
@@ -62,31 +62,28 @@ do
 	Plugin.ConfigValidator = Validator
 end
 
+Shine.LoadPluginModule( "player_memory.lua", Plugin )
+
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	self:CreateCommands()
-	self:LoadMessageDisplayHistory()
 
 	self.Enabled = true
 
 	return true
 end
 
-function Plugin:MapChange()
-	self:SaveMessageDisplayHistory()
-end
-
-function Plugin:LoadMessageDisplayHistory()
-	self.MessageDisplayHistory = Shine.LoadJSONFile( self.MessageDisplayHistoryFile ) or {
-		Displayed = {}
-	}
-
-	if not IsType( self.MessageDisplayHistory.Displayed, "table" ) then
-		self.MessageDisplayHistory.Displayed = {}
+function Plugin:GetRememberedPlayerIDs()
+	-- Data has historically been stored in a sub-table.
+	if not IsType( self.RememberedPlayers.Displayed, "table" ) then
+		self.RememberedPlayers.Displayed = {}
 	end
+	return self.RememberedPlayers.Displayed
 end
 
-function Plugin:SaveMessageDisplayHistory()
-	Shine.SaveJSONFile( self.MessageDisplayHistory, self.MessageDisplayHistoryFile )
+function Plugin:MapChange()
+	self:BroadcastModuleEvent( "MapChange" )
 end
 
 function Plugin:ShowMotD( Client, OnConnect )
@@ -126,7 +123,7 @@ function Plugin:ClientConfirmConnect( Client )
 	if Client:GetIsVirtual() then return end
 
 	local ID = tostring( Client:GetUserId() )
-	if self.Config.Accepted[ ID ] or self.MessageDisplayHistory.Displayed[ ID ] then
+	if self.Config.Accepted[ ID ] or self:IsPlayerIDRemembered( ID ) then
 		return
 	end
 
@@ -136,7 +133,7 @@ function Plugin:ClientConfirmConnect( Client )
 		if self:ShowMotD( Client, true ) then
 			-- Remember that the client has seen the MOTD already and don't display it again until they disconnect.
 			-- This stops the message popping up after every map change.
-			self.MessageDisplayHistory.Displayed[ ID ] = true
+			self:RememberPlayerID( ID )
 		end
 	end )
 end
@@ -144,11 +141,7 @@ end
 function Plugin:ClientDisconnect( Client )
 	if Client:GetIsVirtual() then return end
 
-	local ID = tostring( Client:GetUserId() )
-	if self.MessageDisplayHistory.Displayed[ ID ] then
-		self.MessageDisplayHistory.Displayed[ ID ] = nil
-		self:SaveMessageDisplayHistory()
-	end
+	self:ForgetPlayerID( tostring( Client:GetUserId() ) )
 end
 
 function Plugin:CreateCommands()

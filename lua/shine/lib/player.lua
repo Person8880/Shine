@@ -657,6 +657,9 @@ local ConsoleInfo = "Console[N/A]"
 
 function Shine.GetClientInfo( Client )
 	if not Client then return ConsoleInfo end
+	if not Shine:IsValidClient( Client ) then
+		return "<Invalid>[?]"
+	end
 
 	local Player = Client:GetControllingPlayer()
 

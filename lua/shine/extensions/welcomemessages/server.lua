@@ -19,7 +19,7 @@ Plugin.Version = "1.4"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "WelcomeMessages.json"
-Plugin.MessageDisplayHistoryFile = "config://shine/temp/welcomemessages_history.json"
+Plugin.PlayerMemoryFilePath = "config://shine/temp/welcomemessages_history.json"
 
 Plugin.DefaultConfig = {
 	MessageDelay = 5,
@@ -122,28 +122,19 @@ do
 	Plugin.ConfigValidator = Validator
 end
 
+Shine.LoadPluginModule( "player_memory.lua", Plugin )
+
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
+
 	self.Welcomed = {}
-	self.AlreadyDisplayedMessages = Shine.LoadJSONFile( self.MessageDisplayHistoryFile ) or {}
 	self.Enabled = true
 
 	return true
 end
 
-function Plugin:SaveMessageDisplayHistory()
-	Shine.SaveJSONFile( self.AlreadyDisplayedMessages, self.MessageDisplayHistoryFile )
-end
-
-function Plugin:RememberMessageDisplay( ID )
-	self.AlreadyDisplayedMessages[ ID ] = true
-	self:SaveMessageDisplayHistory()
-end
-
-function Plugin:ForgetMessageDisplay( ID )
-	if not self.AlreadyDisplayedMessages[ ID ] then return end
-
-	self.AlreadyDisplayedMessages[ ID ] = nil
-	self:SaveMessageDisplayHistory()
+function Plugin:MapChange()
+	self:BroadcastModuleEvent( "MapChange" )
 end
 
 function Plugin:ShouldShowMessage( Client )
@@ -193,8 +184,8 @@ function Plugin:ClientConnect( Client )
 		local MessageTable = self.Config.Users[ ID ]
 
 		if MessageTable and MessageTable.Welcome then
-			if not self.AlreadyDisplayedMessages[ ID ] then
-				self:RememberMessageDisplay( ID )
+			if not self:IsPlayerIDRemembered( ID ) then
+				self:RememberPlayerID( ID )
 				self:DisplayMessage( MessageTable.Welcome )
 			end
 
@@ -210,17 +201,23 @@ function Plugin:ClientConnect( Client )
 		local Player = Client:GetControllingPlayer()
 		if not Player then return end
 
-		self:SendTranslatedNotifyColour( nil, "PLAYER_JOINED_GENERIC", {
-			R = 255, G = 255, B = 255,
-			TargetName = Player:GetName()
-		} )
+		local IsBot = Client:GetIsVirtual()
+		if IsBot or not self:IsPlayerIDRemembered( ID ) then
+			if not IsBot then
+				self:RememberPlayerID( ID )
+			end
+			self:SendTranslatedNotifyColour( nil, "PLAYER_JOINED_GENERIC", {
+				R = 255, G = 255, B = 255,
+				TargetName = Player:GetName()
+			} )
+		end
 	end )
 end
 
 function Plugin:ClientDisconnect( Client )
 	local ID = tostring( Client:GetUserId() )
 
-	self:ForgetMessageDisplay( ID )
+	self:ForgetPlayerID( ID )
 
 	if not self.Welcomed[ Client ] then return end
 

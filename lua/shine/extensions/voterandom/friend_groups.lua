@@ -629,13 +629,13 @@ end
 function Plugin:RestoreClientToFriendGroup( Client, PersistedFriendGroups )
 	local SteamID = Client:GetUserId()
 	local Group = PersistedFriendGroups[ SteamID ]
-	if not Group then return false end
+	if not Group or #Group.Members <= 1 then return false end
 
 	-- Search for the connected members of the original group and join them together.
 	local ConnectedMembers = {}
 	for i = 1, #Group.Members do
 		local MemberSteamID = Group.Members[ i ]
-		if MemberSteamID ~= SteamID then
+		if MemberSteamID ~= SteamID and MemberSteamID ~= 0 then
 			local Member = Shine.GetClientByNS2ID( MemberSteamID )
 			if Member then
 				ConnectedMembers[ #ConnectedMembers + 1 ] = Member
@@ -658,7 +658,7 @@ function Plugin:RestoreClientToFriendGroup( Client, PersistedFriendGroups )
 end
 
 function Plugin:HandleFriendGroupClientConnect( Client )
-	if not self.PersistedFriendGroups then return end
+	if not self.PersistedFriendGroups or Client:GetIsVirtual() then return end
 	if SharedTime() > self.Config.TeamPreferences.FriendGroupRestoreTimeoutSeconds then return end
 
 	self:RestoreClientToFriendGroup( Client, self.PersistedFriendGroups )
@@ -721,15 +721,33 @@ function Plugin:UpdateAllFriendGroupTeamPreferences()
 end
 
 do
+	local function NotVirtualClient( Client )
+		return not Client:GetIsVirtual()
+	end
+
 	local function GetUserID( Client )
 		return Client:GetUserId()
 	end
 
 	local function SerialiseGroup( Group )
+		-- Make sure if there's groups with bots in them somehow, they're not saved with the bots.
+		local HumanMembers = Shine.Stream.Of( Group.Clients ):Filter( NotVirtualClient ):Map( GetUserID ):AsTable()
+		local LeaderID = Group.Leader:GetUserId()
 		return {
-			Leader = Group.Leader:GetUserId(),
-			Members = Shine.Stream.Of( Group.Clients ):Map( GetUserID ):AsTable()
+			Leader = LeaderID == 0 and HumanMembers[ 1 ] or LeaderID,
+			Members = HumanMembers
 		}
+	end
+
+	local function IsValidGroup( Group )
+		return #Group.Members > 1
+	end
+
+	function Plugin:SerialiseFriendGroups()
+		return Shine.Stream.Of( self.FriendGroups )
+			:Map( SerialiseGroup )
+			:Filter( IsValidGroup )
+			:AsTable()
 	end
 
 	local FRIEND_GROUP_FILE = "config://shine/temp/shuffle_friend_groups.json"
@@ -739,7 +757,7 @@ do
 	local OSTime = os.time
 
 	function Plugin:SaveFriendGroups()
-		local PersistedGroups = Shine.Stream.Of( self.FriendGroups ):Map( SerialiseGroup ):AsTable()
+		local PersistedGroups = self:SerialiseFriendGroups()
 
 		Shine.SaveJSONFile( {
 			Groups = PersistedGroups,
@@ -775,7 +793,10 @@ do
 		for i = 1, #Groups do
 			local Group = Groups[ i ]
 			for j = 1, #Group.Members do
-				GroupsByMemberID[ Group.Members[ j ] ] = Group
+				local Member = Group.Members[ j ]
+				if Member ~= 0 then
+					GroupsByMemberID[ Member ] = Group
+				end
 			end
 		end
 

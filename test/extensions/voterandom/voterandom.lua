@@ -1133,6 +1133,75 @@ do
 
 	Shine.IsValidClient = OldIsValidClient
 
+	UnitTest:Test( "SerialiseFriendGroups - Saves friend groups with human members", function( Assert )
+		local SerialisedGroups = VoteShuffle.SerialiseFriendGroups( MockPlugin )
+		Assert:DeepEquals( {
+			{
+				Members = {
+					12345,
+					54321,
+					67890
+				},
+				Leader = 12345
+			}
+		}, SerialisedGroups )
+	end )
+
+	UnitTest:Test( "SerialiseFriendGroups - Omits bots from the serialised groups", function( Assert )
+		MockPlugin.FriendGroups = {
+			{
+				Leader = MockClient( 0 ),
+				Clients = {
+					MockClient( 0 ),
+					MockClient( 12345 ),
+					MockClient( 54321 )
+				}
+			}
+		}
+
+		local SerialisedGroups = VoteShuffle.SerialiseFriendGroups( MockPlugin )
+		Assert:DeepEquals( {
+			{
+				Members = {
+					12345,
+					54321
+				},
+				-- Should make the leader the first human player.
+				Leader = 12345
+			}
+		}, SerialisedGroups )
+	end )
+
+	UnitTest:Test( "SerialiseFriendGroups - Omits groups containing only a single human and a bot", function( Assert )
+		MockPlugin.FriendGroups = {
+			{
+				Leader = MockClient( 12345 ),
+				Clients = {
+					MockClient( 0 ),
+					MockClient( 12345 )
+				}
+			}
+		}
+
+		local SerialisedGroups = VoteShuffle.SerialiseFriendGroups( MockPlugin )
+		Assert:DeepEquals( {}, SerialisedGroups )
+	end )
+
+	UnitTest:Test( "SerialiseFriendGroups - Omits groups containing only bots", function( Assert )
+		MockPlugin.FriendGroups = {
+			{
+				Leader = MockClient( 0 ),
+				Clients = {
+					MockClient( 0 ),
+					MockClient( 0 )
+				}
+			}
+		}
+
+		local SerialisedGroups = VoteShuffle.SerialiseFriendGroups( MockPlugin )
+		Assert:DeepEquals( {}, SerialisedGroups )
+	end )
+
 	local OldGetClientByNS2ID = Shine.GetClientByNS2ID
 
 	function Shine.GetClientByNS2ID( ID )
@@ -1147,6 +1216,19 @@ do
 		Assert:Equals( 1, #MockPlugin.FriendGroups )
 	end )
 
+	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if the group contains only a single member", function( Assert )
+		local Client = MockClient( 123 )
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 123,
+				Members = { 123 }
+			}
+		} )
+		Assert.False( "Should not have restored the client", Restored )
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+	end )
+
 	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if no other members are connected", function( Assert )
 		local Client = MockClient( 123 )
 
@@ -1154,6 +1236,20 @@ do
 			[ 123 ] = {
 				Leader = 123,
 				Members = { 123, 456 }
+			}
+		} )
+		Assert.False( "Should not have restored the client", Restored )
+		Assert:Equals( 1, #MockPlugin.FriendGroups )
+	end )
+
+	UnitTest:Test( "RestoreClientToFriendGroup - Does nothing if the other member is a bot", function( Assert )
+		local Client = MockClient( 123 )
+		local Bot = MockClient( 0 )
+
+		local Restored = VoteShuffle.RestoreClientToFriendGroup( MockPlugin, Client, {
+			[ 123 ] = {
+				Leader = 123,
+				Members = { 123, 0 }
 			}
 		} )
 		Assert.False( "Should not have restored the client", Restored )
