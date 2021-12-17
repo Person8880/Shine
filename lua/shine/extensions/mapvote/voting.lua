@@ -44,8 +44,12 @@ function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, S
 end
 
 do
+	local function ModIDToHex( ModID )
+		return IsType( ModID, "number" ) and StringFormat( "%x", ModID ) or ModID
+	end
+
 	local function FindBestMatchingModID( self, ModList )
-		local MapMods = Shine.Stream.Of( ModList ):Filter( function( ModID )
+		local MapMods = Shine.Stream.Of( ModList ):Map( ModIDToHex ):Filter( function( ModID )
 			return self.KnownMapMods[ ModID ]
 		end ):AsTable()
 
@@ -53,7 +57,7 @@ do
 		local ModID = MapMods[ 1 ]
 		if not ModID then
 			-- Otherwise assume it's the first mod with an unknown type.
-			MapMods = Shine.Stream.Of( ModList ):Filter( function( ModID )
+			MapMods = Shine.Stream.Of( ModList ):Map( ModIDToHex ):Filter( function( ModID )
 				return self.KnownMapMods[ ModID ] ~= false
 			end ):AsTable()
 
@@ -68,7 +72,8 @@ do
 		if not ModIDBase10 then return false end
 
 		for i = 1, #ModList do
-			if IsType( ModList[ i ], "string" ) and tonumber( ModList[ i ], 16 ) == ModIDBase10 then
+			local MapMod = ModList[ i ]
+			if MapMod == ModIDBase10 or ( IsType( MapMod, "string" ) and tonumber( MapMod, 16 ) == ModIDBase10 ) then
 				return true
 			end
 		end
