@@ -13,6 +13,7 @@ local GetHumanPlayerCount = Shine.GetHumanPlayerCount
 local GetMaxPlayers = Server.GetMaxPlayers
 local GetMaxSpectators = Server.GetMaxSpectators
 local GetNumClientsTotal = Server.GetNumClientsTotal
+local IsType = Shine.IsType
 local Max = math.max
 local Random = math.random
 local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
@@ -144,7 +145,6 @@ local function AttemptToMovePlayerToTeam( Gamerules, Client, Player, Team )
 end
 
 do
-	local IsType = Shine.IsType
 	local StringUpper = string.upper
 
 	local Validator = Shine.Validator()
@@ -994,6 +994,9 @@ function Plugin:OverrideAFKMixin()
 	Shine.ReplaceClassMethod( "AFKMixin", "GetAFKTime", function( Player )
 		return self:GetAFKTime( Player:GetClient() ) or 0
 	end )
+	if IsType( AFKMixin.CheckAFKStatus, "function" ) then
+		Shine.ReplaceClassMethod( "AFKMixin", "CheckAFKStatus", function() return false end )
+	end
 end
 
 function Plugin:OnFirstThink()
