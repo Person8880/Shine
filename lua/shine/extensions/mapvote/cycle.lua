@@ -13,6 +13,7 @@ local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringFind = string.find
 local StringFormat = string.format
+local StringHexToNumber = string.HexToNumber
 local TableAdd = table.Add
 local TableConcat = table.concat
 local TableCopy = table.Copy
@@ -199,7 +200,7 @@ function Plugin:InferMapMods( Maps )
 
 		if self.KnownMapMods[ HexModID ] ~= nil then return end
 
-		local ModIDBase10 = IsType( ModID, "number" ) and ModID or tonumber( ModID, 16 )
+		local ModIDBase10 = IsType( ModID, "number" ) and ModID or StringHexToNumber( ModID )
 		if not ModIDBase10 or Base10ToModID[ ModIDBase10 ] then return end
 
 		ModToMapName[ HexModID ] = MapName

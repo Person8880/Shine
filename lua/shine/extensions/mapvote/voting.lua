@@ -44,6 +44,8 @@ function Plugin:SendVoteOptions( Client, Options, Duration, NextMap, TimeLeft, S
 end
 
 do
+	local StringHexToNumber = string.HexToNumber
+
 	local function ModIDToHex( ModID )
 		return IsType( ModID, "number" ) and StringFormat( "%x", ModID ) or ModID
 	end
@@ -68,12 +70,15 @@ do
 	end
 
 	local function HasMod( ModList, ModID )
-		local ModIDBase10 = tonumber( ModID, 16 )
+		local ModIDBase10 = StringHexToNumber( ModID )
 		if not ModIDBase10 then return false end
 
 		for i = 1, #ModList do
 			local MapMod = ModList[ i ]
-			if MapMod == ModIDBase10 or ( IsType( MapMod, "string" ) and tonumber( MapMod, 16 ) == ModIDBase10 ) then
+			if
+				MapMod == ModIDBase10 or
+				( IsType( MapMod, "string" ) and StringHexToNumber( MapMod ) == ModIDBase10 )
+			then
 				return true
 			end
 		end
@@ -94,7 +99,7 @@ do
 			ModID = FindBestMatchingModID( self, Options.mods ) or ModID
 		end
 
-		if not IsType( ModID, "string" ) or not tonumber( ModID, 16 ) then
+		if not IsType( ModID, "string" ) or not StringHexToNumber( ModID ) then
 			ModID = nil
 		end
 

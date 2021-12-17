@@ -583,3 +583,33 @@ do
 		return TableConcat( Out )
 	end
 end
+
+do
+	local Max = math.max
+	local tonumber = tonumber
+
+	--[[
+		Converts a hexidecimal string (with or without an "0x" prefix) into a number.
+
+		Unlike tonumber(), this isn't limited to 32bits, and instead uses the full double precision float range.
+
+		Input: Hex string to convert.
+		Output: The numeric value represented by the given hexidecimal value, or nil if the string can't be converted.
+	]]
+	function string.HexToNumber( Hex )
+		local Mult = 1
+		local Sum = 0
+
+		-- Operate in 8 byte chunks (representing 4 byte uints) as that's the limit of tonumber() for base 16.
+		for i = #Hex, 1, -8 do
+			local Char = StringSub( Hex, Max( i - 7, 1 ), i )
+			local Factor = tonumber( Char, 16 )
+			if not Factor then return nil end
+
+			Sum = Sum + Mult * Factor
+			Mult = Mult * ( 16 ^ 8 )
+		end
+
+		return Sum
+	end
+end

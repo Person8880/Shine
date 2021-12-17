@@ -10,6 +10,7 @@ local HTTPRequest = Shared.SendHTTPRequest
 local Huge = math.huge
 local Max = math.max
 local StringFormat = string.format
+local StringHexToNumber = string.HexToNumber
 local tonumber = tonumber
 
 local Plugin = ...
@@ -106,7 +107,7 @@ function Plugin:CheckForModChange()
 	Params.itemcount = Server.GetNumActiveMods()
 
 	for i = 1, Params.itemcount do
-		Params[ StringFormat( "publishedfileids[%s]", i - 1 ) ] = tonumber( GetMod( i ), 16 )
+		Params[ StringFormat( "publishedfileids[%s]", i - 1 ) ] = StringHexToNumber( GetMod( i ) )
 	end
 
 	local URL = "http://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"

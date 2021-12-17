@@ -17,6 +17,7 @@ local IsType = Shine.IsType
 local SharedTime = Shared.GetTime
 local StringExplode = string.Explode
 local StringFormat = string.format
+local StringHexToNumber = string.HexToNumber
 local TableConcat = table.concat
 local TableEmpty = table.Empty
 
@@ -844,7 +845,7 @@ end
 
 function Plugin:ReceiveMapMod( Data )
 	self.MapMods = self.MapMods or {}
-	self.MapMods[ Data.MapName ] = tonumber( Data.ModID, 16 )
+	self.MapMods[ Data.MapName ] = StringHexToNumber( Data.ModID )
 
 	self.Logger:Debug( "Received mod ID %s for map %s.", Data.ModID, Data.MapName )
 end
