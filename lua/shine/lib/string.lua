@@ -589,7 +589,7 @@ do
 	local tonumber = tonumber
 
 	--[[
-		Converts a hexidecimal string (with or without an "0x" prefix) into a number.
+		Converts a hexidecimal string (without an "0x" prefix) into a number.
 
 		Unlike tonumber(), this isn't limited to 32bits, and instead uses the full double precision float range.
 
