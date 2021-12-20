@@ -325,11 +325,11 @@ UnitTest:Test( "GetMapModsForMapList - Returns expected map entries", function( 
 	MapVote.MapOptions = {
 		ns2_some_mod_map = {
 			-- "123" is a known mod ID for this map, and is in the map's mods list.
-			mods = { "123", "456" }
+			mods = { tonumber( "123", 16 ), "456" }
 		},
 		ns2_some_other_mod_map = {
 			-- "456" is a known mod ID, overriding the known ID "aaa" as it's not in the list.
-			mods = { "456", "789" }
+			mods = { tonumber( "456", 16 ), "789" }
 		},
 		ns2_another_mod_map = {
 			-- "abc" is a known mod ID and there's no known ID for this specific map.
@@ -345,7 +345,7 @@ UnitTest:Test( "GetMapModsForMapList - Returns expected map entries", function( 
 		},
 		ns2_map_with_non_string_mod = {
 			-- Non-string mod, should be ignored.
-			mods = { 123 }
+			mods = { true }
 		}
 	}
 

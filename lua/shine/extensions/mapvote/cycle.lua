@@ -12,6 +12,8 @@ local Notify = Shared.Message
 local pairs = pairs
 local SharedTime = Shared.GetTime
 local StringFind = string.find
+local StringFormat = string.format
+local StringHexToNumber = string.HexToNumber
 local TableAdd = table.Add
 local TableConcat = table.concat
 local TableCopy = table.Copy
@@ -190,13 +192,19 @@ function Plugin:InferMapMods( Maps )
 	local Base10ToModID = {}
 	local ModToMapName = {}
 	local function AddMod( ModID, MapName )
-		if self.KnownMapMods[ ModID ] ~= nil then return end
+		local HexModID = ModID
+		if IsType( HexModID, "number" ) then
+			-- New map cycle format, convert back to hex.
+			HexModID = StringFormat( "%x", HexModID )
+		end
 
-		local ModIDBase10 = tonumber( ModID, 16 )
+		if self.KnownMapMods[ HexModID ] ~= nil then return end
+
+		local ModIDBase10 = IsType( ModID, "number" ) and ModID or StringHexToNumber( ModID )
 		if not ModIDBase10 or Base10ToModID[ ModIDBase10 ] then return end
 
-		ModToMapName[ ModID ] = MapName
-		Base10ToModID[ ModIDBase10 ] = ModID
+		ModToMapName[ HexModID ] = MapName
+		Base10ToModID[ ModIDBase10 ] = HexModID
 		Mods[ #Mods + 1 ] = ModIDBase10
 	end
 

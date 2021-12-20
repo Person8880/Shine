@@ -13,6 +13,7 @@ local BuildNumber = Shared.GetBuildNumber()
 local OS = jit and jit.os or "Unknown"
 
 local StringFormat = string.format
+local StringHexToNumber = string.HexToNumber
 local TableConcat = table.concat
 local TableEmpty = table.Empty
 local TableInsert = table.insert
@@ -54,7 +55,7 @@ local function ReportErrors()
 		local ModCount = Server.GetNumActiveMods()
 		local Mods = {}
 		for i = 1, ModCount do
-			Mods[ i ] = tostring( tonumber( Server.GetActiveModId( i ), 16 ) )
+			Mods[ i ] = tostring( StringHexToNumber( Server.GetActiveModId( i ) ) )
 		end
 
 		TableInsert( ErrorQueue, 2, "Installed mods: "..TableConcat( Mods, ", " ) )
