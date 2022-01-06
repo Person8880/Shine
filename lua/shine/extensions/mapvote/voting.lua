@@ -269,13 +269,14 @@ function Plugin:ReceiveRequestVoteOptions( Client, Message )
 	self:SendVoteData( Client )
 end
 
-function Plugin:OnVoteStart( ID )
+function Plugin:OnVoteStart( ID, SourcePlugin )
 	if ID == "random" then
-		local VoteRandom = Shine.Plugins.voterandom
-
-		if self:IsEndVote() or self.CyclingMap then
-			return false, "You cannot start a vote at the end of the map.",
-				VoteRandom:GetStartFailureMessage()
+		local VoteRandom = Shine.IsPlugin( SourcePlugin ) and SourcePlugin or Shine.Plugins.voterandom
+		if
+			VoteRandom and VoteRandom.GetStartFailureMessage and VoteRandom.Enabled and
+			self:IsEndVote() or self.CyclingMap
+		then
+			return false, "You cannot start a vote at the end of the map.", VoteRandom:GetStartFailureMessage()
 		end
 
 		return
@@ -382,7 +383,7 @@ function Plugin:AddStartVote( Client )
 		return false, "Client is not eligible to vote.", Err, Args
 	end
 
-	local Allow, Error, Key, Data = Shine.Hook.Call( "OnVoteStart", "rtv" )
+	local Allow, Error, Key, Data = Shine.Hook.Call( "OnVoteStart", "rtv", self )
 	if Allow == false then
 		return false, Error, Key, Data
 	end
