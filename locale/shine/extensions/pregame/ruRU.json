@@ -1,15 +1,17 @@
 {
 	"GAME_START": "Игра начнётся через %s.",
 	"GAME_START_SOON": "Игра начнётся через {Duration:Duration}.",
-	"WAITING_FOR_ALIENS": "Ждём пока Aliens выберет командира.",
-	"WAITING_FOR_MARINES": "Ждём пока Marines выберет командира.",
+	"WAITING_FOR_ALIENS": "Ждём, пока чужие выберут командира.",
+	"WAITING_FOR_MARINES": "Ждём, пока космодесантники выберут командира.",
 	"WAITING_FOR_BOTH": "Ждём пока обе команды выберут командиров.",
-	"ABORT_MARINES_EMPTY": "Начало игры остановлено, у marine team нет игроков.",
-	"ABORT_ALIENS_EMPTY": "Начало игры остановлено, у alien team нет игроков.",
+	"WAITING_FOR_PLAYER_COUNT": "Ждём, пока по крайней мере {MinPlayers} {MinPlayers:Pluralise:игрок|игроков} присоединятся к командам",
+	"ABORT_MARINES_EMPTY": "Начало игры остановлено, у команды космодесантников нет игроков.",
+	"ABORT_ALIENS_EMPTY": "Начало игры остановлено, у команды чужих нет игроков.",
 	"ABORT_COMMANDER_DROP": "Начало игры остановлено, отсутствует командир.",
-	"ALIENS_HAVE_COMMANDER": "У Aliens есть командир. Команда Marines должна выбрать своего командира в течении {TimeLeft:Duration}.",
-	"MARINES_HAVE_COMMANDER": "У Marines есть командир. Команда Aliens должна выбрать своего командира в течении {TimeLeft:Duration}.",
+	"ALIENS_HAVE_COMMANDER": "У чужих есть командир. Команда космодесантников должна выбрать своего командира в течении {TimeLeft:Duration}.",
+	"MARINES_HAVE_COMMANDER": "У космодесантников есть командир. Команда чужих должна выбрать своего командира в течении {TimeLeft:Duration}.",
 	"EXCEEDED_TIME": "Время истекло ({Duration:Duration}). Игра началась...",
-	"NOTIFY_PREFIX": "[Pre Game]",
+	"NOTIFY_PREFIX": "[Разминка]",
 	"WAITING_FOR_PLAYERS": "Игра не начнётся, пока идёт подключение игроков."
+	"ROUND_START_ABORTED_MAP_VOTE_STARTED": "Начало игры прервано, началось голосование по карте."
 }

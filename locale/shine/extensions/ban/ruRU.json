@@ -15,9 +15,16 @@
 	"UNBAN": "Разблокировать",
 	"LOAD_MORE": "Загрузить ещё",
 	"LOAD_MORE_TIP": "Загружает больше данных с сервера.",
-	"PLAYER_BANNED": "{TargetName} заблокирован(а) {Duration:NonZero:на }{Duration:Duration:навсегда} ({Reason}).",
+	"PLAYER_BANNED": "{TargetName} заблокирован(-а) {Duration:NonZero:на }{Duration:Duration:навсегда} ({Reason}).",
 	"PLAYER_REQUEST_IN_PROGRESS": "Ожидайте завершения запроса блокировки для {ID}.",
 	"ERROR_NOT_BANNED": "{ID} не удалось заблокировать.",
 	"ERROR_INVALID_STEAMID": "Не правильный Steam ID для блокировки.",
-	"CATEGORY": "Блокировки"
+	"BAN": "Блокировка от сервера",
+	"CATEGORY": "Блокировки",
+	"BAN_TIP": "Заблокировать выбранного игрока.",
+	"BAN_DURATION_TIP": "Длительность: {Duration:Duration:навсегда}",
+	"ISSUED_DATE_TIP": "Выдано: {Date}",
+	"REASON_TIP": "Причина: {Reason}",
+	"SEARCH_HINT": "Поиск блокировки...",
+	"TOTAL_RESULTS_TIP": "{TotalResults} блокировок"
 }
