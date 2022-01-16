@@ -42,6 +42,7 @@ do
 
 		self.Label = self:MakeGUITextItem()
 		self.Background = self.Label
+		self.Text = ""
 		self.TextScale = Vector2( 1, 1 )
 		self.TextAlignmentX = GUIItem.Align_Min
 		self.TextAlignmentY = GUIItem.Align_Min
@@ -174,6 +175,14 @@ function Label:ApplyAutoWrapping( Width )
 	end
 end
 
+local function ResetAutoEllipsis( self, Text )
+	self.Label:SetText( Text )
+	self:EvaluateOptionFlags( Text )
+
+	self.AutoEllipsisApplied = false
+	self:OnPropertyChanged( "AutoEllipsisApplied", false )
+end
+
 local SetAutoEllipsis = Label.SetAutoEllipsis
 function Label:SetAutoEllipsis( AutoEllipsis )
 	if not SetAutoEllipsis( self, AutoEllipsis ) then return false end
@@ -182,6 +191,9 @@ function Label:SetAutoEllipsis( AutoEllipsis )
 		self.PreComputeHeight = self.ApplyAutoEllipsis
 	elseif not AutoEllipsis and self.PreComputeHeight == self.ApplyAutoEllipsis then
 		self.PreComputeHeight = nil
+		if self.AutoEllipsisApplied then
+			ResetAutoEllipsis( self, self.Text )
+		end
 	end
 
 	return true
@@ -190,11 +202,8 @@ end
 function Label:ApplyAutoEllipsis( Width )
 	local Text = self.Text
 	if self:GetCachedTextWidth() <= Width then
-		self.Label:SetText( Text )
-
 		if self.AutoEllipsisApplied then
-			self.AutoEllipsisApplied = false
-			self:OnPropertyChanged( "AutoEllipsisApplied", false )
+			ResetAutoEllipsis( self, Text )
 		end
 
 		return
