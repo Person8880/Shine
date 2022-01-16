@@ -4,6 +4,7 @@
 
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
+local Units = SGUI.Layout.Units
 
 local Binder = require "shine/lib/gui/binding/binder"
 
@@ -73,8 +74,13 @@ end
 function Dropdown:BuildMenu()
 	return {
 		MenuPos = self.MenuPos.BOTTOM,
+		-- Pass along the size as a unit vector so the menu automatically grows based on button size.
+		Size = Units.UnitVector( self:GetSize().x, self:GetSize().y ),
 		Populate = function( Menu )
-			Menu:SetMaxVisibleButtons( Max( self:GetMaxVisibleOptions(), 1 ) )
+			local MaxVisibleOptions = Max( self:GetMaxVisibleOptions(), 1 )
+			if #self.Options > MaxVisibleOptions then
+				Menu:SetMaxVisibleButtons( MaxVisibleOptions )
+			end
 			Menu:SetFontScale( self:GetFont(), self:GetTextScale() )
 
 			for i = 1, #self.Options do

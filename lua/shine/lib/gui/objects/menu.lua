@@ -46,6 +46,7 @@ function Menu:SetMaxVisibleButtons( Max, ScrollbarWidth )
 	self:SetScrollbarWidth( Width )
 	self:SetScrollbarHeightOffset( 0 )
 	self.BufferAmount = 0
+	self:SetHorizontalScrollingEnabled( false )
 end
 
 function Menu:SetButtonSize( Vec )
@@ -53,8 +54,13 @@ function Menu:SetButtonSize( Vec )
 	self.UseAutoSize = not IsType( Vec, "cdata" )
 
 	if self.UseAutoSize then
-		self.ButtonWidth = Units.Max()
+		local IsUnitVector = Shine.Implements( Vec, Units.UnitVector )
+		local InitialWidth = IsUnitVector and Vec[ 1 ] or nil
+
+		self.ButtonHeight = IsUnitVector and Vec[ 2 ] or Vec
+		self.ButtonWidth = Units.Max( InitialWidth )
 	else
+		self.ButtonHeight = nil
 		self.ButtonWidth = nil
 	end
 end
@@ -78,7 +84,7 @@ function Menu:AddButton( Text, DoClick, Tooltip )
 
 	if self.UseAutoSize then
 		self.ButtonWidth:AddValue( Units.Auto( Button ) + self.ButtonWidthPadding )
-		Button:SetAutoSize( Units.UnitVector( self.ButtonWidth, self.ButtonSize ) )
+		Button:SetAutoSize( Units.UnitVector( self.ButtonWidth, self.ButtonHeight ) )
 	else
 		Button:SetSize( self.ButtonSize )
 	end
@@ -137,7 +143,7 @@ function Menu:AddPanel( Panel )
 
 	if self.UseAutoSize then
 		self.ButtonWidth:AddValue( Units.Auto( Panel ) + self.ButtonWidthPadding )
-		Panel:SetAutoSize( Units.UnitVector( self.ButtonWidth, self.ButtonSize ) )
+		Panel:SetAutoSize( Units.UnitVector( self.ButtonWidth, self.ButtonHeight ) )
 	else
 		Panel:SetSize( self.ButtonSize )
 	end
@@ -179,6 +185,11 @@ function Menu:Resize()
 		local NumButtons = Min( MaxHeightIndex, self.ButtonCount )
 		MenuWidth = self.ButtonSize.x
 		MenuHeight = self.ButtonSize.y * NumButtons + LayoutPadding[ 4 ] * ( NumButtons + 1 )
+	end
+
+	if self.MaxVisibleButtons and self.OverflowY then
+		-- Account for the scrollbar to ensure text isn't cut off.
+		MenuWidth = MenuWidth + self.ScrollbarWidth
 	end
 
 	self:SetSize( Vector2( MenuWidth, MenuHeight ) )

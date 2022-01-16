@@ -189,7 +189,16 @@ end
 
 function Label:ApplyAutoEllipsis( Width )
 	local Text = self.Text
-	if self:GetCachedTextWidth() <= Width then return end
+	if self:GetCachedTextWidth() <= Width then
+		self.Label:SetText( Text )
+
+		if self.AutoEllipsisApplied then
+			self.AutoEllipsisApplied = false
+			self:OnPropertyChanged( "AutoEllipsisApplied", false )
+		end
+
+		return
+	end
 
 	local Chars = StringUTF8Encode( Text )
 	for i = #Chars, 1, -3 do
@@ -197,6 +206,12 @@ function Label:ApplyAutoEllipsis( Width )
 		if self:GetTextWidth( TextWithEllipsis ) <= Width then
 			self.Label:SetText( TextWithEllipsis )
 			self:EvaluateOptionFlags( TextWithEllipsis )
+
+			if not self.AutoEllipsisApplied then
+				self.AutoEllipsisApplied = true
+				self:OnPropertyChanged( "AutoEllipsisApplied", true )
+			end
+
 			break
 		end
 	end
