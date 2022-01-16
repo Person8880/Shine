@@ -165,7 +165,12 @@ function ControlMeta:GetPropertySource( Name )
 	end
 
 	local Getter = self[ "Get"..Name ]
-	local Value = Getter and Getter( self ) or self[ Name ]
+	local Value
+	if Getter then
+		Value = Getter( self )
+	else
+		Value = self[ Name ]
+	end
 
 	SourceInstance = Source( Value )
 	SourceInstance.Element = self
