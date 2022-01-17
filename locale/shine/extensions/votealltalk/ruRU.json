@@ -1,5 +1,5 @@
 {
-	"NOTIFY_PREFIX": "[Межкомандное общение]"
+	"NOTIFY_PREFIX": "[Межком. общение]"
 	"PLAYER_VOTED_ENABLE": "{PlayerName} выбрал включение межкомандного общения. Необходимо ещё {VotesNeeded}.",
 	"PLAYER_VOTED_DISABLE": "{PlayerName} выбрал отключение межкомандного общения. Необходимо ещё {VotesNeeded}.",
 	"PLAYER_VOTED_PRIVATE_ENABLE": "Вы проголосовали за включение межкомандного общения. Необходимо ещё {VotesNeeded}.",
@@ -9,6 +9,6 @@
 	"ERROR_MUST_WAIT_ENABLE": "Вы должны подождать {SecondsToWait:Duration} сек. перед голосованием за включение межкомандного общения.",
 	"ERROR_MUST_WAIT_DISABLE": "Вы должны подождать {SecondsToWait:Duration} сек. перед голосованием за отключение межкомандного общения.",
 	"ERROR_CANNOT_VOTE_IN_SPECTATE": "Наблюдателям не разрешено голосовать за включение межкомандного общения.",
-	"DISABLE_ALLTALK": "Отключить межкомандное общение",
-	"ENABLE_ALLTALK": "Включить межкомандное общение"
+	"DISABLE_ALLTALK": "Откл. межком. общение",
+	"ENABLE_ALLTALK": "Вкл. межком. общение"
 }
