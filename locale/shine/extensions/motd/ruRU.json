@@ -1,5 +1,5 @@
 {
 	"ALREADY_ACCEPTED_MOTD": "Вы уже прочитали сообщение дня.",
 	"ACCEPTED_MOTD_RESPONSE": "Спасибо, что прочитали сообщения дня.",
-	"NOTIFY_PREFIX": "[MOTD]"
+	"NOTIFY_PREFIX": "[Сообщение дня]"
 }
