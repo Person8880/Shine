@@ -36,8 +36,22 @@ do
 	Shine.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Writer )
 end
 
+-- Force disable error reporting in listen servers as they tend to be used for development which creates noisy error
+-- reports. If an error is truly a problem it will show up on dedicated servers.
+local function IsErrorReportEnabled()
+	if Server and not Server.IsDedicated() then return false end
+
+	if GetGameInfoEntity then
+		local GameInfo = GetGameInfoEntity()
+		if GameInfo and not GameInfo:GetIsDedicated() then return false end
+	end
+
+	return true
+end
+
 local function ReportErrors()
 	if not Shine.Config.ReportErrors then return end
+	if not IsErrorReportEnabled() then return end
 	if #ErrorQueue == 0 then return end
 
 	TableInsert(
@@ -86,6 +100,7 @@ local ErrorReportTimer
 ]]
 function Shine:AddErrorReport( BaseError, Extra, Format, ... )
 	if not self.Config.ReportErrors then return end
+	if not IsErrorReportEnabled() then return end
 	if Reported[ BaseError ] then return end
 
 	Reported[ BaseError ] = true
