@@ -10,20 +10,20 @@ local Binder = require "shine/lib/gui/binding/binder"
 local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
-local CheckBoxLabel = {}
+local CheckBoxWithLabel = {}
 
-SGUI.AddProperty( CheckBoxLabel, "Radio", "CheckBox" )
-SGUI.AddProperty( CheckBoxLabel, "LabelPadding", 10, { "InvalidatesLayout" } )
+SGUI.AddProperty( CheckBoxWithLabel, "Radio", "CheckBox" )
+SGUI.AddProperty( CheckBoxWithLabel, "LabelPadding", 10, { "InvalidatesLayout" } )
 
-SGUI.AddBoundProperty( CheckBoxLabel, "AutoEllipsis", "Label" )
-SGUI.AddBoundProperty( CheckBoxLabel, "Font", "Label" )
-SGUI.AddBoundProperty( CheckBoxLabel, "TextColour", "Label:SetColour" )
-SGUI.AddBoundProperty( CheckBoxLabel, "TextScale", "Label" )
-SGUI.AddBoundProperty( CheckBoxLabel, "TextShadow", "Label:SetShadow" )
-SGUI.AddBoundProperty( CheckBoxLabel, "CheckBoxAutoSize", "CheckBox:SetAutoSize" )
-SGUI.AddBoundProperty( CheckBoxLabel, "CheckBoxSize", "CheckBox:SetSize" )
+SGUI.AddBoundProperty( CheckBoxWithLabel, "AutoEllipsis", "Label" )
+SGUI.AddBoundProperty( CheckBoxWithLabel, "Font", "Label" )
+SGUI.AddBoundProperty( CheckBoxWithLabel, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( CheckBoxWithLabel, "TextScale", "Label" )
+SGUI.AddBoundProperty( CheckBoxWithLabel, "TextShadow", "Label:SetShadow" )
+SGUI.AddBoundProperty( CheckBoxWithLabel, "CheckBoxAutoSize", "CheckBox:SetAutoSize" )
+SGUI.AddBoundProperty( CheckBoxWithLabel, "CheckBoxSize", "CheckBox:SetSize" )
 
-function CheckBoxLabel:Initialise()
+function CheckBoxWithLabel:Initialise()
 	self.BaseClass.Initialise( self )
 
 	local Background = self:MakeGUIItem()
@@ -37,23 +37,23 @@ function CheckBoxLabel:Initialise()
 	self.Layout:AddElement( self.CheckBox )
 end
 
-function CheckBoxLabel:OnCheckedInternal( Checked )
+function CheckBoxWithLabel:OnCheckedInternal( Checked )
 	-- Forward the event to the parent (self here is the "CheckBox" element).
 	local Parent = self.Parent
 	Parent:OnChecked( Checked )
 	Parent:OnPropertyChanged( "Checked", Checked )
 end
 
-function CheckBoxLabel:GetChecked()
+function CheckBoxWithLabel:GetChecked()
 	return self.CheckBox:GetChecked()
 end
 
-function CheckBoxLabel:SetChecked( Value, DontFade )
+function CheckBoxWithLabel:SetChecked( Value, DontFade )
 	return self.CheckBox:SetChecked( Value, DontFade )
 end
 
-local OldSetLabelPadding = CheckBoxLabel.SetLabelPadding
-function CheckBoxLabel:SetLabelPadding( Padding )
+local OldSetLabelPadding = CheckBoxWithLabel.SetLabelPadding
+function CheckBoxWithLabel:SetLabelPadding( Padding )
 	if not OldSetLabelPadding( self, Padding ) then return false end
 
 	if SGUI.IsValid( self.Label ) then
@@ -63,7 +63,7 @@ function CheckBoxLabel:SetLabelPadding( Padding )
 	return true
 end
 
-function CheckBoxLabel:AddLabel( Text )
+function CheckBoxWithLabel:AddLabel( Text )
 	if self.Label then
 		self.Label:SetText( Text )
 		self:InvalidateLayout()
@@ -110,28 +110,28 @@ function CheckBoxLabel:AddLabel( Text )
 	self.Layout:AddElement( Label )
 end
 
-function CheckBoxLabel:SetEnabled( Enabled )
+function CheckBoxWithLabel:SetEnabled( Enabled )
 	return self.CheckBox:SetEnabled( Enabled )
 end
 
-function CheckBoxLabel:IsEnabled()
+function CheckBoxWithLabel:IsEnabled()
 	return self.CheckBox:IsEnabled()
 end
 
-function CheckBoxLabel:OnChecked( Checked )
+function CheckBoxWithLabel:OnChecked( Checked )
 
 end
 
-function CheckBoxLabel:SetPadding( Padding )
+function CheckBoxWithLabel:SetPadding( Padding )
 	self.Layout:SetPadding( Padding )
 end
 
-function CheckBoxLabel:GetContentSizeForAxis( Axis )
+function CheckBoxWithLabel:GetContentSizeForAxis( Axis )
 	return self.Layout:GetContentSizeForAxis( Axis )
 end
 
-function CheckBoxLabel:GetMaxSizeAlongAxis( Axis )
+function CheckBoxWithLabel:GetMaxSizeAlongAxis( Axis )
 	return self.Layout:GetMaxSizeAlongAxis( Axis )
 end
 
-SGUI:Register( "CheckBoxLabel", CheckBoxLabel )
+SGUI:Register( "CheckBoxWithLabel", CheckBoxWithLabel )
