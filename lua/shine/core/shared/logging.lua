@@ -12,6 +12,8 @@ local URL = "http://5.39.89.152/shine/errorreport.php"
 local BuildNumber = Shared.GetBuildNumber()
 local OS = jit and jit.os or "Unknown"
 
+local IsType = Shine.IsType
+local pcall = pcall
 local StringFormat = string.format
 local StringHexToNumber = string.HexToNumber
 local TableConcat = table.concat
@@ -36,17 +38,29 @@ do
 	Shine.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Writer )
 end
 
--- Force disable error reporting in listen servers as they tend to be used for development which creates noisy error
--- reports. If an error is truly a problem it will show up on dedicated servers.
-local function IsErrorReportEnabled()
-	if Server and not Server.IsDedicated() then return false end
+local function IsDedicatedServer()
+	if Server then
+		return Server.IsDedicated()
+	end
 
-	if GetGameInfoEntity then
+	if IsType( GetGameInfoEntity, "function" ) then
 		local GameInfo = GetGameInfoEntity()
-		if GameInfo and not GameInfo:GetIsDedicated() then return false end
+		if GameInfo and IsType( GameInfo.GetIsDedicated, "function" ) and not GameInfo:GetIsDedicated() then
+			return false
+		end
 	end
 
 	return true
+end
+
+-- Force disable error reporting in listen servers as they tend to be used for development which creates noisy error
+-- reports. If an error is truly a problem it will show up on dedicated servers.
+local function IsErrorReportEnabled()
+	-- Be a bit paranoid here, errors would disrupt the entire reporting system.
+	local Success, IsDedicatedOrErr = pcall( IsDedicatedServer )
+	if not Success then return true end
+
+	return IsDedicatedOrErr
 end
 
 local function ReportErrors()
