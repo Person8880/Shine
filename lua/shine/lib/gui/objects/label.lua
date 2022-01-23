@@ -25,14 +25,14 @@ SGUI.AddProperty( Label, "AutoWrap", false, { "InvalidatesParent" } )
 -- Auto-ellipsis shortens text if it extends beyond the given auto-width (or fill size).
 SGUI.AddProperty( Label, "AutoEllipsis", false )
 
-do
-	local function MarkSizeDirty( self )
-		self.CachedTextWidth = nil
-		self.CachedTextHeight = nil
-		self.NeedsTextSizeRefresh = true
-		self:InvalidateMouseState()
-	end
+local function MarkSizeDirty( self )
+	self.CachedTextWidth = nil
+	self.CachedTextHeight = nil
+	self.NeedsTextSizeRefresh = true
+	self:InvalidateMouseState()
+end
 
+do
 	local function SetupElementForFontName( self, Font )
 		SGUI.FontManager.SetupElementForFontName( self.Label, Font )
 	end
@@ -157,8 +157,7 @@ function Label:ApplyAutoWrapping( Width )
 	SGUI.WordWrap( WordWrapDummy, self.Text, 0, Width )
 
 	if CurrentText ~= self.Label:GetText() then
-		self.CachedTextWidth = nil
-		self.CachedTextHeight = nil
+		MarkSizeDirty( self )
 
 		-- Look for the first ancestor whose height is not determined automatically, and invalidate it.
 		-- This ensures any change in height from wrapping the text is accounted for.
@@ -178,6 +177,8 @@ end
 local function ResetAutoEllipsis( self, Text )
 	self.Label:SetText( Text )
 	self:EvaluateOptionFlags( Text )
+
+	MarkSizeDirty( self )
 
 	self.AutoEllipsisApplied = false
 	self:OnPropertyChanged( "AutoEllipsisApplied", false )
@@ -201,7 +202,7 @@ end
 
 function Label:ApplyAutoEllipsis( Width )
 	local Text = self.Text
-	if self:GetCachedTextWidth() <= Width then
+	if self:GetTextWidth( Text ) <= Width then
 		if self.AutoEllipsisApplied then
 			ResetAutoEllipsis( self, Text )
 		end
@@ -213,8 +214,12 @@ function Label:ApplyAutoEllipsis( Width )
 	for i = #Chars, 1, -3 do
 		local TextWithEllipsis = TableConcat( Chars, "", 1, i - 3 ).."..."
 		if self:GetTextWidth( TextWithEllipsis ) <= Width then
-			self.Label:SetText( TextWithEllipsis )
-			self:EvaluateOptionFlags( TextWithEllipsis )
+			if self.Label:GetText() ~= TextWithEllipsis then
+				self.Label:SetText( TextWithEllipsis )
+				self:EvaluateOptionFlags( TextWithEllipsis )
+
+				MarkSizeDirty( self )
+			end
 
 			if not self.AutoEllipsisApplied then
 				self.AutoEllipsisApplied = true
