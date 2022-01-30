@@ -136,6 +136,10 @@ function CheckBox:PerformLayout()
 	end
 end
 
+--[[
+	NOTE: This is deprecated. Use the "CheckBoxWithLabel" control as it properly wraps the checkbox and label in its own
+	sizable box.
+]]
 function CheckBox:AddLabel( Text )
 	if self.Label then
 		self.Label:SetText( Text )

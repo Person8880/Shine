@@ -6,9 +6,12 @@
 	"SLAY": "Убить",
 	"SLAY_TIP": "Убивает выбранного игрока.",
 	"DARWIN_MODE": "Режим выживания",
-	"DARWIN_MODE_TIP": "Включает неуязвимость и бесконечный запас\nпатронов для выбранного(ых) игрока(ов).",
+	"DARWIN_MODE_TIP": "Включает неуязвимость и бесконечный запас\nбоеприпасов для выбранного(-ых) игрока(-ов).",
 	"TELEPORTED_GOTO": "телепортирован к {TargetName}.",
 	"TELEPORTED_BRING": "телепортирован {TargetName} к вам.",
 	"ERROR_CANT_GOTO": "Не найдено место для телепортации рядом с игроком.",
 	"ERROR_CANT_BRING": "Не найдено место для телепортации рядом с вами."
+	"SLAYED": "убит(-ы) {TargetCount} {TargetCount:Pluralise:игрок(-а)|игроков}.",
+	"GRANTED_DARWIN_MODE": "предоставлен режим выживания {TargetCount} {TargetCount:Pluralise:игроку(-ам)|игроку(-ам)}.",
+	"REVOKED_DARWIN_MODE": "отменён режим выживания {TargetCount} {TargetCount:Pluralise:игроку(-ам)|игроку(-ам)}."
 }

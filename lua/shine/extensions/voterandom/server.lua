@@ -1476,7 +1476,7 @@ function Plugin:EvaluateConstraints( NumPlayers, TeamStats )
 end
 
 function Plugin:IsVoteAllowed()
-	local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random" )
+	local Allow, Error, TranslationKey, Args = Shine.Hook.Call( "OnVoteStart", "random", self )
 	if Allow == false then
 		return false, TranslationKey, Args
 	end

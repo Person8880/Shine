@@ -1,0 +1,21 @@
+{
+	"CLIENT_CONFIG_TAB": "Чат",
+	"ANIMATE_MESSAGES_DESCRIPTION": "Анимация сообщений.",
+	"ANIMATE_MESSAGES_TOOLTIP": "Устанавливает, следует ли перемещаться и пропадать сообщениям при просмотре.",
+	"BACKGROUND_OPACITY_DESCRIPTION": "Прозрачность фона сообщения (%):",
+	"MAX_VISIBLE_MESSAGES_DESCRIPTION": "Макс. сообщений перед пропаданием:",
+	"MAX_VISIBLE_MESSAGES_TOOLTIP": "Устанавливает ограничение на количество одновременно отображаемых сообщений.",
+	"MESSAGE_DISPLAY_TYPE_DESCRIPTION": "Поведение отображения сообщений:",
+	"FONT_SIZE_MODE_DESCRIPTION": "Поведение размера шрифта:",
+	"FONT_SIZE_MODE_AUTO": "Автоматическое изменение размера в зависимости от разрешения",
+	"FONT_SIZE_MODE_FIXED": "Использовать заданный размер",
+	"FONT_SIZE_IN_PIXELS_DESCRIPTION": "Размер шрифта (в пикселях):",
+	"UPWARDS": "Добавление сообщений сверху",
+	"DOWNWARDS": "Добавление сообщений снизу (по молчанию)",
+	"MESSAGE_DISPLAY_TYPE_UPWARDS_TOOLTIP": "По мере добавления новых сообщений старые сообщения перемещаются вверх, освобождая место.",
+	"MESSAGE_DISPLAY_TYPE_DOWNWARDS_TOOLTIP": "Старые сообщения не перемещаются до тех пор, пока не исчезнут те, которые выше.",
+	"CHAT_CONFIG_HINT_VOTEMENU": "Чтобы настроить поведение чата, нажмите {VoteMenuButton} > «{ClientConfigButton}» и перейдите на вкладку «{ChatTabButton}».",
+	"CHAT_CONFIG_HINT_CONSOLE": "Чтобы настроить поведение чата, откройте меню голосования и нажмите «{ClientConfigButton}» (или используйте консольную команду sh_clientconfigmenu) и перейдите на вкладку «{ChatTabButton}».",
+	"CHAT_CONFIG_HINT_CHATBOX": "Чтобы настроить поведение чата, откройте окно чата, нажмите кнопку настроек и перейдите на вкладку «{ChatBoxSettingsTab}».",
+	"CHATBOX_SETTINGS_TAB_LABEL": "Интерфейс чата"
+}

@@ -87,12 +87,17 @@ local function MakePlugin( Name, Table )
 end
 Shine.Plugin = MakePlugin
 
+local function IsPlugin( Value )
+	return getmetatable( Value ) == PluginMeta
+end
+Shine.IsPlugin = IsPlugin
+
 function Shine:RegisterExtension( Name, Plugin, Options )
 	Shine.TypeCheck( Name, "string", 1, "RegisterExtension" )
 	Shine.TypeCheck( Plugin, "table", 2, "RegisterExtension" )
 	Shine.TypeCheck( Options, { "nil", "table" }, 3, "RegisterExtension" )
 
-	if getmetatable( Plugin ) ~= PluginMeta then
+	if not IsPlugin( Plugin ) then
 		Plugin = MakePlugin( Name, Plugin )
 	end
 

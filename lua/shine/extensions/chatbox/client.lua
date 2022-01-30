@@ -186,7 +186,7 @@ local Skin = {
 			TextShadow = false
 		}
 	},
-	CheckBox = {
+	CheckBoxWithLabel = {
 		Default = {
 			TextShadow = {
 				Colour = Colours.TextShadow
@@ -835,10 +835,12 @@ do
 	local ElementCreators = {
 		CheckBox = {
 			Create = function( self, SettingsPanel, Layout, Checked, Label )
-				local CheckBox = SettingsPanel:Add( "CheckBox" )
+				local CheckBox = SettingsPanel:Add( "CheckBoxWithLabel" )
 				CheckBox:SetupFromTable{
-					AutoSize = GetCheckBoxSize( self ),
-					Font = self:GetFont()
+					CheckBoxAutoSize = GetCheckBoxSize( self ),
+					AutoSize = GetDropdownSize( self ),
+					Font = self:GetFont(),
+					AutoEllipsis = true
 				}
 				CheckBox:AddLabel( self:GetPhrase( Label ) )
 				CheckBox:SetChecked( Checked, true )
