@@ -274,7 +274,7 @@ function Plugin:OnVoteStart( ID, SourcePlugin )
 		local VoteRandom = Shine.IsPlugin( SourcePlugin ) and SourcePlugin or Shine.Plugins.voterandom
 		if
 			VoteRandom and VoteRandom.GetStartFailureMessage and VoteRandom.Enabled and
-			self:IsEndVote() or self.CyclingMap
+			( self:IsEndVote() or self.CyclingMap )
 		then
 			return false, "You cannot start a vote at the end of the map.", VoteRandom:GetStartFailureMessage()
 		end
