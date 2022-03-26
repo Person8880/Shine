@@ -558,6 +558,10 @@ end
 local PermissionCache = {}
 
 function Shine:CreateGroup( GroupName, Immunity, Blacklist )
+	Shine.TypeCheck( GroupName, "string", 1, "CreateGroup" )
+	Shine.TypeCheck( Immunity, { "number", "nil" }, 2, "CreateGroup" )
+	Shine.TypeCheck( Blacklist, { "boolean", "nil" }, 3, "CreateGroup" )
+
 	local Group = {
 		Immunity = Immunity or 10,
 		IsBlacklist = Blacklist or false,
@@ -573,6 +577,9 @@ function Shine:CreateGroup( GroupName, Immunity, Blacklist )
 end
 
 function Shine:ReinstateGroup( GroupName, Group )
+	Shine.TypeCheck( GroupName, "string", 1, "ReinstateGroup" )
+	Shine.TypeCheck( Group, "table", 2, "ReinstateGroup" )
+
 	self.UserData.Groups[ GroupName ] = Group
 	self:SaveUsers( true )
 
@@ -833,18 +840,21 @@ end
 do
 	local DEFAULT_GROUP_KEY = -1
 	local function IterateGroups( Name, Seen, Consumer, Context )
-		if Seen[ Name ] then
-			return
+		local Key = Name
+		if Key == nil then
+			Key = DEFAULT_GROUP_KEY
 		end
+
+		if Seen[ Key ] then return end
 
 		local Group = Shine:GetGroupData( Name )
 		if not Group then return end
 
-		Seen[ Name ] = true
+		Seen[ Key ] = true
 
 		if Consumer( Group, Name, Context ) then return true end
 
-		local InheritGroups = Group.InheritsFrom
+		local InheritGroups = Key ~= DEFAULT_GROUP_KEY and Group.InheritsFrom
 		if InheritGroups then
 			for i = 1, #InheritGroups do
 				if IterateGroups( InheritGroups[ i ], Seen, Consumer, Context ) then
@@ -865,12 +875,26 @@ do
 		end
 	end
 
+	--[[
+		Iterates the given group and all groups that it inherits from recursively, visiting each group in the tree
+		exactly once.
+
+		Inputs:
+			1. Starting group name (can be nil to start at the default group).
+			2. Consumer function called for each group in the tree with the group table, name (nil for the default
+			group) and context value. Return true in this function to stop iterating.
+			3. Optional context value to pass to the consumer function (to avoid the need for a closure).
+	]]
 	function Shine:IterateGroupTree( StartingGroupName, Consumer, Context )
+		Shine.AssertAtLevel( Shine.IsCallable( Consumer ), "Consumer must be callable!", 3 )
 		return IterateGroups( StartingGroupName, {}, Consumer, Context )
 	end
 end
 
 function Shine:AddGroupInheritance( GroupName, InheritGroup )
+	Shine.TypeCheck( GroupName, "string", 1, "AddGroupInheritance" )
+	Shine.TypeCheck( InheritGroup, "string", 2, "AddGroupInheritance" )
+
 	local Group = self:GetGroupData( GroupName )
 	if not Group then return false end
 
@@ -894,6 +918,9 @@ function Shine:AddGroupInheritance( GroupName, InheritGroup )
 end
 
 function Shine:RemoveGroupInheritance( GroupName, InheritGroup )
+	Shine.TypeCheck( GroupName, "string", 1, "RemoveGroupInheritance" )
+	Shine.TypeCheck( InheritGroup, "string", 2, "RemoveGroupInheritance" )
+
 	local Group = self:GetGroupData( GroupName )
 	if not Group then return false end
 	if not Group.InheritsFrom then return false end
@@ -1130,7 +1157,7 @@ function Shine:GetGroupPermission( GroupName, GroupTable, ConCommand )
 	local Command = self.Commands[ ConCommand ]
 	if not Command then return false end
 
-	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
+	if GroupName and ( GroupTable.InheritsFrom or GroupTable.InheritFromDefault ) then
 		return IsCommandPermitted( Command, GetPermissionInheritance( self, GroupName, GroupTable, ConCommand ) )
 	end
 
@@ -1187,7 +1214,7 @@ function Shine:GetGroupAccess( GroupName, GroupTable, ConCommand, AllowByDefault
 	-- is enough to indicate access. Otherwise it must be explicitly allowed.
 	local MinimumLevel = AllowByDefault and AccessLevel.ABSTAIN or AccessLevel.ALLOWED
 
-	if GroupTable.InheritsFrom or GroupTable.InheritFromDefault then
+	if GroupName and ( GroupTable.InheritsFrom or GroupTable.InheritFromDefault ) then
 		return GetPermissionInheritance( self, GroupName, GroupTable, ConCommand ) >= MinimumLevel
 	end
 

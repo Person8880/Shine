@@ -334,6 +334,13 @@ UnitTest:Test( "Whitelist inheritance", function( Assert )
 end )
 
 UnitTest:Test( "CreateGroup", function( Assert )
+	-- Create group with default values.
+	local Group = Shine:CreateGroup( "Test" )
+	Assert:Equals( 10, Group.Immunity )
+	Assert:False( Group.IsBlacklist )
+	Assert:Equals( Group, Shine.UserData.Groups.Test )
+
+	-- Create group with all options provided.
 	local Group = Shine:CreateGroup( "Test", 15, true )
 	Assert:Equals( 15, Group.Immunity )
 	Assert:True( Group.IsBlacklist )
@@ -391,6 +398,9 @@ UnitTest:Test( "AddGroupInheritance", function( Assert )
 
 	Assert:True( Shine:AddGroupInheritance( "Test", "Moderator" ) )
 	Assert:ArrayEquals( { "Member", "Moderator" }, Group.InheritsFrom )
+
+	-- Trying to add inheritance to the default group should fail.
+	Assert:False( pcall( Shine.AddGroupInheritance, Shine, nil, "Member" ) )
 end )
 
 UnitTest:Test( "RemoveGroupInheritance", function( Assert )
@@ -403,6 +413,9 @@ UnitTest:Test( "RemoveGroupInheritance", function( Assert )
 	Assert:ArrayEquals( { "Moderator" }, Group.InheritsFrom )
 
 	Assert:False( Shine:RemoveGroupInheritance( "Test", "Member" ) )
+
+	-- Trying to remove inheritance from the default group should fail.
+	Assert:False( pcall( Shine.RemoveGroupInheritance, Shine, nil, "Member" ) )
 end )
 
 local function SetupInheritingGroups()
@@ -435,10 +448,12 @@ UnitTest:Test( "AddGroupAccess", function( Assert )
 
 	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test4" ) )
 	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test3" ) )
+	Assert:False( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test2" ) )
 	Assert:False( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test" ) )
 
 	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test4" ) )
 	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test3" ) )
+	Assert:False( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test2" ) )
 	Assert:False( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test" ) )
 
 	Assert:True( Shine:AddGroupAccess( "Test", "sh_test" ) )
@@ -449,10 +464,12 @@ UnitTest:Test( "AddGroupAccess", function( Assert )
 	-- Inheriting group should also now be able to use sh_test.
 	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test4" ) )
 	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test3" ) )
+	Assert:False( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test2" ) )
 	Assert:True( Shine:GetGroupAccess( "TestInherit", InheritingGroup, "sh_test" ) )
 	-- As should the group inheriting from the inheriting group.
 	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test4" ) )
 	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test3" ) )
+	Assert:False( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test2" ) )
 	Assert:True( Shine:GetGroupAccess( "TestInherit2", RecursivelyInheritingGroup, "sh_test" ) )
 
 	Assert:True( Shine:AddGroupAccess( "Test", "sh_test2" ) )
@@ -635,6 +652,17 @@ UnitTest:Test( "IterateGroupTree", function( Assert )
 
 	Assert.DeepEquals( "Should have iterated through only the first group", {
 		TestInherit2 = Shine.UserData.Groups.TestInherit2
+	}, SeenGroups )
+
+	-- Passing a nil group means iterate just the default group (to match the behaviour of GetGroupData()).
+	SeenGroups = {}
+	Shine:IterateGroupTree( nil, function( Group, Name, Context )
+		local Key = Name or -1
+		Assert.Nil( "Already seen group "..Key, SeenGroups[ Key ] )
+		SeenGroups[ Key ] = Group
+	end )
+	Assert.DeepEquals( "Should have iterated through the default group", {
+		[ -1 ] = Shine.UserData.DefaultGroup
 	}, SeenGroups )
 end )
 
