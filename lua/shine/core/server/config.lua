@@ -410,7 +410,7 @@ function Shine:LoadExtensionConfigs()
 				DefaultState = true
 			end
 
-			if PluginTable.IsBeta then
+			if PluginTable and PluginTable.IsBeta then
 				if ActiveBetaExtensions[ Plugin ] == nil then
 					self:Print(
 						"A new beta plugin is available: %s%s. Enable it in ActiveBetaExtensions in the base config, "..
