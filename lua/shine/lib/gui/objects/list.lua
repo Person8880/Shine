@@ -707,7 +707,7 @@ function List:OnMouseDown( Key, DoubleClick )
 		end
 	end
 
-	if not self:MouseIn( self.Background ) then return end
+	if not self:HasMouseEntered() then return end
 
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then return true, Child end
@@ -761,8 +761,7 @@ function List:PlayerKeyPress( Key, Down )
 	end
 
 	-- Block modifier keys used in multi-select from leaking out.
-	if self.MultiSelect and ( SGUI.IsShiftKey( Key ) or SGUI.IsControlKey( Key ) )
-	and self:MouseIn( self.Background ) then
+	if self.MultiSelect and ( SGUI.IsShiftKey( Key ) or SGUI.IsControlKey( Key ) ) and self:HasMouseEntered() then
 		return true
 	end
 end

@@ -486,7 +486,7 @@ function Panel:SetMaxWidth( MaxWidth )
 		if self.HideHorizontalScrollbar then
 			-- Hide the scrollbar (but still accept mouse wheel input).
 			Scrollbar:HideAndDisableInput()
-		elseif self.AutoHideScrollbar and not self:MouseIn( self.Background ) then
+		elseif self.AutoHideScrollbar and not self:HasMouseEntered() then
 			local BackCol = Scrollbar.Background:GetColor()
 			BackCol.a = 0
 			local BarCol = Scrollbar.Bar:GetColor()
@@ -567,7 +567,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			Scrollbar:ScrollToBottom( not ForceInstantScroll )
 		end
 
-		if self.AutoHideScrollbar and not self:MouseIn( self.Background ) then
+		if self.AutoHideScrollbar and not self:HasMouseEntered() then
 			local BackCol = Scrollbar.Background:GetColor()
 			BackCol.a = 0
 			local BarCol = Scrollbar.Bar:GetColor()
@@ -698,7 +698,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 		end
 	end
 
-	if self.CroppingBox and not self:MouseInCached() then return end
+	if self.CroppingBox and not self:HasMouseEntered() then return end
 
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then return true, Child end
@@ -706,7 +706,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 	if self:DragClick( Key, DoubleClick ) then return true, self end
 
 	if
-		( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow and self:MouseInCached() )
+		( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow and self:HasMouseEntered() )
 		or self.BlockOnMouseDown
 	then
 		return true, self
@@ -767,8 +767,8 @@ function Panel:OnMouseMove( Down )
 	end
 
 	-- Block mouse movement for lower windows.
-	if ( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow ) or self.BlockOnMouseDown then
-		if MouseIn then return true end
+	if MouseIn and ( ( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow ) or self.BlockOnMouseDown ) then
+		return true, self
 	end
 end
 

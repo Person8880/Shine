@@ -527,6 +527,22 @@ function SGUI:IsWindow( Window )
 	return self.Windows[ Window ]
 end
 
+function SGUI:IsWindowFocusObstructed( Window )
+	local Windows = self.Windows
+	for i = #Windows, 1, -1 do
+		local OtherWindow = Windows[ i ]
+		-- Reached the target window without any higher window having captured the mouse, not obstructed.
+		if Window == OtherWindow then return false end
+
+		if not OtherWindow.IgnoreMouseFocus and OtherWindow:GetIsVisible() and OtherWindow:HasMouseEntered() then
+			-- A higher window has captured the mouse, so the target window is obstructed.
+			return true
+		end
+	end
+
+	return false
+end
+
 function SGUI:IsWindowInFocus( Window )
 	if Window == self.FocusedWindow then return true end
 
@@ -534,10 +550,10 @@ function SGUI:IsWindowInFocus( Window )
 	for i = #Windows, 1, -1 do
 		local OtherWindow = Windows[ i ]
 		if Window == OtherWindow then
-			return Window.AlwaysInMouseFocus or Window:MouseInCached()
+			return Window.AlwaysInMouseFocus or Window:HasMouseEntered()
 		end
 
-		if not OtherWindow.IgnoreMouseFocus and OtherWindow:GetIsVisible() and OtherWindow:MouseInCached() then
+		if not OtherWindow.IgnoreMouseFocus and OtherWindow:GetIsVisible() and OtherWindow:HasMouseEntered() then
 			return false
 		end
 	end
@@ -1383,16 +1399,40 @@ Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
 	GetCursorPos = MouseTracker_GetCursorPos
 	GetMouseVisible = MouseTracker_GetIsVisible
 
+	local function NotifyMouseLossToRelevantWindows( Window, LMB )
+		local Windows = SGUI.Windows
+		local Notify = false
+		for i = #Windows, 1, -1 do
+			local OtherWindow = Windows[ i ]
+			if OtherWindow == Window then
+				Notify = true
+			elseif Notify and OtherWindow:HasMouseEntered() then
+				-- Window had previously seen the mouse enter, but is now obstructed. Notify it so it can clean up its
+				-- mouse state. This should always result in the window setting its mouse state to false as mouse
+				-- checks in windows require the mouse to not be obstructed by another window.
+				if not xpcall( OtherWindow.OnMouseMove, OnError, OtherWindow, LMB ) then
+					OtherWindow:Destroy()
+				end
+			end
+		end
+	end
+
 	local Listener = {
 		OnMouseMove = function( _, LMB )
-			SGUI:CallEvent( false, "OnMouseMove", LMB )
+			local Blocked, Window = SGUI:CallEvent( false, "OnMouseMove", LMB )
+			if Blocked and SGUI:IsWindow( Window ) then
+				-- Window captured the mouse movement, make sure any other windows below the blocking window get
+				-- notified that they've lost the mouse.
+				NotifyMouseLossToRelevantWindows( Window, LMB )
+			end
 
+			local MouseDownControl = SGUI.MouseDownControl
 			if
-				SGUI.IsValid( SGUI.MouseDownControl ) and
-				SGUI.MouseDownControl.__LastMouseMove ~= SGUI.FrameNumber()
+				SGUI.IsValid( MouseDownControl ) and
+				MouseDownControl.__LastMouseMove ~= SGUI.FrameNumber()
 			then
 				-- Make sure the focused control still sees mouse movements until releasing the mouse button.
-				SGUI.MouseDownControl:OnMouseMove( LMB )
+				xpcall( MouseDownControl.OnMouseMove, OnError, MouseDownControl, LMB )
 			end
 		end,
 		OnMouseWheel = function( _, Down )

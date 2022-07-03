@@ -36,7 +36,7 @@ local function OnVisibilityChange( self, IsVisible )
 		self.Highlighted = false
 		self.InnerBox:SetColor( self.DarkCol )
 	else
-		local MouseIn = self:MouseIn( self.Background )
+		local MouseIn = self:HasMouseEntered()
 		if MouseIn or self.Enabled then
 			self.InnerBox:SetColor( self.FocusColour )
 		end

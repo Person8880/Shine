@@ -67,7 +67,7 @@ end
 function TabPanelButton:OnMouseMove( Down )
 	Controls.Button.OnMouseMove( self, Down )
 
-	if self:MouseIn( self.Background, 0.9 ) then
+	if self:HasMouseEntered() then
 		self.Highlighted = true
 		self:AddStylingState( "Highlighted" )
 	else

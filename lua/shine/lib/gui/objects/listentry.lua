@@ -236,7 +236,7 @@ function ListEntry:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 then return end
 	-- No need to call IsInView() here as List checks if the mouse is inside itself before
 	-- passing mouse events down.
-	if not self:MouseIn( self.Background ) then return end
+	if not self:HasMouseEntered() then return end
 
 	return true, self
 end
@@ -244,7 +244,7 @@ end
 function ListEntry:OnMouseUp( Key )
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:MouseIn( self.Background ) then return end
+	if not self:HasMouseEntered() then return end
 
 	if SGUI:IsShiftDown() then
 		-- Select multiple rows, if supported.

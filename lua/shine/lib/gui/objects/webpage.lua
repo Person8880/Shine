@@ -27,8 +27,7 @@ do
 	end
 
 	function Webpage:Initialise()
-		local Background = self:MakeGUIItem()
-		self.Background = Background
+		self.Background = self:MakeGUIItem()
 
 		self.JSQueue = {}
 		self.IsLoading = false
@@ -56,7 +55,7 @@ function Webpage:LoadURL( URL, W, H )
 		self.WebView = Client.CreateWebView( W, H )
 		self.WebView:SetTargetTexture( TextureName )
 
-		self.BaseClass.SetSize( self, Vector2( W, H ) )
+		self:SetSize( Vector2( W, H ) )
 		self.Background:SetTexture( TextureName )
 
 		self.WebView:HookJSAlert( function( WebView, AlertText )
@@ -152,10 +151,12 @@ function Webpage:PlayerType( Char )
 end
 
 function Webpage:OnMouseMove( LMB )
+	self.BaseClass.OnMouseMove( self, LMB )
+
 	if not self.WebView then return end
 	if not self:GetIsVisible() then return end
 
-	local In, X, Y = self:MouseIn( self.Background )
+	local In, X, Y = self:MouseInCached()
 
 	X = Clamp( X, 0, self.Width )
 	Y = Clamp( Y, 0, self.Height )
@@ -166,7 +167,7 @@ end
 function Webpage:OnMouseDown( Key, DoubleClick )
 	if not self.WebView then return end
 	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background ) then return end
+	if not self:HasMouseEntered() then return end
 
 	local MouseButton0 = InputKey.MouseButton0
 	if Key ~= MouseButton0 then return end
@@ -192,7 +193,7 @@ end
 function Webpage:OnMouseWheel( Down )
 	if not self.WebView then return end
 	if not self:GetIsVisible() then return end
-	if not self:MouseIn( self.Background ) then return end
+	if not self:HasMouseEntered() then return end
 
 	self.WebView:OnMouseWheel( Down and 30 or -30, 0 )
 

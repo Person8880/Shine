@@ -689,13 +689,15 @@ do
 
 		self.Background:SetIsVisible( IsVisible )
 		self:InvalidateParent()
-		self:OnPropertyChanged( "IsVisible", IsVisible )
 
 		if not IsVisible then
 			self:HideTooltip()
 		else
-			self:InvalidateMouseState()
+			self:InvalidateMouseState( true )
 		end
+
+		-- Notify of the property change after mouse state is updated.
+		self:OnPropertyChanged( "IsVisible", IsVisible )
 
 		if WasEffectivelyVisible then
 			-- Notify all children that they are now visible/invisible.
@@ -1291,27 +1293,41 @@ do
 	-- We call this so many times it really needs to be local, not global.
 	local GetCursorPos = SGUI.GetCursorPos
 
-	local function IsInBox( BoxW, BoxH, X, Y )
-		return X >= 0 and X < BoxW and Y >= 0 and Y < BoxH
+	local function IsInBox( BoxX, BoxY, BoxEndX, BoxEndY, X, Y )
+		return X >= BoxX and X < BoxEndX and Y >= BoxY and Y < BoxEndY
 	end
 
-	local function IsInElementBox( ElementPos, ElementSize )
+	local function IsInElementBox( ElementPos, BoxX, BoxY, BoxEndX, BoxEndY )
 		local X, Y = GetCursorPos()
 		X = X - ElementPos.x
 		Y = Y - ElementPos.y
-		return IsInBox( ElementSize.x, ElementSize.y, X, Y ), X, Y, ElementSize, ElementPos
+		return IsInBox( BoxX, BoxY, BoxEndX, BoxEndY, X, Y ), X, Y
 	end
 
 	local function ApplyMultiplier( Size, Mult )
+		local BoxX, BoxY = 0, 0
+		local BoxEndX, BoxEndY = Size.x, Size.y
+
 		if Mult then
+			local HalfW = BoxEndX * 0.5
+			local HalfH = BoxEndY * 0.5
+
 			if IsType( Mult, "number" ) then
 				Size = Size * Mult
 			else
 				Size.x = Size.x * Mult.x
 				Size.y = Size.y * Mult.y
 			end
+
+			-- Re-adjust the starting point of the box to ensure the multiplier is applied from the centre of the box.
+			local W, H = Size.x, Size.y
+			BoxX = HalfW - W * 0.5
+			BoxY = HalfH - H * 0.5
+			BoxEndX = BoxX + W
+			BoxEndY = BoxY + H
 		end
-		return Size
+
+		return BoxX, BoxY, BoxEndX, BoxEndY
 	end
 
 	--[[
@@ -1325,17 +1341,16 @@ do
 			1. Boolean value to indicate whether the mouse is inside.
 			2. X position of the mouse relative to the element.
 			3. Y position of the mouse relative to the element.
-			4. The size of the bounding box used.
-			5. The element's absolute screen position.
 	]]
 	function ControlMeta:MouseInBounds( Element, BoundsW, BoundsH )
 		local Pos = Element:GetScreenPosition( SGUI.GetScreenSize() )
-		return IsInElementBox( Pos, Vector2( BoundsW, BoundsH ) )
+		return IsInElementBox( Pos, 0, 0, BoundsW, BoundsH )
 	end
 
 	--[[
 		Gets whether the mouse cursor is inside the bounds of a GUIItem.
-		The multiplier will increase or reduce the size we use to calculate this.
+		The multiplier will increase or reduce the size used to calculate the bounds relative to the centre, e.g.
+		a value of 1.25 will add 12.5% of the bounding box to all sides.
 
 		Inputs:
 			1. Element to check.
@@ -1344,8 +1359,6 @@ do
 			1. Boolean value to indicate whether the mouse is inside.
 			2. X position of the mouse relative to the element.
 			3. Y position of the mouse relative to the element.
-			4. The size of the bounding box used.
-			5. The element's absolute screen position.
 	]]
 	function ControlMeta:MouseIn( Element, Mult )
 		if not Element then return end
@@ -1385,24 +1398,22 @@ do
 		if LastCheck ~= FrameNum then
 			self.__LastMouseInCheckFrame = FrameNum
 
-			local In, X, Y, Size, Pos = self:MouseInControl()
+			local In, X, Y = self:MouseInControl()
 			local CachedResult = self.__LastMouseInCheck
 			if not CachedResult then
-				CachedResult = TableNew( 5, 0 )
+				CachedResult = TableNew( 3, 0 )
 				self.__LastMouseInCheck = CachedResult
 			end
 
 			CachedResult[ 1 ] = In
 			CachedResult[ 2 ] = X
 			CachedResult[ 3 ] = Y
-			CachedResult[ 4 ] = Size
-			CachedResult[ 5 ] = Pos
 
-			return In, X, Y, Size, Pos
+			return In, X, Y
 		end
 
 		local Check = self.__LastMouseInCheck
-		return Check[ 1 ], Check[ 2 ], Check[ 3 ], Check[ 4 ], Check[ 5 ]
+		return Check[ 1 ], Check[ 2 ], Check[ 3 ]
 	end
 end
 
@@ -1916,9 +1927,8 @@ do
 
 		local MouseIn = self:HasMouseEntered() and self:GetIsVisible()
 
-		-- If the mouse is in this object, and our window is in focus (i.e. not obstructed by a higher window)
-		-- then consider the object hovered.
-		if MouseIn and ( not self.TopLevelWindow or SGUI:IsWindowInFocus( self.TopLevelWindow ) ) then
+		-- If the mouse is in this object, then consider the object hovered.
+		if MouseIn then
 			if not self.MouseHoverStart then
 				self.MouseHoverStart = Time
 			else
@@ -2072,7 +2082,7 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 end
 
 function ControlMeta:ShouldHighlight()
-	return self:GetIsVisible() and self:MouseInCached()
+	return self:GetIsVisible() and self:HasMouseEntered()
 end
 
 function ControlMeta:SetForceHighlight( ForceHighlight, SkipAnim )
@@ -2087,7 +2097,7 @@ end
 
 function ControlMeta:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
-	if not self:MouseInCached() then return end
+	if not self:HasMouseEntered() then return end
 
 	local Result, Child = self:CallOnChildren( "OnMouseDown", Key, DoubleClick )
 	if Result ~= nil then return true, Child end
@@ -2153,9 +2163,24 @@ function ControlMeta:HandleMouseState()
 end
 
 function ControlMeta:EvaluateMouseState()
-	local IsMouseIn = self:MouseInCached()
-	local StateChanged = false
+	local Parent = self.Parent
 
+	local CanMouseBeIn = false
+	if Parent then
+		-- If there's a parent element, the mouse can only be inside this element if it's also within the parent (as
+		-- this element will only receive future mouse events if the mouse is within the parent).
+		CanMouseBeIn = Parent.AlwaysInMouseFocus or Parent:HasMouseEntered()
+	elseif SGUI:IsWindow( self ) then
+		-- If there's no parent, and this is a window, then the mouse can only be inside if there isn't a higher window
+		-- that's captured the mouse and thus is obstructing this element. Note that this branch should essentially
+		-- be always the case if there's no parent, but it doesn't hurt to sanity check. Elements with no parent that
+		-- are not a window should never receive mouse input.
+		CanMouseBeIn = not SGUI:IsWindowFocusObstructed( self )
+	end
+
+	local IsMouseIn = CanMouseBeIn and self:MouseInCached()
+
+	local StateChanged = false
 	if IsMouseIn and not self.MouseHasEntered then
 		StateChanged = true
 
