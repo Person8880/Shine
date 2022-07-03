@@ -93,7 +93,7 @@ function Plugin:JoinTeam( Gamerules, Player, NewTeam, Force, ShineForce )
 		self:NotifyTranslated( Client, "SPECTATOR_DISABLED" )
 	end
 
-	local Team = Player:GetTeam():GetTeamNumber()
+	local Team = Player:GetTeamNumber()
 
 	-- Respawn ready room players if they attempt to spectate.
 	if Team == kTeamReadyRoom then
@@ -201,10 +201,9 @@ function Plugin:ProcessClient( Client, Time )
 	if Shine:HasAccess( Client, "sh_idleimmune" ) then return end --Immunity for admins.
 
 	local Player = Client:GetControllingPlayer()
-
 	if not Player then return end
 
-	local Team = Player:GetTeam():GetTeamNumber()
+	local Team = Player:GetTeamNumber()
 
 	if Team == kTeamReadyRoom then
 		local Enabled, AFKKick = Shine:IsExtensionEnabled( "afkkick" )
