@@ -705,10 +705,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 
 	if self:DragClick( Key, DoubleClick ) then return true, self end
 
-	if
-		( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow and self:HasMouseEntered() )
-		or self.BlockOnMouseDown
-	then
+	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow and self:HasMouseEntered() then
 		return true, self
 	end
 end
@@ -767,7 +764,7 @@ function Panel:OnMouseMove( Down )
 	end
 
 	-- Block mouse movement for lower windows.
-	if MouseIn and ( ( SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow ) or self.BlockOnMouseDown ) then
+	if MouseIn and SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
 		return true, self
 	end
 end

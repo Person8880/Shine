@@ -713,18 +713,7 @@ do
 			if SGUI.FocusedWindow ~= self then return end
 
 			-- Give focus to the next visible window down on hide.
-			local Windows = SGUI.Windows
-			local NextDownIndex = 0
-			for i = #Windows, 1, -1 do
-				if Windows[ i ] ~= self and Windows[ i ]:GetIsVisible() then
-					NextDownIndex = i
-					break
-				end
-			end
-
-			if NextDownIndex > 0 then
-				SGUI:SetWindowFocus( Windows[ NextDownIndex ], NextDownIndex )
-			end
+			SGUI:FocusNextWindowDown()
 		end
 	end
 end
@@ -2148,10 +2137,22 @@ function ControlMeta:OnMouseLeave()
 
 end
 
-function ControlMeta:InvalidateMouseState( Now )
-	self.MouseStateIsInvalid = true
-	if Now then
-		self:HandleMouseState()
+do
+	local function InvalidateWindowMouseState( Window, Now )
+		Window:InvalidateMouseState( Now, true )
+	end
+
+	function ControlMeta:InvalidateMouseState( Now, SkipRecursion )
+		self.MouseStateIsInvalid = true
+		if Now then
+			self:HandleMouseState()
+		end
+
+		-- If this element is a window, also invalidate the next window down (and so on recursively) to ensure that lower
+		-- windows pick up on changes to mouse obstruction from higher windows.
+		if not SkipRecursion and SGUI:IsWindow( self ) then
+			SGUI:ForEachWindowBelow( self, InvalidateWindowMouseState, Now )
+		end
 	end
 end
 

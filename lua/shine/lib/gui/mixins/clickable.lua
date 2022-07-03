@@ -12,7 +12,7 @@ end
 
 function Clickable:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 and Key ~= InputKey.MouseButton1 then return end
-	if not self:GetIsVisible() or not self:HasMouseEntered() then return end
+	if not self:GetIsVisible() or not self:MouseInControl() then return end
 	if not GetClickMethod( self, Key ) then return end
 
 	return true, self
@@ -30,7 +30,7 @@ local function CallClickMethod( self, Method )
 end
 
 function Clickable:OnMouseUp( Key )
-	if not self:HasMouseEntered() then return end
+	if not self:MouseInControl() then return end
 
 	local Time = Clock()
 	if ( self.ClickDelay or 0.1 ) > 0 and ( self.NextClick or 0 ) > Time then return true end
