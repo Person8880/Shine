@@ -13,7 +13,7 @@ local SharedTime = Shared.GetTime
 local StringFormat = string.format
 
 local Plugin = ...
-Plugin.Version = "1.9"
+Plugin.Version = "1.10"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "PreGame.json"
@@ -40,6 +40,9 @@ Plugin.DefaultConfig = {
 	ShowCountdown = true,
 	-- The mode to use to control game start behaviour.
 	Mode = Plugin.Modes.ONE_COMMANDER_COUNTDOWN,
+	-- The maximum number of players to apply the pregame mode for, before reverting to vanilla behaviour.
+	-- If 0, no limit is applied. Not applicable for the MIN_PLAYER_COUNT mode.
+	MaxPlayers = 0,
 	-- The minimum number of players required to start the game (when using MIN_PLAYER_COUNT).
 	MinPlayers = 0,
 	-- Whether to abort the game start if a commander drops out of the chair.
@@ -86,6 +89,11 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "1.9",
 		Apply = Shine.Migrator()
 			:AddField( "AbortIfTeamsEmpty", { 1, 2 } )
+	},
+	{
+		VersionTo = "1.10",
+		Apply = Shine.Migrator()
+			:AddField( "MaxPlayers", 0 )
 	}
 }
 
@@ -95,6 +103,8 @@ do
 	Validator:AddFieldRule( "Mode", Validator.InEnum( Plugin.Modes, Plugin.Modes.ONE_COMMANDER_COUNTDOWN ) )
 	Validator:AddFieldRule( "MinPlayers", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "MinPlayers", Validator.Integer() )
+	Validator:AddFieldRule( "MaxPlayers", Validator.Min( 0 ) )
+	Validator:AddFieldRule( "MaxPlayers", Validator.Integer() )
 	Validator:AddFieldRule( "PreGameTimeInSeconds", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "StartDelayInSeconds", Validator.Min( 0 ) )
 	Validator:AddFieldRule(
@@ -109,13 +119,19 @@ function Plugin:OnFirstThink()
 	Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "ActivePre" )
 end
 
-function Plugin:Initialise()
-	self:BroadcastModuleEvent( "Initialise" )
-
+function Plugin:ResetState()
 	self.CountStart = nil
 	self.CountEnd = nil
 	self.GameStarting = false
 	self.StartedGame = false
+	self.SentCountdown = nil
+end
+
+function Plugin:Initialise()
+	self:ResetState()
+	self.DisabledFromMaxPlayers = false
+
+	self:BroadcastModuleEvent( "Initialise" )
 
 	self.TeamsToEmptyCheck = {}
 	for i = 1, #self.Config.AbortIfTeamsEmpty do
@@ -684,7 +700,67 @@ Plugin.UpdateFuncs = {
 	end
 }
 
+function Plugin:DisableCurrentMode( Gamerules )
+	if self:IsGameStarting() then
+		local Team1 = Gamerules.team1
+		local Team2 = Gamerules.team2
+
+		local Team1Com = Team1:GetCommander()
+		local Team2Com = Team2:GetCommander()
+
+		-- Only abort the start if there's not two commanders, otherwise just let things continue.
+		if Team1Com and Team2Com then
+			-- If one of these commanders jumps out, the game start will be aborted anyway if configured to.
+			return false
+		end
+
+		self.Logger:Debug( "Aborting game start due to reaching the max player count without two commanders." )
+		self:AbortGameStart( Gamerules, "ROUND_START_ABORTED_MAX_PLAYERS" )
+	else
+		-- Not starting, can just reset any state.
+		self.Logger:Debug( "No game start in progress, resetting state due to reaching the max player count." )
+		self:ResetState()
+	end
+
+	self.DisabledFromMaxPlayers = true
+
+	return true
+end
+
+function Plugin:IsBelowMaxPlayerLimit( Gamerules )
+	-- Doesn't make sense to apply a max player count if using the MIN_PLAYER_COUNT mode as it already requires two
+	-- commanders.
+	if self.Config.Mode == self.Modes.MIN_PLAYER_COUNT then return true end
+
+	local MaxPlayers = self.Config.MaxPlayers
+	if MaxPlayers > 0 then
+		local NumPlayers = self:GetNumPlayersFromGamerules( Gamerules )
+		if NumPlayers > MaxPlayers then
+			if self.DisabledFromMaxPlayers or self:DisableCurrentMode( Gamerules ) then
+				return false
+			end
+		elseif self.DisabledFromMaxPlayers then
+			-- Nothing to do to re-enable, mode update functions will resolve the current state from scratch as needed.
+			self.DisabledFromMaxPlayers = false
+			self.Logger:Debug(
+				"Player count has reduced to %s which is within the maximum of %s, resuming configured mode.",
+				NumPlayers,
+				MaxPlayers
+			)
+		end
+	elseif self.DisabledFromMaxPlayers then
+		self.DisabledFromMaxPlayers = false
+		self.Logger:Debug(
+			"Max player count will no longer be enforced due to a configuration change, resuming configured mode."
+		)
+	end
+
+	return true
+end
+
 function Plugin:UpdatePregame( Gamerules )
+	if not self:IsBelowMaxPlayerLimit( Gamerules ) then return end
+
 	if Gamerules:GetGameState() == kGameState.PreGame then
 		return false
 	end
@@ -718,6 +794,8 @@ function Plugin:CheckGameStart( Gamerules )
 	if StartDelay > 0 and SharedTime() < StartDelay then
 		return false
 	end
+
+	if not self:IsBelowMaxPlayerLimit( Gamerules ) then return end
 
 	self.UpdateFuncs[ self.Config.Mode ]( self, Gamerules )
 

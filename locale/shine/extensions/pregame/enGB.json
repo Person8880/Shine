@@ -1,9 +1,9 @@
 {
 	"GAME_START": "Game starts in %s",
 	"GAME_START_SOON": "Game starts in {Duration:Duration}",
-	"WAITING_FOR_ALIENS": "Waiting on Aliens to choose a commander",
-	"WAITING_FOR_MARINES": "Waiting on Marines to choose a commander",
-	"WAITING_FOR_BOTH": "Waiting on both teams to choose a commander",
+	"WAITING_FOR_ALIENS": "Waiting for Aliens to choose a commander",
+	"WAITING_FOR_MARINES": "Waiting for Marines to choose a commander",
+	"WAITING_FOR_BOTH": "Waiting for both teams to choose a commander",
 	"WAITING_FOR_PLAYER_COUNT": "Waiting for at least {MinPlayers} {MinPlayers:Pluralise:player|players} to join teams",
 	"ABORT_MARINES_EMPTY": "Game start aborted, marine team is empty.",
 	"ABORT_ALIENS_EMPTY": "Game start aborted, alien team is empty.",
@@ -13,5 +13,6 @@
 	"EXCEEDED_TIME": "Pregame has exceeded {Duration:Duration} and there is one commander. Starting game...",
 	"NOTIFY_PREFIX": "[Pre Game]",
 	"WAITING_FOR_PLAYERS": "Game start waiting for players to load.",
-	"ROUND_START_ABORTED_MAP_VOTE_STARTED": "Game start aborted, a map vote has begun."
+	"ROUND_START_ABORTED_MAP_VOTE_STARTED": "Game start aborted, a map vote has begun.",
+	"ROUND_START_ABORTED_MAX_PLAYERS": "Game start aborted, current player count requires two commanders."
 }
