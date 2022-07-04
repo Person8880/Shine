@@ -357,14 +357,14 @@ function MapVoteMenu:Initialise()
 	self:AddCloseButton( self )
 
 	local ConfigButton = SGUI:BuildTree( {
-		Parent = self.CloseButton,
+		Parent = self,
 		{
 			ID = "ConfigButton",
 			Class = "Button",
 			Props = {
 				AutoSize = Units.UnitVector( self.TitleBarHeight, self.TitleBarHeight ),
 				PositionType = SGUI.PositionType.ABSOLUTE,
-				LeftOffset = -self.TitleBarHeight,
+				LeftOffset = Units.Percentage.ONE_HUNDRED - self.TitleBarHeight * 2,
 				Text = SGUI.Icons.Ionicons.GearB,
 				OpenMenuOnClick = function( ConfigButton )
 					local ButtonPadding = Units.MultipleOf2( SmallPadding ):GetValue()

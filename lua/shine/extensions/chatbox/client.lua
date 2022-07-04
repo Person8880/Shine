@@ -745,6 +745,7 @@ function Plugin:CreateChatbox()
 
 	Border:SetLayout( ChatBoxLayout )
 	Border:InvalidateLayout( true )
+	Border:InvalidateMouseState( true )
 
 	return true
 end

@@ -183,6 +183,10 @@ function Notification:SetMaxWidth( Width )
 	self.MaxWidth = Width
 end
 
+local function IsNotNotificationWindowWithMouse( Window )
+	return Window.Class ~= "Notification" and Window:GetIsVisible() and Window:MouseIn( Window.Background )
+end
+
 function Notification:Think( DeltaTime )
 	self.BaseClass.Think( self, DeltaTime )
 	self:CallOnChildren( "Think", DeltaTime )
@@ -191,17 +195,11 @@ function Notification:Think( DeltaTime )
 		return
 	end
 
-	-- If we're hovering the mouse over a notification and there's a window beneath it,
-	-- fade the notification out so the content below is visible.
+	-- If we're hovering the mouse over a notification and there's a window beneath it, fade the notification out so the
+	-- content below is visible.
 	local ShouldBeFadedOut = false
 	if self:MouseIn( self.Background ) then
-		for i = 1, #SGUI.Windows do
-			local Window = SGUI.Windows[ i ]
-			if Window.Class ~= "Notification" and Window:MouseIn( Window.Background ) then
-				ShouldBeFadedOut = true
-				break
-			end
-		end
+		ShouldBeFadedOut = SGUI:FindMatchingWindow( IsNotNotificationWindowWithMouse )
 	end
 
 	if self.TemporaryFadeState ~= ShouldBeFadedOut then

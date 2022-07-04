@@ -77,7 +77,7 @@ end
 function ListHeader:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:MouseIn( self.Background, self.HighlightMult ) then return end
+	if not self:HasMouseEntered() then return end
 
 	return true, self
 end
@@ -85,7 +85,7 @@ end
 function ListHeader:OnMouseUp( Key )
 	if not self:GetIsVisible() then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	if not self:MouseIn( self.Background, self.HighlightMult ) then return end
+	if not self:HasMouseEntered() then return end
 
 	self.Parent:SortRows( self.Index )
 	Shared.PlaySound( nil, SGUI.Controls.Button.Sound )

@@ -175,7 +175,7 @@ SGUI.AddProperty( Scrollbar, "MouseWheelScroll" )
 function Scrollbar:OnMouseWheel( Down )
 	local Parent = self.Parent
 
-	if self:MouseIn( self.Background ) or Parent:MouseIn( Parent.Background ) then
+	if Parent:HasMouseEntered() or self:MouseIn( self.Background ) then
 		local ScrollMagnitude = self.MouseWheelScroll or SGUI.LinearScale( 32 )
 
 		self:SetScroll( self.Pos + ( Down and -ScrollMagnitude or ScrollMagnitude ) * self.ScrollSize, true )

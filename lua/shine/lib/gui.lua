@@ -52,6 +52,7 @@ SGUI.MouseEnabledControls = {}
 
 SGUI.ActiveControls = UnorderedMap()
 SGUI.Windows = {}
+SGUI.NumWindows = 0
 
 -- Used to adjust the appearance of all elements at once.
 SGUI.Skins = {}
@@ -448,116 +449,170 @@ do
 end
 
 do
-	local TableRemoveByValue = table.RemoveByValue
-
-	local function RefreshFocusedWindow( self, Window )
+	local function RefreshFocusedWindow( self, FocusedWindow )
 		local Windows = self.Windows
-		for i = 1, #Windows do
+		for i = 1, self.NumWindows do
 			local Window = Windows[ i ]
+			Windows[ Window ] = i
 			Window:SetLayer( Window.OverrideLayer or self.BaseLayer + i )
 		end
 
-		if Window ~= self.FocusedWindow then
+		local NewWindowIsValid = self.IsValid( FocusedWindow )
+		if NewWindowIsValid then
+			-- Let the window refresh its mouse state to reflect the new hierarchy. This will recursively invalidate
+			-- down the window stack. This is done after updating the index lookup above to ensure window order is
+			-- correct.
+			FocusedWindow:InvalidateMouseState( true )
+		end
+
+		if FocusedWindow ~= self.FocusedWindow then
 			if self.IsValid( self.FocusedWindow ) and self.FocusedWindow.OnLoseWindowFocus then
-				self.FocusedWindow:OnLoseWindowFocus( Window )
+				self.FocusedWindow:OnLoseWindowFocus( FocusedWindow )
 			end
 
-			if self.IsValid( Window ) and Window.OnGainWindowFocus then
-				Window:OnGainWindowFocus()
+			if NewWindowIsValid and FocusedWindow.OnGainWindowFocus then
+				FocusedWindow:OnGainWindowFocus()
 			end
 		end
 
-		self.FocusedWindow = Window
+		self.FocusedWindow = FocusedWindow
 	end
 
 	--[[
 		Sets the current in-focus window.
 		Inputs: Window object, windows index.
 	]]
-	function SGUI:SetWindowFocus( Window )
-		if Window == self.FocusedWindow or not self.Windows[ Window ] then
-			return
-		end
+	function SGUI:SetWindowFocus( FocusedWindow )
+		if FocusedWindow == self.FocusedWindow then return end
 
-		local Windows = self.Windows
-		for i = #Windows, 1, -1 do
-			local CurWindow = Windows[ i ]
-			if CurWindow == Window then
-				TableRemove( Windows, i )
-				Windows[ #Windows + 1 ] = Window
+		local Index = self.Windows[ FocusedWindow ]
+		if not Index then return end
+
+		TableRemove( self.Windows, Index )
+		self.Windows[ self.NumWindows ] = FocusedWindow
+
+		RefreshFocusedWindow( self, FocusedWindow )
+	end
+
+	function SGUI:FocusNextWindowDown()
+		local Index = self.Windows[ self.FocusedWindow ]
+		if not Index then return end
+
+		for i = Index - 1, 1, -1 do
+			local Window = self.Windows[ i ]
+			if Window:GetIsVisible() then
+				self:SetWindowFocus( Window )
 				break
 			end
 		end
-
-		RefreshFocusedWindow( self, Window )
 	end
 
 	function SGUI:AddWindow( Window )
 		if self.Windows[ Window ] then return end
 
-		self.Windows[ #self.Windows + 1 ] = Window
-		self.Windows[ Window ] = true
+		self.NumWindows = self.NumWindows + 1
+		self.Windows[ self.NumWindows ] = Window
+		self.Windows[ Window ] = self.NumWindows
 	end
 
 	function SGUI:RemoveWindow( Window )
-		if not self.Windows[ Window ] then return end
+		local Index = self.Windows[ Window ]
+		if not Index then return end
 
 		self.Windows[ Window ] = nil
-		TableRemoveByValue( self.Windows, Window )
+		TableRemove( self.Windows, Index )
+		self.NumWindows = self.NumWindows - 1
 
-		RefreshFocusedWindow( self, self.Windows[ #self.Windows ] )
+		RefreshFocusedWindow( self, self.Windows[ self.NumWindows ] )
 	end
 
 	function SGUI:MoveWindowToBottom( Window )
 		local Windows = self.Windows
-		for i = 1, #Windows do
-			if Windows[ i ] == Window then
-				TableRemove( Windows, i )
-				break
+		local Index = Windows[ Window ] or ( self.NumWindows + 1 )
+		for i = Index, 1, -1 do
+			Windows[ i ] = Windows[ i - 1 ]
+		end
+		Windows[ 1 ] = Window
+
+		self.NumWindows = #Windows
+
+		RefreshFocusedWindow( self, Windows[ self.NumWindows ] )
+	end
+
+	function SGUI:IsWindow( Window )
+		return self.Windows[ Window ] ~= nil
+	end
+
+	function SGUI:FindMatchingWindow( Predicate )
+		for i = 1, self.NumWindows do
+			local Window = self.Windows[ i ]
+			if Predicate( Window ) then return true, Window end
+		end
+		return false
+	end
+
+	function SGUI:ForEachWindowBelow( Window, Action, Context )
+		local Index = self.Windows[ Window ]
+		if not Index then return end
+
+		for i = Index - 1, 1, -1 do
+			Action( self.Windows[ i ], Context )
+		end
+	end
+
+	local function IsMouseWithinWindow( Window )
+		-- In focus if the mouse is currently within it and the window is visible and focusable.
+		return Window:GetIsVisible() and not Window.IgnoreMouseFocus and
+			( Window.AlwaysInMouseFocus or Window:HasMouseEntered() )
+	end
+
+	local function IsWindowCapturingMouse( Window )
+		-- Must be blocking mouse events to be considered capturing, otherwise lower windows can still see mouse
+		-- movement.
+		return ( Window.GetBlockEventsIfFocusedWindow and Window:GetBlockEventsIfFocusedWindow() ) and
+			IsMouseWithinWindow( Window )
+	end
+
+	--[[
+		Indicates whether the given window has been obstructed by another window (i.e. if a higher window has captured
+		the mouse).
+	]]
+	function SGUI:IsWindowFocusObstructed( Window )
+		local Windows = self.Windows
+		local Index = Windows[ Window ]
+		if not Index then return true end
+
+		for i = self.NumWindows, Index + 1, -1 do
+			local OtherWindow = Windows[ i ]
+			if IsWindowCapturingMouse( OtherWindow ) then
+				-- A higher window has captured the mouse, so the target window is obstructed.
+				return true
 			end
 		end
 
-		TableInsert( Windows, 1, Window )
-
-		RefreshFocusedWindow( self, Windows[ #Windows ] )
-	end
-end
-
-function SGUI:IsWindow( Window )
-	return self.Windows[ Window ]
-end
-
-function SGUI:IsWindowInFocus( Window )
-	if Window == self.FocusedWindow then return true end
-
-	local Windows = self.Windows
-	for i = #Windows, 1, -1 do
-		local OtherWindow = Windows[ i ]
-		if Window == OtherWindow then
-			return Window.AlwaysInMouseFocus or Window:MouseInCached()
-		end
-
-		if not OtherWindow.IgnoreMouseFocus and OtherWindow:GetIsVisible() and OtherWindow:MouseInCached() then
-			return false
-		end
+		-- Reached the target window without any higher window having captured the mouse, not obstructed.
+		return false
 	end
 
-	return false
-end
-
-function SGUI:IsMouseInVisibleWindow()
-	local Windows = self.Windows
-	for i = #Windows, 1, -1 do
-		local Window = Windows[ i ]
-		if
-			Window:GetIsVisible() and not Window.IgnoreMouseFocus and
-			( Window.GetBlockEventsIfFocusedWindow and Window:GetBlockEventsIfFocusedWindow() ) and
-			( Window.AlwaysInMouseFocus or Window:HasMouseEntered() )
-		then
-			return true
-		end
+	--[[
+		Indicates whether the given window is currently in focus (i.e. its the top window, or its a lower window that
+		is not covered by a higher window and it currently contains the mouse cursor).
+	]]
+	function SGUI:IsWindowInFocus( Window )
+		if Window == self.FocusedWindow then return true end
+		return not self:IsWindowFocusObstructed( Window ) and IsMouseWithinWindow( Window )
 	end
-	return false
+
+	function SGUI:IsMouseInVisibleWindow()
+		local Windows = self.Windows
+		for i = self.NumWindows, 1, -1 do
+			local Window = Windows[ i ]
+			if IsWindowCapturingMouse( Window ) then
+				return true
+			end
+		end
+		return false
+	end
 end
 
 local OnError = Shine.BuildErrorHandler( "SGUI Error" )
@@ -585,7 +640,7 @@ do
 		Template = [[local OnError, xpcall = ...
 			return function( self, FocusChange, Name{Arguments} )
 				local Windows = self.Windows
-				local WindowCount = #Windows
+				local WindowCount = self.NumWindows
 
 				self.CallingEvent = Name
 
@@ -1383,16 +1438,40 @@ Hook.CallAfterFileLoad( "lua/menu/MouseTracker.lua", function()
 	GetCursorPos = MouseTracker_GetCursorPos
 	GetMouseVisible = MouseTracker_GetIsVisible
 
+	local function NotifyMouseLossToRelevantWindows( Window, LMB )
+		local Windows = SGUI.Windows
+		local Index = Windows[ Window ]
+		if not Index then return end
+
+		for i = Index - 1, 1, -1 do
+			local OtherWindow = Windows[ i ]
+			if OtherWindow:HasMouseEntered() then
+				-- Window had previously seen the mouse enter, but is now obstructed. Notify it so it can clean up its
+				-- mouse state. This should always result in the window setting its mouse state to false as mouse
+				-- checks in windows require the mouse to not be obstructed by another window.
+				if not xpcall( OtherWindow.OnMouseMove, OnError, OtherWindow, LMB ) then
+					OtherWindow:Destroy()
+				end
+			end
+		end
+	end
+
 	local Listener = {
 		OnMouseMove = function( _, LMB )
-			SGUI:CallEvent( false, "OnMouseMove", LMB )
+			local Blocked, Window = SGUI:CallEvent( false, "OnMouseMove", LMB )
+			if Blocked and SGUI:IsWindow( Window ) then
+				-- Window captured the mouse movement, make sure any other windows below the blocking window get
+				-- notified that they've lost the mouse.
+				NotifyMouseLossToRelevantWindows( Window, LMB )
+			end
 
+			local MouseDownControl = SGUI.MouseDownControl
 			if
-				SGUI.IsValid( SGUI.MouseDownControl ) and
-				SGUI.MouseDownControl.__LastMouseMove ~= SGUI.FrameNumber()
+				SGUI.IsValid( MouseDownControl ) and
+				MouseDownControl.__LastMouseMove ~= SGUI.FrameNumber()
 			then
 				-- Make sure the focused control still sees mouse movements until releasing the mouse button.
-				SGUI.MouseDownControl:OnMouseMove( LMB )
+				xpcall( MouseDownControl.OnMouseMove, OnError, MouseDownControl, LMB )
 			end
 		end,
 		OnMouseWheel = function( _, Down )

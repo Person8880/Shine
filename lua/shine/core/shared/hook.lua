@@ -910,6 +910,21 @@ do
 		return OldReservedSlot( ID )
 	end
 
+	-- The game used to keep track of this in Event.HookTable, but now it doesn't...
+	local RegisteredHooks = Shine.Multimap()
+	local function AddHook( EventName, Callback )
+		RegisteredHooks:Add( EventName, Callback )
+		return OldEventHook( EventName, Callback )
+	end
+
+	function Hook.GetEventCallbacks( EventName )
+		local Callbacks = RegisteredHooks:Get( EventName )
+		if Callbacks then
+			return TableQuickCopy( Callbacks )
+		end
+		return nil
+	end
+
 	--[[
 		Detour the event hook function so we can override the result of
 		CheckConnectionAllowed. Otherwise it would return the default function's value
@@ -919,18 +934,18 @@ do
 		local Override, NewFunc = Call( "NS2EventHook", Name, Func )
 
 		if Override then
-			return OldEventHook( Name, NewFunc )
+			return AddHook( Name, NewFunc )
 		end
 
 		if Name ~= "CheckConnectionAllowed" then
-			return OldEventHook( Name, Func )
+			return AddHook( Name, Func )
 		end
 
 		OldReservedSlot = Func
 
 		Func = CheckConnectionAllowed
 
-		return OldEventHook( Name, Func )
+		return AddHook( Name, Func )
 	end
 end
 

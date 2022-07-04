@@ -316,7 +316,7 @@ function Slider:PlayerKeyPress( Key, Down )
 		return true
 	end
 
-	if not self:MouseIn( self.Background ) then return end
+	if not Down or not self:HasMouseEntered() then return end
 
 	if Key == InputKey.Left or Key == InputKey.Down then
 		self:ChangeValue( self:GetValue() - 1 * 10 ^ -self.Decimals )
@@ -342,7 +342,7 @@ function Slider:OnMouseDown( Key, DoubleClick )
 
 	if Key ~= InputKey.MouseButton0 then return end
 	if not self:MouseIn( self.Handle, 1.25 ) then
-		if self:MouseIn( self.Background ) then
+		if self:HasMouseEntered() then
 			self.ClickingLine = true
 
 			return true, self
@@ -369,7 +369,7 @@ function Slider:OnMouseUp( Key )
 	if self.ClickingLine then
 		self.ClickingLine = nil
 
-		local In, X, Y = self:MouseIn( self.Background )
+		local In, X, Y = self:MouseInCached()
 		if not In then return end
 
 		local Fraction = X / self.Width

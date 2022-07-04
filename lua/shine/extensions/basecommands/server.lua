@@ -114,10 +114,7 @@ end )
 do
 	-- This whole thing is a lovely hack. It'll break very easily if lua/Voting.lua changes.
 	local function SetupStopVote()
-		local Events = debug.getregistry()[ "Event.HookTable" ]
-		if not Events then return end
-
-		local UpdateServerEvents = Events.UpdateServer
+		local UpdateServerEvents = Hook.GetEventCallbacks( "UpdateServer" )
 		if not UpdateServerEvents then return end
 
 		local VoteUpdateFunc
