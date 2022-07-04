@@ -573,10 +573,14 @@ do
 			IsMouseWithinWindow( Window )
 	end
 
-	local function CheckWindowObstruction( self, Window, WindowPredicate )
+	--[[
+		Indicates whether the given window has been obstructed by another window (i.e. if a higher window has captured
+		the mouse).
+	]]
+	function SGUI:IsWindowFocusObstructed( Window )
 		local Windows = self.Windows
 		local Index = Windows[ Window ]
-		if not Index then return false end
+		if not Index then return true end
 
 		for i = self.NumWindows, Index + 1, -1 do
 			local OtherWindow = Windows[ i ]
@@ -587,17 +591,7 @@ do
 		end
 
 		-- Reached the target window without any higher window having captured the mouse, not obstructed.
-		return WindowPredicate( Window )
-	end
-
-	local function NoOpPredicate() return false end
-
-	--[[
-		Indicates whether the given window has been obstructed by another window (i.e. if a higher window has captured
-		the mouse).
-	]]
-	function SGUI:IsWindowFocusObstructed( Window )
-		return CheckWindowObstruction( self, Window, NoOpPredicate )
+		return false
 	end
 
 	--[[
@@ -606,7 +600,7 @@ do
 	]]
 	function SGUI:IsWindowInFocus( Window )
 		if Window == self.FocusedWindow then return true end
-		return CheckWindowObstruction( self, Window, IsMouseWithinWindow )
+		return not self:IsWindowFocusObstructed( Window ) and IsMouseWithinWindow( Window )
 	end
 
 	function SGUI:IsMouseInVisibleWindow()
