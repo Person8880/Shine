@@ -12,6 +12,7 @@ local Clamp = math.Clamp
 local DebugGetInfo = debug.getinfo
 local Floor = math.floor
 local GetAllPlayers = Shine.GetAllPlayers
+local GetMaxPlayers = Server.GetMaxPlayers
 local GetNumPlayers = Shine.GetHumanPlayerCount
 local GetNumSpectators = Server.GetNumSpectators
 local GetClientForPlayer = Shine.GetClientForPlayer
@@ -764,6 +765,63 @@ do
 		return self.LastAttemptedTeamJoins[ Client ] or self.TeamPreferences[ Client ]
 	end
 
+	local function KickBot( Client )
+		if Client.bot and Client.bot.Disconnect then
+			Client.bot:Disconnect()
+		else
+			Server.DisconnectClient( Client )
+		end
+	end
+
+	function Plugin:GetMaxPlayers()
+		return GetMaxPlayers()
+	end
+
+	function Plugin:RemoveBotsIfNeeded( Targets, TeamMembers )
+		local MaxPlayers = self:GetMaxPlayers()
+		local NumCandidatePlayers = #Targets + #TeamMembers[ 1 ] + #TeamMembers[ 2 ]
+		if NumCandidatePlayers <= MaxPlayers or not self.Config.ApplyToBots then return end
+
+		self.Logger:Debug(
+			"Number of potential players (%s) exceeds player slot count (%s), attempting to remove bots...",
+			NumCandidatePlayers,
+			MaxPlayers
+		)
+
+		-- Too many players, remove bots to make room.
+		-- This can happen if there's lots of players in the ready room and not enough in the playing teams, which
+		-- means there'll be bots on each team that end up included in the shuffle.
+		local function RemoveBotPlayerIfNeeded( Player )
+			local Client = Player:GetClient()
+			if
+				NumCandidatePlayers > MaxPlayers and Client:GetIsVirtual() and
+				-- Leave commander bots alone, they're presumably added intentionally unlike player bots.
+				not self.IsPlayerCommander( Player, Client )
+			then
+				if self.Logger:IsDebugEnabled() then
+					self.Logger:Debug(
+						"Kicking bot %s to make room for human players...",
+						PlayerToString( Player )
+					)
+				end
+
+				NumCandidatePlayers = NumCandidatePlayers - 1
+				KickBot( Client )
+
+				return false
+			end
+
+			return true
+		end
+
+		-- First try removing bots from the targets (there shouldn't be any, but just in case).
+		Shine.Stream( Targets ):Filter( RemoveBotPlayerIfNeeded )
+
+		-- If not enough bots were removed, try to remove them from playing teams.
+		Shine.Stream( TeamMembers[ 1 ] ):Filter( RemoveBotPlayerIfNeeded )
+		Shine.Stream( TeamMembers[ 2 ] ):Filter( RemoveBotPlayerIfNeeded )
+	end
+
 	--[[
 		Gets all valid targets for sorting.
 	]]
@@ -860,11 +918,7 @@ do
 			-- Bot and we don't want to deal with them, so kick them out.
 			if Client:GetIsVirtual() and not IsCommander and not self.Config.ApplyToBots then
 				if Pass == 1 then
-					if Client.bot and Client.bot.Disconnect then
-						Client.bot:Disconnect()
-					else
-						Server.DisconnectClient( Client )
-					end
+					KickBot( Client )
 				end
 				return
 			end
@@ -897,6 +951,9 @@ do
 				AddPlayer( Players[ i ], Pass )
 			end
 		end
+
+		-- Sanity check the total number of players in case bots bring the total over the max player slot limit.
+		self:RemoveBotsIfNeeded( Targets, TeamMembers )
 
 		local function IsValidClient( Client )
 			return Shine:IsValidClient( Client )
