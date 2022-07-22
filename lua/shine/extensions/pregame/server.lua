@@ -8,6 +8,7 @@ local IsType = Shine.IsType
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
+local GetNumPlayers = Shine.GetHumanPlayerCount
 local Max = math.max
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
@@ -734,7 +735,7 @@ function Plugin:IsBelowMaxPlayerLimit( Gamerules )
 
 	local MaxPlayers = self.Config.MaxPlayers
 	if MaxPlayers > 0 then
-		local NumPlayers = self:GetNumPlayersFromGamerules( Gamerules )
+		local NumPlayers = GetNumPlayers()
 		if NumPlayers > MaxPlayers then
 			if self.DisabledFromMaxPlayers or self:DisableCurrentMode( Gamerules ) then
 				return false
