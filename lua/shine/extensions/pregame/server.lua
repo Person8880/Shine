@@ -8,7 +8,6 @@ local IsType = Shine.IsType
 local Ceil = math.ceil
 local Clamp = math.Clamp
 local Floor = math.floor
-local GetNumPlayers = Shine.GetHumanPlayerCount
 local Max = math.max
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
@@ -728,6 +727,17 @@ function Plugin:DisableCurrentMode( Gamerules )
 	return true
 end
 
+do
+	-- GetNumPlayingPlayers returns the number of players in a player slot, including bots.
+	local GetNumPlayingPlayers = Server.GetNumPlayingPlayers
+	local GetBotPlayerCount = Shine.GetBotPlayerCount
+
+	function Plugin:GetTotalHumanPlayerCount()
+		-- Assume that bots are always considered "playing", doesn't make sense for a bot to spectate.
+		return GetNumPlayingPlayers() - GetBotPlayerCount()
+	end
+end
+
 function Plugin:IsBelowMaxPlayerLimit( Gamerules )
 	-- Doesn't make sense to apply a max player count if using the MIN_PLAYER_COUNT mode as it already requires two
 	-- commanders.
@@ -735,7 +745,7 @@ function Plugin:IsBelowMaxPlayerLimit( Gamerules )
 
 	local MaxPlayers = self.Config.MaxPlayers
 	if MaxPlayers > 0 then
-		local NumPlayers = GetNumPlayers()
+		local NumPlayers = self:GetTotalHumanPlayerCount()
 		if NumPlayers > MaxPlayers then
 			if self.DisabledFromMaxPlayers or self:DisableCurrentMode( Gamerules ) then
 				return false
