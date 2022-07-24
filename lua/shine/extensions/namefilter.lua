@@ -213,16 +213,20 @@ end
 	Check for a forced name, and if the player has one, apply it.
 ]]
 function Plugin:EnforceName( Client )
-	local ID = Client and Client:GetUserId()
+	if not Client then return nil end
+
+	local ID = Client:GetUserId()
 	return self.Config.ForcedNames[ tostring( ID ) ]
 end
 
-
 --[[
-	When a player's name changes, we check all set filters on their new name.
+	When a player's name changes, check all set filters on their new name.
 ]]
 function Plugin:CheckPlayerName( Player, Name, OldName )
-	local ForcedName = self:EnforceName( Player:GetClient() )
+	local Client = Player:GetClient()
+	if Client and Client:GetIsVirtual() then return end
+
+	local ForcedName = self:EnforceName( Client )
 	if ForcedName then return ForcedName end
 
 	local Filters = self.Config.Filters
