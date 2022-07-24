@@ -38,7 +38,7 @@ Plugin.Config.Filters = {
 
 UnitTest:Test( "CheckPlayerName returns new name when pattern filter matches", function( Assert )
 	local Name = Plugin:CheckPlayerName( MockPlayer, "BannedNaaaame", "NSPlayer" )
-	Assert.NotEquals( "Name should be rejected", "BannedNaaaame", Name )
+	Assert.Equals( "Name should be rejected", "NSPlayer654321", Name )
 end )
 
 UnitTest:Test( "CheckPlayerName returns nothing when pattern filter does not match", function( Assert )
@@ -47,11 +47,20 @@ UnitTest:Test( "CheckPlayerName returns nothing when pattern filter does not mat
 end )
 
 Plugin.Config.Filters = {
+	{ Pattern = "BannedN[a]+me", Excluded = USER_ID }
+}
+
+UnitTest:Test( "CheckPlayerName returns nothing when player matches the filter exclusion", function( Assert )
+	local Name = Plugin:CheckPlayerName( MockPlayer, "BannedNaaaame", "NSPlayer" )
+	Assert.Nil( "Name should be accepted", Name )
+end )
+
+Plugin.Config.Filters = {
 	{ Pattern = "BannedN[a]+me", PlainText = true }
 }
 UnitTest:Test( "CheckPlayerName returns new name when plain filter matches", function( Assert )
 	local Name = Plugin:CheckPlayerName( MockPlayer, "BannedN[a]+me", "NSPlayer" )
-	Assert.NotEquals( "Name should be rejected", "BannedN[a]+me", Name )
+	Assert.Equals( "Name should be rejected", "NSPlayer654321", Name )
 end )
 
 UnitTest:Test( "CheckPlayerName returns nothing when plain filter does not match", function( Assert )

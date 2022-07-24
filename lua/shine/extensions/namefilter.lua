@@ -120,12 +120,15 @@ end
 
 Plugin.FilterActions = {
 	[ Plugin.FilterActionType.RENAME ] = function( self, Player, OldName )
-		local UserName = "NSPlayer"..Random( 1e3, 1e5 )
 		local Client = Player:GetClient()
-		if not Client then return UserName end
+		if not Client then return "NSPlayer"..Random( 1e3, 1e5 ) end
+
+		-- Use the client's Steam ID as it's guaranteed to be unique.
+		local SteamID = Client:GetUserId()
+		local UserName = "NSPlayer"..SteamID
 
 		self:Print( "Client %s[%s] was renamed from filtered name: %s", true,
-			UserName, Client:GetUserId(), OldName )
+			UserName, SteamID, OldName )
 
 		return UserName
 	end,
@@ -191,8 +194,10 @@ function Plugin:ProcessFilter( Player, Name, Filter )
 
 		if not Success then
 			self.InvalidFilters[ Filter ] = true
-			self:Print( "Pattern '%s' is invalid: %s. Set \"PlainText\": true if you do not want to use a Lua pattern match.",
-				true, Pattern, StringGSub( Start, "^.+:%d+:(.+)$", "%1" ) )
+			self:Print(
+				"Pattern '%s' is invalid: %s. Set \"PlainText\": true if you do not want to use a Lua pattern match.",
+				true, Pattern, StringGSub( Start, "^.+:%d+:(.+)$", "%1" )
+			)
 			return
 		end
 	end
