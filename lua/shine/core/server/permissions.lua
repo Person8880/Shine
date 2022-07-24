@@ -408,10 +408,14 @@ do
 
 	local GameID = 0
 	local HumanPlayerCount = 0
-	local function GetHumanPlayerCount()
+	function Shine.GetHumanPlayerCount()
 		return HumanPlayerCount
 	end
-	Shine.GetHumanPlayerCount = GetHumanPlayerCount
+
+	local BotPlayerCount = 0
+	function Shine.GetBotPlayerCount()
+		return BotPlayerCount
+	end
 
 	Shine.Hook.Add( "ClientConnect", "AssignGameID", function( Client )
 		-- Make sure the same client isn't seen twice.
@@ -421,13 +425,19 @@ do
 		GameIDs:Add( Client, GameID )
 		Client.ShineGameID = GameID
 
-		HumanPlayerCount = HumanPlayerCount + ( Client:GetIsVirtual() and 0 or 1 )
+		local IsVirtual = Client:GetIsVirtual()
+
+		BotPlayerCount = BotPlayerCount + ( IsVirtual and 1 or 0 )
+		HumanPlayerCount = HumanPlayerCount + ( IsVirtual and 0 or 1 )
 	end, Shine.Hook.MAX_PRIORITY )
 
 	Shine.Hook.Add( "ClientDisconnect", "AssignGameID", function( Client )
 		if not GameIDs:Remove( Client ) then return true end
 
-		HumanPlayerCount = HumanPlayerCount - ( Client:GetIsVirtual() and 0 or 1 )
+		local IsVirtual = Client:GetIsVirtual()
+
+		BotPlayerCount = BotPlayerCount - ( IsVirtual and 1 or 0 )
+		HumanPlayerCount = HumanPlayerCount - ( IsVirtual and 0 or 1 )
 	end, Shine.Hook.MAX_PRIORITY )
 end
 

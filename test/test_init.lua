@@ -102,7 +102,10 @@ function UnitTest.MakeMockClient( SteamID )
 				GetName = function() return "Test" end
 			}
 		end,
-		GetIsVirtual = function() return SteamID == 0 end
+		GetIsVirtual = function() return SteamID == 0 end,
+		bot = SteamID == 0 and {
+			Disconnect = UnitTest.MockFunction()
+		} or nil
 	}
 end
 

@@ -120,12 +120,15 @@ end
 
 Plugin.FilterActions = {
 	[ Plugin.FilterActionType.RENAME ] = function( self, Player, OldName )
-		local UserName = "NSPlayer"..Random( 1e3, 1e5 )
 		local Client = Player:GetClient()
-		if not Client then return UserName end
+		if not Client then return "NSPlayer"..Random( 1e3, 1e5 ) end
+
+		-- Use the client's Steam ID as it's guaranteed to be unique.
+		local SteamID = Client:GetUserId()
+		local UserName = "NSPlayer"..SteamID
 
 		self:Print( "Client %s[%s] was renamed from filtered name: %s", true,
-			UserName, Client:GetUserId(), OldName )
+			UserName, SteamID, OldName )
 
 		return UserName
 	end,
@@ -191,8 +194,10 @@ function Plugin:ProcessFilter( Player, Name, Filter )
 
 		if not Success then
 			self.InvalidFilters[ Filter ] = true
-			self:Print( "Pattern '%s' is invalid: %s. Set \"PlainText\": true if you do not want to use a Lua pattern match.",
-				true, Pattern, StringGSub( Start, "^.+:%d+:(.+)$", "%1" ) )
+			self:Print(
+				"Pattern '%s' is invalid: %s. Set \"PlainText\": true if you do not want to use a Lua pattern match.",
+				true, Pattern, StringGSub( Start, "^.+:%d+:(.+)$", "%1" )
+			)
 			return
 		end
 	end
@@ -208,16 +213,20 @@ end
 	Check for a forced name, and if the player has one, apply it.
 ]]
 function Plugin:EnforceName( Client )
-	local ID = Client and Client:GetUserId()
+	if not Client then return nil end
+
+	local ID = Client:GetUserId()
 	return self.Config.ForcedNames[ tostring( ID ) ]
 end
 
-
 --[[
-	When a player's name changes, we check all set filters on their new name.
+	When a player's name changes, check all set filters on their new name.
 ]]
 function Plugin:CheckPlayerName( Player, Name, OldName )
-	local ForcedName = self:EnforceName( Player:GetClient() )
+	local Client = Player:GetClient()
+	if Client and Client:GetIsVirtual() then return end
+
+	local ForcedName = self:EnforceName( Client )
 	if ForcedName then return ForcedName end
 
 	local Filters = self.Config.Filters

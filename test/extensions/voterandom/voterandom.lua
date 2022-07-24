@@ -191,11 +191,10 @@ UnitTest:Test( "GetOptimalTeamForPlayer - Empty teams", function( Assert )
 end )
 
 local function FakePlayer( SteamID, TeamNumber, IsCommander )
+	local Client = UnitTest.MakeMockClient( SteamID )
 	return {
 		GetClient = function()
-			return {
-				GetUserId = function() return SteamID end
-			}
+			return Client
 		end,
 		GetTeamNumber = function() return TeamNumber end,
 		isa = function( self, Type )
@@ -1463,6 +1462,92 @@ UnitTest:Test( "BuildEnforcementPolicy - Returns PeriodBasedEnforcement if confi
 	}, Enforcement.Policies )
 	Assert.NotNil( "Should return period based enforcement", Enforcement.InitialStage )
 end )
+
+do
+	local OldApplyToBots = VoteShuffle.Config.ApplyToBots
+	local OldGetMaxPlayers = VoteShuffle.GetMaxPlayers
+
+	local MaxPlayers = 2
+	function VoteShuffle:GetMaxPlayers()
+		return MaxPlayers
+	end
+
+	local Targets = {
+		FakePlayer( 0, 0, false ),
+		FakePlayer( 123, 0, false ),
+		FakePlayer( 456, 0, false ),
+	}
+	local OriginalTargets = table.ShallowCopy( Targets )
+	local TeamMembers = {
+		{
+			FakePlayer( 0, 1, true ),
+			FakePlayer( 0, 1, false )
+		},
+		{
+			FakePlayer( 1234, 2, true ),
+			FakePlayer( 0, 2, false )
+		}
+	}
+	local OriginalTeamMembers = {
+		table.ShallowCopy( TeamMembers[ 1 ] ),
+		table.ShallowCopy( TeamMembers[ 2 ] )
+	}
+
+	VoteShuffle.Config.ApplyToBots = false
+	UnitTest:Test( "RemoveBotsIfNeeded - Does nothing if max players exceeded but ApplyToBots is false", function( Assert )
+		VoteShuffle:RemoveBotsIfNeeded( Targets, TeamMembers )
+
+		Assert.ArrayEquals( "Should not have changed the target list", OriginalTargets, Targets )
+		Assert.DeepEquals( "Should not have changed the team members", OriginalTeamMembers, TeamMembers )
+	end )
+
+	MaxPlayers = 20
+	VoteShuffle.Config.ApplyToBots = true
+	UnitTest:Test( "RemoveBotsIfNeeded - Does nothing if max players not reached", function( Assert )
+		VoteShuffle:RemoveBotsIfNeeded( Targets, TeamMembers )
+
+		Assert.ArrayEquals( "Should not have changed the target list", OriginalTargets, Targets )
+		Assert.DeepEquals( "Should not have changed the team members", OriginalTeamMembers, TeamMembers )
+	end )
+
+	MaxPlayers = 3
+	UnitTest:Test( "RemoveBotsIfNeeded - Removes non-commander bots if exceeding the max player count and ApplyToBots is enabled", function( Assert )
+		VoteShuffle:RemoveBotsIfNeeded( Targets, TeamMembers )
+
+		Assert.ArrayEquals( "Should have removed the bot from the target list", {
+			OriginalTargets[ 2 ],
+			OriginalTargets[ 3 ]
+		}, Targets )
+		Assert.DeepEquals( "Should have removed the non-commander bots from the team members", {
+			{
+				OriginalTeamMembers[ 1 ][ 1 ]
+			},
+			{
+				OriginalTeamMembers[ 2 ][ 1 ]
+			}
+		}, TeamMembers )
+
+		Assert.CalledTimes(
+			"Should have disconnected the bot in the targets list",
+			OriginalTargets[ 1 ]:GetClient().bot.Disconnect, 1
+		)
+		Assert.CalledTimes(
+			"Should not have disconnected the commander bot on team 1",
+			OriginalTeamMembers[ 1 ][ 1 ]:GetClient().bot.Disconnect, 0
+		)
+		Assert.CalledTimes(
+			"Should have disconnected the player bot on team 1",
+			OriginalTeamMembers[ 1 ][ 2 ]:GetClient().bot.Disconnect, 1
+		)
+		Assert.CalledTimes(
+			"Should have disconnected the player bot on team 2",
+			OriginalTeamMembers[ 2 ][ 2 ]:GetClient().bot.Disconnect, 1
+		)
+	end )
+
+	VoteShuffle.GetMaxPlayers = OldGetMaxPlayers
+	VoteShuffle.Config.ApplyToBots = OldApplyToBots
+end
 
 ----- Integration tests for team optimisation -----
 
