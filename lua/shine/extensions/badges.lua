@@ -45,6 +45,24 @@ Plugin.ConfigMigrationSteps = {
 	}
 }
 
+function Plugin:ApplyBadgeNames()
+	if not SetFormalBadgeName then return false end
+
+	for BadgeName, NiceName in pairs( self.Config.BadgeNames ) do
+		local BadgeID = rawget( gBadges, BadgeName )
+		if BadgeID then
+			self.Logger:Debug( "Setting name of badge '%s' to: %s", BadgeName, NiceName )
+			if not SetFormalBadgeName( BadgeName, NiceName ) then
+				self.Logger:Warn( "Failed to set badge '%s' to have name '%s'.", BadgeName, NiceName )
+			end
+		else
+			self.Logger:Warn( "Badge '%s' configured in BadgeNames is not a valid badge.", BadgeName )
+		end
+	end
+
+	return true
+end
+
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
 
@@ -52,19 +70,7 @@ function Plugin:Initialise()
 	self.ForcedBadges = {}
 	self.BadgesByGroup = {}
 
-	if SetFormalBadgeName then
-		for BadgeName, NiceName in pairs( self.Config.BadgeNames ) do
-			local BadgeID = rawget( gBadges, BadgeName )
-			if BadgeID then
-				self.Logger:Debug( "Setting name of badge '%s' to: %s", BadgeName, NiceName )
-				if not SetFormalBadgeName( BadgeName, NiceName ) then
-					self.Logger:Warn( "Failed to set badge '%s' to have name '%s'.", BadgeName, NiceName )
-				end
-			else
-				self.Logger:Warn( "Badge '%s' configured in BadgeNames is not a valid badge.", BadgeName )
-			end
-		end
-	end
+	self.AppliedBadgeNames = self:ApplyBadgeNames()
 
 	self.Enabled = true
 
@@ -72,6 +78,14 @@ function Plugin:Initialise()
 end
 
 function Plugin:OnFirstThink()
+	if not self.AppliedBadgeNames then
+		if self:ApplyBadgeNames() then
+			self.AppliedBadgeNames = true
+		else
+			self.Logger:Warn( "Failed to apply badge names as SetFormalBadgeName does not appear to be available!" )
+		end
+	end
+
 	Shine.Hook.SetupGlobalHook( "Badges_OnClientBadgeRequest", "OnClientBadgeRequest", "ActivePre" )
 
 	-- Load badges upfront at startup to avoid needing to send lots of network messages at connection time.
