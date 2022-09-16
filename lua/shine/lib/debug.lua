@@ -5,10 +5,11 @@
 local assert = assert
 local DebugGetInfo = debug.getinfo
 local DebugGetLocal = debug.getlocal
-local DebugGetMetaTable = debug.getmetatable
+local DebugGetMetaField = debug.getmetafield
 local DebugGetUpValue = debug.getupvalue
 local DebugSetUpValue = debug.setupvalue
 local DebugUpValueJoin = debug.upvaluejoin
+local DebugIsCFunction = debug.iscfunction
 local pairs = pairs
 local StringFormat = string.format
 local StringStartsWith = string.StartsWith
@@ -30,7 +31,7 @@ local function ForEachUpValue( Func, Filter, Recursive, Done )
 			return Val, i, Func
 		end
 
-		if Recursive and not Done[ Val ] and type( Val ) == "function" then
+		if Recursive and not Done[ Val ] and type( Val ) == "function" and not DebugIsCFunction( Val ) then
 			local LowerVal, j, Function = ForEachUpValue( Val, Filter, true, Done )
 			if LowerVal ~= nil then
 				return LowerVal, j, Function
@@ -297,8 +298,8 @@ end
 function Shine.IsCallable( Object )
 	if type( Object ) == "function" then return true end
 
-	local Meta = DebugGetMetaTable( Object )
-	return not not ( Meta and type( Meta.__call ) == "function" )
+	local MetaCallField = DebugGetMetaField( Object, "__call")
+	return not not ( MetaCallField and type(MetaCallField) == "function" )
 end
 
 --[[

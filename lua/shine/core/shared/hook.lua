@@ -8,7 +8,7 @@ local Shine = Shine
 
 local Clamp = math.Clamp
 local DebugGetInfo = debug.getinfo
-local DebugGetMetaTable = debug.getmetatable
+local DebugGetMetaField = debug.getmetafield
 local DebugSetUpValue = debug.setupvalue
 local Huge = math.huge
 local IsCallable = Shine.IsCallable
@@ -280,9 +280,9 @@ local function GetNumArguments( Func )
 	local Offset = 0
 	if IsType( Func, "table" ) then
 		-- Handle callable tables here too.
-		local Meta = DebugGetMetaTable( Func )
-		if Meta and IsType( Meta.__call, "function" ) then
-			Func = Meta.__call
+		local MetaFunc = DebugGetMetaField(Func, "__call")
+		if MetaFunc and IsType( MetaFunc, "function" ) then
+			Func = MetaFunc
 			-- __call has a self argument which isn't seen by the caller.
 			Offset = 1
 		else

@@ -627,7 +627,7 @@ do
 		return KeyValueIterator( Keys, Table )
 	end
 
-	local DebugGetMetatable = debug.getmetatable
+	local DebugGetMetaField = debug.getmetafield
 	local tostring = tostring
 	local type = type
 
@@ -643,12 +643,12 @@ do
 		-- Identical types on either side, and comparable (e.g. number vs number).
 		if LeftType == RightType and ComparableTypes[ LeftType ] then return true end
 
-		local LeftMeta = DebugGetMetatable( A )
-		local RightMeta = DebugGetMetatable( B )
+		local LeftMeta = DebugGetMetaField ( A, "__lt" )
+		local RightMeta = DebugGetMetaField ( B, "__lt" )
 
 		-- Two Lua objects are comparable if the appropriate meta-methods are the same on
 		-- the objects on either side. In this case we only need __lt.
-		if LeftMeta and LeftMeta.__lt and RightMeta and RightMeta.__lt == LeftMeta.__lt then
+		if LeftMeta and RightMeta and RightMeta == LeftMeta then
 			return true
 		end
 
