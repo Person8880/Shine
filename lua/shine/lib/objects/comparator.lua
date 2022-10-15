@@ -15,10 +15,16 @@ end
 local Operators = {
 	[ 1 ] = function( A, B )
 		if A == B then return 0 end
+		-- Sort nils to the start of the list.
+		if A == nil and B ~= nil then return -1 end
+		if B == nil and A ~= nil then return 1 end
 		return A < B and -1 or 1
 	end,
 	[ -1 ] = function( A, B )
 		if A == B then return 0 end
+		-- Sort nils to the end of the list.
+		if A == nil and B ~= nil then return 1 end
+		if B == nil and A ~= nil then return -1 end
 		return A > B and -1 or 1
 	end
 }

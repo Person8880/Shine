@@ -7,7 +7,7 @@ local DebugFile = "config://shine/DebugLog.txt"
 local ErrorQueue = {}
 local Reported = {}
 
-local URL = "http://5.39.89.152/shine/errorreport.php"
+local URL = "http://51.68.206.223/shine/errorreport.php"
 
 local BuildNumber = Shared.GetBuildNumber()
 local OS = jit and jit.os or "Unknown"
