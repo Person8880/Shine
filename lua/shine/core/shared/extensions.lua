@@ -852,6 +852,8 @@ Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
 
 if Server then
 	Shine.Hook.Add( "ClientConnect", "PluginSync", function( Client )
+		if Client:GetIsVirtual() then return end
+
 		local Message = {}
 
 		for Name in pairs( ClientPlugins ) do
@@ -879,6 +881,7 @@ Shine.HookNetworkMessage( "Shine_PluginSync", function( Data )
 	Shine.AddStartupMessage = function() end
 
 	local StartupMessages = Shine.StartupMessages
+	if not StartupMessages then return end
 
 	Notify( "==============================" )
 	Notify( "Shine started up successfully." )
