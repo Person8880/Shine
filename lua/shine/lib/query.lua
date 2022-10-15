@@ -14,7 +14,7 @@ do
 
 	local OnError = Shine.BuildErrorHandler( "Server query callback error" )
 
-	local BaseURL = "http://5.39.89.152/shine/serverquery.php"
+	local BaseURL = "http://51.68.206.223/shine/serverquery.php"
 
 	local QueryCache = {}
 	local function CallbackFailed( CacheKey, Callback )

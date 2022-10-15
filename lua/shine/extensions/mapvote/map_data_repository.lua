@@ -32,7 +32,7 @@ local MapDataRepository = {
 }
 
 local METADATA_FILE = "config://shine/cache/maps/index.json"
-local OVERVIEW_API_URL = "http://5.39.89.152:7990/ns2/api/overview/%s/%s"
+local OVERVIEW_API_URL = "http://51.68.206.223:7990/ns2/api/overview/%s/%s"
 local UPDATE_CHECK_INTERVAL = 60 * 60 * 24
 local DEFAULT_OVERVIEW_API_CALL_TIMEOUT = 20
 
