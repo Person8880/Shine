@@ -4,7 +4,7 @@
 
 local UnitTest = Shine.UnitTest
 
-UnitTest:Test( "FieldComparator", function( Assert )
+UnitTest:Test( "FieldComparator with no default - Ascending", function( Assert )
 	local Unsorted = {
 		{
 			SortField = "a"
@@ -13,19 +13,58 @@ UnitTest:Test( "FieldComparator", function( Assert )
 			SortField = "z"
 		},
 		{
+			MissingSortField = true
+		},
+		{
 			SortField = "q"
+		},
+		{
+			MissingSortField = true
 		},
 		{
 			SortField = "e"
 		},
 		{
 			SortField = "b"
-		},
+		}
 	}
 
 	table.sort( Unsorted, Shine.Comparator( "Field", 1, "SortField" ):Compile() )
 
-	local ExpectedOrder = { "a", "b", "e", "q", "z" }
+	local ExpectedOrder = { nil, nil, "a", "b", "e", "q", "z" }
+	for i = 1, #Unsorted do
+		Assert:Equals( ExpectedOrder[ i ], Unsorted[ i ].SortField )
+	end
+end, nil, 100 )
+
+UnitTest:Test( "FieldComparator with no default - Descending", function( Assert )
+	local Unsorted = {
+		{
+			SortField = "a"
+		},
+		{
+			SortField = "z"
+		},
+		{
+			MissingSortField = true
+		},
+		{
+			SortField = "q"
+		},
+		{
+			MissingSortField = true
+		},
+		{
+			SortField = "e"
+		},
+		{
+			SortField = "b"
+		}
+	}
+
+	table.sort( Unsorted, Shine.Comparator( "Field", -1, "SortField" ):Compile() )
+
+	local ExpectedOrder = { "z", "q", "e", "b", "a", nil, nil }
 	for i = 1, #Unsorted do
 		Assert:Equals( ExpectedOrder[ i ], Unsorted[ i ].SortField )
 	end
@@ -48,9 +87,9 @@ UnitTest:Test( "FieldComparator with default", function( Assert )
 		{},
 	}
 
-	table.sort( Unsorted, Shine.Comparator( "Field", 1, "SortField", "b" ):Compile() )
+	table.sort( Unsorted, Shine.Comparator( "Field", -1, "SortField", "b" ):Compile() )
 
-	local ExpectedOrder = { "a", nil, "e", "q", "z" }
+	local ExpectedOrder = { "z", "q", "e", nil, "a" }
 	for i = 1, #Unsorted do
 		Assert:Equals( ExpectedOrder[ i ], Unsorted[ i ].SortField )
 	end
