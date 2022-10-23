@@ -7,22 +7,25 @@ local DebugGetInfo = debug.getinfo
 local DebugGetLocal = debug.getlocal
 local DebugGetMetaField = debug.getmetafield
 local DebugGetUpValue = debug.getupvalue
+local DebugIsCFunction = debug.iscfunction
 local DebugSetUpValue = debug.setupvalue
 local DebugUpValueJoin = debug.upvaluejoin
-local DebugIsCFunction = debug.iscfunction
 local pairs = pairs
 local StringFormat = string.format
 local StringStartsWith = string.StartsWith
 local type = type
 
 local function ForEachUpValue( Func, Filter, Recursive, Done )
-	local i = 1
+	-- Don't attempt to inspect C-functions, their upvalues are forbidden (and of no legitimate use anyway).
+	if DebugIsCFunction( Func ) then return nil end
+
 	--Avoid upvalue cycles (it is possible.)
 	Done = Done or {}
 	if Done[ Func ] then return nil end
 
 	Done[ Func ] = true
 
+	local i = 1
 	while true do
 		local N, Val = DebugGetUpValue( Func, i )
 		if not N then break end
@@ -31,7 +34,7 @@ local function ForEachUpValue( Func, Filter, Recursive, Done )
 			return Val, i, Func
 		end
 
-		if Recursive and not Done[ Val ] and type( Val ) == "function" and not DebugIsCFunction( Val ) then
+		if Recursive and not Done[ Val ] and type( Val ) == "function" then
 			local LowerVal, j, Function = ForEachUpValue( Val, Filter, true, Done )
 			if LowerVal ~= nil then
 				return LowerVal, j, Function
@@ -298,8 +301,8 @@ end
 function Shine.IsCallable( Object )
 	if type( Object ) == "function" then return true end
 
-	local MetaCallField = DebugGetMetaField( Object, "__call")
-	return not not ( MetaCallField and type(MetaCallField) == "function" )
+	local MetaCallField = DebugGetMetaField( Object, "__call" )
+	return type( MetaCallField ) == "function"
 end
 
 --[[

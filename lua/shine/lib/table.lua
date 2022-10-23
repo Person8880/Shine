@@ -643,12 +643,12 @@ do
 		-- Identical types on either side, and comparable (e.g. number vs number).
 		if LeftType == RightType and ComparableTypes[ LeftType ] then return true end
 
-		local LeftMeta = DebugGetMetaField ( A, "__lt" )
-		local RightMeta = DebugGetMetaField ( B, "__lt" )
+		local LeftLT = DebugGetMetaField( A, "__lt" )
+		local RightLT = DebugGetMetaField( B, "__lt" )
 
 		-- Two Lua objects are comparable if the appropriate meta-methods are the same on
 		-- the objects on either side. In this case we only need __lt.
-		if LeftMeta and RightMeta and RightMeta == LeftMeta then
+		if LeftLT and RightLT and RightLT == LeftLT then
 			return true
 		end
 
@@ -689,8 +689,8 @@ end
 
 do
 	local assert = assert
+	local DebugGetMetaField = debug.getmetafield
 	local Floor = math.floor
-	local GetMetaTable = debug.getmetatable
 	local Max = math.max
 	local pairs = pairs
 	local setmetatable = setmetatable
@@ -705,8 +705,8 @@ do
 	local type = type
 
 	local OBJECT_TYPE = "object"
-	local function IsTableArray( Table, MetaTable )
-		if MetaTable and MetaTable.__jsontype == OBJECT_TYPE then
+	local function IsTableArray( Table )
+		if DebugGetMetaField( Table, "__jsontype" ) == OBJECT_TYPE then
 			return false
 		end
 
@@ -864,7 +864,7 @@ do
 
 		local Buffer = State.Buffer
 		local BufferCount = State.BufferCount
-		local IsArray, MaxIndex = IsTableArray( Table, GetMetaTable( Table ) )
+		local IsArray, MaxIndex = IsTableArray( Table )
 		local IsPrettyPrint = FormattingOptions.PrettyPrint
 		local NewLineChar = FormattingOptions.NewLineChar
 
