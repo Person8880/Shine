@@ -15,6 +15,24 @@ local StringFormat = string.format
 local StringStartsWith = string.StartsWith
 local type = type
 
+if not DebugGetMetaField then
+	local DebugGetMetaTable = debug.getmetatable
+	DebugGetMetaField = function( Table, Field )
+		local MetaTable = DebugGetMetaTable( Table )
+		return MetaTable and MetaTable[ Field ]
+	end
+	debug.getmetafield = DebugGetMetaField
+end
+
+if not DebugIsCFunction then
+	DebugIsCFunction = function( Func )
+		assert( type( Func ) == "function", "bad argument #1 to 'iscfunction' (expected function)" )
+		local Info = DebugGetInfo( Func )
+		return not not ( Info and Info.what == "C" )
+	end
+	debug.iscfunction = DebugIsCFunction
+end
+
 local function ForEachUpValue( Func, Filter, Recursive, Done )
 	-- Don't attempt to inspect C-functions, their upvalues are forbidden (and of no legitimate use anyway).
 	if DebugIsCFunction( Func ) then return nil end
