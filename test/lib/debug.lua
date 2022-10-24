@@ -29,10 +29,12 @@ UnitTest:Test( "JoinUpValues - Non recursive", function( Assert )
 end )
 
 UnitTest:Test( "JoinUpValues - Recursive with predicate", function( Assert )
+	local setmetatable = setmetatable
 	local Up1, Up2
 	local function OriginalFunc()
 		Up1 = 1
 		Up2 = 2
+		return setmetatable( {}, { __metatable = "Ignore this" } )
 	end
 
 	local function WrappedFunc()
@@ -116,6 +118,26 @@ UnitTest:Test( "TypeCheckField", function( Assert )
 	Success, Err = pcall( Shine.TypeCheckField, Table, "Field", { "string", "table" }, "Test", 0 )
 	Assert:False( Success )
 	Assert:Equals( "Bad value for field 'Field' on Test (string or table expected, got number)", Err )
+end )
+
+UnitTest:Test( "IsCallable - Returns true for a function value", function( Assert )
+	Assert:True( Shine.IsCallable( function() end ) )
+end )
+
+UnitTest:Test( "IsCallable - Returns true for a callable table", function( Assert )
+	local Table = setmetatable( {}, {
+		__call = function() end,
+		__metatable = "Hidden"
+	} )
+	Assert:True( Shine.IsCallable( Table ) )
+end )
+
+UnitTest:Test( "IsCallable - Returns false for non-callable values", function( Assert )
+	Assert.False( "Table should not be callable", Shine.IsCallable( {} ) )
+	Assert.False( "String should not be callable", Shine.IsCallable( "" ) )
+	Assert.False( "Number should not be callable", Shine.IsCallable( 123 ) )
+	Assert.False( "Boolean should not be callable", Shine.IsCallable( true ) )
+	Assert.False( "Nil should not be callable", Shine.IsCallable( nil ) )
 end )
 
 UnitTest:Test( "GetUpValueAccessor", function( Assert )

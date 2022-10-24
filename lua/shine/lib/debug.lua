@@ -5,8 +5,9 @@
 local assert = assert
 local DebugGetInfo = debug.getinfo
 local DebugGetLocal = debug.getlocal
-local DebugGetMetaTable = debug.getmetatable
+local DebugGetMetaField = debug.getmetafield
 local DebugGetUpValue = debug.getupvalue
+local DebugIsCFunction = debug.iscfunction
 local DebugSetUpValue = debug.setupvalue
 local DebugUpValueJoin = debug.upvaluejoin
 local pairs = pairs
@@ -14,14 +15,35 @@ local StringFormat = string.format
 local StringStartsWith = string.StartsWith
 local type = type
 
+if not DebugGetMetaField then
+	local DebugGetMetaTable = debug.getmetatable
+	DebugGetMetaField = function( Table, Field )
+		local MetaTable = DebugGetMetaTable( Table )
+		return MetaTable and MetaTable[ Field ]
+	end
+	debug.getmetafield = DebugGetMetaField
+end
+
+if not DebugIsCFunction then
+	DebugIsCFunction = function( Func )
+		assert( type( Func ) == "function", "bad argument #1 to 'iscfunction' (expected function)" )
+		local Info = DebugGetInfo( Func )
+		return not not ( Info and Info.what == "C" )
+	end
+	debug.iscfunction = DebugIsCFunction
+end
+
 local function ForEachUpValue( Func, Filter, Recursive, Done )
-	local i = 1
+	-- Don't attempt to inspect C-functions, their upvalues are forbidden (and of no legitimate use anyway).
+	if DebugIsCFunction( Func ) then return nil end
+
 	--Avoid upvalue cycles (it is possible.)
 	Done = Done or {}
 	if Done[ Func ] then return nil end
 
 	Done[ Func ] = true
 
+	local i = 1
 	while true do
 		local N, Val = DebugGetUpValue( Func, i )
 		if not N then break end
@@ -297,8 +319,8 @@ end
 function Shine.IsCallable( Object )
 	if type( Object ) == "function" then return true end
 
-	local Meta = DebugGetMetaTable( Object )
-	return not not ( Meta and type( Meta.__call ) == "function" )
+	local MetaCallField = DebugGetMetaField( Object, "__call" )
+	return type( MetaCallField ) == "function"
 end
 
 --[[
