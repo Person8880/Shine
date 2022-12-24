@@ -12,6 +12,7 @@ local RichText = {}
 local BackgroundColour = Colour( 0, 0, 0, 0 )
 
 SGUI.AddProperty( RichText, "LineSpacing" )
+SGUI.AddProperty( RichText, "TextShadow" )
 
 function RichText:Initialise()
 	self:SetIsSchemed( false )
@@ -39,6 +40,25 @@ function RichText:SetTextScale( Scale )
 
 	self.TextScale = Scale
 
+	self.ComputedWrapping = false
+	self:InvalidateLayout()
+	self:InvalidateMouseState()
+end
+
+function RichText:SetTextShadow( Params )
+	if self.TextShadow == Params then return end
+	if
+		Params and self.TextShadow and
+		Params.Colour == self.TextShadow.Colour and
+		Params.Offset == self.TextShadow.Offset
+	then
+		return
+	end
+
+	self.TextShadow = Params
+
+	-- Text shadow shouldn't affect the layout, but this is the simplest way to rebuild the tree, and given the element
+	-- pooling, shouldn't be that expensive.
 	self.ComputedWrapping = false
 	self:InvalidateLayout()
 	self:InvalidateMouseState()
@@ -208,8 +228,10 @@ function RichText:ApplyLines( Lines )
 	local Context = {
 		CurrentFont = self.Font,
 		CurrentScale = self.TextScale,
+		CurrentTextShadow = self.TextShadow,
 		DefaultFont = self.Font,
 		DefaultScale = self.TextScale,
+		DefaultTextShadow = self.TextShadow,
 		CurrentColour = Colour( 1, 1, 1, 1 ),
 		MakeElement = MakeElementFromPool,
 		NextMargin = 0

@@ -3,6 +3,7 @@
 	"ANIMATE_MESSAGES_DESCRIPTION": "Animate messages.",
 	"ANIMATE_MESSAGES_TOOLTIP": "Sets whether to move and fade messages into view.",
 	"BACKGROUND_OPACITY_DESCRIPTION": "Message background opacity (%):",
+	"TEXT_SHADOW_OPACITY_DESCRIPTION": "Text shadow opacity (%):",
 	"MAX_VISIBLE_MESSAGES_DESCRIPTION": "Max messages before fading out:",
 	"MAX_VISIBLE_MESSAGES_TOOLTIP": "Sets a limit on the number of messages displayed at once.",
 	"MESSAGE_DISPLAY_TYPE_DESCRIPTION": "Message display behaviour:",

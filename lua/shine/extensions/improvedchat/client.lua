@@ -15,7 +15,9 @@ local Units = SGUI.Layout.Units
 
 local Ceil = math.ceil
 local IsType = Shine.IsType
+local Max = math.max
 local OSDate = os.date
+local Round = math.Round
 local RoundTo = math.RoundTo
 local StringFormat = string.format
 local StringFind = string.find
@@ -56,7 +58,10 @@ Plugin.DefaultConfig = {
 	-- How to display messages:
 	-- UPWARDS - new messages at the bottom and move up as more messages appear.
 	-- DOWNWARDS - the vanilla method, new messages are added below older ones (in case anyone actually likes this).
-	MessageDisplayType = Plugin.MessageDisplayType.UPWARDS
+	MessageDisplayType = Plugin.MessageDisplayType.UPWARDS,
+
+	-- The alpha multiplier to apply to the text shadow on chat messages.
+	TextShadowOpacity = 1
 }
 
 Plugin.CheckConfig = true
@@ -330,6 +335,7 @@ Hook.CallAfterFileLoad( "lua/GUIChat.lua", function()
 		ChatLine:SetFont( Font )
 		ChatLine:SetTextScale( Scale )
 		ChatLine:SetLineSpacing( LineMargin )
+		ChatLine:SetTextShadow( Plugin:GetTextShadowParameters( Font, Scale ) )
 
 		Populator( ChatLine, Context )
 
@@ -473,6 +479,29 @@ function Plugin:SetBackgroundOpacity( Opacity )
 	local ChatLines = self.GUIChat.ChatLines
 	for i = 1, #ChatLines do
 		ChatLines[ i ]:SetBackgroundAlpha( Opacity )
+	end
+end
+
+function Plugin:GetTextShadowParameters( Font, Scale )
+	if self.Config.TextShadowOpacity > 0 then
+		local FontAbsoluteSize = GUI.CalculateTextSize( Font, "!" ).y * Scale.y
+		local Offset = 2 * Max( Round( FontAbsoluteSize / 27 ), 1 )
+		return {
+			Colour = Colour( 0, 0, 0, self.Config.TextShadowOpacity ),
+			Offset = Vector2( Offset, Offset )
+		}
+	end
+	return nil
+end
+
+function Plugin:SetTextShadowOpacity( Opacity )
+	if not self.GUIChat or not self.GUIChat.ChatLines then return end
+
+	local ChatLines = self.GUIChat.ChatLines
+	for i = 1, #ChatLines do
+		local ChatLine = ChatLines[ i ]
+		local Params = self:GetTextShadowParameters( ChatLine.Font, ChatLine.TextScale )
+		ChatLines[ i ]:SetTextShadow( Params )
 	end
 end
 
@@ -1079,6 +1108,17 @@ Plugin.ClientConfigSettings = {
 		IsPercentage = true,
 		CommandMessage = "Chat message background opacity set to: %s%%",
 		OnChange = Plugin.SetBackgroundOpacity
+	},
+	{
+		ConfigKey = "TextShadowOpacity",
+		Command = "sh_chat_textshadowopacity",
+		Type = "Slider",
+		Min = 0,
+		Max = 100,
+		Decimals = 0,
+		IsPercentage = true,
+		CommandMessage = "Chat message text shadow opacity set to: %s%%",
+		OnChange = Plugin.SetTextShadowOpacity
 	},
 	{
 		ConfigKey = "MaxVisibleMessages",
