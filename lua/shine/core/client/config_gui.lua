@@ -58,7 +58,7 @@ function ConfigMenu:Create()
 	self.Menu:SetAutoSize( self.Size, true )
 
 	self.Menu:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
-	self.Menu:SetTabHeight( Units.Integer( HighResScaled( 96 ) ):GetValue() )
+	self.Menu:SetTabHeight( Units.Integer( HighResScaled( 40 ) ):GetValue() )
 	self.Menu:SetFontScale( GetSmallFont() )
 
 	self.Pos = self.Menu:GetSize() * -0.5

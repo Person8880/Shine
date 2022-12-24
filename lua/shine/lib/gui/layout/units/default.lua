@@ -8,8 +8,10 @@ local Stream = Shine.Stream
 
 local Absolute
 local IsType = Shine.IsType
+local select = select
 local setmetatable = setmetatable
 local StringFormat = string.format
+local TableEmpty = table.Empty
 local TableRemoveByValue = table.RemoveByValue
 
 local function NewType( Name )
@@ -27,6 +29,14 @@ local function ToUnit( Value )
 	return Value or Absolute( 0 )
 end
 Layout.ToUnit = ToUnit
+
+local function ToUnits( ... )
+	local Values = { ... }
+	for i = 1, select( "#", ... ) do
+		Values[ i ] = ToUnit( Values[ i ] )
+	end
+	return Values
+end
 
 local Operators = {
 	__add = function( A, B ) return A + B end,
@@ -197,6 +207,10 @@ do
 		return self.Value
 	end
 
+	function Absolute:__eq( Other )
+		return self.Value == Other.Value
+	end
+
 	function Absolute:__tostring()
 		return StringFormat( "Absolute( %s )", self.Value )
 	end
@@ -306,6 +320,10 @@ do
 		return ( self.Element or Element ):GetContentSizeForAxis( Axis )
 	end
 
+	function Auto:__eq( Other )
+		return self.Element == Other.Element
+	end
+
 	function Auto:__tostring()
 		return StringFormat( "Auto( %s )", self.Element )
 	end
@@ -326,17 +344,22 @@ do
 	local Max = NewUnit( "Max" )
 
 	function Max:Init( ... )
-		self.Values = { ... }
+		self.Values = ToUnits( ... )
 		return self
 	end
 
 	function Max:AddValue( Value )
-		self.Values[ #self.Values + 1 ] = Value
+		self.Values[ #self.Values + 1 ] = ToUnit( Value )
 		return self
 	end
 
 	function Max:RemoveValue( Value )
-		TableRemoveByValue( self.Values, Value )
+		TableRemoveByValue( self.Values, ToUnit( Value ) )
+		return self
+	end
+
+	function Max:Clear()
+		TableEmpty( self.Values )
 		return self
 	end
 
@@ -378,17 +401,22 @@ do
 	local Min = NewUnit( "Min" )
 
 	function Min:Init( ... )
-		self.Values = { ... }
+		self.Values = ToUnits( ... )
 		return self
 	end
 
 	function Min:AddValue( Value )
-		self.Values[ #self.Values + 1 ] = Value
+		self.Values[ #self.Values + 1 ] = ToUnit( Value )
 		return self
 	end
 
 	function Min:RemoveValue( Value )
-		TableRemoveByValue( self.Values, Value )
+		TableRemoveByValue( self.Values, ToUnit( Value ) )
+		return self
+	end
+
+	function Min:Clear()
+		TableEmpty( self.Values )
 		return self
 	end
 

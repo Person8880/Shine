@@ -10,6 +10,7 @@ local HorizontalTabBackground = Colour( 0.4, 0.4, 0.4, 1 )
 local DarkButton = Colour( 0.2, 0.2, 0.2, 1 )
 local ButtonHighlight = Colour( 0.8, 0.5, 0.1, 1 )
 local BrightText = Colour( 1, 1, 1, 1 )
+local MutedText = Colour( 0.9, 0.9, 0.9, 1 )
 local Clear = Colour( 0, 0, 0, 0 )
 local SliderDarkLineColour = Colour( 0.2, 0.2, 0.2, 1 )
 
@@ -285,12 +286,16 @@ local Skin = {
 	TabPanelButton = {
 		Default = {
 			Font = Fonts.kAgencyFB_Small,
-			ActiveCol = WindowBackground,
+			ActiveCol = ButtonHighlight,
 			InactiveCol = DarkButton,
-			TextColour = BrightText,
+			TextColour = MutedText,
 			States = {
 				Highlighted = {
-					InactiveCol = CategoryButton
+					InactiveCol = CategoryButton,
+					TextColour = BrightText
+				},
+				Selected = {
+					TextColour = BrightText
 				}
 			}
 		},
@@ -298,10 +303,14 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = HorizontalTabBackground,
 			InactiveCol = DarkButton,
-			TextColour = BrightText,
+			TextColour = MutedText,
 			States = {
 				Highlighted = {
-					InactiveCol = CategoryButton
+					InactiveCol = CategoryButton,
+					TextColour = BrightText
+				},
+				Selected = {
+					TextColour = BrightText
 				}
 			}
 		}

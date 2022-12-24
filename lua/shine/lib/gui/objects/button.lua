@@ -41,6 +41,18 @@ SGUI.AddBoundProperty( Button, "IconIsVisible", "Icon:SetIsVisible" )
 SGUI.AddBoundProperty( Button, "IconMargin", "Icon:SetMargin" )
 SGUI.AddBoundProperty( Button, "IconShadow", "Icon:SetShadow" )
 
+local function UpdateIconMargin( self )
+	if not self.Icon then return end
+
+	if self.Label and self.Label:GetIsVisible() then
+		self.Icon:SetMargin(
+			self.IconMargin or ( self.Horizontal and Units.Spacing( 0, 0, Units.HighResScaled( 8 ), 0 ) or nil )
+		)
+	else
+		self.Icon:SetMargin( nil )
+	end
+end
+
 function Button:Initialise()
 	self.BaseClass.Initialise( self )
 	self.Background = self:MakeGUIItem()
@@ -52,22 +64,12 @@ function Button:Initialise()
 	self.IconIsVisible = true
 
 	self:SetLayout( SGUI.Layout:CreateLayout( "Horizontal" ) )
+
+	self:AddPropertyChangeListener( "TextIsVisible", UpdateIconMargin )
 end
 
 function Button:SetCustomSound( Sound )
 	self.Sound = Sound
-end
-
-local function UpdateIconMargin( self )
-	if not self.Icon then return end
-
-	if self.Label then
-		self.Icon:SetMargin(
-			self.IconMargin or ( self.Horizontal and Units.Spacing( 0, 0, Units.HighResScaled( 8 ), 0 ) or nil )
-		)
-	else
-		self.Icon:SetMargin( nil )
-	end
 end
 
 function Button:SetText( Text )

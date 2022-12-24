@@ -65,8 +65,8 @@ function AdminMenu:Create()
 	Window:SetSize( Size )
 	Window:SetPos( self.Pos )
 
-	Window:SetTabWidth( Units.Integer( HighResScaled( 128 ) ):GetValue() )
-	Window:SetTabHeight( Units.Integer( HighResScaled( 88 ) ):GetValue() )
+	Window:UseAutoTabWidth()
+	Window:SetTabHeight( Units.Integer( HighResScaled( 40 ) ):GetValue() )
 	Window:SetFontScale( SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 ) )
 
 	Window:CallOnRemove( function()
