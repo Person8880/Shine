@@ -23,7 +23,7 @@ SGUI.AddBoundProperty( Label, "TextScale", "Label:SetScale", { "InvalidatesParen
 -- Auto-wrapping allows labels to automatically word-wrap based on a given auto-width (or fill size).
 SGUI.AddProperty( Label, "AutoWrap", false, { "InvalidatesParent" } )
 -- Auto-ellipsis shortens text if it extends beyond the given auto-width (or fill size).
-SGUI.AddProperty( Label, "AutoEllipsis", false )
+SGUI.AddProperty( Label, "AutoEllipsis", false, { "InvalidatesParent" } )
 
 local function MarkSizeDirty( self )
 	self.CachedTextWidth = nil
@@ -178,6 +178,10 @@ local function ResetAutoEllipsis( self, Text )
 	self.Label:SetText( Text )
 	self:EvaluateOptionFlags( Text )
 
+	if self.TooltipText == Text then
+		self:SetTooltip( nil )
+	end
+
 	MarkSizeDirty( self )
 
 	self.AutoEllipsisApplied = false
@@ -217,6 +221,9 @@ function Label:ApplyAutoEllipsis( Width )
 			if self.Label:GetText() ~= TextWithEllipsis then
 				self.Label:SetText( TextWithEllipsis )
 				self:EvaluateOptionFlags( TextWithEllipsis )
+				if self.TooltipText == nil then
+					self:SetTooltip( Text )
+				end
 
 				MarkSizeDirty( self )
 			end
