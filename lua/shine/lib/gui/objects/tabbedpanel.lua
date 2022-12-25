@@ -384,12 +384,15 @@ function TabPanel:SetTabWidth( Width )
 end
 
 local function RefreshAutoTabWidth( self, PaddingAmount )
-	self.TabWidth:Clear()
+	self.AutoTabWidth:Clear()
 
 	PaddingAmount = PaddingAmount * 2
 
 	for i = 1, self.NumTabs do
-		self.TabWidth:AddValue( Units.Auto( self.Tabs[ i ].TabButton ) + PaddingAmount )
+		local TabButton = self.Tabs[ i ].TabButton
+		TabButton:SetTextAutoEllipsis( true )
+		TabButton.AutoTabWidth = Units.Auto( TabButton ) + PaddingAmount
+		self.AutoTabWidth:AddValue( TabButton.AutoTabWidth )
 	end
 
 	self:UpdateSizes()
@@ -397,9 +400,9 @@ local function RefreshAutoTabWidth( self, PaddingAmount )
 end
 
 function TabPanel:UseAutoTabWidth()
-	self.TabWidth = Units.Max()
+	self.AutoTabWidth = Units.Max()
+	self.TabWidth = Units.Min( self.AutoTabWidth, Units.PercentageOfElement( self, 25 ) )
 	self.IconWidth = Units.Max()
-	self.IsAutoTabWidth = true
 
 	RefreshAutoTabWidth( self, self:GetTabListPaddingAmount() )
 
@@ -465,9 +468,13 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 
 	TabButton:SetIcon( IconName, IconFont, IconFontScale )
 
-	if self.IsAutoTabWidth then
+	if self.AutoTabWidth then
+		-- Button size is constrained to not exceed 25% width, so may need to shorten text.
+		TabButton:SetTextAutoEllipsis( true )
+
 		local PaddingAmount = self:GetTabListPaddingAmount() * 2
-		self.TabWidth:AddValue( Units.Auto( TabButton ) + PaddingAmount )
+		TabButton.AutoTabWidth = Units.Auto( TabButton ) + PaddingAmount
+		self.AutoTabWidth:AddValue( TabButton.AutoTabWidth )
 
 		-- Auto-align all button text after each button's icon to account for icon size differences.
 		if TabButton.Icon then
@@ -635,8 +642,12 @@ function TabPanel:RemoveTab( Index )
 	self.TabPanel.Layout:RemoveElement( TabButton )
 	self.NumTabs = self.NumTabs - 1
 
-	if self.IsAutoTabWidth then
-		self.TabWidth:RemoveValue( Units.Auto( TabButton ) )
+	if self.AutoTabWidth then
+		RefreshAutoTabWidth( self, self:GetTabListPaddingAmount() )
+
+		if TabButton.Icon then
+			self.IconWidth:RemoveValue( Units.Auto( TabButton.Icon ) )
+		end
 	end
 
 	for i = 1, self.NumTabs do

@@ -7,10 +7,13 @@ local Layout = SGUI.Layout
 local Stream = Shine.Stream
 
 local Absolute
+local getmetatable = getmetatable
 local IsType = Shine.IsType
+local rawset = rawset
 local select = select
 local setmetatable = setmetatable
 local StringFormat = string.format
+local TableArraysEqual = table.ArraysEqual
 local TableEmpty = table.Empty
 local TableRemoveByValue = table.RemoveByValue
 
@@ -39,24 +42,39 @@ local function ToUnits( ... )
 end
 
 local Operators = {
-	__add = function( A, B ) return A + B end,
-	__sub = function( A, B ) return A - B end,
-	__mul = function( A, B ) return A * B end,
-	__div = function( A, B ) return A / B end
+	__add = {
+		Key = "+",
+		Apply = function( A, B ) return A + B end
+	},
+	__sub = {
+		Key = "-",
+		Apply = function( A, B ) return A - B end
+	},
+	__mul = {
+		Key = "*",
+		Apply = function( A, B ) return A * B end
+	},
+	__div = {
+		Key = "/",
+		Apply = function( A, B ) return A / B end
+	}
 }
 
 local function BuildOperator( Meta, Operator )
+	local Key = Operator.Key
+	local Apply = Operator.Apply
 	return function( A, B )
 		A = ToUnit( A )
 		B = ToUnit( B )
 
 		return setmetatable( {
 			GetValue = function( self, ParentSize, Element, Axis )
-				return Operator(
+				return Apply(
 					A:GetValue( ParentSize, Element, Axis ),
 					B:GetValue( ParentSize, Element, Axis )
 				)
-			end
+			end,
+			Operator = { A, Key, B }
 		}, Meta )
 	end
 end
@@ -77,7 +95,8 @@ local function NewUnit( Name )
 		return setmetatable( {
 			GetValue = function( _, ParentSize, Element, Axis )
 				return -self:GetValue( ParentSize, Element, Axis )
-			end
+			end,
+			Operator = { "-", self }
 		}, Meta )
 	end
 
@@ -85,7 +104,8 @@ local function NewUnit( Name )
 		return setmetatable( {
 			GetValue = function( _, ParentSize, Element, Axis )
 				return self:GetValue( ParentSize, Element, Axis ) % Mod
-			end
+			end,
+			Operator = { self, "%", Mod }
 		}, Meta )
 	end
 
@@ -93,8 +113,35 @@ local function NewUnit( Name )
 		return setmetatable( {
 			GetValue = function( _, ParentSize, Element, Axis )
 				return self:GetValue( ParentSize, Element, Axis ) ^ Power
-			end
+			end,
+			Operator = { self, "^", Power }
 		}, Meta )
+	end
+
+	-- Add some automatic convenience wrappers around common meta-methods.
+	getmetatable( Meta ).__newindex = function( Meta, Key, Value )
+		if Key == "__eq" then
+			rawset( Meta, Key, function( self, Other )
+				-- If this unit has become a composite, equality checking no longer applies as it did before.
+				-- Instead, each argument of the operation needs to be equal. The original metatable is preserved here
+				-- to allow detection of the left-hand side of the operator, e.g. a common use case is to combine
+				-- the "Auto" unit with some extra padding space, and the detection of "Auto" is needed for things like
+				-- label auto-wrapping. As equality checks are rare, this is an acceptable overhead.
+				if self.Operator then
+					return Other.Operator and TableArraysEqual( self.Operator, Other.Operator )
+				end
+				return Value( self, Other )
+			end )
+		elseif Key == "__tostring" then
+			rawset( Meta, Key, function( self )
+				if self.Operator then
+					return Stream( self.Operator ):Concat( " " )
+				end
+				return Value( self )
+			end )
+		else
+			rawset( Meta, Key, Value )
+		end
 	end
 
 	return Meta
@@ -226,6 +273,10 @@ do
 		return SGUI.LinearScale( self.Value )
 	end
 
+	function GUIScaled:__eq( Other )
+		return self.Value == Other.Value
+	end
+
 	function GUIScaled:__tostring()
 		return StringFormat( "GUIScaled( %s )", self.Value )
 	end
@@ -240,6 +291,10 @@ do
 
 	function HighResScaled:GetValue()
 		return SGUI.GetScreenSize() > HIGH_RES_WIDTH and SGUI.LinearScale( self.Value ) or self.Value
+	end
+
+	function HighResScaled:__eq( Other )
+		return self.Value == Other.Value
 	end
 
 	function HighResScaled:__tostring()
@@ -265,6 +320,10 @@ do
 		return Round( self.Value * self.Scale )
 	end
 
+	function Scaled:__eq( Other )
+		return self.Value == Other.Value and self.Scale == Other.Scale
+	end
+
 	function Scaled:__tostring()
 		return StringFormat( "Scaled( %s, %s )", self.Value, self.Scale )
 	end
@@ -285,6 +344,10 @@ do
 		return ParentSize * self.Value
 	end
 
+	function Percentage:__eq( Other )
+		return self.Value == Other.Value
+	end
+
 	function Percentage:__tostring()
 		return StringFormat( "Percentage( %s )", self.Value * 100 )
 	end
@@ -300,6 +363,30 @@ do
 	Percentage.SEVENTY_FIVE = Percentage( 75 )
 	Percentage.FIFTY = Percentage( 50 )
 	Percentage.TWENTY_FIVE = Percentage( 25 )
+end
+
+do
+	local PercentageOfElement = NewUnit( "PercentageOfElement" )
+
+	function PercentageOfElement:Init( Element, Value )
+		self.Element = Element
+		self.Value = Value * 0.01
+		return self
+	end
+
+	function PercentageOfElement:GetValue( ParentSize, Element, Axis )
+		-- Note that this assumes the referenced element has already been through the layout process at this point (i.e.
+		-- that its an ancestor element), otherwise this isn't going to give consistent results.
+		return self.Element:GetSizeForAxis( Axis ) * self.Value
+	end
+
+	function PercentageOfElement:__eq( Other )
+		return self.Element == Other.Element and self.Value == Other.Value
+	end
+
+	function PercentageOfElement:__tostring()
+		return StringFormat( "PercentageOfElement( %s )", self.Value * 100 )
+	end
 end
 
 do
@@ -371,6 +458,10 @@ do
 		return MaxValue
 	end
 
+	function Max:__eq( Other )
+		return TableArraysEqual( self.Values, Other.Values )
+	end
+
 	function Max:__tostring()
 		return StringFormat( "Max( %s )", Stream.Of( self.Values ):Concat( ", " ) )
 	end
@@ -387,6 +478,10 @@ do
 
 	function Integer:GetValue( ParentSize, Element, Axis )
 		return Ceil( self.Value:GetValue( ParentSize, Element, Axis ) )
+	end
+
+	function Integer:__eq( Other )
+		return self.Value == Other.Value
 	end
 
 	function Integer:__tostring()
@@ -428,6 +523,10 @@ do
 		return MinValue
 	end
 
+	function Min:__eq( Other )
+		return TableArraysEqual( self.Values, Other.Values )
+	end
+
 	function Min:__tostring()
 		return StringFormat( "Min( %s )", Stream.Of( self.Values ):Concat( ", " ) )
 	end
@@ -445,6 +544,10 @@ do
 
 	function MultipleOf2:GetValue( ParentSize, Element, Axis )
 		return RoundTo( Ceil( self.Value:GetValue( ParentSize, Element, Axis ) ), 2 )
+	end
+
+	function MultipleOf2:__eq( Other )
+		return self.Value == Other.Value
 	end
 
 	function MultipleOf2:__tostring()

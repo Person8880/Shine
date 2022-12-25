@@ -21,6 +21,7 @@ SGUI.AddBoundProperty( Button, "Font", "Label:SetFont" )
 SGUI.AddBoundProperty( Button, "TextAlignment", "Label:SetAlignment" )
 SGUI.AddBoundProperty( Button, "TextAlignmentX", "Label:SetTextAlignmentX" )
 SGUI.AddBoundProperty( Button, "TextAlignmentY", "Label:SetTextAlignmentY" )
+SGUI.AddBoundProperty( Button, "TextAutoEllipsis", "Label:SetAutoEllipsis" )
 SGUI.AddBoundProperty( Button, "TextColour", {
 	"Label:SetColour",
 	function( self, Colour )
@@ -125,10 +126,18 @@ function Button:SetText( Text )
 				return Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE )
 			end
 		} )
+		:ToElement( Description, "Fill", {
+			Filter = function() return self.TextAutoEllipsis end
+		} )
 		:ToElement( Description, "TextAlignmentX", {
 			Transformer = function( Horizontal )
 				return Horizontal and GUIItem.Align_Min or GUIItem.Align_Center
 			end
+		} ):BindProperty()
+
+	Binder():FromElement( self, "TextAutoEllipsis" )
+		:ToElement( Description, "Fill", {
+			Filter = function() return self.Horizontal end
 		} ):BindProperty()
 
 	if self.Font then
@@ -137,6 +146,10 @@ function Button:SetText( Text )
 
 	if self.TextScale then
 		Description:SetTextScale( self.TextScale )
+	end
+
+	if self.TextAutoEllipsis ~= nil then
+		Description:SetAutoEllipsis( self.TextAutoEllipsis )
 	end
 
 	self.Layout:AddElement( Description )

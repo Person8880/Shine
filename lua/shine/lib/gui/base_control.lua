@@ -981,6 +981,10 @@ function ControlMeta:GetParentSize()
 	return self.Parent and self.Parent:GetSize() or Vector2( SGUI.GetScreenSize() )
 end
 
+local VectorAxis = {
+	"x", "y"
+}
+
 function ControlMeta:GetMaxSizeAlongAxis( Axis )
 	local Padding = self:GetComputedPadding()
 
@@ -991,7 +995,7 @@ function ControlMeta:GetMaxSizeAlongAxis( Axis )
 		Total = Total + Padding[ 2 ] + Padding[ 4 ]
 	end
 
-	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
+	local ParentSize = self:GetParentSize()[ VectorAxis[ Axis ] ]
 	local MaxChildSize = 0
 
 	for Child in self:IterateChildren() do
@@ -1024,7 +1028,7 @@ function ControlMeta:GetContentSizeForAxis( Axis )
 		Total = Total + Padding[ 2 ] + Padding[ 4 ]
 	end
 
-	local ParentSize = self:GetParentSize()[ Axis == 1 and "x" or "y" ]
+	local ParentSize = self:GetParentSize()[ VectorAxis[ Axis ] ]
 
 	for Child in self:IterateChildren() do
 		Child:PreComputeWidth()
@@ -1051,8 +1055,7 @@ function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
 
 	local ParentSize = self:GetParentSize()
 
-	self:SetSize( Vector2( self:GetComputedSize( 1, ParentSize.x ),
-		self:GetComputedSize( 2, ParentSize.y ) ) )
+	self:SetSize( Vector2( self:GetComputedSize( 1, ParentSize.x ), self:GetComputedSize( 2, ParentSize.y ) ) )
 end
 
 -- Called before a layout computes the current width of the element.
@@ -1090,7 +1093,7 @@ function ControlMeta:GetComputedSize( Index, ParentSize )
 	end
 
 	-- No auto-size means the element has a fixed size.
-	return self:GetSize()[ Index == 1 and "x" or "y" ]
+	return self:GetSize()[ VectorAxis[ Index ] ]
 end
 
 function ControlMeta:ComputeSpacing( Spacing )
@@ -1099,18 +1102,12 @@ function ControlMeta:ComputeSpacing( Spacing )
 	end
 
 	local Computed = {}
-
-	local Parent = self.Parent
 	local ParentSize = self:GetParentSize()
 
-	for i = 1, 4 do
-		local IsYAxis = i % 2 == 0
-		Computed[ i ] = Spacing[ i ]:GetValue(
-			ParentSize[ IsYAxis and "y" or "x" ],
-			self,
-			IsYAxis and 2 or 1
-		)
-	end
+	Computed[ 1 ] = Spacing[ 1 ]:GetValue( ParentSize.x, self, 1 )
+	Computed[ 2 ] = Spacing[ 2 ]:GetValue( ParentSize.y, self, 2 )
+	Computed[ 3 ] = Spacing[ 3 ]:GetValue( ParentSize.x, self, 1 )
+	Computed[ 4 ] = Spacing[ 4 ]:GetValue( ParentSize.y, self, 2 )
 
 	return Computed
 end
@@ -1125,8 +1122,11 @@ end
 
 function ControlMeta:GetSize()
 	if not self.Background then return end
-
 	return self.Background:GetSize()
+end
+
+function ControlMeta:GetSizeForAxis( Axis )
+	return self:GetSize()[ VectorAxis[ Axis ] ]
 end
 
 --[[
