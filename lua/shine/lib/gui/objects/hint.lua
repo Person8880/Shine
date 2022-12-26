@@ -58,7 +58,7 @@ function Hint:GetContentSizeForAxis( Axis )
 		return 0
 	end
 
-	return self.HelpText:GetSize().y + Spacing.GetHeight( self.Layout:GetComputedPadding() )
+	return self.HelpText:GetSize().y + self.Layout:GetComputedPadding()[ 6 ]
 end
 
 function Hint:SetFlairWidth( FlairWidth )

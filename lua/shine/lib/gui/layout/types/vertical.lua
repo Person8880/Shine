@@ -34,7 +34,7 @@ function Vertical:GetMinMargin( Margin )
 end
 
 function Vertical:GetMarginSize( Margin )
-	return Margin[ 2 ] + Margin[ 4 ]
+	return Margin[ 6 ]
 end
 
 function Vertical:SetElementPos( Element, X, Y, Margin, LayoutSize )

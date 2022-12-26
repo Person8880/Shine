@@ -21,11 +21,11 @@ local LayoutAlignment = Shine.GUI.LayoutAlignment
 function Directional:SetElementSize( Element, RealSize, Margin )
 	Element:PreComputeWidth()
 
-	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 1 ] - Margin[ 3 ] )
+	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 5 ] )
 
 	Element:PreComputeHeight( Width )
 
-	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 2 ] - Margin[ 4 ] )
+	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 6 ] )
 
 	local NewSize = Vector2( Width, Height )
 	Element:SetSize( NewSize )
@@ -38,12 +38,12 @@ function Directional:GetComputedFillSize( Element, RealSize, FillSizePerElement 
 
 	Element:PreComputeWidth()
 
-	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 1 ] - Margin[ 3 ] )
+	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 5 ] )
 	Width = self:GetFillElementWidth( Element, Width, FillSizePerElement )
 
 	Element:PreComputeHeight( Width )
 
-	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 2 ] - Margin[ 4 ] )
+	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 6 ] )
 	Height = self:GetFillElementHeight( Element, Height, FillSizePerElement )
 
 	return self:GetFillElementSize( Element, Width, Height, FillSizePerElement )
@@ -126,8 +126,8 @@ function Directional:PerformLayout()
 	-- Real size is size - padding.
 	local Padding = self:GetComputedPadding()
 	local RealSize = Vector2(
-		Max( Size.x - Padding[ 1 ] - Padding[ 3 ], 0 ),
-		Max( Size.y - Padding[ 2 ] - Padding[ 4 ], 0 )
+		Max( Size.x - Padding[ 5 ], 0 ),
+		Max( Size.y - Padding[ 6 ], 0 )
 	)
 	-- If we're attached to an element, this will return our margin, otherwise we're attached to another layout,
 	-- which means our position will be somewhere inside the element at the top of the layout tree.

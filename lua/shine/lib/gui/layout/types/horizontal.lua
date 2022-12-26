@@ -34,7 +34,7 @@ function Horizontal:GetMinMargin( Margin )
 end
 
 function Horizontal:GetMarginSize( Margin )
-	return Margin[ 1 ] + Margin[ 3 ]
+	return Margin[ 5 ]
 end
 
 function Horizontal:SetElementPos( Element, X, Y, Margin, LayoutSize )

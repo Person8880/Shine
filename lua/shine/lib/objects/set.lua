@@ -41,6 +41,15 @@ do
 	function Set:Iterate()
 		return Iterate, { List = self.List, Index = 0 }
 	end
+
+	local function IterateBackwards( Context )
+		Context.Index = Context.Index - 1
+		return Context.List[ Context.Index ]
+	end
+
+	function Set:IterateBackwards()
+		return IterateBackwards, { List = self.List, Index = self.Count + 1 }
+	end
 end
 
 function Set:ForEach( Consumer, Context )

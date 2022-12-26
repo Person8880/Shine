@@ -214,9 +214,10 @@ function TextEntry:SetPlaceholderText( Text )
 	end
 
 	local PlaceholderText = self:MakeGUITextItem()
+	PlaceholderText:SetAnchor( 0, 0.5 )
 	PlaceholderText:SetTextAlignmentY( GUIItem.Align_Center )
 	PlaceholderText:SetText( Text )
-	PlaceholderText:SetInheritsParentScaling( false )
+	PlaceholderText:SetInheritsParentScaling( self.TextObj:GetInheritsParentScaling() )
 
 	if self.Font then
 		PlaceholderText:SetFontName( self.Font )
@@ -227,10 +228,10 @@ function TextEntry:SetPlaceholderText( Text )
 		PlaceholderText:SetScale( self.TextScale )
 	end
 
-	PlaceholderText:SetPosition( Vector( 0, 0, 0 ) )
+	PlaceholderText:SetPosition( self.TextObj:GetPosition() )
 	PlaceholderText:SetColor( self.PlaceholderTextColour )
 
-	self.TextObj:AddChild( PlaceholderText )
+	self.InnerBox:AddChild( PlaceholderText )
 	self.PlaceholderText = PlaceholderText
 end
 
@@ -575,6 +576,7 @@ function TextEntry:SetText( Text, IgnoreUndo )
 
 	if self.PlaceholderText then
 		self.PlaceholderText:SetIsVisible( Text == "" )
+		self.PlaceholderText:SetPosition( self.TextObj:GetPosition() )
 	end
 end
 
@@ -1090,6 +1092,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		self:RemoveCharacter( Key == InputKey.Delete )
 		if self.PlaceholderText and self.Text == "" then
 			self.PlaceholderText:SetIsVisible( true )
+			self.PlaceholderText:SetPosition( self.TextObj:GetPosition() )
 		end
 
 		return true

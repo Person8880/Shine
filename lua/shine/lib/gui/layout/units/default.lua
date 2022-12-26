@@ -120,28 +120,30 @@ local function NewUnit( Name )
 
 	-- Add some automatic convenience wrappers around common meta-methods.
 	getmetatable( Meta ).__newindex = function( Meta, Key, Value )
+		local NewValue = Value
+
 		if Key == "__eq" then
-			rawset( Meta, Key, function( self, Other )
+			NewValue = function( self, Other )
 				-- If this unit has become a composite, equality checking no longer applies as it did before.
 				-- Instead, each argument of the operation needs to be equal. The original metatable is preserved here
 				-- to allow detection of the left-hand side of the operator, e.g. a common use case is to combine
 				-- the "Auto" unit with some extra padding space, and the detection of "Auto" is needed for things like
 				-- label auto-wrapping. As equality checks are rare, this is an acceptable overhead.
 				if self.Operator then
-					return Other.Operator and TableArraysEqual( self.Operator, Other.Operator )
+					return IsType( Other.Operator, "table" ) and TableArraysEqual( self.Operator, Other.Operator )
 				end
 				return Value( self, Other )
-			end )
+			end
 		elseif Key == "__tostring" then
-			rawset( Meta, Key, function( self )
+			NewValue = function( self )
 				if self.Operator then
 					return Stream( self.Operator ):Concat( " " )
 				end
 				return Value( self )
-			end )
-		else
-			rawset( Meta, Key, Value )
+			end
 		end
+
+		rawset( Meta, Key, NewValue )
 	end
 
 	return Meta
@@ -245,7 +247,7 @@ do
 end
 
 --[[
-	Dummy type, just returns the passed value.
+	Dummy type, just returns the passed value. This is used to enable unit arithmetic with constant number values.
 ]]
 do
 	Absolute = NewUnit( "Absolute" )
@@ -265,6 +267,9 @@ end
 
 --[[
 	Scaled using SGUI.LinearScale().
+
+	The name is for backwards compatibility. This used to use GUIScale but no longer does to avoid global HUD scaling
+	options messing with SGUI layout.
 ]]
 do
 	local GUIScaled = NewUnit( "GUIScaled" )
@@ -365,12 +370,22 @@ do
 	Percentage.TWENTY_FIVE = Percentage( 25 )
 end
 
+--[[
+	Percentage of another element in the tree, usually an ancestor.
+]]
 do
 	local PercentageOfElement = NewUnit( "PercentageOfElement" )
 
 	function PercentageOfElement:Init( Element, Value )
+		Shine.AssertAtLevel(
+			Shine.IsCallable( Element.GetSizeForAxis ),
+			"Element must implement GetSizeForAxis method!",
+			3
+		)
+
 		self.Element = Element
 		self.Value = Value * 0.01
+
 		return self
 	end
 
@@ -385,17 +400,26 @@ do
 	end
 
 	function PercentageOfElement:__tostring()
-		return StringFormat( "PercentageOfElement( %s )", self.Value * 100 )
+		return StringFormat( "PercentageOfElement( %s, %s )", self.Element, self.Value * 100 )
 	end
 end
 
+--[[
+	Automatic size based on the contents of a given element, or the element the unit is being evaluated against.
+]]
 do
 	local Auto = NewUnit( "Auto" )
 
 	function Auto:Init( Element )
 		if Element then
-			Shine.AssertAtLevel( Element.GetContentSizeForAxis,
-				"Element must implement GetContentSizeForAxis method!", 3 )
+			Shine.AssertAtLevel(
+				Shine.IsCallable( Element.GetContentSizeForAxis ),
+				"Element must implement GetContentSizeForAxis method!",
+				3
+			)
+			self.GetValue = self.GetValueFromConfiguredElement
+		else
+			self.GetValue = self.GetValueFromGivenElement
 		end
 
 		self.Element = Element
@@ -403,8 +427,12 @@ do
 		return self
 	end
 
-	function Auto:GetValue( ParentSize, Element, Axis )
-		return ( self.Element or Element ):GetContentSizeForAxis( Axis )
+	function Auto:GetValueFromGivenElement( ParentSize, Element, Axis )
+		return Element:GetContentSizeForAxis( Axis )
+	end
+
+	function Auto:GetValueFromConfiguredElement( ParentSize, Element, Axis )
+		return self.Element:GetContentSizeForAxis( Axis )
 	end
 
 	function Auto:__eq( Other )
@@ -415,16 +443,12 @@ do
 		return StringFormat( "Auto( %s )", self.Element )
 	end
 
-	local DefaultAuto = Auto()
-
-	-- Skip checking self.Element.
-	function DefaultAuto:GetValue( ParentSize, Element, Axis )
-		return Element:GetContentSizeForAxis( Axis )
-	end
-
-	Auto.INSTANCE = DefaultAuto
+	Auto.INSTANCE = Auto()
 end
 
+--[[
+	A composite unit that computes the maximum of a given list of unit values.
+]]
 do
 	local MathMax = math.max
 
@@ -432,27 +456,32 @@ do
 
 	function Max:Init( ... )
 		self.Values = ToUnits( ... )
+		self.NumValues = select( "#", ... )
 		return self
 	end
 
 	function Max:AddValue( Value )
-		self.Values[ #self.Values + 1 ] = ToUnit( Value )
+		self.NumValues = self.NumValues + 1
+		self.Values[ self.NumValues ] = ToUnit( Value )
 		return self
 	end
 
 	function Max:RemoveValue( Value )
-		TableRemoveByValue( self.Values, ToUnit( Value ) )
+		if TableRemoveByValue( self.Values, ToUnit( Value ) ) then
+			self.NumValues = self.NumValues - 1
+		end
 		return self
 	end
 
 	function Max:Clear()
 		TableEmpty( self.Values )
+		self.NumValues = 0
 		return self
 	end
 
 	function Max:GetValue( ParentSize, Element, Axis )
 		local MaxValue = 0
-		for i = 1, #self.Values do
+		for i = 1, self.NumValues do
 			MaxValue = MathMax( MaxValue, self.Values[ i ]:GetValue( ParentSize, Element, Axis ) )
 		end
 		return MaxValue
@@ -467,6 +496,11 @@ do
 	end
 end
 
+--[[
+	Turns the value returned by another unit value into an integer.
+
+	This is useful to avoid sub-pixel sizes that result in gaps in rendering.
+]]
 do
 	local Ceil = math.ceil
 	local Integer = NewUnit( "Integer" )
@@ -489,6 +523,9 @@ do
 	end
 end
 
+--[[
+	A composite unit that computes the minimum of a given list of unit values.
+]]
 do
 	local Huge = math.huge
 	local MathMin = math.min
@@ -497,27 +534,32 @@ do
 
 	function Min:Init( ... )
 		self.Values = ToUnits( ... )
+		self.NumValues = select( "#", ... )
 		return self
 	end
 
 	function Min:AddValue( Value )
-		self.Values[ #self.Values + 1 ] = ToUnit( Value )
+		self.NumValues = self.NumValues + 1
+		self.Values[ self.NumValues ] = ToUnit( Value )
 		return self
 	end
 
 	function Min:RemoveValue( Value )
-		TableRemoveByValue( self.Values, ToUnit( Value ) )
+		if TableRemoveByValue( self.Values, ToUnit( Value ) ) then
+			self.NumValues = self.NumValues - 1
+		end
 		return self
 	end
 
 	function Min:Clear()
 		TableEmpty( self.Values )
+		self.NumValues = 0
 		return self
 	end
 
 	function Min:GetValue( ParentSize, Element, Axis )
 		local MinValue = Huge
-		for i = 1, #self.Values do
+		for i = 1, self.NumValues do
 			MinValue = MathMin( MinValue, self.Values[ i ]:GetValue( ParentSize, Element, Axis ) )
 		end
 		return MinValue
@@ -532,6 +574,11 @@ do
 	end
 end
 
+--[[
+	Rounds the value returned by another unit value to the nearest power of two.
+
+	This is useful to ensure symmetry.
+]]
 do
 	local Ceil = math.ceil
 	local RoundTo = math.RoundTo

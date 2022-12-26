@@ -1720,8 +1720,8 @@ do
 		local Elements = Layout.Elements
 
 		local ResultPanelPadding = self.MainPanel.Layout:GetComputedPadding()
-		local XPadding = ResultPanelPadding[ 1 ] + ResultPanelPadding[ 3 ]
-		local YPadding = ResultPanelPadding[ 2 ] + ResultPanelPadding[ 4 ]
+		local XPadding = ResultPanelPadding[ 5 ]
+		local YPadding = ResultPanelPadding[ 6 ]
 		local Size = Vector2( self.MainPanel:GetSize().x, YPadding )
 
 		for i = 1, Max( #Results, #Elements ) do

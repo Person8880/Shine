@@ -28,13 +28,33 @@ local UnorderedMap = Shine.UnorderedMap
 local SetterKeys = SGUI.SetterKeys
 
 SGUI.AddBoundProperty( ControlMeta, "BlendTechnique", "Background" )
-SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
-SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", "Background" )
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", {
+	"Background",
+	function( self, InheritsParentAlpha )
+		if self.GUIItems then
+			for Item in self.GUIItems:Iterate() do
+				Item:SetInheritsParentAlpha( InheritsParentAlpha )
+			end
+		end
+	end
+} )
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentScaling", {
+	"Background",
+	function( self, InheritsParentScaling )
+		if self.GUIItems then
+			for Item in self.GUIItems:Iterate() do
+				Item:SetInheritsParentScaling( InheritsParentScaling )
+			end
+		end
+	end
+} )
 SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
 SGUI.AddProperty( ControlMeta, "DebugName", "Unnamed" )
+SGUI.AddProperty( ControlMeta, "PropagateAlphaInheritance", false )
+SGUI.AddProperty( ControlMeta, "PropagateScaleInheritance", false )
 SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
@@ -57,6 +77,8 @@ end
 ]]
 function ControlMeta:Initialise()
 	self.UseScheme = true
+	self.PropagateAlphaInheritance = false
+	self.PropagateScaleInheritance = false
 	self.PropagateSkin = true
 	self.Stencilled = false
 
@@ -403,6 +425,17 @@ function ControlMeta:SetParent( Control, Element )
 	if Control.Stencilled then
 		self:SetInheritsParentStencilSettings( true )
 	end
+
+	if Control.PropagateAlphaInheritance then
+		self.PropagateAlphaInheritance = true
+		self:SetInheritsParentAlpha( Control:GetInheritsParentAlpha() )
+	end
+
+	if Control.PropagateScaleInheritance then
+		self.PropagateScaleInheritance = true
+		self:SetInheritsParentScaling( Control:GetInheritsParentScaling() )
+	end
+
 	if Control.PropagateSkin then
 		self:SetSkin( Control.Skin )
 	end
@@ -499,8 +532,6 @@ end
 	Add a GUIItem as a child.
 ]]
 function ControlMeta:AddChild( GUIItem )
-	if not self.Background then return end
-
 	self.Background:AddChild( GUIItem )
 end
 
@@ -550,8 +581,6 @@ function ControlMeta:DestroyGUIItem( Item )
 end
 
 function ControlMeta:SetLayer( Layer )
-	if not self.Background then return end
-
 	self.Background:SetLayer( Layer )
 end
 
@@ -679,7 +708,6 @@ do
 		Sets visibility of the control.
 	]]
 	function ControlMeta:SetIsVisible( IsVisible )
-		if not self.Background then return end
 		if self.Background.GetIsVisible and self.Background:GetIsVisible() == IsVisible then return end
 
 		local WasEffectivelyVisible = true
@@ -738,7 +766,6 @@ end
 	Override this for stencilled stuff.
 ]]
 function ControlMeta:GetIsVisible()
-	if not self.Background then return false end
 	return self.Background:GetIsVisible()
 end
 
@@ -772,8 +799,8 @@ function ControlMeta:PerformLayout()
 
 	self.Layout:SetPos( Vector2( Margin[ 1 ] + Padding[ 1 ], Margin[ 2 ] + Padding[ 2 ] ) )
 	self.Layout:SetSize( Vector2(
-		Max( Size.x - Margin[ 1 ] - Margin[ 3 ] - Padding[ 1 ] - Padding[ 3 ], 0 ),
-		Max( Size.y - Margin[ 2 ] - Margin[ 4 ] - Padding[ 2 ] - Padding[ 4 ], 0 )
+		Max( Size.x - Margin[ 5 ] - Padding[ 5 ], 0 ),
+		Max( Size.y - Margin[ 6 ] - Padding[ 6 ], 0 )
 	) )
 	self.Layout:InvalidateLayout( true )
 end
@@ -787,7 +814,6 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 	local Size = self:GetSize()
 	for i = 1, #Children do
 		local Child = Children[ i ]
-		local Pos = Child:ComputeAbsolutePosition( Size )
 
 		Child:PreComputeWidth()
 
@@ -796,9 +822,10 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 		Child:PreComputeHeight( Width )
 
 		local ChildSize = Vector2( Width, Child:GetComputedSize( 2, Size.y ) )
-
-		Child:SetPos( Pos )
 		Child:SetSize( ChildSize )
+
+		local Pos = Child:ComputeAbsolutePosition( Size )
+		Child:SetPos( Pos )
 		Child:InvalidateLayout( true )
 	end
 end
@@ -849,8 +876,6 @@ end
 	Sets the size of the control (background), and invalidates the control's layout.
 ]]
 function ControlMeta:SetSize( SizeVec )
-	if not self.Background then return end
-
 	local OldSize = self.Background:GetSize()
 	if OldSize == SizeVec then return end
 
@@ -963,9 +988,24 @@ function ControlMeta:ComputeAbsolutePosition( ParentSize )
 	local LeftOffset = SGUI.Layout.ToUnit( self:GetLeftOffset() )
 	local TopOffset = SGUI.Layout.ToUnit( self:GetTopOffset() )
 
+	local OriginX, OriginY = 0, 0
+	local Alignment = self:GetAlignment()
+	if Alignment == SGUI.LayoutAlignment.CENTRE then
+		OriginX = ParentSize.x * 0.5
+	elseif Alignment == SGUI.LayoutAlignment.MAX then
+		OriginX = ParentSize.x
+	end
+
+	local CrossAxisAlignment = self:GetCrossAxisAlignment()
+	if CrossAxisAlignment == SGUI.LayoutAlignment.CENTRE then
+		OriginY = ParentSize.y * 0.5
+	elseif Alignment == SGUI.LayoutAlignment.MAX then
+		OriginY = ParentSize.y
+	end
+
 	return Vector2(
-		LeftOffset:GetValue( ParentSize.x, self, 1 ),
-		TopOffset:GetValue( ParentSize.y, self, 2 )
+		OriginX + LeftOffset:GetValue( ParentSize.x, self, 1 ),
+		OriginY + TopOffset:GetValue( ParentSize.y, self, 2 )
 	)
 end
 
@@ -987,14 +1027,9 @@ local VectorAxis = {
 
 function ControlMeta:GetMaxSizeAlongAxis( Axis )
 	local Padding = self:GetComputedPadding()
+	local TotalIndex = Axis + 4
 
-	local Total = 0
-	if Axis == 1 then
-		Total = Total + Padding[ 1 ] + Padding[ 3 ]
-	else
-		Total = Total + Padding[ 2 ] + Padding[ 4 ]
-	end
-
+	local Total = Padding[ TotalIndex ]
 	local ParentSize = self:GetParentSize()[ VectorAxis[ Axis ] ]
 	local MaxChildSize = 0
 
@@ -1003,14 +1038,7 @@ function ControlMeta:GetMaxSizeAlongAxis( Axis )
 
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
-		local ChildSize = Child:GetComputedSize( Axis, ParentSize )
-
-		local Margin = Child:GetComputedMargin()
-		if Axis == 1 then
-			ChildSize = ChildSize + Margin[ 1 ] + Margin[ 3 ]
-		else
-			ChildSize = ChildSize + Margin[ 2 ] + Margin[ 4 ]
-		end
+		local ChildSize = Child:GetComputedSize( Axis, ParentSize ) + Child:GetComputedMargin()[ TotalIndex ]
 
 		MaxChildSize = Max( MaxChildSize, ChildSize )
 	end
@@ -1020,14 +1048,9 @@ end
 
 function ControlMeta:GetContentSizeForAxis( Axis )
 	local Padding = self:GetComputedPadding()
+	local TotalIndex = Axis + 4
 
-	local Total = 0
-	if Axis == 1 then
-		Total = Total + Padding[ 1 ] + Padding[ 3 ]
-	else
-		Total = Total + Padding[ 2 ] + Padding[ 4 ]
-	end
-
+	local Total = Padding[ TotalIndex ]
 	local ParentSize = self:GetParentSize()[ VectorAxis[ Axis ] ]
 
 	for Child in self:IterateChildren() do
@@ -1036,13 +1059,7 @@ function ControlMeta:GetContentSizeForAxis( Axis )
 		-- This only works if the child's size does not depend on the parent's.
 		-- Otherwise it's a circular dependency and it won't be correct.
 		Total = Total + Child:GetComputedSize( Axis, ParentSize )
-
-		local Margin = Child:GetComputedMargin()
-		if Axis == 1 then
-			Total = Total + Margin[ 1 ] + Margin[ 3 ]
-		else
-			Total = Total + Margin[ 2 ] + Margin[ 4 ]
-		end
+		Total = Total + Child:GetComputedMargin()[ TotalIndex ]
 	end
 
 	return Max( Total, 0 )
@@ -1051,6 +1068,7 @@ end
 -- You can either use AutoSize as part of a layout, or on its own by passing true for UpdateNow.
 function ControlMeta:SetAutoSize( AutoSize, UpdateNow )
 	self.AutoSize = AutoSize
+
 	if not UpdateNow then return end
 
 	local ParentSize = self:GetParentSize()
@@ -1098,16 +1116,21 @@ end
 
 function ControlMeta:ComputeSpacing( Spacing )
 	if not Spacing then
-		return { 0, 0, 0, 0 }
+		return { 0, 0, 0, 0, 0, 0 }
 	end
 
-	local Computed = {}
 	local ParentSize = self:GetParentSize()
-
-	Computed[ 1 ] = Spacing[ 1 ]:GetValue( ParentSize.x, self, 1 )
-	Computed[ 2 ] = Spacing[ 2 ]:GetValue( ParentSize.y, self, 2 )
-	Computed[ 3 ] = Spacing[ 3 ]:GetValue( ParentSize.x, self, 1 )
-	Computed[ 4 ] = Spacing[ 4 ]:GetValue( ParentSize.y, self, 2 )
+	local Computed = {
+		Spacing[ 1 ]:GetValue( ParentSize.x, self, 1 ),
+		Spacing[ 2 ]:GetValue( ParentSize.y, self, 2 ),
+		Spacing[ 3 ]:GetValue( ParentSize.x, self, 1 ),
+		Spacing[ 4 ]:GetValue( ParentSize.y, self, 2 ),
+		0,
+		0
+	}
+	-- Pre-compute totals for each axis as this is a common operation.
+	Computed[ 5 ] = Computed[ 1 ] + Computed[ 3 ]
+	Computed[ 6 ] = Computed[ 2 ] + Computed[ 4 ]
 
 	return Computed
 end
@@ -1121,7 +1144,6 @@ function ControlMeta:GetComputedMargin()
 end
 
 function ControlMeta:GetSize()
-	if not self.Background then return end
 	return self.Background:GetSize()
 end
 
@@ -1135,8 +1157,6 @@ end
 	Controls may override this.
 ]]
 function ControlMeta:SetPos( Pos )
-	if not self.Background then return end
-
 	local OldPos = self.Background:GetPosition()
 	if Pos == OldPos then return end
 
@@ -1146,8 +1166,6 @@ function ControlMeta:SetPos( Pos )
 end
 
 function ControlMeta:GetPos()
-	if not self.Background then return end
-
 	return self.Background:GetPosition()
 end
 
@@ -1155,7 +1173,6 @@ end
 	Returns the absolute position of the control on the screen.
 ]]
 function ControlMeta:GetScreenPos()
-	if not self.Background then return end
 	return self.Background:GetScreenPosition( SGUI.GetScreenSize() )
 end
 
@@ -1210,8 +1227,6 @@ do
 		Sets the origin anchors for the control.
 	]]
 	function ControlMeta:SetAnchor( X, Y )
-		if not self.Background then return end
-
 		local UsesNewScaling = self.Background:IsOptionFlagSet( NewScalingFlag )
 		if IsType( X, "string" ) then
 			if UsesNewScaling then
@@ -1236,8 +1251,6 @@ do
 		Sets the origin anchors using a fractional value for the control.
 	]]
 	function ControlMeta:SetAnchorFraction( X, Y )
-		if not self.Background then return end
-
 		Shine.AssertAtLevel(
 			self.Background:IsOptionFlagSet( NewScalingFlag ),
 			"Background element must have GUIItem.CorrectScaling flag set to use SetAnchorFraction!",
@@ -1254,8 +1267,6 @@ do
 		This also affects the origin of scaling applied to the element.
 	]]
 	function ControlMeta:SetHotSpot( X, Y )
-		if not self.Background then return end
-
 		Shine.AssertAtLevel(
 			self.Background:IsOptionFlagSet( NewScalingFlag ),
 			"Background element must have GUIItem.CorrectScaling flag set to use SetHotSpot!",
@@ -1662,9 +1673,9 @@ do
 			-- How long (in seconds) to take to ease between the start and end values.
 			Duration = 0.3,
 
-			-- An optional callback that is executed once the transition is complete. It will be passed the element
-			-- that was transitioned.
-			Callback = function( Element ) end,
+			-- An optional callback that is executed once the transition is complete. It will be passed the control and
+			-- the element that was transitioned.
+			Callback = function( self, Element ) end,
 
 			-- The type of easer to use (if using a standard easer)
 			Type = "Move",

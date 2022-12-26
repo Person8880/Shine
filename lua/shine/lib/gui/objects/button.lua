@@ -381,10 +381,6 @@ do
 		"GetCachedTextWidth",
 		"GetCachedTextHeight"
 	}
-	local MarginSizeMethod = {
-		"GetWidth",
-		"GetHeight"
-	}
 
 	local function GetTotalSize( self, Axis )
 		local Size = 0
@@ -395,11 +391,11 @@ do
 
 		if self.Icon then
 			Size = Size + self.Icon[ LabelSizeMethod[ Axis ] ]( self.Icon )
-				+ Units.Spacing[ MarginSizeMethod[ Axis ] ]( self.Icon:GetComputedMargin() )
+				+ self.Icon:GetComputedMargin()[ Axis + 4 ]
 		end
 
 		if self.Padding then
-			Size = Size + Units.Spacing[ MarginSizeMethod[ Axis ] ]( self:GetComputedPadding() )
+			Size = Size + self:GetComputedPadding()[ Axis + 4 ]
 		end
 
 		return Size

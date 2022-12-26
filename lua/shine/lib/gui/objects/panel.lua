@@ -5,7 +5,9 @@
 ]]
 
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
+local IsType = Shine.IsType
 local Max = math.max
 local Min = math.min
 
@@ -62,40 +64,59 @@ function Panel:SkinColour()
 end
 
 function Panel:AddTitleBar( Title, Font, TextScale )
-	local TitlePanel = SGUI:Create( "Panel", self )
-	TitlePanel:SetSize( Vector( self:GetSize().x, self.TitleBarHeight, 0 ) )
-	TitlePanel:SetStyleName( "TitleBar" )
-	TitlePanel:SetAnchor( "TopLeft" )
+	local Tree = SGUI:BuildTree( {
+		Parent = self,
+		{
+			ID = "TitleBar",
+			-- Use "Panel" instead of "Row" to maintain backwards compatibility with skin styling.
+			Class = "Panel",
+			Props = {
+				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, self.TitleBarHeight ),
+				StyleName = "TitleBar",
+				PositionType = SGUI.PositionType.ABSOLUTE
+			},
+			Children = {
+				{
+					Class = "Horizontal",
+					Type = "Layout",
+					Children = {
+						{
+							ID = "TitleLabel",
+							Class = "Label",
+							Props = {
+								Font = IsType( Font, "string" ) and Font or nil,
+								TextScale = TextScale,
+								AutoFont = IsType( Font, "table" ) and Font or nil,
+								Alignment = SGUI.LayoutAlignment.CENTRE,
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								UseAlignmentCompensation = true,
+								TextAlignmentX = GUIItem.Align_Center,
+								TextAlignmentY = GUIItem.Align_Center,
+								Text = Title
+							}
+						}
+					}
+				}
+			}
+		}
+	} )
 
-	self.TitleBar = TitlePanel
+	self.TitleBar = Tree.TitleBar
+	self.TitleLabel = Tree.TitleLabel
 
-	local TitleLabel = SGUI:Create( "Label", TitlePanel )
-	TitleLabel:SetAnchor( "CentreMiddle" )
-	TitleLabel:SetFont( Font or Fonts.kAgencyFB_Small )
-	TitleLabel:SetText( Title )
-	TitleLabel:SetTextAlignmentX( GUIItem.Align_Center )
-	TitleLabel:SetTextAlignmentY( GUIItem.Align_Center )
-	if TextScale then
-		TitleLabel:SetTextScale( TextScale )
-	end
-
-	self.TitleLabel = TitleLabel
-
-	self:AddCloseButton( TitlePanel )
+	self:AddCloseButton( self.TitleBar )
 end
 
 function Panel:AddCloseButton( Parent )
 	local CloseButton = SGUI:Create( "Button", Parent )
-	CloseButton:SetSize( Vector( self.TitleBarHeight, self.TitleBarHeight, 0 ) )
-	CloseButton:SetFontScale(
-		SGUI.FontManager.GetFontForAbsoluteSize(
-			SGUI.FontFamilies.Ionicons,
-			self.TitleBarHeight
-		)
-	)
+	CloseButton:SetPositionType( SGUI.PositionType.ABSOLUTE )
+	CloseButton:SetLeftOffset( Units.Percentage.ONE_HUNDRED - self.TitleBarHeight )
+	CloseButton:SetAutoSize( Units.UnitVector( self.TitleBarHeight, self.TitleBarHeight ) )
+	CloseButton:SetAutoFont( {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = SGUI.Layout.ToUnit( self.TitleBarHeight )
+	} )
 	CloseButton:SetText( SGUI.Icons.Ionicons.CloseRound )
-	CloseButton:SetAnchor( "TopRight" )
-	CloseButton:SetPos( Vector( -self.TitleBarHeight, 0, 0 ) )
 	CloseButton:SetStyleName( "CloseButton" )
 
 	function CloseButton.DoClick()
@@ -273,16 +294,14 @@ function Panel:SetSize( Size )
 
 	self:UpdateScrollbarSize()
 
-	if SGUI.IsValid( self.TitleBar ) then
-		self.TitleBar:SetSize( Vector( Size.x, self.TitleBarHeight, 0 ) )
-	end
-
 	if self.MaxWidth then
 		self:SetMaxWidth( self.MaxWidth )
 	end
 	if self.MaxHeight then
 		self:SetMaxHeight( self.MaxHeight )
 	end
+
+	return true
 end
 
 function Panel:GetMaxWidth()
@@ -705,7 +724,7 @@ function Panel:OnMouseDown( Key, DoubleClick )
 
 	if self:DragClick( Key, DoubleClick ) then return true, self end
 
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow and self:HasMouseEntered() then
+	if self:ShouldBlockEvents() and self:HasMouseEntered() then
 		return true, self
 	end
 end
@@ -764,7 +783,7 @@ function Panel:OnMouseMove( Down )
 	end
 
 	-- Block mouse movement for lower windows.
-	if MouseIn and SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if MouseIn and self:ShouldBlockEvents() then
 		return true, self
 	end
 end
@@ -798,6 +817,10 @@ function Panel:PerformLayout()
 	end
 end
 
+function Panel:ShouldBlockEvents()
+	return SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow
+end
+
 function Panel:OnMouseWheel( Down )
 	if not self:GetIsVisible() then return end
 
@@ -815,7 +838,7 @@ function Panel:OnMouseWheel( Down )
 	end
 
 	-- We block the event, so that only the focused window can scroll.
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if self:ShouldBlockEvents() then
 		return false
 	end
 end
@@ -828,7 +851,7 @@ function Panel:PlayerKeyPress( Key, Down )
 	end
 
 	-- Block the event so only the focused window receives input.
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if self:ShouldBlockEvents() then
 		return false
 	end
 end
@@ -840,7 +863,7 @@ function Panel:PlayerType( Char )
 		return true
 	end
 
-	if SGUI:IsWindow( self ) and self.BlockEventsIfFocusedWindow then
+	if self:ShouldBlockEvents() then
 		return false
 	end
 end
