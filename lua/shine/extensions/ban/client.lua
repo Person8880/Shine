@@ -186,6 +186,8 @@ function Plugin:SetupAdminMenu()
 		Modal:SetDraggable( true )
 		Modal:PopUp()
 
+		Shine.AdminMenu:AttachModal( Modal )
+
 		local DurationEntry = Elements.DurationEntry
 		local IDEntry = Elements.IDEntry
 		local ReasonEntry = Elements.ReasonEntry

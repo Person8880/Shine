@@ -117,13 +117,21 @@ function AdminMenu:Close( Now )
 	self:ForceHide( Now )
 
 	if self.ToDestroyOnClose then
-		for Panel in pairs( self.ToDestroyOnClose ) do
+		for Panel in self.ToDestroyOnClose:Iterate() do
 			if Panel:IsValid() then
 				Panel:Destroy()
 			end
-
-			self.ToDestroyOnClose[ Panel ] = nil
 		end
+		self.ToDestroyOnClose:Clear()
+	end
+
+	if self.Modals then
+		for Modal in self.Modals:Iterate() do
+			if Modal:IsValid() then
+				Modal:Close()
+			end
+		end
+		self.Modals:Clear()
 	end
 
 	Hook.Broadcast( "OnAdminMenuClosed", self )
@@ -141,16 +149,26 @@ Shine.Hook.Add( "OnResolutionChanged", "AdminMenu_OnResolutionChanged", function
 	AdminMenu.Created = false
 end )
 
-function AdminMenu:DestroyOnClose( Object )
-	self.ToDestroyOnClose = self.ToDestroyOnClose or {}
+function AdminMenu:AttachModal( Modal )
+	self.Modals = self.Modals or Shine.UnorderedSet()
+	self.Modals:Add( Modal )
+end
 
-	self.ToDestroyOnClose[ Object ] = true
+function AdminMenu:DetachModal( Modal )
+	if not self.Modals then return end
+
+	self.Modals:Remove( Modal )
+end
+
+function AdminMenu:DestroyOnClose( Object )
+	self.ToDestroyOnClose = self.ToDestroyOnClose or Shine.UnorderedSet()
+	self.ToDestroyOnClose:Add( Object )
 end
 
 function AdminMenu:DontDestroyOnClose( Object )
 	if not self.ToDestroyOnClose then return end
 
-	self.ToDestroyOnClose[ Object ] = nil
+	self.ToDestroyOnClose:Remove( Object )
 end
 
 AdminMenu.EasingTime = 0.25
