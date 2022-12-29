@@ -104,6 +104,11 @@ function AdminMenu:Create()
 		self:Close()
 		return true
 	end
+
+	Window:SetBoxShadow( {
+		BlurRadius = 16,
+		Colour = Colour( 0, 0, 0, 0.75 )
+	} )
 end
 
 function AdminMenu:Close( Now )

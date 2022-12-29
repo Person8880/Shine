@@ -868,4 +868,10 @@ function Panel:PlayerType( Char )
 	end
 end
 
+function Panel:Cleanup()
+	self:FreeBoxShadow()
+	return self.BaseClass.Cleanup( self )
+end
+
+SGUI:AddMixin( Panel, "Shadow" )
 SGUI:Register( "Panel", Panel )

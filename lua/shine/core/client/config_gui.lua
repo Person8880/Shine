@@ -98,6 +98,11 @@ function ConfigMenu:Create()
 		self:ForceHide()
 		return true
 	end
+
+	self.Menu:SetBoxShadow( {
+		BlurRadius = 16,
+		Colour = Colour( 0, 0, 0, 0.75 )
+	} )
 end
 
 function ConfigMenu:Close()

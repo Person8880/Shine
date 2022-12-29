@@ -37,8 +37,6 @@ function Modal:Initialise()
 	-- Start the element as an invisible box that's scaled down, the popup animation will fade this in and scale it up.
 	self.Background:SetColor( Colour( 0, 0, 0, 0 ) )
 	self.Background:SetScale( InitialScale )
-	-- Use a high layer to sit above the parent's existing contents.
-	self.Background:SetLayer( 1000 )
 
 	self.VisibleBackground = self:MakeGUIItem()
 	self.VisibleBackground:SetInheritsParentAlpha( true )

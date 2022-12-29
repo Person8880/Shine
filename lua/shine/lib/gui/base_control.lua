@@ -550,9 +550,14 @@ function ControlMeta:MakeGUIItem( Type )
 	Item:SetOptionFlag( GUIItem.CorrectScaling )
 	Item:SetOptionFlag( GUIItem.CorrectRotationOffset )
 	if self.Stencilled then
-		-- This element is currently under the effect of a stencil, so inherit
-		-- settings.
+		-- This element is currently under the effect of a stencil, so inherit settings.
 		Item:SetInheritsParentStencilSettings( true )
+	end
+	if self.InheritsParentAlpha then
+		Item:SetInheritsParentAlpha( true )
+	end
+	if self.InheritsParentScaling then
+		Item:SetInheritsParentScaling( true )
 	end
 
 	self.GUIItems = self.GUIItems or Shine.Map()
@@ -878,6 +883,8 @@ end
 function ControlMeta:SetSize( SizeVec )
 	local OldSize = self.Background:GetSize()
 	if OldSize == SizeVec then return end
+
+	self.Size = SizeVec
 
 	self.Background:SetSize( SizeVec )
 	self:InvalidateLayout()

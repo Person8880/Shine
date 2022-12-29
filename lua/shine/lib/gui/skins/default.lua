@@ -188,6 +188,10 @@ local Skin = {
 	},
 	Modal = {
 		Default = {
+			BoxShadow = {
+				BlurRadius = 8,
+				Colour = Colour( 0, 0, 0, 0.75 )
+			},
 			Colour = WindowBackground
 		}
 	},
