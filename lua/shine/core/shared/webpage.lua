@@ -49,7 +49,7 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 	local WidthMult = Max( ScrW / 1920, 1 )
 	local HeightMult = Max( ScrH / 1080, 1 )
 
-	local Window = SGUI:Create( "Panel" )
+	local Window = SGUI:Create( "Modal" )
 	local WindowSize = Scale( PopupSize, WidthMult, HeightMult )
 	Window:SetupFromTable{
 		Size = WindowSize,
@@ -58,17 +58,6 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 	}
 	Window.TitleBarHeight = TitleBarH
 	Window:AddTitleBar( Locale:GetPhrase( "Core", "OPEN_IN_STEAM_OVERLAY" ), Font, TextScale )
-
-	local OldOnMouseDown = Window.OnMouseDown
-
-	function Window:OnMouseDown( Key, DoubleClick )
-		if not self:MouseIn( self.Background ) then
-			self:Destroy()
-			return
-		end
-
-		return OldOnMouseDown( self, Key, DoubleClick )
-	end
 
 	local Text = Window:Add( "Label" )
 	Text:SetupFromTable{
@@ -134,6 +123,8 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Client.ShowWebpage( URL )
 	end
 
+	Window:PopUp()
+
 	return Window
 end
 
@@ -178,6 +169,10 @@ function Shine:OpenWebpage( URL, TitleText )
 
 	TitleText = TitleText and Locale:GetPhrase( "Core", TitleText )
 	Window:AddTitleBar( TitleText or Locale:GetPhrase( "Core", "MESSAGE_OF_THE_DAY" ), Font, TextScale )
+	Window:SetBoxShadow( {
+		BlurRadius = 16,
+		Colour = Colour( 0, 0, 0, 0.75 )
+	} )
 
 	self.ActiveWebPage = Window
 
