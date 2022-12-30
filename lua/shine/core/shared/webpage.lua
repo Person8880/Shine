@@ -45,7 +45,7 @@ local function Scale( Value, WidthMult, HeightMult )
 	return Vector( Value.x * WidthMult, Value.y * HeightMult, 0 )
 end
 
-local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
+local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale, WebPageWindow )
 	local WidthMult = Max( ScrW / 1920, 1 )
 	local HeightMult = Max( ScrH / 1080, 1 )
 
@@ -123,7 +123,7 @@ local function OpenInSteamPopup( URL, ScrW, ScrH, TitleBarH, Font, TextScale )
 		Client.ShowWebpage( URL )
 	end
 
-	Window:PopUp()
+	Window:PopUp( WebPageWindow )
 
 	return Window
 end
@@ -197,7 +197,7 @@ function Shine:OpenWebpage( URL, TitleText )
 	}
 
 	function OpenInSteam:DoClick()
-		local Popup = OpenInSteamPopup( URL, W, H, TitleBarH, Font, TextScale )
+		local Popup = OpenInSteamPopup( URL, W, H, TitleBarH, Font, TextScale, Window )
 
 		Window:DeleteOnRemove( Popup )
 	end

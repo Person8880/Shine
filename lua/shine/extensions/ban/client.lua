@@ -184,7 +184,7 @@ function Plugin:SetupAdminMenu()
 		local AdminMenuWindow = Shine.AdminMenu.Window
 		Modal:SetPos( AdminMenuWindow:GetScreenPos() + AdminMenuWindow:GetSize() * 0.5 - Modal:GetSize() * 0.5 )
 		Modal:SetDraggable( true )
-		Modal:PopUp()
+		Modal:PopUp( AdminMenuWindow )
 
 		Shine.AdminMenu:AttachModal( Modal )
 

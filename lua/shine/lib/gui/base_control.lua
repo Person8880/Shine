@@ -143,6 +143,15 @@ function ControlMeta:DeleteOnRemove( Control )
 end
 
 --[[
+	Stops a control being destroyed when this one is.
+]]
+function ControlMeta:ResetDeleteOnRemove( Control )
+	if not self.__DeleteOnRemove then return end
+
+	TableRemoveByValue( self.__DeleteOnRemove, Control )
+end
+
+--[[
 	Adds a function to be called when this control is destroyed.
 
 	It will be passed this control when called as its argument.

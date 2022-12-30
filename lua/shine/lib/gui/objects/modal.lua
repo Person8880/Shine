@@ -4,6 +4,11 @@
 	Used to popup a dialog box.
 ]]
 
+local Easing = require "shine/lib/gui/util/easing"
+
+local FadingOutEase = Easing.GetEaser( "OutExpo" )
+local FadingInEase = Easing.GetEaser( "InExpo" )
+
 local SGUI = Shine.GUI
 local Controls = SGUI.Controls
 local Units = SGUI.Layout.Units
@@ -60,8 +65,35 @@ function Modal:AddTitleBar( Title, Font, TextScale )
 	self:SetPadding( Units.Spacing( 0, self.TitleBarHeight, 0, 0 ) )
 end
 
-function Modal:PopUp()
+function Modal:PopUp( TargetWindow )
 	if self.State ~= STATE_NONE then return end
+
+	if SGUI.IsValid( TargetWindow ) and TargetWindow.Background then
+		-- This will be automatically cleaned up on modal destruction as its parent is outside the modal's tree.
+		self.WindowDarkenOverlay = self:MakeGUIItem()
+		self.WindowDarkenOverlay:SetLayer( 1000 )
+		self.WindowDarkenOverlay:SetColor( Colour( 0, 0, 0, 0 ) )
+		self.WindowDarkenOverlay:SetSize( TargetWindow:GetSize() )
+		TargetWindow.Background:AddChild( self.WindowDarkenOverlay )
+
+		self.TargetWindowSizeListener = function( Window, Size )
+			self.WindowDarkenOverlay:SetSize( Size )
+		end
+
+		TargetWindow:AddPropertyChangeListener( "Size", self.TargetWindowSizeListener )
+
+		self.TargetWindow = TargetWindow
+
+		self:ApplyTransition( {
+			Type = "Alpha",
+			EndValue = 0.75,
+			Duration = 0.15,
+			EasingFunction = FadingInEase,
+			Element = self.WindowDarkenOverlay
+		} )
+
+		TargetWindow:DeleteOnRemove( self )
+	end
 
 	self.State = STATE_POPUP
 
@@ -69,13 +101,13 @@ function Modal:PopUp()
 		Type = "Alpha",
 		EndValue = 1,
 		Duration = 0.15,
-		EasingFunction = math.EaseIn
+		EasingFunction = FadingInEase
 	} )
 	self:ApplyTransition( {
 		Type = "Scale",
 		EndValue = Vector2( 1, 1 ),
 		Duration = 0.15,
-		EasingFunction = math.EaseIn
+		EasingFunction = FadingInEase
 	} )
 
 	SGUI:EnableMouse( true, self )
@@ -84,19 +116,29 @@ end
 function Modal:Close()
 	if self.State == STATE_CLOSING then return end
 
+	if SGUI.IsValid( self.TargetWindow ) then
+		self:ApplyTransition( {
+			Type = "Alpha",
+			EndValue = 0,
+			Duration = 0.15,
+			EasingFunction = FadingOutEase,
+			Element = self.WindowDarkenOverlay
+		} )
+	end
+
 	self.State = STATE_CLOSING
 
 	self:ApplyTransition( {
 		Type = "Alpha",
 		EndValue = 0,
 		Duration = 0.15,
-		EasingFunction = math.EaseOut
+		EasingFunction = FadingOutEase
 	} )
 	self:ApplyTransition( {
 		Type = "Scale",
 		EndValue = InitialScale,
 		Duration = 0.15,
-		EasingFunction = math.EaseOut,
+		EasingFunction = FadingOutEase,
 		Callback = self.Destroy
 	} )
 
@@ -161,6 +203,14 @@ end
 function Modal:OnMouseMove( Down )
 	if self.State == STATE_CLOSING then return end
 	return Controls.Panel.OnMouseMove( self, Down )
+end
+
+function Modal:Cleanup()
+	if SGUI.IsValid( self.TargetWindow ) then
+		self.TargetWindow:ResetDeleteOnRemove( self )
+		self.TargetWindow:RemovePropertyChangeListener( "Size", self.TargetWindowSizeListener )
+	end
+	return Controls.Panel.Cleanup( self )
 end
 
 SGUI:Register( "Modal", Modal, "Panel" )
