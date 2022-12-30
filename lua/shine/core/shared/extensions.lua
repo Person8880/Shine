@@ -850,6 +850,40 @@ Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
 	Enabled = "boolean"
 } )
 
+local OfficialExtensions
+
+--[[
+	Returns a set of all plugins that are officialy bundled by inspecting the official mod.
+
+	This is used in the plugin list UI to indicate whether a plugin is official or not, it's not used as any form of
+	trusted status or any other logic.
+
+	While this could be overrideen by a mod, please don't. The point of this is to differentiate between plugins that
+	belong to the main mod (and thus issues should be raised there) vs. plugins that belong to other mods. It's not some
+	shiny badge of honour that your plugins must have.
+]]
+function Shine.IsOfficialExtension( Name )
+	if not OfficialExtensions then
+		OfficialExtensions = Shine.UnorderedSet()
+
+		local Files = {}
+		ModServices.GetMatchingFileNamesInMod( 117887554, "lua/shine/extensions/*.lua", true, Files )
+
+		for i = 1, #Files do
+			local Folders = StringExplode( Files[ i ], "/", true )
+			local ExtensionName = Folders[ 4 ]
+			local File = Folders[ 5 ]
+
+			if not File then
+				ExtensionName = StringGSub( ExtensionName, "%.lua$", "" )
+			end
+
+			OfficialExtensions:Add( ExtensionName )
+		end
+	end
+	return OfficialExtensions:Contains( Name )
+end
+
 if Server then
 	Shine.Hook.Add( "ClientConnect", "PluginSync", function( Client )
 		if Client:GetIsVirtual() then return end

@@ -153,6 +153,9 @@ local Skin = {
 		},
 		DangerLabel = {
 			Colour = Colour( 1, 0.2, 0.1, 1 )
+		},
+		InfoLabel = {
+			Colour = SGUI.SaturateColour( Info, 0.5 )
 		}
 	},
 	List = {
