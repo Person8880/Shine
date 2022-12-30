@@ -280,6 +280,23 @@ local Skin = {
 			}
 		}
 	},
+	Switch = {
+		Default = {
+			ActiveBackgroundColour = SuccessButton,
+			InactiveBackgroundColour = DarkButton,
+			KnobColour = Colour( 0.6, 0.6, 0.6, 1 ),
+			States = {
+				Disabled = {
+					ActiveBackgroundColour = SGUI.ColourWithAlpha( SuccessButton, 0.5 ),
+					InactiveBackgroundColour = SGUI.ColourWithAlpha( DarkButton, 0.5 ),
+					KnobColour = Colour( 0.6, 0.6, 0.6, 0.5 )
+				},
+				Active = {
+					KnobColour = BrightText
+				}
+			}
+		}
+	},
 	TabPanel = {
 		Default = {
 			TabBackgroundColour = DarkButton,
