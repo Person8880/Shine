@@ -317,6 +317,7 @@ local StateUpdaters = {
 			View:SetTargetTexture( Entry.TextureName )
 		end
 
+		View:SetGlobal( "NeedsUpdate", 1 )
 		View:SetRenderCondition( GUIView.RenderOnce )
 
 		Entry.GUIView = View

@@ -1401,6 +1401,12 @@ local function SetupRenderDeviceResetCheck()
 			Hook.Broadcast( "OnRenderDeviceReset" )
 		end
 	end )
+
+	Shine:RegisterClientCommand( "sh_sgui_simulate_render_reset", function()
+		if not Shared.GetDevMode() then return end
+
+		Hook.Broadcast( "OnRenderDeviceReset" )
+	end )
 end
 
 local IsMainMenuOpen = MainMenu_GetIsOpened

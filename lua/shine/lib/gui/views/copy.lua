@@ -22,28 +22,15 @@ function Initialise()
 	Rect:SetColor( Color( 1, 1, 1, 1 ) )
 	Rect:SetSize( Vector( Width, Height, 0 ) )
 	Rect:SetPosition( Vector( 0, 0, 0 ) )
+	-- As this is a copy operation, the output should be exactly the same as the input without any blending.
+	Rect:SetBlendTechnique( GUIItem.Set )
 
 	UpdateWithValues()
 end
 
-local ValuesToWatch = { "Width", "Height", "SourceTexture" }
-local LastValues = {}
-for i = 1, #ValuesToWatch do
-	LastValues[ ValuesToWatch[ i ] ] = _G[ ValuesToWatch[ i ] ]
-end
-
 function Update( DeltaTime )
-	local NeedsUpdate = false
-	for i = 1, #ValuesToWatch do
-		local Key = ValuesToWatch[ i ]
-		local CurrentValue = _G[ Key ]
-		if CurrentValue ~= LastValues[ Key ] then
-			NeedsUpdate = true
-		end
-		LastValues[ Key ] = CurrentValue
-	end
-
-	if NeedsUpdate then
+	if _G.NeedsUpdate then
+		_G.NeedsUpdate = false
 		UpdateWithValues()
 	end
 end
