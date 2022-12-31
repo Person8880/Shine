@@ -157,6 +157,10 @@ do
 
 	local Spacing = NewType( "Spacing" )
 
+	function Spacing.Uniform( Amount )
+		return Spacing( Amount, Amount, Amount, Amount )
+	end
+
 	function Spacing:Init( L, U, R, D )
 		self[ 1 ] = ToUnit( L )
 		self[ 2 ] = ToUnit( U )

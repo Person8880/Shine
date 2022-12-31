@@ -498,7 +498,7 @@ function Plugin:ClientDisconnect( Client )
 	Histories[ Client ] = nil
 
 	if self.PluginClients then
-		self.PluginClients[ Client ] = nil
+		self.PluginClients:Remove( Client )
 	end
 
 	self:RemoveAllTalkPreference( Client )
@@ -1003,6 +1003,10 @@ function Plugin:CreateAdminCommands()
 				Shine.Config.ActiveExtensions[ Name ] = true
 			end
 			Shine:SaveConfig()
+
+			-- Notify admins of the change in plugin state. This results in a second message as the plugin hook will
+			-- have sent one already, but this ensures that the ConfiguredAsEnabled flag is correct.
+			self:SendPluginStateUpdate( Name, true )
 		end
 
 		local function LoadPlugin( Client, Name, Save )
@@ -1077,6 +1081,8 @@ function Plugin:CreateAdminCommands()
 				Shine.Config.ActiveExtensions[ Name ] = false
 				Shine:SaveConfig()
 
+				self:SendPluginStateUpdate( Name, false )
+
 				local Message = StringFormat( "Plugin '%s' now set to disabled in config.", Name )
 				Shine:SendAdminNotification( Client, Shine.NotificationType.INFO, Message )
 
@@ -1099,6 +1105,8 @@ function Plugin:CreateAdminCommands()
 		if Save then
 			Shine.Config.ActiveExtensions[ Name ] = false
 			Shine:SaveConfig()
+
+			self:SendPluginStateUpdate( Name, false )
 		end
 	end
 	local UnloadPluginCommand = self:BindCommand( "sh_unloadplugin", nil, UnloadPlugin )
@@ -1870,46 +1878,61 @@ function Plugin:ReceiveRequestMapData( Client, Data )
 	end
 end
 
+local function IsPluginConfiguredAsEnabled( Plugin )
+	return not not ( Shine.Config.ActiveExtensions[ Plugin ] or Shine.Config.ActiveBetaExtensions[ Plugin ] )
+end
+
 function Plugin:ReceiveRequestPluginData( Client, Data )
-	if not Shine:GetPermission( Client, "sh_loadplugin" )
-	and not Shine:GetPermission( Client, "sh_unloadplugin" ) then
+	if not Shine:GetPermission( Client, "sh_loadplugin" ) and not Shine:GetPermission( Client, "sh_unloadplugin" ) then
 		return
 	end
 
 	self:SendNetworkMessage( Client, "PluginTabAuthed", {}, true )
 
-	self.PluginClients = self.PluginClients or {}
+	self.PluginClients = self.PluginClients or Shine.UnorderedSet()
+	self.PluginClients:Add( Client )
 
-	self.PluginClients[ Client ] = true
-
-	local Plugins = Shine.AllPlugins
-
-	for Plugin in pairs( Plugins ) do
+	for Plugin in pairs( Shine.AllPlugins ) do
 		local Enabled = Shine:IsExtensionEnabled( Plugin )
-		self:SendNetworkMessage( Client, "PluginData", { Name = Plugin, Enabled = Enabled }, true )
+		self:SendNetworkMessage(
+			Client,
+			"PluginData",
+			{
+				Name = Plugin,
+				Enabled = Enabled,
+				ConfiguredAsEnabled = IsPluginConfiguredAsEnabled( Plugin )
+			},
+			true
+		)
 	end
 end
 
+function Plugin:SendPluginStateUpdate( Name, Enabled )
+	local Clients = self.PluginClients
+	if not Clients or Clients:GetCount() == 0 then return end
+
+	self:SendNetworkMessage(
+		Clients:AsList(),
+		"PluginData",
+		{
+			Name = Name,
+			Enabled = Enabled,
+			ConfiguredAsEnabled = IsPluginConfiguredAsEnabled( Name )
+		},
+		true
+	)
+end
+
 function Plugin:OnPluginLoad( Name, Plugin, Shared )
+	-- Shared plugins are already updated on every client, and the admin menu listens for it. Only need to network
+	-- server-side plugin changes here.
 	if Shared then return end
 
-	local Clients = self.PluginClients
-
-	if not Clients then return end
-
-	for Client in pairs( Clients ) do
-		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = true }, true )
-	end
+	self:SendPluginStateUpdate( Name, true )
 end
 
 function Plugin:OnPluginUnload( Name, Plugin, Shared )
 	if Shared then return end
 
-	local Clients = self.PluginClients
-
-	if not Clients then return end
-
-	for Client in pairs( Clients ) do
-		self:SendNetworkMessage( Client, "PluginData", { Name = Name, Enabled = false }, true )
-	end
+	self:SendPluginStateUpdate( Name, false )
 end

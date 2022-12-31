@@ -25,7 +25,11 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "MapData", { Name = "string (32)" }, "Client" )
 
 	self:AddNetworkMessage( "RequestPluginData", {}, "Server" )
-	self:AddNetworkMessage( "PluginData", { Name = "string (32)", Enabled = "boolean" }, "Client" )
+	self:AddNetworkMessage( "PluginData", {
+		Name = "string (32)",
+		Enabled = "boolean",
+		ConfiguredAsEnabled = "boolean"
+	}, "Client" )
 	self:AddNetworkMessage( "PluginTabAuthed", {}, "Client" )
 
 	local MessageTypes = {

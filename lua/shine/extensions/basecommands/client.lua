@@ -16,10 +16,13 @@ local Shine = Shine
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 
+local StringFind = string.find
 local StringMatch = string.match
 local StringFormat = string.format
 local StringTimeToString = string.TimeToString
 local TableEmpty = table.Empty
+local TableShallowMerge = table.ShallowMerge
+local TableSort = table.sort
 
 Shine.Hook.Add( "PostLoadScript:lua/Voting.lua", "SetupCustomVote", function( Reload )
 	RegisterVoteType( "ShineCustomVote", {
@@ -379,28 +382,342 @@ function Plugin:SetupAdminMenuCommands()
 		end
 	} )
 
+	local AgencyFBNormal = {
+		Family = "kAgencyFB",
+		Size = HighResScaled( 27 )
+	}
+	local Ionicons = {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = HighResScaled( 27 )
+	}
+	local StateColours = {
+		[ true ] = Colour( 0, 0.7, 0 ),
+		[ false ] = Colour( 1, 0.6, 0 )
+	}
+	local StateIcons = {
+		[ true ] = SGUI.Icons.Ionicons.CheckmarkCircled,
+		[ false ] = SGUI.Icons.Ionicons.MinusCircled
+	}
+
+	local PluginEntry = SGUI:DefineControl( "PluginEntry", "Row" )
+	SGUI.AddProperty( PluginEntry, "Enabled" )
+	SGUI.AddProperty( PluginEntry, "ConfiguredAsEnabled" )
+
+	function PluginEntry:SetPluginData( PluginData )
+		self:SetEnabled( PluginData.Enabled )
+		self:SetConfiguredAsEnabled( PluginData.ConfiguredAsEnabled )
+
+		local RowElements = {
+			{
+				Class = "Label",
+				Props = {
+					AutoFont = AgencyFBNormal,
+					Text = PluginData.Name
+				}
+			}
+		}
+
+		if PluginData.IsOfficial then
+			RowElements[ #RowElements + 1 ] = {
+				Class = "Label",
+				Props = {
+					AutoFont = Ionicons,
+					Margin = Spacing( HighResScaled( 8 ), 0, 0, 0 ),
+					StyleName = "InfoLabel",
+					Text = SGUI.Icons.Ionicons.AndroidCheckmarkCircle,
+					Tooltip = Shine.Locale:GetPhrase( "Core", "OFFICIAL_PLUGIN_TOOLTIP" )
+				}
+			}
+		end
+
+		local ButtonSize = HighResScaled( 32 )
+		local function GetSaveButtonTooltip( Enabled, ConfiguredAsEnabled )
+			if ConfiguredAsEnabled ~= Enabled then
+				return Plugin:GetPhrase(
+					Enabled and "LOAD_PLUGIN_SAVE_TIP" or "UNLOAD_PLUGIN_SAVE_TIP"
+				)
+			end
+			return Plugin:GetPhrase(
+				Enabled and "PLUGIN_SAVED_AS_ENABLED" or "PLUGIN_SAVED_AS_DISABLED"
+			)
+		end
+
+		RowElements[ #RowElements + 1 ] = {
+			ID = "SaveButton",
+			Class = "Button",
+			Props = {
+				Alignment = SGUI.LayoutAlignment.MAX,
+				AutoSize = UnitVector( ButtonSize, ButtonSize ),
+				Horizontal = true,
+				Icon = SGUI.Icons.Ionicons.Locked,
+				IconAutoFont = Ionicons,
+				Margin = Spacing( HighResScaled( 4 ), 0, 0, 0 )
+			},
+			Bindings = {
+				{
+					From = {
+						Element = self,
+						Property = "ConfiguredAsEnabled"
+					},
+					To = {
+						{
+							Property = "Enabled",
+							Transformer = function( ConfiguredAsEnabled )
+								if
+									( ConfiguredAsEnabled and self.Enabled ) or
+									( not ConfiguredAsEnabled and not self.Enabled )
+								then
+									return false
+								end
+								return true
+							end
+						},
+						{
+							Property = "Tooltip",
+							Transformer = function( ConfiguredAsEnabled )
+								return GetSaveButtonTooltip( self.Enabled, ConfiguredAsEnabled )
+							end
+						}
+					}
+				},
+				{
+					From = {
+						Element = self,
+						Property = "Enabled"
+					},
+					To = {
+						{
+							Property = "Enabled",
+							Transformer = function( Enabled )
+								if
+									( self.ConfiguredAsEnabled and Enabled ) or
+									( not self.ConfiguredAsEnabled and not Enabled )
+								then
+									return false
+								end
+								return true
+							end
+						},
+						{
+							Property = "Tooltip",
+							Transformer = function( Enabled )
+								return GetSaveButtonTooltip( Enabled, self.ConfiguredAsEnabled )
+							end
+						}
+					}
+				}
+			}
+		}
+		RowElements[ #RowElements + 1 ] = {
+			ID = "ToggleButton",
+			Class = "Button",
+			Props = {
+				Alignment = SGUI.LayoutAlignment.MAX,
+				AutoSize = UnitVector( ButtonSize, ButtonSize ),
+				Horizontal = true,
+				IconAutoFont = Ionicons,
+				Margin = Spacing( HighResScaled( 4 ), 0, 0, 0 )
+			},
+			Bindings = {
+				{
+					From = {
+						Element = self,
+						Property = "Enabled"
+					},
+					To = {
+						{
+							Property = "Icon",
+							Transformer = function( Enabled )
+								return SGUI.Icons.Ionicons[ Enabled and "Close" or "Power" ]
+							end
+						},
+						{
+							Property = "StyleName",
+							Transformer = function( Enabled ) return Enabled and "DangerButton" or "SuccessButton" end
+						},
+						{
+							Property = "Tooltip",
+							Transformer = function( Enabled )
+								return Plugin:GetPhrase( Enabled and "UNLOAD_PLUGIN" or "LOAD_PLUGIN" )
+							end
+						}
+					}
+				}
+			}
+		}
+		RowElements[ #RowElements + 1 ] = {
+			ID = "ReloadButton",
+			Class = "Button",
+			Props = {
+				Alignment = SGUI.LayoutAlignment.MAX,
+				AutoSize = UnitVector( ButtonSize, ButtonSize ),
+				Horizontal = true,
+				Icon = SGUI.Icons.Ionicons.Refresh,
+				IconAutoFont = Ionicons,
+				Margin = Spacing( HighResScaled( 4 ), 0, 0, 0 ),
+				Tooltip = Plugin:GetPhrase( "RELOAD_PLUGIN" )
+			},
+			Bindings = {
+				{
+					From = {
+						Element = self,
+						Property = "Enabled"
+					},
+					To = {
+						Property = "IsVisible"
+					}
+				}
+			}
+		}
+
+		local Elements = SGUI:BuildTree( {
+			Parent = self,
+			{
+				ID = "StatusFlair",
+				Class = "Column",
+				Props = {
+					AutoSize = UnitVector( Auto.INSTANCE, 0 ),
+					Padding = Spacing( HighResScaled( 4 ), 0, HighResScaled( 4 ), 0 ),
+					IsSchemed = false
+				},
+				Children = {
+					{
+						Class = "Label",
+						Props = {
+							Alignment = SGUI.LayoutAlignment.CENTRE,
+							AutoFont = Ionicons,
+							CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+							IsSchemed = false,
+							Colour = Colour( 1, 1, 1 )
+						},
+						Bindings = {
+							{
+								From = {
+									Element = self,
+									Property = "Enabled"
+								},
+								To = {
+									Property = "Text",
+									Transformer = function( Enabled ) return StateIcons[ Enabled ] end
+								}
+							}
+						}
+					}
+				},
+				Bindings = {
+					{
+						From = {
+							Element = self,
+							Property = "Enabled"
+						},
+						To = {
+							{
+								Property = "Colour",
+								Transformer = function( Enabled ) return StateColours[ Enabled ] end
+							},
+							{
+								Property = "Tooltip",
+								Transformer = function( Enabled )
+									return Shine.Locale:GetPhrase( "Core", Enabled and "ENABLED" or "DISABLED" )
+								end
+							}
+						}
+					}
+				}
+			},
+			{
+				ID = "Content",
+				Class = "Horizontal",
+				Type = "Layout",
+				Props = {
+					Padding = Spacing.Uniform( HighResScaled( 8 ) )
+				},
+				Children = RowElements
+			},
+			OnBuilt = function( Elements )
+				Elements.StatusFlair.AutoSize[ 2 ] = Units.Auto( Elements.Content )
+			end
+		} )
+
+		TableShallowMerge( Elements, self )
+
+		function self.ReloadButton.DoClick()
+			Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
+		end
+
+		function self.ToggleButton.DoClick()
+			if self.Enabled then
+				Shine.AdminMenu:RunCommand( "sh_unloadplugin", PluginData.Name )
+			else
+				Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
+			end
+		end
+
+		function self.SaveButton.DoClick()
+			-- The save flag here doesn't cause any attempt to load/unload unless the plugin isn't in the expected
+			-- state, so this won't unexpectedly reload a plugin.
+			if self.Enabled then
+				Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name.." true" )
+			else
+				Shine.AdminMenu:RunCommand( "sh_unloadplugin", PluginData.Name.." true" )
+			end
+		end
+
+		self:SetColour( Colour( 0, 0, 0, 0.15 ) )
+	end
+
+	local function IsClientOnlyPlugin( PluginTable )
+		return PluginTable.IsClient and not PluginTable.IsShared
+	end
+
+	function self:PopulatePluginList()
+		local Panel = self.PluginPanel
+		if not SGUI.IsValid( Panel ) then return end
+
+		local Rows = {
+			Parent = Panel
+		}
+		local RowMargin = HighResScaled( 8 )
+
+		for Plugin in pairs( Shine.AllPlugins ) do
+			local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
+
+			-- Ignore client-side only plugins, they're managed in the client config menu per player.
+			if not PluginTable or not IsClientOnlyPlugin( PluginTable ) then
+				local PluginData = self.PluginData and self.PluginData[ Plugin ]
+				Rows[ #Rows + 1 ] = {
+					ID = Plugin,
+					Class = PluginEntry,
+					Props = {
+						AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
+						DebugName = StringFormat( "AdminMenu%sPluginRow", Plugin ),
+						Margin = Spacing( 0, 0, 0, RowMargin ),
+						PluginData = PluginData or {
+							Name = Plugin,
+							Enabled = Enabled,
+							ConfiguredAsEnabled = false,
+							IsOfficial = Shine.IsOfficialExtension( Plugin )
+						}
+					}
+				}
+			end
+		end
+
+		TableSort( Rows, function( A, B )
+			return A.ID < B.ID
+		end )
+
+		local LastRow = Rows[ #Rows ]
+		if LastRow then
+			LastRow.Props.Margin = nil
+		end
+
+		self.PluginRows = SGUI:BuildTree( Rows )
+	end
+
 	self:AddAdminMenuTab( self:GetPhrase( "PLUGINS" ), {
 		Icon = SGUI.Icons.Ionicons.Settings,
 		OnInit = function( Panel, Data )
-			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
-					HighResScaled( 16 ), HighResScaled( 16 ) )
-			} )
-
-			local List = SGUI:Create( "List", Panel )
-			List:SetDebugName( "AdminMenuPluginsList" )
-			List:SetColumns( self:GetPhrase( "PLUGIN" ), self:GetPhrase( "STATE" ) )
-			List:SetSpacing( 0.8, 0.2 )
-			List:SetSecondarySortColumn( 2, 1 )
-			List:SetFill( true )
-
-			Shine.AdminMenu.SetupListWithScaling( List )
-
-			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
-
-			Layout:AddElement( List )
-
-			self.PluginList = List
 			self.PluginRows = self.PluginRows or {}
 
 			-- We need information about the server side only plugins too.
@@ -409,114 +726,10 @@ function Plugin:SetupAdminMenuCommands()
 				self.PluginData = {}
 			end
 
-			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
-				Fill = false
-			} )
-
-			local function GetSelectedPlugin()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
-
-				return Selected:GetColumnText( 1 ), Selected.PluginEnabled
-			end
-
-			local UnloadPlugin = SGUI:Create( "Button", Panel )
-			UnloadPlugin:SetDebugName( "AdminMenuUnloadPluginButton" )
-			UnloadPlugin:SetText( self:GetPhrase( "UNLOAD_PLUGIN" ) )
-			UnloadPlugin:SetFontScale( Font, Scale )
-			UnloadPlugin:SetStyleName( "DangerButton" )
-			UnloadPlugin:SetEnabled( List:HasSelectedRow() )
-			UnloadPlugin:SetIcon( SGUI.Icons.Ionicons.Close )
-			function UnloadPlugin.DoClick( Button )
-				local Plugin, Enabled = GetSelectedPlugin()
-				if not Plugin then return false end
-				if not Enabled then return false end
-
-				local Menu = Button:AddMenu()
-
-				Menu:AddButton( self:GetPhrase( "NOW" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin )
-				end, self:GetPhrase( "UNLOAD_PLUGIN_TIP" ) ):SetStyleName( "DangerButton" )
-
-				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_unloadplugin", Plugin.." true" )
-				end, self:GetPhrase( "UNLOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "DangerButton" )
-			end
-
-			ControlLayout:AddElement( UnloadPlugin )
-
-			local LoadPlugin = SGUI:Create( "Button", Panel )
-			LoadPlugin:SetDebugName( "AdminMenuLoadPluginButton" )
-			LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
-			LoadPlugin:SetFontScale( Font, Scale )
-			LoadPlugin:SetStyleName( "SuccessButton" )
-			LoadPlugin:SetEnabled( List:HasSelectedRow() )
-			LoadPlugin:SetAlignment( SGUI.LayoutAlignment.MAX )
-			LoadPlugin:SetIcon( SGUI.Icons.Ionicons.Power )
-			local function NormalLoadDoClick( Button )
-				local Plugin = GetSelectedPlugin()
-				if not Plugin then return false end
-
-				local Menu = Button:AddMenu()
-
-				Menu:AddButton( self:GetPhrase( "NOW" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
-				end, self:GetPhrase( "LOAD_PLUGIN_TIP" ) ):SetStyleName( "SuccessButton" )
-
-				Menu:AddButton( self:GetPhrase( "PERMANENTLY" ), function()
-					Menu:Destroy()
-
-					Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin.." true" )
-				end, self:GetPhrase( "LOAD_PLUGIN_SAVE_TIP" ) ):SetStyleName( "SuccessButton" )
-			end
-
-			ControlLayout:AddElement( LoadPlugin )
-
-			local function ReloadDoClick()
-				local Plugin = GetSelectedPlugin()
-				if not Plugin then return false end
-
-				Shine.AdminMenu:RunCommand( "sh_loadplugin", Plugin )
-			end
-
-			LoadPlugin.DoClick = NormalLoadDoClick
-
-			function List.OnRowSelected( List, Index, Row )
-				local State = Row.PluginEnabled
-
-				LoadPlugin:SetEnabled( true )
-				UnloadPlugin:SetEnabled( true )
-
-				if State then
-					LoadPlugin:SetText( self:GetPhrase( "RELOAD_PLUGIN" ) )
-					LoadPlugin.DoClick = ReloadDoClick
-				else
-					LoadPlugin:SetText( self:GetPhrase( "LOAD_PLUGIN" ) )
-					LoadPlugin.DoClick = NormalLoadDoClick
-				end
-			end
-
-			function List:OnRowDeselected( Index, Row )
-				LoadPlugin:SetEnabled( false )
-				UnloadPlugin:SetEnabled( false )
-			end
-
 			local function UpdateRow( Name, State )
 				local Row = self.PluginRows[ Name ]
-
 				if SGUI.IsValid( Row ) then
-					self:SetPluginRowState( Row, State )
-
-					if Row == List:GetSelectedRow() then
-						List:OnRowSelected( nil, Row )
-					end
+					Row:SetEnabled( State )
 				end
 			end
 
@@ -528,40 +741,81 @@ function Plugin:SetupAdminMenuCommands()
 				UpdateRow( Name, false )
 			end )
 
-			local ButtonWidth = Units.Max(
-				HighResScaled( 128 ),
-				Auto( LoadPlugin ) + HighResScaled( 16 ),
-				Auto( UnloadPlugin ) + HighResScaled( 16 )
-			)
-			UnloadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
-			LoadPlugin:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
+			local Elements = SGUI:BuildTree( {
+				Parent = Panel,
+				{
+					Class = "Vertical",
+					Type = "Layout",
+					Props = {
+						Padding = Spacing(
+							HighResScaled( 16 ), HighResScaled( 28 ), HighResScaled( 16 ), HighResScaled( 16 )
+						)
+					},
+					Children = {
+						{
+							Class = "Horizontal",
+							Type = "Layout",
+							Props = {
+								AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto.INSTANCE ),
+								Fill = false,
+								Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) )
+							},
+							Children = {
+								{
+									Class = "Label",
+									Props = {
+										AutoFont = Ionicons,
+										Text = SGUI.Icons.Ionicons.Search,
+										Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 )
+									}
+								},
+								{
+									ID = "SearchEntry",
+									Class = "TextEntry",
+									Props = {
+										AutoFont = AgencyFBNormal,
+										AutoSize = UnitVector( 0, Auto.INSTANCE ),
+										Fill = true,
+										PlaceholderText = self:GetPhrase( "SEARCH_PLUGINS_HINT" )
+									}
+								},
+							}
+						},
+						{
+							ID = "PluginPanel",
+							Class = "Column",
+							Props = {
+								Scrollable = true,
+								Fill = true,
+								Colour = Colour( 0, 0, 0, 0 ),
+								ScrollbarPos = Vector2( 0, 0 ),
+								ScrollbarWidth = HighResScaled( 8 ):GetValue(),
+								ScrollbarHeightOffset = 0
+							}
+						}
+					}
+				}
+			} )
 
-			local ButtonHeight = Auto( LoadPlugin ) + HighResScaled( 8 )
-			ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
+			function Elements.SearchEntry.OnTextChanged( SearchEntry, OldText, NewText )
+				for Plugin, Row in pairs( self.PluginRows ) do
+					Row:SetIsVisible( NewText == "" or not not StringFind( Plugin, NewText, 1, true ) )
+				end
+			end
 
-			Layout:AddElement( ControlLayout )
-			Panel:SetLayout( Layout )
-			Panel:InvalidateLayout( true )
+			self.PluginPanel = Elements.PluginPanel
 
 			if self.PluginAuthed then
 				self:PopulatePluginList()
 			end
-
-			if not Shine.AdminMenu.RestoreListState( List, Data ) then
-				List:SortRows( 2, nil, true )
-			end
 		end,
 
 		OnCleanup = function( Panel )
-			TableEmpty( self.PluginRows )
-
-			local PluginList = self.PluginList
+			self.PluginRows = nil
 			self.PluginList = nil
 
 			Hook.Remove( "OnPluginLoad", "AdminMenu_OnPluginLoad" )
 			Hook.Remove( "OnPluginUnload", "AdminMenu_OnPluginUnload" )
-
-			return Shine.AdminMenu.GetListState( PluginList )
 		end
 	} )
 end
@@ -591,54 +845,15 @@ function Plugin:ReceivePluginTabAuthed()
 	self:PopulatePluginList()
 end
 
-function Plugin:PopulatePluginList()
-	local List = self.PluginList
-	if not SGUI.IsValid( List ) then return end
-
-	for Plugin in pairs( Shine.AllPlugins ) do
-		local Enabled, PluginTable = Shine:IsExtensionEnabled( Plugin )
-		local Skip
-		-- Server side plugin.
-		if not PluginTable then
-			Enabled = self.PluginData and self.PluginData[ Plugin ]
-		elseif PluginTable.IsClient and not PluginTable.IsShared then
-			Skip = true
-		end
-
-		if not Skip then
-			local Row = List:AddRow( Plugin, "" )
-			Row:SetDebugName( StringFormat( "AdminMenu%sPluginRow", Plugin ) )
-			self:SetPluginRowState( Row, Enabled )
-
-			self.PluginRows[ Plugin ] = Row
-		end
-	end
-end
-
-function Plugin:SetPluginRowState( Row, Enabled )
-	local Font, Scale = SGUI.FontManager.GetHighResFont( SGUI.FontFamilies.Ionicons, 27 )
-	Row:SetColumnText( 2, SGUI.Icons.Ionicons[ Enabled and "CheckmarkCircled" or "MinusCircled" ] )
-	Row:SetTextOverride( 2, {
-		Font = Font,
-		TextScale = Scale,
-		Colour = Enabled and Colour( 0, 1, 0 ) or Colour( 1, 0.8, 0 )
-	} )
-	Row:SetData( 2, Enabled and "1" or "0" )
-	Row.PluginEnabled = Enabled
-end
-
 function Plugin:ReceivePluginData( Data )
 	self.PluginData = self.PluginData or {}
-	self.PluginData[ Data.Name ] = Data.Enabled
+	self.PluginData[ Data.Name ] = Data
+	Data.IsOfficial = Shine.IsOfficialExtension( Data.Name )
 
 	local Row = self.PluginRows[ Data.Name ]
-
 	if Row then
-		self:SetPluginRowState( Row, Data.Enabled )
-
-		if Row == self.PluginList:GetSelectedRow() then
-			self.PluginList:OnRowSelected( nil, Row )
-		end
+		Row:SetEnabled( Data.Enabled )
+		Row:SetConfiguredAsEnabled( Data.ConfiguredAsEnabled )
 	end
 end
 
