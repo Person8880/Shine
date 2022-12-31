@@ -314,10 +314,10 @@ local StateUpdaters = {
 			View:SetGlobal( "SourceTexture", self.TextureName )
 			View:SetGlobal( "Width", Entry.Width )
 			View:SetGlobal( "Height", Entry.Height )
+			View:SetGlobal( "NeedsUpdate", 1 )
 			View:SetTargetTexture( Entry.TextureName )
 		end
 
-		View:SetGlobal( "NeedsUpdate", 1 )
 		View:SetRenderCondition( GUIView.RenderOnce )
 
 		Entry.GUIView = View
