@@ -15,6 +15,7 @@ local pairs = pairs
 local Notify = Shared.Message
 local pcall = pcall
 local setmetatable = setmetatable
+local StringEndsWith = string.EndsWith
 local StringExplode = string.Explode
 local StringFormat = string.format
 local StringGSub = string.gsub
@@ -875,10 +876,13 @@ function Shine.IsOfficialExtension( Name )
 			local File = Folders[ 5 ]
 
 			if not File then
+				File = ExtensionName
 				ExtensionName = StringGSub( ExtensionName, "%.lua$", "" )
 			end
 
-			OfficialExtensions:Add( ExtensionName )
+			if StringEndsWith( File, ".lua" ) then
+				OfficialExtensions:Add( ExtensionName )
+			end
 		end
 	end
 	return OfficialExtensions:Contains( Name )
