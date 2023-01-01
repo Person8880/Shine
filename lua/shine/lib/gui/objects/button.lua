@@ -264,10 +264,6 @@ function Button:SetInactiveCol( Col )
 	end
 end
 
-function Button:SetDoClick( Func )
-	self.DoClick = Func
-end
-
 function Button:SetHighlightTexture( Texture )
 	self.HighlightTexture = Texture
 end

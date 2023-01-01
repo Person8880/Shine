@@ -10,6 +10,14 @@ local function GetClickMethod( self, Key )
 	return Key == InputKey.MouseButton0 and self.DoClick or self.DoRightClick
 end
 
+function Clickable:SetDoClick( Func )
+	self.DoClick = Func
+end
+
+function Clickable:SetDoRightClick( Func )
+	self.DoRightClick = Func
+end
+
 function Clickable:OnMouseDown( Key, DoubleClick )
 	if Key ~= InputKey.MouseButton0 and Key ~= InputKey.MouseButton1 then return end
 	if not self:GetIsVisible() or not self:MouseInControl() then return end
