@@ -13,6 +13,14 @@ function Row:Initialise()
 	self:SetLayout( SGUI.Layout:CreateLayout( "Horizontal" ), true )
 end
 
+function Row:Clear()
+	local Layout = self.Layout
+	Layout:Clear()
+	Controls.Panel.Clear( self )
+	-- Retain the layout as that's the point of this control.
+	self.Layout = Layout
+end
+
 function Row:SetPadding( Padding )
 	self.Layout:SetPadding( Padding )
 end

@@ -13,6 +13,14 @@ function Column:Initialise()
 	self:SetLayout( SGUI.Layout:CreateLayout( "Vertical" ), true )
 end
 
+function Column:Clear()
+	local Layout = self.Layout
+	Layout:Clear()
+	Controls.Panel.Clear( self )
+	-- Retain the layout as that's the point of this control.
+	self.Layout = Layout
+end
+
 function Column:SetPadding( Padding )
 	self.Layout:SetPadding( Padding )
 end
