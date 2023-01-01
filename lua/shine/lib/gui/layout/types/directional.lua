@@ -28,7 +28,7 @@ function Directional:SetElementSize( Element, RealSize, Margin )
 	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 6 ] )
 
 	local NewSize = Vector2( Width, Height )
-	Element:SetSize( NewSize )
+	Element:SetLayoutSize( NewSize )
 
 	return NewSize
 end
@@ -98,10 +98,10 @@ function Directional:LayoutElements( Elements, Context )
 		local Margin = Element:GetComputedMargin()
 		if Element:GetFill() then
 			-- Fixed size elements have already been resized, just need to resize fill elements.
-			Element:SetSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
+			Element:SetLayoutSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
 		end
 
-		local CurrentSize = Element:GetSize()
+		local CurrentSize = Element:GetLayoutSize()
 		local MinW, MinH = self:GetMinMargin( Margin )
 		local MaxW, MaxH = self:GetMaxMargin( Margin )
 		local SizeW, SizeH = self:GetElementSizeOffset( CurrentSize )

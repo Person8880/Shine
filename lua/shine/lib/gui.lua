@@ -1307,6 +1307,9 @@ do
 	end )
 end
 
+-- Clock used for high-precision tasks such as animations.
+SGUI.GetTime = Shared.GetSystemTimeReal
+
 Hook.Add( "PlayerKeyPress", "UpdateSGUI", function( Key, Down )
 	if SGUI:CallEvent( false, "PlayerKeyPress", Key, Down ) then
 		return true

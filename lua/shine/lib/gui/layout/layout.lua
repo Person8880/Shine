@@ -61,6 +61,14 @@ function BaseLayout:Init( Data )
 	return self
 end
 
+-- These are not inherited from the base control as position and size in layouts is just a table field, its not derived
+-- from a GUIItem. Note that layouts do not support easing, so these always point at the underlying fields. Use a
+-- control if easing is desired.
+BaseLayout.SetLayoutPos = BaseLayout.SetPos
+BaseLayout.GetLayoutPos = BaseLayout.GetPos
+BaseLayout.SetLayoutSize = BaseLayout.SetSize
+BaseLayout.GetLayoutSize = BaseLayout.GetSize
+
 function BaseLayout:GetParentControl()
 	local Parent = self.Parent
 	while Parent and Parent.IsLayout do
@@ -148,6 +156,7 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"ComputeSpacing",
 	"GetContentSizeForAxis",
 	"GetMaxSizeAlongAxis",
+	"GetSizeForAxis",
 	"GetComputedPadding",
 	"GetComputedMargin",
 	"GetComputedSize",

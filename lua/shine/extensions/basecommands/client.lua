@@ -670,6 +670,12 @@ function Plugin:SetupAdminMenuCommands()
 		return PluginTable.IsClient and not PluginTable.IsShared
 	end
 
+	local Easing = require "shine/lib/gui/util/easing"
+	local RowPosTransition = {
+		Duration = 0.15,
+		EasingFunction = Easing.GetEaser( "OutSine" )
+	}
+
 	function self:PopulatePluginList()
 		local Panel = self.PluginPanel
 		if not SGUI.IsValid( Panel ) then return end
@@ -692,6 +698,7 @@ function Plugin:SetupAdminMenuCommands()
 						AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
 						DebugName = StringFormat( "AdminMenu%sPluginRow", Plugin ),
 						Margin = Spacing( 0, 0, 0, RowMargin ),
+						LayoutPosTransition = RowPosTransition,
 						PluginData = PluginData or {
 							Name = Plugin,
 							Enabled = Enabled,

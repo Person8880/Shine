@@ -40,13 +40,13 @@ end
 function Vertical:SetElementPos( Element, X, Y, Margin, LayoutSize )
 	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
 	if CrossAxisAlignment == LayoutAlignment.CENTRE then
-		X = X + LayoutSize.x * 0.5 - Element:GetSize().x * 0.5
+		X = X + LayoutSize.x * 0.5 - Element:GetLayoutSize().x * 0.5
 	elseif CrossAxisAlignment == LayoutAlignment.MAX then
-		X = X + LayoutSize.x - Element:GetSize().x
+		X = X + LayoutSize.x - Element:GetLayoutSize().x
 	end
 
 	local LayoutOffset = Element:GetLayoutOffset()
-	Element:SetPos( Vector2( X + Margin[ 1 ] + LayoutOffset.x, Y + LayoutOffset.y ) )
+	Element:SetLayoutPos( Vector2( X + Margin[ 1 ] + LayoutOffset.x, Y + LayoutOffset.y ) )
 end
 
 function Vertical:GetMaxMargin( Margin )

@@ -25,7 +25,7 @@ function Scrollbar:Initialise()
 
 	self.Bar = Bar
 	self.BarPos = Vector( 0, 0, 0 )
-	self.Pos = 0
+	self.ScrollPosition = 0
 	self.ScrollSize = 1
 
 	self.Horizontal = false
@@ -108,7 +108,7 @@ function Scrollbar:UpdateScrollBarSize()
 end
 
 function Scrollbar:SetScrollSize( Size )
-	local OldPos = self.Pos or 0
+	local OldPos = self.ScrollPosition or 0
 	local OldDiff = self:GetDiffSize()
 
 	self.ScrollSize = Size
@@ -129,7 +129,7 @@ function Scrollbar:SetScroll( Scroll, Smoothed )
 
 	Scroll = Clamp( Scroll, 0, Diff )
 
-	self.Pos = Scroll
+	self.ScrollPosition = Scroll
 	self.BarPos[ self.ScrollAxis ] = Scroll
 	self.Bar:SetPosition( self.BarPos )
 
@@ -160,7 +160,7 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 
 	self.Scrolling = true
 
-	self.StartingPos = self.Pos
+	self.StartingScrollPosition = self.ScrollPosition
 	self.StartingX = X
 	self.StartingY = Y
 
@@ -178,7 +178,7 @@ function Scrollbar:OnMouseWheel( Down )
 	if Parent:HasMouseEntered() or self:MouseIn( self.Background ) then
 		local ScrollMagnitude = self.MouseWheelScroll or SGUI.LinearScale( 32 )
 
-		self:SetScroll( self.Pos + ( Down and -ScrollMagnitude or ScrollMagnitude ) * self.ScrollSize, true )
+		self:SetScroll( self.ScrollPosition + ( Down and -ScrollMagnitude or ScrollMagnitude ) * self.ScrollSize, true )
 
 		return true
 	end
@@ -201,7 +201,7 @@ function Scrollbar:OnMouseMove( Down )
 	local X, Y = GetCursorPos()
 	local Diff = self.Horizontal and ( X - self.StartingX ) or ( Y - self.StartingY )
 
-	self:SetScroll( self.StartingPos + Diff, true )
+	self:SetScroll( self.StartingScrollPosition + Diff, true )
 end
 
 SGUI:Register( "Scrollbar", Scrollbar )

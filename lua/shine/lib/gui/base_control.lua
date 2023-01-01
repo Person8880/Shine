@@ -9,7 +9,7 @@ local ControlMeta = SGUI.BaseControl
 local Set = Shine.Set
 
 local assert = assert
-local Clock = Shared.GetSystemTimeReal
+local Clock = SGUI.GetTime
 local IsType = Shine.IsType
 local IsGUIItemValid = debug.isvalid
 local Max = math.max
@@ -836,10 +836,10 @@ function ControlMeta:UpdateAbsolutePositionChildren()
 		Child:PreComputeHeight( Width )
 
 		local ChildSize = Vector2( Width, Child:GetComputedSize( 2, Size.y ) )
-		Child:SetSize( ChildSize )
+		Child:SetLayoutSize( ChildSize )
 
 		local Pos = Child:ComputeAbsolutePosition( Size )
-		Child:SetPos( Pos )
+		Child:SetLayoutPos( Pos )
 		Child:InvalidateLayout( true )
 	end
 end
@@ -1176,6 +1176,8 @@ function ControlMeta:SetPos( Pos )
 	local OldPos = self.Background:GetPosition()
 	if Pos == OldPos then return end
 
+	self.Pos = Pos
+
 	self.Background:SetPosition( Pos )
 	self:InvalidateMouseState()
 	self:OnPropertyChanged( "Pos", Pos )
@@ -1190,6 +1192,208 @@ end
 ]]
 function ControlMeta:GetScreenPos()
 	return self.Background:GetScreenPosition( SGUI.GetScreenSize() )
+end
+
+-- By default, layout position and size point at the real position and size with no easing involved.
+-- Note that these call the appropriate method rather than just alias the base method to account for controls that
+-- override SetPos/GetPos/SetSize/GetSize.
+function ControlMeta:SetLayoutPos( Pos )
+	return self:SetPos( Pos )
+end
+function ControlMeta:GetLayoutPos()
+	return self:GetPos()
+end
+function ControlMeta:SetLayoutSize( Size )
+	return self:SetSize( Size )
+end
+function ControlMeta:GetLayoutSize()
+	return self:GetSize()
+end
+
+do
+	local function IsZero( Vec )
+		return Vec.x == 0 and Vec.y == 0
+	end
+
+	local function ResolveCropping( self )
+		-- Recurse upwards until a parent element with a cropping rectange is found.
+		-- In theory the actual cropping could consist of multiple boxes which cut parts of each other out, but this
+		-- is ultimately just a heuristic check so doesn't need perfect accuracy. Most of the time, cropping boxes
+		-- are strictly nested within each other and thus the closest parent is the correct box.
+		local Parent = self.Background:GetParent()
+		while Parent do
+			-- This returns values even when cropping is disabled, so have to assume (0, 0) -> (0, 0) means disabled...
+			local MinCorner, MaxCorner = Parent:GetCropRectangle()
+			if MinCorner and not ( IsZero( MinCorner ) and IsZero( MaxCorner ) ) then
+				local Pos = Parent:GetScreenPosition( SGUI.GetScreenSize() )
+				return Pos + MinCorner, Pos + MaxCorner
+			end
+			Parent = Parent:GetParent()
+		end
+		return nil
+	end
+
+	local function IsPointCropped( ScreenPos, Mins, Maxs )
+		return ScreenPos.x < Mins.x or ScreenPos.y < Mins.y or ScreenPos.x > Maxs.x or ScreenPos.y > Maxs.y
+	end
+
+	local function GetLayoutPos( self )
+		return self.LayoutPos
+	end
+
+	local function SetLayoutPosWithTransition( self, Pos )
+		if self.LayoutPos == Pos then return end
+
+		self.LayoutPos = Pos
+
+		local Mins, Maxs = ResolveCropping( self )
+		if Mins then
+			local CurrentScreenPos = self:GetScreenPos()
+			local NewScreenPos = CurrentScreenPos + ( Pos - self:GetPos() )
+			local Size = self:GetLayoutSize()
+			if
+				IsPointCropped( NewScreenPos, Mins, Maxs ) and
+				IsPointCropped( NewScreenPos + Size, Mins, Maxs ) and
+				IsPointCropped( CurrentScreenPos, Mins, Maxs ) and
+				IsPointCropped( CurrentScreenPos + Size, Mins, Maxs )
+			then
+				-- Both the current position and intended position do not appear to be visible, so it would be wasted
+				-- effort to ease them. Just update the position immediately.
+				self:StopMoving( self.Background )
+				self:SetPos( Pos )
+				return
+			end
+		end
+
+		self.LayoutPosTransition.EndValue = Pos
+		self.LayoutPosTransition.StartValue = nil
+		self:ApplyTransition( self.LayoutPosTransition )
+	end
+
+	local function SetLayoutPos( self, Pos )
+		-- First update, set the position immediately.
+		self.LayoutPos = Pos
+		self:SetPos( Pos )
+		-- Subsequent position updates will be eased.
+		self.SetLayoutPos = SetLayoutPosWithTransition
+		self.GetLayoutPos = GetLayoutPos
+	end
+
+	local function GetLayoutSize( self )
+		return self.LayoutSize
+	end
+
+	local function SetLayoutSizeWithTransition( self, Size )
+		if self.LayoutSize == Size then return end
+
+		self.LayoutSize = Size
+
+		local Mins, Maxs = ResolveCropping( self )
+		if Mins then
+			local Pos = self:GetScreenPos()
+			local CurrentSize = self:GetSize()
+			if
+				IsPointCropped( Pos, Mins, Maxs ) and
+				IsPointCropped( Pos + Size, Mins, Maxs ) and
+				IsPointCropped( Pos + CurrentSize, Mins, Maxs )
+			then
+				-- Both the current box and intended box do not appear to be visible, so it would be wasted
+				-- effort to ease them. Just update the size immediately.
+				self:StopResizing( self.Background )
+				self:SetSize( Size )
+				return
+			end
+		end
+
+		self.LayoutSizeTransition.EndValue = Size
+		self.LayoutSizeTransition.StartValue = nil
+		self:ApplyTransition( self.LayoutSizeTransition )
+	end
+
+	local function SetLayoutSize( self, Size )
+		-- First update, set the size immediately.
+		self.LayoutSize = Size
+		self:SetSize( Size )
+		-- Subsequent size updates will be eased.
+		self.SetLayoutSize = SetLayoutSizeWithTransition
+		self.GetLayoutSize = GetLayoutSize
+	end
+
+	--[[
+		Sets the transition parameters to use to apply easing to position updates that originate from computed layout.
+
+		This allows for automatic easing as part of the layout process without needing to deal with manual positioning.
+
+		Note that the first time the position is set on a control, no easing will occur.
+
+		Input: The transition parameters to use when easing the position after layout (see ApplyTransition for the
+		structure, note that "Type" and "Element" are ignored as they are always "Move" and nil (self.Background)
+		respectively).
+	]]
+	function ControlMeta:SetLayoutPosTransition( Transition )
+		if self.LayoutPosTransition == Transition then return end
+
+		self.LayoutPosTransition = Transition
+
+		if Transition then
+			Transition.Type = "Move"
+			Transition.Element = nil
+
+			if self.Pos == nil then
+				-- Position hasn't been set yet, the first movement should be instant.
+				-- Leave GetLayoutPos pointing at GetPos until self.LayoutPos is initially populated.
+				self.SetLayoutPos = SetLayoutPos
+			else
+				-- Position has been set before, animate to new positions and set self.LayoutPos for reading.
+				self.LayoutPos = self:GetPos()
+				self.SetLayoutPos = SetLayoutPosWithTransition
+				self.GetLayoutPos = GetLayoutPos
+			end
+		else
+			-- Reset back to the default methods.
+			self.SetLayoutPos = nil
+			self.GetLayoutPos = nil
+			self.LayoutPos = nil
+		end
+	end
+
+	--[[
+		Sets the transition parameters to use to apply easing to size updates that originate from computed layout.
+
+		This allows for automatic easing as part of the layout process without needing to deal with manual resizing.
+
+		Note that the first time the size is set on a control, no easing will occur.
+
+		Input: The transition parameters to use when easing the size after layout (see ApplyTransition for the
+		structure, note that "Type" and "Element" are ignored as they are always "Size" and nil (self.Background)
+		respectively).
+	]]
+	function ControlMeta:SetLayoutSizeTransition( Transition )
+		if self.LayoutSizeTransition == Transition then return end
+
+		self.LayoutSizeTransition = Transition
+
+		if Transition then
+			Transition.Type = "Size"
+			Transition.Element = nil
+
+			if self.Size == nil then
+				-- Size hasn't been set yet, the first resize should be instant.
+				-- Leave GetLayoutSize pointing at GetSize until self.LayoutSize is initially populated.
+				self.SetLayoutSize = SetLayoutSize
+			else
+				-- Size has been set before, animate to new sizes and set self.LayoutSize for reading.
+				self.LayoutSize = self:GetSize()
+				self.SetLayoutSize = SetLayoutSizeWithTransition
+				self.GetLayoutSize = GetLayoutSize
+			end
+		else
+			-- Reset back to the default methods.
+			self.SetLayoutSize = nil
+			self.GetLayoutSize = nil
+			self.LayoutSize = nil
+		end
+	end
 end
 
 do
@@ -1596,13 +1800,19 @@ local Easers = {
 			CurValue.y = Start.y + Diff.y * Progress
 		end,
 		Setter = function( self, Element, Pos )
-			Element:SetPosition( Pos )
+			if Element == self.Background then
+				self:SetPos( Pos )
+			else
+				Element:SetPosition( Pos )
+			end
 		end,
 		Getter = function( self, Element )
 			return Element:GetPosition()
 		end,
 		OnComplete = function( self, Element, EasingData )
-			self:InvalidateMouseState()
+			if Element == self.Background then
+				self:InvalidateMouseState()
+			end
 		end
 	}, "Move" ),
 	Size = Easer( {

@@ -40,13 +40,13 @@ end
 function Horizontal:SetElementPos( Element, X, Y, Margin, LayoutSize )
 	local CrossAxisAlignment = Element:GetCrossAxisAlignment()
 	if CrossAxisAlignment == LayoutAlignment.CENTRE then
-		Y = Y + LayoutSize.y * 0.5 - Element:GetSize().y * 0.5
+		Y = Y + LayoutSize.y * 0.5 - Element:GetLayoutSize().y * 0.5
 	elseif CrossAxisAlignment == LayoutAlignment.MAX then
-		Y = Y + LayoutSize.y - Element:GetSize().y
+		Y = Y + LayoutSize.y - Element:GetLayoutSize().y
 	end
 
 	local LayoutOffset = Element:GetLayoutOffset()
-	Element:SetPos( Vector2( X + LayoutOffset.x, Y + Margin[ 2 ] + LayoutOffset.y ) )
+	Element:SetLayoutPos( Vector2( X + LayoutOffset.x, Y + Margin[ 2 ] + LayoutOffset.y ) )
 end
 
 function Horizontal:GetMaxMargin( Margin )

@@ -436,6 +436,8 @@ end
 
 -- Setup the commands tab.
 do
+	local Easing = require "shine/lib/gui/util/easing"
+
 	local GetEnts = Shared.GetEntitiesWithClassname
 	local IterateEntList = ientitylist
 	local StringGSub = string.gsub
@@ -449,6 +451,10 @@ do
 	local Commands
 	local CommandsListWidth
 	local Rows = {}
+	local RowPosTransition = {
+		Duration = 0.15,
+		EasingFunction = Easing.GetEaser( "OutSine" )
+	}
 
 	local function AddPlayerToList( Ent )
 		local Row = Rows[ Ent.clientId ]
@@ -461,8 +467,11 @@ do
 			return
 		end
 
-		Rows[ Ent.clientId ] = PlayerList:AddRow( Ent.playerName, Ent.steamId,
-			Shine:GetTeamName( Ent.teamNumber, true ) )
+		Row = PlayerList:AddRow( Ent.playerName, Ent.steamId, Shine:GetTeamName( Ent.teamNumber, true ) )
+		Row:SetLayoutPosTransition( RowPosTransition )
+		Row:SetDebugName( "AdminMenuPlayerRow"..Ent.clientId )
+
+		Rows[ Ent.clientId ] = Row
 	end
 
 	local function UpdatePlayers()

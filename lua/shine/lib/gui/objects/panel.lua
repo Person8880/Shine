@@ -604,7 +604,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		return
 	end
 
-	local OldPos = self.Scrollbar.Pos
+	local OldPos = self.Scrollbar.ScrollPosition
 	local OldSize = self.Scrollbar:GetDiffSize()
 
 	local OldScrollSize = self.Scrollbar.ScrollSize
