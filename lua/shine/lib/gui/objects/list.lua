@@ -149,15 +149,15 @@ function List:SetColumns( ... )
 		Start = 1
 	end
 
-	self.ColumnCount = Number
-
 	if self.Columns then
-		for i = 1, self.Columns do
+		for i = 1, self.ColumnCount do
 			self.Columns[ i ]:Destroy()
 		end
 	end
 
 	local Columns = {}
+
+	self.ColumnCount = Number
 	self.Columns = Columns
 
 	self.HeaderLayout.Elements = {}
@@ -519,7 +519,16 @@ function List:Clear()
 	local Rows = self.Rows
 	if not Rows then return end
 
+	local AnySelected = false
 	for i = 1, #Rows do
+		if Rows[ i ] == self.SelectedRow and self.OnRowDeselected then
+			self:OnRowDeselected( i, Rows[ i ] )
+		end
+
+		if Rows[ i ].Selected then
+			AnySelected = true
+		end
+
 		Rows[ i ]:Destroy()
 		self.Layout:RemoveElement( Rows[ i ] )
 	end
@@ -535,6 +544,10 @@ function List:Clear()
 	self.ScrollParent:SetPosition( Vector2( 0, 0 ) )
 	self.SelectedRow = nil
 	self.RootMultiSelectRow = nil
+
+	if AnySelected and self.MultiSelect then
+		self:OnSelectionChanged( {} )
+	end
 end
 
 --[[
@@ -546,6 +559,16 @@ function List:RemoveRow( Index )
 
 	local OldRow = Rows[ Index ]
 	if not OldRow then return end
+
+	if self.SelectedRow == OldRow then
+		self.SelectedRow = nil
+		if self.OnRowDeselected then
+			self:OnRowDeselected( Index, OldRow )
+		end
+	elseif self.MultiSelect and OldRow.Selected then
+		OldRow.Selected = false
+		self:OnSelectionChanged( self:GetSelectedRows() )
+	end
 
 	OldRow:Destroy()
 
@@ -566,9 +589,7 @@ function List:RemoveRow( Index )
 		self.Scrollbar:SetScrollSize( self.MaxRows / self.RowCount )
 	end
 
-	if self.SelectedRow == OldRow then
-		self.SelectedRow = nil
-	end
+
 	if self.RootMultiSelectRow == OldRow then
 		self.RootMultiSelectRow = nil
 	end
@@ -582,13 +603,11 @@ function List:GetSelectedRows()
 	if not Rows then return Selected end
 
 	local Count = 0
-
 	for i = 1, #Rows do
 		local Row = Rows[ i ]
 
 		if SGUI.IsValid( Row ) and Row.Selected then
 			Count = Count + 1
-
 			Selected[ Count ] = Row
 		end
 	end
