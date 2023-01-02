@@ -178,7 +178,7 @@ local function ResetAutoEllipsis( self, Text )
 	self.Label:SetText( Text )
 	self:EvaluateOptionFlags( Text )
 
-	if self.TooltipText == Text then
+	if self.UsingAutoEllipsisTooltip then
 		self:SetTooltip( nil )
 	end
 
@@ -221,8 +221,9 @@ function Label:ApplyAutoEllipsis( Width )
 			if self.Label:GetText() ~= TextWithEllipsis then
 				self.Label:SetText( TextWithEllipsis )
 				self:EvaluateOptionFlags( TextWithEllipsis )
-				if self.TooltipText == nil then
+				if self.TooltipText == nil or self.UsingAutoEllipsisTooltip then
 					self:SetTooltip( Text )
+					self.UsingAutoEllipsisTooltip = true
 				end
 
 				MarkSizeDirty( self )
@@ -236,6 +237,13 @@ function Label:ApplyAutoEllipsis( Width )
 			break
 		end
 	end
+end
+
+function Label:SetTooltip( Text )
+	-- Reset the auto-ellipsis flag if the tooltip is changed externally. If it's changed internally, this will be added
+	-- again immediately after.
+	self.UsingAutoEllipsisTooltip = nil
+	return self.BaseClass.SetTooltip( self, Text )
 end
 
 function Label:SetSize() end
