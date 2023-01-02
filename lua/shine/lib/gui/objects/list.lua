@@ -188,6 +188,10 @@ function List:SetColumns( ... )
 	self:InvalidateLayout()
 end
 
+function List:GetColumnCount()
+	return self.ColumnCount
+end
+
 function List:SetNumericColumn( Col )
 	self.NumericColumns = self.NumericColumns or {}
 

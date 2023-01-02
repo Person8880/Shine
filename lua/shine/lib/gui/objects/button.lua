@@ -404,7 +404,11 @@ do
 	end
 
 	local function GetMaxSize( self, Axis )
-		return Max( 0, GetSize( self.Label, Axis ), GetSize( self.Icon, Axis ) )
+		local Size = Max( 0, GetSize( self.Label, Axis ), GetSize( self.Icon, Axis ) )
+		if self.Padding then
+			Size = Size + self:GetComputedPadding()[ Axis + 4 ]
+		end
+		return Size
 	end
 
 	local ContentSizeHandlers = {

@@ -1861,20 +1861,64 @@ function Plugin:ReceiveRequestMapData( Client, Data )
 	if not Shine:GetPermission( Client, "sh_changelevel" ) then return end
 
 	local Cycle = MapCycle_GetMapCycle()
-
 	if not Cycle or not Cycle.maps then
 		return
 	end
 
 	local Maps = Cycle.maps
 
+	local Enabled, MapVotePlugin = Shine:IsExtensionEnabled( "mapvote" )
+	if Enabled then
+		-- Send map mod information to the client upfront to ensure previews work.
+		MapVotePlugin:SendMapMods(
+			Client,
+			Shine.Stream.Of( Maps ):Map( function( Map )
+				return IsType( Map, "table" ) and Map.map or Map
+			end ):AsTable()
+		)
+		MapVotePlugin:SendMapPrefixes( Client )
+	end
+
+	local KnownDefaultMaps = {}
+	for i = 1, Server.GetNumMaps() do
+		local ModID = Server.GetMapModId( i )
+		local MapName = Server.GetMapName( i )
+		if not ModID or ModID == "0" then
+			KnownDefaultMaps[ MapName ] = true
+		end
+	end
+
 	for i = 1, #Maps do
 		local Map = Maps[ i ]
 		local IsTable = IsType( Map, "table" )
-
 		local MapName = IsTable and Map.map or Map
+		local Data = {
+			Name = MapName,
+			IsMod = not KnownDefaultMaps[ MapName ]
+		}
 
-		self:SendNetworkMessage( Client, "MapData", { Name = MapName }, true )
+		local MapMods = IsTable and Map.mods
+		if IsType( MapMods, "table" ) then
+			-- Extract up to the first 10 mods as there's only keys for these in the network message.
+			-- Maps normally should have only one or two mods (one for the map, and one for the gamemode).
+			for i = 1, 10 do
+				local ModID = MapMods[ i ]
+				local SerialisedModID = ""
+				if IsType( ModID, "number" ) then
+					SerialisedModID = StringFormat( "%x", ModID )
+				elseif IsType( ModID, "string" ) and tonumber( ModID, 16 ) then
+					SerialisedModID = ModID
+				end
+				Data[ "Mod"..i ] = SerialisedModID
+			end
+		else
+			-- Have to populate empty string values, no optional fields.
+			for i = 1, 10 do
+				Data[ "Mod"..i ] = ""
+			end
+		end
+
+		self:SendNetworkMessage( Client, "MapData", Data, true )
 	end
 end
 

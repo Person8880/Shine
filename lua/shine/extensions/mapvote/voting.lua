@@ -118,8 +118,8 @@ do
 			:Filter( HasModID )
 	end
 
-	function Plugin:SendMapMods( Client )
-		local MapList = self.Vote.MapList
+	function Plugin:SendMapMods( Client, MapList )
+		MapList = MapList or self.Vote.MapList
 		if not MapList then return end
 
 		self:GetMapModsForMapList( MapList ):ForEach( function( MapInfo )

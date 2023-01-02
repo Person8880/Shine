@@ -686,6 +686,70 @@ do
 end
 
 do
+	local MapTile = require "shine/extensions/mapvote/ui/map_vote_menu_tile"
+	local Skin = require "shine/extensions/mapvote/ui/skin"
+	local TextureLoader = require "shine/lib/gui/texture_loader"
+
+	--[[
+		Provides a template to render a map preview image as part of an SGUI tree.
+
+		This is intended to be used externally (e.g. in the admin menu maps tab).
+	]]
+	function Plugin:GetMapPreviewTile( MapName )
+		return {
+			Class = MapTile,
+			Props = {
+				Skin = Skin,
+				TeamVariation = "Alien"
+			},
+			OnBuilt = function( _, Tile )
+				local ModID = self.MapMods and self.MapMods[ MapName ] and tostring( self.MapMods[ MapName ] )
+				local PreviewName = self:GetRealMapName( MapName )
+				Tile:SetMap( ModID, MapName, PreviewName )
+				Tile:EnableDisplayMode()
+
+				MapDataRepository.GetPreviewImages( {
+					{
+						MapName = MapName,
+						ModID = ModID,
+						PreviewName = PreviewName
+					}
+				}, function( MapName, TextureName, Err )
+					if not SGUI.IsValid( Tile ) then
+						if not Err then
+							TextureLoader.Free( TextureName )
+						end
+						return
+					end
+
+					if Err then
+						self.Logger:Debug( "Failed to load preview image for %s: %s", MapName, Err )
+						Tile:OnPreviewTextureFailed( Err )
+						return
+					end
+
+					self.Logger:Debug( "Loaded preview image for %s as %s.", MapName, TextureName )
+
+					Tile:CallOnRemove( function()
+						TextureLoader.Free( TextureName )
+
+						local OverviewTexture = Tile:GetOverviewTexture()
+						if OverviewTexture then
+							TextureLoader.Free( OverviewTexture )
+						end
+					end )
+
+					Tile:SetPreviewTexture( TextureName )
+
+					local Overlay = MapDataRepository.GetPreviewOverlay( MapName )
+					Tile:SetPreviewOverlayTexture( Overlay )
+				end )
+			end
+		}
+	end
+end
+
+do
 	local StringStartsWith = string.StartsWith
 	local StringSub = string.sub
 

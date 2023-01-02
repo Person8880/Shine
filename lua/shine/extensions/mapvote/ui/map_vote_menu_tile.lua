@@ -162,6 +162,7 @@ function MapTile:Initialise()
 			}
 		},
 		{
+			ID = "HeaderRow",
 			Class = "Row",
 			Props = {
 				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
@@ -218,11 +219,7 @@ function MapTile:Initialise()
 						StyleName = "ShowOverviewButton",
 						AutoSize = Units.UnitVector( Units.Auto.INSTANCE, Units.Auto.INSTANCE ),
 						DoClick = function()
-							if SGUI.IsValid( self.OverviewImageContainer ) then
-								self:HideOverviewImage()
-							else
-								self:ShowOverviewImage()
-							end
+							self:ToggleOverviewImage()
 						end,
 						Tooltip = Locale:GetPhrase( "mapvote", "TOGGLE_MAP_OVERVIEW_TOOLTIP" )
 					},
@@ -241,6 +238,7 @@ function MapTile:Initialise()
 			}
 		},
 		{
+			ID = "FooterRow",
 			Class = "Row",
 			Props = {
 				AutoSize = Units.UnitVector( Units.Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
@@ -317,6 +315,28 @@ function MapTile:Initialise()
 				return nil
 			end
 		} ):BindProperty()
+end
+
+-- This is used externally to render a map preview without any interactive elements.
+function MapTile:EnableDisplayMode()
+	self:SetHighlightOnMouseOver( false )
+	self:SetHighlighted( true, true )
+	self:SetEnabled( false )
+	self:AddStylingState( "Display" )
+
+	self.DisplayMode = true
+
+	if SGUI.IsValid( self.HeaderRow ) then
+		self.HeaderRow:Destroy()
+		self.HeaderRow = nil
+	end
+
+	if SGUI.IsValid( self.FooterRow ) then
+		self.FooterRow:Destroy()
+		self.FooterRow = nil
+	end
+
+	self.DoClick = function() end
 end
 
 function MapTile:SetHighlighted( Highlighted, SkipAnim )
@@ -398,7 +418,10 @@ function MapTile:ShowOverviewImage()
 									Alignment = SGUI.LayoutAlignment.CENTRE,
 									CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 									AspectRatio = 1,
-									AutoSize = Units.UnitVector( Units.Percentage.SEVENTY_FIVE, 0 ),
+									AutoSize = Units.UnitVector(
+										Units.Percentage[ self.DisplayMode and "ONE_HUNDRED" or "SEVENTY_FIVE" ],
+										0
+									),
 									InheritsParentAlpha = true
 								}
 							}
@@ -465,6 +488,17 @@ function MapTile:HideOverviewImage()
 			end
 		} )
 	end
+end
+
+function MapTile:ToggleOverviewImage()
+	if SGUI.IsValid( self.OverviewImageContainer ) then
+		self:HideOverviewImage()
+		return false
+	end
+
+	self:ShowOverviewImage()
+
+	return true
 end
 
 function MapTile:DoClick()

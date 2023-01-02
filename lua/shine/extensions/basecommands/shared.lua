@@ -22,7 +22,21 @@ function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "AllTalkPreGame", false )
 
 	self:AddNetworkMessage( "RequestMapData", {}, "Server" )
-	self:AddNetworkMessage( "MapData", { Name = "string (32)" }, "Client" )
+	self:AddNetworkMessage( "MapData", {
+		Name = "string (32)",
+		IsMod = "boolean",
+		-- A bit awkward, but the simplest way to do a list without JSON. Maps really ought to not have this many mods.
+		Mod1 = "string (12)",
+		Mod2 = "string (12)",
+		Mod3 = "string (12)",
+		Mod4 = "string (12)",
+		Mod5 = "string (12)",
+		Mod6 = "string (12)",
+		Mod7 = "string (12)",
+		Mod8 = "string (12)",
+		Mod9 = "string (12)",
+		Mod10 = "string (12)"
+	}, "Client" )
 
 	self:AddNetworkMessage( "RequestPluginData", {}, "Server" )
 	self:AddNetworkMessage( "PluginData", {

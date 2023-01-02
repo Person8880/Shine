@@ -275,58 +275,362 @@ function Plugin:SetupAdminMenuCommands()
 	local UnitVector = Units.UnitVector
 	local Auto = Units.Auto
 
+	local AgencyFBNormal = {
+		Family = "kAgencyFB",
+		Size = HighResScaled( 27 )
+	}
+	local AgencyFBMedium = {
+		Family = "kAgencyFB",
+		Size = HighResScaled( 33 )
+	}
+	local Ionicons = {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = HighResScaled( 27 )
+	}
+	local IoniconsMedium = {
+		Family = SGUI.FontFamilies.Ionicons,
+		Size = HighResScaled( 32 )
+	}
+
+	local MapSummary = SGUI:DefineControl( "MapSummary", "Column" )
+	SGUI.AddProperty( MapSummary, "MapName" )
+	SGUI.AddProperty( MapSummary, "IsMod" )
+
+	function MapSummary:SetMapData( MapData )
+		self:Clear()
+		self:SetColour( Colour( 0, 0, 0, 0 ) )
+
+		if not MapData then
+			SGUI:BuildTree( {
+				Parent = self,
+				{
+					Class = "Label",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.CENTRE,
+						AutoFont = IoniconsMedium,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						Text = SGUI.Icons.Ionicons.InformationCircled
+					}
+				},
+				{
+					Class = "Label",
+					Props = {
+						Alignment = SGUI.LayoutAlignment.CENTRE,
+						AutoFont = AgencyFBNormal,
+						AutoSize = UnitVector( Units.Min( Percentage.ONE_HUNDRED, Auto.INSTANCE ), Auto.INSTANCE ),
+						AutoWrap = true,
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						Text = Plugin:GetPhrase( "MAP_MENU_SELECT_MAP_HINT" )
+					}
+				}
+			} )
+			return
+		end
+
+		self:SetMapName( MapData.Name )
+		self:SetIsMod( MapData.IsMod )
+
+		local MapVoteIsEnabled, MapVotePlugin = Shine:IsExtensionEnabled( "mapvote" )
+		local MapPreviewTile
+		local MapOverviewToggleButton
+		if MapVoteIsEnabled then
+			MapPreviewTile = MapVotePlugin:GetMapPreviewTile( MapData.Name )
+			MapPreviewTile.ID = "MapPreview"
+			MapPreviewTile.Props.AutoSize = UnitVector( Percentage.ONE_HUNDRED, 0 )
+			MapPreviewTile.Props.AspectRatio = 1
+			MapPreviewTile.Props.CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE
+			MapPreviewTile.Props.Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) )
+
+			MapOverviewToggleButton = {
+				Class = "Button",
+				Props = {
+					AutoFont = AgencyFBNormal,
+					AutoSize = UnitVector( Units.Min( Auto.INSTANCE, Percentage.ONE_HUNDRED ), Auto.INSTANCE ),
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					Icon = SGUI.Icons.Ionicons.Earth,
+					IconAutoFont = Ionicons,
+					Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) ),
+					Padding = Spacing.Uniform( HighResScaled( 8 ) ),
+					Text = Plugin:GetPhrase( "TOGGLE_MAP_OVERVIEW" ),
+					TextAutoEllipsis = true
+				},
+				OnBuilt = function( _, Button, Elements )
+					local MapPreview = Elements.MapPreview
+					Button:SetDoClick( function()
+						Button:SetForceHighlight( MapPreview:ToggleOverviewImage() )
+					end )
+				end
+			}
+		else
+			-- Skip the tile if the map vote plugin isn't enabled.
+			MapPreviewTile = { If = false }
+			MapOverviewToggleButton = MapPreviewTile
+		end
+
+		local Tree = {
+			Parent = self,
+			MapPreviewTile,
+			MapOverviewToggleButton,
+			{
+				-- Need a row here rather than a horizontal layout to ensure this gets scrolled.
+				Class = "Row",
+				Props = {
+					AutoSize = UnitVector( Auto.INSTANCE, Auto.INSTANCE ),
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					Colour = Colour( 0, 0, 0, 0 ),
+					IsSchemed = false
+				},
+				Children = {
+					{
+						Class = "Label",
+						Props = {
+							AutoFont = IoniconsMedium,
+							Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 )
+						},
+						Bindings = {
+							{
+								From = {
+									Element = self,
+									Property = "IsMod"
+								},
+								To = {
+									{
+										Property = "Text",
+										Transformer = function( IsMod )
+											return IsMod and SGUI.Icons.Ionicons.Wrench or ""
+										end
+									},
+									{
+										Property = "IsVisible"
+									}
+								}
+							}
+						}
+					},
+					{
+						Class = "Label",
+						Props = {
+							AutoFont = AgencyFBMedium
+						},
+						Bindings = {
+							{
+								From = {
+									Element = self,
+									Property = "MapName"
+								},
+								To = {
+									Property = "Text",
+									Transformer = function( MapName )
+										local Enabled, PluginTable = Shine:IsExtensionEnabled( "mapvote" )
+										if Enabled then
+											return PluginTable:GetNiceMapName( MapName )
+										end
+										return MapName
+									end
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				ID = "MapSubtitle",
+				Class = "Label",
+				Props = {
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					AutoFont = AgencyFBNormal,
+					IsVisible = Shine:IsExtensionEnabled( "mapvote" )
+				},
+				Bindings = {
+					{
+						From = {
+							Element = self,
+							Property = "MapName"
+						},
+						To = {
+							Property = "Text"
+						}
+					}
+				}
+			}
+		}
+
+		local NumMods = #MapData.Mods
+		if NumMods > 0 then
+			Tree[ #Tree + 1 ] = {
+				Class = "Label",
+				Props = {
+					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+					AutoFont = AgencyFBNormal,
+					Margin = Spacing( 0, HighResScaled( 8 ), 0, 0 ),
+					Text = Plugin:GetPhrase( "MODS" )
+				}
+			}
+
+			for i = 1, #MapData.Mods do
+				local ModID = MapData.Mods[ i ]
+				Tree[ #Tree + 1 ] = {
+					Class = "Row",
+					Props = {
+						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+						AutoSize = UnitVector( Auto.INSTANCE, Auto.INSTANCE )
+					},
+					Children = {
+						{
+							Class = "Label",
+							Props = {
+								AutoFont = Ionicons,
+								Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 ),
+								Text = SGUI.Icons.Ionicons.Wrench
+							}
+						},
+						{
+							Class = "Label",
+							Props = {
+								AutoFont = AgencyFBNormal,
+								DoClick = function()
+									Client.ShowWebpage(
+										StringFormat(
+											"https://steamcommunity.com/sharedfiles/filedetails/?id=%s",
+											ModID
+										)
+									)
+								end,
+								StyleName = "Link",
+								Text = tostring( ModID )
+							}
+						}
+					}
+				}
+			end
+		end
+
+		SGUI:BuildTree( Tree )
+	end
+
 	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
 		Icon = SGUI.Icons.Ionicons.Earth,
 		OnInit = function( Panel, Data )
-			local Layout = SGUI.Layout:CreateLayout( "Vertical", {
-				Padding = Spacing( HighResScaled( 16 ), HighResScaled( 28 ),
-					HighResScaled( 16 ), HighResScaled( 16 ) )
+			local MapVoteIsEnabled, MapVotePlugin = Shine:IsExtensionEnabled( "mapvote" )
+			local Elements = SGUI:BuildTree( {
+				Parent = Panel,
+				{
+					Class = "Vertical",
+					Type = "Layout",
+					Props = {
+						Padding = Spacing(
+							HighResScaled( 16 ), HighResScaled( 28 ), HighResScaled( 16 ), HighResScaled( 16 )
+						)
+					},
+					Children = {
+						{
+							Class = "Horizontal",
+							Type = "Layout",
+							Children = {
+								{
+									ID = "MapList",
+									Class = "List",
+									Props = {
+										DebugName = "AdminMenuMapsList",
+										Fill = true,
+										Margin = Spacing( 0, 0, HighResScaled( 10 ), 0 )
+									}
+								},
+								{
+									ID = "MapSummary",
+									Class = MapSummary,
+									Props = {
+										AutoSize = UnitVector( Percentage( 33 ), Percentage.ONE_HUNDRED ),
+										Padding = Spacing( HighResScaled( 8 ), 0, 0, 0 ),
+										Scrollable = true,
+										ScrollbarPos = Vector2( 0, 0 ),
+										ScrollbarWidth = HighResScaled( 8 ):GetValue(),
+										ScrollbarHeightOffset = 0
+									}
+								}
+							}
+						},
+						{
+							ID = "ControlLayout",
+							Class = "Horizontal",
+							Type = "Layout",
+							Props = {
+								Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
+								Fill = false
+							},
+							Children = {
+								{
+									ID = "ChangeMapButton",
+									Class = "Button",
+									Props = {
+										AutoFont = AgencyFBNormal,
+										DebugName = "AdminMenuChangeMapButton",
+										Icon = SGUI.Icons.Ionicons.ArrowRightC,
+										StyleName = "DangerButton",
+										Text = self:GetPhrase( "CHANGE_MAP" ),
+										Tooltip = self:GetPhrase( "CHANGE_MAP_TIP" )
+									}
+								},
+								{
+									ID = "CallVoteButton",
+									Class = "Button",
+									If = MapVoteIsEnabled,
+									Props = {
+										Alignment = SGUI.LayoutAlignment.MAX,
+										AutoFont = AgencyFBNormal,
+										DebugName = "AdminMenuCallMapVoteButton",
+										Icon = SGUI.Icons.Ionicons.Speakerphone,
+										Text = self:GetPhrase( "CALL_VOTE" ),
+										Tooltip = self:GetPhrase( "CALL_VOTE_TIP" )
+									}
+								}
+							}
+						}
+					}
+				}
 			} )
 
-			local List = SGUI:Create( "List", Panel )
-			List:SetDebugName( "AdminMenuMapsList" )
-			List:SetColumns( self:GetPhrase( "MAP" ) )
-			List:SetSpacing( 1 )
-			List:SetFill( true )
+			Elements.MapSummary:SetMapData( nil )
+
+			local List = Elements.MapList
+
+			if MapVoteIsEnabled then
+				List:SetColumns( self:GetPhrase( "NAME" ), self:GetPhrase( "MAP" ) )
+				List:SetSpacing( 0.5, 0.5 )
+			else
+				List:SetColumns( self:GetPhrase( "MAP" ) )
+				List:SetSpacing( 1 )
+			end
 
 			Shine.AdminMenu.SetupListWithScaling( List )
 
-			local Font, Scale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
-
-			Layout:AddElement( List )
-
 			self.MapList = List
 
-			local ControlLayout = SGUI.Layout:CreateLayout( "Horizontal", {
-				Margin = Spacing( 0, HighResScaled( 16 ), 0, 0 ),
-				Fill = false
-			} )
-
-			local ChangeMap = SGUI:Create( "Button", Panel )
-			ChangeMap:SetDebugName( "AdminMenuChangeMapButton" )
-			ChangeMap:SetText( self:GetPhrase( "CHANGE_MAP" ) )
-			ChangeMap:SetFontScale( Font, Scale )
-			ChangeMap:SetIcon( SGUI.Icons.Ionicons.ArrowRightC )
-			ChangeMap:SetStyleName( "DangerButton" )
+			local ChangeMap = Elements.ChangeMapButton
 			function ChangeMap.DoClick()
-				local Selected = List:GetSelectedRow()
-				if not Selected then return end
+				local Row = List:GetSelectedRow()
+				if not Row then return end
 
-				local Map = Selected:GetColumnText( 1 )
-
-				Shine.AdminMenu:RunCommand( "sh_changelevel", Map )
+				local MapName = Row:GetData( List:GetColumnCount() )
+				Shine.AdminMenu:RunCommand( "sh_changelevel", MapName )
 			end
-			ChangeMap:SetTooltip( self:GetPhrase( "CHANGE_MAP_TIP" ) )
 			ChangeMap:SetEnabled( List:HasSelectedRow() )
-
-			ControlLayout:AddElement( ChangeMap )
 
 			function List:OnRowSelected( Index, Row )
 				ChangeMap:SetEnabled( true )
+
+				local MapName = Row:GetData( self:GetColumnCount() )
+				local MapData = Plugin.MapData[ MapName ]
+				Elements.MapSummary:SetMapData( MapData or {
+					Name = MapName,
+					IsMod = false,
+					Mods = {}
+				} )
 			end
 
 			function List:OnRowDeselected( Index, Row )
 				ChangeMap:SetEnabled( false )
+				Elements.MapSummary:SetMapData( nil )
 			end
 
 			local ButtonWidth = Units.Max(
@@ -336,36 +640,31 @@ function Plugin:SetupAdminMenuCommands()
 
 			ChangeMap:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
-			if Shine:IsExtensionEnabled( "mapvote" ) then
-				local CallVote = SGUI:Create( "Button", Panel )
-				CallVote:SetDebugName( "AdminMenuCallMapVoteButton" )
-				CallVote:SetText( self:GetPhrase( "CALL_VOTE" ) )
-				CallVote:SetFontScale( Font, Scale )
-				CallVote:SetAlignment( SGUI.LayoutAlignment.MAX )
-				CallVote:SetIcon( SGUI.Icons.Ionicons.Speakerphone )
+			if Elements.CallVoteButton then
+				local CallVote = Elements.CallVoteButton
 				function CallVote.DoClick()
 					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 				end
-				CallVote:SetTooltip( self:GetPhrase( "CALL_VOTE_TIP" ) )
 				CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
 				ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
-
-				ControlLayout:AddElement( CallVote )
 			end
 
 			local ButtonHeight = Auto( ChangeMap ) + HighResScaled( 8 )
-			ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
+			Elements.ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
 
-			Layout:AddElement( ControlLayout )
-			Panel:SetLayout( Layout )
 			Panel:InvalidateLayout( true )
 
 			if not self.MapData then
 				self:RequestMapData()
 			else
 				for Map in pairs( self.MapData ) do
-					List:AddRow( Map )
+					if MapVoteIsEnabled then
+						local NiceName = MapVotePlugin:GetNiceMapName( Map )
+						List:AddRow( NiceName, Map )
+					else
+						List:AddRow( Map )
+					end
 				end
 			end
 
@@ -382,14 +681,6 @@ function Plugin:SetupAdminMenuCommands()
 		end
 	} )
 
-	local AgencyFBNormal = {
-		Family = "kAgencyFB",
-		Size = HighResScaled( 27 )
-	}
-	local Ionicons = {
-		Family = SGUI.FontFamilies.Ionicons,
-		Size = HighResScaled( 27 )
-	}
 	local StateColours = {
 		[ true ] = Colour( 0, 0.7, 0 ),
 		[ false ] = Colour( 1, 0.6, 0 )
@@ -836,10 +1127,31 @@ function Plugin:ReceiveMapData( Data )
 
 	if self.MapData[ Data.Name ] then return end
 
-	self.MapData[ Data.Name ] = true
+	local DataForMap = {
+		Name = Data.Name,
+		IsMod = Data.IsMod,
+		Mods = {}
+	}
+	for i = 1, 10 do
+		local ModID = Data[ "Mod"..i ]
+		if ModID ~= "" then
+			DataForMap.Mods[ #DataForMap.Mods + 1 ] = tonumber( ModID, 16 )
+		end
+	end
+
+	self.MapData[ Data.Name ] = DataForMap
 
 	if SGUI.IsValid( self.MapList ) then
-		self.MapList:AddRow( Data.Name )
+		if self.MapList:GetColumnCount() == 2 then
+			local Enabled, PluginTable = Shine:IsExtensionEnabled( "mapvote" )
+			local NiceName = Data.Name
+			if Enabled then
+				NiceName = PluginTable:GetNiceMapName( Data.Name )
+			end
+			self.MapList:AddRow( NiceName, Data.Name )
+		else
+			self.MapList:AddRow( Data.Name )
+		end
 	end
 end
 

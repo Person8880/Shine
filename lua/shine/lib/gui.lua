@@ -1064,39 +1064,51 @@ do
 		end
 	}
 
+	local function ShouldAddElement( ElementDef )
+		-- Elements can define a condition, either as a plain boolean or a method. This makes it easier to conditionally
+		-- add elements in the middle of a list of children.
+		return ElementDef.If ~= false and not ( Shine.IsCallable( ElementDef.If ) and not ElementDef:If() )
+	end
+
 	local function BuildChildren( Context, Parent, Tree, GlobalProps, Level )
 		local DeferredBindings = Context.DeferredBindings
 		local Elements = Context.Elements
 
 		for i = 1, #Tree do
 			local ElementDef = Tree[ i ]
-			local FactoryFunc = ElementFactories[ ElementDef.Type or "Control" ]
-			Shine.AssertAtLevel( FactoryFunc, "Unknown element type in tree: %s", 4 + Level, ElementDef.Type )
+			if ShouldAddElement( ElementDef ) then
+				local FactoryFunc = ElementFactories[ ElementDef.Type or "Control" ]
+				Shine.AssertAtLevel( FactoryFunc, "Unknown element type in tree: %s", 4 + Level, ElementDef.Type )
 
-			local Element = FactoryFunc( ElementDef, Parent )
+				local Element = FactoryFunc( ElementDef, Parent )
 
-			if GlobalProps then
-				Element:SetupFromTable( GlobalProps )
-			end
+				if GlobalProps then
+					Element:SetupFromTable( GlobalProps )
+				end
 
-			if ElementDef.Props then
-				Element:SetupFromTable( ElementDef.Props )
-			end
+				if ElementDef.Props then
+					Element:SetupFromTable( ElementDef.Props )
+				end
 
-			if ElementDef.ID then
-				Elements[ ElementDef.ID ] = Element
-			end
+				if ElementDef.ID then
+					Elements[ ElementDef.ID ] = Element
+				end
 
-			if ElementDef.Bindings then
-				ProcessBindings( Element, ElementDef.Bindings, DeferredBindings )
-			end
+				if ElementDef.Bindings then
+					ProcessBindings( Element, ElementDef.Bindings, DeferredBindings )
+				end
 
-			if ElementDef.PropertyChangeListeners then
-				ProcessPropertyChangeListeners( Element, ElementDef.PropertyChangeListeners )
-			end
+				if ElementDef.PropertyChangeListeners then
+					ProcessPropertyChangeListeners( Element, ElementDef.PropertyChangeListeners )
+				end
 
-			if ElementDef.Children then
-				BuildChildren( Context, Element, ElementDef.Children, GlobalProps, Level + 1 )
+				if ElementDef.Children then
+					BuildChildren( Context, Element, ElementDef.Children, GlobalProps, Level + 1 )
+				end
+
+				if Shine.IsCallable( ElementDef.OnBuilt ) then
+					ElementDef:OnBuilt( Element, Elements )
+				end
 			end
 		end
 	end
