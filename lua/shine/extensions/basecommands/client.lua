@@ -331,6 +331,7 @@ function Plugin:SetupAdminMenuCommands()
 		self:SetIsMod( MapData.IsMod )
 
 		local MapVoteIsEnabled, MapVotePlugin = Shine:IsExtensionEnabled( "mapvote" )
+		local Alignment
 		local MapPreviewTile
 		local MapOverviewToggleButton
 		if MapVoteIsEnabled then
@@ -362,7 +363,8 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			}
 		else
-			-- Skip the tile if the map vote plugin isn't enabled.
+			-- Skip the tile if the map vote plugin isn't enabled, and move everything into the centre.
+			Alignment = SGUI.LayoutAlignment.CENTRE
 			MapPreviewTile = { If = false }
 			MapOverviewToggleButton = MapPreviewTile
 		end
@@ -375,6 +377,7 @@ function Plugin:SetupAdminMenuCommands()
 				-- Need a row here rather than a horizontal layout to ensure this gets scrolled.
 				Class = "Row",
 				Props = {
+					Alignment = Alignment,
 					AutoSize = UnitVector( Auto.INSTANCE, Auto.INSTANCE ),
 					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 					Colour = Colour( 0, 0, 0, 0 ),
@@ -437,6 +440,7 @@ function Plugin:SetupAdminMenuCommands()
 				ID = "MapSubtitle",
 				Class = "Label",
 				Props = {
+					Alignment = Alignment,
 					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 					AutoFont = AgencyFBNormal,
 					IsVisible = Shine:IsExtensionEnabled( "mapvote" )
@@ -460,6 +464,7 @@ function Plugin:SetupAdminMenuCommands()
 			Tree[ #Tree + 1 ] = {
 				Class = "Label",
 				Props = {
+					Alignment = Alignment,
 					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 					AutoFont = AgencyFBNormal,
 					Margin = Spacing( 0, HighResScaled( 8 ), 0, 0 ),
@@ -472,6 +477,7 @@ function Plugin:SetupAdminMenuCommands()
 				Tree[ #Tree + 1 ] = {
 					Class = "Row",
 					Props = {
+						Alignment = Alignment,
 						CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
 						AutoSize = UnitVector( Auto.INSTANCE, Auto.INSTANCE )
 					},
