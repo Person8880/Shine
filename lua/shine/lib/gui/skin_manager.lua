@@ -95,16 +95,19 @@ function SkinManager:RegisterSkin( Name, SkinTable )
 	self:GetCompiledSkin( SkinTable )
 end
 
-function SkinManager:RefreshSkin()
+function SkinManager:RefreshSkin( OldSkin )
 	for Element in SGUI.ActiveControls:Iterate() do
-		self:ApplySkin( Element )
+		local Skin = Element:GetSkin()
+		if not Skin or Skin == OldSkin then
+			self:ApplySkin( Element )
+		end
 	end
 end
 
 function SkinManager:ReloadSkins()
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/skins", false, true )
 
-	self:RefreshSkin()
+	self:RefreshSkin( self:GetSkin() )
 
 	Shared.Message( "[SGUI] Skins reloaded successfully." )
 end
@@ -120,10 +123,11 @@ end
 function SkinManager:SetSkin( Name )
 	local SkinTable = self.Skins[ Name ]
 
-	assert( SkinTable, "[SGUI] Attempted to set a non-existant skin!" )
+	assert( SkinTable, "[SGUI] Attempted to set a non-existent skin!" )
 
+	local OldSkin = self:GetSkin()
 	self.Skin = SkinTable
-	self:RefreshSkin()
+	self:RefreshSkin( OldSkin )
 end
 
 function SkinManager:GetStyleForElement( Element )
