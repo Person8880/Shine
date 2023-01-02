@@ -1029,6 +1029,12 @@ function Plugin:SetupAdminMenuCommands()
 				if SGUI.IsValid( Row ) then
 					Row:SetEnabled( State )
 				end
+
+				local Data = self.PluginData[ Name ]
+				if Data then
+					-- Server won't send a network message if the plugin is shared, so have to update the data locally.
+					Data.Enabled = State
+				end
 			end
 
 			Hook.Add( "OnPluginLoad", "AdminMenu_OnPluginLoad", function( Name, Plugin, Shared )
