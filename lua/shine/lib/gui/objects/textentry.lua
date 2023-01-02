@@ -45,6 +45,11 @@ local function OnVisibilityChange( self, IsVisible )
 	end
 end
 
+local function OnTextChangedInternal( self, OldText, NewText )
+	self:OnTextChanged( OldText, NewText )
+	self:OnPropertyChanged( "Text", NewText )
+end
+
 function TextEntry:Initialise()
 	self.BaseClass.Initialise( self )
 
@@ -371,7 +376,7 @@ function TextEntry:RemoveSelectedText()
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
 
-	self:OnTextChanged( Text, self.Text )
+	OnTextChangedInternal( self, Text, self.Text )
 end
 
 TextEntry.SelectionEasingTime = 0.1
@@ -562,7 +567,8 @@ function TextEntry:SelectWord( CharPos )
 end
 
 function TextEntry:SetText( Text, IgnoreUndo )
-	if not IgnoreUndo and Text ~= self.Text then
+	local Changed = Text ~= self.Text
+	if not IgnoreUndo and Changed then
 		self:PushUndoState()
 	end
 
@@ -577,6 +583,11 @@ function TextEntry:SetText( Text, IgnoreUndo )
 	if self.PlaceholderText then
 		self.PlaceholderText:SetIsVisible( Text == "" )
 		self.PlaceholderText:SetPosition( self.TextObj:GetPosition() )
+	end
+
+	if Changed then
+		-- Only call the property change, OnTextChanged is for user-initiated changes to text only.
+		self:OnPropertyChanged( "Text", Text )
 	end
 end
 
@@ -664,7 +675,7 @@ function TextEntry:AddCharacter( Char, SkipUndo )
 
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
-	self:OnTextChanged( Text, self.Text )
+	OnTextChangedInternal( self, Text, self.Text )
 
 	if self.PlaceholderText then
 		self.PlaceholderText:SetIsVisible( false )
@@ -708,7 +719,7 @@ function TextEntry:RemoveWord( Forward )
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( StringUTF8Length( Before ) )
 
-	self:OnTextChanged( Text, self.Text )
+	OnTextChangedInternal( self, Text, self.Text )
 end
 
 --[[
@@ -763,7 +774,7 @@ function TextEntry:RemoveCharacter( Forward )
 	self.TextObj:SetText( self.Text )
 	self:SetCaretPos( self.Column )
 
-	self:OnTextChanged( Text, self.Text )
+	OnTextChangedInternal( self, Text, self.Text )
 end
 
 function TextEntry:PlayerType( Char )
@@ -953,7 +964,7 @@ function TextEntry:RestoreState( State )
 
 	self:SetText( State.Text, true )
 	self:SetCaretPos( State.CaretPos )
-	self:OnTextChanged( Text, self.Text )
+	OnTextChangedInternal( self, Text, self.Text )
 end
 
 function TextEntry:Undo()
