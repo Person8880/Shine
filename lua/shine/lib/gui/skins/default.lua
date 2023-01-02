@@ -315,6 +315,21 @@ local Skin = {
 	TabPanelButton = {
 		Default = {
 			Font = Fonts.kAgencyFB_Small,
+			ActiveCol = WindowBackground,
+			InactiveCol = DarkButton,
+			TextColour = MutedText,
+			States = {
+				Highlighted = {
+					InactiveCol = CategoryButton,
+					TextColour = BrightText
+				},
+				Selected = {
+					TextColour = BrightText
+				}
+			}
+		},
+		VerticalCompact = {
+			Font = Fonts.kAgencyFB_Small,
 			ActiveCol = ButtonHighlight,
 			InactiveCol = DarkButton,
 			TextColour = MutedText,

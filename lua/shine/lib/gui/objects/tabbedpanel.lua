@@ -85,12 +85,20 @@ TabPanel.IsWindow = true
 TabPanel.TabWidth = 128
 TabPanel.TabHeight = 96
 
+TabPanel.VerticalLayoutModeType = {
+	-- Legacy layout, uses large buttons with centre-aligned text that take up a large amount of space when expanded.
+	LEGACY = 1,
+	-- Newer layout, uses smaller horizontal buttons that take up a relatively small amount more space when expanded.
+	COMPACT = 2
+}
+
 SGUI.AddBoundProperty( TabPanel, "TabBackgroundColour", "TabPanel:SetColour" )
 SGUI.AddBoundProperty( TabPanel, "PanelColour", "ContentPanel:SetColour" )
 
 SGUI.AddProperty( TabPanel, "Expanded", true, { "InvalidatesLayout" } )
 SGUI.AddProperty( TabPanel, "CollapsedTabSize", Units.Integer( Units.HighResScaled( 48 ) ) )
 SGUI.AddProperty( TabPanel, "TabListPaddingAmount", Units.HighResScaled( 8 ) )
+SGUI.AddProperty( TabPanel, "VerticalLayoutMode", TabPanel.VerticalLayoutModeType.LEGACY )
 
 function TabPanel:Initialise()
 	Controls.Panel.Initialise( self )
@@ -112,6 +120,7 @@ function TabPanel:Initialise()
 
 	self.Tabs = {}
 	self.NumTabs = 0
+	self.VerticalLayoutMode = self.VerticalLayoutModeType.LEGACY
 	self:SetHorizontal( false )
 
 	self:AddPropertyChangeListener( "TabListPaddingAmount", self.UpdateSizes )
@@ -127,7 +136,41 @@ do
 	end
 end
 
+local function ResolveButtonStyleName( self, Horizontal )
+	if Horizontal then
+		return "Horizontal"
+	end
+
+	if self.VerticalLayoutMode == self.VerticalLayoutModeType.COMPACT then
+		return "VerticalCompact"
+	end
+
+	return nil
+end
+
 do
+	local function GetVerticalTabLayoutPadding( self, Expanded )
+		if not Expanded or self.VerticalLayoutMode ~= self.VerticalLayoutModeType.COMPACT then return nil end
+
+		local PaddingAmount = self:GetTabListPaddingAmount()
+		return Units.Spacing(
+			PaddingAmount, PaddingAmount, PaddingAmount, PaddingAmount
+		)
+	end
+
+	local function GetVerticalTabLayoutSize( self, Expanded )
+		local Width
+		if Expanded then
+			Width = ToUnit( self.TabWidth )
+			if self.VerticalLayoutMode == self.VerticalLayoutModeType.COMPACT then
+				Width = Width + self:GetTabListPaddingAmount() * 2
+			end
+		else
+			Width = self:GetCollapsedTabSize()
+		end
+		return Units.UnitVector( Width, Units.Percentage.ONE_HUNDRED )
+	end
+
 	local LayoutSetup = {
 		-- Setup horizontal layout (tabs on top horizontally, content below).
 		[ true ] = function( self, InternalLayout )
@@ -220,29 +263,10 @@ do
 				self.AllTabsButton = nil
 			end
 
-			local function GetPadding( Expanded )
-				if not Expanded then return nil end
-
-				local PaddingAmount = self:GetTabListPaddingAmount()
-				return Units.Spacing(
-					PaddingAmount, PaddingAmount, PaddingAmount, PaddingAmount
-				)
-			end
-
-			local function GetSize( Expanded )
-				local Width
-				if Expanded then
-					Width = ToUnit( self.TabWidth ) + self:GetTabListPaddingAmount() * 2
-				else
-					Width = self:GetCollapsedTabSize()
-				end
-				return Units.UnitVector( Width, Units.Percentage.ONE_HUNDRED )
-			end
-
 			local TabsLayout = SGUI.Layout:CreateLayout( "Vertical", {
-				AutoSize = GetSize( self:GetExpanded() ),
+				AutoSize = GetVerticalTabLayoutSize( self, self:GetExpanded() ),
 				Fill = false,
-				Padding = GetPadding( self:GetExpanded() )
+				Padding = GetVerticalTabLayoutPadding( self, self:GetExpanded() )
 			} )
 			self.TabsLayout = TabsLayout
 			TabsLayout:AddElement( self.TabPanel )
@@ -278,10 +302,10 @@ do
 			-- Alter the icon of the expander button depending on whether the tabs are expanded.
 			Binder():FromElement( self, "Expanded" )
 				:ToElement( TabsLayout, "AutoSize", {
-					Transformer = GetSize
+					Transformer = function( Expanded ) return GetVerticalTabLayoutSize( self, Expanded ) end
 				} )
 				:ToElement( TabsLayout, "Padding", {
-					Transformer = GetPadding
+					Transformer = function( Expanded ) return GetVerticalTabLayoutPadding( self, Expanded ) end
 				} )
 				:ToElement( ExpanderButton, "Icon", {
 					Transformer = function( Expanded )
@@ -317,7 +341,7 @@ do
 		local ButtonMargin
 		local ButtonPadding
 		local TextAlignment
-		if not self.Horizontal then
+		if not self.Horizontal and self.VerticalLayoutMode == self.VerticalLayoutModeType.COMPACT then
 			local PaddingAmount = self:GetTabListPaddingAmount()
 			ButtonMargin = Units.Spacing( 0, 0, 0, PaddingAmount )
 			ButtonPadding = Units.Spacing( PaddingAmount, 0, PaddingAmount, 0 )
@@ -328,6 +352,13 @@ do
 		Button:SetMargin( ButtonMargin )
 		Button:SetPadding( ButtonPadding )
 		Button:SetTextAlignment( TextAlignment )
+	end
+
+	local function UpdateButton( self, Button, Horizontal )
+		local StyleName = ResolveButtonStyleName( self, Horizontal )
+		Button:SetStyleName( StyleName )
+		Button:SetHorizontal( StyleName ~= nil )
+		self:ApplySpacingsToTabButton( Button )
 	end
 
 	function TabPanel:SetHorizontal( Horizontal )
@@ -348,8 +379,7 @@ do
 		local ButtonsLayout = SGUI.Layout:CreateLayout( Horizontal and "Horizontal" or "Vertical" )
 		for i = 1, self.NumTabs do
 			local Button = self.Tabs[ i ].TabButton
-			Button:SetStyleName( Horizontal and "Horizontal" or nil )
-			self:ApplySpacingsToTabButton( Button )
+			UpdateButton( self, Button, Horizontal )
 			ButtonsLayout:AddElement( Button )
 		end
 
@@ -359,6 +389,23 @@ do
 		self.TabPanel:RecomputeMaxHeight()
 		self.TabPanel:RecomputeMaxWidth()
 	end
+
+	local SetVerticalLayoutMode = TabPanel.SetVerticalLayoutMode
+	function TabPanel:SetVerticalLayoutMode( VerticalLayoutMode )
+		if not SetVerticalLayoutMode( self, VerticalLayoutMode ) then return false end
+		if self.Horizontal then return true end
+
+		self.TabsLayout:SetAutoSize( GetVerticalTabLayoutSize( self, self:GetExpanded() ) )
+		self.TabsLayout:SetPadding( GetVerticalTabLayoutPadding( self, self:GetExpanded() ) )
+
+		for i = 1, self.NumTabs do
+			UpdateButton( self, self.Tabs[ i ].TabButton, self.Horizontal )
+		end
+
+		self:UpdateSizes()
+
+		return true
+	end
 end
 
 function TabPanel:UpdateSizes()
@@ -366,7 +413,10 @@ function TabPanel:UpdateSizes()
 	if self.Horizontal then
 		self.TabsLayout:SetAutoSize( Units.UnitVector( Units.Percentage.ONE_HUNDRED, self.TabHeight ) )
 	else
-		local LeftWidth = ToUnit( TabWidth ) + self:GetTabListPaddingAmount() * 2
+		local LeftWidth = ToUnit( TabWidth )
+		if self.VerticalLayoutMode == self.VerticalLayoutModeType.COMPACT then
+			LeftWidth = LeftWidth + self:GetTabListPaddingAmount() * 2
+		end
 		self.TabsLayout:SetAutoSize( Units.UnitVector( LeftWidth, Units.Percentage.ONE_HUNDRED ) )
 	end
 
@@ -449,13 +499,14 @@ end
 
 function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 	local Tabs = self.Tabs
+	local StyleName = ResolveButtonStyleName( self, self.Horizontal )
 
 	local TabButton = self.TabPanel:Add( "TabPanelButton" )
 	TabButton:SetDebugName( Name.."Tab" )
-	TabButton:SetHorizontal( true )
+	TabButton:SetHorizontal( StyleName ~= nil )
 	TabButton:SetTab( self.NumTabs + 1, Name )
 	TabButton:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )
-	TabButton:SetStyleName( self.Horizontal and "Horizontal" or nil )
+	TabButton:SetStyleName( StyleName )
 
 	self:ApplySpacingsToTabButton( TabButton )
 
@@ -495,7 +546,11 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 		} )
 		:ToElement( TabButton, "IconAlignment", {
 			Transformer = function( Expanded )
-				if not Expanded or self.Horizontal then
+				if
+					not Expanded or
+					self.Horizontal or
+					self.VerticalLayoutMode ~= self.VerticalLayoutModeType.COMPACT
+				then
 					return SGUI.LayoutAlignment.CENTRE
 				end
 				return SGUI.LayoutAlignment.MIN
@@ -512,7 +567,11 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 		} )
 		:ToElement( TabButton, "Margin", {
 			Transformer = function( Expanded )
-				if not Expanded or self.Horizontal then
+				if
+					not Expanded or
+					self.Horizontal or
+					self.VerticalLayoutMode ~= self.VerticalLayoutModeType.COMPACT
+				then
 					return nil
 				end
 				return GetButtonMargin( self )
@@ -520,7 +579,11 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 		} )
 		:ToElement( TabButton, "Padding", {
 			Transformer = function( Expanded )
-				if not Expanded or self.Horizontal then
+				if
+					not Expanded or
+					self.Horizontal or
+					self.VerticalLayoutMode ~= self.VerticalLayoutModeType.COMPACT
+				then
 					return nil
 				end
 				return GetButtonPadding( self )
@@ -535,15 +598,20 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 			end
 		} ):BindProperty()
 
+	local function IsTabListPaddingRelevant()
+		return self:GetExpanded() and not self.Horizontal
+			and self.VerticalLayoutMode == self.VerticalLayoutModeType.COMPACT
+	end
+
 	Binder():FromElement( self, "TabListPaddingAmount" )
 		:ToElement( TabButton, "Margin", {
-			Filter = function() return self:GetExpanded() and not self.Horizontal end,
+			Filter = IsTabListPaddingRelevant,
 			Transformer = function()
 				return GetButtonMargin( self )
 			end
 		} )
 		:ToElement( TabButton, "Padding", {
-			Filter = function() return self:GetExpanded() and not self.Horizontal end,
+			Filter = IsTabListPaddingRelevant,
 			Transformer = function()
 				return GetButtonPadding( self )
 			end
