@@ -2,6 +2,8 @@
 	Bans client.
 ]]
 
+local Binder = require "shine/lib/gui/binding/binder"
+
 local Plugin = ...
 
 Plugin.AdminTab = "Bans"
@@ -137,7 +139,9 @@ function Plugin:SetupAdminMenu()
 				ID = "DurationValueLabel",
 				Class = "Label",
 				Props = {
+					AutoEllipsis = true,
 					AutoFont = Font,
+					AutoSize = UnitVector( Percentage.ONE_HUNDRED, Auto.INSTANCE ),
 					DebugName = "AdminMenuAddBanDurationValueLabel",
 					Text = self:GetPhrase( "DURATION_HINT" ),
 					Margin = Spacing( 0, 0, 0, HighResScaled( 5 ) )
@@ -279,6 +283,15 @@ function Plugin:SetupAdminMenu()
 				self:RequestBanPage( self.CurrentPage )
 			end
 		end
+
+		Binder()
+			:FromElement( IDEntry, "Text" )
+			:FromElement( DurationEntry, "Text" )
+			:ToElement( AddBan, "Enabled" )
+			:WithReducer( function( State, Text )
+				return State and Text ~= ""
+			end )
+			:WithInitialState( true ):BindProperties()
 
 		return Elements
 	end
