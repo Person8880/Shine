@@ -145,7 +145,13 @@ Shine.Hook.Add( "OnClientSettingRemoved", ConfigMenu, function( Entry )
 end )
 
 function ConfigMenu:SetIsVisible( Bool, IgnoreAnim )
-	if self.Visible == Bool then return end
+	if self.Visible == Bool then
+		if Bool then
+			-- Bring the menu forward if it's already open in case it was lost behind another window.
+			SGUI:SetWindowFocus( self.Menu )
+		end
+		return
+	end
 
 	if not self.Menu then
 		self:Create()

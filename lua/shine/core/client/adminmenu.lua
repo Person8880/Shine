@@ -28,8 +28,13 @@ do
 
 	Shine.HookNetworkMessage( "Shine_AdminMenu_Open", function( Data )
 		local WasVisible = AdminMenu.Visible
-		if xpcall( AdminMenu.Show, ErrorHandler, AdminMenu ) and not WasVisible and AdminMenu.Visible then
-			Hook.Broadcast( "OnAdminMenuOpened", AdminMenu )
+		if xpcall( AdminMenu.Show, ErrorHandler, AdminMenu ) then
+			if not WasVisible and AdminMenu.Visible then
+				Hook.Broadcast( "OnAdminMenuOpened", AdminMenu )
+			elseif WasVisible and AdminMenu.Visible and SGUI.IsValid( AdminMenu.Window ) then
+				-- Bring the menu forward if it's already open in case it was lost behind another window.
+				SGUI:SetWindowFocus( AdminMenu.Window )
+			end
 		end
 	end )
 end
