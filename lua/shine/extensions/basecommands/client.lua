@@ -580,12 +580,12 @@ function Plugin:SetupAdminMenuCommands()
 								{
 									ID = "CallVoteButton",
 									Class = "Button",
-									If = MapVoteIsEnabled,
 									Props = {
 										Alignment = SGUI.LayoutAlignment.MAX,
 										AutoFont = AgencyFBNormal,
 										DebugName = "AdminMenuCallMapVoteButton",
 										Icon = SGUI.Icons.Ionicons.Speakerphone,
+										IsVisible = MapVoteIsEnabled,
 										Text = self:GetPhrase( "CALL_VOTE" ),
 										Tooltip = self:GetPhrase( "CALL_VOTE_TIP" )
 									}
@@ -646,15 +646,14 @@ function Plugin:SetupAdminMenuCommands()
 
 			ChangeMap:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
 
-			if Elements.CallVoteButton then
-				local CallVote = Elements.CallVoteButton
-				function CallVote.DoClick()
-					Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
-				end
-				CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
-
-				ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
+			local CallVote = Elements.CallVoteButton
+			self.CallVoteButton = CallVote
+			function CallVote.DoClick()
+				Shine.AdminMenu:RunCommand( "sh_forcemapvote" )
 			end
+			CallVote:SetAutoSize( UnitVector( ButtonWidth, Percentage.ONE_HUNDRED ) )
+
+			ButtonWidth:AddValue( Auto( CallVote ) + HighResScaled( 16 ) )
 
 			local ButtonHeight = Auto( ChangeMap ) + HighResScaled( 8 )
 			Elements.ControlLayout:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
@@ -674,6 +673,35 @@ function Plugin:SetupAdminMenuCommands()
 				end
 			end
 
+			Hook.Add( "OnPluginLoad", "AdminMenu_MapTab_OnPluginLoad", function( Name )
+				if Name ~= "mapvote" then return end
+
+				-- Map vote plugin was loaded, refresh the map data to trigger map mod information to be networked.
+				if self.MapData then
+					if SGUI.IsValid( List ) then
+						List:Clear()
+						List:SetColumns( self:GetPhrase( "NAME" ), self:GetPhrase( "MAP" ) )
+						List:SetSpacing( 0.5, 0.5 )
+					end
+
+					self.MapData = nil
+					self:RequestMapData()
+				end
+
+				if SGUI.IsValid( CallVote ) then
+					CallVote:SetIsVisible( true )
+				end
+			end )
+
+			Hook.Add( "OnPluginUnload", "AdminMenu_MapTab_OnPluginUnload", function( Name )
+				if Name ~= "mapvote" then return end
+
+				-- No need to clear any data here, just hide the call vote button.
+				if SGUI.IsValid( CallVote ) then
+					CallVote:SetIsVisible( false )
+				end
+			end )
+
 			if not Shine.AdminMenu.RestoreListState( List, Data ) then
 				List:SortRows( 1 )
 			end
@@ -682,6 +710,9 @@ function Plugin:SetupAdminMenuCommands()
 		OnCleanup = function( Panel )
 			local MapList = self.MapList
 			self.MapList = nil
+
+			Hook.Remove( "OnPluginLoad", "AdminMenu_MapTab_OnPluginLoad" )
+			Hook.Remove( "OnPluginUnload", "AdminMenu_MapTab_OnPluginUnload" )
 
 			return Shine.AdminMenu.GetListState( MapList )
 		end
@@ -1035,12 +1066,6 @@ function Plugin:SetupAdminMenuCommands()
 				if SGUI.IsValid( Row ) then
 					Row:SetEnabled( State )
 				end
-
-				local Data = self.PluginData[ Name ]
-				if Data then
-					-- Server won't send a network message if the plugin is shared, so have to update the data locally.
-					Data.Enabled = State
-				end
 			end
 
 			Hook.Add( "OnPluginLoad", "AdminMenu_OnPluginLoad", function( Name, Plugin, Shared )
@@ -1185,6 +1210,23 @@ function Plugin:ReceivePluginData( Data )
 	if Row then
 		Row:SetEnabled( Data.Enabled )
 		Row:SetConfiguredAsEnabled( Data.ConfiguredAsEnabled )
+	end
+end
+
+do
+	-- Server won't send a network message if a plugin is shared, so have to update the data locally.
+	local function UpdatePluginData( self, Name, Enabled )
+		if not self.PluginData or not self.PluginData[ Name ] then return end
+
+		self.PluginData[ Name ].Enabled = Enabled
+	end
+
+	function Plugin:OnPluginLoad( Name )
+		UpdatePluginData( self, Name, true )
+	end
+
+	function Plugin:OnPluginUnload( Name )
+		UpdatePluginData( self, Name, false )
 	end
 end
 
