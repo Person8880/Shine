@@ -10,9 +10,12 @@ local Clamp = math.Clamp
 local Max = math.max
 local Vector = Vector
 
-SGUI.AddBoundProperty( Scrollbar, "BackgroundColour", "Background:SetColor" )
-SGUI.AddBoundProperty( Scrollbar, "InactiveCol", "Bar:SetColor" )
-SGUI.AddProperty( Scrollbar, "ActiveCol" )
+-- Override the default setter to ensure it only affects self.Background, as self.Bar should always inherit alpha to
+-- allow for proper fading behaviour.
+SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
+
+local SetInactiveCol = SGUI.AddProperty( Scrollbar, "InactiveCol" )
+local SetActiveCol = SGUI.AddProperty( Scrollbar, "ActiveCol" )
 
 function Scrollbar:Initialise()
 	self.BaseClass.Initialise( self )
@@ -21,6 +24,7 @@ function Scrollbar:Initialise()
 	self.Background = Background
 
 	local Bar = self:MakeGUIItem()
+	Bar:SetInheritsParentAlpha( true )
 	Background:AddChild( Bar )
 
 	self.Bar = Bar
@@ -33,6 +37,31 @@ function Scrollbar:Initialise()
 	self.ScrollEvent = "OnScrollChange"
 end
 
+local function GetAlphaCompensatedColour( self, Colour )
+	local Alpha = self:GetNormalAlpha( self.Background )
+	return SGUI.ColourWithAlpha( Colour, Alpha == 0 and 0 or Colour.a / Alpha )
+end
+
+function Scrollbar:SetInactiveCol( Colour )
+	if not SetInactiveCol( self, Colour ) then return false end
+
+	if not self.Scrolling then
+		self.Bar:SetColor( GetAlphaCompensatedColour( self, Colour ) )
+	end
+
+	return true
+end
+
+function Scrollbar:SetActiveCol( Colour )
+	if not SetActiveCol( self, Colour ) then return false end
+
+	if self.Scrolling then
+		self.Bar:SetColor( GetAlphaCompensatedColour( self, Colour ) )
+	end
+
+	return true
+end
+
 function Scrollbar:SetHorizontal( Horizontal )
 	self.Horizontal = Horizontal
 	self.ScrollAxis = Horizontal and "x" or "y"
@@ -40,26 +69,30 @@ function Scrollbar:SetHorizontal( Horizontal )
 end
 
 function Scrollbar:FadeIn( Duration, Callback, EaseFunc )
-	self:AlphaTo( self.Background, nil, self:GetNormalAlpha( self.Background ), 0, Duration, Callback, EaseFunc )
-	self:AlphaTo( self.Bar, nil, self:GetNormalAlpha( self.Bar ), 0, Duration, nil, EaseFunc )
+	self:ApplyTransition( {
+		Type = "AlphaMultiplier",
+		Duration = Duration,
+		Callback = Callback,
+		EasingFunction = EaseFunc,
+		EndValue = 1
+	} )
 end
 
 function Scrollbar:FadeOut( Duration, Callback, EaseFunc )
-	self:AlphaTo( self.Background, nil, 0, 0, Duration, Callback, EaseFunc )
-	self:AlphaTo( self.Bar, nil, 0, 0, Duration, nil, EaseFunc )
+	self:ApplyTransition( {
+		Type = "AlphaMultiplier",
+		Duration = Duration,
+		Callback = Callback,
+		EasingFunction = EaseFunc,
+		EndValue = 0
+	} )
 end
 
 function Scrollbar:StopFading()
-	if not self:GetEasing( "Alpha", self.Bar ) then return end
+	if not self:GetEasing( "AlphaMultiplier", self.Background ) then return end
 
-	self:StopAlpha( self.Background )
-	self:StopAlpha( self.Bar )
-
-	self:SetAlpha( self:GetNormalAlpha( self.Background ) )
-
-	local BarColour = self.Bar:GetColor()
-	BarColour.a = self:GetNormalAlpha( self.Bar )
-	self.Bar:SetColor( BarColour )
+	self:StopEasingType( "AlphaMultiplier", self.Background )
+	self:SetAlphaMultiplier( 1 )
 end
 
 function Scrollbar:SetHidden( Hidden )
@@ -165,7 +198,7 @@ function Scrollbar:OnMouseDown( Key, DoubleClick )
 	self.StartingY = Y
 
 	self:StopFading()
-	self.Bar:SetColor( self.ActiveCol )
+	self.Bar:SetColor( GetAlphaCompensatedColour( self, self.ActiveCol ) )
 
 	return true, self
 end
@@ -189,7 +222,7 @@ function Scrollbar:OnMouseUp( Key )
 	if not self.Scrolling then return end
 
 	self.Scrolling = false
-	self.Bar:SetColor( self.InactiveCol )
+	self.Bar:SetColor( GetAlphaCompensatedColour( self, self.InactiveCol ) )
 
 	return true
 end

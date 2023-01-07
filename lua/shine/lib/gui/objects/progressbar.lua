@@ -8,9 +8,21 @@ local Clamp = math.Clamp
 
 local ProgressBar = {}
 
-SGUI.AddBoundProperty( ProgressBar, "BorderColour", "Background:SetColor" )
-SGUI.AddBoundProperty( ProgressBar, "ProgressColour", "Bar:SetColor" )
-SGUI.AddBoundProperty( ProgressBar, "Colour", "InnerBack:SetColor" )
+SGUI.AddBoundProperty( ProgressBar, "BorderColour", "self:SetBackgroundColour" )
+SGUI.AddBoundColourProperty( ProgressBar, "Colour", "InnerBack:SetColor" )
+SGUI.AddBoundColourProperty( ProgressBar, "ProgressColour", "Bar:SetColor", nil, "self.Colour and self.Colour.a or 1" )
+
+local function OnTargetAlphaChanged( self, TargetAlpha )
+	if not self.Colour then return end
+
+	self.InnerBack:SetColor( self:ApplyAlphaCompensationToChildItemColour( self.Colour, TargetAlpha ) )
+end
+
+local function OnColourChanged( self, Colour )
+	if not self.ProgressColour then return end
+
+	self.Bar:SetColor( self:ApplyAlphaCompensationToChildItemColour( self.ProgressColour, Colour.a ) )
+end
 
 function ProgressBar:Initialise()
 	self.BaseClass.Initialise( self )
@@ -31,6 +43,25 @@ function ProgressBar:Initialise()
 	self.BorderSize = Vector2( 1, 1 )
 
 	InnerBack:SetPosition( self.BorderSize )
+end
+
+function ProgressBar:OnAutoInheritAlphaChanged( IsAutoInherit )
+	if IsAutoInherit then
+		OnTargetAlphaChanged( self, self:GetTargetAlpha() )
+		OnColourChanged( self, self.Colour )
+
+		self:AddPropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+		self:AddPropertyChangeListener( "Colour", OnColourChanged )
+	else
+		if self.Colour then
+			self.InnerBack:SetColor( self.Colour )
+		end
+		if self.ProgressColour then
+			self.Bar:SetColor( self.ProgressColour )
+		end
+		self:RemovePropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+		self:RemovePropertyChangeListener( "Colour", OnColourChanged )
+	end
 end
 
 local function RefreshInnerSizes( self, BoxSize )

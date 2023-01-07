@@ -168,12 +168,15 @@ do
 				Name = Name
 			} )
 		end
+
+		return Table[ TableSetter ], Table[ TableGetter ]
 	end
 
 	local BoundCallTemplate = [[do
 		local Object = self.{FieldName}
 		if Object then Object:{Setter}( Value ) end
 	end]]
+	local AliasCallTemplate = [[self:{Setter}( Value )]]
 
 	local StringExplode = string.Explode
 	local unpack = unpack
@@ -192,10 +195,19 @@ do
 				local FieldName, Setter = unpack( StringExplode( Entry, ":", true ) )
 				Setter = Setter or "Set"..PropertyName
 
-				BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( BoundCallTemplate, {
-					Setter = Setter,
-					FieldName = FieldName
-				} )
+				if FieldName == "self" then
+					-- Special case, aliasing another setter on the object. No control should ever have a field called
+					-- 'self'.
+					BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( AliasCallTemplate, {
+						Setter = Setter
+					} )
+				else
+					-- Pointing at a setter on a field.
+					BoundFields[ #BoundFields + 1 ] = CodeGen.ApplyTemplateValues( BoundCallTemplate, {
+						Setter = Setter,
+						FieldName = FieldName
+					} )
+				end
 			else
 				Callbacks[ #Callbacks + 1 ] = Entry
 			end
@@ -239,6 +251,16 @@ do
 		return true
 	end]]
 
+	local function BuildCallbacks( Callbacks )
+		local CallbackVariables = {}
+		local CallbackLines = {}
+		for i = 1, #Callbacks do
+			CallbackVariables[ i ] = StringFormat( "Callback%d", i )
+			CallbackLines[ i ] = StringFormat( CallbacksCallTemplate, i )
+		end
+		return CallbackLines, CallbackVariables
+	end
+
 	--[[
 		Adds Get/Set property methods that pass through the value to a field
 		on the table as well as storing it.
@@ -249,7 +271,8 @@ do
 		local BoundFields, Callbacks = GetBindingInfo( BoundObject, Name )
 
 		local GetterSource = GetGetterSource( Name )
-		Table[ "Get"..Name ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
+		local TableGetter = "Get"..Name
+		Table[ TableGetter ] = CodeGen.GenerateTemplatedFunction( GetterWithoutDefaultTemplate, GetterSource, {
 			Name = Name
 		} )
 
@@ -259,12 +282,7 @@ do
 
 		if #Callbacks > 0 then
 			-- Unroll the loop upfront.
-			local CallbackVariables = {}
-			local CallbackLines = {}
-			for i = 1, #Callbacks do
-				CallbackVariables[ i ] = StringFormat( "Callback%d", i )
-				CallbackLines[ i ] = StringFormat( CallbacksCallTemplate, i )
-			end
+			local CallbackLines, CallbackVariables = BuildCallbacks( Callbacks )
 
 			Table[ TableSetter ] = CodeGen.GenerateTemplatedFunction( BoundWithCallbacksTemplate, SetterSource, {
 				Name = Name,
@@ -280,6 +298,54 @@ do
 				Modifiers = ModifierLines
 			} )
 		end
+
+		return Table[ TableSetter ], Table[ TableGetter ]
+	end
+
+	local CompensatedAlphaSetterTemplate = [[local Setter{CallbackVariables} = ...
+	return function( self, Value )
+		if not Setter( self, Value ) then return false end
+
+		if self:ShouldAutoInheritAlpha() then
+			Value = self:ApplyAlphaCompensationToChildItemColour( Value, {ParentTargetAlpha} )
+		end
+
+		{BoundFields}
+
+		{Callbacks}
+
+		return true
+	end]]
+
+	local function WrapColourSetterWithAlphaCompensation( FieldName, Setter, BoundObject, ParentTargetAlphaExpression )
+		local BoundFields, Callbacks = GetBindingInfo( BoundObject, Name )
+
+		ParentTargetAlphaExpression = ParentTargetAlphaExpression or "self:GetTargetAlpha()"
+
+		local SetterSource = GetSetterSource( FieldName )
+		local CallbackLines, CallbackVariables = BuildCallbacks( Callbacks )
+
+		return CodeGen.GenerateTemplatedFunction( CompensatedAlphaSetterTemplate, SetterSource, {
+			BoundFields = BoundFields,
+			CallbackVariables = #CallbackVariables > 0 and ( ", "..TableConcat( CallbackVariables, ", " ) ) or "",
+			Callbacks = TableConcat( CallbackLines, "\n" ),
+			ParentTargetAlpha = ParentTargetAlphaExpression
+		}, Setter, unpack( Callbacks ) )
+	end
+
+	--[[
+		Adds a bound colour property to the given control table.
+
+		This is a specialisation of AddBoundProperty that adds automatic support for alpha inheritance.
+
+		The value passed through to the bound object(s) will have its alpha field altered to compensate for the parent
+		element's target alpha if automatic alpha compensation is enabled.
+	]]
+	function SGUI.AddBoundColourProperty( Table, Name, BoundObject, Modifiers, ParentTargetAlphaExpression )
+		local Setter, Getter = SGUI.AddProperty( Table, Name, nil, Modifiers )
+		Setter = WrapColourSetterWithAlphaCompensation( Name, Setter, BoundObject, ParentTargetAlphaExpression )
+		Table[ SetterKeys[ Name ] ] = Setter
+		return Setter, Getter
 	end
 end
 

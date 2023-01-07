@@ -12,8 +12,10 @@ local SGUI = Shine.GUI
 
 local ProgressWheel = {}
 
-SGUI.AddBoundProperty( ProgressWheel, "Colour", { "LeftHalf:SetColor", "RightHalf:SetColor" } )
-SGUI.AddBoundProperty( ProgressWheel, "InheritsParentAlpha", { "Background", "LeftHalf", "RightHalf" } )
+local SetColour = SGUI.AddBoundColourProperty( ProgressWheel, "Colour", {
+	"LeftHalf:SetColor",
+	"RightHalf:SetColor"
+}, nil, "self:GetParentTargetAlpha()" )
 
 SGUI.AddProperty( ProgressWheel, "Angle", 0 )
 SGUI.AddProperty( ProgressWheel, "AngleOffset", 0 )
@@ -65,6 +67,26 @@ function ProgressWheel:Initialise()
 	self.SpinDirection = 1
 
 	self:SetVisibleFraction( 0 )
+end
+
+function ProgressWheel:SetColour( Colour )
+	if not SetColour( self, Colour ) then return false end
+
+	-- Ensure this colour's alpha gets used as the control's target alpha (the background remains fixed at 1, but
+	-- changing this makes it easier to forward alpha changes).
+	self:SetTargetAlpha( Colour.a )
+
+	return true
+end
+
+function ProgressWheel:ApplyCalculatedAlphaToBackground( Alpha )
+	if not self.Colour then return end
+
+	-- Apply the alpha compensation to the visible elements instead of the background item.
+	-- The alpha value here is correct due to setting the target alpha above.
+	local Colour = SGUI.ColourWithAlpha( self.Colour, Alpha )
+	self.LeftHalf:SetColor( Colour )
+	self.RightHalf:SetColor( Colour )
 end
 
 function ProgressWheel:SetWheelTexture( Params )

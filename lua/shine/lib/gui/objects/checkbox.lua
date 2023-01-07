@@ -6,11 +6,27 @@
 
 local SGUI = Shine.GUI
 
+local rawequal = rawequal
 local RoundTo = math.RoundTo
 
 local CheckBox = {}
 
 SGUI.AddProperty( CheckBox, "LabelPadding", 10, { "InvalidatesLayout" } )
+
+local function GetCheckedColour( self, TargetAlpha )
+	if self:ShouldAutoInheritAlpha() then
+		return self:ApplyAlphaCompensationToChildItemColour( self.BoxCol, TargetAlpha )
+	end
+	return self.BoxCol
+end
+
+local function OnTargetAlphaChanged( self, TargetAlpha )
+	if not self.FinalBoxColour or not self.Checked then return end
+
+	-- Box is a child of the control background, so the parent alpha here is the control's target alpha.
+	self:StopFade( self.Box )
+	self.Box:SetColor( GetCheckedColour( self, TargetAlpha ) )
+end
 
 function CheckBox:Initialise()
 	self.BaseClass.Initialise( self )
@@ -27,18 +43,30 @@ function CheckBox:Initialise()
 	self.Checked = false
 end
 
+function CheckBox:OnAutoInheritAlphaChanged( IsAutoInherit )
+	if IsAutoInherit then
+		OnTargetAlphaChanged( self, self:GetTargetAlpha() )
+		self:AddPropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	else
+		if self.Checked then
+			self:StopFade( self.Box )
+			self.Box:SetColor( self.BoxCol )
+		end
+		self:RemovePropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	end
+end
+
 function CheckBox:SetCheckedColour( Col )
 	self.BoxCol = Col
-	self.BoxHideCol = SGUI.CopyColour( Col )
-	self.BoxHideCol.a = 0
+	self.BoxHideCol = SGUI.ColourWithAlpha( Col, 0 )
 
-	self.Box:SetColor( self.Checked and self.BoxCol or self.BoxHideCol )
+	self:StopFade( self.Box )
+	self.Box:SetColor( self.Checked and GetCheckedColour( self, self:GetTargetAlpha() ) or self.BoxHideCol )
 end
 
 function CheckBox:SetBackgroundColour( Col )
 	self.BackgroundCol = Col
-
-	self.Background:SetColor( Col )
+	return self.BaseClass.SetBackgroundColour( self, Col )
 end
 
 function CheckBox:SetupStencil()
@@ -75,10 +103,11 @@ function CheckBox:SetChecked( Value, DontFade )
 	if Value then
 		self.Checked = true
 
+		local CheckedColour = GetCheckedColour( self, self:GetTargetAlpha() )
 		if DontFade then
-			self.Box:SetColor( self.BoxCol )
+			self.Box:SetColor( CheckedColour )
 		else
-			self:FadeTo( self.Box, self.BoxHideCol, self.BoxCol, 0, 0.1 )
+			self:FadeTo( self.Box, self.BoxHideCol, CheckedColour, 0, 0.1 )
 		end
 
 		self:OnChecked( true )
@@ -92,7 +121,7 @@ function CheckBox:SetChecked( Value, DontFade )
 	if DontFade then
 		self.Box:SetColor( self.BoxHideCol )
 	else
-		self:FadeTo( self.Box, self.BoxCol, self.BoxHideCol, 0, 0.1 )
+		self:FadeTo( self.Box, GetCheckedColour( self, self:GetTargetAlpha() ), self.BoxHideCol, 0, 0.1 )
 	end
 
 	self:OnChecked( false )

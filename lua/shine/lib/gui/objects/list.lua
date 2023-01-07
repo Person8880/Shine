@@ -17,7 +17,6 @@ local tonumber = tonumber
 local Vector = Vector
 
 local ScrollPos = Vector2( 0, 32 )
-local ZeroColour = Colour( 0, 0, 0, 0 )
 
 local DefaultHeaderSize = 32
 local DefaultLineSize = 32
@@ -27,7 +26,7 @@ local Absolute = Units.Absolute
 local Percentage = Units.Percentage
 local UnitVector = Units.UnitVector
 
-SGUI.AddBoundProperty( List, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( List, "Colour", "self:SetBackgroundColour" )
 SGUI.AddProperty( List, "SortedExternally", false )
 SGUI.AddProperty( List, "MultiSelect", false )
 SGUI.AddProperty( List, "ScrollRate", 3 )
@@ -41,14 +40,14 @@ function List:Initialise()
 	-- This element ensures the entries aren't visible past the bounds of the list.
 	-- Note that self.Background is not used as it would crop the scrollbar.
 	local CroppingBox = self:MakeGUICroppingItem()
-	CroppingBox:SetColor( ZeroColour )
+	CroppingBox:SetShader( SGUI.Shaders.Invisible )
 	Background:AddChild( CroppingBox )
 
 	self.CroppingBox = CroppingBox
 
 	-- This dummy element will be moved when scrolling.
 	local ScrollParent = self:MakeGUIItem()
-	ScrollParent:SetColor( ZeroColour )
+	ScrollParent:SetShader( SGUI.Shaders.Invisible )
 
 	CroppingBox:AddChild( ScrollParent )
 

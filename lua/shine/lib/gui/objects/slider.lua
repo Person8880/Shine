@@ -22,8 +22,6 @@ local Padding = Vector2( 20, 0 )
 local LinePos = Vector2( 0, -2.5 )
 local UnfilledLinePos = Vector2( 250, -2.5 )
 
-local Clear = Colour( 0, 0, 0, 0 )
-
 local IsType = Shine.IsType
 
 SGUI.AddProperty( Slider, "Decimals" )
@@ -32,16 +30,31 @@ SGUI.AddBoundProperty( Slider, "Font", "Label" )
 SGUI.AddBoundProperty( Slider, "TextColour", "Label:SetColour" )
 SGUI.AddBoundProperty( Slider, "TextScale", "Label" )
 SGUI.AddBoundProperty( Slider, "TextShadow", "Label:SetShadow" )
-SGUI.AddBoundProperty( Slider, "HandleColour", "Handle:SetColor" )
-SGUI.AddBoundProperty( Slider, "LineColour", "Line:SetColor" )
-SGUI.AddBoundProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
+
+SGUI.AddBoundColourProperty( Slider, "HandleColour", "Handle:SetColor" )
+SGUI.AddBoundColourProperty( Slider, "LineColour", "Line:SetColor" )
+SGUI.AddBoundColourProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
+
+local function OnTargetAlphaChanged( self, TargetAlpha )
+	if self.HandleColour then
+		self.Handle:SetColor( self:ApplyAlphaCompensationToChildItemColour( self.HandleColour, TargetAlpha ) )
+	end
+
+	if self.LineColour then
+		self.Line:SetColor( self:ApplyAlphaCompensationToChildItemColour( self.LineColour, TargetAlpha ) )
+	end
+
+	if self.DarkLineColour then
+		self.DarkLine:SetColor( self:ApplyAlphaCompensationToChildItemColour( self.DarkLineColour, TargetAlpha ) )
+	end
+end
 
 function Slider:Initialise()
 	self.BaseClass.Initialise( self )
 
 	local Background = self:MakeGUIItem()
 	Background:SetSize( DefaultSize )
-	Background:SetColor( Clear )
+	Background:SetShader( SGUI.Shaders.Invisible )
 
 	self.Background = Background
 
@@ -180,6 +193,25 @@ function Slider:SetupStencil()
 	self.Line:SetInheritsParentStencilSettings( true )
 	self.DarkLine:SetInheritsParentStencilSettings( true )
 	self.Label.Label:SetInheritsParentStencilSettings( true )
+end
+
+function Slider:OnAutoInheritAlphaChanged( IsAutoInherit )
+	if IsAutoInherit then
+		OnTargetAlphaChanged( self, self:GetTargetAlpha() )
+
+		self:AddPropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	else
+		if self.HandleColour then
+			self.Handle:SetColor( self.HandleColour )
+		end
+		if self.LineColour then
+			self.Line:SetColor( self.LineColour )
+		end
+		if self.DarkLineColour then
+			self.DarkLine:SetColor( self.DarkLineColour )
+		end
+		self:RemovePropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	end
 end
 
 function Slider:SizeLines()

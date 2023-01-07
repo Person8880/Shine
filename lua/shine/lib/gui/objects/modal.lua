@@ -42,6 +42,7 @@ function Modal:Initialise()
 	-- Start the element as an invisible box that's scaled down, the popup animation will fade this in and scale it up.
 	self.Background:SetColor( Colour( 0, 0, 0, 0 ) )
 	self.Background:SetScale( InitialScale )
+	self:SetAlphaMultiplier( 0 )
 
 	self.VisibleBackground = self:MakeGUIItem()
 	self.VisibleBackground:SetInheritsParentAlpha( true )
@@ -98,7 +99,7 @@ function Modal:PopUp( TargetWindow )
 	self.State = STATE_POPUP
 
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		EndValue = 1,
 		Duration = 0.15,
 		EasingFunction = FadingInEase
@@ -129,7 +130,7 @@ function Modal:Close()
 	self.State = STATE_CLOSING
 
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		EndValue = 0,
 		Duration = 0.15,
 		EasingFunction = FadingOutEase

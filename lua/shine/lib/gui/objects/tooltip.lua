@@ -11,7 +11,7 @@ Tooltip.IsWindow = true
 -- Tooltips can't have hover focus.
 Tooltip.IgnoreMouseFocus = true
 
-SGUI.AddBoundProperty( Tooltip, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( Tooltip, "Colour", "self:SetBackgroundColour" )
 SGUI.AddBoundProperty( Tooltip, "Texture", "Background:SetTexture" )
 SGUI.AddProperty( Tooltip, "AssociatedControl" )
 

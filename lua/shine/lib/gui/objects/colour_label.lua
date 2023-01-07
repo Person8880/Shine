@@ -62,7 +62,6 @@ function ColourLabel:SetShadow( Params )
 end
 
 function ColourLabel:SetText( TextContent )
-	local Easing
 	if #self.Labels > 0 then
 		for i = 1, #self.Labels do
 			local Label = self.Labels[ i ]

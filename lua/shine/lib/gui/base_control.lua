@@ -52,12 +52,14 @@ SGUI.AddBoundProperty( ControlMeta, "Scale", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
+SGUI.AddProperty( ControlMeta, "AlphaMultiplier", 1 )
 SGUI.AddProperty( ControlMeta, "DebugName", "Unnamed" )
 SGUI.AddProperty( ControlMeta, "PropagateAlphaInheritance", false )
 SGUI.AddProperty( ControlMeta, "PropagateScaleInheritance", false )
 SGUI.AddProperty( ControlMeta, "PropagateSkin", true )
 SGUI.AddProperty( ControlMeta, "Skin" )
 SGUI.AddProperty( ControlMeta, "StyleName" )
+SGUI.AddProperty( ControlMeta, "TargetAlpha", 1 )
 
 function ControlMeta:__tostring()
 	local NumChildren = self.Children and self.Children:GetCount() or 0
@@ -84,6 +86,9 @@ function ControlMeta:Initialise()
 
 	self.MouseHasEntered = false
 	self.MouseStateIsInvalid = false
+
+	self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithoutAlphaModifier
+	self.CalculateAlpha = self.CalculateAlphaWithoutMultiplierOrInheritance
 end
 
 --[[
@@ -436,13 +441,13 @@ function ControlMeta:SetParent( Control, Element )
 	end
 
 	if Control.PropagateAlphaInheritance then
-		self.PropagateAlphaInheritance = true
 		self:SetInheritsParentAlpha( Control:GetInheritsParentAlpha() )
+		self:SetPropagateAlphaInheritance( true )
 	end
 
 	if Control.PropagateScaleInheritance then
-		self.PropagateScaleInheritance = true
 		self:SetInheritsParentScaling( Control:GetInheritsParentScaling() )
+		self:SetPropagateScaleInheritance( true )
 	end
 
 	if Control.PropagateSkin then
@@ -684,6 +689,35 @@ function ControlMeta:PropagateStencilSettings( Stencilled )
 	end
 end
 
+do
+	local SetInheritsParentScaling = ControlMeta.SetInheritsParentScaling
+	function ControlMeta:SetInheritsParentScaling( InheritsParentScaling )
+		if not SetInheritsParentScaling( self, InheritsParentScaling ) then return false end
+
+		if self.PropagateScaleInheritance and self.Children then
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentScaling( InheritsParentScaling )
+			end
+		end
+
+		return true
+	end
+
+	local SetPropagateScaleInheritance = ControlMeta.SetPropagateScaleInheritance
+	function ControlMeta:SetPropagateScaleInheritance( PropagateScaleInheritance )
+		if not SetPropagateScaleInheritance( self, PropagateScaleInheritance ) then return false end
+
+		if PropagateScaleInheritance and self.Children then
+			local InheritsParentScaling = self:GetInheritsParentScaling()
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentScaling( InheritsParentScaling )
+				Child:SetPropagateScaleInheritance( true )
+			end
+		end
+
+		return true
+	end
+end
 --[[
 	Determines if the given control should use the global skin.
 ]]
@@ -912,14 +946,248 @@ function ControlMeta:SetFontScale( Font, Scale )
 	end
 end
 
-function ControlMeta:SetAlpha( Alpha )
+-- This can be overridden by controls that need to update their own items when their background alpha changes.
+function ControlMeta:ApplyCalculatedAlphaToBackground( Alpha )
 	local Colour = self.Background:GetColor()
 	Colour.a = Alpha
 	self.Background:SetColor( Colour )
 end
 
+function ControlMeta:SetAlpha( Alpha )
+	-- Remember this alpha value as the intended alpha for this control.
+	self:SetTargetAlpha( Alpha )
+	return self:ApplyCalculatedAlphaToBackground( self:CaclulateAlpha( Alpha, self:GetParentTargetAlpha() ) )
+end
+
+function ControlMeta:SetBackgroundColour( Colour )
+	-- Remember the alpha value on the colour as the intended alpha for this control.
+	self:SetTargetAlpha( Colour.a )
+
+	-- Copy the colour and compute the actual alpha required to render with the desired alpha, based on inherited alpha.
+	self.Background:SetColor( self:ApplyCalculatedAlphaToColour( Colour, self:GetParentTargetAlpha() ) )
+end
+
 function ControlMeta:GetAlpha()
 	return self.Background:GetColor().a
+end
+
+do
+	function ControlMeta:ShouldAutoInheritAlpha()
+		return self.PropagateAlphaInheritance and self:GetInheritsParentAlpha()
+	end
+
+	function ControlMeta:OnAutoInheritAlphaChanged( IsAutoInherit )
+		-- To be overridden.
+	end
+
+	function ControlMeta:OnAlphaCalculationParametersChanged()
+		-- This branching isn't ideal, but it avoids runtime branching when colours are changed (especially useful during
+		-- easing).
+		local OldCalculateAlpha = self.CalculateAlpha
+		local IsInheriting = self:ShouldAutoInheritAlpha()
+		if self.AlphaMultiplier == 1 then
+			if IsInheriting then
+				self.CalculateAlpha = self.CalculateAlphaWithoutMultiplierWithInheritance
+				self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithAlphaModifier
+			else
+				self.CalculateAlpha = self.CalculateAlphaWithoutMultiplierOrInheritance
+				self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithoutAlphaModifier
+			end
+		else
+			self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithAlphaModifier
+
+			if IsInheriting then
+				self.CalculateAlpha = self.CalculateAlphaWithMultiplierAndInheritance
+			else
+				self.CalculateAlpha = self.CalculateAlphaWithMultiplierWithoutInheritance
+			end
+		end
+		return OldCalculateAlpha ~= self.CalculateAlpha
+	end
+
+	local SetInheritsParentAlpha = ControlMeta.SetInheritsParentAlpha
+	function ControlMeta:SetInheritsParentAlpha( InheritsParentAlpha )
+		if not SetInheritsParentAlpha( self, InheritsParentAlpha ) then return false end
+
+		if self:OnAlphaCalculationParametersChanged() then
+			self:ApplyCalculatedAlphaToBackground(
+				self:CalculateAlpha( self:GetTargetAlpha(), self:GetParentTargetAlpha() )
+			)
+
+			-- This must have changed if the alpha calculation changed.
+			self:OnAutoInheritAlphaChanged( self:ShouldAutoInheritAlpha() )
+		end
+
+		if self.PropagateAlphaInheritance and self.Children then
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentAlpha( InheritsParentAlpha )
+			end
+		end
+
+		return true
+	end
+
+	local SetPropagateAlphaInheritance = ControlMeta.SetPropagateAlphaInheritance
+	function ControlMeta:SetPropagateAlphaInheritance( PropagateAlphaInheritance )
+		if not SetPropagateAlphaInheritance( self, PropagateAlphaInheritance ) then return false end
+
+		if self:OnAlphaCalculationParametersChanged() then
+			self:ApplyCalculatedAlphaToBackground(
+				self:CalculateAlpha( self:GetTargetAlpha(), self:GetParentTargetAlpha() )
+			)
+
+			-- This must have changed if the alpha calculation changed.
+			self:OnAutoInheritAlphaChanged( self:ShouldAutoInheritAlpha() )
+		end
+
+		if PropagateAlphaInheritance and self.Children then
+			local InheritsParentAlpha = self:GetInheritsParentAlpha()
+			-- Recurse the flag down the element tree, and ensure everything is inheriting alpha as expected.
+			for Child in self.Children:Iterate() do
+				Child:SetInheritsParentAlpha( InheritsParentAlpha )
+				Child:SetPropagateAlphaInheritance( true )
+			end
+		end
+
+		return true
+	end
+
+	local SetAlphaMultiplier = ControlMeta.SetAlphaMultiplier
+	function ControlMeta:SetAlphaMultiplier( AlphaMultiplier )
+		local OldMultiplier = self.AlphaMultiplier
+		if not SetAlphaMultiplier( self, AlphaMultiplier ) then return false end
+
+		if OldMultiplier == 1 or AlphaMultiplier == 1 then
+			self:OnAlphaCalculationParametersChanged()
+		end
+
+		-- Always re-apply the alpha as the multiplier affects it regardless of inheritance settings.
+		self:ApplyCalculatedAlphaToBackground(
+			self:CalculateAlpha( self:GetTargetAlpha(), self:GetParentTargetAlpha() )
+		)
+
+		return true
+	end
+
+	function ControlMeta:OnParentTargetAlphaChanged( ParentTargetAlpha )
+		-- When the parent's target alpha changes, the local alpha needs to be updated to compensate for it.
+		-- Note that this doesn't need to be done recursively, the assumption is always that the final value after
+		-- multiplying all parent alpha values together will equal the current control's target alpha, so as far as this
+		-- control's children are concerned, nothing has changed.
+		return self:ApplyCalculatedAlphaToBackground( self:CalculateAlpha( self:GetTargetAlpha(), ParentTargetAlpha ) )
+	end
+
+	--[[
+		This is called internally whenever the main colour for the control changes.
+
+		The GUIItem system in the game has the option to inherit alpha from parent items. This effectively works as
+		a chained multiplication:
+
+		RootAlpha * Child1Alpha * Child2Alpha * ...
+
+		Thus, if a control wishes to be opaque, but it also has translucent parent elements, simply setting the item's
+		colour would result in translucency instead of opaquness.
+
+		To compensate for this, each control tracks its target alpha value, that is, the alpha it wants to render with.
+		It uses this value to calculate the actual alpha value that, when multiplied by its parent's alpha, will produce
+		the intended alpha. Thankfully, the rendering system accepts alpha values > 1, and multiplies them properly.
+
+		For example, if a root element has alpha set to 0.5, but a child wants to be opaque, it needs the following
+		actual alpha value set on the GUIItem:
+
+		1 / 0.5 = 2.
+
+		This results in a multiplication of
+
+		0.5 * 2 = 1
+
+		for the item, which renders it as opaque despite its translucent parent item.
+
+		Note that only direct children of an element need to recompute their final alpha value when their parent alpha
+		changes, as each item need only compensate for its direct parent's alpha, as its parent is already compensating
+		for its parent and so on.
+	]]
+	local SetTargetAlpha = ControlMeta.SetTargetAlpha
+	function ControlMeta:SetTargetAlpha( TargetAlpha )
+		if not SetTargetAlpha( self, TargetAlpha ) then return false end
+
+		if self.PropagateAlphaInheritance and self.Children then
+			-- Notify all direct children of the change in our target alpha, each child will need to re-compute their
+			-- own final alpha value to compensate.
+			for Child in self.Children:Iterate() do
+				if Child:GetInheritsParentAlpha() then
+					Child:OnParentTargetAlphaChanged( TargetAlpha )
+				end
+			end
+		end
+
+		return true
+	end
+
+	function ControlMeta:GetParentTargetAlpha()
+		local Parent = self.Parent
+		if SGUI.IsValid( Parent ) then
+			return Parent:GetTargetAlpha()
+		end
+		-- Always 1 for root elements, nothing gets inherited here.
+		return 1
+	end
+
+	--[[
+		Applies the current alpha calculation to the given colour's alpha value, using the given parent alpha value.
+
+		If automatic alpha inheritance is enabled, then the resulting colour's alpha will compensate for the given
+		parent alpha value. Otherwise the alpha will just be multiplied by the control's current alpha multiplier.
+
+		This returns a copy of the given colour, the original colour is not modified.
+	]]
+	function ControlMeta:ApplyCalculatedAlphaToColourWithAlphaModifier( Colour, ParentAlpha )
+		return SGUI.ColourWithAlpha( Colour, self:CalculateAlpha( Colour.a, ParentAlpha ) )
+	end
+
+	function ControlMeta:ApplyCalculatedAlphaToColourWithoutAlphaModifier( Colour, ParentAlpha )
+		-- Optimisation for the case where no alpha modifications are needed, just return the given colour as-is.
+		return Colour
+	end
+	ControlMeta.ApplyCalculatedAlphaToColour = ControlMeta.ApplyCalculatedAlphaToColourWithoutAlphaModifier
+
+	--[[
+		Applies alpha compensation to the given colour for a child GUIItem of the control.
+
+		This will return a copy of the given colour with an alpha vaue that ensures that the final rendered colour has
+		the alpha of the given colour, accounting for the given parent alpha value.
+
+		Note that this does not apply the control's alpha multiplier, as that is assumed to be applied through the
+		background item already due to inheritance.
+	]]
+	function ControlMeta:ApplyAlphaCompensationToChildItemColour( Colour, ParentAlpha )
+		return SGUI.ColourWithAlpha( Colour, ParentAlpha == 0 and 0 or Colour.a / ParentAlpha )
+	end
+
+	function ControlMeta:CalculateAlphaWithoutMultiplierOrInheritance( Alpha, ParentAlpha )
+		-- Simplest default case, no alpha multiplier and not inheriting parent alpha with propagation.
+		return Alpha
+	end
+	ControlMeta.CalculateAlpha = ControlMeta.CalculateAlphaWithoutMultiplierOrInheritance
+
+	function ControlMeta:CalculateAlphaWithMultiplierWithoutInheritance( Alpha, ParentAlpha )
+		-- Have an alpha multiplier, but not inheriting parent alpha or not set to compensate for it.
+		return Alpha * self.AlphaMultiplier
+	end
+
+	function ControlMeta:CalculateAlphaWithoutMultiplierWithInheritance( Alpha, ParentAlpha )
+		-- No alpha multiplier, but parent alpha is being inherited with compensation enabled, so need to return a value
+		-- that will cancel out the parent's alpha to produce this control's desired value.
+		if ParentAlpha == 0 then return 0 end
+		return Alpha / ParentAlpha
+	end
+
+	function ControlMeta:CalculateAlphaWithMultiplierAndInheritance( Alpha, ParentAlpha )
+		-- Have an alpha multiplier and want to compensate for parent alpha, so first compute the compensated value,
+		-- then multiply it by the multiplier.
+		if ParentAlpha == 0 then return 0 end
+		return Alpha / ParentAlpha * self.AlphaMultiplier
+	end
 end
 
 function ControlMeta:GetTextureWidth()
@@ -1768,7 +2036,11 @@ local Easers = {
 			SGUI.ColourLerp( EasingData.CurValue, EasingData.Start, Progress, EasingData.Diff )
 		end,
 		Setter = function( self, Element, Colour )
-			Element:SetColor( Colour )
+			if Element == self.Background then
+				self:SetBackgroundColour( Colour )
+			else
+				Element:SetColor( Colour )
+			end
 		end,
 		Getter = function( self, Element )
 			return Element:GetColor()
@@ -1783,13 +2055,29 @@ local Easers = {
 			EasingData.Colour.a = EasingData.CurValue
 		end,
 		Setter = function( self, Element, Alpha, EasingData )
-			EasingData.Colour.a = Alpha
-			Element:SetColor( EasingData.Colour )
+			if Element == self.Background then
+				EasingData.Colour.a = Alpha
+				self:SetBackgroundColour( EasingData.Colour )
+			else
+				EasingData.Colour.a = Alpha * self.AlphaMultiplier
+				Element:SetColor( EasingData.Colour )
+			end
 		end,
 		Getter = function( self, Element )
 			return Element:GetColor().a
 		end
 	}, "Alpha" ),
+	AlphaMultiplier = Easer( {
+		Easer = function( self, Element, EasingData, Progress )
+			EasingData.CurValue = EasingData.Start + EasingData.Diff * Progress
+		end,
+		Setter = function( self, Element, AlphaMultiplier )
+			self:SetAlphaMultiplier( AlphaMultiplier )
+		end,
+		Getter = function( self, Element )
+			return self.AlphaMultiplier
+		end
+	}, "AlphaMultiplier" ),
 	Move = Easer( {
 		Easer = function( self, Element, EasingData, Progress )
 			local CurValue = EasingData.CurValue
@@ -1867,6 +2155,10 @@ function ControlMeta:StopEasing( Element, EasingHandler )
 	end
 
 	Easers:Remove( Element )
+end
+
+function ControlMeta:StopEasingType( TypeName, Element )
+	return self:StopEasing( Element, Easers[ TypeName ] )
 end
 
 local function AddEaseFunc( EasingData, EaseFunc, Power )
@@ -2279,12 +2571,11 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		if not self.TextureHighlight then
 			if SkipAnim then
 				self:StopFade( self.Background )
-				self.Background:SetColor( self.ActiveCol )
+				self:SetBackgroundColour( self.ActiveCol )
 				return
 			end
 
-			self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol,
-				0, 0.1 )
+			self:FadeTo( self.Background, self.InactiveCol, self.ActiveCol, 0, 0.1 )
 		else
 			self.Background:SetTexture( self.HighlightTexture )
 		end
@@ -2295,12 +2586,11 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		if not self.TextureHighlight then
 			if SkipAnim then
 				self:StopFade( self.Background )
-				self.Background:SetColor( self.InactiveCol )
+				self:SetBackgroundColour( self.InactiveCol )
 				return
 			end
 
-			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol,
-				0, 0.1 )
+			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.1 )
 		else
 			self.Background:SetTexture( self.Texture )
 		end

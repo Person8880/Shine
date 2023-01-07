@@ -40,7 +40,7 @@ function TabPanelButton:SetActiveCol( Col )
 	self.ActiveCol = Col
 
 	if self.Selected then
-		self.Background:SetColor( Col )
+		self:SetBackgroundColour( Col )
 	end
 end
 
@@ -48,7 +48,7 @@ function TabPanelButton:SetInactiveCol( Col )
 	self.InactiveCol = Col
 
 	if not self.Selected then
-		self.Background:SetColor( Col )
+		self:SetBackgroundColour( Col )
 	end
 end
 
@@ -56,10 +56,10 @@ function TabPanelButton:SetSelected( Selected )
 	self.Selected = Selected
 
 	if not self.Selected then
-		self.Background:SetColor( self.InactiveCol )
+		self:SetBackgroundColour( self.InactiveCol )
 		self:RemoveStylingState( "Selected" )
 	else
-		self.Background:SetColor( self.ActiveCol )
+		self:SetBackgroundColour( self.ActiveCol )
 		self:AddStylingState( "Selected" )
 	end
 end

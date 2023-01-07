@@ -19,7 +19,7 @@ SGUI.AddProperty( Switch, "ClickSound", "sound/NS2.fev/common/button_enter" )
 SGUI.AddProperty( Switch, "InactiveBackgroundColour", Colour( 0, 0, 0, 0.25 ) )
 SGUI.AddProperty( Switch, "KnobPadding", Units.MultipleOf2( Units.HighResScaled( 4 ) ) )
 
-SGUI.AddBoundProperty( Switch, "KnobColour", "SwitchKnob:SetColor" )
+SGUI.AddBoundColourProperty( Switch, "KnobColour", "SwitchKnob:SetColor" )
 
 local function GetAbsolutePadding( self, Padding, Size )
 	return ToUnit( Padding ):GetValue( self, Size.x, 1 )
@@ -39,14 +39,14 @@ end
 local function OnActiveBackgroundColourChanged( self, Colour )
 	if self.Active then
 		self:StopFade( self.Background )
-		self.Background:SetColor( Colour )
+		self:SetBackgroundColour( Colour )
 	end
 end
 
 local function OnInactiveBackgroundColourChanged( self, Colour )
 	if not self.Active then
 		self:StopFade( self.Background )
-		self.Background:SetColor( Colour )
+		self:SetBackgroundColour( Colour )
 	end
 end
 
@@ -68,7 +68,7 @@ function Switch:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Background = self:MakeGUIItem()
-	self.Background:SetColor( self:GetInactiveBackgroundColour() )
+	self:SetBackgroundColour( self:GetInactiveBackgroundColour() )
 
 	self.SwitchKnob = self:MakeGUIItem()
 	self.Background:AddChild( self.SwitchKnob )
@@ -77,6 +77,25 @@ function Switch:Initialise()
 	self:AddPropertyChangeListener( "InactiveBackgroundColour", OnInactiveBackgroundColourChanged )
 	self:AddPropertyChangeListener( "KnobPadding", OnKnobPaddingChanged )
 	self:AddPropertyChangeListener( "Size", OnSizeChanged )
+end
+
+local function OnTargetAlphaChanged( self, TargetAlpha )
+	if not self.KnobColour then return end
+
+	self.Knob:SetColor( self:ApplyAlphaCompensationToChildItemColour( self.KnobColour, TargetAlpha ) )
+end
+
+function Switch:OnAutoInheritAlphaChanged( IsAutoInherit )
+	if IsAutoInherit then
+		OnTargetAlphaChanged( self, self:GetTargetAlpha() )
+
+		self:AddPropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	else
+		if self.KnobColour then
+			self.Knob:SetColor( self.KnobColour )
+		end
+		self:RemovePropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	end
 end
 
 local SetActive = Switch.SetActive
@@ -114,7 +133,7 @@ function Switch:SetActive( Active, SkipAnim )
 			EasingFunction = EasingFunction
 		} )
 	else
-		self.Background:SetColor( BackgroundColour )
+		self:SetBackgroundColour( BackgroundColour )
 		self.SwitchKnob:SetPosition( Vector2( XPos, YPos ) )
 	end
 end

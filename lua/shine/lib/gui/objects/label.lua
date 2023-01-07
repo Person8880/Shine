@@ -12,8 +12,7 @@ local TableConcat = table.concat
 
 local Label = {}
 
-SGUI.AddBoundProperty( Label, "Colour", "Label:SetColor" )
-SGUI.AddBoundProperty( Label, "InheritsParentAlpha", "Label" )
+SGUI.AddBoundProperty( Label, "Colour", "self:SetBackgroundColour" )
 SGUI.AddBoundProperty( Label, "Font", "Label:SetFontName", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "Text", "Label", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Label, "TextAlignmentX", "Label" )

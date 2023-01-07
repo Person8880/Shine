@@ -103,7 +103,9 @@ function Button:SetText( Text )
 	if self.TextColour then
 		Description:SetColour( self.TextColour )
 	end
-	Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	if not self.PropagateAlphaInheritance then
+		Description:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	end
 	Description:SetIsVisible( self.TextIsVisible )
 	-- Need to offset the text based on its internal alignment.
 	Description:SetUseAlignmentCompensation( true )
@@ -209,7 +211,9 @@ function Button:SetIcon( IconName, Font, Scale )
 		Icon:SetAutoFont( self.IconAutoFont )
 	end
 	Icon:SetText( IconName )
-	Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	if not self.PropagateAlphaInheritance then
+		Icon:SetInheritsParentAlpha( self.TextInheritsParentAlpha )
+	end
 	Icon:SetIsVisible( self.IconIsVisible )
 	if self.IconShadow ~= nil then
 		Icon:SetShadow( self.IconShadow )
@@ -251,7 +255,7 @@ function Button:SetActiveCol( Col )
 
 	if self.Highlighted then
 		self:StopFade( self.Background )
-		self.Background:SetColor( Col )
+		self:SetBackgroundColour( Col )
 	end
 end
 
@@ -260,7 +264,7 @@ function Button:SetInactiveCol( Col )
 
 	if not self.Highlighted then
 		self:StopFade( self.Background )
-		self.Background:SetColor( Col )
+		self:SetBackgroundColour( Col )
 	end
 end
 

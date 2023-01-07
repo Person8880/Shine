@@ -16,8 +16,8 @@ local ToUnit = SGUI.Layout.ToUnit
 
 local Hint = {}
 
-SGUI.AddBoundProperty( Hint, "Colour", "Background:SetColor" )
-SGUI.AddBoundProperty( Hint, "FlairColour", "Flair:SetColor" )
+SGUI.AddBoundProperty( Hint, "Colour", "self:SetBackgroundColour" )
+SGUI.AddBoundProperty( Hint, "FlairColour", "Flair:SetColour" )
 SGUI.AddBoundProperty( Hint, "Text", "HelpText:SetText", { "InvalidatesParent" } )
 SGUI.AddBoundProperty( Hint, "TextColour", "HelpText:SetColour" )
 SGUI.AddBoundProperty( Hint, "Font", "HelpText:SetFont", { "InvalidatesParent" } )
@@ -30,16 +30,20 @@ function Hint:Initialise()
 
 	self.Background = self:MakeGUIItem()
 
-	self.Flair = self:MakeGUIItem()
-	self.Background:AddChild( self.Flair )
-
-	self.FlairWidth = HighResScaled( 8 )
-
-	local Padding = Spacing( HighResScaled( 16 ), HighResScaled( 8 ), HighResScaled( 8 ), HighResScaled( 8 ) )
-
+	local Padding = Spacing( 0, HighResScaled( 8 ), HighResScaled( 8 ), HighResScaled( 8 ) )
 	local Layout = SGUI.Layout:CreateLayout( "Horizontal", {
 		Padding = Padding
 	} )
+
+	self.FlairWidth = HighResScaled( 8 )
+
+	local Flair = SGUI:Create( "Image", self )
+	Flair:SetIsSchemed( false )
+	Flair:SetAutoSize( UnitVector( self.FlairWidth, Percentage.ONE_HUNDRED ) )
+	Flair:SetMargin( Spacing( 0, 0, HighResScaled( 8 ), 0 ) )
+	Layout:AddElement( Flair )
+
+	self.Flair = Flair
 
 	local HelpText = SGUI:Create( "Label", self )
 	HelpText:SetIsSchemed( false )
@@ -54,23 +58,13 @@ function Hint:Initialise()
 end
 
 function Hint:GetContentSizeForAxis( Axis )
-	if Axis == 1 then
-		return 0
-	end
-
-	return self.HelpText:GetSize().y + self.Layout:GetComputedPadding()[ 6 ]
+	return self.Layout:GetContentSizeForAxis( Axis )
 end
 
 function Hint:SetFlairWidth( FlairWidth )
 	self.FlairWidth = ToUnit( FlairWidth )
+	self.Flair:SetAutoSize( UnitVector( self.FlairWidth, Percentage.ONE_HUNDRED ) )
 	self:InvalidateLayout()
-end
-
-function Hint:PerformLayout()
-	self.BaseClass.PerformLayout( self )
-
-	local Size = self:GetSize()
-	self.Flair:SetSize( Vector2( self.FlairWidth:GetValue( Size.x, self, 1 ), Size.y ) )
 end
 
 SGUI:Register( "Hint", Hint )

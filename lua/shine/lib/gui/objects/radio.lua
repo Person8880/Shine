@@ -14,7 +14,7 @@ local TypeCheckField = Shine.TypeCheckField
 
 local Radio = {}
 
-SGUI.AddBoundProperty( Radio, "BackgroundColour", "Background:SetColor" )
+SGUI.AddBoundProperty( Radio, "BackgroundColour", "self:SetBackgroundColour" )
 
 function Radio:Initialise()
 	self.BaseClass.Initialise( self )

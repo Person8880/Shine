@@ -18,7 +18,6 @@ Panel.IsWindow = true
 
 local DefaultBuffer = 20
 local ScrollPos = Vector( -10, 0, 0 )
-local ZeroColour = Colour( 0, 0, 0, 0 )
 
 SGUI.AddProperty( Panel, "AutoHideScrollbar" )
 SGUI.AddProperty( Panel, "BlockEventsIfFocusedWindow", true )
@@ -27,7 +26,7 @@ SGUI.AddProperty( Panel, "HorizontalScrollingEnabled", true )
 SGUI.AddProperty( Panel, "ResizeLayoutForScrollbar" )
 SGUI.AddProperty( Panel, "StickyScroll" )
 
-SGUI.AddBoundProperty( Panel, "Colour", "Background:SetColor" )
+SGUI.AddBoundProperty( Panel, "Colour", "self:SetBackgroundColour" )
 SGUI.AddBoundProperty( Panel, "HideHorizontalScrollbar", "HorizontalScrollbar:SetHidden" )
 
 local function OnAutoHideScrollbarChanged( self, AutoHideScrollbar )
@@ -142,14 +141,14 @@ function Panel:SetScrollable()
 	-- Establish a cropping box to keep elements from rendering outside the panel.
 	-- Note that self.Background is not used as it would crop the scrollbars.
 	local CroppingBox = self:MakeGUICroppingItem()
-	CroppingBox:SetColor( ZeroColour )
+	CroppingBox:SetShader( SGUI.Shaders.Invisible )
 	CroppingBox:SetSize( self.Background:GetSize() )
 	self.Background:AddChild( CroppingBox )
 
 	self.CroppingBox = CroppingBox
 
 	local ScrollParent = self:MakeGUIItem()
-	ScrollParent:SetColor( ZeroColour )
+	ScrollParent:SetShader( SGUI.Shaders.Invisible )
 
 	CroppingBox:AddChild( ScrollParent )
 

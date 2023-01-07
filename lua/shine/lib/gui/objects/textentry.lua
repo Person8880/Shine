@@ -31,14 +31,50 @@ local TextPos = Vector2( 2, 0 )
 SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
 SGUI.AddProperty( TextEntry, "AutoCompleteHandler" )
 
+local function GetInnerBoxColour( self, Col )
+	if self:ShouldAutoInheritAlpha() then
+		return self:ApplyAlphaCompensationToChildItemColour( Col, self:GetTargetAlpha() )
+	end
+	return Col
+end
+
+local function UpdateInnerBoxChildItemColours( self, InnerBoxColour )
+	if self.TextColour then
+		local TextColour = self:ApplyAlphaCompensationToChildItemColour( self.TextColour, InnerBoxColour.a )
+		self.TextObj:SetColor( TextColour )
+		self.Caret:SetColor( TextColour )
+	end
+
+	if self.HighlightColour then
+		self.SelectionBox:SetColor(
+			self:ApplyAlphaCompensationToChildItemColour( self.HighlightColour, InnerBoxColour.a )
+		)
+	end
+
+	if self.PlaceholderTextColour and self.PlaceholderText then
+		self.PlaceholderText:SetColor(
+			self:ApplyAlphaCompensationToChildItemColour( self.PlaceholderTextColour, InnerBoxColour.a )
+		)
+	end
+end
+
+local function OnInnerBoxColourChanged( self, InnerBoxColour )
+	if not self:ShouldAutoInheritAlpha() then return end
+	return UpdateInnerBoxChildItemColours( self, InnerBoxColour )
+end
+
 local function OnVisibilityChange( self, IsVisible )
 	if not IsVisible then
 		self.Highlighted = false
-		self.InnerBox:SetColor( self.DarkCol )
+		self:StopFade( self.InnerBox )
+		self.InnerBox:SetColor( GetInnerBoxColour( self, self.DarkCol ) )
+		OnInnerBoxColourChanged( self, self.DarkCol )
 	else
 		local MouseIn = self:HasMouseEntered()
 		if MouseIn or self.Enabled then
-			self.InnerBox:SetColor( self.FocusColour )
+			self:StopFade( self.InnerBox )
+			self.InnerBox:SetColor( GetInnerBoxColour( self, self.FocusColour ) )
+			OnInnerBoxColourChanged( self, self.FocusColour )
 		end
 
 		self.Highlighted = MouseIn
@@ -48,6 +84,16 @@ end
 local function OnTextChangedInternal( self, OldText, NewText )
 	self:OnTextChanged( OldText, NewText )
 	self:OnPropertyChanged( "Text", NewText )
+end
+
+local function GetCurrentInnerBoxColour( self )
+	local Colour
+	if ( self.Enabled or self.Highlighted ) and self.FocusColour then
+		Colour = self.FocusColour
+	elseif not self.Enabled and not self.Highlighted and self.DarkCol then
+		Colour = self.DarkCol
+	end
+	return Colour
 end
 
 function TextEntry:Initialise()
@@ -73,7 +119,7 @@ function TextEntry:Initialise()
 
 	-- The caret to edit from.
 	local Caret = self:MakeGUIItem()
-	Caret:SetColor( Clear )
+	Caret:SetIsVisible( false )
 
 	self.Caret = Caret
 
@@ -112,6 +158,41 @@ function TextEntry:Initialise()
 	self:AddPropertyChangeListener( "IsVisible", OnVisibilityChange )
 end
 
+local function OnTargetAlphaChanged( self, TargetAlpha )
+	local Colour = GetCurrentInnerBoxColour( self )
+	if Colour then
+		self:StopFade( self.InnerBox )
+		self.InnerBox:SetColor( self:ApplyAlphaCompensationToChildItemColour( Colour, TargetAlpha ) )
+	end
+end
+
+function TextEntry:OnAutoInheritAlphaChanged( IsAutoInherit )
+	if IsAutoInherit then
+		OnTargetAlphaChanged( self, self:GetTargetAlpha() )
+		self:AddPropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	else
+		local Colour = GetCurrentInnerBoxColour( self )
+		if Colour then
+			self:StopFade( self.InnerBox )
+			self.InnerBox:SetColor( Colour )
+
+			if self.TextColour then
+				self.TextObj:SetColor( self.TextColour )
+				self.Caret:SetColor( self.TextColour )
+			end
+
+			if self.HighlightColour then
+				self.SelectionBox:SetColor( self.HighlightColour )
+			end
+
+			if self.PlaceholderTextColour and self.PlaceholderText then
+				self.PlaceholderText:SetColor( self.PlaceholderTextColour )
+			end
+		end
+		self:RemovePropertyChangeListener( "TargetAlpha", OnTargetAlphaChanged )
+	end
+end
+
 function TextEntry:SetTextPadding( Padding )
 	self.Padding = Padding
 	self.TextOffset = Min( self.TextOffset, Padding )
@@ -144,13 +225,38 @@ function TextEntry:SetSize( SizeVec )
 	self:InvalidateLayout()
 end
 
-SGUI.AddBoundProperty( TextEntry, "PlaceholderTextColour", "PlaceholderText:SetColor" )
+function TextEntry:GetInnerBoxTargetAlpha()
+	local TargetAlpha = 1
+	if ( self.Enabled or self.Highlighted ) and self.FocusColour then
+		TargetAlpha = self.FocusColour.a
+	elseif not self.Enabled and not self.Highlighted and self.DarkCol then
+		TargetAlpha = self.DarkCol.a
+	end
+	return TargetAlpha
+end
+
+SGUI.AddBoundColourProperty(
+	TextEntry,
+	"PlaceholderTextColour",
+	"PlaceholderText:SetColor",
+	nil,
+	"self:GetInnerBoxTargetAlpha()"
+)
+
+local function GetInnerBoxChildColour( self, Col )
+	if self:ShouldAutoInheritAlpha() then
+		return self:ApplyAlphaCompensationToChildItemColour( Col, self:GetInnerBoxTargetAlpha() )
+	end
+	return Col
+end
 
 function TextEntry:SetFocusColour( Col )
 	self.FocusColour = Col
 
 	if self.Enabled or self.Highlighted then
-		self.InnerBox:SetColor( Col )
+		self:StopFade( self.InnerBox )
+		self.InnerBox:SetColor( GetInnerBoxColour( self, Col ) )
+		OnInnerBoxColourChanged( self, Col )
 	end
 end
 
@@ -158,17 +264,19 @@ function TextEntry:SetDarkColour( Col )
 	self.DarkCol = Col
 
 	if not self.Enabled and not self.Highlighted then
-		self.InnerBox:SetColor( Col )
+		self:StopFade( self.InnerBox )
+		self.InnerBox:SetColor( GetInnerBoxColour( self, Col ) )
+		OnInnerBoxColourChanged( self, Col )
 	end
 end
 
 function TextEntry:SetBorderColour( Col )
-	self.Background:SetColor( Col )
+	self:SetBackgroundColour( Col )
 end
 
 function TextEntry:SetTextColour( Col )
 	self.TextColour = Col
-	self.TextObj:SetColor( Col )
+	self.TextObj:SetColor( GetInnerBoxChildColour( self, Col ) )
 end
 
 function TextEntry:SetTextShadow( Params )
@@ -190,7 +298,8 @@ function TextEntry:SetTextShadow( Params )
 end
 
 function TextEntry:SetHighlightColour( Col )
-	self.SelectionBox:SetColor( Col )
+	self.HighlightColour = Col
+	self.SelectionBox:SetColor( GetInnerBoxChildColour( self, Col ) )
 end
 
 function TextEntry:SetBorderSize( BorderSize )
@@ -234,7 +343,7 @@ function TextEntry:SetPlaceholderText( Text )
 	end
 
 	PlaceholderText:SetPosition( self.TextObj:GetPosition() )
-	PlaceholderText:SetColor( self.PlaceholderTextColour )
+	PlaceholderText:SetColor( GetInnerBoxChildColour( self, self.PlaceholderTextColour ) )
 
 	self.InnerBox:AddChild( PlaceholderText )
 	self.PlaceholderText = PlaceholderText
@@ -790,6 +899,11 @@ function TextEntry:PlayerType( Char )
 	return true
 end
 
+local function SetCaretVisible( self, Visible )
+	self.CaretVis = Visible
+	self.Caret:SetIsVisible( Visible )
+end
+
 function TextEntry:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
 
@@ -798,8 +912,7 @@ function TextEntry:Think( DeltaTime )
 
 		if ( self.NextCaretChange or 0 ) < Time then
 			self.NextCaretChange = Time + 0.5
-			self.CaretVis = not self.CaretVis
-			self.Caret:SetColor( self.CaretVis and self.TextColour or Clear )
+			SetCaretVisible( self, not self.CaretVis )
 		end
 	end
 
@@ -822,7 +935,13 @@ function TextEntry:OnMouseEnter()
 
 	if self.Enabled or self.Highlighted then return end
 
-	self:FadeTo( self.InnerBox, self.DarkCol, self.FocusColour, 0, 0.1 )
+	self:FadeTo(
+		self.InnerBox,
+		GetInnerBoxColour( self, self.DarkCol ),
+		GetInnerBoxColour( self, self.FocusColour ),
+		0,
+		0.1
+	)
 	self.Highlighted = true
 end
 
@@ -831,7 +950,13 @@ function TextEntry:OnMouseLeave()
 
 	if self.Enabled or not self.Highlighted then return end
 
-	self:FadeTo( self.InnerBox, self.FocusColour, self.DarkCol, 0, 0.1 )
+	self:FadeTo(
+		self.InnerBox,
+		GetInnerBoxColour( self, self.FocusColour ),
+		GetInnerBoxColour( self, self.DarkCol ),
+		0,
+		0.1
+	)
 	self.Highlighted = false
 end
 
@@ -1228,7 +1353,7 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 			self:RemoveStylingState( "Focus" )
 		end
 
-		self.Caret:SetColor( Clear )
+		SetCaretVisible( self, false )
 		self:OnLoseFocus()
 
 		return
@@ -1236,7 +1361,12 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 
 	self:AddStylingState( "Focus" )
 	self:StopFade( self.InnerBox )
-	self.InnerBox:SetColor( self.FocusColour )
+	self.InnerBox:SetColor( GetInnerBoxColour( self, self.FocusColour ) )
+	OnInnerBoxColourChanged( self, self.FocusColour )
+
+	-- Show the caret immediately so it's clear that the text entry has been focused.
+	SetCaretVisible( self, true )
+	self.NextCaretChange = Clock() + 0.5
 
 	if not self.Enabled then
 		self:OnGainFocus()
