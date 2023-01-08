@@ -731,6 +731,23 @@ function Plugin:SetupAdminMenuCommands()
 	SGUI.AddProperty( PluginEntry, "Enabled" )
 	SGUI.AddProperty( PluginEntry, "ConfiguredAsEnabled" )
 
+	function PluginEntry:IsInView()
+		local Pos = self.Parent.ScrollParent:GetPosition() + self:GetPos()
+		local ParentY = self.Parent.Size.y
+		return Pos.y < ParentY and Pos.y + self:GetSize().y > 0
+	end
+
+	function PluginEntry:Think( DeltaTime )
+		if not self:GetIsVisible() then return end
+		-- Avoid calling think recursively when out of view, just like list entries do.
+		if not self:IsInView() then
+			self:HandleEasing( SGUI.GetTime(), DeltaTime )
+			return
+		end
+		self.BaseClass.Think( self, DeltaTime )
+		return self:CallOnChildren( "Think", DeltaTime )
+	end
+
 	function PluginEntry:SetPluginData( PluginData )
 		self:SetEnabled( PluginData.Enabled )
 		self:SetConfiguredAsEnabled( PluginData.ConfiguredAsEnabled )
