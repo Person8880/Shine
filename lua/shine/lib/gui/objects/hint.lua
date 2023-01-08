@@ -29,32 +29,53 @@ function Hint:Initialise()
 	self.BaseClass.Initialise( self )
 
 	self.Background = self:MakeGUIItem()
-
-	local Padding = Spacing( 0, HighResScaled( 8 ), HighResScaled( 8 ), HighResScaled( 8 ) )
-	local Layout = SGUI.Layout:CreateLayout( "Horizontal", {
-		Padding = Padding
-	} )
-
 	self.FlairWidth = HighResScaled( 8 )
 
-	local Flair = SGUI:Create( "Image", self )
-	Flair:SetIsSchemed( false )
-	Flair:SetAutoSize( UnitVector( self.FlairWidth, Percentage.ONE_HUNDRED ) )
-	Flair:SetMargin( Spacing( 0, 0, HighResScaled( 8 ), 0 ) )
-	Layout:AddElement( Flair )
+	local Elements = SGUI:BuildTree( {
+		Parent = self,
+		{
+			Class = "Horizontal",
+			Type = "Layout",
+			Children = {
+				{
+					ID = "Flair",
+					Class = "Image",
+					Props = {
+						IsSchemed = false
+					}
+				},
+				{
+					ID = "HelpTextContainer",
+					Class = "Horizontal",
+					Type = "Layout",
+					Props = {
+						AutoSize = UnitVector( 0, Units.Auto.INSTANCE ),
+						Fill = true,
+						Padding = Spacing.Uniform( HighResScaled( 8 ) )
+					},
+					Children = {
+						{
+							ID = "HelpText",
+							Class = "Label",
+							Props = {
+								AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
+								AutoWrap = true,
+								CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
+								Fill = true,
+								IsSchemed = false
+							}
+						}
+					}
+				}
+			}
+		}
+	} )
 
-	self.Flair = Flair
+	-- Make the flair as big as the text contents without using percentage to avoid a cyclic height calculation.
+	Elements.Flair:SetAutoSize( UnitVector( self.FlairWidth, Units.Auto( Elements.HelpTextContainer ) ) )
 
-	local HelpText = SGUI:Create( "Label", self )
-	HelpText:SetIsSchemed( false )
-	HelpText:SetCrossAxisAlignment( SGUI.LayoutAlignment.CENTRE )
-	HelpText:SetFill( true )
-	HelpText:SetAutoWrap( true )
-	Layout:AddElement( HelpText )
-
-	self.HelpText = HelpText
-
-	self:SetLayout( Layout, true )
+	self.Flair = Elements.Flair
+	self.HelpText = Elements.HelpText
 end
 
 function Hint:GetContentSizeForAxis( Axis )
@@ -63,7 +84,7 @@ end
 
 function Hint:SetFlairWidth( FlairWidth )
 	self.FlairWidth = ToUnit( FlairWidth )
-	self.Flair:SetAutoSize( UnitVector( self.FlairWidth, Percentage.ONE_HUNDRED ) )
+	self.Flair.AutoSize[ 1 ] = self.FlairWidth
 	self:InvalidateLayout()
 end
 

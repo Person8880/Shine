@@ -182,7 +182,7 @@ do
 	local unpack = unpack
 
 	local function GetBindingInfo( BoundObject, PropertyName )
-		if IsType( BoundObject, "string" ) then
+		if not IsType( BoundObject, "table" ) then
 			BoundObject = { BoundObject }
 		end
 
