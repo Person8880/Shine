@@ -4,6 +4,7 @@
 
 local SGUI = Shine.GUI
 
+local assert = assert
 local getmetatable = getmetatable
 local rawget = rawget
 local setmetatable = setmetatable
@@ -99,18 +100,28 @@ end
 
 function BaseLayout:AddElement( Element )
 	local Elements = self.Elements
+	assert( not Elements[ Element ], "Attempted to add element to layout twice!" )
+
 	Elements[ #Elements + 1 ] = Element
+	Elements[ Element ] = true
 
 	OnAddElement( self, Element )
 end
 
 function BaseLayout:InsertElement( Element, Index )
-	TableInsert( self.Elements, Index, Element )
+	local Elements = self.Elements
+	assert( not Elements[ Element ], "Attempted to add element to layout twice!" )
+
+	TableInsert( Elements, Index, Element )
+	Elements[ Element ] = true
 	OnAddElement( self, Element )
 end
 
 function BaseLayout:InsertElementAfter( Element, AfterElement )
 	local Elements = self.Elements
+	assert( Elements[ Element ], "Provided element to insert after is not in the layout!" )
+	assert( not Elements[ AfterElement ], "Attempted to add element to layout twice!" )
+
 	for i = 1, #Elements do
 		if Elements[ i ] == Element then
 			TableInsert( Elements, i + 1, AfterElement )
@@ -118,7 +129,8 @@ function BaseLayout:InsertElementAfter( Element, AfterElement )
 		end
 	end
 
-	OnAddElement( self, Element )
+	Elements[ AfterElement ] = true
+	OnAddElement( self, AfterElement )
 end
 
 local function OnRemoveElement( self, Element )
@@ -133,11 +145,29 @@ local function OnRemoveElement( self, Element )
 end
 
 function BaseLayout:RemoveElement( Element )
-	if not TableRemoveByValue( self.Elements, Element ) then return end
+	local Elements = self.Elements
+	if not Elements[ Element ] then return end
+
+	Elements[ Element ] = nil
+	TableRemoveByValue( Elements, Element )
 
 	OnRemoveElement( self, Element )
 
 	self:InvalidateLayout()
+end
+
+--[[
+	Determines whether the given element is contained within this layout, either as a direct child, or as a descendant.
+
+	This can be useful to know whether this layout will affect the given element's position/size directly or indirectly.
+]]
+function BaseLayout:ContainsElement( Element )
+	-- Traverse the ancestors until this layout is found or we reach the root of the element tree.
+	local LayoutParent = Element.LayoutParent or Element.Parent
+	while LayoutParent and LayoutParent ~= self do
+		LayoutParent = LayoutParent.LayoutParent or LayoutParent.Parent
+	end
+	return LayoutParent == self
 end
 
 function BaseLayout:Clear()
@@ -145,6 +175,7 @@ function BaseLayout:Clear()
 		local Element = self.Elements[ i ]
 		OnRemoveElement( self, Element )
 		self.Elements[ i ] = nil
+		self.Elements[ Element ] = nil
 	end
 
 	self:InvalidateLayout()
@@ -195,10 +226,11 @@ end
 
 function BaseLayout:__tostring()
 	return StringFormat(
-		"[SGUI] %s Layout | %d Children (%d Layout Children)",
+		"[SGUI] %s Layout | %d Children (%d Layout Children) | Attached to: [%s]",
 		self.Class,
 		#self.Elements,
-		#self.LayoutChildren
+		#self.LayoutChildren,
+		self:GetParentControl()
 	)
 end
 

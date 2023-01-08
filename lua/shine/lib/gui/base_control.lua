@@ -831,6 +831,10 @@ function ControlMeta:SetLayout( Layout, DeferInvalidation )
 	self:InvalidateLayout( not DeferInvalidation )
 end
 
+function ControlMeta:GetAvailableLayoutSize()
+	return self:GetSize()
+end
+
 --[[
 	This event is called whenever layout is invalidated by a property change.
 
@@ -843,7 +847,7 @@ function ControlMeta:PerformLayout()
 
 	local Margin = self.Layout:GetComputedMargin()
 	local Padding = self:GetComputedPadding()
-	local Size = self:GetSize()
+	local Size = self:GetAvailableLayoutSize()
 
 	self.Layout:SetPos( Vector2( Margin[ 1 ] + Padding[ 1 ], Margin[ 2 ] + Padding[ 2 ] ) )
 	self.Layout:SetSize( Vector2(

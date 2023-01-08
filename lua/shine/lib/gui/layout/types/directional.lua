@@ -11,6 +11,7 @@
 ]]
 
 local Max = math.max
+local Min = math.min
 local Vector2 = Vector2
 
 local Directional = {}
@@ -18,14 +19,14 @@ Directional.IsAbstract = true
 
 local LayoutAlignment = Shine.GUI.LayoutAlignment
 
-function Directional:SetElementSize( Element, RealSize, Margin )
+function Directional:SetElementSize( Element, InnerBoxSize, Margin )
 	Element:PreComputeWidth()
 
-	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 5 ] )
+	local Width = Element:GetComputedSize( 1, InnerBoxSize.x - Margin[ 5 ] )
 
 	Element:PreComputeHeight( Width )
 
-	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 6 ] )
+	local Height = Element:GetComputedSize( 2, InnerBoxSize.y - Margin[ 6 ] )
 
 	local NewSize = Vector2( Width, Height )
 	Element:SetLayoutSize( NewSize )
@@ -33,17 +34,17 @@ function Directional:SetElementSize( Element, RealSize, Margin )
 	return NewSize
 end
 
-function Directional:GetComputedFillSize( Element, RealSize, FillSizePerElement )
+function Directional:GetComputedFillSize( Element, InnerBoxSize, FillSizePerElement )
 	local Margin = Element:GetComputedMargin()
 
 	Element:PreComputeWidth()
 
-	local Width = Element:GetComputedSize( 1, RealSize.x - Margin[ 5 ] )
+	local Width = Element:GetComputedSize( 1, InnerBoxSize.x - Margin[ 5 ] )
 	Width = self:GetFillElementWidth( Element, Width, FillSizePerElement )
 
 	Element:PreComputeHeight( Width )
 
-	local Height = Element:GetComputedSize( 2, RealSize.y - Margin[ 6 ] )
+	local Height = Element:GetComputedSize( 2, InnerBoxSize.y - Margin[ 6 ] )
 	Height = self:GetFillElementHeight( Element, Height, FillSizePerElement )
 
 	return self:GetFillElementSize( Element, Width, Height, FillSizePerElement )
@@ -76,8 +77,6 @@ local PositionUpdaters = {
 	This method handles laying out elements, including keeping track of margins between them.
 ]]
 function Directional:LayoutElements( Elements, Context )
-	if #Elements == 0 then return 0, 0 end
-
 	local Alignment = Context.Alignment
 	local IsMin = Alignment ~= LayoutAlignment.MAX
 	local UpdatePositionBefore = PositionUpdaters.Before[ IsMin ]
@@ -85,20 +84,21 @@ function Directional:LayoutElements( Elements, Context )
 
 	local Padding = Context.Padding
 	local Pos = Context.Pos
-	local RealSize = Context.RealSize
+	local InnerBoxSize = Context.InnerBoxSize
 	local Size = Context.Size
 	local FillSizePerElement = Context.FillSizePerElement
 
 	-- The start position depends on the direction and alignment.
 	-- Vertical will start either top left or bottom left, horizontal top left or top right.
 	local X, Y = self:GetStartPos( Pos, Size, Padding, Alignment, Context )
+	local StartX, StartY = X, Y
 
-	for i = 1, #Elements do
+	for i = 1, Elements[ 0 ] do
 		local Element = Elements[ i ]
 		local Margin = Element:GetComputedMargin()
 		if Element:GetFill() then
 			-- Fixed size elements have already been resized, just need to resize fill elements.
-			Element:SetLayoutSize( self:GetComputedFillSize( Element, RealSize, FillSizePerElement ) )
+			Element:SetLayoutSize( self:GetComputedFillSize( Element, InnerBoxSize, FillSizePerElement ) )
 		end
 
 		local CurrentSize = Element:GetLayoutSize()
@@ -108,24 +108,25 @@ function Directional:LayoutElements( Elements, Context )
 
 		X, Y = UpdatePositionBefore( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 
-		self:SetElementPos( Element, X, Y, Margin, RealSize )
+		self:SetElementPos( Element, X, Y, Margin, InnerBoxSize )
 
 		X, Y = UpdatePositionAfter( X, Y, MinW, MinH, MaxW, MaxH, SizeW, SizeH )
 	end
 
-	return X, Y
+	return X, Y, StartX, StartY
 end
 
 function Directional:PerformLayout()
 	-- If there are no elements, there's also no layout children so no need to call the base method.
 	local Elements = self.Elements
-	if #Elements == 0 then return end
+	local NumElements = #Elements
+	if NumElements == 0 then return end
 
 	local Size = self.Size
 
 	-- Real size is size - padding.
 	local Padding = self:GetComputedPadding()
-	local RealSize = Vector2(
+	local InnerBoxSize = Vector2(
 		Max( Size.x - Padding[ 5 ], 0 ),
 		Max( Size.y - Padding[ 6 ], 0 )
 	)
@@ -135,29 +136,31 @@ function Directional:PerformLayout()
 
 	-- Keep track of min and max aligned elements separately, as they need different layout rules.
 	local AlignedElements = {
-		[ LayoutAlignment.MIN ] = {},
-		[ LayoutAlignment.MAX ] = {},
-		[ LayoutAlignment.CENTRE ] = {}
+		[ LayoutAlignment.MIN ] = { [ 0 ] = 0 },
+		[ LayoutAlignment.MAX ] = { [ 0 ] = 0 },
+		[ LayoutAlignment.CENTRE ] = { [ 0 ] = 0 }
 	}
 	local CentreAlignedSize = 0
 
 	-- Pre-compute the size of each fill element by setting the size of fixed-size elements upfront.
-	local FillSize = self:GetFillSize( RealSize )
+	local FillSize = self:GetFillSize( InnerBoxSize )
 	local NumberOfFillElements = 0
 	local NumberOfCentreAlignedFillElements = 0
 
-	for i = 1, #Elements do
+	for i = 1, NumElements do
 		local Element = Elements[ i ]
 
 		if Element:GetIsVisible() then
 			local Alignment = Element:GetAlignment()
 			local ElementList = AlignedElements[ Alignment ]
+			local Count = ElementList[ 0 ] + 1
 
-			ElementList[ #ElementList + 1 ] = Element
+			ElementList[ Count ] = Element
+			ElementList[ 0 ] = Count
 
 			local Margin = Element:GetComputedMargin()
 			if not Element:GetFill() then
-				local CurrentSize = self:SetElementSize( Element, RealSize, Margin )
+				local CurrentSize = self:SetElementSize( Element, InnerBoxSize, Margin )
 				local SizeUsedUp = self:GetFillSize( CurrentSize ) + self:GetMarginSize( Margin )
 
 				-- If the element is not set to fill the space, then it will use up its margin + size.
@@ -184,33 +187,90 @@ function Directional:PerformLayout()
 	local FillSizePerElement = NumberOfFillElements == 0 and 0 or Max( FillSize, 0 ) / NumberOfFillElements
 	CentreAlignedSize = CentreAlignedSize + NumberOfCentreAlignedFillElements * FillSizePerElement
 
+	local MinX, MinY = Pos.x + Padding[ 1 ], Pos.y + Padding[ 2 ]
+
 	-- This table "context" just saves a lot of method parameters.
 	local Context = {
 		Alignment = LayoutAlignment.MIN,
-		AvailableFillSize = self:GetFillSize( RealSize ),
+		AvailableFillSize = self:GetFillSize( InnerBoxSize ),
 		NumberOfFillElements = 0,
 		Padding = Padding,
 		Pos = Pos,
-		RealSize = RealSize,
+		InnerBoxSize = InnerBoxSize,
 		Size = Size,
-		FillSizePerElement = FillSizePerElement
+		FillSizePerElement = FillSizePerElement,
+		-- These are the min and max bounds of the layout's content, after applying padding.
+		-- The total size of this box is "InnerBoxSize".
+		MinX = MinX,
+		MinY = MinY,
+		MaxX = Pos.x + Size.x - Padding[ 3 ],
+		MaxY = Pos.y + Size.y - Padding[ 4 ]
 	}
 
+	-- Track the actual maximum here, not the theoretical maximum from the layout's own size.
+	local MaxX, MaxY = self:GetInitialBounds( MinX, MinY, Context.MaxX, Context.MaxY )
+	local ContentWidth = 0
+	local ContentHeight = 0
+
 	-- Layout each alignment in sequence, applying the fill size to elements set to fill.
-	local MinAlignX, MinAlignY = self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+	Elements = AlignedElements[ Context.Alignment ]
+
+	if Elements[ 0 ] > 0 then
+		-- Min-algined elements advance from min to max, first two values are the final X and Y position after all
+		-- elements, and the other two are the initial position alignment started from.
+		local MinEndX, MinEndY, MinStartX, MinStartY = self:LayoutElements( Elements, Context )
+		MinX = Min( MinX, MinStartX )
+		MinY = Min( MinY, MinStartY )
+		MaxX = Max( MaxX, MinEndX )
+		MaxY = Max( MaxY, MinEndY )
+		ContentWidth = MinEndX - MinStartX
+		ContentHeight = MinEndY - MinStartY
+	end
 
 	Context.Alignment = LayoutAlignment.MAX
-	self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+	Elements = AlignedElements[ Context.Alignment ]
+
+	if Elements[ 0 ] > 0 then
+		-- Note that these are reversed compared to the others, the second position here is the furthest point along,
+		-- while the first position is the minimum position after going backwards along every max-aligned element.
+		local MaxStartX, MaxStartY, MaxEndX, MaxEndY = self:LayoutElements( Elements, Context )
+		MinX = Min( MinX, MaxStartX )
+		MinY = Min( MinY, MaxStartY )
+		MaxX = Max( MaxX, MaxEndX )
+		MaxY = Max( MaxY, MaxEndY )
+		ContentWidth = Max( ContentWidth, MaxEndX - MaxStartX )
+		ContentHeight = Max( ContentHeight, MaxEndY - MaxStartY )
+	end
 
 	Context.Alignment = LayoutAlignment.CENTRE
-	Context.CentreAlignedSize = CentreAlignedSize
-	local CentreX, CentreY = self:LayoutElements( AlignedElements[ Context.Alignment ], Context )
+	Elements = AlignedElements[ Context.Alignment ]
 
-	-- MIN and CENTRE aligned elements are both capable of exceeding the layout's size, and thus
-	-- the layout's furthest extents are defined by the max of the two. Including padding here avoids
-	-- surprises where a panel with a layout ends up ignoring the padding when adding scrolling.
-	self.MaxPosX = Max( MinAlignX, CentreX ) + Padding[ 3 ]
-	self.MaxPosY = Max( MinAlignY, CentreY ) + Padding[ 4 ]
+	if Elements[ 0 ] > 0 then
+		Context.CentreAlignedSize = CentreAlignedSize
+
+		-- These values match those of min-aligned elements, just for the centre-aligned instead.
+		local CentreEndX, CentreEndY, CentreStartX, CentreStartY = self:LayoutElements( Elements, Context )
+		MinX = Min( MinX, CentreStartX )
+		MinY = Min( MinY, CentreStartY )
+		MaxX = Max( MaxX, CentreEndX )
+		MaxY = Max( MaxY, CentreEndY )
+		ContentWidth = Max( ContentWidth, CentreEndX - CentreStartX )
+		ContentHeight = Max( ContentHeight, CentreEndY - CentreStartY )
+	end
+
+	-- Track the extents of the layout. These may not reflect its actual used size, those are provided by ContentWidth
+	-- and ContentHeight below (depending on direction).
+	self.MinPosX = MinX - Padding[ 1 ]
+	self.MinPosY = MinY - Padding[ 2 ]
+	self.MaxPosX = MaxX + Padding[ 3 ]
+	self.MaxPosY = MaxY + Padding[ 4 ]
+
+	-- Record the final width and height of the layout. Note that only one direction will be populated with anything
+	-- more than the padding, as the size is only computed for the direction of the layout.
+	-- Including padding here avoids surprises where a panel with a layout ends up ignoring the padding when adding
+	-- scrolling.
+	self.ContentWidth = ContentWidth + Padding[ 5 ]
+	self.ContentHeight = ContentHeight + Padding[ 6 ]
 
 	self.BaseClass.PerformLayout( self )
 end

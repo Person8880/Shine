@@ -339,12 +339,14 @@ function Plugin:SetupAdminMenuCommands()
 			MapPreviewTile.ID = "MapPreview"
 			MapPreviewTile.Props.AutoSize = UnitVector( Percentage.ONE_HUNDRED, 0 )
 			MapPreviewTile.Props.AspectRatio = 1
+			MapPreviewTile.Props.Alignment = Alignment
 			MapPreviewTile.Props.CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE
 			MapPreviewTile.Props.Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) )
 
 			MapOverviewToggleButton = {
 				Class = "Button",
 				Props = {
+					Alignment = Alignment,
 					AutoFont = AgencyFBNormal,
 					AutoSize = UnitVector( Units.Min( Auto.INSTANCE, Percentage.ONE_HUNDRED ), Auto.INSTANCE ),
 					CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
@@ -1117,6 +1119,7 @@ function Plugin:SetupAdminMenuCommands()
 									Class = "Label",
 									Props = {
 										AutoFont = Ionicons,
+										DebugName = "AdminMenuPluginsFilterIcon",
 										Text = SGUI.Icons.Ionicons.Search,
 										Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 )
 									}
@@ -1127,6 +1130,7 @@ function Plugin:SetupAdminMenuCommands()
 									Props = {
 										AutoFont = AgencyFBNormal,
 										AutoSize = UnitVector( 0, Auto.INSTANCE ),
+										DebugName = "AdminMenuPluginsFilterTextEntry",
 										Fill = true,
 										PlaceholderText = self:GetPhrase( "SEARCH_PLUGINS_HINT" )
 									}
@@ -1137,6 +1141,7 @@ function Plugin:SetupAdminMenuCommands()
 							ID = "PluginPanel",
 							Class = "Column",
 							Props = {
+								DebugName = "AdminMenuPluginsList",
 								Scrollable = true,
 								Fill = true,
 								Colour = Colour( 0, 0, 0, 0 ),

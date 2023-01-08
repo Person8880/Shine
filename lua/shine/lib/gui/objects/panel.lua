@@ -158,6 +158,7 @@ function Panel:SetScrollable()
 
 	self.AllowSmoothScroll = true
 	self.ShowScrollbar = true
+	self.GetAvailableLayoutSize = self.GetAvailableLayoutSizeFromScrollableSize
 
 	self:SetSize( self:GetSize() )
 end
@@ -179,6 +180,7 @@ function Panel:RemoveScrollingBehaviour()
 
 	self.CroppingBox = nil
 	self.ScrollParent = nil
+	self.GetAvailableLayoutSize = nil
 	self:SetShowScrollbar( false )
 end
 
@@ -219,18 +221,23 @@ function Panel:RecomputeMaxWidth()
 
 	if self.Children then
 		local PanelWidth = MaxWidth
+		local Layout = self.Layout
 
 		for Child in self.Children:Iterate() do
-			if Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar then
+			if
+				Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar and
+				-- Ignore elements that are being moved by the panel's layout, they're covered by ContentWidth below.
+				not ( Layout and Layout:ContainsElement( Child ) )
+			then
 				local MaxX = ComputeMaxWidth( Child, PanelWidth )
 				MaxWidth = Max( MaxWidth, MaxX )
 			end
 		end
 
-		if self.Layout then
+		if Layout then
 			-- Account for how the layout has positioned its elements.
 			-- This only works *after* layout has completed.
-			MaxWidth = Max( MaxWidth, self.Layout.MaxPosX or 0 )
+			MaxWidth = Max( MaxWidth, Layout.ContentWidth or 0 )
 		end
 	end
 
@@ -242,16 +249,21 @@ function Panel:RecomputeMaxHeight()
 
 	if self.Children then
 		local PanelHeight = MaxHeight
+		local Layout = self.Layout
 
 		for Child in self.Children:Iterate() do
-			if Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar then
+			if
+				Child:GetIsVisible() and Child ~= self.Scrollbar and Child ~= self.HorizontalScrollbar and
+				-- Ignore elements that are being moved by the panel's layout, they're covered by ContentHeight below.
+				not ( Layout and Layout:ContainsElement( Child ) )
+			then
 				local MaxY = ComputeMaxHeight( Child, PanelHeight )
 				MaxHeight = Max( MaxHeight, MaxY )
 			end
 		end
 
-		if self.Layout then
-			MaxHeight = Max( MaxHeight, self.Layout.MaxPosY or 0 )
+		if Layout then
+			MaxHeight = Max( MaxHeight, Layout.ContentHeight or 0 )
 		end
 	end
 
@@ -260,7 +272,14 @@ end
 
 local function UpdateMaxSize( Child )
 	local Parent = Child.Parent
-	if not Parent.ScrollParent or not Child:GetIsVisible() then return end
+	if
+		not Parent.ScrollParent or
+		not Child:GetIsVisible() or
+		-- As above, ignore changes in position or size if they were caused by the panel's layout (or a child of it).
+		( Parent.Layout and Parent.Layout:ContainsElement( Child ) )
+	then
+		return
+	end
 
 	Parent:InvalidateLayout()
 end
@@ -309,6 +328,20 @@ end
 
 function Panel:GetMaxHeight()
 	return self.MaxHeight or self:GetSize().y
+end
+
+function Panel:GetAvailableLayoutSizeFromScrollableSize()
+	-- The available size for the layout object is the scrollable space, not just the visible size of the panel.
+	-- This ensures that centre and max aligned elements align based on the scrollable space rather than underflowing.
+	local Size = self:GetSize()
+	local Width, Height = Size.x, Size.y
+	if self.MaxWidth then
+		Width = Max( Width, self.MaxWidth )
+	end
+	if self.MaxHeight then
+		Height = Max( Height, self.MaxHeight )
+	end
+	return Vector2( Width, Height )
 end
 
 --[[
@@ -461,6 +494,8 @@ function Panel:OnScrollChangeX( Pos, MaxPos, Smoothed )
 end
 
 function Panel:SetMaxWidth( MaxWidth )
+	local OldMaxWidth = self.MaxWidth
+
 	self.MaxWidth = MaxWidth
 
 	if not self.ShowScrollbar or not self.HorizontalScrollingEnabled then return end
@@ -476,6 +511,8 @@ function Panel:SetMaxWidth( MaxWidth )
 			local Pos = self.ScrollParent:GetPosition()
 			Pos.x = 0
 			self.ScrollParent:SetPosition( Pos )
+
+			self:InvalidateLayout()
 		end
 
 		if self.OverflowX then
@@ -485,6 +522,11 @@ function Panel:SetMaxWidth( MaxWidth )
 		end
 
 		return
+	end
+
+	if OldMaxWidth ~= MaxWidth then
+		-- Ensure that any centre/max aligned elements have their position updated to account for the new width.
+		self:InvalidateLayout()
 	end
 
 	if not SGUI.IsValid( self.HorizontalScrollbar ) then
@@ -552,6 +594,8 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 			self.ScrollParent:SetPosition( Pos )
 
 			self:OnRemoveScrollbar()
+
+			self:InvalidateLayout()
 		end
 
 		if self.OverflowY then
@@ -560,6 +604,11 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		end
 
 		return
+	end
+
+	if OldMaxHeight ~= MaxHeight then
+		-- Ensure that any centre/max aligned elements have their position updated to account for the new height.
+		self:InvalidateLayout()
 	end
 
 	if not SGUI.IsValid( self.Scrollbar ) then
@@ -799,6 +848,8 @@ function Panel:PerformLayout()
 
 	if self.CroppingBox then
 		-- Some elements may have moved to no longer be so far down/to the right.
+		-- This may trigger layout invalidation again if the max width or height change as layout elements may be
+		-- positioned based on the scrollable area.
 		self:RecomputeMaxHeight()
 		self:RecomputeMaxWidth()
 	end

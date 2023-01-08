@@ -13,14 +13,14 @@ local LayoutAlignment = Shine.GUI.LayoutAlignment
 function Horizontal:GetStartPos( Pos, Size, Padding, Alignment, Context )
 	if Alignment == LayoutAlignment.CENTRE then
 		local X = Pos.x + Size.x * 0.5 - Context.CentreAlignedSize * 0.5
-		local Y = Pos.y + Padding[ 2 ]
+		local Y = Context.MinY
 
 		return X, Y
 	end
 
 	local IsMin = Alignment == LayoutAlignment.MIN
-	local X = IsMin and ( Pos.x + Padding[ 1 ] ) or ( Pos.x + Size.x - Padding[ 3 ] )
-	local Y = Pos.y + Padding[ 2 ]
+	local X = IsMin and Context.MinX or Context.MaxX
+	local Y = Context.MinY
 
 	return X, Y
 end
@@ -67,6 +67,11 @@ end
 
 function Horizontal:GetFillElementSize( Element, Width, Height, FillSizePerElement )
 	return Vector2( FillSizePerElement, Height )
+end
+
+function Horizontal:GetInitialBounds( MinX, MinY, MaxX, MaxY )
+	-- Start from min X as this is horizontal, but use the existing known maximum for Y as it won't change.
+	return MinX, MaxY
 end
 
 local ContentSizes = {
