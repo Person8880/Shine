@@ -107,7 +107,7 @@ function CheckBox:SetChecked( Value, DontFade )
 		if DontFade then
 			self.Box:SetColor( CheckedColour )
 		else
-			self:FadeTo( self.Box, self.BoxHideCol, CheckedColour, 0, 0.1 )
+			self:FadeTo( self.Box, self.BoxHideCol, SGUI.CopyColour( CheckedColour ), 0, 0.1 )
 		end
 
 		self:OnChecked( true )
@@ -121,7 +121,13 @@ function CheckBox:SetChecked( Value, DontFade )
 	if DontFade then
 		self.Box:SetColor( self.BoxHideCol )
 	else
-		self:FadeTo( self.Box, GetCheckedColour( self, self:GetTargetAlpha() ), self.BoxHideCol, 0, 0.1 )
+		self:FadeTo(
+			self.Box,
+			SGUI.CopyColour( GetCheckedColour( self, self:GetTargetAlpha() ) ),
+			self.BoxHideCol,
+			0,
+			0.1
+		)
 	end
 
 	self:OnChecked( false )

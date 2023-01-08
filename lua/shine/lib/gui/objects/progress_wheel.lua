@@ -12,6 +12,9 @@ local SGUI = Shine.GUI
 
 local ProgressWheel = {}
 
+-- Override the base method to ensure only visible elements get alpha inheritance set.
+SGUI.AddBoundProperty( ProgressWheel, "InheritsParentAlpha", { "Background", "LeftHalf", "RightHalf" } )
+
 local SetColour = SGUI.AddBoundColourProperty( ProgressWheel, "Colour", {
 	"LeftHalf:SetColor",
 	"RightHalf:SetColor"
@@ -31,6 +34,8 @@ function ProgressWheel:Initialise()
 
 	self.LeftMask = self:MakeGUIItem()
 	self.LeftMask:SetIsStencil( true )
+	-- Disable this as it breaks the stencil, it may be enabled if this is within an alpha propagating tree.
+	self.LeftMask:SetInheritsParentAlpha( false )
 	self.LeftMask:SetAnchor( 0.5, 0.5 )
 	self.LeftMask:SetRotationOffsetNormalized( Vector2( 0, 0.5 ) )
 
@@ -40,6 +45,8 @@ function ProgressWheel:Initialise()
 
 	self.RightMask = self:MakeGUIItem()
 	self.RightMask:SetIsStencil( true )
+	-- As above, make sure both masks don't have any alpha inherited.
+	self.RightMask:SetInheritsParentAlpha( false )
 	self.RightMask:SetAnchor( 0.5, 0.5 )
 	self.RightMask:SetRotationOffsetNormalized( Vector2( 1, 0.5 ) )
 

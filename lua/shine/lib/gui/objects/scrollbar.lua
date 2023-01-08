@@ -12,7 +12,7 @@ local Vector = Vector
 
 -- Override the default setter to ensure it only affects self.Background, as self.Bar should always inherit alpha to
 -- allow for proper fading behaviour.
-SGUI.AddBoundProperty( ControlMeta, "InheritsParentAlpha", "Background" )
+SGUI.AddBoundProperty( Scrollbar, "InheritsParentAlpha", "Background" )
 
 local SetInactiveCol = SGUI.AddProperty( Scrollbar, "InactiveCol" )
 local SetActiveCol = SGUI.AddProperty( Scrollbar, "ActiveCol" )
@@ -39,7 +39,7 @@ end
 
 local function GetAlphaCompensatedColour( self, Colour )
 	local Alpha = self:GetNormalAlpha( self.Background )
-	return SGUI.ColourWithAlpha( Colour, Alpha == 0 and 0 or Colour.a / Alpha )
+	return SGUI.ColourWithAlpha( Colour, Alpha == 0 and 0 or ( Colour.a / Alpha ) )
 end
 
 function Scrollbar:SetInactiveCol( Colour )

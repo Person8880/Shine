@@ -505,13 +505,7 @@ function Panel:SetMaxWidth( MaxWidth )
 			-- Hide the scrollbar (but still accept mouse wheel input).
 			Scrollbar:HideAndDisableInput()
 		elseif self.AutoHideScrollbar and not self:HasMouseEntered() then
-			local BackCol = Scrollbar.Background:GetColor()
-			BackCol.a = 0
-			local BarCol = Scrollbar.Bar:GetColor()
-			BarCol.a = 0
-
-			Scrollbar.Background:SetColor( BackCol )
-			Scrollbar.Bar:SetColor( BarCol )
+			Scrollbar:SetAlphaMultiplier( 0 )
 		end
 
 		self.OverflowX = true
@@ -586,13 +580,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		end
 
 		if self.AutoHideScrollbar and not self:HasMouseEntered() then
-			local BackCol = Scrollbar.Background:GetColor()
-			BackCol.a = 0
-			local BarCol = Scrollbar.Bar:GetColor()
-			BarCol.a = 0
-
-			Scrollbar.Background:SetColor( BackCol )
-			Scrollbar.Bar:SetColor( BarCol )
+			Scrollbar:SetAlphaMultiplier( 0 )
 		end
 
 		self:OnAddScrollbar()

@@ -39,9 +39,13 @@ SGUI.AddProperty( MapVoteMenu, "MultiSelect", false )
 
 function MapVoteMenu:Initialise()
 	Controls.Panel.Initialise( self )
+
+	self.InheritsParentAlpha = true
+	self:SetPropagateAlphaInheritance( true )
+
 	self:SetSkin( Skin )
 
-	self:SetAlpha( 0 )
+	self:SetAlphaMultiplier( 0 )
 	self.Background:SetShader( SGUI.Shaders.Invisible )
 	self.MapTiles = {}
 	self.Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Shared.Message )
@@ -305,7 +309,7 @@ function MapVoteMenu:FadeIn()
 	self.FadingOut = false
 	self:SetIsVisible( true )
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		StartValue = 0,
 		EndValue = 1,
 		Duration = 0.3
@@ -335,7 +339,7 @@ function MapVoteMenu:FadeOut( Callback )
 	self.FadeOutCallback = Callback
 
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		EndValue = 0,
 		Duration = 0.3,
 		Callback = OnFadeOutComplete
@@ -459,7 +463,6 @@ function MapVoteMenu:SetMaps( Maps )
 
 		Tile:SetSelected( Entry.IsSelected )
 		Tile:SetNumVotes( Entry.NumVotes )
-		Tile:SetInheritsParentAlpha( true )
 		Tile:SetTeamVariation( self:GetTeamVariation() )
 
 		if #Maps > 9 then

@@ -298,7 +298,7 @@ function Plugin:SetupAdminMenuCommands()
 
 	function MapSummary:SetMapData( MapData )
 		self:Clear()
-		self:SetColour( Colour( 0, 0, 0, 0 ) )
+		self:SetShader( SGUI.Shaders.Invisible )
 
 		if not MapData then
 			SGUI:BuildTree( {

@@ -937,8 +937,8 @@ function TextEntry:OnMouseEnter()
 
 	self:FadeTo(
 		self.InnerBox,
-		GetInnerBoxColour( self, self.DarkCol ),
-		GetInnerBoxColour( self, self.FocusColour ),
+		SGUI.CopyColour( GetInnerBoxColour( self, self.DarkCol ) ),
+		SGUI.CopyColour( GetInnerBoxColour( self, self.FocusColour ) ),
 		0,
 		0.1
 	)
@@ -952,8 +952,8 @@ function TextEntry:OnMouseLeave()
 
 	self:FadeTo(
 		self.InnerBox,
-		GetInnerBoxColour( self, self.FocusColour ),
-		GetInnerBoxColour( self, self.DarkCol ),
+		SGUI.CopyColour( GetInnerBoxColour( self, self.FocusColour ) ),
+		SGUI.CopyColour( GetInnerBoxColour( self, self.DarkCol ) ),
 		0,
 		0.1
 	)

@@ -956,7 +956,7 @@ end
 function ControlMeta:SetAlpha( Alpha )
 	-- Remember this alpha value as the intended alpha for this control.
 	self:SetTargetAlpha( Alpha )
-	return self:ApplyCalculatedAlphaToBackground( self:CaclulateAlpha( Alpha, self:GetParentTargetAlpha() ) )
+	return self:ApplyCalculatedAlphaToBackground( self:CalculateAlpha( Alpha, self:GetParentTargetAlpha() ) )
 end
 
 function ControlMeta:SetBackgroundColour( Colour )
@@ -985,7 +985,7 @@ do
 		-- easing).
 		local OldCalculateAlpha = self.CalculateAlpha
 		local IsInheriting = self:ShouldAutoInheritAlpha()
-		if self.AlphaMultiplier == 1 then
+		if self:GetAlphaMultiplier() == 1 then
 			if IsInheriting then
 				self.CalculateAlpha = self.CalculateAlphaWithoutMultiplierWithInheritance
 				self.ApplyCalculatedAlphaToColour = self.ApplyCalculatedAlphaToColourWithAlphaModifier
@@ -1054,7 +1054,7 @@ do
 
 	local SetAlphaMultiplier = ControlMeta.SetAlphaMultiplier
 	function ControlMeta:SetAlphaMultiplier( AlphaMultiplier )
-		local OldMultiplier = self.AlphaMultiplier
+		local OldMultiplier = self:GetAlphaMultiplier()
 		if not SetAlphaMultiplier( self, AlphaMultiplier ) then return false end
 
 		if OldMultiplier == 1 or AlphaMultiplier == 1 then
@@ -1133,16 +1133,25 @@ do
 		return 1
 	end
 
+	-- Reduce copying overhead by keeping a single colour object, values get copied by GUIItem:SetColor().
+	local ScratchColour = Colour( 0, 0, 0, 0 )
+
 	--[[
 		Applies the current alpha calculation to the given colour's alpha value, using the given parent alpha value.
 
 		If automatic alpha inheritance is enabled, then the resulting colour's alpha will compensate for the given
 		parent alpha value. Otherwise the alpha will just be multiplied by the control's current alpha multiplier.
 
-		This returns a copy of the given colour, the original colour is not modified.
+		This returns a copy of the given colour, the original colour is not modified. Note that this copy is intended
+		to be passed directly into GUIItem:SetColor() and may be modified by subsequent calls, so do not store it
+		without first copying it.
 	]]
 	function ControlMeta:ApplyCalculatedAlphaToColourWithAlphaModifier( Colour, ParentAlpha )
-		return SGUI.ColourWithAlpha( Colour, self:CalculateAlpha( Colour.a, ParentAlpha ) )
+		ScratchColour.r = Colour.r
+		ScratchColour.g = Colour.g
+		ScratchColour.b = Colour.b
+		ScratchColour.a = self:CalculateAlpha( Colour.a, ParentAlpha )
+		return ScratchColour
 	end
 
 	function ControlMeta:ApplyCalculatedAlphaToColourWithoutAlphaModifier( Colour, ParentAlpha )
@@ -1158,10 +1167,15 @@ do
 		the alpha of the given colour, accounting for the given parent alpha value.
 
 		Note that this does not apply the control's alpha multiplier, as that is assumed to be applied through the
-		background item already due to inheritance.
+		background item already due to inheritance. Also note that this copy is intended to be passed directly into
+		GUIItem:SetColor() and may be modified by subsequent calls, so do not store it without first copying it.
 	]]
 	function ControlMeta:ApplyAlphaCompensationToChildItemColour( Colour, ParentAlpha )
-		return SGUI.ColourWithAlpha( Colour, ParentAlpha == 0 and 0 or Colour.a / ParentAlpha )
+		ScratchColour.r = Colour.r
+		ScratchColour.g = Colour.g
+		ScratchColour.b = Colour.b
+		ScratchColour.a = ParentAlpha == 0 and 0 or ( Colour.a / ParentAlpha )
+		return ScratchColour
 	end
 
 	function ControlMeta:CalculateAlphaWithoutMultiplierOrInheritance( Alpha, ParentAlpha )
@@ -2055,11 +2069,10 @@ local Easers = {
 			EasingData.Colour.a = EasingData.CurValue
 		end,
 		Setter = function( self, Element, Alpha, EasingData )
+			EasingData.Colour.a = Alpha
 			if Element == self.Background then
-				EasingData.Colour.a = Alpha
 				self:SetBackgroundColour( EasingData.Colour )
 			else
-				EasingData.Colour.a = Alpha * self.AlphaMultiplier
 				Element:SetColor( EasingData.Colour )
 			end
 		end,
@@ -2075,7 +2088,7 @@ local Easers = {
 			self:SetAlphaMultiplier( AlphaMultiplier )
 		end,
 		Getter = function( self, Element )
-			return self.AlphaMultiplier
+			return self:GetAlphaMultiplier()
 		end
 	}, "AlphaMultiplier" ),
 	Move = Easer( {

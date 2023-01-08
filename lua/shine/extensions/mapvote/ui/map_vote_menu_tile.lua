@@ -65,7 +65,6 @@ function MapTile:Initialise()
 					Props = {
 						Fill = true,
 						IsVisible = false,
-						InheritsParentAlpha = true,
 						StyleName = "PreviewImage"
 					},
 					Bindings = {
@@ -322,6 +321,9 @@ function MapTile:EnableDisplayMode()
 	self:SetHighlightOnMouseOver( false )
 	self:SetHighlighted( true, true )
 	self:SetEnabled( false )
+	self.InheritsParentAlpha = true
+	self:SetPropagateAlphaInheritance( true )
+
 	self:AddStylingState( "Display" )
 
 	self.DisplayMode = true
@@ -372,7 +374,6 @@ function MapTile:SetPreviewOverlayTexture( Overlay )
 		OverlayElement = SGUI:Create( "Image", self.PreviewImage )
 		OverlayElement:SetPositionType( SGUI.PositionType.ABSOLUTE )
 		OverlayElement:SetFill( true )
-		OverlayElement:SetInheritsParentAlpha( true )
 		self.PreviewImageOverlay = OverlayElement
 	end
 
@@ -391,9 +392,8 @@ function MapTile:ShowOverviewImage()
 						ID = "OverviewImageContainer",
 						Class = "Column",
 						Props = {
-							Colour = Colour( 0, 0, 0, 0 ),
-							Fill = true,
-							InheritsParentAlpha = true
+							Colour = Colour( 0, 0, 0, 0.5 ),
+							Fill = true
 						},
 						Children = {
 							{
@@ -421,8 +421,7 @@ function MapTile:ShowOverviewImage()
 									AutoSize = Units.UnitVector(
 										Units.Percentage[ self.DisplayMode and "ONE_HUNDRED" or "SEVENTY_FIVE" ],
 										0
-									),
-									InheritsParentAlpha = true
+									)
 								}
 							}
 						}
@@ -432,8 +431,8 @@ function MapTile:ShowOverviewImage()
 		} ), self )
 		self.PreviewImage:InvalidateLayout( true )
 		self.OverviewImageContainer:ApplyTransition( {
-			Type = "Alpha",
-			EndValue = 0.5,
+			Type = "AlphaMultiplier",
+			EndValue = 1,
 			Duration = 0.3
 		} )
 	end
@@ -448,7 +447,7 @@ function MapTile:ShowOverviewImage()
 		self.OverviewImage:SetIsVisible( true )
 		self.OverviewImage:ApplyTransition( {
 			Type = "Alpha",
-			EndValue = 2,
+			EndValue = 1,
 			Duration = 0.3
 		} )
 		return
@@ -475,7 +474,7 @@ end
 function MapTile:HideOverviewImage()
 	if SGUI.IsValid( self.OverviewImageContainer ) then
 		self.OverviewImageContainer:ApplyTransition( {
-			Type = "Alpha",
+			Type = "AlphaMultiplier",
 			EndValue = 0,
 			Duration = 0.3,
 			Callback = function()
