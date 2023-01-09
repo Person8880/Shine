@@ -954,7 +954,7 @@ function ControlMeta:InvalidateParent( Now )
 
 	self.Parent:InvalidateLayout( Now )
 
-	if self.LayoutParent and self.LayoutParent ~= self.Layout then
+	if self.LayoutParent and self.LayoutParent ~= self.Parent.Layout then
 		-- If this is a child of a nested layout, mark the nested layout for invalidation too, otherwise it won't be
 		-- re-evaluated as part of the tree.
 		self.LayoutParent:InvalidateLayout( Now )
