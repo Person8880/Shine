@@ -117,7 +117,7 @@ function MapTile:Initialise()
 
 								-- Fade the image in after loading.
 								self.PreviewImage:ApplyTransition( {
-									Type = "Alpha",
+									Type = "AlphaMultiplier",
 									StartValue = 0,
 									EndValue = 1,
 									Duration = 0.3
@@ -413,7 +413,7 @@ function MapTile:ShowOverviewImage()
 								Class = "Image",
 								Props = {
 									IsVisible = false,
-									Colour = Colour( 1, 1, 1, 0 ),
+									Colour = Colour( 1, 1, 1, 1 ),
 									Texture = self.OverviewTexture,
 									Alignment = SGUI.LayoutAlignment.CENTRE,
 									CrossAxisAlignment = SGUI.LayoutAlignment.CENTRE,
@@ -446,7 +446,7 @@ function MapTile:ShowOverviewImage()
 		self.OverviewImage:SetTexture( self.OverviewTexture )
 		self.OverviewImage:SetIsVisible( true )
 		self.OverviewImage:ApplyTransition( {
-			Type = "Alpha",
+			Type = "AlphaMultiplier",
 			EndValue = 1,
 			Duration = 0.3
 		} )

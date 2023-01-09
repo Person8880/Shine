@@ -182,6 +182,7 @@ function Panel:RemoveScrollingBehaviour()
 	self.ScrollParent = nil
 	self.GetAvailableLayoutSize = nil
 	self:SetShowScrollbar( false )
+	self:SetCroppingBounds( nil )
 end
 
 local function ComputeMaxWidth( Child, PanelWidth )
@@ -306,6 +307,9 @@ function Panel:SetSize( Size )
 
 	if self.CroppingBox then
 		self.CroppingBox:SetSize( Size )
+		self:SetCroppingBounds( Vector2( 0, 0 ), Size )
+	else
+		self:SetCroppingBounds( nil )
 	end
 
 	if Size == OldSize then return end
@@ -477,6 +481,12 @@ end
 
 local function OnScrollChanged( self )
 	self:InvalidateMouseState( true )
+	self:CallOnChildren( "InvalidateCroppingState" )
+end
+
+local function OnSmoothScrollUpdate( self )
+	-- Ensure children perform their initial/updated layout as scrolling occurs.
+	self:CallOnChildren( "InvalidateCroppingState" )
 end
 
 function Panel:OnScrollChangeX( Pos, MaxPos, Smoothed )
@@ -486,7 +496,17 @@ function Panel:OnScrollChangeX( Pos, MaxPos, Smoothed )
 	self.ScrollParentPos.x = -Diff * Fraction
 
 	if Smoothed and self.AllowSmoothScroll then
-		self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, OnScrollChanged, math.EaseOut, 3 )
+		local EasingData = self:MoveTo(
+			self.ScrollParent,
+			nil,
+			self.ScrollParentPos,
+			0,
+			0.2,
+			OnScrollChanged,
+			math.EaseOut,
+			3
+		)
+		EasingData.OnUpdate = OnSmoothScrollUpdate
 	else
 		self.ScrollParent:SetPosition( self.ScrollParentPos )
 		OnScrollChanged( self )
@@ -524,7 +544,7 @@ function Panel:SetMaxWidth( MaxWidth )
 		return
 	end
 
-	if OldMaxWidth ~= MaxWidth then
+	if OldMaxWidth ~= MaxWidth and self.Layout and self.Layout:DoesSizeChangeRequireLayoutUpdate( 1 ) then
 		-- Ensure that any centre/max aligned elements have their position updated to account for the new width.
 		self:InvalidateLayout()
 	end
@@ -566,7 +586,17 @@ function Panel:OnScrollChange( Pos, MaxPos, Smoothed )
 	self.ScrollParentPos.y = -Diff * Fraction
 
 	if Smoothed and self.AllowSmoothScroll then
-		self:MoveTo( self.ScrollParent, nil, self.ScrollParentPos, 0, 0.2, OnScrollChanged, math.EaseOut, 3 )
+		local EasingData = self:MoveTo(
+			self.ScrollParent,
+			nil,
+			self.ScrollParentPos,
+			0,
+			0.2,
+			OnScrollChanged,
+			math.EaseOut,
+			3
+		)
+		EasingData.OnUpdate = OnSmoothScrollUpdate
 	else
 		self.ScrollParent:SetPosition( self.ScrollParentPos )
 		OnScrollChanged( self )
@@ -606,7 +636,7 @@ function Panel:SetMaxHeight( MaxHeight, ForceInstantScroll )
 		return
 	end
 
-	if OldMaxHeight ~= MaxHeight then
+	if OldMaxHeight ~= MaxHeight and self.Layout and self.Layout:DoesSizeChangeRequireLayoutUpdate( 2 ) then
 		-- Ensure that any centre/max aligned elements have their position updated to account for the new height.
 		self:InvalidateLayout()
 	end
@@ -831,7 +861,7 @@ end
 function Panel:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
 
-	self.BaseClass.Think( self, DeltaTime )
+	self.BaseClass.ThinkWithChildren( self, DeltaTime )
 
 	if SGUI.IsValid( self.Scrollbar ) then
 		self.Scrollbar:Think( DeltaTime )
@@ -839,8 +869,6 @@ function Panel:Think( DeltaTime )
 	if SGUI.IsValid( self.HorizontalScrollbar ) then
 		self.HorizontalScrollbar:Think( DeltaTime )
 	end
-
-	self:CallOnChildren( "Think", DeltaTime )
 end
 
 function Panel:PerformLayout()

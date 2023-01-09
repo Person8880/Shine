@@ -733,21 +733,15 @@ function Plugin:SetupAdminMenuCommands()
 	SGUI.AddProperty( PluginEntry, "Enabled" )
 	SGUI.AddProperty( PluginEntry, "ConfiguredAsEnabled" )
 
-	function PluginEntry:IsInView()
-		local Pos = self.Parent.ScrollParent:GetPosition() + self:GetPos()
-		local ParentY = self.Parent.Size.y
-		return Pos.y < ParentY and Pos.y + self:GetSize().y > 0
-	end
-
-	function PluginEntry:Think( DeltaTime )
-		if not self:GetIsVisible() then return end
-		-- Avoid calling think recursively when out of view, just like list entries do.
-		if not self:IsInView() then
-			self:HandleEasing( SGUI.GetTime(), DeltaTime )
-			return
+	local function GetSaveButtonTooltip( Enabled, ConfiguredAsEnabled )
+		if ConfiguredAsEnabled ~= Enabled then
+			return Plugin:GetPhrase(
+				Enabled and "LOAD_PLUGIN_SAVE_TIP" or "UNLOAD_PLUGIN_SAVE_TIP"
+			)
 		end
-		self.BaseClass.Think( self, DeltaTime )
-		return self:CallOnChildren( "Think", DeltaTime )
+		return Plugin:GetPhrase(
+			Enabled and "PLUGIN_SAVED_AS_ENABLED" or "PLUGIN_SAVED_AS_DISABLED"
+		)
 	end
 
 	function PluginEntry:SetPluginData( PluginData )
@@ -778,16 +772,6 @@ function Plugin:SetupAdminMenuCommands()
 		end
 
 		local ButtonSize = HighResScaled( 32 )
-		local function GetSaveButtonTooltip( Enabled, ConfiguredAsEnabled )
-			if ConfiguredAsEnabled ~= Enabled then
-				return Plugin:GetPhrase(
-					Enabled and "LOAD_PLUGIN_SAVE_TIP" or "UNLOAD_PLUGIN_SAVE_TIP"
-				)
-			end
-			return Plugin:GetPhrase(
-				Enabled and "PLUGIN_SAVED_AS_ENABLED" or "PLUGIN_SAVED_AS_DISABLED"
-			)
-		end
 
 		RowElements[ #RowElements + 1 ] = {
 			ID = "SaveButton",
@@ -920,10 +904,9 @@ function Plugin:SetupAdminMenuCommands()
 		local Elements = SGUI:BuildTree( {
 			Parent = self,
 			{
-				ID = "StatusFlair",
 				Class = "Column",
 				Props = {
-					AutoSize = UnitVector( Auto.INSTANCE, 0 ),
+					AutoSize = UnitVector( Auto.INSTANCE, Percentage.ONE_HUNDRED ),
 					Padding = Spacing( HighResScaled( 4 ), 0, HighResScaled( 4 ), 0 ),
 					IsSchemed = false
 				},
@@ -973,26 +956,20 @@ function Plugin:SetupAdminMenuCommands()
 				}
 			},
 			{
-				ID = "Content",
 				Class = "Horizontal",
 				Type = "Layout",
 				Props = {
 					Padding = Spacing.Uniform( HighResScaled( 8 ) )
 				},
 				Children = RowElements
-			},
-			OnBuilt = function( Elements )
-				Elements.StatusFlair.AutoSize[ 2 ] = Units.Auto( Elements.Content )
-			end
+			}
 		} )
 
-		TableShallowMerge( Elements, self )
-
-		function self.ReloadButton.DoClick()
+		function Elements.ReloadButton.DoClick()
 			Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
 		end
 
-		function self.ToggleButton.DoClick()
+		function Elements.ToggleButton.DoClick()
 			if self.Enabled then
 				Shine.AdminMenu:RunCommand( "sh_unloadplugin", PluginData.Name )
 			else
@@ -1000,7 +977,7 @@ function Plugin:SetupAdminMenuCommands()
 			end
 		end
 
-		function self.SaveButton.DoClick()
+		function Elements.SaveButton.DoClick()
 			-- The save flag here doesn't cause any attempt to load/unload unless the plugin isn't in the expected
 			-- state, so this won't unexpectedly reload a plugin.
 			if self.Enabled then
@@ -1042,7 +1019,7 @@ function Plugin:SetupAdminMenuCommands()
 					ID = Plugin,
 					Class = PluginEntry,
 					Props = {
-						AutoSize = UnitVector( Percentage.ONE_HUNDRED, Units.Auto.INSTANCE ),
+						AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 48 ) ),
 						DebugName = StringFormat( "AdminMenu%sPluginRow", Plugin ),
 						Margin = Spacing( 0, 0, 0, RowMargin ),
 						LayoutPosTransition = RowPosTransition,

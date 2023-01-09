@@ -37,6 +37,11 @@ function Scrollbar:Initialise()
 	self.ScrollEvent = "OnScrollChange"
 end
 
+function Scrollbar:IsCroppedByParent()
+	-- Scrollbar is never cropped (otherwise it wouldn't be visible in a scrollable area which makes no sense).
+	return false
+end
+
 local function GetAlphaCompensatedColour( self, Colour )
 	local Alpha = self:GetNormalAlpha( self.Background )
 	return SGUI.ColourWithAlpha( Colour, Alpha == 0 and 0 or ( Colour.a / Alpha ) )

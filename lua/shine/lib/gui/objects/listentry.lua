@@ -214,31 +214,11 @@ function ListEntry:SetSelected( Selected, SkipAnim )
 	self:SetHighlightOnMouseOver( not Selected )
 end
 
--- Visibility checking should account for being outside the stencil box of the parent list.
-function ListEntry:IsInView()
-	local Pos = self.Parent.ScrollParent:GetPosition() + self:GetPos()
-	local ParentY = self.Parent.Size.y
-	return Pos.y < ParentY and Pos.y + self:GetSize().y > 0
-end
-
-function ListEntry:Think( DeltaTime )
-	if not self:GetIsVisible() then return end
-	if not self:IsInView() then
-		-- Handle easing even when out of view in case the entry needs to move from out of view to a position that is
-		-- in view.
-		self:HandleEasing( Clock(), DeltaTime )
-		return
-	end
-
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
-end
-
 function ListEntry:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() then return end
 	if not self.Parent then return end
 	if Key ~= InputKey.MouseButton0 then return end
-	-- No need to call IsInView() here as List checks if the mouse is inside itself before
+	-- No need to call IsCroppedByParent() here as List checks if the mouse is inside itself before
 	-- passing mouse events down.
 	if not self:HasMouseEntered() then return end
 

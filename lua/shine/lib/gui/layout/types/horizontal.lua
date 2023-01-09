@@ -73,6 +73,23 @@ function Horizontal:GetInitialBounds( MinX, MinY, MaxX, MaxY )
 	-- Start from min X as this is horizontal, but use the existing known maximum for Y as it won't change.
 	return MinX, MaxY
 end
+local LayoutSizeChangeGetters = {
+	function( Element ) return Element:GetAlignment() end,
+	function( Element ) return Element:GetCrossAxisAlignment() end
+}
+
+function Horizontal:DoesSizeChangeRequireLayoutUpdate( Axis )
+	local AlignmentGetter = LayoutSizeChangeGetters[ Axis ]
+
+	for i = 1, #self.Elements do
+		local Element = self.Elements[ i ]
+		if AlignmentGetter( Element ) ~= LayoutAlignment.MIN then
+			return true
+		end
+	end
+
+	return false
+end
 
 local ContentSizes = {
 	function( self )

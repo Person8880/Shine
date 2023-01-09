@@ -194,7 +194,6 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"GetParentSize",
 	"InvalidateParent",
 	"InvalidateLayout",
-	"HandleLayout",
 	"GetLayoutOffset",
 	"PreComputeWidth",
 	"PreComputeHeight",
@@ -205,8 +204,17 @@ table.Mixin( SGUI.BaseControl, BaseLayout, {
 	"RemovePropertyChangeListener"
 } )
 
+function BaseLayout:HandleLayout()
+	for i = 1, 5 do
+		if not self.LayoutIsInvalid then break end
+
+		self.LayoutIsInvalid = false
+		self:PerformLayout()
+	end
+end
+
 function BaseLayout:Think( DeltaTime )
-	self:HandleLayout( DeltaTime )
+	self:HandleLayout()
 
 	-- Layouts must make sure child layouts also think (and thus handle layout invalidations)
 	for i = 1, #self.LayoutChildren do
@@ -216,11 +224,11 @@ function BaseLayout:Think( DeltaTime )
 end
 
 function BaseLayout:PerformLayout()
-	-- When this layout is invalidated, invalidate all of its children too.
+	-- When this layout is invalidated, handle layout invalidation on all of its children too.
 	-- This ensures layout changes cascade downwards in a single frame, rather than
 	-- some children waiting for the next frame to invalidate and thus causing a slight jitter.
 	for i = 1, #self.Elements do
-		self.Elements[ i ]:InvalidateLayout( true )
+		self.Elements[ i ]:HandleLayout( 0 )
 	end
 end
 

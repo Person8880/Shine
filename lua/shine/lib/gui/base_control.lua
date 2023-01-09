@@ -53,6 +53,7 @@ SGUI.AddBoundProperty( ControlMeta, "Shader", "Background" )
 SGUI.AddBoundProperty( ControlMeta, "Texture", "Background" )
 
 SGUI.AddProperty( ControlMeta, "AlphaMultiplier", 1 )
+SGUI.AddProperty( ControlMeta, "CroppingBounds" )
 SGUI.AddProperty( ControlMeta, "DebugName", "Unnamed" )
 SGUI.AddProperty( ControlMeta, "PropagateAlphaInheritance", false )
 SGUI.AddProperty( ControlMeta, "PropagateScaleInheritance", false )
@@ -428,6 +429,7 @@ function ControlMeta:SetParent( Control, Element )
 		self.ParentElement = nil
 		self.TopLevelWindow = nil
 		self:SetStencilled( false )
+		self:InvalidateCroppingState()
 		return
 	end
 
@@ -467,6 +469,8 @@ function ControlMeta:SetParent( Control, Element )
 	if ParentElementChanged and Element and self.Background then
 		Element:AddChild( self.Background )
 	end
+
+	self:InvalidateCroppingState()
 end
 
 function ControlMeta:SetTopLevelWindow( Window )
@@ -618,6 +622,63 @@ function ControlMeta:SetCropToBounds( CropToBounds )
 	else
 		self.Background:ClearCropRectangle()
 	end
+end
+
+function ControlMeta:IsCroppedByParent()
+	local IsCropped = self.__IsCroppedByParent
+
+	if IsCropped == nil then
+		-- Lazy-evaluate whether the control is actually visible based on the parent's known cropping bounds.
+		local ParentCroppingBounds = self.Parent and self.Parent:GetCroppingBounds()
+		if ParentCroppingBounds then
+			local ParentPos = self.Parent:GetScreenPos()
+			local Mins = ParentPos + ParentCroppingBounds[ 1 ]
+			local Maxs = ParentPos + ParentCroppingBounds[ 2 ]
+			local SelfPos = self:GetScreenPos()
+			local Size = self:GetSize()
+
+			-- Simple bounding box check in screen space.
+			IsCropped = SelfPos.x + Size.x < Mins.x or
+				SelfPos.x > Maxs.x or
+				SelfPos.y + Size.y < Mins.y or
+				SelfPos.y > Maxs.y
+		else
+			IsCropped = false
+		end
+
+		-- Remember this until the cropping is updated or this control's position changes.
+		self.__IsCroppedByParent = IsCropped
+	end
+
+	return IsCropped
+end
+
+function ControlMeta:InvalidateCroppingState()
+	-- Forget the cached cropping state, will be re-evaluated on the next call to IsCroppedByParent().
+	self.__IsCroppedByParent = nil
+end
+
+function ControlMeta:SetCroppingBounds( Mins, Maxs )
+	if not Mins then
+		if not self.CroppingBounds then return false end
+
+		self.CroppingBounds = nil
+	else
+		if self.CroppingBounds and Mins == self.CroppingBounds[ 1 ] and Maxs == self.CroppingBounds[ 2 ] then
+			return false
+		end
+
+		self.CroppingBounds = self.CroppingBounds or {}
+		self.CroppingBounds[ 1 ] = Mins
+		self.CroppingBounds[ 2 ] = Maxs
+	end
+
+	self:OnPropertyChanged( "CroppingBounds", self.CroppingBounds )
+	-- Notify all children that they need to re-evaluate their cropping.
+	-- Controls that call this method must also ensure they fire this event when their scrolling box moves.
+	self:CallOnChildren( "InvalidateCroppingState" )
+
+	return true
 end
 
 --[[
@@ -892,6 +953,12 @@ function ControlMeta:InvalidateParent( Now )
 	if not self.Parent then return end
 
 	self.Parent:InvalidateLayout( Now )
+
+	if self.LayoutParent and self.LayoutParent ~= self.Layout then
+		-- If this is a child of a nested layout, mark the nested layout for invalidation too, otherwise it won't be
+		-- re-evaluated as part of the tree.
+		self.LayoutParent:InvalidateLayout( Now )
+	end
 end
 
 --[[
@@ -937,6 +1004,10 @@ function ControlMeta:SetSize( SizeVec )
 	self:InvalidateLayout()
 	self:InvalidateMouseState()
 	self:OnPropertyChanged( "Size", SizeVec )
+
+	if self.Parent and self.Parent:GetCroppingBounds() and not self._CallEventsManually then
+		self:InvalidateCroppingState()
+	end
 end
 
 --[[
@@ -1467,6 +1538,10 @@ function ControlMeta:SetPos( Pos )
 	self.Background:SetPosition( Pos )
 	self:InvalidateMouseState()
 	self:OnPropertyChanged( "Pos", Pos )
+
+	if self.Parent and self.Parent:GetCroppingBounds() and not self._CallEventsManually then
+		self:InvalidateCroppingState()
+	end
 end
 
 function ControlMeta:GetPos()
@@ -1952,6 +2027,8 @@ do
 		return Progress
 	end
 
+	local function OnUpdate( self, Element, EasingData ) end
+
 	local Max = math.max
 
 	function ControlMeta:EaseValue( Element, Start, End, Delay, Duration, Callback, EasingHandlers )
@@ -1985,6 +2062,7 @@ do
 		EasingData.Elapsed = Max( -Delay, 0 )
 		EasingData.LastUpdate = Clock()
 
+		EasingData.OnUpdate = OnUpdate
 		EasingData.Callback = Callback
 
 		if EasingHandlers.Init then
@@ -2009,6 +2087,7 @@ do
 			local Progress = EasingData.EaseFunc( Elapsed / Duration, EasingData.Power )
 			EasingData.Easer( self, Element, EasingData, Progress )
 			EasingHandler.Setter( self, Element, EasingData.CurValue, EasingData )
+			EasingData.OnUpdate( self, Element, EasingData )
 		else
 			EasingHandler.Setter( self, Element, EasingData.End, EasingData )
 			if EasingHandler.OnComplete then
@@ -2481,9 +2560,9 @@ do
 end
 
 function ControlMeta:HandleLayout( DeltaTime )
-	if self.Layout then
-		self.Layout:Think( DeltaTime )
-	end
+	-- Do not attempt to perform layout operations if the element is currently not visible. Normally this is checked
+	-- in Think(), but this method can also be called by a layout.
+	if not self:GetIsVisible() or self:IsCroppedByParent() then return end
 
 	-- Sometimes layout requires multiple passes to reach the final answer (e.g. if auto-wrapping text).
 	-- Allow up to 5 iterations before stopping and leaving it for the next frame.
@@ -2493,6 +2572,27 @@ function ControlMeta:HandleLayout( DeltaTime )
 		self.LayoutIsInvalid = false
 		self:PerformLayout()
 	end
+
+	if self.Layout then
+		-- Think after the control's layout as the control's layout invalidation may trigger the layout too.
+		self.Layout:Think( DeltaTime )
+	end
+end
+
+local function DoThink( self, DeltaTime )
+	local Time = Clock()
+
+	self:HandleEasing( Time, DeltaTime )
+
+	-- Only handle easing when out of view (in case the easing is moving the element into view), everything else should
+	-- wait for the element to come back into view.
+	if self:IsCroppedByParent() then return false end
+
+	self:HandleHovering( Time )
+	self:HandleLayout( DeltaTime )
+	self:HandleMouseState()
+
+	return true
 end
 
 --[[
@@ -2505,19 +2605,15 @@ end
 	Alternatively, call only the functions you want to use.
 ]]
 function ControlMeta:Think( DeltaTime )
-	local Time = Clock()
-
-	self:HandleEasing( Time, DeltaTime )
-	self:HandleHovering( Time )
-	self:HandleLayout( DeltaTime )
-	self:HandleMouseState()
+	DoThink( self, DeltaTime )
 end
 
 function ControlMeta:ThinkWithChildren( DeltaTime )
 	if not self:GetIsVisible() then return end
 
-	self.BaseClass.Think( self, DeltaTime )
-	self:CallOnChildren( "Think", DeltaTime )
+	if DoThink( self, DeltaTime ) then
+		self:CallOnChildren( "Think", DeltaTime )
+	end
 end
 
 function ControlMeta:GetTooltipOffset( MouseX, MouseY, Tooltip )

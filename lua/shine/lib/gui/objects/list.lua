@@ -221,6 +221,7 @@ end
 function List:SetSize( Size )
 	self.BaseClass.SetSize( self, Size )
 	self.CroppingBox:SetSize( Size )
+	self:SetCroppingBounds( Vector2( 0, 0 ), Size )
 	self.Size = Size
 end
 
