@@ -18,6 +18,26 @@ SGUI.SkinManager = SkinManager
 
 SkinManager.Skins = {}
 
+local function CompileStates( DeclaredStates )
+	local States = {}
+
+	for StateName, StateData in pairs( DeclaredStates ) do
+		local StateProperties = {}
+
+		for StateKey, StateValue in pairs( StateData ) do
+			if StateKey == "States" then
+				StateProperties.ChildStates = CompileStates( StateValue )
+			else
+				StateProperties[ #StateProperties + 1 ] = { StateKey, StateValue }
+			end
+		end
+
+		States[ StateName ] = StateProperties
+	end
+
+	return States
+end
+
 --[[
 	Compiles the given skin into a format that avoids needing to use pairs() at runtime.
 ]]
@@ -29,19 +49,11 @@ function SkinManager.CompileSkin( Skin )
 
 		for StyleName, StyleData in pairs( Data ) do
 			local Properties = {}
-			local States = {}
+			local States
 
 			for Key, Value in pairs( StyleData ) do
 				if Key == "States" then
-					for StateName, StateData in pairs( Value ) do
-						local StateProperties = {}
-
-						for StateKey, StateValue in pairs( StateData ) do
-							StateProperties[ #StateProperties + 1 ] = { StateKey, StateValue }
-						end
-
-						States[ StateName ] = StateProperties
-					end
+					States = CompileStates( Value )
 				else
 					Properties[ #Properties + 1 ] = { Key, Value }
 				end
@@ -49,7 +61,7 @@ function SkinManager.CompileSkin( Skin )
 
 			ElementStyles[ StyleName ] = {
 				Properties = Properties,
-				States = States,
+				States = States or {},
 				PropertiesByName = StyleData
 			}
 		end
@@ -170,6 +182,19 @@ local function CopyValues( Element, Values, Destination )
 	return Destination
 end
 
+local function ApplyStates( Element, States, StyleDefStates, StyleCopy )
+	if StyleDefStates then
+		for State in States:Iterate() do
+			local StateValues = StyleDefStates[ State ]
+			if StateValues then
+				StyleCopy = CopyValues( Element, StateValues, StyleCopy )
+				StyleCopy = ApplyStates( Element, States, StateValues.ChildStates, StyleCopy )
+			end
+		end
+	end
+	return StyleCopy
+end
+
 function SkinManager:ApplySkin( Element )
 	if not Element.UseScheme then return end
 
@@ -183,13 +208,8 @@ function SkinManager:ApplySkin( Element )
 
 	-- If the element has styling states (not using the getter to avoid initialising them), apply them.
 	local States = Element.StylingStates
-	if States and StyleDef.States then
-		for State in States:Iterate() do
-			local StateValues = StyleDef.States[ State ]
-			if StateValues then
-				StyleCopy = CopyValues( Element, StateValues, StyleCopy )
-			end
-		end
+	if States then
+		StyleCopy = ApplyStates( Element, States, StyleDef.States, StyleCopy )
 	end
 
 	Element:SetupFromMap( StyleCopy )

@@ -101,7 +101,7 @@ function ConfigMenu:Create()
 	end
 
 	self.Menu:SetBoxShadow( {
-		BlurRadius = 16,
+		BlurRadius = HighResScaled( 16 ):GetValue(),
 		Colour = Colour( 0, 0, 0, 0.75 )
 	} )
 end

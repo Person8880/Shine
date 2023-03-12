@@ -301,6 +301,14 @@ function ControlMeta:RemoveStylingStates( Names )
 	end
 end
 
+function ControlMeta:SetStylingStateActive( Name, Active )
+	if Active then
+		self:AddStylingState( Name )
+	else
+		self:RemoveStylingState( Name )
+	end
+end
+
 -- Deprecated single-style state accessor. Controls may have more than one active state.
 function ControlMeta:GetStylingState()
 	return self.StylingStates and self.StylingStates:AsList()[ 1 ]
@@ -1293,6 +1301,170 @@ end
 
 function ControlMeta:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
 	self.Background:SetTexturePixelCoordinates( X1, Y1, X2, Y2 )
+end
+
+do
+	local Clamp = math.Clamp
+	local Min = math.min
+
+	function ControlMeta:EvaluateBorderRadii( Size, BorderRadii )
+		-- Doesn't make sense for border radius to exceed half the box along either axis.
+		local MaxRadius = Min( Size.x * 0.5, Size.y * 0.5 )
+		return Colour(
+			-- Use the y-axis as the reference value as it makes more sense to want to make borders relative to height
+			-- rather than width, most elements are wider than they are tall.
+			Clamp( BorderRadii[ 1 ] and BorderRadii[ 1 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 2 ] and BorderRadii[ 2 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 3 ] and BorderRadii[ 3 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius ),
+			Clamp( BorderRadii[ 4 ] and BorderRadii[ 4 ]:GetValue( Size.y, self, 2 ) or 0, 0, MaxRadius )
+		)
+	end
+
+	local function SetBorderParameters( self, Size, BorderRadii )
+		self.Background:SetFloat2Parameter( "size", Size )
+
+		local AbsoluteRadii = self:EvaluateBorderRadii( Size, BorderRadii )
+		self.Background:SetFloat4Parameter( "radii", AbsoluteRadii )
+		self.AbsoluteBorderRadii = AbsoluteRadii
+	end
+
+	local function UpdateShaderSize( self, Size )
+		return SetBorderParameters( self, Size, self.BorderRadii )
+	end
+
+	local function SetupRoundedCorners( self, BorderRadii )
+		self.Background:SetShader( SGUI.Shaders.RoundedRect )
+
+		SetBorderParameters( self, self:GetSize(), BorderRadii )
+
+		self:AddPropertyChangeListener( "Size", UpdateShaderSize )
+	end
+
+	local function RemoveRoundedCorners( self )
+		self.Background:SetShader( "shaders/GUIBasic.surface_shader" )
+		self:RemovePropertyChangeListener( "Size", UpdateShaderSize )
+		self.BorderRadii = nil
+		self.AbsoluteBorderRadii = nil
+
+		self:OnPropertyChanged( "TopLeftBorderRadius", nil )
+		self:OnPropertyChanged( "TopRightBorderRadius", nil )
+		self:OnPropertyChanged( "BottomRightBorderRadius", nil )
+		self:OnPropertyChanged( "BottomLeftBorderRadius", nil )
+	end
+
+	local function InitialiseBorderRadii( self, BorderRadii )
+		if not BorderRadii then
+			BorderRadii = { nil, nil, nil, nil }
+			self.BorderRadii = BorderRadii
+		end
+		return BorderRadii
+	end
+
+	local function HasOtherRadii( BorderRadii, Index )
+		if not BorderRadii then return false end
+
+		for i = 1, 4 do
+			if i ~= Index and BorderRadii[ i ] then
+				return true
+			end
+		end
+
+		return false
+	end
+
+	local function SetBorderRadius( self, Index, Radius, Key )
+		local BorderRadii = self.BorderRadii
+		if not BorderRadii and not Radius then return false end
+
+		Radius = Radius and SGUI.Layout.ToUnit( Radius )
+
+		if BorderRadii and BorderRadii[ Index ] == Radius then return false end
+
+		if Radius or HasOtherRadii( BorderRadii, Index ) then
+			BorderRadii = InitialiseBorderRadii( self, BorderRadii )
+			BorderRadii[ Index ] = Radius
+			SetupRoundedCorners( self, BorderRadii )
+			self:OnPropertyChanged( Key, Radius )
+		else
+			RemoveRoundedCorners( self )
+		end
+
+		return true
+	end
+
+	function ControlMeta:SetTopLeftBorderRadius( TopLeftBorderRadius )
+		return SetBorderRadius( self, 1, TopLeftBorderRadius, "TopLeftBorderRadius" )
+	end
+
+	function ControlMeta:GetTopLeftBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 1 ]
+	end
+
+	function ControlMeta:SetTopRightBorderRadius( TopRightBorderRadius )
+		return SetBorderRadius( self, 2, TopRightBorderRadius, "TopRightBorderRadius" )
+	end
+
+	function ControlMeta:GetTopRightBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 2 ]
+	end
+
+	function ControlMeta:SetBottomRightBorderRadius( BottomRightBorderRadius )
+		return SetBorderRadius( self, 3, BottomRightBorderRadius, "BottomRightBorderRadius" )
+	end
+
+	function ControlMeta:GetBottomRightBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 3 ]
+	end
+
+	function ControlMeta:SetBottomLeftBorderRadius( BottomLeftBorderRadius )
+		return SetBorderRadius( self, 4, BottomLeftBorderRadius, "BottomLeftBorderRadius" )
+	end
+
+	function ControlMeta:GetBottomLeftBorderRadius()
+		return self.BorderRadii and self.BorderRadii[ 4 ]
+	end
+
+	function ControlMeta:SetBorderRadii( BorderRadii )
+		local CurrentBorderRadii = self.BorderRadii
+		if not CurrentBorderRadii and not BorderRadii then return false end
+
+		if
+			CurrentBorderRadii and BorderRadii and
+			CurrentBorderRadii[ 1 ] == BorderRadii[ 1 ] and
+			CurrentBorderRadii[ 2 ] == BorderRadii[ 2 ] and
+			CurrentBorderRadii[ 3 ] == BorderRadii[ 3 ] and
+			CurrentBorderRadii[ 4 ] == BorderRadii[ 4 ]
+		then
+			return false
+		end
+
+		if BorderRadii then
+			CurrentBorderRadii = InitialiseBorderRadii( self, CurrentBorderRadii )
+			CurrentBorderRadii[ 1 ] = SGUI.Layout.ToUnit( BorderRadii[ 1 ] )
+			CurrentBorderRadii[ 2 ] = SGUI.Layout.ToUnit( BorderRadii[ 2 ] )
+			CurrentBorderRadii[ 3 ] = SGUI.Layout.ToUnit( BorderRadii[ 3 ] )
+			CurrentBorderRadii[ 4 ] = SGUI.Layout.ToUnit( BorderRadii[ 4 ] )
+			SetupRoundedCorners( self, CurrentBorderRadii )
+
+			self:OnPropertyChanged( "TopLeftBorderRadius", CurrentBorderRadii[ 1 ] )
+			self:OnPropertyChanged( "TopRightBorderRadius", CurrentBorderRadii[ 2 ] )
+			self:OnPropertyChanged( "BottomRightBorderRadius", CurrentBorderRadii[ 3 ] )
+			self:OnPropertyChanged( "BottomLeftBorderRadius", CurrentBorderRadii[ 4 ] )
+		else
+			RemoveRoundedCorners( self )
+		end
+
+		return true
+	end
+
+	function ControlMeta:GetBorderRadii()
+		return self.BorderRadii
+	end
+
+	function ControlMeta:SetUniformBorderRadius( Radius )
+		Radius = Radius and SGUI.Layout.ToUnit( Radius )
+		return self:SetBorderRadii( Radius and { Radius, Radius, Radius, Radius } or nil )
+	end
 end
 
 --[[
@@ -2674,6 +2846,10 @@ do
 	end
 end
 
+local function OnHighlightingLost( self )
+	self:RemoveStylingState( "Highlighted" )
+end
+
 function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 	if not not Highlighted == not not self.Highlighted then return end
 
@@ -2694,17 +2870,18 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		end
 	else
 		self.Highlighted = false
-		self:RemoveStylingState( "Highlighted" )
 
 		if not self.TextureHighlight then
 			if SkipAnim then
+				self:RemoveStylingState( "Highlighted" )
 				self:StopFade( self.Background )
 				self:SetBackgroundColour( self.InactiveCol )
 				return
 			end
 
-			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.1 )
+			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.1, OnHighlightingLost )
 		else
+			self:RemoveStylingState( "Highlighted" )
 			self.Background:SetTexture( self.Texture )
 		end
 	end

@@ -132,7 +132,18 @@ do
 		-- Ignore requests to collapse when in horizontal mode.
 		if not Expanded and self.Horizontal then return end
 
-		return OldSetExpanded( self, Expanded )
+		if OldSetExpanded( self, Expanded ) then
+			if SGUI.IsValid( self.ExpanderButton ) then
+				self.ExpanderButton:SetStylingStateActive( "Expanded", Expanded )
+			end
+			for i = 1, self.NumTabs do
+				local Button = self.Tabs[ i ].TabButton
+				Button:SetStylingStateActive( "Expanded", Expanded )
+			end
+			return true
+		end
+
+		return false
 	end
 end
 
@@ -275,9 +286,14 @@ do
 			self.TabPanel:SetAutoHideScrollbar( true )
 
 			local ExpanderButton = SGUI:Create( "Button", self )
+			ExpanderButton:SetStyleName( "TabPanelExpanderButton" )
 			ExpanderButton:SetAutoSize( Units.UnitVector( Units.Percentage.ONE_HUNDRED, self:GetCollapsedTabSize() ) )
 			function ExpanderButton.DoClick()
 				self:SetExpanded( not self:GetExpanded() )
+			end
+
+			if self:GetExpanded() then
+				ExpanderButton:AddStylingState( "Expanded" )
 			end
 
 			self.ExpanderButton = ExpanderButton
@@ -358,6 +374,7 @@ do
 		local StyleName = ResolveButtonStyleName( self, Horizontal )
 		Button:SetStyleName( StyleName )
 		Button:SetHorizontal( StyleName ~= nil )
+		Button:SetStylingStateActive( "Expanded", not Horizontal and self:GetExpanded() )
 		self:ApplySpacingsToTabButton( Button )
 	end
 
@@ -507,6 +524,7 @@ function TabPanel:AddTab( Name, OnPopulate, IconName, IconFont, IconFontScale )
 	TabButton:SetTab( self.NumTabs + 1, Name )
 	TabButton:SetAutoSize( Units.UnitVector( self.TabWidth, self.TabHeight ) )
 	TabButton:SetStyleName( StyleName )
+	TabButton:SetStylingStateActive( "Expanded", not self.Horizontal and self:GetExpanded() )
 
 	self:ApplySpacingsToTabButton( TabButton )
 

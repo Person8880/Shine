@@ -49,6 +49,14 @@ function Menu:SetMaxVisibleButtons( Max, ScrollbarWidth )
 	self:SetHorizontalScrollingEnabled( false )
 end
 
+local function OnPaddingChanged( self, Padding )
+	if Padding then
+		self.ButtonWidth:SetValue( 1, self.DefaultButtonWidth - Padding[ 1 ] - Padding[ 3 ] )
+	else
+		self.ButtonWidth:SetValue( 1, self.DefaultButtonWidth )
+	end
+end
+
 function Menu:SetButtonSize( Vec )
 	self.ButtonSize = Vec
 	self.UseAutoSize = not IsType( Vec, "cdata" )
@@ -57,9 +65,19 @@ function Menu:SetButtonSize( Vec )
 		local IsUnitVector = Shine.Implements( Vec, Units.UnitVector )
 		local InitialWidth = IsUnitVector and Vec[ 1 ] or nil
 
+		self.DefaultButtonWidth = InitialWidth
+
+		local Padding = self:GetPadding()
+		if Padding then
+			InitialWidth = InitialWidth - Padding[ 1 ] - Padding[ 3 ]
+		end
+
 		self.ButtonHeight = IsUnitVector and Vec[ 2 ] or Vec
 		self.ButtonWidth = Units.Max( InitialWidth )
+
+		self:AddPropertyChangeListener( "Padding", OnPaddingChanged )
 	else
+		self:RemovePropertyChangeListener( "Padding", OnPaddingChanged )
 		self.ButtonHeight = nil
 		self.ButtonWidth = nil
 	end
@@ -165,6 +183,7 @@ function Menu:Resize()
 
 	self.Layout:InvalidateLayout( true )
 
+	local Padding = self:GetComputedPadding()
 	local LayoutPadding = self.Layout:GetComputedPadding()
 	local MaxHeightIndex = self.MaxVisibleButtons or self.ButtonCount
 	if self.UseAutoSize then
@@ -173,18 +192,18 @@ function Menu:Resize()
 		for i = 1, self.ButtonCount do
 			local Button = self.Buttons[ i ]
 			local Size = Button:GetSize()
-			MaxWidth = Max( Size.x, MaxWidth )
+			MaxWidth = Max( Size.x + Padding[ 5 ], MaxWidth )
 
 			if i <= MaxHeightIndex then
-				MenuHeight = Button:GetPos().y + Size.y + LayoutPadding[ 4 ]
+				MenuHeight = Button:GetPos().y + Size.y + LayoutPadding[ 4 ] + Padding[ 6 ]
 			end
 		end
 
 		MenuWidth = MaxWidth
 	else
 		local NumButtons = Min( MaxHeightIndex, self.ButtonCount )
-		MenuWidth = self.ButtonSize.x
-		MenuHeight = self.ButtonSize.y * NumButtons + LayoutPadding[ 4 ] * ( NumButtons + 1 )
+		MenuWidth = self.ButtonSize.x + Padding[ 5 ]
+		MenuHeight = self.ButtonSize.y * NumButtons + LayoutPadding[ 4 ] * ( NumButtons + 1 ) + Padding[ 6 ]
 	end
 
 	if self.MaxVisibleButtons and self.OverflowY then

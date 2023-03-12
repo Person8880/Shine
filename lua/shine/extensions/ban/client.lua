@@ -97,7 +97,8 @@ function Plugin:SetupAdminMenu()
 							Fill = true,
 							AutoFont = Font,
 							Numeric = true,
-							Text = SteamIDToBan
+							Text = SteamIDToBan,
+							StyleName = "InputGroupStart"
 						}
 					},
 					{
@@ -110,7 +111,8 @@ function Plugin:SetupAdminMenu()
 							},
 							AutoSize = UnitVector( HighResScaled( 32 ), HighResScaled( 32 ) ),
 							Text = SGUI.Icons.Ionicons.ArrowDownB,
-							Tooltip = self:GetPhrase( "SELECT_PLAYER" )
+							Tooltip = self:GetPhrase( "SELECT_PLAYER" ),
+							StyleName = "InputGroupEnd"
 						}
 					}
 				}

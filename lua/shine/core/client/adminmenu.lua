@@ -112,7 +112,7 @@ function AdminMenu:Create()
 	end
 
 	Window:SetBoxShadow( {
-		BlurRadius = 16,
+		BlurRadius = HighResScaled( 16 ):GetValue(),
 		Colour = Colour( 0, 0, 0, 0.75 )
 	} )
 end
@@ -528,6 +528,7 @@ do
 		local Button = GenerateButton( CommandData )
 		Button:SetFontScale( Font, Scale )
 		Button:SetAutoSize( UnitVector( Percentage.ONE_HUNDRED, ButtonHeight ) )
+		Button:SetStyleName( "CommandButton" )
 
 		local Width = Units.Auto( Button ) + HighResScaled( 8 )
 		CommandsListWidth:AddValue( Width )

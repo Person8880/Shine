@@ -57,7 +57,18 @@ local function OnKnobPaddingChanged( self, Padding )
 
 	self:StopMoving( self.SwitchKnob )
 	self.SwitchKnob:SetPosition( Vector2( XPos, YPos ) )
-	self.SwitchKnob:SetSize( Vector2( KnobSize, KnobSize ) )
+	local KnobSizeVector = Vector2( KnobSize, KnobSize )
+	self.SwitchKnob:SetSize( KnobSizeVector )
+
+	if self.BorderRadii then
+		self.SwitchKnob:SetShader( SGUI.Shaders.RoundedRect )
+		self.SwitchKnob:SetFloat2Parameter( "size", KnobSizeVector )
+
+		local AbsoluteRadii = self:EvaluateBorderRadii( KnobSizeVector, self.BorderRadii )
+		self.SwitchKnob:SetFloat4Parameter( "radii", AbsoluteRadii )
+	else
+		self.SwitchKnob:SetShader( "shaders/GUIBasic.surface_shader" )
+	end
 end
 
 local function OnSizeChanged( self, Size )

@@ -464,6 +464,11 @@ do
 		return self
 	end
 
+	function Max:SetValue( Index, Value )
+		self.Values[ Index ] = ToUnit( Value )
+		return self
+	end
+
 	function Max:AddValue( Value )
 		self.NumValues = self.NumValues + 1
 		self.Values[ self.NumValues ] = ToUnit( Value )

@@ -25,7 +25,9 @@ local xpcall = xpcall
 
 SGUI.Shaders = {
 	-- A shader that causes a GUIItem to be invisible, but still be able to contribute an alpha multiplier.
-	Invisible = PrecacheAsset "shaders/shine/gui_none.surface_shader"
+	Invisible = PrecacheAsset "shaders/shine/gui_none.surface_shader",
+	-- A shader that can be used to add rounded corners to boxes.
+	RoundedRect = PrecacheAsset "shaders/shine/gui_rounded_rect.surface_shader"
 }
 
 -- Useful functions for colours.

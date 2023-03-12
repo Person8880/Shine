@@ -91,6 +91,16 @@ function CheckBox:SetSize( Vec )
 
 	self.Box:SetSize( BoxSize )
 	self.Box:SetPosition( -BoxSize * 0.5 )
+
+	if self.BorderRadii then
+		self.Box:SetShader( SGUI.Shaders.RoundedRect )
+		self.Box:SetFloat2Parameter( "size", BoxSize )
+
+		local AbsoluteRadii = self:EvaluateBorderRadii( BoxSize, self.BorderRadii )
+		self.Box:SetFloat4Parameter( "radii", AbsoluteRadii )
+	else
+		self.Box:SetShader( "shaders/GUIBasic.surface_shader" )
+	end
 end
 
 function CheckBox:GetChecked()

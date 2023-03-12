@@ -124,6 +124,15 @@ local Skin = {
 					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
 				}
 			}
+		},
+		Radio = {
+			-- Turn radio checkboxes into circles using 50% border radius on each corner.
+			BorderRadii = {
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY
+			}
 		}
 	},
 	Column = {
@@ -316,6 +325,12 @@ local Skin = {
 			ActiveBackgroundColour = SuccessButton,
 			InactiveBackgroundColour = DarkButton,
 			KnobColour = Colour( 0.4, 0.4, 0.4, 1 ),
+			BorderRadii = {
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY
+			},
 			States = {
 				Disabled = {
 					ActiveBackgroundColour = SGUI.ColourWithAlpha( SuccessButton, 0.5 ),

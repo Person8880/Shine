@@ -307,7 +307,8 @@ local Skin = {
 			BorderColour = Colours.Dark,
 			BorderSize = Vector2( 0, 0 ),
 			TextColour = Colour( 1, 1, 1, 1 ),
-			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 )
+			PlaceholderTextColour = Colour( 1, 1, 1, 0.5 ),
+			BorderRadii = false
 		}
 	}
 }

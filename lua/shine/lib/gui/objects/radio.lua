@@ -23,6 +23,7 @@ function Radio:Initialise()
 	self.Background = self:MakeGUIItem()
 
 	self.CheckBoxes = {}
+	self.CheckBoxStyleName = "Radio"
 	self:SetLayout( SGUI.Layout:CreateLayout( "Vertical" ), true )
 
 	self.MultipleChoice = false

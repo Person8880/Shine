@@ -8,6 +8,7 @@ local Units = SGUI.Layout.Units
 local WindowBackground = Colour( 0.5, 0.5, 0.5, 1 )
 local HorizontalTabBackground = Colour( 0.4, 0.4, 0.4, 1 )
 local DarkButton = Colour( 0.2, 0.2, 0.2, 1 )
+local MenuButton = Colour( 0.25, 0.25, 0.25, 1 )
 local ButtonHighlight = Colour( 0.8, 0.5, 0.1, 1 )
 local BrightText = Colour( 1, 1, 1, 1 )
 local MutedText = Colour( 0.9, 0.9, 0.9, 1 )
@@ -45,7 +46,7 @@ local Skin = {
 			InactiveCol = Colour( 0.5, 0.2, 0.2, 1 )
 		},
 		MenuButton = {
-			InactiveCol = Colour( 0.25, 0.25, 0.25, 1 )
+			InactiveCol = MenuButton
 		},
 		CategoryPanelButton = {
 			Font = Fonts.kAgencyFB_Small,
@@ -79,6 +80,7 @@ local Skin = {
 			TextInheritsParentAlpha = false
 		},
 		DropdownButton = {
+			InactiveCol = MenuButton,
 			Padding = DropdownPadding,
 			TextAlignment = SGUI.LayoutAlignment.MIN,
 			IconAlignment = SGUI.LayoutAlignment.MIN
@@ -106,6 +108,15 @@ local Skin = {
 					CheckedColour = SGUI.ColourWithAlpha( ButtonHighlight, 0.5 ),
 					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
 				}
+			}
+		},
+		Radio = {
+			-- Turn radio checkboxes into circles using 50% border radius on each corner.
+			BorderRadii = {
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY
 			}
 		}
 	},
@@ -186,7 +197,7 @@ local Skin = {
 	},
 	Menu = {
 		Default = {
-			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+			Colour = MenuButton
 		}
 	},
 	Modal = {
@@ -288,6 +299,12 @@ local Skin = {
 			ActiveBackgroundColour = SuccessButton,
 			InactiveBackgroundColour = DarkButton,
 			KnobColour = Colour( 0.6, 0.6, 0.6, 1 ),
+			BorderRadii = {
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY,
+				Units.Percentage.FIFTY
+			},
 			States = {
 				Disabled = {
 					ActiveBackgroundColour = SGUI.ColourWithAlpha( SuccessButton, 0.5 ),

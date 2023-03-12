@@ -219,6 +219,14 @@ function TextEntry:SetSize( SizeVec )
 	)
 	self.InnerBox:SetSize( InnerBoxSize )
 
+	if self.AbsoluteBorderRadii then
+		self.InnerBox:SetShader( SGUI.Shaders.RoundedRect )
+		self.InnerBox:SetFloat2Parameter( "size", InnerBoxSize )
+		self.InnerBox:SetFloat4Parameter( "radii", self.AbsoluteBorderRadii )
+	else
+		self.InnerBox:SetShader( "shaders/GUIBasic.surface_shader" )
+	end
+
 	self.Width = Max( InnerBoxSize.x - ( self.Padding * 2 ), 0 )
 	self.Height = InnerBoxSize.y
 
