@@ -859,7 +859,7 @@ local OfficialExtensions
 	This is used in the plugin list UI to indicate whether a plugin is official or not, it's not used as any form of
 	trusted status or any other logic.
 
-	While this could be overrideen by a mod, please don't. The point of this is to differentiate between plugins that
+	While this could be overriden by a mod, please don't. The point of this is to differentiate between plugins that
 	belong to the main mod (and thus issues should be raised there) vs. plugins that belong to other mods. It's not some
 	shiny badge of honour that your plugins must have.
 ]]

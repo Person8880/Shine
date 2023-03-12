@@ -23,13 +23,13 @@
 	</inputs>
 
 	<code>
-    <![CDATA[
-    	float GetSDFForRoundedRect( float2 centre, float2 boxSize, float radius ) {
-    		return length( max( abs( centre ) - boxSize + radius, 0.0f ) ) - radius;
-    	}
+	<![CDATA[
+		float GetSDFForRoundedRect( float2 centre, float2 boxSize, float radius ) {
+			return length( max( abs( centre ) - boxSize + radius, 0.0f ) ) - radius;
+		}
 
-    	// Renders a single-colour rounded rectange, smoothly rounding the corners with individual radii.
-    	// This does not include a border, only a single colour is used.
+		// Renders a single-colour rounded rectange, smoothly rounding the corners with individual radii.
+		// This does not include a border, only a single colour is used.
 		void MaterialShader( bool textured, float2 texCoord, float4 color, inout Material material ) {
 			float4 backgroundColour;
 			if ( textured ) {
