@@ -206,7 +206,7 @@ function Menu:Resize()
 		MenuHeight = self.ButtonSize.y * NumButtons + LayoutPadding[ 4 ] * ( NumButtons + 1 ) + Padding[ 6 ]
 	end
 
-	if self.MaxVisibleButtons and self.OverflowY then
+	if self.MaxVisibleButtons and MaxHeightIndex < self.ButtonCount then
 		-- Account for the scrollbar to ensure text isn't cut off.
 		MenuWidth = MenuWidth + self.ScrollbarWidth
 	end
