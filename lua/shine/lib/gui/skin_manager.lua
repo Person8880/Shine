@@ -9,8 +9,10 @@ local Map = Shine.Map
 local SGUI = Shine.GUI
 
 local getmetatable = getmetatable
+local IsType = Shine.IsType
 local pairs = pairs
 local setmetatable = setmetatable
+local TableEmpty = table.Empty
 local TableShallowMerge = table.ShallowMerge
 
 local SkinManager = {}
@@ -20,6 +22,7 @@ SkinManager.Skins = {}
 
 local function CompileStates( DeclaredStates )
 	local States = {}
+	local Count = 0
 
 	for StateName, StateData in pairs( DeclaredStates ) do
 		local StateProperties = {}
@@ -32,6 +35,8 @@ local function CompileStates( DeclaredStates )
 			end
 		end
 
+		Count = Count + 1
+		States[ Count ] = StateName
 		States[ StateName ] = StateProperties
 	end
 
@@ -49,6 +54,7 @@ function SkinManager.CompileSkin( Skin )
 
 		for StyleName, StyleData in pairs( Data ) do
 			local Properties = {}
+			local OwnProperties = {}
 			local States
 
 			for Key, Value in pairs( StyleData ) do
@@ -56,12 +62,35 @@ function SkinManager.CompileSkin( Skin )
 					States = CompileStates( Value )
 				else
 					Properties[ #Properties + 1 ] = { Key, Value }
+
+					if StyleName == "Default" or not Data.Default or Value ~= Data.Default[ Key ] then
+						OwnProperties[ #OwnProperties + 1 ] = Properties[ #Properties ]
+					end
+				end
+			end
+
+			local OwnStates
+			if States then
+				if StyleName == "Default" or not Data.Default or not Data.Default.States then
+					OwnStates = States
+				else
+					OwnStates = {}
+					for i = 1, #States do
+						local StateName = States[ i ]
+						local State = States[ StateName ]
+						if State ~= Data.Default.States[ StateName ] then
+							OwnStates[ #OwnStates + 1 ] = StateName
+							OwnStates[ StateName ] = State
+						end
+					end
 				end
 			end
 
 			ElementStyles[ StyleName ] = {
 				Properties = Properties,
+				OwnProperties = OwnProperties,
 				States = States or {},
+				OwnStates = OwnStates or {},
 				PropertiesByName = StyleData
 			}
 		end
@@ -142,6 +171,42 @@ function SkinManager:SetSkin( Name )
 	self:RefreshSkin( OldSkin )
 end
 
+local MergedStyle = {
+	Properties = {},
+	States = {}
+}
+
+local function MergeIntoStyleDef( SourceStyleDef, DestinationStyleDef, PropertiesCount )
+	-- Copy only the unique properties from the source style, excluding those inherited from the default.
+	for j = 1, #SourceStyleDef.OwnProperties do
+		PropertiesCount = PropertiesCount + 1
+		DestinationStyleDef.Properties[ PropertiesCount ] = SourceStyleDef.OwnProperties[ j ]
+	end
+
+	-- Same for states.
+	for j = 1, #SourceStyleDef.OwnStates do
+		local StateName = SourceStyleDef.OwnStates[ j ]
+		DestinationStyleDef.States[ StateName ] = SourceStyleDef.OwnStates[ StateName ]
+	end
+
+	return PropertiesCount
+end
+
+local function MergeStyles( Styles, StyleNames )
+	TableEmpty( MergedStyle.Properties )
+	TableEmpty( MergedStyle.States )
+
+	local PropertiesCount = Styles.Default and MergeIntoStyleDef( Styles.Default, MergedStyle, 0 ) or 0
+	for i = 1, #StyleNames do
+		local StyleDef = Styles[ StyleNames[ i ] ]
+		if StyleDef then
+			PropertiesCount = MergeIntoStyleDef( StyleDef, MergedStyle, PropertiesCount )
+		end
+	end
+
+	return MergedStyle
+end
+
 function SkinManager:GetStyleForElement( Element )
 	local Skin = Element:GetSkin() or self.Skin
 	if not Skin then return nil end
@@ -152,6 +217,10 @@ function SkinManager:GetStyleForElement( Element )
 	if not Styles then return nil end
 
 	local Style = Element:GetStyleName() or "Default"
+	if IsType( Style, "table" ) then
+		return MergeStyles( Styles, Style )
+	end
+
 	return Styles[ Style ] or Styles.Default
 end
 

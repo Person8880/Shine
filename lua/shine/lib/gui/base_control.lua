@@ -329,6 +329,12 @@ do
 	end
 end
 
+--[[
+	Sets the style name for the given control.
+
+	This can be either a string to use a single style name, or an array of names. When specifying multiple style names,
+	properties from latter names override the values from those before and the default style.
+]]
 function ControlMeta:SetStyleName( Name )
 	if self.StyleName == Name then return end
 
