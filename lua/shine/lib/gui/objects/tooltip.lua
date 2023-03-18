@@ -91,10 +91,13 @@ function Tooltip:ComputeAndSetSize( Text )
 	self:SetSize( Vector2( Width, Height ) )
 end
 
+function Tooltip:IsAssociatedControlHidden()
+	return SGUI.IsValid( self.AssociatedControl ) and not self.AssociatedControl:ComputeVisibilityWithCropping()
+end
+
 function Tooltip:ShouldBeVisible()
 	-- Hide the tooltip if the mouse is not visible or the associated control is not visible (or its window isn't).
-	return SGUI.IsMouseVisible()
-		and not ( SGUI.IsValid( self.AssociatedControl ) and not self.AssociatedControl:ComputeVisibility() )
+	return SGUI.IsMouseVisible() and not self:IsAssociatedControlHidden()
 end
 
 function Tooltip:Think( DeltaTime )

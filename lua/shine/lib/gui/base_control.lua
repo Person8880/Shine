@@ -662,6 +662,7 @@ function ControlMeta:IsCroppedByParent()
 
 		-- Remember this until the cropping is updated or this control's position changes.
 		self.__IsCroppedByParent = IsCropped
+		self:OnPropertyChanged( "CroppedByParent", IsCropped )
 	end
 
 	return IsCropped
@@ -870,19 +871,31 @@ do
 end
 
 --[[
-	Computes the actual visibility state of the object, based on
-	whether it is set to be invisible, or otherwise if it has a parent
-	that is not visible.
+	Computes the actual visibility state of the object, based on whether it is set to be invisible, or otherwise if it
+	has a parent that is not visible.
 ]]
 function ControlMeta:ComputeVisibility()
-	local OurVis = self:GetIsVisible()
-	if not OurVis then return false end
+	if not self:GetIsVisible() then return false end
 
 	if SGUI.IsValid( self.Parent ) then
 		return self.Parent:ComputeVisibility()
 	end
 
-	return OurVis
+	return true
+end
+
+--[[
+	Computes the visibility of the element, taking into account cropping higher up in the tree as well as the visibility
+	flag.
+]]
+function ControlMeta:ComputeVisibilityWithCropping()
+	if not self:GetIsVisible() or self:IsCroppedByParent() then return false end
+
+	if SGUI.IsValid( self.Parent ) then
+		return self.Parent:ComputeVisibilityWithCropping()
+	end
+
+	return true
 end
 
 --[[
