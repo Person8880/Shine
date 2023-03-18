@@ -744,10 +744,127 @@ function Plugin:SetupAdminMenuCommands()
 		)
 	end
 
+	function PluginEntry:OnIsVisibleChanged( IsVisible )
+		if not IsVisible or self:IsCroppedByParent() then return end
+
+		self:PopulateChildren()
+	end
+
+	function PluginEntry:OnCroppedByParentChanged( IsCropped )
+		if IsCropped or not self:GetIsVisible() then return end
+
+		self:PopulateChildren()
+	end
+
 	function PluginEntry:SetPluginData( PluginData )
 		self:SetEnabled( PluginData.Enabled )
 		self:SetConfiguredAsEnabled( PluginData.ConfiguredAsEnabled )
+		self.PluginData = PluginData
 
+		self:AddPropertyChangeListener( "CroppedByParent", self.OnCroppedByParentChanged )
+		self:AddPropertyChangeListener( "IsVisible", self.OnIsVisibleChanged )
+	end
+
+	function PluginEntry:OnMouseEnter()
+		if not self.Elements then return end
+
+		if not self.ButtonElements then
+			self:PopulateAdditionalButtons()
+		end
+
+		self.ButtonElements.MenuButton:SetIsVisible( true )
+	end
+
+	function PluginEntry:HideAdditionalButtons()
+		self.ButtonElements.MenuButton:SetIsVisible( false )
+	end
+
+	function PluginEntry:OnMouseLeave()
+		if not self.ButtonElements then return end
+
+		if not SGUI.IsValid( self.Menu ) then
+			self:HideAdditionalButtons()
+		end
+	end
+
+	local ButtonSize = HighResScaled( 32 )
+
+	function PluginEntry:PopulateAdditionalButtons()
+		local PluginData = self.PluginData
+		self.ButtonElements = SGUI:BuildTree( {
+			Parent = self.Elements.ContentLayout,
+			{
+				ID = "MenuButton",
+				Class = "Button",
+				Props = {
+					Alignment = SGUI.LayoutAlignment.MAX,
+					AutoSize = UnitVector( ButtonSize, ButtonSize ),
+					Horizontal = true,
+					IconAutoFont = Ionicons,
+					Icon = SGUI.Icons.Ionicons.AndroidMoreVertical,
+					OpenMenuOnClick = function( MenuButton )
+						return {
+							MenuPos = MenuButton.MenuPos.BOTTOM,
+							Size = ButtonSize + HighResScaled( 11 ),
+							Populate = function( Menu )
+								self.Menu = Menu
+
+								Menu:SetButtonWidthPadding( HighResScaled( 16 ) )
+								Menu:SetAutoFont( AgencyFBNormal )
+								Menu:CallOnRemove( function()
+									if not SGUI.IsValid( self ) then return end
+
+									self.Menu = nil
+
+									if not self:HasMouseEntered() then
+										self:HideAdditionalButtons()
+									end
+								end )
+
+								local Enabled = self:GetEnabled()
+								local ToggleButton = Menu:AddButton(
+									Plugin:GetPhrase( Enabled and "UNLOAD_PLUGIN" or "LOAD_PLUGIN" ),
+									function()
+										if Enabled then
+											Shine.AdminMenu:RunCommand( "sh_unloadplugin", PluginData.Name )
+										else
+											Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
+										end
+										Menu:Destroy()
+									end
+								)
+								ToggleButton:SetIconAutoFont( Ionicons )
+								ToggleButton:SetIcon( SGUI.Icons.Ionicons[ Enabled and "Close" or "Power" ] )
+								ToggleButton:SetStyleName(
+									{ "MenuButton", Enabled and "DangerButton" or "SuccessButton" }
+								)
+
+								if Enabled then
+									local ReloadButton = Menu:AddButton(
+										Plugin:GetPhrase( "RELOAD_PLUGIN" ),
+										function()
+											Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
+											Menu:Destroy()
+										end
+									)
+									ReloadButton:SetIconAutoFont( Ionicons )
+									ReloadButton:SetIcon( SGUI.Icons.Ionicons.Refresh )
+								end
+
+								Menu:AutoSizeButtonIcons()
+								Menu:Resize()
+							end
+						}
+					end
+				}
+			}
+		} )
+	end
+
+	function PluginEntry:PopulateChildren()
+		if self.Elements then return end
+
+		local PluginData = self.PluginData
 		local RowElements = {
 			{
 				Class = "Label",
@@ -770,8 +887,6 @@ function Plugin:SetupAdminMenuCommands()
 				}
 			}
 		end
-
-		local ButtonSize = HighResScaled( 32 )
 
 		RowElements[ #RowElements + 1 ] = {
 			ID = "SaveButton",
@@ -839,67 +954,6 @@ function Plugin:SetupAdminMenuCommands()
 				}
 			}
 		}
-		RowElements[ #RowElements + 1 ] = {
-			ID = "ToggleButton",
-			Class = "Button",
-			Props = {
-				Alignment = SGUI.LayoutAlignment.MAX,
-				AutoSize = UnitVector( ButtonSize, ButtonSize ),
-				Horizontal = true,
-				IconAutoFont = Ionicons,
-				Margin = Spacing( HighResScaled( 4 ), 0, 0, 0 )
-			},
-			Bindings = {
-				{
-					From = {
-						Element = self,
-						Property = "Enabled"
-					},
-					To = {
-						{
-							Property = "Icon",
-							Transformer = function( Enabled )
-								return SGUI.Icons.Ionicons[ Enabled and "Close" or "Power" ]
-							end
-						},
-						{
-							Property = "StyleName",
-							Transformer = function( Enabled ) return Enabled and "DangerButton" or "SuccessButton" end
-						},
-						{
-							Property = "Tooltip",
-							Transformer = function( Enabled )
-								return Plugin:GetPhrase( Enabled and "UNLOAD_PLUGIN" or "LOAD_PLUGIN" )
-							end
-						}
-					}
-				}
-			}
-		}
-		RowElements[ #RowElements + 1 ] = {
-			ID = "ReloadButton",
-			Class = "Button",
-			Props = {
-				Alignment = SGUI.LayoutAlignment.MAX,
-				AutoSize = UnitVector( ButtonSize, ButtonSize ),
-				Horizontal = true,
-				Icon = SGUI.Icons.Ionicons.Refresh,
-				IconAutoFont = Ionicons,
-				Margin = Spacing( HighResScaled( 4 ), 0, 0, 0 ),
-				Tooltip = Plugin:GetPhrase( "RELOAD_PLUGIN" )
-			},
-			Bindings = {
-				{
-					From = {
-						Element = self,
-						Property = "Enabled"
-					},
-					To = {
-						Property = "IsVisible"
-					}
-				}
-			}
-		}
 
 		local Elements = SGUI:BuildTree( {
 			Parent = self,
@@ -956,6 +1010,7 @@ function Plugin:SetupAdminMenuCommands()
 				}
 			},
 			{
+				ID = "ContentLayout",
 				Class = "Horizontal",
 				Type = "Layout",
 				Props = {
@@ -964,18 +1019,6 @@ function Plugin:SetupAdminMenuCommands()
 				Children = RowElements
 			}
 		} )
-
-		function Elements.ReloadButton.DoClick()
-			Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
-		end
-
-		function Elements.ToggleButton.DoClick()
-			if self.Enabled then
-				Shine.AdminMenu:RunCommand( "sh_unloadplugin", PluginData.Name )
-			else
-				Shine.AdminMenu:RunCommand( "sh_loadplugin", PluginData.Name )
-			end
-		end
 
 		function Elements.SaveButton.DoClick()
 			-- The save flag here doesn't cause any attempt to load/unload unless the plugin isn't in the expected
@@ -987,6 +1030,7 @@ function Plugin:SetupAdminMenuCommands()
 			end
 		end
 
+		self.Elements = Elements
 		self:SetColour( Colour( 0, 0, 0, 0.15 ) )
 	end
 
