@@ -68,7 +68,7 @@ function Menu:SetButtonSize( Vec )
 		self.DefaultButtonWidth = InitialWidth
 
 		local Padding = self:GetPadding()
-		if Padding then
+		if Padding and InitialWidth then
 			InitialWidth = InitialWidth - Padding[ 1 ] - Padding[ 3 ]
 		end
 
@@ -181,7 +181,7 @@ function Menu:Resize()
 	local MenuWidth = 0
 	local MenuHeight = 0
 
-	self.Layout:InvalidateLayout( true )
+	self:InvalidateLayout( true )
 
 	local Padding = self:GetComputedPadding()
 	local LayoutPadding = self.Layout:GetComputedPadding()
