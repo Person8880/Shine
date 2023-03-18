@@ -2865,10 +2865,6 @@ do
 	end
 end
 
-local function OnHighlightingLost( self )
-	self:RemoveStylingState( "Highlighted" )
-end
-
 function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 	if not not Highlighted == not not self.Highlighted then return end
 
@@ -2889,18 +2885,17 @@ function ControlMeta:SetHighlighted( Highlighted, SkipAnim )
 		end
 	else
 		self.Highlighted = false
+		self:RemoveStylingState( "Highlighted" )
 
 		if not self.TextureHighlight then
 			if SkipAnim then
-				self:RemoveStylingState( "Highlighted" )
 				self:StopFade( self.Background )
 				self:SetBackgroundColour( self.InactiveCol )
 				return
 			end
 
-			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.1, OnHighlightingLost )
+			self:FadeTo( self.Background, self.ActiveCol, self.InactiveCol, 0, 0.1 )
 		else
-			self:RemoveStylingState( "Highlighted" )
 			self.Background:SetTexture( self.Texture )
 		end
 	end

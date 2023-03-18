@@ -10,8 +10,9 @@ local White = Colour( 1, 1, 1, 1 )
 local WindowBackground = White
 local HorizontalTabBackground = Colour( 0.85, 0.85, 0.85, 1 )
 local DarkButton = Colour( 0.9, 0.9, 0.9, 1 )
+local CheckBoxColour = Colour( 0.7, 0.7, 0.7, 1 )
 local ButtonHighlight = Colour( 1, 0.878, 0.666, 1 )
-local BrightText = Colour( 0.25, 0.25, 0.25, 1 )
+local BrightText = Colour( 0.2, 0.2, 0.2, 1 )
 local MutedText = Colour( 0.35, 0.35, 0.35, 1 )
 local Clear = Colour( 0, 0, 0, 0 )
 local SliderDarkLineColour = Colour( 0.2, 0.2, 0.2, 1 )
@@ -20,7 +21,7 @@ local Danger = Colour( 1, 0, 0 )
 local Warning = Colour( 1, 0.6, 0 )
 local Info = Colour( 0, 0.5, 1 )
 
-local SuccessButton = Colour( 0.1, 1, 0.1, 1 )
+local SuccessButton = Colour( 0, 0.7, 0 )
 local DarkerSuccessButton = Colour( 0.1, 0.6, 0.1, 1 )
 local DangerButton = Colour( 1, 0.2, 0.1, 1 )
 local CategoryButton = Colour( 0.8, 0.8, 0.8, 1 )
@@ -113,13 +114,13 @@ local Skin = {
 	},
 	CheckBox = {
 		Default = {
-			BackgroundColour = DarkButton,
+			BackgroundColour = CheckBoxColour,
 			CheckedColour = OrangeButtonHighlight,
 			TextColour = BrightText,
 			Font = Fonts.kAgencyFB_Small,
 			States = {
 				Disabled = {
-					BackgroundColour = SGUI.ColourWithAlpha( DarkButton, 0.5 ),
+					BackgroundColour = SGUI.ColourWithAlpha( CheckBoxColour, 0.5 ),
 					CheckedColour = SGUI.ColourWithAlpha( OrangeButtonHighlight, 0.5 ),
 					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
 				}
@@ -222,7 +223,7 @@ local Skin = {
 	},
 	Menu = {
 		Default = {
-			Colour = Colour( 0.25, 0.25, 0.25, 1 )
+			Colour = DarkButton
 		}
 	},
 	Modal = {
@@ -379,7 +380,12 @@ local Skin = {
 			States = {
 				Highlighted = {
 					InactiveCol = Colour( 0.95, 0.95, 0.95, 1 ),
-					TextColour = BrightText
+					TextColour = BrightText,
+					States = {
+						Selected = {
+							TextColour = White
+						}
+					}
 				},
 				Selected = {
 					TextColour = White

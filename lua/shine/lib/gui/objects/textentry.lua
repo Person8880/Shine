@@ -284,7 +284,10 @@ end
 
 function TextEntry:SetTextColour( Col )
 	self.TextColour = Col
-	self.TextObj:SetColor( GetInnerBoxChildColour( self, Col ) )
+
+	local ActualColour = GetInnerBoxChildColour( self, Col )
+	self.TextObj:SetColor( ActualColour )
+	self.Caret:SetColor( ActualColour )
 end
 
 function TextEntry:SetTextShadow( Params )
