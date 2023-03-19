@@ -12,7 +12,7 @@ local getmetatable = getmetatable
 local IsType = Shine.IsType
 local pairs = pairs
 local setmetatable = setmetatable
-local TableEmpty = table.Empty
+local TableConcat = table.concat
 local TableShallowMerge = table.ShallowMerge
 
 local SkinManager = {}
@@ -171,57 +171,106 @@ function SkinManager:SetSkin( Name )
 	self:RefreshSkin( OldSkin )
 end
 
-local MergedStyle = {
-	Properties = {},
-	States = {}
-}
+do
+	local function MergeIntoStyleDef( SourceStyleDef, DestinationStyleDef, PropertiesCount )
+		local PropertiesByName = DestinationStyleDef.PropertiesByName
 
-local function MergeIntoStyleDef( SourceStyleDef, DestinationStyleDef, PropertiesCount )
-	-- Copy only the unique properties from the source style, excluding those inherited from the default.
-	for j = 1, #SourceStyleDef.OwnProperties do
-		PropertiesCount = PropertiesCount + 1
-		DestinationStyleDef.Properties[ PropertiesCount ] = SourceStyleDef.OwnProperties[ j ]
-	end
-
-	-- Same for states.
-	for j = 1, #SourceStyleDef.OwnStates do
-		local StateName = SourceStyleDef.OwnStates[ j ]
-		DestinationStyleDef.States[ StateName ] = SourceStyleDef.OwnStates[ StateName ]
-	end
-
-	return PropertiesCount
-end
-
-local function MergeStyles( Styles, StyleNames )
-	TableEmpty( MergedStyle.Properties )
-	TableEmpty( MergedStyle.States )
-
-	local PropertiesCount = Styles.Default and MergeIntoStyleDef( Styles.Default, MergedStyle, 0 ) or 0
-	for i = 1, #StyleNames do
-		local StyleDef = Styles[ StyleNames[ i ] ]
-		if StyleDef then
-			PropertiesCount = MergeIntoStyleDef( StyleDef, MergedStyle, PropertiesCount )
+		-- Copy only the unique properties from the source style, excluding those inherited from the default.
+		for j = 1, #SourceStyleDef.OwnProperties do
+			local Key = SourceStyleDef.OwnProperties[ j ][ 1 ]
+			local Index = PropertiesByName[ Key ]
+			if not Index then
+				-- Track the index per key to de-duplicate the array.
+				PropertiesCount = PropertiesCount + 1
+				Index = PropertiesCount
+				PropertiesByName[ Key ] = Index
+			end
+			DestinationStyleDef.Properties[ Index ] = SourceStyleDef.OwnProperties[ j ]
 		end
+
+		-- Same for states.
+		for j = 1, #SourceStyleDef.OwnStates do
+			local StateName = SourceStyleDef.OwnStates[ j ]
+			DestinationStyleDef.States[ StateName ] = SourceStyleDef.OwnStates[ StateName ]
+		end
+
+		return PropertiesCount
 	end
 
-	return MergedStyle
-end
+	local function MergeStyles( Styles, StyleNames )
+		local MergedStyle = {
+			Properties = {},
+			PropertiesByName = {},
+			States = {}
+		}
 
-function SkinManager:GetStyleForElement( Element )
-	local Skin = Element:GetSkin() or self.Skin
-	if not Skin then return nil end
+		local PropertiesCount = Styles.Default and MergeIntoStyleDef( Styles.Default, MergedStyle, 0 ) or 0
+		for i = 1, #StyleNames do
+			local StyleDef = Styles[ StyleNames[ i ] ]
+			if StyleDef then
+				PropertiesCount = MergeIntoStyleDef( StyleDef, MergedStyle, PropertiesCount )
+			end
+		end
 
-	Skin = self:GetCompiledSkin( Skin )
+		-- Replace de-duplication indices with key-values.
+		for i = 1, PropertiesCount do
+			local Property = MergedStyle.Properties[ i ]
+			MergedStyle.PropertiesByName[ Property[ 1 ] ] = Property[ 2 ]
+		end
 
-	local Styles = Skin[ Element.Class ]
-	if not Styles then return nil end
-
-	local Style = Element:GetStyleName() or "Default"
-	if IsType( Style, "table" ) then
-		return MergeStyles( Styles, Style )
+		return MergedStyle
 	end
 
-	return Styles[ Style ] or Styles.Default
+	local ElementStyleCacheMeta = {
+		__index = function( self, Key )
+			local CacheForElement = {}
+			self[ Key ] = CacheForElement
+			return CacheForElement
+		end
+	}
+
+	local MergedStyleCache = setmetatable( {}, {
+		__mode = "k",
+		__index = function( self, Key )
+			local CacheForSkin = setmetatable( {}, ElementStyleCacheMeta )
+			self[ Key ] = CacheForSkin
+			return CacheForSkin
+		end
+	} )
+
+	local function GetMergedStyles( Skin, ElementClass, Styles, StyleNames )
+		local CacheForSkin = MergedStyleCache[ Skin ]
+		local CacheForElement = CacheForSkin[ ElementClass ]
+
+		-- Note that the ordering of the style names can change the resulting style, hence the cache key uses the given
+		-- order rather than some deterministic sorting.
+		local CacheKey = TableConcat( StyleNames, "+" )
+		local MergedStyle = CacheForElement[ CacheKey ]
+
+		if not MergedStyle then
+			MergedStyle = MergeStyles( Styles, StyleNames )
+			CacheForElement[ CacheKey ] = MergedStyle
+		end
+
+		return MergedStyle
+	end
+
+	function SkinManager:GetStyleForElement( Element )
+		local Skin = Element:GetSkin() or self.Skin
+		if not Skin then return nil end
+
+		Skin = self:GetCompiledSkin( Skin )
+
+		local Styles = Skin[ Element.Class ]
+		if not Styles then return nil end
+
+		local StyleName = Element:GetStyleName() or "Default"
+		if IsType( StyleName, "table" ) then
+			return GetMergedStyles( Skin, Element.Class, Styles, StyleName )
+		end
+
+		return Styles[ StyleName ] or Styles.Default
+	end
 end
 
 -- These are properties that should be applied only as defaults. They may be changed
