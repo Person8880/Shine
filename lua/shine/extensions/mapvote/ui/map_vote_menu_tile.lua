@@ -413,6 +413,7 @@ function MapTile:ShowOverviewImage()
 								Class = "Image",
 								Props = {
 									IsVisible = false,
+									AlphaMultiplier = 0,
 									Colour = Colour( 1, 1, 1, 1 ),
 									Texture = self.OverviewTexture,
 									Alignment = SGUI.LayoutAlignment.CENTRE,
