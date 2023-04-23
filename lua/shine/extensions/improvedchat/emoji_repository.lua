@@ -39,6 +39,7 @@ local ImageElement = require "shine/lib/gui/richtext/elements/image"
 
 local IsType = Shine.IsType
 local StringFormat = string.format
+local StringGSub = string.gsub
 local StringLower = string.lower
 local StringMatch = string.match
 local StringStartsWith = string.StartsWith
@@ -89,7 +90,7 @@ do
 	) )
 
 	local function AddEmoji( Name, Entry )
-		Name = StringLower( Name )
+		Name = StringGSub( StringLower( Name ), "[^%w]", "_" )
 
 		EmojiByName[ Name ] = Entry
 		Entry.Name = Name
