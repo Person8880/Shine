@@ -779,7 +779,7 @@ function Plugin:CreateChatbox()
 		end
 	end
 
-	local function UpdateEmojiAutoComplete( NewText )
+	local function UpdateEmojiAutoComplete( _, NewText )
 		if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
 
 		local Emoji = StringMatch( NewText, EmojiAutoCompletePattern )
@@ -800,9 +800,10 @@ function Plugin:CreateChatbox()
 		self.EmojiAutoComplete:SetSelectedEmojiName( nil )
 	end
 
-	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
-		UpdateEmojiAutoComplete( NewText )
+	-- Watch all text changes for emoji auto-complete to ensure it's hidden if the text is wiped.
+	TextEntry:AddPropertyChangeListener( "Text", UpdateEmojiAutoComplete )
 
+	function TextEntry.OnTextChanged( TextEntry, OldText, NewText )
 		self:AutoCompleteCommand( NewText )
 	end
 
