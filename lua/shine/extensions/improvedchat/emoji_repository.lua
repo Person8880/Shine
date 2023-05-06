@@ -37,21 +37,28 @@
 
 local ImageElement = require "shine/lib/gui/richtext/elements/image"
 
+local Floor = math.floor
 local IsType = Shine.IsType
+local Min = math.min
 local StringFormat = string.format
 local StringGSub = string.gsub
 local StringLower = string.lower
 local StringMatch = string.match
-local StringStartsWith = string.StartsWith
+local StringSub = string.sub
+local TableEmpty = table.Empty
+local TableSort = table.sort
 local type = type
 
 local EmojiRepository = {
 	Logger = Shine.Objects.Logger( Shine.Objects.Logger.LogLevel.INFO, Shared.Message )
 }
 local EmojiByName = {}
-local SortedEmojiNames = {}
+local EmojiIndex = Shine.Multimap()
 
 do
+	local StringExplode = string.Explode
+	local TableConcat = table.concat
+
 	local Files = {}
 	Shared.GetMatchingFileNames( "ui/shine/emoji/*.json", false, Files )
 
@@ -89,16 +96,35 @@ do
 		)
 	) )
 
+	local function AddEmojiToIndex( Name )
+		local Segments = StringExplode( Name, "_", true )
+		local NumSegments = #Segments
+
+		for i = 1, NumSegments do
+			for j = i, NumSegments do
+				local Key = TableConcat( Segments, "_", i, j )
+				if not EmojiIndex:HasKeyValue( Key, Name ) then
+					local StartIndex = 1
+					for k = 1, i - 1 do
+						StartIndex = StartIndex + #Segments[ k ]
+					end
+					-- Add extra characters for each '_' separator.
+					StartIndex = StartIndex + i - 1
+
+					-- Store this emoji under the given segment key, tracking where in the full name the segment starts.
+					EmojiIndex:AddPair( Key, Name, StartIndex )
+				end
+			end
+		end
+	end
+
 	local function AddEmoji( Name, Entry )
 		Name = StringGSub( StringLower( Name ), "[^%w]", "_" )
 
 		EmojiByName[ Name ] = Entry
 		Entry.Name = Name
 
-		if not SortedEmojiNames[ Name ] then
-			SortedEmojiNames[ Name ] = true
-			SortedEmojiNames[ #SortedEmojiNames + 1 ] = Name
-		end
+		AddEmojiToIndex( Name )
 	end
 
 	local SupportedFileExtensions = {
@@ -141,25 +167,84 @@ do
 		end
 	end
 
-	table.sort( SortedEmojiNames )
+	EmojiIndex:SortKeys()
+end
+
+local Results = {}
+local function SortEmoji( A, B )
+	local LeftStartIndex = Results[ A ]
+	local RightStartIndex = Results[ B ]
+
+	-- Prefer matches that occur earlier in the emoji name.
+	if LeftStartIndex ~= RightStartIndex then
+		return LeftStartIndex < RightStartIndex
+	end
+
+	-- If both match at the same index, prefer smaller emoji names as more of the name is matched.
+	return A < B
 end
 
 function EmojiRepository.FindMatchingEmoji( EmojiName )
-	local Count = 0
-	local Results = {}
+	local PrefixLength = #EmojiName
+	local Keys = EmojiIndex.Keys
+	local NumKeys = #Keys
 
-	local Found = false
-	for i = 1, #SortedEmojiNames do
-		if StringStartsWith( SortedEmojiNames[ i ], EmojiName ) then
-			Found = true
-			Count = Count + 1
-			Results[ Count ] = EmojiByName[ SortedEmojiNames[ i ] ]
-		elseif Found then
-			break
+	-- First do a binary search to find the earliest key that starts with the given search term.
+	local Start, Mid, End = 1, 0, NumKeys
+	while Start <= End do
+		Mid = Floor( ( Start + End ) * 0.5 )
+
+		local Key = Keys[ Mid ]
+		local KeyPrefix = StringSub( Key, 1, PrefixLength )
+		if KeyPrefix < EmojiName then
+			Start = Mid + 1
+		else
+			if KeyPrefix == EmojiName then
+				-- Check the key right behind this one, if it's not a match, stop here.
+				local Previous = Keys[ Mid - 1 ]
+				if not Previous or StringSub( Previous, 1, PrefixLength ) ~= EmojiName then
+					break
+				end
+			end
+
+			End = Mid - 1
 		end
 	end
 
-	return Results
+	-- Next, iterate starting at the first key that starts with the given search term, and collect all emoji until the
+	-- indexed key no longer matches.
+	TableEmpty( Results )
+	local Count = 0
+	for i = Mid, NumKeys do
+		local Key = Keys[ i ]
+		local KeyPrefix = StringSub( Key, 1, PrefixLength )
+		if KeyPrefix ~= EmojiName then
+			break
+		end
+
+		local EmojiForKey = EmojiIndex:GetPairs( Key )
+		for Emoji, StartIndex in EmojiForKey:Iterate() do
+			if not Results[ Emoji ] then
+				Count = Count + 1
+				Results[ Count ] = Emoji
+				Results[ Emoji ] = StartIndex
+			else
+				Results[ Emoji ] = Min( StartIndex, Results[ Emoji ] )
+			end
+		end
+	end
+
+	-- Finally, sort the results to favour closer matches, and return the emoji data for each name.
+	TableSort( Results, SortEmoji )
+
+	local Output = {}
+	for i = 1, Count do
+		Output[ i ] = EmojiByName[ Results[ i ] ]
+	end
+
+	TableEmpty( Results )
+
+	return Output
 end
 
 function EmojiRepository.MakeEmojiElement( EmojiName )

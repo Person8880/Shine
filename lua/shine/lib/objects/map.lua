@@ -67,13 +67,17 @@ function Map:AsTable()
 end
 
 function Map:SortKeys( Comparator )
-	Shine.TypeCheck( Comparator, "function", 1, "SortKeys" )
-	TableSort( self.Keys, Comparator )
+	if Comparator ~= nil then
+		Shine.TypeCheck( Comparator, "function", 1, "SortKeys" )
+	end
+	return TableSort( self.Keys, Comparator )
 end
 
 function Map:StableSortKeys( Comparator )
-	Shine.TypeCheck( Comparator, "function", 1, "StableSortKeys" )
-	TableMergeSort( self.Keys, Comparator )
+	if Comparator ~= nil then
+		Shine.TypeCheck( Comparator, "function", 1, "StableSortKeys" )
+	end
+	return TableMergeSort( self.Keys, Comparator )
 end
 
 --[[
@@ -173,7 +177,7 @@ end
 	Returns true if the map has elements behind the current position.
 ]]
 function Map:HasPrevious()
-	return self.Position > 1 and self.NumMembers > 0
+	return self.Keys[ self.Position - 1 ] ~= nil
 end
 
 --[[
@@ -182,14 +186,10 @@ end
 ]]
 function Map:GetNext()
 	local InFront = self.Position + 1
-	if InFront > self.NumMembers then
-		return nil
-	end
 
 	self.Position = InFront
 
 	local Key = self.Keys[ InFront ]
-
 	return Key, self.MemberLookup[ Key ]
 end
 
@@ -199,12 +199,7 @@ end
 ]]
 function Map:PeekForward()
 	local InFront = self.Position + 1
-	if InFront > self.NumMembers then
-		return nil
-	end
-
 	local Key = self.Keys[ InFront ]
-
 	return Key, self.MemberLookup[ Key ]
 end
 
@@ -214,14 +209,10 @@ end
 ]]
 function Map:GetPrevious()
 	local Behind = self.Position - 1
-	if Behind <= 0 then
-		return nil
-	end
 
 	self.Position = Behind
 
 	local Key = self.Keys[ Behind ]
-
 	return Key, self.MemberLookup[ Key ]
 end
 
@@ -231,12 +222,7 @@ end
 ]]
 function Map:PeekBackwards()
 	local Behind = self.Position - 1
-	if Behind <= 0 then
-		return nil
-	end
-
 	local Key = self.Keys[ Behind ]
-
 	return Key, self.MemberLookup[ Key ]
 end
 
@@ -253,7 +239,7 @@ end
 	Input: New iteration position to jump to.
 ]]
 function Map:SetPosition( Position )
-	self.Position = Clamp( Position, 1, #self.Keys )
+	self.Position = Clamp( Position, 1, self.NumMembers )
 end
 
 do
@@ -283,10 +269,22 @@ do
 	end
 end
 
+function Map:__eq( OtherMap )
+	if self:GetCount() ~= OtherMap:GetCount() then return false end
+
+	for Key, Value in self:Iterate() do
+		if OtherMap:Get( Key ) ~= Value then
+			return false
+		end
+	end
+
+	return true
+end
+
 --[[
 	An unordered variant of Map that does not retain insertion order, but has constant time element removal.
 ]]
-local UnorderedMap = Shine.TypeDef( Map )
+local UnorderedMap = Shine.TypeDef( Map, { InheritMetaMethods = true } )
 Shine.UnorderedMap = UnorderedMap
 
 function UnorderedMap:Init( InitialValues )
@@ -404,21 +402,28 @@ function Multimap:GetKeyCount()
 end
 
 --[[
-	Adds a new value under the given key if the given key-value pair has not
-	been mapped already.
+	Adds a pair of values under the given key. The combination of the key and first value determine the uniquness of
+	the entry, the second value will be overwritten.
 ]]
-function Multimap:Add( Key, Value )
+function Multimap:AddPair( Key, Value1, Value2 )
 	local Entry = Map.Get( self, Key )
 	if not Entry then
 		Entry = Map()
 		Map.Add( self, Key, Entry )
 
 		self.Count = self.Count + 1
-	elseif Entry:Get( Value ) == nil then
+	elseif Entry:Get( Value1 ) == nil then
 		self.Count = self.Count + 1
 	end
 
-	Entry:Add( Value, Value )
+	return Entry:Add( Value1, Value2 )
+end
+
+--[[
+	Adds a new value under the given key if the given key-value pair has not been mapped already.
+]]
+function Multimap:Add( Key, Value )
+	return self:AddPair( Key, Value, Value )
 end
 
 --[[
@@ -434,8 +439,11 @@ end
 	Copies all values from the given multimap into this one.
 ]]
 function Multimap:CopyFrom( OtherMultimap )
-	for Key, Values in OtherMultimap:Iterate() do
-		self:AddAll( Key, Values )
+	-- Iterate the underlying map values, not just the keys.
+	for Key, PairsMap in OtherMultimap:IteratePairs() do
+		for Value1, Value2 in PairsMap:Iterate() do
+			self:AddPair( Key, Value1, Value2 )
+		end
 	end
 end
 
@@ -460,8 +468,7 @@ function Multimap:RemoveKeyValue( Key, Value )
 end
 
 --[[
-	Returns a table with all values for the given key. Avoid modifying this table,
-	or you will disrupt the multimap.
+	Returns a table with all values for the given key. Avoid modifying this table, or you will disrupt the multimap.
 ]]
 function Multimap:Get( Key )
 	local Entry = Map.Get( self, Key )
@@ -471,19 +478,32 @@ function Multimap:Get( Key )
 end
 
 --[[
-	Returns true if the given key-value is stored, false otherwise.
+	Returns a map of all pairs stored under the given key. Avoid modifying this map.
 ]]
-function Multimap:HasKeyValue( Key, Value )
-	local Entry = Map.Get( self, Key )
-	if not Entry then return false end
-
-	return Entry:Get( Value ) ~= nil
+function Multimap:GetPairs( Key )
+	return Map.Get( self, Key )
 end
 
 --[[
-	Returns a table copy of the multimap as a standard Lua table of keys and
-	table of values. Note that each table is directly linked to the multimap, so
-	should not be edited.
+	Returns true if the given key-value is stored, false otherwise.
+]]
+function Multimap:HasKeyValue( Key, Value )
+	return self:GetPairValue( Key, Value ) ~= nil
+end
+
+--[[
+	Returns the second value associated with the given key-value, or nil if no such value is stored.
+]]
+function Multimap:GetPairValue( Key, Value )
+	local Entry = Map.Get( self, Key )
+	if not Entry then return nil end
+	return Entry:Get( Value )
+end
+
+--[[
+	Returns a table copy of the multimap as a standard Lua table of keys and table of values.
+
+	Note that each table is directly linked to the multimap, so	should not be edited.
 ]]
 function Multimap:AsTable()
 	local Table = {}
@@ -494,8 +514,8 @@ function Multimap:AsTable()
 end
 
 --[[
-	Modify GetNext() and GetPrevious() to return the table of values under the key
-	as the value, rather than the internal map holding them.
+	Modify GetNext() and GetPrevious() to return the table of values under the key as the value, rather than the
+	internal map holding them.
 ]]
 function Multimap:GetNext()
 	local Key, Values = Map.GetNext( self )
@@ -523,9 +543,13 @@ do
 
 	function Multimap:Iterate()
 		self.Position = 0
+		self.IterationDir = 1
 
 		return GetNext, self
 	end
+
+	-- Expose the original map iterator to iterate over pairs of values instead of lists.
+	Multimap.IteratePairs = Map.Iterate
 end
 
 do
@@ -533,15 +557,31 @@ do
 
 	function Multimap:IterateBackwards()
 		self.Position = self.NumMembers + 1
+		self.IterationDir = -1
 
 		return GetPrevious, self
 	end
+
+	Multimap.IteratePairsBackwards = Map.IterateBackwards
+end
+
+function Multimap:__eq( OtherMultimap )
+	if self:GetCount() ~= OtherMultimap:GetCount() then return false end
+
+	-- Check all value pairs, not just that the same key-values are stored.
+	for Key, PairsMap in self:IteratePairs() do
+		if OtherMultimap:GetPairs( Key ) ~= PairsMap then
+			return false
+		end
+	end
+
+	return true
 end
 
 --[[
 	An unordered variant of Multimap that does not retain insertion order, but has constant time element removal.
 ]]
-local UnorderedMultimap = Shine.TypeDef( Multimap )
+local UnorderedMultimap = Shine.TypeDef( Multimap, { InheritMetaMethods = true } )
 Shine.UnorderedMultimap = UnorderedMultimap
 
 function UnorderedMultimap:Init( Values )
@@ -557,18 +597,18 @@ function UnorderedMultimap:Clear()
 	self.Count = 0
 end
 
-function UnorderedMultimap:Add( Key, Value )
+function UnorderedMultimap:AddPair( Key, Value1, Value2 )
 	local Entry = Map.Get( self, Key )
 	if not Entry then
 		Entry = UnorderedMap()
 		UnorderedMap.Add( self, Key, Entry )
 
 		self.Count = self.Count + 1
-	elseif Entry:Get( Value ) == nil then
+	elseif Entry:Get( Value1 ) == nil then
 		self.Count = self.Count + 1
 	end
 
-	Entry:Add( Value, Value )
+	return Entry:Add( Value1, Value2 )
 end
 
 function UnorderedMultimap:RemoveKeyValue( Key, Value )

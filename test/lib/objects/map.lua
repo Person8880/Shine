@@ -282,28 +282,55 @@ local function RunMapTests( TypeName, MapType )
 			A = 1, B = 2, C = 3
 		}, Map:AsTable() )
 	end )
+
+	UnitTest:Test( TypeName.." - __eq", function( Assert )
+		local Map1 = MapType()
+		Map1:Add( "test 1", 1 )
+		Map1:Add( "test 2", 2 )
+		Map1:Add( "test 3", 3 )
+
+		local Map2 = MapType()
+		Map2:Add( "test 1", 1 )
+		Map2:Add( "test 2", 2 )
+		Map2:Add( "test 3", 3 )
+
+		Assert.Equals( "Maps with the same key-values should be considered equal", Map1, Map2 )
+
+		Map2:Add( "test 2", 4 )
+		Assert.NotEquals( "Maps with different values under the same key should not be considered equal", Map1, Map2 )
+
+		Map2:Remove( "test 2" )
+		Assert.NotEquals( "Maps with different numbers of keys should not be considered equal", Map1, Map2 )
+	end )
 end
 RunMapTests( "Map", Shine.Map )
 RunMapTests( "UnorderedMap", Shine.UnorderedMap )
 
-local function RunMultimapTests( TypeName, MultimapType )
-	UnitTest:Test( TypeName.." - Multimap:Add()/Get()/GetCount()", function( Assert )
+local function RunMultimapTests( TypeName, MultimapType, MapType )
+	UnitTest:Test( TypeName.." - Multimap:Add()/AddPair()/Get()/GetPairValue()/GetPairs()/GetCount()", function( Assert )
 		local Map = MultimapType()
 
 		Map:Add( 1, 1 )
 		Map:Add( 1, 2 )
-		Map:Add( 1, 3 )
+		Map:AddPair( 1, 3, 4 )
 		Map:Add( 2, 1 )
 		Map:Add( 3, 1 )
-		Map:Add( 3, 2 )
+		Map:AddPair( 3, 2, "test" )
 
 		Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+		Assert:Equals( MapType{ 1, 2, 4 }, Map:GetPairs( 1 ) )
+
 		Assert:ArrayEquals( { 1 }, Map:Get( 2 ) )
+		Assert:Equals( MapType{ 1 }, Map:GetPairs( 2 ) )
+
 		Assert:ArrayEquals( { 1, 2 }, Map:Get( 3 ) )
+		Assert:Equals( MapType{ 1, "test" }, Map:GetPairs( 3 ) )
 
 		for i = 1, 3 do
 			Assert.True( "Should have expected key-values", Map:HasKeyValue( 1, i ) )
 		end
+
+		Assert.Equals( "Should retrieve the paired value for a key", 4, Map:GetPairValue( 1, 3 ) )
 
 		Assert.True( "Should have expected key-values", Map:HasKeyValue( 2, 1 ) )
 
@@ -311,7 +338,13 @@ local function RunMultimapTests( TypeName, MultimapType )
 			Assert.True( "Should have expected key-values", Map:HasKeyValue( 3, i ) )
 		end
 
+		Assert.Equals( "Should retrieve the paired value for a key", "test", Map:GetPairValue( 3, 2 ) )
+
 		Assert.False( "Should return false for a key-value that is not in the multimap", Map:HasKeyValue( 4, 1 ) )
+		Assert.Nil(
+			"Should return a nil pair value for a key-value that is not in the multimap",
+			Map:GetPairValue( 4, 1 )
+		)
 
 		Assert:Equals( 6, Map:GetCount() )
 		Assert:Equals( 3, Map:GetKeyCount() )
@@ -321,19 +354,23 @@ local function RunMultimapTests( TypeName, MultimapType )
 		local Map = MultimapType()
 		Map:Add( 1, 1 )
 		Map:Add( 1, 2 )
-		Map:Add( 1, 3 )
+		Map:AddPair( 1, 3, true )
 
 		Assert:ArrayEquals( { 1, 2, 3 }, Map:Get( 1 ) )
+		Assert:Equals( MapType{ 1, 2, true }, Map:GetPairs( 1 ) )
 		Assert:Equals( 3, Map:GetCount() )
 		Assert:Equals( 1, Map:GetKeyCount() )
 
 		Map:RemoveKeyValue( 1, 1 )
 		Assert:ArrayEquals( TypeName == "Multimap" and { 2, 3 } or { 3, 2 }, Map:Get( 1 ) )
+		Assert:Equals( MapType{ nil, 2, true }, Map:GetPairs( 1 ) )
 		Assert:Equals( 2, Map:GetCount() )
 		Assert:Equals( 1, Map:GetKeyCount() )
 
 		Map:RemoveKeyValue( 1, 2 )
 		Map:RemoveKeyValue( 1, 3 )
+		Assert:Nil( Map:Get( 1 ) )
+		Assert:Nil( Map:GetPairs( 1 ) )
 		Assert:Equals( 0, Map:GetCount() )
 		Assert:Equals( 0, Map:GetKeyCount() )
 	end )
@@ -349,7 +386,9 @@ local function RunMultimapTests( TypeName, MultimapType )
 		Map:Clear()
 
 		Assert:Nil( Map:Get( 0 ) )
+		Assert:Nil( Map:GetPairs( 0 ) )
 		Assert:Nil( Map:Get( 1 ) )
+		Assert:Nil( Map:GetPairs( 1 ) )
 
 		Assert.True( "Map was not empty after clearing", Map:IsEmpty() )
 		Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
@@ -371,10 +410,11 @@ local function RunMultimapTests( TypeName, MultimapType )
 		local Map = MultimapType()
 		Map:Add( 1, 1 )
 		Map:Add( 1, 2 )
-		Map:Add( 1, 3 )
+		Map:AddPair( 1, 3, true )
 
 		local Map2 = MultimapType( Map )
 		Assert:ArrayEquals( { 1, 2, 3 }, Map2:Get( 1 ) )
+		Assert:Equals( MapType{ 1, 2, true }, Map2:GetPairs( 1 ) )
 		Assert:Equals( 3, Map2:GetCount() )
 	end )
 
@@ -407,6 +447,35 @@ local function RunMultimapTests( TypeName, MultimapType )
 		end
 	end )
 
+	UnitTest:Test( TypeName.." - Multimap:IteratePairs()/IteratePairsBackwards()", function( Assert )
+		local Map = MultimapType()
+		Map:AddPair( 1, 1, "test 1" )
+		Map:AddPair( 1, 2, "test 2" )
+		Map:AddPair( 1, 3, "test 3" )
+		Map:AddPair( 2, 1, "test 4" )
+		Map:AddPair( 2, 2, "test 5" )
+		Map:AddPair( 3, 1, "test 6" )
+
+		local ExpectedValues = {
+			MapType{ "test 1", "test 2", "test 3" },
+			MapType{ "test 4", "test 5" },
+			MapType{ "test 6" }
+		}
+
+		local Index = 0
+		for Key, Values in Map:IteratePairs() do
+			Index = Index + 1
+			Assert:Equals( Index, Key )
+			Assert:Equals( ExpectedValues[ Key ], Values )
+		end
+
+		for Key, Values in Map:IteratePairsBackwards() do
+			Assert:Equals( Index, Key )
+			Assert:Equals( ExpectedValues[ Key ], Values )
+			Index = Index - 1
+		end
+	end )
+
 	UnitTest:Test( TypeName.." - Multimap:AddAll()", function( Assert )
 		local Map = MultimapType()
 		Map:AddAll( "A", { 1, 2, 3, 4 } )
@@ -434,6 +503,38 @@ local function RunMultimapTests( TypeName, MultimapType )
 			C = { 7, 8, 9 }
 		}, Map1:AsTable() )
 	end )
+
+	UnitTest:Test( TypeName.." - __eq", function( Assert )
+		local Map1 = MultimapType()
+		Map1:Add( "test 1", 1 )
+		Map1:Add( "test 1", 2 )
+		Map1:AddPair( "test 2", 3, "test" )
+
+		local Map2 = MultimapType()
+		Map2:Add( "test 1", 1 )
+		Map2:Add( "test 1", 2 )
+		Map2:AddPair( "test 2", 3, "test" )
+
+		Assert.Equals( "Multimaps with the same key-values should be considered equal", Map1, Map2 )
+
+		Map2:AddPair( "test 2", 3, "something else" )
+		Assert.NotEquals(
+			"Multimaps with different paired values under the same key-value should not be considered equal",
+			Map1,
+			Map2
+		)
+
+		Map2:Remove( "test 2" )
+		Assert.NotEquals( "Maps with different numbers of keys should not be considered equal", Map1, Map2 )
+
+		Map2:AddPair( "test 2", 3, "test" )
+		Map2:AddPair( "test 2", 4, "test 2" )
+		Assert.NotEquals(
+			"Maps with different numbers of value pairs under a key should not be considered equal",
+			Map1,
+			Map2
+		)
+	end )
 end
-RunMultimapTests( "Multimap", Shine.Multimap )
-RunMultimapTests( "UnorderedMultimap", Shine.UnorderedMultimap )
+RunMultimapTests( "Multimap", Shine.Multimap, Shine.Map )
+RunMultimapTests( "UnorderedMultimap", Shine.UnorderedMultimap, Shine.UnorderedMap )
