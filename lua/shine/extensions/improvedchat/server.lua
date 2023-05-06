@@ -42,6 +42,15 @@ Plugin.IsBeta = true
 Plugin.BetaDescription = "Enables rich text messages and more customisation for the chat"
 Plugin.DefaultState = true
 
+Plugin.ConfigMigrationSteps = {
+	{
+		VersionTo = "1.1",
+		Apply = function( Config )
+			Config.ParseEmojiInChat = true
+		end
+	}
+}
+
 local DEFAULT_GROUP_KEY = setmetatable( {}, {
 	__tostring = function() return "the default group" end
 } )
