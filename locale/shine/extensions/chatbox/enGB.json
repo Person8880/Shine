@@ -17,5 +17,7 @@
 	"SETTINGS_TOOLTIP": "Opens/closes the chatbox settings.",
 	"SETTINGS_TAB_LABEL": "Chatbox",
 	"CLIENT_PLUGIN_NAME": "Chatbox",
-	"CLIENT_PLUGIN_DESCRIPTION": "Provides a chatbox with auto-completion and chat history that replaces the default chat input."
+	"CLIENT_PLUGIN_DESCRIPTION": "Provides a chatbox with auto-completion and chat history that replaces the default chat input.",
+	"EMOJI_PICKER_TOOLTIP": "Opens the emoji picker.",
+	"EMOJI_SEARCH_PLACEHOLDER_TEXT": "Search for emoji..."
 }

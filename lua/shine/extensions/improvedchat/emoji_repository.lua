@@ -93,6 +93,16 @@ do
 					Validator.AllValuesSatisfy( Validator.IsType( "number", 0 ) )
 				)
 			)
+		),
+		Validator.IfFieldPresent( "Folder",
+			Validator.ValidateField(
+				"Exclude", Validator.IsAnyType( { "table", "nil" }, DeleteIfFieldInvalid )
+			),
+			Validator.ValidateField(
+				"Exclude", Validator.IfType( "table",
+					Validator.AllValuesSatisfy( Validator.IsType( "string" ) )
+				)
+			)
 		)
 	) )
 
@@ -121,6 +131,15 @@ do
 	local function AddEmoji( Name, Entry )
 		Name = StringGSub( StringLower( Name ), "[^%w]", "_" )
 
+		if EmojiByName[ Name ] then
+			EmojiRepository.Logger:Warn(
+				"Emoji '%s' was defined more than once! Only the first definition will be used.",
+				Name
+			)
+			return
+		end
+
+		EmojiByName[ #EmojiByName + 1 ] = Entry
 		EmojiByName[ Name ] = Entry
 		Entry.Name = Name
 
@@ -143,14 +162,30 @@ do
 			elseif Entry.Folder then
 				local Textures = {}
 				Shared.GetMatchingFileNames( Entry.Folder, true, Textures )
+
+				local Exclusions
+				if Entry.Exclude then
+					Exclusions = {}
+
+					for i = 1, #Entry.Exclude do
+						local ExcludedFiles = {}
+						Shared.GetMatchingFileNames( Entry.Exclude[ i ], true, ExcludedFiles )
+						for j = 1, #ExcludedFiles do
+							Exclusions[ ExcludedFiles[ j ] ] = true
+						end
+					end
+				end
+
 				for j = 1, #Textures do
 					local Texture = Textures[ j ]
-					local FileName, FileExtension = StringMatch( Texture, "([^/%.]+)%.(%w+)$" )
-					if FileName and SupportedFileExtensions[ FileExtension ] then
-						AddEmoji( FileName, {
-							Name = FileName,
-							Texture = Texture
-						} )
+					if not ( Exclusions and Exclusions[ Texture ] ) then
+						local FileName, FileExtension = StringMatch( Texture, "([^/%.]+)%.(%w+)$" )
+						if FileName and SupportedFileExtensions[ FileExtension ] then
+							AddEmoji( FileName, {
+								Name = FileName,
+								Texture = Texture
+							} )
+						end
 					end
 				end
 			end
@@ -245,6 +280,10 @@ function EmojiRepository.FindMatchingEmoji( EmojiName )
 	TableEmpty( Results )
 
 	return Output
+end
+
+function EmojiRepository.GetAllEmoji()
+	return EmojiByName
 end
 
 function EmojiRepository.MakeEmojiElement( EmojiName )

@@ -804,6 +804,15 @@ function TextEntry:AddCharacter( Char, SkipUndo )
 	return true
 end
 
+function TextEntry:InsertTextAtCaret( Text )
+	self:PushUndoState()
+
+	local Chars = StringUTF8Encode( Text )
+	for i = 1, #Chars do
+		if not self:AddCharacter( Chars[ i ], true ) then break end
+	end
+end
+
 function TextEntry:RemoveWord( Forward )
 	self:QueueUndo()
 
@@ -1215,12 +1224,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		end
 
 		if Down and Key == InputKey.V then
-			self:PushUndoState()
-			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
-			for i = 1, #Chars do
-				if not self:AddCharacter( Chars[ i ], true ) then break end
-			end
-
+			self:InsertTextAtCaret( SGUI.GetClipboardText() )
 			return true
 		end
 

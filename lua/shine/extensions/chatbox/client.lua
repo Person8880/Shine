@@ -246,6 +246,11 @@ local Skin = {
 			}
 		}
 	},
+	EmojiPicker = {
+		Default = {
+			Colour = SGUI.ColourWithAlpha( Colours.Highlight, 1 )
+		}
+	},
 	Panel = {
 		Default = {
 			Colour = Colours.Background,
@@ -339,6 +344,8 @@ function Plugin:OnFirstThink()
 	TableShallowMerge( DefaultSkin, Skin )
 	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
 	TableShallowMerge( DefaultSkin.Button, Skin.Button )
+
+	Skin.TextEntry.EmojiPickerSearch = DefaultSkin.TextEntry.Default
 
 	TableShallowMerge( DefaultSkin.CheckBox, Skin.CheckBox )
 	TableShallowMerge( DefaultSkin.CheckBox.Default, Skin.CheckBox.Default )
@@ -465,6 +472,7 @@ function Plugin:RefreshFontScale( Font, Scale )
 end
 
 local EmojiAutoComplete = require "shine/extensions/chatbox/ui/emoji_autocomplete"
+local EmojiPicker = require "shine/extensions/chatbox/ui/emoji_picker"
 
 --[[
 	Creates the chatbox UI elements.
@@ -810,6 +818,90 @@ function Plugin:CreateChatbox()
 	self:SetupAutoComplete( TextEntry )
 
 	self.TextEntry = TextEntry
+
+	do
+		local EmojiButton = SGUI:Create( "Button", Border )
+		EmojiButton:SetupFromTable{
+			DebugName = "ChatBoxEmojiButton",
+			Text = SGUI.Icons.Ionicons.HappyOutline,
+			Skin = Skin,
+			Font = IconFont,
+			AutoSize = UnitVector(
+				TextEntryRowHeight,
+				Percentage.ONE_HUNDRED
+			),
+			Margin = Spacing( PaddingUnit, 0, 0, 0 ),
+			TextInheritsParentAlpha = false,
+			Tooltip = self:GetPhrase( "EMOJI_PICKER_TOOLTIP" ),
+			IsVisible = false
+		}
+		EmojiButton:SetTextScale( IconScale )
+		TextEntryLayout:AddElement( EmojiButton )
+
+		self.EmojiButton = EmojiButton
+
+		local function OnEmojiPicked( Picker, EmojiName )
+			if not EmojiName then return end
+
+			self.TextEntry:InsertTextAtCaret( StringFormat( ":%s:", EmojiName ) )
+		end
+
+		local function OnPickerRemoved()
+			if not SGUI.IsValid( EmojiButton ) then return end
+
+			EmojiButton:RemoveStylingState( "Open" )
+		end
+
+		function EmojiButton.DoClick()
+			if SGUI.IsValid( self.EmojiPicker ) then return end
+
+			local EmojiList = Hook.Call( "OnChatBoxEmojiPickerOpen", self )
+			if not IsType( EmojiList, "table" ) or #EmojiList == 0 then return end
+
+			EmojiButton:AddStylingState( "Open" )
+
+			local Picker = SGUI:Create( EmojiPicker )
+			Picker:SetPadding( Spacing.Uniform( Units.GUIScaled( 4 ) ) )
+
+			local PickerSize = Vector2(
+				Units.GUIScaled( 8 + 48 * 6 ):GetValue(),
+				Units.GUIScaled( 8 + 48 * 6 + 4 + 32 ):GetValue()
+			)
+			Picker:SetSize( PickerSize )
+
+			local ScreenWidth, ScreenHeight = SGUI.GetScreenSize()
+			local Pos = EmojiButton:GetScreenPos() + Vector2( EmojiButton:GetSize().x, 0 )
+			if Pos.x + PickerSize.x > ScreenWidth then
+				Pos.x = ScreenWidth - PickerSize.x
+			end
+			if Pos.y + PickerSize.y > ScreenHeight then
+				Pos.y = ScreenHeight - PickerSize.y
+			end
+			Picker:SetPos( Pos )
+			Picker:SetSkin( Skin )
+			Picker:InvalidateLayout( true )
+			Picker:SetSearchPlaceholderText( self:GetPhrase( "EMOJI_SEARCH_PLACEHOLDER_TEXT" ) )
+			Picker:SetEmojiList( EmojiList )
+			Picker.Elements.SearchInput:RequestFocus()
+			Picker:CallOnRemove( OnPickerRemoved )
+			Picker:ApplyTransition( {
+				Type = "Move",
+				StartValue = Pos - Vector2( EmojiButton:GetSize().x, 0 ),
+				EndValue = Pos,
+				Duration = 0.15
+			} )
+			Picker:ApplyTransition( {
+				Type = "AlphaMultiplier",
+				StartValue = 0,
+				EndValue = 1,
+				Duration = 0.15
+			} )
+
+			Picker.OnEmojiSelected = OnEmojiPicked
+
+			self.EmojiPicker = Picker
+		end
+	end
 
 	local SettingsButton = SGUI:Create( "Button", Border )
 	SettingsButton:SetupFromTable{
@@ -2107,6 +2199,7 @@ do
 		self.TextEntryIcon:SetStylingState( StyleState or "AllChat" )
 
 		self.TextEntry:SetPlaceholderText( self.TeamChat and self:GetPhrase( "SAY_TEAM" ) or self:GetPhrase( "SAY_ALL" ) )
+		self.EmojiButton:SetIsVisible( Hook.Call( "IsChatEmojiAvailable" ) == true )
 
 		SGUI:EnableMouse( true )
 

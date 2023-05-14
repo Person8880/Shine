@@ -1023,7 +1023,7 @@ end
 ]]
 function ControlMeta:SetSize( SizeVec )
 	local OldSize = self.Background:GetSize()
-	if OldSize == SizeVec then return end
+	if OldSize == SizeVec then return false end
 
 	self.Size = SizeVec
 
@@ -1035,6 +1035,8 @@ function ControlMeta:SetSize( SizeVec )
 	if self.Parent and self.Parent:GetCroppingBounds() and not self._CallEventsManually then
 		self:InvalidateCroppingState()
 	end
+
+	return true
 end
 
 --[[

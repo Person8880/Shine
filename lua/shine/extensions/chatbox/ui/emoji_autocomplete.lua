@@ -2,6 +2,8 @@
 	Provides auto-completion of emoji.
 ]]
 
+local EmojiUtil = require "shine/extensions/chatbox/ui/emoji_util"
+
 local assert = assert
 local StringFormat = string.format
 
@@ -29,16 +31,7 @@ function EmojiAutoCompleteEntry:SetEmoji( EmojiDefinition )
 		self.Layout:InsertElement( Image, 1 )
 	end
 
-	local Texture = assert( EmojiDefinition.Texture, StringFormat( "No texture provided for emoji: %s", EmojiName ) )
-	Image:SetTexture( Texture )
-
-	if EmojiDefinition.TextureCoordinates then
-		Image:SetTextureCoordinates( unpack( EmojiDefinition.TextureCoordinates, 1, 4 ) )
-	elseif EmojiDefinition.TexturePixelCoordinates then
-		Image:SetTexturePixelCoordinates( unpack( EmojiDefinition.TexturePixelCoordinates, 1, 4 ) )
-	else
-		Image:SetTextureCoordinates( 0, 0, 1, 1 )
-	end
+	EmojiUtil.ApplyEmojiToImage( Image, EmojiDefinition )
 
 	self.EmojiName = EmojiName
 end

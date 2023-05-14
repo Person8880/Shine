@@ -145,16 +145,17 @@ function Scrollbar:UpdateScrollBarSize()
 	self.Bar:SetSize( self.ScrollSizeVec )
 end
 
-function Scrollbar:SetScrollSize( Size )
+function Scrollbar:SetScrollSize( Size, ForceUpdate )
 	local OldPos = self.ScrollPosition or 0
 	local OldDiff = self:GetDiffSize()
 
 	self.ScrollSize = Size
 	self:UpdateScrollBarSize()
 
-	local NewDiff = self:GetDiffSize()
 	-- If the scrolling size has shrunk, we may need to move up.
-	if NewDiff < OldDiff then
+	ForceUpdate = ForceUpdate or ( self:GetDiffSize() < OldDiff )
+
+	if ForceUpdate then
 		self:SetScroll( OldPos )
 	end
 end

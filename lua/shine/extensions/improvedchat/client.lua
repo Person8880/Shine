@@ -453,6 +453,16 @@ function Plugin:OnChatBoxEmojiAutoComplete( ChatBox, Emoji )
 	return EmojiRepository.FindMatchingEmoji( Emoji )
 end
 
+function Plugin:IsChatEmojiAvailable()
+	return self.dt.ParseEmojiInChat
+end
+
+function Plugin:OnChatBoxEmojiPickerOpen()
+	if not self.dt.ParseEmojiInChat then return end
+
+	return EmojiRepository.GetAllEmoji()
+end
+
 function Plugin:OnFirstThink()
 	SGUI.NotificationManager.RegisterHint( CHAT_CONFIG_HINT_NAME, {
 		MaxTimes = 1,
