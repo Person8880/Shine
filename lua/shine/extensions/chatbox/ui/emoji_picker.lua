@@ -41,6 +41,7 @@ function EmojiRow:GetOrCreateButton( Index )
 	local Button = self.Buttons[ Index ]
 	if not SGUI.IsValid( Button ) then
 		Button = SGUI:Create( "Button", self )
+		Button:SetStyleName( "EmojiButton" )
 		Button:SetDoClick( OnClickEmojiButton )
 
 		local Image = SGUI:Create( "Image", Button )
@@ -69,7 +70,7 @@ function EmojiRow:SetContents( EmojiList )
 	end
 
 	for i = NumEmoji + 1, #self.Buttons do
-		local Button = self.Buttons[ Index ]
+		local Button = self.Buttons[ i ]
 		if SGUI.IsValid( Button ) then
 			Button:SetIsVisible( false )
 		end

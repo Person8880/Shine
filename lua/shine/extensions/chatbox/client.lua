@@ -187,6 +187,10 @@ local Skin = {
 			TextColour = Colours.ModeText,
 			IconShadow = false,
 			TextShadow = false
+		},
+		EmojiButton = {
+			ActiveCol = Colours.Dark,
+			InactiveCol = Colours.Highlight
 		}
 	},
 	CheckBoxWithLabel = {

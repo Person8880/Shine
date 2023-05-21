@@ -182,7 +182,6 @@ function VirtualScrollPanel:SetScrollOffset( Offset )
 	local RowHeight = self:ComputeRowHeight()
 	self.ScrollParentPos.y = -( Offset % RowHeight )
 	self.ScrollParent:SetPosition( self.ScrollParentPos )
-	self:InvalidateMouseState( true )
 
 	local DataRevision = self.DataRevision
 	local MaxVisibleRows = Ceil( self.Size.y / RowHeight ) + 1
@@ -224,6 +223,8 @@ function VirtualScrollPanel:SetScrollOffset( Offset )
 	if self.LayoutIsInvalid then
 		self:InvalidateLayout( true )
 	end
+
+	self:InvalidateMouseState( true )
 
 	return true
 end
