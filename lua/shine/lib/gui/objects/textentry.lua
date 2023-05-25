@@ -13,6 +13,7 @@ local StringFind = string.find
 local StringFormat = string.format
 local StringLower = string.lower
 local StringSub = string.sub
+local StringUTF8Chars = string.UTF8Chars
 local StringUTF8Encode = string.UTF8Encode
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
@@ -422,6 +423,10 @@ function TextEntry:SetTextScale( Scale )
 	self:SetupCaret()
 end
 
+function TextEntry:GetCaretPos()
+	return self.Column
+end
+
 --[[
 	Sets the position of the caret, and moves the text accordingly.
 ]]
@@ -807,9 +812,8 @@ end
 function TextEntry:InsertTextAtCaret( Text )
 	self:PushUndoState()
 
-	local Chars = StringUTF8Encode( Text )
-	for i = 1, #Chars do
-		if not self:AddCharacter( Chars[ i ], true ) then break end
+	for ByteIndex, Char in StringUTF8Chars( Text ) do
+		if not self:AddCharacter( Char, true ) then break end
 	end
 end
 

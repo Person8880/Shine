@@ -629,6 +629,20 @@ function Plugin:CreateChatbox()
 		return StringGSub( Text, EmojiAutoCompletePattern, StringFormat( ":%s: ", EmojiName ) )
 	end
 
+	local function InsertEmojiFromCompletion( Text, EmojiName )
+		local TextBehindCaret = StringUTF8Sub( Text, 1, self.TextEntry:GetCaretPos() )
+		local TextAfterCaret = StringSub( Text, #TextBehindCaret + 1 )
+		local NewTextBehindCaret = ApplyEmojiFromAutoComplete( TextBehindCaret, EmojiName )
+
+		-- Avoid inserting a second space if there's one in front of the caret already.
+		if StringSub( TextAfterCaret, 1, 1 ) == " " and NewTextBehindCaret ~= TextBehindCaret then
+			NewTextBehindCaret = StringSub( NewTextBehindCaret, 1, #NewTextBehindCaret - 1 )
+		end
+
+		self.TextEntry:SetText( NewTextBehindCaret..TextAfterCaret )
+		self.TextEntry:SetCaretPos( StringUTF8Length( NewTextBehindCaret ) )
+	end
+
 	do
 		local AutoCompleteSize = Units.Integer( Units.GUIScaled( 40 ) )
 		local PaddingSize = Units.Integer( Units.GUIScaled( 4 ) )
@@ -645,7 +659,9 @@ function Plugin:CreateChatbox()
 			if not EmojiName then return end
 
 			Panel:SetIsVisible( false )
-			self.TextEntry:SetText( ApplyEmojiFromAutoComplete( self.TextEntry:GetText(), EmojiName ) )
+
+			local Text = self.TextEntry:GetText()
+			InsertEmojiFromCompletion( Text, EmojiName )
 		end )
 
 		self.EmojiAutoComplete = EmojiAutoCompletePanel
@@ -729,7 +745,7 @@ function Plugin:CreateChatbox()
 		if SGUI.IsValid( Plugin.EmojiAutoComplete ) and Plugin.EmojiAutoComplete:GetIsVisible() then
 			local EmojiName = Plugin.EmojiAutoComplete:ResolveSelectedEmojiName()
 			if EmojiName then
-				self:SetText( ApplyEmojiFromAutoComplete( Text, EmojiName ) )
+				InsertEmojiFromCompletion( Text, EmojiName )
 			end
 
 			Plugin.EmojiAutoComplete:SetIsVisible( false )
@@ -791,10 +807,11 @@ function Plugin:CreateChatbox()
 		end
 	end
 
-	local function UpdateEmojiAutoComplete( _, NewText )
+	local function UpdateEmojiAutoComplete( TextEntry, NewText )
 		if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
 
-		local Emoji = StringMatch( NewText, EmojiAutoCompletePattern )
+		local TextBehindCaret = StringUTF8Sub( NewText, 1, TextEntry:GetCaretPos() )
+		local Emoji = StringMatch( TextBehindCaret, EmojiAutoCompletePattern )
 		if not Emoji or #Emoji < 2 then
 			self.EmojiAutoComplete:SetIsVisible( false )
 			return
