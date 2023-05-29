@@ -50,6 +50,7 @@ Plugin.FontSizeMode = table.AsEnum{
 }
 
 Plugin.DefaultConfig = {
+	AutoCompleteEmoji = true, -- Should the emoji auto-completion popup be displayed?
 	AutoClose = true, -- Should the chatbox close after sending a message?
 	DeleteOnClose = true, -- Should whatever's entered be deleted if the chatbox is closed before sending?
 	MessageMemory = 50, -- How many messages should the chatbox store before removing old ones?
@@ -810,6 +811,11 @@ function Plugin:CreateChatbox()
 	local function UpdateEmojiAutoComplete( TextEntry, NewText )
 		if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
 
+		if not self.Config.AutoCompleteEmoji then
+			self.EmojiAutoComplete:SetIsVisible( false )
+			return
+		end
+
 		local TextBehindCaret = StringUTF8Sub( NewText, 1, TextEntry:GetCaretPos() )
 		local Emoji = StringMatch( TextBehindCaret, EmojiAutoCompletePattern )
 		if not Emoji or #Emoji < 2 then
@@ -828,6 +834,8 @@ function Plugin:CreateChatbox()
 		self.EmojiAutoComplete:SetSelectedIndex( 1 )
 		self.EmojiAutoComplete:SetSelectedEmojiName( nil )
 	end
+
+	self.UpdateEmojiAutoComplete = UpdateEmojiAutoComplete
 
 	-- Watch all text changes for emoji auto-complete to ensure it's hidden if the text is wiped.
 	TextEntry:AddPropertyChangeListener( "Text", UpdateEmojiAutoComplete )
@@ -1281,6 +1289,34 @@ do
 			end
 		},
 		{
+			ID = "AutoCompleteEmojiCheckBox",
+			Type = "CheckBox",
+			ConfigValue = function( self, Value )
+				if not UpdateConfigValue( self, "AutoCompleteEmoji", Value ) then return end
+				if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
+
+				if Value then
+					self.UpdateEmojiAutoComplete( self.TextEntry, self.TextEntry:GetText() )
+				else
+					self.EmojiAutoComplete:SetIsVisible( false )
+				end
+			end,
+			Values = function( self )
+				return self.Config.AutoCompleteEmoji, "AUTO_COMPLETE_EMOJI"
+			end,
+			Bindings = {
+				{
+					From = {
+						Element = "EmojiButton",
+						Property = "IsVisible"
+					},
+					To = {
+						Property = "IsVisible"
+					}
+				}
+			}
+		},
+		{
 			ID = "MessageMemoryLabel",
 			Type = "Label",
 			Values = { "MESSAGE_MEMORY" }
@@ -1448,7 +1484,7 @@ do
 			if Bindings then
 				for j = 1, #Bindings do
 					local Binding = Bindings[ j ]
-					local FromElement = ElementsByID[ Binding.From.Element ]
+					local FromElement = ElementsByID[ Binding.From.Element ] or self[ Binding.From.Element ]
 					if FromElement then
 						Binder():FromElement( FromElement, Binding.From.Property )
 							:ToElement( ElementsByID[ Data.ID ], Binding.To.Property, Binding.To )

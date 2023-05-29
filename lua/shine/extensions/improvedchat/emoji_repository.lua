@@ -216,6 +216,10 @@ local function SortEmoji( A, B )
 	end
 
 	-- If both match at the same index, prefer smaller emoji names as more of the name is matched.
+	if #A ~= #B then
+		return #A < #B
+	end
+
 	return A < B
 end
 
