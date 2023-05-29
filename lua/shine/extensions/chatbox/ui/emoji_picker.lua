@@ -35,6 +35,7 @@ local function OnClickEmojiButton( self )
 		Picker = Picker.Parent
 	end
 	Picker:OnEmojiSelected( self.Emoji )
+	Picker.Elements.SearchInput:RequestFocus()
 end
 
 function EmojiRow:GetOrCreateButton( Index )
