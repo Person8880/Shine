@@ -882,6 +882,8 @@ function Plugin:CreateChatbox()
 		end
 
 		local function OnPickerRemoved()
+			self.TextEntry:RequestFocus()
+
 			if not SGUI.IsValid( EmojiButton ) then return end
 
 			EmojiButton:RemoveStylingState( "Open" )
