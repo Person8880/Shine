@@ -160,6 +160,10 @@ function Scrollbar:SetScrollSize( Size, ForceUpdate )
 	end
 end
 
+function Scrollbar:GetScroll()
+	return self.ScrollPosition
+end
+
 --[[
 	Sets how far down the scroll bar is.
 ]]

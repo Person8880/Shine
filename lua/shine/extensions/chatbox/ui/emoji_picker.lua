@@ -130,7 +130,7 @@ function EmojiPicker:Initialise()
 		}
 	} )
 
-	function self.Elements.SearchInput.OnTextChanged( TextEntry, OldText, NewText )
+	self.Elements.SearchInput:AddPropertyChangeListener( "Text", function( TextEntry, NewText )
 		if #NewText == 0 then
 			self.Elements.EmojiGrid:SetData( self.EmojiList )
 			return
@@ -143,9 +143,24 @@ function EmojiPicker:Initialise()
 		end
 
 		self.Elements.EmojiGrid:SetData( Results )
-	end
+	end )
 
 	SGUI:EnableMouse( true, self )
+end
+
+function EmojiPicker:GetState()
+	return {
+		SearchText = self.Elements.SearchInput:GetText(),
+		ScrollOffset = self.Elements.EmojiGrid.Scrollbar:GetScroll()
+	}
+end
+
+function EmojiPicker:RestoreFromState( State )
+	self.Elements.SearchInput:SetText( State.SearchText )
+
+	if self.Elements.EmojiGrid.Scrollbar:GetIsVisible() then
+		self.Elements.EmojiGrid.Scrollbar:SetScroll( State.ScrollOffset )
+	end
 end
 
 function EmojiPicker:Close()

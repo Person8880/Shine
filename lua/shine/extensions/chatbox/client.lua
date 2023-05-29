@@ -864,7 +864,13 @@ function Plugin:CreateChatbox()
 		local function OnEmojiPicked( Picker, EmojiName )
 			if not EmojiName then return end
 
-			self.TextEntry:InsertTextAtCaret( StringFormat( ":%s:", EmojiName ) )
+			local FormatString = ":%s:"
+			local TextAfterCaret = StringUTF8Sub( self.TextEntry:GetText(), self.TextEntry:GetCaretPos() + 1 )
+			if StringSub( TextAfterCaret, 1, 1 ) ~= " " then
+				FormatString = ":%s: "
+			end
+
+			self.TextEntry:InsertTextAtCaret( StringFormat( FormatString, EmojiName ) )
 		end
 
 		local function OnPickerRemoved()
@@ -873,7 +879,7 @@ function Plugin:CreateChatbox()
 			EmojiButton:RemoveStylingState( "Open" )
 		end
 
-		function EmojiButton.DoClick()
+		self.OpenEmojiPicker = function( self, SkipAnim )
 			if SGUI.IsValid( self.EmojiPicker ) then return end
 
 			local EmojiList = Hook.Call( "OnChatBoxEmojiPickerOpen", self )
@@ -905,22 +911,29 @@ function Plugin:CreateChatbox()
 			Picker:SetEmojiList( EmojiList )
 			Picker.Elements.SearchInput:RequestFocus()
 			Picker:CallOnRemove( OnPickerRemoved )
-			Picker:ApplyTransition( {
-				Type = "Move",
-				StartValue = Pos - Vector2( EmojiButton:GetSize().x, 0 ),
-				EndValue = Pos,
-				Duration = 0.15
-			} )
-			Picker:ApplyTransition( {
-				Type = "AlphaMultiplier",
-				StartValue = 0,
-				EndValue = 1,
-				Duration = 0.15
-			} )
+
+			if not SkipAnim then
+				Picker:ApplyTransition( {
+					Type = "Move",
+					StartValue = Pos - Vector2( EmojiButton:GetSize().x, 0 ),
+					EndValue = Pos,
+					Duration = 0.15
+				} )
+				Picker:ApplyTransition( {
+					Type = "AlphaMultiplier",
+					StartValue = 0,
+					EndValue = 1,
+					Duration = 0.15
+				} )
+			end
 
 			Picker.OnEmojiSelected = OnEmojiPicked
 
 			self.EmojiPicker = Picker
+		end
+
+		function EmojiButton.DoClick()
+			self:OpenEmojiPicker()
 		end
 	end
 
@@ -2153,6 +2166,11 @@ function Plugin:CloseChat( ForcePreserveText )
 	self.MainPanel:SetIsVisible( false )
 	self.GUIChat:SetIsVisible( true )
 
+	if SGUI.IsValid( self.EmojiPicker ) then
+		self.EmojiPicker:Close()
+		self.EmojiPicker = nil
+	end
+
 	SGUI:EnableMouse( false )
 
 	if not ForcePreserveText and self.Config.DeleteOnClose then
@@ -2172,6 +2190,7 @@ function Plugin:OnCommanderLogin()
 	if not self.Visible then return end
 
 	local WasTeamChat = self.TeamChat
+	local EmojiPickerState = SGUI.IsValid( self.EmojiPicker ) and self.EmojiPicker:GetState()
 
 	-- Ensure existing text entry state is preserved.
 	self:CloseChat( true )
@@ -2179,6 +2198,14 @@ function Plugin:OnCommanderLogin()
 	self:SimpleTimer( 0, function()
 		-- Wait a frame to allow the commander mouse to be pushed/popped first.
 		self:StartChat( WasTeamChat )
+
+		if EmojiPickerState then
+			self:OpenEmojiPicker( true )
+
+			if SGUI.IsValid( self.EmojiPicker ) then
+				self.EmojiPicker:RestoreFromState( EmojiPickerState )
+			end
+		end
 	end )
 end
 
