@@ -873,9 +873,10 @@ local EMOJI_SIZE = Units.UnitVector(
 )
 
 local function ParseEmoji( Contents, Message )
-	local Index = 1
+	local CurrentIndex = 1
+	local LastTextIndex = 1
 	for i = 1, #Message do
-		local OpenStart, OpenEnd = StringFind( Message, ":", Index, true )
+		local OpenStart, OpenEnd = StringFind( Message, ":", CurrentIndex, true )
 		if not OpenStart then break end
 
 		local CloseStart, CloseEnd = StringFind( Message, ":", OpenEnd + 1, true )
@@ -887,18 +888,20 @@ local function ParseEmoji( Contents, Message )
 			EmojiElement.AutoSize = EMOJI_SIZE
 			EmojiElement.AspectRatio = 1
 
-			local TextBefore = StringSub( Message, Index, OpenStart - 1 )
+			local TextBefore = StringSub( Message, LastTextIndex, OpenStart - 1 )
 			if #TextBefore > 0 then
 				Contents[ #Contents + 1 ] = TextElement( TextBefore )
 			end
 			Contents[ #Contents + 1 ] = EmojiElement
 
-			Index = CloseEnd + 1
+			LastTextIndex = CloseEnd + 1
 		end
+
+		CurrentIndex = CloseEnd + 1
 	end
 
-	if Index <= #Message then
-		Contents[ #Contents + 1 ] = TextElement( StringSub( Message, Index ) )
+	if LastTextIndex <= #Message then
+		Contents[ #Contents + 1 ] = TextElement( StringSub( Message, LastTextIndex ) )
 	end
 end
 

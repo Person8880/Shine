@@ -167,11 +167,11 @@ do
 				if Entry.Exclude then
 					Exclusions = {}
 
-					for i = 1, #Entry.Exclude do
+					for j = 1, #Entry.Exclude do
 						local ExcludedFiles = {}
-						Shared.GetMatchingFileNames( Entry.Exclude[ i ], true, ExcludedFiles )
-						for j = 1, #ExcludedFiles do
-							Exclusions[ ExcludedFiles[ j ] ] = true
+						Shared.GetMatchingFileNames( Entry.Exclude[ j ], true, ExcludedFiles )
+						for k = 1, #ExcludedFiles do
+							Exclusions[ ExcludedFiles[ k ] ] = true
 						end
 					end
 				end
