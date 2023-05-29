@@ -881,7 +881,10 @@ function Plugin:CreateChatbox()
 			self.TextEntry:InsertTextAtCaret( StringFormat( FormatString, EmojiName ) )
 		end
 
+		local RemovalFrameNumber
 		local function OnPickerRemoved()
+			RemovalFrameNumber = SGUI.FrameNumber()
+
 			self.TextEntry:RequestFocus()
 
 			if not SGUI.IsValid( EmojiButton ) then return end
@@ -943,6 +946,9 @@ function Plugin:CreateChatbox()
 		end
 
 		function EmojiButton.DoClick()
+			-- Don't re-open if the button was the cause of the old picker's removal.
+			if RemovalFrameNumber == EmojiButton:GetLastMouseDownFrameNumber() then return end
+
 			self:OpenEmojiPicker()
 		end
 	end
