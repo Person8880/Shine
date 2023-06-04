@@ -28,7 +28,9 @@ local DefaultZeroMeta = {
 
 function BitSet:Init()
 	-- Note: this table uses 0-based indexing as that fits the bitwise arithmetic.
-	self.Values = setmetatable( TableNew( 10, 0 ), DefaultZeroMeta )
+	self.Values = setmetatable( {
+		[ 0 ] = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	}, DefaultZeroMeta )
 	self.Size = 0
 	-- This value is inclusive (as per Lua iteration conventions).
 	self.MaxArrayIndex = 0
