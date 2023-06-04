@@ -17,6 +17,7 @@ local getmetatable = getmetatable
 local IsType = Shine.IsType
 local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
 local StringFormat = string.format
+local StringSub = string.sub
 local StringUTF8Encode = string.UTF8Encode
 local TableConcat = table.concat
 local TableEmpty = table.Empty
@@ -63,6 +64,7 @@ function Plugin:Initialise()
 
 	self.ChatTagDefinitions = UnorderedMap()
 	self.ClientsWithTags = UnorderedMap()
+	self.AllowedEmojiByGroupName = {}
 
 	self.ChatTagIndex = 0
 	self.NextMessageID = 0
@@ -382,6 +384,73 @@ function Plugin:AssignChatTag( Client )
 	end
 end
 
+local function CollectEmojiWhitelist( Group, Name, EmojiWhitelist )
+	if not IsType( Group.AllowedEmoji, "table" ) then return end
+
+	-- Add the values in reverse such that descendant group patterns are appended to their ancestor's patterns (thus
+	-- meaning that child group patterns are additive).
+	for i = #Group.AllowedEmoji, 1, -1 do
+		local Pattern = Group.AllowedEmoji[ i ]
+		if IsType( Pattern, "string" ) then
+			EmojiWhitelist[ #EmojiWhitelist + 1 ] = Pattern
+		end
+	end
+end
+
+function Plugin:GetAvailableEmoji( GroupName )
+	local EmojiWhitelist = {}
+	Shine:IterateGroupTree( GroupName, CollectEmojiWhitelist, EmojiWhitelist )
+
+	-- If there's no patterns defined, all emoji are allowed. This is the default state.
+	if #EmojiWhitelist == 0 then return false end
+
+	local AllowedEmoji = Shine.BitSet()
+	-- Start from the last pattern and work backwards, as the last pattern will be the first pattern of the furthest up
+	-- group in the hierarchy.
+	for i = #EmojiWhitelist, 1, -1 do
+		local Pattern = EmojiWhitelist[ i ]
+		local IsDeny = StringSub( Pattern, 1, 1 ) == "!"
+		if IsDeny then
+			Pattern = StringSub( Pattern, 2 )
+		end
+
+		local Matches = EmojiRepository.FindByPattern( Pattern )
+		if IsType( Matches, "number" ) then
+			if IsDeny then
+				AllowedEmoji:Remove( Matches )
+			else
+				AllowedEmoji:Add( Matches )
+			end
+		elseif Matches then
+			if IsDeny then
+				AllowedEmoji:Union( Matches )
+			else
+				AllowedEmoji:AndNot( Matches )
+			end
+		end
+	end
+
+	return AllowedEmoji
+end
+
+function Plugin:SendEmojiRestrictions( Client )
+	local UserData = Shine:GetUserData( Client )
+	local GroupName = UserData and UserData.Group
+	local GroupKey = GroupName or DEFAULT_GROUP_KEY
+
+	local AllowedEmoji = self.AllowedEmojiByGroupName[ GroupKey ]
+	if AllowedEmoji == nil then
+		AllowedEmoji = self:GetAvailableEmoji( GroupName )
+		self.AllowedEmojiByGroupName[ GroupKey ] = AllowedEmoji
+	end
+
+	if not AllowedEmoji then
+		-- TODO: Send a message to clear any restrictions on the client.
+	else
+		-- TODO: Network the allowed emoji bitset to the client.
+	end
+end
+
 function Plugin:ClientConnect( Client )
 	-- First send the client all known chat tag definitions (this ensures we send a chat tag only once
 	-- per group).
@@ -391,6 +460,11 @@ function Plugin:ClientConnect( Client )
 
 	-- Now assign their chat tag, if they have one.
 	self:AssignChatTag( Client )
+
+	if self.Config.ParseEmojiInChat then
+		-- Also send them any relevant restrictions on the emoji they can use.
+		self:SendEmojiRestrictions( Client )
+	end
 
 	-- Finally, notify the client of every player that has a chat tag that's currently connected.
 	for ClientWithTag, ChatTag in self.ClientsWithTags:Iterate() do
@@ -404,22 +478,30 @@ function Plugin:ClientDisconnect( Client )
 	RevokeChatTag( self, Client )
 end
 
--- Re-assign chat tags for all connected players when the user data is reloaded.
+-- Re-assign chat tags and allowed emoji for all connected players when the user data is reloaded.
 function Plugin:OnUserReload()
-	-- First forget every existing chat tag (as a group/user's chat tag definition may have changed).
+	-- Reset the cache for allowed emoji as group data may have changed.
+	TableEmpty( self.AllowedEmojiByGroupName )
+
+	-- Forget every existing chat tag (as a group/user's chat tag definition may have changed).
 	for Client in Shine.GameIDs:Iterate() do
 		RevokeChatTag( self, Client )
 	end
 
-	-- Then load the newly configured chat tags.
+	-- Then load the newly configured chat tags and update the allowed emoji.
 	for Client in Shine.GameIDs:Iterate() do
 		self:AssignChatTag( Client )
+
+		if self.Config.ParseEmojiInChat then
+			self:SendEmojiRestrictions( Client )
+		end
 	end
 end
 
 function Plugin:Cleanup()
 	ChatAPI:ResetProvider( self )
 
+	self.AllowedEmojiByGroupName = nil
 	self.ChatTagDefinitions = nil
 	self.ClientsWithTags = nil
 
