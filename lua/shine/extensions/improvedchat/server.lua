@@ -7,6 +7,8 @@ local ColourElement = require "shine/lib/gui/richtext/elements/colour"
 local ImageElement = require "shine/lib/gui/richtext/elements/image"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
+local EmojiRepository = require "shine/extensions/improvedchat/emoji_repository"
+
 local UnorderedMap = Shine.UnorderedMap
 
 local BitBAnd = bit.band
