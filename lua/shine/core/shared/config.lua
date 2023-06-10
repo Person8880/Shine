@@ -467,6 +467,34 @@ do
 		}
 	end
 
+	function Validator.HasLength( ExpectedLength, DefaultElement )
+		return {
+			Check = function( Value )
+				return not IsType( Value, "table" ) or #Value ~= ExpectedLength
+			end,
+			Fix = function( Value )
+				if not IsType( Value, "table" ) then
+					return nil
+				end
+
+				if #Value > ExpectedLength then
+					for i = ExpectedLength + 1, #Value do
+						Value[ i ] = nil
+					end
+				else
+					for i = #Value + 1, ExpectedLength do
+						Value[ i ] = DefaultElement
+					end
+				end
+
+				return Value
+			end,
+			Message = function()
+				return StringFormat( "%%s must have %d element%s", ExpectedLength, ExpectedLength == 1 and "" or "s" )
+			end
+		}
+	end
+
 	function Validator.ValidateField( Name, Rule, Options )
 		Shine.TypeCheck( Rule, "table", 2, "ValidateField" )
 		Shine.TypeCheck( Options, { "table", "nil" }, 3, "ValidateField" )
@@ -696,6 +724,64 @@ do
 			end,
 			Fix = FixFunction,
 			Message =  MessageSupplier
+		}
+	end
+
+	function Validator.IfFieldPresent( Field, ... )
+		local Rules = { ... }
+
+		for i = 1, #Rules do
+			local Rule = Rules[ i ]
+			Rules[ i ] = {
+				Check = function( Value, Context )
+					if Value[ Field ] == nil then
+						return false
+					end
+					return Rule.Check( Value, Context )
+				end,
+				Fix = Rule.Fix,
+				Message = Rule.Message
+			}
+		end
+
+		return unpack( Rules )
+	end
+
+	function Validator.Exclusive( FieldA, FieldB, Options )
+		return {
+			Check = function( Value, Context )
+				if Value[ FieldA ] ~= nil and Value[ FieldB ] ~= nil then
+					return true
+				end
+
+				if Options and Options.FailIfBothMissing and Value[ FieldA ] == nil and Value[ FieldB ] == nil then
+					return true
+				end
+
+				return false
+			end,
+			Fix = function( Value )
+				if Options then
+					if
+						Options.DeleteIfInvalid
+						or ( Options.FailIfBothMissing and Value[ FieldA ] == nil and Value[ FieldB ] == nil )
+					then
+						return nil
+					end
+
+					if Options.FieldToKeep == FieldA then
+						Value[ FieldB ] = nil
+						return Value
+					end
+				end
+
+				Value[ FieldA ] = nil
+
+				return Value
+			end,
+			Message = function()
+				return StringFormat( "%%s must specify only one of %s or %s", FieldA, FieldB )
+			end
 		}
 	end
 

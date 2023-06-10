@@ -7,6 +7,12 @@
 
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 local DefaultProvider = require "shine/core/shared/chat/default_provider"
+
+local BitBAnd = bit.band
+local BitBOr = bit.bor
+local BitLShift = bit.lshift
+local BitRShift = bit.rshift
+local Min = math.min
 local StringFormat = string.format
 
 local Plugin = Shine.Plugin( ... )
@@ -14,8 +20,63 @@ local Plugin = Shine.Plugin( ... )
 -- Any more than 6 seems to cause the server to crash instantly when sending...
 Plugin.MAX_CHUNKS_PER_MESSAGE = 6
 
+-- 16 * 32 bit integers = 512 values per message (taking up 64 bytes).
+Plugin.MAX_BITSET_VALUES_PER_MESSAGE = 16
+
+local IntegerKeys = {}
+for i = 1, Plugin.MAX_BITSET_VALUES_PER_MESSAGE do
+	IntegerKeys[ i ] = "Int"..i
+end
+
+function Plugin:EncodeBitsetToMessage( ChunkIndex, NumChunks, BitSet )
+	local StartIndex = ( ChunkIndex - 1 ) * self.MAX_BITSET_VALUES_PER_MESSAGE
+	local EndIndex = StartIndex + self.MAX_BITSET_VALUES_PER_MESSAGE - 1
+
+	local Message = {
+		-- Pack the chunk index and number of chunks into a single integer, top half is the chunk index, bottom half is
+		-- the number of chunks.
+		ChunkInfo = BitBOr( BitLShift( BitBAnd( ChunkIndex, 0xFFFF ), 16 ), BitBAnd( NumChunks, 0xFFFF ) )
+	}
+
+	local Count = 0
+	for i = StartIndex, EndIndex do
+		Count = Count + 1
+		-- Have to populate the entire message here, if the bitset doesn't have a value it'll return 0 from its array.
+		Message[ IntegerKeys[ Count ] ] = BitSet.Values[ i ]
+	end
+
+	return Message
+end
+
+function Plugin.DecodeMessageChunkData( Message )
+	local ChunkIndex = BitRShift( Message.ChunkInfo, 16 )
+	local NumChunks = BitBAnd( Message.ChunkInfo, 0xFFFF )
+	return ChunkIndex, NumChunks
+end
+
+function Plugin:DecodeBitSetFromChunks( MessageChunks )
+	local Values = {}
+	local Count = 0
+	for i = 1, #MessageChunks do
+		local Chunk = MessageChunks[ i ]
+		for j = 1, self.MAX_BITSET_VALUES_PER_MESSAGE do
+			Count = Count + 1
+			Values[ Count ] = Chunk[ IntegerKeys[ j ] ]
+		end
+	end
+
+	-- Trim trailing empty values.
+	for i = Count, 1, -1 do
+		if Values[ i ] ~= 0 then break end
+		Values[ i ] = nil
+	end
+
+	return Shine.BitSet.FromData( Values )
+end
+
 function Plugin:SetupDataTable()
 	self:AddDTVar( "boolean", "DisplayChatTagsInTeamChat", false )
+	self:AddDTVar( "boolean", "ParseEmojiInChat", true )
 
 	self:AddNetworkMessage( "CreateChatTagDefinition", {
 		Image = "string (255)",
@@ -35,6 +96,15 @@ function Plugin:SetupDataTable()
 	self:AddNetworkMessage( "ResetChatTag", {
 		SteamID = "integer"
 	}, "Client" )
+
+	local EmojiRestrictionsMessage = {
+		ChunkInfo = "integer"
+	}
+	for i = 1, self.MAX_BITSET_VALUES_PER_MESSAGE do
+		EmojiRestrictionsMessage[ IntegerKeys[ i ] ] = "integer"
+	end
+	self:AddNetworkMessage( "SetEmojiRestrictions", EmojiRestrictionsMessage, "Client" )
+	self:AddNetworkMessage( "ResetEmojiRestrictions", {}, "Client" )
 
 	-- Unfortunately, network messages don't support repeated values, so this awkward generation of messages
 	-- is required to try to avoid needing to send loads of individual messages in one go.

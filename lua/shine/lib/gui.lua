@@ -1264,7 +1264,7 @@ do
 	local ValidityKey = "IsValid"
 	local function CheckDestroyed( self, Key )
 		local Destroyed = rawget( self, "__Destroyed" )
-		if Destroyed and Key ~= ValidityKey and Destroyed < SGUI.FrameNumber() then
+		if Destroyed and Key ~= ValidityKey and Key ~= "DebugName" and Destroyed < SGUI.FrameNumber() then
 			local Caller = DebugGetInfo( 2, "f" ).func
 			-- Allow access in __tostring(), otherwise the element can't be printed.
 			if Caller ~= getmetatable( self ).__tostring then

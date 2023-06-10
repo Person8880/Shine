@@ -2,7 +2,8 @@
 	Deals with clicking.
 ]]
 
-local Clock = os.clock
+local SGUI = Shine.GUI
+local Clock = SGUI.GetTime
 
 local Clickable = {}
 
@@ -23,7 +24,13 @@ function Clickable:OnMouseDown( Key, DoubleClick )
 	if not self:GetIsVisible() or not self:MouseInControl() then return end
 	if not GetClickMethod( self, Key ) then return end
 
+	self.__LastMouseDownFrameNumber = SGUI.FrameNumber()
+
 	return true, self
+end
+
+function Clickable:GetLastMouseDownFrameNumber()
+	return self.__LastMouseDownFrameNumber
 end
 
 local function CallClickMethod( self, Method )
@@ -41,9 +48,10 @@ function Clickable:OnMouseUp( Key )
 	if not self:MouseInControl() then return end
 
 	local Time = Clock()
-	if ( self.ClickDelay or 0.1 ) > 0 and ( self.NextClick or 0 ) > Time then return true end
+	local ClickDelay = self.ClickDelay or 0.1
+	if ClickDelay > 0 and ( self.NextClick or 0 ) > Time then return true end
 
-	self.NextClick = Time + ( self.ClickDelay or 0.1 )
+	self.NextClick = Time + ClickDelay
 
 	return CallClickMethod( self, GetClickMethod( self, Key ) )
 end

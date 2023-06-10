@@ -1023,7 +1023,7 @@ end
 ]]
 function ControlMeta:SetSize( SizeVec )
 	local OldSize = self.Background:GetSize()
-	if OldSize == SizeVec then return end
+	if OldSize == SizeVec then return false end
 
 	self.Size = SizeVec
 
@@ -1035,6 +1035,8 @@ function ControlMeta:SetSize( SizeVec )
 	if self.Parent and self.Parent:GetCroppingBounds() and not self._CallEventsManually then
 		self:InvalidateCroppingState()
 	end
+
+	return true
 end
 
 --[[
@@ -2721,9 +2723,20 @@ do
 		self.TooltipText = Text
 		self:ListenForHoverEvents( self.ShowTooltip, self.HideTooltip )
 
-		if SGUI.IsValid( self.Tooltip ) then
+		if SGUI.IsValid( self.Tooltip ) and not self.Tooltip.FadingOut then
 			self.Tooltip:UpdateText( Text )
 		end
+	end
+
+	--[[
+		Resets the control's tooltip state, hiding any existing tooltip and resetting the hover delay.
+	]]
+	function ControlMeta:ResetTooltip( Text )
+		self:HideTooltip()
+
+		ResetHoveringState( self )
+
+		self:SetTooltip( Text )
 	end
 
 	local DEFAULT_HOVER_TIME = 0.5

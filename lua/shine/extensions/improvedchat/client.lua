@@ -9,6 +9,8 @@ local ImageElement = require "shine/lib/gui/richtext/elements/image"
 local SpacerElement = require "shine/lib/gui/richtext/elements/spacer"
 local TextElement = require "shine/lib/gui/richtext/elements/text"
 
+local EmojiRepository = require "shine/extensions/improvedchat/emoji_repository"
+
 local Hook = Shine.Hook
 local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
@@ -21,8 +23,11 @@ local Round = math.Round
 local RoundTo = math.RoundTo
 local StringFormat = string.format
 local StringFind = string.find
+local StringMatch = string.match
+local StringSub = string.sub
 local TableRemove = table.remove
 local TableRemoveByValue = table.RemoveByValue
+local TableSlice = table.Slice
 
 local Plugin = ...
 Plugin.HasConfig = true
@@ -442,6 +447,58 @@ function Plugin:Initialise()
 	return true
 end
 
+do
+	local function IsAllowedEmoji( Emoji, ListIndex, AllowedEmoji )
+		return AllowedEmoji:Contains( Emoji.Index )
+	end
+
+	function Plugin:OnChatBoxEmojiAutoComplete( ChatBox, Emoji )
+		if not self.dt.ParseEmojiInChat then return end
+
+		local Matches = EmojiRepository.FindMatchingEmoji( Emoji )
+		if self.AllowedEmoji then
+			-- No need to copy here, matches is a new table every time.
+			Matches = Shine.Stream( Matches ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
+		end
+		return Matches
+	end
+
+	function Plugin:IsChatEmojiAvailable()
+		return self.dt.ParseEmojiInChat
+	end
+
+	function Plugin:OnChatBoxEmojiPickerOpen()
+		if not self.dt.ParseEmojiInChat then return end
+
+		local AllEmoji = EmojiRepository.GetAllEmoji()
+		if self.AllowedEmoji then
+			-- Need to copy here as the returned table is the table of all emoji.
+			AllEmoji = Shine.Stream.Of( AllEmoji ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
+		end
+		return AllEmoji
+	end
+
+	function Plugin:ReceiveSetEmojiRestrictions( Message )
+		local EmojiRestrictionChunks = self.EmojiRestrictionChunks
+		if not EmojiRestrictionChunks then
+			EmojiRestrictionChunks = {}
+			self.EmojiRestrictionChunks = EmojiRestrictionChunks
+		end
+
+		local ChunkIndex, NumChunks = self.DecodeMessageChunkData( Message )
+		EmojiRestrictionChunks[ ChunkIndex ] = Message
+
+		if #EmojiRestrictionChunks == NumChunks then
+			self.EmojiRestrictionChunks = nil
+			self.AllowedEmoji = self:DecodeBitSetFromChunks( EmojiRestrictionChunks )
+		end
+	end
+
+	function Plugin:ReceiveResetEmojiRestrictions( Message )
+		self.AllowedEmoji = nil
+	end
+end
+
 function Plugin:OnFirstThink()
 	SGUI.NotificationManager.RegisterHint( CHAT_CONFIG_HINT_NAME, {
 		MaxTimes = 1,
@@ -846,6 +903,43 @@ local DEFAULT_IMAGE_SIZE = Units.UnitVector(
 	0,
 	Units.Percentage.ONE_HUNDRED
 )
+local EMOJI_SIZE = Units.UnitVector(
+	0,
+	Units.Percentage( 125 )
+)
+
+local function ParseEmoji( Contents, Message )
+	local CurrentIndex = 1
+	local LastTextIndex = 1
+	for i = 1, #Message do
+		local OpenStart, OpenEnd = StringFind( Message, ":", CurrentIndex, true )
+		if not OpenStart then break end
+
+		local CloseStart, CloseEnd = StringFind( Message, ":", OpenEnd + 1, true )
+		if not CloseStart then break end
+
+		local TextBetween = StringSub( Message, OpenEnd + 1, CloseStart - 1 )
+		local EmojiElement = EmojiRepository.MakeEmojiElement( TextBetween )
+		if EmojiElement then
+			EmojiElement.AutoSize = EMOJI_SIZE
+			EmojiElement.AspectRatio = 1
+
+			local TextBefore = StringSub( Message, LastTextIndex, OpenStart - 1 )
+			if #TextBefore > 0 then
+				Contents[ #Contents + 1 ] = TextElement( TextBefore )
+			end
+			Contents[ #Contents + 1 ] = EmojiElement
+
+			LastTextIndex = CloseEnd + 1
+		end
+
+		CurrentIndex = CloseEnd + 1
+	end
+
+	if LastTextIndex <= #Message then
+		Contents[ #Contents + 1 ] = TextElement( StringSub( Message, LastTextIndex ) )
+	end
+end
 
 -- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.
 function Plugin:OnChatMessageReceived( Data )
@@ -906,7 +1000,12 @@ function Plugin:OnChatMessageReceived( Data )
 	Contents[ #Contents + 1 ] = TextElement( Prefix )
 
 	Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
-	Contents[ #Contents + 1 ] = TextElement( Data.Message )
+
+	if self.dt.ParseEmojiInChat then
+		ParseEmoji( Contents, Data.Message )
+	else
+		Contents[ #Contents + 1 ] = TextElement( Data.Message )
+	end
 
 	Hook.Call( "OnChatMessageParsed", Data, Contents )
 

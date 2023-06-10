@@ -428,3 +428,94 @@ UnitTest:Test( "SetChatTag", function( Assert )
 		}
 	}, SentNetworkMessages )
 end )
+
+local EmojiRepository = require "shine/extensions/improvedchat/emoji_repository"
+
+UnitTest:ResetState()
+UnitTest:Before( function()
+	Shine.UserData.Groups.EmojiTestGroup = {
+		AllowedEmoji = {
+			"!grinning_face",
+			"zzz"
+		},
+		InheritsFrom = { "EmojiTestParentGroup" }
+	}
+	Shine.UserData.Groups.EmojiTestParentGroup = {
+		AllowedEmoji = {
+			"*_face"
+		}
+	}
+end )
+
+UnitTest:Test( "GetAvailableEmoji - Returns false if no whitelist is set", function( Assert )
+	Shine.UserData.Groups.EmojiTestParentGroup.AllowedEmoji = nil
+
+	local AllowedEmoji = Plugin:GetAvailableEmoji( "EmojiTestParentGroup" )
+	Assert:False( AllowedEmoji )
+end )
+
+UnitTest:Test( "GetAvailableEmoji - Returns a bitset of emoji indices if restrictions exist", function( Assert )
+	local AllowedEmoji = Plugin:GetAvailableEmoji( "EmojiTestGroup" )
+	Assert:True( Shine.Implements( AllowedEmoji, Shine.BitSet ) )
+	Assert:True( AllowedEmoji:GetCount() > 0 )
+
+	local AllEmoji = EmojiRepository.GetAllEmoji()
+	for Index in AllowedEmoji:Iterate() do
+		local EmojiName = AllEmoji[ Index ].Name
+		Assert.True(
+			"Unexpected allowed emoji: "..EmojiName,
+			( EmojiName == "zzz" or EmojiName:EndsWith( "_face" ) ) and EmojiName ~= "grinning_face"
+		)
+	end
+
+	local EncodedBitSet = Plugin:EncodeBitsetToMessage( 1, 1, AllowedEmoji )
+	local ChunkIndex, NumChunks = Plugin.DecodeMessageChunkData( EncodedBitSet )
+	Assert:Equals( 1, ChunkIndex )
+	Assert:Equals( 1, NumChunks )
+
+	local DecodedBitSet = Plugin:DecodeBitSetFromChunks( { EncodedBitSet } )
+	Assert.Equals( "Encoding and decoding allowed emoji should result in the same bitset", AllowedEmoji, DecodedBitSet )
+	Assert.Equals(
+		"Should not have stored more data than necessary when decoding",
+		AllowedEmoji.MaxArrayIndex,
+		DecodedBitSet.MaxArrayIndex
+	)
+end )
+
+UnitTest:Test( "GetAvailableEmoji - Returns false if all emoji are allowed", function( Assert )
+	Shine.UserData.Groups.EmojiTestParentGroup.AllowedEmoji = { "*" }
+
+	local AllowedEmoji = Plugin:GetAvailableEmoji( "EmojiTestParentGroup" )
+	Assert:False( AllowedEmoji )
+end )
+
+UnitTest:ResetState()
+Shine.UserData.Groups.EmojiTestGroup = nil
+Shine.UserData.Groups.EmojiTestParentGroup = nil
+
+local MockFilter = Shine.BitSet()
+MockFilter:Add( EmojiRepository.GetEmojiDefinition( "grinning_face" ).Index )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns text as-is if it contains no emoji", function( Assert )
+	local Message = "This is a test message."
+	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( Message, Text )
+end )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns text without emoji that are not allowed", function( Assert )
+	local Message = "This is a test message:zzz:."
+	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( "This is a test message.", Text )
+end )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns an empty string if all emoji are filtered out and only whitespace remains", function( Assert )
+	local Message = ":zzz: :zzz: :zzz:"
+	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( "", Text )
+end )
+
+UnitTest:Test( "ApplyEmojiFilters - Returns whitespace as-is if it was provided originally", function( Assert )
+	local Message = "    "
+	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( Message, Text )
+end )

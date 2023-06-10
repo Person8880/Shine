@@ -13,6 +13,7 @@ local StringFind = string.find
 local StringFormat = string.format
 local StringLower = string.lower
 local StringSub = string.sub
+local StringUTF8Chars = string.UTF8Chars
 local StringUTF8Encode = string.UTF8Encode
 local StringUTF8Length = string.UTF8Length
 local StringUTF8Sub = string.UTF8Sub
@@ -422,6 +423,10 @@ function TextEntry:SetTextScale( Scale )
 	self:SetupCaret()
 end
 
+function TextEntry:GetCaretPos()
+	return self.Column
+end
+
 --[[
 	Sets the position of the caret, and moves the text accordingly.
 ]]
@@ -802,6 +807,14 @@ function TextEntry:AddCharacter( Char, SkipUndo )
 	end
 
 	return true
+end
+
+function TextEntry:InsertTextAtCaret( Text )
+	self:PushUndoState()
+
+	for ByteIndex, Char in StringUTF8Chars( Text ) do
+		if not self:AddCharacter( Char, true ) then break end
+	end
 end
 
 function TextEntry:RemoveWord( Forward )
@@ -1215,12 +1228,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 		end
 
 		if Down and Key == InputKey.V then
-			self:PushUndoState()
-			local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
-			for i = 1, #Chars do
-				if not self:AddCharacter( Chars[ i ], true ) then break end
-			end
-
+			self:InsertTextAtCaret( SGUI.GetClipboardText() )
 			return true
 		end
 
