@@ -227,6 +227,8 @@ do
 	end
 
 	EmojiIndex:SortKeys()
+
+	EmojiRepository.TotalEmojiCount = EmojiByName[ 0 ]
 end
 
 if Client then
@@ -340,18 +342,25 @@ elseif Server then
 			end
 
 			-- Pattern has wildcards, convert to a Lua pattern then search the emoji list for matches.
-			-- This isn't the fastest way of doing this, but given it's cached and that the number of emoji is unlikely
-			-- to be large enough to cause a noticeable slowdown, it's sufficient.
-			local PlaintextSegments = Stream( StringExplode( Pattern, "*", true ) ):Map( StringPatternSafe ):AsTable()
-			local SearchPattern = "^"..TableConcat( PlaintextSegments, ".*" ).."$"
-
-			-- Collect the emoji indices that match the pattern rather than names, as it's the indices that are
-			-- networked to players.
 			local Matches = BitSet()
-			for i = 1, EmojiByName[ 0 ] do
-				local EmojiName = EmojiByName[ i ].Name
-				if StringFind( EmojiName, SearchPattern ) then
-					Matches:Add( i )
+			if Pattern == "*" then
+				-- Pure wildcard can just add every emoji index.
+				Matches:AddRange( 1, EmojiByName[ 0 ] )
+			else
+				-- This isn't the fastest way of doing this, but given it's cached and that the number of emoji is
+				-- unlikely to be large enough to cause a noticeable slowdown, it's sufficient.
+				local PlaintextSegments = Stream(
+					StringExplode( Pattern, "*", true )
+				):Map( StringPatternSafe ):AsTable()
+				local SearchPattern = "^"..TableConcat( PlaintextSegments, ".*" ).."$"
+
+				-- Collect the emoji indices that match the pattern rather than names, as it's the indices that are
+				-- networked to players.
+				for i = 1, EmojiByName[ 0 ] do
+					local EmojiName = EmojiByName[ i ].Name
+					if StringFind( EmojiName, SearchPattern ) then
+						Matches:Add( i )
+					end
 				end
 			end
 
@@ -373,7 +382,8 @@ elseif Server then
 		* "*_emoji" - matches any emoji name that ends with "_emoji".
 	]]
 	function EmojiRepository.FindByPattern( Pattern )
-		return PatternMatchCache[ Pattern ]
+		local NormalisedPattern = StringLower( StringGSub( Pattern, "%*+", "*" ) )
+		return PatternMatchCache[ NormalisedPattern ]
 	end
 end
 

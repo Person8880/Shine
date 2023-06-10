@@ -447,20 +447,56 @@ function Plugin:Initialise()
 	return true
 end
 
-function Plugin:OnChatBoxEmojiAutoComplete( ChatBox, Emoji )
-	if not self.dt.ParseEmojiInChat then return end
+do
+	local function IsAllowedEmoji( Emoji, ListIndex, AllowedEmoji )
+		return AllowedEmoji:Contains( Emoji.Index )
+	end
 
-	return EmojiRepository.FindMatchingEmoji( Emoji )
-end
+	function Plugin:OnChatBoxEmojiAutoComplete( ChatBox, Emoji )
+		if not self.dt.ParseEmojiInChat then return end
 
-function Plugin:IsChatEmojiAvailable()
-	return self.dt.ParseEmojiInChat
-end
+		local Matches = EmojiRepository.FindMatchingEmoji( Emoji )
+		if self.AllowedEmoji then
+			-- No need to copy here, matches is a new table every time.
+			Matches = Shine.Stream( Matches ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
+		end
+		return Matches
+	end
 
-function Plugin:OnChatBoxEmojiPickerOpen()
-	if not self.dt.ParseEmojiInChat then return end
+	function Plugin:IsChatEmojiAvailable()
+		return self.dt.ParseEmojiInChat
+	end
 
-	return EmojiRepository.GetAllEmoji()
+	function Plugin:OnChatBoxEmojiPickerOpen()
+		if not self.dt.ParseEmojiInChat then return end
+
+		local AllEmoji = EmojiRepository.GetAllEmoji()
+		if self.AllowedEmoji then
+			-- Need to copy here as the returned table is the table of all emoji.
+			AllEmoji = Shine.Stream.Of( AllEmoji ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
+		end
+		return AllEmoji
+	end
+
+	function Plugin:ReceiveSetEmojiRestrictions( Message )
+		local EmojiRestrictionChunks = self.EmojiRestrictionChunks
+		if not EmojiRestrictionChunks then
+			EmojiRestrictionChunks = {}
+			self.EmojiRestrictionChunks = EmojiRestrictionChunks
+		end
+
+		local ChunkIndex, NumChunks = self.DecodeMessageChunkData( Message )
+		EmojiRestrictionChunks[ ChunkIndex ] = Message
+
+		if #EmojiRestrictionChunks == NumChunks then
+			self.EmojiRestrictionChunks = nil
+			self.AllowedEmoji = self:DecodeBitSetFromChunks( EmojiRestrictionChunks )
+		end
+	end
+
+	function Plugin:ReceiveResetEmojiRestrictions( Message )
+		self.AllowedEmoji = nil
+	end
 end
 
 function Plugin:OnFirstThink()

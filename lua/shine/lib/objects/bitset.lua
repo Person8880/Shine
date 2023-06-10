@@ -15,11 +15,39 @@ local BitRShift = bit.rshift
 local Max = math.max
 local Min = math.min
 local setmetatable = setmetatable
+local StringFormat = string.format
 local TableEmpty = table.Empty
 local TableNew = require "table.new"
 
 local BitSet = Shine.TypeDef()
 Shine.BitSet = BitSet
+
+local function CountBits( Value )
+	local Count = 0
+	for i = 0, 31 do
+		Count = Count + BitRShift( BitBAnd( Value, BitLShift( 1, i ) ), i )
+	end
+	return Count
+end
+
+--[[
+	Constructs a bitset from the given (1-based) array of raw integer values.
+]]
+function BitSet.FromData( Values )
+	local Set = BitSet()
+	local NumValues = #Values
+	local Size = 0
+
+	for i = 1, NumValues do
+		Set.Values[ i - 1 ] = Values[ i ]
+		Size = Size + CountBits( Values[ i ] )
+	end
+
+	Set.MaxArrayIndex = Max( NumValues - 1, 0 )
+	Set.Size = Size
+
+	return Set
+end
 
 local DefaultZeroMeta = {
 	-- For simplicity, make unpopulated array values equal to 0 without needing nil checks.
@@ -46,11 +74,7 @@ local function GetIndexForValue( Value )
 	return BitRShift( Value, 5 ), BitBAnd( Value, 31 )
 end
 
---[[
-	Adds the given integer value to this set.
-]]
-function BitSet:Add( Value )
-	local ArrayIndex, BitIndex = GetIndexForValue( Value )
+local function AddBit( self, ArrayIndex, BitIndex )
 	local ArrayValue = self.Values[ ArrayIndex ]
 	local BitFlag = BitLShift( 1, BitIndex )
 	-- Avoid branching here by using a bitwise expression to conditionally increment the size. This will be 0 if the
@@ -60,16 +84,46 @@ function BitSet:Add( Value )
 	self.Values[ ArrayIndex ] = BitBOr( ArrayValue, BitFlag )
 	self.Size = self.Size + SizeIncrement
 	self.MaxArrayIndex = Max( self.MaxArrayIndex, ArrayIndex )
+end
+
+--[[
+	Adds the given integer value to this set.
+]]
+function BitSet:Add( Value )
+	local ArrayIndex, BitIndex = GetIndexForValue( Value )
+
+	AddBit( self, ArrayIndex, BitIndex )
 
 	return self
 end
 
-local function CountBits( Value )
-	local Count = 0
-	for i = 0, 31 do
-		Count = Count + BitRShift( BitBAnd( Value, BitLShift( 1, i ) ), i )
+local FilledValue = 0
+for i = 0, 31 do
+	FilledValue = BitBOr( FilledValue, BitLShift( 1, i ) )
+end
+
+--[[
+	Adds the given inclusive range of values to the set.
+]]
+function BitSet:AddRange( StartValue, EndValue )
+	local StartArrayIndex, StartBitIndex = GetIndexForValue( StartValue )
+	local EndArrayIndex, EndBitIndex = GetIndexForValue( EndValue )
+
+	for i = StartBitIndex, 31 do
+		AddBit( self, StartArrayIndex, i )
 	end
-	return Count
+
+	for i = StartArrayIndex + 1, EndArrayIndex - 1 do
+		local SizeBefore = CountBits( self.Values[ i ] )
+		self.Values[ i ] = FilledValue
+		self.Size = self.Size + ( 32 - SizeBefore )
+	end
+
+	for i = 0, EndBitIndex do
+		AddBit( self, EndArrayIndex, i )
+	end
+
+	return self
 end
 
 --[[
@@ -123,11 +177,7 @@ function BitSet:Contains( Value )
 	return BitBAnd( self.Values[ ArrayIndex ], BitLShift( 1, BitIndex ) ) ~= 0
 end
 
---[[
-	Removes the given integer value from this set.
-]]
-function BitSet:Remove( Value )
-	local ArrayIndex, BitIndex = GetIndexForValue( Value )
+local function RemoveBit( self, ArrayIndex, BitIndex )
 	local ArrayValue = self.Values[ ArrayIndex ]
 	local BitFlag = BitLShift( 1, BitIndex )
 	-- As with adding, avoid branching here. This will be 1 if the value was stored, or 0 otherwise.
@@ -135,6 +185,39 @@ function BitSet:Remove( Value )
 
 	self.Values[ ArrayIndex ] = BitBAnd( ArrayValue, BitBNot( BitFlag ) )
 	self.Size = self.Size - SizeDecrement
+end
+
+--[[
+	Removes the given integer value from this set.
+]]
+function BitSet:Remove( Value )
+	local ArrayIndex, BitIndex = GetIndexForValue( Value )
+
+	RemoveBit( self, ArrayIndex, BitIndex )
+
+	return self
+end
+
+--[[
+	Removes the given inclusive range of values from the set.
+]]
+function BitSet:RemoveRange( StartValue, EndValue )
+	local StartArrayIndex, StartBitIndex = GetIndexForValue( StartValue )
+	local EndArrayIndex, EndBitIndex = GetIndexForValue( EndValue )
+
+	for i = StartBitIndex, 31 do
+		RemoveBit( self, StartArrayIndex, i )
+	end
+
+	for i = StartArrayIndex + 1, EndArrayIndex - 1 do
+		local SizeBefore = CountBits( self.Values[ i ] )
+		self.Values[ i ] = 0
+		self.Size = self.Size - SizeBefore
+	end
+
+	for i = 0, EndBitIndex do
+		RemoveBit( self, EndArrayIndex, i )
+	end
 
 	return self
 end
@@ -192,11 +275,11 @@ do
 		end
 
 		for i = ArrayIndex, Set.MaxArrayIndex do
-			local Int = Values[ ArrayIndex ]
+			local Int = Values[ i ]
 			for j = BitIndex + 1, 31 do
 				local NextValue = BitBAnd( Int, BitLShift( 1, j ) )
 				if NextValue ~= 0 then
-					return i * 32 + BitIndex + 1
+					return i * 32 + j
 				end
 			end
 			-- Make sure the next iteration starts from bit 0.
@@ -231,4 +314,13 @@ function BitSet:__eq( OtherSet )
 	end
 
 	return true
+end
+
+function BitSet:__tostring()
+	return StringFormat(
+		"BitSet [%s element%s, MaxArrayIndex = %s]",
+		self.Size,
+		self.Size == 1 and "" or "s",
+		self.MaxArrayIndex
+	)
 end

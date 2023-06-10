@@ -13,9 +13,12 @@ local UnorderedMap = Shine.UnorderedMap
 
 local BitBAnd = bit.band
 local BitLShift = bit.lshift
+local Ceil = math.ceil
 local getmetatable = getmetatable
 local IsType = Shine.IsType
+local Max = math.max
 local StringContainsNonUTF8Whitespace = string.ContainsNonUTF8Whitespace
+local StringFind = string.find
 local StringFormat = string.format
 local StringSub = string.sub
 local StringUTF8Encode = string.UTF8Encode
@@ -402,7 +405,13 @@ function Plugin:GetAvailableEmoji( GroupName )
 	Shine:IterateGroupTree( GroupName, CollectEmojiWhitelist, EmojiWhitelist )
 
 	-- If there's no patterns defined, all emoji are allowed. This is the default state.
-	if #EmojiWhitelist == 0 then return false end
+	if #EmojiWhitelist == 0 then
+		self.Logger:Debug(
+			"Not applying emoji restrictions for group '%s' as no 'AllowedEmoji' table was found.",
+			GroupName or "default"
+		)
+		return false
+	end
 
 	local AllowedEmoji = Shine.BitSet()
 	-- Start from the last pattern and work backwards, as the last pattern will be the first pattern of the furthest up
@@ -423,17 +432,33 @@ function Plugin:GetAvailableEmoji( GroupName )
 			end
 		elseif Matches then
 			if IsDeny then
-				AllowedEmoji:Union( Matches )
-			else
 				AllowedEmoji:AndNot( Matches )
+			else
+				AllowedEmoji:Union( Matches )
 			end
 		end
+	end
+
+	if AllowedEmoji:GetCount() >= EmojiRepository.TotalEmojiCount then
+		self.Logger:Debug(
+			"Not applying emoji restrictions for group '%s' as they have been granted all emoji.",
+			GroupName or "default"
+		)
+		return false
+	end
+
+	if self.Logger:IsDebugEnabled() then
+		self.Logger:Debug(
+			"Restricting group '%s' to have access to %s emoji.",
+			GroupName or "default",
+			AllowedEmoji:GetCount()
+		)
 	end
 
 	return AllowedEmoji
 end
 
-function Plugin:SendEmojiRestrictions( Client )
+function Plugin:GetAllowedEmojiForClient( Client )
 	local UserData = Shine:GetUserData( Client )
 	local GroupName = UserData and UserData.Group
 	local GroupKey = GroupName or DEFAULT_GROUP_KEY
@@ -444,10 +469,80 @@ function Plugin:SendEmojiRestrictions( Client )
 		self.AllowedEmojiByGroupName[ GroupKey ] = AllowedEmoji
 	end
 
+	return AllowedEmoji
+end
+
+do
+	local NewText = {}
+
+	function Plugin.ApplyEmojiFilters( Text, AllowedEmoji )
+		local CurrentIndex = 1
+		local LastTextIndex = 1
+
+		local Count = 0
+		TableEmpty( NewText )
+
+		for i = 1, #Text do
+			local OpenStart, OpenEnd = StringFind( Text, ":", CurrentIndex, true )
+			if not OpenStart then break end
+
+			local CloseStart, CloseEnd = StringFind( Text, ":", OpenEnd + 1, true )
+			if not CloseStart then break end
+
+			local TextBetween = StringSub( Text, OpenEnd + 1, CloseStart - 1 )
+			local EmojiDef = EmojiRepository.GetEmojiDefinition( TextBetween )
+			if EmojiDef and not AllowedEmoji:Contains( EmojiDef.Index ) then
+				-- Add everything up to the start of this emoji.
+				Count = Count + 1
+				NewText[ Count ] = StringSub( Text, LastTextIndex, OpenStart - 1 )
+				-- Then skip past it.
+				LastTextIndex = CloseEnd + 1
+			end
+
+			CurrentIndex = CloseEnd + 1
+		end
+
+		if LastTextIndex <= #Text then
+			Count = Count + 1
+			NewText[ Count ] = StringSub( Text, LastTextIndex )
+		end
+
+		local FinalText = TableConcat( NewText )
+		TableEmpty( NewText )
+
+		if Text ~= FinalText and not StringContainsNonUTF8Whitespace( FinalText ) then
+			return ""
+		end
+
+		return FinalText
+	end
+end
+
+function Plugin:PlayerSay( Client, NetMessage )
+	if not self.Config.ParseEmojiInChat then return end
+
+	local AllowedEmoji = self:GetAllowedEmojiForClient( Client )
+	if not AllowedEmoji then return end
+
+	local NewText = self.ApplyEmojiFilters( NetMessage.message, AllowedEmoji )
+	if NewText == "" then return "" end
+
+	-- Apply the filtered text to the net message rather than returning it to allow subsequent listeners to see the
+	-- updated chat message and apply their own filtering.
+	NetMessage.message = NewText
+end
+
+function Plugin:SendEmojiRestrictions( Client )
+	local AllowedEmoji = self:GetAllowedEmojiForClient( Client )
 	if not AllowedEmoji then
-		-- TODO: Send a message to clear any restrictions on the client.
+		self:SendNetworkMessage( Client, "ResetEmojiRestrictions", {}, true )
 	else
-		-- TODO: Network the allowed emoji bitset to the client.
+		local NumEmojiPerChunk = self.MAX_BITSET_VALUES_PER_MESSAGE * 32
+		local NumChunks = Max( Ceil( AllowedEmoji:GetCount() / NumEmojiPerChunk ), 1 )
+		for i = 1, NumChunks do
+			local Message = self:EncodeBitsetToMessage( i, NumChunks, AllowedEmoji )
+			self:SendNetworkMessage( Client, "SetEmojiRestrictions", Message, true )
+		end
 	end
 end
 

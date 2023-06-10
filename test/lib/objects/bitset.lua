@@ -26,6 +26,34 @@ UnitTest:Test( "Adding/removing elements", function( Assert )
 	Assert.Equals( "Set should have reset its max array index", 0, Set.MaxArrayIndex )
 end )
 
+UnitTest:Test( "Adding/removing a range of elements", function( Assert )
+	local Set = BitSet()
+	Set:AddRange( 1, 128 )
+	for i = 1, 128 do
+		Assert:True( Set:Contains( i ) )
+	end
+	Assert:Equals( 128, Set:GetCount() )
+
+	Set:RemoveRange( 32, 64 )
+	for i = 1, 31 do
+		Assert:True( Set:Contains( i ) )
+	end
+	for i = 32, 64 do
+		Assert:False( Set:Contains( i ) )
+	end
+	for i = 65, 128 do
+		Assert:True( Set:Contains( i ) )
+	end
+	Assert:Equals( 95, Set:GetCount() )
+
+	-- Adding the same range again with some overlap should only increment the size for new values.
+	Set:AddRange( 1, 128 )
+	for i = 1, 128 do
+		Assert:True( Set:Contains( i ) )
+	end
+	Assert:Equals( 128, Set:GetCount() )
+end )
+
 UnitTest:Test( "Adding/removing multiple elements", function( Assert )
 	local Set = BitSet()
 	Set:AddAll( { 0, 1, 2, 3, 4, 5 } )
@@ -126,17 +154,27 @@ end )
 
 UnitTest:Test( "Iteration", function( Assert )
 	local Set = BitSet()
-	for i = 0, 33 do
-		Set:Add( i )
+	local ExpectedValues = {}
+	for i = 0, 32 do
+		if i % 2 == 0 then
+			ExpectedValues[ #ExpectedValues + 1 ] = i
+			Set:Add( i )
+		end
 	end
-	Assert:Equals( 34, Set:GetCount() )
+	for i = 128, 160 do
+		if i % 2 == 0 then
+			ExpectedValues[ #ExpectedValues + 1 ] = i
+			Set:Add( i )
+		end
+	end
+	Assert:Equals( #ExpectedValues, Set:GetCount() )
 
-	local ExpectedValue = 0
+	local Count = 0
 	for Value in Set:Iterate() do
-		Assert:Equals( ExpectedValue, Value )
-		ExpectedValue = ExpectedValue + 1
+		Count = Count + 1
+		Assert:Equals( ExpectedValues[ Count ], Value )
 	end
-	Assert:Equals( ExpectedValue, 34 )
+	Assert:Equals( #ExpectedValues, Count )
 end )
 
 UnitTest:Test( "__eq/__len", function( Assert )
@@ -163,4 +201,46 @@ UnitTest:Test( "__eq/__len", function( Assert )
 	Set1:Add( 34 )
 
 	Assert.NotEquals( "Sets should no longer be equal due to different element values", Set1, Set2 )
+end )
+
+UnitTest:Test( "__tostring", function( Assert )
+	local Set = BitSet()
+	Assert:Equals( "BitSet [0 elements, MaxArrayIndex = 0]", tostring( Set ) )
+
+	Set:Add( 1 )
+	Assert:Equals( "BitSet [1 element, MaxArrayIndex = 0]", tostring( Set ) )
+
+	Set:Add( 2 )
+	Assert:Equals( "BitSet [2 elements, MaxArrayIndex = 0]", tostring( Set ) )
+
+	Set:Add( 32 )
+	Assert:Equals( "BitSet [3 elements, MaxArrayIndex = 1]", tostring( Set ) )
+end )
+
+UnitTest:Test( "BitSet.FromData", function( Assert )
+	local EmptySet = BitSet.FromData( {} )
+	Assert:Equals( 0, EmptySet:GetCount() )
+	Assert:Equals( 0, EmptySet.MaxArrayIndex )
+
+	local Integers = {
+		1,
+		2,
+		4,
+		8
+	}
+
+	local Set = BitSet.FromData( Integers )
+	Assert:Equals( 4, Set:GetCount() )
+
+	local ExpectedSet = BitSet()
+	-- First integer sets bit 0.
+	ExpectedSet:Add( 0 )
+	-- Second integer sets bit 1 and starts at 32.
+	ExpectedSet:Add( 33 )
+	-- Third integer sets bit 2 and starts at 64.
+	ExpectedSet:Add( 66 )
+	-- Fourth integer sets bit 3 and starts at 96.
+	ExpectedSet:Add( 99 )
+
+	Assert:Equals( ExpectedSet, Set )
 end )
