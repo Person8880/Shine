@@ -69,7 +69,6 @@ function VirtualScrollPanel:Initialise()
 	self.ScrollParent = ScrollParent
 	self.ScrollParentPos = Vector2( 0, 0 )
 
-	self.DataRevision = 0
 	self.MaxHeight = 0
 	self.ScrollOffset = 0
 	self.RowHeight = DefaultRowHeight
@@ -81,8 +80,6 @@ function VirtualScrollPanel:Initialise()
 	Scrollbar._CallEventsManually = true
 	Scrollbar:SetIsVisible( false )
 	self.Scrollbar = Scrollbar
-
-	self.RowElements = {}
 
 	self:SetLayout( SGUI.Layout:CreateLayout( "Vertical" ), true )
 end
@@ -105,11 +102,10 @@ function VirtualScrollPanel:RefreshContents()
 
 	local RowHeight = self:ComputeRowHeight()
 	self.Rows = self.RowGenerator( self.Size, RowHeight, self.Data )
-	self.DataRevision = self.DataRevision + 1
 	self.MaxHeight = #self.Rows * RowHeight
 	self.Scrollbar:SetIsVisible( self.MaxHeight > self.Size.y )
 
-	-- Clamp the scroll offset into the visible range, this will also trigger a refresh of the row contents.
+	-- Update the scrollbar with the new scroll size, and force a refresh of the row contents.
 	self.ScrollOffset = nil
 	self.Scrollbar:SetScrollSize( self.Size.y / Max( self.MaxHeight, self.Size.y ), true )
 end
@@ -150,12 +146,11 @@ function VirtualScrollPanel:SetRowElementGenerator( RowElementGenerator )
 	if not SetRowElementGenerator( self, RowElementGenerator ) then return false end
 
 	-- As the generated element is likely different, destroy any existing rows.
-	for i = 1, #self.RowElements do
-		local RowElement = self.RowElements[ i ]
+	for i = 1, #self.Layout.Elements do
+		local RowElement = self.Layout.Elements[ i ]
 		if SGUI.IsValid( RowElement ) then
 			RowElement:Destroy()
 		end
-		self.RowElements[ i ] = nil
 	end
 	self:RefreshContents()
 
@@ -163,61 +158,104 @@ function VirtualScrollPanel:SetRowElementGenerator( RowElementGenerator )
 end
 
 function VirtualScrollPanel:GetOrCreateRow( Index )
-	local RowElement = self.RowElements[ Index ]
+	local RowElement = self.Layout.Elements[ Index ]
 	if not SGUI.IsValid( RowElement ) then
 		RowElement = self.RowElementGenerator()
 		RowElement:SetParent( self, self.ScrollParent )
 		self.Layout:InsertElement( RowElement, Index )
 		self:InvalidateLayout()
-		self.RowElements[ Index ] = RowElement
 	end
 	return RowElement
+end
+
+local function ComputeRowIndexFromScrollOffset( ScrollOffset, RowHeight )
+	return Floor( ScrollOffset / RowHeight ) + 1
+end
+
+local function SetupRow( self, RowElement, RowIndex, RowHeight )
+	RowElement.RowIndex = RowIndex
+
+	local Content = self.Rows[ RowIndex ]
+	if Content then
+		RowElement:SetAutoSize( Units.UnitVector( Units.Percentage.ONE_HUNDRED, RowHeight ) )
+		RowElement:SetIsVisible( true )
+		RowElement:SetContents( Content )
+	else
+		RowElement:SetIsVisible( false )
+	end
 end
 
 function VirtualScrollPanel:SetScrollOffset( Offset )
 	Offset = Clamp( Offset, 0, Max( self.MaxHeight - self.Size.y, 0 ) )
 
+	local OldScrollOffset = self.ScrollOffset
 	if not SetScrollOffset( self, Offset ) then return false end
 
 	local RowHeight = self:ComputeRowHeight()
 	self.ScrollParentPos.y = -( Offset % RowHeight )
 	self.ScrollParent:SetPosition( self.ScrollParentPos )
 
-	local DataRevision = self.DataRevision
 	local MaxVisibleRows = Ceil( self.Size.y / RowHeight ) + 1
-	local RowIndex = Floor( self.ScrollOffset / RowHeight ) + 1
+	local RowIndex = ComputeRowIndexFromScrollOffset( self.ScrollOffset, RowHeight )
 
-	-- For every visible row, update the contents to match the row from the data that's currently visible.
-	for i = 1, MaxVisibleRows do
-		local RowElement = self:GetOrCreateRow( i )
-		-- If this row is already setup with the row at the given index for the same data, stop here as that means all
-		-- subsequent rows are also setup correctly. Nothing should be mutating the built rows.
-		if RowElement.RowIndex == RowIndex and RowElement.DataRevision == DataRevision then
-			break
+	local Delta
+	if OldScrollOffset then
+		-- If there's an old scroll offset, then all rows should have been setup for the current size, and thus the
+		-- changes to apply depend on whether the first row index has changed.
+		Delta = RowIndex - ComputeRowIndexFromScrollOffset( OldScrollOffset, RowHeight )
+		if Delta >= MaxVisibleRows then
+			-- All rows need changing, treat it the same as having no previous offset.
+			Delta = nil
 		end
-
-		RowElement.RowIndex = RowIndex
-		RowElement.DataRevision = DataRevision
-
-		local Content = self.Rows[ RowIndex ]
-		if Content then
-			RowElement:SetAutoSize( Units.UnitVector( Units.Percentage.ONE_HUNDRED, RowHeight ) )
-			RowElement:SetIsVisible( true )
-			RowElement:SetContents( Content )
-		else
-			RowElement:SetIsVisible( false )
-		end
-
-		RowIndex = RowIndex + 1
 	end
 
-	-- Clear out any additional elements that are no longer required (if the max visible rows decreased).
-	for i = #self.RowElements, MaxVisibleRows + 1, -1 do
-		local RowElement = self.RowElements[ i ]
-		if SGUI.IsValid( RowElement ) then
-			RowElement:Destroy()
+	if Delta then
+		if Delta > 0 then
+			-- Moved down, need to remove from the start of the row list and insert back at the end.
+			-- Start from the old last row index and work forwards.
+			local NewStartIndex = RowIndex - Delta + MaxVisibleRows - 1
+			for i = 1, Delta do
+				local RowElement = self:GetOrCreateRow( i )
+				self.Layout:RemoveElement( RowElement )
+				self.Layout:AddElement( RowElement )
+
+				SetupRow( self, RowElement, NewStartIndex + i, RowHeight )
+			end
+
+			self:InvalidateLayout()
+		elseif Delta < 0 then
+			-- Moved up, need to remove from the end of the row list and insert back at the start.
+			-- Start from the old first row index and work backwards.
+			local NewStartIndex = RowIndex - Delta
+			for i = -1, Delta, -1 do
+				-- Inverted loop, but effectively just going Max + 0, Max - 1, Max -2...
+				local RowElement = self:GetOrCreateRow( MaxVisibleRows + i + 1 )
+				self.Layout:RemoveElement( RowElement )
+				self.Layout:InsertElement( RowElement, 1 )
+
+				SetupRow( self, RowElement, NewStartIndex + i, RowHeight )
+			end
+
+			self:InvalidateLayout()
 		end
-		self.RowElements[ i ] = nil
+		-- If Delta == 0 then there's nothing to do, everything that should be visible is already visible.
+	else
+		-- There was no old scroll offset (i.e. this is a forced re-population) or the delta effectively means no rows
+		-- can be re-used. For every visible row, update the contents to match the row from the data that's currently
+		-- visible.
+		for i = 1, MaxVisibleRows do
+			local RowElement = self:GetOrCreateRow( i )
+			SetupRow( self, RowElement, RowIndex, RowHeight )
+			RowIndex = RowIndex + 1
+		end
+
+		-- Clear out any additional elements that are no longer required (if the max visible rows decreased).
+		for i = #self.Layout.Elements, MaxVisibleRows + 1, -1 do
+			local RowElement = self.Layout.Elements[ i ]
+			if SGUI.IsValid( RowElement ) then
+				RowElement:Destroy()
+			end
+		end
 	end
 
 	if self.LayoutIsInvalid then

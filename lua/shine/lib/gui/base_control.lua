@@ -2723,9 +2723,20 @@ do
 		self.TooltipText = Text
 		self:ListenForHoverEvents( self.ShowTooltip, self.HideTooltip )
 
-		if SGUI.IsValid( self.Tooltip ) then
+		if SGUI.IsValid( self.Tooltip ) and not self.Tooltip.FadingOut then
 			self.Tooltip:UpdateText( Text )
 		end
+	end
+
+	--[[
+		Resets the control's tooltip state, hiding any existing tooltip and resetting the hover delay.
+	]]
+	function ControlMeta:ResetTooltip( Text )
+		self:HideTooltip()
+
+		ResetHoveringState( self )
+
+		self:SetTooltip( Text )
 	end
 
 	local DEFAULT_HOVER_TIME = 0.5

@@ -65,7 +65,13 @@ function EmojiRow:SetContents( EmojiList )
 		local Button = self:GetOrCreateButton( i )
 		Button:SetAutoSize( Units.UnitVector( self.AutoSize[ 2 ], self.AutoSize[ 2 ] ) )
 		EmojiUtil.ApplyEmojiToImage( Button.Image, EmojiDefinition )
-		Button:SetTooltip( StringFormat( ":%s:", EmojiDefinition.Name ) )
+
+		-- Whenever a row's contents change, the button should be treated as if it is a new element, as that's what
+		-- would be the case if scrolling was not virtualised. Hence any old tooltip needs to be hidden immediately
+		-- without changing its text, and any hover highlighting state needs to be reset.
+		Button:ResetTooltip( StringFormat( ":%s:", EmojiDefinition.Name ) )
+		Button:SetHighlighted( false, true )
+
 		Button:SetIsVisible( true )
 		Button.Emoji = EmojiDefinition.Name
 	end
