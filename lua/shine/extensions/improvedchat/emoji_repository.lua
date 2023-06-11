@@ -56,8 +56,13 @@ local EmojiByName = {
 	[ 0 ] = 0
 }
 local EmojiIndex = Shine.Multimap()
+local EmojiByCategory = Shine.Multimap()
+local EmojiCategories = {}
 
 do
+	local TableShallowMerge = table.ShallowMerge
+
+	local DEFAULT_CATEGORY = "Uncategorised"
 	local EMOJI_DEFINITION_PATH = "ui/shine/emoji/*.json"
 
 	if Server then
@@ -78,10 +83,21 @@ do
 
 	local DeleteIfFieldInvalid = { DeleteIfFieldInvalid = true }
 	local Validator = Shine.Validator( "Emoji file validation error: " )
-	Validator:AddFieldRule( "Emoji", Validator.IsType( "table", {} ) )
-	Validator:AddFieldRule( "Emoji", Validator.AllValuesSatisfy(
+
+	-- Validate category definitions, if they're provided.
+	Validator:AddFieldRule( "Categories", Validator.IsAnyType( { "table", "nil" } ) )
+	Validator:AddFieldRule( "Categories", Validator.IfType( "table", Validator.AllValuesSatisfy(
+		Validator.ValidateField( "Name", Validator.IsType( "string" ), DeleteIfFieldInvalid ),
+		Validator.ValidateField( "Translations", Validator.IsType( "table" ), DeleteIfFieldInvalid ),
+		Validator.ValidateField( "Translations", Validator.AllKeyValuesSatisfy( Validator.IsType( "string" ) ) )
+	) ) )
+
+	-- Ensure there's a valid list of emoji.
+	Validator:AddFieldRule( "Emoji", Validator.IsAnyType( { "table", "nil" } ) )
+	Validator:AddFieldRule( "Emoji", Validator.IfType( "table", Validator.AllValuesSatisfy(
 		Validator.Exclusive( "Name", "Folder", { DeleteIfInvalid = true, FailIfBothMissing = true } ),
 		Validator.ValidateField( "Name", Validator.IsAnyType( { "string", "nil" } ), DeleteIfFieldInvalid ),
+		Validator.ValidateField( "Category", Validator.IsAnyType( { "string", "nil" } ), DeleteIfFieldInvalid ),
 		Validator.ValidateField( "Folder", Validator.IsAnyType( { "string", "nil" } ), DeleteIfFieldInvalid ),
 		Validator.IfFieldPresent( "Name",
 			Validator.ValidateField( "Texture", Validator.IsType( "string" ), DeleteIfFieldInvalid ),
@@ -118,7 +134,30 @@ do
 				)
 			)
 		)
-	) )
+	) ) )
+
+	local function AddCategory( CategoryDefinition )
+		local ExistingCategory = EmojiCategories[ CategoryDefinition.Name ]
+		if not ExistingCategory then
+			EmojiCategories[ CategoryDefinition.Name ] = CategoryDefinition
+			return
+		end
+
+		-- If the category has already been defined, merge any additional language translations into it.
+		TableShallowMerge( CategoryDefinition.Translations, ExistingCategory.Translations )
+	end
+
+	local function GetCategory( CategoryName )
+		local CategoryDefinition = EmojiCategories[ CategoryName ]
+		if not CategoryDefinition then
+			CategoryDefinition = {
+				Name = CategoryName,
+				Translations = {}
+			}
+			EmojiCategories[ CategoryName ] = CategoryDefinition
+		end
+		return CategoryDefinition
+	end
 
 	local function AddEmojiToIndex( Name )
 		local Segments = StringExplode( Name, "_", true )
@@ -159,8 +198,11 @@ do
 		EmojiByName[ 0 ] = Index
 		Entry.Index = Index
 		Entry.Name = Name
+		Entry.Category = GetCategory( Entry.Category or DEFAULT_CATEGORY )
 
 		AddEmojiToIndex( Name )
+
+		EmojiByCategory:Add( StringLower( Entry.Category.Name ), Entry )
 	end
 
 	local SupportedFileExtensions = {
@@ -171,7 +213,16 @@ do
 	local function ParseEmojiFile( EmojiDef )
 		Validator:Validate( EmojiDef )
 
+		local Categories = EmojiDef.Categories
+		if Categories then
+			for i = 1, #Categories do
+				AddCategory( Categories[ i ] )
+			end
+		end
+
 		local Emoji = EmojiDef.Emoji
+		if not Emoji then return end
+
 		for i = 1, #Emoji do
 			local Entry = Emoji[ i ]
 			if Entry.Name then
@@ -207,7 +258,8 @@ do
 						if FileName and SupportedFileExtensions[ FileExtension ] then
 							AddEmoji( FileName, {
 								Name = FileName,
-								Texture = Texture
+								Texture = Texture,
+								Category = Entry.Category
 							} )
 						end
 					end
@@ -219,10 +271,10 @@ do
 	for i = 1, #Files do
 		local Contents, Pos, Err = Shine.LoadJSONFile( Files[ i ] )
 		if Contents then
-			Validator.MessagePrefix = StringFormat( "Emoji definition file %s validation error:", Files[ i ] )
+			Validator.MessagePrefix = StringFormat( "Emoji definition file '%s' validation error: ", Files[ i ] )
 			ParseEmojiFile( Contents )
 		else
-			EmojiRepository.Logger:Error( "Invalid emoji definition file %s: %s", Files[ i ], Err )
+			EmojiRepository.Logger:Error( "Invalid emoji definition file '%s': %s", Files[ i ], Err )
 		end
 	end
 
@@ -326,6 +378,10 @@ if Client then
 			Tooltip = StringFormat( ":%s:", EmojiName )
 		} )
 	end
+
+	function EmojiRepository.GetCategoryDefinition( CategoryName )
+		return EmojiCategories[ CategoryName ]
+	end
 elseif Server then
 	local BitSet = Shine.BitSet
 	local rawset = rawset
@@ -336,6 +392,24 @@ elseif Server then
 	local PatternMatchCache = setmetatable( {}, {
 		__index = function( self, Pattern )
 			if not StringFind( Pattern, "*", 1, true ) then
+				if StringSub( Pattern, 1, 2 ) == "c:" then
+					-- Matching an entire category.
+					local CategoryName = StringSub( Pattern, 3 )
+					local EmojiForCategory = EmojiByCategory:Get( CategoryName )
+					if EmojiForCategory then
+						local Matches = BitSet()
+						for i = 1, #EmojiForCategory do
+							Matches:Add( EmojiForCategory[ i ].Index )
+						end
+
+						rawset( self, Pattern, Matches )
+
+						return Matches
+					end
+
+					return nil
+				end
+
 				-- No need to cache this, just return the index if the emoji exists.
 				local EmojiDef = EmojiByName[ Pattern ]
 				return EmojiDef and EmojiDef.Index

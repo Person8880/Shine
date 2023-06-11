@@ -708,23 +708,35 @@ do
 		}
 	end
 
-	-- If the value is of the given type, then it will be validated with the given predicate.
-	function Validator.IfType( Type, CheckPredicate, FixFunction, MessageSupplier )
-		if IsType( CheckPredicate, "table" ) then
-			FixFunction = CheckPredicate.Fix
-			MessageSupplier = CheckPredicate.Message
-			CheckPredicate = CheckPredicate.Check
+	-- If the value is of the given type, then it will be validated with the given predicate(s).
+	function Validator.IfType( Type, ... )
+		local Rules = { ... }
+		if IsType( Rules[ 1 ], "function" ) then
+			-- Backwards compatibility.
+			Rules = {
+				{
+					Check = Rules[ 1 ],
+					Fix = Rules[ 2 ],
+					Message = Rules[ 3 ]
+				}
+			}
 		end
-		return {
-			Check = function( Value, Context )
-				if not IsType( Value, Type ) then
-					return false
-				end
-				return CheckPredicate( Value, Context )
-			end,
-			Fix = FixFunction,
-			Message =  MessageSupplier
-		}
+
+		for i = 1, #Rules do
+			local Rule = Rules[ i ]
+			Rules[ i ] = {
+				Check = function( Value, Context )
+					if not IsType( Value, Type ) then
+						return false
+					end
+					return Rule.Check( Value, Context )
+				end,
+				Fix = Rule.Fix,
+				Message = Rule.Message
+			}
+		end
+
+		return unpack( Rules )
 	end
 
 	function Validator.IfFieldPresent( Field, ... )
@@ -801,6 +813,7 @@ do
 
 		local Checks = { ... }
 		if IsType( Checks[ 1 ], "function" ) then
+			-- Backwards compatibility.
 			Checks = {
 				{
 					Check = Checks[ 1 ],

@@ -1,1 +1,84 @@
-{"Emoji":[{"Folder":"ui/shine/emoji/smilies/face-smiling/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-affection/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-tongue/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-hand/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-neutral-skeptical/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-sleepy/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-unwell/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-hat/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-glasses/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-concerned/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-negative/*.tga"},{"Folder":"ui/shine/emoji/smilies/face-costume/*.tga"},{"Folder":"ui/shine/emoji/smilies/cat-face/*.tga"},{"Folder":"ui/shine/emoji/smilies/monkey-face/*.tga"},{"Folder":"ui/shine/emoji/smilies/emotion/*.tga"}]}
+{
+	"Categories": [
+		{
+			"Name": "Smilies",
+			"Translations": {
+				"enGB": "Smilies"
+			}
+		},
+		{
+			"Name": "Emoticons",
+			"Translations": {
+				"enGB": "Emoticons"
+			}
+		},
+		{
+			"Name": "Uncategorised",
+			"Translations": {
+				"enGB": "Uncategorised"
+			}
+		}
+	],
+    "Emoji": [
+        {
+            "Folder": "ui/shine/emoji/smilies/face-smiling/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-affection/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-tongue/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-hand/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-neutral-skeptical/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-sleepy/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-unwell/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-hat/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-glasses/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-concerned/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-negative/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/face-costume/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/cat-face/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/monkey-face/*.tga",
+            "Category": "Smilies"
+        },
+        {
+            "Folder": "ui/shine/emoji/smilies/emotion/*.tga",
+            "Category": "Emoticons"
+        }
+    ]
+}

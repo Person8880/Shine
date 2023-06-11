@@ -233,6 +233,9 @@ local Skin = {
 					Text = SGUI.Icons.Ionicons.AndroidPeople
 				}
 			}
+		},
+		EmojiCategoryHeader = {
+			Shadow = false
 		}
 	},
 	EmojiAutoComplete = {

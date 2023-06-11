@@ -435,8 +435,12 @@ UnitTest:ResetState()
 UnitTest:Before( function()
 	Shine.UserData.Groups.EmojiTestGroup = {
 		AllowedEmoji = {
+			-- Remove an emoji from the parent's allowed set.
 			"!grinning_face",
-			"zzz"
+			-- Add another single emoji.
+			"alien",
+			-- Add a category of emoji (case shouldn't matter).
+			"c:Emoticons"
 		},
 		InheritsFrom = { "EmojiTestParentGroup" }
 	}
@@ -461,10 +465,12 @@ UnitTest:Test( "GetAvailableEmoji - Returns a bitset of emoji indices if restric
 
 	local AllEmoji = EmojiRepository.GetAllEmoji()
 	for Index in AllowedEmoji:Iterate() do
-		local EmojiName = AllEmoji[ Index ].Name
+		local EmojiDef = AllEmoji[ Index ]
+		local EmojiName = EmojiDef.Name
 		Assert.True(
 			"Unexpected allowed emoji: "..EmojiName,
-			( EmojiName == "zzz" or EmojiName:EndsWith( "_face" ) ) and EmojiName ~= "grinning_face"
+			( EmojiName == "alien" or EmojiName:EndsWith( "_face" ) or EmojiDef.Category.Name == "Emoticons" ) and
+			EmojiName ~= "grinning_face"
 		)
 	end
 
