@@ -213,6 +213,10 @@ function Shine:OpenWebpage( URL, TitleText )
 	local BarPadding = Units.HighResScaled( 5 )
 	local WebpageWidth = WindowWidth - BarPadding:GetValue() * 2
 	local WebpageHeight = WindowHeight - BarPadding:GetValue() * 2 - TitleBarH * 2
+	local SecureIconColours = {
+		[ false ] = Colour( 0.7, 0, 0 ),
+		[ true ] = Colour( 0, 0.6, 0 )
+	}
 
 	local ControlBar = SGUI:BuildTree( {
 		Parent = Window,
@@ -230,7 +234,7 @@ function Shine:OpenWebpage( URL, TitleText )
 						AutoSize = Units.UnitVector( Units.HighResScaled( 32 ), Units.Percentage( 100 ) ),
 						Icon = SGUI.Icons.Ionicons.ArrowLeftC,
 						DoClick = function()
-							Webpage:ExecuteJS( "history.back();" )
+							Webpage:NavigateBack()
 						end
 					}
 				},
@@ -240,8 +244,22 @@ function Shine:OpenWebpage( URL, TitleText )
 						AutoSize = Units.UnitVector( Units.HighResScaled( 32 ), Units.Percentage( 100 ) ),
 						Icon = SGUI.Icons.Ionicons.ArrowRightC,
 						DoClick = function()
-							Webpage:ExecuteJS( "history.forward();" )
+							Webpage:NavigateForward()
 						end
+					}
+				},
+				{
+					Class = "Label",
+					ID = "SecureIcon",
+					Props = {
+						AutoFont = {
+							Family = SGUI.FontFamilies.Ionicons,
+							Size = Units.HighResScaled( 27 )
+						},
+						Colour = SecureIconColours[ true ],
+						Margin = Units.Spacing( BarPadding, 0, 0, 0 ),
+						Text = SGUI.Icons.Ionicons.Locked,
+						IsSchemed = false
 					}
 				},
 				{
@@ -251,10 +269,8 @@ function Shine:OpenWebpage( URL, TitleText )
 						Fill = true,
 						Font = Font,
 						Margin = Units.Spacing( BarPadding, 0, BarPadding, 0 ),
-						OnEnter = function( self )
-							Webpage:LoadURL( self:GetText(), WebpageWidth, WebpageHeight )
-							self:LoseFocus()
-						end,
+						-- Do not allow arbitrary navigation, keep it to just the loaded page.
+						Enabled = false,
 						Text = URL,
 						TextScale = TextScale
 					}
@@ -265,7 +281,7 @@ function Shine:OpenWebpage( URL, TitleText )
 						AutoSize = Units.UnitVector( Units.HighResScaled( 32 ), Units.Percentage( 100 ) ),
 						Icon = SGUI.Icons.Ionicons.Refresh,
 						DoClick = function()
-							Webpage:ExecuteJS( "location.reload();" )
+							Webpage:ReloadCurrentPage()
 						end
 					}
 				}
@@ -276,32 +292,21 @@ function Shine:OpenWebpage( URL, TitleText )
 	Webpage = Window:Add( "Webpage" )
 	Webpage:SetAnchor( GUIItem.Middle, GUIItem.Center )
 	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + TitleBarH, 0 ) )
-	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
-
-	local OldPlayerKeyPress = Webpage.PlayerKeyPress
-	function Webpage:PlayerKeyPress( Key, Down )
-		if not Down and ( Key == InputKey.MouseButton3 or Key == InputKey.MouseButton4 ) and self:MouseInCached() then
-			if Key == InputKey.MouseButton4 then
-				self:ExecuteJS( "history.forward();" )
-				return true
-			end
-
-			if Key == InputKey.MouseButton3 then
-				self:ExecuteJS( "history.back();" )
-				return true
-			end
-		end
-
-		return OldPlayerKeyPress( self, Key, Down )
-	end
+	-- Replace the initial data-URL to avoid being able to go back to it.
+	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight, true )
 
 	local AlertPrefix = "SHINE_WEBPAGE_"..Random()
 	local Actions = {
-		LOCATION_CHANGE = function( Arg )
-			if not StringStartsWith( Arg, "http" ) then return end
-			if ControlBar.URLEntry:HasFocus() then return end
+		LOCATION_CHANGE = function( Segments )
+			local IsSecure = Segments[ 2 ] == "1"
+			ControlBar.SecureIcon:SetText( SGUI.Icons.Ionicons[ IsSecure and "Locked" or "Unlocked" ] )
+			ControlBar.SecureIcon:SetColour( SecureIconColours[ IsSecure ] )
 
-			ControlBar.URLEntry:SetText( Arg )
+			local URL = TableConcat( Segments, ":", 3 )
+			-- Hide the internal data URL used at startup.
+			if not StringStartsWith( URL, "http" ) then return end
+
+			ControlBar.URLEntry:SetText( StringSub( URL, 1, 255 ) )
 		end
 	}
 	function Webpage:OnJSAlert( _, Alert )
@@ -312,10 +317,12 @@ function Shine:OpenWebpage( URL, TitleText )
 		local Action = Segments[ 1 ]
 		if not Actions[ Action ] then return end
 
-		Actions[ Action ]( TableConcat( Segments, ":", 2 ) )
+		Actions[ Action ]( Segments )
 	end
 
-	local UpdateLocationScript = [[alert( "%s:LOCATION_CHANGE:" + location.href );]]
+	local UpdateLocationScript = [[alert(
+		"%s:LOCATION_CHANGE:" + ( window.isSecureContext ? "1" : "0" ) + ":"  + location.href
+	);]]
 	function Webpage:UpdateLocation()
 		self:ExecuteJS( StringFormat( UpdateLocationScript, AlertPrefix ) )
 	end
