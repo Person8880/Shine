@@ -78,7 +78,7 @@ local function OnVisibilityChange( self, IsVisible )
 		OnInnerBoxColourChanged( self, self.DarkCol )
 	else
 		local MouseIn = self:HasMouseEntered()
-		if MouseIn or self.Enabled then
+		if MouseIn or self.Focused then
 			self:StopFade( self.InnerBox )
 			self.InnerBox:SetColor( GetInnerBoxColour( self, self.FocusColour ) )
 			OnInnerBoxColourChanged( self, self.FocusColour )
@@ -95,9 +95,9 @@ end
 
 local function GetCurrentInnerBoxColour( self )
 	local Colour
-	if ( self.Enabled or self.Highlighted ) and self.FocusColour then
+	if ( self.Focused or self.Highlighted ) and self.FocusColour then
 		Colour = self.FocusColour
-	elseif not self.Enabled and not self.Highlighted and self.DarkCol then
+	elseif not self.Focused and not self.Highlighted and self.DarkCol then
 		Colour = self.DarkCol
 	end
 	return Colour
@@ -161,6 +161,8 @@ function TextEntry:Initialise()
 	self.SelectionBounds = { 0, 0 }
 	self.UndoPosition = 0
 	self.UndoStack = {}
+
+	self.Enabled = true
 
 	self:AddPropertyChangeListener( "IsVisible", OnVisibilityChange )
 end
@@ -242,9 +244,9 @@ end
 
 function TextEntry:GetInnerBoxTargetAlpha()
 	local TargetAlpha = 1
-	if ( self.Enabled or self.Highlighted ) and self.FocusColour then
+	if ( self.Focused or self.Highlighted ) and self.FocusColour then
 		TargetAlpha = self.FocusColour.a
-	elseif not self.Enabled and not self.Highlighted and self.DarkCol then
+	elseif not self.Focused and not self.Highlighted and self.DarkCol then
 		TargetAlpha = self.DarkCol.a
 	end
 	return TargetAlpha
@@ -268,7 +270,7 @@ end
 function TextEntry:SetFocusColour( Col )
 	self.FocusColour = Col
 
-	if self.Enabled or self.Highlighted then
+	if self.Focused or self.Highlighted then
 		self:StopFade( self.InnerBox )
 		self.InnerBox:SetColor( GetInnerBoxColour( self, Col ) )
 		OnInnerBoxColourChanged( self, Col )
@@ -278,7 +280,7 @@ end
 function TextEntry:SetDarkColour( Col )
 	self.DarkCol = Col
 
-	if not self.Enabled and not self.Highlighted then
+	if not self.Focused and not self.Highlighted then
 		self:StopFade( self.InnerBox )
 		self.InnerBox:SetColor( GetInnerBoxColour( self, Col ) )
 		OnInnerBoxColourChanged( self, Col )
@@ -917,7 +919,7 @@ function TextEntry:RemoveCharacter( Forward )
 end
 
 function TextEntry:PlayerType( Char )
-	if not self.Enabled then return end
+	if not self.Focused then return end
 	if not self:GetIsVisible() then return end
 
 	if self.AutoCompleteHandler then
@@ -937,7 +939,7 @@ end
 function TextEntry:Think( DeltaTime )
 	if not self:GetIsVisible() then return end
 
-	if self.Enabled then
+	if self.Focused then
 		local Time = Clock()
 
 		if ( self.NextCaretChange or 0 ) < Time then
@@ -963,7 +965,7 @@ end
 function TextEntry:OnMouseEnter()
 	self.BaseClass.OnMouseEnter( self )
 
-	if self.Enabled or self.Highlighted then return end
+	if self.Focused or self.Highlighted or not self.Enabled then return end
 
 	self:FadeTo(
 		self.InnerBox,
@@ -978,7 +980,7 @@ end
 function TextEntry:OnMouseLeave()
 	self.BaseClass.OnMouseLeave( self )
 
-	if self.Enabled or not self.Highlighted then return end
+	if self.Focused or not self.Highlighted then return end
 
 	self:FadeTo(
 		self.InnerBox,
@@ -1043,12 +1045,12 @@ function TextEntry:SetStickyFocus( Bool )
 end
 
 function TextEntry:OnMouseDown( Key, DoubleClick )
-	if not self:GetIsVisible() then return end
+	if not self:GetIsVisible() or not self.Enabled then return end
 
 	if Key == InputKey.MouseButton0 then
 		local In, X, Y = self:MouseIn( self.InnerBox )
 
-		if not self.Enabled then
+		if not self.Focused then
 			if In then
 				self:RequestFocus()
 			else
@@ -1201,7 +1203,7 @@ end
 
 function TextEntry:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
-	if not self.Enabled then return end
+	if not self.Focused then return end
 
 	-- Reset the auto-completion list on any action other than pressing tab.
 	if Key ~= InputKey.Tab
@@ -1359,6 +1361,11 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	return true
 end
 
+function TextEntry:RequestFocus()
+	if not self.Enabled then return end
+	return self.BaseClass.RequestFocus( self )
+end
+
 function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 	if NewFocus ~= self then
 		if self.StickyFocus and ClickingOtherElement then
@@ -1367,8 +1374,8 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 			return true
 		end
 
-		if self.Enabled then
-			self.Enabled = false
+		if self.Focused then
+			self.Focused = false
 
 			if not self:HasMouseEntered() then
 				self.Highlighted = false
@@ -1393,11 +1400,11 @@ function TextEntry:OnFocusChange( NewFocus, ClickingOtherElement )
 	SetCaretVisible( self, true )
 	self.NextCaretChange = Clock() + 0.5
 
-	if not self.Enabled then
+	if not self.Focused then
 		self:OnGainFocus()
 	end
 
-	self.Enabled = true
+	self.Focused = true
 end
 
 function TextEntry:OnGainFocus()
@@ -1410,4 +1417,5 @@ end
 
 TextEntry.StandardAutoComplete = require "shine/lib/gui/objects/textentry/auto_complete"
 
+SGUI:AddMixin( TextEntry, "EnableMixin" )
 SGUI:Register( "TextEntry", TextEntry )
