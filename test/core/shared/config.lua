@@ -394,6 +394,51 @@ UnitTest:Test( "VerifyConfig does nothing when config matches", function( Assert
 	Assert.DeepEquals( "Config values should remain unchanged", ExpectedConfig, ProvidedConfig )
 end )
 
+UnitTest:Test( "ApplyConfigMigration - Sets the version only if no migration steps are provided", function( Assert )
+	local Config = Shine.ApplyConfigMigration( {}, {
+		NewVersion = "1.0"
+	} )
+
+	Assert:DeepEquals( {
+		__Version = "1.0"
+	}, Config )
+end )
+
+UnitTest:Test( "ApplyConfigMigration - Applies each step up to the new version based on the current version", function( Assert )
+	local Config = Shine.ApplyConfigMigration( {
+		__Version = "1.1"
+	}, {
+		NewVersion = "2.0",
+		CurrentVersion = Shine.VersionHolder( "1.1" ),
+		MigrationSteps = {
+			{
+				VersionTo = "1.1",
+				Apply = function( Config )
+					Config.DontRunThis = true
+				end
+			},
+			{
+				VersionTo = "1.2",
+				Apply = function( Config )
+					Config.UpdatedTo12 = true
+				end
+			},
+			{
+				VersionTo = "2.0",
+				Apply = function( Config )
+					Config.UpdatedTo20 = true
+				end
+			}
+		}
+	} )
+
+	Assert:DeepEquals( {
+		UpdatedTo12 = true,
+		UpdatedTo20 = true,
+		__Version = "2.0"
+	}, Config )
+end )
+
 UnitTest:Test( "Migrator", function( Assert )
 	local Migrator = Shine.Migrator()
 		:AddField( "D", function( Config ) return Config.A:gsub( "A$", "D" ) end )

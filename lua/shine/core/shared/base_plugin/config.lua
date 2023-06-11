@@ -285,8 +285,9 @@ function ConfigModule:ValidateConfigAfterLoad()
 end
 
 function ConfigModule:MigrateConfig( Config )
+	local PluginVersion = self.Version or "1.0"
 	local CurrentConfigVersion = Shine.VersionHolder( Config.__Version or "0" )
-	local OurVersion = Shine.VersionHolder( self.Version or "1.0" )
+	local OurVersion = Shine.VersionHolder( PluginVersion )
 	if CurrentConfigVersion == OurVersion then return end
 
 	-- Do not permit loading a newer config version than the plugin.
@@ -314,28 +315,11 @@ function ConfigModule:MigrateConfig( Config )
 		} )
 	end
 
-	Config.__Version = self.Version or "1.0"
-
-	local MigrationSteps = self.ConfigMigrationSteps
-	if not MigrationSteps then return true end
-
-	local StartingStep
-	local EndStep = #MigrationSteps
-
-	-- Find the first step that migrates to a version later than the config's current version.
-	for i = 1, EndStep do
-		local Step = MigrationSteps[ i ]
-		if Shine.VersionHolder( Step.VersionTo ) > CurrentConfigVersion then
-			StartingStep = i
-			break
-		end
-	end
-
-	if not StartingStep then return true end
-
-	for i = StartingStep, EndStep do
-		MigrationSteps[ i ].Apply( Config )
-	end
+	Shine.ApplyConfigMigration( Config, {
+		NewVersion = PluginVersion,
+		CurrentVersion = CurrentConfigVersion,
+		MigrationSteps = self.ConfigMigrationSteps
+	} )
 
 	return true
 end

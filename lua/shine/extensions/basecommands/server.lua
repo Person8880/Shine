@@ -996,12 +996,7 @@ function Plugin:CreateAdminCommands()
 
 	do
 		local function SaveEnabledState( Name, PluginTable )
-			if PluginTable.IsBeta then
-				Shine.Config.ActiveExtensions[ Name ] = nil
-				Shine.Config.ActiveBetaExtensions[ Name ] = true
-			else
-				Shine.Config.ActiveExtensions[ Name ] = true
-			end
+			Shine.Config.ActiveExtensions[ Name ] = true
 			Shine:SaveConfig()
 
 			-- Notify admins of the change in plugin state. This results in a second message as the plugin hook will
@@ -1923,7 +1918,7 @@ function Plugin:ReceiveRequestMapData( Client, Data )
 end
 
 local function IsPluginConfiguredAsEnabled( Plugin )
-	return not not ( Shine.Config.ActiveExtensions[ Plugin ] or Shine.Config.ActiveBetaExtensions[ Plugin ] )
+	return not not Shine.Config.ActiveExtensions[ Plugin ]
 end
 
 function Plugin:ReceiveRequestPluginData( Client, Data )

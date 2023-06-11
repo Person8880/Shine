@@ -311,6 +311,44 @@ function Shine.TypeCheckConfig( Name, Config, DefaultConfig, Recursive )
 	return Edited
 end
 
+--[[
+	Applies a migration to the given config, modifying it in-place to match the new version based on a given list of
+	migration steps.
+
+	Inputs:
+		1. The config object to migrate.
+		2. Parameters providing:
+			"CurrentVersion" - The current version of the given configuration object (before migration).
+			"NewVersion" - a string denoting the new version of the configuration.
+			"MigrationSteps" - an optional table of migration steps, each with a "VersionTo" field indicating the
+			version they migrate to, and an "Apply" function that takes the config object and migrates it in-place.
+]]
+function Shine.ApplyConfigMigration( Config, Params )
+	Config.__Version = Params.NewVersion
+
+	if Params.MigrationSteps then
+		local StartingStep
+		local EndStep = #Params.MigrationSteps
+
+		-- Find the first step that migrates to a version later than the config's current version.
+		for i = 1, EndStep do
+			local Step = Params.MigrationSteps[ i ]
+			if Shine.VersionHolder( Step.VersionTo ) > Params.CurrentVersion then
+				StartingStep = i
+				break
+			end
+		end
+
+		if StartingStep then
+			for i = StartingStep, EndStep do
+				Params.MigrationSteps[ i ].Apply( Config )
+			end
+		end
+	end
+
+	return Config
+end
+
 do
 	local Clamp = math.Clamp
 	local Floor = math.floor

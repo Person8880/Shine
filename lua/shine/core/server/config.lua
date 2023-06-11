@@ -13,6 +13,7 @@ local IsType = Shine.IsType
 local ConfigPath = "config://shine/BaseConfig"
 local BackupPath = "config://Shine_BaseConfig"
 
+local CONFIG_VERSION = "1.0"
 local DefaultConfig = {
 	EnableLogging = true, -- Enable Shine's internal log. Note that plugins rely on this to log.
 	DebugLogging = false,
@@ -48,6 +49,7 @@ local DefaultConfig = {
 		basecommands = true,
 		commbans = false,
 		funcommands = false,
+		improvedchat = true,
 		logging = false,
 		mapvote = true,
 		motd = true,
@@ -68,11 +70,6 @@ local DefaultConfig = {
 		welcomemessages = false,
 		workshopupdater = false
 	},
-
-	-- Defines extensions marked as beta that should be loaded.
-	-- This allows plugins to be omitted from ActiveExtensions until they're promoted from beta status, at which point
-	-- their DefaultState will be respected.
-	ActiveBetaExtensions = {},
 
 	APIKeys = {
 		Steam = ""
@@ -184,11 +181,6 @@ do
 	} )
 	Validator:AddRule( {
 		Matches = function( self, Config )
-			return ValidateExtensionSet( Config.ActiveBetaExtensions, "ActiveBetaExtensions" )
-		end
-	} )
-	Validator:AddRule( {
-		Matches = function( self, Config )
 			return CheckConfig( Config, DefaultConfig, true )
 		end
 	} )
@@ -199,6 +191,62 @@ do
 	Validator:AddFieldRule( "LogLevel", Validator.InEnum(
 		Shine.Objects.Logger.LogLevel, Shine.Objects.Logger.LogLevel.INFO
 	) )
+
+	local ConfigMigrationSteps = {
+		{
+			VersionTo = "1.0",
+			Apply = function( Config )
+				local ActiveBetaExtensions = Config.ActiveBetaExtensions
+
+				Config.ActiveBetaExtensions = nil
+
+				if
+					not IsType( Config.ActiveExtensions, "table" ) or
+					not IsType( ActiveBetaExtensions, "table" )
+				then
+					return
+				end
+
+				-- Remove the concept of beta extensions. This was intended to provide a staging area to later enable a
+				-- plugin by default, but it makes plugin state awkward and ultimately forcing a new plugin to be
+				-- enabled isn't desirable behaviour most of the time. New plugins will now be left out of the config
+				-- until an admin enables them explicitly or the plugin decides on a default state.
+				for PluginName, Enabled in pairs( ActiveBetaExtensions ) do
+					if IsType( PluginName, "string" ) and Config.ActiveExtensions[ PluginName ] == nil then
+						Config.ActiveExtensions[ PluginName ] = Enabled
+					end
+				end
+			end
+		}
+	}
+
+	local function MigrateConfig( Config )
+		local CurrentConfigVersion = Shine.VersionHolder( Config.__Version or "0" )
+		local ExpectedVersion = Shine.VersionHolder( CONFIG_VERSION )
+		if CurrentConfigVersion == ExpectedVersion then return end
+
+		-- Do not change anything if the config appears to be a newer version, this may result in some lost/redundant
+		-- data but it's better than reverting to the default config.
+		if CurrentConfigVersion > ExpectedVersion then
+			Notify( StringFormat(
+				"Configuration file has version %s but the latest known version is %s, this may result in "..
+				"unexpected behaviour.",
+				CurrentConfigVersion,
+				ExpectedVersion
+			) )
+			return
+		end
+
+		Notify( StringFormat( "Updating config from version %s to %s...", CurrentConfigVersion, ExpectedVersion ) )
+
+		Shine.ApplyConfigMigration( Config, {
+			NewVersion = CONFIG_VERSION,
+			CurrentVersion = CurrentConfigVersion,
+			MigrationSteps = ConfigMigrationSteps
+		} )
+
+		return true
+	end
 
 	function Shine:LoadConfig()
 		local Paths = {
@@ -257,7 +305,8 @@ do
 
 		self.Config = ConfigFile
 
-		if Validator:Validate( self.Config ) then
+		local WasMigrated = MigrateConfig( ConfigFile )
+		if Validator:Validate( self.Config ) or WasMigrated then
 			self:SaveConfig()
 		end
 	end
@@ -353,16 +402,10 @@ function Shine:LoadExtensionConfigs()
 
 	local AllPlugins = self.AllPluginsArray
 	local ActiveExtensions = self.Config.ActiveExtensions
-	local ActiveBetaExtensions = self.Config.ActiveBetaExtensions
 	local Modified = false
 
 	local RequestedExtensions = Shine.Set()
 	for Plugin, Enabled in pairs( ActiveExtensions ) do
-		if Enabled then
-			RequestedExtensions:Add( Plugin )
-		end
-	end
-	for Plugin, Enabled in pairs( ActiveBetaExtensions ) do
 		if Enabled then
 			RequestedExtensions:Add( Plugin )
 		end
@@ -385,56 +428,25 @@ function Shine:LoadExtensionConfigs()
 	for i = 1, #AllPlugins do
 		local Plugin = AllPlugins[ i ]
 
-		local WasEnabledAsBeta = false
-		if ActiveBetaExtensions[ Plugin ] ~= nil then
-			WasEnabledAsBeta = ActiveBetaExtensions[ Plugin ]
-
-			-- Clear out any plugins that are no longer in beta.
-			local PluginTable = GetPluginTable( Plugin )
-			if PluginTable and not PluginTable.IsBeta then
-				ActiveBetaExtensions[ Plugin ] = nil
-				Modified = true
-			end
-		end
-
 		if ActiveExtensions[ Plugin ] == nil then
 			-- Load, but do not enable, the extension to determine its default state.
 			local PluginTable = GetPluginTable( Plugin )
 
-			local DefaultState = false
+			local DefaultState
 			if PluginTable and PluginTable.DefaultState ~= nil then
-				DefaultState = PluginTable.DefaultState
+				DefaultState = not not PluginTable.DefaultState
 			end
 
-			if WasEnabledAsBeta then
-				DefaultState = true
-			end
-
-			if PluginTable and PluginTable.IsBeta then
-				if ActiveBetaExtensions[ Plugin ] == nil then
-					self:Print(
-						"A new beta plugin is available: %s%s. Enable it in ActiveBetaExtensions in the base config, "..
-						"using sh_loadplugin or using the admin menu.",
-						true,
-						Plugin,
-						PluginTable.BetaDescription and StringFormat( " - %s", PluginTable.BetaDescription ) or ""
-					)
-
-					-- Always start beta extensions in a disabled state.
-					ActiveBetaExtensions[ Plugin ] = false
-					Modified = true
-				end
-			else
+			-- Only update the config if the plugin has a default state. Otherwise, wait for server operators to make
+			-- their own decision as to whether the plugin should be enabled (or extension authors to later set a
+			-- default state).
+			if DefaultState ~= nil then
 				ActiveExtensions[ Plugin ] = DefaultState
 				Modified = true
 			end
 		end
 
 		local EnabledState = ActiveExtensions[ Plugin ]
-		if EnabledState == nil then
-			EnabledState = ActiveBetaExtensions[ Plugin ]
-		end
-
 		if EnabledState then
 			ExtensionsToLoad[ #ExtensionsToLoad + 1 ] = Plugin
 		end

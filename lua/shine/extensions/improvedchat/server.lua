@@ -44,10 +44,6 @@ Plugin.DefaultConfig = {
 	ParseEmojiInChat = true
 }
 
-Plugin.IsBeta = true
-Plugin.BetaDescription = "Enables rich text messages and more customisation for the chat"
-Plugin.DefaultState = true
-
 Plugin.ConfigMigrationSteps = {
 	{
 		VersionTo = "1.1",
