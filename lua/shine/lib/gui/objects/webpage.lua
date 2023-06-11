@@ -7,9 +7,38 @@ local SGUI = Shine.GUI
 local Clamp = math.Clamp
 local StringByte = string.byte
 local StringFormat = string.format
+local StringGSub = string.gsub
+local StringUTF8CodePoint = string.UTF8CodePoint
 local StringUTF8Encode = string.UTF8Encode
 
+local JavaScriptStringReplacements = {
+	[ "\\" ] = "\\\\",
+	[ "\0" ] = "\\x00" ,
+	[ "\b" ] = "\\b" ,
+	[ "\t" ] = "\\t" ,
+	[ "\n" ] = "\\n" ,
+	[ "\v" ] = "\\v" ,
+	[ "\f" ] = "\\f" ,
+	[ "\r" ] = "\\r" ,
+	[ "\"" ] = "\\\"",
+	[ "'" ] = "\\'",
+	[ "`" ] = "\\`",
+	[ "$" ] = "\\$",
+	[ "{" ] = "\\{",
+	[ "}" ] = "\\}"
+}
+local function EscapeStringForJavaScript( String )
+	local EscapedString = StringGSub( String, ".", JavaScriptStringReplacements )
+	-- Escape line/paragraph break characters that get interpreted as line breaks in code.
+	EscapedString = StringGSub( EscapedString, "\226\128\168", "\\\226\128\168" )
+	EscapedString = StringGSub( EscapedString, "\226\128\169", "\\\226\128\169" )
+	return EscapedString
+end
+
 local Webpage = {}
+
+-- Expose as a helper, only really relevant here as this is the only place that interacts with JavaScript.
+Webpage.EscapeStringForJavaScript = EscapeStringForJavaScript
 
 Webpage.UsesKeyboardFocus = true
 
@@ -44,7 +73,7 @@ function Webpage:CleanupWebView()
 	end
 end
 
-function Webpage:LoadURL( URL, W, H )
+function Webpage:LoadURL( URL, W, H, Replace )
 	if not self.WebView then
 		Counter = Counter + 1
 		local TextureName = "*webview_shine_"..Counter
@@ -63,7 +92,15 @@ function Webpage:LoadURL( URL, W, H )
 		end )
 	end
 
-	self.WebView:LoadUrl( URL )
+	if Replace then
+		-- Overwrite the current URL with the given URL to avoid it showing up in the history.
+		-- This is mainly useful for the initial URL load, as the first URL loaded is a basic data-URL with an empty
+		-- HTML body which doesn't make sense to navigate back to.
+		self:ExecuteJS( StringFormat( [[location.replace( "%s" );]], EscapeStringForJavaScript( URL ) ) )
+	else
+		self.WebView:LoadUrl( URL )
+	end
+
 	self.IsLoading = true
 	self:OnPropertyChanged( "IsLoading", true )
 end
@@ -76,7 +113,7 @@ end
 	HTML, then using ExecuteJS() to update the DOM as it has a larger limit.
 ]]
 function Webpage:LoadHTML( HTML, W, H )
-	self:LoadURL( StringFormat( "data:text/html;%s", HTML ), W, H )
+	return self:LoadURL( StringFormat( "data:text/html;%s", HTML ), W, H )
 end
 
 function Webpage:GetHasLoaded()
@@ -115,19 +152,48 @@ function Webpage:Think( DeltaTime )
 	end
 end
 
+function Webpage:NavigateBack()
+	return self:ExecuteJS( "history.back();" )
+end
+
+function Webpage:NavigateForward()
+	return self:ExecuteJS( "history.forward();" )
+end
+
+function Webpage:ReloadCurrentPage()
+	if not self:GetHasLoaded() then return end
+	return self:ExecuteJS( "location.reload();" )
+end
+
 function Webpage:PlayerKeyPress( Key, Down )
 	if not self:GetIsVisible() then return end
-	if not self:HasFocus() then return end
 	if not self.WebView then return end
-	if not Down then return end
+
+	if not Down and self:MouseInCached() then
+		if Key == InputKey.MouseButton4 then
+			self:NavigateForward()
+			return true
+		end
+
+		if Key == InputKey.MouseButton3 then
+			self:NavigateBack()
+			return true
+		end
+	end
+
+	if not self:HasFocus() then return end
 
 	if Key == InputKey.Return then
 		self.WebView:OnEnter( Down )
 	elseif Key == InputKey.Back then
 		self.WebView:OnBackSpace( Down )
+	elseif Key == InputKey.Space then
+		self.WebView:OnSpace( Down )
+	elseif Key == InputKey.Escape then
+		self.WebView:OnEscape( Down )
 	end
 
-	if SGUI:IsControlDown() and Key == InputKey.V then
+	if Down and SGUI:IsControlDown() and Key == InputKey.V then
 		local Chars = StringUTF8Encode( SGUI.GetClipboardText() )
 		for i = 1, #Chars do
 			self:PlayerType( Chars[ i ] )
@@ -142,10 +208,8 @@ function Webpage:PlayerType( Char )
 	if not self:HasFocus() then return end
 	if not self.WebView then return end
 
-	local Num = StringByte( Char )
-	if Num <= 255 then
-		self.WebView:OnSendCharacter( Num )
-	end
+	local CodePoint = StringUTF8CodePoint( StringByte( Char, 1, 4 ) )
+	self.WebView:OnSendCharacter( CodePoint )
 
 	return true
 end
@@ -188,6 +252,8 @@ function Webpage:OnMouseUp( Key )
 
 	local KeyCode = Key - MouseButton0
 	self.WebView:OnMouseUp( KeyCode )
+
+	return true
 end
 
 function Webpage:OnMouseWheel( Down )

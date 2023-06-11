@@ -14,6 +14,7 @@ if Server then return end
 local Hook = Shine.Hook
 local Locale = Shine.Locale
 local SGUI = Shine.GUI
+local Units = SGUI.Layout.Units
 
 local Binder = require "shine/lib/gui/binding/binder"
 
@@ -40,6 +41,12 @@ local AlwaysButtonPos = Vector( 5, -37, 0 )
 local PopupTextPos = Vector( 0, -32, 0 )
 
 local Max = math.max
+local Random = math.random
+local StringExplode = string.Explode
+local StringFormat = string.format
+local StringStartsWith = string.StartsWith
+local StringSub = string.sub
+local TableConcat = table.concat
 
 local function Scale( Value, WidthMult, HeightMult )
 	return Vector( Value.x * WidthMult, Value.y * HeightMult, 0 )
@@ -144,17 +151,8 @@ function Shine:OpenWebpage( URL, TitleText )
 	local WidthMult = Max( W / 1920, 1 )
 	local HeightMult = Max( H / 1080, 1 )
 
-	local TitleBarH = 32
-	local Font = Fonts.kAgencyFB_Small
-	local TextScale
-	if H > SGUI.ScreenHeight.Normal and H <= SGUI.ScreenHeight.Large then
-		TitleBarH = TitleBarH * 1.5
-		Font = Fonts.kAgencyFB_Medium
-	elseif H > SGUI.ScreenHeight.Large then
-		TitleBarH = TitleBarH * 2.5
-		Font = Fonts.kAgencyFB_Huge
-		TextScale = Vector( 0.6, 0.6, 0 )
-	end
+	local TitleBarH = Units.HighResScaled( 32 ):GetValue()
+	local Font, TextScale = SGUI.FontManager.GetHighResFont( "kAgencyFB", 27 )
 
 	local WindowWidth = W * 0.8
 	local WindowHeight = H * 0.8 + TitleBarH
@@ -202,30 +200,165 @@ function Shine:OpenWebpage( URL, TitleText )
 		Window:DeleteOnRemove( Popup )
 	end
 
-	local LoadingText = Window:Add( "Label" )
-	LoadingText:SetupFromTable{
+	local LoadingIndicator = Window:Add( "ProgressWheel" )
+	LoadingIndicator:SetupFromTable{
 		Anchor = "CentreMiddle",
-		Text = Locale:GetPhrase( "Core", "LOADING" ),
-		Font = LoadingFont,
-		TextAlignmentX = GUIItem.Align_Center,
-		TextAlignmentY = GUIItem.Align_Center
+		HotSpot = "CentreMiddle",
+		Size = Vector2( WindowWidth * 0.1, WindowWidth * 0.1 ),
+		AnimateLoading = true,
+		SpinRate = -math.pi * 2
 	}
 
-	local WebpageWidth = WindowWidth - 10
-	local WebpageHeight = WindowHeight - 10 - TitleBarH
+	local Webpage
+	local BarPadding = Units.HighResScaled( 5 )
+	local WebpageWidth = WindowWidth - BarPadding:GetValue() * 2
+	local WebpageHeight = WindowHeight - BarPadding:GetValue() * 2 - TitleBarH * 2
+	local SecureIconColours = {
+		[ false ] = Colour( 0.7, 0, 0 ),
+		[ true ] = Colour( 0, 0.6, 0 )
+	}
 
-	local Webpage = Window:Add( "Webpage" )
+	local ControlBar = SGUI:BuildTree( {
+		Parent = Window,
+		{
+			Class = "Row",
+			Props = {
+				Pos = Vector2( 0, TitleBarH ),
+				Size = Vector2( WindowWidth, TitleBarH ),
+				Padding = Units.Spacing( BarPadding, BarPadding, BarPadding, 0 ),
+			},
+			Children = {
+				{
+					Class = "Button",
+					Props = {
+						AutoSize = Units.UnitVector( Units.HighResScaled( 32 ), Units.Percentage( 100 ) ),
+						Icon = SGUI.Icons.Ionicons.ArrowLeftC,
+						DoClick = function()
+							Webpage:NavigateBack()
+						end
+					}
+				},
+				{
+					Class = "Button",
+					Props = {
+						AutoSize = Units.UnitVector( Units.HighResScaled( 32 ), Units.Percentage( 100 ) ),
+						Icon = SGUI.Icons.Ionicons.ArrowRightC,
+						DoClick = function()
+							Webpage:NavigateForward()
+						end
+					}
+				},
+				{
+					Class = "Label",
+					ID = "SecureIcon",
+					Props = {
+						AutoFont = {
+							Family = SGUI.FontFamilies.Ionicons,
+							Size = Units.HighResScaled( 27 )
+						},
+						Colour = SecureIconColours[ true ],
+						Margin = Units.Spacing( BarPadding, 0, 0, 0 ),
+						Text = SGUI.Icons.Ionicons.Locked,
+						IsSchemed = false
+					}
+				},
+				{
+					Class = "TextEntry",
+					ID = "URLEntry",
+					Props = {
+						Fill = true,
+						Font = Font,
+						Margin = Units.Spacing( BarPadding, 0, BarPadding, 0 ),
+						-- Do not allow arbitrary navigation, keep it to just the loaded page.
+						Enabled = false,
+						Text = URL,
+						TextScale = TextScale
+					}
+				},
+				{
+					Class = "Button",
+					Props = {
+						AutoSize = Units.UnitVector( Units.HighResScaled( 32 ), Units.Percentage( 100 ) ),
+						Icon = SGUI.Icons.Ionicons.Refresh,
+						DoClick = function()
+							Webpage:ReloadCurrentPage()
+						end
+					}
+				}
+			}
+		}
+	} )
+
+	Webpage = Window:Add( "Webpage" )
 	Webpage:SetAnchor( GUIItem.Middle, GUIItem.Center )
-	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + TitleBarH * 0.5, 0 ) )
-	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight )
+	Webpage:SetPos( Vector( -WebpageWidth * 0.5, -WebpageHeight * 0.5 + TitleBarH, 0 ) )
+	-- Replace the initial data-URL to avoid being able to go back to it.
+	Webpage:LoadURL( URL, WebpageWidth, WebpageHeight, true )
 
-	-- Hide/show the loading text depending on whether the page is actually loading.
-	-- Some pages may have transparency which would make the loading text visible behind them.
+	local AlertPrefix = "SHINE_WEBPAGE_"..Random()
+	local Actions = {
+		LOCATION_CHANGE = function( Segments )
+			local IsSecure = Segments[ 2 ] == "1"
+			ControlBar.SecureIcon:SetText( SGUI.Icons.Ionicons[ IsSecure and "Locked" or "Unlocked" ] )
+			ControlBar.SecureIcon:SetColour( SecureIconColours[ IsSecure ] )
+
+			local URL = TableConcat( Segments, ":", 3 )
+			-- Hide the internal data URL used at startup.
+			if not StringStartsWith( URL, "http" ) then return end
+
+			ControlBar.URLEntry:SetText( StringSub( URL, 1, 255 ) )
+		end
+	}
+	function Webpage:OnJSAlert( _, Alert )
+		if not StringStartsWith( Alert, AlertPrefix ) then return end
+
+		local Message = StringSub( Alert, #AlertPrefix + 2 )
+		local Segments = StringExplode( Message, ":", true )
+		local Action = Segments[ 1 ]
+		if not Actions[ Action ] then return end
+
+		Actions[ Action ]( Segments )
+	end
+
+	local UpdateLocationScript = [[alert(
+		"%s:LOCATION_CHANGE:" + ( window.isSecureContext ? "1" : "0" ) + ":"  + location.href
+	);]]
+	function Webpage:UpdateLocation()
+		self:ExecuteJS( StringFormat( UpdateLocationScript, AlertPrefix ) )
+	end
+
+	local OldOnMouseUp = Webpage.OnMouseUp
+	function Webpage:OnMouseUp( Key )
+		if OldOnMouseUp( self, Key ) then
+			self:UpdateLocation()
+			return true
+		end
+	end
+
+	Webpage:AddPropertyChangeListener( "IsLoading", function( Webpage, IsLoading )
+		if not IsLoading then
+			Webpage:UpdateLocation()
+
+			-- Alerts never seem to be received by Lua when placed in callbacks at the JS level, so this polling
+			-- hack is the only way to update the current URL.
+			Shine.Timer.Create( "WebpageUpdate", 0.1, -1, function( Timer )
+				if not SGUI.IsValid( Webpage ) then
+					Timer:Destroy()
+					return
+				end
+
+				Webpage:UpdateLocation()
+			end )
+		end
+	end )
+
+	-- Hide/show the loading indicator depending on whether the page is actually loading.
+	-- Some pages may have transparency which would make the loading indicator visible behind them.
 	Binder():FromElement( Webpage, "IsLoading" )
-		:ToElement( LoadingText, "IsVisible" )
+		:ToElement( LoadingIndicator, "IsVisible" )
 		:BindProperty()
 
-	SGUI:EnableMouse( true )
+	SGUI:EnableMouse( true, Window )
 
 	return Webpage
 end
@@ -233,10 +366,12 @@ end
 function Shine:CloseWebPage()
 	if not SGUI.IsValid( self.ActiveWebPage ) then return end
 
-	SGUI:EnableMouse( false )
+	SGUI:EnableMouse( false, self.ActiveWebPage )
 
 	self.ActiveWebPage:Destroy()
 	self.ActiveWebPage = nil
+
+	Shine.Timer.Destroy( "WebpageUpdate" )
 end
 
 Hook.Add( "PlayerKeyPress", "WebpageClose", function( Key, Down, Amount )
