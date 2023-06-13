@@ -464,7 +464,7 @@ do
 	end
 
 	function Plugin:IsChatEmojiAvailable()
-		return self.dt.ParseEmojiInChat
+		return self.dt.ParseEmojiInChat and not ( self.AllowedEmoji and self.AllowedEmoji:GetCount() == 0 )
 	end
 
 	function Plugin:OnChatBoxEmojiPickerOpen()
