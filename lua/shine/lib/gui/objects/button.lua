@@ -382,20 +382,30 @@ do
 		"GetCachedTextHeight"
 	}
 
+	local function GetSize( Label, Axis )
+		if not Label then return 0 end
+
+		return Label[ LabelSizeMethod[ Axis ] ]( Label )
+	end
+
 	local function GetTotalSize( self, Axis )
+		if self.Label then
+			-- Temporarily override the computed size to be based on the label's actual size to ensure the returned size
+			-- is based on the maximum size of the label. Label may be set to fill here for horizontal buttons.
+			self.Label.GetComputedSize = GetSize
+		end
+
 		local Size = self.Layout:GetContentSizeForAxis( Axis )
+
+		if self.Label then
+			self.Label.GetComputedSize = nil
+		end
 
 		if self.Padding then
 			Size = Size + self:GetComputedPadding()[ Axis + 4 ]
 		end
 
 		return Size
-	end
-
-	local function GetSize( Label, Axis )
-		if not Label then return 0 end
-
-		return Label[ LabelSizeMethod[ Axis ] ]( Label )
 	end
 
 	local function GetMaxSize( self, Axis )
