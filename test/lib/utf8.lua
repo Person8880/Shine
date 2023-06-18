@@ -71,10 +71,12 @@ UnitTest:Test( "UTF8Char", function( Assert )
 end )
 
 UnitTest:Test( "UTF8Encode", function( Assert )
-	Assert:Equals( "$", string.UTF8Encode( "$" )[ 1 ] )
-	Assert:Equals( "¢", string.UTF8Encode( "¢" )[ 1 ] )
-	Assert:Equals( "€", string.UTF8Encode( "€" )[ 1 ] )
-	Assert:Equals( "𐍈", string.UTF8Encode( "𐍈" )[ 1 ] )
+	local TestChars = { "$", "¢", "€", "𐍈" }
+	for i = 1, 4 do
+		local Chars, Length = string.UTF8Encode( TestChars[ i ] )
+		Assert:ArrayEquals( { TestChars[ i ] }, Chars )
+		Assert:Equals( 1, Length )
+	end
 
 	local InvalidChar = StringChar( 128, 245 )
 	local ReplacementChar = string.UTF8Char( 0xFFFD )
@@ -91,7 +93,9 @@ UnitTest:Test( "UTF8Encode", function( Assert )
 		string.UTF8Encode( StringChar( 128, 245, 0x24, 128, 0x24 ) )
 	)
 
-	Assert:ArrayEquals( { "$", "¢", "€", "𐍈" }, string.UTF8Encode( "$¢€𐍈" ) )
+	local Chars, Length = string.UTF8Encode( "$¢€𐍈" )
+	Assert:ArrayEquals( { "$", "¢", "€", "𐍈" }, Chars )
+	Assert:Equals( 4, Length )
 end )
 
 UnitTest:Test( "UTF8Chars", function( Assert )
