@@ -881,7 +881,10 @@ function Plugin:CreateChatbox()
 				FormatString = ":%s: "
 			end
 
-			self.TextEntry:InsertTextAtCaret( StringFormat( FormatString, EmojiName ) )
+			self.TextEntry:InsertTextAtCaret( StringFormat( FormatString, EmojiName ), {
+				-- Only insert full emoji, if there's no more room, don't insert anything.
+				SkipIfAnyCharBlocked = true
+			} )
 		end
 
 		local RemovalFrameNumber
