@@ -68,8 +68,7 @@ do
 		end
 
 		self.Lines = self:ParseContents( Contents )
-		self.ComputedWrapping = false
-		self:InvalidateLayout()
+		self:InvalidateWrapping()
 	end
 end
 
@@ -97,6 +96,7 @@ function ChatLine:AddBackground( Colour, Texture, Padding )
 	BackgroundElement:SetColor( Colour )
 	BackgroundElement:SetTexture( Texture )
 	BackgroundElement:SetPosition( Vector2( -Padding * 0.5, -Padding * 0.5 ) )
+	BackgroundElement:SetInheritsParentAlpha( true )
 
 	UpdateBackgroundSize( self )
 end
@@ -120,6 +120,7 @@ function ChatLine:SetBackgroundAlpha( Alpha )
 
 	if self.BackgroundColour then
 		self.BackgroundColour.a = Alpha
+		self.VisibleBackground:SetColor( self.BackgroundColour )
 	end
 
 	self:MakeVisible()
@@ -129,33 +130,17 @@ function ChatLine:FadeIn( Duration, Easer )
 	Duration = Duration or 0.25
 
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		StartValue = 0,
 		EndValue = 1,
 		Duration = Duration,
 		EasingFunction = Easer
 	} )
-
-	if self.VisibleBackground then
-		self:ApplyTransition( {
-			Type = "Alpha",
-			Element = self.VisibleBackground,
-			StartValue = 0,
-			EndValue = self.BackgroundColour.a,
-			Duration = Duration,
-			EasingFunction = Easer
-		} )
-	end
 end
 
 function ChatLine:MakeVisible()
-	self:StopAlpha()
-	self:SetAlpha( 1 )
-
-	if self.VisibleBackground then
-		self:StopAlpha( self.VisibleBackground )
-		self.VisibleBackground:SetColor( self.BackgroundColour )
-	end
+	self:StopEasingType( "AlphaMultiplier" )
+	self:SetAlphaMultiplier( 1 )
 end
 
 local function OnFadeOutDelayPassed( Timer )
@@ -198,22 +183,12 @@ function ChatLine:FadeOut( Duration, OnComplete, Easer )
 	end
 
 	self:ApplyTransition( {
-		Type = "Alpha",
+		Type = "AlphaMultiplier",
 		EndValue = 0,
 		Duration = Duration,
 		Callback = OnComplete,
 		EasingFunction = Easer
 	} )
-
-	if self.VisibleBackground then
-		self:ApplyTransition( {
-			Type = "Alpha",
-			Element = self.VisibleBackground,
-			EndValue = 0,
-			Duration = Duration,
-			EasingFunction = Easer
-		} )
-	end
 end
 
 function ChatLine:Reset()

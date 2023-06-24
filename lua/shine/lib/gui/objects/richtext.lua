@@ -9,40 +9,52 @@ local Units = SGUI.Layout.Units
 local Max = math.max
 
 local RichText = {}
-local BackgroundColour = Colour( 0, 0, 0, 0 )
 
-SGUI.AddProperty( RichText, "LineSpacing" )
+local DefaultLineSpacing = Units.GUIScaled( 2 )
+local SetLineSpacing = SGUI.AddProperty( RichText, "LineSpacing" )
 SGUI.AddProperty( RichText, "TextShadow" )
 
 function RichText:Initialise()
 	self:SetIsSchemed( false )
 
 	self.Background = self:MakeGUIItem()
-	self.Background:SetSize( Vector2( 0, 0 ) )
+	self.Background:SetShader( SGUI.Shaders.Invisible )
 
 	self.WrappedWidth = 0
 	self.WrappedHeight = 0
-	self.LineSpacing = Units.GUIScaled( 2 )
+	self.LineSpacing = DefaultLineSpacing
+end
+
+function RichText:InvalidateWrapping()
+	self.ComputedWrapping = false
+	self:InvalidateLayout()
+	self:InvalidateMouseState()
+end
+
+function RichText:SetLineSpacing( LineSpacing )
+	if not SetLineSpacing( self, LineSpacing ) then return false end
+
+	self:InvalidateWrapping()
+
+	return true
 end
 
 function RichText:SetFont( Font )
 	if self.Font == Font then return end
 
 	self.Font = Font
+	self:InvalidateWrapping()
 
-	self.ComputedWrapping = false
-	self:InvalidateLayout()
-	self:InvalidateMouseState()
+	return true
 end
 
 function RichText:SetTextScale( Scale )
 	if self.TextScale == Scale then return end
 
 	self.TextScale = Scale
+	self:InvalidateWrapping()
 
-	self.ComputedWrapping = false
-	self:InvalidateLayout()
-	self:InvalidateMouseState()
+	return true
 end
 
 function RichText:SetTextShadow( Params )
@@ -57,11 +69,12 @@ function RichText:SetTextShadow( Params )
 
 	self.TextShadow = Params
 
-	-- Text shadow shouldn't affect the layout, but this is the simplest way to rebuild the tree, and given the element
-	-- pooling, shouldn't be that expensive.
-	self.ComputedWrapping = false
-	self:InvalidateLayout()
-	self:InvalidateMouseState()
+	if self.ComputedWrapping then
+		-- Text shadow doesn't affect the layout, just need to rebuild the element tree.
+		self:ApplyLines( self.WrappedLines )
+	end
+
+	return true
 end
 
 function RichText:PerformLayout()
@@ -70,15 +83,17 @@ function RichText:PerformLayout()
 	end
 end
 
-function RichText:SetSize( Size )
-	local MaxWidth = Max( Size.x, 0 )
-
+function RichText:SetMaxWidth( MaxWidth )
 	if self.MaxWidth == MaxWidth and self.ComputedWrapping then return end
 
 	self.MaxWidth = MaxWidth
-	self.ComputedWrapping = false
-	self:InvalidateLayout()
-	self:InvalidateMouseState()
+	self:InvalidateWrapping()
+
+	return true
+end
+
+function RichText:SetSize( Size )
+	return self:SetMaxWidth( Max( Size.x, 0 ) )
 end
 
 function RichText:GetComputedSize( Index, ParentSize )
@@ -106,29 +121,35 @@ local TableRemove = table.remove
 -- Parses a flat list of text/colours/elements into a list of lines, based on the line breaks
 -- in each text element. These lines will be wrapped individually when the layout is computed.
 function RichText:ParseContents( Contents )
+	local NumContents = #Contents
 	local Lines = {}
-	local Elements = TableNew( #Contents, 0 )
+	local LineCount = 0
+	local Elements = TableNew( NumContents, 0 )
+	local ElementCount = 0
 	local HasVisibleElements = false
 
-	for i = 1, #Contents do
+	for i = 1, NumContents do
 		local CurrentElement = Contents[ i ]:Copy()
 		local ElementLines = CurrentElement:GetLines()
 
-		Elements[ #Elements + 1 ] = CurrentElement
+		ElementCount = ElementCount + 1
+		Elements[ ElementCount ] = CurrentElement
 
 		HasVisibleElements = HasVisibleElements or CurrentElement:IsVisibleElement()
 
 		if ElementLines then
-			Elements[ #Elements ] = ElementLines[ 1 ]
+			Elements[ ElementCount ] = ElementLines[ 1 ]
 			for j = 2, #ElementLines do
-				Lines[ #Lines + 1 ] = Elements
+				LineCount = LineCount + 1
+				Lines[ LineCount ] = Elements
 				Elements = { ElementLines[ j ] }
 			end
 		end
 	end
 
 	if #Elements > 0 then
-		Lines[ #Lines + 1 ] = Elements
+		LineCount = LineCount + 1
+		Lines[ LineCount ] = Elements
 	end
 
 	Lines.HasVisibleElements = HasVisibleElements
@@ -138,16 +159,12 @@ end
 
 function RichText:SetContent( Contents )
 	self.Lines = self:ParseContents( Contents )
-	self.ComputedWrapping = false
-	self:InvalidateLayout()
-	self:InvalidateMouseState()
+	self:InvalidateWrapping()
 end
 
 function RichText:RestoreFromLines( Lines )
 	self.Lines = Lines
-	self.ComputedWrapping = false
-	self:InvalidateLayout()
-	self:InvalidateMouseState()
+	self:InvalidateWrapping()
 end
 
 function RichText:HasVisibleElements()
@@ -167,6 +184,7 @@ function RichText:PerformWrapping()
 		Font = self.Font,
 		TextScale = self.TextScale
 	} )
+	self.WrappedLines = WrappedLines
 
 	local OldW, OldH = self.WrappedWidth, self.WrappedHeight
 
