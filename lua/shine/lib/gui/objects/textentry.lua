@@ -6,7 +6,7 @@ local SGUI = Shine.GUI
 local Timer = Shine.Timer
 
 local Clamp = math.Clamp
-local Clock = Shared.GetSystemTimeReal
+local Clock = SGUI.GetTime
 local Floor = math.floor
 local Max = math.max
 local Min = math.min
@@ -28,7 +28,6 @@ local TextEntry = {}
 TextEntry.UsesKeyboardFocus = true
 
 local CaretCol = Colour( 1, 1, 1, 1 )
-local Clear = Colour( 0, 0, 0, 0 )
 local TextPos = Vector2( 2, 0 )
 
 SGUI.AddProperty( TextEntry, "MaxUndoHistory", 100 )
@@ -333,7 +332,7 @@ end
 function TextEntry:SetPlaceholderText( Text )
 	if Text == "" then
 		if self.PlaceholderText then
-			GUI.DestroyItem( self.PlaceholderText )
+			self:DestroyGUIItem( self.PlaceholderText )
 		end
 		self.PlaceholderText = nil
 		self.Placeholder = nil
@@ -771,15 +770,18 @@ SGUI.AddProperty( TextEntry, "AlphaNumeric" )
 SGUI.AddProperty( TextEntry, "CharPattern" )
 SGUI.AddProperty( TextEntry, "MaxLength" )
 
-function TextEntry:QueueUndo()
-	if not self.UndoTimer then
-		self:PushUndoState()
-		self.UndoTimer = Timer.Create( self, 0.5, 1, function()
-			self.UndoTimer = nil
-		end )
+do
+	local function ClearUndoTimer( Timer )
+		Timer.Data.UndoTimer = nil
 	end
 
-	self.UndoTimer:Debounce()
+	function TextEntry:QueueUndo()
+		if not self.UndoTimer then
+			self:PushUndoState()
+			self.UndoTimer = Timer.Create( self, 0.5, 1, ClearUndoTimer, self )
+		end
+		self.UndoTimer:Debounce()
+	end
 end
 
 function TextEntry:OnTextChanged( OldText, NewText )
@@ -1241,9 +1243,12 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	if not self.Focused then return end
 
 	-- Reset the auto-completion list on any action other than pressing tab.
-	if Key ~= InputKey.Tab
-	and Key ~= InputKey.LeftShift and Key ~= InputKey.RightShift
-	and self.AutoCompleteHandler then
+	if
+		Key ~= InputKey.Tab and
+		Key ~= InputKey.LeftShift and
+		Key ~= InputKey.RightShift and
+		self.AutoCompleteHandler
+	then
 		self:ResetAutoComplete()
 	end
 
