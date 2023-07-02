@@ -20,6 +20,7 @@ local StringUTF8Chars = string.UTF8Chars
 local StringUTF8Encode = string.UTF8Encode
 local StringUTF8Length = string.UTF8Length
 local TableConcat = table.concat
+local TableEmpty = table.Empty
 local TableNew = require "table.new"
 
 local RichTextEntry = {}
@@ -77,8 +78,12 @@ function RichTextEntry:Initialise()
 	self.TextParser = DefaultParser
 end
 
+function RichTextEntry:GetContents()
+	return self.RichText:GetWrappedLines()[ 1 ]
+end
+
 function RichTextEntry:IsEmpty()
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return true end
 
 	local FirstElement = Line[ 1 ]
@@ -106,17 +111,11 @@ end
 
 function RichTextEntry:SetTextShadow( Params )
 	self.Shadow = Params
-
-	if not Params then
-		self.RichText:SetTextShadow( nil )
-		return
-	end
-
 	self.RichText:SetTextShadow( Params )
 end
 
 function RichTextEntry:GetMaxColumn()
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return 0 end
 
 	local NumColumns = 0
@@ -154,7 +153,7 @@ function RichTextEntry.GetElementIndexForColumn( Line, Column )
 end
 
 function RichTextEntry:FindWordBounds( Column )
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return 0, 0 end
 
 	local LastElementIndex, NumColumns = self.GetElementIndexForColumn( Line, Column )
@@ -189,7 +188,7 @@ function RichTextEntry:FindWordBounds( Column )
 end
 
 function RichTextEntry:GetTextWidth()
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return 0 end
 
 	local Width = 0
@@ -207,7 +206,7 @@ function RichTextEntry:GetTextWidth()
 end
 
 function RichTextEntry:GetColumnTextWidth( Column )
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return 0 end
 
 	local CurrentColumn = 0
@@ -243,15 +242,17 @@ function RichTextEntry:GetSelectionWidth( SelectionBounds )
 	return UpperWidth - LowerWidth
 end
 
+local TextContents = TableNew( 25, 0 )
 local function GetTextBetweenColumnsFromRichText( Line, StartColumn, EndColumn, TextType )
 	TextType = TextType or "Text"
 	EndColumn = EndColumn or Huge
 
 	if StartColumn > EndColumn then return "" end
 
-	local TextContents = {}
 	local Count = 0
 	local CurrentColumn = 0
+
+	TableEmpty( TextContents )
 
 	for i = 1, #Line do
 		if CurrentColumn >= EndColumn then break end
@@ -292,11 +293,15 @@ local function GetTextBetweenColumnsFromRichText( Line, StartColumn, EndColumn, 
 		end
 	end
 
-	return TableConcat( TextContents, "", 1, Count )
+	local Text = TableConcat( TextContents, "", 1, Count )
+
+	TableEmpty( TextContents )
+
+	return Text
 end
 
 function RichTextEntry:GetTextBetween( StartColumn, EndColumn, TextType )
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return "" end
 
 	return GetTextBetweenColumnsFromRichText( Line, StartColumn, EndColumn, TextType )
@@ -318,7 +323,7 @@ end
 -- Note: XPos here is the visual width relative to the rich text's position (i.e. 0 is the start of the rich text, not
 -- the inner box).
 function RichTextEntry:GetColumnForVisualPosition( XPos )
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return 0 end
 
 	local Column = 0
@@ -406,7 +411,7 @@ local function GetVisualColumnFromTextColumn( Line, TextColumn )
 end
 
 function RichTextEntry:GetVisualColumnFromTextColumn( TextColumn )
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then return 0 end
 
 	return GetVisualColumnFromTextColumn( Line, TextColumn )
@@ -434,7 +439,7 @@ end
 
 function RichTextEntry:InsertTextInternal( NewText, NumChars )
 	local OldText = self:GetText()
-	local Line = self.RichText:GetWrappedLines()[ 1 ]
+	local Line = self:GetContents()
 	if not Line then
 		-- No content, just add the text as-is.
 		self:SetTextInternal( NewText )
