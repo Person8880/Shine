@@ -487,15 +487,19 @@ do
 
 			local TextBetween = StringSub( Text, OpenEnd + 1, CloseStart - 1 )
 			local EmojiDef = EmojiRepository.GetEmojiDefinition( TextBetween )
-			if EmojiDef and not AllowedEmoji:Contains( EmojiDef.Index ) then
-				-- Add everything up to the start of this emoji.
-				Count = Count + 1
-				NewText[ Count ] = StringSub( Text, LastTextIndex, OpenStart - 1 )
-				-- Then skip past it.
-				LastTextIndex = CloseEnd + 1
+			if EmojiDef then
+				if not AllowedEmoji:Contains( EmojiDef.Index ) then
+					-- Add everything up to the start of this emoji.
+					Count = Count + 1
+					NewText[ Count ] = StringSub( Text, LastTextIndex, OpenStart - 1 )
+					-- Then skip past it.
+					LastTextIndex = CloseEnd + 1
+				end
+				CurrentIndex = CloseEnd + 1
+			else
+				-- Not a valid emoji between the two bounds, ignore this ":" and continue.
+				CurrentIndex = OpenEnd + 1
 			end
-
-			CurrentIndex = CloseEnd + 1
 		end
 
 		if LastTextIndex <= #Text then

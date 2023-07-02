@@ -184,6 +184,12 @@ do
 	local function AddEmoji( Name, Entry )
 		Name = StringGSub( StringLower( Name ), "[^%w]", "_" )
 
+		-- Make sure the name won't clash with generated short names.
+		if StringMatch( Name, "^e%d+$" ) then
+			EmojiRepository.Logger:Warn( "Emoji '%s' uses reserved name and will be ignored.", Name )
+			return
+		end
+
 		if EmojiByName[ Name ] then
 			EmojiRepository.Logger:Warn(
 				"Emoji '%s' was defined more than once! Only the first definition will be used.",
@@ -281,6 +287,25 @@ do
 	EmojiIndex:SortKeys()
 
 	EmojiRepository.TotalEmojiCount = EmojiByName[ 0 ]
+
+	-- Would use math.log( x, 10 ), but that has floating point errors which break at certain values
+	-- (e.g. math.log( 10, 10 ) is actually 0.999999...).
+	local ShortNamePaddingSize = 0
+	while 10 ^ ShortNamePaddingSize <= EmojiByName[ 0 ] do
+		ShortNamePaddingSize = ShortNamePaddingSize + 1
+	end
+
+	-- For each emoji, assign a short name of the form "e{Index}", e.g. "e100" or "e010". This is left-padded to ensure
+	-- every emoji takes up the exact same number of characters. These short names can then be used internally when
+	-- submitting chat messages to normalise the space taken up by each emoji, rather than punishing those that have
+	-- longer human-readable names.
+	for i = 1, EmojiByName[ 0 ] do
+		local EmojiDef = EmojiByName[ i ]
+		local ShortName = StringFormat( "e%."..ShortNamePaddingSize.."d", i )
+		EmojiDef.ShortName = ShortName
+		-- Only need to add the short name to the lookup table, don't want to show these names in search results.
+		EmojiByName[ ShortName ] = EmojiDef
+	end
 end
 
 if Client then
@@ -375,7 +400,7 @@ if Client then
 			Texture = EmojiDef.Texture,
 			TextureCoordinates = EmojiDef.TextureCoordinates,
 			TexturePixelCoordinates = EmojiDef.TexturePixelCoordinates,
-			Tooltip = StringFormat( ":%s:", EmojiName )
+			Tooltip = StringFormat( ":%s:", EmojiDef.Name )
 		} )
 	end
 

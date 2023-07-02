@@ -6,6 +6,7 @@
 
 local Binder = require "shine/lib/gui/binding/binder"
 local ChatAPI = require "shine/core/shared/chat/chat_api"
+local TextElement = require "shine/lib/gui/richtext/elements/text"
 
 local Shine = Shine
 
@@ -350,7 +351,14 @@ function Plugin:OnFirstThink()
 	-- default skin.
 	local DefaultSkin = SGUI.SkinManager:GetSkinsByName().Default
 	TableShallowMerge( DefaultSkin, Skin )
+
 	TableShallowMerge( DefaultSkin.TextEntry, Skin.TextEntry )
+
+	Skin.TextEntry.Default.HighlightColour = DefaultSkin.TextEntry.Default.HighlightColour
+	Skin.RichTextEntry = {
+		Default = Skin.TextEntry.Default
+	}
+
 	TableShallowMerge( DefaultSkin.Button, Skin.Button )
 
 	Skin.TextEntry.EmojiPickerSearch = DefaultSkin.TextEntry.Default
@@ -629,22 +637,20 @@ function Plugin:CreateChatbox()
 	ChatBoxLayout:AddElement( Box )
 
 	local EmojiAutoCompletePattern = ":([^:%s]-)$"
-	local function ApplyEmojiFromAutoComplete( Text, EmojiName )
-		return StringGSub( Text, EmojiAutoCompletePattern, StringFormat( ":%s: ", EmojiName ) )
-	end
-
-	local function InsertEmojiFromCompletion( Text, EmojiName )
-		local TextBehindCaret = StringUTF8Sub( Text, 1, self.TextEntry:GetCaretPos() )
-		local TextAfterCaret = StringSub( Text, #TextBehindCaret + 1 )
-		local NewTextBehindCaret = ApplyEmojiFromAutoComplete( TextBehindCaret, EmojiName )
+	local function InsertEmojiFromCompletion( EmojiName )
+		local CaretPos = self.TextEntry:GetCaretPos()
+		local TextBehindCaret = self.TextEntry:GetTextBetween( 1, CaretPos )
+		local EmojiMatch = StringMatch( TextBehindCaret, EmojiAutoCompletePattern )
+		local RemainingChars = #EmojiName - #EmojiMatch
+		local TextToInsert = StringSub( EmojiName, #EmojiName - RemainingChars + 1 )..":"
 
 		-- Avoid inserting a second space if there's one in front of the caret already.
-		if StringSub( TextAfterCaret, 1, 1 ) == " " and NewTextBehindCaret ~= TextBehindCaret then
-			NewTextBehindCaret = StringSub( NewTextBehindCaret, 1, #NewTextBehindCaret - 1 )
+		local TextAfterCaret = self.TextEntry:GetTextBetween( CaretPos + 1, CaretPos + 1 )
+		if StringSub( TextAfterCaret, 1, 1 ) ~= " " then
+			TextToInsert = TextToInsert.." "
 		end
 
-		self.TextEntry:SetText( NewTextBehindCaret..TextAfterCaret )
-		self.TextEntry:SetCaretPos( StringUTF8Length( NewTextBehindCaret ) )
+		self.TextEntry:InsertTextAtCaret( TextToInsert )
 	end
 
 	do
@@ -664,8 +670,7 @@ function Plugin:CreateChatbox()
 
 			Panel:SetIsVisible( false )
 
-			local Text = self.TextEntry:GetText()
-			InsertEmojiFromCompletion( Text, EmojiName )
+			InsertEmojiFromCompletion( EmojiName )
 		end )
 
 		self.EmojiAutoComplete = EmojiAutoCompletePanel
@@ -727,7 +732,7 @@ function Plugin:CreateChatbox()
 	end
 
 	-- Where messages are entered.
-	local TextEntry = SGUI:Create( "TextEntry", Border )
+	local TextEntry = SGUI:Create( "RichTextEntry", Border )
 	TextEntry:SetupFromTable{
 		DebugName = "ChatBoxTextEntry",
 		Text = "",
@@ -735,7 +740,13 @@ function Plugin:CreateChatbox()
 		Skin = Skin,
 		Font = Font,
 		Fill = true,
-		MaxLength = kMaxChatLength
+		MaxLength = kMaxChatLength,
+		TextParser = function( Text )
+			local ParsedText = Hook.Call( "ParseChatBoxText", self, Text )
+			if IsType( ParsedText, "table" ) then return ParsedText end
+
+			return { TextElement( Text ) }
+		end
 	}
 	if self.TextScale ~= 1 then
 		TextEntry:SetTextScale( self.TextScale )
@@ -749,7 +760,7 @@ function Plugin:CreateChatbox()
 		if SGUI.IsValid( Plugin.EmojiAutoComplete ) and Plugin.EmojiAutoComplete:GetIsVisible() then
 			local EmojiName = Plugin.EmojiAutoComplete:ResolveSelectedEmojiName()
 			if EmojiName then
-				InsertEmojiFromCompletion( Text, EmojiName )
+				InsertEmojiFromCompletion( EmojiName )
 			end
 
 			Plugin.EmojiAutoComplete:SetIsVisible( false )
@@ -811,7 +822,7 @@ function Plugin:CreateChatbox()
 		end
 	end
 
-	local function UpdateEmojiAutoComplete( TextEntry, NewText )
+	local function UpdateEmojiAutoComplete( TextEntry )
 		if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
 
 		if not self.Config.AutoCompleteEmoji then
@@ -819,7 +830,7 @@ function Plugin:CreateChatbox()
 			return
 		end
 
-		local TextBehindCaret = StringUTF8Sub( NewText, 1, TextEntry:GetCaretPos() )
+		local TextBehindCaret = TextEntry:GetTextBetween( 1, TextEntry:GetCaretPos() )
 		local Emoji = StringMatch( TextBehindCaret, EmojiAutoCompletePattern )
 		if not Emoji or #Emoji < 2 then
 			self.EmojiAutoComplete:SetIsVisible( false )
@@ -876,7 +887,7 @@ function Plugin:CreateChatbox()
 			if not EmojiName then return end
 
 			local FormatString = ":%s:"
-			local TextAfterCaret = StringUTF8Sub( self.TextEntry:GetText(), self.TextEntry:GetCaretPos() + 1 )
+			local TextAfterCaret = self.TextEntry:GetTextBetween( self.TextEntry:GetCaretPos() + 1 )
 			if StringSub( TextAfterCaret, 1, 1 ) ~= " " then
 				FormatString = ":%s: "
 			end
@@ -1310,7 +1321,7 @@ do
 				if not SGUI.IsValid( self.EmojiAutoComplete ) then return end
 
 				if Value then
-					self.UpdateEmojiAutoComplete( self.TextEntry, self.TextEntry:GetText() )
+					self.UpdateEmojiAutoComplete( self.TextEntry )
 				else
 					self.EmojiAutoComplete:SetIsVisible( false )
 				end

@@ -10,6 +10,7 @@ local Max = math.max
 
 local RichText = {}
 
+local DefaultTextColour = Colour( 1, 1, 1, 1 )
 local DefaultLineSpacing = Units.GUIScaled( 2 )
 local SetLineSpacing = SGUI.AddProperty( RichText, "LineSpacing" )
 SGUI.AddProperty( RichText, "TextShadow" )
@@ -23,6 +24,7 @@ function RichText:Initialise()
 	self.WrappedWidth = 0
 	self.WrappedHeight = 0
 	self.LineSpacing = DefaultLineSpacing
+	self.TextColour = DefaultTextColour
 end
 
 function RichText:InvalidateWrapping()
@@ -31,10 +33,26 @@ function RichText:InvalidateWrapping()
 	self:InvalidateMouseState()
 end
 
+function RichText:RefreshElementTree()
+	if self.ComputedWrapping then
+		self:ApplyLines( self.WrappedLines )
+	end
+end
+
 function RichText:SetLineSpacing( LineSpacing )
 	if not SetLineSpacing( self, LineSpacing ) then return false end
 
 	self:InvalidateWrapping()
+
+	return true
+end
+
+function RichText:SetTextColour( TextColour )
+	if self.TextColour == TextColour then return end
+
+	-- Text colour doesn't affect the layout, just need to rebuild the element tree.
+	self.TextColour = TextColour
+	self:RefreshElementTree()
 
 	return true
 end
@@ -69,10 +87,8 @@ function RichText:SetTextShadow( Params )
 
 	self.TextShadow = Params
 
-	if self.ComputedWrapping then
-		-- Text shadow doesn't affect the layout, just need to rebuild the element tree.
-		self:ApplyLines( self.WrappedLines )
-	end
+	-- Text shadow doesn't affect the layout, just need to rebuild the element tree.
+	self:RefreshElementTree()
 
 	return true
 end
@@ -196,6 +212,11 @@ function RichText:PerformWrapping()
 	end
 end
 
+function RichText:GetWrappedLines()
+	self:PerformLayout()
+	return self.WrappedLines or {}
+end
+
 local function NewElementList( InitialCapacity )
 	local List = TableNew( InitialCapacity, 0 )
 	List[ 0 ] = 0
@@ -250,7 +271,7 @@ function RichText:ApplyLines( Lines )
 		DefaultFont = self.Font,
 		DefaultScale = self.TextScale,
 		DefaultTextShadow = self.TextShadow,
-		CurrentColour = Colour( 1, 1, 1, 1 ),
+		CurrentColour = self.TextColour,
 		MakeElement = MakeElementFromPool,
 		NextMargin = 0
 	}

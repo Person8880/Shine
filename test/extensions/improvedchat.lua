@@ -509,9 +509,9 @@ UnitTest:Test( "ApplyEmojiFilters - Returns text as-is if it contains no emoji",
 end )
 
 UnitTest:Test( "ApplyEmojiFilters - Returns text without emoji that are not allowed", function( Assert )
-	local Message = "This is a test message:zzz:."
+	local Message = "This is a :zzz:zzz:test: :zzz::message:zzz:."
 	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
-	Assert:Equals( "This is a test message.", Text )
+	Assert:Equals( "This is a zzz:test: :message.", Text )
 end )
 
 UnitTest:Test( "ApplyEmojiFilters - Returns an empty string if all emoji are filtered out and only whitespace remains", function( Assert )

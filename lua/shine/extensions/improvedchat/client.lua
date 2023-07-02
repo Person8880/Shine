@@ -908,7 +908,7 @@ local EMOJI_SIZE = Units.UnitVector(
 	Units.Percentage( 125 )
 )
 
-local function ParseEmoji( Contents, Message )
+local function ParseEmoji( Contents, Message, EmojiSize, EmojiElementCreator, Context )
 	local CurrentIndex = 1
 	local LastTextIndex = 1
 	for i = 1, #Message do
@@ -919,9 +919,9 @@ local function ParseEmoji( Contents, Message )
 		if not CloseStart then break end
 
 		local TextBetween = StringSub( Message, OpenEnd + 1, CloseStart - 1 )
-		local EmojiElement = EmojiRepository.MakeEmojiElement( TextBetween )
+		local EmojiElement = EmojiElementCreator( TextBetween, Context )
 		if EmojiElement then
-			EmojiElement.AutoSize = EMOJI_SIZE
+			EmojiElement.AutoSize = EmojiSize
 			EmojiElement.AspectRatio = 1
 
 			local TextBefore = StringSub( Message, LastTextIndex, OpenStart - 1 )
@@ -931,14 +931,52 @@ local function ParseEmoji( Contents, Message )
 			Contents[ #Contents + 1 ] = EmojiElement
 
 			LastTextIndex = CloseEnd + 1
+			CurrentIndex = CloseEnd + 1
+		else
+			-- Not a valid emoji between the two bounds, ignore this ":" and continue.
+			CurrentIndex = OpenEnd + 1
 		end
-
-		CurrentIndex = CloseEnd + 1
 	end
 
 	if LastTextIndex <= #Message then
 		Contents[ #Contents + 1 ] = TextElement( StringSub( Message, LastTextIndex ) )
 	end
+
+	return Contents
+end
+
+local function ParseEmojiInChatMessage( Contents, Message )
+	return ParseEmoji( Contents, Message, EMOJI_SIZE, EmojiRepository.MakeEmojiElement )
+end
+
+local function CopyImage( self )
+	local Copy = ImageElement.Copy( self )
+	Copy.CopyText = self.CopyText
+	Copy.Text = self.Text
+	return Copy
+end
+
+local function AddEmojiIfAllowed( EmojiName, AllowedEmoji )
+	local EmojiDefinition = EmojiRepository.GetEmojiDefinition( EmojiName )
+	if not EmojiDefinition or ( AllowedEmoji and not AllowedEmoji:Contains( EmojiDefinition.Index ) ) then
+		return nil
+	end
+
+	local ImageElement = EmojiRepository.MakeEmojiElement( EmojiName )
+	-- When copying the text, copy the human-readable emoji name.
+	ImageElement.CopyText = StringFormat( ":%s:", EmojiDefinition.Name )
+	-- When extracting text (e.g. to submit a chat message), use the shortened name.
+	ImageElement.Text = StringFormat( ":%s:", EmojiDefinition.ShortName )
+	-- Override the copy method to ensure the above fields are retained after layout.
+	ImageElement.Copy = CopyImage
+	return ImageElement
+end
+
+function Plugin:ParseChatBoxText( ChatBox, Text )
+	if not self:IsChatEmojiAvailable() then return end
+
+	-- Parse emoji in chat box text, only displaying images for emoji that are allowed for the user.
+	return ParseEmoji( {}, Text, DEFAULT_IMAGE_SIZE, AddEmojiIfAllowed, self.AllowedEmoji )
 end
 
 -- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.
@@ -1002,7 +1040,7 @@ function Plugin:OnChatMessageReceived( Data )
 	Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
 
 	if self.dt.ParseEmojiInChat then
-		ParseEmoji( Contents, Data.Message )
+		ParseEmojiInChatMessage( Contents, Data.Message )
 	else
 		Contents[ #Contents + 1 ] = TextElement( Data.Message )
 	end

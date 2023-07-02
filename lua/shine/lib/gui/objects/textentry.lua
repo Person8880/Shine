@@ -5,6 +5,7 @@
 local SGUI = Shine.GUI
 local Timer = Shine.Timer
 
+local CalculateTextSize = GUI.CalculateTextSize
 local Clamp = math.Clamp
 local Clock = SGUI.GetTime
 local Floor = math.floor
@@ -89,11 +90,6 @@ local function OnVisibilityChange( self, IsVisible )
 	end
 end
 
-local function OnTextChangedInternal( self, OldText, NewText )
-	self:OnTextChanged( OldText, NewText )
-	self:OnPropertyChanged( "Text", NewText )
-end
-
 local function GetCurrentInnerBoxColour( self )
 	local Colour
 	if ( self.Focused or self.Highlighted ) and self.FocusColour then
@@ -141,6 +137,7 @@ function TextEntry:Initialise()
 	InnerBox:AddChild( Text )
 
 	self.TextObj = Text
+	self.Font = Text:GetFontName()
 
 	-- The actual text string.
 	self.Text = ""
@@ -166,6 +163,11 @@ function TextEntry:Initialise()
 	self.Enabled = true
 
 	self:AddPropertyChangeListener( "IsVisible", OnVisibilityChange )
+end
+
+function TextEntry:OnTextChangedInternal( OldText, NewText )
+	self:OnTextChanged( OldText, NewText )
+	self:OnPropertyChanged( "Text", NewText )
 end
 
 local function OnTargetAlphaChanged( self, TargetAlpha )
@@ -209,15 +211,16 @@ function TextEntry:SetTextPadding( Padding )
 	self:InvalidateLayout()
 end
 
+function TextEntry:GetTextHeight()
+	local FontHeight = SGUI.FontManager.GetFontSizeForFontName( self.Font ) or CalculateTextSize( self.Font, "!" ).y
+	return FontHeight * self.HeightScale
+end
+
 function TextEntry:GetContentSizeForAxis( Axis )
 	if Axis == 1 then
 		return self:GetSize().x
 	end
-
-	local Scale = self.TextScale
-	Scale = Scale and Scale.y or 1
-
-	return self.TextObj:GetTextHeight( "!" ) * Scale
+	return self:GetTextHeight()
 end
 
 function TextEntry:SetSize( SizeVec )
@@ -329,6 +332,13 @@ function TextEntry:SetBorderSize( BorderSize )
 	self:SetSize( self.Background:GetSize() )
 end
 
+local function GetPlaceholderTextPos( self )
+	local Pos = self.TextObj:GetPosition()
+	-- Placeholder text uses text alignment, so no need for vertical offset.
+	Pos.y = 0
+	return Pos
+end
+
 function TextEntry:SetPlaceholderText( Text )
 	if Text == "" then
 		if self.PlaceholderText then
@@ -363,17 +373,21 @@ function TextEntry:SetPlaceholderText( Text )
 		PlaceholderText:SetScale( self.TextScale )
 	end
 
-	PlaceholderText:SetPosition( self.TextObj:GetPosition() )
-	PlaceholderText:SetColor( GetInnerBoxChildColour( self, self.PlaceholderTextColour ) )
+	PlaceholderText:SetPosition( GetPlaceholderTextPos( self ) )
+	PlaceholderText:SetColor( GetInnerBoxChildColour( self, self.PlaceholderTextColour or PlaceholderText:GetColor() ) )
 
 	self.InnerBox:AddChild( PlaceholderText )
 	self.PlaceholderText = PlaceholderText
 end
 
-function TextEntry:SetFont( Font )
-	self.Font = Font
+function TextEntry:SetInternalTextFont( Font )
 	self.TextObj:SetFontName( Font )
 	SGUI.FontManager.SetupElementForFontName( self.TextObj, Font )
+end
+
+function TextEntry:SetFont( Font )
+	self.Font = Font
+	self:SetInternalTextFont( Font )
 
 	self:SetupCaret()
 
@@ -389,21 +403,29 @@ function TextEntry:PerformLayout()
 	self:SetCaretPos( OldColumn )
 end
 
+function TextEntry:GetTextWidth()
+	return self.TextObj:GetTextWidth( self.Text ) * self.WidthScale
+end
+
+function TextEntry:GetMaxColumn()
+	return StringUTF8Length( self.Text )
+end
+
 function TextEntry:SetupCaret()
 	local Caret = self.Caret
 	local SelectionBox = self.SelectionBox
 	local TextObj = self.TextObj
 
-	local Height = TextObj:GetTextHeight( "!" ) * self.HeightScale * 0.8
+	local Height = self:GetTextHeight() * 0.8
 
 	Caret:SetSize( Vector( 1, Height, 0 ) )
 	SelectionBox:SetSize( Vector( SelectionBox:GetSize().x, Height, 0 ) )
 
 	if not self.Width then return end
 
-	local Width = TextObj:GetTextWidth( self.Text ) * self.WidthScale
-	self.Column = StringUTF8Length( self.Text )
+	self.Column = self:GetMaxColumn()
 
+	local Width = self:GetTextWidth()
 	if Width > self.Width then
 		local Diff = -( Width - self.Width )
 
@@ -436,22 +458,21 @@ function TextEntry:GetCaretPos()
 	return self.Column
 end
 
+function TextEntry:GetColumnTextWidth( Column )
+	local Characters = StringUTF8Encode( self.Text )
+	return self.TextObj:GetTextWidth( TableConcat( Characters, "", 1, Column ) ) * self.WidthScale
+end
+
 --[[
 	Sets the position of the caret, and moves the text accordingly.
 ]]
 function TextEntry:SetCaretPos( Column )
-	local Characters, Length = StringUTF8Encode( self.Text )
-
-	Column = Clamp( Column, 0, Length )
+	Column = Clamp( Column, 0, self:GetMaxColumn() )
 
 	self.Column = Column
 
-	local Caret = self.Caret
-	local TextObj = self.TextObj
-
-	local Pos = Caret:GetPosition()
-	local UTF8W = TextObj:GetTextWidth( TableConcat( Characters, "", 1, self.Column ) ) * self.WidthScale
-	local NewPos = UTF8W + self.TextOffset
+	local WidthUpToColumn = self:GetColumnTextWidth( Column )
+	local NewPos = WidthUpToColumn + self.TextOffset
 
 	-- We need to move the text along with the caret, otherwise it'll go out of vision!
 	if NewPos < 0 then
@@ -470,8 +491,11 @@ function TextEntry:SetCaretPos( Column )
 
 	NewPos = Clamp( NewPos + self.CaretOffset, 0, self.Width )
 
+	local Caret = self.Caret
+	local Pos = Caret:GetPosition()
 	Caret:SetPosition( Vector( NewPos, Pos.y, 0 ) )
-	TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
+
+	self.TextObj:SetPosition( Vector( self.TextOffset, 0, 0 ) )
 end
 
 function TextEntry:ResetSelectionBounds()
@@ -489,30 +513,34 @@ function TextEntry:GetSelectedText()
 	return StringUTF8Sub( self.Text, self.SelectionBounds[ 1 ] + 1, self.SelectionBounds[ 2 ] )
 end
 
-function TextEntry:RemoveSelectedText()
-	local Text = self.Text
-	local Characters, Length = StringUTF8Encode( Text )
+function TextEntry:GetTextBetween( StartColumn, EndColumn )
+	return StringUTF8Sub( self.Text, StartColumn, EndColumn )
+end
 
-	local LowerBound = self.SelectionBounds[ 1 ] + 1
+function TextEntry:RemoveSelectedText()
+	local Text = self:GetText()
+
+	local LowerBound = self.SelectionBounds[ 1 ]
 	local UpperBound = self.SelectionBounds[ 2 ]
 
-	local Before = TableConcat( Characters, "", 1, LowerBound - 1 )
-	if UpperBound < Length then
-		self.Text = Before..TableConcat( Characters, "", UpperBound + 1 )
-	else
-		self.Text = Before
-	end
+	local TextBefore = self:GetTextBetween( 1, LowerBound )
+	local TextAfter = self:GetTextBetween( UpperBound + 1 )
 
+	self:SetTextInternal( TextBefore..TextAfter )
 	self:ResetSelectionBounds()
 
-	self.Column = LowerBound - 1
-	self.TextObj:SetText( self.Text )
+	self.Column = LowerBound
 	self:SetCaretPos( self.Column )
 
-	OnTextChangedInternal( self, Text, self.Text )
+	self:OnTextChangedInternal( Text, self:GetText() )
 end
 
 TextEntry.SelectionEasingTime = 0.1
+
+function TextEntry:GetSelectionWidth( SelectionBounds )
+	local TextBetween = StringUTF8Sub( self.Text, SelectionBounds[ 1 ] + 1, SelectionBounds[ 2 ] )
+	return self.TextObj:GetTextWidth( TextBetween ) * self.WidthScale
+end
 
 function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 	local SelectionBounds = self.SelectionBounds
@@ -539,10 +567,7 @@ function TextEntry:UpdateSelectionBounds( SkipAnim, XOverride )
 		return
 	end
 
-	local TextBetween = self.Text:UTF8Sub( SelectionBounds[ 1 ] + 1,
-		SelectionBounds[ 2 ] )
-	local Width = self.TextObj:GetTextWidth( TextBetween ) * self.WidthScale
-
+	local Width = self:GetSelectionWidth( SelectionBounds )
 	-- If it was hidden, don't ease it.
 	if ( Size.x == 0 and not XOverride ) or SkipAnim then
 		self:StopMoving( self.SelectionBox )
@@ -582,10 +607,10 @@ function TextEntry:HandleSelectingText()
 	if Column > self.SelectingColumn then
 		self:SetCaretPos( UpperBound )
 
-		--Have to perform the adjustment after so we get the correct text offset value.
-		local BeforeText = StringUTF8Sub( self.Text, 1, LowerBound )
+		-- Have to perform the adjustment after so we get the correct text offset value.
+		local WidthBeforeCaret = self:GetColumnTextWidth( LowerBound )
 		local Pos = self.Caret:GetPosition()
-		Pos.x = self.TextObj:GetTextWidth( BeforeText ) * self.WidthScale + self.TextOffset + self.CaretOffset
+		Pos.x = WidthBeforeCaret + self.TextOffset + self.CaretOffset
 
 		self:MoveTo( self.SelectionBox, nil, Pos, 0, self.SelectionEasingTime, nil, nil, 3 )
 	end
@@ -612,7 +637,7 @@ function TextEntry:OffsetSelection( Amount )
 			Bounds[ 1 ] = CaretPos
 		else
 			Bounds[ 1 ] = CaretPos
-			CaretPos = Min( CaretPos + Amount, StringUTF8Length( self.Text ) )
+			CaretPos = Min( CaretPos + Amount, self:GetMaxColumn() )
 			Bounds[ 2 ] = CaretPos
 		end
 
@@ -621,7 +646,7 @@ function TextEntry:OffsetSelection( Amount )
 		return
 	end
 
-	local NewCaretPos = Clamp( CaretPos + Amount, 0, StringUTF8Length( self.Text ) )
+	local NewCaretPos = Clamp( CaretPos + Amount, 0, self:GetMaxColumn() )
 	if CaretPos <= Bounds[ 1 ] then
 		Bounds[ 1 ] = NewCaretPos
 		if Bounds[ 1 ] > Bounds[ 2 ] then
@@ -641,50 +666,26 @@ function TextEntry:OffsetSelection( Amount )
 end
 
 function TextEntry:SelectAll()
-	self:SetSelection( 0, StringUTF8Length( self.Text ), false, self.Padding + self.CaretOffset )
+	self:SetSelection( 0, self:GetMaxColumn(), false, self.Padding + self.CaretOffset )
 end
 
-local function FindFurthestSpace( Text )
-	local PreviousSpace = StringFind( Text, " ", 1, true )
-	-- Find the furthest along space before the caret.
-	while PreviousSpace do
-		local NextSpace = StringFind( Text, " ", PreviousSpace + 1, true )
-
-		if NextSpace then
-			PreviousSpace = NextSpace
-		else
-			break
-		end
-	end
-
-	return PreviousSpace or 1
-end
+local TextEntryUtil = require "shine/lib/gui/objects/textentry/util"
 
 function TextEntry:FindWordBounds( CharPos )
-	local Text = self.Text
-	local Characters, Length = StringUTF8Encode( Text )
+	local Characters, Length = StringUTF8Encode( self.Text )
 	if Length == 0 then return 0, 0 end
 
-	local Before = TableConcat( Characters, "", 1, CharPos )
-	local PreSpace = FindFurthestSpace( Before )
-
-	if PreSpace > 1 then
-		PreSpace = StringUTF8Length( StringSub( Text, 1, PreSpace ) )
-	else
-		PreSpace = 0
+	local PrevSpace, NextSpace = TextEntryUtil.FindWordBoundsFromCharacters( Characters, Length, CharPos )
+	if PrevSpace == 1 then
+		PrevSpace = 0
 	end
-
-	local After = TableConcat( Characters, "", CharPos + 1 )
-	local NextSpace = StringFind( After, " ", 1, true ) or ( #After + 1 )
-	NextSpace = CharPos + StringUTF8Length( StringSub( After, 1, NextSpace - 1 ) )
-
-	return PreSpace, NextSpace
+	return PrevSpace, NextSpace
 end
 
 function TextEntry:FindNextWordBoundInDir( Pos, Dir )
 	local PrevSpace, NextSpace = self:FindWordBounds( Pos )
 
-	if Dir == 1 and NextSpace == Pos and Pos ~= StringUTF8Length( self.Text ) then
+	if Dir == 1 and NextSpace == Pos and Pos ~= self:GetMaxColumn() then
 		PrevSpace, NextSpace = self:FindWordBounds( Pos + 1 )
 	elseif Dir == -1 and PrevSpace == Pos and Pos ~= 0 then
 		PrevSpace = self:FindWordBounds( Pos - 1 )
@@ -697,23 +698,25 @@ function TextEntry:SelectWord( CharPos )
 	self:SetSelection( self:FindWordBounds( CharPos ) )
 end
 
+function TextEntry:SetTextInternal( Text )
+	self.Text = Text
+	self.TextObj:SetText( Text )
+	self.TextObj:ForceUpdateTextSize()
+end
+
 function TextEntry:SetText( Text, IgnoreUndo )
-	local Changed = Text ~= self.Text
+	local Changed = Text ~= self:GetText()
 	if not IgnoreUndo and Changed then
 		self:PushUndoState()
 	end
 
 	self:ResetSelectionBounds()
-	self.Text = Text
-
-	self.TextObj:SetText( Text )
-	self.TextObj:ForceUpdateTextSize()
-
+	self:SetTextInternal( Text )
 	self:SetupCaret()
 
 	if self.PlaceholderText then
 		self.PlaceholderText:SetIsVisible( Text == "" )
-		self.PlaceholderText:SetPosition( self.TextObj:GetPosition() )
+		self.PlaceholderText:SetPosition( GetPlaceholderTextPos( self ) )
 	end
 
 	if Changed then
@@ -724,6 +727,10 @@ end
 
 function TextEntry:GetText()
 	return self.Text
+end
+
+function TextEntry:IsEmpty()
+	return self.Text == ""
 end
 
 function TextEntry:AllowChar( Char )
@@ -789,7 +796,25 @@ function TextEntry:OnTextChanged( OldText, NewText )
 end
 
 do
-	local function InsertTextWithoutValidation( self, NewText, NumChars, SkipUndo )
+	function TextEntry:InsertTextInternal( NewText, NumChars )
+		local Text = self.Text
+		local Characters, Length = StringUTF8Encode( Text )
+		local TextBefore = TableConcat( Characters, "", 1, self.Column )
+		local TextAfter = ""
+
+		if self.Column + 1 <= Length then
+			TextAfter = TableConcat( Characters, "", self.Column + 1 )
+		end
+
+		self.Text = StringFormat( "%s%s%s", TextBefore, NewText, TextAfter )
+		self.Column = self.Column + NumChars
+
+		self.TextObj:SetText( self.Text )
+		self:SetCaretPos( self.Column )
+		self:OnTextChangedInternal( Text, self.Text )
+	end
+
+	function TextEntry:InsertTextWithoutValidation( NewText, NumChars, SkipUndo )
 		if not SkipUndo then
 			self:QueueUndo()
 		end
@@ -798,21 +823,7 @@ do
 			self:RemoveSelectedText()
 		end
 
-		local Text = self.Text
-		local Characters, Length = StringUTF8Encode( Text )
-		local Before = TableConcat( Characters, "", 1, self.Column )
-		local After = ""
-
-		if self.Column + 1 <= Length then
-			After = TableConcat( Characters, "", self.Column + 1 )
-		end
-
-		self.Text = StringFormat( "%s%s%s", Before, NewText, After )
-		self.Column = self.Column + NumChars
-
-		self.TextObj:SetText( self.Text )
-		self:SetCaretPos( self.Column )
-		OnTextChangedInternal( self, Text, self.Text )
+		self:InsertTextInternal( NewText, NumChars )
 
 		if self.PlaceholderText then
 			self.PlaceholderText:SetIsVisible( false )
@@ -825,7 +836,7 @@ do
 	function TextEntry:AddCharacter( Char, SkipUndo )
 		if not self:AllowChar( Char ) then return false end
 
-		InsertTextWithoutValidation( self, Char, 1, SkipUndo )
+		self:InsertTextWithoutValidation( Char, 1, SkipUndo )
 
 		return true
 	end
@@ -864,50 +875,42 @@ do
 		if StoppedEarly and Options and Options.SkipIfAnyCharBlocked then return false end
 
 		self:PushUndoState()
-		InsertTextWithoutValidation( self, TableConcat( TextToInsert ), Count, true )
+		self:InsertTextWithoutValidation( TableConcat( TextToInsert ), Count, true )
 
 		return true
 	end
 end
 
+function TextEntry:UpdateCaretPos( TextColumn, UpdatedText, NewText )
+	self:SetCaretPos( TextColumn )
+end
+
 function TextEntry:RemoveWord( Forward )
 	self:QueueUndo()
 
-	local Before
-	local After
+	local TextBefore
+	local TextAfter
+	local OldText = self:GetText()
 
-	local Text = self.Text
-
+	local NextBound = self:FindNextWordBoundInDir( self.Column, Forward and 1 or -1 )
 	if Forward then
-		local Characters, Length = StringUTF8Encode( Text )
-		if self.Column >= Length then return end
-
-		After = TableConcat( Characters, "", self.Column + 1 )
-
-		local NextSpace = StringFind( After, " ", 1, true )
-		if not NextSpace then
-			NextSpace = #self.Text
-		end
-
-		Before = TableConcat( Characters, "", 1, self.Column )
-		After = StringSub( After, NextSpace + 1 )
+		TextBefore = self:GetTextBetween( 1, self.Column )
+		TextAfter = self:GetTextBetween( NextBound + 1 )
 	else
 		if self.Column == 0 then return end
 
-		local Characters = StringUTF8Encode( Text )
-		Before = TableConcat( Characters, "", 1, self.Column - 1 )
-
-		local PreviousSpace = FindFurthestSpace( Before )
-
-		Before = StringSub( self.Text, 1, PreviousSpace - 1 )
-		After = TableConcat( Characters, "", self.Column + 1 )
+		TextBefore = self:GetTextBetween( 1, Max( NextBound - 1, 0 ) )
+		TextAfter = self:GetTextBetween( self.Column + 1 )
 	end
 
-	self.Text = Before..After
-	self.TextObj:SetText( self.Text )
-	self:SetCaretPos( StringUTF8Length( Before ) )
+	local UpdatedText = TextBefore..TextAfter
 
-	OnTextChangedInternal( self, Text, self.Text )
+	self:SetTextInternal( UpdatedText )
+
+	local NewText = self:GetText()
+	self:UpdateCaretPos( StringUTF8Length( TextBefore ), UpdatedText, NewText )
+
+	self:OnTextChangedInternal( OldText, NewText )
 end
 
 --[[
@@ -930,37 +933,36 @@ function TextEntry:RemoveCharacter( Forward )
 
 	self:QueueUndo()
 
-	local Text = self.Text
-	local Characters, Length = StringUTF8Encode( Text )
+	local OldText = self:GetText()
+	local UpdatedText
+	local TextColumn
 
 	if Forward then
 		if self.Column > 0 then
-			local Before = TableConcat( Characters, "", 1, self.Column )
+			local TextBefore = self:GetTextBetween( 1, self.Column )
+			local TextAfter = self:GetTextBetween( self.Column + 2 )
 
-			if self.Column + 2 <= Length then
-				self.Text = Before..TableConcat( Characters, "", self.Column + 2 )
-			else
-				self.Text = Before
-			end
+			UpdatedText = TextBefore..TextAfter
+			TextColumn = StringUTF8Length( TextBefore )
 		else
-			self.Text = TableConcat( Characters, "", 2 )
+			UpdatedText = self:GetTextBetween( 2 )
+			TextColumn = 0
 		end
 	else
-		local Before = TableConcat( Characters, "", 1, self.Column - 1 )
+		local TextBefore = self:GetTextBetween( 1, Max( self.Column - 1, 0 ) )
+		local TextAfter = self:GetTextBetween( self.Column + 1 )
 
-		if self.Column + 1 <= Length then
-			self.Text = Before..TableConcat( Characters, "", self.Column + 1 )
-		else
-			self.Text = Before
-		end
+		UpdatedText = TextBefore..TextAfter
 
-		self.Column = Max( self.Column - 1, 0 )
+		TextColumn = StringUTF8Length( TextBefore )
 	end
 
-	self.TextObj:SetText( self.Text )
-	self:SetCaretPos( self.Column )
+	self:SetTextInternal( UpdatedText )
 
-	OnTextChangedInternal( self, Text, self.Text )
+	NewText = self:GetText()
+	self:UpdateCaretPos( TextColumn, UpdatedText, NewText )
+
+	self:OnTextChangedInternal( OldText, NewText )
 end
 
 function TextEntry:PlayerType( Char )
@@ -1126,7 +1128,7 @@ end
 
 function TextEntry:GetState()
 	return {
-		Text = self.Text,
+		Text = self:GetText(),
 		CaretPos = self.Column
 	}
 end
@@ -1154,11 +1156,11 @@ function TextEntry:PushUndoState()
 end
 
 function TextEntry:RestoreState( State )
-	local Text = self.Text
+	local Text = self:GetText()
 
 	self:SetText( State.Text, true )
 	self:SetCaretPos( State.CaretPos )
-	OnTextChangedInternal( self, Text, self.Text )
+	self:OnTextChangedInternal( Text, self:GetText() )
 end
 
 function TextEntry:Undo()
@@ -1186,6 +1188,14 @@ end
 do
 	local AutoCompleteErrorHandler = Shine.BuildErrorHandler( "Auto complete error" )
 
+	function TextEntry:ConvertStateToAutoComplete( State )
+		return State
+	end
+
+	function TextEntry:ConvertStateFromAutoComplete( State )
+		return State
+	end
+
 	function TextEntry:OnTab()
 		if not self.AutoCompleteHandler then return end
 
@@ -1195,7 +1205,7 @@ do
 			WasAutoCompleting = true
 			OldState = self.AutoCompleteInitialState
 		else
-			OldState = self:GetState()
+			OldState = self:ConvertStateToAutoComplete( self:GetState() )
 		end
 
 		-- Auto completion should provide the new state of the text and caret.
@@ -1208,6 +1218,8 @@ do
 		if not WasAutoCompleting then
 			self.AutoCompleteInitialState = OldState
 		end
+
+		NewState = self:ConvertStateFromAutoComplete( NewState )
 
 		if self.MaxLength then
 			-- Enforce maximum length as this won't go through ShouldAllowChar.
@@ -1293,9 +1305,9 @@ function TextEntry:PlayerKeyPress( Key, Down )
 
 	if Down and ( Key == InputKey.Back or Key == InputKey.Delete ) then
 		self:RemoveCharacter( Key == InputKey.Delete )
-		if self.PlaceholderText and self.Text == "" then
+		if self.PlaceholderText and self:IsEmpty() then
 			self.PlaceholderText:SetIsVisible( true )
-			self.PlaceholderText:SetPosition( self.TextObj:GetPosition() )
+			self.PlaceholderText:SetPosition( GetPlaceholderTextPos( self ) )
 		end
 
 		return true
@@ -1365,7 +1377,7 @@ function TextEntry:PlayerKeyPress( Key, Down )
 	end
 
 	if Down and Key == InputKey.End then
-		local MaxCaretPos = StringUTF8Length( self.Text )
+		local MaxCaretPos = self:GetMaxColumn()
 		if SGUI:IsShiftDown() then
 			self:OffsetSelection( MaxCaretPos - self.Column )
 			return true

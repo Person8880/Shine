@@ -443,4 +443,8 @@ local Skin = {
 	}
 }
 
+Skin.RichTextEntry = {
+	Default = Skin.TextEntry.Default
+}
+
 SGUI.SkinManager:RegisterSkin( "Default - Light", Skin )
