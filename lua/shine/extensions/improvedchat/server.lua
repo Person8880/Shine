@@ -469,14 +469,19 @@ function Plugin:GetAllowedEmojiForClient( Client )
 end
 
 do
+	local LogText = {}
 	local NewText = {}
 
 	function Plugin.ApplyEmojiFilters( Text, AllowedEmoji )
 		local CurrentIndex = 1
 		local LastTextIndex = 1
+		local LastLogTextIndex = 1
 
 		local Count = 0
 		TableEmpty( NewText )
+
+		local LogCount = 0
+		TableEmpty( LogText )
 
 		for i = 1, #Text do
 			local OpenStart, OpenEnd = StringFind( Text, ":", CurrentIndex, true )
@@ -488,12 +493,26 @@ do
 			local TextBetween = StringSub( Text, OpenEnd + 1, CloseStart - 1 )
 			local EmojiDef = EmojiRepository.GetEmojiDefinition( TextBetween )
 			if EmojiDef then
-				if not AllowedEmoji:Contains( EmojiDef.Index ) then
+				if AllowedEmoji and not AllowedEmoji:Contains( EmojiDef.Index ) then
 					-- Add everything up to the start of this emoji.
 					Count = Count + 1
 					NewText[ Count ] = StringSub( Text, LastTextIndex, OpenStart - 1 )
+
+					LogCount = LogCount + 1
+					LogText[ LogCount ] = StringSub( Text, LastLogTextIndex, OpenStart - 1 )
+
 					-- Then skip past it.
 					LastTextIndex = CloseEnd + 1
+					LastLogTextIndex = LastTextIndex
+				elseif TextBetween ~= EmojiDef.Name then
+					-- Emoji is allowed, make sure the human-readable name is logged.
+					LogCount = LogCount + 1
+					LogText[ LogCount ] = StringSub( Text, LastLogTextIndex, OpenStart - 1 )
+
+					LogCount = LogCount + 1
+					LogText[ LogCount ] = StringFormat( ":%s:", EmojiDef.Name )
+
+					LastLogTextIndex = CloseEnd + 1
 				end
 				CurrentIndex = CloseEnd + 1
 			else
@@ -507,14 +526,21 @@ do
 			NewText[ Count ] = StringSub( Text, LastTextIndex )
 		end
 
-		local FinalText = TableConcat( NewText )
+		if LastLogTextIndex <= #Text then
+			LogCount = LogCount + 1
+			LogText[ LogCount ] = StringSub( Text, LastLogTextIndex )
+		end
+
+		local FinalText = TableConcat( NewText, "", 1, Count )
 		TableEmpty( NewText )
+		local FinalLogText = TableConcat( LogText, "", 1, LogCount )
+		TableEmpty( LogText )
 
 		if Text ~= FinalText and not StringContainsNonUTF8Whitespace( FinalText ) then
 			return ""
 		end
 
-		return FinalText
+		return FinalText, FinalLogText
 	end
 end
 
@@ -522,14 +548,14 @@ function Plugin:PlayerSay( Client, NetMessage )
 	if not self.Config.ParseEmojiInChat then return end
 
 	local AllowedEmoji = self:GetAllowedEmojiForClient( Client )
-	if not AllowedEmoji then return end
-
-	local NewText = self.ApplyEmojiFilters( NetMessage.message, AllowedEmoji )
+	local NewText, LogText = self.ApplyEmojiFilters( NetMessage.message, AllowedEmoji )
 	if NewText == "" then return "" end
 
 	-- Apply the filtered text to the net message rather than returning it to allow subsequent listeners to see the
 	-- updated chat message and apply their own filtering.
 	NetMessage.message = NewText
+	-- Also attach the generated loggable text to avoid logging internal emoji short names.
+	NetMessage.LogMessageText = LogText
 end
 
 function Plugin:SendEmojiRestrictions( Client )

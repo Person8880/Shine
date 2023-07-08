@@ -117,7 +117,7 @@ function Plugin:PlayerSay( Client, Message )
 
 	Shine:LogString( StringFormat( "%s from %s: %s",
 		Message.teamOnly and "Team Chat" or "Chat", self:GetClientInfo( Client ),
-		Message.message ) )
+		Message.LogMessageText or Message.message ) )
 end
 
 function Plugin:SetGameState( Gamerules, State, OldState )

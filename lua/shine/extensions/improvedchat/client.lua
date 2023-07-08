@@ -16,6 +16,7 @@ local SGUI = Shine.GUI
 local Units = SGUI.Layout.Units
 
 local Ceil = math.ceil
+local Implements = Shine.Implements
 local IsType = Shine.IsType
 local Max = math.max
 local OSDate = os.date
@@ -883,178 +884,197 @@ function Plugin:OnChatAddMessage( GUIChat, PlayerColour, PlayerName, MessageColo
 	return true
 end
 
-local function IsVisibleToLocalPlayer( Player, TeamNumber )
-	local PlayerTeam = Player.GetTeamNumber and Player:GetTeamNumber()
-	return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex or PlayerTeam == kTeamReadyRoom
-end
-
-local function GetTeamPrefix( Data )
-	if Data.LocationID > 0 then
-		local Location = Shared.GetString( Data.LocationID )
-		if StringFind( Location, "[^%s]" ) then
-			return StringFormat( "(Team, %s) ", Location )
-		end
-	end
-
-	return "(Team) "
-end
-
 local DEFAULT_IMAGE_SIZE = Units.UnitVector(
 	0,
 	Units.Percentage.ONE_HUNDRED
 )
-local EMOJI_SIZE = Units.UnitVector(
-	0,
-	Units.Percentage( 125 )
-)
 
-local function ParseEmoji( Contents, Message, EmojiSize, EmojiElementCreator, Context )
-	local CurrentIndex = 1
-	local LastTextIndex = 1
-	for i = 1, #Message do
-		local OpenStart, OpenEnd = StringFind( Message, ":", CurrentIndex, true )
-		if not OpenStart then break end
+do
+	local function ParseEmoji( Contents, Message, EmojiElementCreator, Context )
+		local CurrentIndex = 1
+		local LastTextIndex = 1
+		for i = 1, #Message do
+			local OpenStart, OpenEnd = StringFind( Message, ":", CurrentIndex, true )
+			if not OpenStart then break end
 
-		local CloseStart, CloseEnd = StringFind( Message, ":", OpenEnd + 1, true )
-		if not CloseStart then break end
+			local CloseStart, CloseEnd = StringFind( Message, ":", OpenEnd + 1, true )
+			if not CloseStart then break end
 
-		local TextBetween = StringSub( Message, OpenEnd + 1, CloseStart - 1 )
-		local EmojiElement = EmojiElementCreator( TextBetween, Context )
-		if EmojiElement then
-			EmojiElement.AutoSize = EmojiSize
-			EmojiElement.AspectRatio = 1
+			local TextBetween = StringSub( Message, OpenEnd + 1, CloseStart - 1 )
+			local EmojiElement = EmojiElementCreator( TextBetween, Context )
+			if EmojiElement then
+				EmojiElement.AutoSize = DEFAULT_IMAGE_SIZE
+				EmojiElement.AspectRatio = 1
 
-			local TextBefore = StringSub( Message, LastTextIndex, OpenStart - 1 )
-			if #TextBefore > 0 then
-				Contents[ #Contents + 1 ] = TextElement( TextBefore )
+				local TextBefore = StringSub( Message, LastTextIndex, OpenStart - 1 )
+				if #TextBefore > 0 then
+					Contents[ #Contents + 1 ] = TextElement( TextBefore )
+				end
+				Contents[ #Contents + 1 ] = EmojiElement
+
+				LastTextIndex = CloseEnd + 1
+				CurrentIndex = CloseEnd + 1
+			else
+				-- Not a valid emoji between the two bounds, ignore this ":" and continue.
+				CurrentIndex = OpenEnd + 1
 			end
-			Contents[ #Contents + 1 ] = EmojiElement
-
-			LastTextIndex = CloseEnd + 1
-			CurrentIndex = CloseEnd + 1
-		else
-			-- Not a valid emoji between the two bounds, ignore this ":" and continue.
-			CurrentIndex = OpenEnd + 1
 		end
+
+		if LastTextIndex <= #Message then
+			Contents[ #Contents + 1 ] = TextElement( StringSub( Message, LastTextIndex ) )
+		end
+
+		return Contents
 	end
 
-	if LastTextIndex <= #Message then
-		Contents[ #Contents + 1 ] = TextElement( StringSub( Message, LastTextIndex ) )
+	local function ParseEmojiInChatMessage( Contents, Message )
+		return ParseEmoji( Contents, Message, EmojiRepository.MakeEmojiElement )
 	end
 
-	return Contents
-end
-
-local function ParseEmojiInChatMessage( Contents, Message )
-	return ParseEmoji( Contents, Message, EMOJI_SIZE, EmojiRepository.MakeEmojiElement )
-end
-
-local function CopyImage( self )
-	local Copy = ImageElement.Copy( self )
-	Copy.CopyText = self.CopyText
-	Copy.Text = self.Text
-	return Copy
-end
-
-local function AddEmojiIfAllowed( EmojiName, AllowedEmoji )
-	local EmojiDefinition = EmojiRepository.GetEmojiDefinition( EmojiName )
-	if not EmojiDefinition or ( AllowedEmoji and not AllowedEmoji:Contains( EmojiDefinition.Index ) ) then
-		return nil
+	local function CopyImage( self )
+		local Copy = ImageElement.Copy( self )
+		Copy.CopyText = self.CopyText
+		Copy.Text = self.Text
+		return Copy
 	end
 
-	local ImageElement = EmojiRepository.MakeEmojiElement( EmojiName )
-	-- When copying the text, copy the human-readable emoji name.
-	ImageElement.CopyText = StringFormat( ":%s:", EmojiDefinition.Name )
-	-- When extracting text (e.g. to submit a chat message), use the shortened name.
-	ImageElement.Text = StringFormat( ":%s:", EmojiDefinition.ShortName )
-	-- Override the copy method to ensure the above fields are retained after layout.
-	ImageElement.Copy = CopyImage
-	return ImageElement
-end
+	local function AddEmojiIfAllowed( EmojiName, AllowedEmoji )
+		local EmojiDefinition = EmojiRepository.GetEmojiDefinition( EmojiName )
+		if not EmojiDefinition or ( AllowedEmoji and not AllowedEmoji:Contains( EmojiDefinition.Index ) ) then
+			return nil
+		end
 
-function Plugin:ParseChatBoxText( ChatBox, Text )
-	if not self:IsChatEmojiAvailable() then return end
+		local ImageElement = EmojiRepository.MakeEmojiElement( EmojiName )
+		-- When copying the text, copy the human-readable emoji name.
+		ImageElement.CopyText = StringFormat( ":%s:", EmojiDefinition.Name )
+		-- When extracting text (e.g. to submit a chat message), use the shortened name.
+		ImageElement.Text = StringFormat( ":%s:", EmojiDefinition.ShortName )
+		-- Override the copy method to ensure the above fields are retained after layout.
+		ImageElement.Copy = CopyImage
+		return ImageElement
+	end
 
-	-- Parse emoji in chat box text, only displaying images for emoji that are allowed for the user.
-	return ParseEmoji( {}, Text, DEFAULT_IMAGE_SIZE, AddEmojiIfAllowed, self.AllowedEmoji )
-end
+	function Plugin:ParseChatBoxText( ChatBox, Text )
+		if not self:IsChatEmojiAvailable() then return end
 
--- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.
-function Plugin:OnChatMessageReceived( Data )
-	local Player = Client.GetLocalPlayer()
-	if not Player then return true end
+		-- Parse emoji in chat box text, only displaying images for emoji that are allowed for the user.
+		return ParseEmoji( {}, Text, AddEmojiIfAllowed, self.AllowedEmoji )
+	end
 
-	if not Client.GetIsRunningServer() then
+	local TableConcat = table.concat
+
+	local function LogChatMessage( Data, Message )
+		if Client.GetIsRunningServer() then return end
+
 		local Prefix = "Chat All"
 		if Data.TeamOnly then
 			Prefix = StringFormat( "Chat Team %d", Data.TeamNumber )
 		end
 
-		Shared.Message( StringFormat( "%s %s - %s: %s", OSDate( "[%H:%M:%S]" ), Prefix, Data.Name, Data.Message ) )
+		Shared.Message( StringFormat( "%s%s - %s: %s", OSDate( "[%H:%M:%S]" ), Prefix, Data.Name, Message ) )
 	end
 
-	if Data.SteamID ~= 0 and ChatUI_GetSteamIdTextMuted( Data.SteamID ) then
-		return true
+	local function IsVisibleToLocalPlayer( Player, TeamNumber )
+		local PlayerTeam = Player.GetTeamNumber and Player:GetTeamNumber()
+		return PlayerTeam == TeamNumber or PlayerTeam == kSpectatorIndex or PlayerTeam == kTeamReadyRoom
 	end
 
-	-- Server sends -1 for ClientID if there is no client attached to the message.
-	local Entry = Data.ClientID ~= -1 and Shine.GetScoreboardEntryByClientID( Data.ClientID )
-	local IsCommander = Entry and Entry.IsCommander and IsVisibleToLocalPlayer( Player, Entry.EntityTeamNumber )
-	local IsRookie = Entry and Entry.IsRookie
-
-	local Contents = {}
-
-	local ChatTag = self.ChatTags[ Data.SteamID ]
-	if ChatTag and ( not Data.TeamOnly or self.dt.DisplayChatTagsInTeamChat ) then
-		if ChatTag.Image then
-			Contents[ #Contents + 1 ] = ImageElement( {
-				Texture = ChatTag.Image,
-				AutoSize = DEFAULT_IMAGE_SIZE,
-				AspectRatio = 1
-			} )
+	local function GetTeamPrefix( Data )
+		if Data.LocationID > 0 then
+			local Location = Shared.GetString( Data.LocationID )
+			if StringFind( Location, "[^%s]" ) then
+				return StringFormat( "(Team, %s) ", Location )
+			end
 		end
-		Contents[ #Contents + 1 ] = ColourElement( ChatTag.Colour )
-		Contents[ #Contents + 1 ] = TextElement( ( ChatTag.Image and " " or "" )..ChatTag.Text.." " )
+
+		return "(Team) "
 	end
 
-	if IsCommander then
-		Contents[ #Contents + 1 ] = ColourElement( IntToColour( kCommanderColor ) )
-		Contents[ #Contents + 1 ] = TextElement( "[C] " )
+	local function ContentsToText( Contents, StartIndex )
+		local Count = 0
+		local MessageText = {}
+		for i = StartIndex + 1, #Contents do
+			local Element = Contents[ i ]
+			Count = Count + 1
+			MessageText[ Count ] = Implements( Element, TextElement ) and Element.Value or Element.Tooltip
+		end
+		return TableConcat( MessageText, "", 1, Count )
 	end
 
-	if IsRookie then
-		Contents[ #Contents + 1 ] = ColourElement( IntToColour( kNewPlayerColor ) )
-		Contents[ #Contents + 1 ] = TextElement( Locale.ResolveString( "ROOKIE_CHAT" ).." " )
+	-- Overrides the default chat behaviour, adding chat tags and turning the contents into rich text.
+	function Plugin:OnChatMessageReceived( Data )
+		local Player = Client.GetLocalPlayer()
+		if not Player then return true end
+
+		if Data.SteamID ~= 0 and ChatUI_GetSteamIdTextMuted( Data.SteamID ) then
+			LogChatMessage( Data, Data.Message )
+			return true
+		end
+
+		-- Server sends -1 for ClientID if there is no client attached to the message.
+		local Entry = Data.ClientID ~= -1 and Shine.GetScoreboardEntryByClientID( Data.ClientID )
+		local IsCommander = Entry and Entry.IsCommander and IsVisibleToLocalPlayer( Player, Entry.EntityTeamNumber )
+		local IsRookie = Entry and Entry.IsRookie
+
+		local Contents = {}
+
+		local ChatTag = self.ChatTags[ Data.SteamID ]
+		if ChatTag and ( not Data.TeamOnly or self.dt.DisplayChatTagsInTeamChat ) then
+			if ChatTag.Image then
+				Contents[ #Contents + 1 ] = ImageElement( {
+					Texture = ChatTag.Image,
+					AutoSize = DEFAULT_IMAGE_SIZE,
+					AspectRatio = 1
+				} )
+			end
+			Contents[ #Contents + 1 ] = ColourElement( ChatTag.Colour )
+			Contents[ #Contents + 1 ] = TextElement( ( ChatTag.Image and " " or "" )..ChatTag.Text.." " )
+		end
+
+		if IsCommander then
+			Contents[ #Contents + 1 ] = ColourElement( IntToColour( kCommanderColor ) )
+			Contents[ #Contents + 1 ] = TextElement( "[C] " )
+		end
+
+		if IsRookie then
+			Contents[ #Contents + 1 ] = ColourElement( IntToColour( kNewPlayerColor ) )
+			Contents[ #Contents + 1 ] = TextElement( Locale.ResolveString( "ROOKIE_CHAT" ).." " )
+		end
+
+		local Prefix = "(All) "
+		if Data.TeamOnly then
+			Prefix = GetTeamPrefix( Data )
+		end
+
+		Prefix = StringFormat( "%s%s: ", Prefix, Data.Name )
+
+		Contents[ #Contents + 1 ] = ColourElement( IntToColour( GetColorForTeamNumber( Data.TeamNumber ) ) )
+		Contents[ #Contents + 1 ] = TextElement( Prefix )
+
+		Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
+
+		if self.dt.ParseEmojiInChat then
+			local StartIndex = #Contents
+			ParseEmojiInChatMessage( Contents, Data.Message )
+
+			-- Take the human-readable text and log it, rather than logging emoji shortnames.
+			LogChatMessage( Data, ContentsToText( Contents, StartIndex ) )
+		else
+			Contents[ #Contents + 1 ] = TextElement( Data.Message )
+			LogChatMessage( Data, Data.Message )
+		end
+
+		Hook.Call( "OnChatMessageParsed", Data, Contents )
+
+		return self:AddRichTextMessage( {
+			Source = {
+				Type = ChatAPI.SourceTypeName.PLAYER,
+				ID = Data.SteamID,
+				Details = Data
+			},
+			Message = Contents
+		} )
 	end
-
-	local Prefix = "(All) "
-	if Data.TeamOnly then
-		Prefix = GetTeamPrefix( Data )
-	end
-
-	Prefix = StringFormat( "%s%s: ", Prefix, Data.Name )
-
-	Contents[ #Contents + 1 ] = ColourElement( IntToColour( GetColorForTeamNumber( Data.TeamNumber ) ) )
-	Contents[ #Contents + 1 ] = TextElement( Prefix )
-
-	Contents[ #Contents + 1 ] = ColourElement( kChatTextColor[ Data.TeamType ] )
-
-	if self.dt.ParseEmojiInChat then
-		ParseEmojiInChatMessage( Contents, Data.Message )
-	else
-		Contents[ #Contents + 1 ] = TextElement( Data.Message )
-	end
-
-	Hook.Call( "OnChatMessageParsed", Data, Contents )
-
-	return self:AddRichTextMessage( {
-		Source = {
-			Type = ChatAPI.SourceTypeName.PLAYER,
-			ID = Data.SteamID,
-			Details = Data
-		},
-		Message = Contents
-	} )
 end
 
 function Plugin:AddRichTextMessage( MessageData )

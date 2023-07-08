@@ -6,6 +6,8 @@ local UnitTest = Shine.UnitTest
 local Plugin = UnitTest:LoadExtension( "improvedchat" )
 if not Plugin then return end
 
+local StringFormat = string.format
+
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local ColourElement = require "shine/lib/gui/richtext/elements/colour"
@@ -500,28 +502,37 @@ Shine.UserData.Groups.EmojiTestGroup = nil
 Shine.UserData.Groups.EmojiTestParentGroup = nil
 
 local MockFilter = Shine.BitSet()
-MockFilter:Add( EmojiRepository.GetEmojiDefinition( "grinning_face" ).Index )
+local GrinningFaceEmoji = EmojiRepository.GetEmojiDefinition( "grinning_face" )
+MockFilter:Add( GrinningFaceEmoji.Index )
 
 UnitTest:Test( "ApplyEmojiFilters - Returns text as-is if it contains no emoji", function( Assert )
 	local Message = "This is a test message."
-	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
 	Assert:Equals( Message, Text )
+	Assert:Equals( Message, LogText )
 end )
 
 UnitTest:Test( "ApplyEmojiFilters - Returns text without emoji that are not allowed", function( Assert )
-	local Message = "This is a :zzz:zzz:test: :zzz::message:zzz:."
-	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
-	Assert:Equals( "This is a zzz:test: :message.", Text )
+	local ShortName = GrinningFaceEmoji.ShortName
+	Assert:IsType( ShortName, "string" )
+	Assert:NotEquals( GrinningFaceEmoji.Name, ShortName )
+
+	local Message = StringFormat( "This is a :zzz:zzz:test: :zzz::message:zzz: with allowed emoji :%s:.", ShortName )
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	Assert:Equals( StringFormat( "This is a zzz:test: :message with allowed emoji :%s:.", ShortName ), Text )
+	Assert:Equals( "This is a zzz:test: :message with allowed emoji :grinning_face:.", LogText )
 end )
 
 UnitTest:Test( "ApplyEmojiFilters - Returns an empty string if all emoji are filtered out and only whitespace remains", function( Assert )
 	local Message = ":zzz: :zzz: :zzz:"
-	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
 	Assert:Equals( "", Text )
+	Assert:Nil( LogText )
 end )
 
 UnitTest:Test( "ApplyEmojiFilters - Returns whitespace as-is if it was provided originally", function( Assert )
 	local Message = "    "
-	local Text = Plugin.ApplyEmojiFilters( Message, MockFilter )
+	local Text, LogText = Plugin.ApplyEmojiFilters( Message, MockFilter )
 	Assert:Equals( Message, Text )
+	Assert:Equals( Message, LogText )
 end )
