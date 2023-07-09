@@ -472,11 +472,51 @@ do
 		if not self.dt.ParseEmojiInChat then return end
 
 		local AllEmoji = EmojiRepository.GetAllEmoji()
+		local FrequentlyUsedEmoji = EmojiRepository.GetFrequentlyUsedEmoji()
 		if self.AllowedEmoji then
+			FrequentlyUsedEmoji:Filter( IsAllowedEmoji, self.AllowedEmoji )
 			-- Need to copy here as the returned table is the table of all emoji.
 			AllEmoji = Shine.Stream.Of( AllEmoji ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
 		end
+
+		if FrequentlyUsedEmoji:GetCount() > 0 then
+			local EmojiWithFrequentlyUsed = {}
+			local Count = 0
+			local FrequentlyUsedCategory = {
+				Name = self:GetPhrase( "FREQUENTLY_USED_EMOJI_CATEGORY_NAME" ),
+				Translations = {}
+			}
+
+			for Key in FrequentlyUsedEmoji:Iterate() do
+				local EmojiDefinition = AllEmoji[ Key ]
+
+				Count = Count + 1
+				EmojiWithFrequentlyUsed[ Count ] = {
+					Index = EmojiDefinition.Index,
+					Name = EmojiDefinition.Name,
+					ShortName = EmojiDefinition.ShortName,
+					Category = FrequentlyUsedCategory,
+					Texture = EmojiDefinition.Texture,
+					TextureCoordinates = EmojiDefinition.TextureCoordinates,
+					TexturePixelCoordinates = EmojiDefinition.TexturePixelCoordinates
+				}
+
+				if Count >= 25 then break end
+			end
+
+			for i = 1, #AllEmoji do
+				Count = Count + 1
+				EmojiWithFrequentlyUsed[ Count ] = AllEmoji[ i ]
+			end
+
+			AllEmoji = EmojiWithFrequentlyUsed
+		end
+
 		return AllEmoji
+	end
+
+	function Plugin:OnChatBoxEmojiSelected( ChatBox, EmojiName )
+		EmojiRepository.IncrementEmojiUsageCounter( EmojiName )
 	end
 
 	function Plugin:ReceiveSetEmojiRestrictions( Message )

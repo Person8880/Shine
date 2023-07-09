@@ -67,6 +67,37 @@ local function RunMapTests( TypeName, MapType )
 		Assert.Equals( "Map was not empty after clearing", 0, Map:GetCount() )
 	end )
 
+	UnitTest:Test( TypeName.." - Filter", function( Assert )
+		local Map = MapType()
+		local ExpectedValues = {}
+
+		for i = 1, 30 do
+			ExpectedValues[ i ] = "Test "..i
+			Map:Add( i, ExpectedValues[ i ] )
+		end
+
+		Assert:Equals( 30, Map:GetCount() )
+
+		local SeenKeys = {}
+		Map:Filter( function( Key, Value, Context )
+			Assert:Same( Map, Context )
+			SeenKeys[ Key ] = Value
+			return Key > 15
+		end, Map )
+		Assert:DeepEquals( ExpectedValues, SeenKeys )
+
+		Assert:Equals( 15, Map:GetCount() )
+		for i = 1, 15 do
+			Assert:Nil( Map:Get( i ) )
+		end
+		local ExpectedKeys = {}
+		for i = 16, 30 do
+			ExpectedKeys[ #ExpectedKeys + 1 ] = i
+			Assert:Equals( "Test "..i, Map:Get( i ) )
+		end
+		Assert:ArrayEquals( ExpectedKeys, Map.Keys )
+	end )
+
 	if TypeName == "Map" then
 		UnitTest:Test( TypeName.." - IterationRemoval", function( Assert )
 			local Map = MapType()

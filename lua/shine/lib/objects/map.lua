@@ -166,6 +166,33 @@ function Map:RemoveAtPosition( Position )
 	return Key, Value
 end
 
+function Map:RemoveKey( Index, Key )
+	self.Keys[ Index ] = nil
+	self.MemberLookup[ Key ] = nil
+	self.NumMembers = self.NumMembers - 1
+end
+
+function Map:Filter( Predicate, Context )
+	local Size = self.NumMembers
+	local Offset = 0
+	local MemberLookup = self.MemberLookup
+
+	for i = 1, Size do
+		local Key = self.Keys[ i ]
+		self.Keys[ i - Offset ] = Key
+		if not Predicate( Key, MemberLookup[ Key ], Context ) then
+			self:RemoveKey( i, Key )
+			Offset = Offset + 1
+		end
+	end
+
+	for i = Size, Size - Offset + 1, -1 do
+		self.Keys[ i ] = nil
+	end
+
+	return self
+end
+
 --[[
 	Returns true if the map still has more elements to iterate through.
 ]]
@@ -337,6 +364,11 @@ function UnorderedMap:RemoveAtPosition( Position )
 	if Key == nil then return nil end
 
 	return self:Remove( Key )
+end
+
+function UnorderedMap:RemoveKey( Index, Key )
+	self.IndexByKey[ Key ] = nil
+	return Map.RemoveKey( self, Index, Key )
 end
 
 function UnorderedMap:Clear()

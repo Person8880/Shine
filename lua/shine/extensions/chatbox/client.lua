@@ -651,6 +651,8 @@ function Plugin:CreateChatbox()
 		end
 
 		self.TextEntry:InsertTextAtCaret( TextToInsert )
+
+		Hook.Broadcast( "OnChatBoxEmojiSelected", self, EmojiName )
 	end
 
 	do
@@ -896,6 +898,8 @@ function Plugin:CreateChatbox()
 				-- Only insert full emoji, if there's no more room, don't insert anything.
 				SkipIfAnyCharBlocked = true
 			} )
+
+			Hook.Broadcast( "OnChatBoxEmojiSelected", self, EmojiName )
 		end
 
 		local RemovalFrameNumber

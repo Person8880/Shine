@@ -70,16 +70,16 @@ do
 		Server.AddRestrictedFileHashes( EMOJI_DEFINITION_PATH )
 	end
 
-	local function GetSortedFiles( Path, Recursive )
+	local function GetSortedFiles( Path )
 		local Files = {}
-		Shared.GetMatchingFileNames( Path, Recursive, Files )
+		Shared.GetMatchingFileNames( Path, true, Files )
 		-- To ensure consistent loading order (and thus consistent indices), sort the files.
 		-- This ought to be done by GetMatchingFileNames, but it doesn't hurt to enforce it again here.
 		TableSort( Files )
 		return Files
 	end
 
-	local Files = GetSortedFiles( EMOJI_DEFINITION_PATH, false )
+	local Files = GetSortedFiles( EMOJI_DEFINITION_PATH )
 
 	local DeleteIfFieldInvalid = { DeleteIfFieldInvalid = true }
 	local Validator = Shine.Validator( "Emoji file validation error: " )
@@ -241,7 +241,7 @@ do
 					Server.AddRestrictedFileHashes( Entry.Folder )
 				end
 
-				local Textures = GetSortedFiles( Entry.Folder, true )
+				local Textures = GetSortedFiles( Entry.Folder )
 				local Exclusions
 				if Entry.Exclude then
 					Exclusions = {}
@@ -309,6 +309,68 @@ do
 end
 
 if Client then
+	local FREQUENTLY_USED_EMOJI_FILE_PATH = "config://shine/temp/cl_frequently_used_emoji.json"
+	local FrequentlyUsedEmoji
+	local function CompareEmoji( Left, Right )
+		local LeftCount = FrequentlyUsedEmoji:Get( Left )
+		local RightCount = FrequentlyUsedEmoji:Get( Right )
+
+		if LeftCount > RightCount then return true end
+		if LeftCount < RightCount then return false end
+
+		local LeftIndex = EmojiByName[ Left ] and EmojiByName[ Left ].Index
+		local RightIndex = EmojiByName[ Right ] and EmojiByName[ Right ].Index
+
+		if LeftIndex and RightIndex then
+			return LeftIndex < RightIndex
+		end
+
+		if LeftIndex then return true end
+		if RightIndex then return false end
+
+		return Left < Right
+	end
+
+	do
+		local SavedFrequentlyUsedEmoji = Shine.LoadJSONFile( FREQUENTLY_USED_EMOJI_FILE_PATH )
+		if IsType( SavedFrequentlyUsedEmoji, "table" ) then
+			FrequentlyUsedEmoji = Shine.Map( SavedFrequentlyUsedEmoji )
+		else
+			FrequentlyUsedEmoji = Shine.Map()
+		end
+
+		FrequentlyUsedEmoji:SortKeys( CompareEmoji )
+	end
+
+	local SortRequired = false
+	local SaveTimer
+	local function SaveFrequentlyUsedEmoji()
+		Shine.SaveJSONFile( FrequentlyUsedEmoji:AsTable(), FREQUENTLY_USED_EMOJI_FILE_PATH, {
+			indent = false
+		} )
+		SaveTimer = nil
+	end
+
+	function EmojiRepository.IncrementEmojiUsageCounter( EmojiName )
+		SortRequired = true
+		FrequentlyUsedEmoji:Add( EmojiName, ( FrequentlyUsedEmoji:Get( EmojiName ) or 0 ) + 1 )
+
+		if not SaveTimer then
+			SaveTimer = Shine.Timer.Create( "EmojiRepository_SaveFrequentlyUsed", 5, 1, SaveFrequentlyUsedEmoji )
+		end
+		SaveTimer:Debounce()
+	end
+
+	local function EmojiExists( Key ) return EmojiByName[ Key ] ~= nil end
+
+	function EmojiRepository.GetFrequentlyUsedEmoji()
+		if SortRequired then
+			SortRequired = false
+			FrequentlyUsedEmoji:SortKeys( CompareEmoji )
+		end
+		return Shine.Map( FrequentlyUsedEmoji ):Filter( EmojiExists )
+	end
+
 	local Results = {}
 	local function SortEmoji( A, B )
 		local LeftStartIndex = Results[ A ]
