@@ -292,6 +292,12 @@ function Plugin:SetupAdminMenuCommands()
 		Size = HighResScaled( 32 )
 	}
 
+	local Easing = require "shine/lib/gui/util/easing"
+	local RowPosTransition = {
+		Duration = 0.15,
+		EasingFunction = Easing.GetEaser( "OutSine" )
+	}
+
 	local MapSummary = SGUI:DefineControl( "MapSummary", "Column" )
 	SGUI.AddProperty( MapSummary, "MapName" )
 	SGUI.AddProperty( MapSummary, "IsMod" )
@@ -536,12 +542,51 @@ function Plugin:SetupAdminMenuCommands()
 							Type = "Layout",
 							Children = {
 								{
-									ID = "MapList",
-									Class = "List",
-									Props = {
-										DebugName = "AdminMenuMapsList",
-										Fill = true,
-										Margin = Spacing( 0, 0, HighResScaled( 10 ), 0 )
+									Class = "Vertical",
+									Type = "Layout",
+									Children = {
+										{
+											Class = "Horizontal",
+											Type = "Layout",
+											Props = {
+												Fill = false,
+												AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 27 ) ),
+												Margin = Spacing( 0, 0, 0, HighResScaled( 8 ) )
+											},
+											Children = {
+												{
+													Class = "Label",
+													Props = {
+														AutoFont = Ionicons,
+														Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 ),
+														Text = SGUI.Icons.Ionicons.Search
+													}
+												},
+												{
+													ID = "SearchBox",
+													Class = "TextEntry",
+													Props = {
+														Fill = true,
+														AutoFont = AgencyFBNormal,
+														PlaceholderText = self:GetPhrase(
+															"MAP_SEARCH_BOX_PLACEHOLDER_TEXT"
+														)
+													}
+												}
+											}
+										},
+										{
+											ID = "MapList",
+											Class = "List",
+											Props = {
+												DebugName = "AdminMenuMapsList",
+												Fill = true,
+												InheritsParentAlpha = true,
+												Margin = Spacing( 0, 0, HighResScaled( 10 ), 0 ),
+												PropagateAlphaInheritance = true,
+												RowPosTransition = RowPosTransition
+											}
+										}
 									}
 								},
 								{
@@ -613,6 +658,49 @@ function Plugin:SetupAdminMenuCommands()
 			Shine.AdminMenu.SetupListWithScaling( List )
 
 			self.MapList = List
+
+			local FadeTransition = {
+				Duration = 0.15,
+				EasingFunction = Easing.GetEaser( "OutSine" ),
+				Type = "AlphaMultiplier",
+				StartValue = 0,
+				EndValue = 1
+			}
+			local StringLower = string.lower
+			function Elements.SearchBox:OnTextChanged( OldText, NewText )
+				if NewText == "" then
+					for i = 1, List:GetRowCount() do
+						local Row = List:GetRow( i )
+						if not Row:GetIsVisible() then
+							Row:SetIsVisible( true )
+							Row:ApplyTransition( FadeTransition )
+						end
+					end
+				else
+					local NumColumns = List:GetColumnCount()
+					local SearchText = StringLower( NewText )
+
+					for i = 1, List:GetRowCount() do
+						local Row = List:GetRow( i )
+						local MapName = Row:GetColumnText( NumColumns )
+						local NiceName = NumColumns == 2 and Row:GetColumnText( 1 )
+
+						if
+							StringFind( MapName, SearchText, 1, true ) or
+							( NiceName and StringFind( StringLower( NiceName ), SearchText, 1, true ) )
+						then
+							if not Row:GetIsVisible() then
+								Row:SetIsVisible( true )
+								Row:ApplyTransition( FadeTransition )
+							end
+						else
+							Row:SetIsVisible( false )
+						end
+					end
+				end
+
+				List:InvalidateLayout( true )
+			end
 
 			local ChangeMap = Elements.ChangeMapButton
 			function ChangeMap.DoClick()
@@ -1037,12 +1125,6 @@ function Plugin:SetupAdminMenuCommands()
 	local function IsClientOnlyPlugin( PluginTable )
 		return PluginTable.IsClient and not PluginTable.IsShared
 	end
-
-	local Easing = require "shine/lib/gui/util/easing"
-	local RowPosTransition = {
-		Duration = 0.15,
-		EasingFunction = Easing.GetEaser( "OutSine" )
-	}
 
 	function self:PopulatePluginList()
 		local Panel = self.PluginPanel

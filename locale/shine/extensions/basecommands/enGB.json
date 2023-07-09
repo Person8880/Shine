@@ -26,6 +26,7 @@
 	"CHANGE_MAP_TIP": "Changes the map immediately.",
 	"CALL_VOTE": "Call Map Vote",
 	"CALL_VOTE_TIP": "Starts a vote to change the map.",
+	"MAP_SEARCH_BOX_PLACEHOLDER_TEXT": "Search for a map...",
 	"MAP_MENU_SELECT_MAP_HINT": "Select a map to view details.",
 	"TOGGLE_MAP_OVERVIEW": "Overview",
 	"MODS": "Mods",

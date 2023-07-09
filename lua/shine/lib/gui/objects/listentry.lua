@@ -15,9 +15,7 @@ local tostring = tostring
 local Padding = Vector2( 5, 0 )
 local ZeroVector = Vector2( 0, 0 )
 
-local function IsEven( Num )
-	return Num % 2 == 0
-end
+local SetAltStyle = SGUI.AddProperty( ListEntry, "AltStyle" )
 
 function ListEntry:Initialise()
 	self.BaseClass.Initialise( self )
@@ -27,6 +25,14 @@ function ListEntry:Initialise()
 
 	self.Background = self:MakeGUIItem()
 	self:SetHighlightOnMouseOver( true )
+end
+
+function ListEntry:SetAltStyle( AltStyle )
+	if not SetAltStyle( self, AltStyle ) then return false end
+
+	self:SetStyleName( AltStyle and "DefaultEven" or nil )
+
+	return true
 end
 
 function ListEntry:IsDefaultStyle( TextObj, Index )
@@ -52,10 +58,6 @@ function ListEntry:Setup( Index, Columns, Size, ... )
 	self.Index = Index
 	self.Size = Size
 	self.Columns = Columns
-
-	if IsEven( Index ) then
-		self:SetStyleName( "DefaultEven" )
-	end
 
 	local TextObjs = {}
 	self.TextObjs = TextObjs
@@ -120,7 +122,6 @@ end
 
 function ListEntry:OnReorder()
 	local Font, TextScale = self.Font, self.TextScale
-	self:SetStyleName( IsEven( self.Index ) and "DefaultEven" or nil )
 	if Font then
 		self:SetFont( Font )
 	end

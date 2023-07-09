@@ -29,6 +29,7 @@ local UnitVector = Units.UnitVector
 SGUI.AddBoundProperty( List, "Colour", "self:SetBackgroundColour" )
 SGUI.AddProperty( List, "SortedExternally", false )
 SGUI.AddProperty( List, "MultiSelect", false )
+local SetRowPosTransition = SGUI.AddProperty( List, "RowPosTransition" )
 SGUI.AddProperty( List, "ScrollRate", 3 )
 
 function List:Initialise()
@@ -53,6 +54,7 @@ function List:Initialise()
 
 	self.ScrollParent = ScrollParent
 	self.RowCount = 0
+	self.Rows = {}
 	self.HeaderSize = DefaultHeaderSize
 	self.LineSize = DefaultLineSize
 	self.ScrollbarWidth = 10
@@ -69,6 +71,14 @@ function List:Initialise()
 			self.HeaderLayout
 		}
 	} )
+end
+
+function List:GetRowCount()
+	return self.RowCount
+end
+
+function List:GetRow( Index )
+	return self.Rows[ Index ]
 end
 
 --[[
@@ -97,9 +107,7 @@ function List:SetLineSize( Size )
 	end
 
 	local Rows = self.Rows
-	if not Rows then return end
-
-	for i = 1, #Rows do
+	for i = 1, self.RowCount do
 		local Row = Rows[ i ]
 
 		if SGUI.IsValid( Row ) then
@@ -258,9 +266,15 @@ function List:PerformLayout()
 		self.RowSize.x = Size.x
 	end
 
-	if NeedsRowSizeRefresh and self.Rows then
-		for i = 1, #self.Rows do
-			local Row = self.Rows[ i ]
+	local Alt = false
+	for i = 1, self.RowCount do
+		local Row = self.Rows[ i ]
+		if Row:GetIsVisible() then
+			Row:SetAltStyle( Alt )
+			Alt = not Alt
+		end
+
+		if NeedsRowSizeRefresh then
 			Row:SetSize( self.RowSize )
 			self:SetSpacingForRow( Row )
 		end
@@ -283,6 +297,14 @@ function List:SetRowFontScale( Font, Scale )
 	self.RowFont = Font
 	self.RowTextScale = Scale
 	self:ForEach( "Rows", "SetFontScale", Font, Scale )
+end
+
+function List:SetRowPosTransition( RowPosTransition )
+	if not SetRowPosTransition( self, RowPosTransition ) then return false end
+
+	self:ForEach( "Rows", "SetLayoutPosTransition", RowPosTransition )
+
+	return true
 end
 
 function List:SetSpacingForRow( Row )
@@ -308,13 +330,12 @@ function List:AddRow( ... )
 		self:InvalidateLayout( true )
 	end
 
-	local Rows = self.Rows or {}
-	self.Rows = Rows
-
+	local Rows = self.Rows
 	local RowCount = self.RowCount
 	local Row = SGUI:Create( "ListEntry", self, self.ScrollParent )
 	RowCount = RowCount + 1
 	Row:Setup( RowCount, self.ColumnCount, self.RowSize, ... )
+	Row:SetLayoutPosTransition( self.RowPosTransition )
 
 	if self.RowFont then
 		Row:SetFont( self.RowFont )
@@ -517,23 +538,24 @@ end
 ]]
 function List:Clear()
 	local Rows = self.Rows
-	if not Rows then return end
-
 	local AnySelected = false
-	for i = 1, #Rows do
-		if Rows[ i ] == self.SelectedRow and self.OnRowDeselected then
-			self:OnRowDeselected( i, Rows[ i ] )
+	for i = 1, self.RowCount do
+		local Row = Rows[ i ]
+		if Row == self.SelectedRow and self.OnRowDeselected then
+			self:OnRowDeselected( i, Row )
 		end
 
-		if Rows[ i ].Selected then
+		if Row.Selected then
 			AnySelected = true
 		end
 
-		Rows[ i ]:Destroy()
-		self.Layout:RemoveElement( Rows[ i ] )
+		Row:Destroy()
+		self.Layout:RemoveElement( Row )
+
+		Rows[ i ] = nil
+		self.RowCount = self.RowCount - 1
 	end
 
-	self.Rows = nil
 	self.RowCount = 0
 
 	if self.Scrollbar then
@@ -555,8 +577,6 @@ end
 ]]
 function List:RemoveRow( Index )
 	local Rows = self.Rows
-	if not Rows then return end
-
 	local OldRow = Rows[ Index ]
 	if not OldRow then return end
 
@@ -600,10 +620,9 @@ end
 function List:GetSelectedRows()
 	local Rows = self.Rows
 	local Selected = {}
-	if not Rows then return Selected end
-
 	local Count = 0
-	for i = 1, #Rows do
+
+	for i = 1, self.RowCount do
 		local Row = Rows[ i ]
 
 		if SGUI.IsValid( Row ) and Row.Selected then
@@ -641,7 +660,7 @@ function List:OnRowMultiSelect( Index, Row, SelectFromLast )
 		local NumWereSelected = 0
 		if not SGUI:IsControlDown() then
 			local Rows = self.Rows
-			for i = 1, #Rows do
+			for i = 1, self.RowCount do
 				if Rows[ i ] ~= Row then
 					NumWereSelected = NumWereSelected + ( Rows[ i ]:GetSelected() and 1 or 0 )
 					Rows[ i ]:SetSelected( false )
@@ -658,7 +677,7 @@ function List:OnRowMultiSelect( Index, Row, SelectFromLast )
 		local MinIndex = Min( RootIndex, Index )
 		local MaxIndex = Max( RootIndex, Index )
 		local Rows = self.Rows
-		for i = 1, #Rows do
+		for i = 1, self.RowCount do
 			Rows[ i ]:SetSelected( i >= MinIndex and i <= MaxIndex )
 		end
 	end

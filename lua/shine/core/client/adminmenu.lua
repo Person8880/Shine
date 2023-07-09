@@ -474,7 +474,6 @@ do
 		end
 
 		Row = PlayerList:AddRow( Ent.playerName, Ent.steamId, Shine:GetTeamName( Ent.teamNumber, true ) )
-		Row:SetLayoutPosTransition( RowPosTransition )
 		Row:SetDebugName( "AdminMenuPlayerRow"..Ent.clientId )
 
 		Rows[ Ent.clientId ] = Row
@@ -575,6 +574,7 @@ do
 			PlayerList:SetMultiSelect( true )
 			PlayerList:SetFill( true )
 			PlayerList:SetSecondarySortColumn( 3, 1 )
+			PlayerList:SetRowPosTransition( RowPosTransition )
 
 			AdminMenu.SetupListWithScaling( PlayerList )
 
