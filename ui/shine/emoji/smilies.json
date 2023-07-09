@@ -13,6 +13,12 @@
 			}
 		},
 		{
+			"Name": "Hands",
+			"Translations": {
+				"enGB": "Hands"
+			}
+		},
+		{
 			"Name": "Uncategorised",
 			"Translations": {
 				"enGB": "Uncategorised"
@@ -79,6 +85,22 @@
 		{
 			"Folder": "ui/shine/emoji/smilies/emotion/*.tga",
 			"Category": "Emoticons"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hand-fingers-open/*.tga",
+			"Category": "Hands"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hand-fingers-partial/*.tga",
+			"Category": "Hands"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hand-fingers-closed/*.tga",
+			"Category": "Hands"
+		},
+		{
+			"Folder": "ui/shine/emoji/smilies/hands/*.tga",
+			"Category": "Hands"
 		}
 	]
 }
