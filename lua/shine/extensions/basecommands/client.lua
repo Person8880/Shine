@@ -522,6 +522,14 @@ function Plugin:SetupAdminMenuCommands()
 		SGUI:BuildTree( Tree )
 	end
 
+	local FadeTransition = {
+		Duration = 0.15,
+		EasingFunction = Easing.GetEaser( "OutSine" ),
+		Type = "AlphaMultiplier",
+		StartValue = 0,
+		EndValue = 1
+	}
+
 	self:AddAdminMenuTab( self:GetPhrase( "MAPS" ), {
 		Icon = SGUI.Icons.Ionicons.Earth,
 		OnInit = function( Panel, Data )
@@ -659,13 +667,6 @@ function Plugin:SetupAdminMenuCommands()
 
 			self.MapList = List
 
-			local FadeTransition = {
-				Duration = 0.15,
-				EasingFunction = Easing.GetEaser( "OutSine" ),
-				Type = "AlphaMultiplier",
-				StartValue = 0,
-				EndValue = 1
-			}
 			local StringLower = string.lower
 			function Elements.SearchBox:OnTextChanged( OldText, NewText )
 				if NewText == "" then
@@ -1154,7 +1155,9 @@ function Plugin:SetupAdminMenuCommands()
 							Enabled = Enabled,
 							ConfiguredAsEnabled = false,
 							IsOfficial = Shine.IsOfficialExtension( Plugin )
-						}
+						},
+						InheritsParentAlpha = true,
+						PropagateAlphaInheritance = true
 					}
 				}
 			end
@@ -1247,7 +1250,7 @@ function Plugin:SetupAdminMenuCommands()
 								DebugName = "AdminMenuPluginsList",
 								Scrollable = true,
 								Fill = true,
-								Colour = Colour( 0, 0, 0, 0 ),
+								Shader = SGUI.Shaders.Invisible,
 								ScrollbarPos = Vector2( 0, 0 ),
 								ScrollbarWidth = HighResScaled( 8 ):GetValue(),
 								ScrollbarHeightOffset = 0
@@ -1259,7 +1262,14 @@ function Plugin:SetupAdminMenuCommands()
 
 			function Elements.SearchEntry.OnTextChanged( SearchEntry, OldText, NewText )
 				for Plugin, Row in pairs( self.PluginRows ) do
-					Row:SetIsVisible( NewText == "" or not not StringFind( Plugin, NewText, 1, true ) )
+					local Visible = NewText == "" or not not StringFind( Plugin, NewText, 1, true )
+					local WasVisible = Row:GetIsVisible()
+
+					Row:SetIsVisible( Visible )
+
+					if not WasVisible and Visible then
+						Row:ApplyTransition( FadeTransition )
+					end
 				end
 			end
 
