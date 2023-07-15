@@ -453,6 +453,10 @@ do
 		return AllowedEmoji:Contains( Emoji.Index )
 	end
 
+	local function IsAllowedEmojiByName( EmojiName, _, AllowedEmoji )
+		return IsAllowedEmoji( EmojiRepository.GetEmojiDefinition( EmojiName ), nil, AllowedEmoji )
+	end
+
 	function Plugin:OnChatBoxEmojiAutoComplete( ChatBox, Emoji )
 		if not self.dt.ParseEmojiInChat then return end
 
@@ -474,7 +478,7 @@ do
 		local AllEmoji = EmojiRepository.GetAllEmoji()
 		local FrequentlyUsedEmoji = EmojiRepository.GetFrequentlyUsedEmoji()
 		if self.AllowedEmoji then
-			FrequentlyUsedEmoji:Filter( IsAllowedEmoji, self.AllowedEmoji )
+			FrequentlyUsedEmoji:Filter( IsAllowedEmojiByName, self.AllowedEmoji )
 			-- Need to copy here as the returned table is the table of all emoji.
 			AllEmoji = Shine.Stream.Of( AllEmoji ):Filter( IsAllowedEmoji, self.AllowedEmoji ):AsTable()
 		end
@@ -488,7 +492,7 @@ do
 			}
 
 			for Key in FrequentlyUsedEmoji:Iterate() do
-				local EmojiDefinition = AllEmoji[ Key ]
+				local EmojiDefinition = EmojiRepository.GetEmojiDefinition( Key )
 
 				Count = Count + 1
 				EmojiWithFrequentlyUsed[ Count ] = {

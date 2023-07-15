@@ -166,20 +166,30 @@ function Map:RemoveAtPosition( Position )
 	return Key, Value
 end
 
+-- This is an internal method, used to implement filtering only.
 function Map:RemoveKey( Index, Key )
 	self.Keys[ Index ] = nil
 	self.MemberLookup[ Key ] = nil
 	self.NumMembers = self.NumMembers - 1
 end
 
+--[[
+	Removes elements based on the given predicate, updating in-place.
+
+	Inputs:
+		1. Predicate - the predicate function, passed (Key, Value, Context).
+		2. Context - optional context to pass into the predicate (to avoid the need for a closure).
+	Output: This map, after it's been updated.
+]]
 function Map:Filter( Predicate, Context )
+	local Keys = self.Keys
 	local Size = self.NumMembers
 	local Offset = 0
 	local MemberLookup = self.MemberLookup
 
 	for i = 1, Size do
-		local Key = self.Keys[ i ]
-		self.Keys[ i - Offset ] = Key
+		local Key = Keys[ i ]
+		Keys[ i - Offset ] = Key
 		if not Predicate( Key, MemberLookup[ Key ], Context ) then
 			self:RemoveKey( i, Key )
 			Offset = Offset + 1
@@ -187,7 +197,7 @@ function Map:Filter( Predicate, Context )
 	end
 
 	for i = Size, Size - Offset + 1, -1 do
-		self.Keys[ i ] = nil
+		Keys[ i ] = nil
 	end
 
 	return self
