@@ -11,24 +11,13 @@ Plugin.HasConfig = false
 Plugin.Version = "1.0"
 
 Shine.Hook.CallAfterFileLoad( "lua/GUIMinimap.lua", function()
-	Shine.Hook.SetupClassHook( "GUIMinimap", "Initialize", "OnGUIMinimapInit", "PassivePost" )
 	Shine.Hook.SetupClassHook( "GUIMinimap", "Uninitialize", "OnGUIMinimapDestroy", "PassivePost" )
 	Shine.Hook.SetupClassHook( "GUIMinimap", "UpdatePlayerIcon", "OnGUIMinimapUpdatePlayerIcon", "PassivePost" )
 end )
 
 function Plugin:Initialise()
 	self.Minimaps = Shine.Set()
-
-	local Minimap = ClientUI.GetScript( "GUIMinimapFrame" )
-	if Minimap then
-		self:SetupMinimap( Minimap )
-	end
-
 	return true
-end
-
-function Plugin:OnGUIMinimapInit( Minimap )
-	self:SetupMinimap( Minimap )
 end
 
 function Plugin:OnGUIMinimapDestroy( Minimap )
@@ -44,7 +33,7 @@ end
 function Plugin:InvalidateLocationCache()
 	for Minimap in self.Minimaps:Iterate() do
 		-- Force an update of the location box.
-		Minimap.LastLocationEntity = nil
+		Minimap.LastLocationName = nil
 	end
 end
 Plugin.OnResolutionChanged = Plugin.InvalidateLocationCache
@@ -72,6 +61,8 @@ local function GetMinimapTexture()
 end
 
 function Plugin:SetupMinimap( Minimap )
+	if self.Minimaps:Contains( Minimap ) then return end
+
 	local MinimapItem = Minimap.minimap
 	if not Minimap.HighlightView then
 		local Width, Height = 1024, 1024
@@ -101,38 +92,45 @@ function Plugin:SetupMinimap( Minimap )
 end
 
 local function HideLocationBoxes( Minimap )
+	if not Minimap.HighlightItem then return end
+
 	Minimap.HighlightItem:SetIsVisible( false )
 end
 
-local UnpoweredColour = Colour( 1, 0, 0 )
+local HostileColour = Colour( 1, 0, 0 )
 
 function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
-	if not Minimap.HighlightItem then return end
-
 	if Minimap.comMode ~= GUIMinimapFrame.kModeBig or PlayerUI_IsOverhead() then
 		HideLocationBoxes( Minimap )
 		return
 	end
 
-	local Origin = PlayerUI_GetPositionOnMinimap()
-	local LocationEntity = GetLocationForPoint( Origin )
-	if not LocationEntity then
+	local LocationName = PlayerUI_GetLocationName()
+	if not LocationName or LocationName == "" then
 		HideLocationBoxes( Minimap )
 		return
 	end
 
+	-- Set up the location item and GUIView just-in-time to ensure they're only created for relevant minimaps.
+	self:SetupMinimap( Minimap )
+
 	Minimap.HighlightItem:SetSize( Minimap.minimap:GetSize() )
 	Minimap.HighlightItem:SetIsVisible( true )
 
-	local IsMarine = PlayerUI_IsOnMarineTeam()
+	local TeamNumber = PlayerUI_GetTeamNumber()
+	local IsMarine = TeamNumber == kMarineTeamType
+	local IsAlien = TeamNumber == kAlienTeamType
 
-	-- Avoid doing the same thing over and over when the location hasn't changed...
+	-- If the location has changed, the minimap needs updating.
 	local NeedsUpdate = false
-	if Minimap.LastLocationEntity ~= LocationEntity then
+	if Minimap.LastLocationName ~= LocationName then
 		NeedsUpdate = true
-		Minimap.LastLocationEntity = LocationEntity
-	elseif IsMarine then
-		local PowerNode = GetPowerPointForLocation( LocationEntity:GetName() )
+		Minimap.LastLocationName = LocationName
+	end
+
+	-- Also, if the power state has changed, the minimap needs updating.
+	if IsMarine or IsAlien then
+		local PowerNode = GetPowerPointForLocation( LocationName )
 		local IsPowered = not not ( PowerNode and PowerNode:GetIsPowering() )
 		if IsPowered ~= Minimap.LastPowered then
 			NeedsUpdate = true
@@ -146,21 +144,28 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 
 	local BackgroundColour
 	if IsMarine then
+		-- For marines, show unpowered rooms as hostile.
 		if not Minimap.LastPowered then
-			BackgroundColour = UnpoweredColour
+			BackgroundColour = HostileColour
 		else
 			BackgroundColour = Colour( kMarineTeamColorFloat )
 		end
-	elseif PlayerUI_IsOnAlienTeam() then
-		BackgroundColour = Colour( kAlienTeamColorFloat )
+	elseif IsAlien then
+		-- For aliens, show powered rooms as hostile.
+		if not Minimap.LastPowered then
+			BackgroundColour = Colour( kAlienTeamColorFloat )
+		else
+			BackgroundColour = HostileColour
+		end
 	else
+		-- Shouldn't ever reach this, but if not playing, just highlight with a neutral colour.
 		BackgroundColour = Colour( 1, 1, 1, 1 )
 	end
 
 	BackgroundColour.a = 0.3
 
 	-- Locations are composed of multiple trigger entities, so draw a box for each one.
-	local Locations = self:GetLocationsForName( LocationEntity:GetName() )
+	local Locations = self:GetLocationsForName( LocationName )
 	local NumLocations = #Locations
 	local HighlightView = Minimap.HighlightView
 	local Size = Minimap.HighlightItem:GetSize()
@@ -204,7 +209,7 @@ function Plugin:Cleanup()
 			Minimap.HighlightView = nil
 		end
 
-		Minimap.LastLocationEntity = nil
+		Minimap.LastLocationName = nil
 		Minimap.LastPowered = nil
 		Minimap.HighlightViewTexture = nil
 	end
