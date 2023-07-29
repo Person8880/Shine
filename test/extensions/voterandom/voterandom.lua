@@ -300,7 +300,9 @@ UnitTest:Test( "OptimiseHappiness - More unhappiness swaps teams", function( Ass
 		-- Player 4 is neutral
 	}
 
-	Assert:Equals( -1, VoteShuffle:OptimiseHappiness( TeamMembers ) )
+	local Swapped, TotalHappiness = VoteShuffle:OptimiseHappiness( TeamMembers )
+	Assert:True( Swapped )
+	Assert:Equals( -1, TotalHappiness )
 	Assert:Equals( Team2, TeamMembers[ 1 ] )
 	Assert:Equals( Team1, TeamMembers[ 2 ] )
 	Assert:TableEquals( {
@@ -309,6 +311,39 @@ UnitTest:Test( "OptimiseHappiness - More unhappiness swaps teams", function( Ass
 		[ 3 ] = 1
 	}, VoteShuffle.LastShufflePreferences )
 end )
+
+VoteShuffle.Config.BalanceModeConfig[ VoteShuffle.ShuffleMode.HIVE ].UseTeamSkill = true
+
+UnitTest:Test( "OptimiseHappiness - More unhappiness with per-team skills does not swap teams but does record preferences", function( Assert )
+	local TeamMembers = {
+		{ FakePlayer( 1 ), FakePlayer( 2 ) },
+		{ FakePlayer( 3 ), FakePlayer( 4 ) },
+	}
+	local Team1 = TeamMembers[ 1 ]
+	local Team2 = TeamMembers[ 2 ]
+	TeamMembers.TeamPreferences = {
+		-- Player 1 is unhappy
+		[ Team1[ 1 ] ] = 2,
+		-- Player 2 is happy
+		[ Team1[ 2 ] ] = 1,
+		-- Player 3 is unhappy
+		[ Team2[ 1 ] ] = 1
+		-- Player 4 is neutral
+	}
+
+	local Swapped, TotalHappiness = VoteShuffle:OptimiseHappiness( TeamMembers )
+	Assert:False( Swapped )
+	Assert:Equals( -1, TotalHappiness )
+	Assert:Equals( Team1, TeamMembers[ 1 ] )
+	Assert:Equals( Team2, TeamMembers[ 2 ] )
+	Assert:TableEquals( {
+		[ 1 ] = 2,
+		[ 2 ] = 1,
+		[ 3 ] = 1
+	}, VoteShuffle.LastShufflePreferences )
+end )
+
+VoteShuffle.Config.BalanceModeConfig[ VoteShuffle.ShuffleMode.HIVE ].UseTeamSkill = false
 
 UnitTest:Test( "OptimiseHappiness - Less unhappiness does nothing", function( Assert )
 	local TeamMembers = {
@@ -327,7 +362,9 @@ UnitTest:Test( "OptimiseHappiness - Less unhappiness does nothing", function( As
 		-- Player 4 is neutral
 	}
 
-	Assert:Equals( 1, VoteShuffle:OptimiseHappiness( TeamMembers ) )
+	local Swapped, TotalHappiness = VoteShuffle:OptimiseHappiness( TeamMembers )
+	Assert:False( Swapped )
+	Assert:Equals( 1, TotalHappiness )
 	Assert:Equals( Team1, TeamMembers[ 1 ] )
 	Assert:Equals( Team2, TeamMembers[ 2 ] )
 	Assert:TableEquals( {
