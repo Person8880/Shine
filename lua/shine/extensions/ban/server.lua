@@ -158,7 +158,7 @@ function Plugin:LoadBansFromWeb()
 		if BansData.Banned then
 			Edited = true
 			self.Config.Banned = BansData.Banned
-		elseif BansData[ 1 ] and BanData[ 1 ].id then
+		elseif BansData[ 1 ] and BansData[ 1 ].id then
 			Edited = true
 			self.Config.Banned = self:NS2ToShine( BansData )
 		end

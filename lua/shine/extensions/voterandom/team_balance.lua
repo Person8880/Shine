@@ -800,13 +800,9 @@ function BalanceModule:OptimiseTeams( TeamMembers, RankFunc, TeamSkills )
 	self.Logger:Debug( "After optimisation:" )
 	self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
 
-	if self:ShouldOptimiseHappiness( TeamMembers ) then
-		self:OptimiseHappiness( TeamMembers )
-
+	if self:OptimiseHappiness( TeamMembers ) then
 		self.Logger:Debug( "After happiness optimisation:" )
 		self.Logger:IfDebugEnabled( DebugLogTeamMembers, self, TeamMembers )
-	else
-		self.LastShufflePreferences = nil
 	end
 end
 
@@ -849,12 +845,13 @@ function BalanceModule:OptimiseHappiness( TeamMembers )
 
 	-- If there are more weighted unhappy players than happy, swap the teams around entirely.
 	-- This will put all the people who are not happy with their team onto the team they want, and vice-versa.
-	if TotalHappiness < 0 then
+	if TotalHappiness < 0 and self:ShouldOptimiseHappiness( TeamMembers ) then
 		self.Logger:Debug( "Swapping teams due to happiness..." )
 		TeamMembers[ 1 ], TeamMembers[ 2 ] = TeamMembers[ 2 ], TeamMembers[ 1 ]
+		return true, TotalHappiness
 	end
 
-	return TotalHappiness
+	return false, TotalHappiness
 end
 
 function BalanceModule:ComputeTeamSkills( TeamMembers, RankFunc )
