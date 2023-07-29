@@ -7,8 +7,37 @@ local Min = math.min
 
 local Plugin = Shine.Plugin( ... )
 
-Plugin.HasConfig = false
+Plugin.HasConfig = true
+Plugin.ConfigName = "Tweaks.json"
+
+Plugin.DefaultConfig = {
+	AlienHighlightColour = { 255, 202, 58 },
+	HostileHighlightColour = { 255, 0, 0 },
+	MarineHighlightColour = { 77, 219, 255 }
+}
+
+Plugin.CheckConfig = true
+Plugin.SilentConfigSave = true
 Plugin.Version = "1.0"
+
+do
+	local Validator = Shine.Validator()
+
+	local function EnsureFieldIsColour( FieldName )
+		Validator:AddFieldRule( FieldName, Validator.IsType( "table", {} ) )
+		Validator:AddFieldRule( FieldName, Validator.HasLength( 3, 255 ) )
+		Validator:AddFieldRule( FieldName, Validator.AllValuesSatisfy(
+			Validator.IsType( "number", 255 ),
+			Validator.Clamp( 0, 255 )
+		) )
+	end
+
+	EnsureFieldIsColour( "MarineHighlightColour" )
+	EnsureFieldIsColour( "AlienHighlightColour" )
+	EnsureFieldIsColour( "HostileHighlightColour" )
+
+	Plugin.ConfigValidator = Validator
+end
 
 Shine.Hook.CallAfterFileLoad( "lua/GUIMinimap.lua", function()
 	Shine.Hook.SetupClassHook( "GUIMinimap", "Uninitialize", "OnGUIMinimapDestroy", "PassivePost" )
@@ -18,6 +47,11 @@ end )
 function Plugin:Initialise()
 	self.Minimaps = Shine.Set()
 	return true
+end
+
+function Plugin:GetConfiguredColour( Name )
+	local ConfiguredColour = self.Config[ Name ]
+	return Colour( ConfiguredColour[ 1 ] / 255, ConfiguredColour[ 2 ] / 255, ConfiguredColour[ 3 ] / 255 )
 end
 
 function Plugin:OnGUIMinimapDestroy( Minimap )
@@ -146,16 +180,16 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 	if IsMarine then
 		-- For marines, show unpowered rooms as hostile.
 		if not Minimap.LastPowered then
-			BackgroundColour = HostileColour
+			BackgroundColour = self:GetConfiguredColour( "HostileHighlightColour" )
 		else
-			BackgroundColour = Colour( kMarineTeamColorFloat )
+			BackgroundColour = self:GetConfiguredColour( "MarineHighlightColour" )
 		end
 	elseif IsAlien then
 		-- For aliens, show powered rooms as hostile.
 		if not Minimap.LastPowered then
-			BackgroundColour = Colour( kAlienTeamColorFloat )
+			BackgroundColour = self:GetConfiguredColour( "AlienHighlightColour" )
 		else
-			BackgroundColour = HostileColour
+			BackgroundColour = self:GetConfiguredColour( "HostileHighlightColour" )
 		end
 	else
 		-- Shouldn't ever reach this, but if not playing, just highlight with a neutral colour.
