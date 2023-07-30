@@ -217,6 +217,10 @@ do
 
 	local UnitVector = NewType( "UnitVector" )
 
+	function UnitVector.Uniform( Size )
+		return UnitVector( Size, Size )
+	end
+
 	function UnitVector:Init( X, Y )
 		self[ 1 ] = ToUnit( X )
 		self[ 2 ] = ToUnit( Y )

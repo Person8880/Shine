@@ -95,5 +95,10 @@
 	"WARNING_UNREGISTERED_PLUGINS": "Some plugins failed to load as they have not been registered: {Context}",
 	"INFO_PLUGIN_VERSION_UPDATE": "Plugin version updated to {Context}.",
 
-	"ADMIN_MENU_STATUS_TAB": "Status"
+	"ADMIN_MENU_STATUS_TAB": "Status",
+
+	"CLIENT_CONFIG_RESET_TO_DEFAULT_BUTTON_TOOLTIP": "Reset to Default",
+	"RED_SLIDER_LABEL": "Red",
+	"GREEN_SLIDER_LABEL": "Green",
+	"BLUE_SLIDER_LABEL": "Blue"
 }

@@ -14,7 +14,10 @@ Shared.RegisterNetworkMessage( "Shine_TranslatedCommandError", {
 } )
 
 local IsType = Shine.IsType
-local MathClamp = math.ClampEx
+local MathsClamp = math.Clamp
+local MathsClampEx = math.ClampEx
+local MathsFloor = math.floor
+local StringExplode = string.Explode
 local StringFormat = string.format
 local StringToTime = string.ToTime
 local StringUpper = string.upper
@@ -147,7 +150,7 @@ Shine.CommandUtil.ParamTypes = {
 	-- the given min and max if set. Also rounds if asked.
 	number = {
 		Parse = function( Client, String, Table )
-			local Num = MathClamp( tonumber( String ), Table.Min, Table.Max )
+			local Num = MathsClampEx( tonumber( String ), Table.Min, Table.Max )
 
 			if not Num then
 				return GetDefault( Table )
@@ -173,7 +176,7 @@ Shine.CommandUtil.ParamTypes = {
 				end
 			end
 
-			Time = MathClamp( Time, Table.Min, Table.Max )
+			Time = MathsClampEx( Time, Table.Min, Table.Max )
 
 			return Table.Round and Round( Time ) or Time
 		end,
@@ -217,6 +220,22 @@ Shine.CommandUtil.ParamTypes = {
 		GetAutoCompletions = function( Arg )
 			return Arg.Values
 		end
+	},
+	colour = {
+		Parse = function( Client, String, Table )
+			if not String or String == "" then
+				return GetDefault( Table )
+			end
+
+			-- Accept comma and/or spaces as separators (spaces can be used if TakeRestOfLine is enabled on the arg).
+			local Components = StringExplode( String, "[%s,]" )
+			local Colour = { 255, 255, 255 }
+			for i = 1, 3 do
+				Colour[ i ] = MathsClamp( MathsFloor( tonumber( Components[ i ] ) ) or 255, 0, 255 )
+			end
+			return Colour
+		end,
+		Help = "colour"
 	}
 }
 
@@ -251,7 +270,7 @@ do
 			end
 
 			local TeamNumber = tonumber( String )
-			if TeamNumber then return MathClamp( Round( TeamNumber ), 0, 3 ) end
+			if TeamNumber then return MathsClampEx( Round( TeamNumber ), 0, 3 ) end
 
 			String = StringLower( String )
 

@@ -4,6 +4,7 @@
 
 local Max = math.max
 local Min = math.min
+local StringFormat = string.format
 
 local Plugin = Shine.Plugin( ... )
 
@@ -252,5 +253,44 @@ function Plugin:Cleanup()
 
 	return self.BaseClass.Cleanup( self )
 end
+
+Plugin.ConfigGroup = {
+	Icon = Shine.GUI.Icons.Ionicons.Wrench
+}
+Plugin.ClientConfigSettings = {
+	{
+		ConfigKey = "AlienHighlightColour",
+		Command = "sh_tweaks_alien_highlight_colour",
+		Type = "Colour",
+		CommandMessage = function( Value )
+			return StringFormat(
+				"Alien minimap highlight colour set to [ %d, %d, %d ].",
+				Value[ 1 ], Value[ 2 ], Value[ 3 ]
+			)
+		end
+	},
+	{
+		ConfigKey = "MarineHighlightColour",
+		Command = "sh_tweaks_marine_highlight_colour",
+		Type = "Colour",
+		CommandMessage = function( Value )
+			return StringFormat(
+				"Marine minimap highlight colour set to [ %d, %d, %d ].",
+				Value[ 1 ], Value[ 2 ], Value[ 3 ]
+			)
+		end
+	},
+	{
+		ConfigKey = "HostileHighlightColour",
+		Command = "sh_tweaks_hostile_highlight_colour",
+		Type = "Colour",
+		CommandMessage = function( Value )
+			return StringFormat(
+				"Hostile minimap highlight colour set to [ %d, %d, %d ].",
+				Value[ 1 ], Value[ 2 ], Value[ 3 ]
+			)
+		end
+	}
+}
 
 return Plugin

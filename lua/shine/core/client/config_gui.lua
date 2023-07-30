@@ -8,6 +8,7 @@ local SGUI = Shine.GUI
 local Locale = Shine.Locale
 
 local IsType = Shine.IsType
+local Round = math.Round
 local StringFormat = string.format
 
 local ConfigMenu = {}
@@ -257,6 +258,10 @@ local function MakeElementWithDescription( Panel, Entry, Populator )
 	return Container, ValueHolder
 end
 
+local function ArrayToColour( ColourArray )
+	return Colour( ColourArray[ 1 ] / 255, ColourArray[ 2 ] / 255, ColourArray[ 3 ] / 255 )
+end
+
 local SettingsTypes = {
 	Boolean = {
 		Create = function( Panel, Entry )
@@ -374,6 +379,77 @@ local SettingsTypes = {
 		end,
 		Update = function( ValueHolder, NewValue )
 			ValueHolder:SetSelectedOption( ValueHolder.OptionsByValue[ NewValue ] )
+		end
+	},
+	Colour = {
+		Create = function( Panel, Entry )
+			local TranslationSource = Entry.TranslationSource or "Core"
+			local Font, TextScale = GetSmallFont()
+			local CurrentValue = GetConfiguredValue( Entry )
+
+			local Tree = SGUI:BuildTree( {
+				Parent = Panel,
+				{
+					ID = "Container",
+					Class = "Row",
+					Props = {
+						AutoSize = UnitVector( Percentage.ONE_HUNDRED, HighResScaled( 32 ) ),
+						Shader = SGUI.Shaders.Invisible
+					},
+					Children = {
+						{
+							Class = "Label",
+							Props = {
+								AutoEllipsis = true,
+								Font = Font,
+								Fill = true,
+								Text = Locale:GetPhrase( TranslationSource, Entry.Description ),
+								TextScale = TextScale,
+								Margin = Spacing( 0, 0, HighResScaled( 8 ), 0 )
+							}
+						},
+						{
+							ID = "ColourPicker",
+							Class = "ColourPicker",
+							Props = {
+								AutoSize = UnitVector( HighResScaled( 128 ), HighResScaled( 32 ) ),
+								Value = ArrayToColour( CurrentValue ),
+								Alignment = SGUI.LayoutAlignment.MAX
+							}
+						},
+						{
+							ID = "ResetButton",
+							Class = "Button",
+							Props = {
+								AutoSize = UnitVector( HighResScaled( 32 ), HighResScaled( 32 ) ),
+								StyleName = "DangerButton",
+								Icon = SGUI.Icons.Ionicons.ArrowReturnLeft,
+								Tooltip = Locale:GetPhrase( "Core", "CLIENT_CONFIG_RESET_TO_DEFAULT_BUTTON_TOOLTIP" ),
+								Alignment = SGUI.LayoutAlignment.MAX,
+								Margin = Spacing( 0, 0, HighResScaled( 4 ), 0 )
+							}
+						}
+					}
+				}
+			} )
+
+			local DefaultValue = Entry.DefaultValue
+			local function UpdateWithCommand( R, G, B )
+				Shared.ConsoleCommand( StringFormat( "%s %d %d %d", Entry.Command, R, G, B ) )
+			end
+			function Tree.ResetButton:DoClick()
+				UpdateWithCommand( DefaultValue[ 1 ], DefaultValue[ 2 ], DefaultValue[ 3 ] )
+			end
+
+			function Tree.ColourPicker:OnValueChanged( Value )
+				local R, G, B = Round( Value.r * 255 ), Round( Value.g * 255 ), Round( Value.b * 255 )
+				UpdateWithCommand( R, G, B )
+			end
+
+			return Tree.Container, Tree.ColourPicker
+		end,
+		Update = function( ValueHolder, NewValue )
+			ValueHolder:SetValue( ArrayToColour( NewValue ) )
 		end
 	}
 }
