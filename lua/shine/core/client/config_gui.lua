@@ -541,6 +541,7 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 				local ElementsByKey = {}
 				local SettingsWithBindings = {}
 				local Dropdowns = {}
+				local ColourPickers = {}
 
 				for i = 1, #Settings do
 					local Setting = Settings[ i ]
@@ -550,6 +551,8 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 
 					if Setting.Type == "Dropdown" then
 						Dropdowns[ #Dropdowns + 1 ] = ValueHolder
+					elseif Setting.Type == "Colour" then
+						ColourPickers[ #ColourPickers + 1 ] = ValueHolder
 					end
 
 					local TranslationSource = Setting.TranslationSource or "Core"
@@ -672,6 +675,14 @@ ConfigMenu:AddTab( Locale:GetPhrase( "Core", "SETTINGS_TAB" ), {
 						local Dropdown = Dropdowns[ i ]
 						if SGUI.IsValid( Dropdown ) then
 							Dropdown:DestroyMenu()
+						end
+					end
+
+					-- Do the same for colour picker popups, even though they should have been closed already.
+					for i = 1, #ColourPickers do
+						local ColourPicker = ColourPickers[ i ]
+						if SGUI.IsValid( ColourPicker ) then
+							ColourPicker:DestroyPopup()
 						end
 					end
 				end )
