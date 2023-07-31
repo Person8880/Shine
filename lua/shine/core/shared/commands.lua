@@ -231,7 +231,7 @@ Shine.CommandUtil.ParamTypes = {
 			local Components = StringExplode( String, "[%s,]" )
 			local Colour = { 255, 255, 255 }
 			for i = 1, 3 do
-				Colour[ i ] = MathsClamp( MathsFloor( tonumber( Components[ i ] ) ) or 255, 0, 255 )
+				Colour[ i ] = MathsClamp( MathsFloor( tonumber( Components[ i ] ) or 255 ), 0, 255 )
 			end
 			return Colour
 		end,
