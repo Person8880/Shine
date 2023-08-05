@@ -58,7 +58,7 @@ local function UpdateWithValues()
 		end
 	end
 
-	_G.NeedsRefresh = false
+	_G.NeedsUpdate = false
 end
 
 function Initialise()
@@ -72,7 +72,7 @@ function Initialise()
 end
 
 function Update( DeltaTime )
-	if _G.NeedsRefresh then
+	if _G.NeedsUpdate then
 		UpdateWithValues()
 	end
 end
