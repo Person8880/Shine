@@ -403,12 +403,20 @@ function ColourPicker:DoClick()
 		RefreshRGB()
 	end
 	function Tree.SaturationValuePicker.OnDraggingCursor( Picker, NewSaturation, NewValue )
-		self.ColourPreview:SetColour( Colour( SGUI.HSVToRGB( Hue, NewSaturation, NewValue ) ) )
+		local NewR, NewG, NewB = SGUI.HSVToRGB( Hue, NewSaturation, NewValue )
+		Tree.RedSlider:SetValue( Round( NewR * 255 ), true )
+		Tree.GreenSlider:SetValue( Round( NewG * 255 ), true )
+		Tree.BlueSlider:SetValue( Round( NewB * 255 ), true )
+		self.ColourPreview:SetColour( Colour( NewR, NewG, NewB ) )
 	end
 
 	local function UpdatePreview( NewColour )
 		local H, S, V = SGUI.RGBToHSV( NewColour.r, NewColour.g, NewColour.b )
+		Tree.HueSlider:SetValue( H, true )
 		Tree.SaturationValuePicker:SetBackgroundColour( Colour( SGUI.HSVToRGB( H, 1, 1 ) ) )
+		Tree.RedSlider:SetValue( Round( NewColour.r * 255 ), true )
+		Tree.GreenSlider:SetValue( Round( NewColour.g * 255 ), true )
+		Tree.BlueSlider:SetValue( Round( NewColour.b * 255 ), true )
 		self.ColourPreview:SetColour( NewColour )
 	end
 

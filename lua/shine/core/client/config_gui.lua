@@ -441,8 +441,21 @@ local SettingsTypes = {
 				UpdateWithCommand( DefaultValue[ 1 ], DefaultValue[ 2 ], DefaultValue[ 3 ] )
 			end
 
+			local function ToIntColour( Value )
+				return Round( Value.r * 255 ), Round( Value.g * 255 ), Round( Value.b * 255 )
+			end
+
+			-- Disable the reset button if already using the default value.
+			Binder():FromElement( Tree.ColourPicker, "Value" )
+				:ToElement( Tree.ResetButton, "Enabled", {
+					Transformer = function( Value )
+						local R, G, B = ToIntColour( Value )
+						return R ~= DefaultValue[ 1 ] or G ~= DefaultValue[ 2 ] or B ~= DefaultValue[ 3 ]
+					end
+				} ):BindProperty()
+
 			function Tree.ColourPicker:OnValueChanged( Value )
-				local R, G, B = Round( Value.r * 255 ), Round( Value.g * 255 ), Round( Value.b * 255 )
+				local R, G, B = ToIntColour( Value )
 				UpdateWithCommand( R, G, B )
 			end
 
