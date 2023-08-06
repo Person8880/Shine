@@ -1503,6 +1503,12 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	ScrH = Client.GetScreenHeight
 	IsMainMenuOpen = MainMenu_GetIsOpened
 
+	if IsType( GetLayerConstant, "function" ) then
+		-- Make sure SGUI renders above the top bar HUD (for whatever reason, this was put way above the rest of the
+		-- HUD...)
+		SGUI.BaseLayer = GetLayerConstant( "Hud_TopBar", 500 ) + 1
+	end
+
 	Shine.LoadScriptsByPath( "lua/shine/lib/gui/objects" )
 	include( "lua/shine/lib/gui/skin_manager.lua" )
 
