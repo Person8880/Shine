@@ -2,7 +2,7 @@
 	Admin menu module.
 ]]
 
-if Server then return end
+if Server or Predict then return end
 
 local Shine = Shine
 

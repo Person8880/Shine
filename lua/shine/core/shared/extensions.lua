@@ -44,8 +44,12 @@ for i = 1, #Files do
 	PluginFiles[ StringLower( Files[ i ] ) ] = Files[ i ]
 end
 
+local function GetPluginFilePath( PluginName, Path )
+	return StringFormat( "%s%s/%s", ExtensionPath, PluginName, Path )
+end
+
 function Shine.GetPluginFile( PluginName, Path )
-	local FilePath = StringFormat( "%s%s/%s", ExtensionPath, PluginName, Path )
+	local FilePath = GetPluginFilePath( PluginName, Path )
 	return PluginFiles[ StringLower( FilePath ) ] or FilePath
 end
 
@@ -248,12 +252,16 @@ do
 		if LoadingErrors[ Name ] then return false, LoadingErrors[ Name ] end
 		if self.Plugins[ Name ] then return true end
 
-		local ClientFile = StringFormat( "%s%s/client.lua", ExtensionPath, Name )
-		local ServerFile = StringFormat( "%s%s/server.lua", ExtensionPath, Name )
-		local SharedFile = StringFormat( "%s%s/shared.lua", ExtensionPath, Name )
+		local ClientFile = GetPluginFilePath( Name, "client.lua" )
+		local ServerFile = GetPluginFilePath( Name, "server.lua" )
+		local SharedFile = GetPluginFilePath( Name, "shared.lua" )
+		local PredictFile = GetPluginFilePath( Name, "predict.lua" )
 
-		local IsShared = PluginFiles[ SharedFile ]
-			or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
+		-- Prediction VM only loads plugins with a predict.lua file to avoid loading plugins that have no prediction
+		-- logic.
+		if Predict and not PluginFiles[ PredictFile ] then return false, "missing predict.lua" end
+
+		local IsShared = PluginFiles[ SharedFile ] or ( PluginFiles[ ClientFile ] and PluginFiles[ ServerFile ] )
 		local SharedPluginCanLoad
 		if PluginFiles[ SharedFile ] then
 			local IsLoaded, Plugin = HandleAutoRegister( self, Name, LoadPluginScript( SharedFile, Name ) )
@@ -262,6 +270,8 @@ do
 			end
 
 			Plugin.IsShared = true
+			Plugin.IsPredicted = not not PluginFiles[ PredictFile ]
+
 			-- Check if the plugin can load after loading shared.lua so we can check for consistency.
 			SharedPluginCanLoad = self:CanPluginLoad( Plugin )
 		end
@@ -297,6 +307,31 @@ do
 			Plugin.IsClient = true
 
 			-- Setup networked variables after all files have executed.
+			return SetupNetworking( Name, Plugin )
+		end
+
+		if Predict then
+			-- Predict file must exist by this point, already checked above.
+			local Success, PluginTable, Options
+			if IsShared and self.Plugins[ Name ] then
+				Success = LoadWithGlobalPlugin( Name, PredictFile, self.Plugins[ Name ] )
+			else
+				Success, PluginTable, Options = LoadPluginScript( PredictFile, Name )
+			end
+
+			local IsLoaded, Plugin = HandleAutoRegister( self, Name, Success, PluginTable, Options )
+			if not IsLoaded then
+				return false, Plugin
+			end
+
+			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
+			if not CanLoad then
+				-- Note that prediction VM doesn't have to register every network message, so it's OK to be inconsistent
+				-- with other VMs here.
+				self.Plugins[ Name ] = nil
+				return false, FailureReason
+			end
+
 			return SetupNetworking( Name, Plugin )
 		end
 
@@ -744,6 +779,9 @@ end
 
 -- Store a list of all plugins in existence. When the server config loads, we use it.
 local ClientPlugins = {}
+local PredictPlugins = {}
+local PluginsToPreLoad = {}
+
 local AllPlugins = {}
 Shine.AllPlugins = AllPlugins
 
@@ -801,22 +839,17 @@ for Path in pairs( PluginFiles ) do
 	local File = Folders[ 5 ]
 
 	if File then
-		if not ClientPlugins[ Name ] then
-			if File == "shared.lua" then
-				ClientPlugins[ Name ] = "boolean" -- Generate the network message.
-				AddToPluginsLists( Name )
-			elseif File == "server.lua" or File == "client.lua" then
-				AddToPluginsLists( Name )
-			end
-
-			-- Shared plugins should load into memory for network messages.
-			local Success, Err = Shine:LoadExtension( Name, true )
-			if not Success then
-				-- Remember the first loading error, as subsequent errors will be because
-				-- the plugin does not exist in Shine.Plugins.
-				LoadingErrors[ Name ] = Err
-			end
+		if File == "predict.lua" then
+			PredictPlugins[ Name ] = "boolean"
+			AddToPluginsLists( Name )
+		elseif File == "shared.lua" then
+			ClientPlugins[ Name ] = "boolean" -- Generate the network message.
+			AddToPluginsLists( Name )
+		elseif File == "server.lua" or File == "client.lua" then
+			AddToPluginsLists( Name )
 		end
+
+		PluginsToPreLoad[ Name ] = true
 	else
 		File = Name
 		Name = StringGSub( Name, "%.lua$", "" )
@@ -842,8 +875,108 @@ Shine.Stream( AllPluginsArray ):Filter( function( Name )
 		return false
 	end
 
+	-- Prediction VM only loads plugins that provide a predict.lua file.
+	if Predict and not Mapping[ "predict.lua" ] then
+		return false
+	end
+
 	return true
 end ):Sort()
+
+for i = 1, #AllPluginsArray do
+	local Name = AllPluginsArray[ i ]
+	if PluginsToPreLoad[ Name ] then
+		-- Shared plugins should load into memory for network messages.
+		local Success, Err = Shine:LoadExtension( Name, true )
+		if not Success then
+			-- Remember the first loading error, as subsequent errors will be because
+			-- the plugin does not exist in Shine.Plugins.
+			LoadingErrors[ Name ] = Err
+		end
+	end
+end
+
+class "ShinePluginsInfoEntity" ( Entity )
+
+ShinePluginsInfoEntity.kMapName = "shine_plugins_info_entity"
+
+local PredictedPluginNames = table.GetKeys( PredictPlugins )
+
+function ShinePluginsInfoEntity:OnCreate()
+	Entity.OnCreate( self )
+
+	-- This is a global utility entity, so always network it.
+	self:SetPropagate( Entity.Propagate_Always )
+
+	if Server then
+		for i = 1, #PredictedPluginNames do
+			local Name = PredictedPluginNames[ i ]
+			if Shine.Plugins[ Name ] and Shine.Plugins[ Name ].Enabled then
+				self[ Name ] = true
+			else
+				self[ Name ] = false
+			end
+		end
+	end
+
+	if Predict then
+		local LastSeenState = {}
+		for i = 1, #PredictedPluginNames do
+			local Name = PredictedPluginNames[ i ]
+			LastSeenState[ Name ] = self[ Name ]
+
+			if self[ Name ] and not Shine:IsExtensionEnabled( Name ) then
+				Shine:EnableExtension( Name )
+			end
+		end
+
+		-- In the prediction VM, OnProcessMove is the only "think"-like hook available, there's no update tick.
+		-- In addition, field watchers don't work, so this is the only way to observe changes in the plugin state to
+		-- enable plugins in the prediction VM.
+		Hook.Add( "OnProcessMove", self, function()
+			for i = 1, #PredictedPluginNames do
+				local Name = PredictedPluginNames[ i ]
+				local Enabled = self[ Name ]
+				if LastSeenState[ Name ] ~= Enabled then
+					LastSeenState[ Name ] = Enabled
+
+					if Enabled and not Shine:IsExtensionEnabled( Name ) then
+						Shine:EnableExtension( Name )
+					elseif not Enabled and Shine:IsExtensionEnabled( Name ) then
+						Shine:UnloadExtension( Name )
+					end
+				end
+			end
+		end )
+	end
+end
+
+Shared.LinkClassToMap( "ShinePluginsInfoEntity", ShinePluginsInfoEntity.kMapName, PredictPlugins )
+
+if Server then
+	Hook.CallAfterFileLoad( "lua/NS2Gamerules.lua", function()
+		-- Protect the plugin info entity from being destroyed whenever the gamerules resets the game world.
+		NS2Gamerules.resetProtectedEntities[ #NS2Gamerules.resetProtectedEntities + 1 ] = "ShinePluginsInfoEntity"
+	end )
+
+	-- Prediction VM can't receive network messages (despite having a hook function for them), so in order to sync
+	-- plugin state, an entity is required.
+	Hook.Add( "MapPostLoad", "ShinePluginsInfoEntity", function()
+		local PluginsEntity = Server.CreateEntity( ShinePluginsInfoEntity.kMapName )
+
+		Hook.Add( "OnPluginLoad", PluginsEntity, function( Name )
+			if not PredictPlugins[ Name ] then return end
+
+			PluginsEntity[ Name ] = true
+		end )
+
+		Hook.Add( "OnPluginUnload", PluginsEntity, function( Name )
+			if not PredictPlugins[ Name ] then return end
+
+			PluginsEntity[ Name ] = false
+		end )
+	end )
+end
 
 Shared.RegisterNetworkMessage( "Shine_PluginSync", ClientPlugins )
 Shared.RegisterNetworkMessage( "Shine_PluginEnable", {
@@ -915,6 +1048,8 @@ Shine.HookNetworkMessage( "Shine_PluginSync", function( Data )
 		end
 	end
 
+	if not Client then return end
+
 	-- Change startup messages to a no-op, in case plugins are enabled later.
 	Shine.AddStartupMessage = function() end
 
@@ -943,6 +1078,8 @@ Shine.HookNetworkMessage( "Shine_PluginEnable", function( Data )
 		Shine:UnloadExtension( Name )
 	end
 end )
+
+if not Client then return end
 
 --[[
 	Adds a plugin to be auto loaded on the client.
