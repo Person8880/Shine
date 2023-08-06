@@ -6,6 +6,7 @@ local Shine = Shine
 local SGUI = Shine.GUI
 local Hook = Shine.Hook
 
+local assert = assert
 local BitLShift = bit.lshift
 local Ceil = math.ceil
 local IsType = Shine.IsType
@@ -15,9 +16,22 @@ local ipairs = ipairs
 local setmetatable = setmetatable
 local StringFormat = string.format
 local TableAdd = table.Add
+local TableNew = require "table.new"
 local xpcall = xpcall
 
 local RenderPipeline = {}
+
+-- Provides a JIT friendly way to pass a method as a callback.
+local BoundMethodCallback = Shine.TypeDef()
+function BoundMethodCallback:Init( Context, Method )
+	self.Context = Context
+	self.Method = Method
+	return self
+end
+
+function BoundMethodCallback:__call( Arg1, Arg2 )
+	return self.Method( self.Context, Arg1, Arg2 )
+end
 
 local TextureInput = {}
 function TextureInput:ResolveInputValue( Context )
@@ -56,9 +70,7 @@ function PipelineTexture:SetPipeline( Pipeline, Width, Height )
 
 	if Pipeline then
 		-- If the texture data is lost, re-render this texture from its original pipeline.
-		Hook.Add( "OnRenderDeviceReset", self, function()
-			self:Refresh()
-		end )
+		Hook.Add( "OnRenderDeviceReset", self, BoundMethodCallback( self, self.Refresh ) )
 	else
 		Hook.Remove( "OnRenderDeviceReset", self )
 	end
@@ -69,11 +81,6 @@ local function DestroyGUIView( self )
 		Client.DestroyGUIView( self.GUIView )
 		Hook.Remove( "Think", self.GUIView )
 		self.GUIView = nil
-	end
-
-	if self.TemporaryCopyTexture then
-		self.TemporaryCopyTexture:Free()
-		self.TemporaryCopyTexture = nil
 	end
 end
 
@@ -86,23 +93,11 @@ local function CancelTextureRefresh( self )
 	end
 end
 
---[[
-	Re-renders the given texture, executing its original render pipeline and copying the result to the texture name
-	currently reserved by this texture.
-]]
-function PipelineTexture:Refresh()
-	local Pipeline = self.Pipeline
-	if not Pipeline then return end
-
-	CancelTextureRefresh( self )
-	DestroyGUIView( self )
-
-	Shine.Logger:Debug( "Refreshing %s...", self )
-
-	self.RefreshContext = RenderPipeline.Execute( self.Pipeline, self.Width, self.Height, function( OutputTexture )
+do
+	local function OnRefreshed( self, OutputTexture, Pipeline )
 		self.RefreshContext = nil
 
-		if self.Pipeline ~= Pipeline or self.GUIView or self.IsFree then
+		if self.Pipeline ~= Pipeline or self.GUIView ~= OutputTexture.GUIView or self.IsFree then
 			-- Somehow wasn't cancelled when freed or rendered elsewhere, ignore this texture.
 			Shine.Logger:Debug(
 				"Discarding refreshed texture %s as %s is not in a valid state to be refreshed.",
@@ -113,52 +108,34 @@ function PipelineTexture:Refresh()
 			return
 		end
 
-		self:CopyFrom( OutputTexture )
-	end )
-end
+		assert( OutputTexture == self, "Pipeline didn't re-render to the same output texture!" )
 
---[[
-	Copies the data from the given texture into this one, destroying the other texture once the copy operation is
-	complete.
-]]
-function PipelineTexture:CopyFrom( OtherTexture )
-	-- If the texture's free, ignore any request to copy data.
-	if self.IsFree then
-		Shine.Logger:Debug(
-			"Ignoring request to copy texture %s into %s as the target texture is not currently allocated.",
-			OtherTexture,
-			self
-		)
-		return
+		if self.OnRefreshComplete then
+			self:OnRefreshComplete( Pipeline )
+			self.OnRefreshComplete = nil
+		end
 	end
 
-	-- Don't auto-render this again, it's for internal use only here to copy back to this texture.
-	OtherTexture:SetPipeline( nil )
+	--[[
+		Re-renders the given texture, executing its original render pipeline again.
+	]]
+	function PipelineTexture:Refresh( OnRefreshComplete )
+		local Pipeline = self.Pipeline
+		if not Pipeline then return end
 
-	-- Use the copy view to copy from the temporary texture back to the texture that's allocated here.
-	-- This avoids needing to notify the external borrowers of this texture, the texture simply gets refreshed for them.
-	local GUIView = Client.CreateGUIView( self.Width, self.Height )
-	GUIView:Load( "lua/shine/lib/gui/views/copy.lua" )
-	GUIView:SetGlobal( "SourceTexture", OtherTexture:GetName() )
-	GUIView:SetGlobal( "Width", self.Width )
-	GUIView:SetGlobal( "Height", self.Height )
-	GUIView:SetGlobal( "NeedsUpdate", 1 )
-	GUIView:SetTargetTexture( self.Name )
-	GUIView:SetRenderCondition( GUIView.RenderOnce )
+		CancelTextureRefresh( self )
 
-	self.GUIView = GUIView
-	self.TemporaryCopyTexture = OtherTexture
+		self.OnRefreshComplete = OnRefreshComplete
 
-	Shine.Logger:Debug( "Copying %s to %s...", OtherTexture, self )
+		Shine.Logger:Debug( "Refreshing %s...", self )
 
-	Hook.Add( "Think", GUIView, function()
-		if GUIView:GetRenderCondition() == GUIView.RenderNever then
-			Shine.Logger:Debug( "Finished copying %s to %s.", OtherTexture, self )
-			OtherTexture:Free()
-			self.TemporaryCopyTexture = nil
-			Hook.Remove( "Think", GUIView )
-		end
-	end )
+		self.RefreshContext = RenderPipeline.Execute(
+			Pipeline,
+			self.Width,
+			self.Height,
+			BoundMethodCallback( self, OnRefreshed )
+		)
+	end
 end
 
 function PipelineTexture:Free()
@@ -212,7 +189,7 @@ function PiplineTexturePool:AllocateTexture( GUIView )
 end
 
 -- Wraps a list of textures, allows nodes to return multiple textures to be held as the current texture.
--- Note that lists used outside of pipelines should be freed as a unit, do not free individual textures.
+-- Note that lists used outside of pipelines should be freed and refreshed as a unit, do not free individual textures.
 local TextureList = Shine.TypeDef()
 function TextureList:Init( Textures )
 	self.Textures = Textures
@@ -233,19 +210,8 @@ end
 
 TextureList.SetPipeline = PipelineTexture.SetPipeline
 
-function TextureList:Refresh()
-	if not self.Pipeline then return end
-
-	CancelTextureRefresh( self )
-
-	-- Destroy the original GUIView on every texture in this list.
-	for Index, Texture in self:Iterate() do
-		DestroyGUIView( Texture )
-	end
-
-	Shine.Logger:Debug( "Refreshing %s...", self )
-
-	self.RefreshContext = RenderPipeline.Execute( self.Pipeline, self.Width, self.Height, function( OutputTexture )
+do
+	local function OnRefreshed( self, OutputTexture, Pipeline )
 		self.RefreshContext = nil
 
 		if not self.Pipeline then
@@ -253,12 +219,36 @@ function TextureList:Refresh()
 			return
 		end
 
-		-- The refreshed output should be an identical list, so each texture gets copied from the associated texture
-		-- in the new list.
+		-- The refreshed output should be an identical list, pointing at the same textures as before.
 		for Index, Texture in self:Iterate() do
-			Texture:CopyFrom( OutputTexture:Get( Index ) )
+			assert(
+				Texture == OutputTexture:Get( Index ),
+				"Pipeline didn't re-render texture in list to the same output texture!"
+			)
 		end
-	end )
+
+		if self.OnRefreshComplete then
+			self:OnRefreshComplete( Pipeline )
+			self.OnRefreshComplete = nil
+		end
+	end
+
+	function TextureList:Refresh( OnRefreshComplete )
+		if not self.Pipeline then return end
+
+		CancelTextureRefresh( self )
+
+		self.OnRefreshComplete = OnRefreshComplete
+
+		Shine.Logger:Debug( "Refreshing %s...", self )
+
+		self.RefreshContext = RenderPipeline.Execute(
+			self.Pipeline,
+			self.Width,
+			self.Height,
+			BoundMethodCallback( self, OnRefreshed )
+		)
+	end
 end
 
 function TextureList:Free()
@@ -275,6 +265,14 @@ function TextureList:__tostring()
 	return StringFormat( "TextureList[%s]", Shine.Stream( self.Textures ):Concat( ", " ) )
 end
 
+--[[
+	A node that performs a single rendering operation to an output texture.
+
+	Note that the final GUIViewNode in a pipeline will retain its output texture to allow for re-rendering. Thus,
+	a GUIViewNode should only be added to a single pipeline.
+
+	Re-use the definition and/or use the Copy() method if the same node is required in multiple distinct pipelines.
+]]
 local GUIViewNode = Shine.TypeDef()
 function GUIViewNode:Init( Params )
 	self.View = Params.View
@@ -282,7 +280,14 @@ function GUIViewNode:Init( Params )
 	return self
 end
 
-function GUIViewNode:WithInputs( Inputs )
+function GUIViewNode:Copy()
+	return GUIViewNode( {
+		View = self.View,
+		Input = TableAdd( {}, self.Input )
+	} )
+end
+
+function GUIViewNode:CopyWithInputs( Inputs )
 	return GUIViewNode( {
 		View = self.View,
 		Input = TableAdd( TableAdd( {}, self.Input ), Inputs )
@@ -290,13 +295,31 @@ function GUIViewNode:WithInputs( Inputs )
 end
 
 function GUIViewNode:OnStart( Context )
-	Shine.Logger:Debug( "Loading GUIView with script %s and size (%s, %s)", self.View, Context.Width, Context.Height )
+	local RootPipeline = Context:GetRootPipeline()
+	local IsOutputNode = RootPipeline:IsOutputNode( self )
 
-	local GUIView = Client.CreateGUIView( Context.Width, Context.Height )
-	GUIView:Load( self.View )
+	local GUIView
+	local UsingPreviousTexture
+	if IsOutputNode and self.OutputTexture then
+		-- If this is an output node that previously rendered, re-use its output texture.
+		-- Note that GUIViewNodes aren't permitted to change their size or script, but they can change any other
+		-- parameter when re-rendering.
+		GUIView = assert( self.OutputTexture.GUIView, "Output texture was freed during rendering!" )
+		UsingPreviousTexture = true
+		Shine.Logger:Debug( "Re-using previous output texture for output node %s: %s", self, self.OutputTexture )
+	else
+		Shine.Logger:Debug(
+			"Loading GUIView with script %s and size (%s, %s)",
+			self.View,
+			Context.Width,
+			Context.Height
+		)
+		GUIView = Client.CreateGUIView( Context.Width, Context.Height )
+		GUIView:Load( self.View )
+	end
+
 	GUIView:SetGlobal( "Width", Context.Width )
 	GUIView:SetGlobal( "Height", Context.Height )
-	GUIView:SetRenderCondition( GUIView.RenderOnce )
 
 	for i = 1, #self.Input do
 		local Input = self.Input[ i ]
@@ -313,26 +336,49 @@ function GUIViewNode:OnStart( Context )
 	end
 
 	GUIView:SetGlobal( "NeedsUpdate", 1 )
+	GUIView:SetRenderCondition( GUIView.RenderOnce )
 
-	local TargetTexture = Context:AllocateTexture( GUIView )
-	Context:SetVariable( self, "OutputTexture", TargetTexture )
-	GUIView:SetTargetTexture( TargetTexture:GetName() )
+	if not UsingPreviousTexture then
+		local TargetTexture = Context:AllocateTexture( GUIView )
+		GUIView:SetTargetTexture( TargetTexture:GetName() )
+
+		if IsOutputNode then
+			-- If this is an output node (i.e. its output texture is going to be returned by the pipeline), then
+			-- hold onto it here so the pipeline can re-render to the same texture later.
+			self.OutputTexture = TargetTexture
+		else
+			-- Otherwise just store it temporarily in the context.
+			Context:SetVariable( self, "OutputTexture", TargetTexture )
+		end
+	end
 
 	Context:SetVariable( self, "GUIView", GUIView )
 end
 
 function GUIViewNode:Terminate( Context )
-	-- Free the node's temporary texture, this will also destroy the associated GUIView.
-	local OutputTexture = Context:GetVariable( self, "OutputTexture" )
-	OutputTexture:Free()
+	-- Free the node's temporary texture if it has one, this will also destroy the associated GUIView.
+	local OutputTexture
+	if self.OutputTexture and not self.OutputTexture.Pipeline then
+		OutputTexture = self.OutputTexture
+	else
+		OutputTexture = Context:GetVariable( self, "OutputTexture" )
+	end
+	if OutputTexture then
+		OutputTexture:Free()
+	end
 end
 
 function GUIViewNode:Think( Context )
 	local GUIView = Context:GetVariable( self, "GUIView" )
 
 	if GUIView:GetRenderCondition() == GUIView.RenderNever then
-		return Context:GetVariable( self, "OutputTexture" )
+		return self.OutputTexture or Context:GetVariable( self, "OutputTexture" )
 	end
+end
+
+function GUIViewNode:IsOutputNode( Node )
+	-- This method is only called on the last node in a pipeline, so self is guaranteed to be an output node.
+	return Node == self
 end
 
 function GUIViewNode:OnFinish( Context )
@@ -352,12 +398,36 @@ end
 	Each pipeline executes within an isolated scope, with any textures it creates not affecting its parent pipeline.
 	Only the final output texture is passed back up to a parent pipeline to be passed along to the next node or returned
 	as the final output of the parent.
+
+	Pipelines should not be modified once they have been created. Create a new pipeline if additional nodes are
+	required.
 ]]
 local PipelineNode = Shine.TypeDef()
 function PipelineNode:Init( Nodes )
-	Shine.AssertAtLevel( #Nodes > 0, "Pipelines must have at least one node!", 3 )
 	self.Nodes = Nodes
+	self.NumNodes = #Nodes
+	Shine.AssertAtLevel( self.NumNodes > 0, "Pipelines must have at least one node!", 3 )
 	return self
+end
+
+function PipelineNode:Copy()
+	local CopiedNodes = TableNew( self.NumNodes, 0 )
+	for i = 1, self.NumNodes do
+		CopiedNodes[ i ] = self.Nodes[ i ]:Copy()
+	end
+	return PipelineNode( CopiedNodes )
+end
+
+function PipelineNode:CopyWithAdditionalNodes( Nodes )
+	local NumNewNodes = #Nodes
+	local CopiedNodes = TableNew( self.NumNodes + NumNewNodes, 0 )
+	for i = 1, self.NumNodes do
+		CopiedNodes[ i ] = self.Nodes[ i ]:Copy()
+	end
+	for i = 1, NumNewNodes do
+		CopiedNodes[ self.NumNodes + i ] = Nodes[ i ]
+	end
+	return PipelineNode( CopiedNodes )
 end
 
 function PipelineNode:OnStart( Context )
@@ -408,6 +478,10 @@ function PipelineNode:Think( Context )
 	end
 end
 
+function PipelineNode:IsOutputNode( Node )
+	return self.Nodes[ self.NumNodes ]:IsOutputNode( Node )
+end
+
 function PipelineNode:OnFinish( Context, OutputTexture )
 	Context:RemoveNestedContext( self )
 	-- Need to borrow the output texture here to ensure that, if this node is not the final node, its output is cleaned
@@ -426,6 +500,8 @@ end
 	it avoids needing to render the same thing more than once.
 
 	Note that a pipeline here could be a single GUIViewNode, a pipeline, or even another fork node.
+
+	As with pipeline nodes, fork nodes should not be modified after they have been created.
 ]]
 local ForkNode = Shine.TypeDef()
 function ForkNode:Init( Pipelines )
@@ -435,8 +511,16 @@ function ForkNode:Init( Pipelines )
 	return self
 end
 
+function ForkNode:Copy()
+	local CopiedPipelines = TableNew( self.NumPipelines, 0 )
+	for i = 1, self.NumPipelines do
+		CopiedPipelines[ i ] = self.Pipelines[ i ]:Copy()
+	end
+	return ForkNode( CopiedPipelines )
+end
+
 function ForkNode:OnStart( Context )
-	local ActivePipelines = {}
+	local ActivePipelines = TableNew( self.NumPipelines, 0 )
 	-- Start with all pipelines active.
 	for i = 1, self.NumPipelines do
 		local Pipeline = self.Pipelines[ i ]
@@ -444,7 +528,7 @@ function ForkNode:OnStart( Context )
 		Pipeline:OnStart( Context )
 	end
 	Context:SetVariable( self, "ActivePipelines", ActivePipelines )
-	Context:SetVariable( self, "OutputTextures", {} )
+	Context:SetVariable( self, "OutputTextures", TableNew( self.NumPipelines, 0 ) )
 end
 
 function ForkNode:Terminate( Context )
@@ -485,6 +569,16 @@ function ForkNode:Think( Context )
 	end
 end
 
+function ForkNode:IsOutputNode( Node )
+	-- Fork nodes have multiple branches, thus there's multiple output nodes to consider here.
+	for i = 1, self.NumPipelines do
+		if self.Pipelines[ i ]:IsOutputNode( Node ) then
+			return true
+		end
+	end
+	return false
+end
+
 function ForkNode:OnFinish( Context, OutputTextures )
 	for i = 1, self.NumPipelines do
 		self.Pipelines[ i ]:OnFinish( Context, OutputTextures:Get( i ) )
@@ -509,7 +603,9 @@ local PipelineContext = Shine.TypeDef()
 function PipelineContext:Init( Pipeline, Width, Height, Parent )
 	PipelineID = PipelineID + 1
 	self.ID = PipelineID
+	self.Pipeline = Pipeline
 	self.Nodes = Pipeline.Nodes
+	self.NumNodes = Pipeline.NumNodes
 	self.Width = Width
 	self.Height = Height
 	self.Callbacks = {}
@@ -517,9 +613,17 @@ function PipelineContext:Init( Pipeline, Width, Height, Parent )
 	return self:Reset()
 end
 
+function PipelineContext:GetRootPipeline()
+	local Root = self
+	while Root.Parent do
+		Root = Root.Parent
+	end
+	return Root.Pipeline
+end
+
 function PipelineContext:Reset()
-	self.NestedContexts = {}
-	for i = 1, #self.Nodes do
+	self.NestedContexts = TableNew( 0, self.NumNodes )
+	for i = 1, self.NumNodes do
 		-- Use this context for all of the pipeline nodes by default. Nodes can optionally assign themselves a new
 		-- nested context if they need it.
 		self.NestedContexts[ self.Nodes[ i ] ] = self
@@ -544,12 +648,13 @@ function PipelineContext:Terminate()
 		self.CurrentNode:Terminate( self )
 	end
 
-	if self.CurrentTexture then
+	if self.CurrentTexture and not self.CurrentTexture.Pipeline then
 		-- Directly free the current texture, ignoring reference counts. Freeing is idempotent and nothing should be
-		-- retained after termination.
+		-- retained after termination except the final output texture(s).
 		self.CurrentTexture:Free()
-		self.CurrentTexture = nil
 	end
+
+	self.CurrentTexture = nil
 end
 
 function PipelineContext:Restart()
@@ -642,7 +747,7 @@ end
 function PipelineContext:AddCallback( Callback )
 	if self.Finished then
 		-- Call without xpcall here as this is within the context of the caller so will only break them if they error.
-		Callback( self.CurrentTexture )
+		Callback( self.CurrentTexture, self.Pipeline )
 		return
 	end
 	self.Callbacks[ #self.Callbacks + 1 ] = Callback
@@ -675,7 +780,18 @@ function PipelineContext:OnExecutionCompleted( FinalOutputTexture )
 
 	for i = 1, #self.Callbacks do
 		-- Avoid errors in one callback suppressing the others.
-		xpcall( self.Callbacks[ i ], OnError, FinalOutputTexture )
+		xpcall( self.Callbacks[ i ], OnError, FinalOutputTexture, self.Pipeline )
+	end
+end
+
+function PipelineContext:Think()
+	local OutputTexture = self.Pipeline:Think( self )
+	if OutputTexture then
+		self:RemoveHooks()
+		-- Attach the pipeline and parameters to the output texture to allow it to re-render itself if texture data
+		-- is lost later.
+		OutputTexture:SetPipeline( self.Pipeline, self.Width, self.Height )
+		self:OnExecutionCompleted( OutputTexture )
 	end
 end
 
@@ -695,20 +811,95 @@ local function NextPowerOf2( Value )
 end
 
 --[[
+	A helper function to build a pipeline that renders a given node, then blurs it by the given blur radius.
+
+	Input:
+		- Width - the texture width (should be large enough to contain the node's content, plus the blur radius).
+		- Height - the texture height (should be large enough to contain the node's content, plus the blur radius).
+		- BlurRadius - the blur radius in pixels.
+
+	Output: A PipelineNode that can be used to render the given node with blur applied.
+]]
+function RenderPipeline.ApplyBlurToNode( Params )
+	local Width = Params.Width
+	local Height = Params.Height
+	local BlurRadius = Params.BlurRadius
+
+	return PipelineNode( {
+		-- First render the node whose output will be blurred.
+		Params.NodeToBlur,
+		-- Then blur along the y-axis using the given blur radius.
+		GUIViewNode {
+			View = "lua/shine/lib/gui/views/content.lua",
+			Input = ItemSerialiser.SerialiseObjects( {
+				{
+					X = 0,
+					Y = 0,
+					Width = Width,
+					Height = Height,
+					Colour = Colour( 1, 1, 1, 1 ),
+					Shader = "shaders/GUI/menu/gaussianBlurY.surface_shader",
+					ShaderParams = {
+						{ Key = "blurRadius", Value = BlurRadius },
+						{ Key = "rcpFrameY", Value = 1 / Height }
+					},
+					Texture = TextureInput
+				}
+			} )
+		},
+		-- Finally, blur along the x-axis. The final output is a texture containing a blurred version of the original
+		-- node's output.
+		GUIViewNode {
+			View = "lua/shine/lib/gui/views/content.lua",
+			Input = ItemSerialiser.SerialiseObjects( {
+				{
+					X = 0,
+					Y = 0,
+					Width = Width,
+					Height = Height,
+					Colour = Colour( 1, 1, 1, 1 ),
+					Shader = "shaders/GUI/menu/gaussianBlurX.surface_shader",
+					ShaderParams = {
+						{ Key = "blurRadius", Value = BlurRadius },
+						{ Key = "rcpFrameX", Value = 1 / Width }
+					},
+					Texture = TextureInput
+				}
+			} )
+		}
+	} )
+end
+
+--[[
 	A helper function to build a pipeline that renders a box shadow with the given size, blur radius and colour.
+
+	Input:
+		- Width - the box width (will be used to determine the texture width).
+		- Height - the box height (will be used to determine the texture height).
+		- BlurRadius - the blur radius in pixels (will be used to determine the texture size).
+		- Colour - the colour of the box to render as a shadow.
+
+	Outputs:
+		1. A PipelineNode that can be used to render the specified box shadow.
+		2. The width of the texture that should be output by the pipeline (large enough to contain the box and the blur
+		radius).
+		3. The height of the texture that should be output by the pipeline (large enough to contain the box and the blur
+		radius).
 ]]
 function RenderPipeline.BuildBoxShadowPipeline( Params )
 	local Width = Params.Width
 	local Height = Params.Height
 	local BlurRadius = Params.BlurRadius
-	local ShadowColour = Params.Colour
 
 	local TextureWidth = NextPowerOf2( Width + BlurRadius * 2 )
 	local TextureHeight = NextPowerOf2( Height + BlurRadius * 2 )
 
-	return PipelineNode( {
-		-- First render a box in the middle of the texture with the specified colour.
-		GUIViewNode {
+	return RenderPipeline.ApplyBlurToNode( {
+		Width = TextureWidth,
+		Height = TextureHeight,
+		BlurRadius = BlurRadius,
+		-- Render a box in the middle of the texture with the specified colour.
+		NodeToBlur = GUIViewNode {
 			View = "lua/shine/lib/gui/views/content.lua",
 			Input = ItemSerialiser.SerialiseObjects( {
 				{
@@ -716,71 +907,35 @@ function RenderPipeline.BuildBoxShadowPipeline( Params )
 					Y = TextureHeight * 0.5 - Height * 0.5,
 					Width = Width,
 					Height = Height,
-					Colour = ShadowColour
-				}
-			} )
-		},
-		-- Then blur the box along the y-axis using the given blur radius.
-		GUIViewNode {
-			View = "lua/shine/lib/gui/views/content.lua",
-			Input = ItemSerialiser.SerialiseObjects( {
-				{
-					X = 0,
-					Y = 0,
-					Width = TextureWidth,
-					Height = TextureHeight,
-					Colour = Colour( 1, 1, 1, 1 ),
-					Shader = "shaders/GUI/menu/gaussianBlurY.surface_shader",
-					ShaderParams = {
-						{ Key = "blurRadius", Value = BlurRadius },
-						{ Key = "rcpFrameY", Value = 1 / TextureHeight }
-					},
-					Texture = TextureInput
-				}
-			} )
-		},
-		-- Finally, blur the box along the x-axis. The final output is a texture containing a blurred box shadow.
-		GUIViewNode {
-			View = "lua/shine/lib/gui/views/content.lua",
-			Input = ItemSerialiser.SerialiseObjects( {
-				{
-					X = 0,
-					Y = 0,
-					Width = TextureWidth,
-					Height = TextureHeight,
-					Colour = Colour( 1, 1, 1, 1 ),
-					Shader = "shaders/GUI/menu/gaussianBlurX.surface_shader",
-					ShaderParams = {
-						{ Key = "blurRadius", Value = BlurRadius },
-						{ Key = "rcpFrameX", Value = 1 / TextureWidth }
-					},
-					Texture = TextureInput
+					Colour = Params.Colour
 				}
 			} )
 		}
 	} ), TextureWidth, TextureHeight
 end
 
+--[[
+	Executes the given pipeline, allocating textures with the given width and height at each step.
+
+	Inputs:
+		1. The pipeline to execute.
+		2. The desired width of the output texture.
+		3. The desired height of the output texture.
+		4. A callback that will be invoked with the final output texture on completion of the pipeline.
+
+	Output: A context object that can be used to add additional callbacks, or to terminate/restart rendering.
+	Note that once rendering is complete, this context object should be discarded. To re-render the pipeline after
+	completion, use the Refresh() method on the output texture.
+]]
 function RenderPipeline.Execute( Pipeline, Width, Height, OnExecutionCompleted )
 	local Context = PipelineContext( Pipeline, Width, Height )
 	Context:AddCallback( OnExecutionCompleted )
 	Context:Start()
 
-	Hook.Add( "Think", Context, function( DeltaTime )
-		local OutputTexture = Pipeline:Think( Context )
-		if OutputTexture then
-			Context:RemoveHooks()
-			-- Attach the pipeline and parameters to the output texture to allow it to re-render itself if texture data
-			-- is lost later.
-			OutputTexture:SetPipeline( Pipeline, Width, Height )
-			Context:OnExecutionCompleted( OutputTexture )
-		end
-	end )
+	Hook.Add( "Think", Context, BoundMethodCallback( Context, Context.Think ) )
 
 	-- If the render device is lost mid-render, restart the pipeline from scratch, discarding any existing textures.
-	Hook.Add( "OnRenderDeviceReset", Context, function()
-		Context:Restart()
-	end )
+	Hook.Add( "OnRenderDeviceReset", Context, BoundMethodCallback( Context, Context.Restart ) )
 
 	return Context
 end

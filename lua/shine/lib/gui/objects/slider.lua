@@ -4,6 +4,7 @@
 
 local SGUI = Shine.GUI
 
+local Abs = math.abs
 local Clamp = math.Clamp
 local Round = math.Round
 local Max = math.max
@@ -28,11 +29,13 @@ SGUI.AddProperty( Slider, "Decimals" )
 
 SGUI.AddBoundProperty( Slider, "Font", "Label" )
 SGUI.AddBoundProperty( Slider, "TextColour", "Label:SetColour" )
+SGUI.AddBoundProperty( Slider, "TextIsVisible", "Label:SetIsVisible" )
 SGUI.AddBoundProperty( Slider, "TextScale", "Label" )
 SGUI.AddBoundProperty( Slider, "TextShadow", "Label:SetShadow" )
 
 SGUI.AddBoundColourProperty( Slider, "HandleColour", "Handle:SetColor" )
 SGUI.AddBoundColourProperty( Slider, "LineColour", "Line:SetColor" )
+SGUI.AddBoundProperty( Slider, "LineTexture", "Line:SetTexture" )
 SGUI.AddBoundColourProperty( Slider, "DarkLineColour", "DarkLine:SetColor" )
 
 local function OnTargetAlphaChanged( self, TargetAlpha )
@@ -99,13 +102,17 @@ function Slider:Initialise()
 		local TextEntry = SGUI:Create( "TextEntry", self )
 		self.TextEntry = TextEntry
 
-		local TextH = Label:GetTextHeight( "!" )
-
 		TextEntry:SetStyleName( "SliderTextBox" )
 		TextEntry:SetTextPadding( 0 )
-		TextEntry:SetAnchor( "CentreRight" )
-		TextEntry:SetPos( Vector2( Label:GetPos().x, -TextH * 0.5 ) )
-		TextEntry:SetSize( self:GetLabelSize() )
+		TextEntry:SetAnchor( self.Vertical and "TopMiddle" or "CentreRight" )
+
+		local LabelPos = Label:GetPos()
+		local TextEntryPos = Vector2( 0, 0 )
+		local LabelSize = self:GetLabelSize()
+		TextEntryPos[ self.MainAxis ] = LabelPos[ self.MainAxis ]
+		TextEntryPos[ self.CrossAxis ] = -LabelSize[ self.CrossAxis ] * 0.5
+		TextEntry:SetPos( TextEntryPos )
+		TextEntry:SetSize( LabelSize )
 		TextEntry:SetFontScale( Label:GetFont(), Label:GetTextScale() )
 		TextEntry:SetText( tostring( self.Value ) )
 		TextEntry:SetTextShadow( Label:GetShadow() )
@@ -177,13 +184,73 @@ function Slider:Initialise()
 	self.Range = 100
 	self.Value = 0
 	self.Decimals = 0
-	self.LineHeightMultiplier = 0.25
+	self.LineThicknessMultiplier = 0.25
 
 	self.HandleSize = Vector2( 10, 32 )
 	self.HandlePos = Vector2( 0, 0 )
+	self.HandleThickness = 10
+
 	self.LineSize = Vector2( 250, 5 )
 	self.DarkLineSize = Vector2( 0, 5 )
 	self.DarkLinePos = Vector2( 250, -2.5 )
+
+	self.Vertical = false
+	self.MainAxis = "x"
+	self.CrossAxis = "y"
+end
+
+local function RefreshSizes( self )
+	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
+
+	local MainAxis = self.MainAxis
+	local MainSize = self.Vertical and self.Height or self.Width
+	-- Vertical needs to flip the position fraction as the top of the slider represents the max value.
+	local PositionFraction = self.Vertical and ( 1 - self.Fraction ) or self.Fraction
+
+	self.HandlePos[ MainAxis ] = ( MainSize - self.HandleSize[ MainAxis ] ) * PositionFraction
+	self.Handle:SetPosition( self.HandlePos )
+
+	self.Label:SetText( tostring( self.Value ) )
+
+	self:SizeLines()
+end
+
+local function OnTextSizeChanged( Label )
+	-- For vertical sliders, the label's position depends on its text height.
+	Label.Parent:SetPadding( Label.Parent:GetLabelPadding() )
+end
+
+function Slider:SetVertical( Vertical )
+	if Vertical == self.Vertical then return false end
+
+	self.Vertical = Vertical
+	self.MainAxis = Vertical and "y" or "x"
+	self.CrossAxis = Vertical and "x" or "y"
+
+	local LineAnchorX = Vertical and 0.5 or 0
+	local LineAnchorY = Vertical and 0 or 0.5
+
+	self.Line:SetAnchor( LineAnchorX, LineAnchorY )
+	self.DarkLine:SetAnchor( LineAnchorX, LineAnchorY )
+
+	-- Update the label's padding and alignment. Vertical mode has the label above the slider, horizontal has it to the
+	-- right.
+	self:SetPadding( self:GetLabelPadding() )
+	self.Label:SetAnchor( Vertical and "TopMiddle" or "CentreRight" )
+	self.Label:SetTextAlignmentX( Vertical and GUIItem.Align_Center or GUIItem.Align_Min )
+	self.Label:SetTextAlignmentY( Vertical and GUIItem.Align_Min or GUIItem.Align_Center )
+
+	if Vertical then
+		self.Label:AddPropertyChangeListener( "Font", OnTextSizeChanged )
+		self.Label:AddPropertyChangeListener( "TextScale", OnTextSizeChanged )
+	else
+		self.Label:RemovePropertyChangeListener( "Font", OnTextSizeChanged )
+		self.Label:RemovePropertyChangeListener( "TextScale", OnTextSizeChanged )
+	end
+
+	RefreshSizes( self )
+
+	return true
 end
 
 function Slider:SetupStencil()
@@ -217,60 +284,98 @@ end
 function Slider:SizeLines()
 	if not self.Width or not self.Height then return end
 
-	local LineWidth = ( self.Width - self.HandleSize.x ) * self.Fraction
-	self.LineSize.x = LineWidth
-	self.LineSize.y = self.Height * self.LineHeightMultiplier
-	self.Line:SetSize( self.LineSize )
+	local MainAxis = self.MainAxis
+	local CrossAxis = self.CrossAxis
+	local MainSize = self.Vertical and self.Height or self.Width
+	local CrossSize = self.Vertical and self.Width or self.Height
 
-	local CurrentLinePos = Vector2( 0, -self.LineSize.y * 0.5 )
+	self.LineSize[ CrossAxis ] = CrossSize * self.LineThicknessMultiplier
+
+	local CurrentLinePos = Vector2( 0, 0 )
+	CurrentLinePos[ CrossAxis ] = -self.LineSize[ CrossAxis ] * 0.5
 	self.Line:SetPosition( CurrentLinePos )
 
-	self.DarkLinePos.x = Min( LineWidth + self.HandleSize.x, self.Width )
-	self.DarkLinePos.y = CurrentLinePos.y
-	self.DarkLine:SetPosition( self.DarkLinePos )
-
-	self.DarkLineSize.x = self.Width - self.DarkLinePos.x
-	self.DarkLineSize.y = self.LineSize.y
-	self.DarkLine:SetSize( self.DarkLineSize )
-
-	self.HandleSize.y = self.Height
+	self.HandleSize[ MainAxis ] = self.HandleThickness
+	self.HandleSize[ CrossAxis ] = CrossSize
 	self.Handle:SetSize( self.HandleSize )
+
+	local MaxLineSize = MainSize - self.HandleSize[ MainAxis ]
+	local LineSize = MaxLineSize
+	if self.DarkLine:GetIsVisible() then
+		LineSize = LineSize * self.Fraction
+
+		self.DarkLinePos[ MainAxis ] = Min( LineSize + self.HandleSize[ MainAxis ], MainSize )
+		self.DarkLinePos[ CrossAxis ] = CurrentLinePos[ CrossAxis ]
+		self.DarkLine:SetPosition( self.DarkLinePos )
+
+		self.DarkLineSize[ MainAxis ] = MainSize - self.DarkLinePos[ MainAxis ]
+		self.DarkLineSize[ CrossAxis ] = self.LineSize[ CrossAxis ]
+		self.DarkLine:SetSize( self.DarkLineSize )
+	end
+
+	self.LineSize[ MainAxis ] = LineSize
+	self.Line:SetSize( self.LineSize )
 end
 
-function Slider:SetLineHeightMultiplier( Multiplier )
-	self.LineHeightMultiplier = Multiplier
+function Slider:SetLineThicknessMultiplier( Multiplier )
+	if self.LineThicknessMultiplier == Multiplier then return false end
+
+	self.LineThicknessMultiplier = Multiplier
 	self:SizeLines()
+
+	return true
+end
+-- Deprecated alias for backwards compatibility.
+Slider.SetLineHeightMultiplier = Slider.SetLineThicknessMultiplier
+
+function Slider:SetDarkLineVisible( DarkLineVisible )
+	DarkLineVisible = not not DarkLineVisible
+
+	if self.DarkLine:GetIsVisible() == DarkLineVisible then return false end
+
+	self.DarkLine:SetIsVisible( DarkLineVisible )
+	self:SizeLines()
+
+	return true
 end
 
-function Slider:SetHandleWidth( Width )
-	self.HandleSize.x = Width
+function Slider:SetHandleThickness( Thickness )
+	if self.HandleThickness == Thickness then return false end
+
+	self.HandleThickness = Thickness
+	self.HandleSize[ self.MainAxis ] = Thickness
 	self.Handle:SetSize( self.HandleSize )
-end
 
-local function RefreshSizes( self )
-	self.Fraction = Clamp( ( self.Value - self.Min ) / self.Range, 0, 1 )
-	self.HandlePos.x = ( self.Width - self.HandleSize.x ) * self.Fraction
-
-	self.Handle:SetPosition( self.HandlePos )
-	self.Label:SetText( tostring( self.Value ) )
-	self:SizeLines()
+	return true
 end
+-- Deprecated alias for backwards compatibility.
+Slider.SetHandleWidth = Slider.SetHandleThickness
 
 function Slider:SetSize( Size )
-	self.BaseClass.SetSize( self, Size )
+	if not self.BaseClass.SetSize( self, Size ) then return false end
 
 	self.Height = Size.y
 	self.Width = Size.x
 
 	RefreshSizes( self )
+
+	return true
 end
 
 function Slider:SetPadding( Value )
-	self.Label:SetPos( Vector2( Value, 0 ) )
+	local Pos = Vector2( 0, 0 )
+	local Offset
+	if self.Vertical then
+		Offset = -Value - self.Label:GetTextHeight( "1" )
+	else
+		Offset = Value
+	end
+	Pos[ self.MainAxis ] = Offset
+	self.Label:SetPos( Pos )
 end
 
 function Slider:GetLabelPadding()
-	return self.Label:GetPos().x
+	return Abs( self.Label:GetPos()[ self.MainAxis ] )
 end
 
 function Slider:GetLabelSize()
@@ -387,10 +492,9 @@ function Slider:OnMouseDown( Key, DoubleClick )
 
 	self.Dragging = true
 
-	self.DragStart = X
+	self.DragStart = self.Vertical and Y or X
 	self.StartingPos = self.Handle:GetPosition()
-
-	self.CurPos = Vector2( self.StartingPos.x, 0 )
+	self.CurPos = self.StartingPos[ self.MainAxis ]
 
 	return true, self
 end
@@ -404,7 +508,12 @@ function Slider:OnMouseUp( Key )
 		local In, X, Y = self:MouseInCached()
 		if not In then return end
 
-		local Fraction = X / self.Width
+		local Fraction
+		if self.Vertical then
+			Fraction = ( self.Height - Y ) / self.Height
+		else
+			Fraction = X / self.Width
+		end
 		self:SetFraction( Fraction, true )
 	else
 		self.Dragging = false
@@ -427,12 +536,20 @@ function Slider:OnMouseMove( Down )
 
 	local X, Y = GetCursorPos()
 
-	local Diff = X - self.DragStart
-	local WidthWithoutHandle = self.Width - self.HandleSize.x
+	local Diff = ( self.Vertical and Y or X ) - self.DragStart
+	local MainSize = self.Vertical and self.Height or self.Width
+	local SizeWithoutHandle = MainSize - self.HandleSize[ self.MainAxis ]
 
-	self.CurPos.x = Clamp( self.StartingPos.x + Diff, 0, WidthWithoutHandle )
+	self.CurPos = Clamp( self.StartingPos[ self.MainAxis ] + Diff, 0, SizeWithoutHandle )
 
-	if self:SetFraction( self.CurPos.x / WidthWithoutHandle, true ) then
+	local Fraction
+	if self.Vertical then
+		Fraction = ( SizeWithoutHandle - self.CurPos ) / SizeWithoutHandle
+	else
+		Fraction = self.CurPos / SizeWithoutHandle
+	end
+
+	if self:SetFraction( Fraction, true ) then
 		self:OnSlide( self.Value )
 	end
 end

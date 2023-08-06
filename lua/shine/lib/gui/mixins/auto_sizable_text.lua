@@ -5,9 +5,13 @@
 local AutoSizeText = {}
 local AxisSizeHandlers = {
 	function( self )
+		-- Apply any configured auto-font before getting the text size, layout may not have executed yet.
+		self:PreComputeWidth()
 		return self:GetCachedTextWidth()
 	end,
 	function( self )
+		-- Same here (yes, it's correct to call pre-compute width here, that triggers the auto-font).
+		self:PreComputeWidth()
 		return self:GetCachedTextHeight()
 	end
 }

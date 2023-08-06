@@ -130,6 +130,11 @@ local Skin = {
 			Font = Fonts.kAgencyFB_Small
 		}
 	},
+	ColourPicker = {
+		Default = {
+			BackgroundColour = DarkButton
+		}
+	},
 	Dropdown = {
 		Default = table.ShallowMerge( DefaultButton, {
 			Padding = DropdownPadding,
@@ -283,7 +288,7 @@ local Skin = {
 			HandleColour = ButtonHighlight,
 			LineColour = ButtonHighlight,
 			TextColour = BrightText,
-			LineHeightMultiplier = 0.15,
+			LineThicknessMultiplier = 0.15,
 			States = {
 				Disabled = {
 					DarkLineColour = SGUI.ColourWithAlpha( SliderDarkLineColour, 0.5 ),
@@ -292,6 +297,25 @@ local Skin = {
 					TextColour = SGUI.ColourWithAlpha( BrightText, 0.5 )
 				}
 			}
+		},
+		HuePicker = {
+			DarkLineVisible = false,
+			LineTexture = "ui/newMenu/hueRange.dds",
+			LineThicknessMultiplier = 0.75,
+			HandleColour = Colour( 1, 1, 1, 1 ),
+			LineColour = Colour( 1, 1, 1, 1 )
+		},
+		RedPicker = {
+			HandleColour = BrightText,
+			LineColour = Colour( 1, 0, 0 )
+		},
+		GreenPicker = {
+			HandleColour = BrightText,
+			LineColour = Colour( 0, 1, 0 )
+		},
+		BluePicker = {
+			HandleColour = BrightText,
+			LineColour = Colour( 0, 0.3, 1 )
 		}
 	},
 	Switch = {

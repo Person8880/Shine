@@ -347,6 +347,14 @@ if Client then
 				Default = function() return not self.Config[ ConfigKey ] end
 			}
 		end,
+		Colour = function( self, ConfigKey, Command, Options )
+			Command:AddParam{
+				Type = "colour",
+				TakeRestOfLine = true,
+				Optional = true,
+				Default = self.DefaultConfig[ ConfigKey ]
+			}
+		end,
 		Radio = function( self, ConfigKey, Command, Options )
 			Command:AddParam{
 				Type = "enum",
@@ -501,7 +509,8 @@ if Client then
 				Icon = Group.Icon
 			},
 			Tooltip = Tooltip,
-			OptionTooltips = OptionTooltips
+			OptionTooltips = OptionTooltips,
+			DefaultValue = self.DefaultConfig[ ConfigKey ]
 		} )
 
 		local PostProcessor = PostProcessors[ Options.Type ]

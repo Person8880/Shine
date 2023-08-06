@@ -80,7 +80,9 @@ end
 ]]
 function ControlMeta:Initialise()
 	self.UseScheme = true
+	self.InheritsParentAlpha = false
 	self.PropagateAlphaInheritance = false
+	self.InheritsParentScaling = false
 	self.PropagateScaleInheritance = false
 	self.PropagateSkin = true
 	self.Stencilled = false

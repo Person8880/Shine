@@ -1509,7 +1509,7 @@ Hook.Add( "OnMapLoad", "LoadGUIElements", function()
 	Shine.Hook.SetupGlobalHook( "Client.SetMouseVisible", "OnMouseVisibilityChange", "PassivePost" )
 
 	SetupRenderDeviceResetCheck()
-end )
+end, Shine.Hook.MAX_PRIORITY )
 
 Hook.CallAfterFileLoad( "lua/Commander_Client.lua", function()
 	local GetMouseIsOverUI = CommanderUI_GetMouseIsOverUI
