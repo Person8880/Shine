@@ -211,7 +211,7 @@ end
 TextureList.SetPipeline = PipelineTexture.SetPipeline
 
 do
-	local function OnRefreshed( self, OutputTexture )
+	local function OnRefreshed( self, OutputTexture, Pipeline )
 		self.RefreshContext = nil
 
 		if not self.Pipeline then
@@ -226,12 +226,19 @@ do
 				"Pipeline didn't re-render texture in list to the same output texture!"
 			)
 		end
+
+		if self.OnRefreshComplete then
+			self:OnRefreshComplete( Pipeline )
+			self.OnRefreshComplete = nil
+		end
 	end
 
-	function TextureList:Refresh()
+	function TextureList:Refresh( OnRefreshComplete )
 		if not self.Pipeline then return end
 
 		CancelTextureRefresh( self )
+
+		self.OnRefreshComplete = OnRefreshComplete
 
 		Shine.Logger:Debug( "Refreshing %s...", self )
 
@@ -350,7 +357,12 @@ end
 
 function GUIViewNode:Terminate( Context )
 	-- Free the node's temporary texture if it has one, this will also destroy the associated GUIView.
-	local OutputTexture = Context:GetVariable( self, "OutputTexture" )
+	local OutputTexture
+	if self.OutputTexture and not self.OutputTexture.Pipeline then
+		OutputTexture = self.OutputTexture
+	else
+		OutputTexture = Context:GetVariable( self, "OutputTexture" )
+	end
 	if OutputTexture then
 		OutputTexture:Free()
 	end

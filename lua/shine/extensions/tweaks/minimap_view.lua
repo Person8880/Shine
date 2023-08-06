@@ -5,12 +5,17 @@
 	making the highlight stronger.
 ]]
 
-Width = 1024
-Height = 1024
+MinimapWidth = 1024
+MinimapHeight = 1024
+
+MinimapX = 0
+MinimapY = 0
+
+NumBoxes = 0
+HighlightColour = Color( 1, 1, 1, 0 )
 
 local Stencil
 local Boxes = {}
-local DefaultColour = Color( 1, 1, 1, 0 )
 
 local function MakeBox()
 	local Box = GUI.CreateItem()
@@ -27,14 +32,15 @@ local function MakeBox()
 end
 
 local function UpdateWithValues()
-	Stencil:SetSize( Vector( _G.Width, _G.Height, 0 ) )
+	Stencil:SetSize( Vector( _G.MinimapWidth, _G.MinimapHeight, 0 ) )
+	Stencil:SetPosition( Vector( _G.MinimapX, _G.MinimapY, 0 ) )
 
 	if _G.MinimapTexture then
 		Stencil:SetTexture( _G.MinimapTexture )
 	end
 
-	local RectColour = _G.HighlightColour or DefaultColour
-	local NumBoxes = _G.NumBoxes or 0
+	local RectColour = _G.HighlightColour
+	local NumBoxes = _G.NumBoxes
 
 	for i = 1, math.max( NumBoxes, #Boxes ) do
 		local X = _G[ "X"..i ]

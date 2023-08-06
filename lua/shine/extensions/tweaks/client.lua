@@ -4,6 +4,10 @@
 
 local RenderPipeline = require "shine/lib/gui/util/pipeline"
 
+local SGUI = Shine.GUI
+
+local Ceil = math.ceil
+local Floor = math.floor
 local Max = math.max
 local Min = math.min
 local StringFormat = string.format
@@ -48,14 +52,19 @@ Shine.Hook.CallAfterFileLoad( "lua/GUIMinimap.lua", function()
 	Shine.Hook.SetupClassHook( "GUIMinimap", "UpdatePlayerIcon", "OnGUIMinimapUpdatePlayerIcon", "PassivePost" )
 end )
 
-local MINIMAP_WIDTH, MINIMAP_HEIGHT = 1024, 1024
-
 function Plugin:Initialise()
 	self.Minimaps = Shine.Set()
+	self:GenerateMinimapHighlightPipeline()
+	return true
+end
 
+function Plugin:GenerateMinimapHighlightPipeline()
+	-- Use the current screen resolution as the texture size to ensure that positions/sizes match exactly between the
+	-- GUIView and the actual screen.
+	local Width, Height = SGUI.GetScreenSize()
 	local BlurPipeline = RenderPipeline.ApplyBlurToNode( {
-		Width = MINIMAP_WIDTH,
-		Height = MINIMAP_HEIGHT,
+		Width = Width,
+		Height = Height,
 		BlurRadius = 8,
 		NodeToBlur = RenderPipeline.GUIViewNode {
 			View = Shine.GetPluginFile( self:GetName(), "minimap_view.lua" ),
@@ -68,8 +77,6 @@ function Plugin:Initialise()
 			Input = {}
 		}
 	} )
-
-	return true
 end
 
 function Plugin:GetConfiguredColour( Name )
@@ -77,23 +84,45 @@ function Plugin:GetConfiguredColour( Name )
 	return Colour( ConfiguredColour[ 1 ] / 255, ConfiguredColour[ 2 ] / 255, ConfiguredColour[ 3 ] / 255 )
 end
 
-function Plugin:OnGUIMinimapDestroy( Minimap )
-	if Minimap.HighlightView then
-		-- Clean up the GUI view as it's not part of the minimap item hierarchy.
-		Client.DestroyGUIView( Minimap.HighlightView )
-		Minimap.HighlightView = nil
+local function CreateHighlightPipeline( self, Minimap )
+	Minimap.HighlightPipeline = self.HighlightPipeline:Copy()
+	Minimap.HighlightPipeline.Minimap = Minimap
+end
+
+local function DestroyHighlightPipeline( Minimap )
+	if Minimap.HighlightViewTexture then
+		Minimap.HighlightViewTexture:Free()
+		Minimap.HighlightViewTexture = nil
 	end
+
+	if Minimap.HighlightPipelineContext then
+		Minimap.HighlightPipelineContext:Terminate()
+		Minimap.HighlightPipelineContext:RemoveHooks()
+		Minimap.HighlightPipelineContext = nil
+	end
+
+	Minimap.HighlightPipeline = nil
+end
+
+function Plugin:OnGUIMinimapDestroy( Minimap )
+	DestroyHighlightPipeline( Minimap )
 
 	self.Minimaps:Remove( Minimap )
 end
 
-function Plugin:InvalidateLocationCache()
+function Plugin:OnResolutionChanged()
+	self:GenerateMinimapHighlightPipeline()
+
 	for Minimap in self.Minimaps:Iterate() do
-		-- Force an update of the location box.
+		-- Destroy any previously rendered highlight texture, as it needs to update to use the new screen resolution.
+		DestroyHighlightPipeline( Minimap )
+
+		CreateHighlightPipeline( self, Minimap )
+
+		-- Force an update of the location highlight.
 		Minimap.LastLocationName = nil
 	end
 end
-Plugin.OnResolutionChanged = Plugin.InvalidateLocationCache
 
 function Plugin:GetLocationsForName( Name )
 	if not self.LocationIndex then
@@ -115,14 +144,19 @@ function Plugin:SetupMinimap( Minimap )
 
 	local MinimapItem = Minimap.minimap
 	if not Minimap.HighlightPipeline then
-		Minimap.HighlightPipeline = self.HighlightPipeline:Copy()
-		Minimap.HighlightPipeline.Minimap = Minimap
+		CreateHighlightPipeline( self, Minimap )
 	end
 
 	if not Minimap.HighlightItem then
 		Minimap.HighlightItem = GUIManager:CreateGraphicItem()
+		-- Ensure the user's minimap alpha setting is respected.
 		Minimap.HighlightItem:SetInheritsParentAlpha( true )
-		Minimap.HighlightItem:SetSize( MinimapItem:GetSize() )
+		-- Put the highlight item behind the minimap to ensure the glowing edges that overlap with the minimap texture
+		-- are blended correctly. Having the highlight item above the minimap results in harsh, obvious blending lines.
+		-- Note that for users with minimap alpha = 1, no blending will be visible (but that's fine, it doesn't look bad
+		-- unlike rendering above).
+		Minimap.HighlightItem:SetLayer( -100 )
+		-- Ignore the stencil boxes that are applied to the main minimap item, this should be rendered regardless.
 		Minimap.HighlightItem:SetInheritsParentStencilSettings( false )
 		Minimap.HighlightItem:SetStencilFunc( GUIItem.Always )
 		Minimap.HighlightItem:SetIsVisible( false )
@@ -141,8 +175,11 @@ local function GetStencilBox( Minimap, Index )
 		Box:SetInheritsParentAlpha( false )
 		Box:SetInheritsParentStencilSettings( false )
 		Box:SetIsStencil( true )
+		-- Need to clear on the first box, otherwise stencil bits can be left behind from previous frames.
 		Box:SetClearsStencilBuffer( Index == 1 )
 		Box:SetAnchor( GUIItem.Middle, GUIItem.Center )
+		-- Put the stencil box behind the minimap so it renders first (and thus writes to the stencil buffer before
+		-- the minimap is drawn).
 		Box:SetLayer( -100 )
 		Minimap.background:AddChild( Box )
 		Minimap.HighlightStencilBoxes[ Index ] = Box
@@ -167,16 +204,19 @@ local function OnRefreshComplete( HighlightViewTexture, Pipeline )
 	local Minimap = Pipeline.Minimap
 	if not Minimap.HighlightItem or not Minimap.StencilBoxParams then return end
 
-	for i = 1, #Minimap.StencilBoxParams do
+	-- Update the screen-space stencil boxes once the highlight texture has been updated to represent the current
+	-- location to stop the main minimap rendering over the top of it.
+	local NumBoxes = #Minimap.StencilBoxParams
+	for i = 1, NumBoxes do
 		local Params = Minimap.StencilBoxParams[ i ]
 		local Box = GetStencilBox( Minimap, i )
-		Box:SetPosition( Vector2( math.floor( Params.X ), math.floor( Params.Y ) ) )
-		Box:SetSize( Vector2( math.ceil( Params.W ), math.ceil( Params.H ) ) )
+		Box:SetPosition( Vector2( Params.X, Params.Y ) )
+		Box:SetSize( Vector2( Params.W, Params.H ) )
 		Box:SetIsVisible( true )
 		Box:SetIsStencil( true )
 	end
 
-	for i = #Minimap.StencilBoxParams + 1, #Minimap.HighlightStencilBoxes do
+	for i = NumBoxes + 1, #Minimap.HighlightStencilBoxes do
 		Minimap.HighlightStencilBoxes[ i ]:SetIsVisible( false )
 		Minimap.HighlightStencilBoxes[ i ]:SetIsStencil( false )
 	end
@@ -212,10 +252,11 @@ function Plugin:RefreshMinimapHighlightTexture( Minimap, StencilBoxParams )
 		Minimap.HighlightViewTexture:Refresh( OnRefreshComplete )
 	else
 		-- Not rendered yet, trigger the first render.
+		local Width, Height = SGUI.GetScreenSize()
 		Minimap.HighlightPipelineContext = RenderPipeline.Execute(
 			Minimap.HighlightPipeline,
-			MINIMAP_WIDTH,
-			MINIMAP_HEIGHT,
+			Width,
+			Height,
 			OnMinimapHighlightRenderCompleted
 		)
 	end
@@ -242,7 +283,10 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 	-- Set up the location item and GUIView just-in-time to ensure they're only created for relevant minimaps.
 	self:SetupMinimap( Minimap )
 
-	Minimap.HighlightItem:SetSize( Minimap.minimap:GetSize() )
+	local Pos = Minimap.minimap:GetScreenPosition( SGUI.GetScreenSize() )
+	local MinimapSize = Minimap.minimap:GetSize()
+	Minimap.HighlightItem:SetSize( MinimapSize )
+	Minimap.HighlightItem:SetTexturePixelCoordinates( Pos.x, Pos.y, Pos.x + MinimapSize.x, Pos.y + MinimapSize.y )
 	Minimap.HighlightItem:SetIsVisible( not not Minimap.HighlightViewTexture )
 
 	local TeamNumber = PlayerUI_GetTeamNumber()
@@ -293,21 +337,31 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 	-- Locations are composed of multiple trigger entities, so draw a box for each one.
 	local Locations = self:GetLocationsForName( LocationName )
 	local NumLocations = #Locations
-	local Size = Minimap.HighlightItem:GetSize()
 
 	local MinimapNodeInput = Minimap.HighlightPipeline.Nodes[ 1 ].Input
 	local BlendNodeInput = Minimap.HighlightPipeline.Nodes[ 4 ].Input
 	TableEmpty( MinimapNodeInput )
 	TableEmpty( BlendNodeInput )
 
+	-- Initial inputs are shared by both GUIViews, setting up the minimap's texture, position and size.
 	MinimapNodeInput[ 1 ] = Input( "MinimapTexture", Minimap.minimap:GetTexture() )
 	BlendNodeInput[ 1 ] = MinimapNodeInput[ 1 ]
 	MinimapNodeInput[ 2 ] = Input( "NumBoxes", NumLocations )
 	BlendNodeInput[ 2 ] = MinimapNodeInput[ 2 ]
-	MinimapNodeInput[ 3 ] = Input( "HighlightColour", BackgroundColour )
-	BlendNodeInput[ 3 ] = Input( "BackgroundTexture", RenderPipeline.TextureInput )
+	MinimapNodeInput[ 3 ] = Input( "MinimapWidth", MinimapSize.x )
+	BlendNodeInput[ 3 ] = MinimapNodeInput[ 3 ]
+	MinimapNodeInput[ 4 ] = Input( "MinimapHeight", MinimapSize.y )
+	BlendNodeInput[ 4 ] = MinimapNodeInput[ 4 ]
+	MinimapNodeInput[ 5 ] = Input( "MinimapX", Pos.x )
+	BlendNodeInput[ 5 ] = MinimapNodeInput[ 5 ]
+	MinimapNodeInput[ 6 ] = Input( "MinimapY", Pos.y )
+	BlendNodeInput[ 6 ] = MinimapNodeInput[ 6 ]
 
-	local Count = 3
+	-- First GUIView renders the highlight, second produces the final output.
+	MinimapNodeInput[ 7 ] = Input( "HighlightColour", BackgroundColour )
+	BlendNodeInput[ 7 ] = Input( "BackgroundTexture", RenderPipeline.TextureInput )
+
+	local Count = 7
 	local StencilBoxParams = {}
 
 	for i = 1, NumLocations do
@@ -324,13 +378,15 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 		local Width = BottomRightX - TopLeftX
 		local Height = BottomRightY - TopLeftY
 
-		-- TODO: Make GUIView texture size and box co-ordinates reflect the minimap item's size to avoid precision
-		-- differences causing gaps in the rendering.
-		local X = math.floor( TopLeftX ) / Size.x * MINIMAP_WIDTH
-		local Y = math.floor( TopLeftY ) / Size.y * MINIMAP_HEIGHT
-		local W = math.ceil( Width ) / Size.x * MINIMAP_WIDTH
-		local H = math.ceil( Height ) / Size.y * MINIMAP_HEIGHT
+		-- Use integer co-ordinates to avoid sub-pixel rendering.
+		-- These are shared between the main screen's stencil boxes, and the GUIView stencil boxes to ensure both are
+		-- rendering to the exact same pixels.
+		local X = Floor( TopLeftX )
+		local Y = Floor( TopLeftY )
+		local W = Ceil( Width )
+		local H = Ceil( Height )
 
+		-- Both GUIViews need the location boxes to restrict rendering.
 		Count = Count + 1
 		MinimapNodeInput[ Count ] = Input( "X"..i, X )
 		BlendNodeInput[ Count ] = MinimapNodeInput[ Count ]
@@ -345,13 +401,15 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 		BlendNodeInput[ Count ] = MinimapNodeInput[ Count ]
 
 		StencilBoxParams[ i ] = {
-			X = TopLeftX,
-			Y = TopLeftY,
-			W = Width,
-			H = Height
+			X = X,
+			Y = Y,
+			W = W,
+			H = H
 		}
 	end
 
+	-- Cut out the highlight item from the minimap, as the highlight item contains the minimap plus the highlight glow
+	-- (equal means everything except the stencil, somewhat backwards).
 	Minimap.minimap:SetStencilFunc( GUIItem.Equal )
 
 	self:RefreshMinimapHighlightTexture( Minimap, StencilBoxParams )
@@ -372,20 +430,10 @@ function Plugin:Cleanup()
 			Minimap.HighlightStencilBoxes = nil
 		end
 
-		if Minimap.HighlightViewTexture then
-			Minimap.HighlightViewTexture:Free()
-			Minimap.HighlightViewTexture = nil
-		end
-
-		if Minimap.HighlightPipelineContext then
-			Minimap.HighlightPipelineContext:Terminate()
-			Minimap.HighlightPipelineContext:RemoveHooks()
-			Minimap.HighlightPipelineContext = nil
-		end
+		DestroyHighlightPipeline( Minimap )
 
 		Minimap.minimap:SetStencilFunc( Minimap.stencilFunc or GUIItem.Always )
 
-		Minimap.HighlightPipeline = nil
 		Minimap.LastLocationName = nil
 		Minimap.LastPowered = nil
 	end

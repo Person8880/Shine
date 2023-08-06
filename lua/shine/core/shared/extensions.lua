@@ -1025,4 +1025,4 @@ Hook.Add( "OnMapLoad", "AutoLoadExtensions", function()
 			end
 		end
 	end
-end, Shine.Hook.MAX_PRIORITY )
+end, Shine.Hook.MAX_PRIORITY + 1 )

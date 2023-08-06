@@ -10,29 +10,46 @@
 Width = 1024
 Height = 1024
 
+MinimapWidth = 1024
+MinimapHeight = 1024
+
+MinimapX = 0
+MinimapY = 0
+
+NumBoxes = 0
+
 local Background
 local Overlay
+local MinimapContainer
 local Minimap
 local Boxes = {}
 
-local function MakeBox()
+local function MakeBox( Index )
 	local Box = GUI.CreateItem()
 	Box:SetInheritsParentAlpha( false )
 	Box:SetInheritsParentStencilSettings( false )
 	Box:SetIsStencil( true )
-	Box:SetClearsStencilBuffer( false )
+	Box:SetClearsStencilBuffer( Index == 1 )
 	Box:SetAnchor( GUIItem.Middle, GUIItem.Center )
 
-	Background:AddChild( Box )
+	MinimapContainer:AddChild( Box )
 
 	return Box
 end
 
 local function UpdateWithValues()
+	-- The background and overlay items contain the previously rendered screen-size texture, so they need to use the
+	-- size of the GUIView itself.
 	local Size = Vector( _G.Width, _G.Height, 0 )
 	Background:SetSize( Size )
-	Minimap:SetSize( Size )
 	Overlay:SetSize( Size )
+
+	-- The minimap however needs to render at the exact position and size that it is on the main screen.
+	MinimapContainer:SetPosition( Vector( _G.MinimapX, _G.MinimapY, 0 ) )
+
+	local MinimapSize = Vector( _G.MinimapWidth, _G.MinimapHeight, 0 )
+	MinimapContainer:SetSize( MinimapSize )
+	Minimap:SetSize( MinimapSize )
 
 	if _G.MinimapTexture then
 		Minimap:SetTexture( _G.MinimapTexture )
@@ -43,7 +60,7 @@ local function UpdateWithValues()
 		Overlay:SetTexture( _G.BackgroundTexture )
 	end
 
-	local NumBoxes = _G.NumBoxes or 0
+	local NumBoxes = _G.NumBoxes
 
 	-- Update the boxes to constrain the minimap texture rendering to just the current location.
 	-- This will blend over the top of the background highlight to produce a glowing texture.
@@ -58,7 +75,7 @@ local function UpdateWithValues()
 			if Box then Box:SetIsVisible( false ) end
 		else
 			if not Box then
-				Box = MakeBox()
+				Box = MakeBox( i )
 				Boxes[ i ] = Box
 			end
 
@@ -76,18 +93,20 @@ function Initialise()
 	Background = GUI.CreateItem()
 	Background:SetBlendTechnique( GUIItem.Set )
 	Background:SetColor( Color( 1, 1, 1, 1 ) )
-	Background:SetIsVisible( true )
+
+	MinimapContainer = GUI.CreateItem()
+	MinimapContainer:SetColor( Color( 0, 0, 0, 0 ) )
+	Background:AddChild( MinimapContainer )
 
 	-- Minimap is drawn over the top of the highlighting, but constrained to be within the current location only.
 	Minimap = GUI.CreateItem()
 	Minimap:SetLayer( 100 )
 	Minimap:SetStencilFunc( GUIItem.NotEqual )
 	Minimap:SetColor( Color( 1, 1, 1, 1 ) )
-	Background:AddChild( Minimap )
+	MinimapContainer:AddChild( Minimap )
 
 	-- Overlay adds colour on top of the opaque minimap.
 	Overlay = GUI.CreateItem()
-	Overlay:SetIsVisible( true )
 	Overlay:SetLayer( 150 )
 	Overlay:SetColor( Color( 1, 1, 1, 0.4 ) )
 	Overlay:SetBlendTechnique( GUIItem.Add )
