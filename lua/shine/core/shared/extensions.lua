@@ -232,15 +232,15 @@ do
 		return true
 	end
 
-	local function WarnAboutInconsistentCanLoad( self, Name, Plugin, VMName, SharedPluginCanLoad )
+	local function WarnAboutInconsistentCanLoad( Name, Plugin, VMName, SharedPluginCanLoad )
 		if not Plugin.IsShared or not SharedPluginCanLoad then return end
 
 		Print(
-			"[Shine] [Warn] Plugin %s has been prevented from loading on the %s, "..
+			"[Shine] [Warn] Plugin '%s' has been prevented from loading on the %s, "..
 			"but not in shared.lua. If the %s does not prevent loading the plugin "..
 			"then clients will be disconnected with invalid data. Use shared.lua "..
 			"to declare EnabledGamemodes/DisabledGamemodes (or a shared CanPluginLoad hook) to avoid this.",
-			Name, VMName, VMName == "client" and "server" or "client"
+			Name, VMName, VMName == "server" and "client" or "server"
 		)
 	end
 
@@ -299,7 +299,7 @@ do
 
 			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
 			if not CanLoad then
-				WarnAboutInconsistentCanLoad( self, Name, Plugin, "client", SharedPluginCanLoad )
+				WarnAboutInconsistentCanLoad( Name, Plugin, "client", SharedPluginCanLoad )
 				self.Plugins[ Name ] = nil
 				return false, FailureReason
 			end
@@ -326,8 +326,7 @@ do
 
 			local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
 			if not CanLoad then
-				-- Note that prediction VM doesn't have to register every network message, so it's OK to be inconsistent
-				-- with other VMs here.
+				WarnAboutInconsistentCanLoad( Name, Plugin, "predict VM", SharedPluginCanLoad )
 				self.Plugins[ Name ] = nil
 				return false, FailureReason
 			end
@@ -361,7 +360,7 @@ do
 
 		local CanLoad, FailureReason = self:CanPluginLoad( Plugin )
 		if not CanLoad then
-			WarnAboutInconsistentCanLoad( self, Name, Plugin, "server", SharedPluginCanLoad )
+			WarnAboutInconsistentCanLoad( Name, Plugin, "server", SharedPluginCanLoad )
 			self.Plugins[ Name ] = nil
 			return false, FailureReason
 		end
