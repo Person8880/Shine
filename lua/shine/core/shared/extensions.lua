@@ -963,6 +963,7 @@ if Server then
 	-- plugin state, an entity is required.
 	Hook.Add( "MapPostLoad", "ShinePluginsInfoEntity", function()
 		local PluginsEntity = Server.CreateEntity( ShinePluginsInfoEntity.kMapName )
+		assert( PluginsEntity, "Could not create plugin info entity!" )
 
 		Hook.Add( "OnPluginLoad", PluginsEntity, function( Name )
 			if not PredictPlugins[ Name ] then return end
