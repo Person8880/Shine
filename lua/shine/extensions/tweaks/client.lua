@@ -53,6 +53,9 @@ Shine.Hook.CallAfterFileLoad( "lua/GUIMinimap.lua", function()
 	Shine.Hook.SetupClassHook( "GUIMinimap", "ShowMap", "OnGUIMinimapShowMap", "PassivePost" )
 end )
 
+local BLUR_RADIUS = 8
+local DOUBLE_BLUR_RADIUS = BLUR_RADIUS * 2
+
 function Plugin:Initialise()
 	self:BroadcastModuleEvent( "Initialise" )
 	self.Minimaps = Shine.Set()
@@ -67,7 +70,7 @@ function Plugin:GenerateMinimapHighlightPipeline()
 	local BlurPipeline = RenderPipeline.ApplyBlurToNode( {
 		Width = Width,
 		Height = Height,
-		BlurRadius = 8,
+		BlurRadius = BLUR_RADIUS,
 		NodeToBlur = RenderPipeline.GUIViewNode {
 			View = Shine.GetPluginFile( self:GetName(), "minimap_view.lua" ),
 			Input = {}
@@ -173,6 +176,8 @@ function Plugin:SetupMinimap( Minimap )
 		Minimap.HighlightItem:SetInheritsParentStencilSettings( false )
 		Minimap.HighlightItem:SetStencilFunc( GUIItem.Always )
 		Minimap.HighlightItem:SetIsVisible( false )
+		Minimap.HighlightItem:SetPosition( Vector2( -BLUR_RADIUS, -BLUR_RADIUS ) )
+		Minimap.HighlightItemSize = Vector2( 0, 0 )
 		MinimapItem:AddChild( Minimap.HighlightItem )
 
 		Minimap.HighlightingState = HighlightingState.PENDING
@@ -345,8 +350,15 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 	local TextureHasRendered = not not Minimap.HighlightViewTexture
 	local Pos = Minimap.minimap:GetScreenPosition( SGUI.GetScreenSize() )
 	local MinimapSize = Minimap.minimap:GetSize()
-	Minimap.HighlightItem:SetSize( MinimapSize )
-	Minimap.HighlightItem:SetTexturePixelCoordinates( Pos.x, Pos.y, Pos.x + MinimapSize.x, Pos.y + MinimapSize.y )
+	Minimap.HighlightItemSize.x = MinimapSize.x + DOUBLE_BLUR_RADIUS
+	Minimap.HighlightItemSize.y = MinimapSize.y + DOUBLE_BLUR_RADIUS
+	Minimap.HighlightItem:SetSize( Minimap.HighlightItemSize )
+	Minimap.HighlightItem:SetTexturePixelCoordinates(
+		Pos.x - BLUR_RADIUS,
+		Pos.y - BLUR_RADIUS,
+		Pos.x + MinimapSize.x + BLUR_RADIUS,
+		Pos.y + MinimapSize.y + BLUR_RADIUS
+	)
 	Minimap.HighlightItem:SetIsVisible( TextureHasRendered and Minimap.HighlightingState ~= HighlightingState.HIDDEN )
 	-- Cut out the highlight item from the minimap, as the highlight item contains the minimap plus the highlight glow
 	-- (equal means everything except the stencil, somewhat backwards).
@@ -509,6 +521,7 @@ function Plugin:Cleanup()
 		if Minimap.HighlightItem then
 			GUI.DestroyItem( Minimap.HighlightItem )
 			Minimap.HighlightItem = nil
+			Minimap.HighlightItemSize = nil
 		end
 
 		if Minimap.HighlightStencilBoxes then
