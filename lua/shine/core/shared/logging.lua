@@ -8,8 +8,9 @@ do
 	local Date = os.date
 	local Writer
 	if Client or Predict then
+		local Tag = Predict and " [Predict]" or ""
 		Writer = function( Text )
-			Print( "%s[Shine] %s", Date( "[%H:%M:%S]" ), Text )
+			Print( "%s[Shine]%s %s", Date( "[%H:%M:%S]" ), Tag, Text )
 		end
 	else
 		Writer = function( Text )

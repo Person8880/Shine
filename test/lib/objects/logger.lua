@@ -26,13 +26,13 @@ UnitTest:Test( "Message is logged when level is higher", function( Assert )
 	end
 
 	local Instance = Logger( LogLevel.INFO, Writer )
-	Instance:Error( "Error" )
+	Instance:Error( "Error: %s", "test" )
 	Instance:Warn( "Warn" )
-	Instance:Info( "Info" )
+	Instance:Info( "Info: %d", 123 )
 	Instance:Debug( "Debug" )
 	Instance:Trace( "Trace" )
 
-	Assert:ArrayEquals( { "[Error] Error", "[Warn] Warn", "[Info] Info" }, Text )
+	Assert:ArrayEquals( { "[Error] Error: test", "[Warn] Warn", "[Info] Info: 123" }, Text )
 end )
 
 UnitTest:Test( "Is<X>Enabled", function( Assert )

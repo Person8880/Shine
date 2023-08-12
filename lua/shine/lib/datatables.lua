@@ -29,6 +29,7 @@ local pairs = pairs
 local rawget = rawget
 local rawset = rawset
 local StringExplode = string.Explode
+local StringFormat = string.format
 local TableGetKeys = table.GetKeys
 local tonumber = tonumber
 local type = type
@@ -57,9 +58,12 @@ local function DefineDataTableEntity( Name )
 	return DataTableClass
 end
 
+local function GetFieldNetworkMessageName( DTName, Key )
+	return StringFormat( "%s/%s", DTName, Key )
+end
+
 if Server then
 	local getmetatable = getmetatable
-	local StringFormat = string.format
 
 	-- These are the same, but doing it this way makes it more future proof.
 	local AngleMeta = getmetatable( Angles() )
@@ -124,20 +128,22 @@ if Server then
 		local Access = rawget( self, "__Access" )
 		local Name = rawget( self, "__Name" )
 
+		local NetworkMessageName = GetFieldNetworkMessageName( Name, Key )
+
 		if Access and Access[ Key ] then
 			local Clients = Shine:GetClientsWithAccess( Access[ Key ] )
 
 			for i = 1, #Clients do
 				local Client = Clients[ i ]
 				if Client then
-					Shine.SendNetworkMessage( Client, Name..Key, { [ Key ] = Value }, true )
+					Shine.SendNetworkMessage( Client, NetworkMessageName, { [ Key ] = Value }, true )
 				end
 			end
 
 			return
 		end
 
-		Shine.SendNetworkMessage( Name..Key, { [ Key ] = Value }, true )
+		Shine.SendNetworkMessage( NetworkMessageName, { [ Key ] = Value }, true )
 
 		-- If there's a predicted entity, update its network variable too.
 		local DTEntity = rawget( self, "__Entity" )
@@ -176,16 +182,34 @@ if Server then
 			return Register
 		end
 
+		Shared.RegisterNetworkMessage( Name, Values )
+
+		local ValueTypeNames = {}
+		for Key, Type in pairs( Values ) do
+			local FirstWord = StringExplode( Type, " ", true )[ 1 ]
+			if not TypeCheckers[ FirstWord ] then
+				error( StringFormat( "Unsupported datatable variable type for key '%s': %s", Key, Type ), 2 )
+			end
+
+			ValueTypeNames[ Key ] = FirstWord
+
+			Shared.RegisterNetworkMessage( GetFieldNetworkMessageName( Name, Key ), { [ Key ] = Type } )
+		end
+
 		local DT = {
 			__Name = Name,
-			__Access = Access
+			__Access = Access,
+			__Values = ValueTypeNames
 		}
-
 		RealData[ DT ] = {}
 
 		local Data = RealData[ DT ]
 		for Key, Default in pairs( Defaults ) do
-			Data[ Key ] = Default
+			local FieldType = ValueTypeNames[ Key ]
+			if FieldType then
+				Default = TypeCheck( FieldType, Default )
+				Data[ Key ] = Default
+			end
 		end
 
 		if Predicted then
@@ -193,11 +217,14 @@ if Server then
 			-- represented by an entity as well as network messages.
 			local DataTableClass = DefineDataTableEntity( Name )
 			local Keys = TableGetKeys( Values )
+			local Logger = Shine.Logger
+
 			function DataTableClass:OnCreate()
 				Entity.OnCreate( self )
 
 				-- This is a global utility entity, so always network it.
 				self:SetPropagate( Entity.Propagate_Always )
+				self:SetUpdates( false )
 
 				-- Initialise the datatable values on creation, future updates are handled by __newindex above.
 				for i = 1, #Keys do
@@ -206,6 +233,10 @@ if Server then
 						self[ Keys[ i ] ] = Value
 					end
 				end
+			end
+
+			function DataTableClass:OnDestroy()
+				Logger:Warn( "Datatable entity %s is being destroyed, this will break prediction VM networking!", Name )
 			end
 
 			Shared.LinkClassToMap( Name, DataTableClass.kMapName, Values )
@@ -223,18 +254,6 @@ if Server then
 			end )
 		end
 
-		Shared.RegisterNetworkMessage( Name, Values )
-
-		local ValueTypeNames = {}
-		for Key, Type in pairs( Values ) do
-			Shared.RegisterNetworkMessage( Name..Key, { [ Key ] = Type } )
-
-			local FirstWord = StringExplode( Type, " ", true )[ 1 ]
-			ValueTypeNames[ Key ] = FirstWord
-		end
-
-		DT.__Values = ValueTypeNames
-
 		Registered[ Name ] = DT
 
 		return setmetatable( DT, DataTableMeta )
@@ -250,7 +269,12 @@ if Server then
 			else
 				for Key, Value in pairs( Data ) do
 					if not Access[ Key ] or Shine:HasAccess( Client, Access[ Key ] ) then
-						Shine.SendNetworkMessage( Client, Name..Key, { [ Key ] = Value }, true )
+						Shine.SendNetworkMessage(
+							Client,
+							GetFieldNetworkMessageName( Name, Key ),
+							{ [ Key ] = Value },
+							true
+						)
 					end
 				end
 			end
@@ -321,10 +345,14 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access, Predicted )
 		local DataTableClass = DefineDataTableEntity( Name )
 		local Keys = TableGetKeys( Values )
 		local NumKeys = #Keys
+
+		local Logger = Shine.Logger
+
 		function DataTableClass:OnCreate()
 			Entity.OnCreate( self )
 
 			self:SetPropagate( Entity.Propagate_Always )
+			self:SetUpdates( false )
 
 			if Predict then
 				local LastSeenState = {}
@@ -342,6 +370,13 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access, Predicted )
 						if LastState ~= NewState then
 							LastSeenState[ Key ] = NewState
 							OnDataUpdated( DT, Key, NewState )
+							Logger:Trace(
+								"Datatable %s changed key '%s' from %s to %s",
+								Name,
+								Key,
+								LastState,
+								NewState
+							)
 						end
 					end
 				end )
@@ -356,7 +391,7 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access, Predicted )
 			Data[ Key ] = Defaults[ Key ]
 		end
 
-		local ID = Name..Key
+		local ID = GetFieldNetworkMessageName( Name, Key )
 
 		Shared.RegisterNetworkMessage( ID, { [ Key ] = Type } )
 

@@ -6,9 +6,10 @@
 
 local Shine = Shine
 local IsType = Shine.IsType
+local Logger = Shine.Logger
 
--- loadfile allows catching errors in the file being executed, Script.Load does not...
 local getmetatable = getmetatable
+-- loadfile allows catching errors in the file being executed, Script.Load does not...
 local loadfile = loadfile
 local next = next
 local pairs = pairs
@@ -895,87 +896,93 @@ for i = 1, #AllPluginsArray do
 	end
 end
 
-class "ShinePluginsInfoEntity" ( Entity )
+do
+	class "ShinePluginsInfoEntity" ( Entity )
 
-ShinePluginsInfoEntity.kMapName = "shine_plugins_info_entity"
+	ShinePluginsInfoEntity.kMapName = "shine_plugins_info_entity"
 
-local PredictedPluginNames = table.GetKeys( PredictPlugins )
+	local PredictedPluginNames = table.GetKeys( PredictPlugins )
+	local NumPredictedPlugins = #PredictedPluginNames
 
-function ShinePluginsInfoEntity:OnCreate()
-	Entity.OnCreate( self )
+	function ShinePluginsInfoEntity:OnCreate()
+		Entity.OnCreate( self )
 
-	-- This is a global utility entity, so always network it.
-	self:SetPropagate( Entity.Propagate_Always )
+		-- This is a global utility entity, so always network it.
+		self:SetPropagate( Entity.Propagate_Always )
+		self:SetUpdates( false )
 
-	if Server then
-		for i = 1, #PredictedPluginNames do
-			local Name = PredictedPluginNames[ i ]
-			if Shine.Plugins[ Name ] and Shine.Plugins[ Name ].Enabled then
-				self[ Name ] = true
-			else
-				self[ Name ] = false
-			end
-		end
-	end
-
-	if Predict then
-		local LastSeenState = {}
-		for i = 1, #PredictedPluginNames do
-			local Name = PredictedPluginNames[ i ]
-			LastSeenState[ Name ] = self[ Name ]
-
-			if self[ Name ] and not Shine:IsExtensionEnabled( Name ) then
-				Shine:EnableExtension( Name )
-			end
-		end
-
-		-- In the prediction VM, OnProcessMove is the only "think"-like hook available, there's no update tick.
-		-- In addition, field watchers don't work, so this is the only way to observe changes in the plugin state to
-		-- enable plugins in the prediction VM.
-		Hook.Add( "OnProcessMove", self, function()
-			for i = 1, #PredictedPluginNames do
+		if Server then
+			for i = 1, NumPredictedPlugins do
 				local Name = PredictedPluginNames[ i ]
-				local Enabled = self[ Name ]
-				if LastSeenState[ Name ] ~= Enabled then
-					LastSeenState[ Name ] = Enabled
+				self[ Name ] = Shine:IsExtensionEnabled( Name )
+			end
+		end
 
-					if Enabled and not Shine:IsExtensionEnabled( Name ) then
-						Shine:EnableExtension( Name )
-					elseif not Enabled and Shine:IsExtensionEnabled( Name ) then
-						Shine:UnloadExtension( Name )
-					end
+		if Predict then
+			local LastSeenState = {}
+			for i = 1, NumPredictedPlugins do
+				local Name = PredictedPluginNames[ i ]
+				LastSeenState[ Name ] = self[ Name ]
+
+				if self[ Name ] and not Shine:IsExtensionEnabled( Name ) then
+					Shine:EnableExtension( Name )
 				end
 			end
+
+			-- In the prediction VM, OnProcessMove is the only "think"-like hook available, there's no update tick.
+			-- In addition, field watchers don't work, so this is the only way to observe changes in the plugin state to
+			-- enable plugins in the prediction VM.
+			Hook.Add( "OnProcessMove", self, function()
+				for i = 1, NumPredictedPlugins do
+					local Name = PredictedPluginNames[ i ]
+					local Enabled = self[ Name ]
+					if LastSeenState[ Name ] ~= Enabled then
+						LastSeenState[ Name ] = Enabled
+
+						if Enabled and not Shine:IsExtensionEnabled( Name ) then
+							Logger:Debug( "Enabling plugin '%s'...", Name )
+							Shine:EnableExtension( Name )
+						elseif not Enabled and Shine:IsExtensionEnabled( Name ) then
+							Logger:Debug( "Disabling plugin '%s'...", Name )
+							Shine:UnloadExtension( Name )
+						end
+					end
+				end
+			end )
+		end
+	end
+
+	Shared.LinkClassToMap( "ShinePluginsInfoEntity", ShinePluginsInfoEntity.kMapName, PredictPlugins )
+
+	if Server then
+		Hook.CallAfterFileLoad( "lua/NS2Gamerules.lua", function()
+			-- Protect the plugin info entity from being destroyed whenever the gamerules resets the game world.
+			NS2Gamerules.resetProtectedEntities[ #NS2Gamerules.resetProtectedEntities + 1 ] = "ShinePluginsInfoEntity"
+		end )
+
+		function ShinePluginsInfoEntity:OnDestroy()
+			Logger:Warn( "Plugin info entity is being destroyed, this will break prediction VM networking!" )
+		end
+
+		-- Prediction VM can't receive network messages (despite having a hook function for them), so in order to sync
+		-- plugin state, an entity is required.
+		Hook.Add( "MapPostLoad", "ShinePluginsInfoEntity", function()
+			local PluginsEntity = Server.CreateEntity( ShinePluginsInfoEntity.kMapName )
+			assert( PluginsEntity, "Could not create plugin info entity!" )
+
+			Hook.Add( "OnPluginLoad", PluginsEntity, function( Name )
+				if not PredictPlugins[ Name ] then return end
+
+				PluginsEntity[ Name ] = true
+			end )
+
+			Hook.Add( "OnPluginUnload", PluginsEntity, function( Name )
+				if not PredictPlugins[ Name ] then return end
+
+				PluginsEntity[ Name ] = false
+			end )
 		end )
 	end
-end
-
-Shared.LinkClassToMap( "ShinePluginsInfoEntity", ShinePluginsInfoEntity.kMapName, PredictPlugins )
-
-if Server then
-	Hook.CallAfterFileLoad( "lua/NS2Gamerules.lua", function()
-		-- Protect the plugin info entity from being destroyed whenever the gamerules resets the game world.
-		NS2Gamerules.resetProtectedEntities[ #NS2Gamerules.resetProtectedEntities + 1 ] = "ShinePluginsInfoEntity"
-	end )
-
-	-- Prediction VM can't receive network messages (despite having a hook function for them), so in order to sync
-	-- plugin state, an entity is required.
-	Hook.Add( "MapPostLoad", "ShinePluginsInfoEntity", function()
-		local PluginsEntity = Server.CreateEntity( ShinePluginsInfoEntity.kMapName )
-		assert( PluginsEntity, "Could not create plugin info entity!" )
-
-		Hook.Add( "OnPluginLoad", PluginsEntity, function( Name )
-			if not PredictPlugins[ Name ] then return end
-
-			PluginsEntity[ Name ] = true
-		end )
-
-		Hook.Add( "OnPluginUnload", PluginsEntity, function( Name )
-			if not PredictPlugins[ Name ] then return end
-
-			PluginsEntity[ Name ] = false
-		end )
-	end )
 end
 
 Shared.RegisterNetworkMessage( "Shine_PluginSync", ClientPlugins )
