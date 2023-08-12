@@ -50,9 +50,11 @@ end
 Shine.Hook.CallAfterFileLoad( "lua/GUIMinimap.lua", function()
 	Shine.Hook.SetupClassHook( "GUIMinimap", "Uninitialize", "OnGUIMinimapDestroy", "PassivePost" )
 	Shine.Hook.SetupClassHook( "GUIMinimap", "UpdatePlayerIcon", "OnGUIMinimapUpdatePlayerIcon", "PassivePost" )
+	Shine.Hook.SetupClassHook( "GUIMinimap", "ShowMap", "OnGUIMinimapShowMap", "PassivePost" )
 end )
 
 function Plugin:Initialise()
+	self:BroadcastModuleEvent( "Initialise" )
 	self.Minimaps = Shine.Set()
 	self:GenerateMinimapHighlightPipeline()
 	return true
@@ -133,11 +135,22 @@ function Plugin:GetLocationsForName( Name )
 			LocationsByName:Add( Location:GetName(), Location )
 		end
 
+		self.Logger:Debug(
+			"Found %d locations on map totalling %d trigger volumes.",
+			LocationsByName:GetKeyCount(),
+			LocationsByName:GetCount()
+		)
 		self.LocationIndex = LocationsByName
 	end
 
 	return self.LocationIndex:Get( Name )
 end
+
+local HighlightingState = {
+	PENDING = 1,
+	HIDDEN = 2,
+	VISIBLE = 3
+}
 
 function Plugin:SetupMinimap( Minimap )
 	if self.Minimaps:Contains( Minimap ) then return end
@@ -161,9 +174,14 @@ function Plugin:SetupMinimap( Minimap )
 		Minimap.HighlightItem:SetStencilFunc( GUIItem.Always )
 		Minimap.HighlightItem:SetIsVisible( false )
 		MinimapItem:AddChild( Minimap.HighlightItem )
+
+		Minimap.HighlightingState = HighlightingState.PENDING
 	end
 
 	Minimap.HighlightStencilBoxes = Minimap.HighlightStencilBoxes or {}
+	Minimap.HighlightInitTime = SGUI.GetTime()
+
+	self.Logger:Debug( "Initialised minimap highlighting for: %s", Minimap )
 
 	self.Minimaps:Add( Minimap )
 end
@@ -183,6 +201,7 @@ local function GetStencilBox( Minimap, Index )
 		Box:SetLayer( -100 )
 		Minimap.background:AddChild( Box )
 		Minimap.HighlightStencilBoxes[ Index ] = Box
+		Plugin.Logger:Trace( "Created new stencil box at index: %d", Index )
 	end
 	return Box
 end
@@ -221,7 +240,17 @@ local function OnRefreshComplete( HighlightViewTexture, Pipeline )
 		Minimap.HighlightStencilBoxes[ i ]:SetIsStencil( false )
 	end
 
+	Minimap.NumVisibleStencilBoxes = NumBoxes
+	Minimap.StencilBoxesVisible = true
+	Minimap.StencilBoxLocation = Minimap.StencilBoxParams.LocationName
 	Minimap.StencilBoxParams = nil
+	Minimap.HighlightingState = HighlightingState.VISIBLE
+
+	Plugin.Logger:Debug(
+		"Finished refreshing minimap highlight texture for location '%s' with %d location trigger(s).",
+		Minimap.StencilBoxLocation,
+		NumBoxes
+	)
 end
 
 local function OnMinimapHighlightRenderCompleted( OutputTexture, Pipeline )
@@ -229,6 +258,10 @@ local function OnMinimapHighlightRenderCompleted( OutputTexture, Pipeline )
 	Minimap.HighlightPipelineContext = nil
 
 	if not Minimap.HighlightItem then
+		Plugin.Logger:Debug(
+			"Discarding %s as it its minimap is no longer applicable for highlighting.",
+			OutputTexture
+		)
 		OutputTexture:Free()
 		return
 	end
@@ -246,13 +279,16 @@ function Plugin:RefreshMinimapHighlightTexture( Minimap, StencilBoxParams )
 
 	if Minimap.HighlightPipelineContext then
 		-- Not finished rendering for the first time, start again.
+		Plugin.Logger:Debug( "Restarting in-progress pipeline rendering context for: %s", Minimap )
 		Minimap.HighlightPipelineContext:Restart()
 	elseif Minimap.HighlightViewTexture then
 		-- Previously rendered, trigger a refresh of the texture.
+		Plugin.Logger:Debug( "Refreshing existing texture contents for: %s", Minimap )
 		Minimap.HighlightViewTexture:Refresh( OnRefreshComplete )
 	else
 		-- Not rendered yet, trigger the first render.
 		local Width, Height = SGUI.GetScreenSize()
+		Plugin.Logger:Debug( "Creating render pipeline for %s with size: %d, %d", Minimap, Width, Height )
 		Minimap.HighlightPipelineContext = RenderPipeline.Execute(
 			Minimap.HighlightPipeline,
 			Width,
@@ -264,8 +300,31 @@ end
 
 local function HideLocationBoxes( Minimap )
 	if not Minimap.HighlightItem then return end
+	if Minimap.HighlightingState == HighlightingState.HIDDEN then return end
+
+	Plugin.Logger:Debug( "Hiding minimap location highlighting for: %s", Minimap )
 
 	Minimap.HighlightItem:SetIsVisible( false )
+
+	if Minimap.StencilBoxesVisible then
+		for i = 1, #Minimap.HighlightStencilBoxes do
+			local Box = Minimap.HighlightStencilBoxes[ i ]
+			Box:SetIsVisible( false )
+			Box:SetIsStencil( false )
+		end
+		Minimap.StencilBoxesVisible = false
+	end
+
+	Minimap.minimap:SetStencilFunc( Minimap.stencilFunc or GUIItem.Always )
+	Minimap.HighlightingState = HighlightingState.HIDDEN
+end
+
+function Plugin:OnGUIMinimapShowMap( Minimap )
+	if not Minimap.background:GetIsVisible() then
+		-- Hide the location boxes when the minimap is closed to prevent a few frames of an old location showing if the
+		-- minimap is re-opened at a different location later.
+		HideLocationBoxes( Minimap )
+	end
 end
 
 local HostileColour = Colour( 1, 0, 0 )
@@ -283,15 +342,26 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 	-- Set up the location item and GUIView just-in-time to ensure they're only created for relevant minimaps.
 	self:SetupMinimap( Minimap )
 
+	local TextureHasRendered = not not Minimap.HighlightViewTexture
 	local Pos = Minimap.minimap:GetScreenPosition( SGUI.GetScreenSize() )
 	local MinimapSize = Minimap.minimap:GetSize()
 	Minimap.HighlightItem:SetSize( MinimapSize )
 	Minimap.HighlightItem:SetTexturePixelCoordinates( Pos.x, Pos.y, Pos.x + MinimapSize.x, Pos.y + MinimapSize.y )
-	Minimap.HighlightItem:SetIsVisible( not not Minimap.HighlightViewTexture )
+	Minimap.HighlightItem:SetIsVisible( TextureHasRendered and Minimap.HighlightingState ~= HighlightingState.HIDDEN )
+	-- Cut out the highlight item from the minimap, as the highlight item contains the minimap plus the highlight glow
+	-- (equal means everything except the stencil, somewhat backwards).
+	Minimap.minimap:SetStencilFunc( GUIItem.Equal )
 
 	local TeamNumber = PlayerUI_GetTeamNumber()
 	local IsMarine = TeamNumber == kMarineTeamType
 	local IsAlien = TeamNumber == kAlienTeamType
+
+	-- This is a bad hack, but the alien team won't load the minimap texture until the minimap is first opened, at which
+	-- point the texture streaming system can take a moment to load it. If the highlight view is triggered before the
+	-- texture is loaded, it can render either a blank texture, or only the minimap with no highlight. By delaying the
+	-- first render, the texture is given enough time to load. Unfortunately there's no way to interact with the texture
+	-- stream system to determine if the texture has loaded, so this a best guess at a conservative loading time.
+	if IsAlien and SGUI.GetTime() - Minimap.HighlightInitTime < 0.5 then return end
 
 	-- If the location has changed, the minimap needs updating.
 	local NeedsUpdate = false
@@ -312,7 +382,21 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 		Minimap.LastPowered = nil
 	end
 
-	if not NeedsUpdate then return end
+	if not NeedsUpdate then
+		if Minimap.StencilBoxesVisible == false and Minimap.StencilBoxLocation == LocationName then
+			for i = 1, Minimap.NumVisibleStencilBoxes do
+				local Box = Minimap.HighlightStencilBoxes[ i ]
+				Box:SetIsVisible( true )
+				Box:SetIsStencil( true )
+			end
+			Minimap.StencilBoxesVisible = true
+			Minimap.HighlightingState = HighlightingState.VISIBLE
+			Minimap.HighlightItem:SetIsVisible( TextureHasRendered )
+			self.Logger:Debug( "Restored minimap highlighting at location '%s' for: %s", LocationName, Minimap )
+		end
+
+		return
+	end
 
 	local BackgroundColour
 	if IsMarine then
@@ -362,7 +446,16 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 	BlendNodeInput[ 7 ] = Input( "BackgroundTexture", RenderPipeline.TextureInput )
 
 	local Count = 7
-	local StencilBoxParams = {}
+	local StencilBoxParams = {
+		LocationName = LocationName
+	}
+
+	self.Logger:Debug(
+		"Minimap highlighting needs updating to render location '%s' with %d boxes for: %s",
+		LocationName,
+		NumLocations,
+		Minimap
+	)
 
 	for i = 1, NumLocations do
 		local Location = Locations[ i ]
@@ -408,10 +501,6 @@ function Plugin:OnGUIMinimapUpdatePlayerIcon( Minimap )
 		}
 	end
 
-	-- Cut out the highlight item from the minimap, as the highlight item contains the minimap plus the highlight glow
-	-- (equal means everything except the stencil, somewhat backwards).
-	Minimap.minimap:SetStencilFunc( GUIItem.Equal )
-
 	self:RefreshMinimapHighlightTexture( Minimap, StencilBoxParams )
 end
 
@@ -428,6 +517,9 @@ function Plugin:Cleanup()
 				Minimap.HighlightStencilBoxes[ i ] = nil
 			end
 			Minimap.HighlightStencilBoxes = nil
+			Minimap.NumVisibleStencilBoxes = nil
+			Minimap.StencilBoxesVisible = nil
+			Minimap.StencilBoxLocation = nil
 		end
 
 		DestroyHighlightPipeline( Minimap )
@@ -436,6 +528,8 @@ function Plugin:Cleanup()
 
 		Minimap.LastLocationName = nil
 		Minimap.LastPowered = nil
+		Minimap.HighlightInitTime = nil
+		Minimap.HighlightingState = nil
 	end
 
 	self.Minimaps = nil
@@ -443,6 +537,8 @@ function Plugin:Cleanup()
 
 	return self.BaseClass.Cleanup( self )
 end
+
+Shine.LoadPluginModule( "logger.lua", Plugin )
 
 Plugin.ConfigGroup = {
 	Icon = Shine.GUI.Icons.Ionicons.Wrench
