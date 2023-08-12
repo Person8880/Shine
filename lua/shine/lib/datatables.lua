@@ -358,7 +358,7 @@ function Shine:CreateDataTable( Name, Values, Defaults, Access, Predicted )
 				local LastSeenState = {}
 				for i = 1, #Keys do
 					local Key = Keys[ i ]
-					LastSeenState[ Key ] = self[ Key ]
+					LastSeenState[ Key ] = Data[ Key ]
 				end
 
 				-- Prediction VM can only "think" in OnProcessMove and doesn't fire field watcher callbacks...
