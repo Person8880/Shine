@@ -110,18 +110,15 @@ if Server then
 		local FieldType = rawget( self, "__Values" )[ Key ]
 		if not FieldType then return end
 
-		local Cached = RealData[ self ][ Key ]
-		if Cached == Value then return end
-
 		local CoercedValue = TypeCheck( FieldType, Value )
 		if CoercedValue == nil then
 			error( StringFormat( "Invalid value provided for datatable field %s (expected %s, got %s)",
 				Key, FieldType, type( Value ) ), 2 )
+		elseif CoercedValue ~= RealData[ self ][ Key ] then
+			RealData[ self ][ Key ] = CoercedValue
+
+			self:__SendChange( Key, CoercedValue )
 		end
-
-		RealData[ self ][ Key ] = CoercedValue
-
-		self:__SendChange( Key, CoercedValue )
 	end
 
 	function DataTableMeta:__SendChange( Key, Value )
