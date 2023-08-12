@@ -2,8 +2,6 @@
 	Shine entry system startup file.
 ]]
 
-if Predict then return end
-
 local Trace = debug.traceback()
 
 if Trace:find( "Main.lua" ) or Trace:find( "Loading.lua" ) then return end
@@ -68,6 +66,8 @@ if Server then
 	InitScript = "lua/shine/init.lua"
 elseif Client then
 	InitScript = "lua/shine/cl_init.lua"
+elseif Predict then
+	InitScript = "lua/shine/predict_init.lua"
 end
 
 -- Load core scripts upfront to allow hooking into network messages and other such
@@ -85,5 +85,10 @@ Shine.LoadScripts( {
 	"core/shared/hook.lua"
 } )
 
--- This function is totally not inspired by Shine's hook system :P
-ModLoader.SetupFileHook( "lua/ConfigFileUtility.lua", InitScript, "pre" )
+if Predict then
+	-- In the prediction VM, everything needed is already loaded at this point, so can immediately load the init script.
+	Script.Load( InitScript )
+else
+	-- This function is totally not inspired by Shine's hook system :P
+	ModLoader.SetupFileHook( "lua/ConfigFileUtility.lua", InitScript, "pre" )
+end

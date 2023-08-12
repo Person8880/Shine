@@ -25,15 +25,26 @@ end
 local ConfigModule = {}
 
 local ClientConfigPath = "config://shine/cl_plugins/"
+local GetConfigurationPath
+
+if Server then
+	GetConfigurationPath = function( self )
+		return Shine.Config.ExtensionDir..self.ConfigName
+	end
+else
+	-- Note: both client and predict VMs share the same configuration folder, as predicted plugins ought to be using
+	-- the same client-side configuration in both VMs.
+	GetConfigurationPath = function( self )
+		return ClientConfigPath..self.ConfigName
+	end
+end
 
 function ConfigModule:GenerateDefaultConfig( Save )
 	self.Config = self.DefaultConfig
 	self.Config.__Version = self.Version or "1.0"
 
-	if Save then
-		local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
-			or ClientConfigPath..self.ConfigName
-
+	if Save and not Predict then
+		local Path = GetConfigurationPath( self )
 		local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
 		if not Success then
@@ -47,8 +58,17 @@ function ConfigModule:GenerateDefaultConfig( Save )
 end
 
 function ConfigModule:SaveConfig( Silent )
-	local Path = Server and ( rawget( self, "__ConfigPath" )
-		or Shine.Config.ExtensionDir..self.ConfigName ) or ClientConfigPath..self.ConfigName
+	if Predict then
+		Print( "[Warn] Ignoring request to save configuration for %s in prediction VM!", self.__Name )
+		return
+	end
+
+	local Path
+	if Server then
+		Path = rawget( self, "__ConfigPath" ) or GetConfigurationPath( self )
+	else
+		Path = GetConfigurationPath( self )
+	end
 
 	local Success, Err = Shine.SaveJSONFile( self.Config, Path )
 
@@ -64,8 +84,7 @@ end
 
 function ConfigModule:LoadConfig()
 	local PluginConfig
-	local Path = Server and Shine.Config.ExtensionDir..self.ConfigName
-		or ClientConfigPath..self.ConfigName
+	local Path = GetConfigurationPath( self )
 
 	local ErrorMessage
 	local ErrorPosition
@@ -171,7 +190,7 @@ function ConfigModule:LoadConfig()
 
 	self.Config = PluginConfig
 
-	if self:ValidateConfigAfterLoad() then
+	if self:ValidateConfigAfterLoad() and not Predict then
 		self:SaveConfig()
 	end
 end

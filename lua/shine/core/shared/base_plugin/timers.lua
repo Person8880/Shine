@@ -2,6 +2,8 @@
 	Timer module.
 ]]
 
+if Predict then return end
+
 local pairs = pairs
 local rawget = rawget
 local setmetatable = setmetatable

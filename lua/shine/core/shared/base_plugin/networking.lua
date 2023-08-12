@@ -43,8 +43,13 @@ end
 function NetworkingModule:InitDataTable( Name )
 	if not self.DTVars then return end
 
-	self.dt = Shine:CreateDataTable( "Shine_DT_"..Name, self.DTVars.Keys,
-		self.DTVars.Defaults, self.DTVars.Access )
+	self.dt = Shine:CreateDataTable(
+		"Shine_DT_"..Name,
+		self.DTVars.Keys,
+		self.DTVars.Defaults,
+		self.DTVars.Access,
+		self.IsPredicted
+	)
 
 	if self.NetworkUpdate then
 		self.dt:__SetChangeCallback( self, self:WrapCallback( self.NetworkUpdate ) )
@@ -71,6 +76,9 @@ do
 		Call this function inside shared.lua -> Plugin:SetupDataTable().
 	]]
 	function NetworkingModule:AddNetworkMessage( Name, Params, Receiver )
+		-- Prediction VM should only register messages intended for it to handle.
+		if Predict and Receiver ~= "Predict" and Receiver ~= "Client+Predict" then return end
+
 		self.__NetworkMessages = rawget( self, "__NetworkMessages" ) or {}
 
 		Shine.Assert( not self.__NetworkMessages[ Name ],
@@ -98,8 +106,12 @@ do
 			Server.HookNetworkMessage( MessageName, function( Client, Data )
 				xpcall( CallReceiver, NetworkReceiveError, self, Client, Data )
 			end )
-		elseif Receiver == "Client" and Client then
+		elseif Client and ( Receiver == "Client" or Receiver == "Client+Predict" ) then
 			Client.HookNetworkMessage( MessageName, function( Data )
+				xpcall( CallReceiver, NetworkReceiveError, self, Data )
+			end )
+		elseif Predict and ( Receiver == "Predict" or Receiver == "Client+Predict" ) then
+			Predict.HookNetworkMessage( MessageName, function( Data )
 				xpcall( CallReceiver, NetworkReceiveError, self, Data )
 			end )
 		end
@@ -275,7 +287,7 @@ if Server then
 	function NetworkingModule:SendTranslatedCommandError( Target, Name, Params )
 		Shine:SendTranslatedCommandError( Target, Name, Params, self.__Name )
 	end
-else
+elseif Client then
 	function NetworkingModule:SendNetworkMessage( Name, Data, Reliable )
 		local MessageName = self.__NetworkMessages[ Name ]
 		if not MessageName then
@@ -284,6 +296,18 @@ else
 		end
 
 		Shine.SendNetworkMessage( MessageName, Data, Reliable )
+	end
+else
+	-- Prediction VM can't send network messages, it can only receive them.
+	function NetworkingModule:SendNetworkMessage( Name )
+		error(
+			StringFormat(
+				"Attempted to send network message '%s' for plugin '%s' from prediction VM!",
+				Name,
+				self.__Name
+			),
+			2
+		)
 	end
 end
 

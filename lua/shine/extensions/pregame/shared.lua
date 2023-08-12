@@ -13,7 +13,14 @@ Plugin.EnabledGamemodes = {
 
 Plugin.ScreenTextID = 2
 
+function Plugin:OnFirstThink()
+	Shine.Hook.SetupClassHook( "Player", "GetCanAttack", "CheckPlayerCanAttack", "ActivePre" )
+end
+
 function Plugin:SetupDataTable()
+	-- Default to true to avoid breaking attacks for everyone...
+	self:AddDTVar( "boolean", "AllowAttack", true )
+
 	self:AddNetworkMessage( "StartDelay", { StartTime = "integer" }, "Client" )
 
 	local MessageTypes = {
@@ -50,6 +57,11 @@ function Plugin:SetupDataTable()
 			"WaitingForMinPlayers"
 		}
 	} )
+end
+
+function Plugin:CheckPlayerCanAttack()
+	-- This is applied on both the client and prediction VMs (server handles this separately).
+	if not self.dt.AllowAttack then return false end
 end
 
 return Plugin

@@ -362,6 +362,12 @@ do
 	local tonumber = tonumber
 	local unpack = unpack
 
+	local Print = Print
+	if Predict then
+		-- Suppress output from the prediction VM to avoid double-printing.
+		Print = function() end
+	end
+
 	local ValidationContext = Shine.TypeDef()
 	function ValidationContext:Init( MessagePrefix, Config )
 		self.Path = {}

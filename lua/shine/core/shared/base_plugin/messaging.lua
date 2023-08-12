@@ -2,6 +2,8 @@
 	Messaging module.
 ]]
 
+if Predict then return end
+
 local ChatAPI = require "shine/core/shared/chat/chat_api"
 
 local Shine = Shine
