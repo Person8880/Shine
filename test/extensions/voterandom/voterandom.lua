@@ -1553,9 +1553,17 @@ end
 
 -- Turn off happiness optimisation for integration tests.
 VoteShuffle.OptimiseHappiness = function() end
+VoteShuffle.HappinessHistory = {}
 
+local SteamID = 0
 local function PlayerWithSkill( Skill, Commander )
+	SteamID = SteamID + 1
+	local Client = UnitTest.MakeMockClient( SteamID )
 	return {
+		__SteamID = SteamID,
+		GetClient = function()
+			return Client
+		end,
 		Skill = Skill,
 		isa = function() return Commander end,
 		Commander = Commander
@@ -1564,6 +1572,10 @@ end
 local function RankPlayerWithSkill( Player )
 	return Player.Skill
 end
+
+UnitTest:Before( function()
+	SteamID = 0
+end )
 
 UnitTest:Test( "OptimiseTeams", function( Assert )
 	local TeamMembers = {
@@ -1699,8 +1711,8 @@ UnitTest:Test( "OptimiseTeams with preference", function( Assert )
 			Players[ 4 ], Players[ 5 ], Players[ 6 ]
 		},
 		TeamPreferences = {
-			[ 4 ] = true,
-			[ 5 ] = true
+			[ 4 ] = 2,
+			[ 5 ] = 2
 		}
 	}
 
@@ -1724,6 +1736,74 @@ UnitTest:Test( "OptimiseTeams with preference", function( Assert )
 	Assert:ArrayContainsExactly( { Players[ 4 ], Players[ 5 ], Players[ 2 ] }, TeamMembers[ 2 ] )
 end, nil, 5 )
 
+VoteShuffle.HappinessHistory = {
+	{
+		[ "1" ] = false
+	},
+	{
+		[ "1" ] = false,
+		[ "2" ] = false
+	},
+	{
+		[ "4" ] = true
+	}
+}
+
+UnitTest:Test( "OptimiseTeams with weighted preference", function( Assert )
+	SteamID = 0
+
+	local Players = {
+		PlayerWithSkill( 2000 ), PlayerWithSkill( 2000 ), PlayerWithSkill( 1000 ),
+		PlayerWithSkill( 2000 ), PlayerWithSkill( 2000 ), PlayerWithSkill( 1000 )
+	}
+	local TeamMembers = {
+		{
+			Players[ 1 ], Players[ 2 ], Players[ 3 ]
+		},
+		{
+			Players[ 4 ], Players[ 5 ], Players[ 6 ]
+		},
+		TeamPreferences = {
+			-- Unsatisfiable preferences, only two players can be swapped out of the four that want to.
+			[ Players[ 1 ] ] = 2,
+			[ Players[ 2 ] ] = 2,
+			[ Players[ 4 ] ] = 2,
+			[ Players[ 5 ] ] = 2
+		}
+	}
+
+	local TeamSkills = {
+		{
+			Average = 5000 / 3,
+			Total = 5000,
+			Count = 3
+		},
+		{
+			Average = 5000 / 3,
+			Total = 5000,
+			Count = 3
+		}
+	}
+
+	VoteShuffle:OptimiseTeams( TeamMembers, RankPlayerWithSkill, TeamSkills )
+
+	-- It should always move players 1 and 2 to team 2, as they have the highest preference weightings.
+	Assert:Contains( TeamMembers[ 2 ], Players[ 1 ] )
+	Assert:Contains( TeamMembers[ 2 ], Players[ 2 ] )
+
+	Assert:Equals( 3, #TeamMembers[ 1 ] )
+	Assert:Equals( 3, #TeamMembers[ 2 ] )
+
+	for i = 1, 3 do
+		local Player = TeamMembers[ 2 ][ i ]
+		if Player ~= Players[ 1 ] and Player ~= Players[ 2 ] then
+			Assert:Equals( 1000, Player.Skill )
+			break
+		end
+	end
+end, nil, 5 )
+
+VoteShuffle.HappinessHistory = {}
 VoteShuffle.Config.IgnoreCommanders = true
 
 UnitTest:Test( "OptimiseTeams with commanders", function( Assert )
