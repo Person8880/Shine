@@ -12,12 +12,15 @@ local Max = math.max
 local Min = math.min
 local next = next
 local pairs = pairs
+local Random = math.random
 local SharedTime = Shared.GetTime
 local StringFormat = string.format
 local StringStartsWith = string.StartsWith
 local StringUpper = string.upper
 local TableAsSet = table.AsSet
 local TableConcat = table.concat
+local TableQuickCopy = table.QuickCopy
+local TableRemove = table.remove
 local tonumber = tonumber
 
 local Plugin = ...
@@ -937,17 +940,47 @@ function Plugin:RemoveLastMaps( PotentialMaps, FinalChoices )
 	end
 end
 
+local function LogMapGroupChoices( Logger, GroupName, Maps )
+	Logger:Debug( "Selected %d map(s) from group '%s': %s", #Maps, GroupName, TableConcat( Maps, ", " ) )
+end
+
 function Plugin:BuildPotentialMapChoices()
 	local PotentialMaps = Shine.Set( self.Config.Maps )
-	local MapGroup = self:GetMapGroup()
 	local PlayerCount = GetNumPlayers()
 
-	-- If we have a map group, then get rid of any maps that aren't in the group.
-	if MapGroup then
-		local GroupMaps = TableAsSet( MapGroup.maps )
-		PotentialMaps:Intersection( GroupMaps )
+	if self.Config.GroupCycleMode == self.GroupCycleMode.WEIGHTED_CHOICE and self.MapGroups then
+		local GroupChoices = Shine.Set()
+		for i = 1, #self.MapGroups do
+			local Group = self.MapGroups[ i ]
+			-- If no weighting is specified, assume the group should be fully represented in every vote.
+			local Weighting = tonumber( Group.select ) or #Group.maps
 
-		self.LastMapGroup = MapGroup
+			-- Remove maps randomly from the group until the weighting is satisfied.
+			local Maps = TableQuickCopy( Group.maps )
+			while #Maps > Weighting do
+				local Index = Random( 1, #Maps )
+				TableRemove( Maps, Index )
+			end
+
+			self.Logger:IfDebugEnabled( LogMapGroupChoices, Group.name, Maps )
+
+			GroupChoices:AddAll( Maps )
+		end
+
+		if GroupChoices:GetCount() > 0 then
+			-- Cut down the maps to those selected from the groups.
+			PotentialMaps:Intersection( GroupChoices )
+		end
+	else
+		local MapGroup = self:GetMapGroup()
+
+		-- If we have a map group, then get rid of any maps that aren't in the group.
+		if MapGroup then
+			local GroupMaps = TableAsSet( MapGroup.maps )
+			PotentialMaps:Intersection( GroupMaps )
+
+			self.LastMapGroup = MapGroup
+		end
 	end
 
 	-- We then look in the nominations, and enter those into the list.

@@ -2,7 +2,7 @@
 	Defines a simple set.
 ]]
 
-local getmetatable = getmetatable
+local Implements = Shine.Implements
 local TableAsSet = table.AsSet
 local TableEmpty = table.Empty
 local TableGetKeys = table.GetKeys
@@ -18,7 +18,7 @@ function Set.FromList( List )
 end
 
 function Set:Init( Lookup )
-	if getmetatable( Lookup ) == Set then
+	if Implements( Lookup, Set ) then
 		self.List = TableQuickCopy( Lookup.List )
 		self.Lookup = TableShallowCopy( Lookup.Lookup )
 	else
@@ -68,7 +68,7 @@ do
 		values to be kept.
 	]]
 	function Set:Intersection( Lookup )
-		if getmetatable( Lookup ) == Set then
+		if Implements( Lookup, Set ) then
 			Lookup = Lookup.Lookup
 		end
 

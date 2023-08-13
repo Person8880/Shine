@@ -210,12 +210,20 @@ UnitTest:Test( "SetupMaps - Adds all valid maps from the map cycle when GetMapsF
 			{ map = "ns2_biodome" },
 			{}
 		},
-		groups = {}
+		groups = {
+			{ name = "Test Group 1", maps = { "ns2_derelict", "ns2_tram", 123 }, select = 2 },
+			"not a table",
+			{ name = 123, maps = {} },
+			{ name = "Test Group 2", maps = "not a table" },
+			{ name = "Test Group 3", maps = { true, false, 123, {} } }
+		}
 	}
 
 	MapVote:SetupMaps( Cycle )
 
-	Assert.Equals( "Should take the map groups from the cycle", Cycle.groups, MapVote.MapGroups )
+	Assert.DeepEquals( "Should take the map groups from the cycle, filtering out invalid groups", {
+		{ name = "Test Group 1", maps = { "ns2_derelict", "ns2_tram" }, select = 2 }
+	}, MapVote.MapGroups )
 
 	Assert.DeepEquals( "Should have copied all valid maps into Config.Maps", {
 		ns2_derelict = true,
@@ -1171,12 +1179,57 @@ end
 
 MapVote.Vote.Nominated = { "ns2_eclipse" }
 
-UnitTest:Test( "BuildPotentialMapChoices - Map group", function( Assert )
+UnitTest:Test( "BuildPotentialMapChoices - Map group in sequential mode", function( Assert )
 	-- Should select everything in the map group, plus the nomination.
 	Assert:Equals( Shine.Set( {
 		ns2_tram = true,
 		ns2_veil = true,
 		ns2_summit = true,
+		ns2_eclipse = true
+	} ), MapVote:BuildPotentialMapChoices() )
+end )
+
+MapVote.Config.GroupCycleMode = MapVote.GroupCycleMode.WEIGHTED_CHOICE
+MapVote.MapGroups = {
+	{
+		name = "Test Group 1",
+		maps = { "ns2_tram", "ns2_veil" }
+	},
+	{
+		name = "Test Group 2",
+		maps = { "ns2_summit" },
+		select = 1
+	},
+	{
+		name = "Empty Group",
+		maps = { "ns2_kodiak", "ns2_descent" },
+		-- This is unusual, but not invalid (and helps exercise the remvoal logic).
+		select = 0
+	}
+}
+
+UnitTest:Test( "BuildPotentialMapChoices - Map groups in weighted choice mode", function( Assert )
+	-- Should select everything in the map groups, plus the nomination.
+	Assert:Equals( Shine.Set( {
+		ns2_tram = true,
+		ns2_veil = true,
+		ns2_summit = true,
+		ns2_eclipse = true
+	} ), MapVote:BuildPotentialMapChoices() )
+end )
+
+MapVote.MapGroups = {}
+
+UnitTest:Test( "BuildPotentialMapChoices - Map groups in weighted choice mode with no groups defined", function( Assert )
+	-- Should select everything except refinery and including eclipse.
+	Assert:Equals( Shine.Set( {
+		ns2_tram = true,
+		ns2_derelict = true,
+		ns2_veil = true,
+		ns2_summit = true,
+		ns2_kodiak = true,
+		ns2_descent = true,
+		ns2_biodome = true,
 		ns2_eclipse = true
 	} ), MapVote:BuildPotentialMapChoices() )
 end )

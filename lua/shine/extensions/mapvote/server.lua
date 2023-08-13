@@ -19,7 +19,7 @@ local tonumber = tonumber
 local xpcall = xpcall
 
 local Plugin, PluginName = ...
-Plugin.Version = "1.13"
+Plugin.Version = "1.14"
 
 Plugin.HasConfig = true
 Plugin.ConfigName = "MapVote.json"
@@ -32,6 +32,9 @@ Plugin.MaxNominationsType = table.AsEnum{
 }
 Plugin.MaxOptionsExceededAction = table.AsEnum{
 	"ADD_MAP", "REPLACE_MAP", "SKIP"
+}
+Plugin.GroupCycleMode = table.AsEnum{
+	"SEQUENTIAL", "WEIGHTED_CHOICE"
 }
 
 Plugin.DefaultConfig = {
@@ -51,6 +54,10 @@ Plugin.DefaultConfig = {
 	ForcedMaps = {}, -- Maps that must always be in the vote list.
 	DontExtend = {}, -- Maps that should never have an extension option.
 	IgnoreAutoCycle = {}, -- Maps that should not be cycled to unless voted for.
+	-- How to cycle through groups.
+	-- SEQUENTIAL means groups will advance as a sequence, with each map change advancing to the next group in the list.
+	-- WEIGHTED_CHOICE will select maps from each group based on its configured weighting.
+	GroupCycleMode = Plugin.GroupCycleMode.SEQUENTIAL,
 
 	Constraints = {
 		StartVote = {
@@ -283,6 +290,11 @@ Plugin.ConfigMigrationSteps = {
 		VersionTo = "1.13",
 		Apply = Shine.Migrator()
 			:AddField( { "VoteSettings", "ConsiderSpectatorsDuringActiveRound" }, true )
+	},
+	{
+		VersionTo = "1.14",
+		Apply = Shine.Migrator()
+			:AddField( "GroupCycleMode", Plugin.GroupCycleMode.SEQUENTIAL )
 	}
 }
 
@@ -307,6 +319,10 @@ do
 	local StringUpper = string.upper
 
 	local Validator = Shine.Validator()
+	Validator:AddFieldRule(
+		"GroupCycleMode",
+		Validator.InEnum( Plugin.GroupCycleMode, Plugin.DefaultConfig.GroupCycleMode )
+	)
 	Validator:AddFieldRule( "ForceChangeWhenSecondsLeft", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "RoundLimit", Validator.Min( 0 ) )
 	Validator:AddFieldRule( "ChangeDelayInSeconds", Validator.Min( 0 ) )
